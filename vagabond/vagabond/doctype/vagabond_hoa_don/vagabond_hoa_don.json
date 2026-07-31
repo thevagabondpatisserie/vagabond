@@ -1,0 +1,95 @@
+{
+ "actions": [],
+ "autoname": "format:HD-{ma_don}",
+ "creation": "2026-07-31 07:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_don",
+  "ma_so_thue",
+  "ten_cong_ty",
+  "cb1",
+  "email",
+  "tinh_trang",
+  "dia_chi"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_don",
+   "fieldtype": "Data",
+   "label": "Ma don Pancake",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ma_so_thue",
+   "fieldtype": "Data",
+   "label": "Ma so thue",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_cong_ty",
+   "fieldtype": "Data",
+   "label": "Ten cong ty",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email nhan hoa don",
+   "options": "Email"
+  },
+  {
+   "fieldname": "tinh_trang",
+   "fieldtype": "Select",
+   "label": "Tinh trang",
+   "options": "Chua xuat\nDa xuat\nHuy",
+   "default": "Chua xuat",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "dia_chi",
+   "fieldtype": "Small Text",
+   "label": "Dia chi cong ty"
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-31 07:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Hoa Don",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
