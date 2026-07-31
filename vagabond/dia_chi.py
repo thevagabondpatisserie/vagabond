@@ -32,17 +32,26 @@ def goi_y_dia_chi(q=None):
 		return json.loads(hit)
 
 	c = cfg()
-	r = requests.get(
-		GOONG + "/Place/AutoComplete",
-		params={
-			"input": q,
-			"location": "%s,%s" % (c.kitchen_lat, c.kitchen_lng),
-			"radius": c.suggest_radius_km or 30,
-			"api_key": key(c, "goong_api_key"),
-		},
-		timeout=TIMEOUT,
-	)
-	r.raise_for_status()
+	k = key(c, "goong_api_key")
+	if not k:
+		return {"suggestions": [], "ly_do": "chua_dien_khoa_goong"}
+
+	try:
+		r = requests.get(
+			GOONG + "/Place/AutoComplete",
+			params={
+				"input": q,
+				"location": "%s,%s" % (c.kitchen_lat, c.kitchen_lng),
+				"radius": c.suggest_radius_km or 30,
+				"api_key": k,
+			},
+			timeout=TIMEOUT,
+		)
+		r.raise_for_status()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: Goong AutoComplete loi")
+		return {"suggestions": [], "ly_do": "goong_loi"}
+
 	preds = (r.json() or {}).get("predictions") or []
 	out = {
 		"suggestions": [
@@ -66,12 +75,21 @@ def chi_tiet_dia_chi(place_id=None):
 		return json.loads(hit)
 
 	c = cfg()
-	r = requests.get(
-		GOONG + "/Place/Detail",
-		params={"place_id": place_id, "api_key": key(c, "goong_api_key")},
-		timeout=TIMEOUT,
-	)
-	r.raise_for_status()
+	k = key(c, "goong_api_key")
+	if not k:
+		return {"dia_chi": None, "lat": None, "lng": None, "ly_do": "chua_dien_khoa_goong"}
+
+	try:
+		r = requests.get(
+			GOONG + "/Place/Detail",
+			params={"place_id": place_id, "api_key": k},
+			timeout=TIMEOUT,
+		)
+		r.raise_for_status()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: Goong Place Detail loi")
+		return {"dia_chi": None, "lat": None, "lng": None, "ly_do": "goong_loi"}
+
 	res = (r.json() or {}).get("result") or {}
 	loc = (res.get("geometry") or {}).get("location") or {}
 	out = {"dia_chi": res.get("formatted_address"), "lat": loc.get("lat"), "lng": loc.get("lng")}
@@ -86,12 +104,21 @@ def geocode(c, addr):
 	if hit:
 		return json.loads(hit)
 
-	r = requests.get(
-		GOONG + "/geocode",
-		params={"address": addr, "api_key": key(c, "goong_api_key")},
-		timeout=TIMEOUT,
-	)
-	r.raise_for_status()
+	k = key(c, "goong_api_key")
+	if not k:
+		return None
+
+	try:
+		r = requests.get(
+			GOONG + "/geocode",
+			params={"address": addr, "api_key": k},
+			timeout=TIMEOUT,
+		)
+		r.raise_for_status()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: Goong geocode loi")
+		return None
+
 	res = (r.json() or {}).get("results") or []
 	if not res:
 		return None
