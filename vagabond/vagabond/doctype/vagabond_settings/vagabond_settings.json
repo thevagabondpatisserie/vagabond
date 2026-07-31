@@ -11,6 +11,10 @@
   "kitchen_lat",
   "kitchen_lng",
   "kitchen_address",
+  "store_lat",
+  "store_lng",
+  "store_address",
+  "ban_kinh_giao_km",
   "sec_aha",
   "ahamove_api_key",
   "ahamove_mobile",
@@ -62,6 +66,31 @@
    "fieldname": "kitchen_address",
    "fieldtype": "Small Text",
    "label": "Dia chi bep"
+  },
+  {
+   "fieldname": "store_lat",
+   "fieldtype": "Float",
+   "label": "Vi do cua hang",
+   "precision": "6"
+  },
+  {
+   "fieldname": "store_lng",
+   "fieldtype": "Float",
+   "label": "Kinh do cua hang",
+   "precision": "6"
+  },
+  {
+   "fieldname": "store_address",
+   "fieldtype": "Small Text",
+   "label": "Dia chi cua hang"
+  },
+  {
+   "fieldname": "ban_kinh_giao_km",
+   "fieldtype": "Float",
+   "label": "Ban kinh giao (km)",
+   "precision": "1",
+   "default": "12",
+   "description": "Duong chim bay tu diem lay gan khach nhat. Xa hon thi bao khong giao toi."
   },
   {
    "fieldname": "sec_aha",
@@ -132,7 +161,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-07-31 09:30:00.000000",
+ "modified": "2026-07-31 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
