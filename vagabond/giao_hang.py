@@ -42,6 +42,9 @@ def phi_giao(addr=None, lat=None, lng=None):
 	TUYET DOI khong doan mot con so: con so sai lam mat uy tin hon la khong co so.
 	"""
 	c = cfg()
+	if not key(c, "ahamove_api_key") or not c.ahamove_base or not c.ahamove_mobile:
+		return {"ok": 0, "ly_do": "chua_dien_khoa_ahamove"}
+
 	if lat and lng:
 		diem = {"lat": float(lat), "lng": float(lng), "dia_chi": addr or ""}
 	elif addr:
@@ -80,12 +83,17 @@ def phi_giao(addr=None, lat=None, lng=None):
 		"services": [{"_id": c.ma_dich_vu, "requests": reqs}],
 		"payment_method": "BALANCE",
 	}
-	r = requests.post(
-		(c.ahamove_base or "").rstrip("/") + "/v3/orders/estimates",
-		json=body,
-		headers={"Authorization": "Bearer " + _token(c)},
-		timeout=TIMEOUT,
-	)
+	try:
+		r = requests.post(
+			(c.ahamove_base or "").rstrip("/") + "/v3/orders/estimates",
+			json=body,
+			headers={"Authorization": "Bearer " + _token(c)},
+			timeout=TIMEOUT,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: Ahamove khong goi duoc")
+		return {"ok": 0, "ly_do": "ahamove_loi"}
+
 	if r.status_code != 200:
 		frappe.log_error(r.text[:500], "Vagabond: Ahamove tu choi")
 		return {"ok": 0, "ly_do": "ahamove_loi"}
