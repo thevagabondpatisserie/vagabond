@@ -21,7 +21,7 @@ import requests
 from frappe.rate_limiter import rate_limit
 
 from vagabond.giao_hang import phi_giao
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
+from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
 MAX_DONG = 30
 MAX_SL = 20
@@ -44,6 +44,43 @@ def _lam_sach_hang(items):
 			continue
 		gom[ma] = min(gom.get(ma, 0) + sl, MAX_SL)
 	return [{"variation_id": ma, "quantity": sl} for ma, sl in gom.items()]
+
+
+_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def _uuid_tu_ma(c, k, ma):
+	"""Doi ma hang nguoi doc duoc (BAWC00139) thanh variation_id UUID.
+
+	Trang dat banh dung ma in tren tem cho de doi chieu, nhung Pancake chi
+	nhan UUID. Gui ma thang vao tao don thi Pancake tra "Server internal
+	error" - da dinh that ngay 31/07, khach bam gui la hong ca don.
+	"""
+	ma = str(ma or "").strip()
+	if _UUID.match(ma.lower()):
+		return ma
+	ck = "vgb:vid:" + ma
+	hit = cache_get(ck)
+	if hit:
+		return hit
+	try:
+		r = requests.get(
+			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k, "search": ma, "page_size": 5},
+			timeout=TIMEOUT,
+		)
+	except Exception:
+		frappe.log_error(title="Vagabond: khong tra duoc ma hang", message=frappe.get_traceback())
+		return None
+	if r.status_code != 200:
+		return None
+	for v in (r.json() or {}).get("data") or []:
+		if str(v.get("display_id") or "").strip().lower() == ma.lower():
+			vid = v.get("id")
+			if vid:
+				cache_set(ck, vid, 86400)
+				return vid
+	return None
 
 
 def _lam_sach_the(tags):
@@ -115,7 +152,7 @@ def _luu_hoa_don(ma_don, hd):
 		frappe.db.commit()
 	except Exception:
 		# Don da tao roi thi khong duoc lam hong ca don chi vi cho nay.
-		frappe.log_error(frappe.get_traceback(), "Vagabond: khong luu duoc hoa don")
+		frappe.log_error(title="Vagabond: khong luu duoc hoa don", message=frappe.get_traceback())
 
 
 @frappe.whitelist(allow_guest=True)
@@ -138,6 +175,14 @@ def tao_don(don=None):
 	hang = _lam_sach_hang(don.get("items"))
 	if not hang:
 		return {"ok": 0, "ly_do": "gio_hang_rong"}
+
+	# Doi ma hang sang UUID truoc khi gui. Thieu mot ma la dung lai bao ngay,
+	# con hon de Pancake tu choi ca don voi loi chung chung.
+	for h in hang:
+		vid = _uuid_tu_ma(c, k, h["variation_id"])
+		if not vid:
+			return {"ok": 0, "ly_do": "khong_tim_thay_ma_hang", "ma": h["variation_id"]}
+		h["variation_id"] = vid
 
 	ten = (don.get("ho_ten") or "").strip()
 	dien_thoai = _so(don.get("dien_thoai"))
@@ -221,17 +266,17 @@ def tao_don(don=None):
 			timeout=TIMEOUT,
 		)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: Pancake khong tao duoc don")
+		frappe.log_error(title="Vagabond: Pancake khong tao duoc don", message=frappe.get_traceback())
 		return {"ok": 0, "ly_do": "pancake_loi"}
 
 	if r.status_code not in (200, 201):
-		frappe.log_error(r.text[:1000], "Vagabond: Pancake tu choi don")
+		frappe.log_error(title="Vagabond: Pancake tu choi don", message=r.text[:1000])
 		return {"ok": 0, "ly_do": "pancake_tu_choi"}
 
 	try:
 		j = r.json() or {}
 	except ValueError:
-		frappe.log_error(r.text[:1000], "Vagabond: Pancake tra ve khong phai JSON")
+		frappe.log_error(title="Vagabond: Pancake tra ve khong phai JSON", message=r.text[:1000])
 		return {"ok": 0, "ly_do": "pancake_tra_ve_la"}
 
 	# Pancake tung doi ten truong ma don giua cac ban, nen do lan luot.
@@ -239,7 +284,7 @@ def tao_don(don=None):
 	data = j.get("data") if isinstance(j.get("data"), dict) else j
 	ma_don = data.get("id") or data.get("order_id") or data.get("system_id")
 	if not ma_don:
-		frappe.log_error(json.dumps(j)[:1000], "Vagabond: Pancake khong tra ve ma don")
+		frappe.log_error(title="Vagabond: Pancake khong tra ve ma don", message=json.dumps(j)[:1000])
 		return {"ok": 0, "ly_do": "khong_ro_ma_don"}
 
 	if hd and _so(hd.get("tax_code")):
