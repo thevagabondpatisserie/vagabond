@@ -16,7 +16,8 @@ Hai dieu quan trong da hoc duoc bang cach do that:
 
 import json
 import math
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 import frappe
 import requests
@@ -26,6 +27,11 @@ from vagabond.dia_chi import geocode
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
 
 BAN_KINH_MAC_DINH = 12.0
+
+# Ahamove chi bao gia dat truoc trong vong 7 ngay. Do that ngay 31/07:
+# +7 ngay van bao gia, +8 ngay tra loi tu choi. Trang dat banh cho chon
+# 14 ngay, nen phai co duong lui cho nhung ngay xa hon.
+GIOI_HAN_DAT_TRUOC = 7 * 86400
 
 
 def _token(c):
@@ -95,6 +101,23 @@ def _luc_giao_unix(v):
 			return 0
 	ts = int(dt.timestamp())
 	return ts if ts > int(datetime.now(dt.tzinfo).timestamp()) else 0
+
+
+def _lui_ve_trong_han(moc):
+	"""Keo moc gio qua xa ve ngay xa nhat Ahamove con nhan, GIU NGUYEN GIO.
+
+	Gia doi theo gio trong ngay, nen phai giu dung gio khach chon. Ngay thi
+	lui lai - dat truoc 7 ngay hay 14 ngay thi Ahamove van tinh mot gia.
+	"""
+	han = int(time.time()) + GIOI_HAN_DAT_TRUOC
+	if moc <= han:
+		return None
+	xin = datetime.fromtimestamp(moc)
+	cuoi = datetime.fromtimestamp(han)
+	lui = xin.replace(year=cuoi.year, month=cuoi.month, day=cuoi.day)
+	if lui.timestamp() > han:
+		lui -= timedelta(days=1)
+	return int(lui.timestamp())
 
 
 def _hoi_ahamove(c, diem_lay, diem_khach, luc_giao):
@@ -200,8 +223,16 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
 	data, loi = _hoi_ahamove(c, gan_nhat, diem, moc)
 	theo_gio = bool(moc)
 	if loi and moc:
-		# Ahamove co the tu choi moc gio qua xa hoac qua sat. Hoi lai gia hien tai
-		# con hon khong co so nao, nhung phai noi ro la khong phai gia theo gio.
+		# Duong lui thu nhat: dat qua xa ngay. Hoi lai o ngay xa nhat con
+		# nhan duoc nhung dung gio khach chon - ra gia dat truoc, sat hon
+		# nhieu so voi gia giao ngay bay gio (co the dang gio cao diem).
+		gan = _lui_ve_trong_han(moc)
+		if gan:
+			data, loi = _hoi_ahamove(c, gan_nhat, diem, gan)
+		theo_gio = False
+	if loi and moc:
+		# Duong lui cuoi: gia giao ngay. Co so con hon khong co so nao,
+		# nhung phai noi ro la khong phai gia theo gio khach chon.
 		data, loi = _hoi_ahamove(c, gan_nhat, diem, 0)
 		theo_gio = False
 	if loi:
