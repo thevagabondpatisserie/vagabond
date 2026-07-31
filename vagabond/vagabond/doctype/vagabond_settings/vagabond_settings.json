@@ -21,7 +21,8 @@
   "phu_thu",
   "sec_pancake",
   "pancake_api_key",
-  "pancake_shop_id"
+  "pancake_shop_id",
+  "pancake_order_source_id"
  ],
  "fields": [
   {
@@ -120,11 +121,18 @@
    "fieldname": "pancake_shop_id",
    "fieldtype": "Data",
    "label": "Ma shop Pancake"
+  },
+  {
+   "fieldname": "pancake_order_source_id",
+   "fieldtype": "Data",
+   "label": "Ma nguon don Pancake",
+   "description": "Dang so. Tra o GET /shops/<id>/order_source",
+   "default": "1843009595"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-07-31 06:30:00.000000",
+ "modified": "2026-07-31 09:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
