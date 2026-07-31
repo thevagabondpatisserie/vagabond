@@ -151,11 +151,11 @@ def _hoi_ahamove(c, diem_lay, diem_khach, luc_giao):
 			timeout=TIMEOUT,
 		)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: Ahamove khong goi duoc")
+		frappe.log_error(title="Vagabond: Ahamove khong goi duoc", message=frappe.get_traceback())
 		return None, "ahamove_loi"
 
 	if r.status_code != 200:
-		frappe.log_error(r.text[:500], "Vagabond: Ahamove tu choi")
+		frappe.log_error(title="Vagabond: Ahamove tu choi", message=r.text[:500])
 		return None, "ahamove_loi"
 
 	arr = r.json() or []
