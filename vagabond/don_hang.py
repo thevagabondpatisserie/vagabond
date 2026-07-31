@@ -149,13 +149,27 @@ def tao_don(don=None):
 	if not tu_lay and len(dia_chi) < 8:
 		return {"ok": 0, "ly_do": "thieu_dia_chi_giao"}
 
+	ngay = _ngay_iso(don.get("ngay_nhan"))
+
 	# Phi giao TINH LAI o day. Con so tu trinh duyet gui len chi de hien
 	# cho khach xem, khong duoc dung lam so tien that.
+	# Truyen luon moc gio khach chon, vi gia Ahamove doi theo gio.
 	# Don tu lay thi khong goi Ahamove.
 	phi = 0
 	bao_phi = None
 	if not tu_lay:
-		bao_phi = phi_giao(addr=dia_chi, lat=don.get("lat"), lng=don.get("lng"))
+		bao_phi = phi_giao(
+			addr=dia_chi, lat=don.get("lat"), lng=don.get("lng"), luc_giao=ngay
+		)
+		# Ngoai vung giao thi KHONG tao don. Chan o trinh duyet roi van phai
+		# chan lai o day, vi ai cung goi thang endpoint duoc.
+		if bao_phi.get("ly_do") == "ngoai_vung_giao":
+			return {
+				"ok": 0,
+				"ly_do": "ngoai_vung_giao",
+				"khoang_cach": bao_phi.get("khoang_cach"),
+				"ban_kinh": bao_phi.get("ban_kinh"),
+			}
 		if bao_phi.get("ok"):
 			phi = int(bao_phi.get("total_fee") or 0)
 
@@ -187,7 +201,6 @@ def tao_don(don=None):
 		except ValueError:
 			body["account_name"] = nguon
 
-	ngay = _ngay_iso(don.get("ngay_nhan"))
 	if ngay:
 		body["estimate_delivery_date"] = ngay
 
