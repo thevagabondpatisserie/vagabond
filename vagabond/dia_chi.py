@@ -49,7 +49,7 @@ def goi_y_dia_chi(q=None):
 		)
 		r.raise_for_status()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: Goong AutoComplete loi")
+		frappe.log_error(title="Vagabond: Goong AutoComplete loi", message=frappe.get_traceback())
 		return {"suggestions": [], "ly_do": "goong_loi"}
 
 	preds = (r.json() or {}).get("predictions") or []
@@ -87,7 +87,7 @@ def chi_tiet_dia_chi(place_id=None):
 		)
 		r.raise_for_status()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: Goong Place Detail loi")
+		frappe.log_error(title="Vagabond: Goong Place Detail loi", message=frappe.get_traceback())
 		return {"dia_chi": None, "lat": None, "lng": None, "ly_do": "goong_loi"}
 
 	res = (r.json() or {}).get("result") or {}
@@ -116,7 +116,7 @@ def geocode(c, addr):
 		)
 		r.raise_for_status()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: Goong geocode loi")
+		frappe.log_error(title="Vagabond: Goong geocode loi", message=frappe.get_traceback())
 		return None
 
 	res = (r.json() or {}).get("results") or []
