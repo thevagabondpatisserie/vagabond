@@ -1,0 +1,146 @@
+{
+ "actions": [],
+ "creation": "2026-07-31 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sec_goong",
+  "goong_api_key",
+  "suggest_radius_km",
+  "cb1",
+  "kitchen_lat",
+  "kitchen_lng",
+  "kitchen_address",
+  "sec_aha",
+  "ahamove_api_key",
+  "ahamove_mobile",
+  "ahamove_base",
+  "cb2",
+  "ma_dich_vu",
+  "dung_dich_vu_de_vo",
+  "phu_thu",
+  "sec_pancake",
+  "pancake_api_key",
+  "pancake_shop_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_goong",
+   "fieldtype": "Section Break",
+   "label": "Goong"
+  },
+  {
+   "fieldname": "goong_api_key",
+   "fieldtype": "Password",
+   "label": "Goong API key",
+   "description": "Lay o account.goong.io muc Keys"
+  },
+  {
+   "fieldname": "suggest_radius_km",
+   "fieldtype": "Int",
+   "label": "Ban kinh goi y (km)",
+   "description": "De 30 la du cho Sai Gon"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kitchen_lat",
+   "fieldtype": "Float",
+   "label": "Vi do bep"
+  },
+  {
+   "fieldname": "kitchen_lng",
+   "fieldtype": "Float",
+   "label": "Kinh do bep"
+  },
+  {
+   "fieldname": "kitchen_address",
+   "fieldtype": "Small Text",
+   "label": "Dia chi bep"
+  },
+  {
+   "fieldname": "sec_aha",
+   "fieldtype": "Section Break",
+   "label": "Ahamove"
+  },
+  {
+   "fieldname": "ahamove_api_key",
+   "fieldtype": "Password",
+   "label": "Ahamove API key"
+  },
+  {
+   "fieldname": "ahamove_mobile",
+   "fieldtype": "Data",
+   "label": "So dien thoai tai khoan Ahamove",
+   "description": "Dang 84xxxxxxxxx"
+  },
+  {
+   "fieldname": "ahamove_base",
+   "fieldtype": "Data",
+   "label": "Dia chi API Ahamove",
+   "description": "Thu nghiem partner-apistg, that partner-api"
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ma_dich_vu",
+   "fieldtype": "Data",
+   "label": "Ma dich vu",
+   "description": "SGN-BIKE"
+  },
+  {
+   "fieldname": "dung_dich_vu_de_vo",
+   "fieldtype": "Check",
+   "label": "Bao hang de vo",
+   "description": "Ahamove cong them 10.000 d moi don"
+  },
+  {
+   "fieldname": "phu_thu",
+   "fieldtype": "Currency",
+   "label": "Phu thu cua tiem",
+   "description": "Cong vao phi Ahamove truoc khi bao khach"
+  },
+  {
+   "fieldname": "sec_pancake",
+   "fieldtype": "Section Break",
+   "label": "Pancake"
+  },
+  {
+   "fieldname": "pancake_api_key",
+   "fieldtype": "Password",
+   "label": "Pancake API key"
+  },
+  {
+   "fieldname": "pancake_shop_id",
+   "fieldtype": "Data",
+   "label": "Ma shop Pancake"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
