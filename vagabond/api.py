@@ -26,17 +26,33 @@ def tra_khach(phone=None):
 		return {"addresses": []}
 
 	c = cfg()
-	r = requests.get(
-		"%s/shops/%s/customers" % (PANCAKE, c.pancake_shop_id),
-		params={"api_key": key(c, "pancake_api_key"), "search": phone},
-		timeout=TIMEOUT,
-	)
-	if r.status_code != 200:
-		return {"addresses": []}
+	k = key(c, "pancake_api_key")
+	if not k or not c.pancake_shop_id:
+		return {"addresses": [], "ly_do": "chua_dien_khoa_pancake"}
 
+	try:
+		r = requests.get(
+			"%s/shops/%s/customers" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k, "search": phone},
+			timeout=TIMEOUT,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: Pancake khong goi duoc")
+		return {"addresses": [], "ly_do": "pancake_loi"}
+
+	if r.status_code != 200:
+		return {"addresses": [], "ly_do": "pancake_tu_choi"}
+
+	# Pancake tim kiem long tay: go so nay co the ra ca khach khac.
+	# Chi giu dia chi nao co dung so dien thoai vua go, khong thi tiem lo
+	# ten va dia chi cua khach khac cho nguoi la.
+	duoi = phone[-9:]
 	out = []
 	for kh in (r.json() or {}).get("data") or []:
 		for a in kh.get("shop_customer_addresses") or []:
+			so = "".join(ch for ch in (a.get("phone_number") or "") if ch.isdigit())
+			if so[-9:] != duoi:
+				continue
 			full = a.get("full_address") or ""
 			out.append(
 				{
@@ -62,7 +78,12 @@ def tra_mst(mst=None):
 	if hit:
 		return json.loads(hit)
 
-	r = requests.get("%s/%s" % (VIETQR, mst), timeout=TIMEOUT)
+	try:
+		r = requests.get("%s/%s" % (VIETQR, mst), timeout=TIMEOUT)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: VietQR khong goi duoc")
+		return {"ok": 0, "ly_do": "khong_goi_duoc_cong_thong_tin"}
+
 	j = r.json() if r.status_code == 200 else {}
 	if j.get("code") != "00" or not j.get("data"):
 		return {"ok": 0, "ly_do": "khong_tim_thay"}
