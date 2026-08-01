@@ -1,0 +1,52 @@
+{
+ "actions": [],
+ "creation": "2026-08-01 12:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "dong",
+  "cap_nhat_luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Dong",
+   "options": "BTP Banh O Dong"
+  },
+  {
+   "fieldname": "cap_nhat_luc",
+   "fieldtype": "Datetime",
+   "label": "Cap nhat luc",
+   "read_only": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-01 12:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "BTP Banh O",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Stock User",
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
