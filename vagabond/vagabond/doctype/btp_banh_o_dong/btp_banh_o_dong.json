@@ -1,0 +1,55 @@
+{
+ "actions": [],
+ "creation": "2026-08-01 12:30:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_hang",
+  "ten_banh",
+  "hinh",
+  "so_btp"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Data",
+   "label": "Ma hang",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "ten_banh",
+   "fieldtype": "Data",
+   "label": "Ten banh",
+   "in_list_view": 1,
+   "columns": 4
+  },
+  {
+   "fieldname": "hinh",
+   "fieldtype": "Data",
+   "label": "Hinh (URL Pancake)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_btp",
+   "fieldtype": "Int",
+   "label": "So BTP san",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Banh BTP cap 2 dong lanh cho finish, bep du tru du dung 2-3 ngay"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-01 12:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "BTP Banh O Dong",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
