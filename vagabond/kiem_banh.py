@@ -26,6 +26,13 @@ from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 BO_QUA_TT = {6, 7}  # da huy, da xoa
 MAX_TRANG = 10
 
+# Chi theo doi banh o (ma BAWC...). Phu kien, phi giao, hop nen... khong
+# thuoc bang kiem banh - anh Viet chot 01/08.
+TIEN_TO_MA = "BAWC"
+
+# Man hinh tu goi dong bo lien tuc; chan doi lai Pancake day hon muc nay.
+GIAN_CACH_DONG_BO = 12  # giay
+
 
 def _khoang_unix(ngay):
 	"""Nua dem den nua dem cua mot ngay theo gio Viet Nam, ra unix giay."""
@@ -61,20 +68,27 @@ def _keo_don(c, k, update_status, dau, cuoi):
 
 
 def _dem_banh(dons):
-	"""Gop so luong theo ma hang. Tra ve (dem, ten) - ten lay ngay tu don."""
-	dem, ten = {}, {}
+	"""Gop so luong theo ma hang, chi lay banh o BAWC.
+
+	Tra ve (dem, ten, hinh) - ten va anh lay ngay tu variation_info trong
+	don, khoi ton them luot goi nao.
+	"""
+	dem, ten, hinh = {}, {}, {}
 	for o in dons:
 		if o.get("status") in BO_QUA_TT:
 			continue
 		for it in o.get("items") or []:
 			vi = it.get("variation_info") or {}
 			ma = str(vi.get("display_id") or it.get("variation_id") or "").strip()
-			if not ma:
+			if not ma.upper().startswith(TIEN_TO_MA):
 				continue
 			dem[ma] = dem.get(ma, 0) + int(it.get("quantity") or 0)
 			if vi.get("name"):
 				ten[ma] = vi["name"]
-	return dem, ten
+			anh = vi.get("images") or []
+			if anh and anh[0]:
+				hinh[ma] = anh[0]
+	return dem, ten, hinh
 
 
 def _lay_hoac_tao(ngay):
@@ -99,6 +113,16 @@ def dong_bo(ngay=None):
 		frappe.throw("Chua dien khoa Pancake trong Vagabond Settings")
 
 	ngay = getdate(ngay) if ngay else getdate()
+
+	# Man hinh cua moi nhan vien tu goi ham nay lien tuc. Vua dong bo xong
+	# trong vong GIAN_CACH_DONG_BO giay thi tra bang luon, khong goi lai
+	# Pancake - vua nhanh vua khoi lam phien API cua nguoi ta.
+	ma_doc = "KB-%s" % ngay
+	if frappe.db.exists("Kiem Banh Ngay", ma_doc):
+		luc = frappe.db.get_value("Kiem Banh Ngay", ma_doc, "dong_bo_luc")
+		if luc and (now_datetime() - luc).total_seconds() < GIAN_CACH_DONG_BO:
+			return bang(ngay)
+
 	dau, cuoi = _khoang_unix(ngay)
 
 	giao_hom_nay = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
@@ -108,11 +132,14 @@ def dong_bo(ngay=None):
 	# Phat sinh la don GIAO hom nay nam trong nhom TAO hom nay; con lai la da dat.
 	ps_don = [o for o in giao_hom_nay if o.get("id") in ma_tao_hom_nay]
 	dd_don = [o for o in giao_hom_nay if o.get("id") not in ma_tao_hom_nay]
-	dem_dd, ten1 = _dem_banh(dd_don)
-	dem_ps, ten2 = _dem_banh(ps_don)
+	dem_dd, ten1, hinh1 = _dem_banh(dd_don)
+	dem_ps, ten2, hinh2 = _dem_banh(ps_don)
 	ten1.update(ten2)
+	hinh1.update(hinh2)
 
 	doc = _lay_hoac_tao(ngay)
+	# Don dong khong phai banh o (phi giao, phu kien) lot vao tu ban truoc.
+	doc.dong = [d for d in doc.dong if str(d.ma_hang or "").upper().startswith(TIEN_TO_MA)]
 	co = {d.ma_hang: d for d in doc.dong}
 	for ma in set(list(dem_dd) + list(dem_ps)):
 		if ma not in co:
@@ -123,6 +150,8 @@ def dong_bo(ngay=None):
 	for ma, d in co.items():
 		d.da_dat = dem_dd.get(ma, 0)
 		d.phat_sinh = dem_ps.get(ma, 0)
+		if hinh1.get(ma) and not d.hinh:
+			d.hinh = hinh1[ma]
 
 	doc.dong_bo_luc = now_datetime()
 	doc.save(ignore_permissions=True)
@@ -154,7 +183,7 @@ def bang(ngay=None):
 		"chot_luc": str(doc.chot_luc or ""),
 		"dong": [
 			{
-				"ma_hang": d.ma_hang, "ten_banh": d.ten_banh,
+				"ma_hang": d.ma_hang, "ten_banh": d.ten_banh, "hinh": d.hinh or "",
 				"ton_cu": d.ton_cu or 0, "nsx_cu": str(d.nsx_cu or ""),
 				"ton_d2": d.ton_d2 or 0, "nsx_d2": str(d.nsx_d2 or ""),
 				"ton_d1": d.ton_d1 or 0, "nsx_d1": str(d.nsx_d1 or ""),
@@ -198,10 +227,12 @@ def them_dong(ngay, ma_hang):
 	ma_hang = str(ma_hang or "").strip()
 	if not ma_hang:
 		frappe.throw("Thieu ma hang")
+	if not ma_hang.upper().startswith(TIEN_TO_MA):
+		frappe.throw("Bang nay chi theo doi banh o (ma %s...)" % TIEN_TO_MA)
 	doc = _lay_hoac_tao(ngay)
 	if any(d.ma_hang == ma_hang for d in doc.dong):
 		frappe.throw("Ma nay da co trong bang")
-	ten = ""
+	ten, anh = "", ""
 	try:
 		r = requests.get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
@@ -211,10 +242,12 @@ def them_dong(ngay, ma_hang):
 		for v in (r.json() or {}).get("data") or []:
 			if str(v.get("display_id") or "").strip().lower() == ma_hang.lower():
 				ten = ((v.get("product") or {}).get("name")) or v.get("name") or ""
+				ds_anh = v.get("images") or ((v.get("product") or {}).get("images")) or []
+				anh = ds_anh[0] if ds_anh else ""
 				break
 	except Exception:
 		pass
-	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten})
+	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten, "hinh": anh})
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ten_banh": ten}
