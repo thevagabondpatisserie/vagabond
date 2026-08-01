@@ -156,6 +156,7 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			"update_stock": 0,
 			"custom_pancake_id": pid,
 			"custom_pancake_display_id": did,
+			"custom_nguon": "Pancake",
 			"apply_discount_on": "Grand Total",
 			"discount_amount": giam_don,
 			"remarks": "Pancake #%s - %s%s" % (did, ten_khach or "Khách lẻ", " - " + sdt if sdt else ""),
@@ -218,6 +219,7 @@ def bang_doanh_so(ngay=None):
 			"custom_pancake_display_id",
 			"custom_hddt_trang_thai",
 			"custom_hddt_so",
+			"custom_nguon",
 		],
 		order_by="custom_pancake_display_id",
 	)
@@ -273,6 +275,76 @@ def dong_bo_doanh_so_tu_dong():
 		dong_bo_doanh_so(nowdate())
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang cron")
+
+
+@frappe.whitelist()
+def chot_mot_don(si_name):
+	"""Submit mot don le, sales ra soat xong don nao chot don do."""
+	_kiem_quyen()
+	si = frappe.get_doc("Sales Invoice", si_name)
+	if not si.custom_pancake_id:
+		frappe.throw("Phiếu này không phải doanh thu sales.")
+	if si.docstatus != 0:
+		frappe.throw("Đơn này đã chốt rồi.")
+	si.flags.ignore_permissions = True
+	si.submit()
+	frappe.db.commit()
+	return {"ok": 1, "name": si.name}
+
+
+@frappe.whitelist()
+def tao_don_tay(ngay=None, nguon="Grab", ma_don="", ten_khach="", dien_thoai="", items=None, giam_gia=0, phi_ship=0):
+	"""Nhap tay doanh thu tu kenh khong co API (Grab Merchant, Be, GreenSM...).
+
+	Grab co muc Giam gia (chiet khau san) nen nhan giam_gia rieng,
+	tru vao Grand Total giong giam gia don Pancake.
+	"""
+	_kiem_quyen()
+	ngay = getdate(ngay or nowdate())
+	if isinstance(items, str):
+		items = json.loads(items or "[]")
+	rows = []
+	for r in items or []:
+		ma = (r.get("item_code") or "").strip()
+		if not ma or not frappe.db.exists("Item", ma):
+			frappe.throw("Không có mã hàng %s trong hệ thống." % (ma or "(trống)"))
+		sl = flt(r.get("qty") or 0)
+		if sl <= 0:
+			frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
+		rows.append({"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)})
+	if not rows:
+		frappe.throw("Đơn chưa có món nào.")
+	if flt(phi_ship) > 0:
+		rows.append({"item_code": _item_phi_giao(), "qty": 1, "rate": flt(phi_ship)})
+	nguon = (nguon or "Khác").strip()
+	ma_don = (ma_don or "").strip()
+	pid = "%s-%s" % (nguon.upper().replace(" ", ""), ma_don or frappe.generate_hash(length=8))
+	if frappe.db.exists("Sales Invoice", {"custom_pancake_id": pid}):
+		frappe.throw("Mã đơn %s của %s đã nhập rồi, không nhập trùng." % (ma_don, nguon))
+	si = frappe.new_doc("Sales Invoice")
+	si.update(
+		{
+			"company": _cong_ty(),
+			"customer": _khach_le(),
+			"posting_date": str(ngay),
+			"set_posting_time": 1,
+			"due_date": str(ngay),
+			"update_stock": 0,
+			"custom_pancake_id": pid,
+			"custom_pancake_display_id": ma_don,
+			"custom_nguon": nguon,
+			"apply_discount_on": "Grand Total",
+			"discount_amount": flt(giam_gia),
+			"remarks": "%s #%s - %s%s"
+			% (nguon, ma_don or "?", (ten_khach or "Khách lẻ").strip(), " - " + dien_thoai.strip() if (dien_thoai or "").strip() else ""),
+		}
+	)
+	for r in rows:
+		si.append("items", r)
+	si.flags.ignore_permissions = True
+	si.save()
+	frappe.db.commit()
+	return {"name": si.name, "grand_total": si.grand_total}
 
 
 # ---------------------------------------------------------------- m-invoice
