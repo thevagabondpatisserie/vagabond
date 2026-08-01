@@ -39,6 +39,29 @@ def quyen_btp():
 	return {"sua": 1 if _duoc_sua_btp() else 0}
 
 
+def _giu_ngay_mai():
+	"""Don giao NGAY MAI (da dat + phat sinh + cho chot) neu so chua chot.
+
+	Y Linh 01/08: sau 12h trua, do decor cho ngay mai khong kip chuan bi
+	them - nen don giao ngay mai chi nhan trong pham vi so "du decor".
+	"""
+	giu = {}
+	ma_doc = "KB-%s" % add_days(getdate(), 1)
+	if not frappe.db.exists("Kiem Banh Ngay", ma_doc):
+		return giu
+	kb = frappe.get_doc("Kiem Banh Ngay", ma_doc)
+	if kb.tinh_trang == "Da chot":
+		return giu
+	for d in kb.dong:
+		giu[d.ma_hang] = (
+			giu.get(d.ma_hang, 0)
+			+ (d.da_dat or 0)
+			+ (d.phat_sinh or 0)
+			+ (d.cho_chot or 0)
+		)
+	return giu
+
+
 def _giu_theo_ma():
 	"""Tong (da dat + phat sinh + cho chot) cac ngay CHUA CHOT trong cua so."""
 	giu = {}
@@ -65,20 +88,23 @@ def bang_btp():
 	"""Du lieu cho man hinh /btp va nhan BTP tren man kiem banh."""
 	doc = frappe.get_single("BTP Banh O")
 	giu = _giu_theo_ma()
-	return {
-		"cap_nhat_luc": str(doc.cap_nhat_luc or ""),
-		"dong": [
+	giu_mai = _giu_ngay_mai()
+	dong = []
+	for d in doc.dong:
+		decor = min(d.so_decor or 0, d.so_btp or 0)
+		dong.append(
 			{
 				"ma_hang": d.ma_hang,
 				"ten_banh": d.ten_banh or "",
 				"hinh": d.hinh or "",
 				"so_btp": d.so_btp or 0,
+				"so_decor": d.so_decor or 0,
 				"dang_giu": giu.get(d.ma_hang, 0),
 				"con_nhan": (d.so_btp or 0) - giu.get(d.ma_hang, 0),
+				"giao_mai": decor - giu_mai.get(d.ma_hang, 0),
 			}
-			for d in doc.dong
-		],
-	}
+		)
+	return {"cap_nhat_luc": str(doc.cap_nhat_luc or ""), "dong": dong}
 
 
 @frappe.whitelist()
@@ -90,6 +116,22 @@ def luu_btp(ma_hang, so_btp):
 	for d in doc.dong:
 		if d.ma_hang == ma_hang:
 			d.so_btp = max(0, int(so_btp or 0))
+			doc.cap_nhat_luc = now_datetime()
+			doc.save()
+			frappe.db.commit()
+			return bang_btp()
+	frappe.throw("Khong thay ma %s trong bang BTP" % ma_hang)
+
+
+@frappe.whitelist()
+def luu_decor(ma_hang, so_decor):
+	"""Bep sua so BTP da du do decor - so nay quyet dinh nhan don ngay mai."""
+	if not _duoc_sua_btp():
+		frappe.throw("Cột Đủ decor chỉ bếp được nhập - bếp nhập thì bếp chịu trách nhiệm số")
+	doc = frappe.get_single("BTP Banh O")
+	for d in doc.dong:
+		if d.ma_hang == ma_hang:
+			d.so_decor = max(0, int(so_decor or 0))
 			doc.cap_nhat_luc = now_datetime()
 			doc.save()
 			frappe.db.commit()
