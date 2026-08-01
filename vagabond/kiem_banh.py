@@ -5,7 +5,11 @@ Nguyen tac cot loi (chot voi anh Viet 01/08/2026):
   cho khach do - don chinh la "giu cho". May dem, khong ai phai nho.
 - "Da dat"    = don giao hom nay, tao TRUOC hom nay.
 - "Phat sinh" = don giao hom nay, tao TRONG hom nay.
-- Co the ban  = ton dau + bep san xuat - da dat - phat sinh.
+- "Cho chot"   = don giao hom nay con trang thai Moi (0) - khach dang nhan
+  tin tu van, sales tao don giu cho mem, TRU AO vao co the ban (y Loan Anh
+  01/08). Khach huy thi huy don, so tu tra lai; chot xong thi don doi trang
+  thai, tu nhay sang Da dat / Phat sinh - tru that.
+- Co the ban  = ton dau + bep san xuat - da dat - phat sinh - cho chot.
 
 Ky thuat da do that:
 - Loc don theo ngay giao: updateStatus=estimate_delivery_date kem
@@ -70,13 +74,14 @@ def _keo_don(c, k, update_status, dau, cuoi):
 def _dem_banh(dons):
 	"""Gop so luong theo ma hang, chi lay banh o BAWC.
 
-	Tra ve (dem, ten, hinh) - ten va anh lay ngay tu variation_info trong
-	don, khoi ton them luot goi nao.
+	Tra ve (dem, ten, hinh, khach) - ten, anh va TEN KHACH lay ngay tu don,
+	khoi ton them luot goi nao. Ten khach de sales ban giao ca cho nhau.
 	"""
-	dem, ten, hinh = {}, {}, {}
+	dem, ten, hinh, khach = {}, {}, {}, {}
 	for o in dons:
 		if o.get("status") in BO_QUA_TT:
 			continue
+		ten_khach = (o.get("bill_full_name") or "").strip()
 		for it in o.get("items") or []:
 			vi = it.get("variation_info") or {}
 			ma = str(vi.get("display_id") or it.get("variation_id") or "").strip()
@@ -88,7 +93,9 @@ def _dem_banh(dons):
 			anh = vi.get("images") or []
 			if anh and anh[0]:
 				hinh[ma] = anh[0]
-	return dem, ten, hinh
+			if ten_khach and ten_khach not in khach.setdefault(ma, []):
+				khach[ma].append(ten_khach)
+	return dem, ten, hinh, khach
 
 
 def _lay_hoac_tao(ngay):
@@ -129,19 +136,27 @@ def dong_bo(ngay=None):
 	tao_hom_nay = _keo_don(c, k, "inserted_at", dau, cuoi)
 	ma_tao_hom_nay = {o.get("id") for o in tao_hom_nay}
 
-	# Phat sinh la don GIAO hom nay nam trong nhom TAO hom nay; con lai la da dat.
-	ps_don = [o for o in giao_hom_nay if o.get("id") in ma_tao_hom_nay]
-	dd_don = [o for o in giao_hom_nay if o.get("id") not in ma_tao_hom_nay]
-	dem_dd, ten1, hinh1 = _dem_banh(dd_don)
-	dem_ps, ten2, hinh2 = _dem_banh(ps_don)
+	# Chia ba ro (y Loan Anh 01/08):
+	# - CHO CHOT: don con trang thai Moi (0) - sales dang tu van, giu cho mem.
+	# - DA DAT / PHAT SINH: don DA CHOT (khac Moi), chia theo tao truoc hay
+	#   tao trong ngay giao. Chot xong don tu nhay tu Cho chot sang day.
+	moi_don = [o for o in giao_hom_nay if o.get("status") == 0]
+	chot_don = [o for o in giao_hom_nay if o.get("status") != 0]
+	ps_don = [o for o in chot_don if o.get("id") in ma_tao_hom_nay]
+	dd_don = [o for o in chot_don if o.get("id") not in ma_tao_hom_nay]
+	dem_dd, ten1, hinh1, _k1 = _dem_banh(dd_don)
+	dem_ps, ten2, hinh2, khach_ps = _dem_banh(ps_don)
+	dem_cho, ten3, hinh3, khach_cho = _dem_banh(moi_don)
 	ten1.update(ten2)
+	ten1.update(ten3)
 	hinh1.update(hinh2)
+	hinh1.update(hinh3)
 
 	doc = _lay_hoac_tao(ngay)
 	# Don dong khong phai banh o (phi giao, phu kien) lot vao tu ban truoc.
 	doc.dong = [d for d in doc.dong if str(d.ma_hang or "").upper().startswith(TIEN_TO_MA)]
 	co = {d.ma_hang: d for d in doc.dong}
-	for ma in set(list(dem_dd) + list(dem_ps)):
+	for ma in set(list(dem_dd) + list(dem_ps) + list(dem_cho)):
 		if ma not in co:
 			d = doc.append("dong", {"ma_hang": ma, "ten_banh": ten1.get(ma, "")})
 			co[ma] = d
@@ -150,6 +165,9 @@ def dong_bo(ngay=None):
 	for ma, d in co.items():
 		d.da_dat = dem_dd.get(ma, 0)
 		d.phat_sinh = dem_ps.get(ma, 0)
+		d.cho_chot = dem_cho.get(ma, 0)
+		d.ten_khach_ps = ", ".join(khach_ps.get(ma, []))
+		d.ten_khach_cho = ", ".join(khach_cho.get(ma, []))
 		if hinh1.get(ma) and not d.hinh:
 			d.hinh = hinh1[ma]
 
@@ -188,7 +206,9 @@ def bang(ngay=None):
 				"ton_d2": d.ton_d2 or 0, "nsx_d2": str(d.nsx_d2 or ""),
 				"ton_d1": d.ton_d1 or 0, "nsx_d1": str(d.nsx_d1 or ""),
 				"sx": d.sx or 0, "da_dat": d.da_dat or 0,
-				"phat_sinh": d.phat_sinh or 0, "co_the_ban": d.co_the_ban or 0,
+				"phat_sinh": d.phat_sinh or 0, "ten_khach_ps": d.ten_khach_ps or "",
+				"cho_chot": d.cho_chot or 0, "ten_khach_cho": d.ten_khach_cho or "",
+				"co_the_ban": d.co_the_ban or 0,
 			}
 			for d in doc.dong
 		],
