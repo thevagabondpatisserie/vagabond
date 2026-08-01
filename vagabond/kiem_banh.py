@@ -362,8 +362,10 @@ def chot_ngay(ngay=None):
 			if not b:
 				continue
 			an = (d.da_dat or 0) + (d.phat_sinh or 0)
-			if an and (b.so_btp or 0):
+			if an and ((b.so_btp or 0) or (b.so_decor or 0)):
 				b.so_btp = max(0, (b.so_btp or 0) - an)
+				# Banh ban ra la banh DA du decor - tru luon so du decor
+				b.so_decor = max(0, (b.so_decor or 0) - an)
 				doi = True
 		if doi:
 			kho.cap_nhat_luc = now_datetime()
