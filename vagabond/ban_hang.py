@@ -133,6 +133,56 @@ def _dong_hang(o):
 	return rows, thieu
 
 
+PT_KENH = (
+	("cash", "Tiền mặt", "tiền mặt"),
+	("transfer_money", "Chuyển khoản", "chuyển khoản"),
+	("charged_by_onepay", "OnePay", "OnePay"),
+	("charged_by_card", "", "cà thẻ (chọn máy Payoo/Shinhan)"),
+	("charged_by_momo", "", "Momo"),
+	("charged_by_vnpay", "", "VNPay"),
+	("charged_by_qrpay", "", "QR Pay"),
+)
+
+
+def _vnd(so):
+	return "{:,.0f}".format(so).replace(",", ".")
+
+
+def _doan_thanh_toan(o):
+	"""Doan phuong thuc thanh toan tu cac o tien cua don Pancake.
+
+	Tra (pt, ghi_chu). pt rong = chua ro, sales chon tay o man doanh thu
+	truoc khi ghi so. Ca the (charged_by_card) khong phan biet duoc may
+	Payoo hay ShinhanBank nen khong tu dien - so tien van vao ghi chu de
+	ke toan doi soat (anh Viet chot 02/08).
+	"""
+	thay = []
+	pt_ro = []
+	mo_ho = 0
+	for truong, ten_pt, nhan in PT_KENH:
+		try:
+			so = float(o.get(truong) or 0)
+		except (TypeError, ValueError):
+			so = 0
+		if so <= 0:
+			continue
+		thay.append("%s %s" % (nhan, _vnd(so)))
+		if ten_pt:
+			if ten_pt not in pt_ro:
+				pt_ro.append(ten_pt)
+		else:
+			mo_ho += 1
+	try:
+		tra_truoc = float(o.get("prepaid") or 0)
+	except (TypeError, ValueError):
+		tra_truoc = 0
+	if tra_truoc > 0 and not thay:
+		thay.append("trả trước %s (chưa rõ kênh)" % _vnd(tra_truoc))
+	pt = pt_ro[0] if (len(pt_ro) == 1 and not mo_ho) else ""
+	ghi = ("Pancake: " + " + ".join(thay)) if thay else ""
+	return pt, ghi
+
+
 def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
@@ -177,6 +227,11 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			"remarks": "Pancake #%s - %s%s" % (did, ten_khach or "Khách lẻ", " - " + sdt if sdt else ""),
 		}
 	)
+	pt_tt, ghi_tt = _doan_thanh_toan(o)
+	if pt_tt and frappe.db.exists("Mode of Payment", pt_tt):
+		si.vgb_pt_thanh_toan = pt_tt
+	if ghi_tt:
+		si.vgb_ghi_chu_doi_soat = ghi_tt
 	for r in rows:
 		si.append("items", r)
 	si.flags.ignore_permissions = True
@@ -235,6 +290,7 @@ def bang_doanh_so(ngay=None):
 			"custom_hddt_trang_thai",
 			"custom_hddt_so",
 			"custom_nguon",
+			"vgb_pt_thanh_toan",
 		],
 		order_by="custom_pancake_display_id",
 	)
@@ -293,7 +349,7 @@ def dong_bo_doanh_so_tu_dong():
 
 
 @frappe.whitelist()
-def chot_mot_don(si_name):
+def chot_mot_don(si_name, pt=None):
 	"""Submit mot don le, sales ra soat xong don nao chot don do."""
 	_kiem_quyen()
 	si = frappe.get_doc("Sales Invoice", si_name)
@@ -301,6 +357,10 @@ def chot_mot_don(si_name):
 		frappe.throw("Phiếu này không phải doanh thu sales.")
 	if si.docstatus != 0:
 		frappe.throw("Đơn này đã chốt rồi.")
+	if pt:
+		if not frappe.db.exists("Mode of Payment", pt):
+			frappe.throw("Không có phương thức thanh toán %s" % pt)
+		si.vgb_pt_thanh_toan = pt
 	si.flags.ignore_permissions = True
 	si.submit()
 	frappe.db.commit()
