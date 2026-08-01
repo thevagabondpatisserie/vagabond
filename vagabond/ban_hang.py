@@ -101,7 +101,7 @@ def _dong_hang(o):
 		if not sl:
 			continue
 		if not ma or not frappe.db.exists("Item", ma):
-			thieu.append(ma or "(trống)")
+			thieu.append("%s (%s)" % (ma or "(trống)", (vi.get("name") or it.get("product_name") or "?")))
 			continue
 		gia = flt(vi.get("retail_price") or 0)
 		giam = flt(it.get("discount_each_product") or 0)
