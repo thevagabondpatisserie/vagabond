@@ -26,7 +26,15 @@
   "sec_pancake",
   "pancake_api_key",
   "pancake_shop_id",
-  "pancake_order_source_id"
+  "pancake_order_source_id",
+  "sec_minvoice",
+  "minvoice_host",
+  "minvoice_username",
+  "minvoice_password",
+  "cb_minv",
+  "minvoice_ma_dvcs",
+  "minvoice_series",
+  "minvoice_ma_thue"
  ],
  "fields": [
   {
@@ -157,11 +165,54 @@
    "label": "Ma nguon don Pancake",
    "description": "Dang so. Tra o GET /shops/<id>/order_source",
    "default": "1843009595"
+  },
+  {
+   "fieldname": "sec_minvoice",
+   "fieldtype": "Section Break",
+   "label": "M-invoice (hoá đơn điện tử)"
+  },
+  {
+   "fieldname": "minvoice_host",
+   "fieldtype": "Data",
+   "label": "Host m-invoice",
+   "description": "Ví dụ https://<MST>-<số>.minvoice.site"
+  },
+  {
+   "fieldname": "minvoice_username",
+   "fieldtype": "Data",
+   "label": "Tài khoản m-invoice"
+  },
+  {
+   "fieldname": "minvoice_password",
+   "fieldtype": "Password",
+   "label": "Mật khẩu m-invoice"
+  },
+  {
+   "fieldname": "cb_minv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "minvoice_ma_dvcs",
+   "fieldtype": "Data",
+   "label": "Mã ĐVCS",
+   "default": "VP"
+  },
+  {
+   "fieldname": "minvoice_series",
+   "fieldtype": "Data",
+   "label": "Ký hiệu hoá đơn",
+   "description": "Ví dụ 1C26TYY, lấy trong m-invoice"
+  },
+  {
+   "fieldname": "minvoice_ma_thue",
+   "fieldtype": "Data",
+   "label": "Thuế suất (%)",
+   "default": "8"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-07-31 11:00:00.000000",
+ "modified": "2026-08-01 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
