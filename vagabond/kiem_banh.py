@@ -348,6 +348,29 @@ def chot_ngay(ngay=None):
 		m.nsx_d1 = ngay if lo[3][0] else None
 
 	mai.save(ignore_permissions=True)
+
+	# Tru kho BTP cap 2: moi banh giao xong hom nay von da an mot vo BTP
+	# luc bep lay ra trang tri toi hom truoc (quy trinh Han 01/08). Tru
+	# TAP TRUNG luc chot so de bep khong bao gio phai tru tay - trong ngay,
+	# phan da lay ra van duoc "don dang giu" tru ho nen CON NHAN luon dung.
+	try:
+		kho = frappe.get_single("BTP Banh O")
+		co_btp = {b.ma_hang: b for b in kho.dong}
+		doi = False
+		for d in doc.dong:
+			b = co_btp.get(d.ma_hang)
+			if not b:
+				continue
+			an = (d.da_dat or 0) + (d.phat_sinh or 0)
+			if an and (b.so_btp or 0):
+				b.so_btp = max(0, (b.so_btp or 0) - an)
+				doi = True
+		if doi:
+			kho.cap_nhat_luc = now_datetime()
+			kho.save(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(title="Vagabond: tru BTP khi chot ngay loi", message=frappe.get_traceback())
+
 	doc.tinh_trang = "Da chot"
 	doc.chot_luc = now_datetime()
 	doc.save(ignore_permissions=True)
