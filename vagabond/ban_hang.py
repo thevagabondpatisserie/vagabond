@@ -14,6 +14,7 @@ chay lai bao nhieu lan cung chi co mot hoa don cho mot don.
 """
 
 import json
+import re
 
 import frappe
 import requests
@@ -100,6 +101,12 @@ def _dong_hang(o):
 		sl = flt(it.get("quantity") or 0)
 		if not sl:
 			continue
+		if ma and not frappe.db.exists("Item", ma):
+			# Pancake tu sinh hau to size cho mau ma (vd BAWC00115S16CM);
+			# thu bo hau to de khop ma goc ben Next.
+			goc = re.sub(r"[SML]\d{1,2}CM$", "", ma, flags=re.IGNORECASE)
+			if goc != ma and frappe.db.exists("Item", goc):
+				ma = goc
 		if not ma or not frappe.db.exists("Item", ma):
 			thieu.append("%s (%s)" % (ma or "(trống)", (vi.get("name") or it.get("product_name") or "?")))
 			continue
