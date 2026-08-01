@@ -14,7 +14,7 @@ from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 
 QUYEN = {"System Manager", "Sales Manager", "Sales User", "Bộ phận đặt hàng"}
 
-HAU_TO_SIZE = re.compile(r"[SML]\d{1,2}CM$", re.IGNORECASE)
+HAU_TO_SIZE = re.compile(r"(MINI|[SML])\d{1,2}CM$", re.IGNORECASE)
 
 
 def _quyen():

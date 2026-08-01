@@ -27,7 +27,8 @@ from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
 TT_DOANH_SO = {3, 16}
 
 KHACH_LE = "Khách lẻ Online"
-MA_PHI_GIAO = "PHI-GIAO-HANG"
+# DVBH00001 la item "Phí Dịch Vụ Vận Chuyển" co san ben Next (bo ma chuan).
+MA_PHI_GIAO = "DVBH00001"
 
 QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
 
@@ -102,14 +103,21 @@ def _dong_hang(o):
 		if not sl:
 			continue
 		if ma and not frappe.db.exists("Item", ma):
-			# Pancake tu sinh hau to size cho mau ma (vd BAWC00115S16CM);
-			# thu bo hau to de khop ma goc ben Next.
-			goc = re.sub(r"[SML]\d{1,2}CM$", "", ma, flags=re.IGNORECASE)
+			# Pancake tu sinh hau to size cho mau ma (vd BAWC00115S16CM,
+			# BAWC00127MINI12CM); thu bo hau to de khop ma goc ben Next.
+			goc = re.sub(r"(MINI|[SML])\d{1,2}CM$", "", ma, flags=re.IGNORECASE)
 			if goc != ma and frappe.db.exists("Item", goc):
 				ma = goc
 		if not ma or not frappe.db.exists("Item", ma):
-			thieu.append("%s (%s)" % (ma or "(trống)", (vi.get("name") or it.get("product_name") or "?")))
-			continue
+			# Nhieu san pham Pancake bi dat ma "1"/"2": thu khop dung ten mon
+			# voi item_name ben Next (khong phan biet hoa thuong).
+			ten = (vi.get("name") or it.get("product_name") or "").strip()
+			ma_theo_ten = frappe.db.get_value("Item", {"item_name": ten}, "name") if ten else None
+			if ma_theo_ten:
+				ma = ma_theo_ten
+			else:
+				thieu.append("%s (%s)" % (ma or "(trống)", ten or "?"))
+				continue
 		gia = flt(vi.get("retail_price") or 0)
 		giam = flt(it.get("discount_each_product") or 0)
 		rows.append(
