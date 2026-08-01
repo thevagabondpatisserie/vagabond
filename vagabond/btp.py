@@ -18,6 +18,26 @@ from vagabond.lib import cfg, key
 
 SO_NGAY_GIU = 3  # hom nay + 2 ngay ke
 
+# CHI BEP duoc sua so BTP (anh Viet chot 01/08: bep nhap thi bep chiu
+# trach nhiem so). Giam doc / System Manager van sua duoc de go roi.
+BEP_EMAILS = {
+	"djvinci05@gmail.com",  # Duy
+	"hieu0703573936@gmail.com",  # Hieu
+	"lethilinh051996@gmail.com",  # Linh
+	"ngochan41096@gmail.com",  # Han
+}
+
+
+def _duoc_sua_btp():
+	user = frappe.session.user
+	return user in BEP_EMAILS or "System Manager" in frappe.get_roles(user)
+
+
+@frappe.whitelist()
+def quyen_btp():
+	"""Man hinh hoi de biet co mo o sua BTP cho nguoi nay khong."""
+	return {"sua": 1 if _duoc_sua_btp() else 0}
+
 
 def _giu_theo_ma():
 	"""Tong (da dat + phat sinh + cho chot) cac ngay CHUA CHOT trong cua so."""
@@ -64,6 +84,8 @@ def bang_btp():
 @frappe.whitelist()
 def luu_btp(ma_hang, so_btp):
 	"""Bep sua so BTP mot mon. Giu quyen that cua nguoi sua de con vet."""
+	if not _duoc_sua_btp():
+		frappe.throw("Cột BTP sẵn chỉ bếp được nhập - bếp nhập thì bếp chịu trách nhiệm số")
 	doc = frappe.get_single("BTP Banh O")
 	for d in doc.dong:
 		if d.ma_hang == ma_hang:
@@ -77,6 +99,8 @@ def luu_btp(ma_hang, so_btp):
 
 @frappe.whitelist()
 def them_ma_btp(ma_hang):
+	if not _duoc_sua_btp():
+		frappe.throw("Bảng BTP chỉ bếp được thêm mã")
 	ma_hang = str(ma_hang or "").strip()
 	if not ma_hang:
 		frappe.throw("Thieu ma hang")
