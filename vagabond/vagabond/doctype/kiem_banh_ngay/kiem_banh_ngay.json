@@ -1,0 +1,113 @@
+{
+ "actions": [],
+ "autoname": "format:KB-{ngay}",
+ "creation": "2026-08-01 08:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ngay",
+  "tinh_trang",
+  "cb1",
+  "dong_bo_luc",
+  "chot_luc",
+  "sec_bang",
+  "dong",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngay",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "tinh_trang",
+   "fieldtype": "Select",
+   "label": "Tinh trang",
+   "options": "Dang ban\nDa chot",
+   "default": "Dang ban",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dong_bo_luc",
+   "fieldtype": "Datetime",
+   "label": "Dong bo Pancake luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chot_luc",
+   "fieldtype": "Datetime",
+   "label": "Chot ngay luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_bang",
+   "fieldtype": "Section Break",
+   "label": "Bang kiem banh"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Cac dong",
+   "options": "Kiem Banh Dong"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-01 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Kiem Banh Ngay",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "ngay",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
