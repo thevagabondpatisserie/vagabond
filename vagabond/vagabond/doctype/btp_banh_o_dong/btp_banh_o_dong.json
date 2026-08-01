@@ -8,7 +8,8 @@
   "ma_hang",
   "ten_banh",
   "hinh",
-  "so_btp"
+  "so_btp",
+  "so_decor"
  ],
  "fields": [
   {
@@ -39,6 +40,14 @@
    "in_list_view": 1,
    "columns": 2,
    "description": "Banh BTP cap 2 dong lanh cho finish, bep du tru du dung 2-3 ngay"
+  },
+  {
+   "fieldname": "so_decor",
+   "fieldtype": "Int",
+   "label": "Du decor",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Trong so BTP san, bao nhieu cai da chuan bi du do decor - quyet dinh nhan don giao ngay mai (y Linh 01/08)"
   }
  ],
  "istable": 1,
