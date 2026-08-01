@@ -13,5 +13,6 @@ app_license = "MIT"
 scheduler_events = {
 	"cron": {
 		"*/5 * * * *": ["vagabond.kiem_banh.dong_bo_tu_dong"],
+		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
 	},
 }
