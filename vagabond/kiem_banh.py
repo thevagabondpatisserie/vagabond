@@ -98,6 +98,29 @@ def _dem_banh(dons):
 	return dem, ten, hinh, khach
 
 
+def _tra_anh_ten(c, k, ma):
+	"""Tra anh + ten cua mot ma tu danh muc Pancake.
+
+	Nhieu ma (vi du BAWC00053) co anh o cap SAN PHAM nhung variation nam
+	trong don hang lai KHONG nhung anh - dem tu don thi thieu. Ham nay tra
+	thang danh muc: uu tien anh cua variation, thieu thi lay anh san pham.
+	"""
+	try:
+		r = requests.get(
+			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k, "search": ma, "page_size": 5},
+			timeout=TIMEOUT,
+		)
+		for v in (r.json() or {}).get("data") or []:
+			if str(v.get("display_id") or "").strip().lower() == ma.lower():
+				ten = ((v.get("product") or {}).get("name")) or v.get("name") or ""
+				ds = v.get("images") or ((v.get("product") or {}).get("images")) or []
+				return ten, (ds[0] if ds else "")
+	except Exception:
+		pass
+	return "", ""
+
+
 def _lay_hoac_tao(ngay):
 	ma = "KB-%s" % getdate(ngay)
 	if frappe.db.exists("Kiem Banh Ngay", ma):
@@ -170,6 +193,23 @@ def dong_bo(ngay=None):
 		d.ten_khach_cho = ", ".join(khach_cho.get(ma, []))
 		if hinh1.get(ma) and not d.hinh:
 			d.hinh = hinh1[ma]
+
+	# Bu anh cho dong con thieu: don khong nhung anh thi tra danh muc.
+	# Moi ma toi da mot lan moi 6 tieng (cache) de khoi goi Pancake vo ich
+	# voi ma that su khong co anh; anh da luu thi khong bao gio tra lai.
+	nho = frappe.cache()
+	for ma, d in co.items():
+		if d.hinh:
+			continue
+		khoa = "kb_tra_anh:%s" % ma
+		if nho.get_value(khoa):
+			continue
+		nho.set_value(khoa, "1", expires_in_sec=6 * 3600)
+		ten_p, anh_p = _tra_anh_ten(c, k, ma)
+		if anh_p:
+			d.hinh = anh_p
+		if ten_p and not d.ten_banh:
+			d.ten_banh = ten_p
 
 	doc.dong_bo_luc = now_datetime()
 	doc.save(ignore_permissions=True)
@@ -252,21 +292,7 @@ def them_dong(ngay, ma_hang):
 	doc = _lay_hoac_tao(ngay)
 	if any(d.ma_hang == ma_hang for d in doc.dong):
 		frappe.throw("Ma nay da co trong bang")
-	ten, anh = "", ""
-	try:
-		r = requests.get(
-			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
-			params={"api_key": k, "search": ma_hang, "page_size": 5},
-			timeout=TIMEOUT,
-		)
-		for v in (r.json() or {}).get("data") or []:
-			if str(v.get("display_id") or "").strip().lower() == ma_hang.lower():
-				ten = ((v.get("product") or {}).get("name")) or v.get("name") or ""
-				ds_anh = v.get("images") or ((v.get("product") or {}).get("images")) or []
-				anh = ds_anh[0] if ds_anh else ""
-				break
-	except Exception:
-		pass
+	ten, anh = _tra_anh_ten(c, k, ma_hang)
 	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten, "hinh": anh})
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
