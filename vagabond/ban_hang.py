@@ -121,7 +121,7 @@ def _dong_hang(o):
 def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
-	did = str(o.get("display_id") or "")
+	did = str(o.get("display_id") or o.get("id") or "")
 	cu = frappe.db.get_value(
 		"Sales Invoice", {"custom_pancake_id": pid}, ["name", "docstatus"], as_dict=True
 	)
