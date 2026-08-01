@@ -1,0 +1,116 @@
+{
+ "actions": [],
+ "creation": "2026-08-01 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_hang",
+  "ten_banh",
+  "ton_cu",
+  "nsx_cu",
+  "ton_d2",
+  "nsx_d2",
+  "ton_d1",
+  "nsx_d1",
+  "sx",
+  "da_dat",
+  "phat_sinh",
+  "co_the_ban"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Data",
+   "label": "Ma hang",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "ten_banh",
+   "fieldtype": "Data",
+   "label": "Ten banh",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "ton_cu",
+   "fieldtype": "Int",
+   "label": "Ton cu hon",
+   "description": "Lo cu hon D-2. Sales sua theo kiem tu that."
+  },
+  {
+   "fieldname": "nsx_cu",
+   "fieldtype": "Date",
+   "label": "NSX lo cu"
+  },
+  {
+   "fieldname": "ton_d2",
+   "fieldtype": "Int",
+   "label": "Ton D-2"
+  },
+  {
+   "fieldname": "nsx_d2",
+   "fieldtype": "Date",
+   "label": "NSX D-2"
+  },
+  {
+   "fieldname": "ton_d1",
+   "fieldtype": "Int",
+   "label": "Ton D-1",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "nsx_d1",
+   "fieldtype": "Date",
+   "label": "NSX D-1"
+  },
+  {
+   "fieldname": "sx",
+   "fieldtype": "Int",
+   "label": "Bep san xuat",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Bep go khi nhan lenh. Sau nay doc tu lenh san xuat."
+  },
+  {
+   "fieldname": "da_dat",
+   "fieldtype": "Int",
+   "label": "Da dat",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "May dem tu Pancake: don giao hom nay, tao truoc hom nay"
+  },
+  {
+   "fieldname": "phat_sinh",
+   "fieldtype": "Int",
+   "label": "Phat sinh",
+   "read_only": 1,
+   "columns": 1,
+   "description": "May dem tu Pancake: don tao hom nay va giao hom nay"
+  },
+  {
+   "fieldname": "co_the_ban",
+   "fieldtype": "Int",
+   "label": "Co the ban",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "= ton dau + san xuat - da dat - phat sinh"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-01 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Kiem Banh Dong",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
