@@ -1,0 +1,155 @@
+{
+ "actions": [],
+ "autoname": "format:HDBH-{YYYY}-{####}",
+ "creation": "2026-08-02 00:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ten",
+  "so_hop_dong",
+  "loai",
+  "trang_thai",
+  "cb1",
+  "khach_hang",
+  "ngay_ky",
+  "ngay_su_kien",
+  "gia_tri",
+  "sec_mo_ta",
+  "mo_ta",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Ten hop dong / su kien",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "so_hop_dong",
+   "fieldtype": "Data",
+   "label": "So hop dong",
+   "in_list_view": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loai",
+   "options": "Event - Catering\nTeabreak\nBánh thiết kế\nB2B sỉ\nKhác",
+   "default": "Event - Catering",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Nháp\nĐang thực hiện\nHoàn tất\nĐã thanh lý\nHuỷ",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "khach_hang",
+   "fieldtype": "Link",
+   "label": "Khach hang",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "ngay_ky",
+   "fieldtype": "Date",
+   "label": "Ngay ky"
+  },
+  {
+   "fieldname": "ngay_su_kien",
+   "fieldtype": "Date",
+   "label": "Ngay su kien / giao"
+  },
+  {
+   "fieldname": "gia_tri",
+   "fieldtype": "Currency",
+   "label": "Gia tri hop dong"
+  },
+  {
+   "fieldname": "sec_mo_ta",
+   "fieldtype": "Section Break",
+   "label": "Noi dung"
+  },
+  {
+   "fieldname": "mo_ta",
+   "fieldtype": "Text",
+   "label": "Mo ta noi dung (in len bao gia / doi chieu hoa don)"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Text",
+   "label": "Ghi chu noi bo"
+  }
+ ],
+ "links": [
+  {
+   "group": "Ban hang",
+   "link_doctype": "Sales Invoice",
+   "link_fieldname": "custom_hop_dong"
+  },
+  {
+   "group": "Ban hang",
+   "link_doctype": "Sales Order",
+   "link_fieldname": "custom_hop_dong"
+  }
+ ],
+ "modified": "2026-08-02 00:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Hop Dong Ban Hang",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ten",
+ "track_changes": 1
+}
