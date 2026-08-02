@@ -1,0 +1,228 @@
+{
+ "actions": [],
+ "autoname": "format:VD-{YYYY}-{#####}",
+ "creation": "2026-08-02 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_don",
+  "hoa_don",
+  "khach",
+  "sdt",
+  "dia_chi",
+  "cb1",
+  "ngay_giao",
+  "gio_giao",
+  "trang_thai",
+  "kenh",
+  "shipper",
+  "sec_tien",
+  "tien_thu_ho",
+  "phi_giao",
+  "cb2",
+  "booking_id",
+  "tracking_url",
+  "sec_giao",
+  "anh_giao",
+  "giao_luc",
+  "ly_do_loi",
+  "ghi_chu",
+  "pancake_id",
+  "da_bao_pancake"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_don",
+   "fieldtype": "Data",
+   "label": "So don (Pancake/Fabi)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoa don ban hang",
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Data",
+   "label": "Ten khach",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "So dien thoai"
+  },
+  {
+   "fieldname": "dia_chi",
+   "fieldtype": "Small Text",
+   "label": "Dia chi giao"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay_giao",
+   "fieldtype": "Date",
+   "label": "Ngay giao",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "gio_giao",
+   "fieldtype": "Data",
+   "label": "Khung gio giao (vd 15h-16h)"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Chờ giao\nĐang giao\nĐã giao\nGiao lỗi\nHuỷ",
+   "default": "Chờ giao",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "kenh",
+   "fieldtype": "Select",
+   "label": "Kenh giao",
+   "options": "Shipper nội bộ\nAhamove\nGreenSM\nBE\nGrab\nKhách tự lấy",
+   "default": "Shipper nội bộ",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "shipper",
+   "fieldtype": "Link",
+   "label": "Shipper phu trach",
+   "options": "User",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sec_tien",
+   "fieldtype": "Section Break",
+   "label": "Tien va book xe"
+  },
+  {
+   "fieldname": "tien_thu_ho",
+   "fieldtype": "Currency",
+   "label": "Tien thu ho (COD)"
+  },
+  {
+   "fieldname": "phi_giao",
+   "fieldtype": "Currency",
+   "label": "Phi giao"
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "booking_id",
+   "fieldtype": "Data",
+   "label": "Ma van don ben app (Ahamove/GreenSM/BE)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tracking_url",
+   "fieldtype": "Data",
+   "label": "Link theo doi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_giao",
+   "fieldtype": "Section Break",
+   "label": "Ket qua giao"
+  },
+  {
+   "fieldname": "anh_giao",
+   "fieldtype": "Attach",
+   "label": "Anh giao thanh cong (tu xoa sau 30 ngay)"
+  },
+  {
+   "fieldname": "giao_luc",
+   "fieldtype": "Datetime",
+   "label": "Giao luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_loi",
+   "fieldtype": "Small Text",
+   "label": "Ly do giao loi"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Text",
+   "label": "Ghi chu"
+  },
+  {
+   "fieldname": "pancake_id",
+   "fieldtype": "Data",
+   "label": "Pancake ID",
+   "hidden": 1
+  },
+  {
+   "fieldname": "da_bao_pancake",
+   "fieldtype": "Check",
+   "label": "Da day trang thai sang Pancake",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-02 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Van Don",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Shipper",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ma_don",
+ "track_changes": 1
+}
