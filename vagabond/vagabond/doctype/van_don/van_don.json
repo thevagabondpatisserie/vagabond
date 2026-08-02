@@ -17,6 +17,24 @@
   "kenh",
   "shipper",
   "chuyen",
+  "tag_gio",
+  "buoi",
+  "phuong",
+  "diem_lay",
+  "sec_tuyen",
+  "thu_tu",
+  "gio_du_kien",
+  "km_chang",
+  "cb_tuyen",
+  "lat",
+  "lng",
+  "tre_khung_gio",
+  "sec_the",
+  "the_don",
+  "goi_truoc",
+  "chup_truoc",
+  "cb_the",
+  "ghi_chu_in",
   "sec_tien",
   "tien_thu_ho",
   "phi_giao",
@@ -181,10 +199,109 @@
    "fieldtype": "Check",
    "label": "Da doi soat tien COD",
    "read_only": 1
+  },
+  {
+   "fieldname": "tag_gio",
+   "fieldtype": "Data",
+   "label": "Khung gio giao (the Pancake)",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "buoi",
+   "fieldtype": "Select",
+   "label": "Buoi",
+   "options": "\nSáng\nChiều\nTối",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "phuong",
+   "fieldtype": "Data",
+   "label": "Phuong / Xa",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "diem_lay",
+   "fieldtype": "Select",
+   "label": "Diem lay banh",
+   "options": "\nBếp\nTiệm"
+  },
+  {
+   "fieldname": "sec_tuyen",
+   "fieldtype": "Section Break",
+   "label": "Xep tuyen"
+  },
+  {
+   "fieldname": "thu_tu",
+   "fieldtype": "Int",
+   "label": "Thu tu trong tuyen"
+  },
+  {
+   "fieldname": "gio_du_kien",
+   "fieldtype": "Data",
+   "label": "Gio du kien den"
+  },
+  {
+   "fieldname": "km_chang",
+   "fieldtype": "Float",
+   "label": "Km tu diem truoc",
+   "precision": "2"
+  },
+  {
+   "fieldname": "cb_tuyen",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lat",
+   "fieldtype": "Float",
+   "label": "Vi do",
+   "precision": "6",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lng",
+   "fieldtype": "Float",
+   "label": "Kinh do",
+   "precision": "6",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tre_khung_gio",
+   "fieldtype": "Check",
+   "label": "Canh bao tre khung gio"
+  },
+  {
+   "fieldname": "sec_the",
+   "fieldtype": "Section Break",
+   "label": "The va ghi chu tu Pancake"
+  },
+  {
+   "fieldname": "the_don",
+   "fieldtype": "Small Text",
+   "label": "The don (Pancake)"
+  },
+  {
+   "fieldname": "goi_truoc",
+   "fieldtype": "Check",
+   "label": "Goi truoc khi giao"
+  },
+  {
+   "fieldname": "chup_truoc",
+   "fieldtype": "Check",
+   "label": "Chup anh gui truoc khi giao"
+  },
+  {
+   "fieldname": "cb_the",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ghi_chu_in",
+   "fieldtype": "Text",
+   "label": "Ghi chu de in (note_print)"
   }
  ],
  "links": [],
- "modified": "2026-08-02 11:30:00.000000",
+ "modified": "2026-08-02 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Van Don",
