@@ -20,6 +20,7 @@ import frappe
 import requests
 from frappe.utils import add_days, flt, get_datetime, now_datetime, nowdate
 
+from vagabond.kiem_banh import BO_QUA_TT, _keo_don, _khoang_unix
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
 QUYEN_SALES = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
@@ -133,6 +134,100 @@ def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 	)
 	doc.insert(ignore_permissions=True)
 	return doc.name
+
+
+def _gio_tu_iso(s):
+	"""Lay HH:mm tu chuoi ISO datetime cua Pancake, khong co thi tra rong."""
+	s = str(s or "")
+	if "T" in s and len(s) >= 16:
+		return s[11:16]
+	if " " in s and len(s) >= 16:
+		return s[11:16]
+	return ""
+
+
+def _cod_tu_don(o, si):
+	"""Tien shipper phai thu. Uu tien so con lai tren hoa don ERPNext."""
+	if si:
+		return flt(si.outstanding_amount or 0)
+	tong = flt(
+		o.get("total_price_after_sub_discount")
+		or o.get("total_price")
+		or 0
+	)
+	da_tra = flt(o.get("prepaid") or 0)
+	for truong in ("cash", "transfer_money", "charged_by_onepay", "charged_by_card",
+		"charged_by_momo", "charged_by_vnpay", "charged_by_qrpay"):
+		da_tra += flt(o.get(truong) or 0)
+	return max(0, tong - da_tra)
+
+
+@frappe.whitelist()
+def dong_bo_pancake(ngay=None):
+	"""Keo don Pancake giao trong NGAY ve thanh van don de sales phan shipper.
+
+	Loc theo ngay giao du kien (updateStatus=estimate_delivery_date, moc thoi
+	gian phai la UNIX GIAY - truyen ISO thi Pancake tra 0 don ma khong bao
+	loi). Bo don da huy (6) va da xoa (7). Chong trung theo pancake_id: don
+	da keo ve roi thi khong dung toi, tranh de len tay sales da sua.
+	"""
+	if not (_la_sales() or _la_ke_toan()):
+		frappe.throw("Chỉ sales và kế toán đồng bộ được vận đơn.")
+	ngay = ngay or nowdate()
+	c = cfg()
+	k = key(c, "pancake_api_key")
+	if not (k and c.pancake_shop_id):
+		frappe.throw("Chưa điền khoá Pancake trong Vagabond Settings.")
+
+	dau, cuoi = _khoang_unix(ngay)
+	try:
+		ds = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "van_don: dong bo Pancake")
+		frappe.throw("Pancake chưa trả dữ liệu, anh chị thử lại sau ít phút giúp em.")
+
+	them, da_co, bo_qua = 0, 0, 0
+	for o in ds:
+		if (o.get("status") or 0) in BO_QUA_TT:
+			bo_qua += 1
+			continue
+		pid = str(o.get("id") or "")
+		if not pid:
+			bo_qua += 1
+			continue
+		if frappe.db.exists("Van Don", {"pancake_id": pid}):
+			da_co += 1
+			continue
+		sa = o.get("shipping_address") or {}
+		if str(o.get("received_at_shop") or "").lower() in ("true", "1"):
+			kenh = "Khách tự lấy"
+		else:
+			kenh = "Shipper nội bộ"
+		si = frappe.db.get_value(
+			"Sales Invoice",
+			{"custom_pancake_id": pid, "docstatus": ["<", 2]},
+			["name", "grand_total", "outstanding_amount"],
+			as_dict=True,
+		)
+		frappe.get_doc(
+			{
+				"doctype": "Van Don",
+				"hoa_don": si.name if si else None,
+				"ma_don": str(o.get("display_id") or pid),
+				"khach": (sa.get("full_name") or o.get("bill_full_name") or "").strip(),
+				"sdt": (sa.get("phone_number") or o.get("bill_phone_number") or "").strip(),
+				"dia_chi": (sa.get("full_address") or sa.get("address") or "").strip(),
+				"ngay_giao": ngay,
+				"gio_giao": _gio_tu_iso(o.get("estimate_delivery_date")),
+				"kenh": kenh,
+				"tien_thu_ho": _cod_tu_don(o, si),
+				"ghi_chu": (o.get("note") or "").strip(),
+				"pancake_id": pid,
+			}
+		).insert(ignore_permissions=True)
+		them += 1
+	frappe.db.commit()
+	return {"them": them, "da_co": da_co, "bo_qua": bo_qua, "tong": len(ds), "ngay": str(ngay)}
 
 
 @frappe.whitelist()
