@@ -201,6 +201,10 @@ RE_MOC_MST = re.compile(
 	r"(?:mst|ma so thue|tax code|xuat hoa don|xuat hd|xhd|hoa don vat|hoa don do|vat)"
 	r"[^0-9]{0,40}(\d{10}(?:[-\s]?\d{3})?)"
 )
+# Luoi an toan: khi don DA nhac chuyen hoa don ma so khong dung ngay sau tu
+# khoa, quet moi so 10/13 chu so va chi nhan so nao tra cong thong tin thue
+# ra dung mot doanh nghiep. So dien thoai khong tra ra doanh nghiep nen rot.
+RE_MOI_SO = re.compile(r"(?<!\d)(\d{10}(?:[-\s]?\d{3})?)(?!\d)")
 # So sanh tren text DA BO DAU (_bo_dau) nen chi can ban khong dau.
 TU_KHOA_XHD = ("xuat hoa don", "xuat hd", "xhd", "ma so thue", "mst", "hoa don vat", "hoa don do")
 
@@ -231,17 +235,18 @@ def _so_hop_le(m):
 def _tach_mst(txt):
 	"""Tim ma so thue trong text.
 
-	Chi lay so DUNG SAU tu khoa hoa don (MST, ma so thue, xuat hoa don...).
-	Khong quet bua moi so 10 chu so vi so dien thoai khach cung 10 chu so va
-	cung bat dau bang 0 - tung bat nham 0989937939 cua don 91060 (02/08).
-	Nguoi goi con phai tra cong thong tin thue de chac chan la doanh nghiep.
+	Tra DANH SACH so dung sau tu khoa hoa don (MST, ma so thue, xuat hoa
+	don...), theo thu tu xuat hien. Khong quet bua moi so 10 chu so vi so dien
+	thoai khach cung 10 chu so va cung bat dau bang 0 - tung bat nham
+	0989937939 cua don 91060 (02/08). Nguoi goi con phai tra cong thong tin
+	thue de chac chan la doanh nghiep.
 	"""
 	ra = []
 	for m in RE_MOC_MST.finditer(_bo_dau(txt)):
 		so = _so_hop_le(m.group(1))
 		if so and so not in ra:
 			ra.append(so)
-	return ra[0] if ra else ""
+	return ra
 
 
 def _thong_tin_xhd(o, did):
@@ -268,8 +273,18 @@ def _thong_tin_xhd(o, did):
 		}
 
 	txt = _text_don(o)
-	mst = _tach_mst(txt)
-	if mst:
+	low = _bo_dau(txt)
+	co_nhac = any(t in low for t in TU_KHOA_XHD)
+	ung_vien = _tach_mst(txt)
+	if co_nhac:
+		# Luoi an toan: so khong dung ngay sau tu khoa van xet, nhung phai qua
+		# duoc cua tra cong thong tin thue moi duoc nhan.
+		for m in RE_MOI_SO.finditer(low):
+			so = _so_hop_le(m.group(1))
+			if so and so not in ung_vien:
+				ung_vien.append(so)
+
+	for mst in ung_vien:
 		tt = {}
 		try:
 			from vagabond.api import tra_mst
@@ -284,12 +299,10 @@ def _thong_tin_xhd(o, did):
 				"vgb_xhd_dia_chi": tt.get("dia_chi") or "",
 				"vgb_xhd_email": "",
 			}
-		# Tra khong ra doanh nghiep -> nhieu kha nang la so dien thoai hoac
-		# khach go sai. De TRONG cho sales dien tay, khong ghi so bua vao HDDT.
-		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
-	low = _bo_dau(txt)
-	if any(t in low for t in TU_KHOA_XHD):
+	if ung_vien or co_nhac:
+		# Khach co nhac hoa don nhung khong ra duoc doanh nghiep nao (hay gap
+		# nhat: so do la so dien thoai). De TRONG de sales buoc phai dien tay.
 		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
 	return {"vgb_xhd_ten": XHD_MAC_DINH, "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
