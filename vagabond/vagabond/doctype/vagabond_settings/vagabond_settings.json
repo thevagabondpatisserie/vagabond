@@ -34,7 +34,15 @@
   "cb_minv",
   "minvoice_ma_dvcs",
   "minvoice_series",
-  "minvoice_ma_thue"
+  "minvoice_ma_thue",
+  "sec_gsm",
+  "greensm_client_id",
+  "greensm_client_secret",
+  "greensm_token_url",
+  "cb_gsm",
+  "greensm_sandbox",
+  "be_base",
+  "be_token"
  ],
  "fields": [
   {
@@ -208,11 +216,51 @@
    "fieldtype": "Data",
    "label": "Thuế suất (%)",
    "default": "8"
+  },
+  {
+   "fieldname": "sec_gsm",
+   "fieldtype": "Section Break",
+   "label": "GreenSM Express (book xe)"
+  },
+  {
+   "fieldname": "greensm_client_id",
+   "fieldtype": "Data",
+   "label": "GreenSM Client ID"
+  },
+  {
+   "fieldname": "greensm_client_secret",
+   "fieldtype": "Password",
+   "label": "GreenSM Client Secret"
+  },
+  {
+   "fieldname": "greensm_token_url",
+   "fieldtype": "Data",
+   "label": "GreenSM Token URL (OAuth2)"
+  },
+  {
+   "fieldname": "cb_gsm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "greensm_sandbox",
+   "fieldtype": "Check",
+   "label": "Dung sandbox GreenSM",
+   "default": "1"
+  },
+  {
+   "fieldname": "be_base",
+   "fieldtype": "Data",
+   "label": "BE Delivery Base URL (cho API)"
+  },
+  {
+   "fieldname": "be_token",
+   "fieldtype": "Password",
+   "label": "BE Delivery Token (cho API)"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-01 18:30:00.000000",
+ "modified": "2026-08-02 02:05:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
