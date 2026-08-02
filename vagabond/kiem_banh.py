@@ -30,9 +30,9 @@ from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 BO_QUA_TT = {6, 7}  # da huy, da xoa
 MAX_TRANG = 10
 
-# Chi theo doi banh o (ma BAWC...). Phu kien, phi giao, hop nen... khong
-# thuoc bang kiem banh - anh Viet chot 01/08.
-TIEN_TO_MA = "BAWC"
+# Theo doi banh o (BAWC) va banh si (BAWS) - anh Viet mo them BAWS 02/08.
+# Phu kien, phi giao, hop nen... khong thuoc bang kiem banh.
+TIEN_TO_MA = ("BAWC", "BAWS")
 
 # Man hinh tu goi dong bo lien tuc; chan doi lai Pancake day hon muc nay.
 GIAN_CACH_DONG_BO = 12  # giay
@@ -288,7 +288,7 @@ def them_dong(ngay, ma_hang):
 	if not ma_hang:
 		frappe.throw("Thieu ma hang")
 	if not ma_hang.upper().startswith(TIEN_TO_MA):
-		frappe.throw("Bang nay chi theo doi banh o (ma %s...)" % TIEN_TO_MA)
+		frappe.throw("Bang nay chi theo doi banh o va banh si (ma %s...)" % "/".join(TIEN_TO_MA))
 	doc = _lay_hoac_tao(ngay)
 	if any(d.ma_hang == ma_hang for d in doc.dong):
 		frappe.throw("Ma nay da co trong bang")

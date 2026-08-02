@@ -147,7 +147,7 @@ def them_ma_btp(ma_hang):
 	if not ma_hang:
 		frappe.throw("Thieu ma hang")
 	if not ma_hang.upper().startswith(TIEN_TO_MA):
-		frappe.throw("Bang BTP chi theo doi banh o (ma %s...)" % TIEN_TO_MA)
+		frappe.throw("Bang BTP chi theo doi banh o va banh si (ma %s...)" % "/".join(TIEN_TO_MA))
 	doc = frappe.get_single("BTP Banh O")
 	if any(d.ma_hang == ma_hang for d in doc.dong):
 		frappe.throw("Ma nay da co trong bang")

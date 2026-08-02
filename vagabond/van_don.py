@@ -147,7 +147,8 @@ def danh_sach(ngay=None, trang_thai=None):
 		"Van Don",
 		filters=loc,
 		fields=["name", "ma_don", "khach", "sdt", "dia_chi", "gio_giao", "trang_thai",
-			"kenh", "shipper", "tien_thu_ho", "phi_giao", "anh_giao", "booking_id", "tracking_url", "ly_do_loi"],
+			"kenh", "shipper", "tien_thu_ho", "phi_giao", "anh_giao", "booking_id", "tracking_url",
+			"ly_do_loi", "chuyen", "da_doi_soat"],
 		order_by="gio_giao asc, creation asc",
 		limit_page_length=300,
 	)
@@ -198,9 +199,11 @@ def giao_xong(name, file_url=None):
 
 @frappe.whitelist()
 def giao_loi(name, ly_do):
+	"""Danh dau KHONG GIAO DUOC (khach khong nghe may, sai dia chi...).
+	Khong dung den trang thai Pancake - sales tu xu ly don goc."""
 	_kiem_quyen_xem()
 	doc = frappe.get_doc("Van Don", name)
-	doc.trang_thai = "Giao lỗi"
+	doc.trang_thai = "Không giao được"
 	doc.ly_do_loi = ly_do
 	doc.flags.ignore_permissions = True
 	doc.save()
@@ -213,6 +216,150 @@ def huy_van_don(name):
 		frappe.throw("Chỉ sales huỷ được vận đơn.")
 	frappe.db.set_value("Van Don", name, "trang_thai", "Huỷ")
 	return name
+
+
+# ---------------------------------------------------------------- Gop chuyen
+
+@frappe.whitelist()
+def ds_shipper():
+	"""Danh sach user co role Shipper de gan chuyen."""
+	_kiem_quyen_xem()
+	ds = frappe.get_all(
+		"Has Role",
+		filters={"role": "Shipper", "parenttype": "User"},
+		fields=["parent"],
+	)
+	ra = []
+	for r in ds:
+		if r.parent in ("Administrator", "Guest"):
+			continue
+		if not frappe.db.get_value("User", r.parent, "enabled"):
+			continue
+		ra.append({"user": r.parent, "ten": frappe.db.get_value("User", r.parent, "full_name") or r.parent})
+	return ra
+
+
+@frappe.whitelist()
+def chuyen_dang_chay(ngay=None):
+	"""Cac chuyen con don Dang giao trong ngay - de chen don moi vao
+	chuyen dang chay thay vi tao chuyen moi."""
+	_kiem_quyen_xem()
+	rows = frappe.get_all(
+		"Van Don",
+		filters={"ngay_giao": ngay or nowdate(), "trang_thai": "Đang giao", "chuyen": ["!=", ""]},
+		fields=["chuyen", "shipper"],
+		limit_page_length=300,
+	)
+	gom = {}
+	for r in rows:
+		g = gom.setdefault(r.chuyen, {"chuyen": r.chuyen, "shipper": r.shipper, "so_don": 0})
+		g["so_don"] += 1
+	ra = sorted(gom.values(), key=lambda x: x["chuyen"], reverse=True)
+	for g in ra:
+		g["ten_shipper"] = frappe.db.get_value("User", g["shipper"], "full_name") or g["shipper"] or ""
+	return ra
+
+
+@frappe.whitelist()
+def gop_chuyen(names, shipper, chuyen=None):
+	"""Gop nhieu van don thanh mot chuyen cho shipper noi bo - thao tac
+	mot phat cho nhanh vi don hay phat sinh chen ngang (y Loan Anh).
+
+	names: json list ten Van Don. chuyen bo trong = tao chuyen moi;
+	truyen ma chuyen dang chay = chen them don vao chuyen do."""
+	if not _la_sales():
+		frappe.throw("Chỉ sales gộp chuyến được.")
+	if isinstance(names, str):
+		names = json.loads(names)
+	if not names:
+		frappe.throw("Chưa chọn đơn nào.")
+	if not shipper:
+		frappe.throw("Chưa chọn shipper.")
+	if not chuyen:
+		d = now_datetime().strftime("%d%m")
+		n = 1
+		while True:
+			chuyen = "CH-%s-%d" % (d, n)
+			if not frappe.db.exists("Van Don", {"chuyen": chuyen}):
+				break
+			n += 1
+	bo_qua = []
+	gan = 0
+	for nm in names:
+		doc = frappe.get_doc("Van Don", nm)
+		if doc.trang_thai not in ("Chờ giao", "Đang giao"):
+			bo_qua.append("%s (%s)" % (doc.ma_don or nm, doc.trang_thai))
+			continue
+		doc.shipper = shipper
+		doc.chuyen = chuyen
+		doc.trang_thai = "Đang giao"
+		if doc.kenh != "Shipper nội bộ":
+			doc.kenh = "Shipper nội bộ"
+		doc.flags.ignore_permissions = True
+		doc.save()
+		gan += 1
+	return {"chuyen": chuyen, "so_don": gan, "bo_qua": bo_qua}
+
+
+# ---------------------------------------------------------------- Doi soat COD
+
+@frappe.whitelist()
+def doi_soat_cod(ngay=None):
+	"""Tong COD da giao theo tung shipper trong ngay, tach phan chua
+	doi soat de ke toan thu tien shipper nop ve cuoi ngay."""
+	if not (_la_sales() or _la_ke_toan()):
+		frappe.throw("Chỉ sales hoặc kế toán xem đối soát COD.")
+	rows = frappe.get_all(
+		"Van Don",
+		filters={"ngay_giao": ngay or nowdate(), "trang_thai": "Đã giao"},
+		fields=["name", "ma_don", "khach", "shipper", "kenh", "tien_thu_ho", "da_doi_soat", "chuyen"],
+		order_by="shipper asc, creation asc",
+		limit_page_length=500,
+	)
+	gom = {}
+	for r in rows:
+		ai = r.shipper or ("(app ngoài: %s)" % (r.kenh or "?") if r.kenh != "Shipper nội bộ" else "(chưa gán shipper)")
+		g = gom.setdefault(ai, {
+			"shipper": ai, "ten": "", "so_don": 0, "tong_cod": 0,
+			"chua_doi_soat": 0, "so_don_chua": 0, "don": [],
+		})
+		g["so_don"] += 1
+		g["tong_cod"] += flt(r.tien_thu_ho)
+		if not r.da_doi_soat:
+			g["chua_doi_soat"] += flt(r.tien_thu_ho)
+			g["so_don_chua"] += 1
+		g["don"].append({
+			"name": r.name, "ma_don": r.ma_don, "khach": r.khach,
+			"cod": flt(r.tien_thu_ho), "da_doi_soat": r.da_doi_soat, "chuyen": r.chuyen,
+		})
+	for ai, g in gom.items():
+		if "@" in ai:
+			g["ten"] = frappe.db.get_value("User", ai, "full_name") or ai
+		else:
+			g["ten"] = ai
+	return sorted(gom.values(), key=lambda x: -x["tong_cod"])
+
+
+@frappe.whitelist()
+def xac_nhan_cod(shipper, ngay=None):
+	"""Ke toan xac nhan DA NHAN DU tien COD shipper nop ve cho ngay do.
+	Danh dau da_doi_soat len toan bo don Da giao cua shipper trong ngay."""
+	if not _la_ke_toan():
+		frappe.throw("Chỉ kế toán / thu mua xác nhận được tiền COD.")
+	rows = frappe.get_all(
+		"Van Don",
+		filters={
+			"ngay_giao": ngay or nowdate(), "trang_thai": "Đã giao",
+			"shipper": shipper, "da_doi_soat": 0,
+		},
+		fields=["name", "tien_thu_ho"],
+		limit_page_length=500,
+	)
+	tong = 0
+	for r in rows:
+		frappe.db.set_value("Van Don", r.name, "da_doi_soat", 1)
+		tong += flt(r.tien_thu_ho)
+	return {"so_don": len(rows), "tong": tong}
 
 
 # ---------------------------------------------------------------- Book xe
@@ -233,7 +380,7 @@ def _ahamove_dat_don(doc):
 		frappe.throw("Chưa cấu hình Ahamove trong Vagabond Settings.")
 	if not (doc.dia_chi or "").strip():
 		frappe.throw("Vận đơn chưa có địa chỉ giao.")
-	toa = geocode(doc.dia_chi)
+	toa = geocode(c, doc.dia_chi)
 	if not toa or not toa.get("lat"):
 		frappe.throw("Không tìm được toạ độ cho địa chỉ này, sửa lại địa chỉ giúp em.")
 	reqs = []
@@ -313,7 +460,7 @@ def _greensm_dat_don(doc):
 		)
 	from vagabond.dia_chi import geocode
 
-	toa = geocode(doc.dia_chi or "")
+	toa = geocode(c, doc.dia_chi or "")
 	diem = _diem_lay(c)
 	MAP_GSM = {
 		"pickup": {"lat": diem["lat"], "lng": diem["lng"], "address": diem["dia_chi"], "contact_name": "The Vagabond", "contact_phone": c.ahamove_mobile or ""},
