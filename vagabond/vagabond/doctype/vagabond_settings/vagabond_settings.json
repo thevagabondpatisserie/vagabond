@@ -42,7 +42,14 @@
   "cb_gsm",
   "greensm_sandbox",
   "be_base",
-  "be_token"
+  "be_token",
+  "sec_tuyen",
+  "so_don_toi_da_chuyen",
+  "toc_do_km_h",
+  "phut_moi_diem",
+  "cb_tuyen",
+  "he_so_duong_thuc",
+  "dung_goong_xep_tuyen"
  ],
  "fields": [
   {
@@ -256,11 +263,52 @@
    "fieldname": "be_token",
    "fieldtype": "Password",
    "label": "BE Delivery Token (cho API)"
+  },
+  {
+   "fieldname": "sec_tuyen",
+   "fieldtype": "Section Break",
+   "label": "Xep tuyen giao hang"
+  },
+  {
+   "fieldname": "so_don_toi_da_chuyen",
+   "fieldtype": "Int",
+   "label": "So don toi da moi chuyen",
+   "default": "12"
+  },
+  {
+   "fieldname": "toc_do_km_h",
+   "fieldtype": "Float",
+   "label": "Toc do xe may trung binh (km/h)",
+   "default": "20",
+   "precision": "1"
+  },
+  {
+   "fieldname": "phut_moi_diem",
+   "fieldtype": "Int",
+   "label": "Phut dung moi diem giao",
+   "default": "6"
+  },
+  {
+   "fieldname": "cb_tuyen",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "he_so_duong_thuc",
+   "fieldtype": "Float",
+   "label": "He so duong thuc / duong chim bay",
+   "default": "1.4",
+   "precision": "2"
+  },
+  {
+   "fieldname": "dung_goong_xep_tuyen",
+   "fieldtype": "Check",
+   "label": "Dung Goong Distance Matrix khi xep tuyen",
+   "default": "0"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-02 02:05:00.000000",
+ "modified": "2026-08-02 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
