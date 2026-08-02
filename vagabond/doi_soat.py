@@ -12,6 +12,8 @@ import re
 import frappe
 import requests
 
+from frappe.utils import flt
+
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 
 QUYEN = {"System Manager", "Sales Manager", "Sales User", "Bộ phận đặt hàng"}
@@ -211,6 +213,79 @@ def nap_anh_mo_ta_tu_file(file_url, ghi_de_anh=0, ghi_de_mo_ta=0, gioi_han=500):
 	frappe.db.commit()
 	kq["so_ma_khong_thay"] = len(kq["khong_co_ma"])
 	kq["khong_co_ma"] = kq["khong_co_ma"][:150]
+	return kq
+
+
+@frappe.whitelist()
+def nap_gia_ban_tu_file(file_url, bang_gia=None, ghi_de=1):
+	"""Nap gia ban tu file CSV hai cot: ma, gia.
+
+	Anh Viet chot 02/08/2026: LAY GIA BEN FABI LAM CHUAN cho bo ma tren Next.
+	Ham nay ghi vao ca hai cho:
+	- Item.standard_rate (gia niem yet tren ho so hang)
+	- Item Price cua bang gia ban mac dinh (Standard Selling), tao moi neu chua co
+
+	Chay lai bao nhieu lan cung duoc. ghi_de = 0 thi chi dien cho ma chua co gia.
+	"""
+	_quyen()
+	ghi_de = int(ghi_de or 0)
+	bang_gia = (bang_gia or "").strip() or frappe.db.get_single_value(
+		"Selling Settings", "selling_price_list"
+	) or "Standard Selling"
+	if not frappe.db.exists("Price List", bang_gia):
+		frappe.throw("Không có bảng giá %s." % bang_gia)
+	tien_te = frappe.db.get_value("Price List", bang_gia, "currency") or "VND"
+
+	tep = frappe.get_doc("File", {"file_url": file_url})
+	noi_dung = tep.get_content()
+	if isinstance(noi_dung, bytes):
+		noi_dung = noi_dung.decode("utf-8-sig")
+
+	kq = {"sua_ho_so": 0, "sua_bang_gia": 0, "tao_bang_gia": 0, "khong_co_ma": [], "xet": 0}
+	for dong in csv.DictReader(io.StringIO(noi_dung)):
+		kq["xet"] += 1
+		ma = _item_theo_ma(dong.get("ma"))
+		if not ma:
+			kq["khong_co_ma"].append((dong.get("ma") or "").strip())
+			continue
+		try:
+			gia = float(dong.get("gia") or 0)
+		except ValueError:
+			continue
+		if gia <= 0:
+			continue
+
+		cu = flt(frappe.db.get_value("Item", ma, "standard_rate"))
+		if ghi_de or not cu:
+			if cu != gia:
+				frappe.db.set_value("Item", ma, "standard_rate", gia)
+				kq["sua_ho_so"] += 1
+
+		ten_gia = frappe.db.get_value(
+			"Item Price", {"item_code": ma, "price_list": bang_gia}, "name"
+		)
+		if ten_gia:
+			if ghi_de and flt(frappe.db.get_value("Item Price", ten_gia, "price_list_rate")) != gia:
+				frappe.db.set_value("Item Price", ten_gia, "price_list_rate", gia)
+				kq["sua_bang_gia"] += 1
+		else:
+			doc = frappe.get_doc(
+				{
+					"doctype": "Item Price",
+					"item_code": ma,
+					"price_list": bang_gia,
+					"price_list_rate": gia,
+					"currency": tien_te,
+					"selling": 1,
+				}
+			)
+			doc.flags.ignore_permissions = True
+			doc.insert(ignore_permissions=True)
+			kq["tao_bang_gia"] += 1
+	frappe.db.commit()
+	kq["so_ma_khong_thay"] = len(kq["khong_co_ma"])
+	kq["khong_co_ma"] = kq["khong_co_ma"][:150]
+	kq["bang_gia"] = bang_gia
 	return kq
 
 
