@@ -140,6 +140,17 @@ def _dong_hang(o):
 	return rows, thieu
 
 
+# Bill ca the: Payoo va ShinhanBank deu in "So tham chieu" (12 chu so) va
+# "Ma chuan chi" (6 ky tu chu + so, vi du F62221). Bill KHONG co ma vach nen
+# sales phai go tay - nhan ca hai dang de sales go cai nao ngan hon cung duoc,
+# den luc doi soat thi do ca hai cot (anh Viet gui bill mau 02/08/2026).
+MAU_BILL = r"^[A-Z0-9]{4,20}$"
+LOI_BILL = (
+	"Nhập Số tham chiếu (chỉ chữ số, ví dụ 621416783893) hoặc Mã chuẩn chi "
+	"(chữ và số, ví dụ F62221) in trên bill cà thẻ."
+)
+
+
 # ------------------------------------------------ ma tham chieu doi soat
 # Moi phuong thuc thanh toan bam vao mot chung tu khac nhau. Bat sales ghi
 # dung ma nay NGAY LUC chot don thi doi soat tu dong sau nay khop duoc TUNG
@@ -161,16 +172,16 @@ PT_THAM_CHIEU = {
 		"bat": 1,
 		"nhan": "Số tham chiếu trên bill cà thẻ Payoo",
 		"vd": "249853",
-		"mau": r"^\d{4,20}$",
-		"loi": "Số tham chiếu trên bill Payoo chỉ gồm chữ số, từ 4 đến 20 số.",
+		"mau": MAU_BILL,
+		"loi": LOI_BILL,
 	},
 	"Thẻ - ShinhanBank": {
 		"lg": "/files/pt-shinhan5.png",
 		"bat": 1,
-		"nhan": "Số tham chiếu trên bill cà thẻ ShinhanBank",
-		"vd": "249853",
-		"mau": r"^\d{4,20}$",
-		"loi": "Số tham chiếu trên bill ShinhanBank chỉ gồm chữ số, từ 4 đến 20 số.",
+		"nhan": "Số tham chiếu hoặc mã chuẩn chi trên bill ShinhanBank",
+		"vd": "621416783893 hoặc F62221",
+		"mau": MAU_BILL,
+		"loi": LOI_BILL,
 	},
 	"GrabFood": {
 		"lg": "/files/pt-grab.png",

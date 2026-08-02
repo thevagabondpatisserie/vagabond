@@ -5,6 +5,8 @@ Bo ma tren Next la BO CHUAN (anh Viet chot 01/08/2026): moi noi khac
 cho lech, khong tu sua gi ben Pancake.
 """
 
+import csv
+import io
 import re
 
 import frappe
@@ -121,6 +123,94 @@ def keo_anh_san_pham(ghi_de=0, gioi_han=400):
 	frappe.db.commit()
 	kq["con_thieu"] = len(kq["khong_co_anh"])
 	kq["khong_co_anh"] = kq["khong_co_anh"][:200]
+	return kq
+
+
+def _item_theo_ma(ma):
+	"""Item khop ma, co lop bo hau to size Pancake/Fabi tu sinh."""
+	ma = (ma or "").strip().upper()
+	if not ma:
+		return ""
+	if frappe.db.exists("Item", ma):
+		return ma
+	goc = HAU_TO_SIZE.sub("", ma).strip()
+	if goc and goc != ma and frappe.db.exists("Item", goc):
+		return goc
+	return ""
+
+
+def _gan_anh_url(ma, url):
+	"""Tai anh tu url ve, tao File cong khai roi gan vao Item.image."""
+	r = requests.get(url, timeout=TIMEOUT)
+	r.raise_for_status()
+	kieu = (r.headers.get("Content-Type") or "").lower()
+	duoi = "png" if "png" in kieu else ("webp" if "webp" in kieu else "jpg")
+	tep = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": "sp-%s.%s" % (ma.lower(), duoi),
+			"content": r.content,
+			"is_private": 0,
+			"attached_to_doctype": "Item",
+			"attached_to_name": ma,
+		}
+	)
+	tep.flags.ignore_permissions = True
+	tep.insert(ignore_permissions=True)
+	frappe.db.set_value("Item", ma, "image", tep.file_url)
+	return tep.file_url
+
+
+@frappe.whitelist()
+def nap_anh_mo_ta_tu_file(file_url, ghi_de_anh=0, ghi_de_mo_ta=0, gioi_han=500):
+	"""Nap anh + mo ta mon tu file CSV da upload len Next.
+
+	File CSV ba cot: ma, anh, mo_ta. Dung cho ban xuat menu cua Fabi
+	(cot Hinh anh tro ve CDN image.foodbook.vn, cot Mo ta la thanh phan banh).
+	Fabi phu anh day hon Pancake nhieu nen day la nguon chinh de bu anh mon
+	(anh Viet gui file 02/08/2026).
+
+	Chay lai bao nhieu lan cung duoc: ma nao da co anh (hay da co mo ta) thi
+	bo qua, tru khi bat ghi_de tuong ung.
+	"""
+	_quyen()
+	ghi_de_anh = int(ghi_de_anh or 0)
+	ghi_de_mo_ta = int(ghi_de_mo_ta or 0)
+	gioi_han = int(gioi_han or 500)
+
+	tep = frappe.get_doc("File", {"file_url": file_url})
+	noi_dung = tep.get_content()
+	if isinstance(noi_dung, bytes):
+		noi_dung = noi_dung.decode("utf-8-sig")
+	doc = csv.DictReader(io.StringIO(noi_dung))
+
+	kq = {"anh": 0, "mo_ta": 0, "khong_co_ma": [], "loi": [], "xet": 0}
+	for dong in doc:
+		if kq["anh"] >= gioi_han:
+			break
+		kq["xet"] += 1
+		ma = _item_theo_ma(dong.get("ma"))
+		if not ma:
+			kq["khong_co_ma"].append((dong.get("ma") or "").strip())
+			continue
+		hien = frappe.db.get_value("Item", ma, ["image", "description"], as_dict=True) or {}
+		url = (dong.get("anh") or "").strip()
+		if url.startswith("http") and (ghi_de_anh or not (hien.get("image") or "").strip()):
+			try:
+				_gan_anh_url(ma, url)
+				kq["anh"] += 1
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "doi_soat: nap anh %s" % ma)
+				kq["loi"].append(ma)
+		mo_ta = (dong.get("mo_ta") or "").strip()
+		cu = re.sub(r"<[^>]+>", "", hien.get("description") or "").strip()
+		# ERPNext tu dien description bang chinh ten mon - do khong tinh la co.
+		if mo_ta and (ghi_de_mo_ta or not cu or cu == ma or cu.lower() == (frappe.db.get_value("Item", ma, "item_name") or "").lower()):
+			frappe.db.set_value("Item", ma, "description", mo_ta)
+			kq["mo_ta"] += 1
+	frappe.db.commit()
+	kq["so_ma_khong_thay"] = len(kq["khong_co_ma"])
+	kq["khong_co_ma"] = kq["khong_co_ma"][:150]
 	return kq
 
 
