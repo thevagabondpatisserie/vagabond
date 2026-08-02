@@ -368,6 +368,14 @@ RE_MOI_SO = re.compile(r"(?<!\d)(\d{10}(?:[-\s]?\d{3})?)(?!\d)")
 # So sanh tren text DA BO DAU (_bo_dau) nen chi can ban khong dau.
 TU_KHOA_XHD = ("xuat hoa don", "xuat hd", "xhd", "ma so thue", "mst", "hoa don vat", "hoa don do")
 
+# Email nhan hoa don dien tu. Tra cong thong tin thue KHONG bao gio tra ra
+# email, nen cho nao khach tu ghi email trong ghi chu don thi phai nhat lay -
+# khong thi ke toan lai go tay tung don (don 91145 ngay 02/08).
+RE_EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+# Email cua chinh minh: khach dan lai mail cua shop trong ghi chu thi bo qua,
+# gui hoa don ve chinh minh la vo nghia.
+MIEN_CUA_MINH = ("thevagabondpatisserie.com",)
+
 
 def _text_don(o):
 	"""Gom moi cho khach co the ghi yeu cau xuat hoa don trong don Pancake."""
@@ -409,6 +417,22 @@ def _tach_mst(txt):
 	return ra
 
 
+def _tach_email(txt):
+	"""Email dau tien khach ghi trong don. Bo email cua chinh shop.
+
+	Khach thuong go kem kieu "xuat hoa don cong ty ..., mail nhan hoa don
+	ketoan@abc.vn". Chuoi email hay dinh dau cau nen phai got dau cuoi.
+	"""
+	for m in RE_EMAIL.finditer(txt or ""):
+		e = m.group(0).strip(" .,;:)]}>").lower()
+		if not e:
+			continue
+		if any(e.endswith("@" + d) or e.endswith("." + d) for d in MIEN_CUA_MINH):
+			continue
+		return e
+	return ""
+
+
 def _thong_tin_xhd(o, did):
 	"""Bon truong nguoi mua cho mot don.
 
@@ -418,6 +442,9 @@ def _thong_tin_xhd(o, did):
 	Neu khach co nhac xuat hoa don ma khong ghi MST thi de TRONG de sales
 	buoc phai dien tay, khong am tham ghi "nguoi tieu dung".
 	"""
+	txt = _text_don(o)
+	mail = _tach_email(txt)
+
 	hd = frappe.db.get_value(
 		"Vagabond Hoa Don",
 		{"ma_don": did},
@@ -429,10 +456,9 @@ def _thong_tin_xhd(o, did):
 			"vgb_xhd_ten": hd.ten_cong_ty or "",
 			"vgb_xhd_mst": re.sub(r"\D", "", hd.ma_so_thue or ""),
 			"vgb_xhd_dia_chi": hd.dia_chi or "",
-			"vgb_xhd_email": hd.email or "",
+			"vgb_xhd_email": hd.email or mail,
 		}
 
-	txt = _text_don(o)
 	low = _bo_dau(txt)
 	co_nhac = any(t in low for t in TU_KHOA_XHD)
 	ung_vien = _tach_mst(txt)
@@ -457,13 +483,14 @@ def _thong_tin_xhd(o, did):
 				"vgb_xhd_ten": tt.get("ten"),
 				"vgb_xhd_mst": mst,
 				"vgb_xhd_dia_chi": tt.get("dia_chi") or "",
-				"vgb_xhd_email": "",
+				"vgb_xhd_email": mail,
 			}
 
 	if ung_vien or co_nhac:
 		# Khach co nhac hoa don nhung khong ra duoc doanh nghiep nao (hay gap
-		# nhat: so do la so dien thoai). De TRONG de sales buoc phai dien tay.
-		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
+		# nhat: so do la so dien thoai). De TRONG de sales buoc phai dien tay,
+		# nhung email nhat duoc thi van dien san cho do mat cong.
+		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": mail}
 
 	return {"vgb_xhd_ten": XHD_MAC_DINH, "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
@@ -523,6 +550,13 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	if not cu_ten or cu_ten == XHD_MAC_DINH:
 		for truong, gt in _thong_tin_xhd(o, did).items():
 			si.set(truong, gt)
+	elif not (si.get("vgb_xhd_email") or "").strip():
+		# Ten nguoi mua da co (sales sua tay hoac lan dong bo truoc tra cong
+		# thong tin thue ra) nhung con thieu moi email - chi bu rieng o email,
+		# khong dung den ba truong kia.
+		mail = _tach_email(_text_don(o))
+		if mail:
+			si.vgb_xhd_email = mail
 	for r in rows:
 		si.append("items", r)
 	si.flags.ignore_permissions = True
@@ -676,7 +710,10 @@ def _chuan_bi_ghi_so(si):
 	"""Kiem cac dieu kien bat buoc truoc khi submit mot hoa don sales."""
 	pt = _kiem_pt(si.vgb_pt_thanh_toan, si.custom_nguon)
 	if not pt:
-		frappe.throw("Đơn %s chưa chọn phương thức thanh toán." % (si.custom_pancake_display_id or si.name))
+		frappe.throw(
+			"Đơn %s chưa chọn phương thức thanh toán."
+			% (si.custom_pancake_display_id or si.name)
+		)
 	si.vgb_pt_thanh_toan = pt
 	si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
 	if not (si.vgb_xhd_ten or "").strip():
@@ -737,6 +774,57 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	frappe.db.commit()
 	gt["ok"] = 1
 	return gt
+
+
+@frappe.whitelist()
+def bu_email_xhd(ngay=None):
+	"""Bu email nhan hoa don cho cac don DA dong bo ve ma con trong email.
+
+	Dot dong bo dau (truoc 02/08/2026) khong nhat email trong ghi chu don nen
+	nhung don kieu 91145 ve day du ten - MST - dia chi ma trong moi o email.
+	Ham nay keo lai don Pancake cua ngay do va chi ghi DUNG o email, khong
+	dung den ba truong con lai de khong de len thong tin sales sua tay.
+
+	Chay lai bao nhieu lan cung duoc: don nao co email roi thi bo qua.
+	"""
+	_kiem_quyen()
+	ngay = getdate(ngay or nowdate())
+	ds = frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"posting_date": str(ngay),
+			"custom_nguon": "Pancake",
+			"docstatus": ["<", 2],
+			"vgb_xhd_email": ["in", ["", None]],
+		},
+		fields=["name", "custom_pancake_id", "custom_hddt_so"],
+	)
+	if not ds:
+		return {"xet": 0, "bu": 0, "ngay": str(ngay)}
+
+	c = cfg()
+	k = key(c, "pancake_api_key")
+	dau, cuoi = _khoang_unix(str(ngay))
+	theo_id = {}
+	for o in _keo_don(c, k, "estimate_delivery_date", dau, cuoi):
+		theo_id[str(o.get("id"))] = o
+
+	bu = 0
+	danh_sach = []
+	for si in ds:
+		if si.custom_hddt_so:
+			continue  # da xuat hoa don dien tu roi thi khong dong vao nua
+		o = theo_id.get(str(si.custom_pancake_id or ""))
+		if not o:
+			continue
+		mail = _tach_email(_text_don(o))
+		if not mail:
+			continue
+		frappe.db.set_value("Sales Invoice", si.name, "vgb_xhd_email", mail)
+		bu += 1
+		danh_sach.append(si.name)
+	frappe.db.commit()
+	return {"xet": len(ds), "bu": bu, "ngay": str(ngay), "don": danh_sach}
 
 
 @frappe.whitelist()
