@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "autoname": "format:CPS-{YYYY}-{#####}",
+ "creation": "2026-08-02 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "shipper",
+  "ngay",
+  "loai",
+  "so_tien",
+  "cb1",
+  "so_hoa_don",
+  "nha_cung_cap",
+  "anh_hoa_don",
+  "ghi_chu",
+  "sec_duyet",
+  "trang_thai",
+  "nguoi_duyet",
+  "ghi_chu_duyet",
+  "ngay_hoan_ung"
+ ],
+ "fields": [
+  {
+   "fieldname": "shipper",
+   "fieldtype": "Link",
+   "label": "Shipper",
+   "options": "User",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngay chi",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loai chi phi",
+   "options": "Đổ xăng\nBảo trì xe\nGửi xe\nRửa xe\nVá/thay vỏ xe\nKhác",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "So tien",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_hoa_don",
+   "fieldtype": "Data",
+   "label": "So hoa don / bien lai (vd hoa don Petrolimex)"
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Data",
+   "label": "Noi chi (vd Petrolimex, tiem sua xe)"
+  },
+  {
+   "fieldname": "anh_hoa_don",
+   "fieldtype": "Attach",
+   "label": "Anh hoa don / bien lai (giu lam chung tu, khong tu xoa)"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  },
+  {
+   "fieldname": "sec_duyet",
+   "fieldtype": "Section Break",
+   "label": "Duyet va hoan ung (Thu mua / Ke toan)"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Chờ duyệt\nĐã duyệt\nTừ chối\nĐã hoàn ứng",
+   "default": "Chờ duyệt",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nguoi_duyet",
+   "fieldtype": "Link",
+   "label": "Nguoi duyet",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu_duyet",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu cua nguoi duyet / ly do tu choi"
+  },
+  {
+   "fieldname": "ngay_hoan_ung",
+   "fieldtype": "Date",
+   "label": "Ngay hoan ung",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-02 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Chi Phi Shipper",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "if_owner": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Shipper",
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase User",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
