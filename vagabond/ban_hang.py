@@ -9,6 +9,12 @@ Chot voi anh Viet 01/08/2026:
 - Don co yeu cau hoa don cong ty (Vagabond Hoa Don) day sang m-invoice
   o che do CHO KY (InvoiceApi78/Save), ke toan ky tay giai doan dau.
 
+LUAT KE TOAN HIEN HANH (anh Viet chot 02/08/2026): MOI don hang phai tuong
+ung MOT hoa don VAT. TUYET DOI KHONG gop nhieu don thanh mot hoa don, ke ca
+gop cuoi ngay. Vi vay moi Sales Invoice mang san thong tin nguoi mua rieng
+cua no o bon truong vgb_xhd_ten / vgb_xhd_mst / vgb_xhd_dia_chi /
+vgb_xhd_email, khong dung chung mot ban ghi nguoi mua cho nhieu don.
+
 Chong trung: SI mang custom_pancake_id (id noi bo cua Pancake). Dong bo
 chay lai bao nhieu lan cung chi co mot hoa don cho mot don.
 """
@@ -183,6 +189,91 @@ def _doan_thanh_toan(o):
 	return pt, ghi
 
 
+# ------------------------------------------- nguoi mua tren hoa don VAT
+# Mac dinh khi khach khong yeu cau xuat cho phap nhan.
+XHD_MAC_DINH = "Bán cho người tiêu dùng"
+
+RE_MST = re.compile(r"(?<!\d)(\d{10}(?:[-\s]?\d{3})?)(?!\d)")
+TU_KHOA_XHD = (
+	"xuất hoá đơn",
+	"xuất hóa đơn",
+	"xuat hoa don",
+	"xhđ",
+	"xhd",
+	"mã số thuế",
+	"ma so thue",
+	"mst",
+	"vat",
+)
+
+
+def _text_don(o):
+	"""Gom moi cho khach co the ghi yeu cau xuat hoa don trong don Pancake."""
+	phan = [o.get("note") or "", o.get("note_print") or ""]
+	for t in o.get("tags") or []:
+		phan.append((t.get("name") or "") if isinstance(t, dict) else str(t))
+	for k in ("bill_full_name", "customer_note", "extra_note"):
+		if o.get(k):
+			phan.append(str(o.get(k)))
+	return "\n".join(p for p in phan if p)
+
+
+def _tach_mst(txt):
+	"""Tim ma so thue 10 hoac 13 so trong text. Tra chuoi chi gom so."""
+	for m in RE_MST.finditer(txt or ""):
+		so = re.sub(r"\D", "", m.group(1))
+		if len(so) in (10, 13):
+			return so
+	return ""
+
+
+def _thong_tin_xhd(o, did):
+	"""Bon truong nguoi mua cho mot don.
+
+	Uu tien 1: ban ghi Vagabond Hoa Don (khach da dien tren portal dat hang).
+	Uu tien 2: MST doc duoc trong ghi chu / the cua don Pancake, tra cong
+	           thong tin thue de tu dien ten cong ty va dia chi.
+	Neu khach co nhac xuat hoa don ma khong ghi MST thi de TRONG de sales
+	buoc phai dien tay, khong am tham ghi "nguoi tieu dung".
+	"""
+	hd = frappe.db.get_value(
+		"Vagabond Hoa Don",
+		{"ma_don": did},
+		["ma_so_thue", "ten_cong_ty", "dia_chi", "email"],
+		as_dict=True,
+	)
+	if hd and (hd.ten_cong_ty or hd.ma_so_thue):
+		return {
+			"vgb_xhd_ten": hd.ten_cong_ty or "",
+			"vgb_xhd_mst": re.sub(r"\D", "", hd.ma_so_thue or ""),
+			"vgb_xhd_dia_chi": hd.dia_chi or "",
+			"vgb_xhd_email": hd.email or "",
+		}
+
+	txt = _text_don(o)
+	mst = _tach_mst(txt)
+	if mst:
+		tt = {}
+		try:
+			from vagabond.api import tra_mst
+
+			tt = tra_mst(mst) or {}
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang: tra MST %s" % mst)
+		return {
+			"vgb_xhd_ten": (tt.get("ten") or "") if tt.get("ok") else "",
+			"vgb_xhd_mst": mst,
+			"vgb_xhd_dia_chi": (tt.get("dia_chi") or "") if tt.get("ok") else "",
+			"vgb_xhd_email": "",
+		}
+
+	low = txt.lower()
+	if any(t in low for t in TU_KHOA_XHD):
+		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
+
+	return {"vgb_xhd_ten": XHD_MAC_DINH, "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
+
+
 def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
@@ -232,6 +323,12 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 		si.vgb_pt_thanh_toan = pt_tt
 	if ghi_tt:
 		si.vgb_ghi_chu_doi_soat = ghi_tt
+	# Nguoi mua tren hoa don VAT. Dong bo chay lai KHONG duoc de len thong tin
+	# sales da sua tay: chi dien khi o dang trong hoac dang la gia tri mac dinh.
+	cu_ten = (si.get("vgb_xhd_ten") or "").strip()
+	if not cu_ten or cu_ten == XHD_MAC_DINH:
+		for truong, gt in _thong_tin_xhd(o, did).items():
+			si.set(truong, gt)
 	for r in rows:
 		si.append("items", r)
 	si.flags.ignore_permissions = True
@@ -291,6 +388,10 @@ def bang_doanh_so(ngay=None):
 			"custom_hddt_so",
 			"custom_nguon",
 			"vgb_pt_thanh_toan",
+			"vgb_xhd_ten",
+			"vgb_xhd_mst",
+			"vgb_xhd_dia_chi",
+			"vgb_xhd_email",
 		],
 		order_by="custom_pancake_display_id",
 	)
@@ -329,6 +430,8 @@ def chot_doanh_so(ngay=None):
 	for ten in ds:
 		try:
 			si = frappe.get_doc("Sales Invoice", ten)
+			if not (si.vgb_xhd_ten or "").strip():
+				si.vgb_xhd_ten = XHD_MAC_DINH
 			si.flags.ignore_permissions = True
 			si.submit()
 			xong += 1
@@ -361,10 +464,48 @@ def chot_mot_don(si_name, pt=None):
 		if not frappe.db.exists("Mode of Payment", pt):
 			frappe.throw("Không có phương thức thanh toán %s" % pt)
 		si.vgb_pt_thanh_toan = pt
+	if not (si.vgb_xhd_ten or "").strip():
+		si.vgb_xhd_ten = XHD_MAC_DINH
 	si.flags.ignore_permissions = True
 	si.submit()
 	frappe.db.commit()
 	return {"ok": 1, "name": si.name}
+
+
+@frappe.whitelist()
+def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
+	"""Sales sua thong tin nguoi mua tren hoa don VAT.
+
+	Sua duoc ca khi don da ghi so, mien la CHUA day sang m-invoice - vi
+	moi don la mot hoa don rieng, sai thong tin nguoi mua thi phai sua trong
+	don do chu khong the gop sang don khac.
+	"""
+	_kiem_quyen()
+	si = frappe.db.get_value(
+		"Sales Invoice", si_name, ["name", "custom_hddt_so"], as_dict=True
+	)
+	if not si:
+		frappe.throw("Không có hoá đơn %s." % si_name)
+	if si.custom_hddt_so:
+		frappe.throw(
+			"Đơn này đã xuất hoá đơn điện tử số %s nên không sửa được nữa." % si.custom_hddt_so
+		)
+	so_mst = re.sub(r"\D", "", mst or "")
+	if so_mst and len(so_mst) not in (10, 13):
+		frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+	ten = (ten or "").strip()
+	if so_mst and not ten:
+		frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
+	gt = {
+		"vgb_xhd_ten": ten or XHD_MAC_DINH,
+		"vgb_xhd_mst": so_mst,
+		"vgb_xhd_dia_chi": (dia_chi or "").strip(),
+		"vgb_xhd_email": (email or "").strip(),
+	}
+	frappe.db.set_value("Sales Invoice", si_name, gt)
+	frappe.db.commit()
+	gt["ok"] = 1
+	return gt
 
 
 @frappe.whitelist()
@@ -447,6 +588,21 @@ def _minvoice_login(c):
 	return host, j.get("token")
 
 
+# Ma phuong thuc thanh toan m-invoice chap nhan. Cac kenh khac (the, vi, san)
+# deu la tien ve tai khoan nen ghi CK.
+PTTT_MINVOICE = {
+	"Tiền mặt": "TM",
+	"Chuyển khoản": "CK",
+	"OnePay": "CK",
+	"Thẻ - Payoo": "CK",
+	"Thẻ - ShinhanBank": "CK",
+	"GrabFood": "CK",
+	"BeFood": "CK",
+	"GreenSM Food": "CK",
+	"ShopeeFood": "CK",
+}
+
+
 def _tach_thue(gross, ts):
 	"""Gia Pancake da gom VAT. Tach nguoc: (chua_thue, tien_thue)."""
 	chua = round(gross / (1 + ts / 100.0))
@@ -469,6 +625,24 @@ def xuat_hoa_don_dien_tu(si_name):
 		["ma_so_thue", "ten_cong_ty", "dia_chi", "email"],
 		as_dict=True,
 	)
+	# Nguoi mua lay tu chinh hoa don nay. Mot don = mot hoa don VAT, khong gop.
+	ten_mua = (si.vgb_xhd_ten or "").strip()
+	mst_mua = re.sub(r"\D", "", si.vgb_xhd_mst or "")
+	dc_mua = (si.vgb_xhd_dia_chi or "").strip()
+	em_mua = (si.vgb_xhd_email or "").strip()
+	if not ten_mua and hd:
+		# Hoa don cu tao truoc khi co bon truong nay
+		ten_mua = (hd.ten_cong_ty or "").strip()
+		mst_mua = re.sub(r"\D", "", hd.ma_so_thue or "")
+		dc_mua = (hd.dia_chi or "").strip()
+		em_mua = (hd.email or "").strip()
+	if not ten_mua:
+		frappe.throw(
+			"Đơn %s chưa có tên khách xuất hoá đơn. Mở đơn ở màn Doanh số, "
+			"điền khối Hoá đơn điện tử rồi xuất lại." % si_name
+		)
+	la_phap_nhan = bool(mst_mua)
+
 	c = cfg()
 	ts = flt(c.minvoice_ma_thue or 8)
 	host, token = _minvoice_login(c)
@@ -505,12 +679,14 @@ def xuat_hoa_don_dien_tu(si_name):
 				"inv_invoiceIssuedDate": str(si.posting_date),
 				"inv_currencyCode": "VND",
 				"inv_exchangeRate": 1,
-				"inv_buyerDisplayName": (si.remarks or "").split(" - ")[1] if " - " in (si.remarks or "") else "",
-				"inv_buyerLegalName": (hd and hd.ten_cong_ty) or "",
-				"inv_buyerTaxCode": (hd and hd.ma_so_thue) or "",
-				"inv_buyerAddressLine": (hd and hd.dia_chi) or "",
-				"inv_buyerEmail": (hd and hd.email) or "",
-				"inv_paymentMethodName": "TM/CK",
+				"inv_buyerDisplayName": ""
+				if la_phap_nhan
+				else ten_mua,
+				"inv_buyerLegalName": ten_mua if la_phap_nhan else "",
+				"inv_buyerTaxCode": mst_mua,
+				"inv_buyerAddressLine": dc_mua,
+				"inv_buyerEmail": em_mua,
+				"inv_paymentMethodName": PTTT_MINVOICE.get(si.vgb_pt_thanh_toan or "", "TM/CK"),
 				"inv_discountAmount": 0,
 				"inv_TotalAmountWithoutVat": t_chua,
 				"inv_vatAmount": t_thue,
