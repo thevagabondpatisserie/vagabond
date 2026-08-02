@@ -208,7 +208,7 @@ PT_THAM_CHIEU = {
 		"loi": "Mã đơn GreenSM có dạng XSM- rồi tới mã, ví dụ XSM-3621.",
 	},
 	"ShopeeFood": {
-		"lg": "/files/pt-shopee2.png",
+		"lg": "/files/pt-shopee3.png",
 		"bat": 1,
 		"nhan": "Mã đơn ShopeeFood (4 số)",
 		"vd": "3621",
@@ -226,7 +226,7 @@ NGUON_DON = [
 	{"v": "GrabFood", "lg": "/files/pt-grab.png", "pt": ["GrabFood"]},
 	{"v": "BeFood", "lg": "/files/pt-befood.png", "pt": ["BeFood"]},
 	{"v": "GreenSM Food", "lg": "/files/pt-greensm.png", "pt": ["GreenSM Food"]},
-	{"v": "ShopeeFood", "lg": "/files/pt-shopee2.png", "pt": ["ShopeeFood"]},
+	{"v": "ShopeeFood", "lg": "/files/pt-shopee3.png", "pt": ["ShopeeFood"]},
 	{"v": "Khách sỉ", "ic": "🏢", "pt": ["Chuyển khoản", "Tiền mặt"]},
 	{"v": "Tại chỗ - Nguyễn Văn Trỗi", "ic": "🏬", "pt": PT_QUAY},
 	{"v": "Tại chỗ - Trần Cao Vân", "ic": "🏬", "pt": PT_QUAY},

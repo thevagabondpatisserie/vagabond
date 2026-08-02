@@ -113,23 +113,50 @@ def bang_btp():
 	return {"cap_nhat_luc": str(doc.cap_nhat_luc or ""), "dong": dong}
 
 
+def _dong_cua_ma(doc, ma_hang):
+	"""Tra ve dong cua ma trong bang BTP, chua co thi them moi.
+
+	Man kiem banh liet ke moi ma cua bang kiem hom nay, con bang BTP chi co
+	nhung ma bep da tung go. Truoc day go so vao ma chua co la server throw
+	"Khong thay ma ... trong bang BTP", man hinh bat loi roi tai lai nen so
+	nhay ve 0 - dung cai loi Linh va Han gap. Gio thieu ma thi tu them.
+	"""
+	ma_hang = str(ma_hang or "").strip()
+	if not ma_hang:
+		frappe.throw("Thieu ma hang")
+	for d in doc.dong:
+		if d.ma_hang == ma_hang:
+			return d
+	if not ma_hang.upper().startswith(TIEN_TO_MA):
+		frappe.throw(
+			"Bảng BTP chỉ theo dõi bánh ổ và bánh sỉ (mã %s...), mã %s không thêm được"
+			% ("/".join(TIEN_TO_MA), ma_hang)
+		)
+	ten, anh = "", ""
+	try:
+		c = cfg()
+		ten, anh = _tra_anh_ten(c, key(c, "pancake_api_key"), ma_hang)
+	except Exception:
+		# Pancake loi hay chua co key thi van cho luu so, ten/hinh do sau.
+		frappe.log_error(frappe.get_traceback(), "BTP: khong tra duoc ten/anh %s" % ma_hang)
+	return doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten or "", "hinh": anh or ""})
+
+
 @frappe.whitelist()
 def luu_btp(ma_hang, so_btp):
 	"""Bep sua so BTP mot mon. Giu quyen that cua nguoi sua de con vet."""
 	if not _duoc_sua_btp():
 		frappe.throw("Cột BTP sẵn chỉ bếp được nhập - bếp nhập thì bếp chịu trách nhiệm số")
 	doc = frappe.get_single("BTP Banh O")
-	for d in doc.dong:
-		if d.ma_hang == ma_hang:
-			d.so_btp = max(0, int(so_btp or 0))
-			doc.cap_nhat_luc = now_datetime()
-			# Cong da khoa o _duoc_sua_btp roi. Doctype "BTP Banh O" chi cho
-			# Sales User / Stock User ghi, bep khong co role do nen doc.save()
-			# thuong se bao 403 va man hinh nhay so ve 0.
-			doc.save(ignore_permissions=True)
-			frappe.db.commit()
-			return bang_btp()
-	frappe.throw("Khong thay ma %s trong bang BTP" % ma_hang)
+	d = _dong_cua_ma(doc, ma_hang)
+	d.so_btp = max(0, int(so_btp or 0))
+	doc.cap_nhat_luc = now_datetime()
+	# Cong da khoa o _duoc_sua_btp roi. Doctype "BTP Banh O" chi cho
+	# Sales User / Stock User ghi, bep khong co role do nen doc.save()
+	# thuong se bao 403 va man hinh nhay so ve 0.
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return bang_btp()
 
 
 @frappe.whitelist()
@@ -138,14 +165,12 @@ def luu_decor(ma_hang, so_decor):
 	if not _duoc_sua_btp():
 		frappe.throw("Cột Đủ decor chỉ bếp được nhập - bếp nhập thì bếp chịu trách nhiệm số")
 	doc = frappe.get_single("BTP Banh O")
-	for d in doc.dong:
-		if d.ma_hang == ma_hang:
-			d.so_decor = max(0, int(so_decor or 0))
-			doc.cap_nhat_luc = now_datetime()
-			doc.save(ignore_permissions=True)
-			frappe.db.commit()
-			return bang_btp()
-	frappe.throw("Khong thay ma %s trong bang BTP" % ma_hang)
+	d = _dong_cua_ma(doc, ma_hang)
+	d.so_decor = max(0, int(so_decor or 0))
+	doc.cap_nhat_luc = now_datetime()
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return bang_btp()
 
 
 @frappe.whitelist()
