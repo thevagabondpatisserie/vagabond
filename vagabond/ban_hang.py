@@ -140,6 +140,166 @@ def _dong_hang(o):
 	return rows, thieu
 
 
+# ------------------------------------------------ ma tham chieu doi soat
+# Moi phuong thuc thanh toan bam vao mot chung tu khac nhau. Bat sales ghi
+# dung ma nay NGAY LUC chot don thi doi soat tu dong sau nay khop duoc TUNG
+# giao dich thay vi chi so tong ngay (anh Viet chot 02/08/2026).
+# bat = 1 nghia la thieu ma thi KHONG cho ghi so.
+PT_THAM_CHIEU = {
+	"Tiền mặt": {"lg": "/files/pt-tienmat.png"},
+	"Chuyển khoản": {
+		"lg": "/files/pt-mb.png",
+		"nhan": "Nội dung chuyển khoản (SePay tự khớp, để trống cũng được)",
+	},
+	"OnePay": {
+		"lg": "/files/pt-onepay.png",
+		"nhan": "Order Reference của OnePay",
+		"vd": "PL_VAGABOND_260801143012",
+	},
+	"Thẻ - Payoo": {
+		"lg": "/files/pt-payoo5.png",
+		"bat": 1,
+		"nhan": "Số tham chiếu trên bill cà thẻ Payoo",
+		"vd": "249853",
+		"mau": r"^\d{4,20}$",
+		"loi": "Số tham chiếu trên bill Payoo chỉ gồm chữ số, từ 4 đến 20 số.",
+	},
+	"Thẻ - ShinhanBank": {
+		"lg": "/files/pt-shinhan5.png",
+		"bat": 1,
+		"nhan": "Số tham chiếu trên bill cà thẻ ShinhanBank",
+		"vd": "249853",
+		"mau": r"^\d{4,20}$",
+		"loi": "Số tham chiếu trên bill ShinhanBank chỉ gồm chữ số, từ 4 đến 20 số.",
+	},
+	"GrabFood": {
+		"lg": "/files/pt-grab.png",
+		"bat": 1,
+		"nhan": "Mã đơn GrabFood",
+		"vd": "GF-689",
+		"mau": r"^GF-\d{1,10}$",
+		"loi": "Mã đơn GrabFood có dạng GF- rồi tới số, ví dụ GF-689.",
+	},
+	"BeFood": {
+		"lg": "/files/pt-befood.png",
+		"bat": 1,
+		"nhan": "Mã đơn BeFood (8 số)",
+		"vd": "76481763",
+		"mau": r"^\d{8}$",
+		"loi": "Mã đơn BeFood gồm đúng 8 chữ số, ví dụ 76481763.",
+	},
+	"GreenSM Food": {
+		"lg": "/files/pt-greensm.png",
+		"bat": 1,
+		"nhan": "Mã đơn GreenSM",
+		"vd": "XSM-3621",
+		"mau": r"^XSM-[A-Z0-9]{1,12}$",
+		"loi": "Mã đơn GreenSM có dạng XSM- rồi tới mã, ví dụ XSM-3621.",
+	},
+	"ShopeeFood": {
+		"lg": "/files/pt-shopee2.png",
+		"bat": 1,
+		"nhan": "Mã đơn ShopeeFood (4 số)",
+		"vd": "3621",
+		"mau": r"^\d{4}$",
+		"loi": "Mã đơn ShopeeFood gồm đúng 4 chữ số, ví dụ 3621.",
+	},
+}
+
+# Pancake KHONG co cac phuong thuc cua san, an di cho sales khoi chon nham
+# (anh Viet 02/08). Don san la don NHAP TAY, moi san chi mot phuong thuc.
+PT_QUAY = ["Tiền mặt", "Chuyển khoản", "Thẻ - Payoo", "Thẻ - ShinhanBank", "OnePay"]
+PT_PANCAKE = ["Tiền mặt", "Chuyển khoản", "OnePay", "Thẻ - Payoo", "Thẻ - ShinhanBank"]
+
+NGUON_DON = [
+	{"v": "GrabFood", "lg": "/files/pt-grab.png", "pt": ["GrabFood"]},
+	{"v": "BeFood", "lg": "/files/pt-befood.png", "pt": ["BeFood"]},
+	{"v": "GreenSM Food", "lg": "/files/pt-greensm.png", "pt": ["GreenSM Food"]},
+	{"v": "ShopeeFood", "lg": "/files/pt-shopee2.png", "pt": ["ShopeeFood"]},
+	{"v": "Khách sỉ", "ic": "🏢", "pt": ["Chuyển khoản", "Tiền mặt"]},
+	{"v": "Tại chỗ - Nguyễn Văn Trỗi", "ic": "🏬", "pt": PT_QUAY},
+	{"v": "Tại chỗ - Trần Cao Vân", "ic": "🏬", "pt": PT_QUAY},
+]
+
+# Ten nguon cu tren cac hoa don da nhap truoc 02/08, giu de doc lai duoc.
+NGUON_CU = {"Grab": "GrabFood", "Grab Online": "GrabFood", "Be": "BeFood", "GreenSM": "GreenSM Food"}
+
+
+def _pt_cho_nguon(nguon):
+	"""Danh sach phuong thuc thanh toan hop le cua mot nguon don."""
+	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
+	if not nguon or nguon == "Pancake":
+		return list(PT_PANCAKE)
+	for n in NGUON_DON:
+		if n["v"] == nguon:
+			return list(n["pt"])
+	return list(PT_QUAY)
+
+
+def _chuan_ma_tham_chieu(pt, ma, bat_buoc=True):
+	"""Chuan hoa va kiem ma tham chieu theo phuong thuc thanh toan.
+
+	Sales go "689" cho GrabFood hay "#3621" cho ShopeeFood deu duoc, may tu
+	them tien to va bo dau #. Sai dang thi bao ngay tai cho chu khong de
+	den luc doi soat moi phat hien.
+	"""
+	q = PT_THAM_CHIEU.get((pt or "").strip()) or {}
+	ma = re.sub(r"\s+", "", (ma or "").strip()).lstrip("#").upper()
+	if ma and pt == "GrabFood" and re.match(r"^\d{1,10}$", ma):
+		ma = "GF-" + ma
+	if ma and pt == "GreenSM Food" and re.match(r"^[A-Z0-9]{1,12}$", ma) and not ma.startswith("XSM"):
+		ma = "XSM-" + ma
+	if not ma:
+		if q.get("bat") and bat_buoc:
+			frappe.throw(
+				"Phương thức %s bắt buộc phải có %s (ví dụ %s)."
+				% (pt, (q.get("nhan") or "mã tham chiếu").lower(), q.get("vd") or "")
+			)
+		return ""
+	mau = q.get("mau")
+	if mau and not re.match(mau, ma):
+		frappe.throw(q.get("loi") or ("Mã tham chiếu %s không đúng dạng." % ma))
+	return ma
+
+
+def _kiem_pt(pt, nguon):
+	pt = (pt or "").strip()
+	if not pt:
+		return ""
+	if pt not in PT_THAM_CHIEU:
+		frappe.throw("Không có phương thức thanh toán %s." % pt)
+	hop_le = _pt_cho_nguon(nguon)
+	if pt not in hop_le:
+		frappe.throw(
+			"Đơn nguồn %s không dùng phương thức %s. Chọn trong: %s."
+			% (nguon or "Pancake", pt, ", ".join(hop_le))
+		)
+	if not frappe.db.exists("Mode of Payment", pt):
+		frappe.throw("Chưa khai phương thức thanh toán %s bên Next." % pt)
+	return pt
+
+
+@frappe.whitelist()
+def cau_hinh_ban_hang():
+	"""Nguon don, phuong thuc thanh toan, quy tac ma tham chieu cho app /bep.
+
+	App KHONG hardcode danh sach nua - sua o day la ca app doi theo.
+	"""
+	_kiem_quyen()
+	pt = []
+	for ten, q in PT_THAM_CHIEU.items():
+		pt.append(
+			{
+				"v": ten,
+				"lg": q.get("lg") or "",
+				"bat": 1 if q.get("bat") else 0,
+				"nhan": q.get("nhan") or "Mã tham chiếu",
+				"vd": q.get("vd") or "",
+			}
+		)
+	return {"pt": pt, "nguon": NGUON_DON, "pt_pancake": PT_PANCAKE}
+
+
 PT_KENH = (
 	("cash", "Tiền mặt", "tiền mặt"),
 	("transfer_money", "Chuyển khoản", "chuyển khoản"),
@@ -208,14 +368,6 @@ RE_MOI_SO = re.compile(r"(?<!\d)(\d{10}(?:[-\s]?\d{3})?)(?!\d)")
 # So sanh tren text DA BO DAU (_bo_dau) nen chi can ban khong dau.
 TU_KHOA_XHD = ("xuat hoa don", "xuat hd", "xhd", "ma so thue", "mst", "hoa don vat", "hoa don do")
 
-# Email nhan hoa don dien tu. Tra cong thong tin thue KHONG bao gio tra ra
-# email, nen cho nao khach tu ghi email trong ghi chu don thi phai nhat lay -
-# khong thi ke toan lai go tay tung don (don 91145 ngay 02/08).
-RE_EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
-# Email cua chinh minh: khach dan lai mail cua shop trong ghi chu thi bo qua,
-# gui hoa don ve chinh minh la vo nghia.
-MIEN_CUA_MINH = ("thevagabondpatisserie.com",)
-
 
 def _text_don(o):
 	"""Gom moi cho khach co the ghi yeu cau xuat hoa don trong don Pancake."""
@@ -257,22 +409,6 @@ def _tach_mst(txt):
 	return ra
 
 
-def _tach_email(txt):
-	"""Email dau tien khach ghi trong don. Bo email cua chinh shop.
-
-	Khach thuong go kem kieu "xuat hoa don cong ty ..., mail nhan hoa don
-	ketoan@abc.vn". Chuoi email hay dinh dau cau nen phai got dau cuoi.
-	"""
-	for m in RE_EMAIL.finditer(txt or ""):
-		e = m.group(0).strip(" .,;:)]}>").lower()
-		if not e:
-			continue
-		if any(e.endswith("@" + d) or e.endswith("." + d) for d in MIEN_CUA_MINH):
-			continue
-		return e
-	return ""
-
-
 def _thong_tin_xhd(o, did):
 	"""Bon truong nguoi mua cho mot don.
 
@@ -282,9 +418,6 @@ def _thong_tin_xhd(o, did):
 	Neu khach co nhac xuat hoa don ma khong ghi MST thi de TRONG de sales
 	buoc phai dien tay, khong am tham ghi "nguoi tieu dung".
 	"""
-	txt = _text_don(o)
-	mail = _tach_email(txt)
-
 	hd = frappe.db.get_value(
 		"Vagabond Hoa Don",
 		{"ma_don": did},
@@ -296,9 +429,10 @@ def _thong_tin_xhd(o, did):
 			"vgb_xhd_ten": hd.ten_cong_ty or "",
 			"vgb_xhd_mst": re.sub(r"\D", "", hd.ma_so_thue or ""),
 			"vgb_xhd_dia_chi": hd.dia_chi or "",
-			"vgb_xhd_email": hd.email or mail,
+			"vgb_xhd_email": hd.email or "",
 		}
 
+	txt = _text_don(o)
 	low = _bo_dau(txt)
 	co_nhac = any(t in low for t in TU_KHOA_XHD)
 	ung_vien = _tach_mst(txt)
@@ -323,14 +457,13 @@ def _thong_tin_xhd(o, did):
 				"vgb_xhd_ten": tt.get("ten"),
 				"vgb_xhd_mst": mst,
 				"vgb_xhd_dia_chi": tt.get("dia_chi") or "",
-				"vgb_xhd_email": mail,
+				"vgb_xhd_email": "",
 			}
 
 	if ung_vien or co_nhac:
 		# Khach co nhac hoa don nhung khong ra duoc doanh nghiep nao (hay gap
-		# nhat: so do la so dien thoai). De TRONG de sales buoc phai dien tay,
-		# nhung email nhat duoc thi van dien san cho do mat cong.
-		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": mail}
+		# nhat: so do la so dien thoai). De TRONG de sales buoc phai dien tay.
+		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
 	return {"vgb_xhd_ten": XHD_MAC_DINH, "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
@@ -390,13 +523,6 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	if not cu_ten or cu_ten == XHD_MAC_DINH:
 		for truong, gt in _thong_tin_xhd(o, did).items():
 			si.set(truong, gt)
-	elif not (si.get("vgb_xhd_email") or "").strip():
-		# Ten nguoi mua da co (sales sua tay hoac lan dong bo truoc tra cong
-		# thong tin thue ra) nhung con thieu moi email - chi bu rieng o email,
-		# khong dung den ba truong kia.
-		mail = _tach_email(_text_don(o))
-		if mail:
-			si.vgb_xhd_email = mail
 	for r in rows:
 		si.append("items", r)
 	si.flags.ignore_permissions = True
@@ -456,6 +582,8 @@ def bang_doanh_so(ngay=None):
 			"custom_hddt_so",
 			"custom_nguon",
 			"vgb_pt_thanh_toan",
+			"vgb_ma_tham_chieu",
+			"vgb_ghi_chu_doi_soat",
 			"vgb_xhd_ten",
 			"vgb_xhd_mst",
 			"vgb_xhd_dia_chi",
@@ -496,16 +624,22 @@ def chot_doanh_so(ngay=None):
 	)
 	xong, loi = 0, []
 	for ten in ds:
+		si = frappe.get_doc("Sales Invoice", ten)
+		nhan = si.custom_pancake_display_id or si.name
 		try:
-			si = frappe.get_doc("Sales Invoice", ten)
-			if not (si.vgb_xhd_ten or "").strip():
-				si.vgb_xhd_ten = XHD_MAC_DINH
+			_chuan_bi_ghi_so(si)
+		except frappe.ValidationError as e:
+			# Thieu phuong thuc hay ma tham chieu: bao ro don nao, khong ghi so.
+			frappe.local.message_log = []
+			loi.append("Đơn %s: %s" % (nhan, str(e)))
+			continue
+		try:
 			si.flags.ignore_permissions = True
 			si.submit()
 			xong += 1
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang chot: %s" % ten)
-			loi.append(ten)
+			loi.append("Đơn %s ghi sổ lỗi, xem Error Log." % nhan)
 	frappe.db.commit()
 	return {"da_chot": xong, "loi": loi}
 
@@ -520,7 +654,37 @@ def dong_bo_doanh_so_tu_dong():
 
 
 @frappe.whitelist()
-def chot_mot_don(si_name, pt=None):
+def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
+	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
+	_kiem_quyen()
+	si = frappe.db.get_value(
+		"Sales Invoice", si_name, ["name", "custom_nguon", "docstatus"], as_dict=True
+	)
+	if not si:
+		frappe.throw("Không có hoá đơn %s." % si_name)
+	pt = _kiem_pt(pt, si.custom_nguon)
+	# Luu nhap thi chua bat buoc, den luc ghi so moi bat.
+	ma = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
+	frappe.db.set_value(
+		"Sales Invoice", si_name, {"vgb_pt_thanh_toan": pt, "vgb_ma_tham_chieu": ma}
+	)
+	frappe.db.commit()
+	return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
+
+
+def _chuan_bi_ghi_so(si):
+	"""Kiem cac dieu kien bat buoc truoc khi submit mot hoa don sales."""
+	pt = _kiem_pt(si.vgb_pt_thanh_toan, si.custom_nguon)
+	if not pt:
+		frappe.throw("Đơn %s chưa chọn phương thức thanh toán." % (si.custom_pancake_display_id or si.name))
+	si.vgb_pt_thanh_toan = pt
+	si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
+	if not (si.vgb_xhd_ten or "").strip():
+		si.vgb_xhd_ten = XHD_MAC_DINH
+
+
+@frappe.whitelist()
+def chot_mot_don(si_name, pt=None, ma_tham_chieu=None):
 	"""Submit mot don le, sales ra soat xong don nao chot don do."""
 	_kiem_quyen()
 	si = frappe.get_doc("Sales Invoice", si_name)
@@ -529,11 +693,10 @@ def chot_mot_don(si_name, pt=None):
 	if si.docstatus != 0:
 		frappe.throw("Đơn này đã chốt rồi.")
 	if pt:
-		if not frappe.db.exists("Mode of Payment", pt):
-			frappe.throw("Không có phương thức thanh toán %s" % pt)
 		si.vgb_pt_thanh_toan = pt
-	if not (si.vgb_xhd_ten or "").strip():
-		si.vgb_xhd_ten = XHD_MAC_DINH
+	if ma_tham_chieu is not None:
+		si.vgb_ma_tham_chieu = ma_tham_chieu
+	_chuan_bi_ghi_so(si)
 	si.flags.ignore_permissions = True
 	si.submit()
 	frappe.db.commit()
@@ -577,62 +740,26 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 
 
 @frappe.whitelist()
-def bu_email_xhd(ngay=None):
-	"""Bu email nhan hoa don cho cac don DA dong bo ve ma con trong email.
+def tao_don_tay(
+	ngay=None,
+	nguon="GrabFood",
+	ma_don="",
+	ten_khach="",
+	dien_thoai="",
+	items=None,
+	giam_gia=0,
+	phi_ship=0,
+	pt=None,
+	ma_tham_chieu=None,
+):
+	"""Nhap tay doanh thu tu kenh khong co API.
 
-	Dot dong bo dau (truoc 02/08/2026) khong nhat email trong ghi chu don nen
-	nhung don kieu 91145 ve day du ten - MST - dia chi ma trong moi o email.
-	Ham nay keo lai don Pancake cua ngay do va chi ghi DUNG o email, khong
-	dung den ba truong con lai de khong de len thong tin sales sua tay.
+	Nguon don: 4 san (GrabFood, BeFood, GreenSM Food, ShopeeFood), Khach si,
+	Tai cho tung chi nhanh. San co Giam gia (chiet khau san) nen nhan
+	giam_gia rieng, tru vao Grand Total giong giam gia don Pancake.
 
-	Chay lai bao nhieu lan cung duoc: don nao co email roi thi bo qua.
-	"""
-	_kiem_quyen()
-	ngay = getdate(ngay or nowdate())
-	ds = frappe.get_all(
-		"Sales Invoice",
-		filters={
-			"posting_date": str(ngay),
-			"custom_nguon": "Pancake",
-			"docstatus": ["<", 2],
-			"vgb_xhd_email": ["in", ["", None]],
-		},
-		fields=["name", "custom_pancake_id", "custom_hddt_so"],
-	)
-	if not ds:
-		return {"xet": 0, "bu": 0, "ngay": str(ngay)}
-
-	c = cfg()
-	k = key(c, "pancake_api_key")
-	dau, cuoi = _khoang_unix(str(ngay))
-	theo_id = {}
-	for o in _keo_don(c, k, "estimate_delivery_date", dau, cuoi):
-		theo_id[str(o.get("id"))] = o
-
-	bu = 0
-	danh_sach = []
-	for si in ds:
-		if si.custom_hddt_so:
-			continue  # da xuat hoa don dien tu roi thi khong dong vao nua
-		o = theo_id.get(str(si.custom_pancake_id or ""))
-		if not o:
-			continue
-		mail = _tach_email(_text_don(o))
-		if not mail:
-			continue
-		frappe.db.set_value("Sales Invoice", si.name, "vgb_xhd_email", mail)
-		bu += 1
-		danh_sach.append(si.name)
-	frappe.db.commit()
-	return {"xet": len(ds), "bu": bu, "ngay": str(ngay), "don": danh_sach}
-
-
-@frappe.whitelist()
-def tao_don_tay(ngay=None, nguon="Grab", ma_don="", ten_khach="", dien_thoai="", items=None, giam_gia=0, phi_ship=0):
-	"""Nhap tay doanh thu tu kenh khong co API (Grab Merchant, Be, GreenSM...).
-
-	Grab co muc Giam gia (chiet khau san) nen nhan giam_gia rieng,
-	tru vao Grand Total giong giam gia don Pancake.
+	Don san: ma don ben app CHINH LA ma tham chieu doi soat, chi nhap mot lan.
+	Don quay: sales chon phuong thuc rieng roi nhap so tham chieu bill.
 	"""
 	_kiem_quyen()
 	ngay = getdate(ngay or nowdate())
@@ -651,11 +778,25 @@ def tao_don_tay(ngay=None, nguon="Grab", ma_don="", ten_khach="", dien_thoai="",
 		frappe.throw("Đơn chưa có món nào.")
 	if flt(phi_ship) > 0:
 		rows.append({"item_code": _item_phi_giao(), "qty": 1, "rate": flt(phi_ship)})
-	nguon = (nguon or "Khác").strip()
+	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
+	if nguon not in [n["v"] for n in NGUON_DON]:
+		frappe.throw("Nguồn đơn %s không có trong danh mục." % (nguon or "(trống)"))
+	hop_le = _pt_cho_nguon(nguon)
+	# San chi mot phuong thuc, may tu chon cho sales khoi bam thua.
+	pt = _kiem_pt(pt or (hop_le[0] if len(hop_le) == 1 else ""), nguon)
+	if not pt:
+		frappe.throw("Chưa chọn phương thức thanh toán cho đơn %s." % nguon)
 	ma_don = (ma_don or "").strip()
-	pid = "%s-%s" % (nguon.upper().replace(" ", ""), ma_don or frappe.generate_hash(length=8))
+	if len(hop_le) == 1:
+		# Don san: ma don ben app chinh la ma tham chieu.
+		ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu or ma_don)
+		ma_don = ma_tc
+	else:
+		ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu)
+	ma_nguon = re.sub(r"[^A-Z0-9]", "", _bo_dau(nguon).upper())[:14] or "KHAC"
+	pid = "%s-%s" % (ma_nguon, ma_don or ma_tc or frappe.generate_hash(length=8))
 	if frappe.db.exists("Sales Invoice", {"custom_pancake_id": pid}):
-		frappe.throw("Mã đơn %s của %s đã nhập rồi, không nhập trùng." % (ma_don, nguon))
+		frappe.throw("Mã đơn %s của %s đã nhập rồi, không nhập trùng." % (ma_don or ma_tc, nguon))
 	si = frappe.new_doc("Sales Invoice")
 	si.update(
 		{
@@ -668,6 +809,9 @@ def tao_don_tay(ngay=None, nguon="Grab", ma_don="", ten_khach="", dien_thoai="",
 			"custom_pancake_id": pid,
 			"custom_pancake_display_id": ma_don,
 			"custom_nguon": nguon,
+			"vgb_pt_thanh_toan": pt,
+			"vgb_ma_tham_chieu": ma_tc,
+			"vgb_xhd_ten": XHD_MAC_DINH,
 			"apply_discount_on": "Grand Total",
 			"discount_amount": flt(giam_gia),
 			"remarks": "%s #%s - %s%s"

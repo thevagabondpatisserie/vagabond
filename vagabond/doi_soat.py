@@ -59,6 +59,72 @@ def keo_san_pham_pancake():
 
 
 @frappe.whitelist()
+def keo_anh_san_pham(ghi_de=0, gioi_han=400):
+	"""Keo anh mau ma tu Pancake ve gan vao Item.image.
+
+	Man Chon mon cua app hien icon banh thay vi anh that vi hau het Item
+	khong co anh (02/08: chi 13 tren 456 ma hang ban co anh). Lenh nay keo
+	anh san ben Pancake ve, chay lai bao nhieu lan cung khong tao anh trung
+	vi da co anh thi bo qua (tru khi ghi_de = 1).
+	"""
+	_quyen()
+	ghi_de = int(ghi_de or 0)
+	gioi_han = int(gioi_han or 400)
+	ds = keo_san_pham_pancake()
+
+	# Ban do ma -> url anh. Ma co hau to size Pancake tu sinh thi lay ma goc.
+	anh_theo_ma = {}
+	for v in ds:
+		url = (v.get("anh") or "").strip()
+		ma = (v.get("ma") or "").strip()
+		if not url or not ma:
+			continue
+		anh_theo_ma.setdefault(ma, url)
+		goc = HAU_TO_SIZE.sub("", ma).strip()
+		if goc and goc != ma:
+			anh_theo_ma.setdefault(goc, url)
+
+	loc = {"is_sales_item": 1}
+	if not ghi_de:
+		loc["image"] = ["in", ["", None]]
+	can = frappe.db.get_all("Item", filters=loc, fields=["name", "item_name"], limit_page_length=0)
+
+	kq = {"da_gan": 0, "khong_co_anh": [], "loi": [], "tong_can": len(can)}
+	for it in can:
+		if kq["da_gan"] >= gioi_han:
+			break
+		url = anh_theo_ma.get(it.name)
+		if not url:
+			kq["khong_co_anh"].append(it.name)
+			continue
+		try:
+			r = requests.get(url, timeout=TIMEOUT)
+			r.raise_for_status()
+			duoi = "png" if "png" in (r.headers.get("Content-Type") or "") else "jpg"
+			tep = frappe.get_doc(
+				{
+					"doctype": "File",
+					"file_name": "sp-%s.%s" % (it.name.lower(), duoi),
+					"content": r.content,
+					"is_private": 0,
+					"attached_to_doctype": "Item",
+					"attached_to_name": it.name,
+				}
+			)
+			tep.flags.ignore_permissions = True
+			tep.insert(ignore_permissions=True)
+			frappe.db.set_value("Item", it.name, "image", tep.file_url)
+			kq["da_gan"] += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "doi_soat: keo anh %s" % it.name)
+			kq["loi"].append(it.name)
+	frappe.db.commit()
+	kq["con_thieu"] = len(kq["khong_co_anh"])
+	kq["khong_co_anh"] = kq["khong_co_anh"][:200]
+	return kq
+
+
+@frappe.whitelist()
 def doi_soat_ma():
 	"""So tung mau ma Pancake voi Item ben Next.
 
