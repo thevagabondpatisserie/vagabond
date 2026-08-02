@@ -28,9 +28,15 @@ BEP_EMAILS = {
 }
 
 
+# Vai tro bep - de sau nay them nguoi thi chi can gan role, khoi sua code.
+BEP_ROLES = {"Bếp phó", "Bếp trưởng", "System Manager"}
+
+
 def _duoc_sua_btp():
 	user = frappe.session.user
-	return user in BEP_EMAILS or "System Manager" in frappe.get_roles(user)
+	if user in BEP_EMAILS:
+		return True
+	return bool(BEP_ROLES & set(frappe.get_roles(user)))
 
 
 @frappe.whitelist()
@@ -117,7 +123,10 @@ def luu_btp(ma_hang, so_btp):
 		if d.ma_hang == ma_hang:
 			d.so_btp = max(0, int(so_btp or 0))
 			doc.cap_nhat_luc = now_datetime()
-			doc.save()
+			# Cong da khoa o _duoc_sua_btp roi. Doctype "BTP Banh O" chi cho
+			# Sales User / Stock User ghi, bep khong co role do nen doc.save()
+			# thuong se bao 403 va man hinh nhay so ve 0.
+			doc.save(ignore_permissions=True)
 			frappe.db.commit()
 			return bang_btp()
 	frappe.throw("Khong thay ma %s trong bang BTP" % ma_hang)
@@ -133,7 +142,7 @@ def luu_decor(ma_hang, so_decor):
 		if d.ma_hang == ma_hang:
 			d.so_decor = max(0, int(so_decor or 0))
 			doc.cap_nhat_luc = now_datetime()
-			doc.save()
+			doc.save(ignore_permissions=True)
 			frappe.db.commit()
 			return bang_btp()
 	frappe.throw("Khong thay ma %s trong bang BTP" % ma_hang)
@@ -156,7 +165,7 @@ def them_ma_btp(ma_hang):
 	ten, anh = _tra_anh_ten(c, k, ma_hang)
 	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten, "hinh": anh})
 	doc.cap_nhat_luc = now_datetime()
-	doc.save()
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return bang_btp()
 
