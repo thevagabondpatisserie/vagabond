@@ -21,6 +21,7 @@ chay lai bao nhieu lan cung chi co mot hoa don cho mot don.
 
 import json
 import re
+import unicodedata
 
 import frappe
 import requests
@@ -193,18 +194,15 @@ def _doan_thanh_toan(o):
 # Mac dinh khi khach khong yeu cau xuat cho phap nhan.
 XHD_MAC_DINH = "Bán cho người tiêu dùng"
 
-RE_MST = re.compile(r"(?<!\d)(\d{10}(?:[-\s]?\d{3})?)(?!\d)")
-TU_KHOA_XHD = (
-	"xuất hoá đơn",
-	"xuất hóa đơn",
-	"xuat hoa don",
-	"xhđ",
-	"xhd",
-	"mã số thuế",
-	"ma so thue",
-	"mst",
-	"vat",
+# So 10 chu so cua VN vua co the la ma so thue vua co the la SO DIEN THOAI
+# (ca hai deu bat dau bang 0). Chi nhan la MST khi dung sau mot tu khoa hoa
+# don, VA tra cong thong tin thue ra dung mot doanh nghiep.
+RE_MOC_MST = re.compile(
+	r"(?:mst|ma so thue|tax code|xuat hoa don|xuat hd|xhd|hoa don vat|hoa don do|vat)"
+	r"[^0-9]{0,40}(\d{10}(?:[-\s]?\d{3})?)"
 )
+# So sanh tren text DA BO DAU (_bo_dau) nen chi can ban khong dau.
+TU_KHOA_XHD = ("xuat hoa don", "xuat hd", "xhd", "ma so thue", "mst", "hoa don vat", "hoa don do")
 
 
 def _text_don(o):
@@ -218,13 +216,32 @@ def _text_don(o):
 	return "\n".join(p for p in phan if p)
 
 
+def _bo_dau(t):
+	"""Bo dau tieng Viet va ha thuong. Giu nguyen do dai tung ky tu."""
+	t = unicodedata.normalize("NFD", t or "")
+	t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+	return t.replace("\u0111", "d").replace("\u0110", "d").lower()
+
+
+def _so_hop_le(m):
+	so = re.sub(r"\D", "", m or "")
+	return so if len(so) in (10, 13) else ""
+
+
 def _tach_mst(txt):
-	"""Tim ma so thue 10 hoac 13 so trong text. Tra chuoi chi gom so."""
-	for m in RE_MST.finditer(txt or ""):
-		so = re.sub(r"\D", "", m.group(1))
-		if len(so) in (10, 13):
-			return so
-	return ""
+	"""Tim ma so thue trong text.
+
+	Chi lay so DUNG SAU tu khoa hoa don (MST, ma so thue, xuat hoa don...).
+	Khong quet bua moi so 10 chu so vi so dien thoai khach cung 10 chu so va
+	cung bat dau bang 0 - tung bat nham 0989937939 cua don 91060 (02/08).
+	Nguoi goi con phai tra cong thong tin thue de chac chan la doanh nghiep.
+	"""
+	ra = []
+	for m in RE_MOC_MST.finditer(_bo_dau(txt)):
+		so = _so_hop_le(m.group(1))
+		if so and so not in ra:
+			ra.append(so)
+	return ra[0] if ra else ""
 
 
 def _thong_tin_xhd(o, did):
@@ -260,14 +277,18 @@ def _thong_tin_xhd(o, did):
 			tt = tra_mst(mst) or {}
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang: tra MST %s" % mst)
-		return {
-			"vgb_xhd_ten": (tt.get("ten") or "") if tt.get("ok") else "",
-			"vgb_xhd_mst": mst,
-			"vgb_xhd_dia_chi": (tt.get("dia_chi") or "") if tt.get("ok") else "",
-			"vgb_xhd_email": "",
-		}
+		if tt.get("ok") and tt.get("ten"):
+			return {
+				"vgb_xhd_ten": tt.get("ten"),
+				"vgb_xhd_mst": mst,
+				"vgb_xhd_dia_chi": tt.get("dia_chi") or "",
+				"vgb_xhd_email": "",
+			}
+		# Tra khong ra doanh nghiep -> nhieu kha nang la so dien thoai hoac
+		# khach go sai. De TRONG cho sales dien tay, khong ghi so bua vao HDDT.
+		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
-	low = txt.lower()
+	low = _bo_dau(txt)
 	if any(t in low for t in TU_KHOA_XHD):
 		return {"vgb_xhd_ten": "", "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
