@@ -252,14 +252,37 @@ def _chuan_ma_tham_chieu(pt, ma, bat_buoc=True):
 	if not ma:
 		if q.get("bat") and bat_buoc:
 			frappe.throw(
-				"Phương thức %s bắt buộc phải có %s (ví dụ %s)."
-				% (pt, (q.get("nhan") or "mã tham chiếu").lower(), q.get("vd") or "")
+				"Phương thức %s bắt buộc phải có: %s%s"
+				% (pt, q.get("nhan") or "mã tham chiếu", (" (ví dụ %s)" % q["vd"]) if q.get("vd") else "")
 			)
 		return ""
 	mau = q.get("mau")
 	if mau and not re.match(mau, ma):
 		frappe.throw(q.get("loi") or ("Mã tham chiếu %s không đúng dạng." % ma))
 	return ma
+
+
+def _kiem_trung_ma(pt, ma, bo_qua=None):
+	"""Hai don khong the mang cung mot ma tham chieu.
+
+	Sales hay copy so bill cua don truoc, hoac go nham mot chu so. Bat ngay
+	luc ghi so thi doi soat khong bi hai don doi mot giao dich.
+	"""
+	if not ma or not pt:
+		return
+	loc = {
+		"vgb_ma_tham_chieu": ma,
+		"vgb_pt_thanh_toan": pt,
+		"docstatus": ["<", 2],
+	}
+	if bo_qua:
+		loc["name"] = ["!=", bo_qua]
+	cu = frappe.db.get_value("Sales Invoice", loc, ["name", "custom_pancake_display_id"], as_dict=True)
+	if cu:
+		frappe.throw(
+			"Mã tham chiếu %s của %s đã dùng cho đơn %s rồi. Kiểm lại bill, "
+			"hai đơn không thể chung một mã." % (ma, pt, cu.custom_pancake_display_id or cu.name)
+		)
 
 
 def _kiem_pt(pt, nguon):
@@ -716,6 +739,7 @@ def _chuan_bi_ghi_so(si):
 		)
 	si.vgb_pt_thanh_toan = pt
 	si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
+	_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
 	if not (si.vgb_xhd_ten or "").strip():
 		si.vgb_xhd_ten = XHD_MAC_DINH
 
@@ -881,6 +905,7 @@ def tao_don_tay(
 		ma_don = ma_tc
 	else:
 		ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu)
+	_kiem_trung_ma(pt, ma_tc)
 	ma_nguon = re.sub(r"[^A-Z0-9]", "", _bo_dau(nguon).upper())[:14] or "KHAC"
 	pid = "%s-%s" % (ma_nguon, ma_don or ma_tc or frappe.generate_hash(length=8))
 	if frappe.db.exists("Sales Invoice", {"custom_pancake_id": pid}):
