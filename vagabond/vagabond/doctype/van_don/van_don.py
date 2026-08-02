@@ -11,5 +11,5 @@ from frappe.model.document import Document
 
 class VanDon(Document):
 	def validate(self):
-		if self.trang_thai == "Giao lỗi" and not (self.ly_do_loi or "").strip():
-			frappe.throw("Giao lỗi thì ghi rõ lý do giúp bếp và sales xử lý tiếp.")
+		if self.trang_thai == "Không giao được" and not (self.ly_do_loi or "").strip():
+			frappe.throw("Không giao được thì ghi rõ lý do giúp bếp và sales xử lý tiếp.")
