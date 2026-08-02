@@ -386,6 +386,42 @@ def bo_loc(ngay=None):
 	}
 
 
+def _qr_svg(noi_dung):
+	"""Ma QR dang SVG noi thang vao HTML - khong can tep anh, in ra net.
+
+	Dung pyqrcode co san trong Frappe (module xac thuc hai lop dung no).
+	Khong co thi tra chuoi rong, phieu van in binh thuong.
+	"""
+	try:
+		import pyqrcode
+	except Exception:
+		return ""
+	try:
+		qr = pyqrcode.create(noi_dung, error="M")
+		luoi = qr.code  # list cac hang, 1 la o den
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "van_don: dung ma QR loi")
+		return ""
+	vien = 2
+	n = len(luoi) + vien * 2
+	o = []
+	for y, hang in enumerate(luoi):
+		x = 0
+		while x < len(hang):
+			if hang[x]:
+				x2 = x
+				while x2 + 1 < len(hang) and hang[x2 + 1]:
+					x2 += 1
+				o.append('<rect x="%d" y="%d" width="%d" height="1"/>' % (x + vien, y + vien, x2 - x + 1))
+				x = x2 + 1
+			else:
+				x += 1
+	return (
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges">'
+		'<rect width="%d" height="%d" fill="#ffffff"/><g fill="#000000">%s</g></svg>'
+	) % (n, n, n, n, "".join(o))
+
+
 @frappe.whitelist()
 def phieu_in(names):
 	"""Du lieu day du de in phieu giao hang cho cac van don duoc chon.
@@ -414,6 +450,8 @@ def phieu_in(names):
 				order_by="idx asc",
 				limit_page_length=100,
 			)
+		d["duong_dan"] = "%s/bep?vd=%s" % (frappe.utils.get_url().rstrip("/"), d.name)
+		d["qr"] = _qr_svg(d["duong_dan"])
 		ra.append(d)
 	# giu dung thu tu tuyen de shipper cam xap giay la chay theo thu tu
 	ra.sort(key=lambda x: (x.get("chuyen") or "", x.get("thu_tu") or 999, x.get("tag_gio") or ""))
@@ -732,9 +770,15 @@ def _ahamove_dat_don(doc):
 				"cod": flt(doc.tien_thu_ho) or 0,
 			},
 		],
-		"services": [{"_id": c.ma_dich_vu, "requests": reqs}],
+		# TAO don dung service_id (chuoi) + requests o cap cao nhat.
+		# HOI PHI (/v3/orders/estimates) moi dung services: [{_id, requests}].
+		# Truyen nham kieu cua endpoint hoi phi sang endpoint tao don thi Ahamove
+		# tra 404 SERVICE_NOT_FOUND "Service does not exist" - loi anh Viet gap
+		# 02/08/2026, du ma SGN-BIKE hoan toan hop le.
+		"service_id": c.ma_dich_vu,
+		"requests": reqs,
 		"payment_method": "BALANCE",
-		"remarks": "Đơn %s - %s" % (doc.ma_don or doc.name, doc.gio_giao or ""),
+		"remarks": "Đơn %s - %s" % (doc.ma_don or doc.name, doc.tag_gio or doc.gio_giao or ""),
 	}
 	body["path"][0].pop("dia_chi", None)
 	body["path"][0].pop("ten", None)
