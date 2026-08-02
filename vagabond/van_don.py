@@ -91,7 +91,8 @@ def _day_trang_thai_pancake(pid, status=3):
 
 @frappe.whitelist()
 def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
-	ngay_giao=None, gio_giao=None, kenh=None, tien_thu_ho=0, ghi_chu=None):
+	ngay_giao=None, gio_giao=None, kenh=None, tien_thu_ho=0, ghi_chu=None,
+	nguoi_nhan=None, sdt_nhan=None):
 	"""Tao van don, uu tien keo thong tin tu hoa don + don Pancake goc."""
 	if not _la_sales():
 		frappe.throw("Chỉ sales tạo được vận đơn.")
@@ -117,6 +118,8 @@ def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 			dia_chi = sa.get("full_address") or sa.get("address") or ""
 			khach = khach or (o.get("bill_full_name") or "")
 			sdt = sdt or (o.get("bill_phone_number") or "")
+			nguoi_nhan = (sa.get("full_name") or "").strip()
+			sdt_nhan = (sa.get("phone_number") or "").strip()
 	doc = frappe.get_doc(
 		{
 			"doctype": "Van Don",
@@ -124,6 +127,8 @@ def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 			"ma_don": ma_don,
 			"khach": khach,
 			"sdt": sdt,
+			"nguoi_nhan": nguoi_nhan,
+			"sdt_nhan": sdt_nhan,
 			"dia_chi": dia_chi,
 			"ngay_giao": ngay_giao or nowdate(),
 			"gio_giao": gio_giao,
@@ -183,12 +188,23 @@ def _phuong(sa):
 
 
 def _tu_pancake(o):
-	"""Gom cac truong lay tu don Pancake ve dang truong cua Van Don."""
+	"""Gom cac truong lay tu don Pancake ve dang truong cua Van Don.
+
+	Nguoi DAT va nguoi NHAN hay la hai nguoi khac nhau (banh sinh nhat, banh
+	tang). Pancake tach san: bill_full_name / bill_phone_number la nguoi dat
+	(nguoi tra tien, nguoi sales noi chuyen), con shipping_address.full_name /
+	phone_number la nguoi nhan tai dia chi giao. Goi nguoi nhan khong duoc thi
+	shipper goi nguoi dat de thuong luong, nen phai giu ca hai.
+	"""
 	from vagabond.xep_tuyen import buoi_tu_khung
 
 	sa = o.get("shipping_address") or {}
 	gio, the = _tach_the(o)
 	return {
+		"khach": (o.get("bill_full_name") or sa.get("full_name") or "").strip(),
+		"sdt": (o.get("bill_phone_number") or sa.get("phone_number") or "").strip(),
+		"nguoi_nhan": (sa.get("full_name") or "").strip(),
+		"sdt_nhan": (sa.get("phone_number") or "").strip(),
 		"tag_gio": gio,
 		"buoi": buoi_tu_khung(gio),
 		"phuong": _phuong(sa),
@@ -248,7 +264,11 @@ def dong_bo_pancake(ngay=None):
 		if not pid:
 			bo_qua += 1
 			continue
-		cu = frappe.db.get_value("Van Don", {"pancake_id": pid}, ["name", "trang_thai", "tag_gio", "phuong", "ghi_chu_in", "the_don"], as_dict=True)
+		cu = frappe.db.get_value(
+			"Van Don", {"pancake_id": pid},
+			["name", "trang_thai", "tag_gio", "phuong", "ghi_chu_in", "the_don", "khach", "sdt", "nguoi_nhan", "sdt_nhan"],
+			as_dict=True,
+		)
 		if cu:
 			da_co += 1
 			# Sales gan the khung gio o Pancake vao khoang 8h sang, sau luc keo
@@ -256,7 +276,8 @@ def dong_bo_pancake(ngay=None):
 			# nhung KHONG dung toi shipper, chuyen, trang thai da sales dat.
 			if cu.trang_thai in ("Chờ giao", "Đang giao"):
 				moi = _tu_pancake(o)
-				if any((cu.get(k2) or "") != (moi.get(k2) or "") for k2 in ("tag_gio", "phuong", "ghi_chu_in", "the_don")):
+				if any((cu.get(k2) or "") != (moi.get(k2) or "") for k2 in
+					("tag_gio", "phuong", "ghi_chu_in", "the_don", "khach", "sdt", "nguoi_nhan", "sdt_nhan")):
 					frappe.db.set_value("Van Don", cu.name, moi, update_modified=False)
 					lam_moi += 1
 			continue
@@ -277,8 +298,6 @@ def dong_bo_pancake(ngay=None):
 					"doctype": "Van Don",
 					"hoa_don": si.name if si else None,
 					"ma_don": str(o.get("display_id") or pid),
-					"khach": (sa.get("full_name") or o.get("bill_full_name") or "").strip(),
-					"sdt": (sa.get("phone_number") or o.get("bill_phone_number") or "").strip(),
 					"dia_chi": (sa.get("full_address") or sa.get("address") or "").strip(),
 					"ngay_giao": ngay,
 					"gio_giao": _gio_tu_iso(o.get("estimate_delivery_date")),
@@ -299,7 +318,7 @@ def dong_bo_pancake(ngay=None):
 TRUONG_DS = [
 	"name", "ma_don", "khach", "sdt", "dia_chi", "gio_giao", "trang_thai",
 	"kenh", "shipper", "tien_thu_ho", "phi_giao", "anh_giao", "booking_id", "tracking_url",
-	"ly_do_loi", "chuyen", "da_doi_soat",
+	"ly_do_loi", "chuyen", "da_doi_soat", "nguoi_nhan", "sdt_nhan",
 	"tag_gio", "buoi", "phuong", "the_don", "goi_truoc", "chup_truoc", "ghi_chu_in",
 	"thu_tu", "gio_du_kien", "km_chang", "tre_khung_gio", "lat", "lng",
 ]
@@ -365,6 +384,40 @@ def bo_loc(ngay=None):
 		"so_thieu_the_gio": len(thieu),
 		"tong": len(ds),
 	}
+
+
+@frappe.whitelist()
+def phieu_in(names):
+	"""Du lieu day du de in phieu giao hang cho cac van don duoc chon.
+
+	Ngoai truong cua van don, keo them danh sach mon tu hoa don ban hang de
+	shipper doi chieu hop banh truoc khi roi tiem, va ten nguoi tao don.
+	"""
+	_kiem_quyen_xem()
+	if isinstance(names, str):
+		names = json.loads(names)
+	if not names:
+		frappe.throw("Chưa chọn vận đơn nào để in.")
+	ra = []
+	for nm in names[:60]:
+		d = frappe.db.get_value("Van Don", nm, TRUONG_DS + ["hoa_don", "ngay_giao", "ghi_chu", "owner"], as_dict=True)
+		if not d:
+			continue
+		d["ten_shipper"] = frappe.db.get_value("User", d.shipper, "full_name") if d.shipper else ""
+		d["nguoi_tao"] = frappe.db.get_value("User", d.owner, "full_name") or d.owner or ""
+		d["mon"] = []
+		if d.hoa_don:
+			d["mon"] = frappe.get_all(
+				"Sales Invoice Item",
+				filters={"parent": d.hoa_don},
+				fields=["item_code", "item_name", "qty", "amount"],
+				order_by="idx asc",
+				limit_page_length=100,
+			)
+		ra.append(d)
+	# giu dung thu tu tuyen de shipper cam xap giay la chay theo thu tu
+	ra.sort(key=lambda x: (x.get("chuyen") or "", x.get("thu_tu") or 999, x.get("tag_gio") or ""))
+	return ra
 
 
 @frappe.whitelist()
