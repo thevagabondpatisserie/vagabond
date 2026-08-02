@@ -9,6 +9,8 @@
   "hoa_don",
   "khach",
   "sdt",
+  "nguoi_nhan",
+  "sdt_nhan",
   "dia_chi",
   "cb1",
   "ngay_giao",
@@ -298,10 +300,20 @@
    "fieldname": "ghi_chu_in",
    "fieldtype": "Text",
    "label": "Ghi chu de in (note_print)"
+  },
+  {
+   "fieldname": "nguoi_nhan",
+   "fieldtype": "Data",
+   "label": "Nguoi nhan (tren dia chi giao)"
+  },
+  {
+   "fieldname": "sdt_nhan",
+   "fieldtype": "Data",
+   "label": "SDT nguoi nhan"
   }
  ],
  "links": [],
- "modified": "2026-08-02 21:00:00.000000",
+ "modified": "2026-08-02 22:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Van Don",
