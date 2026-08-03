@@ -1,0 +1,118 @@
+{
+ "actions": [],
+ "autoname": "field:ma_si",
+ "creation": "2026-08-03 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_si",
+  "ten_si",
+  "khach",
+  "cb1",
+  "ma_goc",
+  "ten_goc",
+  "hoat_dong",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_si",
+   "fieldtype": "Link",
+   "label": "Ma si (ma tren Pancake)",
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_si",
+   "fieldtype": "Data",
+   "label": "Ten mon si",
+   "fetch_from": "ma_si.item_name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Data",
+   "label": "Khach si",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ma_goc",
+   "fieldtype": "Link",
+   "label": "Ma banh goc ben Next",
+   "options": "Item",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ten_goc",
+   "fieldtype": "Data",
+   "label": "Ten banh goc",
+   "fetch_from": "ma_goc.item_name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hoat_dong",
+   "fieldtype": "Check",
+   "label": "Dang ap dung",
+   "default": "0",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Chi khi tich o nay thi don ve moi doi ma si thanh ma goc. Chua tich thi giu nguyen ma si."
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Anh Xa Ma Si",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
