@@ -148,6 +148,114 @@ def xem_tho(ma):
 	return ra
 
 
+def _quet_danh_muc(c, k):
+	"""Keo toan bo bien the trong danh muc Pancake ve mot lan de doi chieu ten."""
+	ra, page = [], 1
+	while page <= 60:
+		r = requests.get(
+			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k, "page_number": page, "page_size": 100},
+			timeout=TIMEOUT,
+		)
+		r.raise_for_status()
+		data = (r.json() or {}).get("data") or []
+		if not data:
+			break
+		ra.extend(data)
+		if len(data) < 100:
+			break
+		page += 1
+	return ra
+
+
+def _loc_theo_ten(ds, ten):
+	can = str(ten or "").strip().lower()
+	ra = []
+	for v in ds:
+		sp = v.get("product") or {}
+		if str(sp.get("name") or "").strip().lower() == can:
+			ra.append(v)
+	return ra
+
+
+@frappe.whitelist()
+def soi_ten(ten):
+	"""Chi doc. Tim san pham theo dung ten de biet no da co ma hay chua."""
+	_quyen()
+	c, k = _khoa()
+	ra = []
+	for v in _loc_theo_ten(_quet_danh_muc(c, k), ten):
+		sp = v.get("product") or {}
+		ra.append(
+			{
+				"id_bien_the": v.get("id"),
+				"id_san_pham": sp.get("id") or v.get("product_id"),
+				"ten": (sp.get("name") or "").strip(),
+				"ma_hien": str(v.get("display_id") or "").strip(),
+				"gia": v.get("retail_price") or 0,
+			}
+		)
+	return ra
+
+
+@frappe.whitelist()
+def gan_ma_hang_loat(cap):
+	"""Gan ma cho san pham DA CO tren Pancake nhung chua co ma.
+
+	Sinh ra ngay 03/08/2026: 14 mon banh si (Ravie, Society, Ristreet) da nam
+	san tren Pancake voi dung ten va dung gia, chi thieu ma - display_id cua
+	chung deu tra ve "1". Goi POST tao moi thi Pancake tra 422 "San pham da
+	ton tai trong he thong", nen phai PUT ma vao san pham cu chu khong tao moi.
+
+	cap: [[ten, ma], ...] hoac {ten: ma}. Quet danh muc dung mot lan cho ca lo.
+	"""
+	_quyen()
+	c, k = _khoa()
+	if isinstance(cap, str):
+		cap = frappe.parse_json(cap)
+	if isinstance(cap, dict):
+		cap = [[t, m] for t, m in cap.items()]
+	danh_muc = _quet_danh_muc(c, k)
+	ket = []
+	for x in cap or []:
+		if isinstance(x, dict):
+			ten, ma = x.get("ten"), x.get("ma")
+		else:
+			ten, ma = x[0], x[1]
+		ten = str(ten or "").strip()
+		ma = str(ma or "").strip().upper()
+		if not ten or not ma:
+			ket.append({"ten": ten, "ma": ma, "ket_qua": "thieu ten hoac ma"})
+			continue
+		if _bien_the(c, k, ma):
+			ket.append({"ten": ten, "ma": ma, "ket_qua": "ma da co tren Pancake"})
+			continue
+		ds = _loc_theo_ten(danh_muc, ten)
+		if not ds:
+			ket.append({"ten": ten, "ma": ma, "ket_qua": "khong thay ten nay tren Pancake"})
+			continue
+		if len(ds) > 1:
+			ket.append({"ten": ten, "ma": ma, "ket_qua": "trung ten %d san pham, phai xu ly tay" % len(ds)})
+			continue
+		v = ds[0]
+		pid = (v.get("product") or {}).get("id") or v.get("product_id")
+		sp = _san_pham(c, k, pid) if pid else {}
+		bt = sp.get("variations") or []
+		if len(bt) > 1:
+			ket.append({"ten": ten, "ma": ma, "ket_qua": "san pham co %d bien the, phai xu ly tay" % len(bt)})
+			continue
+		_put_san_pham(
+			c, k, pid,
+			{
+				"custom_id": ma,
+				"variations": [{"id": v.get("id"), "fields": [], "custom_id": ma, "barcode": ma}],
+			},
+		)
+		sau = _bien_the(c, k, ma)
+		ket.append({"ten": ten, "ma": ma, "ket_qua": "da gan" if sau else "PUT xong nhung kiem lai khong thay"})
+	return ket
+
+
 @frappe.whitelist()
 def bo_hau_to(ma, ma_sach=None):
 	"""Go thuoc tinh bien the de display_id thoi bi noi duoi tu sinh.
