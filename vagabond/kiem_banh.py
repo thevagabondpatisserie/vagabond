@@ -19,6 +19,7 @@ Ky thuat da do that:
 """
 
 import json
+import re
 from datetime import datetime, timedelta
 
 import frappe
@@ -99,11 +100,16 @@ def _dem_banh(dons):
 
 
 def _tra_anh_ten(c, k, ma):
-	"""Tra anh + ten cua mot ma tu danh muc Pancake.
+	"""Tra anh + ten cua mot ma tu danh muc Pancake, thieu thi lay ben Next.
 
 	Nhieu ma (vi du BAWC00053) co anh o cap SAN PHAM nhung variation nam
 	trong don hang lai KHONG nhung anh - dem tu don thi thieu. Ham nay tra
 	thang danh muc: uu tien anh cua variation, thieu thi lay anh san pham.
+
+	Ma khong co tren Pancake thi lui ve danh muc Hang hoa ben Next. Han bao
+	03/08/2026: BAWC00025 hien tren man kiem banh khong co ten - ly do la
+	ma do CHI ton tai ben Next (Banh O Hokkaido, size 16cm), Pancake khong
+	co variation nao mang ma nay nen ham tra ve rong, man hinh in ra trong.
 	"""
 	try:
 		r = requests.get(
@@ -118,7 +124,34 @@ def _tra_anh_ten(c, k, ma):
 				return ten, (ds[0] if ds else "")
 	except Exception:
 		pass
-	return "", ""
+	return _tra_ben_next(ma)
+
+
+def _tra_ben_next(ma):
+	"""Lui ve danh muc Hang hoa ben Next khi Pancake khong co ma."""
+	it = frappe.db.get_value("Item", ma, ["item_name", "image"], as_dict=True)
+	if not it:
+		return "", ""
+	anh = it.image or ""
+	if anh.startswith("/private"):
+		anh = ""
+	return it.item_name or "", anh
+
+
+def _dang_ma_dung(ma):
+	"""BAWC/BAWS + it nhat 5 chu so. Chan ma cut kieu "BAWC" go nham.
+
+	Van cho hau to size cu (BAWC00114MINI12CM) vi don cu con mang ma do.
+	"""
+	return bool(re.match(r"^(BAWC|BAWS)\d{5}", str(ma or "").strip().upper()))
+
+
+def _co_that(c, k, ma):
+	"""Ma co that: co tren Pancake, hoac co trong danh muc Hang hoa ben Next."""
+	if frappe.db.exists("Item", ma):
+		return True
+	ten, _anh = _tra_anh_ten(c, k, ma)
+	return bool(ten)
 
 
 def _lay_hoac_tao(ngay):
@@ -287,16 +320,51 @@ def them_dong(ngay, ma_hang):
 	ma_hang = str(ma_hang or "").strip()
 	if not ma_hang:
 		frappe.throw("Thieu ma hang")
-	if not ma_hang.upper().startswith(TIEN_TO_MA):
-		frappe.throw("Bang nay chi theo doi banh o va banh si (ma %s...)" % "/".join(TIEN_TO_MA))
+	if not _dang_ma_dung(ma_hang):
+		frappe.throw(
+			"Mã %s không đúng dạng. Bảng này chỉ theo dõi bánh ổ và bánh sỉ, "
+			"mã phải là BAWC hoặc BAWS kèm 5 chữ số, ví dụ BAWC00098." % ma_hang
+		)
 	doc = _lay_hoac_tao(ngay)
 	if any(d.ma_hang == ma_hang for d in doc.dong):
 		frappe.throw("Ma nay da co trong bang")
+	if not _co_that(c, k, ma_hang):
+		frappe.throw(
+			"Không tìm thấy mã %s ở cả Pancake lẫn danh mục Hàng hoá bên Next. "
+			"Anh chị kiểm tra lại mã, hoặc tạo mã đó trước rồi thêm sau." % ma_hang
+		)
 	ten, anh = _tra_anh_ten(c, k, ma_hang)
 	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten, "hinh": anh})
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ten_banh": ten}
+
+
+SO_PHAI_RONG = ("ton_cu", "ton_d2", "ton_d1", "sx", "da_dat", "phat_sinh", "cho_chot")
+
+
+@frappe.whitelist()
+def xoa_dong(ngay, ma_hang):
+	"""Go mot dong go nham khoi bang - chi khi dong do trang tron.
+
+	Han bao 03/08/2026 co hai dong rac trong so: BAWC00025 va mot dong ten
+	dung "BAWC". Truoc day khong co duong nao go ra, phai vao Desk. Gio man
+	hinh co dau x tren the nao chua co so nao.
+	"""
+	doc = frappe.get_doc("Kiem Banh Ngay", "KB-%s" % getdate(ngay))
+	if doc.tinh_trang == "Da chot":
+		frappe.throw("Ngày này đã chốt sổ, không xoá dòng được nữa")
+	for d in doc.dong:
+		if d.ma_hang != ma_hang:
+			continue
+		co_so = [t for t in SO_PHAI_RONG if int(d.get(t) or 0)]
+		if co_so:
+			frappe.throw("Mã %s đang có số, không xoá được. Xoá số về 0 trước đã." % ma_hang)
+		doc.remove(d)
+		doc.save(ignore_permissions=True)
+		frappe.db.commit()
+		return {"ok": 1}
+	frappe.throw("Khong thay ma hang %s" % ma_hang)
 
 
 @frappe.whitelist()

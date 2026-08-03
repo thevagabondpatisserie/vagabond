@@ -13,7 +13,7 @@ hanh cu, chi bo cong chup bang.
 import frappe
 from frappe.utils import add_days, getdate, now_datetime
 
-from vagabond.kiem_banh import TIEN_TO_MA, _tra_anh_ten
+from vagabond.kiem_banh import _co_that, _dang_ma_dung, _tra_anh_ten
 from vagabond.lib import cfg, key
 
 SO_NGAY_GIU = 3  # hom nay + 2 ngay ke
@@ -127,10 +127,10 @@ def _dong_cua_ma(doc, ma_hang):
 	for d in doc.dong:
 		if d.ma_hang == ma_hang:
 			return d
-	if not ma_hang.upper().startswith(TIEN_TO_MA):
+	if not _dang_ma_dung(ma_hang):
 		frappe.throw(
-			"Bảng BTP chỉ theo dõi bánh ổ và bánh sỉ (mã %s...), mã %s không thêm được"
-			% ("/".join(TIEN_TO_MA), ma_hang)
+			"Bảng BTP chỉ theo dõi bánh ổ và bánh sỉ. Mã phải là BAWC hoặc BAWS "
+			"kèm 5 chữ số, ví dụ BAWC00098 - mã %s không thêm được." % ma_hang
 		)
 	ten, anh = "", ""
 	try:
@@ -180,19 +180,46 @@ def them_ma_btp(ma_hang):
 	ma_hang = str(ma_hang or "").strip()
 	if not ma_hang:
 		frappe.throw("Thieu ma hang")
-	if not ma_hang.upper().startswith(TIEN_TO_MA):
-		frappe.throw("Bang BTP chi theo doi banh o va banh si (ma %s...)" % "/".join(TIEN_TO_MA))
+	if not _dang_ma_dung(ma_hang):
+		frappe.throw(
+			"Bảng BTP chỉ theo dõi bánh ổ và bánh sỉ. Mã phải là BAWC hoặc BAWS "
+			"kèm 5 chữ số, ví dụ BAWC00098 - mã %s không thêm được." % ma_hang
+		)
 	doc = frappe.get_single("BTP Banh O")
 	if any(d.ma_hang == ma_hang for d in doc.dong):
 		frappe.throw("Ma nay da co trong bang")
 	c = cfg()
 	k = key(c, "pancake_api_key")
+	if not _co_that(c, k, ma_hang):
+		frappe.throw(
+			"Không tìm thấy mã %s ở cả Pancake lẫn danh mục Hàng hoá bên Next. "
+			"Anh chị kiểm tra lại mã, hoặc tạo mã đó trước rồi thêm sau." % ma_hang
+		)
 	ten, anh = _tra_anh_ten(c, k, ma_hang)
 	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten, "hinh": anh})
 	doc.cap_nhat_luc = now_datetime()
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return bang_btp()
+
+
+@frappe.whitelist()
+def xoa_ma_btp(ma_hang):
+	"""Go mot ma go nham khoi bang BTP - chi khi ca hai so deu bang 0."""
+	if not _duoc_sua_btp():
+		frappe.throw("Bảng BTP chỉ bếp được xoá mã")
+	doc = frappe.get_single("BTP Banh O")
+	for d in doc.dong:
+		if d.ma_hang != ma_hang:
+			continue
+		if int(d.so_btp or 0) or int(d.so_decor or 0):
+			frappe.throw("Mã %s đang có số BTP hoặc số decor, xoá số về 0 trước đã." % ma_hang)
+		doc.remove(d)
+		doc.cap_nhat_luc = now_datetime()
+		doc.save(ignore_permissions=True)
+		frappe.db.commit()
+		return bang_btp()
+	frappe.throw("Khong thay ma hang %s trong bang BTP" % ma_hang)
 
 
 @frappe.whitelist()
