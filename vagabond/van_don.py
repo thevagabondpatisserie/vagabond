@@ -979,9 +979,12 @@ def aha_dich_vu():
 	c = cfg()
 	if not (key(c, "ahamove_api_key") and c.ahamove_base):
 		frappe.throw("Chưa cấu hình Ahamove trong Vagabond Settings.")
-	ck = "vgb:aha:dichvu"
+	ck = "vgb:aha:dichvu2"
 	hit = cache_get(ck)
 	if hit:
+		# Phai nho ca goi {dich_vu, mac_dinh}, khong nho moi danh sach dich vu:
+		# nho thieu thi lan goi sau app nhan ve mang tran, doc .dich_vu ra rong
+		# va bao "Ahamove khong tra ve loai xe nao".
 		return json.loads(hit)
 	ds = _aha_goi(c, "/v3/services?city_id=SGN") or []
 	ra = []
@@ -1002,8 +1005,9 @@ def aha_dich_vu():
 		ra.append({"id": ma, "ten": sv.get("name") or ma, "addon": addon})
 	mac_dinh = (c.ma_dich_vu or "SGN-BIKE").strip()
 	ra.sort(key=lambda x: 0 if x["id"] == mac_dinh else 1)
-	cache_set(ck, json.dumps(ra), 3600)
-	return {"dich_vu": ra, "mac_dinh": mac_dinh}
+	goi = {"dich_vu": ra, "mac_dinh": mac_dinh}
+	cache_set(ck, json.dumps(goi), 3600)
+	return goi
 
 
 @frappe.whitelist()
