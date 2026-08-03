@@ -847,7 +847,9 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 		frappe.throw("Ahamove từ chối đơn: %s" % r.text[:200])
 	d = r.json() or {}
 	oid = d.get("order_id") or (d.get("order") or {}).get("_id") or ""
-	return oid, ("https://cloud.ahamove.com/share-order/%s" % oid if oid else ""), flt((d.get("order") or {}).get("total_pay") or 0)
+	don = d.get("order") or {}
+	phi = flt(don.get("total_fee") or don.get("total_pay") or 0)
+	return oid, ("https://cloud.ahamove.com/share-order/%s" % oid if oid else ""), phi
 
 
 def _greensm_token(c):
@@ -1044,13 +1046,26 @@ def aha_bao_gia(name, service_id=None, requests_them=None):
 		}],
 		"payment_method": "BALANCE",
 	}
-	d = _aha_goi(c, "/v3/orders/estimates", "POST", body) or {}
-	ds = d.get("data") or d.get("services") or []
-	dau = ds[0] if isinstance(ds, list) and ds else d
+	kq = _aha_goi(c, "/v3/orders/estimates", "POST", body)
+	# Endpoint nay tra ve MANG: [{service_id, data:{...}, error}].
+	# Truoc day doc thang .get() nen no van ra AttributeError 'list' object.
+	if isinstance(kq, list):
+		dau = (kq[0] if kq else {}) or {}
+		loi = dau.get("error")
+		if loi:
+			frappe.throw("Ahamove: %s" % (loi if isinstance(loi, str) else str(loi))[:200])
+		d = dau.get("data") or {}
+	else:
+		d = (kq or {}).get("data") or kq or {}
+	# total_pay bang 0 khi tai khoan tra sau, nen lay total_fee lam gia chinh.
+	tong = flt(d.get("total_fee") or d.get("total_pay") or 0)
 	return {
-		"tong": flt(dau.get("total_pay") or dau.get("total_price") or 0),
-		"km": flt(dau.get("distance") or 0),
-		"chi_tiet": dau.get("discount_breakdown") or dau.get("breakdown") or [],
+		"tong": tong,
+		"km": flt(d.get("distance") or 0),
+		"phut": int(flt(d.get("duration") or 0) / 60),
+		"phi_duong": flt(d.get("distance_fee") or 0),
+		"phi_them": flt(d.get("request_fee") or 0),
+		"giam": flt(d.get("discount") or 0),
 	}
 
 
