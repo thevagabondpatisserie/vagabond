@@ -346,8 +346,10 @@ def danh_sach(ngay=None, trang_thai=None, phuong=None, tag_gio=None, buoi=None,
 		limit_page_length=500,
 	)
 	if _la_shipper() and not _la_sales():
+		# Anh Viet 03/08/2026: man hinh shipper chi hien dung don duoc phan cong,
+		# khong hien don chua ai nhan nua cho do roi.
 		toi = frappe.session.user
-		ds = [d for d in ds if d.shipper == toi or (not d.shipper and d.kenh == "Shipper nội bộ")]
+		ds = [d for d in ds if d.shipper == toi]
 	return ds
 
 
@@ -588,17 +590,44 @@ def ds_shipper():
 	return ra
 
 
+# Don vi giao hang ngoai. Co API thi app tu goi xe duoc, khong co API thi
+# chi danh dau de nhan vien tu dat tren app cua ho roi ghi nhan lai.
+KENH_NGOAI = {
+	"Ahamove": {"api": 1},
+	"GreenSM": {"api": 1},
+	"Grab": {"api": 0},
+	"BE": {"api": 0},
+	"Lalamove": {"api": 0},
+}
+
+
 @frappe.whitelist()
-def gan_shipper(name, shipper=None):
-	"""Sales chi dinh shipper cho MOT van don. Don se hien ngay tren man hinh
-	cua shipper do. Truyen shipper rong = go ra khoi tay shipper (ve Cho giao).
+def gan_shipper(name, shipper=None, kenh=None):
+	"""Sales chi dinh nguoi giao cho MOT van don.
+
+	- shipper = email nhan vien: don hien ngay tren man hinh shipper do,
+	  va he thong gui email bao cho ban ay.
+	- kenh = ten don vi ngoai (Ahamove, GreenSM, Grab, BE, Lalamove): danh dau
+	  don di app ngoai. Don vi co API thi de trang thai Cho giao cho sales bam
+	  Goi xe; don vi khong co API thi chuyen thang Dang giao vi nhan vien tu
+	  dat tren app cua ho.
+	- ca hai rong: go ra, tra ve Cho giao.
 	"""
 	if not _la_sales():
-		frappe.throw("Chỉ sales chỉ định shipper được.")
+		frappe.throw("Chỉ sales chỉ định người giao được.")
 	doc = frappe.get_doc("Van Don", name)
 	if doc.trang_thai in ("Đã giao", "Huỷ"):
-		frappe.throw("Đơn đã ở trạng thái %s, không đổi shipper được." % doc.trang_thai)
-	if shipper:
+		frappe.throw("Đơn đã ở trạng thái %s, không đổi người giao được." % doc.trang_thai)
+	cu = doc.shipper
+	if kenh:
+		if kenh not in KENH_NGOAI:
+			frappe.throw("Không biết đơn vị giao hàng %s." % kenh)
+		doc.shipper = None
+		doc.chuyen = ""
+		doc.thu_tu = 0
+		doc.kenh = kenh
+		doc.trang_thai = "Chờ giao" if KENH_NGOAI[kenh]["api"] else "Đang giao"
+	elif shipper:
 		doc.shipper = shipper
 		doc.trang_thai = "Đang giao"
 		if doc.kenh != "Shipper nội bộ":
@@ -610,7 +639,28 @@ def gan_shipper(name, shipper=None):
 		doc.trang_thai = "Chờ giao"
 	doc.flags.ignore_permissions = True
 	doc.save()
-	return {"name": doc.name, "shipper": doc.shipper, "trang_thai": doc.trang_thai}
+	if doc.shipper and doc.shipper != cu:
+		_mail_phan_cong(doc)
+	return {"name": doc.name, "shipper": doc.shipper, "kenh": doc.kenh,
+		"trang_thai": doc.trang_thai}
+
+
+def _mail_phan_cong(doc):
+	"""Bao cho shipper biet vua co don moi. Hong thi bo qua, khong chan viec gan."""
+	try:
+		from vagabond.nhan_su import thu_phan_cong_html
+
+		email = frappe.db.get_value("User", doc.shipper, "email") or doc.shipper
+		ten = frappe.db.get_value("User", doc.shipper, "full_name") or ""
+		frappe.sendmail(
+			recipients=email,
+			subject="Đơn giao mới: %s - %s" % (doc.ma_don or doc.name, doc.khach or ""),
+			message=thu_phan_cong_html(ten, doc),
+			delayed=False,
+			retry=2,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "vagabond: mail phan cong loi")
 
 
 @frappe.whitelist()
@@ -745,7 +795,7 @@ def _diem_lay(c):
 	}
 
 
-def _ahamove_dat_don(doc):
+def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 	from vagabond.dia_chi import geocode
 	from vagabond.giao_hang import _token as _aha_token
 
@@ -757,9 +807,13 @@ def _ahamove_dat_don(doc):
 	toa = geocode(c, doc.dia_chi)
 	if not toa or not toa.get("lat"):
 		frappe.throw("Không tìm được toạ độ cho địa chỉ này, sửa lại địa chỉ giúp em.")
-	reqs = []
-	if c.dung_dich_vu_de_vo:
-		reqs.append({"_id": c.ma_dich_vu + "-FRAGILE"})
+	dv = (service_id or c.ma_dich_vu or "").strip()
+	if them_reqs is None:
+		reqs = []
+		if c.dung_dich_vu_de_vo:
+			reqs.append({"_id": dv + "-FRAGILE"})
+	else:
+		reqs = [{"_id": r} for r in them_reqs if r]
 	body = {
 		"order_time": 0,
 		"path": [
@@ -775,7 +829,7 @@ def _ahamove_dat_don(doc):
 		# Truyen nham kieu cua endpoint hoi phi sang endpoint tao don thi Ahamove
 		# tra 404 SERVICE_NOT_FOUND "Service does not exist" - loi anh Viet gap
 		# 02/08/2026, du ma SGN-BIKE hoan toan hop le.
-		"service_id": c.ma_dich_vu,
+		"service_id": dv,
 		"requests": reqs,
 		"payment_method": "BALANCE",
 		"remarks": "Đơn %s - %s" % (doc.ma_don or doc.name, doc.tag_gio or doc.gio_giao or ""),
@@ -863,15 +917,21 @@ def _greensm_dat_don(doc):
 
 
 @frappe.whitelist()
-def book_xe(name, kenh):
-	"""Dat xe cho van don qua app ngoai. Ahamove chay that, GreenSM cho key, BE cho API."""
+def book_xe(name, kenh, service_id=None, requests_them=None):
+	"""Dat xe cho van don qua app ngoai.
+
+	service_id va requests_them den tu man xac nhan trong app: nhan vien chon
+	loai xe va tick add-on (giao tan tay, hang de vo...) roi moi bam Goi xe.
+	"""
 	if not _la_sales():
 		frappe.throw("Chỉ sales book xe được.")
 	doc = frappe.get_doc("Van Don", name)
 	if doc.booking_id:
 		frappe.throw("Đơn này đã book rồi (%s). Huỷ bên app kia trước nếu muốn book lại." % doc.booking_id)
+	if isinstance(requests_them, str):
+		requests_them = json.loads(requests_them or "[]")
 	if kenh == "Ahamove":
-		oid, link, phi = _ahamove_dat_don(doc)
+		oid, link, phi = _ahamove_dat_don(doc, service_id, requests_them)
 	elif kenh == "GreenSM":
 		oid, link, phi = _greensm_dat_don(doc)
 	elif kenh == "BE":
@@ -887,6 +947,168 @@ def book_xe(name, kenh):
 	doc.flags.ignore_permissions = True
 	doc.save()
 	return {"booking_id": oid, "tracking_url": link, "phi_giao": phi}
+
+
+# ------------------------------------------------- Man xac nhan goi xe Ahamove
+
+# Add-on bay ra nhieu, nhan vien khong can thay het. Day la nhung cai thuc su
+# dung khi giao banh; con lai (SMS, khai gia, chung tu, quay dau...) an di.
+AHA_ADDON_HIEN = ("D2D", "FRAGILE", "BULKY", "BAGA", "TIP")
+
+
+def _aha_goi(c, duong_dan, phuong_thuc="GET", body=None):
+	from vagabond.giao_hang import _token as _aha_token
+
+	url = (c.ahamove_base or "").rstrip("/") + duong_dan
+	dau = {"Authorization": "Bearer " + _aha_token(c)}
+	if phuong_thuc == "POST":
+		r = requests.post(url, json=body or {}, headers=dau, timeout=TIMEOUT)
+	else:
+		r = requests.get(url, headers=dau, timeout=TIMEOUT)
+	if r.status_code != 200:
+		frappe.log_error(title="Vagabond: Ahamove %s loi" % duong_dan, message=r.text[:1000])
+		frappe.throw("Ahamove trả lỗi: %s" % r.text[:200])
+	return r.json()
+
+
+@frappe.whitelist()
+def aha_dich_vu():
+	"""Loai xe va add-on that cua Ahamove tai TPHCM, de app dung man goi xe."""
+	if not _la_sales():
+		frappe.throw("Chỉ sales gọi xe được.")
+	c = cfg()
+	if not (key(c, "ahamove_api_key") and c.ahamove_base):
+		frappe.throw("Chưa cấu hình Ahamove trong Vagabond Settings.")
+	ck = "vgb:aha:dichvu"
+	hit = cache_get(ck)
+	if hit:
+		return json.loads(hit)
+	ds = _aha_goi(c, "/v3/services?city_id=SGN") or []
+	ra = []
+	for sv in ds:
+		ma = sv.get("_id") or ""
+		if "TRUCK" in ma:
+			continue
+		addon = []
+		for rq in sv.get("requests") or []:
+			duoi = (rq.get("_id") or "").replace(ma + "-", "")
+			if duoi not in AHA_ADDON_HIEN:
+				continue
+			addon.append({
+				"id": rq.get("_id"),
+				"ten": (rq.get("name") or "").strip(),
+				"gia": flt(rq.get("price") or 0),
+			})
+		ra.append({"id": ma, "ten": sv.get("name") or ma, "addon": addon})
+	mac_dinh = (c.ma_dich_vu or "SGN-BIKE").strip()
+	ra.sort(key=lambda x: 0 if x["id"] == mac_dinh else 1)
+	cache_set(ck, json.dumps(ra), 3600)
+	return {"dich_vu": ra, "mac_dinh": mac_dinh}
+
+
+@frappe.whitelist()
+def aha_bao_gia(name, service_id=None, requests_them=None):
+	"""Gia that cua Ahamove cho dung don nay, kem add-on da tick.
+
+	Endpoint hoi phi dung `services: [{_id, requests}]`, KHAC endpoint tao don
+	(dung service_id + requests o cap cao nhat). Truyen nham la 404.
+	"""
+	if not _la_sales():
+		frappe.throw("Chỉ sales gọi xe được.")
+	from vagabond.dia_chi import geocode
+
+	if isinstance(requests_them, str):
+		requests_them = json.loads(requests_them or "[]")
+	c = cfg()
+	doc = frappe.get_doc("Van Don", name)
+	if not (doc.dia_chi or "").strip():
+		frappe.throw("Vận đơn chưa có địa chỉ giao.")
+	toa = geocode(c, doc.dia_chi)
+	if not toa or not toa.get("lat"):
+		frappe.throw("Không tìm được toạ độ cho địa chỉ này, sửa lại địa chỉ giúp em.")
+	diem = _diem_lay(c)
+	body = {
+		"order_time": 0,
+		"path": [
+			{"lat": diem["lat"], "lng": diem["lng"], "address": c.kitchen_address or ""},
+			{"lat": toa["lat"], "lng": toa["lng"], "address": doc.dia_chi,
+				"cod": flt(doc.tien_thu_ho) or 0},
+		],
+		"services": [{
+			"_id": (service_id or c.ma_dich_vu or "SGN-BIKE").strip(),
+			"requests": [{"_id": r} for r in (requests_them or []) if r],
+		}],
+		"payment_method": "BALANCE",
+	}
+	d = _aha_goi(c, "/v3/orders/estimates", "POST", body) or {}
+	ds = d.get("data") or d.get("services") or []
+	dau = ds[0] if isinstance(ds, list) and ds else d
+	return {
+		"tong": flt(dau.get("total_pay") or dau.get("total_price") or 0),
+		"km": flt(dau.get("distance") or 0),
+		"chi_tiet": dau.get("discount_breakdown") or dau.get("breakdown") or [],
+	}
+
+
+@frappe.whitelist(allow_guest=True)
+def aha_webhook():
+	"""Ahamove bao trang thai don. Quan tam nhat la tai xe huy.
+
+	Khong xac thuc duoc bang chu ky nen chi tin phan doc: tra cuu lai don theo
+	booking_id da luu, khong lay so lieu tien tu webhook.
+	"""
+	try:
+		d = frappe.local.form_dict or {}
+		if isinstance(d.get("data"), dict):
+			d = d["data"]
+		oid = str(d.get("_id") or d.get("order_id") or "").strip()
+		tt = (d.get("status") or "").upper()
+		if not oid:
+			return {"ok": 0}
+		name = frappe.db.get_value("Van Don", {"booking_id": oid}, "name")
+		if not name:
+			return {"ok": 0}
+		if tt in ("CANCELLED", "CANCELED", "FAILED"):
+			doc = frappe.get_doc("Van Don", name)
+			if doc.trang_thai in ("Đã giao", "Huỷ"):
+				return {"ok": 1}
+			doc.booking_id = ""
+			doc.tracking_url = ""
+			doc.trang_thai = "Chờ giao"
+			doc.ly_do_loi = "Tài xế Ahamove huỷ đơn"
+			doc.flags.ignore_permissions = True
+			doc.save()
+			frappe.db.commit()
+			_mail_tai_xe_huy(doc)
+		return {"ok": 1}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "vagabond: aha webhook loi")
+		return {"ok": 0}
+
+
+def _mail_tai_xe_huy(doc):
+	"""Bao sales de phan cong lai ngay, khong de don nam im."""
+	try:
+		ds = frappe.get_all(
+			"Has Role",
+			filters={"role": "Sales User", "parenttype": "User"},
+			fields=["parent"],
+		)
+		nhan = [r.parent for r in ds if r.parent not in ("Administrator", "Guest")
+			and frappe.db.get_value("User", r.parent, "enabled")]
+		if not nhan:
+			return
+		from vagabond.nhan_su import thu_tai_xe_huy_html
+
+		frappe.sendmail(
+			recipients=nhan,
+			subject="Tài xế huỷ đơn: %s - %s" % (doc.ma_don or doc.name, doc.khach or ""),
+			message=thu_tai_xe_huy_html(doc),
+			delayed=False,
+			retry=2,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "vagabond: mail tai xe huy loi")
 
 
 # ---------------------------------------------------------------- Chi phi shipper

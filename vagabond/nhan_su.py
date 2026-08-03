@@ -251,6 +251,92 @@ def ds_nhan_su_theo_vai(vai="Shipper"):
 	return sorted(ra, key=lambda x: x["ten"] or "")
 
 
+def _khung_thu(tieu_de, than, nut=""):
+	"""Khung thu dung chung: dai logo, than trang, chan robin egg."""
+	return (
+		'<div style="margin:0;padding:0;background:#F2FAFC">\n'
+		'<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0"><tr>'
+		'<td align="center" style="padding:18px 8px">\n'
+		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" '
+		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(vien)s">\n'
+		'<tr><td><img src="%(anh_dau)s" width="600" alt="The Vagabond Patisserie" '
+		'style="display:block;width:100%%;height:auto;border:0"></td></tr>\n'
+		'<tr><td style="padding:24px 30px 4px;font-family:Arial,Helvetica,sans-serif;'
+		'font-size:16px;font-weight:bold;color:%(dam)s">%(tieu_de)s</td></tr>\n'
+		'<tr><td style="padding:8px 30px 4px;font-family:Arial,Helvetica,sans-serif;'
+		'font-size:14px;line-height:1.65;color:%(chu)s">%(than)s</td></tr>\n'
+		'%(nut)s'
+		'<tr><td background="%(nen_xanh)s" bgcolor="%(xanh)s" '
+		'style="padding:12px 30px;font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+		'line-height:1.7;color:%(dam)s;text-align:center">'
+		'The Vagabond P&acirc;tisserie - 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân, TP. Hồ Chí Minh<br>'
+		'Cần hỗ trợ về app hãy nhắn số anh Việt (0901486556, Zalo)</td></tr>\n'
+		"</table>\n</td></tr></table></div>"
+	) % {
+		"vien": VIEN, "anh_dau": ANH_DAU_THU, "chu": CHU, "dam": XANH_DAM,
+		"xanh": XANH, "nen_xanh": ANH_NEN_XANH,
+		"tieu_de": tieu_de, "than": than,
+		"nut": ('<tr><td style="padding:18px 30px 24px">%s</td></tr>\n' % nut) if nut else
+			'<tr><td style="padding:0 30px 24px"></td></tr>\n',
+	}
+
+
+def _o_nhat(noi_dung):
+	return (
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
+		'<tr><td bgcolor="%s" style="padding:13px 16px;font-family:Arial,Helvetica,sans-serif;'
+		'font-size:13.5px;line-height:1.7;color:%s">%s</td></tr></table>'
+	) % (XANH_NHAT, XANH_DAM, noi_dung)
+
+
+def _tien(v):
+	try:
+		return "{:,.0f}".format(float(v or 0)).replace(",", ".")
+	except Exception:
+		return "0"
+
+
+def thu_phan_cong_html(ten, doc):
+	"""Bao shipper vua duoc giao mot don. Ngan gon, mo app la thay."""
+	h = frappe.utils.escape_html
+	dong = [
+		"<b>%s</b> - %s" % (h(doc.ma_don or doc.name), h(doc.khach or "")),
+		h(doc.dia_chi or ""),
+	]
+	if doc.nguoi_nhan or doc.sdt_nhan:
+		dong.append("Người nhận: %s %s" % (h(doc.nguoi_nhan or ""), h(doc.sdt_nhan or "")))
+	if doc.tag_gio:
+		dong.append("Khung giờ: <b>%s</b>" % h(doc.tag_gio))
+	if doc.tien_thu_ho:
+		dong.append("Thu hộ (COD): <b>%s đ</b>" % _tien(doc.tien_thu_ho))
+	if doc.ghi_chu_in:
+		dong.append("Ghi chú: %s" % h(doc.ghi_chu_in))
+	than = (
+		"<p style='margin:0 0 14px'>Chào <b style='color:%s'>%s</b>, anh chị vừa được giao một đơn mới.</p>%s"
+	) % (XANH_DAM, h(ten or ""), _o_nhat("<br>".join(dong)))
+	return _khung_thu("Có đơn mới cho anh chị", than, _nut_xanh(link_app(), "Mở app xem đơn"))
+
+
+def thu_tai_xe_huy_html(doc):
+	"""Bao sales rang tai xe app ngoai da huy, don dang cho phan cong lai."""
+	h = frappe.utils.escape_html
+	dong = [
+		"<b>%s</b> - %s" % (h(doc.ma_don or doc.name), h(doc.khach or "")),
+		h(doc.dia_chi or ""),
+	]
+	if doc.tag_gio:
+		dong.append("Khung giờ: <b>%s</b>" % h(doc.tag_gio))
+	if doc.tien_thu_ho:
+		dong.append("Thu hộ (COD): <b>%s đ</b>" % _tien(doc.tien_thu_ho))
+	than = (
+		"<p style='margin:0 0 14px'>Tài xế bên app ngoài đã huỷ đơn này. "
+		"Hệ thống đã gỡ mã đặt xe và trả vận đơn về <b>Chờ giao</b>, "
+		"nhờ anh chị phân công lại giúp.</p>%s"
+	) % _o_nhat("<br>".join(dong))
+	return _khung_thu("Tài xế huỷ đơn, cần phân công lại", than,
+		_nut_xanh(link_app(), "Mở màn Vận đơn"))
+
+
 CONG_TY = "CÔNG TY TNHH PATISSERIE VAGABOND"
 
 
