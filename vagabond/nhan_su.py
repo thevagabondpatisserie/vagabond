@@ -16,11 +16,18 @@ from frappe.utils import get_url
 
 from vagabond.lib import cfg
 
-# Xanh robin egg - mau nut chinh trong thu moi
-XANH = "#00c2cb"
-XANH_DAM = "#00a3ab"
-NAU = "#1f1c19"
-NEN = "#f2efe9"
+# Bo mau nhan dien dung chung voi mau thu PO gui nha cung cap (xem
+# claude/erpnext-email-va-mau-thu-po.md). Cac mang mau thuong hieu deu lot
+# anh nen, vi Gmail che do toi tu dao mau nhung mang sang thuan CSS.
+SITE_ANH = "https://vagabond.s.frappe.cloud"
+ANH_DAU_THU = SITE_ANH + "/files/vgb_email_header.png"
+ANH_NEN_XANH = SITE_ANH + "/files/vgb_bg_robinegg.png"
+XANH = "#50DBF2"          # robin egg dac
+XANH_NHAT = "#E4F9FD"     # robin egg nhat
+XANH_DAM = "#05323C"      # chu tren nen xanh
+CHU = "#22333B"
+VIEN = "#CDEBF2"
+LIEN_KET = "#0B7C93"
 
 
 def link_app():
@@ -35,87 +42,98 @@ def link_app():
 	return get_url().rstrip("/")
 
 
-def _nut(dia_chi, chu, nen, mau_chu="#ffffff", vien=None):
-	"""Nut bam trong email. Dung bang thay vi thẻ a co padding vi Outlook va
-	mot so ung dung mail Viet Nam bo qua padding cua the a."""
-	vien = vien or nen
+def _nut_xanh(dia_chi, chu):
+	"""Nut chinh mau robin egg, lot anh nen de khong bi Gmail dao mau."""
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
-		'<tr><td align="center" bgcolor="%s" style="border-radius:12px;border:1px solid %s">'
-		'<a href="%s" target="_blank" style="display:inline-block;padding:15px 34px;'
-		'font-family:Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;letter-spacing:.3px;'
-		'color:%s;text-decoration:none;border-radius:12px">%s</a>'
+		'<tr><td align="center" background="%s" bgcolor="%s" style="border-radius:10px">'
+		'<a href="%s" target="_blank" style="display:inline-block;padding:15px 40px;'
+		'font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;letter-spacing:.3px;'
+		'color:%s;text-decoration:none">%s</a>'
 		"</td></tr></table>"
-	) % (nen, vien, dia_chi, mau_chu, chu)
+	) % (ANH_NEN_XANH, XANH, dia_chi, XANH_DAM, chu)
+
+
+def _nut_vien(dia_chi, chu):
+	"""Nut phu: nen trang, vien xanh dam."""
+	return (
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
+		'<tr><td align="center" bgcolor="#FFFFFF" style="border:2px solid %s;border-radius:10px">'
+		'<a href="%s" target="_blank" style="display:inline-block;padding:13px 38px;'
+		'font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;'
+		'color:%s;text-decoration:none">%s</a>'
+		"</td></tr></table>"
+	) % (XANH_DAM, dia_chi, XANH_DAM, chu)
 
 
 def _buoc(so, tieu_de, noi_dung):
 	return (
-		'<tr><td style="padding:0 0 18px">'
+		'<tr><td style="padding:0 0 16px">'
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
-		'<tr><td width="30" valign="top" style="padding-top:2px">'
-		'<div style="width:24px;height:24px;border-radius:12px;background:%s;color:#fff;'
-		'font:700 13px/24px Helvetica,Arial,sans-serif;text-align:center">%s</div></td>'
-		'<td style="font:400 15px/1.6 Helvetica,Arial,sans-serif;color:#3d372f">'
+		'<tr><td width="34" valign="top">'
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
+		'<td width="26" height="26" align="center" background="%s" bgcolor="%s" '
+		'style="border-radius:13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;'
+		'font-weight:bold;color:%s">%s</td></tr></table></td>'
+		'<td style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;color:%s">'
 		'<b style="color:%s">%s</b><br>%s</td></tr></table></td></tr>'
-	) % (NAU, so, NAU, tieu_de, noi_dung)
+	) % (ANH_NEN_XANH, XANH, XANH_DAM, so, CHU, XANH_DAM, tieu_de, noi_dung)
 
 
 def thu_moi_html(ten, link_dat_mat_khau, dia_chi_app):
 	"""Dung noi dung thu moi. Tach rieng de xem truoc duoc ma khong phai gui."""
-	return """<!DOCTYPE html>
-<html lang="vi"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:24px 12px;background:#e9e5de">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid %(nau)s">
-  <tr><td align="center" bgcolor="%(nen)s" style="padding:22px 20px;border-bottom:1.5px solid %(nau)s">
-    <div style="font:700 20px/1.2 Georgia,'Times New Roman',serif;letter-spacing:2.5px;text-transform:uppercase;color:%(nau)s">The Vagabond P&acirc;tisserie</div>
-    <div style="margin-top:6px;font:600 11px/1.4 Helvetica,Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;color:#6b645b">App n&#7897;i b&#7897; c&#7911;a ti&#7879;m</div>
-  </td></tr>
-
-  <tr><td style="padding:26px 26px 6px;font:400 16px/1.65 Helvetica,Arial,sans-serif;color:#1f1c19">
-    Ch&agrave;o <b>%(ten)s</b>,<br><br>
-    Anh ch&#7883; &#273;&atilde; c&oacute; t&agrave;i kho&#7843;n tr&ecirc;n app c&#7911;a ti&#7879;m.
-    App ch&#7841;y th&#7859;ng tr&ecirc;n <b>&#273;i&#7879;n tho&#7841;i</b>, kh&ocirc;ng c&#7847;n c&agrave;i &#273;&#7863;t g&igrave;, ch&#7881; c&#7847;n l&agrave;m ba b&#432;&#7899;c d&#432;&#7899;i &#273;&acirc;y.
-  </td></tr>
-
-  <tr><td style="padding:22px 26px 0">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">
-      %(b1)s
-      <tr><td style="padding:0 0 22px">%(nut1)s</td></tr>
-      %(b2)s
-      <tr><td style="padding:0 0 22px">%(nut2)s</td></tr>
-      %(b3)s
-    </table>
-  </td></tr>
-
-  <tr><td style="padding:4px 26px 24px">
-    <div style="background:%(nen)s;border-left:3px solid %(nau)s;padding:12px 14px;font:400 14px/1.6 Helvetica,Arial,sans-serif;color:#3d372f">
-      &#272;&#259;ng nh&#7853;p b&#7857;ng ch&iacute;nh <b>&#273;&#7883;a ch&#7881; email n&agrave;y</b> v&agrave; m&#7853;t kh&#7849;u anh ch&#7883; v&#7915;a &#273;&#7863;t.
-      App d&ugrave;ng tr&ecirc;n &#273;i&#7879;n tho&#7841;i l&agrave; &#273;&#7911;, kh&ocirc;ng c&#7847;n m&#7903; tr&ecirc;n m&aacute;y t&iacute;nh.
-    </div>
-  </td></tr>
-
-  <tr><td align="center" bgcolor="%(nen)s" style="padding:14px 20px;border-top:1.5px solid %(nau)s;font:400 12px/1.7 Helvetica,Arial,sans-serif;color:#3d372f">
-    <b style="color:%(nau)s">THE VAGABOND P&Acirc;TISSERIE</b><br>
-    307/1 Nguy&#7877;n V&#259;n Tr&#7895;i &amp; 9 Tr&#7847;n Cao V&acirc;n<br>
-    C&#7847;n gi&uacute;p g&igrave; th&igrave; nh&#7855;n qu&#7843;n l&yacute; tr&#7921;c ti&#7871;p gi&uacute;p ti&#7879;m nh&eacute;.
-  </td></tr>
-</table>
-</body></html>""" % {
-		"nau": NAU,
-		"nen": NEN,
+	return (
+		'<div style="margin:0;padding:0;background:#F2FAFC">\n'
+		'<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0"><tr>'
+		'<td align="center" style="padding:18px 8px">\n'
+		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" '
+		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(vien)s">\n'
+		'<tr><td><img src="%(anh_dau)s" width="600" alt="The Vagabond Patisserie" '
+		'style="display:block;width:100%%;height:auto;border:0"></td></tr>\n'
+		'<tr><td style="padding:26px 30px 6px;font-family:Arial,Helvetica,sans-serif;'
+		'font-size:14px;line-height:1.65;color:%(chu)s">\n'
+		'<p style="margin:0 0 14px">Chào <b style="color:%(dam)s">%(ten)s</b>,</p>\n'
+		'<p style="margin:0 0 4px">Anh chị đã có tài khoản trên <b>app quản lý nội bộ của công ty</b>. '
+		'App chạy thẳng trên <b>điện thoại</b>, không cần cài đặt gì, chỉ cần làm ba bước dưới đây.</p>\n'
+		'</td></tr>\n'
+		'<tr><td style="padding:18px 30px 0">\n'
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">\n'
+		'%(b1)s<tr><td style="padding:0 0 20px">%(nut1)s</td></tr>\n'
+		'%(b2)s<tr><td style="padding:0 0 20px">%(nut2)s</td></tr>\n'
+		'%(b3)s'
+		'</table>\n</td></tr>\n'
+		'<tr><td style="padding:2px 30px 24px">\n'
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
+		'<tr><td bgcolor="%(nhat)s" style="padding:13px 16px;font-family:Arial,Helvetica,sans-serif;'
+		'font-size:13.5px;line-height:1.6;color:%(dam)s">'
+		'Đăng nhập bằng chính <b>địa chỉ email này</b> và mật khẩu anh chị vừa đặt. '
+		'App dùng trên điện thoại là đủ, không cần mở trên máy tính.</td></tr></table>\n'
+		'</td></tr>\n'
+		'<tr><td background="%(nen_xanh)s" bgcolor="%(xanh)s" '
+		'style="padding:12px 30px;font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+		'line-height:1.7;color:%(dam)s;text-align:center">'
+		'The Vagabond P&acirc;tisserie - 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân, TP. Hồ Chí Minh<br>'
+		'Cần hỗ trợ về app hãy nhắn số anh Việt (0901486556, Zalo)</td></tr>\n'
+		"</table>\n</td></tr></table></div>"
+	) % {
+		"vien": VIEN,
+		"anh_dau": ANH_DAU_THU,
+		"chu": CHU,
+		"dam": XANH_DAM,
+		"nhat": XANH_NHAT,
+		"xanh": XANH,
+		"nen_xanh": ANH_NEN_XANH,
 		"ten": frappe.utils.escape_html(ten or ""),
 		"b1": _buoc(
 			1, "Đặt mật khẩu",
 			"Bấm nút bên dưới, gõ mật khẩu mới hai lần rồi lưu lại. Nhớ mật khẩu này để đăng nhập app.",
 		),
-		"nut1": _nut(link_dat_mat_khau, "Đặt mật khẩu", "#ffffff", NAU, NAU),
+		"nut1": _nut_vien(link_dat_mat_khau, "Đặt mật khẩu"),
 		"b2": _buoc(
 			2, "Mở app trên điện thoại",
 			"Bấm nút xanh bên dưới, đăng nhập bằng email và mật khẩu vừa đặt.",
 		),
-		"nut2": _nut(dia_chi_app, "Mở app", XANH, "#ffffff", XANH_DAM),
+		"nut2": _nut_xanh(dia_chi_app, "Mở app"),
 		"b3": _buoc(
 			3, "Gắn app ra màn hình chính",
 			"iPhone: bấm nút Chia sẻ ở thanh dưới rồi chọn Thêm vào MH chính. "
