@@ -417,3 +417,53 @@ def day_ma_len(danh_sach):
 			continue
 		ket.append({"ma": ma, "ket_qua": "da tao", "gia": gia, "co_anh": 1 if anh else 0})
 	return ket
+
+
+@frappe.whitelist()
+def doi_gia(ma, gia):
+	"""Doi gia ban le cua mot bien the tren Pancake cho khop gia ben Next."""
+	_quyen()
+	c, k = _khoa()
+	try:
+		gia = int(float(gia))
+	except (TypeError, ValueError):
+		frappe.throw("Giá không hợp lệ")
+	if gia < 0:
+		frappe.throw("Giá không được âm")
+	v = _bien_the(c, k, ma)
+	if not v:
+		frappe.throw("Không thấy mã %s trên Pancake" % ma)
+	pid = (v.get("product") or {}).get("id") or v.get("product_id")
+	cu = v.get("retail_price")
+	_put_san_pham(
+		c,
+		k,
+		pid,
+		{"variations": [{"id": v.get("id"), "retail_price": gia}]},
+	)
+	sau = _bien_the(c, k, ma) or {}
+	return {
+		"ok": 1,
+		"ma": ma,
+		"gia_cu": cu,
+		"gia_moi": gia,
+		"kiem_lai": sau.get("retail_price"),
+	}
+
+
+@frappe.whitelist()
+def doi_gia_hang_loat(cap):
+	"""Doi gia hang loat. Nhan [[ma, gia], ...] hoac chuoi JSON tuong duong."""
+	_quyen()
+	if isinstance(cap, str):
+		cap = frappe.parse_json(cap)
+	ket = []
+	for hang in cap or []:
+		ma = str((hang or [None])[0] or "").strip().upper()
+		if not ma:
+			continue
+		try:
+			ket.append(doi_gia(ma, hang[1]))
+		except Exception as e:
+			ket.append({"ok": 0, "ma": ma, "loi": str(e)[:200]})
+	return ket

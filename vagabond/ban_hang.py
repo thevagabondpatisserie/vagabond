@@ -28,6 +28,7 @@ import requests
 from frappe.utils import flt, getdate, now_datetime, nowdate
 
 from vagabond.kiem_banh import _keo_don, _khoang_unix
+from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
 
 # Trang thai Pancake tinh vao doanh so: 3 da nhan, 16 da thu tien.
@@ -127,6 +128,12 @@ def _dong_hang(o):
 				continue
 		gia = flt(vi.get("retail_price") or 0)
 		giam = flt(it.get("discount_each_product") or 0)
+		# Anh xa ma si ve ma banh goc (anh Viet chot huong B 03/08/2026): moi
+		# khach si co ma rieng tren Pancake nhung ve Next thi gop lai mot ma
+		# banh that de ton kho va gia von khong bi chia vun. GIA giu nguyen
+		# theo dong don, tuc dung gia si cua khach do, khong lay bang gia cua
+		# ma goc. Dong nao chua tich "Dang ap dung" thi giu nguyen ma si.
+		ma = doi_ma_si(ma)
 		rows.append(
 			{
 				"item_code": ma,
