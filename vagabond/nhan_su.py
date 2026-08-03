@@ -249,3 +249,33 @@ def ds_nhan_su_theo_vai(vai="Shipper"):
 		if d and d.enabled:
 			ra.append({"user": r.parent, "ten": d.full_name})
 	return sorted(ra, key=lambda x: x["ten"] or "")
+
+
+CONG_TY = "CÔNG TY TNHH PATISSERIE VAGABOND"
+
+
+@frappe.whitelist()
+def khoi_dong():
+	"""Du lieu nen app nhan vien can luc mo: vai tro, kho, nhom hang.
+
+	Truoc day app tu doc ba bang nay bang quyen cua chinh nguoi dung. Vai
+	Shipper khong co quyen doc Warehouse, Item Group va User nen ca ba loi
+	quyen mot luc, man hinh chinh treo mai o dong ho cat. Gom lai mot loi
+	goi chay bang quyen he thong, chi tra ve ten - khong co so lieu nhay cam.
+	"""
+	if frappe.session.user in ("Guest", "", None):
+		frappe.throw("Chưa đăng nhập.")
+	kho = frappe.get_all(
+		"Warehouse",
+		filters={"is_group": 0, "disabled": 0, "company": CONG_TY},
+		pluck="name",
+		order_by="name",
+		limit_page_length=200,
+	)
+	nhom = frappe.get_all(
+		"Item Group",
+		fields=["name", "parent_item_group", "is_group", "custom_bep_phu_trach"],
+		order_by="name",
+		limit_page_length=0,
+	)
+	return {"vai": frappe.get_roles(), "kho": kho, "nhom": nhom}
