@@ -296,12 +296,16 @@ def luu_dieu_chuyen(kho_xuat=None, kho_nhan=None, ghi_chu=None, dong=None, yeu_c
 	doc.from_warehouse = kho_xuat
 	doc.to_warehouse = kho_nhan
 	doc.remarks = "Điều chuyển nội bộ%s" % ((". " + ghi_chu) if ghi_chu else "")
+	# Phieu chuyen kho khong ghi chi phi, nhung ERPNext van kiem tra o "TK chenh
+	# lech" cua tung dong nen van phai dien mot tai khoan chi phi that.
+	tk = _tk_chi_phi(ct)
 	for d in sach:
 		hang = {
 			"item_code": d["ma"],
 			"qty": d["sl"],
 			"s_warehouse": kho_xuat,
 			"t_warehouse": kho_nhan,
+			"expense_account": tk,
 		}
 		if yeu_cau:
 			hang["material_request"] = yeu_cau
