@@ -172,6 +172,40 @@ def _phieu_moi(loai, cong_ty):
 	return doc
 
 
+# Uu tien tai khoan nao khi ghi gia tri hang huy. Theo che do ke toan Viet Nam,
+# hao hut trong dinh muc tinh vao gia von hang ban (632); ngoai dinh muc thi
+# ke toan chuyen tay sang 811. Dat 632 lam mac dinh cho dung ban chat nhat.
+UU_TIEN_TK = ("632", "811", "6278", "642")
+
+
+def _tk_chi_phi(cong_ty):
+	"""Tai khoan ghi gia tri hang huy.
+
+	KHONG duoc lay tai khoan mac dinh cua cong ty: cau hinh hien tai dang tro
+	'TK chenh lech' vao 152 (tai khoan loai kho), ERPNext chan thang - bao
+	'TK chenh lech khong duoc la TK loai kho'. Nen phai tu chon mot tai khoan
+	chi phi that.
+	"""
+	ds = frappe.get_all(
+		"Account",
+		filters={
+			"company": cong_ty,
+			"is_group": 0,
+			"root_type": "Expense",
+			"account_type": ["not in", ["Stock", "Stock Adjustment"]],
+		},
+		fields=["name", "account_number"],
+		limit_page_length=0,
+	)
+	for so in UU_TIEN_TK:
+		for a in ds:
+			if (a.get("account_number") or "").startswith(so) or a["name"].startswith(so):
+				return a["name"]
+	if ds:
+		return ds[0]["name"]
+	frappe.throw("Chưa có tài khoản chi phí nào để ghi giá trị hàng huỷ, nhờ kế toán khai thêm.")
+
+
 @frappe.whitelist()
 def luu_xuat_huy(kho=None, ly_do=None, ghi_chu=None, dong=None, anh=None):
 	"""Tao phieu xuat huy o dang BAN NHAP, cho quan ly kho ghi so.
@@ -194,6 +228,7 @@ def luu_xuat_huy(kho=None, ly_do=None, ghi_chu=None, dong=None, anh=None):
 	if anh:
 		doc.vgb_anh_xuat = anh
 	doc.remarks = "Xuất huỷ - %s%s" % (ly_do, (". " + ghi_chu) if ghi_chu else "")
+	tk = _tk_chi_phi(ct)
 	for d in sach:
 		doc.append(
 			"items",
@@ -201,6 +236,7 @@ def luu_xuat_huy(kho=None, ly_do=None, ghi_chu=None, dong=None, anh=None):
 				"item_code": d["ma"],
 				"qty": d["sl"],
 				"s_warehouse": kho,
+				"expense_account": tk,
 			},
 		)
 	doc.flags.ignore_permissions = True
