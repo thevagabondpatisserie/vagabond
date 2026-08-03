@@ -18,3 +18,9 @@ scheduler_events = {
 		"0 3 * * *": ["vagabond.van_don.don_dep_anh_giao"],
 	},
 }
+
+# Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan
+# tri tren may tinh) bang thu chi huong dan mo app dien thoai.
+override_doctype_class = {
+	"User": "vagabond.nhan_su.NguoiDung",
+}
