@@ -42,6 +42,20 @@ def link_app():
 	return get_url().rstrip("/")
 
 
+def _doi_ve_app(lien_ket):
+	"""Frappe dung ten mien goc cua site cho lien ket dat mat khau. Doi sang
+	ten mien app de nhan vien luon o lai trong app dien thoai."""
+	try:
+		from urllib.parse import urlsplit
+
+		p = urlsplit(lien_ket or "")
+		if not p.path:
+			return lien_ket
+		return link_app() + p.path + (("?" + p.query) if p.query else "")
+	except Exception:
+		return lien_ket
+
+
 def _nut_xanh(dia_chi, chu):
 	"""Nut chinh mau robin egg, lot anh nen de khong bi Gmail dao mau."""
 	return (
@@ -148,7 +162,7 @@ class NguoiDung(User):
 
 	def send_welcome_mail_to_user(self):
 		try:
-			lien_ket = self.reset_password()
+			lien_ket = _doi_ve_app(self.reset_password())
 			frappe.sendmail(
 				recipients=self.email,
 				subject="Tài khoản app The Vagabond Pâtisserie",
@@ -194,7 +208,7 @@ def moi_nhan_su(users, that_su=0):
 			continue
 		try:
 			doc = frappe.get_doc("User", u)
-			lien_ket = doc.reset_password()
+			lien_ket = _doi_ve_app(doc.reset_password())
 			frappe.sendmail(
 				recipients=doc.email,
 				subject="Tài khoản app The Vagabond Pâtisserie",
