@@ -56,8 +56,8 @@
   {
    "fieldname": "ma_don",
    "fieldtype": "Data",
-   "label": "So don (Pancake/Fabi)",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "label": "So don (Pancake/Fabi)"
   },
   {
    "fieldname": "hoa_don",
@@ -68,8 +68,8 @@
   {
    "fieldname": "khach",
    "fieldtype": "Data",
-   "label": "Ten khach",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "label": "Ten khach"
   },
   {
    "fieldname": "sdt",
@@ -88,9 +88,9 @@
   {
    "fieldname": "ngay_giao",
    "fieldtype": "Date",
+   "in_standard_filter": 1,
    "label": "Ngay giao",
-   "reqd": 1,
-   "in_standard_filter": 1
+   "reqd": 1
   },
   {
    "fieldname": "gio_giao",
@@ -98,34 +98,34 @@
    "label": "Khung gio giao (vd 15h-16h)"
   },
   {
+   "default": "Chờ giao",
    "fieldname": "trang_thai",
    "fieldtype": "Select",
-   "label": "Trang thai",
-   "options": "Chờ giao\nĐang giao\nĐã giao\nKhông giao được\nHuỷ",
-   "default": "Chờ giao",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Trang thai",
+   "options": "Chờ giao\nĐang giao\nĐã giao\nKhông giao được\nHuỷ"
   },
   {
+   "default": "Shipper nội bộ",
    "fieldname": "kenh",
    "fieldtype": "Select",
+   "in_standard_filter": 1,
    "label": "Kenh giao",
-   "options": "Shipper nội bộ\nAhamove\nGreenSM\nBE\nGrab\nKhách tự lấy",
-   "default": "Shipper nội bộ",
-   "in_standard_filter": 1
+   "options": "Shipper nội bộ\nAhamove\nGreenSM\nBE\nGrab\nLalamove\nKhách tự lấy"
   },
   {
    "fieldname": "shipper",
    "fieldtype": "Link",
+   "in_standard_filter": 1,
    "label": "Shipper phu trach",
-   "options": "User",
-   "in_standard_filter": 1
+   "options": "User"
   },
   {
    "fieldname": "chuyen",
    "fieldtype": "Data",
-   "label": "Chuyen giao (gop lo trinh)",
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Chuyen giao (gop lo trinh)"
   },
   {
    "fieldname": "sec_tien",
@@ -187,8 +187,8 @@
   {
    "fieldname": "pancake_id",
    "fieldtype": "Data",
-   "label": "Pancake ID",
-   "hidden": 1
+   "hidden": 1,
+   "label": "Pancake ID"
   },
   {
    "fieldname": "da_bao_pancake",
@@ -205,22 +205,22 @@
   {
    "fieldname": "tag_gio",
    "fieldtype": "Data",
-   "label": "Khung gio giao (the Pancake)",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Khung gio giao (the Pancake)"
   },
   {
    "fieldname": "buoi",
    "fieldtype": "Select",
+   "in_standard_filter": 1,
    "label": "Buoi",
-   "options": "\nSáng\nChiều\nTối",
-   "in_standard_filter": 1
+   "options": "\nSáng\nChiều\nTối"
   },
   {
    "fieldname": "phuong",
    "fieldtype": "Data",
-   "label": "Phuong / Xa",
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Phuong / Xa"
   },
   {
    "fieldname": "diem_lay",
