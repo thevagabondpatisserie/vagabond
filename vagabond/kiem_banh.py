@@ -460,3 +460,60 @@ def co_the_ban_hom_nay():
 		"ngay": str(ngay),
 		"banh": {d.ma_hang: d.co_the_ban for d in doc.dong if (d.co_the_ban or 0) > 0},
 	}
+
+
+@frappe.whitelist()
+def tim_mon(tu_khoa="", ngay=None):
+	"""Bang tim mon cho nut "Them ma" - tra ve ma, ten, anh, da co trong bang chua.
+
+	Anh Viet 03/08/2026: nut Them ma dang bat go tay vao window.prompt, sales
+	tren dien thoai go nham hoai. Doi thanh bang tim co ten, ma va anh giong
+	bang chon mon luc chot doanh thu.
+	"""
+	q = str(tu_khoa or "").strip()
+	dk = {"disabled": 0, "item_code": ["like", "BAW%"]}
+	if q:
+		ds = frappe.get_all(
+			"Item",
+			filters=dk,
+			or_filters={
+				"item_code": ["like", "%" + q + "%"],
+				"item_name": ["like", "%" + q + "%"],
+			},
+			fields=["item_code", "item_name", "image"],
+			order_by="item_code",
+			limit_page_length=80,
+		)
+	else:
+		ds = frappe.get_all(
+			"Item",
+			filters=dk,
+			fields=["item_code", "item_name", "image"],
+			order_by="item_code",
+			limit_page_length=80,
+		)
+	da_co = set()
+	if ngay:
+		ten_bang = "KB-%s" % getdate(ngay)
+		if frappe.db.exists("Kiem Banh Ngay", ten_bang):
+			da_co = {
+				r.ma_hang
+				for r in frappe.get_doc("Kiem Banh Ngay", ten_bang).dong
+			}
+	ra = []
+	for it in ds:
+		ma = it.get("item_code") or ""
+		if not _dang_ma_dung(ma):
+			continue
+		anh = it.get("image") or ""
+		if anh.startswith("/private"):
+			anh = ""
+		ra.append(
+			{
+				"ma": ma,
+				"ten": it.get("item_name") or "",
+				"anh": anh,
+				"da_co": 1 if ma in da_co else 0,
+			}
+		)
+	return ra
