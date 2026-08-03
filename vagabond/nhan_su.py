@@ -56,6 +56,18 @@ def _doi_ve_app(lien_ket):
 		return lien_ket
 
 
+def _lien_ket_dat_mat_khau(doc):
+	"""Sinh lien ket dat mat khau roi doi ve ten mien app.
+
+	Frappe v16 doi ten ham nay thanh `_reset_password`; ban cu ten
+	`reset_password`. Do ca hai de khong vo khi nang cap.
+	"""
+	ham = getattr(doc, "_reset_password", None) or getattr(doc, "reset_password", None)
+	if not ham:
+		frappe.throw("Không sinh được liên kết đặt mật khẩu.")
+	return _doi_ve_app(ham())
+
+
 def _nut_xanh(dia_chi, chu):
 	"""Nut chinh mau robin egg, lot anh nen de khong bi Gmail dao mau."""
 	return (
@@ -162,7 +174,7 @@ class NguoiDung(User):
 
 	def send_welcome_mail_to_user(self):
 		try:
-			lien_ket = _doi_ve_app(self.reset_password())
+			lien_ket = _lien_ket_dat_mat_khau(self)
 			frappe.sendmail(
 				recipients=self.email,
 				subject="Tài khoản app The Vagabond Pâtisserie",
@@ -208,7 +220,7 @@ def moi_nhan_su(users, that_su=0):
 			continue
 		try:
 			doc = frappe.get_doc("User", u)
-			lien_ket = _doi_ve_app(doc.reset_password())
+			lien_ket = _lien_ket_dat_mat_khau(doc)
 			frappe.sendmail(
 				recipients=doc.email,
 				subject="Tài khoản app The Vagabond Pâtisserie",
