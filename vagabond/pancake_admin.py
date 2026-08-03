@@ -14,6 +14,14 @@ Anh Viet 03/08/2026: "Don het 10 ma rac ben Pancake, xoa di nha em" - 10 ma
 duoi tu sinh BAWC00104S16CM, BAWC00105MINI12CM, BAWC00107M18CM,
 BAWC00108L20CM, BAWC00109MINI12CM, BAWC00113L20CM, BAWC00120M18CM,
 BAWC00125MINI12CM, BAWC00126M18CM, BAWC00127MINI12CM.
+
+Soi ngay 03/08/2026 moi ra su that: 10 ma do khong phai rac. Moi ma la bien
+the DUY NHAT cua mot san pham that dang ban, ten trung khop ben Next, va ma
+goc sach (BAWC00104...) chua he co tren Pancake. Cai duoi la do Pancake TU
+SINH display_id bang custom_id san pham cong gia tri thuoc tinh bien the
+(size 16CM ra S16CM). display_id la truong chi doc: PUT vao thi Pancake tra
+422 "[display_id]: is invalid" (da do that). Muon ma sach thi phai go thuoc
+tinh bien the (fields rong) chu khong doi thang display_id - xem bo_hau_to.
 """
 
 import frappe
@@ -119,8 +127,66 @@ def doi_ten_san_pham(ma, ten_moi):
 
 
 @frappe.whitelist()
+def xem_tho(ma):
+	"""Chi doc. Tra ve nguyen cau truc san pham va bien the de soi."""
+	_quyen()
+	c, k = _khoa()
+	v = _bien_the(c, k, ma)
+	if not v:
+		return {"co": 0, "ma": ma}
+	pid = (v.get("product") or {}).get("id") or v.get("product_id")
+	sp = _san_pham(c, k, pid) if pid else {}
+	ra = {
+		"co": 1,
+		"san_pham": {x: sp.get(x) for x in ("id", "name", "custom_id", "display_id", "is_hide", "is_published")},
+		"bien_the": [],
+	}
+	for b in sp.get("variations") or []:
+		ra["bien_the"].append(
+			{x: b.get(x) for x in ("id", "display_id", "custom_id", "barcode", "retail_price", "is_hidden", "fields")}
+		)
+	return ra
+
+
+@frappe.whitelist()
+def bo_hau_to(ma, ma_sach=None):
+	"""Go thuoc tinh bien the de display_id thoi bi noi duoi tu sinh.
+
+	Chi cho chay khi san pham co dung mot bien the: san pham nhieu bien the ma
+	go thuoc tinh thi cac bien the trung ma nhau, phai xu ly tay.
+	"""
+	_quyen()
+	c, k = _khoa()
+	v = _bien_the(c, k, ma)
+	if not v:
+		return {"ok": 0, "thong_bao": "Không thấy mã %s trên Pancake." % ma}
+	pid = (v.get("product") or {}).get("id") or v.get("product_id")
+	sp = _san_pham(c, k, pid) if pid else {}
+	bt = sp.get("variations") or []
+	if len(bt) > 1:
+		frappe.throw(
+			'Sản phẩm "%s" có %d biến thể. Gỡ thuộc tính sẽ làm trùng mã, phải xử lý tay.'
+			% (sp.get("name") or "", len(bt))
+		)
+	ma_sach = str(ma_sach or "").strip().upper() or str(sp.get("custom_id") or "").strip().upper()
+	if not ma_sach:
+		frappe.throw("Không đoán được mã sạch cho %s, truyền ma_sach vào giúp em." % ma)
+	_put_san_pham(
+		c,
+		k,
+		pid,
+		{
+			"custom_id": ma_sach,
+			"variations": [{"id": v.get("id"), "fields": [], "custom_id": ma_sach, "barcode": ma_sach}],
+		},
+	)
+	sau = _bien_the(c, k, ma_sach)
+	return {"ok": 1 if sau else 0, "ma_cu": ma, "ma_sach": ma_sach, "kiem_lai": 1 if sau else 0}
+
+
+@frappe.whitelist()
 def doi_ma_bien_the(ma_cu, ma_moi):
-	"""Doi display_id cua mot bien the - dung cho ma duoi tu sinh co ma sach."""
+	"""Doi ma bien the. Luu y display_id chi doc, chi ghi duoc custom_id va barcode."""
 	_quyen()
 	c, k = _khoa()
 	ma_moi = str(ma_moi or "").strip().upper()
@@ -140,7 +206,6 @@ def doi_ma_bien_the(ma_cu, ma_moi):
 			"variations": [
 				{
 					"id": v.get("id"),
-					"display_id": ma_moi,
 					"custom_id": ma_moi,
 					"barcode": ma_moi,
 				}
@@ -218,10 +283,10 @@ def day_ma_len(danh_sach):
 		than = {
 			"product": {
 				"name": it.item_name or ma,
+				"custom_id": ma,
 				"is_published": True,
 				"variations": [
 					{
-						"display_id": ma,
 						"custom_id": ma,
 						"barcode": ma,
 						"retail_price": gia,
