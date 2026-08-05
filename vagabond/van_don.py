@@ -139,6 +139,11 @@ def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 		}
 	)
 	doc.insert(ignore_permissions=True)
+	mon = _mon_tu_pancake(_don_pancake(pid)) if pid else []
+	if not mon:
+		mon = _mon_tu_hoa_don(si_name)
+	if mon:
+		_ghi_mon(doc.name, mon)
 	return doc.name
 
 
@@ -215,6 +220,67 @@ def _tu_pancake(o):
 	}
 
 
+def _mon_tu_pancake(o):
+	"""Danh sach mon trong don Pancake, dua ve dang dong cua bang Van Don Mon.
+
+	Ma hang nam o variation_info.display_id (dung ma tiem dat, khop voi Item
+	ben ERPNext), ten mon o variation_info.name. note_product la loi nhan cho
+	tung banh - shipper can doc nen phai giu.
+	"""
+	ra = []
+	for it in (o.get("items") or []):
+		vi = it.get("variation_info") or {}
+		ten = (vi.get("name") or "").strip()
+		ma = (vi.get("display_id") or "").strip()
+		if not (ten or ma):
+			continue
+		ra.append({
+			"ma_hang": ma,
+			"ten": ten,
+			"so_luong": flt(it.get("quantity") or 0),
+			"gia": flt(vi.get("retail_price") or 0),
+			"tang": 1 if it.get("is_bonus_product") else 0,
+			"ghi_chu": (it.get("note_product") or "").strip(),
+		})
+	return ra
+
+
+def _mon_tu_hoa_don(si_name):
+	"""Danh sach mon lay tu hoa don ban hang, dung khi don khong co ben Pancake."""
+	if not si_name:
+		return []
+	return [
+		{
+			"ma_hang": r.item_code,
+			"ten": r.item_name,
+			"so_luong": flt(r.qty),
+			"gia": flt(r.rate),
+			"tang": 0,
+			"ghi_chu": "",
+		}
+		for r in frappe.get_all(
+			"Sales Invoice Item",
+			filters={"parent": si_name},
+			fields=["item_code", "item_name", "qty", "rate"],
+			order_by="idx asc",
+			limit_page_length=100,
+		)
+	]
+
+
+def _ghi_mon(doc_name, dong):
+	"""Ghi de bang mon cua mot van don. Khong co dong nao thi de nguyen bang cu."""
+	if not dong:
+		return 0
+	doc = frappe.get_doc("Van Don", doc_name)
+	doc.set("mon", [])
+	for d in dong:
+		doc.append("mon", d)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	return len(dong)
+
+
 def _cod_tu_don(o, si):
 	"""Tien shipper phai thu. Uu tien so con lai tren hoa don ERPNext."""
 	if si:
@@ -280,6 +346,9 @@ def dong_bo_pancake(ngay=None):
 					("tag_gio", "phuong", "ghi_chu_in", "the_don", "khach", "sdt", "nguoi_nhan", "sdt_nhan")):
 					frappe.db.set_value("Van Don", cu.name, moi, update_modified=False)
 					lam_moi += 1
+			# Don keo ve truoc luc co bang mon thi nap bu ngay o day.
+			if not frappe.db.exists("Van Don Mon", {"parent": cu.name}):
+				_ghi_mon(cu.name, _mon_tu_pancake(o))
 			continue
 		sa = o.get("shipping_address") or {}
 		if str(o.get("received_at_shop") or "").lower() in ("true", "1"):
@@ -292,7 +361,7 @@ def dong_bo_pancake(ngay=None):
 			["name", "grand_total", "outstanding_amount"],
 			as_dict=True,
 		)
-		frappe.get_doc(
+		moi_vd = frappe.get_doc(
 			dict(
 				{
 					"doctype": "Van Don",
@@ -308,7 +377,11 @@ def dong_bo_pancake(ngay=None):
 				},
 				**_tu_pancake(o)
 			)
-		).insert(ignore_permissions=True)
+		)
+		moi_vd.insert(ignore_permissions=True)
+		mon = _mon_tu_pancake(o) or _mon_tu_hoa_don(si.name if si else None)
+		if mon:
+			_ghi_mon(moi_vd.name, mon)
 		them += 1
 	frappe.db.commit()
 	return {"them": them, "da_co": da_co, "lam_moi": lam_moi, "bo_qua": bo_qua,
@@ -350,7 +423,41 @@ def danh_sach(ngay=None, trang_thai=None, phuong=None, tag_gio=None, buoi=None,
 		# khong hien don chua ai nhan nua cho do roi.
 		toi = frappe.session.user
 		ds = [d for d in ds if d.shipper == toi]
+	_gan_tom_tat_mon(ds)
 	return ds
+
+
+def _gan_tom_tat_mon(ds):
+	"""Gan so mon va dong tom tat mon vao tung van don trong danh sach.
+
+	Doc mot lan cho ca danh sach chu khong doc tung don - danh sach mot ngay
+	co the toi 500 don, doc tung don la app dung hinh.
+	"""
+	if not ds:
+		return
+	ten = [d["name"] for d in ds]
+	rows = frappe.get_all(
+		"Van Don Mon",
+		filters={"parent": ["in", ten]},
+		fields=["parent", "ten", "ma_hang", "so_luong", "tang"],
+		order_by="parent asc, idx asc",
+		limit_page_length=0,
+	)
+	theo_don = {}
+	for r in rows:
+		theo_don.setdefault(r.parent, []).append(r)
+	for d in ds:
+		mon = theo_don.get(d["name"], [])
+		d["so_mon"] = len(mon)
+		d["so_luong_mon"] = sum(flt(m.so_luong) for m in mon)
+		d["mon_tat"] = " · ".join(
+			"%s%s%s" % (
+				("%g× " % flt(m.so_luong)) if flt(m.so_luong) != 1 else "",
+				m.ten or m.ma_hang or "",
+				" (tặng)" if m.tang else "",
+			)
+			for m in mon[:6]
+		) + (" ..." if len(mon) > 6 else "")
 
 
 @frappe.whitelist()
@@ -443,8 +550,21 @@ def phieu_in(names):
 			continue
 		d["ten_shipper"] = frappe.db.get_value("User", d.shipper, "full_name") if d.shipper else ""
 		d["nguoi_tao"] = frappe.db.get_value("User", d.owner, "full_name") or d.owner or ""
-		d["mon"] = []
-		if d.hoa_don:
+		# Uu tien bang mon cua chinh van don: don keo tu Pancake ve thuong chua
+		# co hoa don ban hang, lay theo hoa don la phieu in ra trang tron.
+		d["mon"] = [
+			{"item_code": m.ma_hang, "item_name": m.ten, "qty": m.so_luong,
+				"amount": flt(m.so_luong) * flt(m.gia), "ghi_chu": m.ghi_chu,
+				"tang": m.tang}
+			for m in frappe.get_all(
+				"Van Don Mon",
+				filters={"parent": d.name},
+				fields=["ma_hang", "ten", "so_luong", "gia", "ghi_chu", "tang"],
+				order_by="idx asc",
+				limit_page_length=100,
+			)
+		]
+		if not d["mon"] and d.hoa_don:
 			d["mon"] = frappe.get_all(
 				"Sales Invoice Item",
 				filters={"parent": d.hoa_don},
@@ -1232,3 +1352,64 @@ def don_dep_anh_giao():
 		except Exception:
 			frappe.log_error(title="Vagabond: don dep anh giao loi", message=frappe.get_traceback())
 	frappe.db.commit()
+
+
+@frappe.whitelist()
+def mon_van_don(name=None):
+	"""Danh sach mon day du cua mot van don, cho man chi tiet.
+
+	Bang mon trong van don la nguon chinh. Chua co dong nao (van don keo ve
+	tu truoc khi co bang nay) thi tu nap mot lan tu Pancake roi luu lai, lan
+	sau khoi phai goi ra ngoai nua.
+	"""
+	_kiem_quyen_xem()
+	d = frappe.db.get_value("Van Don", name, ["name", "pancake_id", "hoa_don"], as_dict=True)
+	if not d:
+		frappe.throw("Không thấy vận đơn %s" % name)
+	mon = frappe.get_all(
+		"Van Don Mon",
+		filters={"parent": d.name},
+		fields=["ma_hang", "ten", "so_luong", "gia", "tang", "ghi_chu"],
+		order_by="idx asc",
+		limit_page_length=0,
+	)
+	if mon:
+		return mon
+	nap = _mon_tu_pancake(_don_pancake(d.pancake_id)) if d.pancake_id else []
+	if not nap:
+		nap = _mon_tu_hoa_don(d.hoa_don)
+	if nap:
+		_ghi_mon(d.name, nap)
+	return nap
+
+
+@frappe.whitelist()
+def nap_mon_thieu(ngay=None, gioi_han=60):
+	"""Nap bu danh sach mon cho cac van don cu chua co.
+
+	Chay tay mot lan cho du lieu cu. Moi don goi Pancake mot lan nen co gioi
+	han so don moi luot, chay lai vai luot la het.
+	"""
+	if not (_la_sales() or _la_ke_toan()):
+		frappe.throw("Chỉ sales và kế toán nạp được danh sách món.")
+	loc = {}
+	if ngay:
+		loc["ngay_giao"] = ngay
+	ds = frappe.get_all("Van Don", filters=loc, fields=["name", "pancake_id", "hoa_don"],
+		order_by="ngay_giao desc", limit_page_length=500)
+	xong, bo_qua = 0, 0
+	for d in ds:
+		if xong >= int(gioi_han or 60):
+			break
+		if frappe.db.exists("Van Don Mon", {"parent": d.name}):
+			continue
+		nap = _mon_tu_pancake(_don_pancake(d.pancake_id)) if d.pancake_id else []
+		if not nap:
+			nap = _mon_tu_hoa_don(d.hoa_don)
+		if nap:
+			_ghi_mon(d.name, nap)
+			xong += 1
+		else:
+			bo_qua += 1
+	frappe.db.commit()
+	return {"da_nap": xong, "khong_co_du_lieu": bo_qua, "tong_xet": len(ds)}
