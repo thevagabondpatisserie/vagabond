@@ -9,8 +9,6 @@
   "hoa_don",
   "khach",
   "sdt",
-  "nguoi_nhan",
-  "sdt_nhan",
   "dia_chi",
   "cb1",
   "ngay_giao",
@@ -19,6 +17,20 @@
   "kenh",
   "shipper",
   "chuyen",
+  "sec_tien",
+  "tien_thu_ho",
+  "phi_giao",
+  "cb2",
+  "booking_id",
+  "tracking_url",
+  "sec_giao",
+  "anh_giao",
+  "giao_luc",
+  "ly_do_loi",
+  "ghi_chu",
+  "pancake_id",
+  "da_bao_pancake",
+  "da_doi_soat",
   "tag_gio",
   "buoi",
   "phuong",
@@ -37,20 +49,10 @@
   "chup_truoc",
   "cb_the",
   "ghi_chu_in",
-  "sec_tien",
-  "tien_thu_ho",
-  "phi_giao",
-  "cb2",
-  "booking_id",
-  "tracking_url",
-  "sec_giao",
-  "anh_giao",
-  "giao_luc",
-  "ly_do_loi",
-  "ghi_chu",
-  "pancake_id",
-  "da_bao_pancake",
-  "da_doi_soat"
+  "nguoi_nhan",
+  "sdt_nhan",
+  "sec_mon",
+  "mon"
  ],
  "fields": [
   {
@@ -310,6 +312,17 @@
    "fieldname": "sdt_nhan",
    "fieldtype": "Data",
    "label": "SDT nguoi nhan"
+  },
+  {
+   "fieldname": "sec_mon",
+   "fieldtype": "Section Break",
+   "label": "Hang trong don"
+  },
+  {
+   "fieldname": "mon",
+   "fieldtype": "Table",
+   "label": "Danh sach mon",
+   "options": "Van Don Mon"
   }
  ],
  "links": [],
