@@ -220,6 +220,19 @@ def _tu_pancake(o):
 	}
 
 
+# Pancake ghi phi giao hang thanh mot "mon" trong don (vd PHI-GIAO-HANG,
+# 60 x 1.000d). Do khong phai hang de shipper cam di, hien ra chi tro roi mat.
+MA_KHONG_PHAI_HANG = ("PHI-", "PHU-THU", "PHUTHU")
+
+
+def _la_hang_that(ma, ten):
+	ma = (ma or "").upper()
+	for tien_to in MA_KHONG_PHAI_HANG:
+		if ma.startswith(tien_to):
+			return False
+	return bool(ma or ten)
+
+
 def _mon_tu_pancake(o):
 	"""Danh sach mon trong don Pancake, dua ve dang dong cua bang Van Don Mon.
 
@@ -232,7 +245,7 @@ def _mon_tu_pancake(o):
 		vi = it.get("variation_info") or {}
 		ten = (vi.get("name") or "").strip()
 		ma = (vi.get("display_id") or "").strip()
-		if not (ten or ma):
+		if not _la_hang_that(ma, ten):
 			continue
 		ra.append({
 			"ma_hang": ma,
@@ -1384,7 +1397,7 @@ def mon_van_don(name=None):
 
 
 @frappe.whitelist()
-def nap_mon_thieu(ngay=None, gioi_han=60):
+def nap_mon_thieu(ngay=None, gioi_han=60, lam_lai=0):
 	"""Nap bu danh sach mon cho cac van don cu chua co.
 
 	Chay tay mot lan cho du lieu cu. Moi don goi Pancake mot lan nen co gioi
@@ -1401,7 +1414,7 @@ def nap_mon_thieu(ngay=None, gioi_han=60):
 	for d in ds:
 		if xong >= int(gioi_han or 60):
 			break
-		if frappe.db.exists("Van Don Mon", {"parent": d.name}):
+		if not cint(lam_lai) and frappe.db.exists("Van Don Mon", {"parent": d.name}):
 			continue
 		nap = _mon_tu_pancake(_don_pancake(d.pancake_id)) if d.pancake_id else []
 		if not nap:
