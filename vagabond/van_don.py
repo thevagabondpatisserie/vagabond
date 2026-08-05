@@ -1290,7 +1290,7 @@ def tao_chi_phi(loai, so_tien, ngay=None, so_hoa_don=None, nha_cung_cap=None, gh
 def gan_anh(doctype, name, fieldname, file_url):
 	"""Gan anh vua upload vao truong Attach (anh_giao / anh_hoa_don)."""
 	_kiem_quyen_xem()
-	if doctype not in ("Van Don", "Chi Phi Shipper") or fieldname not in ("anh_giao", "anh_hoa_don"):
+	if doctype not in ("Van Don", "Chi Phi Shipper") or fieldname not in ("anh_giao", "anh_hoa_don", "chu_ky"):
 		frappe.throw("Không hợp lệ.")
 	frappe.db.set_value(doctype, name, fieldname, file_url)
 	return name
@@ -1426,3 +1426,63 @@ def nap_mon_thieu(ngay=None, gioi_han=60, lam_lai=0):
 			bo_qua += 1
 	frappe.db.commit()
 	return {"da_nap": xong, "khong_co_du_lieu": bo_qua, "tong_xet": len(ds)}
+
+
+@frappe.whitelist()
+def luu_chu_ky(name=None, anh=None, nguoi_ky=None):
+	"""Luu chu ky khach ky tay tren man hinh cam ung vao van don.
+
+	Anh gui len la data URL PNG cua the canvas. Luu thanh TEP dinh kem chu
+	khong nhet chuoi base64 vao truong Data - de con mo lai, in ra, va de
+	khong phinh bang du lieu.
+
+	Chu ky la chung tu giao nhan nen KHONG nam trong dien don dep anh sau 30
+	ngay (cron chi dong vao anh_giao).
+	"""
+	_kiem_quyen_xem()
+	doc = frappe.get_doc("Van Don", name)
+	if not anh or "," not in anh:
+		frappe.throw("Chưa có nét ký nào.")
+	dau, phan = anh.split(",", 1)
+	if "image/png" not in dau:
+		frappe.throw("Chữ ký phải là ảnh PNG.")
+	if len(phan) > 900000:
+		frappe.throw("Chữ ký nặng quá, ký lại giúp em.")
+
+	tep = frappe.get_doc({
+		"doctype": "File",
+		"file_name": "chu-ky-%s.png" % doc.name,
+		"attached_to_doctype": "Van Don",
+		"attached_to_name": doc.name,
+		"attached_to_field": "chu_ky",
+		"is_private": 0,
+		"content": phan,
+		"decode": True,
+	})
+	tep.flags.ignore_permissions = True
+	tep.insert(ignore_permissions=True)
+
+	doc.chu_ky = tep.file_url
+	doc.nguoi_ky = (nguoi_ky or doc.nguoi_nhan or doc.khach or "").strip()
+	doc.ky_luc = now_datetime()
+	doc.khong_ky = ""
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1, "chu_ky": doc.chu_ky, "nguoi_ky": doc.nguoi_ky, "ky_luc": str(doc.ky_luc)}
+
+
+@frappe.whitelist()
+def khach_khong_ky(name=None, ly_do=None):
+	"""Khach khong ky duoc (gui bao ve, giao qua cua, khach ban tay).
+
+	Van cho hoan thanh don - chan shipper lai vi mot chu ky la ket ca tuyen.
+	Chi ghi lai ly do de sau con doi chieu.
+	"""
+	_kiem_quyen_xem()
+	doc = frappe.get_doc("Van Don", name)
+	doc.khong_ky = (ly_do or "Khách không ký").strip()
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1, "khong_ky": doc.khong_ky}
