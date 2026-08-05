@@ -52,7 +52,12 @@
   "nguoi_nhan",
   "sdt_nhan",
   "sec_mon",
-  "mon"
+  "mon",
+  "sec_ky",
+  "chu_ky",
+  "nguoi_ky",
+  "ky_luc",
+  "khong_ky"
  ],
  "fields": [
   {
@@ -323,6 +328,33 @@
    "fieldtype": "Table",
    "label": "Danh sach mon",
    "options": "Van Don Mon"
+  },
+  {
+   "fieldname": "sec_ky",
+   "fieldtype": "Section Break",
+   "label": "Chu ky khach nhan"
+  },
+  {
+   "fieldname": "chu_ky",
+   "fieldtype": "Attach Image",
+   "label": "Chu ky khach",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_ky",
+   "fieldtype": "Data",
+   "label": "Nguoi ky ten"
+  },
+  {
+   "fieldname": "ky_luc",
+   "fieldtype": "Datetime",
+   "label": "Ky luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khong_ky",
+   "fieldtype": "Small Text",
+   "label": "Ly do khach khong ky"
   }
  ],
  "links": [],
