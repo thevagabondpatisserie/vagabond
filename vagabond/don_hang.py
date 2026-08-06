@@ -229,6 +229,13 @@ def tao_don(don=None):
 		"shipping_address": {
 			"full_name": (nguoi_nhan.get("ho_ten") or ten).strip(),
 			"phone_number": _so(nguoi_nhan.get("dien_thoai")) or dien_thoai,
+			# Pancake BO QUA full_address khi tao don - phai gui "address".
+			# Don #91428 ngay 06/08/2026 la vet that: khach chon dia chi tu so,
+			# phi giao tinh ra 26.000d (tuc dia chi co that), nhung don ve POS
+			# co full_address rong tron, sales khong biet giao di dau. Do lai
+			# bang PUT chi mot truong "address" thi Pancake tu tach ra duong,
+			# phuong, tinh va tu dung lai full_address.
+			"address": dia_chi,
 			"full_address": dia_chi,
 		},
 		"items": hang,
