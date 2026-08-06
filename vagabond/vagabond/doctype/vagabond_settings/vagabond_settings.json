@@ -50,7 +50,15 @@
   "cb_tuyen",
   "he_so_duong_thuc",
   "dung_goong_xep_tuyen",
-  "link_app"
+  "link_app",
+  "sec_zalo",
+  "zalo_app_id",
+  "zalo_app_secret",
+  "zalo_refresh_token",
+  "cb_zalo",
+  "zalo_access_token",
+  "zalo_token_het_han",
+  "zns_template_otp"
  ],
  "fields": [
   {
@@ -310,6 +318,47 @@
    "fieldname": "link_app",
    "fieldtype": "Data",
    "label": "Dia chi app cho nhan vien (de trong = dia chi site)"
+  },
+  {
+   "fieldname": "sec_zalo",
+   "fieldtype": "Section Break",
+   "label": "Zalo OA (ZNS - gui ma dang nhap cho khach)"
+  },
+  {
+   "fieldname": "zalo_app_id",
+   "fieldtype": "Data",
+   "label": "Zalo App ID"
+  },
+  {
+   "fieldname": "zalo_app_secret",
+   "fieldtype": "Password",
+   "label": "Zalo App Secret"
+  },
+  {
+   "fieldname": "zalo_refresh_token",
+   "fieldtype": "Password",
+   "label": "Zalo Refresh Token (OA)"
+  },
+  {
+   "fieldname": "cb_zalo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "zalo_access_token",
+   "fieldtype": "Password",
+   "label": "Zalo Access Token (may tu lam moi)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "zalo_token_het_han",
+   "fieldtype": "Datetime",
+   "label": "Token het han luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "zns_template_otp",
+   "fieldtype": "Data",
+   "label": "Ma mau ZNS cho tin xac thuc"
   }
  ],
  "issingle": 1,
