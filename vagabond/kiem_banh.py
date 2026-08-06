@@ -26,7 +26,7 @@ import frappe
 import requests
 from frappe.utils import add_days, getdate, now_datetime
 
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
+from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
 BO_QUA_TT = {6, 7}  # da huy, da xoa
 MAX_TRANG = 10
@@ -466,6 +466,41 @@ def _tach_ten_size(ten):
 	return RE_TIEN_TO.sub("", goc).strip(), int(m.group(2))
 
 
+def _anh_pancake(c, k, ma):
+	"""Tat ca anh cua mot ma ben Pancake, anh bien the truoc, anh san pham sau.
+
+	Trang dat banh co day 5 o anh (anh chinh, can canh, mat cat, chi tiet, dong
+	goi). Nguon anh la danh muc Pancake - sales them anh o do la web tu lay,
+	khong phai sua ma. Nho cache 6 tieng vi ham nay chay trong endpoint khach
+	vang lai goi, khong duoc de moi lan tai trang la ban mot loat request sang
+	Pancake.
+	"""
+	ck = "vgb:anh:" + str(ma)
+	hit = cache_get(ck)
+	if hit is not None:
+		return json.loads(hit) if isinstance(hit, str) else hit
+	ra = []
+	try:
+		r = requests.get(
+			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k, "search": ma, "page_size": 5},
+			timeout=TIMEOUT,
+		)
+		for v in (r.json() or {}).get("data") or []:
+			if str(v.get("display_id") or "").strip().lower() != str(ma).lower():
+				continue
+			for u in (v.get("images") or []) + (((v.get("product") or {}).get("images")) or []):
+				u = str(u or "").strip()
+				if u and u not in ra:
+					ra.append(u)
+			break
+	except Exception:
+		return []
+	ra = ra[:5]
+	cache_set(ck, json.dumps(ra), 21600)
+	return ra
+
+
 @frappe.whitelist(allow_guest=True)
 def co_the_ban_hom_nay():
 	"""Cho trang dat banh order.thevagabondpatisserie.com.
@@ -522,7 +557,7 @@ def co_the_ban_hom_nay():
 	for m in mon:
 		k = m["ten"].lower()
 		if k not in nhom:
-			nhom[k] = {"ten": m["ten"], "anh": m["anh"], "sizes": []}
+			nhom[k] = {"ten": m["ten"], "anh": m["anh"], "anhs": [], "sizes": []}
 			thu_tu.append(k)
 		g = nhom[k]
 		if not g["anh"] and m["anh"]:
@@ -530,6 +565,23 @@ def co_the_ban_hom_nay():
 		g["sizes"].append({"ma": m["ma"], "cm": m["cm"], "gia": m["gia"], "con": m["con"]})
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
+
+	# Bo anh cho tung banh: lay theo size nho nhat, du roi thi thoi.
+	c = cfg()
+	khoa = key(c, "pancake_api_key")
+	if khoa and c.pancake_shop_id:
+		for k in nhom:
+			g = nhom[k]
+			anhs = []
+			for s in g["sizes"]:
+				for u in _anh_pancake(c, khoa, s["ma"]):
+					if u not in anhs:
+						anhs.append(u)
+				if len(anhs) >= 5:
+					break
+			if g["anh"] and g["anh"] not in anhs:
+				anhs.insert(0, g["anh"])
+			g["anhs"] = anhs[:5]
 
 	return {
 		"ngay": str(ngay),
