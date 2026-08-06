@@ -145,7 +145,7 @@ body{padding-top:0!important}
 .hero-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,.55),rgba(8,9,10,0) 38%,rgba(8,9,10,.9))}
 .close{position:absolute;top:16px;left:16px;z-index:3;width:40px;height:40px;border:1px solid var(--line);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);display:grid;place-items:center}
 .close svg{width:14px;height:14px;stroke:var(--paper);stroke-width:1.6}
-.thumbs{display:flex;gap:8px;overflow-x:auto;padding:14px 20px;margin:0 -20px;scrollbar-width:none}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding:18px 20px;margin:0 -20px;scrollbar-width:none}
 @media(min-width:900px){.thumbs{padding:14px 40px;margin:0 -40px}}
 .thumbs::-webkit-scrollbar{display:none}
 .th{flex:0 0 auto;width:78px;height:78px;border:1px solid var(--line);overflow:hidden;background:var(--bg-2);position:relative}
@@ -153,8 +153,8 @@ body{padding-top:0!important}
 .th.on{border-color:var(--cyan)}
 
 .th .lbl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--fog-2);padding:5px;line-height:1.4}
-.s-head{padding:24px 0 0}
-.s-head h2{font-family:'Vagabond Sans',var(--sans);font-size:clamp(40px,11vw,88px);line-height:.94;letter-spacing:.02em;text-transform:uppercase;font-weight:400;color:var(--cyan)}
+.s-head{padding:0}
+.s-head h2{margin:0;font-family:'Vagabond Sans',var(--sans);font-size:clamp(40px,11vw,88px);line-height:.94;letter-spacing:.02em;text-transform:uppercase;font-weight:400;color:var(--cyan)}
 .avail{margin-top:16px;display:inline-flex;align-items:center;gap:9px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);border:1px solid var(--cyan-dim);padding:7px 13px}
 .desc{margin-top:20px;font-size:15px;line-height:1.8;color:var(--fog);max-width:62ch}
 .layers{margin-top:16px;border-top:1px solid var(--line-2)}
@@ -675,7 +675,7 @@ const SHOT_TYPES = ["Ảnh cận cảnh","Ảnh mặt cắt","Ảnh chi tiết",
    phat sinh - cho chot). Endpoint guest chi tra cap ma - so duong. */
 let TODAY = {}, TON_NAP_XONG = false;
 /* ============================================================
-   BANHVER 3 - 06/08/2026
+   BANHVER 4 - 06/08/2026
    Gom danh sach "co the ban hom nay" tu server vao CAKES.
 
    Truoc day trang nay chi biet 8 banh cung trong CAKES, ma nao khong
@@ -710,6 +710,7 @@ function vgbTronMon(nhom) {
     });
     c.sizes.sort(function (a, b) { return (a.cm || 0) - (b.cm || 0); });
     if (!c.img && g.anh) c.img = g.anh;
+    if (g.anhs && g.anhs.length) c.anhs = g.anhs;
   });
 }
 function napTonHomNay(){
@@ -882,6 +883,27 @@ function openSheet(k){
   const c=CAKES.find(x=>x.k===k); if(!c) return;
   nav('#/banh/'+slug(c.k));
 }
+/* Dai anh nho: nguon la danh muc Pancake. Sales them anh vao bien the hoac
+   san pham ben Pancake la web tu lay, khong phai sua ma. Chi mot anh thi an
+   luon dai di, khoi hien bon o trong dan nhan nhu truoc. */
+var VGB_ANH = [];
+function vgbVeThumbs(c) {
+  var ds = (c.anhs && c.anhs.length ? c.anhs : (c.img ? [c.img] : [])).slice(0, 5);
+  var el = $("#s-thumbs");
+  VGB_ANH = ds;
+  if (ds.length < 2) { el.innerHTML = ""; el.style.display = "none"; return; }
+  el.style.display = "";
+  el.innerHTML = ds.map(function (u, i) {
+    return '<button class="th' + (i ? '' : ' on') + '" onclick="vgbChonAnh(' + i + ')" aria-label="Ảnh ' + (i + 1) + '"><img loading="lazy" src="' + u + '" alt=""></button>';
+  }).join("");
+}
+function vgbChonAnh(i) {
+  if (!VGB_ANH[i]) return;
+  $("#s-img").src = VGB_ANH[i];
+  var ths = document.querySelectorAll("#s-thumbs .th");
+  for (var j = 0; j < ths.length; j++) ths[j].classList.toggle("on", j === i);
+}
+
 function renderSheet(c){
   cur=c;
   const avail=c.sizes.filter(s=>TODAY[s.id]>0);
@@ -895,8 +917,7 @@ function renderSheet(c){
     ? '<h3 class="h-sec">Tầng hương<em>lớp vị</em></h3><div class="layers">'
       +c.layers.map((l,i)=>`<div class="layer"><span class="i">${String(i+1).padStart(2,'0')}</span><div><b>${l[0]}</b><i>${l[1]}</i></div></div>`).join('')+'</div>'
     : '<div class="fine" style="margin-top:20px">Mô tả và tầng hương lớp vị của món này đang được cập nhật.</div>';
-  $('#s-thumbs').innerHTML=[`<button class="th on"><img src="${c.img}" alt=""></button>`]
-    .concat(SHOT_TYPES.map(t=>`<button class="th"><span class="lbl">${t}</span></button>`)).join('');
+  vgbVeThumbs(c);
   $('#s-acc').innerHTML=ACC.map(a=>`<li>${a.i?`<img src="${a.i}" alt="">`:'<img alt="">'}
       <span class="nm">${a.n}${a.sub?`<small>${a.sub}</small>`:''}</span></li>`).join('');
   picked_nums=[]; picked_add=new Set(); $('#s-wish').value=''; wishCount(); drawAddons();
