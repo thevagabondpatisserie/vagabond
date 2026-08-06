@@ -448,17 +448,94 @@ def chot_ngay(ngay=None):
 	return {"ok": 1, "ngay_mai": str(add_days(ngay, 1))}
 
 
+RE_SIZE = re.compile(r"^(.*?)[,\s]*\bsize\b\s*(\d+)\s*cm\b.*$", re.IGNORECASE)
+# Ten ben Next deu bat dau bang "Banh O ..."; trang ban hang goi ten ngan.
+RE_TIEN_TO = re.compile(r"^b[áa]nh\s+[ổo]\s+", re.IGNORECASE)
+
+
+def _tach_ten_size(ten):
+	"""Bánh Ổ Kankin, size 12cm  ->  ("Kankin", 12).
+
+	Ten khong co size thi tra size 0, trang ban hang tu hieu la banh mot co.
+	"""
+	t = str(ten or "").strip()
+	m = RE_SIZE.match(t)
+	if not m:
+		return RE_TIEN_TO.sub("", t).strip(), 0
+	goc = (m.group(1) or "").replace(",", " ").strip()
+	return RE_TIEN_TO.sub("", goc).strip(), int(m.group(2))
+
+
 @frappe.whitelist(allow_guest=True)
 def co_the_ban_hom_nay():
-	"""Cho trang dat banh: chi tra cap ma - so luong, khong lo gi khac."""
+	"""Cho trang dat banh order.thevagabondpatisserie.com.
+
+	Truoc 06/08/2026 ham nay chi tra cap ma - so luong, con ten, anh, gia thi
+	trang ban hang giu cung trong bien CAKES. Hau qua do that: hom 06/08 tu co
+	4 ma con ban (6 banh) nhung web chi hien duoc 1 ma, vi 3 ma kia khong nam
+	trong CAKES. Rieng Roman De La Rose trong CAKES con mang ma tu bia
+	BAWC00901-903 - ma khong ton tai o dau ca, nen mai mai khong bao gio khop.
+
+	Nay tra ve luon ten - gia - anh, de bat ky ma nao bep them tay o man kiem
+	banh (khach bom hang, bep du do) cung tu len web, khong phai sua code.
+	"""
 	ngay = getdate()
 	ma = "KB-%s" % ngay
+	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": []}
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
-		return {"ngay": str(ngay), "banh": {}}
+		return rong
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
+	dong = [d for d in doc.dong if (d.co_the_ban or 0) > 0]
+	if not dong:
+		return rong
+
+	ds = frappe.get_all(
+		"Item",
+		filters={"item_code": ["in", [d.ma_hang for d in dong]]},
+		fields=["item_code", "item_name", "image", "standard_rate"],
+		limit_page_length=0,
+	)
+	it = {x["item_code"]: x for x in ds}
+
+	mon = []
+	for d in dong:
+		x = it.get(d.ma_hang) or {}
+		ten_day = x.get("item_name") or d.ten_banh or d.ma_hang
+		goc, cm = _tach_ten_size(ten_day)
+		anh = d.hinh or x.get("image") or ""
+		if str(anh).startswith("/private"):
+			anh = ""
+		mon.append(
+			{
+				"ma": d.ma_hang,
+				"ten": goc,
+				"ten_day": ten_day,
+				"cm": cm,
+				"gia": int(x.get("standard_rate") or 0),
+				"anh": anh,
+				"con": int(d.co_the_ban or 0),
+			}
+		)
+
+	# Gom cac size cua cung mot banh lai cho web khoi phai tu doan.
+	nhom, thu_tu = {}, []
+	for m in mon:
+		k = m["ten"].lower()
+		if k not in nhom:
+			nhom[k] = {"ten": m["ten"], "anh": m["anh"], "sizes": []}
+			thu_tu.append(k)
+		g = nhom[k]
+		if not g["anh"] and m["anh"]:
+			g["anh"] = m["anh"]
+		g["sizes"].append({"ma": m["ma"], "cm": m["cm"], "gia": m["gia"], "con": m["con"]})
+	for k in nhom:
+		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
+
 	return {
 		"ngay": str(ngay),
-		"banh": {d.ma_hang: d.co_the_ban for d in doc.dong if (d.co_the_ban or 0) > 0},
+		"banh": {d.ma_hang: d.co_the_ban for d in dong},
+		"mon": mon,
+		"nhom": [nhom[k] for k in thu_tu],
 	}
 
 
