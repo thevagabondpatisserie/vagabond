@@ -746,6 +746,7 @@ def bang_doanh_so(ngay=None):
 			"docstatus",
 			"grand_total",
 			"remarks",
+			"custom_pancake_id",
 			"custom_pancake_display_id",
 			"custom_hddt_trang_thai",
 			"custom_hddt_so",
