@@ -14,11 +14,23 @@ scheduler_events = {
 	"cron": {
 		"*/5 * * * *": ["vagabond.kiem_banh.dong_bo_tu_dong"],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
+		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu.
+		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
+		# 2h sang: ra don bi lap hai hoa don, co thi gui thu bao.
+		"0 2 * * *": ["vagabond.ban_hang.ra_trung_hang_dem"],
 		# 3h sang: xoa anh giao hang cua van don qua 30 ngay cho nhe he thong
 		"0 3 * * *": [
 			"vagabond.van_don.don_dep_anh_giao",
 			"vagabond.dang_nhap.don_dep_phien",
 		],
+	},
+}
+
+# Mot don Pancake chi duoc mot hoa don ban hang. Kiem o day de bat duoc moi
+# duong tao hoa don, khong rieng man Doanh thu Sales.
+doc_events = {
+	"Sales Invoice": {
+		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 	},
 }
 

@@ -1,1 +1,4 @@
-# de trong co y, Frappe can file nay de nhan ra thu muc python
+[pre_model_sync]
+
+[post_model_sync]
+vagabond.khoa_ma_pancake
