@@ -58,7 +58,21 @@
   "cb_zalo",
   "zalo_access_token",
   "zalo_token_het_han",
-  "zns_template_otp"
+  "zns_template_otp",
+  "sec_tt",
+  "ngan_hang_bin",
+  "ngan_hang_stk",
+  "ngan_hang_ten",
+  "cb_tt",
+  "ngan_hang_hien_thi",
+  "trang_thanh_toan",
+  "zns_template_thanh_toan",
+  "sec_wa",
+  "wa_phone_id",
+  "wa_token",
+  "cb_wa",
+  "wa_template_thanh_toan",
+  "wa_ngon_ngu"
  ],
  "fields": [
   {
@@ -359,6 +373,78 @@
    "fieldname": "zns_template_otp",
    "fieldtype": "Data",
    "label": "Ma mau ZNS cho tin xac thuc"
+  },
+  {
+   "fieldname": "sec_tt",
+   "fieldtype": "Section Break",
+   "label": "Thanh toan chuyen khoan (VietQR)"
+  },
+  {
+   "fieldname": "ngan_hang_bin",
+   "fieldtype": "Data",
+   "label": "Ma BIN ngan hang (OCB = 970448)",
+   "default": "970448"
+  },
+  {
+   "fieldname": "ngan_hang_stk",
+   "fieldtype": "Data",
+   "label": "So tai khoan nhan tien"
+  },
+  {
+   "fieldname": "ngan_hang_ten",
+   "fieldtype": "Data",
+   "label": "Ten chu tai khoan (khong dau)"
+  },
+  {
+   "fieldname": "cb_tt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngan_hang_hien_thi",
+   "fieldtype": "Data",
+   "label": "Ten ngan hang hien cho khach",
+   "default": "OCB - Ngan hang Phuong Dong"
+  },
+  {
+   "fieldname": "trang_thanh_toan",
+   "fieldtype": "Data",
+   "label": "Dia chi trang thanh toan",
+   "default": "https://order.thevagabondpatisserie.com/tt"
+  },
+  {
+   "fieldname": "zns_template_thanh_toan",
+   "fieldtype": "Data",
+   "label": "Ma mau ZNS cho tin yeu cau thanh toan"
+  },
+  {
+   "fieldname": "sec_wa",
+   "fieldtype": "Section Break",
+   "label": "WhatsApp Business (chu yeu cho khach nuoc ngoai)"
+  },
+  {
+   "fieldname": "wa_phone_id",
+   "fieldtype": "Data",
+   "label": "WhatsApp Phone Number ID"
+  },
+  {
+   "fieldname": "wa_token",
+   "fieldtype": "Password",
+   "label": "WhatsApp token (System User, vinh vien)"
+  },
+  {
+   "fieldname": "cb_wa",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "wa_template_thanh_toan",
+   "fieldtype": "Data",
+   "label": "Ten mau tin WhatsApp cho yeu cau thanh toan"
+  },
+  {
+   "fieldname": "wa_ngon_ngu",
+   "fieldtype": "Data",
+   "label": "Ma ngon ngu mau WhatsApp",
+   "default": "vi"
   }
  ],
  "issingle": 1,
