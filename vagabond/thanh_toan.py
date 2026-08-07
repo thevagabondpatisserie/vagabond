@@ -5,15 +5,25 @@ giao nhieu khi chi la so uoc luong, chua ke phu thu hang de vo; khach xa qua
 15km thi khong giao duoc. Khach chuyen tien xong ma khong giao duoc thi phai
 hoan tien, mat thoi gio hon.
 
-Nen luong dung la:
-  khach dat  ->  sales xem co giao duoc khong  ->  BAM MOT NUT
-  -> he thong gui tin Zalo ZNS kem link trang QR  ->  khach quet, chuyen khoan
+Luong dung la:
+  khach dat -> sales xem co giao duoc khong -> BAM MOT NUT
+  -> he thong gui tin Zalo ZNS kem link trang QR -> khach quet, chuyen khoan
 
-Cai bo duoc so voi truoc la doan goi dien roi xin ket ban Zalo de gui link.
-ZNS gui thang toi so dien thoai, khach khong can quan tam OA.
+MA QR LAY TU PANCAKE, KHONG TU SINH. Ly do do that ngay 07/08: MB cap cho
+moi don MOT SO TAI KHOAN AO khac nhau (don 91429 ra VQRQALAFY2856, don 91432
+ra VQRQALAFZ3966). Chinh nho vay MB bao co la Pancake tu khop dung don nao da
+tra. Tu sinh QR vao tai khoan that thi mat het phan doi soat tu dong do.
 
-So tien tren yeu cau LAY LUC BAM NUT, nghia la da gom phi giao that ma sales
-da chot - khong con la so uoc luong tren web nua.
+Endpoint Pancake dung (khong co trong tai lieu, do lai tu giao dien POS):
+  POST {PANCAKE}/shops/{shop}/orders/payment_qr?api_key=...
+  {"provider":"mbbank","display_id":91429,"account_id":1290000210,"bin":"970422"}
+  -> {"success":true,"account_number":"VQRQALAGD7534","qr_text":"0002010102123857..."}
+
+qr_text la chuoi EMVCo chuan VietQR, trong do co san so tien va noi dung
+chuyen khoan do Pancake quyet dinh.
+
+Luu y: MOI LAN goi la Pancake cap mot so tai khoan ao MOI. Nen chi goi mot
+lan cho moi don, cat lai, so tien doi moi goi lai.
 """
 
 import json
@@ -24,8 +34,8 @@ import frappe
 import requests
 from frappe.utils import now_datetime
 
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 from vagabond import whatsapp, zalo
+from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 
 VIETQR_ANH = "https://img.vietqr.io/image"
 
@@ -49,6 +59,40 @@ def _vnd(n):
 	return "{:,.0f}".format(int(n or 0)).replace(",", ".")
 
 
+def _tlv(chuoi):
+	"""Tach chuoi EMVCo thanh tu dien tag -> gia tri."""
+	ra, i = {}, 0
+	x = str(chuoi or "")
+	while i + 4 <= len(x):
+		tag = x[i : i + 2]
+		try:
+			dai = int(x[i + 2 : i + 4])
+		except ValueError:
+			break
+		ra[tag] = x[i + 4 : i + 4 + dai]
+		i += 4 + dai
+	return ra
+
+
+def _doc_qr(qr_text):
+	"""Boc so tien, noi dung, ma BIN va so tai khoan ao ra khoi chuoi VietQR."""
+	g = _tlv(qr_text)
+	t38 = _tlv(g.get("38", ""))
+	t62 = _tlv(g.get("62", ""))
+	# Tag 38 truong 01 la "0006<BIN>0113<so tai khoan>", lai la TLV long nhau.
+	nh = _tlv(t38.get("01", ""))
+	try:
+		tien = int(g.get("54") or 0)
+	except ValueError:
+		tien = 0
+	return {
+		"bin": nh.get("00", ""),
+		"stk": nh.get("01", ""),
+		"so_tien": tien,
+		"noi_dung": t62.get("08", ""),
+	}
+
+
 def _don_pancake(c, k, ma_don):
 	r = requests.get(
 		"%s/shops/%s/orders" % (PANCAKE, c.pancake_shop_id),
@@ -61,40 +105,40 @@ def _don_pancake(c, k, ma_don):
 	return None
 
 
-def _con_phai_tra(o):
-	"""Tong tien khach con phai chuyen.
-
-	Pancake de tien hang o total_price, phi giao shop thu o partner_fee, tien
-	khach da tra o prepaid. Khong tin mot truong duy nhat vi Pancake doi ten
-	truong giua cac ban - do lan luot roi lay cai co that.
-	"""
+def _minh_tinh(o):
+	"""So tien minh tu tinh, chi de doi chieu voi so Pancake dua ra."""
 	tong = int(o.get("total_price") or 0)
 	phi = int(o.get("partner_fee") or 0) or int(o.get("shipping_fee") or 0)
 	da = int(o.get("prepaid") or 0)
 	return max(0, tong + phi - da), tong, phi, da
 
 
-def _ma_noi_dung(ma_don):
-	"""Noi dung chuyen khoan. Chi chu va so - dau tieng Viet lam ngan hang cat."""
-	return "VGB" + re.sub(r"[^0-9A-Za-z]", "", str(ma_don))
-
-
-def _qr(c, so_tien, noi_dung):
-	bin_nh = (c.get("ngan_hang_bin") or "").strip()
-	stk = (c.get("ngan_hang_stk") or "").strip()
-	ten = (c.get("ngan_hang_ten") or "").strip()
-	if not (bin_nh and stk):
-		return ""
-	from urllib.parse import quote
-
-	return "%s/%s-%s-compact2.png?amount=%s&addInfo=%s&accountName=%s" % (
-		VIETQR_ANH,
-		bin_nh,
-		stk,
-		int(so_tien or 0),
-		quote(noi_dung),
-		quote(ten),
-	)
+def _xin_qr(c, k, ma_don):
+	"""Xin Pancake cap ma QR cho mot don. Tra (du_lieu, loi)."""
+	tk = str(c.get("pancake_qr_account_id") or "").strip()
+	if not tk:
+		return None, "Chưa điền Account ID tài khoản nhận tiền của Pancake trong Vagabond Settings"
+	than = {
+		"provider": (c.get("pancake_qr_provider") or "mbbank").strip(),
+		"display_id": int(_so(ma_don) or 0),
+		"account_id": int(tk),
+		"bin": (c.get("ngan_hang_bin") or "970422").strip(),
+	}
+	try:
+		r = requests.post(
+			"%s/shops/%s/orders/payment_qr" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k},
+			json=than,
+			timeout=TIMEOUT,
+		)
+		j = r.json() if r.content else {}
+	except Exception:
+		frappe.log_error(title="Vagabond: xin QR Pancake loi mang", message=frappe.get_traceback())
+		return None, "Không gọi được Pancake"
+	if not j.get("success") or not j.get("qr_text"):
+		frappe.log_error(title="Vagabond: Pancake khong cap QR", message=json.dumps(j)[:1000])
+		return None, j.get("message") or "Pancake không cấp được mã QR"
+	return j, ""
 
 
 def _link(c, ma_bam):
@@ -106,10 +150,9 @@ def _link(c, ma_bam):
 
 @frappe.whitelist()
 def tao_va_gui(ma_don, kenh="zalo", sdt=None):
-	"""Sales bam nut: tao yeu cau thanh toan cho mot don Pancake roi gui cho khach.
+	"""Sales bam nut: xin QR tu Pancake roi gui cho khach.
 
 	kenh: "zalo" (mac dinh), "whatsapp", hoac "ca_hai".
-	sdt:  de trong thi lay so tren don.
 	"""
 	c = cfg()
 	k = key(c, "pancake_api_key")
@@ -120,28 +163,33 @@ def tao_va_gui(ma_don, kenh="zalo", sdt=None):
 	if not o:
 		frappe.throw("Không tìm thấy đơn %s bên Pancake" % ma_don)
 
-	con, tong, phi, da = _con_phai_tra(o)
-	if con <= 0:
-		frappe.throw("Đơn %s không còn khoản nào phải thu" % ma_don)
-
+	minh_tinh, tong, phi, da = _minh_tinh(o)
 	sdt_don = (o.get("shipping_address") or {}).get("phone_number") or o.get("bill_phone_number")
 	s84 = _sdt84(sdt or sdt_don)
 	if not re.match(r"^84\d{9}$", s84):
 		frappe.throw("Đơn %s không có số điện thoại hợp lệ để gửi" % ma_don)
-
 	ten_khach = (o.get("shipping_address") or {}).get("full_name") or o.get("bill_full_name") or ""
-	noi_dung = _ma_noi_dung(ma_don)
 
-	# Mot don chi giu MOT yeu cau con hieu luc, bam hai lan khong sinh hai link.
+	# Moi lan goi Pancake la mot so tai khoan ao moi, nen dung lai ban cu neu
+	# van con hieu luc va so tien khong doi.
 	cu = frappe.get_all(
 		"Vagabond Yeu Cau TT",
 		filters={"ma_don": str(ma_don), "tinh_trang": "Cho thanh toan"},
-		fields=["name", "ma_bam", "so_tien"],
+		fields=["name", "so_tien"],
+		order_by="creation desc",
 		limit_page_length=1,
 	)
-	if cu and int(cu[0]["so_tien"] or 0) == con:
+	doc = None
+	if cu:
 		doc = frappe.get_doc("Vagabond Yeu Cau TT", cu[0]["name"])
-	else:
+		if not doc.qr_text:
+			doc = None
+
+	if doc is None:
+		j, loi = _xin_qr(c, k, ma_don)
+		if not j:
+			frappe.throw(loi)
+		q = _doc_qr(j.get("qr_text"))
 		for x in cu:
 			frappe.db.set_value("Vagabond Yeu Cau TT", x["name"], "tinh_trang", "Da huy")
 		doc = frappe.new_doc("Vagabond Yeu Cau TT")
@@ -149,11 +197,13 @@ def tao_va_gui(ma_don, kenh="zalo", sdt=None):
 		doc.ma_bam = secrets.token_urlsafe(16)
 		doc.sdt = s84
 		doc.ten_khach = ten_khach
-		doc.so_tien = con
+		doc.so_tien = q["so_tien"]
 		doc.tien_hang = tong
 		doc.phi_giao = phi
 		doc.da_tra = da
-		doc.noi_dung_ck = noi_dung
+		doc.noi_dung_ck = q["noi_dung"]
+		doc.stk_ao = j.get("account_number") or q["stk"]
+		doc.qr_text = j.get("qr_text")
 		doc.tinh_trang = "Cho thanh toan"
 		doc.insert(ignore_permissions=True)
 		frappe.db.commit()
@@ -168,7 +218,7 @@ def tao_va_gui(ma_don, kenh="zalo", sdt=None):
 			(c.get("zns_template_thanh_toan") or "").strip(),
 			{
 				"ma_don": str(ma_don),
-				"so_tien": _vnd(con),
+				"so_tien": _vnd(doc.so_tien),
 				"link": link,
 				"ten_khach": ten_khach,
 			},
@@ -181,27 +231,32 @@ def tao_va_gui(ma_don, kenh="zalo", sdt=None):
 			c,
 			s84,
 			(c.get("wa_template_thanh_toan") or "").strip(),
-			[str(ma_don), _vnd(con) + " d", link],
+			[str(ma_don), _vnd(doc.so_tien) + " d", link],
 		)
 		ket["whatsapp"] = {"ok": 1 if xong else 0, "loi": loi}
 
-	gui_duoc = any(v.get("ok") for v in ket.values())
-	if gui_duoc:
+	if any(v.get("ok") for v in ket.values()):
 		doc.db_set("gui_luc", now_datetime())
 		frappe.db.commit()
 
 	return {
-		"ok": 1 if gui_duoc else 0,
+		"ok": 1 if any(v.get("ok") for v in ket.values()) else 0,
 		"link": link,
-		"so_tien": con,
-		"noi_dung_ck": noi_dung,
+		"so_tien": int(doc.so_tien or 0),
+		"noi_dung_ck": doc.noi_dung_ck,
+		"stk_ao": doc.stk_ao,
+		# Pancake tu quyet so tien. Neu lech voi cach minh tinh thi bao ra cho
+		# sales biet chu khong im lang - co don Pancake chi thu tien hang, chua
+		# gom phi giao.
+		"minh_tinh": minh_tinh,
+		"lech": minh_tinh - int(doc.so_tien or 0),
 		"kenh": ket,
 	}
 
 
 @frappe.whitelist(allow_guest=True)
 def xem(m=None):
-	"""Trang thanh toan cua khach doc o day. Khong tra bat ky thong tin nao thua."""
+	"""Trang thanh toan cua khach doc o day."""
 	if not m:
 		return {"ok": 0, "ly_do": "thieu_ma"}
 	ds = frappe.get_all(
@@ -216,6 +271,8 @@ def xem(m=None):
 			"phi_giao",
 			"da_tra",
 			"noi_dung_ck",
+			"stk_ao",
+			"qr_text",
 			"tinh_trang",
 		],
 		limit_page_length=1,
@@ -224,6 +281,21 @@ def xem(m=None):
 		return {"ok": 0, "ly_do": "khong_thay"}
 	d = ds[0]
 	c = cfg()
+	q = _doc_qr(d.get("qr_text") or "")
+	from urllib.parse import quote
+
+	anh = ""
+	stk = d.get("stk_ao") or q.get("stk") or ""
+	binh = q.get("bin") or (c.get("ngan_hang_bin") or "").strip()
+	if stk and binh:
+		anh = "%s/%s-%s-compact2.png?amount=%s&addInfo=%s&accountName=%s" % (
+			VIETQR_ANH,
+			binh,
+			stk,
+			int(d.get("so_tien") or 0),
+			quote(d.get("noi_dung_ck") or ""),
+			quote((c.get("ngan_hang_ten") or "").strip()),
+		)
 	return {
 		"ok": 1,
 		"ma_don": d["ma_don"],
@@ -236,16 +308,21 @@ def xem(m=None):
 		"tinh_trang": d["tinh_trang"],
 		"ngan_hang": {
 			"ten": (c.get("ngan_hang_hien_thi") or "").strip(),
-			"stk": (c.get("ngan_hang_stk") or "").strip(),
+			"stk": stk,
 			"chu_tk": (c.get("ngan_hang_ten") or "").strip(),
 		},
-		"qr": _qr(c, d["so_tien"], d["noi_dung_ck"]),
+		"qr": anh,
 	}
 
 
 @frappe.whitelist()
 def danh_dau_da_tra(ma_don=None, ghi_chu=None):
-	"""Ke toan xac nhan da nhan tien. Tam thoi lam tay, sau noi SePay vao day."""
+	"""Ke toan xac nhan da nhan tien.
+
+	Thuong thi khong phai bam tay: MB bao co ve Pancake theo so tai khoan ao,
+	Pancake tu danh dau don da tra. Ham nay de danh cho truong hop khach tra
+	kieu khac hoac Pancake khong nhan duoc.
+	"""
 	ds = frappe.get_all(
 		"Vagabond Yeu Cau TT",
 		filters={"ma_don": str(ma_don or ""), "tinh_trang": "Cho thanh toan"},
@@ -269,7 +346,17 @@ def ds_cho_thu(gioi_han=100):
 	return frappe.get_all(
 		"Vagabond Yeu Cau TT",
 		filters={"tinh_trang": "Cho thanh toan"},
-		fields=["name", "ma_don", "ten_khach", "sdt", "so_tien", "noi_dung_ck", "gui_luc", "creation"],
+		fields=[
+			"name",
+			"ma_don",
+			"ten_khach",
+			"sdt",
+			"so_tien",
+			"noi_dung_ck",
+			"stk_ao",
+			"gui_luc",
+			"creation",
+		],
 		order_by="creation desc",
 		limit_page_length=int(gioi_han or 100),
 	)
