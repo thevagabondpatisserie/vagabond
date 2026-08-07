@@ -74,7 +74,11 @@
   "wa_token",
   "cb_wa",
   "wa_template_thanh_toan",
-  "wa_ngon_ngu"
+  "wa_ngon_ngu",
+  "sec_vgb_tu_dong",
+  "tu_xuat_hddt",
+  "cb_vgb_tu_dong",
+  "email_canh_bao"
  ],
  "fields": [
   {
@@ -458,11 +462,33 @@
    "fieldtype": "Data",
    "label": "Ma ngon ngu mau WhatsApp",
    "default": "vi"
+  },
+  {
+   "fieldname": "sec_vgb_tu_dong",
+   "fieldtype": "Section Break",
+   "label": "Tự động hoá bán hàng"
+  },
+  {
+   "fieldname": "tu_xuat_hddt",
+   "fieldtype": "Check",
+   "label": "Tự xuất hoá đơn điện tử ngay khi ghi sổ",
+   "default": "1",
+   "description": "Áp dụng cho mọi nguồn đơn, kể cả đơn nhập tay GrabFood, ShopeeFood, BeFood, GreenSM."
+  },
+  {
+   "fieldname": "cb_vgb_tu_dong",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email_canh_bao",
+   "fieldtype": "Data",
+   "label": "Email nhận thư cảnh báo",
+   "description": "Nhiều địa chỉ thì ngăn nhau bằng dấu phẩy. Dùng cho thư báo đơn trùng hoá đơn."
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-03 01:30:00.000000",
+ "modified": "2026-08-07 22:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
