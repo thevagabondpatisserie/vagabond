@@ -3,5 +3,5 @@
 from frappe.model.document import Document
 
 
-class VagabondYeuCauTt(Document):
+class VagabondYeuCauTT(Document):
 	pass
