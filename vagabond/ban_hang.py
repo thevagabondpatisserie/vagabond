@@ -1543,16 +1543,21 @@ def xuat_hddt_con_thieu(ngay=None, so_ngay=7):
 
 
 def _xuat_hddt_con_thieu(ngay=None, so_ngay=7):
-	loc = {
-		"docstatus": 1,
-		"custom_pancake_id": ["!=", ""],
-		"custom_hddt_so": ["in", ["", None]],
-	}
+	loc = {"docstatus": 1, "custom_pancake_id": ["!=", ""]}
 	if ngay:
 		loc["posting_date"] = getdate(ngay)
 	else:
 		loc["posting_date"] = [">=", add_days(nowdate(), -int(so_ngay or 7))]
-	ds = frappe.db.get_all("Sales Invoice", filters=loc, pluck="name", order_by="name")
+	# Loc "chua co so hoa don" bang Python chu khong bang bo loc cua Frappe:
+	# ["in", ["", None]] dich ra SQL la IN ('', NULL), ma trong SQL khong gia
+	# tri nao "bang" NULL - dong nao de trong that su se bi bo sot.
+	ds = [
+		r.name
+		for r in frappe.db.get_all(
+			"Sales Invoice", filters=loc, fields=["name", "custom_hddt_so"], order_by="name"
+		)
+		if not (r.custom_hddt_so or "").strip()
+	]
 	xong, loi = [], []
 	for ten in ds:
 		ok, bao = _tu_xuat_hddt(ten)
