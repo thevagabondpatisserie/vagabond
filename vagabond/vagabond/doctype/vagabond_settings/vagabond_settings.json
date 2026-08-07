@@ -60,6 +60,8 @@
   "zalo_token_het_han",
   "zns_template_otp",
   "sec_tt",
+  "pancake_qr_provider",
+  "pancake_qr_account_id",
   "ngan_hang_bin",
   "ngan_hang_stk",
   "ngan_hang_ten",
@@ -378,6 +380,17 @@
    "fieldname": "sec_tt",
    "fieldtype": "Section Break",
    "label": "Thanh toan chuyen khoan (VietQR)"
+  },
+  {
+   "fieldname": "pancake_qr_provider",
+   "fieldtype": "Data",
+   "label": "Nha cung cap QR ben Pancake",
+   "default": "mbbank"
+  },
+  {
+   "fieldname": "pancake_qr_account_id",
+   "fieldtype": "Data",
+   "label": "Account ID tai khoan nhan tien trong Pancake"
   },
   {
    "fieldname": "ngan_hang_bin",
