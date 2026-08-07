@@ -5575,6 +5575,32 @@ async function scrRndDoc(name) {
 document.title = APPNAME;
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
+function dsChip(txt, bg, fg) {
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:' + bg + ';color:' + fg + ';margin-right:5px;white-space:nowrap">' + txt + '</span>';
+}
+var DS_MAU_HD = {
+  'Chờ duyệt': ['#fef3c7', '#92400e'], 'Chờ ký': ['#fef3c7', '#92400e'], 'Đang ký': ['#fef3c7', '#92400e'],
+  'Đã ký': ['#dcfce7', '#166534'], 'Đã gửi CQT': ['#dcfce7', '#166534'], 'CQT chấp nhận': ['#bbf7d0', '#14532d'],
+  'CQT báo lỗi': ['#fee2e2', '#991b1b'], 'Lỗi': ['#fee2e2', '#991b1b'], 'Đã hủy': ['#fee2e2', '#991b1b'],
+  'HĐ điều chỉnh': ['#ede9fe', '#5b21b6'], 'HĐ thay thế': ['#ede9fe', '#5b21b6'],
+  'Bị điều chỉnh': ['#ede9fe', '#5b21b6'], 'Bị thay thế': ['#ede9fe', '#5b21b6']
+};
+function dsChips(r) {
+  var out = '';
+  var tt = r.custom_hddt_trang_thai || '';
+  if (r.custom_hddt_so || tt) {
+    var mau = DS_MAU_HD[tt] || ['#e5e7eb', '#374151'];
+    var nhan = (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') + (tt ? ' · ' + h(tt) : '');
+    out += dsChip(nhan, mau[0], mau[1]);
+  } else if (r.docstatus === 1) {
+    out += dsChip('Chưa có HĐĐT', '#fee2e2', '#991b1b');
+  }
+  if (r.vgb_pt_thanh_toan) out += dsChip(h(r.vgb_pt_thanh_toan), '#e0f2fe', '#075985');
+  else out += dsChip('Chưa chọn thanh toán', '#fee2e2', '#991b1b');
+  if (r.vgb_ma_tham_chieu) out += dsChip('SePay ✓', '#dcfce7', '#166534');
+  if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty', '#fef9c3', '#854d0e');
+  return out;
+}
 async function scrDoanhSo() {
   if (!dsNgay) dsNgay = today();
   frame('Doanh thu Sales', '<div class="emp"><div class="e1">⏳</div><div>Đang tải doanh thu...</div></div>');
@@ -5600,13 +5626,10 @@ async function scrDoanhSo() {
     var kh = (r.remarks || '').split(' - ');
     var ng = (r.custom_nguon && r.custom_nguon !== 'Pancake') ? h(r.custom_nguon) + ' ' : '';
     var dong2 = h(r.name) + ' · ' + (r.docstatus === 1 ? 'Đã chốt' : 'Nháp');
-    if (r.can_hddt) {
-      if (r.custom_hddt_so) dong2 += ' · HĐĐT ' + h(r.custom_hddt_so);
-      else dong2 += ' · cần HĐĐT';
-    }
+    var chips = dsChips(r);
     html += '<div class="hub" data-si="' + h(r.name) + '" data-can="' + (r.can_hddt ? 1 : 0) + '"><div class="hi">' + (r.docstatus === 1 ? '✅' : '📝') + '</div>' +
       '<div class="ht"><div class="h1">' + ng + '#' + h(r.custom_pancake_display_id || '?') + ' · ' + h(kh[1] || 'Khách lẻ') + '</div>' +
-      '<div class="h2">' + dong2 + '</div></div>' +
+      '<div class="h2">' + dong2 + '</div>' + (chips ? '<div class="h2" style="margin-top:4px;line-height:1.9">' + chips + '</div>' : '') + '</div>' +
       '<b style="white-space:nowrap;font-size:13px">' + money(r.grand_total) + '</b></div>';
   });
   html += '</div>';
@@ -5719,6 +5742,7 @@ async function scrDsView(name, can) {
     + '<div style="font-size:12px;color:#6b7280;margin-top:8px">Đối soát thanh toán: '
     + (d.vgb_ghi_chu_doi_soat ? xesc(d.vgb_ghi_chu_doi_soat) : '<span style="color:#9ca3af">chưa có, chờ máy đối soát</span>')
     + '</div></div>';
+  html += '<div id="dsvSepay" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px;font-size:13px;color:#6b7280">Đang tìm giao dịch SePay của đơn này...</div>';
   var XHD_MD = 'Bán cho người tiêu dùng';
   function xesc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   var xhdCty = (d.vgb_xhd_ten && d.vgb_xhd_ten !== XHD_MD) ? d.vgb_xhd_ten : '';
@@ -5811,6 +5835,33 @@ async function scrDsView(name, can) {
     try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri() }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
     catch (e) { busy(false); window.alert((e && e.message) || 'Lưu lỗi'); }
   };
+  (async function () {
+    var o = document.getElementById('dsvSepay');
+    if (!o) return;
+    try {
+      var kq = await api('vgb_gd_sepay', { phieu: d.name });
+      var ds = (kq && kq.giao_dich) || [];
+      var tieu = '<div style="font-size:12px;color:#6b7280;margin-bottom:6px"><b>Giao dịch SePay khớp theo mã đơn</b></div>';
+      if (!ds.length) {
+        o.innerHTML = tieu + '<div style="color:#9ca3af">Chưa nhận được chuyển khoản nào mang mã đơn này.</div>';
+        return;
+      }
+      var dong = ds.map(function (g) {
+        var vn = String(g.ngay || '').split('-');
+        var ng = vn.length === 3 ? vn[2] + '/' + vn[1] : g.ngay;
+        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid #f1f5f9">'
+          + '<span style="color:#374151">' + ng + ' · ' + xesc(g.ma_tham_chieu || g.ma_gd) + '</span>'
+          + '<b style="white-space:nowrap;color:#166534">' + Number(g.so_tien || 0).toLocaleString('vi-VN') + ' đ</b></div>';
+      }).join('');
+      var du = kq.du_tien ? '<span style="color:#166534;font-weight:700">Đủ tiền</span>'
+        : '<span style="color:#b45309;font-weight:700">Thiếu ' + Number((kq.tien_phieu || 0) - (kq.tong_da_nhan || 0)).toLocaleString('vi-VN') + ' đ</span>';
+      o.innerHTML = tieu + dong
+        + '<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1.5px solid #e5e7eb;margin-top:4px">'
+        + '<span>Đã nhận ' + Number(kq.tong_da_nhan || 0).toLocaleString('vi-VN') + ' đ / đơn ' + Number(kq.tien_phieu || 0).toLocaleString('vi-VN') + ' đ</span>' + du + '</div>';
+    } catch (e) {
+      o.innerHTML = '<div style="color:#9ca3af;font-size:12px">Chưa tra được giao dịch SePay.</div>';
+    }
+  })();
   var c1 = document.getElementById('dsvChot');
   if (c1) c1.onclick = async function () {
     if (!DSV_PT && !window.confirm('Chưa chọn phương thức thanh toán. Vẫn ghi sổ chứ?')) return;
@@ -6664,7 +6715,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '74';
+var APPVER = '76';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
