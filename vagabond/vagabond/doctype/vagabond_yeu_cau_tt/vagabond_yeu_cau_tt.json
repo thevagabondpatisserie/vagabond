@@ -17,6 +17,8 @@
   "da_tra",
   "sec2",
   "noi_dung_ck",
+  "stk_ao",
+  "qr_text",
   "tinh_trang",
   "cb2",
   "gui_luc",
@@ -87,6 +89,18 @@
    "read_only": 1
   },
   {
+   "fieldname": "stk_ao",
+   "fieldtype": "Data",
+   "label": "So tai khoan ao (MB cap theo don)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qr_text",
+   "fieldtype": "Small Text",
+   "label": "Chuoi VietQR tu Pancake",
+   "read_only": 1
+  },
+  {
    "fieldname": "tinh_trang",
    "fieldtype": "Select",
    "label": "Tinh trang",
@@ -119,7 +133,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-08-07 08:40:00.000000",
+ "modified": "2026-08-07 09:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Yeu Cau TT",
