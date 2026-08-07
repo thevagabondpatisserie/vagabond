@@ -674,8 +674,10 @@ const SHOT_TYPES = ["Ảnh cận cảnh","Ảnh mặt cắt","Ảnh chi tiết",
    THAT tu bang Kiem banh ngay (co the ban = ton + bep lam - da dat -
    phat sinh - cho chot). Endpoint guest chi tra cap ma - so duong. */
 let TODAY = {}, TON_NAP_XONG = false;
+/* Danh muc DAT TRUOC theo o DU DECOR bep dien o /kiem-banh: ma -> so con nhan */
+let TRUOC = {};
 /* ============================================================
-   BANHVER 4 - 06/08/2026
+   BANHVER 5 - 07/08/2026: tab Dat banh truoc dong bo theo o DU DECOR (kho BTP Banh O), lam tuoi 60 giay
    Gom danh sach "co the ban hom nay" tu server vao CAKES.
 
    Truoc day trang nay chi biet 8 banh cung trong CAKES, ma nao khong
@@ -716,7 +718,12 @@ function vgbTronMon(nhom) {
 function napTonHomNay(){
   return fetch("/api/method/vagabond.kiem_banh.co_the_ban_hom_nay",{headers:{Accept:"application/json"}})
     .then(function(r){return r.json();})
-    .then(function(j){ var m=(j&&j.message)||{}; TODAY=m.banh||{}; vgbTronMon(m.nhom); TON_NAP_XONG=true; })
+    .then(function(j){ var m=(j&&j.message)||{}; TODAY=m.banh||{}; vgbTronMon(m.nhom);
+      var dt=(m.dat_truoc&&m.dat_truoc.nhom)||[];
+      vgbTronMon(dt);
+      TRUOC={};
+      dt.forEach(function(g){ (g.sizes||[]).forEach(function(y){ if(y.con>0) TRUOC[y.ma]=y.con; }); });
+      TON_NAP_XONG=true; })
     .catch(function(){});
 }
 const ACC = [
@@ -815,10 +822,12 @@ window.addEventListener('popstate',applyRoute);
 
 function card(c,todayMode){
   const avail=c.sizes.filter(s=>TODAY[s.id]>0);
+  const truocCo=Object.keys(TRUOC).length>0;
+  const truocSz=truocCo?c.sizes.filter(s=>TRUOC[s.id]>0):c.sizes;
   const chips=todayMode
     ? avail.map(s=>`<i class="sz has">${s.cm ? s.cm + 'cm' : '1 cỡ'} · còn ${TODAY[s.id]}</i>`).join('')
-    : c.sizes.map(s=>`<i class="sz">${s.cm ? s.cm + 'cm' : '1 cỡ'}</i>`).join('');
-  const price=todayMode?vnd(Math.min(...avail.map(s=>s.p))):'từ '+vnd(Math.min(...c.sizes.map(s=>s.p)));
+    : truocSz.map(s=>`<i class="sz${truocCo?' has':''}">${s.cm ? s.cm + 'cm' : '1 cỡ'}${truocCo?' · còn '+TRUOC[s.id]:''}</i>`).join('');
+  const price=todayMode?vnd(Math.min(...avail.map(s=>s.p))):'từ '+vnd(Math.min(...(truocSz.length?truocSz:c.sizes).map(s=>s.p)));
   return `<button class="card" onclick="openSheet('${c.k.replace(/'/g,"\\'")}')">
     <div class="ph">${c.seasonal?`<i class="tagline">${c.seasonal}</i>`:''}<img loading="lazy" onerror="this.style.display='none'" src="${c.img}" alt=""></div>
     <div class="c-body">
@@ -877,7 +886,13 @@ function renderRail(){
   $('#orderNote').innerHTML=`Nhận bánh <b>${DAYS[d.getDay()]} ${dmy(d)}</b>, khung <b>${SLOTS[pickedSlot].t}</b>.`+extra;
   drawCoDate();
 }
-function renderCakes(){ $('#grid-cake').innerHTML=CAKES.map(c=>card(c,false)).join(''); }
+function renderCakes(){
+  /* Bep da dien DU DECOR thi tab dat truoc chi hien dung banh con nhan (3 ngay).
+     Chua co so nao thi giu nguyen danh muc day du nhu truoc. */
+  var co=Object.keys(TRUOC).length>0;
+  var ds=co?CAKES.filter(function(c){return c.sizes.some(function(s){return TRUOC[s.id]>0;});}):CAKES;
+  $('#grid-cake').innerHTML=ds.length?ds.map(c=>card(c,false)).join(''):'<div style="grid-column:1/-1;padding:28px 8px;text-align:center;color:#8a8f98">Danh mục đặt trước đang được bếp cập nhật, anh chị quay lại sau chút xíu nhé.</div>';
+}
 
 /* ---------- chi tiet ---------- */
 let cur=null,curSize=null;
@@ -1469,6 +1484,7 @@ fixSlot(); renderToday(); renderRail(); renderCakes(); drawCart();
 function lamTuoiTon(){
   napTonHomNay().then(function(){
     renderToday();
+    renderCakes();
     var gio=new Date();
     var el=document.querySelector('#synced');
     if(el) el.textContent="Cập nhật "+String(gio.getHours()).padStart(2,'0')+":"+String(gio.getMinutes()).padStart(2,'0');
