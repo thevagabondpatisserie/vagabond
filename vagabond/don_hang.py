@@ -241,7 +241,15 @@ def tao_don(don=None):
 		"items": hang,
 		"note_print": (don.get("note_print") or "").strip(),
 		"note": (don.get("note") or "").strip(),
+		# partner_fee = tien tiem TRA cho ben giao (chi phi cua tiem).
+		# shipping_fee = tien tiem THU cua khach. Phai gui ca hai, neu chi gui
+		# partner_fee thi Pancake tinh cod = tien hang, ma QR chi thu tien banh,
+		# thieu dung phan phi giao (don thu #91429 ngay 06/08/2026: QR ra
+		# 680.000d trong khi phai thu 706.000d). Da kiem 07/08/2026: gui kem
+		# shipping_fee thi Pancake tu cong cod = total_price + shipping_fee va
+		# ma QR ra dung so.
 		"partner_fee": phi,
+		"shipping_fee": phi,
 		"received_at_shop": tu_lay,
 		"status": 0,
 	}

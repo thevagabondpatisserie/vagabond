@@ -106,9 +106,19 @@ def _don_pancake(c, k, ma_don):
 
 
 def _minh_tinh(o):
-	"""So tien minh tu tinh, chi de doi chieu voi so Pancake dua ra."""
+	"""So tien minh tu tinh, chi de doi chieu voi so Pancake dua ra.
+
+	Phan biet hai truong de khong tinh nham:
+	  shipping_fee  tien tiem THU cua khach
+	  partner_fee   tien tiem TRA cho ben giao (chi phi cua tiem)
+	Chi shipping_fee moi duoc cong vao so khach phai tra. Don len truoc
+	07/08/2026 chua co shipping_fee nhung van thu phi giao, nen lay tam
+	partner_fee - tru khi don duoc danh dau mien phi giao.
+	"""
 	tong = int(o.get("total_price") or 0)
-	phi = int(o.get("partner_fee") or 0) or int(o.get("shipping_fee") or 0)
+	phi = int(o.get("shipping_fee") or 0)
+	if not phi and not o.get("is_free_shipping"):
+		phi = int(o.get("partner_fee") or 0)
 	da = int(o.get("prepaid") or 0)
 	return max(0, tong + phi - da), tong, phi, da
 
