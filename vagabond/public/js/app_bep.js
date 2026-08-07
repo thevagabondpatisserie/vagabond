@@ -5658,6 +5658,7 @@ async function scrRndDoc(name) {
 document.title = APPNAME;
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
+var dsLoc = 'tat_ca';
 function dsChip(txt, bg, fg) {
   return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:' + bg + ';color:' + fg + ';margin-right:5px;white-space:nowrap">' + txt + '</span>';
 }
@@ -5716,9 +5717,28 @@ async function scrDoanhSo() {
   if ((d.loi || []).length) {
     html += '<div class="sec">Cần xử lý trước khi chốt</div><div class="card" style="padding:12px 14px;color:#b3261e;font-size:13px;line-height:1.6">' + d.loi.map(h).join('<br>') + '</div>';
   }
+  /* Bo loc nhanh: sau muoi may dong ma soat bang mat thi de sot. */
+  var DSLOC = {
+    tat_ca: { nhan: 'Tất cả', loc: function () { return true; } },
+    chua_pt: { nhan: 'Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
+    chua_tien: { nhan: 'Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
+    du_tien: { nhan: 'Đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
+    chua_hddt: { nhan: 'Chưa có HĐĐT', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } }
+  };
+  if (!DSLOC[dsLoc]) dsLoc = 'tat_ca';
+  html += '<div class="card" style="padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap">' +
+    Object.keys(DSLOC).map(function (k) {
+      var n = rows.filter(DSLOC[k].loc).length;
+      var on = k === dsLoc;
+      return '<button class="dsloc" data-loc="' + k + '" style="padding:6px 10px;border-radius:999px;font-size:12px;font-family:inherit;border:1.5px solid ' +
+        (on ? '#0d9488;background:#ccfbf1;color:#0f766e;font-weight:bold' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+        DSLOC[k].nhan + ' ' + n + '</button>';
+    }).join('') + '</div>';
+  var loc = rows.filter(DSLOC[dsLoc].loc);
   html += '<div class="sec">Đơn trong ngày · bấm vào đơn để xem chi tiết</div><div class="card">';
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🌤️</div><div>Chưa có đơn nào. Bấm Đồng bộ để kéo từ Pancake, hoặc dấu ➕ để nhập tay đơn Grab, Be.</div></div>';
-  rows.forEach(function (r) {
+  else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có đơn nào thuộc nhóm <b>' + DSLOC[dsLoc].nhan + '</b>.</div></div>';
+  loc.forEach(function (r) {
     var kh = (r.remarks || '').split(' - ');
     var ng = (r.custom_nguon && r.custom_nguon !== 'Pancake') ? h(r.custom_nguon) + ' ' : '';
     var dong2 = h(r.name) + ' · ' + (r.docstatus === 1 ? 'Đã chốt' : 'Nháp');
@@ -5733,7 +5753,10 @@ async function scrDoanhSo() {
     (nhap.length ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
   var b = frame('Doanh thu Sales', html, { footer: foot, action: '➕', onAction: function () { go(scrDsNhapTay); } });
   var di = document.getElementById('dsDate');
-  if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; go(scrDoanhSo, true); } };
+  if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; go(scrDoanhSo, true); } };
+  Array.prototype.forEach.call(document.querySelectorAll('.dsloc'), function (el) {
+    el.onclick = function () { dsLoc = el.getAttribute('data-loc'); go(scrDoanhSo, true); };
+  });
   Array.prototype.forEach.call(document.querySelectorAll('[data-ds]'), function (el) {
     el.onclick = function () { dsHanh(el.getAttribute('data-ds')); };
   });
@@ -5777,7 +5800,11 @@ async function dsHanh(k) {
   if (k === 'chot') {
     if (!window.confirm('Chốt TOÀN BỘ đơn nháp của ngày ' + dsNgay.split('-').reverse().join('/') + '? Muốn chốt lẻ thì bấm vào từng đơn.')) return;
     busy(true);
-    try { var kq2 = await api('vagabond.ban_hang.chot_doanh_so', { ngay: dsNgay }); busy(false); toast('Đã chốt ' + kq2.da_chot + ' đơn' + ((kq2.loi || []).length ? ', ' + kq2.loi.length + ' đơn lỗi' : ''), 3500); }
+    try {
+      var kq2 = await api('vagabond.ban_hang.chot_doanh_so', { ngay: dsNgay }); busy(false);
+      toast('Đã chốt ' + kq2.da_chot + ' đơn, xuất ' + (kq2.da_xuat_hddt || 0) + ' hoá đơn điện tử' + ((kq2.loi || []).length ? ', ' + kq2.loi.length + ' đơn cần xem lại' : ''), 4000);
+      if ((kq2.loi || []).length) window.alert(kq2.loi.join('\n'));
+    }
     catch (e) { busy(false); window.alert((e && e.message) || 'Chốt lỗi'); }
     go(scrDoanhSo, true); return;
   }
