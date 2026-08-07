@@ -516,7 +516,7 @@ def co_the_ban_hom_nay():
 	"""
 	ngay = getdate()
 	ma = "KB-%s" % ngay
-	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": []}
+	rong = {"ngay": str(ngay), "banh": {}, "mon": [], "nhom": [], "dat_truoc": _dat_truoc_theo_decor()}
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
 		return rong
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
@@ -587,6 +587,60 @@ def co_the_ban_hom_nay():
 		"ngay": str(ngay),
 		"banh": {d.ma_hang: d.co_the_ban for d in dong},
 		"mon": mon,
+		"nhom": [nhom[k] for k in thu_tu],
+		"dat_truoc": _dat_truoc_theo_decor(),
+	}
+
+
+def _dat_truoc_theo_decor():
+	"""Danh muc tab DAT BANH TRUOC cua trang order, lay theo o DU DECOR
+	ma bep dien trong /kiem-banh (kho BTP Banh O). Chot voi anh Viet
+	07/08/2026: so decor la so banh con nhieu, nhan don duoc cho 3 ngay,
+	nen tab dat truoc chi hien dung nhung banh nay kem so luong con nhan.
+	"""
+	try:
+		kho = frappe.get_single("BTP Banh O")
+	except Exception:
+		return {"cap_nhat_luc": None, "nhom": []}
+	dong = [b for b in (kho.dong or []) if (b.so_decor or 0) > 0]
+	if not dong:
+		return {"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None, "nhom": []}
+
+	ds = frappe.get_all(
+		"Item",
+		filters={"item_code": ["in", [b.ma_hang for b in dong]]},
+		fields=["item_code", "item_name", "image", "standard_rate"],
+		limit_page_length=0,
+	)
+	it = {x["item_code"]: x for x in ds}
+
+	nhom, thu_tu = {}, []
+	for b in dong:
+		x = it.get(b.ma_hang) or {}
+		ten_day = x.get("item_name") or b.ten_banh or b.ma_hang
+		goc, cm = _tach_ten_size(ten_day)
+		anh = b.hinh or x.get("image") or ""
+		if str(anh).startswith("/private"):
+			anh = ""
+		k = goc.lower()
+		if k not in nhom:
+			nhom[k] = {"ten": goc, "anh": anh, "sizes": []}
+			thu_tu.append(k)
+		g = nhom[k]
+		if not g["anh"] and anh:
+			g["anh"] = anh
+		g["sizes"].append(
+			{
+				"ma": b.ma_hang,
+				"cm": cm,
+				"gia": int(x.get("standard_rate") or 0),
+				"con": int(b.so_decor or 0),
+			}
+		)
+	for k in nhom:
+		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
+	return {
+		"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None,
 		"nhom": [nhom[k] for k in thu_tu],
 	}
 
