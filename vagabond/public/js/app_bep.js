@@ -530,9 +530,29 @@ function curUser() {
 }
 function syncUser() { var u = curUser(); if (u) { S.user = u; S.me.user = u; } return S.user; }
 
-function go(fn, replace) { if (!replace) S.stack.push(fn); else S.stack[S.stack.length - 1] = fn; render(); }
-function back() { if (S.stack.length > 1) { S.stack.pop(); render(); } }
-function reset(fn) { S.stack = [fn]; render(); }
+/* Moi man hinh trong app la MOT moc lich su that (vgbD = do sau trong S.stack).
+   Nho vay nut Back / vuot lui cua trinh duyet lui dung tung man trong app,
+   het canh dang o Chi tiet don ma Back lai vang sang trang /kiem-banh. */
+var VGB_LUI_TAY = 0;
+function go(fn, replace) {
+  if (!replace) {
+    S.stack.push(fn);
+    try { history.pushState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
+  } else S.stack[S.stack.length - 1] = fn;
+  render();
+}
+function back() {
+  if (S.stack.length > 1) {
+    S.stack.pop(); render();
+    VGB_LUI_TAY++;
+    try { history.back(); } catch (e) { VGB_LUI_TAY--; }
+  }
+}
+function reset(fn) {
+  S.stack = [fn];
+  try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
+  render();
+}
 function render() { var f = S.stack[S.stack.length - 1]; if (f) f(); }
 
 function frame(title, bodyHtml, opt) {
@@ -2543,7 +2563,7 @@ async function saveDraft(submitIt) {
     busy(0);
     toast('Đã lưu phiếu ' + saved.name, 3200);
     S.draft = null;
-    S.stack = [scrHome];
+    reset(scrHome);
     go(function () { scrMRList(T); });
   } catch (err) { busy(0); toast(errMsg(err), 4200); }
 }
@@ -6778,7 +6798,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '77';
+var APPVER = '78';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -6816,8 +6836,18 @@ async function __boot(){
   } catch(e) { var el=document.getElementById('vgb'); if(el) el.textContent = 'Loi khoi dong: '+String(e.message||e); }
 }
 if (document.readyState === 'complete') { __boot(); } else { window.addEventListener('load', __boot); }
-window.addEventListener('popstate', function () { if (S.stack.length > 1) back(); history.pushState(null, '', location.href); });
-history.pushState(null, '', location.href);
+window.addEventListener('popstate', function (ev) {
+  /* Nut ‹ trong app da tu lui va goi history.back(), popstate nay chi la dong bo, bo qua */
+  if (VGB_LUI_TAY > 0) { VGB_LUI_TAY--; return; }
+  var st = ev.state;
+  var d = (st && typeof st.vgbD === 'number') ? st.vgbD : 0;
+  if (d + 1 < S.stack.length) { S.stack.length = d + 1; render(); return; }
+  if (d + 1 > S.stack.length) {
+    /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
+    try { history.replaceState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
+  }
+});
+try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
 
 
 /* ---------- Van don: nguoi nhan, phan cong, va phieu in (02/08/2026) ---------- */
@@ -7332,7 +7362,7 @@ async function scrVdTuyen() {
     try {
       if (S && S.stack && S.stack.length === 1 && root && (root.innerHTML || '').length > 400) {
         clearInterval(hen);
-        history.replaceState(null, '', location.pathname);
+        history.replaceState({ vgbD: 0 }, '', location.pathname);
         go(function () { scrVdView(vdQR); });
       }
     } catch (e1) {}
