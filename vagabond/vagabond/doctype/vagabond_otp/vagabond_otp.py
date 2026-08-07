@@ -3,5 +3,5 @@
 from frappe.model.document import Document
 
 
-class VagabondOtp(Document):
+class VagabondOTP(Document):
 	pass
