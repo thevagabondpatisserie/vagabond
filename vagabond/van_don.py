@@ -92,8 +92,14 @@ def _day_trang_thai_pancake(pid, status=3):
 @frappe.whitelist()
 def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 	ngay_giao=None, gio_giao=None, kenh=None, tien_thu_ho=0, ghi_chu=None,
-	nguoi_nhan=None, sdt_nhan=None):
-	"""Tao van don, uu tien keo thong tin tu hoa don + don Pancake goc."""
+	nguoi_nhan=None, sdt_nhan=None, tag_gio=None, lat=None, lng=None):
+	"""Tao van don, uu tien keo thong tin tu hoa don + don Pancake goc.
+
+	tag_gio la khung gio sales chon tren app, dang "9h - 11h". Ghi luon vao
+	tag_gio va buoi de don tay vao duoc xep tuyen ngay, khong phai cho the
+	ben Pancake. lat/lng la toa do Goong tra ve luc sales chon dia chi goi y,
+	co san thi xep tuyen khoi ton mot luot geocode.
+	"""
 	if not _la_sales():
 		frappe.throw("Chỉ sales tạo được vận đơn.")
 	pid = ""
@@ -120,6 +126,11 @@ def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 			sdt = sdt or (o.get("bill_phone_number") or "")
 			nguoi_nhan = (sa.get("full_name") or "").strip()
 			sdt_nhan = (sa.get("phone_number") or "").strip()
+	from vagabond.xep_tuyen import buoi_tu_khung
+
+	tag_gio = (tag_gio or "").strip()
+	if not tag_gio and RE_TAG_GIO.match(str(gio_giao or "")):
+		tag_gio = str(gio_giao).strip()
 	doc = frappe.get_doc(
 		{
 			"doctype": "Van Don",
@@ -132,6 +143,10 @@ def tao_van_don(si_name=None, ma_don=None, khach=None, sdt=None, dia_chi=None,
 			"dia_chi": dia_chi,
 			"ngay_giao": ngay_giao or nowdate(),
 			"gio_giao": gio_giao,
+			"tag_gio": tag_gio or None,
+			"buoi": buoi_tu_khung(tag_gio) if tag_gio else None,
+			"lat": flt(lat) or None,
+			"lng": flt(lng) or None,
 			"kenh": kenh or "Shipper nội bộ",
 			"tien_thu_ho": flt(tien_thu_ho),
 			"ghi_chu": ghi_chu,
