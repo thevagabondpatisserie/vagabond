@@ -61,8 +61,10 @@ def execute():
 		return
 
 	try:
-		frappe.db.sql(
-			"alter table `tabSales Invoice` add unique index `%s` (custom_pancake_id)" % TEN_KHOA
-		)
+		# Phai dung frappe.db.add_unique chu khong goi thang ALTER TABLE:
+		# Frappe chan moi cau lenh "gay commit ngam" khi dang trong mot giao
+		# dich (ImplicitCommitError, da vap ngay 07/08/2026). Ham nay tu commit
+		# truoc roi moi doi cau truc bang.
+		frappe.db.add_unique("Sales Invoice", ["custom_pancake_id"], constraint_name=TEN_KHOA)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "vagabond: dat khoa ma Pancake")
