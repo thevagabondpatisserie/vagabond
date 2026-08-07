@@ -5680,8 +5680,15 @@ function dsChips(r) {
   }
   if (r.vgb_pt_thanh_toan) out += dsChip(h(r.vgb_pt_thanh_toan), '#e0f2fe', '#075985');
   else out += dsChip('Chưa chọn thanh toán', '#fee2e2', '#991b1b');
-  if (r.vgb_ma_tham_chieu) out += dsChip('SePay ✓', '#dcfce7', '#166534');
+  /* SePay doc thang tu giao dich ngan hang, khong phu thuoc ai co go tay ma
+     tham chieu hay khong. Truoc day chip nay bat theo o ma tham chieu nen
+     don chuyen khoan da vao du tien van trong nhu chua nhan, con don ca the
+     Payoo go so bill lai hien "SePay" - sai ca hai chieu. */
+  if (r.sepay_du) out += dsChip('SePay ✓ đủ tiền', '#dcfce7', '#166534');
+  else if (r.sepay_nhan) out += dsChip('SePay thiếu ' + money(Number(r.grand_total || 0) - Number(r.sepay_nhan || 0)) + ' đ', '#ffedd5', '#9a3412');
+  if (r.vgb_ma_tham_chieu) out += dsChip('Mã ' + h(r.vgb_ma_tham_chieu), '#ede9fe', '#5b21b6');
   if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty', '#fef9c3', '#854d0e');
+  if (r.trung) out += dsChip('⚠ Trùng phiếu', '#fee2e2', '#991b1b');
   return out;
 }
 async function scrDoanhSo() {
@@ -5700,6 +5707,12 @@ async function scrDoanhSo() {
     '<div style="display:flex;justify-content:space-between"><span>Chưa chốt</span><b>' + money(d.tong_nhap) + ' đ · ' + nhap.length + ' đơn</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đã chốt</span><b style="color:#0a8a4a">' + money(d.tong_chot) + ' đ · ' + (rows.length - nhap.length) + ' đơn</b></div>' +
     (d.dong_bo_luc ? '<div style="color:#a0a6b4;font-size:12px;margin-top:6px">Máy tự đồng bộ Pancake 30 phút một lần · lần cuối ' + h(d.dong_bo_luc) + '</div>' : '') + '</div>';
+  if (d.so_don_trung) {
+    html += '<div class="sec">Đơn bị trùng phiếu</div><div class="card" style="padding:12px 14px;border:1.5px solid #fecaca;background:#fff1f2;color:#991b1b;font-size:13px;line-height:1.6">' +
+      '<b>' + d.so_don_trung + ' đơn đang có hai mã phiếu</b><br>' +
+      'Một đơn Pancake mà thành hai phiếu thì ghi sổ xong doanh thu bị tính đôi. Bấm nút dưới, em giữ lại một phiếu và gỡ phiếu thừa (chỉ gỡ phiếu còn nháp, phiếu đã ghi sổ hay đã có hoá đơn điện tử thì em không đụng vào).' +
+      '<div style="margin-top:10px"><button class="btn gh" data-ds="gotrung" style="width:100%">🧹 Rà và gỡ phiếu trùng</button></div></div>';
+  }
   if ((d.loi || []).length) {
     html += '<div class="sec">Cần xử lý trước khi chốt</div><div class="card" style="padding:12px 14px;color:#b3261e;font-size:13px;line-height:1.6">' + d.loi.map(h).join('<br>') + '</div>';
   }
@@ -5730,11 +5743,35 @@ async function scrDoanhSo() {
     go(function () { scrDsView(nm, can); });
   });
 }
+var dsDangDongBo = false;
 async function dsHanh(k) {
+  if (k === 'gotrung') {
+    busy(true);
+    var ke;
+    try { ke = await api('vagabond.ban_hang.ds_don_trung', { ngay: dsNgay }); }
+    catch (e) { busy(false); window.alert((e && e.message) || 'Không rà được'); return; }
+    busy(false);
+    var nhom = (ke && ke.nhom) || [];
+    if (!nhom.length) { toast('Rà xong, không còn đơn nào bị trùng.'); go(scrDoanhSo, true); return; }
+    var mo = nhom.map(function (n) {
+      return '#' + n.don + ': giữ ' + n.giu + (n.go.length ? ', gỡ ' + n.go.join(', ') : '') + (n.ket.length ? '\n   ' + n.ket.join('\n   ') : '');
+    }).join('\n');
+    if (!window.confirm('Em sẽ xử lý như sau:\n\n' + mo + '\n\nĐồng ý gỡ chứ?')) return;
+    busy(true);
+    try { var kq3 = await api('vagabond.ban_hang.go_don_trung', { ngay: dsNgay }); busy(false); toast('Đã gỡ ' + (kq3.da_go || []).length + ' phiếu thừa' + ((kq3.ket || []).length ? ', ' + kq3.ket.length + ' phiếu phải xử lý tay' : ''), 3500); if ((kq3.ket || []).length) window.alert(kq3.ket.join('\n')); }
+    catch (e) { busy(false); window.alert((e && e.message) || 'Gỡ lỗi'); }
+    go(scrDoanhSo, true); return;
+  }
   if (k === 'dongbo') {
+    /* Bam hai lan trong vong vai giay la hai yeu cau chay song song, moi ben
+       tao mot phieu cho cung mot don. May chu da co khoa, day chan them o
+       ngay dau ngon tay cho khoi phai cho bao loi. */
+    if (dsDangDongBo) { toast('Đang đồng bộ rồi, chờ chút nhé.'); return; }
+    dsDangDongBo = true;
     busy(true);
     try { var kq = await api('vagabond.ban_hang.dong_bo_doanh_so', { ngay: dsNgay }); busy(false); toast('Kéo ' + (kq.so_don_pancake || 0) + ' đơn: ' + (kq.tao_moi || 0) + ' mới, ' + (kq.cap_nhat || 0) + ' cập nhật' + ((kq.loi || []).length ? ', ' + kq.loi.length + ' lỗi' : ''), 3500); }
     catch (e) { busy(false); window.alert((e && e.message) || 'Đồng bộ lỗi'); }
+    dsDangDongBo = false;
     go(scrDoanhSo, true); return;
   }
   if (k === 'chot') {
