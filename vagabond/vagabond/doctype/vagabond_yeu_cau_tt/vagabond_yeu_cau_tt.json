@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-08-07 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_don",
+  "ten_khach",
+  "sdt",
+  "ma_bam",
+  "cb1",
+  "so_tien",
+  "tien_hang",
+  "phi_giao",
+  "da_tra",
+  "sec2",
+  "noi_dung_ck",
+  "tinh_trang",
+  "cb2",
+  "gui_luc",
+  "tra_luc",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_don",
+   "fieldtype": "Data",
+   "label": "Ma don Pancake",
+   "in_list_view": 1,
+   "search_index": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "label": "Ten khach",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "So dien thoai",
+   "search_index": 1
+  },
+  {
+   "fieldname": "ma_bam",
+   "fieldtype": "Data",
+   "label": "Ma link",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "So tien phai thu",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "tien_hang",
+   "fieldtype": "Currency",
+   "label": "Tien hang"
+  },
+  {
+   "fieldname": "phi_giao",
+   "fieldtype": "Currency",
+   "label": "Phi giao"
+  },
+  {
+   "fieldname": "da_tra",
+   "fieldtype": "Currency",
+   "label": "Khach da tra truoc"
+  },
+  {
+   "fieldname": "sec2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "noi_dung_ck",
+   "fieldtype": "Data",
+   "label": "Noi dung chuyen khoan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tinh_trang",
+   "fieldtype": "Select",
+   "label": "Tinh trang",
+   "options": "Cho thanh toan\nDa thanh toan\nDa huy",
+   "default": "Cho thanh toan",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gui_luc",
+   "fieldtype": "Datetime",
+   "label": "Gui cho khach luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_luc",
+   "fieldtype": "Datetime",
+   "label": "Nhan tien luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-07 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Yeu Cau TT",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "ma_don"
+}
