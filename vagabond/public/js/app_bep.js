@@ -2147,22 +2147,73 @@ async function loadTemplate() {
   } catch (e) { busy(0); return toast(errMsg(e)); }
   busy(0);
   if (!tpls.length) return toast('Chưa có mẫu nào cho loại phiếu này');
-  sheet('Mẫu đơn đã lưu', tpls.map(function (t) {
-    return { value: t.name, icon: '📋', label: t.template_name + (t.bo_phan ? ' - ' + t.bo_phan : '') };
-  }), '', async function (o) {
-    var t = tpls.filter(function (x) { return x.name === o.value; })[0];
+  /* bang chon mau tu dung, moi dong co nut doi ten va xoa (Uyen/De yeu cau 07/08) */
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Mẫu đơn đã lưu</b><div class="x">&times;</div></div>' +
+    '<div style="padding:2px 14px 6px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"></div>' +
+    '<div style="padding:0 14px 6px;color:#a0a6b4;font-size:12.5px">Bấm tên mẫu để lấy món vào phiếu. Mẫu dùng chung cả tiệm, xoá là mất với mọi người.</div>' +
+    '<div class="shl"></div>';
+  var lst = box.querySelector('.shl');
+  var q0 = '';
+  function veDs() {
+    var f = tpls.filter(function (t) { return !q0 || (t.template_name + ' ' + (t.bo_phan || '')).toLowerCase().indexOf(q0) >= 0; });
+    lst.innerHTML = f.length ? f.map(function (t) {
+      var i = tpls.indexOf(t);
+      return '<div class="shi" data-i="' + i + '"><span>📋</span>' +
+        '<span style="flex:1;min-width:0">' + h(t.template_name) +
+        (t.bo_phan ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(t.bo_phan) + '</div>' : '') + '</span>' +
+        '<button class="nt" data-s="' + i + '" title="Đổi tên mẫu" style="height:40px;width:46px;flex:none;font-size:16px;cursor:pointer">✏️</button>' +
+        '<button class="nt" data-x="' + i + '" title="Xoá mẫu" style="height:40px;width:46px;flex:none;font-size:16px;cursor:pointer;margin-left:6px;color:#b91c1c">🗑️</button></div>';
+    }).join('') : '<div class="emp"><div class="e2">Không tìm thấy</div></div>';
+  }
+  veDs();
+  ov.appendChild(box); document.body.appendChild(ov);
+  var tim = box.querySelector('input');
+  tim.oninput = function () { q0 = (tim.value || '').toLowerCase(); veDs(); };
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  lst.onclick = async function (e) {
+    var bs = e.target.closest('[data-s]');
+    if (bs) {
+      var ts = tpls[+bs.dataset.s];
+      var nm2 = await promptSheet('Đổi tên mẫu "' + ts.template_name + '"', ts.template_name);
+      if (!nm2 || nm2 === ts.template_name) return;
+      busy(1);
+      try {
+        await api('frappe.client.set_value', { doctype: 'VGB Order Template', name: ts.name, fieldname: 'template_name', value: nm2 });
+        ts.template_name = nm2; veDs(); toast('Đã đổi tên mẫu');
+      } catch (err) { toast(errMsg(err), 4200); } finally { busy(0); }
+      return;
+    }
+    var bx = e.target.closest('[data-x]');
+    if (bx) {
+      var tx = tpls[+bx.dataset.x];
+      var chac = await confirmSheet('Xoá mẫu "' + tx.template_name + '"?', 'Mẫu dùng chung cả tiệm, xoá rồi là mất với mọi người, không lấy lại được.', 'Xoá mẫu', true);
+      if (!chac) return;
+      busy(1);
+      try {
+        await api('frappe.client.delete', { doctype: 'VGB Order Template', name: tx.name });
+        tpls.splice(tpls.indexOf(tx), 1); veDs(); toast('Đã xoá mẫu "' + tx.template_name + '"');
+      } catch (err) { toast(errMsg(err), 4200); } finally { busy(0); }
+      return;
+    }
+    var r = e.target.closest('.shi'); if (!r) return;
+    var t = tpls[+r.dataset.i];
     var arr = [];
-    try { arr = JSON.parse(t.items_json || '[]'); } catch (e) { }
+    try { arr = JSON.parse(t.items_json || '[]'); } catch (e2) { }
     if (!arr.length) return toast('Mẫu này không có hàng hoá');
+    dong();
     busy(1);
     try {
       d.items = await buildItems(arr, d.items);
-      arr.forEach(function (r) { pick.sel[r.item_code] = 1; });
+      arr.forEach(function (r2) { pick.sel[r2.item_code] = 1; });
       (d.items || []).forEach(function (it) { pick.nm[it.item_code] = it.item_name; });
       toast('Đã lấy ' + arr.length + ' món từ mẫu ' + t.template_name);
       go(scrStep3);
     } catch (err) { toast(errMsg(err)); } finally { busy(0); }
-  }, true);
+  };
 }
 function selInner() {
   var selc = Object.keys(pick.sel).filter(function (k) { return pick.sel[k]; });
@@ -2354,18 +2405,30 @@ function scrStep3() {
   if (s3t) s3t.onclick = async function () {
     var nm = await promptSheet('Tên mẫu đơn hàng', 'VD: Đơn NVL hàng tuần - Bếp Baker');
     if (!nm) return;
+    var noiDung = JSON.stringify(d.items.map(function (it) {
+      return { item_code: it.item_code, qty: it.qty, uom: it.uom, note: it.note || '', time: it.time };
+    }));
     busy(1);
     try {
-      await api('frappe.client.insert', {
-        doc: {
-          doctype: 'VGB Order Template', template_name: nm, request_type: d.type,
-          bo_phan: shortDep(d.bo_phan) || undefined, dung_chung: 1,
-          items_json: JSON.stringify(d.items.map(function (it) {
-            return { item_code: it.item_code, qty: it.qty, uom: it.uom, note: it.note || '', time: it.time };
-          }))
-        }
-      });
-      toast('Đã lưu mẫu "' + nm + '"', 3200);
+      /* trung ten voi mau cu cung loai phieu thi hoi ghi de, do la cach SUA noi dung mau */
+      var cu = await getList('VGB Order Template', { fields: ['name'], filters: { template_name: nm, request_type: d.type }, limit_page_length: 1 });
+      if (cu.length) {
+        busy(0);
+        var ghiDe = await confirmSheet('Đã có mẫu tên "' + nm + '"', 'Ghi đè mẫu cũ bằng danh sách món hiện tại? Mẫu dùng chung cả tiệm.', 'Ghi đè mẫu cũ');
+        if (!ghiDe) return;
+        busy(1);
+        await api('frappe.client.set_value', { doctype: 'VGB Order Template', name: cu[0].name, fieldname: { items_json: noiDung, bo_phan: shortDep(d.bo_phan) || '' } });
+        toast('Đã cập nhật mẫu "' + nm + '"', 3200);
+      } else {
+        await api('frappe.client.insert', {
+          doc: {
+            doctype: 'VGB Order Template', template_name: nm, request_type: d.type,
+            bo_phan: shortDep(d.bo_phan) || undefined, dung_chung: 1,
+            items_json: noiDung
+          }
+        });
+        toast('Đã lưu mẫu "' + nm + '"', 3200);
+      }
     } catch (err) { toast(errMsg(err), 4200); } finally { busy(0); }
   };
   document.getElementById('s3next').onclick = function () {
@@ -5575,32 +5638,6 @@ async function scrRndDoc(name) {
 document.title = APPNAME;
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
-function dsChip(txt, bg, fg) {
-  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:' + bg + ';color:' + fg + ';margin-right:5px;white-space:nowrap">' + txt + '</span>';
-}
-var DS_MAU_HD = {
-  'Chờ duyệt': ['#fef3c7', '#92400e'], 'Chờ ký': ['#fef3c7', '#92400e'], 'Đang ký': ['#fef3c7', '#92400e'],
-  'Đã ký': ['#dcfce7', '#166534'], 'Đã gửi CQT': ['#dcfce7', '#166534'], 'CQT chấp nhận': ['#bbf7d0', '#14532d'],
-  'CQT báo lỗi': ['#fee2e2', '#991b1b'], 'Lỗi': ['#fee2e2', '#991b1b'], 'Đã hủy': ['#fee2e2', '#991b1b'],
-  'HĐ điều chỉnh': ['#ede9fe', '#5b21b6'], 'HĐ thay thế': ['#ede9fe', '#5b21b6'],
-  'Bị điều chỉnh': ['#ede9fe', '#5b21b6'], 'Bị thay thế': ['#ede9fe', '#5b21b6']
-};
-function dsChips(r) {
-  var out = '';
-  var tt = r.custom_hddt_trang_thai || '';
-  if (r.custom_hddt_so || tt) {
-    var mau = DS_MAU_HD[tt] || ['#e5e7eb', '#374151'];
-    var nhan = (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') + (tt ? ' · ' + h(tt) : '');
-    out += dsChip(nhan, mau[0], mau[1]);
-  } else if (r.docstatus === 1) {
-    out += dsChip('Chưa có HĐĐT', '#fee2e2', '#991b1b');
-  }
-  if (r.vgb_pt_thanh_toan) out += dsChip(h(r.vgb_pt_thanh_toan), '#e0f2fe', '#075985');
-  else out += dsChip('Chưa chọn thanh toán', '#fee2e2', '#991b1b');
-  if (r.vgb_ma_tham_chieu) out += dsChip('SePay ✓', '#dcfce7', '#166534');
-  if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty', '#fef9c3', '#854d0e');
-  return out;
-}
 async function scrDoanhSo() {
   if (!dsNgay) dsNgay = today();
   frame('Doanh thu Sales', '<div class="emp"><div class="e1">⏳</div><div>Đang tải doanh thu...</div></div>');
@@ -5626,10 +5663,13 @@ async function scrDoanhSo() {
     var kh = (r.remarks || '').split(' - ');
     var ng = (r.custom_nguon && r.custom_nguon !== 'Pancake') ? h(r.custom_nguon) + ' ' : '';
     var dong2 = h(r.name) + ' · ' + (r.docstatus === 1 ? 'Đã chốt' : 'Nháp');
-    var chips = dsChips(r);
+    if (r.can_hddt) {
+      if (r.custom_hddt_so) dong2 += ' · HĐĐT ' + h(r.custom_hddt_so);
+      else dong2 += ' · cần HĐĐT';
+    }
     html += '<div class="hub" data-si="' + h(r.name) + '" data-can="' + (r.can_hddt ? 1 : 0) + '"><div class="hi">' + (r.docstatus === 1 ? '✅' : '📝') + '</div>' +
       '<div class="ht"><div class="h1">' + ng + '#' + h(r.custom_pancake_display_id || '?') + ' · ' + h(kh[1] || 'Khách lẻ') + '</div>' +
-      '<div class="h2">' + dong2 + '</div>' + (chips ? '<div class="h2" style="margin-top:4px;line-height:1.9">' + chips + '</div>' : '') + '</div>' +
+      '<div class="h2">' + dong2 + '</div></div>' +
       '<b style="white-space:nowrap;font-size:13px">' + money(r.grand_total) + '</b></div>';
   });
   html += '</div>';
@@ -5742,7 +5782,6 @@ async function scrDsView(name, can) {
     + '<div style="font-size:12px;color:#6b7280;margin-top:8px">Đối soát thanh toán: '
     + (d.vgb_ghi_chu_doi_soat ? xesc(d.vgb_ghi_chu_doi_soat) : '<span style="color:#9ca3af">chưa có, chờ máy đối soát</span>')
     + '</div></div>';
-  html += '<div id="dsvSepay" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px;font-size:13px;color:#6b7280">Đang tìm giao dịch SePay của đơn này...</div>';
   var XHD_MD = 'Bán cho người tiêu dùng';
   function xesc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   var xhdCty = (d.vgb_xhd_ten && d.vgb_xhd_ten !== XHD_MD) ? d.vgb_xhd_ten : '';
@@ -5835,33 +5874,6 @@ async function scrDsView(name, can) {
     try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri() }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
     catch (e) { busy(false); window.alert((e && e.message) || 'Lưu lỗi'); }
   };
-  (async function () {
-    var o = document.getElementById('dsvSepay');
-    if (!o) return;
-    try {
-      var kq = await api('vgb_gd_sepay', { phieu: d.name });
-      var ds = (kq && kq.giao_dich) || [];
-      var tieu = '<div style="font-size:12px;color:#6b7280;margin-bottom:6px"><b>Giao dịch SePay khớp theo mã đơn</b></div>';
-      if (!ds.length) {
-        o.innerHTML = tieu + '<div style="color:#9ca3af">Chưa nhận được chuyển khoản nào mang mã đơn này.</div>';
-        return;
-      }
-      var dong = ds.map(function (g) {
-        var vn = String(g.ngay || '').split('-');
-        var ng = vn.length === 3 ? vn[2] + '/' + vn[1] : g.ngay;
-        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid #f1f5f9">'
-          + '<span style="color:#374151">' + ng + ' · ' + xesc(g.ma_tham_chieu || g.ma_gd) + '</span>'
-          + '<b style="white-space:nowrap;color:#166534">' + Number(g.so_tien || 0).toLocaleString('vi-VN') + ' đ</b></div>';
-      }).join('');
-      var du = kq.du_tien ? '<span style="color:#166534;font-weight:700">Đủ tiền</span>'
-        : '<span style="color:#b45309;font-weight:700">Thiếu ' + Number((kq.tien_phieu || 0) - (kq.tong_da_nhan || 0)).toLocaleString('vi-VN') + ' đ</span>';
-      o.innerHTML = tieu + dong
-        + '<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1.5px solid #e5e7eb;margin-top:4px">'
-        + '<span>Đã nhận ' + Number(kq.tong_da_nhan || 0).toLocaleString('vi-VN') + ' đ / đơn ' + Number(kq.tien_phieu || 0).toLocaleString('vi-VN') + ' đ</span>' + du + '</div>';
-    } catch (e) {
-      o.innerHTML = '<div style="color:#9ca3af;font-size:12px">Chưa tra được giao dịch SePay.</div>';
-    }
-  })();
   var c1 = document.getElementById('dsvChot');
   if (c1) c1.onclick = async function () {
     if (!DSV_PT && !window.confirm('Chưa chọn phương thức thanh toán. Vẫn ghi sổ chứ?')) return;
