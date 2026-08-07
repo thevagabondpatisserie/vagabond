@@ -29,10 +29,8 @@ import requests
 from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, now_datetime
 
+from vagabond import zalo
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
-
-ZALO_OA = "https://business.openapi.zalo.me"
-ZALO_OAUTH = "https://oauth.zaloapp.com/v4/oa/access_token"
 
 OTP_SONG_PHUT = 5
 OTP_SAI_TOI_DA = 5
@@ -74,72 +72,15 @@ def _bam(chuoi):
 # ---------------------------------------------------------------- Zalo ZNS
 
 
-def _zalo_token(c):
-	"""Access token cua Zalo OA, tu lam moi bang refresh token khi het han.
-
-	Zalo cap access token song 1 tieng va refresh token song 3 thang. Moi lan
-	lam moi Zalo tra ve refresh token MOI va huy cai cu, nen bat buoc phai ghi
-	de lai vao cau hinh, quen ghi la lan sau het duong lam moi.
-	"""
-	tok = key(c, "zalo_access_token")
-	han = c.get("zalo_token_het_han")
-	if tok and han and now_datetime() < han:
-		return tok
-
-	app_id = (c.get("zalo_app_id") or "").strip()
-	bi_mat = key(c, "zalo_app_secret")
-	refresh = key(c, "zalo_refresh_token")
-	if not (app_id and bi_mat and refresh):
-		frappe.throw("Chưa điền App ID, App Secret hoặc Refresh Token của Zalo OA trong Vagabond Settings")
-
-	r = requests.post(
-		ZALO_OAUTH,
-		headers={"secret_key": bi_mat, "Content-Type": "application/x-www-form-urlencoded"},
-		data={"app_id": app_id, "refresh_token": refresh, "grant_type": "refresh_token"},
-		timeout=TIMEOUT,
-	)
-	j = r.json() if r.content else {}
-	tok = j.get("access_token")
-	if not tok:
-		frappe.log_error(title="Vagabond: Zalo khong cap token", message=json.dumps(j)[:1000])
-		frappe.throw("Zalo không cấp được token, nhờ anh chị kiểm tra lại cấu hình Zalo OA")
-
-	doc = frappe.get_doc("Vagabond Settings")
-	doc.zalo_access_token = tok
-	if j.get("refresh_token"):
-		doc.zalo_refresh_token = j["refresh_token"]
-	try:
-		song = int(j.get("expires_in") or 3600)
-	except (TypeError, ValueError):
-		song = 3600
-	# Tru 5 phut cho chac, khoi dinh dung luc token vua het.
-	doc.zalo_token_het_han = now_datetime() + timedelta(seconds=max(300, song - 300))
-	doc.save(ignore_permissions=True)
-	frappe.db.commit()
-	return tok
-
-
 def _gui_zns(c, sdt84, ma):
-	mau = (c.get("zns_template_otp") or "").strip()
-	if not mau:
-		frappe.throw("Chưa khai mã mẫu ZNS cho tin xác thực trong Vagabond Settings")
-	tok = _zalo_token(c)
-	r = requests.post(
-		"%s/message/template" % ZALO_OA,
-		headers={"access_token": tok, "Content-Type": "application/json"},
-		json={
-			"phone": sdt84,
-			"template_id": mau,
-			"template_data": {"otp": ma},
-			"tracking_id": "vgb-otp-%s" % sdt84,
-		},
-		timeout=TIMEOUT,
+	"""Gui ma xac thuc. Ham gui chung nam o vagabond/zalo.py."""
+	return zalo.gui_tin(
+		c,
+		sdt84,
+		(c.get("zns_template_otp") or "").strip(),
+		{"otp": ma},
+		dau_vet="vgb-otp-%s" % sdt84,
 	)
-	j = r.json() if r.content else {}
-	if j.get("error") not in (0, None):
-		frappe.log_error(title="Vagabond: ZNS khong gui duoc", message=json.dumps(j)[:1000])
-		return False, j.get("message") or "Không gửi được tin Zalo"
-	return True, ""
 
 
 # ---------------------------------------------------------------- OTP
