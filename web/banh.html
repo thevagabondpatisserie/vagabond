@@ -771,7 +771,9 @@ function slug(s){
     .replace(/đ/g,'d').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 }
 function nav(h,replace){
-  const url=location.pathname+location.search+h;
+  /* Trang chu la '#/' nhung KHONG gan hash vao dia chi cho dep - applyRoute
+     tu hieu hash rong la trang chu. */
+  const url=location.pathname+location.search+(h==='#/'?'':h);
   if(replace) history.replaceState({vgb:1},'',url); else history.pushState({vgb:1},'',url);
   applyRoute();
 }
@@ -1475,7 +1477,6 @@ function lamTuoiTon(){
 }
 lamTuoiTon();
 setInterval(lamTuoiTon,60000);
-if(!location.hash) history.replaceState({vgb:0},'',location.pathname+location.search+'#/');
 applyRoute();
 </script>
 </body>
