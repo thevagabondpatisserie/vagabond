@@ -1,0 +1,142 @@
+<!-- Trang thanh toan cua khach. Web Page route "tt", nhan ?m=<ma link>.
+     Khach mo tu tin Zalo ZNS sales gui sau khi da chot giao duoc. -->
+<style>
+  :root{
+    --bg:#050807; --bg-2:#0B100F; --paper:#F2F5F4; --fog:rgba(255,255,255,.62);
+    --fog-2:rgba(255,255,255,.42); --line:rgba(255,255,255,.16);
+    --line-2:rgba(255,255,255,.08); --cyan:#29BDB3; --cyan-dim:rgba(41,189,179,.45);
+    --sans:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  }
+  .navbar,.web-footer{display:none!important}
+  #tt *{margin:0;padding:0;box-sizing:border-box}
+  #tt{background:var(--bg);color:var(--paper);font-family:var(--sans);
+      min-height:100vh;padding:28px 20px 60px;font-size:15px;line-height:1.6}
+  #tt .box{max-width:440px;margin:0 auto}
+  #tt .brand{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--fog-2);
+      text-align:center;margin-bottom:26px}
+  #tt h1{font-size:19px;letter-spacing:.02em;font-weight:400;text-align:center;margin-bottom:4px}
+  #tt .don{text-align:center;color:var(--fog-2);font-size:12px;letter-spacing:.16em;
+      text-transform:uppercase;margin-bottom:26px}
+  #tt .tien{text-align:center;font-size:38px;letter-spacing:-.01em;color:var(--cyan);
+      line-height:1.1;margin-bottom:6px}
+  #tt .tien small{font-size:16px;letter-spacing:.04em}
+  #tt .nho{text-align:center;color:var(--fog-2);font-size:12.5px;margin-bottom:24px}
+  #tt .qr{background:#fff;padding:12px;border-radius:4px;display:block;margin:0 auto 20px;
+      width:100%;max-width:290px}
+  #tt .hd{border:1px solid var(--line);padding:16px 18px;margin-bottom:12px}
+  #tt .hd .r{display:flex;justify-content:space-between;gap:14px;padding:7px 0;
+      border-bottom:1px solid var(--line-2);font-size:13.5px}
+  #tt .hd .r:last-child{border-bottom:0}
+  #tt .hd .r span{color:var(--fog-2);flex:0 0 auto}
+  #tt .hd .r b{font-weight:400;text-align:right;word-break:break-all}
+  #tt .cp{display:flex;gap:8px;margin-bottom:22px}
+  #tt .cp button{flex:1;border:1px solid var(--cyan-dim);background:none;color:var(--cyan);
+      padding:13px 8px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+      font-family:var(--sans);cursor:pointer;min-height:46px}
+  #tt .cp button:active{background:rgba(41,189,179,.12)}
+  #tt .luu{border:1px solid var(--line);border-left:2px solid var(--cyan);
+      padding:14px 16px;font-size:13px;color:var(--fog);line-height:1.55}
+  #tt .xong{text-align:center;padding:40px 10px}
+  #tt .xong .tick{font-size:44px;color:var(--cyan);line-height:1}
+  #tt .loi{text-align:center;color:var(--fog);padding:60px 10px}
+  #tt .tel{display:block;text-align:center;margin-top:26px;color:var(--cyan);
+      font-size:12px;letter-spacing:.16em;text-transform:uppercase;text-decoration:none}
+  #tt .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+      background:var(--cyan);color:#00201D;padding:11px 22px;font-size:12.5px;
+      letter-spacing:.06em;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+  #tt .toast.on{opacity:1}
+</style>
+
+<div id="tt">
+  <div class="box">
+    <div class="brand">The Vagabond Pâtisserie</div>
+    <div id="than"><div class="loi">Đang tải…</div></div>
+    <a class="tel" href="tel:0931224334">Cần hỗ trợ · 0931 224 334</a>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  function vnd(n) { return (Number(n) || 0).toLocaleString('vi-VN') + ' đ'; }
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function toast(t) {
+    var e = $('#toast'); e.textContent = t; e.classList.add('on');
+    setTimeout(function () { e.classList.remove('on'); }, 1800);
+  }
+  window.ttChep = function (t, nhan) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { toast('Đã chép ' + nhan); });
+      return;
+    }
+    var i = document.createElement('textarea');
+    i.value = t; document.body.appendChild(i); i.select();
+    try { document.execCommand('copy'); toast('Đã chép ' + nhan); } catch (e) {}
+    i.remove();
+  };
+
+  var ma = new URLSearchParams(location.search).get('m') || '';
+  var LY_DO = {
+    thieu_ma: 'Đường dẫn thiếu mã. Anh chị bấm lại đúng đường dẫn trong tin nhắn giúp em.',
+    khong_thay: 'Không tìm thấy yêu cầu thanh toán này. Có thể đường dẫn đã cũ.'
+  };
+
+  fetch('/api/method/vagabond.thanh_toan.xem?m=' + encodeURIComponent(ma), {
+    headers: { Accept: 'application/json' }
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      var d = (j && j.message) || {};
+      if (!d.ok) {
+        $('#than').innerHTML = '<div class="loi">' + esc(LY_DO[d.ly_do] || 'Không mở được yêu cầu thanh toán.') + '</div>';
+        return;
+      }
+      if (d.tinh_trang === 'Da thanh toan') {
+        $('#than').innerHTML =
+          '<div class="xong"><div class="tick">✓</div>' +
+          '<h1 style="margin-top:14px">Đã nhận được thanh toán</h1>' +
+          '<div class="nho" style="margin-top:8px">Đơn #' + esc(d.ma_don) + ' · ' + vnd(d.so_tien) + '</div>' +
+          '<div class="nho">Cảm ơn anh chị. Bếp chuẩn bị và giao đúng khung giờ đã hẹn.</div></div>';
+        return;
+      }
+      if (d.tinh_trang === 'Da huy') {
+        $('#than').innerHTML = '<div class="loi">Yêu cầu thanh toán này đã được huỷ. Anh chị nhắn lại giúp em nhé.</div>';
+        return;
+      }
+
+      var h = '';
+      h += '<h1>' + (d.ten_khach ? esc(d.ten_khach) + ' ơi,' : 'Anh chị ơi,') + '</h1>';
+      h += '<div class="don">Đơn #' + esc(d.ma_don) + '</div>';
+      h += '<div class="tien">' + (Number(d.so_tien) || 0).toLocaleString('vi-VN') + ' <small>đ</small></div>';
+      h += '<div class="nho">Số tiền còn phải thanh toán</div>';
+      if (d.qr) h += '<img class="qr" src="' + esc(d.qr) + '" alt="Mã QR chuyển khoản">';
+      h += '<div class="hd">';
+      if (d.ngan_hang && d.ngan_hang.ten) h += '<div class="r"><span>Ngân hàng</span><b>' + esc(d.ngan_hang.ten) + '</b></div>';
+      if (d.ngan_hang && d.ngan_hang.stk) h += '<div class="r"><span>Số tài khoản</span><b>' + esc(d.ngan_hang.stk) + '</b></div>';
+      if (d.ngan_hang && d.ngan_hang.chu_tk) h += '<div class="r"><span>Chủ tài khoản</span><b>' + esc(d.ngan_hang.chu_tk) + '</b></div>';
+      h += '<div class="r"><span>Nội dung</span><b>' + esc(d.noi_dung_ck) + '</b></div>';
+      h += '<div class="r"><span>Số tiền</span><b>' + vnd(d.so_tien) + '</b></div>';
+      h += '</div>';
+      h += '<div class="hd" style="margin-bottom:14px">';
+      h += '<div class="r"><span>Tiền bánh</span><b>' + vnd(d.tien_hang) + '</b></div>';
+      if (d.phi_giao) h += '<div class="r"><span>Phí giao</span><b>' + vnd(d.phi_giao) + '</b></div>';
+      if (d.da_tra) h += '<div class="r"><span>Đã trả trước</span><b>-' + vnd(d.da_tra) + '</b></div>';
+      h += '</div>';
+      h += '<div class="cp">';
+      h += '<button onclick="ttChep(\'' + esc(d.ngan_hang && d.ngan_hang.stk || '') + '\',\'số tài khoản\')">Chép số TK</button>';
+      h += '<button onclick="ttChep(\'' + esc(d.noi_dung_ck) + '\',\'nội dung\')">Chép nội dung</button>';
+      h += '</div>';
+      h += '<div class="luu">Anh chị mở app ngân hàng, quét mã QR ở trên là tự điền sẵn số tiền và nội dung. ' +
+           'Nếu chuyển tay, xin giữ nguyên nội dung <b>' + esc(d.noi_dung_ck) + '</b> để em đối chiếu được ngay.</div>';
+      $('#than').innerHTML = h;
+    })
+    .catch(function () {
+      $('#than').innerHTML = '<div class="loi">Không kết nối được. Anh chị thử lại giúp em.</div>';
+    });
+})();
+</script>
