@@ -534,6 +534,14 @@ function syncUser() { var u = curUser(); if (u) { S.user = u; S.me.user = u; } r
    Nho vay nut Back / vuot lui cua trinh duyet lui dung tung man trong app,
    het canh dang o Chi tiet don ma Back lai vang sang trang /kiem-banh. */
 var VGB_LUI_TAY = 0;
+function manSoan(f) {
+  try { return f === scrStep1 || f === scrStep2 || f === scrStep3 || f === scrStep4; } catch (e) { return false; }
+}
+function roiPhieuDo(dich) {
+  /* Dang dung o man soan phieu, co it nhat mot mon, va dich den KHONG con
+     trong luong soan -> roi di la mat ban nhap, phai hoi mot cau. */
+  return !!(S.draft && (S.draft.items || []).length) && manSoan(S.stack[S.stack.length - 1]) && !manSoan(dich);
+}
 function go(fn, replace) {
   if (!replace) {
     S.stack.push(fn);
@@ -542,11 +550,18 @@ function go(fn, replace) {
   render();
 }
 function back() {
-  if (S.stack.length > 1) {
+  if (S.stack.length <= 1) return;
+  var buoc = function () {
     S.stack.pop(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
+  };
+  if (roiPhieuDo(S.stack[S.stack.length - 2])) {
+    confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
+      .then(function (ok) { if (ok) { S.draft = null; buoc(); } });
+    return;
   }
+  buoc();
 }
 function reset(fn) {
   S.stack = [fn];
@@ -557,6 +572,8 @@ function render() { var f = S.stack[S.stack.length - 1]; if (f) f(); }
 
 function frame(title, bodyHtml, opt) {
   opt = opt || {};
+  /* Tieu de tab trinh duyet theo man hinh, liec tab biet ngay dang o dau */
+  try { document.title = (title && title !== APPNAME) ? title + ' · Vagabond' : APPNAME; } catch (e) { }
   var showBack = S.stack.length > 1;
   root.innerHTML =
     '<div class="vh">' +
@@ -570,7 +587,14 @@ function frame(title, bodyHtml, opt) {
     (opt.footer ? '<div class="vf">' + opt.footer + '</div>' : '') +
     (opt.fab ? '<button class="fab" id="vgbFab">+</button>' : '');
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
-  var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () { reset(scrHome); };
+  var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
+    if (roiPhieuDo(scrHome)) {
+      confirmSheet('Phiếu đang soạn dở', 'Về trang chủ thì danh sách món đang chọn sẽ mất.', 'Về trang chủ, bỏ phiếu nháp', true)
+        .then(function (ok) { if (ok) { S.draft = null; reset(scrHome); } });
+      return;
+    }
+    reset(scrHome);
+  };
   var ab = document.getElementById('vgbAcc'); if (ab) ab.onclick = function () { go(scrAccount); };
   var a = document.getElementById('vgbAct'); if (a && opt.onAction) a.onclick = opt.onAction;
   var f = document.getElementById('vgbFab'); if (f && opt.onFab) f.onclick = opt.onFab;
@@ -6862,7 +6886,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '78';
+var APPVER = '80';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -6905,7 +6929,18 @@ window.addEventListener('popstate', function (ev) {
   if (VGB_LUI_TAY > 0) { VGB_LUI_TAY--; return; }
   var st = ev.state;
   var d = (st && typeof st.vgbD === 'number') ? st.vgbD : 0;
-  if (d + 1 < S.stack.length) { S.stack.length = d + 1; render(); return; }
+  if (d + 1 < S.stack.length) {
+    if (roiPhieuDo(S.stack[d])) {
+      var giu = S.stack.length - 1;
+      confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
+        .then(function (ok) {
+          if (ok) { S.draft = null; S.stack.length = d + 1; render(); }
+          else { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } }
+        });
+      return;
+    }
+    S.stack.length = d + 1; render(); return;
+  }
   if (d + 1 > S.stack.length) {
     /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
     try { history.replaceState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
