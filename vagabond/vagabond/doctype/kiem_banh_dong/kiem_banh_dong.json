@@ -18,25 +18,27 @@
   "da_dat",
   "phat_sinh",
   "ten_khach_ps",
+  "don_khac",
+  "ten_khach_khac",
   "cho_chot",
   "ten_khach_cho",
   "co_the_ban"
  ],
  "fields": [
   {
+   "columns": 2,
    "fieldname": "ma_hang",
    "fieldtype": "Data",
-   "label": "Ma hang",
-   "reqd": 1,
    "in_list_view": 1,
-   "columns": 2
+   "label": "Ma hang",
+   "reqd": 1
   },
   {
+   "columns": 3,
    "fieldname": "ten_banh",
    "fieldtype": "Data",
-   "label": "Ten banh",
    "in_list_view": 1,
-   "columns": 3
+   "label": "Ten banh"
   },
   {
    "fieldname": "hinh",
@@ -45,10 +47,10 @@
    "read_only": 1
   },
   {
+   "description": "Lo cu hon D-2. Sales sua theo kiem tu that.",
    "fieldname": "ton_cu",
    "fieldtype": "Int",
-   "label": "Ton cu hon",
-   "description": "Lo cu hon D-2. Sales sua theo kiem tu that."
+   "label": "Ton cu hon"
   },
   {
    "fieldname": "nsx_cu",
@@ -66,11 +68,11 @@
    "label": "NSX D-2"
   },
   {
+   "columns": 1,
    "fieldname": "ton_d1",
    "fieldtype": "Int",
-   "label": "Ton D-1",
    "in_list_view": 1,
-   "columns": 1
+   "label": "Ton D-1"
   },
   {
    "fieldname": "nsx_d1",
@@ -78,64 +80,79 @@
    "label": "NSX D-1"
   },
   {
+   "columns": 1,
+   "description": "Bep go khi nhan lenh. Sau nay doc tu lenh san xuat.",
    "fieldname": "sx",
    "fieldtype": "Int",
-   "label": "Bep san xuat",
    "in_list_view": 1,
-   "columns": 1,
-   "description": "Bep go khi nhan lenh. Sau nay doc tu lenh san xuat."
+   "label": "Bep san xuat"
   },
   {
+   "columns": 1,
+   "description": "May dem tu Pancake: don giao hom nay, tao truoc hom nay",
    "fieldname": "da_dat",
    "fieldtype": "Int",
-   "label": "Da dat",
-   "read_only": 1,
    "in_list_view": 1,
-   "columns": 1,
-   "description": "May dem tu Pancake: don giao hom nay, tao truoc hom nay"
+   "label": "Da dat",
+   "read_only": 1
   },
   {
+   "columns": 1,
+   "description": "May dem tu Pancake: don tao hom nay va giao hom nay",
    "fieldname": "phat_sinh",
    "fieldtype": "Int",
    "label": "Phat sinh",
-   "read_only": 1,
-   "columns": 1,
-   "description": "May dem tu Pancake: don tao hom nay va giao hom nay"
+   "read_only": 1
   },
   {
+   "description": "Khach cua cac don phat sinh da chot, de ban giao",
    "fieldname": "ten_khach_ps",
    "fieldtype": "Small Text",
    "label": "Ten khach phat sinh",
-   "read_only": 1,
-   "description": "Khach cua cac don phat sinh da chot, de ban giao"
+   "read_only": 1
   },
   {
+   "description": "May dem tu hoa don ban ra nguon khac Pancake trong ngay: Grab, Shopee, Be, GreenSM, khach si, quay",
+   "fieldname": "don_khac",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Kenh khac",
+   "read_only": 1
+  },
+  {
+   "description": "Nguon va ma don cua cac don kenh khac, de sales doi chieu",
+   "fieldname": "ten_khach_khac",
+   "fieldtype": "Small Text",
+   "label": "Don kenh khac",
+   "read_only": 1
+  },
+  {
+   "description": "Don trang thai Moi giao ngay nay - giu cho mem, tru ao vao co the ban",
    "fieldname": "cho_chot",
    "fieldtype": "Int",
    "label": "Cho chot",
-   "read_only": 1,
-   "description": "Don trang thai Moi giao ngay nay - giu cho mem, tru ao vao co the ban"
+   "read_only": 1
   },
   {
+   "description": "Khach dang tu van (don Moi), de sales ban giao ca",
    "fieldname": "ten_khach_cho",
    "fieldtype": "Small Text",
    "label": "Ten khach cho",
-   "read_only": 1,
-   "description": "Khach dang tu van (don Moi), de sales ban giao ca"
+   "read_only": 1
   },
   {
+   "columns": 1,
+   "description": "= ton dau + san xuat - da dat - phat sinh - cho chot - kenh khac",
    "fieldname": "co_the_ban",
    "fieldtype": "Int",
-   "label": "Co the ban",
-   "read_only": 1,
    "in_list_view": 1,
-   "columns": 1,
-   "description": "= ton dau + san xuat - da dat - phat sinh - cho chot"
+   "label": "Co the ban",
+   "read_only": 1
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-01 10:30:00.000000",
+ "modified": "2026-08-08 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Kiem Banh Dong",
