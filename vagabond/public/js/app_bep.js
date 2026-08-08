@@ -750,8 +750,8 @@ async function scrHome() {
     var dsn = 0;
     try { dsn = (await getList('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
     html += '<div class="sec">Bán hàng</div><div class="card">' +
-      card('🧾', 'Tính tiền quầy', 'Bấm bill tại chỗ: D1 Trần Cao Vân, NVHTN', 0, 'POS') +
-      card('\ud83d\udcb5', 'Doanh thu Sales', 'Đơn online của sales: Pancake, Grab, Be', dsn, 'DS') + card('📑', 'Hợp đồng Event', 'Catering, teabreak, bánh thiết kế theo hợp đồng', 0, 'HDG') + '</div>';
+      card('\ud83d\udcb5', 'Doanh thu Sales', 'Đơn online của sales: Pancake, Grab, Be', dsn, 'DS') +
+      card('🧾', 'Tính tiền quầy', 'Bấm bill tại quầy: District 1, Nhà Văn Hóa Thanh Niên', 0, 'POS') + card('📑', 'Hợp đồng Event', 'Catering, teabreak, bánh thiết kế theo hợp đồng', 0, 'HDG') + '</div>';
   }
   if (isSales() || hasRole('Shipper') || hasRole('Accounts User') || hasRole('Purchase User')) {
     html += '<div class="sec">Giao hàng</div><div class="card">'
@@ -6397,75 +6397,110 @@ async function dsTayLuu() {
 }
 
 
-/* ---------- Tinh tien quay: bam bill tai cho D1 / NVHTN (so khoi 08/08/2026) ----------
-   Lam y khung phan he Sales: moi bill goi tao_don_tay thanh mot Sales Invoice NHAP
-   nguon "Tai cho - ...", cuoi ngay ra soat va ghi so ngay tren man Doanh thu Sales.
-   Giai doan thu nghiem chay song song Fabi: chua tru kho, chua in bill. */
-var posDon = null, posHomNayTxt = null, posQuayNguon = null;
-function posNguon() { return posQuayNguon || 'Tại chỗ - Trần Cao Vân'; }
-function posDatNguon(v) { posQuayNguon = v; }
-/* Buoc chon quay truoc khi vao man bam bill - D1 va NVHTN khong dung chung
-   (anh Viet chot 08/08). Vao card la hoi quay, khong nho lua chon cu. */
-async function scrPosChonQuay() {
-  await cfgBanHang();
-  var dsQ = (((CFGBH || {}).nguon) || []).filter(function (n) { return n.v.indexOf('Tại chỗ') === 0; });
-  var html = '<div class="sec">Chọn quầy để tính tiền</div><div class="card">';
-  dsQ.forEach(function (n) {
-    html += '<div class="hub" data-q="' + h(n.v) + '" style="padding:14px 2px"><span style="font-size:26px">' + (n.ic || '🏬') + '</span><div class="ht"><div class="h1">' + h(n.v.replace('Tại chỗ - ', '')) + '</div><div class="h2">Bill lưu vào nguồn "' + h(n.v) + '"</div></div><span style="color:#c3c8d4">&#8250;</span></div>';
-  });
-  html += '</div><div style="text-align:center;color:#a0a6b4;font-size:12px;padding:10px">Chọn đúng quầy mình đang đứng - doanh thu và đối soát tách theo từng quầy</div>';
-  var b = frame('Tính tiền quầy', html);
-  b.onclick = function (e) {
-    var r = e.target.closest('[data-q]');
-    if (!r) return;
-    posDatNguon(r.getAttribute('data-q'));
-    posHomNayTxt = null;
-    go(scrPosQuay);
-  };
-}
-function posMoi() { return { mon: [], pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '' }; }
+/* ---------- Tinh tien quay: D1 (TCV) va NVHTN (08/08/2026) ----------
+   Buoc 1 chon quay, buoc 2 chon NGUON DON cho tung bill: Tai cho, Mang ve,
+   hoac app (Grab, Be, GreenSM, Shopee) - dung nguyen tac "vao nguon nao ra
+   nguon do" cua SOP. Bill luu bang tao_don_tay thanh Sales Invoice NHAP,
+   ra soat va ghi so cuoi ngay tren man Doanh thu Sales. Chuyen khoan thi
+   hien VietQR dien san so tien + so phieu. Chua tru kho, chua in bill. */
+var posDon = null, posHomNayTxt = null, posQuay = null;
+function posMoi() { return { che_do: 'Tại chỗ', ma: '', pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', mon: [] }; }
 function posSoTien(v) { return parseFloat(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
+function posDsCheDo() {
+  var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
+    return n.v.indexOf('Tại chỗ') !== 0 && n.v.indexOf('Mang về') !== 0 && n.v !== 'Khách sỉ' && n.v !== 'Pancake';
+  });
+  return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
+}
+function posNguonThuc() {
+  if (!posQuay || !posDon) return '';
+  if (posDon.che_do === 'Tại chỗ') return posQuay.tai_cho;
+  if (posDon.che_do === 'Mang về') return posQuay.mang_ve;
+  return posDon.che_do;
+}
 function posDoc() {
   if (!posDon) return;
   var g = function (id) { var o = document.getElementById(id); return o ? o.value : null; };
   var v;
+  v = g('posMa'); if (v !== null) posDon.ma = v;
   v = g('posTen'); if (v !== null) posDon.ten = v;
   v = g('posSdt'); if (v !== null) posDon.sdt = v;
   v = g('posMtc'); if (v !== null) posDon.mtc = v;
   v = g('posGiam'); if (v !== null) posDon.giam = posSoTien(v) ? String(posSoTien(v)) : '';
   v = g('posDua'); if (v !== null) posDon.dua = posSoTien(v) ? String(posSoTien(v)) : '';
 }
+/* Buoc chon quay: vao card la hoi, khong nho lua chon cu (anh Viet 08/08). */
+async function scrPosChonQuay() {
+  await cfgBanHang();
+  var dsQ = ((CFGBH || {}).quay) || [];
+  var html = '<div class="sec">Chọn quầy để tính tiền</div><div class="card">';
+  dsQ.forEach(function (q, i) {
+    html += '<div class="hub" data-q="' + i + '" style="padding:16px 2px"><span style="font-size:28px">🏬</span><div class="ht"><div class="h1" style="font-size:17px">' + h(q.ten) + '</div><div class="h2">' + h(q.phu || '') + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>';
+  });
+  html += '</div><div style="text-align:center;color:#a0a6b4;font-size:12px;padding:10px">Chọn đúng quầy mình đang đứng - doanh thu và đối soát tách theo từng quầy</div>';
+  var b = frame('Tính tiền quầy', html);
+  b.onclick = function (e) {
+    var r = e.target.closest('[data-q]');
+    if (!r) return;
+    posQuay = dsQ[+r.getAttribute('data-q')];
+    posHomNayTxt = null;
+    go(scrPosQuay);
+  };
+}
+function posNutNguon(ds, chon) {
+  return ds.map(function (n) {
+    var on = n.v === chon;
+    return '<button class="pnc" data-nd="' + h(n.v) + '" style="display:flex;align-items:center;justify-content:center;gap:6px;height:52px;border-radius:10px;font-size:14.5px;font-weight:' + (on ? 'bold' : 'normal') + ';border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+      (n.lg ? '<img src="' + n.lg + '" style="height:20px;border-radius:3px">' : (n.ic ? '<span style="font-size:18px">' + n.ic + '</span>' : '')) + h(n.v) + '</button>';
+  }).join('');
+}
+function posNutPt(ds, chon) {
+  return ds.map(function (p) {
+    var on = p.v === chon;
+    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;height:54px;border-radius:10px;font-size:15px;font-weight:' + (on ? 'bold' : 'normal') + ';border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+      (p.lg ? '<img src="' + p.lg + '" style="height:22px;border-radius:3px">' : '🏦 ') + h(p.v) + '</button>';
+  }).join('');
+}
 async function scrPosQuay() {
   await cfgBanHang();
-  if (!posQuayNguon) return go(scrPosChonQuay, true);
+  if (!posQuay) return go(scrPosChonQuay, true);
   if (!posDon) posDon = posMoi();
-  var nguon = posNguon();
-  var dsPt = ptTheoNguon(nguon);
-  if (!posDon.pt || !dsPt.some(function (p) { return p.v === posDon.pt; })) posDon.pt = dsPt.length ? dsPt[0].v : '';
+  var laApp = posDon.che_do !== 'Tại chỗ' && posDon.che_do !== 'Mang về';
+  var nguonThuc = posNguonThuc();
+  var dsPt = ptTheoNguon(nguonThuc);
+  if (laApp) posDon.pt = dsPt.length === 1 ? dsPt[0].v : '';
+  else if (!posDon.pt || !dsPt.some(function (p) { return p.v === posDon.pt; })) posDon.pt = 'Tiền mặt';
   var tong = posDon.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
   var giam = posSoTien(posDon.giam), dua = posSoTien(posDon.dua);
   var phaiThu = Math.max(0, tong - giam);
+  var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
-    '<div class="hub" data-t="posNguon" style="padding:8px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán</div><div class="h1">' + h(nguon) + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
+    '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán · bấm để đổi</div><div class="h1">' + h(posQuay.ten) + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
     '<div id="posHomNay" style="font-size:12px;color:#6b7280;padding-bottom:6px">' + h(posHomNayTxt || 'Đang đếm bill hôm nay...') + '</div></div>';
+  html += '<div class="sec">Nguồn đơn</div><div class="card" style="padding:12px 14px">' +
+    '<div id="posNd" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' + posNutNguon(posDsCheDo(), posDon.che_do) + '</div>' +
+    (laApp ? '<input class="tin" id="posMa" style="margin-top:10px" placeholder="' + h((qApp.nhan || 'Mã đơn bên app') + (qApp.vd ? ' - vd ' + qApp.vd : '')) + '" value="' + h(posDon.ma || '') + '">' : '') +
+    '</div>';
   html += '<div class="sec">Món trong bill</div><div class="card" style="padding:6px 14px">';
   if (!posDon.mon.length) html += '<div style="padding:14px 0;color:#a0a6b4">Chưa có món nào. Bấm Thêm món: tìm theo tên, mã hoặc quét mã vạch.</div>';
   posDon.mon.forEach(function (m, i) {
     html += '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
       '<div style="flex:1;min-width:0" data-gia="' + i + '">' + h(m.ten) + '<div style="color:#a0a6b4;font-size:12px">' + money(m.rate) + ' đ · bấm sửa giá</div></div>' +
-      '<button class="nt" data-bot="' + i + '" style="height:38px;width:40px;flex:none;font-size:20px;cursor:pointer">&minus;</button>' +
+      '<button class="nt" data-bot="' + i + '" style="height:40px;width:44px;flex:none;font-size:21px;cursor:pointer">&minus;</button>' +
       '<b style="min-width:24px;text-align:center">' + money(m.qty) + '</b>' +
-      '<button class="nt" data-cong="' + i + '" style="height:38px;width:40px;flex:none;font-size:20px;cursor:pointer">+</button>' +
+      '<button class="nt" data-cong="' + i + '" style="height:40px;width:44px;flex:none;font-size:21px;cursor:pointer">+</button>' +
       '<b style="min-width:72px;text-align:right">' + money(m.qty * m.rate) + '</b>' +
       '<button class="ic" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
-    '<div id="posPt" style="display:flex;gap:6px;flex-wrap:wrap">' + chipPt(dsPt, posDon.pt) + '</div>' +
-    '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
-    '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>' +
+    (laApp
+      ? '<div style="font-size:13.5px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' thanh toán bằng nguồn <b>' + h(posDon.pt || posDon.che_do) + '</b> - vào nguồn nào ra nguồn đó.</div>'
+      : '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
+        '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
+        '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>') +
     '<input class="tin" id="posGiam" placeholder="Giảm giá cả bill (đ), voucher nếu có" inputmode="numeric" value="' + (giam ? money(giam) : '') + '">' +
-    (posDon.pt === 'Tiền mặt' ? '<input class="tin" id="posDua" placeholder="Khách đưa (đ) - máy tính tiền thối" inputmode="numeric" value="' + (dua ? money(dua) : '') + '">' : '') +
+    (!laApp && posDon.pt === 'Tiền mặt' ? '<input class="tin" id="posDua" placeholder="Khách đưa (đ) - máy tính tiền thối" inputmode="numeric" value="' + (dua ? money(dua) : '') + '">' : '') +
     '</div>';
   html += '<div class="sec">Khách (không bắt buộc)</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     '<input class="tin" id="posTen" placeholder="Tên khách" value="' + h(posDon.ten || '') + '">' +
@@ -6474,20 +6509,16 @@ async function scrPosQuay() {
     '<div style="display:flex;justify-content:space-between;color:#5a6070"><span>Tạm tính</span><span>' + money(tong) + ' đ</span></div>' +
     (giam ? '<div style="display:flex;justify-content:space-between;color:#b45309"><span>Giảm giá</span><span>&minus;' + money(giam) + ' đ</span></div>' : '') +
     '<div style="display:flex;justify-content:space-between;font-size:19px"><b>PHẢI THU</b><b>' + money(phaiThu) + ' đ</b></div>' +
-    (posDon.pt === 'Tiền mặt' && dua ? '<div style="display:flex;justify-content:space-between;color:' + (dua >= phaiThu ? '#0f766e' : '#b3261e') + '"><span>Khách đưa ' + money(dua) + ' đ</span><b>' + (dua >= phaiThu ? 'Thối ' + money(dua - phaiThu) : 'Còn thiếu ' + money(phaiThu - dua)) + ' đ</b></div>' : '') +
+    (!laApp && posDon.pt === 'Tiền mặt' && dua ? '<div style="display:flex;justify-content:space-between;color:' + (dua >= phaiThu ? '#0f766e' : '#b3261e') + '"><span>Khách đưa ' + money(dua) + ' đ</span><b>' + (dua >= phaiThu ? 'Thối ' + money(dua - phaiThu) : 'Còn thiếu ' + money(phaiThu - dua)) + ' đ</b></div>' : '') +
     '</div>';
-  var b = frame('Tính tiền quầy', html, { footer: '<button class="btn" id="posLuu">💰 Thu tiền - lưu bill ' + money(phaiThu) + ' đ</button>' });
-  veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
-  posDemHomNay(nguon);
+  var b = frame('Tính tiền · ' + (posQuay.ma || ''), html, { footer: '<button class="btn" id="posLuu">💰 Thu tiền - lưu bill ' + money(phaiThu) + ' đ</button>' });
+  if (!laApp) veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
+  posDemHomNay();
   b.addEventListener('click', function (e) {
-    if (e.target.closest('[data-t="posNguon"]')) {
-      posDoc();
-      var dsQ = (((CFGBH || {}).nguon) || []).filter(function (n) { return n.v.indexOf('Tại chỗ') === 0; });
-      return sheet('Quầy đang bán', dsQ.map(function (n) { return { value: n.v, label: n.v, icon: n.ic || '🏬' }; }), posNguon(), function (o) {
-        posDatNguon(o.value); posHomNayTxt = null; go(scrPosQuay, true);
-      });
-    }
+    if (e.target.closest('[data-t="posDoiQuay"]')) { posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true); }
     var t;
+    t = e.target.closest('[data-nd]');
+    if (t) { posDoc(); posDon.che_do = t.getAttribute('data-nd'); return go(scrPosQuay, true); }
     t = e.target.closest('[data-cong]');
     if (t) { posDoc(); posDon.mon[+t.getAttribute('data-cong')].qty += 1; return go(scrPosQuay, true); }
     t = e.target.closest('[data-bot]');
@@ -6514,11 +6545,12 @@ async function scrPosQuay() {
   document.getElementById('posThem').onclick = posThemMon;
   document.getElementById('posLuu').onclick = posLuuDon;
 }
-async function posDemHomNay(nguon) {
+async function posDemHomNay() {
+  if (!posQuay) return;
   try {
-    var ds = await getList('Sales Invoice', { filters: { posting_date: today(), custom_nguon: nguon, docstatus: ['<', 2] }, fields: ['grand_total'], limit_page_length: 0 });
+    var ds = await getList('Sales Invoice', { filters: { posting_date: today(), custom_nguon: ['in', [posQuay.tai_cho, posQuay.mang_ve]], docstatus: ['<', 2] }, fields: ['grand_total'], limit_page_length: 0 });
     var tong = (ds || []).reduce(function (t, r) { return t + (r.grand_total || 0); }, 0);
-    posHomNayTxt = 'Hôm nay: ' + ds.length + ' bill · ' + money(tong) + ' đ. Rà và ghi sổ trong Doanh thu Sales.';
+    posHomNayTxt = 'Hôm nay: ' + ds.length + ' bill tại quầy · ' + money(tong) + ' đ. Rà và ghi sổ trong Doanh thu Sales.';
   } catch (e) { posHomNayTxt = ''; }
   var o = document.getElementById('posHomNay');
   if (o) o.textContent = posHomNayTxt;
@@ -6570,39 +6602,58 @@ function posGiaSheet(i) {
   };
   setTimeout(function () { oG.focus(); oG.select(); }, 60);
 }
+function posQrSheet(soPhieu, tien) {
+  var q = (CFGBH || {}).qr_quay || {};
+  var url = 'https://img.vietqr.io/image/' + (q.bank || 'MB') + '-' + (q.stk || '') + '-qr_only.png?amount=' + Math.round(tien) + '&addInfo=' + encodeURIComponent(soPhieu) + '&accountName=' + encodeURIComponent(q.ten || '');
+  var ov = document.createElement('div'); ov.className = 'sh';
+  ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
+    '<div style="font-size:21px;font-weight:800">Chuyển khoản ' + money(tien) + ' đ</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
+    '<img src="' + url + '" alt="VietQR" style="width:min(320px,78vw);aspect-ratio:1;margin:12px auto 4px;display:block;border:1px solid #e5e7eb;border-radius:14px;background:#fff">' +
+    '<div style="font-size:13px;color:#374151">Nội dung chuyển khoản: <b>' + h(soPhieu) + '</b></div>' +
+    '<div style="font-size:12.5px;color:#b45309;margin-top:8px">Chờ Lark báo tiền về ĐÚNG SỐ TIỀN rồi mới trả hàng cho khách.</div>' +
+    '<button class="btn" data-y style="margin-top:14px">✅ Đã nhận đủ tiền - Bill mới</button></div>';
+  document.body.appendChild(ov);
+  ov.onclick = function (e) { if (e.target.hasAttribute('data-y')) { ov.remove(); go(scrPosQuay, true); } };
+}
 async function posLuuDon() {
   posDoc();
   if (!posDon.mon.length) return toast('Bill chưa có món nào.');
   var thieuGia = posDon.mon.filter(function (m) { return !m.rate; });
   if (thieuGia.length) return toast('Món ' + thieuGia[0].ten + ' chưa có giá, bấm vào tên món để nhập.');
-  var nguon = posNguon();
+  var laApp = posDon.che_do !== 'Tại chỗ' && posDon.che_do !== 'Mang về';
+  var nguon = posNguonThuc();
   var giam = posSoTien(posDon.giam), dua = posSoTien(posDon.dua);
   var tong = posDon.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
   var phaiThu = Math.max(0, tong - giam);
-  var q = quyPt(posDon.pt) || {};
-  if (q.bat && !(posDon.mtc || '').trim()) return toast('Phương thức ' + posDon.pt + ' bắt buộc nhập ' + (q.nhan || 'mã tham chiếu') + '.');
-  var loi = [];
-  if (posDon.pt === 'Tiền mặt' && dua && dua < phaiThu) loi.push('Khách mới đưa ' + money(dua) + ' đ, còn thiếu ' + money(phaiThu - dua) + ' đ.');
-  var ok = await confirmSheet('Thu ' + money(phaiThu) + ' đ - ' + posDon.pt,
-    'Quầy ' + nguon + '\n' + posDon.mon.map(function (m) { return m.ten + ' x' + money(m.qty); }).join(', ') +
-    (giam ? '\nGiảm ' + money(giam) + ' đ' : '') + (loi.length ? '\n⚠ ' + loi.join(' ') : ''),
+  if (laApp && !(posDon.ma || '').trim()) return toast('Đơn ' + posDon.che_do + ' phải nhập mã đơn bên app để đối soát.');
+  if (!laApp) {
+    var qp = quyPt(posDon.pt) || {};
+    if (qp.bat && !(posDon.mtc || '').trim()) return toast('Phương thức ' + posDon.pt + ' bắt buộc nhập ' + (qp.nhan || 'mã tham chiếu') + '.');
+  }
+  var canhBao = (!laApp && posDon.pt === 'Tiền mặt' && dua && dua < phaiThu) ? '\n⚠ Khách mới đưa ' + money(dua) + ' đ, còn thiếu ' + money(phaiThu - dua) + ' đ.' : '';
+  var ok = await confirmSheet('Thu ' + money(phaiThu) + ' đ - ' + (laApp ? posDon.che_do : posDon.pt),
+    posQuay.ten + ' · ' + posDon.che_do + '\n' + posDon.mon.map(function (m) { return m.ten + ' x' + money(m.qty); }).join(', ') +
+    (giam ? '\nGiảm ' + money(giam) + ' đ' : '') + canhBao,
     'Thu tiền, lưu bill');
   if (!ok) return;
   busy(true);
   var r;
   try {
     r = await api('vagabond.ban_hang.tao_don_tay', {
-      ngay: today(), nguon: nguon, ma_don: '', ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
-      pt: posDon.pt, ma_tham_chieu: posDon.mtc || '',
+      ngay: today(), nguon: nguon, ma_don: laApp ? (posDon.ma || '') : '', ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
+      pt: laApp ? '' : posDon.pt, ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
-      giam_gia: giam, phi_ship: 0
+      giam_gia: giam, phi_ship: 0, quay: posQuay.ma || ''
     });
   } catch (e) { busy(false); return toast((e && e.message) || 'Lưu bill lỗi, thử lại.', 4000); }
   busy(false);
   var thu = (r && r.grand_total) || phaiThu;
-  var thoi = posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
+  var laCK = !laApp && posDon.pt === 'Chuyển khoản';
+  var thoi = !laApp && posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
   posDon = posMoi();
   posHomNayTxt = null;
+  if (laCK) return posQrSheet((r && r.name) || '', thu);
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:22px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
     '<div style="font-size:44px">✅</div>' +
@@ -7377,7 +7428,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '84';
+var APPVER = '85';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
