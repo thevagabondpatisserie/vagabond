@@ -9,7 +9,12 @@ Nguyen tac cot loi (chot voi anh Viet 01/08/2026):
   tin tu van, sales tao don giu cho mem, TRU AO vao co the ban (y Loan Anh
   01/08). Khach huy thi huy don, so tu tra lai; chot xong thi don doi trang
   thai, tu nhay sang Da dat / Phat sinh - tru that.
-- Co the ban  = ton dau + bep san xuat - da dat - phat sinh - cho chot.
+- "Kenh khac" = banh ban qua Grab, Shopee, Be, GreenSM, khach si, quay -
+  nhung kenh khong di qua Pancake nen khong co don Pancake de dem. Dem
+  thang tu hoa don ban ra trong ngay (08/08/2026, y Loan Anh: truoc day
+  phai tao mot don Pancake gia de tru so, thanh ra mot khach hai bill).
+- Co the ban  = ton dau + bep san xuat - da dat - phat sinh - cho chot
+                - kenh khac.
 
 Ky thuat da do that:
 - Loc don theo ngay giao: updateStatus=estimate_delivery_date kem
@@ -218,6 +223,11 @@ def dong_bo(ngay=None):
 			co[ma] = d
 		elif ten1.get(ma) and not co[ma].ten_banh:
 			co[ma].ten_banh = ten1[ma]
+	# Don kenh khac (Grab, Shopee, quay...) khong nam trong Pancake, dem
+	# rieng tu hoa don ban ra. Chay o day de moi lan dong bo la so dung.
+	_ghi_don_khac(doc, ngay)
+	co = {d.ma_hang: d for d in doc.dong}
+
 	for ma, d in co.items():
 		d.da_dat = dem_dd.get(ma, 0)
 		d.phat_sinh = dem_ps.get(ma, 0)
@@ -248,6 +258,134 @@ def dong_bo(ngay=None):
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return bang(ngay)
+
+
+
+
+# Nguon don KHONG di qua Pancake: don ban tay cua sales (Grab, Shopee, Be,
+# GreenSM, khach si) va don tinh tien tai quay. Don Pancake da duoc dem tu
+# API o tren roi, dem lai o day la tru hai lan.
+NGUON_PANCAKE = ("", "pancake")
+
+
+def _dem_don_khac(ngay):
+	"""Dem banh o da ban qua kenh khac Pancake trong ngay, tu hoa don ban ra.
+
+	Loan Anh 08/08/2026: khach dat gap qua Grab thi sales bam don tay ben
+	Doanh thu Sales; truoc day phai tao them mot don Pancake gia chi de tru
+	so tren bang kiem banh, thanh ra mot khach hai bill. Nay dem thang.
+
+	Tra ve (dem, mo_ta): dem[ma hang] = so luong, mo_ta[ma hang] = danh sach
+	"GrabFood #GF-441" de sales biet so do tu don nao ra.
+	"""
+	ngay = getdate(ngay)
+	sis = frappe.get_all(
+		"Sales Invoice",
+		filters={"posting_date": str(ngay), "docstatus": ["<", 2]},
+		fields=["name", "custom_nguon", "custom_pancake_display_id"],
+		limit_page_length=0,
+	)
+	theo_ten = {}
+	for si in sis:
+		if str(si.custom_nguon or "").strip().lower() in NGUON_PANCAKE:
+			continue
+		theo_ten[si.name] = si
+	if not theo_ten:
+		return {}, {}
+
+	dong = frappe.get_all(
+		"Sales Invoice Item",
+		filters={"parent": ["in", sorted(theo_ten)]},
+		fields=["parent", "item_code", "qty"],
+		limit_page_length=0,
+	)
+	dem, mo_ta = {}, {}
+	for r in dong:
+		ma = str(r.item_code or "").strip()
+		if not ma.upper().startswith(TIEN_TO_MA):
+			continue
+		sl = int(r.qty or 0)
+		if sl <= 0:
+			continue
+		dem[ma] = dem.get(ma, 0) + sl
+		si = theo_ten[r.parent]
+		nhan = "%s%s" % (
+			si.custom_nguon or "Kenh khac",
+			" #" + str(si.custom_pancake_display_id) if si.custom_pancake_display_id else "",
+		)
+		if sl > 1:
+			nhan += " (%d)" % sl
+		ds = mo_ta.setdefault(ma, [])
+		if nhan not in ds:
+			ds.append(nhan)
+	return dem, mo_ta
+
+
+def _ghi_don_khac(doc, ngay):
+	"""Do cot "Kenh khac" vao mot ban ghi kiem banh. KHONG tu save."""
+	dem, mo_ta = _dem_don_khac(ngay)
+	co = {d.ma_hang: d for d in doc.dong}
+	thieu = [ma for ma in dem if ma not in co]
+	ten_moi = {}
+	if thieu:
+		for it in frappe.get_all(
+			"Item",
+			filters={"name": ["in", sorted(thieu)]},
+			fields=["name", "item_name", "image"],
+			limit_page_length=0,
+		):
+			ten_moi[it.name] = it
+	for ma in thieu:
+		x = ten_moi.get(ma) or {}
+		d = doc.append(
+			"dong",
+			{
+				"ma_hang": ma,
+				"ten_banh": x.get("item_name") or ma,
+				"hinh": (x.get("image") or "") if not str(x.get("image") or "").startswith("/private") else "",
+			},
+		)
+		co[ma] = d
+	for ma, d in co.items():
+		d.don_khac = dem.get(ma, 0)
+		d.ten_khach_khac = ", ".join(mo_ta.get(ma, []))
+	return dem
+
+
+@frappe.whitelist()
+def cap_nhat_don_khac(ngay=None):
+	"""Do lai rieng cot "Kenh khac" cho mot ngay, khong dung den Pancake.
+
+	Goi ngay sau khi sales bam xong mot don tay, de so tren man kiem banh
+	tru lien chu khong doi lich 5 phut.
+	"""
+	ngay = getdate(ngay) if ngay else getdate()
+	ma = "KB-%s" % ngay
+	dem, _ = _dem_don_khac(ngay)
+	if not frappe.db.exists("Kiem Banh Ngay", ma):
+		if not dem:
+			return {"ok": 1, "bo_qua": 1}
+	doc = _lay_hoac_tao(ngay)
+	if doc.tinh_trang == "Da chot":
+		return {"ok": 1, "da_chot": 1}
+	_ghi_don_khac(doc, ngay)
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1, "ma_hang": len(dem)}
+
+
+def khi_doi_hoa_don(doc, method=None):
+	"""Hook Sales Invoice: huy hoac xoa hoa don thi tra so lai bang kiem banh."""
+	try:
+		if str(doc.get("custom_nguon") or "").strip().lower() in NGUON_PANCAKE:
+			return
+		if not any(
+			str(r.item_code or "").upper().startswith(TIEN_TO_MA) for r in (doc.get("items") or [])
+		):
+			return
+		cap_nhat_don_khac(doc.posting_date)
+	except Exception:
+		frappe.log_error(title="Vagabond: cap nhat kiem banh khi doi hoa don", message=frappe.get_traceback())
 
 
 def dong_bo_tu_dong():
@@ -281,6 +419,7 @@ def bang(ngay=None):
 				"sx": d.sx or 0, "da_dat": d.da_dat or 0,
 				"phat_sinh": d.phat_sinh or 0, "ten_khach_ps": d.ten_khach_ps or "",
 				"cho_chot": d.cho_chot or 0, "ten_khach_cho": d.ten_khach_cho or "",
+				"don_khac": d.don_khac or 0, "ten_khach_khac": d.ten_khach_khac or "",
 				"co_the_ban": d.co_the_ban or 0,
 			}
 			for d in doc.dong
@@ -340,7 +479,7 @@ def them_dong(ngay, ma_hang):
 	return {"ok": 1, "ten_banh": ten}
 
 
-SO_PHAI_RONG = ("ton_cu", "ton_d2", "ton_d1", "sx", "da_dat", "phat_sinh", "cho_chot")
+SO_PHAI_RONG = ("ton_cu", "ton_d2", "ton_d1", "sx", "da_dat", "phat_sinh", "cho_chot", "don_khac")
 
 
 @frappe.whitelist()
@@ -388,7 +527,7 @@ def chot_ngay(ngay=None):
 	co_mai = {d.ma_hang: d for d in mai.dong}
 
 	for d in doc.dong:
-		ban = (d.da_dat or 0) + (d.phat_sinh or 0)
+		ban = (d.da_dat or 0) + (d.phat_sinh or 0) + (d.don_khac or 0)
 		lo = [
 			[d.ton_cu or 0, d.nsx_cu],
 			[d.ton_d2 or 0, d.nsx_d2],
@@ -429,7 +568,7 @@ def chot_ngay(ngay=None):
 			b = co_btp.get(d.ma_hang)
 			if not b:
 				continue
-			an = (d.da_dat or 0) + (d.phat_sinh or 0)
+			an = (d.da_dat or 0) + (d.phat_sinh or 0) + (d.don_khac or 0)
 			if an and ((b.so_btp or 0) or (b.so_decor or 0)):
 				b.so_btp = max(0, (b.so_btp or 0) - an)
 				# Banh ban ra la banh DA du decor - tru luon so du decor

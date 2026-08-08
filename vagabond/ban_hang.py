@@ -1376,6 +1376,18 @@ def tao_don_tay(
 	si.flags.ignore_permissions = True
 	si.save()
 	frappe.db.commit()
+
+	# Don kenh khac co banh o thi tru ngay tren bang kiem banh, khong doi
+	# lich 5 phut (y Loan Anh 08/08/2026 - truoc day phai tao them mot don
+	# Pancake gia chi de tru so, thanh ra mot khach hai bill).
+	try:
+		from vagabond.kiem_banh import cap_nhat_don_khac
+
+		if any(str(r["item_code"]).upper().startswith(("BAWC", "BAWS")) for r in rows):
+			cap_nhat_don_khac(ngay)
+	except Exception:
+		frappe.log_error(title="Vagabond: tru kiem banh sau don tay", message=frappe.get_traceback())
+
 	return {"name": si.name, "grand_total": si.grand_total}
 
 
