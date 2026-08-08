@@ -33,7 +33,7 @@ doc_events = {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 		# Huy hoac xoa hoa don kenh khac thi tra so lai cho bang kiem banh.
 		"on_cancel": "vagabond.kiem_banh.khi_doi_hoa_don",
-		"on_trash": "vagabond.kiem_banh.khi_doi_hoa_don",
+		"after_delete": "vagabond.kiem_banh.khi_doi_hoa_don",
 	},
 }
 
