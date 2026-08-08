@@ -474,10 +474,35 @@ def _gan_tom_tat_mon(ds):
 	theo_don = {}
 	for r in rows:
 		theo_don.setdefault(r.parent, []).append(r)
+
+	# Anh mon, de shipper nhin mat banh la nhan ra don, khoi doc ten mon.
+	# Doc mot lan cho ca danh sach giong nhu doc mon o tren.
+	ma_hang = set()
+	for mon in theo_don.values():
+		for m in mon:
+			if m.ma_hang:
+				ma_hang.add(m.ma_hang)
+	anh = {}
+	if ma_hang:
+		for it in frappe.get_all(
+			"Item",
+			filters={"name": ["in", sorted(ma_hang)]},
+			fields=["name", "image"],
+			limit_page_length=0,
+		):
+			if it.image:
+				anh[it.name] = it.image
+
 	for d in ds:
 		mon = theo_don.get(d["name"], [])
 		d["so_mon"] = len(mon)
 		d["so_luong_mon"] = sum(flt(m.so_luong) for m in mon)
+		d["anh"] = ""
+		for m in mon:
+			if anh.get(m.ma_hang):
+				d["anh"] = anh[m.ma_hang]
+				break
+		d["mon_chinh"] = (mon[0].ten or mon[0].ma_hang or "") if mon else ""
 		d["mon_tat"] = " · ".join(
 			"%s%s%s" % (
 				("%g× " % flt(m.so_luong)) if flt(m.so_luong) != 1 else "",
