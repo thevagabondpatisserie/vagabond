@@ -5360,8 +5360,89 @@ function pickDate(cur, cb) {
   ov.onclick = function (e) { if (e.target === ov) close(); };
   ov.appendChild(box); document.body.appendChild(ov); draw();
 }
+/* ---- anh dinh kem, tien do, quy OCB cho phieu mua hang test ---- */
+var RND_OCB_TK = '1411 - Tạm ứng - Nguyễn Hoàng Việt (OCB) - TV';
+var RND_NCC_LE = 'NCC lẻ - mua hàng test (R&D)';
+function rndLaThuMua() { return hasRole('Purchase User') || hasRole('Accounts User') || hasRole('System Manager'); }
+function rndAnhDs(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+function rndAnhChuoi(a) { return (a || []).join('\n'); }
+function rndXemAnh(url) {
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<img src="' + h(url) + '" style="max-width:100%;max-height:100%;border-radius:8px">' +
+    '<div style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:18px;color:#fff;font-size:32px;line-height:1">&times;</div>';
+  ov.onclick = function () { ov.remove(); };
+  document.body.appendChild(ov);
+}
+/* luoi anh. sua = true thi hien nut them va nut xoa */
+function rndAnhLuoi(urls, sua, tag) {
+  var o = '<div class="rndAnh" data-tag="' + h(tag || '') + '" style="display:flex;flex-wrap:wrap;gap:8px' + (sua ? ';margin-bottom:11px' : ';margin-top:7px') + '">';
+  (urls || []).forEach(function (u, i) {
+    o += '<div style="position:relative;width:' + (sua ? 68 : 54) + 'px;height:' + (sua ? 68 : 54) + 'px;border-radius:9px;overflow:hidden;border:1px solid #e3e6ec;background:#f5f6f8">' +
+      '<img src="' + h(u) + '" data-anh="' + h(u) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">' +
+      (sua ? '<span data-xoa="' + i + '" style="position:absolute;top:0;right:0;width:22px;height:22px;line-height:21px;text-align:center;background:rgba(0,0,0,.62);color:#fff;font-size:15px;border-bottom-left-radius:9px">&times;</span>' : '') +
+      '</div>';
+  });
+  if (sua) o += '<button type="button" data-them style="width:68px;height:68px;border-radius:9px;border:1px dashed #b9c0cc;background:#fafbfc;color:#6b7280;font-size:11.5px;line-height:1.3;padding:4px">\uD83D\uDCF7<br>Thêm ảnh</button>';
+  o += '</div>';
+  return o;
+}
+/* gan hanh vi cho luoi anh trong pham vi root. layDs() tra ve mang hien tai, cb(dsMoi) goi sau moi thay doi */
+function rndGanAnh(root, tag, layDs, cb) {
+  if (!root) return;
+  var el = root.querySelector('.rndAnh[data-tag="' + tag + '"]');
+  if (!el) return;
+  el.onclick = function (e) {
+    var im = e.target.closest('[data-anh]');
+    if (im) return rndXemAnh(im.getAttribute('data-anh'));
+    var x = e.target.closest('[data-xoa]');
+    if (x) { var ds = layDs().slice(); ds.splice(+x.getAttribute('data-xoa'), 1); return cb(ds); }
+    if (!e.target.closest('[data-them]')) return;
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.style.display = 'none';
+    inp.onchange = async function () {
+      var fs = Array.prototype.slice.call(this.files || []);
+      var self = this;
+      if (!fs.length) { self.remove(); return; }
+      busy(1);
+      var ds = layDs().slice(), loi = 0;
+      for (var i = 0; i < fs.length; i++) {
+        try { ds.push(await vxUpAnh(fs[i])); } catch (err) { loi++; }
+      }
+      busy(0); self.remove();
+      if (loi) toast('Có ' + loi + ' ảnh không tải lên được, thử lại giúp em', 4200);
+      cb(ds);
+    };
+    document.body.appendChild(inp); inp.click();
+  };
+}
+function rndTienDo(items) {
+  var t = { tong: (items || []).length, mua: 0, khong: 0, chua: 0, tien: 0, ocb: 0, anh: 0 };
+  (items || []).forEach(function (x) {
+    if (x.trang_thai_dong === 'Đã mua') {
+      t.mua++; t.tien += Number(x.gia) || 0;
+      if ((x.tra_bang || 'Quỹ OCB') === 'Quỹ OCB') t.ocb += Number(x.gia) || 0;
+      if (rndAnhDs(x.anh_chung_tu).length) t.anh++;
+    } else if (x.trang_thai_dong === 'Không mua được') t.khong++;
+    else t.chua++;
+  });
+  return t;
+}
+function rndThanh(t) {
+  if (!t.tong) return '';
+  var pc = Math.round((t.mua + t.khong) * 100 / t.tong);
+  return '<div style="margin:9px 0 1px"><div style="height:6px;border-radius:99px;background:#e8eaef;overflow:hidden">' +
+    '<div style="height:100%;width:' + pc + '%;background:#0B7C93;transition:width .25s"></div></div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">' + t.mua + '/' + t.tong + ' đã mua' +
+    (t.khong ? ' · ' + t.khong + ' không mua được' : '') +
+    (t.chua ? ' · ' + t.chua + ' chưa mua' : '') + '</div></div>';
+}
+function rndTre(d) {
+  return !!(d && d.ngay_can && String(d.ngay_can).slice(0, 10) < today() &&
+    (d.trang_thai === 'Mới tạo' || d.trang_thai === 'Đang xử lý'));
+}
 function rndBlank() {
-  return { ten_hang: '', so_luong: '', link_tham_khao: '', yeu_cau_them: '', can_hoa_don: 0, trang_thai_dong: 'Chưa mua', ncc: '', sdt_ncc: '', gia: 0, ghi_chu_mua: '' };
+  return { ten_hang: '', so_luong: '', link_tham_khao: '', anh_dinh_kem: '', yeu_cau_them: '', can_hoa_don: 0, trang_thai_dong: 'Chưa mua', ncc: '', sdt_ncc: '', gia: 0, tra_bang: 'Quỹ OCB', anh_chung_tu: '', ghi_chu_mua: '' };
 }
 function rndCopy(x) {
   var o = rndBlank(), k;
@@ -5399,16 +5480,20 @@ function rndLineSheet(line, mode) {
           '<b>' + h(L.ten_hang) + '</b>' + (L.so_luong ? ' · ' + h(L.so_luong) : '') +
           (L.link_tham_khao ? '<br>' + h(L.link_tham_khao) : '') +
           (L.yeu_cau_them ? '<br>' + h(L.yeu_cau_them) : '') +
-          (L.can_hoa_don ? '<br>Cần hoá đơn VAT' : '') + '</div>' +
+          (L.can_hoa_don ? '<br>Cần hoá đơn VAT' : '') +
+          (rndAnhDs(L.anh_dinh_kem).length ? rndAnhLuoi(rndAnhDs(L.anh_dinh_kem), false, 'xem') : '') + '</div>' +
           rndLbl('Trạng thái dòng này') + rndSeg('trang_thai_dong', ['Chưa mua', 'Đã mua', 'Không mua được'], L.trang_thai_dong) +
           rndLbl('Nhà cung cấp tìm được') + rndInp('rl_ncc', 'Tên farm, shop, nhà cung cấp', L.ncc) +
           rndLbl('Điện thoại nhà cung cấp') + rndInp('rl_sdt', 'Số để lần sau gọi lại', L.sdt_ncc) +
           rndLbl('Giá mua thực tế (đồng)') + rndInp('rl_gia', '0', L.gia, 1) +
+          rndLbl('Trả bằng') + rndSeg('tra_bang', ['Quỹ OCB', 'Tiền công ty', 'Khác'], L.tra_bang || 'Quỹ OCB') +
+          rndLbl('Ảnh chứng từ (bill, hoá đơn)') + rndAnhLuoi(rndAnhDs(L.anh_chung_tu), true, 'buy') +
           rndLbl('Ghi chú của người mua') + rndTa('rl_gcm', 'MOQ bao nhiêu, có xuất hoá đơn không, giao mấy ngày...', L.ghi_chu_mua, 3);
       } else {
         b += rndLbl('Tên hàng cần mua') + rndInp('rl_ten', 'vd: Dứa MD2, chất bảo quản...', L.ten_hang) +
           rndLbl('Số lượng cần') + rndInp('rl_sl', 'vd: 20 kg, 2 thùng, 5 hộp', L.so_luong) +
           rndLbl('Link tham khảo (nếu có)') + rndTa('rl_link', 'Dán link Shopee, website, bài đăng...', L.link_tham_khao, 2) +
+          rndLbl('Ảnh tham khảo (chụp màn hình, ảnh sản phẩm)') + rndAnhLuoi(rndAnhDs(L.anh_dinh_kem), true, 'req') +
           rndLbl('Yêu cầu thêm') + rndTa('rl_yc', 'Hỏi MOQ, quy cách đóng gói, cần giao trước ngày nào...', L.yeu_cau_them, 3) +
           rndLbl('Có cần hoá đơn VAT không') + rndSeg('can_hoa_don', ['Cần hoá đơn', 'Không cần'], L.can_hoa_don ? 'Cần hoá đơn' : 'Không cần');
       }
@@ -5416,6 +5501,13 @@ function rndLineSheet(line, mode) {
       if (!isNew && mode !== 'buy') b += '<button class="btn dg" data-del style="margin-top:9px">Xoá dòng này</button>';
       b += '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
       ov.innerHTML = b;
+      var tg = (mode === 'buy') ? 'buy' : 'req';
+      rndGanAnh(ov, tg, function () { return rndAnhDs(mode === 'buy' ? L.anh_chung_tu : L.anh_dinh_kem); }, function (ds) {
+        grab();
+        if (mode === 'buy') L.anh_chung_tu = rndAnhChuoi(ds); else L.anh_dinh_kem = rndAnhChuoi(ds);
+        draw();
+      });
+      rndGanAnh(ov, 'xem', function () { return rndAnhDs(L.anh_dinh_kem); }, function () { });
     }
     function grab() {
       function v(id) { var e = ov.querySelector('#' + id); return e ? e.value.trim() : ''; }
@@ -5468,9 +5560,10 @@ async function scrRndList() {
       '<div class="l2">' + h(d.name) + (d.ngay_can ? ' · cần ' + h(dmy(d.ngay_can)) : '') +
       (d.nguoi_yeu_cau ? ' · ' + h(d.nguoi_yeu_cau) : '') +
       (d.tong_tien ? ' · ' + rndMoney(d.tong_tien) + 'đ' : '') + '</div></div>' +
+      (rndTre(d) ? '<span class="st r" style="margin-right:5px">Trễ hạn</span>' : '') +
       '<span class="st ' + s.c + '">' + h(s.t) + '</span></div>';
   }
-  var body = '<div class="rcvh">Phiếu này dành cho <b>hàng mua về test</b>: không tạo mã, không theo dõi tồn kho. Ghi rõ tên hàng, số lượng và link tham khảo để bạn thu mua khỏi phải hỏi lại. Mua xong bấm <b>Hoàn thành phiếu</b>.</div>';
+  var body = '<div class="rcvh">Phiếu này dành cho <b>hàng mua về test</b>: không tạo mã, không theo dõi tồn kho. Ghi rõ tên hàng, số lượng, link tham khảo và ảnh chụp màn hình để bạn thu mua khỏi phải hỏi lại. Mua xong bấm <b>Hoàn thành phiếu</b>.</div>';
   if (dang.length) body += '<div class="sec">Đang chờ mua</div><div class="lst">' + dang.map(row).join('') + '</div>';
   if (xong.length) body += '<div class="sec">Đã hoàn thành</div><div class="lst">' + xong.map(row).join('') + '</div>';
   if (huy.length) body += '<div class="sec">Đã huỷ</div><div class="lst">' + huy.map(row).join('') + '</div>';
@@ -5485,7 +5578,7 @@ async function scrRndList() {
 /* ---- 15b. Tao phieu moi ---- */
 async function scrRndNew() {
   await loadMasters();
-  if (!rnd.newf) rnd.newf = { muc_dich: '', ngay_can: '', ghi_chu: '', items: [] };
+  if (!rnd.newf) rnd.newf = { muc_dich: '', ngay_can: '', ghi_chu: '', anh_dinh_kem: '', items: [] };
   var f = rnd.newf;
   function draw() {
     var body = '<div class="rcvh">Gom tất cả thứ cần mua để test vào <b>một phiếu</b> theo từng đợt, khỏi nhắn lẻ tẻ qua Lark. Hàng này không nhập kho và không tạo mã.</div>' +
@@ -5494,6 +5587,9 @@ async function scrRndNew() {
       '<div class="fld" data-d><div class="fi">📅</div><div class="ft"><div class="fl">Ngày cần hàng</div><div class="fv' + (f.ngay_can ? '' : ' ph') + '">' + h(f.ngay_can ? dmy(f.ngay_can) : 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>' +
       '<div class="fld" data-g><div class="fi">📝</div><div class="ft"><div class="fl">Ghi chú chung</div><div class="fv' + (f.ghi_chu ? '' : ' ph') + '">' + h(f.ghi_chu || 'Không bắt buộc') + '</div></div><div class="fc">&#8250;</div></div>' +
       '</div>';
+    body += '<div class="sec">Ảnh / tài liệu đính kèm cả phiếu</div>' +
+      '<div style="padding:0 14px 2px">' + rndAnhLuoi(rndAnhDs(f.anh_dinh_kem), true, 'ph') +
+      '<div style="font-size:12.5px;color:#8a90a0;margin:-4px 0 8px">Ảnh chụp màn hình, báo giá, danh sách cần mua... Ảnh riêng của từng món thì đính ngay trong dòng hàng.</div></div>';
     body += '<div class="sec">Hàng cần mua (' + f.items.length + ')</div>';
     if (f.items.length) {
       body += '<div class="lst">' + f.items.map(function (it, i) {
@@ -5501,14 +5597,16 @@ async function scrRndNew() {
           '<div class="l1">' + h(it.ten_hang) + '</div>' +
           '<div class="l2">' + h(it.so_luong || 'chưa ghi số lượng') +
           (it.can_hoa_don ? ' · cần hoá đơn VAT' : '') +
-          (it.link_tham_khao ? ' · có link' : '') + '</div></div>' +
+          (it.link_tham_khao ? ' · có link' : '') +
+          (rndAnhDs(it.anh_dinh_kem).length ? ' · ' + rndAnhDs(it.anh_dinh_kem).length + ' ảnh' : '') + '</div></div>' +
           '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
       }).join('') + '</div>';
     } else {
-      body += '<div class="emp"><div class="e1">🛒</div><div class="e2">Chưa có dòng nào.<br>Bấm nút bên dưới để thêm hàng.</div></div>';
+      body += '<div class="emp"><div class="e1">🛒</div><div class="e2">Chưa có dòng nào.<br>Bấm nút bên dưới để thêm hàng.<br><span style="font-size:13px;color:#8a90a0">Mỗi dòng có ô dán link tham khảo và ô tải ảnh lên.</span></div></div>';
     }
     body += '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndAdd">+ Thêm hàng cần mua</button></div>';
     var b = frame('Yêu cầu mua hàng test', body, { footer: '<button class="btn" id="rndSave">Gửi yêu cầu</button>' });
+    rndGanAnh(b, 'ph', function () { return rndAnhDs(f.anh_dinh_kem); }, function (ds) { f.anh_dinh_kem = rndAnhChuoi(ds); draw(); });
     b.onclick = function (e) {
       if (e.target.closest('[data-m]')) {
         return promptSheet('Mục đích / dự án', 'vd: Test nhân bánh dứa MD2').then(function (v) { if (v !== null) { f.muc_dich = v; draw(); } });
@@ -5547,6 +5645,7 @@ async function rndCreate() {
         muc_dich: f.muc_dich,
         ngay_can: f.ngay_can || undefined,
         ghi_chu: f.ghi_chu || undefined,
+        anh_dinh_kem: f.anh_dinh_kem || undefined,
         trang_thai: 'Mới tạo',
         nguoi_yeu_cau: S.user,
         items: f.items.map(function (x) { return rndCopy(x); })
@@ -5586,10 +5685,12 @@ async function scrRndDoc(name) {
     var live = doc.trang_thai === 'Mới tạo' || doc.trang_thai === 'Đang xử lý';
     var mine = doc.nguoi_yeu_cau === S.user || doc.owner === S.user;
     var s = RNDST[doc.trang_thai] || RNDST['Mới tạo'];
-    var chua = (doc.items || []).filter(function (x) { return x.trang_thai_dong === 'Chưa mua'; }).length;
+    var td = rndTienDo(doc.items);
+    var chua = td.chua;
     var body = '<div class="card" style="padding:13px 14px">' +
       '<div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">' +
       '<b style="font-size:16.5px;flex:1">' + h(doc.muc_dich || doc.name) + '</b>' +
+      (rndTre(doc) ? '<span class="st r">Trễ hạn</span>' : '') +
       '<span class="st ' + s.c + '">' + h(s.t) + '</span></div>' +
       '<div style="font-size:13.5px;color:#6b7280;line-height:1.7">' + h(doc.name) +
       (doc.ngay_can ? '<br>Cần hàng ngày ' + h(dmy(doc.ngay_can)) : '') +
@@ -5597,7 +5698,13 @@ async function scrRndDoc(name) {
       (doc.nguoi_mua ? '<br>Người mua: ' + h(doc.nguoi_mua) : '') +
       (doc.ghi_chu ? '<br>Ghi chú: ' + h(doc.ghi_chu) : '') +
       '<br>Tổng tiền đã mua: <b>' + rndMoney(tong()) + 'đ</b>' +
-      '</div></div>';
+      '</div>' + rndThanh(td) + '</div>';
+
+    var suaAnh = live && mine;
+    body += '<div class="sec">Ảnh / tài liệu đính kèm cả phiếu</div><div style="padding:0 14px 6px">';
+    if (rndAnhDs(doc.anh_dinh_kem).length || suaAnh) body += rndAnhLuoi(rndAnhDs(doc.anh_dinh_kem), suaAnh, 'ph');
+    else body += '<div style="font-size:13.5px;color:#8a90a0;padding-bottom:6px">Chưa có ảnh nào.</div>';
+    body += '</div>';
 
     body += '<div class="sec">Hàng cần mua (' + (doc.items || []).length + ')</div><div class="lst">' +
       (doc.items || []).map(function (it, i) {
@@ -5607,8 +5714,11 @@ async function scrRndDoc(name) {
         if (it.ncc) sub += '<br>NCC: ' + h(it.ncc) + (it.sdt_ncc ? ' · ' + h(it.sdt_ncc) : '');
         if (it.gia) sub += '<br>Giá: ' + rndMoney(it.gia) + 'đ';
         if (it.yeu_cau_them) sub += '<br>' + h(it.yeu_cau_them);
+        if (it.trang_thai_dong === 'Đã mua' && it.tra_bang) sub += '<br>Trả bằng: ' + h(it.tra_bang);
         if (it.link_tham_khao) sub += '<br><span style="color:#0B7C93;word-break:break-all">' + h(it.link_tham_khao) + '</span>';
         if (it.ghi_chu_mua) sub += '<br>Người mua: ' + h(it.ghi_chu_mua);
+        var anhL = rndAnhDs(it.anh_dinh_kem).concat(rndAnhDs(it.anh_chung_tu));
+        if (anhL.length) sub += rndAnhLuoi(anhL, false, '');
         return '<div class="li" data-i="' + i + '"><div class="lt">' +
           '<div class="l1">' + h(it.ten_hang) + '</div>' +
           '<div class="l2">' + sub + '</div></div>' +
@@ -5621,13 +5731,31 @@ async function scrRndDoc(name) {
       if (mine) body += '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndAdd2">+ Thêm hàng cần mua</button></div>';
     }
 
+    if (doc.trang_thai === 'Hoàn thành' && td.tien > 0) {
+      body += '<div class="sec">Quỹ tạm ứng OCB</div><div class="card" style="padding:13px 14px;font-size:14px;line-height:1.75;color:#4a5060">' +
+        'Chi từ quỹ OCB: <b>' + rndMoney(td.ocb) + 'đ</b><br>' +
+        'Tổng tiền cả phiếu: <b>' + rndMoney(td.tien) + 'đ</b><br>' +
+        'Khoản đã có ảnh chứng từ: <b>' + td.anh + '/' + td.mua + '</b>' +
+        (doc.phieu_chi_phi ? '<br>Đã lập phiếu ghi chi phí: <b>' + h(doc.phieu_chi_phi) + '</b>' : '') +
+        '</div>';
+      if (!doc.phieu_chi_phi && td.ocb > 0 && rndLaThuMua()) {
+        body += '<div class="kwn">Bấm nút dưới để em dựng sẵn một hoá đơn mua hàng ở dạng nháp, ghi là đã trả từ quỹ OCB. Kế toán xem lại rồi mới ghi sổ.</div>' +
+          '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndChiPhi">Lập phiếu ghi chi phí (nháp)</button></div>';
+      }
+    }
+
     var ft = '';
     if (live) {
       ft = '<button class="btn" id="rndDone">Hoàn thành phiếu' + (chua ? ' (' + chua + ' dòng chưa mua)' : '') + '</button>';
       if (mine) ft += '<button class="btn gh" id="rndCancel" style="margin-top:9px">Huỷ phiếu</button>';
     }
     var b = frame('Phiếu mua test', body, ft ? { footer: ft } : {});
+    rndGanAnh(b, 'ph', function () { return rndAnhDs(doc.anh_dinh_kem); }, function (ds) {
+      doc.anh_dinh_kem = rndAnhChuoi(ds); save('Đã cập nhật ảnh');
+    });
     b.onclick = function (e) {
+      var im0 = e.target.closest('[data-anh]');
+      if (im0 && !e.target.closest('.rndAnh[data-tag="ph"]')) return rndXemAnh(im0.getAttribute('data-anh'));
       var r = e.target.closest('[data-i]'); if (!r) return;
       var i = +r.dataset.i;
       if (!live) return;
@@ -5654,6 +5782,48 @@ async function scrRndDoc(name) {
         if (!v || v.del) return;
         doc.items.push(v); save('Đã thêm dòng');
       });
+    };
+    var cpn = document.getElementById('rndChiPhi');
+    if (cpn) cpn.onclick = async function () {
+      var ds = (doc.items || []).filter(function (x) {
+        return x.trang_thai_dong === 'Đã mua' && (x.tra_bang || 'Quỹ OCB') === 'Quỹ OCB' && (Number(x.gia) || 0) > 0;
+      });
+      if (!ds.length) return toast('Không có khoản nào chi từ quỹ OCB');
+      var tongDs = ds.reduce(function (a, x) { return a + (Number(x.gia) || 0); }, 0);
+      var coVat = ds.filter(function (x) { return x.can_hoa_don; }).length;
+      var ok = await confirmSheet('Lập phiếu ghi chi phí?',
+        'Em tạo một hoá đơn mua hàng ở dạng NHÁP gồm ' + ds.length + ' khoản, tổng ' + rndMoney(tongDs) + 'đ, ghi là đã trả từ quỹ OCB.\n\n' +
+        (coVat ? 'Trong đó ' + coVat + ' khoản có hoá đơn VAT, kế toán sẽ nhập phần thuế và đổi sang đúng nhà cung cấp.\n\n' : '') +
+        'Phiếu chỉ ở dạng nháp, kế toán xem lại rồi mới ghi sổ.', 'Lập phiếu nháp');
+      if (!ok) return;
+      function than(coTra) {
+        var d2 = {
+          doctype: 'Purchase Invoice', company: COMPANY, supplier: RND_NCC_LE,
+          posting_date: today(), set_posting_time: 1, bill_no: doc.name,
+          remarks: 'Mua hàng test theo phiếu ' + doc.name + (doc.muc_dich ? ' - ' + doc.muc_dich : ''),
+          items: ds.map(function (x) {
+            return {
+              item_code: x.can_hoa_don ? 'CP-MUANHO-HD' : 'CP-MUANHO-KHD',
+              item_name: String(x.ten_hang || 'Hàng test').slice(0, 140),
+              description: String(x.ten_hang || '') + (x.so_luong ? ' - ' + x.so_luong : '') + (x.ncc ? ' - NCC: ' + x.ncc : ''),
+              qty: 1, uom: 'Lần', rate: Number(x.gia) || 0
+            };
+          })
+        };
+        if (coTra) { d2.is_paid = 1; d2.mode_of_payment = 'Chuyển khoản'; d2.cash_bank_account = RND_OCB_TK; d2.paid_amount = tongDs; }
+        return d2;
+      }
+      busy(1);
+      var pi = null;
+      try { pi = await api('frappe.client.insert', { doc: than(true) }); }
+      catch (e1) {
+        try { pi = await api('frappe.client.insert', { doc: than(false) }); }
+        catch (e2) { busy(0); return toast(errMsg(e2), 6000); }
+      }
+      busy(0);
+      if (!pi || !pi.name) return toast('Không lập được phiếu, thử lại giúp em');
+      doc.phieu_chi_phi = pi.name;
+      await save('Đã lập phiếu nháp ' + pi.name);
     };
     var dn = document.getElementById('rndDone');
     if (dn) dn.onclick = async function () {
