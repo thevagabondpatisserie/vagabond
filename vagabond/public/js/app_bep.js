@@ -780,7 +780,7 @@ async function scrHome() {
     if (k === 'RCV') return go(scrRecvList);
     if (k === 'KK') return go(scrKkList);
     if (k === 'DS') return go(scrDoanhSo);
-    if (k === 'POS') return go(scrPosQuay);
+    if (k === 'POS') return go(scrPosChonQuay);
     if (k === 'HDG') return go(scrHopDong);
     if (k === 'VD') return go(scrVanDon);
     if (k === 'RND') return go(scrRndList);
@@ -1088,7 +1088,7 @@ function vgbGo(k) {
   if (k === 'RCV') return go(scrRecvList);
   if (k === 'KK') return go(scrKkList);
   if (k === 'DS') return go(scrDoanhSo);
-  if (k === 'POS') return go(scrPosQuay);
+  if (k === 'POS') return go(scrPosChonQuay);
   if (k === 'HDG') return go(scrHopDong);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'RND') return go(scrRndList);
@@ -6401,9 +6401,28 @@ async function dsTayLuu() {
    Lam y khung phan he Sales: moi bill goi tao_don_tay thanh mot Sales Invoice NHAP
    nguon "Tai cho - ...", cuoi ngay ra soat va ghi so ngay tren man Doanh thu Sales.
    Giai doan thu nghiem chay song song Fabi: chua tru kho, chua in bill. */
-var posDon = null, posHomNayTxt = null;
-function posNguon() { try { return localStorage.getItem('vgb_pos_nguon') || 'Tại chỗ - Trần Cao Vân'; } catch (e) { return 'Tại chỗ - Trần Cao Vân'; } }
-function posDatNguon(v) { try { localStorage.setItem('vgb_pos_nguon', v); } catch (e) { } }
+var posDon = null, posHomNayTxt = null, posQuayNguon = null;
+function posNguon() { return posQuayNguon || 'Tại chỗ - Trần Cao Vân'; }
+function posDatNguon(v) { posQuayNguon = v; }
+/* Buoc chon quay truoc khi vao man bam bill - D1 va NVHTN khong dung chung
+   (anh Viet chot 08/08). Vao card la hoi quay, khong nho lua chon cu. */
+async function scrPosChonQuay() {
+  await cfgBanHang();
+  var dsQ = (((CFGBH || {}).nguon) || []).filter(function (n) { return n.v.indexOf('Tại chỗ') === 0; });
+  var html = '<div class="sec">Chọn quầy để tính tiền</div><div class="card">';
+  dsQ.forEach(function (n) {
+    html += '<div class="hub" data-q="' + h(n.v) + '" style="padding:14px 2px"><span style="font-size:26px">' + (n.ic || '🏬') + '</span><div class="ht"><div class="h1">' + h(n.v.replace('Tại chỗ - ', '')) + '</div><div class="h2">Bill lưu vào nguồn "' + h(n.v) + '"</div></div><span style="color:#c3c8d4">&#8250;</span></div>';
+  });
+  html += '</div><div style="text-align:center;color:#a0a6b4;font-size:12px;padding:10px">Chọn đúng quầy mình đang đứng - doanh thu và đối soát tách theo từng quầy</div>';
+  var b = frame('Tính tiền quầy', html);
+  b.onclick = function (e) {
+    var r = e.target.closest('[data-q]');
+    if (!r) return;
+    posDatNguon(r.getAttribute('data-q'));
+    posHomNayTxt = null;
+    go(scrPosQuay);
+  };
+}
 function posMoi() { return { mon: [], pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '' }; }
 function posSoTien(v) { return parseFloat(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
 function posDoc() {
@@ -6418,6 +6437,7 @@ function posDoc() {
 }
 async function scrPosQuay() {
   await cfgBanHang();
+  if (!posQuayNguon) return go(scrPosChonQuay, true);
   if (!posDon) posDon = posMoi();
   var nguon = posNguon();
   var dsPt = ptTheoNguon(nguon);
@@ -7357,7 +7377,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '82';
+var APPVER = '84';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
