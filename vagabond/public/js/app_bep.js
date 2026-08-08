@@ -6800,9 +6800,13 @@ async function scrVanDon() {
   if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } } }
   catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
   var chonMode = !!window.vdChon;
-  var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:10px">' +
-    '<input type="date" class="hin" id="vdDate" value="' + vdNgay + '" style="flex:1;margin:0">' +
-    '<button class="btn gh" id="vdLoc" style="flex:1;margin:0;width:auto">' + h(vdLoc || 'Tất cả') + ' ▾</button></div>';
+  /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
+     ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
+  var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
+    '<button class="btn gh" id="vdLui" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">◀</button>' +
+    '<input type="date" class="hin" id="vdDate" value="' + vdNgay + '" style="flex:1;margin:0;min-width:0">' +
+    '<button class="btn gh" id="vdToi" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button>' +
+    '<button class="btn gh" id="vdLoc" style="flex:1;margin:0;width:auto;min-width:0">' + h(vdLoc || 'Tất cả') + ' ▾</button></div>';
   if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake ngày ' + vdNgay.split('-').reverse().join('/') + '</button>';
   var ICON = VD_TT_ICON;
   if (chonMode) html += '<div class="sec" style="color:#0369a1">' + (window.vdChonDe === 'in' ? 'ĐANG CHỌN ĐƠN ĐỂ IN' : 'ĐANG GỘP CHUYẾN') + ' - BẤM VÀO TỪNG ĐƠN ĐỂ CHỌN</div>';
@@ -6847,6 +6851,14 @@ async function scrVanDon() {
   var b = frame('Vận đơn', html, Object.assign({ action: '➕', onAction: function () { go(scrVdTao); } }, foot ? { footer: foot } : {}));
   var di = document.getElementById('vdDate');
   if (di) di.onchange = function () { if (di.value) { vdNgay = di.value; go(scrVanDon, true); } };
+  function vdDoiNgay(buoc) {
+    var t = new Date((vdNgay || today()) + 'T00:00:00');
+    t.setDate(t.getDate() + buoc);
+    vdNgay = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+    go(scrVanDon, true);
+  }
+  var bLui = document.getElementById('vdLui'); if (bLui) bLui.onclick = function () { vdDoiNgay(-1); };
+  var bToi = document.getElementById('vdToi'); if (bToi) bToi.onclick = function () { vdDoiNgay(1); };
   document.getElementById('vdLoc').onclick = function () {
     sheet('Lọc trạng thái', [
       { value: '', label: 'Tất cả', icon: '📚' },
@@ -6972,6 +6984,64 @@ async function scrVdCod() {
   });
 }
 
+function vdGioNgan(t) {
+  var s = String(t || '');
+  if (s.length < 16) return s;
+  return s.slice(11, 16) + ' ngày ' + s.slice(8, 10) + '/' + s.slice(5, 7);
+}
+/* Man khach ky tay. May chu nhan data URL PNG cua the canvas roi luu thanh
+   tep dinh kem (vagabond.van_don.luu_chu_ky). */
+function scrVdKy(name, d) {
+  var html = '<div class="card" style="padding:12px 14px;line-height:1.6">' +
+    '<div><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(name)) + '</b> · ' + h(d.khach || 'Khách lẻ') + '</div>' +
+    (d.dia_chi ? '<div style="color:#6b7280;font-size:13px">' + h(d.dia_chi) + '</div>' : '') +
+    (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b></div>' : '') + '</div>';
+  html += '<div class="card" style="padding:12px 14px">' +
+    '<input class="tin" id="vdkTen" placeholder="Tên người ký" value="' + h(d.nguoi_nhan || d.khach || '') + '">' +
+    '<div style="font-size:12px;color:#6b7280;margin:10px 0 6px">Mời khách ký vào khung dưới</div>' +
+    '<canvas id="vdkCanvas" style="width:100%;height:200px;background:#fff;border:1.5px dashed #b9c7cc;border-radius:12px;touch-action:none;display:block"></canvas>' +
+    '</div>';
+  frame('Khách ký nhận', html, { footer: '<div style="display:flex;gap:8px"><button class="btn gh" id="vdkXoa" style="flex:1">Xoá nét</button><button class="btn" id="vdkLuu" style="flex:2">Lưu chữ ký</button></div>' });
+  setTimeout(function () {
+    var cv = document.getElementById('vdkCanvas');
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var tl = window.devicePixelRatio || 1;
+    var rong = cv.clientWidth || cv.offsetWidth || 300, cao = cv.clientHeight || 200;
+    cv.width = Math.round(rong * tl); cv.height = Math.round(cao * tl);
+    ctx.scale(tl, tl);
+    function xoa() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, rong, cao); }
+    xoa();
+    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111827';
+    var dangVe = false, daVe = false;
+    function toa(ev) { var q = cv.getBoundingClientRect(); return { x: ev.clientX - q.left, y: ev.clientY - q.top }; }
+    cv.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault(); dangVe = true; daVe = true;
+      var p = toa(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+      try { cv.setPointerCapture(ev.pointerId); } catch (e0) { }
+    });
+    cv.addEventListener('pointermove', function (ev) {
+      if (!dangVe) return; ev.preventDefault();
+      var p = toa(ev); ctx.lineTo(p.x, p.y); ctx.stroke();
+    });
+    cv.addEventListener('pointerup', function () { dangVe = false; });
+    cv.addEventListener('pointercancel', function () { dangVe = false; });
+    cv.addEventListener('pointerleave', function () { dangVe = false; });
+    var bx = document.getElementById('vdkXoa');
+    if (bx) bx.onclick = function () { xoa(); daVe = false; };
+    var bl = document.getElementById('vdkLuu');
+    if (bl) bl.onclick = async function () {
+      if (!daVe) return window.alert('Chưa có nét ký nào, mời khách ký giúp em.');
+      var ten = (document.getElementById('vdkTen') || {}).value || '';
+      busy(true);
+      try {
+        await api('vagabond.van_don.luu_chu_ky', { name: name, anh: cv.toDataURL('image/png'), nguoi_ky: ten });
+        busy(false); toast('Đã lưu chữ ký');
+      } catch (er) { busy(false); return window.alert((er && er.message) || 'Lưu chữ ký lỗi'); }
+      go(function () { scrVdView(name); }, true);
+    };
+  }, 0);
+}
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -7000,6 +7070,13 @@ async function scrVdView(name) {
       '<a href="' + h(d.anh_giao) + '" target="_blank" rel="noopener" style="display:inline-block">' +
       '<img src="' + h(d.anh_giao) + '" alt="Ảnh giao" style="width:118px;height:118px;object-fit:cover;border-radius:10px;border:1px solid #d7e6ea;display:block">' +
       '</a></div>' : '') +
+    (d.chu_ky ? '<div style="margin-top:10px">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:5px">✍️ Khách ký nhận' +
+      (d.nguoi_ky ? ' · ' + h(d.nguoi_ky) : '') + (d.ky_luc ? ' · ' + h(vdGioNgan(d.ky_luc)) : '') + '</div>' +
+      '<a href="' + h(d.chu_ky) + '" target="_blank" rel="noopener" style="display:inline-block">' +
+      '<img src="' + h(d.chu_ky) + '" alt="Chữ ký khách" style="width:230px;max-width:100%;background:#fff;border:1px solid #d7e6ea;border-radius:10px;display:block">' +
+      '</a></div>'
+      : (d.khong_ky ? '<div style="color:#b45309;font-size:13px;margin-top:8px">✍️ Khách không ký: ' + h(d.khong_ky) + '</div>' : '')) +
     (d.ly_do_loi ? '<div style="color:#b3261e;font-size:13px">Không giao được: ' + h(d.ly_do_loi) + '</div>' : '') +
     (d.ghi_chu ? '<div style="color:#6b7280;font-size:13px;white-space:pre-wrap">' + h(d.ghi_chu) + '</div>' : '') + vdKhoiNhan(d) + '</div>' + vdNutPhanCong(d);
   var dangGiao = d.trang_thai === 'Chờ giao' || d.trang_thai === 'Đang giao';
@@ -7010,6 +7087,14 @@ async function scrVdView(name) {
     if (isSales() && !d.booking_id) hang.push('<button class="btn gh" data-va="book" style="flex:1">🚕 Book xe app</button>');
     hang.push('<button class="btn gh" data-va="loi" style="flex:1;color:#b3261e">⚠️ Không giao được</button>');
     html += '<div style="display:flex;gap:8px;padding:8px 0 0">' + hang.join('') + '</div>';
+  }
+  /* Chu ky la chung tu giao nhan: cho ky ca truoc va sau khi bam Da giao,
+     chi giau di khi don da huy hoac da co chu ky. */
+  if (!d.chu_ky && d.trang_thai !== 'Huỷ') {
+    html += '<div style="display:flex;gap:8px;padding:8px 0 0">' +
+      '<button class="btn gh" data-va="ky" style="flex:2">✍️ Khách ký nhận</button>' +
+      (d.khong_ky ? '' : '<button class="btn gh" data-va="khongky" style="flex:1">Khách không ký</button>') +
+      '</div>';
   }
   var b = frame('Chi tiết vận đơn', html);
   b.addEventListener('click', async function (e) {
@@ -7035,6 +7120,15 @@ async function scrVdView(name) {
         } catch (e8) { busy(false); window.alert((e8 && e8.message) || 'Phân công lỗi'); }
       });
       return;
+    }
+    if (k === 'ky') { return go(function () { scrVdKy(name, d); }); }
+    if (k === 'khongky') {
+      var lk = window.prompt('Vì sao khách không ký? (gửi bảo vệ, giao qua cửa, khách bận tay...)', 'Khách không ký');
+      if (!lk) return;
+      busy(true);
+      try { await api('vagabond.van_don.khach_khong_ky', { name: name, ly_do: lk }); busy(false); toast('Đã ghi nhận'); }
+      catch (er) { busy(false); window.alert((er && er.message) || 'Lỗi'); }
+      return go(function () { scrVdView(name); }, true);
     }
     if (k === 'nhan') {
       busy(true);
@@ -7494,11 +7588,19 @@ var vdAhaDv = null, vdDaGanLamMoi = 0;
 function vdDangOManDS() {
   return S.stack.length && S.stack[S.stack.length - 1] === scrVanDon;
 }
+var vdAnLuc = 0;
 function vdTuLamMoi() {
   if (vdDaGanLamMoi) return;
   vdDaGanLamMoi = 1;
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && vdDangOManDS()) go(scrVanDon, true);
+    if (document.hidden) { vdAnLuc = Date.now(); return; }
+    /* Tren dien thoai, bang chon ngay cua he dieu hanh lam trang bi coi la an
+       di. Neu ve lai man hinh ngay luc quay ve thi o ngay bi dung ve gia tri
+       cu truoc khi kip bao da doi - do la ly do Loan Anh khong chon duoc ngay
+       con anh Viet ngoi may tinh thi chon duoc. Chi lam moi khi that su roi
+       di cho khac tren 20 giay. */
+    if (Date.now() - vdAnLuc < 20000) return;
+    if (vdDangOManDS()) go(scrVanDon, true);
   });
   setInterval(function () {
     if (!document.hidden && vdDangOManDS() && !isSales()) go(scrVanDon, true);
