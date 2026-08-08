@@ -606,6 +606,17 @@ def _dat_truoc_theo_decor():
 	if not dong:
 		return {"cap_nhat_luc": str(kho.cap_nhat_luc or "") or None, "nhom": []}
 
+	# Tru don DA DAT trong 3 ngay toi (da_dat cua phieu kiem banh ngay mai,
+	# mot va hai ngay sau) de so "con nhan" tren web khong nhan lo.
+	ngay = getdate()
+	da_dat = {}
+	for i in (1, 2, 3):
+		ma_kb = "KB-%s" % add_days(ngay, i)
+		if not frappe.db.exists("Kiem Banh Ngay", ma_kb):
+			continue
+		for d in frappe.get_doc("Kiem Banh Ngay", ma_kb).dong:
+			da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
+
 	ds = frappe.get_all(
 		"Item",
 		filters={"item_code": ["in", [b.ma_hang for b in dong]]},
@@ -616,7 +627,14 @@ def _dat_truoc_theo_decor():
 
 	nhom, thu_tu = {}, []
 	for b in dong:
-		x = it.get(b.ma_hang) or {}
+		x = it.get(b.ma_hang)
+		if not x:
+			# Ma trong kho BTP khong co Item ben Next (vd go nham ma):
+			# khong dua len trang khach keo hien nguyen cuc ma va gia 0.
+			continue
+		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0))
+		if con <= 0:
+			continue
 		ten_day = x.get("item_name") or b.ten_banh or b.ma_hang
 		goc, cm = _tach_ten_size(ten_day)
 		anh = b.hinh or x.get("image") or ""
@@ -634,7 +652,7 @@ def _dat_truoc_theo_decor():
 				"ma": b.ma_hang,
 				"cm": cm,
 				"gia": int(x.get("standard_rate") or 0),
-				"con": int(b.so_decor or 0),
+				"con": con,
 			}
 		)
 	for k in nhom:
