@@ -9,6 +9,11 @@ class KiemBanhNgay(Document):
 		# "Cho chot" la don trang thai Moi - giu cho mem, TRU AO luon vao
 		# co the ban (y Loan Anh 01/08): khach nhan tin hoi la sales tao don
 		# Moi ngay, so tu giu; khach khong lay thi huy don, so tu tra lai.
+		# "Kenh khac" (08/08/2026) la banh ban qua Grab, Shopee, khach si,
+		# quay - nhung don khong di qua Pancake nen may khong dem duoc tu
+		# don Pancake. Truoc day Loan Anh phai tao mot don Pancake gia de
+		# tru so, thanh ra mot khach hai bill. Nay dem thang tu hoa don ban
+		# ra co nguon khac Pancake trong ngay.
 		for d in self.dong:
 			d.co_the_ban = (
 				(d.ton_cu or 0)
@@ -18,4 +23,5 @@ class KiemBanhNgay(Document):
 				- (d.da_dat or 0)
 				- (d.phat_sinh or 0)
 				- (d.cho_chot or 0)
+				- (d.don_khac or 0)
 			)
