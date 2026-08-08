@@ -34,6 +34,11 @@ doc_events = {
 	},
 }
 
+# app.thevagabondpatisserie.com va order.thevagabondpatisserie.com tro chung
+# mot site nen mac dinh dung chung mot anh xem truoc. Hook nay doi bo the og
+# rieng cho ten mien app.*, xem vagabond/lib.py.
+update_website_context = ["vagabond.lib.og_theo_ten_mien"]
+
 # Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan
 # tri tren may tinh) bang thu chi huong dan mo app dien thoai.
 override_doctype_class = {
