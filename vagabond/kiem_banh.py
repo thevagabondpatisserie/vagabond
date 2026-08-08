@@ -322,7 +322,13 @@ def _dem_don_khac(ngay):
 
 
 def _ghi_don_khac(doc, ngay):
-	"""Do cot "Kenh khac" vao mot ban ghi kiem banh. KHONG tu save."""
+	"""Do cot "Kenh khac" vao mot ban ghi kiem banh. KHONG tu save.
+
+	Ngay da chot so thi khong dung vao nua - so cua ngay do da khoa, ton
+	con lai da chay sang ngay mai theo con so luc chot.
+	"""
+	if doc.tinh_trang == "Da chot":
+		return {}
 	dem, mo_ta = _dem_don_khac(ngay)
 	co = {d.ma_hang: d for d in doc.dong}
 	thieu = [ma for ma in dem if ma not in co]
