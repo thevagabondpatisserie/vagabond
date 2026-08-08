@@ -6803,8 +6803,8 @@ async function scrVanDon() {
   var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:10px">' +
     '<input type="date" class="hin" id="vdDate" value="' + vdNgay + '" style="flex:1;margin:0">' +
     '<button class="btn gh" id="vdLoc" style="flex:1;margin:0;width:auto">' + h(vdLoc || 'Tất cả') + ' ▾</button></div>';
-  if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake</button>';
-  var ICON = { 'Chờ giao': '📦', 'Đang giao': '🛵', 'Đã giao': '✅', 'Không giao được': '⚠️', 'Huỷ': '⛔' };
+  if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake ngày ' + vdNgay.split('-').reverse().join('/') + '</button>';
+  var ICON = VD_TT_ICON;
   if (chonMode) html += '<div class="sec" style="color:#0369a1">' + (window.vdChonDe === 'in' ? 'ĐANG CHỌN ĐƠN ĐỂ IN' : 'ĐANG GỘP CHUYẾN') + ' - BẤM VÀO TỪNG ĐƠN ĐỂ CHỌN</div>';
   else html += '<div class="sec">' + ds.length + ' vận đơn · bấm vào để xử lý</div>';
   html += vdChipsHtml();
@@ -6812,12 +6812,18 @@ async function scrVanDon() {
   if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">🛵</div><div>Chưa có vận đơn nào cho ngày này.</div></div>';
   ds.forEach(function (r) {
     var daChon = chonMode && window.vdChon[r.name];
-    var d2 = (r.tag_gio ? '\u{1F552} ' + h(r.tag_gio) + ' · ' : (r.gio_giao ? r.gio_giao + ' · ' : '')) + (r.phuong ? h(vdPhuongNgan(r.phuong)) + ' · ' : '') + h(r.kenh) + (r.shipper ? ' · ' + h(vdTen(r.shipper)) : '') + (r.chuyen ? ' · 🧺' + h(r.chuyen) : '') + ' · ' + h(r.trang_thai);
-    html += '<div class="hub" data-vd="' + h(r.name) + '" data-tt="' + h(r.trang_thai) + '"' + (daChon ? ' style="background:#dbeafe"' : '') + '><div class="hi">' + (daChon ? '☑️' : (ICON[r.trang_thai] || '📦')) + '</div>' +
+    /* Trang thai da co chip mau ben duoi nen bo khoi dong chu xam nay. */
+    var d2 = (r.tag_gio ? '\u{1F552} ' + h(r.tag_gio) + ' · ' : (r.gio_giao ? r.gio_giao + ' · ' : '')) + (r.phuong ? h(vdPhuongNgan(r.phuong)) + ' · ' : '') + h(r.kenh) + (r.shipper ? ' · ' + h(vdTen(r.shipper)) : '') + (r.chuyen ? ' · 🧺' + h(r.chuyen) : '');
+    /* Ten mon rut gon: mon dau + "còn N món". Ten day du xem trong chi tiet. */
+    var mon1 = r.mon_chinh ? (h(r.mon_chinh) + (r.so_mon > 1 ? ' · còn ' + (r.so_mon - 1) + ' món' : '')) : h(r.mon_tat || '');
+    var oAnh = daChon ? '☑️'
+      : (r.anh ? '<img src="' + h(r.anh) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:13px;display:block" onerror="this.style.display=\'none\'">'
+              : (ICON[r.trang_thai] || '📦'));
+    html += '<div class="hub" data-vd="' + h(r.name) + '" data-tt="' + h(r.trang_thai) + '"' + (daChon ? ' style="background:#dbeafe"' : '') + '><div class="hi" style="overflow:hidden">' + oAnh + '</div>' +
       '<div class="ht"><div class="h1">' + (r.ma_don ? '#' + h(r.ma_don) + ' · ' : '') + h(r.khach || 'Khách lẻ') + '</div>' +
       '<div class="h2">' + d2 + '</div>' +
       '<div class="h2">' + h((r.dia_chi || '').slice(0, 70)) + '</div>' +
-      (r.mon_tat ? '<div class="h2" style="color:#7a5b2e">🎂 ' + h(r.mon_tat) + '</div>' : '') + vdHuyHieu(r) + '</div>' +
+      (mon1 ? '<div class="h2" style="color:#7a5b2e">🎂 ' + mon1 + '</div>' : '') + vdHuyHieu(r) + '</div>' +
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto">'
       + (r.tien_thu_ho ? '<b style="white-space:nowrap;font-size:13px">COD ' + money(r.tien_thu_ho) + '</b>' : '')
       + vdNutDong(r, chonMode) + '</div></div>';
@@ -7257,7 +7263,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '81';
+var APPVER = '82';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -7670,8 +7676,19 @@ function vdPhuongNgan(x) {
 function vdThe(bg, txt) {
   return '<span style="display:inline-block;background:' + bg + ';color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;line-height:16px">' + txt + '</span>';
 }
+/* Mau va icon cua tung trang thai van don, dung chung cho icon dau dong va
+   chip mau. Loan Anh 08/08/2026: dau tick xanh nho o dau dong kho nhin, doi
+   sang chip co chu. */
+var VD_TT_ICON = { 'Chờ giao': '📦', 'Đang giao': '🛵', 'Đã giao': '✅', 'Không giao được': '⚠️', 'Huỷ': '⛔' };
+var VD_TT_MAU = { 'Chờ giao': '#64748b', 'Đang giao': '#0369a1', 'Đã giao': '#12a150', 'Không giao được': '#b91c1c', 'Huỷ': '#7f1d1d' };
 function vdHuyHieu(r) {
   var t = [];
+  var tt = r.trang_thai || '';
+  if (tt) t.push(vdThe(VD_TT_MAU[tt] || '#64748b', (VD_TT_ICON[tt] || '') + ' ' + h(tt)));
+  /* Hai cho hay sot nhat: don chua ai nhan giao, va tien COD da thu ma chua
+     doi soat. */
+  if (tt === 'Chờ giao' && !r.shipper) t.push(vdThe('#c2410c', '🛵 Chưa phân công'));
+  if (tt === 'Đã giao' && r.tien_thu_ho && !r.da_doi_soat) t.push(vdThe('#a16207', '💵 COD chưa đối soát'));
   if (r.thu_tu) t.push(vdThe('#0f766e', '#' + r.thu_tu + (r.gio_du_kien ? ' ~' + h(r.gio_du_kien) : '')));
   if (r.goi_truoc) t.push(vdThe('#b45309', '📞 Gọi trước'));
   if (r.chup_truoc) t.push(vdThe('#7c3aed', '📷 Gửi ảnh trước'));
