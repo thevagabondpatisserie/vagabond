@@ -237,7 +237,37 @@ NGUON_DON = [
 	{"v": "Khách sỉ", "ic": "🏢", "pt": ["Chuyển khoản", "Tiền mặt"]},
 	{"v": "Tại chỗ - Nguyễn Văn Trỗi", "ic": "🏬", "pt": PT_QUAY},
 	{"v": "Tại chỗ - Trần Cao Vân", "ic": "🏬", "pt": PT_QUAY},
+	{"v": "Mang về - Nguyễn Văn Trỗi", "ic": "🥡", "pt": PT_QUAY},
+	{"v": "Mang về - Trần Cao Vân", "ic": "🥡", "pt": PT_QUAY},
 ]
+
+# Hai quay ban truc tiep, cho man Tinh tien quay tren app /bep (08/08/2026).
+# Ten hien thi do anh Viet chot: D1 = THE VAGABOND DISTRICT 1 (9 Tran Cao Van),
+# NVHTN = Nha Van Hoa Thanh Nien (nguon he thong dat theo dia chi Nguyen Van Troi).
+QUAY = [
+	{
+		"ma": "TCV",
+		"ten": "The Vagabond District 1",
+		"phu": "9 Trần Cao Vân",
+		"tai_cho": "Tại chỗ - Trần Cao Vân",
+		"mang_ve": "Mang về - Trần Cao Vân",
+	},
+	{
+		"ma": "NVHTN",
+		"ten": "Nhà Văn Hóa Thanh Niên",
+		"phu": "Quầy NVHTN",
+		"tai_cho": "Tại chỗ - Nguyễn Văn Trỗi",
+		"mang_ve": "Mang về - Nguyễn Văn Trỗi",
+	},
+]
+
+# VietQR tinh cho quay: cung tai khoan ao MBBank ma Fabi dang dung (chup man
+# hinh cau hinh Fabi 08/08). Noi dung chuyen khoan = so phieu de doi soat.
+QR_QUAY = {
+	"bank": "MB",
+	"stk": "VQRQ00033k5p6",
+	"ten": "PATISSERIE VAGABOND COMPANY LIMITED",
+}
 
 # Ten nguon cu tren cac hoa don da nhap truoc 02/08, giu de doc lai duoc.
 NGUON_CU = {"Grab": "GrabFood", "Grab Online": "GrabFood", "Be": "BeFood", "GreenSM": "GreenSM Food"}
@@ -338,7 +368,7 @@ def cau_hinh_ban_hang():
 				"vd": q.get("vd") or "",
 			}
 		)
-	return {"pt": pt, "nguon": NGUON_DON, "pt_pancake": PT_PANCAKE}
+	return {"pt": pt, "nguon": NGUON_DON, "pt_pancake": PT_PANCAKE, "quay": QUAY, "qr_quay": QR_QUAY}
 
 
 PT_KENH = (
@@ -1266,6 +1296,7 @@ def tao_don_tay(
 	phi_ship=0,
 	pt=None,
 	ma_tham_chieu=None,
+	quay=None,
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -1330,8 +1361,14 @@ def tao_don_tay(
 			"vgb_xhd_ten": XHD_MAC_DINH,
 			"apply_discount_on": "Grand Total",
 			"discount_amount": flt(giam_gia),
-			"remarks": "%s #%s - %s%s"
-			% (nguon, ma_don or "?", (ten_khach or "Khách lẻ").strip(), " - " + dien_thoai.strip() if (dien_thoai or "").strip() else ""),
+			"remarks": "%s #%s - %s%s%s"
+			% (
+				nguon,
+				ma_don or "?",
+				(ten_khach or "Khách lẻ").strip(),
+				" - " + dien_thoai.strip() if (dien_thoai or "").strip() else "",
+				" - Quầy " + (quay or "").strip() if (quay or "").strip() else "",
+			),
 		}
 	)
 	for r in rows:
