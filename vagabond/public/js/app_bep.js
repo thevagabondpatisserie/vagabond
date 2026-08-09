@@ -570,10 +570,22 @@ function reset(fn) {
 }
 function render() { var f = S.stack[S.stack.length - 1]; if (f) f(); }
 
+/* Man hinh nao cung ve lai bang cach ghi de root.innerHTML, nen moi lan
+   bam mot nut la khung cuon moi tinh - nguoi dung bi nem len dau trang.
+   Anh Viet bao 09/08/2026 o man tinh tien quay, nhung loi nay co o MOI man.
+   Cach chua: truoc khi ghi de thi nho vi tri cuon kem tieu de man hinh cu;
+   ghi de xong, neu van dung man do (tieu de khong doi) thi tra vi tri cu ve.
+   Doi sang man khac thi tieu de khac nen van bat dau tu dau trang. */
+var VGB_TD = '', VGB_CUON = 0;
+
 function frame(title, bodyHtml, opt) {
   opt = opt || {};
   /* Tieu de tab trinh duyet theo man hinh, liec tab biet ngay dang o dau */
   try { document.title = (title && title !== APPNAME) ? title + ' · Vagabond' : APPNAME; } catch (e) { }
+  var cuOb = document.getElementById('vgbBody');
+  if (cuOb) VGB_CUON = cuOb.scrollTop || 0;
+  var giuCuon = !!(cuOb && VGB_TD === title && VGB_CUON > 0);
+  VGB_TD = title;
   var showBack = S.stack.length > 1;
   root.innerHTML =
     '<div class="vh">' +
@@ -599,7 +611,19 @@ function frame(title, bodyHtml, opt) {
   var a = document.getElementById('vgbAct'); if (a && opt.onAction) a.onclick = opt.onAction;
   var f = document.getElementById('vgbFab'); if (f && opt.onFab) f.onclick = opt.onFab;
   dSkin(root);
-  return document.getElementById('vgbBody');
+  var moiOb = document.getElementById('vgbBody');
+  if (giuCuon && moiOb) {
+    var dat = VGB_CUON;
+    moiOb.scrollTop = dat;
+    /* Anh mon, QR... tai xong moi day chieu cao len; dat lai mot nhip nua
+       cho chac, nhung chi khi nguoi dung chua tu cuon di cho khac. */
+    try {
+      requestAnimationFrame(function () {
+        if (moiOb.isConnected && moiOb.scrollTop !== dat && moiOb.scrollTop === 0) moiOb.scrollTop = dat;
+      });
+    } catch (e) { }
+  }
+  return moiOb;
 }
 
 /* ---------- 4. Master data ---------- */
@@ -806,7 +830,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'DS', 'HDG'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'DS', 'POS', 'HDG'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'KHAC', ten: 'Khác', icon: '⚙️', keys: ['ACC'] }
 ];
@@ -6404,7 +6428,17 @@ async function dsTayLuu() {
    ra soat va ghi so cuoi ngay tren man Doanh thu Sales. Chuyen khoan thi
    hien VietQR dien san so tien + so phieu. Chua tru kho, chua in bill. */
 var posDon = null, posHomNayTxt = null, posQuay = null;
-function posMoi() { return { che_do: 'Tại chỗ', ma: '', pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', mon: [] }; }
+/* Ma bill sinh ngay luc mo bill, dung lam NOI DUNG CHUYEN KHOAN in trong
+   ma QR. Sinh truoc thi khach quet duoc ngay, khoi doi luu bill xong;
+   luu bill thi chinh ma nay di vao o ma tham chieu de ke toan doi soat
+   dung cai khach da chuyen (giong ma HD tren bill Fabi). */
+function posMaBill() {
+  var chu = 'ACDEFGHJKLMNPQRSTUVWXY3456789';
+  var s = '';
+  for (var i = 0; i < 5; i++) s += chu.charAt(Math.floor(Math.random() * chu.length));
+  return 'VGB' + s;
+}
+function posMoi() { return { che_do: 'Tại chỗ', ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', mon: [] }; }
 function posSoTien(v) { return parseFloat(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
 function posDsCheDo() {
   var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
@@ -6426,6 +6460,7 @@ function posDoc() {
   v = g('posTen'); if (v !== null) posDon.ten = v;
   v = g('posSdt'); if (v !== null) posDon.sdt = v;
   v = g('posMtc'); if (v !== null) posDon.mtc = v;
+  if (!posDon.bill) posDon.bill = posMaBill();
   v = g('posGiam'); if (v !== null) posDon.giam = posSoTien(v) ? String(posSoTien(v)) : '';
   v = g('posDua'); if (v !== null) posDon.dua = posSoTien(v) ? String(posSoTien(v)) : '';
 }
@@ -6447,18 +6482,31 @@ async function scrPosChonQuay() {
     go(scrPosQuay);
   };
 }
+/* Logo cua GrabFood, GreenSM, ShopeeFood moi cai mot ti le khac nhau, de
+   nam cung dong voi chu thi chu bi day tran ra ngoai nut (anh Viet 09/08).
+   Nay logo nam trong mot KHUNG VUONG 26x26 co dinh, chu xuong dong ben
+   duoi - nut nao cung cao bang nhau va khong bao gio tran. */
+function posONhan(n, cao) {
+  cao = cao || 26;
+  var k = 'width:' + cao + 'px;height:' + cao + 'px;flex:none;display:flex;align-items:center;justify-content:center';
+  if (n.lg) return '<span style="' + k + '"><img src="' + n.lg + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block"></span>';
+  if (n.ic) return '<span style="' + k + ';font-size:' + Math.round(cao * 0.72) + 'px">' + n.ic + '</span>';
+  return '';
+}
 function posNutNguon(ds, chon) {
   return ds.map(function (n) {
     var on = n.v === chon;
-    return '<button class="pnc" data-nd="' + h(n.v) + '" style="display:flex;align-items:center;justify-content:center;gap:6px;height:52px;border-radius:10px;font-size:14.5px;font-weight:' + (on ? 'bold' : 'normal') + ';border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
-      (n.lg ? '<img src="' + n.lg + '" style="height:20px;border-radius:3px">' : (n.ic ? '<span style="font-size:18px">' + n.ic + '</span>' : '')) + h(n.v) + '</button>';
+    return '<button class="pnc" data-nd="' + h(n.v) + '" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:66px;padding:6px 4px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+      posONhan(n) +
+      '<span style="font-size:12.5px;line-height:1.15;text-align:center;font-weight:' + (on ? '700' : '500') + '">' + h(n.v) + '</span></button>';
   }).join('');
 }
 function posNutPt(ds, chon) {
   return ds.map(function (p) {
     var on = p.v === chon;
-    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;height:54px;border-radius:10px;font-size:15px;font-weight:' + (on ? 'bold' : 'normal') + ';border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
-      (p.lg ? '<img src="' + p.lg + '" style="height:22px;border-radius:3px">' : '🏦 ') + h(p.v) + '</button>';
+    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:6px 8px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+      posONhan({ lg: p.lg, ic: p.lg ? '' : '🏦' }, 28) +
+      '<span style="font-size:14px;line-height:1.15;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
   }).join('');
 }
 async function scrPosQuay() {
@@ -6483,22 +6531,33 @@ async function scrPosQuay() {
     '</div>';
   html += '<div class="sec">Món trong bill</div><div class="card" style="padding:6px 14px">';
   if (!posDon.mon.length) html += '<div style="padding:14px 0;color:#a0a6b4">Chưa có món nào. Bấm Thêm món: tìm theo tên, mã hoặc quét mã vạch.</div>';
+  /* Anh mon de nhin mat banh la biet dung mon chua; gia don vi nam ngay
+     duoi ten, KHONG con duong bam sua gia (gia o quay khong duoc sua tay -
+     anh Viet 09/08). Ba nut tru, cong, xoa cung mot kieu vuong 38px. */
+  var NUT = 'height:38px;width:38px;flex:none;display:flex;align-items:center;justify-content:center;' +
+    'border:1px solid #e5e7eb;background:#fff;border-radius:9px;font-size:19px;line-height:1;padding:0;cursor:pointer';
   posDon.mon.forEach(function (m, i) {
-    html += '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
-      '<div style="flex:1;min-width:0" data-gia="' + i + '">' + h(m.ten) + '<div style="color:#a0a6b4;font-size:12px">' + money(m.rate) + ' đ · bấm sửa giá</div></div>' +
-      '<button class="nt" data-bot="' + i + '" style="height:40px;width:44px;flex:none;font-size:21px;cursor:pointer">&minus;</button>' +
-      '<b style="min-width:24px;text-align:center">' + money(m.qty) + '</b>' +
-      '<button class="nt" data-cong="' + i + '" style="height:40px;width:44px;flex:none;font-size:21px;cursor:pointer">+</button>' +
-      '<b style="min-width:72px;text-align:right">' + money(m.qty * m.rate) + '</b>' +
-      '<button class="ic" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f2f6">' +
+      (m.anh
+        ? '<img src="' + h(m.anh) + '" loading="lazy" style="width:44px;height:44px;flex:none;object-fit:cover;border-radius:9px;border:1px solid #eef0f4" onerror="this.style.display=\'none\'">'
+        : '<span style="width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#f6f7f9;font-size:22px">🎂</span>') +
+      '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.25">' + h(m.ten) + '</div>' +
+      '<div style="color:#a0a6b4;font-size:12px;margin-top:1px">' + money(m.rate) + ' đ/cái</div></div>' +
+      '<button data-bot="' + i + '" style="' + NUT + '">&minus;</button>' +
+      '<b style="min-width:22px;text-align:center;font-size:15px">' + money(m.qty) + '</b>' +
+      '<button data-cong="' + i + '" style="' + NUT + '">+</button>' +
+      '<b style="min-width:70px;text-align:right;font-size:15px">' + money(m.qty * m.rate) + '</b>' +
+      '<button data-x="' + i + '" style="' + NUT + ';color:#b3261e;font-size:16px">✕</button></div>';
   });
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     (laApp
       ? '<div style="font-size:13.5px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' thanh toán bằng nguồn <b>' + h(posDon.pt || posDon.che_do) + '</b> - vào nguồn nào ra nguồn đó.</div>'
       : '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
-        '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
-        '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>') +
+        (posDon.pt === 'Chuyển khoản'
+          ? posKhoiQr(posDon.bill, phaiThu)
+          : '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
+            '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>')) +
     '<input class="tin" id="posGiam" placeholder="Giảm giá cả bill (đ), voucher nếu có" inputmode="numeric" value="' + (giam ? money(giam) : '') + '">' +
     (!laApp && posDon.pt === 'Tiền mặt' ? '<input class="tin" id="posDua" placeholder="Khách đưa (đ) - máy tính tiền thối" inputmode="numeric" value="' + (dua ? money(dua) : '') + '">' : '') +
     '</div>';
@@ -6512,7 +6571,7 @@ async function scrPosQuay() {
     (!laApp && posDon.pt === 'Tiền mặt' && dua ? '<div style="display:flex;justify-content:space-between;color:' + (dua >= phaiThu ? '#0f766e' : '#b3261e') + '"><span>Khách đưa ' + money(dua) + ' đ</span><b>' + (dua >= phaiThu ? 'Thối ' + money(dua - phaiThu) : 'Còn thiếu ' + money(phaiThu - dua)) + ' đ</b></div>' : '') +
     '</div>';
   var b = frame('Tính tiền · ' + (posQuay.ma || ''), html, { footer: '<button class="btn" id="posLuu">💰 Thu tiền - lưu bill ' + money(phaiThu) + ' đ</button>' });
-  if (!laApp) veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
+  if (!laApp && posDon.pt !== 'Chuyển khoản') veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
   posDemHomNay();
   b.addEventListener('click', function (e) {
     if (e.target.closest('[data-t="posDoiQuay"]')) { posDoc(); posQuay = null; posHomNayTxt = null; return go(scrPosChonQuay, true); }
@@ -6531,8 +6590,6 @@ async function scrPosQuay() {
     }
     t = e.target.closest('[data-x]');
     if (t) { posDoc(); posDon.mon.splice(+t.getAttribute('data-x'), 1); return go(scrPosQuay, true); }
-    t = e.target.closest('[data-gia]');
-    if (t) { posDoc(); return posGiaSheet(+t.getAttribute('data-gia')); }
   });
   var ptw = document.getElementById('posPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -6576,35 +6633,41 @@ async function posThemMon() {
     var i = -1;
     posDon.mon.forEach(function (m, k) { if (m.item_code === o.value) i = k; });
     if (i >= 0) { posDon.mon[i].qty += 1; return go(scrPosQuay, true); }
-    posDon.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia || 0 });
-    if (!o.gia) return posGiaSheet(posDon.mon.length - 1);
+    /* Gia o quay khong duoc sua tay: mon chua co gia ban thi bao Sales dat
+       gia trong danh muc, chu khong go tay tai quay (anh Viet 09/08). */
+    if (!o.gia) return toast('Món ' + o.label + ' chưa có giá bán trong danh mục. Nhờ Sales đặt giá rồi bấm lại.', 4500);
+    posDon.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia, anh: o.img || '' });
     go(scrPosQuay, true);
   }, true);
 }
-function posGiaSheet(i) {
-  var m = posDon.mon[i];
-  if (!m) return;
-  var ov = document.createElement('div'); ov.className = 'sh';
-  var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>' + h(m.ten) + '</b><div class="x">&times;</div></div>' +
-    '<div style="padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 14px);display:grid;gap:12px">' +
-    '<div><div style="font-size:12px;color:#6b7280;margin-bottom:6px">Giá bán 1 đơn vị (đ)</div>' +
-    '<input class="nt" id="pgGia" inputmode="numeric" value="' + (m.rate ? money(m.rate) : '') + '" placeholder="0" style="height:48px;padding:0 12px;width:100%;box-sizing:border-box;text-align:right;font-size:18px;font-weight:bold"></div>' +
-    '<button class="btn" id="pgOk">Xong</button></div>';
-  ov.appendChild(box); document.body.appendChild(ov);
-  function dong() { ov.remove(); go(scrPosQuay, true); }
-  ov.onclick = function (e) { if (e.target === ov) dong(); };
-  box.querySelector('.x').onclick = dong;
-  var oG = box.querySelector('#pgGia');
-  box.querySelector('#pgOk').onclick = function () {
-    m.rate = posSoTien(oG.value);
-    dong();
-  };
-  setTimeout(function () { oG.focus(); oG.select(); }, 60);
+/* Ma QR dong kieu bill Fabi: khach quet bang app ngan hang la so tien va
+   noi dung chuyen khoan dien san, khoi go tay, khoi go nham (anh Viet
+   09/08/2026). Dung anh VietQR nen may nao co mang la hien duoc. */
+function posQrUrl(noiDung, tien) {
+  var q = (CFGBH || {}).qr_quay || {};
+  if (!q.stk) return '';
+  return 'https://img.vietqr.io/image/' + (q.bank || 'MB') + '-' + q.stk + '-qr_only.png' +
+    '?amount=' + Math.round(tien || 0) +
+    '&addInfo=' + encodeURIComponent(noiDung || '') +
+    '&accountName=' + encodeURIComponent(q.ten || '');
+}
+function posKhoiQr(noiDung, tien) {
+  var q = (CFGBH || {}).qr_quay || {};
+  var url = posQrUrl(noiDung, tien);
+  if (!url) return '<div style="font-size:13px;color:#b3261e">Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR.</div>';
+  if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào bill rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
+  return '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
+    '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
+    '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(240px,62vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
+    '<div style="font-size:18px;font-weight:800;color:#0f766e">' + money(tien) + ' đ</div>' +
+    '<div style="font-size:13px;color:#374151;margin-top:2px">Nội dung: <b>' + h(noiDung) + '</b></div>' +
+    '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
+    '<div style="font-size:12px;color:#b45309;margin-top:8px">Xem báo có ĐÚNG SỐ TIỀN rồi mới trả hàng cho khách.</div>' +
+    '</div>';
 }
 function posQrSheet(soPhieu, tien) {
   var q = (CFGBH || {}).qr_quay || {};
-  var url = 'https://img.vietqr.io/image/' + (q.bank || 'MB') + '-' + (q.stk || '') + '-qr_only.png?amount=' + Math.round(tien) + '&addInfo=' + encodeURIComponent(soPhieu) + '&accountName=' + encodeURIComponent(q.ten || '');
+  var url = posQrUrl(soPhieu, tien);
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
     '<div style="font-size:21px;font-weight:800">Chuyển khoản ' + money(tien) + ' đ</div>' +
@@ -6616,7 +6679,10 @@ function posQrSheet(soPhieu, tien) {
   document.body.appendChild(ov);
   ov.onclick = function (e) { if (e.target.hasAttribute('data-y')) { ov.remove(); go(scrPosQuay, true); } };
 }
+var posDangLuu = false;
 async function posLuuDon() {
+  /* Bam hai lan lien la ra hai bill cung so tien - khoa lai cho chac. */
+  if (posDangLuu) return;
   posDoc();
   if (!posDon.mon.length) return toast('Bill chưa có món nào.');
   var thieuGia = posDon.mon.filter(function (m) { return !m.rate; });
@@ -6630,6 +6696,8 @@ async function posLuuDon() {
   if (!laApp) {
     var qp = quyPt(posDon.pt) || {};
     if (qp.bat && !(posDon.mtc || '').trim()) return toast('Phương thức ' + posDon.pt + ' bắt buộc nhập ' + (qp.nhan || 'mã tham chiếu') + '.');
+    /* Chuyen khoan: noi dung khach chuyen chinh la ma bill in trong QR. */
+    if (posDon.pt === 'Chuyển khoản' && !(posDon.mtc || '').trim()) posDon.mtc = posDon.bill || '';
   }
   var canhBao = (!laApp && posDon.pt === 'Tiền mặt' && dua && dua < phaiThu) ? '\n⚠ Khách mới đưa ' + money(dua) + ' đ, còn thiếu ' + money(phaiThu - dua) + ' đ.' : '';
   var ok = await confirmSheet('Thu ' + money(phaiThu) + ' đ - ' + (laApp ? posDon.che_do : posDon.pt),
@@ -6637,6 +6705,8 @@ async function posLuuDon() {
     (giam ? '\nGiảm ' + money(giam) + ' đ' : '') + canhBao,
     'Thu tiền, lưu bill');
   if (!ok) return;
+  if (posDangLuu) return;
+  posDangLuu = true;
   busy(true);
   var r;
   try {
@@ -6646,14 +6716,18 @@ async function posLuuDon() {
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
       giam_gia: giam, phi_ship: 0, quay: posQuay.ma || ''
     });
-  } catch (e) { busy(false); return toast((e && e.message) || 'Lưu bill lỗi, thử lại.', 4000); }
+  } catch (e) { posDangLuu = false; busy(false); return toast((e && e.message) || 'Lưu bill lỗi, thử lại.', 4000); }
+  posDangLuu = false;
   busy(false);
   var thu = (r && r.grand_total) || phaiThu;
   var laCK = !laApp && posDon.pt === 'Chuyển khoản';
   var thoi = !laApp && posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
+  var maCk = posDon.mtc || posDon.bill || '';
   posDon = posMoi();
   posHomNayTxt = null;
-  if (laCK) return posQrSheet((r && r.name) || '', thu);
+  /* Van la ma QR khach da quet luc nay, khong doi sang so phieu - de neu
+     khach chua chuyen kip thi quet lai van ra dung noi dung. */
+  if (laCK) return posQrSheet(maCk, thu);
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:22px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
     '<div style="font-size:44px">✅</div>' +
@@ -7428,7 +7502,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '85';
+var APPVER = '86';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
