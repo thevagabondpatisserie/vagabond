@@ -249,6 +249,7 @@ QUAY = [
 		"ma": "TCV",
 		"ten": "The Vagabond District 1",
 		"phu": "9 Trần Cao Vân",
+		"anh": "/assets/vagabond/images/quay-tcv.jpg",
 		"tai_cho": "Tại chỗ - Trần Cao Vân",
 		"mang_ve": "Mang về - Trần Cao Vân",
 	},
@@ -256,6 +257,7 @@ QUAY = [
 		"ma": "NVHTN",
 		"ten": "Nhà Văn Hóa Thanh Niên",
 		"phu": "Quầy NVHTN",
+		"anh": "/assets/vagabond/images/quay-nvhtn.jpg",
 		"tai_cho": "Tại chỗ - Nguyễn Văn Trỗi",
 		"mang_ve": "Mang về - Nguyễn Văn Trỗi",
 	},
@@ -1822,6 +1824,36 @@ def pos_ghi_so(name):
 
 
 # ------------------------------------------ khach tu nhap thong tin xuat HD
+
+@frappe.whitelist()
+def pos_ds_khuyen_mai(quay=None):
+	"""Danh muc chuong trinh khuyen mai cho man tinh tien (kieu Fabi).
+
+	Cau hinh trong doctype "Vagabond Khuyen Mai" tren Desk: ten, loai
+	(Phan tram / So tien), gia tri, quay ap dung (trong = moi quay), bat.
+	Cashier chon voucher la may tu tinh o giam gia, ten voucher di vao
+	ghi chu bill de doi soat.
+	"""
+	_kiem_quyen()
+	quay = (quay or "").strip()
+	try:
+		ds = frappe.get_all(
+			"Vagabond Khuyen Mai",
+			filters={"bat": 1},
+			fields=["name", "ten", "loai", "gia_tri", "quay"],
+			order_by="ten asc",
+			limit_page_length=0,
+		)
+	except Exception:
+		return {"km": []}
+	ra = []
+	for r in ds:
+		ap = (r.quay or "").strip()
+		if ap and quay and ap != quay:
+			continue
+		ra.append({"ten": r.ten, "loai": r.loai, "gia_tri": flt(r.gia_tri)})
+	return {"km": ra}
+
 
 def _xhd_token(name):
 	"""Token in trong ma QR tren bill giay - khach chi sua duoc DUNG bill
