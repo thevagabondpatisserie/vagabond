@@ -1913,6 +1913,72 @@ def _xhd_kiem_han(creation):
 		)
 
 
+@frappe.whitelist()
+def pos_chot_ca(quay=None, ngay=None):
+	"""Bang tong ket cuoi ca cua MOT quay: tien mat phai co trong ket,
+	chuyen khoan doi voi SePay da ve, the theo tung may - lech la thay ngay
+	truoc khi giao ca, khoi cai nhau hom sau (anh Viet 09/08/2026)."""
+	_kiem_quyen()
+	quay = (quay or "").strip()
+	if not quay:
+		frappe.throw("Thiếu mã quầy.")
+	ngay = getdate(ngay or nowdate())
+	ds = frappe.get_all(
+		"Sales Invoice",
+		filters={"vgb_quay": quay, "posting_date": str(ngay), "docstatus": ["<", 2]},
+		fields=[
+			"name", "grand_total", "docstatus", "custom_nguon",
+			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu",
+		],
+		limit_page_length=0,
+	)
+	sepay = _sepay_theo_ma_bill(
+		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
+	)
+	pt_tong = {}
+	tam_tinh = {"so": 0, "tien": 0.0}
+	ck_ve = 0.0
+	ck_thieu = []
+	da_ghi = 0
+	chua_ghi = 0
+	for r in ds:
+		if frappe.utils.cint(r.vgb_tam_tinh):
+			tam_tinh["so"] += 1
+			tam_tinh["tien"] += flt(r.grand_total)
+			continue
+		if r.docstatus == 1:
+			da_ghi += 1
+		else:
+			chua_ghi += 1
+		pt = (r.vgb_pt_thanh_toan or "").strip() or (r.custom_nguon or "Chưa rõ")
+		o = pt_tong.setdefault(pt, {"so": 0, "tien": 0.0})
+		o["so"] += 1
+		o["tien"] += flt(r.grand_total)
+		if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản":
+			g = sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
+			nhan = flt(g.get("nhan"))
+			ck_ve += min(nhan, flt(r.grand_total))
+			if nhan < flt(r.grand_total) - 1:
+				ck_thieu.append(
+					{"bill": r.vgb_ma_tham_chieu or r.name, "thieu": flt(r.grand_total) - nhan}
+				)
+	return {
+		"quay": quay,
+		"ngay": str(ngay),
+		"pt": [
+			{"pt": k, "so": v["so"], "tien": v["tien"]}
+			for k, v in sorted(pt_tong.items(), key=lambda x: -x[1]["tien"])
+		],
+		"ck_ve": ck_ve,
+		"ck_thieu": ck_thieu,
+		"tam_tinh": tam_tinh,
+		"da_ghi": da_ghi,
+		"chua_ghi": chua_ghi,
+		"tong_bill": len(ds) - tam_tinh["so"],
+		"tong_tien": sum(flt(r.grand_total) for r in ds if not frappe.utils.cint(r.vgb_tam_tinh)),
+	}
+
+
 def _xhd_token(name):
 	"""Token in trong ma QR tren bill giay - khach chi sua duoc DUNG bill
 	cua minh, khong doan duoc bill nguoi khac."""
@@ -1981,7 +2047,49 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 		},
 	)
 	frappe.db.commit()
+	# Gui mail bao da tiep nhan - khach dien xong co ngay mot dong hoi am,
+	# khoi thap thom khong biet may co nhan duoc khong (anh Viet 09/08/2026).
+	# Loi gui mail khong duoc lam hong viec luu.
+	email = (email or "").strip()
+	if email:
+		try:
+			_xhd_mail_tiep_nhan(name, email, ten, so_mst)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang: mail tiep nhan XHD")
 	return {"ok": 1}
+
+
+def _xhd_mail_tiep_nhan(name, email, ten, so_mst):
+	"""Thu bao tiep nhan thong tin xuat hoa don, gui tu erp@thevagabondpatisserie.com."""
+	si = frappe.db.get_value(
+		"Sales Invoice", name, ["posting_date", "grand_total", "custom_pancake_display_id"], as_dict=True
+	) or {}
+	ngay = str(si.get("posting_date") or "")
+	ngay = "/".join(reversed(ngay.split("-"))) if ngay else ""
+	ma = si.get("custom_pancake_display_id") or name
+	noi_dung = """<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;line-height:1.7;max-width:560px">
+<p>Ch&agrave;o anh ch&#7883;,</p>
+<p>The Vagabond P&acirc;tisserie &#273;&atilde; nh&#7853;n &#273;&#7911; th&ocirc;ng tin xu&#7845;t ho&aacute; &#273;&#417;n cho bill <b>%(ma)s</b> ng&agrave;y %(ngay)s, t&#7893;ng ti&#7873;n <b>%(tien)s &#273;</b>:</p>
+<p style="background:#f6f6f6;border-radius:8px;padding:12px 16px;margin:8px 0">
+T&ecirc;n ph&aacute;p nh&acirc;n: <b>%(ten)s</b><br>
+M&atilde; s&#7889; thu&#7871;: <b>%(mst)s</b></p>
+<p>Ho&aacute; &#273;&#417;n &#273;i&#7879;n t&#7917; s&#7869; &#273;&#432;&#7907;c ph&aacute;t h&agrave;nh v&agrave; g&#7917;i v&#7873; &#273;&uacute;ng &#273;&#7883;a ch&#7881; email n&agrave;y <b>trong ng&agrave;y</b>. N&#7871;u qu&aacute; 24 gi&#7901; ch&#432;a th&#7845;y, anh ch&#7883; ki&#7875;m tra gi&uacute;p m&#7909;c th&#432; r&aacute;c, ho&#7863;c nh&#7855;n l&#7841;i cho ti&#7879;m qua fanpage.</p>
+<p>Th&ocirc;ng tin c&oacute; sai s&oacute;t th&igrave; anh ch&#7883; b&aacute;o l&#7841;i tr&#432;&#7899;c 22h h&ocirc;m nay &#273;&#7875; ti&#7879;m k&#7883;p s&#7917;a tr&#432;&#7899;c khi ph&aacute;t h&agrave;nh nh&eacute;.</p>
+<p>C&#7843;m &#417;n anh ch&#7883; &#273;&atilde; gh&eacute; ti&#7879;m!</p>
+<p style="color:#777;font-size:12.5px;margin-top:18px">The Vagabond P&acirc;tisserie<br>9 Tr&#7847;n Cao V&acirc;n, Qu&#7853;n 1, TP.HCM<br>thevagabondpatisserie.com</p>
+</div>""" % {
+		"ma": ma,
+		"ngay": ngay,
+		"tien": _tien(si.get("grand_total") or 0),
+		"ten": ten,
+		"mst": so_mst,
+	}
+	frappe.sendmail(
+		recipients=[email],
+		sender="erp@thevagabondpatisserie.com",
+		subject="The Vagabond Pâtisserie - Đã nhận thông tin xuất hoá đơn (bill %s)" % ma,
+		message=noi_dung,
+	)
 
 
 @frappe.whitelist(allow_guest=True)
