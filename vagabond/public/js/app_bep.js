@@ -7461,11 +7461,15 @@ async function scrPosChotCa() {
   if (!(k.ck_thieu || []).length) html += '<div style="padding:8px 0;color:#15803d;font-size:13px">Không bill chuyển khoản nào thiếu tiền 👍</div>';
   html += '</div>';
   var tt = k.tam_tinh || { so: 0, tien: 0 };
-  html += '<div class="sec">Sổ sách trước khi giao ca</div><div class="card" style="padding:12px 14px;font-size:14px;line-height:2.1">' +
-    '📒 Đã ghi sổ: <b>' + (k.da_ghi || 0) + '</b> bill<br>' +
-    '📄 Chưa ghi sổ: <b style="color:' + (k.chua_ghi ? '#b91c1c' : '#15803d') + '">' + (k.chua_ghi || 0) + '</b> bill' +
-    (k.chua_ghi ? ' - vào Bill hôm nay ghi sổ hết rồi hãy chốt ca' : '') + '<br>' +
-    '🕐 Tạm tính còn treo: <b style="color:' + (tt.so ? '#c2410c' : '#15803d') + '">' + tt.so + '</b> bill · ' + money(tt.tien) + ' đ</div>';
+  var tRow = function (nhan, gia, mau, phu) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
+      '<span style="flex:1;min-width:0">' + nhan + (phu ? '<div style="font-size:12px;color:#98a2b3">' + phu + '</div>' : '') + '</span>' +
+      '<b style="white-space:nowrap;margin-left:8px' + (mau ? ';color:' + mau : '') + '">' + gia + '</b></div>';
+  };
+  html += '<div class="sec">Sổ sách trước khi giao ca</div><div class="card" style="padding:6px 14px">' +
+    tRow('📒 Đã ghi sổ', (k.da_ghi || 0) + ' bill', '') +
+    tRow('📄 Chưa ghi sổ', (k.chua_ghi || 0) + ' bill', k.chua_ghi ? '#b91c1c' : '#15803d', k.chua_ghi ? 'vào Bill hôm nay ghi sổ hết rồi hãy chốt ca' : '') +
+    tRow('🕐 Tạm tính còn treo', tt.so + ' bill · ' + money(tt.tien) + ' đ', tt.so ? '#c2410c' : '#15803d') + '</div>';
   frame('Chốt ca · ' + (posQuay.ma || ''), html, { footer: '<button class="btn" id="ccIn">🖨 In bảng chốt ca</button>' });
   document.getElementById('ccIn').onclick = function () { posInChotCa(k); };
 }
@@ -8266,7 +8270,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '91';
+var APPVER = '92';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
