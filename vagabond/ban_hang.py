@@ -1327,7 +1327,14 @@ def tao_don_tay(
 		sl = flt(r.get("qty") or 0)
 		if sl <= 0:
 			frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
-		rows.append({"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)})
+		d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
+		# Tuy chon pha che kieu Fabi (it duong, it da, da rieng...) - chi la
+		# ghi chu 0 dong tren dong mon, khong doi tien (anh Viet 09/08/2026).
+		tc = (r.get("tuy_chon") or "").strip()
+		if tc:
+			ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
+			d["description"] = "%s\n[%s]" % (ten_mon, tc[:200])
+		rows.append(d)
 	if not rows:
 		frappe.throw("Đơn chưa có món nào.")
 	if flt(phi_ship) > 0:
@@ -1826,6 +1833,36 @@ def pos_ghi_so(name):
 # ------------------------------------------ khach tu nhap thong tin xuat HD
 
 @frappe.whitelist()
+def pos_ds_tuy_chon():
+	"""Danh muc tuy chon pha che (it duong, it da...) kieu customization Fabi.
+
+	Cau hinh trong doctype "Vagabond Tuy Chon Mon": ten nhom, cac lua chon
+	(moi dong mot cai), nhom mon ap dung. Khach khong chon gi = mac dinh
+	100% duong 100% da, khong ghi gi len bill.
+	"""
+	_kiem_quyen()
+	try:
+		ds = frappe.get_all(
+			"Vagabond Tuy Chon Mon",
+			filters={"bat": 1},
+			fields=["nhom", "lua_chon", "nhom_mon"],
+			limit_page_length=0,
+		)
+	except Exception:
+		return {"tc": []}
+	ra = []
+	for r in ds:
+		ra.append(
+			{
+				"nhom": r.nhom,
+				"lua_chon": [x.strip() for x in str(r.lua_chon or "").splitlines() if x.strip()],
+				"nhom_mon": [x.strip() for x in str(r.nhom_mon or "").splitlines() if x.strip()],
+			}
+		)
+	return {"tc": ra}
+
+
+@frappe.whitelist()
 def pos_ds_khuyen_mai(quay=None):
 	"""Danh muc chuong trinh khuyen mai cho man tinh tien (kieu Fabi).
 
@@ -1855,6 +1892,27 @@ def pos_ds_khuyen_mai(quay=None):
 	return {"km": ra}
 
 
+XHD_HAN_GIO = 2
+
+
+def _xhd_kiem_han(creation):
+	"""Ma QR tren bill ghi ro hieu luc 2 tieng - may phai giu dung loi hua.
+
+	Qua han van con duong: khach lien he tiem, sales dien ho trong man
+	Doanh thu Cua hang truoc 23h30 la hoa don van kip phat hanh trong dem.
+	"""
+	if not creation:
+		return
+	tuoi = (now_datetime() - creation).total_seconds()
+	if tuoi > XHD_HAN_GIO * 3600:
+		frappe.throw(
+			"Mã QR này đã quá hiệu lực %s tiếng kể từ lúc in bill. "
+			"Anh chị liên hệ tiệm (nhắn fanpage hoặc gọi quầy) để nhân viên "
+			"điền thông tin xuất hoá đơn giúp mình trước 22h hôm nay."
+			% XHD_HAN_GIO
+		)
+
+
 def _xhd_token(name):
 	"""Token in trong ma QR tren bill giay - khach chi sua duoc DUNG bill
 	cua minh, khong doan duoc bill nguoi khac."""
@@ -1877,12 +1935,14 @@ def xhd_khach_xem(d=None, t=None):
 		frappe.throw("Đường dẫn không hợp lệ.")
 	si = frappe.db.get_value(
 		"Sales Invoice", name,
-		["name", "posting_date", "grand_total", "custom_hddt_so",
+		["name", "posting_date", "grand_total", "custom_hddt_so", "creation",
 		 "vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email"],
 		as_dict=True,
 	)
 	if not si:
 		frappe.throw("Không tìm thấy bill này.")
+	_xhd_kiem_han(si.creation)
+	si.pop("creation", None)
 	si["da_xuat"] = 1 if si.custom_hddt_so else 0
 	si["custom_hddt_so"] = ""  # so hoa don khong phai viec cua trang khach
 	if si.vgb_xhd_ten == XHD_MAC_DINH:
@@ -1897,9 +1957,12 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	name = (d or "").strip()
 	if not name or (t or "").strip() != _xhd_token(name):
 		frappe.throw("Đường dẫn không hợp lệ.")
-	si = frappe.db.get_value("Sales Invoice", name, ["name", "custom_hddt_so"], as_dict=True)
+	si = frappe.db.get_value(
+		"Sales Invoice", name, ["name", "custom_hddt_so", "creation"], as_dict=True
+	)
 	if not si:
 		frappe.throw("Không tìm thấy bill này.")
+	_xhd_kiem_han(si.creation)
 	if si.custom_hddt_so:
 		frappe.throw("Bill này đã xuất hoá đơn điện tử rồi, không sửa được nữa. Cần điều chỉnh thì liên hệ tiệm.")
 	so_mst = re.sub(r"\D", "", mst or "")
