@@ -7269,7 +7269,9 @@ async function scrPosDs() {
     var gio = String(r.creation || '').slice(11, 16);
     var phu = [gio, h(r.custom_nguon || '')];
     if (r.total_qty) phu.push(money(r.total_qty) + ' món');
-    if (r.vgb_xhd_ten) phu.push('🏢 ' + h(String(r.vgb_xhd_ten).slice(0, 26)));
+    /* "Ban cho nguoi tieu dung" la gia tri mac dinh, khong phai cong ty
+       that - hien len moi dong chi gay nhieu. */
+    if (r.vgb_xhd_ten && r.vgb_xhd_ten !== 'Bán cho người tiêu dùng') phu.push('🏢 ' + h(String(r.vgb_xhd_ten).slice(0, 26)));
     html += '<div class="hub" data-bill="' + h(r.name) + '"><div class="hi">🧾</div>' +
       '<div class="ht"><div class="h1">' + h(r.custom_pancake_display_id || r.name) + ' · ' + money(r.grand_total) + ' đ</div>' +
       '<div class="h2">' + phu.join(' · ') + '</div>' +
@@ -8329,7 +8331,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '93';
+var APPVER = '94';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
