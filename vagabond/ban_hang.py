@@ -1297,6 +1297,12 @@ def tao_don_tay(
 	pt=None,
 	ma_tham_chieu=None,
 	quay=None,
+	ghi_chu="",
+	tam_tinh=0,
+	xhd_ten="",
+	xhd_mst="",
+	xhd_dia_chi="",
+	xhd_email="",
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -1328,18 +1334,28 @@ def tao_don_tay(
 	if nguon not in [n["v"] for n in NGUON_DON]:
 		frappe.throw("Nguồn đơn %s không có trong danh mục." % (nguon or "(trống)"))
 	hop_le = _pt_cho_nguon(nguon)
-	# San chi mot phuong thuc, may tu chon cho sales khoi bam thua.
-	pt = _kiem_pt(pt or (hop_le[0] if len(hop_le) == 1 else ""), nguon)
-	if not pt:
-		frappe.throw("Chưa chọn phương thức thanh toán cho đơn %s." % nguon)
-	ma_don = (ma_don or "").strip()
-	if len(hop_le) == 1:
-		# Don san: ma don ben app chinh la ma tham chieu.
-		ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu or ma_don)
-		ma_don = ma_tc
+	tam_tinh = frappe.utils.cint(tam_tinh)
+	if tam_tinh:
+		# Bill TAM TINH (y Felix 09/08/2026): khach chua thanh toan, chi in
+		# phieu tam tinh giu mon - ban dat thanh toan chung cuoi buoi, hoac
+		# don sale in kem QR cho khach xac nhan. Chua biet khach tra kieu gi
+		# nen chua co phuong thuc; cashier chot sau bang pos_chot.
+		pt = ""
+		ma_don = (ma_don or "").strip()
+		ma_tc = ""
 	else:
-		ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu)
-	_kiem_trung_ma(pt, ma_tc)
+		# San chi mot phuong thuc, may tu chon cho sales khoi bam thua.
+		pt = _kiem_pt(pt or (hop_le[0] if len(hop_le) == 1 else ""), nguon)
+		if not pt:
+			frappe.throw("Chưa chọn phương thức thanh toán cho đơn %s." % nguon)
+		ma_don = (ma_don or "").strip()
+		if len(hop_le) == 1:
+			# Don san: ma don ben app chinh la ma tham chieu.
+			ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu or ma_don)
+			ma_don = ma_tc
+		else:
+			ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu)
+		_kiem_trung_ma(pt, ma_tc)
 	ma_nguon = re.sub(r"[^A-Z0-9]", "", _bo_dau(nguon).upper())[:14] or "KHAC"
 	pid = "%s-%s" % (ma_nguon, ma_don or ma_tc or frappe.generate_hash(length=8))
 	if frappe.db.exists("Sales Invoice", {"custom_pancake_id": pid}):
@@ -1358,6 +1374,9 @@ def tao_don_tay(
 			"custom_nguon": nguon,
 			"vgb_pt_thanh_toan": pt,
 			"vgb_ma_tham_chieu": ma_tc,
+			"vgb_quay": (quay or "").strip(),
+			"vgb_tam_tinh": tam_tinh,
+			"vgb_ghi_chu": (ghi_chu or "").strip(),
 			"vgb_xhd_ten": XHD_MAC_DINH,
 			"apply_discount_on": "Grand Total",
 			"discount_amount": flt(giam_gia),
@@ -1373,6 +1392,17 @@ def tao_don_tay(
 	)
 	for r in rows:
 		si.append("items", r)
+	# Khach can hoa don cong ty va doc thong tin ngay tai quay thi dien luon.
+	so_mst = re.sub(r"\D", "", xhd_mst or "")
+	if so_mst:
+		if len(so_mst) not in (10, 13):
+			frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+		if not (xhd_ten or "").strip():
+			frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
+		si.vgb_xhd_ten = (xhd_ten or "").strip()
+		si.vgb_xhd_mst = so_mst
+		si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
+		si.vgb_xhd_email = (xhd_email or "").strip()
 	si.flags.ignore_permissions = True
 	si.save()
 	frappe.db.commit()
@@ -1626,3 +1656,241 @@ def xuat_hddt_con_thieu_tu_dong():
 			frappe.log_error("\n".join(kq["loi"])[:5000], "ban_hang: bu HDDT con thieu")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang cron HDDT")
+
+
+# ---------------------------------------------------------------- quay (POS)
+# Vong doi bill quay, thay the Fabi tinh tien (anh Viet 09/08/2026).
+# Moi quay tu quan bill cua minh: tu xem, tu sua, tu xoa, tu ghi so tai cho -
+# hai quay o hai dia diem, khong di vong qua man Doanh thu Sales cua ai ca.
+
+import hashlib
+
+RE_MA_BILL = re.compile(r"VGB[A-Z0-9]{5}")
+
+
+def _sepay_theo_ma_bill(ds_ma):
+	"""Tien SePay da nhan theo MA BILL QUAY (VGBxxxxx trong noi dung CK).
+
+	Khac voi don Pancake khop mach S<shop>O<don>T, bill quay in ma VGB len
+	ma QR nen ngan hang tra description chua nguyen ma do.
+	"""
+	ds_ma = [str(m).strip().upper() for m in (ds_ma or []) if RE_MA_BILL.fullmatch(str(m or "").strip().upper())]
+	if not ds_ma:
+		return {}
+	mau = "(%s)" % "|".join(sorted(set(ds_ma)))
+	try:
+		gds = frappe.db.sql(
+			"""select description, deposit, withdrawal, reference_number
+			from `tabBank Transaction`
+			where docstatus < 2 and description regexp %s""",
+			mau, as_dict=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc SePay theo ma bill")
+		return {}
+	ra = {}
+	for g in gds:
+		for m in RE_MA_BILL.findall((g.get("description") or "").upper()):
+			if m not in ds_ma:
+				continue
+			o = ra.setdefault(m, {"nhan": 0.0, "ma": "", "so_gd": 0})
+			o["nhan"] += flt(g.get("deposit")) - flt(g.get("withdrawal"))
+			o["so_gd"] += 1
+			if not o["ma"]:
+				o["ma"] = (g.get("reference_number") or "").strip()
+	return ra
+
+
+@frappe.whitelist()
+def pos_kiem_sepay(noi_dung=None, tien=0):
+	"""Man tinh tien goi vai giay mot lan khi dang chia QR chuyen khoan:
+	khach chuyen den noi la cashier thay ngay tren man hinh, khoi mo app
+	ngan hang hay cho Lark."""
+	_kiem_quyen()
+	g = _sepay_theo_ma_bill([noi_dung]).get(str(noi_dung or "").strip().upper()) or {}
+	nhan = flt(g.get("nhan"))
+	return {"nhan": nhan, "du": 1 if nhan >= flt(tien) - 1 else 0, "ma": g.get("ma") or ""}
+
+
+@frappe.whitelist()
+def pos_ds_bill(quay=None, ngay=None):
+	"""Danh sach bill trong ngay cua MOT quay, kem tinh trang SePay va HDDT."""
+	_kiem_quyen()
+	quay = (quay or "").strip()
+	if not quay:
+		frappe.throw("Thiếu mã quầy.")
+	ngay = getdate(ngay or nowdate())
+	ds = frappe.get_all(
+		"Sales Invoice",
+		filters={"vgb_quay": quay, "posting_date": str(ngay), "docstatus": ["<", 2]},
+		fields=[
+			"name", "creation", "docstatus", "grand_total", "discount_amount",
+			"custom_nguon", "custom_pancake_display_id", "remarks", "owner",
+			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_ghi_chu",
+			"vgb_xhd_ten", "vgb_xhd_mst", "custom_hddt_so", "custom_hddt_trang_thai",
+		],
+		order_by="creation desc",
+		limit_page_length=0,
+	)
+	sepay = _sepay_theo_ma_bill(
+		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
+	)
+	for r in ds:
+		g = sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
+		r["sepay_nhan"] = flt(g.get("nhan"))
+		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
+	return {"ngay": str(ngay), "bill": ds}
+
+
+def _pos_lay(name):
+	si = frappe.get_doc("Sales Invoice", name)
+	if not (si.get("vgb_quay") or "").strip():
+		frappe.throw("Phiếu này không phải bill quầy.")
+	return si
+
+
+@frappe.whitelist()
+def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None):
+	"""Chot mot bill tam tinh: khach thanh toan xong, cashier chon phuong
+	thuc, bill thanh bill thuong cho ghi so. Cung dung de sua pt/ghi chu
+	cua bill nhap chua ghi so."""
+	_kiem_quyen()
+	si = _pos_lay(name)
+	if si.docstatus != 0:
+		frappe.throw("Bill này đã ghi sổ rồi, không sửa được nữa.")
+	if pt:
+		pt = _kiem_pt(pt, si.custom_nguon)
+		si.vgb_pt_thanh_toan = pt
+		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
+		if si.vgb_ma_tham_chieu:
+			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+	if ghi_chu is not None:
+		si.vgb_ghi_chu = (ghi_chu or "").strip()
+	if giam_gia is not None:
+		si.apply_discount_on = "Grand Total"
+		si.discount_amount = flt(giam_gia)
+	si.vgb_tam_tinh = 0
+	si.flags.ignore_permissions = True
+	si.save()
+	frappe.db.commit()
+	return {"ok": 1, "name": si.name, "grand_total": si.grand_total}
+
+
+@frappe.whitelist()
+def pos_xoa(name):
+	"""Xoa mot bill nhap bam nham. Chi xoa duoc bill CHUA ghi so."""
+	_kiem_quyen()
+	si = _pos_lay(name)
+	if si.docstatus != 0:
+		frappe.throw("Bill đã ghi sổ thì không xoá được. Cần huỷ thì báo kế toán.")
+	frappe.delete_doc("Sales Invoice", name, ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1}
+
+
+@frappe.whitelist()
+def pos_ghi_so(name):
+	"""Ghi so mot bill NGAY TAI QUAY. Chuyen khoan thi ngan hang phai nhan
+	du tien theo ma bill VGB moi cho ghi (giong nguyen tac ben Sales)."""
+	_kiem_quyen()
+	si = _pos_lay(name)
+	if si.docstatus != 0:
+		frappe.throw("Bill này đã ghi sổ rồi.")
+	if frappe.utils.cint(si.get("vgb_tam_tinh")):
+		frappe.throw("Bill còn tạm tính. Khách thanh toán xong thì bấm Chốt trước, rồi mới ghi sổ.")
+	pt = _kiem_pt(si.vgb_pt_thanh_toan, si.custom_nguon)
+	if not pt:
+		frappe.throw("Bill chưa chọn phương thức thanh toán.")
+	if pt == "Chuyển khoản":
+		ma = str(si.vgb_ma_tham_chieu or "").strip().upper()
+		g = _sepay_theo_ma_bill([ma]).get(ma) or {}
+		nhan = flt(g.get("nhan"))
+		if nhan < flt(si.grand_total) - 1:
+			frappe.throw(
+				"Bill %s ghi Chuyển khoản nhưng ngân hàng mới nhận %s đ trên tổng %s đ. "
+				"Chờ tiền về rồi ghi sổ, hoặc khách chuyển sai nội dung thì tìm mã giao "
+				"dịch trong sao kê gõ vào ô Mã tham chiếu."
+				% (si.name, _tien(nhan), _tien(si.grand_total))
+			)
+	else:
+		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
+	if not (si.vgb_xhd_ten or "").strip():
+		si.vgb_xhd_ten = XHD_MAC_DINH
+	si.flags.ignore_permissions = True
+	si.submit()
+	frappe.db.commit()
+	return {"ok": 1, "name": si.name}
+
+
+# ------------------------------------------ khach tu nhap thong tin xuat HD
+
+def _xhd_token(name):
+	"""Token in trong ma QR tren bill giay - khach chi sua duoc DUNG bill
+	cua minh, khong doan duoc bill nguoi khac."""
+	muoi = frappe.local.conf.get("encryption_key") or frappe.local.site
+	return hashlib.sha1(("vgbxhd|%s|%s" % (name, muoi)).encode()).hexdigest()[:12]
+
+
+@frappe.whitelist()
+def pos_link_xhd(name):
+	"""Duong dan cho ma QR xuat hoa don in cuoi bill."""
+	_kiem_quyen()
+	return {"url": "/xhd?d=%s&t=%s" % (name, _xhd_token(name))}
+
+
+@frappe.whitelist(allow_guest=True)
+def xhd_khach_xem(d=None, t=None):
+	"""Khach quet QR: xem bill cua minh truoc khi dien thong tin."""
+	name = (d or "").strip()
+	if not name or (t or "").strip() != _xhd_token(name):
+		frappe.throw("Đường dẫn không hợp lệ.")
+	si = frappe.db.get_value(
+		"Sales Invoice", name,
+		["name", "posting_date", "grand_total", "custom_hddt_so",
+		 "vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email"],
+		as_dict=True,
+	)
+	if not si:
+		frappe.throw("Không tìm thấy bill này.")
+	si["da_xuat"] = 1 if si.custom_hddt_so else 0
+	si["custom_hddt_so"] = ""  # so hoa don khong phai viec cua trang khach
+	if si.vgb_xhd_ten == XHD_MAC_DINH:
+		si["vgb_xhd_ten"] = ""
+	return si
+
+
+@frappe.whitelist(allow_guest=True)
+def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
+	"""Khach dien MST - ten - dia chi - email; ERP tu map vao don ban hang.
+	Cuoi ngay lich 23h30 tu tao hoa don cho ky ben m-invoice nhu moi don."""
+	name = (d or "").strip()
+	if not name or (t or "").strip() != _xhd_token(name):
+		frappe.throw("Đường dẫn không hợp lệ.")
+	si = frappe.db.get_value("Sales Invoice", name, ["name", "custom_hddt_so"], as_dict=True)
+	if not si:
+		frappe.throw("Không tìm thấy bill này.")
+	if si.custom_hddt_so:
+		frappe.throw("Bill này đã xuất hoá đơn điện tử rồi, không sửa được nữa. Cần điều chỉnh thì liên hệ tiệm.")
+	so_mst = re.sub(r"\D", "", mst or "")
+	if len(so_mst) not in (10, 13):
+		frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+	ten = (ten or "").strip()
+	if not ten:
+		frappe.throw("Thiếu tên pháp nhân trên hoá đơn.")
+	frappe.db.set_value(
+		"Sales Invoice", name,
+		{
+			"vgb_xhd_ten": ten,
+			"vgb_xhd_mst": so_mst,
+			"vgb_xhd_dia_chi": (dia_chi or "").strip(),
+			"vgb_xhd_email": (email or "").strip(),
+		},
+	)
+	frappe.db.commit()
+	return {"ok": 1}
+
+
+@frappe.whitelist(allow_guest=True)
+def xhd_khach_tra_mst(mst=None):
+	"""Trang khach tra MST ra ten + dia chi, dung chung nguon VietQR."""
+	from vagabond.api import tra_mst
+	return tra_mst(mst)
