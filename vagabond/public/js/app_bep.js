@@ -6482,15 +6482,16 @@ async function scrPosChonQuay() {
     go(scrPosQuay);
   };
 }
-/* Logo cua GrabFood, GreenSM, ShopeeFood moi cai mot ti le khac nhau, de
-   nam cung dong voi chu thi chu bi day tran ra ngoai nut (anh Viet 09/08).
-   Nay logo nam trong mot KHUNG VUONG 26x26 co dinh, chu xuong dong ben
-   duoi - nut nao cung cao bang nhau va khong bao gio tran. */
+/* Logo GrabFood, GreenSM, ShopeeFood... moi cai mot ti le khac nhau (co cai
+   rong gap 3 lan chieu cao), de chung mot dong voi chu thi chu bi day tran
+   ra ngoai nut (anh Viet 09/08). Nay moi logo deu duoc gioi han CUNG MOT
+   CHIEU CAO va khong bao gio rong qua nut - nhin ngang hang, chu xuong
+   dong ben duoi nen nut nao cung vuong van bang nhau. */
 function posONhan(n, cao) {
-  cao = cao || 26;
-  var k = 'width:' + cao + 'px;height:' + cao + 'px;flex:none;display:flex;align-items:center;justify-content:center';
-  if (n.lg) return '<span style="' + k + '"><img src="' + n.lg + '" style="max-width:100%;max-height:100%;object-fit:contain;display:block"></span>';
-  if (n.ic) return '<span style="' + k + ';font-size:' + Math.round(cao * 0.72) + 'px">' + n.ic + '</span>';
+  cao = cao || 22;
+  var k = 'height:' + cao + 'px;max-width:100%;flex:none;display:flex;align-items:center;justify-content:center';
+  if (n.lg) return '<span style="' + k + '"><img src="' + n.lg + '" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block"></span>';
+  if (n.ic) return '<span style="' + k + ';width:' + cao + 'px;font-size:' + Math.round(cao * 0.86) + 'px">' + n.ic + '</span>';
   return '';
 }
 function posNutNguon(ds, chon) {
@@ -6505,7 +6506,7 @@ function posNutPt(ds, chon) {
   return ds.map(function (p) {
     var on = p.v === chon;
     return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:6px 8px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
-      posONhan({ lg: p.lg, ic: p.lg ? '' : '🏦' }, 28) +
+      posONhan({ lg: p.lg, ic: p.lg ? '' : '🏦' }, 24) +
       '<span style="font-size:14px;line-height:1.15;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
   }).join('');
 }
@@ -7502,7 +7503,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '86';
+var APPVER = '87';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
