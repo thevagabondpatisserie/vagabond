@@ -19,8 +19,10 @@ Chong trung: SI mang custom_pancake_id (id noi bo cua Pancake). Dong bo
 chay lai bao nhieu lan cung chi co mot hoa don cho mot don.
 """
 
+import hmac
 import json
 import re
+import time
 import unicodedata
 
 import frappe
@@ -44,6 +46,86 @@ QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager", "Bộ phận 
 def _kiem_quyen():
 	if not QUYEN_BAN_HANG & set(frappe.get_roles()):
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền ghi nhận doanh số.")
+
+
+# ---------- Ma OTP quan ly (anh Viet 09/08/2026) ----------
+# Hoa don quay la tien that da thu cua khach. De nhan vien tu do sua/xoa
+# thi rat de gian lan, nen moi thao tac sua/xoa deu phai co ma OTP 6 so
+# xin tu quan ly. Ma tu sinh theo dong ho (khong luu DB, khong ai doc trom
+# duoc trong bang), 10 phut doi mot lan.
+OTP_PHUT = 10
+OTP_SEP = {
+	"ntla.3008@gmail.com",  # Nguyen Thi Loan Anh
+	"led70076@gmail.com",  # Le Hoang De
+	"long.duyen211234@gmail.com",  # Tran Dinh Uyen Duyen
+	"thevagabond.marketing@gmail.com",  # Nguyen Hoang Viet
+	"mason110992@gmail.com",  # Ma Thanh Son
+	"dung.ngo1587@gmail.com",  # Ngo Hoang Ngoc Dung
+}
+
+
+def _otp_la_sep(user=None):
+	return (user or frappe.session.user) in OTP_SEP
+
+
+def _otp_buoc(luc=None):
+	return int((luc if luc is not None else time.time()) // (OTP_PHUT * 60))
+
+
+def _otp_ma(buoc):
+	"""Sinh 6 so tu khoa bi mat cua site - khong luu dau o dau."""
+	bi_mat = frappe.local.conf.get("encryption_key") or frappe.local.conf.get("db_password") or "vagabond"
+	h = hmac.new(
+		str(bi_mat).encode("utf-8"), ("vgb-otp-%d" % buoc).encode("utf-8"), hashlib.sha256
+	).hexdigest()
+	return "%06d" % (int(h[:12], 16) % 1000000)
+
+
+@frappe.whitelist()
+def otp_hien_tai():
+	"""Ma OTP dang hieu luc - chi quan ly duoc xem."""
+	_kiem_quyen()
+	if not _otp_la_sep():
+		frappe.throw(
+			"Chỉ quản lý được cấp mã OTP. Bạn cần sửa hoặc xoá hoá đơn thì "
+			"liên hệ quản lý ca để xin mã."
+		)
+	buoc = _otp_buoc()
+	con = int((buoc + 1) * OTP_PHUT * 60 - time.time())
+	return {"ma": _otp_ma(buoc), "con_lai": max(0, con), "phut": OTP_PHUT}
+
+
+def _otp_kiem(otp, viec=""):
+	"""Sep tu thao tac thi khoi nhap ma; nhan vien phai co ma con hieu luc.
+	Chap nhan ca ma cua chu ky truoc de nguoi doc ma qua dien thoai khong
+	bi hut ma giua chung."""
+	if _otp_la_sep():
+		return "quản lý " + (frappe.session.user or "")
+	ma = re.sub(r"\D", "", str(otp or ""))
+	if not ma:
+		frappe.throw(
+			"Thao tác này cần mã OTP của quản lý. Bấm xin mã từ quản lý ca rồi nhập vào."
+		)
+	buoc = _otp_buoc()
+	if ma not in (_otp_ma(buoc), _otp_ma(buoc - 1)):
+		frappe.throw("Mã OTP không đúng hoặc đã hết hạn. Xin quản lý mã mới rồi nhập lại.")
+	return "OTP"
+
+
+def _ghi_vet(name, viec, cach):
+	"""Luu dau vet ai sua/xoa hoa don nao, bang quyen gi."""
+	try:
+		frappe.get_doc(
+			{
+				"doctype": "Comment",
+				"comment_type": "Info",
+				"reference_doctype": "Sales Invoice",
+				"reference_name": name,
+				"content": "%s - %s (%s)" % (viec, frappe.session.user, cach),
+			}
+		).insert(ignore_permissions=True)
+	except Exception:
+		pass
 
 
 def _cong_ty():
@@ -1301,6 +1383,7 @@ def tao_don_tay(
 	quay=None,
 	ghi_chu="",
 	tam_tinh=0,
+	so_ban="",
 	xhd_ten="",
 	xhd_mst="",
 	xhd_dia_chi="",
@@ -1384,6 +1467,7 @@ def tao_don_tay(
 			"vgb_pt_thanh_toan": pt,
 			"vgb_ma_tham_chieu": ma_tc,
 			"vgb_quay": (quay or "").strip(),
+			"vgb_so_ban": str(so_ban or "").strip(),
 			"vgb_tam_tinh": tam_tinh,
 			"vgb_ghi_chu": (ghi_chu or "").strip(),
 			"vgb_xhd_ten": XHD_MAC_DINH,
@@ -1735,7 +1819,8 @@ def pos_ds_bill(quay=None, ngay=None):
 			"name", "creation", "docstatus", "grand_total", "discount_amount", "total_qty",
 			"custom_nguon", "custom_pancake_display_id", "remarks", "owner",
 			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_ghi_chu",
-			"vgb_xhd_ten", "vgb_xhd_mst", "custom_hddt_so", "custom_hddt_trang_thai",
+			"vgb_xhd_ten", "vgb_xhd_mst", "vgb_so_ban",
+			"custom_hddt_so", "custom_hddt_trang_thai",
 		],
 		order_by="creation desc",
 		limit_page_length=0,
@@ -1765,7 +1850,7 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None):
 	_kiem_quyen()
 	si = _pos_lay(name)
 	if si.docstatus != 0:
-		frappe.throw("Bill này đã ghi sổ rồi, không sửa được nữa.")
+		frappe.throw("Hoá đơn này đã ghi sổ rồi, không sửa được nữa.")
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
 		si.vgb_pt_thanh_toan = pt
@@ -1785,15 +1870,112 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None):
 
 
 @frappe.whitelist()
-def pos_xoa(name):
-	"""Xoa mot bill nhap bam nham. Chi xoa duoc bill CHUA ghi so."""
+def pos_xoa(name, otp=None):
+	"""Xoa mot hoa don nhap bam nham. Chi xoa duoc hoa don CHUA ghi so, va
+	phai co ma OTP cua quan ly (tien khach da tra roi - anh Viet 09/08)."""
 	_kiem_quyen()
 	si = _pos_lay(name)
 	if si.docstatus != 0:
-		frappe.throw("Bill đã ghi sổ thì không xoá được. Cần huỷ thì báo kế toán.")
+		frappe.throw("Hoá đơn đã ghi sổ thì không xoá được. Cần huỷ thì báo kế toán.")
+	cach = _otp_kiem(otp, "xoá hoá đơn")
+	_ghi_vet(name, "Xoá hoá đơn %s (%s đ)" % (si.get("custom_pancake_display_id") or name, _tien(si.grand_total)), cach)
 	frappe.delete_doc("Sales Invoice", name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1}
+
+
+@frappe.whitelist()
+def pos_sua_don(
+	name,
+	otp=None,
+	items=None,
+	giam_gia=None,
+	pt=None,
+	ma_tham_chieu=None,
+	ghi_chu=None,
+	so_ban=None,
+	xhd_ten=None,
+	xhd_mst=None,
+	xhd_dia_chi=None,
+	xhd_email=None,
+):
+	"""Sua lai hoa don da tinh tien cho khach - phai co ma OTP quan ly.
+
+	Hoa don con nhap thi sua duoc het (mon, giam gia, phuong thuc, so ban,
+	thong tin xuat hoa don). Hoa don DA GHI SO thi so tien da vao so sach,
+	chi cho sua ghi chu - so ban - thong tin xuat hoa don; muon doi tien
+	phai huy hoa don ben ke toan."""
+	_kiem_quyen()
+	si = _pos_lay(name)
+	cach = _otp_kiem(otp, "sửa hoá đơn")
+	da_ghi = si.docstatus == 1
+	doi = []
+	if da_ghi and (items is not None or giam_gia is not None or pt):
+		frappe.throw(
+			"Hoá đơn %s đã ghi sổ nên không sửa được món, giảm giá hay phương thức "
+			"thanh toán. Cần đổi thì báo kế toán huỷ hoá đơn rồi bấm lại."
+			% (si.get("custom_pancake_display_id") or name)
+		)
+	if items is not None:
+		if isinstance(items, str):
+			items = json.loads(items or "[]")
+		rows = []
+		for r in items or []:
+			ma = (r.get("item_code") or "").strip()
+			if not ma or not frappe.db.exists("Item", ma):
+				frappe.throw("Không có mã hàng %s trong hệ thống." % (ma or "(trống)"))
+			sl = flt(r.get("qty") or 0)
+			if sl <= 0:
+				frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
+			d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
+			tc = (r.get("tuy_chon") or "").strip()
+			if tc:
+				ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
+				d["description"] = "%s\n[%s]" % (ten_mon, tc[:200])
+			rows.append(d)
+		if not rows:
+			frappe.throw("Hoá đơn phải còn ít nhất một món.")
+		si.set("items", [])
+		for d in rows:
+			si.append("items", d)
+		doi.append("món")
+	if giam_gia is not None:
+		si.apply_discount_on = "Grand Total"
+		si.discount_amount = flt(giam_gia)
+		doi.append("giảm giá")
+	if pt:
+		pt = _kiem_pt(pt, si.custom_nguon)
+		si.vgb_pt_thanh_toan = pt
+		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
+		if si.vgb_ma_tham_chieu:
+			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+		doi.append("phương thức thanh toán")
+	if ghi_chu is not None:
+		si.vgb_ghi_chu = (ghi_chu or "").strip()
+		doi.append("ghi chú")
+	if so_ban is not None:
+		si.vgb_so_ban = str(so_ban or "").strip()
+		doi.append("số bàn")
+	if xhd_mst is not None or xhd_ten is not None:
+		so_mst = re.sub(r"\D", "", xhd_mst or "")
+		if so_mst and len(so_mst) not in (10, 13):
+			frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+		si.vgb_xhd_mst = so_mst
+		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
+		if xhd_dia_chi is not None:
+			si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
+		if xhd_email is not None:
+			si.vgb_xhd_email = (xhd_email or "").strip()
+		doi.append("thông tin xuất hoá đơn")
+	si.flags.ignore_permissions = True
+	if da_ghi:
+		si.save(ignore_version=True)
+	else:
+		si.save()
+	frappe.db.commit()
+	_ghi_vet(name, "Sửa hoá đơn: %s" % (", ".join(doi) or "không đổi gì"), cach)
+	frappe.db.commit()
+	return {"ok": 1, "name": si.name, "grand_total": si.grand_total}
 
 
 @frappe.whitelist()
@@ -2037,6 +2219,11 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	ten = (ten or "").strip()
 	if not ten:
 		frappe.throw("Thiếu tên pháp nhân trên hoá đơn.")
+	# Hoa don dien tu gui qua email, khong co email thi khach khong nhan
+	# duoc gi ca -> bat buoc dien (anh Viet 09/08/2026).
+	email = (email or "").strip()
+	if not email or "@" not in email or "." not in email.split("@")[-1]:
+		frappe.throw("Vui lòng nhập email để nhận hoá đơn điện tử.")
 	frappe.db.set_value(
 		"Sales Invoice", name,
 		{
@@ -2050,12 +2237,16 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	# Gui mail bao da tiep nhan - khach dien xong co ngay mot dong hoi am,
 	# khoi thap thom khong biet may co nhan duoc khong (anh Viet 09/08/2026).
 	# Loi gui mail khong duoc lam hong viec luu.
-	email = (email or "").strip()
-	if email:
-		try:
-			_xhd_mail_tiep_nhan(name, email, ten, so_mst)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "ban_hang: mail tiep nhan XHD")
+	try:
+		_xhd_mail_tiep_nhan(name, email, ten, so_mst)
+		# Trang /xhd goi API bang GET (tranh CSRF cho khach vang lai), ma
+		# Frappe ROLLBACK cuoi moi request GET. Ban ghi Email Queue sinh ra
+		# sau frappe.db.commit() o tren nam trong transaction moi nen bi xoa
+		# sach - thu khong bao gio gui. Commit lan nua la giu duoc.
+		frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: mail tiep nhan XHD")
+		frappe.db.commit()
 	return {"ok": 1}
 
 
