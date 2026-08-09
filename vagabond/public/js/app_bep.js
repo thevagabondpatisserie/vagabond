@@ -6588,8 +6588,9 @@ async function scrPosQuay() {
       (m.anh
         ? '<img src="' + h(m.anh) + '" loading="lazy" style="width:44px;height:44px;flex:none;object-fit:cover;border-radius:9px;border:1px solid #eef0f4" onerror="this.style.display=\'none\'">'
         : '<span style="width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#f6f7f9;font-size:22px">🎂</span>') +
-      '<div style="flex:1;min-width:0"><div style="font-size:14.5px;line-height:1.25">' + h(m.ten) + '</div>' +
-      '<div style="color:#a0a6b4;font-size:12px;margin-top:1px">' + money(m.rate) + ' đ/cái</div></div>' +
+      '<div style="flex:1;min-width:0" data-tc-mo="' + i + '"><div style="font-size:14.5px;line-height:1.25">' + h(m.ten) + '</div>' +
+      '<div style="color:#a0a6b4;font-size:12px;margin-top:1px">' + money(m.rate) + ' đ/cái' + (m.nhom && ['Trà', 'Cà phê', 'Matcha', 'Cacao', 'Ice Cream - Kem'].indexOf(m.nhom) >= 0 && !(m.tc || []).length ? ' · <span style="color:#0b7c93">bấm chọn đá/đường</span>' : '') + '</div>' +
+      ((m.tc || []).length ? '<div style="color:#0f766e;font-size:12px;margin-top:1px">⚙ ' + h(m.tc.join(', ')) + '</div>' : '') + '</div>' +
       '<button data-bot="' + i + '" style="' + NUT + '">&minus;</button>' +
       '<b style="min-width:22px;text-align:center;font-size:15px">' + money(m.qty) + '</b>' +
       '<button data-cong="' + i + '" style="' + NUT + '">+</button>' +
@@ -6673,6 +6674,8 @@ async function scrPosQuay() {
     }
     t = e.target.closest('[data-x]');
     if (t) { posDoc(); posDon.mon.splice(+t.getAttribute('data-x'), 1); return go(scrPosQuay, true); }
+    t = e.target.closest('[data-tc-mo]');
+    if (t) { posDoc(); return posMoTuyChon(+t.getAttribute('data-tc-mo')); }
   });
   var ptw = document.getElementById('posPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -6755,7 +6758,7 @@ async function posThemMon() {
   if (!dsItemsCache) {
     busy(true);
     try {
-      dsItemsCache = await getList('Item', { filters: { is_sales_item: 1, disabled: 0, item_group: ['not in', ['Nguyên vật liệu Thô', 'Bán thành phẩm Bánh', 'Bán thành phẩm Nước', 'Nhân bán thành phẩm', 'Công cụ Dụng cụ', 'Bao bì', 'Văn phòng phẩm', 'Tài sản Cố định']] }, fields: ['name', 'item_name', 'image', 'standard_rate'], limit_page_length: 0, order_by: 'item_name' });
+      dsItemsCache = await getList('Item', { filters: { is_sales_item: 1, disabled: 0, item_group: ['not in', ['Nguyên vật liệu Thô', 'Bán thành phẩm Bánh', 'Bán thành phẩm Nước', 'Nhân bán thành phẩm', 'Công cụ Dụng cụ', 'Bao bì', 'Văn phòng phẩm', 'Tài sản Cố định']] }, fields: ['name', 'item_name', 'image', 'standard_rate', 'item_group'], limit_page_length: 0, order_by: 'item_name' });
       try {
         var bc = await getList('Item Barcode', { parent: 'Item', fields: ['parent', 'barcode'], limit_page_length: 0 });
         var bcm = {};
@@ -6765,18 +6768,123 @@ async function posThemMon() {
     } catch (e) { busy(false); return toast('Không tải được danh mục món'); }
     busy(false);
   }
-  sheet('Chọn món', dsItemsCache.map(function (x) {
-    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
-  }), null, function (o) {
+  posSheetMon(dsItemsCache.map(function (x) {
+    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
+  }), function (o) {
     var i = -1;
     posDon.mon.forEach(function (m, k) { if (m.item_code === o.value) i = k; });
     if (i >= 0) { posDon.mon[i].qty += 1; return go(scrPosQuay, true); }
     /* Gia o quay khong duoc sua tay: mon chua co gia ban thi bao Sales dat
        gia trong danh muc, chu khong go tay tai quay (anh Viet 09/08). */
     if (!o.gia) return toast('Món ' + o.label + ' chưa có giá bán trong danh mục. Nhờ Sales đặt giá rồi bấm lại.', 4500);
-    posDon.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia, anh: o.img || '' });
+    posDon.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia, anh: o.img || '', nhom: o.nhom, tc: [] });
     go(scrPosQuay, true);
-  }, true);
+  });
+}
+
+/* Sheet chon mon rieng cho quay: co hang chip NHOM MON nhu cot trai Fabi
+   (anh Viet 09/08/2026) - bam nhom la loc, do phai go tim tung mon. */
+var posNhomChon = '';
+function posSheetMon(items, onPick) {
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  var nhoms = [];
+  items.forEach(function (it) { if (it.nhom && nhoms.indexOf(it.nhom) < 0) nhoms.push(it.nhom); });
+  nhoms.sort(function (a, b) { return a.localeCompare(b, 'vi'); });
+  var hd = '<div class="shh"><b>Chọn món</b><div class="x">&times;</div></div>' +
+    '<div style="padding:10px 14px 4px;display:flex;gap:8px"><input class="nt" placeholder="Tìm nhanh..." style="height:46px;padding:0 12px;flex:1"><button class="nt" id="shQuet" title="Quét mã vạch" style="height:46px;width:54px;flex:none;font-size:20px;cursor:pointer">&#128247;</button></div>' +
+    '<div id="shNhom" style="display:flex;gap:6px;padding:8px 14px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch"></div>';
+  box.innerHTML = hd + '<div class="shl"></div>';
+  var lst = box.querySelector('.shl'), oNhom = box.querySelector('#shNhom');
+  function veNhom() {
+    var ds = ['Tất cả'].concat(nhoms);
+    oNhom.innerHTML = ds.map(function (n) {
+      var v = n === 'Tất cả' ? '' : n;
+      var on = v === posNhomChon;
+      return '<button data-nh="' + h(v) + '" style="flex:0 0 auto;padding:7px 13px;border-radius:18px;font-size:13px;white-space:nowrap;cursor:pointer;border:1.5px solid ' + (on ? '#0d9488;background:#0d9488;color:#fff;font-weight:700' : '#e5e7eb;background:#fff;color:#374151') + '">' + h(n) + '</button>';
+    }).join('');
+  }
+  function draw(q) {
+    q = (q || '').toLowerCase();
+    var f = items.filter(function (it) {
+      if (posNhomChon && it.nhom !== posNhomChon) return false;
+      return !q || ((it.label || '') + ' ' + (it.tim || '') + ' ' + (it.value || '')).toLowerCase().indexOf(q) >= 0;
+    });
+    lst.innerHTML = f.length ? f.map(function (it) {
+      return '<div class="shi" data-i="' + items.indexOf(it) + '">' +
+        (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : '<span>' + (it.icon || '🎂') + '</span>') +
+        '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span></div>';
+    }).join('') : '<div class="emp"><div class="e2">Không tìm thấy trong nhóm này</div></div>';
+  }
+  veNhom(); draw('');
+  ov.appendChild(box); document.body.appendChild(ov);
+  var inp = box.querySelector('input');
+  inp.oninput = function () { draw(inp.value); };
+  oNhom.onclick = function (e) {
+    var t = e.target.closest('[data-nh]'); if (!t) return;
+    posNhomChon = t.getAttribute('data-nh');
+    veNhom(); draw(inp.value);
+  };
+  var shQ = box.querySelector('#shQuet');
+  if (shQ) shQ.onclick = async function () {
+    var code = null;
+    try { code = await scanBarcode(); } catch (e) { code = null; }
+    if (code) { inp.value = code; draw(code); }
+  };
+  function close() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) close(); };
+  box.querySelector('.x').onclick = close;
+  lst.onclick = function (e) {
+    var r = e.target.closest('.shi'); if (!r) return;
+    close(); onPick(items[+r.dataset.i]);
+  };
+}
+
+/* Tuy chon pha che kieu customization Fabi: it duong, it da, da rieng...
+   Khong chon gi = mac dinh 100% duong 100% da, khong ghi gi len bill.
+   Cac lua chon deu 0 dong - chi la loi dan cho quay pha che. */
+var POS_TC = null;
+async function posMoTuyChon(i) {
+  var m = posDon.mon[i];
+  if (!m) return;
+  if (POS_TC === null) {
+    try { var kq = await api('vagabond.ban_hang.pos_ds_tuy_chon', {}); POS_TC = (kq && kq.tc) || []; }
+    catch (e) { POS_TC = []; }
+  }
+  var ds = POS_TC.filter(function (n) { return !n.nhom_mon.length || n.nhom_mon.indexOf(m.nhom || '') >= 0; });
+  if (!ds.length) return;
+  m.tc = m.tc || [];
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  var html = '<div class="shh"><b>' + h(m.ten) + '</b><div class="x">&times;</div></div>' +
+    '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">' +
+    '<div style="font-size:12px;color:#98a2b3;margin-bottom:6px">Không chọn gì = 100% đường, 100% đá như bình thường.</div>';
+  ds.forEach(function (n) {
+    html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:10px 0 6px;text-transform:uppercase">' + h(n.nhom) + '</div>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+      n.lua_chon.map(function (lc) {
+        var on = m.tc.indexOf(lc) >= 0;
+        return '<button data-tc="' + h(lc) + '" style="padding:9px 13px;border-radius:10px;font-size:14px;cursor:pointer;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e;font-weight:700' : '#e5e7eb;background:#fff;color:#374151') + '">' + h(lc) + '</button>';
+      }).join('') + '</div>';
+  });
+  html += '<button class="btn" id="tcXong" style="margin-top:16px">Xong</button></div>';
+  box.innerHTML = html;
+  ov.appendChild(box); document.body.appendChild(ov);
+  function dong() { ov.remove(); go(scrPosQuay, true); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  box.querySelector('#tcXong').onclick = dong;
+  box.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-tc]'); if (!t) return;
+    var lc = t.getAttribute('data-tc');
+    var k = m.tc.indexOf(lc);
+    if (k >= 0) m.tc.splice(k, 1); else m.tc.push(lc);
+    var on = m.tc.indexOf(lc) >= 0;
+    t.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
+    t.style.background = on ? '#ccfbf1' : '#fff';
+    t.style.color = on ? '#0f766e' : '#374151';
+    t.style.fontWeight = on ? '700' : 'normal';
+  });
 }
 /* Ma QR dong kieu bill Fabi: khach quet bang app ngan hang la so tien va
    noi dung chuyen khoan dien san, khoi go tay, khoi go nham (anh Viet
@@ -6894,7 +7002,7 @@ async function posLuuDon() {
     r = await api('vagabond.ban_hang.tao_don_tay', {
       ngay: today(), nguon: nguon, ma_don: laApp ? (posDon.ma || '') : posDon.bill, ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
       pt: laApp ? '' : posDon.pt, ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', ') }; })),
       giam_gia: giam, phi_ship: 0, quay: posQuay.ma || '',
       ghi_chu: (posDon.km ? 'KM: ' + posDon.km.ten + (posDon.ghi_chu ? '. ' : '') : '') + (posDon.ghi_chu || ''),
       xhd_mst: posDon.xhd_mo ? (posDon.xh.mst || '') : '',
@@ -6953,6 +7061,7 @@ function posInBill(d) {
   var lucIn = hs(gio.getHours()) + ':' + hs(gio.getMinutes()) + ' ' + hs(gio.getDate()) + '/' + hs(gio.getMonth() + 1) + '/' + gio.getFullYear();
   var rows = mon.map(function (m) {
     return '<tr><td class="t">' + h(m.ten) + '</td></tr>' +
+      ((m.tc || []).length ? '<tr><td style="font-size:10px">&nbsp;&nbsp;[' + h(m.tc.join(', ')) + ']</td></tr>' : '') +
       '<tr><td class="s">' + money(m.qty) + ' x ' + money(m.rate) + '<span class="r">' + money(m.qty * m.rate) + '</span></td></tr>';
   }).join('');
   var qrKhoi = '';
@@ -6966,7 +7075,7 @@ function posInBill(d) {
        tu dien thong tin, ERP map vao don, cuoi ngay tu day m-invoice. */
     var ulink = location.origin + d.xhd_url;
     qrKhoi = '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=' + encodeURIComponent(ulink) + '">' +
-      '<div>Quý khách cần <b>hoá đơn công ty</b>?<br>Quét mã, điền thông tin trước 22h hôm nay.<br>Hoá đơn điện tử gửi về email trong đêm.</div></div>';
+      '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong đêm.</div></div>';
   }
   var w = window.open('', '_blank');
   if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
@@ -7029,7 +7138,7 @@ async function posInTamTinh() {
     r = await api('vagabond.ban_hang.tao_don_tay', {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', ') }; })),
       giam_gia: giam, phi_ship: 0, quay: posQuay.ma || '',
       ghi_chu: (posDon.km ? 'KM: ' + posDon.km.ten + (posDon.ghi_chu ? '. ' : '') : '') + (posDon.ghi_chu || ''), tam_tinh: 1
     });
@@ -7186,7 +7295,12 @@ async function scrPosBill(name) {
     }
     posInBill({
       name: d.name, bill: maBill, tam_tinh: tamTinh ? 1 : 0,
-      mon: (d.items || []).map(function (m) { return { ten: m.item_name || m.item_code, qty: m.qty, rate: m.rate }; }),
+      mon: (d.items || []).map(function (m) {
+        var tc = [];
+        var mo = /\[([^\]]+)\]/.exec(String(m.description || ''));
+        if (mo) tc = [mo[1]];
+        return { ten: m.item_name || m.item_code, qty: m.qty, rate: m.rate, tc: tc };
+      }),
       tong: (d.items || []).reduce(function (t, m) { return t + (m.amount || 0); }, 0),
       giam: d.discount_amount || 0, thu: d.grand_total,
       pt: PB_PT || d.vgb_pt_thanh_toan || '', ghi_chu: (document.getElementById('pbGhiChu') || {}).value || d.vgb_ghi_chu || '',
@@ -7958,7 +8072,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '89';
+var APPVER = '90';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
