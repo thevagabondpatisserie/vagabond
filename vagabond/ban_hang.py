@@ -1732,7 +1732,7 @@ def pos_ds_bill(quay=None, ngay=None):
 		"Sales Invoice",
 		filters={"vgb_quay": quay, "posting_date": str(ngay), "docstatus": ["<", 2]},
 		fields=[
-			"name", "creation", "docstatus", "grand_total", "discount_amount",
+			"name", "creation", "docstatus", "grand_total", "discount_amount", "total_qty",
 			"custom_nguon", "custom_pancake_display_id", "remarks", "owner",
 			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_ghi_chu",
 			"vgb_xhd_ten", "vgb_xhd_mst", "custom_hddt_so", "custom_hddt_trang_thai",
