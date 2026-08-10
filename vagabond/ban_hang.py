@@ -272,6 +272,24 @@ PT_THAM_CHIEU = {
 		"mau": MAU_BILL,
 		"loi": LOI_BILL,
 	},
+	# Grab Dine-Out: khach mua voucher tren app Grab roi den quan an. Grab
+	# giu tien cua hoa don do va chuyen ve cho tiem ngay T+1, nen phai tach
+	# rieng mot phuong thuc de doi soat - khong duoc lan vao tien mat hay
+	# the (anh Viet 10/08/2026).
+	"Grab Dine-Out": {
+		"lg": "/assets/vagabond/images/pt-grab-dineout.svg",
+		"bat": 1,
+		"nhan": "Mã voucher hoặc mã đặt chỗ Grab Dine-Out",
+		"vd": "GDO-482913",
+	},
+	# Cong no: khach si (Ravie...) va khach VIP gom nhieu hoa don tra mot
+	# lan. Truoc day khong co phuong thuc nay nen bill cua ho ket lai,
+	# ca khong chot duoc.
+	"Công nợ": {
+		"ic": "📒",
+		"nhan": "Tên hoặc mã khách công nợ",
+		"vd": "Ravie",
+	},
 	"GrabFood": {
 		"lg": "/files/pt-grab.png",
 		"bat": 1,
@@ -308,8 +326,32 @@ PT_THAM_CHIEU = {
 
 # Pancake KHONG co cac phuong thuc cua san, an di cho sales khoi chon nham
 # (anh Viet 02/08). Don san la don NHAP TAY, moi san chi mot phuong thuc.
-PT_QUAY = ["Tiền mặt", "Chuyển khoản", "Thẻ - Payoo", "Thẻ - ShinhanBank", "OnePay"]
-PT_PANCAKE = ["Tiền mặt", "Chuyển khoản", "OnePay", "Thẻ - Payoo", "Thẻ - ShinhanBank"]
+# Dau nhan dien dong GHI CHU MON trong description cua dong hoa don. Chon
+# ky tu nay vi khong ai go nham duoc, va tach bach voi [tuy chon pha che].
+DAU_GC_MON = "\u203b"
+
+PT_QUAY = [
+	"Tiền mặt",
+	"Chuyển khoản",
+	"Thẻ - Payoo",
+	"Thẻ - ShinhanBank",
+	"OnePay",
+	"Grab Dine-Out",
+	"Công nợ",
+]
+PT_PANCAKE = [
+	"Tiền mặt",
+	"Chuyển khoản",
+	"OnePay",
+	"Thẻ - Payoo",
+	"Thẻ - ShinhanBank",
+	"Công nợ",
+]
+
+# Phuong thuc chua thu duoc tien ngay: chot ca van cho chot nhung tach ra
+# mot dong rieng de biet con phai di doi.
+PT_CHUA_VE_TIEN = ["Công nợ"]
+PT_VE_SAU = ["Grab Dine-Out"]
 
 NGUON_DON = [
 	{"v": "GrabFood", "lg": "/files/pt-grab.png", "pt": ["GrabFood"]},
@@ -352,6 +394,29 @@ QR_QUAY = {
 	"stk": "VQRQ00033k5p6",
 	"ten": "PATISSERIE VAGABOND COMPANY LIMITED",
 }
+
+# Thu tu nhom mon o man chon mon, xep theo tan suat ban thuc te tai quay
+# (anh Viet 10/08/2026) - banh o sinh nhat de cuoi vi quay ban rat it, chu
+# yeu ben Sales ban. Nhom khong co trong danh sach nay rot xuong duoi va
+# xep theo bang chu cai.
+THU_TU_NHOM = [
+	"Khuyến mãi dạng Combo",
+	"Bánh mì",
+	"Bánh nướng",
+	"Bánh lạnh",
+	"Bánh khô",
+	"BÁNH NHẸ / CONFECTIONERY",
+	"Cà phê",
+	"Trà",
+	"Matcha",
+	"Cacao",
+	"Ice Cream - Kem",
+	"Topping cho món nước",
+	"Topping cho món bánh",
+	"Phụ kiện cho bánh",
+	"Hộp bánh theo mùa",
+	"Bánh ổ sinh nhật",
+]
 
 # Ten nguon cu tren cac hoa don da nhap truoc 02/08, giu de doc lai duoc.
 NGUON_CU = {"Grab": "GrabFood", "Grab Online": "GrabFood", "Be": "BeFood", "GreenSM": "GreenSM Food"}
@@ -437,6 +502,36 @@ def _kiem_pt(pt, nguon):
 	return pt
 
 
+# Anh thumbnail cua tung quay: luu bang default toan he thong nen doi anh
+# khong phai sua ma, khong phai migrate. Anh Viet tu tai anh len trong app
+# la ca hai quay va man Sales doi theo (10/08/2026).
+KHOA_ANH_QUAY = "vgb_anh_quay_"
+
+
+def _anh_quay_da_luu(ma):
+	try:
+		return frappe.db.get_default(KHOA_ANH_QUAY + str(ma or "")) or ""
+	except Exception:
+		return ""
+
+
+@frappe.whitelist()
+def pos_anh_quay_luu(ma=None, url=None):
+	"""Doi anh thumbnail cua mot quay. Chi sales va ke toan duoc doi."""
+	_kiem_quyen()
+	ma = (ma or "").strip()
+	url = (url or "").strip()
+	if not ma:
+		frappe.throw("Thiếu mã quầy.")
+	# Chi nhan duong dan tep tren chinh site nay - khong cho tro ra ngoai
+	# de khoi bi nhet link la vao man hinh nhan vien.
+	if url and not url.startswith("/"):
+		frappe.throw("Đường dẫn ảnh phải là tệp đã tải lên hệ thống.")
+	frappe.db.set_default(KHOA_ANH_QUAY + ma, url)
+	frappe.db.commit()
+	return {"ma": ma, "url": url}
+
+
 @frappe.whitelist()
 def cau_hinh_ban_hang():
 	"""Nguon don, phuong thuc thanh toan, quy tac ma tham chieu cho app /bep.
@@ -450,12 +545,29 @@ def cau_hinh_ban_hang():
 			{
 				"v": ten,
 				"lg": q.get("lg") or "",
+				"ic": q.get("ic") or "",
 				"bat": 1 if q.get("bat") else 0,
 				"nhan": q.get("nhan") or "Mã tham chiếu",
 				"vd": q.get("vd") or "",
 			}
 		)
-	return {"pt": pt, "nguon": NGUON_DON, "pt_pancake": PT_PANCAKE, "quay": QUAY, "qr_quay": QR_QUAY}
+	quay = []
+	for q in QUAY:
+		q2 = dict(q)
+		q2["anh"] = _anh_quay_da_luu(q["ma"]) or q.get("anh") or ""
+		quay.append(q2)
+	return {
+		"pt": pt,
+		"nguon": NGUON_DON,
+		"pt_pancake": PT_PANCAKE,
+		"quay": quay,
+		"anh_sales": _anh_quay_da_luu("SALES"),
+		"qr_quay": QR_QUAY,
+		"thu_tu_nhom": THU_TU_NHOM,
+		"pt_chua_ve_tien": PT_CHUA_VE_TIEN,
+		"pt_ve_sau": PT_VE_SAU,
+		"nguon_app": [n["v"] for n in NGUON_DON if n.get("lg")],
+	}
 
 
 PT_KENH = (
@@ -1437,9 +1549,18 @@ def tao_don_tay(
 		# Tuy chon pha che kieu Fabi (it duong, it da, da rieng...) - chi la
 		# ghi chu 0 dong tren dong mon, khong doi tien (anh Viet 09/08/2026).
 		tc = (r.get("tuy_chon") or "").strip()
-		if tc:
+		# Ghi chu RIENG cua tung mon (anh Viet 10/08/2026): truoc day chi co
+		# mot o ghi chu chung ca hoa don, bep khong biet loi dan la cho mon
+		# nao. Voi don food app thi day chinh la cho mang ma don, in len tem
+		# dan mon de shipper doc ma nhan dung tui.
+		gcm = (r.get("ghi_chu") or "").strip()
+		if tc or gcm:
 			ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
-			d["description"] = "%s\n[%s]" % (ten_mon, tc[:200])
+			d["description"] = ten_mon
+			if tc:
+				d["description"] += "\n[%s]" % tc[:200]
+			if gcm:
+				d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
 		rows.append(d)
 	if not rows:
 		frappe.throw("Đơn chưa có món nào.")
@@ -1965,9 +2086,14 @@ def pos_sua_don(
 				frappe.throw("Số lượng của %s phải lớn hơn 0." % ma)
 			d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
 			tc = (r.get("tuy_chon") or "").strip()
-			if tc:
+			gcm = (r.get("ghi_chu") or "").strip()
+			if tc or gcm:
 				ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
-				d["description"] = "%s\n[%s]" % (ten_mon, tc[:200])
+				d["description"] = ten_mon
+				if tc:
+					d["description"] += "\n[%s]" % tc[:200]
+				if gcm:
+					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
 			rows.append(d)
 		if not rows:
 			frappe.throw("Hoá đơn phải còn ít nhất một món.")
@@ -2180,9 +2306,20 @@ def pos_chot_ca(quay=None, ngay=None):
 				ck_thieu.append(
 					{"bill": r.vgb_ma_tham_chieu or r.name, "thieu": flt(r.grand_total) - nhan}
 				)
+	# Tien chua nam trong ket luc chot ca: Grab Dine-Out Grab giu den T+1,
+	# Cong no khach si con thieu. Tach ra de thu ngan doi chieu tien mat
+	# khong bi lech, va quan ly biet con bao nhieu phai di doi.
+	chua_ve = {"so": 0, "tien": 0.0, "dong": []}
+	for k, v in pt_tong.items():
+		if k in PT_CHUA_VE_TIEN or k in PT_VE_SAU:
+			chua_ve["so"] += v["so"]
+			chua_ve["tien"] += v["tien"]
+			chua_ve["dong"].append({"pt": k, "so": v["so"], "tien": v["tien"]})
+	chua_ve["dong"].sort(key=lambda x: -x["tien"])
 	return {
 		"quay": quay,
 		"ngay": str(ngay),
+		"chua_ve": chua_ve,
 		"pt": [
 			{"pt": k, "so": v["so"], "tien": v["tien"]}
 			for k, v in sorted(pt_tong.items(), key=lambda x: -x[1]["tien"])
