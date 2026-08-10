@@ -391,9 +391,14 @@ def _dong_bo_pancake(ngay=None):
 			continue
 		cu = frappe.db.get_value(
 			"Van Don", {"pancake_id": pid},
+			# Phai doc DU moi truong se so sanh ben duoi. Thieu mot truong la
+			# lan nao chay cung thay "khac" roi ghi lai ca don, 5 phut mot lan
+			# (bat duoc 10/08/2026: thieu buoi, goi_truoc, chup_truoc nen
+			# 12/15 don bi ghi lai moi vong du khong ai sua gi).
 			[
 				"name", "trang_thai", "tag_gio", "phuong", "ghi_chu_in", "the_don",
 				"khach", "sdt", "nguoi_nhan", "sdt_nhan",
+				"buoi", "goi_truoc", "chup_truoc",
 				"dia_chi", "gio_giao", "ghi_chu", "tien_thu_ho",
 			],
 			as_dict=True,
@@ -419,12 +424,14 @@ def _dong_bo_pancake(ngay=None):
 				moi["tien_thu_ho"] = _cod_tu_don(o, si_cu)
 				doi = {}
 				for k2, v2 in moi.items():
+					if k2 not in cu:
+						continue
 					if k2 == "tien_thu_ho":
 						if abs(flt(cu.get(k2)) - flt(v2)) >= 1:
 							doi[k2] = v2
 						continue
-					if k2 in ("goi_truoc", "chup_truoc", "buoi"):
-						if (cu.get(k2) or "") != (v2 or ""):
+					if k2 in ("goi_truoc", "chup_truoc"):
+						if cint(cu.get(k2)) != cint(v2):
 							doi[k2] = v2
 						continue
 					if str(cu.get(k2) or "").strip() != str(v2 or "").strip():
