@@ -638,6 +638,31 @@ def _sach_html(s):
 	return "\n".join([d for d in dong if d])
 
 
+def _mo_ta_san_pham(c, k, sp_id):
+	"""Mo ta cua mot SAN PHAM ben Pancake theo id.
+
+	Endpoint bien the chi tra ban rut gon nen phai hoi rieng trang san pham
+	moi lay duoc mo ta sales viet.
+	"""
+	if not sp_id:
+		return ""
+	try:
+		r = requests.get(
+			"%s/shops/%s/products/%s" % (PANCAKE, c.pancake_shop_id, sp_id),
+			params={"api_key": k},
+			timeout=TIMEOUT,
+		)
+		d = (r.json() or {})
+		d = d.get("data") if isinstance(d.get("data"), dict) else d
+		for truong in ("description", "note", "content", "detail", "summary"):
+			gt = _sach_html(d.get(truong) or "")
+			if gt:
+				return gt
+	except Exception:
+		pass
+	return ""
+
+
 def _sp_pancake(c, k, ma):
 	"""Anh + mo ta cua mot ma ben Pancake. Tra {"anhs": [...], "mo_ta": "..."}.
 
@@ -653,7 +678,7 @@ def _sp_pancake(c, k, ma):
 			return json.loads(hit) if isinstance(hit, str) else hit
 		except Exception:
 			pass
-	ra = {"anhs": [], "mo_ta": ""}
+	ra = {"anhs": [], "mo_ta": "", "khoa_bt": [], "khoa_sp": []}
 	try:
 		r = requests.get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
@@ -664,6 +689,8 @@ def _sp_pancake(c, k, ma):
 			if str(v.get("display_id") or "").strip().lower() != str(ma).lower():
 				continue
 			sp = v.get("product") or {}
+			ra["khoa_bt"] = sorted(list(v.keys()))
+			ra["khoa_sp"] = sorted(list(sp.keys()))
 			for u in (v.get("images") or []) + (sp.get("images") or []):
 				u = str(u or "").strip()
 				if u and u not in ra["anhs"]:
@@ -671,6 +698,11 @@ def _sp_pancake(c, k, ma):
 			ra["mo_ta"] = _sach_html(
 				sp.get("description") or v.get("description") or sp.get("note") or ""
 			)
+			# API bien the tra ban RUT GON cua san pham, thuong khong kem mo
+			# ta. Chua co mo ta thi hoi thang trang san pham (Minh Vu bao
+			# 10/08/2026: sua mo ta ben Pancake ma web khong doi).
+			if not ra["mo_ta"]:
+				ra["mo_ta"] = _mo_ta_san_pham(c, k, sp.get("id") or v.get("product_id"))
 			break
 	except Exception:
 		return {"anhs": [], "mo_ta": ""}
@@ -713,6 +745,8 @@ def tra_sp_pancake(ma=None, moi=0):
 		"anhs": sp.get("anhs") or [],
 		"mo_ta": dong[0] if dong else "",
 		"tang": dong[1:][:12],
+		"khoa_bien_the": sp.get("khoa_bt") or [],
+		"khoa_san_pham": sp.get("khoa_sp") or [],
 	}
 
 
