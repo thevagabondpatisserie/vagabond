@@ -277,7 +277,7 @@ PT_THAM_CHIEU = {
 	# rieng mot phuong thuc de doi soat - khong duoc lan vao tien mat hay
 	# the (anh Viet 10/08/2026).
 	"Grab Dine-Out": {
-		"lg": "/assets/vagabond/images/pt-grab-dineout.svg",
+		"lg": "/assets/vagabond/images/pt-grab-dineout.png",
 		"bat": 1,
 		# Ma nay nam trong man Chi tiet giao dich cua app Grab Merchant, dong
 		# "Ma thanh toan". Grab co the doi dang bat ky luc nao nen KHONG cai
@@ -565,7 +565,10 @@ def cau_hinh_ban_hang():
 		"nguon": NGUON_DON,
 		"pt_pancake": PT_PANCAKE,
 		"quay": quay,
-		"anh_sales": _anh_quay_da_luu("SALES"),
+		# Anh chi nhanh Sales Online (307/1 Nguyen Van Troi) anh Viet gui
+		# 11/08/2026. Doi anh trong app thi lay anh moi, chua doi thi dung
+		# anh nay.
+		"anh_sales": _anh_quay_da_luu("SALES") or "/assets/vagabond/images/quay-sales.jpg",
 		"qr_quay": QR_QUAY,
 		"thu_tu_nhom": THU_TU_NHOM,
 		"pt_chua_ve_tien": PT_CHUA_VE_TIEN,
