@@ -199,7 +199,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ic1.ok .rok{background:#12a150;border-color:#12a150;color:#fff}
 .ic1.ok{box-shadow:0 0 0 2px #12a150}
 .ic1.zero .in{color:#9aa0ad;text-decoration:line-through}
-.lbw{color:#c07800}.hw{padding:0 14px 12px}.hl{font-size:12px;color:#8a8f9c;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.35}.hbd{font-size:11px;font-weight:700;color:#0B7C93;background:#E4F9FD;border-radius:6px;padding:2px 7px;white-space:nowrap}.hin{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;border:1.5px solid #dfe3ec;border-radius:12px;height:48px;padding:0 12px;font-size:16px;font-weight:600;text-align:left;background:#fff;color:#16181d;outline:0;font-family:inherit}.hin::-webkit-date-and-time-value{text-align:left;margin:0;padding:0;min-width:0;flex:1 1 auto}.hin::-webkit-calendar-picker-indicator{opacity:.85;margin:0;padding:0;flex:0 0 auto;cursor:pointer;width:22px;height:22px}input.hin[type="date"]{cursor:pointer}input.hin[type="date"]:hover{border-color:#0FB5CE}.hin.ed{border-color:#0FB5CE;background:#f4fdff}.hn{font-size:11px;color:#9aa0ad;margin-top:5px;line-height:1.4}.hn.ed{color:#0B7C93;font-weight:600}
+.lbw{color:#c07800}.hw{padding:0 14px 12px}.hl{font-size:12px;color:#8a8f9c;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.35}.hbd{font-size:11px;font-weight:700;color:#0B7C93;background:#E4F9FD;border-radius:6px;padding:2px 7px;white-space:nowrap}.hin{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;border:1.5px solid #dfe3ec;border-radius:12px;height:48px;padding:0 12px;font-size:16px;font-weight:600;text-align:left;background:#fff;color:#16181d;outline:0;font-family:inherit}.hin::-webkit-date-and-time-value{text-align:left;margin:0;padding:0;min-width:0;flex:1 1 auto}.hin::-webkit-calendar-picker-indicator{opacity:.85;margin:0;padding:0;flex:0 0 auto;cursor:pointer;width:22px;height:22px}input.hin[type="date"]{cursor:pointer;height:48px;min-height:48px;box-sizing:border-box}input.hin[type="date"]:hover{border-color:#0FB5CE}.hin.ed{border-color:#0FB5CE;background:#f4fdff}.hn{font-size:11px;color:#9aa0ad;margin-top:5px;line-height:1.4}.hn.ed{color:#0B7C93;font-weight:600}
 .mno{display:inline-block;background:#fff4e0;color:#c07800;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px}
 .mtem{border:1px solid #dfe3ea;border-radius:12px;padding:12px 12px 10px;background:#fff;margin:2px 0 6px}
 .mtem .t1{font-size:16px;font-weight:800;color:#05323C;line-height:1.25;margin-bottom:6px}
@@ -5949,7 +5949,7 @@ async function scrDoanhSo() {
   var html = '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
     '<div style="font-weight:600;white-space:nowrap">Ngày bán</div>' +
     '<input type="date" class="hin" id="dsDate" value="' + dsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
-    '</div>';
+    '</div>' + '<div class="card" style="padding:2px 14px 12px">' + chipNgay('data-dsbuoc') + '</div>';
   html += '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between"><span>Chưa chốt</span><b>' + money(d.tong_nhap) + ' đ · ' + nhap.length + ' đơn</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đã chốt</span><b style="color:#0a8a4a">' + money(d.tong_chot) + ' đ · ' + (rows.length - nhap.length) + ' đơn</b></div>' +
@@ -6005,6 +6005,14 @@ async function scrDoanhSo() {
   var di = document.getElementById('dsDate');
   if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; dsLocNg = ''; go(scrDoanhSo, true); } };
   veODate('dsDate');
+  b.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-dsbuoc]'); if (!t) return;
+    var bu = +t.getAttribute('data-dsbuoc');
+    var moi = bu ? ngayCong(dsNgay, bu) : today();
+    if (moi > today()) return toast('Chưa tới ngày đó.');
+    dsNgay = moi; dsLoc = 'tat_ca'; dsLocNg = '';
+    go(scrDoanhSo, true);
+  });
   Array.prototype.forEach.call(document.querySelectorAll('[data-loc]'), function (el) {
     el.onclick = function () { dsLoc = el.getAttribute('data-loc'); go(scrDoanhSo, true); };
   });
@@ -6106,6 +6114,23 @@ function veChipPt(wrap, chon) {
    nhung tren laptop thi phai bam trung dung cai bieu tuong lich be xiu o
    goc phai - anh Viet 11/08/2026 bao khong chon duoc ngay. Nay bam bat cu
    dau trong o la lich bat ra (showPicker), khong con phai nham nhi. */
+/* Cong tru mot ngay cho o ngay. Thu ngan doi ngay chu yeu la "hom qua"
+   hay "hom nay", bam chip nhanh hon mo lich nhieu - va chac an tren MOI
+   may, khong phu thuoc lich cua trinh duyet (anh Viet 11/08/2026). */
+function ngayCong(iso, buoc) {
+  var d = new Date(String(iso || today()) + 'T00:00:00');
+  d.setDate(d.getDate() + buoc);
+  var hs = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + hs(d.getMonth() + 1) + '-' + hs(d.getDate());
+}
+function chipNgay(attr) {
+  return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">' +
+    posChipNut(attr + '="-1"', '\u25c0 Hôm trước', false) +
+    posChipNut(attr + '="0"', 'Hôm nay', false) +
+    posChipNut(attr + '="1"', 'Hôm sau \u25b6', false) +
+    '</div>';
+}
+
 function veODate(id) {
   var o = document.getElementById(id);
   if (!o) return null;
@@ -7579,7 +7604,8 @@ async function scrPosDs() {
   /* Lich chon ngay: xem lai bill ngay qua khu (anh Viet 09/08). */
   var html = '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
     '<div style="font-weight:600;white-space:nowrap">' + posNgayVn(posDsNgay) + '</div>' +
-    '<input type="date" class="hin" id="posDsDate" value="' + posDsNgay + '" max="' + today() + '" style="flex:1;margin:0"></div>';
+    '<input type="date" class="hin" id="posDsDate" value="' + posDsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
+    chipNgay('data-pdbuoc') + '</div>';
   html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:8px">' +
     '<div style="flex:1;min-width:0"><b>' + ds.length + ' hoá đơn · ' + money(tong) + ' đ</b>' +
     '<div style="font-size:12px;color:#5b6472">' + (ptTxt || 'Chưa có hoá đơn doanh thu') + '</div>' +
@@ -7636,6 +7662,14 @@ async function scrPosDs() {
   var oD = document.getElementById('posDsDate');
   if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; go(scrPosDs, true); };
   veODate('posDsDate');
+  b.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-pdbuoc]'); if (!t) return;
+    var bu = +t.getAttribute('data-pdbuoc');
+    var moi = bu ? ngayCong(posDsNgay || today(), bu) : today();
+    if (moi > today()) return toast('Chưa tới ngày đó.');
+    posDsNgay = moi; posLocTt = 'tat_ca'; posLocNg = '';
+    go(scrPosDs, true);
+  });
   b.onclick = function (e) {
     var ct = e.target.closest('[data-ptt]');
     if (ct) { posLocTt = ct.getAttribute('data-ptt'); return go(scrPosDs, true); }
@@ -9037,7 +9071,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '100';
+var APPVER = '101';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
