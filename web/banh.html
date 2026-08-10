@@ -711,8 +711,17 @@ function vgbTronMon(nhom) {
       else c.sizes.push({ cm: y.cm, p: y.gia || 0, id: y.ma });
     });
     c.sizes.sort(function (a, b) { return (a.cm || 0) - (b.cm || 0); });
-    if (!c.img && g.anh) c.img = g.anh;
+    /* Anh, mo ta va tang huong lop vi lay tu danh muc Pancake - sales sua
+       ben do la trang nay doi theo, khong phai sua ma (Minh Vu 10/08/2026). */
+    if (g.anh) c.img = g.anh;
     if (g.anhs && g.anhs.length) c.anhs = g.anhs;
+    if (g.mo_ta) c.desc = g.mo_ta;
+    if (g.tang && g.tang.length) {
+      c.layers = g.tang.map(function (t) {
+        var v = String(t).split(/\s*[:\u2013\u2014-]\s+/);
+        return v.length > 1 ? [v[0], v.slice(1).join(' - ')] : [t, ''];
+      });
+    }
   });
 }
 function napTonHomNay(){
