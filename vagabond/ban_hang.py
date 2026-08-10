@@ -279,8 +279,12 @@ PT_THAM_CHIEU = {
 	"Grab Dine-Out": {
 		"lg": "/assets/vagabond/images/pt-grab-dineout.svg",
 		"bat": 1,
-		"nhan": "Mã voucher hoặc mã đặt chỗ Grab Dine-Out",
-		"vd": "GDO-482913",
+		# Ma nay nam trong man Chi tiet giao dich cua app Grab Merchant, dong
+		# "Ma thanh toan". Grab co the doi dang bat ky luc nao nen KHONG cai
+		# luat chan dinh dang - nhan vien go sao thi luu vay (anh Viet
+		# 11/08/2026).
+		"nhan": "Mã thanh toán Grab Dine-Out",
+		"vd": "SVNVPH6EU435",
 	},
 	# Cong no: khach si (Ravie...) va khach VIP gom nhieu hoa don tra mot
 	# lan. Truoc day khong co phuong thuc nay nen bill cua ho ket lai,
