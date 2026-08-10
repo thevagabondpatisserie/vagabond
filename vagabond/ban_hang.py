@@ -395,26 +395,29 @@ def _chuan_ma_tham_chieu(pt, ma, bat_buoc=True):
 
 
 def _kiem_trung_ma(pt, ma, bo_qua=None):
-	"""Hai don khong the mang cung mot ma tham chieu.
+	"""KHONG con chan nua (anh Viet 10/08/2026).
 
-	Sales hay copy so bill cua don truoc, hoac go nham mot chu so. Bat ngay
-	luc ghi so thi doi soat khong bi hai don doi mot giao dich.
+	Cac san giao do quay vong ma don: GrabFood dung lai ma GF-572 cho don
+	moi sau vai ngay, ma cu 07/08 van con trong so. Chan cung thi nhan vien
+	khong nhap duoc don that, mat doanh thu - hai hon nhieu so voi cai loi
+	bam trung thinh thoang moi co.
+
+	Doi lai, cac man danh sach danh dau nhung don trung ma TRONG CUNG MOT
+	NGAY (xem _ma_trung_trong_ngay) - do moi la dau hieu bam nham that.
 	"""
-	if not ma or not pt:
-		return
-	loc = {
-		"vgb_ma_tham_chieu": ma,
-		"vgb_pt_thanh_toan": pt,
-		"docstatus": ["<", 2],
-	}
-	if bo_qua:
-		loc["name"] = ["!=", bo_qua]
-	cu = frappe.db.get_value("Sales Invoice", loc, ["name", "custom_pancake_display_id"], as_dict=True)
-	if cu:
-		frappe.throw(
-			"Mã tham chiếu %s của %s đã dùng cho đơn %s rồi. Kiểm lại bill, "
-			"hai đơn không thể chung một mã." % (ma, pt, cu.custom_pancake_display_id or cu.name)
-		)
+	return
+
+
+def _ma_trung_trong_ngay(ngay, ds_ma):
+	"""Tap ma tham chieu bi dung cho tu hai hoa don tro len trong mot ngay."""
+	ds_ma = [str(m).strip() for m in (ds_ma or []) if str(m or "").strip()]
+	if not ds_ma:
+		return set()
+	dem = {}
+	for m in ds_ma:
+		k = m.upper()
+		dem[k] = dem.get(k, 0) + 1
+	return set(k for k, v in dem.items() if v > 1)
 
 
 def _kiem_pt(pt, nguon):
@@ -849,12 +852,20 @@ def _mo_khoa_dong_bo(kh):
 
 @frappe.whitelist()
 def bang_doanh_so(ngay=None):
-	"""Du lieu cho man 'Doanh so ngay' cua app /bep."""
+	"""Du lieu cho man 'Doanh so ngay' cua app /bep.
+
+	KHONG lay hoa don quay: cua hang nao thi cua hang do tu quan trong man
+	Doanh thu Cua hang, khong gop chung dung (anh Viet nhac 10/08/2026).
+	"""
 	_kiem_quyen()
 	ngay = getdate(ngay or nowdate())
 	sis = frappe.db.get_all(
 		"Sales Invoice",
-		filters={"posting_date": ngay, "custom_pancake_id": ["!=", ""]},
+		filters={
+			"posting_date": ngay,
+			"custom_pancake_id": ["!=", ""],
+			"vgb_quay": ["in", ["", None]],
+		},
 		fields=[
 			"name",
 			"docstatus",
@@ -892,6 +903,9 @@ def bang_doanh_so(ngay=None):
 	dem = {}
 	for s in sis:
 		dem[s.custom_pancake_id] = dem.get(s.custom_pancake_id, 0) + 1
+	# Ma tham chieu trung trong cung mot ngay: khong chan luc nhap nua nhung
+	# van chi ra de ke toan soat lai.
+	ma_trung = _ma_trung_trong_ngay(ngay, [s.vgb_ma_tham_chieu for s in sis])
 
 	for s in sis:
 		s["can_hddt"] = 1 if s.custom_pancake_display_id in hd_cty else 0
@@ -919,7 +933,12 @@ def chot_doanh_so(ngay=None):
 	ngay = getdate(ngay or nowdate())
 	ds = frappe.db.get_all(
 		"Sales Invoice",
-		filters={"posting_date": ngay, "custom_pancake_id": ["!=", ""], "docstatus": 0},
+		filters={
+			"posting_date": ngay,
+			"custom_pancake_id": ["!=", ""],
+			"docstatus": 0,
+			"vgb_quay": ["in", ["", None]],
+		},
 		pluck="name",
 	)
 	sepay = _sepay_theo_don(
@@ -976,7 +995,11 @@ def ds_don_trung(ngay=None):
 	ngay = getdate(ngay or nowdate())
 	sis = frappe.db.get_all(
 		"Sales Invoice",
-		filters={"posting_date": ngay, "custom_pancake_id": ["!=", ""]},
+		filters={
+			"posting_date": ngay,
+			"custom_pancake_id": ["!=", ""],
+			"vgb_quay": ["in", ["", None]],
+		},
 		fields=[
 			"name",
 			"docstatus",
@@ -1449,9 +1472,20 @@ def tao_don_tay(
 			ma_tc = _chuan_ma_tham_chieu(pt, ma_tham_chieu)
 		_kiem_trung_ma(pt, ma_tc)
 	ma_nguon = re.sub(r"[^A-Z0-9]", "", _bo_dau(nguon).upper())[:14] or "KHAC"
-	pid = "%s-%s" % (ma_nguon, ma_don or ma_tc or frappe.generate_hash(length=8))
-	if frappe.db.exists("Sales Invoice", {"custom_pancake_id": pid}):
-		frappe.throw("Mã đơn %s của %s đã nhập rồi, không nhập trùng." % (ma_don or ma_tc, nguon))
+	# Ma noi bo mang theo NGAY: cac san quay vong ma don (GrabFood dung lai
+	# GF-572 sau vai ngay) nen neu chi lay <nguon>-<ma don> thi don moi dung
+	# ma cu se vuong khoa duy nhat, nhan vien khong nhap duoc don that.
+	pid = "%s-%s-%s" % (
+		ma_nguon,
+		str(ngay).replace("-", ""),
+		ma_don or ma_tc or frappe.generate_hash(length=8),
+	)
+	# Trung ngay trung ma van cho luu (may tu them hau to) - khong chan tay
+	# nhan vien nua; danh sach se hien chip "Trùng mã" de ke toan soat lai.
+	goc, lan = pid, 1
+	while frappe.db.exists("Sales Invoice", {"custom_pancake_id": pid}):
+		lan += 1
+		pid = "%s-%d" % (goc, lan)
 	si = frappe.new_doc("Sales Invoice")
 	si.update(
 		{
@@ -1828,10 +1862,12 @@ def pos_ds_bill(quay=None, ngay=None):
 	sepay = _sepay_theo_ma_bill(
 		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
 	)
+	ma_trung = _ma_trung_trong_ngay(ngay, [r.vgb_ma_tham_chieu for r in ds])
 	for r in ds:
 		g = sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
 		r["sepay_nhan"] = flt(g.get("nhan"))
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
+		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
 	return {"ngay": str(ngay), "bill": ds}
 
 
