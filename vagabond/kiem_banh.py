@@ -684,6 +684,38 @@ def _anh_pancake(c, k, ma):
 	return (_sp_pancake(c, k, ma) or {}).get("anhs") or []
 
 
+@frappe.whitelist()
+def tra_sp_pancake(ma=None, moi=0):
+	"""Xem Pancake dang giu anh va mo ta gi cho mot ma hang.
+
+	Dung khi trang dat banh hien sai anh hay sai mo ta: goi ham nay ra la
+	biet ngay loi o Pancake (sales chua sua) hay o he thong minh. Truyen
+	moi=1 de bo qua bo nho dem, hoi thang Pancake.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw("Cần đăng nhập.")
+	ma = (ma or "").strip()
+	if not ma:
+		frappe.throw("Thiếu mã hàng.")
+	c = cfg()
+	k = key(c, "pancake_api_key")
+	if not (k and c.pancake_shop_id):
+		frappe.throw("Chưa điền khoá Pancake trong Vagabond Settings.")
+	if frappe.utils.cint(moi):
+		try:
+			frappe.cache().delete_value("vgb:sp:" + ma)
+		except Exception:
+			pass
+	sp = _sp_pancake(c, k, ma) or {}
+	dong = [d for d in (sp.get("mo_ta") or "").split("\n") if d.strip()]
+	return {
+		"ma": ma,
+		"anhs": sp.get("anhs") or [],
+		"mo_ta": dong[0] if dong else "",
+		"tang": dong[1:][:12],
+	}
+
+
 @frappe.whitelist(allow_guest=True)
 def co_the_ban_hom_nay():
 	"""Cho trang dat banh order.thevagabondpatisserie.com.
