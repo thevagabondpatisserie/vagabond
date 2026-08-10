@@ -199,7 +199,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ic1.ok .rok{background:#12a150;border-color:#12a150;color:#fff}
 .ic1.ok{box-shadow:0 0 0 2px #12a150}
 .ic1.zero .in{color:#9aa0ad;text-decoration:line-through}
-.lbw{color:#c07800}.hw{padding:0 14px 12px}.hl{font-size:12px;color:#8a8f9c;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.35}.hbd{font-size:11px;font-weight:700;color:#0B7C93;background:#E4F9FD;border-radius:6px;padding:2px 7px;white-space:nowrap}.hin{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;border:1.5px solid #dfe3ec;border-radius:12px;height:48px;padding:0 12px;font-size:16px;font-weight:600;text-align:left;background:#fff;color:#16181d;outline:0;font-family:inherit}.hin::-webkit-date-and-time-value{text-align:left;margin:0;padding:0;min-width:0;flex:1 1 auto}.hin::-webkit-calendar-picker-indicator{opacity:.5;margin:0;padding:0;flex:0 0 auto}.hin.ed{border-color:#0FB5CE;background:#f4fdff}.hn{font-size:11px;color:#9aa0ad;margin-top:5px;line-height:1.4}.hn.ed{color:#0B7C93;font-weight:600}
+.lbw{color:#c07800}.hw{padding:0 14px 12px}.hl{font-size:12px;color:#8a8f9c;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.35}.hbd{font-size:11px;font-weight:700;color:#0B7C93;background:#E4F9FD;border-radius:6px;padding:2px 7px;white-space:nowrap}.hin{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;border:1.5px solid #dfe3ec;border-radius:12px;height:48px;padding:0 12px;font-size:16px;font-weight:600;text-align:left;background:#fff;color:#16181d;outline:0;font-family:inherit}.hin::-webkit-date-and-time-value{text-align:left;margin:0;padding:0;min-width:0;flex:1 1 auto}.hin::-webkit-calendar-picker-indicator{opacity:.85;margin:0;padding:0;flex:0 0 auto;cursor:pointer;width:22px;height:22px}input.hin[type="date"]{cursor:pointer}input.hin[type="date"]:hover{border-color:#0FB5CE}.hin.ed{border-color:#0FB5CE;background:#f4fdff}.hn{font-size:11px;color:#9aa0ad;margin-top:5px;line-height:1.4}.hn.ed{color:#0B7C93;font-weight:600}
 .mno{display:inline-block;background:#fff4e0;color:#c07800;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px}
 .mtem{border:1px solid #dfe3ea;border-radius:12px;padding:12px 12px 10px;background:#fff;margin:2px 0 6px}
 .mtem .t1{font-size:16px;font-weight:800;color:#05323C;line-height:1.25;margin-bottom:6px}
@@ -6004,6 +6004,7 @@ async function scrDoanhSo() {
   var b = frame('Doanh thu Sales', html, { footer: foot, action: '➕', onAction: function () { go(scrDsNhapTay); } });
   var di = document.getElementById('dsDate');
   if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; dsLocNg = ''; go(scrDoanhSo, true); } };
+  veODate('dsDate');
   Array.prototype.forEach.call(document.querySelectorAll('[data-loc]'), function (el) {
     el.onclick = function () { dsLoc = el.getAttribute('data-loc'); go(scrDoanhSo, true); };
   });
@@ -6101,15 +6102,47 @@ function veChipPt(wrap, chon) {
     x.style.fontWeight = on ? 'bold' : 'normal';
   });
 }
+/* O ngay tren MAY TINH: tren dien thoai cham dau vao o cung mo lich,
+   nhung tren laptop thi phai bam trung dung cai bieu tuong lich be xiu o
+   goc phai - anh Viet 11/08/2026 bao khong chon duoc ngay. Nay bam bat cu
+   dau trong o la lich bat ra (showPicker), khong con phai nham nhi. */
+function veODate(id) {
+  var o = document.getElementById(id);
+  if (!o) return null;
+  var mo = function (e) {
+    if (typeof o.showPicker !== 'function') return;
+    /* Bam trung bieu tuong lich thi de trinh duyet tu lo, goi them
+       showPicker nua se bi bao loi da mo roi. */
+    try { o.showPicker(); if (e) e.preventDefault(); } catch (er) { }
+  };
+  o.onmousedown = function (e) {
+    if (e && e.button) return;
+    mo(e);
+  };
+  o.onkeydown = function (e) {
+    if (e && (e.key === 'Enter' || e.key === ' ')) mo(e);
+  };
+  return o;
+}
+
 function veOMtc(pt, idO, idNhan) {
   var q = quyPt(pt) || {};
   var o = document.getElementById(idO), nh = document.getElementById(idNhan);
   if (!o) return;
   var hien = !!(q.nhan || q.bat);
   o.parentElement.style.display = hien ? '' : 'none';
-  o.placeholder = (q.nhan || 'Mã tham chiếu') + (q.vd ? ' - vd ' + q.vd : '');
+  var ten = q.nhan || 'Mã tham chiếu';
+  o.placeholder = ten + (q.vd ? ' - vd ' + q.vd : '');
   o.style.borderColor = q.bat && !o.value.trim() ? '#f59e0b' : '#e5e7eb';
-  if (nh) nh.innerHTML = q.bat ? '<b style="color:#b45309">Bắt buộc</b> để đối soát tự động' : (pt === 'Chuyển khoản' ? 'SePay tự khớp, để trống cũng được' : 'Không bắt buộc');
+  /* TEN cua o phai nam NGOAI o. Truoc day ten chi nam trong placeholder,
+     nhan vien go xong roi quay lai sua thi placeholder bi che mat, khong
+     con biet o do la o gi (anh Viet 11/08/2026). */
+  if (nh) {
+    nh.innerHTML = '<b style="color:#374151;font-size:12.5px">' + h(ten) + '</b>' +
+      (q.bat
+        ? ' · <b style="color:#b45309">bắt buộc</b> để đối soát'
+        : (pt === 'Chuyển khoản' ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
+  }
 }
 async function scrDsView(name, can) {
   frame('Chi tiết đơn', '<div class="emp"><div class="e1">⏳</div></div>');
@@ -6727,9 +6760,14 @@ async function scrPosQuay() {
           : '')) +
       /* Ghi chu RIENG cua tung mon (anh Viet 10/08/2026): o ghi chu chung
          ca hoa don khong du - bep khong biet loi dan la cho mon nao. */
-      '<div style="margin-top:5px">' +
+      /* Moi ghi chu MOT chip rieng cho de nhin, khong don het vao mot
+         chip dai (anh Viet 11/08/2026). */
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">' +
       (m.gc
-        ? '<span data-gc-mo="' + i + '" style="display:inline-block;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:4px 12px;font-size:12.5px;font-weight:700;cursor:pointer">📝 ' + h(m.gc) + '</span>'
+        ? String(m.gc).split(',').map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) {
+          return '<span data-gc-mo="' + i + '" style="display:inline-block;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:4px 12px;font-size:12.5px;font-weight:700;cursor:pointer">📝 ' + h(x) + '</span>';
+        }).join('') +
+        '<span data-gc-mo="' + i + '" style="display:inline-block;background:#fff;color:#6b7280;border:1.5px dashed #cbd5e1;border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer">✎ sửa</span>'
         : '<span data-gc-mo="' + i + '" style="display:inline-block;background:#fff;color:#98a2b3;border:1.5px dashed #d7dce5;border-radius:999px;padding:4px 12px;font-size:12.5px;cursor:pointer">📝 Ghi chú món</span>') +
       '</div></div>' +
       '<button data-bot="' + i + '" style="' + NUT + '">&minus;</button>' +
@@ -7597,6 +7635,7 @@ async function scrPosDs() {
   var b = frame(tieuDe, html);
   var oD = document.getElementById('posDsDate');
   if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; go(scrPosDs, true); };
+  veODate('posDsDate');
   b.onclick = function (e) {
     var ct = e.target.closest('[data-ptt]');
     if (ct) { posLocTt = ct.getAttribute('data-ptt'); return go(scrPosDs, true); }
@@ -8998,7 +9037,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '99';
+var APPVER = '100';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
