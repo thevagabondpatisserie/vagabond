@@ -3,6 +3,25 @@
 (function () {
 'use strict';
 
+/* App nghiep vu chi song tren ten mien app.*. Ten mien erp.* danh RIENG
+   cho ban desktop (Desk cua ERPNext) - anh Viet chot 10/08/2026. Ai lo mo
+   app bang erp.* thi day sang dung ten mien, giu nguyen duong dan va tham
+   so de khong mat viec dang lam. */
+try {
+  var vgbHost = (location.hostname || '').toLowerCase();
+  if (vgbHost.indexOf('erp.') === 0) {
+    var vgbP = location.pathname || '/';
+    /* erp.* vao trang goc thi vao thang ban desktop; con ai da go duong
+       dan /bep thi day sang dung ten mien app.*, giu nguyen viec dang lam. */
+    location.replace(
+      (vgbP === '/' || vgbP === '')
+        ? '/app'
+        : 'https://' + vgbHost.replace(/^erp\./, 'app.') + vgbP + location.search + location.hash
+    );
+    return;
+  }
+} catch (eDom) { }
+
 /* ---------- 1. CSS ---------- */
 var CSS = `
 .navbar,.web-footer,footer,.footer-logo-extension,#navbar-collapse,.page-header,.breadcrumb-container{display:none!important}
@@ -8763,7 +8782,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '97';
+var APPVER = '98';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
