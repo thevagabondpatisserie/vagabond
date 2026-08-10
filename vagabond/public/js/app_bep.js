@@ -783,7 +783,7 @@ async function scrHome() {
       + card('🛵', 'Vận đơn', 'Shipper giao bánh, book xe, chi phí xăng xe', 0, 'VD')
       + '</div>';
   }
-  html += '<div class="sec">Khác</div><div class="card">' +
+  html += '<div class="sec">Cài đặt</div><div class="card">' +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
     card('👤', 'Tài khoản', 'Thông tin tài khoản và đăng xuất', 0, 'ACC') +
     '</div>' +
@@ -834,7 +834,7 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'DS', 'POS', 'HDG', 'OTP'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
-  { k: 'KHAC', ten: 'Khác', icon: '⚙️', keys: ['ACC'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['ACC'] }
 ];
 
 var VGB_HUB = {};
@@ -5882,7 +5882,7 @@ async function scrRndDoc(name) {
 document.title = APPNAME;
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
-var dsLoc = 'tat_ca';
+var dsLoc = 'tat_ca', dsLocNg = '';
 function dsChip(txt, bg, fg) {
   return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:' + bg + ';color:' + fg + ';margin-right:5px;white-space:nowrap">' + txt + '</span>';
 }
@@ -5942,26 +5942,30 @@ async function scrDoanhSo() {
     html += '<div class="sec">Cần xử lý trước khi chốt</div><div class="card" style="padding:12px 14px;color:#b3261e;font-size:13px;line-height:1.6">' + d.loi.map(h).join('<br>') + '</div>';
   }
   /* Bo loc nhanh: sau muoi may dong ma soat bang mat thi de sot. */
-  var DSLOC = {
-    tat_ca: { nhan: 'Tất cả', loc: function () { return true; } },
-    chua_pt: { nhan: 'Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
-    chua_tien: { nhan: 'Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
-    du_tien: { nhan: 'Đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
-    chua_hddt: { nhan: 'Chưa có HĐĐT', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } }
-  };
-  if (!DSLOC[dsLoc]) dsLoc = 'tat_ca';
-  html += '<div class="card" style="padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap">' +
-    Object.keys(DSLOC).map(function (k) {
-      var n = rows.filter(DSLOC[k].loc).length;
-      var on = k === dsLoc;
-      return '<button class="dsloc" data-loc="' + k + '" style="padding:6px 10px;border-radius:999px;font-size:12px;font-family:inherit;border:1.5px solid ' +
-        (on ? '#0d9488;background:#ccfbf1;color:#0f766e;font-weight:bold' : '#e5e7eb;background:#fff;color:#374151') + '">' +
-        DSLOC[k].nhan + ' ' + n + '</button>';
-    }).join('') + '</div>';
-  var loc = rows.filter(DSLOC[dsLoc].loc);
+  /* Bo loc hai tang: tinh trang x nguon/phuong thuc, giao nhau de soat
+     duoc kieu "GrabFood ma chua ve tien" (anh Viet 10/08/2026). */
+  var DSTT = [
+    { k: 'tat_ca', nhan: 'Tất cả', loc: function () { return true; } },
+    { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0; } },
+    { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
+    { k: 'chua_pt', nhan: '❓ Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
+    { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
+    { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
+    { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } },
+    { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!(r.vgb_xhd_mst || r.can_hddt); } },
+    { k: 'trung', nhan: '⚠ Trùng phiếu', loc: function (r) { return !!r.trung; } }
+  ];
+  var DSNG = locNguonPt(rows);
+  if (!locTim(DSTT, dsLoc) || locTim(DSTT, dsLoc).k !== dsLoc) dsLoc = 'tat_ca';
+  var fTt = locTim(DSTT, dsLoc), fNg = locTim(DSNG, dsLocNg);
+  dsLocNg = fNg.k;
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
+    locHang(DSTT, dsLoc, 'data-loc', rows) +
+    locHang(DSNG, dsLocNg, 'data-locng', rows.filter(fTt.loc)) + '</div>';
+  var loc = rows.filter(function (r) { return fTt.loc(r) && fNg.loc(r); });
   html += '<div class="sec">Đơn trong ngày · bấm vào đơn để xem chi tiết</div><div class="card">';
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🌤️</div><div>Chưa có đơn nào. Bấm Đồng bộ để kéo từ Pancake, hoặc dấu ➕ để nhập tay đơn Grab, Be.</div></div>';
-  else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có đơn nào thuộc nhóm <b>' + DSLOC[dsLoc].nhan + '</b>.</div></div>';
+  else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có đơn nào thuộc nhóm <b>' + fTt.nhan + (fNg.k ? ' · ' + fNg.nhan : '') + '</b>.</div></div>';
   loc.forEach(function (r) {
     var kh = (r.remarks || '').split(' - ');
     var ng = (r.custom_nguon && r.custom_nguon !== 'Pancake') ? h(r.custom_nguon) + ' ' : '';
@@ -5977,9 +5981,12 @@ async function scrDoanhSo() {
     (nhap.length ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
   var b = frame('Doanh thu Sales', html, { footer: foot, action: '➕', onAction: function () { go(scrDsNhapTay); } });
   var di = document.getElementById('dsDate');
-  if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; go(scrDoanhSo, true); } };
-  Array.prototype.forEach.call(document.querySelectorAll('.dsloc'), function (el) {
+  if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; dsLocNg = ''; go(scrDoanhSo, true); } };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-loc]'), function (el) {
     el.onclick = function () { dsLoc = el.getAttribute('data-loc'); go(scrDoanhSo, true); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-locng]'), function (el) {
+    el.onclick = function () { dsLocNg = el.getAttribute('data-locng'); go(scrDoanhSo, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-ds]'), function (el) {
     el.onclick = function () { dsHanh(el.getAttribute('data-ds')); };
@@ -6432,6 +6439,7 @@ async function dsTayLuu() {
    hien VietQR dien san so tien + so phieu. Chua tru kho, chua in bill. */
 var posDon = null, posHomNayTxt = null, posQuay = null;
 var posDsNgay = null; /* ngay dang xem o danh sach hoá đơn; null = hom nay */
+var posLocTt = 'tat_ca', posLocNg = ''; /* chip loc: tinh trang x nguon-pt */
 function posNgayVn(iso) {
   var d = new Date(iso + 'T00:00:00');
   var thu = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'][d.getDay()];
@@ -6826,6 +6834,49 @@ async function posThemMon() {
     posDon.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia, anh: o.img || '', nhom: o.nhom, tc: [] });
     go(scrPosQuay, true);
   });
+}
+
+/* Hang chip LOC dung chung cho ba man danh sach hoa don (anh Viet
+   10/08/2026). Moi chip kem so dem; chip khong co hoa don nao thi an di
+   cho do roi mat, rieng chip "Tat ca" luon hien. */
+function locHang(ds, dangChon, attr, rows) {
+  var ra = ds.map(function (c) {
+    var n = rows.filter(c.loc).length;
+    if (!n && c.k !== '') return '';
+    var on = c.k === dangChon;
+    return '<button ' + attr + '="' + h(c.k) + '" style="flex:0 0 auto;border:1.5px solid ' +
+      (on ? '#0d9488' : '#d7dce5') + ';background:' + (on ? '#0d9488' : '#fff') +
+      ';color:' + (on ? '#fff' : '#374151') + ';border-radius:999px;padding:7px 13px;font-size:12.5px;' +
+      'font-weight:' + (on ? '800' : '600') + ';cursor:pointer;white-space:nowrap;font-family:inherit">' +
+      c.nhan + ' <span style="opacity:.75">' + n + '</span></button>';
+  }).join('');
+  return '<div style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+}
+
+/* Chip nguon don + phuong thuc thanh toan sinh theo du lieu that cua ngay,
+   khong bay ra chip rong. */
+function locNguonPt(rows) {
+  var ds = [{ k: '', nhan: 'Mọi nguồn', loc: function () { return true; } }];
+  var ng = [], pt = [];
+  rows.forEach(function (r) {
+    var a = r.custom_nguon || '';
+    if (a && ng.indexOf(a) < 0) ng.push(a);
+    var b = r.vgb_pt_thanh_toan || '';
+    if (b && pt.indexOf(b) < 0) pt.push(b);
+  });
+  ng.sort(function (a, b) { return a.localeCompare(b, 'vi'); });
+  pt.sort(function (a, b) { return a.localeCompare(b, 'vi'); });
+  ng.forEach(function (a) {
+    ds.push({ k: 'ng:' + a, nhan: h(a), loc: function (r) { return (r.custom_nguon || '') === a; } });
+  });
+  pt.forEach(function (b) {
+    ds.push({ k: 'pt:' + b, nhan: '💳 ' + h(b), loc: function (r) { return (r.vgb_pt_thanh_toan || '') === b; } });
+  });
+  return ds;
+}
+function locTim(ds, k) {
+  for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i];
+  return ds[0];
 }
 
 /* Chip chung cho moi nut chon nhanh cua app (anh Viet 09/08/2026: nut
@@ -7274,6 +7325,7 @@ function posChipBill(r) {
   if (r.custom_hddt_so) c.push(the('#ede9fe', '#5b21b6', 'HĐ ' + h(r.custom_hddt_so)));
   else if (r.vgb_xhd_mst) c.push(the('#fef9c3', '#854d0e', '🧾 Chờ xuất HĐ công ty'));
   if (r.discount_amount) c.push(the('#ffedd5', '#9a3412', '🎟 Giảm ' + money(r.discount_amount) + ' đ'));
+  if (r.trung_ma) c.push(the('#fee2e2', '#991b1b', '⚠ Trùng mã trong ngày'));
   if (r.vgb_ghi_chu) c.push(the('#e0f7fa', '#0369a1', '📝 ' + h(String(r.vgb_ghi_chu).slice(0, 30))));
   return c.join('');
 }
@@ -7306,9 +7358,39 @@ async function scrPosDs() {
     '<div style="font-size:12px;color:#98a2b3">Hoá đơn của quầy ' + h(posQuay.ten) + ', mỗi quầy tự quản hoá đơn của mình.</div></div>' +
     (laHomNay ? '<button class="btn gh" id="posDsMoi" style="margin:0;padding:9px 11px;font-size:13px;flex:none">🧾 Hoá đơn mới</button>' : '') +
     '<button class="btn" id="posDsChotCa" style="margin:0;padding:9px 11px;font-size:13px;flex:none">🧮 Chốt ca</button></div>';
+  /* Bo loc hai tang giong man Sales: tinh trang x nguon/phuong thuc.
+     Quan ly ca soat cuoi ngay chi can bam vai chip la ra dung nhom can xem
+     (anh Viet 10/08/2026). */
+  var PTT = [
+    { k: 'tat_ca', nhan: 'Tất cả', loc: function () { return true; } },
+    { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0 && !r.vgb_tam_tinh; } },
+    { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
+    { k: 'tam_tinh', nhan: '🕐 Tạm tính', loc: function (r) { return !!r.vgb_tam_tinh; } },
+    { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du; } },
+    { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
+    { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!r.vgb_xhd_mst; } },
+    { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !!r.vgb_xhd_mst && !r.custom_hddt_so; } },
+    { k: 'giam', nhan: '🎟 Có giảm giá', loc: function (r) { return !!r.discount_amount; } },
+    { k: 'ban', nhan: '🪑 Có số bàn', loc: function (r) { return !!r.vgb_so_ban; } },
+    { k: 'ghi_chu', nhan: '📝 Có ghi chú', loc: function (r) { return !!r.vgb_ghi_chu; } },
+    { k: 'trung', nhan: '⚠ Trùng mã trong ngày', loc: function (r) { return !!r.trung_ma; } }
+  ];
+  var PNG = locNguonPt(ds);
+  var pTt = locTim(PTT, posLocTt), pNg = locTim(PNG, posLocNg);
+  posLocTt = pTt.k; posLocNg = pNg.k;
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
+    locHang(PTT, posLocTt, 'data-ptt', ds) +
+    locHang(PNG, posLocNg, 'data-png', ds.filter(pTt.loc)) + '</div>';
+  var dsL = ds.filter(function (r) { return pTt.loc(r) && pNg.loc(r); });
+  var tongL = dsL.reduce(function (t, r) { return t + (r.grand_total || 0); }, 0);
+  if (dsL.length !== ds.length) {
+    html += '<div style="text-align:center;font-size:12.5px;color:#0b7c93;padding:2px 10px 8px">Đang lọc: <b>' +
+      dsL.length + ' hoá đơn · ' + money(tongL) + ' đ</b></div>';
+  }
   html += '<div class="card" style="margin-top:10px">';
   if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">🧾</div><div>' + (laHomNay ? 'Hôm nay chưa có hoá đơn nào.' : 'Ngày này không có hoá đơn nào.') + '</div></div>';
-  ds.forEach(function (r) {
+  else if (!dsL.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có hoá đơn nào thuộc nhóm <b>' + pTt.nhan + (pNg.k ? ' · ' + pNg.nhan : '') + '</b>.</div></div>';
+  dsL.forEach(function (r) {
     var gio = String(r.creation || '').slice(11, 16);
     var phu = [gio, h(r.custom_nguon || '')];
     if (r.total_qty) phu.push(money(r.total_qty) + ' món');
@@ -7324,8 +7406,12 @@ async function scrPosDs() {
   html += '</div>';
   var b = frame(tieuDe, html);
   var oD = document.getElementById('posDsDate');
-  if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); go(scrPosDs, true); };
+  if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; go(scrPosDs, true); };
   b.onclick = function (e) {
+    var ct = e.target.closest('[data-ptt]');
+    if (ct) { posLocTt = ct.getAttribute('data-ptt'); return go(scrPosDs, true); }
+    ct = e.target.closest('[data-png]');
+    if (ct) { posLocNg = ct.getAttribute('data-png'); return go(scrPosDs, true); }
     if (e.target.id === 'posDsMoi') return go(scrPosQuay);
     if (e.target.id === 'posDsChotCa') return go(scrPosChotCa);
     var r = e.target.closest('[data-bill]');
@@ -8674,7 +8760,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '95';
+var APPVER = '96';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
