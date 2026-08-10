@@ -1510,6 +1510,18 @@ def bu_email_xhd(ngay=None):
 	return {"xet": len(ds), "bu": bu, "ngay": str(ngay), "don": danh_sach}
 
 
+def _khach_cong_no(khach_no, pt):
+	"""Kiem khach cho hoa don cong no. Ban cong no BAT BUOC co khach."""
+	khach_no = (khach_no or "").strip()
+	if (pt or "").strip() != "Công nợ":
+		return ""
+	if not khach_no:
+		frappe.throw("Bán công nợ phải chọn khách hàng để còn đi đòi.")
+	if not frappe.db.exists("Customer", khach_no):
+		frappe.throw("Không có khách hàng %s trong danh mục." % khach_no)
+	return khach_no
+
+
 @frappe.whitelist()
 def tao_don_tay(
 	ngay=None,
@@ -1530,6 +1542,7 @@ def tao_don_tay(
 	xhd_mst="",
 	xhd_dia_chi="",
 	xhd_email="",
+	khach_no="",
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -1618,7 +1631,10 @@ def tao_don_tay(
 	si.update(
 		{
 			"company": _cong_ty(),
-			"customer": _khach_le(),
+			# Ban cong no thi hoa don phai mang ten khach that, khong duoc
+			# de "khach le" - khong thi cuoi thang khong biet doi ai (anh
+			# Viet 11/08/2026). Cac truong hop con lai van la khach le.
+			"customer": _khach_cong_no(khach_no, pt) or _khach_le(),
 			"posting_date": str(ngay),
 			"set_posting_time": 1,
 			"due_date": str(ngay),
