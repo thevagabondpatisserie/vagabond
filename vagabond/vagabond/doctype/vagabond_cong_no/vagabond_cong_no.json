@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "autoname": "field:ma_phieu",
+ "creation": "2026-08-11 03:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_phieu", "khach", "ten_khach", "ngay_tao", "cb1",
+  "trang_thai", "han_qr", "tong_tien", "da_thu", "sb1",
+  "dong", "sb2", "ghi_chu", "nguoi_tao"
+ ],
+ "fields": [
+  {"fieldname": "ma_phieu", "fieldtype": "Data", "label": "Ma phieu", "reqd": 1, "unique": 1, "in_list_view": 1, "read_only": 1},
+  {"fieldname": "khach", "fieldtype": "Link", "options": "Customer", "label": "Khach hang", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "ten_khach", "fieldtype": "Data", "label": "Ten khach", "in_list_view": 1},
+  {"fieldname": "ngay_tao", "fieldtype": "Date", "label": "Ngay tao", "in_list_view": 1},
+  {"fieldname": "cb1", "fieldtype": "Column Break"},
+  {"fieldname": "trang_thai", "fieldtype": "Select", "label": "Trang thai", "options": "Cho thu\nDa thu du\nThu thieu\nHuy", "default": "Cho thu", "in_list_view": 1},
+  {"fieldname": "han_qr", "fieldtype": "Date", "label": "Ma QR het han", "description": "Ma QR MB Bank co hieu luc 7 ngay ke tu ngay tao"},
+  {"fieldname": "tong_tien", "fieldtype": "Currency", "label": "Tong phai thu", "in_list_view": 1, "read_only": 1},
+  {"fieldname": "da_thu", "fieldtype": "Currency", "label": "Da thu", "read_only": 1},
+  {"fieldname": "sb1", "fieldtype": "Section Break", "label": "Hoa don gom trong phieu"},
+  {"fieldname": "dong", "fieldtype": "Table", "options": "Vagabond Cong No Dong", "label": "Hoa don"},
+  {"fieldname": "sb2", "fieldtype": "Section Break"},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"},
+  {"fieldname": "nguoi_tao", "fieldtype": "Data", "label": "Nguoi tao", "read_only": 1}
+ ],
+ "links": [],
+ "modified": "2026-08-11 03:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Cong No",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Accounts User", "write": 1},
+  {"create": 1, "email": 1, "print": 1, "read": 1, "report": 1, "role": "Sales User", "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
