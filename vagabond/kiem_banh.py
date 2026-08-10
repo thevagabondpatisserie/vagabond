@@ -654,7 +654,9 @@ def _mo_ta_san_pham(c, k, sp_id):
 		)
 		d = (r.json() or {})
 		d = d.get("data") if isinstance(d.get("data"), dict) else d
-		for truong in ("description", "note", "content", "detail", "summary"):
+		for truong in (
+			"description", "note_product", "note", "content", "detail", "summary",
+		):
 			gt = _sach_html(d.get(truong) or "")
 			if gt:
 				return gt
@@ -696,7 +698,11 @@ def _sp_pancake(c, k, ma):
 				if u and u not in ra["anhs"]:
 					ra["anhs"].append(u)
 			ra["mo_ta"] = _sach_html(
-				sp.get("description") or v.get("description") or sp.get("note") or ""
+				sp.get("description")
+			or v.get("description")
+			or sp.get("note_product")
+			or sp.get("note")
+			or ""
 			)
 			# API bien the tra ban RUT GON cua san pham, thuong khong kem mo
 			# ta. Chua co mo ta thi hoi thang trang san pham (Minh Vu bao
@@ -717,7 +723,7 @@ def _anh_pancake(c, k, ma):
 
 
 @frappe.whitelist()
-def tra_sp_pancake(ma=None, moi=0):
+def tra_sp_pancake(ma=None, moi=0, soi=0):
 	"""Xem Pancake dang giu anh va mo ta gi cho mot ma hang.
 
 	Dung khi trang dat banh hien sai anh hay sai mo ta: goi ham nay ra la
@@ -747,7 +753,49 @@ def tra_sp_pancake(ma=None, moi=0):
 		"tang": dong[1:][:12],
 		"khoa_bien_the": sp.get("khoa_bt") or [],
 		"khoa_san_pham": sp.get("khoa_sp") or [],
+		"soi": _soi_pancake(c, k, ma) if frappe.utils.cint(soi) else {},
 	}
+
+
+def _soi_pancake(c, k, ma):
+	"""Do het cac truong CHU cua mot ma ben Pancake ra de tim xem mo ta nam o
+	dau. Chi dung khi go loi, khong goi trong luong chay thuong."""
+	def chu(d, tien):
+		ra = {}
+		for k2, v2 in (d or {}).items():
+			if isinstance(v2, str) and v2.strip():
+				ra[tien + k2] = v2.strip()[:400]
+		return ra
+	ra = {}
+	try:
+		r = requests.get(
+			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
+			params={"api_key": k, "search": ma, "page_size": 5},
+			timeout=TIMEOUT,
+		)
+		for v in (r.json() or {}).get("data") or []:
+			if str(v.get("display_id") or "").strip().lower() != str(ma).lower():
+				continue
+			sp = v.get("product") or {}
+			ra.update(chu(v, "bt."))
+			ra.update(chu(sp, "sp."))
+			sp_id = sp.get("id") or v.get("product_id")
+			ra["_sp_id"] = str(sp_id or "")
+			if sp_id:
+				r2 = requests.get(
+					"%s/shops/%s/products/%s" % (PANCAKE, c.pancake_shop_id, sp_id),
+					params={"api_key": k},
+					timeout=TIMEOUT,
+				)
+				ra["_http"] = str(r2.status_code)
+				d2 = (r2.json() or {})
+				d2 = d2.get("data") if isinstance(d2.get("data"), dict) else d2
+				ra.update(chu(d2, "ep."))
+				ra["_khoa_ep"] = ", ".join(sorted(list((d2 or {}).keys())))
+			break
+	except Exception:
+		ra["_loi"] = frappe.get_traceback()[-400:]
+	return ra
 
 
 @frappe.whitelist(allow_guest=True)
