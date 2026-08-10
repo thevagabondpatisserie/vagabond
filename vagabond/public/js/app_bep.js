@@ -7207,7 +7207,23 @@ async function posSheetKhachNo() {
   ve('');
   ov.appendChild(box); document.body.appendChild(ov);
   var inp = box.querySelector('#cnTim');
-  inp.oninput = function () { ve(inp.value); };
+  /* Danh sach khach hang dai (hang tram khach si va khach cong ty) nen
+     lan dau chi lay 60 cai dau. Go tim thi phai hoi lai MAY CHU chu khong
+     duoc loc tren 60 cai da tai ve - go "ravie" ma khong ra vi Ravie
+     khong nam trong 60 khach dau bang chu cai (bat duoc 11/08/2026). */
+  var tre = null;
+  inp.oninput = function () {
+    var q = inp.value;
+    ve(q);
+    if (tre) clearTimeout(tre);
+    tre = setTimeout(async function () {
+      try {
+        var k2 = await api('vagabond.cong_no.tim_khach', { tu_khoa: q });
+        ds = (k2 && k2.khach) || [];
+        ve(inp.value);
+      } catch (e) { }
+    }, 280);
+  };
   function dong() { ov.remove(); }
   ov.onclick = function (e) { if (e.target === ov) dong(); };
   box.querySelector('.x').onclick = dong;
@@ -9382,7 +9398,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '102';
+var APPVER = '103';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
