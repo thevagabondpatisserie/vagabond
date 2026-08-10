@@ -234,7 +234,10 @@ def dong_bo(ngay=None):
 		d.cho_chot = dem_cho.get(ma, 0)
 		d.ten_khach_ps = ", ".join(khach_ps.get(ma, []))
 		d.ten_khach_cho = ", ".join(khach_cho.get(ma, []))
-		if hinh1.get(ma) and not d.hinh:
+		# Anh moi ben Pancake phai de len anh cu. Truoc day chi nhan khi o
+		# anh con trong nen doi anh ben Pancake xong web van anh cu
+		# (Minh Vu bao 10/08/2026).
+		if hinh1.get(ma) and hinh1[ma] != d.hinh:
 			d.hinh = hinh1[ma]
 
 	# Bu anh cho dong con thieu: don khong nhung anh thi tra danh muc.
@@ -611,20 +614,46 @@ def _tach_ten_size(ten):
 	return RE_TIEN_TO.sub("", goc).strip(), int(m.group(2))
 
 
-def _anh_pancake(c, k, ma):
-	"""Tat ca anh cua mot ma ben Pancake, anh bien the truoc, anh san pham sau.
+# Anh va mo ta tren web phai bam theo danh muc Pancake. Sales thay anh
+# hay sua mo ta ben do thi web doi theo trong vong nua tieng (Minh Vu bao
+# 10/08/2026: anh banh Hannari doi roi ma web van anh cu).
+CACHE_SP_GIAY = 1800
 
-	Trang dat banh co day 5 o anh (anh chinh, can canh, mat cat, chi tiet, dong
-	goi). Nguon anh la danh muc Pancake - sales them anh o do la web tu lay,
-	khong phai sua ma. Nho cache 6 tieng vi ham nay chay trong endpoint khach
-	vang lai goi, khong duoc de moi lan tai trang la ban mot loat request sang
-	Pancake.
+
+def _sach_html(s):
+	"""Mo ta Pancake la HTML. Doi <br>, </p>, <li> thanh xuong dong roi bo
+	het the, de web hien duoc thanh tung dong tang huong lop vi."""
+	s = str(s or "")
+	if not s:
+		return ""
+	s = re.sub(r"(?i)<\s*br\s*/?>", "\n", s)
+	s = re.sub(r"(?i)</\s*(p|div|li|tr|h[1-6])\s*>", "\n", s)
+	s = re.sub(r"(?i)<\s*li[^>]*>", "\n", s)
+	s = re.sub(r"<[^>]+>", " ", s)
+	s = (
+		s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<")
+		.replace("&gt;", ">").replace("&quot;", '"').replace("&#39;", "'")
+	)
+	dong = [re.sub(r"[ \t]+", " ", d).strip() for d in s.split("\n")]
+	return "\n".join([d for d in dong if d])
+
+
+def _sp_pancake(c, k, ma):
+	"""Anh + mo ta cua mot ma ben Pancake. Tra {"anhs": [...], "mo_ta": "..."}.
+
+	Trang dat banh co day 5 o anh (anh chinh, can canh, mat cat, chi tiet,
+	dong goi) va khoi mo ta - tat ca lay tu danh muc Pancake, sales sua ben
+	do la web tu doi, khong phai sua ma. Nho cache nua tieng vi ham nay chay
+	trong endpoint khach vang lai goi.
 	"""
-	ck = "vgb:anh:" + str(ma)
+	ck = "vgb:sp:" + str(ma)
 	hit = cache_get(ck)
 	if hit is not None:
-		return json.loads(hit) if isinstance(hit, str) else hit
-	ra = []
+		try:
+			return json.loads(hit) if isinstance(hit, str) else hit
+		except Exception:
+			pass
+	ra = {"anhs": [], "mo_ta": ""}
 	try:
 		r = requests.get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
@@ -634,16 +663,25 @@ def _anh_pancake(c, k, ma):
 		for v in (r.json() or {}).get("data") or []:
 			if str(v.get("display_id") or "").strip().lower() != str(ma).lower():
 				continue
-			for u in (v.get("images") or []) + (((v.get("product") or {}).get("images")) or []):
+			sp = v.get("product") or {}
+			for u in (v.get("images") or []) + (sp.get("images") or []):
 				u = str(u or "").strip()
-				if u and u not in ra:
-					ra.append(u)
+				if u and u not in ra["anhs"]:
+					ra["anhs"].append(u)
+			ra["mo_ta"] = _sach_html(
+				sp.get("description") or v.get("description") or sp.get("note") or ""
+			)
 			break
 	except Exception:
-		return []
-	ra = ra[:5]
-	cache_set(ck, json.dumps(ra), 21600)
+		return {"anhs": [], "mo_ta": ""}
+	ra["anhs"] = ra["anhs"][:5]
+	cache_set(ck, json.dumps(ra), CACHE_SP_GIAY)
 	return ra
+
+
+def _anh_pancake(c, k, ma):
+	"""Danh sach anh cua mot ma - giu ten cu cho cac cho dang goi."""
+	return (_sp_pancake(c, k, ma) or {}).get("anhs") or []
 
 
 @frappe.whitelist(allow_guest=True)
@@ -665,7 +703,13 @@ def co_the_ban_hom_nay():
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
 		return rong
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
-	dong = [d for d in doc.dong if (d.co_the_ban or 0) > 0]
+	# Trang nay ban LE. Ma BAWS la banh si, chi bep va sales nam voi nhau
+	# ben man kiem banh, khong duoc bay len web (anh Viet 10/08/2026).
+	dong = [
+		d for d in doc.dong
+		if (d.co_the_ban or 0) > 0
+		and not str(d.ma_hang or "").upper().startswith("BAWS")
+	]
 	if not dong:
 		return rong
 
@@ -711,22 +755,34 @@ def co_the_ban_hom_nay():
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 
-	# Bo anh cho tung banh: lay theo size nho nhat, du roi thi thoi.
+	# Bo anh va mo ta cho tung banh, lay tu danh muc Pancake theo size nho
+	# nhat tro di. Mo ta lay dong dau lam gioi thieu, cac dong sau thanh
+	# tang huong lop vi (Minh Vu bao 10/08/2026).
 	c = cfg()
 	khoa = key(c, "pancake_api_key")
 	if khoa and c.pancake_shop_id:
 		for k in nhom:
 			g = nhom[k]
-			anhs = []
+			anhs, mo_ta = [], ""
 			for s in g["sizes"]:
-				for u in _anh_pancake(c, khoa, s["ma"]):
+				sp = _sp_pancake(c, khoa, s["ma"]) or {}
+				for u in sp.get("anhs") or []:
 					if u not in anhs:
 						anhs.append(u)
-				if len(anhs) >= 5:
+				if not mo_ta and (sp.get("mo_ta") or "").strip():
+					mo_ta = sp["mo_ta"].strip()
+				if len(anhs) >= 5 and mo_ta:
 					break
-			if g["anh"] and g["anh"] not in anhs:
-				anhs.insert(0, g["anh"])
+			# Anh dau tien cua Pancake la anh dang dung; anh luu trong dong
+			# kiem banh chi de lui ve khi Pancake khong tra gi.
+			if not anhs and g["anh"]:
+				anhs = [g["anh"]]
+			if anhs:
+				g["anh"] = anhs[0]
 			g["anhs"] = anhs[:5]
+			dong_mo_ta = [d for d in (mo_ta or "").split("\n") if d.strip()]
+			g["mo_ta"] = dong_mo_ta[0] if dong_mo_ta else ""
+			g["tang"] = [d.strip() for d in dong_mo_ta[1:]][:12]
 
 	return {
 		"ngay": str(ngay),

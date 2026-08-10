@@ -12,7 +12,12 @@ app_license = "MIT"
 # "phat sinh" tu chay, sales khoi dem tay.
 scheduler_events = {
 	"cron": {
-		"*/5 * * * *": ["vagabond.kiem_banh.dong_bo_tu_dong"],
+		# Khach sua don ben Pancake (dia chi, mon, tien) luc nao cung duoc,
+		# nen ca kiem banh lan van don phai tu bam theo, khong doi ai bam nut.
+		"*/5 * * * *": [
+			"vagabond.kiem_banh.dong_bo_tu_dong",
+			"vagabond.van_don.dong_bo_tu_dong",
+		],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
 		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu.
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
