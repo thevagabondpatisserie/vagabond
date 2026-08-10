@@ -6870,7 +6870,10 @@ function locNguonPt(rows) {
     ds.push({ k: 'ng:' + a, nhan: h(a), loc: function (r) { return (r.custom_nguon || '') === a; } });
   });
   pt.forEach(function (b) {
-    ds.push({ k: 'pt:' + b, nhan: '💳 ' + h(b), loc: function (r) { return (r.vgb_pt_thanh_toan || '') === b; } });
+    /* Don san co phuong thuc trung ten nguon (GrabFood tra qua GrabFood):
+       bay hai chip giong het nhau chi lam roi mat, bo bot mot. */
+    if (ng.indexOf(b) >= 0) return;
+    ds.push({ k: 'pt:' + b, nhan: 'Trả: ' + h(b), loc: function (r) { return (r.vgb_pt_thanh_toan || '') === b; } });
   });
   return ds;
 }
@@ -8760,7 +8763,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '96';
+var APPVER = '97';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
