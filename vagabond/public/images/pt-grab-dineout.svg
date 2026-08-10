@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 110" role="img" aria-label="Grab Dine Out">
+  <title>Grab Dine Out</title>
+  <!-- Nap chuong: vanh de cam, than cam, dai do cam, num tren dinh, ky hieu % -->
+  <g>
+    <rect x="6" y="92" width="96" height="11" rx="5.5" fill="#F5A04A"/>
+    <path d="M54 22c-1.9 0-3.4-1.5-3.4-3.4S52.1 15.2 54 15.2s3.4 1.5 3.4 3.4S55.9 22 54 22z" fill="#F5A04A"/>
+    <rect x="52.4" y="20" width="3.2" height="8" fill="#F5A04A"/>
+    <path d="M8 84c0-25.4 20.6-46 46-46s46 20.6 46 46H8z" fill="#F5A04A"/>
+    <path d="M8 84h92c0 3.9-20.6 7-46 7S8 87.9 8 84z" fill="#E8442E"/>
+    <g fill="#FFFFFF">
+      <circle cx="40" cy="60" r="6.4"/>
+      <circle cx="66" cy="74" r="6.4"/>
+      <rect x="49.6" y="53.6" width="6.4" height="27.2" rx="3.2" transform="rotate(30 52.8 67.2)"/>
+    </g>
+  </g>
+  <!-- Chu Grab Dine Out mau xanh Grab -->
+  <g fill="#00B14F" font-family="Trebuchet MS, Verdana, Arial, sans-serif" font-weight="bold">
+    <text x="122" y="50" font-size="45" letter-spacing="-1">Grab</text>
+    <text x="122" y="97" font-size="45" letter-spacing="-1">Dine Out</text>
+  </g>
+</svg>
