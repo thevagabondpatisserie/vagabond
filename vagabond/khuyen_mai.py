@@ -152,8 +152,12 @@ def _hop_kenh(km, nguon, quay):
 	if ds_kenh and (nguon or "").strip() not in ds_kenh:
 		return False, "không áp dụng cho nguồn đơn %s" % (nguon or "(trống)")
 	ds_quay = [q.upper() for q in _dong(km.get("quay"))]
-	if ds_quay and (quay or "").strip().upper() not in ds_quay:
-		return False, "không áp dụng cho quầy %s" % (quay or "(trống)")
+	# Don ban online cua Sales khong mang ma quay (o vgb_quay de trong), nen
+	# quy uoc quay rong la SALES. Nho vay man cau hinh moi co du ba diem ban
+	# de tick, khong bi thieu quay Sales (anh Viet 12/08/2026).
+	this = (quay or "").strip().upper() or "SALES"
+	if ds_quay and this not in ds_quay:
+		return False, "không áp dụng cho quầy %s" % (quay or "Sales")
 	return True, ""
 
 
@@ -509,6 +513,40 @@ def _giam_combo(cb, gio, so_bo):
 
 
 # ------------------------------------------------------------------- API doc
+
+# Ba diem ban. Don Sales online khong mang ma quay nen quy uoc la SALES.
+QUAY_DS = [
+	{"ma": "SALES", "ten": "Sales Online"},
+	{"ma": "TCV", "ten": "District 1"},
+	{"ma": "NVHTN", "ten": "NVHTN"},
+]
+
+
+@frappe.whitelist()
+def danh_muc():
+	"""Danh muc de man cau hinh khuyen mai bay ra thanh CHIP cho bam.
+
+	Anh Viet 12/08/2026: "Lam thanh chip de chon het dum anh, hien khong
+	chon duoc tu o nay" - truoc day hang khach va nhom khach la o go tay,
+	go sai mot chu la chuong trinh khong bao gio ap duoc ma khong ai biet.
+	"""
+	_kiem_quyen()
+	hang = frappe.get_all(
+		"Vagabond Hang Khach", fields=["name"], order_by="idx asc, name asc", limit_page_length=0
+	)
+	nhom = frappe.get_all(
+		"Customer Group", filters={"is_group": 0}, fields=["name"], order_by="name asc", limit_page_length=0
+	)
+	nhom_mon = frappe.get_all(
+		"Item Group", filters={"is_group": 0}, fields=["name"], order_by="name asc", limit_page_length=0
+	)
+	return {
+		"hang": [r.name for r in hang],
+		"nhom_khach": [r.name for r in nhom],
+		"nhom_mon": [r.name for r in nhom_mon],
+		"quay": QUAY_DS,
+	}
+
 
 @frappe.whitelist()
 def ds_ctkm(quay=None, nguon=None, khach=None, sdt=None, ngay=None, tat_ca=0):

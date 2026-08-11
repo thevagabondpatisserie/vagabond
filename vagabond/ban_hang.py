@@ -1435,12 +1435,49 @@ def _chuan_bi_ghi_so(si, sepay=None):
 	_soat_sepay(si, sepay)
 	si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
 	_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+	# Ban cong no ma khong biet no cua AI thi cuoi thang khong doi duoc.
+	# Bat buoc khai khach cho rieng phuong thuc Cong no; cac phuong thuc
+	# khac van de trong, vi nhieu khach khong muon de lai thong tin
+	# (anh Viet 12/08/2026 - bat duoc tu don 91513 cua OSHIMA).
+	if pt == "Công nợ" and (not si.customer or si.customer == KHACH_LE):
+		frappe.throw(
+			"Đơn %s bán công nợ nên phải chọn khách công nợ trước khi ghi sổ, "
+			"không thì cuối tháng không biết đòi ai."
+			% (si.custom_pancake_display_id or si.name)
+		)
 	if not (si.vgb_xhd_ten or "").strip():
 		si.vgb_xhd_ten = XHD_MAC_DINH
 
 
 @frappe.whitelist()
-def chot_mot_don(si_name, pt=None, ma_tham_chieu=None):
+def luu_khach_no(si_name, khach=None):
+	"""Gan khach cong no cho mot don Sales.
+
+	Don con nhap thi doi thang customer - do moi la chu no that trong so
+	cai. Don da ghi so thi KHONG duoc doi customer (bút toán đã lên sổ,
+	đổi party là sai sổ), chi ghi vao truong phu vgb_khach_no de man Cong
+	no phai thu va phieu de nghi thanh toan goi dung ten nguoi phai tra.
+	"""
+	_kiem_quyen()
+	si = frappe.get_doc("Sales Invoice", si_name)
+	ma = (khach or "").strip()
+	if ma and not frappe.db.exists("Customer", ma):
+		frappe.throw("Không có khách hàng %s trong danh mục." % ma)
+	if si.docstatus == 0:
+		si.customer = ma or _khach_le()
+		si.vgb_khach_no = ma
+		si.flags.ignore_permissions = True
+		si.save()
+	else:
+		frappe.db.set_value("Sales Invoice", si.name, "vgb_khach_no", ma)
+		_ghi_vet(si.name, "Gắn khách công nợ %s cho đơn đã ghi sổ" % (ma or "(bỏ trống)"), "")
+	frappe.db.commit()
+	ten = frappe.db.get_value("Customer", ma, "customer_name") if ma else ""
+	return {"ok": 1, "khach": ma, "ten": ten or ma}
+
+
+@frappe.whitelist()
+def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 	"""Submit mot don le, sales ra soat xong don nao chot don do."""
 	_kiem_quyen()
 	si = frappe.get_doc("Sales Invoice", si_name)
@@ -1452,6 +1489,12 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None):
 		si.vgb_pt_thanh_toan = pt
 	if ma_tham_chieu is not None:
 		si.vgb_ma_tham_chieu = ma_tham_chieu
+	ma_kh = (khach or "").strip()
+	if ma_kh:
+		if not frappe.db.exists("Customer", ma_kh):
+			frappe.throw("Không có khách hàng %s trong danh mục." % ma_kh)
+		si.customer = ma_kh
+		si.vgb_khach_no = ma_kh
 	_chuan_bi_ghi_so(si)
 	si.flags.ignore_permissions = True
 	si.submit()

@@ -106,6 +106,7 @@ def ds_khach_no():
 		fields=[
 			"name", "customer", "customer_name", "posting_date",
 			"grand_total", "custom_nguon", "vgb_quay", "vgb_ma_tham_chieu",
+			"vgb_khach_no",
 		],
 		order_by="posting_date asc",
 		limit_page_length=0,
@@ -113,6 +114,14 @@ def ds_khach_no():
 	da_gom = _hd_da_gom()
 	khach = {}
 	for r in rows:
+		# Don da ghi so roi moi phat hien gan nham khach le thi ke toan gan
+		# chu no vao truong phu vgb_khach_no - khong sua duoc customer nua
+		# vi but toan da len so cai. Cot phu nay uu tien hon customer.
+		if r.get("vgb_khach_no"):
+			r.customer = r.vgb_khach_no
+			r.customer_name = (
+				frappe.db.get_value("Customer", r.vgb_khach_no, "customer_name") or r.vgb_khach_no
+			)
 		k = r.customer or "(chưa gắn khách)"
 		o = khach.setdefault(
 			k,
