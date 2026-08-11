@@ -166,7 +166,7 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu=""):
 	dong = []
 	for name in hoa_don:
 		if name in da_gom:
-			frappe.throw("Hoá đơn %s đã nằm trong một phiếu đòi nợ khác." % name)
+			frappe.throw("Hoá đơn %s đã nằm trong một phiếu đề nghị thanh toán khác." % name)
 		si = frappe.db.get_value(
 			"Sales Invoice",
 			name,
@@ -301,22 +301,74 @@ def huy_phieu(name, ly_do=""):
 
 @frappe.whitelist()
 def tim_khach(tu_khoa=""):
-	"""Bang tim khach hang cho o chon khach luc ban cong no."""
+	"""Bang tim khach hang cho o chon khach: tim theo ma, ten, ma so thue,
+	so dien thoai tren ho so VA so dien thoai o danh ba lien he.
+
+	Anh Viet 11/08/2026: go "Ravie" hay go so dien thoai deu phai xo ra
+	danh sach. Truoc day chi tim theo ma va ten nen go so dien thoai khong
+	bao gio ra.
+	"""
 	_kiem_quyen()
 	q = (tu_khoa or "").strip()
-	doi = {
-		"doctype": "Customer",
-		"filters": {"disabled": 0},
-		"fields": ["name", "customer_name", "tax_id", "customer_group", "mobile_no"],
-		"order_by": "customer_name asc",
-		"limit_page_length": 60,
-	}
-	if q:
-		doi["or_filters"] = {
+	truong = ["name", "customer_name", "tax_id", "customer_group", "mobile_no"]
+	if not q:
+		ds = frappe.get_all(
+			"Customer",
+			filters={"disabled": 0},
+			fields=truong,
+			order_by="customer_name asc",
+			limit_page_length=60,
+		)
+		return {"khach": ds}
+
+	ds = frappe.get_all(
+		"Customer",
+		filters={"disabled": 0},
+		or_filters={
 			"name": ["like", "%" + q + "%"],
 			"customer_name": ["like", "%" + q + "%"],
-		}
-	ds = frappe.get_all(**doi)
+			"tax_id": ["like", "%" + q + "%"],
+			"mobile_no": ["like", "%" + q + "%"],
+		},
+		fields=truong,
+		order_by="customer_name asc",
+		limit_page_length=40,
+	)
+	da_co = {r.name for r in ds}
+
+	# Tim theo so dien thoai o danh ba lien he: khach si thuong luu so o
+	# nguoi lien he chu khong o ho so cong ty.
+	so = re.sub(r"\D", "", q)
+	if len(so) >= 6:
+		try:
+			ten_lh = frappe.get_all(
+				"Contact Phone",
+				filters={"phone": ["like", "%" + so + "%"]},
+				fields=["parent"],
+				limit_page_length=60,
+			)
+			cha = [r.parent for r in ten_lh]
+			if cha:
+				lk = frappe.get_all(
+					"Dynamic Link",
+					filters={
+						"parent": ["in", cha],
+						"link_doctype": "Customer",
+						"parenttype": "Contact",
+					},
+					fields=["link_name"],
+					limit_page_length=60,
+				)
+				them = [r.link_name for r in lk if r.link_name and r.link_name not in da_co]
+				if them:
+					ds += frappe.get_all(
+						"Customer",
+						filters={"name": ["in", them], "disabled": 0},
+						fields=truong,
+						limit_page_length=20,
+					)
+		except Exception:
+			pass
 	return {"khach": ds}
 
 

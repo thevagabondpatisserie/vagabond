@@ -333,6 +333,11 @@ PT_THAM_CHIEU = {
 # Dau nhan dien dong GHI CHU MON trong description cua dong hoa don. Chon
 # ky tu nay vi khong ai go nham duoc, va tach bach voi [tuy chon pha che].
 DAU_GC_MON = "\u203b"
+# Dau nhan dien dong TEN COMBO tren dong hoa don (anh Viet 11/08/2026). Mon
+# ra tu combo nao thi mang ten combo do, de bep va nguoi di lay mon biet gom
+# du bo, va de cuoi ngay dem duoc ban bao nhieu bo combo. In len bill va len
+# tem dan mon, nhung KHONG in ma combo.
+DAU_COMBO = "\u25c8"
 
 PT_QUAY = [
 	"Tiền mặt",
@@ -1516,10 +1521,22 @@ def _khach_cong_no(khach_no, pt):
 	if (pt or "").strip() != "Công nợ":
 		return ""
 	if not khach_no:
-		frappe.throw("Bán công nợ phải chọn khách hàng để còn đi đòi.")
+		frappe.throw("Bán công nợ phải chọn khách hàng để còn theo dõi và thu sau.")
 	if not frappe.db.exists("Customer", khach_no):
 		frappe.throw("Không có khách hàng %s trong danh mục." % khach_no)
 	return khach_no
+
+
+def _khach_chon(khach_ma):
+	"""Khach thu ngan chon tay tren man tinh tien. Sai ma thi bo qua chu
+	KHONG chan: tien da thu cua khach roi, khong duoc de mot ma khach hong
+	lam ket ca hoa don."""
+	ma = (khach_ma or "").strip()
+	if not ma:
+		return ""
+	if not frappe.db.exists("Customer", ma):
+		return ""
+	return ma
 
 
 @frappe.whitelist()
@@ -1547,6 +1564,7 @@ def tao_don_tay(
 	ma_voucher="",
 	combo_ap=None,
 	otp_km="",
+	khach_ma="",
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -1583,9 +1601,12 @@ def tao_don_tay(
 		# nao. Voi don food app thi day chinh la cho mang ma don, in len tem
 		# dan mon de shipper doc ma nhan dung tui.
 		gcm = (r.get("ghi_chu") or "").strip()
-		if tc or gcm:
+		cbo = (r.get("combo") or "").strip()
+		if tc or gcm or cbo:
 			ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
 			d["description"] = ten_mon
+			if cbo:
+				d["description"] += "\n%s %s" % (DAU_COMBO, cbo[:120])
 			if tc:
 				d["description"] += "\n[%s]" % tc[:200]
 			if gcm:
@@ -1677,7 +1698,11 @@ def tao_don_tay(
 			# Ban cong no thi hoa don phai mang ten khach that, khong duoc
 			# de "khach le" - khong thi cuoi thang khong biet doi ai (anh
 			# Viet 11/08/2026). Cac truong hop con lai van la khach le.
-			"customer": _khach_cong_no(khach_no, pt) or _khach_le(),
+			# Thu ngan chon duoc khach ngay tren man tinh tien (anh Viet
+			# 11/08/2026): chon roi thi hoa don mang ten khach do, khong don
+			# vao "Khach le Online" nua - co vay moi cham soc theo hang va
+			# chuc mung sinh nhat duoc.
+			"customer": _khach_cong_no(khach_no, pt) or _khach_chon(khach_ma) or _khach_le(),
 			"posting_date": str(ngay),
 			"set_posting_time": 1,
 			"due_date": str(ngay),
@@ -2181,9 +2206,12 @@ def pos_sua_don(
 			d = {"item_code": ma, "qty": sl, "rate": flt(r.get("rate") or 0)}
 			tc = (r.get("tuy_chon") or "").strip()
 			gcm = (r.get("ghi_chu") or "").strip()
-			if tc or gcm:
+			cbo = (r.get("combo") or "").strip()
+			if tc or gcm or cbo:
 				ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
 				d["description"] = ten_mon
+				if cbo:
+					d["description"] += "\n%s %s" % (DAU_COMBO, cbo[:120])
 				if tc:
 					d["description"] += "\n[%s]" % tc[:200]
 				if gcm:
