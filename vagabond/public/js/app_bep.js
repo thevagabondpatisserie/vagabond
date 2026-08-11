@@ -9950,7 +9950,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '114';
+var APPVER = '115';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12105,6 +12105,16 @@ function ngayNgan(iso) {
   return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '-';
 }
 
+/* Danh sach dai qua thi may chu chi tra ve 300 dong dau. KHONG duoc im
+   lang cat bot: nguoi doc se tuong da xem het. Con so dem tren chip va so
+   tong van tinh tren toan bo, chi rieng danh sach bi cat. */
+function mkNhacCat(soCat, donVi) {
+  if (!soCat) return '';
+  return '<div style="margin-top:9px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:9px;padding:9px 11px;font-size:12.5px;color:#9a3412">' +
+    'Danh sách bên dưới chỉ hiện 300 ' + donVi + ' mới nhất, còn <b>' + money(soCat) + '</b> ' + donVi +
+    ' nữa chưa hiện. Thu hẹp khoảng ngày hoặc bấm một chip trạng thái để xem cho đủ. Các con số tổng ở trên vẫn tính đủ.</div>';
+}
+
 var poNhom = '', poNgay = 60, poTim = '', poXem = null;
 var ktBanNhom = '', ktBanNgay = 30, ktBanQuay = '', ktBanTim = '';
 var ktMuaNhom = '', ktMuaNgay = 60, ktMuaTim = '';
@@ -12133,17 +12143,19 @@ function mkOTim(id, gt, moTa) {
 async function scrDonMua() {
   frame('Đơn mua hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đơn mua hàng...</div></div>');
   var kq;
-  try { kq = await api('vagabond.mua_hang.ds_po', { so_ngay: poNgay, tu_khoa: poTim }); }
+  try { kq = await api('vagabond.mua_hang.ds_po', { so_ngay: poNgay, tu_khoa: poTim, nhom: poNhom }); }
   catch (e) {
     frame('Đơn mua hàng', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
-  var ds = (kq.don || []).filter(function (d) { return !poNhom || d.nhom === poNhom; });
+  /* Loc theo chip lam o MAY CHU roi, o day chi ve ra. */
+  var ds = kq.don || [];
 
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">ĐƠN MUA HÀNG ' + (poNgay ? h(poNgay) + ' NGÀY GẦN ĐÂY' : 'TẤT CẢ') + '</div>' +
     '<div style="font-size:24px;font-weight:800">' + money(kq.tong_tien) + ' đ</div>' +
-    '<div style="font-size:12.5px;color:#6b7280">' + money((kq.don || []).length) + ' đơn · đang xem ' + money(ds.length) + '</div></div>';
+    '<div style="font-size:12.5px;color:#6b7280">' + money(kq.tong_dong) + ' đơn · đang xem ' + money(ds.length) + '</div>' +
+    mkNhacCat(kq.bi_cat, 'đơn') + '</div>';
 
   html += '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[30, '30 ngày'], [60, '60 ngày'], [180, '6 tháng'], [0, 'Tất cả']], poNgay, 'data-pongay') + '</div>';
@@ -12288,21 +12300,19 @@ function mkSheetNoNcc(n) {
 async function scrHdBan() {
   frame('Hoá đơn bán ra', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc hoá đơn...</div></div>');
   var kq;
-  try { kq = await api('vagabond.ke_toan.ds_hoa_don_ban', { so_ngay: ktBanNgay, quay: ktBanQuay, tu_khoa: ktBanTim }); }
+  try { kq = await api('vagabond.ke_toan.ds_hoa_don_ban', { so_ngay: ktBanNgay, quay: ktBanQuay, tu_khoa: ktBanTim, nhom: ktBanNhom }); }
   catch (e) {
     frame('Hoá đơn bán ra', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
-  var ds = (kq.hd || []).filter(function (d) {
-    if (ktBanNhom === 'con_thu') return d.docstatus === 1 && d.outstanding_amount > 0;
-    return !ktBanNhom || d.nhom === ktBanNhom;
-  });
+  var ds = kq.hd || [];
 
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">HOÁ ĐƠN BÁN RA · ' + ngayNgan(kq.tu) + ' - ' + ngayNgan(kq.den) + '</div>' +
     '<div style="font-size:24px;font-weight:800">' + money(kq.tong) + ' đ</div>' +
-    '<div style="font-size:12.5px;color:#6b7280">' + money((kq.hd || []).length) + ' hoá đơn · đang xem ' + money(ds.length) +
-    (kq.con_thu ? ' · còn phải thu ' + money(kq.con_thu) + ' đ' : '') + '</div></div>';
+    '<div style="font-size:12.5px;color:#6b7280">' + money(kq.tong_dong) + ' hoá đơn · đang xem ' + money(ds.length) +
+    (kq.con_thu ? ' · còn phải thu ' + money(kq.con_thu) + ' đ' : '') + '</div>' +
+    mkNhacCat(kq.bi_cat, 'hoá đơn') + '</div>';
 
   html += '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng'], [365, '1 năm']], ktBanNgay, 'data-ktbngay') + '</div>';
@@ -12367,18 +12377,19 @@ function mkBangHd(ds, loai) {
 async function scrHdMua() {
   frame('Hoá đơn mua vào', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc hoá đơn...</div></div>');
   var kq;
-  try { kq = await api('vagabond.ke_toan.ds_hoa_don_mua', { so_ngay: ktMuaNgay, tu_khoa: ktMuaTim }); }
+  try { kq = await api('vagabond.ke_toan.ds_hoa_don_mua', { so_ngay: ktMuaNgay, tu_khoa: ktMuaTim, nhom: ktMuaNhom }); }
   catch (e) {
     frame('Hoá đơn mua vào', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
-  var ds = (kq.hd || []).filter(function (d) { return !ktMuaNhom || d.nhom === ktMuaNhom; });
+  var ds = kq.hd || [];
 
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">HOÁ ĐƠN MUA VÀO · ' + ngayNgan(kq.tu) + ' - ' + ngayNgan(kq.den) + '</div>' +
     '<div style="font-size:24px;font-weight:800">' + money(kq.tong) + ' đ</div>' +
-    '<div style="font-size:12.5px;color:#6b7280">' + money((kq.hd || []).length) + ' hoá đơn · đang xem ' + money(ds.length) +
-    (kq.con_no ? ' · còn nợ ' + money(kq.con_no) + ' đ' : '') + '</div></div>';
+    '<div style="font-size:12.5px;color:#6b7280">' + money(kq.tong_dong) + ' hoá đơn · đang xem ' + money(ds.length) +
+    (kq.con_no ? ' · còn nợ ' + money(kq.con_no) + ' đ' : '') + '</div>' +
+    mkNhacCat(kq.bi_cat, 'hoá đơn') + '</div>';
 
   html += '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[30, '30 ngày'], [60, '60 ngày'], [180, '6 tháng'], [365, '1 năm']], ktMuaNgay, 'data-ktmngay') + '</div>';
