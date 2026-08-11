@@ -27,7 +27,7 @@ import unicodedata
 
 import frappe
 import requests
-from frappe.utils import add_days, flt, getdate, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
@@ -1645,23 +1645,78 @@ def _ghi_so_mot_don(si, sepay=None):
 	return 1, 0, ("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử: %s" % (nhan, bao)) if bao else ""
 
 
-def tu_ghi_so_cuoi_ngay():
-	"""23h30 mỗi ngày: ghi sổ hết hoá đơn còn nháp trong ngày rồi tự đẩy
-	hoá đơn điện tử sang m-invoice ở trạng thái Chờ ký.
+DIEM_BAN_HDDT = [
+	{"ma": "SALES", "ten": "Sales Online", "quay": "",
+	 "nguon": ["Pancake", "GrabFood", "BeFood", "GreenSM Food", "ShopeeFood", "Khách sỉ"]},
+	{"ma": "TCV", "ten": "District 1 - Trần Cao Vân", "quay": "TCV",
+	 "nguon": ["Tại chỗ - Trần Cao Vân", "Mang về - Trần Cao Vân"]},
+	{"ma": "NVHTN", "ten": "NVHTN - Phạm Ngọc Thạch", "quay": "NVHTN",
+	 "nguon": ["Tại chỗ - Nguyễn Văn Trỗi", "Mang về - Nguyễn Văn Trỗi"]},
+]
 
-	Anh Viet chot 12/08/2026: bo buoc ghi so thu cong. Truoc mat chay cho
-	Sales; hai quay bat sau khi vao van hanh chinh thuc, bang cach dien ma
-	quay vao o "Quay tu ghi so cuoi ngay" trong Vagabond Settings.
+
+def _gio_hop_le(g, mac_dinh="23:00"):
+	"""Chuan hoa gio dang HH:MM. Sai dinh dang thi tra ve mac dinh chu khong
+	nem loi - day la job chay dem, hong gio la ca ngay khong ai xuat hoa don."""
+	g = str(g or "").strip()
+	m = re.match(r"^(\d{1,2}):(\d{2})$", g)
+	if not m:
+		return mac_dinh
+	gi, ph = int(m.group(1)), int(m.group(2))
+	if gi > 23 or ph > 59:
+		return mac_dinh
+	return "%02d:%02d" % (gi, ph)
+
+
+def _goi_server_script(ten, tham_so):
+	"""Goi mot Server Script kieu API cua site.
+
+	Bo phat hanh va ky hoa don m-invoice nam trong Server Script tren site
+	chu khong nam trong repo. Truoc day moi cai co lich rieng, chay le nhau
+	nen thu tu de sai. Nay chuoi cuoi ngay goi thang chung theo dung thu tu.
+	"""
+	cu = dict(frappe.form_dict)
+	try:
+		for k, v in tham_so.items():
+			frappe.form_dict[k] = v
+		frappe.get_doc("Server Script", ten).execute_method()
+		return frappe.response.get("message")
+	finally:
+		frappe.local.form_dict = frappe._dict(cu)
+
+
+def tu_ghi_so_cuoi_ngay():
+	"""Chuoi cuoi ngay: ghi so, phat hanh hoa don dien tu, roi ky.
+
+	Ham nay chay 5 phut mot lan nhung MOI NGAY CHI LAM MOT LAN, vao dung
+	gio khai trong Vagabond Settings (mac dinh 23:00). Lam vay de sep doi
+	duoc gio ngay tren app ma khong phai sua code va deploy lai.
+
+	Anh Viet chot 12/08/2026: gom ca ba buoc vao mot chuoi chay lien nhau,
+	xong truoc 23h30. Chi Dung so xuat hoa don sat 24h, lo nghen mang mot
+	cai la to hoa don lot sang ngay hom sau - sai luat ke toan.
 
 	Hoa don TAM TINH khong dung vao: do la phieu giu mon, khach chua tra
-	tien, chua phai doanh thu.
-
-	Don nao thieu dieu kien (chua chon phuong thuc, chuyen khoan chua ve du
-	tien) thi BO QUA chu khong ep ghi so - de sang hom sau nguoi that xu ly,
-	va co the keo sang ngay moi bang nut Doi ngay.
+	tien, chua phai doanh thu. Don nao thieu dieu kien (chua chon phuong
+	thuc, chuyen khoan chua ve du tien) thi BO QUA chu khong ep ghi so - de
+	sang hom sau nguoi that xu ly, va co the keo sang ngay moi bang nut
+	Chuyen don sang hom nay.
 	"""
-	ngay = nowdate()
 	c = cfg()
+	if not cint(c.get("tu_ghi_so_bat") if c.get("tu_ghi_so_bat") is not None else 1):
+		return
+	gio = _gio_hop_le(c.get("tu_ghi_so_gio"))
+	bay_gio = now_datetime().strftime("%H:%M")
+	if bay_gio < gio:
+		return
+	ngay = nowdate()
+	if str(c.get("tu_ghi_so_lan_cuoi") or "") == ngay:
+		return
+	# Danh dau da chay TRUOC khi lam viec: neu giua chung co loi thi cung
+	# khong chay lai chong len nhau o lan tick 5 phut sau.
+	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_lan_cuoi", ngay)
+	frappe.db.commit()
+
 	quay_bat = [
 		q.strip().upper()
 		for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines()
@@ -1686,21 +1741,20 @@ def tu_ghi_so_cuoi_ngay():
 			},
 			pluck="name",
 		)
-	if not ds:
-		return
 
 	sepay = None
-	try:
-		sepay = _sepay_theo_don(
-			c.pancake_shop_id,
-			frappe.db.get_all(
-				"Sales Invoice",
-				filters={"name": ["in", ds]},
-				pluck="custom_pancake_display_id",
-			),
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ban_hang tu ghi so: doc SePay")
+	if ds:
+		try:
+			sepay = _sepay_theo_don(
+				c.pancake_shop_id,
+				frappe.db.get_all(
+					"Sales Invoice",
+					filters={"name": ["in", ds]},
+					pluck="custom_pancake_display_id",
+				),
+			)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang tu ghi so: doc SePay")
 
 	xong, hddt, loi = 0, 0, []
 	for ten in ds:
@@ -1708,7 +1762,7 @@ def tu_ghi_so_cuoi_ngay():
 			si = frappe.get_doc("Sales Invoice", ten)
 		except Exception:
 			continue
-		if frappe.utils.cint(si.get("vgb_tam_tinh")):
+		if cint(si.get("vgb_tam_tinh")):
 			continue
 		a, b, e = _ghi_so_mot_don(si, sepay if not (si.get("vgb_quay") or "").strip() else None)
 		xong += a
@@ -1717,16 +1771,182 @@ def tu_ghi_so_cuoi_ngay():
 			loi.append(e)
 	frappe.db.commit()
 
-	# Ghi lai ket qua de sang hom sau con doi chieu. Loi thi ghi vao Error Log
-	# cho de tim, chu khong im lang.
+	# Ghi so xong moi phat hanh, phat hanh xong moi ky. Ba buoc lien nhau
+	# trong mot lan chay nen khong con canh buoc sau chay truoc buoc truoc.
+	ph = ky = None
+	try:
+		ph = _goi_server_script(
+			"MInvoice - Phat hanh HD Sales (API)",
+			{"che_do": "day", "ngay": ngay, "so_luong": 0, "phieu": None, "khong_commit": 0},
+		)
+	except Exception:
+		loi.append("Phát hành hoá đơn điện tử lỗi, xem Error Log.")
+		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: phat hanh HDDT")
+	try:
+		ky = _goi_server_script(
+			"MInvoice - Ky hang loat hoa don",
+			{"ngay": ngay, "phieu": None, "so_luong": 0},
+		)
+	except Exception:
+		loi.append("Ký hoá đơn hàng loạt lỗi, xem Error Log.")
+		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: ky HDDT")
+
+	nhat_ky = "%s lúc %s: ghi sổ %d đơn. Phát hành: %s. Ký: %s.%s" % (
+		ngay,
+		now_datetime().strftime("%H:%M"),
+		xong,
+		_gon(ph),
+		_gon(ky),
+		(" Còn %d đơn cần xem lại." % len(loi)) if loi else "",
+	)
+	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", nhat_ky[:500])
+	frappe.db.commit()
+
 	if loi:
 		frappe.log_error(
-			title="Vagabond: tu ghi so 23h30 ngay %s" % ngay,
-			message="Đã ghi sổ %d đơn, xuất %d hoá đơn điện tử.\nCòn lại:\n%s"
-			% (xong, hddt, "\n".join(loi)),
+			title="Vagabond: chuỗi cuối ngày %s" % ngay,
+			message=nhat_ky + "\n\n" + "\n".join(loi),
 		)
 
 
+def _gon(kq):
+	"""Rut ket qua tra ve cua Server Script thanh mot cau ngan de ghi nhat ky."""
+	if not isinstance(kq, dict):
+		return "không rõ"
+	for k in ("tao", "so_tao", "ok", "so_ky", "da_ky", "so_luong"):
+		if k in kq:
+			return "%s %s" % (k, kq[k])
+	return str(kq)[:120]
+
+
+@frappe.whitelist()
+def cai_dat_cuoi_ngay():
+	"""Man Cai dat tren app doc cau hinh chuoi cuoi ngay theo tung diem ban."""
+	_kiem_quyen()
+	c = cfg()
+	quay_bat = [
+		q.strip().upper()
+		for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines()
+		if q.strip()
+	]
+	try:
+		stg = frappe.get_doc("MInvoice Phat Hanh Settings")
+		dang_bat = [
+			x.strip()
+			for x in str(stg.get("nguon") or "").replace(",", "\n").splitlines()
+			if x.strip()
+		]
+		bat_chung = cint(stg.get("enabled"))
+	except Exception:
+		dang_bat, bat_chung = [], 0
+	diem = []
+	for d in DIEM_BAN_HDDT:
+		diem.append(
+			{
+				"ma": d["ma"],
+				"ten": d["ten"],
+				# Sales luon tu ghi so; hai quay bat rieng bang danh sach quay.
+				"ghi_so": 1 if (d["ma"] == "SALES" or d["quay"] in quay_bat) else 0,
+				"hddt": 1 if all(n in dang_bat for n in d["nguon"]) else 0,
+				"nguon": d["nguon"],
+			}
+		)
+	return {
+		"bat": cint(c.get("tu_ghi_so_bat") if c.get("tu_ghi_so_bat") is not None else 1),
+		"gio": _gio_hop_le(c.get("tu_ghi_so_gio")),
+		"bat_hddt_chung": bat_chung,
+		"diem": diem,
+		"lan_cuoi": c.get("tu_ghi_so_lan_cuoi") or "",
+		"nhat_ky": c.get("tu_ghi_so_nhat_ky") or "",
+	}
+
+
+@frappe.whitelist()
+def luu_cai_dat_cuoi_ngay(bat=None, gio=None, ghi_so=None, hddt=None):
+	"""Luu cau hinh chuoi cuoi ngay tu app.
+
+	ghi_so va hddt la danh sach ma diem ban (SALES, TCV, NVHTN). Doi voi
+	hoa don dien tu, ma diem ban duoc dich sang danh sach NGUON DON ma bo
+	Server Script m-invoice dung de loc.
+	"""
+	_kiem_quyen()
+	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới được đổi cấu hình cuối ngày.")
+	if isinstance(ghi_so, str):
+		ghi_so = frappe.parse_json(ghi_so or "[]")
+	if isinstance(hddt, str):
+		hddt = frappe.parse_json(hddt or "[]")
+	ghi_so = [str(x).strip().upper() for x in (ghi_so or [])]
+	hddt = [str(x).strip().upper() for x in (hddt or [])]
+
+	if bat is not None:
+		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_bat", cint(bat))
+	if gio is not None:
+		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_gio", _gio_hop_le(gio))
+	# Sales khong nam trong danh sach quay: don Sales khong mang ma quay.
+	quay = [d["quay"] for d in DIEM_BAN_HDDT if d["quay"] and d["ma"] in ghi_so]
+	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_quay", "\n".join(quay))
+
+	nguon = []
+	for d in DIEM_BAN_HDDT:
+		if d["ma"] in hddt:
+			nguon += d["nguon"]
+	try:
+		frappe.db.set_value(
+			"MInvoice Phat Hanh Settings",
+			"MInvoice Phat Hanh Settings",
+			"nguon",
+			"\n".join(nguon),
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: luu nguon xuat HDDT")
+	frappe.db.commit()
+	_ghi_vet_cai_dat(
+		"Cấu hình cuối ngày: %s giờ %s, tự ghi sổ [%s], xuất hoá đơn [%s]"
+		% ("bật" if cint(bat) else "tắt", _gio_hop_le(gio), ", ".join(ghi_so), ", ".join(hddt))
+	)
+	return cai_dat_cuoi_ngay()
+
+
+def _ghi_vet_cai_dat(viec):
+	"""Doi mot cau hinh anh huong tien bac thi phai biet ai doi, luc nao."""
+	try:
+		frappe.get_doc(
+			{
+				"doctype": "Comment",
+				"comment_type": "Info",
+				"reference_doctype": "Vagabond Settings",
+				"reference_name": "Vagabond Settings",
+				"content": "%s - %s" % (viec, frappe.session.user),
+			}
+		).insert(ignore_permissions=True)
+	except Exception:
+		pass
+
+
+@frappe.whitelist()
+def chay_cuoi_ngay_ngay_bay_gio():
+	"""Nut chay tay tren app: lam ngay chuoi cuoi ngay, khong doi toi gio."""
+	_kiem_quyen()
+	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới được chạy tay.")
+	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_lan_cuoi", "")
+	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_gio", _gio_hop_le(cfg().get("tu_ghi_so_gio")))
+	frappe.db.commit()
+	frappe.clear_cache(doctype="Vagabond Settings")
+	# Chay thang, bo qua cua gio bang cach tam coi gio la 00:00.
+	c = cfg()
+	gio_cu = c.get("tu_ghi_so_gio")
+	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_gio", "00:00")
+	frappe.db.commit()
+	frappe.clear_cache(doctype="Vagabond Settings")
+	try:
+		tu_ghi_so_cuoi_ngay()
+	finally:
+		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_gio", _gio_hop_le(gio_cu))
+		frappe.db.commit()
+		frappe.clear_cache(doctype="Vagabond Settings")
+	return cai_dat_cuoi_ngay()
 @frappe.whitelist()
 def bu_email_xhd(ngay=None):
 	"""Bu email nhan hoa don cho cac don DA dong bo ve ma con trong email.

@@ -17,14 +17,17 @@ scheduler_events = {
 		"*/5 * * * *": [
 			"vagabond.kiem_banh.dong_bo_tu_dong",
 			"vagabond.van_don.dong_bo_tu_dong",
+			# Chuoi cuoi ngay go cua o day. Ham tu kiem gio va moi ngay chi
+			# lam mot lan, nen de chung nhip 5 phut la du.
+			"vagabond.ban_hang.tu_ghi_so_cuoi_ngay",
 		],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
 		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu.
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
-		# 23h30: ghi so het hoa don con nhap trong ngay roi tu day hoa don
-		# dien tu sang m-invoice o trang thai Cho ky (anh Viet 12/08/2026).
-		# Chay truoc nua tieng de con kip xu ly neu m-invoice cham.
-		"30 23 * * *": ["vagabond.ban_hang.tu_ghi_so_cuoi_ngay"],
+		# Gio chay chuoi cuoi ngay khai trong Vagabond Settings, sua duoc
+		# ngay tren app (mac dinh 23:00, ca ba buoc xong truoc 23h30). Chi
+		# Dung so xuat hoa don sat 24h, lo nghen mang la to hoa don lot
+		# sang ngay hom sau, sai luat ke toan (anh Viet 12/08/2026).
 		# 2h sang: ra don bi lap hai hoa don, co thi gui thu bao.
 		"0 2 * * *": ["vagabond.ban_hang.ra_trung_hang_dem"],
 		# 3h sang: xoa anh giao hang cua van don qua 30 ngay cho nhe he thong
