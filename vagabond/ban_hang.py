@@ -827,6 +827,14 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	if cu:
 		si = frappe.get_doc("Sales Invoice", cu.name)
 		si.items = []
+		# Phai xoa lich thanh toan cu truoc khi doi ngay. Bang payment_schedule
+		# van giu han thanh toan cua ngay dong bo truoc; khach doi ngay giao
+		# trong Pancake thi lan dong bo sau day posting_date sang ngay moi, con
+		# lich cu o lai ngay cu, ERPNext so hai ngay roi nem "Due Date cannot be
+		# before posting date" va CHAN LUON - don do im lang khong bao gio ve.
+		# Bat duoc 11/08/2026: cu 15 phut mot ban ghi Error Log "ban_hang: don
+		# None" tu 10h32, la don doi ngay giao tu 10/08 sang 11/08.
+		si.payment_schedule = []
 	else:
 		si = frappe.new_doc("Sales Invoice")
 
