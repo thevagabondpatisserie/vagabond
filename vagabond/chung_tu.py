@@ -28,7 +28,9 @@ Doi lai, phai co duong hop le de bo mot phieu sai:
 """
 
 import frappe
-from frappe.utils import cint, now_datetime
+from frappe.utils import add_days, cint, getdate, now_datetime, nowdate
+
+from vagabond.lib import cfg
 
 # Chung tu tai chinh va kho. Doi mot dong o day la doi pham vi khoa, nen
 # doc ky truoc khi them bot.
@@ -296,3 +298,200 @@ def ds_da_bi_sua(doctype, ten_ds):
 def pham_vi_khoa():
 	"""Cho man Cai dat xem dang khoa nhung loai nao."""
 	return [{"dt": dt, "ten": TEN_VIET.get(dt, dt)} for dt in sorted(KHOA_XOA)]
+
+
+# ====================================================================
+# KHOA SO THEO NGAY (anh Viet 12/08/2026, hoc tu Fabi muc 3.7)
+#
+# Truoc day hoa don da ghi so van sua duoc vo thoi han mien co ma OTP, va
+# huy duoc bat cu luc nao. Nghia la so lieu thang truoc - da nop thue, da
+# doi soat voi ngan hang - van co the doi ma khong ai hay.
+#
+# Nay khoa lai: chung tu cua ngay da khoa thi khong ghi so, khong huy,
+# khong sua duoc nua. Ke toan truong can dong mot to cu thi mo khoa rieng
+# to do, co ghi ly do va ten nguoi mo.
+# ====================================================================
+
+# Ai duoc doi cau hinh khoa so va mo khoa tung to.
+QUYEN_KHOA_SO = {"System Manager", "Accounts Manager"}
+
+# Truong ngay cua tung loai chung tu. Don ban va don mua dung ngay chung
+# tu, con lai dung ngay hach toan.
+TRUONG_NGAY = {
+	"Sales Order": "transaction_date",
+	"Purchase Order": "transaction_date",
+}
+
+
+def ngay_khoa():
+	"""Ngay khoa hien tai: chung tu tu ngay nay tro ve TRUOC deu bi khoa.
+
+	Lay cai muon hon trong hai moc: "khoa sau N ngay" tinh lui tu hom nay,
+	va moc khoa cung do ke toan dat tay sau khi chot so mot ky.
+	Tra ve None neu khong khoa gi.
+	"""
+	try:
+		c = cfg()
+	except Exception:
+		return None
+	moc = []
+	n = cint(c.get("khoa_so_ngay") or 0)
+	if n > 0:
+		moc.append(getdate(add_days(nowdate(), -n)))
+	den = c.get("khoa_so_den")
+	if den:
+		try:
+			moc.append(getdate(den))
+		except Exception:
+			pass
+	return max(moc) if moc else None
+
+
+def _ngay_cua(doc):
+	truong = TRUONG_NGAY.get(doc.doctype, "posting_date")
+	gt = doc.get(truong) or doc.get("posting_date") or doc.get("transaction_date")
+	try:
+		return getdate(gt) if gt else None
+	except Exception:
+		return None
+
+
+def chan_ngay_khoa(doc, method=None):
+	"""Hook before_submit / before_cancel / on_update_after_submit.
+
+	Dat o khoa "*" cung ba hook kia nhung THOAT NGAY neu khong phai chung
+	tu, de khong lam cham moi thu con lai trong he.
+	"""
+	dt = getattr(doc, "doctype", None)
+	if dt not in KHOA_XOA:
+		return
+
+	# Doi tru tien coc / tam ung: khi ghi so mot hoa don co dong Advance,
+	# ERPNext mo chinh phieu thu cu ra va save() lai de danh dau da doi tru.
+	# Chan duong do thi khach dat coc thang truoc la khong lap noi hoa don
+	# thang nay - het duong di. Frappe dung co nay rieng cho luong do.
+	if getattr(frappe.flags, "ignore_party_validation", False):
+		return
+
+	# Doc co mo khoa o BAN CU trong co so du lieu, KHONG doc ban trong bo nho.
+	# vgb_mo_khoa la truong sua duoc sau khi ghi so, nen chinh lan luu bat co
+	# do cung di qua day - doc ban moi thi co tu cap phep cho chinh no, ai
+	# tick mot cai la thoat khoa, toan bo quyen han va ghi vet thanh vo nghia.
+	truoc = None
+	try:
+		truoc = doc.get_doc_before_save()
+	except Exception:
+		truoc = None
+	da_mo = cint((truoc.get("vgb_mo_khoa") if truoc else doc.get("vgb_mo_khoa")) or 0)
+	if da_mo:
+		return
+	khoa = ngay_khoa()
+	if not khoa:
+		return
+	ngay = _ngay_cua(doc)
+	if not ngay or ngay > khoa:
+		return
+	frappe.throw(
+		"Sổ ngày %s đã khoá (khoá đến hết %s) nên không đụng vào %s %s được "
+		"nữa. Số liệu kỳ đó đã chốt và đã đối chiếu rồi. Thật sự cần sửa thì "
+		"nhờ kế toán mở khoá riêng tờ này, máy sẽ ghi lại lý do và tên người mở."
+		% (
+			ngay.strftime("%d/%m/%Y"),
+			khoa.strftime("%d/%m/%Y"),
+			TEN_VIET.get(dt, "chứng từ"),
+			doc.name,
+		),
+		title="Sổ đã khoá",
+	)
+
+
+def _kiem_quyen_khoa():
+	if not QUYEN_KHOA_SO & set(frappe.get_roles()):
+		frappe.throw("Chỉ kế toán trưởng hoặc giám đốc mới đụng được vào khoá sổ.")
+
+
+@frappe.whitelist()
+def cai_dat_khoa_so():
+	"""Man Cai dat doc cau hinh khoa so."""
+	if not (QUYEN_HUY | QUYEN_KHOA_SO) & set(frappe.get_roles()):
+		frappe.throw("Khoá sổ chỉ mở cho kế toán và giám đốc.")
+	c = cfg()
+	k = ngay_khoa()
+	dem = 0
+	for x in KHOA_XOA:
+		try:
+			dem += frappe.db.count(x, {"vgb_mo_khoa": 1})
+		except Exception:
+			pass
+	return {
+		"so_ngay": cint(c.get("khoa_so_ngay") or 0),
+		"den": str(c.get("khoa_so_den") or ""),
+		"ngay_khoa": str(k) if k else "",
+		"so_to_dang_mo": dem,
+		"sua_duoc": 1 if QUYEN_KHOA_SO & set(frappe.get_roles()) else 0,
+		"loai": sorted(TEN_VIET.get(x, x) for x in KHOA_XOA),
+	}
+
+
+@frappe.whitelist()
+def luu_khoa_so(so_ngay=None, den=None):
+	"""Luu cau hinh khoa so tu man Cai dat."""
+	_kiem_quyen_khoa()
+	n = cint(so_ngay or 0)
+	if n < 0 or n > 3650:
+		frappe.throw("Số ngày khoá sổ phải từ 0 đến 3650.")
+	# Moc khoa cung khong duoc dat vao tuong lai: dat nham la khoa luon so
+	# cua hom nay, thu ngan khong ghi so duoc to nao ma khong hieu vi sao.
+	moc = ""
+	if str(den or "").strip():
+		try:
+			d = getdate(den)
+		except Exception:
+			frappe.throw("Mốc khoá sổ không đúng định dạng ngày.")
+		if d >= getdate(nowdate()):
+			frappe.throw(
+				"Mốc khoá sổ phải là ngày đã qua. Đặt ngày %s là khoá luôn sổ "
+				"của hôm nay, quầy không chốt được bill nào và chuỗi cuối ngày "
+				"cũng không ghi sổ được tờ nào."
+				% d.strftime("%d/%m/%Y")
+			)
+		moc = str(d)
+	frappe.db.set_single_value("Vagabond Settings", "khoa_so_ngay", n)
+	frappe.db.set_single_value("Vagabond Settings", "khoa_so_den", moc or None)
+	frappe.db.commit()
+	_ghi_vet(
+		"Vagabond Settings",
+		"Vagabond Settings",
+		"Đổi khoá sổ: sau %d ngày%s" % (n, (", mốc cứng %s" % moc) if moc else ""),
+	)
+	return cai_dat_khoa_so()
+
+
+@frappe.whitelist()
+def mo_khoa_mot_to(doctype, name, ly_do=None):
+	"""Mo khoa DUNG MOT to de sua, co ghi ly do va ten nguoi mo."""
+	if doctype not in KHOA_XOA:
+		frappe.throw("Loại chứng từ này không nằm trong diện khoá sổ.")
+	_kiem_quyen_khoa()
+	if not (ly_do or "").strip():
+		frappe.throw("Phải ghi lý do mở khoá thì sau này còn giải trình được.")
+	if not frappe.db.exists(doctype, name):
+		frappe.throw("Không tìm thấy chứng từ %s." % name)
+	frappe.db.set_value(doctype, name, "vgb_mo_khoa", 1)
+	_ghi_vet(doctype, name, "MỞ KHOÁ SỔ để sửa. Lý do: %s" % ly_do.strip())
+	frappe.db.commit()
+	return {"ok": 1}
+
+
+@frappe.whitelist()
+def dong_khoa_mot_to(doctype, name):
+	"""Sua xong thi dong lai."""
+	if doctype not in KHOA_XOA:
+		frappe.throw("Loại chứng từ này không nằm trong diện khoá sổ.")
+	_kiem_quyen_khoa()
+	if not frappe.db.exists(doctype, name):
+		frappe.throw("Không tìm thấy chứng từ %s." % name)
+	frappe.db.set_value(doctype, name, "vgb_mo_khoa", 0)
+	_ghi_vet(doctype, name, "Đóng khoá sổ lại.")
+	frappe.db.commit()
+	return {"ok": 1}

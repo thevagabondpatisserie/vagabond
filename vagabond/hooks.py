@@ -54,7 +54,20 @@ doc_events = {
 		"on_trash": "vagabond.chung_tu.chan_xoa",
 		# Huy mem ma khong chan ghi so thi chi la mot cai nhan: phieu da huy
 		# van submit duoc, van vao so cai, van phat hanh hoa don dien tu.
-		"before_submit": "vagabond.chung_tu.chan_ghi_so",
+		"before_submit": [
+			"vagabond.chung_tu.chan_ghi_so",
+			"vagabond.chung_tu.chan_ngay_khoa",
+		],
+		# Khoa so theo ngay: khong ghi so, khong huy, khong sua duoc chung tu
+		# cua ky da chot. Chi bat ba cua nay chu khong bat before_save: ban
+		# nhap cu sua lai khong dung den so sach, ma bat before_save la dinh
+		# ca nhung lan he thong tu cap nhat hoa don cu.
+		"before_cancel": "vagabond.chung_tu.chan_ngay_khoa",
+		# before_update_after_submit chu KHONG phai on_update_after_submit:
+		# cai sau chay SAU khi Frappe da ghi xuong co so du lieu roi, nem loi
+		# luc do van kip rollback ca yeu cau nhung cho nao boc try/except roi
+		# tu commit thi ban sua lau van nam lai ma may van bao la da chan.
+		"before_update_after_submit": "vagabond.chung_tu.chan_ngay_khoa",
 	},
 	"Sales Invoice": {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
