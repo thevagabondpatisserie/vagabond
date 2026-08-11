@@ -179,7 +179,10 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu=""):
 		si = frappe.db.get_value(
 			"Sales Invoice",
 			name,
-			["customer", "posting_date", "grand_total", "custom_nguon", "docstatus", "vgb_pt_thanh_toan"],
+			[
+				"customer", "posting_date", "grand_total", "custom_nguon",
+				"docstatus", "vgb_pt_thanh_toan", "vgb_khach_no",
+			],
 			as_dict=True,
 		)
 		if not si:
@@ -188,6 +191,10 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu=""):
 			frappe.throw("Hoá đơn %s chưa ghi sổ, không gom được." % name)
 		if (si.vgb_pt_thanh_toan or "") != "Công nợ":
 			frappe.throw("Hoá đơn %s không phải hoá đơn công nợ." % name)
+		# Chu no that nam o vgb_khach_no neu ke toan da gan lai sau khi ghi
+		# so - cot do uu tien hon customer, giong ben ds_khach_no.
+		if si.get("vgb_khach_no"):
+			si.customer = si.vgb_khach_no
 		if (si.customer or "") != khach:
 			frappe.throw("Hoá đơn %s không phải của khách này." % name)
 		dong.append(
