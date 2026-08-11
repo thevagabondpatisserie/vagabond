@@ -5937,7 +5937,7 @@ async function scrRndDoc(name) {
 document.title = APPNAME;
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
-var dsLoc = 'tat_ca', dsLocNg = '';
+var dsLoc = 'tat_ca', dsLocNg = '', dsLocHd = '';
 function dsChip(txt, bg, fg) {
   return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:' + bg + ';color:' + fg + ';margin-right:5px;white-space:nowrap">' + txt + '</span>';
 }
@@ -6012,13 +6012,15 @@ async function scrDoanhSo() {
     { k: 'trung', nhan: '⚠ Trùng phiếu', loc: function (r) { return !!r.trung; } }
   ];
   var DSNG = locNguonPt(rows);
+  var DSHD = locHddt();
   if (!locTim(DSTT, dsLoc) || locTim(DSTT, dsLoc).k !== dsLoc) dsLoc = 'tat_ca';
-  var fTt = locTim(DSTT, dsLoc), fNg = locTim(DSNG, dsLocNg);
-  dsLocNg = fNg.k;
+  var fTt = locTim(DSTT, dsLoc), fNg = locTim(DSNG, dsLocNg), fHd = locTim(DSHD, dsLocHd);
+  dsLocNg = fNg.k; dsLocHd = fHd.k;
   html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
     locHang(DSTT, dsLoc, 'data-loc', rows) +
-    locHang(DSNG, dsLocNg, 'data-locng', rows.filter(fTt.loc)) + '</div>';
-  var loc = rows.filter(function (r) { return fTt.loc(r) && fNg.loc(r); });
+    locHang(DSNG, dsLocNg, 'data-locng', rows.filter(fTt.loc)) +
+    locHang(DSHD, dsLocHd, 'data-lochd', rows.filter(fTt.loc)) + '</div>';
+  var loc = rows.filter(function (r) { return fTt.loc(r) && fNg.loc(r) && fHd.loc(r); });
   html += '<div class="sec">Đơn trong ngày · bấm vào đơn để xem chi tiết</div><div class="card">';
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🌤️</div><div>Chưa có đơn nào. Bấm Đồng bộ để kéo từ Pancake, hoặc dấu ➕ để nhập tay đơn Grab, Be.</div></div>';
   else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có đơn nào thuộc nhóm <b>' + fTt.nhan + (fNg.k ? ' · ' + fNg.nhan : '') + '</b>.</div></div>';
@@ -6068,6 +6070,9 @@ async function scrDoanhSo() {
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-loc]'), function (el) {
     el.onclick = function () { dsLoc = el.getAttribute('data-loc'); go(scrDoanhSo, true); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-lochd]'), function (el) {
+    el.onclick = function () { dsLocHd = el.getAttribute('data-lochd'); go(scrDoanhSo, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-locng]'), function (el) {
     el.onclick = function () { dsLocNg = el.getAttribute('data-locng'); go(scrDoanhSo, true); };
@@ -6236,6 +6241,19 @@ async function scrDsView(name, can) {
     '<div style="color:#6b7280;font-size:13px">Mã phiếu: <b>' + h(d.name) + '</b> · Ngày ' + (vn.length === 3 ? vn[2] + '/' + vn[1] + '/' + vn[0] : h(d.posting_date)) + '</div>' +
     (d.custom_hddt_so ? '<div style="color:#0a8a4a;font-size:13px">HĐĐT số ' + h(d.custom_hddt_so) + (d.custom_hddt_trang_thai ? ' (' + h(d.custom_hddt_trang_thai) + ')' : '') + '</div>' : '') +
     '</div>';
+  /* Don cua ngay cu ma con nhap: luat ke toan bat xuat hoa don dien tu ngay
+     trong ngay ban, nen don hom qua co truc trac thi phai keo sang hom nay
+     roi moi ghi so duoc (chi Dung 12/08/2026). Chi quan ly va ke toan thay
+     nut nay, va phai co ma OTP. */
+  var laCu = d.docstatus === 0 && !d.custom_hddt_so && String(d.posting_date || '') < today();
+  if (laCu) {
+    html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d">' +
+      '<div style="font-size:13px;color:#92400e;line-height:1.6">Đơn này còn nháp và mang ngày <b>' +
+      (vn.length === 3 ? vn[2] + '/' + vn[1] + '/' + vn[0] : h(d.posting_date)) + '</b>. ' +
+      'Luật kế toán bắt xuất hoá đơn điện tử ngay trong ngày bán, nên đơn cũ ghi sổ xong vẫn không xuất được hoá đơn mang ngày cũ. ' +
+      'Chuyển sang hôm nay rồi ghi sổ thì hoá đơn điện tử mang đúng ngày xuất.</div>' +
+      '<button class="btn" id="dsvDoiNgay" style="margin-top:10px">📅 Chuyển đơn sang hôm nay (' + posNgayVn(today()) + ')</button></div>';
+  }
   html += '<div class="sec">Món trong đơn</div><div class="card" style="padding:6px 14px">';
   (d.items || []).forEach(function (r) {
     html += '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
@@ -6266,7 +6284,7 @@ async function scrDsView(name, can) {
     + '<button class="xhdc" data-loai="cong_ty" style="padding:6px 10px;border-radius:8px;font-size:13px">Xuất cho công ty</button>'
     + '</div>'
     + '<div id="xhdForm" style="display:none;flex-direction:column;gap:6px">'
-    + '<input id="xhdMst" inputmode="numeric" placeholder="Mã số thuế (10 hoặc 13 số)" value="' + xesc(d.vgb_xhd_mst) + '" style="' + xin + '">'
+    + '<input id="xhdMst" placeholder="Mã số thuế - chi nhánh nhớ gõ cả dấu gạch, vd 0311638525-027" value="' + xesc(d.vgb_xhd_mst) + '" style="' + xin + '">'
     + '<input id="xhdTen" placeholder="Tên pháp nhân trên hoá đơn" value="' + xesc(xhdCty) + '" style="' + xin + '">'
     + '<textarea id="xhdDc" rows="2" placeholder="Địa chỉ trên hoá đơn" style="' + xin + '">' + xesc(d.vgb_xhd_dia_chi) + '</textarea>'
     + '<input id="xhdEmail" placeholder="Email nhận hoá đơn" value="' + xesc(d.vgb_xhd_email) + '" style="' + xin + '">'
@@ -6373,6 +6391,26 @@ async function scrDsView(name, can) {
       o.innerHTML = '<div style="color:#9ca3af;font-size:12px">Chưa tra được giao dịch SePay.</div>';
     }
   })();
+  var cDn = document.getElementById('dsvDoiNgay');
+  if (cDn) cDn.onclick = async function () {
+    var ok = await confirmSheet(
+      'Chuyển đơn sang hôm nay',
+      'Đơn #' + (d.custom_pancake_display_id || d.name) + ' đang mang ngày ' + d.posting_date +
+      '.\nChuyển sang ' + today() + ' để hoá đơn điện tử xuất đúng ngày theo luật thuế.\n\n' +
+      'Doanh thu của đơn sẽ tính vào ngày mới, không còn nằm ở ngày cũ.',
+      'Chuyển sang hôm nay');
+    if (!ok) return;
+    var otp = await promptSheet('Đổi ngày hoá đơn cần mã OTP của quản lý', 'Nhập 6 số quản lý đọc cho');
+    if (otp === null) return;
+    busy(true);
+    try {
+      await api('vagabond.ban_hang.doi_ngay_hoa_don', { si_name: d.name, otp: (otp || '').replace(/\D/g, ''), ly_do: 'sửa đơn trục trặc' });
+      busy(false);
+      toast('Đã chuyển đơn sang ' + posNgayVn(today()));
+      dsNgay = today();
+      go(scrDoanhSo, true);
+    } catch (e) { busy(false); window.alert((e && e.message) || 'Không đổi được ngày'); }
+  };
   var c1 = document.getElementById('dsvChot');
   if (c1) c1.onclick = async function () {
     if (!DSV_PT && !window.confirm('Chưa chọn phương thức thanh toán. Vẫn ghi sổ chứ?')) return;
@@ -6572,7 +6610,7 @@ async function dsTayLuu() {
    hien VietQR dien san so tien + so phieu. Chua tru kho, chua in bill. */
 var posDon = null, posHomNayTxt = null, posQuay = null;
 var posDsNgay = null; /* ngay dang xem o danh sach hoá đơn; null = hom nay */
-var posLocTt = 'tat_ca', posLocNg = ''; /* chip loc: tinh trang x nguon-pt */
+var posLocTt = 'tat_ca', posLocNg = '', posLocHd = ''; /* chip loc: tinh trang x nguon-pt x trang thai HDDT */
 function posNgayVn(iso) {
   var d = new Date(iso + 'T00:00:00');
   var thu = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'][d.getDay()];
@@ -6919,7 +6957,7 @@ async function scrPosQuay() {
     '<span style="color:#c3c8d4;font-size:18px">' + (posDon.xhd_mo ? '▾' : '▸') + '</span></div>' +
     (posDon.xhd_mo
       ? '<div style="display:grid;gap:8px;margin-top:10px">' +
-        '<input id="posXhMst" inputmode="numeric" placeholder="Mã số thuế (10 hoặc 13 số) - nhập xong tự tra" value="' + h(posDon.xh.mst) + '" style="' + xin2 + '">' +
+        '<input id="posXhMst" placeholder="Mã số thuế - chi nhánh gõ cả dấu gạch, vd 0311638525-027" value="' + h(posDon.xh.mst) + '" style="' + xin2 + '">' +
         '<input id="posXhTen" placeholder="Tên pháp nhân trên hoá đơn" value="' + h(posDon.xh.ten) + '" style="' + xin2 + '">' +
         '<textarea id="posXhDc" rows="2" placeholder="Địa chỉ trên hoá đơn" style="' + xin2 + '">' + h(posDon.xh.dc) + '</textarea>' +
         '<input id="posXhEmail" placeholder="Email nhận hoá đơn" value="' + h(posDon.xh.email) + '" style="' + xin2 + '">' +
@@ -7121,6 +7159,35 @@ function posThemCombo(c) {
 /* Hang chip LOC dung chung cho ba man danh sach hoa don (anh Viet
    10/08/2026). Moi chip kem so dem; chip khong co hoa don nao thi an di
    cho do roi mat, rieng chip "Tat ca" luon hien. */
+/* Nhom trang thai hoa don dien tu, dung chung cho ca ba man danh sach hoa
+   don: Doanh thu Sales, hoa don quay D1 va quay NVHTN (anh Viet 12/08/2026).
+   Ke toan can loc nhanh "don nao chua ky", "don nao bi thay the" ma khong
+   phai mo tung don ra xem. */
+var HD_NHOM = {
+  cho_ky: ['Chờ ký', 'Chờ duyệt', 'Đang ký'],
+  da_ky: ['Đã ký', 'Đã gửi CQT', 'CQT chấp nhận'],
+  loi: ['CQT báo lỗi', 'Lỗi'],
+  huy: ['Đã hủy', 'Đã huỷ'],
+  thay_the: ['HĐ thay thế', 'Bị thay thế'],
+  dieu_chinh: ['HĐ điều chỉnh', 'Bị điều chỉnh']
+};
+function hdThuoc(r, nhom) {
+  var tt = (r.custom_hddt_trang_thai || '').trim();
+  return tt ? (HD_NHOM[nhom] || []).indexOf(tt) >= 0 : false;
+}
+function locHddt() {
+  return [
+    { k: '', nhan: 'Mọi trạng thái HĐ', loc: function () { return true; } },
+    { k: 'chua', nhan: '📌 Chưa xuất HĐĐT', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !(r.custom_hddt_trang_thai || '').trim(); } },
+    { k: 'cho_ky', nhan: '✍️ Chờ ký', loc: function (r) { return hdThuoc(r, 'cho_ky'); } },
+    { k: 'da_ky', nhan: '✅ Đã ký', loc: function (r) { return hdThuoc(r, 'da_ky'); } },
+    { k: 'thay_the', nhan: '🔁 Thay thế', loc: function (r) { return hdThuoc(r, 'thay_the'); } },
+    { k: 'dieu_chinh', nhan: '✏️ Điều chỉnh', loc: function (r) { return hdThuoc(r, 'dieu_chinh'); } },
+    { k: 'huy', nhan: '🚫 Đã huỷ', loc: function (r) { return hdThuoc(r, 'huy'); } },
+    { k: 'loi', nhan: '⚠ Cơ quan thuế báo lỗi', loc: function (r) { return hdThuoc(r, 'loi'); } }
+  ];
+}
+
 function locHang(ds, dangChon, attr, rows) {
   var ra = ds.map(function (c) {
     var n = rows.filter(c.loc).length;
@@ -7834,7 +7901,12 @@ function posChipBill(r) {
   if ((r.vgb_pt_thanh_toan || '') === 'Chuyển khoản') {
     c.push(r.sepay_du ? the('#dcfce7', '#166534', 'SePay ✓ đủ tiền') : the('#fee2e2', '#991b1b', '⏳ Chờ tiền về'));
   }
-  if (r.custom_hddt_so) c.push(the('#ede9fe', '#5b21b6', 'HĐ ' + h(r.custom_hddt_so)));
+  if (r.custom_hddt_so || (r.custom_hddt_trang_thai || '').trim()) {
+    var mhd = DS_MAU_HD[r.custom_hddt_trang_thai] || ['#ede9fe', '#5b21b6'];
+    c.push(the(mhd[0], mhd[1],
+      (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') +
+      (r.custom_hddt_trang_thai ? ' · ' + h(r.custom_hddt_trang_thai) : '')));
+  }
   else if (r.vgb_xhd_mst) c.push(the('#fef9c3', '#854d0e', '🧾 Chờ xuất HĐ công ty'));
   if (r.discount_amount) c.push(the('#ffedd5', '#9a3412', '🎟 Giảm ' + money(r.discount_amount) + ' đ'));
   if (r.trung_ma) c.push(the('#fee2e2', '#991b1b', '⚠ Trùng mã trong ngày'));
@@ -7889,12 +7961,14 @@ async function scrPosDs() {
     { k: 'trung', nhan: '⚠ Trùng mã trong ngày', loc: function (r) { return !!r.trung_ma; } }
   ];
   var PNG = locNguonPt(ds);
-  var pTt = locTim(PTT, posLocTt), pNg = locTim(PNG, posLocNg);
-  posLocTt = pTt.k; posLocNg = pNg.k;
+  var PHD = locHddt();
+  var pTt = locTim(PTT, posLocTt), pNg = locTim(PNG, posLocNg), pHd = locTim(PHD, posLocHd);
+  posLocTt = pTt.k; posLocNg = pNg.k; posLocHd = pHd.k;
   html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
     locHang(PTT, posLocTt, 'data-ptt', ds) +
-    locHang(PNG, posLocNg, 'data-png', ds.filter(pTt.loc)) + '</div>';
-  var dsL = ds.filter(function (r) { return pTt.loc(r) && pNg.loc(r); });
+    locHang(PNG, posLocNg, 'data-png', ds.filter(pTt.loc)) +
+    locHang(PHD, posLocHd, 'data-phd', ds.filter(pTt.loc)) + '</div>';
+  var dsL = ds.filter(function (r) { return pTt.loc(r) && pNg.loc(r) && pHd.loc(r); });
   var tongL = dsL.reduce(function (t, r) { return t + (r.grand_total || 0); }, 0);
   if (dsL.length !== ds.length) {
     html += '<div style="text-align:center;font-size:12.5px;color:#0b7c93;padding:2px 10px 8px">Đang lọc: <b>' +
@@ -7934,6 +8008,8 @@ async function scrPosDs() {
     if (ct) { posLocTt = ct.getAttribute('data-ptt'); return go(scrPosDs, true); }
     ct = e.target.closest('[data-png]');
     if (ct) { posLocNg = ct.getAttribute('data-png'); return go(scrPosDs, true); }
+    ct = e.target.closest('[data-phd]');
+    if (ct) { posLocHd = ct.getAttribute('data-phd'); return go(scrPosDs, true); }
     if (e.target.id === 'posDsMoi') return go(scrPosQuay);
     if (e.target.id === 'posDsChotCa') return go(scrPosChotCa);
     var r = e.target.closest('[data-bill]');
@@ -9721,7 +9797,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '110';
+var APPVER = '111';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
