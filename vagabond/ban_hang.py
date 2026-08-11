@@ -677,9 +677,34 @@ def _bo_dau(t):
 	return t.replace("\u0111", "d").replace("\u0110", "d").lower()
 
 
+def _chuan_mst(s):
+	"""Chuan hoa ma so thue ve DUNG dinh dang cua Tong cuc Thue.
+
+	- Doanh nghiep: 10 chu so.
+	- Don vi phu thuoc (chi nhanh, van phong dai dien): 13 chu so, viet
+	  CO DAU GACH NGANG dang 10 so - 3 so. Thong tu 86/2024/TT-BTC hieu luc
+	  06/02/2025 quy dinh cau truc N1..N10-N11N12N13. Khong co dang 4 so
+	  sau gach ngang.
+
+	Truoc day may bo sach ky tu khong phai so nen "0311638525-027" bi luu
+	thanh "0311638525027". Hai he thong ben ngoai deu tu choi dang do:
+	  - VietQR tra code 52 "Ma so thue khong chinh xac" nen dong bo ve khong
+	    ra duoc ten va dia chi cong ty;
+	  - m-invoice tra code 296 "Create invoice fail" nen khong ghi so duoc.
+	Bat duoc 12/08/2026 tren don HDB-2026-01520, chi nhanh ACV Long Thanh.
+
+	Tra chuoi rong neu khong phai 10 hoac 13 so.
+	"""
+	so = re.sub(r"\D", "", str(s or ""))
+	if len(so) == 10:
+		return so
+	if len(so) == 13:
+		return so[:10] + "-" + so[10:]
+	return ""
+
+
 def _so_hop_le(m):
-	so = re.sub(r"\D", "", m or "")
-	return so if len(so) in (10, 13) else ""
+	return _chuan_mst(m)
 
 
 def _tach_mst(txt):
@@ -736,7 +761,7 @@ def _thong_tin_xhd(o, did):
 	if hd and (hd.ten_cong_ty or hd.ma_so_thue):
 		return {
 			"vgb_xhd_ten": hd.ten_cong_ty or "",
-			"vgb_xhd_mst": re.sub(r"\D", "", hd.ma_so_thue or ""),
+			"vgb_xhd_mst": _chuan_mst(hd.ma_so_thue),
 			"vgb_xhd_dia_chi": hd.dia_chi or "",
 			"vgb_xhd_email": hd.email or mail,
 		}
@@ -1446,9 +1471,12 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 		frappe.throw(
 			"Đơn này đã xuất hoá đơn điện tử số %s nên không sửa được nữa." % si.custom_hddt_so
 		)
-	so_mst = re.sub(r"\D", "", mst or "")
-	if so_mst and len(so_mst) not in (10, 13):
-		frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+	so_mst = _chuan_mst(mst)
+	if (mst or "").strip() and not so_mst:
+		frappe.throw(
+			"Mã số thuế phải 10 số, hoặc 13 số dạng 10 số - 3 số cho chi nhánh "
+			"(ví dụ 0311638525-027)."
+		)
 	ten = (ten or "").strip()
 	if so_mst and not ten:
 		frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
@@ -1462,6 +1490,168 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	frappe.db.commit()
 	gt["ok"] = 1
 	return gt
+
+
+QUYEN_SUA_NGAY = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manager"}
+
+
+@frappe.whitelist()
+def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
+	"""Chuyen mot hoa don CHUA GHI SO sang ngay khac, mac dinh la hom nay.
+
+	Vi sao can (chi Dung 12/08/2026): luat ke toan bat xuat hoa don dien tu
+	NGAY TRONG NGAY ban hang. Mot don cua hom qua bi truc trac - sai ma so
+	thue, chua ve tien, m-invoice loi - thi sua xong van khong xuat duoc hoa
+	don mang ngay hom qua nua. Cach dung la keo don do sang ngay dang thao
+	tac roi ghi so, hoa don dien tu se mang dung ngay xuat.
+
+	Chi doi duoc hoa don CON NHAP. Hoa don da ghi so la so tien da vao so
+	sach ngay do; muon doi ngay thi ke toan phai huy roi lap lai, khong the
+	sua ngam ngay sau lung so cai.
+	"""
+	_kiem_quyen()
+	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
+		frappe.throw(
+			"Chỉ quản lý hoặc kế toán mới được đổi ngày hoá đơn. "
+			"Bạn cần đổi thì báo chị Dung."
+		)
+	si = frappe.get_doc("Sales Invoice", si_name)
+	if si.docstatus != 0:
+		frappe.throw(
+			"Hoá đơn %s đã ghi sổ nên không đổi ngày được. Số tiền đã vào sổ "
+			"ngày %s rồi; muốn đổi thì phải huỷ hoá đơn rồi lập lại."
+			% (si.name, si.posting_date)
+		)
+	if si.get("custom_hddt_so"):
+		frappe.throw(
+			"Hoá đơn %s đã xuất hoá đơn điện tử số %s nên không đổi ngày được."
+			% (si.name, si.custom_hddt_so)
+		)
+	moi = getdate(ngay or nowdate())
+	if moi > getdate(nowdate()):
+		frappe.throw("Không đẩy hoá đơn sang ngày tương lai được.")
+	cu = si.posting_date
+	if getdate(cu) == moi:
+		return {"ok": 1, "ngay": str(moi), "doi": 0}
+	cach = _otp_kiem(otp, "đổi ngày hoá đơn")
+	si.set_posting_time = 1
+	si.posting_date = str(moi)
+	si.due_date = str(moi)
+	si.flags.ignore_permissions = True
+	si.save()
+	_ghi_vet(
+		si.name,
+		"Đổi ngày hoá đơn %s sang %s%s" % (cu, moi, (" - " + ly_do) if ly_do else ""),
+		cach,
+	)
+	frappe.db.commit()
+	return {"ok": 1, "ngay": str(moi), "ngay_cu": str(cu), "doi": 1}
+
+
+# ------------------------------------------------- tu ghi so cuoi ngay 23h30
+
+def _ghi_so_mot_don(si, sepay=None):
+	"""Ghi so mot hoa don roi day hoa don dien tu. Tra (xong, hddt, loi)."""
+	nhan = si.get("custom_pancake_display_id") or si.name
+	try:
+		_chuan_bi_ghi_so(si, sepay)
+	except Exception as e:
+		frappe.local.message_log = []
+		return 0, 0, "Đơn %s: %s" % (nhan, str(e)[:220])
+	try:
+		si.flags.ignore_permissions = True
+		si.submit()
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(frappe.get_traceback(), "ban_hang tu ghi so: %s" % si.name)
+		return 0, 0, "Đơn %s ghi sổ lỗi, xem Error Log." % nhan
+	da_xuat, bao = _tu_xuat_hddt(si.name)
+	if da_xuat:
+		return 1, 1, ""
+	return 1, 0, ("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử: %s" % (nhan, bao)) if bao else ""
+
+
+def tu_ghi_so_cuoi_ngay():
+	"""23h30 mỗi ngày: ghi sổ hết hoá đơn còn nháp trong ngày rồi tự đẩy
+	hoá đơn điện tử sang m-invoice ở trạng thái Chờ ký.
+
+	Anh Viet chot 12/08/2026: bo buoc ghi so thu cong. Truoc mat chay cho
+	Sales; hai quay bat sau khi vao van hanh chinh thuc, bang cach dien ma
+	quay vao o "Quay tu ghi so cuoi ngay" trong Vagabond Settings.
+
+	Hoa don TAM TINH khong dung vao: do la phieu giu mon, khach chua tra
+	tien, chua phai doanh thu.
+
+	Don nao thieu dieu kien (chua chon phuong thuc, chuyen khoan chua ve du
+	tien) thi BO QUA chu khong ep ghi so - de sang hom sau nguoi that xu ly,
+	va co the keo sang ngay moi bang nut Doi ngay.
+	"""
+	ngay = nowdate()
+	c = cfg()
+	quay_bat = [
+		q.strip().upper()
+		for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines()
+		if q.strip()
+	]
+
+	loc_sales = {
+		"posting_date": ngay,
+		"custom_pancake_id": ["!=", ""],
+		"docstatus": 0,
+		"vgb_quay": ["in", ["", None]],
+	}
+	ds = frappe.db.get_all("Sales Invoice", filters=loc_sales, pluck="name")
+	if quay_bat:
+		ds += frappe.db.get_all(
+			"Sales Invoice",
+			filters={
+				"posting_date": ngay,
+				"docstatus": 0,
+				"vgb_quay": ["in", quay_bat],
+				"vgb_tam_tinh": 0,
+			},
+			pluck="name",
+		)
+	if not ds:
+		return
+
+	sepay = None
+	try:
+		sepay = _sepay_theo_don(
+			c.pancake_shop_id,
+			frappe.db.get_all(
+				"Sales Invoice",
+				filters={"name": ["in", ds]},
+				pluck="custom_pancake_display_id",
+			),
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang tu ghi so: doc SePay")
+
+	xong, hddt, loi = 0, 0, []
+	for ten in ds:
+		try:
+			si = frappe.get_doc("Sales Invoice", ten)
+		except Exception:
+			continue
+		if frappe.utils.cint(si.get("vgb_tam_tinh")):
+			continue
+		a, b, e = _ghi_so_mot_don(si, sepay if not (si.get("vgb_quay") or "").strip() else None)
+		xong += a
+		hddt += b
+		if e:
+			loi.append(e)
+	frappe.db.commit()
+
+	# Ghi lai ket qua de sang hom sau con doi chieu. Loi thi ghi vao Error Log
+	# cho de tim, chu khong im lang.
+	if loi:
+		frappe.log_error(
+			title="Vagabond: tu ghi so 23h30 ngay %s" % ngay,
+			message="Đã ghi sổ %d đơn, xuất %d hoá đơn điện tử.\nCòn lại:\n%s"
+			% (xong, hddt, "\n".join(loi)),
+		)
 
 
 @frappe.whitelist()
@@ -1732,10 +1922,13 @@ def tao_don_tay(
 	for r in rows:
 		si.append("items", r)
 	# Khach can hoa don cong ty va doc thong tin ngay tai quay thi dien luon.
-	so_mst = re.sub(r"\D", "", xhd_mst or "")
+	so_mst = _chuan_mst(xhd_mst)
+	if (xhd_mst or "").strip() and not so_mst:
+		frappe.throw(
+			"Mã số thuế phải 10 số, hoặc 13 số dạng 10 số - 3 số cho chi nhánh "
+			"(ví dụ 0311638525-027)."
+		)
 	if so_mst:
-		if len(so_mst) not in (10, 13):
-			frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
 		if not (xhd_ten or "").strip():
 			frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
 		si.vgb_xhd_ten = (xhd_ten or "").strip()
@@ -1852,13 +2045,14 @@ def xuat_hoa_don_dien_tu(si_name):
 	)
 	# Nguoi mua lay tu chinh hoa don nay. Mot don = mot hoa don VAT, khong gop.
 	ten_mua = (si.vgb_xhd_ten or "").strip()
-	mst_mua = re.sub(r"\D", "", si.vgb_xhd_mst or "")
+	# m-invoice nhan MST chi nhanh CO gach ngang, khong co thi tra loi 296.
+	mst_mua = _chuan_mst(si.vgb_xhd_mst)
 	dc_mua = (si.vgb_xhd_dia_chi or "").strip()
 	em_mua = (si.vgb_xhd_email or "").strip()
 	if not ten_mua and hd:
 		# Hoa don cu tao truoc khi co bon truong nay
 		ten_mua = (hd.ten_cong_ty or "").strip()
-		mst_mua = re.sub(r"\D", "", hd.ma_so_thue or "")
+		mst_mua = _chuan_mst(hd.ma_so_thue)
 		dc_mua = (hd.dia_chi or "").strip()
 		em_mua = (hd.email or "").strip()
 	if not ten_mua:
@@ -2241,9 +2435,12 @@ def pos_sua_don(
 		si.vgb_so_ban = str(so_ban or "").strip()
 		doi.append("số bàn")
 	if xhd_mst is not None or xhd_ten is not None:
-		so_mst = re.sub(r"\D", "", xhd_mst or "")
-		if so_mst and len(so_mst) not in (10, 13):
-			frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+		so_mst = _chuan_mst(xhd_mst)
+		if (xhd_mst or "").strip() and not so_mst:
+			frappe.throw(
+				"Mã số thuế phải 10 số, hoặc 13 số dạng 10 số - 3 số cho chi nhánh "
+				"(ví dụ 0311638525-027)."
+			)
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
 		if xhd_dia_chi is not None:
@@ -2508,8 +2705,8 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	_xhd_kiem_han(si.creation)
 	if si.custom_hddt_so:
 		frappe.throw("Bill này đã xuất hoá đơn điện tử rồi, không sửa được nữa. Cần điều chỉnh thì liên hệ tiệm.")
-	so_mst = re.sub(r"\D", "", mst or "")
-	if len(so_mst) not in (10, 13):
+	so_mst = _chuan_mst(mst)
+	if not so_mst:
 		frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
 	ten = (ten or "").strip()
 	if not ten:

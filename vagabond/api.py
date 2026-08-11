@@ -69,8 +69,15 @@ def tra_khach(phone=None):
 @rate_limit(limit=30, seconds=60)
 def tra_mst(mst=None):
 	"""Ten va dia chi cong ty theo ma so thue. VietQR mo cong khai, khong can khoa."""
-	mst = "".join(ch for ch in (mst or "") if ch.isdigit())
-	if len(mst) not in (10, 13):
+	# MST chi nhanh 13 so phai giu DAU GACH NGANG (10 so - 3 so) theo Thong
+	# tu 86/2024/TT-BTC. VietQR tra code 52 "Ma so thue khong chinh xac" neu
+	# gui 13 so lien khong gach - da thu that 12/08/2026 voi 0311638525-027.
+	so = "".join(ch for ch in (mst or "") if ch.isdigit())
+	if len(so) == 10:
+		mst = so
+	elif len(so) == 13:
+		mst = so[:10] + "-" + so[10:]
+	else:
 		return {"ok": 0, "ly_do": "ma_so_thue_phai_10_hoac_13_so"}
 
 	ck = "vgb:mst:" + mst
