@@ -6986,6 +6986,10 @@ async function scrPosQuay() {
   if (nCnBo) nCnBo.onclick = function () { posDoc(); posDon.khach_no = null; go(scrPosQuay, true); };
   posNoiKm();
   posNoiTimKhach();
+  /* Go xong ma don san food app thi ve lai man de chip ma don hien ngay
+     tren tung mon (anh Viet 11/08/2026). */
+  var nMa = document.getElementById('posMa');
+  if (nMa) nMa.onchange = function () { posDoc(); go(scrPosQuay, true); };
   var xhMo = document.getElementById('posXhMo');
   if (xhMo) xhMo.onclick = function () { posDoc(); posDon.xhd_mo = !posDon.xhd_mo; go(scrPosQuay, true); };
   var xhMst = document.getElementById('posXhMst');
@@ -9717,7 +9721,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '109';
+var APPVER = '110';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
