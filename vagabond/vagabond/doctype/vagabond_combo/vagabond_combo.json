@@ -1,0 +1,69 @@
+{
+ "actions": [],
+ "autoname": "field:ma_combo",
+ "creation": "2026-08-11 06:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_combo", "ten", "cb0", "bat", "uu_tien",
+  "sb_gia", "kieu", "gia_combo", "cbg", "gia_tri", "gia_goc", "tiet_kiem",
+  "sb_dong", "ht_dong", "dong",
+  "sb_pv", "tu_ngay", "den_ngay", "cbp", "kenh", "quay",
+  "sb_cgl", "gioi_han_bill", "lan_moi_ngay", "cbc", "can_otp", "da_dung",
+  "sb_gc", "anh", "mo_ta", "nguoi_tao"
+ ],
+ "fields": [
+  {"fieldname": "ma_combo", "fieldtype": "Data", "label": "Ma combo", "reqd": 1, "unique": 1, "read_only": 1, "in_list_view": 1},
+  {"fieldname": "ten", "fieldtype": "Data", "label": "Ten combo", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "cb0", "fieldtype": "Column Break"},
+  {"fieldname": "bat", "fieldtype": "Check", "label": "Bat combo", "default": "0", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "uu_tien", "fieldtype": "Int", "label": "Thu tu hien", "default": "10"},
+
+  {"fieldname": "sb_gia", "fieldtype": "Section Break", "label": "Gia combo"},
+  {"fieldname": "kieu", "fieldtype": "Select", "label": "Kieu tinh gia", "options": "Gia tron goi\nGiam phan tram\nGiam so tien", "default": "Gia tron goi", "reqd": 1},
+  {"fieldname": "gia_combo", "fieldtype": "Currency", "label": "Gia tron goi", "depends_on": "eval:doc.kieu=='Gia tron goi'"},
+  {"fieldname": "cbg", "fieldtype": "Column Break"},
+  {"fieldname": "gia_tri", "fieldtype": "Float", "label": "Gia tri giam", "depends_on": "eval:doc.kieu!='Gia tron goi'"},
+  {"fieldname": "gia_goc", "fieldtype": "Currency", "label": "Tong gia goc cac mon", "read_only": 1},
+  {"fieldname": "tiet_kiem", "fieldtype": "Currency", "label": "Khach tiet kiem", "read_only": 1, "in_list_view": 1},
+
+  {"fieldname": "sb_dong", "fieldtype": "Section Break", "label": "Cac mon trong combo"},
+  {"fieldname": "ht_dong", "fieldtype": "HTML", "options": "<div class='text-muted small'>Khi tinh tien, may RA combo thanh tung mon o day roi dat mot dong giam gia ben duoi. Bill in ra chi thay ten mon that, khong in ma combo.</div>"},
+  {"fieldname": "dong", "fieldtype": "Table", "options": "Vagabond Combo Dong", "label": "Mon", "reqd": 1},
+
+  {"fieldname": "sb_pv", "fieldtype": "Section Break", "label": "Pham vi"},
+  {"fieldname": "tu_ngay", "fieldtype": "Date", "label": "Tu ngay"},
+  {"fieldname": "den_ngay", "fieldtype": "Date", "label": "Den ngay"},
+  {"fieldname": "cbp", "fieldtype": "Column Break"},
+  {"fieldname": "kenh", "fieldtype": "Small Text", "label": "Nguon don ap dung", "description": "Moi dong mot nguon. De trong la moi kenh"},
+  {"fieldname": "quay", "fieldtype": "Small Text", "label": "Quay ap dung", "description": "Moi dong mot ma quay: TCV, NVHTN. De trong la moi quay"},
+
+  {"fieldname": "sb_cgl", "fieldtype": "Section Break", "label": "Chong gian lan"},
+  {"fieldname": "gioi_han_bill", "fieldtype": "Int", "label": "Toi da moi hoa don", "description": "De 0 la khong gioi han"},
+  {"fieldname": "lan_moi_ngay", "fieldtype": "Int", "label": "Toi da moi ngay"},
+  {"fieldname": "cbc", "fieldtype": "Column Break"},
+  {"fieldname": "can_otp", "fieldtype": "Check", "label": "Bat buoc ma OTP quan ly", "default": "0"},
+  {"fieldname": "da_dung", "fieldtype": "Int", "label": "Da ban", "read_only": 1, "in_list_view": 1},
+
+  {"fieldname": "sb_gc", "fieldtype": "Section Break"},
+  {"fieldname": "anh", "fieldtype": "Attach Image", "label": "Anh combo"},
+  {"fieldname": "mo_ta", "fieldtype": "Small Text", "label": "Mo ta"},
+  {"fieldname": "nguoi_tao", "fieldtype": "Data", "label": "Nguoi tao", "read_only": 1}
+ ],
+ "image_field": "anh",
+ "links": [],
+ "modified": "2026-08-11 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Combo",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Sales Manager", "write": 1},
+  {"read": 1, "report": 1, "role": "Sales User"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
