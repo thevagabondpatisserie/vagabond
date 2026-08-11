@@ -8582,7 +8582,7 @@ async function scrKhachHang() {
   frame('Danh sách khách hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh mục khách...</div></div>');
   var kq, kh;
   try {
-    kq = await api('vagabond.khach_hang.ds_khach', { tu_khoa: khTim, dang: '', hang: '' });
+    kq = await api('vagabond.khach_hang.ds_khach', { tu_khoa: khTim, dang: khDang, hang: khHang });
     kh = await api('vagabond.khach_hang.ds_hang', {});
   } catch (e) {
     frame('Danh sách khách hàng', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
@@ -8608,21 +8608,27 @@ async function scrKhachHang() {
 
   var fD = locTim(DANG, khDang); khDang = fD.k;
   var fH = locTim(HANG, khHang); khHang = fH.k;
-  var ds = all.filter(function (x) { return fD.loc(x) && fH.loc(x); });
+  /* May chu da loc san theo dang va hang roi (khong the loc o day duoc vi
+     danh muc hon 1500 khach, chi tai ve mot phan). */
+  var ds = all;
   var tong = ds.reduce(function (t, x) { return t + x.tien; }, 0);
 
   var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
     '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">ĐANG XEM</div>' +
-    '<div style="font-size:19px;font-weight:800">' + ds.length + ' khách</div>' +
+    '<div style="font-size:19px;font-weight:800">' + (kq.tong_so || ds.length) + ' khách</div>' +
     '<div style="font-size:12px;color:#98a2b3">' + kq.so_si + ' sỉ · ' + kq.so_le + ' lẻ</div></div>' +
     '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">CHI TIÊU 12 THÁNG</div>' +
     '<div style="font-size:19px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div></div>';
 
   html += '<div class="card" style="padding:10px 12px">' +
     '<input class="tin" id="khO" placeholder="Tìm theo tên, mã, mã số thuế, số điện thoại..." value="' + h(khTim) + '" style="margin-bottom:8px"></div>';
+  var chipHang = function (ds2, chon, attr) {
+    return '<div style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
+      ds2.map(function (c) { return posChipNut(attr + '="' + h(c.k) + '"', c.nhan, c.k === chon); }).join('') + '</div>';
+  };
   html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
-    locHang(DANG, khDang, 'data-khd', all) +
-    locHang(HANG, khHang, 'data-khh', all.filter(fD.loc)) + '</div>';
+    chipHang(DANG, khDang, 'data-khd') +
+    chipHang(HANG, khHang, 'data-khh') + '</div>';
 
   if (!hangs.length) {
     html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:13px;color:#92400e">' +
@@ -8647,7 +8653,8 @@ async function scrKhachHang() {
       '<div style="font-size:11.5px;color:#98a2b3">' + x.so_don + ' hoá đơn</div></div>' +
       '<span style="color:#c3c8d4;font-size:18px">›</span></div>';
   });
-  if (ds.length > 200) html += '<div style="padding:10px 0;text-align:center;font-size:12.5px;color:#98a2b3">Còn ' + (ds.length - 200) + ' khách nữa, gõ tìm để lọc bớt.</div>';
+  var conLai = Math.max(0, (kq.tong_so || ds.length) - Math.min(ds.length, 200));
+  if (conLai) html += '<div style="padding:10px 0;text-align:center;font-size:12.5px;color:#98a2b3">Nhóm này có <b>' + (kq.tong_so || ds.length) + ' khách</b>, đang hiện ' + Math.min(ds.length, 200) + '. Gõ tìm để ra đúng khách cần.</div>';
   html += '</div>';
 
   var b = frame('Danh sách khách hàng', html);
@@ -9573,7 +9580,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '104';
+var APPVER = '105';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
