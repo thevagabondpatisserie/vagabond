@@ -711,6 +711,12 @@ function coQuyenMua() {
     || hasRole('Purchase Manager') || hasRole('Purchase User') || hasRole('Bộ phận đặt hàng');
 }
 
+/* Ai duoc go dau huy mot phieu nhap. Khop voi QUYEN_HUY ben
+   vagabond/chung_tu.py - o day chi de an nut, chan that nam o may chu. */
+function coQuyenHuy() {
+  return hasRole('System Manager') || hasRole('Accounts Manager') || hasRole('Accounts User');
+}
+
 /* ---------- Bep: dinh tuyen phieu yeu cau san xuat ---------- */
 var BEPS = ['Bếp Pastry', 'Bếp Baker', 'Bếp Lab'];
 function myKitchen() {
@@ -1722,9 +1728,16 @@ async function scrXkView(name) {
   if (d.docstatus === 1 && !laHuy && d.kho_nhan && (!khoGiuCuaToi().length || laKhoCuaToi(d.kho_nhan))) {
     nut += '<button class="vxb o" id="vxHuyTiep">🗑️ Xuất huỷ hàng này tại ' + h(shortWh(d.kho_nhan)) + '</button>';
   }
-  if (d.docstatus === 0) {
+  if (d.docstatus === 0 && d.vgb_huy) {
+    /* Phieu da bo: khong ghi so duoc nua, nhung van con nguyen de truy. */
+    nut += '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:11px 13px;margin-top:10px">' +
+      '<b style="color:#991b1b;font-size:14px">🚫 Phiếu này đã bỏ</b>' +
+      '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-top:3px">Lý do: ' +
+      h(d.vgb_huy_ly_do || 'không ghi') + (d.vgb_huy_boi ? ' — ' + h(d.vgb_huy_boi) : '') +
+      '<br>Phiếu vẫn nằm nguyên trong hệ thống, chỉ không ghi sổ được nữa.</div></div>';
+  } else if (d.docstatus === 0) {
     if (d.duoc_duyet) nut += '<button class="vxb" id="vxGhi">Ghi sổ phiếu này</button>';
-    if (d.la_cua_toi || d.duoc_duyet) nut += '<button class="vxb o" id="vxXoa">Xoá bản nháp</button>';
+    if (d.la_cua_toi || d.duoc_duyet) nut += '<button class="vxb o" id="vxXoa">🚫 Bỏ phiếu này</button>';
     if (!d.duoc_duyet) {
       nut += '<div style="font-size:12px;color:#98a2b3;text-align:center;margin-top:10px">' +
         'Phiếu đang chờ quản lý kho ghi sổ.</div>';
@@ -1769,14 +1782,19 @@ async function scrXkView(name) {
   };
   var x = body.querySelector('#vxXoa');
   if (x) x.onclick = async function () {
+    /* Khong con xoa phieu nua (anh Viet 11/08/2026): phieu kho cung la
+       chung tu. Danh dau da bo, phieu van nam lai de con truy. */
+    var ly_do = await promptSheet('Vì sao bỏ phiếu này?', 'Lập nhầm, sai kho, sai số lượng...');
+    if (ly_do === null) return;
+    if (!ly_do) return toast('Phải ghi lý do thì sau này còn biết vì sao.', 4000);
     this.disabled = true;
     try {
-      await api('vagabond.xuat_kho.xoa_ban_nhap', { name: name });
-      toast('Đã xoá bản nháp.');
+      await api('vagabond.xuat_kho.xoa_ban_nhap', { name: name, ly_do: ly_do });
+      toast('Đã bỏ phiếu. Phiếu vẫn còn trong danh sách, đánh dấu đã bỏ.', 4000);
       back();
     } catch (e) {
       this.disabled = false;
-      toast(e.message || 'Không xoá được.');
+      toast(e.message || 'Không bỏ được.');
     }
   };
 }
@@ -7161,7 +7179,9 @@ async function posDemHomNay() {
   if (!posQuay) return;
   try {
     var kq = await api('vagabond.ban_hang.pos_ds_bill', { quay: posQuay.ma || '' });
-    var ds = (kq && kq.bill) || [];
+    /* Bill da huy khong phai tien: dong nay la cho thu ngan nhin nhieu nhat
+       trong ngay, lech voi Chot ca la sinh chuyen cai nhau luc giao ca. */
+    var ds = ((kq && kq.bill) || []).filter(function (r) { return !r.vgb_huy; });
     var tong = 0, tam = 0, chua = 0, xong = 0;
     ds.forEach(function (r) {
       tong += r.grand_total || 0;
@@ -7922,7 +7942,7 @@ async function posInBill(d) {
      bao 09/08) - gio moi duong in deu co. */
   var w = window.open('', '_blank');
   if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
-  if (!d.tam_tinh && d.name && !d.xhd_url) {
+  if (!d.tam_tinh && !d.huy && d.name && !d.xhd_url) {
     try { var lk0 = await api('vagabond.ban_hang.pos_link_xhd', { name: d.name }); d.xhd_url = (lk0 && lk0.url) || ''; } catch (e0) { }
   }
   var q = (CFGBH || {}).qr_quay || {};
@@ -7979,7 +7999,15 @@ async function posInBill(d) {
     '<img class="lg" src="' + location.origin + '/files/logo-in.png" onerror="this.style.display=\'none\';document.getElementById(\'lgt\').style.display=\'block\'">' +
     '<h1 id="lgt" style="display:none">THE VAGABOND P&Acirc;TISSERIE</h1>' +
     '<div class="ph">' + h((posQuay && posQuay.ten) || '') + '<br>' + h((posQuay && posQuay.phu) || '') + '</div>' +
-    '<div class="tt">' + (d.tam_tinh ? 'PHIẾU TẠM TÍNH' : 'HOÁ ĐƠN BÁN HÀNG') + '</div>' +
+    '<div class="tt">' + (d.huy ? 'BILL ĐÃ HUỶ' : (d.tam_tinh ? 'PHIẾU TẠM TÍNH' : 'HOÁ ĐƠN BÁN HÀNG')) + '</div>' +
+    /* Bill da huy in ra phai nhin la biet ngay: khong dong dau thi to giay
+       giong het bill that, khach cam nham va thu ngan doi soat cung nham. */
+    (d.huy
+      ? '<div style="border:2px solid #000;text-align:center;font-weight:bold;font-size:13px;padding:2mm;margin:1.5mm 0;letter-spacing:.1em">' +
+        'BILL NÀY ĐÃ HUỶ - KHÔNG CÓ GIÁ TRỊ THANH TOÁN' +
+        (d.huy_ly_do ? '<div style="font-size:10px;font-weight:normal;letter-spacing:0;margin-top:1mm">Lý do: ' + h(d.huy_ly_do) + '</div>' : '') +
+        '</div>'
+      : '') +
 
     '<div class="d"><span>Mã bill: <b>' + h(d.bill || '') + '</b></span><span>' + h(d.name || '') + '</span></div>' +
     '<div class="d"><span>Thu ngân: ' + h(S.me.full_name || String(S.user).split('@')[0]) + '</span><span>' + lucIn + '</span></div>' +
@@ -8052,6 +8080,8 @@ function posChipBill(r) {
      (anh Viet 09/08: "lam chip the nay moi dep"). */
   var c = [];
   var the = function (bg, fg, chu) { return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:3px 5px 0 0;white-space:nowrap">' + chu + '</span>'; };
+  if (r.vgb_huy) c.push(the('#fee2e2', '#991b1b', '🚫 Đã huỷ'));
+  if (r.vgb_lan_sua) c.push(the('#fef3c7', '#92400e', '✏️ Đã sửa ' + r.vgb_lan_sua + ' lần'));
   if (r.docstatus === 1) c.push(the('#dcfce7', '#166534', '✅ Đã ghi sổ'));
   else if (r.vgb_tam_tinh) c.push(the('#fef3c7', '#92400e', '🕐 Tạm tính'));
   else c.push(the('#e5e7eb', '#374151', '📄 Chưa ghi sổ'));
@@ -8081,10 +8111,15 @@ async function scrPosDs() {
   try { kq = await api('vagabond.ban_hang.pos_ds_bill', { quay: posQuay.ma || '', ngay: posDsNgay }); }
   catch (e) { frame(tieuDe, '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
   var ds = (kq && kq.bill) || [];
-  var tong = ds.reduce(function (t, r) { return t + (r.grand_total || 0); }, 0);
+  /* Bill da huy van nam trong danh sach de xem lai, nhung KHONG duoc cong
+     vao tong: man Chot ca ben may chu da loc no ra roi, o day quen loc la
+     hai con so lech nhau, thu ngan dem tien thay thieu ma khong hieu vi sao. */
+  var dsTien = ds.filter(function (r) { return !r.vgb_huy; });
+  var tong = dsTien.reduce(function (t, r) { return t + (r.grand_total || 0); }, 0);
+  var soHuy = ds.length - dsTien.length;
   /* Tong theo phuong thuc de cashier doi soat nhanh ma khong can mo chot ca. */
   var ptTong = {};
-  ds.forEach(function (r) {
+  dsTien.forEach(function (r) {
     if (r.vgb_tam_tinh) return;
     var p = r.vgb_pt_thanh_toan || r.custom_nguon || 'Khác';
     ptTong[p] = (ptTong[p] || 0) + (r.grand_total || 0);
@@ -8096,7 +8131,8 @@ async function scrPosDs() {
     '<input type="date" class="hin" id="posDsDate" value="' + posDsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
     chipNgay('data-pdbuoc') + '</div>';
   html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:8px">' +
-    '<div style="flex:1;min-width:0"><b>' + ds.length + ' hoá đơn · ' + money(tong) + ' đ</b>' +
+    '<div style="flex:1;min-width:0"><b>' + dsTien.length + ' hoá đơn · ' + money(tong) + ' đ</b>' +
+    (soHuy ? '<span style="color:#991b1b;font-size:12.5px;font-weight:700;margin-left:8px">+ ' + soHuy + ' đã huỷ</span>' : '') +
     '<div style="font-size:12px;color:#5b6472">' + (ptTxt || 'Chưa có hoá đơn doanh thu') + '</div>' +
     '<div style="font-size:12px;color:#98a2b3">Hoá đơn của quầy ' + h(posQuay.ten) + ', mỗi quầy tự quản hoá đơn của mình.</div></div>' +
     (laHomNay ? '<button class="btn gh" id="posDsMoi" style="margin:0;padding:9px 11px;font-size:13px;flex:none">🧾 Hoá đơn mới</button>' : '') +
@@ -8106,9 +8142,11 @@ async function scrPosDs() {
      (anh Viet 10/08/2026). */
   var PTT = [
     { k: 'tat_ca', nhan: 'Tất cả', loc: function () { return true; } },
-    { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0 && !r.vgb_tam_tinh; } },
+    { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0 && !r.vgb_tam_tinh && !r.vgb_huy; } },
     { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
-    { k: 'tam_tinh', nhan: '🕐 Tạm tính', loc: function (r) { return !!r.vgb_tam_tinh; } },
+    { k: 'tam_tinh', nhan: '🕐 Tạm tính', loc: function (r) { return !!r.vgb_tam_tinh && !r.vgb_huy; } },
+    { k: 'da_huy', nhan: '🚫 Đã huỷ', loc: function (r) { return !!r.vgb_huy; } },
+    { k: 'da_sua', nhan: '✏️ Đã sửa', loc: function (r) { return !!r.vgb_lan_sua; } },
     { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!r.vgb_xhd_mst; } },
@@ -8223,10 +8261,24 @@ async function scrPosBill(name) {
     '<div style="margin-top:4px">' + posChipBill({
       docstatus: d.docstatus, vgb_tam_tinh: d.vgb_tam_tinh, vgb_pt_thanh_toan: d.vgb_pt_thanh_toan,
       sepay_du: 0, custom_hddt_so: d.custom_hddt_so, vgb_xhd_mst: d.vgb_xhd_mst,
-      discount_amount: d.discount_amount, vgb_ghi_chu: ''
+      discount_amount: d.discount_amount, vgb_ghi_chu: '',
+      vgb_huy: d.vgb_huy, vgb_lan_sua: d.vgb_lan_sua
     }) +
     (soBan ? '<span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:3px 5px 0 0">🪑 Bàn ' + h(soBan) + '</span>' : '') +
     '</div></div>';
+
+  /* Bill da huy: noi thang o ngay dau man, khong de thu ngan doc het bang
+     mon roi moi phat hien minh dang xem mot to da bo. */
+  if (d.vgb_huy) {
+    html += '<div class="card" style="padding:12px 14px;margin-top:10px;background:#fef2f2;border:1px solid #fecaca">' +
+      '<b style="font-size:14.5px;color:#991b1b">🚫 Bill này đã huỷ</b>' +
+      '<div style="font-size:13px;color:#7f1d1d;line-height:1.6;margin-top:3px">' +
+      'Lý do: ' + h(d.vgb_huy_ly_do || 'không ghi') +
+      (d.vgb_huy_boi ? '<br>Người huỷ: ' + h(d.vgb_huy_boi) : '') +
+      (d.vgb_huy_luc ? ' · ' + h(String(d.vgb_huy_luc).slice(0, 16)) : '') +
+      '<br>Bill vẫn nằm nguyên trong hệ thống để đối chiếu, chỉ không tính vào doanh thu.' +
+      '</div></div>';
+  }
 
   /* ----- bang mon ----- */
   var suaMon = suaMo && nhap; /* hoa don da ghi so thi khong doi mon duoc */
@@ -8305,7 +8357,12 @@ async function scrPosBill(name) {
 
   /* ----- nut duoi chan man ----- */
   var foot;
-  if (suaMo) {
+  if (d.vgb_huy) {
+    foot = '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="pbIn" style="flex:1;margin:0">🖨 In</button>' +
+      (coQuyenHuy() ? '<button class="btn gh" id="pbGoHuy" style="flex:1;margin:0">↩️ Gỡ dấu huỷ</button>' : '') +
+      '</div>';
+  } else if (suaMo) {
     foot = '<div style="display:flex;gap:8px">' +
       '<button class="btn gh" id="pbHuySua" style="flex:0 0 34%;margin:0">✕ Thôi sửa</button>' +
       '<button class="btn" id="pbLuuSua" style="flex:1;margin:0">💾 Lưu thay đổi</button></div>';
@@ -8323,7 +8380,7 @@ async function scrPosBill(name) {
         : '') +
       '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="pbSua" style="flex:1;margin:0">✏️ Sửa hoá đơn</button>' +
-      (nhap ? '<button class="btn gh" id="pbXoa" style="flex:1;margin:0;color:#b3261e;border-color:#fecaca">🗑 Xoá đơn</button>' : '') +
+      (nhap ? '<button class="btn gh" id="pbXoa" style="flex:1;margin:0;color:#b3261e;border-color:#fecaca">🚫 Huỷ bill</button>' : '') +
       '</div>';
   }
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
@@ -8390,17 +8447,44 @@ async function scrPosBill(name) {
     if (ok) luuVe(true);
   };
 
-  /* ----- xoa: phai co OTP quan ly ----- */
+  /* ----- go dau huy: danh dau nham thi lay lai duoc ----- */
+  var ngh = document.getElementById('pbGoHuy');
+  if (ngh) ngh.onclick = async function () {
+    var ok = await confirmSheet('Gỡ dấu huỷ bill ' + (maBill || d.name) + '?',
+      'Bill dùng lại bình thường và tính vào doanh thu trở lại.', 'Gỡ dấu huỷ');
+    if (!ok) return;
+    busy(true);
+    try {
+      await api('vagabond.chung_tu.bo_danh_dau_huy', { doctype: 'Sales Invoice', name: d.name });
+      busy(false); toast('Đã gỡ dấu huỷ.'); posHomNayTxt = null;
+      go(function () { scrPosBill(name); }, true);
+    } catch (e) { busy(false); toast((e && e.message) || 'Không gỡ được', 5000); }
+  };
+
+  /* ----- huy bill: KHONG con xoa nua (anh Viet 11/08/2026) -----
+     Hom 10/08 quan ly cua hang xoa 37 hoa don quay Tran Cao Van, so hoa
+     don dien tu van nam ben co quan thue ma chung tu goc bien mat sach.
+     Nay bill huy van nam nguyen trong danh sach, chi doi mau va bi loc ra
+     khoi doanh thu - xem lai duoc bat cu luc nao. */
   var nx = document.getElementById('pbXoa');
   if (nx) nx.onclick = async function () {
-    var ok = await confirmSheet('Xoá đơn ' + (maBill || d.name) + '?',
-      'Hoá đơn ' + money(d.grand_total) + ' đ sẽ bị xoá hẳn, không lấy lại được. Thao tác này cần mã OTP của quản lý và được ghi lại tên người xoá.', 'Xoá đơn', true);
+    var ok = await confirmSheet('Huỷ bill ' + (maBill || d.name) + '?',
+      'Bill ' + money(d.grand_total) + ' đ sẽ được đánh dấu đã huỷ và không tính vào doanh thu nữa. ' +
+      'Bill vẫn nằm nguyên trong hệ thống để đối chiếu - không ai xoá được chứng từ. ' +
+      'Thao tác này cần mã OTP của quản lý và ghi lại tên người huỷ.', 'Huỷ bill', true);
     if (!ok) return;
-    var otp = await posXinPhep('Xoá hoá đơn ' + (maBill || d.name));
+    var ly_do = await promptSheet('Vì sao huỷ bill ' + (maBill || d.name) + '?', 'Khách đổi ý, bấm nhầm món, trùng bill...');
+    if (ly_do === null) return;
+    if (!ly_do) return toast('Phải ghi lý do thì sau này còn biết vì sao.', 4000);
+    var otp = await posXinPhep('Huỷ bill ' + (maBill || d.name));
     if (otp === null) return;
     busy(true);
-    try { await api('vagabond.ban_hang.pos_xoa', { name: d.name, otp: otp }); busy(false); toast('Đã xoá hoá đơn ' + (maBill || d.name)); posHomNayTxt = null; go(scrPosDs, true); }
-    catch (e) { busy(false); toast((e && e.message) || 'Xoá lỗi', 5000); }
+    try {
+      await api('vagabond.ban_hang.pos_xoa', { name: d.name, otp: otp, ly_do: ly_do });
+      busy(false); toast('Đã huỷ bill ' + (maBill || d.name) + '. Bill vẫn còn trong danh sách.', 4000);
+      posHomNayTxt = null; go(scrPosDs, true);
+    }
+    catch (e) { busy(false); toast((e && e.message) || 'Huỷ lỗi', 5000); }
   };
 
   /* ----- mo che do sua: phai co OTP quan ly ----- */
@@ -8516,6 +8600,7 @@ async function scrPosBill(name) {
   function pbBillObj() {
     return {
       name: d.name, bill: maBill, tam_tinh: tamTinh ? 1 : 0, so_ban: soBan,
+      huy: d.vgb_huy ? 1 : 0, huy_ly_do: d.vgb_huy_ly_do || '',
       mon: monTuDoc(),
       tong: (d.items || []).reduce(function (t, m) { return t + (m.amount || 0); }, 0),
       giam: d.discount_amount || 0, thu: d.grand_total,
@@ -9812,7 +9897,7 @@ async function scrVdTao() {
     if (e.target.closest('[data-t="si"]')) {
       vdTayDoc(); busy(true);
       var si;
-      try { si = await getList('Sales Invoice', { fields: ['name', 'customer_name', 'grand_total', 'remarks', 'custom_pancake_display_id'], filters: { posting_date: ['>=', vdTay.ngay || today()], docstatus: ['<', 2] }, limit_page_length: 100, order_by: 'creation desc' }); }
+      try { si = await getList('Sales Invoice', { fields: ['name', 'customer_name', 'grand_total', 'remarks', 'custom_pancake_display_id'], filters: { posting_date: ['>=', vdTay.ngay || today()], docstatus: ['<', 2], vgb_huy: 0 }, limit_page_length: 100, order_by: 'creation desc' }); }
       catch (er) { busy(false); return window.alert('Không tải được hoá đơn'); }
       busy(false);
       return sheet('Chọn hoá đơn', si.map(function (x) {
@@ -9955,7 +10040,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '117';
+var APPVER = '119';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12356,8 +12441,10 @@ function mkBangHd(ds, loai) {
         '<div style="font-size:12px;color:#6b7280;margin-top:3px">' +
         (d.custom_hddt_so ? 'HĐ ' + h(d.custom_hddt_so) + ' · ' + h(d.custom_hddt_trang_thai || '') : '<span style="color:#b45309">chưa xuất hoá đơn điện tử</span>') +
         (d.vgb_pt_thanh_toan ? ' · ' + h(d.vgb_pt_thanh_toan) : '') +
-        (d.docstatus === 0 ? ' · <b style="color:#b45309">còn nháp</b>' : '') +
-        (d.docstatus === 2 ? ' · <b style="color:#b3261e">đã huỷ</b>' : '') + '</div></div>' +
+        (d.docstatus === 0 && !d.vgb_huy ? ' · <b style="color:#b45309">còn nháp</b>' : '') +
+        (d.docstatus === 2 || d.vgb_huy ? ' · <b style="color:#b3261e">🚫 đã huỷ</b>' : '') +
+        (d.vgb_huy && d.vgb_huy_ly_do ? ' <span style="color:#b3261e">(' + h(d.vgb_huy_ly_do) + ')</span>' : '') +
+        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div></div>' +
         '<div style="text-align:right;white-space:nowrap"><b>' + money(d.grand_total) + '</b>' +
         (d.docstatus === 1 && d.outstanding_amount > 0 ? '<div style="font-size:11.5px;color:#b3261e">còn ' + money(d.outstanding_amount) + '</div>' : '') +
         '</div></div>';
@@ -12367,11 +12454,13 @@ function mkBangHd(ds, loai) {
       '<div style="font-size:12px;color:#98a2b3">' + h(d.name) + ' · ' + ngayNgan(d.posting_date) +
       (d.bill_no ? ' · số ' + h(d.bill_no) : '') + '</div>' +
       '<div style="font-size:12px;color:#6b7280;margin-top:3px">' +
-      (d.docstatus === 0 ? '<b style="color:#b45309">còn nháp</b>'
+      (d.vgb_huy ? '<b style="color:#b3261e">🚫 đã huỷ' + (d.vgb_huy_ly_do ? ' (' + h(d.vgb_huy_ly_do) + ')' : '') + '</b>'
+        : d.docstatus === 0 ? '<b style="color:#b45309">còn nháp</b>'
         : d.docstatus === 2 ? '<b style="color:#b3261e">đã huỷ</b>'
           : d.outstanding_amount > 0
             ? (d.tre_ngay ? '<b style="color:#b3261e">quá hạn ' + d.tre_ngay + ' ngày</b>' : 'hạn trả ' + ngayNgan(d.due_date || ''))
-            : '<span style="color:#0f766e">đã trả xong</span>') + '</div></div>' +
+            : '<span style="color:#0f766e">đã trả xong</span>') +
+      (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div></div>' +
       '<div style="text-align:right;white-space:nowrap"><b>' + money(d.grand_total) + '</b>' +
       (d.docstatus === 1 && d.outstanding_amount > 0 ? '<div style="font-size:11.5px;color:#b3261e">còn ' + money(d.outstanding_amount) + '</div>' : '') +
       '</div></div>';
