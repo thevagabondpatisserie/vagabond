@@ -1,0 +1,25 @@
+{
+ "actions": [],
+ "creation": "2026-08-11 06:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["tu_tien", "kieu_giam", "gia_tri", "tran"],
+ "fields": [
+  {"fieldname": "tu_tien", "fieldtype": "Currency", "label": "Hoa don tu", "reqd": 1, "in_list_view": 1, "columns": 3},
+  {"fieldname": "kieu_giam", "fieldtype": "Select", "label": "Kieu giam", "options": "Phan tram\nSo tien", "default": "Phan tram", "reqd": 1, "in_list_view": 1, "columns": 2},
+  {"fieldname": "gia_tri", "fieldtype": "Float", "label": "Gia tri", "reqd": 1, "in_list_view": 1, "columns": 2},
+  {"fieldname": "tran", "fieldtype": "Currency", "label": "Tran giam cua bac", "in_list_view": 1, "columns": 3}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-11 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond CTKM Bac",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
