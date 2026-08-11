@@ -1543,6 +1543,10 @@ def tao_don_tay(
 	xhd_dia_chi="",
 	xhd_email="",
 	khach_no="",
+	ctkm_ap=None,
+	ma_voucher="",
+	combo_ap=None,
+	otp_km="",
 ):
 	"""Nhap tay doanh thu tu kenh khong co API.
 
@@ -1552,6 +1556,11 @@ def tao_don_tay(
 
 	Don san: ma don ben app CHINH LA ma tham chieu doi soat, chi nhap mot lan.
 	Don quay: sales chon phuong thuc rieng roi nhap so tham chieu bill.
+
+	Khuyen mai (11/08/2026): may khach chi gui LEN ma chuong trinh, ma voucher
+	va combo da bam. So tien giam do MAY CHU tu tinh lai tu gio hang - tuyet
+	doi khong nhan so tien giam tu may khach, khong thi ai mo Devtools cung
+	tu ha bill cua minh ve 0.
 	"""
 	_kiem_quyen()
 	ngay = getdate(ngay or nowdate())
@@ -1584,6 +1593,40 @@ def tao_don_tay(
 		rows.append(d)
 	if not rows:
 		frappe.throw("Đơn chưa có món nào.")
+
+	# --- Khuyen mai: may chu tu tinh lai, khong tin so tu may khach ---
+	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
+	# tren phi ship.
+	km_kq, km_giam = None, 0.0
+	if ctkm_ap or combo_ap or (ma_voucher or "").strip():
+		from vagabond import khuyen_mai as _km
+
+		km_kq = _km.tinh(
+			items,
+			ctkm=ctkm_ap,
+			ma=ma_voucher,
+			combo=combo_ap,
+			quay=quay,
+			nguon=nguon,
+			khach=khach_no or None,
+			sdt=dien_thoai,
+			ngay=ngay,
+		)
+		km_giam = flt(km_kq.get("tong_giam"))
+		if km_kq.get("can_otp"):
+			_otp_kiem(otp_km, "áp khuyến mãi")
+		if km_kq.get("bo"):
+			# Chuong trinh bi loai o buoc chot ma tren man hinh van hien:
+			# bao ro cho thu ngan biet, khong im lang thu it tien hon roi
+			# de khach cai nhau o quay.
+			frappe.msgprint(
+				"Không áp được: "
+				+ "; ".join(
+					"%s (%s)" % (b.get("ten"), b.get("ly_do")) for b in km_kq["bo"]
+				),
+				indicator="orange",
+			)
+
 	if flt(phi_ship) > 0:
 		rows.append({"item_code": _item_phi_giao(), "qty": 1, "rate": flt(phi_ship)})
 	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
@@ -1650,7 +1693,7 @@ def tao_don_tay(
 			"vgb_ghi_chu": (ghi_chu or "").strip(),
 			"vgb_xhd_ten": XHD_MAC_DINH,
 			"apply_discount_on": "Grand Total",
-			"discount_amount": flt(giam_gia),
+			"discount_amount": flt(giam_gia) + km_giam,
 			"remarks": "%s #%s - %s%s%s"
 			% (
 				nguon,
@@ -1674,9 +1717,37 @@ def tao_don_tay(
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
 		si.vgb_xhd_email = (xhd_email or "").strip()
+	# Luu vet cac chuong trinh da ap ngay tren hoa don de bill in ra co dong
+	# "Khuyen mai" va ke toan mo hoa don len la thay ngay, khoi phai doi
+	# chieu sang bang ghi vet.
+	if km_kq and km_kq.get("ap"):
+		try:
+			si.vgb_km = json.dumps(km_kq["ap"], ensure_ascii=False)[:2000]
+		except Exception:
+			pass
 	si.flags.ignore_permissions = True
 	si.save()
 	frappe.db.commit()
+
+	if km_kq and km_kq.get("ap"):
+		try:
+			from vagabond import khuyen_mai as _km
+
+			_km.ghi_su_dung(
+				km_kq,
+				si_name=si.name,
+				quay=quay,
+				nguon=nguon,
+				khach=khach_no or ten_khach,
+				sdt=dien_thoai,
+				ngay=ngay,
+				cach_duyet=("OTP" if km_kq.get("can_otp") else ""),
+			)
+		except Exception:
+			frappe.log_error(
+				title="Vagabond: ghi vet khuyen mai sau don tay",
+				message=frappe.get_traceback(),
+			)
 
 	# Don kenh khac co banh o thi tru ngay tren bang kiem banh, khong doi
 	# lich 5 phut (y Loan Anh 08/08/2026 - truoc day phai tao them mot don
