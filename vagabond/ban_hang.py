@@ -1536,6 +1536,12 @@ def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
 	cach = _otp_kiem(otp, "đổi ngày hoá đơn")
 	si.set_posting_time = 1
 	si.posting_date = str(moi)
+	# Phai XOA lich thanh toan cu truoc khi doi ngay. Cac dong payment_schedule
+	# van giu han thanh toan cua ngay cu, ERPNext so han cu voi ngay moi roi
+	# bao "Ngay den han khong the truoc Posting Date" va chan luon (bat duoc
+	# 12/08/2026 tren don HDB-2026-01520). Xoa di thi may tu dung lai theo
+	# dieu khoan thanh toan cua khach.
+	si.payment_schedule = []
 	si.due_date = str(moi)
 	si.flags.ignore_permissions = True
 	si.save()
