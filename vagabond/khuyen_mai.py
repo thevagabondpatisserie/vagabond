@@ -26,6 +26,8 @@ import json
 import re
 
 import frappe
+
+from vagabond import diem_ban
 from frappe.utils import cint, flt, get_datetime, getdate, now_datetime, nowdate
 
 # ------------------------------------------------------------------ tien ich
@@ -515,11 +517,9 @@ def _giam_combo(cb, gio, so_bo):
 # ------------------------------------------------------------------- API doc
 
 # Ba diem ban. Don Sales online khong mang ma quay nen quy uoc la SALES.
-QUAY_DS = [
-	{"ma": "SALES", "ten": "Sales Online"},
-	{"ma": "TCV", "ten": "District 1"},
-	{"ma": "NVHTN", "ten": "NVHTN"},
-]
+def _quay_ds():
+	"""Quay/diem ban doc tu Cai dat, xem vagabond/diem_ban.py."""
+	return [{"ma": d["ma"], "ten": d["ten_ngan"]} for d in diem_ban.ds(chi_bat=True)]
 
 
 @frappe.whitelist()
@@ -544,7 +544,7 @@ def danh_muc():
 		"hang": [r.name for r in hang],
 		"nhom_khach": [r.name for r in nhom],
 		"nhom_mon": [r.name for r in nhom_mon],
-		"quay": QUAY_DS,
+		"quay": _quay_ds(),
 	}
 
 

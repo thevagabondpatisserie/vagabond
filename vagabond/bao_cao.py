@@ -4,7 +4,7 @@ Mot cho duy nhat de ban giam doc, quan ly sales, quan ly cua hang, ke toan
 va marketing nhin so lieu CUA CA BA DIEM BAN, khong phai mo ba noi roi
 cong tay: Sales Online (307/1 Nguyen Van Troi), District 1 (9 Tran Cao Van)
 va NVHTN (21 Pham Ngoc Thach). Them chi nhanh moi thi chi can them mot
-dong trong DIEM_BAN, khong phai sua bao cao.
+dong trong man Cai dat > Diem ban, khong phai sua ma nguon.
 
 Nguyen tac:
 
@@ -24,6 +24,8 @@ import io
 import re
 
 import frappe
+
+from vagabond import diem_ban
 from frappe.utils import add_days, add_months, flt, getdate, nowdate
 
 # Ai duoc xem. Anh Viet chot 12/08/2026: ban giam doc, Loan Anh (quan ly
@@ -39,12 +41,14 @@ QUYEN_XEM = {
 
 # Ba diem ban. Don Sales online khong mang ma quay (vgb_quay de trong) nen
 # quy uoc quay rong la SALES - cung quy uoc voi module khuyen mai.
-DIEM_BAN = [
-	{"ma": "SALES", "ten": "Sales Online", "dia_chi": "307/1 Nguyễn Văn Trỗi"},
-	{"ma": "TCV", "ten": "District 1", "dia_chi": "9 Trần Cao Vân"},
-	{"ma": "NVHTN", "ten": "NVHTN", "dia_chi": "21 Phạm Ngọc Thạch"},
-]
-TEN_DIEM = {d["ma"]: d["ten"] for d in DIEM_BAN}
+def _diem_ban():
+	"""Diem ban doc tu Cai dat. Bao cao lay CA diem da tat: so lieu cu cua
+	mot diem da dong van phai xem lai duoc. Xem vagabond/diem_ban.py."""
+	return [
+		{"ma": d["ma"], "ten": d["ten_ngan"], "dia_chi": d["dia_chi"]}
+		for d in diem_ban.ds()
+	]
+
 
 KY_HAN = ["ngay", "tuan", "thang", "quy", "nam", "tuy_chon"]
 
@@ -159,15 +163,19 @@ def _cot(*bo):
 
 def _bc_tong_doanh_thu(hd, **kw):
 	"""BC01 - tong doanh thu, tach theo tung diem ban."""
+	# Doc bang ten diem MOT LAN roi dung lai: goi trong vong lap thi moi dong
+	# hoa don lai doc va phan tich lai cau hinh, bao cao vai nghin dong la
+	# thay cham ngay.
+	ten = diem_ban.ten_diem()
 	gom = {}
 	for r in hd:
 		d = _diem(r)
-		o = gom.setdefault(d, {"diem": TEN_DIEM.get(d, d), "so_hd": 0, "tien": 0.0, "giam": 0.0})
+		o = gom.setdefault(d, {"diem": ten.get(d, d), "so_hd": 0, "tien": 0.0, "giam": 0.0})
 		o["so_hd"] += 1
 		o["tien"] += _tien(r.grand_total)
 		o["giam"] += _tien(r.discount_amount)
 	dong = []
-	for d in DIEM_BAN:
+	for d in _diem_ban():
 		o = gom.get(d["ma"])
 		if not o:
 			o = {"diem": d["ten"], "so_hd": 0, "tien": 0.0, "giam": 0.0}
@@ -211,13 +219,14 @@ def _bc_theo_ngay(hd, **kw):
 
 def _bc_nguon_don(hd, **kw):
 	"""BC03 - doanh thu theo nguon don, tach rieng tung diem ban."""
+	ten = diem_ban.ten_diem()
 	gom = {}
 	for r in hd:
 		n = (r.custom_nguon or "").strip() or "(không ghi nguồn)"
 		o = gom.setdefault(n, {"nguon": n, "so_hd": 0, "tien": 0.0, "diem": set()})
 		o["so_hd"] += 1
 		o["tien"] += _tien(r.grand_total)
-		o["diem"].add(TEN_DIEM.get(_diem(r), _diem(r)))
+		o["diem"].add(ten.get(_diem(r), _diem(r)))
 	dong = sorted(gom.values(), key=lambda x: -x["tien"])
 	tong = sum(o["tien"] for o in dong)
 	for o in dong:
@@ -271,12 +280,13 @@ def _bc_hddt(hd, **kw):
 		o["so_hd"] += 1
 		o["tien"] += _tien(r.grand_total)
 	dong = sorted(gom.values(), key=lambda x: -x["so_hd"])
+	ten = diem_ban.ten_diem()
 	chua = [
 		{
 			"hoa_don": r.name,
 			"ngay": str(r.posting_date),
 			"don": r.custom_pancake_display_id or "",
-			"diem": TEN_DIEM.get(_diem(r), _diem(r)),
+			"diem": ten.get(_diem(r), _diem(r)),
 			"tien": _tien(r.grand_total),
 		}
 		for r in hd
@@ -370,12 +380,13 @@ def _bc_sua_huy(hd, tu=None, den=None, **kw):
 		],
 		limit_page_length=0,
 	)
+	ten = diem_ban.ten_diem()
 	dong = [
 		{
 			"ngay": str(r.posting_date),
 			"hoa_don": r.name,
 			"don": r.custom_pancake_display_id or "",
-			"diem": TEN_DIEM.get((r.vgb_quay or "").upper() or "SALES", r.vgb_quay or "Sales Online"),
+			"diem": ten.get((r.vgb_quay or "").upper() or "SALES", r.vgb_quay or "Sales Online"),
 			"viec": (
 				"Huỷ bill nháp: %s" % (r.vgb_huy_ly_do or "không ghi lý do")
 				if r.get("vgb_huy")
@@ -598,7 +609,7 @@ def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None):
 		"binh_quan": tong / len(hd) if hd else 0,
 		"diem_ban": [
 			{"ma": x["ma"], "ten": x["ten"], "dia_chi": x["dia_chi"], "tien": theo_diem.get(x["ma"], 0.0)}
-			for x in DIEM_BAN
+			for x in _diem_ban()
 		],
 		"bao_cao": [
 			{"ma": b["ma"], "ten": b["ten"], "ic": b["ic"], "mo": b["mo"], "nhom": b["nhom"]}
