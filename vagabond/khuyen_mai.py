@@ -581,6 +581,15 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 			order_by="idx asc",
 			limit_page_length=0,
 		)
+		# So bo da ban HOM NAY: anh Viet 11/08/2026 muon dem duoc combo ban
+		# trong ngay ngay tren man chon mon, khong phai mo bao cao.
+		try:
+			o["so_hom_nay"] = frappe.db.count(
+				"Vagabond CTKM Su Dung",
+				{"combo": cb.name, "ngay": nowdate(), "loai": "Combo"},
+			)
+		except Exception:
+			o["so_hom_nay"] = 0
 		ra.append(o)
 	return {"combo": ra}
 
