@@ -9955,7 +9955,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '116';
+var APPVER = '117';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12474,6 +12474,19 @@ function cdVe() {
     }).join('') + '</div>' +
     '<div style="font-size:11.5px;color:#98a2b3;padding:2px 14px 8px;line-height:1.6">' +
     'Chỉ hoá đơn <b>đã ghi sổ</b> mới được phát hành. Điểm bán nào chưa bật thì hoá đơn nằm yên trong hệ thống, không sang cơ quan thuế.</div>';
+
+  // Cong tac goc nam ben m-invoice. Hai noi bat tat khac nhau chinh la cai
+  // da gay ra vu 37 hoa don hom 10/08, nen o day phai noi thang trang thai
+  // cua no chu khong de nguoi dung doan.
+  if (!cdData.bat_hddt_chung || !cdData.bat_ky_chung) {
+    html += '<div class="card" style="padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa">' +
+      '<b style="font-size:13.5px;color:#9a3412">Khoá gốc bên m-invoice đang chặn</b>' +
+      '<div style="font-size:12.5px;color:#7c2d12;line-height:1.6;margin-top:3px">' +
+      (!cdData.bat_hddt_chung
+        ? 'Cấu hình m-invoice đang tắt phát hành, nên dù bật ở đây máy vẫn không đẩy hoá đơn nào sang cơ quan thuế.'
+        : 'Cấu hình m-invoice đang tắt ký hàng loạt, nên hoá đơn sẽ phát hành rồi nằm ở trạng thái Chờ ký.') +
+      ' Báo kế toán mở lại trong phần cài đặt m-invoice nếu muốn chạy đủ chuỗi.</div></div>';
+  }
 
   if (cdData.nhat_ky) {
     html += '<div class="sec">Lần chạy gần nhất</div><div class="card" style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6">' +
