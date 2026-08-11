@@ -1,0 +1,35 @@
+{
+ "actions": [],
+ "autoname": "field:ten_hang",
+ "creation": "2026-08-11 07:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["ten_hang", "thu_tu", "loai", "cb1", "giam_gia", "chi_tieu_tu", "so_thang_xet", "bat", "sb1", "mo_ta"],
+ "fields": [
+  {"fieldname": "ten_hang", "fieldtype": "Data", "label": "Ten hang", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "thu_tu", "fieldtype": "Int", "label": "Thu tu (nho la hang thap)", "in_list_view": 1, "description": "1 = hang thap nhat. Dung de xep hang cao thap."},
+  {"fieldname": "loai", "fieldtype": "Select", "label": "Loai hang", "options": "Theo chi tieu\nGan tay", "default": "Theo chi tieu", "in_list_view": 1, "description": "Theo chi tieu: may tu xet. Gan tay: quan ly gan cho tung khach (FAMILY, AMBASSADOR)."},
+  {"fieldname": "cb1", "fieldtype": "Column Break"},
+  {"fieldname": "giam_gia", "fieldtype": "Percent", "label": "Giam gia (%)", "in_list_view": 1},
+  {"fieldname": "chi_tieu_tu", "fieldtype": "Currency", "label": "Chi tieu tu (d)", "description": "Tong chi tieu trong ky xet phai dat muc nay tro len."},
+  {"fieldname": "so_thang_xet", "fieldtype": "Int", "label": "So thang xet", "default": "12"},
+  {"fieldname": "bat", "fieldtype": "Check", "label": "Dang dung", "default": "1", "in_list_view": 1},
+  {"fieldname": "sb1", "fieldtype": "Section Break"},
+  {"fieldname": "mo_ta", "fieldtype": "Small Text", "label": "Mo ta quyen loi"}
+ ],
+ "links": [],
+ "modified": "2026-08-11 07:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Hang Khach",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"read": 1, "report": 1, "role": "Sales User"},
+  {"read": 1, "report": 1, "role": "Accounts User"}
+ ],
+ "sort_field": "thu_tu",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}
