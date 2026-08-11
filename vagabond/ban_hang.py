@@ -1773,23 +1773,42 @@ def tu_ghi_so_cuoi_ngay():
 
 	# Ghi so xong moi phat hanh, phat hanh xong moi ky. Ba buoc lien nhau
 	# trong mot lan chay nen khong con canh buoc sau chay truoc buoc truoc.
+	#
+	# Hai Server Script kieu API duoi day KHONG tu kiem cong tac goc: truoc
+	# day cai lich rieng moi kiem ho chung. Nay lich do da tat, neu o day
+	# khong kiem thi ke toan tat cong tac ben m-invoice ma may van cu xuat
+	# va ky - dung canh hai cong tac noi khac nhau da gay ra vu 37 hoa don
+	# hom 10/08. Kiem lai o day cho mot cua.
 	ph = ky = None
+	bat_ph = bat_ky = 0
 	try:
-		ph = _goi_server_script(
-			"MInvoice - Phat hanh HD Sales (API)",
-			{"che_do": "day", "ngay": ngay, "so_luong": 0, "phieu": None, "khong_commit": 0},
-		)
+		stg = frappe.get_doc("MInvoice Phat Hanh Settings")
+		bat_ph = cint(stg.get("enabled"))
+		bat_ky = bat_ph and cint(stg.get("tu_ky_hang_loat"))
 	except Exception:
-		loi.append("Phát hành hoá đơn điện tử lỗi, xem Error Log.")
-		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: phat hanh HDDT")
-	try:
-		ky = _goi_server_script(
-			"MInvoice - Ky hang loat hoa don",
-			{"ngay": ngay, "phieu": None, "so_luong": 0},
-		)
-	except Exception:
-		loi.append("Ký hoá đơn hàng loạt lỗi, xem Error Log.")
-		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: ky HDDT")
+		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: doc cai dat m-invoice")
+	if bat_ph:
+		try:
+			ph = _goi_server_script(
+				"MInvoice - Phat hanh HD Sales (API)",
+				{"che_do": "day", "ngay": ngay, "so_luong": 0, "phieu": None, "khong_commit": 0},
+			)
+		except Exception:
+			loi.append("Phát hành hoá đơn điện tử lỗi, xem Error Log.")
+			frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: phat hanh HDDT")
+	else:
+		ph = {"bo_qua": "tắt ở m-invoice"}
+	if bat_ky:
+		try:
+			ky = _goi_server_script(
+				"MInvoice - Ky hang loat hoa don",
+				{"ngay": ngay, "phieu": None, "so_luong": 0},
+			)
+		except Exception:
+			loi.append("Ký hoá đơn hàng loạt lỗi, xem Error Log.")
+			frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: ky HDDT")
+	else:
+		ky = {"bo_qua": "tắt ở m-invoice"}
 
 	nhat_ky = "%s lúc %s: ghi sổ %d đơn. Phát hành: %s. Ký: %s.%s" % (
 		ngay,
@@ -1813,6 +1832,8 @@ def _gon(kq):
 	"""Rut ket qua tra ve cua Server Script thanh mot cau ngan de ghi nhat ky."""
 	if not isinstance(kq, dict):
 		return "không rõ"
+	if kq.get("bo_qua"):
+		return "bỏ qua (%s)" % kq["bo_qua"]
 	for k in ("tao", "so_tao", "ok", "so_ky", "da_ky", "so_luong"):
 		if k in kq:
 			return "%s %s" % (k, kq[k])
@@ -1837,8 +1858,9 @@ def cai_dat_cuoi_ngay():
 			if x.strip()
 		]
 		bat_chung = cint(stg.get("enabled"))
+		bat_ky_chung = bat_chung and cint(stg.get("tu_ky_hang_loat"))
 	except Exception:
-		dang_bat, bat_chung = [], 0
+		dang_bat, bat_chung, bat_ky_chung = [], 0, 0
 	diem = []
 	for d in DIEM_BAN_HDDT:
 		diem.append(
@@ -1855,6 +1877,7 @@ def cai_dat_cuoi_ngay():
 		"bat": cint(c.get("tu_ghi_so_bat") if c.get("tu_ghi_so_bat") is not None else 1),
 		"gio": _gio_hop_le(c.get("tu_ghi_so_gio")),
 		"bat_hddt_chung": bat_chung,
+		"bat_ky_chung": cint(bat_ky_chung),
 		"diem": diem,
 		"lan_cuoi": c.get("tu_ghi_so_lan_cuoi") or "",
 		"nhat_ky": c.get("tu_ghi_so_nhat_ky") or "",
