@@ -860,10 +860,26 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	if ghi_tt:
 		si.vgb_ghi_chu_doi_soat = ghi_tt
 	# Nguoi mua tren hoa don VAT. Dong bo chay lai KHONG duoc de len thong tin
-	# sales da sua tay: chi dien khi o dang trong hoac dang la gia tri mac dinh.
+	# sales da sua tay: chi dien khi o dang trong, dang la gia tri mac dinh,
+	# hoac CHUA CO MA SO THUE.
+	#
+	# Cai ve khong co ma so thue la bai hoc cua don 91476 (12/08/2026): luc
+	# don ve thi ghi chu "De in" ben Pancake chua co gi, sales dien thong tin
+	# xuat hoa don SAU do. Truoc day may chi doc ghi chu dung mot lan luc tao
+	# phieu nen thong tin dien sau khong bao gio ve, hoa don thieu ma so thue
+	# va dia chi. Nay lan dong bo nao cung doc lai chung nao con thieu ma so
+	# thue - da co ma so thue roi thi giu nguyen, khong de len tay nguoi sua.
 	cu_ten = (si.get("vgb_xhd_ten") or "").strip()
-	if not cu_ten or cu_ten == XHD_MAC_DINH:
-		for truong, gt in _thong_tin_xhd(o, did).items():
+	cu_mst = (si.get("vgb_xhd_mst") or "").strip()
+	if not cu_ten or cu_ten == XHD_MAC_DINH or not cu_mst:
+		moi = _thong_tin_xhd(o, did)
+		trong_truoc = not cu_ten or cu_ten == XHD_MAC_DINH
+		for truong, gt in moi.items():
+			# Doc lai ma khong ra gi thi GIU NGUYEN cai dang co. Sales go tay
+			# ten khach roi ma lan dong bo sau xoa trang thi con te hon la
+			# khong doc lai.
+			if not str(gt or "").strip() and not trong_truoc:
+				continue
 			si.set(truong, gt)
 	elif not (si.get("vgb_xhd_email") or "").strip():
 		# Ten nguoi mua da co (sales sua tay hoac lan dong bo truoc tra cong
@@ -2404,6 +2420,19 @@ def pos_xoa(name, otp=None):
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn đã ghi sổ thì không xoá được. Cần huỷ thì báo kế toán.")
+	# Hoa don da co so hoa don dien tu thi TUYET DOI khong duoc xoa, du no
+	# con la ban nhap. Xoa xong thi to hoa don thue van nam ben co quan
+	# thue ma khong con chung tu nao dang sau - ke toan phai lam hoa don
+	# thay the ve 0 dong. Ngay 11/08/2026 co 37 hoa don quay Tran Cao Van
+	# bien mat kieu do, tong 7.455.700 d.
+	so_hddt = (si.get("custom_hddt_so") or "").strip()
+	if so_hddt or (si.get("custom_minvoice_id") or "").strip():
+		frappe.throw(
+			"Hoá đơn %s đã có hoá đơn điện tử số %s nên không xoá được. "
+			"Tờ hoá đơn thuế đã nằm bên cơ quan thuế rồi, xoá phiếu ở đây chỉ "
+			"làm mất chứng từ. Muốn bỏ thì báo kế toán làm hoá đơn thay thế."
+			% (si.get("custom_pancake_display_id") or name, so_hddt or "(chưa rõ)")
+		)
 	cach = _otp_kiem(otp, "xoá hoá đơn")
 	_ghi_vet(name, "Xoá hoá đơn %s (%s đ)" % (si.get("custom_pancake_display_id") or name, _tien(si.grand_total)), cach)
 	frappe.delete_doc("Sales Invoice", name, ignore_permissions=True)
