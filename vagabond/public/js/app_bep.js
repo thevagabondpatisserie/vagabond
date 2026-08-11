@@ -849,7 +849,8 @@ async function scrHome() {
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
-      ? card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
+      ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn — khai một nơi dùng cho cả hệ', 0, 'CDDB') +
+        card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
       : '') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
     card('👤', 'Tài khoản', 'Thông tin tài khoản và đăng xuất', 0, 'ACC') +
@@ -890,6 +891,7 @@ async function scrHome() {
     if (k === 'KH') return go(scrKhachHang);
     if (k === 'VD') return go(scrVanDon);
     if (k === 'RND') return go(scrRndList);
+    if (k === 'CDDB') return go(scrDiemBan);
     if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
     if (k === 'ACC') return go(scrAccount);
     go(function () { scrMRList(TYPES[k]); });
@@ -935,7 +937,7 @@ var VGB_NHOM = [
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'CN', 'CNPT', 'BC:BC05'] },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDCN', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDCN', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1233,6 +1235,7 @@ function vgbGo(k) {
     if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'RND') return go(scrRndList);
+  if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
@@ -10040,7 +10043,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '119';
+var APPVER = '120';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12640,6 +12643,179 @@ async function cdChay() {
     window.alert(cdData.nhat_ky || 'Đã chạy xong.');
     go(scrCaiDatCuoiNgay, true);
   } catch (e) { busy(false); window.alert((e && e.message) || 'Chạy lỗi'); }
+}
+
+
+/* ===== Cai dat: danh sach diem ban (anh Viet 12/08/2026) =====
+
+Truoc day ba diem ban duoc khai o BA CHO trong ma nguon, con dat ten khac
+nhau cho cung mot diem. Mo chi nhanh thu tu la sua code roi deploy. Nay
+khai o day, ca he doc chung mot noi. */
+
+var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0;
+
+async function scrDiemBan() {
+  frame('Điểm bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try {
+    var kq = await api('vagabond.diem_ban.danh_sach', {});
+    dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0;
+  } catch (e) {
+    frame('Điểm bán', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  dbVe();
+}
+
+function dbVe() {
+  /* Them mot dong roi bam Back thi dong rong con nam lai trong bo nho, man
+     danh sach ve mot the trong nhin rat kho hieu. Don o day. */
+  if (dbMoi) { dbDs = (dbDs || []).filter(function (x) { return !!x.ma; }); dbMoi = 0; }
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">ĐIỂM BÁN</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Khai ở đây một lần, cả hệ dùng chung: màn tính tiền, chuỗi cuối ngày, khuyến mãi và báo cáo. ' +
+    'Mở chi nhánh mới chỉ cần thêm một dòng, không phải sửa phần mềm.</div></div>';
+
+  html += '<div class="card">' + (dbDs || []).map(function (d, i) {
+    var phu = [];
+    if (d.quay) phu.push('quầy ' + h(d.quay)); else phu.push('đơn online');
+    if (d.dia_chi) phu.push(h(d.dia_chi));
+    return '<div data-dbmo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+      '<div style="width:42px;height:42px;border-radius:11px;flex:none;background:' + (d.bat ? '#ecfdf5' : '#f3f4f6') +
+      ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:' + (d.bat ? '#047857' : '#9ca3af') + '">' + h(d.ma) + '</div>' +
+      '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
+      '<div style="font-size:11.5px;color:#98a2b3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + phu.join(' · ') + '</div>' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + (d.nguon || []).length + ' nguồn đơn</div></div>' +
+      '<span style="font-size:12px;font-weight:700;color:' + (d.bat ? '#0f766e' : '#a0a6b4') + '">' + (d.bat ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
+      '<span style="color:#c8ccd4">›</span></div>';
+  }).join('') + '</div>';
+
+  html += '<div style="font-size:11.5px;color:#98a2b3;padding:8px 14px;line-height:1.6">' +
+    'Điểm bán đã có hoá đơn thì không xoá được, chỉ tắt. Số liệu cũ vẫn xem lại được trong báo cáo.</div>';
+
+  var b = frame('Điểm bán', html, dbSuaDuoc ? {
+    footer: '<button class="btn gh" id="dbThem" style="margin:0">➕ Thêm điểm bán</button>'
+  } : null);
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-dbmo]');
+    if (t) { dbMo = +t.getAttribute('data-dbmo'); go(scrDiemBanSua); }
+  };
+  var n = document.getElementById('dbThem');
+  if (n) n.onclick = function () {
+    dbDs.push({ ma: '', ten: '', ten_ngan: '', quay: '', dia_chi: '', mst: '', ky_hieu: '', nguon: [], bat: 1, thu_tu: dbDs.length + 1 });
+    dbMo = dbDs.length - 1;
+    dbMoi = 1;
+    go(scrDiemBanSua);
+  };
+}
+
+function scrDiemBanSua() {
+  var d = (dbDs || [])[dbMo];
+  if (!d) return go(scrDiemBan, true);
+  var moi = !d.ma;
+  var o = function (nhan, id, gt, mo, kieu) {
+    return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">' + nhan + '</div>' +
+      '<input class="tin" id="' + id + '" type="' + (kieu || 'text') + '" value="' + h(gt || '') + '" style="width:100%;margin:0">' +
+      (mo ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:4px;line-height:1.5">' + mo + '</div>' : '') + '</div>';
+  };
+
+  var html = '<div class="card">' +
+    o('Mã điểm bán', 'dbMa', d.ma, 'Chữ không dấu và số, ví dụ SALES, TCV, NVHTN. Mã đi vào báo cáo nên đặt xong thì đừng đổi.') +
+    o('Tên đầy đủ', 'dbTen', d.ten, 'Hiện trên màn Cài đặt và chuỗi cuối ngày.') +
+    o('Tên ngắn', 'dbTenNgan', d.ten_ngan, 'Hiện trên chip và cột báo cáo cho gọn.') +
+    o('Địa chỉ', 'dbDiaChi', d.dia_chi) +
+    o('Mã số thuế chi nhánh', 'dbMst', d.mst, 'Để trống thì dùng mã số thuế công ty.') +
+    o('Ký hiệu hoá đơn điện tử', 'dbKyHieu', d.ky_hieu, 'Để trống thì dùng ký hiệu chung.') +
+    '</div>';
+
+  /* Khong cho nhap ma quay rieng: ca he quy hoa don ve diem ban bang cach
+     doc vgb_quay roi tra theo MA DIEM. De hai thu lech nhau la bao cao ra
+     dong 0 dong con doanh thu that gom vao mot khoa khong ten. */
+  html += '<div class="sec">Loại điểm bán</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip(
+      posChipNut('data-dbloai="1"', '🏬 Bán tại quầy', !!d.co_quay) +
+      posChipNut('data-dbloai="0"', '🛵 Nhận đơn online', !d.co_quay)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    (d.co_quay
+      ? 'Mã quầy dùng đúng mã điểm bán là <b>' + h(d.ma || '(chưa đặt mã)') + '</b>.'
+      : 'Đơn online không mang mã quầy. Cả hệ chỉ có <b>một</b> điểm nhận đơn online.') +
+    '</div></div>';
+
+  html += '<div class="sec">Nguồn đơn thuộc điểm bán này</div><div class="card" style="padding:11px 14px">' +
+    '<textarea class="nt" id="dbNguon" rows="5" placeholder="Mỗi dòng một nguồn">' + h((d.nguon || []).join('\n')) + '</textarea>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.6">' +
+    'Tên phải khớp <b>đúng từng chữ</b> với nguồn đơn trên hoá đơn. Một nguồn chỉ được thuộc một điểm bán — ' +
+    'gán cho hai nơi là hoá đơn điện tử xuất hai lần.</div></div>';
+
+  html += '<div class="card" style="padding:11px 12px">' + kmHangChip(
+    posChipNut('data-dbbat="1"', d.bat ? '● Đang dùng' : '○ Đã tắt', !!d.bat)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Tắt thì điểm bán không hiện ở màn tính tiền và chuỗi cuối ngày nữa, nhưng số liệu cũ vẫn còn nguyên trong báo cáo.</div></div>';
+
+  var b = frame(moi ? 'Điểm bán mới' : ('Điểm bán ' + d.ma), html, {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="dbBo" style="margin:0;flex:0 0 34%;color:#b3261e;border-color:#fecaca">Bỏ dòng này</button>' +
+      '<button class="btn" id="dbLuu" style="margin:0;flex:1">💾 Lưu</button></div>'
+  });
+
+  b.onclick = function (e) {
+    if (e.target.closest('[data-dbbat]')) { dbDoc(); d.bat = d.bat ? 0 : 1; return go(scrDiemBanSua, true); }
+    var t = e.target.closest('[data-dbloai]');
+    if (t) { dbDoc(); d.co_quay = t.getAttribute('data-dbloai') === '1' ? 1 : 0; return go(scrDiemBanSua, true); }
+  };
+  /* Phai boc lai: gan thang dbLuu thi onclick truyen su kien vao tham so
+     daBo, luon truthy, dbDoc() khong bao gio chay - bam Luu la mat sach
+     thay doi ma man hinh van bao "Da luu". */
+  document.getElementById('dbLuu').onclick = function () { dbLuu(); };
+  document.getElementById('dbBo').onclick = async function () {
+    var ok = await confirmSheet('Bỏ điểm bán ' + (d.ma || 'mới') + '?',
+      'Nếu điểm này đã có hoá đơn thì máy chủ sẽ chặn — lúc đó anh chị tắt nó đi thay vì bỏ.', 'Bỏ dòng này', true);
+    if (!ok) return;
+    dbDs.splice(dbMo, 1);
+    dbLuu(1);
+  };
+}
+
+function dbDoc() {
+  var d = (dbDs || [])[dbMo];
+  if (!d) return;
+  var v = function (id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
+  d.ma = v('dbMa').toUpperCase();
+  d.ten = v('dbTen');
+  d.ten_ngan = v('dbTenNgan');
+  d.quay = d.co_quay ? d.ma : '';
+  d.dia_chi = v('dbDiaChi');
+  d.mst = v('dbMst');
+  d.ky_hieu = v('dbKyHieu');
+  var t = document.getElementById('dbNguon');
+  d.nguon = t ? t.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean) : (d.nguon || []);
+}
+
+async function dbLuu(daBo) {
+  if (!daBo) dbDoc();
+  busy(true);
+  try {
+    var kq = await api('vagabond.diem_ban.luu', { diem: JSON.stringify(dbDs) });
+    dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0;
+    busy(false);
+    toast('Đã lưu danh sách điểm bán.', 3000);
+    dbMoi = 0;
+    back();
+  } catch (e) {
+    busy(false);
+    /* May chu chan thi phai doc lai danh sach that, khong de man hinh giu
+       ban sai trong bo nho roi lan sau luu de len. */
+    window.alert((e && e.message) || 'Không lưu được');
+    /* May chu chan thi doc lai danh sach that. Khong quay ve ngay: nguoi
+       dung con dang sua do, phai o lai de sua tiep cho dung. */
+    try {
+      var lai = await api('vagabond.diem_ban.danh_sach', {});
+      dbDs = lai.diem || []; dbSuaDuoc = lai.sua_duoc ? 1 : 0;
+      if (dbMo >= dbDs.length) dbMo = Math.max(0, dbDs.length - 1);
+    } catch (e2) { }
+    go(scrDiemBanSua, true);
+  }
 }
 
 })();
