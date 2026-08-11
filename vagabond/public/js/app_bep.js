@@ -842,6 +842,9 @@ async function scrHome() {
       card('🏛️', 'Đối soát hoá đơn điện tử', 'Chờ ký, đã ký, CQT chấp nhận, chưa xuất', 0, 'BC:BC05') + '</div>';
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
+    (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
+      ? card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
+      : '') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
     card('👤', 'Tài khoản', 'Thông tin tài khoản và đăng xuất', 0, 'ACC') +
     '</div>' +
@@ -881,6 +884,7 @@ async function scrHome() {
     if (k === 'KH') return go(scrKhachHang);
     if (k === 'VD') return go(scrVanDon);
     if (k === 'RND') return go(scrRndList);
+    if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
     if (k === 'ACC') return go(scrAccount);
     go(function () { scrMRList(TYPES[k]); });
   };
@@ -925,7 +929,7 @@ var VGB_NHOM = [
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'CN', 'CNPT', 'BC:BC05'] },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDCN', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1223,6 +1227,7 @@ function vgbGo(k) {
     if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'RND') return go(scrRndList);
+  if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
   if (k === 'XKD') return go(scrXkCkList);
@@ -9950,7 +9955,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '115';
+var APPVER = '116';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12406,6 +12411,133 @@ async function scrHdMua() {
   };
   var o = document.getElementById('ktMuaTim');
   if (o) o.onchange = function () { ktMuaTim = o.value; go(scrHdMua, true); };
+}
+
+
+/* ===== Cai dat: chuoi cuoi ngay theo tung diem ban (anh Viet 12/08/2026) =====
+
+Truoc day muon doi gio chay hay bat tat mot chi nhanh la phai sua code roi
+deploy. Nay bay het len app: bat tat tung diem ban, chon gio, va co nut chay
+tay khi can.
+
+Ba buoc chay LIEN NHAU trong mot lan: ghi so, phat hanh hoa don dien tu, roi
+ky. Mac dinh 23:00 de xong truoc 23h30 - chi Dung so xuat sat 24h, lo nghen
+mang la to hoa don lot sang ngay hom sau, sai luat ke toan. */
+
+var cdData = null, cdGhiSo = [], cdHddt = [], cdBat = 1, cdGio = '23:00';
+
+async function scrCaiDatCuoiNgay() {
+  frame('Cuối ngày', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { cdData = await api('vagabond.ban_hang.cai_dat_cuoi_ngay', {}); }
+  catch (e) {
+    frame('Cuối ngày', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  cdBat = cdData.bat ? 1 : 0;
+  cdGio = cdData.gio || '23:00';
+  cdGhiSo = (cdData.diem || []).filter(function (d) { return d.ghi_so; }).map(function (d) { return d.ma; });
+  cdHddt = (cdData.diem || []).filter(function (d) { return d.hddt; }).map(function (d) { return d.ma; });
+  cdVe();
+}
+
+function cdVe() {
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">CHUỖI CUỐI NGÀY</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Mỗi ngày một lần, máy chạy liền ba bước: <b>ghi sổ</b> hoá đơn còn nháp, <b>phát hành</b> hoá đơn điện tử, rồi <b>ký</b>. ' +
+    'Đặt 23:00 thì cả ba xong trước 23h30, không lo nghẽn mạng làm hoá đơn lọt sang ngày hôm sau.</div></div>';
+
+  html += '<div class="card" style="padding:11px 12px">' + kmHangChip(
+    posChipNut('data-cdbat="1"', cdBat ? '● Đang bật' : '○ Đang tắt', !!cdBat)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Tắt thì không có gì tự chạy, kế toán ghi sổ và xuất hoá đơn bằng tay như cũ.</div></div>';
+
+  html += '<div class="sec">Giờ chạy</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip(['22:00', '22:30', '23:00', '23:15'].map(function (g) {
+      return posChipNut('data-cdgio="' + g + '"', g, cdGio === g);
+    }).join('')) +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px">' +
+    '<span style="font-size:12.5px;color:#6b7280">Giờ khác:</span>' +
+    '<input class="tin" id="cdGioTay" type="time" value="' + h(cdGio) + '" style="flex:1;max-width:170px"></div></div>';
+
+  html += '<div class="sec">Tự ghi sổ hoá đơn còn nháp</div><div class="card">' +
+    (cdData.diem || []).map(function (d) {
+      var on = cdGhiSo.indexOf(d.ma) >= 0;
+      return cdDong('cdgs', d, on, d.ma === 'SALES'
+        ? 'Đơn online Pancake và các sàn'
+        : 'Bill bán tại quầy');
+    }).join('') + '</div>';
+
+  html += '<div class="sec">Tự xuất hoá đơn điện tử</div><div class="card">' +
+    (cdData.diem || []).map(function (d) {
+      var on = cdHddt.indexOf(d.ma) >= 0;
+      return cdDong('cdhd', d, on, 'Nguồn đơn: ' + h((d.nguon || []).join(', ')));
+    }).join('') + '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;padding:2px 14px 8px;line-height:1.6">' +
+    'Chỉ hoá đơn <b>đã ghi sổ</b> mới được phát hành. Điểm bán nào chưa bật thì hoá đơn nằm yên trong hệ thống, không sang cơ quan thuế.</div>';
+
+  if (cdData.nhat_ky) {
+    html += '<div class="sec">Lần chạy gần nhất</div><div class="card" style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6">' +
+      h(cdData.nhat_ky) + '</div>';
+  }
+
+  var b = frame('Cuối ngày', html, {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="cdChay" style="margin:0;flex:1">▶️ Chạy ngay</button>' +
+      '<button class="btn" id="cdLuu" style="margin:0;flex:1">Lưu cấu hình</button></div>'
+  });
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-cdbat]');
+    if (t) { cdBat = cdBat ? 0 : 1; return cdVe(); }
+    t = e.target.closest('[data-cdgio]');
+    if (t) { cdGio = t.getAttribute('data-cdgio'); return cdVe(); }
+    t = e.target.closest('[data-cdgs]');
+    if (t) { cdBoThem(cdGhiSo, t.getAttribute('data-cdgs')); return cdVe(); }
+    t = e.target.closest('[data-cdhd]');
+    if (t) { cdBoThem(cdHddt, t.getAttribute('data-cdhd')); return cdVe(); }
+  };
+  var og = document.getElementById('cdGioTay');
+  if (og) og.onchange = function () { cdGio = og.value || cdGio; cdVe(); };
+
+  document.getElementById('cdLuu').onclick = cdLuu;
+  document.getElementById('cdChay').onclick = cdChay;
+}
+
+function cdDong(thuoc, d, on, mo) {
+  return '<div ' + thuoc + '="' + h(d.ma) + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+    '<div style="width:44px;height:26px;border-radius:99px;background:' + (on ? '#0d9488' : '#d5d9e0') + ';position:relative;flex:none;transition:background .15s">' +
+    '<div style="position:absolute;top:3px;left:' + (on ? '21px' : '3px') + ';width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s"></div></div>' +
+    '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
+    '<div style="font-size:11.5px;color:#98a2b3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + mo + '</div></div>' +
+    '<span style="font-size:12.5px;font-weight:700;color:' + (on ? '#0f766e' : '#a0a6b4') + '">' + (on ? 'BẬT' : 'TẮT') + '</span></div>';
+}
+
+function cdBoThem(ds, ma) {
+  var i = ds.indexOf(ma);
+  if (i >= 0) ds.splice(i, 1); else ds.push(ma);
+}
+
+async function cdLuu() {
+  busy(true);
+  try {
+    cdData = await api('vagabond.ban_hang.luu_cai_dat_cuoi_ngay', {
+      bat: cdBat, gio: cdGio, ghi_so: JSON.stringify(cdGhiSo), hddt: JSON.stringify(cdHddt)
+    });
+    busy(false);
+    toast('Đã lưu. Cuối ngày chạy lúc ' + (cdData.gio || cdGio) + '.', 3500);
+    go(scrCaiDatCuoiNgay, true);
+  } catch (e) { busy(false); window.alert((e && e.message) || 'Không lưu được'); }
+}
+
+async function cdChay() {
+  if (!window.confirm('Chạy ngay chuỗi cuối ngày cho hôm nay?\n\nMáy sẽ ghi sổ hoá đơn còn nháp, phát hành hoá đơn điện tử rồi ký. Việc này không lùi lại được.')) return;
+  busy(true);
+  try {
+    cdData = await api('vagabond.ban_hang.chay_cuoi_ngay_ngay_bay_gio', {});
+    busy(false);
+    window.alert(cdData.nhat_ky || 'Đã chạy xong.');
+    go(scrCaiDatCuoiNgay, true);
+  } catch (e) { busy(false); window.alert((e && e.message) || 'Chạy lỗi'); }
 }
 
 })();
