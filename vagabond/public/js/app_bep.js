@@ -799,7 +799,8 @@ async function scrHome() {
       card('🧾', 'Tính tiền - hoá đơn bán hàng', 'Chọn điểm bán: District 1, NVHTN, Sales Online', dsn, 'POS') +
       card('📑', 'Hợp đồng Event', 'Catering, teabreak, bánh thiết kế theo hợp đồng', 0, 'HDG') +
       card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
-      card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') + '</div>';
+      card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
+      card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') + '</div>';
   }
   if (isSales() || hasRole('Shipper') || hasRole('Accounts User') || hasRole('Purchase User')) {
     html += '<div class="sec">Giao hàng</div><div class="card">'
@@ -832,6 +833,7 @@ async function scrHome() {
     if (k === 'HDG') return go(scrHopDong);
     if (k === 'OTP') return go(scrOtp);
     if (k === 'CN') return go(scrCongNo);
+    if (k === 'KH') return go(scrKhachHang);
     if (k === 'VD') return go(scrVanDon);
     if (k === 'RND') return go(scrRndList);
     if (k === 'ACC') return go(scrAccount);
@@ -856,7 +858,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'CN'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'CN', 'KH'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['ACC'] }
 ];
@@ -1142,6 +1144,7 @@ function vgbGo(k) {
   if (k === 'HDG') return go(scrHopDong);
   if (k === 'OTP') return go(scrOtp);
   if (k === 'CN') return go(scrCongNo);
+    if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'RND') return go(scrRndList);
   if (k === 'ACC') return go(scrAccount);
@@ -5956,7 +5959,8 @@ async function scrDoanhSo() {
   html += '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between"><span>Chưa chốt</span><b>' + money(d.tong_nhap) + ' đ · ' + nhap.length + ' đơn</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đã chốt</span><b style="color:#0a8a4a">' + money(d.tong_chot) + ' đ · ' + (rows.length - nhap.length) + ' đơn</b></div>' +
-    (d.dong_bo_luc ? '<div style="color:#a0a6b4;font-size:12px;margin-top:6px">Máy tự đồng bộ Pancake 30 phút một lần · lần cuối ' + h(d.dong_bo_luc) + '</div>' : '') + '</div>';
+    (d.dong_bo_luc ? '<div style="color:#a0a6b4;font-size:12px;margin-top:6px">Máy tự đồng bộ Pancake 30 phút một lần · lần cuối ' + h(d.dong_bo_luc) + '</div>' : '') +
+    '<div id="dsChoGiao"></div></div>';
   if (d.so_don_trung) {
     html += '<div class="sec">Đơn bị trùng phiếu</div><div class="card" style="padding:12px 14px;border:1.5px solid #fecaca;background:#fff1f2;color:#991b1b;font-size:13px;line-height:1.6">' +
       '<b>' + d.so_don_trung + ' đơn đang có hai mã phiếu</b><br>' +
@@ -6008,6 +6012,25 @@ async function scrDoanhSo() {
   var di = document.getElementById('dsDate');
   if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; dsLocNg = ''; go(scrDoanhSo, true); } };
   veODate('dsDate');
+  /* Doanh thu chi ghi nhan don DA GIAO XONG. Sang som chua ai giao thi
+     man nay 0 dong, sales tuong mat dong bo roi bam Dong bo hoai (anh Viet
+     bao 11/08/2026). Nay dem luon so don CON CHO GIAO de biet la binh
+     thuong, khong phai hong. */
+  (async function () {
+    try {
+      var vd = await getList('Van Don', {
+        fields: ['name', 'trang_thai'],
+        filters: { ngay_giao: dsNgay },
+        limit_page_length: 0
+      });
+      var cho = (vd || []).filter(function (x) { return x.trang_thai === 'Chờ giao' || x.trang_thai === 'Đang giao'; }).length;
+      var o2 = document.getElementById('dsChoGiao');
+      if (o2 && cho) {
+        o2.innerHTML = '<div style="margin-top:8px;background:#ecfeff;border:1.5px solid #7fe5f6;border-radius:9px;padding:9px 11px;font-size:12.5px;color:#0b7c93;line-height:1.5">' +
+          '🛵 Còn <b>' + cho + ' đơn chưa giao xong</b> trong ngày. Doanh thu chỉ ghi nhận khi đơn đã giao thành công, nên số ở trên còn thiếu là bình thường.</div>';
+      }
+    } catch (e2) { }
+  })();
   b.addEventListener('click', function (e) {
     var t = e.target.closest('[data-dsbuoc]'); if (!t) return;
     var bu = +t.getAttribute('data-dsbuoc');
@@ -8544,6 +8567,158 @@ async function scrCnPhieu(name) {
   };
 }
 
+
+/* ---------- Danh sach khach hang (anh Viet 11/08/2026) ----------
+
+Tra cuu khach: ai la khach si ai la khach le, ai dang o hang nao, da chi
+bao nhieu trong nam. Chi tieu tinh tren hoa don DA GHI SO trong 12 thang -
+don con o ban nhap chua phai tien that.
+
+Hang do doctype "Vagabond Hang Khach" giu, khong nhet trong ma, nen anh
+Viet chot muc chi tieu luc nao thi sua o do la xong. */
+var khDang = '', khHang = '', khTim = '', khData = null;
+
+async function scrKhachHang() {
+  frame('Danh sách khách hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh mục khách...</div></div>');
+  var kq, kh;
+  try {
+    kq = await api('vagabond.khach_hang.ds_khach', { tu_khoa: khTim, dang: '', hang: '' });
+    kh = await api('vagabond.khach_hang.ds_hang', {});
+  } catch (e) {
+    frame('Danh sách khách hàng', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
+    return;
+  }
+  khData = kq;
+  var all = (kq && kq.khach) || [], hangs = (kh && kh.hang) || [];
+
+  var DANG = [
+    { k: '', nhan: 'Tất cả', loc: function () { return true; } },
+    { k: 'si', nhan: '🏢 Khách sỉ', loc: function (x) { return !!x.si; } },
+    { k: 'le', nhan: '🧍 Khách lẻ', loc: function (x) { return !x.si; } }
+  ];
+  var HANG = [{ k: '', nhan: 'Mọi hạng', loc: function () { return true; } }];
+  hangs.forEach(function (hg) {
+    HANG.push({
+      k: hg.name,
+      nhan: (hg.giam_gia ? '★ ' : '') + h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''),
+      loc: function (x) { return x.hang === hg.name; }
+    });
+  });
+  HANG.push({ k: '_chua', nhan: '· Chưa xếp hạng', loc: function (x) { return !x.hang; } });
+
+  var fD = locTim(DANG, khDang); khDang = fD.k;
+  var fH = locTim(HANG, khHang); khHang = fH.k;
+  var ds = all.filter(function (x) { return fD.loc(x) && fH.loc(x); });
+  var tong = ds.reduce(function (t, x) { return t + x.tien; }, 0);
+
+  var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
+    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">ĐANG XEM</div>' +
+    '<div style="font-size:19px;font-weight:800">' + ds.length + ' khách</div>' +
+    '<div style="font-size:12px;color:#98a2b3">' + kq.so_si + ' sỉ · ' + kq.so_le + ' lẻ</div></div>' +
+    '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">CHI TIÊU 12 THÁNG</div>' +
+    '<div style="font-size:19px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div></div>';
+
+  html += '<div class="card" style="padding:10px 12px">' +
+    '<input class="tin" id="khO" placeholder="Tìm theo tên, mã, mã số thuế, số điện thoại..." value="' + h(khTim) + '" style="margin-bottom:8px"></div>';
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
+    locHang(DANG, khDang, 'data-khd', all) +
+    locHang(HANG, khHang, 'data-khh', all.filter(fD.loc)) + '</div>';
+
+  if (!hangs.length) {
+    html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:13px;color:#92400e">' +
+      'Chưa cấu hình hạng khách nào. Vào Desk mở danh mục <b>Vagabond Hang Khach</b> để điền mức chi tiêu và phần trăm giảm cho từng hạng.</div>';
+  }
+
+  html += '<div class="sec">Khách · chi nhiều nhất lên đầu</div><div class="card" style="padding:6px 14px">';
+  if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">🔍</div><div>Không có khách nào thuộc nhóm này.</div></div>';
+  ds.slice(0, 200).forEach(function (x) {
+    var hg = hangs.filter(function (y) { return y.name === x.hang; })[0];
+    html += '<div data-khx="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f6f7f9;cursor:pointer">' +
+      '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:18px">' + (x.si ? '🏢' : '🧍') + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
+      (hg
+        ? '<span style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">' + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>'
+        : '<span style="background:#f6f7f9;color:#98a2b3;border:1.5px dashed #d7dce5;border-radius:999px;padding:2px 9px;font-size:11.5px">chưa xếp hạng</span>') +
+      (x.mst ? '<span style="background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 9px;font-size:11.5px">MST ' + h(x.mst) + '</span>' : '') +
+      (x.dt ? '<span style="background:#f0fdfa;color:#0f766e;border-radius:999px;padding:2px 9px;font-size:11.5px">' + h(x.dt) + '</span>' : '') +
+      '</div></div>' +
+      '<div style="text-align:right;flex:none"><b style="font-size:14.5px">' + money(x.tien) + ' đ</b>' +
+      '<div style="font-size:11.5px;color:#98a2b3">' + x.so_don + ' hoá đơn</div></div>' +
+      '<span style="color:#c3c8d4;font-size:18px">›</span></div>';
+  });
+  if (ds.length > 200) html += '<div style="padding:10px 0;text-align:center;font-size:12.5px;color:#98a2b3">Còn ' + (ds.length - 200) + ' khách nữa, gõ tìm để lọc bớt.</div>';
+  html += '</div>';
+
+  var b = frame('Danh sách khách hàng', html);
+  var o = document.getElementById('khO');
+  if (o) {
+    var tre = null;
+    o.oninput = function () {
+      if (tre) clearTimeout(tre);
+      tre = setTimeout(function () { khTim = o.value; go(scrKhachHang, true); }, 320);
+    };
+  }
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-khd]');
+    if (t) { khDang = t.getAttribute('data-khd'); return go(scrKhachHang, true); }
+    t = e.target.closest('[data-khh]');
+    if (t) { khHang = t.getAttribute('data-khh'); return go(scrKhachHang, true); }
+    t = e.target.closest('[data-khx]');
+    if (t) return khSheetHang(t.getAttribute('data-khx'), hangs, all);
+  };
+}
+
+/* Bang gan hang cho mot khach. Co hien ca hang MAY GOI Y theo chi tieu de
+   quan ly doi chieu, nhung KHONG tu doi - len hang la quyet dinh cua
+   nguoi, khong phai cua may. */
+async function khSheetHang(ma, hangs, all) {
+  var x = all.filter(function (y) { return y.ma === ma; })[0] || {};
+  var gy = {};
+  try { gy = await api('vagabond.khach_hang.goi_y_hang', { khach: ma }); } catch (e) { }
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  var html = '<div class="shh"><b>' + h(x.ten || ma) + '</b><div class="x">&times;</div></div>' +
+    '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px">' +
+    h(x.nhom || 'chưa gắn nhóm') + ' · đã chi <b>' + money(x.tien) + ' đ</b> qua ' + x.so_don + ' hoá đơn' +
+    (x.gan_nhat ? ' · gần nhất ' + posNgayVn(x.gan_nhat) : '') + '</div>';
+  if (gy && gy.hang) {
+    html += '<div style="background:#ecfeff;border:1.5px solid #7fe5f6;border-radius:9px;padding:9px 11px;font-size:12.5px;color:#0b7c93;margin-bottom:10px">' +
+      'Theo chi tiêu ' + money(gy.tien) + ' đ trong ' + (gy.so_thang || 12) + ' tháng, khách này <b>đủ điều kiện hạng ' + h(gy.hang) + '</b>.</div>';
+  }
+  html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin-bottom:7px">GẮN HẠNG</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:7px">' +
+    hangs.map(function (hg) {
+      return posChipNut('data-sethang="' + h(hg.name) + '"',
+        h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''), x.hang === hg.name);
+    }).join('') +
+    (x.hang ? posChipNut('data-sethang=""', '✕ Bỏ hạng', false, 1) : '') +
+    '</div>';
+  var mt = hangs.filter(function (hg) { return (hg.mo_ta || '').trim(); });
+  if (mt.length) {
+    html += '<div style="margin-top:14px;font-size:12px;color:#98a2b3;line-height:1.6">' +
+      mt.map(function (hg) { return '<b>' + h(hg.ten_hang) + ':</b> ' + h(hg.mo_ta); }).join('<br>') + '</div>';
+  }
+  html += '</div>';
+  box.innerHTML = html;
+  ov.appendChild(box); document.body.appendChild(ov);
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  box.addEventListener('click', async function (e) {
+    var t = e.target.closest('[data-sethang]'); if (!t) return;
+    var hg = t.getAttribute('data-sethang');
+    busy(true);
+    try {
+      await api('vagabond.khach_hang.dat_hang', { khach: ma, hang: hg });
+      busy(false); dong();
+      toast(hg ? 'Đã xếp ' + (x.ten || ma) + ' vào hạng ' + hg : 'Đã bỏ hạng của ' + (x.ten || ma));
+      go(scrKhachHang, true);
+    } catch (er) { busy(false); toast((er && er.message) || 'Không đặt được hạng', 4000); }
+  });
+}
+
 /* ---------- Chot ca: cong so cuoi ca cua MOT quay (anh Viet 09/08/2026) ----------
    Tien mat phai co trong ket, CK doi voi SePay da ve, tam tinh con treo,
    bill chua ghi so - lech la thay ngay truoc khi giao ca. */
@@ -9398,7 +9573,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '103';
+var APPVER = '104';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
