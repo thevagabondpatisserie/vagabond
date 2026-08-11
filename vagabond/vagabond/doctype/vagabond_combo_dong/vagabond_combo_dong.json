@@ -1,0 +1,26 @@
+{
+ "actions": [],
+ "creation": "2026-08-11 06:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["item_code", "ten_mon", "so_luong", "gia_goc", "thanh_tien"],
+ "fields": [
+  {"fieldname": "item_code", "fieldtype": "Link", "options": "Item", "label": "Ma mon", "reqd": 1, "in_list_view": 1, "columns": 3},
+  {"fieldname": "ten_mon", "fieldtype": "Data", "label": "Ten mon", "fetch_from": "item_code.item_name", "read_only": 1, "in_list_view": 1, "columns": 4},
+  {"fieldname": "so_luong", "fieldtype": "Float", "label": "So luong", "default": "1", "reqd": 1, "in_list_view": 1, "columns": 1},
+  {"fieldname": "gia_goc", "fieldtype": "Currency", "label": "Gia goc", "in_list_view": 1, "columns": 2},
+  {"fieldname": "thanh_tien", "fieldtype": "Currency", "label": "Thanh tien", "read_only": 1, "in_list_view": 1, "columns": 2}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-11 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Combo Dong",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
