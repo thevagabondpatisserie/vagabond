@@ -9597,7 +9597,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '107';
+var APPVER = '108';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -10509,6 +10509,13 @@ function kmNhanCach(k) {
   return { k: k, nhan: k, ic: '🎫', mo: '' };
 }
 
+/* Bootstrap cua Frappe dat .card{display:flex;flex-direction:column} nen chip
+   nhet thang vao .card se xep DOC va gian het be ngang (bat duoc khi nghiem
+   thu v107). Luon boc chip trong mot lop div rieng. */
+function kmHangChip(noiDung) {
+  return '<div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:7px">' + noiDung + '</div>';
+}
+
 function kmTheChip(t, nhan) { return posChipNut('data-kmthe="' + t + '"', nhan, kmThe === t); }
 
 async function scrKhuyenMai() {
@@ -10526,7 +10533,7 @@ async function scrKhuyenMai() {
   var dangBat = dsCt.filter(function (x) { return x.bat; }).length;
   var cbBat = dsCb.filter(function (x) { return x.bat; }).length;
 
-  var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
+  var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;gap:10px">' +
     '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">CHƯƠNG TRÌNH</div>' +
     '<div style="font-size:19px;font-weight:800">' + dangBat + ' đang chạy</div>' +
     '<div style="font-size:12px;color:#98a2b3">' + dsCt.length + ' chương trình đã cấu hình</div></div>' +
@@ -10534,9 +10541,9 @@ async function scrKhuyenMai() {
     '<div style="font-size:19px;font-weight:800;color:#0f766e">' + cbBat + ' đang bán</div>' +
     '<div style="font-size:12px;color:#98a2b3">' + dsCb.length + ' combo đã phối</div></div></div>';
 
-  html += '<div class="card" style="padding:10px 12px;display:flex;gap:7px;overflow-x:auto">' +
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     kmTheChip('ct', '🎫 Chương trình') + kmTheChip('cb', '🧺 Combo') +
-    kmTheChip('lo', '📮 Lô mã') + kmTheChip('bc', '📊 Báo cáo') + '</div>';
+    kmTheChip('lo', '📮 Lô mã') + kmTheChip('bc', '📊 Báo cáo')) + '</div>';
 
   if (kmThe === 'ct') html += kmHtmlCt(dsCt);
   else if (kmThe === 'cb') html += kmHtmlCb(dsCb);
@@ -10582,8 +10589,8 @@ function kmHtmlCt(ds) {
     if (loc === 'tat') return !x.bat;
     return x.cach_thuc === loc;
   });
-  var html = '<div class="card" style="padding:10px 12px;display:flex;gap:7px;overflow-x:auto">' +
-    LOC.map(function (c) { return posChipNut('data-kmloc="' + h(c.k) + '"', c.nhan, c.k === loc); }).join('') + '</div>';
+  var html = '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    LOC.map(function (c) { return posChipNut('data-kmloc="' + h(c.k) + '"', c.nhan, c.k === loc); }).join('')) + '</div>';
   html += '<div class="sec">Chương trình</div><div class="card" style="padding:6px 14px">';
   if (!d2.length) html += '<div class="emp" style="padding:24px"><div class="e1">🎫</div><div>Chưa có chương trình nào ở nhóm này.<br>Bấm nút <b>+</b> góc dưới để tạo.</div></div>';
   d2.forEach(function (x) {
