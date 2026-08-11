@@ -16,13 +16,21 @@ from frappe.utils import add_months, flt, getdate, nowdate
 
 from vagabond.ban_hang import _kiem_quyen
 
-# Nhom khach ben ERPNext nao duoc coi la khach SI. Con lai la khach le.
-NHOM_SI = ("Khách sỉ", "Wholesale", "Khach si")
-
-
+# Nhom khach ben ERPNext nao duoc coi la khach SI. Nhan dien theo TEN nhom
+# chu khong liet ke cung, vi ke toan hay them nhom moi (hien co "Khach si
+# B2B", truoc do la "Khach si"). Con lai la khach le.
 def _la_si(nhom):
-	n = (nhom or "").strip()
-	return n in NHOM_SI or "sỉ" in n.lower() or "wholesale" in n.lower()
+	n = (nhom or "").strip().lower()
+	return ("sỉ" in n) or ("si b2b" in n) or ("wholesale" in n) or ("b2b" in n)
+
+
+def _nhom_si():
+	"""Danh sach ten nhom khach duoc coi la si, doc that tu danh muc."""
+	try:
+		ds = frappe.get_all("Customer Group", fields=["name"], limit_page_length=0)
+	except Exception:
+		return []
+	return [r["name"] for r in ds if _la_si(r["name"])]
 
 
 @frappe.whitelist()
@@ -76,15 +84,30 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 	"""
 	_kiem_quyen()
 	q = (tu_khoa or "").strip()
+	# Loc phai chay o MAY CHU truoc khi cat bot, khong thi khach si nam
+	# cuoi bang chu cai se bien mat: co 1545 khach ma chi tai 500 cai dau
+	# thi 5 khach si B2B khong bao gio hien ra (bat duoc 11/08/2026).
+	loc = {"disabled": 0}
+	nhom_si = _nhom_si()
+	if dang == "si":
+		if not nhom_si:
+			return {"khach": [], "tong_tien": 0, "so_si": 0, "so_le": 0, "tong_so": 0}
+		loc["customer_group"] = ["in", nhom_si]
+	elif dang == "le" and nhom_si:
+		loc["customer_group"] = ["not in", nhom_si]
+	if hang == "_chua":
+		loc["vgb_hang"] = ["in", ["", None]]
+	elif hang:
+		loc["vgb_hang"] = hang
 	doi = {
 		"doctype": "Customer",
-		"filters": {"disabled": 0},
+		"filters": loc,
 		"fields": [
 			"name", "customer_name", "customer_group", "tax_id",
 			"mobile_no", "territory", "creation",
 		],
 		"order_by": "customer_name asc",
-		"limit_page_length": 500,
+		"limit_page_length": 400,
 	}
 	if q:
 		doi["or_filters"] = {
@@ -93,6 +116,10 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 			"tax_id": ["like", "%" + q + "%"],
 			"mobile_no": ["like", "%" + q + "%"],
 		}
+	try:
+		tong_so = frappe.db.count("Customer", loc)
+	except Exception:
+		tong_so = 0
 	ds = frappe.get_all(**doi)
 
 	# Truong hang nam o Custom Field tren Customer. Doc rieng de neu chua
@@ -101,7 +128,7 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 	try:
 		for r in frappe.get_all(
 			"Customer",
-			filters={"disabled": 0},
+			filters={"name": ["in", [x["name"] for x in ds]]},
 			fields=["name", "vgb_hang"],
 			limit_page_length=0,
 		):
@@ -134,22 +161,20 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 			}
 		)
 
-	if dang == "si":
-		ra = [x for x in ra if x["si"]]
-	elif dang == "le":
-		ra = [x for x in ra if not x["si"]]
-	if hang == "_chua":
-		ra = [x for x in ra if not x["hang"]]
-	elif hang:
-		ra = [x for x in ra if x["hang"] == hang]
-
 	# Khach chi nhieu nhat len dau - do la khach can cham nhat.
 	ra.sort(key=lambda x: -x["tien"])
+	try:
+		so_si = frappe.db.count("Customer", {"disabled": 0, "customer_group": ["in", nhom_si]}) if nhom_si else 0
+		so_tat = frappe.db.count("Customer", {"disabled": 0})
+	except Exception:
+		so_si, so_tat = 0, len(ra)
 	return {
 		"khach": ra,
 		"tong_tien": sum(x["tien"] for x in ra),
-		"so_si": sum(1 for x in ra if x["si"]),
-		"so_le": sum(1 for x in ra if not x["si"]),
+		"so_si": so_si,
+		"so_le": max(0, so_tat - so_si),
+		"tong_so": tong_so,
+		"da_tai": len(ra),
 	}
 
 
