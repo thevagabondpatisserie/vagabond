@@ -16,18 +16,47 @@ vgb.KHOA_XOA = [
   'Delivery Note', 'Purchase Receipt', 'Stock Entry', 'Stock Reconciliation'
 ];
 
-vgb.bo_nut_xoa = function (frm) {
-  // Menu duoc dung lai moi lan refresh nen phai go lai moi lan, khong the
-  // go mot phat luc dau.
-  try {
-    var m = frm.page && frm.page.menu;
-    if (!m) return;
-    m.find('a.grey-link').each(function () {
-      var t = ($(this).text() || '').trim();
-      if (t === 'Delete' || t === 'Xoá' || t === 'Xóa') $(this).parent().remove();
-    });
-  } catch (e) { /* menu doi hinh thi thoi, backend van chan */ }
+vgb.NHAN_XOA = ['delete', 'xoá', 'xóa', 'xoa'];
+
+vgb.nhan_muc = function (el) {
+  // Text ca muc menu con keo theo phim tat ("Xóa   shift+cmd+D") nen phai
+  // doc rieng o nhan, khong so sanh ca cuc.
+  var s = el.querySelector('.menu-item-label');
+  return ((s ? s.textContent : el.textContent) || '').replace(/\s+/g, ' ').trim().toLowerCase();
 };
+
+vgb.quet_nut_xoa = function (goc) {
+  // Quet ca cum menu chu khong bam vao mot the cu the: giao dien Desk doi
+  // cau truc giua cac ban Frappe, bam cung mot the la hom nao no doi lai
+  // nut Xoa hien ra ma khong ai biet.
+  try {
+    var nut = (goc || document).querySelectorAll(
+      '.menu-btn-group a.grey-link, .menu-btn-group .dropdown-item'
+    );
+    Array.prototype.forEach.call(nut, function (el) {
+      if (vgb.NHAN_XOA.indexOf(vgb.nhan_muc(el)) < 0) return;
+      var li = el.closest ? el.closest('li') : null;
+      (li || el).remove();
+    });
+  } catch (e) { /* menu doi hinh thi thoi, may chu van chan */ }
+};
+
+vgb.bo_nut_xoa = function (frm) {
+  // Menu duoc dung lai moi lan refresh, va Frappe them muc Xoa SAU khi
+  // handler refresh cua minh chay xong - nen phai quet lui mot nhip nua,
+  // va quet lai ngay truoc luc menu bung ra.
+  vgb.quet_nut_xoa();
+  setTimeout(vgb.quet_nut_xoa, 0);
+  setTimeout(vgb.quet_nut_xoa, 300);
+};
+
+// Luoi cuoi: quet lai dung luc nguoi dung bam mo menu, phong khi Frappe
+// dung lai menu sau nhip refresh.
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.closest && e.target.closest('.menu-btn-group')) {
+    setTimeout(vgb.quet_nut_xoa, 0);
+  }
+}, true);
 
 vgb.the_da_huy = function (frm) {
   if (!frm.doc.vgb_huy) return;
