@@ -8,6 +8,11 @@ app_license = "MIT"
 # Cac endpoint deu nam o vagabond/api.py va da co @frappe.whitelist,
 # khong can khai bao them o day.
 
+# Ban quan tri tren may tinh: bo nut Xoa khoi cac man chung tu va thay bang
+# nut Huy phieu. Chan that nam o hook on_trash duoi day, file js chi lo phan
+# nguoi dung nhin thay.
+app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
+
 # Kiem banh ngay: 5 phut keo don Pancake mot lan de cot "da dat" va
 # "phat sinh" tu chay, sales khoi dem tay.
 scheduler_events = {
@@ -41,11 +46,22 @@ scheduler_events = {
 # Mot don Pancake chi duoc mot hoa don ban hang. Kiem o day de bat duoc moi
 # duong tao hoa don, khong rieng man Doanh thu Sales.
 doc_events = {
+	# Khoa xoa vinh vien chung tu, dat o "*" chu khong liet ke tung doctype:
+	# liet ke thi hom nao them mot loai chung tu moi la lai quen, ma quen o
+	# day thi khong ai biet cho den luc mat chung tu. Ham tu kiem doctype va
+	# thoat ngay neu khong phai chung tu, xem vagabond/chung_tu.py.
+	"*": {
+		"on_trash": "vagabond.chung_tu.chan_xoa",
+		# Huy mem ma khong chan ghi so thi chi la mot cai nhan: phieu da huy
+		# van submit duoc, van vao so cai, van phat hanh hoa don dien tu.
+		"before_submit": "vagabond.chung_tu.chan_ghi_so",
+	},
 	"Sales Invoice": {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
-		# Huy hoac xoa hoa don kenh khac thi tra so lai cho bang kiem banh.
+		# Huy hoa don kenh khac thi tra so lai cho bang kiem banh. Truoc day
+		# co ca after_delete o day, nay bo di: khong ai xoa duoc hoa don nua
+		# nen no la ma chet, de lai chi lam nguoi doc tuong con duong xoa.
 		"on_cancel": "vagabond.kiem_banh.khi_doi_hoa_don",
-		"after_delete": "vagabond.kiem_banh.khi_doi_hoa_don",
 	},
 }
 

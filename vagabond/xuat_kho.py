@@ -19,7 +19,9 @@ va so ke toan cua ERPNext van dung nguyen.
 import json
 
 import frappe
-from frappe.utils import flt, nowdate
+from frappe.utils import cint, flt, nowdate
+
+from vagabond import chung_tu
 
 # Ai duoc tao phieu xuat.
 VAI_XUAT = {
@@ -255,6 +257,12 @@ def ghi_so_xuat_huy(name=None):
 		frappe.throw("Phiếu này không còn ở trạng thái bản nháp.")
 	if doc.purpose != LOAI["huy"]:
 		frappe.throw("Phiếu này không phải phiếu xuất huỷ.")
+	if cint(doc.get("vgb_huy")):
+		frappe.throw(
+			"Phiếu này đã bỏ nên không ghi sổ được. Lý do: %s. Muốn dùng lại thì "
+			"báo kế toán gỡ dấu huỷ, hoặc lập phiếu mới."
+			% (doc.get("vgb_huy_ly_do") or "không ghi")
+		)
 	doc.flags.ignore_permissions = True
 	doc.submit()
 	frappe.db.commit()
@@ -262,17 +270,23 @@ def ghi_so_xuat_huy(name=None):
 
 
 @frappe.whitelist()
-def xoa_ban_nhap(name=None):
-	"""Bo mot phieu nhap dang sai - chi nguoi tao hoac quan ly kho."""
+def xoa_ban_nhap(name=None, ly_do=None):
+	"""Bo mot phieu nhap dang sai - chi nguoi tao hoac quan ly kho.
+
+	Ten ham giu nguyen cho app cu con goi duoc, nhung tu 11/08/2026 khong
+	xoa nua ma danh dau da huy: khong chung tu nao trong he thong nay duoc
+	xoa vinh vien, phieu kho cung the.
+	"""
 	_duoc_xuat()
 	doc = frappe.get_doc("Stock Entry", name)
 	if doc.docstatus != 0:
-		frappe.throw("Phiếu đã ghi sổ thì không xoá được, phải huỷ phiếu bên máy tính.")
+		frappe.throw("Phiếu đã ghi sổ thì phải huỷ đúng nghiệp vụ bên máy tính.")
 	if doc.owner != frappe.session.user and not duoc_duyet():
-		frappe.throw("Chỉ người tạo phiếu hoặc quản lý kho mới xoá được phiếu này.")
-	frappe.delete_doc("Stock Entry", name, ignore_permissions=True)
-	frappe.db.commit()
-	return {"ok": 1}
+		frappe.throw("Chỉ người tạo phiếu hoặc quản lý kho mới bỏ được phiếu này.")
+	if cint(doc.get("vgb_huy") or 0):
+		return {"ok": 1, "da_huy_tu_truoc": 1}
+	chung_tu.danh_dau_huy(doc, ly_do or "Bỏ phiếu nháp sai")
+	return {"ok": 1, "da_huy": 1}
 
 
 @frappe.whitelist()
@@ -376,7 +390,10 @@ def ds_phieu(loai="huy", gioi_han=40):
 		frappe.throw("Loại phiếu không hợp lệ.")
 	ds = frappe.get_all(
 		"Stock Entry",
-		filters={"purpose": LOAI[loai], "docstatus": ["<", 2]},
+		# vgb_huy 0: phieu da bo phai loai o DAY, truoc khi cat 40 dong. Loc
+		# sau khi cat thi phieu bo chiem cho, day phieu that ra ngoai danh
+		# sach - bai hoc cu cua du an, khong duoc lap lai.
+		filters={"purpose": LOAI[loai], "docstatus": ["<", 2], "vgb_huy": 0},
 		fields=[
 			"name",
 			"posting_date",
@@ -386,6 +403,8 @@ def ds_phieu(loai="huy", gioi_han=40):
 			"total_outgoing_value",
 			"owner",
 			"remarks",
+			"vgb_huy",
+			"vgb_huy_ly_do",
 		],
 		order_by="creation desc",
 		limit_page_length=int(gioi_han or 40),
@@ -409,7 +428,14 @@ def chi_tiet(name=None):
 		"name": doc.name,
 		"ngay": str(doc.posting_date),
 		"docstatus": doc.docstatus,
-		"trang_thai": "Chờ ghi sổ" if doc.docstatus == 0 else "Đã ghi sổ",
+		"trang_thai": (
+			"Đã bỏ"
+			if cint(doc.get("vgb_huy"))
+			else ("Chờ ghi sổ" if doc.docstatus == 0 else "Đã ghi sổ")
+		),
+		"vgb_huy": cint(doc.get("vgb_huy")),
+		"vgb_huy_ly_do": doc.get("vgb_huy_ly_do") or "",
+		"vgb_huy_boi": doc.get("vgb_huy_boi") or "",
 		"loai": doc.purpose,
 		"kho_xuat": doc.from_warehouse,
 		"kho_nhan": doc.to_warehouse,

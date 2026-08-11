@@ -10,7 +10,9 @@ nay la DANH SACH TUNG TO de doi chieu va xu ly.
 """
 
 import frappe
-from frappe.utils import add_days, flt, getdate, nowdate
+from frappe.utils import add_days, cint, flt, getdate, nowdate
+
+from vagabond import chung_tu
 
 QUYEN_KT = {
 	"System Manager",
@@ -50,11 +52,36 @@ NHOM_BAN = [
 	{"k": "da_ky", "ten": "Đã ký", "ic": "✅"},
 	{"k": "cqt", "ten": "CQT chấp nhận", "ic": "🏛️"},
 	{"k": "con_thu", "ten": "Còn phải thu", "ic": "📒"},
+	{"k": "da_sua", "ten": "Đã sửa", "ic": "✏️"},
 	{"k": "huy", "ten": "Đã huỷ", "ic": "✖️"},
 ]
 
 
+def _da_sua(r, co_ban_thay_the=None):
+	"""To nay da bi sua chua - la CO PHU, khong phai mot nhom loai tru.
+
+	Neu de "da sua" thanh mot nhom rieng thi moi bill quay tung sua se roi
+	khoi chip "Chua ghi so", ma do dung la nhom ke toan can soat ky nhat -
+	cuoi ngay bam chip Chua ghi so lai bo sot dung may to dang nghi.
+	"""
+	if cint(r.get("vgb_lan_sua")):
+		return 1
+	if (r.get("amended_from") or "").strip():
+		return 1
+	if co_ban_thay_the and r.get("name") in co_ban_thay_the:
+		return 1
+	return 0
+
+
 def _nhom_ban(r):
+	"""Xep mot hoa don vao dung mot chip.
+
+	HUY xet TRUOC moi thu khac: mot to da huy ma van hien la "Cho ky" thi
+	ke toan doi chieu voi co quan thue se dem nham - va do dung la kieu nham
+	lam ra 37 hoa don thay the hom 10/08.
+	"""
+	if cint(r.get("vgb_huy")):
+		return "huy"
 	if r.get("docstatus") == 2:
 		return "huy"
 	if r.get("docstatus") == 0:
@@ -83,12 +110,18 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 			"outstanding_amount", "docstatus", "custom_hddt_so",
 			"custom_hddt_trang_thai", "custom_nguon", "vgb_quay",
 			"vgb_pt_thanh_toan", "custom_pancake_display_id", "vgb_tam_tinh",
-			"vgb_khach_no",
+			"vgb_khach_no", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
+			"vgb_lan_sua", "amended_from",
 		],
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
 	)
 	q = (tu_khoa or "").strip().lower()
+	# Doc mot lan cho CA TAP: to nao da co ban thay the. Hoi tung to mot thi
+	# man 30 ngay ban ra hang nghin luot goi co so du lieu.
+	thay_the = chung_tu.ds_da_bi_sua(
+		"Sales Invoice", [r.name for r in ds if r.get("docstatus") == 2]
+	)
 	ra = []
 	for r in ds:
 		if r.get("vgb_tam_tinh"):
@@ -99,6 +132,7 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 		o = dict(r)
 		o["diem"] = diem
 		o["nhom"] = _nhom_ban(r)
+		o["da_sua"] = _da_sua(r, thay_the)
 		o["khach"] = r.vgb_khach_no or r.customer_name or r.customer
 		if q and q not in (
 			(r.name or "") + " " + (o["khach"] or "") + " "
@@ -111,14 +145,31 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 	for o in ra:
 		dem[o["nhom"]] = dem.get(o["nhom"], 0) + 1
 	dem[""] = len(ra)
-	dem["con_thu"] = len([o for o in ra if o["docstatus"] == 1 and flt(o["outstanding_amount"]) > 0])
+	dem["da_sua"] = len([o for o in ra if o["da_sua"]])
+	dem["con_thu"] = len(
+		[
+			o
+			for o in ra
+			if o["docstatus"] == 1
+			and flt(o["outstanding_amount"]) > 0
+			and not cint(o.get("vgb_huy"))
+		]
+	)
 
 	# Loc theo chip PHAI lam o day, TRUOC khi cat 300 dong - loc tren tap da
 	# bi cat thi bam chip "Chua xuat hoa don dien tu" se ra rong trong khi
 	# thuc te con hang tram to. Bai hoc cu, khong duoc lap lai.
 	chon = (nhom or "").strip()
-	if chon == "con_thu":
-		loc_ra = [o for o in ra if o["docstatus"] == 1 and flt(o["outstanding_amount"]) > 0]
+	if chon == "da_sua":
+		loc_ra = [o for o in ra if o["da_sua"]]
+	elif chon == "con_thu":
+		loc_ra = [
+			o
+			for o in ra
+			if o["docstatus"] == 1
+			and flt(o["outstanding_amount"]) > 0
+			and not cint(o.get("vgb_huy"))
+		]
 	elif chon:
 		loc_ra = [o for o in ra if o["nhom"] == chon]
 	else:
@@ -131,8 +182,16 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 		"nhom": NHOM_BAN,
 		"tu": str(t),
 		"den": str(d),
-		"tong": sum(flt(o["grand_total"]) for o in ra if o["docstatus"] == 1),
-		"con_thu": sum(flt(o["outstanding_amount"]) for o in ra if o["docstatus"] == 1),
+		"tong": sum(
+			flt(o["grand_total"])
+			for o in ra
+			if o["docstatus"] == 1 and not cint(o.get("vgb_huy"))
+		),
+		"con_thu": sum(
+			flt(o["outstanding_amount"])
+			for o in ra
+			if o["docstatus"] == 1 and not cint(o.get("vgb_huy"))
+		),
 	}
 
 
@@ -144,11 +203,14 @@ NHOM_MUA = [
 	{"k": "qua_han", "ten": "Quá hạn trả", "ic": "🔴"},
 	{"k": "con_no", "ten": "Còn nợ", "ic": "📒"},
 	{"k": "da_tra", "ten": "Đã trả xong", "ic": "✅"},
+	{"k": "da_sua", "ten": "Đã sửa", "ic": "✏️"},
 	{"k": "huy", "ten": "Đã huỷ", "ic": "✖️"},
 ]
 
 
 def _nhom_mua(r, hom_nay):
+	if cint(r.get("vgb_huy")):
+		return "huy"
 	if r.get("docstatus") == 2:
 		return "huy"
 	if r.get("docstatus") == 0:
@@ -173,17 +235,22 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=Non
 		fields=[
 			"name", "posting_date", "supplier", "supplier_name", "grand_total",
 			"outstanding_amount", "docstatus", "due_date", "bill_no", "bill_date",
-			"status", "total_qty",
+			"status", "total_qty", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
+			"amended_from",
 		],
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
 	)
 	hom_nay = getdate(nowdate())
 	q = (tu_khoa or "").strip().lower()
+	thay_the = chung_tu.ds_da_bi_sua(
+		"Purchase Invoice", [r.name for r in ds if r.get("docstatus") == 2]
+	)
 	ra = []
 	for r in ds:
 		o = dict(r)
 		o["nhom"] = _nhom_mua(r, hom_nay)
+		o["da_sua"] = _da_sua(r, thay_the)
 		o["tre_ngay"] = (
 			(hom_nay - getdate(r.due_date)).days
 			if r.due_date and getdate(r.due_date) < hom_nay and flt(r.outstanding_amount) > 0
@@ -199,8 +266,14 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=Non
 	for o in ra:
 		dem[o["nhom"]] = dem.get(o["nhom"], 0) + 1
 	dem[""] = len(ra)
+	dem["da_sua"] = len([o for o in ra if o["da_sua"]])
 	chon = (nhom or "").strip()
-	loc_ra = [o for o in ra if o["nhom"] == chon] if chon else ra
+	if chon == "da_sua":
+		loc_ra = [o for o in ra if o["da_sua"]]
+	elif chon:
+		loc_ra = [o for o in ra if o["nhom"] == chon]
+	else:
+		loc_ra = ra
 	return {
 		"hd": loc_ra[:TRAN_DONG],
 		"tong_dong": len(loc_ra),
@@ -209,6 +282,14 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=Non
 		"nhom": NHOM_MUA,
 		"tu": str(t),
 		"den": str(d),
-		"tong": sum(flt(o["grand_total"]) for o in ra if o["docstatus"] == 1),
-		"con_no": sum(flt(o["outstanding_amount"]) for o in ra if o["docstatus"] == 1),
+		"tong": sum(
+			flt(o["grand_total"])
+			for o in ra
+			if o["docstatus"] == 1 and not cint(o.get("vgb_huy"))
+		),
+		"con_no": sum(
+			flt(o["outstanding_amount"])
+			for o in ra
+			if o["docstatus"] == 1 and not cint(o.get("vgb_huy"))
+		),
 	}

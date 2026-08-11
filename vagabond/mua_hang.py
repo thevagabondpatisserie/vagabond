@@ -13,7 +13,7 @@ ma ky thuat cua ERPNext. "Hang ve roi, chua co hoa don" de hieu hon
 """
 
 import frappe
-from frappe.utils import add_days, flt, getdate, nowdate
+from frappe.utils import add_days, cint, flt, getdate, nowdate
 
 QUYEN_MUA = {
 	"System Manager",
@@ -35,6 +35,10 @@ def _kiem_quyen():
 # Cac nhom trang thai cua don mua hang. Mot don chi thuoc DUNG MOT nhom -
 # xep tu tren xuong, gap nhom nao dung truoc thi lay nhom do.
 def _nhom_po(d):
+	# Huy mem xet truoc: don da bo ma van hien "Cho nhan hang" thi thu mua
+	# ngoi doi mot chuyen hang khong bao gio ve.
+	if cint(d.get("vgb_huy")):
+		return "huy"
 	if d.get("docstatus") == 2:
 		return "huy"
 	if d.get("docstatus") == 0:
@@ -84,7 +88,7 @@ def ds_po(so_ngay=60, tu_khoa="", ncc=None, nhom=None):
 		fields=[
 			"name", "supplier", "supplier_name", "transaction_date", "schedule_date",
 			"grand_total", "total_qty", "status", "per_received", "per_billed",
-			"docstatus", "owner",
+			"docstatus", "owner", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
 		],
 		order_by="transaction_date desc, name desc",
 		limit_page_length=0,
@@ -119,7 +123,10 @@ def ds_po(so_ngay=60, tu_khoa="", ncc=None, nhom=None):
 		"bi_cat": max(0, len(loc_ra) - 300),
 		"dem": dem,
 		"nhom": NHOM_PO,
-		"tong_tien": sum(flt(o["grand_total"]) for o in ra),
+		# Don da huy khong con la tien phai chi, khong duoc cong vao tong.
+		"tong_tien": sum(
+			flt(o["grand_total"]) for o in ra if not cint(o.get("vgb_huy"))
+		),
 	}
 
 

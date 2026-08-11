@@ -130,14 +130,15 @@ def _hoa_don(tu, den, diem=None, nguon=None, pt=None, docstatus=1):
 			"grand_total", "net_total", "total_taxes_and_charges", "discount_amount",
 			"vgb_quay", "custom_nguon", "vgb_pt_thanh_toan", "custom_hddt_so",
 			"custom_hddt_trang_thai", "custom_pancake_display_id", "vgb_khach_no",
-			"outstanding_amount", "owner", "vgb_tam_tinh",
+			"outstanding_amount", "owner", "vgb_tam_tinh", "vgb_huy",
 		],
 		order_by="posting_date asc, posting_time asc",
 		limit_page_length=0,
 	)
 	# Phieu tam tinh la giay giu mon, khach chua tra tien - khong phai
-	# doanh thu, khong duoc dem vao bat ky bao cao nao.
-	ds = [r for r in ds if not r.get("vgb_tam_tinh")]
+	# doanh thu, khong duoc dem vao bat ky bao cao nao. Bill da huy cung
+	# vay: no van nam trong he thong de doi chieu, nhung khong phai tien.
+	ds = [r for r in ds if not r.get("vgb_tam_tinh") and not r.get("vgb_huy")]
 	if diem:
 		can = [d.strip().upper() for d in str(diem).split(",") if d.strip()]
 		ds = [r for r in ds if _diem(r) in can]
@@ -338,12 +339,34 @@ def _bc_sua_huy(hd, tu=None, den=None, **kw):
 	Hai nguon: hoa don da huy (docstatus 2) va so tay ghi vet moi lan
 	sua/xoa/doi ngay ma module ban hang tu ghi vao Comment.
 	"""
+	# Hai kieu huy deu phai co mat: huy dung nghiep vu (docstatus 2) va huy
+	# mem ban nhap (vgb_huy). Truoc day chi lay docstatus 2, nen bill huy
+	# mem chi lot vao qua dong ghi vet Comment voi cot tien bang 0 - bao cao
+	# huy mat sach so tien, dung cai con so ke toan can nhat.
 	huy = frappe.get_all(
 		"Sales Invoice",
-		filters={"docstatus": 2, "posting_date": ["between", [str(tu), str(den)]]},
+		filters={
+			"posting_date": ["between", [str(tu), str(den)]],
+			"docstatus": 2,
+		},
 		fields=[
 			"name", "posting_date", "grand_total", "vgb_quay",
-			"custom_pancake_display_id", "modified_by",
+			"custom_pancake_display_id", "modified_by", "vgb_huy", "vgb_huy_ly_do",
+			"vgb_huy_boi",
+		],
+		limit_page_length=0,
+	)
+	huy += frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"posting_date": ["between", [str(tu), str(den)]],
+			"docstatus": 0,
+			"vgb_huy": 1,
+		},
+		fields=[
+			"name", "posting_date", "grand_total", "vgb_quay",
+			"custom_pancake_display_id", "modified_by", "vgb_huy", "vgb_huy_ly_do",
+			"vgb_huy_boi",
 		],
 		limit_page_length=0,
 	)
@@ -353,8 +376,12 @@ def _bc_sua_huy(hd, tu=None, den=None, **kw):
 			"hoa_don": r.name,
 			"don": r.custom_pancake_display_id or "",
 			"diem": TEN_DIEM.get((r.vgb_quay or "").upper() or "SALES", r.vgb_quay or "Sales Online"),
-			"viec": "Huỷ hoá đơn",
-			"nguoi": r.modified_by or "",
+			"viec": (
+				"Huỷ bill nháp: %s" % (r.vgb_huy_ly_do or "không ghi lý do")
+				if r.get("vgb_huy")
+				else "Huỷ hoá đơn"
+			),
+			"nguoi": (r.get("vgb_huy_boi") or r.modified_by or ""),
 			"tien": _tien(r.grand_total),
 		}
 		for r in huy

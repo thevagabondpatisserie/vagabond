@@ -284,7 +284,9 @@ def _dem_don_khac(ngay):
 	ngay = getdate(ngay)
 	sis = frappe.get_all(
 		"Sales Invoice",
-		filters={"posting_date": str(ngay), "docstatus": ["<", 2]},
+		# vgb_huy 0: bill da huy khong con la hang ban ra nen khong duoc tru
+		# so tren bang kiem banh, khong thi sales dem thieu banh trong kho.
+		filters={"posting_date": str(ngay), "docstatus": ["<", 2], "vgb_huy": 0},
 		fields=["name", "custom_nguon", "custom_pancake_display_id"],
 		limit_page_length=0,
 	)

@@ -23,7 +23,9 @@ def _tong(name):
 		from `tabSales Invoice` where custom_hop_dong = %s and docstatus = 1""",
 		name,
 	)[0]
-	so_nhap = frappe.db.count("Sales Invoice", {"custom_hop_dong": name, "docstatus": 0})
+	so_nhap = frappe.db.count(
+		"Sales Invoice", {"custom_hop_dong": name, "docstatus": 0, "vgb_huy": 0}
+	)
 	da_xuat = flt(r[1])
 	con_no = flt(r[2])
 	return {
@@ -59,7 +61,7 @@ def chi_tiet(name):
 	doc = frappe.get_doc("Hop Dong Ban Hang", name)
 	hoa_don = frappe.get_all(
 		"Sales Invoice",
-		filters={"custom_hop_dong": name, "docstatus": ["<", 2]},
+		filters={"custom_hop_dong": name, "docstatus": ["<", 2], "vgb_huy": 0},
 		fields=["name", "posting_date", "grand_total", "outstanding_amount", "docstatus", "customer_name"],
 		order_by="posting_date desc",
 		limit_page_length=100,
@@ -133,6 +135,9 @@ def hoa_don_chua_gan(khach_hang=None):
 	loc = {
 		"custom_hop_dong": ["in", ["", None]],
 		"docstatus": ["<", 2],
+		# Hoa don da huy thi khong gan vao hop dong duoc: gan roi la so tien
+		# hop dong sai ma khong ai nhin ra.
+		"vgb_huy": 0,
 		"posting_date": [">=", frappe.utils.add_days(frappe.utils.nowdate(), -90)],
 	}
 	if khach_hang:

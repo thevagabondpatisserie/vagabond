@@ -29,6 +29,7 @@ import frappe
 import requests
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
+from vagabond import chung_tu
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -806,8 +807,15 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
 	did = str(o.get("display_id") or o.get("id") or "")
+	# vgb_huy: 0 la bat buoc. Danh dau huy da nha ma Pancake ra roi nen bo
+	# loc nay gan nhu khong bao gio dinh, nhung neu co mot to nao con giu ma
+	# (danh dau tay, du lieu cu) thi lan dong bo sau se lay chinh no ra dung
+	# lai - don thanh ra khong bao gio vao doanh thu ma khong ai bao loi.
 	cu = frappe.db.get_value(
-		"Sales Invoice", {"custom_pancake_id": pid}, ["name", "docstatus"], as_dict=True
+		"Sales Invoice",
+		{"custom_pancake_id": pid, "vgb_huy": 0},
+		["name", "docstatus"],
+		as_dict=True,
 	)
 	if cu and cu.docstatus == 1:
 		return "da_chot", cu.name
@@ -1111,6 +1119,7 @@ def chot_doanh_so(ngay=None):
 			"custom_pancake_id": ["!=", ""],
 			"docstatus": 0,
 			"vgb_quay": ["in", ["", None]],
+			"vgb_huy": 0,
 		},
 		pluck="name",
 	)
@@ -1216,7 +1225,13 @@ def ds_don_trung(ngay=None):
 
 @frappe.whitelist()
 def go_don_trung(ngay=None):
-	"""Xoa cac hoa don thua do dong bo tao trung. Chi xoa phieu nhap."""
+	"""Go cac hoa don thua do dong bo tao trung.
+
+	Truoc day ham nay xoa han phieu thua. Tu 11/08/2026 khong xoa nua ma
+	danh dau da huy: phieu trung cung la chung tu, va chinh cai thoi quen
+	"cai nay thua thi xoa cho gon" da lam mat 37 hoa don quay Tran Cao Van.
+	Phieu thua nam lai thi cung khong hai ai - no bi loc khoi moi so lieu.
+	"""
 	_kiem_quyen()
 	kq = ds_don_trung(ngay)
 	da_go, ket = [], []
@@ -1224,7 +1239,12 @@ def go_don_trung(ngay=None):
 		ket.extend(n["ket"])
 		for ten in n["go"]:
 			try:
-				frappe.delete_doc("Sales Invoice", ten, ignore_permissions=True, force=False)
+				si = frappe.get_doc("Sales Invoice", ten)
+				if cint(si.get("vgb_huy") or 0):
+					continue
+				chung_tu.danh_dau_huy(
+					si, "Đơn trùng do đồng bộ, giữ phiếu %s" % n["giu"]
+				)
 				da_go.append(ten)
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "ban_hang: go don trung %s" % ten)
@@ -1728,6 +1748,7 @@ def tu_ghi_so_cuoi_ngay():
 		"custom_pancake_id": ["!=", ""],
 		"docstatus": 0,
 		"vgb_quay": ["in", ["", None]],
+		"vgb_huy": 0,
 	}
 	ds = frappe.db.get_all("Sales Invoice", filters=loc_sales, pluck="name")
 	if quay_bat:
@@ -1738,6 +1759,7 @@ def tu_ghi_so_cuoi_ngay():
 				"docstatus": 0,
 				"vgb_quay": ["in", quay_bat],
 				"vgb_tam_tinh": 0,
+				"vgb_huy": 0,
 			},
 			pluck="name",
 		)
@@ -1762,7 +1784,7 @@ def tu_ghi_so_cuoi_ngay():
 			si = frappe.get_doc("Sales Invoice", ten)
 		except Exception:
 			continue
-		if cint(si.get("vgb_tam_tinh")):
+		if cint(si.get("vgb_tam_tinh")) or cint(si.get("vgb_huy")):
 			continue
 		a, b, e = _ghi_so_mot_don(si, sepay if not (si.get("vgb_quay") or "").strip() else None)
 		xong += a
@@ -2604,6 +2626,7 @@ def pos_ds_bill(quay=None, ngay=None):
 			"custom_nguon", "custom_pancake_display_id", "remarks", "owner",
 			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_ghi_chu",
 			"vgb_xhd_ten", "vgb_xhd_mst", "vgb_so_ban",
+			"vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi", "vgb_lan_sua",
 			"custom_hddt_so", "custom_hddt_trang_thai",
 		],
 		order_by="creation desc",
@@ -2656,31 +2679,48 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None):
 
 
 @frappe.whitelist()
-def pos_xoa(name, otp=None):
-	"""Xoa mot hoa don nhap bam nham. Chi xoa duoc hoa don CHUA ghi so, va
-	phai co ma OTP cua quan ly (tien khach da tra roi - anh Viet 09/08)."""
+def pos_xoa(name, otp=None, ly_do=None):
+	"""Huy mot bill quay bam nham. Ten ham giu nguyen cho app cu con goi duoc,
+	nhung viec da doi han: KHONG con xoa nua, chi danh dau da huy.
+
+	Anh Viet chot 11/08/2026 sau khi 37 hoa don quay Tran Cao Van bi xoa
+	sach: "khong duoc phep xoa vinh vien bat cu hoa don nao o bat cu phan he
+	nao". Bill huy van nam nguyen trong danh sach, xem lai duoc bang chip
+	"Da huy", va van phai co OTP quan ly vi tien khach da tra roi.
+	"""
 	_kiem_quyen()
 	si = _pos_lay(name)
 	if si.docstatus != 0:
-		frappe.throw("Hoá đơn đã ghi sổ thì không xoá được. Cần huỷ thì báo kế toán.")
-	# Hoa don da co so hoa don dien tu thi TUYET DOI khong duoc xoa, du no
-	# con la ban nhap. Xoa xong thi to hoa don thue van nam ben co quan
-	# thue ma khong con chung tu nao dang sau - ke toan phai lam hoa don
-	# thay the ve 0 dong. Ngay 11/08/2026 co 37 hoa don quay Tran Cao Van
-	# bien mat kieu do, tong 7.455.700 d.
-	so_hddt = (si.get("custom_hddt_so") or "").strip()
-	if so_hddt or (si.get("custom_minvoice_id") or "").strip():
 		frappe.throw(
-			"Hoá đơn %s đã có hoá đơn điện tử số %s nên không xoá được. "
-			"Tờ hoá đơn thuế đã nằm bên cơ quan thuế rồi, xoá phiếu ở đây chỉ "
-			"làm mất chứng từ. Muốn bỏ thì báo kế toán làm hoá đơn thay thế."
+			"Hoá đơn đã ghi sổ rồi nên không huỷ ở đây được. Báo kế toán huỷ "
+			"đúng nghiệp vụ, phiếu vẫn còn nguyên trong hệ thống."
+		)
+	if cint(si.get("vgb_huy") or 0):
+		return {"ok": 1, "da_huy_tu_truoc": 1}
+	# Bill da co so hoa don dien tu thi bat buoc phai ghi ly do: to hoa don
+	# thue da nam ben co quan the roi, ke toan can biet vi sao de con lam
+	# hoa don thay the cho khop.
+	so_hddt = (si.get("custom_hddt_so") or "").strip()
+	if (so_hddt or (si.get("custom_minvoice_id") or "").strip()) and not (ly_do or "").strip():
+		frappe.throw(
+			"Bill %s đã có hoá đơn điện tử số %s nên phải ghi lý do huỷ. "
+			"Tờ hoá đơn thuế đã nằm bên cơ quan thuế, kế toán cần biết vì sao "
+			"để làm hoá đơn thay thế cho khớp."
 			% (si.get("custom_pancake_display_id") or name, so_hddt or "(chưa rõ)")
 		)
-	cach = _otp_kiem(otp, "xoá hoá đơn")
-	_ghi_vet(name, "Xoá hoá đơn %s (%s đ)" % (si.get("custom_pancake_display_id") or name, _tien(si.grand_total)), cach)
-	frappe.delete_doc("Sales Invoice", name, ignore_permissions=True)
-	frappe.db.commit()
-	return {"ok": 1}
+	cach = _otp_kiem(otp, "huỷ bill")
+	_ghi_vet(
+		name,
+		"Huỷ bill %s (%s đ). Lý do: %s"
+		% (
+			si.get("custom_pancake_display_id") or name,
+			_tien(si.grand_total),
+			(ly_do or "").strip() or "không ghi",
+		),
+		cach,
+	)
+	chung_tu.danh_dau_huy(si, ly_do, ghi_vet=False)
+	return {"ok": 1, "da_huy": 1, "name": name}
 
 
 @frappe.whitelist()
@@ -2706,6 +2746,11 @@ def pos_sua_don(
 	phai huy hoa don ben ke toan."""
 	_kiem_quyen()
 	si = _pos_lay(name)
+	if cint(si.get("vgb_huy")):
+		frappe.throw(
+			"Bill này đã huỷ nên không sửa được. Muốn dùng lại thì báo kế toán "
+			"gỡ dấu huỷ, hoặc lập bill mới."
+		)
 	cach = _otp_kiem(otp, "sửa hoá đơn")
 	da_ghi = si.docstatus == 1
 	doi = []
@@ -2784,6 +2829,10 @@ def pos_sua_don(
 		si.save()
 	frappe.db.commit()
 	_ghi_vet(name, "Sửa hoá đơn: %s" % (", ".join(doi) or "không đổi gì"), cach)
+	# Dem so lan sua de chip "Da sua" co cai ma loc: ban nhap sua tai cho
+	# thi khong de lai dau vet nao o muc docstatus.
+	if doi:
+		chung_tu.ghi_nhan_sua("Sales Invoice", si.name)
 	frappe.db.commit()
 	return {"ok": 1, "name": si.name, "grand_total": si.grand_total}
 
@@ -2796,6 +2845,11 @@ def pos_ghi_so(name):
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Bill này đã ghi sổ rồi.")
+	if frappe.utils.cint(si.get("vgb_huy")):
+		frappe.throw(
+			"Bill này đã huỷ nên không ghi sổ được. Muốn dùng lại thì báo kế toán "
+			"gỡ dấu huỷ, hoặc lập bill mới."
+		)
 	if frappe.utils.cint(si.get("vgb_tam_tinh")):
 		frappe.throw("Bill còn tạm tính. Khách thanh toán xong thì bấm Chốt trước, rồi mới ghi sổ.")
 	pt = _kiem_pt(si.vgb_pt_thanh_toan, si.custom_nguon)
@@ -2920,10 +2974,14 @@ def pos_chot_ca(quay=None, ngay=None):
 		filters={"vgb_quay": quay, "posting_date": str(ngay), "docstatus": ["<", 2]},
 		fields=[
 			"name", "grand_total", "docstatus", "custom_nguon",
-			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu",
+			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_huy",
 		],
 		limit_page_length=0,
 	)
+	# Bill da huy khong phai doanh thu, phai bo ra TRUOC khi cong. Bo o day
+	# chu khong bo trong vong lap phia duoi de tong_bill va tong_tien cuoi
+	# ham cung khong dinh phai no.
+	ds = [r for r in ds if not frappe.utils.cint(r.get("vgb_huy"))]
 	sepay = _sepay_theo_ma_bill(
 		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
 	)
