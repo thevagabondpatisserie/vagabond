@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "autoname": "field:ma",
+ "creation": "2026-08-11 06:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma", "ctkm", "ten_ctkm", "cb0", "trang_thai", "lo", "han_dung",
+  "sb1", "ngay_dung", "hoa_don", "tien_giam", "cb1", "thu_ngan", "quay", "khach", "sdt",
+  "sb2", "email_nhan", "gui_cho", "ghi_chu"
+ ],
+ "fields": [
+  {"fieldname": "ma", "fieldtype": "Data", "label": "Ma voucher", "reqd": 1, "unique": 1, "read_only": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "ctkm", "fieldtype": "Link", "options": "Vagabond CTKM", "label": "Chuong trinh", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "ten_ctkm", "fieldtype": "Data", "label": "Ten chuong trinh", "fetch_from": "ctkm.ten", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "cb0", "fieldtype": "Column Break"},
+  {"fieldname": "trang_thai", "fieldtype": "Select", "label": "Trang thai", "options": "Chua dung\nDa dung\nDa huy", "default": "Chua dung", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "lo", "fieldtype": "Link", "options": "Vagabond Lo Voucher", "label": "Lo phat hanh", "in_standard_filter": 1},
+  {"fieldname": "han_dung", "fieldtype": "Date", "label": "Han dung", "in_list_view": 1},
+
+  {"fieldname": "sb1", "fieldtype": "Section Break", "label": "Luc su dung"},
+  {"fieldname": "ngay_dung", "fieldtype": "Datetime", "label": "Ngay dung", "read_only": 1},
+  {"fieldname": "hoa_don", "fieldtype": "Link", "options": "Sales Invoice", "label": "Hoa don", "read_only": 1},
+  {"fieldname": "tien_giam", "fieldtype": "Currency", "label": "Tien da giam", "read_only": 1},
+  {"fieldname": "cb1", "fieldtype": "Column Break"},
+  {"fieldname": "thu_ngan", "fieldtype": "Data", "label": "Thu ngan", "read_only": 1},
+  {"fieldname": "quay", "fieldtype": "Data", "label": "Quay", "read_only": 1},
+  {"fieldname": "khach", "fieldtype": "Data", "label": "Khach", "read_only": 1},
+  {"fieldname": "sdt", "fieldtype": "Data", "label": "Dien thoai", "read_only": 1},
+
+  {"fieldname": "sb2", "fieldtype": "Section Break", "label": "Phat hanh"},
+  {"fieldname": "email_nhan", "fieldtype": "Data", "label": "Email da gui ma", "read_only": 1},
+  {"fieldname": "gui_cho", "fieldtype": "Data", "label": "Gui cho", "read_only": 1},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"}
+ ],
+ "links": [],
+ "modified": "2026-08-11 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Voucher",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Sales Manager", "write": 1},
+  {"read": 1, "report": 1, "role": "Sales User"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
