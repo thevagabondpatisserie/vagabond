@@ -1,0 +1,53 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-08-11 06:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series", "ctkm", "ten_ctkm", "cb0", "so_luong", "han_dung", "trang_thai",
+  "sb1", "email_nhan", "gui_cho", "cb1", "nguoi_tao", "ngay_tao",
+  "sb2", "da_dung", "con_lai", "cb2", "loi_gui",
+  "sb3", "ghi_chu"
+ ],
+ "fields": [
+  {"fieldname": "naming_series", "fieldtype": "Select", "label": "Ky hieu", "options": "LOV-.YY.-.####", "default": "LOV-.YY.-.####", "hidden": 1},
+  {"fieldname": "ctkm", "fieldtype": "Link", "options": "Vagabond CTKM", "label": "Chuong trinh", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "ten_ctkm", "fieldtype": "Data", "label": "Ten chuong trinh", "fetch_from": "ctkm.ten", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "cb0", "fieldtype": "Column Break"},
+  {"fieldname": "so_luong", "fieldtype": "Int", "label": "So luong ma", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "han_dung", "fieldtype": "Date", "label": "Han dung cua lo"},
+  {"fieldname": "trang_thai", "fieldtype": "Select", "label": "Trang thai", "options": "Cho gui\nDa gui\nLoi gui", "default": "Cho gui", "in_list_view": 1, "in_standard_filter": 1},
+
+  {"fieldname": "sb1", "fieldtype": "Section Break", "label": "Gui ma"},
+  {"fieldname": "email_nhan", "fieldtype": "Data", "label": "Email nhan danh sach ma", "reqd": 1, "options": "Email", "in_list_view": 1},
+  {"fieldname": "gui_cho", "fieldtype": "Data", "label": "Gui cho (doi tac, brand, khach)"},
+  {"fieldname": "cb1", "fieldtype": "Column Break"},
+  {"fieldname": "nguoi_tao", "fieldtype": "Data", "label": "Nguoi thao tac", "read_only": 1},
+  {"fieldname": "ngay_tao", "fieldtype": "Datetime", "label": "Ngay xuat", "read_only": 1},
+
+  {"fieldname": "sb2", "fieldtype": "Section Break", "label": "Tinh hinh dung"},
+  {"fieldname": "da_dung", "fieldtype": "Int", "label": "Da dung", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "con_lai", "fieldtype": "Int", "label": "Con lai", "read_only": 1},
+  {"fieldname": "cb2", "fieldtype": "Column Break"},
+  {"fieldname": "loi_gui", "fieldtype": "Small Text", "label": "Loi khi gui mail", "read_only": 1},
+
+  {"fieldname": "sb3", "fieldtype": "Section Break"},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"}
+ ],
+ "links": [],
+ "modified": "2026-08-11 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Lo Voucher",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Sales Manager", "write": 1},
+  {"read": 1, "report": 1, "role": "Sales User"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
