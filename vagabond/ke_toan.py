@@ -20,6 +20,12 @@ QUYEN_KT = {
 	"Vagabond Bao cao",
 }
 
+# So dong toi da tra ve mot lan. Ban dau khong dat tran, mo man 30 ngay ra
+# 6.127 dong - dien thoai treo (bat duoc 12/08/2026). Con so DEM va TONG
+# van tinh tren TOAN BO tap khop dieu kien roi moi cat danh sach, khong bao
+# gio tinh tren phan da cat.
+TRAN_DONG = 300
+
 
 def _kiem_quyen():
 	if not QUYEN_KT & set(frappe.get_roles()):
@@ -66,7 +72,7 @@ def _nhom_ban(r):
 
 
 @frappe.whitelist()
-def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa=""):
+def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=None):
 	_kiem_quyen()
 	t, d = _khoang(so_ngay, tu, den)
 	ds = frappe.get_all(
@@ -106,8 +112,21 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa=""):
 		dem[o["nhom"]] = dem.get(o["nhom"], 0) + 1
 	dem[""] = len(ra)
 	dem["con_thu"] = len([o for o in ra if o["docstatus"] == 1 and flt(o["outstanding_amount"]) > 0])
+
+	# Loc theo chip PHAI lam o day, TRUOC khi cat 300 dong - loc tren tap da
+	# bi cat thi bam chip "Chua xuat hoa don dien tu" se ra rong trong khi
+	# thuc te con hang tram to. Bai hoc cu, khong duoc lap lai.
+	chon = (nhom or "").strip()
+	if chon == "con_thu":
+		loc_ra = [o for o in ra if o["docstatus"] == 1 and flt(o["outstanding_amount"]) > 0]
+	elif chon:
+		loc_ra = [o for o in ra if o["nhom"] == chon]
+	else:
+		loc_ra = ra
 	return {
-		"hd": ra,
+		"hd": loc_ra[:TRAN_DONG],
+		"tong_dong": len(loc_ra),
+		"bi_cat": max(0, len(loc_ra) - TRAN_DONG),
 		"dem": dem,
 		"nhom": NHOM_BAN,
 		"tu": str(t),
@@ -142,7 +161,7 @@ def _nhom_mua(r, hom_nay):
 
 
 @frappe.whitelist()
-def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa=""):
+def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=None):
 	_kiem_quyen()
 	t, d = _khoang(so_ngay, tu, den)
 	loc = {"docstatus": ["<", 3], "posting_date": ["between", [str(t), str(d)]]}
@@ -180,8 +199,12 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa=""):
 	for o in ra:
 		dem[o["nhom"]] = dem.get(o["nhom"], 0) + 1
 	dem[""] = len(ra)
+	chon = (nhom or "").strip()
+	loc_ra = [o for o in ra if o["nhom"] == chon] if chon else ra
 	return {
-		"hd": ra,
+		"hd": loc_ra[:TRAN_DONG],
+		"tong_dong": len(loc_ra),
+		"bi_cat": max(0, len(loc_ra) - TRAN_DONG),
 		"dem": dem,
 		"nhom": NHOM_MUA,
 		"tu": str(t),

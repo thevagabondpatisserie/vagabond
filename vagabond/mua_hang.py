@@ -66,7 +66,7 @@ NHOM_PO = [
 
 
 @frappe.whitelist()
-def ds_po(so_ngay=60, tu_khoa="", ncc=None):
+def ds_po(so_ngay=60, tu_khoa="", ncc=None, nhom=None):
 	"""Danh sach don mua hang trong khoang ngay gan day.
 
 	so_ngay = 0 nghia la lay het, dung khi ke toan tra don cu.
@@ -109,8 +109,14 @@ def ds_po(so_ngay=60, tu_khoa="", ncc=None):
 	for o in ra:
 		dem[o["nhom"]] = dem.get(o["nhom"], 0) + 1
 	dem[""] = len(ra)
+	# Dem va tong tinh tren TOAN BO tap khop dieu kien, cat danh sach sau -
+	# khong bao gio tinh tren phan da cat.
+	chon = (nhom or "").strip()
+	loc_ra = [o for o in ra if o["nhom"] == chon] if chon else ra
 	return {
-		"don": ra,
+		"don": loc_ra[:300],
+		"tong_dong": len(loc_ra),
+		"bi_cat": max(0, len(loc_ra) - 300),
 		"dem": dem,
 		"nhom": NHOM_PO,
 		"tong_tien": sum(flt(o["grand_total"]) for o in ra),
