@@ -333,19 +333,28 @@ def _tinh_mot(km, gio, tong_hd):
 		dong = _dong_trong_pham_vi(km, gio)
 		if not dong:
 			return {"giam": 0, "dien_giai": "hoá đơn không có món nào thuộc phạm vi", "them_mon": []}
-		# Dong nao co muc rieng thi theo muc rieng, con lai theo muc chung.
+		# Dong nao co muc rieng thi theo muc rieng, phan con lai gop lai roi
+		# moi ap muc chung MOT LAN.
+		#
+		# Phai gop truoc khi ap, khong duoc ap len tung dong: giam "50.000d
+		# ca hoa don" ma chay tung dong thi hoa don ba mon thanh giam
+		# 150.000d. Bat duoc luc nghiem thu tren may that 11/08/2026 - bill
+		# 300.000d ra con 85.000d thay vi 250.000d.
 		rieng = {
 			m.get("item_code"): m
 			for m in _mon_theo_vai_tro(km, "Uu dai")
 			if m.get("kieu_giam") and flt(m.get("gia_tri"))
 		}
 		giam = 0.0
+		goc_chung = 0.0
 		for d in dong:
 			r = rieng.get(d["item_code"])
 			if r:
 				giam += _giam_theo_kieu(r.get("kieu_giam"), r.get("gia_tri"), d["tien"])
 			else:
-				giam += _giam_theo_kieu(kieu, gt, d["tien"])
+				goc_chung += d["tien"]
+		if goc_chung > 0:
+			giam += _giam_theo_kieu(kieu, gt, goc_chung)
 		nen = "cả hoá đơn" if (km.get("pham_vi") or "Ca hoa don") == "Ca hoa don" else "%d món trong phạm vi" % len(dong)
 		return {"giam": giam, "dien_giai": "giảm trên %s" % nen, "them_mon": []}
 
@@ -986,12 +995,13 @@ def xuat_lo(ctkm, so_luong, email, gui_cho=None, han_dung=None, ghi_chu=None, gu
 		}).insert(ignore_permissions=True)
 	frappe.db.commit()
 
-	loi = ""
+	loi, tt = "", "Cho gui"
 	if cint(gui_mail):
 		loi = _gui_mail_lo(lo.name, km.ten, ds_ma, email, gui_cho, han)
+		tt = "Loi gui" if loi else "Da gui"
 	frappe.db.set_value(
 		"Vagabond Lo Voucher", lo.name,
-		{"trang_thai": "Loi gui" if loi else "Da gui", "loi_gui": loi},
+		{"trang_thai": tt, "loi_gui": loi},
 		update_modified=False,
 	)
 	frappe.db.commit()
