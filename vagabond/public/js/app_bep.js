@@ -849,9 +849,9 @@ async function scrHome() {
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
-      ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn — khai một nơi dùng cho cả hệ', 0, 'CDDB') +
+      ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn - khai một nơi dùng cho cả hệ', 0, 'CDDB') +
         card('🔒', 'Khoá sổ', 'Chốt số liệu kỳ cũ, không ai sửa hay huỷ được nữa', 0, 'CDKS') +
-        card('💳', 'Phương thức thanh toán', 'Máy cà thẻ, ví, công nợ — và mã gửi cơ quan thuế', 0, 'CDPT') +
+        card('💳', 'Phương thức thanh toán', 'Máy cà thẻ, ví, công nợ - và mã gửi cơ quan thuế', 0, 'CDPT') +
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
       : '') +
@@ -1745,7 +1745,7 @@ async function scrXkView(name) {
     nut += '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:11px 13px;margin-top:10px">' +
       '<b style="color:#991b1b;font-size:14px">🚫 Phiếu này đã bỏ</b>' +
       '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-top:3px">Lý do: ' +
-      h(d.vgb_huy_ly_do || 'không ghi') + (d.vgb_huy_boi ? ' — ' + h(d.vgb_huy_boi) : '') +
+      h(d.vgb_huy_ly_do || 'không ghi') + (d.vgb_huy_boi ? ' - ' + h(d.vgb_huy_boi) : '') +
       '<br>Phiếu vẫn nằm nguyên trong hệ thống, chỉ không ghi sổ được nữa.</div></div>';
   } else if (d.docstatus === 0) {
     if (d.duoc_duyet) nut += '<button class="vxb" id="vxGhi">Ghi sổ phiếu này</button>';
@@ -8614,7 +8614,7 @@ async function scrPosBill(name) {
       // May chu moi la noi quyet dinh co can OTP hay khong. App khong tu
       // doan: cu gui len, may chu doi ma thi luc do moi hoi quan ly.
       if (loi.indexOf('OTP') < 0) return toast(loi, 5000);
-      var otp2 = await posSheetOtp('Sửa hoá đơn ' + (maBill || d.name) + ' — ' + loi);
+      var otp2 = await posSheetOtp('Sửa hoá đơn ' + (maBill || d.name) + ' - ' + loi);
       if (otp2 === null) return;
       goi.otp = otp2;
       busy(true);
@@ -10076,7 +10076,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '123';
+var APPVER = '124';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -11492,7 +11492,7 @@ async function kmSheetCtkm(ma) {
     /* --- chong gian lan --- */
     html += '<div style="font-size:12.5px;color:#b3261e;font-weight:700;margin:14px 0 6px">CHỐNG GIAN LẬN</div>' +
       '<div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:9px;padding:11px 13px;margin-bottom:10px;font-size:12px;color:#9a3412;line-height:1.6">' +
-      'Để 0 là không giới hạn. Nên đặt ít nhất trần giảm hoặc bắt buộc OTP với chương trình giảm sâu — nếu không, một thu ngân có thể bấm cả trăm lần trong ca cho người quen.</div>' +
+      'Để 0 là không giới hạn. Nên đặt ít nhất trần giảm hoặc bắt buộc OTP với chương trình giảm sâu - nếu không, một thu ngân có thể bấm cả trăm lần trong ca cho người quen.</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' +
       posChipNut('data-kmotp="1"', '🔐 Bắt buộc OTP quản lý', !!k.can_otp) +
       posChipNut('data-kmcd="1"', '➕ Cho cộng dồn chương trình khác', !!k.cong_don) + '</div>' +
@@ -12779,7 +12779,7 @@ function scrDiemBanSua() {
   html += '<div class="sec">Nguồn đơn thuộc điểm bán này</div><div class="card" style="padding:11px 14px">' +
     '<textarea class="nt" id="dbNguon" rows="5" placeholder="Mỗi dòng một nguồn">' + h((d.nguon || []).join('\n')) + '</textarea>' +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.6">' +
-    'Tên phải khớp <b>đúng từng chữ</b> với nguồn đơn trên hoá đơn. Một nguồn chỉ được thuộc một điểm bán — ' +
+    'Tên phải khớp <b>đúng từng chữ</b> với nguồn đơn trên hoá đơn. Một nguồn chỉ được thuộc một điểm bán - ' +
     'gán cho hai nơi là hoá đơn điện tử xuất hai lần.</div></div>';
 
   html += '<div class="card" style="padding:11px 12px">' + kmHangChip(
@@ -12803,7 +12803,7 @@ function scrDiemBanSua() {
   document.getElementById('dbLuu').onclick = function () { dbLuu(); };
   document.getElementById('dbBo').onclick = async function () {
     var ok = await confirmSheet('Bỏ điểm bán ' + (d.ma || 'mới') + '?',
-      'Nếu điểm này đã có hoá đơn thì máy chủ sẽ chặn — lúc đó anh chị tắt nó đi thay vì bỏ.', 'Bỏ dòng này', true);
+      'Nếu điểm này đã có hoá đơn thì máy chủ sẽ chặn - lúc đó anh chị tắt nó đi thay vì bỏ.', 'Bỏ dòng này', true);
     if (!ok) return;
     dbDs.splice(dbMo, 1);
     dbLuu(1);
@@ -12876,7 +12876,7 @@ function ksVe() {
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">KHOÁ SỔ</div>' +
     '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
-    'Chứng từ của ngày đã khoá thì không ghi sổ, không huỷ, không sửa được nữa — ' +
+    'Chứng từ của ngày đã khoá thì không ghi sổ, không huỷ, không sửa được nữa - ' +
     'trên app hay trên máy tính đều vậy. Cần sửa một tờ cũ thì kế toán mở khoá riêng tờ đó, ' +
     'máy ghi lại lý do và tên người mở.</div></div>';
 
@@ -13108,7 +13108,7 @@ function scrPtSua() {
   document.getElementById('ptLuu').onclick = function () { ptLuu(); };
   document.getElementById('ptBo').onclick = async function () {
     var ok = await confirmSheet('Bỏ phương thức ' + (d.ten || 'mới') + '?',
-      'Nếu phương thức này đã có hoá đơn thì máy chủ sẽ chặn — lúc đó anh chị tắt nó đi thay vì bỏ.', 'Bỏ dòng này', true);
+      'Nếu phương thức này đã có hoá đơn thì máy chủ sẽ chặn - lúc đó anh chị tắt nó đi thay vì bỏ.', 'Bỏ dòng này', true);
     if (!ok) return;
     ptDs.splice(ptMo, 1);
     ptLuu(1);

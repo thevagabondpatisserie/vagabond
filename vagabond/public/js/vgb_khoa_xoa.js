@@ -66,7 +66,7 @@ vgb.the_da_huy = function (frm) {
   frm.dashboard.set_headline(
     '<span style="color:#b42318"><b>Phiếu đã huỷ.</b> Lý do: ' +
     frappe.utils.escape_html(ly_do) +
-    (boi ? ' — ' + frappe.utils.escape_html(boi) : '') +
+    (boi ? ' - ' + frappe.utils.escape_html(boi) : '') +
     '</span>'
   );
   frm.page.set_indicator('Đã huỷ', 'red');
