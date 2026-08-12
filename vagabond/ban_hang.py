@@ -47,7 +47,7 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban, pt_thanh_toan
+from vagabond import chung_tu, diem_ban, pt_thanh_toan, quyen_quay
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -536,6 +536,9 @@ def cau_hinh_ban_hang():
 		"thu_tu_nhom": THU_TU_NHOM,
 		"pt_chua_ve_tien": pt_thanh_toan.chua_ve_tien(),
 		"pt_ve_sau": pt_thanh_toan.ve_sau(),
+		# De app biet luc nao phai hoi ma OTP. May chu van kiem lai het, day
+		# chi la de khoi bat thu ngan go ma cho mot viec ho duoc phep lam.
+		"quyen_bo_mon": quyen_quay.muc(),
 		"nguon_app": [n["v"] for n in _nguon_don() if n.get("lg")],
 	}
 
@@ -2678,7 +2681,7 @@ def _pos_lay(name):
 
 
 @frappe.whitelist()
-def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None):
+def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp=None):
 	"""Chot mot bill tam tinh: khach thanh toan xong, cashier chon phuong
 	thuc, bill thanh bill thuong cho ghi so. Cung dung de sua pt/ghi chu
 	cua bill nhap chua ghi so."""
@@ -2686,6 +2689,17 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None):
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn này đã ghi sổ rồi, không sửa được nữa.")
+	# Duong nay cung phai qua cua quyen bo mon, khong thi thu ngan chi can
+	# in tam tinh xong bam Chot kem giam gia la lach duoc chot chan ben
+	# pos_sua_don. Chon phuong thuc thanh toan van tu do - do la nghiep vu
+	# binh thuong, khong dinh gi den tien cua bill.
+	if quyen_quay.them_giam_gia(si, giam_gia):
+		if not otp and not _otp_la_sep():
+			frappe.throw(
+				"Bill này đã in tạm tính đưa khách rồi, thêm giảm giá thì cần mã "
+				"OTP của quản lý ca. Bấm xin mã rồi nhập vào."
+			)
+		_otp_kiem(otp, "thêm giảm giá khi chốt bill")
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
 		si.vgb_pt_thanh_toan = pt
@@ -2777,8 +2791,24 @@ def pos_sua_don(
 			"Bill này đã huỷ nên không sửa được. Muốn dùng lại thì báo kế toán "
 			"gỡ dấu huỷ, hoặc lập bill mới."
 		)
-	cach = _otp_kiem(otp, "sửa hoá đơn")
+	if items is not None and isinstance(items, str):
+		items = json.loads(items or "[]")
 	da_ghi = si.docstatus == 1
+	# Hoa don DA GHI SO thi luon phai co OTP, khong xet muc quyen: luc do
+	# tien da nam trong so sach, khong con la chuyen cua quay nua.
+	if da_ghi:
+		can_otp, vi_sao = True, "hoá đơn đã ghi sổ"
+	else:
+		can_otp, vi_sao = quyen_quay.can_otp(si, items, giam_gia)
+	if can_otp:
+		if not otp and not _otp_la_sep():
+			frappe.throw(
+				"Thao tác này cần mã OTP của quản lý ca vì %s. Bấm xin mã rồi nhập vào."
+				% (vi_sao or "quy định tại quầy")
+			)
+		cach = _otp_kiem(otp, "sửa hoá đơn")
+	else:
+		cach = "thu ngân " + (frappe.session.user or "")
 	doi = []
 	if da_ghi and (items is not None or giam_gia is not None or pt):
 		frappe.throw(
@@ -2787,8 +2817,6 @@ def pos_sua_don(
 			% (si.get("custom_pancake_display_id") or name)
 		)
 	if items is not None:
-		if isinstance(items, str):
-			items = json.loads(items or "[]")
 		rows = []
 		for r in items or []:
 			ma = (r.get("item_code") or "").strip()
