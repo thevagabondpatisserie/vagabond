@@ -36,7 +36,12 @@ CHU_MA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # bo O/0 va I/1 cho khoi doc nham
 DAI_MA = 6
 
 QUYEN_KM = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
-QUYEN_SUA_KM = {"System Manager", "Sales Manager"}
+# "VGB - Quan ly khuyen mai" la vai tro rieng cua tiem, dat ra 12/08/2026 cho
+# quan ly cua hang. Khong cap thang Sales Manager vi vai tro do con mo them
+# ca sua diem ban, sua phuong thuc thanh toan (ke ca ma gui co quan thue) va
+# tu ha muc quyen bo mon cua chinh nhan vien minh - quan ly cua hang khong
+# nen cam ba thu do.
+QUYEN_SUA_KM = {"System Manager", "Sales Manager", "VGB - Quản lý khuyến mãi"}
 
 # Nhan hien thi cho nguoi dung. Trong DB luu khong dau de khoi vo Select khi
 # doi encoding, con ra man hinh thi phai co dau cho de doc.

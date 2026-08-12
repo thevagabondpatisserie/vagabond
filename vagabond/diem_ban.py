@@ -179,7 +179,77 @@ def danh_sach():
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
-	return {"diem": ds(), "sua_duoc": 1 if QUYEN_SUA & set(frappe.get_roles()) else 0}
+	return {
+		"diem": ds(),
+		"sua_duoc": 1 if QUYEN_SUA & set(frappe.get_roles()) else 0,
+		"nguon_co_san": nguon_co_san(),
+	}
+
+
+# Nguon don co san de bam chon tren app. Truoc day la o nhap tay tung dong:
+# go thieu mot dau la nguon do khong khop voi hoa don nao ca, ma khong ai
+# bao loi - hoa don cu the nam ngoai moi diem ban.
+NGUON_MAU = [
+	{"v": "Pancake", "ic": "💬"},
+	{"v": "GrabFood", "lg": "/files/pt-grab.png"},
+	{"v": "BeFood", "lg": "/files/pt-befood.png"},
+	{"v": "GreenSM Food", "lg": "/files/pt-greensm.png"},
+	{"v": "ShopeeFood", "lg": "/files/pt-shopee4.png"},
+	{"v": "Khách sỉ", "ic": "🏢"},
+]
+
+
+def _bieu_tuong(n):
+	thap = str(n or "").lower()
+	if thap.startswith("tại chỗ"):
+		return "🏬"
+	if thap.startswith("mang về"):
+		return "🥡"
+	return "🧾"
+
+
+def nguon_co_san():
+	"""Nguon de bam chon: bang mau, nguon dang khai, va nguon co that.
+
+	Phai gop ca nguon DA NAM TREN HOA DON that: neu chi hien bang mau thi
+	mot nguon cu do quay tung go tay se khong con duong chon lai, sua mot
+	diem ban la vo tinh cat nguon do khoi he.
+	"""
+	ra, da_co = [], {}
+	for m in NGUON_MAU:
+		da_co[m["v"]] = 1
+		ra.append({"v": m["v"], "lg": m.get("lg") or "", "ic": m.get("ic") or ""})
+
+	def them(n):
+		n = str(n or "").strip()
+		if not n or n in da_co:
+			return
+		da_co[n] = 1
+		ra.append({"v": n, "lg": "", "ic": _bieu_tuong(n)})
+
+	dang_khai = ds()
+	for d in dang_khai:
+		for n in d["nguon"]:
+			them(n)
+	try:
+		rows = frappe.db.sql(
+			"select distinct custom_nguon from `tabSales Invoice` "
+			"where ifnull(custom_nguon, '') != ''"
+		)
+		for r in rows:
+			them(r[0])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "diem_ban: khong doc duoc nguon that")
+
+	# Nguon dang thuoc diem nao, de man hinh bao truoc thay vi de nguoi
+	# dung bam Luu roi moi an loi tu may chu.
+	chu = {}
+	for d in dang_khai:
+		for n in d["nguon"]:
+			chu[n] = d["ma"]
+	for x in ra:
+		x["cua"] = chu.get(x["v"], "")
+	return ra
 
 
 def _kiem(ra):
@@ -282,7 +352,7 @@ def luu(diem=None):
 		"Sửa danh sách điểm bán: %s"
 		% ", ".join("%s%s" % (d["ma"], "" if d["bat"] else " (tắt)") for d in ra)
 	)
-	return {"diem": ds(), "sua_duoc": 1}
+	return {"diem": ds(), "sua_duoc": 1, "nguon_co_san": nguon_co_san()}
 
 
 def _theo_kip_nguon(cu, moi):
