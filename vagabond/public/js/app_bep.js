@@ -9477,7 +9477,7 @@ async function scrKhachHang() {
     t = e.target.closest('[data-khh]');
     if (t) { khHang = t.getAttribute('data-khh'); return go(scrKhachHang, true); }
     t = e.target.closest('[data-khx]');
-    if (t) return khSheetHang(t.getAttribute('data-khx'), hangs, all);
+    if (t) { khMa = t.getAttribute('data-khx'); return go(scrKhachChiTiet); }
   };
 }
 
@@ -10385,7 +10385,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '136';
+var APPVER = '137';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -15282,6 +15282,257 @@ async function miLuu(veDanhSach) {
     busy(false);
     window.alert((e && e.message) || 'Không lưu được');
   }
+}
+
+
+/* ---------- Ho so mot khach hang (anh Viet 12/08/2026) ----------
+
+   Truoc day bam vao mot khach chi hien mot bang gan hang, khong co thong
+   tin gi de cham soc ho. Nay la mot man day du: lien he sua duoc ngay tai
+   cho, lich su mua ca ben he nay lan ben Fabi, tinh trang the thanh vien
+   va con bao nhieu tien nua thi len hang.
+
+   Cac o mang tu Fabi sang de CHI DOC: sua chung khong lam khach duoc cham
+   soc tot hon, ma lai mat dau vet so lieu cu. */
+var khMa = '', khHs = null, khSua = null, khDsHang = [];
+
+async function scrKhachChiTiet() {
+  if (!khMa) return go(scrKhachHang, true);
+  frame('Khách hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc hồ sơ khách...</div></div>');
+  try {
+    khHs = await api('vagabond.khach_hang.ho_so', { khach: khMa });
+    khDsHang = (await api('vagabond.khach_hang.ds_hang', {})).hang || [];
+  } catch (e) {
+    frame('Khách hàng', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
+    return;
+  }
+  khSua = null;
+  khCtVe();
+}
+
+function khO(nhan, gt, phu) {
+  return '<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #f4f5f8">' +
+    '<span style="color:#6b7280;font-size:13px;flex:0 0 42%">' + nhan + '</span>' +
+    '<span style="flex:1;min-width:0;text-align:right;font-size:13.5px' + (gt ? ';font-weight:600' : ';color:#c3c8d4') + '">' +
+    (gt ? h(gt) : 'chưa có') + (phu ? '<div style="font-size:11.5px;color:#98a2b3;font-weight:400;margin-top:2px">' + h(phu) + '</div>' : '') +
+    '</span></div>';
+}
+
+function khNgay(s) { return s ? posNgayVn(String(s).slice(0, 10)) : ''; }
+
+function khCtVe() {
+  var d = khHs.khach || {}, lh = khHs.lien_he || {}, the = khHs.the || {};
+  var hg = khHs.hang || {}, mn = khHs.mua_next || {}, mf = khHs.mua_fabi || {};
+
+  var html = '<div class="card" style="padding:0;overflow:hidden">' +
+    (hg.anh ? '<img src="' + h(hg.anh) + '" alt="" style="width:100%;display:block;object-fit:cover;max-height:132px">' : '') +
+    '<div style="padding:13px 14px">' +
+    '<div style="font-size:18px;font-weight:800">' + h(d.customer_name || khMa) + '</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">' +
+    '<span style="font-family:ui-monospace,monospace">' + h(khMa) + '</span>' +
+    (lh.sdt ? ' · ' + h(lh.sdt) : '') + ' · ' + h(d.customer_group || 'chưa gắn nhóm') + '</div>' +
+    (hg.name
+      ? '<div style="font-size:12.5px;color:#0f766e;font-weight:700;margin-top:5px">' + h(hg.ten_hang || hg.name) +
+        (hg.giam_gia ? ' · giảm ' + money(hg.giam_gia) + '%' : '') +
+        (hg.tich_diem ? ' · tích ' + money(hg.tich_diem) + '%' : '') + '</div>'
+      : '<div style="font-size:12.5px;color:#b45309;font-weight:700;margin-top:5px">Chưa xếp hạng</div>') +
+    '</div></div>';
+
+  if (khHs.la_gop) {
+    html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:13px;color:#92400e;line-height:1.6">' +
+      'Đây là giỏ dùng chung cho khách vãng lai, không phải một người thật. Không gắn hạng và không tích điểm cho bản ghi này.</div>';
+  }
+
+  /* --- The thanh vien --- */
+  html += '<div class="sec">Thẻ thành viên</div><div class="card" style="padding:4px 14px 10px">' +
+    khO('Điểm hiện có', money(the.diem || 0) + ' điểm') +
+    khO('Chi tiêu trong kỳ xét', money(the.tien_ky || 0) + ' đ', (the.so_thang || 12) + ' tháng gần nhất, đã cộng phần tiêu bên Fabi') +
+    khO('Hạng đủ điều kiện', the.hang_du_dieu_kien || '', the.hang_du_dieu_kien && hg.name && the.hang_du_dieu_kien !== hg.name ? 'khác hạng đang gắn' : '') +
+    (the.hang_tiep
+      ? khO('Còn thiếu để lên ' + the.hang_tiep, money(the.con_thieu) + ' đ')
+      : khO('Hạng tiếp theo', '', 'đang ở hạng cao nhất theo chi tiêu')) +
+    khO('Hạng tính từ ngày', khNgay(d.vgb_hang_tu)) +
+    '</div>';
+
+  /* --- Gan hang --- */
+  if (!khHs.la_gop) {
+    html += '<div class="card" style="padding:11px 12px">' +
+      '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin-bottom:8px">GẮN HẠNG</div>' +
+      kmHangChip(khDsHang.map(function (x) {
+        return posChipNut('data-khsh="' + h(x.name) + '"',
+          hangChipAnh(x, 16) + h(x.ten_hang) + (x.giam_gia ? ' −' + money(x.giam_gia) + '%' : ''), (d.vgb_hang || '') === x.name);
+      }).join('') + ((d.vgb_hang || '') ? posChipNut('data-khsh=""', '✕ Bỏ hạng', false, 1) : '')) + '</div>';
+  }
+
+  /* --- Lien he: sua duoc ngay tai cho --- */
+  html += '<div class="sec">Liên hệ</div><div class="card" style="padding:4px 14px 10px">' +
+    khO('Số điện thoại', lh.sdt) +
+    khO('Email', lh.email) +
+    khO('Sinh nhật', khNgay(d.vgb_sinh_nhat)) +
+    khO('Giới tính', d.gender === 'Male' ? 'Nam' : (d.gender === 'Female' ? 'Nữ' : '')) +
+    khO('Địa chỉ', d.vgb_dia_chi_cu) +
+    khO('Zalo user id', d.vgb_zalo_id) +
+    khO('Nhãn', d.vgb_tags) +
+    '<div style="padding-top:10px"><button class="btn gh" id="khSuaTt" style="margin:0;width:100%">✏️ Sửa thông tin liên hệ</button></div>' +
+    '</div>';
+
+  /* --- Mua hang ben he nay --- */
+  html += '<div class="sec">Mua hàng trên hệ này</div><div class="card" style="padding:4px 14px 10px">' +
+    khO('Số hoá đơn', money(mn.so_don || 0) + ' hoá đơn') +
+    khO('Tổng đã chi', money(mn.tien || 0) + ' đ') +
+    khO('Trung bình mỗi hoá đơn', mn.so_don ? money(Math.round(mn.trung_binh)) + ' đ' : '') +
+    khO('Mua lần đầu', khNgay(mn.lan_dau)) +
+    khO('Mua lần cuối', khNgay(mn.lan_cuoi)) +
+    '</div>';
+
+  /* --- Mua hang ben Fabi --- */
+  if (mf.tien || mf.so_don || mf.lan_cuoi) {
+    html += '<div class="sec">Lịch sử bên Fabi</div><div class="card" style="padding:4px 14px 10px">' +
+      khO('Số hoá đơn', money(mf.so_don || 0) + ' hoá đơn') +
+      khO('Tổng đã chi', money(mf.tien || 0) + ' đ', 'số này được cộng vào khi xét hạng') +
+      khO('Trung bình mỗi hoá đơn', mf.so_don ? money(Math.round(mf.trung_binh)) + ' đ' : '') +
+      khO('Mua lần đầu', khNgay(mf.lan_dau)) +
+      khO('Mua lần cuối', khNgay(mf.lan_cuoi)) +
+      khO('Cửa hàng hay mua', mf.cua_hang) +
+      khO('Đăng ký thành viên', khNgay(d.vgb_ngay_dang_ky), d.vgb_kenh_dang_ky ? 'qua ' + d.vgb_kenh_dang_ky : '') +
+      '</div>';
+  }
+
+  /* --- Hoa don gan day --- */
+  var don = khHs.don_gan_day || [];
+  html += '<div class="sec">Hoá đơn gần đây</div><div class="card" style="padding:6px 14px">';
+  if (!don.length) {
+    html += '<div style="padding:16px 0;color:#a0a6b4;text-align:center">Chưa có hoá đơn nào trên hệ này.</div>';
+  } else {
+    html += don.map(function (o) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f4f5f8">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600">' + h(o.name) + '</div>' +
+        '<div style="font-size:11.5px;color:#98a2b3">' + posNgayVn(String(o.posting_date).slice(0, 10)) +
+        (o.custom_nguon ? ' · ' + h(o.custom_nguon) : '') + (o.vgb_quay ? ' · ' + h(o.vgb_quay) : '') + '</div></div>' +
+        '<b style="white-space:nowrap">' + money(o.grand_total) + ' đ</b></div>';
+    }).join('');
+  }
+  html += '</div>';
+
+  /* --- So diem --- */
+  html += '<div class="card" style="padding:11px 12px">' +
+    '<button class="btn gh" id="khSoDiem" style="margin:0;width:100%">🧾 Xem sổ điểm</button></div>';
+
+  var b = frame(d.customer_name || 'Khách hàng', html, null);
+  b.onclick = async function (e) {
+    var t = e.target.closest('[data-khsh]');
+    if (!t) return;
+    var hgm = t.getAttribute('data-khsh');
+    busy(true);
+    try {
+      await api('vagabond.khach_hang.dat_hang', { khach: khMa, hang: hgm });
+      khHs = await api('vagabond.khach_hang.ho_so', { khach: khMa });
+      busy(false);
+      toast(hgm ? 'Đã xếp vào hạng ' + hgm : 'Đã bỏ hạng');
+      khCtVe();
+    } catch (er) { busy(false); toast((er && er.message) || 'Không đặt được hạng', 4000); }
+  };
+  var ns = document.getElementById('khSuaTt');
+  if (ns) ns.onclick = function () { khSheetSua(); };
+  var nd = document.getElementById('khSoDiem');
+  if (nd) nd.onclick = function () { khSheetSoDiem(); };
+}
+
+/* Sua thong tin lien he. So dien thoai va email di vao LIEN HE chu khong
+   ghi thang vao Customer - truong mobile_no cua Customer la chi doc, ghi
+   thang vao do thi lan sau ai bam Luu la so bien mat. */
+function khSheetSua() {
+  var d = khHs.khach || {}, lh = khHs.lien_he || {};
+  var f = {
+    ten: d.customer_name || '', sdt: lh.sdt || '', email: lh.email || '',
+    sinh_nhat: String(d.vgb_sinh_nhat || '').slice(0, 10),
+    gioi_tinh: d.gender || '', dia_chi: d.vgb_dia_chi_cu || '',
+    zalo: d.vgb_zalo_id || '', tags: d.vgb_tags || ''
+  };
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  var o = function (nhan, id, gt, kieu, mo) {
+    return '<div style="padding:10px 0;border-bottom:1px solid #f2f4f7">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">' + nhan + '</div>' +
+      '<input class="tin" id="' + id + '" type="' + (kieu || 'text') + '" value="' + h(gt) + '" style="width:100%;margin:0">' +
+      (mo ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:4px;line-height:1.5">' + mo + '</div>' : '') + '</div>';
+  };
+  box.innerHTML = '<div class="shh"><b>Sửa thông tin khách</b><div class="x">&times;</div></div>' +
+    '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">' +
+    o('Tên khách', 'khfTen', f.ten) +
+    o('Số điện thoại', 'khfSdt', f.sdt, 'tel', 'Gõ kiểu nào cũng được, máy tự đưa về dạng 0 ở đầu.') +
+    o('Email', 'khfEmail', f.email, 'email') +
+    o('Sinh nhật', 'khfSn', f.sinh_nhat, 'date', 'Để trống nếu chưa biết. Đừng điền bừa, máy dùng ngày này để chúc mừng.') +
+    '<div style="padding:10px 0;border-bottom:1px solid #f2f4f7">' +
+    '<div style="font-size:12px;color:#6b7280;margin-bottom:6px">Giới tính</div>' +
+    kmHangChip(
+      posChipNut('data-khgt="Male"', 'Nam', f.gioi_tinh === 'Male') +
+      posChipNut('data-khgt="Female"', 'Nữ', f.gioi_tinh === 'Female') +
+      posChipNut('data-khgt=""', 'Chưa rõ', !f.gioi_tinh)) + '</div>' +
+    o('Địa chỉ', 'khfDc', f.dia_chi) +
+    o('Zalo user id', 'khfZalo', f.zalo) +
+    o('Nhãn', 'khfTags', f.tags, 'text', 'Mỗi nhãn cách nhau bằng dấu phẩy.') +
+    '<button class="btn" id="khfLuu" style="width:100%;margin-top:14px">💾 Lưu</button></div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  box.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-khgt]');
+    if (!t) return;
+    f.gioi_tinh = t.getAttribute('data-khgt');
+    box.querySelectorAll('[data-khgt]').forEach(function (n) {
+      var on = n.getAttribute('data-khgt') === f.gioi_tinh;
+      n.style.background = on ? '#0d9488' : '#fff';
+      n.style.color = on ? '#fff' : '#374151';
+      n.style.borderColor = on ? '#0d9488' : '#d7dce5';
+      n.style.fontWeight = on ? '800' : '600';
+    });
+  });
+  document.getElementById('khfLuu').onclick = async function () {
+    var v = function (id) { var n = document.getElementById(id); return n ? String(n.value).trim() : ''; };
+    busy(true);
+    try {
+      khHs = await api('vagabond.khach_hang.luu_ho_so', {
+        khach: khMa,
+        dat: JSON.stringify({
+          ten: v('khfTen'), sdt: v('khfSdt'), email: v('khfEmail'),
+          sinh_nhat: v('khfSn'), gioi_tinh: f.gioi_tinh, dia_chi: v('khfDc'),
+          zalo: v('khfZalo'), tags: v('khfTags')
+        })
+      });
+      busy(false); dong(); toast('Đã lưu'); khCtVe();
+    } catch (er) { busy(false); window.alert((er && er.message) || 'Không lưu được'); }
+  };
+}
+
+async function khSheetSoDiem() {
+  busy(true);
+  var k;
+  try { k = await api('vagabond.khach_hang.so_diem', { khach: khMa, so_dong: 50 }); }
+  catch (e) { busy(false); return toast((e && e.message) || 'Không đọc được sổ điểm'); }
+  busy(false);
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  var but = k.but || [];
+  box.innerHTML = '<div class="shh"><b>Sổ điểm</b><div class="x">&times;</div></div>' +
+    '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px">Số dư <b>' + money(k.so_du || 0) + ' điểm</b>. 1 điểm bằng 1 đồng.</div>' +
+    (but.length
+      ? but.map(function (x) {
+          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f4f5f8">' +
+            '<div style="flex:1;min-width:0"><div style="font-size:13.5px">' + h(x.loai || '') + '</div>' +
+            '<div style="font-size:11.5px;color:#98a2b3">' + h(String(x.ngay || '').slice(0, 16)) +
+            (x.hoa_don ? ' · ' + h(x.hoa_don) : '') + (x.ghi_chu ? '<br>' + h(x.ghi_chu) : '') + '</div></div>' +
+            '<b style="white-space:nowrap;color:' + ((x.diem || 0) < 0 ? '#b3261e' : '#0f766e') + '">' +
+            ((x.diem || 0) > 0 ? '+' : '') + money(x.diem || 0) + '</b></div>';
+        }).join('')
+      : '<div style="padding:20px 0;color:#a0a6b4;text-align:center">Chưa có bút nào.</div>') +
+    '</div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
 }
 
 })();
