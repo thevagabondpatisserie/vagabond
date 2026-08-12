@@ -97,47 +97,121 @@ class VagabondCombo(Document):
 	def _kiem_nhom(self):
 		"""Nhom mon cho khach chon: "1 mon nuoc trong 2, 1 banh trong 4".
 
-		Cai nay hoc theo man set combo cua Fabi (De feedback 12/08/2026).
-		Dong khong ghi nhom la mon BAT BUOC, luon vao bill - giu nguyen cach
-		combo cu chay, nen combo da khai truoc day khong doi hanh vi.
+		Hoc theo man set combo cua Fabi (anh Viet gui anh 12/08/2026). Moi
+		nhom la MOT dong rieng trong bang nhom, co ten, chon toi thieu va
+		toi da - chu khong con go lai ten nhom tren tung dong mon.
+
+		Dong mon khong ghi ten nhom la mon BAT BUOC, luon vao bill. Combo
+		cu khong khai nhom nao thi chay y nhu truoc.
 		"""
-		nhom = {}
+		theo_ten = {}
+		for d in self.dong:
+			d.nhom = (d.nhom or "").strip()
+			if d.nhom:
+				theo_ten.setdefault(d.nhom, []).append(d)
+
+		ten_nhom = {}
+		for g in self.nhom or []:
+			g.ten = (g.ten or "").strip()
+			if not g.ten:
+				frappe.throw("Có nhóm món chưa đặt tên.")
+			if g.ten in ten_nhom:
+				frappe.throw("Nhóm \"%s\" bị khai hai lần." % g.ten)
+			ten_nhom[g.ten] = g
+
+			ds = theo_ten.get(g.ten) or []
+			if not ds:
+				frappe.throw(
+					"Nhóm \"%s\" chưa có món nào. Thêm món vào nhóm, hoặc bỏ "
+					"nhóm đó đi." % g.ten
+				)
+			toi_da = cint(g.chon_toi_da)
+			if toi_da <= 0:
+				toi_da = 1
+			toi_thieu = cint(g.chon_toi_thieu)
+			if toi_thieu < 0:
+				toi_thieu = 0
+			if toi_thieu > toi_da:
+				frappe.throw(
+					"Nhóm \"%s\" đang bắt chọn tối thiểu %d món mà tối đa chỉ "
+					"%d. Sửa lại giúp em." % (g.ten, toi_thieu, toi_da)
+				)
+			if toi_da > len(ds):
+				frappe.throw(
+					"Nhóm \"%s\" cho chọn tối đa %d món mà trong nhóm mới có %d "
+					"món. Thêm món, hoặc hạ số tối đa xuống." % (g.ten, toi_da, len(ds))
+				)
+			if toi_thieu == toi_da == len(ds):
+				frappe.throw(
+					"Nhóm \"%s\" bắt khách lấy hết cả %d món thì không còn gì "
+					"để chọn. Bỏ tên nhóm khỏi mấy dòng đó là chúng thành món "
+					"bắt buộc, gọn hơn." % (g.ten, len(ds))
+				)
+			g.chon_toi_da = toi_da
+			g.chon_toi_thieu = toi_thieu
+			# Truong cu tren tung dong mon van giu dong bo, de ban cai dat cu
+			# va bao cao doc ra khong lech.
+			for d in ds:
+				d.chon_trong_nhom = toi_da
+
+		# Dong mon tro toi mot nhom khong co trong bang nhom la mo coi: no
+		# se khong bao gio duoc chon, ma man cai dat khong noi cho ai biet.
+		for ten in theo_ten:
+			if ten not in ten_nhom:
+				frappe.throw(
+					"Mấy món đang ghi nhóm \"%s\" mà chưa có nhóm nào tên đó. "
+					"Bấm Tạo nhóm món để khai, hoặc xoá tên nhóm khỏi mấy dòng "
+					"đó." % ten
+				)
 		for d in self.dong:
 			if not d.nhom:
 				d.chon_trong_nhom = 0
-				continue
-			nhom.setdefault(d.nhom, []).append(d)
-		for ten, ds in nhom.items():
-			# So mon duoc chon ghi tren tung dong cho de sua tren app; o day
-			# quy ve mot con so cho ca nhom, khong thi hai dong noi hai kieu.
-			so = max(cint(d.chon_trong_nhom) for d in ds)
-			if so <= 0:
-				so = 1
-			if so >= len(ds):
-				frappe.throw(
-					"Nhóm \"%s\" có %d món mà cho chọn %d món thì khách không "
-					"còn gì để chọn. Thêm món vào nhóm, hoặc bỏ tên nhóm đi để "
-					"mấy món đó thành món bắt buộc." % (ten, len(ds), so)
-				)
-			for d in ds:
-				d.chon_trong_nhom = so
 
 		if self.tu_ngay and self.den_ngay and str(self.den_ngay) < str(self.tu_ngay):
 			frappe.throw("Ngày kết thúc của combo đang sớm hơn ngày bắt đầu.")
 
 
+def _lay(d, khoa, mac_dinh=None):
+	if isinstance(d, dict):
+		return d.get(khoa, mac_dinh)
+	return getattr(d, khoa, mac_dinh)
+
+
 def nhom_cua(cb):
-	"""Bang nhom -> (so mon duoc chon, cac dong trong nhom)."""
+	"""Bang ten nhom -> {toi_thieu, toi_da, mo_ta, dong}.
+
+	Doc tu bang NHOM cua combo. Combo khai truoc ngay 12/08/2026 chua co
+	bang nhom nhung dong mon da mang ten nhom va so mon duoc chon, nen van
+	suy nguoc ra duoc - khong de combo cu bong dung mat nhom.
+	"""
+	dong = (cb.dong if hasattr(cb, "dong") else cb["dong"]) or []
+	theo_ten = {}
+	for d in dong:
+		ten = str(_lay(d, "nhom", "") or "").strip()
+		if ten:
+			theo_ten.setdefault(ten, []).append(d)
+
 	ra = {}
-	for d in (cb.dong if hasattr(cb, "dong") else cb["dong"]) or []:
-		ten = (d.get("nhom") if isinstance(d, dict) else (d.nhom or "")) or ""
-		ten = str(ten).strip()
-		if not ten:
+	bang = (cb.nhom if hasattr(cb, "nhom") else cb.get("nhom")) or []
+	for g in bang:
+		ten = str(_lay(g, "ten", "") or "").strip()
+		if not ten or ten not in theo_ten:
 			continue
-		so = cint(d.get("chon_trong_nhom") if isinstance(d, dict) else d.chon_trong_nhom) or 1
-		cu = ra.setdefault(ten, [so, []])
-		cu[0] = max(cu[0], so)
-		cu[1].append(d)
+		ds = theo_ten[ten]
+		toi_da = cint(_lay(g, "chon_toi_da", 0)) or 1
+		toi_thieu = cint(_lay(g, "chon_toi_thieu", 0))
+		ra[ten] = {
+			"toi_thieu": max(0, min(toi_thieu, toi_da)),
+			"toi_da": min(toi_da, len(ds)),
+			"mo_ta": str(_lay(g, "mo_ta", "") or "").strip(),
+			"dong": ds,
+		}
+	for ten, ds in theo_ten.items():
+		if ten in ra:
+			continue
+		so = max([cint(_lay(d, "chon_trong_nhom", 0)) for d in ds] or [0]) or 1
+		so = min(so, len(ds))
+		ra[ten] = {"toi_thieu": so, "toi_da": so, "mo_ta": "", "dong": ds}
 	return ra
 
 
@@ -160,7 +234,10 @@ def goc_bo(cb, dat_nhat=True):
 		ten = (d.get("nhom") if isinstance(d, dict) else (d.nhom or "")) or ""
 		if not str(ten).strip():
 			tong += _tien_dong(d)
-	for _ten, (so, ds) in nhom_cua(cb).items():
-		gia = sorted((_tien_dong(d) for d in ds), reverse=bool(dat_nhat))
+	for _ten, g in nhom_cua(cb).items():
+		gia = sorted((_tien_dong(d) for d in g["dong"]), reverse=bool(dat_nhat))
+		# Dat nhat la khach lay het suat toi da va toan mon dat; re nhat la
+		# khach chi lay dung so toi thieu va toan mon re.
+		so = g["toi_da"] if dat_nhat else g["toi_thieu"]
 		tong += sum(gia[:so])
 	return tong

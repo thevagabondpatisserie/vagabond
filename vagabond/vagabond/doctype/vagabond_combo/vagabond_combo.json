@@ -7,7 +7,7 @@
  "field_order": [
   "ma_combo", "ten", "cb0", "bat", "uu_tien",
   "sb_gia", "kieu", "gia_combo", "cbg", "gia_tri", "gia_goc", "tiet_kiem",
-  "sb_dong", "ht_dong", "dong",
+  "sb_dong", "ht_dong", "dong", "sb_nhom", "ht_nhom", "nhom",
   "sb_pv", "tu_ngay", "den_ngay", "cbp", "kenh", "quay",
   "sb_cgl", "gioi_han_bill", "lan_moi_ngay", "cbc", "can_otp", "da_dung",
   "sb_gc", "anh", "mo_ta", "nguoi_tao"
@@ -30,6 +30,10 @@
   {"fieldname": "sb_dong", "fieldtype": "Section Break", "label": "Cac mon trong combo"},
   {"fieldname": "ht_dong", "fieldtype": "HTML", "options": "<div class='text-muted small'>Khi tinh tien, may RA combo thanh tung mon o day roi dat mot dong giam gia ben duoi. Bill in ra chi thay ten mon that, khong in ma combo.</div>"},
   {"fieldname": "dong", "fieldtype": "Table", "options": "Vagabond Combo Dong", "label": "Mon", "reqd": 1},
+
+  {"fieldname": "sb_nhom", "fieldtype": "Section Break", "label": "Nhom mon cho khach chon"},
+  {"fieldname": "ht_nhom", "fieldtype": "HTML", "options": "<div class='text-muted small'>Moi nhom la mot cau hoi cho khach: chon may mon trong may mon. Dong mon nao khong ghi ten nhom thi la mon bat buoc, luon vao bill.</div>"},
+  {"fieldname": "nhom", "fieldtype": "Table", "options": "Vagabond Combo Nhom", "label": "Nhom mon"},
 
   {"fieldname": "sb_pv", "fieldtype": "Section Break", "label": "Pham vi"},
   {"fieldname": "tu_ngay", "fieldtype": "Date", "label": "Tu ngay"},
