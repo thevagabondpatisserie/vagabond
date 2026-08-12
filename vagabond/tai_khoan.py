@@ -36,6 +36,19 @@ TRUONG = "vgb_tai_khoan_nhan"
 # luc ban khach chua tra dong nao nen khong co ma QR nao ca, tien chi ve
 # khi minh gom hoa don thanh phieu de nghi thanh toan roi gui ho.
 CN_PHIEU_NO = "@phieu_cong_no"
+
+# Tien to khoa cho tai khoan khai theo DIEM BAN: "@diem:TCV".
+#
+# Tu 12/08/2026 hai quay dung chung nguon "Tại chỗ" va "Mang về" (anh Viet:
+# ban chat la mot, da quan ly tu buoc diem ban roi), nen khoa theo ten nguon
+# khong con tach duoc dong tien cua Tran Cao Van voi Nha Van Hoa Thanh Nien.
+# Khoa theo diem ban thi tach duoc, va dung y anh Viet muon: moi diem mot
+# tai khoan ao, sao ke tu no da chia san.
+#
+# Thu tu tra: tai khoan cua NGUON truoc (vi du "Khách sỉ" co tai khoan rieng
+# du don do thuoc diem nao), roi den tai khoan cua DIEM, cuoi cung la mac
+# dinh. Nguon cu the bao gio cung cu the hon diem.
+CN_DIEM = "@diem:"
 MUC_DICH = [
 	{
 		"k": CN_PHIEU_NO,
@@ -155,27 +168,32 @@ def cai():
 	return {"mac_dinh": md, "theo_nguon": ra}
 
 
-def tk_cho(nguon=None):
-	"""Tai khoan nhan tien cua mot nguon don.
+def tk_cho(nguon=None, diem=None):
+	"""Tai khoan nhan tien cua mot nguon don tai mot diem ban.
 
-	Nguon chua khai rieng, khai thieu so tai khoan, hoac dang tat thi roi
-	ve tai khoan mac dinh - khong bao gio tra ve tai khoan rong, vi tra
-	rong la man tinh tien khong sinh duoc QR ma thu ngan khong hieu vi sao.
+	Nguon chua khai rieng, khai thieu so tai khoan, hoac dang tat thi thu
+	tiep tai khoan cua diem ban, roi moi roi ve tai khoan mac dinh - khong
+	bao gio tra ve tai khoan rong, vi tra rong la man tinh tien khong sinh
+	duoc QR ma thu ngan khong hieu vi sao.
 	"""
 	c = cai()
 	n = str(nguon or "").strip()
-	if n:
-		for tk in c["theo_nguon"]:
-			if tk["nguon"] == n and tk["dung"] and _du(tk):
-				return {
-					"bank": tk["bank"],
-					"stk": tk["stk"],
-					"ten": tk["ten"] or c["mac_dinh"]["ten"],
-					"nguon": n,
-					"rieng": 1,
-				}
+	d = str(diem or "").strip().upper()
+	rieng = {t["nguon"]: t for t in c["theo_nguon"] if t["dung"] and _du(t)}
+	for khoa in ([n] if n else []) + ([CN_DIEM + d] if d else []):
+		tk = rieng.get(khoa)
+		if tk:
+			return {
+				"bank": tk["bank"],
+				"stk": tk["stk"],
+				"ten": tk["ten"] or c["mac_dinh"]["ten"],
+				"nguon": n or khoa,
+				"diem": d,
+				"rieng": 1,
+			}
 	md = dict(c["mac_dinh"])
 	md["nguon"] = n
+	md["diem"] = d
 	md["rieng"] = 0
 	return md
 
@@ -186,27 +204,30 @@ def tk_phieu_no():
 
 
 def bang_theo_nguon(nguon=None):
-	"""Bang tra nguon -> tai khoan, gui cho app mot lan cung cau hinh."""
+	"""Bang tra tai khoan, gui cho app mot lan cung cau hinh.
+
+	Hai kieu khoa nam chung mot bang:
+	  "<nguồn>"             - tra khi app khong biet minh dang o diem nao
+	  "<MÃ ĐIỂM>|<nguồn>"   - tra khi app biet, vi du man tinh tien quay
+	App tra khoa co diem truoc. Co hai khoa la vi mot nguon dung chung cho
+	nhieu diem thi cung mot ten nguon lai ra hai tai khoan khac nhau.
+	"""
+	from vagabond import diem_ban
+
 	if nguon is None:
 		from vagabond.ban_hang import _nguon_don
 
 		nguon = _nguon_don()
-	c = cai()
-	rieng = {t["nguon"]: t for t in c["theo_nguon"] if t["dung"] and _du(t)}
 	ra = {}
 	for n in nguon:
 		ten = n["v"]
-		t = rieng.get(ten)
-		if t:
-			ra[ten] = {
-				"bank": t["bank"], "stk": t["stk"],
-				"ten": t["ten"] or c["mac_dinh"]["ten"], "nguon": ten, "rieng": 1,
-			}
-		else:
-			md = dict(c["mac_dinh"])
-			md["nguon"] = ten
-			md["rieng"] = 0
-			ra[ten] = md
+		ra[ten] = tk_cho(ten)
+		for ma in (n.get("diem_ds") or ([n["diem"]] if n.get("diem") else [])):
+			ra["%s|%s" % (ma, ten)] = tk_cho(ten, ma)
+	# Diem chua co nguon nao khai o day van phai tra duoc tai khoan, de man
+	# nao chi biet minh o quay nao (chua chon nguon) van sinh duoc QR.
+	for d in diem_ban.ds(chi_bat=True):
+		ra["%s|" % d["ma"]] = tk_cho("", d["ma"])
 	return ra
 
 
@@ -216,6 +237,8 @@ def bang_theo_nguon(nguon=None):
 @frappe.whitelist()
 def danh_sach():
 	from vagabond.ban_hang import _kiem_quyen, _nguon_don
+
+	from vagabond import diem_ban
 
 	_kiem_quyen()
 	c = cai()
@@ -227,10 +250,27 @@ def danh_sach():
 			"nhan": m["ten"], "mo": m.get("mo") or "",
 			"da_khai": da_co.get(m["k"], 0),
 		})
+	# Diem ban len truoc nguon don: day moi la cach anh Viet chia dong tien
+	# (moi diem mot tai khoan ao MB), con tai khoan theo nguon chi de xu ly
+	# vai truong hop le nhu khach si.
+	for d in diem_ban.ds(chi_bat=True):
+		k = CN_DIEM + d["ma"]
+		nguon.append({
+			"v": k, "lg": "", "ic": "🏪",
+			"nhan": "Điểm bán: " + d["ten"],
+			"mo": "Áp cho mọi nguồn đơn của điểm này, trừ nguồn đã khai riêng.",
+			"da_khai": da_co.get(k, 0),
+		})
 	for n in _nguon_don():
+		ds_diem = n.get("diem_ds") or []
 		nguon.append({
 			"v": n["v"], "lg": n.get("lg") or "", "ic": n.get("ic") or "",
-			"nhan": n["v"], "mo": "", "da_khai": da_co.get(n["v"], 0),
+			"nhan": n["v"],
+			"mo": (
+				"Dùng chung cho %s - khai ở đây là cả hai điểm về một tài khoản."
+				% ", ".join(ds_diem)
+			) if len(ds_diem) > 1 else "",
+			"da_khai": da_co.get(n["v"], 0),
 		})
 	return {
 		"mac_dinh": c["mac_dinh"],

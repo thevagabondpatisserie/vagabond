@@ -310,6 +310,12 @@ def _nguon_don():
 	# vi khong hien ra cho ai chon tay - nen o day phai lay TAT CA phuong
 	# thuc dang dung, khong duoc lay ten_quay() | ten_online().
 	con_dung = {p["ten"] for p in pt_thanh_toan.ds(chi_dung=True)}
+	# Mot nguon co the thuoc nhieu diem ("Tại chỗ" chung cho moi quay), nen
+	# phai biet TAT CA diem cua no truoc khi dung dong nguon do.
+	chu = {}
+	for d in diem_ban.ds(chi_bat=True):
+		for n in d["nguon"]:
+			chu.setdefault(n, []).append(d["ma"])
 	for d in diem_ban.ds(chi_bat=True):
 		for n in d["nguon"]:
 			if n in da_co or n == "Pancake":
@@ -335,7 +341,14 @@ def _nguon_don():
 			# Ma diem ban cua nguon nay. App can de dat noi dung chuyen khoan
 			# (ma diem + so phieu) o nhung man khong biet minh dang o quay nao,
 			# vi du man Chi tiet don ben Sales.
-			m["diem"] = d["ma"]
+			#
+			# Nguon dung chung nhieu diem thi KHONG doan bua mot ma: man nao
+			# can biet diem thi phai hoi nguoi dung (man Nhap don tay co o
+			# chon Diem ban), con man tinh tien quay thi tu biet minh o quay
+			# nao roi.
+			ds_diem = chu.get(n) or [d["ma"]]
+			m["diem"] = ds_diem[0] if len(ds_diem) == 1 else ""
+			m["diem_ds"] = list(ds_diem)
 			ra.append(m)
 	return ra
 
@@ -387,7 +400,53 @@ THU_TU_NHOM = [
 ]
 
 # Ten nguon cu tren cac hoa don da nhap truoc 02/08, giu de doc lai duoc.
-NGUON_CU = {"Grab": "GrabFood", "Grab Online": "GrabFood", "Be": "BeFood", "GreenSM": "GreenSM Food"}
+# Tu 12/08/2026 gom them nguon quay: truoc day moi diem ban mot cap ten
+# rieng ("Tại chỗ - Trần Cao Vân"), nay chi con "Tại chỗ" va "Mang về" dung
+# chung, diem ban doc tu vgb_quay. Giu bang tra de hoa don cu va man hinh
+# cu goi ten cach nao cung ra dung nguon.
+NGUON_CU = {
+	"Grab": "GrabFood",
+	"Grab Online": "GrabFood",
+	"Be": "BeFood",
+	"GreenSM": "GreenSM Food",
+	"Tại chỗ - Trần Cao Vân": "Tại chỗ",
+	"Mang về - Trần Cao Vân": "Mang về",
+	"Tại chỗ - Nguyễn Văn Trỗi": "Tại chỗ",
+	"Mang về - Nguyễn Văn Trỗi": "Mang về",
+	"Tại chỗ - Sales Online": "Tại chỗ",
+	"Mang về - Sales Online": "Mang về",
+}
+
+
+def _quay_cua_nguon(nguon, quay):
+	"""Ma quay cho mot don nhap tay, suy tu nguon don.
+
+	Nguon gio dung chung giua cac quay nen ten nguon khong con noi duoc don
+	nay cua diem nao. Man Nhap don tay phai gui kem ma quay; ba hoa don
+	"Tại chỗ - Trần Cao Vân" nhap truoc 12/08 deu de trong vgb_quay, tuc ca
+	he dang doc chung la don Sales Online - dung cai bay phai bit.
+	"""
+	q = str(quay or "").strip().upper()
+	ds_diem = diem_ban.diem_cua_nguon(nguon)
+	if q:
+		d = diem_ban.theo_ma(q)
+		if not d or not d["quay"]:
+			frappe.throw("Mã quầy %s không có trong danh sách điểm bán." % q)
+		if ds_diem and d["ma"] not in ds_diem:
+			frappe.throw(
+				"Điểm bán %s không nhận đơn nguồn \"%s\". Các điểm đang nhận "
+				"nguồn này: %s." % (d["ma"], nguon, ", ".join(ds_diem) or "(chưa khai)")
+			)
+		return d["quay"]
+	if len(ds_diem) == 1:
+		d = diem_ban.theo_ma(ds_diem[0])
+		return d["quay"] if d else ""
+	if len(ds_diem) > 1:
+		frappe.throw(
+			"Nguồn \"%s\" đang dùng chung cho %s nên phải chọn điểm bán trước "
+			"khi lưu đơn." % (nguon, ", ".join(ds_diem))
+		)
+	return ""
 
 
 def _pt_cho_nguon(nguon):
@@ -1912,6 +1971,41 @@ def _gon(kq):
 	return str(kq)[:120]
 
 
+# Khoa bat/tat xuat hoa don dien tu theo DIEM BAN, khong con theo ten nguon.
+#
+# Truoc 12/08/2026 moi diem mot bo ten nguon rieng ("Tại chỗ - Trần Cao Vân")
+# nen danh sach nguon cung dong vai khoa diem ban. Nay hai quay dung chung
+# "Tại chỗ" va "Mang về", bat cho quay nay la bat luon quay kia - khong con
+# tat rieng duoc mot chi nhanh khi no chua du dieu kien xuat hoa don.
+#
+# Cat rieng mot danh sach ma quay. Diem nhan don online khong co ma quay
+# nen ghi dau @; Server Script doc @ thanh "vgb_quay de trong".
+TRUONG_HDDT_QUAY = "vgb_hddt_quay"
+HDDT_QUAY_ONLINE = "@"
+
+
+def _hddt_diem_dang_bat():
+	"""Ma cac diem ban dang bat xuat hoa don dien tu.
+
+	Tra None khi chua ai luu theo khoa nay bao gio - de noi goi con biet
+	duong doc lai theo kieu cu thay vi hieu nham la tat het.
+	"""
+	tho = str(cfg().get(TRUONG_HDDT_QUAY) or "").strip()
+	if not tho:
+		return None
+	nhan = {
+		x.strip().upper()
+		for x in tho.replace(",", "\n").splitlines()
+		if x.strip()
+	}
+	ra = set()
+	for d in _diem_ban_hddt():
+		khoa = d["quay"].upper() if d["quay"] else HDDT_QUAY_ONLINE
+		if khoa in nhan:
+			ra.add(d["ma"])
+	return ra
+
+
 @frappe.whitelist()
 def cai_dat_cuoi_ngay():
 	"""Man Cai dat tren app doc cau hinh chuoi cuoi ngay theo tung diem ban."""
@@ -1933,17 +2027,24 @@ def cai_dat_cuoi_ngay():
 		bat_ky_chung = bat_chung and cint(stg.get("tu_ky_hang_loat"))
 	except Exception:
 		dang_bat, bat_chung, bat_ky_chung = [], 0, 0
+	hddt_diem = _hddt_diem_dang_bat()
 	diem = []
 	for d in _diem_ban_hddt():
+		if hddt_diem is None:
+			# Chua ai luu theo khoa diem bao gio: doc lai theo kieu cu, tuc
+			# suy tu danh sach nguon. d["nguon"] rong thi all(...) tra True -
+			# se bao la dang xuat hoa don trong khi thuc te khong loc ra to
+			# nao. Phai kiem rong.
+			bat_hddt = 1 if (d["nguon"] and all(n in dang_bat for n in d["nguon"])) else 0
+		else:
+			bat_hddt = 1 if d["ma"] in hddt_diem else 0
 		diem.append(
 			{
 				"ma": d["ma"],
 				"ten": d["ten"],
 				# Sales luon tu ghi so; hai quay bat rieng bang danh sach quay.
 				"ghi_so": 1 if (d["ma"] == "SALES" or d["quay"] in quay_bat) else 0,
-				# d["nguon"] rong thi all(...) tra True - se bao la dang xuat
-				# hoa don trong khi thuc te khong loc ra to nao. Phai kiem rong.
-				"hddt": 1 if (d["nguon"] and all(n in dang_bat for n in d["nguon"])) else 0,
+				"hddt": bat_hddt,
 				"nguon": d["nguon"],
 			}
 		)
@@ -1984,10 +2085,17 @@ def luu_cai_dat_cuoi_ngay(bat=None, gio=None, ghi_so=None, hddt=None):
 	quay = [d["quay"] for d in _diem_ban_hddt() if d["quay"] and d["ma"] in ghi_so]
 	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_quay", "\n".join(quay))
 
-	nguon = []
+	nguon, khoa_quay = [], []
 	for d in _diem_ban_hddt():
 		if d["ma"] in hddt:
 			nguon += d["nguon"]
+			khoa_quay.append(d["quay"].upper() if d["quay"] else HDDT_QUAY_ONLINE)
+	# Danh sach nguon van phai luu: Server Script loc BANG CA HAI dieu kien,
+	# nguon de chan cac hoa don ke toan tu tao tren Desk (khong mang nguon
+	# nao) khoi bi xuat hoa don dien tu ngoai y muon.
+	frappe.db.set_single_value(
+		"Vagabond Settings", TRUONG_HDDT_QUAY, "\n".join(dict.fromkeys(khoa_quay))
+	)
 	try:
 		frappe.db.set_value(
 			"MInvoice Phat Hanh Settings",
@@ -2188,6 +2296,14 @@ def tao_don_tay(
 	if not rows:
 		frappe.throw("Đơn chưa có món nào.")
 
+	# Chot nguon va diem ban TRUOC khi tinh khuyen mai: chuong trinh co the
+	# gioi han theo quay, ma neu doan quay sau khi da tinh thi hoa don mang
+	# mot quay con khuyen mai lai xet mot quay khac.
+	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
+	if nguon not in [n["v"] for n in _nguon_don()]:
+		frappe.throw("Nguồn đơn %s không có trong danh mục." % (nguon or "(trống)"))
+	quay = _quay_cua_nguon(nguon, quay)
+
 	# --- Khuyen mai: may chu tu tinh lai, khong tin so tu may khach ---
 	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
 	# tren phi ship.
@@ -2223,9 +2339,6 @@ def tao_don_tay(
 
 	if flt(phi_ship) > 0:
 		rows.append({"item_code": _item_phi_giao(), "qty": 1, "rate": flt(phi_ship)})
-	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
-	if nguon not in [n["v"] for n in _nguon_don()]:
-		frappe.throw("Nguồn đơn %s không có trong danh mục." % (nguon or "(trống)"))
 	hop_le = _pt_cho_nguon(nguon)
 	tam_tinh = frappe.utils.cint(tam_tinh)
 	if tam_tinh:

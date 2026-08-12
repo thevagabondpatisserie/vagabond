@@ -55,7 +55,7 @@ MAC_DINH = [
 		"dia_chi": "9 Trần Cao Vân, Quận 1",
 		"mst": "",
 		"ky_hieu": "",
-		"nguon": ["Tại chỗ - Trần Cao Vân", "Mang về - Trần Cao Vân"],
+		"nguon": ["Tại chỗ", "Mang về"],
 		"bat": 1,
 		"thu_tu": 2,
 	},
@@ -69,7 +69,7 @@ MAC_DINH = [
 		"dia_chi": "21 Phạm Ngọc Thạch, Quận 3",
 		"mst": "",
 		"ky_hieu": "",
-		"nguon": ["Tại chỗ - Nguyễn Văn Trỗi", "Mang về - Nguyễn Văn Trỗi"],
+		"nguon": ["Tại chỗ", "Mang về"],
 		"bat": 1,
 		"thu_tu": 3,
 	},
@@ -190,6 +190,8 @@ def danh_sach():
 # go thieu mot dau la nguon do khong khop voi hoa don nao ca, ma khong ai
 # bao loi - hoa don cu the nam ngoai moi diem ban.
 NGUON_MAU = [
+	{"v": "Tại chỗ", "ic": "🏬"},
+	{"v": "Mang về", "ic": "🥡"},
 	{"v": "Pancake", "ic": "💬"},
 	{"v": "GrabFood", "lg": "/files/pt-grab.png"},
 	{"v": "BeFood", "lg": "/files/pt-befood.png"},
@@ -243,13 +245,23 @@ def nguon_co_san():
 
 	# Nguon dang thuoc diem nao, de man hinh bao truoc thay vi de nguoi
 	# dung bam Luu roi moi an loi tu may chu.
+	# Mot nguon nay co the thuoc NHIEU diem co quay ("Tại chỗ" chung cho ca
+	# hai quay), nen goi ra danh sach chu khong con la mot ma don le.
 	chu = {}
 	for d in dang_khai:
 		for n in d["nguon"]:
-			chu[n] = d["ma"]
+			chu.setdefault(n, []).append(d["ma"])
 	for x in ra:
-		x["cua"] = chu.get(x["v"], "")
+		ds_chu = chu.get(x["v"]) or []
+		x["cua"] = ", ".join(ds_chu)
+		x["cua_ds"] = ds_chu
 	return ra
+
+
+def diem_cua_nguon(nguon):
+	"""Cac diem ban dang khai nguon nay. Nguon dung chung thi tra nhieu ma."""
+	n = str(nguon or "").strip()
+	return [d["ma"] for d in ds(chi_bat=True) if n in d["nguon"]]
 
 
 def _kiem(ra):
@@ -278,13 +290,24 @@ def _kiem(ra):
 				)
 			quay_da_co[d["quay"]] = d["ma"]
 		for n in d["nguon"]:
-			if n in nguon_da_co:
+			# Nguon dung chung giua cac diem CO QUAY thi khong sao: hoa don
+			# quay nao cung mang vgb_quay nen ca he van tra ve dung diem. Nho
+			# vay "Tai cho" va "Mang ve" khong con phai dinh ten chi nhanh
+			# vao duoi nua (anh Viet 12/08/2026).
+			#
+			# Nhung diem ONLINE thi khong: don online khong mang ma quay nao,
+			# neu no dung chung nguon voi mot diem khac thi khong con gi de
+			# phan biet, va hoa don dien tu se xuat cho ca hai.
+			cu = nguon_da_co.get(n)
+			if cu and (not d["quay"] or not cu[1]):
 				frappe.throw(
-					"Nguồn đơn \"%s\" đang gán cho cả %s và %s. Một nguồn chỉ "
-					"thuộc một điểm bán, không thì hoá đơn điện tử xuất hai lần."
-					% (n, nguon_da_co[n], d["ma"])
+					"Nguồn đơn \"%s\" đang gán cho cả %s và %s, mà %s là điểm "
+					"nhận đơn online. Đơn online không mang mã quầy nên không "
+					"còn cách nào tách hai điểm, hoá đơn điện tử sẽ xuất hai lần."
+					% (n, cu[0], d["ma"], cu[0] if not cu[1] else d["ma"])
 				)
-			nguon_da_co[n] = d["ma"]
+			if not cu:
+				nguon_da_co[n] = (d["ma"], 1 if d["quay"] else 0)
 	online = [d for d in ra if not d["quay"]]
 	if len(online) != 1:
 		frappe.throw(
