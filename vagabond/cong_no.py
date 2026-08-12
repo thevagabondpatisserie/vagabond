@@ -271,7 +271,10 @@ def xem_phieu(name):
 		"con_thieu": max(0.0, flt(doc.tong_tien) - nhan),
 		"trang_thai": doc.trang_thai,
 		"ghi_chu": doc.ghi_chu or "",
-		"qr": tai_khoan.tk_cho(),
+		# Phieu doi no dung tai khoan ao rieng cua khach si neu da khai: khach
+		# si hay chuyen theo noi dung cua ho chu khong theo noi dung minh dat
+		# (ca OSHIMA 11/08/2026), nen tach bang TAI KHOAN moi chac.
+		"qr": tai_khoan.tk_phieu_no(),
 		"dong": [
 			{
 				"hoa_don": d.hoa_don,

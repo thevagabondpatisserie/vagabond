@@ -28,6 +28,23 @@ from vagabond.lib import cfg
 
 TRUONG = "vgb_tai_khoan_nhan"
 
+# Muc dich dac biet, khong phai nguon don. Khai chung mot bang cho gon,
+# nhung tach ra day de man Cai dat hien thanh mot khoi rieng va de cho
+# nao goi cung biet ma ma tra.
+#
+# Phieu doi no la cho tien khach si THUC SU chay ve: don ghi Cong no thi
+# luc ban khach chua tra dong nao nen khong co ma QR nao ca, tien chi ve
+# khi minh gom hoa don thanh phieu de nghi thanh toan roi gui ho.
+CN_PHIEU_NO = "@phieu_cong_no"
+MUC_DICH = [
+	{
+		"k": CN_PHIEU_NO,
+		"ten": "Phiếu đòi nợ khách sỉ",
+		"mo": "Mã QR trên phiếu đề nghị thanh toán công nợ gửi cho khách sỉ.",
+		"ic": "📒",
+	},
+]
+
 QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager"}
 
 # Tai khoan dang chay tu truoc: tai khoan ao MBBank ma Fabi dung (chup man
@@ -163,6 +180,11 @@ def tk_cho(nguon=None):
 	return md
 
 
+def tk_phieu_no():
+	"""Tai khoan nhan tien cua phieu de nghi thanh toan cong no."""
+	return tk_cho(CN_PHIEU_NO)
+
+
 def bang_theo_nguon(nguon=None):
 	"""Bang tra nguon -> tai khoan, gui cho app mot lan cung cau hinh."""
 	if nguon is None:
@@ -199,12 +221,22 @@ def danh_sach():
 	c = cai()
 	da_co = {t["nguon"]: 1 for t in c["theo_nguon"]}
 	nguon = []
+	for m in MUC_DICH:
+		nguon.append({
+			"v": m["k"], "lg": "", "ic": m.get("ic") or "🏦",
+			"nhan": m["ten"], "mo": m.get("mo") or "",
+			"da_khai": da_co.get(m["k"], 0),
+		})
 	for n in _nguon_don():
-		nguon.append({"v": n["v"], "lg": n.get("lg") or "", "ic": n.get("ic") or "", "da_khai": da_co.get(n["v"], 0)})
+		nguon.append({
+			"v": n["v"], "lg": n.get("lg") or "", "ic": n.get("ic") or "",
+			"nhan": n["v"], "mo": "", "da_khai": da_co.get(n["v"], 0),
+		})
 	return {
 		"mac_dinh": c["mac_dinh"],
 		"theo_nguon": c["theo_nguon"],
 		"nguon": nguon,
+		"muc_dich": MUC_DICH,
 		"ngan_hang": NGAN_HANG,
 		"sua_duoc": 1 if QUYEN_SUA & set(frappe.get_roles()) else 0,
 	}
