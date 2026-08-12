@@ -15,6 +15,7 @@
   "so_thang_xet",
   "bat",
   "sb1",
+  "anh",
   "mo_ta"
  ],
  "fields": [
@@ -85,6 +86,12 @@
    "fieldname": "mo_ta",
    "fieldtype": "Small Text",
    "label": "Mo ta quyen loi"
+  },
+  {
+   "fieldname": "anh",
+   "fieldtype": "Attach Image",
+   "label": "Anh the hang",
+   "description": "Anh the thanh vien cua hang nay, hien tren app thay cho bieu tuong."
   }
  ],
  "links": [],
@@ -120,5 +127,6 @@
  "sort_field": "thu_tu",
  "sort_order": "ASC",
  "states": [],
- "track_changes": 1
+ "track_changes": 1,
+ "image_field": "anh"
 }
