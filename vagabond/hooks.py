@@ -35,6 +35,9 @@ scheduler_events = {
 		# sang ngay hom sau, sai luat ke toan (anh Viet 12/08/2026).
 		# 2h sang: ra don bi lap hai hoa don, co thi gui thu bao.
 		"0 2 * * *": ["vagabond.ban_hang.ra_trung_hang_dem"],
+		# Xet lai hang thanh vien theo chi tieu ky. Chay sau nua dem, truoc
+		# gio mo cua, de sang ra quay da thay dung hang cua khach.
+		"30 4 * * *": ["vagabond.khach_hang.xet_lai_tu_dong"],
 		# 3h sang: xoa anh giao hang cua van don qua 30 ngay cho nhe he thong
 		"0 3 * * *": [
 			"vagabond.van_don.don_dep_anh_giao",
@@ -71,10 +74,17 @@ doc_events = {
 	},
 	"Sales Invoice": {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
+		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
+		# before_submit: chi cong diem khi hoa don da that su vao so.
+		"on_submit": "vagabond.khach_hang.cong_diem_hoa_don",
 		# Huy hoa don kenh khac thi tra so lai cho bang kiem banh. Truoc day
 		# co ca after_delete o day, nay bo di: khong ai xoa duoc hoa don nua
 		# nen no la ma chet, de lai chi lam nguoi doc tuong con duong xoa.
-		"on_cancel": "vagabond.kiem_banh.khi_doi_hoa_don",
+		"on_cancel": [
+			"vagabond.kiem_banh.khi_doi_hoa_don",
+			# Huy hoa don thi rut lai dung so diem da cong cho hoa don do.
+			"vagabond.khach_hang.hoan_diem_hoa_don",
+		],
 	},
 }
 
