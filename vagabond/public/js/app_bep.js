@@ -868,6 +868,7 @@ async function scrHome() {
         card('💳', 'Phương thức thanh toán', 'Máy cà thẻ, ví, công nợ - và mã gửi cơ quan thuế', 0, 'CDPT') +
         card('🏦', 'Tài khoản nhận tiền', 'Số tài khoản sinh mã QR, khai riêng được cho từng nguồn đơn', 0, 'CDTK') +
         card('🎂', 'Danh mục sản phẩm', 'Mở mã hàng mới trong bảy ô, máy tự đặt mã và cảnh báo trùng tên', 0, 'CDSP') +
+        card('🖨', 'Máy in', 'Sổ máy in từng điểm bán và khổ giấy cho mỗi loại phiếu', 0, 'CDMI') +
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
@@ -917,6 +918,7 @@ async function scrHome() {
     if (k === 'CDPT') return go(scrPtThanhToan);
     if (k === 'CDTK') return go(scrTaiKhoan);
     if (k === 'CDSP') return go(scrDanhMuc);
+    if (k === 'CDMI') return go(scrMayIn);
     if (k === 'CDQQ') return go(scrQuyenQuay);
     if (k === 'CDHT') return go(scrHangKhach);
     if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
@@ -964,7 +966,7 @@ var VGB_NHOM = [
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'BC:BC05'] },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDQQ', 'CDHT', 'CDCN', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1268,6 +1270,7 @@ function vgbGo(k) {
   if (k === 'CDPT') return go(scrPtThanhToan);
   if (k === 'CDTK') return go(scrTaiKhoan);
   if (k === 'CDSP') return go(scrDanhMuc);
+  if (k === 'CDMI') return go(scrMayIn);
   if (k === 'CDQQ') return go(scrQuyenQuay);
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
@@ -8280,9 +8283,9 @@ async function posInBill(d) {
      Can lien thu hai thi bam In lai them mot lan, may tu ra to nua. */
   var lien2 = '';
   w.document.write('<html><head><meta charset="utf-8"><title>' + h(d.bill || d.name || 'Hoá đơn') + '</title><style>' +
-    '@page{size:80mm auto;margin:0}' +
+    '@page{size:' + inKho('hoa_don').css + ';margin:0}' +
     '*{margin:0;padding:0;box-sizing:border-box}' +
-    'body{width:72mm;margin:0 auto;font-family:Arial,sans-serif;font-size:11.5px;color:#000;padding:4mm 0 6mm}' +
+    'body{width:' + inKho('hoa_don').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:11.5px;color:#000;padding:4mm 0 6mm}' +
     '.lg{display:block;width:44mm;margin:0 auto 2mm}' +
     'h1{font-size:13px;text-align:center;letter-spacing:.06em}' +
     '.ph{text-align:center;font-size:10px;line-height:1.45}' +
@@ -9026,6 +9029,21 @@ async function posXinPhep(viec) {
    Phieu 80mm (xprinter quay bar) di theo ly thuy tinh ngoi tai quan;
    tem 4cm x 3cm (may in tem) dan ly mang di / giao hang. */
 var POS_NHOM_NUOC = ['Trà', 'Cà phê', 'Matcha', 'Cacao', 'Ice Cream - Kem'];
+/* Kho giay cua mot loai phieu, khai o Cai dat - May in (anh Viet 12/08/2026).
+
+   Truoc day bon loai phieu deu go cung kho trong ma nguon. Doi mot may in
+   khac kho la phai sua ma roi deploy, ma moi lan deploy la mot lan co the
+   sai. Nay doc tu cau hinh; chua khai thi roi ve dung kho cu, khong doi
+   hanh vi cua ai. */
+function inKho(vaiTro) {
+  var b = (CFGBH || {}).kho_in || {};
+  var k = b[vaiTro];
+  if (k && k.css) return k;
+  return vaiTro === 'tem'
+    ? { k: 'tem_40x30', css: '40mm 30mm', rong: 40, cao: 30, cuon: 0 }
+    : { k: '80mm', css: '80mm auto', rong: 72, cuon: 1 };
+}
+
 function posLaNuoc(m) {
   if (String((m && m.item_code) || '').toUpperCase().indexOf('NU') === 0) return true;
   return POS_NHOM_NUOC.indexOf((m && m.nhom) || '') >= 0;
@@ -9050,8 +9068,8 @@ function posInPhieuMon(d) {
       '</div>';
   }).join('');
   w.document.write('<html><head><meta charset="utf-8"><title>Phiếu làm món ' + h(d.bill || d.name || '') + '</title><style>' +
-    '@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
-    'body{width:72mm;margin:0 auto;font-family:Arial,sans-serif;color:#000;padding:3mm 0 6mm}' +
+    '@page{size:' + inKho('phieu_mon').css + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
+    'body{width:' + inKho('phieu_mon').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;color:#000;padding:3mm 0 6mm}' +
     'h1{font-size:15px;text-align:center;letter-spacing:.1em}' +
     '.ph{text-align:center;font-size:11px;margin:1mm 0 2mm}' +
     'hr{border:0;border-top:1px dashed #000;margin:1.5mm 0}' +
@@ -9113,9 +9131,9 @@ function posInTemLy(d) {
       '</div>';
   }).join('');
   w.document.write('<html><head><meta charset="utf-8"><title>Tem món ' + h(d.bill || d.name || '') + '</title><style>' +
-    '@page{size:40mm 30mm;margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
+    '@page{size:' + inKho('tem').css + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
     'body{font-family:Arial,sans-serif;color:#000}' +
-    '.tem{width:40mm;height:30mm;padding:1.5mm 2mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}' +
+    '.tem{width:' + inKho('tem').rong + 'mm;height:' + (inKho('tem').cao || 30) + 'mm;padding:1.5mm 2mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}' +
     '.h{font-size:6.5px;text-align:center;letter-spacing:.06em}' +
     '.app{font-size:10px;font-weight:bold;text-align:center;background:#000;color:#fff;padding:.6mm 0;line-height:1.1}' +
     '.t{font-size:11px;font-weight:bold;text-align:center;line-height:1.15;margin-top:.5mm;flex:1;display:flex;align-items:center;justify-content:center}' +
@@ -9582,8 +9600,8 @@ function posInChotCa(k) {
   var thanPt = (k.pt || []).map(function (p) { return dd(h(p.pt) + ' (' + p.so + ' hoá đơn)', money(p.tien) + ' đ'); }).join('');
   var thanThieu = (k.ck_thieu || []).map(function (c) { return dd('Thiếu ' + h(c.bill), money(c.thieu) + ' đ'); }).join('');
   w.document.write('<html><head><meta charset="utf-8"><title>Chốt ca ' + h(k.quay || '') + '</title><style>' +
-    '@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
-    'body{width:72mm;margin:0 auto;font-family:Arial,sans-serif;font-size:11.5px;color:#000;padding:4mm 0 6mm}' +
+    '@page{size:' + inKho('chot_ca').css + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
+    'body{width:' + inKho('chot_ca').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:11.5px;color:#000;padding:4mm 0 6mm}' +
     'h1{font-size:14px;text-align:center;letter-spacing:.08em}' +
     '.ph{text-align:center;font-size:10.5px;margin-bottom:2mm;line-height:1.5}' +
     'hr{border:0;border-top:1px dashed #000;margin:2mm 0}' +
@@ -10367,7 +10385,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '135';
+var APPVER = '136';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -15027,6 +15045,244 @@ async function scrDcmXem(name) {
 }
 
 function cint0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
+
+
+/* ---------- Cai dat - May in (anh Viet 12/08/2026) ----------
+
+   Man nay lam HAI viec, va phai noi ro cai thu ba no KHONG lam duoc:
+
+   1. So thiet bi: ba may in iPOS o 9 Tran Cao Van, moi may mot so seri.
+      De con biet may nao hong thi goi bao hanh cai nao.
+   2. Kho giay theo loai phieu: app doc so nay khi in that, thay vi go
+      cung 80mm trong ma nguon nhu truoc.
+   3. KHONG chon duoc may in cho tung phieu. Trinh duyet khong cho ma
+      nguon chi dinh may in - do la rao can bao mat cua trinh duyet chu
+      khong phai thieu sot cua minh. Muon phieu chay dung may thi dat may
+      in mac dinh tren tung may tinh o quay. Man hinh phai noi that cho
+      nguoi dung, khong duoc de ho tuong da cau hinh xong. */
+var miData = null, miDs = [], miMo = null, miMoi = 0, miSuaDuoc = 0;
+
+async function scrMayIn() {
+  frame('Máy in', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { miData = await api('vagabond.may_in.danh_sach', {}); }
+  catch (e) {
+    frame('Máy in', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
+  miVe();
+}
+
+function miTenVaiTro(k) {
+  var ds = (miData && miData.vai_tro) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i].ten;
+  return k;
+}
+function miIconVaiTro(k) {
+  var ds = (miData && miData.vai_tro) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i].ic || '🖨';
+  return '🖨';
+}
+function miTenKho(k) {
+  var ds = (miData && miData.kho_giay) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i].ten;
+  return k;
+}
+function miTenDiem(ma) {
+  var ds = (miData && miData.diem) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].ma === ma) return ds[i].ten;
+  return ma || 'chưa gán điểm';
+}
+
+function miVe() {
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">MÁY IN</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Khai từng máy in đang có ở các điểm bán, kèm số sê-ri để sau này còn biết máy nào hỏng thì gọi bảo hành cái nào. ' +
+    'Khổ giấy khai ở đây được app dùng thật khi in.</div></div>';
+
+  /* Cai bay lon nhat cua man nay la nguoi dung tuong khai xong la phieu tu
+     chay dung may. Noi ngay tu dau, khong giau xuong cuoi. */
+  html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d">' +
+    '<b style="font-size:14px;color:#92400e">Máy in nào in phiếu nào thì đặt ở máy tính</b>' +
+    '<div style="font-size:12.5px;color:#7c4a03;margin-top:4px;line-height:1.6">' +
+    'App in qua hộp thoại in của trình duyệt, mà trình duyệt không cho phần mềm tự chọn máy in. ' +
+    'Nên phần "in loại phiếu nào" dưới đây là để ghi nhớ và để app biết khổ giấy, ' +
+    'còn muốn phiếu chạy đúng máy thì đặt máy in mặc định trên từng máy tính ở quầy.</div></div>';
+
+  html += '<div class="sec">Khổ giấy từng loại phiếu</div><div class="card">' +
+    ((miData.vai_tro || []).map(function (v) {
+      var may = miDs.filter(function (m) { return m.bat && (m.vai_tro || []).indexOf(v.k) >= 0; });
+      return '<div style="display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+        '<div style="width:32px;flex:none;text-align:center;font-size:19px">' + (v.ic || '🖨') + '</div>' +
+        '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(v.ten) + '</b>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' +
+        (may.length ? h(may.map(function (m) { return m.ten + ' · ' + miTenKho(m.kho); }).join(' | '))
+                    : '<span style="color:#b45309">chưa có máy nào nhận, in ra khổ mặc định</span>') +
+        '</div></div></div>';
+    }).join('')) + '</div>';
+
+  html += '<div class="sec">Danh sách máy in</div>';
+  if (!miDs.length) {
+    html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280">Chưa khai máy in nào.</div>';
+  } else {
+    html += '<div class="card">' + miDs.map(function (d, i) {
+      var vt = (d.vai_tro || []).map(function (k) { return miIconVaiTro(k) + ' ' + miTenVaiTro(k); }).join(' · ');
+      return '<div data-mimo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+        '<div style="width:34px;height:34px;flex:none;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:17px">🖨</div>' +
+        '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
+        '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h((d.hang ? d.hang + ' ' : '') + (d.model || '')) + ' · ' + h(miTenDiem(d.diem)) + ' · ' + h(miTenKho(d.kho)) + '</div>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + (vt ? h(vt) : '<span style="color:#b45309">chưa chọn loại phiếu</span>') + '</div></div>' +
+        '<span style="font-size:12px;font-weight:700;color:' + (d.bat ? '#0f766e' : '#a0a6b4') + '">' + (d.bat ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
+        '<span style="color:#c8ccd4">›</span></div>';
+    }).join('') + '</div>';
+  }
+
+  var b = frame('Máy in', html, miSuaDuoc ? {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="miThem" style="margin:0;flex:0 0 44%">➕ Thêm máy in</button>' +
+      '<button class="btn" id="miLuu" style="margin:0;flex:1">💾 Lưu</button></div>'
+  } : null);
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-mimo]');
+    if (t) { miMo = +t.getAttribute('data-mimo'); miMoi = 0; go(scrMayInSua); }
+  };
+  var nt = document.getElementById('miThem');
+  if (nt) nt.onclick = function () {
+    miDs.push({ ma: 'MI' + (miDs.length + 1), ten: '', hang: 'iPOS.VN', model: '', loai: '', so_seri: '',
+      giao_tiep: '', nguon_dien: '', xuat_xu: '', diem: '', vai_tro: [], kho: '80mm', ghi_chu: '', bat: 1 });
+    miMo = miDs.length - 1; miMoi = 1;
+    go(scrMayInSua);
+  };
+  var nl = document.getElementById('miLuu');
+  if (nl) nl.onclick = function () { miLuu(); };
+}
+
+function scrMayInSua() {
+  var d = (miDs || [])[miMo];
+  if (!d) return go(scrMayIn, true);
+  var o = function (nhan, id, gt, mo) {
+    return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">' + nhan + '</div>' +
+      '<input class="tin" id="' + id + '" value="' + h(gt == null ? '' : gt) + '" style="width:100%;margin:0">' +
+      (mo ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:4px;line-height:1.5">' + mo + '</div>' : '') + '</div>';
+  };
+
+  var html = '<div class="card">' +
+    o('Tên gọi trong nhà', 'miTen', d.ten, 'Gọi sao cho nhân viên nhận ra, ví dụ Máy in hoá đơn quầy.') +
+    o('Mã máy', 'miMa', d.ma, 'Chữ in hoa không dấu và số. Mã này đi vào nhật ký nên đặt xong đừng đổi.') +
+    '</div>';
+
+  html += '<div class="sec">Điểm bán</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip((miData.diem || []).map(function (x) {
+      return posChipNut('data-midiem="' + h(x.ma) + '"', h(x.ten), d.diem === x.ma);
+    }).join('')) + '</div>';
+
+  html += '<div class="sec">Máy này in loại phiếu nào</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip((miData.vai_tro || []).map(function (v) {
+      return posChipNut('data-mivt="' + h(v.k) + '"', (v.ic || '🖨') + ' ' + h(v.ten), (d.vai_tro || []).indexOf(v.k) >= 0);
+    }).join('')) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+    'Chọn được nhiều loại. Đây là ghi nhớ cho người dùng và là chỗ app lấy khổ giấy, ' +
+    'không phải lệnh điều khiển máy in.</div></div>';
+
+  html += '<div class="sec">Khổ giấy</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip((miData.kho_giay || []).map(function (k) {
+      return posChipNut('data-mikho="' + h(k.k) + '"', h(k.ten), d.kho === k.k);
+    }).join('')) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+    'Số này app dùng thật khi in. Đổi ở đây là bản in đổi theo, không phải sửa phần mềm.</div></div>';
+
+  html += '<div class="sec">Thông số thiết bị</div><div class="card">' +
+    o('Hãng', 'miHang', d.hang, '') +
+    o('Model', 'miModel', d.model, '') +
+    o('Loại máy', 'miLoai', d.loai, 'Ví dụ Thermal Receipt Printer hay Thermal Barcode Printer.') +
+    o('Số sê-ri', 'miSeri', d.so_seri, 'Đọc trên tem dán dưới đáy máy. Cần khi gọi bảo hành.') +
+    o('Giao tiếp', 'miGiaoTiep', d.giao_tiep, 'Ví dụ USB, Serial, Ethernet.') +
+    o('Nguồn điện', 'miNguon', d.nguon_dien, '') +
+    o('Xuất xứ', 'miXuatXu', d.xuat_xu, '') +
+    o('Ghi chú', 'miGhiChu', d.ghi_chu, '') +
+    '</div>';
+
+  html += '<div class="card" style="padding:11px 12px">' +
+    kmHangChip(posChipNut('data-mibat="1"', d.bat ? '● Đang dùng' : '○ Đã tắt', !!d.bat)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Tắt thì máy này không còn nhận loại phiếu nào nữa, nhưng thông số vẫn giữ lại để tra sau.</div></div>';
+
+  var b = frame(d.ten || 'Máy in mới', html, miSuaDuoc ? {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="miBo" style="margin:0;flex:0 0 34%;color:#b3261e;border-color:#fecaca">Bỏ máy này</button>' +
+      '<button class="btn" id="miLuu2" style="margin:0;flex:1">💾 Lưu</button></div>'
+  } : null);
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-midiem]');
+    if (t) { miDoc(); d.diem = t.getAttribute('data-midiem'); return go(scrMayInSua, true); }
+    t = e.target.closest('[data-mivt]');
+    if (t) {
+      miDoc();
+      var k = t.getAttribute('data-mivt');
+      d.vai_tro = d.vai_tro || [];
+      var i = d.vai_tro.indexOf(k);
+      if (i >= 0) d.vai_tro.splice(i, 1); else d.vai_tro.push(k);
+      /* Chon in tem thi tu nhay sang kho tem, va nguoc lai: khoi de nguoi
+         dung luu xong moi an loi tu may chu. */
+      var laTem = d.vai_tro.indexOf('tem') >= 0;
+      var kho = (miData.kho_giay || []).filter(function (x) { return x.k === d.kho; })[0] || {};
+      if (laTem && kho.cuon) d.kho = 'tem_40x30';
+      if (!laTem && d.vai_tro.length && !kho.cuon) d.kho = '80mm';
+      return go(scrMayInSua, true);
+    }
+    t = e.target.closest('[data-mikho]');
+    if (t) { miDoc(); d.kho = t.getAttribute('data-mikho'); return go(scrMayInSua, true); }
+    if (e.target.closest('[data-mibat]')) { miDoc(); d.bat = d.bat ? 0 : 1; return go(scrMayInSua, true); }
+  };
+  if (!miSuaDuoc) return;
+  document.getElementById('miLuu2').onclick = function () { miDoc(); miLuu(); };
+  document.getElementById('miBo').onclick = async function () {
+    var ok = await confirmSheet('Bỏ máy in ' + (d.ten || 'mới') + '?',
+      'Thông số máy này sẽ mất khỏi danh sách. Muốn giữ lại để tra sau thì tắt nó đi thay vì bỏ.', 'Bỏ máy này', true);
+    if (!ok) return;
+    miDs.splice(miMo, 1);
+    miLuu(1);
+  };
+}
+
+function miDoc() {
+  var d = (miDs || [])[miMo];
+  if (!d) return;
+  var v = function (id) { var e = document.getElementById(id); return e ? String(e.value).trim() : null; };
+  var g;
+  if ((g = v('miTen')) !== null) d.ten = g;
+  if ((g = v('miMa')) !== null) d.ma = g.toUpperCase();
+  if ((g = v('miHang')) !== null) d.hang = g;
+  if ((g = v('miModel')) !== null) d.model = g;
+  if ((g = v('miLoai')) !== null) d.loai = g;
+  if ((g = v('miSeri')) !== null) d.so_seri = g;
+  if ((g = v('miGiaoTiep')) !== null) d.giao_tiep = g;
+  if ((g = v('miNguon')) !== null) d.nguon_dien = g;
+  if ((g = v('miXuatXu')) !== null) d.xuat_xu = g;
+  if ((g = v('miGhiChu')) !== null) d.ghi_chu = g;
+}
+
+async function miLuu(veDanhSach) {
+  busy(true);
+  try {
+    miData = await api('vagabond.may_in.luu', { may: JSON.stringify(miDs) });
+    miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
+    /* Doi kho giay xong thi cau hinh ban hang cu van con trong bo nho, ban
+       in tiep theo se ra kho cu. Xoa di de lan in sau doc lai. */
+    CFGBH = null;
+    busy(false);
+    toast('Đã lưu máy in');
+    miMoi = 0;
+    go(scrMayIn, veDanhSach ? true : true);
+  } catch (e) {
+    busy(false);
+    window.alert((e && e.message) || 'Không lưu được');
+  }
+}
 
 })();
 
