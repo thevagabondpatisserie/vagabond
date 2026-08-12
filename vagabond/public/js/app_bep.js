@@ -7054,7 +7054,7 @@ async function scrPosQuay() {
       ? '<div style="font-size:13.5px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' thanh toán bằng nguồn <b>' + h(posDon.pt || posDon.che_do) + '</b> - vào nguồn nào ra nguồn đó.</div>'
       : '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
         (posDon.pt === 'Chuyển khoản'
-          ? posKhoiQr(posDon.bill, phaiThu)
+          ? posKhoiQr(posNoiDungCk(posDon.bill), phaiThu)
           : '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
             '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>')) +
     posKhoiKm() +
@@ -7744,6 +7744,22 @@ async function posMoTuyChon(i) {
 /* Ma QR dong kieu bill Fabi: khach quet bang app ngan hang la so tien va
    noi dung chuyen khoan dien san, khoi go tay, khoi go nham (anh Viet
    09/08/2026). Dung anh VietQR nen may nao co mang la hien duoc. */
+/* Noi dung chuyen khoan mang MA DIEM BAN o dau: "TCV VGBAB123".
+
+   Ke toan nhin sao ke ngan hang la biet ngay giao dich thuoc diem nao ma
+   khong phai mo tung don ra tra. Ma bill van nam nguyen trong chuoi nen bo
+   do SePay khong he doi: no tim VGBxxxxx BEN TRONG noi dung chu khong so
+   ca cum.
+
+   Day chi la lop mem - khach sua duoc noi dung, app ngan hang co loai cat
+   bot ky tu. Lop cung la moi diem mot tai khoan nhan rieng; luc nao mo
+   duoc tai khoan ao rieng thi khai o man Diem ban. */
+function posNoiDungCk(maBill, maDiem) {
+  var d = String(maDiem || (typeof posQuay !== 'undefined' && posQuay ? posQuay.ma : '') || '').trim();
+  var b = String(maBill || '').trim();
+  return d ? (d + ' ' + b) : b;
+}
+
 function posQrUrl(noiDung, tien) {
   var q = (CFGBH || {}).qr_quay || {};
   if (!q.stk) return '';
@@ -7978,8 +7994,8 @@ async function posInBill(d) {
   if (d.tam_tinh) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
-    var uq = posQrUrl(d.bill, d.thu);
-    if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(d.bill) + '</b></div></div>';
+    var uq = posQrUrl(posNoiDungCk(d.bill, d.quay), d.thu);
+    if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(posNoiDungCk(d.bill, d.quay)) + '</b></div></div>';
   } else if (d.xhd_url) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
        tu dien thong tin, ERP map vao don, cuoi ngay tu day m-invoice. */
@@ -8403,7 +8419,7 @@ async function scrPosBill(name) {
   function veQr() {
     var o = document.getElementById('pbQr');
     if (!o) return;
-    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(maBill || d.name, phaiThu) : '';
+    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay), phaiThu) : '';
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -8633,7 +8649,7 @@ async function scrPosBill(name) {
   /* ----- in ----- */
   function pbBillObj() {
     return {
-      name: d.name, bill: maBill, tam_tinh: tamTinh ? 1 : 0, so_ban: soBan,
+      name: d.name, bill: maBill, tam_tinh: tamTinh ? 1 : 0, so_ban: soBan, quay: d.vgb_quay || '',
       huy: d.vgb_huy ? 1 : 0, huy_ly_do: d.vgb_huy_ly_do || '',
       mon: monTuDoc(),
       tong: (d.items || []).reduce(function (t, m) { return t + (m.amount || 0); }, 0),
@@ -10079,7 +10095,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '127';
+var APPVER = '128';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
