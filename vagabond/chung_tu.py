@@ -87,7 +87,7 @@ def chan_xoa(doc, method=None):
 		cach = "Muốn bỏ thì huỷ phiếu đúng nghiệp vụ, đừng xoá."
 	frappe.throw(
 		"Không xoá được %s %s. Hệ thống không cho xoá vĩnh viễn bất cứ chứng từ "
-		"nào, ở app hay trên máy tính đều vậy — mất chứng từ gốc là mất luôn "
+		"nào, ở app hay trên máy tính đều vậy - mất chứng từ gốc là mất luôn "
 		"đường đối chiếu với cơ quan thuế. %s" % (ten, doc.name, cach),
 		title="Chứng từ không được xoá",
 	)

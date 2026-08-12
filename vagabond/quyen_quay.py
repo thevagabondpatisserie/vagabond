@@ -38,7 +38,7 @@ MUC = [
 		"k": "gioi_han",
 		"ten": "Giới hạn: in tạm tính rồi thì thôi",
 		"mo": "Trước khi in tạm tính thì thu ngân sửa thoải mái. In tạm tính rồi "
-		"thì không bớt món và không thêm khuyến mãi được nữa — vẫn làm được nếu "
+		"thì không bớt món và không thêm khuyến mãi được nữa - vẫn làm được nếu "
 		"quản lý ca cho mã OTP.",
 	},
 	{

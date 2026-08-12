@@ -42,7 +42,7 @@ VONG_2OPT = 30
 
 def khung_gio(tag):
 	"""'15h - 17h' -> (900, 1020) tinh bang phut tu 0h. Khong doc duoc tra None."""
-	s = str(tag or "").strip().lower().replace("–", "-").replace("—", "-")
+	s = str(tag or "").strip().lower().replace("-", "-").replace("-", "-")
 	if not s:
 		return None
 	phan = [p.strip() for p in s.split("-")]

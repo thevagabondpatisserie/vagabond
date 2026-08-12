@@ -193,7 +193,7 @@ def _kiem(ra):
 		if not d["ma"].replace("_", "").isalnum() or not d["ma"].isascii():
 			frappe.throw(
 				"Mã điểm bán %s không hợp lệ. Chỉ dùng chữ không dấu, số và gạch "
-				"dưới — mã này đi vào tên tệp, đường dẫn và báo cáo." % d["ma"]
+				"dưới - mã này đi vào tên tệp, đường dẫn và báo cáo." % d["ma"]
 			)
 		if d["ma"] in ma_da_co:
 			frappe.throw("Mã điểm bán %s bị trùng." % d["ma"])
