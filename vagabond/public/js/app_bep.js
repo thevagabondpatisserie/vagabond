@@ -10232,7 +10232,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '129';
+var APPVER = '130';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -14442,9 +14442,13 @@ async function scrDcmXem(name) {
   var d = kq.hd || {};
   var gy = kq.goi_y || [];
 
-  /* Lan dau mo: chon san phieu diem cao nhat, khoi phai bam. Nguoi dung
-     van bo tick hoac chon them phieu khac duoc. */
-  if (!dcmPhieu.length && gy.length) dcmPhieu = [gy[0].name];
+  /* Lan dau mo: tick san. Hoa don da noi phieu tu truoc thi tick DUNG may
+     phieu do, chua noi gi thi tick phieu may chấm điểm cao nhất. Người
+     dùng vẫn bỏ tick hoặc chọn thêm phiếu khác được. */
+  if (!dcmPhieu.length) {
+    if ((kq.phieu_da_noi || []).length) dcmPhieu = kq.phieu_da_noi.slice();
+    else if (gy.length) dcmPhieu = [gy[0].name];
+  }
 
   async function veSoSanh() {
     var o = document.getElementById('dcmSs');
