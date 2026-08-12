@@ -1,0 +1,120 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-12 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "khach",
+  "ngay",
+  "loai",
+  "cb1",
+  "diem",
+  "hoa_don",
+  "nguoi",
+  "sb1",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Khach hang",
+   "options": "Customer",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Thoi diem",
+   "reqd": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Loai but ghi",
+   "options": "Tich tu hoa don\nHoan lai khi huy hoa don\nDoi voucher\nDieu chinh tay\nHet han",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "diem",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Diem (am la tru)",
+   "precision": "0",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoa don",
+   "options": "Sales Invoice",
+   "search_index": 1
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Data",
+   "label": "Nguoi ghi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-12 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond So Diem",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
