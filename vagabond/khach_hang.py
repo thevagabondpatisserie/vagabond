@@ -20,6 +20,24 @@ from vagabond.ban_hang import _kiem_quyen
 # dung thang vao quyen loi cua khach nen chi quan ly moi lam duoc.
 QUYEN_SUA_HANG = {"System Manager", "Sales Manager", "Accounts Manager", "VGB - Quản lý khuyến mãi"}
 
+# Nhung ban ghi Customer KHONG phai mot nguoi that, ma la mot cai gio dung
+# chung cho khach vang lai khong xung ten. Chung phai nam ngoai moi thu
+# lien quan den hang va diem.
+#
+# Bat duoc 12/08/2026 khi chay thu xet lai: "Khach le Online" gom 140 trieu
+# va "Khach ban le" gom 103 trieu, ca hai deu se len VAGABONDER. Nghia la
+# moi don le vang lai bong nhien huong quyen loi hang cao nhat, va toan bo
+# diem cua ca tiem don vao mot cho khong cua ai.
+KHACH_GOP = {"Khách lẻ Online", "Khách bán lẻ"}
+
+
+def la_khach_gop(ma):
+	"""Ban ghi nay la gio dung chung hay la mot khach that."""
+	from vagabond.ban_hang import KHACH_LE
+
+	m = (ma or "").strip()
+	return (not m) or m == KHACH_LE or m in KHACH_GOP
+
 # Nhom khach ben ERPNext nao duoc coi la khach SI. Nhan dien theo TEN nhom
 # chu khong liet ke cung, vi ke toan hay them nhom moi (hien co "Khach si
 # B2B", truoc do la "Khach si"). Con lai la khach le.
@@ -200,6 +218,12 @@ def dat_hang(khach=None, hang=None):
 	hang = (hang or "").strip().upper()
 	if not khach or not frappe.db.exists("Customer", khach):
 		frappe.throw("Không có khách hàng %s." % (khach or "(trống)"))
+	if la_khach_gop(khach):
+		frappe.throw(
+			"\"%s\" là giỏ dùng chung cho khách vãng lai, không phải một người "
+			"thật nên không gán hạng được. Muốn khách này có hạng thì lập một "
+			"khách hàng riêng cho họ." % khach
+		)
 	if hang and not frappe.db.exists("Vagabond Hang Khach", hang):
 		frappe.throw("Không có hạng %s trong danh mục." % hang)
 	frappe.db.set_value("Customer", khach, "vgb_hang", hang or None)
@@ -292,18 +316,9 @@ def _ghi_so_diem(khach, diem, loai, hoa_don=None, ghi_chu=""):
 
 
 def _khach_that(si):
-	"""Khach tich diem duoc, hay la khach le dung chung.
-
-	"Khach le Online" la mot ban ghi Customer duy nhat dung chung cho moi
-	don le khong co ten. Cong diem vao do la don toan bo diem cua ca tiem
-	vao mot cho, khong cua ai ca.
-	"""
-	from vagabond.ban_hang import KHACH_LE
-
+	"""Khach tich diem duoc, hay la mot gio dung chung. Xem KHACH_GOP."""
 	kh = (si.get("customer") or "").strip()
-	if not kh or kh == KHACH_LE:
-		return ""
-	return kh
+	return "" if la_khach_gop(kh) else kh
 
 
 def _da_tich(hoa_don, loai="Tich tu hoa don"):
@@ -611,6 +626,8 @@ def xet_lai(ap=0, so_khach=500):
 
 	doi = []
 	for k in khach:
+		if la_khach_gop(k["name"]):
+			continue
 		dang = (k.get("vgb_hang") or "").strip()
 		if dang and dang in tay:
 			continue
@@ -673,14 +690,18 @@ def dat_hang_nhieu(khach=None, hang=None):
 	if h and not frappe.db.exists("Vagabond Hang Khach", h):
 		frappe.throw("Không có hạng %s trong danh mục." % h)
 	xong = 0
+	bo_qua = []
 	for k in ds:
 		if not frappe.db.exists("Customer", k):
+			continue
+		if la_khach_gop(k):
+			bo_qua.append(k)
 			continue
 		frappe.db.set_value("Customer", k, "vgb_hang", h or None)
 		xong += 1
 	frappe.db.commit()
 	_ghi_vet_hang("Chuyển %d khách sang hạng %s" % (xong, h or "(bỏ hạng)"))
-	return {"xong": xong, "hang": h}
+	return {"xong": xong, "hang": h, "bo_qua": bo_qua}
 
 
 def xet_lai_tu_dong():
