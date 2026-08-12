@@ -448,7 +448,7 @@ def cai_dat_hang():
 		"Vagabond Hang Khach",
 		fields=[
 			"name", "ten_hang", "thu_tu", "loai", "giam_gia", "tich_diem",
-			"chi_tieu_tu", "so_thang_xet", "bat", "mo_ta",
+			"chi_tieu_tu", "so_thang_xet", "bat", "mo_ta", "anh",
 		],
 		order_by="thu_tu asc, ten_hang asc",
 		limit_page_length=0,
@@ -540,6 +540,9 @@ def luu_hang(hang=None):
 			"so_thang_xet": cint(d.get("so_thang_xet") or 12),
 			"bat": 1 if cint(d.get("bat") if d.get("bat") is not None else 1) else 0,
 			"mo_ta": str(d.get("mo_ta") or "").strip(),
+			# Anh the thanh vien (anh Viet 12/08/2026): thay day bieu tuong
+			# bang dung file the cua tung hang cho de phan biet.
+			"anh": str(d.get("anh") or "").strip(),
 		}
 		if t in cu:
 			doc = frappe.get_doc("Vagabond Hang Khach", t)

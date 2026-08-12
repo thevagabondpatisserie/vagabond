@@ -467,3 +467,49 @@ def doi_gia_hang_loat(cap):
 		except Exception as e:
 			ket.append({"ok": 0, "ma": ma, "loi": str(e)[:200]})
 	return ket
+
+
+# ------------------------------------------------------------- do duong API
+#
+# Anh Viet hoi 12/08/2026: co lam duoc nut "Dong bo combo sang Pancake" va
+# "Dong bo CTKM sang Pancake" khong. Tai lieu Pancake khong liet ke hai muc
+# nay, ma tai lieu cua ho tung thieu truong co that (vu `display_id` va
+# `tags`) nen khong tin duoc la "khong co".
+#
+# Ham nay GO CUA tung duong mot bang GET va chi tra ve MA TRANG THAI. Khong
+# tao, khong sua, khong doc noi dung tra ve. 404 nghia la khong co duong do;
+# 200 hay 403 nghia la co that, chi la quyen hoac tham so chua dung.
+
+DUONG_DO = [
+	"promotions",
+	"promotion_programs",
+	"promotion-programs",
+	"discounts",
+	"discount_programs",
+	"vouchers",
+	"coupons",
+	"combos",
+	"product_combos",
+	"products/combos",
+	"products/promotions",
+	"marketing/promotions",
+]
+
+
+@frappe.whitelist()
+def do_duong():
+	"""Xem Pancake co duong API nao cho combo va khuyen mai khong."""
+	_quyen()
+	c, k = _khoa()
+	ra = []
+	for d in DUONG_DO:
+		u = "%s/shops/%s/%s" % (PANCAKE, c.pancake_shop_id, d)
+		try:
+			r = requests.get(u, params={"api_key": k, "page_size": 1}, timeout=TIMEOUT)
+			# CHI lay ma trang thai va do dai. Khong tra noi dung ra ngoai:
+			# than API co the kem theo du lieu shop khong lien quan gi den
+			# viec dang hoi.
+			ra.append({"duong": d, "ma": r.status_code, "dai": len(r.content or b"")})
+		except Exception as e:
+			ra.append({"duong": d, "ma": 0, "loi": str(e)[:120]})
+	return ra
