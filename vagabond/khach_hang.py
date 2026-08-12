@@ -660,9 +660,15 @@ def xet_lai(ap=0, so_khach=500):
 		frappe.db.commit()
 		_ghi_vet_hang("Xét lại hạng hàng loạt: đổi %d khách (chu kỳ %d tháng)" % (da_ap, so_thang))
 
+	# Dem tren TOAN BO tap roi moi cat danh sach. Dem tren phan da cat thi
+	# man hinh se noi "1.143 khach xuong hang" trong khi that ra ho dang tu
+	# chua xep len EXPLORER - va nguoi doc se khong dam bam nut.
+	so_len = len([x for x in doi if x["len"]])
 	return {
 		"doi": doi[: max(1, min(2000, cint(so_khach) or 500))],
 		"tong": len(doi),
+		"so_len": so_len,
+		"so_xuong": len(doi) - so_len,
 		"da_ap": da_ap,
 		"so_thang": so_thang,
 	}
