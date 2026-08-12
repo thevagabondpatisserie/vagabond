@@ -30,7 +30,7 @@ from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, now_datetime
 
 from vagabond import zalo
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
+from vagabond.lib import PANCAKE, TIMEOUT, cfg, key, sdt, sdt84
 
 OTP_SONG_PHUT = 5
 OTP_SAI_TOI_DA = 5
@@ -42,25 +42,14 @@ def _so(s):
 	return "".join(ch for ch in str(s or "") if ch.isdigit())
 
 
-def _chuan_sdt(sdt):
-	"""Ve dang 84xxxxxxxxx de khop voi iPOS va Zalo.
-
-	Khach go 0901486556, 84901486556 hay +84 901 486 556 deu ra mot ket qua.
-	"""
-	s = _so(sdt)
-	if s.startswith("84") and len(s) >= 11:
-		return s
-	if s.startswith("0") and len(s) >= 9:
-		return "84" + s[1:]
-	if len(s) == 9:
-		return "84" + s
-	return s
-
-
-def _sdt_noi_dia(sdt84):
-	"""84901486556 -> 0901486556, dang Pancake va iPOS dang luu."""
-	s = _so(sdt84)
-	return "0" + s[2:] if s.startswith("84") else s
+# Chuan hoa so dien thoai gio nam o vagabond/lib.py, dung chung ca he
+# (anh Viet 12/08/2026). Sau mo dun tung tu viet mot ham, hieu khac nhau,
+# nen cung mot nguoi vao he hai lan thanh hai khach.
+#
+# _chuan_sdt tra dang 84xxxxxxxxx vi Zalo ZNS va iPOS doi dang do; con
+# _sdt_noi_dia tra dang 0xxxxxxxxx la dang CAT TRONG CO SO DU LIEU.
+_chuan_sdt = sdt84
+_sdt_noi_dia = sdt
 
 
 def _bam(chuoi):
@@ -197,8 +186,13 @@ def _don_pancake(c, k, sdt_noi_dia, gioi_han=30):
 	ra = []
 	for o in ds:
 		# Pancake tim theo chuoi nen co the tra ve don cua so khac gan giong.
+		#
+		# So khong doc ra thi _chuan_sdt tra RONG. Hai so rac khac nhau deu
+		# thanh rong, so ra bang nhau la khach nay nhin thay don cua nguoi
+		# kia. Phai doi CA HAI ben co gia tri thi moi cho qua.
 		sdt_don = _so((o.get("shipping_address") or {}).get("phone_number")) or _so(o.get("bill_phone_number"))
-		if _chuan_sdt(sdt_don) != _chuan_sdt(sdt_noi_dia):
+		a, b = _chuan_sdt(sdt_don), _chuan_sdt(sdt_noi_dia)
+		if not a or not b or a != b:
 			continue
 		mon = []
 		for it in o.get("items") or []:

@@ -29,6 +29,11 @@ import frappe
 from frappe.model.naming import getseries
 from frappe.utils import cint
 
+# Chuan hoa so dien thoai nay o vagabond/lib.py, dung chung ca he: bon mo
+# dun tung tu viet mot ham roi hieu khac nhau, nen cung mot nguoi vao he
+# hai lan thanh hai khach.
+from vagabond.lib import sdt_so as _so
+
 # Nhan dien nhom theo TEN nhom chu khong liet ke cung tung nhom mot: ke
 # toan hay them nhom moi ("Khach si B2B" truoc do la "Khach si"), liet ke
 # cung thi nhom moi rot het xuong ma mac dinh ma khong ai biet.
@@ -95,14 +100,6 @@ def dat_ma(doc, method=None):
 # KHONG chan tu dong luc them khach: chan giua chung mot lan import 50.000
 # dong la hong ca me du lieu ma khong biet dung o dong nao. Ra sau, xem
 # truoc, gop tay.
-
-
-def _so(s):
-	"""So dien thoai ve dang so, bo 84 va so 0 dau cho de so."""
-	d = "".join(ch for ch in str(s or "") if ch.isdigit())
-	if d.startswith("84"):
-		d = d[2:]
-	return d.lstrip("0")
 
 
 @frappe.whitelist()

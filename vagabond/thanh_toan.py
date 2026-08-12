@@ -35,7 +35,7 @@ import requests
 from frappe.utils import now_datetime
 
 from vagabond import whatsapp, zalo
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
+from vagabond.lib import PANCAKE, TIMEOUT, cfg, key, sdt84 as lib_sdt84
 
 VIETQR_ANH = "https://img.vietqr.io/image"
 
@@ -44,15 +44,9 @@ def _so(s):
 	return "".join(ch for ch in str(s or "") if ch.isdigit())
 
 
-def _sdt84(sdt):
-	s = _so(sdt)
-	if s.startswith("84") and len(s) >= 11:
-		return s
-	if s.startswith("0") and len(s) >= 9:
-		return "84" + s[1:]
-	if len(s) == 9:
-		return "84" + s
-	return s
+# Chuan hoa so dien thoai nay o vagabond/lib.py, dung chung ca he
+# (anh Viet 12/08/2026). Zalo ZNS doi dang 84xxxxxxxxx nen dung sdt84.
+_sdt84 = lib_sdt84
 
 
 def _vnd(n):

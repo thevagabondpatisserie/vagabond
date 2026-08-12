@@ -34,7 +34,7 @@ import re
 import frappe
 from frappe.utils import cint, flt, getdate
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg, sdt
 
 TRUONG_TIEN_DO = "vgb_nhap_khach_tien_do"
 NHOM_MAC_DINH = "Khách lẻ"
@@ -45,7 +45,9 @@ LO = 200
 # nhap nua chung roi moi phat hien thieu du lieu.
 COT = [
 	"sdt", "ten", "sinh_nhat", "gioi_tinh", "email",
-	"dia_chi", "thanh_pho", "zalo", "tags", "lan_cuoi", "da_tieu", "so_lan",
+	"dia_chi", "thanh_pho", "zalo", "tags",
+	"lan_cuoi", "lan_dau", "ngay_dang_ky", "kenh_dang_ky", "nha_hang",
+	"da_tieu", "so_lan", "ngay_chua_ve",
 ]
 
 QUYEN = {"System Manager", "Accounts Manager", "Sales Manager"}
@@ -56,33 +58,9 @@ def _kiem_quyen():
 		frappe.throw("Chỉ quản lý hoặc kế toán mới được nhập danh sách khách hàng.")
 
 
-# Dau so di dong Viet Nam that su dang phat hanh, hai chu so sau so 0.
-#
-# Phai liet ke tung dau so chu khong chi kiem "bat dau bang 3 5 7 8 9":
-# trong tep Fabi co so 0300136435, dau so 030 khong ton tai o Viet Nam
-# (day la ma so thue bi go nham vao o so dien thoai). Kiem lo tay thi tao
-# ra mot khach ma ca doi khong nhan duoc tin nhan nao.
-DAU_SO = frozenset(
-	"32 33 34 35 36 37 38 39 52 55 56 58 59 70 76 77 78 79 "
-	"81 82 83 84 85 86 87 88 89 90 91 92 93 94 96 97 98 99".split()
-)
-
-
-def sdt_chuan(s):
-	"""So di dong Viet Nam ve dang 0xxxxxxxxx. Khong doc duoc thi tra rong.
-
-	Tra rong chu KHONG doan bua: mot so sai mot chu so la ca doi khach do
-	khong nhan duoc tin nhan nao, ma khong ai biet vi sao.
-	"""
-	x = "".join(ch for ch in str(s or "") if ch.isdigit())
-	# Chi cat ma quoc gia khi phan con lai du dai. "84xxxxxxxxx" la so co
-	# ma vung, con "0084..." hay so bat dau bang 84 nhung ngan thi khong.
-	if x.startswith("84") and len(x) > 10:
-		x = x[2:]
-	x = x.lstrip("0")
-	if len(x) == 9 and x[:2] in DAU_SO:
-		return "0" + x
-	return ""
+# Chuan hoa so dien thoai nay o vagabond/lib.py, dung chung ca he. Giu ten
+# cu o day de nhung cho da goi khong phai sua.
+sdt_chuan = sdt
 
 
 def _ngay(s):
@@ -154,12 +132,36 @@ def _tach_ten(ten):
 	return " ".join(phan[:-1]), phan[-1]
 
 
+def _truong_fabi(d):
+	"""Cac truong mang tu Fabi sang, dung chung cho ca tao moi lan bu them.
+
+	Tach ra mot cho vi hai duong deu can: tao moi thi ghi het, con khach da
+	co thi chi bu vao o dang trong. Hai ban sao la mot ngay nao do sua mot
+	ben quen ben kia, roi cung mot khach nhap hai lan ra hai ket qua.
+	"""
+	return {
+		"vgb_chi_tieu_cu": flt(d.get("da_tieu")),
+		"vgb_so_don_cu": cint(d.get("so_lan")),
+		"vgb_lan_cuoi_cu": _ngay(d.get("lan_cuoi")),
+		"vgb_lan_dau_cu": _ngay(d.get("lan_dau")),
+		"vgb_ngay_dang_ky": _ngay(d.get("ngay_dang_ky")),
+		"vgb_kenh_dang_ky": str(d.get("kenh_dang_ky") or "").strip()[:140],
+		"vgb_cua_hang_cu": str(d.get("nha_hang") or "").strip()[:140],
+		"vgb_zalo_id": str(d.get("zalo") or "").strip()[:140],
+		"vgb_tags": str(d.get("tags") or "").strip()[:500],
+		"vgb_sinh_nhat": _ngay(d.get("sinh_nhat")),
+		"vgb_dia_chi_cu": (d.get("dia_chi") or "")[:500],
+	}
+
+
 def _tao_mot(d, bang_hang):
 	"""Tao mot khach le kem lien he. Tra ma khach."""
 	ten = re.sub(r"\s+", " ", str(d.get("ten") or "").strip())
-	sdt = d["sdt"]
+	# KHONG dat ten bien la "sdt": trung ten voi ham chuan hoa da import o
+	# dau tep, che mat no trong ca than ham.
+	so = d["sdt"]
 	if not ten:
-		ten = "Khách %s" % sdt[-4:]
+		ten = "Khách %s" % so[-4:]
 	tieu = flt(d.get("da_tieu"))
 
 	kh = frappe.new_doc("Customer")
@@ -169,13 +171,10 @@ def _tao_mot(d, bang_hang):
 			"customer_type": "Individual",
 			"customer_group": NHOM_MAC_DINH,
 			"territory": KHU_VUC,
-			"vgb_chi_tieu_cu": tieu,
-			"vgb_lan_cuoi_cu": _ngay(d.get("lan_cuoi")),
-			"vgb_sinh_nhat": _ngay(d.get("sinh_nhat")),
-			"vgb_dia_chi_cu": (d.get("dia_chi") or "")[:500],
 			"vgb_hang": _hang_theo_tien(bang_hang, tieu) or None,
 		}
 	)
+	kh.update({k: v for k, v in _truong_fabi(d).items() if v not in (None, "", 0)})
 	gt = (d.get("gioi_tinh") or "").strip()
 	if gt in ("Male", "Female"):
 		kh.gender = gt
@@ -184,11 +183,11 @@ def _tao_mot(d, bang_hang):
 
 	ho, dem = _tach_ten(ten)
 	lh = frappe.new_doc("Contact")
-	lh.update({"first_name": ho[:140], "last_name": dem[:140], "mobile_no": sdt, "is_primary_contact": 1})
+	lh.update({"first_name": ho[:140], "last_name": dem[:140], "mobile_no": so, "is_primary_contact": 1})
 	em = (d.get("email") or "").strip()
 	if em and "@" in em:
 		lh.append("email_ids", {"email_id": em[:140], "is_primary": 1})
-	lh.append("phone_nos", {"phone": sdt, "is_primary_mobile_no": 1})
+	lh.append("phone_nos", {"phone": so, "is_primary_mobile_no": 1})
 	lh.append("links", {"link_doctype": "Customer", "link_name": kh.name})
 	lh.flags.ignore_permissions = True
 	lh.insert(ignore_permissions=True)
@@ -199,29 +198,27 @@ def _tao_mot(d, bang_hang):
 	frappe.db.set_value(
 		"Customer",
 		kh.name,
-		{"customer_primary_contact": lh.name, "mobile_no": sdt},
+		{"customer_primary_contact": lh.name, "mobile_no": so},
 		update_modified=False,
 	)
 	return kh.name
 
 
 def _cap_nhat_mot(ma, d, bang_hang):
-	"""Khach da co san: chi bu them cai dang thieu, khong de len cai dang dung."""
-	cu = frappe.db.get_value(
-		"Customer", ma,
-		["vgb_chi_tieu_cu", "vgb_sinh_nhat", "vgb_hang", "vgb_dia_chi_cu"],
-		as_dict=True,
-	) or {}
+	"""Khach da co san: chi BU vao o dang trong, khong de len cai dang dung.
+
+	Chay lai lan hai lan ba deu an toan, va ai da sua tay tren app thi lan
+	nhap sau khong xoa mat cong cua ho.
+	"""
+	moi = _truong_fabi(d)
+	cu = frappe.db.get_value("Customer", ma, list(moi.keys()) + ["vgb_hang"], as_dict=True) or {}
 	dat = {}
-	tieu = flt(d.get("da_tieu"))
-	if tieu and not flt(cu.get("vgb_chi_tieu_cu")):
-		dat["vgb_chi_tieu_cu"] = tieu
-	sn = _ngay(d.get("sinh_nhat"))
-	if sn and not cu.get("vgb_sinh_nhat"):
-		dat["vgb_sinh_nhat"] = sn
-	dc = (d.get("dia_chi") or "").strip()
-	if dc and not (cu.get("vgb_dia_chi_cu") or "").strip():
-		dat["vgb_dia_chi_cu"] = dc[:500]
+	for k, v in moi.items():
+		if v in (None, "", 0):
+			continue
+		hien = cu.get(k)
+		if hien in (None, "", 0) or (isinstance(hien, str) and not hien.strip()):
+			dat[k] = v
 	if not cu.get("vgb_hang"):
 		h = _hang_theo_tien(bang_hang, flt(dat.get("vgb_chi_tieu_cu") or cu.get("vgb_chi_tieu_cu")))
 		if h:
@@ -443,3 +440,236 @@ def khach_cho_don(sdt, ten="", nguon=""):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "nhap_khach: gan khach cho don")
 		return ""
+
+
+# ------------------------------------------------- ra soat so dien thoai da co
+#
+# Anh Viet 12/08/2026: "so dien thoai nhieu khi bi +84, 84 o dau, em viet code
+# de thong nhat dong bo ve ERP thi se bien thanh so 0 o dau het nhe".
+#
+# Chuan hoa o duong VAO da lam roi (vagabond/lib.py). Ham nay lo phan da nam
+# san trong co so du lieu: quet Contact va Customer, dua moi so ve dang
+# 0xxxxxxxxx. Chay lai bao nhieu lan cung duoc, so da dung thi khong dung toi.
+
+
+@frappe.whitelist()
+def ra_soat_sdt(sua=0):
+	"""Xem (hoac sua) cac so dien thoai chua ve dang 0xxxxxxxxx.
+
+	sua=0 chi xem truoc, sua=1 moi ghi that. Luon xem truoc mot lan roi hay
+	sua: doi so dien thoai cua 41.000 nguoi la viec khong lui lai duoc.
+	"""
+	_kiem_quyen()
+	sua = cint(sua)
+	doi, hong = [], []
+
+	rows = frappe.db.sql(
+		"""
+		select name, mobile_no, phone
+		from `tabContact`
+		where ifnull(mobile_no, '') != '' or ifnull(phone, '') != ''
+		""",
+		as_dict=True,
+	)
+	for r in rows:
+		dat = {}
+		for truong in ("mobile_no", "phone"):
+			cu = (r.get(truong) or "").strip()
+			if not cu:
+				continue
+			moi = sdt(cu)
+			if not moi:
+				hong.append({"bang": "Contact", "ten": r["name"], "truong": truong, "gia_tri": cu})
+				continue
+			if moi != cu:
+				dat[truong] = moi
+		if dat:
+			doi.append({"bang": "Contact", "ten": r["name"], "dat": dat})
+			if sua:
+				frappe.db.set_value("Contact", r["name"], dat, update_modified=False)
+
+	rows = frappe.db.sql(
+		"select name, mobile_no from `tabCustomer` where ifnull(mobile_no, '') != ''",
+		as_dict=True,
+	)
+	for r in rows:
+		cu = (r.get("mobile_no") or "").strip()
+		moi = sdt(cu)
+		if not moi:
+			hong.append({"bang": "Customer", "ten": r["name"], "truong": "mobile_no", "gia_tri": cu})
+			continue
+		if moi != cu:
+			doi.append({"bang": "Customer", "ten": r["name"], "dat": {"mobile_no": moi}})
+			if sua:
+				frappe.db.set_value("Customer", r["name"], "mobile_no", moi, update_modified=False)
+
+	# Bang con Contact Phone: ERPNext keo mobile_no cua Contact tu day len,
+	# nen sua o tren ma bo qua bang nay thi lan sau ai mo lien he ra bam Luu
+	# la so cu quay lai.
+	rows = frappe.db.sql(
+		"select name, parent, phone from `tabContact Phone` where ifnull(phone, '') != ''",
+		as_dict=True,
+	)
+	for r in rows:
+		cu = (r.get("phone") or "").strip()
+		moi = sdt(cu)
+		if not moi:
+			hong.append({"bang": "Contact Phone", "ten": r["parent"], "truong": "phone", "gia_tri": cu})
+			continue
+		if moi != cu:
+			doi.append({"bang": "Contact Phone", "ten": r["parent"], "dat": {"phone": moi}})
+			if sua:
+				frappe.db.set_value("Contact Phone", r["name"], "phone", moi, update_modified=False)
+
+	if sua:
+		frappe.db.commit()
+	return {
+		"da_sua": 1 if sua else 0,
+		"so_phai_doi": len(doi),
+		"so_khong_doc_duoc": len(hong),
+		"doi": doi[:200],
+		"hong": hong[:200],
+	}
+
+
+# --------------------------------------------- gan lai khach cho hoa don cu
+#
+# Anh Viet 12/08/2026: "em cong bu lai nhe".
+#
+# Hoa don Pancake tao truoc 12/08 deu mang gio chung "Khach le Online", ten
+# va so dien thoai that chi nam trong o ghi chu remarks dang
+#   "Pancake #91476 - Nguyen Van A - 0901557462"
+# Ham nay doc so do ra, tim hoac tao khach, gan lai vao hoa don, roi cong bu
+# diem theo hang cua khach.
+#
+# BA DIEU PHAI GIU:
+#   1. Chi dung voi hoa don dang mang GIO CHUNG. Hoa don sales da gan dung
+#      nguoi thi khong dung toi.
+#   2. Doi customer tren hoa don DA GUI khong duoc di qua ORM (Frappe chan),
+#      ma di thang xuong bang. Truong customer khong vao so cai - so lieu ke
+#      toan khong doi mot dong, chi doi hoa don do thuoc ve ai.
+#   3. Cong diem qua dung mot cua khach_hang._ghi_so_diem, va co khoa chong
+#      cong hai lan (_da_tich). Chay lai bao nhieu lan cung ra mot ket qua.
+
+def _sdt_tu_remarks(s):
+	"""So dien thoai nam cuoi chuoi ghi chu cua hoa don Pancake.
+
+	Ghi chu co dang "Pancake #91476 - Nguyen Van A - 0901557462", nhung so
+	co the co khoang trang o giua ("+84 901 557 462") va ten khach cung co
+	the co dau gach ngang. Nen thu tu chac den long:
+	  1. Phan sau dau gach ngang CUOI CUNG, ghep ca cum.
+	  2. Ca chuoi, phong khi khong co dau gach nao.
+	  3. Tung manh mot, tu phai qua trai.
+	"""
+	t = str(s or "").strip()
+	if not t:
+		return ""
+	if " - " in t:
+		x = sdt(t.rsplit(" - ", 1)[1])
+		if x:
+			return x
+	# Ca chuoi chi ra so khi trong chuoi khong con chu so nao khac, nen chi
+	# dung duoc khi ghi chu ngan. Van thu, re tien.
+	x = sdt(t)
+	if x:
+		return x
+	for manh in reversed(re.split(r"[\s\-]+", t)):
+		x = sdt(manh)
+		if x:
+			return x
+	return ""
+
+
+@frappe.whitelist()
+def gan_lai_khach_cu(tu_ngay=None, gioi_han=0, cong_diem=1, chay_thu=1):
+	"""Gan lai khach cho cac hoa don Pancake dang mang gio chung.
+
+	chay_thu=1 chi dem va liet ke, khong ghi gi. Luon chay thu mot lan roi
+	moi chay that: day la viec dong den diem cua khach, tuc la tien.
+	"""
+	from vagabond.ban_hang import KHACH_LE
+	from vagabond.khach_hang import _da_tich, _ghi_so_diem, _hang_cua
+
+	_kiem_quyen()
+	chay_thu = cint(chay_thu)
+	cong_diem = cint(cong_diem)
+	gioi_han = cint(gioi_han)
+
+	dk = {"customer": KHACH_LE, "docstatus": 1, "vgb_huy": 0, "custom_pancake_id": ["is", "set"]}
+	if tu_ngay:
+		dk["posting_date"] = [">=", str(tu_ngay)]
+	ds = frappe.get_all(
+		"Sales Invoice",
+		filters=dk,
+		fields=["name", "posting_date", "grand_total", "remarks", "custom_pancake_display_id"],
+		order_by="posting_date asc, name asc",
+		limit_page_length=gioi_han or 0,
+	)
+
+	kq = {
+		"chay_thu": chay_thu,
+		"tim_thay": len(ds),
+		"gan_duoc": 0,
+		"tao_khach_moi": 0,
+		"khong_ra_so": 0,
+		"diem_cong": 0,
+		"so_don_cong_diem": 0,
+		"vi_du": [],
+		"loi": [],
+	}
+	bang_hang = _bang_hang()
+
+	for r in ds:
+		try:
+			so = _sdt_tu_remarks(r.get("remarks"))
+			if not so:
+				kq["khong_ra_so"] += 1
+				continue
+			ma = tim_theo_sdt(so)
+			moi = 0
+			if not ma:
+				if chay_thu:
+					kq["tao_khach_moi"] += 1
+					kq["gan_duoc"] += 1
+					if len(kq["vi_du"]) < 20:
+						kq["vi_du"].append({"don": r["name"], "sdt": so, "khach": "(sẽ tạo mới)"})
+					continue
+				ten = ""
+				m = re.match(r"^Pancake #\S+\s*-\s*(.*?)(?:\s*-\s*[\d+][\d\s.]*)?$", str(r.get("remarks") or ""))
+				if m:
+					ten = m.group(1).strip()
+				ma = _tao_mot({"sdt": so, "ten": ten, "da_tieu": 0}, bang_hang)
+				moi = 1
+			if moi:
+				kq["tao_khach_moi"] += 1
+			kq["gan_duoc"] += 1
+			if len(kq["vi_du"]) < 20:
+				kq["vi_du"].append({"don": r["name"], "sdt": so, "khach": ma})
+
+			if chay_thu:
+				continue
+
+			# Hoa don da gui: doi thang duoi bang. Truong customer khong vao
+			# so cai nen so lieu ke toan khong doi mot dong.
+			frappe.db.set_value("Sales Invoice", r["name"], "customer", ma, update_modified=False)
+
+			if cong_diem and not _da_tich(r["name"]):
+				hang = _hang_cua(ma)
+				ty_le = flt((hang or {}).get("tich_diem"))
+				diem = round(flt(r.get("grand_total")) * ty_le / 100.0) if ty_le > 0 else 0
+				if diem > 0:
+					_ghi_so_diem(
+						ma, diem, "Tich tu hoa don", r["name"],
+						"Cộng bù khi gắn lại khách cho hoá đơn cũ. Hạng %s, tích %s%% của %s đ"
+						% ((hang or {}).get("name"), ty_le, r.get("grand_total")),
+					)
+					kq["diem_cong"] += diem
+					kq["so_don_cong_diem"] += 1
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			if len(kq["loi"]) < 30:
+				kq["loi"].append("%s: %s" % (r["name"], frappe.get_traceback().splitlines()[-1][:150]))
+	if not chay_thu:
+		frappe.db.commit()
+	return kq

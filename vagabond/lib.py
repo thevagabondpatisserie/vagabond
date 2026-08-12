@@ -18,6 +18,67 @@ def key(doc, field):
 	return (val or "").strip()
 
 
+# ---------------------------------------------------------------------------
+# So dien thoai - MOT cach chuan hoa duy nhat cho ca he (anh Viet 12/08/2026).
+#
+# Truoc day moi mo dun tu viet mot ham: ma_khach._so tra 9 chu so bo so 0,
+# don_hang._so chi loc chu so, nhap_khach.sdt_chuan tra 0xxxxxxxxx, con Zalo
+# thi can 84xxxxxxxxx. Bon cach hieu khac nhau cho cung mot so nghia la tra
+# cuu khong khop nhau: cung mot nguoi vao he hai lan thanh hai khach.
+#
+# Nay mot noi. Dang CAT TRONG CO SO DU LIEU luon la 0xxxxxxxxx; dang gui di
+# thi doi ngay luc gui.
+
+# Dau so di dong Viet Nam that su dang phat hanh, hai chu so sau so 0.
+#
+# Phai liet ke tung dau so chu khong chi kiem "bat dau bang 3 5 7 8 9":
+# trong tep Fabi co so 0300136435, dau so 030 khong ton tai o Viet Nam (day
+# la ma so thue bi go nham vao o so dien thoai). Kiem lo tay thi de ra mot
+# khach ma ca doi khong nhan duoc tin nhan nao.
+DAU_SO = frozenset(
+	"32 33 34 35 36 37 38 39 52 55 56 58 59 70 76 77 78 79 "
+	"81 82 83 84 85 86 87 88 89 90 91 92 93 94 96 97 98 99".split()
+)
+
+
+def _chin_so(s):
+	"""Chin chu so cuoi cua mot so di dong, hoac rong neu khong doc duoc.
+
+	Nhan moi kieu nguoi ta go vao: 0901557462, 84901557462, +84 901 557 462,
+	901557462, "0901.557.462", "0901 557 462 (Mr Nam)".
+	"""
+	x = "".join(ch for ch in str(s or "") if ch.isdigit())
+	# Chi cat ma quoc gia khi phan con lai du dai. "0084..." va cac so bat
+	# dau bang 84 nhung ngan thi khong phai ma vung.
+	if x.startswith("0084"):
+		x = x[4:]
+	elif x.startswith("84") and len(x) > 10:
+		x = x[2:]
+	x = x.lstrip("0")
+	return x if len(x) == 9 and x[:2] in DAU_SO else ""
+
+
+def sdt(s):
+	"""So di dong ve dang 0xxxxxxxxx. Doc khong ra thi tra RONG.
+
+	Tra rong chu KHONG doan bua: mot so sai mot chu so la ca doi khach do
+	khong nhan duoc tin nhan nao, ma khong ai biet vi sao.
+	"""
+	x = _chin_so(s)
+	return "0" + x if x else ""
+
+
+def sdt84(s):
+	"""Dang 84xxxxxxxxx - Zalo ZNS va vai cong khac doi dang nay."""
+	x = _chin_so(s)
+	return "84" + x if x else ""
+
+
+def sdt_so(s):
+	"""Chin chu so tran, khong co so 0 dau - dung de so sanh va tra cuu."""
+	return _chin_so(s)
+
+
 def cache_get(k):
 	return frappe.cache().get_value(k)
 

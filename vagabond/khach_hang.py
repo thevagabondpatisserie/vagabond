@@ -15,6 +15,7 @@ import frappe
 from frappe.utils import add_months, cint, flt, getdate, nowdate
 
 from vagabond.ban_hang import _kiem_quyen
+from vagabond.lib import sdt
 
 # Sua bang hang, cong tru diem tay, chuyen hang hang loat: ba viec nay deu
 # dung thang vao quyen loi cua khach nen chi quan ly moi lam duoc.
@@ -778,3 +779,262 @@ def _ghi_vet_hang(viec):
 		).insert(ignore_permissions=True)
 	except Exception:
 		pass
+
+
+# ------------------------------------------------------ ho so mot khach hang
+#
+# Anh Viet 12/08/2026: bam vao mot khach thi khong thay thong tin gi ca. Man
+# cu chi co ten, chi tieu va bang gan hang.
+#
+# Nay tra ve mot ho so day du de cham soc khach: lien he, lich su mua ben he
+# nay va ben Fabi, tinh trang the thanh vien, va con bao nhieu tien nua thi
+# len hang. Gom trong MOT luot goi chu khong de app hoi ba bon lan.
+
+
+def _lien_he(khach):
+	"""So dien thoai va email lay tu lien he chinh cua khach."""
+	ma = frappe.db.get_value("Customer", khach, "customer_primary_contact")
+	if not ma:
+		# Chua tro lien he chinh thi tim qua Dynamic Link, van con doc duoc.
+		rows = frappe.db.sql(
+			"""
+			select dl.parent ten
+			from `tabDynamic Link` dl
+			where dl.link_doctype = 'Customer' and dl.link_name = %s
+			  and dl.parenttype = 'Contact'
+			limit 1
+			""",
+			(khach,),
+		)
+		ma = rows[0][0] if rows else None
+	if not ma:
+		return {"ma": "", "sdt": "", "email": ""}
+	d = frappe.db.get_value("Contact", ma, ["name", "mobile_no", "phone", "email_id"], as_dict=True) or {}
+	return {
+		"ma": d.get("name") or "",
+		"sdt": sdt(d.get("mobile_no")) or sdt(d.get("phone")) or "",
+		"email": (d.get("email_id") or "").strip(),
+	}
+
+
+@frappe.whitelist()
+def ho_so(khach=None):
+	"""Ho so day du cua mot khach, cho man Chi tiet khach hang tren app."""
+	_kiem_quyen()
+	khach = (khach or "").strip()
+	if not khach or not frappe.db.exists("Customer", khach):
+		frappe.throw("Không có khách hàng %s." % (khach or "(trống)"))
+
+	truong = [
+		"name", "customer_name", "customer_group", "territory", "tax_id",
+		"gender", "mobile_no", "customer_primary_contact",
+		"vgb_hang", "vgb_hang_tu", "vgb_diem", "vgb_sinh_nhat",
+		"vgb_chi_tieu_cu", "vgb_so_don_cu", "vgb_lan_dau_cu", "vgb_lan_cuoi_cu",
+		"vgb_ngay_dang_ky", "vgb_kenh_dang_ky", "vgb_zalo_id", "vgb_tags",
+		"vgb_cua_hang_cu", "vgb_dia_chi_cu", "vgb_ma_cu", "disabled", "creation",
+	]
+	co = frappe.get_meta("Customer").get_valid_columns()
+	d = frappe.db.get_value("Customer", khach, [t for t in truong if t in co], as_dict=True) or {}
+	lh = _lien_he(khach)
+
+	# Mua hang ben he nay. Tinh rieng chu khong dung _chi_tieu: o day can ca
+	# hoa don gan nhat va tong so don, ma _chi_tieu chi tra trong ky xet.
+	don = frappe.db.sql(
+		"""
+		select count(*) so_don, sum(grand_total) tien,
+		       min(posting_date) lan_dau, max(posting_date) lan_cuoi
+		from `tabSales Invoice`
+		where customer = %s and docstatus = 1 and ifnull(vgb_huy, 0) = 0
+		""",
+		(khach,),
+		as_dict=True,
+	)
+	don = (don or [{}])[0] or {}
+	gan_day = frappe.get_all(
+		"Sales Invoice",
+		filters={"customer": khach, "docstatus": 1, "vgb_huy": 0},
+		fields=["name", "posting_date", "grand_total", "custom_nguon", "vgb_quay", "vgb_pt_thanh_toan"],
+		order_by="posting_date desc, creation desc",
+		limit_page_length=20,
+	)
+
+	# The thanh vien: dang o hang nao, con bao nhieu tien nua thi len hang.
+	bang = [
+		h for h in (ds_hang().get("hang") or [])
+		if (h.get("loai") or "Theo chi tieu") == "Theo chi tieu"
+	]
+	bang.sort(key=lambda x: flt(x.get("chi_tieu_tu")))
+	so_thang = max([int(h.get("so_thang_xet") or 12) for h in bang] or [12])
+	ct = _chi_tieu([khach], so_thang).get(khach) or {}
+	tien_ky = flt(ct.get("tien"))
+	dat = ""
+	for h in bang:
+		if tien_ky >= flt(h.get("chi_tieu_tu")):
+			dat = h["name"]
+	tiep, con_thieu = "", 0
+	for h in bang:
+		if flt(h.get("chi_tieu_tu")) > tien_ky:
+			tiep = h["name"]
+			con_thieu = flt(h.get("chi_tieu_tu")) - tien_ky
+			break
+
+	hang_dang = d.get("vgb_hang") or ""
+	hd = {}
+	if hang_dang:
+		hd = frappe.db.get_value(
+			"Vagabond Hang Khach", hang_dang,
+			["name", "ten_hang", "giam_gia", "tich_diem", "loai", "anh", "mo_ta"],
+			as_dict=True,
+		) or {}
+
+	return {
+		"khach": d,
+		"lien_he": lh,
+		"la_gop": 1 if la_khach_gop(khach) else 0,
+		"hang": hd,
+		"the": {
+			"tien_ky": tien_ky,
+			"so_thang": so_thang,
+			"hang_du_dieu_kien": dat,
+			"hang_tiep": tiep,
+			"con_thieu": con_thieu,
+			"diem": flt(d.get("vgb_diem")),
+		},
+		"mua_next": {
+			"so_don": int(don.get("so_don") or 0),
+			"tien": flt(don.get("tien")),
+			"lan_dau": str(don.get("lan_dau") or ""),
+			"lan_cuoi": str(don.get("lan_cuoi") or ""),
+			"trung_binh": flt(don.get("tien")) / (int(don.get("so_don") or 0) or 1),
+		},
+		"mua_fabi": {
+			"so_don": cint(d.get("vgb_so_don_cu")),
+			"tien": flt(d.get("vgb_chi_tieu_cu")),
+			"lan_dau": str(d.get("vgb_lan_dau_cu") or ""),
+			"lan_cuoi": str(d.get("vgb_lan_cuoi_cu") or ""),
+			"trung_binh": flt(d.get("vgb_chi_tieu_cu")) / (cint(d.get("vgb_so_don_cu")) or 1),
+			"cua_hang": d.get("vgb_cua_hang_cu") or "",
+		},
+		"don_gan_day": gan_day,
+	}
+
+
+@frappe.whitelist()
+def luu_ho_so(khach=None, dat=None):
+	"""Sua thong tin lien he cua mot khach tu man app.
+
+	Chi cho sua nhung o NGUOI DUNG dien: ten, so dien thoai, email, sinh
+	nhat, gioi tinh, dia chi, nhan. Cac o mang tu Fabi sang deu de chi doc -
+	sua chung khong lam khach duoc cham soc tot hon, ma lai mat dau vet.
+	"""
+	_kiem_quyen()
+	khach = (khach or "").strip()
+	if not khach or not frappe.db.exists("Customer", khach):
+		frappe.throw("Không có khách hàng %s." % (khach or "(trống)"))
+	if isinstance(dat, str):
+		dat = frappe.parse_json(dat or "{}")
+	dat = dat or {}
+
+	kh, lh = {}, {}
+	if "ten" in dat:
+		t = str(dat.get("ten") or "").strip()
+		if not t:
+			frappe.throw("Tên khách không được để trống.")
+		kh["customer_name"] = t[:140]
+	if "gioi_tinh" in dat:
+		g = str(dat.get("gioi_tinh") or "").strip()
+		kh["gender"] = g if g in ("Male", "Female") else None
+	for o, truong in (("sinh_nhat", "vgb_sinh_nhat"), ("ngay_dang_ky", "vgb_ngay_dang_ky")):
+		if o in dat:
+			kh[truong] = _ngay_hop_le(dat.get(o))
+	if "dia_chi" in dat:
+		kh["vgb_dia_chi_cu"] = str(dat.get("dia_chi") or "").strip()[:500]
+	if "tags" in dat:
+		kh["vgb_tags"] = str(dat.get("tags") or "").strip()[:500]
+	if "zalo" in dat:
+		kh["vgb_zalo_id"] = str(dat.get("zalo") or "").strip()[:140]
+
+	if "sdt" in dat:
+		s = sdt(dat.get("sdt"))
+		if str(dat.get("sdt") or "").strip() and not s:
+			frappe.throw(
+				"Số điện thoại %s không đọc được thành số di động Việt Nam. "
+				"Nhập lại giúp em, không thì khách này không nhận được tin nhắn nào."
+				% dat.get("sdt")
+			)
+		# Mot so chi thuoc mot khach: hai ban ghi cho mot nguoi la chi tieu
+		# bi chia doi, hang xet sai, diem tich ra hai so du.
+		if s:
+			from vagabond.nhap_khach import tim_theo_sdt
+
+			chu = tim_theo_sdt(s)
+			if chu and chu != khach:
+				frappe.throw(
+					"Số %s đang là của khách %s. Một số chỉ thuộc một người." % (s, chu)
+				)
+		lh["mobile_no"] = s
+	if "email" in dat:
+		e = str(dat.get("email") or "").strip()
+		if e and "@" not in e:
+			frappe.throw("Email %s không đúng dạng." % e)
+		lh["email_id"] = e[:140]
+
+	if kh:
+		frappe.db.set_value("Customer", khach, kh)
+	if lh:
+		_luu_lien_he(khach, lh)
+	frappe.db.commit()
+	return ho_so(khach)
+
+
+def _ngay_hop_le(v):
+	v = str(v or "").strip()
+	if not v:
+		return None
+	try:
+		return getdate(v)
+	except Exception:
+		frappe.throw("Ngày %s không đúng dạng." % v)
+
+
+def _luu_lien_he(khach, dat):
+	"""Ghi so dien thoai va email vao LIEN HE, khong ghi thang vao Customer.
+
+	Customer.mobile_no la truong chi doc, ERPNext keo tu lien he chinh sang.
+	Ghi thang vao do thi lan sau ai mo khach ra bam Luu la so bi xoa trang -
+	dung cai da lam 1.545 khach doanh nghiep khong ai co so dien thoai.
+	"""
+	from vagabond.nhap_khach import _tach_ten
+
+	cu = _lien_he(khach)
+	ten = frappe.db.get_value("Customer", khach, "customer_name") or khach
+	if cu.get("ma"):
+		doc = frappe.get_doc("Contact", cu["ma"])
+	else:
+		ho, dem = _tach_ten(ten)
+		doc = frappe.new_doc("Contact")
+		doc.first_name = ho[:140]
+		doc.last_name = dem[:140]
+		doc.is_primary_contact = 1
+		doc.append("links", {"link_doctype": "Customer", "link_name": khach})
+
+	if "mobile_no" in dat:
+		so = dat["mobile_no"]
+		doc.mobile_no = so
+		doc.phone_nos = []
+		if so:
+			doc.append("phone_nos", {"phone": so, "is_primary_mobile_no": 1})
+	if "email_id" in dat:
+		em = dat["email_id"]
+		doc.email_ids = []
+		if em:
+			doc.append("email_ids", {"email_id": em, "is_primary": 1})
+
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.set_value(
+		"Customer",
+		khach,
+		{"customer_primary_contact": doc.name, "mobile_no": doc.mobile_no or ""},
+		update_modified=False,
+	)
