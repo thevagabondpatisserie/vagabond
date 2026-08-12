@@ -6645,7 +6645,11 @@ function dsTayDoc() {
 }
 async function scrDsNhapTay() {
   await cfgBanHang();
-  if (!dsTay) dsTay = { nguon: 'GrabFood', ma: '', ten: '', sdt: '', giam: '', ship: '', pt: '', mtc: '', mon: [] };
+  /* Ma bill sinh ngay luc mo man, giong hetben quay: co ma thi moi sinh
+     duoc QR cho khach quet TRUOC khi luu don, va luu xong thi chinh ma nay
+     di vao o ma tham chieu de SePay doi soat (anh Viet 12/08/2026). */
+  if (!dsTay) dsTay = { nguon: 'GrabFood', bill: posMaBill(), ma: '', ten: '', sdt: '', giam: '', ship: '', pt: '', mtc: '', mon: [] };
+  if (!dsTay.bill) dsTay.bill = posMaBill();
   var dsPt = ptTheoNguon(dsTay.nguon);
   if (dsPt.length === 1) dsTay.pt = dsPt[0].v;
   if (dsTay.pt && !dsPt.some(function (p) { return p.v === dsTay.pt; })) dsTay.pt = dsPt.length === 1 ? dsPt[0].v : '';
@@ -6662,11 +6666,17 @@ async function scrDsNhapTay() {
       : '<div style="font-size:13px;color:#6b7280">Đơn ' + h(dsTay.nguon) + ' chỉ có một phương thức: <b>' + h(dsPt.length ? dsPt[0].v : '') + '</b></div>') +
     '<div><div id="dstMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
     '<input class="tin" id="dstMtc" placeholder="Mã tham chiếu" value="' + h(dsTay.mtc || '') + '"></div>' +
+    '<div id="dstQr"></div>' +
     '</div>';
   html += '<div class="sec">Món trong đơn</div><div class="card" style="padding:6px 14px">';
   if (!dsTay.mon.length) html += '<div style="padding:14px 0;color:#a0a6b4">Chưa có món nào, bấm Thêm món.</div>';
   dsTay.mon.forEach(function (m, i) {
+    /* Co anh mon thi nhin phat ra ngay, khong phai doc ten dai (anh Viet
+       12/08/2026: "mon khi chon xong bi thieu hinh anh, kho nhan biet"). */
     html += '<div style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
+      (m.anh
+        ? '<img src="' + h(m.anh) + '" style="width:42px;height:42px;flex:none;border-radius:9px;object-fit:cover;background:#f2f4f7" onerror="this.style.visibility=\'hidden\'">'
+        : '<div style="width:42px;height:42px;flex:none;border-radius:9px;background:#f2f4f7;display:flex;align-items:center;justify-content:center;font-size:19px">🎂</div>') +
       '<div style="flex:1;min-width:0">' + h(m.ten) + '<div style="color:#a0a6b4;font-size:12px">' + money(m.qty) + ' x ' + money(m.rate) + ' đ</div></div>' +
       '<b>' + money(m.qty * m.rate) + '</b><button class="ic" data-x="' + i + '" style="color:#b3261e">✕</button></div>';
   });
@@ -6686,6 +6696,34 @@ async function scrDsNhapTay() {
     var x = e.target.closest('[data-x]');
     if (x) { dsTayDoc(); dsTay.mon.splice(parseInt(x.getAttribute('data-x'), 10), 1); go(scrDsNhapTay, true); }
   });
+  /* Ma QR cho don nhap tay. Noi dung mang ma diem ban cua nguon don, cong
+     ma bill sinh san - de ke toan doc sao ke la biet tien cua noi nao, va
+     SePay tu khop duoc vao dung don sau khi luu. */
+  function dstVeQr() {
+    var o = document.getElementById('dstQr');
+    if (!o) return;
+    if (dsTay.pt !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    var giam = parseFloat(dsTay.giam || 0) || 0, ship = parseFloat(dsTay.ship || 0) || 0;
+    var thu = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - giam + ship;
+    var diem = (nguonBH(dsTay.nguon) || {}).diem || '';
+    var nd = posNoiDungCk(dsTay.bill, diem);
+    var url = posQrUrl(nd, thu, dsTay.nguon);
+    if (!url) {
+      o.innerHTML = '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:12px;font-size:13px;color:#b3261e;line-height:1.6">' +
+        'Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR. Vào Cài đặt · Tài khoản nhận tiền để khai.</div>';
+      return;
+    }
+    var tk = posTaiKhoan(dsTay.nguon);
+    o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
+      '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
+      '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(230px,60vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
+      '<div style="font-size:18px;font-weight:800;color:#0f766e">' + money(thu) + ' đ</div>' +
+      '<div style="font-size:13px;color:#374151;margin-top:2px">Nội dung: <b>' + h(nd) + '</b></div>' +
+      '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' + h(tk.ten || '') + ' · ' + h((tk.bank || '') + ' ' + (tk.stk || '')) +
+      (tk.rieng ? ' · tài khoản riêng của nguồn này' : '') + '</div>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">Số tiền trên mã đã trừ giảm giá và cộng phí giao. Sửa món hay giảm giá thì mã tự vẽ lại.</div></div>';
+  }
+
   function dstVeMtc() {
     var q = quyPt(dsTay.pt) || {};
     var oMtc = document.getElementById('dstMtc');
@@ -6708,9 +6746,16 @@ async function scrDsNhapTay() {
       dsTay.pt = b.getAttribute('data-pt');
       veChipPt(ptw, dsTay.pt);
       dstVeMtc();
+      dstVeQr();
     };
   });
   dstVeMtc();
+  dstVeQr();
+  /* Sua so tien la mo QR phai doi theo, khong thi khach quet ra so cu. */
+  ['dstGiam', 'dstShip'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', function () { dsTayDoc(); dstVeQr(); });
+  });
   document.getElementById('dstThem').onclick = dsTayThemMon;
   document.getElementById('dstLuu').onclick = dsTayLuu;
 }
@@ -6750,7 +6795,7 @@ function themMonSheet(o, giaGoi) {
     var sl = soSl(oSl), gia = soGia(oGia);
     if (sl <= 0) return toast('Số lượng phải lớn hơn 0');
     dong();
-    dsTay.mon.push({ item_code: o.value, ten: o.label, qty: sl, rate: gia });
+    dsTay.mon.push({ item_code: o.value, ten: o.label, qty: sl, rate: gia, anh: o.img || '' });
     go(scrDsNhapTay, true);
   };
   setTimeout(function () { oSl.focus(); oSl.select(); }, 60);
@@ -6785,7 +6830,10 @@ async function dsTayLuu() {
   try {
     await api('vagabond.ban_hang.tao_don_tay', {
       ngay: dsNgay, nguon: dsTay.nguon, ma_don: dsTay.ma, ten_khach: dsTay.ten, dien_thoai: dsTay.sdt,
-      pt: dsTay.pt || '', ma_tham_chieu: dsTay.mtc || '',
+      /* Chuyen khoan ma thu ngan khong go gi thi lay chinh ma bill in tren
+         QR lam ma tham chieu, de SePay doi soat dung to khach da chuyen. */
+      pt: dsTay.pt || '',
+      ma_tham_chieu: (dsTay.mtc || '').trim() || (dsTay.pt === 'Chuyển khoản' ? dsTay.bill : ''),
       items: JSON.stringify(dsTay.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
       giam_gia: giam, phi_ship: ship
     });
@@ -7330,7 +7378,9 @@ var NHOM_COMBO = 'Combo';
 function comboMoTa(c) {
   var ph = (c.bat_buoc || c.dong || []).map(function (d) { return num(d.so_luong) + '× ' + h(d.ten_mon || d.item_code); });
   (c.nhom_ds || []).forEach(function (g) {
-    ph.push('chọn ' + g.chon + ' trong ' + (g.mon || []).length + ' ' + h(g.ten));
+    var tt = parseInt(g.toi_thieu, 10); if (isNaN(tt)) tt = g.chon || 1;
+    var td = parseInt(g.toi_da, 10); if (isNaN(td) || td < 1) td = g.chon || 1;
+    ph.push((tt === td ? 'chọn ' + td : 'chọn ' + tt + ' đến ' + td) + ' trong ' + (g.mon || []).length + ' ' + h(g.ten));
   });
   return ph.join(' + ');
 }
@@ -10232,7 +10282,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '130';
+var APPVER = '131';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -11826,27 +11876,36 @@ async function kmSheetCombo(ma) {
     cb = (kmData.cb || []).filter(function (x) { return x.name === ma; })[0];
     if (cb) cb = JSON.parse(JSON.stringify(cb));
   }
-  cb = cb || { kieu: 'Gia tron goi', bat: 0, uu_tien: 10, dong: [], gioi_han_bill: 0 };
+  cb = cb || { kieu: 'Gia tron goi', bat: 0, uu_tien: 10, dong: [], nhom: [], gioi_han_bill: 0 };
+  cb.nhom = cb.nhom || [];
+  cb.dong = cb.dong || [];
   var s = cb;
 
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
 
-  /* Nhom mon cho khach chon: ten nhom -> {chon, dong}. Dong khong ghi ten
-     nhom la mon bat buoc, luon vao bill. */
+  /* Nhom mon cho khach chon. Moi nhom la mot dong trong bang s.nhom, co
+     ten, chon toi thieu va toi da. Dong mon gan vao nhom bang TEN nhom;
+     dong khong ghi ten nhom la mon bat buoc, luon vao bill. */
+  function cbMonCuaNhom(ten) {
+    return (s.dong || []).filter(function (d) { return String(d.nhom || '').trim() === ten; });
+  }
   function cbNhom() {
     var ra = {};
-    (s.dong || []).forEach(function (d) {
-      var n = String(d.nhom || '').trim();
-      if (!n) return;
-      if (!ra[n]) ra[n] = { chon: 0, dong: [] };
-      ra[n].chon = Math.max(ra[n].chon, parseInt(d.chon_trong_nhom, 10) || 1);
-      ra[n].dong.push(d);
+    (s.nhom || []).forEach(function (g) {
+      var ten = String(g.ten || '').trim();
+      if (!ten) return;
+      var ds = cbMonCuaNhom(ten);
+      var toiDa = parseInt(g.chon_toi_da, 10) || 1;
+      var toiThieu = parseInt(g.chon_toi_thieu, 10);
+      if (isNaN(toiThieu) || toiThieu < 0) toiThieu = 0;
+      ra[ten] = { toi_thieu: Math.min(toiThieu, toiDa), toi_da: toiDa, dong: ds, g: g };
     });
     return ra;
   }
-  /* Tong gia le cua mot bo. datNhat = khach chon toan mon dat nhat trong
-     moi nhom, nguoc lai la re nhat. Phai khop y het cach may chu tinh. */
+  /* Tong gia le cua mot bo. datNhat = khach lay het suat toi da va toan mon
+     dat nhat; nguoc lai la chi lay dung so toi thieu va toan mon re nhat.
+     Phai khop y het cach may chu tinh. */
   function tongGoc(datNhat) {
     var t = 0;
     (s.dong || []).forEach(function (d) {
@@ -11856,7 +11915,8 @@ async function kmSheetCombo(ma) {
     Object.keys(nh).forEach(function (k) {
       var gia = nh[k].dong.map(function (d) { return (d.gia_goc || 0) * (d.so_luong || 0); });
       gia.sort(function (a, b) { return datNhat ? b - a : a - b; });
-      gia.slice(0, nh[k].chon).forEach(function (v) { t += v; });
+      var so = datNhat ? nh[k].toi_da : nh[k].toi_thieu;
+      gia.slice(0, so).forEach(function (v) { t += v; });
     });
     return t;
   }
@@ -11867,6 +11927,19 @@ async function kmSheetCombo(ma) {
     if (s.kieu === 'Gia tron goi') return Math.max(0, g - (s.gia_combo || 0));
     if (s.kieu === 'Giam phan tram') return g * (s.gia_tri || 0) / 100;
     return Math.min(g, s.gia_tri || 0);
+  }
+
+  /* Mot dong mon trong bang cau hinh. Dung chung cho mon co san va mon
+     nam trong nhom, chi khac cho co nut go khoi nhom hay khong. */
+  function cbDongMon(i, tenNhom) {
+    var d = (s.dong || [])[i];
+    if (!d) return '';
+    return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(d.ten_mon || d.item_code) + '</div>' +
+      '<div style="font-size:11.5px;color:#98a2b3">' + money(d.gia_goc) + 'đ/phần</div></div>' +
+      '<input class="tin" data-cbsl="' + i + '" type="number" value="' + (d.so_luong || 1) + '" style="width:58px;flex:none;text-align:center;margin:0">' +
+      '<input class="tin" data-cbg="' + i + '" type="number" value="' + (d.gia_goc || 0) + '" style="width:88px;flex:none;text-align:right;margin:0">' +
+      posChipNut('data-cbxoa="' + i + '"', '×', false, true) + '</div>';
   }
 
   function ve() {
@@ -11880,34 +11953,67 @@ async function kmSheetCombo(ma) {
       'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in ra chỉ thấy tên món thật, không in mã combo.</div>' +
       kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì');
 
-    html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">MÓN TRONG COMBO</div>';
-    if (!(s.dong || []).length) html += '<div style="font-size:12.5px;color:#98a2b3;padding:8px 0">Chưa có món nào.</div>';
-    (s.dong || []).forEach(function (d, i) {
-      var nh = String(d.nhom || '').trim();
-      html += '<div style="border:1.5px solid ' + (nh ? '#7fe5f6' : '#eef0f4') + ';border-radius:10px;padding:8px 9px;margin-bottom:8px">' +
-        '<div style="display:flex;gap:6px;align-items:center">' +
-        '<div style="flex:1;min-width:0"><div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(d.ten_mon || d.item_code) + '</div>' +
-        '<div style="font-size:11.5px;color:#98a2b3">' + money(d.gia_goc) + 'đ/phần</div></div>' +
-        '<input class="tin" data-cbsl="' + i + '" type="number" value="' + (d.so_luong || 1) + '" style="width:60px;flex:none;text-align:center">' +
-        '<input class="tin" data-cbg="' + i + '" type="number" value="' + (d.gia_goc || 0) + '" style="width:92px;flex:none;text-align:right">' +
-        posChipNut('data-cbxoa="' + i + '"', '×', false, true) + '</div>' +
-        '<div style="display:flex;gap:6px;align-items:center;margin-top:6px">' +
-        '<input class="tin" data-cbnh="' + i + '" value="' + h(nh) + '" placeholder="Nhóm chọn - để trống là món bắt buộc" style="flex:1;margin:0;font-size:13px">' +
-        (nh ? '<input class="tin" data-cbcn="' + i + '" type="number" min="1" value="' + (parseInt(d.chon_trong_nhom, 10) || 1) + '" style="width:66px;flex:none;text-align:center;margin:0">' : '') +
-        '</div></div>';
-    });
-    html += '<div style="margin-bottom:6px">' + posChipNut('data-cbthem="1"', '+ Thêm món', false) + '</div>';
+    /* ----- Mon co san: luon vao bill ----- */
+    var monBB = [];
+    (s.dong || []).forEach(function (d, i) { if (!String(d.nhom || '').trim()) monBB.push(i); });
+    html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">MÓN CÓ SẴN TRONG COMBO' +
+      ' <span style="font-weight:400;color:#98a2b3">(luôn vào bill)</span></div>';
+    if (!monBB.length) html += '<div style="font-size:12.5px;color:#98a2b3;padding:6px 0">Chưa có món nào. Combo có thể chỉ gồm các nhóm cho khách chọn.</div>';
+    monBB.forEach(function (i) { html += cbDongMon(i, ''); });
+    html += '<div style="margin-bottom:14px">' + posChipNut('data-cbthem="1"', '+ Thêm món có sẵn', false) + '</div>';
 
-    /* Bang tom tat nhom: De phai nhin ra ngay "1 trong 2 mon nuoc, 1 trong
-       4 banh" chu khong phai doc tung dong (De feedback 12/08/2026). */
+    /* ----- Nhom mon cho khach chon ----- */
     var nhBang = cbNhom();
     var tenNh = Object.keys(nhBang);
-    html += '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#0b7c93;line-height:1.6">' +
-      (tenNh.length
-        ? 'Thu ngân bấm combo sẽ hiện hộp chọn món: ' +
-          tenNh.map(function (k) { return '<b>chọn ' + nhBang[k].chon + ' trong ' + nhBang[k].dong.length + ' món ' + h(k) + '</b>'; }).join(', ') + '.'
-        : 'Đặt cùng một <b>tên nhóm</b> cho mấy món cho khách chọn, rồi điền số món được chọn vào ô bên cạnh. Ví dụ hai món nước cùng ghi nhóm "món nước" và điền 1 thì khách chỉ lấy được một ly.') +
-      '</div>';
+    html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">NHÓM MÓN CHO KHÁCH CHỌN</div>';
+    if (!tenNh.length) {
+      html += '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#0b7c93;line-height:1.6">' +
+        'Bấm <b>Tạo nhóm món</b> để cho khách chọn, ví dụ một nhóm "Món nước" chọn 1 trong 2, một nhóm "Bánh" chọn 1 trong 4. ' +
+        'Combo có nhóm thì thu ngân bấm combo sẽ hiện hộp chọn món trước khi vào bill.</div>';
+    }
+    (s.nhom || []).forEach(function (g, gi) {
+      var ten = String(g.ten || '').trim();
+      var ds = ten ? cbMonCuaNhom(ten) : [];
+      var toiDa = parseInt(g.chon_toi_da, 10) || 1;
+      var toiThieu = parseInt(g.chon_toi_thieu, 10); if (isNaN(toiThieu)) toiThieu = 0;
+      html += '<div style="border:1.5px solid #7fe5f6;background:#f7feff;border-radius:12px;padding:10px 11px;margin-bottom:10px">' +
+        '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">' +
+        '<input class="tin" data-cbnten="' + gi + '" value="' + h(ten) + '" placeholder="Tên nhóm, ví dụ Món nước" style="flex:1;margin:0;font-weight:700">' +
+        posChipNut('data-cbnxoa="' + gi + '"', '×', false, true) + '</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+        '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Chọn tối thiểu</div>' +
+        '<input class="tin" data-cbntt="' + gi + '" type="number" min="0" value="' + toiThieu + '" style="width:100%;margin:0;text-align:center"></div>' +
+        '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Tối đa</div>' +
+        '<input class="tin" data-cbntd="' + gi + '" type="number" min="1" value="' + toiDa + '" style="width:100%;margin:0;text-align:center"></div>' +
+        '</div>' +
+        '<div style="font-size:11.5px;color:#0b7c93;margin-bottom:8px;line-height:1.5">' +
+        (ten
+          ? (toiThieu === toiDa
+            ? 'Khách chọn đúng <b>' + toiDa + '</b> món trong ' + ds.length + ' món dưới đây.'
+            : 'Khách chọn từ <b>' + toiThieu + '</b> đến <b>' + toiDa + '</b> món trong ' + ds.length + ' món dưới đây.')
+          : '<span style="color:#b45309">Đặt tên nhóm trước rồi mới thêm món vào được.</span>') +
+        '</div>';
+      ds.forEach(function (d) { html += cbDongMon(s.dong.indexOf(d), ten); });
+      if (ten && !ds.length) html += '<div style="font-size:12.5px;color:#b45309;padding:4px 0 8px">Nhóm chưa có món nào.</div>';
+      html += '<div>' + posChipNut('data-cbnthem="' + gi + '"', '+ Thêm món vào nhóm', false) + '</div>' +
+        '</div>';
+    });
+    html += '<div style="margin-bottom:14px">' + posChipNut('data-cbntao="1"', '➕ Tạo nhóm món', false) + '</div>';
+
+    /* Mon dang ghi ten nhom ma khong con nhom nao ten do: bao ngay o day,
+       khong de may chu chan luc bam Luu. */
+    var moCoi = [];
+    (s.dong || []).forEach(function (d, i) {
+      var n = String(d.nhom || '').trim();
+      if (n && !nhBang[n]) moCoi.push(i);
+    });
+    if (moCoi.length) {
+      html += '<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#991b1b;line-height:1.6">' +
+        moCoi.length + ' món đang ghi nhóm không còn tồn tại nên sẽ không bao giờ được chọn:<br>' +
+        moCoi.map(function (i) { return '· ' + h(s.dong[i].ten_mon || s.dong[i].item_code) + ' (nhóm "' + h(s.dong[i].nhom) + '")'; }).join('<br>') +
+        '<div style="margin-top:8px">' + posChipNut('data-cbmocoi="1"', 'Gỡ tên nhóm, cho thành món có sẵn', false) + '</div></div>';
+      moCoi.forEach(function (i) { html += cbDongMon(i, ''); });
+    }
 
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">GIÁ COMBO</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
@@ -11968,18 +12074,25 @@ async function kmSheetCombo(ma) {
       var i = parseInt(o.getAttribute('data-cbg'), 10);
       if (s.dong[i]) s.dong[i].gia_goc = parseFloat(o.value) || 0;
     });
-    box.querySelectorAll('[data-cbnh]').forEach(function (o) {
-      var i = parseInt(o.getAttribute('data-cbnh'), 10);
-      if (s.dong[i]) s.dong[i].nhom = String(o.value || '').trim();
+    /* Doi ten nhom thi phai keo theo cac dong mon dang tro toi ten cu,
+       khong thi mon bi mo coi ngay khi go xong chu cai dau tien. */
+    box.querySelectorAll('[data-cbnten]').forEach(function (o) {
+      var gi = parseInt(o.getAttribute('data-cbnten'), 10);
+      var g = (s.nhom || [])[gi];
+      if (!g) return;
+      var cu = String(g.ten || '').trim();
+      var moi = String(o.value || '').trim();
+      if (moi === cu) return;
+      g.ten = moi;
+      (s.dong || []).forEach(function (d) { if (String(d.nhom || '').trim() === cu) d.nhom = moi; });
     });
-    box.querySelectorAll('[data-cbcn]').forEach(function (o) {
-      var i = parseInt(o.getAttribute('data-cbcn'), 10);
-      if (!s.dong[i]) return;
-      var v = parseInt(o.value, 10) || 1;
-      /* So mon duoc chon la cua CA NHOM: sua o mot dong thi cac dong cung
-         nhom phai doi theo, khong thi hai dong noi hai kieu. */
-      var n = String(s.dong[i].nhom || '').trim();
-      (s.dong || []).forEach(function (d) { if (String(d.nhom || '').trim() === n) d.chon_trong_nhom = v; });
+    box.querySelectorAll('[data-cbntt]').forEach(function (o) {
+      var gi = parseInt(o.getAttribute('data-cbntt'), 10);
+      if (s.nhom[gi]) s.nhom[gi].chon_toi_thieu = Math.max(0, parseInt(o.value, 10) || 0);
+    });
+    box.querySelectorAll('[data-cbntd]').forEach(function (o) {
+      var gi = parseInt(o.getAttribute('data-cbntd'), 10);
+      if (s.nhom[gi]) s.nhom[gi].chon_toi_da = Math.max(1, parseInt(o.value, 10) || 1);
     });
   }
 
@@ -11993,26 +12106,98 @@ async function kmSheetCombo(ma) {
     bat2('[data-cbotp]', function () { s.can_otp = s.can_otp ? 0 : 1; });
     bat2('[data-cbbat]', function () { s.bat = s.bat ? 0 : 1; });
     bat2('[data-cbquay]', function (o) { s.quay = kmDoiDong(s.quay, o.getAttribute('data-cbquay')); });
-    box.querySelectorAll('[data-cbsl],[data-cbg],[data-cbnh],[data-cbcn]').forEach(function (o) { o.onchange = function () { thu(); ve(); }; });
-    var tm = box.querySelector('[data-cbthem]');
-    if (tm) tm.onclick = function () {
+    box.querySelectorAll('[data-cbsl],[data-cbg],[data-cbnten],[data-cbntt],[data-cbntd]').forEach(function (o) { o.onchange = function () { thu(); ve(); }; });
+    function themMonVao(tenNhom) {
       thu();
       kmChonMon(function (it) {
-        s.dong.push({ item_code: it.value, ten_mon: it.label, so_luong: 1, gia_goc: it.gia || 0, nhom: '', chon_trong_nhom: 0 });
+        s.dong.push({
+          item_code: it.value, ten_mon: it.label, so_luong: 1, gia_goc: it.gia || 0,
+          nhom: tenNhom || '', chon_trong_nhom: 0
+        });
         return 1;
       }, function () { ve(); });
+    }
+    var tm = box.querySelector('[data-cbthem]');
+    if (tm) tm.onclick = function () { themMonVao(''); };
+    box.querySelectorAll('[data-cbnthem]').forEach(function (o) {
+      o.onclick = function () {
+        thu();
+        var g = (s.nhom || [])[parseInt(o.getAttribute('data-cbnthem'), 10)];
+        if (!g || !String(g.ten || '').trim()) { toast('Đặt tên nhóm trước đã.'); return ve(); }
+        themMonVao(String(g.ten).trim());
+      };
+    });
+    var nt = box.querySelector('[data-cbntao]');
+    if (nt) nt.onclick = function () {
+      thu();
+      /* Ten mac dinh khac nhau de hai nhom moi khong dam ten nhau. */
+      var i = (s.nhom || []).length + 1;
+      var ten = 'Nhóm ' + i;
+      while ((s.nhom || []).some(function (g) { return String(g.ten || '').trim() === ten; })) {
+        i++; ten = 'Nhóm ' + i;
+      }
+      s.nhom.push({ ten: ten, chon_toi_thieu: 1, chon_toi_da: 1, mo_ta: '' });
+      ve();
+    };
+    box.querySelectorAll('[data-cbnxoa]').forEach(function (o) {
+      o.onclick = async function () {
+        thu();
+        var gi = parseInt(o.getAttribute('data-cbnxoa'), 10);
+        var g = (s.nhom || [])[gi];
+        if (!g) return;
+        var ten = String(g.ten || '').trim();
+        var ds = ten ? cbMonCuaNhom(ten) : [];
+        if (ds.length) {
+          var ok = await confirmSheet('Bỏ nhóm ' + (ten || 'mới') + '?',
+            ds.length + ' món trong nhóm này sẽ thành món có sẵn, tức là luôn vào bill.',
+            'Bỏ nhóm', true);
+          if (!ok) return;
+          ds.forEach(function (d) { d.nhom = ''; d.chon_trong_nhom = 0; });
+        }
+        s.nhom.splice(gi, 1);
+        ve();
+      };
+    });
+    var mc = box.querySelector('[data-cbmocoi]');
+    if (mc) mc.onclick = function () {
+      thu();
+      var ten = {};
+      (s.nhom || []).forEach(function (g) { ten[String(g.ten || '').trim()] = 1; });
+      (s.dong || []).forEach(function (d) {
+        var n = String(d.nhom || '').trim();
+        if (n && !ten[n]) { d.nhom = ''; d.chon_trong_nhom = 0; }
+      });
+      ve();
     };
     box.querySelector('#cbLuu').onclick = async function () {
       thu();
       if (!s.ten) { toast('Combo chưa có tên.'); return; }
       if (!(s.dong || []).length) { toast('Combo phải có ít nhất một món.'); return; }
-      var nhKiem = cbNhom(), loiNh = '';
-      Object.keys(nhKiem).forEach(function (k) {
-        if (!loiNh && nhKiem[k].chon >= nhKiem[k].dong.length) {
-          loiNh = 'Nhóm "' + k + '" có ' + nhKiem[k].dong.length + ' món mà cho chọn ' +
-            nhKiem[k].chon + ' món thì khách không còn gì để chọn.';
+      var loiNh = '';
+      var daTen = {};
+      (s.nhom || []).forEach(function (g) {
+        if (loiNh) return;
+        var ten = String(g.ten || '').trim();
+        if (!ten) { loiNh = 'Có nhóm món chưa đặt tên.'; return; }
+        if (daTen[ten]) { loiNh = 'Nhóm "' + ten + '" bị khai hai lần.'; return; }
+        daTen[ten] = 1;
+        var ds = cbMonCuaNhom(ten);
+        var toiDa = parseInt(g.chon_toi_da, 10) || 1;
+        var toiThieu = parseInt(g.chon_toi_thieu, 10) || 0;
+        if (!ds.length) { loiNh = 'Nhóm "' + ten + '" chưa có món nào.'; return; }
+        if (toiThieu > toiDa) { loiNh = 'Nhóm "' + ten + '" bắt chọn tối thiểu ' + toiThieu + ' mà tối đa chỉ ' + toiDa + '.'; return; }
+        if (toiDa > ds.length) { loiNh = 'Nhóm "' + ten + '" cho chọn tối đa ' + toiDa + ' món mà mới có ' + ds.length + ' món.'; return; }
+        if (toiThieu === toiDa && toiDa === ds.length) {
+          loiNh = 'Nhóm "' + ten + '" bắt khách lấy hết cả ' + ds.length + ' món thì không còn gì để chọn.';
         }
       });
+      if (!loiNh) {
+        (s.dong || []).forEach(function (d) {
+          if (loiNh) return;
+          var n = String(d.nhom || '').trim();
+          if (n && !daTen[n]) loiNh = 'Món ' + (d.ten_mon || d.item_code) + ' đang ghi nhóm "' + n + '" mà không có nhóm nào tên đó.';
+        });
+      }
       if (loiNh) { toast(loiNh, 5000); return; }
       var nut = box.querySelector('#cbLuu'); nut.disabled = true; nut.textContent = 'Đang lưu...';
       try {
@@ -14033,9 +14218,12 @@ function posSheetChonCombo(c, xong) {
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
 
+  function gTT(g) { var v = parseInt(g.toi_thieu, 10); return isNaN(v) ? (g.chon || 1) : v; }
+  function gTD(g) { var v = parseInt(g.toi_da, 10); return isNaN(v) || v < 1 ? (g.chon || 1) : v; }
   function duSo() {
     for (var i = 0; i < nhom.length; i++) {
-      if ((da[nhom[i].ten] || []).length !== nhom[i].chon) return 0;
+      var n = (da[nhom[i].ten] || []).length;
+      if (n < gTT(nhom[i]) || n > gTD(nhom[i])) return 0;
     }
     return 1;
   }
@@ -14054,10 +14242,12 @@ function posSheetChonCombo(c, xong) {
 
     nhom.forEach(function (g, gi) {
       var chon = da[g.ten] || [];
-      var xong2 = chon.length === g.chon;
+      var tt = gTT(g), td = gTD(g);
+      var xong2 = chon.length >= tt && chon.length <= td;
       html += '<div style="font-size:12px;font-weight:700;margin:12px 0 7px;color:' + (xong2 ? '#0f766e' : '#b45309') + '">' +
-        h(g.ten).toUpperCase() + ' · chọn ' + g.chon + ' món' +
-        ' <span style="font-weight:600">(' + chon.length + '/' + g.chon + ')</span></div>' +
+        h(g.ten).toUpperCase() + ' · ' + (tt === td ? 'chọn ' + td + ' món' : 'chọn từ ' + tt + ' đến ' + td + ' món') +
+        ' <span style="font-weight:600">(' + chon.length + '/' + td + ')</span></div>' +
+        (g.mo_ta ? '<div style="font-size:12px;color:#6b7280;margin:-3px 0 7px">' + h(g.mo_ta) + '</div>' : '') +
         '<div style="display:flex;flex-direction:column;gap:7px">';
       (g.mon || []).forEach(function (m, mi) {
         var on = chon.indexOf(m.item_code) >= 0;
@@ -14086,12 +14276,18 @@ function posSheetChonCombo(c, xong) {
         var m = (g.mon || [])[+o.getAttribute('data-cbm')];
         if (!g || !m) return;
         var ds = da[g.ten] || [];
+        var td = gTD(g);
         var i = ds.indexOf(m.item_code);
         if (i >= 0) ds.splice(i, 1);
-        else if (ds.length >= g.chon) {
-          /* Chon du roi ma bam mon khac: bo mon chon dau tien ra, de thu
-             ngan khong phai bam huy roi bam lai. */
-          ds.shift(); ds.push(m.item_code);
+        else if (ds.length >= td) {
+          if (td === 1) {
+            /* Nhom chi cho mot mon: bam mon khac la doi luon, khoi bat thu
+               ngan bo tick roi tick lai. */
+            ds.length = 0; ds.push(m.item_code);
+          } else {
+            toast('Nhóm ' + g.ten + ' chỉ được chọn tối đa ' + td + ' món. Bỏ bớt một món rồi chọn lại.', 3200);
+            return;
+          }
         } else ds.push(m.item_code);
         da[g.ten] = ds;
         ve();
