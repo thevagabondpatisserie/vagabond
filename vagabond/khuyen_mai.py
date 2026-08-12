@@ -495,7 +495,7 @@ def _tien_chu(n):
 # ------------------------------------------------------------------- combo
 
 def nhom_combo(cb):
-	"""Bang ten nhom -> (so mon duoc chon, cac dong trong nhom)."""
+	"""Bang ten nhom -> {toi_thieu, toi_da, mo_ta, dong}."""
 	from vagabond.vagabond.doctype.vagabond_combo.vagabond_combo import nhom_cua
 
 	return nhom_cua(cb)
@@ -506,6 +506,7 @@ def _doc_combo(ma):
 	o = d.as_dict()
 	o["name"] = d.name
 	o["dong"] = [x.as_dict() for x in (d.dong or [])]
+	o["nhom"] = [x.as_dict() for x in (d.get("nhom") or [])]
 	return o
 
 
@@ -539,12 +540,18 @@ def _chon_dong(cb, chon):
 			theo_nhom.setdefault(n, []).append(m)
 	ra = []
 	for ten in sorted(nh.keys()):
-		so, ds = nh[ten]
+		g = nh[ten]
 		da_chon = theo_nhom.get(ten) or []
-		if len(da_chon) != so:
-			return [], "nhóm \"%s\" phải chọn đúng %d món, đang chọn %d" % (ten, so, len(da_chon))
+		if len(da_chon) < g["toi_thieu"]:
+			return [], "nhóm \"%s\" phải chọn ít nhất %d món, đang chọn %d" % (
+				ten, g["toi_thieu"], len(da_chon)
+			)
+		if len(da_chon) > g["toi_da"]:
+			return [], "nhóm \"%s\" chỉ được chọn tối đa %d món, đang chọn %d" % (
+				ten, g["toi_da"], len(da_chon)
+			)
 		bang = {}
-		for d in ds:
+		for d in g["dong"]:
 			bang.setdefault(d.get("item_code"), d)
 		da_lay = set()
 		for m in da_chon:
@@ -554,6 +561,11 @@ def _chon_dong(cb, chon):
 				return [], "nhóm \"%s\" đang chọn trùng món %s" % (ten, _ten_mon(m))
 			da_lay.add(m)
 			ra.append(bang[m])
+	# Nhom khai trong bang ma app khong gui gi len: neu nhom do bat buoc thi
+	# vong tren da chan; con nhom khong bat buoc thi bo qua la dung.
+	for ten in theo_nhom:
+		if ten not in nh:
+			return [], "combo không có nhóm \"%s\"" % ten
 	return ra, ""
 
 
@@ -715,6 +727,15 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 			order_by="idx asc",
 			limit_page_length=0,
 		)
+		# Bang nhom phai keo theo, khong thi nhom_cua roi ve duong suy nguoc
+		# tu tung dong va mat con so "chon toi thieu".
+		o["nhom"] = frappe.get_all(
+			"Vagabond Combo Nhom",
+			filters={"parent": cb.name},
+			fields=["ten", "chon_toi_thieu", "chon_toi_da", "mo_ta"],
+			order_by="idx asc",
+			limit_page_length=0,
+		)
 		# Nhom mon cho khach chon. App dung cai nay de bay hop chon mon truoc
 		# khi do combo vao bill - khong co thi thu ngan bam combo la ca bon
 		# mon banh nhay het vao hoa don (De feedback 12/08/2026).
@@ -722,7 +743,12 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 		o["nhom_ds"] = [
 			{
 				"ten": ten,
-				"chon": nh[ten][0],
+				"toi_thieu": nh[ten]["toi_thieu"],
+				"toi_da": nh[ten]["toi_da"],
+				# Giu ten cu "chon" cho ban app doi, khong thi thu ngan dang
+				# ban giua chung ma man chon mon trong tron.
+				"chon": nh[ten]["toi_da"],
+				"mo_ta": nh[ten]["mo_ta"],
 				"mon": [
 					{
 						"item_code": d.get("item_code"),
@@ -730,7 +756,7 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 						"so_luong": flt(d.get("so_luong")),
 						"gia_goc": flt(d.get("gia_goc")),
 					}
-					for d in nh[ten][1]
+					for d in nh[ten]["dong"]
 				],
 			}
 			for ten in sorted(nh.keys())
@@ -1490,6 +1516,15 @@ def luu_combo(du_lieu, ma=None):
 	for t in TRUONG_COMBO:
 		if t in du_lieu:
 			d.set(t, du_lieu.get(t))
+	if "nhom" in du_lieu:
+		d.nhom = []
+		for g in du_lieu.get("nhom") or []:
+			d.append("nhom", {
+				"ten": str(g.get("ten") or "").strip(),
+				"chon_toi_thieu": cint(g.get("chon_toi_thieu") or 0),
+				"chon_toi_da": cint(g.get("chon_toi_da") or 0),
+				"mo_ta": str(g.get("mo_ta") or "").strip(),
+			})
 	if "dong" in du_lieu:
 		d.dong = []
 		for r in du_lieu.get("dong") or []:
