@@ -10282,7 +10282,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '131';
+var APPVER = '132';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -14012,6 +14012,24 @@ async function scrTaiKhoan() {
   tkVe();
 }
 
+/* Muc dich dac biet nhu phieu doi no khai chung bang voi nguon don, nhung
+   phai hien ra bang chu nguoi doc hieu chu khong phai ma noi bo. */
+function tkNhan(v) {
+  var ds = (tkData && tkData.nguon) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].v === v) return ds[i].nhan || v;
+  return v;
+}
+function tkIcon(v) {
+  var ds = (tkData && tkData.nguon) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].v === v) return ds[i].ic || '🏦';
+  return '🏦';
+}
+function tkMoTa(v) {
+  var ds = (tkData && tkData.nguon) || [];
+  for (var i = 0; i < ds.length; i++) if (ds[i].v === v) return ds[i].mo || '';
+  return '';
+}
+
 function tkTenNh(ma) {
   var ds = (tkData && tkData.ngan_hang) || [];
   for (var i = 0; i < ds.length; i++) if (ds[i].bin === ma || ds[i].ma === ma) return ds[i].ten;
@@ -14044,10 +14062,10 @@ function tkVe() {
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">TÀI KHOẢN NHẬN CHUYỂN KHOẢN</div>' +
     '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
-    'Mọi mã QR chuyển khoản của hệ sinh từ đây: màn tính tiền tại quầy, chi tiết đơn Sales, ' +
-    'phiếu tạm tính in cho khách và phiếu đòi công nợ.<br>' +
+    'Mọi mã QR chuyển khoản của hệ sinh từ đây: màn tính tiền tại quầy, màn nhập đơn tay, ' +
+    'chi tiết đơn Sales, phiếu tạm tính in cho khách và phiếu đòi công nợ.<br>' +
     'Khai tài khoản ảo riêng cho từng nguồn đơn thì sao kê ngân hàng tự tách sẵn, ' +
-    'kế toán không phải lần theo nội dung chuyển khoản nữa.</div></div>';
+    'kế toán không phải lần theo nội dung chuyển khoản nữa. Tiền vẫn về tài khoản chính.</div></div>';
 
   html += '<div class="sec">Tài khoản mặc định</div><div class="card">' +
     '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
@@ -14066,8 +14084,8 @@ function tkVe() {
   } else {
     html += '<div class="card">' + ds.map(function (t, i) {
       return '<div data-tkmo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
-        '<div style="width:34px;flex:none;text-align:center;font-size:20px">🏦</div>' +
-        '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(t.nguon) + '</b>' +
+        '<div style="width:34px;flex:none;text-align:center;font-size:20px">' + h(tkIcon(t.nguon)) + '</div>' +
+        '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(tkNhan(t.nguon)) + '</b>' +
         '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h(tkTenNh(t.bank)) + ' · ' + h(t.stk || 'chưa có số') + '</div></div>' +
         '<span style="font-size:12px;font-weight:700;color:' + (t.dung ? '#0f766e' : '#a0a6b4') + '">' + (t.dung ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
         '<span style="color:#c8ccd4">›</span></div>';
@@ -14116,9 +14134,11 @@ function scrTaiKhoanSua() {
       var ban = 0;
       (tkData.theo_nguon || []).forEach(function (x, i) { if (i !== tkMo && x.nguon === n.v) ban = 1; });
       if (ban) return '';
-      return posChipNut('data-tkng="' + h(n.v) + '"', (n.lg ? '' : (n.ic || '🧾') + ' ') + h(n.v), t.nguon === n.v);
+      return posChipNut('data-tkng="' + h(n.v) + '"', (n.lg ? '' : (n.ic || '🧾') + ' ') + h(n.nhan || n.v), t.nguon === n.v);
     }).join('')) +
-    (t.nguon ? '' : '<div style="font-size:12px;color:#b45309;margin-top:8px">Chọn nguồn đơn trước đã.</div>') +
+    (t.nguon
+      ? (tkMoTa(t.nguon) ? '<div style="font-size:12px;color:#0b7c93;margin-top:8px;line-height:1.5">' + h(tkMoTa(t.nguon)) + '</div>' : '')
+      : '<div style="font-size:12px;color:#b45309;margin-top:8px">Chọn nguồn đơn trước đã.</div>') +
     '</div>';
 
   html += '<div class="sec">Tài khoản nhận tiền của nguồn này</div><div class="card">' +
@@ -14134,7 +14154,7 @@ function scrTaiKhoanSua() {
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
     'Tắt dòng này thì nguồn đó quay về dùng tài khoản mặc định.</div></div>';
 
-  var b = frame(t.nguon ? ('Tài khoản cho ' + t.nguon) : 'Nguồn mới', html, {
+  var b = frame(t.nguon ? ('Tài khoản cho ' + tkNhan(t.nguon)) : 'Nguồn mới', html, {
     footer: '<div style="display:flex;gap:8px">' +
       '<button class="btn gh" id="tkBo" style="margin:0;flex:0 0 34%;color:#b3261e;border-color:#fecaca">Bỏ dòng này</button>' +
       '<button class="btn" id="tkLuu" style="margin:0;flex:1">💾 Lưu</button></div>'
@@ -14151,7 +14171,7 @@ function scrTaiKhoanSua() {
     tkLuu();
   };
   document.getElementById('tkBo').onclick = async function () {
-    var ok = await confirmSheet('Bỏ tài khoản riêng của ' + (t.nguon || 'nguồn mới') + '?',
+    var ok = await confirmSheet('Bỏ tài khoản riêng của ' + (t.nguon ? tkNhan(t.nguon) : 'nguồn mới') + '?',
       'Nguồn này sẽ quay về dùng tài khoản mặc định. Giao dịch cũ trong sao kê giữ nguyên.', 'Bỏ dòng này', true);
     if (!ok) return;
     tkData.theo_nguon.splice(tkMo, 1);
