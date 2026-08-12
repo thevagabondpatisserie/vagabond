@@ -852,6 +852,7 @@ async function scrHome() {
       ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn — khai một nơi dùng cho cả hệ', 0, 'CDDB') +
         card('🔒', 'Khoá sổ', 'Chốt số liệu kỳ cũ, không ai sửa hay huỷ được nữa', 0, 'CDKS') +
         card('💳', 'Phương thức thanh toán', 'Máy cà thẻ, ví, công nợ — và mã gửi cơ quan thuế', 0, 'CDPT') +
+        card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
       : '') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
@@ -896,6 +897,7 @@ async function scrHome() {
     if (k === 'CDDB') return go(scrDiemBan);
     if (k === 'CDKS') return go(scrKhoaSo);
     if (k === 'CDPT') return go(scrPtThanhToan);
+    if (k === 'CDQQ') return go(scrQuyenQuay);
     if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
     if (k === 'ACC') return go(scrAccount);
     go(function () { scrMRList(TYPES[k]); });
@@ -941,7 +943,7 @@ var VGB_NHOM = [
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'CN', 'CNPT', 'BC:BC05'] },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDCN', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDQQ', 'CDCN', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1242,6 +1244,7 @@ function vgbGo(k) {
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
+  if (k === 'CDQQ') return go(scrQuyenQuay);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
@@ -8496,11 +8499,18 @@ async function scrPosBill(name) {
     catch (e) { busy(false); toast((e && e.message) || 'Huỷ lỗi', 5000); }
   };
 
-  /* ----- mo che do sua: phai co OTP quan ly ----- */
+  /* ----- mo che do sua -----
+     Muc quyen "duyet" thi xin OTP ngay tu dau nhu truoc gio. Hai muc con
+     lai thi mo ra sua da, den luc Luu ma may chu doi ma moi hoi: luc bam
+     Sua chua ai biet thu ngan sap THEM mon (duoc phep) hay BOT mon
+     (khong duoc). Hoi truoc la bat ho go ma cho ca viec ho duoc lam. */
   var ns = document.getElementById('pbSua');
   if (ns) ns.onclick = async function () {
-    var otp = await posXinPhep('Sửa hoá đơn ' + (maBill || d.name));
-    if (otp === null) return;
+    var otp = '';
+    if (posQuyenBoMon() === 'duyet') {
+      otp = await posXinPhep('Sửa hoá đơn ' + (maBill || d.name));
+      if (otp === null) return;
+    }
     posSua = {
       name: d.name, otp: otp, mon: monTuDoc(),
       giam: String(d.discount_amount || ''), pt: d.vgb_pt_thanh_toan || '',
@@ -8598,11 +8608,23 @@ async function scrPosBill(name) {
     busy(true);
     try {
       await api('vagabond.ban_hang.pos_sua_don', goi);
+    } catch (e) {
       busy(false);
-      posSua = null; posHomNayTxt = null;
-      toast('Đã lưu thay đổi hoá đơn ' + (maBill || d.name));
-      go(function () { scrPosBill(name); }, true);
-    } catch (e) { busy(false); toast((e && e.message) || 'Lưu thay đổi lỗi', 5000); }
+      var loi = (e && e.message) || 'Lưu thay đổi lỗi';
+      // May chu moi la noi quyet dinh co can OTP hay khong. App khong tu
+      // doan: cu gui len, may chu doi ma thi luc do moi hoi quan ly.
+      if (loi.indexOf('OTP') < 0) return toast(loi, 5000);
+      var otp2 = await posSheetOtp('Sửa hoá đơn ' + (maBill || d.name) + ' — ' + loi);
+      if (otp2 === null) return;
+      goi.otp = otp2;
+      busy(true);
+      try { await api('vagabond.ban_hang.pos_sua_don', goi); }
+      catch (e2) { busy(false); return toast((e2 && e2.message) || 'Lưu thay đổi lỗi', 5000); }
+    }
+    busy(false);
+    posSua = null; posHomNayTxt = null;
+    toast('Đã lưu thay đổi hoá đơn ' + (maBill || d.name));
+    go(function () { scrPosBill(name); }, true);
   };
 
   /* ----- in ----- */
@@ -8699,6 +8721,11 @@ function posSheetOtp(viec) {
 }
 
 /* Sep thao tac thi may tu biet, khoi nhap ma. Nhan vien thi hien o nhap. */
+/* Muc quyen bo mon cua thu ngan, khai o man Cai dat > Quyen tai quay.
+   Mac dinh doc la "duyet" (chat nhat) khi chua tai duoc cau hinh - thieu
+   mang thi phai nghieng ve phia chat, khong phai phia de. */
+function posQuyenBoMon() { return ((CFGBH || {}).quyen_bo_mon) || 'duyet'; }
+
 async function posXinPhep(viec) {
   try { await api('vagabond.ban_hang.otp_hien_tai'); return ''; }
   catch (e) { }
@@ -10049,7 +10076,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '122';
+var APPVER = '123';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -13121,6 +13148,75 @@ async function ptLuu(daBo) {
       if (ptMo >= ptDs.length) ptMo = Math.max(0, ptDs.length - 1);
     } catch (e2) { }
     go(scrPtSua, true);
+  }
+}
+
+/* ---------- Cai dat: Quyen tai quay (anh Viet 12/08/2026) ----------
+   Hoc theo ba muc quyen bo mon cua Fabi. Man nay chi doi mot cai cong
+   tac, nhung doi no la doi cach ca quay lam viec nen phai noi that ro
+   moi muc nghia la gi, va noi luon dieu gi KHONG doi. */
+var qqData = null, qqChon = '';
+
+async function scrQuyenQuay() {
+  frame('Quyền tại quầy', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { qqData = await api('vagabond.quyen_quay.cai_dat', {}); }
+  catch (e) {
+    frame('Quyền tại quầy', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  qqChon = qqData.muc || 'duyet';
+  qqVe();
+}
+
+function qqVe() {
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">QUYỀN BỎ MÓN CỦA THU NGÂN</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Mốc để tính là lúc bấm <b>In tạm tính</b>: từ đó trở đi tờ phiếu đã nằm trong tay ' +
+    'khách, món biến mất khỏi bill là lệch với tờ khách đang cầm.</div></div>';
+
+  html += '<div class="card">' + (qqData.ds || []).map(function (x) {
+    var on = qqChon === x.k;
+    return '<div data-qqm="' + h(x.k) + '" style="display:flex;gap:11px;padding:13px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer;background:' + (on ? '#f0fdfa' : '#fff') + '">' +
+      '<div style="flex:none;font-size:19px;line-height:1.2;color:' + (on ? '#0f766e' : '#c8ccd4') + '">' + (on ? '◉' : '○') + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+      '<b style="font-size:14.5px;color:' + (on ? '#0f766e' : '#101828') + '">' + h(x.ten) + '</b>' +
+      '<div style="font-size:12.5px;color:#6b7280;margin-top:3px;line-height:1.6">' + h(x.mo) + '</div>' +
+      '</div></div>';
+  }).join('') + '</div>';
+
+  html += '<div class="card" style="padding:12px 14px;background:#f8fafc">' +
+    '<div style="font-size:12px;color:#98a2b3">MỨC NÀO CŨNG KHÔNG ĐỔI</div>' +
+    '<div style="font-size:12.5px;color:#475467;line-height:1.7;margin-top:4px">' +
+    '· Huỷ nguyên một bill vẫn luôn cần mã OTP của quản lý ca.<br>' +
+    '· Hoá đơn đã ghi sổ thì không sửa được món ở quầy, mức nào cũng vậy.<br>' +
+    '· Mọi lần sửa đều ghi lại tên người sửa vào lịch sử hoá đơn.<br>' +
+    '· Quản lý tự thao tác thì không phải gõ mã.</div></div>';
+
+  var b = frame('Quyền tại quầy', html, qqData.sua_duoc ? {
+    footer: '<button class="btn" id="qqLuu" style="margin:0">💾 Lưu mức quyền</button>'
+  } : null);
+
+  if (!qqData.sua_duoc) return;
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-qqm]');
+    if (t) { qqChon = t.getAttribute('data-qqm'); return qqVe(); }
+  };
+  document.getElementById('qqLuu').onclick = function () { qqLuu(); };
+}
+
+async function qqLuu() {
+  busy(true);
+  try {
+    qqData = await api('vagabond.quyen_quay.luu', { muc_moi: qqChon });
+    qqChon = qqData.muc || 'duyet';
+    CFGBH = null; /* man tinh tien phai doc lai muc quyen moi */
+    busy(false);
+    toast('Đã lưu mức quyền tại quầy.', 3000);
+    qqVe();
+  } catch (e) {
+    busy(false);
+    window.alert((e && e.message) || 'Không lưu được');
   }
 }
 
