@@ -6438,20 +6438,23 @@ async function scrDsView(name, can) {
 
   /* Ma diem ban cua nguon don nay, de noi dung chuyen khoan mang ma diem -
      ke toan doc sao ke la biet ngay tien cua noi nao. */
-  var dsvDiem = (nguonBH(d.custom_nguon) || {}).diem || d.vgb_quay || '';
+  /* vgb_quay TRUOC: nguon "Tại chỗ" nay dung chung cho moi quay nen ban
+     than ten nguon khong con noi duoc don cua diem nao, chi hoa don moi
+     biet. Nguon rieng cua mot diem thi van suy nguoc duoc. */
+  var dsvDiem = d.vgb_quay || (nguonBH(d.custom_nguon) || {}).diem || '';
   var dsvNoiDung = posNoiDungCk(d.name, dsvDiem, d.custom_nguon || '');
   function dsvVeQr() {
     var o = document.getElementById('dsvQr');
     if (!o) return;
     if (DSV_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
     var tien = d.grand_total || 0;
-    var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '');
+    var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem);
     if (!url) {
       o.innerHTML = '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:12px;font-size:13px;color:#b3261e;line-height:1.6">' +
         'Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR. Vào Cài đặt · Tài khoản nhận tiền để khai.</div>';
       return;
     }
-    var tk = posTaiKhoan(d.custom_nguon || '');
+    var tk = posTaiKhoan(d.custom_nguon || '', dsvDiem);
     o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
       '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
       '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(240px,62vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
@@ -6638,6 +6641,24 @@ function dstGanNganCach() {
   });
 }
 var dsTay = null, dsItemsCache = null;
+
+/* Cac diem ban nhan mot nguon don.
+
+   Tu 12/08/2026 "Tại chỗ" va "Mang về" dung chung cho moi quay (anh Viet:
+   ban chat la mot, da quan ly tu buoc diem ban roi). Doi lai, ten nguon
+   khong con noi duoc don cua diem nao nua, nen man Nhap don tay phai HOI
+   chu khong duoc doan: hoa don khong mang ma quay thi ca he doc no thanh
+   don Sales Online, doanh thu quay ve nham cho ma khong ai bao loi. */
+function dstDiemDs(nguon) {
+  var n = nguonBH(nguon) || {};
+  var ds = n.diem_ds || (n.diem ? [n.diem] : []);
+  var q = (CFGBH || {}).quay || [];
+  return ds.map(function (ma) {
+    var t = null;
+    q.forEach(function (x) { if (x.ma === ma) t = x; });
+    return { ma: ma, ten: t ? t.ten : ma, phu: t ? (t.phu || '') : 'Đơn online, không thuộc quầy nào', anh: t ? (t.anh || '') : '', quay: !!t };
+  });
+}
 function dsTayDoc() {
   if (!dsTay) return;
   var g = function (id) { var el = document.getElementById(id); return el ? el.value : ''; };
@@ -6648,14 +6669,28 @@ async function scrDsNhapTay() {
   /* Ma bill sinh ngay luc mo man, giong hetben quay: co ma thi moi sinh
      duoc QR cho khach quet TRUOC khi luu don, va luu xong thi chinh ma nay
      di vao o ma tham chieu de SePay doi soat (anh Viet 12/08/2026). */
-  if (!dsTay) dsTay = { nguon: 'GrabFood', bill: posMaBill(), ma: '', ten: '', sdt: '', giam: '', ship: '', pt: '', mtc: '', mon: [] };
+  if (!dsTay) dsTay = { nguon: 'GrabFood', bill: posMaBill(), ma: '', ten: '', sdt: '', giam: '', ship: '', pt: '', mtc: '', mon: [], quay: '' };
   if (!dsTay.bill) dsTay.bill = posMaBill();
+  var dstDiem = dstDiemDs(dsTay.nguon);
+  var dstPhaiChon = dstDiem.length > 1;
+  if (dstPhaiChon) {
+    if (!dstDiem.some(function (x) { return x.ma === dsTay.quay; })) dsTay.quay = '';
+  } else {
+    // Nguon chi thuoc mot diem thi khong hoi lam gi, may tu dien.
+    dsTay.quay = (dstDiem.length && dstDiem[0].quay) ? dstDiem[0].ma : '';
+  }
+  var dstTenDiem = '';
+  dstDiem.forEach(function (x) { if (x.ma === dsTay.quay) dstTenDiem = x.ten; });
   var dsPt = ptTheoNguon(dsTay.nguon);
   if (dsPt.length === 1) dsTay.pt = dsPt[0].v;
   if (dsTay.pt && !dsPt.some(function (p) { return p.v === dsTay.pt; })) dsTay.pt = dsPt.length === 1 ? dsPt[0].v : '';
   var tong = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
   var html = '<div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     '<div class="hub" data-t="nguon" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Nguồn đơn</div><div class="h1">' + h(dsTay.nguon) + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
+    (dstPhaiChon
+      ? '<div class="hub" data-t="diem" style="padding:10px 0;border:none;border-top:1px solid #f0f2f6"><div class="ht"><div class="h2">Điểm bán</div><div class="h1"' +
+        (dstTenDiem ? '' : ' style="color:#b3261e"') + '>' + h(dstTenDiem || 'Chưa chọn - bắt buộc') + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>'
+      : '') +
     '<input class="tin" id="dstMa" placeholder="Mã đơn bên app (vd GF-123 hoặc số HĐ Fabi)" value="' + h(dsTay.ma) + '">' +
     '<input class="tin" id="dstTen" placeholder="Tên khách" value="' + h(dsTay.ten) + '">' +
     '<input class="tin" id="dstSdt" placeholder="Số điện thoại (không bắt buộc)" inputmode="tel" value="' + h(dsTay.sdt) + '">' +
@@ -6691,7 +6726,11 @@ async function scrDsNhapTay() {
   b.addEventListener('click', function (e) {
     if (e.target.closest('[data-t="nguon"]')) {
       dsTayDoc();
-      return sheet('Nguồn đơn', ((CFGBH || {}).nguon || []).map(function (n) { return { value: n.v, label: n.v, icon: n.ic || '', img: n.lg || '' }; }), dsTay.nguon, function (o) { dsTay.nguon = o.value; go(scrDsNhapTay, true); });
+      return sheet('Nguồn đơn', ((CFGBH || {}).nguon || []).map(function (n) { return { value: n.v, label: n.v, icon: n.ic || '', img: n.lg || '' }; }), dsTay.nguon, function (o) { dsTay.nguon = o.value; dsTay.quay = ''; go(scrDsNhapTay, true); });
+    }
+    if (e.target.closest('[data-t="diem"]')) {
+      dsTayDoc();
+      return sheet('Điểm bán', dstDiem.map(function (x) { return { value: x.ma, label: x.ten, phu: x.phu, img: x.anh || '', icon: x.anh ? '' : '🏪' }; }), dsTay.quay, function (o) { dsTay.quay = o.value; go(scrDsNhapTay, true); });
     }
     var x = e.target.closest('[data-x]');
     if (x) { dsTayDoc(); dsTay.mon.splice(parseInt(x.getAttribute('data-x'), 10), 1); go(scrDsNhapTay, true); }
@@ -6705,15 +6744,15 @@ async function scrDsNhapTay() {
     if (dsTay.pt !== 'Chuyển khoản') { o.innerHTML = ''; return; }
     var giam = parseFloat(dsTay.giam || 0) || 0, ship = parseFloat(dsTay.ship || 0) || 0;
     var thu = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - giam + ship;
-    var diem = (nguonBH(dsTay.nguon) || {}).diem || '';
+    var diem = dsTay.quay || (nguonBH(dsTay.nguon) || {}).diem || '';
     var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon);
-    var url = posQrUrl(nd, thu, dsTay.nguon);
+    var url = posQrUrl(nd, thu, dsTay.nguon, diem);
     if (!url) {
       o.innerHTML = '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:12px;font-size:13px;color:#b3261e;line-height:1.6">' +
         'Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR. Vào Cài đặt · Tài khoản nhận tiền để khai.</div>';
       return;
     }
-    var tk = posTaiKhoan(dsTay.nguon);
+    var tk = posTaiKhoan(dsTay.nguon, diem);
     o.innerHTML = '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
       '<div style="font-size:12.5px;color:#6b7280">Khách quét mã này, máy tự điền số tiền và nội dung</div>' +
       '<img src="' + url + '" alt="Mã QR chuyển khoản" style="width:min(230px,60vw);aspect-ratio:1;margin:10px auto 6px;display:block;border-radius:10px;background:#fff">' +
@@ -6823,9 +6862,15 @@ async function dsTayThemMon() {
 async function dsTayLuu() {
   dsTayDoc();
   if (!dsTay.mon.length) return window.alert('Đơn chưa có món nào.');
+  /* Nguon dung chung nhieu diem ma chua chon diem thi khong cho luu: don
+     do se roi vao Sales Online, doanh thu quay hut mot to ma khong ai thay. */
+  var dsDiem = dstDiemDs(dsTay.nguon);
+  if (dsDiem.length > 1 && !dsTay.quay) return window.alert('Nguồn "' + dsTay.nguon + '" dùng chung cho nhiều điểm bán. Chọn điểm bán trước khi lưu.');
   var giam = parseFloat(dsTay.giam || 0) || 0, ship = parseFloat(dsTay.ship || 0) || 0;
   var tong = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - giam + ship;
-  if (!window.confirm('Lưu đơn ' + h(dsTay.nguon) + (dsTay.ma ? ' #' + dsTay.ma : '') + ', tổng ' + money(tong) + ' đ vào doanh thu ngày ' + dsNgay.split('-').reverse().join('/') + '?')) return;
+  var tenDiem = '';
+  dsDiem.forEach(function (x) { if (x.ma === dsTay.quay) tenDiem = x.ten; });
+  if (!window.confirm('Lưu đơn ' + h(dsTay.nguon) + (tenDiem ? ' tại ' + tenDiem : '') + (dsTay.ma ? ' #' + dsTay.ma : '') + ', tổng ' + money(tong) + ' đ vào doanh thu ngày ' + dsNgay.split('-').reverse().join('/') + '?')) return;
   busy(true);
   try {
     await api('vagabond.ban_hang.tao_don_tay', {
@@ -6835,7 +6880,7 @@ async function dsTayLuu() {
       pt: dsTay.pt || '',
       ma_tham_chieu: (dsTay.mtc || '').trim() || (dsTay.pt === 'Chuyển khoản' ? dsTay.bill : ''),
       items: JSON.stringify(dsTay.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate }; })),
-      giam_gia: giam, phi_ship: ship
+      giam_gia: giam, phi_ship: ship, quay: dsTay.quay || ''
     });
     busy(false); toast('Đã lưu đơn nháp'); dsTay = null;
   } catch (e) { busy(false); return window.alert((e && e.message) || 'Lưu lỗi'); }
@@ -7940,33 +7985,59 @@ async function posMoTuyChon(i) {
    ke toan lan ra. Khai du tai khoan ao la moi noi tu dong gon lai. */
 function posNoiDungCk(maBill, maDiem, nguon) {
   var b = String(maBill || '').trim();
-  var tk = posTaiKhoan(nguon);
+  var d = posDiemCua(maDiem);
+  var tk = posTaiKhoan(nguon, d);
   if (tk && tk.rieng) return b;
-  var d = String(maDiem || (typeof posQuay !== 'undefined' && posQuay ? posQuay.ma : '') || '').trim();
   return d ? (d + ' ' + b) : b;
 }
 
-/* Tai khoan nhan tien cua mot nguon don. Anh Viet dang xin MB Bank cap
-   tai khoan ao rieng cho tung nguon de ke toan doc sao ke la biet ngay
-   tien cua nguon nao. Nguon chua khai rieng thi dung tai khoan mac dinh. */
-function posTaiKhoan(nguon) {
+/* Ma diem ban dang lam viec. Man tinh tien quay thi tu biet, cac man khac
+   phai truyen vao (hoa don co vgb_quay, man Nhap don tay co o chon). */
+function posDiemCua(maDiem) {
+  var d = String(maDiem || '').trim();
+  if (d) return d.toUpperCase();
+  if (typeof posQuay !== 'undefined' && posQuay && posQuay.ma) return String(posQuay.ma).toUpperCase();
+  return '';
+}
+
+/* Tai khoan nhan tien cua mot don. Anh Viet da xin duoc MB Bank cap tai
+   khoan ao rieng cho tung diem ban de ke toan doc sao ke la biet ngay tien
+   cua noi nao.
+
+   Tu 12/08/2026 hai quay dung chung nguon "Tại chỗ" va "Mang về" nen ten
+   nguon khong con noi duoc don cua diem nao: phai tra khoa co ma diem
+   truoc ("TCV|Tại chỗ"), roi moi den khoa chi co nguon, roi tai khoan cua
+   rieng diem do, cuoi cung la tai khoan mac dinh. */
+function posTaiKhoan(nguon, maDiem) {
   var c = CFGBH || {};
   var n = String(nguon || '').trim();
+  var d = posDiemCua(maDiem);
   var b = c.qr_nguon || {};
-  if (n && b[n] && b[n].stk) return b[n];
+  var thu = [];
+  if (n && d) thu.push(d + '|' + n);
+  if (n) thu.push(n);
+  if (d) thu.push(d + '|');
+  for (var i = 0; i < thu.length; i++) {
+    var t = b[thu[i]];
+    if (t && t.stk && t.rieng) return t;
+  }
+  for (var j = 0; j < thu.length; j++) {
+    var u = b[thu[j]];
+    if (u && u.stk) return u;
+  }
   return c.qr_quay || {};
 }
-function posQrUrl(noiDung, tien, nguon) {
-  var q = posTaiKhoan(nguon);
+function posQrUrl(noiDung, tien, nguon, maDiem) {
+  var q = posTaiKhoan(nguon, maDiem);
   if (!q.stk) return '';
   return 'https://img.vietqr.io/image/' + (q.bank || 'MB') + '-' + q.stk + '-qr_only.png' +
     '?amount=' + Math.round(tien || 0) +
     '&addInfo=' + encodeURIComponent(noiDung || '') +
     '&accountName=' + encodeURIComponent(q.ten || '');
 }
-function posKhoiQr(noiDung, tien, nguon) {
-  var q = posTaiKhoan(nguon);
-  var url = posQrUrl(noiDung, tien, nguon);
+function posKhoiQr(noiDung, tien, nguon, maDiem) {
+  var q = posTaiKhoan(nguon, maDiem);
+  var url = posQrUrl(noiDung, tien, nguon, maDiem);
   if (!url) return '<div style="font-size:13px;color:#b3261e">Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR.</div>';
   if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào hoá đơn rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
   /* Tien ve du la khoi nay tu doi mau xanh - poll SePay 5 giay mot lan. */
@@ -7986,9 +8057,9 @@ function posKhoiQr(noiDung, tien, nguon) {
     '<div id="posChoTien" style="font-size:12px;color:#b45309;margin-top:8px">⏳ Đang chờ tiền về... màn hình tự báo khi SePay nhận đủ.</div>' +
     '</div>';
 }
-function posQrSheet(soPhieu, tien, siName, nguon) {
-  var q = posTaiKhoan(nguon);
-  var url = posQrUrl(soPhieu, tien, nguon);
+function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
+  var q = posTaiKhoan(nguon, maDiem);
+  var url = posQrUrl(soPhieu, tien, nguon, maDiem);
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
     '<div style="font-size:21px;font-weight:800">Chuyển khoản ' + money(tien) + ' đ</div>' +
@@ -8195,7 +8266,7 @@ async function posInBill(d) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
-    var uq = posQrUrl(ndq, d.thu, d.nguon || '');
+    var uq = posQrUrl(ndq, d.thu, d.nguon || '', d.quay);
     if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(ndq) + '</b></div></div>';
   } else if (d.xhd_url) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
@@ -8570,7 +8641,7 @@ async function scrPosBill(name) {
       '<input class="tin" id="pbMtc" placeholder="Mã tham chiếu (biên lai thẻ, mã giao dịch...)" value="' + h((suaMo ? posSua.mtc : d.vgb_ma_tham_chieu) || '') + '">' +
       (suaMo ? '<input class="tin" id="pbGiam" inputmode="numeric" placeholder="Giảm giá cả hoá đơn (đ)" value="' + (giam ? money(giam) : '') + '">' : '') +
       '<input class="tin" id="pbGhiChu" placeholder="Ghi chú hoá đơn" value="' + h((suaMo ? posSua.ghi_chu : d.vgb_ghi_chu) || '') + '">' +
-      (suaMo && d.custom_nguon === 'Tại chỗ - Trần Cao Vân' || suaMo && String(d.custom_nguon || '').indexOf('Tại chỗ') === 0
+      (suaMo && String(d.custom_nguon || '').indexOf('Tại chỗ') === 0
         ? '<input class="tin" id="pbBan" placeholder="Số bàn" value="' + h(soBan) + '">' : '') +
       '</div>';
   } else {
@@ -8618,7 +8689,7 @@ async function scrPosBill(name) {
   function veQr() {
     var o = document.getElementById('pbQr');
     if (!o) return;
-    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '') : '';
+    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay) : '';
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -10294,7 +10365,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '133';
+var APPVER = '134';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -11696,7 +11767,15 @@ async function kmSheetCtkm(ma) {
     /* --- kenh va quay --- */
     html += '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">KÊNH BÁN</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
-      kmDsKenh().map(function (n) {
+      (function () {
+        /* Kenh dang tich ma khong con trong danh muc (nguon vua doi ten)
+           van phai hien ra, khong thi no am tham co hieu luc ma khong ai
+           bo tich duoc. */
+        var dang = (k.kenh || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+        var co = kmDsKenh().slice();
+        dang.forEach(function (n) { if (co.indexOf(n) < 0) co.push(n); });
+        return co;
+      })().map(function (n) {
         return posChipNut('data-kmkenh="' + h(n) + '"', h(n), (k.kenh || '').split('\n').indexOf(n) >= 0);
       }).join('') + '</div>' +
       '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px">Không chọn kênh nào = áp dụng mọi kênh.</div>' +
@@ -11907,10 +11986,16 @@ async function kmChonMon(onPick, onDong) {
   }), onPick, onDong);
 }
 
+/* Danh sach kenh ban de tich khi tao chuong trinh khuyen mai.
+
+   Truoc day la mot danh sach cung o day, go tay theo tri nho. Sua danh
+   sach nguon don ben man Diem ban ma quen sua o day la mo mot chuong
+   trinh cu ra: chip cua nguon da doi ten khong con nut nao de bo tich,
+   ma van dang co hieu luc. Nay lay thang tu cau hinh ban hang. */
 function kmDsKenh() {
-  return ['GrabFood', 'BeFood', 'GreenSM Food', 'ShopeeFood', 'Khách sỉ',
-    'Tại chỗ - Trần Cao Vân', 'Tại chỗ - Nguyễn Văn Trỗi',
-    'Mang về - Trần Cao Vân', 'Mang về - Nguyễn Văn Trỗi'];
+  var ds = ((CFGBH || {}).nguon || []).map(function (n) { return n.v; });
+  if (ds.indexOf('Pancake') < 0) ds.unshift('Pancake');
+  return ds;
 }
 
 /* ---------- Sheet cau hinh combo ---------- */
@@ -13248,7 +13333,7 @@ function scrDiemBanSua() {
     if (e.target.closest('[data-dbngmoi]')) {
       dbDoc();
       var v = await promptSheet('Tên nguồn đơn mới',
-        'Gõ đúng từng chữ như nguồn đơn ghi trên hoá đơn, ví dụ Tại chỗ - Quận 4');
+        'Gõ đúng từng chữ như nguồn đơn ghi trên hoá đơn, ví dụ Tiệc đặt hay Bán buôn. Tại chỗ và Mang về đã có sẵn, dùng chung cho mọi điểm bán.');
       if (v === null) return;
       v = v.trim();
       if (!v) return;
@@ -13697,22 +13782,30 @@ function dbChuNguon(v, d) {
   return '';
 }
 
+/* Diem nao dang chan nguon nay, tuc gan them la sai so lieu.
+   Hai diem CO QUAY dung chung mot nguon thi khong sao: hoa don quay nao
+   cung mang ma quay nen ca he van tra ve dung diem - nho vay "Tại chỗ" va
+   "Mang về" khong con phai dinh ten chi nhanh vao duoi (anh Viet 12/08/2026).
+   Diem nhan don ONLINE thi khac: don online khong mang ma quay nao, dung
+   chung nguon la khong con gi de tach hai diem. */
+function dbChanNguon(v, d) {
+  var ds = dbDs || [];
+  for (var i = 0; i < ds.length; i++) {
+    if (ds[i] === d) continue;
+    if ((ds[i].nguon || []).indexOf(v) < 0) continue;
+    if (!d.co_quay || !ds[i].co_quay) return ds[i].ma || '(chưa đặt mã)';
+  }
+  return '';
+}
+
 function dbChipNguon(d) {
   var dang = (d.nguon || []).slice();
   var co = (dbNguonCoSan || []).slice();
 
-  /* Goi y "Tai cho - X" va "Mang ve - X" theo ten diem, chi cho diem co
-     quay. Hai nguon nay sinh theo ten nen khong nam san trong bang mau. */
-  if (d.co_quay) {
-    var ten = (d.ten_ngan || d.ten || '').trim();
-    if (ten) {
-      ['Tại chỗ - ' + ten, 'Mang về - ' + ten].forEach(function (g) {
-        if (!co.some(function (x) { return x.v === g; })) {
-          co.push({ v: g, lg: '', ic: g.indexOf('Tại chỗ') === 0 ? '🏬' : '🥡' });
-        }
-      });
-    }
-  }
+  /* Truoc 12/08/2026 cho nay goi y "Tại chỗ - <tên điểm>" va "Mang về -
+     <tên điểm>". Nay hai nguon do gom lai thanh "Tại chỗ" va "Mang về"
+     dung chung cho moi quay, da nam san trong bang mau nen khong sinh
+     theo ten diem nua. */
   /* Nguon dang gan cho diem nay ma bang tra chua co (vua go tay xong) */
   dang.forEach(function (n) {
     if (!co.some(function (x) { return x.v === n; })) co.push({ v: n, lg: '', ic: '🧾' });
@@ -13721,8 +13814,11 @@ function dbChipNguon(d) {
   var html = co.map(function (x) {
     var on = dang.indexOf(x.v) >= 0;
     /* Nguon dang thuoc diem KHAC thi hien mo, bam vao bao ro no o dau.
-       Chan o day cho nguoi dung thay ngay, con may chu van kiem lai. */
-    var chu = dbChuNguon(x.v, d);
+       Chan o day cho nguoi dung thay ngay, con may chu van kiem lai.
+       Nguon dung chung duoc (hai diem deu co quay) thi khong lam mo, chi
+       ghi chu ben canh la dang dung chung voi diem nao. */
+    var chu = dbChanNguon(x.v, d);
+    var chung = chu ? '' : dbChuNguon(x.v, d);
     var ket = !on && !!chu;
     var vien = on ? '#0d9488' : (ket ? '#e5e7eb' : '#d7dce5');
     var nen = on ? '#0d9488' : (ket ? '#f8fafc' : '#fff');
@@ -13734,7 +13830,8 @@ function dbChipNguon(d) {
       'border:1.5px solid ' + vien + ';background:' + nen + ';color:' + mau +
       ';border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:' + (on ? '800' : '600') +
       ';cursor:pointer;white-space:nowrap;line-height:1.2">' + anh + h(x.v) +
-      (ket ? '<span style="font-size:11px;font-weight:600"> · ' + h(chu) + '</span>' : '') + '</button>';
+      (ket ? '<span style="font-size:11px;font-weight:600"> · ' + h(chu) + '</span>' : '') +
+      (chung ? '<span style="font-size:11px;font-weight:600;opacity:.75"> · chung với ' + h(chung) + '</span>' : '') + '</button>';
   }).join('');
 
   html += '<button data-dbngmoi="1" style="display:inline-flex;align-items:center;gap:6px;border:1.5px dashed #b9c0cc;' +
@@ -13751,9 +13848,9 @@ function dbChipNguon(d) {
 function dbBamNguon(v, d) {
   var i = (d.nguon || []).indexOf(v);
   if (i >= 0) { d.nguon.splice(i, 1); return 1; }
-  var chu = dbChuNguon(v, d);
+  var chu = dbChanNguon(v, d);
   if (chu) {
-    toast('Nguồn "' + v + '" đang thuộc điểm ' + chu + '. Gỡ khỏi điểm đó trước rồi hãy gán sang đây.', 5000);
+    toast('Nguồn "' + v + '" đang thuộc điểm ' + chu + ', mà một trong hai là điểm nhận đơn online. Đơn online không mang mã quầy nên không tách được, gỡ khỏi điểm đó trước rồi hãy gán sang đây.', 6000);
     return 0;
   }
   d.nguon = (d.nguon || []).concat([v]);
@@ -14108,7 +14205,7 @@ function tkVe() {
     '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
     'Mọi mã QR chuyển khoản của hệ sinh từ đây: màn tính tiền tại quầy, màn nhập đơn tay, ' +
     'chi tiết đơn Sales, phiếu tạm tính in cho khách và phiếu đòi công nợ.<br>' +
-    'Khai tài khoản ảo riêng cho từng nguồn đơn thì sao kê ngân hàng tự tách sẵn, ' +
+    'Khai tài khoản ảo riêng cho từng điểm bán thì sao kê ngân hàng tự tách sẵn, ' +
     'kế toán không phải lần theo nội dung chuyển khoản nữa. Tiền vẫn về tài khoản chính.</div></div>';
 
   html += '<div class="sec">Tài khoản mặc định</div><div class="card">' +
@@ -14121,10 +14218,10 @@ function tkVe() {
     '<div style="font-size:11.5px;color:#98a2b3;padding:8px 14px;line-height:1.6">' +
     'Nguồn đơn nào chưa khai riêng thì tiền về tài khoản này.</div>';
 
-  html += '<div class="sec">Tài khoản riêng theo nguồn đơn</div>';
+  html += '<div class="sec">Tài khoản riêng theo điểm bán và nguồn đơn</div>';
   if (!ds.length) {
     html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280;line-height:1.6">' +
-      'Chưa khai nguồn nào. Cả hệ đang dùng chung tài khoản mặc định.</div>';
+      'Chưa khai dòng nào. Cả hệ đang dùng chung tài khoản mặc định.</div>';
   } else {
     html += '<div class="card">' + ds.map(function (t, i) {
       return '<div data-tkmo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
@@ -14171,7 +14268,7 @@ function scrTaiKhoanSua() {
   if (!t) return go(scrTaiKhoan, true);
   var nguon = (tkData.nguon || []);
 
-  var html = '<div class="sec">Nguồn đơn</div><div class="card" style="padding:11px 12px">' +
+  var html = '<div class="sec">Khai cho điểm bán hay nguồn đơn</div><div class="card" style="padding:11px 12px">' +
     kmHangChip(nguon.map(function (n) {
       /* Nguon da khai o dong KHAC thi khong cho chon lai o day: hai dong
          cung mot nguon la khong ai biet dong nao dang co hieu luc. */
@@ -14182,14 +14279,17 @@ function scrTaiKhoanSua() {
     }).join('')) +
     (t.nguon
       ? (tkMoTa(t.nguon) ? '<div style="font-size:12px;color:#0b7c93;margin-top:8px;line-height:1.5">' + h(tkMoTa(t.nguon)) + '</div>' : '')
-      : '<div style="font-size:12px;color:#b45309;margin-top:8px">Chọn nguồn đơn trước đã.</div>') +
+      : '<div style="font-size:12px;color:#b45309;margin-top:8px">Chọn điểm bán hoặc nguồn đơn trước đã.</div>') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+    'Khai theo điểm bán thì mọi nguồn đơn của điểm đó về chung một tài khoản. ' +
+    'Khai theo nguồn đơn thì riêng nguồn ấy tách ra, kể cả khi điểm bán đã có tài khoản riêng.</div>' +
     '</div>';
 
-  html += '<div class="sec">Tài khoản nhận tiền của nguồn này</div><div class="card">' +
+  html += '<div class="sec">Tài khoản nhận tiền</div><div class="card">' +
     '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
     '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">Ngân hàng</div>' +
     tkOSelect('tkBank', t.bank || '') + '</div>' +
-    tkONhap('Số tài khoản', 'tkStk', t.stk, 'Dán đúng số tài khoản ảo MB Bank cấp cho nguồn này.') +
+    tkONhap('Số tài khoản', 'tkStk', t.stk, 'Dán đúng số tài khoản ảo MB Bank cấp cho dòng này.') +
     tkONhap('Tên chủ tài khoản', 'tkTen', t.ten, 'Để trống thì lấy tên của tài khoản mặc định.') +
     '</div>';
 
