@@ -47,7 +47,7 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban
+from vagabond import chung_tu, diem_ban, pt_thanh_toan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -264,88 +264,10 @@ LOI_BILL = (
 # dung ma nay NGAY LUC chot don thi doi soat tu dong sau nay khop duoc TUNG
 # giao dich thay vi chi so tong ngay (anh Viet chot 02/08/2026).
 # bat = 1 nghia la thieu ma thi KHONG cho ghi so.
-PT_THAM_CHIEU = {
-	"Tiền mặt": {"lg": "/files/pt-tienmat.png"},
-	"Chuyển khoản": {
-		"lg": "/files/pt-mb.png",
-		"nhan": "Nội dung chuyển khoản (SePay tự khớp, để trống cũng được)",
-	},
-	"OnePay": {
-		"lg": "/files/pt-onepay.png",
-		"nhan": "Order Reference của OnePay",
-		"vd": "PL_VAGABOND_260801143012",
-	},
-	"Thẻ - Payoo": {
-		"lg": "/files/pt-payoo5.png",
-		"bat": 1,
-		"nhan": "Số tham chiếu trên bill cà thẻ Payoo",
-		"vd": "249853",
-		"mau": MAU_BILL,
-		"loi": LOI_BILL,
-	},
-	"Thẻ - ShinhanBank": {
-		"lg": "/files/pt-shinhan5.png",
-		"bat": 1,
-		"nhan": "Số tham chiếu hoặc mã chuẩn chi trên bill ShinhanBank",
-		"vd": "621416783893 hoặc F62221",
-		"mau": MAU_BILL,
-		"loi": LOI_BILL,
-	},
-	# Grab Dine-Out: khach mua voucher tren app Grab roi den quan an. Grab
-	# giu tien cua hoa don do va chuyen ve cho tiem ngay T+1, nen phai tach
-	# rieng mot phuong thuc de doi soat - khong duoc lan vao tien mat hay
-	# the (anh Viet 10/08/2026).
-	"Grab Dine-Out": {
-		"lg": "/assets/vagabond/images/pt-grab-dineout.png",
-		"bat": 1,
-		# Ma nay nam trong man Chi tiet giao dich cua app Grab Merchant, dong
-		# "Ma thanh toan". Grab co the doi dang bat ky luc nao nen KHONG cai
-		# luat chan dinh dang - nhan vien go sao thi luu vay (anh Viet
-		# 11/08/2026).
-		"nhan": "Mã thanh toán Grab Dine-Out",
-		"vd": "SVNVPH6EU435",
-	},
-	# Cong no: khach si (Ravie...) va khach VIP gom nhieu hoa don tra mot
-	# lan. Truoc day khong co phuong thuc nay nen bill cua ho ket lai,
-	# ca khong chot duoc.
-	"Công nợ": {
-		"ic": "📒",
-		"nhan": "Tên hoặc mã khách công nợ",
-		"vd": "Ravie",
-	},
-	"GrabFood": {
-		"lg": "/files/pt-grab.png",
-		"bat": 1,
-		"nhan": "Mã đơn GrabFood",
-		"vd": "GF-689",
-		"mau": r"^GF-\d{1,10}$",
-		"loi": "Mã đơn GrabFood có dạng GF- rồi tới số, ví dụ GF-689.",
-	},
-	"BeFood": {
-		"lg": "/files/pt-befood.png",
-		"bat": 1,
-		"nhan": "Mã đơn BeFood (8 số)",
-		"vd": "76481763",
-		"mau": r"^\d{8}$",
-		"loi": "Mã đơn BeFood gồm đúng 8 chữ số, ví dụ 76481763.",
-	},
-	"GreenSM Food": {
-		"lg": "/files/pt-greensm.png",
-		"bat": 1,
-		"nhan": "Mã đơn GreenSM",
-		"vd": "XSM-3621",
-		"mau": r"^XSM-[A-Z0-9]{1,12}$",
-		"loi": "Mã đơn GreenSM có dạng XSM- rồi tới mã, ví dụ XSM-3621.",
-	},
-	"ShopeeFood": {
-		"lg": "/files/pt-shopee4.png",
-		"bat": 1,
-		"nhan": "Mã đơn ShopeeFood (4 số)",
-		"vd": "3621",
-		"mau": r"^\d{4}$",
-		"loi": "Mã đơn ShopeeFood gồm đúng 4 chữ số, ví dụ 3621.",
-	},
-}
+# Sau danh sach phuong thuc thanh toan cu (PT_THAM_CHIEU, PT_QUAY,
+# PT_PANCAKE, PT_CHUA_VE_TIEN, PT_VE_SAU, PTTT_MINVOICE) da gom ve mot noi:
+# xem vagabond/pt_thanh_toan.py. Them mot may ca the moi gio la them mot
+# dong tren app, khong phai sua sau cho roi deploy.
 
 # Pancake KHONG co cac phuong thuc cua san, an di cho sales khoi chon nham
 # (anh Viet 02/08). Don san la don NHAP TAY, moi san chi mot phuong thuc.
@@ -358,28 +280,6 @@ DAU_GC_MON = "\u203b"
 # tem dan mon, nhung KHONG in ma combo.
 DAU_COMBO = "\u25c8"
 
-PT_QUAY = [
-	"Tiền mặt",
-	"Chuyển khoản",
-	"Thẻ - Payoo",
-	"Thẻ - ShinhanBank",
-	"OnePay",
-	"Grab Dine-Out",
-	"Công nợ",
-]
-PT_PANCAKE = [
-	"Tiền mặt",
-	"Chuyển khoản",
-	"OnePay",
-	"Thẻ - Payoo",
-	"Thẻ - ShinhanBank",
-	"Công nợ",
-]
-
-# Phuong thuc chua thu duoc tien ngay: chot ca van cho chot nhung tach ra
-# mot dong rieng de biet con phai di doi.
-PT_CHUA_VE_TIEN = ["Công nợ"]
-PT_VE_SAU = ["Grab Dine-Out"]
 
 # Hinh anh va phuong thuc hop le cua tung nguon. Chi la BANG TRA - danh
 # sach nguon that thi sinh tu diem ban, nguon nao khong co trong bang nay
@@ -402,20 +302,35 @@ def _nguon_don():
 	ma man Cai dat hua la "khong phai sua phan mem".
 	"""
 	ra, da_co = [], set()
+	# Phuong thuc da tat ben man Cai dat thi khong duoc hien lai o day. Bang
+	# NGUON_META goi thang ten phuong thuc nen neu khong loc, tat mot phuong
+	# thuc xong no van con nam trong nguon "Khach si": man Cai dat noi mot
+	# dang, man tinh tien lam mot dang.
+	# Phuong thuc cua san (GrabFood, ShopeeFood...) deu de quay=0 online=0
+	# vi khong hien ra cho ai chon tay - nen o day phai lay TAT CA phuong
+	# thuc dang dung, khong duoc lay ten_quay() | ten_online().
+	con_dung = {p["ten"] for p in pt_thanh_toan.ds(chi_dung=True)}
 	for d in diem_ban.ds(chi_bat=True):
 		for n in d["nguon"]:
 			if n in da_co or n == "Pancake":
 				continue
 			da_co.add(n)
 			m = dict(NGUON_META.get(n) or {})
+			# Nguon cua san moi nguon di dung mot phuong thuc cung ten. Tat
+			# phuong thuc do thi de danh sach RONG cho thu ngan thay ngay,
+			# chu khong duoc roi ve danh sach chung: don GrabFood ma hien nut
+			# "Tien mat" la sai tien that.
+			co_pt_rieng = bool(m.get("pt"))
+			if co_pt_rieng:
+				m["pt"] = [p for p in m["pt"] if p in con_dung]
 			if not m.get("lg") and not m.get("ic"):
 				# Doan bieu tuong theo cach goi quen thuoc cua quay.
 				thap = n.lower()
 				m["ic"] = "🏬" if thap.startswith("tại chỗ") else (
 					"🥡" if thap.startswith("mang về") else "🧾"
 				)
-			if not m.get("pt"):
-				m["pt"] = list(PT_QUAY) if d["quay"] else list(PT_PANCAKE)
+			if not co_pt_rieng:
+				m["pt"] = pt_thanh_toan.ten_quay() if d["quay"] else pt_thanh_toan.ten_online()
 			m["v"] = n
 			ra.append(m)
 	return ra
@@ -478,11 +393,11 @@ def _pt_cho_nguon(nguon):
 	"""Danh sach phuong thuc thanh toan hop le cua mot nguon don."""
 	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
 	if not nguon or nguon == "Pancake":
-		return list(PT_PANCAKE)
+		return pt_thanh_toan.ten_online()
 	for n in _nguon_don():
 		if n["v"] == nguon:
 			return list(n["pt"])
-	return list(PT_QUAY)
+	return pt_thanh_toan.ten_quay()
 
 
 def _chuan_ma_tham_chieu(pt, ma, bat_buoc=True):
@@ -492,7 +407,7 @@ def _chuan_ma_tham_chieu(pt, ma, bat_buoc=True):
 	them tien to va bo dau #. Sai dang thi bao ngay tai cho chu khong de
 	den luc doi soat moi phat hien.
 	"""
-	q = PT_THAM_CHIEU.get((pt or "").strip()) or {}
+	q = pt_thanh_toan.theo_ten(pt) or {}
 	ma = re.sub(r"\s+", "", (ma or "").strip()).lstrip("#").upper()
 	if ma and pt == "GrabFood" and re.match(r"^\d{1,10}$", ma):
 		ma = "GF-" + ma
@@ -541,7 +456,7 @@ def _kiem_pt(pt, nguon):
 	pt = (pt or "").strip()
 	if not pt:
 		return ""
-	if pt not in PT_THAM_CHIEU:
+	if not pt_thanh_toan.theo_ten(pt):
 		frappe.throw("Không có phương thức thanh toán %s." % pt)
 	hop_le = _pt_cho_nguon(nguon)
 	if pt not in hop_le:
@@ -592,7 +507,7 @@ def cau_hinh_ban_hang():
 	"""
 	_kiem_quyen()
 	pt = []
-	for ten, q in PT_THAM_CHIEU.items():
+	for ten, q in pt_thanh_toan.bang_tham_chieu().items():
 		pt.append(
 			{
 				"v": ten,
@@ -611,7 +526,7 @@ def cau_hinh_ban_hang():
 	return {
 		"pt": pt,
 		"nguon": _nguon_don(),
-		"pt_pancake": PT_PANCAKE,
+		"pt_pancake": pt_thanh_toan.ten_online(),
 		"quay": quay,
 		# Anh chi nhanh Sales Online (307/1 Nguyen Van Troi) anh Viet gui
 		# 11/08/2026. Doi anh trong app thi lay anh moi, chua doi thi dung
@@ -619,8 +534,8 @@ def cau_hinh_ban_hang():
 		"anh_sales": _anh_quay_da_luu("SALES") or "/assets/vagabond/images/quay-sales.jpg",
 		"qr_quay": QR_QUAY,
 		"thu_tu_nhom": THU_TU_NHOM,
-		"pt_chua_ve_tien": PT_CHUA_VE_TIEN,
-		"pt_ve_sau": PT_VE_SAU,
+		"pt_chua_ve_tien": pt_thanh_toan.chua_ve_tien(),
+		"pt_ve_sau": pt_thanh_toan.ve_sau(),
 		"nguon_app": [n["v"] for n in _nguon_don() if n.get("lg")],
 	}
 
@@ -2468,17 +2383,6 @@ def _minvoice_login(c):
 
 # Ma phuong thuc thanh toan m-invoice chap nhan. Cac kenh khac (the, vi, san)
 # deu la tien ve tai khoan nen ghi CK.
-PTTT_MINVOICE = {
-	"Tiền mặt": "TM",
-	"Chuyển khoản": "CK",
-	"OnePay": "CK",
-	"Thẻ - Payoo": "CK",
-	"Thẻ - ShinhanBank": "CK",
-	"GrabFood": "CK",
-	"BeFood": "CK",
-	"GreenSM Food": "CK",
-	"ShopeeFood": "CK",
-}
 
 
 def _tach_thue(gross, ts):
@@ -2565,7 +2469,7 @@ def xuat_hoa_don_dien_tu(si_name):
 				"inv_buyerTaxCode": mst_mua,
 				"inv_buyerAddressLine": dc_mua,
 				"inv_buyerEmail": em_mua,
-				"inv_paymentMethodName": PTTT_MINVOICE.get(si.vgb_pt_thanh_toan or "", "TM/CK"),
+				"inv_paymentMethodName": pt_thanh_toan.ma_minvoice(si.vgb_pt_thanh_toan),
 				"inv_discountAmount": 0,
 				"inv_TotalAmountWithoutVat": t_chua,
 				"inv_vatAmount": t_thue,
@@ -3137,9 +3041,11 @@ def pos_chot_ca(quay=None, ngay=None):
 	# Tien chua nam trong ket luc chot ca: Grab Dine-Out Grab giu den T+1,
 	# Cong no khach si con thieu. Tach ra de thu ngan doi chieu tien mat
 	# khong bi lech, va quan ly biet con bao nhieu phai di doi.
+	# Doc bang phuong thuc MOT LAN roi dung lai, khong goi trong vong lap.
+	cho_ve = set(pt_thanh_toan.chua_ve_tien()) | set(pt_thanh_toan.ve_sau())
 	chua_ve = {"so": 0, "tien": 0.0, "dong": []}
 	for k, v in pt_tong.items():
-		if k in PT_CHUA_VE_TIEN or k in PT_VE_SAU:
+		if k in cho_ve:
 			chua_ve["so"] += v["so"]
 			chua_ve["tien"] += v["tien"]
 			chua_ve["dong"].append({"pt": k, "so": v["so"], "tien": v["tien"]})
