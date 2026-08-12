@@ -6439,7 +6439,7 @@ async function scrDsView(name, can) {
   /* Ma diem ban cua nguon don nay, de noi dung chuyen khoan mang ma diem -
      ke toan doc sao ke la biet ngay tien cua noi nao. */
   var dsvDiem = (nguonBH(d.custom_nguon) || {}).diem || d.vgb_quay || '';
-  var dsvNoiDung = posNoiDungCk(d.name, dsvDiem);
+  var dsvNoiDung = posNoiDungCk(d.name, dsvDiem, d.custom_nguon || '');
   function dsvVeQr() {
     var o = document.getElementById('dsvQr');
     if (!o) return;
@@ -6706,7 +6706,7 @@ async function scrDsNhapTay() {
     var giam = parseFloat(dsTay.giam || 0) || 0, ship = parseFloat(dsTay.ship || 0) || 0;
     var thu = dsTay.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - giam + ship;
     var diem = (nguonBH(dsTay.nguon) || {}).diem || '';
-    var nd = posNoiDungCk(dsTay.bill, diem);
+    var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon);
     var url = posQrUrl(nd, thu, dsTay.nguon);
     if (!url) {
       o.innerHTML = '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:12px;font-size:13px;color:#b3261e;line-height:1.6">' +
@@ -7158,7 +7158,7 @@ async function scrPosQuay() {
       ? '<div style="font-size:13.5px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' thanh toán bằng nguồn <b>' + h(posDon.pt || posDon.che_do) + '</b> - vào nguồn nào ra nguồn đó.</div>'
       : '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
         (posDon.pt === 'Chuyển khoản'
-          ? posKhoiQr(posNoiDungCk(posDon.bill), phaiThu, posNguonThuc())
+          ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc()), phaiThu, posNguonThuc())
           : '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
             '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>')) +
     posKhoiKm() +
@@ -7929,9 +7929,20 @@ async function posMoTuyChon(i) {
    Day chi la lop mem - khach sua duoc noi dung, app ngan hang co loai cat
    bot ky tu. Lop cung la moi diem mot tai khoan nhan rieng; luc nao mo
    duoc tai khoan ao rieng thi khai o man Diem ban. */
-function posNoiDungCk(maBill, maDiem) {
-  var d = String(maDiem || (typeof posQuay !== 'undefined' && posQuay ? posQuay.ma : '') || '').trim();
+/* Noi dung chuyen khoan in trong ma QR.
+
+   Nguon da co tai khoan ao rieng thi chi ghi ma bill: sao ke ngan hang da
+   tach san theo tai khoan roi, gan them ma diem ban vao nua vua thua vua
+   xau (anh Viet 12/08/2026).
+
+   Nguon CHUA khai tai khoan ao thi van giu ma diem ban o dau, khong thi
+   tien ba noi do chung mot tai khoan ma noi dung khong con dau vet nao de
+   ke toan lan ra. Khai du tai khoan ao la moi noi tu dong gon lai. */
+function posNoiDungCk(maBill, maDiem, nguon) {
   var b = String(maBill || '').trim();
+  var tk = posTaiKhoan(nguon);
+  if (tk && tk.rieng) return b;
+  var d = String(maDiem || (typeof posQuay !== 'undefined' && posQuay ? posQuay.ma : '') || '').trim();
   return d ? (d + ' ' + b) : b;
 }
 
@@ -8183,8 +8194,9 @@ async function posInBill(d) {
   if (d.tam_tinh) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
-    var uq = posQrUrl(posNoiDungCk(d.bill, d.quay), d.thu, d.nguon || '');
-    if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(posNoiDungCk(d.bill, d.quay)) + '</b></div></div>';
+    var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
+    var uq = posQrUrl(ndq, d.thu, d.nguon || '');
+    if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(ndq) + '</b></div></div>';
   } else if (d.xhd_url) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
        tu dien thong tin, ERP map vao don, cuoi ngay tu day m-invoice. */
@@ -8606,7 +8618,7 @@ async function scrPosBill(name) {
   function veQr() {
     var o = document.getElementById('pbQr');
     if (!o) return;
-    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay), phaiThu, d.custom_nguon || '') : '';
+    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '') : '';
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -10282,7 +10294,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '132';
+var APPVER = '133';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -11405,12 +11417,42 @@ function kmHtmlCt(ds) {
       (x.can_otp ? kmChipNho('🔐 cần OTP', '#fef2f2', '#b3261e') : '') +
       (x.bat && !x.dung_duoc ? kmChipNho(h(x.ly_do), '#fff7ed', '#9a3412') : '') +
       (x.da_dung ? kmChipNho('đã dùng ' + x.da_dung, '#f6f7f9', '#6b7280') : '') +
-      '</div></div>' +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' + kmChipPhamVi(x) + '</div>' +
+      '</div>' +
       posChipNut('data-kmbat="' + h(x.name) + '" data-loai="ct"', x.bat ? '● Bật' : '○ Tắt', !!x.bat) +
       '</div>';
   });
   html += '</div>';
   return html;
+}
+
+/* Chip pham vi: nguon don va diem ban cua mot chuong trinh.
+
+   Truoc day man nay bao "khong ap dung cho nguon don (trong)" cho moi
+   chuong trinh, vi no hoi may chu "chuong trinh nay dung duoc khong" ma
+   khong kem don hang nao - khong co don thi kenh nao cung khong khop.
+   Nay man cau hinh chi noi PHAM VI da khai, khong phan xet dung sai
+   (De bao 12/08/2026). */
+function kmChipPhamVi(x) {
+  var out = '';
+  var kenh = x.kenh_ds || [];
+  if (kenh.length) {
+    kenh.forEach(function (n) { out += kmChipNho(h(n), '#ecfeff', '#0b7c93'); });
+  } else {
+    out += kmChipNho('mọi nguồn đơn', '#f6f7f9', '#6b7280');
+  }
+  var quay = x.quay_ds || [];
+  if (quay.length) {
+    quay.forEach(function (q) {
+      var ten = q;
+      for (var i = 0; i < KM_QUAY.length; i++) if (KM_QUAY[i].ma === q) ten = KM_QUAY[i].ten;
+      out += kmChipNho('🏪 ' + h(ten), '#f5f3ff', '#5b21b6');
+    });
+  } else {
+    out += kmChipNho('🏪 cả ba điểm', '#f6f7f9', '#6b7280');
+  }
+  return out;
 }
 
 function kmChipNho(chu, nen, mau) {
@@ -11437,10 +11479,12 @@ function kmHtmlCb(ds) {
       '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' + mon + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
       kmChipNho('<s>' + money(x.gia_goc) + 'đ</s> → <b>' + money(x.gia_combo) + 'đ</b>', '#eef2ff', '#3730a3') +
-      kmChipNho('khách tiết kiệm ' + money(x.tiet_kiem) + 'đ', '#fef3c7', '#92400e') +
+      kmChipNho('khách tiết kiệm ' + (x.co_nhom ? 'từ ' : '') + money(x.tiet_kiem) + 'đ', '#fef3c7', '#92400e') +
       (x.can_otp ? kmChipNho('🔐 cần OTP', '#fef2f2', '#b3261e') : '') +
       (x.bat && !x.dung_duoc ? kmChipNho(h(x.ly_do), '#fff7ed', '#9a3412') : '') +
-      '</div></div>' +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' + kmChipPhamVi(x) + '</div>' +
+      '</div>' +
       posChipNut('data-kmbat="' + h(x.name) + '" data-loai="cb"', x.bat ? '● Bật' : '○ Tắt', !!x.bat) +
       '</div>';
   });
