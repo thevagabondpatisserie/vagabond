@@ -850,6 +850,7 @@ async function scrHome() {
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
       ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn — khai một nơi dùng cho cả hệ', 0, 'CDDB') +
+        card('🔒', 'Khoá sổ', 'Chốt số liệu kỳ cũ, không ai sửa hay huỷ được nữa', 0, 'CDKS') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
       : '') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
@@ -892,6 +893,7 @@ async function scrHome() {
     if (k === 'VD') return go(scrVanDon);
     if (k === 'RND') return go(scrRndList);
     if (k === 'CDDB') return go(scrDiemBan);
+    if (k === 'CDKS') return go(scrKhoaSo);
     if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
     if (k === 'ACC') return go(scrAccount);
     go(function () { scrMRList(TYPES[k]); });
@@ -937,7 +939,7 @@ var VGB_NHOM = [
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'CN', 'CNPT', 'BC:BC05'] },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDCN', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDCN', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1236,6 +1238,7 @@ function vgbGo(k) {
   if (k === 'VD') return go(scrVanDon);
   if (k === 'RND') return go(scrRndList);
   if (k === 'CDDB') return go(scrDiemBan);
+  if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
@@ -10043,7 +10046,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '120';
+var APPVER = '121';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12816,6 +12819,122 @@ async function dbLuu(daBo) {
     } catch (e2) { }
     go(scrDiemBanSua, true);
   }
+}
+
+
+/* ===== Cai dat: khoa so theo ngay (anh Viet 12/08/2026) =====
+
+Hoc tu Fabi muc 3.7. Truoc day hoa don da ghi so van sua duoc vo thoi han
+mien co ma OTP - nghia la so lieu thang truoc, da nop thue, da doi soat
+voi ngan hang, van doi duoc ma khong ai hay. */
+
+var ksData = null, ksNgay = 0, ksDen = '';
+
+async function scrKhoaSo() {
+  frame('Khoá sổ', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { ksData = await api('vagabond.chung_tu.cai_dat_khoa_so', {}); }
+  catch (e) {
+    frame('Khoá sổ', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  ksNgay = ksData.so_ngay || 0;
+  ksDen = ksData.den || '';
+  ksVe();
+}
+
+function ksVe() {
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">KHOÁ SỔ</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Chứng từ của ngày đã khoá thì không ghi sổ, không huỷ, không sửa được nữa — ' +
+    'trên app hay trên máy tính đều vậy. Cần sửa một tờ cũ thì kế toán mở khoá riêng tờ đó, ' +
+    'máy ghi lại lý do và tên người mở.</div></div>';
+
+  if (ksData.ngay_khoa) {
+    html += '<div class="card" style="padding:12px 14px;background:#ecfdf5;border:1px solid #a7f3d0">' +
+      '<b style="font-size:14.5px;color:#047857">🔒 Đang khoá đến hết ' + ngayNgan(ksData.ngay_khoa) + '</b>' +
+      '<div style="font-size:12.5px;color:#065f46;margin-top:3px;line-height:1.6">' +
+      'Mọi chứng từ từ ngày đó trở về trước đều đã chốt.</div></div>';
+  } else {
+    html += '<div class="card" style="padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa">' +
+      '<b style="font-size:14.5px;color:#9a3412">⚠️ Chưa khoá gì</b>' +
+      '<div style="font-size:12.5px;color:#7c2d12;margin-top:3px;line-height:1.6">' +
+      'Hoá đơn của tháng trước vẫn sửa và huỷ được như thường.</div></div>';
+  }
+
+  html += '<div class="sec">Tự khoá sau bao nhiêu ngày</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip([
+      { v: 0, t: 'Không khoá' }, { v: 3, t: '3 ngày' }, { v: 7, t: '7 ngày' },
+      { v: 15, t: '15 ngày' }, { v: 31, t: '31 ngày' }
+    ].map(function (x) {
+      return posChipNut('data-ksn="' + x.v + '"', x.t, ksNgay === x.v);
+    }).join('')) +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px">' +
+    '<span style="font-size:12.5px;color:#6b7280">Số ngày khác:</span>' +
+    '<input class="tin" id="ksNgayTay" type="number" min="0" max="3650" value="' + ksNgay + '" style="flex:1;max-width:120px">' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Đặt 3 ngày nghĩa là hôm nay không đụng được vào chứng từ của 3 ngày trước trở về trước. ' +
+    'Đủ để kế toán xử lý sai sót trong tuần mà vẫn chặn việc sửa số của kỳ đã chốt.</div></div>';
+
+  html += '<div class="sec">Mốc khoá cứng</div><div class="card" style="padding:11px 12px">' +
+    '<input class="tin" id="ksDenTay" type="date" value="' + h(ksDen) + '" max="' + ksHomQua() + '" style="width:100%;margin:0">' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Dùng sau khi chốt sổ một kỳ: đặt ngày cuối kỳ vào đây thì kỳ đó khoá vĩnh viễn, ' +
+    'không trôi theo ngày như ô trên. Để trống nếu chưa cần.</div></div>';
+
+  if (ksData.so_to_dang_mo) {
+    html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1px solid #fecaca">' +
+      '<b style="font-size:14px;color:#991b1b">Đang có ' + ksData.so_to_dang_mo + ' hoá đơn được mở khoá</b>' +
+      '<div style="font-size:12.5px;color:#7f1d1d;margin-top:3px;line-height:1.6">' +
+      'Sửa xong nhớ đóng lại, không thì mấy tờ đó vẫn sửa được mãi.</div></div>';
+  }
+
+  html += '<div style="font-size:11.5px;color:#98a2b3;padding:8px 14px;line-height:1.6">' +
+    'Áp dụng cho: ' + h((ksData.loai || []).join(', ')) + '.</div>';
+
+  var b = frame('Khoá sổ', html, ksData.sua_duoc ? {
+    footer: '<button class="btn" id="ksLuu" style="margin:0">💾 Lưu cấu hình khoá sổ</button>'
+  } : null);
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-ksn]');
+    if (t) { ksDoc(); ksNgay = +t.getAttribute('data-ksn'); ksVe(); }
+  };
+  var n = document.getElementById('ksLuu');
+  if (n) n.onclick = function () { ksLuu(); };
+}
+
+function ksHomQua() {
+  /* Moc cung khong duoc dat vao hom nay: dat vao la khoa luon so cua hom
+     nay, quay khong chot duoc bill nao. */
+  var d = new Date(); d.setDate(d.getDate() - 1);
+  var s2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + s2(d.getMonth() + 1) + '-' + s2(d.getDate());
+}
+
+function ksDoc() {
+  var a = document.getElementById('ksNgayTay');
+  var c = document.getElementById('ksDenTay');
+  if (a && a.value !== '') ksNgay = Math.max(0, Math.min(3650, +a.value || 0));
+  if (c) ksDen = c.value || '';
+}
+
+async function ksLuu() {
+  ksDoc();
+  var nhac = ksNgay === 0 && !ksDen
+    ? 'Bỏ khoá hoàn toàn? Hoá đơn của mọi ngày sẽ sửa và huỷ được lại như cũ.'
+    : 'Khoá sổ' + (ksNgay ? ' sau ' + ksNgay + ' ngày' : '') + (ksDen ? ', mốc cứng ' + ngayNgan(ksDen) : '') + '?';
+  var ok = await confirmSheet('Lưu cấu hình khoá sổ', nhac + '\nÁp dụng ngay cho cả app lẫn máy tính.', 'Lưu', ksNgay === 0 && !ksDen);
+  if (!ok) return;
+  busy(true);
+  try {
+    ksData = await api('vagabond.chung_tu.luu_khoa_so', { so_ngay: ksNgay, den: ksDen });
+    ksNgay = ksData.so_ngay || 0; ksDen = ksData.den || '';
+    busy(false);
+    toast(ksData.ngay_khoa ? ('Đã khoá đến hết ' + ngayNgan(ksData.ngay_khoa)) : 'Đã bỏ khoá sổ.', 3500);
+    ksVe();
+  } catch (e) { busy(false); window.alert((e && e.message) || 'Không lưu được'); }
 }
 
 })();
