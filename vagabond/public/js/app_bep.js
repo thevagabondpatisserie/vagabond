@@ -9382,7 +9382,9 @@ async function scrKhachHang() {
   hangs.forEach(function (hg) {
     HANG.push({
       k: hg.name,
-      nhan: (hg.giam_gia ? '★ ' : '') + h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''),
+      /* Anh the hang ngay tren chip loc: nhin mau nen la biet hang nao,
+         khong phai doc ten (anh Viet 12/08/2026). */
+      nhan: hangChipAnh(hg, 14) + h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''),
       loc: function (x) { return x.hang === hg.name; }
     });
   });
@@ -9426,7 +9428,7 @@ async function scrKhachHang() {
       '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
       (hg
-        ? '<span style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">' + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>'
+        ? '<span style="display:inline-flex;align-items:center;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px 2px ' + (hg.anh ? '4px' : '9px') + ';font-size:11.5px;font-weight:800">' + hangChipAnh(hg, 14) + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>'
         : '<span style="background:#f6f7f9;color:#98a2b3;border:1.5px dashed #d7dce5;border-radius:999px;padding:2px 9px;font-size:11.5px">chưa xếp hạng</span>') +
       /* Ma khach hien ngay tren dong (anh Viet 11/08/2026): tra cuu, doi
          chieu voi phieu giay va goi dien cho nhau deu can doc ma. */
@@ -9483,7 +9485,7 @@ async function khSheetHang(ma, hangs, all) {
     '<div style="display:flex;flex-wrap:wrap;gap:7px">' +
     hangs.map(function (hg) {
       return posChipNut('data-sethang="' + h(hg.name) + '"',
-        h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''), x.hang === hg.name);
+        hangChipAnh(hg, 16) + h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''), x.hang === hg.name);
     }).join('') +
     (x.hang ? posChipNut('data-sethang=""', '✕ Bỏ hạng', false, 1) : '') +
     '</div>';
@@ -10365,7 +10367,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '134';
+var APPVER = '135';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -13878,6 +13880,39 @@ async function scrHangKhach() {
 
 function htTien(n) { return money(n) + ' đ'; }
 
+/* Anh the thanh vien cua mot hang (anh Viet 12/08/2026).
+
+   Truoc day moi hang deo mot bieu tuong chung chung, nhin ba hang theo chi
+   tieu deu ra mot cai 📈 giong nhau. Nay dung dung file the ma ben thiet ke
+   da lam: mau nen cua the la thu de phan biet nhanh nhat, ke ca khi thu
+   nho con hai ba chuc diem anh.
+
+   Chua khai anh thi roi ve bieu tuong cu chu khong de o trong: hang moi
+   them tren app chua kip lam the van phai nhin ra duoc. */
+function hangThe(hg, rong) {
+  var r = rong || 46;
+  var c = Math.round(r / 1.586);
+  var tay = ((hg && hg.loai) || 'Theo chi tieu') === 'Gan tay';
+  var khung = 'width:' + r + 'px;height:' + c + 'px;flex:none;border-radius:6px;';
+  if (hg && hg.anh) {
+    return '<img src="' + h(hg.anh) + '" alt="' + h(hg.ten_hang || '') + '" style="' + khung +
+      'object-fit:cover;border:1px solid #e5e7eb;background:#f2f4f7" loading="lazy">';
+  }
+  return '<div style="' + khung + 'display:flex;align-items:center;justify-content:center;' +
+    'background:' + (tay ? '#fef3c7' : '#ccfbf1') + ';font-size:' + Math.round(c * 0.5) + 'px">' +
+    (tay ? '✋' : '📈') + '</div>';
+}
+
+/* Chip hang co anh the o dau. Dung o man Danh muc khach hang va bang gan
+   hang, nhung noi chi co cho cho mot chip ngan. */
+function hangChipAnh(hg, cao) {
+  var c = cao || 15;
+  var r = Math.round(c * 1.586);
+  if (!hg || !hg.anh) return '';
+  return '<img src="' + h(hg.anh) + '" alt="" style="width:' + r + 'px;height:' + c +
+    'px;flex:none;border-radius:3px;object-fit:cover;background:#fff;margin-right:5px;vertical-align:-2px" loading="lazy">';
+}
+
 function htVe() {
   var theoCt = htDs.filter(function (x) { return (x.loai || 'Theo chi tieu') === 'Theo chi tieu'; });
   var moc = {}, trung = '';
@@ -13909,8 +13944,7 @@ function htVe() {
     if (d.giam_gia) phu.push('giảm ' + d.giam_gia + '%');
     phu.push(d.tich_diem ? ('tích ' + d.tich_diem + '%') : 'không tích điểm');
     return '<div data-htmo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
-      '<div style="width:34px;height:34px;flex:none;border-radius:10px;display:flex;align-items:center;justify-content:center;' +
-      'background:' + (tay ? '#fef3c7' : '#ccfbf1') + ';font-size:17px">' + (tay ? '✋' : '📈') + '</div>' +
+      hangThe(d, 58) +
       '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten_hang) + '</b>' +
       '<div style="font-size:11.5px;color:#98a2b3">' + h(phu.join(' · ')) + '</div>' +
       '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + money(d.so_khach || 0) + ' khách</div></div>' +
@@ -13937,7 +13971,7 @@ function htVe() {
   document.getElementById('htXet').onclick = function () { go(scrXetLaiHang); };
   var n = document.getElementById('htThem');
   if (n) n.onclick = function () {
-    htDs.push({ ten_hang: '', thu_tu: htDs.length + 1, loai: 'Theo chi tieu', giam_gia: 0, tich_diem: 0, chi_tieu_tu: 0, so_thang_xet: 12, bat: 1, mo_ta: '', so_khach: 0 });
+    htDs.push({ ten_hang: '', thu_tu: htDs.length + 1, loai: 'Theo chi tieu', giam_gia: 0, tich_diem: 0, chi_tieu_tu: 0, so_thang_xet: 12, bat: 1, mo_ta: '', anh: '', so_khach: 0 });
     htMo = htDs.length - 1; htMoi = 1;
     go(scrHangSua);
   };
@@ -13976,6 +14010,22 @@ function scrHangSua() {
       '</div>';
   }
 
+  /* Anh the thanh vien (anh Viet 12/08/2026). De cong khai chu khong rieng
+     tu: the con phai hien duoc tren trang thanh vien va trong tin nhan gui
+     cho khach, khong chi trong app noi bo. */
+  html += '<div class="sec">Thẻ thành viên</div><div class="card" style="padding:12px 14px">' +
+    '<div id="htAnhXem" style="display:flex;align-items:center;gap:12px">' +
+    hangThe(d, 132) +
+    '<div style="flex:1;min-width:0;font-size:12px;color:#98a2b3;line-height:1.6">' +
+    (d.anh ? 'Ảnh thẻ đang dùng cho hạng này.' : 'Chưa có ảnh thẻ, app đang hiện biểu tượng chung.') +
+    '</div></div>' +
+    '<div style="display:flex;gap:8px;margin-top:11px">' +
+    '<button class="btn gh" id="htAnhChon" style="margin:0;flex:1">🖼 Chọn ảnh thẻ</button>' +
+    (d.anh ? '<button class="btn gh" id="htAnhBo" style="margin:0;flex:0 0 34%;color:#b3261e;border-color:#fecaca">Bỏ ảnh</button>' : '') +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+    'Ảnh ngang theo tỉ lệ thẻ, khoảng 1012 x 638 điểm ảnh.</div></div>';
+
   html += '<div class="sec">Quyền lợi</div><div class="card">' +
     o('Giảm giá (%)', 'htGiam', d.giam_gia, 'Áp cho mọi hoá đơn của khách hạng này.', 'number') +
     o('Tích điểm (%)', 'htDiem', d.tich_diem, htGoiYDiem(d), 'number') +
@@ -13998,6 +14048,10 @@ function scrHangSua() {
     if (e.target.closest('[data-htbat]')) { htDoc(); d.bat = d.bat ? 0 : 1; return go(scrHangSua, true); }
   };
   if (!htSuaDuoc) return;
+  var nAnh = document.getElementById('htAnhChon');
+  if (nAnh) nAnh.onclick = function () { htChonAnh(); };
+  var nBo = document.getElementById('htAnhBo');
+  if (nBo) nBo.onclick = function () { htDoc(); d.anh = ''; go(scrHangSua, true); };
   document.getElementById('htLuu').onclick = function () { htLuu(); };
   document.getElementById('htBo').onclick = async function () {
     var ok = await confirmSheet('Bỏ hạng ' + (d.ten_hang || 'mới') + '?',
@@ -14006,6 +14060,46 @@ function scrHangSua() {
     htDs.splice(htMo, 1);
     htLuu(1);
   };
+}
+
+/* Chon anh the cho mot hang. De CONG KHAI vi the con phai hien tren trang
+   thanh vien va trong tin nhan gui khach, khong chi trong app noi bo. Chua
+   luu hang thi da tai anh len roi: bam Luu moi gan vao, bo giua chung thi
+   anh nam lai trong kho tep chu khong hong gi. */
+async function htChonAnh() {
+  var d = (htDs || [])[htMo];
+  if (!d) return;
+  htDoc();
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.onchange = async function () {
+    var f = inp.files && inp.files[0];
+    inp.remove();
+    if (!f) return;
+    busy(true);
+    try {
+      var fd = new FormData();
+      fd.append('file', f, f.name);
+      fd.append('is_private', '0');
+      fd.append('folder', 'Home');
+      var hd = {};
+      hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
+      var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
+      var j = await r.json();
+      if (!r.ok || !j.message || !j.message.file_url) throw new Error('Không tải được ảnh lên');
+      d.anh = j.message.file_url;
+      busy(false);
+      go(scrHangSua, true);
+      toast('Đã chọn ảnh thẻ, bấm Lưu để áp dụng');
+    } catch (e) {
+      busy(false);
+      window.alert((e && e.message) || 'Không tải được ảnh lên');
+    }
+  };
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.click();
 }
 
 /* Dong goi y ngay duoi o Tich diem, giong Fabi: go % xong thay ngay mot hoa
