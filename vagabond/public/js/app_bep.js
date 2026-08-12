@@ -10079,7 +10079,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '126';
+var APPVER = '127';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -13544,13 +13544,16 @@ function xlVe() {
     return;
   }
 
-  var len = doi.filter(function (x) { return x.len; }).length;
+  /* Lay so dem tu may chu: may chu dem tren toan bo tap, con "doi" o day
+     chi la phan dau da bi cat de man hinh khong treo. */
+  var len = xlData.so_len == null ? doi.filter(function (x) { return x.len; }).length : xlData.so_len;
+  var xuong = xlData.so_xuong == null ? Math.max(0, (xlData.tong || 0) - len) : xlData.so_xuong;
   html += '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">KẾT QUẢ XÉT LẠI</div>' +
     '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
     'Tính theo tiền khách đã mua trong <b>' + (xlData.so_thang || 12) + ' tháng</b> gần nhất. ' +
     'Có <b>' + money(xlData.tong || 0) + ' khách</b> lệch hạng: ' + money(len) + ' lên, ' +
-    money((xlData.tong || 0) - len) + ' xuống. Khách đeo hạng gán tay không bị đụng tới.</div></div>';
+    money(xuong) + ' xuống. Khách đeo hạng gán tay không bị đụng tới.</div></div>';
 
   if (!doi.length) {
     html += '<div class="emp"><div class="e1">✅</div><div>Không ai lệch hạng. Bảng hạng đang khớp với chi tiêu thật.</div></div>';
