@@ -229,6 +229,22 @@ def nguon_co_san():
 		da_co[n] = 1
 		ra.append({"v": n, "lg": "", "ic": _bieu_tuong(n)})
 
+	def _ten_moi(n):
+		"""Ten nguon cu tren hoa don cu doi ve ten dang dung.
+
+		Hai hoa don da gui hom 09 va 11/08 con mang ten "Tại chỗ - Trần Cao
+		Vân" va "Mang về - Nguyễn Văn Trỗi" - Frappe khoa truong nguon sau
+		khi gui nen khong sua lai duoc. Neu khong doi ten o day thi man Diem
+		ban bay ra hai chip nguon cu vo chu, ai do bam vao la nguon da bo
+		song lai.
+		"""
+		try:
+			from vagabond.ban_hang import NGUON_CU
+
+			return NGUON_CU.get(n, n)
+		except Exception:
+			return n
+
 	dang_khai = ds()
 	for d in dang_khai:
 		for n in d["nguon"]:
@@ -239,7 +255,7 @@ def nguon_co_san():
 			"where ifnull(custom_nguon, '') != ''"
 		)
 		for r in rows:
-			them(r[0])
+			them(_ten_moi(r[0]))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "diem_ban: khong doc duoc nguon that")
 

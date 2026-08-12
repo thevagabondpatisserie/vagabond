@@ -103,6 +103,31 @@ def _chi_tieu(ds_khach, so_thang=12):
 			"so_don": int(r.get("so_don") or 0),
 			"gan_nhat": str(r.get("gan_nhat") or ""),
 		}
+
+	# Cong them phan da tieu ben Fabi (anh Viet chot 12/08/2026: khach giu
+	# duoc cong suc da tieu ben he cu, khong bi tut hang khi minh doi he).
+	# So nay la mot MOC TICH LUY dung yen mot cho, khong het han theo ky xet
+	# nhu doanh so 12 thang - nen phai cong rieng chu khong gop vao cau
+	# truy van tren.
+	try:
+		cu = frappe.db.sql(
+			"""
+			select name, ifnull(vgb_chi_tieu_cu, 0) tien
+			from `tabCustomer`
+			where ifnull(vgb_chi_tieu_cu, 0) > 0
+			""",
+			as_dict=True,
+		)
+	except Exception:
+		# Chua tao truong thi coi nhu chua ai co chi tieu cu, khong duoc
+		# lam hong man danh sach khach.
+		cu = []
+	for r in cu:
+		if r["name"] not in can:
+			continue
+		o = ra.setdefault(r["name"], {"tien": 0.0, "so_don": 0, "gan_nhat": ""})
+		o["tien"] = flt(o["tien"]) + flt(r["tien"])
+		o["tieu_cu"] = flt(r["tien"])
 	return ra
 
 
