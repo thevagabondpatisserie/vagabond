@@ -47,7 +47,7 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban, pt_thanh_toan, quyen_quay
+from vagabond import chung_tu, diem_ban, pt_thanh_toan, quyen_quay, tai_khoan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -332,6 +332,10 @@ def _nguon_don():
 			if not co_pt_rieng:
 				m["pt"] = pt_thanh_toan.ten_quay() if d["quay"] else pt_thanh_toan.ten_online()
 			m["v"] = n
+			# Ma diem ban cua nguon nay. App can de dat noi dung chuyen khoan
+			# (ma diem + so phieu) o nhung man khong biet minh dang o quay nao,
+			# vi du man Chi tiet don ben Sales.
+			m["diem"] = d["ma"]
 			ra.append(m)
 	return ra
 
@@ -354,13 +358,10 @@ def _quay():
 		})
 	return ra
 
-# VietQR tinh cho quay: cung tai khoan ao MBBank ma Fabi dang dung (chup man
-# hinh cau hinh Fabi 08/08). Noi dung chuyen khoan = so phieu de doi soat.
-QR_QUAY = {
-	"bank": "MB",
-	"stk": "VQRQ00033k5p6",
-	"ten": "PATISSERIE VAGABOND COMPANY LIMITED",
-}
+# Tai khoan nhan chuyen khoan khong con hardcode o day nua: gio khai o man
+# Cai dat va tach duoc theo tung nguon don - xem tai_khoan.py. Noi dung
+# chuyen khoan van la ma diem ban + so phieu, de doi soat SePay.
+
 
 # Thu tu nhom mon o man chon mon, xep theo tan suat ban thuc te tai quay
 # (anh Viet 10/08/2026) - banh o sinh nhat de cuoi vi quay ban rat it, chu
@@ -523,23 +524,27 @@ def cau_hinh_ban_hang():
 		q2 = dict(q)
 		q2["anh"] = _anh_quay_da_luu(q["ma"]) or q.get("anh") or ""
 		quay.append(q2)
+	nguon = _nguon_don()
 	return {
 		"pt": pt,
-		"nguon": _nguon_don(),
+		"nguon": nguon,
 		"pt_pancake": pt_thanh_toan.ten_online(),
 		"quay": quay,
 		# Anh chi nhanh Sales Online (307/1 Nguyen Van Troi) anh Viet gui
 		# 11/08/2026. Doi anh trong app thi lay anh moi, chua doi thi dung
 		# anh nay.
 		"anh_sales": _anh_quay_da_luu("SALES") or "/assets/vagabond/images/quay-sales.jpg",
-		"qr_quay": QR_QUAY,
+		"qr_quay": tai_khoan.tk_cho(),
+		# Tai khoan ao rieng cua tung nguon don, de man tinh tien sinh QR
+		# vao dung tai khoan cua nguon do.
+		"qr_nguon": tai_khoan.bang_theo_nguon(nguon),
 		"thu_tu_nhom": THU_TU_NHOM,
 		"pt_chua_ve_tien": pt_thanh_toan.chua_ve_tien(),
 		"pt_ve_sau": pt_thanh_toan.ve_sau(),
 		# De app biet luc nao phai hoi ma OTP. May chu van kiem lai het, day
 		# chi la de khoi bat thu ngan go ma cho mot viec ho duoc phep lam.
 		"quyen_bo_mon": quyen_quay.muc(),
-		"nguon_app": [n["v"] for n in _nguon_don() if n.get("lg")],
+		"nguon_app": [n["v"] for n in nguon if n.get("lg")],
 	}
 
 

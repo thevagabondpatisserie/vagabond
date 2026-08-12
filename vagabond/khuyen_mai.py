@@ -494,6 +494,13 @@ def _tien_chu(n):
 
 # ------------------------------------------------------------------- combo
 
+def nhom_combo(cb):
+	"""Bang ten nhom -> (so mon duoc chon, cac dong trong nhom)."""
+	from vagabond.vagabond.doctype.vagabond_combo.vagabond_combo import nhom_cua
+
+	return nhom_cua(cb)
+
+
 def _doc_combo(ma):
 	d = frappe.get_doc("Vagabond Combo", ma)
 	o = d.as_dict()
@@ -502,21 +509,105 @@ def _doc_combo(ma):
 	return o
 
 
-def _giam_combo(cb, gio, so_bo):
+def _dong_bat_buoc(cb):
+	"""Cac mon luon vao bill: dong khong ghi ten nhom."""
+	return [d for d in cb["dong"] if not str(d.get("nhom") or "").strip()]
+
+
+def _chon_dong(cb, chon):
+	"""Doi lua chon cua khach thanh cac DONG trong combo. Tra (dong, loi).
+
+	chon la danh sach {nhom, item_code}. Phai gui ca ten nhom chu khong chi
+	ma mon: mot mon duoc phep nam trong hai nhom khac nhau, chi gui ma mon
+	thi may khong biet no dang dai dien cho nhom nao.
+
+	May chu kiem lai het thay vi tin con so app gui len: chon thieu, chon
+	thua hay chon mon khong thuoc nhom deu la sai so tien cua bill.
+	"""
+	nh = nhom_combo(cb)
+	if not nh:
+		return [], ""
+	if isinstance(chon, str):
+		chon = json.loads(chon or "[]")
+	theo_nhom = {}
+	for x in chon or []:
+		if not isinstance(x, dict):
+			continue
+		n = str(x.get("nhom") or "").strip()
+		m = str(x.get("item_code") or "").strip()
+		if n and m:
+			theo_nhom.setdefault(n, []).append(m)
+	ra = []
+	for ten in sorted(nh.keys()):
+		so, ds = nh[ten]
+		da_chon = theo_nhom.get(ten) or []
+		if len(da_chon) != so:
+			return [], "nhóm \"%s\" phải chọn đúng %d món, đang chọn %d" % (ten, so, len(da_chon))
+		bang = {}
+		for d in ds:
+			bang.setdefault(d.get("item_code"), d)
+		da_lay = set()
+		for m in da_chon:
+			if m not in bang:
+				return [], "món %s không thuộc nhóm \"%s\"" % (_ten_mon(m), ten)
+			if m in da_lay:
+				return [], "nhóm \"%s\" đang chọn trùng món %s" % (ten, _ten_mon(m))
+			da_lay.add(m)
+			ra.append(bang[m])
+	return ra, ""
+
+
+def _tien_dong(d):
+	return flt(d.get("thanh_tien")) or flt(d.get("gia_goc")) * flt(d.get("so_luong"))
+
+
+def _tiet_kiem_bo(cb, goc):
+	"""Tien giam cua MOT bo, tinh tren gia goc THUC TE khach da chon.
+
+	Khong dung lai truong tiet_kiem cat san: combo co nhom chon thi moi
+	phuong an chon mot gia goc khac nhau, dung con so cat san la khach chon
+	mon dat lai duoc giam it hon phan phai giam.
+	"""
+	kieu = cb.get("kieu") or "Gia tron goi"
+	if kieu == "Gia tron goi":
+		giam = goc - flt(cb.get("gia_combo"))
+	elif kieu == "Giam phan tram":
+		giam = goc * flt(cb.get("gia_tri")) / 100.0
+	else:
+		giam = flt(cb.get("gia_tri"))
+	return max(0.0, min(giam, goc))
+
+
+def _giam_combo(cb, gio, so_bo, chon=None, con_lai=None):
 	"""Kiem gio hang co du mon thanh phan cho so_bo bo combo khong.
 
 	Day la cho chan gian lan cua combo: may khach da RA combo thanh mon roi,
 	nhung khong the tin no ra dung. May chu dem lai tung mon.
+
+	con_lai la so luong CON CHUA BI BO COMBO NAO CHIEM, truyen vao va bi tru
+	di. Combo co nhom chon thi mot bill co the mang hai dong cung mot combo
+	voi hai lua chon khac nhau; neu moi dong deu do lai gio hang tu dau thi
+	mot ly ca phe duy nhat nuoi duoc ca hai bo (De feedback 12/08/2026).
 	"""
 	so_bo = max(1, cint(so_bo))
-	co = {}
-	for d in gio:
-		co[d["item_code"]] = co.get(d["item_code"], 0) + d["qty"]
-	for d in cb["dong"]:
+	co = con_lai
+	if co is None:
+		co = {}
+		for d in gio:
+			co[d["item_code"]] = co.get(d["item_code"], 0) + d["qty"]
+	dong_chon, loi = _chon_dong(cb, chon)
+	if loi:
+		return 0, loi
+	dong = _dong_bat_buoc(cb) + dong_chon
+	for d in dong:
 		can = flt(d.get("so_luong")) * so_bo
 		if co.get(d.get("item_code"), 0) < can - 0.0001:
 			return 0, "hoá đơn thiếu %s (cần %g)" % (_ten_mon(d.get("item_code")), can)
-	return flt(cb.get("tiet_kiem")) * so_bo, ""
+	for d in dong:
+		ma = d.get("item_code")
+		co[ma] = co.get(ma, 0) - flt(d.get("so_luong")) * so_bo
+	goc = sum(_tien_dong(d) for d in dong)
+	return _tiet_kiem_bo(cb, goc) * so_bo, ""
 
 
 # ------------------------------------------------------------------- API doc
@@ -620,10 +711,40 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 		o["dong"] = frappe.get_all(
 			"Vagabond Combo Dong",
 			filters={"parent": cb.name},
-			fields=["item_code", "ten_mon", "so_luong", "gia_goc", "thanh_tien"],
+			fields=["item_code", "ten_mon", "so_luong", "gia_goc", "thanh_tien", "nhom", "chon_trong_nhom"],
 			order_by="idx asc",
 			limit_page_length=0,
 		)
+		# Nhom mon cho khach chon. App dung cai nay de bay hop chon mon truoc
+		# khi do combo vao bill - khong co thi thu ngan bam combo la ca bon
+		# mon banh nhay het vao hoa don (De feedback 12/08/2026).
+		nh = nhom_combo(o)
+		o["nhom_ds"] = [
+			{
+				"ten": ten,
+				"chon": nh[ten][0],
+				"mon": [
+					{
+						"item_code": d.get("item_code"),
+						"ten_mon": d.get("ten_mon") or _ten_mon(d.get("item_code")),
+						"so_luong": flt(d.get("so_luong")),
+						"gia_goc": flt(d.get("gia_goc")),
+					}
+					for d in nh[ten][1]
+				],
+			}
+			for ten in sorted(nh.keys())
+		]
+		o["co_nhom"] = 1 if nh else 0
+		o["bat_buoc"] = [
+			{
+				"item_code": d.get("item_code"),
+				"ten_mon": d.get("ten_mon") or _ten_mon(d.get("item_code")),
+				"so_luong": flt(d.get("so_luong")),
+				"gia_goc": flt(d.get("gia_goc")),
+			}
+			for d in _dong_bat_buoc(o)
+		]
 		# So bo da ban HOM NAY: anh Viet 11/08/2026 muon dem duoc combo ban
 		# trong ngay ngay tren man chon mon, khong phai mo bao cao.
 		try:
@@ -638,11 +759,14 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 
 
 @frappe.whitelist()
-def ra_combo(ma_combo, so_bo=1):
+def ra_combo(ma_combo, so_bo=1, chon=None):
 	"""Cashier bam mot combo -> tra ve danh sach mon de may khach do vao gio.
 
 	KHONG tra ve dong nao ten "combo": bill, tem dan mon va bep chi duoc
 	thay ten mon that (anh Viet 11/08/2026).
+
+	chon la lua chon cua khach o cac nhom, dang [{nhom, item_code}]. Combo
+	khong co nhom nao thi bo trong.
 	"""
 	_kiem_quyen()
 	cb = _doc_combo(ma_combo)
@@ -652,8 +776,12 @@ def ra_combo(ma_combo, so_bo=1):
 	if not ok:
 		frappe.throw("Combo %s: %s." % (cb.get("ten"), ly_do))
 	so_bo = max(1, cint(so_bo))
+	dong_chon, loi = _chon_dong(cb, chon)
+	if loi:
+		frappe.throw("Combo %s: %s." % (cb.get("ten"), loi))
+	dong = _dong_bat_buoc(cb) + dong_chon
 	mon = []
-	for d in cb["dong"]:
+	for d in dong:
 		mon.append(
 			{
 				"item_code": d.get("item_code"),
@@ -662,14 +790,20 @@ def ra_combo(ma_combo, so_bo=1):
 				"rate": flt(d.get("gia_goc")),
 			}
 		)
+	goc = sum(_tien_dong(d) for d in dong)
+	tiet_kiem = _tiet_kiem_bo(cb, goc)
 	return {
 		"ma": cb["name"],
 		"ten": cb.get("ten"),
 		"mon": mon,
-		"gia_goc": flt(cb.get("gia_goc")) * so_bo,
-		"tiet_kiem": flt(cb.get("tiet_kiem")) * so_bo,
-		"gia_combo": flt(cb.get("gia_combo")) * so_bo,
+		"gia_goc": goc * so_bo,
+		"tiet_kiem": tiet_kiem * so_bo,
+		"gia_combo": (goc - tiet_kiem) * so_bo,
 		"so_bo": so_bo,
+		"chon": [
+			{"nhom": str(d.get("nhom") or "").strip(), "item_code": d.get("item_code")}
+			for d in dong_chon
+		],
 	}
 
 
@@ -754,6 +888,20 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 
 	# --- combo truoc: no dong vao gia goc cua mon, cac chuong trinh khac
 	# tinh sau tren phan con lai ---
+	# So luong con chua bi bo combo nao chiem. Mot bill co the mang nhieu
+	# dong cua CUNG mot combo voi lua chon khac nhau, nen phai tru dan.
+	con_lai = {}
+	for d in gio:
+		con_lai[d["item_code"]] = con_lai.get(d["item_code"], 0) + d["qty"]
+	# Gioi han "toi da moi hoa don" phai dem TONG so bo cua ca bill, khong
+	# dem tung dong: tach 3 bo thanh ba dong 1 bo la lach duoc gioi han.
+	tong_bo = {}
+	for c in combo:
+		if isinstance(c, str):
+			c = {"ma": c, "so_bo": 1}
+		mc0 = str(c.get("ma") or "").strip()
+		if mc0:
+			tong_bo[mc0] = tong_bo.get(mc0, 0) + max(1, cint(c.get("so_bo") or 1))
 	for c in combo:
 		if isinstance(c, str):
 			c = {"ma": c, "so_bo": 1}
@@ -771,13 +919,13 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 			bo.append({"ten": cb.get("ten"), "ly_do": ly_do})
 			continue
 		so_bo = max(1, cint(c.get("so_bo") or 1))
-		if cint(cb.get("gioi_han_bill")) and so_bo > cint(cb["gioi_han_bill"]):
+		if cint(cb.get("gioi_han_bill")) and tong_bo.get(mc, so_bo) > cint(cb["gioi_han_bill"]):
 			bo.append({
 				"ten": cb.get("ten"),
 				"ly_do": "một hoá đơn chỉ được tối đa %d combo" % cint(cb["gioi_han_bill"]),
 			})
 			continue
-		giam, loi = _giam_combo(cb, gio, so_bo)
+		giam, loi = _giam_combo(cb, gio, so_bo, c.get("chon"), con_lai)
 		if not giam:
 			bo.append({"ten": cb.get("ten"), "ly_do": loi or "không đủ điều kiện"})
 			continue
@@ -1349,6 +1497,8 @@ def luu_combo(du_lieu, ma=None):
 				"item_code": r.get("item_code"),
 				"so_luong": flt(r.get("so_luong") or 1),
 				"gia_goc": flt(r.get("gia_goc") or 0),
+				"nhom": str(r.get("nhom") or "").strip(),
+				"chon_trong_nhom": cint(r.get("chon_trong_nhom") or 0),
 			})
 	d.flags.ignore_permissions = True
 	d.save()

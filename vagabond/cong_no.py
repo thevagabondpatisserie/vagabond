@@ -19,7 +19,8 @@ import re
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
 
-from vagabond.ban_hang import _kiem_quyen, QR_QUAY
+from vagabond.ban_hang import _kiem_quyen
+from vagabond import tai_khoan
 
 # Ma phieu doi no: CN + 6 ky tu. Tach han khong gian ma voi bill quay
 # (VGB + 5) de khong bao gio khop nham sang nhau.
@@ -270,7 +271,7 @@ def xem_phieu(name):
 		"con_thieu": max(0.0, flt(doc.tong_tien) - nhan),
 		"trang_thai": doc.trang_thai,
 		"ghi_chu": doc.ghi_chu or "",
-		"qr": QR_QUAY,
+		"qr": tai_khoan.tk_cho(),
 		"dong": [
 			{
 				"hoa_don": d.hoa_don,
