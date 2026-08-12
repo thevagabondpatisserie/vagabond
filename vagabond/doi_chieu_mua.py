@@ -37,7 +37,7 @@ QUYEN = {
 # hoac phi van chuyen, khong dang chan nguoi ta lai.
 NGUONG_LECH = 1000.0
 
-TRAN_DONG = 200
+TRAN_DONG = 300
 
 NHOM = [
 	{"k": "", "ten": "Tất cả", "ic": "📋"},
@@ -163,7 +163,12 @@ def _nhom_cua(hd, dong, co_goi_y):
 
 @frappe.whitelist()
 def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
-	"""Danh sach hoa don mua kem trang thai doi chieu."""
+	"""Danh sach hoa don mua kem trang thai doi chieu.
+
+	Doc TAT CA trong vai cau truy van roi ghep trong bo nho, khong doc
+	tung to mot: hien co hon tam tram hoa don mua con nhap, doc tung to la
+	moi lan mo man phai chay may nghin cau truy van.
+	"""
 	_kiem_quyen()
 	den = getdate(nowdate())
 	tu = add_days(den, -max(1, cint(so_ngay) or 60))
@@ -179,10 +184,56 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 		limit_page_length=0,
 	)
 	q = (tu_khoa or "").strip().lower()
+	ds = [
+		r
+		for r in ds
+		if not q
+		or q in ((r.name or "") + " " + (r.supplier_name or "") + " " + (r.bill_no or "")).lower()
+	]
+	nhap = [r["name"] for r in ds if r.get("docstatus") == 0]
+	ncc = sorted({r["supplier"] for r in ds if r.get("docstatus") == 0 and r.get("supplier")})
+
+	# Dong hang cua moi hoa don con nhap, mot cau.
+	dong_theo_hd = {}
+	if nhap:
+		for r in frappe.get_all(
+			"Purchase Invoice Item",
+			filters={"parent": ["in", nhap]},
+			fields=["parent", "item_code", "purchase_receipt"],
+			limit_page_length=0,
+		):
+			dong_theo_hd.setdefault(r["parent"], []).append(r)
+
+	# Phieu nhap con chua duoc hoa don nao lay het, cua dung may nha cung
+	# cap dang co hoa don nhap. Noi rong khoang ngay hai dau, vi hang ve
+	# truoc va hoa don ve sau la chuyen thuong.
+	pnk_theo_ncc = {}
+	dong_pnk = {}
+	if ncc:
+		pnks = frappe.get_all(
+			"Purchase Receipt",
+			filters={
+				"supplier": ["in", ncc],
+				"docstatus": 1,
+				"posting_date": ["between", [str(add_days(tu, -60)), str(add_days(den, 60))]],
+			},
+			fields=["name", "supplier", "posting_date", "total", "per_billed"],
+			limit_page_length=0,
+		)
+		pnks = [p for p in pnks if flt(p.get("per_billed")) < 99.99]
+		for p in pnks:
+			pnk_theo_ncc.setdefault(p["supplier"], []).append(p)
+		if pnks:
+			for r in frappe.get_all(
+				"Purchase Receipt Item",
+				filters={"parent": ["in", [p["name"] for p in pnks]]},
+				fields=["parent", "item_code"],
+				limit_page_length=0,
+			):
+				dong_pnk.setdefault(r["parent"], set()).add(r["item_code"])
+
 	ra = []
 	for r in ds:
-		if q and q not in ((r.name or "") + " " + (r.supplier_name or "") + " " + (r.bill_no or "")).lower():
-			continue
 		o = dict(r)
 		if r.get("docstatus") == 1:
 			o["nhom"] = "huy" if cint(r.get("vgb_huy")) else "xong"
@@ -191,8 +242,13 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 			o["so_phieu_goi_y"] = 0
 			ra.append(o)
 			continue
-		dong = _dong_hd(r["name"])
-		gy = _goi_y(r, dong)
+		dong = dong_theo_hd.get(r["name"]) or []
+		ma_hd = {d["item_code"] for d in dong}
+		gy = []
+		for p in pnk_theo_ncc.get(r["supplier"]) or []:
+			if dong_pnk.get(p["name"], set()) & ma_hd:
+				gy.append(p)
+		gy.sort(key=lambda p: -len(dong_pnk.get(p["name"], set()) & ma_hd))
 		o["so_dong"] = len(dong)
 		o["da_noi"] = _da_noi(dong)
 		o["so_phieu_goi_y"] = len(gy)
@@ -201,7 +257,7 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 			# Lech tien tinh tren PHUONG AN MAY DE XUAT, tuc phieu diem cao
 			# nhat. Chi de bay chip canh bao tu xa, con so that thi man chi
 			# tiet tinh lai theo dung phieu nguoi dung chon.
-			tien_pnk = sum(flt(p["tien"]) for p in gy[:1])
+			tien_pnk = flt(gy[0]["total"])
 			if abs(tien_pnk - flt(r.get("total"))) > NGUONG_LECH:
 				o["nhom"] = "lech"
 				o["lech"] = flt(r.get("total")) - tien_pnk
@@ -242,10 +298,35 @@ def xem(name):
 		frappe.throw("Không có hoá đơn %s." % name)
 	dong = _dong_hd(name)
 	gy = _goi_y(hd, dong) if hd.get("docstatus") == 0 else []
+	# Phieu ma hoa don nay DA tro toi. Uyen noi phieu tu hom truoc roi bo
+	# do vi khong biet con nut Gui; mo lai man nay ma may tick san mot
+	# phieu khac thi bang doi chieu ben duoi noi sai chuyen.
+	da_noi_ds = sorted({(r.get("purchase_receipt") or "").strip() for r in dong} - {""})
+	ten_gy = {p["name"] for p in gy}
+	for ma in da_noi_ds:
+		if ma in ten_gy:
+			continue
+		p = frappe.db.get_value(
+			"Purchase Receipt", ma, ["name", "posting_date", "total", "per_billed"], as_dict=True
+		)
+		if not p:
+			continue
+		dp = _dong_pnk(ma)
+		gy.insert(0, {
+			"name": p["name"],
+			"ngay": str(p.get("posting_date") or ""),
+			"tien": flt(p.get("total")),
+			"tong": flt(p.get("total")),
+			"da_hoa_don": flt(p.get("per_billed")),
+			"so_mon": len(dp),
+			"so_mon_trung": len(dp),
+			"dong": dp,
+		})
 	return {
 		"hd": hd,
 		"dong": dong,
 		"da_noi": _da_noi(dong),
+		"phieu_da_noi": da_noi_ds,
 		"goi_y": gy,
 		"nhom": _nhom_cua(hd, dong, bool(gy)),
 		"lam_duoc": 1 if _lam_duoc() else 0,

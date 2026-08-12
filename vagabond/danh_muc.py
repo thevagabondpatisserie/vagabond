@@ -130,6 +130,60 @@ def tien_to_nhom(nhom):
 	return sorted(dem.items(), key=lambda x: (-x[1], x[0]))[0][0]
 
 
+def _series_hien(tt):
+	"""Bo dem hien tai cua mot tien to.
+
+	tabSeries la BANG THUAN, khong phai DocType - frappe.db.get_value
+	("Series", ...) tra ve loi "Khong tim thay DocType Series". Phai doc
+	thang bang SQL.
+	"""
+	try:
+		r = frappe.db.sql("select `current` from `tabSeries` where name = %s", (tt,))
+		return cint(r[0][0]) if r else 0
+	except Exception:
+		return 0
+
+
+def _moc_lon_nhat(tt):
+	"""So lon nhat da dung that trong danh muc cho tien to nay."""
+	try:
+		rows = frappe.db.sql("select name from `tabItem` where name like %s", (tt + "%",))
+	except Exception:
+		return 0
+	mx = 0
+	for r in rows:
+		m = MAU_MA.match((r[0] or "").strip().upper())
+		if m and m.group(1) == tt:
+			mx = max(mx, cint(m.group(2)))
+	return mx
+
+
+def _so_ke_tiep(tt):
+	return max(_series_hien(tt), _moc_lon_nhat(tt)) + 1
+
+
+def _dong_bo_series(tt):
+	"""Keo bo dem len bang so lon nhat da dung that.
+
+	tabSeries co the chua he co dong nao cho tien to nay: 1.428 ma hang
+	hien tai duoc tao bang nhieu duong khac nhau, co ma tao tay. Khong keo
+	bo dem len truoc thi getseries tra ve 1, dam thang vao ma da co - ma
+	vong thu lai vai chuc lan cung khong du de vuot qua mot nhom hai tram
+	mon.
+	"""
+	mx = _moc_lon_nhat(tt)
+	if mx <= _series_hien(tt):
+		return
+	try:
+		frappe.db.sql(
+			"insert into `tabSeries` (name, `current`) values (%s, %s) "
+			"on duplicate key update `current` = greatest(`current`, %s)",
+			(tt, mx, mx),
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "danh_muc: khong dong bo duoc bo dem %s" % tt)
+
+
 def _ma_moi(tt):
 	"""Ma tiep theo cua mot tien to.
 
@@ -140,6 +194,7 @@ def _ma_moi(tt):
 	tt = str(tt or "").strip().upper()
 	if not tt:
 		frappe.throw("Chưa biết tiền tố mã của nhóm này. Điền giúp em một lần.")
+	_dong_bo_series(tt)
 	for _ in range(60):
 		ma = "%s%s" % (tt, getseries(tt, SO_CHU_SO))
 		if not frappe.db.exists("Item", ma):
@@ -222,12 +277,7 @@ def xem_truoc(nhom=None, loai=None, ten=None, quy_cach=None):
 	nhom = str(nhom or "").strip()
 	l = _loai(loai)
 	tt = tien_to_nhom(nhom) if nhom else ""
-	so = 0
-	if tt:
-		try:
-			so = cint(frappe.db.get_value("Series", tt, "current")) + 1
-		except Exception:
-			so = 0
+	so = _so_ke_tiep(tt) if tt else 0
 	canh_bao = []
 	if nhom and not tt:
 		canh_bao.append(
