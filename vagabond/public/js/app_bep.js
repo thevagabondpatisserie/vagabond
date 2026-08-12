@@ -851,6 +851,7 @@ async function scrHome() {
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
       ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn — khai một nơi dùng cho cả hệ', 0, 'CDDB') +
         card('🔒', 'Khoá sổ', 'Chốt số liệu kỳ cũ, không ai sửa hay huỷ được nữa', 0, 'CDKS') +
+        card('💳', 'Phương thức thanh toán', 'Máy cà thẻ, ví, công nợ — và mã gửi cơ quan thuế', 0, 'CDPT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
       : '') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
@@ -894,6 +895,7 @@ async function scrHome() {
     if (k === 'RND') return go(scrRndList);
     if (k === 'CDDB') return go(scrDiemBan);
     if (k === 'CDKS') return go(scrKhoaSo);
+    if (k === 'CDPT') return go(scrPtThanhToan);
     if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
     if (k === 'ACC') return go(scrAccount);
     go(function () { scrMRList(TYPES[k]); });
@@ -939,7 +941,7 @@ var VGB_NHOM = [
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'CN', 'CNPT', 'BC:BC05'] },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDCN', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDCN', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1239,6 +1241,7 @@ function vgbGo(k) {
   if (k === 'RND') return go(scrRndList);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
+  if (k === 'CDPT') return go(scrPtThanhToan);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
@@ -10046,7 +10049,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '121';
+var APPVER = '122';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12935,6 +12938,190 @@ async function ksLuu() {
     toast(ksData.ngay_khoa ? ('Đã khoá đến hết ' + ngayNgan(ksData.ngay_khoa)) : 'Đã bỏ khoá sổ.', 3500);
     ksVe();
   } catch (e) { busy(false); window.alert((e && e.message) || 'Không lưu được'); }
+}
+
+
+/* ===== Cai dat: phuong thuc thanh toan (anh Viet 12/08/2026) =====
+
+Truoc day mot phuong thuc phai khai o SAU cho trong ma nguon: bang tham
+chieu, danh sach cho quay, danh sach cho don online, hai danh sach tien
+chua ve, va bang ma gui co quan thue. Them mot may ca the moi la sua sau
+cho roi deploy - quen mot cho thi lech so ma khong ai bao loi ngay. */
+
+var ptDs = null, ptSuaDuoc = 0, ptTienVe = [], ptMo = null, ptMoi = 0;
+
+async function scrPtThanhToan() {
+  frame('Phương thức thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try {
+    var kq = await api('vagabond.pt_thanh_toan.danh_sach', {});
+    ptDs = kq.pt || []; ptSuaDuoc = kq.sua_duoc ? 1 : 0; ptTienVe = kq.tien_ve || [];
+  } catch (e) {
+    frame('Phương thức thanh toán', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  ptVe();
+}
+
+function ptNhanTienVe(k) {
+  for (var i = 0; i < ptTienVe.length; i++) if (ptTienVe[i].k === k) return ptTienVe[i].ten;
+  return k;
+}
+
+function ptVe() {
+  if (ptMoi) { ptDs = (ptDs || []).filter(function (x) { return !!x.ten; }); ptMoi = 0; }
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">PHƯƠNG THỨC THANH TOÁN</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Khai ở đây một lần, cả hệ dùng chung: màn tính tiền tại quầy, đơn online, màn chốt ca ' +
+    'và mã hình thức thanh toán gửi sang cơ quan thuế.</div></div>';
+
+  html += '<div class="card">' + (ptDs || []).map(function (d, i) {
+    var noi = [];
+    if (d.quay) noi.push('quầy');
+    if (d.online) noi.push('đơn online');
+    if (!noi.length) noi.push('theo nguồn đơn của sàn');
+    return '<div data-ptmo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+      (d.lg
+        ? '<img src="' + h(d.lg) + '" style="width:38px;height:38px;object-fit:contain;flex:none" onerror="this.style.visibility=\'hidden\'">'
+        : '<div style="width:38px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;font-size:22px">' + (d.ic || '💳') + '</div>') +
+      '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
+      '<div style="font-size:11.5px;color:#98a2b3">' + noi.join(' · ') +
+      (d.bat ? ' · bắt buộc nhập mã' : '') + '</div>' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h(ptNhanTienVe(d.tien_ve)) +
+      (d.minvoice ? ' · thuế ' + h(d.minvoice) : '') + '</div></div>' +
+      '<span style="font-size:12px;font-weight:700;color:' + (d.dung ? '#0f766e' : '#a0a6b4') + '">' + (d.dung ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
+      '<span style="color:#c8ccd4">›</span></div>';
+  }).join('') + '</div>';
+
+  html += '<div style="font-size:11.5px;color:#98a2b3;padding:8px 14px;line-height:1.6">' +
+    'Phương thức đã có hoá đơn thì không bỏ khỏi danh sách được, chỉ tắt. Hoá đơn cũ vẫn đọc được.</div>';
+
+  var b = frame('Phương thức thanh toán', html, ptSuaDuoc ? {
+    footer: '<button class="btn gh" id="ptThem" style="margin:0">➕ Thêm phương thức</button>'
+  } : null);
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-ptmo]');
+    if (t) { ptMo = +t.getAttribute('data-ptmo'); go(scrPtSua); }
+  };
+  var n = document.getElementById('ptThem');
+  if (n) n.onclick = function () {
+    ptDs.push({ ten: '', lg: '', ic: '💳', quay: 1, online: 0, bat: 0, nhan: '', vd: '', mau: '', loi: '', tien_ve: 'ngay', minvoice: 'CK', dung: 1, thu_tu: ptDs.length + 1 });
+    ptMo = ptDs.length - 1; ptMoi = 1;
+    go(scrPtSua);
+  };
+}
+
+function scrPtSua() {
+  var d = (ptDs || [])[ptMo];
+  if (!d) return go(scrPtThanhToan, true);
+  var o = function (nhan, id, gt, mo) {
+    return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">' + nhan + '</div>' +
+      '<input class="tin" id="' + id + '" value="' + h(gt || '') + '" style="width:100%;margin:0">' +
+      (mo ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:4px;line-height:1.5">' + mo + '</div>' : '') + '</div>';
+  };
+
+  var html = '<div class="card">' +
+    o('Tên phương thức', 'ptTen', d.ten, 'Tên này ghi thẳng vào từng hoá đơn, đặt xong thì đừng đổi.') +
+    o('Đường dẫn logo', 'ptLg', d.lg, 'Để trống thì dùng biểu tượng bên dưới.') +
+    o('Biểu tượng', 'ptIc', d.ic, 'Dùng khi không có logo.') +
+    '</div>';
+
+  html += '<div class="sec">Hiện ở đâu</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip(
+      posChipNut('data-ptq="1"', '🏬 Màn tính tiền tại quầy', !!d.quay) +
+      posChipNut('data-pto="1"', '🛵 Đơn online', !!d.online)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Tắt cả hai nghĩa là phương thức này đi theo nguồn đơn của sàn, không hiện ra cho ai chọn tay.</div></div>';
+
+  html += '<div class="sec">Tiền về lúc nào</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip(ptTienVe.map(function (x) {
+      return posChipNut('data-pttv="' + h(x.k) + '"', x.ten, d.tien_ve === x.k);
+    }).join('')) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Màn Chốt ca tách riêng hai loại sau để thu ngân đếm tiền mặt không bị lệch.</div></div>';
+
+  html += '<div class="sec">Mã tham chiếu đối soát</div><div class="card">' +
+    '<div style="padding:11px 12px;border-bottom:1px solid #f2f4f7">' +
+    kmHangChip(posChipNut('data-ptbat="1"', d.bat ? '● Bắt buộc nhập' : '○ Không bắt buộc', !!d.bat)) + '</div>' +
+    o('Nhãn ô nhập', 'ptNhan', d.nhan, 'Câu hiện trên màn cho thu ngân biết phải gõ gì.') +
+    o('Ví dụ', 'ptVd', d.vd) +
+    o('Mẫu kiểm định dạng', 'ptMau', d.mau, 'Để trống thì không kiểm. Gõ sai mẫu thì máy chặn ngay lúc lưu cấu hình.') +
+    o('Câu báo khi sai dạng', 'ptLoi', d.loi) +
+    '</div>';
+
+  html += '<div class="sec">Gửi sang cơ quan thuế</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip(['TM', 'CK', 'TM/CK', ''].map(function (m) {
+      return posChipNut('data-ptmi="' + m + '"', m || 'Không gửi', (d.minvoice || '') === m);
+    }).join('')) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'TM là tiền mặt, CK là chuyển khoản. Ghi sai thì tờ hoá đơn điện tử sai hình thức thanh toán.</div></div>';
+
+  html += '<div class="card" style="padding:11px 12px">' +
+    kmHangChip(posChipNut('data-ptdung="1"', d.dung ? '● Đang dùng' : '○ Đã tắt', !!d.dung)) + '</div>';
+
+  var b = frame(d.ten ? ('Sửa ' + d.ten) : 'Phương thức mới', html, {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="ptBo" style="margin:0;flex:0 0 34%;color:#b3261e;border-color:#fecaca">Bỏ dòng này</button>' +
+      '<button class="btn" id="ptLuu" style="margin:0;flex:1">💾 Lưu</button></div>'
+  });
+
+  b.onclick = function (e) {
+    var t;
+    if (e.target.closest('[data-ptq]')) { ptDoc(); d.quay = d.quay ? 0 : 1; return go(scrPtSua, true); }
+    if (e.target.closest('[data-pto]')) { ptDoc(); d.online = d.online ? 0 : 1; return go(scrPtSua, true); }
+    if (e.target.closest('[data-ptbat]')) { ptDoc(); d.bat = d.bat ? 0 : 1; return go(scrPtSua, true); }
+    if (e.target.closest('[data-ptdung]')) { ptDoc(); d.dung = d.dung ? 0 : 1; return go(scrPtSua, true); }
+    t = e.target.closest('[data-pttv]');
+    if (t) { ptDoc(); d.tien_ve = t.getAttribute('data-pttv'); return go(scrPtSua, true); }
+    t = e.target.closest('[data-ptmi]');
+    if (t) { ptDoc(); d.minvoice = t.getAttribute('data-ptmi'); return go(scrPtSua, true); }
+  };
+  document.getElementById('ptLuu').onclick = function () { ptLuu(); };
+  document.getElementById('ptBo').onclick = async function () {
+    var ok = await confirmSheet('Bỏ phương thức ' + (d.ten || 'mới') + '?',
+      'Nếu phương thức này đã có hoá đơn thì máy chủ sẽ chặn — lúc đó anh chị tắt nó đi thay vì bỏ.', 'Bỏ dòng này', true);
+    if (!ok) return;
+    ptDs.splice(ptMo, 1);
+    ptLuu(1);
+  };
+}
+
+function ptDoc() {
+  var d = (ptDs || [])[ptMo];
+  if (!d) return;
+  var v = function (id) { var e = document.getElementById(id); return e ? e.value.trim() : null; };
+  var g;
+  if ((g = v('ptTen')) !== null) d.ten = g;
+  if ((g = v('ptLg')) !== null) d.lg = g;
+  if ((g = v('ptIc')) !== null) d.ic = g;
+  if ((g = v('ptNhan')) !== null) d.nhan = g;
+  if ((g = v('ptVd')) !== null) d.vd = g;
+  if ((g = v('ptMau')) !== null) d.mau = g;
+  if ((g = v('ptLoi')) !== null) d.loi = g;
+}
+
+async function ptLuu(daBo) {
+  if (!daBo) ptDoc();
+  busy(true);
+  try {
+    var kq = await api('vagabond.pt_thanh_toan.luu', { pt: JSON.stringify(ptDs) });
+    ptDs = kq.pt || []; ptSuaDuoc = kq.sua_duoc ? 1 : 0;
+    busy(false);
+    toast('Đã lưu phương thức thanh toán.', 3000);
+    ptMoi = 0;
+    back();
+  } catch (e) {
+    busy(false);
+    window.alert((e && e.message) || 'Không lưu được');
+    try {
+      var lai = await api('vagabond.pt_thanh_toan.danh_sach', {});
+      ptDs = lai.pt || []; ptSuaDuoc = lai.sua_duoc ? 1 : 0;
+      if (ptMo >= ptDs.length) ptMo = Math.max(0, ptDs.length - 1);
+    } catch (e2) { }
+    go(scrPtSua, true);
+  }
 }
 
 })();
