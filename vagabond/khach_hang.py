@@ -63,7 +63,13 @@ def ds_hang():
 		ds = frappe.get_all(
 			"Vagabond Hang Khach",
 			filters={"bat": 1},
-			fields=["name", "ten_hang", "thu_tu", "loai", "giam_gia", "chi_tieu_tu", "so_thang_xet", "mo_ta"],
+			# "anh" la anh the thanh vien, app deo len chip hang o man Danh
+			# muc khach hang. "tich_diem" de man do con noi duoc hang nay
+			# tich bao nhieu ma khong phai goi them mot luot nua.
+			fields=[
+				"name", "ten_hang", "thu_tu", "loai", "giam_gia", "tich_diem",
+				"chi_tieu_tu", "so_thang_xet", "mo_ta", "anh",
+			],
 			order_by="thu_tu asc",
 			limit_page_length=0,
 		)
