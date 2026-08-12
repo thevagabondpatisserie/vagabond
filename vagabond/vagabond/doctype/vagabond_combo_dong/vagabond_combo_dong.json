@@ -4,13 +4,15 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["item_code", "ten_mon", "so_luong", "gia_goc", "thanh_tien"],
+ "field_order": ["item_code", "ten_mon", "so_luong", "gia_goc", "thanh_tien", "nhom", "chon_trong_nhom"],
  "fields": [
   {"fieldname": "item_code", "fieldtype": "Link", "options": "Item", "label": "Ma mon", "reqd": 1, "in_list_view": 1, "columns": 3},
   {"fieldname": "ten_mon", "fieldtype": "Data", "label": "Ten mon", "fetch_from": "item_code.item_name", "read_only": 1, "in_list_view": 1, "columns": 4},
   {"fieldname": "so_luong", "fieldtype": "Float", "label": "So luong", "default": "1", "reqd": 1, "in_list_view": 1, "columns": 1},
   {"fieldname": "gia_goc", "fieldtype": "Currency", "label": "Gia goc", "in_list_view": 1, "columns": 2},
-  {"fieldname": "thanh_tien", "fieldtype": "Currency", "label": "Thanh tien", "read_only": 1, "in_list_view": 1, "columns": 2}
+  {"fieldname": "thanh_tien", "fieldtype": "Currency", "label": "Thanh tien", "read_only": 1, "in_list_view": 1, "columns": 2},
+  {"fieldname": "nhom", "fieldtype": "Data", "label": "Nhom chon", "description": "De trong la mon bat buoc, luon vao bill. Dat ten nhom thi khach duoc chon trong nhom do."},
+  {"fieldname": "chon_trong_nhom", "fieldtype": "Int", "label": "So mon duoc chon trong nhom", "default": "1"}
  ],
  "istable": 1,
  "links": [],
