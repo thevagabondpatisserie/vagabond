@@ -680,14 +680,24 @@ def ds_ctkm(quay=None, nguon=None, khach=None, sdt=None, ngay=None, tat_ca=0):
 		order_by="uu_tien asc, ten asc",
 		limit_page_length=0,
 	)
+	# Man CAU HINH goi ham nay khong kem don hang nao (tat_ca=1, khong co
+	# nguon lan quay). Luc do khong duoc phep phan xet "dung duoc hay khong"
+	# theo kenh: khong co don thi kenh nao cung khong khop, va man hinh bao
+	# "khong ap dung cho nguon don (trong)" trong khi nguoi ta khai dung -
+	# De bao ngay 12/08/2026. Chi kiem THOI GIAN, la thu doc duoc mot minh.
+	co_don = bool((nguon or "").strip() or (quay or "").strip())
 	ra = []
 	for km in ds:
 		o = dict(km)
 		o["nhan_cach"] = NHAN_CACH_THUC.get(km.cach_thuc, km.cach_thuc)
+		# Tach san danh sach de man cau hinh bay ra thanh chip, thay vi bat
+		# nguoi doc tu doan tu mot o van ban nhieu dong.
+		o["kenh_ds"] = _dong(km.get("kenh"))
+		o["quay_ds"] = [q.upper() for q in _dong(km.get("quay"))]
 		ok, ly_do = _hop_thoi_gian(km)
-		if ok:
+		if ok and co_don:
 			ok, ly_do = _hop_kenh(km, nguon, quay)
-		if ok:
+		if ok and (co_don or khach or sdt):
 			ok, ly_do = _hop_doi_tuong(km, khach, sdt)
 		if ok:
 			ok, ly_do = _hop_han_muc(km, sdt=sdt, ngay=ngay)
@@ -712,11 +722,14 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 		order_by="uu_tien asc, ten asc",
 		limit_page_length=0,
 	)
+	co_don = bool((nguon or "").strip() or (quay or "").strip())
 	ra = []
 	for cb in ds:
 		o = dict(cb)
+		o["kenh_ds"] = _dong(cb.get("kenh"))
+		o["quay_ds"] = [q.upper() for q in _dong(cb.get("quay"))]
 		ok, ly_do = _hop_thoi_gian(cb)
-		if ok:
+		if ok and co_don:
 			ok, ly_do = _hop_kenh(cb, nguon, quay)
 		o["dung_duoc"] = 1 if ok else 0
 		o["ly_do"] = ly_do

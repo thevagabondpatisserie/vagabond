@@ -87,10 +87,15 @@ MAC_DINH = [
 		"ten": "Grab Dine-Out", "lg": "/assets/vagabond/images/pt-grab-dineout.png",
 		"quay": 1, "online": 0, "tien_ve": TIEN_VE_SAU, "minvoice": "",
 		"bat": 1,
-		# Ma nay nam trong man Chi tiet giao dich cua app Grab Merchant, dong
-		# "Ma thanh toan". Grab co the doi dang bat ky luc nao nen KHONG cai
-		# luat chan dinh dang - nhan vien go sao thi luu vay.
-		"nhan": "Mã thanh toán Grab Dine-Out", "vd": "SVNVPH6EU435",
+		# Grab bao lai ngay 12/08/2026: ma doi soat cua Dine-Out bat dau bang
+		# "GD-". Ma nay hien tren man xac nhan thanh toan trong app cua khach,
+		# dong "Order". Cuoi thang doi soat file cua Grab chinh la khop theo
+		# ma nay, nen bat go dung dang ngay tu luc chot bill - go sai mot ky
+		# tu la thang do phai do tay.
+		"nhan": "Mã đơn Grab Dine-Out trên máy khách", "vd": "GD-KKJDUSEH",
+		"mau": r"^GD-[A-Z0-9]{4,20}$",
+		"loi": "Mã Grab Dine-Out bắt đầu bằng GD- rồi tới chữ và số, ví dụ "
+		"GD-KKJDUSEH. Nhờ khách đưa màn hình xác nhận thanh toán, dòng Order.",
 	},
 	{
 		# Khach si (Ravie...) va khach VIP gom nhieu hoa don tra mot lan.
