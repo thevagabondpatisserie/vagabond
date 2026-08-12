@@ -47,7 +47,7 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban, pt_thanh_toan, quyen_quay, tai_khoan
+from vagabond import chung_tu, diem_ban, may_in, pt_thanh_toan, quyen_quay, tai_khoan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -598,6 +598,9 @@ def cau_hinh_ban_hang():
 		# vao dung tai khoan cua nguon do.
 		"qr_nguon": tai_khoan.bang_theo_nguon(nguon),
 		"thu_tu_nhom": THU_TU_NHOM,
+		# Kho giay tung loai phieu, de app khong go cung 80mm nua. Doi may
+		# in khac kho thi khai o man Cai dat, khong phai sua ma roi deploy.
+		"kho_in": may_in.kho_theo_vai_tro(),
 		"pt_chua_ve_tien": pt_thanh_toan.chua_ve_tien(),
 		"pt_ve_sau": pt_thanh_toan.ve_sau(),
 		# De app biet luc nao phai hoi ma OTP. May chu van kiem lai het, day
@@ -870,10 +873,32 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	else:
 		si = frappe.new_doc("Sales Invoice")
 
+	# Gan dung nguoi mua thay vi do het vao gio chung (anh Viet 12/08/2026).
+	#
+	# Truoc day moi don Pancake deu mang khach "Khach le Online", ten va so
+	# dien thoai that chi nam trong o ghi chu. Khach mua ca nam khong tich
+	# duoc diem nao, con nhan vien muon gan dung nguoi thi phai go tay lai.
+	#
+	# KHONG de len khach sales da sua tay: chi dien khi hoa don con dang
+	# mang gio chung. Va khong bao gio de chuoi dong bo dung lai vi mot so
+	# dien thoai la lung - khach_cho_don nuot loi va tra rong.
+	khach_don = khach
+	from vagabond.khach_hang import la_khach_gop
+
+	if (not cu) or la_khach_gop(si.get("customer")):
+		try:
+			from vagabond import nhap_khach
+
+			m = nhap_khach.khach_cho_don(sdt, ten_khach, "Pancake")
+			if m:
+				khach_don = m
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang: gan khach cho don Pancake")
+
 	si.update(
 		{
 			"company": cong_ty,
-			"customer": khach,
+			"customer": khach_don,
 			"posting_date": str(ngay),
 			"set_posting_time": 1,
 			"due_date": str(ngay),

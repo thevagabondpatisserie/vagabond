@@ -56,6 +56,18 @@ def _kiem_quyen():
 		frappe.throw("Chỉ quản lý hoặc kế toán mới được nhập danh sách khách hàng.")
 
 
+# Dau so di dong Viet Nam that su dang phat hanh, hai chu so sau so 0.
+#
+# Phai liet ke tung dau so chu khong chi kiem "bat dau bang 3 5 7 8 9":
+# trong tep Fabi co so 0300136435, dau so 030 khong ton tai o Viet Nam
+# (day la ma so thue bi go nham vao o so dien thoai). Kiem lo tay thi tao
+# ra mot khach ma ca doi khong nhan duoc tin nhan nao.
+DAU_SO = frozenset(
+	"32 33 34 35 36 37 38 39 52 55 56 58 59 70 76 77 78 79 "
+	"81 82 83 84 85 86 87 88 89 90 91 92 93 94 96 97 98 99".split()
+)
+
+
 def sdt_chuan(s):
 	"""So di dong Viet Nam ve dang 0xxxxxxxxx. Khong doc duoc thi tra rong.
 
@@ -63,10 +75,12 @@ def sdt_chuan(s):
 	khong nhan duoc tin nhan nao, ma khong ai biet vi sao.
 	"""
 	x = "".join(ch for ch in str(s or "") if ch.isdigit())
-	if x.startswith("84"):
+	# Chi cat ma quoc gia khi phan con lai du dai. "84xxxxxxxxx" la so co
+	# ma vung, con "0084..." hay so bat dau bang 84 nhung ngan thi khong.
+	if x.startswith("84") and len(x) > 10:
 		x = x[2:]
 	x = x.lstrip("0")
-	if len(x) == 9 and x[0] in "35789":
+	if len(x) == 9 and x[:2] in DAU_SO:
 		return "0" + x
 	return ""
 
@@ -340,3 +354,92 @@ def bat_dau(file_url=None, tu=0, gioi_han=0, chay_ngay=0):
 		gioi_han=cint(gioi_han),
 	)
 	return {"da_xep_hang": 1, "tep": file_url}
+
+
+# ------------------------------------------------- tra khach theo so dien thoai
+#
+# Dung cho don Pancake dong bo ve (anh Viet 12/08/2026): truoc day moi don
+# online deu do vao gio chung "Khach le Online", ten va so dien thoai that
+# chi nam trong o ghi chu. Khach mua ca nam khong tich duoc diem nao, con
+# nhan vien thi phai go tay lai neu muon gan dung nguoi.
+#
+# Nay co danh sach 41.423 khach that roi thi tra thang theo so dien thoai.
+
+
+def tim_theo_sdt(sdt):
+	"""Ma khach mang so dien thoai nay. Khong co thi tra rong.
+
+	Tra cuu bang MOT cau truy van chu khong dung bang tra dung san: ham nay
+	goi cho tung don mot trong chuoi dong bo 15 phut, dung bang tra la moi
+	lan chay lai phai doc ca 41.000 lien he.
+	"""
+	s = sdt_chuan(sdt)
+	if not s:
+		return ""
+	# So co the dang nam duoi dang 0xxxxxxxxx hoac 84xxxxxxxxx, ca hai deu
+	# tung duoc nhap vao he. So sanh ca hai cho chac.
+	dang = [s, "84" + s[1:], "+84" + s[1:]]
+	rows = frappe.db.sql(
+		"""
+		select dl.link_name ma
+		from `tabContact` c
+		join `tabDynamic Link` dl on dl.parent = c.name
+		where dl.link_doctype = 'Customer' and dl.parenttype = 'Contact'
+		  and (c.mobile_no in %(dang)s or c.phone in %(dang)s)
+		limit 1
+		""",
+		{"dang": tuple(dang)},
+		as_dict=True,
+	)
+	if rows:
+		return rows[0]["ma"]
+	rows = frappe.db.sql(
+		"select name from `tabCustomer` where mobile_no in %(dang)s limit 1",
+		{"dang": tuple(dang)},
+		as_dict=True,
+	)
+	return rows[0]["name"] if rows else ""
+
+
+def tao_khach_le(sdt, ten="", nguon=""):
+	"""Tao mot khach le moi tu so dien thoai. Tra ma khach, hoac rong."""
+	s = sdt_chuan(sdt)
+	if not s:
+		return ""
+	d = {
+		"sdt": s,
+		"ten": re.sub(r"\s+", " ", str(ten or "").strip()),
+		"da_tieu": 0,
+		"lan_cuoi": "",
+		"sinh_nhat": "",
+		"gioi_tinh": "",
+		"email": "",
+		"dia_chi": "",
+	}
+	ma = _tao_mot(d, _bang_hang())
+	if ma and nguon:
+		try:
+			frappe.db.set_value("Customer", ma, "vgb_ma_cu", str(nguon)[:140], update_modified=False)
+		except Exception:
+			pass
+	return ma
+
+
+def khach_cho_don(sdt, ten="", nguon=""):
+	"""Tim khach theo so dien thoai, chua co thi tao moi. Tra ma khach.
+
+	Loi thi tra RONG chu khong nem: mot don online khong gan duoc khach van
+	phai vao doanh thu, khong duoc chan ca chuoi dong bo vi mot so dien
+	thoai la lung.
+	"""
+	try:
+		s = sdt_chuan(sdt)
+		if not s:
+			return ""
+		ma = tim_theo_sdt(s)
+		if ma:
+			return ma
+		return tao_khach_le(s, ten, nguon)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "nhap_khach: gan khach cho don")
+		return ""
