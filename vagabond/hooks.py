@@ -72,6 +72,10 @@ doc_events = {
 		# tu commit thi ban sua lau van nam lai ma may van bao la da chan.
 		"before_update_after_submit": "vagabond.chung_tu.chan_ngay_khoa",
 	},
+	# Ma khach hang sinh theo nhom (KL, SI, DN, SA, NB). Dat o autoname chu
+	# khong o before_insert: before_insert chay SAU khi Frappe da chot ten,
+	# doi ten o do la khong an.
+	"Customer": {"autoname": "vagabond.ma_khach.dat_ma"},
 	"Sales Invoice": {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
