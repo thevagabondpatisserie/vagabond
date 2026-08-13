@@ -9470,9 +9470,11 @@ async function scrKhachHang() {
          chu khong nhet chung mot chip (anh Viet 13/08/2026). Chip cu chi
          hien duoc mot lat cat 14px cua the nen nhin nhu bi lech. */
       (hg && hg.anh
-        ? '<div style="width:62px;flex:none;text-align:center">' +
-          '<img src="' + h(hg.anh) + '" alt="" loading="lazy" style="width:62px;aspect-ratio:1.586;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;background:#f2f4f7">' +
-          '<div style="font-size:9px;font-weight:800;letter-spacing:.04em;color:#92400e;margin-top:3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(hg.ten_hang) + '</div></div>'
+        /* 68px chu khong phai 62: ten hang dai nhat la VAGABONDER, o 62px
+           thi bi cat thanh "VAGABOND..." (thay khi chay that 13/08/2026). */
+        ? '<div style="width:68px;flex:none;text-align:center">' +
+          '<img src="' + h(hg.anh) + '" alt="" loading="lazy" style="width:68px;aspect-ratio:1.586;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;background:#f2f4f7">' +
+          '<div style="font-size:8px;font-weight:800;color:#92400e;margin-top:3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(hg.ten_hang) + '</div></div>'
         : '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:18px">' + (x.si ? '🏢' : '🧍') + '</span>') +
       '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
@@ -10422,7 +10424,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '140';
+var APPVER = '141';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
