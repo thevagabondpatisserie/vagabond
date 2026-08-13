@@ -10540,7 +10540,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '145';
+var APPVER = '146';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -15897,6 +15897,14 @@ async function scrDonTreo() {
       '<div style="margin-top:10px"><button class="btn gh" data-dt="keo" style="width:100%">📥 Kéo ' + sanSangCu.length + ' đơn sang hôm nay và ghi sổ</button></div></div>';
   }
 
+  /* Huy ghi so hang loat: nut nay chi hien khi ngay dang xem CO to da ghi
+     so bi keo tu ngay cu sang. Khong bay ra thuong truc - huy hang loat la
+     viec hiem, de san mot nut do giua man chi to bam nham. */
+  html += '<div class="sec">Công cụ kế toán</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
+    'Hoá đơn đã ghi sổ nhầm thì huỷ ghi sổ ở đây. Máy đảo ngược bút toán, rút lại điểm đã tích, xoá số hoá đơn điện tử bên mình và ẩn tờ đó khỏi danh sách bill của Sales.' +
+    '<br><b style="color:#991b1b">Tờ đã ký hoặc cơ quan thuế đã nhận thì máy chặn</b>, những tờ đó phải làm hoá đơn thay thế.' +
+    '<div style="margin-top:10px"><button class="btn gh" data-dt="huyloat" style="width:100%">🗑 Huỷ ghi sổ hàng loạt</button></div></div>';
+
   html += '<div class="sec">Danh sách đơn · bấm để mở đơn</div><div class="card">';
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🎉</div><div>Không còn đơn nào treo trong ' + dtNgay + ' ngày qua.</div></div>';
   else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có đơn nào thuộc nhóm <b>' + f.nhan + '</b>.</div></div>';
@@ -15931,11 +15939,52 @@ async function scrDonTreo() {
   });
   var nk = document.querySelector('[data-dt="keo"]');
   if (nk) nk.onclick = async function () { await dtKeo(); };
+  var nh = document.querySelector('[data-dt="huyloat"]');
+  if (nh) nh.onclick = async function () { await dtHuyLoat(); };
 }
 
 function dtNgayVn(s) {
   var p = String(s || '').split('-');
   return p.length === 3 ? p[2] + '/' + p[1] : String(s || '');
+}
+
+/* Huy ghi so hang loat. Ba lop chan truoc khi chay that: xem truoc bat
+   buoc, bat go ly do, va hoi lai kem con so. */
+async function dtHuyLoat() {
+  var ngay = window.prompt('Huỷ ghi sổ các hoá đơn ĐÃ GHI SỔ của ngày nào? (YYYY-MM-DD)', today());
+  if (!ngay) return;
+  var truoc = window.prompt(
+    'Chỉ lấy tờ được LẬP TRƯỚC ngày nào? Để trống thì lấy hết tờ của ngày trên.\n\n' +
+    'Ví dụ gõ 2026-08-05 thì chỉ dính những tờ bị kéo từ ngày cũ sang, không dính tờ sinh trong ngày.',
+    '');
+  var ts = { ngay: ngay };
+  if (truoc && truoc.trim()) ts.tao_truoc = truoc.trim();
+  busy(true);
+  var xem;
+  try { xem = await api('vagabond.chung_tu.xem_truoc_huy_ghi_so', ts); }
+  catch (e) { busy(false); return window.alert((e && e.message) || 'Không xem trước được'); }
+  busy(false);
+  if (!xem || !xem.so_don) return toast('Không có hoá đơn đã ghi sổ nào khớp tiêu chí đó.');
+  var mo = (xem.vi_du || []).slice(0, 10).map(function (x) {
+    return '#' + (x.ma || x.don) + ' · ' + money(x.tien) + ' đ' + (x.hddt ? ' · HĐĐT ' + x.hddt + ' (' + x.hddt_tt + ')' : '');
+  }).join('\n');
+  if (!window.confirm(
+    'Sẽ huỷ ghi sổ ' + xem.so_don + ' hoá đơn, tổng ' + money(xem.tong_tien) + ' đ.\n' +
+    xem.co_hddt + ' tờ có số hoá đơn điện tử' + (xem.da_ky ? ', trong đó ' + xem.da_ky + ' tờ ĐÃ KÝ hoặc CQT đã nhận nên máy sẽ BỎ QUA' : '') + '.\n\n' +
+    mo + (xem.so_don > 10 ? '\n... và ' + (xem.so_don - 10) + ' tờ nữa' : '') +
+    '\n\nViệc này KHÔNG LUI LẠI ĐƯỢC. Tiếp tục?')) return;
+  var ly = window.prompt('Lý do huỷ? (bắt buộc, sau này còn biết vì sao)', '');
+  if (!ly || !ly.trim()) return toast('Chưa ghi lý do nên em chưa huỷ.');
+  ts.ly_do = ly.trim();
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.chung_tu.huy_ghi_so_hang_loat', ts); }
+  catch (e) { busy(false); return window.alert((e && e.message) || 'Huỷ lỗi'); }
+  busy(false);
+  window.alert('Xong: huỷ ' + kq.huy + ' tờ, tổng ' + money(kq.tong_tien) + ' đ.' +
+    (kq.bo_qua_da_ky ? '\nBỏ qua ' + kq.bo_qua_da_ky + ' tờ đã ký hoặc CQT đã nhận.' : '') +
+    ((kq.loi || []).length ? '\n\n' + kq.loi.slice(0, 8).join('\n') : ''));
+  go(scrDonTreo, true);
 }
 
 /* Keo don cu sang hom nay roi ghi so. Xem truoc TRUOC, hoi lai, roi moi
