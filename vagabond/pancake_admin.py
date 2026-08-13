@@ -496,6 +496,77 @@ DUONG_DO = [
 ]
 
 
+# Duong lien quan den KHACH HANG. Anh Viet hoi 13/08/2026: hang thanh vien,
+# so diem va viec tru diem co day sang Pancake duoc khong, de CRM chi con
+# mot cho. Cung nguyen tac nhu tren: khong doan theo tai lieu, go cua tung
+# duong bang GET roi doc ma tra ve.
+DUONG_KHACH = [
+	"customers",
+	"customer_groups",
+	"customer_tags",
+	"tags",
+	"loyalty",
+	"loyalty_programs",
+	"membership",
+	"memberships",
+	"levels",
+	"customer_levels",
+	"points",
+	"customer_points",
+	"rewards",
+]
+
+
+@frappe.whitelist()
+def do_duong_khach():
+	"""Xem Pancake co duong API nao cho hang thanh vien va diem khong.
+
+	Chi GET va chi tra ve ma trang thai kem do dai than tra ve. Khong doc
+	noi dung: than API khach hang chua thong tin ca nhan cua nguoi khac,
+	khong duoc de no chay ra man hinh chi vi mot lan do duong.
+
+	Rieng duong "customers" da biet la 200 (dang dung o api.py de goi y
+	dia chi giao hang), giu trong danh sach de doi chieu."""
+	_quyen()
+	c, k = _khoa()
+	ra = []
+	for d in DUONG_KHACH:
+		u = "%s/shops/%s/%s" % (PANCAKE, c.pancake_shop_id, d)
+		try:
+			r = requests.get(u, params={"api_key": k, "page_size": 1}, timeout=TIMEOUT)
+			ra.append({"duong": d, "ma": r.status_code, "dai": len(r.content or b"")})
+		except Exception as e:
+			ra.append({"duong": d, "ma": 0, "loi": str(e)[:120]})
+	return ra
+
+
+@frappe.whitelist()
+def truong_khach_pancake():
+	"""Ten cac truong Pancake tra ve cho MOT khach hang bat ky.
+
+	Chi tra ve TEN TRUONG, tuyet doi khong tra ve gia tri: can biet Pancake
+	co cho minh cho de ghi hang va diem hay khong, chu khong can doc du
+	lieu cua khach nao ca."""
+	_quyen()
+	c, k = _khoa()
+	r = requests.get(
+		"%s/shops/%s/customers" % (PANCAKE, c.pancake_shop_id),
+		params={"api_key": k, "page_size": 1},
+		timeout=TIMEOUT,
+	)
+	if r.status_code != 200:
+		return {"ma": r.status_code, "truong": []}
+	ds = (r.json() or {}).get("data") or []
+	if not ds:
+		return {"ma": 200, "truong": [], "ghi_chu": "shop chua co khach nao"}
+	kh = ds[0]
+	truong = []
+	for t in sorted(kh.keys()):
+		v = kh[t]
+		truong.append("%s:%s" % (t, type(v).__name__))
+	return {"ma": 200, "truong": truong}
+
+
 @frappe.whitelist()
 def do_duong():
 	"""Xem Pancake co duong API nao cho combo va khuyen mai khong."""

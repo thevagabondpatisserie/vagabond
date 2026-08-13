@@ -2499,7 +2499,70 @@ def tao_don_tay(
 	except Exception:
 		frappe.log_error(title="Vagabond: tru kiem banh sau don tay", message=frappe.get_traceback())
 
-	return {"name": si.name, "grand_total": si.grand_total}
+	return {
+		"name": si.name,
+		"grand_total": si.grand_total,
+		# Khoi diem de IN LEN BILL (anh Viet 13/08/2026). Tinh o day chu
+		# khong doi hook on_submit: luc in bill hoa don thuong con la ban
+		# nhap chua ghi so, diem thuc su chi cong khi ghi so - nhung khach
+		# dang dung o quay va can biet ngay minh duoc bao nhieu diem.
+		"diem": _khoi_diem_bill(si),
+	}
+
+
+def _khoi_diem_bill(si):
+	"""So diem khach duoc tich cua rieng hoa don nay, kem so du hien co.
+
+	Dung DUNG cong thuc cua khach_hang.cong_diem_hoa_don de con so in tren
+	bill khong bao gio lech voi so thuc cong vao so diem."""
+	try:
+		from vagabond import khach_hang as _kh
+
+		kh = _kh._khach_that(si)
+		if not kh:
+			return None
+		hang = _kh._hang_cua(kh)
+		if not hang:
+			return None
+		ty_le = flt(hang.get("tich_diem"))
+		ten = frappe.db.get_value("Customer", kh, "customer_name") or kh
+		du = flt(frappe.db.get_value("Customer", kh, "vgb_diem"))
+		tich = round(flt(si.grand_total) * ty_le / 100.0) if ty_le > 0 else 0
+		return {
+			"khach": kh,
+			"ten": ten,
+			"hang": hang.get("name") or "",
+			"ty_le": ty_le,
+			"tich": tich,
+			"du_truoc": du,
+			"du_sau": du + tich,
+		}
+	except Exception:
+		# In bill KHONG duoc hong vi khoi diem. Thieu thi bill van ra, chi
+		# la khong co dong diem.
+		frappe.log_error(frappe.get_traceback(), "ban_hang: khoi diem bill loi")
+		return None
+
+
+@frappe.whitelist()
+def pos_bill_them(name=None):
+	"""Phan in them cua mot bill da luu: diem thanh vien va ten thu ngan.
+
+	Duong IN LAI khong di qua tao_don_tay nen khong co san hai thong tin
+	nay. Quan trong nhat la THU NGAN: ban in lai phai ghi ten nguoi da bam
+	bill, khong phai ten nguoi dang cam may in - neu khong thi in lai mot
+	bill cua ca truoc se doi sang ten nguoi ca sau."""
+	_kiem_quyen()
+	name = (name or "").strip()
+	if not name or not frappe.db.exists("Sales Invoice", name):
+		return {"diem": None, "thu_ngan": ""}
+	si = frappe.get_doc("Sales Invoice", name)
+	nguoi = si.owner or ""
+	ten = frappe.db.get_value("User", nguoi, "full_name") if nguoi else ""
+	return {
+		"diem": _khoi_diem_bill(si),
+		"thu_ngan": (ten or str(nguoi).split("@")[0] or "").strip(),
+	}
 
 
 # ---------------------------------------------------------------- m-invoice
