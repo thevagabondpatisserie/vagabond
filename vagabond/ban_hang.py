@@ -834,6 +834,26 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
 	did = str(o.get("display_id") or o.get("id") or "")
+	# To DA HUY GHI SO that (docstatus 2) thi dung lai o day, du no co mang
+	# danh dau huy mem hay khong.
+	#
+	# Vi sao phai xet rieng: doan tim ben duoi co dieu kien vgb_huy 0, nen
+	# mot to vua bi huy ghi so hang loat la coi nhu khong ton tai, va nhip
+	# dong bo sau se dung LAI mot to moi cho cung ma don. To moi do lai ghi
+	# so cuoi ngay va XUAT HOA DON DIEN TU lan nua. Ngay 13/08/2026 huy 135
+	# to (103 trieu) vi chung da xuat hoa don ben Fabi, anh Viet phai vao
+	# m-invoice huy tay tung to; de ho cua nay la lam lai dung viec do.
+	#
+	# Huy ghi so la quyet dinh co chu y cua nguoi, may khong duoc lang le
+	# dung lai.
+	da_huy = frappe.db.get_value(
+		"Sales Invoice",
+		{"custom_pancake_id": pid, "docstatus": 2},
+		["name"],
+	)
+	if da_huy:
+		return "da_huy_si", da_huy
+
 	# vgb_huy: 0 la bat buoc. Danh dau huy da nha ma Pancake ra roi nen bo
 	# loc nay gan nhu khong bao gio dinh, nhung neu co mot to nao con giu ma
 	# (danh dau tay, du lieu cu) thi lan dong bo sau se lay chinh no ra dung
@@ -1030,12 +1050,17 @@ def _dong_bo_doanh_so(ngay=None, im_lang=False):
 
 		cong_ty = _cong_ty()
 		khach = _khach_le()
-		kq = {"tao_moi": 0, "cap_nhat": 0, "da_chot": 0, "loi": []}
+		# da_huy dem rieng chu khong im lang bo qua: don bien mat khoi doanh
+		# thu ma khong ai biet vi sao chinh la kieu loi da lam 149 don nam
+		# nhap nua thang hoi dau thang 8. Dem duoc thi man hinh con noi ra.
+		kq = {"tao_moi": 0, "cap_nhat": 0, "da_chot": 0, "da_huy": 0, "loi": []}
 		for o in dons:
 			try:
 				tt, ghi_chu = _upsert_hoa_don(o, ngay, cong_ty, khach)
 				if tt in ("tao_moi", "cap_nhat", "da_chot"):
 					kq[tt] += 1
+				elif tt == "da_huy_si":
+					kq["da_huy"] += 1
 				elif tt == "thieu_ma":
 					kq["loi"].append(ghi_chu)
 				# Ghi that sau tung don: lan chay sau (hay lan chay song song)
