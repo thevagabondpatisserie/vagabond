@@ -4,24 +4,104 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["hoa_don", "so_hd_ncc", "ngay_hd", "noi_dung", "ben_ban", "loai_chi", "co_vat", "han_tra", "tong_hd", "con_no", "so_tien", "ghi_chu"],
+ "field_order": [
+  "hoa_don",
+  "so_hd_ncc",
+  "ngay_hd",
+  "noi_dung",
+  "ben_ban",
+  "loai_chi",
+  "co_vat",
+  "han_tra",
+  "tong_hd",
+  "con_no",
+  "so_tien",
+  "ma_giao_dich",
+  "ghi_chu"
+ ],
  "fields": [
-  {"fieldname": "hoa_don", "fieldtype": "Link", "options": "Purchase Invoice", "label": "Hoa don mua", "in_list_view": 1, "columns": 2},
-  {"fieldname": "so_hd_ncc", "fieldtype": "Data", "label": "So hoa don NCC", "in_list_view": 1, "columns": 2},
-  {"fieldname": "ngay_hd", "fieldtype": "Date", "label": "Ngay hoa don", "in_list_view": 1, "columns": 1},
-  {"fieldname": "noi_dung", "fieldtype": "Data", "label": "Noi dung"},
-  {"fieldname": "ben_ban", "fieldtype": "Data", "label": "Ben ban (NCC nho le)"},
-  {"fieldname": "loai_chi", "fieldtype": "Select", "label": "Loai chi", "options": "\nHang hoa\nHang test\nHang phat sinh\nChi phi\nKhac"},
-  {"fieldname": "co_vat", "fieldtype": "Check", "label": "Co hoa don VAT"},
-  {"fieldname": "han_tra", "fieldtype": "Date", "label": "Han tra"},
-  {"fieldname": "tong_hd", "fieldtype": "Currency", "label": "Tong hoa don"},
-  {"fieldname": "con_no", "fieldtype": "Currency", "label": "Con no luc lap", "in_list_view": 1, "columns": 2},
-  {"fieldname": "so_tien", "fieldtype": "Currency", "label": "De nghi tra", "reqd": 1, "in_list_view": 1, "columns": 2},
-  {"fieldname": "ghi_chu", "fieldtype": "Data", "label": "Ghi chu"}
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "options": "Purchase Invoice",
+   "label": "Hoa don mua",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "so_hd_ncc",
+   "fieldtype": "Data",
+   "label": "So hoa don NCC",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "ngay_hd",
+   "fieldtype": "Date",
+   "label": "Ngay hoa don",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Data",
+   "label": "Noi dung"
+  },
+  {
+   "fieldname": "ben_ban",
+   "fieldtype": "Data",
+   "label": "Ben ban (NCC nho le)"
+  },
+  {
+   "fieldname": "loai_chi",
+   "fieldtype": "Select",
+   "label": "Loai chi",
+   "options": "\nHang hoa\nHang test\nHang phat sinh\nChi phi\nKhac"
+  },
+  {
+   "fieldname": "co_vat",
+   "fieldtype": "Check",
+   "label": "Co hoa don VAT"
+  },
+  {
+   "fieldname": "han_tra",
+   "fieldtype": "Date",
+   "label": "Han tra"
+  },
+  {
+   "fieldname": "tong_hd",
+   "fieldtype": "Currency",
+   "label": "Tong hoa don"
+  },
+  {
+   "fieldname": "con_no",
+   "fieldtype": "Currency",
+   "label": "Con no luc lap",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "De nghi tra",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Data",
+   "label": "Ghi chu"
+  },
+  {
+   "fieldname": "ma_giao_dich",
+   "fieldtype": "Data",
+   "label": "Ma giao dich ngan hang (SePay)"
+  }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-13 13:30:00.000000",
+ "modified": "2026-08-13 16:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Ho So TT Dong",
