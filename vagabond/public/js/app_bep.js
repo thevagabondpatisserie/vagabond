@@ -8201,7 +8201,8 @@ async function posLuuDon() {
     kmAp: ((posDon.kmKq && posDon.kmKq.ap) || []).slice(),
     thu: thu, pt: laApp ? posDon.che_do : posDon.pt,
     quay: (posQuay && posQuay.ma) || '', nguon: nguonCk,
-    ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 0
+    ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 0,
+    diem: (r && r.diem) || null
   };
   posDon = posMoi();
   posHomNayTxt = null;
@@ -8249,6 +8250,17 @@ async function posInBill(d) {
   if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
   if (!d.tam_tinh && !d.huy && d.name && !d.xhd_url) {
     try { var lk0 = await api('vagabond.ban_hang.pos_link_xhd', { name: d.name }); d.xhd_url = (lk0 && lk0.url) || ''; } catch (e0) { }
+  }
+  /* Diem thanh vien va ten thu ngan. Duong chot bill da co san trong d,
+     duong IN LAI thi phai hoi may chu - va phai hoi that, vi ten thu ngan
+     cua ban in lai la nguoi DA BAM BILL chu khong phai nguoi dang dung
+     truoc may in (anh Viet 13/08/2026). */
+  if (!d.tam_tinh && d.name && d.diem === undefined) {
+    try {
+      var th0 = await api('vagabond.ban_hang.pos_bill_them', { name: d.name });
+      d.diem = (th0 && th0.diem) || null;
+      if (th0 && th0.thu_ngan) d.thu_ngan = th0.thu_ngan;
+    } catch (e1) { d.diem = null; }
   }
   var q = (CFGBH || {}).qr_quay || {};
   var mon = d.mon || [];
@@ -8316,7 +8328,7 @@ async function posInBill(d) {
       : '') +
 
     '<div class="d"><span>Mã bill: <b>' + h(d.bill || '') + '</b></span><span>' + h(d.name || '') + '</span></div>' +
-    '<div class="d"><span>Thu ngân: ' + h(S.me.full_name || String(S.user).split('@')[0]) + '</span><span>' + lucIn + '</span></div>' +
+    '<div class="d"><span>Thu ngân: ' + h(d.thu_ngan || S.me.full_name || String(S.user).split('@')[0]) + '</span><span>' + lucIn + '</span></div>' +
     (d.so_ban ? '<div class="d"><span style="font-size:14px;font-weight:bold">Bàn: ' + h(d.so_ban) + '</span></div>' : '') +
     (d.ten ? '<div class="d"><span>Khách: ' + h(d.ten) + '</span></div>' : '') +
     '<hr><table>' + rows + '</table><hr>' +
@@ -8331,6 +8343,18 @@ async function posInBill(d) {
     (d.giamTay ? '<div class="d"><span>Giảm giá</span><b>-' + money(d.giamTay) + '</b></div>' : '') +
     '<div class="d"><span style="font-size:13px;font-weight:bold">' + (d.tam_tinh ? 'TẠM TÍNH' : 'PHẢI THU') + '</span><b class="to">' + money(d.thu) + ' đ</b></div>' +
     (d.pt && !d.tam_tinh ? '<div class="d"><span>Thanh toán</span><b>' + h(d.pt) + '</b></div>' : '') +
+    /* Khoi diem thanh vien (anh Viet 13/08/2026): khach cam bill la biet
+       ngay don nay duoc bao nhieu diem va tong con bao nhieu, khong phai
+       ra quay hoi. Chi in tren bill THAT - phieu tam tinh chua thanh
+       toan nen chua co diem, in vao la hua nham voi khach. */
+    (d.diem && !d.tam_tinh && !d.huy
+      ? '<hr><div class="d"><span style="font-weight:bold">THẺ THÀNH VIÊN</span><b>' + h(d.diem.hang || '') + '</b></div>' +
+        '<div class="d"><span>' + h(d.diem.ten || '') + '</span></div>' +
+        (d.diem.tich
+          ? '<div class="d"><span>Điểm tích đơn này (' + money(d.diem.ty_le) + '%)</span><b>+' + money(d.diem.tich) + '</b></div>'
+          : '<div class="d"><span>Hạng này không tích điểm</span></div>') +
+        '<div class="d"><span>Tổng điểm sau đơn này</span><b>' + money(d.diem.du_sau) + '</b></div>'
+      : '') +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
     qrKhoi +
     '<div class="ft">' + (d.tam_tinh ? 'Phiếu giữ món, chưa phải hoá đơn thanh toán.' : 'Cảm ơn quý khách!') + '<br>thevagabondpatisserie.com</div>' +
@@ -9442,11 +9466,24 @@ async function scrKhachHang() {
   ds.slice(0, 200).forEach(function (x) {
     var hg = hangs.filter(function (y) { return y.name === x.hang; })[0];
     html += '<div data-khx="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f6f7f9;cursor:pointer">' +
-      '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:18px">' + (x.si ? '🏢' : '🧍') + '</span>' +
+      /* Anh the to han va dung ti le the (1.586:1), ten hang nam DUOI the
+         chu khong nhet chung mot chip (anh Viet 13/08/2026). Chip cu chi
+         hien duoc mot lat cat 14px cua the nen nhin nhu bi lech. */
+      (hg && hg.anh
+        ? '<div style="width:62px;flex:none;text-align:center">' +
+          '<img src="' + h(hg.anh) + '" alt="" loading="lazy" style="width:62px;aspect-ratio:1.586;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;background:#f2f4f7">' +
+          '<div style="font-size:9px;font-weight:800;letter-spacing:.04em;color:#92400e;margin-top:3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(hg.ten_hang) + '</div></div>'
+        : '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:18px">' + (x.si ? '🏢' : '🧍') + '</span>') +
       '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
       (hg
-        ? '<span style="display:inline-flex;align-items:center;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px 2px ' + (hg.anh ? '4px' : '9px') + ';font-size:11.5px;font-weight:800">' + hangChipAnh(hg, 14) + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>'
+        ? (hg.anh
+          /* The da hien ten hang roi, o day chi con nhac quyen loi giam
+             gia - lap lai ten hang lan nua la thua cho tren dong hep. */
+          ? (hg.giam_gia
+            ? '<span style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">giảm ' + money(hg.giam_gia) + '%</span>'
+            : '')
+          : '<span style="display:inline-flex;align-items:center;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">' + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>')
         : '<span style="background:#f6f7f9;color:#98a2b3;border:1.5px dashed #d7dce5;border-radius:999px;padding:2px 9px;font-size:11.5px">chưa xếp hạng</span>') +
       /* Ma khach hien ngay tren dong (anh Viet 11/08/2026): tra cuu, doi
          chieu voi phieu giay va goi dien cho nhau deu can doc ma. */
@@ -10385,7 +10422,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '139';
+var APPVER = '140';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -15374,8 +15411,16 @@ function khCtVe() {
   var d = khHs.khach || {}, lh = khHs.lien_he || {}, the = khHs.the || {};
   var hg = khHs.hang || {}, mn = khHs.mua_next || {}, mf = khHs.mua_fabi || {};
 
+  /* The thanh vien in NGUYEN TAM, khong cat. Ban cu dat max-height 132px
+     kem object-fit cover nen anh 1012x638 bi xen mat dai duoi - dung cho
+     co ten hang tren the (anh Viet 13/08/2026). Nay de the o giua mot
+     khung co dem, giu dung ti le 1.586:1, ten hang doc o dong chu ben
+     duoi the. */
   var html = '<div class="card" style="padding:0;overflow:hidden">' +
-    (hg.anh ? '<img src="' + h(hg.anh) + '" alt="" style="width:100%;display:block;object-fit:cover;max-height:132px">' : '') +
+    (hg.anh
+      ? '<div style="padding:14px 14px 0;background:#fafbfc"><img src="' + h(hg.anh) + '" alt="' + h(hg.ten_hang || '') +
+        '" style="width:100%;max-width:330px;aspect-ratio:1.586;object-fit:contain;display:block;margin:0 auto;border-radius:9px"></div>'
+      : '') +
     '<div style="padding:13px 14px">' +
     '<div style="font-size:18px;font-weight:800">' + h(d.customer_name || khMa) + '</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">' +
