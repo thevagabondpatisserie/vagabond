@@ -980,7 +980,7 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PAY', 'PO', 'CNPT'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -988,7 +988,7 @@ var VGB_NHOM = [
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'BC:BC05'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'ACC', 'STOCK'] }
 ];
 
@@ -10703,7 +10703,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '149';
+var APPVER = '150';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -16229,7 +16229,7 @@ async function scrHoSoTT() {
      NCC gom hoa don mua da co trong he; ho so hoan ung la tien anh chi ung
      ra mua le, luc lap chua co hoa don nao ca. */
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
-    [['', '📚 Cả hai loại'], ['NCC', '🏭 Công nợ NCC'], ['Hoan ung', '💰 Hoàn ứng']].map(function (x) {
+    [['', '📚 Tất cả'], ['NCC', '🏭 Công nợ NCC'], ['Hoan ung HD', '🧾 Hoàn ứng có HĐ'], ['Hoan ung', '🧮 Hoàn ứng không HĐ']].map(function (x) {
       return posChipNut('data-hsloai="' + x[0] + '"', x[1], hsLoai === x[0]);
     }).join('')) + '</div>';
 
@@ -16273,7 +16273,7 @@ async function scrHoSoTT() {
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
       h(r.nhan) + '</span>' +
-      (r.loai === 'Hoan ung' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">💰 hoàn ứng</span>' : '') +
+      (r.loai === 'Hoan ung' || r.loai === 'Hoan ung HD' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' + (r.loai === 'Hoan ung HD' ? '🧾 hoàn ứng có HĐ' : '🧮 hoàn ứng không HĐ') + '</span>' : '') +
       (r.tre_ngay > 0 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">quá hạn ' + r.tre_ngay + ' ngày</span>' : '') +
       (r.email_da_gui ? '<span style="margin-left:7px;font-size:11.5px;color:#0e7490">✉️ đã báo NCC</span>' : '') +
       '</div></div>' +
@@ -16327,7 +16327,7 @@ async function scrHoSoTT() {
 var hsTaoNcc = '', hsTaoChon = {}, hsTaoGhiChu = '', hsTaoLoai = 'NCC';
 
 async function scrHoSoTTTao() {
-  frame('Lập hồ sơ thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc công nợ phải trả...</div></div>');
+  frame(hsTaoLoai === 'Hoan ung HD' ? 'Lập hồ sơ hoàn ứng có hoá đơn' : 'Lập hồ sơ thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc công nợ phải trả...</div></div>');
   var dsn;
   try { dsn = await api('vagabond.ho_so_tt.ds_ncc_con_no', {}); }
   catch (e) { frame('Lập hồ sơ thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
@@ -16339,8 +16339,13 @@ async function scrHoSoTTTao() {
     try { hd = await api('vagabond.ho_so_tt.hoa_don_cho_tra', { ncc: hsTaoNcc, so_ngay: 365 }); } catch (e2) { }
   }
 
+  var laHU = hsTaoLoai === 'Hoan ung HD';
+  var tenMan = laHU ? 'Lập hồ sơ hoàn ứng có hoá đơn' : 'Lập hồ sơ thanh toán';
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
-    'Một hồ sơ gom hoá đơn của <b>một</b> nhà cung cấp, vì chuyển tiền là chuyển cho một người. Hoá đơn đang nằm trong hồ sơ khác thì máy giấu đi sẵn.</div>';
+    (laHU
+      ? 'Uyên đã ứng tiền OCB mua hàng có hoá đơn, hàng đã nhập kho. Chọn các hoá đơn <b>còn nợ</b> để gom chung một hồ sơ; công ty trả một lần cho Uyên và công nợ nhà cung cấp sạch luôn.'
+      : 'Một hồ sơ gom hoá đơn của <b>một</b> nhà cung cấp, vì chuyển tiền là chuyển cho một người.') +
+    ' Hoá đơn đang nằm trong hồ sơ khác thì máy giấu đi sẵn.</div>';
 
   html += '<div class="sec">Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ</div>' +
     '<div class="card" style="padding:10px 12px">' + kmHangChip(
@@ -16382,7 +16387,7 @@ async function scrHoSoTTTao() {
   var foot = '<div style="display:flex;gap:8px">' +
     '<button class="btn" id="hsLuu" style="flex:2">📤 Lập và gửi kế toán</button>' +
     '<button class="btn gh" id="hsLuuNhap" style="flex:1">💾 Lưu nháp</button></div>';
-  var b = frame('Lập hồ sơ thanh toán', html, { footer: foot });
+  var b = frame(tenMan, html, { footer: foot });
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsn]'), function (el) {
     el.onclick = function () { hsTaoNcc = el.getAttribute('data-hsn'); hsTaoChon = {}; go(scrHoSoTTTao, true); };
@@ -16408,7 +16413,8 @@ async function scrHoSoTTTao() {
     busy(true);
     try {
       var kq = await api('vagabond.ho_so_tt.tao', {
-        ncc: hsTaoNcc, hoa_don: JSON.stringify(ds), ghi_chu: hsTaoGhiChu, gui_luon: guiLuon ? 1 : 0
+        ncc: hsTaoNcc, hoa_don: JSON.stringify(ds), ghi_chu: hsTaoGhiChu,
+        gui_luon: guiLuon ? 1 : 0, loai: hsTaoLoai
       });
       busy(false);
       hsTaoChon = {}; hsTaoGhiChu = '';
@@ -16481,20 +16487,41 @@ async function scrHoanUngTao() {
       : '') +
     '</div>';
 
-  html += '<div class="sec">Các khoản đã chi · bấm để sửa hoặc xoá</div><div class="card">';
-  if (!huDong.length) html += '<div class="emp" style="padding:22px"><div class="e1">🧾</div><div>Chưa có khoản nào. Bấm <b>➕ Thêm khoản chi</b> ở dưới.</div></div>';
+  /* Bay dang BANG dung nam cot anh Viet chot 13/08/2026: So TT, Ngay mua
+     hang, Noi dung, So tien, Ma giao dich. Cuon ngang tren dien thoai chu
+     khong bo cot nao - thieu cot ma giao dich la mat duong doi chieu voi
+     sao ke OCB. */
+  html += '<div class="sec">Các khoản đã chi · bấm một dòng để sửa hoặc xoá</div>'
+    + '<div class="card" style="padding:0;overflow-x:auto">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">'
+    + '<tr style="background:#f8fafc;color:#6b7280;font-size:11.5px;text-align:left">'
+    + '<th style="padding:8px 10px;font-weight:700">STT</th>'
+    + '<th style="padding:8px 10px;font-weight:700">Ngày mua</th>'
+    + '<th style="padding:8px 10px;font-weight:700">Nội dung</th>'
+    + '<th style="padding:8px 10px;font-weight:700;text-align:right">Số tiền</th>'
+    + '<th style="padding:8px 10px;font-weight:700">Mã giao dịch</th></tr>';
+  if (!huDong.length) {
+    html += '<tr><td colspan="5" style="padding:24px;text-align:center;color:#6b7280">Chưa có khoản nào. Bấm <b>➕ Thêm khoản chi</b> ở dưới.</td></tr>';
+  }
   huDong.forEach(function (x, i) {
-    html += '<div class="hub" data-hux="' + i + '"><div class="hub-i">' + (x.co_vat ? '🧾' : '📄') + '</div>' +
-      '<div class="hub-t"><div class="t1">' + h(x.noi_dung || '(chưa ghi nội dung)') + '</div>' +
-      '<div class="t2">' + hsNgayVn(x.ngay_hd) + (x.so_hd_ncc ? ' · HĐ ' + h(x.so_hd_ncc) : '') + (x.ben_ban ? ' · ' + h(x.ben_ban) : '') + '</div>' +
-      '<div class="t2">' + (x.co_vat ? 'Có hoá đơn VAT' : 'Không hoá đơn VAT') + (x.loai_chi ? ' · ' + h(x.loai_chi) : '') + '</div>' +
-      '</div><b style="white-space:nowrap">' + money(x.so_tien) + ' đ</b></div>';
+    html += '<tr data-hux="' + i + '" style="border-top:1px solid #eef2f5;cursor:pointer">'
+      + '<td style="padding:9px 10px;color:#6b7280">' + (i + 1) + '</td>'
+      + '<td style="padding:9px 10px;white-space:nowrap">' + (hsNgayVn(x.ngay_hd) || '-') + '</td>'
+      + '<td style="padding:9px 10px">' + h(x.noi_dung || '(chưa ghi)')
+      + (x.so_hd_ncc ? '<br><span style="color:#6b7280;font-size:11.5px">HĐ ' + h(x.so_hd_ncc) + '</span>' : '')
+      + (x.ben_ban ? '<br><span style="color:#6b7280;font-size:11.5px">' + h(x.ben_ban) + '</span>' : '')
+      + '<br><span style="font-size:11.5px;color:' + (x.co_vat ? '#0e7490' : '#92400e') + '">'
+      + (x.co_vat ? '🧾 có hoá đơn VAT' : '📄 không hoá đơn') + (x.loai_chi ? ' · ' + h(x.loai_chi) : '') + '</span></td>'
+      + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(x.so_tien) + '</td>'
+      + '<td style="padding:9px 10px;white-space:nowrap;font-size:11.5px;color:' + (x.ma_giao_dich ? '#0e7490' : '#b45309') + '">'
+      + (x.ma_giao_dich ? h(x.ma_giao_dich) : '⚠️ chưa gắn') + '</td></tr>';
   });
-  html += '</div>';
+  html += '</table></div>';
 
   html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-    '<button class="btn gh" id="huThem" style="flex:2;margin:0">➕ Thêm khoản chi</button>' +
-    '<button class="btn gh" id="huUng" style="flex:1;margin:0">➖ Trừ tạm ứng</button></div>';
+    '<button class="btn gh" id="huSepay" style="flex:2;margin:0">🏦 Lấy từ sao kê OCB</button>' +
+    '<button class="btn gh" id="huThem" style="flex:1;margin:0">➕ Gõ tay</button>' +
+    '<button class="btn gh" id="huUng" style="flex:1;margin:0">➖ Trừ ứng</button></div>';
 
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="huGc" placeholder="Ghi chú cho hồ sơ (không bắt buộc)" value="' + h(huGhiChu) + '"></div>';
 
@@ -16513,6 +16540,7 @@ async function scrHoanUngTao() {
     huSuaDong(+r.getAttribute('data-hux'));
   });
   document.getElementById('huThem').onclick = function () { huSuaDong(-1); };
+  document.getElementById('huSepay').onclick = function () { huLaySepay(); };
   document.getElementById('huUng').onclick = async function () {
     var v = await hoiNhap('Đã tạm ứng trước bao nhiêu đồng? (gõ 0 nếu không có)', String(huTamUng || 0));
     if (v === null) return;
@@ -16542,11 +16570,90 @@ async function scrHoanUngTao() {
   document.getElementById('huNhap').onclick = function () { luu(false); };
 }
 
+/* ---------- Lay khoan chi tu sao ke OCB ----------
+   Anh Viet 13/08/2026 hoi: "co cach nao goi y nhung hoa don hay NCC can
+   hoan ung - co doi chieu voi giao dich SePay cua nguon tien di tu ngan
+   hang OCB duoc khong? Boi vi thuc ra tat ca cac loai hoan ung thi deu la
+   tra lai tien da ung cho tai khoan OCB cua Uyen?"
+
+   Dung vay, nen nguon dang tin nhat khong phai tri nho ma la sao ke: moi
+   khoan da chi deu co mot giao dich mang san ngay, so tien va noi dung.
+   Tick tu day thi so tien va ngay khong the go sai, va moi khoan gan dung
+   mot giao dich nen so du quy 1411 tu khop. */
+var huGdChon = {};
+
+async function huLaySepay() {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.ho_so_tt.sepay_ocb', { so_ngay: 60 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được sao kê', 'Sao kê OCB'); }
+  busy(false);
+  if (kq.loi) return baoTin(kq.loi, 'Sao kê OCB');
+  if (!(kq.rows || []).length) return baoTin('Không còn giao dịch chi nào từ quỹ OCB trong 60 ngày mà chưa nằm trong hồ sơ nào.', 'Sao kê OCB');
+  huGdChon = {};
+  go(function () { scrHuSepay(kq); });
+}
+
+async function scrHuSepay(kq) {
+  var rows = kq.rows || [];
+  var chon = rows.filter(function (r) { return huGdChon[r.ma_giao_dich]; });
+  var tong = chon.reduce(function (a, r) { return a + Number(r.so_tien || 0); }, 0);
+
+  var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">'
+    + 'Đây là các khoản <b>đã chi ra</b> từ quỹ tạm ứng OCB mà chưa nằm trong hồ sơ nào. '
+    + 'Tick khoản nào thì máy lấy sẵn ngày, số tiền và mã giao dịch, mình chỉ cần bổ sung nội dung và số hoá đơn nếu có.</div>';
+
+  html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">'
+    + '<div style="font-size:11.5px;color:#92400e;font-weight:800">ĐANG CHỌN</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">'
+    + '<span style="font-size:13.5px;color:#374151">' + chon.length + ' / ' + rows.length + ' giao dịch</span>'
+    + '<b style="font-size:20px;color:#92400e">' + money(tong) + ' đ</b></div></div>';
+
+  html += '<div class="sec">Giao dịch chi ra từ quỹ OCB · bấm để chọn</div><div class="card">';
+  rows.forEach(function (r) {
+    var da = !!huGdChon[r.ma_giao_dich];
+    html += '<div class="hub" data-hugd="' + h(r.ma_giao_dich) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>'
+      + '<div class="hub-i">' + (da ? '☑️' : '⬜') + '</div>'
+      + '<div class="hub-t"><div class="t1">' + h(r.noi_dung || '(không có nội dung)') + '</div>'
+      + '<div class="t2">' + hsNgayVn(r.ngay) + ' · ' + h(r.ma_giao_dich) + '</div></div>'
+      + '<b style="white-space:nowrap">' + money(r.so_tien) + ' đ</b></div>';
+  });
+  html += '</div>';
+
+  var foot = '<div style="display:flex;gap:8px">'
+    + '<button class="btn" id="huGdXong" style="flex:2">➕ Đưa ' + chon.length + ' khoản vào hồ sơ</button>'
+    + '<button class="btn gh" id="huGdVe" style="flex:1">← Quay lại</button></div>';
+  var b = frame('Sao kê quỹ OCB', html, { footer: foot });
+
+  b.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-hugd]'); if (!r) return;
+    var ma = r.getAttribute('data-hugd');
+    if (huGdChon[ma]) delete huGdChon[ma]; else huGdChon[ma] = 1;
+    go(function () { scrHuSepay(kq); }, true);
+  });
+  document.getElementById('huGdVe').onclick = function () { go(scrHoanUngTao); };
+  document.getElementById('huGdXong').onclick = function () {
+    var them = rows.filter(function (r) { return huGdChon[r.ma_giao_dich]; });
+    if (!them.length) return baoTin('Chưa tick giao dịch nào.', 'Sao kê OCB');
+    them.forEach(function (r) {
+      // Da co khoan nao mang dung ma giao dich nay thi khong them lan hai.
+      if (huDong.some(function (x) { return x.ma_giao_dich === r.ma_giao_dich; })) return;
+      huDong.push({
+        ngay_hd: r.ngay, so_hd_ncc: '', noi_dung: r.noi_dung || '',
+        ben_ban: '', loai_chi: '', co_vat: 0,
+        so_tien: r.so_tien, ma_giao_dich: r.ma_giao_dich, ghi_chu: ''
+      });
+    });
+    toast('Đã thêm ' + them.length + ' khoản, bấm từng dòng để bổ sung nội dung', 4000);
+    go(scrHoanUngTao);
+  };
+}
+
 /* Sua mot khoan chi. Dung prompt noi tiep nhau chu khong dung bieu mau:
    tren dien thoai ban phim tu bat len tung o mot, go nhanh hon la cuon
    qua lai giua sau o input. i = -1 nghia la them moi. */
 async function huSuaDong(i) {
-  var x = i >= 0 ? huDong[i] : { ngay_hd: '', so_hd_ncc: '', noi_dung: '', ben_ban: '', loai_chi: '', co_vat: 0, so_tien: 0, ghi_chu: '' };
+  var x = i >= 0 ? huDong[i] : { ngay_hd: '', so_hd_ncc: '', noi_dung: '', ben_ban: '', loai_chi: '', co_vat: 0, so_tien: 0, ma_giao_dich: '', ghi_chu: '' };
   if (i >= 0) {
     var lam = await hoiChon(x.noi_dung || 'Khoản chi', money(x.so_tien) + ' đ', [
       { k: 'sua', icon: '✏️', nhan: 'Sửa khoản này' },
@@ -16605,7 +16712,8 @@ async function huSuaDong(i) {
   var moi = {
     ngay_hd: ngIso, so_hd_ncc: String(sh || '').trim(), noi_dung: nd,
     ben_ban: String(bb || '').trim(), loai_chi: lc || '',
-    co_vat: vat ? 1 : 0, so_tien: st, ghi_chu: x.ghi_chu || ''
+    co_vat: vat ? 1 : 0, so_tien: st,
+    ma_giao_dich: x.ma_giao_dich || '', ghi_chu: x.ghi_chu || ''
   };
   if (i >= 0) huDong[i] = moi; else huDong.push(moi);
   go(scrHoanUngTao, true);
@@ -16633,13 +16741,14 @@ async function scrHoSoTTView(name) {
   try { d = await api('vagabond.ho_so_tt.chi_tiet', { name: name }); }
   catch (e) { frame('Hồ sơ ' + name, '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>'); return; }
   var hs = d.ho_so, Q = d.quyen || {}, m = hsMau[hs.trang_thai] || ['#f3f4f6', '#e5e7eb', '#374151', '•'];
-  var laHU = hs.loai === 'Hoan ung';
+  var laHU = hs.loai === 'Hoan ung' || hs.loai === 'Hoan ung HD';
+  var nhanLoai = hs.loai === 'Hoan ung' ? '🧮 Hoàn ứng không hoá đơn · ' : (hs.loai === 'Hoan ung HD' ? '🧾 Hoàn ứng có hoá đơn · ' : '🏭 ');
 
   var html = '<div class="card" style="padding:14px;background:' + m[0] + ';border:1.5px solid ' + m[1] + '">' +
     '<div style="font-size:22px">' + m[3] + '</div>' +
     '<div style="font-size:17px;font-weight:800;color:' + m[2] + ';margin-top:4px">' + h(hs.nhan) + '</div>' +
     '<div style="font-size:13.5px;color:#374151;margin-top:6px">' +
-    (laHU ? '💰 Hoàn ứng cho ' : '🏭 ') + h(hs.ten_ncc || hs.ncc) + '</div>' +
+    nhanLoai + h(hs.ten_ncc || hs.ncc) + '</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:8px">' +
     '<span style="font-size:12.5px;color:#6b7280">' + h(hs.ma) + ' · lập ' + hsNgayVn(hs.ngay) + '</span>' +
     '<b style="font-size:22px;color:' + m[2] + '">' + money(hs.tong_tien) + ' đ</b></div>' +
@@ -16705,10 +16814,22 @@ async function scrHoSoTTView(name) {
         (x.tong_hd ? ' · tổng ' + money(x.tong_hd) + ' đ' : '') + '</div>';
       if (x.po.length) ct += '<div style="margin-bottom:6px"><b>Đơn mua hàng</b><br>' + x.po.map(h).join('<br>') + '</div>';
       if (x.pnk.length) ct += '<div style="margin-bottom:6px"><b>Phiếu nhập kho</b><br>' + x.pnk.map(h).join('<br>') + '</div>';
-      if (x.scan.length) ct += '<div><b>Bản scan · ' + x.scan.length + ' tệp</b><br>' +
-        x.scan.map(function (f) {
-          return '<a href="' + h(f.url) + '" target="_blank" rel="noopener" style="color:#0e7490">📎 ' + h(f.ten) + '</a>';
-        }).join('<br>') + '</div>';
+      if (x.scan.length) {
+        /* Anh chup chung tu thi bay anh nho ra luon, bam vao mo to. Doc mot
+           danh sach ten tep kieu "dia giay1676af.jpg" thi khong ai biet to
+           nao vao to nao (anh Viet 13/08/2026). */
+        ct += '<div><b>Bản scan · ' + x.scan.length + ' tệp</b>'
+          + '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:6px">'
+          + x.scan.map(function (f) {
+            var laAnh = /\.(jpe?g|png|gif|bmp|webp)$/i.test(f.ten || '');
+            return laAnh
+              ? '<div data-scan="' + h(f.url) + '" style="width:66px;height:66px;border-radius:9px;overflow:hidden;border:1px solid #e3e6ec;background:#f5f6f8;cursor:pointer">'
+                + '<img src="' + h(f.url) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"></div>'
+              : '<a href="' + h(f.url) + '" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;width:66px;height:66px;border-radius:9px;border:1px solid #e3e6ec;background:#f8fafc;color:#0e7490;font-size:11px;text-align:center;padding:4px;line-height:1.3">📄 '
+                + h((f.ten || '').slice(-12)) + '</a>';
+          }).join('')
+          + '</div></div>';
+      }
       if (!ct) ct = '<span style="color:#6b7280">Chưa có chứng từ nào đính kèm hoá đơn này.</span>';
       html += '<div style="padding:10px 14px 12px 56px;font-size:12.5px;line-height:1.7;color:#374151;background:#f8fafc;border-top:1px solid #eef2f5">' + ct + '</div>';
     }
@@ -16753,6 +16874,8 @@ async function scrHoSoTTView(name) {
     var el = e.target.closest('[data-hsv]');
     if (el) return hsHanh(el.getAttribute('data-hsv'), hs);
     if (e.target.closest('a')) return;
+    var sc = e.target.closest('[data-scan]');
+    if (sc) return rndXemAnh(sc.getAttribute('data-scan'));
     var r = e.target.closest('[data-hsd]');
     if (r) {
       var i = r.getAttribute('data-hsd');
@@ -16792,9 +16915,10 @@ async function hsHanh(k, hs) {
     try { bo = await api('vagabond.ho_so_tt.xuat_ho_so', { name: hs.ma }); }
     catch (e) { busy(false); return baoTin((e && e.message) || 'Xuất bộ hồ sơ lỗi'); }
     busy(false);
-    bcTaiVe(bo.ten_file, bo.b64, 'application/zip');
-    return baoTin('Đã tải ' + bo.ten_file + '\n\nTrong tệp có ' + bo.so_tep + ' chứng từ, kèm MUC-LUC.txt liệt kê từng tờ.' +
-      ((bo.hong || []).length ? '\n\n⚠️ Không lấy được ' + bo.hong.length + ' tờ, xem MUC-LUC.txt để lấy tay trên Next:\n' + bo.hong.slice(0, 8).join('\n') : ''));
+    bcTaiVe(bo.ten_file, bo.b64, 'application/pdf');
+    return baoTin('Đã tải ' + bo.ten_file + '\n\nMột tệp PDF khổ A4 dọc gồm ' + bo.so_tep + ' phần, trang cuối là mục lục.' +
+      ((bo.hong || []).length ? '\n\n⚠️ Còn ' + bo.hong.length + ' tệp chưa gộp được, xem trang mục lục:\n' + bo.hong.slice(0, 8).join('\n') : ''),
+      'Xuất bộ hồ sơ');
   }
   if (k === 'xemto') {
     busy(true);
