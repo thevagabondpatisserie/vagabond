@@ -1421,26 +1421,128 @@ def gan_anh(doctype, name, fieldname, file_url):
 	return name
 
 
-@frappe.whitelist()
-def chi_phi_danh_sach(trang_thai=None, tu_ngay=None):
-	"""Ke toan / thu mua thay het; shipper chi thay cua minh."""
-	if not (_la_shipper() or _la_ke_toan() or _la_sales()):
-		frappe.throw("Không có quyền.")
+CP_TRUONG = [
+	"name", "shipper", "ngay", "loai", "so_tien", "so_hoa_don", "nha_cung_cap",
+	"anh_hoa_don", "ghi_chu", "trang_thai", "ghi_chu_duyet", "ngay_hoan_ung",
+]
+CP_TRANG_THAI = ["Chờ duyệt", "Đã duyệt", "Từ chối", "Đã hoàn ứng"]
+CP_LOAI = ["Đổ xăng", "Bảo trì xe", "Gửi xe", "Rửa xe", "Vá/thay vỏ xe", "Khác"]
+
+
+def _chi_phi_quet(tu_ngay=None, den_ngay=None):
+	"""Doc tho theo khoang ngay. Loc theo trang thai va loai lam o tren app
+	de con so tren tung chip la con so that cua ca khoang."""
 	loc = {}
-	if trang_thai:
-		loc["trang_thai"] = trang_thai
-	if tu_ngay:
-		loc["ngay"] = [">=", tu_ngay]
+	if tu_ngay and den_ngay:
+		loc["ngay"] = ["between", [str(tu_ngay), str(den_ngay)]]
+	elif tu_ngay:
+		loc["ngay"] = [">=", str(tu_ngay)]
+	elif den_ngay:
+		loc["ngay"] = ["<=", str(den_ngay)]
 	if _la_shipper() and not _la_ke_toan():
 		loc["shipper"] = frappe.session.user
 	return frappe.get_all(
 		"Chi Phi Shipper",
 		filters=loc,
-		fields=["name", "shipper", "ngay", "loai", "so_tien", "so_hoa_don", "nha_cung_cap",
-			"anh_hoa_don", "ghi_chu", "trang_thai", "ghi_chu_duyet", "ngay_hoan_ung"],
+		fields=CP_TRUONG,
 		order_by="ngay desc, creation desc",
-		limit_page_length=200,
+		limit_page_length=0,
 	)
+
+
+@frappe.whitelist()
+def chi_phi_danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, loai=None):
+	"""Ke toan / thu mua thay het; shipper chi thay cua minh.
+
+	Chi Dung 13/08/2026 xin chip loc, chip trang thai va nut xuat Excel cho
+	man nay de theo doi. Nen ham tra ve them phan DEM theo trang thai, theo
+	loai va theo nguoi khai - de moi chip mang dung con so cua no.
+	"""
+	if not (_la_shipper() or _la_ke_toan() or _la_sales()):
+		frappe.throw("Không có quyền.")
+	ds = _chi_phi_quet(tu_ngay, den_ngay)
+	dem_tt, dem_loai, dem_nguoi = {}, {}, {}
+	tien_tt, tien_loai = {}, {}
+	for r in ds:
+		tt = (r.trang_thai or "Chờ duyệt").strip()
+		lo = (r.loai or "Khác").strip()
+		ng = (r.shipper or "").strip()
+		dem_tt[tt] = dem_tt.get(tt, 0) + 1
+		tien_tt[tt] = tien_tt.get(tt, 0) + flt(r.so_tien)
+		dem_loai[lo] = dem_loai.get(lo, 0) + 1
+		tien_loai[lo] = tien_loai.get(lo, 0) + flt(r.so_tien)
+		if ng:
+			dem_nguoi[ng] = dem_nguoi.get(ng, 0) + 1
+
+	ra = ds
+	if trang_thai:
+		ra = [r for r in ra if (r.trang_thai or "") == trang_thai]
+	if loai:
+		ra = [r for r in ra if (r.loai or "") == loai]
+	return {
+		"rows": ra,
+		"tong_dong": len(ra),
+		"tong_tien": sum(flt(r.so_tien) for r in ra),
+		"tat_ca": len(ds),
+		"dem_trang_thai": dem_tt,
+		"tien_trang_thai": tien_tt,
+		"dem_loai": dem_loai,
+		"tien_loai": tien_loai,
+		"nguoi": sorted(dem_nguoi.keys()),
+		"trang_thai_co": CP_TRANG_THAI,
+		"loai_co": CP_LOAI,
+		"la_ke_toan": 1 if _la_ke_toan() else 0,
+	}
+
+
+@frappe.whitelist()
+def chi_phi_xuat_excel(tu_ngay=None, den_ngay=None, trang_thai=None, loai=None):
+	"""Xuat danh sach chi phi ra .xlsx cho chi Dung theo doi.
+
+	Tra base64 chu khong ghi file len may chu: so lieu song, luu file lai
+	chi to cho nham lan giua ban cu va ban moi.
+	"""
+	if not (_la_ke_toan() or _la_sales()):
+		frappe.throw("Chỉ kế toán, thu mua hoặc sales xuất được.")
+	ds = _chi_phi_quet(tu_ngay, den_ngay)
+	if trang_thai:
+		ds = [r for r in ds if (r.trang_thai or "") == trang_thai]
+	if loai:
+		ds = [r for r in ds if (r.loai or "") == loai]
+
+	bang = [
+		["CHI PHÍ XĂNG XE - SỬA XE"],
+		["Từ %s đến %s%s%s" % (
+			tu_ngay or "đầu kỳ", den_ngay or "hôm nay",
+			(" · %s" % trang_thai) if trang_thai else "",
+			(" · %s" % loai) if loai else "",
+		)],
+		["Số khoản", len(ds), "Tổng tiền", sum(flt(r.so_tien) for r in ds)],
+		[],
+		["Mã", "Ngày", "Người khai", "Loại", "Số tiền", "Số hoá đơn",
+		 "Nơi chi", "Trạng thái", "Ngày hoàn ứng", "Ghi chú", "Ghi chú duyệt"],
+	]
+	for r in ds:
+		bang.append([
+			r.name, str(r.ngay or ""), r.shipper or "", r.loai or "",
+			flt(r.so_tien), r.so_hoa_don or "", r.nha_cung_cap or "",
+			r.trang_thai or "", str(r.ngay_hoan_ung or ""),
+			r.ghi_chu or "", r.ghi_chu_duyet or "",
+		])
+	bang.append([])
+	bang.append(["TỔNG", "", "", "", sum(flt(r.so_tien) for r in ds)])
+
+	import base64
+	import io
+
+	from frappe.utils.xlsxutils import make_xlsx
+
+	tep = make_xlsx(bang, "Chi phi xe")
+	noi_dung = tep.getvalue() if isinstance(tep, io.BytesIO) else tep
+	return {
+		"ten_file": "chi-phi-xe-%s-%s.xlsx" % (tu_ngay or "dau", den_ngay or nowdate()),
+		"b64": base64.b64encode(noi_dung).decode(),
+	}
 
 
 @frappe.whitelist()
