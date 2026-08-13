@@ -2528,6 +2528,27 @@ def _khoi_diem_bill(si):
 		ten = frappe.db.get_value("Customer", kh, "customer_name") or kh
 		du = flt(frappe.db.get_value("Customer", kh, "vgb_diem"))
 		tich = round(flt(si.grand_total) * ty_le / 100.0) if ty_le > 0 else 0
+
+		# Hoa don DA ghi so thi diem da vao so du roi. Bill in lai phai lay
+		# dung so da cong va KHONG cong them lan nua, khong thi to bill in
+		# lai bao khach co gap doi diem thuc te (thay khi chay that
+		# 13/08/2026 tren HDB-2026-01604).
+		da = frappe.db.sql(
+			"select sum(diem) from `tab%s` where hoa_don = %%s and loai = %%s"
+			% _kh.SO_DIEM,
+			(si.name, "Tich tu hoa don"),
+		)
+		da_cong = flt((da or [[0]])[0][0])
+		if da_cong:
+			return {
+				"khach": kh,
+				"ten": ten,
+				"hang": hang.get("name") or "",
+				"ty_le": ty_le,
+				"tich": da_cong,
+				"du_truoc": du - da_cong,
+				"du_sau": du,
+			}
 		return {
 			"khach": kh,
 			"ten": ten,
