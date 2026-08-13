@@ -1114,17 +1114,21 @@ def _thu_html(doc):
 			"</tr>"
 			% (h(d.so_hd_ncc or d.noi_dung or d.hoa_don), _ngay_vn(d.ngay_hd), _tien(d.so_tien))
 		)
+	# KHONG dat phep % len ca chuoi HTML nay: trong do co width="100%" va
+	# noi dung tung dong da ghep san. Python doc "%" do la ma dinh dang roi
+	# nem ValueError. Ghep bang cong chuoi, chi dinh dang dung o cho nao that
+	# su can. Loi nay tung lam vo nut Xuat bo ho so ngay 13/08/2026.
 	bang = (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
 		'style="border-collapse:collapse;margin:6px 0 4px">'
 		'<tr><td style="padding:7px 10px;background:#E4F9FD;font-size:12px;font-weight:bold;color:#05323C">Số hoá đơn</td>'
 		'<td style="padding:7px 10px;background:#E4F9FD;font-size:12px;font-weight:bold;color:#05323C">Ngày</td>'
 		'<td style="padding:7px 10px;background:#E4F9FD;font-size:12px;font-weight:bold;color:#05323C;text-align:right">Số tiền</td></tr>'
-		+ "".join(hang) +
-		'<tr><td colspan="2" style="padding:9px 10px;font-size:13.5px;font-weight:bold;color:#05323C">TỔNG THANH TOÁN</td>'
-		'<td style="padding:9px 10px;font-size:15px;font-weight:bold;color:#0B7C93;text-align:right;white-space:nowrap">%s đ</td></tr>'
-		"</table>"
-	) % _tien(doc.tong_tien)
+		+ "".join(hang)
+		+ '<tr><td colspan="2" style="padding:9px 10px;font-size:13.5px;font-weight:bold;color:#05323C">TỔNG THANH TOÁN</td>'
+		+ '<td style="padding:9px 10px;font-size:15px;font-weight:bold;color:#0B7C93;text-align:right;white-space:nowrap">'
+		+ _tien(doc.tong_tien) + " đ</td></tr></table>"
+	)
 
 	chi_tiet_tra = [
 		"Ngày thanh toán: <b>%s</b>" % _ngay_vn(doc.ngay_thanh_toan),
@@ -1414,14 +1418,16 @@ def _to_app_html(name):
 			% (_tien(hs["da_tam_ung"]), _tien(hs["con_lai"]))
 		)
 
+	# Ghep bang cong chuoi chu khong dat phep % len ca khoi: trong chuoi co
+	# width="100%" va Python doc dau % do la ma dinh dang roi nem ValueError.
 	ky = (
 		'<table width="100%" style="margin-top:26px;text-align:center;font-size:12px">'
 		"<tr><td><b>NGƯỜI ĐỀ NGHỊ</b></td><td><b>KẾ TOÁN (FIN)</b></td><td><b>GIÁM ĐỐC</b></td></tr>"
 		'<tr><td style="height:58px"></td><td></td><td></td></tr>'
-		"<tr><td>%s</td><td>%s</td><td>%s</td></tr></table>"
-		% (
-			h(hs["nguoi_tao_ten"] or ""), h(hs["fin_ten"] or ""), h(hs["gd_ten"] or ""),
-		)
+		+ "<tr><td>" + h(hs["nguoi_tao_ten"] or "")
+		+ "</td><td>" + h(hs["fin_ten"] or "")
+		+ "</td><td>" + h(hs["gd_ten"] or "")
+		+ "</td></tr></table>"
 	)
 
 	return (
