@@ -854,6 +854,7 @@ async function scrHome() {
       /* Chi phi xe truoc day lap trong chan man Van don. Chi Dung theo doi
          chi phi xe hang thang nen dua han ra ngoai (anh Viet 13/08/2026). */
       + card('⛽', 'Chi phí xăng xe - sửa xe', 'Khai chi phí, duyệt, hoàn ứng và xuất Excel theo dõi', 0, 'CPX')
+      + card('💵', 'Đối soát COD', 'Tiền shipper thu hộ và nộp về cuối ngày, theo từng người', 0, 'DSCOD')
       + '</div>';
   }
   if (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager')) {
@@ -933,6 +934,7 @@ async function scrHome() {
     if (k === 'KH') return go(scrKhachHang);
     if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
+  if (k === 'DSCOD') return go(scrVdCod);
     if (k === 'RND') return go(scrRndList);
     if (k === 'CDDB') return go(scrDiemBan);
     if (k === 'CDKS') return go(scrKhoaSo);
@@ -984,7 +986,7 @@ var VGB_NHOM = [
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
-  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX'] },
+  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'BC:BC05'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'ACC', 'STOCK'] }
@@ -1288,6 +1290,7 @@ function vgbGo(k) {
     if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
+  if (k === 'DSCOD') return go(scrVdCod);
   if (k === 'RND') return go(scrRndList);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
@@ -10041,12 +10044,28 @@ async function scrVdCod() {
   ds.forEach(function (g) {
     html += '<div class="sec">' + h(g.ten) + ' · ' + g.so_don + ' đơn đã giao</div><div class="card" style="padding:12px 14px;line-height:1.9">';
     g.don.forEach(function (d) {
-      html += '<div style="display:flex;justify-content:space-between;font-size:13px;gap:8px"><span>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + ' · ' + h(d.khach || 'Khách lẻ') + (d.chuyen ? ' · 🧺' + h(d.chuyen) : '') + '</span><span style="white-space:nowrap">' + (d.cod ? money(d.cod) : '0') + (d.da_doi_soat ? ' ✅' : '') + '</span></div>';
+      /* Bay ra vi sao mot don khong con COD: truoc day man nay chi hien con
+         so, don khach da chuyen khoan van doi shipper nop tien ma khong noi
+         ly do (Sales bao lai 13/08/2026). */
+      var ghi = d.chua_ro
+        ? '<span style="color:#b45309">⚠️ chưa chọn phương thức</span>'
+        : (d.thu_tien_mat ? '<span style="color:#6b7280">' + h(d.pt) + '</span>'
+                          : '<span style="color:#0e7490">' + h(d.pt) + ' · không thu</span>');
+      html += '<div style="display:flex;justify-content:space-between;font-size:13px;gap:8px;align-items:flex-start">'
+        + '<span style="flex:1;min-width:0">' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + ' · ' + h(d.khach || 'Khách lẻ')
+        + (d.chuyen ? ' · 🧺' + h(d.chuyen) : '')
+        + '<br>' + ghi
+        + (d.lech ? '<br><span style="color:#0e7490;font-size:12px">vận đơn đang ghi ' + money(d.cod_tren_van_don) + ' đ, máy đã trừ ra</span>' : '')
+        + '</span>'
+        + '<span style="white-space:nowrap"><b>' + (d.cod ? money(d.cod) : '0') + '</b>' + (d.da_doi_soat ? ' ✅' : '') + '</span></div>';
     });
-    html += '<div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid #e5e7eb;padding-top:6px"><b>Tổng COD</b><b>' + money(g.tong_cod) + ' đ</b></div>';
+    html += '<div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid #e5e7eb;padding-top:6px"><b>Tổng COD phải nộp</b><b>' + money(g.tong_cod) + ' đ</b></div>';
+    if (g.so_don_chua_ro > 0) html += '<div style="color:#b45309;font-size:12.5px;margin-top:3px">⚠️ ' + g.so_don_chua_ro + ' đơn chưa chọn phương thức thanh toán, con số trên có thể còn sai. Vào Doanh thu sửa hoá đơn rồi mở lại màn này.</div>';
     if (g.chua_doi_soat > 0) html += '<div style="display:flex;justify-content:space-between;color:#b3261e"><span>Chưa nộp về</span><b>' + money(g.chua_doi_soat) + ' đ</b></div>';
     else if (g.tong_cod > 0) html += '<div style="color:#15803d;font-size:13px">Đã đối soát đủ ✅</div>';
-    if (vdLaKeToan() && g.so_don_chua > 0 && g.shipper.indexOf('@') > -1)
+    /* Sales bam duoc tu 13/08/2026: cuoi ngay chinh cac ban Sales ngoi dem
+       tien shipper nop ve. */
+    if ((isSales() || vdLaKeToan()) && g.so_don_chua > 0 && g.shipper.indexOf('@') > -1)
       html += '<button class="btn" data-cod="' + h(g.shipper) + '" style="margin-top:8px">✔ Đã nhận đủ ' + money(g.chua_doi_soat) + ' đ từ ' + h(g.ten) + '</button>';
     html += '</div>';
   });
@@ -10540,7 +10559,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '147';
+var APPVER = '148';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
