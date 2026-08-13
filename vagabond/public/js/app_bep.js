@@ -983,8 +983,8 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH'] },
-  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
+  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'BC:BC05'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'ACC', 'STOCK'] }
@@ -10540,7 +10540,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '143';
+var APPVER = '144';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
