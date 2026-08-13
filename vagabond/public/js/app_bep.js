@@ -10385,7 +10385,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '138';
+var APPVER = '139';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -12759,10 +12759,13 @@ async function scrBaoCaoXem() {
      file Excel moi la ban day du - im lang o cho nay la nguy hiem nhat,
      ke toan tuong da xem het roi cong tay ra so thieu. */
   if (kq.bi_cat) {
-    html += '<div class="card" style="padding:11px 13px;border:1.5px solid #fcd34d;background:#fffbeb;font-size:12.5px;color:#92400e">' +
+    /* Boc them mot lop div: the .card xep con theo cot nen de <b> tran o
+       muc con thi moi con so bi day xuong mot dong rieng. */
+    html += '<div class="card" style="padding:11px 13px;border:1.5px solid #fcd34d;background:#fffbeb">' +
+      '<div style="font-size:12.5px;color:#92400e;line-height:1.65">' +
       'Kỳ này có <b>' + money(kq.tong_dong) + '</b> dòng, màn hình đang hiện <b>' + money(kq.gioi_han) +
       '</b> dòng đầu. Dòng TỔNG bên dưới vẫn cộng đủ cả ' + money(kq.tong_dong) +
-      ' dòng. Bấm Xuất Excel để lấy bản đầy đủ.</div>';
+      ' dòng. Bấm Xuất Excel để lấy bản đầy đủ.</div></div>';
   }
 
   if (bcXem === 'bieu_do') html += bcVeBieuDo(kq);
