@@ -895,6 +895,30 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang: gan khach cho don Pancake")
 
+	# DOI KHACH THI PHAI XOA LIEN HE VA DIA CHI CUA KHACH CU.
+	#
+	# ERPNext kiem "Contact Person does not belong to the {party}" moi lan
+	# luu. Hoa don cu mang lien he cua "Khach le Online"; doi customer sang
+	# khach that ma giu nguyen o lien he thi ERPNext chan, va vi chan o buoc
+	# save nen CA DON DO KHONG DONG BO DUOC NUA.
+	#
+	# Bat duoc 13/08/2026 luc nghiem thu: nhip dong bo bao "tao_moi 0,
+	# cap_nhat 0" va Error Log day 400 dong tu trua. Loi nay den tu chinh
+	# viec gan dung nguoi mua lam hom 12/08, khong phai tu ban vua deploy.
+	#
+	# Xoa trong bon o de ERPNext tu lay lai theo khach moi. Khong tu dien
+	# lien he moi o day: khach_cho_don da tao Contact roi, ERPNext se keo
+	# lien he chinh cua khach do khi luu.
+	if (si.get("customer") or "") != khach_don:
+		for o in (
+			"contact_person", "contact_display", "contact_mobile", "contact_email",
+			# Dia chi cung bi kiem cung mot cho (validate_party_address_and_contact),
+			# nen xoa luon. Dia chi giao cua don online nam trong ghi chu va
+			# ben Van Don chu khong nam o o nay, khong mat gi.
+			"customer_address", "address_display",
+		):
+			si.set(o, None)
+
 	si.update(
 		{
 			"company": cong_ty,
