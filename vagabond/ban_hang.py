@@ -910,14 +910,19 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	# lien he moi o day: khach_cho_don da tao Contact roi, ERPNext se keo
 	# lien he chinh cua khach do khi luu.
 	if (si.get("customer") or "") != khach_don:
-		for o in (
+		# KHONG dat ten bien vong lap la "o": "o" chinh la don hang Pancake,
+		# tham so cua ham nay. Dat trung ten thi sau vong lap "o" thanh mot
+		# chuoi, va loi chi bung ra o cho khac han - _doan_thanh_toan(o) nem
+		# "'str' object has no attribute 'get'" (bat duoc 13/08/2026 ngay
+		# trong lan nghiem thu ban va).
+		for truong_xoa in (
 			"contact_person", "contact_display", "contact_mobile", "contact_email",
 			# Dia chi cung bi kiem cung mot cho (validate_party_address_and_contact),
 			# nen xoa luon. Dia chi giao cua don online nam trong ghi chu va
 			# ben Van Don chu khong nam o o nay, khong mat gi.
 			"customer_address", "address_display",
 		):
-			si.set(o, None)
+			si.set(truong_xoa, None)
 
 	si.update(
 		{
