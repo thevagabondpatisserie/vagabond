@@ -52,11 +52,31 @@ class VagabondHoSoTT(Document):
 		han = [getdate(d.han_tra) for d in self.dong if d.han_tra]
 		self.han_tra_som_nhat = min(han) if han else None
 
-		la_hoan_ung = (self.loai or "NCC") == "Hoan ung"
+		la_hoan_ung = (self.loai or "NCC") in ("Hoan ung", "Hoan ung HD")
 		for d in self.dong:
 			nhan = d.hoa_don or d.so_hd_ncc or d.noi_dung or ("dòng %s" % d.idx)
 			if flt(d.so_tien) <= 0:
 				frappe.throw("Dòng %s đề nghị trả 0 đồng, bỏ dòng đó ra." % nhan)
+
+			# Mot giao dich ngan hang chi duoc hoan ung MOT lan. Khac voi chan
+			# trung hoa don o duoi: cho nay chan theo tien that da ra khoi quy
+			# OCB, nen no bat duoc ca truong hop go tay trung voi khoan da tick
+			# tu sao ke.
+			ma_gd = (d.ma_giao_dich or "").strip()
+			if ma_gd:
+				trung_gd = frappe.db.sql(
+					"""select p.name, p.trang_thai from `tabVagabond Ho So TT Dong` d
+					inner join `tabVagabond Ho So TT` p on p.name = d.parent
+					where d.ma_giao_dich = %s and p.name != %s""",
+					(ma_gd, self.name or ""),
+					as_dict=True,
+				)
+				for t in trung_gd:
+					if t["trang_thai"] in CON_HIEU_LUC or t["trang_thai"] == "Da thanh toan":
+						frappe.throw(
+							"Giao dịch %s đã nằm trong hồ sơ %s (%s), không hoàn ứng hai lần."
+							% (ma_gd, t["name"], t["trang_thai"])
+						)
 
 			if not d.hoa_don:
 				# Ho so NCC bat buoc phai co hoa don mua that; ho so hoan ung

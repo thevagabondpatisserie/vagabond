@@ -7,7 +7,7 @@
  "field_order": ["ma", "loai", "ngay", "nha_cung_cap", "ten_ncc", "email_ncc", "cb1", "trang_thai", "tong_tien", "da_tam_ung", "con_lai", "da_tra", "han_tra_som_nhat", "sb1", "dong", "sb4", "ten_nhan", "stk_nhan", "cb3", "ngan_hang_nhan", "noi_dung_ck", "sb2", "nguoi_tao", "fin_boi", "fin_luc", "gd_boi", "gd_luc", "cb2", "ly_do_tu_choi", "ngay_thanh_toan", "ma_giao_dich", "phuong_thuc", "sb3", "email_da_gui", "email_gui_luc", "email_gui_toi", "ghi_chu"],
  "fields": [
   {"fieldname": "ma", "fieldtype": "Data", "label": "Ma ho so", "reqd": 1, "unique": 1, "in_list_view": 1, "read_only": 1},
-  {"fieldname": "loai", "fieldtype": "Select", "label": "Loai ho so", "options": "NCC\nHoan ung", "default": "NCC", "in_list_view": 1},
+  {"fieldname": "loai", "fieldtype": "Select", "label": "Loai ho so", "options": "NCC\nHoan ung HD\nHoan ung", "default": "NCC", "in_list_view": 1},
   {"fieldname": "ngay", "fieldtype": "Date", "label": "Ngay lap", "in_list_view": 1},
   {"fieldname": "nha_cung_cap", "fieldtype": "Link", "options": "Supplier", "label": "Nha cung cap / nguoi duoc hoan ung", "reqd": 1, "in_list_view": 1},
   {"fieldname": "ten_ncc", "fieldtype": "Data", "label": "Ten nha cung cap"},
