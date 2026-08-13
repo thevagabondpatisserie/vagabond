@@ -38,6 +38,27 @@ VAI_LAP = {"Purchase User", "Purchase Manager", "Accounts User", "Accounts Manag
 VAI_FIN = {"Accounts User", "Accounts Manager", "System Manager"}
 VAI_GD = {"Accounts Manager", "System Manager", "Vagabond Giam doc"}
 
+# Ba loai ho so, khac nhau ca ve chung tu lan ve duong tien:
+#   NCC        - cong ty no nha cung cap, tra thang cho ho tu MB
+#   Hoan ung HD- Uyen da ung tien OCB mua hang CO hoa don, hang da nhap kho.
+#                Gom cac hoa don CON NO lai, cong ty tra cho Uyen mot lan,
+#                cong no nha cung cap sach luon (anh Viet chot 13/08/2026)
+#   Hoan ung   - khoan le KHONG hoa don: hang test, phat sinh, bao tri.
+#                Go tay tung khoan, gan voi giao dich chi ra tu OCB
+LOAI_NCC = "NCC"
+LOAI_HU_HD = "Hoan ung HD"
+LOAI_HU = "Hoan ung"
+NHAN_LOAI = {
+	LOAI_NCC: "Công nợ nhà cung cấp",
+	LOAI_HU_HD: "Hoàn ứng có hoá đơn",
+	LOAI_HU: "Hoàn ứng không hoá đơn",
+}
+
+# Tai khoan quy tam ung OCB. Doc theo tai khoan ke toan 1411 chu khong theo
+# ten Bank Account: ten thi ai doi cung duoc, con 1411 la tai khoan so cai
+# da chot 04/08/2026 nen no gan nhu khong doi.
+TK_QUY_TAM_UNG = "1411"
+
 TT_NHAP = "Nhap"
 TT_CHO_FIN = "Cho ke toan"
 TT_CHO_GD = "Cho giam doc"
@@ -271,7 +292,21 @@ def ds_ncc_con_no():
 
 
 @frappe.whitelist()
-def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0):
+def _buoc_ke_tiep_khi_gui(nguoi=None):
+	"""Gửi đi duyệt thì rơi vào bước nào.
+
+	Anh Việt 13/08/2026: *"chị Dung cũng có thể tạo hồ sơ thanh toán, và nếu
+	là tài khoản chị ấy tạo thì sẽ bỏ qua bước duyệt FIN luôn, mà lên thẳng
+	giám đốc duyệt"*. Hợp lý: chị Dung CHÍNH LÀ cấp duyệt kế toán, bắt chị tự
+	duyệt hồ sơ của mình chỉ là một cú bấm thừa. Mà quy tắc người lập không
+	tự duyệt vẫn còn nguyên - ở đây là bỏ hẳn một cấp, không phải tự duyệt.
+	"""
+	vai_nguoi = set(frappe.get_roles(nguoi)) if nguoi else _vai()
+	return TT_CHO_GD if (VAI_FIN & vai_nguoi) else TT_CHO_FIN
+
+
+@frappe.whitelist()
+def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None):
 	"""Lập một hồ sơ từ danh sách hoá đơn đã tick.
 
 	hoa_don: danh sách mã Purchase Invoice, hoặc danh sách
@@ -322,12 +357,12 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0):
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
-	doc.loai = "NCC"
+	doc.loai = LOAI_HU_HD if (loai or "") == LOAI_HU_HD else LOAI_NCC
 	doc.ngay = nowdate()
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
-	doc.trang_thai = TT_CHO_FIN if cint(gui_luon) else TT_NHAP
+	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(ma_ncc) or {}).items():
@@ -400,18 +435,19 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 			"loai_chi": (x.get("loai_chi") or "").strip(),
 			"co_vat": 1 if cint(x.get("co_vat")) else 0,
 			"so_tien": tien,
+			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
 		})
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
-	doc.loai = "Hoan ung"
+	doc.loai = LOAI_HU
 	doc.ngay = nowdate()
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
 	doc.da_tam_ung = flt(da_tam_ung)
-	doc.trang_thai = TT_CHO_FIN if cint(gui_luon) else TT_NHAP
+	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(ma_ncc) or {}).items():
@@ -429,6 +465,79 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	}
 
 
+def _bank_account_quy():
+	"""Bank Account tro vao tai khoan 1411 - quy tam ung OCB."""
+	r = frappe.get_all(
+		"Bank Account",
+		filters={"is_company_account": 1, "account": ["like", TK_QUY_TAM_UNG + "%"]},
+		pluck="name",
+		limit_page_length=1,
+	)
+	return r[0] if r else None
+
+
+def _gd_da_gom():
+	"""Mã giao dịch đã nằm trong một hồ sơ còn hiệu lực."""
+	rows = frappe.db.sql(
+		"""select d.ma_giao_dich from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where ifnull(d.ma_giao_dich, '') != ''
+		and p.trang_thai in ('Nhap', 'Cho ke toan', 'Cho giam doc', 'Da duyet', 'Da thanh toan')""",
+		as_dict=True,
+	)
+	return set((r["ma_giao_dich"] or "").strip() for r in rows)
+
+
+@frappe.whitelist()
+def sepay_ocb(so_ngay=60, chi_chua_gom=1):
+	"""Giao dịch CHI RA từ quỹ tạm ứng OCB, để Uyên tick thay vì gõ tay.
+
+	Anh Việt 13/08/2026: *"tất cả các loại hoàn ứng thì đều là trả lại tiền
+	đã ứng cho tài khoản OCB của Uyên"*. Đúng vậy, nên nguồn đáng tin nhất
+	không phải trí nhớ mà là sao kê: mỗi khoản đã chi đều có một giao dịch
+	ngân hàng với ngày, số tiền và nội dung sẵn.
+
+	Lấy giao dịch làm gốc thì hai cái lợi: số tiền và ngày không thể gõ sai,
+	và mỗi khoản gắn đúng một giao dịch nên số dư quỹ 1411 tự khớp. Bỏ sẵn
+	giao dịch đã nằm trong hồ sơ khác - tick vào cũng bị chặn lúc lưu.
+	"""
+	_kiem(VAI_LAP, "xem giao dịch quỹ tạm ứng")
+	tk = _bank_account_quy()
+	if not tk:
+		return {"rows": [], "loi": "Chưa khai Bank Account nào trỏ vào tài khoản %s." % TK_QUY_TAM_UNG}
+	ds = frappe.get_all(
+		"Bank Transaction",
+		filters={
+			"bank_account": tk,
+			"withdrawal": [">", 0],
+			"date": [">=", add_days(nowdate(), -int(so_ngay or 60))],
+			"docstatus": ["<", 2],
+		},
+		fields=["name", "date", "withdrawal", "description", "reference_number", "status"],
+		order_by="date desc, creation desc",
+		limit_page_length=0,
+	)
+	da_gom = _gd_da_gom() if cint(chi_chua_gom) else set()
+	ra = []
+	for r in ds:
+		ma = (r.reference_number or r.name or "").strip()
+		if ma in da_gom:
+			continue
+		ra.append({
+			"ma_giao_dich": ma,
+			"ngay": str(r.date or ""),
+			"so_tien": flt(r.withdrawal),
+			"noi_dung": (r.description or "").strip(),
+			"trang_thai": r.status or "",
+		})
+	return {
+		"rows": ra,
+		"tong": sum(x["so_tien"] for x in ra),
+		"tai_khoan": tk,
+		"so_gd": len(ra),
+	}
+
+
 @frappe.whitelist()
 def ds_nguoi_ung(tu_khoa=""):
 	"""Nhà cung cấp để chọn làm người được hoàn ứng.
@@ -440,7 +549,7 @@ def ds_nguoi_ung(tu_khoa=""):
 	_kiem(VAI_LAP, "lập hồ sơ hoàn ứng")
 	hay = frappe.get_all(
 		"Vagabond Ho So TT",
-		filters={"loai": "Hoan ung"},
+		filters={"loai": ["in", [LOAI_HU, LOAI_HU_HD]]},
 		fields=["nha_cung_cap", "ten_ncc"],
 		order_by="creation desc",
 		limit_page_length=200,
@@ -743,6 +852,7 @@ def chi_tiet(name):
 			"con_no_hien_tai": 0.0, "so_tien": flt(d.so_tien),
 			"noi_dung": d.noi_dung or "", "ben_ban": d.ben_ban or "",
 			"loai_chi": d.loai_chi or "", "co_vat": cint(d.co_vat),
+			"ma_giao_dich": d.ma_giao_dich or "",
 			"ghi_chu": d.ghi_chu or "",
 			"po": [], "pnk": [], "scan": [], "hddt": [],
 			"ncc_hd": "", "trang_thai_hd": "",
@@ -825,8 +935,13 @@ def duyet(name, buoc, ly_do=""):
 		_kiem(VAI_LAP, "gửi hồ sơ đi duyệt")
 		if doc.trang_thai not in (TT_NHAP, TT_TU_CHOI):
 			frappe.throw("Hồ sơ đang ở trạng thái %s, không gửi lại được." % NHAN.get(doc.trang_thai))
-		doc.trang_thai = TT_CHO_FIN
+		doc.trang_thai = _buoc_ke_tiep_khi_gui()
 		doc.ly_do_tu_choi = ""
+		# Nhay thang len giam doc thi phai ghi ro AI da dam nhiem cap ke toan,
+		# khong thi to trinh ky trong ra nhu chua qua kiem soat nao.
+		if doc.trang_thai == TT_CHO_GD and not doc.fin_boi:
+			doc.fin_boi = toi
+			doc.fin_luc = now_datetime()
 
 	elif buoc == "fin":
 		_kiem(VAI_FIN, "duyệt hồ sơ ở cấp kế toán")
@@ -845,7 +960,7 @@ def duyet(name, buoc, ly_do=""):
 		# Ho so hoan ung: den day moi sinh hoa don mua that. Dat TRUOC khi
 		# doi trang thai - ham nem loi thi ho so con nguyen o buoc cho giam
 		# doc, khong co gi nua voi nua chin.
-		if (doc.loai or "NCC") == "Hoan ung":
+		if (doc.loai or LOAI_NCC) == LOAI_HU:
 			_sinh_hoa_don_hoan_ung(doc)
 			doc.reload()
 		doc.trang_thai = TT_DA_DUYET
@@ -1174,7 +1289,7 @@ def _noi_dung_ck(doc):
 	về SePay là thành dấu hỏi.
 	"""
 	ten = _bo_dau(doc.ten_nhan or doc.ten_ncc or doc.nha_cung_cap or "").upper()
-	viec = "HOAN UNG" if (doc.loai or "NCC") == "Hoan ung" else "TT CONG NO"
+	viec = "HOAN UNG" if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD) else "TT CONG NO"
 	nd = "VAGABOND %s %s %s" % (doc.name, viec, ten)
 	nd = re.sub(r"[^A-Za-z0-9 .]", " ", nd)
 	nd = re.sub(r"\s+", " ", nd).strip()
@@ -1266,106 +1381,146 @@ def sua_tk_nhan(name, ten_nhan=None, stk_nhan=None, ngan_hang_nhan=None):
 
 @frappe.whitelist()
 def xuat_ho_so(name):
-	"""Gói cả bộ chứng từ của một hồ sơ thành một tệp nén.
+	"""Gói cả bộ chứng từ của một hồ sơ thành MỘT tệp PDF khổ A4 dọc.
 
-	Anh Việt 13/08/2026: "xuất ra toàn bộ hồ sơ thanh toán sau khi quá trình
-	thanh toán đã hoàn tất gồm phiếu APP, phiếu PO, phiếu nhập kho, phiếu
-	nghiệm thu (scan,... tuỳ loại giao dịch mà có phiếu nào)".
+	Anh Việt 13/08/2026: *"khi bấm nút này thì sẽ xuất ra 1 file PDF size A4
+	dọc combine của tất cả các file hồ sơ lại như file Uyên làm mà anh gửi
+	em. Không xuất file Zip em ạ"*.
 
-	Chứng từ nào dựng không được thì ghi vào MUC-LUC.txt chứ không bỏ im -
-	một bộ hồ sơ thiếu tờ mà không ai biết là thiếu thì tệ hơn báo lỗi.
+	Cách làm: dựng MỘT trang HTML dài gồm tờ đề nghị, bản in từng chứng từ,
+	rồi mỗi ảnh scan một trang; ngắt trang giữa các phần; đưa qua một lượt
+	get_pdf duy nhất. Làm vậy thì ảnh vào thẳng PDF mà không cần thư viện
+	ghép, và cỡ giấy do CSS quyết nên chắc chắn A4 dọc.
+
+	Tệp đính kèm là PDF thì không nhét vào HTML được. Có thư viện ghép thì
+	nối vào cuối; không có thì liệt kê ở trang mục lục chứ không bỏ im - bộ
+	hồ sơ thiếu tờ mà không ai biết là thiếu thì tệ hơn báo lỗi.
 	"""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xuất bộ hồ sơ thanh toán")
-	import zipfile
-
 	d = chi_tiet(name)
 	hs = d["ho_so"]
-	buf = io.BytesIO()
-	muc_luc, hong = [], []
+	h = frappe.utils.escape_html
 
-	def _pdf(dt, dn, ten_tep):
+	NGAT = '<div style="page-break-after:always"></div>'
+	phan = [_to_app_html(name)]
+	muc_luc, hong, pdf_rieng = ["Tờ đề nghị thanh toán %s" % hs["ma"]], [], []
+
+	def _in_html(dt, dn, nhan):
 		try:
-			noi = frappe.get_print(dt, dn, as_pdf=True)
-			z.writestr(ten_tep, noi)
-			muc_luc.append(ten_tep + "  <- %s %s" % (dt, dn))
+			noi = frappe.get_print(dt, dn)
+			phan.append(NGAT + '<div style="font-family:Arial,sans-serif">' + noi + "</div>")
+			muc_luc.append("%s %s" % (nhan, dn))
 			return True
 		except Exception:
-			hong.append("%s %s" % (dt, dn))
+			hong.append("%s %s" % (nhan, dn))
 			frappe.log_error(frappe.get_traceback(), "ho_so_tt: in %s %s" % (dt, dn))
 			return False
 
-	with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-		# 1. To de nghi thanh toan, dung tu HTML cua chinh he - khong phu
-		#    thuoc Print Format nao ca.
-		try:
-			from frappe.utils.pdf import get_pdf
+	da_po, da_pnk = set(), set()
+	for x in d["dong"]:
+		if x["hoa_don"]:
+			_in_html("Purchase Invoice", x["hoa_don"], "Hoá đơn mua")
+		for po in x["po"]:
+			if po not in da_po:
+				da_po.add(po)
+				_in_html("Purchase Order", po, "Đơn mua hàng")
+		for pnk in x["pnk"]:
+			if pnk not in da_pnk:
+				da_pnk.add(pnk)
+				_in_html("Purchase Receipt", pnk, "Phiếu nhập kho")
 
-			z.writestr("01-DE-NGHI-THANH-TOAN-%s.pdf" % hs["ma"], get_pdf(_to_app_html(name)))
-			muc_luc.append("01-DE-NGHI-THANH-TOAN-%s.pdf  <- to APP" % hs["ma"])
-		except Exception:
-			z.writestr("01-DE-NGHI-THANH-TOAN-%s.html" % hs["ma"], _to_app_html(name).encode("utf-8"))
-			muc_luc.append("01-DE-NGHI-THANH-TOAN-%s.html  <- to APP (khong dung duoc PDF)" % hs["ma"])
-
-		da_in_po, da_in_pnk = set(), set()
-		for i, x in enumerate(d["dong"], 1):
-			if x["hoa_don"]:
-				_pdf("Purchase Invoice", x["hoa_don"], "02-HOA-DON-MUA/%02d-%s.pdf" % (i, x["hoa_don"]))
-			for po in x["po"]:
-				if po in da_in_po:
-					continue
-				da_in_po.add(po)
-				_pdf("Purchase Order", po, "03-DON-MUA-HANG/%s.pdf" % po)
-			for pnk in x["pnk"]:
-				if pnk in da_in_pnk:
-					continue
-				da_in_pnk.add(pnk)
-				_pdf("Purchase Receipt", pnk, "04-PHIEU-NHAP-KHO/%s.pdf" % pnk)
-
-		# 2. Ban scan: chung tu giay ben Kien dinh kem vao PO / PNK / hoa don,
-		#    cong voi file dinh kem thang vao ho so.
-		da_lay = set()
-		for nhom in [x["scan"] for x in d["dong"]] + [d.get("ho_so_dinh_kem") or []]:
-			for f in nhom:
-				if f["file"] in da_lay:
-					continue
-				da_lay.add(f["file"])
+	# Ban scan: moi anh mot trang, canh giua, khong keo qua khung giay.
+	da_lay = set()
+	for nhom in [x["scan"] for x in d["dong"]] + [d.get("ho_so_dinh_kem") or []]:
+		for f in nhom:
+			if f["file"] in da_lay:
+				continue
+			da_lay.add(f["file"])
+			ten = f["ten"] or f["file"]
+			duoi = ten.rsplit(".", 1)[-1].lower() if "." in ten else ""
+			if duoi in ("jpg", "jpeg", "png", "gif", "bmp", "webp"):
 				try:
 					noi = frappe.get_doc("File", f["file"]).get_content()
 					if isinstance(noi, str):
 						noi = noi.encode("utf-8")
-					z.writestr("05-BAN-SCAN/%s" % (f["ten"] or f["file"]), noi)
-					muc_luc.append("05-BAN-SCAN/%s  <- %s" % (f["ten"] or f["file"], f["tu"]))
+					b64 = base64.b64encode(noi).decode()
+					kieu = "png" if duoi == "png" else ("gif" if duoi == "gif" else "jpeg")
+					phan.append(
+						NGAT
+						+ '<div style="font-family:Arial,sans-serif;text-align:center">'
+						+ '<div style="font-size:11px;color:#666;margin-bottom:6px">%s</div>' % h(ten)
+						+ '<img src="data:image/%s;base64,%s" style="max-width:100%%;max-height:960px">' % (kieu, b64)
+						+ "</div>"
+					)
+					muc_luc.append("Bản scan %s" % ten)
 				except Exception:
-					hong.append("scan %s" % (f["ten"] or f["file"]))
+					hong.append("Bản scan %s" % ten)
+			elif duoi == "pdf":
+				pdf_rieng.append(f)
+			else:
+				hong.append("%s (định dạng %s chưa gộp được)" % (ten, duoi or "lạ"))
 
-		mo_ta = [
-			"BO HO SO THANH TOAN %s" % hs["ma"],
-			"Loai: %s" % ("Hoan ung" if hs["loai"] == "Hoan ung" else "Cong no nha cung cap"),
-			"Ben nhan: %s (%s)" % (hs["ten_ncc"] or hs["ncc"], hs["ncc"]),
-			"Trang thai: %s" % hs["nhan"],
-			"Tong de nghi tra: %s d" % _tien(hs["tong_tien"]),
-		]
-		if flt(hs.get("da_tam_ung")):
-			mo_ta.append("Tru tam ung: %s d" % _tien(hs["da_tam_ung"]))
-			mo_ta.append("Con lai chuyen: %s d" % _tien(hs["con_lai"]))
-		mo_ta += [
-			"Nguoi lap: %s" % (hs["nguoi_tao_ten"] or "-"),
-			"Ke toan duyet: %s" % (hs["fin_ten"] or "-"),
-			"Giam doc duyet: %s" % (hs["gd_ten"] or "-"),
-			"Ngay thanh toan: %s" % (_ngay_vn(hs["ngay_thanh_toan"]) or "-"),
-			"Ma giao dich: %s" % (hs["ma_giao_dich"] or "-"),
-			"",
-			"CAC TEP TRONG BO HO SO:",
-		] + ["  " + x for x in muc_luc]
-		if hong:
-			mo_ta += ["", "KHONG LAY DUOC (can lay tay tren Next):"] + ["  " + x for x in hong]
-		z.writestr("MUC-LUC.txt", _bo_dau("\n".join(mo_ta)).encode("utf-8"))
+	# Trang muc luc dat o CUOI: doc xong bo ho so moi doi chieu lai cho tien.
+	ml = (
+		NGAT
+		+ '<div style="font-family:Arial,sans-serif;font-size:12.5px">'
+		+ '<div style="font-size:16px;font-weight:bold;margin-bottom:10px">MỤC LỤC BỘ HỒ SƠ %s</div>' % h(hs["ma"])
+		+ "<ol>" + "".join("<li>%s</li>" % h(x) for x in muc_luc) + "</ol>"
+	)
+	if pdf_rieng or hong:
+		ml += '<div style="margin-top:12px;color:#b3261e"><b>Chưa gộp được vào tệp này, xem trên Next:</b><ul>'
+		ml += "".join("<li>%s</li>" % h(f["ten"] or f["file"]) for f in pdf_rieng)
+		ml += "".join("<li>%s</li>" % h(x) for x in hong)
+		ml += "</ul></div>"
+	ml += "</div>"
+	phan.append(ml)
 
+	khung = (
+		"<html><head><meta charset='utf-8'><style>"
+		"@page{size:A4 portrait;margin:12mm}"
+		"body{margin:0}"
+		"table{page-break-inside:auto}tr{page-break-inside:avoid}"
+		"</style></head><body>" + "".join(phan) + "</body></html>"
+	)
+
+	from frappe.utils.pdf import get_pdf
+
+	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
+
+	# Noi them cac tep PDF dinh kem, neu moi truong co thu vien ghep.
+	if pdf_rieng:
+		try:
+			from pypdf import PdfReader, PdfWriter
+		except Exception:
+			try:
+				from PyPDF2 import PdfReader, PdfWriter
+			except Exception:
+				PdfReader = PdfWriter = None
+		if PdfReader:
+			try:
+				w = PdfWriter()
+				for tr in PdfReader(io.BytesIO(noi_dung)).pages:
+					w.add_page(tr)
+				for f in list(pdf_rieng):
+					noi = frappe.get_doc("File", f["file"]).get_content()
+					if isinstance(noi, str):
+						noi = noi.encode("utf-8")
+					for tr in PdfReader(io.BytesIO(noi)).pages:
+						w.add_page(tr)
+					muc_luc.append("Bản scan %s" % (f["ten"] or f["file"]))
+					pdf_rieng.remove(f)
+				bo = io.BytesIO()
+				w.write(bo)
+				noi_dung = bo.getvalue()
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghep PDF dinh kem %s" % name)
+
+	con_thieu = [f["ten"] or f["file"] for f in pdf_rieng] + hong
 	return {
-		"ten_file": "ho-so-%s.zip" % hs["ma"].replace(".", "-"),
-		"b64": base64.b64encode(buf.getvalue()).decode(),
+		"ten_file": "ho-so-%s.pdf" % hs["ma"].replace(".", "-"),
+		"b64": base64.b64encode(noi_dung).decode(),
 		"so_tep": len(muc_luc),
-		"hong": hong,
+		"hong": con_thieu,
 	}
 
 
@@ -1381,7 +1536,7 @@ def _to_app_html(name):
 	d = chi_tiet(name)
 	hs, dong = d["ho_so"], d["dong"]
 	h = frappe.utils.escape_html
-	la_hu = hs["loai"] == "Hoan ung"
+	la_hu = hs["loai"] in (LOAI_HU, LOAI_HU_HD)
 
 	hang = []
 	for i, x in enumerate(dong, 1):
@@ -1503,7 +1658,7 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 		for i, d in enumerate(ds):
 			bang.append([
 				r["ma"] if i == 0 else "",
-				("Hoàn ứng" if r.get("loai") == "Hoan ung" else "NCC") if i == 0 else "",
+				NHAN_LOAI.get(r.get("loai"), r.get("loai") or "") if i == 0 else "",
 				str(r["ngay"] or "") if i == 0 else "",
 				(r["ten_ncc"] or r["nha_cung_cap"]) if i == 0 else "",
 				NHAN.get(r["trang_thai"], r["trang_thai"]) if i == 0 else "",
