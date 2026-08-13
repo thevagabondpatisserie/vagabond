@@ -33,6 +33,11 @@ scheduler_events = {
 		# ngay tren app (mac dinh 23:00, ca ba buoc xong truoc 23h30). Chi
 		# Dung so xuat hoa don sat 24h, lo nghen mang la to hoa don lot
 		# sang ngay hom sau, sai luat ke toan (anh Viet 12/08/2026).
+		# 23h55: chuoi cuoi ngay va cac nhip vet da xong. Con don nao chua ghi
+		# so duoc thi gui thu bao ngay trong dem. Truoc 13/08/2026 loi chi rot
+		# vao Error Log ma khong ai mo, nen 149 don nam nhap nua thang (114
+		# trieu) khong ai hay.
+		"55 23 * * *": ["vagabond.ban_hang.canh_bao_don_treo"],
 		# 2h sang: ra don bi lap hai hoa don, co thi gui thu bao.
 		"0 2 * * *": ["vagabond.ban_hang.ra_trung_hang_dem"],
 		# Xet lai hang thanh vien theo chi tieu ky. Chay sau nua dem, truoc

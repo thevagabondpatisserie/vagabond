@@ -1825,8 +1825,45 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 	if not bo_qua_gio and bay_gio < gio:
 		return
 	ngay = nowdate()
-	if str(c.get("tu_ghi_so_lan_cuoi") or "") == ngay:
-		return
+
+	# Truoc 13/08/2026 cho nay la "da chay hom nay thi thoi": chuoi lam dung
+	# MOT lan roi nghi. Don nao luc 23h00 chua du dieu kien - tien chuyen
+	# khoan ve luc 23h10, sales chon phuong thuc luc 23h20 - thi nam nhap
+	# VINH VIEN, vi hom sau chuoi chi quet don cua hom sau, khong ai quay lai
+	# nhat. Bat duoc 13/08/2026: 149 don tu 01-04/08, tong 114 trieu, SePay
+	# bao nhan du tien tu lau ma van con nhap, khong ai hay.
+	#
+	# Nay cac nhip 5 phut con lai trong ngay VET tiep, chi bo hai buoc phat
+	# hanh va ky hang loat vi da lam roi (moi don ghi so deu tu xuat hoa don
+	# rieng ngay sau do). Nhip vet bat dau bang mot cau dem: khong con don
+	# nao thi thoat luon, khong ton gi.
+	da_du_chuoi = str(c.get("tu_ghi_so_lan_cuoi") or "") == ngay
+
+	quay_bat = [
+		q.strip().upper()
+		for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines()
+		if q.strip()
+	]
+	loc_sales = {
+		"posting_date": ngay,
+		"custom_pancake_id": ["!=", ""],
+		"docstatus": 0,
+		"vgb_quay": ["in", ["", None]],
+		"vgb_huy": 0,
+	}
+	loc_quay = {
+		"posting_date": ngay,
+		"docstatus": 0,
+		"vgb_quay": ["in", quay_bat or [""]],
+		"vgb_tam_tinh": 0,
+		"vgb_huy": 0,
+	}
+	if da_du_chuoi and not chay_tay:
+		con = frappe.db.count("Sales Invoice", loc_sales)
+		if not con and quay_bat:
+			con = frappe.db.count("Sales Invoice", loc_quay)
+		if not con:
+			return
 
 	# Chong chay chong bang KHOA chu khong bang co "da chay hom nay" ghi
 	# truoc. Ghi co truoc nghe thi chac, nhung neu job chet giua chung -
@@ -1838,13 +1875,17 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 	# Keo not don Pancake truoc khi ghi so: don ve luc 22h55 ma nhip dong bo
 	# sau con cach 25 phut thi lot sang ngay mai. Goi TRUOC khi lay khoa ghi
 	# so - ham nay tu lay khoa rieng, long hai khoi khoa vao nhau la treo.
-	try:
-		_dong_bo_doanh_so(ngay)
-	except Exception:
-		# Pancake hong hay thieu khoa API thi van ghi so nhung don da ve.
-		frappe.db.rollback()
-		frappe.local.message_log = []
-		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: keo don lan cuoi")
+	#
+	# Nhip VET khong keo lai don: nhip dong bo rieng 30 phut mot lan da lo
+	# viec do, keo them moi 5 phut chi lam nang Pancake khong duoc gi.
+	if not da_du_chuoi or chay_tay:
+		try:
+			_dong_bo_doanh_so(ngay)
+		except Exception:
+			# Pancake hong hay thieu khoa API thi van ghi so nhung don da ve.
+			frappe.db.rollback()
+			frappe.local.message_log = []
+			frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: keo don lan cuoi")
 
 	# Bam tay thi phai bao ro khi may dang ban: truoc day im lang tra ve,
 	# nguoi bam nhin man hinh khong doi gi ma tuong da chay xong.
@@ -1857,33 +1898,9 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 	# tien trinh chet). Ket khoa la ca dong bo lan chuoi cuoi ngay dung
 	# hinh cho den khi ai do khoi dong lai may chu.
 	try:
-
-		quay_bat = [
-			q.strip().upper()
-			for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines()
-			if q.strip()
-		]
-
-		loc_sales = {
-			"posting_date": ngay,
-			"custom_pancake_id": ["!=", ""],
-			"docstatus": 0,
-			"vgb_quay": ["in", ["", None]],
-			"vgb_huy": 0,
-		}
 		ds = frappe.db.get_all("Sales Invoice", filters=loc_sales, pluck="name")
 		if quay_bat:
-			ds += frappe.db.get_all(
-				"Sales Invoice",
-				filters={
-					"posting_date": ngay,
-					"docstatus": 0,
-					"vgb_quay": ["in", quay_bat],
-					"vgb_tam_tinh": 0,
-					"vgb_huy": 0,
-				},
-				pluck="name",
-			)
+			ds += frappe.db.get_all("Sales Invoice", filters=loc_quay, pluck="name")
 
 		sepay = None
 		if ds:
@@ -1935,6 +1952,27 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 	# khong kiem thi ke toan tat cong tac ben m-invoice ma may van cu xuat
 	# va ky - dung canh hai cong tac noi khac nhau da gay ra vu 37 hoa don
 	# hom 10/08. Kiem lai o day cho mot cua.
+	#
+	# Nhip VET bo qua ca hai buoc: da phat hanh va ky ca luot dau roi, ma
+	# moi don vua ghi so o tren deu tu day hoa don rieng qua _tu_xuat_hddt.
+	# Goi lai hang loat moi 5 phut chi lam m-invoice met.
+	if da_du_chuoi and not chay_tay:
+		nhat_ky = "%s vét lúc %s: ghi sổ thêm %d đơn, xuất hoá đơn %d.%s" % (
+			ngay,
+			now_datetime().strftime("%H:%M"),
+			xong,
+			hddt,
+			(" Còn %d đơn cần xem lại." % len(loi)) if loi else "",
+		)
+		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", nhat_ky[:500])
+		frappe.db.commit()
+		if loi:
+			frappe.log_error(
+				title="Vagabond: vét cuối ngày %s" % ngay,
+				message=nhat_ky + "\n\n" + "\n".join(loi),
+			)
+		return
+
 	ph = ky = None
 	bat_ph = bat_ky = 0
 	try:
@@ -1982,6 +2020,279 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 			title="Vagabond: chuỗi cuối ngày %s" % ngay,
 			message=nhat_ky + "\n\n" + "\n".join(loi),
 		)
+
+
+# ------------------------------------------------------------ don con treo
+#
+# Anh Viet 13/08/2026: "tai sao lai khong ghi so va xuat hoa don cho cac don
+# ay o nguon sales, toan bo hoa don cuoi ngay phai tu ghi so va tu xuat ma?"
+#
+# Chuoi cuoi ngay VAN chan dung: don chua chon phuong thuc, don chuyen khoan
+# ma ngan hang chua nhan tien thi khong duoc ghi so - ghi so la ghi doanh
+# thu, ma tien chua ve thi chua phai doanh thu.
+#
+# Cai sai KHONG nam o cho chan. Cai sai nam o cho CHAN XONG ROI IM LANG:
+# loi chi rot vao Error Log ma khong ai mo Error Log bao gio, nen 149 don
+# tu 01-04/08 nam nhap ca nua thang, tong 114 trieu, khong ai hay.
+#
+# Ba viec o day: don_treo() liet ke ra kem LY DO tung don; canh_bao_don_treo()
+# gui thu moi dem khi con don treo; keo_va_ghi_so() xu ly ca loat.
+
+LY_DO_TREO = {
+	"chua_pt": "Chưa chọn phương thức thanh toán",
+	"pt_sai_nguon": "Phương thức không dùng được cho nguồn đơn này",
+	"chua_ve_tien": "Chuyển khoản nhưng ngân hàng chưa nhận đủ tiền",
+	"san_sang": "Đã đủ điều kiện, chỉ chờ ghi sổ",
+}
+
+
+def _ly_do_treo(r, sepay):
+	"""Vi sao mot don con nam nhap. Tra ma ly do trong LY_DO_TREO."""
+	pt = (r.get("vgb_pt_thanh_toan") or "").strip()
+	if not pt:
+		return "chua_pt"
+	try:
+		if pt not in _pt_cho_nguon(r.get("custom_nguon")):
+			return "pt_sai_nguon"
+	except Exception:
+		pass
+	if pt != "Chuyển khoản":
+		return "san_sang"
+	if (r.get("vgb_ma_tham_chieu") or "").strip():
+		return "san_sang"
+	g = (sepay or {}).get(str(r.get("custom_pancake_display_id") or "")) or {}
+	if flt(g.get("nhan")) >= flt(r.get("grand_total")) - 1:
+		return "san_sang"
+	return "chua_ve_tien"
+
+
+def _quet_don_treo(so_ngay=14):
+	"""Cac don Pancake con nhap trong so_ngay ngay gan day, kem ly do.
+
+	KHONG lay hoa don tam tinh (phieu giu mon, khach chua tra tien) va
+	khong lay don da huy mem.
+	"""
+	tu = add_days(nowdate(), -int(so_ngay or 14))
+	ds = frappe.db.get_all(
+		"Sales Invoice",
+		filters={
+			"posting_date": [">=", tu],
+			"custom_pancake_id": ["!=", ""],
+			"docstatus": 0,
+			"vgb_quay": ["in", ["", None]],
+			"vgb_huy": 0,
+			"vgb_tam_tinh": 0,
+		},
+		fields=[
+			"name", "posting_date", "grand_total", "customer",
+			"custom_nguon", "custom_pancake_display_id",
+			"vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "remarks",
+		],
+		order_by="posting_date asc, name asc",
+		limit_page_length=0,
+	)
+	sepay = {}
+	if ds:
+		try:
+			sepay = _sepay_theo_don(
+				cfg().pancake_shop_id, [r.custom_pancake_display_id for r in ds]
+			)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang don treo: doc SePay")
+	hom_nay = str(getdate(nowdate()))
+	for r in ds:
+		r["ly_do"] = _ly_do_treo(r, sepay)
+		r["ly_do_chu"] = LY_DO_TREO.get(r["ly_do"], r["ly_do"])
+		r["hom_nay"] = 1 if str(r.posting_date) == hom_nay else 0
+		g = sepay.get(str(r.custom_pancake_display_id or "")) or {}
+		r["sepay_nhan"] = int(flt(g.get("nhan")))
+	return ds
+
+
+@frappe.whitelist()
+def don_treo(so_ngay=14):
+	"""Man 'Đơn còn treo' tren app: don nao chua ghi so duoc, va vi sao."""
+	_kiem_quyen()
+	ds = _quet_don_treo(so_ngay)
+	dem, tien = {}, {}
+	for r in ds:
+		dem[r["ly_do"]] = dem.get(r["ly_do"], 0) + 1
+		tien[r["ly_do"]] = tien.get(r["ly_do"], 0) + flt(r.grand_total)
+	return {
+		"so_ngay": int(so_ngay or 14),
+		"rows": ds,
+		"tong": len(ds),
+		"tong_tien": sum(flt(r.grand_total) for r in ds),
+		"dem": dem,
+		"tien": tien,
+		"ly_do": LY_DO_TREO,
+	}
+
+
+@frappe.whitelist()
+def keo_va_ghi_so(ds=None, so_ngay=14, chay_thu=1):
+	"""Keo don treo sang ngay hom nay roi ghi so va xuat hoa don.
+
+	Anh Viet chot 13/08/2026 cho lo 149 don ton tu 01-04/08: keo sang ngay
+	dang thao tac roi ghi so, de hoa don dien tu mang dung ngay xuat - luat
+	bat xuat hoa don trong ngay ban, khong xuat lui ngay duoc.
+
+	Danh doi: bao cao doanh thu theo NGAY cua nhung ngay cu se thieu phan
+	nay, nhung doanh thu thang van du va hoa don dien tu khong pham luat.
+	Ngay ban that van con trong o ghi chu cua tung don.
+
+	chay_thu=1 chi liet ke, khong ghi gi. Luon chay thu mot lan truoc.
+	"""
+	_kiem_quyen()
+	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới kéo được ngày hoá đơn.")
+	chay_thu = cint(chay_thu)
+	if isinstance(ds, str):
+		ds = json.loads(ds) if ds.strip().startswith("[") else [x for x in ds.split(",") if x.strip()]
+
+	treo = _quet_don_treo(so_ngay)
+	nhan = set(ds or [])
+	if nhan:
+		# Chon tay tren app: lam dung nhung don duoc tick.
+		cho = [r for r in treo if r.name in nhan]
+	else:
+		# Ca loat: chi dung toi don DA DU DIEU KIEN cua NGAY CU. Don hom nay
+		# de chuoi cuoi ngay lo, khong keo ngay cua chinh no lam gi; don chua
+		# du dieu kien thi keo sang hom nay cung van khong ghi so duoc.
+		cho = [r for r in treo if r["ly_do"] == "san_sang" and not r["hom_nay"]]
+
+	kq = {
+		"chay_thu": chay_thu,
+		"chon": len(cho),
+		"keo": 0,
+		"ghi_so": 0,
+		"xuat_hddt": 0,
+		"tien": sum(flt(r.grand_total) for r in cho),
+		"loi": [],
+		"vi_du": [
+			{"don": r.name, "ngay_cu": str(r.posting_date), "ma": r.custom_pancake_display_id,
+			 "tien": flt(r.grand_total)}
+			for r in cho[:20]
+		],
+	}
+	if chay_thu:
+		return kq
+
+	moi = nowdate()
+	for r in cho:
+		nhan_don = r.custom_pancake_display_id or r.name
+		try:
+			si = frappe.get_doc("Sales Invoice", r.name)
+			if si.docstatus != 0 or cint(si.get("vgb_huy")) or si.get("custom_hddt_so"):
+				continue
+			cu = str(si.posting_date)
+			if cu != moi:
+				# Xoa lich thanh toan cu truoc khi doi ngay: cac dong
+				# payment_schedule con giu han cua ngay cu, ERPNext so han cu
+				# voi ngay moi roi chan luon.
+				si.set_posting_time = 1
+				si.posting_date = moi
+				si.payment_schedule = []
+				si.due_date = moi
+			_chuan_bi_ghi_so(si)
+			si.flags.ignore_permissions = True
+			si.submit()
+			frappe.db.commit()
+			if cu != moi:
+				kq["keo"] += 1
+				_ghi_vet(si.name, "Kéo hoá đơn treo từ %s sang %s rồi ghi sổ" % (cu, moi), "hàng loạt")
+			kq["ghi_so"] += 1
+		except Exception as e:
+			frappe.db.rollback()
+			frappe.local.message_log = []
+			if len(kq["loi"]) < 50:
+				kq["loi"].append("Đơn %s: %s" % (nhan_don, str(e)[:200]))
+			continue
+		da_xuat, bao = _tu_xuat_hddt(r.name)
+		if da_xuat:
+			kq["xuat_hddt"] += 1
+		elif bao and len(kq["loi"]) < 50:
+			kq["loi"].append("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn: %s" % (nhan_don, bao))
+	frappe.db.commit()
+	return kq
+
+
+def _nguoi_nhan_canh_bao():
+	"""Ai nhan thu canh bao cuoi ngay: khai trong Cai dat, khong thi lay
+	cac tai khoan dang bat co vai ke toan hoac quan ly."""
+	tho = str(cfg().get("email_canh_bao") or "").strip()
+	if tho:
+		ra = [x.strip() for x in tho.replace(",", "\n").splitlines() if x.strip() and "@" in x]
+		if ra:
+			return ra
+	ra = []
+	for vai in ("Accounts Manager", "Accounts User", "System Manager"):
+		for r in frappe.get_all("Has Role", filters={"role": vai, "parenttype": "User"}, pluck="parent"):
+			if r in ("Administrator", "Guest") or r in ra:
+				continue
+			if frappe.db.get_value("User", r, "enabled") and "@" in r:
+				ra.append(r)
+	return ra[:10]
+
+
+def canh_bao_don_treo():
+	"""23h55 moi ngay: con don nao chua ghi so duoc thi gui thu bao ngay.
+
+	Chay SAU chuoi cuoi ngay va sau cac nhip vet, nen con lai la nhung don
+	that su can nguoi xu. Khong con don nao thi khong gui gi - khong ai
+	muon moi dem nhan mot cai thu "khong co gi".
+	"""
+	try:
+		ds = _quet_don_treo(14)
+		ds = [r for r in ds if r["ly_do"] != "san_sang" or not r["hom_nay"]]
+		if not ds:
+			return
+		from vagabond.nhan_su import _khung_thu, _nut_xanh, _o_nhat, link_app
+
+		nhan = _nguoi_nhan_canh_bao()
+		if not nhan:
+			return
+		h = frappe.utils.escape_html
+		nhom = {}
+		for r in ds:
+			nhom.setdefault(r["ly_do"], []).append(r)
+		khoi = []
+		for ma_ly_do, rows in sorted(nhom.items(), key=lambda x: -len(x[1])):
+			dong = [
+				"%s <b>#%s</b> - %s đ%s" % (
+					"/".join(reversed(str(r.posting_date).split("-"))),
+					h(r.custom_pancake_display_id or r.name),
+					_tien(r.grand_total),
+					(" - đã nhận %s đ" % _tien(r["sepay_nhan"])) if r["ly_do"] == "chua_ve_tien" else "",
+				)
+				for r in rows[:12]
+			]
+			if len(rows) > 12:
+				dong.append("<i>... và %d đơn nữa</i>" % (len(rows) - 12))
+			khoi.append(
+				"<p style='margin:14px 0 6px'><b>%s</b> - %d đơn, %s đ</p>%s"
+				% (
+					h(LY_DO_TREO.get(ma_ly_do, ma_ly_do)),
+					len(rows),
+					_tien(sum(flt(r.grand_total) for r in rows)),
+					_o_nhat("<br>".join(dong)),
+				)
+			)
+		than = (
+			"<p style='margin:0 0 14px'>Chuỗi cuối ngày đã chạy xong nhưng còn "
+			"<b>%d đơn</b> chưa ghi sổ được, tổng <b>%s đ</b>. "
+			"Anh chị mở app vào Bán hàng, mục <b>Đơn còn treo</b> để xử.</p>%s"
+		) % (len(ds), _tien(sum(flt(r.grand_total) for r in ds)), "".join(khoi))
+		frappe.sendmail(
+			recipients=nhan,
+			subject="Vagabond: còn %d đơn chưa ghi sổ ngày %s" % (len(ds), nowdate()),
+			message=_khung_thu("Đơn chưa ghi sổ được", than, _nut_xanh(link_app(), "Mở app xử đơn")),
+			delayed=False,
+			retry=2,
+		)
+		frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: canh bao don treo")
 
 
 def _gon(kq):
@@ -2499,91 +2810,7 @@ def tao_don_tay(
 	except Exception:
 		frappe.log_error(title="Vagabond: tru kiem banh sau don tay", message=frappe.get_traceback())
 
-	return {
-		"name": si.name,
-		"grand_total": si.grand_total,
-		# Khoi diem de IN LEN BILL (anh Viet 13/08/2026). Tinh o day chu
-		# khong doi hook on_submit: luc in bill hoa don thuong con la ban
-		# nhap chua ghi so, diem thuc su chi cong khi ghi so - nhung khach
-		# dang dung o quay va can biet ngay minh duoc bao nhieu diem.
-		"diem": _khoi_diem_bill(si),
-	}
-
-
-def _khoi_diem_bill(si):
-	"""So diem khach duoc tich cua rieng hoa don nay, kem so du hien co.
-
-	Dung DUNG cong thuc cua khach_hang.cong_diem_hoa_don de con so in tren
-	bill khong bao gio lech voi so thuc cong vao so diem."""
-	try:
-		from vagabond import khach_hang as _kh
-
-		kh = _kh._khach_that(si)
-		if not kh:
-			return None
-		hang = _kh._hang_cua(kh)
-		if not hang:
-			return None
-		ty_le = flt(hang.get("tich_diem"))
-		ten = frappe.db.get_value("Customer", kh, "customer_name") or kh
-		du = flt(frappe.db.get_value("Customer", kh, "vgb_diem"))
-		tich = round(flt(si.grand_total) * ty_le / 100.0) if ty_le > 0 else 0
-
-		# Hoa don DA ghi so thi diem da vao so du roi. Bill in lai phai lay
-		# dung so da cong va KHONG cong them lan nua, khong thi to bill in
-		# lai bao khach co gap doi diem thuc te (thay khi chay that
-		# 13/08/2026 tren HDB-2026-01604).
-		da = frappe.db.sql(
-			"select sum(diem) from `tab%s` where hoa_don = %%s and loai = %%s"
-			% _kh.SO_DIEM,
-			(si.name, "Tich tu hoa don"),
-		)
-		da_cong = flt((da or [[0]])[0][0])
-		if da_cong:
-			return {
-				"khach": kh,
-				"ten": ten,
-				"hang": hang.get("name") or "",
-				"ty_le": ty_le,
-				"tich": da_cong,
-				"du_truoc": du - da_cong,
-				"du_sau": du,
-			}
-		return {
-			"khach": kh,
-			"ten": ten,
-			"hang": hang.get("name") or "",
-			"ty_le": ty_le,
-			"tich": tich,
-			"du_truoc": du,
-			"du_sau": du + tich,
-		}
-	except Exception:
-		# In bill KHONG duoc hong vi khoi diem. Thieu thi bill van ra, chi
-		# la khong co dong diem.
-		frappe.log_error(frappe.get_traceback(), "ban_hang: khoi diem bill loi")
-		return None
-
-
-@frappe.whitelist()
-def pos_bill_them(name=None):
-	"""Phan in them cua mot bill da luu: diem thanh vien va ten thu ngan.
-
-	Duong IN LAI khong di qua tao_don_tay nen khong co san hai thong tin
-	nay. Quan trong nhat la THU NGAN: ban in lai phai ghi ten nguoi da bam
-	bill, khong phai ten nguoi dang cam may in - neu khong thi in lai mot
-	bill cua ca truoc se doi sang ten nguoi ca sau."""
-	_kiem_quyen()
-	name = (name or "").strip()
-	if not name or not frappe.db.exists("Sales Invoice", name):
-		return {"diem": None, "thu_ngan": ""}
-	si = frappe.get_doc("Sales Invoice", name)
-	nguoi = si.owner or ""
-	ten = frappe.db.get_value("User", nguoi, "full_name") if nguoi else ""
-	return {
-		"diem": _khoi_diem_bill(si),
-		"thu_ngan": (ten or str(nguoi).split("@")[0] or "").strip(),
-	}
+	return {"name": si.name, "grand_total": si.grand_total}
 
 
 # ---------------------------------------------------------------- m-invoice
