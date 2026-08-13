@@ -1213,6 +1213,12 @@ def bang_doanh_so(ngay=None):
 			"posting_date": ngay,
 			"custom_pancake_id": ["!=", ""],
 			"vgb_quay": ["in", ["", None]],
+			# To DA HUY GHI SO khong con la bill cua ngay nua: no khong phai
+			# doanh thu, khong phai viec phai lam, va bay ra chi lam Sales roi
+			# mat (anh Viet 13/08/2026, sau lo 135 don keo nham). Van tra cuu
+			# duoc tren Desk va trong bao cao Sua va huy hoa don.
+			"docstatus": ["<", 2],
+			"vgb_huy": 0,
 		},
 		fields=[
 			"name",

@@ -28,7 +28,7 @@ Doi lai, phai co duong hop le de bo mot phieu sai:
 """
 
 import frappe
-from frappe.utils import add_days, cint, getdate, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
 from vagabond.lib import cfg
 
@@ -495,3 +495,153 @@ def dong_khoa_mot_to(doctype, name):
 	_ghi_vet(doctype, name, "Đóng khoá sổ lại.")
 	frappe.db.commit()
 	return {"ok": 1}
+
+
+# ------------------------------------------------- huy ghi so hang loat
+#
+# Anh Viet 13/08/2026: 135 hoa don bi keo nham sang ngay moi roi ghi so, can
+# huy ghi so va an khoi danh sach bill cua Sales.
+#
+# Vi sao lam thanh MOT NUT trong app chu khong chay thang mot lan roi thoi:
+# huy hang loat hoa don da ghi so la viec dong den tien va khong lui lai
+# duoc, nen phai co NGUOI BAM, co ly do, va co dau vet ai lam luc nao. Lam
+# thanh nut thi lan sau gap viec tuong tu da co san cong cu, khong phai moi
+# lan lai nho nguoi viet ma chay tay.
+
+
+def _khong_duoc_huy(trang_thai):
+	"""To nao KHONG duoc huy o day. Luat viet theo chieu CHO PHEP chu khong
+	theo chieu cam.
+
+	Ban dau ham nay viet la "co chu ky va khong co chu cho thi chan". Phep
+	thu offline bat ngay: trang thai "CQT chap nhan" khong co chu ky nao nen
+	LOT QUA, ma do la to da nam ben co quan thue - nguy hiem hon ca to da ky.
+	Nen dao lai: chi cho huy khi o trang thai TRONG hoac CHO KY, con lai chan
+	het. Sau nay m-invoice them trang thai moi thi mac dinh la chan, an toan.
+	"""
+	t = (trang_thai or "").strip().lower()
+	if not t:
+		return False
+	return "chờ ký" not in t
+
+
+def _mo_ta_huy(ds):
+	"""Tom tat mot tap hoa don de nguoi bam nhin truoc khi quyet."""
+	ra = {"so_don": len(ds), "tong_tien": 0.0, "co_hddt": 0, "da_ky": 0, "vi_du": []}
+	for r in ds:
+		ra["tong_tien"] += flt(r.get("grand_total"))
+		if (r.get("custom_hddt_so") or "").strip():
+			ra["co_hddt"] += 1
+		if _khong_duoc_huy(r.get("custom_hddt_trang_thai")):
+			ra["da_ky"] += 1
+		if len(ra["vi_du"]) < 15:
+			ra["vi_du"].append({
+				"don": r.get("name"),
+				"ma": r.get("custom_pancake_display_id") or "",
+				"tien": flt(r.get("grand_total")),
+				"hddt": r.get("custom_hddt_so") or "",
+				"hddt_tt": r.get("custom_hddt_trang_thai") or "",
+			})
+	return ra
+
+
+def _tap_huy(ds=None, ngay=None, tao_truoc=None):
+	"""Doc tap hoa don se huy. Hai duong: liet ke thang, hoac theo tieu chi."""
+	if isinstance(ds, str):
+		ds = frappe.parse_json(ds) if ds.strip().startswith("[") else [
+			x.strip() for x in ds.split(",") if x.strip()
+		]
+	loc = {"docstatus": 1}
+	if ds:
+		loc["name"] = ["in", list(ds)]
+	else:
+		if not ngay:
+			frappe.throw("Phải nêu ngày ghi sổ hoặc danh sách hoá đơn cần huỷ.")
+		loc["posting_date"] = str(ngay)
+		loc["custom_pancake_id"] = ["is", "set"]
+		if tao_truoc:
+			# Loc theo NGAY LAP PHIEU chu khong theo ngay ghi so: dung de bat
+			# dung nhung to bi keo tu ngay cu sang, con to sinh trong ngay
+			# thi khong dinh toi.
+			loc["creation"] = ["<", str(tao_truoc)]
+	return frappe.get_all(
+		"Sales Invoice",
+		filters=loc,
+		fields=[
+			"name", "posting_date", "creation", "grand_total", "customer",
+			"custom_pancake_id", "custom_pancake_display_id",
+			"custom_hddt_so", "custom_hddt_trang_thai", "vgb_quay",
+		],
+		order_by="name asc",
+		limit_page_length=0,
+	)
+
+
+@frappe.whitelist()
+def xem_truoc_huy_ghi_so(ds=None, ngay=None, tao_truoc=None):
+	"""Xem tap hoa don se huy, KHONG ghi gi. Luon xem truoc roi hay huy."""
+	_kiem_quyen_huy()
+	return _mo_ta_huy(_tap_huy(ds, ngay, tao_truoc))
+
+
+@frappe.whitelist()
+def huy_ghi_so_hang_loat(ds=None, ngay=None, tao_truoc=None, ly_do=None, xoa_so_hddt=1):
+	"""Huy ghi so ca loat hoa don ban, roi danh dau de an khoi man Sales.
+
+	Bon buoc cho moi to:
+	  1. cancel() dung nghiep vu - ERPNext dao nguoc but toan, hook cua he
+	     rut lai diem da tich va tra so cho bang kiem banh.
+	  2. Xoa so hoa don dien tu ben Next neu ben m-invoice da xoa: de lai
+	     thi chuoi ky hang loat luc 23h van thay va van ky.
+	  3. Danh dau vgb_huy de cac man danh sach loc ra.
+	  4. Ghi vet ly do va nguoi bam.
+
+	CHAN to DA KY: hoa don da ky la da nam ben co quan thue, huy ben Next
+	ma khong xu ly ben thue la hai so lech nhau. To do phai di duong hoa
+	don thay the, khong huy o day.
+	"""
+	_kiem_quyen_huy()
+	if not (ly_do or "").strip():
+		frappe.throw("Phải ghi lý do huỷ thì sau này còn biết vì sao.")
+	tap = _tap_huy(ds, ngay, tao_truoc)
+	if not tap:
+		return {"ok": 1, "khong_co_to_nao": 1, "huy": 0}
+
+	kq = {"chon": len(tap), "huy": 0, "bo_qua_da_ky": 0, "loi": [], "tong_tien": 0.0}
+	for r in tap:
+		if _khong_duoc_huy(r.get("custom_hddt_trang_thai")):
+			kq["bo_qua_da_ky"] += 1
+			kq["loi"].append(
+				"Đơn %s đang ở trạng thái hoá đơn điện tử %s nên không huỷ ở đây, "
+				"phải làm hoá đơn thay thế." % (r["name"], r.get("custom_hddt_trang_thai"))
+			)
+			continue
+		try:
+			doc = frappe.get_doc("Sales Invoice", r["name"])
+			doc.flags.ignore_permissions = True
+			doc.cancel()
+			gt = {
+				"vgb_huy": 1,
+				"vgb_huy_ly_do": (ly_do or "").strip()[:500],
+				"vgb_huy_luc": now_datetime(),
+				"vgb_huy_boi": frappe.session.user,
+			}
+			if cint(xoa_so_hddt):
+				gt["custom_hddt_so"] = None
+				gt["custom_hddt_trang_thai"] = None
+			frappe.db.set_value("Sales Invoice", r["name"], gt, update_modified=False)
+			frappe.db.commit()
+			_ghi_vet(
+				"Sales Invoice", r["name"],
+				"Huỷ ghi sổ hàng loạt. Lý do: %s" % (ly_do or "").strip(),
+			)
+			kq["huy"] += 1
+			kq["tong_tien"] += flt(r.get("grand_total"))
+		except Exception:
+			frappe.db.rollback()
+			frappe.local.message_log = []
+			frappe.log_error(frappe.get_traceback(), "chung_tu: huy ghi so %s" % r["name"])
+			if len(kq["loi"]) < 40:
+				kq["loi"].append("Đơn %s huỷ lỗi, xem Error Log." % r["name"])
+	frappe.db.commit()
+	return kq
