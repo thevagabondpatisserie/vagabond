@@ -944,7 +944,17 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 			for r in dong:
 				truoc_r = flt(r.get("_truoc") or 0)
 				nay = flt(r.get(chinh["k"]) or 0)
-				r["_chenh"] = ((nay - truoc_r) / truoc_r * 100) if truoc_r else None
+				if truoc_r:
+					r["_chenh"] = (nay - truoc_r) / truoc_r * 100
+				elif nay:
+					# Ky truoc khong co dong nay ma ky nay co: dong moi,
+					# khong chia duoc. Man hinh in chu "mới".
+					r["_chenh"] = None
+				else:
+					# Ca hai ky deu bang 0 - khong tang khong giam, chu
+					# khong phai "moi". Diem ban dong cua nam ca hai ky
+					# deu roi vao truong hop nay.
+					r["_chenh"] = 0.0
 			cot = cot + [
 				{"k": "_truoc", "nhan": "Kỳ trước", "kieu": chinh["kieu"]},
 				{"k": "_chenh", "nhan": "Chênh", "kieu": "phan_tram"},
