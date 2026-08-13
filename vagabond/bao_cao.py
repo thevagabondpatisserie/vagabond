@@ -52,6 +52,12 @@ def _diem_ban():
 
 KY_HAN = ["ngay", "tuan", "thang", "quy", "nam", "tuy_chon"]
 
+# Bang ke chi tiet mot thang co the len hang nghin dong. Gui het xuong dien
+# thoai la treo may, ma cat mat cua ke toan thi bao cao vo dung. Cach xu ly:
+# MAN HINH chi nhan toi day, con FILE EXCEL luon day du - vi ke toan can du
+# lieu thi ho mo Excel chu khong soi tren dien thoai.
+GIOI_HAN_DONG = 600
+
 
 def _kiem_quyen():
 	if not QUYEN_XEM & set(frappe.get_roles()):
@@ -112,6 +118,45 @@ def _nhan_ky(ky, tu, den):
 	return "%s - %s" % (tu.strftime("%d/%m/%Y"), den.strftime("%d/%m/%Y"))
 
 
+def _ky_truoc(ky, tu, den):
+	"""Ky lien truoc cung do dai. Thang 8 doi thang 7, quy 3 doi quy 2, con
+	khoang tuy chon thi lui dung bang so ngay dang xem.
+
+	Khong dung add_days(tu, -so_ngay) cho ky thang: thang 7 co 31 ngay ma
+	thang 2 co 28, lui theo so ngay se ra khoang lech dau thang."""
+	if ky == "ngay":
+		return add_days(tu, -1), add_days(tu, -1)
+	if ky == "tuan":
+		return add_days(tu, -7), add_days(den, -7)
+	if ky == "thang":
+		dau = add_months(tu, -1)
+		return dau, add_days(add_months(dau, 1), -1)
+	if ky == "quy":
+		dau = add_months(tu, -3)
+		return dau, add_days(add_months(dau, 3), -1)
+	if ky == "nam":
+		dau = tu.replace(year=tu.year - 1, month=1, day=1)
+		return dau, dau.replace(month=12, day=31)
+	so_ngay = (den - tu).days + 1
+	return add_days(tu, -so_ngay), add_days(tu, -1)
+
+
+def _cot_chinh(kq):
+	"""Cot so lieu chinh cua mot bao cao - cot duoc dem ra so voi ky truoc.
+
+	Uu tien cot dang ve bieu do (do la cot nguoi lam bao cao coi la quan
+	trong nhat), khong co thi lay cot tien dau tien."""
+	bd = kq.get("bieu_do") or {}
+	g = bd.get("gia_tri")
+	for c in kq["cot"]:
+		if c["k"] == g and c["kieu"] in ("tien", "so"):
+			return c
+	for c in kq["cot"]:
+		if c["kieu"] == "tien" and not c.get("kc"):
+			return c
+	return None
+
+
 def _diem(si):
 	"""Quay cua mot hoa don. Don Sales khong co quay nen tra ve SALES."""
 	return (si.get("vgb_quay") or "").strip().upper() or "SALES"
@@ -135,6 +180,7 @@ def _hoa_don(tu, den, diem=None, nguon=None, pt=None, docstatus=1):
 			"vgb_quay", "custom_nguon", "vgb_pt_thanh_toan", "custom_hddt_so",
 			"custom_hddt_trang_thai", "custom_pancake_display_id", "vgb_khach_no",
 			"outstanding_amount", "owner", "vgb_tam_tinh", "vgb_huy",
+			"vgb_ma_tham_chieu", "custom_hddt_ky_hieu",
 		],
 		order_by="posting_date asc, posting_time asc",
 		limit_page_length=0,
@@ -154,9 +200,21 @@ def _tien(x):
 
 
 def _cot(*bo):
-	"""Moi cot: (khoa, nhan, kieu). Kieu de man hinh biet canh phai hay trai
-	va co dinh dang tien hay khong: chu / tien / so / phan_tram / ngay."""
-	return [{"k": b[0], "nhan": b[1], "kieu": b[2]} for b in bo]
+	"""Moi cot: (khoa, nhan, kieu) hoac (khoa, nhan, kieu, khong_cong).
+
+	Kieu de man hinh biet canh phai hay trai va co dinh dang tien hay
+	khong: chu / tien / so / phan_tram / ngay.
+
+	khong_cong=True thi bo cot ra khoi dong TONG. Can cho nhung cot ma
+	cong lai la vo nghia - vi du don gia: cong don gia cua ba mon khac
+	nhau ra mot con so khong dai dien cho cai gi ca."""
+	ra = []
+	for b in bo:
+		c = {"k": b[0], "nhan": b[1], "kieu": b[2]}
+		if len(b) > 3 and b[3]:
+			c["kc"] = 1
+		ra.append(c)
+	return ra
 
 
 # ------------------------------------------------------------------ bao cao
@@ -569,27 +627,247 @@ def _bc_thue(hd, **kw):
 	}
 
 
+def _bc_ke_hoa_don(hd, **kw):
+	"""BC13 - bang ke chi tiet hoa don, moi hoa don mot dong.
+
+	Day la bao cao ke toan mo nhieu nhat: doi chieu voi to khai, voi hoa don
+	dien tu, voi sao ke ngan hang. Fabi goi la C03 va D07, ben minh gop lam
+	mot vi hai cai do chi khac nhau vai cot."""
+	ten = diem_ban.ten_diem()
+	dong = []
+	for r in hd:
+		dong.append({
+			"ngay": str(r.posting_date),
+			"hoa_don": r.name,
+			"ky_hieu": (r.custom_hddt_ky_hieu or "").strip(),
+			"so_hddt": (r.custom_hddt_so or "").strip(),
+			"don": r.custom_pancake_display_id or "",
+			"diem": ten.get(_diem(r), _diem(r)),
+			"nguon": (r.custom_nguon or "").strip(),
+			"khach": r.customer_name or r.customer or "",
+			"pt": (r.vgb_pt_thanh_toan or "").strip(),
+			"truoc_thue": _tien(r.net_total),
+			"giam": _tien(r.discount_amount),
+			"thue": _tien(r.total_taxes_and_charges),
+			"tong": _tien(r.grand_total),
+			"con_no": _tien(r.outstanding_amount),
+		})
+	dong.sort(key=lambda x: (x["ngay"], x["hoa_don"]))
+	return {
+		"cot": _cot(
+			("ngay", "Ngày", "ngay"), ("hoa_don", "Mã phiếu", "chu"),
+			("ky_hieu", "Ký hiệu", "chu"), ("so_hddt", "Số HĐĐT", "chu"),
+			("don", "Đơn", "chu"), ("diem", "Điểm bán", "chu"),
+			("nguon", "Nguồn", "chu"), ("khach", "Khách hàng", "chu"),
+			("pt", "Phương thức", "chu"),
+			("truoc_thue", "Trước thuế", "tien"), ("giam", "Giảm giá", "tien"),
+			("thue", "Thuế", "tien"), ("tong", "Tổng tiền", "tien"),
+			("con_no", "Còn nợ", "tien"),
+		),
+		"dong": dong,
+		"bieu_do": None,
+	}
+
+
+def _dong_hang_ct(hd):
+	"""Dong mon kem don gia va don vi - ban day du hon _dong_hang."""
+	ten = [r.name for r in hd]
+	ra = []
+	for i in range(0, len(ten), 400):
+		ra += frappe.get_all(
+			"Sales Invoice Item",
+			filters={"parent": ["in", ten[i:i + 400]]},
+			fields=[
+				"parent", "idx", "item_code", "item_name", "item_group",
+				"uom", "qty", "rate", "amount",
+			],
+			order_by="parent asc, idx asc",
+			limit_page_length=0,
+		)
+	return ra
+
+
+def _bc_ke_dong_mon(hd, **kw):
+	"""BC14 - bang ke chi tiet toi tung dong mon tren tung hoa don.
+
+	Day la du lieu THO. Co bang nay thi moi cau hoi kieu "thang 7 banh X
+	ban duoc bao nhieu o District 1 qua GrabFood" deu tra loi duoc bang mot
+	pivot trong Excel, khong phai viet them bao cao. Fabi tra loi kieu do
+	bang bao cao ma tran 261 cot - cung ra so nhung cung nhac va nang may.
+
+	Combo ben minh chi la ghi chu tren dong mon chu khong tach dong con gia
+	0 dong nhu Fabi, nen khong co chuyen cong trung doanh thu."""
+	ten = diem_ban.ten_diem()
+	cha = {r.name: r for r in hd}
+	dong = []
+	for m in _dong_hang_ct(hd):
+		r = cha.get(m.parent)
+		if not r:
+			continue
+		dong.append({
+			"ngay": str(r.posting_date),
+			"hoa_don": m.parent,
+			"diem": ten.get(_diem(r), _diem(r)),
+			"nguon": (r.custom_nguon or "").strip(),
+			"ma_mon": m.item_code,
+			"mon": m.item_name or m.item_code,
+			"nhom": m.item_group or "",
+			"dvt": m.uom or "",
+			"sl": flt(m.qty),
+			"don_gia": _tien(m.rate),
+			"thanh_tien": _tien(m.amount),
+			"khach": r.customer_name or r.customer or "",
+			"pt": (r.vgb_pt_thanh_toan or "").strip(),
+		})
+	return {
+		"cot": _cot(
+			("ngay", "Ngày", "ngay"), ("hoa_don", "Mã phiếu", "chu"),
+			("diem", "Điểm bán", "chu"), ("nguon", "Nguồn", "chu"),
+			("ma_mon", "Mã hàng", "chu"), ("mon", "Tên hàng", "chu"),
+			("nhom", "Nhóm món", "chu"), ("dvt", "Đơn vị", "chu"),
+			("sl", "Số lượng", "so"), ("don_gia", "Đơn giá", "tien", True),
+			("thanh_tien", "Thành tiền", "tien"),
+			("khach", "Khách hàng", "chu"), ("pt", "Phương thức", "chu"),
+		),
+		"dong": dong,
+		"bieu_do": None,
+	}
+
+
+def _bc_tien_ve_ngay(hd, **kw):
+	"""BC15 - moi ngay thu ve bao nhieu, tach theo tung phuong thuc.
+
+	Dung de doi ket cuoi ngay: cot Tien mat phai bang so dem duoc trong
+	ket, cot Chuyen khoan phai bang sao ke SePay.
+
+	Cot phuong thuc sinh DONG theo nhung phuong thuc that su co phat sinh
+	trong ky, khong cai cung danh sach: them mot vi dien moi trong Cai dat
+	la bao cao tu co them cot, khong phai sua ma nguon."""
+	pts = sorted({(r.vgb_pt_thanh_toan or "").strip() or "(chưa chọn)" for r in hd})
+	khoa = {p: "pt%d" % i for i, p in enumerate(pts)}
+	gom = {}
+	for r in hd:
+		n = str(r.posting_date)
+		o = gom.get(n)
+		if not o:
+			o = {"ngay": n, "so_hd": 0, "tong": 0.0}
+			for p in pts:
+				o[khoa[p]] = 0.0
+			gom[n] = o
+		p = (r.vgb_pt_thanh_toan or "").strip() or "(chưa chọn)"
+		o["so_hd"] += 1
+		o["tong"] += _tien(r.grand_total)
+		o[khoa[p]] += _tien(r.grand_total)
+	dong = sorted(gom.values(), key=lambda x: x["ngay"])
+	for o in dong:
+		o["ngay_vn"] = getdate(o["ngay"]).strftime("%d/%m")
+	cot = [{"k": "ngay_vn", "nhan": "Ngày", "kieu": "chu"},
+		   {"k": "so_hd", "nhan": "Số hoá đơn", "kieu": "so"}]
+	for p in pts:
+		cot.append({"k": khoa[p], "nhan": p, "kieu": "tien"})
+	cot.append({"k": "tong", "nhan": "Tổng tiền về", "kieu": "tien"})
+	return {
+		"cot": cot,
+		"dong": dong,
+		"bieu_do": {"nhan": "ngay_vn", "gia_tri": "tong"},
+	}
+
+
+def _bc_ke_thanh_toan(hd, **kw):
+	"""BC16 - bang ke thanh toan kem ma tham chieu, de khop sao ke.
+
+	BC04 chi cho biet ca ky thu duoc bao nhieu tien chuyen khoan. Khi so
+	tien lech so voi sao ke thi BC04 khong giup gi vi khong truy duoc lech
+	o giao dich nao - bang ke nay moi truy duoc.
+
+	Cot canh bao chi ra ma tham chieu bi dung cho hai hoa don khac nhau
+	trong cung ky: hoac go nham, hoac mot lan chuyen khoan bi gach cho hai
+	don."""
+	ten = diem_ban.ten_diem()
+	dem = {}
+	for r in hd:
+		m = (r.vgb_ma_tham_chieu or "").strip().upper()
+		if m:
+			dem[m] = dem.get(m, 0) + 1
+	dong = []
+	for r in hd:
+		m = (r.vgb_ma_tham_chieu or "").strip()
+		canh = ""
+		if m and dem.get(m.upper(), 0) > 1:
+			canh = "Mã dùng %d lần" % dem[m.upper()]
+		elif not m and (r.vgb_pt_thanh_toan or "").strip() in ("Chuyển khoản", "Thẻ"):
+			canh = "Thiếu mã tham chiếu"
+		dong.append({
+			"ngay": str(r.posting_date),
+			"hoa_don": r.name,
+			"don": r.custom_pancake_display_id or "",
+			"diem": ten.get(_diem(r), _diem(r)),
+			"pt": (r.vgb_pt_thanh_toan or "").strip() or "(chưa chọn)",
+			"ma_tc": m,
+			"tong": _tien(r.grand_total),
+			"con_no": _tien(r.outstanding_amount),
+			"canh_bao": canh,
+		})
+	# Dong co canh bao len dau: mo bao cao ra la thay ngay cho phai soi.
+	dong.sort(key=lambda x: (0 if x["canh_bao"] else 1, x["ngay"], x["hoa_don"]))
+	return {
+		"cot": _cot(
+			("ngay", "Ngày", "ngay"), ("hoa_don", "Mã phiếu", "chu"),
+			("don", "Đơn", "chu"), ("diem", "Điểm bán", "chu"),
+			("pt", "Phương thức", "chu"), ("ma_tc", "Mã tham chiếu", "chu"),
+			("tong", "Số tiền", "tien"), ("con_no", "Còn nợ", "tien"),
+			("canh_bao", "Cảnh báo", "chu"),
+		),
+		"dong": dong,
+		"bieu_do": None,
+	}
+
+
 DANH_SACH = [
-	{"ma": "BC01", "ten": "Tổng doanh thu", "ic": "💰", "mo": "Tổng doanh thu ba điểm bán, tỷ trọng từng nơi", "ham": _bc_tong_doanh_thu, "nhom": "Doanh thu"},
-	{"ma": "BC02", "ten": "Doanh thu theo ngày", "ic": "📈", "mo": "Đường doanh thu từng ngày trong kỳ", "ham": _bc_theo_ngay, "nhom": "Doanh thu"},
-	{"ma": "BC03", "ten": "Doanh thu theo nguồn đơn", "ic": "🛵", "mo": "Tại chỗ, Sales Online, GrabFood, ShopeeFood, BeFood, GreenSM...", "ham": _bc_nguon_don, "nhom": "Doanh thu"},
-	{"ma": "BC04", "ten": "Phương thức thanh toán", "ic": "💳", "mo": "Tiền mặt, chuyển khoản, thẻ, ví, công nợ", "ham": _bc_thanh_toan, "nhom": "Doanh thu"},
-	{"ma": "BC05", "ten": "Đối soát hoá đơn điện tử", "ic": "🧾", "mo": "Chờ ký, đã ký, CQT chấp nhận, chưa xuất", "ham": _bc_hddt, "nhom": "Kế toán"},
-	{"ma": "BC06", "ten": "Chương trình khuyến mãi", "ic": "🎫", "mo": "Số lượt dùng và tiền đã giảm từng chương trình", "ham": _bc_khuyen_mai, "nhom": "Kiểm soát"},
-	{"ma": "BC07", "ten": "Sửa và huỷ hoá đơn", "ic": "✂️", "mo": "Ai sửa, ai huỷ, làm gì trên hoá đơn nào", "ham": _bc_sua_huy, "nhom": "Kiểm soát"},
-	{"ma": "BC08", "ten": "Món bán chạy", "ic": "🍰", "mo": "Xếp hạng theo số lượng bán ra", "ham": _bc_mon_ban_chay, "nhom": "Hàng hoá"},
-	{"ma": "BC09", "ten": "Nhóm món bán chạy", "ic": "🗂️", "mo": "Dòng sản phẩm nào kéo doanh thu", "ham": _bc_nhom_mon, "nhom": "Hàng hoá"},
-	{"ma": "BC10", "ten": "Giờ cao điểm", "ic": "⏰", "mo": "Doanh thu theo khung giờ, dùng để xếp ca", "ham": _bc_gio_cao_diem, "nhom": "Vận hành"},
-	{"ma": "BC11", "ten": "Khách hàng chi tiêu nhiều", "ic": "👑", "mo": "Xếp hạng khách và số còn nợ", "ham": _bc_khach_hang, "nhom": "Khách hàng"},
-	{"ma": "BC12", "ten": "Doanh thu và thuế đầu ra", "ic": "🏛️", "mo": "Trước thuế, thuế, tổng - dùng khai thuế", "ham": _bc_thue, "nhom": "Kế toán"},
+	{"ma": "BC01", "ten": "Tổng doanh thu", "ic": "💰", "mo": "Tổng doanh thu ba điểm bán, tỷ trọng từng nơi", "ham": _bc_tong_doanh_thu, "nhom": "Doanh thu", "ss": "khoa"},
+	{"ma": "BC02", "ten": "Doanh thu theo ngày", "ic": "📈", "mo": "Đường doanh thu từng ngày trong kỳ", "ham": _bc_theo_ngay, "nhom": "Doanh thu", "ss": "vi_tri"},
+	{"ma": "BC03", "ten": "Doanh thu theo nguồn đơn", "ic": "🛵", "mo": "Tại chỗ, Sales Online, GrabFood, ShopeeFood, BeFood, GreenSM...", "ham": _bc_nguon_don, "nhom": "Doanh thu", "ss": "khoa"},
+	{"ma": "BC04", "ten": "Phương thức thanh toán", "ic": "💳", "mo": "Tiền mặt, chuyển khoản, thẻ, ví, công nợ", "ham": _bc_thanh_toan, "nhom": "Doanh thu", "ss": "khoa"},
+	{"ma": "BC05", "ten": "Đối soát hoá đơn điện tử", "ic": "🧾", "mo": "Chờ ký, đã ký, CQT chấp nhận, chưa xuất", "ham": _bc_hddt, "nhom": "Kế toán", "ss": "khoa"},
+	{"ma": "BC06", "ten": "Chương trình khuyến mãi", "ic": "🎫", "mo": "Số lượt dùng và tiền đã giảm từng chương trình", "ham": _bc_khuyen_mai, "nhom": "Kiểm soát", "ss": "khoa"},
+	{"ma": "BC07", "ten": "Sửa và huỷ hoá đơn", "ic": "✂️", "mo": "Ai sửa, ai huỷ, làm gì trên hoá đơn nào", "ham": _bc_sua_huy, "nhom": "Kiểm soát", "ss": None},
+	{"ma": "BC08", "ten": "Món bán chạy", "ic": "🍰", "mo": "Xếp hạng theo số lượng bán ra", "ham": _bc_mon_ban_chay, "nhom": "Hàng hoá", "ss": "khoa"},
+	{"ma": "BC09", "ten": "Nhóm món bán chạy", "ic": "🗂️", "mo": "Dòng sản phẩm nào kéo doanh thu", "ham": _bc_nhom_mon, "nhom": "Hàng hoá", "ss": "khoa"},
+	{"ma": "BC10", "ten": "Giờ cao điểm", "ic": "⏰", "mo": "Doanh thu theo khung giờ, dùng để xếp ca", "ham": _bc_gio_cao_diem, "nhom": "Vận hành", "ss": "khoa"},
+	{"ma": "BC11", "ten": "Khách hàng chi tiêu nhiều", "ic": "👑", "mo": "Xếp hạng khách và số còn nợ", "ham": _bc_khach_hang, "nhom": "Khách hàng", "ss": "khoa"},
+	{"ma": "BC12", "ten": "Doanh thu và thuế đầu ra", "ic": "🏛️", "mo": "Trước thuế, thuế, tổng - dùng khai thuế", "ham": _bc_thue, "nhom": "Kế toán", "ss": "vi_tri"},
+	{"ma": "BC13", "ten": "Bảng kê chi tiết hoá đơn", "ic": "📄", "mo": "Mỗi hoá đơn một dòng, đủ cột để đối chiếu tờ khai", "ham": _bc_ke_hoa_don, "nhom": "Kế toán", "ss": None},
+	{"ma": "BC14", "ten": "Bảng kê chi tiết theo dòng món", "ic": "🧮", "mo": "Dữ liệu thô từng món trên từng hoá đơn, để pivot trong Excel", "ham": _bc_ke_dong_mon, "nhom": "Kế toán", "ss": None},
+	{"ma": "BC15", "ten": "Tiền về theo ngày", "ic": "🧺", "mo": "Mỗi ngày thu bao nhiêu theo từng phương thức, dùng đối két", "ham": _bc_tien_ve_ngay, "nhom": "Kiểm soát", "ss": "vi_tri"},
+	{"ma": "BC16", "ten": "Bảng kê thanh toán và mã tham chiếu", "ic": "🔗", "mo": "Khớp từng giao dịch với sao kê, chỉ ra mã trùng và mã thiếu", "ham": _bc_ke_thanh_toan, "nhom": "Kế toán", "ss": None},
 ]
 THEO_MA = {b["ma"]: b for b in DANH_SACH}
 
 
 # ---------------------------------------------------------------------- API
 
+def _ss_tong(ky, t, d, tong, so_hd, diem=None, nguon=None, pt=None):
+	"""Khoi so sanh voi ky truoc: tong tien, so hoa don va phan tram chenh.
+
+	Ky truoc bang khong ma ky nay co tien thi khong chia duoc, tra ve None
+	de man hinh hien "khong co ky truoc de so" thay vi mot con so vo nghia
+	kieu +100% hay vo cuc."""
+	tt, dd = _ky_truoc(ky, t, d)
+	hd2 = _hoa_don(tt, dd, diem=diem, nguon=nguon, pt=pt)
+	tong2 = sum(_tien(r.grand_total) for r in hd2)
+	return {
+		"nhan_ky": _nhan_ky(ky, tt, dd),
+		"tu": str(tt),
+		"den": str(dd),
+		"tong_doanh_thu": tong2,
+		"so_hoa_don": len(hd2),
+		"chenh": ((tong - tong2) / tong2 * 100) if tong2 else None,
+		"chenh_hd": ((so_hd - len(hd2)) / len(hd2) * 100) if hd2 else None,
+	}
+
+
 @frappe.whitelist()
-def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None):
+def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None, ss=0):
 	"""Man chinh cua phan he: danh sach bao cao kem con so tong de nhin
 	phat la biet ngay hom nay ban duoc bao nhieu."""
 	_kiem_quyen()
@@ -607,6 +885,7 @@ def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None):
 		"tong_doanh_thu": tong,
 		"so_hoa_don": len(hd),
 		"binh_quan": tong / len(hd) if hd else 0,
+		"ss": _ss_tong(ky, t, d, tong, len(hd), diem=diem) if int(ss or 0) else None,
 		"diem_ban": [
 			{"ma": x["ma"], "ten": x["ten"], "dia_chi": x["dia_chi"], "tien": theo_diem.get(x["ma"], 0.0)}
 			for x in _diem_ban()
@@ -619,9 +898,15 @@ def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None):
 
 
 @frappe.whitelist()
-def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None):
+def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None, ss=0, day_du=0):
 	"""Chay mot bao cao. Moi bao cao deu tra ve cung mot hinh dang de man
-	hinh chi phai viet mot lan."""
+	hinh chi phai viet mot lan.
+
+	ss=1 thi chay them mot lan nua cho ky truoc roi gan them hai cot "Ky
+	truoc" va "Chenh" vao cuoi bang. Lam o day chu khong lam trong tung
+	bao cao, nho vay MOI bao cao deu co so sanh ma khong phai sua ham nao.
+
+	day_du=1 thi khong cat bot dong - chi dung khi xuat Excel."""
 	_kiem_quyen()
 	b = THEO_MA.get((ma or "").strip().upper())
 	if not b:
@@ -630,12 +915,55 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	hd = _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
 	kq = b["ham"](hd, tu=t, den=d)
 	tong = sum(_tien(r.grand_total) for r in hd)
+	cot = list(kq["cot"])
+	dong = kq["dong"]
+
+	khoi_ss = None
+	if int(ss or 0):
+		khoi_ss = _ss_tong(ky, t, d, tong, len(hd), diem=diem, nguon=nguon, pt=pt)
+		chinh = _cot_chinh(kq)
+		if b.get("ss") and chinh and dong:
+			tt, dd = _ky_truoc(ky, t, d)
+			kq2 = b["ham"](
+				_hoa_don(tt, dd, diem=diem, nguon=nguon, pt=pt), tu=tt, den=dd
+			)
+			if b["ss"] == "vi_tri":
+				# Bao cao xep theo ngay: khoa hai ky khac nhau nen khong doi
+				# duoc theo khoa, phai doi theo thu tu - ngay thu nhat cua
+				# thang nay voi ngay thu nhat cua thang truoc.
+				truoc = [flt(r.get(chinh["k"]) or 0) for r in kq2["dong"]]
+				for i, r in enumerate(dong):
+					r["_truoc"] = truoc[i] if i < len(truoc) else 0.0
+			else:
+				k0 = cot[0]["k"]
+				bang = {
+					str(r.get(k0)): flt(r.get(chinh["k"]) or 0) for r in kq2["dong"]
+				}
+				for r in dong:
+					r["_truoc"] = bang.get(str(r.get(k0)), 0.0)
+			for r in dong:
+				truoc_r = flt(r.get("_truoc") or 0)
+				nay = flt(r.get(chinh["k"]) or 0)
+				r["_chenh"] = ((nay - truoc_r) / truoc_r * 100) if truoc_r else None
+			cot = cot + [
+				{"k": "_truoc", "nhan": "Kỳ trước", "kieu": chinh["kieu"]},
+				{"k": "_chenh", "nhan": "Chênh", "kieu": "phan_tram"},
+			]
+
 	# Cong tong tung cot tien va cot so, de dong TONG duoi bang luon dung
-	# voi phan da loc chu khong phai con so co dinh.
+	# voi phan da loc chu khong phai con so co dinh. Cong TRUOC khi cat
+	# dong, neu khong dong tong se chi la tong cua phan dang hien.
 	cong = {}
-	for c in kq["cot"]:
-		if c["kieu"] in ("tien", "so"):
-			cong[c["k"]] = sum(flt(r.get(c["k"]) or 0) for r in kq["dong"])
+	for c in cot:
+		if c["kieu"] in ("tien", "so") and not c.get("kc"):
+			cong[c["k"]] = sum(flt(r.get(c["k"]) or 0) for r in dong)
+
+	tong_dong = len(dong)
+	bi_cat = 0
+	if not int(day_du or 0) and tong_dong > GIOI_HAN_DONG:
+		dong = dong[:GIOI_HAN_DONG]
+		bi_cat = 1
+
 	return {
 		"ma": b["ma"],
 		"ten": b["ten"],
@@ -646,9 +974,14 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"den": str(d),
 		"tong_doanh_thu": tong,
 		"so_hoa_don": len(hd),
-		"cot": kq["cot"],
-		"dong": kq["dong"],
+		"cot": cot,
+		"dong": dong,
 		"cong": cong,
+		"tong_dong": tong_dong,
+		"bi_cat": bi_cat,
+		"gioi_han": GIOI_HAN_DONG,
+		"ss": khoi_ss,
+		"co_ss_dong": 1 if b.get("ss") else 0,
 		"bieu_do": kq.get("bieu_do"),
 		"phu": kq.get("phu"),
 		"nguon_loc": sorted({(r.custom_nguon or "").strip() for r in hd if (r.custom_nguon or "").strip()}),
@@ -657,18 +990,30 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 
 
 @frappe.whitelist()
-def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None):
+def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None, ss=0):
 	"""Xuat bao cao ra file Excel that (.xlsx) cho ke toan.
 
 	Tra ve chuoi base64 chu khong ghi file len may chu: bao cao la so lieu
 	song, luu file lai chi to cho nham lan giua ban cu va ban moi.
+
+	day_du=1: file Excel luon co DU dong ke ca khi man hinh da cat bot.
 	"""
 	_kiem_quyen()
-	kq = chay(ma, ky=ky, moc=moc, tu=tu, den=den, diem=diem, nguon=nguon, pt=pt)
+	kq = chay(
+		ma, ky=ky, moc=moc, tu=tu, den=den, diem=diem, nguon=nguon, pt=pt,
+		ss=ss, day_du=1,
+	)
 	bang = [
 		["%s - %s" % (kq["ma"], kq["ten"])],
 		[kq["nhan_ky"]],
 		["Tổng doanh thu", kq["tong_doanh_thu"], "Số hoá đơn", kq["so_hoa_don"]],
+	]
+	if kq.get("ss"):
+		bang.append([
+			"So với %s" % kq["ss"]["nhan_ky"], kq["ss"]["tong_doanh_thu"],
+			"Số hoá đơn", kq["ss"]["so_hoa_don"],
+		])
+	bang += [
 		[],
 		[c["nhan"] for c in kq["cot"]],
 	]
