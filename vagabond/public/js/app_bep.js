@@ -10399,10 +10399,10 @@ async function scrVdChiPhi() {
   var ds = kq.rows || [];
   var laKt = !!kq.la_ke_toan;
 
-  var html = '<div class="card" style="padding:10px 12px;display:flex;gap:7px;overflow-x:auto">' +
+  var html = '<div class="card" style="padding:10px 12px">' + kmHangChip(
     [[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-cpng="' + x[0] + '"', x[1], !cpTu && cpKhoang === x[0]);
-    }).join('') + '</div>';
+    }).join('')) + '</div>';
   html += '<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px">' +
     '<input type="date" class="hin" id="cpTu" value="' + h(cpKhoangNgay().tu_ngay) + '" style="flex:1;margin:0;min-width:0">' +
     '<span style="color:#9aa1ad">đến</span>' +
@@ -10540,7 +10540,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '144';
+var APPVER = '145';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -15863,10 +15863,13 @@ async function scrDonTreo() {
     'Đơn nào <b>chưa ghi sổ được</b> thì nằm ở đây kèm lý do. Máy chạy chuỗi cuối ngày lúc 23h rồi vét lại 5 phút một lần cho tới nửa đêm; đơn nào tới lúc đó vẫn thiếu điều kiện thì mới treo lại. ' +
     'Đúng 23h55 máy gửi thư báo cho kế toán và quản lý.</div>';
 
-  html += '<div class="card" style="padding:10px 12px;display:flex;gap:7px;overflow-x:auto">' +
+  /* Bootstrap cua Frappe dat .card{display:flex;flex-direction:column} nen chip
+     nhet thang vao .card se xep DOC va gian het be ngang. Luon boc mot lop
+     div rieng - xem kmHangChip. */
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     [7, 14, 30, 90].map(function (n) {
       return posChipNut('data-dtng="' + n + '"', n + ' ngày', dtNgay === n);
-    }).join('') + '</div>';
+    }).join('')) + '</div>';
 
   var DTL = [{ k: '', nhan: 'Tất cả', loc: function () { return true; } }];
   ['san_sang', 'chua_ve_tien', 'chua_pt', 'pt_sai_nguon'].forEach(function (k) {
@@ -16001,10 +16004,10 @@ async function scrHoSoTT() {
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
     'Gom hoá đơn mua đến hạn của một nhà cung cấp thành một hồ sơ, kế toán duyệt rồi giám đốc duyệt, chuyển tiền xong máy dò SePay và tự xoá công nợ. Xong bấm một nút là gửi thư báo nhà cung cấp.</div>';
 
-  html += '<div class="card" style="padding:10px 12px;display:flex;gap:7px;overflow-x:auto">' +
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     [[30, '30 ngày'], [90, '90 ngày'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-hsng="' + x[0] + '"', x[1], !hsTu && hsKhoang === x[0]);
-    }).join('') + '</div>';
+    }).join('')) + '</div>';
 
   /* Chip trang thai: bay dung cac trang thai CO THAT trong ky, kem so ho so
      va so tien - nhin la biet dang ket o khau nao. */
@@ -16111,11 +16114,11 @@ async function scrHoSoTTTao() {
     'Một hồ sơ gom hoá đơn của <b>một</b> nhà cung cấp, vì chuyển tiền là chuyển cho một người. Hoá đơn đang nằm trong hồ sơ khác thì máy giấu đi sẵn.</div>';
 
   html += '<div class="sec">Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ</div>' +
-    '<div class="card" style="padding:10px 12px;display:flex;gap:7px;overflow-x:auto">' +
+    '<div class="card" style="padding:10px 12px">' + kmHangChip(
     ncc.map(function (x) {
       return posChipNut('data-hsn="' + h(x.ncc) + '"',
         h(x.ten) + ' · ' + money(x.tien) + (x.qua_han ? ' ⚠️' : ''), hsTaoNcc === x.ncc);
-    }).join('') + '</div>';
+    }).join('')) + '</div>';
 
   var rows = hd.rows || [];
   var chon = rows.filter(function (r) { return hsTaoChon[r.hoa_don]; });
