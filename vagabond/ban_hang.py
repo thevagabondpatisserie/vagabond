@@ -978,6 +978,12 @@ def _dong_bo_doanh_so(ngay=None, im_lang=False):
 	khoa = _khoa_dong_bo(im_lang=im_lang)
 	if khoa is None:
 		return {"bo_qua": "Đang có việc khác chạm vào hoá đơn, để nhịp sau."}
+	# Co cho hook kiem_truoc_khi_luu biet day la MAY dong bo chu khong phai
+	# nguoi bam. Don Pancake ve truoc khi biet khach tra kieu gi, chan phuong
+	# thuc o day la ca nhip dong bo nem loi va khong con don nao ve he.
+	# Dat tren frappe.local chu khong phai frappe.flags: local tu sach sau
+	# moi request, con flags thi nguoi ta hay quen tra ve.
+	frappe.local.vgb_dong_bo = True
 	try:
 		dau, cuoi = _khoang_unix(ngay)
 		dons = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
@@ -1013,6 +1019,10 @@ def _dong_bo_doanh_so(ngay=None, im_lang=False):
 		frappe.db.commit()
 	finally:
 		_mo_khoa_dong_bo(khoa)
+		# Tra co ve NGAY trong finally: de sot thi phan con lai cua request
+		# nay van duoc mien kiem, ma request do co the la nguoi that dang
+		# bam nut Dong bo roi sua don ngay sau do.
+		frappe.local.vgb_dong_bo = False
 	cache_set("bh_loi_%s" % ngay, json.dumps(kq["loi"]), 6 * 3600)
 	cache_set("bh_luc_%s" % ngay, str(now_datetime())[:16], 6 * 3600)
 	kq["so_don_pancake"] = len(dons)
@@ -1033,11 +1043,27 @@ def _sepay_theo_don(shop_id, ma_dons):
 	Gom mot cau truy van cho ca ngay thay vi hoi tung don, vi mot ngay co
 	sau muoi may don.
 	"""
-	ma_dons = [str(m).strip() for m in (ma_dons or []) if str(m or "").strip().isdigit()]
+	# Truoc 13/08/2026 cho nay loc "chi nhan ma TOAN CHU SO", nen moi don tu
+	# website mang ma WOOxxxx bi loai thang tu dau va KHONG BAO GIO tu khop
+	# duoc, du tien da ve. Bat duoc tu don WOO2749 (1.635.000 d): giao dich
+	# ACC-BTN-2026-01971 co that, noi dung
+	#   "... S67355O91498T1212515039 WOO2749 0707337039 ..."
+	# Mach S<shop>O<so>T mang ID NOI BO 91498, con ma hien thi WOO2749 nam
+	# rieng mot tu phia sau. Nay do CA HAI duong.
+	ma_dons = [str(m).strip() for m in (ma_dons or []) if str(m or "").strip()]
 	shop_id = str(shop_id or "").strip()
 	if not (shop_id and ma_dons):
 		return {}
-	mau = "S%sO(%s)T" % (shop_id, "|".join(sorted(set(ma_dons))))
+	so = sorted({m for m in ma_dons if m.isdigit()})
+	khac = sorted({m.upper() for m in ma_dons if not m.isdigit()})
+	ve = []
+	if so:
+		ve.append("S%sO(%s)T" % (shop_id, "|".join(so)))
+	for m in khac:
+		# Chan hai dau bang ky tu khong phai chu so, de "WOO274" khong an
+		# nham giao dich cua "WOO2749".
+		ve.append("[^0-9A-Za-z]%s[^0-9A-Za-z]" % re.escape(m))
+	mau = "(%s)" % "|".join(ve)
 	try:
 		gds = frappe.db.sql(
 			"""select description, deposit, withdrawal, reference_number
@@ -1050,16 +1076,38 @@ def _sepay_theo_don(shop_id, ma_dons):
 		frappe.log_error(frappe.get_traceback(), "ban_hang: doc giao dich SePay")
 		return {}
 	re_don = re.compile(r"S%sO(\d+)T" % re.escape(shop_id), re.IGNORECASE)
+	re_khac = {
+		m: re.compile(r"(?<![0-9A-Za-z])%s(?![0-9A-Za-z])" % re.escape(m), re.IGNORECASE)
+		for m in khac
+	}
 	ra = {}
-	for g in gds:
-		m = re_don.search(g.get("description") or "")
-		if not m:
-			continue
-		o = ra.setdefault(m.group(1), {"nhan": 0.0, "ma": "", "so_gd": 0})
+
+	def _cong(khoa, g):
+		o = ra.setdefault(khoa, {"nhan": 0.0, "ma": "", "so_gd": 0})
 		o["nhan"] += flt(g.get("deposit")) - flt(g.get("withdrawal"))
 		o["so_gd"] += 1
 		if not o["ma"]:
 			o["ma"] = (g.get("reference_number") or "").strip()
+
+	for g in gds:
+		mo_ta = g.get("description") or ""
+		# Mot giao dich chi duoc cong cho MOT don. Uu tien ma hien thi khong
+		# phai so: don WOO co ca hai dau trong noi dung, cong ca hai la mot
+		# giao dich duoc tinh hai lan.
+		xong = False
+		for m, rx in re_khac.items():
+			if rx.search(mo_ta):
+				_cong(m, g)
+				xong = True
+				break
+		if xong:
+			continue
+		k = re_don.search(mo_ta)
+		# Chi cong cho don DUOC HOI. Don WOO co mach S<shop>O<id noi bo>T
+		# mang mot so KHAC ma hien thi, khong chan thi may de ra mot khoa
+		# la lung khong ai tra cuu toi.
+		if k and k.group(1) in set(so):
+			_cong(k.group(1), g)
 	return ra
 
 
@@ -1454,6 +1502,64 @@ def _nguoi_nhan_canh_bao():
 	c = cfg()
 	ds = [e.strip() for e in re.split(r"[,;\s]+", c.get("email_canh_bao") or "") if "@" in e]
 	return ds
+
+
+def kiem_truoc_khi_luu(doc, method=None):
+	"""Hook validate Sales Invoice: chan sai NGAY LUC LUU, khong doi cuoi ngay.
+
+	Anh Viet 13/08/2026: "em cai dat khong cho phep luu hoa don neu thieu
+	phuong thuc thanh toan, thieu nguon don, va tao canh bao khi ma phuong
+	thuc thanh toan khong khop voi nguon don de cac ban thao tac lai ngay
+	luc ay, tranh canh sai sot".
+
+	MOT NGOAI LE BAT BUOC: nhip dong bo Pancake tao hoa don TRUOC khi biet
+	khach tra kieu gi - Pancake chua ghi nhan tien thi khong co phuong thuc
+	nao de dien. Chan o day ma khong tru hao thi ca nhip dong bo nem loi,
+	ket qua la KHONG CON DON NAO ve he, nang hon nhieu so voi cai loi dang
+	muon chan. Nen nhip dong bo bat co vgb_dong_bo va di qua.
+
+	Con lai deu bi chan: nhap tay, quay, va moi duong sua tren Desk.
+	"""
+	if getattr(frappe.local, "vgb_dong_bo", False):
+		return
+	if cint(doc.get("vgb_huy")):
+		return
+	# Hoa don khong phai doanh thu ban hang cua he (hoa don cu nhap tu Fabi,
+	# hoa don ke toan lap tay) thi khong ep - chung khong co nguon don.
+	la_don_he = bool(
+		(doc.get("custom_pancake_id") or "").strip() or (doc.get("vgb_quay") or "").strip()
+	)
+	if not la_don_he:
+		return
+
+	nguon = (doc.get("custom_nguon") or "").strip()
+	if not nguon:
+		frappe.throw(
+			"Hoá đơn chưa chọn <b>nguồn đơn</b>. Chọn nguồn rồi lưu lại giúp em, "
+			"không thì cuối ngày máy không biết đối soát với sàn nào.",
+			title="Thiếu nguồn đơn",
+		)
+
+	pt = (doc.get("vgb_pt_thanh_toan") or "").strip()
+	if pt:
+		try:
+			hop_le = _pt_cho_nguon(nguon)
+		except Exception:
+			hop_le = []
+		if hop_le and pt not in hop_le:
+			frappe.throw(
+				"Đơn nguồn <b>%s</b> không dùng phương thức <b>%s</b>. "
+				"Chọn lại trong: %s." % (nguon, pt, ", ".join(hop_le)),
+				title="Phương thức không khớp nguồn đơn",
+			)
+	elif not cint(doc.get("vgb_tam_tinh")):
+		# Phieu TAM TINH la phieu giu mon, khach chua tra nen chua co phuong
+		# thuc - do la dung. Con lai thieu phuong thuc la chan.
+		frappe.throw(
+			"Hoá đơn chưa chọn <b>phương thức thanh toán</b>. Chọn rồi lưu lại "
+			"giúp em, không thì cuối ngày đơn này không ghi sổ được.",
+			title="Thiếu phương thức thanh toán",
+		)
 
 
 def chan_trung_ma_pancake(doc, method=None):
@@ -2217,9 +2323,14 @@ def keo_va_ghi_so(ds=None, so_ngay=14, chay_thu=1):
 	return kq
 
 
-def _nguoi_nhan_canh_bao():
-	"""Ai nhan thu canh bao cuoi ngay: khai trong Cai dat, khong thi lay
-	cac tai khoan dang bat co vai ke toan hoac quan ly."""
+def _nguoi_nhan_don_treo():
+	"""Ai nhan thu canh bao don treo: khai trong Cai dat, khong thi lay cac
+	tai khoan dang bat co vai ke toan hoac quan ly.
+
+	KHONG dat ten _nguoi_nhan_canh_bao: ten do da co san o tren cho thu bao
+	don trung ma. Hai ham cung ten trong mot mo dun thi cai sau de len cai
+	truoc, va cho goi o tren im lang doi hanh vi - kieu loi khong ai doc ma
+	nhin ra (bat duoc khi ra soat 13/08/2026)."""
 	tho = str(cfg().get("email_canh_bao") or "").strip()
 	if tho:
 		ra = [x.strip() for x in tho.replace(",", "\n").splitlines() if x.strip() and "@" in x]
@@ -2249,7 +2360,7 @@ def canh_bao_don_treo():
 			return
 		from vagabond.nhan_su import _khung_thu, _nut_xanh, _o_nhat, link_app
 
-		nhan = _nguoi_nhan_canh_bao()
+		nhan = _nguoi_nhan_don_treo()
 		if not nhan:
 			return
 		h = frappe.utils.escape_html

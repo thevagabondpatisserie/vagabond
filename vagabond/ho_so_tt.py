@@ -59,7 +59,21 @@ NHAN = {
 }
 THU_TU = [TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_DA_DUYET, TT_DA_TRA, TT_TU_CHOI, TT_HUY]
 
-RE_MA_APP = re.compile(r"APP[A-Z0-9]{6}")
+# Ma ho so: APP.26.08.027 - anh Viet chot 13/08/2026, theo dung dang chung tu
+# Uyen dang lap bang Excel (APP.26.08.027) va dang phieu thu tu dong da chay
+# trong he (APP-26-08-001). So thu tu chay lai tu 001 moi thang.
+#
+# Ngan hang hay CAT dau cham trong noi dung chuyen khoan, nen khi do SePay
+# phai so tren ban DA BO het dau cham va gach: APP2608027. Neu chi tim dung
+# chuoi co dau cham thi gap giao dich that cung khong nhan ra.
+RE_MA_APP = re.compile(r"APP\.?(\d{2})\.?(\d{2})\.?(\d{3})")
+RE_MA_TRAN = re.compile(r"APP(\d{2})(\d{2})(\d{3})")
+
+
+def _tran(s):
+	"""Bo moi ky tu khong phai chu va so, viet hoa - de so ma tren noi dung
+	chuyen khoan da bi ngan hang cat bot dau."""
+	return re.sub(r"[^A-Z0-9]", "", str(s or "").upper())
 
 
 def _vai():
@@ -71,12 +85,28 @@ def _kiem(nhom, viec):
 		frappe.throw("Tài khoản của bạn không có quyền %s." % viec)
 
 
-def _sinh_ma():
-	"""Mã hồ sơ ngắn, không nhầm chữ O với số 0. Mã này đi vào nội dung
-	chuyển khoản nên phải gõ được bằng tay, không dùng chuỗi dài."""
-	chu = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	for _ in range(40):
-		ma = "APP" + "".join(chu[int(c, 16) % len(chu)] for c in frappe.generate_hash(length=6))
+def _sinh_ma(ngay=None):
+	"""Mã hồ sơ dạng APP.26.08.027 - năm hai số, tháng hai số, số thứ tự ba số.
+
+	Số thứ tự chạy lại từ 001 mỗi tháng. Đếm theo tiền tố của đúng tháng đó
+	chứ không đếm tổng số hồ sơ: xoá một hồ sơ giữa tháng mà đếm tổng thì
+	tháng sau sinh trùng mã, mà mã này đi vào nội dung chuyển khoản.
+	"""
+	d = getdate(ngay or nowdate())
+	tien_to = "APP.%02d.%02d." % (d.year % 100, d.month)
+	da_co = frappe.get_all(
+		"Vagabond Ho So TT",
+		filters={"ma": ["like", tien_to + "%"]},
+		pluck="ma",
+		limit_page_length=0,
+	)
+	lon_nhat = 0
+	for m in da_co:
+		duoi = str(m or "").rsplit(".", 1)[-1]
+		if duoi.isdigit():
+			lon_nhat = max(lon_nhat, int(duoi))
+	for i in range(lon_nhat + 1, lon_nhat + 400):
+		ma = tien_to + "%03d" % i
 		if not frappe.db.exists("Vagabond Ho So TT", ma):
 			return ma
 	frappe.throw("Không sinh được mã hồ sơ, thử lại giúp em.")
@@ -481,26 +511,35 @@ def _sepay_theo_ma_app(ds_ma):
 	trừ deposit. Kế toán chuyển khoản với nội dung chứa mã APPxxxxxx thì
 	SePay đẩy về Bank Transaction, máy tự khớp.
 	"""
-	ds_ma = [str(m).strip().upper() for m in (ds_ma or []) if RE_MA_APP.fullmatch(str(m or "").strip().upper())]
-	if not ds_ma:
+	# So tren ban DA BO dau cham: ngan hang hay cat bot dau khi day noi dung
+	# di, "APP.26.08.027" ve toi SePay co the thanh "APP2608027" hay
+	# "APP 26 08 027". Truy van SQL vi vay chi loc tho theo "APP" roi doi
+	# chieu chinh xac bang Python.
+	tran = {}
+	for m in ds_ma or []:
+		g = RE_MA_APP.fullmatch(str(m or "").strip().upper()) or RE_MA_TRAN.fullmatch(_tran(m))
+		if g:
+			tran["APP" + "".join(g.groups())] = str(m).strip()
+	if not tran:
 		return {}
-	mau = "(%s)" % "|".join(sorted(set(ds_ma)))
 	try:
 		gds = frappe.db.sql(
 			"""select description, deposit, withdrawal, reference_number, date
 			from `tabBank Transaction`
-			where docstatus < 2 and description regexp %s""",
-			mau, as_dict=True,
+			where docstatus < 2 and description like %s""",
+			("%APP%",), as_dict=True,
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc SePay theo ma ho so")
 		return {}
 	ra = {}
 	for g in gds:
-		for m in RE_MA_APP.findall((g.get("description") or "").upper()):
-			if m not in ds_ma:
+		for k in RE_MA_TRAN.findall(_tran(g.get("description"))):
+			khoa = "APP" + "".join(k)
+			ten = tran.get(khoa)
+			if not ten:
 				continue
-			o = ra.setdefault(m, {"chi": 0.0, "so_gd": 0, "ma_gd": "", "ngay": None})
+			o = ra.setdefault(ten, {"chi": 0.0, "so_gd": 0, "ma_gd": "", "ngay": None})
 			o["chi"] += flt(g.get("withdrawal")) - flt(g.get("deposit"))
 			o["so_gd"] += 1
 			if not o["ma_gd"]:

@@ -83,6 +83,11 @@ doc_events = {
 	"Customer": {"autoname": "vagabond.ma_khach.dat_ma"},
 	"Sales Invoice": {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
+		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh
+		# toan, hay phuong thuc khong dung duoc cho nguon do (anh Viet
+		# 13/08/2026). Nhip dong bo Pancake duoc mien - xem ghi chu trong
+		# vagabond.ban_hang.kiem_truoc_khi_luu.
+		"validate": "vagabond.ban_hang.kiem_truoc_khi_luu",
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
 		"on_submit": "vagabond.khach_hang.cong_diem_hoa_don",
