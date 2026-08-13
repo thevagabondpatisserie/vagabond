@@ -335,9 +335,39 @@ def _ghi_mon(doc_name, dong):
 	return len(dong)
 
 
+def _pt_thu_tien_mat(ten_pt):
+	"""Phuong thuc nay shipper co phai thu tien mat luc giao khong.
+
+	Tra ve True (co thu), False (khong thu), None (chua chon nen chua biet).
+
+	Viet theo chieu CHO PHEP: chi Mode of Payment kieu Cash moi sinh COD.
+	Bam vao truong type cua ERPNext chu khong viet cung ten tieng Viet - hom
+	nao chi Dung them mot phuong thuc moi la khoi phai sua ma. Bai hoc tu
+	guard _khong_duoc_huy: viet theo chieu cam thi som muon cung lot.
+	"""
+	t = (ten_pt or "").strip()
+	if not t:
+		return None
+	kieu = frappe.db.get_value("Mode of Payment", t, "type")
+	if not kieu:
+		return None
+	return kieu == "Cash"
+
+
 def _cod_tu_don(o, si):
-	"""Tien shipper phai thu. Uu tien so con lai tren hoa don ERPNext."""
+	"""Tien shipper phai thu. Uu tien so con lai tren hoa don ERPNext.
+
+	Khach da chuyen khoan thi shipper KHONG thu gi ca, du hoa don con dang
+	nhap va so con no van bang tong. So con no chi ve 0 khi hoa don ghi so
+	VA co but toan thu tien, ma hai viec do xay ra sau luc giao - lay no lam
+	COD la doi shipper thu tien lan hai.
+
+	Bat duoc 13/08/2026: don chi Hau 700.000 va don Oshima 1.480.000 deu
+	hien trong doi soat COD du khach da chuyen khoan (Sales bao lai).
+	"""
 	if si:
+		if _pt_thu_tien_mat(si.get("vgb_pt_thanh_toan")) is False:
+			return 0.0
 		return flt(si.outstanding_amount or 0)
 	tong = flt(
 		o.get("total_price_after_sub_discount")
@@ -413,7 +443,7 @@ def _dong_bo_pancake(ngay=None):
 				si_cu = frappe.db.get_value(
 					"Sales Invoice",
 					{"custom_pancake_id": pid, "docstatus": ["<", 2]},
-					["name", "grand_total", "outstanding_amount"],
+					["name", "grand_total", "outstanding_amount", "vgb_pt_thanh_toan"],
 					as_dict=True,
 				)
 				sa2 = o.get("shipping_address") or {}
@@ -457,7 +487,7 @@ def _dong_bo_pancake(ngay=None):
 		si = frappe.db.get_value(
 			"Sales Invoice",
 			{"custom_pancake_id": pid, "docstatus": ["<", 2]},
-			["name", "grand_total", "outstanding_amount"],
+			["name", "grand_total", "outstanding_amount", "vgb_pt_thanh_toan"],
 			as_dict=True,
 		)
 		moi_vd = frappe.get_doc(
@@ -994,25 +1024,60 @@ def doi_soat_cod(ngay=None):
 	rows = frappe.get_all(
 		"Van Don",
 		filters={"ngay_giao": ngay or nowdate(), "trang_thai": "Đã giao"},
-		fields=["name", "ma_don", "khach", "shipper", "kenh", "tien_thu_ho", "da_doi_soat", "chuyen"],
+		fields=["name", "ma_don", "khach", "shipper", "kenh", "tien_thu_ho",
+			"da_doi_soat", "chuyen", "pancake_id", "hoa_don"],
 		order_by="shipper asc, creation asc",
 		limit_page_length=500,
 	)
+
+	# Doc phuong thuc thanh toan cua tung don MOT LAN roi tra cuu trong bo nho,
+	# chu khong hoi co so du lieu trong vong lap: 500 don la 500 luot hoi.
+	ma_pancake = [r.pancake_id for r in rows if r.pancake_id]
+	pt_theo_don = {}
+	if ma_pancake:
+		for si in frappe.get_all(
+			"Sales Invoice",
+			filters={"custom_pancake_id": ["in", ma_pancake], "docstatus": ["<", 2]},
+			fields=["custom_pancake_id", "vgb_pt_thanh_toan"],
+			limit_page_length=0,
+		):
+			pt_theo_don[si.custom_pancake_id] = si.vgb_pt_thanh_toan or ""
+
 	gom = {}
 	for r in rows:
 		ai = r.shipper or ("(app ngoài: %s)" % (r.kenh or "?") if r.kenh != "Shipper nội bộ" else "(chưa gán shipper)")
 		g = gom.setdefault(ai, {
 			"shipper": ai, "ten": "", "so_don": 0, "tong_cod": 0,
-			"chua_doi_soat": 0, "so_don_chua": 0, "don": [],
+			"chua_doi_soat": 0, "so_don_chua": 0, "so_don_chua_ro": 0, "don": [],
 		})
+		pt = pt_theo_don.get(r.pancake_id or "", "")
+		thu = _pt_thu_tien_mat(pt)
+		# Chua chon phuong thuc thi KHONG ket luan ho: bay co vang de sales
+		# vao sua hoa don, chu doan bua rang do la COD la lai dung cai loi
+		# vua sua (anh Viet 13/08/2026).
+		chua_ro = thu is None
+
+		# Tinh COD DONG chu khong tin so da luu tren van don. Nhip dong bo chi
+		# cap nhat don con "Cho giao" hay "Dang giao", nen don da giao hom nay
+		# se giu mai so cu sai. Tinh lai o day thi man doi soat dung ngay, khoi
+		# phai di sua du lieu cu - va sua du lieu cu la viec anh Viet da dan
+		# khong dung toi.
+		cod = 0.0 if thu is False else flt(r.tien_thu_ho)
+		lech = abs(cod - flt(r.tien_thu_ho)) >= 1
+
 		g["so_don"] += 1
-		g["tong_cod"] += flt(r.tien_thu_ho)
+		g["tong_cod"] += cod
+		if chua_ro:
+			g["so_don_chua_ro"] += 1
 		if not r.da_doi_soat:
-			g["chua_doi_soat"] += flt(r.tien_thu_ho)
+			g["chua_doi_soat"] += cod
 			g["so_don_chua"] += 1
 		g["don"].append({
 			"name": r.name, "ma_don": r.ma_don, "khach": r.khach,
-			"cod": flt(r.tien_thu_ho), "da_doi_soat": r.da_doi_soat, "chuyen": r.chuyen,
+			"cod": cod, "cod_tren_van_don": flt(r.tien_thu_ho), "lech": 1 if lech else 0,
+			"da_doi_soat": r.da_doi_soat, "chuyen": r.chuyen,
+			"pt": pt, "chua_ro": 1 if chua_ro else 0,
+			"thu_tien_mat": 1 if thu else 0,
 		})
 	for ai, g in gom.items():
 		if "@" in ai:
@@ -1024,23 +1089,46 @@ def doi_soat_cod(ngay=None):
 
 @frappe.whitelist()
 def xac_nhan_cod(shipper, ngay=None):
-	"""Ke toan xac nhan DA NHAN DU tien COD shipper nop ve cho ngay do.
-	Danh dau da_doi_soat len toan bo don Da giao cua shipper trong ngay."""
-	if not _la_ke_toan():
-		frappe.throw("Chỉ kế toán / thu mua xác nhận được tiền COD.")
+	"""Xac nhan DA NHAN DU tien COD shipper nop ve cho ngay do.
+	Danh dau da_doi_soat len toan bo don Da giao cua shipper trong ngay.
+
+	Sales duoc bam tu 13/08/2026 (anh Viet): cuoi ngay chinh cac ban Sales
+	ngoi dem tien shipper nop ve, bat cho ke toan bam la viec ket lai den
+	hom sau. Dau vet ai bam van luu trong nhat ky chung tu.
+	"""
+	if not (_la_sales() or _la_ke_toan()):
+		frappe.throw("Chỉ sales hoặc kế toán xác nhận được tiền COD.")
 	rows = frappe.get_all(
 		"Van Don",
 		filters={
 			"ngay_giao": ngay or nowdate(), "trang_thai": "Đã giao",
 			"shipper": shipper, "da_doi_soat": 0,
 		},
-		fields=["name", "tien_thu_ho"],
+		fields=["name", "tien_thu_ho", "pancake_id"],
 		limit_page_length=500,
 	)
 	tong = 0
 	for r in rows:
 		frappe.db.set_value("Van Don", r.name, "da_doi_soat", 1)
-		tong += flt(r.tien_thu_ho)
+		# Cong dung so ma man doi soat bay ra, khong cong so cu tren van don.
+		pt = frappe.db.get_value(
+			"Sales Invoice",
+			{"custom_pancake_id": r.pancake_id or "", "docstatus": ["<", 2]},
+			"vgb_pt_thanh_toan",
+		) if r.pancake_id else None
+		if _pt_thu_tien_mat(pt) is not False:
+			tong += flt(r.tien_thu_ho)
+	# Dau vet ai xac nhan: tien mat qua tay nguoi nen phai biet ai chot.
+	if rows:
+		try:
+			frappe.get_doc({
+				"doctype": "Comment", "comment_type": "Info",
+				"reference_doctype": "Van Don", "reference_name": rows[0].name,
+				"content": "Xác nhận đủ COD %s đ của %s ngày %s, bởi %s"
+				% (tong, shipper, ngay or nowdate(), frappe.session.user),
+			}).insert(ignore_permissions=True)
+		except Exception:
+			pass
 	return {"so_don": len(rows), "tong": tong}
 
 
