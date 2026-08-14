@@ -713,6 +713,14 @@ def _chuan_mst(s):
 	  CO DAU GACH NGANG dang 10 so - 3 so. Thong tu 86/2024/TT-BTC hieu luc
 	  06/02/2025 quy dinh cau truc N1..N10-N11N12N13. Khong co dang 4 so
 	  sau gach ngang.
+	- Ho kinh doanh va ca nhan: 12 chu so, chinh la SO DINH DANH CA NHAN
+	  (can cuoc cong dan) cua chu ho, giu nguyen khong gach.
+
+	Ve 12 so: Dieu 5 Thong tu 86/2024/TT-BTC quy dinh tu 01/07/2025 so dinh
+	danh ca nhan THAY CHO ma so thue 10 so cu cua ho kinh doanh va ca nhan;
+	co quan thue tu chuyen doi neu du lieu khop Co so du lieu quoc gia ve
+	dan cu. Loan Anh bi chan ngay 14/08/2026 khi nhap 079094025262 cua HO
+	KINH DOANH RAVIE - luc do ham nay moi nhan 10 va 13 so nen tra rong.
 
 	Truoc day may bo sach ky tu khong phai so nen "0311638525-027" bi luu
 	thanh "0311638525027". Hai he thong ben ngoai deu tu choi dang do:
@@ -721,10 +729,12 @@ def _chuan_mst(s):
 	  - m-invoice tra code 296 "Create invoice fail" nen khong ghi so duoc.
 	Bat duoc 12/08/2026 tren don HDB-2026-01520, chi nhanh ACV Long Thanh.
 
-	Tra chuoi rong neu khong phai 10 hoac 13 so.
+	Tra chuoi rong neu khong phai 10, 12 hoac 13 so.
 	"""
 	so = re.sub(r"\D", "", str(s or ""))
 	if len(so) == 10:
+		return so
+	if len(so) == 12:
 		return so
 	if len(so) == 13:
 		return so[:10] + "-" + so[10:]
@@ -1821,8 +1831,9 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	so_mst = _chuan_mst(mst)
 	if (mst or "").strip() and not so_mst:
 		frappe.throw(
-			"Mã số thuế phải 10 số, hoặc 13 số dạng 10 số - 3 số cho chi nhánh "
-			"(ví dụ 0311638525-027)."
+			"Mã số thuế phải 10 số (doanh nghiệp), 12 số (hộ kinh doanh hoặc cá "
+			"nhân, chính là số căn cước của chủ hộ), hoặc 13 số dạng 10 số - 3 "
+			"số cho chi nhánh (ví dụ 0311638525-027)."
 		)
 	ten = (ten or "").strip()
 	if so_mst and not ten:
@@ -2928,8 +2939,9 @@ def tao_don_tay(
 	so_mst = _chuan_mst(xhd_mst)
 	if (xhd_mst or "").strip() and not so_mst:
 		frappe.throw(
-			"Mã số thuế phải 10 số, hoặc 13 số dạng 10 số - 3 số cho chi nhánh "
-			"(ví dụ 0311638525-027)."
+			"Mã số thuế phải 10 số (doanh nghiệp), 12 số (hộ kinh doanh hoặc cá "
+			"nhân, chính là số căn cước của chủ hộ), hoặc 13 số dạng 10 số - 3 "
+			"số cho chi nhánh (ví dụ 0311638525-027)."
 		)
 	if so_mst:
 		if not (xhd_ten or "").strip():
@@ -3575,8 +3587,9 @@ def pos_sua_don(
 		so_mst = _chuan_mst(xhd_mst)
 		if (xhd_mst or "").strip() and not so_mst:
 			frappe.throw(
-				"Mã số thuế phải 10 số, hoặc 13 số dạng 10 số - 3 số cho chi nhánh "
-				"(ví dụ 0311638525-027)."
+				"Mã số thuế phải 10 số (doanh nghiệp), 12 số (hộ kinh doanh hoặc cá "
+				"nhân, chính là số căn cước của chủ hộ), hoặc 13 số dạng 10 số - 3 "
+				"số cho chi nhánh (ví dụ 0311638525-027)."
 			)
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
@@ -3859,7 +3872,10 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 		frappe.throw("Bill này đã xuất hoá đơn điện tử rồi, không sửa được nữa. Cần điều chỉnh thì liên hệ tiệm.")
 	so_mst = _chuan_mst(mst)
 	if not so_mst:
-		frappe.throw("Mã số thuế phải 10 hoặc 13 số.")
+		frappe.throw(
+			"Mã số thuế phải 10 số (công ty), 12 số (hộ kinh doanh hoặc cá nhân) "
+			"hoặc 13 số (chi nhánh)."
+		)
 	ten = (ten or "").strip()
 	if not ten:
 		frappe.throw("Thiếu tên pháp nhân trên hoá đơn.")

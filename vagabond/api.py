@@ -72,13 +72,18 @@ def tra_mst(mst=None):
 	# MST chi nhanh 13 so phai giu DAU GACH NGANG (10 so - 3 so) theo Thong
 	# tu 86/2024/TT-BTC. VietQR tra code 52 "Ma so thue khong chinh xac" neu
 	# gui 13 so lien khong gach - da thu that 12/08/2026 voi 0311638525-027.
+	# 12 so la so dinh danh ca nhan cua chu ho kinh doanh, hop le tu
+	# 01/07/2025 theo dieu 5 Thong tu 86/2024/TT-BTC. VietQR tra cuu theo
+	# dang ky doanh nghiep nen thuong KHONG tim thay ho kinh doanh; cu goi
+	# roi de no tra "khong_tim_thay" thi app bao "dien tay giup em", con hon
+	# chan ngay o day khien nguoi nhap tuong minh go sai so.
 	so = "".join(ch for ch in (mst or "") if ch.isdigit())
-	if len(so) == 10:
+	if len(so) in (10, 12):
 		mst = so
 	elif len(so) == 13:
 		mst = so[:10] + "-" + so[10:]
 	else:
-		return {"ok": 0, "ly_do": "ma_so_thue_phai_10_hoac_13_so"}
+		return {"ok": 0, "ly_do": "ma_so_thue_phai_10_12_hoac_13_so"}
 
 	ck = "vgb:mst:" + mst
 	hit = cache_get(ck)
