@@ -1807,7 +1807,7 @@ def khach_khong_ky(name=None, ly_do=None):
 
 
 @frappe.whitelist()
-def canh_bao_thanh_toan(so_ngay=7):
+def canh_bao_thanh_toan(so_ngay=7, ke_ca_nhap_lieu=0):
 	"""Soát hoá đơn ghi sai hoặc thiếu phương thức thanh toán.
 
 	Anh Việt 14/08/2026 hỏi: *"em có biện pháp gì cảnh báo với các hoá đơn
@@ -1831,7 +1831,7 @@ def canh_bao_thanh_toan(so_ngay=7):
 		filters={"docstatus": 1, "posting_date": [">=", tu]},
 		fields=[
 			"name", "posting_date", "customer", "grand_total", "outstanding_amount",
-			"vgb_pt_thanh_toan", "vgb_khach_no", "custom_nguon",
+			"vgb_pt_thanh_toan", "vgb_khach_no", "custom_nguon", "owner",
 		],
 		limit_page_length=0,
 		order_by="posting_date desc",
@@ -1855,7 +1855,17 @@ def canh_bao_thanh_toan(so_ngay=7):
 
 	rows = []
 	dem = {"chua_chon": 0, "lech_cod": 0, "no_khong_khach": 0}
+	bo_qua_nhap = 0
 	for r in hd:
+		# Bo qua to nhap tu dot chuyen du lieu Fabi/m-invoice: 366 to trong
+		# thang deu do Administrator dung len ngay 06 va 07/08, khong co
+		# nguon don, va tat nhien khong co phuong thuc vi ben Fabi khong co
+		# truong do. De chung vao thi man canh bao ra 368 dong, Sales mo len
+		# mot lan roi thoi - canh bao ma keu suot thi thanh khong canh bao.
+		if not cint(ke_ca_nhap_lieu):
+			if r.get("owner") == "Administrator" and not (r.get("custom_nguon") or ""):
+				bo_qua_nhap += 1
+				continue
 		pt = (r.get("vgb_pt_thanh_toan") or "").strip()
 		c = cod.get(r["name"]) or {}
 		tien_cod = flt(c.get("tien"))
@@ -1900,4 +1910,5 @@ def canh_bao_thanh_toan(so_ngay=7):
 		"tong": len(rows),
 		"so_ngay": int(so_ngay or 7),
 		"so_hoa_don_soat": len(hd),
+		"bo_qua_nhap_lieu": bo_qua_nhap,
 	}
