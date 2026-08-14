@@ -8,7 +8,19 @@ grand_total va outstanding_amount cua cac hoa don da submit.
 import frappe
 from frappe.utils import flt
 
-QUYEN = {"System Manager", "Sales User", "Sales Manager", "Accounts User", "Bộ phận đặt hàng"}
+# Anh Viet 14/08/2026: *"cấp quyền truy cập cho Loan Anh, thu mua và kế toán"*.
+# Loan Anh dang co vai Sales User nen vao duoc ngay. Them thu mua va ke toan
+# truong vao day cho du bo.
+QUYEN = {
+	"System Manager",
+	"Sales User",
+	"Sales Manager",
+	"Accounts User",
+	"Accounts Manager",
+	"Purchase User",
+	"Purchase Manager",
+	"Bộ phận đặt hàng",
+}
 
 
 def _quyen():
