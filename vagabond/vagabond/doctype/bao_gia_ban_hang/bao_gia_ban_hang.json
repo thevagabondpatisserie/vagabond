@@ -6,70 +6,330 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "ten", "trang_thai", "ngay_bao_gia", "hieu_luc_den",
-  "cb1", "khach_hang", "ten_khach", "ma_so_thue", "dia_chi",
-  "sec_lh", "nguoi_lien_he", "chuc_vu", "cb2", "dien_thoai", "email",
-  "sec_dong", "dong",
-  "sec_tien", "tam_tinh", "chiet_khau_pt", "chiet_khau_tien", "phi_giao",
-  "cb3", "thue_pt", "thue_tien", "tong_cong", "dat_coc_pt", "dat_coc_tien",
-  "sec_dk", "loi_mo", "thanh_toan", "giao_hang", "dong_goi", "ghi_chu",
-  "sec_ns", "nguoi_lap", "dt_nguoi_lap", "cb4", "hop_dong", "ghi_chu_noi_bo"
+  "ten",
+  "trang_thai",
+  "ngay_bao_gia",
+  "hieu_luc_den",
+  "cb1",
+  "khach_hang",
+  "ten_khach",
+  "ma_so_thue",
+  "dia_chi",
+  "sec_lh",
+  "nguoi_lien_he",
+  "chuc_vu",
+  "cb2",
+  "dien_thoai",
+  "email",
+  "sec_dong",
+  "dong",
+  "sec_tien",
+  "tam_tinh",
+  "chiet_khau_pt",
+  "chiet_khau_tien",
+  "phi_giao",
+  "cb3",
+  "thue_pt",
+  "thue_tien",
+  "tong_cong",
+  "dat_coc_pt",
+  "dat_coc_tien",
+  "sec_dk",
+  "loi_mo",
+  "thanh_toan",
+  "giao_hang",
+  "dong_goi",
+  "ghi_chu",
+  "sec_ns",
+  "nguoi_lap",
+  "dt_nguoi_lap",
+  "cb4",
+  "hop_dong",
+  "ghi_chu_noi_bo"
  ],
  "fields": [
-  {"fieldname": "ten", "fieldtype": "Data", "label": "Tieu de bao gia", "reqd": 1, "in_list_view": 1},
-  {"fieldname": "trang_thai", "fieldtype": "Select", "label": "Trang thai", "options": "Nháp\nĐã gửi khách\nKhách duyệt\nKhách từ chối\nHết hiệu lực\nĐã lên hợp đồng", "default": "Nháp", "in_list_view": 1, "in_standard_filter": 1},
-  {"fieldname": "ngay_bao_gia", "fieldtype": "Date", "label": "Ngay bao gia"},
-  {"fieldname": "hieu_luc_den", "fieldtype": "Date", "label": "Hieu luc den ngay"},
-  {"fieldname": "cb1", "fieldtype": "Column Break"},
-  {"fieldname": "khach_hang", "fieldtype": "Link", "options": "Customer", "label": "Khach hang trong he thong"},
-  {"fieldname": "ten_khach", "fieldtype": "Data", "label": "Ten cong ty khach (in len bao gia)", "in_list_view": 1},
-  {"fieldname": "ma_so_thue", "fieldtype": "Data", "label": "Ma so thue khach"},
-  {"fieldname": "dia_chi", "fieldtype": "Small Text", "label": "Dia chi khach"},
-  {"fieldname": "sec_lh", "fieldtype": "Section Break", "label": "Nguoi lien he ben khach"},
-  {"fieldname": "nguoi_lien_he", "fieldtype": "Data", "label": "Ho ten nguoi lien he"},
-  {"fieldname": "chuc_vu", "fieldtype": "Data", "label": "Chuc vu"},
-  {"fieldname": "cb2", "fieldtype": "Column Break"},
-  {"fieldname": "dien_thoai", "fieldtype": "Data", "label": "Dien thoai"},
-  {"fieldname": "email", "fieldtype": "Data", "options": "Email", "label": "Email nhan bao gia"},
-  {"fieldname": "sec_dong", "fieldtype": "Section Break", "label": "San pham bao gia"},
-  {"fieldname": "dong", "fieldtype": "Table", "options": "Bao Gia Dong", "label": "Dong bao gia"},
-  {"fieldname": "sec_tien", "fieldtype": "Section Break", "label": "Tong tien"},
-  {"fieldname": "tam_tinh", "fieldtype": "Currency", "label": "Cong tien hang", "read_only": 1},
-  {"fieldname": "chiet_khau_pt", "fieldtype": "Percent", "label": "Chiet khau tong (%)"},
-  {"fieldname": "chiet_khau_tien", "fieldtype": "Currency", "label": "Tien chiet khau", "read_only": 1},
-  {"fieldname": "phi_giao", "fieldtype": "Currency", "label": "Phi giao hang"},
-  {"fieldname": "cb3", "fieldtype": "Column Break"},
-  {"fieldname": "thue_pt", "fieldtype": "Percent", "label": "Thue GTGT (%)", "default": "8"},
-  {"fieldname": "thue_tien", "fieldtype": "Currency", "label": "Tien thue GTGT", "read_only": 1},
-  {"fieldname": "tong_cong", "fieldtype": "Currency", "label": "Tong cong thanh toan", "read_only": 1, "in_list_view": 1},
-  {"fieldname": "dat_coc_pt", "fieldtype": "Percent", "label": "Dat coc (%)"},
-  {"fieldname": "dat_coc_tien", "fieldtype": "Currency", "label": "Tien dat coc", "read_only": 1},
-  {"fieldname": "sec_dk", "fieldtype": "Section Break", "label": "Dieu khoan in len bao gia"},
-  {"fieldname": "loi_mo", "fieldtype": "Text", "label": "Loi mo dau"},
-  {"fieldname": "thanh_toan", "fieldtype": "Small Text", "label": "Dieu kien thanh toan"},
-  {"fieldname": "giao_hang", "fieldtype": "Small Text", "label": "Thoi gian va dia diem giao hang"},
-  {"fieldname": "dong_goi", "fieldtype": "Small Text", "label": "Quy cach dong goi"},
-  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu in len bao gia"},
-  {"fieldname": "sec_ns", "fieldtype": "Section Break", "label": "Nguoi lap"},
-  {"fieldname": "nguoi_lap", "fieldtype": "Link", "options": "User", "label": "Nguoi lap bao gia"},
-  {"fieldname": "dt_nguoi_lap", "fieldtype": "Data", "label": "Dien thoai nguoi lap"},
-  {"fieldname": "cb4", "fieldtype": "Column Break"},
-  {"fieldname": "hop_dong", "fieldtype": "Link", "options": "Hop Dong Ban Hang", "label": "Hop dong da chot tu bao gia nay", "read_only": 1},
-  {"fieldname": "ghi_chu_noi_bo", "fieldtype": "Text", "label": "Ghi chu noi bo (khong in)"}
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tieu de bao gia",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Nháp\nĐã gửi khách\nKhách duyệt\nKhách từ chối\nHết hiệu lực\nĐã lên hợp đồng",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ngay_bao_gia",
+   "fieldtype": "Date",
+   "label": "Ngay bao gia"
+  },
+  {
+   "fieldname": "hieu_luc_den",
+   "fieldtype": "Date",
+   "label": "Hieu luc den ngay"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "khach_hang",
+   "fieldtype": "Link",
+   "options": "Customer",
+   "label": "Khach hang trong he thong"
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "label": "Ten cong ty khach (in len bao gia)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ma_so_thue",
+   "fieldtype": "Data",
+   "label": "Ma so thue khach"
+  },
+  {
+   "fieldname": "dia_chi",
+   "fieldtype": "Small Text",
+   "label": "Dia chi khach"
+  },
+  {
+   "fieldname": "sec_lh",
+   "fieldtype": "Section Break",
+   "label": "Nguoi lien he ben khach"
+  },
+  {
+   "fieldname": "nguoi_lien_he",
+   "fieldtype": "Data",
+   "label": "Ho ten nguoi lien he"
+  },
+  {
+   "fieldname": "chuc_vu",
+   "fieldtype": "Data",
+   "label": "Chuc vu"
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dien_thoai",
+   "fieldtype": "Data",
+   "label": "Dien thoai"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "options": "Email",
+   "label": "Email nhan bao gia"
+  },
+  {
+   "fieldname": "sec_dong",
+   "fieldtype": "Section Break",
+   "label": "San pham bao gia"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "options": "Bao Gia Dong",
+   "label": "Dong bao gia"
+  },
+  {
+   "fieldname": "sec_tien",
+   "fieldtype": "Section Break",
+   "label": "Tong tien"
+  },
+  {
+   "fieldname": "tam_tinh",
+   "fieldtype": "Currency",
+   "label": "Cong tien hang",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chiet_khau_pt",
+   "fieldtype": "Percent",
+   "label": "Chiet khau tong (%)"
+  },
+  {
+   "fieldname": "chiet_khau_tien",
+   "fieldtype": "Currency",
+   "label": "Tien chiet khau",
+   "read_only": 1
+  },
+  {
+   "fieldname": "phi_giao",
+   "fieldtype": "Currency",
+   "label": "Phi giao hang"
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "thue_pt",
+   "fieldtype": "Percent",
+   "label": "Thue GTGT (%)",
+   "default": "8"
+  },
+  {
+   "fieldname": "thue_tien",
+   "fieldtype": "Currency",
+   "label": "Tien thue GTGT",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tong_cong",
+   "fieldtype": "Currency",
+   "label": "Tong cong thanh toan",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "dat_coc_pt",
+   "fieldtype": "Percent",
+   "label": "Dat coc (%)"
+  },
+  {
+   "fieldname": "dat_coc_tien",
+   "fieldtype": "Currency",
+   "label": "Tien dat coc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_dk",
+   "fieldtype": "Section Break",
+   "label": "Dieu khoan in len bao gia"
+  },
+  {
+   "fieldname": "loi_mo",
+   "fieldtype": "Text",
+   "label": "Loi mo dau"
+  },
+  {
+   "fieldname": "thanh_toan",
+   "fieldtype": "Small Text",
+   "label": "Dieu kien thanh toan"
+  },
+  {
+   "fieldname": "giao_hang",
+   "fieldtype": "Small Text",
+   "label": "Thoi gian va dia diem giao hang"
+  },
+  {
+   "fieldname": "dong_goi",
+   "fieldtype": "Small Text",
+   "label": "Quy cach dong goi"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu in len bao gia"
+  },
+  {
+   "fieldname": "sec_ns",
+   "fieldtype": "Section Break",
+   "label": "Nguoi lap"
+  },
+  {
+   "fieldname": "nguoi_lap",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Nguoi lap bao gia"
+  },
+  {
+   "fieldname": "dt_nguoi_lap",
+   "fieldtype": "Data",
+   "label": "Dien thoai nguoi lap"
+  },
+  {
+   "fieldname": "cb4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hop_dong",
+   "fieldtype": "Link",
+   "options": "Hop Dong Ban Hang",
+   "label": "Hop dong da chot tu bao gia nay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu_noi_bo",
+   "fieldtype": "Text",
+   "label": "Ghi chu noi bo (khong in)"
+  }
  ],
  "links": [],
- "modified": "2026-08-14 09:00:00.000000",
+ "modified": "2026-08-14 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Bao Gia Ban Hang",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
-  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Sales User", "write": 1},
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Sales Manager", "share": 1, "write": 1},
-  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Accounts User", "write": 1},
-  {"read": 1, "report": 1, "export": 1, "print": 1, "role": "Purchase User"},
-  {"read": 1, "report": 1, "export": 1, "print": 1, "role": "Purchase Manager"}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Purchase User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "role": "Purchase Manager"
+  }
  ],
  "search_fields": "ten,ten_khach,trang_thai",
  "sort_field": "modified",
