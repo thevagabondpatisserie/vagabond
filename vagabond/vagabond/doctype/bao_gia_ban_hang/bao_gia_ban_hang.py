@@ -1,7 +1,7 @@
-"""Bao gia ban hang gui khach doanh nghiep.
+"""Bao gia ban hang gui khach doanh nghiep, song ngu Viet - Anh.
 
-So bao gia sinh theo thang: BG-26-08-00001. Cung cach danh so voi phieu de
-nghi thanh toan DNTT-26-08-00001 de ai nhin cung doan duoc thang nao.
+Danh so VGB-PQ-YYYY-NNNN cho khop dung ma Loan Anh dang gui khach tren file
+Word (vd VGB-PQ-2026-0011), dem lai tu 1 moi nam.
 """
 
 import frappe
@@ -11,16 +11,17 @@ from frappe.utils import flt, getdate, nowdate
 
 class BaoGiaBanHang(Document):
 	def autoname(self):
-		"""Danh so BG-YY-MM-NNNNN, dem lai tu 1 moi thang.
+		"""Danh so VGB-PQ-YYYY-NNNN, dem lai tu 1 moi nam.
 
-		Khong dung duoc autoname "format:BG-{YY}-{MM}-{#####}" cua Frappe:
-		trong _format_autoname moi cap ngoac duoc doc RIENG mot lan, nen o
-		{#####} bo dem chay voi tien to rong - tuc la dung chung mot bo dem
-		toan he. To thu dau tien ra thang BG-26-08-00668 chu khong phai
-		00001. Nen sinh ma o day, do chinh cac to BG cung thang ma dem len.
+		Khong dung duoc chuoi "format:VGB-PQ-{YYYY}-{####}" cua Frappe mot
+		minh: trong _format_autoname moi cap ngoac duoc doc RIENG mot lan,
+		nen o {####} bo dem chay voi tien to rong, tuc dung chung mot bo dem
+		toan he - to dau tien tung ra BG-26-08-00668 chu khong phai 00001.
+		Frappe goi doc.run_method("autoname") TRUOC khi xet chuoi format nen
+		ham nay thang; chuoi format giu lai lam duong lui.
 		"""
-		hn = getdate(self.ngay_bao_gia or nowdate())
-		tien_to = "BG-%02d-%02d-" % (hn.year % 100, hn.month)
+		nam = getdate(self.ngay_bao_gia or nowdate()).year
+		tien_to = "VGB-PQ-%d-" % nam
 		cuoi = frappe.db.sql(
 			"""select name from `tabBao Gia Ban Hang`
 			where name like %s order by name desc limit 1""",
@@ -32,7 +33,7 @@ class BaoGiaBanHang(Document):
 				so = int(str(cuoi[0][0]).rsplit("-", 1)[1]) + 1
 			except Exception:
 				so = 1
-		self.name = "%s%05d" % (tien_to, so)
+		self.name = "%s%04d" % (tien_to, so)
 
 	def validate(self):
 		if self.ten:
@@ -42,18 +43,18 @@ class BaoGiaBanHang(Document):
 				frappe.db.get_value("Customer", self.khach_hang, "customer_name")
 				or self.khach_hang
 			)
+		# Hieu luc: uu tien so ngay cho de sua, tu tinh ra ngay het han.
+		if self.hieu_luc_ngay and self.ngay_bao_gia:
+			from frappe.utils import add_days
+
+			self.hieu_luc_den = add_days(getdate(self.ngay_bao_gia), int(self.hieu_luc_ngay))
 		if self.hieu_luc_den and self.ngay_bao_gia:
-			if frappe.utils.getdate(self.hieu_luc_den) < frappe.utils.getdate(
-				self.ngay_bao_gia
-			):
+			if getdate(self.hieu_luc_den) < getdate(self.ngay_bao_gia):
 				frappe.throw("Ngày hết hiệu lực không được trước ngày báo giá.")
 		for d in self.dong:
 			if flt(d.so_luong) <= 0:
-				frappe.throw(
-					"Dòng %s: số lượng phải lớn hơn 0." % (d.ten_mon or d.idx)
-				)
+				frappe.throw("Dòng %s: số lượng phải lớn hơn 0." % (d.ten_mon or d.idx))
 			if flt(d.chiet_khau) < 0 or flt(d.chiet_khau) > 100:
 				frappe.throw(
-					"Dòng %s: chiết khấu phải trong khoảng 0 đến 100%%."
-					% (d.ten_mon or d.idx)
+					"Dòng %s: chiết khấu phải trong khoảng 0 đến 100%%." % (d.ten_mon or d.idx)
 				)
