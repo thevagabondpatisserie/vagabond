@@ -840,8 +840,7 @@ async function scrHome() {
          Sales Online (anh Viet 10/08/2026). Truoc day Sales dung rieng mot
          nut o ngoai nen nhan vien hay vao nham. */
       card('🧾', 'Tính tiền - hoá đơn bán hàng', 'Chọn điểm bán: District 1, NVHTN, Sales Online', dsn, 'POS') +
-      card('📑', 'Hợp đồng Event', 'Catering, teabreak, bánh thiết kế theo hợp đồng', 0, 'HDG') +
-      card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
+        card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
@@ -849,6 +848,13 @@ async function scrHome() {
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
          13/08/2026). So dem lay theo 14 ngay gan day. */
       card('⏳', 'Đơn còn treo', 'Hoá đơn chưa ghi sổ được và lý do vì sao', dtn, 'DTREO') + '</div>';
+  }
+  /* Anh Viet 14/08/2026: doi ten nut 'Hop dong event, catering' thanh
+     'Quan ly hop dong mua ban' va mo cho Loan Anh (Sales), thu mua va ke
+     toan. Nen tach han ra mot muc rieng, khong con nam trong khoi Sales. */
+  if (isSales() || hasRole('Purchase User') || hasRole('Purchase Manager') || hasRole('Accounts User') || hasRole('Accounts Manager')) {
+    html += '<div class="sec">Hợp đồng - báo giá</div><div class="card">' +
+      card('📑', 'Quản lý hợp đồng mua bán', 'Báo giá khách doanh nghiệp xuất PDF theo branding, hợp đồng event - catering - B2B sỉ', 0, 'HDG') + '</div>';
   }
   if (isSales() || hasRole('Shipper') || hasRole('Accounts User') || hasRole('Purchase User')) {
     html += '<div class="sec">Giao hàng</div><div class="card">'
@@ -931,7 +937,7 @@ async function scrHome() {
     if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
     if (k === 'POS') return go(scrPosChonQuay);
-    if (k === 'HDG') return go(scrHopDong);
+    if (k === 'HDG') return go(scrHopDongHub);
     if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
     if (k === 'KT1') return go(scrDoanhSo);
     if (k === 'BCHUB') return go(scrBaoCao);
@@ -1294,7 +1300,7 @@ function vgbGo(k) {
   if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
   if (k === 'POS') return go(scrPosChonQuay);
-  if (k === 'HDG') return go(scrHopDong);
+  if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
   if (k === 'BCHUB') return go(scrBaoCao);
@@ -10779,7 +10785,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '160';
+var APPVER = '161';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18638,6 +18644,502 @@ async function bgNhapExcel() {
     go(scrBangGia, true);
   };
   inp.click();
+}
+
+
+/* ========== QUAN LY HOP DONG MUA BAN: BAO GIA + HOP DONG ==========
+   (anh Viet 14/08/2026)
+
+Anh Viet: *"Đang vào mùa trung thu, cần báo giá cho khách doanh nghiệp rất
+nhiều. Nút 'hợp đồng event, catering' em hãy đổi nội dung nút đó thành
+'quản lý hợp đồng mua bán'... thiết kế phân hệ này để tự động ra được file
+pdf báo giá cho khách hàng theo đúng chuẩn branding của The Vagabond."*
+
+Mot cua vao, hai ngan: Bao gia (viec hang ngay cua Loan Anh mua trung thu)
+va Hop dong da ky. Bao gia chot duoc thi bam mot nut sang thang hop dong,
+khong go lai khach hang va gia tri lan nua.
+*/
+
+var BG_CAI = null;
+async function bgCaiDat() {
+  if (BG_CAI) return BG_CAI;
+  BG_CAI = await api('vagabond.bao_gia.cai_dat', {});
+  return BG_CAI;
+}
+
+var BGTT_ICON = {
+  'Nháp': '📝', 'Đã gửi khách': '📤', 'Khách duyệt': '✅',
+  'Khách từ chối': '⛔', 'Hết hiệu lực': '⌛', 'Đã lên hợp đồng': '📑'
+};
+
+function bgNgayVn(s) { var p = String(s || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : (s || ''); }
+
+async function scrHopDongHub() {
+  frame('Quản lý hợp đồng mua bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đếm...</div></div>');
+  var sbg = 0, shd = 0, cho = 0;
+  try {
+    var bg = await api('vagabond.bao_gia.danh_sach', {});
+    sbg = bg.length;
+    cho = bg.filter(function (x) { return x.trang_thai === 'Đã gửi khách'; }).length;
+  } catch (e) { }
+  try { shd = (await api('vagabond.hop_dong.danh_sach', {})).length; } catch (e) { }
+  var o = function (icon, t1, t2, cnt, k) {
+    return '<div class="hub" data-k="' + k + '"><div class="hi">' + icon + '</div>' +
+      '<div class="ht"><div class="h1">' + h(t1) + '</div><div class="h2">' + h(t2) + '</div></div>' +
+      (cnt ? '<span class="bdg">' + cnt + '</span>' : '') +
+      '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
+  };
+  var html = '<div class="sec">Trước khi ký</div><div class="card">' +
+    o('💬', 'Báo giá khách doanh nghiệp', 'Chọn sản phẩm từ danh mục, xuất PDF báo giá theo branding, gửi thẳng email cho khách', cho, 'BG') +
+    '</div>';
+  html += '<div class="sec">Sau khi ký</div><div class="card">' +
+    o('📑', 'Hợp đồng đã ký', 'Event, catering, teabreak, bánh thiết kế, B2B sỉ: gắn hoá đơn, theo dõi tiền về', shd, 'HDCU') +
+    '</div>';
+  html += '<div class="sec">Đang có trên hệ</div><div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Báo giá</span><b>' + sbg + ' tờ</b></div>' +
+    '<div style="display:flex;justify-content:space-between"><span>Hợp đồng</span><b>' + shd + ' hợp đồng</b></div></div>';
+  var b = frame('Quản lý hợp đồng mua bán', html);
+  b.addEventListener('click', function (e) {
+    var c = e.target.closest('[data-k]'); if (!c) return;
+    var k = c.getAttribute('data-k');
+    if (k === 'BG') return go(scrBaoGia);
+    if (k === 'HDCU') return go(scrHopDong);
+  });
+}
+
+/* ---------- Danh sach bao gia ---------- */
+var bgLoc = null;
+async function scrBaoGia() {
+  frame('Báo giá', '<div class="emp"><div class="e1">⏳</div><div>Đang tải báo giá...</div></div>');
+  var ds, ci;
+  try { ci = await bgCaiDat(); ds = await api('vagabond.bao_gia.danh_sach', bgLoc ? { trang_thai: bgLoc } : {}); }
+  catch (e) { frame('Báo giá', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  var chip = '';
+  chip += posChipNut('data-bgl=""', 'Tất cả', !bgLoc);
+  ci.trang_thai.forEach(function (t) { chip += posChipNut('data-bgl="' + h(t) + '"', h(t), bgLoc === t); });
+  var html = '<div class="card" style="padding:12px 14px">' + kmHangChip(chip) + '</div>';
+  html += '<div class="sec">' + ds.length + ' báo giá · bấm vào để xem, xuất PDF hoặc gửi khách</div><div class="card">';
+  if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">💬</div><div>Chưa có báo giá nào. Bấm dấu ➕ để lập tờ đầu tiên.</div></div>';
+  ds.forEach(function (r) {
+    html += '<div class="hub" data-bg="' + h(r.name) + '"><div class="hi">' + (BGTT_ICON[r.trang_thai] || '💬') + '</div>' +
+      '<div class="ht"><div class="h1">' + h(r.ten) + '</div>' +
+      '<div class="h2">' + h(r.name) + ' · ' + h(r.ten_khach || r.khach_hang || 'Chưa có khách') + '</div>' +
+      '<div class="h2">' + h(r.trang_thai) + ' · ' + bgNgayVn(r.ngay_bao_gia) +
+      (r.hieu_luc_den ? ' · hiệu lực đến ' + bgNgayVn(r.hieu_luc_den) : '') +
+      (r.het_han ? ' <b style="color:#b3261e">· QUÁ HẠN</b>' : '') +
+      (r.hop_dong ? ' · ' + h(r.hop_dong) : '') + '</div></div>' +
+      '<b style="white-space:nowrap;font-size:13px">' + money(r.tong_cong) + '</b></div>';
+  });
+  html += '</div>';
+  var b = frame('Báo giá', html, ci.duoc_sua ? { action: '➕', onAction: async function () { await bgMoi(); } } : {});
+  b.addEventListener('click', function (e) {
+    var cl = e.target.closest('[data-bgl]');
+    if (cl) { bgLoc = cl.getAttribute('data-bgl') || null; return go(scrBaoGia, true); }
+    var r = e.target.closest('[data-bg]'); if (!r) return;
+    var nm = r.getAttribute('data-bg');
+    go(function () { scrBgXem(nm); });
+  });
+}
+
+/* ---------- Xem mot to bao gia ---------- */
+async function scrBgXem(name) {
+  frame('Báo giá', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d, ci;
+  try { ci = await bgCaiDat(); d = await api('vagabond.bao_gia.chi_tiet', { name: name }); }
+  catch (e) { frame('Báo giá', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+    '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+    '<b style="flex:1">' + h(d.ten) + '</b>' +
+    '<button class="btn gh" id="bgTt" style="margin:0;padding:4px 10px;font-size:13px;width:auto;flex:none;white-space:nowrap">' + h(d.trang_thai) + ' ▾</button></div>' +
+    '<div style="color:#6b7280;font-size:13px">' + h(d.name) + ' · lập ngày ' + bgNgayVn(d.ngay_bao_gia) + '</div>' +
+    '<div style="font-size:13px"><b>' + h(d.ten_khach || d.khach_hang || '') + '</b>' + (d.ma_so_thue ? ' · MST ' + h(d.ma_so_thue) : '') + '</div>' +
+    (d.nguoi_lien_he ? '<div style="font-size:13px">' + h(d.nguoi_lien_he) + (d.chuc_vu ? ' - ' + h(d.chuc_vu) : '') + (d.dien_thoai ? ' · ' + h(d.dien_thoai) : '') + '</div>' : '') +
+    (d.email ? '<div style="font-size:13px">' + h(d.email) + '</div>' : '') +
+    (d.hieu_luc_den ? '<div style="font-size:13px">Hiệu lực đến ' + bgNgayVn(d.hieu_luc_den) + '</div>' : '') +
+    (d.hop_dong ? '<div style="font-size:13px;color:#0a8a4a">Đã lên hợp đồng ' + h(d.hop_dong) + '</div>' : '') +
+    '</div>';
+  html += '<div class="sec">' + d.dong.length + ' dòng sản phẩm</div><div class="card">';
+  d.dong.forEach(function (x) {
+    html += '<div class="hub" style="cursor:default"><div class="ht"><div class="h1">' + h(x.ten_mon) + '</div>' +
+      '<div class="h2">' + money(x.so_luong) + ' ' + h(x.dvt || '') + ' × ' + money(x.don_gia) + ' đ' +
+      (x.chiet_khau ? ' · CK ' + x.chiet_khau + '%' : '') + '</div></div>' +
+      '<b style="white-space:nowrap;font-size:13px">' + money(x.thanh_tien) + '</b></div>';
+  });
+  html += '</div>';
+  html += '<div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;justify-content:space-between"><span>Cộng tiền hàng</span><b>' + money(d.tam_tinh) + ' đ</b></div>' +
+    (d.chiet_khau_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu ' + d.chiet_khau_pt + '%</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
+    (d.phi_giao ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Phí giao hàng</span><b>' + money(d.phi_giao) + ' đ</b></div>' : '') +
+    '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Thuế GTGT ' + d.thue_pt + '%</span><b>' + money(d.thue_tien) + ' đ</b></div>' +
+    '<hr><div style="display:flex;justify-content:space-between"><span><b>TỔNG CỘNG</b></span><b style="font-size:17px">' + money(d.tong_cong) + ' đ</b></div>' +
+    (d.dat_coc_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đặt cọc ' + d.dat_coc_pt + '%</span><b style="color:#0a8a4a">' + money(d.dat_coc_tien) + ' đ</b></div>' : '') +
+    '</div>';
+  var dk = '';
+  [['Thanh toán', d.thanh_toan], ['Giao hàng', d.giao_hang], ['Đóng gói', d.dong_goi], ['Ghi chú', d.ghi_chu]].forEach(function (p) {
+    if (p[1]) dk += '<div style="margin-bottom:8px"><div class="h2">' + p[0] + '</div><div style="font-size:13.5px;white-space:pre-wrap">' + h(p[1]) + '</div></div>';
+  });
+  if (dk) html += '<div class="sec">Điều khoản</div><div class="card" style="padding:12px 14px">' + dk + '</div>';
+  if (d.ghi_chu_noi_bo) html += '<div class="sec">Ghi chú nội bộ (không in lên báo giá)</div><div class="card" style="padding:12px 14px;font-size:13.5px;white-space:pre-wrap">' + h(d.ghi_chu_noi_bo) + '</div>';
+
+  var chan = '<button class="btn" id="bgPdf" style="margin:0">📄 Xuất PDF</button>';
+  if (ci.duoc_sua) chan += '<button class="btn gh" id="bgMenu" style="margin:0">⋯ Việc khác</button>';
+  var b = frame('Báo giá', html, { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' });
+
+  document.getElementById('bgPdf').onclick = async function () {
+    busy(true);
+    try { var fl = await api('vagabond.bao_gia.xuat_pdf', { name: name }); busy(false); bcTaiVe(fl.ten_file, fl.b64, fl.kieu); toast('Đã tải ' + fl.ten_file, 4000); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Xuất PDF lỗi'); }
+  };
+  var tt = document.getElementById('bgTt');
+  if (tt) tt.onclick = function () {
+    if (!ci.duoc_sua) return baoTin('Anh chị chỉ có quyền xem báo giá, không đổi được trạng thái.');
+    sheet('Đổi trạng thái', ci.trang_thai.map(function (t) { return { value: t, label: t, icon: BGTT_ICON[t] || '📌' }; }), d.trang_thai, async function (o) {
+      busy(true);
+      try { await api('vagabond.bao_gia.doi_trang_thai', { name: name, trang_thai: o.value }); busy(false); }
+      catch (e) { busy(false); baoTin((e && e.message) || 'Lỗi'); }
+      go(function () { scrBgXem(name); }, true);
+    });
+  };
+  var mn = document.getElementById('bgMenu');
+  if (mn) mn.onclick = function () {
+    var muc = [
+      { value: 'sua', label: 'Sửa báo giá', icon: '✏️' },
+      { value: 'mail', label: 'Gửi email cho khách kèm PDF', icon: '📧' },
+      { value: 'copy', label: 'Nhân bản sang khách khác', icon: '📋' },
+      { value: 'hd', label: 'Chốt thành hợp đồng', icon: '📑' },
+      { value: 'xoa', label: 'Xoá báo giá nháp', icon: '🗑️' }
+    ];
+    sheet('Việc với báo giá ' + name, muc, null, async function (o) {
+      if (o.value === 'sua') { bgTay = null; return go(function () { scrBgSua(name); }); }
+      if (o.value === 'copy') {
+        busy(true);
+        try { var nm = await api('vagabond.bao_gia.nhan_ban', { name: name }); busy(false); toast('Đã nhân bản thành ' + nm); bgTay = null; go(function () { scrBgSua(nm); }); }
+        catch (e) { busy(false); baoTin((e && e.message) || 'Lỗi'); }
+        return;
+      }
+      if (o.value === 'xoa') {
+        if (!await hoiCo('Xoá báo giá', 'Xoá hẳn báo giá ' + name + '? Chỉ xoá được tờ còn ở trạng thái Nháp.', 'Xoá', true)) return;
+        busy(true);
+        try { await api('vagabond.bao_gia.xoa', { name: name }); busy(false); toast('Đã xoá'); go(scrBaoGia, true); }
+        catch (e) { busy(false); baoTin((e && e.message) || 'Không xoá được'); }
+        return;
+      }
+      if (o.value === 'mail') return bgGuiMail(d);
+      if (o.value === 'hd') return bgChotHopDong(d);
+    });
+  };
+}
+
+async function bgGuiMail(d) {
+  var em = await hoiChu('Gửi báo giá qua email', 'Tờ PDF ' + d.name + ' sẽ được đính kèm và gửi tới địa chỉ dưới đây.', d.email || '', { kieu: 'email', goi_y: 'ten@congty.com', bat_buoc: true });
+  if (em === null) return;
+  var loi = await hoiChu('Lời nhắn thêm (không bắt buộc)', 'Câu này sẽ nằm trong thân thư, trên phần chào cuối.', '', { nhieu_dong: true, goi_y: 'Vd: Bên em còn giữ giá này tới hết ngày 30/08 ạ.' });
+  if (loi === null) return;
+  if (!await hoiCo('Xác nhận gửi', 'Gửi báo giá ' + d.name + ' (' + money(d.tong_cong) + ' đ) tới ' + em + '?', 'Gửi thư')) return;
+  busy(true);
+  try { var r = await api('vagabond.bao_gia.gui_email', { name: d.name, email: em, loi_nhan: loi || '' }); busy(false); toast('Đã gửi tới ' + r.toi, 4500); go(function () { scrBgXem(d.name); }, true); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Gửi thư lỗi'); }
+}
+
+async function bgChotHopDong(d) {
+  if (!d.khach_hang) return baoTin('Hợp đồng phải gắn với một khách hàng có trong hệ thống. Bấm Sửa báo giá, chọn lại ô Khách hàng rồi quay lại nhé.');
+  var so = await hoiChu('Số hợp đồng', 'Nhập số hợp đồng hai bên đã thống nhất (để trống cũng được, sửa sau).', '', { goi_y: 'Vd 026-022/PYR-VAGABOND' });
+  if (so === null) return;
+  var nsk = await hoiNgay(today());
+  if (nsk === null) return;
+  busy(true);
+  try {
+    var nm = await api('vagabond.bao_gia.tao_hop_dong', { name: d.name, so_hop_dong: so || '', ngay_ky: today(), ngay_su_kien: nsk });
+    busy(false); toast('Đã tạo hợp đồng ' + nm, 4000);
+    go(function () { scrHdView(nm); }, true);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không tạo được hợp đồng'); }
+}
+
+/* ---------- Soan bao gia ---------- */
+var bgTay = null;
+
+function bgTinh() {
+  if (!bgTay) return;
+  var tam = 0;
+  (bgTay.dong || []).forEach(function (x) {
+    x.so_luong = Number(x.so_luong) || 0;
+    x.don_gia = Number(x.don_gia) || 0;
+    x.chiet_khau = Number(x.chiet_khau) || 0;
+    x.thanh_tien = Math.round(x.so_luong * x.don_gia * (1 - x.chiet_khau / 100));
+    tam += x.thanh_tien;
+  });
+  bgTay.tam_tinh = tam;
+  bgTay.chiet_khau_tien = Math.round(tam * (Number(bgTay.chiet_khau_pt) || 0) / 100);
+  var sau = tam - bgTay.chiet_khau_tien;
+  bgTay.thue_tien = Math.round(sau * (Number(bgTay.thue_pt) || 0) / 100);
+  bgTay.tong_cong = sau + bgTay.thue_tien + (Number(bgTay.phi_giao) || 0);
+  bgTay.dat_coc_tien = Math.round(bgTay.tong_cong * (Number(bgTay.dat_coc_pt) || 0) / 100);
+}
+
+function bgDoc() {
+  if (!bgTay) return;
+  var g = function (id) { var el = document.getElementById(id); return el ? el.value : undefined; };
+  ['ten', 'ten_khach', 'ma_so_thue', 'dia_chi', 'nguoi_lien_he', 'chuc_vu', 'dien_thoai', 'email',
+    'ngay_bao_gia', 'hieu_luc_den', 'loi_mo', 'thanh_toan', 'giao_hang', 'dong_goi', 'ghi_chu',
+    'ghi_chu_noi_bo', 'dt_nguoi_lap'].forEach(function (f) {
+      var v = g('bgf_' + f); if (v !== undefined) bgTay[f] = v;
+    });
+  bgTinh();
+}
+
+async function bgMoi() {
+  busy(true);
+  try { bgTay = await api('vagabond.bao_gia.moi', {}); busy(false); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không mở được'); }
+  go(function () { scrBgSua(''); });
+}
+
+async function scrBgSua(name) {
+  var ci = await bgCaiDat();
+  if (!bgTay) {
+    if (!name) return bgMoi();
+    frame('Sửa báo giá', '<div class="emp"><div class="e1">⏳</div></div>');
+    busy(true);
+    try { bgTay = await api('vagabond.bao_gia.chi_tiet', { name: name }); busy(false); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được'); }
+  }
+  bgTinh();
+  var d = bgTay;
+  var oi = function (id, ph, val, kieu) {
+    return '<input class="tin" id="bgf_' + id + '" placeholder="' + h(ph) + '" ' +
+      (kieu ? 'type="' + kieu + '" ' : '') + 'value="' + h(val == null ? '' : val) + '">';
+  };
+
+  var html = '<div class="sec">Thông tin chung</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
+    oi('ten', 'Tiêu đề báo giá, vd: Báo giá hộp quà Trung thu 2026 (bắt buộc)', d.ten) +
+    '<div class="hub" data-t="khach" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Khách hàng trong hệ thống</div><div class="h1">' + h(d.khach_hang || 'Chọn khách (để trống nếu khách mới)') + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
+    oi('ten_khach', 'Tên công ty khách in lên báo giá (bắt buộc)', d.ten_khach) +
+    oi('ma_so_thue', 'Mã số thuế khách', d.ma_so_thue) +
+    '<textarea class="tin" id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
+    '</div>';
+
+  html += '<div class="sec">Người liên hệ bên khách</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
+    oi('nguoi_lien_he', 'Họ tên người liên hệ', d.nguoi_lien_he) +
+    oi('chuc_vu', 'Chức vụ', d.chuc_vu) +
+    oi('dien_thoai', 'Điện thoại', d.dien_thoai, 'tel') +
+    oi('email', 'Email nhận báo giá', d.email, 'email') +
+    '</div>';
+
+  var chipHl = '';
+  ci.chip_hieu_luc.forEach(function (n) { chipHl += posChipNut('data-hl="' + n + '"', n + ' ngày', false); });
+  html += '<div class="sec">Ngày</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
+    '<div style="display:flex;flex-direction:row;align-items:center;gap:10px"><span style="width:110px">Ngày báo giá</span><input type="date" class="hin" id="bgf_ngay_bao_gia" value="' + h(d.ngay_bao_gia) + '" style="flex:1;margin:0"></div>' +
+    '<div style="display:flex;flex-direction:row;align-items:center;gap:10px"><span style="width:110px">Hiệu lực đến</span><input type="date" class="hin" id="bgf_hieu_luc_den" value="' + h(d.hieu_luc_den) + '" style="flex:1;margin:0"></div>' +
+    kmHangChip(chipHl) + '</div>';
+
+  html += '<div class="sec">Sản phẩm báo giá · bấm vào dòng để sửa</div><div class="card">';
+  if (!d.dong.length) html += '<div class="emp" style="padding:20px"><div class="e1">🥮</div><div>Chưa có dòng nào. Bấm nút bên dưới để chọn từ danh mục.</div></div>';
+  d.dong.forEach(function (x, i) {
+    html += '<div class="hub" data-dg="' + i + '"><div class="hi">🥮</div><div class="ht">' +
+      '<div class="h1">' + h(x.ten_mon) + '</div>' +
+      '<div class="h2">' + money(x.so_luong) + ' ' + h(x.dvt || '') + ' × ' + money(x.don_gia) + ' đ' + (x.chiet_khau ? ' · CK ' + x.chiet_khau + '%' : '') + '</div>' +
+      (x.mo_ta ? '<div class="h2">' + h(x.mo_ta) + '</div>' : '') +
+      '</div><b style="white-space:nowrap;font-size:13px">' + money(x.thanh_tien) + '</b></div>';
+  });
+  html += '</div><div class="card" style="padding:10px 14px;display:grid;gap:8px">' +
+    '<button class="btn gh" id="bgThem" style="margin:0">➕ Thêm sản phẩm từ danh mục</button>' +
+    '<button class="btn gh" id="bgThemTay" style="margin:0">✍️ Thêm dòng gõ tay (hàng chưa có mã)</button></div>';
+
+  var chipVat = '';
+  ci.chip_vat.forEach(function (n) { chipVat += posChipNut('data-vat="' + n + '"', 'VAT ' + n + '%', Number(d.thue_pt) === n); });
+  html += '<div class="sec">Chiết khấu, thuế, đặt cọc</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
+    kmHangChip(chipVat) +
+    '<div class="hub" data-t="ck" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Chiết khấu tổng</div><div class="h1">' + (Number(d.chiet_khau_pt) || 0) + '% · -' + money(d.chiet_khau_tien) + ' đ</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
+    '<div class="hub" data-t="phi" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Phí giao hàng</div><div class="h1">' + money(d.phi_giao) + ' đ</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
+    '<div class="hub" data-t="coc" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Đặt cọc</div><div class="h1">' + (Number(d.dat_coc_pt) || 0) + '% · ' + money(d.dat_coc_tien) + ' đ</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
+    '</div>';
+
+  html += '<div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;justify-content:space-between"><span>Cộng tiền hàng</span><b>' + money(d.tam_tinh) + ' đ</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Phí giao hàng</span><b>' + money(d.phi_giao) + ' đ</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Thuế GTGT ' + (Number(d.thue_pt) || 0) + '%</span><b>' + money(d.thue_tien) + ' đ</b></div>' +
+    '<hr><div style="display:flex;justify-content:space-between"><span><b>TỔNG CỘNG</b></span><b style="font-size:17px">' + money(d.tong_cong) + ' đ</b></div>' +
+    (Number(d.dat_coc_pt) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đặt cọc ' + (Number(d.dat_coc_pt) || 0) + '%</span><b style="color:#0a8a4a">' + money(d.dat_coc_tien) + ' đ</b></div>' : '') +
+    '</div>';
+
+  var chipTt = '';
+  ci.chip_thanh_toan.forEach(function (s, i) { chipTt += posChipNut('data-ctt="' + i + '"', h(s), d.thanh_toan === s); });
+  var chipGh = '';
+  ci.chip_giao_hang.forEach(function (s, i) { chipGh += posChipNut('data-cgh="' + i + '"', h(s), d.giao_hang === s); });
+  var chipDg = '';
+  ci.chip_dong_goi.forEach(function (s, i) { chipDg += posChipNut('data-cdg="' + i + '"', h(s), d.dong_goi === s); });
+
+  html += '<div class="sec">Điều khoản in lên báo giá · bấm chip là điền luôn</div>' +
+    '<div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
+    '<div class="h2">Lời mở đầu</div><textarea class="tin" id="bgf_loi_mo" rows="3">' + h(d.loi_mo) + '</textarea>' +
+    '<div class="h2">Điều kiện thanh toán</div>' + kmHangChip(chipTt) +
+    '<textarea class="tin" id="bgf_thanh_toan" rows="2">' + h(d.thanh_toan) + '</textarea>' +
+    '<div class="h2">Thời gian và địa điểm giao hàng</div>' + kmHangChip(chipGh) +
+    '<textarea class="tin" id="bgf_giao_hang" rows="2">' + h(d.giao_hang) + '</textarea>' +
+    '<div class="h2">Quy cách đóng gói</div>' + kmHangChip(chipDg) +
+    '<textarea class="tin" id="bgf_dong_goi" rows="2">' + h(d.dong_goi) + '</textarea>' +
+    '<div class="h2">Ghi chú in lên báo giá</div><textarea class="tin" id="bgf_ghi_chu" rows="2">' + h(d.ghi_chu) + '</textarea>' +
+    '</div>';
+
+  html += '<div class="sec">Người lập (in ở góc chữ ký)</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
+    '<div style="font-size:14px">' + h(d.ten_nguoi_lap || d.nguoi_lap || '') + '</div>' +
+    oi('dt_nguoi_lap', 'Điện thoại người lập (in lên báo giá)', d.dt_nguoi_lap, 'tel') +
+    '<div class="h2">Ghi chú nội bộ, không in lên báo giá</div>' +
+    '<textarea class="tin" id="bgf_ghi_chu_noi_bo" rows="2">' + h(d.ghi_chu_noi_bo) + '</textarea></div>';
+
+  var b = frame(d.name ? 'Sửa ' + d.name : 'Báo giá mới', html, {
+    footer: '<div style="display:flex;gap:8px"><button class="btn gh" id="bgXemPdf" style="margin:0;flex:1">📄 Lưu và xuất PDF</button>' +
+      '<button class="btn" id="bgLuu" style="margin:0;flex:1">Lưu báo giá</button></div>'
+  });
+
+  b.addEventListener('click', async function (e) {
+    var el;
+    if ((el = e.target.closest('[data-hl]'))) {
+      bgDoc();
+      var n = Number(el.getAttribute('data-hl'));
+      var g = new Date((bgTay.ngay_bao_gia || today()) + 'T00:00:00');
+      g.setDate(g.getDate() + n);
+      bgTay.hieu_luc_den = g.getFullYear() + '-' + ('0' + (g.getMonth() + 1)).slice(-2) + '-' + ('0' + g.getDate()).slice(-2);
+      return go(function () { scrBgSua(name); }, true);
+    }
+    if ((el = e.target.closest('[data-vat]'))) { bgDoc(); bgTay.thue_pt = Number(el.getAttribute('data-vat')); return go(function () { scrBgSua(name); }, true); }
+    if ((el = e.target.closest('[data-ctt]'))) { bgDoc(); bgTay.thanh_toan = ci.chip_thanh_toan[Number(el.getAttribute('data-ctt'))]; return go(function () { scrBgSua(name); }, true); }
+    if ((el = e.target.closest('[data-cgh]'))) { bgDoc(); bgTay.giao_hang = ci.chip_giao_hang[Number(el.getAttribute('data-cgh'))]; return go(function () { scrBgSua(name); }, true); }
+    if ((el = e.target.closest('[data-cdg]'))) { bgDoc(); bgTay.dong_goi = ci.chip_dong_goi[Number(el.getAttribute('data-cdg'))]; return go(function () { scrBgSua(name); }, true); }
+    if (e.target.closest('[data-t="khach"]')) return bgChonKhach(name);
+    if (e.target.closest('[data-t="ck"]')) {
+      bgDoc();
+      var v = await hoiSo('Chiết khấu tổng', 'Nhập phần trăm chiết khấu trên tổng tiền hàng (0 tới 100).', bgTay.chiet_khau_pt || 0);
+      if (v === null) return;
+      bgTay.chiet_khau_pt = Math.min(100, Math.max(0, v));
+      return go(function () { scrBgSua(name); }, true);
+    }
+    if (e.target.closest('[data-t="phi"]')) {
+      bgDoc();
+      var p = await hoiSo('Phí giao hàng', 'Số tiền phí giao cộng thêm vào báo giá.', bgTay.phi_giao || 0);
+      if (p === null) return;
+      bgTay.phi_giao = p;
+      return go(function () { scrBgSua(name); }, true);
+    }
+    if (e.target.closest('[data-t="coc"]')) {
+      bgDoc();
+      var c = await hoiSo('Đặt cọc', 'Nhập phần trăm đặt cọc. Số tiền cọc sẽ in lên báo giá và sinh mã QR chuyển khoản đúng số đó.', bgTay.dat_coc_pt || 0);
+      if (c === null) return;
+      bgTay.dat_coc_pt = Math.min(100, Math.max(0, c));
+      return go(function () { scrBgSua(name); }, true);
+    }
+    if ((el = e.target.closest('[data-dg]'))) return bgSuaDong(Number(el.getAttribute('data-dg')), name);
+  });
+
+  document.getElementById('bgThem').onclick = function () { bgDoc(); bgThemMon(name); };
+  document.getElementById('bgThemTay').onclick = function () { bgDoc(); bgThemTay(name); };
+  document.getElementById('bgLuu').onclick = function () { bgLuu(false); };
+  document.getElementById('bgXemPdf').onclick = function () { bgLuu(true); };
+}
+
+async function bgChonKhach(name) {
+  bgDoc();
+  busy(true);
+  var kh;
+  try { kh = await api('vagabond.bao_gia.tim_khach', { so_dong: 300 }); } catch (e) { busy(false); return baoTin('Không tải được danh sách khách'); }
+  busy(false);
+  var muc = [{ value: '', label: 'Khách mới, chưa có trong hệ thống', icon: '✨' }];
+  kh.forEach(function (x) { muc.push({ value: x.name, label: (x.customer_name || x.name) + (x.tax_id ? ' · MST ' + x.tax_id : ''), icon: '🏢' }); });
+  sheet('Chọn khách hàng', muc, bgTay.khach_hang, async function (o) {
+    if (!o.value) { bgTay.khach_hang = ''; return go(function () { scrBgSua(name); }, true); }
+    bgTay.khach_hang = o.value;
+    busy(true);
+    try {
+      var t = await api('vagabond.bao_gia.thong_tin_khach', { khach: o.value });
+      ['ten_khach', 'ma_so_thue', 'dia_chi', 'nguoi_lien_he', 'chuc_vu', 'dien_thoai', 'email'].forEach(function (f) {
+        if (t[f]) bgTay[f] = t[f];
+      });
+    } catch (e) { }
+    busy(false);
+    go(function () { scrBgSua(name); }, true);
+  }, true);
+}
+
+async function bgThemMon(name) {
+  busy(true);
+  var nh;
+  try { nh = await api('vagabond.bao_gia.nhom_mon', {}); } catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được danh mục'); }
+  busy(false);
+  sheet('Chọn nhóm hàng', nh.map(function (x) { return { value: x.nhom, label: x.nhom + ' · ' + x.so + ' món', icon: '📦' }; }), null, async function (o) {
+    busy(true);
+    var ds;
+    try { ds = await api('vagabond.bao_gia.mon_theo_nhom', { nhom: o.value, so_dong: 400 }); } catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
+    busy(false);
+    if (!ds.length) return baoTin('Nhóm này chưa có món nào bán ra.');
+    sheet('Chọn món trong ' + o.value, ds.map(function (x) {
+      return { value: x.ma_mon, label: x.ten_mon + ' · ' + (x.don_gia ? money(x.don_gia) + ' đ/' + (x.dvt || '') : 'chưa có giá niêm yết'), icon: '🥮' };
+    }), null, async function (m) {
+      var mon = ds.filter(function (x) { return x.ma_mon === m.value; })[0];
+      var sl = await hoiSo('Số lượng', 'Báo giá bao nhiêu ' + (mon.dvt || 'đơn vị') + ' món ' + mon.ten_mon + '?', 1);
+      if (sl === null || sl <= 0) return;
+      var gia = mon.don_gia;
+      if (!gia) {
+        gia = await hoiSo('Đơn giá', 'Món này chưa có giá niêm yết trong bảng giá bán. Nhập đơn giá báo cho khách.', 0);
+        if (gia === null) return;
+      }
+      bgTay.dong.push({ ma_mon: mon.ma_mon, ten_mon: mon.ten_mon, mo_ta: '', dvt: mon.dvt || '', so_luong: sl, don_gia: gia, chiet_khau: 0, thanh_tien: 0 });
+      toast('Đã thêm ' + mon.ten_mon);
+      go(function () { scrBgSua(name); }, true);
+    }, true);
+  }, true);
+}
+
+async function bgThemTay(name) {
+  var ten = await hoiChu('Tên sản phẩm', 'Dòng gõ tay dùng cho hàng chưa có mã, vd hộp quà đặt riêng theo yêu cầu khách.', '', { bat_buoc: true });
+  if (!ten) return;
+  var dvt = await hoiChu('Đơn vị tính', 'Vd: hộp, phần, cái, kg.', 'hộp');
+  if (dvt === null) return;
+  var sl = await hoiSo('Số lượng', 'Báo giá bao nhiêu ' + (dvt || 'đơn vị') + '?', 1);
+  if (sl === null || sl <= 0) return;
+  var gia = await hoiSo('Đơn giá', 'Đơn giá báo cho khách, chưa gồm thuế.', 0);
+  if (gia === null) return;
+  bgTay.dong.push({ ma_mon: '', ten_mon: ten, mo_ta: '', dvt: dvt || '', so_luong: sl, don_gia: gia, chiet_khau: 0, thanh_tien: 0 });
+  go(function () { scrBgSua(name); }, true);
+}
+
+async function bgSuaDong(i, name) {
+  bgDoc();
+  var x = bgTay.dong[i]; if (!x) return;
+  sheet(x.ten_mon, [
+    { value: 'sl', label: 'Sửa số lượng (đang ' + money(x.so_luong) + ')', icon: '🔢' },
+    { value: 'gia', label: 'Sửa đơn giá (đang ' + money(x.don_gia) + ' đ)', icon: '💰' },
+    { value: 'ck', label: 'Chiết khấu riêng dòng này (đang ' + (x.chiet_khau || 0) + '%)', icon: '🏷️' },
+    { value: 'mota', label: 'Mô tả / quy cách in dưới tên món', icon: '📝' },
+    { value: 'ten', label: 'Sửa tên hiển thị trên báo giá', icon: '✏️' },
+    { value: 'xoa', label: 'Xoá dòng này', icon: '🗑️' }
+  ], null, async function (o) {
+    if (o.value === 'xoa') { bgTay.dong.splice(i, 1); return go(function () { scrBgSua(name); }, true); }
+    var v;
+    if (o.value === 'sl') { v = await hoiSo('Số lượng', 'Số lượng ' + (x.dvt || ''), x.so_luong); if (v === null) return; x.so_luong = v; }
+    if (o.value === 'gia') { v = await hoiSo('Đơn giá', 'Đơn giá một ' + (x.dvt || 'đơn vị') + ', chưa gồm thuế.', x.don_gia); if (v === null) return; x.don_gia = v; }
+    if (o.value === 'ck') { v = await hoiSo('Chiết khấu dòng', 'Phần trăm giảm riêng cho dòng này (0 tới 100).', x.chiet_khau || 0); if (v === null) return; x.chiet_khau = Math.min(100, Math.max(0, v)); }
+    if (o.value === 'mota') { v = await hoiChu('Mô tả / quy cách', 'Dòng chữ nhỏ in ngay dưới tên món trên báo giá.', x.mo_ta || '', { nhieu_dong: true, goi_y: 'Vd: Hộp 4 bánh 150g, kèm thiệp in logo doanh nghiệp' }); if (v === null) return; x.mo_ta = v; }
+    if (o.value === 'ten') { v = await hoiChu('Tên trên báo giá', 'Tên này chỉ đổi cách hiển thị, không đổi mã hàng.', x.ten_mon, { bat_buoc: true }); if (!v) return; x.ten_mon = v; }
+    go(function () { scrBgSua(name); }, true);
+  });
+}
+
+async function bgLuu(raPdf) {
+  bgDoc();
+  if (!(bgTay.ten || '').trim()) return baoTin('Nhập tiêu đề báo giá đã nhé.');
+  if (!(bgTay.ten_khach || '').trim() && !bgTay.khach_hang) return baoTin('Chọn khách hàng hoặc nhập tên công ty khách.');
+  if (!bgTay.dong.length) return baoTin('Báo giá phải có ít nhất một dòng sản phẩm.');
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.bao_gia.luu', { du_lieu: JSON.stringify(bgTay) }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu lỗi'); }
+  bgTay = null;
+  if (raPdf) {
+    try { var fl = await api('vagabond.bao_gia.xuat_pdf', { name: kq.name }); busy(false); bcTaiVe(fl.ten_file, fl.b64, fl.kieu); toast('Đã lưu ' + kq.name + ' và tải PDF', 4500); }
+    catch (e) { busy(false); toast('Đã lưu ' + kq.name + ' nhưng xuất PDF lỗi: ' + ((e && e.message) || ''), 5000); }
+  } else { busy(false); toast('Đã lưu ' + kq.name); }
+  go(function () { scrBgXem(kq.name); }, true);
 }
 
 })();
