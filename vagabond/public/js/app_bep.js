@@ -10795,7 +10795,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '165';
+var APPVER = '166';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18831,7 +18831,7 @@ async function scrHopDongHub() {
 }
 
 /* ---------- Danh sach bao gia: chip loc theo viec can lam ---------- */
-var bgLoc = null, bgTT = null, bgTim = '';
+var bgLoc = null, bgTT = null, bgTim = '', bgTimNet = 0;
 async function scrBaoGia() {
   frame('Báo giá', '<div class="emp"><div class="e1">⏳</div><div>Đang tải báo giá...</div></div>');
   var kq, ci;
@@ -18880,8 +18880,16 @@ async function scrBaoGia() {
     ti.oninput = function () {
       clearTimeout(hen);
       var v = ti.value;
-      hen = setTimeout(function () { bgTim = v; go(scrBaoGia, true); }, 450);
+      hen = setTimeout(function () { bgTim = v; bgTimNet = 1; go(scrBaoGia, true); }, 450);
     };
+    /* Ve lai man la o tim bi dung mat, phai tra con tro ve cuoi dong -
+       khong thi go duoc mot chu lai phai bam vao o mot lan. */
+    if (bgTimNet) {
+      bgTimNet = 0;
+      setTimeout(function () {
+        try { ti.focus(); ti.setSelectionRange(ti.value.length, ti.value.length); } catch (e) { }
+      }, 30);
+    }
   }
   b.addEventListener('click', function (e) {
     var cl = e.target.closest('[data-bgl]');
