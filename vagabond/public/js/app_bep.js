@@ -6284,7 +6284,7 @@ function dsChips(r) {
   if (r.sepay_du) out += dsChip('SePay ✓ đủ tiền', '#dcfce7', '#166534');
   else if (r.sepay_nhan) out += dsChip('SePay thiếu ' + money(Number(r.grand_total || 0) - Number(r.sepay_nhan || 0)) + ' đ', '#ffedd5', '#9a3412');
   if (r.vgb_ma_tham_chieu) out += dsChip('Mã ' + h(r.vgb_ma_tham_chieu), '#ede9fe', '#5b21b6');
-  if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty', '#fef9c3', '#854d0e');
+  if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty / HKD', '#fef9c3', '#854d0e');
   if (r.trung) out += dsChip('⚠ Trùng phiếu', '#fee2e2', '#991b1b');
   return out;
 }
@@ -6611,10 +6611,10 @@ async function scrDsView(name, can) {
     + '<div style="font-size:12px;color:#6b7280;margin-bottom:8px"><b>Tên khách xuất hoá đơn</b></div>'
     + '<div id="xhdChon" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
     + '<button class="xhdc" data-loai="ca_nhan" style="padding:6px 10px;border-radius:8px;font-size:13px">Bán cho người tiêu dùng</button>'
-    + '<button class="xhdc" data-loai="cong_ty" style="padding:6px 10px;border-radius:8px;font-size:13px">Xuất cho công ty</button>'
+    + '<button class="xhdc" data-loai="cong_ty" style="padding:6px 10px;border-radius:8px;font-size:13px">Xuất cho công ty / HKD</button>'
     + '</div>'
     + '<div id="xhdForm" style="display:none;flex-direction:column;gap:6px">'
-    + '<input id="xhdMst" placeholder="Mã số thuế - chi nhánh nhớ gõ cả dấu gạch, vd 0311638525-027" value="' + xesc(d.vgb_xhd_mst) + '" style="' + xin + '">'
+    + '<input id="xhdMst" placeholder="Mã số thuế: 10 số công ty, 12 số hộ kinh doanh, chi nhánh gõ cả dấu gạch vd 0311638525-027" value="' + xesc(d.vgb_xhd_mst) + '" style="' + xin + '">'
     + '<input id="xhdTen" placeholder="Tên pháp nhân trên hoá đơn" value="' + xesc(xhdCty) + '" style="' + xin + '">'
     + '<textarea id="xhdDc" rows="2" placeholder="Địa chỉ trên hoá đơn" style="' + xin + '">' + xesc(d.vgb_xhd_dia_chi) + '</textarea>'
     + '<input id="xhdEmail" placeholder="Email nhận hoá đơn" value="' + xesc(d.vgb_xhd_email) + '" style="' + xin + '">'
@@ -6739,7 +6739,12 @@ async function scrDsView(name, can) {
   if (xmst) xmst.onblur = async function () {
     var so = (xmst.value || '').replace(/[^0-9]/g, '');
     var bao = document.getElementById('xhdBao');
-    if (so.length !== 10 && so.length !== 13) { if (bao) bao.textContent = so ? 'Mã số thuế phải 10 hoặc 13 số.' : ''; return; }
+    /* 12 so la so dinh danh ca nhan cua chu ho kinh doanh, hop le tu
+       01/07/2025 theo dieu 5 Thong tu 86/2024/TT-BTC. */
+    if (so.length !== 10 && so.length !== 12 && so.length !== 13) {
+      if (bao) bao.textContent = so ? 'Mã số thuế phải 10 số (công ty), 12 số (hộ kinh doanh) hoặc 13 số (chi nhánh).' : '';
+      return;
+    }
     if (bao) bao.textContent = 'Đang tra mã số thuế...';
     try {
       var kq = await api('vagabond.api.tra_mst', { mst: so });
@@ -6756,7 +6761,7 @@ async function scrDsView(name, can) {
     if (xhdLoai !== 'cong_ty') { await api('vagabond.ban_hang.luu_xhd', { si_name: ten_si, ten: XHD_MD }); return; }
     var mst = ((document.getElementById('xhdMst') || {}).value || '').replace(/[^0-9]/g, '');
     var ten = ((document.getElementById('xhdTen') || {}).value || '').trim();
-    if (!mst || !ten) throw new Error('Xuất cho công ty thì phải có mã số thuế và tên pháp nhân.');
+    if (!mst || !ten) throw new Error('Xuất hoá đơn cho công ty hoặc hộ kinh doanh thì phải có mã số thuế và tên pháp nhân.');
     await api('vagabond.ban_hang.luu_xhd', { si_name: ten_si, ten: ten, mst: mst, dia_chi: ((document.getElementById('xhdDc') || {}).value || ''), email: ((document.getElementById('xhdEmail') || {}).value || '') });
   }
   var xlu = document.getElementById('xhdLuu');
@@ -7451,7 +7456,7 @@ async function scrPosQuay() {
     '<span style="color:#c3c8d4;font-size:18px">' + (posDon.xhd_mo ? '▾' : '▸') + '</span></div>' +
     (posDon.xhd_mo
       ? '<div style="display:grid;gap:8px;margin-top:10px">' +
-        '<input id="posXhMst" placeholder="Mã số thuế - chi nhánh gõ cả dấu gạch, vd 0311638525-027" value="' + h(posDon.xh.mst) + '" style="' + xin2 + '">' +
+        '<input id="posXhMst" placeholder="Mã số thuế: 10 số công ty, 12 số hộ kinh doanh, chi nhánh gõ cả dấu gạch" value="' + h(posDon.xh.mst) + '" style="' + xin2 + '">' +
         '<input id="posXhTen" placeholder="Tên pháp nhân trên hoá đơn" value="' + h(posDon.xh.ten) + '" style="' + xin2 + '">' +
         '<textarea id="posXhDc" rows="2" placeholder="Địa chỉ trên hoá đơn" style="' + xin2 + '">' + h(posDon.xh.dc) + '</textarea>' +
         '<input id="posXhEmail" placeholder="Email nhận hoá đơn" value="' + h(posDon.xh.email) + '" style="' + xin2 + '">' +
@@ -7528,7 +7533,12 @@ async function scrPosQuay() {
   if (xhMst) xhMst.onblur = async function () {
     var so = (xhMst.value || '').replace(/[^0-9]/g, '');
     var bao = document.getElementById('posXhBao');
-    if (so.length !== 10 && so.length !== 13) { if (bao) bao.textContent = so ? 'Mã số thuế phải 10 hoặc 13 số.' : ''; return; }
+    /* 12 so la so dinh danh ca nhan cua chu ho kinh doanh, hop le tu
+       01/07/2025 theo dieu 5 Thong tu 86/2024/TT-BTC. */
+    if (so.length !== 10 && so.length !== 12 && so.length !== 13) {
+      if (bao) bao.textContent = so ? 'Mã số thuế phải 10 số (công ty), 12 số (hộ kinh doanh) hoặc 13 số (chi nhánh).' : '';
+      return;
+    }
     if (bao) bao.textContent = 'Đang tra mã số thuế...';
     try {
       var kq = await api('vagabond.api.tra_mst', { mst: so });
@@ -9091,7 +9101,7 @@ async function scrPosBill(name) {
   var nxt = document.getElementById('pbXTra');
   if (nxt) nxt.onclick = async function () {
     var mst = (docO('pbXMst') || '').replace(/\D/g, '');
-    if (mst.length < 10) return toast('Nhập đủ mã số thuế 10 hoặc 13 số.');
+    if (mst.length !== 10 && mst.length !== 12 && mst.length !== 13) return toast('Nhập đủ mã số thuế: 10 số công ty, 12 số hộ kinh doanh, 13 số chi nhánh.');
     busy(true);
     try {
       var kq = await api('vagabond.api.tra_mst', { mst: mst });
@@ -10785,7 +10795,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '163';
+var APPVER = '164';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
