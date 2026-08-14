@@ -211,6 +211,19 @@ def _bao_dam_nhom(nhom, cty=None):
 	if frappe.db.exists("Asset Category", ten):
 		return {"k": nhom["k"], "ten": ten, "ket_qua": "đã có"}
 
+	# ERPNext doi tai khoan giu nguyen gia phai mang loai "Fixed Asset". Voi
+	# nam nhom TSCD thi 2111 da dung san. Rieng nhom cong cu dung cu tro vao
+	# 242 - tai khoan chi phi tra truoc, loai dang de trong - nen ERPNext tu
+	# choi. Khong tu doi loai cua 242 o day: do la sua bang he thong tai
+	# khoan, phai co nguoi dong y. Xem tai_san.mo_khoa_ccdc.
+	if frappe.db.get_value("Account", tk_ts, "account_type") != "Fixed Asset":
+		return {
+			"k": nhom["k"], "ten": ten,
+			"ket_qua": "cần mở khoá tài khoản %s trước" % nhom["tk_ts"],
+			"can_mo_khoa": 1,
+			"tk": tk_ts,
+		}
+
 	d = frappe.get_doc({
 		"doctype": "Asset Category",
 		"asset_category_name": ten,
@@ -226,6 +239,39 @@ def _bao_dam_nhom(nhom, cty=None):
 	})
 	d.insert(ignore_permissions=True)
 	return {"k": nhom["k"], "ten": ten, "ket_qua": "đã tạo"}
+
+
+@frappe.whitelist()
+def mo_khoa_ccdc(that_su=0):
+	"""Danh dau tai khoan 242 la tai khoan giu gia tri de ERPNext chap nhan.
+
+	Vi sao phai co ham rieng thay vi lam lang trong cai_dat: day la sua BANG
+	HE THONG TAI KHOAN, thu ma anh Viet va chi Dung phai biet chu khong phai
+	viec may tu quyet. Ham chi doi mot truong account_type cua 242, khong
+	doi so hieu, khong doi ten, khong doi cha, khong dong toi so du.
+	"""
+	_kiem(QUYEN_SUA, "sửa bảng hệ thống tài khoản")
+	cty = _cty()
+	n = NHOM_THEO_KEY["ccdc"]
+	tk = _tk(n["tk_ts"], cty)
+	if not tk:
+		frappe.throw("Không thấy tài khoản %s trên hệ." % n["tk_ts"])
+	hien = frappe.db.get_value("Account", tk, "account_type")
+	so_but_toan = frappe.db.count("GL Entry", {"account": tk, "is_cancelled": 0})
+	if not cint(that_su):
+		return {
+			"tk": tk,
+			"loai_hien_tai": hien or "(để trống)",
+			"so_but_toan": so_but_toan,
+			"se_doi_thanh": "Fixed Asset",
+			"da_xong": 1 if hien == "Fixed Asset" else 0,
+		}
+	if hien != "Fixed Asset":
+		d = frappe.get_doc("Account", tk)
+		d.account_type = "Fixed Asset"
+		d.save(ignore_permissions=True)
+	kq = _bao_dam_nhom(n, cty)
+	return {"ok": 1, "tk": tk, "nhom": kq, "loi_nhan": "Đã mở khoá %s và %s nhóm công cụ dụng cụ." % (tk, kq.get("ket_qua"))}
 
 
 @frappe.whitelist()
@@ -355,7 +401,7 @@ def chi_tiet(ma):
 			s.journal_entry
 		from `tabDepreciation Schedule` s
 		inner join `tabAsset Depreciation Schedule` p on p.name = s.parent
-		where p.asset = %s and p.docstatus = 1
+		where p.asset = %s and p.docstatus < 2
 		order by s.schedule_date asc""",
 		(ma,), as_dict=True,
 	)
