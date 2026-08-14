@@ -9522,10 +9522,10 @@ var cnLocPhieu = '';
 /* Chi tiet mot phieu doi no: ma QR de gui khach, danh sach hoa don trong
    phieu, va nut doi chieu SePay. */
 async function scrCnPhieu(name) {
-  frame('Phiếu yêu cầu thanh toán', '<div class="emp"><div class="e1">⏳</div></div>');
+  frame('Phiếu đề nghị thanh toán', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
   try { d = await api('vagabond.cong_no.xem_phieu', { name: name }); }
-  catch (e) { frame('Phiếu yêu cầu thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  catch (e) { frame('Phiếu đề nghị thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
   var du = d.sepay >= d.tong_tien - 1;
   var qr = d.qr || {};
   var url = qr.stk
@@ -9535,7 +9535,7 @@ async function scrCnPhieu(name) {
 
   var html = '<div class="card" style="padding:14px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
-    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">PHIẾU YÊU CẦU THANH TOÁN</div>' +
+    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">PHIẾU ĐỀ NGHỊ THANH TOÁN</div>' +
     '<b style="font-size:18px">' + h(d.ma_phieu) + '</b>' +
     '<div style="font-size:13.5px;color:#374151;margin-top:2px">' + h(d.ten_khach || d.khach) + '</div></div>' +
     '<div style="text-align:right"><b style="font-size:19px">' + money(d.tong_tien) + ' đ</b>' +
@@ -9587,9 +9587,11 @@ async function scrCnPhieu(name) {
   html += '</div>';
   if (d.ghi_chu) html += '<div class="card" style="padding:12px 14px;font-size:13px;white-space:pre-wrap">' + h(d.ghi_chu) + '</div>';
 
-  var foot = '<div style="display:flex;gap:8px">' +
+  var foot = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
     '<button class="btn" id="cnXuat" style="flex:1;margin:0">📄 Xuất phiếu</button>' +
     '<button class="btn gh" id="cnKiem" style="flex:1;margin:0">🔄 Đối chiếu SePay</button>' +
+    (du ? '<button class="btn gh" id="cnThu" style="flex:1;margin:0">✉️ Thư báo</button>'
+        : '<button class="btn gh" id="cnKhop" style="flex:1;margin:0">🔎 Khớp tay</button>') +
     (du || d.trang_thai === 'Huy' ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
     '</div>';
   var b = frame('Phiếu ' + h(d.ma_phieu), html, { footer: foot });
@@ -9599,6 +9601,18 @@ async function scrCnPhieu(name) {
       if (v) hsCopy(v);
     };
   });
+  var nkhop = document.getElementById('cnKhop');
+  if (nkhop) nkhop.onclick = function () { cnKhopTay(d); };
+  var nthu = document.getElementById('cnThu');
+  if (nthu) nthu.onclick = async function () {
+    var xt;
+    try { xt = await api('vagabond.cong_no.xem_truoc_thu', { name: name }); } catch (e) { return baoTin((e && e.message) || 'Không xem trước được'); }
+    if (!xt.email) return baoTin('Khách này chưa có email trên hệ nên chưa gửi thư báo được. Vào Danh sách khách hàng điền email rồi quay lại.');
+    if (!await hoiCo('Gửi thư báo nhận tiền', 'Gửi thư xác nhận đã nhận ' + money(d.sepay || d.tong_tien) + ' đ tới ' + xt.email + '?', 'Gửi')) return;
+    busy(true);
+    try { var kq = await api('vagabond.cong_no.gui_thu_da_nhan', { name: name }); busy(false); toast(kq.loi_nhan, 4500); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Gửi thư lỗi'); }
+  };
   document.getElementById('cnXuat').onclick = async function () {
     busy(true);
     try {
@@ -10762,7 +10776,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '158';
+var APPVER = '159';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18412,6 +18426,56 @@ async function scrCanhBaoTT() {
     var r = e.target.closest('[data-cbhd]'); if (!r) return;
     go(function () { scrDsView(r.getAttribute('data-cbhd'), true); });
   });
+}
+
+
+/* ---------- Khop tay giao dich cho phieu de nghi thanh toan ----------
+   Anh Viet 14/08/2026: "lo dau may doi chieu khong duoc". May doi chieu
+   theo NOI DUNG chuyen khoan, ma ke toan ben khach si hay go noi dung
+   theo he thong cua ho chu khong theo ma minh dat. Day la duong lui. */
+async function cnKhopTay(d) {
+  var con = d.con_thieu || d.tong_tien;
+  var ds;
+  try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con) }); }
+  catch (e) { return baoTin((e && e.message) || 'Không đọc được sao kê'); }
+
+  var lc = (ds.rows || []).slice(0, 25).map(function (r) {
+    return {
+      k: r.ma,
+      nhan: money(r.tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)),
+      mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 110),
+      icon: '⬇️'
+    };
+  });
+  lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp', mo_ta: 'Tự gõ số tiền đã nhận, không gắn giao dịch nào.', icon: '✏️' });
+
+  var chon = await hoiChon('Khớp tay phiếu ' + d.ma_phieu,
+    'Đang lọc giao dịch tiền về đúng ' + money(con) + ' đ trong 4 tháng. Chọn giao dịch của khách này.',
+    lc, null);
+  if (!chon) return;
+
+  var soTien = con, maGd = '';
+  if (chon === '@go_tay') {
+    soTien = await hoiSo('Khớp tay', 'Số tiền thực nhận cho phiếu này.', String(Math.round(con)));
+    if (!soTien) return;
+  } else {
+    maGd = chon;
+    var g = (ds.rows || []).filter(function (x) { return x.ma === chon; })[0] || {};
+    soTien = Math.round(g.tien || con);
+  }
+  var gc = await hoiChu('Khớp tay', 'Ghi chú vì sao phải khớp tay (để sau này còn truy).', '', { nhieu_dong: 1, goi_y: 'Khách chuyển từ tài khoản công ty, nội dung không mang mã phiếu' });
+  if (gc === null) return;
+
+  if (!await hoiCo('Xác nhận khớp tay',
+    'Phiếu ' + d.ma_phieu + '\nGhi nhận đã thu ' + money(soTien) + ' đ' +
+    (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào') +
+    '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '' });
+    busy(false); toast(kq.loi_nhan, 5500);
+  } catch (e) { busy(false); return baoTin((e && e.message) || 'Khớp tay lỗi'); }
+  go(function () { scrCnPhieu(d.name); }, true);
 }
 
 })();
