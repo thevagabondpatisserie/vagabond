@@ -784,7 +784,8 @@ async function scrHome() {
     (coQuyenMua()
       ? card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
-        card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC')
+        card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
+        card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA')
       : '') +
     '</div>';
   if (apRoles) {
@@ -920,6 +921,7 @@ async function scrHome() {
     if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'BTPO') { location.href = '/btp'; return; }
     if (k === 'PAY') return go(scrPayList);
+  if (k === 'BGIA') return go(scrBangGia);
   if (k === 'NCC') return go(scrNcc);
     if (k === 'STOCK') return go(scrStock);
     if (k === 'KIT') return go(scrKitchen);
@@ -999,7 +1001,7 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC', 'BGIA'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -1282,6 +1284,7 @@ function vgbGo(k) {
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'BTPO') { location.href = '/btp'; return; }
   if (k === 'PAY') return go(scrPayList);
+  if (k === 'BGIA') return go(scrBangGia);
   if (k === 'NCC') return go(scrNcc);
   if (k === 'STOCK') return go(scrStock);
   if (k === 'KIT') return go(scrKitchen);
@@ -10776,7 +10779,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '159';
+var APPVER = '160';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18476,6 +18479,165 @@ async function cnKhopTay(d) {
     busy(false); toast(kq.loi_nhan, 5500);
   } catch (e) { busy(false); return baoTin((e && e.message) || 'Khớp tay lỗi'); }
   go(function () { scrCnPhieu(d.name); }, true);
+}
+
+
+/* ================= BANG GIA MUA NGUYEN VAT LIEU =================
+   Anh Viet 14/08/2026 hoi nen dat cho khai gia o dau, em tra loi khong nen
+   de trong Danh muc san pham. Goc cua su co lap xuong khong phai sai gia
+   ma la SAI DON VI: mon do don vi kho la Gram, nguoi nhap nghi theo Tui,
+   go 135.185 vao o don gia moi gram, thanh 365 trieu tien lap xuong.
+
+   Nen man nay bat khai ba thu: don vi mua, quy doi ra don vi kho, va gia
+   moi don vi mua. May tu chia. Uyen khong bao gio go so per gram nua. */
+var bgTim = '', bgChip = null, bgNhom = null;
+
+async function scrBangGia() {
+  frame('Bảng giá mua', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc bảng giá...</div></div>');
+  var kq;
+  var ts = {};
+  if (bgTim) ts.tu_khoa = bgTim;
+  if (bgChip) ts.chip = bgChip;
+  if (bgNhom) ts.nhom = bgNhom;
+  try { kq = await api('vagabond.bang_gia.danh_sach', ts); }
+  catch (e) { frame('Bảng giá mua', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  var rows = kq.rows || [], dem = kq.dem || {};
+
+  var html = '<div class="card" style="padding:12px 14px"><input class="tin" id="bgQ" placeholder="Tìm theo tên mặt hàng" value="' + h(bgTim) + '" style="margin:0"></div>';
+
+  var CHIP = [
+    ['', '📚 Tất cả', kq.tat_ca],
+    ['chua_gia', '⭕ Chưa có giá', dem.chua_gia],
+    ['co_gia', '✅ Đã có giá', dem.co_gia],
+    ['lech_dvt', '⚠️ Thiếu quy đổi', dem.lech_dvt]
+  ];
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(CHIP.map(function (x) {
+    return posChipNut('data-bgc="' + x[0] + '"', x[1] + ' · ' + (x[2] || 0), (bgChip || '') === x[0]);
+  }).join('')) + '</div>';
+
+  if (kq.sua_duoc) {
+    html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+      '<button class="btn gh" id="bgMau" style="flex:1;margin:0">📊 Tải mẫu Excel</button>' +
+      '<button class="btn" id="bgNhap" style="flex:1;margin:0">📥 Nhập từ Excel</button></div>';
+  }
+
+  if (dem.lech_dvt) {
+    html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
+      '<div style="font-size:13px;line-height:1.65;color:#92400e">' + dem.lech_dvt +
+      ' mặt hàng khai giá theo đơn vị mua khác đơn vị kho mà chưa điền quy đổi. ' +
+      'Những món này máy chưa tính được giá mỗi đơn vị kho, nên giá vốn vẫn chưa đúng.</div></div>';
+  }
+
+  html += '<div class="sec">Bấm vào một dòng để khai giá</div><div class="card">';
+  if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">💰</div><div>Không có mặt hàng nào khớp bộ lọc.</div></div>';
+  rows.forEach(function (r) {
+    html += '<div class="hub" data-bg="' + h(r.ma) + '">' +
+      '<div class="hub-i" style="background:' + (r.canh_bao ? '#fffbeb' : (r.gia_mua ? '#f0fdf4' : '#f9fafb')) + '">' +
+      (r.canh_bao ? '⚠️' : (r.gia_mua ? '✅' : '⭕')) + '</div>' +
+      '<div class="hub-t"><div class="t1">' + h(r.ten) + '</div>' +
+      '<div class="t2">' + h(r.ma) + ' · kho tính bằng ' + h(r.dvt_kho) + '</div>' +
+      (r.gia_mua
+        ? '<div class="t2">' + money(r.gia_mua) + ' đ mỗi ' + h(r.dvt_mua) +
+          (r.gia_kho && r.dvt_mua !== r.dvt_kho ? ' · ' + money(Math.round(r.gia_kho)) + ' đ mỗi ' + h(r.dvt_kho) : '') + '</div>'
+        : '<div class="t2" style="color:#98a2b3">Chưa khai giá</div>') +
+      (r.canh_bao ? '<div class="t2" style="color:#b45309">' + h(r.canh_bao) + '</div>' : '') +
+      '</div></div>';
+  });
+  if (kq.con_nua) html += '<div style="padding:10px 14px;font-size:12.5px;color:#6b7280">Còn ' + kq.con_nua + ' mặt hàng nữa, gõ vào ô tìm để lọc bớt.</div>';
+  html += '</div>';
+
+  var b = frame('Bảng giá mua', html, {});
+  var q = document.getElementById('bgQ');
+  if (q) q.onchange = function () { bgTim = q.value.trim(); go(scrBangGia, true); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-bgc]'), function (el) {
+    el.onclick = function () { bgChip = el.getAttribute('data-bgc') || null; go(scrBangGia, true); };
+  });
+  b.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-bg]'); if (!r) return;
+    var ma = r.getAttribute('data-bg');
+    var d = rows.filter(function (x) { return x.ma === ma; })[0];
+    if (d && kq.sua_duoc) bgKhaiGia(d);
+  });
+  var nm = document.getElementById('bgMau');
+  if (nm) nm.onclick = async function () {
+    busy(true);
+    try { var fl = await api('vagabond.bang_gia.mau_excel', {}); busy(false); bcTaiVe(fl.ten_file, fl.b64, fl.kieu); toast('Đã tải ' + fl.ten_file, 4000); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Tải mẫu lỗi'); }
+  };
+  var nn = document.getElementById('bgNhap');
+  if (nn) nn.onclick = function () { bgNhapExcel(); };
+}
+
+
+async function bgKhaiGia(d) {
+  var dvt = await hoiChu('Khai giá ' + d.ten,
+    'Đơn vị MUA - thứ ghi trên hoá đơn nhà cung cấp. Kho đang tính bằng <b>' + h(d.dvt_kho) + '</b>.',
+    d.dvt_mua || d.dvt_kho, { bat_buoc: 1, goi_y: 'Túi' });
+  if (!dvt) return;
+
+  var hs = 1;
+  if (dvt !== d.dvt_kho) {
+    hs = await hoiSo('Khai giá ' + d.ten,
+      'Một <b>' + h(dvt) + '</b> bằng bao nhiêu <b>' + h(d.dvt_kho) + '</b>? Ví dụ một túi 400gr thì điền 400.',
+      d.he_so ? String(d.he_so) : '');
+    if (!hs) return;
+  }
+
+  var gia = await hoiSo('Khai giá ' + d.ten,
+    'Giá mỗi <b>' + h(dvt) + '</b>, chưa gồm thuế GTGT.',
+    d.gia_mua ? String(Math.round(d.gia_mua)) : '');
+  if (!gia) return;
+
+  var moiKho = Math.round(gia / (hs || 1));
+  if (!await hoiCo('Xác nhận giá',
+    d.ten + '\n\n' + money(gia) + ' đ mỗi ' + dvt +
+    (dvt !== d.dvt_kho ? '\n1 ' + dvt + ' = ' + hs + ' ' + d.dvt_kho + '\n\nTức ' + money(moiKho) + ' đ mỗi ' + d.dvt_kho : '') +
+    '\n\nGiá này sẽ tự điền vào đơn đặt hàng và dùng để tính giá vốn.', 'Lưu giá')) return;
+
+  busy(true);
+  try { var kq = await api('vagabond.bang_gia.dat_gia', { ma_mon: d.ma, gia: gia, dvt_mua: dvt, he_so: hs }); busy(false); toast(kq.loi_nhan, 5000); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu giá lỗi'); }
+  go(scrBangGia, true);
+}
+
+
+async function bgNhapExcel() {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.xlsx';
+  inp.onchange = async function () {
+    var f = inp.files && inp.files[0];
+    if (!f) return;
+    var b64 = await new Promise(function (ok) {
+      var fr = new FileReader();
+      fr.onload = function () { ok(String(fr.result).split(',')[1] || ''); };
+      fr.readAsDataURL(f);
+    });
+    busy(true);
+    var thu;
+    try { thu = await api('vagabond.bang_gia.nhap_excel', { b64: b64, that_su: 0 }); busy(false); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Đọc tệp lỗi'); }
+
+    var mo = 'Tệp có ' + thu.so_ok + ' dòng khai được' +
+      (thu.bo_qua ? ', ' + thu.bo_qua + ' dòng bỏ trống giá nên bỏ qua' : '') +
+      (thu.so_loi ? ', ' + thu.so_loi + ' dòng lỗi' : '') + '.';
+    if ((thu.mau || []).length) {
+      mo += '\n\nVài dòng đầu:\n' + thu.mau.slice(0, 5).map(function (x) {
+        return x.ma + ' · ' + money(x.gia) + ' đ mỗi ' + x.dvt_mua +
+          (x.dvt_mua !== x.dvt_kho ? ' = ' + money(Math.round(x.gia_kho)) + ' đ mỗi ' + x.dvt_kho : '');
+      }).join('\n');
+    }
+    if (thu.so_loi) mo += '\n\nDòng lỗi:\n' + (thu.loi || []).slice(0, 6).join('\n');
+    if (!thu.so_ok) return baoTin(mo + '\n\nKhông có dòng nào khai được.');
+    if (!await hoiCo('Nhập bảng giá', mo + '\n\nNhập ' + thu.so_ok + ' dòng này vào hệ?', 'Nhập')) return;
+
+    busy(true);
+    try { var kq = await api('vagabond.bang_gia.nhap_excel', { b64: b64, that_su: 1 }); busy(false); toast(kq.loi_nhan, 6000);
+      if (kq.so_loi) baoTin((kq.loi || []).join('\n'), 'Dòng không nhập được'); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Nhập lỗi'); }
+    go(scrBangGia, true);
+  };
+  inp.click();
 }
 
 })();
