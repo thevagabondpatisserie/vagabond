@@ -1041,16 +1041,10 @@ def _html(name):
 	except Exception:
 		qr = {}
 	tien_qr = flt(d["dat_coc_tien"]) or flt(d["tong_cong"])
-	def _rut(ten, con):
-		"""Cat ten khach theo TU cho du con, khong cat giua chung mot chu."""
-		ra = []
-		for tu in str(ten or "").split():
-			if len(" ".join(ra + [tu])) > con:
-				break
-			ra.append(tu)
-		return " ".join(ra)
-
-	nd_qr = ("%s %s" % (d["name"], _rut(d.get("ten_khach"), 22))).strip()
+	# Noi dung chuyen khoan: ma to la thu duy nhat can de doi soat. Ten khach
+	# chi them khi VUA HET, cat lung chung nhin rat au tren to gui khach.
+	_ten_kh = str(d.get("ten_khach") or "").strip()
+	nd_qr = d["name"] + ((" " + _ten_kh) if len(_ten_kh) <= 22 else "")
 	anh_qr = _qr_data_uri(qr, tien_qr, nd_qr) if qr.get("stk") else ""
 	tt = []
 	if (d.get("thanh_toan") or "").strip():
