@@ -323,6 +323,7 @@ def xem_phieu(name):
 				"hoa_don": d.hoa_don,
 				"ngay": str(d.ngay or ""),
 				"nguon": d.nguon or "",
+				"so_gtgt": _so_hd_gtgt(d.hoa_don),
 				"so_tien": flt(d.so_tien),
 			}
 			for d in doc.dong
@@ -335,6 +336,7 @@ def kiem_sepay(name):
 	"""Doi chieu voi SePay va tu clear cong no khi tien da ve du."""
 	_kiem_quyen()
 	doc = frappe.get_doc("Vagabond Cong No", name)
+	truoc = doc.trang_thai
 	sepay = _sepay_theo_ma_cn([doc.ma_phieu]).get(str(doc.ma_phieu).upper()) or {}
 	nhan = flt(sepay.get("nhan"))
 	doc.da_thu = nhan
@@ -343,8 +345,15 @@ def kiem_sepay(name):
 		doc.trang_thai = "Da thu du"
 	elif nhan > 0:
 		doc.trang_thai = "Thu thieu"
+	da_du_truoc = truoc == "Da thu du"
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
+	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
+	if doc.trang_thai == "Da thu du" and not da_du_truoc:
+		try:
+			_gui_thu_da_nhan(doc)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu bao da nhan loi")
 	return xem_phieu(name)
 
 
@@ -486,6 +495,74 @@ def thong_tin_xhd(khach=None):
 # ------------------------------------------------------- Xuat phieu ra PDF
 
 
+def _so_hd_gtgt(hoa_don):
+	"""So hoa don GTGT tren to hoa don dien tu, dang 'C26MVO 32536'.
+
+	Anh Viet 14/08/2026 khoanh do them cot nay: ke toan ben khach si can so
+	hoa don DO de hach toan, con so noi bo HDB-2026-xxxxx chi de minh tra.
+	"""
+	if not hoa_don:
+		return ""
+	d = frappe.db.get_value(
+		"Sales Invoice", hoa_don,
+		["custom_hddt_ky_hieu", "custom_hddt_so"], as_dict=True,
+	)
+	if not d:
+		return ""
+	kh = (d.get("custom_hddt_ky_hieu") or "").strip()
+	so = str(d.get("custom_hddt_so") or "").strip()
+	if kh and so:
+		return "%s %s" % (kh, so)
+	return so or kh or ""
+
+
+# Ten day du ngan hang de in tren to gui khach. Anh Viet 14/08/2026: viet
+# "MB" khong thoi thi ke toan ben khach khong biet la ngan hang nao.
+TEN_NGAN_HANG_DAY_DU = {
+	"MB": "MB (Ngân hàng TMCP Quân đội)",
+	"VCB": "Vietcombank (Ngân hàng TMCP Ngoại thương Việt Nam)",
+	"ICB": "VietinBank (Ngân hàng TMCP Công thương Việt Nam)",
+	"BIDV": "BIDV (Ngân hàng TMCP Đầu tư và Phát triển Việt Nam)",
+	"TCB": "Techcombank (Ngân hàng TMCP Kỹ thương Việt Nam)",
+	"ACB": "ACB (Ngân hàng TMCP Á Châu)",
+	"VPB": "VPBank (Ngân hàng TMCP Việt Nam Thịnh Vượng)",
+	"OCB": "OCB (Ngân hàng TMCP Phương Đông)",
+	"VBA": "Agribank (Ngân hàng NN và PTNT Việt Nam)",
+}
+
+
+def _qr_data_uri(qr, so_tien, noi_dung):
+	"""Tai anh QR VietQR ve roi nhung thang vao HTML dang data URI.
+
+	Khong tro thang src toi img.vietqr.io: wkhtmltopdf tren may chu dung
+	tien trinh rieng, no tai anh ngoai rat cham va co luc bo qua han - to
+	PDF gui khach ma thieu ma QR thi hong mat mot nua cong dung.
+	"""
+	import base64 as _b64
+
+	if not (qr or {}).get("stk"):
+		return ""
+	url = (
+		"https://img.vietqr.io/image/%s-%s-qr_only.png?amount=%d&addInfo=%s&accountName=%s"
+		% (
+			qr.get("bank") or "MB",
+			qr["stk"],
+			int(round(flt(so_tien))),
+			frappe.utils.quoted(noi_dung or ""),
+			frappe.utils.quoted(qr.get("ten") or ""),
+		)
+	)
+	try:
+		import requests
+
+		r = requests.get(url, timeout=8)
+		if r.status_code == 200 and r.content:
+			return "data:image/png;base64," + _b64.b64encode(r.content).decode()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "cong_no: tai anh QR loi")
+	return ""
+
+
 def _ngay_vn(v):
 	if not v:
 		return ""
@@ -576,7 +653,7 @@ def _phieu_html(name):
 			+ _td(str(i), "center")
 			+ _td(_ngay_vn(x.get("ngay")) or "-", "center", khong_ngat=True)
 			+ _td(esc(x.get("hoa_don") or "-"), khong_ngat=True)
-			+ _td(esc(x.get("nguon") or ""))
+			+ _td(esc(x.get("so_gtgt") or "-"), "center", khong_ngat=True)
 			+ _td(_tien_vn(x.get("so_tien")), "right", dam=True, khong_ngat=True)
 			+ "</tr>"
 		)
@@ -618,21 +695,37 @@ def _phieu_html(name):
 			% (nhan, "14px" if to else "11.5px", gt)
 		)
 
+	tien_ck = con_thieu if da_thu > 0 else tong
+	anh_qr = _qr_data_uri(qr, tien_ck, d.get("ma_phieu") or "")
+	o_qr = (
+		'<td style="border:none;width:170px;text-align:center;vertical-align:top;'
+		'padding-left:12px">'
+		'<img src="%s" width="150" height="150" '
+		'style="width:150px !important;height:150px !important">'
+		'<div style="font-size:9.5px;color:#555;margin-top:4px">Quét mã để chuyển khoản</div>'
+		"</td>" % anh_qr
+	) if anh_qr else ""
+
 	khoi_ck = (
 		'<div style="border:2px solid #1c1a17;padding:12px 14px;margin-top:14px">'
 		'<div style="font-size:11px;font-weight:bold;letter-spacing:.5px;'
 		'margin-bottom:7px">THÔNG TIN CHUYỂN KHOẢN</div>'
+		'<table style="width:100%;border:none;border-collapse:collapse"><tr>'
+		'<td style="border:none;vertical-align:top">'
 		'<table style="width:100%;border:none;border-collapse:collapse">'
-		+ _o_tt("Ngân hàng:", esc(qr.get("bank") or "..............."))
+		+ _o_tt("Ngân hàng:", esc(
+			TEN_NGAN_HANG_DAY_DU.get(qr.get("bank") or "", qr.get("bank") or "...............")
+		))
 		+ _o_tt("Số tài khoản:", esc(qr.get("stk") or "..............."), to=True)
 		+ _o_tt("Tên tài khoản:", esc(qr.get("ten") or "..............."))
-		+ _o_tt("Số tiền:", _tien_vn(con_thieu if da_thu > 0 else tong) + " đ", to=True)
+		+ _o_tt("Số tiền:", _tien_vn(tien_ck) + " đ", to=True)
 		+ _o_tt("Nội dung chuyển khoản:", esc(d.get("ma_phieu") or ""), to=True)
-		+ "</table>"
+		+ "</table></td>"
+		+ o_qr
+		+ "</tr></table>"
 		'<div style="font-size:10px;color:#555;margin-top:8px;line-height:1.5">'
-		"Quý khách vui lòng ghi đúng nội dung chuyển khoản ở trên. Hệ thống đối "
-		"soát tự động theo nội dung này; ghi sai nội dung thì khoản thanh toán "
-		"sẽ không tự khớp được vào công nợ.</div></div>"
+		"Quý khách vui lòng thêm dòng mã nội bộ của The Vagabond vào nội dung "
+		"chuyển khoản để đối soát công nợ được thuận tiện.</div></div>"
 	)
 
 	ben_nhan = (
@@ -673,13 +766,13 @@ def _phieu_html(name):
 		"</td></tr></table>"
 		'<div style="text-align:center;margin:14px 0 2px">'
 		'<div style="font-size:19px;font-weight:bold;letter-spacing:1px">'
-		"PHIẾU YÊU CẦU THANH TOÁN</div>"
+		"PHIẾU ĐỀ NGHỊ THANH TOÁN</div>"
 		'<div style="font-size:11px;color:#555;margin-top:3px">'
 		"Số: <b>%s</b> &nbsp;·&nbsp; Ngày %s</div></div>"
 		"%s"
 		'<table style="width:100%%;border-collapse:collapse;margin-top:12px">'
 		"<tr><th %s>STT</th><th %s>Ngày hoá đơn</th><th %s>Số hoá đơn</th>"
-		"<th %s>Nguồn đơn</th><th %s>Số tiền</th></tr>%s%s</table>"
+		"<th %s>Số hoá đơn GTGT</th><th %s>Số tiền</th></tr>%s%s</table>"
 		'<div style="margin-top:8px;font-size:11px">Số tiền bằng chữ: '
 		"<i>%s</i></div>"
 		"%s%s"
@@ -733,7 +826,228 @@ def xuat_phieu(name):
 	import base64
 
 	return {
-		"ten_file": "Phieu-yeu-cau-thanh-toan-%s.pdf" % (d.get("ma_phieu") or name),
+		"ten_file": "Phieu-de-nghi-thanh-toan-%s.pdf" % (d.get("ma_phieu") or name),
 		"b64": base64.b64encode(noi_dung).decode(),
 		"kieu": "application/pdf",
+	}
+
+
+# ------------------------------------- Thu bao khach da chuyen tien thanh cong
+
+
+def _email_khach(khach):
+	"""Email de gui thu bao. Uu tien contact chinh, sau do o email tren khach."""
+	if not khach:
+		return ""
+	ct = frappe.db.sql(
+		"""select c.email_id from `tabContact` c
+		inner join `tabDynamic Link` l on l.parent = c.name
+		where l.link_doctype = 'Customer' and l.link_name = %s
+			and ifnull(c.email_id, '') != ''
+		order by c.is_primary_contact desc, c.modified desc limit 1""",
+		(khach,),
+	)
+	if ct and ct[0][0]:
+		return ct[0][0]
+	return frappe.db.get_value("Customer", khach, "email_id") or ""
+
+
+def _thu_da_nhan_html(doc, ds_dong):
+	"""Thu bao da nhan tien, giong giong to phieu de khach nhan ra ngay."""
+	esc = frappe.utils.escape_html
+	hang = "".join(
+		'<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px">%s</td>'
+		'<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;'
+		'text-align:right;white-space:nowrap">%s đ</td></tr>'
+		% (esc(x.get("hoa_don") or ""), _tien_vn(x.get("so_tien")))
+		for x in ds_dong
+	)
+	return (
+		'<div style="margin:0;padding:0;background:#F2FAFC">'
+		'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+		'border="0"><tr><td align="center" style="padding:20px 8px">'
+		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
+		'border="0" style="width:600px;max-width:600px;background:#fff;'
+		'border:1px solid #e4e7ec">'
+		'<tr><td style="padding:26px 30px 6px;font-family:Arial,Helvetica,sans-serif">'
+		'<div style="font-size:20px;font-weight:bold;color:#1c1a17">'
+		"Đã nhận được thanh toán</div>"
+		'<div style="font-size:14px;color:#475467;line-height:1.7;margin-top:12px">'
+		"Kính gửi <b>%s</b>,<br><br>"
+		"The Vagabond Pâtisserie xác nhận đã nhận được khoản thanh toán "
+		'<b style="color:#0f766e">%s đ</b> theo phiếu đề nghị thanh toán '
+		"<b>%s</b>. Công nợ của quý khách cho các hoá đơn dưới đây đã được "
+		"tất toán."
+		"</div>"
+		'<table style="width:100%%;border-collapse:collapse;margin-top:18px">'
+		'<tr><td style="padding:6px 8px;border-bottom:2px solid #1c1a17;'
+		'font-size:12px;font-weight:bold">Số hoá đơn</td>'
+		'<td style="padding:6px 8px;border-bottom:2px solid #1c1a17;font-size:12px;'
+		'font-weight:bold;text-align:right">Số tiền</td></tr>'
+		"%s"
+		'<tr><td style="padding:9px 8px;font-size:14px;font-weight:bold">Tổng cộng</td>'
+		'<td style="padding:9px 8px;font-size:15px;font-weight:bold;text-align:right;'
+		'white-space:nowrap">%s đ</td></tr></table>'
+		'<div style="font-size:13.5px;color:#475467;line-height:1.7;margin-top:20px">'
+		"Cảm ơn quý khách đã tin tưởng và đồng hành cùng The Vagabond Pâtisserie. "
+		"Nếu cần hoá đơn hoặc chứng từ gì thêm, quý khách cứ trả lời thẳng thư này, "
+		"bộ phận kinh doanh sẽ hỗ trợ ngay."
+		"</div>"
+		'<div style="font-size:13.5px;color:#475467;margin-top:22px;line-height:1.7">'
+		"Trân trọng,<br><b>The Vagabond Pâtisserie</b>"
+		'<div style="font-size:12px;color:#98a2b3;margin-top:4px">'
+		"9 Trần Cao Vân, Phường Sài Gòn, TP.HCM<br>"
+		"www.thevagabondpatisserie.com</div></div>"
+		"</td></tr></table></td></tr></table></div>"
+	) % (
+		esc(doc.ten_khach or doc.khach or "Quý khách"),
+		_tien_vn(doc.da_thu),
+		esc(doc.ma_phieu or ""),
+		hang,
+		_tien_vn(doc.tong_tien),
+	)
+
+
+def _gui_thu_da_nhan(doc, buoc_gui=False):
+	"""Gui thu bao da nhan tien. Tra ve (da_gui, ly_do)."""
+	if doc.get("email_da_gui") and not buoc_gui:
+		return False, "đã gửi rồi"
+	email = _email_khach(doc.khach)
+	if not email:
+		return False, "khách chưa có email trên hệ"
+	ds_dong = [
+		{"hoa_don": x.hoa_don, "so_tien": flt(x.so_tien)} for x in (doc.dong or [])
+	]
+	frappe.sendmail(
+		recipients=email,
+		subject="The Vagabond Pâtisserie - đã nhận thanh toán %s" % (doc.ma_phieu or ""),
+		message=_thu_da_nhan_html(doc, ds_dong),
+		delayed=False,
+		retry=3,
+	)
+	try:
+		doc.db_set("email_da_gui", 1, update_modified=False)
+		doc.db_set("email_gui_toi", email, update_modified=False)
+	except Exception:
+		pass
+	doc.add_comment("Comment", "Đã gửi thư báo nhận tiền tới %s" % email)
+	return True, email
+
+
+@frappe.whitelist()
+def xem_truoc_thu(name):
+	"""Xem truoc thu bao da nhan tien, khong gui cho ai."""
+	_kiem_quyen()
+	doc = frappe.get_doc("Vagabond Cong No", name)
+	ds_dong = [{"hoa_don": x.hoa_don, "so_tien": flt(x.so_tien)} for x in (doc.dong or [])]
+	return {
+		"html": _thu_da_nhan_html(doc, ds_dong),
+		"email": _email_khach(doc.khach),
+	}
+
+
+@frappe.whitelist()
+def gui_thu_da_nhan(name):
+	"""Gui tay thu bao da nhan tien, dung khi may gui hut hoac khach bao chua nhan."""
+	_kiem_quyen()
+	doc = frappe.get_doc("Vagabond Cong No", name)
+	da, ly_do = _gui_thu_da_nhan(doc, buoc_gui=True)
+	if not da:
+		frappe.throw("Chưa gửi được: %s." % ly_do)
+	return {"ok": 1, "loi_nhan": "Đã gửi thư báo tới %s." % ly_do}
+
+
+# --------------------------------- Doi chieu SePay bang tay cho phieu cong no
+
+
+@frappe.whitelist()
+def tim_giao_dich_thu(tu_khoa="", so_ngay=120, so_tien=None):
+	"""Tra cuu giao dich TIEN VE de ke toan tu khop tay vao phieu.
+
+	Anh Viet 14/08/2026: *"Anh nghĩ là thêm phần đối chiếu danh sách sepay
+	bằng tay ở đoạn này nữa lỡ đâu máy đối chiếu không được."*
+
+	May doi chieu theo NOI DUNG chuyen khoan. Khach si chuyen tu app ngan
+	hang cua cong ty ho, ke toan ben do hay go noi dung theo he thong cua
+	ho chu khong theo ma minh dat - luc do may chiu. Man nay la duong lui.
+	"""
+	_kiem_quyen()
+	rows = frappe.get_all(
+		"Bank Transaction",
+		filters={
+			"date": [">=", add_days(nowdate(), -int(so_ngay or 120))],
+			"docstatus": ["<", 2],
+			"deposit": [">", 0],
+		},
+		fields=["name", "date", "description", "deposit", "bank_account", "reference_number"],
+		order_by="date desc, creation desc",
+		limit_page_length=0,
+	)
+	k = (tu_khoa or "").strip().lower()
+	muc = flt(so_tien) if so_tien else 0.0
+	ra = []
+	for r in rows:
+		tien = flt(r.get("deposit"))
+		if muc and abs(tien - muc) > 1:
+			continue
+		mo_ta = r.get("description") or ""
+		ma = (r.get("reference_number") or r.get("name") or "").strip()
+		if k and k not in mo_ta.lower() and k not in ma.lower():
+			continue
+		ra.append({
+			"ma": ma or r["name"],
+			"ngay": str(r["date"] or ""),
+			"noi_dung": mo_ta[:300],
+			"tien": tien,
+			"tai_khoan": r.get("bank_account") or "",
+		})
+	return {"rows": ra[:300], "tong": len(ra), "con_nua": max(0, len(ra) - 300)}
+
+
+@frappe.whitelist()
+def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
+	"""Ghi nhan tay so tien da nhan cho mot phieu.
+
+	Dung khi SePay khong tu khop duoc. KHONG dung vao bang Bank Transaction,
+	chi ghi len phieu va de lai dau vet ai khop, luc nao, giao dich nao.
+	"""
+	_kiem_quyen()
+	so_tien = flt(so_tien)
+	if so_tien <= 0:
+		frappe.throw("Số tiền khớp tay phải lớn hơn 0.")
+	doc = frappe.get_doc("Vagabond Cong No", name)
+	if doc.trang_thai == "Huy":
+		frappe.throw("Phiếu đã huỷ, không khớp được.")
+	if so_tien > flt(doc.tong_tien) + 1:
+		frappe.throw(
+			"Phiếu chỉ %s đ mà khớp %s đ. Xem lại số tiền."
+			% (_tien_vn(doc.tong_tien), _tien_vn(so_tien))
+		)
+	truoc = doc.trang_thai
+	doc.da_thu = so_tien
+	doc.trang_thai = "Da thu du" if so_tien >= flt(doc.tong_tien) - 1 else "Thu thieu"
+	doc.save(ignore_permissions=True)
+	doc.add_comment(
+		"Comment",
+		"Khớp tay %s đ%s, người làm %s%s"
+		% (
+			_tien_vn(so_tien),
+			" (giao dịch %s)" % ma_giao_dich if ma_giao_dich else "",
+			frappe.session.user,
+			". Ghi chú: %s" % ghi_chu if (ghi_chu or "").strip() else "",
+		),
+	)
+	frappe.db.commit()
+	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
+		try:
+			_gui_thu_da_nhan(doc)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau khop tay loi")
+	return {
+		"ok": 1,
+		"loi_nhan": "Đã ghi nhận %s đ cho phiếu %s.%s"
+		% (
+			_tien_vn(so_tien), doc.ma_phieu,
+			" Công nợ đã sạch." if doc.trang_thai == "Da thu du" else "",
+		),
 	}
