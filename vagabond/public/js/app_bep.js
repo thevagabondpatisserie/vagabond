@@ -10785,7 +10785,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '161';
+var APPVER = '162';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18963,12 +18963,16 @@ async function scrBgSua(name) {
     (Number(d.dat_coc_pt) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đặt cọc ' + (Number(d.dat_coc_pt) || 0) + '%</span><b style="color:#0a8a4a">' + money(d.dat_coc_tien) + ' đ</b></div>' : '') +
     '</div>';
 
+  /* Chip dieu khoan la ca mot cau dai ma posChipNut de white-space:nowrap,
+     de nguyen thi chip tran ngang ra ngoai man dien thoai. Cat ngan chu
+     tren chip; cau day du van hien trong o van ban ngay duoi chip. */
+  var bgCut = function (s) { return s.length > 30 ? h(s.slice(0, 29)) + '&#8230;' : h(s); };
   var chipTt = '';
-  ci.chip_thanh_toan.forEach(function (s, i) { chipTt += posChipNut('data-ctt="' + i + '"', h(s), d.thanh_toan === s); });
+  ci.chip_thanh_toan.forEach(function (s, i) { chipTt += posChipNut('data-ctt="' + i + '"', bgCut(s), d.thanh_toan === s); });
   var chipGh = '';
-  ci.chip_giao_hang.forEach(function (s, i) { chipGh += posChipNut('data-cgh="' + i + '"', h(s), d.giao_hang === s); });
+  ci.chip_giao_hang.forEach(function (s, i) { chipGh += posChipNut('data-cgh="' + i + '"', bgCut(s), d.giao_hang === s); });
   var chipDg = '';
-  ci.chip_dong_goi.forEach(function (s, i) { chipDg += posChipNut('data-cdg="' + i + '"', h(s), d.dong_goi === s); });
+  ci.chip_dong_goi.forEach(function (s, i) { chipDg += posChipNut('data-cdg="' + i + '"', bgCut(s), d.dong_goi === s); });
 
   html += '<div class="sec">Điều khoản in lên báo giá · bấm chip là điền luôn</div>' +
     '<div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
