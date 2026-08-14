@@ -10725,7 +10725,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '154';
+var APPVER = '155';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -17710,6 +17710,16 @@ async function scrTaiSan() {
       '</div>';
   }
 
+  var ccdc = (kq.nhom || []).filter(function (n) { return n.k === 'ccdc'; })[0];
+  if (!kq.chua_cai_dat && ccdc && !ccdc.co_roi && kq.sua_duoc) {
+    html += '<div class="card" style="padding:14px;background:#fffbeb;border:1.5px solid #fde68a">' +
+      '<div style="font-size:14px;font-weight:800;color:#92400e">Nhóm công cụ dụng cụ chưa lập được</div>' +
+      '<div style="font-size:13px;line-height:1.65;color:#92400e;margin-top:6px">' +
+      'Năm nhóm tài sản cố định đã sẵn sàng. Riêng nhóm công cụ dụng cụ ghi vào tài khoản 242, ' +
+      'mà ERPNext đòi tài khoản này phải được đánh dấu là tài khoản giữ giá trị. ' +
+      'Đây là sửa bảng hệ thống tài khoản nên máy không tự làm.</div>' +
+      '<button class="btn" id="tsMoKhoa" style="margin-top:12px">🔓 Xem và mở khoá</button></div>';
+  }
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="tsQ" placeholder="Tìm theo tên tài sản hoặc mã" value="' + h(tsTim) + '" style="margin:0"></div>';
 
   var CHIP = [
@@ -17766,6 +17776,20 @@ async function scrTaiSan() {
     var r = e.target.closest('[data-ts]'); if (!r) return;
     go(function () { scrTaiSanXem(r.getAttribute('data-ts')); });
   });
+  var mk = document.getElementById('tsMoKhoa');
+  if (mk) mk.onclick = async function () {
+    var t;
+    try { t = await api('vagabond.tai_san.mo_khoa_ccdc', { that_su: 0 }); } catch (er) { return baoTin((er && er.message) || 'Không đọc được'); }
+    if (!await hoiCo('Mở khoá nhóm công cụ dụng cụ',
+      'Nhóm công cụ dụng cụ ghi giá trị vào tài khoản ' + t.tk + '. ERPNext đòi tài khoản này phải được đánh dấu là tài khoản giữ giá trị thì mới cho phân bổ dần.\n\n' +
+      'Loại hiện tại: ' + t.loai_hien_tai + '\nSẽ đổi thành: Fixed Asset\nSố bút toán đang nằm ở tài khoản này: ' + t.so_but_toan + '\n\n' +
+      'Đây là sửa bảng hệ thống tài khoản. Chỉ đổi một trường loại tài khoản, không đổi số hiệu, không đổi tên, không đụng số dư. Chị Dung nên xem trước khi bấm.',
+      'Mở khoá')) return;
+    busy(true);
+    try { var kq = await api('vagabond.tai_san.mo_khoa_ccdc', { that_su: 1 }); busy(false); toast(kq.loi_nhan, 5000); }
+    catch (er) { busy(false); return baoTin((er && er.message) || 'Mở khoá lỗi'); }
+    go(scrTaiSan, true);
+  };
   var cd = document.getElementById('tsCaiDat');
   if (cd) cd.onclick = async function () {
     var thu;
