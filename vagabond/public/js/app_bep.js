@@ -856,6 +856,7 @@ async function scrHome() {
          chi phi xe hang thang nen dua han ra ngoai (anh Viet 13/08/2026). */
       + card('⛽', 'Chi phí xăng xe - sửa xe', 'Khai chi phí, duyệt, hoàn ứng và xuất Excel theo dõi', 0, 'CPX')
       + card('💵', 'Đối soát COD', 'Tiền shipper thu hộ và nộp về cuối ngày, theo từng người', 0, 'DSCOD')
+      + card('⚠️', 'Cảnh báo thanh toán', 'Hoá đơn thiếu hoặc sai phương thức, vận đơn treo COD nhầm', 0, 'CBTT')
       + '</div>';
   }
   if (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager')) {
@@ -946,6 +947,7 @@ async function scrHome() {
     if (k === 'CN') return go(scrCongNo);
     if (k === 'KH') return go(scrKhachHang);
     if (k === 'VD') return go(scrVanDon);
+  if (k === 'CBTT') return go(scrCanhBaoTT);
   if (k === 'CPX') return go(scrVdChiPhi);
   if (k === 'DSCOD') return go(scrVdCod);
     if (k === 'RND') return go(scrRndList);
@@ -1003,7 +1005,7 @@ var VGB_NHOM = [
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
-  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD'] },
+  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
@@ -1309,6 +1311,7 @@ function vgbGo(k) {
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
   if (k === 'DSCOD') return go(scrVdCod);
+  if (k === 'CBTT') return go(scrCanhBaoTT);
   if (k === 'RND') return go(scrRndList);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
@@ -10759,7 +10762,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '156';
+var APPVER = '157';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18332,6 +18335,80 @@ async function scrTimGiaoDich(maHoSo, soTien) {
     catch (er) { busy(false); return baoTin((er && er.message) || 'Gán lỗi'); }
     var hs = tgdHoSo; tgdHoSo = '';
     go(function () { scrHoSoTTView(hs); }, true);
+  });
+}
+
+
+/* ================= CANH BAO PHUONG THUC THANH TOAN =================
+   Anh Viet 14/08/2026: "em co bien phap gi canh bao voi cac hoa don chon
+   sai phuong thuc thanh toan chua?"
+
+   Truoc day loi nay chi lo ra luc doi soat COD cuoi ngay - tuc la sau khi
+   shipper da di roi. Don Oshima 1.480.000 hom 13/08 dung kieu do: hoa don
+   chua chon phuong thuc nen may mac dinh coi la thu tien mat, van don mang
+   COD, shipper di doi tien cua khach da hen chuyen khoan.
+
+   Man nay soat truoc, ba loai loi xep theo muc nguy hiem. */
+var cbNgay = 7, cbLoai = null;
+
+async function scrCanhBaoTT() {
+  frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang soát hoá đơn...</div></div>');
+  var d;
+  try { d = await api('vagabond.van_don.canh_bao_thanh_toan', { so_ngay: cbNgay }); }
+  catch (e) { frame('Cảnh báo thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  var rows = d.rows || [], dem = d.dem || {};
+
+  var MAU = {
+    chua_chon: ['#fef2f2', '#fecaca', '#b91c1c', '❗', 'Chưa chọn phương thức'],
+    lech_cod: ['#fffbeb', '#fde68a', '#92400e', '⚠️', 'Vận đơn treo COD nhầm'],
+    no_khong_khach: ['#f5f3ff', '#ddd6fe', '#5b21b6', '👤', 'Công nợ không có khách']
+  };
+
+  var html = '<div class="card" style="padding:14px;background:' + (rows.length ? '#fef2f2;border:1.5px solid #fecaca' : '#f0fdf4;border:1.5px solid #bbf7d0') + '">' +
+    '<div style="font-size:11.5px;font-weight:800;color:' + (rows.length ? '#b91c1c' : '#166534') + '">SOÁT ' + d.so_hoa_don_soat + ' HOÁ ĐƠN ' + cbNgay + ' NGÀY GẦN NHẤT</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px">' +
+    '<span style="font-size:14px;color:#374151">' + (rows.length ? 'Cần xem lại' : 'Không có hoá đơn nào sai') + '</span>' +
+    '<b style="font-size:22px;color:' + (rows.length ? '#b91c1c' : '#166534') + '">' + d.tong + '</b></div></div>';
+
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    [[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng']].map(function (x) {
+      return posChipNut('data-cbn="' + x[0] + '"', x[1], cbNgay === x[0]);
+    }).join('')) + '</div>';
+
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    [['', '📚 Tất cả', d.tong]].concat(Object.keys(MAU).map(function (k) {
+      return [k, MAU[k][3] + ' ' + MAU[k][4], dem[k] || 0];
+    })).map(function (x) {
+      return posChipNut('data-cbl="' + x[0] + '"', x[1] + ' · ' + (x[2] || 0), (cbLoai || '') === x[0]);
+    }).join('')) + '</div>';
+
+  var loc = cbLoai ? rows.filter(function (r) { return r.loi === cbLoai; }) : rows;
+  html += '<div class="sec">Bấm để mở hoá đơn</div><div class="card">';
+  if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có hoá đơn nào khớp bộ lọc. Sales đang chọn phương thức đúng.</div></div>';
+  loc.forEach(function (r) {
+    var m = MAU[r.loi] || ['#f9fafb', '#eee', '#374151', '•', ''];
+    html += '<div class="hub" data-cbhd="' + h(r.hoa_don) + '">' +
+      '<div class="hub-i" style="background:' + m[0] + '">' + m[3] + '</div>' +
+      '<div class="hub-t"><div class="t1">' + h(r.khach || '(chưa có khách)') + '</div>' +
+      '<div class="t2">' + h(r.hoa_don) + ' · ' + hsNgayVn(String(r.ngay).slice(0, 10)) + (r.nguon ? ' · ' + h(r.nguon) : '') + '</div>' +
+      '<div class="t2" style="color:' + m[2] + '">' + h(r.nhac) + '</div></div>' +
+      '<b style="white-space:nowrap">' + money(r.tong) + ' đ</b></div>';
+  });
+  html += '</div>';
+
+  html += '<div style="font-size:12px;color:#98a2b3;padding:12px 4px;line-height:1.6">' +
+    'Sửa phương thức trên hoá đơn xong thì vào Đối soát COD bấm lại, số COD sẽ tự tính lại theo phương thức mới.</div>';
+
+  var b = frame('Cảnh báo thanh toán', html, {});
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cbn]'), function (el) {
+    el.onclick = function () { cbNgay = +el.getAttribute('data-cbn'); go(scrCanhBaoTT, true); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cbl]'), function (el) {
+    el.onclick = function () { cbLoai = el.getAttribute('data-cbl') || null; go(scrCanhBaoTT, true); };
+  });
+  b.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-cbhd]'); if (!r) return;
+    go(function () { scrDsView(r.getAttribute('data-cbhd'), true); });
   });
 }
 
