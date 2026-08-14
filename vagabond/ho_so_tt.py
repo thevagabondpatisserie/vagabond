@@ -34,9 +34,16 @@ from vagabond.lib import cfg
 
 # Bốn vai được đụng tới hồ sơ. Thu mua lập, kế toán duyệt cấp một, giám đốc
 # duyệt cấp hai. System Manager có hết vì đó là anh Việt.
+#
+# Sửa 14/08/2026: trước đây VAI_GD nhận cả "Accounts Manager". Chị Dung mang
+# vai đó, mà anh Việt lại vừa cho chị lập hồ sơ được bỏ qua bước FIN, nên
+# chị vừa lập vừa duyệt cấp cuối được cho chính tờ mình lập - hai cấp duyệt
+# coi như không còn. Giờ cấp giám đốc chỉ nhận vai "AP Giám đốc" (anh Việt
+# và Dễ đang giữ), còn "Vagabond Giam doc" trong mã cũ vốn là vai KHÔNG TỒN
+# TẠI trên site nên chưa bao giờ khớp với ai.
 VAI_LAP = {"Purchase User", "Purchase Manager", "Accounts User", "Accounts Manager", "System Manager"}
-VAI_FIN = {"Accounts User", "Accounts Manager", "System Manager"}
-VAI_GD = {"Accounts Manager", "System Manager", "Vagabond Giam doc"}
+VAI_FIN = {"Accounts User", "Accounts Manager", "AP Kiểm soát (FIN)", "System Manager"}
+VAI_GD = {"AP Giám đốc", "System Manager"}
 
 # Ba loai ho so, khac nhau ca ve chung tu lan ve duong tien:
 #   NCC        - cong ty no nha cung cap, tra thang cho ho tu MB

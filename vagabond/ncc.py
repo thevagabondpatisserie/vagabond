@@ -27,7 +27,7 @@ from frappe.utils import add_days, cint, flt, getdate, nowdate
 # nha cung cap la thong tin nhay cam, khong mo cho ca tiem.
 QUYEN_NCC = {
 	"System Manager", "Accounts Manager", "Accounts User",
-	"Purchase User", "Purchase Manager", "Vagabond Giam doc",
+	"Purchase User", "Purchase Manager", "AP Giám đốc",
 }
 
 
