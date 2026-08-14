@@ -10762,7 +10762,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '157';
+var APPVER = '158';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18397,7 +18397,9 @@ async function scrCanhBaoTT() {
   html += '</div>';
 
   html += '<div style="font-size:12px;color:#98a2b3;padding:12px 4px;line-height:1.6">' +
-    'Sửa phương thức trên hoá đơn xong thì vào Đối soát COD bấm lại, số COD sẽ tự tính lại theo phương thức mới.</div>';
+    'Sửa phương thức trên hoá đơn xong thì vào Đối soát COD bấm lại, số COD sẽ tự tính lại theo phương thức mới.' +
+    (d.bo_qua_nhap_lieu ? '<br><br>Đã bỏ qua ' + d.bo_qua_nhap_lieu + ' tờ nhập từ đợt chuyển dữ liệu Fabi. Những tờ đó không có phương thức vì bên Fabi không có trường này, không phải Sales chọn thiếu.' : '') +
+    '</div>';
 
   var b = frame('Cảnh báo thanh toán', html, {});
   Array.prototype.forEach.call(document.querySelectorAll('[data-cbn]'), function (el) {
