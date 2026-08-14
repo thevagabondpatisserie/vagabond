@@ -272,7 +272,7 @@ def danh_sach(chip=None, tu_khoa=None, nhom=None):
 		"Asset",
 		filters={"company": cty, "docstatus": ["<", 2]},
 		fields=[
-			"name", "asset_name", "asset_category", "gross_purchase_amount",
+			"name", "asset_name", "asset_category", "purchase_amount",
 			"available_for_use_date", "status", "docstatus", "location",
 			"custodian", "asset_quantity", "opening_accumulated_depreciation",
 		],
@@ -289,7 +289,7 @@ def danh_sach(chip=None, tu_khoa=None, nhom=None):
 				(r["name"],),
 			)[0][0] or 0
 		) + flt(r.get("opening_accumulated_depreciation"))
-		r["con_lai"] = flt(r["gross_purchase_amount"]) - r["da_khau_hao"]
+		r["con_lai"] = flt(r["purchase_amount"]) - r["da_khau_hao"]
 		n = _nhom_cua(r.get("asset_category"))
 		r["icon"] = n["icon"] if n else "📦"
 		r["bo_phan"] = n["bo_phan"] if n else ""
@@ -325,7 +325,7 @@ def danh_sach(chip=None, tu_khoa=None, nhom=None):
 		"rows": rows,
 		"dem": dem,
 		"tat_ca": tat_ca,
-		"tong_nguyen_gia": sum(flt(r["gross_purchase_amount"]) for r in rows),
+		"tong_nguyen_gia": sum(flt(r["purchase_amount"]) for r in rows),
 		"tong_con_lai": sum(flt(r["con_lai"]) for r in rows),
 		"nhom": [
 			{"k": n["k"], "ten": n["ten"], "icon": n["icon"], "mo_ta": n["mo_ta"],
@@ -343,7 +343,7 @@ def chi_tiet(ma):
 	_kiem(QUYEN_XEM, "xem tài sản")
 	d = frappe.db.get_value(
 		"Asset", ma,
-		["name", "asset_name", "asset_category", "gross_purchase_amount", "status",
+		["name", "asset_name", "asset_category", "purchase_amount", "status",
 		 "available_for_use_date", "purchase_date", "location", "custodian",
 		 "docstatus", "opening_accumulated_depreciation", "cost_center"],
 		as_dict=True,
@@ -369,9 +369,9 @@ def chi_tiet(ma):
 		"icon": n["icon"] if n else "📦",
 		"bo_phan": n["bo_phan"] if n else "",
 		"la_ccdc": 1 if (n and n["k"] == "ccdc") else 0,
-		"nguyen_gia": flt(d.gross_purchase_amount),
+		"nguyen_gia": flt(d.purchase_amount),
 		"da_khau_hao": da,
-		"con_lai": flt(d.gross_purchase_amount) - da,
+		"con_lai": flt(d.purchase_amount) - da,
 		"trang_thai": d.status,
 		"ngay_dung": d.available_for_use_date,
 		"ngay_mua": d.purchase_date,
@@ -424,6 +424,19 @@ def khai(ten, nhom, nguyen_gia, ngay_dung, so_nam=None, noi_de=None,
 	if so_thang < 1:
 		frappe.throw("Số năm sử dụng phải lớn hơn 0.")
 
+	# ERPNext v16 doi so ky da trich khi co so du dau ky, khong thi no dung
+	# lich khau hao tu dau va tinh trung phan da trich ngoai he.
+	moi_ky = nguyen_gia / so_thang if so_thang else 0
+	so_ky_da = int(round(da / moi_ky)) if moi_ky else 0
+	if so_ky_da > so_thang:
+		so_ky_da = so_thang
+
+	# Ngay khau hao ky DAU TIEN ghi trong he. Tai san mua tu truoc da trich
+	# ngoai he so_ky_da ky roi thi ky dau trong he phai lui di bay nhieu
+	# thang, khong thi ERPNext nem "Vui long sua cac ngay cho phu hop" - va
+	# neu no khong nem thi con te hon, vi lich se trich trung phan da trich.
+	ngay_bat_dau = add_months(getdate(ngay_dung), so_ky_da) if so_ky_da else getdate(ngay_dung)
+
 	d = frappe.get_doc({
 		"doctype": "Asset",
 		"asset_name": (ten or "").strip(),
@@ -432,18 +445,23 @@ def khai(ten, nhom, nguyen_gia, ngay_dung, so_nam=None, noi_de=None,
 		"company": cty,
 		"location": _bao_dam_location(noi_de),
 		"custodian": (nguoi_giu or "").strip() or None,
-		"gross_purchase_amount": nguyen_gia,
+		# ERPNext v16 bat buoc ca ba truong tien nay, thieu mot cai la nem
+		# "Bat buoc nhap So tien Mua Rong". Tiem chua dung chi phi mua hang
+		# phan bo vao tai san nen ba con so bang nhau.
+		"purchase_amount": nguyen_gia,
+		"net_purchase_amount": nguyen_gia,
+		"total_asset_cost": nguyen_gia,
 		"asset_quantity": 1,
 		"purchase_date": getdate(ngay_mua or ngay_dung),
 		"available_for_use_date": getdate(ngay_dung),
-		"is_existing_asset": 1,
 		"opening_accumulated_depreciation": da,
+		"opening_number_of_booked_depreciations": so_ky_da,
 		"calculate_depreciation": 1,
 		"finance_books": [{
 			"depreciation_method": "Straight Line",
 			"total_number_of_depreciations": so_thang,
 			"frequency_of_depreciation": 1,
-			"depreciation_start_date": getdate(ngay_dung),
+			"depreciation_start_date": ngay_bat_dau,
 			"expected_value_after_useful_life": 0,
 		}],
 	})
@@ -544,7 +562,7 @@ def so_tai_san():
 		                       "da_khau_hao": 0.0, "con_lai": 0.0,
 		                       "icon": r.get("icon") or "📦"})
 		g["so_tai_san"] += 1
-		g["nguyen_gia"] += flt(r["gross_purchase_amount"])
+		g["nguyen_gia"] += flt(r["purchase_amount"])
 		g["da_khau_hao"] += flt(r["da_khau_hao"])
 		g["con_lai"] += flt(r["con_lai"])
 	rows = sorted(gom.values(), key=lambda x: -x["nguyen_gia"])
