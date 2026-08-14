@@ -783,7 +783,8 @@ async function scrHome() {
        thu mua va giam doc - gia mua la thong tin nhay cam. */
     (coQuyenMua()
       ? card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
-        card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT')
+        card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
+        card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC')
       : '') +
     '</div>';
   if (apRoles) {
@@ -907,6 +908,7 @@ async function scrHome() {
     if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'BTPO') { location.href = '/btp'; return; }
     if (k === 'PAY') return go(scrPayList);
+  if (k === 'NCC') return go(scrNcc);
     if (k === 'STOCK') return go(scrStock);
     if (k === 'KIT') return go(scrKitchen);
     if (k === 'MFG') return go(scrMfgList);
@@ -980,7 +982,7 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -1263,6 +1265,7 @@ function vgbGo(k) {
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'BTPO') { location.href = '/btp'; return; }
   if (k === 'PAY') return go(scrPayList);
+  if (k === 'NCC') return go(scrNcc);
   if (k === 'STOCK') return go(scrStock);
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
@@ -10703,7 +10706,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '150';
+var APPVER = '151';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -17040,6 +17043,276 @@ async function scrNoiDungCK(hs, ck) {
   });
   document.getElementById('ckDong').onclick = function () { hsCopy(ck.dong_mb, 'cả dòng (' + ck.cot.join(', ') + ')'); };
   document.getElementById('ckVe').onclick = function () { go(function () { scrHoSoTTView(hs.ma); }); };
+}
+
+
+/* ================= DANH MUC NHA CUNG CAP =================
+   Uyen hoi 14/08/2026: "co may mat hang chua gan NCC, em gan NCC o muc nao?"
+
+   Do that truoc khi lam: 515 nha cung cap, 1.451 mat hang mua, ma chi 3 mon
+   co gan nha cung cap. Nen cau hoi that khong phai "bam o dau" ma la "1.448
+   mon kia lam sao gan cho xue". Chi duong bam roi de Uyen ngoi go tay 1.448
+   lan thi do khong phai cau tra loi.
+
+   Vi vay man nay xoay quanh mot y: may da biet san ai ban gi qua don mua va
+   hoa don mua. Bay goi y ra, Uyen tick roi bam gan hang loat. */
+var nccTim = '', nccNhom = null, nccChip = null, nccGanChon = {}, nccChiGoiY = 1;
+
+async function scrNcc() {
+  frame('Nhà cung cấp', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh mục...</div></div>');
+  var kq;
+  var ts = {};
+  if (nccTim) ts.tu_khoa = nccTim;
+  if (nccNhom) ts.nhom = nccNhom;
+  if (nccChip) ts.chip = nccChip;
+  try { kq = await api('vagabond.ncc.danh_sach', ts); }
+  catch (e) { frame('Nhà cung cấp', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  var rows = kq.rows || [], dem = kq.dem || {};
+
+  var html = '<div class="card" style="padding:12px 14px"><input class="tin" id="nccQ" placeholder="Tìm theo tên, mã số thuế, số điện thoại" value="' + h(nccTim) + '" style="margin:0"></div>';
+
+  var CHIP = [
+    ['', '📚 Tất cả', kq.tat_ca],
+    ['dang_mua', '🛒 Đang mua', dem.dang_mua],
+    ['con_no', '💸 Còn nợ', dem.con_no],
+    ['chua_gan_mon', '🔗 Chưa gán mặt hàng', dem.chua_gan_mon],
+    ['thieu_ho_so', '⚠️ Thiếu MST hoặc email', dem.thieu_ho_so],
+    ['da_tat', '🚫 Đã tắt', dem.da_tat]
+  ];
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(CHIP.map(function (x) {
+    return posChipNut('data-nccc="' + x[0] + '"', x[1] + ' · ' + (x[2] || 0), (nccChip || '') === x[0]);
+  }).join('')) + '</div>';
+
+  if ((kq.nhom || []).length) {
+    html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
+      [['', '🏷 Mọi nhóm']].concat((kq.nhom || []).map(function (n) { return [n, n]; })).map(function (x) {
+        return posChipNut('data-nccn="' + h(x[0]) + '"', h(x[1]), (nccNhom || '') === x[0]);
+      }).join('')) + '</div>';
+  }
+
+  html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
+    '<div style="font-size:11.5px;color:#0f766e;font-weight:800">THEO BỘ LỌC</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
+    '<span style="font-size:13.5px;color:#374151">' + rows.length + ' nhà cung cấp</span>' +
+    '<b style="font-size:19px;color:#0f766e">còn nợ ' + money(kq.tong_con_no) + ' đ</b></div></div>';
+
+  html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+    '<button class="btn" id="nccGan" style="flex:2;margin:0">🔗 Gán NCC cho mặt hàng</button>' +
+    '<button class="btn gh" id="nccXuat" style="flex:1;margin:0">📊 Excel</button></div>';
+
+  html += '<div class="sec">Danh sách · bấm để xem hồ sơ</div><div class="card">';
+  if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🏭</div><div>Không có nhà cung cấp nào khớp bộ lọc.</div></div>';
+  rows.slice(0, 200).forEach(function (r) {
+    html += '<div class="hub" data-ncc="' + h(r.name) + '">' +
+      '<div class="hub-i" style="background:' + (r.con_no > 0 ? '#fef2f2' : '#f0fdf4') + '">' + (r.disabled ? '🚫' : '🏭') + '</div>' +
+      '<div class="hub-t"><div class="t1">' + h(r.supplier_name || r.name) + '</div>' +
+      '<div class="t2">' + h(r.name) + (r.tax_id ? ' · MST ' + h(r.tax_id) : ' · chưa có MST') + (r.sdt ? ' · ' + h(r.sdt) : '') + '</div>' +
+      '<div class="t2">' + r.so_mon + ' mặt hàng đã gán' + (r.mua_cuoi ? ' · mua gần nhất ' + hsNgayVn(r.mua_cuoi) : ' · chưa mua lần nào') + '</div>' +
+      '</div>' + (r.con_no > 0 ? '<b style="white-space:nowrap;color:#b3261e">' + money(r.con_no) + ' đ</b>' : '') + '</div>';
+  });
+  if (rows.length > 200) html += '<div style="padding:10px 14px;font-size:12.5px;color:#6b7280">Còn ' + (rows.length - 200) + ' nhà nữa, gõ vào ô tìm để lọc bớt.</div>';
+  html += '</div>';
+
+  var b = frame('Nhà cung cấp', html, {});
+  var q = document.getElementById('nccQ');
+  if (q) q.onchange = function () { nccTim = q.value.trim(); go(scrNcc, true); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-nccc]'), function (el) {
+    el.onclick = function () { nccChip = el.getAttribute('data-nccc') || null; go(scrNcc, true); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-nccn]'), function (el) {
+    el.onclick = function () { nccNhom = el.getAttribute('data-nccn') || null; go(scrNcc, true); };
+  });
+  b.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-ncc]'); if (!r) return;
+    var m = r.getAttribute('data-ncc');
+    go(function () { scrNccXem(m); });
+  });
+  document.getElementById('nccGan').onclick = function () { nccGanChon = {}; go(scrNccGan); };
+  document.getElementById('nccXuat').onclick = async function () {
+    busy(true);
+    try {
+      var t = {}; if (nccTim) t.tu_khoa = nccTim; if (nccNhom) t.nhom = nccNhom; if (nccChip) t.chip = nccChip;
+      var fl = await api('vagabond.ncc.xuat_excel', t);
+      busy(false); bcTaiVe(fl.ten_file, fl.b64); toast('Đã tải ' + fl.ten_file);
+    } catch (er) { busy(false); baoTin((er && er.message) || 'Xuất Excel lỗi'); }
+  };
+}
+
+async function scrNccXem(ma) {
+  frame('Nhà cung cấp', '<div class="emp"><div class="e1">⏳</div><div>Đang mở hồ sơ...</div></div>');
+  var d;
+  try { d = await api('vagabond.ncc.chi_tiet', { ncc: ma }); }
+  catch (e) { frame('Nhà cung cấp', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>'); return; }
+  var n = d.ncc;
+
+  var o = function (nhan, gt) {
+    return '<div style="display:flex;gap:10px;padding:5px 0;font-size:13px">' +
+      '<span style="color:#6b7280;flex:0 0 42%">' + nhan + '</span>' +
+      '<b style="flex:1;min-width:0;word-break:break-word">' + h(gt || '-') + '</b></div>';
+  };
+  var html = '<div class="card" style="padding:14px">' +
+    '<div style="font-size:17px;font-weight:800;color:#0f766e">' + h(n.ten) + '</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">' + h(n.ma) + (n.tat ? ' · đã tắt' : '') + '</div></div>';
+
+  html += '<div class="sec">Hồ sơ</div><div class="card" style="padding:10px 14px">' +
+    o('Nhóm', n.nhom) + o('Mã số thuế', n.mst) + o('Điện thoại', n.sdt) +
+    o('Email', n.email) + o('Địa chỉ', n.dia_chi) +
+    o('Mã NCC nội bộ', n.ma_ncc) + o('Mã iPOS', n.ma_ipos) +
+    o('Kênh đặt hàng', n.kenh) + o('Không chịu VAT', n.khong_vat ? 'Có' : 'Không') + '</div>';
+
+  html += '<div class="sec">' + d.so_mon_gan + ' mặt hàng đã gán cho nhà này</div><div class="card">';
+  if (!d.mon_gan.length) html += '<div class="emp" style="padding:20px"><div class="e1">🔗</div><div>Chưa gán mặt hàng nào. Xem mục dưới, máy đã dò ra những món từng mua của nhà này.</div></div>';
+  d.mon_gan.forEach(function (x) {
+    html += '<div class="hub" style="cursor:default"><div class="hub-i">📦</div>' +
+      '<div class="hub-t"><div class="t1">' + h(x.ten) + '</div>' +
+      '<div class="t2">' + h(x.ma) + (x.dvt ? ' · ' + h(x.dvt) : '') + (x.ma_ncc ? ' · mã bên NCC ' + h(x.ma_ncc) : '') + '</div></div>' +
+      '<button class="btn gh" data-nccbo="' + h(x.ma) + '" style="margin:0;padding:5px 10px;font-size:12px">Gỡ</button></div>';
+  });
+  html += '</div>';
+
+  if (d.tung_mua.length) {
+    html += '<div class="sec">' + d.so_tung_mua + ' món đã từng mua của nhà này nhưng chưa gán</div>' +
+      '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
+      'Máy dò từ hoá đơn mua đã ghi sổ. Bấm <b>Gán hết</b> để gắn cả ' + d.so_tung_mua + ' món này cho nhà cung cấp, sau này lập đơn mua sẽ tự gợi ý đúng nhà.' +
+      '<button class="btn" id="nccGanHet" style="margin-top:10px">🔗 Gán hết ' + d.so_tung_mua + ' món</button></div>';
+    html += '<div class="card">';
+    d.tung_mua.slice(0, 60).forEach(function (x) {
+      html += '<div class="hub" style="cursor:default"><div class="hub-i">🧾</div>' +
+        '<div class="hub-t"><div class="t1">' + h(x.ten) + '</div>' +
+        '<div class="t2">' + h(x.ma) + ' · mua ' + x.so_lan + ' lần · lần cuối ' + hsNgayVn(x.ngay) + '</div></div>' +
+        '<b style="white-space:nowrap">' + money(x.gia) + ' đ</b></div>';
+    });
+    if (d.tung_mua.length > 60) html += '<div style="padding:10px 14px;font-size:12.5px;color:#6b7280">Còn ' + (d.tung_mua.length - 60) + ' món nữa.</div>';
+    html += '</div>';
+  }
+
+  var b = frame(n.ten.slice(0, 28), html, {});
+  b.addEventListener('click', async function (e) {
+    var g = e.target.closest('[data-nccbo]');
+    if (g) {
+      var mon = g.getAttribute('data-nccbo');
+      if (!await hoiCo('Gỡ gán', 'Gỡ nhà cung cấp này khỏi mặt hàng ' + mon + '?', 'Gỡ', true)) return;
+      busy(true);
+      try { await api('vagabond.ncc.bo_gan', { mon: mon, ncc: ma }); busy(false); toast('Đã gỡ'); }
+      catch (er) { busy(false); return baoTin((er && er.message) || 'Gỡ lỗi'); }
+      return go(function () { scrNccXem(ma); }, true);
+    }
+  });
+  var gh = document.getElementById('nccGanHet');
+  if (gh) gh.onclick = async function () {
+    if (!await hoiCo('Gán hàng loạt', 'Gán ' + d.so_tung_mua + ' món này cho ' + n.ten + '?\n\nMáy dò từ hoá đơn mua đã ghi sổ nên gần như chắc đúng. Gán nhầm thì gỡ lại được.', 'Gán hết')) return;
+    busy(true);
+    try {
+      var kq = await api('vagabond.ncc.gan_hang_loat', { cap: JSON.stringify(d.tung_mua.map(function (x) { return { mon: x.ma, ncc: ma }; })) });
+      busy(false);
+      toast('Đã gán ' + kq.da_gan + ' món' + (kq.so_loi ? ', ' + kq.so_loi + ' món lỗi' : ''), 4000);
+      if (kq.so_loi) baoTin('Có ' + kq.so_loi + ' món không gán được:\n' + (kq.loi || []).join('\n'), 'Gán nhà cung cấp');
+    } catch (er) { busy(false); return baoTin((er && er.message) || 'Gán lỗi'); }
+    go(function () { scrNccXem(ma); }, true);
+  };
+}
+
+/* Man tra loi thang cau hoi cua Uyen: mat hang nao chua gan, gan o day. */
+async function scrNccGan() {
+  frame('Gán nhà cung cấp', '<div class="emp"><div class="e1">⏳</div><div>Đang dò lịch sử mua...</div></div>');
+  var d;
+  try { d = await api('vagabond.ncc.mon_chua_gan', { chi_co_goi_y: nccChiGoiY ? 1 : 0, gioi_han: 300 }); }
+  catch (e) { frame('Gán nhà cung cấp', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  var rows = d.rows || [];
+  var soChon = Object.keys(nccGanChon).length;
+
+  var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
+    'Còn <b>' + d.tong_chua_gan + '</b> mặt hàng chưa gán nhà cung cấp. Máy đã dò đơn mua và hoá đơn mua để đoán ai bán món nào: ' +
+    '<b>' + d.co_goi_y + '</b> món có gợi ý, <b>' + d.khong_goi_y + '</b> món chưa từng mua nên phải gán tay.<br>' +
+    'Bấm vào một dòng để chọn nhà cung cấp máy gợi ý, rồi bấm nút dưới cùng để gán cả loạt.</div>';
+
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    [[1, '💡 Chỉ món có gợi ý'], [0, '📋 Xem hết']].map(function (x) {
+      return posChipNut('data-nccgy="' + x[0] + '"', x[1], (nccChiGoiY ? 1 : 0) === x[0]);
+    }).join('')) + '</div>';
+
+  html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
+    '<div style="font-size:11.5px;color:#92400e;font-weight:800">ĐANG CHỌN</div>' +
+    '<div style="font-size:20px;font-weight:800;color:#92400e;margin-top:3px">' + soChon + ' mặt hàng</div></div>';
+
+  html += '<div class="sec">Mặt hàng chưa gán · bấm để chọn nhà cung cấp</div><div class="card">';
+  if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🎉</div><div>Không còn mặt hàng nào trong nhóm này.</div></div>';
+  rows.forEach(function (x) {
+    var chon = nccGanChon[x.ma];
+    html += '<div class="hub" data-nccm="' + h(x.ma) + '"' + (chon ? ' style="background:#dbeafe"' : '') + '>' +
+      '<div class="hub-i">' + (chon ? '☑️' : (x.goi_y.length ? '💡' : '⬜')) + '</div>' +
+      '<div class="hub-t"><div class="t1">' + h(x.ten) + '</div>' +
+      '<div class="t2">' + h(x.ma) + (x.dvt ? ' · ' + h(x.dvt) : '') + '</div>' +
+      (chon
+        ? '<div class="t2" style="color:#1d4ed8;font-weight:700">→ ' + h(chon.ten_ncc) + '</div>'
+        : (x.goi_y.length
+          ? '<div class="t2" style="color:#0e7490">gợi ý: ' + h(x.goi_y[0].ten_ncc) + ' · mua ' + x.goi_y[0].so_lan + ' lần</div>'
+          : '<div class="t2" style="color:#b45309">chưa từng mua, phải chọn tay</div>')) +
+      '</div></div>';
+  });
+  if (d.da_cat_bot) html += '<div style="padding:10px 14px;font-size:12.5px;color:#6b7280">Còn ' + d.da_cat_bot + ' món nữa, gán bớt rồi mở lại màn này.</div>';
+  html += '</div>';
+
+  var foot = soChon
+    ? '<div style="display:flex;gap:8px"><button class="btn" id="nccLuu" style="flex:2">🔗 Gán ' + soChon + ' mặt hàng</button>' +
+      '<button class="btn gh" id="nccBo" style="flex:1">✖ Bỏ chọn</button></div>'
+    : '';
+  var b = frame('Gán nhà cung cấp', html, foot ? { footer: foot } : {});
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-nccgy]'), function (el) {
+    el.onclick = function () { nccChiGoiY = +el.getAttribute('data-nccgy'); go(scrNccGan, true); };
+  });
+  b.addEventListener('click', async function (e) {
+    var r = e.target.closest('[data-nccm]'); if (!r) return;
+    var ma = r.getAttribute('data-nccm');
+    var mon = rows.filter(function (x) { return x.ma === ma; })[0];
+    if (!mon) return;
+    if (nccGanChon[ma]) { delete nccGanChon[ma]; return go(scrNccGan, true); }
+    var lua = mon.goi_y.map(function (g) {
+      return { k: g.ncc, icon: '🏭', nhan: g.ten_ncc,
+        mo_ta: 'Đã mua ' + g.so_lan + ' lần, gần nhất ' + hsNgayVn(g.ngay) + ' giá ' + money(g.gia) + ' đ (theo ' + g.nguon + ')' };
+    });
+    lua.push({ k: '__tim', icon: '🔎', nhan: 'Chọn nhà cung cấp khác', mo_ta: 'Gõ tên để tìm trong danh mục' });
+    var c = await hoiChon(mon.ten, 'Mặt hàng ' + mon.ma, lua);
+    if (!c) return;
+    if (c === '__tim') {
+      var tu = await hoiChu('Tìm nhà cung cấp', 'Gõ một phần tên nhà cung cấp:', '', { bat_buoc: true });
+      if (!tu) return;
+      busy(true);
+      var ds;
+      try { ds = await api('vagabond.ncc.danh_sach', { tu_khoa: tu }); } catch (er) { busy(false); return baoTin((er && er.message) || 'Tìm lỗi'); }
+      busy(false);
+      var tim = (ds.rows || []).slice(0, 8);
+      if (!tim.length) return baoTin('Không tìm thấy nhà cung cấp nào khớp "' + tu + '".', 'Tìm nhà cung cấp');
+      var c2 = await hoiChon('Chọn nhà cung cấp', tim.length + ' nhà khớp', tim.map(function (t) {
+        return { k: t.name, icon: '🏭', nhan: t.supplier_name || t.name, mo_ta: t.tax_id ? 'MST ' + t.tax_id : '' };
+      }));
+      if (!c2) return;
+      var t2 = tim.filter(function (t) { return t.name === c2; })[0];
+      nccGanChon[ma] = { ncc: c2, ten_ncc: (t2 && (t2.supplier_name || t2.name)) || c2 };
+    } else {
+      var g = mon.goi_y.filter(function (x) { return x.ncc === c; })[0];
+      nccGanChon[ma] = { ncc: c, ten_ncc: (g && g.ten_ncc) || c };
+    }
+    go(scrNccGan, true);
+  });
+  var bo = document.getElementById('nccBo');
+  if (bo) bo.onclick = function () { nccGanChon = {}; go(scrNccGan, true); };
+  var luu = document.getElementById('nccLuu');
+  if (luu) luu.onclick = async function () {
+    var cap = Object.keys(nccGanChon).map(function (m) { return { mon: m, ncc: nccGanChon[m].ncc }; });
+    if (!cap.length) return;
+    if (!await hoiCo('Gán nhà cung cấp', 'Gán ' + cap.length + ' mặt hàng cho nhà cung cấp đã chọn?\n\nGán nhầm thì vào hồ sơ nhà cung cấp gỡ lại được.', 'Gán')) return;
+    busy(true);
+    try {
+      var kq = await api('vagabond.ncc.gan_hang_loat', { cap: JSON.stringify(cap) });
+      busy(false);
+      nccGanChon = {};
+      toast('Đã gán ' + kq.da_gan + ' mặt hàng' + (kq.so_loi ? ', ' + kq.so_loi + ' lỗi' : ''), 4000);
+      if (kq.so_loi) baoTin('Có ' + kq.so_loi + ' món không gán được:\n' + (kq.loi || []).join('\n'), 'Gán nhà cung cấp');
+    } catch (er) { busy(false); return baoTin((er && er.message) || 'Gán lỗi'); }
+    go(scrNccGan, true);
+  };
 }
 
 })();
