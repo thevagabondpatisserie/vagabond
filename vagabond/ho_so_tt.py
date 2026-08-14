@@ -1747,3 +1747,123 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 		"ten_file": "ho-so-thanh-toan-%s.xlsx" % nowdate(),
 		"b64": base64.b64encode(noi_dung).decode(),
 	}
+
+
+# ------------------------------------------- Tim giao dich de khop tay
+
+
+@frappe.whitelist()
+def tim_giao_dich(tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0, tai_khoan=None):
+	"""Tra cuu giao dich ngan hang de kế toán tự khớp tay vào hồ sơ.
+
+	Anh Việt 14/08/2026, về hai hồ sơ mang mã SePay cũ không dò được:
+	*"tạo chức năng tìm kiếm giao dịch để khớp thủ công được không em? Sao em
+	không đề xuất phương án nữa vậy?"*
+
+	Vì sao cần: mã giao dịch trên hồ sơ được gõ tay hoặc lấy từ đợt đồng bộ
+	SePay cũ, nên có tờ mang mã mà bảng Bank Transaction hiện tại không có.
+	Trước đây gặp vậy thì chịu, không có đường nào nối lại. Màn này bày mọi
+	giao dịch ra cho kế toán tự tìm theo số tiền, theo ngày, theo nội dung,
+	rồi gán thẳng.
+
+	Chỉ ĐỌC và GÁN MÃ. Không sinh bút toán, không đụng vào sổ - việc ghi sổ
+	vẫn đi đường cũ qua danh_dau_da_tra.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "tra cứu giao dịch ngân hàng")
+	dk = {
+		"date": [">=", add_days(nowdate(), -int(so_ngay or 120))],
+		"docstatus": ["<", 2],
+	}
+	if tai_khoan:
+		dk["bank_account"] = tai_khoan
+	rows = frappe.get_all(
+		"Bank Transaction",
+		filters=dk,
+		fields=[
+			"name", "date", "description", "deposit", "withdrawal",
+			"bank_account", "reference_number", "status",
+		],
+		order_by="date desc, creation desc",
+		limit_page_length=0,
+	)
+	da_gom = _gd_da_gom()
+	k = (tu_khoa or "").strip().lower()
+	muc = flt(so_tien) if so_tien else 0.0
+	ra = []
+	for r in rows:
+		ma = (r.get("reference_number") or r.get("name") or "").strip()
+		tien = flt(r.get("withdrawal")) or flt(r.get("deposit"))
+		if muc and abs(tien - muc) > 1:
+			continue
+		if k and k not in (r.get("description") or "").lower() and k not in ma.lower():
+			continue
+		daco = ma in da_gom or (r.get("name") or "") in da_gom
+		if cint(chi_chua_gom) and daco:
+			continue
+		ra.append({
+			"ma": ma or r["name"],
+			"ten_ban_ghi": r["name"],
+			"ngay": str(r["date"] or ""),
+			"noi_dung": (r.get("description") or "")[:300],
+			"chi": flt(r.get("withdrawal")),
+			"thu": flt(r.get("deposit")),
+			"tien": tien,
+			"tai_khoan": r.get("bank_account") or "",
+			"da_gom": 1 if daco else 0,
+		})
+	return {
+		"rows": ra[:300],
+		"tong": len(ra),
+		"con_nua": max(0, len(ra) - 300),
+		"tai_khoan_quy": _bank_account_quy(),
+		"sua_duoc": 1 if (VAI_FIN & _vai()) else 0,
+	}
+
+
+@frappe.whitelist()
+def gan_giao_dich(name, ma_giao_dich, dong=None):
+	"""Gán tay một mã giao dịch ngân hàng vào hồ sơ hoặc vào một dòng.
+
+	dong: idx của dòng cần gán. Bỏ trống thì gán vào ô mã giao dịch của cả
+	hồ sơ (dùng cho hồ sơ đã thanh toán mà mã cũ không dò ra).
+	"""
+	_kiem(VAI_FIN, "gán mã giao dịch")
+	ma_gd = (ma_giao_dich or "").strip()
+	if not ma_gd:
+		frappe.throw("Chưa chọn giao dịch nào.")
+	doc = frappe.get_doc("Vagabond Ho So TT", name)
+
+	# Một giao dịch chỉ được nằm ở một chỗ. Chặn ở đây chứ không chỉ ở
+	# validate của dòng, vì đường này gán thẳng vào hồ sơ cha.
+	trung = frappe.db.sql(
+		"""select p.name from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where d.ma_giao_dich = %s and p.name != %s""",
+		(ma_gd, name),
+	)
+	if trung:
+		frappe.throw("Giao dịch %s đã nằm trong hồ sơ %s." % (ma_gd, trung[0][0]))
+	trung2 = frappe.db.get_value(
+		"Vagabond Ho So TT", {"ma_giao_dich": ma_gd, "name": ["!=", name]}, "name"
+	)
+	if trung2:
+		frappe.throw("Giao dịch %s đã gán cho hồ sơ %s." % (ma_gd, trung2))
+
+	if dong:
+		idx = cint(dong)
+		hang = [d for d in doc.dong if d.idx == idx]
+		if not hang:
+			frappe.throw("Không thấy dòng số %s trong hồ sơ." % dong)
+		hang[0].ma_giao_dich = ma_gd
+		cho = "dòng %s" % idx
+	else:
+		doc.ma_giao_dich = ma_gd
+		cho = "hồ sơ"
+	doc.flags.ignore_validate_update_after_submit = True
+	doc.save(ignore_permissions=True)
+	doc.add_comment(
+		"Comment",
+		"Khớp tay giao dịch %s vào %s, người làm %s"
+		% (ma_gd, cho, frappe.session.user),
+	)
+	return {"ok": 1, "loi_nhan": "Đã gán giao dịch %s vào %s %s." % (ma_gd, cho, name)}

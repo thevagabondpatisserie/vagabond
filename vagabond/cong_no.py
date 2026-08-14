@@ -22,9 +22,28 @@ from frappe.utils import add_days, flt, getdate, nowdate
 from vagabond.ban_hang import _kiem_quyen
 from vagabond import tai_khoan
 
-# Ma phieu doi no: CN + 6 ky tu. Tach han khong gian ma voi bill quay
-# (VGB + 5) de khong bao gio khop nham sang nhau.
+# Ma phieu yeu cau thanh toan.
+#
+# Doi 14/08/2026 theo anh Viet: truoc day la CN + 6 ky tu ngau nhien
+# (CNNGRJJF). Ma ngau nhien doc len khong biet cua thang nao, ma khach si
+# thi giu to phieu ca thang moi tra. Nay theo thang: DNTT-26-08-00001.
+#
+# Ma CU VAN PHAI KHOP: nhung phieu da gui cho khach truoc hom nay van dang
+# mang ma CNxxxxxx, khach chuyen theo noi dung do. Bo mau cu di la tien ve
+# khong ai nhan ra.
 RE_MA_CN = re.compile(r"CN[A-Z0-9]{6}")
+RE_MA_DNTT = re.compile(r"DNTT[0-9]{9}")
+TIEN_TO_DNTT = "DNTT"
+
+
+def _chuan_ma(chuoi):
+	"""Bo moi ky tu khong phai chu va so, viet hoa.
+
+	Can vi ma hien tren phieu la "DNTT-26-08-00001" cho de doc, con noi dung
+	chuyen khoan ngan hang tra ve thuong da bi bo dau gach - moi ngan hang
+	xu ly mot kieu. So sanh tren ban da chuan hoa thi kieu nao cung khop.
+	"""
+	return re.sub(r"[^A-Z0-9]", "", str(chuoi or "").upper())
 
 # Ma QR song bao lau. Anh Viet chot 7 ngay: du de ke toan khach si duyet
 # chi, ma khong de mot ma treo mai roi khach chuyen nham vao phieu cu.
@@ -34,15 +53,29 @@ TRANG_THAI_CON_NO = ("Cho thu", "Thu thieu")
 
 
 def _sinh_ma_cn():
-	"""Ma phieu ngan, khong nham lan chu O voi so 0."""
-	chu = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	for _ in range(40):
-		ma = "CN" + "".join(
-			chu[int(c, 16) % len(chu)] for c in frappe.generate_hash(length=6)
-		)
-		if not frappe.db.exists("Vagabond Cong No", ma):
+	"""Ma phieu theo thang: DNTT-26-08-00001.
+
+	Dem theo tien to cua thang chu khong dem tong: sang thang 09 thi so lai
+	chay tu 00001, giong cach ma hoa don HDB va HDM dang chay.
+	"""
+	hn = getdate(nowdate())
+	tien_to = "%s-%02d-%02d-" % (TIEN_TO_DNTT, hn.year % 100, hn.month)
+	cuoi = frappe.db.sql(
+		"""select ma_phieu from `tabVagabond Cong No`
+		where ma_phieu like %s order by ma_phieu desc limit 1""",
+		(tien_to + "%",),
+	)
+	so = 0
+	if cuoi and cuoi[0][0]:
+		duoi = str(cuoi[0][0]).rsplit("-", 1)[-1]
+		if duoi.isdigit():
+			so = int(duoi)
+	for _ in range(50):
+		so += 1
+		ma = "%s%05d" % (tien_to, so)
+		if not frappe.db.exists("Vagabond Cong No", {"ma_phieu": ma}):
 			return ma
-	frappe.throw("Không sinh được mã phiếu công nợ, thử lại giúp em.")
+	frappe.throw("Không sinh được mã phiếu yêu cầu thanh toán, thử lại giúp em.")
 
 
 def _sepay_theo_ma_cn(ds_ma):
@@ -51,19 +84,26 @@ def _sepay_theo_ma_cn(ds_ma):
 	Khach chuyen khoan voi noi dung chua ma CNxxxxxx, ngan hang tra ve
 	nguyen chuoi do trong description.
 	"""
-	ds_ma = [
-		str(m).strip().upper()
-		for m in (ds_ma or [])
-		if RE_MA_CN.fullmatch(str(m or "").strip().upper())
-	]
-	if not ds_ma:
+	# Khoa tra cuu la ma DA CHUAN HOA, gia tri tra ve van la ma goc de cho
+	# goi khong phai doi lai.
+	theo_chuan = {}
+	for m in ds_ma or []:
+		goc = str(m or "").strip().upper()
+		chuan = _chuan_ma(goc)
+		if RE_MA_CN.fullmatch(chuan) or RE_MA_DNTT.fullmatch(chuan):
+			theo_chuan[chuan] = goc
+	if not theo_chuan:
 		return {}
-	mau = "(%s)" % "|".join(sorted(set(ds_ma)))
+	# Loc so bo o tang SQL cho nhe, roi loc lai chac chan o Python tren ban
+	# da chuan hoa. Loc SQL dung tien to vi dau gach co the bi ngan hang bo.
+	mau = "(%s)" % "|".join(
+		sorted(set(k[:6] for k in theo_chuan))
+	)
 	try:
 		gds = frappe.db.sql(
 			"""select description, deposit, withdrawal
 			from `tabBank Transaction`
-			where docstatus < 2 and description regexp %s""",
+			where docstatus < 2 and upper(description) regexp %s""",
 			mau,
 			as_dict=True,
 		)
@@ -72,10 +112,13 @@ def _sepay_theo_ma_cn(ds_ma):
 		return {}
 	ra = {}
 	for g in gds:
-		for m in RE_MA_CN.findall((g.get("description") or "").upper()):
-			if m not in ds_ma:
+		mo_ta = _chuan_ma(g.get("description"))
+		thay = set(RE_MA_CN.findall(mo_ta)) | set(RE_MA_DNTT.findall(mo_ta))
+		for m in thay:
+			goc = theo_chuan.get(m)
+			if not goc:
 				continue
-			o = ra.setdefault(m, {"nhan": 0.0, "so_gd": 0})
+			o = ra.setdefault(goc, {"nhan": 0.0, "so_gd": 0})
 			o["nhan"] += flt(g.get("deposit")) - flt(g.get("withdrawal"))
 			o["so_gd"] += 1
 	return ra
@@ -437,4 +480,254 @@ def thong_tin_xhd(khach=None):
 		"mst": c.get("tax_id") or "",
 		"dia_chi": dia_chi,
 		"email": email,
+	}
+
+
+# ------------------------------------------------------- Xuat phieu ra PDF
+
+
+def _ngay_vn(v):
+	if not v:
+		return ""
+	d = getdate(v)
+	return "%02d/%02d/%d" % (d.day, d.month, d.year)
+
+
+def _tien_vn(v):
+	return "{:,.0f}".format(flt(v)).replace(",", ".")
+
+
+def _chu_so_tien(so):
+	"""Doc so tien bang chu. Ke toan khach si hay doi dong nay tren to trinh."""
+	so = int(round(flt(so)))
+	if so == 0:
+		return "Không đồng"
+	don_vi = ["", "nghìn", "triệu", "tỷ", "nghìn tỷ"]
+	so_chu = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"]
+
+	def doc_ba(n, day_du):
+		tram, chuc, dv = n // 100, (n // 10) % 10, n % 10
+		ra = []
+		if tram or day_du:
+			ra.append(so_chu[tram] + " trăm")
+		if chuc == 0 and dv and (tram or day_du):
+			ra.append("lẻ")
+		elif chuc == 1:
+			ra.append("mười")
+		elif chuc > 1:
+			ra.append(so_chu[chuc] + " mươi")
+		if dv:
+			if chuc > 1 and dv == 1:
+				ra.append("mốt")
+			elif chuc >= 1 and dv == 5:
+				ra.append("lăm")
+			else:
+				ra.append(so_chu[dv])
+		return " ".join(x for x in ra if x)
+
+	cum = []
+	n = so
+	while n > 0:
+		cum.append(n % 1000)
+		n //= 1000
+	phan = []
+	for i in range(len(cum) - 1, -1, -1):
+		if cum[i] == 0:
+			continue
+		phan.append(doc_ba(cum[i], i != len(cum) - 1) + (" " + don_vi[i] if don_vi[i] else ""))
+	ra = " ".join(phan).strip()
+	return (ra[0].upper() + ra[1:] + " đồng") if ra else "Không đồng"
+
+
+def _phieu_html(name):
+	"""To phieu yeu cau thanh toan gui khach, dung khuon ban in Don mua hang.
+
+	Anh Viet 14/08/2026: *"Thêm nút Xuất phiếu sẽ xuất ra phiếu pdf để gửi
+	cho bên khách với đầy đủ thông tin mà em thấy là hợp lý nhất, biên soạn
+	theo branding của mẫu phiếu PO cho đẹp"*.
+
+	To nay khac han giay de nghi thanh toan ben ho_so_tt: cai kia gui NOI BO
+	de xin duyet chi, cai nay gui RA NGOAI cho khach si. Nen o day khong co
+	o ky duyet hai cap, ma co khoi thong tin chuyen khoan that to va dong
+	so tien bang chu - hai thu ke toan ben khach can de trinh len sep ho.
+	"""
+	d = xem_phieu(name)
+	qr = d.get("qr") or {}
+	esc = frappe.utils.escape_html
+
+	PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
+	VIEN = "1px solid #c9c4bd"
+	o_th = (
+		'style="border:%s;padding:6px 7px;background:#f3f0ec;font-size:10.5px;'
+		'font-weight:bold;text-align:center"' % VIEN
+	)
+
+	def _td(noi, canh="left", dam=False, khong_ngat=False):
+		return (
+			'<td style="border:%s;padding:5px 7px;font-size:10.5px;text-align:%s;%s%s">%s</td>'
+			% (VIEN, canh, "font-weight:bold;" if dam else "",
+			   "white-space:nowrap;" if khong_ngat else "", noi)
+		)
+
+	hang = []
+	for i, x in enumerate(d.get("dong") or [], 1):
+		hang.append(
+			"<tr>"
+			+ _td(str(i), "center")
+			+ _td(_ngay_vn(x.get("ngay")) or "-", "center", khong_ngat=True)
+			+ _td(esc(x.get("hoa_don") or "-"), khong_ngat=True)
+			+ _td(esc(x.get("nguon") or ""))
+			+ _td(_tien_vn(x.get("so_tien")), "right", dam=True, khong_ngat=True)
+			+ "</tr>"
+		)
+	if not hang:
+		hang.append(
+			'<tr><td colspan="5" style="border:%s;padding:10px;text-align:center;'
+			'font-size:10.5px;color:#777">Phiếu chưa có hoá đơn nào.</td></tr>' % VIEN
+		)
+
+	tong = flt(d.get("tong_tien"))
+	da_thu = flt(d.get("sepay"))
+	con_thieu = max(0.0, tong - da_thu)
+
+	cuoi = (
+		'<tr><td colspan="4" style="border:%s;padding:6px 7px;font-size:11px;'
+		'text-align:right;font-weight:bold">TỔNG CỘNG</td>'
+		'<td style="border:%s;padding:6px 7px;font-size:12px;text-align:right;'
+		'white-space:nowrap;font-weight:bold">%s</td></tr>' % (VIEN, VIEN, _tien_vn(tong))
+	)
+	if da_thu > 0:
+		cuoi += (
+			'<tr><td colspan="4" style="border:%s;padding:6px 7px;font-size:11px;'
+			'text-align:right">Đã nhận</td>'
+			'<td style="border:%s;padding:6px 7px;font-size:11px;text-align:right;'
+			'white-space:nowrap">%s</td></tr>'
+			'<tr><td colspan="4" style="border:%s;padding:6px 7px;font-size:11px;'
+			'text-align:right;font-weight:bold">CÒN PHẢI THANH TOÁN</td>'
+			'<td style="border:%s;padding:6px 7px;font-size:12px;text-align:right;'
+			'white-space:nowrap;font-weight:bold">%s</td></tr>'
+			% (VIEN, VIEN, _tien_vn(da_thu), VIEN, VIEN, _tien_vn(con_thieu))
+		)
+
+	def _o_tt(nhan, gt, to=False):
+		return (
+			'<tr><td style="border:none;padding:3px 0;font-size:11px;color:#555;'
+			'width:38%%;vertical-align:top">%s</td>'
+			'<td style="border:none;padding:3px 0;font-size:%s;font-weight:bold;'
+			'vertical-align:top">%s</td></tr>'
+			% (nhan, "14px" if to else "11.5px", gt)
+		)
+
+	khoi_ck = (
+		'<div style="border:2px solid #1c1a17;padding:12px 14px;margin-top:14px">'
+		'<div style="font-size:11px;font-weight:bold;letter-spacing:.5px;'
+		'margin-bottom:7px">THÔNG TIN CHUYỂN KHOẢN</div>'
+		'<table style="width:100%;border:none;border-collapse:collapse">'
+		+ _o_tt("Ngân hàng:", esc(qr.get("bank") or "..............."))
+		+ _o_tt("Số tài khoản:", esc(qr.get("stk") or "..............."), to=True)
+		+ _o_tt("Tên tài khoản:", esc(qr.get("ten") or "..............."))
+		+ _o_tt("Số tiền:", _tien_vn(con_thieu if da_thu > 0 else tong) + " đ", to=True)
+		+ _o_tt("Nội dung chuyển khoản:", esc(d.get("ma_phieu") or ""), to=True)
+		+ "</table>"
+		'<div style="font-size:10px;color:#555;margin-top:8px;line-height:1.5">'
+		"Quý khách vui lòng ghi đúng nội dung chuyển khoản ở trên. Hệ thống đối "
+		"soát tự động theo nội dung này; ghi sai nội dung thì khoản thanh toán "
+		"sẽ không tự khớp được vào công nợ.</div></div>"
+	)
+
+	ben_nhan = (
+		'<table style="width:100%;border:none;border-collapse:collapse">'
+		+ _o_tt("Kính gửi:", esc(d.get("ten_khach") or d.get("khach") or ""), to=True)
+		+ _o_tt("Mã khách hàng:", esc(d.get("khach") or ""))
+		+ _o_tt("Số hoá đơn trong phiếu:", str(len(d.get("dong") or [])))
+		+ _o_tt("Hạn thanh toán:", _ngay_vn(d.get("han_qr")) or "...............")
+		+ "</table>"
+	)
+
+	ghi_chu = ""
+	if (d.get("ghi_chu") or "").strip():
+		ghi_chu = (
+			'<div style="margin-top:12px;font-size:11px"><b>Ghi chú:</b> %s</div>'
+			% esc(d["ghi_chu"])
+		)
+
+	return (
+		'<div style="font-family:%s;color:#1c1a17;font-size:12px;line-height:1.45">'
+		'<table style="width:100%%;border:none;border-collapse:collapse"><tr>'
+		'<td style="border:none;width:45%%;vertical-align:middle">'
+		'<img src="/files/vagabond_logo_print.png" width="150" height="62" '
+		'style="width:150px !important;height:62px !important;object-fit:contain">'
+		"</td>"
+		'<td style="border:none;text-align:right;vertical-align:middle;font-size:9.5px;'
+		'color:#444;line-height:1.5">'
+		'<b style="font-size:10.5px;color:#1c1a17">CÔNG TY TNHH PATISSERIE VAGABOND</b><br>'
+		"MST: 0318561568<br>"
+		"9 Trần Cao Vân, Phường Sài Gòn, TP.HCM<br>"
+		"www.thevagabondpatisserie.com"
+		"</td></tr></table>"
+		'<div style="text-align:center;margin:14px 0 2px">'
+		'<div style="font-size:19px;font-weight:bold;letter-spacing:1px">'
+		"PHIẾU YÊU CẦU THANH TOÁN</div>"
+		'<div style="font-size:11px;color:#555;margin-top:3px">'
+		"Số: <b>%s</b> &nbsp;·&nbsp; Ngày %s</div></div>"
+		"%s"
+		'<table style="width:100%%;border-collapse:collapse;margin-top:12px">'
+		"<tr><th %s>STT</th><th %s>Ngày hoá đơn</th><th %s>Số hoá đơn</th>"
+		"<th %s>Nguồn đơn</th><th %s>Số tiền</th></tr>%s%s</table>"
+		'<div style="margin-top:8px;font-size:11px">Số tiền bằng chữ: '
+		"<i>%s</i></div>"
+		"%s%s"
+		'<table style="width:100%%;border:none;border-collapse:collapse;margin-top:26px">'
+		'<tr><td style="border:none;width:50%%;text-align:center;font-size:11px">'
+		'<b>ĐẠI DIỆN BÊN MUA</b><div style="font-size:10px;color:#666;margin-top:2px">'
+		"(Ký, ghi rõ họ tên)</div>"
+		'<div style="height:58px"></div></td>'
+		'<td style="border:none;width:50%%;text-align:center;font-size:11px">'
+		"<b>THE VAGABOND PÂTISSERIE</b>"
+		'<div style="font-size:10px;color:#666;margin-top:2px">(Ký, ghi rõ họ tên)</div>'
+		'<div style="height:58px"></div>'
+		'<div style="font-size:10.5px">%s</div></td></tr></table>'
+		'<div style="margin-top:14px;font-size:9.5px;color:#777;text-align:center">'
+		"Phiếu này được lập từ hệ thống The Vagabond Pâtisserie. "
+		"Mọi thắc mắc xin liên hệ bộ phận kinh doanh.</div>"
+		"</div>"
+	) % (
+		PHONG,
+		esc(d.get("ma_phieu") or ""), _ngay_vn(d.get("ngay_tao")),
+		ben_nhan,
+		o_th, o_th, o_th, o_th, o_th,
+		"".join(hang), cuoi,
+		_chu_so_tien(con_thieu if da_thu > 0 else tong),
+		khoi_ck, ghi_chu,
+		esc(frappe.db.get_value("User", d.get("nguoi_tao") or frappe.session.user, "full_name") or ""),
+	)
+
+
+@frappe.whitelist()
+def xem_truoc_phieu(name):
+	"""HTML to phieu de xem truoc tren app truoc khi tai PDF."""
+	_kiem_quyen()
+	return {"html": _phieu_html(name)}
+
+
+@frappe.whitelist()
+def xuat_phieu(name):
+	"""To phieu yeu cau thanh toan ra PDF A4 doc de gui khach."""
+	_kiem_quyen()
+	from frappe.utils.pdf import get_pdf
+
+	d = xem_phieu(name)
+	khung = (
+		"<html><head><meta charset='utf-8'>"
+		"<style>@page{margin:12mm 10mm}body{margin:0}</style></head><body>"
+		+ _phieu_html(name)
+		+ "</body></html>"
+	)
+	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
+	import base64
+
+	return {
+		"ten_file": "Phieu-yeu-cau-thanh-toan-%s.pdf" % (d.get("ma_phieu") or name),
+		"b64": base64.b64encode(noi_dung).decode(),
+		"kieu": "application/pdf",
 	}
