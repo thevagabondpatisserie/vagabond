@@ -1,0 +1,26 @@
+{
+ "actions": [],
+ "creation": "2026-08-14 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["moc_vi", "moc_en", "noi_dung_vi", "noi_dung_en", "trach_nhiem"],
+ "fields": [
+  {"fieldname": "moc_vi", "fieldtype": "Data", "label": "Moc thoi gian", "reqd": 1, "in_list_view": 1, "columns": 2},
+  {"fieldname": "moc_en", "fieldtype": "Data", "label": "Timeline", "in_list_view": 1, "columns": 2},
+  {"fieldname": "noi_dung_vi", "fieldtype": "Small Text", "label": "Noi dung", "in_list_view": 1, "columns": 3},
+  {"fieldname": "noi_dung_en", "fieldtype": "Small Text", "label": "Action", "in_list_view": 1, "columns": 3},
+  {"fieldname": "trach_nhiem", "fieldtype": "Select", "label": "Trach nhiem", "options": "Vagabond / Seller\nBên mua / Buyer\nHai bên / Both parties", "default": "Vagabond / Seller", "in_list_view": 1, "columns": 2}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-14 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Bao Gia Moc",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
