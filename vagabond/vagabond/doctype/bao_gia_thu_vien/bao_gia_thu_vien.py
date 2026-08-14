@@ -19,6 +19,23 @@ from frappe.model.document import Document
 
 
 class BaoGiaThuVien(Document):
+	def autoname(self):
+		"""Danh so TVBG-00001. Chuoi "format:TVBG-{#####}" mot minh khong du:
+		Frappe doc rieng tung cap ngoac nen o dem chay voi tien to rong, dung
+		chung bo dem toan he - muc dau tien ra TVBG-00710 chu khong phai
+		00001. Dem chinh cac ban ghi TVBG hien co."""
+		cuoi = frappe.db.sql(
+			"""select name from `tabBao Gia Thu Vien`
+			where name like 'TVBG-%' order by name desc limit 1"""
+		)
+		so = 1
+		if cuoi:
+			try:
+				so = int(str(cuoi[0][0]).rsplit("-", 1)[1]) + 1
+			except Exception:
+				so = 1
+		self.name = "TVBG-%05d" % so
+
 	def validate(self):
 		for f in ("ten_vi", "ten_en", "nhom", "kich_thuoc"):
 			if self.get(f):
