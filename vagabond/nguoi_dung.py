@@ -51,6 +51,7 @@ VAI_NEN = {
 GOI = [
 	{
 		"k": "sales",
+		"bac": 2,
 		"ten": "Bán hàng (Sales)",
 		"icon": "🎂",
 		"mo_ta": "Nhận đơn, lên vận đơn, đối soát COD cuối ngày, tra cứu khách hàng.",
@@ -64,6 +65,7 @@ GOI = [
 	},
 	{
 		"k": "salesql",
+		"bac": 4,
 		"ten": "Quản lý bán hàng",
 		"icon": "👑",
 		"mo_ta": "Như Bán hàng, thêm quyền sửa đơn ngày cũ, khuyến mãi và xem báo cáo.",
@@ -80,6 +82,7 @@ GOI = [
 	},
 	{
 		"k": "bep",
+		"bac": 2,
 		"ten": "Bếp và Sản xuất",
 		"icon": "🧑‍🍳",
 		"mo_ta": "Lệnh sản xuất, bán thành phẩm, kiểm bánh, đặt nguyên liệu.",
@@ -93,6 +96,7 @@ GOI = [
 	},
 	{
 		"k": "kho",
+		"bac": 2,
 		"ten": "Kho và Nhận hàng",
 		"icon": "📦",
 		"mo_ta": "Nhận hàng điều chuyển, đếm kiểm kê, đặt hàng.",
@@ -105,6 +109,7 @@ GOI = [
 	},
 	{
 		"k": "khoql",
+		"bac": 4,
 		"ten": "Quản lý kho",
 		"icon": "🏷️",
 		"mo_ta": "Như Kho, thêm quyền duyệt phiếu xuất và chốt kiểm kê.",
@@ -121,6 +126,7 @@ GOI = [
 	},
 	{
 		"k": "shipper",
+		"bac": 1,
 		"ten": "Shipper",
 		"icon": "🛵",
 		"mo_ta": "Chỉ thấy tuyến giao của mình, xác nhận giao và tiền thu hộ.",
@@ -133,6 +139,7 @@ GOI = [
 	},
 	{
 		"k": "muahang",
+		"bac": 3,
 		"ten": "Thu mua",
 		"icon": "🛒",
 		"mo_ta": "Đơn đặt hàng, danh mục nhà cung cấp, hoá đơn mua, lập hồ sơ thanh toán.",
@@ -146,6 +153,7 @@ GOI = [
 	},
 	{
 		"k": "ketoan",
+		"bac": 5,
 		"ten": "Kế toán",
 		"icon": "🧮",
 		"mo_ta": "Hồ sơ thanh toán, công nợ, đối soát, hoá đơn điện tử, báo cáo.",
@@ -161,6 +169,7 @@ GOI = [
 	},
 	{
 		"k": "ketoantruong",
+		"bac": 6,
 		"ten": "Kế toán trưởng",
 		"icon": "📊",
 		"mo_ta": "Như Kế toán, thêm quyền ghi sổ, huỷ chứng từ và khoá sổ.",
@@ -177,6 +186,7 @@ GOI = [
 	},
 	{
 		"k": "giamdoc",
+		"bac": 7,
 		"ten": "Giám đốc",
 		"icon": "🎩",
 		"mo_ta": "Duyệt chi cấp cuối, xem toàn bộ báo cáo, không sửa chứng từ.",
@@ -189,6 +199,7 @@ GOI = [
 	},
 	{
 		"k": "chucongty",
+		"bac": 9,
 		"ten": "Chủ công ty",
 		"icon": "🔑",
 		"mo_ta": "Toàn quyền, kể cả Cài đặt và màn Quản lý người dùng này.",
@@ -241,8 +252,12 @@ def _vai_cua(email):
 def _doan_goi(vai_nguoi):
 	"""Goi nao khop nhat voi bo vai dang co.
 
-	Khop = du toan bo vai cua goi (trong so vai co that tren site). Neu khop
-	nhieu goi thi lay goi nhieu vai nhat, vi goi lon bao ham goi nho.
+	Khop = du toan bo vai cua goi (trong so vai co that tren site).
+
+	Chon theo BAC truoc, so vai sau. Truoc do chi so sanh so vai nen anh Viet
+	- co System Manager - lai bi doan thanh "Thu mua", vi goi Thu mua co bon
+	vai con goi Chu cong ty chi co hai. Xep nguoi theo so luong vai la sai:
+	quyen nang khong do bang so dong.
 	"""
 	co_that = _vai_co_that()
 	tot = None
@@ -250,9 +265,15 @@ def _doan_goi(vai_nguoi):
 		can = set(g["vai"]) & co_that
 		if not can:
 			continue
-		if can <= vai_nguoi:
-			if tot is None or len(can) > len(set(tot["vai"]) & co_that):
-				tot = g
+		if not (can <= vai_nguoi):
+			continue
+		if tot is None:
+			tot = g
+			continue
+		if (g.get("bac", 0), len(can)) > (
+			tot.get("bac", 0), len(set(tot["vai"]) & co_that)
+		):
+			tot = g
 	return tot
 
 
