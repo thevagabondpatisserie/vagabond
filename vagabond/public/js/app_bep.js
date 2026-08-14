@@ -10785,7 +10785,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '162';
+var APPVER = '163';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18667,6 +18667,14 @@ async function bgCaiDat() {
   return BG_CAI;
 }
 
+/* Lop .h2 khai la ".hub .h2" nen chi an trong mot dong hub. Cac nhan dung
+   roi giua the o man bao gia phai tu dat co chu, khong thi hien to nhu
+   tieu de. */
+/* Lop .tin dat san height 52px, chu 20px dam va can giua - dung cho o go
+   mot dong ngan. O nhieu dong o day la doan van (loi mo dau, dieu khoan)
+   nen phai tra ve chu thuong, can trai, cao theo so dong. */
+var BGTA = 'class="tin" style="height:auto;font-size:15px;font-weight:500;text-align:left;padding:10px 12px;line-height:1.5"';
+var BGNHAN = 'style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:2px"';
 var BGTT_ICON = {
   'Nháp': '📝', 'Đã gửi khách': '📤', 'Khách duyệt': '✅',
   'Khách từ chối': '⛔', 'Hết hiệu lực': '⌛', 'Đã lên hợp đồng': '📑'
@@ -18776,7 +18784,7 @@ async function scrBgXem(name) {
     '</div>';
   var dk = '';
   [['Thanh toán', d.thanh_toan], ['Giao hàng', d.giao_hang], ['Đóng gói', d.dong_goi], ['Ghi chú', d.ghi_chu]].forEach(function (p) {
-    if (p[1]) dk += '<div style="margin-bottom:8px"><div class="h2">' + p[0] + '</div><div style="font-size:13.5px;white-space:pre-wrap">' + h(p[1]) + '</div></div>';
+    if (p[1]) dk += '<div style="margin-bottom:8px"><div ' + BGNHAN + '>' + p[0] + '</div><div style="font-size:13.5px;white-space:pre-wrap">' + h(p[1]) + '</div></div>';
   });
   if (dk) html += '<div class="sec">Điều khoản</div><div class="card" style="padding:12px 14px">' + dk + '</div>';
   if (d.ghi_chu_noi_bo) html += '<div class="sec">Ghi chú nội bộ (không in lên báo giá)</div><div class="card" style="padding:12px 14px;font-size:13.5px;white-space:pre-wrap">' + h(d.ghi_chu_noi_bo) + '</div>';
@@ -18915,7 +18923,7 @@ async function scrBgSua(name) {
     '<div class="hub" data-t="khach" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Khách hàng trong hệ thống</div><div class="h1">' + h(d.khach_hang || 'Chọn khách (để trống nếu khách mới)') + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
     oi('ten_khach', 'Tên công ty khách in lên báo giá (bắt buộc)', d.ten_khach) +
     oi('ma_so_thue', 'Mã số thuế khách', d.ma_so_thue) +
-    '<textarea class="tin" id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
+    '<textarea ' + BGTA + ' id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
     '</div>';
 
   html += '<div class="sec">Người liên hệ bên khách</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
@@ -18976,21 +18984,21 @@ async function scrBgSua(name) {
 
   html += '<div class="sec">Điều khoản in lên báo giá · bấm chip là điền luôn</div>' +
     '<div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
-    '<div class="h2">Lời mở đầu</div><textarea class="tin" id="bgf_loi_mo" rows="3">' + h(d.loi_mo) + '</textarea>' +
-    '<div class="h2">Điều kiện thanh toán</div>' + kmHangChip(chipTt) +
-    '<textarea class="tin" id="bgf_thanh_toan" rows="2">' + h(d.thanh_toan) + '</textarea>' +
-    '<div class="h2">Thời gian và địa điểm giao hàng</div>' + kmHangChip(chipGh) +
-    '<textarea class="tin" id="bgf_giao_hang" rows="2">' + h(d.giao_hang) + '</textarea>' +
-    '<div class="h2">Quy cách đóng gói</div>' + kmHangChip(chipDg) +
-    '<textarea class="tin" id="bgf_dong_goi" rows="2">' + h(d.dong_goi) + '</textarea>' +
-    '<div class="h2">Ghi chú in lên báo giá</div><textarea class="tin" id="bgf_ghi_chu" rows="2">' + h(d.ghi_chu) + '</textarea>' +
+    '<div ' + BGNHAN + '>Lời mở đầu</div><textarea ' + BGTA + ' id="bgf_loi_mo" rows="3">' + h(d.loi_mo) + '</textarea>' +
+    '<div ' + BGNHAN + '>Điều kiện thanh toán</div>' + kmHangChip(chipTt) +
+    '<textarea ' + BGTA + ' id="bgf_thanh_toan" rows="2">' + h(d.thanh_toan) + '</textarea>' +
+    '<div ' + BGNHAN + '>Thời gian và địa điểm giao hàng</div>' + kmHangChip(chipGh) +
+    '<textarea ' + BGTA + ' id="bgf_giao_hang" rows="2">' + h(d.giao_hang) + '</textarea>' +
+    '<div ' + BGNHAN + '>Quy cách đóng gói</div>' + kmHangChip(chipDg) +
+    '<textarea ' + BGTA + ' id="bgf_dong_goi" rows="2">' + h(d.dong_goi) + '</textarea>' +
+    '<div ' + BGNHAN + '>Ghi chú in lên báo giá</div><textarea ' + BGTA + ' id="bgf_ghi_chu" rows="2">' + h(d.ghi_chu) + '</textarea>' +
     '</div>';
 
   html += '<div class="sec">Người lập (in ở góc chữ ký)</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     '<div style="font-size:14px">' + h(d.ten_nguoi_lap || d.nguoi_lap || '') + '</div>' +
     oi('dt_nguoi_lap', 'Điện thoại người lập (in lên báo giá)', d.dt_nguoi_lap, 'tel') +
-    '<div class="h2">Ghi chú nội bộ, không in lên báo giá</div>' +
-    '<textarea class="tin" id="bgf_ghi_chu_noi_bo" rows="2">' + h(d.ghi_chu_noi_bo) + '</textarea></div>';
+    '<div ' + BGNHAN + '>Ghi chú nội bộ, không in lên báo giá</div>' +
+    '<textarea ' + BGTA + ' id="bgf_ghi_chu_noi_bo" rows="2">' + h(d.ghi_chu_noi_bo) + '</textarea></div>';
 
   var b = frame(d.name ? 'Sửa ' + d.name : 'Báo giá mới', html, {
     footer: '<div style="display:flex;gap:8px"><button class="btn gh" id="bgXemPdf" style="margin:0;flex:1">📄 Lưu và xuất PDF</button>' +
