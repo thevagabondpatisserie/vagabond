@@ -1532,86 +1532,133 @@ def xem_to_app(name):
 
 
 def _to_app_html(name):
-	"""Tờ đề nghị thanh toán, dựng đúng theo mẫu Excel Uyên đang lập tay."""
+	"""Tờ đề nghị thanh toán, dựng theo đúng khuôn bản in Đơn mua hàng.
+
+	Anh Việt 14/08/2026: *"em làm theo cái mẫu PO của mình có logo, header,...
+	thì đẹp hơn. Em thử cấu hình lại nhé vì file hiện tại hơi đơn giản"*, và
+	khoanh đỏ yêu cầu **thêm một cột số hoá đơn NCC** tách khỏi cột số hoá
+	đơn nội bộ.
+
+	Dùng lại đúng dải logo, khối thông tin công ty và phông chữ của Print
+	Format "Vagabond - Đơn đặt hàng" để hai tờ đứng cạnh nhau trông cùng một
+	nhà. Phông DejaVu Sans đứng đầu danh sách là cố ý: wkhtmltopdf trên máy
+	chủ chỉ có phông đó dựng đủ dấu tiếng Việt.
+	"""
 	d = chi_tiet(name)
 	hs, dong = d["ho_so"], d["dong"]
 	h = frappe.utils.escape_html
 	la_hu = hs["loai"] in (LOAI_HU, LOAI_HU_HD)
 
+	PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
+	VIEN = "1px solid #c9c4bd"
+	o_th = (
+		'style="border:%s;padding:6px 7px;background:#f3f0ec;font-size:10.5px;'
+		'font-weight:bold;text-align:center"' % VIEN
+	)
+	def _td(noi, canh="left", dam=False, khong_ngat=False):
+		return (
+			'<td style="border:%s;padding:5px 7px;font-size:10.5px;text-align:%s;%s%s">%s</td>'
+			% (VIEN, canh, "font-weight:bold;" if dam else "",
+			   "white-space:nowrap;" if khong_ngat else "", noi)
+		)
+
 	hang = []
 	for i, x in enumerate(dong, 1):
 		hang.append(
 			"<tr>"
-			'<td style="border:1px solid #999;padding:5px;text-align:center">%d</td>'
-			'<td style="border:1px solid #999;padding:5px;text-align:center">%s</td>'
-			'<td style="border:1px solid #999;padding:5px">%s</td>'
-			'<td style="border:1px solid #999;padding:5px">%s</td>'
-			'<td style="border:1px solid #999;padding:5px;text-align:right">%s</td>'
-			'<td style="border:1px solid #999;padding:5px">%s</td>'
-			"</tr>"
-			% (
-				i, _ngay_vn(x["ngay_hd"]), h(x["so_hd_ncc"] or x["hoa_don"] or ""),
-				h(x["noi_dung"] or x["ncc_hd"] or x["hoa_don"] or ""),
-				_tien(x["so_tien"]),
-				h(x["ghi_chu"] or x["ben_ban"] or ""),
-			)
+			+ _td(str(i), "center")
+			+ _td(_ngay_vn(x["ngay_hd"]) or "-", "center", khong_ngat=True)
+			+ _td(h(x["hoa_don"] or "-"), khong_ngat=True)
+			+ _td(h(x["so_hd_ncc"] or "-"), "center", khong_ngat=True)
+			+ _td(h(x["noi_dung"] or x["ncc_hd"] or ""))
+			+ _td(_tien(x["so_tien"]), "right", dam=True, khong_ngat=True)
+			+ _td(h(x["ghi_chu"] or x["ben_ban"] or ""))
+			+ "</tr>"
 		)
 
-	cuoi = (
-		'<tr><td colspan="4" style="border:1px solid #999;padding:6px;font-weight:bold">TỔNG CỘNG</td>'
-		'<td style="border:1px solid #999;padding:6px;text-align:right;font-weight:bold">%s</td>'
-		'<td style="border:1px solid #999;padding:6px"></td></tr>' % _tien(hs["tong_tien"])
-	)
+	def _dong_tong(nhan, tien, dam=True):
+		return (
+			'<tr><td colspan="5" style="border:%s;padding:6px 7px;font-size:11px;'
+			'text-align:right;%s">%s</td>'
+			'<td style="border:%s;padding:6px 7px;font-size:11.5px;text-align:right;'
+			'white-space:nowrap;%s">%s</td>'
+			'<td style="border:%s"></td></tr>'
+			% (VIEN, "font-weight:bold;" if dam else "", nhan,
+			   VIEN, "font-weight:bold;" if dam else "", tien, VIEN)
+		)
+
+	cuoi_bang = _dong_tong("TỔNG CỘNG", _tien(hs["tong_tien"]))
 	if flt(hs.get("da_tam_ung")):
-		cuoi += (
-			'<tr><td colspan="4" style="border:1px solid #999;padding:6px">Trừ số tiền đã tạm ứng</td>'
-			'<td style="border:1px solid #999;padding:6px;text-align:right">%s</td>'
-			'<td style="border:1px solid #999;padding:6px"></td></tr>'
-			'<tr><td colspan="4" style="border:1px solid #999;padding:6px;font-weight:bold">CÒN LẠI</td>'
-			'<td style="border:1px solid #999;padding:6px;text-align:right;font-weight:bold">%s</td>'
-			'<td style="border:1px solid #999;padding:6px"></td></tr>'
-			% (_tien(hs["da_tam_ung"]), _tien(hs["con_lai"]))
+		cuoi_bang += _dong_tong("Trừ số tiền đã tạm ứng", _tien(hs["da_tam_ung"]), dam=False)
+		cuoi_bang += _dong_tong("CÒN LẠI PHẢI CHUYỂN", _tien(hs["con_lai"]))
+
+	def _o_ky(chuc, ten):
+		return (
+			'<td style="border:none;width:33.33%%;text-align:center;vertical-align:top">'
+			'<div style="font-size:11px;font-weight:bold;letter-spacing:.4px">%s</div>'
+			'<div style="font-size:9px;color:#666;margin-top:2px">(Ký, ghi rõ họ tên)</div>'
+			'<div style="height:62px"></div>'
+			'<div style="font-size:11px;font-weight:bold">%s</div></td>'
+			% (chuc, h(ten or ""))
 		)
 
-	# Ghep bang cong chuoi chu khong dat phep % len ca khoi: trong chuoi co
-	# width="100%" va Python doc dau % do la ma dinh dang roi nem ValueError.
-	ky = (
-		'<table width="100%" style="margin-top:26px;text-align:center;font-size:12px">'
-		"<tr><td><b>NGƯỜI ĐỀ NGHỊ</b></td><td><b>KẾ TOÁN (FIN)</b></td><td><b>GIÁM ĐỐC</b></td></tr>"
-		'<tr><td style="height:58px"></td><td></td><td></td></tr>'
-		+ "<tr><td>" + h(hs["nguoi_tao_ten"] or "")
-		+ "</td><td>" + h(hs["fin_ten"] or "")
-		+ "</td><td>" + h(hs["gd_ten"] or "")
-		+ "</td></tr></table>"
+	def _o_tt(nhan, gt):
+		return (
+			'<tr><td style="border:none;padding:1px 0;font-size:11px;color:#555;'
+			'white-space:nowrap;width:34%%">%s</td>'
+			'<td style="border:none;padding:1px 0;font-size:11px;font-weight:bold">%s</td></tr>'
+			% (nhan, gt)
+		)
+
+	ben_nhan = (
+		'<table style="width:100%;border:none;border-collapse:collapse">'
+		+ _o_tt("Đề nghị thanh toán cho:", h(hs["ten_nhan"] or hs["ten_ncc"] or hs["ncc"]))
+		+ _o_tt("Mã nhà cung cấp:", h(hs["ncc"]))
+		+ _o_tt("Số tài khoản:", h(hs["stk_nhan"] or "..............."))
+		+ _o_tt("Ngân hàng:", h(hs["ngan_hang_nhan"] or "..............."))
+		+ _o_tt("Nội dung chuyển khoản:", h(hs["noi_dung_ck"] or "..............."))
+		+ "</table>"
 	)
 
 	return (
-		'<div style="font-family:Arial,sans-serif;font-size:12.5px;color:#111">'
-		'<div style="text-align:center"><div style="font-weight:bold;font-size:14px">'
-		"CÔNG TY TNHH PATISSERIE VAGABOND</div>"
-		'<div style="font-size:18px;font-weight:bold;margin:12px 0 2px">%s</div>'
-		'<div>Số: <b>%s</b> · Ngày %s</div></div>'
-		'<div style="margin:14px 0 6px">Kính gửi: <b>Ban Giám đốc</b></div>'
-		'<div style="margin:0 0 4px">Đề nghị thanh toán cho: <b>%s</b> (%s)</div>'
-		'<div style="margin:0 0 4px">Số tài khoản: <b>%s</b> · Ngân hàng: <b>%s</b></div>'
-		'<div style="margin:0 0 10px">Nội dung chuyển khoản: <b>%s</b></div>'
-		'<table width="100%%" style="border-collapse:collapse;font-size:12px">'
-		'<tr style="background:#eef4f6">'
-		'<th style="border:1px solid #999;padding:5px">STT</th>'
-		'<th style="border:1px solid #999;padding:5px">Ngày hoá đơn</th>'
-		'<th style="border:1px solid #999;padding:5px">Số hoá đơn</th>'
-		'<th style="border:1px solid #999;padding:5px">Nội dung</th>'
-		'<th style="border:1px solid #999;padding:5px">Số tiền</th>'
-		'<th style="border:1px solid #999;padding:5px">Ghi chú</th></tr>'
-		"%s%s</table>%s</div>"
+		'<div style="font-family:%s;color:#1c1a17;font-size:12px;line-height:1.45">'
+		'<table style="width:100%%;border:none;border-collapse:collapse"><tr>'
+		'<td style="border:none;width:45%%;vertical-align:middle">'
+		'<img src="/files/vagabond_logo_print.png" width="150" height="62" '
+		'style="width:150px !important;height:62px !important;object-fit:contain">'
+		"</td>"
+		'<td style="border:none;text-align:right;vertical-align:middle;font-size:9.5px;'
+		'color:#444;line-height:1.5">'
+		'<b style="font-size:10.5px;color:#1c1a17">CÔNG TY TNHH PATISSERIE VAGABOND</b><br>'
+		"MST: 0318561568<br>"
+		"9 Trần Cao Vân, Phường Sài Gòn, TP.HCM<br>"
+		"www.thevagabondpatisserie.com"
+		"</td></tr></table>"
+		'<div style="text-align:center;margin:14px 0 2px">'
+		'<div style="font-size:19px;font-weight:bold;letter-spacing:1px">%s</div>'
+		'<div style="font-size:11px;color:#555;margin-top:3px">'
+		"Số: <b>%s</b> &nbsp;·&nbsp; Ngày %s</div></div>"
+		'<div style="font-size:11px;margin:12px 0 3px">Kính gửi: <b>Ban Giám đốc</b></div>'
+		"%s"
+		'<table style="width:100%%;border-collapse:collapse;margin-top:10px">'
+		"<tr>"
+		"<th %s>STT</th><th %s>Ngày hoá đơn</th><th %s>Số hoá đơn</th>"
+		"<th %s>Số hoá đơn NCC</th><th %s>Nội dung</th><th %s>Số tiền</th><th %s>Ghi chú</th>"
+		"</tr>%s%s</table>"
+		'<table style="width:100%%;border:none;border-collapse:collapse;margin-top:26px">'
+		"<tr>%s%s%s</tr></table></div>"
 	) % (
+		PHONG,
 		"GIẤY ĐỀ NGHỊ HOÀN ỨNG" if la_hu else "GIẤY ĐỀ NGHỊ THANH TOÁN",
 		h(hs["ma"]), _ngay_vn(hs["ngay"]),
-		h(hs["ten_nhan"] or hs["ten_ncc"] or hs["ncc"]), h(hs["ncc"]),
-		h(hs["stk_nhan"] or "..........."), h(hs["ngan_hang_nhan"] or "..........."),
-		h(hs["noi_dung_ck"] or ""),
-		"".join(hang), cuoi, ky,
+		ben_nhan,
+		o_th, o_th, o_th, o_th, o_th, o_th, o_th,
+		"".join(hang), cuoi_bang,
+		_o_ky("NGƯỜI ĐỀ NGHỊ", hs["nguoi_tao_ten"]),
+		_o_ky("KẾ TOÁN (FIN)", hs["fin_ten"]),
+		_o_ky("GIÁM ĐỐC", hs["gd_ten"]),
 	)
+
 
 
 # -------------------------------------------------------------------- Excel
