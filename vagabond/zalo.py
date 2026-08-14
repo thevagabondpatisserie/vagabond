@@ -9,9 +9,11 @@ ly do chon kenh nay thay cho cach goi dien roi xin ket ban Zalo.
 
 import json
 
+from datetime import datetime
+
 import frappe
 import requests
-from frappe.utils import now_datetime
+from frappe.utils import now_datetime, get_datetime
 
 from vagabond.lib import TIMEOUT, key
 
@@ -29,7 +31,16 @@ def token(c):
 	from datetime import timedelta
 
 	tok = key(c, "zalo_access_token")
+	# Han co the ve dang chuoi tuy cach cfg() dung san. So thang datetime voi
+	# chuoi thi Python nem TypeError, ma loi do bi bat o gui_tin roi bao ra
+	# thanh "khong gui duoc" - nhin vao tuong het tien vi ZNS, thuc ra la loi
+	# kieu du lieu. Bat gap 14/08/2026 khi thu gui OTP that.
 	han = c.get("zalo_token_het_han")
+	if han and not isinstance(han, datetime):
+		try:
+			han = get_datetime(han)
+		except Exception:
+			han = None
 	if tok and han and now_datetime() < han:
 		return tok
 

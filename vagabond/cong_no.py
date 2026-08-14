@@ -638,7 +638,13 @@ def _phieu_html(name):
 	ben_nhan = (
 		'<table style="width:100%;border:none;border-collapse:collapse">'
 		+ _o_tt("Kính gửi:", esc(d.get("ten_khach") or d.get("khach") or ""), to=True)
-		+ _o_tt("Mã khách hàng:", esc(d.get("khach") or ""))
+		# Ben Next, ma khach hang chinh la ten khach nen hai dong se trung
+		# nhau. Chi bay dong ma khi no that su khac ten.
+		+ (
+			_o_tt("Mã khách hàng:", esc(d.get("khach") or ""))
+			if (d.get("khach") or "") != (d.get("ten_khach") or "")
+			else ""
+		)
 		+ _o_tt("Số hoá đơn trong phiếu:", str(len(d.get("dong") or [])))
 		+ _o_tt("Hạn thanh toán:", _ngay_vn(d.get("han_qr")) or "...............")
 		+ "</table>"

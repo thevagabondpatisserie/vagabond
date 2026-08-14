@@ -1801,3 +1801,103 @@ def khach_khong_ky(name=None, ly_do=None):
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "khong_ky": doc.khong_ky}
+
+
+# ------------------------------------------ Canh bao phuong thuc thanh toan
+
+
+@frappe.whitelist()
+def canh_bao_thanh_toan(so_ngay=7):
+	"""Soát hoá đơn ghi sai hoặc thiếu phương thức thanh toán.
+
+	Anh Việt 14/08/2026 hỏi: *"em có biện pháp gì cảnh báo với các hoá đơn
+	chọn sai phương thức thanh toán chưa?"*
+
+	Trước đây lỗi này chỉ lộ ra lúc đối soát COD cuối ngày, tức là sau khi
+	shipper đã đi rồi. Đơn Oshima 1.480.000 hôm 13/08 là đúng kiểu đó: hoá
+	đơn chưa chọn phương thức nên máy mặc định coi là thu tiền mặt, vận đơn
+	mang COD, shipper đi đòi tiền của khách đã hẹn chuyển khoản.
+
+	Ba loại lỗi soát ở đây, xếp theo mức nguy hiểm:
+	  1. chua_chon  - hoá đơn chưa chọn phương thức. Nguy nhất vì máy đoán.
+	  2. lech_cod   - hoá đơn ghi không thu tiền mặt mà vận đơn vẫn treo COD.
+	  3. no_khong_khach - ghi Công nợ mà không gán khách, sau này không đòi ai.
+	"""
+	if not (_la_sales() or _la_ke_toan()):
+		frappe.throw("Chỉ Sales và kế toán xem được cảnh báo thanh toán.")
+	tu = add_days(nowdate(), -int(so_ngay or 7))
+	hd = frappe.get_all(
+		"Sales Invoice",
+		filters={"docstatus": 1, "posting_date": [">=", tu]},
+		fields=[
+			"name", "posting_date", "customer", "grand_total", "outstanding_amount",
+			"vgb_pt_thanh_toan", "vgb_khach_no", "custom_nguon",
+		],
+		limit_page_length=0,
+		order_by="posting_date desc",
+	)
+	if not hd:
+		return {"rows": [], "dem": {}, "tong": 0, "so_ngay": int(so_ngay or 7)}
+
+	# COD dang treo tren van don, tra mot lan cho ca lo.
+	cod = {}
+	for v in frappe.get_all(
+		"Van Don",
+		filters={"hoa_don": ["in", [x["name"] for x in hd]], "docstatus": ["<", 2]},
+		fields=["name", "hoa_don", "tien_thu_ho", "trang_thai"],
+		limit_page_length=0,
+	):
+		if (v.get("trang_thai") or "") in ("Da huy", "Huy"):
+			continue
+		o = cod.setdefault(v["hoa_don"], {"tien": 0.0, "vd": []})
+		o["tien"] += flt(v.get("tien_thu_ho"))
+		o["vd"].append(v["name"])
+
+	rows = []
+	dem = {"chua_chon": 0, "lech_cod": 0, "no_khong_khach": 0}
+	for r in hd:
+		pt = (r.get("vgb_pt_thanh_toan") or "").strip()
+		c = cod.get(r["name"]) or {}
+		tien_cod = flt(c.get("tien"))
+		loi = None
+		nhac = ""
+		if not pt:
+			loi = "chua_chon"
+			nhac = (
+				"Chưa chọn phương thức. Máy đang coi như thu tiền mặt, "
+				"vận đơn sẽ mang COD %s đ." % "{:,.0f}".format(tien_cod)
+			) if tien_cod else "Chưa chọn phương thức thanh toán."
+		elif pt == "Công nợ" and not (r.get("vgb_khach_no") or r.get("customer")):
+			loi = "no_khong_khach"
+			nhac = "Ghi Công nợ mà chưa gán khách, sau này không biết đòi ai."
+		elif tien_cod > 0 and _pt_thu_tien_mat(pt) is False:
+			loi = "lech_cod"
+			nhac = (
+				"Hoá đơn ghi %s nhưng vận đơn vẫn treo COD %s đ. "
+				"Shipper sẽ đi đòi tiền khách đã trả rồi." % (pt, "{:,.0f}".format(tien_cod))
+			)
+		if not loi:
+			continue
+		dem[loi] += 1
+		rows.append({
+			"hoa_don": r["name"],
+			"ngay": str(r["posting_date"] or ""),
+			"khach": r.get("vgb_khach_no") or r.get("customer") or "",
+			"tong": flt(r["grand_total"]),
+			"con_no": flt(r.get("outstanding_amount")),
+			"pt": pt,
+			"nguon": r.get("custom_nguon") or "",
+			"cod": tien_cod,
+			"van_don": ", ".join(c.get("vd") or []),
+			"loi": loi,
+			"nhac": nhac,
+		})
+	uu_tien = {"chua_chon": 0, "lech_cod": 1, "no_khong_khach": 2}
+	rows.sort(key=lambda x: (uu_tien.get(x["loi"], 9), x["ngay"]), reverse=False)
+	return {
+		"rows": rows,
+		"dem": dem,
+		"tong": len(rows),
+		"so_ngay": int(so_ngay or 7),
+		"so_hoa_don_soat": len(hd),
+	}
