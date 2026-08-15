@@ -6624,9 +6624,42 @@ async function scrDsView(name, can) {
     + '<div style="font-size:11px;color:#9ca3af;margin-top:8px">Luật kế toán hiện hành: mỗi đơn hàng là một hoá đơn VAT riêng, không được gộp đơn.</div>'
     + '</div>';
   var foot = '';
-  if (d.docstatus === 0) foot = '<button class="btn" id="dsvChot">Ghi sổ hoá đơn bán hàng</button>';
-  else if (can && !d.custom_hddt_so) foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
+  /* Nut Huy cho don CHUA GHI SO ben Sales. Truoc 15/08/2026 chi bill quay
+     moi huy duoc tren app, don Sales bam nham la ket - phai nho ke toan
+     vao ERP. Nay Sales nhap duoc ca don "Tại chỗ" va "Mang về" nen cang
+     phai co duong huy (anh Viet). Van la HUY MEM: don nam nguyen trong
+     danh sach, chi bi loc khoi doanh thu. */
+  if (d.docstatus === 0 && !d.vgb_huy) {
+    foot = '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="dsvHuy" style="margin:0;flex:0 0 36%;color:#b3261e;border-color:#fecaca">Huỷ đơn</button>' +
+      '<button class="btn" id="dsvChot" style="margin:0;flex:1">Ghi sổ hoá đơn bán hàng</button></div>';
+  } else if (d.docstatus === 0) {
+    foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px">Đơn này đã huỷ' +
+      (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>';
+  } else if (can && !d.custom_hddt_so) {
+    foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
+  }
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  var nHuy = document.getElementById('dsvHuy');
+  if (nHuy) nHuy.onclick = async function () {
+    var ok = await confirmSheet('Huỷ đơn ' + (d.custom_pancake_display_id || d.name) + '?',
+      'Đơn ' + money(d.grand_total) + ' đ sẽ được đánh dấu đã huỷ và không tính vào doanh thu nữa. ' +
+      'Đơn vẫn nằm nguyên trong hệ thống để đối chiếu - không ai xoá được chứng từ.', 'Huỷ đơn', true);
+    if (!ok) return;
+    var ly_do = await promptSheet('Vì sao huỷ đơn này?', 'Khách đổi ý, nhập nhầm nguồn, trùng đơn...');
+    if (ly_do === null) return;
+    if (!ly_do) return toast('Phải ghi lý do thì sau này còn biết vì sao.', 4000);
+    /* Huy chung tu luon phai qua ma OTP quan ly, giong het ben quay. Quan
+       ly tu bam thi may chu tu cho qua, khong hoi ma. */
+    var otp = await posXinPhep('Huỷ đơn ' + (d.custom_pancake_display_id || d.name));
+    if (otp === null) return;
+    busy(true);
+    try {
+      await api('vagabond.ban_hang.pos_xoa', { name: d.name, otp: otp, ly_do: ly_do });
+      busy(false); toast('Đã huỷ đơn. Đơn vẫn còn trong danh sách.', 4000);
+      go(function () { scrDsView(name, can); }, true);
+    } catch (e) { busy(false); toast((e && e.message) || 'Huỷ lỗi', 5000); }
+  };
   var DSV_PT = d.vgb_pt_thanh_toan || '';
   var ptWrap = document.getElementById('dsvPt');
   if (ptWrap) ptWrap.querySelectorAll('.ptc').forEach(function (b) {
@@ -10803,7 +10836,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '169';
+var APPVER = '170';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
