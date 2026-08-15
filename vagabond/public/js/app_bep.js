@@ -782,7 +782,8 @@ async function scrHome() {
        khoi mo Desk (anh Viet 12/08/2026). Hai o nay chi hien voi ke toan,
        thu mua va giam doc - gia mua la thong tin nhay cam. */
     (coQuyenMua()
-      ? card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
+      ? card('✅', 'Duyệt yêu cầu mua', 'Duyệt từng dòng, kèm tồn kho và số đang chờ về để quyết ngay', 0, 'DUYETYC') +
+        card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
         card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA') +
@@ -946,6 +947,7 @@ async function scrHome() {
     if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
     if (k === 'KT1') return go(scrDoanhSo);
     if (k === 'BCHUB') return go(scrBaoCao);
+    if (k === 'DUYETYC') return go(scrDuyetYc);
     if (k === 'PO') return go(scrDonMua);
     if (k === 'KHPO') return kgMo('PO');
     if (k === 'KHHDM') return kgMo('HDM');
@@ -1014,7 +1016,7 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -1311,6 +1313,7 @@ function vgbGo(k) {
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
   if (k === 'BCHUB') return go(scrBaoCao);
+  if (k === 'DUYETYC') return go(scrDuyetYc);
   if (k === 'PO') return go(scrDonMua);
     if (k === 'KHPO') return kgMo('PO');
     if (k === 'KHHDM') return kgMo('HDM');
@@ -6652,6 +6655,11 @@ async function scrDoanhSo() {
     { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0; } },
     { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
     { k: 'chua_pt', nhan: '❓ Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
+    /* Đơn đã giao xong mà Pancake không ghi nhận khoản nào. Máy CHỈ gắn cờ
+       để sales rà lại, không bao giờ tự ghi là Công nợ - anh Việt chốt
+       15/08/2026 sau khi đo thấy suy kiểu này ra 16 đơn trong khi sales chỉ
+       đánh dấu 3 đơn là công nợ thật. */
+    { k: 'nghi_no', nhan: '🧾 Nghi công nợ', loc: function (r) { return !!r.vgb_nghi_cong_no && !r.vgb_pt_thanh_toan; } },
     { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } },
@@ -11173,7 +11181,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '175';
+var APPVER = '176';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -14110,6 +14118,228 @@ async function scrDonMuaXem() {
     '</div>';
 
   frame('Đơn mua hàng', html);
+}
+
+
+/* ---------------- Duyet Phieu yeu cau mua hang (anh Viet duyet 15/08/2026)
+
+   PA-3: giu nguyen so luong goc cua nhan vien, thu mua ghi so DUYET ben
+   canh. Duyet 0 la tu choi, bat buoc ghi ly do.
+
+   Phan dang gia nhat cua man nay khong phai nut tu choi ma la BANG CANH BAO
+   tren tung dong: ton kho tong, so dang cho ve tu don da dat, va so cung
+   mat hang dang cho duyet o phieu khac. Ba con so do tra loi thang cau hoi
+   "co nen tu choi khong", con nut bam chi la buoc cuoi.
+
+   Tien to dy = duyet yeu cau. Da kiem va cham ten truoc khi dat (QT-28). */
+
+var dyDs = null, dyD = null;
+
+function dySo(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
+
+/* Bang canh bao mot dong. Mau theo muc do: 2 la gan nhu chac chan dat thua,
+   1 la dang luu y, 0 thi khong ve gi ca. */
+function dyCanhBao(x) {
+  if (!x.canh_bao || !x.muc_canh_bao) return '';
+  var m = x.muc_canh_bao === 2
+    ? { nen: '#fff1f2', vien: '#fecaca', chu: '#b3261e', ic: '⚠️' }
+    : { nen: '#fff6e5', vien: '#fde3a7', chu: '#8a5b00', ic: '💡' };
+  return '<div style="margin:0 12px 8px;padding:10px 12px;border-radius:11px;background:' + m.nen +
+    ';border:1.5px solid ' + m.vien + ';color:' + m.chu + ';font-size:12.5px;line-height:1.55">' +
+    m.ic + ' ' + h(x.canh_bao) + '</div>';
+}
+
+/* Ba con so nen, bay ngang giong man nhan hang de nguoi dung quen mat. */
+function dyBaSo(x) {
+  function o(nhan, gt, mau, dam) {
+    return '<div style="flex:1;min-width:0;text-align:center">' +
+      '<div style="font-size:11px;color:#98a2b3;text-transform:uppercase;letter-spacing:.3px">' + nhan + '</div>' +
+      '<div style="font-size:15px;font-weight:' + (dam ? '800' : '600') + ';color:' + mau + '">' + num(gt) + '</div></div>';
+  }
+  return '<div style="display:flex;gap:6px;padding:8px 12px;background:#f7f8fa;border-radius:11px;margin:0 12px 8px">' +
+    o('Tồn kho', x.ton, x.ton > 0 ? '#0d9488' : '#98a2b3', 0) +
+    o('Chờ về', x.cho_ve, x.cho_ve > 0 ? '#b45309' : '#98a2b3', 0) +
+    o('Phiếu khác', x.cho_duyet, x.cho_duyet > 0 ? '#b45309' : '#98a2b3', 0) + '</div>';
+}
+
+async function scrDuyetYc() {
+  frame('Duyệt yêu cầu mua', '<div class="emp"><div class="e1">⏳</div></div>');
+  var kq;
+  try { kq = await api('vagabond.duyet_ycmh.danh_sach', { so_ngay: 60 }); }
+  catch (e) { frame('Duyệt yêu cầu mua', '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>'); return; }
+  dyDs = kq.phieu || [];
+  var cho = dyDs.filter(function (x) { return x.con_cho > 0; });
+
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;justify-content:space-between"><span>Phiếu còn dòng chưa duyệt</span><b style="color:' + (cho.length ? '#b45309' : '#0f766e') + '">' + cho.length + '</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Tổng phiếu đang mở</span><b>' + dyDs.length + '</b></div></div>';
+
+  html += '<div class="sec">' + dyDs.length + ' phiếu</div><div class="card">';
+  if (!dyDs.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có phiếu yêu cầu mua nào đang mở.</div></div>';
+  dyDs.forEach(function (x) {
+    html += '<div class="hub" data-dy="' + h(x.name) + '"><div class="hi">' + (x.con_cho ? '📋' : '✅') + '</div>' +
+      '<div class="ht"><div class="h1">' + h(x.bo_phan_yeu_cau || x.nguoi_yeu_cau || x.name) + '</div>' +
+      '<div class="h2">' + h(x.name) + ' · ' + x.so_dong + ' dòng' +
+      (x.can_ngay ? ' · cần ' + ngayNgan(x.can_ngay) : '') + '</div>' +
+      '<div class="h2" style="color:' + (x.con_cho ? '#b45309' : '#0f766e') + ';font-weight:600">' +
+      (x.con_cho ? x.con_cho + ' dòng chờ duyệt' : 'đã duyệt hết') +
+      (x.da_tu_choi ? ' · ' + x.da_tu_choi + ' dòng từ chối' : '') + '</div></div>' +
+      '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
+  });
+  html += '</div>';
+  var b = frame('Duyệt yêu cầu mua', html);
+  b.onclick = function (e) {
+    var r = e.target.closest('[data-dy]'); if (!r) return;
+    var nm = r.getAttribute('data-dy');
+    go(function () { scrDuyetYcXem(nm); });
+  };
+}
+
+async function scrDuyetYcXem(name) {
+  frame('Duyệt yêu cầu mua', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d;
+  try { d = await api('vagabond.duyet_ycmh.chi_tiet', { name: name }); }
+  catch (e) { frame('Duyệt yêu cầu mua', '<div class="emp"><div class="e1">⚠️</div><div>' + h(errMsg(e)) + '</div></div>'); return; }
+  vgbCss();
+  dyD = {
+    name: name,
+    lines: (d.mon || []).map(function (m) {
+      return {
+        dong: m.dong, ma: m.ma, ten: m.ten, dvt: m.dvt,
+        xin: m.sl_yeu_cau,
+        /* Chua ai duyet thi o de trong, KHONG dien san bang so xin: dien san
+           thi khong phan biet duoc "da duyet du" voi "chua ai nhin". */
+        duyet: m.sl_duyet,
+        ly_do: m.ly_do_duyet || '',
+        da_len_don: m.da_len_don,
+        nguoi: m.nguoi_duyet_dong || '',
+        ton: m.ton, cho_ve: m.cho_ve, cho_duyet: m.cho_duyet,
+        canh_bao: m.canh_bao, muc_canh_bao: m.muc_canh_bao,
+        moi: 0
+      };
+    })
+  };
+  var L = dyD.lines;
+
+  function veLai() { go(function () { scrDuyetYcXem(name); }, true); }
+
+  async function dyLuu() {
+    var gui = L.filter(function (x) { return x.moi; });
+    if (!gui.length) return toast('Chưa sửa dòng nào, không có gì để lưu.');
+    var tc = gui.filter(function (x) { return (x.duyet || 0) <= 0.0001; });
+    var thieuLy = tc.filter(function (x) { return !(x.ly_do || '').trim(); });
+    if (thieuLy.length) return toast('Còn ' + thieuLy.length + ' dòng từ chối chưa ghi lý do. Bấm vào dòng để ghi.', 6000);
+    var msg = 'Duyệt ' + gui.length + ' dòng.';
+    if (tc.length) msg += ' Trong đó ' + tc.length + ' dòng bị từ chối.';
+    msg += ' Số lượng nhân viên đã xin vẫn giữ nguyên, không sửa và không xoá dòng nào.';
+    if (!await confirmSheet('Lưu quyết định duyệt?', msg, 'Lưu')) return;
+    busy(1);
+    try {
+      var r = await api('vagabond.duyet_ycmh.duyet_dong', {
+        name: name,
+        dong: JSON.stringify(gui.map(function (x) {
+          return { dong: x.dong, sl_duyet: x.duyet, ly_do_duyet: x.ly_do };
+        }))
+      });
+      busy(0);
+      toast('Đã lưu: ' + r.duyet_du + ' duyệt đủ, ' + r.cat_bot + ' cắt bớt, ' + r.tu_choi + ' từ chối.', 5000);
+      return veLai();
+    } catch (e) { busy(0); toast(errMsg(e), 7000); }
+  }
+
+  async function dyHoiLyDo(i) {
+    var x = L[i];
+    var v = await promptSheet('Vì sao từ chối "' + x.ten + '"?',
+      'Nhân viên đặt hàng sẽ đọc được câu này, nên ghi rõ để lần sau không đặt lại. Ví dụ: kho tổng còn 12 kg, hoặc đã có đơn PO đặt ngày 10/08 chưa về.');
+    if (v === null) return 0;
+    if (!v) { toast('Phải ghi lý do thì mới từ chối được.', 4500); return 0; }
+    x.ly_do = v;
+    return 1;
+  }
+
+  var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+    '<b style="font-size:15px">' + h(d.bo_phan || d.nguoi_yeu_cau || d.name) + '</b>' +
+    '<div style="font-size:12.5px;color:#6b7280">' + h(d.name) + ' · lập ' + ngayNgan(d.ngay) +
+    (d.can_ngay ? ' · cần ' + ngayNgan(d.can_ngay) : '') + '</div>' +
+    '<div style="font-size:13px;margin-top:6px">Người yêu cầu <b>' + h(d.nguoi_yeu_cau) + '</b></div>' +
+    '<div style="font-size:13px">' + (d.con_cho ? '<b style="color:#b45309">' + d.con_cho + ' dòng chờ duyệt</b>' : '<b style="color:#0f766e">Đã duyệt hết</b>') +
+    (d.da_tu_choi ? ' · ' + d.da_tu_choi + ' dòng đã từ chối' : '') + '</div></div>';
+
+  html += '<div class="rcvh">Số nhân viên xin nằm bên trái và <b>không sửa được</b>. Thu mua chỉ điền ô "Duyệt" bên phải. Duyệt 0 là từ chối và phải ghi lý do.</div>';
+
+  html += '<div class="sec">' + L.length + ' mặt hàng</div>';
+  html += L.map(function (x, i) {
+    var chua = x.duyet === null || x.duyet === undefined;
+    var tuChoi = !chua && x.duyet <= 0.0001;
+    return '<div class="ic1' + (x.moi ? ' ok' : '') + '" data-dr="' + i + '">' +
+      '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
+      '<div class="in">' + h(x.ten) +
+      '<div class="ig">' + h(x.ma) + (x.da_len_don > 0.0001 ? ' · đã lên đơn ' + num(x.da_len_don) : '') + '</div>' +
+      (chua ? '' : '<div style="margin-top:5px;display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:600;color:#fff;background:' +
+        (tuChoi ? '#c0392b' : (x.duyet < x.xin - 0.0001 ? '#c77700' : '#1f9254')) + '">' +
+        (tuChoi ? 'Từ chối' : (x.duyet < x.xin - 0.0001 ? 'Duyệt ' + num(x.duyet) + '/' + num(x.xin) : 'Duyệt đủ')) +
+        '</div>') +
+      '</div></div>' +
+      dyBaSo(x) + dyCanhBao(x) +
+      '<div class="qw"><div style="flex:1;min-width:0">' +
+      '<div class="lb">Nhân viên xin <b>' + num(x.xin) + ' ' + h(x.dvt) + '</b> · thu mua duyệt</div>' +
+      '<div class="qr"><div class="stp"><button data-dm="' + i + '">&minus;</button>' +
+      '<input type="number" inputmode="decimal" step="any" data-dq="' + i + '" placeholder="chưa duyệt" value="' + (chua ? '' : x.duyet) + '">' +
+      '<button data-da2="' + i + '">+</button></div>' +
+      '<div class="uml">' + h(x.dvt) + '</div></div></div></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 10px">' +
+      '<button data-ddu="' + i + '" class="btn gh" style="margin:0;flex:1;min-width:92px;padding:8px 6px;font-size:13px">Duyệt đủ</button>' +
+      '<button data-dnua="' + i + '" class="btn gh" style="margin:0;flex:1;min-width:92px;padding:8px 6px;font-size:13px">Một nửa</button>' +
+      '<button data-dtc="' + i + '" class="btn gh" style="margin:0;flex:1;min-width:92px;padding:8px 6px;font-size:13px;color:#b3261e;border-color:#fecaca">Từ chối</button>' +
+      (chua ? '' : '<button data-dgo="' + i + '" class="btn gh" style="margin:0;flex:1;min-width:92px;padding:8px 6px;font-size:13px">Gỡ duyệt</button>') +
+      '</div>' +
+      (x.ly_do ? '<div style="padding:0 12px 10px;font-size:12.5px;color:#5a6070">Lý do: <b>' + h(x.ly_do) + '</b></div>' : '') +
+      '</div>';
+  }).join('');
+
+  var b = frame('Duyệt ' + name, html, {
+    footer: '<button class="btn" id="dySub">Lưu quyết định duyệt</button>'
+  });
+
+  b.onclick = async function (e) {
+    var t, i;
+    if ((t = e.target.closest('[data-ddu]'))) { i = +t.dataset.ddu; L[i].duyet = L[i].xin; L[i].ly_do = ''; L[i].moi = 1; return veLai(); }
+    if ((t = e.target.closest('[data-dnua]'))) { i = +t.dataset.dnua; L[i].duyet = dySo(L[i].xin / 2); L[i].moi = 1; return veLai(); }
+    if ((t = e.target.closest('[data-dtc]'))) {
+      i = +t.dataset.dtc;
+      if (!await dyHoiLyDo(i)) return;
+      L[i].duyet = 0; L[i].moi = 1; return veLai();
+    }
+    if ((t = e.target.closest('[data-dm]'))) { i = +t.dataset.dm; L[i].duyet = Math.max(0, dySo((L[i].duyet || 0) - 1)); L[i].moi = 1; return veLai(); }
+    if ((t = e.target.closest('[data-da2]'))) {
+      i = +t.dataset.da2;
+      var v = dySo((L[i].duyet || 0) + 1);
+      if (v > L[i].xin + 0.0001) { v = L[i].xin; toast('Không duyệt quá số nhân viên đã xin. Cần mua thêm thì lập phiếu yêu cầu mới, để số gốc còn đối chiếu.', 6000); }
+      L[i].duyet = v; L[i].moi = 1; return veLai();
+    }
+    if ((t = e.target.closest('[data-dgo]'))) {
+      i = +t.dataset.dgo;
+      var x = L[i];
+      if (!x.moi) {
+        if (!await confirmSheet('Gỡ duyệt "' + x.ten + '"?', 'Dòng này trở về trạng thái chưa ai duyệt. Không xoá gì, việc gỡ vẫn được ghi vết.', 'Gỡ duyệt')) return;
+        busy(1);
+        try { await api('vagabond.duyet_ycmh.bo_duyet', { name: name, dong_ten: x.dong }); busy(0); toast('Đã gỡ duyệt'); return veLai(); }
+        catch (e2) { busy(0); return toast(errMsg(e2), 6000); }
+      }
+      x.duyet = null; x.ly_do = ''; x.moi = 0; return veLai();
+    }
+  };
+  Array.prototype.forEach.call(b.querySelectorAll('[data-dq]'), function (el) {
+    el.onchange = function () {
+      var i = +el.dataset.dq;
+      if (el.value === '') { L[i].duyet = null; L[i].moi = 0; return veLai(); }
+      var v = Math.max(0, parseFloat(el.value) || 0);
+      if (v > L[i].xin + 0.0001) { v = L[i].xin; toast('Không duyệt quá số nhân viên đã xin (' + num(L[i].xin) + ' ' + L[i].dvt + ').', 5500); }
+      L[i].duyet = v; L[i].moi = 1; veLai();
+    };
+  });
+  var sb = document.getElementById('dySub');
+  if (sb) sb.onclick = dyLuu;
 }
 
 /* ---------------- Cong no phai tra ---------------- */
