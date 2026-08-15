@@ -20,8 +20,14 @@ class BaoGiaBanHang(Document):
 		Frappe goi doc.run_method("autoname") TRUOC khi xet chuoi format nen
 		ham nay thang; chuoi format giu lai lam duong lui.
 		"""
-		nam = getdate(self.ngay_bao_gia or nowdate()).year
-		tien_to = "VGB-PQ-%d-" % nam
+		# Mau bao gia dem rieng: mau khong phai to gui khach, khong duoc an
+		# mat mot so trong day VGB-PQ (luu mot mau xong to that ke tiep se
+		# nhay so, Loan Anh nhin vao tuong mat to).
+		if self.get("la_mau"):
+			tien_to = "MAU-BG-"
+		else:
+			nam = getdate(self.ngay_bao_gia or nowdate()).year
+			tien_to = "VGB-PQ-%d-" % nam
 		cuoi = frappe.db.sql(
 			"""select name from `tabBao Gia Ban Hang`
 			where name like %s order by name desc limit 1""",
