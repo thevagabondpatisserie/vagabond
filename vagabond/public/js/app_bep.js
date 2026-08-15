@@ -11181,7 +11181,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '177';
+var APPVER = '178';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -19662,8 +19662,13 @@ async function vgbDich(ds) {
   try { kq = await api('vagabond.dich.dich', { chuoi: JSON.stringify(ds) }); }
   catch (e) { throw new Error((e && e.message) || 'Không gọi được dịch vụ dịch'); }
   if (!kq || !kq.ok) {
-    throw new Error('Chưa dịch được (' + ((kq && kq.ly_do) || 'không rõ') +
-      '). Kiểm tra ô Gemini API key trong Cài đặt Vagabond giúp em.');
+    /* May chu tra san cau chu noi PHAI LAM GI TIEP (QT-24). Truoc day cho
+       nay in ra ma may kieu "dich_vu_tra_loi_404" - dung ve ky thuat nhung
+       doc xong khong ai biet lam gi. Chi rot ve ma may khi may chu cu chua
+       kip gui cau chu len. */
+    throw new Error((kq && kq.loi) ||
+      ('Chưa dịch được (' + ((kq && kq.ly_do) || 'không rõ') +
+       '). Anh chị gõ tay phần tiếng Anh giúp em rồi báo kỹ thuật.'));
   }
   return kq.ra || [];
 }
@@ -20105,14 +20110,91 @@ async function bgTaoPhienBan(d) {
   go(function () { scrBgSua(kq.name); });
 }
 
+/* Hop thoai chon cau goi y roi moi go them.
+
+   Bam mot chip la NOI cau do vao o, bam lai la go ra - ghep duoc nhieu y
+   ma khong phai go tay. Cau chua {ngay} duoc thay bang ngay het hieu luc
+   CUA CHINH TO DANG MO, vi go tay ngay thang la co ngay cau trong thu lech
+   voi con so in tren to. */
+function bgHoiLoiNhan(mau, ngay) {
+  var cau = (mau || []).map(function (s) { return String(s).replace('{ngay}', bgNgayVn(ngay) || '...'); });
+  return new Promise(function (xong) {
+    var ov = document.createElement('div'); ov.className = 'sh';
+    var box = document.createElement('div'); box.className = 'shb';
+    box.innerHTML = '<div class="shh"><b>Lời nhắn thêm (không bắt buộc)</b><div class="x">&times;</div></div>' +
+      '<div style="padding:12px 14px;overflow:auto">' +
+      '<div ' + BGNHAN + ' style="margin-bottom:8px">Bấm chip để chèn câu có sẵn, bấm lại để gỡ ra. Câu này nằm trong thân thư, trên phần chào cuối.</div>' +
+      '<div id="bgLnChip" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px"></div>' +
+      '<textarea ' + BGTA + ' id="bgLnO" rows="5" placeholder="Hoặc gõ thẳng vào đây..."></textarea></div>' +
+      '<div style="flex:0 0 auto;display:flex;gap:8px;padding:10px 14px 14px">' +
+      '<button class="btn gh" id="bgLnThoi" style="margin:0;flex:1">Thôi</button>' +
+      '<button class="btn" id="bgLnOk" style="margin:0;flex:2">Xong</button></div>';
+    var chip = box.querySelector('#bgLnChip');
+    var o = box.querySelector('#bgLnO');
+    var bat = {};
+    function veChip() {
+      chip.innerHTML = cau.map(function (s, i) {
+        return '<span data-ln="' + i + '" style="cursor:pointer;font-size:12.5px;line-height:1.35;padding:7px 11px;border-radius:999px;border:1.5px solid ' +
+          (bat[i] ? '#0a8a4a;background:#e8f6ee;color:#0a6b3a' : '#e5e7eb;background:#fff;color:#374151') +
+          ';max-width:100%">' + (bat[i] ? '✓ ' : '+ ') + h(s) + '</span>';
+      }).join('');
+    }
+    veChip();
+    chip.onclick = function (e) {
+      var el = e.target.closest('[data-ln]'); if (!el) return;
+      var i = +el.getAttribute('data-ln');
+      var ds = String(o.value || '').split('\n').filter(function (x) { return x.trim(); });
+      if (bat[i]) { ds = ds.filter(function (x) { return x.trim() !== cau[i]; }); bat[i] = 0; }
+      else { ds.push(cau[i]); bat[i] = 1; }
+      o.value = ds.join('\n');
+      veChip();
+    };
+    ov.appendChild(box); document.body.appendChild(ov);
+    var tra = function (v) { ov.remove(); xong(v); };
+    ov.onclick = function (e) { if (e.target === ov) tra(null); };
+    box.querySelector('.x').onclick = function () { tra(null); };
+    box.querySelector('#bgLnThoi').onclick = function () { tra(null); };
+    box.querySelector('#bgLnOk').onclick = function () { tra(String(o.value || '').trim()); };
+  });
+}
+
 async function bgGuiMail(d) {
-  var em = await hoiChu('Gửi báo giá qua email', 'Tờ PDF ' + d.name + ' sẽ được đính kèm và gửi tới địa chỉ dưới đây.', d.email || '', { kieu: 'email', goi_y: 'ten@congty.com', bat_buoc: true });
+  var ci = await bgCaiDat();
+  var em = await hoiChu('Gửi báo giá qua email',
+    'Tờ PDF ' + d.name + ' sẽ được đính kèm. <b>Nhiều email thì ngăn nhau bằng dấu phẩy</b>, dùng để gửi cho nhiều phòng ban bên khách.',
+    d.email || '', { goi_y: 'ten@congty.com, ketoan@congty.com', bat_buoc: true });
   if (em === null) return;
-  var loi = await hoiChu('Lời nhắn thêm (không bắt buộc)', 'Câu này nằm trong thân thư, trên phần chào cuối.', '', { nhieu_dong: true, goi_y: 'Vd: Bên em còn giữ giá này tới hết ngày 30/08 ạ.' });
+
+  var loi = await bgHoiLoiNhan((ci.mac_dinh && ci.mac_dinh.loi_nhan_mau) || [], d.hieu_luc_den);
   if (loi === null) return;
-  if (!await hoiCo('Xác nhận gửi', 'Gửi báo giá ' + d.name + ' (' + money(d.tong_cong) + ' đ) tới ' + em + '?', 'Gửi thư')) return;
+
+  /* May chu tinh lai danh sach nguoi nhan bang DUNG phep loc cua ham gui
+     (QT-19), roi bay ra het truoc khi bam. Gui nham cho ca phong ban ben
+     khach la loai loi khong rut lai duoc. */
   busy(true);
-  try { var r = await api('vagabond.bao_gia.gui_email', { name: d.name, email: em, loi_nhan: loi || '' }); busy(false); toast('Đã gửi tới ' + r.toi, 4500); go(function () { scrBgXem(d.name); }, true); }
+  var ng;
+  try { ng = await api('vagabond.bao_gia.xem_nguoi_nhan', { name: d.name, email: em }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không kiểm được danh sách người nhận'); }
+  busy(false);
+  if (ng.sai && ng.sai.length) return baoTin('Địa chỉ này chưa đúng dạng email: ' + ng.sai.join(', ') + '. Anh chị sửa lại giúp em.');
+  if (!ng.nhan.length) return baoTin('Chưa có địa chỉ nào hợp lệ để gửi.');
+
+  /* hoiCo() tu thoat ky tu va giu xuong dong (white-space:pre-wrap), nen
+     cho nay viet chu tran, khong the HTML va khong goi h() lan nua. */
+  var mo = 'Báo giá ' + d.name + ' · ' + money(d.tong_cong) + ' đ\n\n' +
+    'Gửi tới:\n' + ng.nhan.map(function (x) { return '  • ' + x; }).join('\n');
+  if (ng.cc && ng.cc.length) mo += '\n\nCC nội bộ:\n' + ng.cc.map(function (x) { return '  • ' + x; }).join('\n');
+  mo += '\n\nNgười gửi: ' + (ng.tu || 'hộp thư mặc định của hệ thống');
+  if (!ng.tu_co_that && ng.tu_khai) mo += '\n(Hộp thư ' + ng.tu_khai + ' chưa được bật gửi đi)';
+  if (!await hoiCo('Xác nhận gửi', mo, 'Gửi thư')) return;
+
+  busy(true);
+  try {
+    var r = await api('vagabond.bao_gia.gui_email', { name: d.name, email: em, loi_nhan: loi || '' });
+    busy(false);
+    toast('Đã gửi tới ' + (r.toi || []).length + ' địa chỉ' + ((r.cc || []).length ? ' và CC ' + r.cc.length + ' nội bộ' : ''), 4500);
+    go(function () { scrBgXem(d.name); }, true);
+  }
   catch (e) { busy(false); baoTin((e && e.message) || 'Gửi thư lỗi'); }
 }
 
@@ -20349,7 +20431,14 @@ async function scrBgSua(name) {
     '</div>' +
     '<div class="hub" data-t="khach" style="padding:10px 0;border:none"><div class="ht"><div ' + BGNHAN + '>Khách hàng trong hệ thống</div><div class="h1">' + h(d.khach_hang || 'Chọn khách (để trống nếu khách mới)') + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
     oi('ten_khach', 'Tên công ty khách in lên báo giá (bắt buộc)', d.ten_khach) +
-    oi('ma_so_thue', 'Mã số thuế khách', d.ma_so_thue) +
+    /* Go MST xong roi roi o la may tu tra ten va dia chi. Nut ben canh de
+       goi lai khi can. Dung lai vagabond.api.tra_mst da chay san cho hoa
+       don - no da xu ly san MST chi nhanh 13 so giu dau gach ngang theo
+       Thong tu 86/2024 va co bo nho dem bay ngay. */
+    '<div style="display:flex;flex-direction:row;gap:6px">' +
+    oi('ma_so_thue', 'Mã số thuế khách, gõ xong máy tự điền tên', d.ma_so_thue) +
+    '<button class="btn gh" data-t="tramst" style="flex:none;width:46px;height:44px;margin:0;padding:0;font-size:17px">🔍</button></div>' +
+    (d._mst_bao ? '<div ' + BGNHAN + '>' + h(d._mst_bao) + '</div>' : '') +
     '<textarea ' + BGTA + ' id="bgf_dia_chi" rows="2" placeholder="Địa chỉ khách">' + h(d.dia_chi) + '</textarea>' +
     '</div>';
 
@@ -20485,12 +20574,19 @@ async function scrBgSua(name) {
     if (/^dg_\d+_(so_luong|don_gia|chiet_khau)$/.test(id)) bgTongHien();
   });
 
+  /* Roi o ma so thue la tra luon, khong bat bam nut. Dung 'blur' chu khong
+     dung 'input': go tung so ma goi tung lan la ban ra Cong thong tin
+     doanh nghiep muoi ba lan cho mot ma. */
+  var oMst = document.getElementById('bgf_ma_so_thue');
+  if (oMst) oMst.addEventListener('blur', function () { bgTraMst(name, false); });
+
   b.addEventListener('click', async function (e) {
     var el;
     if ((el = e.target.closest('[data-hl]'))) { bgDoc(); bgTay.hieu_luc_ngay = Number(el.getAttribute('data-hl')); return go(function () { scrBgSua(name); }, true); }
     if (e.target.closest('[data-t="songngu"]')) { bgDoc(); bgTay.song_ngu = bgTay.song_ngu ? 0 : 1; return go(function () { scrBgSua(name); }, true); }
     if (e.target.closest('[data-t="vat"]')) { bgDoc(); bgTay.gia_da_gom_vat = bgTay.gia_da_gom_vat ? 0 : 1; return go(function () { scrBgSua(name); }, true); }
     if (e.target.closest('[data-t="khach"]')) return bgChonKhach(name);
+    if (e.target.closest('[data-t="tramst"]')) return bgTraMst(name, true);
     if ((el = e.target.closest('[data-mo]'))) { bgDoc(); var k = el.getAttribute('data-mo'); bgMoRong[k] = !bgMoRong[k]; return go(function () { scrBgSua(name); }, true); }
     if ((el = e.target.closest('[data-loai]'))) { bgDoc(); var j = +el.getAttribute('data-loai'); bgTay.dong[j].loai = bgTay.dong[j].loai === 'Phí' ? 'Món' : 'Phí'; return go(function () { scrBgSua(name); }, true); }
     if ((el = e.target.closest('[data-xoa]'))) { bgDoc(); bgTay.dong.splice(+el.getAttribute('data-xoa'), 1); bgMoRong = {}; return go(function () { scrBgSua(name); }, true); }
@@ -20658,27 +20754,113 @@ async function bgLuuThuVien(i, name) {
   } catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi'); }
 }
 
+/* Bang chon khach: o tim HOI NGUOC LEN MAY CHU moi lan go.
+
+   Khong dung sheet() cho viec nay duoc: sheet() loc ngay trong trinh duyet
+   tren dung cai tap da nap san, ma he co 43.186 khach nen tap nap san bao
+   nhieu cung khong du. Day la dung ban sheetTimKhach cua man tinh tien
+   quay - man do da chay dung tu dau, chi rieng man bao gia lam sai. */
 async function bgChonKhach(name) {
   bgDoc();
   busy(true);
-  var kh;
-  try { kh = await api('vagabond.bao_gia.tim_khach', { so_dong: 400 }); } catch (e) { busy(false); return baoTin('Không tải được danh sách khách'); }
+  var ds;
+  try { ds = await api('vagabond.bao_gia.tim_khach', { tim: '', so_dong: 60 }); }
+  catch (e) { busy(false); return baoTin('Không tải được danh sách khách'); }
   busy(false);
-  var muc = [{ value: '', label: 'Khách mới, chưa có trong hệ thống', icon: '✨' }];
-  kh.forEach(function (x) { muc.push({ value: x.name, label: (x.customer_name || x.name) + (x.tax_id ? ' · MST ' + x.tax_id : ''), icon: '🏢' }); });
-  sheet('Chọn khách hàng', muc, bgTay.khach_hang, async function (o) {
-    if (!o.value) { bgTay.khach_hang = ''; return go(function () { scrBgSua(name); }, true); }
-    bgTay.khach_hang = o.value;
+  ds = ds || [];
+
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Chọn khách hàng</b><div class="x">&times;</div></div>' +
+    '<div style="flex:0 0 auto;padding:10px 14px 4px">' +
+    '<input class="nt" id="bgKhTim" placeholder="Gõ tên công ty, mã khách, MST hoặc số điện thoại..." style="height:46px;padding:0 12px;width:100%;box-sizing:border-box"></div>' +
+    '<div class="shl"></div>';
+  var lst = box.querySelector('.shl');
+  function ve(dangTim) {
+    var dau = '<div class="shi" data-kh=""><span>✨</span><span style="flex:1;min-width:0">Khách mới, chưa có trong hệ thống</span></div>';
+    if (dangTim) { lst.innerHTML = dau + '<div class="emp" style="padding:18px"><div class="e2">Đang tìm...</div></div>'; return; }
+    lst.innerHTML = dau + (ds.length ? ds.map(function (x) {
+      return '<div class="shi' + (x.name === bgTay.khach_hang ? ' on' : '') + '" data-kh="' + h(x.name) + '"><span>🏢</span>' +
+        '<span style="flex:1;min-width:0">' + h(x.customer_name || x.name) +
+        '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(x.name) +
+        (x.tax_id ? ' · MST ' + h(x.tax_id) : '') +
+        (x.mobile_no ? ' · ' + h(x.mobile_no) : '') + '</div></span>' +
+        (x.name === bgTay.khach_hang ? '<span>&#10003;</span>' : '') + '</div>';
+    }).join('') : '<div class="emp" style="padding:22px"><div class="e2">Không có khách nào khớp. Gõ ít chữ hơn, hoặc chọn "Khách mới" ở trên.</div></div>');
+  }
+  ve();
+  ov.appendChild(box); document.body.appendChild(ov);
+
+  var inp = box.querySelector('#bgKhTim');
+  var tre = null;
+  inp.oninput = function () {
+    if (tre) clearTimeout(tre);
+    var q = inp.value;
+    ve(true);
+    tre = setTimeout(async function () {
+      try { ds = (await api('vagabond.bao_gia.tim_khach', { tim: q, so_dong: 60 })) || []; ve(); }
+      catch (e) { ds = []; ve(); }
+    }, 350);
+  };
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+
+  lst.onclick = async function (e) {
+    var r = e.target.closest('[data-kh]'); if (!r) return;
+    var ma = r.getAttribute('data-kh');
+    dong();
+    if (!ma) { bgTay.khach_hang = ''; return go(function () { scrBgSua(name); }, true); }
+    bgTay.khach_hang = ma;
     busy(true);
     try {
-      var t = await api('vagabond.bao_gia.thong_tin_khach', { khach: o.value });
+      var t = await api('vagabond.bao_gia.thong_tin_khach', { khach: ma });
       ['ten_khach', 'ma_so_thue', 'dia_chi', 'nguoi_lien_he', 'chuc_vu', 'dien_thoai', 'email'].forEach(function (f) {
         if (t[f]) bgTay[f] = t[f];
       });
-    } catch (e) { }
+    } catch (e2) { }
     busy(false);
     go(function () { scrBgSua(name); }, true);
-  }, true);
+  };
+  setTimeout(function () { try { inp.focus(); } catch (e) { } }, 120);
+}
+
+/* ---------- Go ma so thue, may tu dien ten va dia chi ---------- */
+async function bgTraMst(name, tuNut) {
+  bgDoc();
+  var mst = String(bgTay.ma_so_thue || '').trim();
+  var so = mst.replace(/\D/g, '');
+  if (so.length !== 10 && so.length !== 12 && so.length !== 13) {
+    if (tuNut) baoTin('Mã số thuế phải 10, 12 hoặc 13 số. Anh chị kiểm lại giúp em.');
+    return;
+  }
+  if (bgTay._mst_da_tra === mst && !tuNut) return;
+  bgTay._mst_da_tra = mst;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.api.tra_mst', { mst: mst }); }
+  catch (e) { busy(false); if (tuNut) baoTin('Không gọi được Cổng thông tin doanh nghiệp. Anh chị điền tay giúp em.'); return; }
+  busy(false);
+  if (!kq || !kq.ok) {
+    /* KHONG chan viec nhap: ho kinh doanh thuong khong co tren cong, ma
+       chan o day thi nguoi nhap tuong minh go sai so. */
+    bgTay._mst_bao = 'Không tra được mã số thuế này. Anh chị điền tay giúp em.';
+    return go(function () { scrBgSua(name); }, true);
+  }
+  var ten = kq.ten || '';
+  var dc = kq.dia_chi || '';
+  var cu = String(bgTay.ten_khach || '').trim();
+  /* Luat "may khong de chu nguoi that": o da co chu khac thi phai hoi. */
+  if (cu && ten && cu.toLowerCase() !== ten.toLowerCase()) {
+    if (!await hoiCo('Thay tên công ty?',
+      'Cổng thông tin doanh nghiệp trả về:\n\n' + ten +
+      '\n\nÔ đang có: ' + cu + '\n\nThay bằng tên tra được?', 'Thay')) return;
+  }
+  if (ten) bgTay.ten_khach = ten;
+  if (dc && !String(bgTay.dia_chi || '').trim()) bgTay.dia_chi = dc;
+  if (kq.ma_so_thue) bgTay.ma_so_thue = kq.ma_so_thue;
+  bgTay._mst_bao = 'Đã lấy từ Cổng thông tin doanh nghiệp.';
+  go(function () { scrBgSua(name); }, true);
 }
 
 async function bgLuu(raPdf) {
