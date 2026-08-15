@@ -773,12 +773,17 @@ def lich_su(name):
 			"chiet_khau_pt", "chiet_khau_tien", "phi_giao", "tong_cong",
 			"ly_do_sua", "thay_the_boi", "nguoi_lap", "creation",
 		],
-		order_by="ifnull(phien_ban, 1) asc, creation asc",
+		# Frappe 16 chan moi loi goi ham trong order_by, ke ca ifnull(). Ma
+		# to lap truoc dot nay co phien_ban rong nen khong xep bang SQL duoc.
+		# Xep o Python, vua dung vua khong phu thuoc vao luat cua khung.
+		order_by="creation asc",
 		limit_page_length=0,
 	)
-	truoc = None
 	for r in ds:
 		r["phien_ban"] = int(r.get("phien_ban") or 1)
+	ds.sort(key=lambda x: (x["phien_ban"], str(x.get("creation") or "")))
+	truoc = None
+	for r in ds:
 		r["la_moi_nhat"] = not r.get("thay_the_boi")
 		r["dang_xem"] = r["name"] == name
 		r["chenh"] = 0.0 if truoc is None else flt(r["tong_cong"]) - flt(truoc)
