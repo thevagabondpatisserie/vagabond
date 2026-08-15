@@ -68,6 +68,11 @@ async function scrDoanhSo() {
     { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0; } },
     { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
     { k: 'chua_pt', nhan: '❓ Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
+    /* Đơn đã giao xong mà Pancake không ghi nhận khoản nào. Máy CHỈ gắn cờ
+       để sales rà lại, không bao giờ tự ghi là Công nợ - anh Việt chốt
+       15/08/2026 sau khi đo thấy suy kiểu này ra 16 đơn trong khi sales chỉ
+       đánh dấu 3 đơn là công nợ thật. */
+    { k: 'nghi_no', nhan: '🧾 Nghi công nợ', loc: function (r) { return !!r.vgb_nghi_cong_no && !r.vgb_pt_thanh_toan; } },
     { k: 'chua_tien', nhan: '⏳ Chuyển khoản chưa về tiền', loc: function (r) { return r.vgb_pt_thanh_toan === 'Chuyển khoản' && !r.sepay_du; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } },

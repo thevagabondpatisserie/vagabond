@@ -26,7 +26,8 @@ async function scrHome() {
        khoi mo Desk (anh Viet 12/08/2026). Hai o nay chi hien voi ke toan,
        thu mua va giam doc - gia mua la thong tin nhay cam. */
     (coQuyenMua()
-      ? card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
+      ? card('✅', 'Duyệt yêu cầu mua', 'Duyệt từng dòng, kèm tồn kho và số đang chờ về để quyết ngay', 0, 'DUYETYC') +
+        card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
         card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA') +
@@ -190,6 +191,7 @@ async function scrHome() {
     if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
     if (k === 'KT1') return go(scrDoanhSo);
     if (k === 'BCHUB') return go(scrBaoCao);
+    if (k === 'DUYETYC') return go(scrDuyetYc);
     if (k === 'PO') return go(scrDonMua);
     if (k === 'KHPO') return kgMo('PO');
     if (k === 'KHHDM') return kgMo('HDM');
@@ -258,7 +260,7 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -555,6 +557,7 @@ function vgbGo(k) {
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
   if (k === 'BCHUB') return go(scrBaoCao);
+  if (k === 'DUYETYC') return go(scrDuyetYc);
   if (k === 'PO') return go(scrDonMua);
     if (k === 'KHPO') return kgMo('PO');
     if (k === 'KHHDM') return kgMo('HDM');
