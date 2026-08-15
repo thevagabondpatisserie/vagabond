@@ -24,6 +24,13 @@ def dung():
 	_dung_nhom(duyet_ycmh.TRUONG_MOI, "duyet_ycmh")
 	_dung_nhom(ban_hang.TRUONG_MOI, "ban_hang")
 	_dung_nhom(bao_gia.TRUONG_MOI, "bao_gia")
+	_dung_nhom(bao_gia.TRUONG_CAI_DAT, "bao_gia_cai_dat")
+	try:
+		from vagabond import hop_thu
+
+		hop_thu.dung()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: hop thu")
 	try:
 		duyet_ycmh._them_trang_thai_tu_choi()
 	except Exception:

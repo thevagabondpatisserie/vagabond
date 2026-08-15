@@ -15,6 +15,7 @@ Ba cho giu du lieu:
 
 import base64
 import json
+import re
 
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
@@ -98,6 +99,58 @@ TRUONG_MOI = {
 }
 
 F_PHIEN_BAN = ("goc", "phien_ban", "thay_the_boi", "ly_do_sua")
+
+# ------------------------------------------------------------ email bao gia
+#
+# Ba thu duoi day deu KHAI TRONG CAI DAT chu khong chon cung trong ma nguon:
+# dia chi gui, danh sach CC noi bo, va cac cau goi y cho o Loi nhan them.
+# Nhan su doi, cau chu doi - anh Viet sua thang tren Desk, khong phai cho
+# em deploy. Ma nguon chi giu bo mac dinh cho lan dau.
+EMAIL_GUI_MAC_DINH = "sales@thevagabondpatisserie.com"
+CC_NOI_BO_MAC_DINH = (
+	"anhntl@thevagabondpatisserie.com",
+	"vietnh@thevagabondpatisserie.com",
+	"account@thevagabondpatisserie.com",
+)
+# {ngay} duoc app thay bang ngay het hieu luc CUA CHINH TO DANG MO. Bat go
+# tay ngay thang la co ngay cau trong thu lech voi con so in tren to.
+LOI_NHAN_MAU = (
+	"Bên em còn giữ giá này tới hết ngày {ngay} ạ.",
+	"Giá trên đã bao gồm phí giao hàng nội thành.",
+	"Quý khách vui lòng chốt số lượng trước 3 ngày làm việc giúp bên em ạ.",
+	"Bên em sẵn sàng gửi mẫu thử trước khi Quý khách quyết định ạ.",
+	"Đơn giá trong báo giá đã bao gồm VAT.",
+	"Bên em có thể điều chỉnh menu theo yêu cầu riêng của Quý khách ạ.",
+)
+
+TRUONG_CAI_DAT = {
+	"Bao Gia Cai Dat": [
+		{
+			"fieldname": "sec_email_bg", "label": "Email báo giá",
+			"fieldtype": "Section Break", "insert_after": "moc_mau",
+		},
+		{
+			"fieldname": "email_gui", "label": "Địa chỉ gửi báo giá",
+			"fieldtype": "Data", "insert_after": "sec_email_bg",
+			"default": EMAIL_GUI_MAC_DINH,
+			"description": "Phải là một Tài khoản Email đang bật gửi đi. "
+						   "Chưa có thì hệ tự dùng hộp thư mặc định.",
+		},
+		{
+			"fieldname": "cc_noi_bo", "label": "CC nội bộ",
+			"fieldtype": "Small Text", "insert_after": "email_gui",
+			"default": "\n".join(CC_NOI_BO_MAC_DINH),
+			"description": "Mỗi dòng một địa chỉ. Được CC vào mọi thư báo giá.",
+		},
+		{
+			"fieldname": "loi_nhan_mau", "label": "Câu gợi ý cho Lời nhắn thêm",
+			"fieldtype": "Small Text", "insert_after": "cc_noi_bo",
+			"default": "\n".join(LOI_NHAN_MAU),
+			"description": "Mỗi dòng một câu, hiện thành chip bấm nhanh. "
+						   "Viết {ngay} thì app thay bằng ngày hết hiệu lực.",
+		},
+	]
+}
 
 # Cau chu mac dinh, dung khi Bao Gia Cai Dat chua duoc khai.
 MAC_DINH = {
@@ -227,7 +280,41 @@ def _cd():
 	] or MOC_MAC_DINH
 	ra["ngan_hang_vi"] = (d.get("ngan_hang_vi") or "").strip()
 	ra["ngan_hang_en"] = (d.get("ngan_hang_en") or "").strip()
+	ra["email_gui"] = (d.get("email_gui") or "").strip() or EMAIL_GUI_MAC_DINH
+	ra["cc_noi_bo"] = _tach_dong(d.get("cc_noi_bo")) or list(CC_NOI_BO_MAC_DINH)
+	ra["loi_nhan_mau"] = _tach_dong(d.get("loi_nhan_mau")) or list(LOI_NHAN_MAU)
 	return ra
+
+
+def _tach_dong(s):
+	"""Chuoi nhieu dong thanh danh sach da bo dong trong. THUAN."""
+	return [x.strip() for x in str(s or "").splitlines() if x.strip()]
+
+
+# Du de chan cac loi go that: thieu @, thieu cham, co khoang trang. Khong
+# co gang kiem dung chuan RFC - kiem chat qua thi chan ca dia chi hop le.
+_RE_EMAIL = re.compile(r"^[^@\s,;]+@[^@\s,;]+\.[A-Za-z]{2,}$")
+
+
+def _tach_email(chuoi):
+	"""Chuoi nhieu email thanh (danh sach dung, danh sach sai). THUAN.
+
+	Nhan dau phay lan dau cham phay lan xuong dong, vi Loan Anh chep dia chi
+	tu email cua khach sang thi dinh du kieu dau. Bo trung, khong phan biet
+	hoa thuong, nhung GIU nguyen cach viet dau tien de thu nhin tu te.
+	"""
+	tho = re.split(r"[,;\n]+", str(chuoi or ""))
+	dung, sai, da_co = [], [], set()
+	for x in tho:
+		e = x.strip().strip("<>")
+		if not e:
+			continue
+		if not _RE_EMAIL.match(e):
+			sai.append(e)
+		elif e.lower() not in da_co:
+			da_co.add(e.lower())
+			dung.append(e)
+	return dung, sai
 
 
 # ------------------------------------------------------------------- doc so
@@ -918,17 +1005,47 @@ def cd_doc():
 
 
 @frappe.whitelist()
-def tim_khach(tim=None, so_dong=300):
+def tim_khach(tim=None, so_dong=60):
+	"""Tim khach hang cho o chon khach cua to bao gia.
+
+	Vi sao ham nay phai duoc goi LAI moi lan go
+	--------------------------------------------
+	Truoc 15/08/2026 man bao gia goi ham nay MOT lan khong kem tu khoa, lay
+	ve 400 khach dau bang chu cai roi de trinh duyet tu loc trong 400 muc
+	do. He dang co 43.186 khach, nen 400 cai ten dau bang chu cai gan nhu
+	chac chan khong co cai nao bat dau bang "CONG TY": go gi cung ra "Khong
+	tim thay", con Loan Anh thi tuong du lieu chua nhap.
+
+	Loc o may khach tren mot tap da bi cat cut la loi kien truc, khong phai
+	loi go nham. Nay app hoi nguoc len day moi lan go, va day tim tren ca
+	43.186 khach.
+	"""
 	_quyen()
-	loc = {"disabled": 0}
-	if tim:
-		loc["customer_name"] = ["like", "%%%s%%" % tim]
+	q = (tim or "").strip()
+	truong = ["name", "customer_name", "tax_id", "mobile_no", "customer_group"]
+	n = max(10, min(int(so_dong or 60), 200))
+	if not q:
+		return frappe.get_all(
+			"Customer",
+			filters={"disabled": 0},
+			fields=truong,
+			order_by="modified desc",
+			limit_page_length=n,
+		)
+	# Loan Anh nhieu khi chi cam moi cai ma so thue, hoac chi nho so dien
+	# thoai. Tim mot cot ten thoi la bat ho phai nho dung ten dang ky.
 	return frappe.get_all(
 		"Customer",
-		filters=loc,
-		fields=["name", "customer_name", "tax_id", "mobile_no", "customer_group"],
-		order_by="customer_name",
-		limit_page_length=int(so_dong or 300),
+		filters={"disabled": 0},
+		or_filters={
+			"name": ["like", "%%%s%%" % q],
+			"customer_name": ["like", "%%%s%%" % q],
+			"tax_id": ["like", "%%%s%%" % q],
+			"mobile_no": ["like", "%%%s%%" % q],
+		},
+		fields=truong,
+		order_by="customer_name asc",
+		limit_page_length=n,
 	)
 
 
@@ -1054,13 +1171,39 @@ def _html(name):
 	def muc(vi, en):
 		so_muc[0] += 1
 		nhan = LA_MA[min(so_muc[0] - 1, len(LA_MA) - 1)]
-		t = "%s. %s" % (nhan, _esc(vi))
-		if sng and en:
-			t += " / " + _esc(en)
+		t = "%s. %s%s" % (nhan, _esc(vi), nghieng_xuyet(en, "#555"))
 		ra.append(
 			'<div style="font-size:13px;font-weight:bold;margin:16px 0 7px;'
 			'border-bottom:2px solid #1c1a17;padding-bottom:3px">%s</div>' % t
 		)
+
+	# ---------------------------------------------------------------------
+	# MOT CUA DUY NHAT sinh chu tieng Anh tren to.
+	#
+	# Anh Viet 15/08/2026: *"Toan bo phan dich tieng Anh duoc generate ra
+	# trong bao gia bat buoc phai dinh dang in nghieng"*.
+	#
+	# Truoc do co ba cho ghep chu Anh thang vao HTML sau dau gach cheo -
+	# muc(), _ben() va dong_cong() - nen chung ra chu dung, trong khi sn()
+	# va th() lai nghieng. To in ra nua nghieng nua dung.
+	# Nay moi cho in tieng Anh deu phai di qua hai ham nay. Them mau moi o
+	# Nhom 5 cung chi phai nho mot luat.
+	def nghieng(chu, mau="#666", tho=False):
+		"""Mot doan tieng Anh. Rong hoac to chi tieng Viet thi tra ve rong.
+
+		tho = True khi chuoi DA la HTML dung san (vd da thay xuong dong bang
+		the ngat dong), luc do khong thoat ky tu nua.
+		"""
+		if not (sng and str(chu or "").strip()):
+			return ""
+		return '<i style="font-style:italic;color:%s">%s</i>' % (
+			mau, str(chu) if tho else _esc(chu)
+		)
+
+	def nghieng_xuyet(chu, mau="#666"):
+		"""Dang " / English" dung ngay sau mot cum tieng Viet."""
+		o = nghieng(chu, mau)
+		return (" / " + o) if o else ""
 
 	def sn(vi, en, co=None, tho=False):
 		"""Mot o song ngu: tieng Viet tren, tieng Anh nghieng nho ben duoi.
@@ -1071,9 +1214,11 @@ def _html(name):
 		lam = (lambda x: str(x or "").replace("\n", "<br>")) if tho else _br
 		o = '<div style="font-size:%s">%s</div>' % (co or "10.5px", lam(vi))
 		if sng and (en or "").strip():
+			# Di qua nghieng() de luat in nghieng chi nam o MOT cho. Chuoi da
+			# duoc lam() xu ly xuong dong roi nen truyen vao dang tho.
 			o += (
-				'<div style="font-size:9.5px;color:#666;font-style:italic;'
-				'margin-top:1px">%s</div>' % lam(en)
+				'<div style="font-size:9.5px;margin-top:1px">%s</div>'
+				% nghieng(lam(en), "#666", tho=True)
 			)
 		return o
 
@@ -1085,7 +1230,7 @@ def _html(name):
 				VIEN,
 				("width:%s;" % rong) if rong else "",
 				_esc(vi),
-				('<div style="font-weight:normal;font-style:italic;color:#555">%s</div>' % _esc(en))
+				('<div style="font-weight:normal">%s</div>' % nghieng(en, "#555"))
 				if (sng and en) else "",
 			)
 		)
@@ -1114,13 +1259,17 @@ def _html(name):
 		+ _esc(c["dia_chi_ban"]) + "<br>" + _esc(c["web_ban"])
 		+ "</td></tr></table>"
 	)
-	tieu_de = "BẢNG BÁO GIÁ SẢN PHẨM"
+	# Anh Viet 15/08/2026: doi "BANG BAO GIA SAN PHAM" thanh "THU BAO GIA",
+	# va "Production Price Quotation" thanh "Price Quotation". "Bang" nghe
+	# nhu mot to liet ke hang, "Thu" dat dung vi the mot loi moi hop tac.
+	# Anh da duyet viec cac to cu in lai cung mang tieu de moi: day la nhan
+	# hien thi, khong dung toi mot con so nao.
 	ra.append(
 		'<div style="text-align:center;margin:12px 0 3px">'
 		'<div style="font-size:18px;font-weight:bold;letter-spacing:1px">%s</div>%s%s</div>'
 		% (
-			tieu_de,
-			'<div style="font-size:11px;color:#555;font-style:italic">Production Price Quotation</div>'
+			"THƯ BÁO GIÁ",
+			('<div style="font-size:11px">%s</div>' % nghieng("Price Quotation", "#555"))
 			if sng else "",
 			('<div style="font-size:12px;margin-top:4px">%s</div>' % sn(d["ten"], d.get("ten_en"), "12px"))
 			if d.get("ten") else "",
@@ -1151,13 +1300,13 @@ def _html(name):
 	muc("Thông tin đại diện", "Representative Information")
 	def _ben(nhan_vi, nhan_en, ds):
 		o = ['<div style="font-weight:bold;font-size:10.5px;margin-bottom:3px">%s%s</div>'
-			 % (_esc(nhan_vi), (" / " + _esc(nhan_en)) if sng else "")]
+			 % (_esc(nhan_vi), nghieng_xuyet(nhan_en, "#555"))]
 		for nvi, nen, gt in ds:
 			if not (gt or "").strip():
 				continue
 			o.append(
 				'<div style="font-size:10px;margin-top:2px"><span style="color:#666">%s%s:</span> '
-				'<b>%s</b></div>' % (_esc(nvi), (" / " + _esc(nen)) if sng else "", _esc(gt))
+				'<b>%s</b></div>' % (_esc(nvi), nghieng_xuyet(nen), _esc(gt))
 			)
 		return "".join(o)
 
@@ -1259,7 +1408,7 @@ def _html(name):
 			% (
 				so_cot - 1, VIEN, "11px" if dam else "10.5px",
 				"font-weight:bold;" if dam else "",
-				(_esc(vi) + (" / " + _esc(en) if (sng and en) else "")),
+				(_esc(vi) + nghieng_xuyet(en, "#555")),
 				VIEN, "12px" if dam else "10.5px",
 				"font-weight:bold;" if dam else "", _tien_vn(tien),
 			)
@@ -1471,13 +1620,56 @@ def xuat_pdf(name):
 
 
 @frappe.whitelist()
+def xem_nguoi_nhan(name, email=None):
+	"""Ai se nhan thu nay. Cho bang xac nhan TRUOC khi bam gui.
+
+	Gui nham cho ca phong ban ben khach la loai loi khong rut lai duoc, nen
+	nguoi bam phai nhin thay DU tung dia chi, ke ca cac dia chi noi bo duoc
+	them tu dong. Ham nay dung DUNG phep loc cua gui_email.
+	"""
+	_quyen()
+	cd = _cd()
+	nhan, sai = _tach_email(email or frappe.db.get_value(DT, name, "email") or "")
+	cc, _ = _tach_email(", ".join(cd["cc_noi_bo"]))
+	da_co = {x.lower() for x in nhan}
+	toi_la = (frappe.session.user or "").strip().lower()
+	cc = [x for x in cc if x.lower() not in da_co and x.lower() != toi_la]
+	tu = (cd.get("email_gui") or "").strip()
+	co_that = bool(
+		tu and frappe.db.exists("Email Account", {"email_id": tu, "enable_outgoing": 1})
+	)
+	return {
+		"nhan": nhan, "sai": sai, "cc": cc,
+		"tu": tu if co_that else "", "tu_khai": tu, "tu_co_that": 1 if co_that else 0,
+	}
+
+
+@frappe.whitelist()
 def gui_email(name, email=None, loi_nhan=None):
 	"""Gui to bao gia PDF sang email khach, dong thoi doi trang thai."""
 	_quyen(sua=True)
 	doc = frappe.get_doc(DT, name)
-	toi = (email or doc.email or "").strip()
-	if not toi:
+	cd = _cd()
+
+	# Kiem o MAY CHU chu khong tin app (QT-19). Gui nham cho ca phong ban ben
+	# khach la loai loi khong rut lai duoc, nen tha chan som con hon.
+	nhan, sai = _tach_email(email or doc.email or "")
+	if sai:
+		frappe.throw(
+			"Địa chỉ này chưa đúng dạng email: %s. Anh chị sửa lại rồi gửi "
+			"giúp em. Nhiều email thì ngăn nhau bằng dấu phẩy."
+			% ", ".join(sai)
+		)
+	if not nhan:
 		frappe.throw("Chưa có email khách để gửi. Nhập email vào rồi gửi lại nhé.")
+
+	# CC noi bo. Bo ai da nam trong danh sach nhan chinh de khong ai nhan hai
+	# ban, va bo chinh nguoi dang bam gui vi Frappe da luu ban gui vao ho so
+	# chung tu roi.
+	cc, _ = _tach_email(", ".join(cd["cc_noi_bo"]))
+	da_co = {x.lower() for x in nhan}
+	toi_la = (frappe.session.user or "").strip().lower()
+	cc = [x for x in cc if x.lower() not in da_co and x.lower() != toi_la]
 
 	tep = xuat_pdf(name)
 	than = (
@@ -1498,20 +1690,39 @@ def gui_email(name, email=None, loi_nhan=None):
 		_esc(doc.ten_nguoi_lap_in or ""), _esc(doc.chuc_vu_lap or ""),
 		_esc(_cd()["web_ban"]),
 	)
-	frappe.sendmail(
-		recipients=[toi],
-		subject="Báo giá %s - The Vagabond Pâtisserie" % doc.name,
-		message=than,
-		attachments=[{"fname": tep["ten_file"], "fcontent": base64.b64decode(tep["b64"])}],
-		reference_doctype=DT,
-		reference_name=doc.name,
-		now=True,
-	)
+	gui = {
+		"recipients": nhan,
+		"cc": cc or None,
+		"subject": "Báo giá %s - The Vagabond Pâtisserie" % doc.name,
+		"message": than,
+		"attachments": [
+			{"fname": tep["ten_file"], "fcontent": base64.b64decode(tep["b64"])}
+		],
+		"reference_doctype": DT,
+		"reference_name": doc.name,
+		"now": True,
+	}
+	# Chi ep dia chi gui khi hop thu do CO THAT va DANG BAT gui di. Khai bua
+	# mot dia chi chua dung se lam ca lenh gui chet, tuc Loan Anh khong gui
+	# duoc bao gia nao chi vi mot o cau hinh - khong dang.
+	tu = (cd.get("email_gui") or "").strip()
+	if tu and frappe.db.exists(
+		"Email Account", {"email_id": tu, "enable_outgoing": 1}
+	):
+		gui["sender"] = tu
+	elif tu:
+		frappe.log_error(
+			"Chua co Email Account bat gui di cho %s, dung hop thu mac dinh." % tu,
+			"Vagabond: bao gia gui bang hop thu mac dinh",
+		)
+
+	frappe.sendmail(**gui)
+
 	if doc.trang_thai == "Nháp":
 		frappe.db.set_value(DT, name, "trang_thai", "Đã gửi khách")
 	if not doc.email:
-		frappe.db.set_value(DT, name, "email", toi)
-	return {"ok": 1, "toi": toi}
+		frappe.db.set_value(DT, name, "email", ", ".join(nhan))
+	return {"ok": 1, "toi": nhan, "cc": cc, "tu": gui.get("sender") or ""}
 
 
 @frappe.whitelist()

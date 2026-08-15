@@ -16,10 +16,28 @@ import requests
 
 from vagabond.lib import TIMEOUT, cfg, key
 
-GEMINI = (
-	"https://generativelanguage.googleapis.com/v1beta/models/"
-	"gemini-2.0-flash:generateContent"
+GOC = "https://generativelanguage.googleapis.com/v1beta/models"
+
+# Vi sao KHONG chon mot ten model cu the
+# --------------------------------------
+# Ngay 15/08/2026 nut dich chet, Google tra 404 nguyen van: "This model
+# models/gemini-2.0-flash is no longer available". Khoa cua anh Viet van
+# tot - goi thu danh sach model bang chinh khoa do ra 38 model dang song.
+# Tuc day khong phai loi cau hinh ma la Google GO model di.
+#
+# Dong ten cu the nao roi cung den ngay bi go. "gemini-flash-latest" la bi
+# danh do Google tu doi sang ban flash moi nhat, nen no khong chet vi bi
+# go. De sau no mot day du phong: gap dung 404 thi tu roi xuong ten ke
+# tiep va thu lai, chu khong nem loi vao mat Loan Anh giua luc lam viec.
+MODEL = (
+	"gemini-flash-latest",
+	"gemini-2.5-flash",
+	"gemini-flash-lite-latest",
 )
+
+
+def _url(model):
+	return "%s/%s:generateContent" % (GOC, model)
 
 # Nhac may dich dung giong mot tiem banh Phap chu khong phai may dich thuat.
 LOI_NHAC = (
@@ -46,6 +64,68 @@ def _khoa():
 			"dán khoá vào rồi thử lại."
 		)
 	return k
+
+
+def _cau_loi(ma):
+	"""Cau bao loi noi NGUOI DUNG PHAI LAM GI TIEP, khong in ma may (QT-24).
+
+	THUAN: so vao, cau chu ra. Truoc day ham dich nem thang ra chuoi
+	"dich_vu_tra_loi_404" - dung voi ky thuat nhung Loan Anh doc xong khong
+	biet lam gi, va that ra chinh anh Viet cung phai hoi em moi biet.
+	"""
+	if ma == 404:
+		return (
+			"Google đã đổi tên các máy dịch nên bản cũ không còn dùng được. "
+			"Anh chị gõ tay phần tiếng Anh giúp em lần này, và báo kỹ thuật "
+			"để cập nhật lại."
+		)
+	if ma in (401, 403):
+		return (
+			"Khoá Gemini bị từ chối. Vào Cài đặt Vagabond, ô Gemini API key, "
+			"dán lại khoá mới lấy từ Google AI Studio rồi thử lại."
+		)
+	if ma == 429:
+		return (
+			"Hôm nay đã dịch hết lượt miễn phí của Google. Anh chị chờ sang "
+			"ngày mai, hoặc gõ tay phần tiếng Anh cho tờ này."
+		)
+	if 500 <= int(ma or 0) < 600:
+		return (
+			"Máy dịch của Google đang lỗi. Anh chị bấm dịch lại sau vài phút "
+			"giúp em, tờ báo giá vẫn lưu bình thường."
+		)
+	return (
+		"Chưa dịch được, máy dịch trả lỗi %s. Anh chị gõ tay phần tiếng Anh "
+		"giúp em rồi báo kỹ thuật." % ma
+	)
+
+
+@frappe.whitelist()
+def xem_model():
+	"""Cac model Gemini con song, de chan doan khi nut dich chet.
+
+	CHI DOC, khong dich gi. Tra ve DUY NHAT ten model - khong bao gio tra
+	khoa ra ngoai.
+	"""
+	if not (set(frappe.get_roles()) & {"System Manager"}):
+		frappe.throw("Chỉ quản trị hệ thống xem được danh sách máy dịch.")
+	try:
+		r = requests.get(GOC, params={"key": _khoa()}, timeout=max(TIMEOUT, 15))
+	except Exception:
+		return {"ok": 0, "loi": "Không gọi được Google."}
+	if r.status_code != 200:
+		return {"ok": 0, "loi": _cau_loi(r.status_code)}
+	ds = [
+		str(m.get("name") or "").replace("models/", "")
+		for m in (r.json().get("models") or [])
+		if "generateContent" in (m.get("supportedGenerationMethods") or [])
+	]
+	return {
+		"ok": 1,
+		"dang_dung": list(MODEL),
+		"con_song": [x for x in ds if any(y in x for y in ("flash", "pro"))],
+		"tong": len(ds),
+	}
 
 
 @frappe.whitelist()
@@ -82,24 +162,41 @@ def dich(chuoi=None):
 		"contents": [{"parts": [{"text": json.dumps(gui, ensure_ascii=False)}]}],
 		"generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
 	}
-	try:
-		r = requests.post(
-			GEMINI,
-			params={"key": khoa},
-			json=than,
-			timeout=max(TIMEOUT, 25),
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: Gemini khong goi duoc")
-		return {"ok": 0, "ly_do": "khong_goi_duoc_dich_vu_dich", "ra": ds}
+	r = None
+	for i, model in enumerate(MODEL):
+		try:
+			r = requests.post(
+				_url(model),
+				params={"key": khoa},
+				json=than,
+				timeout=max(TIMEOUT, 25),
+			)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Vagabond: Gemini khong goi duoc")
+			return {
+				"ok": 0,
+				"ly_do": "khong_goi_duoc_dich_vu_dich",
+				"loi": (
+					"Không gọi được dịch vụ dịch. Mạng của máy chủ đang trục "
+					"trặc, anh chị thử lại sau ít phút; nếu vẫn vậy thì gõ tay "
+					"phần tiếng Anh rồi báo kỹ thuật giúp em."
+				),
+				"ra": ds,
+			}
+		# CHI roi xuong model sau khi Google noi khong co model do (404).
+		# Loi khoa (401, 403) hay het luot (429) thi doi model khong cuu duoc
+		# gi, thu tiep chi ton them thoi gian cua nguoi dang ngoi doi.
+		if r.status_code == 404 and i < len(MODEL) - 1:
+			frappe.log_error(
+				r.text[:2000], "Vagabond: Gemini go model %s, thu ten ke tiep" % model
+			)
+			continue
+		break
 
 	if r.status_code != 200:
 		frappe.log_error(r.text[:2000], "Vagabond: Gemini tra loi %s" % r.status_code)
-		return {
-			"ok": 0,
-			"ly_do": "dich_vu_tra_loi_%s" % r.status_code,
-			"ra": ds,
-		}
+		return {"ok": 0, "ly_do": "dich_vu_tra_loi_%s" % r.status_code,
+				"loi": _cau_loi(r.status_code), "ra": ds}
 
 	try:
 		j = r.json()
