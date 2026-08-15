@@ -3444,6 +3444,18 @@ def _pos_lay(name):
 	return si
 
 
+def _huy_lay(name):
+	"""Phieu de HUY. Nhan ca bill quay LAN don cua diem nhan don online.
+
+	Truoc 15/08/2026 huy don phai di qua _pos_lay, ma ham do doi phieu co
+	ma quay - don cua Sales Online de trong vgb_quay nen khong co duong nao
+	huy tren app, ke toan phai vao ERP. Nay "Tại chỗ" va "Mang về" gan duoc
+	cho ca Sales, tuc Sales nhap nham mot don la ket luon. Nhan het, cac
+	chan khac (da ghi so, da co hoa don dien tu, OTP) van nguyen.
+	"""
+	return frappe.get_doc("Sales Invoice", name)
+
+
 @frappe.whitelist()
 def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp=None):
 	"""Chot mot bill tam tinh: khach thanh toan xong, cashier chon phuong
@@ -3491,9 +3503,13 @@ def pos_xoa(name, otp=None, ly_do=None):
 	sach: "khong duoc phep xoa vinh vien bat cu hoa don nao o bat cu phan he
 	nao". Bill huy van nam nguyen trong danh sach, xem lai duoc bang chip
 	"Da huy", va van phai co OTP quan ly vi tien khach da tra roi.
+
+	Tu 15/08/2026 huy duoc CA don cua diem nhan don online, khong chi bill
+	quay: Sales gio nhap duoc don "Tại chỗ" va "Mang về" nen cung phai co
+	duong huy khi bam nham.
 	"""
 	_kiem_quyen()
-	si = _pos_lay(name)
+	si = _huy_lay(name)
 	if si.docstatus != 0:
 		frappe.throw(
 			"Hoá đơn đã ghi sổ rồi nên không huỷ ở đây được. Báo kế toán huỷ "
