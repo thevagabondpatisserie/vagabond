@@ -6925,14 +6925,21 @@ async function scrDsNhapTay() {
      di vao o ma tham chieu de SePay doi soat (anh Viet 12/08/2026). */
   if (!dsTay) dsTay = { nguon: 'GrabFood', bill: posMaBill(), ma: '', ten: '', sdt: '', giam: '', ship: '', pt: '', mtc: '', mon: [], quay: '' };
   if (!dsTay.bill) dsTay.bill = posMaBill();
+  /* Diem ban KHONG hoi lai nua, may tu dien san.
+     Anh Viet 15/08/2026: *"truoc khi vao man hinh tinh tien da phai chon
+     diem ban roi ma, sao vao man tinh tien lai phai chon them diem ban khi
+     bam bill"*. Dung: man Nhap don tay nam trong Doanh thu Sales, ma
+     Doanh thu Sales chinh la diem nhan don online - nguoi dung da chon no
+     o man "Chon diem ban" truoc do roi. Nen mac dinh lay dung diem do,
+     dong Diem ban van hien de nhin ra don dang ghi cho noi nao va van bam
+     doi duoc khi Sales nhap ho mot quay. */
   var dstDiem = dstDiemDs(dsTay.nguon);
-  var dstPhaiChon = dstDiem.length > 1;
-  if (dstPhaiChon) {
-    if (!dstDiem.some(function (x) { return x.ma === dsTay.quay; })) dsTay.quay = '';
-  } else {
-    // Nguon chi thuoc mot diem thi khong hoi lam gi, may tu dien.
-    dsTay.quay = dstDiem.length ? dstDiem[0].ma : '';
+  if (!dstDiem.some(function (x) { return x.ma === dsTay.quay; })) {
+    var mac = null;
+    dstDiem.forEach(function (x) { if (!mac && !x.quay) mac = x; });
+    dsTay.quay = (mac || dstDiem[0] || {}).ma || '';
   }
+  var dstPhaiChon = dstDiem.length > 1;
   var dstTenDiem = '';
   dstDiem.forEach(function (x) { if (x.ma === dsTay.quay) dstTenDiem = x.ten; });
   var dsPt = ptTheoNguon(dsTay.nguon);
@@ -6942,9 +6949,9 @@ async function scrDsNhapTay() {
   var html = '<div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     '<div class="hub" data-t="nguon" style="padding:10px 0;border:none"><div class="ht"><div class="h2">Nguồn đơn</div><div class="h1">' + h(dsTay.nguon) + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>' +
     (dstPhaiChon
-      ? '<div class="hub" data-t="diem" style="padding:10px 0;border:none;border-top:1px solid #f0f2f6"><div class="ht"><div class="h2">Điểm bán</div><div class="h1"' +
+      ? '<div class="hub" data-t="diem" style="padding:10px 0;border:none;border-top:1px solid #f0f2f6"><div class="ht"><div class="h2">Điểm bán · bấm để đổi</div><div class="h1"' +
         (dstTenDiem ? '' : ' style="color:#b3261e"') + '>' + h(dstTenDiem || 'Chưa chọn - bắt buộc') + '</div></div><span style="color:#c3c8d4">&#8250;</span></div>'
-      : '') +
+      : '<div style="border-top:1px solid #f0f2f6;padding-top:9px;font-size:12.5px;color:#8a8f9c">Điểm bán: <b style="color:#374151">' + h(dstTenDiem || '') + '</b></div>') +
     '<input class="tin" id="dstMa" placeholder="Mã đơn bên app (vd GF-123 hoặc số HĐ Fabi)" value="' + h(dsTay.ma) + '">' +
     '<input class="tin" id="dstTen" placeholder="Tên khách" value="' + h(dsTay.ten) + '">' +
     '<input class="tin" id="dstSdt" placeholder="Số điện thoại (không bắt buộc)" inputmode="tel" value="' + h(dsTay.sdt) + '">' +
@@ -10836,7 +10843,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '170';
+var APPVER = '171';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
