@@ -10852,7 +10852,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '173';
+var APPVER = '174';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -13610,8 +13610,16 @@ function kgVeThe(kq) {
     return '<div class="shi" data-kgdong="' + h(r[dau.k]) + '" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #f2f4f7">' +
       '<div style="flex:1;min-width:0">' +
       '<b style="font-size:14.5px">' + kgO(dau, r[dau.k], kq) + '</b>' +
+      /* Bo o rong va o bang 0: dang the la de liec nhanh tren dien thoai,
+         bay "Tre (ngay) 0" tren tung dong chi lam roi mat. Dang bang van
+         hien du moi o de doi chieu. */
       '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' +
-        con.map(function (c) { return h(c.nhan) + ' ' + kgO(c, r[c.k], kq); }).join(' · ') + '</div>' +
+        con.filter(function (c) {
+          var v = r[c.k];
+          if (v == null || v === '') return false;
+          if (c.kieu === 'so' || c.kieu === 'tien' || c.kieu === 'phan_tram') return flt0(v) !== 0;
+          return true;
+        }).map(function (c) { return h(c.nhan) + ' ' + kgO(c, r[c.k], kq); }).join(' · ') + '</div>' +
       (cChip ? '<div style="font-size:12px;margin-top:3px">' + kgO(cChip, r[cChip.k], kq) + '</div>' : '') +
       '</div>' +
       (cTien ? '<b style="white-space:nowrap">' + kgO(cTien, r[cTien.k], kq) + '</b>' : '') +
