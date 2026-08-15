@@ -134,6 +134,55 @@ ca("ten vong 3 van dan vao GOC chu khong dan vao v2",
    lambda: ten_vong(T + "0007", 3), T + "0007-v3")
 
 
+# ------------------------------------------------------------ xep cac vong
+#
+# Frappe 16 chan moi loi goi ham trong order_by, ke ca ifnull(), nen phai xep
+# o Python. To lap truoc dot nay co phien_ban rong, phai doc thanh 1.
+def xep_vong(ds):
+	"""Ban sao THUAN cua phan xep trong lich_su()."""
+	r = [dict(x) for x in ds]
+	for x in r:
+		x["phien_ban"] = int(x.get("phien_ban") or 1)
+	r.sort(key=lambda x: (x["phien_ban"], str(x.get("creation") or "")))
+	return [x["name"] + "/v" + str(x["phien_ban"]) for x in r]
+
+
+ca("to cu co phien_ban rong van doc thanh vong 1",
+   lambda: xep_vong([{"name": "A", "phien_ban": None, "creation": "1"}]),
+   ["A/v1"])
+ca("phien_ban bang 0 cung doc thanh vong 1",
+   lambda: xep_vong([{"name": "A", "phien_ban": 0, "creation": "1"}]),
+   ["A/v1"])
+ca("xep dung khi goc rong con cac vong sau co so",
+   lambda: xep_vong([
+	   {"name": "A-v3", "phien_ban": 3, "creation": "3"},
+	   {"name": "A", "phien_ban": None, "creation": "1"},
+	   {"name": "A-v2", "phien_ban": 2, "creation": "2"}]),
+   ["A/v1", "A-v2/v2", "A-v3/v3"])
+ca("vong 10 dung sau vong 9 chu khong dung sau vong 1",
+   lambda: xep_vong([
+	   {"name": "A-v10", "phien_ban": 10, "creation": "b"},
+	   {"name": "A-v9", "phien_ban": 9, "creation": "a"}]),
+   ["A-v9/v9", "A-v10/v10"])
+
+
+# -------------------------------------------------- muc chenh lech tung vong
+def chenh_vong(tong):
+	"""Ban sao THUAN cua phep tinh chenh trong lich_su()."""
+	ra, truoc = [], None
+	for t in tong:
+		ra.append(0.0 if truoc is None else float(t) - float(truoc))
+		truoc = t
+	return ra
+
+
+ca("vong dau khong co chenh", lambda: chenh_vong([900000]), [0.0])
+ca("giam gia thi chenh am",
+   lambda: chenh_vong([900000, 450000]), [0.0, -450000.0])
+ca("tang roi giam van dung tung buoc",
+   lambda: chenh_vong([100, 150, 120]), [0.0, 50.0, -30.0])
+
+
 def chay():
 	dat = hong = 0
 	for ten, ham, mong in CA:
