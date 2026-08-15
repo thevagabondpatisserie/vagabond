@@ -785,7 +785,12 @@ async function scrHome() {
       ? card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
-        card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA')
+        card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA') +
+        /* Hai o thu cua khuon danh sach dung chung (A2 + B3). Dat canh o
+           cu de anh Viet mo hai ben doi chieu tung con so. Go di khi da
+           chac hai duong khop nhau. */
+        card('🧪', 'Đơn mua hàng (bản khung)', 'Bản dựng từ khuôn dùng chung, để đối chiếu số với bản cũ', 0, 'KHPO') +
+        card('🧪', 'Hoá đơn mua vào (bản khung)', 'Bản dựng từ khuôn dùng chung, để đối chiếu số với bản cũ', 0, 'KHHDM')
       : '') +
     '</div>';
   if (apRoles) {
@@ -942,6 +947,8 @@ async function scrHome() {
     if (k === 'KT1') return go(scrDoanhSo);
     if (k === 'BCHUB') return go(scrBaoCao);
     if (k === 'PO') return go(scrDonMua);
+    if (k === 'KHPO') return khMo('PO');
+    if (k === 'KHHDM') return khMo('HDM');
     if (k === 'CNPT') return go(scrNoPhaiTra);
     if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
@@ -1007,7 +1014,7 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC', 'BGIA'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -1305,6 +1312,8 @@ function vgbGo(k) {
   if (k === 'KT1') return go(scrDoanhSo);
   if (k === 'BCHUB') return go(scrBaoCao);
   if (k === 'PO') return go(scrDonMua);
+    if (k === 'KHPO') return khMo('PO');
+    if (k === 'KHHDM') return khMo('HDM');
   if (k === 'CNPT') return go(scrNoPhaiTra);
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
@@ -10843,7 +10852,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '171';
+var APPVER = '172';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -13408,6 +13417,259 @@ function mkChipNgay(ds, dangChon, thuoc) {
 function mkOTim(id, gt, moTa) {
   return '<div class="card" style="padding:10px 12px">' +
     '<input class="tin" id="' + id + '" placeholder="' + h(moTa) + '" value="' + h(gt || '') + '"></div>';
+}
+
+
+/* ==========================================================================
+   B3 - KHUON MAN DANH SACH DUNG CHUNG (anh Viet duyet 15/08/2026)
+
+   Man hinh o day khong biet Don mua hang la gi, khong biet Hoa don la gi.
+   No chi biet doc HOP DONG DU LIEU ma tang khung A2 tra ve:
+
+       cot      moi cot co k, nhan, kieu (chu/tien/so/phan_tram/ngay/chip)
+       dong     cac dong DA duoc may chu loc, xep va cat
+       cong     dong TONG cuoi bang, cong dung nhung dong dang hien
+       tom_tat  the so lon tren dau man, la TIEN THAT da loai don huy
+       chip     ds cac chip, chip dang chon, va so dem tung chip
+       loc      khai bao bo loc kem gia tri dang ap
+       tong_dong / bi_cat / gioi_han
+
+   Nghia la: them mot man danh sach moi tu nay ve sau KHONG phai viet mot
+   dong JavaScript nao. Chi khai bao cot va bo loc ben Python. Dung nhu
+   phan he Bao cao da chung minh hom 14/08: them BC13 den BC16 chi mat
+   phan may chu, giao dien tu hien.
+
+   Chay SONG SONG voi cac man cu, khong thay the man nao.
+   ========================================================================== */
+
+var khMa = '', khXem = {}, khTS = {};
+
+function khMo(ma) { khMa = ma; go(scrKhungDs); }
+
+function khTs(ma) {
+  if (!khTS[ma]) khTS[ma] = { so_ngay: 60, chip: '' };
+  return khTS[ma];
+}
+
+/* Mot o trong bang. Giong bcO cua bao cao, them kieu chip. */
+function khO(c, v, kq) {
+  if (c.kieu === 'tien') return money(Math.round(flt0(v))) + ' đ';
+  if (c.kieu === 'so') return money(Math.round(flt0(v) * 100) / 100);
+  if (c.kieu === 'phan_tram') return (Math.round(flt0(v) * 10) / 10) + '%';
+  if (c.kieu === 'ngay') { var s = String(v == null ? '' : v).slice(0, 10); return s ? ngayNgan(s) : ''; }
+  if (c.kieu === 'chip') return khTenChip(kq, v);
+  return h(String(v == null ? '' : v));
+}
+
+function khChipInfo(kq, k) {
+  var ra = null;
+  ((kq.chip && kq.chip.ds) || []).forEach(function (x) { if (x.k === k) ra = x; });
+  return ra;
+}
+
+function khTenChip(kq, k) {
+  var c = khChipInfo(kq, k);
+  if (!c) return h(String(k == null ? '' : k));
+  var mau = KH_MAU[k] || '#374151';
+  return '<span style="color:' + mau + ';font-weight:700;white-space:nowrap">' + c.ic + ' ' + h(c.ten) + '</span>';
+}
+
+/* Mau theo viec con phai lam, khong theo ma ky thuat: do la viec gap,
+   cam la cho xu ly, xam la khong con phai lam gi. */
+var KH_MAU = {
+  tre_hen: '#b3261e', qua_han: '#b3261e', cho_hoa_don: '#b45309',
+  con_no: '#b45309', nhap: '#6b7280', huy: '#9ca3af',
+  xong: '#0f766e', da_tra: '#0f766e', dong: '#6b7280', da_sua: '#7c3aed'
+};
+
+/* ---- the so lon tren dau man: TIEN THAT ---- */
+function khTheTomTat(kq) {
+  var ds = kq.tom_tat || [];
+  if (!ds.length) return '';
+  var chinh = ds[1] || ds[0];
+  var phu = ds.filter(function (x) { return x !== chinh; });
+  return '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">' +
+      h((chinh.nhan || '').toUpperCase()) + ' · TIỀN THẬT' + '</div>' +
+    '<div style="font-size:26px;font-weight:800;line-height:1.25">' + khO(chinh, chinh.gt, kq) + '</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' +
+      phu.map(function (x) { return h(x.nhan) + ' ' + khO(x, x.gt, kq); }).join(' · ') + '</div>' +
+    /* Anh Viet dan 15/08/2026: ke toan phai hieu ngay vi sao con so tren
+       dau man khac dong TONG cuoi bang. Noi thang bang chu, khong dua vao
+       tooltip - dien thoai khong co chuot de ro chuot len. */
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6;' +
+      'border-top:1px dashed #e5e7eb;padding-top:7px">' +
+      'Con số này tính trên <b>toàn bộ ' + money(kq.chip && kq.chip.dem ? kq.chip.dem[''] : kq.tong_dong) +
+      '</b> dòng của khoảng đang lọc, đã loại đơn huỷ và đơn chưa ghi sổ, và <b>không đổi</b> khi bấm chip. ' +
+      'Dòng TỔNG cuối bảng là phép cộng của đúng những dòng đang hiện.</div>' +
+    '</div>';
+}
+
+/* ---- thanh bo loc: doc tu khai bao, khong viet tay cho tung man ---- */
+function khThanhLoc(kq) {
+  var ts = khTs(kq.ma), ra = '';
+  (kq.loc || []).forEach(function (f) {
+    if (f.kieu === 'ngay') {
+      ra += '<div class="card" style="padding:10px 12px">' +
+        kmHangChip([[30, '30 ngày'], [60, '60 ngày'], [180, '6 tháng'], [0, 'Tất cả']].map(function (n) {
+          var dc = !ts.tu && !ts.den && String(ts.so_ngay) === String(n[0]);
+          return posChipNut('data-khngay="' + n[0] + '"', n[1], dc);
+        }).join('')) +
+        '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">' +
+        '<input class="tin" id="khTu" type="date" value="' + h(ts.tu || '') + '" style="flex:1">' +
+        '<input class="tin" id="khDen" type="date" value="' + h(ts.den || '') + '" style="flex:1">' +
+        (ts.tu || ts.den ? posChipNut('data-khxoangay="1"', '✕', false, true) : '') +
+        '</div></div>';
+    } else if (f.kieu === 'tim_chu' || f.kieu === 'chon_mot') {
+      /* chon_mot chua khai nguon danh sach thi tam thoi go tay dung MA.
+         Ghi ro "mã" trong o de khoi go ten roi tuong may hong. Khi nao lam
+         A4 co danh muc dung chung thi doi o nay thanh o chon. */
+      var moTa = f.kieu === 'chon_mot' ? f.nhan + ' (gõ đúng mã)' : 'Tìm ' + f.nhan.toLowerCase();
+      ra += '<div class="card" style="padding:10px 12px">' +
+        '<input class="tin" data-khtxt="' + h(f.k) + '" placeholder="' + h(moTa) + '" value="' +
+        h(ts[f.k] || '') + '"></div>';
+    } else if (f.kieu === 'khoang_so') {
+      ra += '<div class="card" style="padding:10px 12px;display:flex;gap:8px">' +
+        '<input class="tin" data-khtxt="' + h(f.k) + '_tu" type="number" placeholder="' + h(f.nhan) + ' từ" value="' + h(ts[f.k + '_tu'] || '') + '" style="flex:1">' +
+        '<input class="tin" data-khtxt="' + h(f.k) + '_den" type="number" placeholder="đến" value="' + h(ts[f.k + '_den'] || '') + '" style="flex:1"></div>';
+    } else if (f.kieu === 'co') {
+      ra += '<div class="card" style="padding:10px 12px">' +
+        kmHangChip(posChipNut('data-khco="' + h(f.k) + '"', h(f.nhan), !!ts[f.k])) + '</div>';
+    }
+  });
+  return ra;
+}
+
+/* ---- hang chip trang thai kem so dem ---- */
+function khHangChip(kq) {
+  var c = kq.chip || {}, dem = c.dem || {};
+  if (!(c.ds || []).length) return '';
+  return '<div class="card" style="padding:10px 12px">' + kmHangChip((c.ds || []).map(function (x) {
+    var n = dem[x.k] || 0;
+    return posChipNut('data-khchip="' + h(x.k) + '"', x.ic + ' ' + h(x.ten) + ' <b>' + money(n) + '</b>',
+      String(c.chon || '') === String(x.k));
+  }).join('')) + '</div>';
+}
+
+/* ---- bang cat dong: im lang o cho nay la nguy hiem nhat ---- */
+function khNhacCat(kq) {
+  if (!kq.bi_cat) return '';
+  return '<div class="card" style="padding:11px 13px;border:1.5px solid #fcd34d;background:#fffbeb">' +
+    '<div style="font-size:12.5px;color:#92400e;line-height:1.65">' +
+    'Khoảng này có <b>' + money(kq.tong_dong) + '</b> dòng, màn hình đang hiện <b>' + money(kq.gioi_han) +
+    '</b> dòng đầu, còn <b>' + money(kq.bi_cat) + '</b> dòng chưa hiện. ' +
+    'Thu hẹp khoảng ngày, gõ tìm, hoặc bấm một chip trạng thái để xem cho đủ. ' +
+    'Thẻ số ở trên vẫn tính đủ cả ' + money(kq.tong_dong) + ' dòng.</div></div>';
+}
+
+/* ---- dang bang: cho may tinh va cho luc doi chieu so ---- */
+function khVeBang(kq) {
+  if (!(kq.dong || []).length) return khRong();
+  var phai = { tien: 1, so: 1, phan_tram: 1 };
+  var html = '<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr>' + kq.cot.map(function (c) {
+      return '<th style="text-align:' + (phai[c.kieu] ? 'right' : 'left') + ';padding:10px 12px;background:#f8fafc;color:#6b7280;font-size:11.5px;font-weight:700;white-space:nowrap;position:sticky;top:0">' + h(c.nhan) + '</th>';
+    }).join('') + '</tr></thead><tbody>';
+  kq.dong.forEach(function (r, i) {
+    html += '<tr data-khdong="' + h(r[kq.cot[0].k]) + '" style="border-top:1px solid #f2f4f7' + (i % 2 ? ';background:#fcfdfe' : '') + '">' +
+      kq.cot.map(function (c, j) {
+        return '<td style="text-align:' + (phai[c.kieu] ? 'right' : 'left') + ';padding:9px 12px;white-space:nowrap' + (j === 0 ? ';font-weight:600' : '') + '">' + khO(c, r[c.k], kq) + '</td>';
+      }).join('') + '</tr>';
+  });
+  if (kq.cong && Object.keys(kq.cong).length) {
+    /* Dong TONG de mau XAM, khac han the TIEN THAT mau xanh o tren, va ghi
+       ro dang cong bao nhieu dong. Hai con so khac nhau va deu dung; cai
+       nguy hiem la de ke toan tuong chung la mot. */
+    html += '<tr style="border-top:2px solid #e5e7eb;background:#f3f4f6;font-weight:800">' +
+      kq.cot.map(function (c, j) {
+        if (j === 0) return '<td style="padding:10px 12px;white-space:nowrap;color:#4b5563">TỔNG ' + money(kq.dong.length) + ' dòng đang hiện</td>';
+        var v = kq.cong[c.k] == null ? '' : khO(c, kq.cong[c.k], kq);
+        return '<td style="text-align:' + (phai[c.kieu] ? 'right' : 'left') + ';padding:10px 12px;white-space:nowrap;color:#4b5563">' + v + '</td>';
+      }).join('') + '</tr>';
+  }
+  return html + '</tbody></table></div>';
+}
+
+/* ---- dang the: cho dien thoai, dung kieu cu nhan vien da quen ---- */
+function khVeThe(kq) {
+  if (!(kq.dong || []).length) return khRong();
+  var cot = kq.cot, dau = cot[0];
+  var cTien = null, cChip = null;
+  cot.forEach(function (c) {
+    if (!cTien && c.kieu === 'tien') cTien = c;
+    if (!cChip && c.kieu === 'chip') cChip = c;
+  });
+  var con = cot.filter(function (c) { return c !== dau && c !== cTien && c !== cChip; });
+  return '<div class="lst">' + kq.dong.map(function (r) {
+    return '<div class="shi" data-khdong="' + h(r[dau.k]) + '" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="flex:1;min-width:0">' +
+      '<b style="font-size:14.5px">' + khO(dau, r[dau.k], kq) + '</b>' +
+      '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' +
+        con.map(function (c) { return h(c.nhan) + ' ' + khO(c, r[c.k], kq); }).join(' · ') + '</div>' +
+      (cChip ? '<div style="font-size:12px;margin-top:3px">' + khO(cChip, r[cChip.k], kq) + '</div>' : '') +
+      '</div>' +
+      (cTien ? '<b style="white-space:nowrap">' + khO(cTien, r[cTien.k], kq) + '</b>' : '') +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+function khRong() {
+  return '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div><div>Không có dòng nào khớp bộ lọc này.</div></div></div>';
+}
+
+/* ---- man hinh ---- */
+async function scrKhungDs() {
+  var ma = khMa, ts = khTs(ma);
+  frame('Danh sách', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc dữ liệu...</div></div>');
+  var goi = { ma: ma };
+  Object.keys(ts).forEach(function (k) {
+    if (ts[k] !== '' && ts[k] != null) goi[k] = ts[k];
+  });
+  var kq;
+  try { kq = await api('vagabond.khung.ds.chay', goi); }
+  catch (e) {
+    frame('Danh sách', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+
+  var xem = khXem[ma] || 'the';
+  var html = khTheTomTat(kq) +
+    khThanhLoc(kq) +
+    khHangChip(kq) +
+    '<div class="card" style="padding:10px 12px">' + kmHangChip(
+      posChipNut('data-khxem="the"', '🗂️ Thẻ', xem === 'the') +
+      posChipNut('data-khxem="bang"', '📋 Bảng', xem === 'bang')
+    ) + '</div>' +
+    khNhacCat(kq) +
+    (xem === 'bang' ? khVeBang(kq) : khVeThe(kq)) +
+    '<div style="text-align:center;color:#a0a6b4;font-size:11.5px;padding:9px 14px 2px;line-height:1.6">' +
+      h(kq.ten) + ' · ' + (kq.tu ? h(kq.tu) + ' đến ' + h(kq.den) : 'tất cả các kỳ') +
+      ' · màn này dựng từ khuôn dùng chung, số liệu do máy chủ cộng.</div>';
+
+  var b = frame(kq.ten, html);
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-khchip]');
+    if (t) { ts.chip = t.getAttribute('data-khchip'); return go(scrKhungDs, true); }
+    t = e.target.closest('[data-khngay]');
+    if (t) { ts.so_ngay = parseInt(t.getAttribute('data-khngay'), 10); ts.tu = ''; ts.den = ''; return go(scrKhungDs, true); }
+    t = e.target.closest('[data-khxoangay]');
+    if (t) { ts.tu = ''; ts.den = ''; return go(scrKhungDs, true); }
+    t = e.target.closest('[data-khxem]');
+    if (t) { khXem[ma] = t.getAttribute('data-khxem'); return go(scrKhungDs, true); }
+    t = e.target.closest('[data-khco]');
+    if (t) { var k = t.getAttribute('data-khco'); ts[k] = ts[k] ? 0 : 1; return go(scrKhungDs, true); }
+  };
+  ['khTu', 'khDen'].forEach(function (id) {
+    var o = document.getElementById(id);
+    if (o) o.onchange = function () {
+      ts.tu = (document.getElementById('khTu') || {}).value || '';
+      ts.den = (document.getElementById('khDen') || {}).value || '';
+      if (ts.tu && ts.den) go(scrKhungDs, true);
+    };
+  });
+  Array.prototype.forEach.call(b.querySelectorAll('[data-khtxt]'), function (o) {
+    o.onchange = function () { ts[o.getAttribute('data-khtxt')] = o.value; go(scrKhungDs, true); };
+  });
 }
 
 /* ---------------- Don mua hang (PO) ---------------- */
