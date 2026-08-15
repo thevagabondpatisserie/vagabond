@@ -35,7 +35,8 @@ async function scrDonMua() {
         (d.hen ? ' · hẹn ' + ngayNgan(d.hen) : '') + '</div>' +
         '<div style="font-size:12px;color:' + mau + ';font-weight:600;margin-top:3px">' + h(ten) +
         (d.tre_ngay ? ' ' + d.tre_ngay + ' ngày' : '') +
-        (d.nhom === 'nhan_mot_phan' ? ' · đã nhận ' + Math.round(d.per_received) + '%' : '') + '</div></div>' +
+        (d.nhom === 'nhan_mot_phan' ? ' · đã nhận ' + Math.round(d.per_received) + '%' : '') +
+        (d.con_nhan > 0.0001 ? ' · <span style="color:#b45309">còn ' + money(d.con_nhan) + ' của ' + d.so_mon_con + ' món</span>' : '') + '</div></div>' +
         '<b style="white-space:nowrap">' + money(d.grand_total) + ' đ</b></div>';
     }).join('') + '</div>';
   }
@@ -64,6 +65,10 @@ async function scrDonMuaXem() {
     '<div style="font-size:12.5px;color:#6b7280">' + h(d.name) + ' · đặt ngày ' + ngayNgan(d.ngay) +
     (d.hen ? ' · hẹn giao ' + ngayNgan(d.hen) : '') + '</div>' +
     '<div style="font-size:13px;margin-top:6px">Đã nhận <b>' + Math.round(d.da_nhan) + '%</b> · đã lên hoá đơn <b>' + Math.round(d.da_hoa_don) + '%</b></div>' +
+    (d.con_nhan > 0.0001
+      ? '<div style="margin-top:9px;background:#fff6e5;border:1.5px solid #fde3a7;border-radius:9px;padding:10px 12px;font-size:13px;color:#8a5b00">' +
+        'Đơn này còn nợ <b>' + money(d.con_nhan) + '</b> đơn vị của <b>' + d.so_mon_con + ' món</b>. Kho vào màn Nhập kho, tab "Còn phải nhận" để nhận đợt tiếp theo.</div>'
+      : '') +
     '</div>';
 
   html += '<div class="sec">Mặt hàng</div><div class="card" style="padding:6px 14px">' +
@@ -71,12 +76,24 @@ async function scrDonMuaXem() {
       return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
         '<div style="flex:1;min-width:0">' + h(m.ten || m.ma) +
         '<div style="color:#a0a6b4;font-size:12px">đặt ' + money(m.sl) + ' ' + h(m.dvt || '') +
-        ' · đã nhận ' + money(m.da_nhan) + ' · ' + money(m.gia) + ' đ</div></div>' +
+        ' · đã nhận ' + money(m.da_nhan) +
+        (m.con_lai > 0.0001 ? ' · <b style="color:#b45309">còn ' + money(m.con_lai) + '</b>' : '') +
+        ' · ' + money(m.gia) + ' đ</div></div>' +
         '<b style="white-space:nowrap">' + money(m.tien) + '</b></div>';
     }).join('') +
     '<div style="display:flex;justify-content:space-between;padding:9px 0;color:#5a6070"><span>Tiền hàng</span><span>' + money(d.tong_hang) + ' đ</span></div>' +
     (d.thue ? '<div style="display:flex;justify-content:space-between;padding:2px 0;color:#5a6070"><span>Thuế và phí</span><span>' + money(d.thue) + ' đ</span></div>' : '') +
     '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>Tổng cộng</b><b>' + money(d.tong) + ' đ</b></div></div>';
+
+  if ((d.lich_su_nhan || []).length) {
+    html += '<div class="sec">Các đợt đã nhận hàng</div><div class="card" style="padding:6px 14px">' +
+      d.lich_su_nhan.map(function (x) {
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
+          '<div style="flex:1;min-width:0">Đợt ' + x.dot + ' · ' + ngayNgan(x.ngay) +
+          '<div style="color:#a0a6b4;font-size:12px">Phiếu ' + h(x.name) + '</div></div>' +
+          '<b style="white-space:nowrap">' + x.so_mon + ' món · ' + money(x.sl) + '</b></div>';
+      }).join('') + '</div>';
+  }
 
   html += '<div class="sec">Đã nối với</div><div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.8">' +
     '<div>Phiếu nhập kho: ' + (d.phieu_nhap.length ? '<b>' + d.phieu_nhap.map(h).join(', ') + '</b>' : '<span style="color:#b45309">chưa có phiếu nào</span>') + '</div>' +
