@@ -26,7 +26,7 @@ tinh bien the (fields rong) chu khong doi thang display_id - xem bo_hau_to.
 
 import frappe
 import requests
-from frappe.utils import get_url
+from frappe.utils import add_days, get_url, getdate, nowdate
 
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 
@@ -584,3 +584,107 @@ def do_duong():
 		except Exception as e:
 			ra.append({"duong": d, "ma": 0, "loi": str(e)[:120]})
 	return ra
+
+
+# ---------------------------------------------------------------------------
+# BUOC 0 cua Viec 2: soi nguyen cau truc JSON mot don Pancake.
+#
+# Anh Viet duyet 15/08/2026: *"Khoan hay code logic anh xa. Viet ngay ham in
+# raw JSON thuc te cua Pancake ra log de anh em minh chot cau truc du lieu
+# truoc. Khong doan mo ten truong."*
+#
+# Vi sao phai co buoc nay: trong ban_hang.PT_KENH da co san dong
+# charged_by_onepay -> "OnePay", nhung dem 400 don Pancake gan nhat tren he
+# that thi KHONG co don nao mang ghi chu "Pancake: OnePay" do may sinh ra -
+# thay vao do 22 don ghi "tra truoc (chua ro kenh)". Tuc Pancake khong tra ve
+# truong do, nhanh OnePay dang la ma chet, va 24 don OnePay tren he la sales
+# chon tay. Cong no thi chua co anh xa nao.
+#
+# Hai ham duoi CHI DOC. Khong ghi mot chu nao vao co so du lieu.
+# ---------------------------------------------------------------------------
+
+# Cac o co mui tien tren don Pancake. Dung de loc bot cho de doc, con
+# xem_don_tho van tra ve nguyen ca don.
+O_TIEN = (
+	"cash", "transfer_money", "prepaid", "cod", "total_price", "total_price_after_sub_discount",
+	"charged_by_card", "charged_by_momo", "charged_by_vnpay", "charged_by_qrpay",
+	"charged_by_onepay", "charged_by_fee", "partner_fee", "money_to_collect",
+	"is_free_shipping", "shipping_fee", "total_discount", "surcharge",
+	"payment_purchase_method", "status", "sub_status",
+)
+
+
+def _don_trong_ngay(c, k, ngay):
+	"""Keo het don cua mot ngay. Dung lai duong keo cua kiem_banh."""
+	from vagabond.kiem_banh import _keo_don, _khoang_unix
+
+	dau, cuoi = _khoang_unix(getdate(ngay))
+	return _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
+
+
+@frappe.whitelist()
+def xem_don_tho(ma_don=None, ngay=None, so_don=3):
+	"""CHI DOC. Tra ve nguyen cau truc JSON cua don Pancake.
+
+	ma_don  ma don hien tren Pancake (display_id) hoac id noi bo
+	ngay    ngay giao hang, mac dinh hom nay
+	so_don  khong khai ma_don thi lay bay nhieu don dau tien cua ngay do
+
+	Khong bao gio in ra khoa API: chi tra ve than cua don.
+	"""
+	_quyen()
+	c, k = _khoa()
+	dons = _don_trong_ngay(c, k, ngay or nowdate())
+	if ma_don:
+		can = str(ma_don).strip().lower()
+		dons = [
+			o for o in dons
+			if can in (str(o.get("display_id") or "").lower(), str(o.get("id") or "").lower())
+		]
+		if not dons:
+			frappe.throw(
+				"Không thấy đơn %s trong ngày %s. Đơn Pancake tra theo NGÀY GIAO, "
+				"nên nếu đơn giao hôm khác thì truyền thêm ngày giúp em."
+				% (ma_don, ngay or nowdate())
+			)
+	return {"ngay": str(ngay or nowdate()), "so_don": len(dons), "don": dons[: int(so_don or 3)]}
+
+
+@frappe.whitelist()
+def do_o_tien(ngay=None, so_ngay=1):
+	"""CHI DOC. Quet cac don trong khoang ngay roi bao O NAO CO GIA TRI THAT.
+
+	Day moi la thu dung de chot anh xa: thay vi doc mot don mau roi doan,
+	ham nay dem tren toan bo don that xem truong nao that su co so lieu,
+	kieu du lieu la gi, va vai gia tri vi du.
+	"""
+	_quyen()
+	c, k = _khoa()
+	so_ngay = max(1, int(so_ngay or 1))
+	goc = getdate(ngay or nowdate())
+	dons = []
+	for i in range(so_ngay):
+		dons.extend(_don_trong_ngay(c, k, add_days(goc, -i)))
+
+	tat_ca, co_gia_tri = {}, {}
+	for o in dons:
+		for khoa, gt in (o or {}).items():
+			tat_ca[khoa] = tat_ca.get(khoa, 0) + 1
+			if gt in (None, "", 0, 0.0, False, [], {}):
+				continue
+			d = co_gia_tri.setdefault(khoa, {"so_don": 0, "kieu": type(gt).__name__, "vi_du": []})
+			d["so_don"] += 1
+			if len(d["vi_du"]) < 3:
+				m = gt if not isinstance(gt, (list, dict)) else ("%s(%d)" % (type(gt).__name__, len(gt)))
+				d["vi_du"].append(m)
+
+	tien = {kh: v for kh, v in co_gia_tri.items() if kh in O_TIEN}
+	return {
+		"tu_ngay": str(add_days(goc, -(so_ngay - 1))),
+		"den_ngay": str(goc),
+		"so_don": len(dons),
+		"o_tien_co_so_lieu": tien,
+		"o_tien_luon_rong": sorted([kh for kh in O_TIEN if kh in tat_ca and kh not in co_gia_tri]),
+		"o_tien_khong_ton_tai": sorted([kh for kh in O_TIEN if kh not in tat_ca]),
+		"tat_ca_truong": sorted(tat_ca),
+	}
