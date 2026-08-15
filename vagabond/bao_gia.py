@@ -1259,3 +1259,85 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
 	hd.insert(ignore_permissions=True)
 	frappe.db.set_value(DT, name, {"hop_dong": hd.name, "trang_thai": "Đã lên hợp đồng"})
 	return hd.name
+
+
+# ---------------------------------------------------------- mau bao gia
+
+# Anh Viet 15/08/2026: *"Thêm tính năng 'Lưu mẫu báo giá' để sau này dùng thì
+# áp lên để app tự điền hết các phần thông tin theo mẫu (vì có những hợp đồng
+# có quy trình vận hành giống nhau,...)"*.
+#
+# Mau chinh la mot to bao gia co co la_mau = 1: dung lai toan bo cach luu, cach
+# doc, cach sua cua to thuong, khong dung them doctype nao. To co co nay bi an
+# khoi danh sach bao gia va khong duoc xuat PDF gui khach.
+
+
+@frappe.whitelist()
+def mau_ds():
+	"""Danh sach mau de chon khi lap to moi."""
+	_quyen()
+	return frappe.get_all(
+		DT,
+		filters={"la_mau": 1},
+		fields=["name", "ten_mau", "ten", "modified"],
+		order_by="ten_mau asc, modified desc",
+		limit_page_length=100,
+	)
+
+
+@frappe.whitelist()
+def mau_luu(name, ten_mau):
+	"""Luu mot to dang co thanh mau dung lai."""
+	_quyen(sua=True)
+	ten_mau = (ten_mau or "").strip()
+	if not ten_mau:
+		frappe.throw("Đặt tên cho mẫu đã nhé, vd Mẫu trung thu doanh nghiệp.")
+	cu = frappe.get_doc(DT, name)
+	m = frappe.copy_doc(cu)
+	m.la_mau = 1
+	m.ten_mau = ten_mau
+	m.trang_thai = "Nháp"
+	m.hop_dong = None
+	# Mau khong giu thong tin khach cua to goc, chi giu khung va cach lam.
+	for f in ("khach_hang", "ten_khach", "ma_so_thue", "dia_chi",
+			  "nguoi_lien_he", "chuc_vu", "dien_thoai", "email"):
+		m.set(f, None)
+	m.insert(ignore_permissions=True)
+	return {"name": m.name, "ten_mau": ten_mau}
+
+
+@frappe.whitelist()
+def mau_xoa(name):
+	_quyen(sua=True)
+	if not frappe.db.get_value(DT, name, "la_mau"):
+		frappe.throw("Đây không phải mẫu.")
+	frappe.delete_doc(DT, name, ignore_permissions=True)
+	return 1
+
+
+@frappe.whitelist()
+def tu_mau(name_mau):
+	"""Khung to moi dien san theo mau: cau chu, dieu khoan, timeline, dich vu
+	them va ca cac dong san pham. Chua co khach hang, ngay lay hom nay."""
+	_quyen(sua=True)
+	if not frappe.db.get_value(DT, name_mau, "la_mau"):
+		frappe.throw("Đây không phải mẫu.")
+	m = _goi(frappe.get_doc(DT, name_mau))
+	d = moi()
+	giu = (
+		"ten", "ten_en", "song_ngu", "gia_da_gom_vat", "loi_mo", "loi_mo_en",
+		"thanh_toan", "thanh_toan_en", "yeu_cau_vi", "yeu_cau_en",
+		"chinh_sach_huy_vi", "chinh_sach_huy_en", "luu_y_vi", "luu_y_en",
+		"giao_hang", "dong_goi", "ghi_chu", "chiet_khau_pt", "thue_pt",
+		"phi_giao", "dat_coc_pt", "hieu_luc_ngay",
+	)
+	for f in giu:
+		if m.get(f) not in (None, ""):
+			d[f] = m[f]
+	d["dong"] = m.get("dong") or []
+	d["dich_vu"] = m.get("dich_vu") or []
+	d["moc"] = m.get("moc") or []
+	d["tu_mau"] = frappe.db.get_value(DT, name_mau, "ten_mau") or name_mau
+	if d.get("hieu_luc_ngay"):
+		d["hieu_luc_den"] = add_days(nowdate(), int(d["hieu_luc_ngay"]))
+	return d
