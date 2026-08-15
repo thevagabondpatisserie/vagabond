@@ -309,11 +309,14 @@ def _nguon_don():
 	# Phuong thuc cua san (GrabFood, ShopeeFood...) deu de quay=0 online=0
 	# vi khong hien ra cho ai chon tay - nen o day phai lay TAT CA phuong
 	# thuc dang dung, khong duoc lay ten_quay() | ten_online().
-	con_dung = {p["ten"] for p in pt_thanh_toan.ds(chi_dung=True)}
+	con_dung_thu_tu = [p["ten"] for p in pt_thanh_toan.ds(chi_dung=True)]
+	con_dung = set(con_dung_thu_tu)
 	# Mot nguon co the thuoc nhieu diem ("Tại chỗ" chung cho moi quay), nen
 	# phai biet TAT CA diem cua no truoc khi dung dong nguon do.
 	chu = {}
+	co_quay_cua = {}
 	for d in diem_ban.ds(chi_bat=True):
+		co_quay_cua[d["ma"]] = 1 if d["quay"] else 0
 		for n in d["nguon"]:
 			chu.setdefault(n, []).append(d["ma"])
 	for d in diem_ban.ds(chi_bat=True):
@@ -336,7 +339,20 @@ def _nguon_don():
 					"🥡" if thap.startswith("mang về") else "🧾"
 				)
 			if not co_pt_rieng:
-				m["pt"] = pt_thanh_toan.ten_quay() if d["quay"] else pt_thanh_toan.ten_online()
+				# Mot nguon co the thuoc CA quay LAN diem online ("Tại chỗ"
+				# ban tai quay, va Sales cung nhan don tai cho cho khach ky
+				# hop dong). Lay HOP hai danh sach chu khong lay theo diem
+				# dau tien tim thay: xep SALES len dau danh sach diem la
+				# nguon "Tại chỗ" mat sach phuong thuc cua quay, thu ngan
+				# dung tai quay khong bam duoc tien mat.
+				ds_ma = chu.get(n) or [d["ma"]]
+				nhan = set()
+				if any(co_quay_cua.get(x) for x in ds_ma):
+					nhan |= set(pt_thanh_toan.ten_quay())
+				if any(not co_quay_cua.get(x) for x in ds_ma):
+					nhan |= set(pt_thanh_toan.ten_online())
+				# Giu dung thu tu da khai o man Cai dat phuong thuc.
+				m["pt"] = [t for t in con_dung_thu_tu if t in nhan]
 			m["v"] = n
 			# Ma diem ban cua nguon nay. App can de dat noi dung chuyen khoan
 			# (ma diem + so phieu) o nhung man khong biet minh dang o quay nao,
@@ -430,8 +446,19 @@ def _quay_cua_nguon(nguon, quay):
 	ds_diem = diem_ban.diem_cua_nguon(nguon)
 	if q:
 		d = diem_ban.theo_ma(q)
-		if not d or not d["quay"]:
-			frappe.throw("Mã quầy %s không có trong danh sách điểm bán." % q)
+		if not d:
+			frappe.throw("Mã điểm bán %s không có trong danh sách điểm bán." % q)
+		# Diem nhan don online khong co ma quay. Truoc day cho nay chan
+		# thang, nen chon "Sales Online" cho don "Tại chỗ" la bao loi. Nay
+		# nhan: tra ve chuoi rong, tuc vgb_quay de trong, dung cach ca he
+		# nhan ra don cua diem online (anh Viet 15/08/2026).
+		if not d["quay"]:
+			if ds_diem and d["ma"] not in ds_diem:
+				frappe.throw(
+					"Điểm bán %s không nhận đơn nguồn \"%s\". Các điểm đang "
+					"nhận nguồn này: %s." % (d["ma"], nguon, ", ".join(ds_diem) or "(chưa khai)")
+				)
+			return ""
 		if ds_diem and d["ma"] not in ds_diem:
 			frappe.throw(
 				"Điểm bán %s không nhận đơn nguồn \"%s\". Các điểm đang nhận "
@@ -584,11 +611,27 @@ def cau_hinh_ban_hang():
 		q2["anh"] = _anh_quay_da_luu(q["ma"]) or q.get("anh") or ""
 		quay.append(q2)
 	nguon = _nguon_don()
+	# Toan bo diem ban dang bat, KE CA diem nhan don online. "quay" ben duoi
+	# chi co diem co quay nen man Nhap don tay khong tra duoc ten cua Sales;
+	# tu 15/08/2026 "Tại chỗ" va "Mang về" gan duoc cho Sales nen phai co
+	# danh sach day du (anh Viet).
+	diem_ds = [
+		{
+			"ma": d["ma"],
+			"ten": d["ten"],
+			"ten_ngan": d["ten_ngan"],
+			"phu": d["phu"] or d["dia_chi"],
+			"co_quay": d["co_quay"],
+			"anh": _anh_quay_da_luu(d["ma"]) or d["anh"] or "",
+		}
+		for d in diem_ban.ds(chi_bat=True)
+	]
 	return {
 		"pt": pt,
 		"nguon": nguon,
 		"pt_pancake": pt_thanh_toan.ten_online(),
 		"quay": quay,
+		"diem": diem_ds,
 		# Anh chi nhanh Sales Online (307/1 Nguyen Van Troi) anh Viet gui
 		# 11/08/2026. Doi anh trong app thi lay anh moi, chua doi thi dung
 		# anh nay.

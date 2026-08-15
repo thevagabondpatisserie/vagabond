@@ -284,7 +284,7 @@ def _kiem(ra):
 	"""Chan cac cau hinh se lam lech so lieu, TRUOC khi luu."""
 	if not ra:
 		frappe.throw("Phải có ít nhất một điểm bán.")
-	ma_da_co, quay_da_co, nguon_da_co = {}, {}, {}
+	ma_da_co, quay_da_co = {}, {}
 	for d in ra:
 		if not d["ma"]:
 			frappe.throw("Có điểm bán chưa đặt mã.")
@@ -305,25 +305,21 @@ def _kiem(ra):
 					"điểm bán." % (d["quay"], quay_da_co[d["quay"]], d["ma"])
 				)
 			quay_da_co[d["quay"]] = d["ma"]
-		for n in d["nguon"]:
-			# Nguon dung chung giua cac diem CO QUAY thi khong sao: hoa don
-			# quay nao cung mang vgb_quay nen ca he van tra ve dung diem. Nho
-			# vay "Tai cho" va "Mang ve" khong con phai dinh ten chi nhanh
-			# vao duoi nua (anh Viet 12/08/2026).
-			#
-			# Nhung diem ONLINE thi khong: don online khong mang ma quay nao,
-			# neu no dung chung nguon voi mot diem khac thi khong con gi de
-			# phan biet, va hoa don dien tu se xuat cho ca hai.
-			cu = nguon_da_co.get(n)
-			if cu and (not d["quay"] or not cu[1]):
-				frappe.throw(
-					"Nguồn đơn \"%s\" đang gán cho cả %s và %s, mà %s là điểm "
-					"nhận đơn online. Đơn online không mang mã quầy nên không "
-					"còn cách nào tách hai điểm, hoá đơn điện tử sẽ xuất hai lần."
-					% (n, cu[0], d["ma"], cu[0] if not cu[1] else d["ma"])
-				)
-			if not cu:
-				nguon_da_co[n] = (d["ma"], 1 if d["quay"] else 0)
+	# KHONG con kiem nguon dung chung nua. MOI nguon deu gan duoc cho moi
+	# diem ban, ke ca diem nhan don online (anh Viet 15/08/2026: *"mo tinh
+	# nang de gan cac nguon nay duoc cho moi diem ban"*).
+	#
+	# Truoc day cho nay chan nguon dung chung voi diem online vi so hoa don
+	# dien tu xuat hai lan. Nay khong con ly do:
+	#   - Ca he quy hoa don ve diem ban bang vgb_quay chu khong bang ten
+	#     nguon (ma_theo_quay). Bill quay mang ma quay, don online de trong
+	#     va roi ve dung diem online duy nhat.
+	#   - Khoa xuat hoa don dien tu cung da chuyen sang dem theo ma quay
+	#     (ban_hang.TRUONG_HDDT_QUAY), khong con dem theo ten nguon.
+	#   - He chi cho DUNG MOT diem online (kiem ngay ben duoi), nen khong
+	#     bao gio co hai diem cung "khong mang ma quay" de lan nhau.
+	# Man Nhap don tay van bat chon diem ban khi nguon thuoc nhieu diem, nen
+	# khong con duong nao de mot don roi nham cho.
 	online = [d for d in ra if not d["quay"]]
 	if len(online) != 1:
 		frappe.throw(
