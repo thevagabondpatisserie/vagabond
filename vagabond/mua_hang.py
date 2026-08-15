@@ -123,11 +123,24 @@ def ds_po(so_ngay=60, tu_khoa="", ncc=None, nhom=None):
 		order_by="transaction_date desc, name desc",
 		limit_page_length=0,
 	)
+	# Mot cau hoi cho ca tap, khong phai moi don mot cau.
+	try:
+		from vagabond import nhan_hang
+
+		con_nhan = nhan_hang.con_lai_theo_don([d.name for d in ds])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "mua_hang: doc so con phai nhan")
+		con_nhan = {}
+
 	q = (tu_khoa or "").strip().lower()
 	ra = []
 	for d in ds:
 		o = dict(d)
 		o["nhom"] = _nhom_po(d)
+		c = con_nhan.get(d.name) or {}
+		dong_roi = o["nhom"] in ("huy", "dong")
+		o["con_nhan"] = 0.0 if dong_roi else flt(c.get("sl_con"))
+		o["so_mon_con"] = 0 if dong_roi else cint(c.get("so_mon_con"))
 		o["ngay"] = str(d.transaction_date or "")
 		o["hen"] = str(d.schedule_date or "")
 		o["tre_ngay"] = 0
@@ -166,18 +179,27 @@ def xem_po(name):
 	vao don do - de biet hang ve toi dau, tien tra toi dau."""
 	_kiem_quyen()
 	d = frappe.get_doc("Purchase Order", name)
-	mon = [
-		{
-			"ma": r.item_code,
-			"ten": r.item_name,
-			"sl": flt(r.qty),
-			"da_nhan": flt(r.received_qty),
-			"dvt": r.uom,
-			"gia": flt(r.rate),
-			"tien": flt(r.amount),
-		}
-		for r in d.items
-	]
+	# Ba con so tren moi dong: dat, da nhan, con lai. Truoc day man nay chi
+	# bay "sl" va "da_nhan", nguoi doc phai tu tru trong dau - ma dung cai
+	# phep tru trong dau do la cho de ra nham lan nhap trung lo hang.
+	mon = []
+	for r in d.items:
+		dat = flt(r.qty)
+		nhan = flt(r.received_qty)
+		con = dat - nhan
+		mon.append(
+			{
+				"dong": r.name,
+				"ma": r.item_code,
+				"ten": r.item_name,
+				"sl": dat,
+				"da_nhan": nhan,
+				"con_lai": con if con > 0.0001 else 0.0,
+				"dvt": r.uom,
+				"gia": flt(r.rate),
+				"tien": flt(r.amount),
+			}
+		)
 	pnk = frappe.get_all(
 		"Purchase Receipt Item",
 		filters={"purchase_order": name, "docstatus": 1},
@@ -216,7 +238,23 @@ def xem_po(name):
 		"phieu_nhap": sorted({r.parent for r in pnk}),
 		"hoa_don": sorted({r.parent for r in hd}),
 		"ghi_chu": d.get("terms") or "",
+		# Con phai nhan tren ca don, va lich su tung dot giao. Man hinh dung
+		# hai thu nay de bay bang lich su "dot 1 ngay 12/08 phieu PR-xxxx".
+		"con_nhan": sum(x["con_lai"] for x in mon),
+		"so_mon_con": len([x for x in mon if x["con_lai"] > 0.0001]),
+		"lich_su_nhan": _lich_su_nhan_po(name),
 	}
+
+
+def _lich_su_nhan_po(name):
+	"""Cac dot da nhan cua mot don. Goi lai ham dung chung ben nhan_hang."""
+	try:
+		from vagabond import nhan_hang
+
+		return nhan_hang._lich_su_nhan(name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "mua_hang: lich su nhan %s" % name)
+		return []
 
 
 # ------------------------------------------------------- cong no phai tra
@@ -298,6 +336,32 @@ def cong_no_phai_tra():
 # Duong moi goi bang: vagabond.khung.ds.chay voi ma PO.
 # ---------------------------------------------------------------------------
 
+def _truoc_po(dong, bc):
+	"""Doc so luong CON PHAI NHAN cua ca tap bang mot cau hoi duy nhat.
+
+	Day la cho duy nhat trong khai bao duoc phep doc co so du lieu. Neu de
+	moi dong tu di hoi thi man 300 don thanh 300 cau hoi; con so con lai lai
+	nam o bang con Purchase Order Item chu khong nam tren dau don nen bat
+	buoc phai hoi them mot lan.
+	"""
+	from vagabond import nhan_hang
+
+	return {"con_nhan": nhan_hang.con_lai_theo_don([r.get("name") for r in dong])}
+
+
+def _con_nhan(r, bc):
+	"""So con phai nhan cua mot don. Ham THUAN, chi doc tu boi canh."""
+	c = (bc.get("con_nhan") or {}).get(r.get("name")) or {}
+	# Don da huy mem hay da dong thi phan con lai khong con la hang se ve.
+	# De nguyen so cu la bao cao cong ra mot dong hang khong bao gio den.
+	if _tinh.co(r.get("vgb_huy")) or r.get("status") in ("Closed", "Completed"):
+		return {"con_nhan": 0.0, "so_mon_con": 0}
+	return {
+		"con_nhan": _tinh.so(c.get("sl_con")),
+		"so_mon_con": _tinh.so(c.get("so_mon_con")),
+	}
+
+
 BANG_PO = khai.bang(
 	ma="PO",
 	ten="Đơn mua hàng",
@@ -322,6 +386,9 @@ BANG_PO = khai.bang(
 		# Cong so ngay tre cua nhieu don lai ra mot con so vo nghia.
 		("tre_ngay", "Trễ (ngày)", "so", True),
 		("total_qty", "Số lượng", "so"),
+		# Con phai nhan: tong so luong dat tru so da nhan tren tung dong.
+		# Day la con so tra loi thang cau hoi cua Kien "hai mon kia dau roi".
+		("con_nhan", "Còn phải nhận", "so"),
 		("grand_total", "Thành tiền", "tien"),
 	),
 	loc=khai.loc(
@@ -333,12 +400,16 @@ BANG_PO = khai.bang(
 	),
 	chip=khai.chip(*NHOM_PO),
 	xep=_xep_po,
-	them=lambda r, bc: {
-		"ngay": str(r.get("transaction_date") or ""),
-		"hen": str(r.get("schedule_date") or ""),
-		"tre_ngay": _tre_ngay(r.get("schedule_date"), bc)
-		if _xep_po(r, bc) == "tre_hen" else 0,
-	},
+	truoc=_truoc_po,
+	them=lambda r, bc: dict(
+		{
+			"ngay": str(r.get("transaction_date") or ""),
+			"hen": str(r.get("schedule_date") or ""),
+			"tre_ngay": _tre_ngay(r.get("schedule_date"), bc)
+			if _xep_po(r, bc) == "tre_hen" else 0,
+		},
+		**_con_nhan(r, bc)
+	),
 	sap="transaction_date desc, name desc",
 	# Giu 300 dung nhu duong cu de doi chieu ra ket qua giong het. Nang len
 	# 600 la viec sau, khi da chac hai duong khop nhau.
