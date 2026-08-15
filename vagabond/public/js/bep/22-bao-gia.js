@@ -289,13 +289,13 @@ async function scrHopDongHub() {
 }
 
 /* ---------- Danh sach bao gia: chip loc theo viec can lam ---------- */
-var bgLoc = null, bgTT = null, bgTim = '', bgTimNet = 0;
+var bgLoc = null, bgTT = null, bgTim = '', bgTimNet = 0, bgBanCu = 0;
 async function scrBaoGia() {
   frame('Báo giá', '<div class="emp"><div class="e1">⏳</div><div>Đang tải báo giá...</div></div>');
   var kq, ci;
   try {
     ci = await bgCaiDat();
-    kq = await api('vagabond.bao_gia.danh_sach', { loc: bgLoc || '', trang_thai: bgTT || '', tim: bgTim || '' });
+    kq = await api('vagabond.bao_gia.danh_sach', { loc: bgLoc || '', trang_thai: bgTT || '', tim: bgTim || '', ban_cu: bgBanCu ? 1 : '' });
   } catch (e) { frame('Báo giá', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
   var d = kq.dem, ds = kq.ds;
 
@@ -313,6 +313,9 @@ async function scrBaoGia() {
   ci.trang_thai.forEach(function (t) {
     c2 += posChipNut('data-bgt="' + h(t) + '"', (BGTT_ICON[t] || '') + ' ' + h(t) + ' · ' + (d['tt:' + t] || 0), bgTT === t);
   });
+  /* Mac dinh danh sach chi hien ban moi nhat cua moi cuoc thuong luong.
+     Chip nay mo cac vong cu ra khi can tra lai da noi gi voi khach. */
+  if (d.ban_cu || bgBanCu) c1 += posChipNut('data-bgcu="1"', '🕓 Xem cả bản cũ · ' + d.ban_cu, !!bgBanCu);
 
   var html = '<div class="card" style="padding:12px 14px;display:grid;gap:9px">' +
     '<input ' + BGO + ' id="bgTim" placeholder="Tìm theo tên khách, tiêu đề hoặc mã tờ..." value="' + h(bgTim) + '">' +
@@ -323,8 +326,10 @@ async function scrBaoGia() {
   ds.forEach(function (r) {
     var canh = r.qua_han ? '<b style="color:#b3261e"> · QUÁ HẠN</b>'
       : (r.sap_het ? '<b style="color:#b45309"> · còn ' + r.con_ngay + ' ngày</b>' : '');
-    html += '<div class="hub" data-bg="' + h(r.name) + '"><div class="hi">' + (BGTT_ICON[r.trang_thai] || '💬') + '</div>' +
-      '<div class="ht"><div class="h1">' + h(r.ten) + '</div>' +
+    var vong = r.phien_ban > 1 ? '<span style="font-size:11px;font-weight:700;color:#7c3aed;background:#f3edff;border-radius:6px;padding:1px 6px;margin-left:5px">vòng ' + r.phien_ban + '</span>' : '';
+    var cu = r.la_ban_cu ? '<span style="font-size:11px;font-weight:700;color:#6b7280;background:#f1f2f5;border-radius:6px;padding:1px 6px;margin-left:5px">bản cũ</span>' : '';
+    html += '<div class="hub" data-bg="' + h(r.name) + '"' + (r.la_ban_cu ? ' style="opacity:.62"' : '') + '><div class="hi">' + (r.la_ban_cu ? '🕓' : (BGTT_ICON[r.trang_thai] || '💬')) + '</div>' +
+      '<div class="ht"><div class="h1">' + h(r.ten) + vong + cu + '</div>' +
       '<div class="h2">' + h(r.name) + ' · ' + h(r.ten_khach || r.khach_hang || 'Chưa có khách') + '</div>' +
       '<div class="h2">' + h(r.trang_thai) + ' · ' + bgNgayVn(r.ngay_bao_gia) + canh +
       (r.hop_dong ? ' · ' + h(r.hop_dong) : '') + '</div></div>' +
@@ -350,6 +355,7 @@ async function scrBaoGia() {
     }
   }
   b.addEventListener('click', function (e) {
+    if (e.target.closest('[data-bgcu]')) { bgBanCu = bgBanCu ? 0 : 1; return go(scrBaoGia, true); }
     var cl = e.target.closest('[data-bgl]');
     if (cl) { bgLoc = cl.getAttribute('data-bgl') || null; bgTT = null; return go(scrBaoGia, true); }
     var ct = e.target.closest('[data-bgt]');
@@ -363,10 +369,35 @@ async function scrBaoGia() {
 /* ---------- Xem mot to ---------- */
 async function scrBgXem(name) {
   frame('Báo giá', '<div class="emp"><div class="e1">⏳</div></div>');
-  var d, ci;
-  try { ci = await bgCaiDat(); d = await api('vagabond.bao_gia.chi_tiet', { name: name }); }
+  var d, ci, ls;
+  try {
+    ci = await bgCaiDat();
+    d = await api('vagabond.bao_gia.chi_tiet', { name: name });
+    ls = await api('vagabond.bao_gia.lich_su', { name: name });
+  }
   catch (e) { frame('Báo giá', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
-  var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+
+  /* Bang canh bao dat TREN CUNG, truoc ca tieu de: mo to ra la nguoi dung
+     biet ngay minh dang cam ban nao, khong doc nham roi bao gia nham cho
+     khach. Mau xam cho ban lich su, mau tim cho ban dang song co nhieu vong. */
+  var html = '';
+  if (d.thay_the_boi) {
+    html += '<div class="card" style="padding:11px 13px;background:#f1f2f5;border-left:4px solid #9aa0ac;line-height:1.55">' +
+      '<div style="font-weight:700;font-size:14px">🕓 Bản lịch sử · vòng ' + d.phien_ban + ', chỉ xem</div>' +
+      '<div style="font-size:13px;color:#4b5563;margin-top:3px">Đây là bản đã gửi khách ở vòng ' + d.phien_ban + ' và đã được thay bằng <b>' + h(d.thay_the_boi) + '</b>. Bản này giữ nguyên từng dòng làm bằng chứng, không sửa và không xoá được.</div>' +
+      (d.ly_do_sua ? '<div style="font-size:13px;color:#4b5563;margin-top:3px">Lý do mở vòng này: ' + h(d.ly_do_sua) + '</div>' : '') +
+      '<button class="btn gh" id="bgToiMoi" style="margin:9px 0 0;padding:7px 10px;font-size:13.5px">Mở bản mới nhất ' + h(d.thay_the_boi) + ' &#8250;</button></div>';
+  } else if (d.phien_ban > 1) {
+    html += '<div class="card" style="padding:11px 13px;background:#f8f4ff;border-left:4px solid #7c3aed;line-height:1.55">' +
+      '<div style="font-weight:700;font-size:14px">🟣 Vòng ' + d.phien_ban + ' · bản đang có hiệu lực</div>' +
+      (d.ly_do_sua ? '<div style="font-size:13px;color:#4b5563;margin-top:3px">Mở vòng này vì: ' + h(d.ly_do_sua) + '</div>' : '') +
+      '<div style="font-size:13px;color:#4b5563;margin-top:3px">Các vòng trước vẫn còn nguyên trong mục Lịch sử thương lượng bên dưới.</div></div>';
+  } else if (d.khoa) {
+    html += '<div class="card" style="padding:11px 13px;background:#fff8ec;border-left:4px solid #d97706;line-height:1.55">' +
+      '<div style="font-weight:700;font-size:14px">🔒 Khách đã cầm bản này</div>' +
+      '<div style="font-size:13px;color:#4b5563;margin-top:3px">' + h(d.ly_do_khoa) + ' Cần đổi giá hay đổi món thì bấm <b>Tạo phiên bản kế tiếp</b>, bản khách đang cầm vẫn giữ nguyên.</div></div>';
+  }
+  html += '<div class="card" style="padding:12px 14px;line-height:1.7">' +
     '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
     '<b style="flex:1">' + h(d.ten) + '</b>' +
     '<button class="btn gh" id="bgTt" style="margin:0;padding:4px 10px;font-size:13px;width:auto;flex:none;white-space:nowrap">' + h(d.trang_thai) + ' ▾</button></div>' +
@@ -410,9 +441,52 @@ async function scrBgXem(name) {
     html += '</div>';
   }
 
+  /* ---- Lich su thuong luong: cai anh Viet muon nhat o tinh nang nay ----
+     Moi vong mot dong, kem muc chiet khau va so tien chenh so voi vong
+     lien truoc. Con so chenh do MAY CHU tinh (QT-19), day chi in ra. */
+  if (ls.so_vong > 1) {
+    html += '<div class="sec">Lịch sử thương lượng · ' + ls.so_vong + ' vòng</div><div class="card" style="padding:10px 12px">';
+    ls.ds.forEach(function (v) {
+      var chenh = v.chenh > 0 ? '<span style="color:#b45309">+' + money(v.chenh) + ' đ</span>'
+        : (v.chenh < 0 ? '<span style="color:#0a8a4a">' + money(v.chenh) + ' đ</span>' : '');
+      html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0' + (v.dang_xem ? ';background:#f8f4ff;border-radius:10px;padding-left:8px;padding-right:8px' : '') + '">' +
+        '<div style="flex:none;width:30px;height:30px;border-radius:50%;background:' + (v.la_moi_nhat ? '#7c3aed' : '#c3c8d4') + ';color:#fff;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center">v' + v.phien_ban + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13.5px;font-weight:600">' + h(v.name) + (v.dang_xem ? ' <span style="font-size:11px;color:#7c3aed">đang xem</span>' : '') + '</div>' +
+        '<div ' + BGNHAN + '>' + h(v.trang_thai) + ' · ' + bgNgayVn(v.ngay_bao_gia) +
+        (v.chiet_khau_pt ? ' · chiết khấu ' + v.chiet_khau_pt + '%' : ' · không chiết khấu') +
+        (v.phi_giao ? ' · phí giao ' + money(v.phi_giao) + ' đ' : '') + '</div>' +
+        (v.ly_do_sua ? '<div style="font-size:12.5px;color:#4b5563;margin-top:2px">' + h(v.ly_do_sua) + '</div>' : '') +
+        '</div>' +
+        '<div style="text-align:right;white-space:nowrap"><b style="font-size:13px">' + money(v.tong_cong) + ' đ</b>' +
+        (chenh ? '<div style="font-size:12px">' + chenh + '</div>' : '') + '</div>' +
+        '</div>' +
+        (v.dang_xem ? '' : '<button class="btn gh" data-vong="' + h(v.name) + '" style="margin:0 0 6px;padding:5px 9px;font-size:12.5px">Mở ' + h(v.name) + ' &#8250;</button>');
+    });
+    html += '</div>';
+  }
+
   var chan = '<button class="btn" id="bgPdf" style="margin:0;flex:1">📄 Xuất PDF</button>';
-  if (ci.duoc_sua) chan += '<button class="btn gh" id="bgMenu" style="margin:0;flex:1">⋯ Việc khác</button>';
+  if (ci.duoc_sua && !d.thay_the_boi) {
+    /* To da khoa thi nut chinh doi thanh "Tao phien ban ke tiep": sales
+       khong phai di tim trong menu ⋯ moi lam duoc viec duy nhat con lai. */
+    chan += d.khoa
+      ? '<button class="btn" id="bgVong" style="margin:0;flex:1.3">🟣 Tạo phiên bản kế tiếp</button>'
+      : '<button class="btn gh" id="bgSua" style="margin:0;flex:1">✏️ Sửa</button>';
+  }
+  if (ci.duoc_sua) chan += '<button class="btn gh" id="bgMenu" style="margin:0;flex:.8">⋯</button>';
   var b = frame('Báo giá', html, { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' });
+
+  var bm = document.getElementById('bgToiMoi');
+  if (bm) bm.onclick = function () { go(function () { scrBgXem(d.thay_the_boi); }); };
+  var bs = document.getElementById('bgSua');
+  if (bs) bs.onclick = function () { bgTay = null; go(function () { scrBgSua(name); }); };
+  var bv = document.getElementById('bgVong');
+  if (bv) bv.onclick = function () { bgTaoPhienBan(d); };
+  b.addEventListener('click', function (e) {
+    var vn = e.target.closest('[data-vong]');
+    if (vn) { var t = vn.getAttribute('data-vong'); go(function () { scrBgXem(t); }); }
+  });
 
   document.getElementById('bgPdf').onclick = async function () {
     busy(true);
@@ -431,14 +505,22 @@ async function scrBgXem(name) {
   };
   var mn = document.getElementById('bgMenu');
   if (mn) mn.onclick = function () {
-    sheet('Việc với báo giá ' + name, [
-      { value: 'sua', label: 'Sửa báo giá', icon: '✏️' },
-      { value: 'mail', label: 'Gửi email cho khách kèm PDF', icon: '📧' },
-      { value: 'copy', label: 'Nhân bản sang khách khác', icon: '📋' },
-      { value: 'hd', label: 'Chốt thành hợp đồng', icon: '📑' },
-      { value: 'mau', label: 'Lưu thành mẫu báo giá', icon: '🗂️' },
-      { value: 'xoa', label: 'Xoá báo giá nháp', icon: '🗑️' }
-    ], null, async function (o) {
+    /* Ban lich su chi con hai viec lam duoc: xem lai va nhan ban sang khach
+       khac. Khong bay ra nhung nut ma bam vao chi de nhan cau bao loi. */
+    var muc = [];
+    if (!d.thay_the_boi) {
+      if (d.khoa) muc.push({ value: 'vong', label: 'Tạo phiên bản kế tiếp', icon: '🟣' });
+      else muc.push({ value: 'sua', label: 'Sửa báo giá', icon: '✏️' });
+    }
+    muc.push({ value: 'mail', label: 'Gửi email cho khách kèm PDF', icon: '📧' });
+    muc.push({ value: 'copy', label: 'Nhân bản sang khách khác', icon: '📋' });
+    if (!d.thay_the_boi) {
+      muc.push({ value: 'hd', label: 'Chốt thành hợp đồng', icon: '📑' });
+      muc.push({ value: 'mau', label: 'Lưu thành mẫu báo giá', icon: '🗂️' });
+      muc.push({ value: 'xoa', label: 'Xoá báo giá nháp', icon: '🗑️' });
+    }
+    sheet('Việc với báo giá ' + name, muc, null, async function (o) {
+      if (o.value === 'vong') return bgTaoPhienBan(d);
       if (o.value === 'mau') return bgLuuMau(name);
       if (o.value === 'sua') { bgTay = null; return go(function () { scrBgSua(name); }); }
       if (o.value === 'copy') {
@@ -458,6 +540,24 @@ async function scrBgXem(name) {
       if (o.value === 'hd') return bgChotHopDong(d);
     });
   };
+}
+
+/* ---------- Mo mot vong thuong luong moi ---------- */
+async function bgTaoPhienBan(d) {
+  var vong = (Number(d.phien_ban) || 1) + 1;
+  var ly = await hoiChu('Mở vòng ' + vong,
+    'Bản ' + d.name + ' sẽ được giữ nguyên từng dòng làm bằng chứng về những gì đã gửi khách. Một bản mới mang toàn bộ nội dung sẽ được tạo để sửa thoải mái. Ghi lại vì sao mở vòng này để sau còn tra.',
+    '', { nhieu_dong: true, bat_buoc: true, goi_y: 'Vd: Khách xin giảm 5% và bỏ phần bánh mặn.' });
+  if (ly === null) return;
+  if (!(ly || '').trim()) return baoTin('Phải ghi lý do mở vòng mới thì mới lưu được vào lịch sử thương lượng.');
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.bao_gia.tao_phien_ban', { name: d.name, ly_do: ly }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không mở được vòng mới'); }
+  busy(false);
+  toast('Đã mở vòng ' + kq.phien_ban + ': ' + kq.name + '. Bản ' + kq.cu + ' đã đóng băng.', 5000);
+  bgTay = null; bgMoRong = {};
+  go(function () { scrBgSua(kq.name); });
 }
 
 async function bgGuiMail(d) {
@@ -668,6 +768,14 @@ async function scrBgSua(name) {
     busy(true);
     try { bgTay = await api('vagabond.bao_gia.chi_tiet', { name: name }); busy(false); }
     catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được'); }
+    /* Chan ngay o cua man soan: de sales go xong ca to roi moi bao "khong
+       luu duoc" la cach nhanh nhat de mat mot buoi lam viec. May chu van
+       chan lan nua o ham luu, day chi la chan som cho do dau (QT-19). */
+    if (bgTay.khoa) {
+      var td = bgTay;
+      bgTay = null;
+      return go(function () { scrBgXem(td.name); });
+    }
   }
   bgTinh();
   var d = bgTay;
@@ -679,7 +787,14 @@ async function scrBgSua(name) {
     return '<textarea ' + BGTA + ' id="bgf_' + id + '" rows="' + (dong || 3) + '">' + h(val || '') + '</textarea>';
   };
 
-  var html = '<div class="card" style="padding:12px 14px;display:grid;gap:9px">' +
+  var html = '';
+  if (Number(d.phien_ban) > 1) {
+    html += '<div class="card" style="padding:10px 13px;background:#f8f4ff;border-left:4px solid #7c3aed;line-height:1.5">' +
+      '<div style="font-weight:700;font-size:13.5px">🟣 Đang soạn vòng ' + d.phien_ban + ' · ' + h(d.name || '') + '</div>' +
+      (d.ly_do_sua ? '<div style="font-size:12.5px;color:#4b5563;margin-top:2px">' + h(d.ly_do_sua) + '</div>' : '') +
+      '<div style="font-size:12.5px;color:#4b5563;margin-top:2px">Các vòng trước đã đóng băng, sửa ở đây không đụng tới chúng.</div></div>';
+  }
+  html += '<div class="card" style="padding:12px 14px;display:grid;gap:9px">' +
     oi('ten', 'Tiêu đề báo giá (bắt buộc)', d.ten) +
     (d.song_ngu ? oi('ten_en', 'Title in English', d.ten_en) : '') +
     '<div style="display:flex;flex-direction:row;gap:8px;flex-wrap:wrap">' +
