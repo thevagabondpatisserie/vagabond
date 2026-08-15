@@ -374,7 +374,7 @@ BANG_HOA_DON_MUA = khai.bang(
 		{"k": "ngay", "nhan": "Khoảng ngày", "kieu": "ngay",
 			"truong": "posting_date", "mac_dinh": 60},
 		{"k": "ncc", "nhan": "Nhà cung cấp", "kieu": "chon_mot", "truong": "supplier"},
-		{"k": "tu_khoa", "nhan": "Tìm", "kieu": "tim_chu",
+		{"k": "tu_khoa", "nhan": "số tờ, tên nhà cung cấp hoặc số hoá đơn NCC", "kieu": "tim_chu",
 			"tim": ["name", "supplier_name", "bill_no"]},
 	),
 	# Da sua la CO PHU, khong loai tru voi cac chip khac: mot to vua Chua

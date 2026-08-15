@@ -328,7 +328,7 @@ BANG_PO = khai.bang(
 		{"k": "ngay", "nhan": "Khoảng ngày", "kieu": "ngay",
 			"truong": "transaction_date", "mac_dinh": 60},
 		{"k": "ncc", "nhan": "Nhà cung cấp", "kieu": "chon_mot", "truong": "supplier"},
-		{"k": "tu_khoa", "nhan": "Tìm", "kieu": "tim_chu",
+		{"k": "tu_khoa", "nhan": "mã đơn hoặc tên nhà cung cấp", "kieu": "tim_chu",
 			"tim": ["name", "supplier_name", "supplier"]},
 	),
 	chip=khai.chip(*NHOM_PO),
