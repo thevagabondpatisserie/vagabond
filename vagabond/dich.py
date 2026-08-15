@@ -72,6 +72,10 @@ def dich(chuoi=None):
 	if not co:
 		return {"ok": 0, "ly_do": "khong_co_gi_de_dich", "ra": ds}
 
+	# Lay khoa NGOAI khoi khoi try duoi: neu de trong do, cau nhac "chua khai
+	# khoa Gemini" bi khoi except nuot mat, nguoi dung chi thay "khong goi
+	# duoc dich vu dich" va khong biet phai lam gi (quy tac QT-24).
+	khoa = _khoa()
 	gui = [ds[i] for i in co]
 	than = {
 		"system_instruction": {"parts": [{"text": LOI_NHAC}]},
@@ -81,7 +85,7 @@ def dich(chuoi=None):
 	try:
 		r = requests.post(
 			GEMINI,
-			params={"key": _khoa()},
+			params={"key": khoa},
 			json=than,
 			timeout=max(TIMEOUT, 25),
 		)
