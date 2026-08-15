@@ -48,3 +48,6 @@ jobs:
               print("%-4s %-22s %d cot, %d bo loc, tran %d"
                     % (ma, b["ten"], len(b["cot"]), len(b["loc"]), b["tran"]))
           PY
+
+      - name: 5. Doi chieu app_bep.js voi cac phan trong bep
+        run: python3 dung_app_bep.py --kiem
