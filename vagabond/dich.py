@@ -29,11 +29,28 @@ GOC = "https://generativelanguage.googleapis.com/v1beta/models"
 # danh do Google tu doi sang ban flash moi nhat, nen no khong chet vi bi
 # go. De sau no mot day du phong: gap dung 404 thi tu roi xuong ten ke
 # tiep va thu lai, chu khong nem loi vao mat Loan Anh giua luc lam viec.
+# Day nay da duoc GOI THU THAT ngay 16/08/2026 bang chinh khoa cua anh Viet,
+# khong phai doan tu tai lieu:
+#   gemini-flash-latest       200
+#   gemini-2.5-flash          404  <- da bi go, tung nam trong day nay
+#   gemini-flash-lite-latest  200
+#   gemini-3.5-flash          503
+# Bai hoc: mot ten cu the co the da chet ma minh khong biet, nen day du
+# phong chi giu cac BI DANH "-latest" do Google tu doi.
 MODEL = (
 	"gemini-flash-latest",
-	"gemini-2.5-flash",
 	"gemini-flash-lite-latest",
 )
+
+# Ma nao thi doi sang model khac se cuu duoc
+# -------------------------------------------
+# 404: Google go model do. Doi la cach duy nhat.
+# 503: model do dang qua tai. Day la QUA TAI THEO TUNG MODEL, khong phai
+#      Google sap - da do thay 16/08/2026: gemini-3.5-flash tra 503 trong
+#      khi gemini-flash-latest tra 200 cung luc. Nen 503 cung phai doi.
+# Con 401, 403 (khoa) va 429 (het luot) thi doi model khong cuu duoc gi,
+# thu tiep chi ton them thoi gian cua nguoi dang ngoi doi.
+MA_DOI_MODEL = (404, 503)
 
 
 def _url(model):
@@ -88,6 +105,11 @@ def _cau_loi(ma):
 		return (
 			"Hôm nay đã dịch hết lượt miễn phí của Google. Anh chị chờ sang "
 			"ngày mai, hoặc gõ tay phần tiếng Anh cho tờ này."
+		)
+	if ma == 503:
+		return (
+			"Máy dịch của Google đang quá tải. Anh chị bấm dịch lại sau một "
+			"hai phút giúp em, tờ báo giá vẫn lưu bình thường."
 		)
 	if 500 <= int(ma or 0) < 600:
 		return (
@@ -183,12 +205,10 @@ def dich(chuoi=None):
 				),
 				"ra": ds,
 			}
-		# CHI roi xuong model sau khi Google noi khong co model do (404).
-		# Loi khoa (401, 403) hay het luot (429) thi doi model khong cuu duoc
-		# gi, thu tiep chi ton them thoi gian cua nguoi dang ngoi doi.
-		if r.status_code == 404 and i < len(MODEL) - 1:
+		if r.status_code in MA_DOI_MODEL and i < len(MODEL) - 1:
 			frappe.log_error(
-				r.text[:2000], "Vagabond: Gemini go model %s, thu ten ke tiep" % model
+				r.text[:2000],
+				"Vagabond: Gemini %s o %s, thu ten ke tiep" % (r.status_code, model),
 			)
 			continue
 		break
