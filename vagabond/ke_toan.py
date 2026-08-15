@@ -14,6 +14,10 @@ from frappe.utils import add_days, cint, flt, getdate, nowdate
 
 from vagabond import chung_tu
 
+# khai = tang khung, cho khai bao man danh sach.
+from vagabond.khung import hop_dong as khai
+from vagabond.khung import tinh as _tinh
+
 QUYEN_KT = {
 	"System Manager",
 	"Accounts Manager",
@@ -208,18 +212,30 @@ NHOM_MUA = [
 ]
 
 
-def _nhom_mua(r, hom_nay):
-	if cint(r.get("vgb_huy")):
+def _xep_mua(r, bc=None):
+	"""Xep mot to hoa don mua vao dung mot chip. Ham THUAN: khong doc ngay
+	he thong, khong goi frappe, hom nay lay tu boi canh dua vao.
+
+	Tach thuan de bo kiem thu A6 chay duoc ma khong phai dung ca mot site.
+	Luat xep giu nguyen tung dong nhu cu.
+	"""
+	if _tinh.co(r.get("vgb_huy")):
 		return "huy"
 	if r.get("docstatus") == 2:
 		return "huy"
 	if r.get("docstatus") == 0:
 		return "nhap"
-	if flt(r.get("outstanding_amount")) <= 0:
+	if _tinh.so(r.get("outstanding_amount")) <= 0:
 		return "da_tra"
-	if r.get("due_date") and getdate(r["due_date"]) < hom_nay:
+	hom_nay = _tinh.ngay_chu((bc or {}).get("hom_nay"))
+	if r.get("due_date") and hom_nay and _tinh.ngay_chu(r["due_date"]) < hom_nay:
 		return "qua_han"
 	return "con_no"
+
+
+def _nhom_mua(r, hom_nay):
+	"""Ban co ngay san, cho duong cu goi. Ket qua y het _xep_mua."""
+	return _xep_mua(r, {"hom_nay": hom_nay})
 
 
 @frappe.whitelist()
@@ -293,3 +309,90 @@ def ds_hoa_don_mua(so_ngay=60, tu=None, den=None, ncc=None, tu_khoa="", nhom=Non
 			if o["docstatus"] == 1 and not cint(o.get("vgb_huy"))
 		),
 	}
+
+
+# ---------------------------------------------------------------------------
+# Man Hoa don mua vao theo khung dung chung (A2, anh Viet duyet 15/08/2026).
+#
+# Chay SONG SONG voi ds_hoa_don_mua o tren, khong thay the. Duong moi goi
+# bang: vagabond.khung.ds.chay voi ma HDM.
+# ---------------------------------------------------------------------------
+
+def _truoc_hdm(dong, bc):
+	"""Hoi MOT lan cho ca tap: to nao da co ban thay the.
+
+	Cau hoi nay bat buoc phai xuong co so du lieu nen khong the nam trong
+	ham them() von phai thuan. Cho no chay o day, mot cau hoi cho ca 600
+	dong thay vi 600 cau hoi.
+	"""
+	return {
+		"thay_the": chung_tu.ds_da_bi_sua(
+			"Purchase Invoice",
+			[r.get("name") for r in dong if r.get("docstatus") == 2],
+		)
+	}
+
+
+def _them_hdm(r, bc):
+	"""Cac o dan xuat cua mot to. Ham THUAN, chi doc tu boi canh."""
+	hom_nay = _tinh.ngay_chu(bc.get("hom_nay"))
+	han = _tinh.ngay_chu(r.get("due_date"))
+	tre = 0
+	if han and hom_nay and han < hom_nay and _tinh.so(r.get("outstanding_amount")) > 0:
+		import datetime
+		a = datetime.date(*[int(x) for x in han.split("-")])
+		b = datetime.date(*[int(x) for x in hom_nay.split("-")])
+		tre = (b - a).days
+	return {"da_sua": _da_sua(r, bc.get("thay_the")), "tre_ngay": tre}
+
+
+BANG_HOA_DON_MUA = khai.bang(
+	ma="HDM",
+	ten="Hoá đơn mua vào",
+	doctype="Purchase Invoice",
+	quyen=QUYEN_KT,
+	loi_quyen="Danh sách hoá đơn chỉ mở cho kế toán và quản lý.",
+	dieu_kien={"docstatus": ["<", 3]},
+	truong=[
+		"name", "posting_date", "supplier", "supplier_name", "grand_total",
+		"outstanding_amount", "docstatus", "due_date", "bill_no", "bill_date",
+		"status", "total_qty", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
+		"amended_from",
+	],
+	cot=khai.cot(
+		("name", "Số tờ", "chu"),
+		("posting_date", "Ngày", "ngay"),
+		("supplier_name", "Nhà cung cấp", "chu"),
+		("bill_no", "Số hoá đơn NCC", "chu"),
+		("_chip", "Trạng thái", "chip"),
+		("due_date", "Hạn trả", "ngay"),
+		("tre_ngay", "Trễ (ngày)", "so", True),
+		("grand_total", "Thành tiền", "tien"),
+		("outstanding_amount", "Còn nợ", "tien"),
+	),
+	loc=khai.loc(
+		{"k": "ngay", "nhan": "Khoảng ngày", "kieu": "ngay",
+			"truong": "posting_date", "mac_dinh": 60},
+		{"k": "ncc", "nhan": "Nhà cung cấp", "kieu": "chon_mot", "truong": "supplier"},
+		{"k": "tu_khoa", "nhan": "Tìm", "kieu": "tim_chu",
+			"tim": ["name", "supplier_name", "bill_no"]},
+	),
+	# Da sua la CO PHU, khong loai tru voi cac chip khac: mot to vua Chua
+	# ghi so vua Da sua thi phai dem o ca hai cho.
+	chip=khai.chip(
+		*[dict(c, phu=1) if c["k"] == "da_sua" else dict(c) for c in NHOM_MUA]
+	),
+	xep=_xep_mua,
+	truoc=_truoc_hdm,
+	them=_them_hdm,
+	sap="posting_date desc, name desc",
+	tran=TRAN_DONG,
+	# Chi to DA GHI SO va chua huy moi la tien that phai tra.
+	tinh_dong=lambda r: r.get("docstatus") == 1 and not _tinh.co(r.get("vgb_huy")),
+	tom_tat=[
+		("_dong", "Số tờ", "so"),
+		("grand_total", "Tổng tiền", "tien"),
+		("outstanding_amount", "Còn nợ", "tien"),
+	],
+	tom_tat_theo_chip=0,
+)

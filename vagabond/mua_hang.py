@@ -15,6 +15,11 @@ ma ky thuat cua ERPNext. "Hang ve roi, chua co hoa don" de hieu hon
 import frappe
 from frappe.utils import add_days, cint, flt, getdate, nowdate
 
+# khai = tang khung, cho khai bao man danh sach. Dat ten tat de khong lan
+# voi vagabond/hop_dong.py, la mo dun hop dong mua ban chu khong lien quan.
+from vagabond.khung import hop_dong as khai
+from vagabond.khung import tinh as _tinh
+
 QUYEN_MUA = {
 	"System Manager",
 	"Accounts Manager",
@@ -34,10 +39,16 @@ def _kiem_quyen():
 
 # Cac nhom trang thai cua don mua hang. Mot don chi thuoc DUNG MOT nhom -
 # xep tu tren xuong, gap nhom nao dung truoc thi lay nhom do.
-def _nhom_po(d):
+def _xep_po(d, bc=None):
+	"""Xep mot don vao dung mot nhom. Ham THUAN: khong doc ngay he thong,
+	khong goi frappe, hom nay lay tu boi canh dua vao.
+
+	Tach thuan de bo kiem thu A6 chay duoc ma khong phai dung ca mot site.
+	Luat xep giu nguyen tung dong nhu cu, chi doi cho lay ngay hom nay.
+	"""
 	# Huy mem xet truoc: don da bo ma van hien "Cho nhan hang" thi thu mua
 	# ngoi doi mot chuyen hang khong bao gio ve.
-	if cint(d.get("vgb_huy")):
+	if _tinh.co(d.get("vgb_huy")):
 		return "huy"
 	if d.get("docstatus") == 2:
 		return "huy"
@@ -45,15 +56,34 @@ def _nhom_po(d):
 		return "nhap"
 	if d.get("status") in ("Closed", "Completed"):
 		return "dong"
-	nhan = flt(d.get("per_received"))
-	hd = flt(d.get("per_billed"))
+	nhan = _tinh.so(d.get("per_received"))
+	hd = _tinh.so(d.get("per_billed"))
 	if nhan < 99.99:
-		if d.get("schedule_date") and str(d["schedule_date"]) < nowdate():
+		hom_nay = _tinh.ngay_chu((bc or {}).get("hom_nay"))
+		if d.get("schedule_date") and _tinh.ngay_chu(d["schedule_date"]) < hom_nay:
 			return "tre_hen"
 		return "cho_nhan" if nhan <= 0.01 else "nhan_mot_phan"
 	if hd < 99.99:
 		return "cho_hoa_don"
 	return "xong"
+
+
+
+def _tre_ngay(hen, bc=None):
+	"""So ngay tre so voi ngay hen. Ham THUAN, hom nay lay tu boi canh."""
+	h = _tinh.ngay_chu(hen)
+	n = _tinh.ngay_chu((bc or {}).get("hom_nay"))
+	if not h or not n or h >= n:
+		return 0
+	import datetime
+	a = datetime.date(*[int(x) for x in h.split("-")])
+	b = datetime.date(*[int(x) for x in n.split("-")])
+	return (b - a).days
+
+
+def _nhom_po(d):
+	"""Ban co ngay he thong, cho duong cu goi. Ket qua y het _xep_po."""
+	return _xep_po(d, {"hom_nay": nowdate()})
 
 
 NHOM_PO = [
@@ -256,3 +286,68 @@ def cong_no_phai_tra():
 		"tong_qua_han": sum(x["qua_han"] for x in ra),
 		"so_ncc": len(ra),
 	}
+
+
+# ---------------------------------------------------------------------------
+# Man Don mua hang theo khung dung chung (A2, anh Viet duyet 15/08/2026).
+#
+# Khai bao nay chay SONG SONG voi ds_po o tren, khong thay the. Duong cu van
+# nguyen, app van goi duong cu. Khi nao doi chieu tung con so tren du lieu
+# that ma khong lech mot dong thi moi go duong cu.
+#
+# Duong moi goi bang: vagabond.khung.ds.chay voi ma PO.
+# ---------------------------------------------------------------------------
+
+BANG_PO = khai.bang(
+	ma="PO",
+	ten="Đơn mua hàng",
+	doctype="Purchase Order",
+	quyen=QUYEN_MUA,
+	loi_quyen=(
+		"Đơn mua hàng và công nợ phải trả chỉ mở cho kế toán, thu mua và giám đốc."
+	),
+	# Docstatus 3 la ban nhap da bo trong Frappe, khong phai chung tu.
+	dieu_kien={"docstatus": ["<", 3]},
+	truong=[
+		"name", "supplier", "supplier_name", "transaction_date", "schedule_date",
+		"grand_total", "total_qty", "status", "per_received", "per_billed",
+		"docstatus", "owner", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
+	],
+	cot=khai.cot(
+		("name", "Số đơn", "chu"),
+		("ngay", "Ngày đặt", "ngay"),
+		("supplier_name", "Nhà cung cấp", "chu"),
+		("_chip", "Trạng thái", "chip"),
+		("hen", "Hẹn giao", "ngay"),
+		# Cong so ngay tre cua nhieu don lai ra mot con so vo nghia.
+		("tre_ngay", "Trễ (ngày)", "so", True),
+		("total_qty", "Số lượng", "so"),
+		("grand_total", "Thành tiền", "tien"),
+	),
+	loc=khai.loc(
+		{"k": "ngay", "nhan": "Khoảng ngày", "kieu": "ngay",
+			"truong": "transaction_date", "mac_dinh": 60},
+		{"k": "ncc", "nhan": "Nhà cung cấp", "kieu": "chon_mot", "truong": "supplier"},
+		{"k": "tu_khoa", "nhan": "Tìm", "kieu": "tim_chu",
+			"tim": ["name", "supplier_name", "supplier"]},
+	),
+	chip=khai.chip(*NHOM_PO),
+	xep=_xep_po,
+	them=lambda r, bc: {
+		"ngay": str(r.get("transaction_date") or ""),
+		"hen": str(r.get("schedule_date") or ""),
+		"tre_ngay": _tre_ngay(r.get("schedule_date"), bc)
+		if _xep_po(r, bc) == "tre_hen" else 0,
+	},
+	sap="transaction_date desc, name desc",
+	# Giu 300 dung nhu duong cu de doi chieu ra ket qua giong het. Nang len
+	# 600 la viec sau, khi da chac hai duong khop nhau.
+	tran=300,
+	# Don da huy khong con la tien phai chi, khong duoc cong vao tong.
+	tinh_dong=lambda r: not _tinh.co(r.get("vgb_huy")),
+	tom_tat=[
+		("_dong", "Số đơn", "so"),
+		("grand_total", "Tổng tiền", "tien"),
+	],
+	tom_tat_theo_chip=0,
+)
