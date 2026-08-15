@@ -19,10 +19,11 @@ import frappe
 
 def dung():
 	"""Dung moi truong tu them do ma nguon khai. Goi tu after_migrate."""
-	from vagabond import ban_hang, duyet_ycmh
+	from vagabond import ban_hang, bao_gia, duyet_ycmh
 
 	_dung_nhom(duyet_ycmh.TRUONG_MOI, "duyet_ycmh")
 	_dung_nhom(ban_hang.TRUONG_MOI, "ban_hang")
+	_dung_nhom(bao_gia.TRUONG_MOI, "bao_gia")
 	try:
 		duyet_ycmh._them_trang_thai_tu_choi()
 	except Exception:

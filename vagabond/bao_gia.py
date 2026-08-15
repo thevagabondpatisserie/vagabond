@@ -48,6 +48,57 @@ TRANG_THAI = [
 CHIP_HIEU_LUC = [7, 15, 30, 45]
 CHIP_VAT = [0, 8, 10]
 
+# To da roi trang thai Nhap thi khach da cam ban do tren tay. Sua de len la
+# xoa mat vat bang chung, nen tu day chi con mot duong: mo mot vong moi.
+TT_KHONG_SUA_DE = {
+	"Đã gửi khách", "Khách duyệt", "Khách từ chối", "Hết hiệu lực",
+	"Đã lên hợp đồng",
+}
+
+# --------------------------------------------------------- phien ban 1A
+#
+# Anh Viet 15/08/2026 duyet phuong an 1A: moi vong thuong luong la MOT chung
+# tu rieng tren cung doctype, danh so bang hau to -v2, -v3 dan vao ten to
+# goc. Ban cu dong bang tuyet doi.
+#
+# Vi sao KHONG co truong "ban_moi_nhat" nhu ban phuong an ban dau: no la
+# nguon su that thu hai, va no doi backfill cho cac to dang co tren he
+# (cot Check them vao thi dong cu nhan 0, tuc bong nhien ca ba to that bi
+# coi la ban cu). Dung "thay_the_boi con trong" cho ra dung cau tra loi do
+# ma khong phai dung vao mot dong du lieu qua khu nao - dung luat anh chot
+# ngay 13/08.
+TRUONG_MOI = {
+	"Bao Gia Ban Hang": [
+		{
+			"fieldname": "sec_phien_ban", "label": "Phiên bản thương lượng",
+			"fieldtype": "Section Break", "insert_after": "ghi_chu_noi_bo",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "goc", "label": "Tờ gốc", "fieldtype": "Link",
+			"options": DT, "insert_after": "sec_phien_ban", "read_only": 1,
+			"description": "Tờ của vòng 1. Vòng 1 để trống.",
+		},
+		{
+			"fieldname": "phien_ban", "label": "Vòng thứ", "fieldtype": "Int",
+			"default": "1", "insert_after": "goc", "read_only": 1,
+		},
+		{
+			"fieldname": "thay_the_boi", "label": "Đã bị thay bởi",
+			"fieldtype": "Link", "options": DT, "insert_after": "phien_ban",
+			"read_only": 1,
+			"description": "Có giá trị nghĩa là tờ này đã đóng băng.",
+		},
+		{
+			"fieldname": "ly_do_sua", "label": "Lý do mở vòng này",
+			"fieldtype": "Small Text", "insert_after": "thay_the_boi",
+			"read_only": 1,
+		},
+	]
+}
+
+F_PHIEN_BAN = ("goc", "phien_ban", "thay_the_boi", "ly_do_sua")
+
 # Cau chu mac dinh, dung khi Bao Gia Cai Dat chua duoc khai.
 MAC_DINH = {
 	"loi_mo_vi": (
@@ -226,6 +277,24 @@ F_DONG = (
 )
 
 
+def _tinh_khoa(doc):
+	"""To nay con sua de duoc khong, va vi sao khong. THUAN, khong doc CSDL.
+
+	Tra ve (khoa, ly_do). khoa = 1 nghia la chi con mot duong di tiep la mo
+	mot vong thuong luong moi.
+	"""
+	if doc.get("la_mau"):
+		return 0, ""
+	if doc.get("thay_the_boi"):
+		return 1, "Bản lịch sử, đã được thay bằng %s." % doc.get("thay_the_boi")
+	tt = doc.get("trang_thai") or "Nháp"
+	if tt == "Đã lên hợp đồng":
+		return 1, "Đã lên hợp đồng %s." % (doc.get("hop_dong") or "")
+	if tt in TT_KHONG_SUA_DE:
+		return 1, "Khách đã cầm bản này, trạng thái đang là %s." % tt
+	return 0, ""
+
+
 def _goi(doc):
 	ra = {"name": doc.name}
 	for f in F_CHU:
@@ -247,6 +316,14 @@ def _goi(doc):
 		"tong_cong": flt(doc.tong_cong),
 		"dat_coc_tien": flt(doc.dat_coc_tien),
 	})
+	# Phien ban. May chu tra luon KET LUAN "to nay con sua duoc khong" chu
+	# khong de app tu suy tu trang thai: mot ngay nao do luat sua doi thi chi
+	# sua o day, app khong phai biet gi them (QT-19).
+	ra["goc"] = doc.get("goc") or ""
+	ra["phien_ban"] = int(doc.get("phien_ban") or 1)
+	ra["thay_the_boi"] = doc.get("thay_the_boi") or ""
+	ra["ly_do_sua"] = doc.get("ly_do_sua") or ""
+	ra["khoa"], ra["ly_do_khoa"] = _tinh_khoa(doc)
 	ra["dong"] = []
 	for d in doc.get("dong") or []:
 		x = {f: d.get(f) or "" for f in F_DONG}
@@ -291,10 +368,15 @@ def cai_dat():
 
 
 @frappe.whitelist()
-def danh_sach(trang_thai=None, loc=None, tim=None):
-	"""Danh sach bao gia kem so dem cho tung chip loc."""
+def danh_sach(trang_thai=None, loc=None, tim=None, ban_cu=None):
+	"""Danh sach bao gia kem so dem cho tung chip loc.
+
+	Mac dinh CHI hien ban moi nhat cua moi cuoc thuong luong. Mua trung thu
+	mot khach ba vong la danh sach gap ba, sales khong tim ra to nao that.
+	Chip "Bản cũ" mo ra xem lai lich su khi can.
+	"""
 	_quyen()
-	ds = frappe.get_all(
+	tat_ca = frappe.get_all(
 		DT,
 		# Mau bao gia khong phai to that nen khong nam trong danh sach.
 		# Mau xem va quan ly rieng o man "Mau bao gia".
@@ -302,14 +384,23 @@ def danh_sach(trang_thai=None, loc=None, tim=None):
 		fields=[
 			"name", "ten", "trang_thai", "khach_hang", "ten_khach",
 			"ngay_bao_gia", "hieu_luc_den", "tong_cong", "hop_dong",
-			"nguoi_lap", "modified",
+			"nguoi_lap", "modified", "goc", "phien_ban", "thay_the_boi",
 		],
 		order_by="modified desc",
 		limit_page_length=400,
 	)
+	# Loc bang "thay_the_boi con trong" chu khong bang mot co ban_moi_nhat:
+	# co thi phai backfill cho cac to dang co, ma dung vao du lieu qua khu la
+	# dieu anh Viet cam ngay 13/08. Cach nay dung ngay tu to dau tien, khong
+	# phai chay mot lenh nao len du lieu cu.
+	xem_cu = str(ban_cu or "") in ("1", "true", "True")
+	ds = [x for x in tat_ca if not x.get("thay_the_boi")]
+	so_ban_cu = len(tat_ca) - len(ds)
 	hn = getdate(nowdate())
 	toi = frappe.session.user
-	for r in ds:
+	for r in tat_ca:
+		r["phien_ban"] = int(r.get("phien_ban") or 1)
+		r["la_ban_cu"] = bool(r.get("thay_the_boi"))
 		hl = getdate(r["hieu_luc_den"]) if r.get("hieu_luc_den") else None
 		con = (hl - hn).days if hl else None
 		r["con_ngay"] = con
@@ -317,9 +408,15 @@ def danh_sach(trang_thai=None, loc=None, tim=None):
 		r["qua_han"] = bool(r["dang_mo"] and con is not None and con < 0)
 		r["sap_het"] = bool(r["dang_mo"] and con is not None and 0 <= con <= 3)
 		r["cua_toi"] = r.get("nguoi_lap") == toi
+	# Ban cu khong bao gio bi tinh la qua han hay sap het: no da xong doi
+	# roi, keu len chi lam nhieu cai chuong cua sales.
+	for r in tat_ca:
+		if r["la_ban_cu"]:
+			r["dang_mo"] = r["qua_han"] = r["sap_het"] = False
 
 	dem = {
 		"tat_ca": len(ds),
+		"ban_cu": so_ban_cu,
 		"cho_khach": len([x for x in ds if x["trang_thai"] == "Đã gửi khách"]),
 		"nhap": len([x for x in ds if x["trang_thai"] == "Nháp"]),
 		"sap_het": len([x for x in ds if x["sap_het"]]),
@@ -330,7 +427,7 @@ def danh_sach(trang_thai=None, loc=None, tim=None):
 	for t in TRANG_THAI:
 		dem["tt:" + t] = len([x for x in ds if x["trang_thai"] == t])
 
-	ra = ds
+	ra = tat_ca if xem_cu else ds
 	if trang_thai:
 		ra = [x for x in ra if x["trang_thai"] == trang_thai]
 	if loc == "cho_khach":
@@ -406,10 +503,16 @@ def luu(du_lieu):
 	name = d.get("name") or ""
 	if name:
 		doc = frappe.get_doc(DT, name)
-		if doc.trang_thai == "Đã lên hợp đồng":
+		# Cua ai toan bo tinh nang phien ban. Ba dong doc.set(b, []) ngay ben
+		# duoi XOA SACH ba bang con roi dung lai tu cuc JSON app gui len -
+		# tuc sua mot to da gui khach la thoi bay noi dung cu, khong con mot
+		# dau vet nao. Chan o day la bit dung cai lo do.
+		khoa, vi_sao = _tinh_khoa(doc)
+		if khoa:
 			frappe.throw(
-				"Báo giá này đã lên hợp đồng %s nên không sửa được nữa. "
-				"Nếu cần đổi giá thì lập báo giá mới." % (doc.hop_dong or "")
+				"Không sửa đè được báo giá %s. %s Bấm \"Tạo phiên bản kế "
+				"tiếp\" để mở một vòng thương lượng mới, bản đang có vẫn "
+				"giữ nguyên từng dòng." % (doc.name, vi_sao)
 			)
 		for b in ("dong", "dich_vu", "moc"):
 			doc.set(b, [])
@@ -469,6 +572,30 @@ def doi_trang_thai(name, trang_thai):
 	_quyen(sua=True)
 	if trang_thai not in TRANG_THAI:
 		frappe.throw("Trạng thái không hợp lệ.")
+	cu = frappe.db.get_value(
+		DT, name, ["trang_thai", "thay_the_boi", "la_mau"], as_dict=True
+	) or {}
+	if cu.get("thay_the_boi"):
+		frappe.throw(
+			"Báo giá %s là bản lịch sử, đã được thay bằng %s nên trạng thái "
+			"của nó là chuyện đã rồi, không đổi được nữa. Đổi trạng thái "
+			"trên %s nhé." % (name, cu["thay_the_boi"], cu["thay_the_boi"])
+		)
+	# Cam keo nguoc ve Nhap. Neu con duong nay mo thi tinh nang phien ban chi
+	# la trang tri: sales muon sua de mot to da gui khach chi viec keo ve
+	# Nhap, sua, roi keo len lai - va ban khach dang cam bien mat khong dau
+	# vet, dung cai ma anh muon chan.
+	if (
+		trang_thai == "Nháp"
+		and (cu.get("trang_thai") or "Nháp") != "Nháp"
+		and not cu.get("la_mau")
+	):
+		frappe.throw(
+			"Báo giá %s đã ở trạng thái %s, tức khách đã cầm bản này rồi nên "
+			"không kéo ngược về Nháp được. Cần sửa thì bấm \"Tạo phiên bản "
+			"kế tiếp\", bản mới sinh ra sẽ ở trạng thái Nháp để sửa thoải "
+			"mái." % (name, cu.get("trang_thai"))
+		)
 	frappe.db.set_value(DT, name, "trang_thai", trang_thai)
 	return trang_thai
 
@@ -476,12 +603,35 @@ def doi_trang_thai(name, trang_thai):
 @frappe.whitelist()
 def xoa(name):
 	_quyen(sua=True)
-	tt = frappe.db.get_value(DT, name, "trang_thai")
+	o = frappe.db.get_value(
+		DT, name, ["trang_thai", "thay_the_boi", "goc", "phien_ban"], as_dict=True
+	) or {}
+	if o.get("thay_the_boi"):
+		frappe.throw(
+			"Báo giá %s là bản lịch sử của một cuộc thương lượng, đã được "
+			"thay bằng %s nên không xoá được. Đây là bằng chứng về những gì "
+			"đã gửi khách." % (name, o["thay_the_boi"])
+		)
+	tt = o.get("trang_thai")
 	if tt != "Nháp":
 		frappe.throw(
 			"Báo giá đã ở trạng thái %s nên không xoá được. "
 			"Chuyển sang Khách từ chối để lưu lại dấu vết." % tt
 		)
+	# Xoa mot vong con Nhap la "huy vong vua mo". Phai go khoa cho ban truoc
+	# no, neu khong ban truoc nam dong bang vinh vien voi mot con tro tro vao
+	# khoang khong, va tu do khong ai sua duoc to nao trong cuoc nay nua.
+	if o.get("goc"):
+		truoc = frappe.db.get_value(DT, {"thay_the_boi": name}, "name")
+		if truoc:
+			frappe.db.set_value(
+				DT, truoc, "thay_the_boi", None, update_modified=False
+			)
+			frappe.get_doc(DT, truoc).add_comment(
+				"Comment",
+				"Mở khoá: vòng %s vừa mở đã bị xoá khi còn Nháp."
+				% (o.get("phien_ban") or ""),
+			)
 	frappe.delete_doc(DT, name, ignore_permissions=True)
 	return 1
 
@@ -498,8 +648,142 @@ def nhan_ban(name):
 	moi_.ngay_bao_gia = nowdate()
 	moi_.hieu_luc_den = add_days(nowdate(), int(cu.hieu_luc_ngay or 30))
 	moi_.nguoi_lap = frappe.session.user
+	# Nhan ban sang KHACH KHAC la mot cuoc thuong luong moi hoan toan, khong
+	# phai vong tiep theo cua cuoc cu. Khong xoa bon truong nay thi to moi
+	# thua ca "goc" lan "thay_the_boi" cua to cu, tuc no chao doi da o trang
+	# thai dong bang va khong ai sua duoc.
+	_xoa_dau_phien_ban(moi_)
 	moi_.insert(ignore_permissions=True)
 	return moi_.name
+
+
+# ------------------------------------------------------ phien ban thuong luong
+
+
+def _xoa_dau_phien_ban(doc):
+	"""Go moi dau vet phien ban khoi mot ban sao. THUAN, chi set truong."""
+	doc.goc = None
+	doc.phien_ban = 1
+	doc.thay_the_boi = None
+	doc.ly_do_sua = None
+
+
+def _goc_cua(doc):
+	"""Ten to vong 1. Vong 2 tro di deu tro ve dung mot goc, khong noi chuoi
+	v2 -> v3 -> v4; noi chuoi thi doc lich su phai lan nguoc tung buoc."""
+	return doc.get("goc") or doc.name
+
+
+def _chan_dong_bang(doc, viec):
+	"""Chan moi thao tac ghi len mot ban da bi thay the."""
+	if doc.get("thay_the_boi"):
+		frappe.throw(
+			"Báo giá %s là bản lịch sử, đã được thay bằng %s nên không %s "
+			"được. Mở %s để làm tiếp nhé."
+			% (doc.name, doc.thay_the_boi, viec, doc.thay_the_boi)
+		)
+
+
+@frappe.whitelist()
+def tao_phien_ban(name, ly_do=None):
+	"""Mo mot vong thuong luong moi tu to dang co.
+
+	Ban cu KHONG bi dung toi mot chu: no chi duoc dan them mot con tro
+	thay_the_boi, va con tro do chinh la cai khoa. Ban moi ke thua toan bo
+	noi dung roi ve trang thai Nhap de sales sua thoai mai.
+	"""
+	_quyen(sua=True)
+	ly_do = (ly_do or "").strip()
+	if not ly_do:
+		frappe.throw(
+			"Ghi một dòng lý do mở vòng mới đã nhé, ví dụ \"Khách xin giảm "
+			"5% và bỏ phần bánh mặn\". Câu này nằm lại trong lịch sử thương "
+			"lượng, sau này mở ra là biết vì sao giá đổi."
+		)
+	cu = frappe.get_doc(DT, name)
+	if cu.get("la_mau"):
+		frappe.throw(
+			"Đây là mẫu báo giá chứ không phải tờ gửi khách nên không có "
+			"vòng thương lượng. Lập một tờ thật từ mẫu này rồi làm tiếp nhé."
+		)
+	_chan_dong_bang(cu, "mở vòng mới")
+
+	goc = _goc_cua(cu)
+	# Khoa dong goc lai truoc khi dem. Hai sales cung bam "Tao phien ban" tren
+	# cung mot to trong cung mot giay thi ca hai deu doc ra vong 2 va ban thu
+	# hai chet vi trung ten. Khoa o day bat ho xep hang, nguoi sau doc ra
+	# vong 3.
+	frappe.db.sql(
+		"select name from `tabBao Gia Ban Hang` where name = %s for update",
+		goc,
+	)
+	cao = frappe.db.sql(
+		"""select max(ifnull(phien_ban, 1)) from `tabBao Gia Ban Hang`
+		where name = %(g)s or goc = %(g)s""",
+		{"g": goc},
+	)
+	so = int((cao and cao[0][0]) or 1) + 1
+
+	moi_ = frappe.copy_doc(cu)
+	moi_.goc = goc
+	moi_.phien_ban = so
+	moi_.thay_the_boi = None
+	moi_.ly_do_sua = ly_do
+	moi_.trang_thai = "Nháp"
+	moi_.hop_dong = None
+	moi_.la_mau = 0
+	moi_.ten_mau = None
+	moi_.ngay_bao_gia = nowdate()
+	moi_.hieu_luc_den = add_days(nowdate(), int(cu.hieu_luc_ngay or 30))
+	moi_.nguoi_lap = frappe.session.user
+	moi_.insert(ignore_permissions=True)
+
+	# Dong bang ban cu. Dung db.set_value chu khong doc.save vi:
+	#   - save se chay validate, ma validate vua duoc dat de CHAN ghi len ban
+	#     co thay_the_boi, tuc no se tu chan chinh no;
+	#   - update_modified=False de moc thoi gian cua ban cu dung nguyen, dung
+	#     tinh than QT-20 la khong dung vao so goc.
+	frappe.db.set_value(
+		DT, cu.name, "thay_the_boi", moi_.name, update_modified=False
+	)
+	cu.add_comment(
+		"Comment",
+		"Đóng băng: đã mở vòng %d là %s. Lý do: %s" % (so, moi_.name, ly_do),
+	)
+	moi_.add_comment(
+		"Comment",
+		"Vòng %d, kế thừa từ %s. Lý do: %s" % (so, cu.name, ly_do),
+	)
+	return {"name": moi_.name, "phien_ban": so, "cu": cu.name}
+
+
+@frappe.whitelist()
+def lich_su(name):
+	"""Moi vong cua cung mot cuoc thuong luong, kem muc nhuong bo tung vong.
+
+	Con so chenh lech tinh o may chu (QT-19), app chi in ra.
+	"""
+	_quyen()
+	goc = frappe.db.get_value(DT, name, "goc") or name
+	ds = frappe.get_all(
+		DT,
+		or_filters=[["name", "=", goc], ["goc", "=", goc]],
+		fields=[
+			"name", "phien_ban", "trang_thai", "ngay_bao_gia", "tam_tinh",
+			"chiet_khau_pt", "chiet_khau_tien", "phi_giao", "tong_cong",
+			"ly_do_sua", "thay_the_boi", "nguoi_lap", "creation",
+		],
+		order_by="ifnull(phien_ban, 1) asc, creation asc",
+		limit_page_length=0,
+	)
+	truoc = None
+	for r in ds:
+		r["phien_ban"] = int(r.get("phien_ban") or 1)
+		r["la_moi_nhat"] = not r.get("thay_the_boi")
+		r["dang_xem"] = r["name"] == name
+		r["chenh"] = 0.0 if truoc is None else flt(r["tong_cong"]) - flt(truoc)
+		truoc = r["tong_cong"]
+	return {"goc": goc, "so_vong": len(ds), "ds": ds}
 
 
 # --------------------------------------------------------------- thu vien
@@ -1230,6 +1514,7 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
 	"""Bao gia khach duyet thi bam mot nut ra Hop dong ban hang."""
 	_quyen(sua=True)
 	doc = frappe.get_doc(DT, name)
+	_chan_dong_bang(doc, "lên hợp đồng")
 	if doc.hop_dong and frappe.db.exists("Hop Dong Ban Hang", doc.hop_dong):
 		frappe.throw("Báo giá này đã lên hợp đồng %s rồi." % doc.hop_dong)
 	if not doc.khach_hang:
@@ -1305,6 +1590,10 @@ def mau_luu(name, ten_mau):
 	for f in ("khach_hang", "ten_khach", "ma_so_thue", "dia_chi",
 			  "nguoi_lien_he", "chuc_vu", "dien_thoai", "email"):
 		m.set(f, None)
+	# Mau la khung dung lai, khong phai mot vong thuong luong. Khong go bon
+	# truong nay thi luu mau tu mot ban da dong bang se de ra mot mau cung
+	# mang co dong bang, va khong ai sua duoc mau do.
+	_xoa_dau_phien_ban(m)
 	m.insert(ignore_permissions=True)
 	return {"name": m.name, "ten_mau": ten_mau}
 
