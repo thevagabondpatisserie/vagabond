@@ -192,6 +192,8 @@ def dung(b, tham=None, day_du=0):
 		"den": den_ngay,
 		"tham": tham,
 	}
+	if b["truoc"]:
+		boi_canh.update(b["truoc"](dong, boi_canh) or {})
 	if b["them"]:
 		for r in dong:
 			r.update(b["them"](r, boi_canh) or {})

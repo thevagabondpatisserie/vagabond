@@ -204,6 +204,7 @@ def bang(
 	chip=None,
 	xep=None,
 	them=None,
+	truoc=None,
 	sap="modified desc",
 	tran=GIOI_HAN_DONG,
 	tinh_dong=None,
@@ -224,6 +225,8 @@ def bang(
 	chip              danh sach chip trang thai, dung ham chip()
 	xep(r, boi_canh)  ham THUAN xep mot dong vao mot chip
 	them(r, boi_canh) ham THUAN tinh them cac o dan xuat cho mot dong
+	truoc(dong, bc)   ham DUOC PHEP doc co so du lieu MOT lan cho ca tap,
+	                  tra ve dict nhet them vao boi_canh
 	sap               cau order_by gui xuong co so du lieu
 	tran              so dong toi da tra ve man hinh
 	tinh_dong(r)      ham THUAN: dong nay co duoc tinh vao tien that khong
@@ -234,6 +237,13 @@ def bang(
 	Ba tham so xep, them, tinh_dong phai la ham THUAN: nhan dictionary vao,
 	tra gia tri ra, khong goi frappe, khong doc co so du lieu. Do la dieu
 	kien de bo kiem thu A6 op vao duoc ma khong phai dung ca mot site.
+
+	Rieng truoc() duoc phep doc co so du lieu, va la cho DUY NHAT duoc
+	phep. Co man can mot mieng du lieu phu khong nam trong bang goc - vi du
+	man hoa don mua phai biet to nao da co ban thay the, ma dieu do chi tra
+	duoc bang mot cau hoi nua xuong co so du lieu. Cho no chay MOT lan cho
+	ca tap roi nhet ket qua vao boi canh, thay vi de moi dong tu di hoi:
+	mot cau hoi thay vi 600 cau, va them() van thuan nen van kiem thu duoc.
 	"""
 	if not ma or not ten or not doctype:
 		raise LoiKhaiBao("Man danh sach phai co ma, ten va doctype.")
@@ -260,6 +270,7 @@ def bang(
 		"chip": chip or [],
 		"xep": xep,
 		"them": them,
+		"truoc": truoc,
 		"sap": sap,
 		"tran": int(tran),
 		"tinh_dong": tinh_dong,

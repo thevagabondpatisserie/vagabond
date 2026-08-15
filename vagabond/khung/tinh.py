@@ -63,6 +63,18 @@ def chu(v):
 	return ("" if v is None else str(v)).strip()
 
 
+def ngay_chu(v):
+	"""Mot ngay ve dang 2026-08-15 de so sanh bang phep so sanh chuoi.
+
+	Frappe tra ve khi thi datetime.date, khi thi chuoi, khi thi chuoi co
+	ca gio. Cat 10 ky tu dau la ra ngay, va vi dang nam-thang-ngay nen so
+	sanh chuoi cho dung ket qua nhu so sanh ngay - khong can getdate, tuc
+	khong can Frappe.
+	"""
+	s = chu(v)
+	return s[:10] if len(s) >= 10 else s
+
+
 # --------------------------------------------------------------- tim chu
 
 def hop_chu(r, khoa):
