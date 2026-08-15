@@ -162,6 +162,10 @@ def _chuan(d, i=0):
 		"loi": str(d.get("loi") or "").strip(),
 		"tien_ve": tv,
 		"minvoice": str(d.get("minvoice") or "").strip().upper(),
+		# Khoa ben Pancake, tuc gia tri `type` trong payment_purchase_histories
+		# (vi du "onepay", "mbbank"). Khai o day thay vi go cung trong ma
+		# nguon: Pancake them vi moi thi khai mot dong, khong phai deploy.
+		"khoa_pancake": str(d.get("khoa_pancake") or "").strip().lower(),
 		"dung": 1 if cint(d.get("dung") if d.get("dung") is not None else 1) else 0,
 		"thu_tu": cint(d.get("thu_tu") or (i + 1)),
 	}
@@ -216,6 +220,32 @@ def chua_ve_tien():
 def ve_sau():
 	"""Phuong thuc ben thu ba giu tien roi tra sau."""
 	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_VE_SAU]
+
+
+# Anh xa san cho hai kenh dang chay that, dung khi nguoi dung chua kip khai
+# o Cai dat. Do tren du lieu that 15/08/2026: 285 giao dich mbbank va 41
+# giao dich onepay trong bay ngay.
+KHOA_PANCAKE_MAC_DINH = {
+	"mbbank": "Chuyển khoản",
+	"onepay": "OnePay",
+}
+
+
+def theo_khoa_pancake(khoa):
+	"""Ten phuong thuc thanh toan tu khoa `type` cua Pancake.
+
+	Uu tien cai dat nguoi dung khai; chua khai thi dung bang mac dinh; van
+	khong ra thi tra rong de noi goi biet la CHUA BIET, chu khong doan bua.
+	"""
+	k = str(khoa or "").strip().lower()
+	if not k:
+		return ""
+	for d in ds(chi_dung=True):
+		if d.get("khoa_pancake") == k:
+			return d["ten"]
+	ten = KHOA_PANCAKE_MAC_DINH.get(k, "")
+	# Ten mac dinh chi dung duoc khi phuong thuc do dang bat o Cai dat.
+	return ten if ten in {d["ten"] for d in ds(chi_dung=True)} else ""
 
 
 def bang_tham_chieu():

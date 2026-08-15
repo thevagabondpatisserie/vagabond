@@ -653,6 +653,14 @@ def cau_hinh_ban_hang():
 	}
 
 
+# Cac o tien cu tren don Pancake. GIU LAI lam duong lui cho don cu: don
+# truoc thang 8/2026 khong co payment_purchase_histories nen van phai doc o
+# nay. Don moi thi doc lich su giao dich, chinh xac hon nhieu.
+#
+# Luu y da do tren du lieu that ngay 15/08/2026 (340 don, 7 ngay):
+# charged_by_onepay va payment_purchase_method KHONG TON TAI trong du lieu
+# Pancake tra ve - khong phai bang 0 ma la khong co truong do. Nen dong
+# OnePay ben duoi tu truoc toi nay chua bao gio chay.
 PT_KENH = (
 	("cash", "Tiền mặt", "tiền mặt"),
 	("transfer_money", "Chuyển khoản", "chuyển khoản"),
@@ -662,6 +670,92 @@ PT_KENH = (
 	("charged_by_vnpay", "", "VNPay"),
 	("charged_by_qrpay", "", "QR Pay"),
 )
+
+# Ma ket qua bao GIAO DICH THANH CONG trong payment_purchase_histories.
+#
+# Day la chot chan quan trong nhat cua ca phan nay. Do tren 340 don that:
+# onepay tra "0" khi thanh cong va "253" khi that bai, mbbank tra "00". Neu
+# anh xa theo `type` ma quen loc ma ket qua thi 19 giao dich HONG trong bay
+# ngay do se thanh 19 lan ghi nhan thu tien khong co that.
+MA_THANH_CONG = {"0", "00", "000"}
+
+# Truong tu them do ma nguon khai, dung lai moi lan deploy - xem
+# vagabond/truong_tu_them.py.
+TRUONG_MOI = {
+	"Sales Invoice": [
+		{
+			"fieldname": "vgb_pt_do_may",
+			"label": "Phương thức do máy đoán",
+			"fieldtype": "Check",
+			"insert_after": "vgb_pt_thanh_toan",
+			"read_only": 1,
+			"description": (
+				"Máy đặt cờ này khi tự điền phương thức thanh toán từ Pancake. "
+				"Người sửa tay thì cờ tắt, và từ đó máy không đè lên nữa."
+			),
+		},
+		{
+			"fieldname": "vgb_nghi_cong_no",
+			"label": "Nghi công nợ",
+			"fieldtype": "Check",
+			"insert_after": "vgb_pt_do_may",
+			"read_only": 1,
+			"description": (
+				"Đơn đã giao xong mà Pancake không ghi nhận khoản thanh toán "
+				"nào. Máy chỉ gắn cờ để sales rà lại, KHÔNG tự ghi là công nợ."
+			),
+		},
+	]
+}
+
+
+def _lich_su_thanh_toan(o):
+	"""Cac giao dich THANH CONG trong payment_purchase_histories.
+
+	Tra ve [{kieu, tien, luc}]. Giao dich hong bi loai ngay o day, khong de
+	no di sau vao trong.
+	"""
+	ra = []
+	for g in (o or {}).get("payment_purchase_histories") or []:
+		if not isinstance(g, dict):
+			continue
+		kieu = str(g.get("type") or "").strip().lower()
+		if not kieu:
+			continue
+		ma = g.get("result_code")
+		# Khong co ma ket qua thi coi la xong: vai kenh khong tra ma. Co ma
+		# ma khong nam trong danh sach thanh cong thi BO, du so tien co dep.
+		if ma is not None and str(ma).strip() not in MA_THANH_CONG:
+			continue
+		try:
+			tien = float(g.get("amount") or 0)
+		except (TypeError, ValueError):
+			tien = 0.0
+		if tien <= 0:
+			continue
+		ra.append({"kieu": kieu, "tien": tien, "luc": str(g.get("date") or "")})
+	return ra
+
+
+def nghi_cong_no(o):
+	"""Don da giao xong ma Pancake khong ghi nhan dong nao.
+
+	CHI la co de sales ra lai. Anh Viet chot 15/08/2026: tuyet doi khong cho
+	may tu gan Cong no. Do tren du lieu that: suy kieu nay ra 16 don trong 7
+	ngay trong khi sales chi danh dau 3 don la cong no, chenh hon nam lan -
+	khong the lay lam quy tac ghi so.
+	"""
+	if str((o or {}).get("status_name") or "").strip().lower() != "delivered":
+		return 0
+	if _lich_su_thanh_toan(o):
+		return 0
+	for truong in ("prepaid", "transfer_money", "cash", "cod", "charged_by_card"):
+		try:
+			if float((o or {}).get(truong) or 0) > 0:
+				return 0
+		except (TypeError, ValueError):
+			continue
+	return 1
 
 
 def _vnd(so):
@@ -676,6 +770,24 @@ def _doan_thanh_toan(o):
 	Payoo hay ShinhanBank nen khong tu dien - so tien van vao ghi chu de
 	ke toan doi soat (anh Viet chot 02/08).
 	"""
+	# DUONG CHINH: doc lich su giao dich. Chinh xac hon han cac o tien vi no
+	# noi ro KENH nao, SO TIEN bao nhieu, LUC MAY GIO, va giao dich do co
+	# thanh cong hay khong.
+	ls = _lich_su_thanh_toan(o)
+	if ls:
+		thay, pt_ro = [], []
+		for g in ls:
+			ten_pt = pt_thanh_toan.theo_khoa_pancake(g["kieu"])
+			nhan = ten_pt or g["kieu"]
+			thay.append("%s %s%s" % (nhan, _vnd(g["tien"]), (" lúc " + g["luc"][11:16]) if len(g["luc"]) >= 16 else ""))
+			if ten_pt and ten_pt not in pt_ro:
+				pt_ro.append(ten_pt)
+		# Nhieu kenh khac nhau tren mot don thi khong tu chon: de sales quyet
+		# ghi so theo kenh nao, con so tien van vao ghi chu doi soat.
+		pt = pt_ro[0] if len(pt_ro) == 1 else ""
+		return pt, "Pancake: " + " + ".join(thay)
+
+	# DUONG LUI: don cu chua co lich su giao dich thi van doc cac o tien.
 	thay = []
 	pt_ro = []
 	mo_ho = 0
@@ -1013,9 +1125,23 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			"remarks": "Pancake #%s - %s%s" % (did, ten_khach or "Khách lẻ", " - " + sdt if sdt else ""),
 		}
 	)
+	# MAY KHONG DE LEN CHU NGUOI THAT (anh Viet chot 15/08/2026).
+	#
+	# Truoc day dong nay ghi de vo dieu kien moi nhip dong bo. It hai vi may
+	# gan nhu luon doan ra rong. Nay may doc duoc lich su giao dich nen doan
+	# ra that, va cu 30 phut mot lan se de len lua chon tay cua sales neu
+	# khong chan. Cung mot luat voi ban dich Gemini khong de len chu nguoi go.
 	pt_tt, ghi_tt = _doan_thanh_toan(o)
 	if pt_tt and frappe.db.exists("Mode of Payment", pt_tt):
-		si.vgb_pt_thanh_toan = pt_tt
+		cu = (si.get("vgb_pt_thanh_toan") or "").strip()
+		do_may = cint(si.get("vgb_pt_do_may") or 0)
+		if not cu or do_may:
+			si.vgb_pt_thanh_toan = pt_tt
+			si.vgb_pt_do_may = 1
+	elif not (si.get("vgb_pt_thanh_toan") or "").strip():
+		si.vgb_pt_do_may = 0
+	# Co "nghi cong no" chi de sales ra lai, khong bao gio tu ghi phuong thuc.
+	si.vgb_nghi_cong_no = nghi_cong_no(o)
 	if ghi_tt:
 		si.vgb_ghi_chu_doi_soat = ghi_tt
 	# Nguoi mua tren hoa don VAT. Dong bo chay lai KHONG duoc de len thong tin
@@ -1309,6 +1435,10 @@ def bang_doanh_so(ngay=None):
 			"custom_hddt_so",
 			"custom_nguon",
 			"vgb_pt_thanh_toan",
+			# Hai co do may dat: mot de biet phuong thuc la may doan hay
+			# nguoi go, mot de day chip "Nghi cong no" cho sales ra lai.
+			"vgb_pt_do_may",
+			"vgb_nghi_cong_no",
 			"vgb_ma_tham_chieu",
 			"vgb_ghi_chu_doi_soat",
 			"vgb_xhd_ten",

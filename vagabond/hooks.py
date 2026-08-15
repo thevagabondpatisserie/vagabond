@@ -81,6 +81,12 @@ doc_events = {
 	# khong o before_insert: before_insert chay SAU khi Frappe da chot ten,
 	# doi ten o do la khong an.
 	"Customer": {"autoname": "vagabond.ma_khach.dat_ma"},
+	# Chan don mua dat qua so thu mua da duyet tren phieu yeu cau. App khong
+	# tao don mua tu phieu yeu cau, nhung nut "Create > Purchase Order" cua
+	# ERPNext tren Desk thi co, va no doc `qty` chu khong biet gi ve
+	# `sl_duyet`. Khong chan o day thi mot dong da tu choi van len duoc don,
+	# va ca man Duyet yeu cau mua thanh vo nghia.
+	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
 	"Sales Invoice": {
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh
@@ -112,3 +118,8 @@ update_website_context = ["vagabond.lib.og_theo_ten_mien"]
 override_doctype_class = {
 	"User": "vagabond.nhan_su.NguoiDung",
 }
+
+
+# Dung lai cac truong tu them do ma nguon khai, sau moi lan deploy. Thao tac
+# lap lai duoc: khai lai lan hai khong doi gi.
+after_migrate = ["vagabond.truong_tu_them.dung"]
