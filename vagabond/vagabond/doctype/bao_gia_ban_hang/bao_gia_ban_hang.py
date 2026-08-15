@@ -20,6 +20,13 @@ class BaoGiaBanHang(Document):
 		Frappe goi doc.run_method("autoname") TRUOC khi xet chuoi format nen
 		ham nay thang; chuoi format giu lai lam duong lui.
 		"""
+		# Phien ban thuong luong khong an mot so moi: no la HAU TO dan vao ten
+		# to goc, vd VGB-PQ-2026-0007-v2. Khach nhin ma la biet ngay day van
+		# la to cu, chi khac vong. Nhanh nay phai dat TRUOC nhanh dem so.
+		if self.get("goc") and int(self.get("phien_ban") or 1) > 1:
+			self.name = "%s-v%d" % (self.goc, int(self.phien_ban))
+			return
+
 		# Mau bao gia dem rieng: mau khong phai to gui khach, khong duoc an
 		# mat mot so trong day VGB-PQ (luu mot mau xong to that ke tiep se
 		# nhay so, Loan Anh nhin vao tuong mat to).
@@ -28,10 +35,18 @@ class BaoGiaBanHang(Document):
 		else:
 			nam = getdate(self.ngay_bao_gia or nowdate()).year
 			tien_to = "VGB-PQ-%d-" % nam
+		# Phai loai cac to "-vN" ra khoi cau dem, neu khong bo dem chet.
+		# VGB-PQ-2026-0011-v2 dai hon va lon hon VGB-PQ-2026-0011 khi so
+		# chuoi, nen no se duoc chon lam moc; rsplit("-", 1)[1] ra "v2",
+		# int() nem loi, khoi except keo so ve 1 va to moi lay ten
+		# VGB-PQ-2026-0001 - trung ten mot to da co. Loi nay chi no khi
+		# vong thuong luong roi dung vao to co so lon nhat, tuc no im lang
+		# ca thang roi mot ngay dep troi lam sales khong luu duoc to nao.
 		cuoi = frappe.db.sql(
 			"""select name from `tabBao Gia Ban Hang`
-			where name like %s order by name desc limit 1""",
-			tien_to + "%",
+			where name like %(t)s and name not like %(v)s
+			order by length(name) desc, name desc limit 1""",
+			{"t": tien_to + "%", "v": tien_to + "%-v%"},
 		)
 		so = 1
 		if cuoi:
@@ -42,6 +57,17 @@ class BaoGiaBanHang(Document):
 		self.name = "%s%04d" % (tien_to, so)
 
 	def validate(self):
+		# Khoa cung ban da bi thay the. Dat o day chu khong chi o ham luu()
+		# vi day la cho DUY NHAT moi duong ghi deu phai di qua: app, man
+		# Desk, script cua nguoi khac. Duong ghi hop le duy nhat len mot ban
+		# dong bang la frappe.db.set_value, va no co y khong chay validate.
+		if self.get("thay_the_boi") and not self.is_new():
+			frappe.throw(
+				"Báo giá %s là bản lịch sử, đã được thay bằng %s nên không "
+				"sửa được nữa. Mở %s để sửa, bản này giữ nguyên làm bằng "
+				"chứng về những gì đã gửi khách."
+				% (self.name, self.thay_the_boi, self.thay_the_boi)
+			)
 		if self.ten:
 			self.ten = self.ten.strip()
 		if self.khach_hang and not self.ten_khach:
