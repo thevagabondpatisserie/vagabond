@@ -75,6 +75,8 @@
   "cb_wa",
   "wa_template_thanh_toan",
   "wa_ngon_ngu",
+  "sec_ai",
+  "gemini_api_key",
   "sec_vgb_tu_dong",
   "tu_xuat_hddt",
   "cb_vgb_tu_dong",
@@ -484,11 +486,21 @@
    "fieldtype": "Data",
    "label": "Email nhận thư cảnh báo",
    "description": "Nhiều địa chỉ thì ngăn nhau bằng dấu phẩy. Dùng cho thư báo đơn trùng hoá đơn."
+  },
+  {
+   "fieldname": "sec_ai",
+   "fieldtype": "Section Break",
+   "label": "Dich thuat (Google Gemini)"
+  },
+  {
+   "fieldname": "gemini_api_key",
+   "fieldtype": "Password",
+   "label": "Gemini API key (dan khoa vao de dich sang tieng Anh)"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-07 22:30:00.000000",
+ "modified": "2026-08-15 04:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
