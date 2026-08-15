@@ -4110,15 +4110,27 @@ var rcv = { q: '', tab: 'cho' };
 async function scrRecvList() {
   vgbCss();
   frame('Nhập kho', '<div class="emp"><div class="e1">⏳</div></div>');
+  /* Tab "Còn phải nhận" (anh Việt duyệt 15/08/2026, PA-B).
+
+     Trước đây một đơn ba món mà nhà cung cấp chỉ giao một món thì phiếu
+     nháp bị dùng hết, tab Chờ nhận trống trơn, thủ kho tưởng hết việc -
+     trong khi đơn mua vẫn còn nợ hai món. Nay phần còn nợ nằm ở tab này,
+     lấy thẳng từ đơn mua chứ không cần ai tạo phiếu nháp đợt hai. */
   var TB = [
     { k: 'cho', ten: 'Chờ nhận', ds: 0 },
+    { k: 'po', ten: 'Còn phải nhận', ds: -1 },
     { k: 'xong', ten: 'Đã nhập kho', ds: 1 },
     { k: 'huy', ten: 'Đã huỷ', ds: 2 }
   ];
   if (!rcv.tab) rcv.tab = 'cho';
   var D = {}, dem = {};
+  var poDs = [];
+  try { poDs = (await api('vagabond.nhan_hang.danh_sach', { so_ngay: 120 })).don || []; }
+  catch (ePo) { poDs = []; }
+  dem.po = poDs.length;
   for (var ti = 0; ti < TB.length; ti++) {
     var t = TB[ti], f = { docstatus: t.ds };
+    if (t.ds < 0) { D[t.k] = []; continue; }
     if (t.ds === 1) f.posting_date = ['>=', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)];
     if (t.ds === 2) f.posting_date = ['>=', new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)];
     var docs = [];
@@ -4149,7 +4161,35 @@ async function scrRecvList() {
         h(t.ten) + (dem[t.k] ? ' <b>' + dem[t.k] + '</b>' : '') + '</div>';
     }).join('') + '</div>';
   }
+  /* Danh sách đơn mua còn nợ hàng. Trễ hẹn lên đầu, vì đó là chuyến hàng
+     đang chạy muộn chứ không phải chuyến vừa đặt hôm qua. */
+  function poHtml() {
+    var q = (rcv.q || '').toLowerCase().trim();
+    var ls = poDs.filter(function (x) {
+      if (!q) return true;
+      return (x.name + ' ' + (x.ncc || '')).toLowerCase().indexOf(q) >= 0;
+    });
+    if (!ls.length) {
+      return '<div class="emp"><div class="e1">✅</div><div class="e2">' +
+        (poDs.length ? 'Không tìm thấy đơn nào' :
+          'Không còn đơn mua nào đang nợ hàng.<br>Nhà cung cấp giao thiếu thì đơn đó sẽ hiện ở đây cho tới khi nhận đủ.') +
+        '</div></div>';
+    }
+    return '<div class="lst">' + ls.map(function (x) {
+      var tre = x.tre_ngay > 0;
+      return '<div class="li" data-po="' + h(x.name) + '"><div class="lt">' +
+        '<div class="l1">' + h(x.ncc || x.name) + '</div>' +
+        '<div class="l2">' + h(x.name) + ' · còn ' + x.so_mon_con + '/' + x.so_mon + ' món' +
+        (x.hen ? ' · hẹn ' + h(dmy(x.hen)) : '') + '</div></div>' +
+        '<span style="text-align:right;flex:none">' +
+        '<span class="vxtag ' + (tre ? 'x' : 'c2') + '">' + (tre ? 'Trễ ' + x.tre_ngay + ' ngày' : 'Chờ giao') + '</span>' +
+        '<div style="font-size:12px;color:#98a2b3;margin-top:4px">đã nhận ' + Math.round(x.da_nhan_pt) + '%</div>' +
+        '</span></div>';
+    }).join('') + '</div>';
+  }
+
   function listHtml() {
+    if (rcv.tab === 'po') return poHtml();
     var q = (rcv.q || '').toLowerCase().trim();
     var ls = (D[rcv.tab] || []).filter(function (x) {
       if (!q) return true;
@@ -4194,6 +4234,8 @@ async function scrRecvList() {
       var el = document.getElementById('rcvl'); if (el) el.innerHTML = listHtml();
       return;
     }
+    var rp = e.target.closest('[data-po]');
+    if (rp) { var pn = rp.dataset.po; return go(function () { scrNhpDon(pn); }); }
     var r = e.target.closest('[data-p]');
     if (r) {
       var nm = r.dataset.p;
@@ -4277,14 +4319,43 @@ async function scrRecvDoc(name) {
     its.forEach(function (x) { bat[x.name] = x.has_batch_no ? 1 : 0; slf[x.name] = x.shelf_life_in_days || 0; });
   } catch (e) { }
 
+  /* Số CÒN PHẢI NHẬN của từng dòng đơn mua (anh Việt 15/08/2026).
+
+     Phiếu nháp do thu mua tạo mang số ĐÃ ĐẶT. Nếu đơn này đã nhận một đợt
+     rồi thì số đó lớn hơn số thực sự còn thiếu, và ô nhập điền sẵn theo nó
+     là đường thẳng dẫn tới nhập trùng nguyên lô. Nên đọc lại từ đơn mua và
+     lấy số nhỏ hơn trong hai số làm mặc định. */
+  var poRow = {};
+  var poKeys = [];
+  doc.items.forEach(function (r) { if (r.purchase_order_item) poKeys.push(r.purchase_order_item); });
+  if (poKeys.length) {
+    try {
+      var pos = await getList('Purchase Order Item', {
+        parent: 'Purchase Order', fields: ['name', 'qty', 'received_qty'],
+        filters: { name: ['in', poKeys] }, limit_page_length: 0
+      });
+      pos.forEach(function (x) {
+        var con = (x.qty || 0) - (x.received_qty || 0);
+        poRow[x.name] = { dat: x.qty || 0, daNhan: x.received_qty || 0, con: con > 0.0001 ? con : 0 };
+      });
+    } catch (ePo) { poRow = {}; }
+  }
+
   rcvD = {
     name: name, doc: doc,
     anh1: doc.custom_hinh_nhan_hang_1 || '', anh2: doc.custom_hinh_nhan_hang_2 || '', scan: doc.custom_scan_bien_ban || '',
     lines: doc.items.map(function (r) {
+      var po = poRow[r.purchase_order_item] || null;
+      var tren = r.qty || 0;
+      /* Trần và số điền sẵn LUÔN là số nhỏ hơn giữa "ghi trên phiếu nháp"
+         và "còn thiếu thật trên đơn mua". Dòng không nối đơn mua nào thì
+         giữ nguyên cách cũ. */
+      var tran = po ? Math.min(tren, po.con) : tren;
       return {
         row: r.name, code: r.item_code, nm: r.item_name || r.item_code,
-        uom: r.uom || r.stock_uom || '', wh: r.warehouse, ord: r.qty || 0,
-        got: r.qty || 0, sl: slf[r.item_code] || 0,
+        uom: r.uom || r.stock_uom || '', wh: r.warehouse, ord: tran,
+        tren: tren, po: po,
+        got: tran, sl: slf[r.item_code] || 0,
         hsd: r.han_su_dung || (slf[r.item_code] ? addDays(base, slf[r.item_code]) : ''),
         dflt: r.han_su_dung ? 0 : 1, batch: bat[r.item_code] ? 1 : 0, ok: 0
       };
@@ -4305,7 +4376,7 @@ async function scrRecvDoc(name) {
     var q = el.querySelector('[data-q]');
     if (q && String(q.value) !== String(x.got)) q.value = x.got;
     var lb = el.querySelector('.lb');
-    if (lb) lb.innerHTML = 'Số lượng thực nhận' + (Math.abs(x.got - x.ord) > 0.0001 ? ' <b class="lbw">(lệch so với đặt)</b>' : '');
+    if (lb) lb.innerHTML = 'Số lượng thực nhận' + (Math.abs(x.got - x.ord) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '');
     syncHdr();
   }
 
@@ -4318,7 +4389,7 @@ async function scrRecvDoc(name) {
       if (i < 0) return ic + ' không có trong phiếu này';
       L[i].ok = 1;
       syncRow(i);
-      return '\u2713 ' + L[i].nm + ' \u00b7 đặt ' + num(L[i].ord) + ' ' + L[i].uom;
+      return '\u2713 ' + L[i].nm + ' \u00b7 còn phải nhận ' + num(L[i].ord) + ' ' + L[i].uom;
     });
   }
 
@@ -4327,10 +4398,10 @@ async function scrRecvDoc(name) {
     var keep = L.filter(function (x) { return (x.got || 0) > 0; });
     if (!keep.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
     var du = L.filter(function (x) { return (x.got || 0) > (x.ord || 0) + 0.0001; });
-    if (du.length) return toast('Nhà cung cấp giao dư ' + du.length + ' món so với đơn đặt. Chỉ nhập đúng số đã đặt, phần dư báo chị Uyên lên đơn bổ sung rồi nhập sau.', 7000);
+    if (du.length) return toast('Nhà cung cấp giao dư ' + du.length + ' món so với số còn phải nhận. Chỉ nhập đúng số còn lại, phần dư báo chị Uyên lên đơn bổ sung rồi nhập sau.', 7000);
     var thieu = L.filter(function (x) { return (x.got || 0) < (x.ord || 0) - 0.0001; });
     var msg = 'Nhập kho ' + keep.length + ' món.';
-    if (thieu.length) msg += ' Có ' + thieu.length + ' món nhận thiếu hoặc không về, phần còn lại vẫn treo trên đơn mua hàng để lần sau nhận tiếp.';
+    if (thieu.length) msg += ' Có ' + thieu.length + ' món nhận thiếu hoặc không về, phần còn lại vẫn treo trên đơn mua hàng - vào tab "Còn phải nhận" để nhận đợt sau.';
     msg += ' Xác nhận xong là phiếu khoá lại, muốn sửa phải báo kế toán.';
     if (!await confirmSheet('Xác nhận nhập kho?', msg, 'Nhập kho')) return;
     busy(1);
@@ -4405,17 +4476,20 @@ async function scrRecvDoc(name) {
       '<div class="kpb"><i id="rcvpb" style="width:' + (L.length ? Math.round(okN * 100 / L.length) : 0) + '%"></i></div></div>' +
       '<div class="kv"><span>Nhà cung cấp</span><b>' + h(doc.supplier_name || doc.supplier || '') + '</b></div>' +
       '<div class="kv"><span>Số phiếu</span><b>' + h(name) + '</b></div></div>';
-    body += '<div class="rcvh">Đếm tới đâu sửa số tới đó, số điền sẵn là số đã đặt. Không nhập quá số đã đặt: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung. Bấm nút máy ảnh ở góc trên để quét mã từng món cho nhanh.</div>';
+    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung. Bấm nút máy ảnh ở góc trên để quét mã từng món cho nhanh.</div>';
     var chuaGiaN = (doc.items || []).filter(function (rr) { return !((rr.rate || 0) > 0); }).length;
     if (chuaGiaN) body += '<div style="margin:10px 12px;padding:12px 14px;border-radius:14px;background:#fff6e5;color:#8a5b00;font-size:13px;line-height:1.5">Đơn này có ' + chuaGiaN + ' món chưa có đơn giá. Vẫn nhập kho được nhưng giá vốn ghi 0, nhớ báo kế toán bổ sung giá.</div>';
     body += L.map(function (x, i) {
       return '<div class="ic1' + (x.ok ? ' ok' : '') + (x.got > 0 ? '' : ' zero') + '" data-r="' + i + '">' +
         '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
         '<div class="in">' + h(x.nm) +
-        '<div class="ig">' + h(x.code) + ' \u00b7 Đặt ' + num(x.ord) + ' ' + h(x.uom) + ' \u00b7 ' + h(shortWh(x.wh) || '') + '</div></div>' +
+        '<div class="ig">' + h(x.code) + ' \u00b7 ' + h(shortWh(x.wh) || '') + '</div></div>' +
         '<div class="rok" data-ok="' + i + '">&#10003;</div></div>' +
+        (x.po
+          ? nhpBaSo({ sl_dat: x.po.dat, sl_da_nhan: x.po.daNhan, sl_con: x.po.con })
+          : '<div style="padding:0 12px 8px;font-size:12.5px;color:#5a6070">Đặt ' + num(x.ord) + ' ' + h(x.uom) + '</div>') +
         '<div class="qw"><div style="flex:1;min-width:0">' +
-        '<div class="lb">Số lượng thực nhận' + (Math.abs(x.got - x.ord) > 0.0001 ? ' <b class="lbw">(lệch so với đặt)</b>' : '') + '</div>' +
+        '<div class="lb">Số lượng thực nhận' + (Math.abs(x.got - x.ord) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '') + '</div>' +
         '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
         '<input type="number" inputmode="decimal" step="any" data-q="' + i + '" value="' + x.got + '">' +
         '<button data-a="' + i + '">+</button></div>' +
@@ -4448,10 +4522,10 @@ async function scrRecvDoc(name) {
       t = e.target.closest('[data-m]');
       if (t) { var j = parseInt(t.dataset.m, 10); L[j].got = Math.max(0, r3(L[j].got - 1)); L[j].ok = 1; return syncRow(j); }
       t = e.target.closest('[data-a]');
-      if (t) { var k = parseInt(t.dataset.a, 10); var v1 = r3(L[k].got + 1); if (v1 > L[k].ord + 0.0001) { v1 = L[k].ord; toast('Chỉ nhập được tối đa ' + num(L[k].ord) + ' ' + L[k].uom + ' theo đơn đặt. Hàng giao dư phải báo thu mua lên đơn bổ sung.', 5200); } L[k].got = v1; L[k].ok = 1; return syncRow(k); }
+      if (t) { var k = parseInt(t.dataset.a, 10); var v1 = r3(L[k].got + 1); if (v1 > L[k].ord + 0.0001) { v1 = L[k].ord; toast('Chỉ nhập được tối đa ' + num(L[k].ord) + ' ' + L[k].uom + ' vì đơn chỉ còn thiếu chừng đó. Hàng giao dư phải báo thu mua lên đơn bổ sung.', 5500); } L[k].got = v1; L[k].ok = 1; return syncRow(k); }
     };
     Array.prototype.forEach.call(b.querySelectorAll('[data-q]'), function (el) {
-      el.onchange = function () { var i = parseInt(el.dataset.q, 10); var v2 = Math.max(0, parseFloat(el.value) || 0); if (v2 > L[i].ord + 0.0001) { v2 = L[i].ord; toast('Chỉ nhập được tối đa ' + num(L[i].ord) + ' ' + L[i].uom + ' theo đơn đặt. Hàng giao dư phải báo thu mua lên đơn bổ sung.', 5200); } L[i].got = v2; L[i].ok = 1; syncRow(i); };
+      el.onchange = function () { var i = parseInt(el.dataset.q, 10); var v2 = Math.max(0, parseFloat(el.value) || 0); if (v2 > L[i].ord + 0.0001) { v2 = L[i].ord; toast('Chỉ nhập được tối đa ' + num(L[i].ord) + ' ' + L[i].uom + ' vì đơn chỉ còn thiếu chừng đó. Hàng giao dư phải báo thu mua lên đơn bổ sung.', 5500); } L[i].got = v2; L[i].ok = 1; syncRow(i); };
     });
     Array.prototype.forEach.call(b.querySelectorAll('[data-h]'), function (el) {
       el.onchange = function () {
@@ -4481,6 +4555,253 @@ async function scrRecvDoc(name) {
       };
     }
     ganAnh('rcvA1', 'anh1'); ganAnh('rcvA2', 'anh2'); ganAnh('rcvA3', 'scan');
+  }
+  draw();
+}
+
+/* ---------- 13b. Nhan hang dot tiep theo, mo thang tu Don mua ----------
+
+   Anh Viet duyet 15/08/2026, phuong an B: KHONG sinh phieu nhap nhap cho
+   phan con lai. Nguon su that la don mua, dung thiet ke ERPNext. Thu kho mo
+   thang don ra bam "Nhan hang dot nay", may chu dung phieu moi tu don.
+
+   Ba diem chong nham, xep theo muc quan trong:
+
+   1. O nhap MAC DINH bang CON LAI, khong phai bang so da dat. Man phieu
+      nhap cu dang mac dinh bang so dat, nen dot hai ma quen sua la nhap
+      trung nguyen lo. Day la loi ton tien that.
+   2. Moi dong bay du BA con so: Dat, Da nhan, Con lai. Khong bat ai tru
+      trong dau.
+   3. Mon da nhan du thi lam mo, khong cho go, va nam cuoi danh sach.
+
+   Tien to nhp = nhan hang theo phieu dat. Da kiem va cham ten truoc khi
+   dat, dung QT-28. */
+
+var nhpD = null;
+
+function nhpSo(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
+
+/* Ba con so tren mot dong. Con lai to dam va doi mau khi con no hang, vi
+   day moi la con so thu kho phai nhin. */
+function nhpBaSo(x) {
+  function o(nhan, gt, mau, dam) {
+    return '<div style="flex:1;min-width:0;text-align:center">' +
+      '<div style="font-size:11px;color:#98a2b3;text-transform:uppercase;letter-spacing:.3px">' + nhan + '</div>' +
+      '<div style="font-size:15px;font-weight:' + (dam ? '800' : '600') + ';color:' + mau + '">' + num(gt) + '</div></div>';
+  }
+  var con = x.sl_con > 0.0001;
+  return '<div style="display:flex;gap:6px;padding:8px 12px;background:#f7f8fa;border-radius:11px;margin:0 12px 8px">' +
+    o('Đặt', x.sl_dat, '#5a6070', 0) +
+    o('Đã nhận', x.sl_da_nhan, '#5a6070', 0) +
+    o('Còn lại', x.sl_con, con ? '#0d9488' : '#98a2b3', 1) + '</div>';
+}
+
+async function scrNhpDon(don) {
+  frame('Nhận hàng', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d = null;
+  try { d = await api('vagabond.nhan_hang.chi_tiet', { don: don }); }
+  catch (e) { toast(errMsg(e)); return back(); }
+  vgbCss();
+
+  var base = today();
+  nhpD = {
+    don: don, d: d,
+    anh1: '', anh2: '', scan: '',
+    lines: (d.mon || []).map(function (m) {
+      return {
+        dong: m.dong, code: m.ma, nm: m.ten, uom: m.dvt, wh: m.kho,
+        dat: m.sl_dat, daNhan: m.sl_da_nhan, con: m.sl_con,
+        /* MAC DINH BANG CON LAI. Day la chot chan chong nhap trung lo. */
+        got: m.sl_con,
+        batch: m.co_lo ? 1 : 0, sl: m.han_chuan || 0,
+        hsd: m.han_chuan ? addDays(base, m.han_chuan) : '',
+        dflt: 1, ok: 0
+      };
+    })
+  };
+  var L = nhpD.lines;
+  var conL = L.filter(function (x) { return x.con > 0.0001; });
+
+  function syncHdr() {
+    var okN = conL.filter(function (x) { return x.ok; }).length;
+    var t = document.getElementById('nhppt'), pb = document.getElementById('nhppb');
+    if (t) t.textContent = 'ĐÃ ĐẾM ' + okN + '/' + conL.length + ' MÓN';
+    if (pb) pb.style.width = (conL.length ? Math.round(okN * 100 / conL.length) : 0) + '%';
+  }
+  function syncRow(i) {
+    var x = L[i], el = document.querySelector('#vgbBody [data-nr="' + i + '"]');
+    if (!el) return;
+    el.classList.toggle('ok', !!x.ok);
+    el.classList.toggle('zero', !(x.got > 0));
+    var q = el.querySelector('[data-nq]');
+    if (q && String(q.value) !== String(x.got)) q.value = x.got;
+    var lb = el.querySelector('.lb');
+    if (lb) lb.innerHTML = 'Số lượng thực nhận' +
+      (Math.abs(x.got - x.con) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '');
+    syncHdr();
+  }
+
+  async function nhpLuu() {
+    var gui = L.filter(function (x) { return (x.got || 0) > 0.0001; });
+    if (!gui.length) return toast('Chưa có món nào có số lượng, chưa nhập kho được');
+    var thieu = conL.filter(function (x) { return (x.got || 0) < x.con - 0.0001; });
+    var msg = 'Nhập kho ' + gui.length + ' món cho đợt ' + d.dot_toi + '.';
+    if (thieu.length) msg += ' Còn ' + thieu.length + ' món nhận thiếu, phần chưa nhận vẫn treo trên đơn mua để lần sau nhận tiếp.';
+    msg += ' Xác nhận xong là phiếu khoá lại, muốn sửa phải báo kế toán.';
+    if (!await confirmSheet('Xác nhận nhận hàng?', msg, 'Nhận hàng')) return;
+    busy(1);
+    try {
+      var r = await api('vagabond.nhan_hang.tao_phieu', {
+        don: don,
+        dong: JSON.stringify(gui.map(function (x) {
+          return { dong: x.dong, sl: x.got, hsd: (x.batch && x.hsd) ? x.hsd : '' };
+        })),
+        anh1: nhpD.anh1, anh2: nhpD.anh2, scan: nhpD.scan
+      });
+      busy(0);
+      if (r.thieu_gia && r.thieu_gia.length) {
+        setTimeout(function () { toast('Có ' + r.thieu_gia.length + ' món nhập khi chưa có giá. Báo kế toán bổ sung giá giúp em.', 7000); }, 1400);
+      }
+      toast('✓ Đã nhận hàng đợt ' + r.dot + ', phiếu ' + r.phieu + '.' +
+        (r.con_lai > 0.0001 ? ' Đơn còn nợ ' + num(r.con_lai) + ' đơn vị của ' + r.so_mon_con + ' món.' : ' Đơn đã nhận đủ.'), 6000);
+      rcv.tab = r.con_lai > 0.0001 ? 'po' : 'xong';
+      return back();
+    } catch (e) { busy(0); toast(errMsg(e), 7000); }
+  }
+
+  async function nhpDong() {
+    var ly = await promptSheet('Đóng phần còn lại của đơn ' + don,
+      'Nhà cung cấp báo không giao nữa, hay mình đổi sang mua nơi khác? Ghi lý do để sau này còn đối chiếu.');
+    if (ly === null) return;
+    if (!ly) return toast('Phải ghi lý do thì sau này còn biết vì sao đơn không nhận đủ.', 5000);
+    if (!await confirmSheet('Đóng phần còn lại?',
+      'Đơn ' + don + ' sẽ không hiện ở tab Còn phải nhận nữa. Số lượng đã đặt giữ nguyên, không sửa và không xoá dòng nào - mở lại được bất cứ lúc nào.', 'Đóng phần còn lại', true)) return;
+    busy(1);
+    try {
+      await api('vagabond.nhan_hang.dong_con_lai', { don: don, ly_do: ly });
+      busy(0); toast('Đã đóng phần còn lại của đơn ' + don);
+      rcv.tab = 'po'; return back();
+    } catch (e) { busy(0); toast(errMsg(e), 6000); }
+  }
+
+  function draw() {
+    var okN = conL.filter(function (x) { return x.ok; }).length;
+    var tre = d.tre_ngay > 0;
+    var body = '<div class="card"><div class="kpg"><div class="kpt" id="nhppt">ĐÃ ĐẾM ' + okN + '/' + conL.length + ' MÓN</div>' +
+      '<div class="kpb"><i id="nhppb" style="width:' + (conL.length ? Math.round(okN * 100 / conL.length) : 0) + '%"></i></div></div>' +
+      '<div class="kv"><span>Nhà cung cấp</span><b>' + h(d.ncc) + '</b></div>' +
+      '<div class="kv"><span>Đơn mua</span><b>' + h(don) + '</b></div>' +
+      (d.hen ? '<div class="kv"><span>Hẹn giao</span><b' + (tre ? ' style="color:#b3261e"' : '') + '>' + h(dmy(d.hen)) +
+        (tre ? ' · trễ ' + d.tre_ngay + ' ngày' : '') + '</b></div>' : '') +
+      '<div class="kv"><span>Đã nhận</span><b>' + Math.round(d.da_nhan_pt) + '% · còn ' + d.so_mon_con + ' món</b></div></div>';
+
+    /* Băng lịch sử: thủ kho biết ngay đợt trước ai nhận cái gì, không phải
+       mở đơn mua ra dò. */
+    if ((d.lich_su || []).length) {
+      body += '<div class="sec">Đã nhận ' + d.lich_su.length + ' đợt trước</div><div class="lst">' +
+        d.lich_su.map(function (x) {
+          return '<div class="li"><div class="lt"><div class="l1">Đợt ' + x.dot + ' · ' + h(dmy(x.ngay)) + '</div>' +
+            '<div class="l2">Phiếu ' + h(x.name) + '</div></div>' +
+            '<span class="st b">' + x.so_mon + ' món · ' + num(x.sl) + '</span></div>';
+        }).join('') + '</div>';
+    }
+
+    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung.</div>';
+
+    body += '<div class="sec">Đợt ' + d.dot_toi + ' · ' + conL.length + ' món còn phải nhận</div>';
+    body += L.map(function (x, i) {
+      var het = x.con <= 0.0001;
+      /* Món đã nhận đủ: làm mờ, không cho gõ. Thủ kho chỉ nhìn thấy việc
+         còn phải làm, phần đã xong chỉ để đối chiếu. */
+      if (het) {
+        return '<div class="ic1" data-nr="' + i + '" style="opacity:.5">' +
+          '<div class="ih"><div class="n">✓</div>' +
+          '<div class="in">' + h(x.nm) + '<div class="ig">' + h(x.code) + ' · đã nhận đủ ' + num(x.dat) + ' ' + h(x.uom) + '</div></div></div></div>';
+      }
+      return '<div class="ic1' + (x.ok ? ' ok' : '') + (x.got > 0 ? '' : ' zero') + '" data-nr="' + i + '">' +
+        '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
+        '<div class="in">' + h(x.nm) +
+        '<div class="ig">' + h(x.code) + ' · ' + h(shortWh(x.wh) || '') + '</div></div>' +
+        '<div class="rok" data-nok="' + i + '">&#10003;</div></div>' +
+        nhpBaSo({ sl_dat: x.dat, sl_da_nhan: x.daNhan, sl_con: x.con }) +
+        '<div class="qw"><div style="flex:1;min-width:0">' +
+        '<div class="lb">Số lượng thực nhận' + (Math.abs(x.got - x.con) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '') + '</div>' +
+        '<div class="qr"><div class="stp"><button data-nm2="' + i + '">&minus;</button>' +
+        '<input type="number" inputmode="decimal" step="any" data-nq="' + i + '" value="' + x.got + '">' +
+        '<button data-na="' + i + '">+</button></div>' +
+        '<div class="uml">' + h(x.uom) + '</div></div></div></div>' +
+        (x.batch ? '<div class="hw"><div class="hl">Hạn sử dụng' +
+          (x.sl ? '<b class="hbd">chuẩn ' + x.sl + ' ngày</b>' : '') + '</div>' +
+          '<input type="date" class="hin' + (x.dflt ? '' : ' ed') + '" data-nh="' + i + '" value="' + h(x.hsd) + '">' +
+          '<div class="hn' + (x.dflt ? '' : ' ed') + '" data-nhn="' + i + '">' + hsdNote(x) + '</div></div>' : '') +
+        '</div>';
+    }).join('');
+
+    body += '<div class="sec">Chứng từ giao nhận (không bắt buộc)</div><div class="card" style="padding:12px">' +
+      '<div class="vxl" style="margin-top:0">Ảnh hàng đã nhận (1)</div>' +
+      '<input class="vxi" type="file" accept="image/*" id="nhpA1">' +
+      '<div id="nhpA1ok" style="font-size:13px;color:#027a48;margin-top:4px"></div>' +
+      '<div class="vxl">Ảnh hàng đã nhận (2)</div>' +
+      '<input class="vxi" type="file" accept="image/*" id="nhpA2">' +
+      '<div id="nhpA2ok" style="font-size:13px;color:#027a48;margin-top:4px"></div>' +
+      '<div class="vxl">Bản scan hoặc ảnh biên bản giao nhận của NCC</div>' +
+      '<input class="vxi" type="file" accept="image/*,.pdf" id="nhpA3">' +
+      '<div id="nhpA3ok" style="font-size:13px;color:#027a48;margin-top:4px"></div></div>';
+
+    body += '<div class="card" style="padding:12px"><button class="btn" id="nhpDong" style="background:#fff;color:#b3261e;border:1px solid #fecaca;margin:0">Nhà cung cấp không giao nữa · đóng phần còn lại</button>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.55">Đóng thì đơn không hiện ở tab Còn phải nhận nữa. Số đã đặt giữ nguyên, không xoá dòng nào, mở lại được bất cứ lúc nào.</div></div>';
+
+    var b = frame('Nhận hàng đợt ' + d.dot_toi, body, {
+      footer: '<button class="btn" id="nhpSub">Xác nhận nhận hàng đợt ' + d.dot_toi + '</button>'
+    });
+    b.onclick = function (e) {
+      var t = e.target.closest('[data-nok]');
+      if (t) { var i = parseInt(t.dataset.nok, 10); L[i].ok = L[i].ok ? 0 : 1; return syncRow(i); }
+      t = e.target.closest('[data-nm2]');
+      if (t) { var j = parseInt(t.dataset.nm2, 10); L[j].got = Math.max(0, nhpSo(L[j].got - 1)); L[j].ok = 1; return syncRow(j); }
+      t = e.target.closest('[data-na]');
+      if (t) {
+        var k = parseInt(t.dataset.na, 10), v = nhpSo(L[k].got + 1);
+        if (v > L[k].con + 0.0001) { v = L[k].con; toast('Chỉ nhận được tối đa ' + num(L[k].con) + ' ' + L[k].uom + ' vì đơn chỉ còn thiếu chừng đó. Giao dư thì báo thu mua lên đơn bổ sung.', 5500); }
+        L[k].got = v; L[k].ok = 1; return syncRow(k);
+      }
+    };
+    Array.prototype.forEach.call(b.querySelectorAll('[data-nq]'), function (el) {
+      el.onchange = function () {
+        var i = parseInt(el.dataset.nq, 10), v = Math.max(0, parseFloat(el.value) || 0);
+        if (v > L[i].con + 0.0001) { v = L[i].con; toast('Chỉ nhận được tối đa ' + num(L[i].con) + ' ' + L[i].uom + ' vì đơn chỉ còn thiếu chừng đó. Giao dư thì báo thu mua lên đơn bổ sung.', 5500); }
+        L[i].got = v; L[i].ok = 1; syncRow(i);
+      };
+    });
+    Array.prototype.forEach.call(b.querySelectorAll('[data-nh]'), function (el) {
+      el.onchange = function () {
+        var i = parseInt(el.dataset.nh, 10), x = L[i];
+        if (!el.value && x.sl) el.value = addDays(base, x.sl);
+        x.hsd = el.value || '';
+        x.dflt = (x.sl && x.hsd === addDays(base, x.sl)) ? 1 : 0;
+        el.classList.toggle('ed', !x.dflt);
+        var nt = b.querySelector('[data-nhn="' + i + '"]');
+        if (nt) { nt.textContent = hsdNote(x); nt.classList.toggle('ed', !x.dflt); }
+      };
+    });
+    var sb = document.getElementById('nhpSub');
+    if (sb) sb.onclick = nhpLuu;
+    var db = document.getElementById('nhpDong');
+    if (db) db.onclick = nhpDong;
+    function ganAnh(id, key) {
+      var inp = document.getElementById(id), ok = document.getElementById(id + 'ok');
+      if (!inp) return;
+      inp.onchange = async function () {
+        var f = this.files && this.files[0];
+        if (!f) return;
+        ok.textContent = 'Đang tải lên...';
+        try {
+          nhpD[key] = await vxUpAnh(f);
+          ok.innerHTML = 'Đã tải lên: <a href="' + h(nhpD[key]) + '" target="_blank">xem</a>';
+        } catch (e) { ok.style.color = '#d92d20'; ok.textContent = 'Không tải được: ' + (e.message || e); }
+      };
+    }
+    ganAnh('nhpA1', 'anh1'); ganAnh('nhpA2', 'anh2'); ganAnh('nhpA3', 'scan');
   }
   draw();
 }
@@ -10852,7 +11173,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '174';
+var APPVER = '175';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -13723,7 +14044,8 @@ async function scrDonMua() {
         (d.hen ? ' · hẹn ' + ngayNgan(d.hen) : '') + '</div>' +
         '<div style="font-size:12px;color:' + mau + ';font-weight:600;margin-top:3px">' + h(ten) +
         (d.tre_ngay ? ' ' + d.tre_ngay + ' ngày' : '') +
-        (d.nhom === 'nhan_mot_phan' ? ' · đã nhận ' + Math.round(d.per_received) + '%' : '') + '</div></div>' +
+        (d.nhom === 'nhan_mot_phan' ? ' · đã nhận ' + Math.round(d.per_received) + '%' : '') +
+        (d.con_nhan > 0.0001 ? ' · <span style="color:#b45309">còn ' + money(d.con_nhan) + ' của ' + d.so_mon_con + ' món</span>' : '') + '</div></div>' +
         '<b style="white-space:nowrap">' + money(d.grand_total) + ' đ</b></div>';
     }).join('') + '</div>';
   }
@@ -13752,6 +14074,10 @@ async function scrDonMuaXem() {
     '<div style="font-size:12.5px;color:#6b7280">' + h(d.name) + ' · đặt ngày ' + ngayNgan(d.ngay) +
     (d.hen ? ' · hẹn giao ' + ngayNgan(d.hen) : '') + '</div>' +
     '<div style="font-size:13px;margin-top:6px">Đã nhận <b>' + Math.round(d.da_nhan) + '%</b> · đã lên hoá đơn <b>' + Math.round(d.da_hoa_don) + '%</b></div>' +
+    (d.con_nhan > 0.0001
+      ? '<div style="margin-top:9px;background:#fff6e5;border:1.5px solid #fde3a7;border-radius:9px;padding:10px 12px;font-size:13px;color:#8a5b00">' +
+        'Đơn này còn nợ <b>' + money(d.con_nhan) + '</b> đơn vị của <b>' + d.so_mon_con + ' món</b>. Kho vào màn Nhập kho, tab "Còn phải nhận" để nhận đợt tiếp theo.</div>'
+      : '') +
     '</div>';
 
   html += '<div class="sec">Mặt hàng</div><div class="card" style="padding:6px 14px">' +
@@ -13759,12 +14085,24 @@ async function scrDonMuaXem() {
       return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
         '<div style="flex:1;min-width:0">' + h(m.ten || m.ma) +
         '<div style="color:#a0a6b4;font-size:12px">đặt ' + money(m.sl) + ' ' + h(m.dvt || '') +
-        ' · đã nhận ' + money(m.da_nhan) + ' · ' + money(m.gia) + ' đ</div></div>' +
+        ' · đã nhận ' + money(m.da_nhan) +
+        (m.con_lai > 0.0001 ? ' · <b style="color:#b45309">còn ' + money(m.con_lai) + '</b>' : '') +
+        ' · ' + money(m.gia) + ' đ</div></div>' +
         '<b style="white-space:nowrap">' + money(m.tien) + '</b></div>';
     }).join('') +
     '<div style="display:flex;justify-content:space-between;padding:9px 0;color:#5a6070"><span>Tiền hàng</span><span>' + money(d.tong_hang) + ' đ</span></div>' +
     (d.thue ? '<div style="display:flex;justify-content:space-between;padding:2px 0;color:#5a6070"><span>Thuế và phí</span><span>' + money(d.thue) + ' đ</span></div>' : '') +
     '<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:16px"><b>Tổng cộng</b><b>' + money(d.tong) + ' đ</b></div></div>';
+
+  if ((d.lich_su_nhan || []).length) {
+    html += '<div class="sec">Các đợt đã nhận hàng</div><div class="card" style="padding:6px 14px">' +
+      d.lich_su_nhan.map(function (x) {
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
+          '<div style="flex:1;min-width:0">Đợt ' + x.dot + ' · ' + ngayNgan(x.ngay) +
+          '<div style="color:#a0a6b4;font-size:12px">Phiếu ' + h(x.name) + '</div></div>' +
+          '<b style="white-space:nowrap">' + x.so_mon + ' món · ' + money(x.sl) + '</b></div>';
+      }).join('') + '</div>';
+  }
 
   html += '<div class="sec">Đã nối với</div><div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.8">' +
     '<div>Phiếu nhập kho: ' + (d.phieu_nhap.length ? '<b>' + d.phieu_nhap.map(h).join(', ') + '</b>' : '<span style="color:#b45309">chưa có phiếu nào</span>') + '</div>' +
