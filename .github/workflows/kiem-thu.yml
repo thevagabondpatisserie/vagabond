@@ -1,0 +1,50 @@
+# Cong kiem tra tu dong cua GitHub (anh Viet chot 15/08/2026).
+#
+# Chay MOI LAN co ma moi len nhanh main. Hong mot ca la commit do dau X, va
+# luat nha la: commit dang do thi KHONG bam Deploy tren Frappe Cloud.
+#
+# Chay duoc tren may cua GitHub vi bo kiem thu khong can Frappe, khong can
+# site, khong can cai them goi nao. Do la ly do phai giu tieu chuan so 9 va
+# tieu chuan so 8 ngay tu dau.
+
+name: Kiem thu truoc deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  kiem-thu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 1. Bien dich Python
+        run: python3 -m compileall -q vagabond
+
+      - name: 2. Doc lai JavaScript cua app
+        run: node --check vagabond/public/js/app_bep.js
+
+      - name: 3. Bo kiem thu tang khung
+        run: python3 vagabond/khung/kiem_thu/chay.py
+
+      - name: 4. Nap thu khai bao cac man danh sach
+        run: |
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, ".")
+          from vagabond.khung.kiem_thu import nen
+          nen.gia_lap()
+          from vagabond.khung import ds
+          for ma in sorted(ds.NGUON_BANG):
+              b = ds.lay_bang(ma)
+              print("%-4s %-22s %d cot, %d bo loc, tran %d"
+                    % (ma, b["ten"], len(b["cot"]), len(b["loc"]), b["tran"]))
+          PY
