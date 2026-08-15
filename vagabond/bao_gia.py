@@ -296,6 +296,9 @@ def danh_sach(trang_thai=None, loc=None, tim=None):
 	_quyen()
 	ds = frappe.get_all(
 		DT,
+		# Mau bao gia khong phai to that nen khong nam trong danh sach.
+		# Mau xem va quan ly rieng o man "Mau bao gia".
+		filters={"la_mau": 0},
 		fields=[
 			"name", "ten", "trang_thai", "khach_hang", "ten_khach",
 			"ngay_bao_gia", "hieu_luc_den", "tong_cong", "hop_dong",
