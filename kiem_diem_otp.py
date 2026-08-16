@@ -289,7 +289,7 @@ print("13. Ten goi chung tu tien")
 def _nap_ct():
 	src = open("vagabond/chung_tu_tien.py", encoding="utf-8").read()
 	mt = {"cint": lambda x: int(x or 0)}
-	for ten in ("la_ngan_hang", "la_tien_mat", "ten_chung_tu"):
+	for ten in ("la_ngan_hang", "la_tien_mat", "cham_ngan_hang", "ten_chung_tu"):
 		m = re.search(r"^def %s\(.*?(?=^def |^@|\Z)" % ten, src, re.S | re.M)
 		if not m:
 			print("KHONG THAY ham %s trong chung_tu_tien.py" % ten); sys.exit(1)
@@ -322,6 +322,21 @@ la("tai khoan rong", tenct("Pay", ""), "Chứng từ thanh toán")
 la("tai khoan None", tenct("Pay", None), "Chứng từ thanh toán")
 # 131/331 khong bao gio la tai khoan tien
 la("131 khong phai tien", lanh("131 - Phải thu khách hàng - TV") or latm("131 - Phải thu khách hàng - TV"), False)
+
+# Chuyen noi bo: lo that bat duoc khi chay tren he 16/08/2026.
+# Rut 1.000 d TU ngan hang VE quy tien mat da LOT QUA luat bat buoc dinh kem.
+print("14. Chuyen noi bo khong duoc lot luat ngan hang")
+cham = Ct["cham_ngan_hang"]
+la("rut tu ngan hang ve quy: VAN la cham ngan hang", cham(NH, TM), True)
+la("nop tu quy vao ngan hang: cham ngan hang", cham(TM, NH), True)
+la("quy sang quy: khong cham", cham(TM, "1112 - Ngoại tệ - TV"), False)
+la("tam ung sang quy: khong cham", cham(TU, TM), False)
+la("ngan hang sang ngan hang", cham(NH, "1121 - Tiền gửi ngân hàng - TV"), True)
+la("ca hai rong", cham("", ""), False)
+la("rut tu ngan hang goi la Uy nhiem chi", tenct("Internal Transfer", NH, 0, TM), "Uỷ nhiệm chi")
+la("rut tu ngan hang da ghi so", tenct("Internal Transfer", NH, 1, TM), "Uỷ nhiệm chi / Giấy báo Nợ")
+la("nop quy vao ngan hang goi la Giay bao Co", tenct("Internal Transfer", TM, 0, NH), "Giấy báo Có")
+la("quy sang quy", tenct("Internal Transfer", TM, 0, "1112 - Ngoại tệ - TV"), "Phiếu chi")
 
 print("-" * 60)
 if so_hong:
