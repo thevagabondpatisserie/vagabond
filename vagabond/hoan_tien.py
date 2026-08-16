@@ -519,10 +519,13 @@ def chan_thieu_uy_nhiem_chi(doc, method=None):
 		)
 		if n:
 			return
+		from vagabond.chung_tu_tien import ten_chung_tu
+
+		ten = ten_chung_tu(doc.get("payment_type"), doc.get("paid_from"))
 		frappe.throw(
-			"Phiếu chi hoàn tiền %s chưa có uỷ nhiệm chi đính kèm nên chưa ghi sổ được. "
-			"Bấm nút kẹp giấy ở góc phải, tải ảnh hoặc file UNC lên rồi ghi sổ lại."
-			% doc.name
+			"%s %s là chứng từ hoàn tiền cho khách nên bắt buộc phải có Uỷ nhiệm chi "
+			"đính kèm mới ghi sổ được. Tải UNC từ e-banking về, bấm nút kẹp giấy ở góc "
+			"phải để đính kèm, rồi ghi sổ lại." % (ten, doc.name)
 		)
 	except frappe.ValidationError:
 		raise
