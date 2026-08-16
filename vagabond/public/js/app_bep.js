@@ -849,6 +849,10 @@ async function scrHome() {
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
+      /* Hoan tien dat ngay duoi Cong no phai thu (anh Viet 16/08/2026):
+         hai man nay cung mot mach nghiep vu tien nong voi khach, nhan vien
+         di theo thu tu do chu khong nhay sang phan he khac. */
+      card('↩️', 'Hoàn tiền / Trả hàng', 'Phiếu hoàn tiền khách, hàng về Kho Hàng Hủy, đối soát lệnh chi', 0, 'HT') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
@@ -962,6 +966,7 @@ async function scrHome() {
     if (k === 'OTP') return go(scrOtp);
     if (k === 'KM') return go(scrKhuyenMai);
     if (k === 'CN') return go(scrCongNo);
+    if (k === 'HT') return go(scrHoanTien);
     if (k === 'KH') return go(scrKhachHang);
     if (k === 'VD') return go(scrVanDon);
   if (k === 'CBTT') return go(scrCanhBaoTT);
@@ -1021,7 +1026,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'HT', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
@@ -10802,6 +10807,102 @@ async function scrHdTao() {
 }
 
 
+
+/* ---------------- Màn Hoàn tiền / Trả hàng (anh Việt 16/08/2026) ----------
+   Đặt trong phân hệ Bán hàng, ngay dưới Công nợ phải thu: hai màn cùng một
+   mạch nghiệp vụ tiền nong với khách.
+
+   Màn này CHỈ ĐỌC. Phiếu hoàn tiền sinh ra từ nút trên màn Chi tiết đơn,
+   nơi có mã PIN quản lý; đẻ thêm một cửa tạo phiếu ở đây là mở một đường
+   vòng qua lớp duyệt. */
+var htDsData = null, htDsLoc = 'tat_ca';
+
+async function scrHoanTien() {
+  frame('Hoàn tiền / Trả hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu hoàn tiền...</div></div>');
+  try { htDsData = await api('vagabond.hoan_tien.ds', { trang_thai: htDsLoc }); }
+  catch (e) {
+    frame('Hoàn tiền / Trả hàng', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  htDsVe();
+}
+
+function htDsTen(t) {
+  return { 'Cho chi': 'Chờ chi', 'Da chi': 'Đã chi', 'Da doi soat': 'Đã đối soát', 'Da huy': 'Đã huỷ' }[t] || t;
+}
+
+function htDsVe() {
+  var d = htDsData, ds = d.ds || [], dem = d.dem || {};
+  var loc = [['tat_ca', 'Tất cả'], ['Cho chi', 'Chờ chi'], ['Da chi', 'Đã chi'], ['Da doi soat', 'Đã đối soát']];
+  var html = '<div style="display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px">' +
+    loc.map(function (x) {
+      var on = htDsLoc === x[0];
+      return '<button class="htf" data-htf="' + x[0] + '" style="flex:none;border:1.5px solid ' +
+        (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' +
+        (on ? '#0f766e' : '#374151') + ';border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:' +
+        (on ? '800' : '600') + '">' + h(x[1]) + (dem[x[0]] !== undefined ? ' · ' + money(dem[x[0]]) : '') + '</button>';
+    }).join('') + '</div>';
+
+  if (d.kho_huy) {
+    html += '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
+      'Hàng khách trả về <b>' + h(d.kho_huy) + '</b> chờ tiêu huỷ, không quay lại kho bán. ' +
+      'Tiền chi từ <b>' + h(d.tk_chi || '(chưa khai)') + '</b>.</div>';
+  }
+
+  if (!ds.length) {
+    html += '<div class="emp"><div class="e1">🧾</div><div>Chưa có phiếu hoàn tiền nào.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Phiếu được lập từ nút Hoàn tiền trên màn Chi tiết đơn.</div></div>';
+  } else {
+    html += '<div class="card">' + ds.map(function (x) {
+      var mau = x.trang_thai === 'Da doi soat' ? '#0a8a4a' : (x.trang_thai === 'Da chi' ? '#b45309' : '#b3261e');
+      return '<div style="padding:12px 14px;border-bottom:1px solid #f2f4f7">' +
+        '<div style="display:flex;align-items:center;gap:9px">' +
+        '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(x.ten_khach || '(khách lẻ)') + '</b>' +
+        '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) + ' · ' + h(x.hoa_don) + '</div></div>' +
+        '<div style="text-align:right"><b style="font-size:15px">' + money(x.so_tien) + ' đ</b>' +
+        '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + h(htDsTen(x.trang_thai)) + '</div></div></div>' +
+        '<div style="font-size:11.5px;color:#6b7280;margin-top:5px">' + h(x.ly_do || '') +
+        (x.phieu_chi ? ' · phiếu chi ' + h(x.phieu_chi) + (x.phieu_chi_da_ghi ? ' (đã ghi sổ)' : ' <b style="color:#b3261e">(chưa ghi sổ)</b>') : ' · <b style="color:#b3261e">chưa có phiếu chi</b>') +
+        '</div>' +
+        '<div style="display:flex;gap:7px;margin-top:8px">' +
+        '<button class="htcopy" data-ht="' + h(x.name) + '" style="flex:1;border:1.5px solid #d1d5db;background:#fff;' +
+        'color:#374151;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700">Thông tin chuyển khoản</button>' +
+        '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  var b = frame('Hoàn tiền / Trả hàng', html, {
+    footer: '<button class="btn gh" id="htDsSoat" style="margin:0">🔄 Đối soát lệnh chi</button>'
+  });
+  b.querySelectorAll('.htf').forEach(function (n) {
+    n.onclick = function () { htDsLoc = n.getAttribute('data-htf'); go(scrHoanTien, true); };
+  });
+  b.querySelectorAll('.htcopy').forEach(function (n) {
+    n.onclick = async function () {
+      busy(true);
+      try {
+        var kq = await api('vagabond.hoan_tien.thong_tin_chuyen_khoan', { ho_so: n.getAttribute('data-ht') });
+        busy(false);
+        /* Gõ tay số tài khoản là đường dễ sai nhất trong cả luồng: sai một
+           chữ số là tiền đi mất vào một tài khoản không quen biết. */
+        try { await navigator.clipboard.writeText(kq.chu); toast('Đã chép thông tin chuyển khoản', 2500); } catch (e2) { }
+        baoTin(kq.chu + (kq.nhac ? '\n\n' + kq.nhac : ''), 'Thông tin chuyển khoản');
+      } catch (e) { busy(false); }
+    };
+  });
+  var s = document.getElementById('htDsSoat');
+  if (s) s.onclick = async function () {
+    busy(true);
+    try {
+      var kq = await api('vagabond.hoan_tien.doi_soat', {});
+      busy(false);
+      baoTin(kq.ghi_chu ? kq.ghi_chu :
+        ('Đã khớp ' + money(kq.da_khop || 0) + ' phiếu trên ' + money(kq.so_phieu_quet || 0) + ' phiếu chờ.' +
+         ((kq.xem_xet || []).length ? '\n\nCó ' + kq.xem_xet.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '')));
+      go(scrHoanTien, true);
+    } catch (e) { busy(false); }
+  };
+}
 /* ---------- Van don: sales phan don, shipper giao kem anh, book xe, chi phi ---------- */
 var vdNgay = null, vdLoc = null, vdTay = null;
 function vdChupAnh(cb, nguon) {
@@ -11520,7 +11621,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '184';
+var APPVER = '185';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
