@@ -465,28 +465,69 @@ async function scrDsView(name, can) {
   } else if (dsvKhach.ma) {
     dsvKhach.ten = d.vgb_khach_no;
   }
+  /* Thẻ thành viên của khách đang gắn. Máy chủ trả về, app chỉ in ra:
+     số điểm là tiền của khách nên không được để hai nơi tự tính (QT-19). */
+  var dsvThe = null;
+
+  async function dsvTaiThe() {
+    dsvThe = null;
+    if (!dsvKhach.ma) return;
+    try {
+      dsvThe = await api('vagabond.khach_hang.the_tren_don', {
+        khach: dsvKhach.ma,
+        tien: Number(d.grand_total) || 0,
+        hoa_don: d.name || ''
+      });
+      if (dsvThe && !dsvThe.co) dsvThe = null;
+    } catch (e) { dsvThe = null; }
+  }
+
+  /* Một ô số chỉ đọc. Dựng bằng khối chứ không dùng thẻ nhập, vì đây là
+     số máy tính ra, gõ vào không có tác dụng gì mà chỉ làm người dùng
+     tưởng sửa được. */
+  function dsvOSo(nhan, so, mau, chu) {
+    return '<div style="flex:1;min-width:0;border:1.5px solid #e5e7eb;border-radius:11px;padding:7px 10px;background:#fff">' +
+      '<div style="font-size:10.5px;color:#8a8f9c;letter-spacing:.02em">' + h(nhan) + '</div>' +
+      '<b style="font-size:16px;color:' + (mau || '#111') + '">' + money(so || 0) + '</b>' +
+      (chu ? '<div style="font-size:10.5px;color:#9ca3af;margin-top:1px">' + h(chu) + '</div>' : '') +
+      '</div>';
+  }
+
   function veKhachNo() {
     var box = document.getElementById('dsvKhachBox');
     if (!box) return;
     var canNo = DSV_PT === 'Công nợ';
     box.style.borderColor = canNo && !dsvKhach.ma ? '#fcd34d' : '#e5e7eb';
     box.style.background = canNo && !dsvKhach.ma ? '#fffbeb' : '#fff';
-    box.innerHTML = '<div style="font-size:12px;color:#6b7280;margin-bottom:8px"><b>Khách công nợ</b>' +
-      (canNo ? ' <span style="color:#b45309">- bắt buộc với đơn bán chịu</span>'
+
+    /* MỘT Ô, HAI VAI.
+       Trường vgb_khach_no vừa là khách thân thiết của đơn bán lẻ, vừa là
+       chủ nợ của đơn bán chịu. Nên nhãn đổi theo việc đang làm chứ không
+       đóng cứng một chữ: gọi nó là "Khách hàng thân thiết" cho đúng bán
+       lẻ, nhưng đơn bán chịu thì vẫn phải nói rõ là bắt buộc, không thì
+       kế toán mất chủ nợ trên màn Công nợ phải thu. */
+    box.innerHTML = '<div style="font-size:12px;color:#6b7280;margin-bottom:8px"><b>Khách hàng thân thiết</b>' +
+      (canNo ? ' <span style="color:#b45309">- đơn bán chịu nên bắt buộc, khách này là chủ nợ</span>'
              : ' <span style="color:#9ca3af">- không bắt buộc</span>') + '</div>' +
       (dsvKhach.ma
-        ? '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:17px">🏢</span>' +
+        ? '<div style="display:flex;align-items:center;gap:9px">' +
+          dsvTheAnh() +
           '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(dsvKhach.ten || dsvKhach.ma) + '</b>' +
-          '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsvKhach.ma) + '</div></div>' +
-          '<button id="dsvKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>'
-        : '<button class="btn gh" id="dsvKhachChon" style="margin:0">📒 Chọn khách công nợ</button>') +
+          '<div style="font-size:11.5px;color:#6b7280">mã ' + h(dsvKhach.ma) +
+          (dsvThe && dsvThe.ten_hang ? ' · hạng ' + h(dsvThe.ten_hang) : '') +
+          (dsvThe && dsvThe.giam_gia ? ' · <b style="color:#b45309">ưu đãi giảm ' + dsvThe.giam_gia + '%</b>' : '') + '</div></div>' +
+          '<button id="dsvKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
+          dsvVeDiem()
+        : '<button class="btn gh" id="dsvKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
       (d.docstatus === 1
-        ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">Đơn đã ghi sổ nên chỉ gắn được tên chủ nợ cho màn Công nợ phải thu, bút toán trên sổ cái giữ nguyên.</div>'
+        ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">Đơn đã ghi sổ nên chỉ gắn được tên khách cho màn Công nợ phải thu, bút toán trên sổ cái giữ nguyên.</div>'
         : '');
     var nChon = document.getElementById('dsvKhachChon');
     if (nChon) nChon.onclick = function () {
-      sheetTimKhach('Chọn khách công nợ', async function (x) {
+      sheetTimKhach('Chọn khách hàng thân thiết', async function (x) {
         dsvKhach = { ma: x.name, ten: x.customer_name || x.name };
+        veKhachNo();
+        await dsvTaiThe();
         veKhachNo();
         if (d.docstatus === 1) {
           try { await api('vagabond.ban_hang.luu_khach_no', { si_name: d.name, khach: x.name }); toast('Đã gắn ' + dsvKhach.ten); }
@@ -495,9 +536,47 @@ async function scrDsView(name, can) {
       });
     };
     var nBo = document.getElementById('dsvKhachBo');
-    if (nBo) nBo.onclick = function () { dsvKhach = { ma: '', ten: '' }; veKhachNo(); };
+    if (nBo) nBo.onclick = function () { dsvKhach = { ma: '', ten: '' }; dsvThe = null; veKhachNo(); };
   }
+
+  /* Hình thẻ hạng thay cho emoji toà nhà.
+     Khách chưa xếp hạng thì để một huy hiệu chữ chứ không để khung ảnh
+     vỡ - khung vỡ trên màn của Loan Anh nhìn như lỗi hệ thống. */
+  function dsvTheAnh() {
+    if (dsvThe && dsvThe.anh_hang) {
+      return '<img src="' + h(dsvThe.anh_hang) + '" alt="' + h(dsvThe.ten_hang || '') + '" ' +
+        'style="width:38px;height:38px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb">';
+    }
+    if (dsvThe && dsvThe.ten_hang) {
+      return '<span style="flex:none;width:38px;height:38px;border-radius:8px;background:#f3edff;color:#7c3aed;' +
+        'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;text-align:center;line-height:1.1">' +
+        h(String(dsvThe.ten_hang).slice(0, 4)) + '</span>';
+    }
+    return '<span style="flex:none;width:38px;height:38px;border-radius:8px;background:#f1f2f5;color:#9ca3af;' +
+      'display:flex;align-items:center;justify-content:center;font-size:17px">🎫</span>';
+  }
+
+  function dsvVeDiem() {
+    if (!dsvThe) return '';
+    var nhan2 = dsvThe.da_tich ? 'Điểm đã tích cho đơn này' : 'Số điểm tích cho đơn này';
+    /* Hai hạng cao nhất CỐ Ý không tích điểm mà đổi sang giảm giá thẳng
+       trên bill: AMBASSADOR giảm 10%, FAMILY giảm 20%. Viết "chưa khai tỷ
+       lệ" ở đây là nói sai nghiệp vụ, và Loan Anh đọc xong sẽ đi hỏi kỹ
+       thuật một chuyện vốn không phải lỗi. */
+    var chu2 = dsvThe.tich_diem_pt
+      ? 'hạng ' + (dsvThe.ten_hang || '') + ' tích ' + dsvThe.tich_diem_pt + '%'
+      : (dsvThe.giam_gia
+          ? 'hạng này ưu đãi giảm ' + dsvThe.giam_gia + '% thay vì tích điểm'
+          : 'hạng này chưa khai tỷ lệ tích điểm');
+    return '<div style="display:flex;gap:8px;margin-top:9px">' +
+      dsvOSo('Số điểm hiện tại', dsvThe.diem_hien_tai, '#111',
+             dsvThe.da_tich ? 'trước khi chốt đơn này' : '') +
+      dsvOSo(nhan2, dsvThe.diem_don_nay, dsvThe.diem_don_nay > 0 ? '#0a8a4a' : '#9ca3af', chu2) +
+      '</div>';
+  }
+
   veKhachNo();
+  dsvTaiThe().then(veKhachNo);
   function mtcGiaTri() { var o = document.getElementById('dsvMtc'); return o ? o.value : ''; }
   function xhdVe() {
     var ch = document.getElementById('xhdChon');
