@@ -797,7 +797,95 @@ async function scrHangKhach() {
     frame('Hạng thành viên', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
+  try { cdDiem = await api('vagabond.diem_han.cai_dat', {}); } catch (e) { cdDiem = null; }
   htVe();
+}
+
+/* ---------- Cài đặt điểm: quy đổi, trần, OTP, hạn điểm ----------
+   Anh Việt hỏi 16/08/2026 "phần này vào nút cài đặt nào", và câu trả lời
+   thật lúc đó là "chưa vào nút nào cả" - các ô này mới chỉ sửa được trong
+   bản quản trị Frappe. Một cài đặt mà chủ tiệm không tự mở được thì coi
+   như không có, nên đưa lên đây, ngay trên bảng hạng.
+
+   Hạn điểm để mặc định TẮT và không tự bật: xoá điểm của 43.000 khách là
+   việc phải có người bấm. */
+var cdDiem = null;
+
+function cdDiemVe() {
+  if (!cdDiem) return '';
+  var d = cdDiem;
+  function o(nhan, id, gt, chu, kieu) {
+    return '<div style="flex:1;min-width:150px"><div style="font-size:11px;color:#6b7280;margin-bottom:3px">' +
+      h(nhan) + '</div><input id="' + id + '" type="' + (kieu || 'number') + '" value="' + h(String(gt)) +
+      '" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:7px 9px;font-size:13.5px">' +
+      (chu ? '<div style="font-size:10.5px;color:#9ca3af;margin-top:2px">' + h(chu) + '</div>' : '') + '</div>';
+  }
+  var chon = d.cach_co_the.map(function (c) {
+    var ten = { 'Tat': 'Tắt - điểm không bao giờ hết hạn', 'Cuon chieu': 'Cuộn chiếu - mỗi bút sống N tháng',
+                'Cuoi nam': 'Cuối năm - xoá sạch vào ngày chốt', 'Ngay ky niem': 'Ngày kỷ niệm của từng khách' }[c] || c;
+    return '<option value="' + h(c) + '"' + (d.chu_ky === c ? ' selected' : '') + '>' + h(ten) + '</option>';
+  }).join('');
+  return '<div style="border:1.5px solid #e5e7eb;border-radius:13px;padding:12px 13px;margin-bottom:13px;background:#fff">' +
+    '<div style="font-weight:800;font-size:14px;margin-bottom:9px">Điểm thành viên</div>' +
+    '<div style="display:flex;gap:9px;flex-wrap:wrap">' +
+      o('1 điểm bằng bao nhiêu đồng', 'cdQuyDoi', d.quy_doi) +
+      o('Tối đa % bill trả bằng điểm', 'cdTran', d.tran_pt) +
+      o('Bill sau khi trừ không dưới (đ)', 'cdToiThieu', d.bill_toi_thieu) +
+      o('Mã OTP sống (giây)', 'cdGiay', d.otp_giay, 'nên để 180') +
+    '</div>' +
+    (d.gia_lap ? '<div style="margin-top:9px;padding:8px 10px;border-radius:8px;background:#fffbeb;' +
+      'border:1.5px solid #fde68a;font-size:12px;color:#78350f">Chế độ chạy thử đang bật: mã KHÔNG gửi tới ' +
+      'điện thoại khách, nên trừ điểm ở quầy chưa hoàn tất được. ' +
+      (d.co_mau_zns ? 'Tắt chế độ chạy thử trong bản quản trị để chạy thật.' : 'Chưa khai mã mẫu ZNS.') + '</div>' : '') +
+    '<div style="height:1px;background:#eef0f3;margin:12px 0"></div>' +
+    '<div style="font-weight:800;font-size:14px;margin-bottom:9px">Hạn điểm và hạ hạng</div>' +
+    '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end">' +
+      '<div style="flex:2;min-width:210px"><div style="font-size:11px;color:#6b7280;margin-bottom:3px">Cách tính hạn điểm</div>' +
+      '<select id="cdChuKy" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:7px 9px;font-size:13.5px">' +
+      chon + '</select></div>' +
+      o('Điểm sống bao nhiêu tháng', 'cdHanThang', d.han_thang) +
+      o('Ngày chốt hằng năm', 'cdNgayChot', d.ngay_chot, 'dạng 31-12', 'text') +
+    '</div>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;cursor:pointer">' +
+      '<input type="checkbox" id="cdTungBac"' + (d.ha_hang_tung_bac ? ' checked' : '') + '>' +
+      '<span>Hạ hạng mỗi kỳ chỉ một bậc <span style="color:#9ca3af">- khách tụt chi tiêu nhiều vẫn chỉ xuống một hạng. Lên hạng thì vẫn lên thẳng.</span></span></label>' +
+    '<div style="display:flex;gap:8px;margin-top:11px;align-items:center">' +
+      '<button id="cdLuuDiem" style="border:0;background:#0f766e;color:#fff;border-radius:9px;padding:8px 15px;font-size:13px;font-weight:700">Lưu cài đặt điểm</button>' +
+      '<button id="cdThuHan" style="border:1.5px solid #d1d5db;background:#fff;color:#374151;border-radius:9px;padding:8px 13px;font-size:13px">Chạy thử hạn điểm</button>' +
+    '</div></div>';
+}
+
+function cdDiemGan() {
+  var n = document.getElementById('cdLuuDiem');
+  if (n) n.onclick = async function () {
+    busy(true);
+    try {
+      cdDiem = await api('vagabond.diem_han.luu_cai_dat', {
+        quy_doi: (document.getElementById('cdQuyDoi') || {}).value,
+        tran_pt: (document.getElementById('cdTran') || {}).value,
+        bill_toi_thieu: (document.getElementById('cdToiThieu') || {}).value,
+        otp_giay: (document.getElementById('cdGiay') || {}).value,
+        chu_ky: (document.getElementById('cdChuKy') || {}).value,
+        han_thang: (document.getElementById('cdHanThang') || {}).value,
+        ngay_chot: (document.getElementById('cdNgayChot') || {}).value,
+        ha_hang_tung_bac: (document.getElementById('cdTungBac') || {}).checked ? 1 : 0
+      });
+      busy(false); toast('Đã lưu cài đặt điểm'); htVe();
+    } catch (e) { busy(false); }
+  };
+  var t = document.getElementById('cdThuHan');
+  /* Chạy thử KHÔNG ghi gì. Nút này để anh xem trước đêm nay máy sẽ đốt
+     điểm của bao nhiêu khách, trước khi bật hạn điểm. */
+  if (t) t.onclick = async function () {
+    busy(true);
+    try {
+      var kq = await api('vagabond.diem_han.het_han', {});
+      busy(false);
+      baoTin(kq.ghi_chu ? kq.ghi_chu :
+        ('Cách ' + kq.cach + ': hôm nay sẽ đốt điểm của ' + money(kq.so_khach || 0) +
+         ' khách, tổng ' + money(kq.tong_diem || 0) + ' điểm. Đây là bản chạy thử, chưa ghi gì.'));
+    } catch (e) { busy(false); }
+  };
 }
 
 function htTien(n) { return money(n) + ' đ'; }
@@ -858,6 +946,8 @@ function htVe() {
       'Đặt mốc khác nhau cho từng hạng rồi lưu lại.</div></div>';
   }
 
+  html += cdDiemVe();
+
   html += '<div class="card">' + htDs.map(function (d, i) {
     var tay = (d.loai || 'Theo chi tieu') === 'Gan tay';
     var phu = [];
@@ -897,6 +987,7 @@ function htVe() {
     htMo = htDs.length - 1; htMoi = 1;
     go(scrHangSua);
   };
+  cdDiemGan();
 }
 
 function scrHangSua() {
