@@ -17,8 +17,9 @@
 #   2. JavaScript cua app doc duoc         - bat dau ngoac thieu, dau phay thua
 #   3. Bo kiem thu tang khung xanh het     - bat loi tinh tien, dem, cat dong
 #   4. Bo kiem thu phien ban bao gia       - bat bo dem so to bi vong -vN pha
-#   5. Khai bao man danh sach nap duoc     - bat typo kieu cot, thieu quyen
-#   6. app_bep.js khop voi cac phan bep/   - bat ai sua tay vao tep may sinh
+#   5. Bo kiem thu tru diem tai quay       - bat tran diem, quy doi, cau bao loi
+#   6. Khai bao man danh sach nap duoc     - bat typo kieu cot, thieu quyen
+#   7. app_bep.js khop voi cac phan bep/   - bat ai sua tay vao tep may sinh
 #
 # Cong doan 4 quan trong hon ve ngoai cua no: khai bao man nap duoc nghia la
 # LoiKhaiBao khong bat duoc gi, tuc khong co man nao se vo luc nguoi dung mo.
@@ -31,11 +32,11 @@ echo " CONG KIEM TRA TRUOC DEPLOY - Vagabond"
 echo "=============================================="
 echo ""
 
-echo "[1/6] Bien dich Python..."
+echo "[1/7] Bien dich Python..."
 python3 -m compileall -q vagabond > /dev/null
 echo "      xong, khong loi cu phap."
 
-echo "[2/6] Doc lai JavaScript cua app..."
+echo "[2/7] Doc lai JavaScript cua app..."
 if command -v node > /dev/null 2>&1; then
 	node --check vagabond/public/js/app_bep.js
 	echo "      xong, $(grep -c '' vagabond/public/js/app_bep.js) dong doc duoc."
@@ -43,13 +44,16 @@ else
 	echo "      BO QUA: may nay khong co node. Nho kiem tay truoc khi day."
 fi
 
-echo "[3/6] Bo kiem thu tang khung..."
+echo "[3/7] Bo kiem thu tang khung..."
 python3 vagabond/khung/kiem_thu/chay.py -im
 
-echo "[4/6] Bo kiem thu phien ban bao gia..."
+echo "[4/7] Bo kiem thu phien ban bao gia..."
 python3 kiem_phien_ban.py
 
-echo "[5/6] Nap thu khai bao cac man danh sach..."
+echo "[5/7] Bo kiem thu tru diem tai quay..."
+python3 kiem_diem_otp.py
+
+echo "[6/7] Nap thu khai bao cac man danh sach..."
 python3 - <<'PY'
 import sys
 sys.path.insert(0, ".")
@@ -62,7 +66,7 @@ for ma in sorted(ds.NGUON_BANG):
 		% (ma, b["ten"], len(b["cot"]), len(b["loc"]), b["tran"]))
 PY
 
-echo "[6/6] Doi chieu app_bep.js voi cac phan trong bep/..."
+echo "[7/7] Doi chieu app_bep.js voi cac phan trong bep/..."
 python3 dung_app_bep.py --kiem
 
 echo ""
