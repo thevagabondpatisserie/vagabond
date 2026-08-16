@@ -39,7 +39,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Loai but ghi",
-   "options": "Tich tu hoa don\nHoan lai khi huy hoa don\nDoi voucher\nDieu chinh tay\nHet han",
+   "options": "Tich tu hoa don\nHoan lai khi huy hoa don\nDoi voucher\nDieu chinh tay\nHet han\nSo du dau ky\nDung diem tru vao don\nHoan lai diem da dung\nDieu chinh ty le tich diem",
    "reqd": 1
   },
   {
