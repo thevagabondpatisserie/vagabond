@@ -74,8 +74,18 @@ def nap_danh_muc():
 	return {"them": them, "da_co": len(da_co), "tong_danh_muc": len(ds)}
 
 
+# Tra HET danh muc trong mot lan goi. 581 dong la khoang 60 KB, tai mot lan
+# roi app giu lai; con tra tung khuc thi o tim nhanh cua ham sheet() chi loc
+# duoc trong khuc da tai, va nhan vien go "Vietcombank" se khong thay gi neu
+# no roi ngoai khuc dau.
+#
+# Bat duoc ngay sau khi deploy v195: mac dinh cu la 60, nen app chi nhan 60
+# ngan hang dau bang chu cai va thieu 521 cai con lai - khong bao gi.
+SO_DONG_MAC_DINH = 600
+
+
 @frappe.whitelist()
-def tim(tu_khoa="", so_dong=60):
+def tim(tu_khoa="", so_dong=None):
 	"""O chon ngan hang tren app goi ham nay.
 
 	Tra ve danh sach de dung voi ham sheet() cua app: moi phan tu co k (gia
@@ -94,7 +104,7 @@ def tim(tu_khoa="", so_dong=60):
 	if not ds:
 		# Roi ve doctype Bank neu tep du lieu hong - man van dung duoc.
 		ds = [(d["name"], "") for d in frappe.get_all("Bank", fields=["name"], limit_page_length=0)]
-	tran = max(1, min(600, cint(so_dong) or 600))
+	tran = max(1, min(SO_DONG_MAC_DINH, cint(so_dong) or SO_DONG_MAC_DINH))
 	ra = []
 	for ten, ht in ds:
 		kd = _khong_dau(ten)
