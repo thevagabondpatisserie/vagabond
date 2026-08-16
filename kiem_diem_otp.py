@@ -316,6 +316,16 @@ la("mat dau gach nhung ma dai hon thi khong an nham",
    khop("THE VAGABOND HOAN TIEN HDB 2026 015930", "HDB-2026-01593"), False)
 la("mat dau gach, don khac", khop("THE VAGABOND HOAN TIEN HDB 2026 01594", "HDB-2026-01593"), False)
 
+# Phieu lap truoc 16/08/2026 mang noi dung cu "HT <ma to tra hang>". Duong
+# doi soat moi do theo ma HOA DON GOC, nen noi dung cu KHONG duoc khop -
+# co khop moi la sai. Bat duoc khi kiem tren he ngay sau deploy v192.
+la("noi dung cu KHONG khop voi ma don goc",
+   khop("HT HDB-26-08-00341", "HDB-26-08-00340"), False)
+la("noi dung cu chi khop voi chinh ma to tra hang",
+   khop("HT HDB-26-08-00341", "HDB-26-08-00341"), True)
+la("noi dung moi khop voi ma don goc",
+   khop("THE VAGABOND HOAN TIEN HDB-26-08-00340", "HDB-26-08-00340"), True)
+
 print("16. Tran so tien hoan khong duoc vuot tong don")
 la("hoan toan bo", tyle(100000, 100000)[0], True)
 la("hoan mot nua", tyle(50000, 100000)[0], True)
