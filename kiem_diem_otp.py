@@ -268,7 +268,7 @@ def _nap_ht():
 	if not m_rx:
 		print("KHONG THAY RX_MA_HD trong hoan_tien.py"); sys.exit(1)
 	exec(compile(m_rx.group(0), "hoan_tien:RX_MA_HD", "exec"), mt, mt)
-	for ten in ("noi_dung_ck", "_got", "tim_ma_hoa_don", "khop_giao_dich", "chon_ma_khop", "ty_le_hop_le"):
+	for ten in ("noi_dung_ck", "_got", "tim_ma_hoa_don", "khop_giao_dich", "chon_ma_khop", "ty_le_hop_le", "tach_ghi_chu_don"):
 		# Cat toi khi gap "def", mot trang tri, hay mot khoi chu thich o dau
 		# dong: cac ham nay xen ke voi hang so va chu thich dai.
 		m = re.search(r"^def %s\(.*?(?=^def |^@|^RX_|^# Ma hoa don|\Z)" % ten, src, re.S | re.M)
@@ -412,6 +412,81 @@ la("rut tu ngan hang goi la Uy nhiem chi", tenct("Internal Transfer", NH, 0, TM)
 la("rut tu ngan hang da ghi so", tenct("Internal Transfer", NH, 1, TM), "Uỷ nhiệm chi / Giấy báo Nợ")
 la("nop quy vao ngan hang goi la Giay bao Co", tenct("Internal Transfer", TM, 0, NH), "Giấy báo Có")
 la("quy sang quy", tenct("Internal Transfer", TM, 0, "1112 - Ngoại tệ - TV"), "Phiếu chi")
+
+
+# =====================================================================
+# Tep chuyen tien lo MB Biz (vagabond/ngan_hang.py)
+# =====================================================================
+print("17. Tep chuyen tien lo MB Biz")
+
+def _nap_nh():
+	src = open("vagabond/ngan_hang.py", encoding="utf-8").read()
+	mt = {"re": re, "cint": lambda x: int(x or 0), "flt": lambda x: float(x or 0)}
+	# Cac hang so lam sach: doc THANG tu ma nguon, khong chep lai. Bai hoc
+	# 16/08 - chep la de hai ban lech nhau.
+	for ten in ("_THAY_TIEN", "_THAY_ND", "_XOA", "_THANH_CHAM", "DAI_TOI_DA", "COT_MB"):
+		m = re.search(r"^%s = .*?(?=^\n*[A-Z_]+ = |^def |^@|\Z)" % ten, src, re.S | re.M)
+		if not m:
+			print("KHONG THAY hang so %s trong ngan_hang.py" % ten); sys.exit(1)
+		exec(compile(m.group(0), "ngan_hang:%s" % ten, "exec"), mt, mt)
+	for ten in ("_bo_dau", "sach_ten", "sach_noi_dung", "sach_so_tk", "dong_mb"):
+		m = re.search(r"^def %s\(.*?(?=^def |^@|^COT_MB|^DAI_TOI_DA|^_THAY|^# |\Z)" % ten, src, re.S | re.M)
+		if not m:
+			print("KHONG THAY ham %s trong ngan_hang.py" % ten); sys.exit(1)
+		exec(compile(m.group(0), "ngan_hang:%s" % ten, "exec"), mt, mt)
+	return mt
+
+Nh = _nap_nh()
+sten = Nh["sach_ten"]; snd = Nh["sach_noi_dung"]; stk = Nh["sach_so_tk"]; dmb = Nh["dong_mb"]
+
+la("ten bo dau viet hoa", sten("Nguyễn Văn Thử"), "NGUYEN VAN THU")
+la("dau va thanh VA theo quy tac MB", sten("Anh & Em"), "ANH VA EM")
+la("ngoac bi xoa", sten("Cong ty (HCM)"), "CONG TY HCM")
+la("so tai khoan bo dau cach", stk(" 0123 456 789 "), "0123456789")
+la("so tai khoan bo ky tu la", stk("0123-456.789"), "0123456789")
+la("so tai khoan cat o 24 ky tu", len(stk("1" * 40)), 24)
+
+# Ma hoa don PHAI giu duoc dau gach trong noi dung: do la thu giup doi soat
+# doc lai duoc ma don.
+la("noi dung giu dau gach cua ma don",
+   snd("THE VAGABOND HOAN TIEN HDB-26-08-00348"), "THE VAGABOND HOAN TIEN HDB-26-08-00348")
+la("noi dung bo dau tieng Viet", snd("Hoan tien khach Trâm"), "HOAN TIEN KHACH TRAM")
+la("phan tram thanh PT", snd("Giam 50%"), "GIAM 50PT")
+# MB thay ky tu TRUC TIEP, khong chen them dau cach - doc tu tab Huong dan
+# cua chinh tep mau. Ca kiem dau tien em viet "A BANG B" la em doan, chay
+# len moi thay mac.
+la("dau bang thanh BANG", snd("A=B"), "ABANGB")
+la("euro thanh EURO", snd("10€"), "10EURO")
+
+d, n = dmb(1, "0123456789", "Nguyễn Văn Thử", "MB - Ngân hàng TMCP Quân đội", 50000,
+           "THE VAGABOND HOAN TIEN HDB-26-08-00348")
+la("dong mb du sau cot", len(d), 6)
+la("dong mb stt", d[0], 1)
+la("dong mb so tien la so nguyen", d[4], 50000)
+la("dong mb khong nhac gi khi du", n, [])
+la("dong mb giu nguyen ten ngan hang day du", d[3], "MB - Ngân hàng TMCP Quân đội")
+
+d2, n2 = dmb(2, "", "A", "", 0, "x")
+la("thieu so tai khoan thi nhac", any("số tài khoản" in x for x in n2), True)
+la("thieu ngan hang thi nhac", any("ngân hàng" in x for x in n2), True)
+la("so tien 0 thi nhac", any("lớn hơn 0" in x for x in n2), True)
+
+d3, n3 = dmb(3, "1", "T" * 90, "MB", 1000, "N" * 200)
+la("ten dai bi cat dung 69", len(d3[2]), 69)
+la("noi dung dai bi cat dung 140", len(d3[5]), 140)
+la("cat roi phai NOI ra chu khong lang le cat", len(n3) >= 2, True)
+
+# Doc ten khach va so dien thoai tu o ghi chu cua don (anh Viet 17/08/2026)
+print("18. Doc ten khach va so dien thoai tu ghi chu don")
+tach = Ht["tach_ghi_chu_don"]
+la("don Pancake co ten va so", tach("Pancake #91759 - Loan Anh - 0933751352"), ("Loan Anh", "0933751352"))
+la("don mang ve co quay o cuoi", tach("Mang về #TEST-HT-02 - Khách thử hoàn tiền 2 - Quầy TCV"),
+   ("Khách thử hoàn tiền 2", ""))
+la("don co ca ba phan", tach("Mang về #? - THU NGHIEM - 0901234567 - Quầy TCV"),
+   ("THU NGHIEM", "0901234567"))
+la("ghi chu rong", tach(""), ("", ""))
+la("ghi chu khong theo khuon", tach("Ghi chu tu do"), ("", ""))
+la("so ngan khong phai dien thoai", tach("Pancake #12 - Ba Ba - 123"), ("Ba Ba", ""))
 
 print("-" * 60)
 if so_hong:
