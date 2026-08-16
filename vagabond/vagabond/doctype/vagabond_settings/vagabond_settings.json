@@ -94,7 +94,11 @@
   "diem_han_thang",
   "cb_diem_han",
   "diem_ngay_chot",
-  "ha_hang_tung_bac"
+  "ha_hang_tung_bac",
+  "sec_hoan_tien",
+  "kho_hang_huy",
+  "cb_hoan_tien",
+  "tk_hoan_tien"
  ],
  "fields": [
   {
@@ -591,6 +595,29 @@
    "label": "Ha hang moi lan chi mot bac",
    "default": "1",
    "description": "Bat: khach tut chi tieu nhieu van chi xuong dung mot hang moi ky. Tat: xuong thang toi hang dung voi chi tieu."
+  },
+  {
+   "fieldname": "sec_hoan_tien",
+   "fieldtype": "Section Break",
+   "label": "Hoan tien va tra hang"
+  },
+  {
+   "fieldname": "kho_hang_huy",
+   "fieldtype": "Link",
+   "label": "Kho Hang Huy",
+   "options": "Warehouse",
+   "description": "Hang khach tra ve nam o day cho tieu huy. TUYET DOI khong tro vao kho ban."
+  },
+  {
+   "fieldname": "cb_hoan_tien",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tk_hoan_tien",
+   "fieldtype": "Link",
+   "label": "Tai khoan ngan hang chi hoan tien",
+   "options": "Bank Account",
+   "description": "Chi Dung chot 16/08/2026: dung tai khoan ngan hang CONG TY (MB Bank), khong dung quy tam ung OCB."
   }
  ],
  "issingle": 1,
