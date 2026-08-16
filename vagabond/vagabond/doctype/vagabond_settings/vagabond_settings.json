@@ -80,7 +80,21 @@
   "sec_vgb_tu_dong",
   "tu_xuat_hddt",
   "cb_vgb_tu_dong",
-  "email_canh_bao"
+  "email_canh_bao",
+  "sec_diem",
+  "diem_quy_doi",
+  "diem_tran_pt",
+  "diem_bill_toi_thieu",
+  "cb_diem",
+  "diem_otp_giay",
+  "zns_template_diem",
+  "diem_zns_gia_lap",
+  "sec_diem_han",
+  "diem_chu_ky",
+  "diem_han_thang",
+  "cb_diem_han",
+  "diem_ngay_chot",
+  "ha_hang_tung_bac"
  ],
  "fields": [
   {
@@ -496,6 +510,87 @@
    "fieldname": "gemini_api_key",
    "fieldtype": "Password",
    "label": "Gemini API key (dan khoa vao de dich sang tieng Anh)"
+  },
+  {
+   "fieldname": "sec_diem",
+   "fieldtype": "Section Break",
+   "label": "Diem thanh vien va tru diem tai quay"
+  },
+  {
+   "fieldname": "diem_quy_doi",
+   "fieldtype": "Float",
+   "label": "1 diem bang bao nhieu dong",
+   "default": "1",
+   "precision": "2"
+  },
+  {
+   "fieldname": "diem_tran_pt",
+   "fieldtype": "Percent",
+   "label": "Toi da bao nhieu % gia tri bill duoc tra bang diem",
+   "default": "50"
+  },
+  {
+   "fieldname": "diem_bill_toi_thieu",
+   "fieldtype": "Currency",
+   "label": "Bill sau khi tru diem khong duoc thap hon (d)",
+   "default": "10000"
+  },
+  {
+   "fieldname": "cb_diem",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "diem_otp_giay",
+   "fieldtype": "Int",
+   "label": "Ma OTP tru diem song bao nhieu giay",
+   "default": "180"
+  },
+  {
+   "fieldname": "zns_template_diem",
+   "fieldtype": "Data",
+   "label": "Ma mau ZNS xac nhan tru diem"
+  },
+  {
+   "fieldname": "diem_zns_gia_lap",
+   "fieldtype": "Check",
+   "label": "Chay thu: gia lap gui ZNS, khong goi Zalo that",
+   "default": "1"
+  },
+  {
+   "fieldname": "sec_diem_han",
+   "fieldtype": "Section Break",
+   "label": "Han diem va ha hang theo chu ky"
+  },
+  {
+   "fieldname": "diem_chu_ky",
+   "fieldtype": "Select",
+   "label": "Cach tinh han diem",
+   "options": "Tat\nCuon chieu\nCuoi nam\nNgay ky niem",
+   "default": "Tat",
+   "description": "Tat: diem khong bao gio het han. Cuon chieu: moi but song N thang ke tu ngay tich (cong bang nhat). Cuoi nam: xoa sach so du vao ngay chot. Ngay ky niem: xoa sach vao ngay khach vao he."
+  },
+  {
+   "fieldname": "diem_han_thang",
+   "fieldtype": "Int",
+   "label": "Diem song bao nhieu thang",
+   "default": "12"
+  },
+  {
+   "fieldname": "cb_diem_han",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "diem_ngay_chot",
+   "fieldtype": "Data",
+   "label": "Ngay chot hang nam (dang 31-12)",
+   "default": "31-12"
+  },
+  {
+   "fieldname": "ha_hang_tung_bac",
+   "fieldtype": "Check",
+   "label": "Ha hang moi lan chi mot bac",
+   "default": "1",
+   "description": "Bat: khach tut chi tieu nhieu van chi xuong dung mot hang moi ky. Tat: xuong thang toi hang dung voi chi tieu."
   }
  ],
  "issingle": 1,
