@@ -83,6 +83,34 @@ def nap_danh_muc():
 # ngan hang dau bang chu cai va thieu 521 cai con lai - khong bao gi.
 SO_DONG_MAC_DINH = 600
 
+# Ten thuong mai quen thuoc, doi chieu sang MA trong danh muc MB.
+#
+# Vi sao can (bat duoc khi thu tren he 17/08/2026): danh muc MB dung MA VIET
+# TAT cong TEN PHAP LY, con nhan vien quay va khach thi goi ten thuong mai.
+# Go "Vietcombank" ra RONG, vi ten trong danh muc la "VCB - Ngan hang TMCP
+# Ngoai thuong Viet Nam" - khong co chu "vietcombank" o dau ca. Y het voi
+# Techcombank, Agribank, VPBank.
+#
+# Bang nay chi doi chieu sang MA, va ma do phai CO THAT trong danh muc -
+# tuyet doi khong tu dat ten ngan hang. Em doi chieu tung dong voi tep MB
+# truoc khi viet vao day.
+BI_DANH = {
+	"vietcombank": "VCB",
+	"techcombank": "TCB",
+	"agribank": "VBA",
+	"vpbank": "VPB",
+	"sacombank": "STB",
+	"tpbank": "TPB",
+	"hdbank": "HDB",
+	"mbbank": "MB",
+	"mbank": "MB",
+	"eximbank": "EIB",
+	"maritimebank": "MSB",
+	"pvcombank": "PVC",
+	"namabank": "NAMABANK",
+	"vietinbank": "VIETINBANK",
+}
+
 
 @frappe.whitelist()
 def tim(tu_khoa="", so_dong=None):
@@ -105,11 +133,15 @@ def tim(tu_khoa="", so_dong=None):
 		# Roi ve doctype Bank neu tep du lieu hong - man van dung duoc.
 		ds = [(d["name"], "") for d in frappe.get_all("Bank", fields=["name"], limit_page_length=0)]
 	tran = max(1, min(SO_DONG_MAC_DINH, cint(so_dong) or SO_DONG_MAC_DINH))
+	# Ten thuong mai -> ma trong danh muc. Chi doi khi go dung ten do, khong
+	# doan mo: "viet" van la "viet", khong bien thanh Vietcombank.
+	ma_bd = BI_DANH.get(tk.replace(" ", ""), "")
 	ra = []
 	for ten, ht in ds:
 		kd = _khong_dau(ten)
 		if tk and tk not in kd:
-			continue
+			if not (ma_bd and ten.split(" - ")[0].strip().upper() == ma_bd):
+				continue
 		# Gui kem ban KHONG DAU de o tim nhanh cua ham sheet() ben app loc
 		# duoc ma khong bat nhan vien go dau: sheet() so chuoi tho, nen neu
 		# khong gui ban nay thi go "quan doi" se khong ra "Quân đội".
