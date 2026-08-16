@@ -114,6 +114,18 @@ def _khai():
 		# Nhan ve de tam tat. Bat len thi Frappe bat dau keo thu that; de
 		# nguoi dung tu quyet khi nao san sang.
 		"enable_incoming": 0,
+		# BAT BUOC dien san. Anh Viet 16/08/2026: bam Luu thi Frappe chan
+		# bang "Bạn cần đặt một thư mục IMAP cho sales@...", anh phai tu go
+		# tay chu INBOX. Loi cua tep nay: no khai append_to va use_imap
+		# nhung bo quen bang con imap_folder, ma Frappe doi bang do co it
+		# nhat mot dong ngay ca khi enable_incoming con tat.
+		"imap_folder": [
+			{
+				"folder_name": "INBOX",
+				"append_to": "Bao Gia Ban Hang",
+				"used_by_default": 1,
+			}
+		],
 		# Thu khach tra loi bao gia chui ve dung ho so chung tu, khong nam
 		# lac o hop thu ca nhan cua Loan Anh.
 		"append_to": "Bao Gia Ban Hang",
@@ -161,6 +173,15 @@ def _don_rac_cu(ten):
 		if (gt in (None, "") or la_rac) and dung_ts.get(f) not in (None, ""):
 			if str(gt or "") != str(dung_ts[f]):
 				doi[f] = dung_ts[f]
+
+	# Hai o nay LOAI TRU NHAU, va lan truoc chung lot luoi: patch cu ghi
+	# use_tls = 1 cho cong 587, doi sang cong 465 roi nhung use_tls van con
+	# 1 vi no khong nam trong RAC_CU. Ket qua la SMTP cau hinh nua noi nua
+	# kia. Bat cap khi phat hien mot trong hai o dang doi sang gia tri moi.
+	if "use_ssl_for_outgoing" in doi or "use_tls" in doi:
+		ssl = doi.get("use_ssl_for_outgoing", dung_ts.get("use_ssl_for_outgoing", 0))
+		doi["use_ssl_for_outgoing"] = 1 if ssl else 0
+		doi["use_tls"] = 0 if ssl else 1
 	# "GMail" ep Frappe ap bo thong so cua Google de len; go ra.
 	if (doc.get("service") or "") == "GMail":
 		doi["service"] = ""
@@ -171,6 +192,32 @@ def _don_rac_cu(ten):
 			"Máy sửa lại thông số máy chủ cho khớp hộp thư đang chạy của "
 			"cùng tên miền: %s" % ", ".join(sorted(doi)),
 		)
+	_du_thu_muc_imap(doc)
+
+
+def _du_thu_muc_imap(doc):
+	"""Bang thu muc IMAP trong thi Frappe chan luc bam Luu.
+
+	Anh Viet 16/08/2026 dinh dung: dan mat khau xong bam Luu thi Frappe bao
+	"Bạn cần đặt một thư mục IMAP cho sales@...". Anh phai tu go INBOX.
+	Ham nay bo sung cho cac hop thu da lo tao ra ma con thieu.
+	"""
+	if doc.get("imap_folder"):
+		return
+	try:
+		doc.append(
+			"imap_folder",
+			{
+				"folder_name": "INBOX",
+				"append_to": "Bao Gia Ban Hang",
+				"used_by_default": 1,
+			},
+		)
+		doc.flags.ignore_mandatory = True
+		doc.flags.ignore_validate = True
+		doc.save(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Vagabond: khong dien duoc INBOX")
 
 
 @frappe.whitelist()

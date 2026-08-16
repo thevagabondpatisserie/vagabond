@@ -100,6 +100,76 @@ TRUONG_MOI = {
 
 F_PHIEN_BAN = ("goc", "phien_ban", "thay_the_boi", "ly_do_sua")
 
+# --------------------------------------------------- mau in va phan loai
+#
+# Anh Viet 16/08/2026: *"Anh khong muon Sales phai vao trong to bao gia moi
+# di chon mau. Hay chuyen thao tac nay ra ngay nut + (Lap bao gia moi)"*,
+# va mau duoc chon phai dien san loi mo, dieu khoan, yeu cau van hanh theo
+# dung van phong cua mau do.
+#
+# VI SAO KHONG DE RA DOCTYPE "Mau Bao Gia" MOI
+# --------------------------------------------
+# He DA co dung thu do roi: mot to bao gia mang co la_mau = 1, danh so
+# rieng MAU-BG-, va ham tu_mau() da chep san cau chu sang to moi. De ra mot
+# doctype nua la co hai nguon su that cho cung mot khai niem, va moi lan
+# them truong vao to bao gia lai phai nho them ca ben kia.
+#
+# Cai con thieu chi la ba thu: mau chua mang theo BO CUC IN, chua mang
+# theo PHAN LOAI, va he chua co mau nao san de bam ngay lan dau.
+#
+# Bo mau khoi dau khai TRONG MA NGUON chu khong gieo vao co so du lieu.
+# Gieo vao CSDL thi site thu voi site that lech nhau, sua cau chu phai vao
+# Desk, va khong qua duoc sau cong kiem truoc deploy - dung cai benh ma
+# truong_tu_them.py sinh ra de chua.
+MAU_IN = [
+	{"ma": "", "ten": "Bản gốc", "ta": "Tờ đang dùng từ trước tới nay."},
+	{"ma": "executive", "ten": "The Executive",
+	 "ta": "Trang trọng, gọn, không kẻ ô. Hợp đơn B2B và khách doanh nghiệp."},
+	{"ma": "lookbook", "ten": "The Lookbook",
+	 "ta": "Kiểu tạp chí, có ảnh món, giá dồn xuống cuối. Hợp catering và sự kiện."},
+	{"ma": "legal", "ten": "The Legal Addendum",
+	 "ta": "Nặng điều khoản, không hình. Hợp hợp đồng khung và đơn nhiều ràng buộc."},
+	{"ma": "heritage", "ten": "The Heritage",
+	 "ta": "Viền thanh lịch, cổ điển. Hợp bánh thiết kế riêng và quà tặng."},
+]
+
+PHAN_LOAI = [
+	{"ma": "", "ten": "Chưa phân loại", "mau_in": ""},
+	{"ma": "b2b", "ten": "Thư báo giá B2B", "mau_in": "executive"},
+	{"ma": "dn_ck", "ten": "Khách doanh nghiệp có chiết khấu", "mau_in": "executive"},
+	{"ma": "catering", "ten": "Dịch vụ Catering và Sự kiện", "mau_in": "lookbook"},
+	{"ma": "thiet_ke", "ten": "Bánh thiết kế riêng", "mau_in": "heritage"},
+]
+
+MA_MAU_IN = {x["ma"] for x in MAU_IN}
+MA_PHAN_LOAI = {x["ma"] for x in PHAN_LOAI}
+
+TRUONG_MAU = {
+	"Bao Gia Ban Hang": [
+		{
+			"fieldname": "sec_mau_in", "label": "Mẫu in và phân loại",
+			"fieldtype": "Section Break", "insert_after": "ten_mau",
+		},
+		{
+			"fieldname": "phan_loai", "label": "Phân loại báo giá",
+			"fieldtype": "Select", "insert_after": "sec_mau_in",
+			"options": "\n".join(x["ma"] for x in PHAN_LOAI),
+		},
+		{
+			"fieldname": "mau_in", "label": "Bố cục tờ in",
+			"fieldtype": "Select", "insert_after": "phan_loai",
+			"options": "\n".join(x["ma"] for x in MAU_IN),
+			"description": "Để trống thì in bằng tờ gốc đang dùng.",
+		},
+		{
+			"fieldname": "mo_ta_mau", "label": "Mô tả mẫu",
+			"fieldtype": "Small Text", "insert_after": "mau_in",
+			"description": "Chỉ có nghĩa trên tờ mẫu. Hiện ở bảng chọn khi "
+						   "sales bấm nút lập báo giá mới.",
+		},
+	]
+}
+
 # ------------------------------------------------------------ email bao gia
 #
 # Ba thu duoi day deu KHAI TRONG CAI DAT chu khong chon cung trong ma nguon:
@@ -217,12 +287,119 @@ MAC_DINH = {
 	),
 	"ten_ban": "CÔNG TY TNHH PATISSERIE VAGABOND",
 	"mst_ban": "0318561568",
-	"dia_chi_ban": "307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà, TP.HCM",
+	"dia_chi_ban": "9 Trần Cao Vân, Phường Sài Gòn, TP.HCM",
 	"web_ban": "www.thevagabondpatisserie.com",
 	"dai_dien_ban": "",
 	"chuc_vu_ban": "",
 	"dt_ban": "",
 	"email_ban": "",
+}
+
+# Bo mau khoi dau. Moi mau chi khai NHUNG O NO MUON DOI so voi to trang;
+# o nao khong khai thi lay theo Cai dat bao gia nhu cu. Van phong tung mau
+# khac nhau that su, khong phai doi mot chu cho co.
+MAU_GOC = {
+	"b2b": {
+		"ten_mau": "Thư báo giá B2B",
+		"mo_ta_mau": "Đơn hàng sỉ, giao nhiều đợt. Điều khoản gọn, không có phần sự kiện.",
+		"phan_loai": "b2b", "mau_in": "executive",
+		"ten": "Báo giá bánh sỉ",
+		"hieu_luc_ngay": 30, "dat_coc_pt": 30,
+		"thanh_toan": (
+			"Đặt cọc 30% khi xác nhận đơn hàng.\n"
+			"Thanh toán phần còn lại trong vòng 15 ngày kể từ ngày giao hàng cuối.\n"
+			"Phương thức thanh toán: chuyển khoản ngân hàng.\n"
+			"Xuất hoá đơn giá trị gia tăng theo từng đợt giao."
+		),
+		"yeu_cau_vi": (
+			"Đặt hàng trước tối thiểu 07 ngày làm việc cho mỗi đợt giao.\n"
+			"Địa điểm nhận hàng có lối đi cho xe tải nhẹ.\n"
+			"Bên mua cử người nhận hàng và ký biên bản bàn giao từng đợt."
+		),
+		"chinh_sach_huy_vi": (
+			"Huỷ đơn trước 07 ngày so với ngày giao: hoàn 100% tiền cọc.\n"
+			"Huỷ trong vòng 07 ngày: không hoàn cọc do nguyên liệu đã nhập.\n"
+			"Điều chỉnh số lượng: chấp nhận tăng giảm 15% nếu báo trước 05 ngày làm việc."
+		),
+	},
+	"dn_ck": {
+		"ten_mau": "Khách doanh nghiệp có chiết khấu",
+		"mo_ta_mau": "Quà tặng doanh nghiệp số lượng lớn. Có bậc chiết khấu và mốc chốt số lượng.",
+		"phan_loai": "dn_ck", "mau_in": "executive",
+		"ten": "Báo giá quà tặng doanh nghiệp",
+		"hieu_luc_ngay": 15, "dat_coc_pt": 50, "chiet_khau_pt": 10,
+		"thanh_toan": (
+			"Đặt cọc 50% khi chốt số lượng.\n"
+			"Thanh toán 50% còn lại trước ngày giao hàng 03 ngày làm việc.\n"
+			"Mức chiết khấu trên áp dụng cho số lượng đã chốt; số lượng giảm "
+			"quá 20% thì hai bên thống nhất lại mức chiết khấu.\n"
+			"Phương thức thanh toán: chuyển khoản ngân hàng."
+		),
+		"yeu_cau_vi": (
+			"Chốt số lượng cuối cùng trước ngày giao hàng ít nhất 10 ngày.\n"
+			"Cung cấp logo dạng vector nếu có in ấn riêng trên bao bì.\n"
+			"Danh sách địa điểm giao gửi trước 05 ngày làm việc."
+		),
+		"chinh_sach_huy_vi": (
+			"Huỷ trước 10 ngày: hoàn 100% tiền cọc.\n"
+			"Huỷ trong vòng 05 tới 10 ngày: hoàn 50% tiền cọc.\n"
+			"Huỷ trong vòng 05 ngày: không hoàn cọc.\n"
+			"Bao bì đã in riêng theo yêu cầu không hoàn tiền trong mọi trường hợp."
+		),
+	},
+	"catering": {
+		"ten_mau": "Dịch vụ Catering và Sự kiện",
+		"mo_ta_mau": "Teabreak, tiệc, sự kiện. Có yêu cầu mặt bằng và mốc vận hành tại chỗ.",
+		"phan_loai": "catering", "mau_in": "lookbook",
+		"ten": "Báo giá teabreak và sự kiện",
+		"hieu_luc_ngay": 15, "dat_coc_pt": 50,
+		"thanh_toan": (
+			"Đặt cọc 50% khi ký xác nhận báo giá.\n"
+			"Thanh toán 50% còn lại trong vòng 03 ngày làm việc sau khi bàn giao.\n"
+			"Phương thức thanh toán: chuyển khoản ngân hàng."
+		),
+		"yeu_cau_vi": (
+			"Bàn giao khu vực chuẩn bị và khu vực trưng bày 02 tiếng trước khi "
+			"sự kiện bắt đầu.\n"
+			"Mặt bằng setup tối thiểu 2m x 3m cho khu vực trưng bày.\n"
+			"Có nguồn điện 220V trong bán kính 5m nếu cần giữ nóng hoặc giữ lạnh.\n"
+			"Lối đi cho xe giao hàng và thang máy nếu venue ở tầng cao.\n"
+			"Bên mua xác nhận số khách chính thức trước 03 ngày làm việc."
+		),
+		"chinh_sach_huy_vi": (
+			"Huỷ trước 07 ngày: hoàn 100% tiền cọc.\n"
+			"Huỷ trong vòng 03 tới 07 ngày: hoàn 50% tiền cọc.\n"
+			"Huỷ trong vòng 03 ngày: không hoàn cọc.\n"
+			"Thay đổi số lượng: chấp nhận tăng giảm 10% nếu báo trước 03 ngày làm việc.\n"
+			"Thay đổi menu: chấp nhận nếu báo trước 07 ngày làm việc."
+		),
+	},
+	"thiet_ke": {
+		"ten_mau": "Bánh thiết kế riêng",
+		"mo_ta_mau": "Bánh cưới, bánh sự kiện làm riêng. Có mốc duyệt mẫu và lịch thử bánh.",
+		"phan_loai": "thiet_ke", "mau_in": "heritage",
+		"ten": "Báo giá bánh thiết kế riêng",
+		"hieu_luc_ngay": 30, "dat_coc_pt": 50,
+		"thanh_toan": (
+			"Đặt cọc 50% khi duyệt bản thiết kế.\n"
+			"Thanh toán 50% còn lại trước ngày giao 03 ngày làm việc.\n"
+			"Phí thiết kế và phí gia công khuôn riêng không hoàn lại sau khi "
+			"bản vẽ đã được duyệt.\n"
+			"Phương thức thanh toán: chuyển khoản ngân hàng."
+		),
+		"yeu_cau_vi": (
+			"Duyệt bản vẽ thiết kế trước ngày giao ít nhất 14 ngày.\n"
+			"Mỗi bản thiết kế được chỉnh sửa tối đa 02 lần không tính phí.\n"
+			"Lịch thử bánh đăng ký trước 07 ngày.\n"
+			"Bánh nhiều tầng cần mặt bàn phẳng và phòng có điều hoà tại điểm nhận."
+		),
+		"chinh_sach_huy_vi": (
+			"Huỷ trước khi duyệt bản vẽ: hoàn 100% tiền cọc.\n"
+			"Huỷ sau khi duyệt bản vẽ: không hoàn phần phí thiết kế và gia công khuôn.\n"
+			"Huỷ trong vòng 07 ngày trước ngày giao: không hoàn cọc.\n"
+			"Đổi thiết kế sau khi đã duyệt sẽ được báo giá riêng."
+		),
+	},
 }
 
 MOC_MAC_DINH = [
@@ -411,6 +588,9 @@ def _goi(doc):
 	ra["thay_the_boi"] = doc.get("thay_the_boi") or ""
 	ra["ly_do_sua"] = doc.get("ly_do_sua") or ""
 	ra["khoa"], ra["ly_do_khoa"] = _tinh_khoa(doc)
+	ra["mau_in"] = doc.get("mau_in") or ""
+	ra["phan_loai"] = doc.get("phan_loai") or ""
+	ra["mo_ta_mau"] = doc.get("mo_ta_mau") or ""
 	ra["dong"] = []
 	for d in doc.get("dong") or []:
 		x = {f: d.get(f) or "" for f in F_DONG}
@@ -450,6 +630,8 @@ def cai_dat():
 		"chip_hieu_luc": CHIP_HIEU_LUC,
 		"chip_vat": CHIP_VAT,
 		"duoc_sua": bool(QUYEN_SUA & set(frappe.get_roles())),
+		"mau_in": MAU_IN,
+		"phan_loai": PHAN_LOAI,
 		"mac_dinh": _cd(),
 	}
 
@@ -607,8 +789,29 @@ def luu(du_lieu):
 		doc = frappe.new_doc(DT)
 		doc.nguoi_lap = frappe.session.user
 
+	_do_vao(doc, d)
+	_tinh(doc)
+	doc.save(ignore_permissions=True)
+	return _goi(doc)
+
+
+def _do_vao(doc, d):
+	"""Do cuc JSON cua app vao mot doc. KHONG luu, KHONG dung toi CSDL.
+
+	Tach rieng de ham luu() va ham xem truoc dung CHUNG mot phep anh xa.
+	Hai phep anh xa khac nhau thi som muon to xem truoc va to in that lech
+	nhau, ma loai lech do rat kho thay.
+	"""
 	for f in F_CHU:
 		doc.set(f, d.get(f) or None)
+	# Bo cuc to in va phan loai. Kiem o MAY CHU chu khong tin app: app gui
+	# len ma la thi to se in bang mot khuon khong ton tai (QT-19).
+	if d.get("mau_in") in MA_MAU_IN:
+		doc.mau_in = d.get("mau_in") or None
+	if d.get("phan_loai") in MA_PHAN_LOAI:
+		doc.phan_loai = d.get("phan_loai") or None
+	if doc.get("la_mau"):
+		doc.mo_ta_mau = d.get("mo_ta_mau") or None
 	for f in ("ngay_bao_gia", "hieu_luc_den"):
 		doc.set(f, d.get(f) or None)
 	for f in F_SO:
@@ -648,10 +851,7 @@ def luu(du_lieu):
 			"noi_dung_en": x.get("noi_dung_en") or None,
 			"trach_nhiem": x.get("trach_nhiem") or "Vagabond / Seller",
 		})
-
-	_tinh(doc)
-	doc.save(ignore_permissions=True)
-	return _goi(doc)
+	return doc
 
 
 @frappe.whitelist()
@@ -1160,9 +1360,16 @@ def _anh_data(url):
 		return ""
 
 
-def _html(name):
-	"""To bao gia song ngu, dung khuon to Loan Anh dang gui khach."""
-	d = chi_tiet(name)
+def _html(name=None, d=None):
+	"""To bao gia song ngu, dung khuon to Loan Anh dang gui khach.
+
+	Nhan MOT trong hai: ten to da luu, hoac san cuc du lieu da goi. Duong
+	thu hai de xem truoc to dang soan ma chua luu - va vi ca hai duong deu
+	di qua dung mot ham nay, cai Loan Anh nhin thay khi xem truoc dung la
+	cai se in ra, khong phai mot ban gan giong.
+	"""
+	if d is None:
+		d = chi_tiet(name)
 	c = _cd()
 	sng = bool(d.get("song_ngu"))
 	ra = []
@@ -1591,6 +1798,43 @@ def xem_truoc(name):
 	return {"html": _html(name)}
 
 
+@frappe.whitelist()
+def xem_truoc_nhap(du_lieu=None, name=None):
+	"""Ban in cua to DANG SOAN, chua luu.
+
+	Anh Viet 16/08/2026: *"De Sales xem truoc ban in cua mau template hien
+	tai truoc khi xuat file that gui khach. Tuyet doi thao tac nay khong
+	duoc kich hoat ham tao phien ban hay luong gui email"*.
+
+	BA DIEU HAM NAY KHONG LAM, va deu la co y:
+	  - Khong goi doc.save, nen khong sinh phien ban, khong doi trang thai,
+	    khong dung toi mot dong nao trong co so du lieu.
+	  - Khong goi frappe.sendmail.
+	  - Khong dung _chan_dong_bang: xem truoc mot ban lich su phai duoc,
+	    chi sua no moi bi cam.
+
+	Con so trong to xem truoc do MAY CHU tinh lai bang _tinh (QT-19), nen
+	no dung bang con so se in ra chu khong phai con so app dang giu.
+	"""
+	_quyen()
+	if not du_lieu:
+		if not name:
+			frappe.throw("Chưa có gì để xem trước. Nhập vài dòng rồi thử lại nhé.")
+		return {"html": _html(name), "name": name}
+
+	d = json.loads(du_lieu) if isinstance(du_lieu, str) else du_lieu
+	# new_doc chi dung trong bo nho. Khong insert, khong save.
+	tam = frappe.new_doc(DT)
+	tam.nguoi_lap = frappe.session.user
+	_do_vao(tam, d)
+	_tinh(tam)
+	goi = _goi(tam)
+	# Doc chua luu thi khong co ma. Ghi ro la ban nhap chu khong de trong,
+	# vi o trong tren to in nhin nhu loi.
+	goi["name"] = d.get("name") or "(bản nháp, chưa lưu)"
+	return {"html": _html(d=goi), "name": goi["name"]}
+
+
 def _ten_tep(name):
 	ten_kh = frappe.db.get_value(DT, name, "ten_khach") or ""
 	from vagabond.danh_muc import khong_dau
@@ -1778,15 +2022,36 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
 
 @frappe.whitelist()
 def mau_ds():
-	"""Danh sach mau de chon khi lap to moi."""
+	"""Danh sach mau cho bang chon khi sales bam nut lap bao gia moi.
+
+	Tra ve HOP cua hai nguon: bo mau khoi dau khai trong ma nguon, va cac
+	mau Loan Anh tu luu lai. Mau trong ma nguon mang ma "goc:<ten>" de
+	tu_mau() phan biet duoc no doc tu dau.
+	"""
 	_quyen()
-	return frappe.get_all(
-		DT,
-		filters={"la_mau": 1},
-		fields=["name", "ten_mau", "ten", "modified"],
-		order_by="ten_mau asc, modified desc",
-		limit_page_length=100,
-	)
+	ra = [
+		{
+			"name": "goc:" + ma,
+			"ten_mau": m["ten_mau"],
+			"mo_ta_mau": m.get("mo_ta_mau") or "",
+			"phan_loai": m.get("phan_loai") or "",
+			"mau_in": m.get("mau_in") or "",
+			"tu_ma_nguon": 1,
+		}
+		for ma, m in MAU_GOC.items()
+	]
+	ra += [
+		dict(x, tu_ma_nguon=0)
+		for x in frappe.get_all(
+			DT,
+			filters={"la_mau": 1},
+			fields=["name", "ten_mau", "ten", "modified", "mo_ta_mau",
+					"phan_loai", "mau_in"],
+			order_by="ten_mau asc, modified desc",
+			limit_page_length=100,
+		)
+	]
+	return {"ds": ra, "mau_in": MAU_IN, "phan_loai": PHAN_LOAI}
 
 
 @frappe.whitelist()
@@ -1811,6 +2076,8 @@ def mau_luu(name, ten_mau):
 	# mang co dong bang, va khong ai sua duoc mau do.
 	_xoa_dau_phien_ban(m)
 	m.insert(ignore_permissions=True)
+	# mau_in va phan_loai da theo copy_doc sang; khong xoa vi day chinh la
+	# thu Loan Anh muon giu lai khi luu mot to dep thanh mau.
 	return {"name": m.name, "ten_mau": ten_mau}
 
 
@@ -1828,12 +2095,34 @@ def tu_mau(name_mau):
 	"""Khung to moi dien san theo mau: cau chu, dieu khoan, timeline, dich vu
 	them va ca cac dong san pham. Chua co khach hang, ngay lay hom nay."""
 	_quyen(sua=True)
+
+	# Mau khoi dau khai trong ma nguon. Khong doc CSDL, khong can migrate,
+	# va sua cau chu la sua mot cho roi qua sau cong kiem.
+	if str(name_mau or "").startswith("goc:"):
+		ma = str(name_mau)[4:]
+		if ma not in MAU_GOC:
+			frappe.throw(
+				"Không có mẫu %s. Anh chị chọn lại trong danh sách giúp em." % ma
+			)
+		m = MAU_GOC[ma]
+		d = moi()
+		for f, v in m.items():
+			if f in ("ten_mau", "mo_ta_mau"):
+				continue
+			d[f] = v
+		# Timeline lay theo Cai dat nhu to trang; mau khoi dau khong doi.
+		d["tu_mau"] = m["ten_mau"]
+		if d.get("hieu_luc_ngay"):
+			d["hieu_luc_den"] = add_days(nowdate(), int(d["hieu_luc_ngay"]))
+		return d
+
 	if not frappe.db.get_value(DT, name_mau, "la_mau"):
 		frappe.throw("Đây không phải mẫu.")
 	m = _goi(frappe.get_doc(DT, name_mau))
 	d = moi()
 	giu = (
 		"ten", "ten_en", "song_ngu", "gia_da_gom_vat", "loi_mo", "loi_mo_en",
+		"phan_loai", "mau_in",
 		"thanh_toan", "thanh_toan_en", "yeu_cau_vi", "yeu_cau_en",
 		"chinh_sach_huy_vi", "chinh_sach_huy_en", "luu_y_vi", "luu_y_en",
 		"giao_hang", "dong_goi", "ghi_chu", "chiet_khau_pt", "thue_pt",

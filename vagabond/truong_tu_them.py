@@ -25,6 +25,7 @@ def dung():
 	_dung_nhom(ban_hang.TRUONG_MOI, "ban_hang")
 	_dung_nhom(bao_gia.TRUONG_MOI, "bao_gia")
 	_dung_nhom(bao_gia.TRUONG_CAI_DAT, "bao_gia_cai_dat")
+	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")
 	try:
 		from vagabond import hop_thu
 
