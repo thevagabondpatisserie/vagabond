@@ -6934,10 +6934,28 @@ async function scrDsView(name, can) {
   } else if (d.docstatus === 0) {
     foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px">Đơn này đã huỷ' +
       (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>';
+  } else if (d.docstatus === 1 && !d.vgb_huy) {
+    /* Don DA GHI SO thi khong con huy duoc nua, va do la dung: to da vao so
+       thi phai khu bang mot to nguoc chieu chu khong xoa di. Nen cho don da
+       ghi so, cua ra la HOAN TIEN (anh Viet 16/08/2026 dat nut nay ngay canh
+       cho nut Huy don van dung o man chua ghi so).
+
+       Nut nay chi GUI YEU CAU, khong sinh chung tu va khong dong tien nao -
+       xem ghi chu dau hoan_tien.tao. */
+    foot = '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="dsvHoan" style="margin:0;flex:0 0 44%;color:#b45309;border-color:#fde68a">↩️ Hoàn tiền</button>' +
+      (can && !d.custom_hddt_so
+        ? '<button class="btn" id="dsvHddt" style="margin:0;flex:1">Xuất HĐĐT (Chờ ký)</button>'
+        : '<button class="btn gh" id="dsvXemHoan" style="margin:0;flex:1">Xem danh sách hoàn tiền</button>') +
+      '</div>';
   } else if (can && !d.custom_hddt_so) {
     foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
   }
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  var nHoan = document.getElementById('dsvHoan');
+  if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
+  var nXemHoan = document.getElementById('dsvXemHoan');
+  if (nXemHoan) nXemHoan.onclick = function () { go(scrHoanTien); };
   var nHuy = document.getElementById('dsvHuy');
   if (nHuy) nHuy.onclick = async function () {
     var ok = await confirmSheet('Huỷ đơn ' + (d.custom_pancake_display_id || d.name) + '?',
@@ -10767,10 +10785,222 @@ async function scrHdTao() {
    Đặt trong phân hệ Bán hàng, ngay dưới Công nợ phải thu: hai màn cùng một
    mạch nghiệp vụ tiền nong với khách.
 
-   Màn này CHỈ ĐỌC. Phiếu hoàn tiền sinh ra từ nút trên màn Chi tiết đơn,
-   nơi có mã PIN quản lý; đẻ thêm một cửa tạo phiếu ở đây là mở một đường
-   vòng qua lớp duyệt. */
+   Màn này CHỈ ĐỌC. Phiếu hoàn tiền sinh ra từ nút Hoàn tiền trên màn Chi
+   tiết đơn; đẻ thêm một cửa tạo phiếu ở đây là mở một đường vòng. */
 var htDsData = null, htDsLoc = 'tat_ca';
+
+/* ---------- Form gửi yêu cầu hoàn tiền, mở từ màn Chi tiết đơn ----------
+
+Anh Việt chốt 16/08/2026: bỏ hẳn mã PIN quản lý ở bước này.
+
+Lý do đáng ghi lại: PIN ở quầy chặn được một người bấm nhầm, nhưng không
+chặn được một khoản chi sai, vì lúc gõ PIN thì tiền vẫn chưa đi đâu cả.
+Cửa duyệt thật nằm ở kế toán, là người cầm tay chuyển khoản. Nên cái bắt
+buộc ở đây không phải mã PIN mà là BẰNG CHỨNG: ảnh khách phản ánh, ảnh
+bánh hỏng. Không có ảnh thì nút Gửi duyệt không đi qua được.
+
+Form này chỉ GỬI YÊU CẦU. Không sinh một chứng từ nào, không động một
+đồng nào. Chứng từ đợi tới lúc SePay báo tiền đã ra thật mới sinh. */
+var htF = null, htFHop = null;
+
+function hoanMoForm(don) {
+  var tong = Number(don.grand_total || 0);
+  htF = {
+    don: don.name, tong: tong, tien: tong, muc: 100,
+    ly_do: '', dien_giai: '', ten_tk: '', so_tk: '', ngan_hang: '', sdt: '',
+    anh: [], goi_y: null, hddt: (don.custom_hddt_so || '')
+  };
+  hoanVeForm();
+  /* Đọc gợi ý tài khoản của chính khách này ở lần hoàn trước, và đọc lại
+     tổng đơn từ máy chủ. Chạy SAU khi vẽ xong form để form hiện ngay;
+     hỏng thì để nguyên form chứ không chặn Sales lại. */
+  api('vagabond.hoan_tien.tinh_trang', { si_name: don.name }).then(function (t) {
+    if (!htF || htF.don !== don.name) return;
+    if (!t || !t.duoc) {
+      htFDong();
+      return baoTin((t && t.vi_sao) || 'Đơn này không hoàn tiền được.', 'Không gửi được yêu cầu');
+    }
+    if (t.so_tien) { htF.tong = Number(t.so_tien); if (htF.muc) htF.tien = Math.round(htF.tong * htF.muc / 100); }
+    if (t.goi_y_tk && t.goi_y_tk.so_tk && !htF.so_tk) {
+      htF.goi_y = t.goi_y_tk;
+      htF.ten_tk = t.goi_y_tk.ten_tk || '';
+      htF.so_tk = t.goi_y_tk.so_tk || '';
+      htF.ngan_hang = t.goi_y_tk.ngan_hang || '';
+    }
+    hoanVeForm();
+  }).catch(function () { });
+}
+
+function htFDong() { if (htFHop) { htFHop.dong(); htFHop = null; } htF = null; }
+
+function htLyDoTen(k) {
+  return {
+    'Khach doi y': 'Khách đổi ý', 'Banh hong': 'Bánh hỏng', 'Di ung': 'Dị ứng',
+    'Giao sai mon': 'Giao sai món', 'Giao tre': 'Giao trễ', 'Khac': 'Khác'
+  }[k] || k;
+}
+
+function hoanVeForm() {
+  var f = htF; if (!f) return;
+  if (htFHop) { htFHop.dong(); htFHop = null; }
+  var mucs = [[100, 'Hoàn 100%'], [50, 'Hoàn 50%'], [0, 'Nhập số khác']];
+  var than =
+    '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
+    'Đơn <b>' + h(f.don) + '</b> · tổng <b>' + money(f.tong) + ' đ</b><br>' +
+    'Yêu cầu này gửi kế toán duyệt. Tiền chỉ ra sau khi kế toán chuyển khoản thật.</div>' +
+    (f.hddt ? '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
+      'Đơn này <b>đã xuất hoá đơn điện tử số ' + h(f.hddt) + '</b>. Hoàn tiền xong thì tờ đó phải xử lý riêng bên m-invoice, máy không tự làm.</div>' : '') +
+
+    rndLbl('Mức hoàn tiền') +
+    '<div style="display:flex;gap:7px;margin-bottom:9px">' +
+    mucs.map(function (m) {
+      var on = f.muc === m[0];
+      return '<button data-htm="' + m[0] + '" style="flex:1;border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
+        ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' + (on ? '#0f766e' : '#374151') +
+        ';border-radius:9px;padding:9px 6px;font-size:12.5px;font-weight:' + (on ? '800' : '600') + '">' + h(m[1]) + '</button>';
+    }).join('') + '</div>' +
+    '<input class="nt" id="htFTien" inputmode="numeric" placeholder="Số tiền hoàn" value="' + h(money(f.tien)) + '"' +
+    (f.muc ? ' readonly style="background:#f7f8fa;color:#374151"' : '') + '>' +
+    '<div id="htFTienNhac" style="font-size:11.5px;color:#9ca3af;margin:5px 0 12px">Tối đa ' + money(f.tong) + ' đ, đúng bằng tổng đơn.</div>' +
+
+    rndLbl('Lý do hoàn') +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px">' +
+    ['Khach doi y', 'Banh hong', 'Di ung', 'Giao sai mon', 'Giao tre', 'Khac'].map(function (k) {
+      var on = f.ly_do === k;
+      return '<button data-htl="' + h(k) + '" style="border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
+        ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' + (on ? '#0f766e' : '#374151') +
+        ';border-radius:999px;padding:6px 12px;font-size:12px;font-weight:' + (on ? '800' : '600') + '">' +
+        h(htLyDoTen(k)) + '</button>';
+    }).join('') + '</div>' +
+    '<textarea class="nt" id="htFGhi" rows="2" placeholder="' +
+    (f.ly_do === 'Khac' ? 'Bắt buộc: ghi rõ vì sao hoàn' : 'Diễn giải thêm (không bắt buộc)') +
+    '">' + h(f.dien_giai) + '</textarea>' +
+
+    '<div style="height:14px"></div>' + rndLbl('Tài khoản nhận tiền của khách') +
+    (f.goi_y && f.goi_y.so_tk ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn tài khoản khách dùng lần trước, kiểm lại giúp em.</div>' : '') +
+    '<input class="nt" id="htFNh" placeholder="Tên ngân hàng, ví dụ MB, VCB, Techcombank" value="' + h(f.ngan_hang) + '">' +
+    '<div style="height:7px"></div>' +
+    '<input class="nt" id="htFStk" inputmode="numeric" placeholder="Số tài khoản" value="' + h(f.so_tk) + '">' +
+    '<div style="height:7px"></div>' +
+    '<input class="nt" id="htFTen" placeholder="Tên chủ tài khoản" value="' + h(f.ten_tk) + '">' +
+    '<div style="height:7px"></div>' +
+    '<input class="nt" id="htFSdt" inputmode="tel" placeholder="Số điện thoại khách (không bắt buộc)" value="' + h(f.sdt) + '">' +
+
+    '<div style="height:14px"></div>' + rndLbl('Bằng chứng · bắt buộc') +
+    '<div style="font-size:11.5px;color:#9ca3af;margin-bottom:7px;line-height:1.6">' +
+    'Ảnh khách phản ánh, hoặc ảnh bánh hỏng. Kế toán ngồi xa quầy, đây là căn cứ duy nhất để duyệt.</div>' +
+    '<div class="att" id="htFAnh">' +
+    f.anh.map(function (a, i) {
+      return '<div class="ph" style="background-image:url(' + a.url + ');background-size:cover;background-position:center;position:relative">' +
+        '<span data-htrm="' + i + '" style="position:absolute;top:2px;right:4px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;width:20px;height:20px;line-height:20px;text-align:center;font-size:13px">&times;</span></div>';
+    }).join('') +
+    '<div class="ph" id="htFCam"><div style="font-size:22px">📷</div>Thêm ảnh</div></div>' +
+    '<input type="file" accept="image/*" id="htFFile" style="display:none">';
+
+  htFHop = hopKhung('Yêu cầu hoàn tiền', than,
+    '<button class="btn gh" id="htFThoi" style="margin:0;flex:0 0 34%">Thôi</button>' +
+    '<button class="btn" id="htFGui" style="margin:0;flex:1">Gửi duyệt</button>');
+  var box = htFHop.box;
+  box.querySelector('.x').onclick = htFDong;
+  box.querySelector('#htFThoi').onclick = htFDong;
+
+  box.querySelectorAll('[data-htm]').forEach(function (n) {
+    n.onclick = function () {
+      htFDoc(box);
+      f.muc = Number(n.getAttribute('data-htm'));
+      if (f.muc) f.tien = Math.round(f.tong * f.muc / 100);
+      hoanVeForm();
+    };
+  });
+  box.querySelectorAll('[data-htl]').forEach(function (n) {
+    n.onclick = function () { htFDoc(box); f.ly_do = n.getAttribute('data-htl'); hoanVeForm(); };
+  });
+  box.querySelectorAll('[data-htrm]').forEach(function (n) {
+    n.onclick = function () { htFDoc(box); f.anh.splice(+n.getAttribute('data-htrm'), 1); hoanVeForm(); };
+  });
+  var fi = box.querySelector('#htFFile');
+  box.querySelector('#htFCam').onclick = function () { fi.click(); };
+  fi.onchange = function () { if (fi.files[0]) { htFDoc(box); htFThemAnh(fi.files[0]); } };
+
+  /* Ô tiền: chỉ gõ được khi đang ở mức "Nhập số khác", và chặn ngay trên
+     màn nếu vượt tổng đơn. Máy chủ vẫn tính lại (QT-19), đây chỉ để Sales
+     biết liền chứ không đợi tới lúc bấm Gửi mới báo. */
+  var oT = box.querySelector('#htFTien');
+  if (oT && !f.muc) oT.oninput = function () {
+    var v = Number(String(oT.value).replace(/[^0-9]/g, '')) || 0;
+    var nhac = box.querySelector('#htFTienNhac');
+    if (v > f.tong) { nhac.textContent = 'Vượt tổng đơn ' + money(f.tong) + ' đ. Nhập lại số nhỏ hơn.'; nhac.style.color = '#b3261e'; }
+    else { nhac.textContent = 'Tối đa ' + money(f.tong) + ' đ, đúng bằng tổng đơn.'; nhac.style.color = '#9ca3af'; }
+  };
+
+  box.querySelector('#htFGui').onclick = function () { htFDoc(box); htFGui(); };
+}
+
+/* Đọc lại mọi ô TRƯỚC mỗi lần vẽ lại form. Không có bước này thì bấm đổi
+   mức hoàn là mất sạch tài khoản vừa gõ - đúng loại lỗi người dùng không
+   bao giờ báo lại lần hai, chỉ lặng lẽ bỏ dùng. */
+function htFDoc(box) {
+  var f = htF; if (!f || !box) return;
+  var g = function (id) { var n = box.querySelector(id); return n ? n.value : ''; };
+  if (!f.muc) f.tien = Number(String(g('#htFTien')).replace(/[^0-9]/g, '')) || 0;
+  f.dien_giai = g('#htFGhi');
+  f.ngan_hang = g('#htFNh'); f.so_tk = g('#htFStk'); f.ten_tk = g('#htFTen'); f.sdt = g('#htFSdt');
+}
+
+function htFThemAnh(file) {
+  var fr = new FileReader();
+  fr.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      /* Nén lại trước khi gửi: ảnh điện thoại 4 MB gửi qua mạng quán là
+         Sales ngồi chờ, còn ảnh 1280 px thì kế toán vẫn nhìn rõ vết nứt. */
+      var mx = 1280, w = img.width, ht = img.height;
+      if (w > mx || ht > mx) { var s = mx / Math.max(w, ht); w = Math.round(w * s); ht = Math.round(ht * s); }
+      var cv = document.createElement('canvas'); cv.width = w; cv.height = ht;
+      cv.getContext('2d').drawImage(img, 0, 0, w, ht);
+      var url = cv.toDataURL('image/jpeg', 0.72);
+      htF.anh.push({ url: url, b64: url.split(',')[1], ten: 'bang-chung-' + (htF.anh.length + 1) + '.jpg' });
+      hoanVeForm();
+    };
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+
+async function htFGui() {
+  var f = htF; if (!f) return;
+  if (!f.ly_do) return toast('Chọn lý do hoàn giúp em.', 3500);
+  if (f.ly_do === 'Khac' && !(f.dien_giai || '').trim()) return toast('Lý do "Khác" thì phải ghi rõ vì sao hoàn.', 4000);
+  if (!f.tien || f.tien <= 0) return toast('Nhập số tiền hoàn lớn hơn 0.', 3500);
+  if (f.tien > f.tong) return toast('Số tiền hoàn không được lớn hơn tổng đơn ' + money(f.tong) + ' đ.', 4500);
+  if (!(f.ngan_hang || '').trim() || !(f.so_tk || '').trim() || !(f.ten_tk || '').trim())
+    return toast('Điền đủ ngân hàng, số tài khoản và tên chủ tài khoản của khách.', 4500);
+  if (!f.anh.length) return toast('Phải đính kèm ít nhất một ảnh làm căn cứ.', 4000);
+
+  var ok = await confirmSheet('Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
+    'Kế toán nhận thư báo ngay. Tiền chỉ ra khi kế toán chuyển khoản thật, và máy ' +
+    'chỉ sinh chứng từ sau khi ngân hàng báo tiền đã đi.', 'Gửi duyệt');
+  if (!ok) return;
+
+  busy(true);
+  try {
+    var kq = await api('vagabond.hoan_tien.tao', {
+      si_name: f.don, ly_do: f.ly_do, dien_giai: f.dien_giai, so_tien: f.tien,
+      ten_tk: f.ten_tk, so_tk: f.so_tk, ngan_hang: f.ngan_hang, sdt_khach: f.sdt,
+      tep: JSON.stringify(f.anh.map(function (a) { return { ten: a.ten, noi_dung: a.b64 }; }))
+    });
+    busy(false);
+    htFDong();
+    baoTin(
+      'Đã gửi yêu cầu ' + kq.ho_so + ', số tiền ' + money(kq.so_tien) + ' đ.\n\n' +
+      (kq.da_bao_ke_toan ? 'Đã báo kế toán qua email.' : 'Chưa gửi được email báo kế toán, nhưng phiếu đã nằm trên màn Hoàn tiền.') +
+      '\n\nNội dung chuyển khoản kế toán sẽ dùng:\n' + kq.noi_dung_ck +
+      (kq.mot_phan ? '\n\nHoàn một phần nên khách giữ lại hàng, máy không lập phiếu chuyển Kho Hàng Hủy.' : '') +
+      (kq.canh_bao_hddt ? '\n\nĐơn đã xuất hoá đơn điện tử số ' + kq.canh_bao_hddt + ', phải xử lý riêng bên m-invoice.' : ''),
+      'Đã gửi duyệt');
+    go(scrHoanTien);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Gửi yêu cầu lỗi', 'Không gửi được'); }
+}
 
 async function scrHoanTien() {
   frame('Hoàn tiền / Trả hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu hoàn tiền...</div></div>');
@@ -10816,12 +11046,24 @@ function htDsVe() {
         '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) + ' · ' + h(x.hoa_don) + '</div></div>' +
         '<div style="text-align:right"><b style="font-size:15px">' + money(x.so_tien) + ' đ</b>' +
         '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + h(htDsTen(x.trang_thai)) + '</div></div></div>' +
-        '<div style="font-size:11.5px;color:#6b7280;margin-top:5px">' + h(x.ly_do || '') +
-        (x.phieu_chi ? ' · phiếu chi ' + h(x.phieu_chi) + (x.phieu_chi_da_ghi ? ' (đã ghi sổ)' : ' <b style="color:#b3261e">(chưa ghi sổ)</b>') : ' · <b style="color:#b3261e">chưa có phiếu chi</b>') +
+        '<div style="font-size:11.5px;color:#6b7280;margin-top:5px">' + h(htLyDoTen(x.ly_do || '')) +
+        (x.phieu_chi
+          ? ' · phiếu chi ' + h(x.phieu_chi) + (x.phieu_chi_da_ghi ? ' (đã ghi sổ)' : ' <b style="color:#b3261e">(chưa ghi sổ)</b>')
+          : (x.da_doi_soat ? ' · <b style="color:#b3261e">chưa có phiếu chi</b>' : ' · chứng từ sinh sau khi tiền ra')) +
         '</div>' +
+        /* Anh bang chung: ke toan ngoi xa quay, day la can cu duy nhat de
+           quyet. Bay anh nho ra ngay tren dong chu khong bat bam vao xem -
+           mot cai bam nua la mot co hoi de duyet cho xong. */
+        ((x.anh || []).length
+          ? '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">' +
+            x.anh.map(function (a) {
+              return '<div class="htanh" data-url="' + h(a.url) + '" style="width:54px;height:54px;border-radius:8px;' +
+                'background-image:url(' + a.url + ');background-size:cover;background-position:center;border:1px solid #e3e6ec"></div>';
+            }).join('') + '</div>'
+          : '<div style="font-size:11px;color:#b3261e;margin-top:6px">Chưa có ảnh bằng chứng</div>') +
         '<div style="display:flex;gap:7px;margin-top:8px">' +
-        '<button class="htcopy" data-ht="' + h(x.name) + '" style="flex:1;border:1.5px solid #d1d5db;background:#fff;' +
-        'color:#374151;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700">Thông tin chuyển khoản</button>' +
+        '<button class="htmb" data-ht="' + h(x.name) + '" style="flex:2;border:1.5px solid #0f766e;background:#ccfbf1;' +
+        'color:#0f766e;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:800">🏦 Xuất thông tin chuyển khoản MB Biz</button>' +
         '</div></div>';
     }).join('') + '</div>';
   }
@@ -10832,18 +11074,11 @@ function htDsVe() {
   b.querySelectorAll('.htf').forEach(function (n) {
     n.onclick = function () { htDsLoc = n.getAttribute('data-htf'); go(scrHoanTien, true); };
   });
-  b.querySelectorAll('.htcopy').forEach(function (n) {
-    n.onclick = async function () {
-      busy(true);
-      try {
-        var kq = await api('vagabond.hoan_tien.thong_tin_chuyen_khoan', { ho_so: n.getAttribute('data-ht') });
-        busy(false);
-        /* Gõ tay số tài khoản là đường dễ sai nhất trong cả luồng: sai một
-           chữ số là tiền đi mất vào một tài khoản không quen biết. */
-        try { await navigator.clipboard.writeText(kq.chu); toast('Đã chép thông tin chuyển khoản', 2500); } catch (e2) { }
-        baoTin(kq.chu + (kq.nhac ? '\n\n' + kq.nhac : ''), 'Thông tin chuyển khoản');
-      } catch (e) { busy(false); }
-    };
+  b.querySelectorAll('.htanh').forEach(function (n) {
+    n.onclick = function () { rndXemAnh(n.getAttribute('data-url')); };
+  });
+  b.querySelectorAll('.htmb').forEach(function (n) {
+    n.onclick = function () { htMbBiz(n.getAttribute('data-ht')); };
   });
   var s = document.getElementById('htDsSoat');
   if (s) s.onclick = async function () {
@@ -10856,6 +11091,64 @@ function htDsVe() {
          ((kq.xem_xet || []).length ? '\n\nCó ' + kq.xem_xet.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '')));
       go(scrHoanTien, true);
     } catch (e) { busy(false); }
+  };
+}
+
+/* ---------- Xuất thông tin chuyển khoản cho MB Biz ----------
+
+Đi đúng nếp hồ sơ thanh toán APP đang chạy: ba dạng của cùng một thông
+tin, vì ba dạng phục vụ ba việc khác nhau.
+
+  đọc bằng mắt   - kiểm trước khi bấm, tránh chuyển nhầm người
+  dán vào tệp lô - mỗi cột một ô Excel, khỏi tách tay
+  riêng nội dung - dán vào ô Nội dung trên MB Biz
+
+Nội dung chuyển khoản là chỗ quan trọng nhất của cả màn này: nó chính là
+sợi dây để SePay tìm đường về đúng phiếu. Gõ tay hoặc sửa một chữ là dòng
+tiền ra đó thành mồ côi, và kế toán phải khớp tay. */
+async function htMbBiz(ma) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hoan_tien.thong_tin_chuyen_khoan', { ho_so: ma }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không dựng được thông tin', 'Lỗi'); }
+  busy(false);
+
+  var o = function (nhan, gtri, dam) {
+    return '<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #f2f4f7">' +
+      '<div style="flex:0 0 38%;font-size:12px;color:#6b7280">' + h(nhan) + '</div>' +
+      '<div style="flex:1;font-size:13.5px;' + (dam ? 'font-weight:800' : 'font-weight:600') +
+      ';word-break:break-all">' + h(gtri || '(chưa khai)') + '</div></div>';
+  };
+  var than =
+    (kq.nhac ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:9px 11px;margin-bottom:11px;line-height:1.6">' + h(kq.nhac) + '</div>' : '') +
+    '<div class="card" style="padding:2px 14px 8px;margin-bottom:12px">' +
+    o('Số tài khoản', kq.so_tk, 1) +
+    o('Tên người thụ hưởng', kq.ten_ck, 1) +
+    o('Ngân hàng', kq.ngan_hang) +
+    o('Số tiền', money(kq.so_tien) + ' đ', 1) +
+    o('Nội dung', kq.noi_dung_ck, 1) +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#9ca3af;line-height:1.6;margin-bottom:4px">' +
+    'Nội dung chuyển khoản phải giữ <b>nguyên si</b>: SePay dò đúng chuỗi này để tự khớp ' +
+    'về phiếu ' + h(kq.ma) + '. Sửa một chữ là dòng tiền ra thành mồ côi, phải khớp tay.' +
+    '</div>' +
+    (kq.da_doi_soat
+      ? '<div style="font-size:12px;color:#0a8a4a;font-weight:700;margin-top:8px">Phiếu này ngân hàng đã báo tiền ra, không cần chuyển lại.</div>'
+      : '');
+
+  var hop = hopKhung('Chuyển khoản MB Biz', than,
+    '<button class="btn gh" id="htMbCk" style="margin:0;flex:1">Chép nội dung</button>' +
+    '<button class="btn" id="htMbAll" style="margin:0;flex:1">Chép dòng cho tệp lô</button>');
+  hop.box.querySelector('.x').onclick = hop.dong;
+  hop.box.querySelector('#htMbCk').onclick = async function () {
+    try { await navigator.clipboard.writeText(kq.noi_dung_ck); toast('Đã chép nội dung chuyển khoản', 2500); }
+    catch (e) { baoTin(kq.noi_dung_ck, 'Nội dung chuyển khoản'); }
+  };
+  hop.box.querySelector('#htMbAll').onclick = async function () {
+    /* Một dòng các cột ngăn bằng Tab: dán vào Excel là mỗi cột một ô, đúng
+       thứ tự tệp lô của MB. */
+    try { await navigator.clipboard.writeText(kq.dong_tab); toast('Đã chép dòng, dán thẳng vào tệp lô MB', 3000); }
+    catch (e) { baoTin(kq.chu, 'Thông tin chuyển khoản'); }
   };
 }
 /* ---------- Van don: sales phan don, shipper giao kem anh, book xe, chi phi ---------- */
@@ -11576,7 +11869,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '191';
+var APPVER = '192';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
