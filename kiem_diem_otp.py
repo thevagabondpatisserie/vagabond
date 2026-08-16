@@ -488,6 +488,26 @@ import json as _json
 la("tep du lieu du 581 ngan hang",
    len(_json.load(open("vagabond/du_lieu/napas.json", encoding="utf-8"))), 581)
 
+# Bang bi danh: nhan vien go "Vietcombank" nhung danh muc MB ghi "VCB -
+# Ngan hang TMCP Ngoai thuong Viet Nam". Bat duoc khi thu tren he 17/08.
+#
+# Ca kiem quan trong nhat o day: MOI bi danh phai tro toi mot ma CO THAT
+# trong danh muc. Bi danh tro toi ma khong ton tai thi nhan vien go dung
+# ten quen thuoc van ra rong, va lan nay con lang le hon vi minh tuong da
+# vá roi.
+m_bd = re.search(r"^BI_DANH = \{.*?^\}", src_nh, re.S | re.M)
+la("co bang bi danh", bool(m_bd), True)
+_bd = {}
+exec(compile(m_bd.group(0), "ngan_hang:BI_DANH", "exec"), _bd, _bd)
+BD = _bd["BI_DANH"]
+_ds_nh = _json.load(open("vagabond/du_lieu/napas.json", encoding="utf-8"))
+_ma_co = {x[0].split(" - ")[0].strip().upper() for x in _ds_nh}
+la("moi bi danh tro toi ma CO THAT trong danh muc",
+   [k for k, v in BD.items() if v not in _ma_co], [])
+la("co bi danh cho Vietcombank", BD.get("vietcombank"), "VCB")
+la("co bi danh cho Techcombank", BD.get("techcombank"), "TCB")
+la("co bi danh cho Agribank", BD.get("agribank"), "VBA")
+
 # Doc ten khach va so dien thoai tu o ghi chu cua don (anh Viet 17/08/2026)
 print("18. Doc ten khach va so dien thoai tu ghi chu don")
 tach = Ht["tach_ghi_chu_don"]
