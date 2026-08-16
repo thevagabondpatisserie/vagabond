@@ -933,61 +933,15 @@ async function scrHome() {
   var b = frame(APPNAME, html);
   b.onclick = function (e) {
     var r = e.target.closest('[data-go]'); if (!r) return;
-    var k = r.dataset.go;
-    if (k === 'KBD') { location.href = '/kiem-banh'; return; }
-  if (k === 'BTPO') { location.href = '/btp'; return; }
-    if (k === 'PAY') return go(scrPayList);
-  if (k === 'BGIA') return go(scrBangGia);
-  if (k === 'NCC') return go(scrNcc);
-    if (k === 'STOCK') return go(scrStock);
-    if (k === 'KIT') return go(scrKitchen);
-    if (k === 'MFG') return go(scrMfgList);
-    if (k === 'RCV') return go(scrRecvList);
-    if (k === 'KK') return go(scrKkList);
-    if (k === 'DS') return go(scrDoanhSo);
-  if (k === 'DTREO') return go(scrDonTreo);
-    if (k === 'POS') return go(scrPosChonQuay);
-    if (k === 'HDG') return go(scrHopDongHub);
-    if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
-    if (k === 'KT1') return go(scrDoanhSo);
-    if (k === 'BCHUB') return go(scrBaoCao);
-    if (k === 'DUYETYC') return go(scrDuyetYc);
-    if (k === 'PO') return go(scrDonMua);
-    if (k === 'KHPO') return kgMo('PO');
-    if (k === 'KHHDM') return kgMo('HDM');
-    if (k === 'CNPT') return go(scrNoPhaiTra);
-    if (k === 'HDBAN') return go(scrHdBan);
-  if (k === 'APPTT') return go(scrHoSoTT);
-    if (k === 'HDMUA') return go(scrHdMua);
-    if (k === 'DCM') return go(scrDoiChieuMua);
-    if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }
-    if (k && k.indexOf('BC') === 0) return toast('Báo cáo này chưa dựng. Anh Việt chốt nội dung rồi em điền vào.', 4200);
-    if (k && k.indexOf('KT') === 0) return toast('Mục kế toán này chưa dựng. Anh Việt chốt nội dung rồi em điền vào.', 4200);
-    if (k === 'OTP') return go(scrOtp);
-    if (k === 'KM') return go(scrKhuyenMai);
-    if (k === 'CN') return go(scrCongNo);
-    if (k === 'HT') return go(scrHoanTien);
-    if (k === 'KH') return go(scrKhachHang);
-    if (k === 'VD') return go(scrVanDon);
-  if (k === 'CBTT') return go(scrCanhBaoTT);
-  if (k === 'CPX') return go(scrVdChiPhi);
-  if (k === 'DSCOD') return go(scrVdCod);
-    if (k === 'RND') return go(scrRndList);
-    if (k === 'CDDB') return go(scrDiemBan);
-    if (k === 'CDKS') return go(scrKhoaSo);
-    if (k === 'CDPT') return go(scrPtThanhToan);
-    if (k === 'CDTK') return go(scrTaiKhoan);
-    if (k === 'CDSP') return go(scrDanhMuc);
-    if (k === 'CDMI') return go(scrMayIn);
-    if (k === 'CDQQ') return go(scrQuyenQuay);
-    if (k === 'CDHT') return go(scrHangKhach);
-    if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
-    if (k === 'TS') return go(scrTaiSan);
-    if (k === 'BT') return go(scrButToan);
-    if (k === 'QLND') return go(scrNguoiDung);
-    if (k === 'QLQ') return go(scrQuyen);
-    if (k === 'ACC') return go(scrAccount);
-    go(function () { scrMRList(TYPES[k]); });
+    /* Goi thang vgbGo - MOT cho dinh tuyen duy nhat.
+
+       Truoc 16/08/2026 cho nay chep lai gan nguyen si than cua vgbGo. Hai
+       ban song song thi lech nhau luc nao khong hay: den hom nay ban o day
+       co 'HT' ma thieu 'XKH','XKD'; con vgbGo co 'XKH','XKD' ma thieu 'HT'.
+       Anh Viet bam the Hoan tien tu man phan he Ban hang - duong di qua
+       vgbGo - nen khong co phan ung gi. Nay xoa han ban chep, con mot cho.
+    */
+    return vgbGo(r.dataset.go);
   };
   vgbGomNhom();
   bcSoHomNay();
@@ -1320,8 +1274,8 @@ function vgbGo(k) {
   if (k === 'BCHUB') return go(scrBaoCao);
   if (k === 'DUYETYC') return go(scrDuyetYc);
   if (k === 'PO') return go(scrDonMua);
-    if (k === 'KHPO') return kgMo('PO');
-    if (k === 'KHHDM') return kgMo('HDM');
+  if (k === 'KHPO') return kgMo('PO');
+  if (k === 'KHHDM') return kgMo('HDM');
   if (k === 'CNPT') return go(scrNoPhaiTra);
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
@@ -1333,7 +1287,8 @@ function vgbGo(k) {
   if (k === 'OTP') return go(scrOtp);
   if (k === 'KM') return go(scrKhuyenMai);
   if (k === 'CN') return go(scrCongNo);
-    if (k === 'KH') return go(scrKhachHang);
+  if (k === 'HT') return go(scrHoanTien);
+  if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
   if (k === 'DSCOD') return go(scrVdCod);
@@ -11621,7 +11576,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '190';
+var APPVER = '191';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
