@@ -526,26 +526,43 @@ def go_but_dau_ky_trung(chay_that=0):
 		return ra
 
 	pila = _khoa()
-	from vagabond.khach_hang import _tinh_lai_so_du
-
+	# Xoa bang MOT CAU LENH cho moi lo, khong goi delete_doc tung ban ghi.
+	#
+	# Lan dau em viet vong lap delete_doc: 16.083 lan, moi lan Frappe con di
+	# kiem quyen va kiem lien ket, het hon hai phut, va cong mang ngat truoc
+	# khi xong nen KHONG XOA DUOC DONG NAO. Bang chung: dem lai van du
+	# 32.166 but. Doctype nay khong co hook on_trash rieng va khong nam
+	# trong KHOA_XOA, nen xoa thang la dung va nhanh hon hai bac.
 	da = 0
-	for ten in xoa:
-		try:
-			frappe.delete_doc(SO_DIEM, ten, ignore_permissions=True, force=True, delete_permanently=True)
-			da += 1
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "diem_dau_ky: go but trung %s" % ten)
+	for i in range(0, len(xoa), 2000):
+		lo = xoa[i : i + 2000]
+		frappe.db.sql(
+			"delete from `tab%s` where name in (%s)" % (SO_DIEM, ", ".join(["%s"] * len(lo))),
+			tuple(lo),
+		)
+		da += len(lo)
 	frappe.db.commit()
-	# Tinh lai so du tren Customer cho tung khach vua dong toi: o vgb_diem
-	# la ban tong hop, khong tinh lai thi man hinh con hien so cu.
-	for khach in theo_khach:
-		try:
-			_tinh_lai_so_du(khach)
-		except Exception:
-			pass
+
+	# Tinh lai o tong hop vgb_diem cung bang MOT cau lenh cho moi lo, thay vi
+	# 16.083 lan goi _tinh_lai_so_du. Cung mot phep cong, chay o may chu.
+	ma_khach = list(theo_khach)
+	for i in range(0, len(ma_khach), 2000):
+		lo = ma_khach[i : i + 2000]
+		frappe.db.sql(
+			"""
+			update `tabCustomer` c
+			set c.vgb_diem = ifnull((
+				select sum(d.diem) from `tab%s` d where d.khach = c.name
+			), 0)
+			where c.name in (%s)
+			"""
+			% (SO_DIEM, ", ".join(["%s"] * len(lo))),
+			tuple(lo),
+		)
 	frappe.db.commit()
 	pila.close()
 	ra["da_xoa"] = da
+	ra["tong_but_con"] = frappe.db.count(SO_DIEM, {"loai": LOAI_DAU_KY})
 	return ra
 
 
