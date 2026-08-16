@@ -214,6 +214,72 @@ la("31-04 roi ve 30-04", chot("2026-04-30", "31-04"), True)
 la("cau hinh rac thi khong chay", chot("2026-12-31", "linh tinh"), False)
 la("cau hinh rong thi ve mac dinh 31-12", chot("2026-12-31", ""), True)
 
+
+# =====================================================================
+# Chan cung: tong giam gia khong duoc vuot gia tri to (anh Viet 16/08/2026)
+# =====================================================================
+print("10. Chan don am")
+
+def tran_cung(grand_total, discount_amount, giam_moi):
+	"""Chep dung phep so cua diem_otp._tran_cung. Tra True neu BI CHAN."""
+	truoc_giam = float(grand_total) + float(discount_amount)
+	return float(giam_moi) > truoc_giam + 0.5
+
+# To 100.000, chua giam gi -> giam 100.000 vua du, khong chan
+la("giam dung bang gia tri to thi cho qua", tran_cung(100000, 0, 100000), False)
+la("giam vuot gia tri to thi CHAN", tran_cung(100000, 0, 100001), True)
+# To goc 100.000, da giam 30.000 (grand_total con 70.000).
+# Tong giam moi 100.000 la vua du.
+la("da co khuyen mai 30k, tong giam 100k vua du", tran_cung(70000, 30000, 100000), False)
+la("da co khuyen mai 30k, tong giam 120k thi CHAN", tran_cung(70000, 30000, 120000), True)
+# Day la ca that su nguy hiem: khuyen mai duoc AP THEM sau khi da tru diem.
+# To 100.000, diem da tru 60.000, nay them voucher 50.000 -> tong 110.000.
+la("diem 60k cong voucher 50k tren to 100k thi CHAN", tran_cung(40000, 60000, 110000), True)
+la("diem 60k cong voucher 40k tren to 100k thi vua du", tran_cung(40000, 60000, 100000), False)
+la("to 0 dong thi moi khoan giam duong deu bi CHAN", tran_cung(0, 0, 1000), True)
+
+# Diem ap len SO TIEN CUOI CUNG, sau khi da tru khuyen mai khac.
+# To goc 200.000, voucher 50.000 -> grand_total 150.000.
+# Tran 50% phai tinh tren 150.000 chu KHONG phai 200.000.
+print("11. Diem ap sau khuyen mai")
+la("tran tinh tren so sau khuyen mai", tran_dung_duoc(150000, 999999, 1, 50, 10000), 75000)
+la("khong duoc tinh tren so truoc khuyen mai", tran_dung_duoc(150000, 999999, 1, 50, 10000) != 100000, True)
+
+
+# =====================================================================
+# Hoan tien: mach doi soat SePay (vagabond/hoan_tien.py)
+# =====================================================================
+print("12. Doi soat lenh chi hoan tien")
+
+def _nap_ht():
+	src = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+	mt = {"re": re, "TIEN_TO_CK": "HT"}
+	for ten in ("noi_dung_ck", "khop_giao_dich"):
+		# Cat toi khi gap "def" hoac mot trang tri o dau dong: ham
+		# khop_giao_dich dung ngay truoc mot @frappe.whitelist().
+		m = re.search(r"^def %s\(.*?(?=^def |^@|\Z)" % ten, src, re.S | re.M)
+		if not m:
+			print("KHONG THAY ham %s trong hoan_tien.py" % ten); sys.exit(1)
+		exec(compile(m.group(0), "hoan_tien:%s" % ten, "exec"), mt, mt)
+	return mt
+
+Ht = _nap_ht()
+nd = Ht["noi_dung_ck"]; khop = Ht["khop_giao_dich"]
+
+la("noi dung chuyen khoan dung dinh dang", nd("HDB-2026-01604"), "HT HDB-2026-01604")
+la("khop dung ma", khop("HT HDB-2026-01604 hoan tien khach", "HDB-2026-01604"), True)
+la("khop ke ca khi ngan hang viet hoa het", khop("CK HT HDB-2026-01604", "HDB-2026-01604"), True)
+# Bay da tung dinh voi ma WOO: ma ngan KHONG duoc an nham giao dich cua ma dai
+la("ma ngan khong an nham ma dai", khop("HT HDB-2026-016040", "HDB-2026-01604"), False)
+la("ma dai khong khop voi giao dich cua ma ngan", khop("HT HDB-2026-0160", "HDB-2026-01604"), False)
+la("giao dich cua don khac thi khong khop", khop("HT HDB-2026-01605", "HDB-2026-01604"), False)
+la("mo ta rong", khop("", "HDB-2026-01604"), False)
+la("ma rong thi khong bao gio khop", khop("HT HDB-2026-01604", ""), False)
+la("ma rong va mo ta rong", khop("", ""), False)
+# Ma nam giua cau, hai ben la dau cach hoac dau cau
+la("ma nam giua cau van khop", khop("VAGABOND HT HDB-2026-01604, hoan khach", "HDB-2026-01604"), True)
+la("dinh lien chu cai thi khong khop", khop("XHDB-2026-01604", "HDB-2026-01604"), False)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
