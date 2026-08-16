@@ -476,6 +476,18 @@ la("ten dai bi cat dung 69", len(d3[2]), 69)
 la("noi dung dai bi cat dung 140", len(d3[5]), 140)
 la("cat roi phai NOI ra chu khong lang le cat", len(n3) >= 2, True)
 
+# Danh muc phai tra HET trong mot lan goi. Bat duoc sau khi deploy v195:
+# mac dinh cu la 60 nen app chi nhan 60 tren 581 ngan hang, khong bao gi.
+src_nh = open("vagabond/ngan_hang.py", encoding="utf-8").read()
+m_sd = re.search(r"^SO_DONG_MAC_DINH = (\d+)", src_nh, re.M)
+la("co hang so so dong mac dinh", bool(m_sd), True)
+la("mac dinh du cho ca 581 ngan hang", int(m_sd.group(1)) >= 581 if m_sd else False, True)
+la("ham tim KHONG tu dat mac dinh rieng",
+   bool(re.search(r"def tim\(tu_khoa=\"\", so_dong=None\)", src_nh)), True)
+import json as _json
+la("tep du lieu du 581 ngan hang",
+   len(_json.load(open("vagabond/du_lieu/napas.json", encoding="utf-8"))), 581)
+
 # Doc ten khach va so dien thoai tu o ghi chu cua don (anh Viet 17/08/2026)
 print("18. Doc ten khach va so dien thoai tu ghi chu don")
 tach = Ht["tach_ghi_chu_don"]
