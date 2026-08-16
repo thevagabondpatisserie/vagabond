@@ -589,3 +589,47 @@ def tinh_trang(si_name=None):
 		"ly_do_co_the": list(LY_DO),
 		"canh_bao_hddt": (d.get("custom_hddt_so") or "").strip(),
 	}
+
+
+@frappe.whitelist()
+def ds(trang_thai="", so_dong=100):
+	"""Danh sach phieu hoan tien cho man Hoan tien tren app."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	loc = {}
+	if (trang_thai or "").strip() and trang_thai != "tat_ca":
+		loc["trang_thai"] = trang_thai
+	ds_ = frappe.get_all(
+		DT,
+		filters=loc,
+		fields=[
+			"name", "hoa_don", "hoa_don_tra", "phieu_chi", "khach", "so_tien",
+			"ly_do", "trang_thai", "da_doi_soat", "noi_dung_ck", "creation",
+			"ten_tk", "so_tk", "ngan_hang", "nguoi_duyet",
+		],
+		order_by="creation desc",
+		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
+	)
+	ma_kh = list({d["khach"] for d in ds_ if d.get("khach")})
+	ten = {}
+	if ma_kh:
+		for c in frappe.get_all(
+			"Customer", filters={"name": ["in", ma_kh]}, fields=["name", "customer_name"], limit_page_length=0
+		):
+			ten[c["name"]] = c["customer_name"]
+	# Phieu chi da ghi so chua - de man hinh biet cai nao con cho ke toan.
+	ma_pc = list({d["phieu_chi"] for d in ds_ if d.get("phieu_chi")})
+	pc = {}
+	if ma_pc:
+		for p in frappe.get_all(
+			PE, filters={"name": ["in", ma_pc]}, fields=["name", "docstatus"], limit_page_length=0
+		):
+			pc[p["name"]] = cint(p["docstatus"])
+	for d in ds_:
+		d["ten_khach"] = ten.get(d.get("khach") or "", d.get("khach") or "")
+		d["phieu_chi_da_ghi"] = 1 if pc.get(d.get("phieu_chi") or "") == 1 else 0
+	dem = {"tat_ca": len(ds_)}
+	for t in ("Cho chi", "Da chi", "Da doi soat"):
+		dem[t] = frappe.db.count(DT, {"trang_thai": t})
+	return {"ds": ds_, "dem": dem, "kho_huy": _cd()["kho_huy"], "tk_chi": _cd()["tk_chi"]}

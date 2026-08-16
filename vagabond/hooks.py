@@ -85,6 +85,16 @@ doc_events = {
 		# luc do van kip rollback ca yeu cau nhung cho nao boc try/except roi
 		# tu commit thi ban sua lau van nam lai ma may van bao la da chan.
 		"before_update_after_submit": "vagabond.chung_tu.chan_ngay_khoa",
+		# MOT O EMAIL GO SAI KHONG DUOC LAM ROT CHUNG TU.
+		#
+		# Ngay 16/08/2026 mot khach go "...@gmail" thieu ".com", Frappe nem
+		# InvalidEmailAddressError va CA DON HANG khong vao duoc he - tien
+		# thu that ma doanh thu khong co. Dat o "*" chu khong liet ke tung
+		# doctype: co it nhat bon duong dat email vao mot hoa don, cong
+		# them Contact sinh tu nhap khach, va liet ke thi hom nao them
+		# duong thu sau la quen.
+		"before_validate": "vagabond.email_sach.don",
+		"after_insert": "vagabond.email_sach.ghi_vet",
 	},
 	# Ma khach hang sinh theo nhom (KL, SI, DN, SA, NB). Dat o autoname chu
 	# khong o before_insert: before_insert chay SAU khi Frappe da chot ten,
@@ -108,7 +118,12 @@ doc_events = {
 		# before_validate vi ERPNext tinh lai tong tien SAU buoc nay; dat o
 		# validate thi con so khong an. Va dat o hook chu khong o tung ham
 		# cua POS, vi co it nhat nam duong tao hoac sua mot hoa don.
-		"before_validate": "vagabond.noi_bo.truoc_khi_luu",
+		# Hai viec, chay theo thu tu: don o email sai truoc (de chung tu con
+		# luu duoc), roi moi ap giam gia noi bo.
+		"before_validate": [
+			"vagabond.email_sach.don",
+			"vagabond.noi_bo.truoc_khi_luu",
+		],
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh
 		# toan, hay phuong thuc khong dung duoc cho nguon do (anh Viet
