@@ -11,11 +11,47 @@ roi moi quyet dinh thi con duong lui.
 """
 
 import io
+from contextlib import ExitStack
 
 import frappe
 from frappe.utils import cint, flt, now_datetime
+from frappe.utils.synchronization import LockTimeoutError, filelock
 
 from vagabond.lib import sdt_so
+
+# Ten khoa dung chung cho MOI viec ghi hang loat vao so diem.
+#
+# Vi sao phai co - bat duoc bang mau chinh minh, 16/08/2026
+# --------------------------------------------------------
+# Lan chay that dau tien cua nap_dau_ky() bi goi HAI LAN gan nhu cung luc
+# (yeu cau dau treo qua lau nen ben goi thu lai). Hai luot cung doc bang
+# "khach da co but dau ky" khi CHUA ben nao commit, nen ca hai deu thay
+# bang rong va deu ghi. Ket qua: 16.083 khach moi nguoi hai but, quy diem
+# thanh 943 trieu thay vi 471 trieu.
+#
+# Kiem "da co chua" TRONG ma khong bao gio chan duoc chuyen nay, phai chan
+# tu ngoai bang khoa. Day dung la loi ma ban_hang._khoa_dong_bo da gap va
+# da giai ngay 07/08/2026 voi hai hoa don cho mot don Pancake; le ra phai
+# be nep do sang day tu dau.
+#
+# Khoa TEP chu khong phai khoa bo nho dem: tien trinh chet thi he dieu
+# hanh tu tha khoa, con khoa bo nho dem chet giua chung se de lai chia
+# khoa mo coi chan sach moi duong ghi so.
+KHOA_SO_DIEM = "vgb_ghi_so_diem"
+
+
+def _khoa(cho=5):
+	"""Chi cho MOT viec ghi hang loat vao so diem tai mot thoi diem."""
+	pila = ExitStack()
+	try:
+		pila.enter_context(filelock(KHOA_SO_DIEM, timeout=cho))
+	except LockTimeoutError:
+		pila.close()
+		frappe.throw(
+			"Máy đang chạy dở một lượt ghi sổ điểm. Chờ cho xong rồi hãy bấm lại, "
+			"đừng bấm thêm lần nữa - bấm hai lần là điểm bị cộng đôi."
+		)
+	return pila
 
 SO_DIEM = "Vagabond So Diem"
 LOAI_DAU_KY = "So du dau ky"
@@ -265,6 +301,15 @@ def nap_dau_ky(file_url=None, chay_that=0, ngay=None):
 
 	luc = ngay or now_datetime()
 	da_ghi = 0
+	pila = _khoa()
+	# Doc LAI danh sach da co NGAY SAU khi cam khoa. Luot thu hai vao toi
+	# day se thay luot thu nhat da ghi xong va bo qua sach, thay vi ghi de
+	# len mot lan nua.
+	da_co_2 = set(
+		frappe.get_all(SO_DIEM, filters={"loai": LOAI_DAU_KY}, pluck="khach", limit_page_length=0)
+	)
+	ra["se_ghi"] = [x for x in ra["se_ghi"] if x["khach"] not in da_co_2]
+	ra["bo_qua_da_co"] += len(da_co_2)
 	for x in ra["se_ghi"]:
 		try:
 			_ghi_so_diem(
@@ -278,6 +323,7 @@ def nap_dau_ky(file_url=None, chay_that=0, ngay=None):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "diem_dau_ky: nap %s" % x["khach"])
 	frappe.db.commit()
+	pila.close()
 	ra["da_ghi"] = da_ghi
 	ra["se_ghi"] = ra["se_ghi"][:50]
 	return ra
@@ -390,6 +436,11 @@ def tinh_lai_theo_ty_le(chay_that=0, tu_ngay=None, den_ngay=None):
 		return ra
 
 	da_ghi = 0
+	pila = _khoa()
+	da_chinh_2 = set(
+		frappe.get_all(SO_DIEM, filters={"loai": LOAI_DOI_TY_LE}, pluck="hoa_don", limit_page_length=0)
+	)
+	ra["lech"] = [x for x in ra["lech"] if x["hoa_don"] not in da_chinh_2]
 	for x in ra["lech"]:
 		try:
 			_ghi_so_diem(
@@ -404,8 +455,97 @@ def tinh_lai_theo_ty_le(chay_that=0, tu_ngay=None, den_ngay=None):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "diem_dau_ky: tinh lai %s" % x["hoa_don"])
 	frappe.db.commit()
+	pila.close()
 	ra["da_ghi"] = da_ghi
 	ra["lech"] = ra["lech"][:100]
+	return ra
+
+
+@frappe.whitelist()
+def go_but_dau_ky_trung(chay_that=0):
+	"""Go cac but "So du dau ky" bi ghi TRUNG do luot chay doi 16/08/2026.
+
+	Chi dong toi khach co TU HAI but dau ky tro len, va chi bo phan thua,
+	giu lai but SOM NHAT. Khach chi co mot but thi ham nay khong cham vao.
+
+	Vi sao xoa chu khong ghi but dao (QT-20)
+	----------------------------------------
+	QT-20 la de bao ve CHUNG TU: mot but do nghiep vu that sinh ra thi
+	khong duoc xoa dau vet. But thua o day khong phai nghiep vu - no la
+	ban sao do mot yeu cau bi goi hai lan trong cung mot phut, chua ai
+	nhin thay, chua khach nao tieu vao. Ghi but dao thi so co ba dong cho
+	mot su kien khong he xay ra, va nguoi doc so ba thang sau se khong
+	hieu chuyen gi.
+
+	Nhung day van la QUYET DINH CUA ANH VIET chu khong phai cua may: ham
+	MAC DINH CHAY THU, va bao cao du de doi chieu truoc khi bam that.
+	"""
+	_chi_quan_ly()
+	rows = frappe.db.sql(
+		"""
+		select name, khach, diem, creation
+		from `tab%s` where loai = %%s order by khach, creation
+		"""
+		% SO_DIEM,
+		(LOAI_DAU_KY,),
+		as_dict=True,
+	)
+	theo_khach = {}
+	for r in rows:
+		theo_khach.setdefault(r["khach"], []).append(r)
+
+	xoa, giu_diem, xoa_diem, lech = [], 0.0, 0.0, []
+	for khach, ds in theo_khach.items():
+		if len(ds) < 2:
+			giu_diem += flt(ds[0]["diem"])
+			continue
+		# So tien cua cac ban sao phai BANG NHAU. Khong bang thi day khong
+		# phai ban sao ma la hai su kien khac nhau - bo qua, bao ra de
+		# nguoi xem, tuyet doi khong doan.
+		if len({round(flt(x["diem"]), 4) for x in ds}) != 1:
+			lech.append({"khach": khach, "diem": [flt(x["diem"]) for x in ds]})
+			giu_diem += sum(flt(x["diem"]) for x in ds)
+			continue
+		giu_diem += flt(ds[0]["diem"])
+		for x in ds[1:]:
+			xoa.append(x["name"])
+			xoa_diem += flt(x["diem"])
+
+	ra = {
+		"chay_that": cint(chay_that),
+		"tong_but": len(rows),
+		"so_khach": len(theo_khach),
+		"se_xoa": len(xoa),
+		"diem_se_bot": xoa_diem,
+		"diem_con_lai": giu_diem,
+		"khach_lech_khong_dong": lech[:50],
+		"so_khach_lech": len(lech),
+	}
+	if not cint(chay_that):
+		ra["ghi_chu"] = "Bản chạy thử, chưa xoá gì. Đối chiếu số điểm còn lại rồi mới chạy thật."
+		return ra
+
+	pila = _khoa()
+	from vagabond.khach_hang import _tinh_lai_so_du
+
+	da = 0
+	for ten in xoa:
+		try:
+			frappe.delete_doc(SO_DIEM, ten, ignore_permissions=True, force=True, delete_permanently=True)
+			da += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "diem_dau_ky: go but trung %s" % ten)
+	frappe.db.commit()
+	# Tinh lai so du tren Customer cho tung khach vua dong toi: o vgb_diem
+	# la ban tong hop, khong tinh lai thi man hinh con hien so cu.
+	for khach in theo_khach:
+		try:
+			_tinh_lai_so_du(khach)
+		except Exception:
+			pass
+	frappe.db.commit()
+	pila.close()
+	ra["da_xoa"] = da
 	return ra
 
 

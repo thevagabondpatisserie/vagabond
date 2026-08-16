@@ -299,3 +299,110 @@ def _bao_nguoi(tieu_de, noi_dung):
 def _chi_quan_ly():
 	if not ({"System Manager", "Accounts Manager"} & set(frappe.get_roles())):
 		frappe.throw("Chỉ quản trị hệ thống hoặc kế toán trưởng chạy được việc này.")
+
+
+# ------------------------------------------------- man Cai dat tren app
+#
+# Truoc day cac o nay chi sua duoc trong ban quan tri Frappe. Anh Viet hoi
+# ngay 16/08/2026 "phan nay vao nut cai dat nao", va cau tra loi that luc
+# do la "chua vao nut nao ca" - nen bo sung ngay. Mot cai dat ma chu tiem
+# khong tu mo duoc thi coi nhu khong co.
+
+
+def _o_diem():
+	from vagabond import diem_otp
+
+	return diem_otp._cd()
+
+
+@frappe.whitelist()
+def cai_dat():
+	"""Doc toan bo thong so diem cho man Cai dat tren app. CHI DOC."""
+	_chi_quan_ly()
+	c, d = _cd(), _o_diem()
+	return {
+		"quy_doi": d["quy_doi"],
+		"tran_pt": d["tran_pt"],
+		"bill_toi_thieu": d["bill_toi_thieu"],
+		"otp_giay": d["otp_giay"],
+		"gia_lap": d["gia_lap"],
+		"co_mau_zns": 1 if d["mau_zns"] else 0,
+		"chu_ky": c["cach"],
+		"han_thang": c["han_thang"],
+		"ngay_chot": c["ngay_chot"],
+		"cach_co_the": list(CACH),
+		"ha_hang_tung_bac": cint(_ha_tung_bac()),
+	}
+
+
+def _ha_tung_bac():
+	from vagabond.lib import cfg
+
+	try:
+		v = cfg().get("ha_hang_tung_bac")
+		return 1 if (v is None or cint(v)) else 0
+	except Exception:
+		return 1
+
+
+@frappe.whitelist()
+def luu_cai_dat(
+	quy_doi=None, tran_pt=None, bill_toi_thieu=None, otp_giay=None,
+	chu_ky=None, han_thang=None, ngay_chot=None, ha_hang_tung_bac=None,
+):
+	"""Luu thong so diem tu man Cai dat. Kiem tung o truoc khi ghi."""
+	_chi_quan_ly()
+	dat = {}
+	if quy_doi is not None:
+		v = flt(quy_doi)
+		if v <= 0:
+			frappe.throw("Tỷ lệ quy đổi phải lớn hơn 0. Để 0 thì khách đốt điểm mà không được giảm đồng nào.")
+		dat["diem_quy_doi"] = v
+	if tran_pt is not None:
+		v = flt(tran_pt)
+		if v < 0 or v > 100:
+			frappe.throw("Trần dùng điểm phải trong khoảng 0 đến 100%. Nhập lại giúp em.")
+		dat["diem_tran_pt"] = v
+	if bill_toi_thieu is not None:
+		v = flt(bill_toi_thieu)
+		if v < 0:
+			frappe.throw("Mức bill tối thiểu không được âm. Nhập lại giúp em.")
+		dat["diem_bill_toi_thieu"] = v
+	if otp_giay is not None:
+		v = cint(otp_giay)
+		# 60 giay la qua ngan cho duong ZNS: cong do tre cua Zalo, thoi gian
+		# khach lay dien thoai va doc ma cho thu ngan la da cham nguong. Chan
+		# o day de sau nay khong ai vo tinh dat lai (anh Viet chot 180 giay).
+		if v < 60 or v > 900:
+			frappe.throw("Mã OTP phải sống từ 60 đến 900 giây. Nên để 180 giây.")
+		dat["diem_otp_giay"] = v
+	if chu_ky is not None:
+		v = str(chu_ky).strip()
+		if v not in CACH:
+			frappe.throw("Cách tính hạn điểm phải là một trong: %s." % ", ".join(CACH))
+		dat["diem_chu_ky"] = v
+	if han_thang is not None:
+		v = cint(han_thang)
+		if v < 1 or v > 120:
+			frappe.throw("Số tháng điểm sống phải từ 1 đến 120. Nhập lại giúp em.")
+		dat["diem_han_thang"] = v
+	if ngay_chot is not None:
+		v = str(ngay_chot).strip()
+		try:
+			ng, th = [int(x) for x in v.split("-")]
+		except Exception:
+			frappe.throw("Ngày chốt phải viết dạng ngay-thang, ví dụ 31-12. Nhập lại giúp em.")
+		if not (1 <= ng <= 31 and 1 <= th <= 12):
+			frappe.throw("Ngày chốt %s không có thật. Viết dạng ngay-thang, ví dụ 31-12." % v)
+		dat["diem_ngay_chot"] = "%02d-%02d" % (ng, th)
+	if ha_hang_tung_bac is not None:
+		dat["ha_hang_tung_bac"] = 1 if cint(ha_hang_tung_bac) else 0
+	if not dat:
+		return cai_dat()
+	doc = frappe.get_doc("Vagabond Settings")
+	doc.update(dat)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	frappe.clear_cache(doctype="Vagabond Settings")
+	return cai_dat()
