@@ -1,0 +1,322 @@
+{#-
+  MẪU 3 - THE LOOKBOOK
+  Thư báo giá The Vagabond Pâtisserie. Doctype: Bao Gia Ban Hang.
+
+  Ý ĐỒ THIẾT KẾ theo yêu cầu anh Việt 16/08/2026: phong cách tạp chí,
+  nhiều khoảng trắng, font serif cổ điển, có không gian hiển thị hình ảnh
+  sự kiện. Mẫu này dành cho Catering và Sự kiện, tức tờ khách hay chuyền
+  tay nhau xem món trước khi ngồi xuống bàn tiền.
+
+  Ba khác biệt so với hai mẫu kia, đều có lý do:
+  1. Giá KHÔNG nằm cạnh từng món. Món đọc như một trang thực đơn; toàn bộ
+     con số dồn về một trang tính riêng ở cuối. Đưa giá lên cạnh món là
+     khách đọc giá trước khi kịp thèm.
+  2. Chữ serif cho phần văn xuôi. Bộ nhận diện có sẵn một font serif trong
+     gói, dùng đúng nó chứ không mượn font lạ.
+  3. Cột ảnh món rộng, chừa sẵn chỗ; món chưa có hình thì ô đó thành một
+     mảng kem phẳng chứ không thành khung trống méo mó.
+
+  RÀNG BUỘC KỸ THUẬT, giống hai mẫu kia:
+  - Không flexbox, không grid. wkhtmltopdf chạy WebKit đời cũ.
+  - Mọi tiếng Anh nằm trong lớp .en, và .en là chỗ DUY NHẤT khai nghiêng.
+  - Vagabond Sans chỉ cho tiêu đề và luôn viết hoa.
+-#}
+{%- set A = frappe.utils.get_url() ~ "/assets/vagabond/mau_in" -%}
+{%- set sng = doc.song_ngu -%}
+{%- set cd = frappe.get_doc("Bao Gia Cai Dat") -%}
+{%- set ten_ban = cd.ten_ban or "CÔNG TY TNHH PATISSERIE VAGABOND" -%}
+{%- set mst_ban = cd.mst_ban or "0318561568" -%}
+{%- set dc_ban = cd.dia_chi_ban or "9 Trần Cao Vân, Phường Sài Gòn, TP.HCM" -%}
+{%- set web_ban = cd.web_ban or "www.thevagabondpatisserie.com" -%}
+
+{%- macro tien(x) -%}
+{{ "{:,.0f}".format(x | float | round(0)).replace(",", ".") }}
+{%- endmacro -%}
+{%- macro ngay(d) -%}
+{{ frappe.utils.formatdate(d, "dd/MM/yyyy") if d else "" }}
+{%- endmacro -%}
+
+<div class="vgb3">
+<style>
+@font-face { font-family: 'Vagabond Sans'; font-weight: 400; font-style: normal;
+  src: url('{{ A }}/VagabondSans-Regular.otf') format('opentype'); }
+@font-face { font-family: 'Vagabond Serif'; font-weight: 400; font-style: normal;
+  src: url('{{ A }}/Georgia.ttf') format('truetype'); }
+
+/* MOT CO CHU CHO MOI DOAN VAN XUOI.
+   Anh Viet 16/08/2026: thong tin khach, dieu khoan va khoi ky dang nho
+   hon Loi ngo, mat phai doi co lien tuc khi doc doc trang. Nay ca bon
+   phan cung 10.5pt; nho hon chi con danh cho nhan va dong phu. */
+.vgb3 { font-family: 'Vagabond Serif', Georgia, 'Times New Roman', serif;
+        color: #1A1A1A; font-size: 10.5pt; line-height: 2.05; }
+.vgb3 table { border-collapse: collapse; width: 100%; }
+.vgb3 td { padding: 0; vertical-align: top; }
+
+/* Tieng Anh LUON xuong dong rieng.
+   Anh Viet 16/08/2026: *"Cau tieng Anh phai tu dong rot xuong dong moi,
+   tuyet doi khong viet lien tu ti ngay sau duoi cau tieng Viet"*.
+   Dat display:block o day la xong mot lan cho MOI cho trong to. Di rai
+   the ngat dong bang tay thi som muon quen mot cho, va cho quen do chi
+   lo ra khi da in cho khach. Rieng .en-lien danh cho vai cho that su
+   phai nam cung dong, vi du nhan cot. */
+.vgb3 .en { display: block; font-style: italic; color: #8C857B;
+  font-size: 9.5pt; line-height: 1.9; margin-top: 0.6mm; }
+.vgb3 .en-lien { display: inline; }
+
+.vgb3 .sans { font-family: 'Vagabond Sans', 'Helvetica Neue', Arial, sans-serif;
+              text-transform: uppercase; }
+/* NGƯỠNG 13PT: Vagabond Sans là font tiêu đề, dưới cỡ đó nó vỡ thành
+   một hàng nét mờ. Nhãn nhỏ dùng Qualy viết hoa. */
+.vgb3 .nhan { font-family: 'Qualy', 'Helvetica Neue', Arial, sans-serif;
+  text-transform: uppercase; font-size: 7.5pt; letter-spacing: 0.14em;
+  font-weight: 600; color: #8C857B; white-space: nowrap; }
+
+/* Tạp chí: tiêu đề lớn nhưng thưa, chữ giãn, nhiều khoảng thở. */
+.vgb3 .bia {
+  font-family: 'Vagabond Sans', 'Helvetica Neue', Arial, sans-serif;
+  text-transform: uppercase; font-size: 26pt; letter-spacing: 0.14em;
+  line-height: 1.24; }
+.vgb3 .muc {
+  font-family: 'Vagabond Sans', 'Helvetica Neue', Arial, sans-serif;
+  text-transform: uppercase; font-size: 14pt; letter-spacing: 0.2em; }
+
+/* Mau chu dao dat o DUONG KE MUC va NHAN PHU. Hai cho nay lap lai deu
+   dan suot to nen mau chay thanh mot nhip, chu khong thanh cac dom mau
+   rai rac. Duong ke thuong van giu mau kem cho khoi at than bai. */
+.vgb3 .ke { border-top: 0.5pt solid #D9D2C7; }
+.vgb3 .ke-muc { border-top: 1.6pt solid #4FDCF2; }
+.vgb3 .ke-tong { border-top: 1pt solid #1A1A1A; }
+
+/* Đoạn dẫn kiểu tạp chí: chữ to hơn thân bài, dòng thưa. */
+.vgb3 .dan { font-size: 10.5pt; line-height: 2.1; color: #3A342C; }
+/* Van xuoi trong bang: bang dung co than bai, khong nho di. */
+.vgb3 .van { font-size: 10.5pt; line-height: 2.05; }
+
+.vgb3 .ten-mon { font-size: 12.5pt; line-height: 1.5; }
+.vgb3 .mo-ta { font-size: 10.5pt; color: #5A544B; line-height: 2.05; }
+.vgb3 .nho { font-size: 10.5pt; color: #5A544B; line-height: 2.05; }
+/* Nhan cot va dong chan van giu co nho, day moi la cho hop ly de nho. */
+.vgb3 .phu { font-size: 8.5pt; color: #8C857B; line-height: 1.8; }
+.vgb3 .so { text-align: right; white-space: nowrap; }
+
+/* Ô ảnh. Món chưa có hình thì đây là một mảng kem phẳng, không phải cái
+   khung trống nhìn như lỗi in. */
+.vgb3 .o-anh { background: #FAF7F2; }
+.vgb3 .o-anh img { width: 100%; height: auto; display: block; }
+
+/* Dải ảnh sự kiện, tràn ra hai mép giấy. Đổi lề trang trong Print
+   Settings thì sửa hai số -15mm cho khớp. */
+.vgb3 .dai-anh { margin: 0 -15mm; background: #FAF7F2; }
+
+.vgb3 .tong-lon {
+  font-family: 'Vagabond Sans', 'Helvetica Neue', Arial, sans-serif;
+  text-transform: uppercase; font-size: 17pt; letter-spacing: 0.06em; }
+.vgb3 .khoi { padding-top: 13mm; }
+</style>
+
+{#- ====================== TRANG BÌA ======================
+    Rất ít chữ. Logo, một dòng nhãn, tên sự kiện, tên khách. Hết. -#}
+<table><tr>
+  <td style="width:52%"><img src="{{ A }}/logo-den.png" style="width:58mm;height:auto"></td>
+  <td class="so" style="padding-top:2mm">
+    <span class="nhan">{{ doc.name }}</span>
+    {% if doc.phien_ban and doc.phien_ban > 1 %}<div class="nhan" style="color:#1A1A1A;padding-top:1mm">Vòng {{ doc.phien_ban }}</div>{% endif %}
+  </td>
+</tr></table>
+
+<div style="padding-top:26mm">
+  <div class="nhan" style="color:#3FBBD0">Thư báo giá{% if sng %} / Price Quotation{% endif %}</div>
+  <div class="bia" style="padding-top:5mm">{{ doc.ten or "" }}</div>
+  {% if sng and doc.ten_en %}<div class="en" style="font-size:12pt;padding-top:2mm">{{ doc.ten_en }}</div>{% endif %}
+</div>
+
+<table class="ke" style="margin-top:9mm">
+  <tr>
+    <td style="width:50%;padding:4mm 8mm 0 0">
+      <div class="nhan">Kính gửi</div>
+      <div style="font-size:12pt;padding-top:1mm">{{ doc.ten_khach or doc.khach_hang or "" }}</div>
+      {% if doc.nguoi_lien_he %}<div class="nho">{{ doc.nguoi_lien_he }}{% if doc.chuc_vu %} · {{ doc.chuc_vu }}{% endif %}</div>{% endif %}
+      {% if doc.ma_so_thue %}<div class="nho">MST {{ doc.ma_so_thue }}</div>{% endif %}
+    </td>
+    <td style="width:25%;padding:4mm 6mm 0 0">
+      <div class="nhan">Ngày</div><div style="padding-top:1mm">{{ ngay(doc.ngay_bao_gia) }}</div>
+      <div class="nhan" style="padding-top:3mm">Hiệu lực đến</div><div>{{ ngay(doc.hieu_luc_den) }}</div>
+    </td>
+    <td style="width:25%;padding:4mm 0 0">
+      <div class="nhan">Phụ trách</div>
+      <div style="padding-top:1mm">{{ doc.ten_nguoi_lap_in or "" }}</div>
+      {% if doc.dt_nguoi_lap %}<div class="nho">{{ doc.dt_nguoi_lap }}</div>{% endif %}
+    </td>
+  </tr>
+</table>
+
+{#- ====================== DẢI ẢNH SỰ KIỆN ======================
+    Tràn ra hai mép giấy. Khi có ảnh thật thì thay cả cụm div.dai-anh bằng
+    một thẻ img cùng chiều cao. -#}
+<div class="dai-anh" style="margin-top:11mm">
+  <table style="height:64mm"><tr><td style="vertical-align:middle;text-align:center">
+    <div class="nhan" style="color:#B9B1A5">Khoảng chừa cho ảnh sự kiện</div>
+    {% if sng %}<div class="en" style="color:#B9B1A5">Reserved for event photography</div>{% endif %}
+  </td></tr></table>
+</div>
+
+{#- ====================== LỜI NGỎ ====================== -#}
+{% if doc.loi_mo %}
+<div class="khoi">
+  <div class="dan">{{ doc.loi_mo }}</div>
+  {% if sng and doc.loi_mo_en %}<div class="en" style="font-size:10pt;padding-top:3mm">{{ doc.loi_mo_en }}</div>{% endif %}
+</div>
+{% endif %}
+
+{#- ====================== THỰC ĐƠN ĐỀ XUẤT ======================
+    Đây là phần khách đọc lâu nhất. Ảnh bên trái, chữ bên phải, không giá.
+    Toàn bộ con số dồn xuống trang tính ở dưới. -#}
+<div class="khoi">
+  <table class="ke-muc"><tr><td class="muc" style="padding-top:3mm">Thực đơn đề xuất</td>
+    {% if sng %}<td class="en en-lien so" style="padding-top:3mm;color:#3FBBD0">Proposed Menu</td>{% endif %}</tr></table>
+
+  {% for x in doc.dong %}{% if x.loai != "Phí" %}
+  <table class="{{ 'ke' if not loop.first else '' }}" style="margin-top:{{ '0' if loop.first else '2mm' }}">
+    <tr>
+      <td style="width:46mm;padding:7mm 9mm 7mm 0">
+        <div class="o-anh">
+          {% if x.hinh %}<img src="{{ x.hinh }}">
+          {% else %}<table style="height:34mm"><tr><td></td></tr></table>{% endif %}
+        </div>
+      </td>
+      <td style="padding:7mm 0">
+        <div class="ten-mon">{{ x.ten_mon }}</div>
+        {% if sng and x.ten_en %}<div class="en">{{ x.ten_en }}</div>{% endif %}
+        {% if x.mo_ta %}<div class="mo-ta" style="padding-top:2mm">{{ x.mo_ta }}</div>{% endif %}
+        {% if sng and x.mo_ta_en %}<div class="en" style="padding-top:1mm">{{ x.mo_ta_en }}</div>{% endif %}
+        <table style="margin-top:3mm"><tr>
+          {% if x.kich_thuoc %}<td class="nho" style="width:50%">{{ x.kich_thuoc }}</td>{% endif %}
+          {% if x.di_ung_vi %}<td class="nho">Dị ứng: {{ x.di_ung_vi }}
+            {% if sng and x.di_ung_en %}<div class="en">{{ x.di_ung_en }}</div>{% endif %}</td>{% endif %}
+        </tr></table>
+      </td>
+    </tr>
+  </table>
+  {% endif %}{% endfor %}
+</div>
+
+{#- ====================== DỊCH VỤ KÈM ====================== -#}
+{% if doc.dich_vu %}
+<div class="khoi">
+  <table class="ke-muc"><tr><td class="muc" style="padding-top:3mm">Dịch vụ kèm theo</td>
+    {% if sng %}<td class="en en-lien so" style="padding-top:3mm;color:#3FBBD0">Included Services</td>{% endif %}</tr></table>
+  <table>
+  {% for x in doc.dich_vu %}
+    <tr class="{{ 'ke' if not loop.first else '' }}">
+      <td style="padding:4mm 8mm 4mm 0">{{ x.ten_vi }}
+        {% if sng and x.ten_en %}<div class="en">{{ x.ten_en }}</div>{% endif %}</td>
+      <td class="so" style="width:44mm;padding:4mm 0">{{ x.gia_vi or "" }}
+        {% if sng and x.gia_en %}<div class="en">{{ x.gia_en }}</div>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{#- ====================== QUY TRÌNH ======================
+    Dải dọc theo mốc thời gian, không kẻ bảng. -#}
+{% if doc.moc %}
+<div class="khoi">
+  <table class="ke-muc"><tr><td class="muc" style="padding-top:3mm">Quy trình vận hành</td>
+    {% if sng %}<td class="en en-lien so" style="padding-top:3mm;color:#3FBBD0">Operation Process</td>{% endif %}</tr></table>
+  <table>
+  {% for x in doc.moc %}
+    <tr class="{{ 'ke' if not loop.first else '' }}">
+      <td style="width:46mm;padding:4.5mm 8mm 4.5mm 0">
+        <div class="nhan" style="color:#1A1A1A">{{ x.moc_vi }}</div>
+        {% if sng and x.moc_en %}<div class="en">{{ x.moc_en }}</div>{% endif %}</td>
+      <td style="padding:4.5mm 0"><div class="mo-ta" style="color:#1A1A1A">{{ x.noi_dung_vi }}</div>
+        {% if sng and x.noi_dung_en %}<div class="en">{{ x.noi_dung_en }}</div>{% endif %}</td>
+      <td class="so nho" style="width:32mm;padding:4.5mm 0">{{ x.trach_nhiem or "" }}</td>
+    </tr>
+  {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{#- ====================== TRANG TÍNH ======================
+    Giờ mới tới tiền. Gọn, một cột, không ảnh. -#}
+<div class="khoi">
+  <table class="ke-muc"><tr><td class="muc" style="padding-top:3mm">Báo giá tạm tính</td>
+    {% if sng %}<td class="en en-lien so" style="padding-top:3mm;color:#3FBBD0">Estimated Quotation</td>{% endif %}</tr></table>
+  <div class="nho" style="padding-top:2mm">
+    {{ "Đơn giá đã bao gồm VAT." if doc.gia_da_gom_vat else "Đơn giá chưa bao gồm VAT." }}
+    {% if sng %}<span class="en en-lien">{{ "Unit prices include VAT." if doc.gia_da_gom_vat else "Unit prices exclude VAT." }}</span>{% endif %}
+  </div>
+
+  <table style="margin-top:3mm">
+    {% for x in doc.dong %}
+    <tr class="ke">
+      <td style="padding:3.4mm 8mm 3.4mm 0">{{ x.ten_mon }}
+        {% if x.loai == "Phí" %}<span class="nho">(phí)</span>{% endif %}</td>
+      <td class="so nho" style="width:44mm;padding:3.4mm 0">{{ tien(x.so_luong) }} {{ x.dvt or "" }} × {{ tien(x.don_gia) }}</td>
+      <td class="so" style="width:30mm;padding:3.4mm 0">{{ tien(x.thanh_tien) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <table style="margin-top:5mm"><tr>
+    <td style="width:54%"></td>
+    <td>
+      <table>
+        <tr><td style="padding:1.4mm 0">Cộng tiền hàng{% if sng %} <span class="en en-lien">Subtotal</span>{% endif %}</td>
+            <td class="so">{{ tien(doc.tam_tinh) }}</td></tr>
+        {% if doc.chiet_khau_tien %}
+        <tr><td style="padding:1.4mm 0">Chiết khấu {{ doc.chiet_khau_pt | round(0) | int }}%{% if sng %} <span class="en en-lien">Discount</span>{% endif %}</td>
+            <td class="so">-{{ tien(doc.chiet_khau_tien) }}</td></tr>{% endif %}
+        {% if doc.phi_giao %}
+        <tr><td style="padding:1.4mm 0">Phí giao hàng{% if sng %} <span class="en en-lien">Delivery</span>{% endif %}</td>
+            <td class="so">{{ tien(doc.phi_giao) }}</td></tr>{% endif %}
+        {% if doc.thue_tien %}
+        <tr><td style="padding:1.4mm 0">Thuế GTGT {{ doc.thue_pt | round(0) | int }}%{% if sng %} <span class="en en-lien">VAT</span>{% endif %}</td>
+            <td class="so">{{ tien(doc.thue_tien) }}</td></tr>{% endif %}
+        <tr class="ke-tong">
+          <td class="tong-lon" style="padding-top:3mm">Tổng cộng</td>
+          <td class="so tong-lon" style="padding-top:3mm">{{ tien(doc.tong_cong) }}</td></tr>
+        {% if sng %}<tr><td class="en en-lien">Total</td><td class="en en-lien so">VND</td></tr>{% endif %}
+        {% if doc.dat_coc_tien %}
+        <tr><td style="padding-top:3mm">Đặt cọc {{ doc.dat_coc_pt | round(0) | int }}%{% if sng %} <span class="en en-lien">Deposit</span>{% endif %}</td>
+            <td class="so" style="padding-top:3mm">{{ tien(doc.dat_coc_tien) }}</td></tr>{% endif %}
+      </table>
+    </td>
+  </tr></table>
+</div>
+
+{#- ====================== ĐIỀU KHOẢN ====================== -#}
+{% if doc.thanh_toan %}
+<div class="khoi">
+  <table class="ke-muc"><tr><td class="muc" style="padding-top:3mm">Điều khoản thanh toán</td>
+    {% if sng %}<td class="en en-lien so" style="padding-top:3mm;color:#3FBBD0">Payment Terms</td>{% endif %}</tr></table>
+  <div class="van" style="padding-top:3mm;white-space:pre-line">{{ doc.thanh_toan }}</div>
+  {% if sng and doc.thanh_toan_en %}<div class="en" style="white-space:pre-line;padding-top:2mm">{{ doc.thanh_toan_en }}</div>{% endif %}
+</div>
+{% endif %}
+
+{#- ====================== HAI Ô KÝ VÀ CHÂN TRANG ====================== -#}
+<div class="khoi" style="padding-top:16mm">
+  <table><tr>
+    <td style="width:50%;padding-right:16mm">
+      <div class="nhan">Bên mua{% if sng %} / Buyer{% endif %}</div>
+      <div style="padding-bottom:22mm">{{ doc.ten_khach or "" }}</div>
+      <table class="ke"><tr><td style="height:1mm"></td></tr></table>
+    </td>
+    <td style="width:50%">
+      <div class="nhan">Bên bán{% if sng %} / Seller{% endif %}</div>
+      <div>{{ ten_ban }}</div>
+      <div class="nho" style="padding-bottom:18mm">{{ doc.ten_nguoi_lap_in or "" }}{% if doc.chuc_vu_lap %}, {{ doc.chuc_vu_lap }}{% endif %}</div>
+      <table class="ke"><tr><td style="height:1mm"></td></tr></table>
+    </td>
+  </tr></table>
+</div>
+
+<table class="ke-tong" style="margin-top:13mm">
+  <tr><td class="nhan" style="padding-top:3mm">{{ ten_ban }} · MST {{ mst_ban }}</td>
+      <td class="nhan so" style="padding-top:3mm">{{ web_ban }}</td></tr>
+  <tr><td class="phu" colspan="2">{{ dc_ban }}</td></tr>
+</table>
+</div>
