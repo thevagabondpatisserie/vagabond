@@ -49,3 +49,16 @@ def execute():
 		# Patch hong KHONG duoc chan ca lan migrate: chan thi site khong len
 		# duoc phien ban moi, ma loi that thi chi la thieu vai truong.
 		frappe.log_error(frappe.get_traceback(), "patches: dong bo cau truc")
+
+	# Danh muc 581 ngan hang theo tep chuyen tien lo cua MB Biz.
+	#
+	# Chay lai duoc, va chi THEM cai con thieu - khong dung vao ngan hang da
+	# co, vi chung dang duoc cac Bank Account tro toi.
+	try:
+		from vagabond import ngan_hang
+
+		kq = ngan_hang.nap_danh_muc()
+		if kq.get("them"):
+			frappe.logger().info("dong_bo_cau_truc: them %d ngan hang" % kq["them"])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: nap danh muc ngan hang")
