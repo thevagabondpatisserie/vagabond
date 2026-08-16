@@ -244,6 +244,7 @@ def tao(si_name=None, ly_do=None, dien_giai="", otp=None, ten_tk="", so_tk="", n
 	ho_so.noi_dung_ck = noi_dung_ck(tra.name)
 
 	_thu_hoi_diem(si, tra.name, ly_do)
+	phieu_kho = _chuyen_kho_huy(si, tra, kho, ly_do)
 
 	pe = _lap_phieu_chi(si, tra, ho_so)
 	ho_so.phieu_chi = pe.name if pe else None
@@ -255,6 +256,7 @@ def tao(si_name=None, ly_do=None, dien_giai="", otp=None, ten_tk="", so_tk="", n
 		"ok": 1,
 		"ho_so": ho_so.name,
 		"hoa_don_tra": tra.name,
+		"phieu_kho": phieu_kho,
 		"phieu_chi": ho_so.phieu_chi,
 		"so_tien": flt(si.grand_total),
 		"kho_huy": kho,
@@ -285,15 +287,27 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so):
 	from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
 
 	tra = make_sales_return(si.name)
-	tra.update_stock = 1
+	# update_stock = 0, GIONG HET moi hoa don khac cua he.
+	#
+	# Ban dau em dat 1 de hang tu chay thang vao kho huy. Chay thu that
+	# ngay 16/08/2026 thi ERPNext tu choi:
+	#
+	#     'Cap nhat kho' khong the chon vi MH khong duoc giao qua HDB-...
+	#
+	# Doc lai moi hieu: CA HE nay chay update_stock = 0 co chu y - ghi chu
+	# dau ban_hang.py noi ro "GIAI DOAN 1 KHONG cap nhat kho, chi ghi doanh
+	# thu", kho do kiem banh lo rieng. Ban ra khong tru kho, nen tra ve ma
+	# cong kho la CONG KHONG cua ai ca: ton kho phinh len bang so hang von
+	# chua bao gio bi tru.
+	#
+	# Nen to tra hang theo dung nep cua he, con duong hang di vao kho huy
+	# tach ra thanh mot phieu chuyen kho rieng - xem _chuyen_kho_huy.
+	tra.update_stock = 0
 	tra.set_posting_time = 1
 	tra.posting_date = nowdate()
 	for d in tra.items:
-		# DONG QUAN TRONG NHAT CUA CA TEP.
-		#
-		# make_sales_return mac dinh tra hang ve dung kho da xuat. Khong ghi
-		# de thi banh khach tra vi di ung se nam trong kho ban va duoc ban
-		# lai cho nguoi tiep theo.
+		# Van ghi kho huy len tung dong de doc to nay la biet hang di dau,
+		# du dong nay khong sinh but kho nao.
 		d.warehouse = kho
 		d.target_warehouse = None
 	tra.remarks = ("Trả hàng %s. Lý do: %s. Hồ sơ %s." % (si.name, ly_do, ma_ho_so))[:500]
@@ -305,6 +319,79 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so):
 	tra.insert(ignore_permissions=True)
 	tra.submit()
 	return tra
+
+
+def _chuyen_kho_huy(si, tra, kho, ly_do):
+	"""Phieu chuyen hang tu kho ban sang Kho Hang Huy. De o trang thai NHAP.
+
+	Vi sao la mot phieu rieng chu khong nam trong hoa don tra
+	---------------------------------------------------------
+	He nay ban ra KHONG tru kho (update_stock = 0, xem ghi chu dau
+	ban_hang.py). Nen neu to tra hang lai cong kho thi ton kho phinh len
+	bang so hang von chua bao gio bi tru. Hang van dang nam o kho ban tren
+	so sach, va viec dung la CHUYEN no sang kho huy - khong de ra so luong
+	moi.
+
+	Vi sao de NHAP: anh Viet viet "cho kiem ke tieu huy". Luc lap phieu thi
+	banh con nam tren quay, chua ai dem va chua ai do bo. Kho bam ghi so khi
+	that su nhan hang.
+
+	Bo qua mat hang khong theo doi ton kho (ve workshop, phi giao...): ep
+	chuyen kho nhung thu do la nem loi vo ich giua mot luong dang chay.
+	"""
+	try:
+		dong = []
+		for d in tra.items:
+			ma = (d.get("item_code") or "").strip()
+			if not ma:
+				continue
+			if not cint(frappe.db.get_value("Item", ma, "is_stock_item")):
+				continue
+			nguon = _kho_nguon(si, ma)
+			if not nguon or nguon == kho:
+				continue
+			dong.append(
+				{
+					"item_code": ma,
+					"qty": abs(flt(d.get("qty"))),
+					"s_warehouse": nguon,
+					"t_warehouse": kho,
+				}
+			)
+		if not dong:
+			return ""
+		pk = frappe.new_doc("Stock Entry")
+		pk.stock_entry_type = "Material Transfer"
+		pk.company = si.company
+		pk.set_posting_time = 1
+		pk.posting_date = nowdate()
+		pk.remarks = "Hàng khách trả từ %s (%s), chuyển sang %s chờ kiểm kê tiêu huỷ." % (
+			si.name, ly_do, kho,
+		)
+		for r in dong:
+			pk.append("items", r)
+		pk.flags.ignore_permissions = True
+		pk.insert(ignore_permissions=True)
+		return pk.name
+	except Exception:
+		# Hoa don tra da ghi so roi. Phieu kho hong thi kho lap tay duoc,
+		# KHONG duoc nem loi lam hong ca luong hoan tien.
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: lap phieu chuyen kho huy loi")
+		return ""
+
+
+def _kho_nguon(si, ma_hang):
+	"""Kho hang da nam truoc khi tra. Uu tien kho ghi tren chinh dong ban."""
+	for d in si.get("items") or []:
+		if (d.get("item_code") or "") == ma_hang and (d.get("warehouse") or ""):
+			return d.get("warehouse")
+	# Khong co thi lay kho dang con ton nhieu nhat cua mat hang do.
+	r = frappe.db.sql(
+		"""select warehouse from `tabBin` where item_code = %s and actual_qty > 0
+		order by actual_qty desc limit 1""",
+		(ma_hang,),
+	)
+	return r[0][0] if r else ""
 
 
 def _thu_hoi_diem(si, ma_tra, ly_do):
