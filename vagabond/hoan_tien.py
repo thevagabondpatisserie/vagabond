@@ -31,6 +31,7 @@ su chuyen di. Ke toan mo phieu, chuyen khoan that, dinh kem uy nhiem chi,
 roi moi ghi so.
 """
 
+import json
 import re
 
 import frappe
@@ -43,7 +44,13 @@ SI = "Sales Invoice"
 PE = "Payment Entry"
 
 TEN_KHO_HUY = "Kho Hàng Hủy"
-TIEN_TO_CK = "HT"
+# Cu phap noi dung chuyen khoan, anh Viet chot 16/08/2026.
+#
+# Doi tu "HT <ma>" sang chuoi day du: dong sao ke ngan hang chi co mot o
+# noi dung, va do la thu duy nhat ke toan doc duoc sau ba thang. "HT" thi
+# ngan gon nhung khong ai doan ra la gi; "THE VAGABOND HOAN TIEN" thi
+# nhin phat biet ngay.
+TIEN_TO_CK = "THE VAGABOND HOAN TIEN"
 
 LY_DO = ("Khach doi y", "Banh hong", "Di ung", "Giao sai mon", "Giao tre", "Khac")
 
@@ -168,38 +175,142 @@ def tk_chi(cong_ty=None):
 # Hai ham THUAN, khong doc co so du lieu. Bo kiem thu chay duoc khong can site.
 
 
-def noi_dung_ck(ma_hoa_don_tra):
-	"""Noi dung chuyen khoan de doi soat SePay. THUAN.
+def noi_dung_ck(ma_hoa_don):
+	"""Noi dung chuyen khoan ke toan go vao MB Biz. THUAN.
+
+	Cu phap anh Viet chot 16/08/2026:
+
+	    THE VAGABOND HOAN TIEN <ma hoa don goc>
+
+	Vi sao mang ma HOA DON GOC chu khong mang ma phieu HT-: ke toan, khach,
+	va ca nguoi doc sao ke sau nay deu tra cuu theo ma don. Mot dong sao ke
+	ghi "HT-2026-00775" thi khong ai biet la cua don nao neu khong tra bang.
 
 	Vi sao doi soat theo NOI DUNG chu khong theo SO TIEN: hai khach cung
-	duoc hoan 250.000 d trong mot ngay la chuyen thuong, do theo so tien
-	la khop nham. Day cung dung nep mach S<shop>O<don>T ma Pancake dang
-	dung cho tien vao.
+	duoc hoan 250.000 d trong mot ngay la chuyen thuong, do theo so tien la
+	khop nham.
 	"""
-	return "%s %s" % (TIEN_TO_CK, str(ma_hoa_don_tra or "").strip())
+	return "%s %s" % (TIEN_TO_CK, str(ma_hoa_don or "").strip())
 
 
-def khop_giao_dich(mo_ta, ma_hoa_don_tra):
+# Ma hoa don tren he co HAI dang, va day la cho de sai nhat cua ca luong
+# doi soat. Em dem 16/08/2026 tren 43.458 hoa don:
+#
+#     HDB-2026-01593     dang cu,  HAI nhom so   - chiem phan lon
+#     HDB-26-08-00323    dang moi, BA nhom so
+#
+# Anh Viet dua regex HDB-\d+-\d+-\d+; regex do bat dung dang moi va BO SOT
+# toan bo dang cu. Nen o day noi thanh 1 den 3 nhom so, va van chan hai dau
+# de "HDB-2026-0160" khong an nham giao dich cua "HDB-2026-01604" - dung
+# cai bay da gap voi ma WOO.
+RX_MA_HD = re.compile(r"(?<![0-9A-Za-z])(HDB-[0-9]+(?:-[0-9]+){1,3})(?![0-9A-Za-z])", re.IGNORECASE)
+
+
+def _got(chu):
+	"""Bo moi ky tu khong phai chu hoac so, roi viet HOA. THUAN.
+
+	Vi sao can: ngan hang khong tra lai noi dung y nguyen. Cung mot lenh
+	chi, sao ke co the ve thanh "THE VAGABOND HOAN TIEN HDB 26 08 00323"
+	(mat dau gach), hoac dinh them ma tham chieu o hai dau. So hai chuoi
+	tho voi nhau la truot.
+	"""
+	return re.sub(r"[^0-9A-Za-z]+", "", str(chu or "")).upper()
+
+
+def tim_ma_hoa_don(mo_ta):
+	"""Doc mot dong sao ke, tra ve ma hoa don nam trong do. THUAN.
+
+	Tra chuoi rong neu khong thay. Dung cho duong SePay quet tien RA: doc
+	dong tien roi tu tim xem no thuoc phieu nao, khong can biet truoc.
+	"""
+	m = RX_MA_HD.search(str(mo_ta or ""))
+	return m.group(1).upper() if m else ""
+
+
+def khop_giao_dich(mo_ta, ma_hoa_don):
 	"""Mot dong sao ke co phai la lenh chi cua don nay khong. THUAN.
 
-	Chan hai dau bang ky tu khong phai chu-so, de "HDB-2026-0160" khong an
-	nham giao dich cua "HDB-2026-01604" - dung bay da gap voi ma WOO.
+	Xet HAI duong, trung mot duong la khop:
+	  1. Doc thang ma hoa don trong mo ta, khi dau gach con nguyen.
+	  2. So sau khi got het ky tu ngan cach, bat duoc ca dong bi ngan hang
+	     lam mat dau gach.
 	"""
-	ma = str(ma_hoa_don_tra or "").strip()
+	ma = str(ma_hoa_don or "").strip()
 	if not ma:
 		return False
-	rx = re.compile(r"(?<![0-9A-Za-z])%s(?![0-9A-Za-z])" % re.escape(ma), re.IGNORECASE)
-	return bool(rx.search(str(mo_ta or "")))
+	if tim_ma_hoa_don(mo_ta).upper() == ma.upper():
+		return True
+	g_ma, g_mo = _got(ma), _got(mo_ta)
+	if not g_ma or g_ma not in g_mo:
+		return False
+	# Chan hai dau tren ban da got: ma ngan khong duoc an nham ma dai.
+	vt = g_mo.find(g_ma)
+	sau = g_mo[vt + len(g_ma):vt + len(g_ma) + 1]
+	return not sau.isdigit()
+
+
+def ty_le_hop_le(so_tien_hoan, tong_don):
+	"""So tien hoan nay co nam trong tong don khong. THUAN.
+
+	Tra (duoc, cau_nhac). Chan cung o may chu chu khong tin o nhap tren man
+	(QT-19). Cau nhac viet theo QT-24: noi ro nguoi dung lam gi tiep.
+	"""
+	tien, tong = flt(so_tien_hoan), flt(tong_don)
+	if tong <= 0:
+		return False, "Đơn này tổng tiền bằng 0 nên không có gì để hoàn."
+	if tien <= 0:
+		return False, "Số tiền hoàn phải lớn hơn 0. Nhập lại giúp em."
+	if tien > tong + 0.5:
+		return False, (
+			"Số tiền hoàn %s đ lớn hơn tổng đơn %s đ. Sửa lại số tiền cho nhỏ hơn "
+			"hoặc bằng tổng đơn rồi gửi lại."
+			% ("{:,.0f}".format(tien).replace(",", "."), "{:,.0f}".format(tong).replace(",", "."))
+		)
+	return True, ""
 
 
 # --------------------------------------------------------------- viec chinh
 
 
 @frappe.whitelist()
-def tao(si_name=None, ly_do=None, dien_giai="", otp=None, ten_tk="", so_tk="", ngan_hang="", sdt_khach=""):
-	"""Tra hang va lap ho so hoan tien cho mot hoa don DA GHI SO."""
-	from vagabond.ban_hang import _kiem_quyen, _otp_kiem
+def tao(
+	si_name=None,
+	ly_do=None,
+	dien_giai="",
+	so_tien=0,
+	ten_tk="",
+	so_tk="",
+	ngan_hang="",
+	sdt_khach="",
+	tep=None,
+	otp=None,
+):
+	"""Sales gui YEU CAU hoan tien. Chua sinh chung tu, chua dong tien nao.
 
+	Anh Viet chot 16/08/2026: doi tu luong "bam la xong" sang luong CO DUYET
+	--------------------------------------------------------------------
+	Truoc do mot cu bam la sinh ngay bon thu: hoa don tra, but diem, phieu
+	kho, phieu chi. Doi lai bang mot ma PIN quan ly go tai quay.
+
+	Nay tach lam hai nhip:
+	  Nhip 1 (ham nay)  - Sales lap YEU CAU. Khong sinh chung tu nao het.
+	  Nhip 2 (_sinh_chung_tu) - chi chay khi SePay bao TIEN DA RA THAT.
+
+	Vi sao bo ma PIN: PIN o quay chan duoc mot nguoi go nham, nhung no khong
+	chan duoc mot khoan chi sai - vi luc go PIN thi tien van chua di dau ca.
+	Cua duyet that nam o ke toan, la nguoi cam tay chuyen khoan. Nen cai
+	phai bat buoc khong phai ma PIN ma la BANG CHUNG: anh chup khach phan
+	anh, anh banh hong. Khong co anh thi khong gui duoc yeu cau.
+
+	Va vi sao chung tu doi den luc tien ra moi sinh: yeu cau bi tu choi giua
+	chung la chuyen thuong. Sinh hoa don tra tu dau roi bi tu choi thi phai
+	di huy mot to da ghi so, tuc la de lai vet trong so sach cho mot viec
+	chua bao gio xay ra.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	# KHONG con hoi ma PIN (anh Viet chot 16/08/2026). Tham so otp giu lai
+	# de man cu goi vao khong vo, nhung khong dung den.
 	_kiem_quyen()
 	si = frappe.get_doc(SI, si_name)
 	_kiem_tra_duoc(si)
@@ -210,59 +321,197 @@ def tao(si_name=None, ly_do=None, dien_giai="", otp=None, ten_tk="", so_tk="", n
 	if ly_do == "Khac" and not (dien_giai or "").strip():
 		frappe.throw("Lý do \"Khác\" thì phải ghi rõ vì sao hoàn. Gõ vào ô Diễn giải giúp em.")
 
-	# Ma PIN quan ly: dung LAI dung co che dang chay cho sua va xoa hoa don,
-	# khong de them mot he ma thu hai de roi quan ly phai nho hai thu.
-	cach = _otp_kiem(otp, "hoàn tiền cho khách")
+	# TRAN SO TIEN TINH LAI O MAY CHU (QT-19). Man co chan roi, nhung con so
+	# di qua duong mang thi khong tin duoc.
+	tien = flt(so_tien) or flt(si.grand_total)
+	duoc, nhac = ty_le_hop_le(tien, flt(si.grand_total))
+	if not duoc:
+		frappe.throw(nhac)
 
-	cty = si.company
-	kho = kho_huy(cty)
-	if not kho:
-		frappe.throw("Chưa dựng được Kho Hàng Hủy. Báo em để kiểm tra lại cấu hình kho.")
+	tk = re.sub(r"\s+", "", str(so_tk or ""))
+	if not tk or not (ten_tk or "").strip() or not (ngan_hang or "").strip():
+		frappe.throw(
+			"Còn thiếu thông tin tài khoản nhận tiền. Điền đủ tên ngân hàng, số tài "
+			"khoản và tên chủ tài khoản của khách rồi gửi lại."
+		)
+
+	# BANG CHUNG BAT BUOC. Ke toan ngoi xa quay, khong nhin thay cai banh
+	# hong, nen cai duy nhat ho co de quyet la anh chup.
+	anh = _doc_tep(tep)
+	if not anh:
+		frappe.throw(
+			"Phải đính kèm ít nhất một ảnh làm căn cứ (ảnh khách phản ánh, hoặc ảnh "
+			"bánh hỏng). Bấm nút thêm ảnh ở ô Bằng chứng rồi gửi lại."
+		)
 
 	ho_so = frappe.get_doc(
 		{
 			"doctype": DT,
 			"hoa_don": si.name,
 			"khach": si.customer,
-			"so_tien": flt(si.grand_total),
+			"so_tien": tien,
 			"ly_do": ly_do,
 			"dien_giai": (dien_giai or "").strip(),
 			"trang_thai": "Cho chi",
 			"ten_tk": (ten_tk or "").strip(),
-			"so_tk": re.sub(r"\s+", "", str(so_tk or "")),
+			"so_tk": tk,
 			"ngan_hang": (ngan_hang or "").strip() or None,
 			"sdt": sdt(sdt_khach) or "",
 			"nguoi_duyet": frappe.session.user,
-			"cach_duyet": cach,
+			"cach_duyet": "Gui duyet tu man Chi tiet don",
+			"noi_dung_ck": noi_dung_ck(si.name),
 		}
 	)
 	ho_so.flags.ignore_permissions = True
 	ho_so.insert(ignore_permissions=True)
 
-	tra = _lap_hoa_don_tra(si, kho, ly_do, ho_so.name)
-	ho_so.hoa_don_tra = tra.name
-	ho_so.noi_dung_ck = noi_dung_ck(tra.name)
-
-	_thu_hoi_diem(si, tra.name, ly_do)
-	phieu_kho = _chuyen_kho_huy(si, tra, kho, ly_do)
-
-	pe = _lap_phieu_chi(si, tra, ho_so)
-	ho_so.phieu_chi = pe.name if pe else None
-	ho_so.flags.ignore_permissions = True
-	ho_so.save(ignore_permissions=True)
+	dinh = _dinh_kem(ho_so.name, anh)
 	frappe.db.commit()
+
+	da_gui, nguoi_nhan = _bao_ke_toan(ho_so, si)
 
 	return {
 		"ok": 1,
 		"ho_so": ho_so.name,
-		"hoa_don_tra": tra.name,
-		"phieu_kho": phieu_kho,
-		"phieu_chi": ho_so.phieu_chi,
-		"so_tien": flt(si.grand_total),
-		"kho_huy": kho,
+		"so_tien": tien,
+		"tong_don": flt(si.grand_total),
+		"mot_phan": 1 if tien < flt(si.grand_total) - 0.5 else 0,
+		"so_anh": dinh,
 		"noi_dung_ck": ho_so.noi_dung_ck,
+		"da_bao_ke_toan": da_gui,
+		"nguoi_nhan": nguoi_nhan,
 		"canh_bao_hddt": (si.get("custom_hddt_so") or "").strip(),
 	}
+
+
+def _doc_tep(tep):
+	"""Chuan hoa danh sach tep tu man gui len. Tra list rong neu khong co."""
+	if not tep:
+		return []
+	if isinstance(tep, str):
+		try:
+			tep = json.loads(tep)
+		except Exception:
+			return []
+	if isinstance(tep, dict):
+		tep = [tep]
+	ra = []
+	for t in tep or []:
+		if not isinstance(t, dict):
+			continue
+		if (t.get("noi_dung") or "").strip():
+			ra.append({"ten": (t.get("ten") or "bang-chung.jpg").strip(), "noi_dung": t["noi_dung"]})
+	return ra
+
+
+def _dinh_kem(ma_ho_so, anh):
+	"""Ghi anh bang chung vao ho so. Tra so tep dinh duoc.
+
+	Loi mot tep khong duoc lam do ca yeu cau: ho so da lap roi, va Sales
+	dinh bu duoc tep con thieu tren man danh sach.
+	"""
+	n = 0
+	for a in anh:
+		try:
+			noi = a["noi_dung"]
+			if "," in noi and noi[:5] in ("data:", "DATA:"):
+				noi = noi.split(",", 1)[1]
+			f = frappe.get_doc(
+				{
+					"doctype": "File",
+					"file_name": a["ten"],
+					"attached_to_doctype": DT,
+					"attached_to_name": ma_ho_so,
+					"content": noi,
+					"decode": True,
+					"is_private": 1,
+				}
+			)
+			f.flags.ignore_permissions = True
+			f.insert(ignore_permissions=True)
+			n += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hoan_tien: dinh kem bang chung loi")
+	return n
+
+
+VAI_KE_TOAN = ("Accounts Manager", "Accounts User")
+
+
+def _bao_ke_toan(ho_so, si):
+	"""Gui thu bao ke toan co yeu cau hoan tien moi. Tra (da_gui, danh_sach).
+
+	Anh Viet chot 16/08/2026: gui cho MOI nguoi mang vai tro ke toan tren
+	he, khong khai dia chi co dinh. Ai duoc them vai tro sau nay thi tu
+	dong nhan, khong phai sua ma.
+
+	Ham nay KHONG BAO GIO nem loi: ho so da lap xong roi, may chu thu hong
+	thi ke toan van thay yeu cau tren man danh sach. Nem loi o day la lam
+	hong mot viec da thanh cong.
+	"""
+	try:
+		nguoi = set()
+		for vai in VAI_KE_TOAN:
+			for u in frappe.get_all("Has Role", filters={"role": vai}, fields=["parent"], limit_page_length=0):
+				nguoi.add(u["parent"])
+		mail = []
+		for u in nguoi:
+			d = frappe.db.get_value("User", u, ["email", "enabled"], as_dict=True)
+			if d and cint(d.get("enabled")) and (d.get("email") or "").strip():
+				mail.append(d["email"].strip())
+		mail = sorted(set(mail))
+		if not mail:
+			frappe.log_error(
+				"Khong tim thay nguoi dung nao mang vai tro ke toan, nen khong gui duoc "
+				"thu bao ho so %s." % ho_so.name,
+				"hoan_tien: khong co nguoi nhan",
+			)
+			return 0, []
+
+		tien = "{:,.0f}".format(flt(ho_so.so_tien)).replace(",", ".")
+		tong = "{:,.0f}".format(flt(si.grand_total)).replace(",", ".")
+		phan = "toàn bộ đơn" if flt(ho_so.so_tien) >= flt(si.grand_total) - 0.5 else "một phần đơn"
+		than = (
+			"<p>Có một yêu cầu hoàn tiền mới chờ chi.</p>"
+			"<table cellpadding='6' style='border-collapse:collapse'>"
+			"<tr><td><b>Phiếu</b></td><td>%s</td></tr>"
+			"<tr><td><b>Hoá đơn gốc</b></td><td>%s (tổng %s đ)</td></tr>"
+			"<tr><td><b>Số tiền hoàn</b></td><td><b>%s đ</b> - %s</td></tr>"
+			"<tr><td><b>Lý do</b></td><td>%s%s</td></tr>"
+			"<tr><td><b>Người gửi</b></td><td>%s</td></tr>"
+			"<tr><td><b>Tài khoản nhận</b></td><td>%s - %s - %s</td></tr>"
+			"<tr><td><b>Nội dung chuyển khoản</b></td><td><b>%s</b></td></tr>"
+			"</table>"
+			"<p>Mở app, vào Bán hàng, Hoàn tiền / Trả hàng để xem ảnh khách gửi kèm "
+			"và bấm Xuất thông tin chuyển khoản MB Biz.</p>"
+			"<p style='color:#92400e'>Tiền chỉ được ghi sổ sau khi có Uỷ nhiệm chi tải "
+			"từ e-banking đính kèm. Dòng sao kê SePay chỉ để biết tiền đã đi chưa.</p>"
+		) % (
+			ho_so.name,
+			si.name,
+			tong,
+			tien,
+			phan,
+			frappe.utils.escape_html(ho_so.ly_do or ""),
+			(": " + frappe.utils.escape_html(ho_so.dien_giai)) if ho_so.dien_giai else "",
+			frappe.utils.escape_html(ho_so.nguoi_duyet or ""),
+			frappe.utils.escape_html(ho_so.ten_tk or ""),
+			frappe.utils.escape_html(ho_so.so_tk or ""),
+			frappe.utils.escape_html(str(ho_so.ngan_hang or "")),
+			frappe.utils.escape_html(ho_so.noi_dung_ck or ""),
+		)
+		frappe.sendmail(
+			recipients=mail,
+			subject="[Vagabond] Yêu cầu hoàn tiền %s - %s đ - đơn %s" % (ho_so.name, tien, si.name),
+			message=than,
+			reference_doctype=DT,
+			reference_name=ho_so.name,
+			now=False,
+		)
+		return 1, mail
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: gui thu bao ke toan loi")
+		return 0, []
 
 
 def _kiem_tra_duoc(si):
@@ -280,13 +529,105 @@ def _kiem_tra_duoc(si):
 			"Hoá đơn %s đã có phiếu trả hàng %s rồi. Mở phiếu đó ra xem, đừng lập "
 			"thêm phiếu thứ hai." % (si.name, cu)
 		)
+	# Yeu cau dang cho ke toan xu thi khong cho gui yeu cau thu hai. Khong
+	# co chot nay thi Sales bam hai lan la ke toan nhan hai thu giong nhau
+	# va chuyen tien hai lan.
+	ho = frappe.db.get_value(
+		DT, {"hoa_don": si.name, "trang_thai": ["!=", "Da huy"]}, ["name", "trang_thai"], as_dict=True
+	)
+	if ho:
+		frappe.throw(
+			"Đơn %s đã có yêu cầu hoàn tiền %s đang ở trạng thái \"%s\". Mở màn Hoàn "
+			"tiền / Trả hàng để xem, đừng gửi thêm yêu cầu thứ hai."
+			% (si.name, ho["name"], ho["trang_thai"])
+		)
 
 
-def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so):
-	"""Hoa don tra hang, hang ve KHO HANG HUY chu khong ve kho ban."""
+def _sinh_chung_tu(ho_so):
+	"""Nhip 2: TIEN DA RA THAT roi thi moi sinh chung tu.
+
+	Chay tu duong doi soat SePay, khong ai goi tay. Sinh theo dung thu tu:
+	  1. Hoa don tra hang  - khu doanh thu dung bang so tien da hoan
+	  2. But diem hai chieu - thu hoi diem tang, tra lai diem khach da tieu
+	  3. Phieu chuyen kho sang Kho Hang Huy, de NHAP - chi khi hoan TOAN BO
+	  4. Phieu chi, de NHAP - ke toan dinh UNC roi moi ghi so
+
+	Vi sao hoan MOT PHAN thi khong lap phieu kho: hoan mot phan nghia la
+	khach giu lai banh va duoc bu mot phan tien. Khong co cai banh nao di
+	ve kho ca. Lap phieu kho luc do la khai mot duong hang khong ton tai.
+
+	Vi sao phieu chi van de NHAP du tien da di roi: chi Dung chot 16/08 -
+	dong sao ke SePay KHONG phai giay bao No hop le, ho so lam viec voi Cuc
+	Thue bat buoc co tep Uy nhiem chi tai tu e-banking. Nen may dien san moi
+	o, con nut ghi so van nam trong tay ke toan sau khi dinh kem UNC.
+
+	Ham nay chay mot lan cho moi ho so. Da co hoa don tra thi thoat ngay.
+	"""
+	if ho_so.get("hoa_don_tra"):
+		return {"bo_qua": 1, "vi_sao": "Hồ sơ này đã sinh chứng từ rồi."}
+	si = frappe.get_doc(SI, ho_so.hoa_don)
+	kho = kho_huy(si.company)
+	if not kho:
+		frappe.log_error("Chua dung duoc Kho Hang Huy", "hoan_tien: sinh chung tu loi")
+		return {"bo_qua": 1, "vi_sao": "Chưa dựng được Kho Hàng Hủy."}
+
+	tien = flt(ho_so.so_tien)
+	toan_bo = tien >= flt(si.grand_total) - 0.5
+
+	tra = _lap_hoa_don_tra(si, kho, ho_so.ly_do, ho_so.name, tien)
+	ho_so.hoa_don_tra = tra.name
+
+	_thu_hoi_diem(si, tra.name, ho_so.ly_do)
+
+	phieu_kho = ""
+	if toan_bo:
+		phieu_kho = _chuyen_kho_huy(si, tra, kho, ho_so.ly_do)
+	else:
+		ho_so.dien_giai = (
+			(ho_so.dien_giai or "").strip()
+			+ ("\n" if ho_so.dien_giai else "")
+			+ "Hoàn một phần nên khách giữ lại hàng, không lập phiếu chuyển Kho Hàng Hủy."
+		).strip()
+
+	pe = _lap_phieu_chi(si, tra, ho_so)
+	ho_so.phieu_chi = pe.name if pe else None
+	ho_so.flags.ignore_permissions = True
+	ho_so.save(ignore_permissions=True)
+	return {
+		"bo_qua": 0,
+		"hoa_don_tra": tra.name,
+		"phieu_kho": phieu_kho,
+		"phieu_chi": ho_so.phieu_chi,
+		"toan_bo": 1 if toan_bo else 0,
+	}
+
+
+def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
+	"""Hoa don tra hang, hang ve KHO HANG HUY chu khong ve kho ban.
+
+	Hoan MOT PHAN (anh Viet mo muc 50% ngay 16/08/2026)
+	---------------------------------------------------
+	Hoan mot phan thi khach GIU LAI banh, chi duoc bu mot phan tien. Nen to
+	tra hang phai mang dung so tien hoan chu khong phai ca don.
+
+	Cach lam: ha don gia tung dong theo dung ty le, GIU NGUYEN so luong.
+	Co y KHONG dung o chiet khau tong, vi dung chiet khau thi to nay dinh
+	dung cai loi em vua tim ra sang nay - duong xuat hoa don dien tu doc
+	so tien TRUOC chiet khau, va da lam 213 to xuat cao hon so thuc thu.
+	Ha don gia thi moi duong doc ra deu ra cung mot con so.
+	"""
 	from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
 
 	tra = make_sales_return(si.name)
+	tong = flt(si.grand_total)
+	tien = flt(so_tien) or tong
+	ty_le = (tien / tong) if tong > 0 else 1.0
+	if ty_le < 0.9999:
+		for d in tra.items:
+			d.rate = flt(d.rate) * ty_le
+			d.price_list_rate = flt(d.get("price_list_rate")) * ty_le
+			d.discount_amount = 0
+			d.discount_percentage = 0
 	# update_stock = 0, GIONG HET moi hoa don khac cua he.
 	#
 	# Ban dau em dat 1 de hang tu chay thang vao kho huy. Chay thu that
@@ -563,10 +904,16 @@ def doi_soat(ho_so=None, so_ngay=30):
 	ds = frappe.get_all(
 		DT,
 		filters=loc,
-		fields=["name", "hoa_don_tra", "so_tien", "trang_thai"],
+		fields=["name", "hoa_don", "hoa_don_tra", "so_tien", "trang_thai"],
 		limit_page_length=0,
 	)
-	ds = [d for d in ds if d.get("hoa_don_tra")]
+	# Do theo MA HOA DON GOC chu khong theo ma to tra hang.
+	#
+	# Doi tu 16/08/2026: truoc day noi dung chuyen khoan mang ma to tra hang,
+	# nen phieu phai co to tra hang truoc thi moi doi soat duoc. Nay nguoc
+	# lai - to tra hang chi sinh SAU khi tien ra - nen moc de do phai la thu
+	# ton tai ngay tu luc Sales gui yeu cau, tuc ma hoa don goc.
+	ds = [d for d in ds if d.get("hoa_don")]
 	if not ds:
 		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Không có phiếu nào chờ đối soát."}
 
@@ -583,11 +930,11 @@ def doi_soat(ho_so=None, so_ngay=30):
 		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc sao ke loi")
 		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Chưa đọc được sao kê ngân hàng."}
 
-	da, xem = 0, []
+	da, xem, sinh = 0, [], []
 	for d in ds:
 		for g in gds:
 			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
-			if not khop_giao_dich(mo_ta, d["hoa_don_tra"]):
+			if not khop_giao_dich(mo_ta, d["hoa_don"]):
 				continue
 			# Khop noi dung roi van phai so TIEN. Noi dung dung ma so tien
 			# lech nghia la ke toan chuyen thieu hoac thua, va do la viec
@@ -596,6 +943,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 				xem.append(
 					{
 						"ho_so": d["name"],
+						"hoa_don": d["hoa_don"],
 						"tien_phieu": flt(d["so_tien"]),
 						"tien_chuyen": flt(g["withdrawal"]),
 						"giao_dich": g["name"],
@@ -613,9 +961,78 @@ def doi_soat(ho_so=None, so_ngay=30):
 				},
 			)
 			da += 1
+			# TIEN DA RA THAT. Day la moc duy nhat sinh chung tu.
+			#
+			# Boc rieng tung ho so: mot ho so hong khong duoc keo theo ca me
+			# dang quet, vi cac ho so khac da duoc danh dau doi soat roi.
+			try:
+				ho = frappe.get_doc(DT, d["name"])
+				kq = _sinh_chung_tu(ho)
+				if not kq.get("bo_qua"):
+					kq["ho_so"] = d["name"]
+					sinh.append(kq)
+				frappe.db.commit()
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(
+					frappe.get_traceback(), "hoan_tien: sinh chung tu sau doi soat loi %s" % d["name"]
+				)
 			break
 	frappe.db.commit()
-	return {"da_khop": da, "xem_xet": xem[:50], "so_phieu_quet": len(ds)}
+	return {"da_khop": da, "xem_xet": xem[:50], "so_phieu_quet": len(ds), "da_sinh": sinh}
+
+
+@frappe.whitelist()
+def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
+	"""Duong SePay bao mot dong TIEN RA, may tu tim phieu hoan tien khop.
+
+	Anh Viet 16/08/2026: "quet dong tien ra, neu noi dung chua ma hoa don
+	thi tu map vao phieu HT- tuong ung".
+
+	Ham nay lam dung viec do cho MOT dong, dung khi SePay goi thang vao.
+	Con duong chay theo gio thi van la doi_soat() doc bang Bank Transaction.
+	Hai duong dung chung mot phep khop va chung mot buoc sinh chung tu, nen
+	khong the lech nhau.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	ma = tim_ma_hoa_don(mo_ta)
+	if not ma:
+		return {"khop": 0, "vi_sao": "Nội dung chuyển khoản không chứa mã hoá đơn nào."}
+	d = frappe.db.get_value(
+		DT, {"hoa_don": ma, "da_doi_soat": 0}, ["name", "so_tien", "trang_thai"], as_dict=True
+	)
+	if not d:
+		return {"khop": 0, "ma": ma, "vi_sao": "Không có phiếu hoàn tiền nào đang chờ cho đơn %s." % ma}
+	if flt(so_tien) and abs(flt(so_tien) - flt(d["so_tien"])) > 1:
+		return {
+			"khop": 0,
+			"ma": ma,
+			"ho_so": d["name"],
+			"vi_sao": "Số tiền chuyển %s đ lệch với số trên phiếu %s đ. Kế toán mở phiếu ra "
+			"xem lại rồi khớp tay." % (
+				"{:,.0f}".format(flt(so_tien)).replace(",", "."),
+				"{:,.0f}".format(flt(d["so_tien"])).replace(",", "."),
+			),
+		}
+	frappe.db.set_value(
+		DT,
+		d["name"],
+		{
+			"da_doi_soat": 1,
+			"ma_gd": (ma_gd or "").strip(),
+			"ngay_doi_soat": now_datetime(),
+			"trang_thai": "Da doi soat",
+		},
+	)
+	ho = frappe.get_doc(DT, d["name"])
+	kq = _sinh_chung_tu(ho)
+	frappe.db.commit()
+	kq["khop"] = 1
+	kq["ho_so"] = d["name"]
+	kq["ma"] = ma
+	return kq
 
 
 def doi_soat_tu_dong():
@@ -632,36 +1049,65 @@ def doi_soat_tu_dong():
 
 @frappe.whitelist()
 def thong_tin_chuyen_khoan(ho_so=None):
-	"""Cuc chu de chi Dung copy mot phat, khoi go tay tung o.
+	"""Cuc chu de ke toan copy mot phat vao MB Biz, khoi go tay tung o.
 
 	Go tay so tai khoan la duong de sai nhat trong ca luong: sai mot chu so
-	la tien di mat vao mot tai khoan khong quen biet, va lay lai rat kho.
+	la tien di vao mot tai khoan khong quen biet, va lay lai rat kho.
+
+	Tra ba dang cua cung mot thong tin, vi ba dang phuc vu ba viec khac
+	nhau (dung y het nep ho so thanh toan APP dang chay):
+	  chu      - doc bang mat, kiem truoc khi bam
+	  dong_tab - dan thang vao tep lo cua MB, moi cot mot o
+	  noi_dung - chuoi rieng de bam chep cho o Noi dung tren MB Biz
 	"""
 	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ho_so_tt import _bo_dau
 
 	_kiem_quyen()
 	d = frappe.get_doc(DT, ho_so)
 	ten_nh = ""
 	if d.ngan_hang:
 		ten_nh = frappe.db.get_value("Bank", d.ngan_hang, "bank_name") or d.ngan_hang
+	nd = d.noi_dung_ck or noi_dung_ck(d.hoa_don)
+	tien_so = "%d" % int(round(flt(d.so_tien)))
+	tien_dep = "{:,.0f}".format(flt(d.so_tien)).replace(",", ".")
+	# Ten chu tai khoan phai BO DAU VIET HOA: ngan hang khong nhan tieng
+	# Viet co dau o o nguoi thu huong, va go lai tay la them mot cho sai.
+	ten_ck = _bo_dau(d.ten_tk or "").upper()
+
 	dong = [
 		"Ngân hàng: %s" % (ten_nh or "(chưa khai)"),
 		"Số tài khoản: %s" % (d.so_tk or "(chưa khai)"),
-		"Tên chủ tài khoản: %s" % (d.ten_tk or "(chưa khai)"),
-		"Số tiền: %s" % "{:,.0f}".format(flt(d.so_tien)).replace(",", "."),
-		"Nội dung: %s" % (d.noi_dung_ck or noi_dung_ck(d.hoa_don_tra)),
+		"Tên chủ tài khoản: %s" % (ten_ck or "(chưa khai)"),
+		"Số tiền: %s" % tien_dep,
+		"Nội dung: %s" % nd,
 	]
+	cot = ["Số tài khoản", "Tên người thụ hưởng", "Ngân hàng", "Số tiền", "Nội dung"]
+	gia_tri = [(d.so_tk or "").strip(), ten_ck, (ten_nh or "").strip(), tien_so, nd]
+
 	thieu = [x for x in ("so_tk", "ten_tk", "ngan_hang") if not d.get(x)]
+	ten_thieu = {"so_tk": "số tài khoản", "ten_tk": "tên chủ tài khoản", "ngan_hang": "ngân hàng"}
 	return {
+		"ma": d.name,
+		"hoa_don": d.hoa_don,
 		"chu": "\n".join(dong),
+		"cot": cot,
+		"gia_tri": gia_tri,
+		"dong_tab": "\t".join(gia_tri),
+		"tieu_de_tab": "\t".join(cot),
+		"so_tien": flt(d.so_tien),
+		"ten_ck": ten_ck,
+		"so_tk": (d.so_tk or "").strip(),
+		"ngan_hang": ten_nh,
 		"thieu": thieu,
 		"nhac": (
 			"Còn thiếu %s. Bổ sung vào phiếu rồi bấm lại thì mới chuyển được."
-			% ", ".join({"so_tk": "số tài khoản", "ten_tk": "tên chủ tài khoản", "ngan_hang": "ngân hàng"}[x] for x in thieu)
+			% ", ".join(ten_thieu[x] for x in thieu)
 			if thieu
 			else ""
 		),
-		"noi_dung_ck": d.noi_dung_ck or noi_dung_ck(d.hoa_don_tra),
+		"noi_dung_ck": nd,
+		"da_doi_soat": cint(d.da_doi_soat),
 	}
 
 
@@ -685,17 +1131,36 @@ def tinh_trang(si_name=None):
 	)
 	if not d:
 		return {"duoc": 0, "vi_sao": "Không có hoá đơn này."}
-	da = frappe.db.get_value(DT, {"hoa_don": si_name}, ["name", "trang_thai", "so_tien"], as_dict=True)
+	da = frappe.db.get_value(
+		DT, {"hoa_don": si_name}, ["name", "trang_thai", "so_tien", "da_doi_soat"], as_dict=True
+	)
 	if da:
-		return {"duoc": 0, "da_hoan": da, "vi_sao": "Đơn này đã có phiếu hoàn tiền %s." % da["name"]}
+		return {
+			"duoc": 0,
+			"da_hoan": da,
+			"vi_sao": "Đơn này đã có yêu cầu hoàn tiền %s, đang ở trạng thái \"%s\"."
+			% (da["name"], da["trang_thai"]),
+		}
 	if cint(d.docstatus) != 1:
 		return {"duoc": 0, "vi_sao": "Đơn chưa ghi sổ nên sửa hoặc huỷ thẳng được, không cần hoàn tiền."}
 	if cint(d.get("vgb_huy")):
 		return {"duoc": 0, "vi_sao": "Đơn đã mang dấu huỷ."}
+	# Goi y san tai khoan khach da dung o lan truoc, neu co. Doc tu chinh
+	# ho so hoan tien cu cua khach nay chu khong doan.
+	goi_y = {}
+	kh = frappe.db.get_value(SI, si_name, "customer")
+	if kh:
+		cu = frappe.db.get_value(
+			DT, {"khach": kh, "so_tk": ["is", "set"]}, ["ten_tk", "so_tk", "ngan_hang"],
+			as_dict=True, order_by="creation desc",
+		)
+		if cu:
+			goi_y = {k: v for k, v in cu.items() if v}
 	return {
 		"duoc": 1,
 		"so_tien": flt(d.grand_total),
 		"ly_do_co_the": list(LY_DO),
+		"goi_y_tk": goi_y,
 		"canh_bao_hddt": (d.get("custom_hddt_so") or "").strip(),
 	}
 
@@ -735,9 +1200,23 @@ def ds(trang_thai="", so_dong=100):
 			PE, filters={"name": ["in", ma_pc]}, fields=["name", "docstatus"], limit_page_length=0
 		):
 			pc[p["name"]] = cint(p["docstatus"])
+	# Anh bang chung: ke toan ngoi xa quay, cai duy nhat ho co de quyet la
+	# anh Sales chup. Tra thang duong dan de man ve thanh o anh bam xem to.
+	anh = {}
+	if ds_:
+		for f in frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": DT, "attached_to_name": ["in", [d["name"] for d in ds_]]},
+			fields=["attached_to_name", "file_url", "file_name"],
+			limit_page_length=0,
+		):
+			anh.setdefault(f["attached_to_name"], []).append(
+				{"url": f["file_url"], "ten": f["file_name"]}
+			)
 	for d in ds_:
 		d["ten_khach"] = ten.get(d.get("khach") or "", d.get("khach") or "")
 		d["phieu_chi_da_ghi"] = 1 if pc.get(d.get("phieu_chi") or "") == 1 else 0
+		d["anh"] = anh.get(d["name"], [])
 	dem = {"tat_ca": len(ds_)}
 	for t in ("Cho chi", "Da chi", "Da doi soat"):
 		dem[t] = frappe.db.count(DT, {"trang_thai": t})
