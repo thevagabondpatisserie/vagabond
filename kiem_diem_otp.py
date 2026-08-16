@@ -268,7 +268,7 @@ def _nap_ht():
 	if not m_rx:
 		print("KHONG THAY RX_MA_HD trong hoan_tien.py"); sys.exit(1)
 	exec(compile(m_rx.group(0), "hoan_tien:RX_MA_HD", "exec"), mt, mt)
-	for ten in ("noi_dung_ck", "_got", "tim_ma_hoa_don", "khop_giao_dich", "ty_le_hop_le"):
+	for ten in ("noi_dung_ck", "_got", "tim_ma_hoa_don", "khop_giao_dich", "chon_ma_khop", "ty_le_hop_le"):
 		# Cat toi khi gap "def", mot trang tri, hay mot khoi chu thich o dau
 		# dong: cac ham nay xen ke voi hang so va chu thich dai.
 		m = re.search(r"^def %s\(.*?(?=^def |^@|^RX_|^# Ma hoa don|\Z)" % ten, src, re.S | re.M)
@@ -325,6 +325,23 @@ la("noi dung cu chi khop voi chinh ma to tra hang",
    khop("HT HDB-26-08-00341", "HDB-26-08-00341"), True)
 la("noi dung moi khop voi ma don goc",
    khop("THE VAGABOND HOAN TIEN HDB-26-08-00340", "HDB-26-08-00340"), True)
+
+chon = Ht["chon_ma_khop"]
+# Lan thu BA trong ngay gap loi hai duong lech nhau: doi_soat() dung
+# khop_giao_dich (co duong got), sepay_tien_ra() dung tim_ma_hoa_don (khong
+# co). Cung mot dong tien, vao duong nay thi khop, duong kia thanh mo coi.
+# Nay ca hai deu di qua chon_ma_khop.
+CHO = ["HDB-2026-01593", "HDB-26-08-00323", "HDB-2026-99999"]
+la("chon dung ma trong danh sach cho", chon(CK + "HDB-26-08-00323", CHO), "HDB-26-08-00323")
+la("chon dung ma dang cu", chon(CK + "HDB-2026-01593", CHO), "HDB-2026-01593")
+la("MAT DAU GACH van chon duoc - lo cua sepay_tien_ra",
+   chon("THE VAGABOND HOAN TIEN HDB 26 08 00323", CHO), "HDB-26-08-00323")
+la("mat dau gach dang cu", chon("THE VAGABOND HOAN TIEN HDB 2026 01593", CHO), "HDB-2026-01593")
+la("ma khong nam trong danh sach cho thi tra rong",
+   chon(CK + "HDB-2026-00001", CHO), "")
+la("dong khong co ma nao", chon("CHUYEN TIEN NHA CUNG CAP", CHO), "")
+la("danh sach cho rong", chon(CK + "HDB-2026-01593", []), "")
+la("mo ta rong", chon("", CHO), "")
 
 print("16. Tran so tien hoan khong duoc vuot tong don")
 la("hoan toan bo", tyle(100000, 100000)[0], True)
