@@ -253,11 +253,25 @@ print("12. Doi soat lenh chi hoan tien")
 
 def _nap_ht():
 	src = open("vagabond/hoan_tien.py", encoding="utf-8").read()
-	mt = {"re": re, "TIEN_TO_CK": "HT"}
-	for ten in ("noi_dung_ck", "khop_giao_dich"):
-		# Cat toi khi gap "def" hoac mot trang tri o dau dong: ham
-		# khop_giao_dich dung ngay truoc mot @frappe.whitelist().
-		m = re.search(r"^def %s\(.*?(?=^def |^@|\Z)" % ten, src, re.S | re.M)
+	mt = {
+		"re": re,
+		"TIEN_TO_CK": "THE VAGABOND HOAN TIEN",
+		"flt": lambda x: float(x or 0),
+	}
+	# Doc RX_MA_HD THANG TU MA NGUON, khong chep lai vao day.
+	#
+	# Sang 16/08/2026 em vua mat mot ban va vi de hai ban gan giong nhau song
+	# song trong mot tep, va chung lech nhau luc nao khong hay. Chep regex
+	# vao bo kiem la de ra dung cai bay do: sua regex ben kia ma quen ben
+	# nay thi bo kiem van xanh trong khi luong that da hong.
+	m_rx = re.search(r"^RX_MA_HD = .*$", src, re.M)
+	if not m_rx:
+		print("KHONG THAY RX_MA_HD trong hoan_tien.py"); sys.exit(1)
+	exec(compile(m_rx.group(0), "hoan_tien:RX_MA_HD", "exec"), mt, mt)
+	for ten in ("noi_dung_ck", "_got", "tim_ma_hoa_don", "khop_giao_dich", "ty_le_hop_le"):
+		# Cat toi khi gap "def", mot trang tri, hay mot khoi chu thich o dau
+		# dong: cac ham nay xen ke voi hang so va chu thich dai.
+		m = re.search(r"^def %s\(.*?(?=^def |^@|^RX_|^# Ma hoa don|\Z)" % ten, src, re.S | re.M)
 		if not m:
 			print("KHONG THAY ham %s trong hoan_tien.py" % ten); sys.exit(1)
 		exec(compile(m.group(0), "hoan_tien:%s" % ten, "exec"), mt, mt)
@@ -266,19 +280,53 @@ def _nap_ht():
 Ht = _nap_ht()
 nd = Ht["noi_dung_ck"]; khop = Ht["khop_giao_dich"]
 
-la("noi dung chuyen khoan dung dinh dang", nd("HDB-2026-01604"), "HT HDB-2026-01604")
-la("khop dung ma", khop("HT HDB-2026-01604 hoan tien khach", "HDB-2026-01604"), True)
-la("khop ke ca khi ngan hang viet hoa het", khop("CK HT HDB-2026-01604", "HDB-2026-01604"), True)
+tim = Ht["tim_ma_hoa_don"]; tyle = Ht["ty_le_hop_le"]
+CK = "THE VAGABOND HOAN TIEN "
+
+la("noi dung chuyen khoan dung cu phap anh Viet chot",
+   nd("HDB-2026-01604"), "THE VAGABOND HOAN TIEN HDB-2026-01604")
+la("khop dung ma", khop(CK + "HDB-2026-01604", "HDB-2026-01604"), True)
+la("khop ke ca khi ngan hang viet hoa het", khop("CK " + CK + "HDB-2026-01604", "HDB-2026-01604"), True)
 # Bay da tung dinh voi ma WOO: ma ngan KHONG duoc an nham giao dich cua ma dai
-la("ma ngan khong an nham ma dai", khop("HT HDB-2026-016040", "HDB-2026-01604"), False)
-la("ma dai khong khop voi giao dich cua ma ngan", khop("HT HDB-2026-0160", "HDB-2026-01604"), False)
-la("giao dich cua don khac thi khong khop", khop("HT HDB-2026-01605", "HDB-2026-01604"), False)
+la("ma ngan khong an nham ma dai", khop(CK + "HDB-2026-016040", "HDB-2026-01604"), False)
+la("ma dai khong khop voi giao dich cua ma ngan", khop(CK + "HDB-2026-0160", "HDB-2026-01604"), False)
+la("giao dich cua don khac thi khong khop", khop(CK + "HDB-2026-01605", "HDB-2026-01604"), False)
 la("mo ta rong", khop("", "HDB-2026-01604"), False)
-la("ma rong thi khong bao gio khop", khop("HT HDB-2026-01604", ""), False)
+la("ma rong thi khong bao gio khop", khop(CK + "HDB-2026-01604", ""), False)
 la("ma rong va mo ta rong", khop("", ""), False)
 # Ma nam giua cau, hai ben la dau cach hoac dau cau
-la("ma nam giua cau van khop", khop("VAGABOND HT HDB-2026-01604, hoan khach", "HDB-2026-01604"), True)
-la("dinh lien chu cai thi khong khop", khop("XHDB-2026-01604", "HDB-2026-01604"), False)
+la("ma nam giua cau van khop", khop("VAGABOND " + CK + "HDB-2026-01604, hoan khach", "HDB-2026-01604"), True)
+la("dinh lien chu cai thi khong khop", khop("X" + CK + "HDB-2026-01604", "HDB-2026-01604"), True)
+
+print("15. Doc ma hoa don tu dong sao ke tien ra")
+# HAI dang ma cung ton tai tren he. Regex anh Viet dua (HDB-\d+-\d+-\d+)
+# bat dung dang moi va BO SOT dang cu, ma dang cu chiem phan lon 43.458 to.
+la("dang cu hai nhom so", tim(CK + "HDB-2026-01593"), "HDB-2026-01593")
+la("dang moi ba nhom so", tim(CK + "HDB-26-08-00323"), "HDB-26-08-00323")
+la("khong co ma thi tra rong", tim("CHUYEN TIEN NHA CUNG CAP"), "")
+la("mo ta rong", tim(""), "")
+la("ma viet thuong van doc duoc", tim("the vagabond hoan tien hdb-2026-01593"), "HDB-2026-01593")
+la("ma nam cuoi cau", tim("NGUYEN VAN A CK " + CK + "HDB-26-08-00323"), "HDB-26-08-00323")
+la("ma dinh lien chu cai thi khong nhan", tim("XHDB-2026-01593"), "")
+
+# Ngan hang lam mat dau gach la chuyen thuong. Duong got phai bat duoc.
+la("mat dau gach van khop", khop("THE VAGABOND HOAN TIEN HDB 2026 01593", "HDB-2026-01593"), True)
+la("mat dau gach dang moi", khop("THE VAGABOND HOAN TIEN HDB 26 08 00323", "HDB-26-08-00323"), True)
+la("mat dau gach nhung ma dai hon thi khong an nham",
+   khop("THE VAGABOND HOAN TIEN HDB 2026 015930", "HDB-2026-01593"), False)
+la("mat dau gach, don khac", khop("THE VAGABOND HOAN TIEN HDB 2026 01594", "HDB-2026-01593"), False)
+
+print("16. Tran so tien hoan khong duoc vuot tong don")
+la("hoan toan bo", tyle(100000, 100000)[0], True)
+la("hoan mot nua", tyle(50000, 100000)[0], True)
+la("hoan hon tong don thi chan", tyle(120000, 100000)[0], False)
+la("hoan 0 dong thi chan", tyle(0, 100000)[0], False)
+la("hoan so am thi chan", tyle(-5000, 100000)[0], False)
+la("don tong 0 thi khong hoan duoc", tyle(1000, 0)[0], False)
+la("le 0,5 dong van cho qua", tyle(100000.4, 100000)[0], True)
+# QT-24: cau bao loi phai noi nguoi dung lam gi tiep
+la("cau chan vuot tran co huong dan", "Sửa lại" in tyle(120000, 100000)[1], True)
+la("cau chan so 0 co huong dan", "Nhập lại" in tyle(0, 100000)[1], True)
 
 
 # =====================================================================
