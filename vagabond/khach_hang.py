@@ -353,6 +353,20 @@ def _khach_that(si):
 	return "" if la_khach_gop(kh) else kh
 
 
+def diem_cho_don(tien, ty_le):
+	"""So diem mot don duoc tich. THUAN: hai so vao, mot so ra.
+
+	Tach rieng vi man Chi tiet don phai BAO TRUOC cho khach so diem se
+	duoc, ma hoa don thi mai moi ghi so. Neu man hinh tu tinh mot phep con
+	hook cong diem tinh mot phep khac thi som muon hai con so lech nhau, va
+	nguoi chiu la khach dung o quay nghe bao mot dang roi nhan mot dang.
+	"""
+	ty_le = flt(ty_le)
+	if ty_le <= 0:
+		return 0
+	return int(round(flt(tien) * ty_le / 100.0))
+
+
 def _da_tich(hoa_don, loai="Tich tu hoa don"):
 	try:
 		return frappe.db.exists(SO_DIEM, {"hoa_don": hoa_don, "loai": loai})
@@ -374,7 +388,7 @@ def cong_diem_hoa_don(doc, method=None):
 		ty_le = flt((hang or {}).get("tich_diem"))
 		if ty_le <= 0:
 			return
-		diem = round(flt(doc.get("grand_total")) * ty_le / 100.0)
+		diem = diem_cho_don(doc.get("grand_total"), ty_le)
 		if diem <= 0:
 			return
 		_ghi_so_diem(
@@ -1038,3 +1052,85 @@ def _luu_lien_he(khach, dat):
 		{"customer_primary_contact": doc.name, "mobile_no": doc.mobile_no or ""},
 		update_modified=False,
 	)
+
+
+# ------------------------------------------------------- the thanh vien tren don
+#
+# Anh Viet 16/08/2026, tren man Chi tiet don: *"thay vi emoji kia thi phai
+# hien thi kem cai hinh the hang thanh vien"*, cong hai o "So diem hien
+# tai" va "So diem tich cho don nay".
+#
+# HAI DIEU HAM NAY PHAI LAM CHO DUNG
+# ----------------------------------
+# Mot. So diem hien tai phai la so du TRUOC khi chot don nay. Voi don da
+# ghi so va da tich roi thi so du dang co DA GOM diem cua chinh don do,
+# nen phai tru ra - khong thi sales doc cho khach mot con so cao hon thuc
+# te, va khach se hoi lai luc doi qua.
+#
+# Hai. O "diem tich cho don nay" phai phan biet DA TICH voi SE TICH. Don
+# cu ma hien so du kien thi sai; don moi ma hien so da tich thi cung sai.
+
+
+@frappe.whitelist()
+def the_tren_don(khach=None, tien=0, hoa_don=None):
+	"""Hang the, so diem hien co va so diem cua rieng don nay.
+
+	CHI DOC. Khong ghi mot but diem nao - viec cong diem van do hook
+	on_submit cua hoa don lam, dung mot cho duy nhat.
+	"""
+	_kiem_quyen()
+	khach = (khach or "").strip()
+	if not khach:
+		return {"co": 0}
+
+	kh = frappe.db.get_value(
+		"Customer", khach, ["customer_name", "vgb_hang", "vgb_diem"], as_dict=True
+	) or {}
+	if not kh:
+		return {"co": 0}
+
+	hang = _hang_cua(khach) or {}
+	ta = {}
+	if hang.get("name"):
+		ta = frappe.db.get_value(
+			"Vagabond Hang Khach", hang["name"],
+			["ten_hang", "anh", "giam_gia", "tich_diem", "mo_ta"], as_dict=True
+		) or {}
+
+	# So du lay tu SO, khong tin o tong hop tren Customer: so la nguon that.
+	so_du = flt(
+		(frappe.db.sql(
+			"select sum(diem) from `tab%s` where khach = %%s" % SO_DIEM, (khach,)
+		) or [[0]])[0][0]
+	)
+
+	ty_le = flt(hang.get("tich_diem"))
+	da_tich = None
+	if hoa_don:
+		da_tich = frappe.db.get_value(
+			SO_DIEM, {"hoa_don": hoa_don, "loai": "Tich tu hoa don"}, "diem"
+		)
+
+	if da_tich is not None:
+		# Don da tich roi: bao dung so THAT da ghi so, va tru no ra khoi so
+		# du de o "hien tai" dung nghia la truoc khi chot don nay.
+		diem_don = int(round(flt(da_tich)))
+		truoc_don = so_du - flt(da_tich)
+	else:
+		diem_don = diem_cho_don(tien, ty_le)
+		truoc_don = so_du
+
+	return {
+		"co": 1,
+		"khach": khach,
+		"ten": kh.get("customer_name") or khach,
+		"hang": hang.get("name") or "",
+		"ten_hang": ta.get("ten_hang") or hang.get("name") or "",
+		"anh_hang": ta.get("anh") or "",
+		"giam_gia": flt(ta.get("giam_gia")),
+		"tich_diem_pt": ty_le,
+		"diem_hien_tai": int(round(truoc_don)),
+		"diem_don_nay": diem_don,
+		"da_tich": 1 if da_tich is not None else 0,
+		"so_du_sau": int(round(truoc_don + diem_don)),
+	}
