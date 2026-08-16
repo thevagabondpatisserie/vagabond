@@ -310,6 +310,25 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so):
 		# du dong nay khong sinh but kho nao.
 		d.warehouse = kho
 		d.target_warehouse = None
+	# CHEP LAI CAC TRUONG TU THEM CUA HE.
+	#
+	# make_sales_return chi chep nhung truong ERPNext biet; cac truong do
+	# minh tu them thi no khong biet, nen to tra hang ra doi TRONG khong.
+	# Va hook kiem_truoc_khi_luu chan ngay: "Hoa don chua chon nguon don".
+	# Bat duoc khi chay thu that 16/08/2026.
+	#
+	# Chep chu khong dat mac dinh: to tra hang phai doi soat ve dung cai san
+	# va dung cai quay ma don goc da ban, khong thi cuoi thang so lieu tra
+	# hang khong khop voi so lieu ban ra o bat ky kenh nao.
+	for o in (
+		"custom_nguon", "vgb_pt_thanh_toan", "vgb_quay", "vgb_khach_no",
+		"vgb_so_ban", "vgb_xhd_ten", "vgb_ma_tham_chieu",
+	):
+		try:
+			if si.get(o) is not None and tra.meta.has_field(o):
+				tra.set(o, si.get(o))
+		except Exception:
+			pass
 	tra.remarks = ("Trả hàng %s. Lý do: %s. Hồ sơ %s." % (si.name, ly_do, ma_ho_so))[:500]
 	tra.flags.ignore_permissions = True
 	# Nhip dong bo Pancake khoa mot ma don cho mot hoa don; to tra hang mang
