@@ -115,10 +115,13 @@ async function posInBill(d) {
     (d.diem && !d.tam_tinh && !d.huy
       ? '<hr><div class="d"><span style="font-weight:bold">THẺ THÀNH VIÊN</span><b>' + h(d.diem.hang || '') + '</b></div>' +
         '<div class="d"><span>' + h(d.diem.ten || '') + '</span></div>' +
+        (d.diem.dung
+          ? '<div class="d"><span>Điểm đã dùng cho đơn này</span><b>-' + money(d.diem.dung) + '</b></div>'
+          : '') +
         (d.diem.tich
           ? '<div class="d"><span>Điểm tích đơn này (' + money(d.diem.ty_le) + '%)</span><b>+' + money(d.diem.tich) + '</b></div>'
           : '<div class="d"><span>Hạng này không tích điểm</span></div>') +
-        '<div class="d"><span>Tổng điểm sau đơn này</span><b>' + money(d.diem.du_sau) + '</b></div>'
+        '<div class="d"><span>Số dư điểm khả dụng</span><b>' + money(d.diem.du_sau) + '</b></div>'
       : '') +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
     qrKhoi +

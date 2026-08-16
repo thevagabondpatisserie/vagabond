@@ -526,7 +526,7 @@ async function scrDsView(name, can) {
           (dsvThe && dsvThe.ten_hang ? ' · hạng ' + h(dsvThe.ten_hang) : '') +
           (dsvThe && dsvThe.giam_gia ? ' · <b style="color:#b45309">ưu đãi giảm ' + dsvThe.giam_gia + '%</b>' : '') + '</div></div>' +
           '<button id="dsvKhachBo" style="border:0;background:transparent;color:#b3261e;font-size:17px;cursor:pointer">✕</button></div>' +
-          dsvVeDiem()
+          dsvVeDiem() + dsvVeHt()
         : '<button class="btn gh" id="dsvKhachChon" style="margin:0">🎫 Chọn khách hàng thân thiết</button>') +
       (d.docstatus === 1
         ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">Đơn đã ghi sổ nên chỉ gắn được tên khách cho màn Công nợ phải thu, bút toán trên sổ cái giữ nguyên.</div>'
@@ -547,6 +547,7 @@ async function scrDsView(name, can) {
     var nBo = document.getElementById('dsvKhachBo');
     if (nBo) nBo.onclick = function () { dsvKhach = { ma: '', ten: '' }; dsvThe = null; dsvTru = null; veKhachNo(); };
     dsvGanTruDiem();
+    dsvGanHt();
   }
 
   /* Hình thẻ hạng thay cho emoji toà nhà.
@@ -730,14 +731,109 @@ async function scrDsView(name, can) {
     }, 250);
   }
 
+  /* ---------------------------------------------------------- hoàn tiền
+     Nút chỉ hiện với đơn ĐÃ GHI SỔ. Đơn còn nháp thì sửa hoặc huỷ thẳng
+     là được, không cần đi đường trả hàng - và nói rõ điều đó thay vì bày
+     một nút bấm vào thì báo lỗi. */
+  var dsvHt = null;
+
+  async function dsvTaiHt() {
+    dsvHt = null;
+    try { dsvHt = await api('vagabond.hoan_tien.tinh_trang', { si_name: d.name }); } catch (e) { dsvHt = null; }
+  }
+
+  function dsvVeHt() {
+    if (!dsvHt) return '';
+    if (dsvHt.da_hoan) {
+      var t = dsvHt.da_hoan;
+      return '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#fef2f2;' +
+        'border:1.5px solid #fecaca;font-size:12.5px;color:#991b1b">' +
+        '<b>Đã hoàn tiền</b> ' + money(t.so_tien) + ' đ · phiếu ' + h(t.name) +
+        ' · ' + h({ 'Cho chi': 'chờ chi', 'Da chi': 'đã chi', 'Da doi soat': 'đã đối soát', 'Da huy': 'đã huỷ' }[t.trang_thai] || t.trang_thai) +
+        '</div>';
+    }
+    if (!dsvHt.duoc) return '';
+    return '<div style="margin-top:10px"><button id="dsvHoanTien" ' +
+      'style="width:100%;border:1.5px solid #fecaca;background:#fff;color:#b91c1c;border-radius:10px;' +
+      'padding:10px;font-size:13.5px;font-weight:700">↩︎ Hoàn tiền / Trả hàng</button></div>';
+  }
+
+  function dsvGanHt() {
+    var n = document.getElementById('dsvHoanTien');
+    if (!n) return;
+    n.onclick = function () { dsvHoiHt(); };
+  }
+
+  function dsvHoiHt() {
+    var ten = { 'Khach doi y': 'Khách đổi ý', 'Banh hong': 'Bánh hỏng', 'Di ung': 'Dị ứng',
+                'Giao sai mon': 'Giao sai món', 'Giao tre': 'Giao trễ', 'Khac': 'Khác' };
+    var ds = (dsvHt.ly_do_co_the || []).map(function (x) {
+      return '<option value="' + h(x) + '">' + h(ten[x] || x) + '</option>';
+    }).join('');
+    var than = (dsvHt.canh_bao_hddt
+        ? '<div style="padding:9px 11px;border-radius:9px;background:#fffbeb;border:1.5px solid #fde68a;' +
+          'font-size:12.5px;color:#78350f;margin-bottom:10px">Đơn này đã xuất hoá đơn điện tử số <b>' +
+          h(dsvHt.canh_bao_hddt) + '</b>. Máy KHÔNG tự động xử lý bên m-invoice, chị Dung phải làm tay.</div>'
+        : '') +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:3px">Lý do hoàn</div>' +
+      '<select id="htLyDo" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:9px">' + ds + '</select>' +
+      '<textarea id="htDienGiai" placeholder="Diễn giải thêm (bắt buộc nếu chọn Khác)" ' +
+      'style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;min-height:52px;margin-bottom:11px"></textarea>' +
+      '<div style="font-weight:700;font-size:12.5px;margin-bottom:6px">Tài khoản nhận tiền của khách</div>' +
+      '<input id="htTenTk" placeholder="Tên chủ tài khoản" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:7px">' +
+      '<input id="htSoTk" inputmode="numeric" placeholder="Số tài khoản" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:7px">' +
+      '<input id="htNganHang" list="htDsNh" placeholder="Ngân hàng" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:7px">' +
+      '<datalist id="htDsNh"></datalist>' +
+      '<input id="htSdt" inputmode="numeric" placeholder="Số điện thoại khách" style="width:100%;box-sizing:border-box;border:1.5px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13.5px;margin-bottom:11px">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:3px">Mã PIN quản lý</div>' +
+      '<input id="htOtp" inputmode="numeric" maxlength="6" placeholder="6 số" style="width:100%;box-sizing:border-box;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 10px;font-size:16px;letter-spacing:3px;text-align:center">';
+    var hp = hopKhung('Hoàn tiền ' + money(dsvHt.so_tien) + ' đ', than,
+      '<button class="btn gh" id="htThoi" style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn" id="htOk" style="flex:1;margin:0;background:#b91c1c">Xác nhận hoàn tiền</button>');
+    hp.box.querySelector('.x').onclick = hp.dong;
+    hp.box.querySelector('#htThoi').onclick = hp.dong;
+    hp.box.querySelector('#htOk').onclick = async function () {
+        var goi = {
+          si_name: d.name,
+          ly_do: (document.getElementById('htLyDo') || {}).value,
+          dien_giai: (document.getElementById('htDienGiai') || {}).value || '',
+          ten_tk: (document.getElementById('htTenTk') || {}).value || '',
+          so_tk: (document.getElementById('htSoTk') || {}).value || '',
+          ngan_hang: (document.getElementById('htNganHang') || {}).value || '',
+          sdt_khach: (document.getElementById('htSdt') || {}).value || '',
+          otp: ((document.getElementById('htOtp') || {}).value || '').replace(/\D/g, '')
+        };
+        if (goi.otp.length !== 6) { toast('Cần mã PIN 6 số của quản lý.'); return; }
+        busy(true);
+        try {
+          var kq = await api('vagabond.hoan_tien.tao', goi);
+          busy(false); hp.dong();
+          toast('Đã lập phiếu hoàn tiền ' + kq.ho_so, 3500);
+          baoTin('Hàng đã vào ' + kq.kho_huy + ', KHÔNG về kho bán.\n\n' +
+            'Phiếu chi ' + (kq.phieu_chi || '(chưa lập được)') + ' đang ở trạng thái nháp. ' +
+            'Chị Dung chuyển khoản, đính kèm uỷ nhiệm chi rồi mới ghi sổ được.\n\n' +
+            'Nội dung chuyển khoản phải gõ đúng: ' + kq.noi_dung_ck);
+          await dsvNapLai();
+        } catch (e) { busy(false); }
+      };
+    /* Danh sách ngân hàng tải sau khi hộp thoại đã mở, để hộp thoại hiện
+       ra ngay chứ không đứng chờ mạng. */
+    api('vagabond.hoan_tien.ds_ngan_hang', {}).then(function (r) {
+      var dl = document.getElementById('htDsNh');
+      if (dl) dl.innerHTML = (r || []).map(function (x) { return '<option value="' + h(x.name) + '">'; }).join('');
+    }).catch(function () { });
+  }
+
   async function dsvNapLai() {
     try { d = await api('frappe.client.get', { doctype: 'Sales Invoice', name: d.name }); } catch (e) { }
     await dsvTaiThe();
+    await dsvTaiHt();
     veKhachNo();
   }
 
   veKhachNo();
   dsvTaiThe().then(veKhachNo);
+  dsvTaiHt().then(veKhachNo);
   function mtcGiaTri() { var o = document.getElementById('dsvMtc'); return o ? o.value : ''; }
   function xhdVe() {
     var ch = document.getElementById('xhdChon');
