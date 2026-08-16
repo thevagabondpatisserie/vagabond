@@ -3236,25 +3236,45 @@ def _khoi_diem_bill(si):
 			(si.name, "Tich tu hoa don"),
 		)
 		da_cong = flt((da or [[0]])[0][0])
-		if da_cong:
-			return {
-				"khach": kh,
-				"ten": ten,
-				"hang": hang.get("name") or "",
-				"ty_le": ty_le,
-				"tich": da_cong,
-				"du_truoc": du - da_cong,
-				"du_sau": du,
-			}
-		return {
+
+		# Diem khach DA TRU vao chinh don nay (tinh nang tru diem co tu
+		# v181). Khong doc con so nay thi bill in ra noi khach "duoc cong
+		# 17.900 diem" ma khong he nhac toi 30.000 diem ho vua tieu, va so
+		# du in ra cung khong khop voi so ho tu nham trong dau.
+		dung = 0.0
+		try:
+			from vagabond import diem_otp as _dot
+
+			dung = flt(
+				(
+					frappe.db.sql(
+						"select sum(diem) from `tab%s` where hoa_don = %%s and loai = %%s"
+						% _kh.SO_DIEM,
+						(si.name, _dot.LOAI_TRU),
+					)
+					or [[0]]
+				)[0][0]
+			)
+		except Exception:
+			dung = 0.0
+		dung = abs(dung)
+
+		chung = {
 			"khach": kh,
 			"ten": ten,
 			"hang": hang.get("name") or "",
 			"ty_le": ty_le,
-			"tich": tich,
-			"du_truoc": du,
-			"du_sau": du + tich,
+			"dung": dung,
+			"giam_diem": flt(si.get("vgb_giam_diem")),
 		}
+		if da_cong:
+			# du la o tong hop, DA gom ca but tich lan but tru cua don nay.
+			# Muon ra so du truoc don thi phai go CA HAI ra, khong thi con
+			# so "truoc don" van con dinh phan khach vua tieu.
+			chung.update({"tich": da_cong, "du_truoc": du - da_cong + dung, "du_sau": du})
+			return chung
+		chung.update({"tich": tich, "du_truoc": du + dung, "du_sau": du + tich})
+		return chung
 	except Exception:
 		# In bill KHONG duoc hong vi khoi diem. Thieu thi bill van ra, chi
 		# la khong co dong diem.

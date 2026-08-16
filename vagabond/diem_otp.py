@@ -556,6 +556,39 @@ def _ghi_tru_diem(khach, diem, si_name, quy_doi):
 # ------------------------------------------------- cam giam gia vao hoa don
 
 
+def _tran_cung(si, giam_moi):
+	"""Chan cung: tong giam gia KHONG duoc vuot gia tri to. THUAN theo nghia
+	chi doc mot doc da co san.
+
+	Vi sao phai co, va vi sao khong tin vao ERPNext
+	----------------------------------------------
+	Diem duoc ap len SO TIEN CUOI CUNG, tuc la sau khi da tru voucher va
+	combo (anh Viet chot 16/08/2026). Ham tran_dung_duoc() da lam dung viec
+	do roi vi no nhan grand_total, ma grand_total la con so DA TRU moi
+	khuyen mai khac.
+
+	Nhung "da dung o duong binh thuong" khong bang "khong the sai". Ba
+	duong co the dua toi mot to am: khuyen mai duoc ap THEM sau khi khach
+	da tru diem; thu ngan sua bot mon lam to nho di trong khi phan diem
+	giu nguyen; va nhip dong bo Pancake keo ve mot con so giam gia lon hon.
+	Ca ba deu khong di qua tran_dung_duoc lan thu hai.
+
+	Mot to am nghia la hoa don ban ra mang so tien am - no vao so cai, vao
+	bao cao doanh thu, va co the vao ca hoa don dien tu. Nen chan o day,
+	sat truoc luc ghi.
+	"""
+	# grand_total la con so DA tru discount_amount, nen cong nguoc lai thi
+	# ra gia tri to truoc moi khoan giam.
+	truoc_giam = flt(si.get("grand_total")) + flt(si.get("discount_amount"))
+	if flt(giam_moi) > truoc_giam + 0.5:
+		frappe.throw(
+			"Tổng giảm giá %s đ đang vượt giá trị đơn %s đ nên đơn sẽ thành số âm. "
+			"Bớt số điểm dùng hoặc bỏ bớt khuyến mãi rồi làm lại giúp em."
+			% (_so(giam_moi), _so(truoc_giam))
+		)
+	return truoc_giam
+
+
 def dat_giam_diem(si_name, tien_diem):
 	"""Dat lai phan giam gia den TU DIEM tren mot hoa don nhap.
 
@@ -579,6 +612,8 @@ def dat_giam_diem(si_name, tien_diem):
 	# Phan giam KHONG phai cua diem. Tach ra roi cong lai, de goi ham nay
 	# nhieu lan khong bi cong don.
 	goc = max(0.0, flt(si.discount_amount) - cu)
+	# Chan cung truoc khi ghi: tong giam khong duoc vuot gia tri to.
+	_tran_cung(si, goc + moi)
 	si.vgb_giam_diem = moi
 	si.apply_discount_on = "Grand Total"
 	si.discount_amount = goc + moi

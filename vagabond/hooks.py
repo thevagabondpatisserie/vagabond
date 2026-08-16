@@ -29,6 +29,8 @@ scheduler_events = {
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
 		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu.
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
+		# Moi gio: doi soat lenh chi hoan tien voi sao ke SePay.
+		"35 * * * *": ["vagabond.hoan_tien.doi_soat_tu_dong"],
 		# Gio chay chuoi cuoi ngay khai trong Vagabond Settings, sua duoc
 		# ngay tren app (mac dinh 23:00, ca ba buoc xong truoc 23h30). Chi
 		# Dung so xuat hoa don sat 24h, lo nghen mang la to hoa don lot
@@ -94,6 +96,13 @@ doc_events = {
 	# `sl_duyet`. Khong chan o day thi mot dong da tu choi van len duoc don,
 	# va ca man Duyet yeu cau mua thanh vo nghia.
 	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
+	# Phieu chi hoan tien khach: chua dinh kem uy nhiem chi thi khong ghi so
+	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
+	# de giai trinh, nhac tren man thi bo qua duoc.
+	"Payment Entry": {
+		"before_submit": "vagabond.hoan_tien.chan_thieu_uy_nhiem_chi",
+		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+	},
 	"Sales Invoice": {
 		# Hang OWNER: tu ap giam 100%, bat co don noi bo. Dat o
 		# before_validate vi ERPNext tinh lai tong tien SAU buoc nay; dat o
