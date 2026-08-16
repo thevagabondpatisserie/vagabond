@@ -280,6 +280,49 @@ la("ma rong va mo ta rong", khop("", ""), False)
 la("ma nam giua cau van khop", khop("VAGABOND HT HDB-2026-01604, hoan khach", "HDB-2026-01604"), True)
 la("dinh lien chu cai thi khong khop", khop("XHDB-2026-01604", "HDB-2026-01604"), False)
 
+
+# =====================================================================
+# Ten goi chung tu tien theo tai khoan (chi Dung chot 16/08/2026)
+# =====================================================================
+print("13. Ten goi chung tu tien")
+
+def _nap_ct():
+	src = open("vagabond/chung_tu_tien.py", encoding="utf-8").read()
+	mt = {"cint": lambda x: int(x or 0)}
+	for ten in ("la_ngan_hang", "la_tien_mat", "ten_chung_tu"):
+		m = re.search(r"^def %s\(.*?(?=^def |^@|\Z)" % ten, src, re.S | re.M)
+		if not m:
+			print("KHONG THAY ham %s trong chung_tu_tien.py" % ten); sys.exit(1)
+		exec(compile(m.group(0), "chung_tu_tien:%s" % ten, "exec"), mt, mt)
+	return mt
+
+Ct = _nap_ct()
+tenct = Ct["ten_chung_tu"]; lanh = Ct["la_ngan_hang"]; latm = Ct["la_tien_mat"]
+
+TM = "1111 - Tiền Việt Nam - TV"
+NH = "11211 - Tiền gửi MB Bank 31561568 - TV"
+TU = "1411 - Tạm ứng - Nguyễn Hoàng Việt (OCB) - TV"
+
+la("tien mat, chi", tenct("Pay", TM), "Phiếu chi")
+la("tien mat, thu", tenct("Receive", TM), "Phiếu thu")
+la("ngan hang, thu", tenct("Receive", NH), "Giấy báo Có")
+la("ngan hang, chi, con nhap", tenct("Pay", NH, 0), "Uỷ nhiệm chi")
+la("ngan hang, chi, da ghi so", tenct("Pay", NH, 1), "Uỷ nhiệm chi / Giấy báo Nợ")
+
+# Bay quan trong: 1411 tren he nay khai account_type "Bank" vi no gan mot
+# tai khoan OCB, nhung ban chat la TAM UNG ca nhan. Khong duoc goi la
+# phieu chi, cung khong duoc coi la ngan hang.
+la("1411 tam ung KHONG phai ngan hang", lanh(TU), False)
+la("1411 tam ung KHONG phai tien mat", latm(TU), False)
+la("1411 goi ten trung tinh", tenct("Pay", TU), "Chứng từ thanh toán")
+
+la("1121 la ngan hang", lanh("1121 - Tiền gửi ngân hàng - TV"), True)
+la("1112 ngoai te van la tien mat", latm("1112 - Ngoại tệ - TV"), True)
+la("tai khoan rong", tenct("Pay", ""), "Chứng từ thanh toán")
+la("tai khoan None", tenct("Pay", None), "Chứng từ thanh toán")
+# 131/331 khong bao gio la tai khoan tien
+la("131 khong phai tien", lanh("131 - Phải thu khách hàng - TV") or latm("131 - Phải thu khách hàng - TV"), False)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
