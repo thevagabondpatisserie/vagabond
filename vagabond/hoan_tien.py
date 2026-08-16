@@ -1068,7 +1068,21 @@ def thong_tin_chuyen_khoan(ho_so=None):
 	ten_nh = ""
 	if d.ngan_hang:
 		ten_nh = frappe.db.get_value("Bank", d.ngan_hang, "bank_name") or d.ngan_hang
-	nd = d.noi_dung_ck or noi_dung_ck(d.hoa_don)
+
+	# Phieu lap TRUOC 16/08/2026 mang noi dung theo cu phap cu "HT <ma to tra
+	# hang>". Duong doi soat moi do theo MA HOA DON GOC, nen noi dung cu se
+	# khong bao gio khop, va phieu nam mai o Cho chi ma khong ai biet vi sao.
+	#
+	# Bat duoc khi kiem tren he ngay sau khi deploy v192: phieu cu tra ve
+	# "HT HDB-26-08-00341" - do la ma TO TRA HANG, khong phai ma don.
+	#
+	# Chi dung lai cho phieu CHUA doi soat. Phieu da doi soat thi noi dung do
+	# la thu ke toan da go vao ngan hang that, sua no la sua lai qua khu.
+	nd = d.noi_dung_ck or ""
+	if not cint(d.da_doi_soat) and not khop_giao_dich(nd, d.hoa_don):
+		nd = noi_dung_ck(d.hoa_don)
+		frappe.db.set_value(DT, d.name, "noi_dung_ck", nd, update_modified=False)
+		frappe.db.commit()
 	tien_so = "%d" % int(round(flt(d.so_tien)))
 	tien_dep = "{:,.0f}".format(flt(d.so_tien)).replace(",", ".")
 	# Ten chu tai khoan phai BO DAU VIET HOA: ngan hang khong nhan tieng
