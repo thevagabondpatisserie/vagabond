@@ -72,7 +72,30 @@ def la_tien_mat(so_tai_khoan):
 	return str(so_tai_khoan or "").strip().startswith("111")
 
 
-def ten_chung_tu(loai_thanh_toan, tai_khoan, da_ghi_so=0):
+def cham_ngan_hang(tai_khoan_tu, tai_khoan_den):
+	"""Giao dich nay co dong vao tai khoan ngan hang khong. THUAN.
+
+	Xet CA HAI VE, va day la cho bo kiem thu bat duoc loi that
+	16/08/2026
+	------------------------------------------------------------------
+	Ban dau em chi xet MOT ve, chon ve nao thi dua vao payment_type: chi
+	thi xet paid_from, thu thi xet paid_to. Chay thu tren he that thi mot
+	phieu "Chuyen noi bo" rut 1.000 d TU 11211 ngan hang VE 1111 tien mat
+	LOT QUA va ghi so duoc.
+
+	Ly do: Chuyen noi bo khong phai "Pay" cung khong phai "Receive", nen
+	nhanh dieu kien roi vao ve thu, tuc doc paid_to la 1111 tien mat, va
+	ket luan "khong phai ngan hang". Trong khi tien THAT SU roi khoi tai
+	khoan ngan hang.
+
+	Rut tien tu ngan hang ve quy la tien ra khoi ngan hang, phai co giay
+	bao No y het mot khoan chi. Nen xet ca hai ve, khong hoi payment_type
+	nua.
+	"""
+	return la_ngan_hang(tai_khoan_tu) or la_ngan_hang(tai_khoan_den)
+
+
+def ten_chung_tu(loai_thanh_toan, tai_khoan, da_ghi_so=0, tai_khoan_den=None):
 	"""Ten goi dung cua mot chung tu tien. THUAN.
 
 	Chi Dung chot 16/08/2026:
@@ -85,7 +108,16 @@ def ten_chung_tu(loai_thanh_toan, tai_khoan, da_ghi_so=0):
 	Uy nhiem chi do minh phat hanh. Ghi so nghia la da co tep ngan hang
 	dinh kem, tuc da co Giay bao No.
 	"""
-	chi = str(loai_thanh_toan or "").strip().lower() == "pay"
+	loai = str(loai_thanh_toan or "").strip().lower()
+	if loai == "internal transfer":
+		# Chuyen noi bo: goi theo ve TIEN RA, vi do la ve sinh ra chung tu
+		# ngan hang. Rut tu ngan hang ve quy thi van phai co giay bao No.
+		if la_ngan_hang(tai_khoan):
+			return "Uỷ nhiệm chi / Giấy báo Nợ" if cint(da_ghi_so) else "Uỷ nhiệm chi"
+		if la_ngan_hang(tai_khoan_den):
+			return "Giấy báo Có"
+		return "Phiếu chi" if la_tien_mat(tai_khoan) else "Chứng từ chuyển nội bộ"
+	chi = loai == "pay"
 	if la_tien_mat(tai_khoan):
 		return "Phiếu chi" if chi else "Phiếu thu"
 	if la_ngan_hang(tai_khoan):
@@ -101,9 +133,16 @@ def ten_chung_tu(loai_thanh_toan, tai_khoan, da_ghi_so=0):
 
 
 def _tk_tien(doc):
-	"""Tai khoan tien cua chung tu: chi thi la paid_from, thu thi paid_to."""
-	chi = str(doc.get("payment_type") or "").strip().lower() == "pay"
-	return (doc.get("paid_from") if chi else doc.get("paid_to")) or ""
+	"""Tai khoan tien DAI DIEN cua chung tu, dung de dat ten.
+
+	Chi va Chuyen noi bo lay ve tien ra (paid_from); Thu lay ve tien vao.
+	Rieng viec CHAN dinh kem thi KHONG dung ham nay ma xet ca hai ve -
+	xem cham_ngan_hang.
+	"""
+	loai = str(doc.get("payment_type") or "").strip().lower()
+	if loai in ("pay", "internal transfer"):
+		return doc.get("paid_from") or ""
+	return doc.get("paid_to") or ""
 
 
 def dat_ten(doc, method=None):
@@ -112,7 +151,10 @@ def dat_ten(doc, method=None):
 		if not doc.meta.has_field("vgb_loai_ct"):
 			return
 		doc.vgb_loai_ct = ten_chung_tu(
-			doc.get("payment_type"), _tk_tien(doc), cint(doc.get("docstatus")) == 1
+			doc.get("payment_type"),
+			_tk_tien(doc),
+			cint(doc.get("docstatus")) == 1,
+			doc.get("paid_to"),
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "chung_tu_tien: dat ten loi")
@@ -136,9 +178,10 @@ def chan_thieu_dinh_kem(doc, method=None):
 	try:
 		if doc.doctype != PE:
 			return
-		tk = _tk_tien(doc)
-		if not la_ngan_hang(tk):
+		# XET CA HAI VE, khong hoi payment_type. Xem ghi chu o cham_ngan_hang.
+		if not cham_ngan_hang(doc.get("paid_from"), doc.get("paid_to")):
 			return
+		tk = doc.get("paid_from") if la_ngan_hang(doc.get("paid_from")) else doc.get("paid_to")
 		tao_luc = str(doc.get("creation") or "")[:10]
 		if tao_luc and tao_luc < NGAY_CHOT:
 			return
@@ -173,10 +216,10 @@ def tinh_trang(name=None):
 		return {"co": 0}
 	tk = _tk_tien(d)
 	so_tep = frappe.db.count("File", {"attached_to_doctype": PE, "attached_to_name": d["name"]})
-	ngan_hang = la_ngan_hang(tk)
+	ngan_hang = cham_ngan_hang(d.get("paid_from"), d.get("paid_to"))
 	return {
 		"co": 1,
-		"ten": ten_chung_tu(d["payment_type"], tk, cint(d["docstatus"]) == 1),
+		"ten": ten_chung_tu(d["payment_type"], tk, cint(d["docstatus"]) == 1, d.get("paid_to")),
 		"tai_khoan": tk,
 		"ngan_hang": 1 if ngan_hang else 0,
 		"so_tep": so_tep,
