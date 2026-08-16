@@ -7067,6 +7067,15 @@ async function scrDsView(name, can) {
       });
       if (dsvThe && !dsvThe.co) dsvThe = null;
     } catch (e) { dsvThe = null; }
+    /* Trạng thái trừ điểm hỏi RIÊNG máy chủ chứ không suy ra từ dsvThe:
+       máy chủ mới biết trần, khoá do nhập sai, và khách có số điện thoại
+       trong hồ sơ hay chưa. Suy ở app là có ngày bày nút cho một đơn mà
+       bấm vào thì báo lỗi. */
+    dsvTru = null;
+    if (!dsvKhach.ma) return;
+    try {
+      dsvTru = await api('vagabond.diem_otp.tinh_trang', { si_name: d.name });
+    } catch (e) { dsvTru = null; }
   }
 
   /* Một ô số chỉ đọc. Dựng bằng khối chứ không dùng thẻ nhập, vì đây là
@@ -7123,7 +7132,8 @@ async function scrDsView(name, can) {
       });
     };
     var nBo = document.getElementById('dsvKhachBo');
-    if (nBo) nBo.onclick = function () { dsvKhach = { ma: '', ten: '' }; dsvThe = null; veKhachNo(); };
+    if (nBo) nBo.onclick = function () { dsvKhach = { ma: '', ten: '' }; dsvThe = null; dsvTru = null; veKhachNo(); };
+    dsvGanTruDiem();
   }
 
   /* Hình thẻ hạng thay cho emoji toà nhà.
@@ -7159,7 +7169,158 @@ async function scrDsView(name, can) {
       dsvOSo('Số điểm hiện tại', dsvThe.diem_hien_tai, '#111',
              dsvThe.da_tich ? 'trước khi chốt đơn này' : '') +
       dsvOSo(nhan2, dsvThe.diem_don_nay, dsvThe.diem_don_nay > 0 ? '#0a8a4a' : '#9ca3af', chu2) +
-      '</div>';
+      '</div>' + dsvVeTruDiem();
+  }
+
+  /* ---------------------------------------------------------------- trừ điểm
+     Hai pha. Pha 1 xin mã: máy chủ gửi ZNS tới số TRONG HỒ SƠ khách và ghi
+     số điểm đã duyệt vào chính bản ghi OTP. Pha 2 chỉ gửi lên mã sáu số,
+     KHÔNG gửi lại số điểm - gửi lại thì xin mã cho 100 điểm rồi xác nhận
+     100.000 điểm là ăn, mà tin ZNS khách nhận vẫn ghi 100 điểm.
+
+     Nên biến dsvPhien dưới đây cố ý CHỈ giữ thứ để hiển thị, và hàm xác
+     nhận cố ý không đọc số điểm từ nó. */
+  var dsvTru = null;
+  var dsvPhien = null;
+  var dsvDongHo = null;
+
+  function dsvVeTruDiem() {
+    if (!dsvTru) return '';
+    if (dsvTru.da_tru > 0) {
+      return '<div style="margin-top:9px;padding:9px 11px;border-radius:9px;background:#ecfdf5;' +
+        'border:1.5px solid #a7f3d0;font-size:12.5px;color:#065f46">' +
+        '<b>Đã dùng ' + money(dsvTru.da_tru) + ' điểm</b> cho đơn này, giảm ' +
+        money(dsvTru.giam_diem) + ' đ. ' +
+        '<button id="dsvGoDiem" style="border:1.5px solid #6ee7b7;background:#fff;color:#047857;' +
+        'border-radius:7px;padding:3px 9px;font-size:12px;font-weight:700">Gỡ lượt trừ</button></div>';
+    }
+    if (!dsvTru.dung_duoc) {
+      if (!dsvTru.vi_sao) return '';
+      return '<div style="margin-top:8px;font-size:11.5px;color:#9ca3af">' + h(dsvTru.vi_sao) + '</div>';
+    }
+    /* Chưa xin mã thì bày ô nhập điểm; đã xin rồi thì bày ô nhập mã. Không
+       bày cả hai cùng lúc: thu ngân đang đứng trước khách, mỗi lúc chỉ nên
+       có đúng một việc để làm. */
+    if (!dsvPhien) {
+      return '<div style="margin-top:9px;padding:10px 11px;border-radius:9px;background:#f8fafc;' +
+        'border:1.5px solid #e2e8f0">' +
+        '<div style="font-size:12px;color:#475569;margin-bottom:7px">Khách trả bằng điểm? ' +
+        'Đơn này dùng được tối đa <b>' + money(dsvTru.toi_da) + '</b> điểm.</div>' +
+        '<div style="display:flex;gap:7px">' +
+        '<input id="dsvDiemNhap" type="number" inputmode="numeric" min="1" max="' + dsvTru.toi_da + '" ' +
+        'placeholder="Số điểm muốn dùng" style="flex:1;min-width:0;border:1.5px solid #cbd5e1;' +
+        'border-radius:8px;padding:8px 10px;font-size:14px">' +
+        '<button id="dsvXinMa" style="flex:none;border:0;background:#0f766e;color:#fff;border-radius:8px;' +
+        'padding:8px 13px;font-size:13px;font-weight:700">Xác nhận trừ điểm</button></div>' +
+        '<div id="dsvDiemQuy" style="font-size:11.5px;color:#64748b;margin-top:6px"></div></div>';
+    }
+    return '<div style="margin-top:9px;padding:10px 11px;border-radius:9px;background:#fffbeb;' +
+      'border:1.5px solid #fde68a">' +
+      '<div style="font-size:12px;color:#78350f;margin-bottom:7px">' +
+      'Đã gửi mã tới số đuôi <b>' + h(dsvPhien.duoi_so) + '</b> của khách. Dùng <b>' +
+      money(dsvPhien.so_diem) + '</b> điểm, giảm <b>' + money(dsvPhien.so_tien) + ' đ</b>.' +
+      (dsvPhien.gia_lap ? ' <span style="color:#b45309">(chạy thử, chưa gửi Zalo thật)</span>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:7px;align-items:center">' +
+      '<input id="dsvMaNhap" type="tel" inputmode="numeric" maxlength="6" placeholder="Mã 6 số" ' +
+      'style="flex:1;min-width:0;border:1.5px solid #fcd34d;border-radius:8px;padding:8px 10px;' +
+      'font-size:18px;letter-spacing:4px;text-align:center;font-weight:700">' +
+      '<button id="dsvXacNhan" style="flex:none;border:0;background:#b45309;color:#fff;border-radius:8px;' +
+      'padding:8px 13px;font-size:13px;font-weight:700">Xong</button></div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px">' +
+      '<span id="dsvDem" style="font-size:12px;color:#92400e;font-weight:700"></span>' +
+      '<button id="dsvHuyMa" style="border:0;background:none;color:#92400e;font-size:11.5px;' +
+      'text-decoration:underline">Huỷ</button></div></div>';
+  }
+
+  function dsvGanTruDiem() {
+    var oNhap = document.getElementById('dsvDiemNhap');
+    if (oNhap) {
+      /* Quy ra tiền ngay khi gõ: thu ngân đọc cho khách nghe số tiền chứ
+         không đọc số điểm, và tiền mới là cái khách quan tâm. */
+      oNhap.oninput = function () {
+        var o = document.getElementById('dsvDiemQuy');
+        if (!o) return;
+        var n = Number(oNhap.value) || 0;
+        if (n <= 0) { o.textContent = ''; return; }
+        if (n > dsvTru.toi_da) {
+          o.innerHTML = '<span style="color:#b3261e">Vượt mức tối đa ' + money(dsvTru.toi_da) + ' điểm.</span>';
+          return;
+        }
+        o.textContent = 'Giảm ' + money(Math.floor(n * (dsvTru.quy_doi || 1))) + ' đ cho đơn này.';
+      };
+      var nXin = document.getElementById('dsvXinMa');
+      if (nXin) nXin.onclick = async function () {
+        var n = Number(oNhap.value) || 0;
+        if (n <= 0) { toast('Nhập số điểm muốn dùng đã.'); oNhap.focus(); return; }
+        busy(true);
+        try {
+          var kq = await api('vagabond.diem_otp.xin_ma', { si_name: d.name, so_diem: n });
+          busy(false);
+          if (!kq || !kq.ok) { toast('Chưa gửi được mã cho khách. ' + ((kq && kq.chi_tiet) || ''), 4000); return; }
+          dsvPhien = { duoi_so: kq.duoi_so, so_diem: kq.so_diem, so_tien: kq.so_tien,
+                       gia_lap: kq.gia_lap, het_luc: Date.now() + kq.song_giay * 1000 };
+          veKhachNo();
+        } catch (e) { busy(false); }
+      };
+    }
+    var oMa = document.getElementById('dsvMaNhap');
+    if (oMa) {
+      oMa.oninput = function () { oMa.value = oMa.value.replace(/\D/g, ''); };
+      var nXn = document.getElementById('dsvXacNhan');
+      if (nXn) nXn.onclick = async function () {
+        var ma = (oMa.value || '').replace(/\D/g, '');
+        if (ma.length !== 6) { toast('Mã gồm 6 chữ số.'); oMa.focus(); return; }
+        busy(true);
+        try {
+          /* CHỈ gửi mã. Số điểm nằm ở bản ghi OTP trên máy chủ. */
+          var kq = await api('vagabond.diem_otp.xac_nhan', { si_name: d.name, ma: ma });
+          busy(false);
+          dsvPhien = null;
+          toast('Đã trừ ' + money(kq.so_diem) + ' điểm, giảm ' + money(kq.so_tien) + ' đ', 3000);
+          /* Nạp lại CẢ tờ chứ không tự sửa số trên màn: tổng tiền do máy chủ
+             tính lại, tin con số máy khách tự suy ra là có ngày lệch (QT-19). */
+          await dsvNapLai();
+        } catch (e) { busy(false); oMa.value = ''; oMa.focus(); }
+      };
+      var nHuy = document.getElementById('dsvHuyMa');
+      if (nHuy) nHuy.onclick = function () { dsvPhien = null; veKhachNo(); };
+      dsvChayDongHo();
+    }
+    var nGo = document.getElementById('dsvGoDiem');
+    if (nGo) nGo.onclick = async function () {
+      if (!confirm('Gỡ lượt trừ điểm của đơn này? Điểm sẽ được trả lại cho khách.')) return;
+      busy(true);
+      try {
+        await api('vagabond.diem_otp.go_luot_tru', { si_name: d.name });
+        busy(false); toast('Đã trả lại điểm cho khách'); await dsvNapLai();
+      } catch (e) { busy(false); }
+    };
+  }
+
+  function dsvChayDongHo() {
+    if (dsvDongHo) clearInterval(dsvDongHo);
+    dsvDongHo = setInterval(function () {
+      var o = document.getElementById('dsvDem');
+      /* Ô biến mất nghĩa là màn đã vẽ lại hoặc người dùng đã rời đi: dừng
+         hẳn đồng hồ. Không dừng thì mỗi lần mở đơn lại thêm một bộ đếm chạy
+         ngầm, và sau vài chục đơn là máy quầy ì. */
+      if (!o || !dsvPhien) { clearInterval(dsvDongHo); dsvDongHo = null; return; }
+      var con = Math.max(0, Math.round((dsvPhien.het_luc - Date.now()) / 1000));
+      if (con <= 0) {
+        clearInterval(dsvDongHo); dsvDongHo = null; dsvPhien = null;
+        toast('Mã đã hết hạn, bấm lại để gửi mã mới', 3500);
+        veKhachNo();
+        return;
+      }
+      o.textContent = 'Mã còn ' + Math.floor(con / 60) + ':' + ('0' + (con % 60)).slice(-2);
+    }, 250);
+  }
+
+  async function dsvNapLai() {
+    try { d = await api('frappe.client.get', { doctype: 'Sales Invoice', name: d.name }); } catch (e) { }
+    await dsvTaiThe();
+    veKhachNo();
   }
 
   veKhachNo();
@@ -11260,7 +11421,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '180';
+var APPVER = '181';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
