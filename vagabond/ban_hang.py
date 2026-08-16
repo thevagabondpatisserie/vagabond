@@ -47,7 +47,7 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban, may_in, pt_thanh_toan, quyen_quay, tai_khoan
+from vagabond import chung_tu, diem_ban, may_in, noi_bo, pt_thanh_toan, quyen_quay, tai_khoan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -679,6 +679,23 @@ PT_KENH = (
 # ngay do se thanh 19 lan ghi nhan thu tien khong co that.
 MA_THANH_CONG = {"0", "00", "000"}
 
+
+def _giam_tu_diem(si):
+	"""Phan giam gia den tu diem thanh vien tren mot to. Mac dinh 0.
+
+	MOT CUA DUY NHAT de doc con so nay trong ban_hang.py. Bon cho dat lai
+	discount_amount deu phai cong no vao, khong thi luot tru diem cua khach
+	bi xoa am tham - xem ghi chu dai o _upsert_hoa_don.
+
+	Doc bang .get() va roi ve 0 de con chay duoc TRUOC khi Migrate dung cot
+	vgb_giam_diem: bai hoc v177, after_migrate KHONG chay sau moi lan deploy.
+	"""
+	try:
+		return flt((si or {}).get("vgb_giam_diem") or 0)
+	except Exception:
+		return 0.0
+
+
 # Truong tu them do ma nguon khai, dung lai moi lan deploy - xem
 # vagabond/truong_tu_them.py.
 TRUONG_MOI = {
@@ -1121,7 +1138,19 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			"custom_pancake_display_id": did,
 			"custom_nguon": "Pancake",
 			"apply_discount_on": "Grand Total",
-			"discount_amount": giam_don,
+			# GIU LAI phan giam gia den tu diem thanh vien.
+			#
+			# Dong nay truoc day ghi de discount_amount VO DIEU KIEN, va nhip
+			# dong bo dong vao MOI hoa don con nhap, khoang 30 phut mot lan.
+			# Nghia la: thu ngan tru diem cho khach xong, khach ve, 30 phut sau
+			# may keo don tu Pancake roi dat lai discount_amount bang con so
+			# Pancake bao. Giam gia tu diem bien mat, nhung but tru diem trong
+			# so `Vagabond So Diem` thi van con - khach mat diem ma khong duoc
+			# giam dong nao, va KHONG CO THONG BAO LOI NAO CA.
+			#
+			# Cung mot luat voi phuong thuc thanh toan va ban dich Gemini:
+			# may khong de len chu nguoi that (anh Viet chot 15/08/2026).
+			"discount_amount": giam_don + _giam_tu_diem(si),
 			"remarks": "Pancake #%s - %s%s" % (did, ten_khach or "Khách lẻ", " - " + sdt if sdt else ""),
 		}
 	)
@@ -3095,7 +3124,8 @@ def tao_don_tay(
 			"vgb_ghi_chu": (ghi_chu or "").strip(),
 			"vgb_xhd_ten": XHD_MAC_DINH,
 			"apply_discount_on": "Grand Total",
-			"discount_amount": flt(giam_gia) + km_giam,
+			# Cong phan giam tu diem vao - xem _giam_tu_diem.
+			"discount_amount": flt(giam_gia) + km_giam + _giam_tu_diem(si),
 			"remarks": "%s #%s - %s%s%s"
 			% (
 				nguon,
@@ -3297,6 +3327,12 @@ def xuat_hoa_don_dien_tu(si_name):
 		frappe.throw("Hoá đơn %s chưa chốt, chốt doanh số trước rồi mới xuất HĐĐT." % si_name)
 	if si.custom_hddt_so:
 		frappe.throw("Hoá đơn %s đã xuất HĐĐT số %s rồi." % (si_name, si.custom_hddt_so))
+	# Don noi bo hang OWNER: tuyet doi khong xuat hoa don dien tu.
+	#
+	# Chan o BACKEND chu khong chi an nut tren giao dien: nut an chan duoc
+	# nguoi bam nut, con duong tu dong tu_xuat_hddt va duong goi ham thang
+	# tu Desk thi khong. Hoa don da gui sang co quan thue rat kho go lai.
+	noi_bo.chan_hoa_don_dien_tu(si)
 
 	hd = frappe.db.get_value(
 		"Vagabond Hoa Don",
@@ -3616,7 +3652,8 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		si.vgb_ghi_chu = (ghi_chu or "").strip()
 	if giam_gia is not None:
 		si.apply_discount_on = "Grand Total"
-		si.discount_amount = flt(giam_gia)
+		# Cong phan giam tu diem vao - xem _giam_tu_diem.
+		si.discount_amount = flt(giam_gia) + _giam_tu_diem(si)
 	si.vgb_tam_tinh = 0
 	si.flags.ignore_permissions = True
 	si.save()
@@ -3757,7 +3794,8 @@ def pos_sua_don(
 		doi.append("món")
 	if giam_gia is not None:
 		si.apply_discount_on = "Grand Total"
-		si.discount_amount = flt(giam_gia)
+		# Cong phan giam tu diem vao - xem _giam_tu_diem.
+		si.discount_amount = flt(giam_gia) + _giam_tu_diem(si)
 		doi.append("giảm giá")
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)

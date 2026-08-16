@@ -181,6 +181,23 @@ def danh_dau_huy(doc, ly_do=None, ghi_vet=True):
 		_ghi_vet(dt, ten, "Huỷ phiếu nháp. Lý do: %s" % ((ly_do or "").strip() or "không ghi"))
 	frappe.db.commit()
 
+	# TRA LAI DIEM DA TRU. Duong nay KHONG di qua on_cancel.
+	#
+	# Huy mem chi dat co vgb_huy bang db.set_value, Frappe khong goi hook
+	# on_cancel nao ca. Neu chi gan hoan diem vao on_cancel thi moi bill
+	# quay bi huy mem se nuot luon diem cua khach, va khong ai phat hien ra
+	# cho den luc khach di doi qua - luc do khong con doi chieu duoc nua.
+	#
+	# Dat SAU commit va boc try: tra diem hong khong duoc lam hong viec huy
+	# phieu. Hong thi ghi nhat ky, chay lai bang nut duoc.
+	if dt == "Sales Invoice":
+		try:
+			from vagabond import diem_otp
+
+			diem_otp.hoan_diem_don(ten, "Bill bị đánh dấu huỷ: %s" % ((ly_do or "").strip() or "không ghi"))
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "chung_tu: hoan diem khi huy mem")
+
 
 @frappe.whitelist()
 def huy_phieu_nhap(doctype, name, ly_do=None):

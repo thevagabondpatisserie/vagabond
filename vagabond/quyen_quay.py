@@ -115,7 +115,21 @@ def them_giam_gia(si, giam_gia):
 		return False
 	if muc() == "tu_do":
 		return False
-	return flt(giam_gia) > flt(si.get("discount_amount") or 0) + 0.5
+	# BO PHAN GIAM DEN TU DIEM ra khoi ve phai.
+	#
+	# giam_gia man hinh gui len la phan GIAM TAY cua thu ngan, con
+	# discount_amount tren to nay da gom ca phan cua diem. Khong tru ra thi
+	# mot luot tru diem 50.000 d se lam moi khoan giam tay duoi 50.000 d
+	# lot qua ma khong ai duyet - tuc la them tinh nang tru diem lai vo
+	# tinh MO mot cua o cho khac. Tru ra thi phep so quay ve dung nhu truoc
+	# khi co tru diem.
+	#
+	# Chieu nguoc lai cung dung y: khach tieu diem cua chinh minh khong phai
+	# la nhan nhuong cua quan nen khong bat goi quan ly ca duyet. Luot tru
+	# diem da co lop xac thuc rieng va manh hon - ma gui thang toi dien
+	# thoai cua khach.
+	diem = flt(si.get("vgb_giam_diem") or 0)
+	return flt(giam_gia) > flt(si.get("discount_amount") or 0) - diem + 0.5
 
 
 # ------------------------------------------------------------------ man app

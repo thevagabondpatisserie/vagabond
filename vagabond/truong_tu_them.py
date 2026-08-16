@@ -19,10 +19,12 @@ import frappe
 
 def dung():
 	"""Dung moi truong tu them do ma nguon khai. Goi tu after_migrate."""
-	from vagabond import ban_hang, bao_gia, duyet_ycmh
+	from vagabond import ban_hang, bao_gia, diem_otp, duyet_ycmh, noi_bo
 
 	_dung_nhom(duyet_ycmh.TRUONG_MOI, "duyet_ycmh")
 	_dung_nhom(ban_hang.TRUONG_MOI, "ban_hang")
+	_dung_nhom(diem_otp.TRUONG_MOI, "diem_otp")
+	_dung_nhom(noi_bo.TRUONG_MOI, "noi_bo")
 	_dung_nhom(bao_gia.TRUONG_MOI, "bao_gia")
 	_dung_nhom(bao_gia.TRUONG_CAI_DAT, "bao_gia_cai_dat")
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")

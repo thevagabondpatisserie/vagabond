@@ -43,6 +43,13 @@ scheduler_events = {
 		# Xet lai hang thanh vien theo chi tieu ky. Chay sau nua dem, truoc
 		# gio mo cua, de sang ra quay da thay dung hang cua khach.
 		"30 4 * * *": ["vagabond.khach_hang.xet_lai_tu_dong"],
+		# 5h sang: dot diem qua han theo chu ky khai trong Cai dat.
+		#
+		# Chay SAU xet lai hang: xet hang doc chi tieu tu hoa don chu khong
+		# doc so diem, nen thu tu khong doi ket qua - nhung neu sau nay ai
+		# gan hai viec vao nhau thi thu tu dung la xet hang truoc, dot diem
+		# sau. Ham tu kiem cau hinh va thoat ngay khi dang Tat (mac dinh).
+		"0 5 * * *": ["vagabond.diem_han.het_han_tu_dong"],
 		# 3h sang: xoa anh giao hang cua van don qua 30 ngay cho nhe he thong
 		"0 3 * * *": [
 			"vagabond.van_don.don_dep_anh_giao",
@@ -88,6 +95,11 @@ doc_events = {
 	# va ca man Duyet yeu cau mua thanh vo nghia.
 	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
 	"Sales Invoice": {
+		# Hang OWNER: tu ap giam 100%, bat co don noi bo. Dat o
+		# before_validate vi ERPNext tinh lai tong tien SAU buoc nay; dat o
+		# validate thi con so khong an. Va dat o hook chu khong o tung ham
+		# cua POS, vi co it nhat nam duong tao hoac sua mot hoa don.
+		"before_validate": "vagabond.noi_bo.truoc_khi_luu",
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh
 		# toan, hay phuong thuc khong dung duoc cho nguon do (anh Viet
@@ -104,6 +116,13 @@ doc_events = {
 			"vagabond.kiem_banh.khi_doi_hoa_don",
 			# Huy hoa don thi rut lai dung so diem da cong cho hoa don do.
 			"vagabond.khach_hang.hoan_diem_hoa_don",
+			# ... va tra lai dung so diem khach DA TIEU tren hoa don do.
+			#
+			# Hai viec nguoc chieu nhau nen phai la hai ham: mot cai rut ve
+			# diem quan da tang, mot cai tra lai diem khach da mat. Day chi la
+			# MOT trong ba duong mot don co the chet - duong huy mem vgb_huy
+			# KHONG di qua day, xem chung_tu.danh_dau_huy.
+			"vagabond.diem_otp.hoan_khi_huy_hoa_don",
 		],
 	},
 }

@@ -687,6 +687,17 @@ def xet_lai(ap=0, so_khach=500):
 				nen = h["name"]
 		if not nen:
 			nen = bang[0]["name"]
+		# HA HANG MOI KY CHI MOT BAC (anh Viet chot 16/08/2026).
+		#
+		# Khong co chot nay thi mot khach VAGABONDER nghi mua nua nam se rot
+		# thang ve EXPLORER trong mot dem, tut hai bac. Voi khach do thi do
+		# la mot cu nga chu khong phai mot nhac nho, va ho se goi len hoi.
+		# Len hang thi van len thang toi noi - khong ai phan nan vi len
+		# nhanh qua.
+		if dang and nen != dang and _xuong_tung_bac():
+			b_dang, b_nen = _bac(bang, dang), _bac(bang, nen)
+			if b_dang >= 0 and 0 <= b_nen < b_dang - 1:
+				nen = bang[b_dang - 1]["name"]
 		if nen == dang:
 			continue
 		doi.append(
@@ -721,6 +732,17 @@ def xet_lai(ap=0, so_khach=500):
 		"da_ap": da_ap,
 		"so_thang": so_thang,
 	}
+
+
+def _xuong_tung_bac():
+	"""Cai dat: ha hang moi ky chi mot bac. Mac dinh BAT."""
+	try:
+		from vagabond.lib import cfg
+
+		v = cfg().get("ha_hang_tung_bac")
+		return True if v is None else bool(cint(v))
+	except Exception:
+		return True
 
 
 def _bac(bang, ten):
