@@ -249,6 +249,42 @@ def khop_giao_dich(mo_ta, ma_hoa_don):
 	return not sau.isdigit()
 
 
+def chon_ma_khop(mo_ta, ds_ma):
+	"""Trong danh sach ma dang cho, ma nao khop voi dong sao ke nay. THUAN.
+
+	Tra chuoi rong neu khong ma nao khop.
+
+	Vi sao co ham nay, va day la lan thu BA trong ngay 16/08/2026
+	------------------------------------------------------------
+	Sang nay mat mot ban va vi hai cho dinh tuyen chep gan giong nhau roi
+	lech nhau. Chieu nay lai suyt chep regex vao bo kiem. Va toi nay, khi
+	chay thu tren he ngay sau khi deploy v192, phat hien dung cai do lan
+	nua: hai duong doi soat cung mot viec nhung dung hai phep khac nhau.
+
+	    doi_soat()       chay theo gio, doc Bank Transaction -> khop_giao_dich
+	    sepay_tien_ra()  SePay goi thang                     -> tim_ma_hoa_don
+
+	khop_giao_dich co duong got nen bat duoc dong bi ngan hang lam mat dau
+	gach. tim_ma_hoa_don thi khong. Nen cung mot dong tien, vao duong nay
+	thi khop, vao duong kia thi thanh mo coi.
+
+	Nay ca hai duong deu di qua ham nay. Mot phep, mot cho.
+	"""
+	mo = str(mo_ta or "")
+	if not mo:
+		return ""
+	# Uu tien doc thang ma trong mo ta: nhanh, va chac chan dung khi dau
+	# gach con nguyen.
+	ma = tim_ma_hoa_don(mo)
+	if ma and ma in {str(x or "").upper() for x in (ds_ma or [])}:
+		return ma
+	# Khong doc duoc thi doi chieu tung ma dang cho, qua duong got.
+	for x in ds_ma or []:
+		if khop_giao_dich(mo, x):
+			return str(x)
+	return ""
+
+
 def ty_le_hop_le(so_tien_hoan, tong_don):
 	"""So tien hoan nay co nam trong tong don khong. THUAN.
 
@@ -997,12 +1033,25 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
-	ma = tim_ma_hoa_don(mo_ta)
-	if not ma:
-		return {"khop": 0, "vi_sao": "Nội dung chuyển khoản không chứa mã hoá đơn nào."}
-	d = frappe.db.get_value(
-		DT, {"hoa_don": ma, "da_doi_soat": 0}, ["name", "so_tien", "trang_thai"], as_dict=True
+	# Doi chieu voi cac phieu DANG CHO, qua chon_ma_khop - dung phep ma
+	# duong chay theo gio dung, khong de hai duong lech nhau.
+	cho = frappe.get_all(
+		DT, filters={"da_doi_soat": 0, "trang_thai": ["!=", "Da huy"]},
+		fields=["name", "hoa_don", "so_tien", "trang_thai"], limit_page_length=0,
 	)
+	ma = chon_ma_khop(mo_ta, [c["hoa_don"] for c in cho if c.get("hoa_don")])
+	if not ma:
+		doc_duoc = tim_ma_hoa_don(mo_ta)
+		return {
+			"khop": 0,
+			"ma": doc_duoc,
+			"vi_sao": (
+				"Không có phiếu hoàn tiền nào đang chờ cho đơn %s." % doc_duoc
+				if doc_duoc
+				else "Nội dung chuyển khoản không chứa mã hoá đơn nào."
+			),
+		}
+	d = next((c for c in cho if str(c["hoa_don"]).upper() == ma.upper()), None)
 	if not d:
 		return {"khop": 0, "ma": ma, "vi_sao": "Không có phiếu hoàn tiền nào đang chờ cho đơn %s." % ma}
 	if flt(so_tien) and abs(flt(so_tien) - flt(d["so_tien"])) > 1:
