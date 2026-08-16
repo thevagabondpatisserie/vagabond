@@ -718,12 +718,14 @@ function hoanMoForm(don) {
   htF = {
     don: don.name, tong: tong, tien: tong, muc: 100,
     ly_do: '', dien_giai: '', ten_tk: '', so_tk: '', ngan_hang: '', sdt: '',
+    ten_khach: '', nguon_khach: '',
     anh: [], goi_y: null, hddt: (don.custom_hddt_so || '')
   };
   hoanVeForm();
-  /* Đọc gợi ý tài khoản của chính khách này ở lần hoàn trước, và đọc lại
-     tổng đơn từ máy chủ. Chạy SAU khi vẽ xong form để form hiện ngay;
-     hỏng thì để nguyên form chứ không chặn Sales lại. */
+  /* Đọc gợi ý tài khoản của chính khách này ở lần hoàn trước, tên và số
+     điện thoại khách trên đơn, và đọc lại tổng đơn từ máy chủ. Chạy SAU khi
+     vẽ xong form để form hiện ngay; hỏng thì để nguyên form chứ không chặn
+     Sales lại. */
   api('vagabond.hoan_tien.tinh_trang', { si_name: don.name }).then(function (t) {
     if (!htF || htF.don !== don.name) return;
     if (!t || !t.duoc) {
@@ -731,14 +733,61 @@ function hoanMoForm(don) {
       return baoTin((t && t.vi_sao) || 'Đơn này không hoàn tiền được.', 'Không gửi được yêu cầu');
     }
     if (t.so_tien) { htF.tong = Number(t.so_tien); if (htF.muc) htF.tien = Math.round(htF.tong * htF.muc / 100); }
+    /* Tự điền tên và số điện thoại khách từ chính đơn hàng (anh Việt
+       17/08/2026). Nhân viên vừa đọc số của khách xong cách đó ba phút,
+       bắt gõ lại là vừa mất thời gian vừa thêm một chỗ gõ sai. */
+    if (t.khach) {
+      if (t.khach.ten && !htF.ten_khach) htF.ten_khach = t.khach.ten;
+      if (t.khach.sdt && !htF.sdt) htF.sdt = t.khach.sdt;
+      htF.nguon_khach = t.khach.nguon || '';
+      /* Tên chủ tài khoản mặc định là tên khách, vì phần lớn khách nhận về
+         chính tài khoản của mình. Sales sửa lại được khi khách nhờ chuyển
+         hộ người khác. */
+      if (htF.ten_khach && !htF.ten_tk) htF.ten_tk = htF.ten_khach;
+    }
     if (t.goi_y_tk && t.goi_y_tk.so_tk && !htF.so_tk) {
       htF.goi_y = t.goi_y_tk;
-      htF.ten_tk = t.goi_y_tk.ten_tk || '';
+      if (t.goi_y_tk.ten_tk) htF.ten_tk = t.goi_y_tk.ten_tk;
       htF.so_tk = t.goi_y_tk.so_tk || '';
       htF.ngan_hang = t.goi_y_tk.ngan_hang || '';
     }
     hoanVeForm();
   }).catch(function () { });
+}
+
+/* ---------- Ô chọn ngân hàng, dùng chung cả app ----------
+
+Anh Việt 17/08/2026: gõ tay "MB" thì máy ném lỗi "Không tìm thấy Ngân hàng:
+MB", vì tên đầy đủ trong danh mục là "MB - Ngân hàng TMCP Quân đội".
+
+Nên bỏ hẳn việc gõ tay. Danh mục 581 ngân hàng lấy từ chính tệp chuyển tiền
+lô của MB Biz, nằm dưới backend, và MỌI chỗ trong app cần tên ngân hàng đều
+gọi hàm này - không chỗ nào tự dựng danh sách riêng.
+
+Danh sách tải một lần rồi giữ lại: 581 dòng mà mỗi lần mở ô lại tải là bắt
+nhân viên quầy ngồi chờ mạng 4G. */
+var NH_DS = null;
+
+async function nhChon(dangChon, xong) {
+  if (!NH_DS) {
+    busy(true);
+    try {
+      var kq = await api('vagabond.ngan_hang.tim', {});
+      NH_DS = (kq && kq.ds) || [];
+    } catch (e) {
+      busy(false);
+      return baoTin((e && e.message) || 'Chưa đọc được danh mục ngân hàng', 'Lỗi');
+    }
+    busy(false);
+  }
+  if (!NH_DS.length) return baoTin('Danh mục ngân hàng đang trống. Báo em để nạp lại.', 'Chưa có dữ liệu');
+  sheet('Chọn ngân hàng · ' + NH_DS.length + ' ngân hàng',
+    NH_DS.map(function (x) {
+      return { value: x.k, label: x.ten, phu: x.hinh_thuc || '', tim: x.tim || '' };
+    }),
+    dangChon || '',
+    function (it) { xong(it.value); },
+    true);
 }
 
 function htFDong() { if (htFHop) { htFHop.dong(); htFHop = null; } htF = null; }
@@ -786,15 +835,27 @@ function hoanVeForm() {
     (f.ly_do === 'Khac' ? 'Bắt buộc: ghi rõ vì sao hoàn' : 'Diễn giải thêm (không bắt buộc)') +
     '">' + h(f.dien_giai) + '</textarea>' +
 
+    '<div style="height:14px"></div>' + rndLbl('Khách hàng') +
+    (f.nguon_khach ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn từ ' + h(f.nguon_khach) + ', kiểm lại giúp em.</div>' : '') +
+    '<input class="nt" id="htFKhach" placeholder="Tên khách" value="' + h(f.ten_khach) + '">' +
+    '<div style="height:7px"></div>' +
+    '<input class="nt" id="htFSdt" inputmode="tel" placeholder="Số điện thoại khách (không bắt buộc)" value="' + h(f.sdt) + '">' +
+
     '<div style="height:14px"></div>' + rndLbl('Tài khoản nhận tiền của khách') +
     (f.goi_y && f.goi_y.so_tk ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn tài khoản khách dùng lần trước, kiểm lại giúp em.</div>' : '') +
-    '<input class="nt" id="htFNh" placeholder="Tên ngân hàng, ví dụ MB, VCB, Techcombank" value="' + h(f.ngan_hang) + '">' +
+    /* Ô ngân hàng là NÚT CHỌN chứ không gõ tay: gõ "MB" thì máy không tìm
+       ra "MB - Ngân hàng TMCP Quân đội", và một cái tên sai ở đây là tiền
+       đi vào một ngân hàng không tồn tại. */
+    '<button id="htFNh" style="width:100%;text-align:left;border:1.5px solid ' +
+    (f.ngan_hang ? '#0f766e' : '#e5e7eb') + ';background:#fff;border-radius:11px;padding:13px 14px;' +
+    'font-size:15px;color:' + (f.ngan_hang ? '#0f172a' : '#9ca3af') + ';font-weight:' +
+    (f.ngan_hang ? '600' : '400') + ';line-height:1.4">' +
+    (f.ngan_hang ? h(f.ngan_hang) : 'Chọn ngân hàng của khách') +
+    '<span style="float:right;color:#9ca3af;font-weight:400">▾</span></button>' +
     '<div style="height:7px"></div>' +
     '<input class="nt" id="htFStk" inputmode="numeric" placeholder="Số tài khoản" value="' + h(f.so_tk) + '">' +
     '<div style="height:7px"></div>' +
     '<input class="nt" id="htFTen" placeholder="Tên chủ tài khoản" value="' + h(f.ten_tk) + '">' +
-    '<div style="height:7px"></div>' +
-    '<input class="nt" id="htFSdt" inputmode="tel" placeholder="Số điện thoại khách (không bắt buộc)" value="' + h(f.sdt) + '">' +
 
     '<div style="height:14px"></div>' + rndLbl('Bằng chứng · bắt buộc') +
     '<div style="font-size:11.5px;color:#9ca3af;margin-bottom:7px;line-height:1.6">' +
@@ -828,6 +889,10 @@ function hoanVeForm() {
   box.querySelectorAll('[data-htrm]').forEach(function (n) {
     n.onclick = function () { htFDoc(box); f.anh.splice(+n.getAttribute('data-htrm'), 1); hoanVeForm(); };
   });
+  box.querySelector('#htFNh').onclick = function () {
+    htFDoc(box);
+    nhChon(f.ngan_hang, function (v) { f.ngan_hang = v; hoanVeForm(); });
+  };
   var fi = box.querySelector('#htFFile');
   box.querySelector('#htFCam').onclick = function () { fi.click(); };
   fi.onchange = function () { if (fi.files[0]) { htFDoc(box); htFThemAnh(fi.files[0]); } };
@@ -854,7 +919,10 @@ function htFDoc(box) {
   var g = function (id) { var n = box.querySelector(id); return n ? n.value : ''; };
   if (!f.muc) f.tien = Number(String(g('#htFTien')).replace(/[^0-9]/g, '')) || 0;
   f.dien_giai = g('#htFGhi');
-  f.ngan_hang = g('#htFNh'); f.so_tk = g('#htFStk'); f.ten_tk = g('#htFTen'); f.sdt = g('#htFSdt');
+  /* Ngân hàng KHÔNG đọc ở đây: nó là nút chọn, giá trị đã nằm sẵn trong
+     f.ngan_hang. Đọc lại từ nút là đọc phải chữ hiển thị. */
+  f.so_tk = g('#htFStk'); f.ten_tk = g('#htFTen'); f.sdt = g('#htFSdt');
+  f.ten_khach = g('#htFKhach');
 }
 
 function htFThemAnh(file) {
@@ -883,8 +951,9 @@ async function htFGui() {
   if (f.ly_do === 'Khac' && !(f.dien_giai || '').trim()) return toast('Lý do "Khác" thì phải ghi rõ vì sao hoàn.', 4000);
   if (!f.tien || f.tien <= 0) return toast('Nhập số tiền hoàn lớn hơn 0.', 3500);
   if (f.tien > f.tong) return toast('Số tiền hoàn không được lớn hơn tổng đơn ' + money(f.tong) + ' đ.', 4500);
-  if (!(f.ngan_hang || '').trim() || !(f.so_tk || '').trim() || !(f.ten_tk || '').trim())
-    return toast('Điền đủ ngân hàng, số tài khoản và tên chủ tài khoản của khách.', 4500);
+  if (!(f.ngan_hang || '').trim()) return toast('Bấm ô ngân hàng để chọn ngân hàng của khách.', 4000);
+  if (!(f.so_tk || '').trim() || !(f.ten_tk || '').trim())
+    return toast('Điền đủ số tài khoản và tên chủ tài khoản của khách.', 4500);
   if (!f.anh.length) return toast('Phải đính kèm ít nhất một ảnh làm căn cứ.', 4000);
 
   var ok = await confirmSheet('Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
@@ -1055,9 +1124,12 @@ async function htMbBiz(ma) {
     catch (e) { baoTin(kq.noi_dung_ck, 'Nội dung chuyển khoản'); }
   };
   hop.box.querySelector('#htMbAll').onclick = async function () {
-    /* Một dòng các cột ngăn bằng Tab: dán vào Excel là mỗi cột một ô, đúng
-       thứ tự tệp lô của MB. */
-    try { await navigator.clipboard.writeText(kq.dong_tab); toast('Đã chép dòng, dán thẳng vào tệp lô MB', 3000); }
-    catch (e) { baoTin(kq.chu, 'Thông tin chuyển khoản'); }
+    /* Dòng ngăn bằng Tab do backend dựng, đúng sáu cột của tệp lô MB. Dán
+       vào Excel là mỗi cột một ô. Cấu trúc cột nằm ở ngan_hang.tep_lo, KHÔNG
+       dựng ở đây - anh Việt chốt 17/08/2026. */
+    var chu = kq.tsv || kq.dong_tab;
+    try { await navigator.clipboard.writeText(chu); toast('Đã chép, dán thẳng vào tệp lô MB Biz', 3000); }
+    catch (e) { baoTin(chu, 'Dòng cho tệp lô MB Biz'); }
+    if ((kq.nhac_lo || []).length) baoTin(kq.nhac_lo.join('\n'), 'Có chỗ cần xem lại');
   };
 }
