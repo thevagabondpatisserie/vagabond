@@ -464,29 +464,29 @@ def _lap_phieu_chi(si, tra, ho_so):
 		tk_ke_toan = frappe.db.get_value("Bank Account", tk, "account")
 		if not tk_ke_toan:
 			return None
-		tien = abs(flt(tra.grand_total))
-		pe = frappe.new_doc(PE)
+		# DUNG get_payment_entry CUA ERPNEXT chu khong tu dung tay.
+		#
+		# Ban dau em tu dung: dat total_amount, outstanding_amount va
+		# allocated_amount deu bang so DUONG. Chay thu that 16/08/2026 thi
+		# ERPNext tu choi:
+		#
+		#     Dong #1: So tien phan bo khong duoc lon hon so du no.
+		#
+		# Ly do: to TRA HANG mang grand_total AM (-60.000), nen so du no cua
+		# no cung am. Doi chieu mot so duong voi mot so am thi con so nao
+		# cung "lon hon". Dau cua tung o tren Payment Entry co luat rieng
+		# cho hoa don tra hang, va do la luat cua ERPNext chu khong phai cua
+		# minh - nen giao lai cho no dung.
+		from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
+
+		pe = get_payment_entry(SI, tra.name)
+		tien = abs(flt(pe.paid_amount)) or abs(flt(tra.grand_total))
 		pe.payment_type = "Pay"
-		pe.party_type = "Customer"
-		pe.party = si.customer
-		pe.company = si.company
 		pe.posting_date = nowdate()
 		pe.paid_from = tk_ke_toan
-		pe.paid_amount = tien
-		pe.received_amount = tien
 		pe.reference_no = ho_so.noi_dung_ck or noi_dung_ck(tra.name)
 		pe.reference_date = nowdate()
 		pe.vgb_hoan_tien = ho_so.name
-		pe.append(
-			"references",
-			{
-				"reference_doctype": SI,
-				"reference_name": tra.name,
-				"total_amount": tien,
-				"outstanding_amount": tien,
-				"allocated_amount": tien,
-			},
-		)
 		pe.remarks = "Hoàn tiền khách theo phiếu %s, nội dung chuyển khoản: %s" % (
 			ho_so.name,
 			ho_so.noi_dung_ck,
