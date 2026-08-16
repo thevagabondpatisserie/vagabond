@@ -1145,8 +1145,26 @@ def thong_tin_chuyen_khoan(ho_so=None):
 		"Số tiền: %s" % tien_dep,
 		"Nội dung: %s" % nd,
 	]
-	cot = ["Số tài khoản", "Tên người thụ hưởng", "Ngân hàng", "Số tiền", "Nội dung"]
-	gia_tri = [(d.so_tk or "").strip(), ten_ck, (ten_nh or "").strip(), tien_so, nd]
+	# Cau truc cot cua tep lo do ngan_hang.tep_lo quyet, KHONG dung o day.
+	# Anh Viet chot 17/08/2026: moi nut Xuat MB Biz tren app deu goi chung
+	# mot ham backend, khong cho nao tu dung cot rieng.
+	from vagabond.ngan_hang import tep_lo
+
+	lo = tep_lo(
+		json.dumps(
+			[
+				{
+					"so_tk": d.so_tk,
+					"ten_nhan": d.ten_tk,
+					"ngan_hang": ten_nh,
+					"so_tien": flt(d.so_tien),
+					"noi_dung": nd,
+				}
+			]
+		)
+	)
+	cot = lo["cot"]
+	gia_tri = [str(x) for x in lo["bang"][0]]
 
 	thieu = [x for x in ("so_tk", "ten_tk", "ngan_hang") if not d.get(x)]
 	ten_thieu = {"so_tk": "số tài khoản", "ten_tk": "tên chủ tài khoản", "ngan_hang": "ngân hàng"}
@@ -1162,6 +1180,8 @@ def thong_tin_chuyen_khoan(ho_so=None):
 		"ten_ck": ten_ck,
 		"so_tk": (d.so_tk or "").strip(),
 		"ngan_hang": ten_nh,
+		"tsv": lo["tsv"],
+		"nhac_lo": lo.get("nhac", []),
 		"thieu": thieu,
 		"nhac": (
 			"Còn thiếu %s. Bổ sung vào phiếu rồi bấm lại thì mới chuyển được."
@@ -1224,8 +1244,98 @@ def tinh_trang(si_name=None):
 		"so_tien": flt(d.grand_total),
 		"ly_do_co_the": list(LY_DO),
 		"goi_y_tk": goi_y,
+		"khach": _khach_tren_don(si_name, kh),
 		"canh_bao_hddt": (d.get("custom_hddt_so") or "").strip(),
 	}
+
+
+KHACH_LE = "Khách lẻ Online"
+
+
+def tach_ghi_chu_don(ghi_chu):
+	"""Doc ten khach va so dien thoai tu o ghi chu cua hoa don. THUAN.
+
+	ban_hang.tao_don_tay dung o remarks theo khuon:
+
+	    <nguon> #<ma don> - <ten khach>[ - <so dien thoai>][ - Quay <ma>]
+
+	Vi du that tren he:
+	    "Pancake #91759 - Loan Anh - 0933751352"
+	    "Mang về #TEST-HT-02 - Khách thử hoàn tiền 2 - Quầy TCV"
+
+	Tra (ten, sdt), cai nao khong co thi la chuoi rong.
+
+	Vi sao phai doc tu day chu khong doc mot o cho tu te: so dien thoai
+	khach le KHONG duoc luu thanh truong rieng tren hoa don - kiem tren he
+	17/08/2026 thi contact_mobile va contact_phone deu rong. Cho duy nhat
+	con giu la o ghi chu. Doc no la hoi lai mot thu da co san, con hon bat
+	nhan vien go lai mot so ma khach vua doc xong cach do ba phut.
+	"""
+	s = str(ghi_chu or "").strip()
+	if " - " not in s:
+		return "", ""
+	# Bo phan dau "<nguon> #<ma don>", giu phan sau dau gach dau tien.
+	phan = [x.strip() for x in s.split(" - ")]
+	phan = phan[1:]
+	# Bo duoi "Quay <ma>" neu co - do khong phai thong tin khach.
+	phan = [x for x in phan if x and not x.lower().startswith("quầy") and not x.lower().startswith("quay")]
+	ten, so = "", ""
+	for x in phan:
+		chi_so = re.sub(r"[^0-9]", "", x)
+		# Mot manh toan chu so va dai bang mot so dien thoai thi la so.
+		if chi_so and len(chi_so) >= 9 and len(chi_so) >= len(x) - 2:
+			if not so:
+				so = chi_so
+		elif not ten:
+			ten = x
+	return ten, so
+
+
+def _khach_tren_don(si_name, ma_khach=None):
+	"""Ten va so dien thoai khach de dien san vao form. Tra dict.
+
+	Anh Viet 17/08/2026: "nhan vien khong phai go lai".
+
+	Doc theo thu tu tin cay giam dan:
+	  1. Khach thanh vien tren don (vgb_khach_no) - chac nhat, co ho so
+	  2. Ten khach tren don, neu khong phai ten khach le chung
+	  3. O ghi chu cua don - noi duy nhat con giu so cua khach le
+
+	KHONG tron nguon cho tung o: neu lay duoc ho so khach thanh vien thi
+	lay ca ten lan so tu do. Tron ten cua nguoi nay voi so cua nguoi kia la
+	dua ke toan mot dia chi nhan tien khong thuoc ve ai.
+	"""
+	ra = {"ten": "", "sdt": "", "nguon": ""}
+	try:
+		d = frappe.db.get_value(
+			SI, si_name, ["customer_name", "vgb_khach_no", "remarks", "customer"], as_dict=True
+		) or {}
+		tv = d.get("vgb_khach_no") or (ma_khach if ma_khach and ma_khach != KHACH_LE else "")
+		if tv:
+			kh = frappe.db.get_value("Customer", tv, ["customer_name", "mobile_no"], as_dict=True) or {}
+			if (kh.get("customer_name") or "").strip() and kh["customer_name"] != KHACH_LE:
+				ra["ten"] = kh["customer_name"].strip()
+				ra["sdt"] = sdt(kh.get("mobile_no") or "")
+				ra["nguon"] = "hồ sơ khách thành viên"
+		if not ra["ten"]:
+			ten_don = (d.get("customer_name") or "").strip()
+			if ten_don and ten_don != KHACH_LE:
+				ra["ten"] = ten_don
+				ra["nguon"] = "tên khách trên đơn"
+		if not ra["ten"] or not ra["sdt"]:
+			ten_gc, so_gc = tach_ghi_chu_don(d.get("remarks"))
+			if not ra["ten"] and ten_gc:
+				ra["ten"] = ten_gc
+				ra["nguon"] = "ghi chú trên đơn"
+			if not ra["sdt"] and so_gc:
+				ra["sdt"] = sdt(so_gc) or so_gc
+				if not ra["nguon"]:
+					ra["nguon"] = "ghi chú trên đơn"
+	except Exception:
+		# Doc goi y hong thi form van mo duoc, nhan vien go tay. KHONG nem
+		# loi lam chet ca man vi mot o dien san.
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc khach tren don loi")
+	return ra
 
 
 @frappe.whitelist()

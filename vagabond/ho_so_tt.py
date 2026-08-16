@@ -1341,15 +1341,33 @@ def noi_dung_chuyen_khoan(name, luu=1):
 	if not (doc.ngan_hang_nhan or "").strip():
 		thieu.append("tên ngân hàng")
 
-	cot = ["Số tài khoản", "Tên người thụ hưởng", "Ngân hàng", "Số tiền", "Nội dung"]
-	gia_tri = [
-		(doc.stk_nhan or "").strip(),
-		_bo_dau(doc.ten_nhan or "").upper(),
-		(doc.ngan_hang_nhan or "").strip(),
-		"%d" % int(round(so_tien)),
-		nd,
-	]
+	# Cau truc cot do ngan_hang.tep_lo quyet, KHONG dung o day nua.
+	#
+	# Anh Viet chot 17/08/2026: moi nut Xuat MB Biz tren app deu goi chung
+	# mot ham backend. Truoc do cho nay va man hoan tien moi cho mot bang
+	# cot rieng, va do dung la cai bay "hai ban song song" da lam hong ba
+	# viec trong ngay 16/08.
+	from vagabond.ngan_hang import tep_lo
+	import json as _json
+
+	lo = tep_lo(
+		_json.dumps(
+			[
+				{
+					"so_tk": doc.stk_nhan,
+					"ten_nhan": doc.ten_nhan,
+					"ngan_hang": doc.ngan_hang_nhan,
+					"so_tien": so_tien,
+					"noi_dung": nd,
+				}
+			]
+		)
+	)
+	cot = lo["cot"]
+	gia_tri = [str(x) for x in lo["bang"][0]]
 	return {
+		"tsv": lo["tsv"],
+		"nhac_lo": lo.get("nhac", []),
 		"ma": doc.name,
 		"ten_nhan": (doc.ten_nhan or "").strip(),
 		"ten_nhan_ck": _bo_dau(doc.ten_nhan or "").upper(),
