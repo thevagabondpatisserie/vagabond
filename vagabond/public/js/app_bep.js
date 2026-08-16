@@ -11181,7 +11181,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '178';
+var APPVER = '179';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -20016,7 +20016,8 @@ async function scrBgXem(name) {
     html += '</div>';
   }
 
-  var chan = '<button class="btn" id="bgPdf" style="margin:0;flex:1">📄 Xuất PDF</button>';
+  var chan = '<button class="btn gh" id="bgXtr2" style="margin:0;flex:.9">👁 Xem trước</button>' +
+    '<button class="btn" id="bgPdf" style="margin:0;flex:1">📄 Xuất PDF</button>';
   if (ci.duoc_sua && !d.thay_the_boi) {
     /* To da khoa thi nut chinh doi thanh "Tao phien ban ke tiep": sales
        khong phai di tim trong menu ⋯ moi lam duoc viec duy nhat con lai. */
@@ -20026,6 +20027,9 @@ async function scrBgXem(name) {
   }
   if (ci.duoc_sua) chan += '<button class="btn gh" id="bgMenu" style="margin:0;flex:.8">⋯</button>';
   var b = frame('Báo giá', html, { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' });
+
+  var bx2 = document.getElementById('bgXtr2');
+  if (bx2) bx2.onclick = function () { bgTay = null; bgXemTruoc(name); };
 
   var bm = document.getElementById('bgToiMoi');
   if (bm) bm.onclick = function () { go(function () { scrBgXem(d.thay_the_boi); }); };
@@ -20156,6 +20160,88 @@ function bgHoiLoiNhan(mau, ngay) {
     box.querySelector('#bgLnThoi').onclick = function () { tra(null); };
     box.querySelector('#bgLnOk').onclick = function () { tra(String(o.value || '').trim()); };
   });
+}
+
+/* ---------- Xem trước bản in ----------
+
+   Anh Việt 16/08/2026: *"Để Sales xem trước bản in ... Tuyệt đối thao tác
+   này không được kích hoạt hàm tạo phiên bản hay luồng gửi email"*.
+
+   BA QUYẾT ĐỊNH KỸ THUẬT:
+
+   1. Dùng IFRAME srcdoc chứ không nhét HTML thẳng vào màn. Tờ in khai các
+      lớp tên ngắn như .en, .so, .khoi - trùng tên với lớp của app là hai
+      bên đè lên nhau, và kiểu lỗi đó rất khó tìm. iframe cắt đứt hoàn
+      toàn hai thế giới CSS.
+   2. Mở NGAY TRONG APP chứ không mở tab mới. Trên điện thoại, đổi tab là
+      mất màn đang soạn; bấm quay lại thì app nạp lại từ đầu.
+   3. Thu nhỏ theo BỀ NGANG màn hình. Tờ A4 rộng 210mm; ép vừa màn rồi để
+      cuộn dọc, nên Loan Anh thấy đúng tỷ lệ chữ và đúng chỗ ngắt trang. */
+function bgXemTruocHien(html, tieuDe) {
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#5a5a5a';
+  ov.innerHTML =
+    '<div style="position:absolute;top:0;left:0;right:0;height:52px;background:#111;color:#fff;' +
+    'display:flex;align-items:center;gap:8px;padding:0 10px;box-sizing:border-box;z-index:2">' +
+    '<b style="flex:1;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(tieuDe || 'Xem trước bản in') + '</b>' +
+    '<button id="bgXtPdf" class="btn" style="margin:0;padding:6px 11px;font-size:13px;width:auto;flex:none">📄 PDF</button>' +
+    '<button id="bgXtDong" class="btn gh" style="margin:0;padding:6px 11px;font-size:13px;width:auto;flex:none">Đóng</button></div>' +
+    '<div id="bgXtCuon" style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch"></div>';
+  document.body.appendChild(ov);
+
+  var cuon = ov.querySelector('#bgXtCuon');
+  var A4 = 794;                                   /* 210mm ở 96 dpi */
+  var ti = Math.min(1, ((cuon.clientWidth || window.innerWidth) - 12) / A4);
+  var giay =
+    '<!doctype html><html lang="vi"><meta charset="utf-8">' +
+    '<style>html,body{margin:0;background:#5a5a5a}' +
+    '.to{width:210mm;min-height:297mm;margin:0 auto;background:#fff;' +
+    'padding:11mm 9mm;box-sizing:border-box}</style>' +
+    '<div class="to">' + html + '</div></html>';
+
+  var kh = document.createElement('div');
+  kh.style.cssText = 'width:' + A4 + 'px;height:1123px;transform:scale(' + ti + ');transform-origin:top left';
+  var fr = document.createElement('iframe');
+  fr.style.cssText = 'width:' + A4 + 'px;height:1123px;border:0;display:block;background:#5a5a5a';
+  fr.setAttribute('srcdoc', giay);
+  kh.appendChild(fr);
+  cuon.appendChild(kh);
+
+  /* Chiều cao thật của tờ chỉ biết được sau khi iframe vẽ xong. Kéo khung
+     ngoài theo đúng chiều cao ĐÃ thu nhỏ, không thì thừa hoặc cụt đuôi. */
+  fr.onload = function () {
+    try {
+      var c = fr.contentDocument.documentElement.scrollHeight || 1123;
+      fr.style.height = c + 'px';
+      kh.style.height = (c * ti) + 'px';
+    } catch (e) { }
+  };
+
+  var dong = function () { ov.remove(); };
+  ov.querySelector('#bgXtDong').onclick = dong;
+  return { ov: ov, dong: dong };
+}
+
+async function bgXemTruoc(name) {
+  /* Gửi nguyên cục đang soạn lên; máy chủ tính lại tiền rồi dựng tờ, nên
+     cái nhìn thấy đúng là cái sẽ in (QT-19). Máy chủ KHÔNG lưu gì. */
+  var goi = {};
+  if (bgTay) { bgDoc(); goi.du_lieu = JSON.stringify(bgTay); }
+  else if (name) { goi.name = name; }
+  else return baoTin('Chưa có gì để xem trước.');
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.bao_gia.xem_truoc_nhap', goi); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không dựng được bản xem trước'); }
+  busy(false);
+  var k = bgXemTruocHien(kq.html, 'Xem trước · ' + (kq.name || ''));
+  k.ov.querySelector('#bgXtPdf').onclick = async function () {
+    /* Tệp PDF phải gắn với một mã tờ, mà tờ nháp thì chưa có mã. */
+    if (!name) { k.dong(); return baoTin('Lưu báo giá trước đã nhé, rồi mới xuất được tệp PDF gửi khách.'); }
+    busy(true);
+    try { var fl = await api('vagabond.bao_gia.xuat_pdf', { name: name }); busy(false); bcTaiVe(fl.ten_file, fl.b64, fl.kieu); toast('Đã tải ' + fl.ten_file, 4000); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Xuất PDF lỗi'); }
+  };
 }
 
 async function bgGuiMail(d) {
@@ -20304,19 +20390,59 @@ async function bgMoi(nameMau) {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Không mở được'); }
   bgMoRong = {};
   if (nameMau) toast('Đã điền sẵn theo mẫu "' + (bgTay.tu_mau || '') + '", giờ chỉ cần chọn khách và sửa số lượng', 5200);
+  /* Bo cuc to in di theo mau, sales khong phai chon lan hai. */
   go(function () { scrBgSua(''); });
 }
 
 /* Bam dau cong o man danh sach: co mau thi hoi lap theo mau nao truoc.
    Anh Viet 15/08/2026: *"Thêm tính năng 'Lưu mẫu báo giá' để sau này dùng
    thì áp lên để app tự điền hết các phần thông tin theo mẫu"*. */
+/* Bam nut + la chon mau NGAY, khong phai vao trong to roi moi chon.
+
+   Anh Viet 16/08/2026: *"Anh khong muon Sales phai vao trong to bao gia
+   moi di chon mau. Hay chuyen thao tac nay ra ngay nut +"*.
+
+   Khong dung sheet() cho bang nay: sheet() chi hien duoc mot dong nhan,
+   ma o day moi mau can hai dong - ten mau va mot cau ta no dung cho viec
+   gi - cong mot nhan bo cuc to in. Loan Anh chon mau lan dau ma chi thay
+   moi cai ten thi van phai mo tung cai ra xem. */
 async function bgMoiHoi() {
-  var ds = [];
-  try { ds = await api('vagabond.bao_gia.mau_ds', {}); } catch (e) { }
+  busy(true);
+  var kq, ci;
+  try { ci = await bgCaiDat(); kq = await api('vagabond.bao_gia.mau_ds', {}); }
+  catch (e) { busy(false); return bgMoi(); }
+  busy(false);
+  var ds = (kq && kq.ds) || [];
   if (!ds.length) return bgMoi();
-  var muc = [{ value: '', label: 'Tờ trắng, soạn từ đầu', icon: '📄' }];
-  ds.forEach(function (m) { muc.push({ value: m.name, label: m.ten_mau || m.name, icon: '🗂️' }); });
-  sheet('Lập báo giá mới', muc, null, function (o) { bgMoi(o.value || ''); });
+
+  var tenBoCuc = {};
+  ((kq && kq.mau_in) || []).forEach(function (x) { tenBoCuc[x.ma] = x.ten; });
+
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  var html = '<div class="shh"><b>Lập báo giá mới</b><div class="x">&times;</div></div><div class="shl">';
+  html += '<div class="shi" data-mau=""><span>📄</span><span style="flex:1;min-width:0">' +
+    '<b>Tờ trắng</b><div style="color:#a0a6b4;font-size:12px;margin-top:2px">Soạn từ đầu, câu chữ lấy theo Cài đặt báo giá.</div></span></div>';
+  ds.forEach(function (m) {
+    var bc = tenBoCuc[m.mau_in || ''] || '';
+    html += '<div class="shi" data-mau="' + h(m.name) + '"><span>' + (m.tu_ma_nguon ? '🗂️' : '⭐') + '</span>' +
+      '<span style="flex:1;min-width:0"><b>' + h(m.ten_mau || m.name) + '</b>' +
+      (m.mo_ta_mau ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(m.mo_ta_mau) + '</div>' : '') +
+      (bc ? '<div style="color:#7c3aed;font-size:11.5px;margin-top:2px">Tờ in: ' + h(bc) + '</div>' : '') +
+      '</span></div>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+  ov.appendChild(box); document.body.appendChild(ov);
+  var dong = function () { ov.remove(); };
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  box.querySelector('.shl').onclick = function (e) {
+    var r = e.target.closest('[data-mau]'); if (!r) return;
+    var ma = r.getAttribute('data-mau');
+    dong();
+    bgMoi(ma || '');
+  };
 }
 
 /* ---------- Mau bao gia ---------- */
@@ -20562,8 +20688,10 @@ async function scrBgSua(name) {
     '<div ' + BGNHAN + '>Ghi chú nội bộ, không in lên tờ</div>' + ota('ghi_chu_noi_bo', d.ghi_chu_noi_bo, 2) + '</div>';
 
   var b = frame(d.name ? 'Sửa ' + d.name : 'Báo giá mới', html, {
-    footer: '<div style="display:flex;gap:8px"><button class="btn gh" id="bgXemPdf" style="margin:0;flex:1">📄 Lưu và xuất PDF</button>' +
-      '<button class="btn" id="bgLuu" style="margin:0;flex:1">Lưu báo giá</button></div>'
+    footer: '<div style="display:flex;gap:7px">' +
+      '<button class="btn gh" id="bgXtr" style="margin:0;flex:.9">👁 Xem trước</button>' +
+      '<button class="btn gh" id="bgXemPdf" style="margin:0;flex:1.1">📄 Lưu và xuất PDF</button>' +
+      '<button class="btn" id="bgLuu" style="margin:0;flex:1">Lưu</button></div>'
   });
 
   /* Go so lieu tren dong thi tinh lai NGAY, khong ve lai man */
@@ -20577,6 +20705,9 @@ async function scrBgSua(name) {
   /* Roi o ma so thue la tra luon, khong bat bam nut. Dung 'blur' chu khong
      dung 'input': go tung so ma goi tung lan la ban ra Cong thong tin
      doanh nghiep muoi ba lan cho mot ma. */
+  var bxt = document.getElementById('bgXtr');
+  if (bxt) bxt.onclick = function () { bgXemTruoc(d.name || ''); };
+
   var oMst = document.getElementById('bgf_ma_so_thue');
   if (oMst) oMst.addEventListener('blur', function () { bgTraMst(name, false); });
 
