@@ -11,7 +11,12 @@
   "het_han",
   "cb1",
   "so_lan_sai",
-  "da_dung"
+  "da_dung",
+  "muc_dich",
+  "khach",
+  "hoa_don",
+  "so_diem",
+  "nguoi_xin"
  ],
  "fields": [
   {
@@ -49,6 +54,37 @@
    "fieldtype": "Check",
    "label": "Da dung",
    "default": "0"
+  },
+  {
+   "fieldname": "muc_dich",
+   "fieldtype": "Select",
+   "label": "Muc dich",
+   "options": "Dang nhap\nDung diem",
+   "default": "Dang nhap",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khach hang",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoa don",
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "so_diem",
+   "fieldtype": "Float",
+   "label": "So diem da duyet",
+   "precision": "0"
+  },
+  {
+   "fieldname": "nguoi_xin",
+   "fieldtype": "Data",
+   "label": "Nguoi xin ma"
   }
  ],
  "index_web_pages_for_search": 0,
