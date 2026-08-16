@@ -387,10 +387,28 @@ async function scrDsView(name, can) {
   } else if (d.docstatus === 0) {
     foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px">Đơn này đã huỷ' +
       (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>';
+  } else if (d.docstatus === 1 && !d.vgb_huy) {
+    /* Don DA GHI SO thi khong con huy duoc nua, va do la dung: to da vao so
+       thi phai khu bang mot to nguoc chieu chu khong xoa di. Nen cho don da
+       ghi so, cua ra la HOAN TIEN (anh Viet 16/08/2026 dat nut nay ngay canh
+       cho nut Huy don van dung o man chua ghi so).
+
+       Nut nay chi GUI YEU CAU, khong sinh chung tu va khong dong tien nao -
+       xem ghi chu dau hoan_tien.tao. */
+    foot = '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="dsvHoan" style="margin:0;flex:0 0 44%;color:#b45309;border-color:#fde68a">↩️ Hoàn tiền</button>' +
+      (can && !d.custom_hddt_so
+        ? '<button class="btn" id="dsvHddt" style="margin:0;flex:1">Xuất HĐĐT (Chờ ký)</button>'
+        : '<button class="btn gh" id="dsvXemHoan" style="margin:0;flex:1">Xem danh sách hoàn tiền</button>') +
+      '</div>';
   } else if (can && !d.custom_hddt_so) {
     foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
   }
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  var nHoan = document.getElementById('dsvHoan');
+  if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
+  var nXemHoan = document.getElementById('dsvXemHoan');
+  if (nXemHoan) nXemHoan.onclick = function () { go(scrHoanTien); };
   var nHuy = document.getElementById('dsvHuy');
   if (nHuy) nHuy.onclick = async function () {
     var ok = await confirmSheet('Huỷ đơn ' + (d.custom_pancake_display_id || d.name) + '?',
