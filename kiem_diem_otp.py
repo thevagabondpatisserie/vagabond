@@ -529,8 +529,23 @@ print("19. Han muc mua vu va chot chan ban lo")
 def _nap_mv():
 	src = open("vagabond/mua_vu.py", encoding="utf-8").read()
 	mt = {"re": re, "cint": lambda x: int(x or 0), "flt": lambda x: float(x or 0)}
-	for ten in ("han_muc_tu_dot", "banh_le_trong_hop", "con_ban_duoc", "con_sau_khi_them"):
-		m = re.search(r"^def %s\(.*?(?=^def |^@|^# =|\Z)" % ten, src, re.S | re.M)
+	# Hai hang so duoi day la LUAT chu khong phai so lam tron, nen nap thang
+	# tu ma nguon: sua o mua_vu.py la bo kiem thay ngay, khong co ban sao.
+	for hang in (r"^TY_LE_VANG\s*=.*$", r"^_BO_TU\s*=.*$"):
+		m = re.search(hang, src, re.M)
+		if not m:
+			print("KHONG THAY hang %s trong mua_vu.py" % hang); sys.exit(1)
+		exec(compile(m.group(0), "mua_vu:hang", "exec"), mt, mt)
+	for ten in (
+		"han_muc_tu_dot",
+		"banh_le_trong_hop",
+		"con_ban_duoc",
+		"con_sau_khi_them",
+		"muc_tran",
+		"_khong_dau",
+		"nhan_tu_ten",
+	):
+		m = re.search(r"^def %s\(.*?(?=^def |^@|^# =|^[A-Z_]+ =|\Z)" % ten, src, re.S | re.M)
 		if not m:
 			print("KHONG THAY ham %s trong mua_vu.py" % ten); sys.exit(1)
 		exec(compile(m.group(0), "mua_vu:%s" % ten, "exec"), mt, mt)
@@ -539,6 +554,7 @@ def _nap_mv():
 Mv = _nap_mv()
 hmdot = Mv["han_muc_tu_dot"]; trhop = Mv["banh_le_trong_hop"]
 conban = Mv["con_ban_duoc"]; conthem = Mv["con_sau_khi_them"]
+muctran = Mv["muc_tran"]; nhanten = Mv["nhan_tu_ten"]
 
 # --- Han muc tinh tu cac dot nha in ---
 la("chua khai dot nao thi tra rong, o go tay giu hieu luc", hmdot([]), {})
@@ -610,6 +626,58 @@ la("ban qua mot cai thi chinh hop am dung 1", dict(conthem(DONG, DM, "HOP", 11)[
 DONG3 = [{"ma_hang": "H", "ten_banh": "H", "san_xuat": 10, "da_dat": 5, "cho_chot": 4, "don_khac": 0}]
 la("cho chot cung an vao han muc", conthem(DONG3, [], "H", 1)[0], 0)
 la("cho chot lam vuot thi chan", len(conthem(DONG3, [], "H", 2)[1]), 1)
+
+# =====================================================================
+# Nhom 20. Banh chi lam theo hop, tran moi ngay, nhan ngan tren lich
+# =====================================================================
+print("20. Khong dat tran, tran moi ngay, nhan ngan")
+
+# --- Khong dat tran: banh 80gr trong hop khong co lo rieng ---
+# Day la ca quan trong nhat cua nhom: neu KHONG co co nay thi them banh
+# 80gr vao bang la moi don hop deu bi chan, vi banh 80gr mang san xuat 0.
+DONG4 = [
+	{"ma_hang": "HOP", "ten_banh": "Hop", "san_xuat": 100, "da_dat": 0, "cho_chot": 0, "don_khac": 0},
+	{"ma_hang": "B80", "ten_banh": "Banh 80gr", "san_xuat": 0, "da_dat": 0, "cho_chot": 0,
+	 "don_khac": 0, "khong_tran": 1},
+]
+DM80 = [{"ma_hop": "HOP", "ma_banh": "B80", "so_luong": 4}]
+con, am = conthem(DONG4, DM80, "HOP", 20)
+la("ban hop KHONG bi chan vi banh 80gr khong dat tran", am, [])
+la("ban hop van tru dung han muc cua chinh cai hop", con, 80)
+# Va co do KHONG duoc phep noi long chinh cai hop.
+la("hop van bi chan khi vuot du banh trong hop khong dat tran",
+   [x[0] for x in conthem(DONG4, DM80, "HOP", 120)[1]], ["HOP"])
+# Bo co di thi phai chan lai - phep thu lua, xac nhan co that su lam viec.
+DONG5 = [dict(DONG4[0]), dict(DONG4[1], khong_tran=0)]
+la("bo co di thi banh 80gr chan lai ngay",
+   sorted(x[0] for x in conthem(DONG5, DM80, "HOP", 20)[1]), ["B80"])
+
+# --- Tran moi ngay: vang tu 75 phan tram, do tu bang tran ---
+la("khong dat tran thi khong bao gio canh bao", muctran(999, 0), 0)
+la("ngay khong co don thi khong canh bao", muctran(0, 200), 0)
+la("duoi nguong vang thi im", muctran(149, 200), 0)
+la("dung 150 tren tran 200 la VANG", muctran(150, 200), 1)
+la("199 tren 200 van la vang", muctran(199, 200), 1)
+la("dung bang tran la DO", muctran(200, 200), 2)
+la("qua tran la do", muctran(260, 200), 2)
+la("tran am coi nhu khong theo doi", muctran(50, -5), 0)
+la("tran nho: 3 tren 4 la vang", muctran(3, 4), 1)
+
+# --- Nhan ngan hien trong o lich ---
+la("bo tu HOP roi lay ba chu dau", nhanten("HỘP MOONGARDEN"), "MOO")
+la("ten nhieu tu thi lay chu cai dau", nhanten("Thập Cẩm Xá Xíu, 110gram"), "TCX")
+la("bo dau tieng Viet", nhanten("Đậu Ngự Trần Bì, 80gram"), "DNT")
+la("bo ca chu BANH TRUNG THU NHAN",
+   nhanten("Bánh Trung Thu Nhân Mè Đen Sầu Riêng"), "MDS")
+# Trung nhan la loi nang nhat cua o lich: sales doc nham mon.
+la("trung thi noi dai chu khong tra trung",
+   nhanten("HỘP MOONLAPIS", {"MOO"}), "MOON")
+la("nhan moi khac han nhan da phat",
+   nhanten("HỘP MOONLAPIS", {"MOO"}) != "MOO", True)
+la("het chu de noi thi danh so", nhanten("ABC", {"ABC", "ABC2"}), "ABC3")
+la("ten rong van tra ra mot nhan dung duoc", bool(nhanten("")), True)
+la("ten toan so van tra ra nhan", bool(nhanten("110 80")), True)
+la("nhan khong bao gio dai qua sau chu", len(nhanten("Bánh Trung Thu Nhân Dứa Bưởi Xí Muội")) <= 6, True)
 
 print("-" * 60)
 if so_hong:
