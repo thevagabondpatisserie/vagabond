@@ -15,32 +15,34 @@
   "han_tra",
   "tong_hd",
   "con_no",
+  "tk_no",
+  "tk_co",
   "so_tien",
   "ma_giao_dich",
   "ghi_chu"
  ],
  "fields": [
   {
+   "columns": 2,
    "fieldname": "hoa_don",
    "fieldtype": "Link",
-   "options": "Purchase Invoice",
-   "label": "Hoa don mua",
    "in_list_view": 1,
-   "columns": 2
+   "label": "Hoa don mua",
+   "options": "Purchase Invoice"
   },
   {
+   "columns": 2,
    "fieldname": "so_hd_ncc",
    "fieldtype": "Data",
-   "label": "So hoa don NCC",
    "in_list_view": 1,
-   "columns": 2
+   "label": "So hoa don NCC"
   },
   {
+   "columns": 1,
    "fieldname": "ngay_hd",
    "fieldtype": "Date",
-   "label": "Ngay hoa don",
    "in_list_view": 1,
-   "columns": 1
+   "label": "Ngay hoa don"
   },
   {
    "fieldname": "noi_dung",
@@ -74,19 +76,19 @@
    "label": "Tong hoa don"
   },
   {
+   "columns": 2,
    "fieldname": "con_no",
    "fieldtype": "Currency",
-   "label": "Con no luc lap",
    "in_list_view": 1,
-   "columns": 2
+   "label": "Con no luc lap"
   },
   {
+   "columns": 2,
    "fieldname": "so_tien",
    "fieldtype": "Currency",
-   "label": "De nghi tra",
-   "reqd": 1,
    "in_list_view": 1,
-   "columns": 2
+   "label": "De nghi tra",
+   "reqd": 1
   },
   {
    "fieldname": "ghi_chu",
@@ -97,6 +99,20 @@
    "fieldname": "ma_giao_dich",
    "fieldtype": "Data",
    "label": "Ma giao dich ngan hang (SePay)"
+  },
+  {
+   "fieldname": "tk_no",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "TK No",
+   "options": "Account"
+  },
+  {
+   "fieldname": "tk_co",
+   "fieldtype": "Link",
+   "in_list_view": 0,
+   "label": "TK Co",
+   "options": "Account"
   }
  ],
  "istable": 1,
