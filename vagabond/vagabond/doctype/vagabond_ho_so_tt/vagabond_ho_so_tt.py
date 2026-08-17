@@ -52,7 +52,9 @@ class VagabondHoSoTT(Document):
 		han = [getdate(d.han_tra) for d in self.dong if d.han_tra]
 		self.han_tra_som_nhat = min(han) if han else None
 
-		la_hoan_ung = (self.loai or "NCC") in ("Hoan ung", "Hoan ung HD")
+		# "TK cong ty" cung khong co hoa don mua nao ca: tien di thang tu tai
+		# khoan cong ty, ke toan tu dinh khoan. Xep chung nhom khong-hoa-don.
+		la_hoan_ung = (self.loai or "NCC") in ("Hoan ung", "Hoan ung HD", "TK cong ty")
 		for d in self.dong:
 			nhan = d.hoa_don or d.so_hd_ncc or d.noi_dung or ("dòng %s" % d.idx)
 			if flt(d.so_tien) <= 0:
