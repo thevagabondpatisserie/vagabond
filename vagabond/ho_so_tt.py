@@ -55,10 +55,21 @@ VAI_GD = {"AP Giám đốc", "System Manager"}
 LOAI_NCC = "NCC"
 LOAI_HU_HD = "Hoan ung HD"
 LOAI_HU = "Hoan ung"
+LOAI_TKCT = "TK cong ty"
 NHAN_LOAI = {
 	LOAI_NCC: "Công nợ nhà cung cấp",
 	LOAI_HU_HD: "Hoàn ứng có hoá đơn",
 	LOAI_HU: "Hoàn ứng không hoá đơn",
+	LOAI_TKCT: "Thanh toán từ TK công ty",
+}
+
+# Bóc tách chi phí lúc quyết toán thuế TNDN: khoản nào có hoá đơn GTGT mang
+# tên Vagabond mới được trừ. Ghi ngay lúc lập hồ sơ, cuối năm khỏi ngồi đoán.
+CP_HOP_LE = "Chi phi hop le"
+CP_KHONG_HOP_LE = "Chi phi khong hop le"
+NHAN_CP_THUE = {
+	CP_HOP_LE: "Chi phí hợp lệ (có hoá đơn GTGT tên Vagabond)",
+	CP_KHONG_HOP_LE: "Chi phí không hợp lệ tính thuế",
 }
 
 # Tai khoan quy tam ung OCB. Doc theo tai khoan ke toan 1411 chu khong theo
@@ -472,6 +483,172 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	}
 
 
+
+@frappe.whitelist()
+def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu="", gui_luon=0):
+	"""Lập hồ sơ chi thẳng từ tài khoản công ty, không qua Purchasing.
+
+	Luồng thứ tư, anh Việt chốt 17/08/2026. Ba luồng cũ đều kết thúc bằng một
+	hoá đơn mua và một Payment Entry xoá công nợ. Luồng này thì không: tiền đi
+	thẳng từ tài khoản ngân hàng công ty cho các khoản phát sinh không qua bộ
+	phận mua hàng - tiền điện, tiền nước, phí bảo trì. Trước đây kế toán phải
+	mượn tạm luồng hoàn ứng, ghi sai bản chất dòng tiền.
+
+	Kế toán tự định khoản: mỗi dòng tự chọn TK Nợ, TK Có để trống thì lấy tài
+	khoản sổ cái của ngân hàng chi. Máy không gán cứng tài khoản chi phí nào.
+
+	loai_cp_thue bắt buộc, để cuối năm lọc ra các khoản không được trừ khi
+	quyết toán thuế TNDN mà không phải mở lại từng chứng từ.
+	"""
+	_kiem(VAI_LAP | VAI_FIN, "lập hồ sơ chi từ tài khoản công ty")
+	if isinstance(dong, str):
+		dong = frappe.parse_json(dong)
+	if not dong:
+		frappe.throw("Chưa nhập khoản chi nào.")
+
+	ma_ncc = (ncc or "").strip()
+	if not ma_ncc or not frappe.db.exists("Supplier", ma_ncc):
+		frappe.throw("Chưa chọn bên nhận tiền, hoặc bên nhận chưa có hồ sơ nhà cung cấp.")
+
+	tk_chi = (tk_chi or "").strip()
+	if not tk_chi or not frappe.db.exists("Bank Account", tk_chi):
+		frappe.throw("Chưa chọn tài khoản ngân hàng của công ty để chi.")
+	tk_so_cai = frappe.db.get_value("Bank Account", tk_chi, "account")
+	if not tk_so_cai:
+		frappe.throw(
+			"Tài khoản ngân hàng %s chưa gắn tài khoản sổ cái, chưa hạch toán được. "
+			"Mở Bank Account bên Next điền ô Account giúp em." % tk_chi
+		)
+
+	loai_cp_thue = (loai_cp_thue or "").strip()
+	if loai_cp_thue not in (CP_HOP_LE, CP_KHONG_HOP_LE):
+		frappe.throw(
+			"Chưa chọn loại chi phí thuế. Có hoá đơn GTGT mang tên Vagabond thì chọn "
+			"chi phí hợp lệ, còn biên lai nội bộ hay hoá đơn đứng tên chủ nhà thì chọn "
+			"không hợp lệ."
+		)
+
+	sach = []
+	for x in dong:
+		if not isinstance(x, dict):
+			frappe.throw("Dòng chi phải là một khoản có nội dung và số tiền.")
+		tien = flt(x.get("so_tien"))
+		noi_dung = (x.get("noi_dung") or "").strip()
+		if tien <= 0:
+			frappe.throw("Khoản \"%s\" ghi 0 đồng." % (noi_dung or "chưa đặt tên"))
+		if not noi_dung:
+			frappe.throw("Có khoản %s đ chưa ghi nội dung chi." % _tien(tien))
+		tk_no = (x.get("tk_no") or "").strip()
+		if not tk_no:
+			frappe.throw("Khoản \"%s\" chưa chọn tài khoản Nợ." % noi_dung)
+		if not frappe.db.exists("Account", tk_no):
+			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_no)
+		tk_co = (x.get("tk_co") or "").strip()
+		if tk_co and not frappe.db.exists("Account", tk_co):
+			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_co)
+		sach.append({
+			"ngay_hd": x.get("ngay_hd") or nowdate(),
+			"so_hd_ncc": (x.get("so_hd_ncc") or "").strip(),
+			"noi_dung": noi_dung,
+			"ben_ban": (x.get("ben_ban") or "").strip(),
+			"loai_chi": (x.get("loai_chi") or "").strip(),
+			"co_vat": 1 if cint(x.get("co_vat")) else 0,
+			"tk_no": tk_no,
+			"tk_co": tk_co or tk_so_cai,
+			"so_tien": tien,
+			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
+			"ghi_chu": (x.get("ghi_chu") or "").strip(),
+		})
+
+	doc = frappe.new_doc("Vagabond Ho So TT")
+	doc.ma = _sinh_ma()
+	doc.loai = LOAI_TKCT
+	doc.ngay = nowdate()
+	doc.tk_chi = tk_chi
+	doc.loai_cp_thue = loai_cp_thue
+	doc.nha_cung_cap = ma_ncc
+	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
+	doc.email_ncc = _email_ncc(ma_ncc)
+	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
+	doc.nguoi_tao = frappe.session.user
+	doc.ghi_chu = (ghi_chu or "").strip()
+	for k, v in (_tk_nhan(ma_ncc) or {}).items():
+		doc.set(k, v)
+	if not doc.ten_nhan:
+		doc.ten_nhan = doc.ten_ncc
+	for d in sach:
+		doc.append("dong", d)
+	doc.flags.ignore_permissions = True
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	_ghi_vet(doc.name, "Lập hồ sơ chi từ TK công ty %s đ" % _tien(doc.tong_tien))
+	return {"ok": 1, "ma": doc.name, "trang_thai": doc.trang_thai}
+
+
+def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
+	"""Chi thẳng từ tài khoản công ty: sinh Journal Entry theo định khoản kế toán chọn.
+
+	Không đi qua Payment Entry vì không có hoá đơn mua nào để xoá công nợ.
+	Mỗi dòng một bút toán Nợ; các dòng cùng TK Có thì gộp lại cho sổ gọn.
+	"""
+	dong = [d for d in doc.dong if flt(d.so_tien) > 0]
+	if not dong:
+		frappe.throw("Hồ sơ %s không có khoản chi nào." % doc.name)
+
+	tk_ngan_hang = frappe.db.get_value("Bank Account", doc.tk_chi, "account") if doc.tk_chi else None
+	cong_ty = frappe.db.get_single_value("Global Defaults", "default_company")
+	ttcp = frappe.db.get_value("Company", cong_ty, "cost_center")
+
+	je = frappe.new_doc("Journal Entry")
+	je.voucher_type = "Bank Entry"
+	je.company = cong_ty
+	je.posting_date = ngay
+	je.cheque_no = doc.ma_giao_dich or doc.name
+	je.cheque_date = ngay
+	je.user_remark = "Hồ sơ thanh toán %s - %s - %s" % (
+		doc.name, doc.ten_ncc or doc.nha_cung_cap, NHAN_CP_THUE.get(doc.loai_cp_thue, "")
+	)
+
+	gom_co = {}
+	for d in dong:
+		tk_no = d.tk_no
+		if not tk_no:
+			frappe.throw("Khoản \"%s\" chưa chọn tài khoản Nợ, chưa hạch toán được." % (d.noi_dung or ""))
+		hang = {
+			"account": tk_no,
+			"debit_in_account_currency": flt(d.so_tien),
+			"cost_center": ttcp,
+			"user_remark": d.noi_dung or "",
+		}
+		loai_tk = frappe.db.get_value("Account", tk_no, "account_type")
+		if loai_tk in ("Payable", "Receivable"):
+			hang["party_type"] = "Supplier" if loai_tk == "Payable" else "Customer"
+			hang["party"] = doc.nha_cung_cap
+		je.append("accounts", hang)
+		tk_co = d.tk_co or tk_ngan_hang
+		if not tk_co:
+			frappe.throw("Khoản \"%s\" chưa có tài khoản Có." % (d.noi_dung or ""))
+		gom_co[tk_co] = gom_co.get(tk_co, 0.0) + flt(d.so_tien)
+
+	for tk_co, tien in gom_co.items():
+		hang = {
+			"account": tk_co,
+			"credit_in_account_currency": flt(tien),
+			"cost_center": ttcp,
+		}
+		loai_tk = frappe.db.get_value("Account", tk_co, "account_type")
+		if loai_tk in ("Payable", "Receivable"):
+			hang["party_type"] = "Supplier" if loai_tk == "Payable" else "Customer"
+			hang["party"] = doc.nha_cung_cap
+		je.append("accounts", hang)
+
+	je.flags.ignore_permissions = True
+	je.insert(ignore_permissions=True)
+	je.submit()
+	frappe.db.commit()
+	return je.name
+
+
 def _bank_account_quy():
 	"""Bank Account tro vao tai khoan 1411 - quy tam ung OCB."""
 	r = frappe.get_all(
@@ -585,6 +762,62 @@ def ds_nguoi_ung(tu_khoa=""):
 	return {"ncc": ra, "mon": {"co_vat": MON_CO_VAT, "khong_vat": MON_KHONG_VAT}}
 
 
+
+@frappe.whitelist()
+def ds_tk_cong_ty():
+	"""Các tài khoản ngân hàng của công ty dùng để chi thẳng.
+
+	Bỏ quỹ tạm ứng 1411 ra: quỹ đó là tiền Uyên ứng, không phải tiền công ty,
+	chi từ đó là luồng hoàn ứng chứ không phải luồng này.
+	"""
+	_kiem(VAI_LAP | VAI_FIN, "xem tài khoản ngân hàng công ty")
+	ra = []
+	for b in frappe.get_all(
+		"Bank Account",
+		filters={"is_company_account": 1, "disabled": 0},
+		fields=["name", "account_name", "bank", "bank_account_no", "account"],
+		limit_page_length=0,
+	):
+		if not b.account:
+			continue
+		if str(b.account).strip().startswith(TK_QUY_TAM_UNG):
+			continue
+		ra.append({
+			"ma": b.name,
+			"ten": b.account_name or b.name,
+			"ngan_hang": b.bank or "",
+			"so_tk": b.bank_account_no or "",
+			"tk_so_cai": b.account,
+		})
+	return {"tk": ra}
+
+
+@frappe.whitelist()
+def ds_tai_khoan(tu_khoa="", gioi_han=40):
+	"""Tra tài khoản sổ cái cho kế toán tự định khoản trên điện thoại."""
+	_kiem(VAI_LAP | VAI_FIN, "tra hệ thống tài khoản")
+	q = (tu_khoa or "").strip()
+	loc = {"is_group": 0, "disabled": 0}
+	ds = []
+	if q:
+		ds = frappe.get_all(
+			"Account", filters=loc,
+			or_filters={"name": ["like", "%" + q + "%"], "account_name": ["like", "%" + q + "%"]},
+			fields=["name", "account_name", "account_type", "root_type"],
+			order_by="name asc", limit_page_length=int(gioi_han or 40),
+		)
+	else:
+		ds = frappe.get_all(
+			"Account", filters=loc,
+			fields=["name", "account_name", "account_type", "root_type"],
+			order_by="name asc", limit_page_length=int(gioi_han or 40),
+		)
+	return {"tk": [{
+		"ma": a.name, "ten": a.account_name or a.name,
+		"loai": a.root_type or "",
+	} for a in ds]}
+
+
 def _sinh_hoa_don_hoan_ung(doc):
 	"""Dựng hoá đơn mua cho các khoản gõ tay, gắn ngược lại vào dòng hồ sơ.
 
@@ -696,7 +929,7 @@ def _email_ncc(ma):
 
 
 @frappe.whitelist()
-def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None):
+def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None, loai_cp_thue=None):
 	"""Màn Hồ sơ thanh toán: danh sách kèm đếm theo trạng thái cho chip."""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem hồ sơ thanh toán")
 	if tu and den:
@@ -707,6 +940,8 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		loc["nha_cung_cap"] = ncc
 	if loai:
 		loc["loai"] = loai
+	if loai_cp_thue:
+		loc["loai_cp_thue"] = loai_cp_thue
 	ds = frappe.get_all(
 		"Vagabond Ho So TT",
 		filters=loc,
@@ -716,6 +951,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			"han_tra_som_nhat", "nguoi_tao",
 			"fin_boi", "gd_boi", "ngay_thanh_toan", "ma_giao_dich",
 			"email_da_gui", "ly_do_tu_choi", "ghi_chu",
+			"loai_cp_thue", "tk_chi",
 		],
 		order_by="ngay desc, creation desc",
 		limit_page_length=0,
@@ -741,6 +977,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		o["so_hd"] = so_dong.get(r.name, 0)
 		o["nhan"] = NHAN.get(r.trang_thai, r.trang_thai)
 		o["loai"] = r.loai or "NCC"
+		o["nhan_cp_thue"] = NHAN_CP_THUE.get(r.loai_cp_thue, "")
 		o["nguoi_tao_ten"] = _ten_nguoi(r.nguoi_tao)
 		o["fin_ten"] = _ten_nguoi(r.fin_boi)
 		o["gd_ten"] = _ten_nguoi(r.gd_boi)
@@ -860,6 +1097,7 @@ def chi_tiet(name):
 			"noi_dung": d.noi_dung or "", "ben_ban": d.ben_ban or "",
 			"loai_chi": d.loai_chi or "", "co_vat": cint(d.co_vat),
 			"ma_giao_dich": d.ma_giao_dich or "",
+			"tk_no": d.tk_no or "", "tk_co": d.tk_co or "",
 			"ghi_chu": d.ghi_chu or "",
 			"po": [], "pnk": [], "scan": [], "hddt": [],
 			"ncc_hd": "", "trang_thai_hd": "",
@@ -892,6 +1130,9 @@ def chi_tiet(name):
 	return {
 		"ho_so": {
 			"ma": doc.name, "loai": doc.loai or "NCC", "ngay": str(doc.ngay or ""),
+			"loai_cp_thue": doc.loai_cp_thue or "",
+			"nhan_cp_thue": NHAN_CP_THUE.get(doc.loai_cp_thue, ""),
+			"tk_chi": doc.tk_chi or "",
 			"ncc": doc.nha_cung_cap, "ten_ncc": doc.ten_ncc,
 			"email_ncc": doc.email_ncc or "",
 			"trang_thai": doc.trang_thai, "nhan": NHAN.get(doc.trang_thai, doc.trang_thai),
@@ -1128,6 +1369,9 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 	dong thi Payment Entry co hai ba dong tro cung mot Purchase Invoice, va
 	ERPNext se phan bo chong len nhau - tra 3 trieu ma so sach ghi tra 9.
 	"""
+	if (doc.loai or LOAI_NCC) == LOAI_TKCT:
+		return _tao_but_toan_tkct(doc, ngay, phuong_thuc)
+
 	con = [d for d in doc.dong if d.hoa_don]
 	if not con:
 		frappe.throw(
@@ -1690,12 +1934,12 @@ def _to_app_html(name):
 
 
 @frappe.whitelist()
-def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None):
+def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None, loai_cp_thue=None):
 	"""Bộ hồ sơ ra Excel cho kế toán theo dõi: một dòng một hoá đơn."""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xuất hồ sơ thanh toán")
 	kq = danh_sach(
 		trang_thai=trang_thai, ncc=ncc, tu=tu, den=den,
-		tu_khoa=tu_khoa, so_ngay=so_ngay, loai=loai,
+		tu_khoa=tu_khoa, so_ngay=so_ngay, loai=loai, loai_cp_thue=loai_cp_thue,
 	)
 	rows = kq["rows"]
 	chi_tiet_dong = {}
@@ -1704,7 +1948,8 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 			"Vagabond Ho So TT Dong",
 			filters={"parent": ["in", [r["name"] for r in rows]]},
 			fields=["parent", "hoa_don", "so_hd_ncc", "ngay_hd", "han_tra",
-				"con_no", "so_tien", "noi_dung", "ben_ban", "loai_chi", "co_vat"],
+				"con_no", "so_tien", "noi_dung", "ben_ban", "loai_chi", "co_vat",
+				"tk_no", "tk_co"],
 			order_by="parent asc, idx asc",
 			limit_page_length=0,
 		):
@@ -1718,9 +1963,10 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 		)],
 		["Số hồ sơ", len(rows), "Tổng đề nghị trả", kq["tong_tien"]],
 		[],
-		["Mã hồ sơ", "Loại", "Ngày lập", "Nhà cung cấp", "Trạng thái", "Tổng hồ sơ",
+		["Mã hồ sơ", "Loại", "Loại chi phí thuế", "Ngày lập", "Nhà cung cấp", "Trạng thái", "Tổng hồ sơ",
 		 "Trừ tạm ứng", "Còn lại chuyển",
 		 "Hoá đơn", "Số HĐ NCC", "Ngày HĐ", "Nội dung", "Bên bán", "Loại chi", "Có VAT",
+		 "TK Nợ", "TK Có",
 		 "Hạn trả", "Còn nợ lúc lập", "Đề nghị trả",
 		 "Người lập", "Kế toán duyệt", "Giám đốc duyệt", "Ngày thanh toán",
 		 "Mã giao dịch", "Đã báo NCC"],
@@ -1731,6 +1977,7 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 			bang.append([
 				r["ma"] if i == 0 else "",
 				NHAN_LOAI.get(r.get("loai"), r.get("loai") or "") if i == 0 else "",
+				NHAN_CP_THUE.get(r.get("loai_cp_thue"), "") if i == 0 else "",
 				str(r["ngay"] or "") if i == 0 else "",
 				(r["ten_ncc"] or r["nha_cung_cap"]) if i == 0 else "",
 				NHAN.get(r["trang_thai"], r["trang_thai"]) if i == 0 else "",
@@ -1744,6 +1991,8 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 				(d.ben_ban or "") if d else "",
 				(d.loai_chi or "") if d else "",
 				("Có" if cint(d.co_vat) else "") if d else "",
+				(d.tk_no or "") if d else "",
+				(d.tk_co or "") if d else "",
 				str(d.han_tra or "") if d else "",
 				flt(d.con_no) if d else "",
 				flt(d.so_tien) if d else "",
