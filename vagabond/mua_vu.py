@@ -169,6 +169,12 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 	  cac_dong_bi_am - list (ma, con_lai) cua MOI ma bi am, ke ca banh le bi
 	                   hop an di. Ban mot hop co the lam am mot banh le chu
 	                   khong am chinh cai hop, va do la cho de bo sot nhat.
+
+	Dong bat co "khong_tran" thi KHONG bao gio vao danh sach am (anh Viet
+	chot 18/08/2026). Do la banh chi lam theo hop: banh 80gr trong
+	MOONGARDEN va MOONLAPIS khong co lo rieng, tran that nam o so hop. De
+	chung mang tran 0 thi ban bat cu hop nao cung bi chan, va day la chan
+	sai chu khong phai chan dung.
 	"""
 	so_them = cint(so_them)
 	ban = {}
@@ -198,9 +204,76 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 		if ma == ma_hang:
 			con -= so_them
 			con_cua_ma = con
-		if con < 0:
+		if con < 0 and not cint(d.get("khong_tran")):
 			am.append((ma, con))
 	return con_cua_ma, am
+
+
+# Anh Viet chot 18/08/2026: "1 ngay toi da co the lam duoc 150-200 hop
+# MOONGARDEN thoi, em warning thanh do voi nhung ngay gan full".
+#
+# 150 dung bang 75 phan tram cua 200, nen thay vi dong cung hai con so vao
+# ma nguon, moi dong mang mot o "Tran moi ngay". Sang nam doi hop khac,
+# doi so trong o la xong, khong phai sua code va deploy lai.
+TY_LE_VANG = 0.75
+
+
+def muc_tran(so, tran):
+	"""0 binh thuong, 1 gan day (vang), 2 day hoac qua (do). THUAN.
+
+	tran <= 0 nghia la dong nay khong theo doi tran ngay.
+	"""
+	tran = cint(tran)
+	so = cint(so)
+	if tran <= 0 or so <= 0:
+		return 0
+	if so >= tran:
+		return 2
+	if so >= tran * TY_LE_VANG:
+		return 1
+	return 0
+
+
+_BO_TU = ("HOP", "BANH", "TRUNG", "THU", "NHAN", "NAM", "GRAM", "GR")
+
+
+def _khong_dau(s):
+	import unicodedata
+
+	s = unicodedata.normalize("NFD", str(s or ""))
+	s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+	s = s.replace("đ", "d").replace("Đ", "D").upper()
+	# Dau phay dinh vao chu bien "XIU," thanh mot tu khong phai chu cai va
+	# lam mat luon chu do. Tach dau ra thanh khoang trang truoc.
+	return "".join(c if c.isalnum() else " " for c in s)
+
+
+def nhan_tu_ten(ten, da_dung=None):
+	"""Vai chu ngan de hien trong o lich thang. THUAN.
+
+	O lich thang tren dien thoai rong chung 48 diem anh, khong ke duoc
+	"Thap Cam Hai San Sot XO" vao do. Nhung "sales nhin o la biet ngay do
+	lam gi" moi la thu anh Viet can, nen phai co nhan ngan.
+
+	da_dung: cac nhan da phat cho dong khac trong cung mua, de khong trung.
+	"""
+	da_dung = set(da_dung or ())
+	tu = [t for t in _khong_dau(ten).split() if t.isalpha() and t not in _BO_TU]
+	if not tu:
+		tu = [t for t in _khong_dau(ten).split() if t.isalpha()] or ["X"]
+	goc = "".join(t[0] for t in tu[:3]) if len(tu) >= 2 else tu[0][:3]
+	goc = goc[:4] or "X"
+	if goc not in da_dung:
+		return goc
+	# Trung thi noi dan chu tu chinh cai ten, het chu moi danh so.
+	nguon = "".join(tu)
+	for n in range(len(goc) + 1, min(len(nguon), 6) + 1):
+		if nguon[:n] not in da_dung:
+			return nguon[:n]
+	for i in range(2, 40):
+		if goc[:3] + str(i) not in da_dung:
+			return goc[:3] + str(i)
+	return goc
 
 
 def _khoang_unix(tu_ngay, den_ngay):
@@ -482,6 +555,22 @@ def bang(mua=None):
 			"khach": l.ten_khach or "",
 		}
 
+	# Muc canh bao cua tung ngay TINH O DAY chu khong o man hinh (QT-19).
+	# Neu man tu tinh thi hai noi cung giu mot luat va se lech nhau vao mot
+	# ngay khong ai doan truoc - dung cai bay da lam hong ba viec 16/08.
+	tran = {d.ma_hang: cint(d.tran_ngay) for d in doc.dong if cint(d.tran_ngay) > 0}
+	muc_ngay, tai_ngay = {}, {}
+	for ng, o in theo_ngay.items():
+		m, tai = 0, {}
+		for ma, t in tran.items():
+			so = cint((o.get(ma) or {}).get("chot")) + cint((o.get(ma) or {}).get("cho"))
+			if so:
+				tai[ma] = so
+			m = max(m, muc_tran(so, t))
+		muc_ngay[ng] = m
+		if tai:
+			tai_ngay[ng] = tai
+
 	return {
 		"co_so": 1,
 		"mua": doc.name,
@@ -495,6 +584,9 @@ def bang(mua=None):
 				"ma_hang": d.ma_hang,
 				"ten_banh": d.ten_banh or "",
 				"hinh": d.hinh or "",
+				"nhan_ngan": d.nhan_ngan or "",
+				"khong_tran": cint(d.khong_tran),
+				"tran_ngay": cint(d.tran_ngay),
 				"san_xuat": d.san_xuat or 0,
 				"da_dat": d.da_dat or 0,
 				"cho_chot": d.cho_chot or 0,
@@ -506,7 +598,14 @@ def bang(mua=None):
 			}
 			for d in doc.dong
 		],
-		"lich": {"ngay": sorted(ngay_co), "o": theo_ngay},
+		"lich": {
+			"ngay": sorted(ngay_co),
+			"o": theo_ngay,
+			"muc": muc_ngay,
+			"tai": tai_ngay,
+			"tran": tran,
+			"ty_le_vang": TY_LE_VANG,
+		},
 		"dot": [
 			{
 				"ma_hang": x.ma_hang,
@@ -532,12 +631,12 @@ def bang(mua=None):
 	}
 
 
-SUA_DUOC = {"san_xuat", "ghi_chu"}
+SUA_DUOC = {"san_xuat", "ghi_chu", "tran_ngay", "nhan_ngan", "khong_tran"}
 
 
 @frappe.whitelist()
 def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
-	"""Sua o So luong san xuat hoac Ghi chu.
+	"""Sua o So luong san xuat, Tran moi ngay, Nhan ngan, Khong dat tran, Ghi chu.
 
 	Cac cot may dem KHONG sua tay duoc tu day - do la ca ly do phan he nay
 	ton tai, y het bang kiem banh theo ngay.
@@ -548,7 +647,7 @@ def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
 	if truong not in SUA_DUOC:
 		frappe.throw(
 			"Cột này máy tự đếm từ đơn Pancake nên không sửa tay được. Chỉ sửa được "
-			"ô Số lượng sản xuất và ô Ghi chú."
+			"ô Số lượng sản xuất, Trần mỗi ngày, Nhãn ngắn, Không đặt trần và Ghi chú."
 		)
 	doc = frappe.get_doc(DT, mua)
 	if doc.tinh_trang == "Da dong":
@@ -557,6 +656,12 @@ def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
 		if d.ma_hang == ma_hang:
 			if truong == "san_xuat":
 				d.san_xuat = max(0, cint(gia_tri))
+			elif truong == "tran_ngay":
+				d.tran_ngay = max(0, cint(gia_tri))
+			elif truong == "nhan_ngan":
+				d.nhan_ngan = _khong_dau(gia_tri).replace(" ", "")[:6]
+			elif truong == "khong_tran":
+				d.khong_tran = 1 if cint(gia_tri) else 0
 			else:
 				d.ghi_chu = str(gia_tri or "")[:140]
 			doc.save()  # giu quyen that cua nguoi dang sua, de con vet ai sua gi
@@ -874,6 +979,10 @@ def canh_bao():
 		except Exception:
 			continue
 		for d in dong:
+			# Banh chi lam theo hop khong co tran rieng, nen khong bao gio
+			# la "sap het" - tran that cua no nam o dong cai hop.
+			if cint(d.get("khong_tran")):
+				continue
 			sx = cint(d.get("san_xuat"))
 			con = cint(d.get("co_the_ban"))
 			if sx <= 0 and con >= 0:
