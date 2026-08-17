@@ -819,6 +819,10 @@ async function scrHome() {
        17/08/2026). Hai bang tra loi hai cau hoi khac han: bang ngay hoi
        "hom nay con bao nhieu", bang mua hoi "ca mua con bao nhieu". */
     card('🌕', 'Kiểm bánh theo mùa', 'Bánh trung thu, Tết... hàng sản xuất một lô có số lượng giới hạn', 0, 'KBM') + '</div>';
+  /* Cho san de chen chip canh bao han muc mua vu. Ve SAU khi man da dung
+     xong (mvChipCanhBao), y het cach the Bao cao tong hop dien doanh thu
+     hom nay: hong thi trang chu van nguyen ven. */
+  html += '<div id="mvCanhBao"></div>';
   if (isKho()) {
     var rcn = 0;
     try { rcn = (await getList('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 })).length; } catch (e) { }
@@ -949,6 +953,43 @@ async function scrHome() {
   };
   vgbGomNhom();
   bcSoHomNay();
+  mvChipCanhBao();
+}
+
+/* Chip do canh bao han muc mua vu (anh Viet chot 18/08/2026).
+
+   Chay SAU khi ve xong trang chu, va hong thi im lang bo qua - mot loi doc
+   bang mua vu khong duoc lam vo trang chu cua ca quan.
+
+   Ban lo hien rieng va hien truoc: con so am nghia la da co don khong giao
+   duoc, va do la viec phai goi khach ngay hom nay. */
+async function mvChipCanhBao() {
+  var o = document.getElementById('mvCanhBao');
+  if (!o) return;
+  var kq;
+  try { kq = await api('vagabond.mua_vu.canh_bao', {}); } catch (e) { return; }
+  if (!kq || !kq.so) return;
+  var lo = (kq.ds || []).filter(function (x) { return x.ban_lo; });
+  var it = (kq.ds || []).filter(function (x) { return !x.ban_lo; });
+  var chip = function (x) {
+    var mau = x.ban_lo ? '#b3261e' : '#b45309';
+    var nen = x.ban_lo ? '#fef2f2' : '#fffbeb';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid ' +
+      (x.ban_lo ? '#fee2e2' : '#fef3c7') + '">' +
+      '<div style="flex:1;min-width:0;font-size:12.5px;color:#374151">' + h(String(x.ten).slice(0, 40)) + '</div>' +
+      '<b style="font-size:12.5px;color:' + mau + ';white-space:nowrap">' +
+      (x.ban_lo ? 'BÁN LỐ ' + money(-x.con) : 'còn ' + money(x.con) + '/' + money(x.san_xuat)) + '</b></div>';
+  };
+  o.innerHTML = '<div class="sec">Cảnh báo hàng mùa vụ</div>' +
+    '<div class="card" data-go="KBM" style="cursor:pointer;background:' +
+    (lo.length ? '#fef2f2' : '#fffbeb') + ';border:1.5px solid ' + (lo.length ? '#fecaca' : '#fde68a') + '">' +
+    (lo.length ? '<div style="padding:9px 12px;font-size:12px;font-weight:800;color:#b3261e">' +
+      money(lo.length) + ' mã đã bán lố, phải gọi khách ngay</div>' : '') +
+    lo.slice(0, 5).map(chip).join('') +
+    (it.length ? '<div style="padding:9px 12px;font-size:12px;font-weight:700;color:#b45309">' +
+      money(it.length) + ' mã còn dưới ' + money(kq.nguong) + '% hạn mức</div>' : '') +
+    it.slice(0, 5).map(chip).join('') +
+    '<div style="padding:8px 12px;font-size:11px;color:#98a2b3">Bấm để mở bảng Kiểm bánh theo mùa</div></div>';
 }
 
 /* Doanh thu hom nay hien thang tren the "Bao cao tong hop" o trang chu, de
@@ -11344,19 +11385,26 @@ function mvVe() {
     h(d.ten_mua) + ' · ' + mvNgay(d.tu_ngay) + ' đến ' + mvNgay(d.den_ngay) +
     (d.dong_bo_luc ? ' · đồng bộ ' + h(String(d.dong_bo_luc).slice(11, 16)) : '') + '</div>' +
     '<div style="display:flex;gap:7px;margin-bottom:10px">' +
-    ['sp', 'lich'].map(function (k) {
-      var on = MV.xem === k;
-      return '<button data-mvx="' + k + '" style="flex:1;border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
+    [['sp', 'Sản phẩm'], ['lich', 'Lịch tháng'], ['dot', 'Đợt hàng'], ['dm', 'Định mức']].map(function (x) {
+      var on = MV.xem === x[0];
+      return '<button data-mvx="' + x[0] + '" style="flex:1;border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
         ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' + (on ? '#0f766e' : '#374151') +
-        ';border-radius:9px;padding:8px;font-size:12.5px;font-weight:' + (on ? '800' : '600') + '">' +
-        (k === 'sp' ? 'Theo sản phẩm' : 'Lịch theo ngày') + '</button>';
+        ';border-radius:9px;padding:8px 4px;font-size:12px;font-weight:' + (on ? '800' : '600') + '">' +
+        h(x[1]) + '</button>';
     }).join('') + '</div>';
 
-  html += MV.xem === 'sp' ? mvVeSanPham(ds) : mvVeLich(d, ds);
+  html += MV.xem === 'sp' ? mvVeSanPham(ds)
+    : MV.xem === 'lich' ? mvVeLuoi(d, ds)
+    : MV.xem === 'dot' ? mvVeDot(d)
+    : mvVeDinhMuc(d);
 
+  var nutChinh = MV.xem === 'dot'
+    ? '<button class="btn gh" id="mvThemDot" style="margin:0;flex:0 0 46%">➕ Khai đợt hàng</button>'
+    : MV.xem === 'dm'
+      ? '<button class="btn gh" id="mvThemDm" style="margin:0;flex:0 0 46%">➕ Khai định mức</button>'
+      : '<button class="btn gh" id="mvThem" style="margin:0;flex:0 0 46%">➕ Thêm sản phẩm</button>';
   var b = frame('Kiểm bánh theo mùa', html, {
-    footer: '<div style="display:flex;gap:8px">' +
-      '<button class="btn gh" id="mvThem" style="margin:0;flex:0 0 42%">➕ Thêm sản phẩm</button>' +
+    footer: '<div style="display:flex;gap:8px">' + nutChinh +
       '<button class="btn" id="mvSoat" style="margin:0;flex:1">🔄 Đồng bộ Pancake</button></div>'
   });
 
@@ -11366,7 +11414,24 @@ function mvVe() {
   b.querySelectorAll('[data-mvsx]').forEach(function (n) {
     n.onclick = function () { mvSuaSx(n.getAttribute('data-mvsx')); };
   });
-  document.getElementById('mvThem').onclick = mvThemSp;
+  b.querySelectorAll('[data-mvng]').forEach(function (n) {
+    n.onclick = function () { mvXemNgay(n.getAttribute('data-mvng')); };
+  });
+  var nT = document.getElementById('mvThem');
+  if (nT) nT.onclick = mvThemSp;
+  var nD = document.getElementById('mvThemDot');
+  if (nD) nD.onclick = mvKhaiDot;
+  var nM = document.getElementById('mvThemDm');
+  if (nM) nM.onclick = mvKhaiDinhMuc;
+  b.querySelectorAll('[data-mvdotve]').forEach(function (n) {
+    n.onclick = function () { mvDotVe(+n.getAttribute('data-mvdotve'), n.getAttribute('data-ve') === '1' ? 0 : 1); };
+  });
+  b.querySelectorAll('[data-mvdotxoa]').forEach(function (n) {
+    n.onclick = function () { mvXoaDot(+n.getAttribute('data-mvdotxoa')); };
+  });
+  b.querySelectorAll('[data-mvdmxoa]').forEach(function (n) {
+    n.onclick = function () { mvXoaDm(n.getAttribute('data-hop'), n.getAttribute('data-banh')); };
+  });
   document.getElementById('mvSoat').onclick = function () { go(scrMuaVu, true); };
 }
 
@@ -11401,6 +11466,10 @@ function mvVeSanPham(ds) {
       mvChip('Đã đặt', x.da_dat, '#0f766e') +
       mvChip('Chờ chốt', x.cho_chot, '#b45309') +
       mvChip('Kênh khác', x.don_khac, '#6b7280') +
+      /* Banh le bi hop an di. Chip nay quan trong hon ve ngoai cua no: truoc
+         18/08 hai thu dem doc lap, nen ban 2000 hop van thay banh le "con
+         192" trong khi lo banh do da vao het trong hop. */
+      mvChip('Trong hộp', x.trong_hop, '#7c3aed') +
       '<button data-mvsx="' + h(x.ma_hang) + '" style="margin-left:auto;border:1.5px solid #0f766e;' +
       'background:#fff;color:#0f766e;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
       '✏️ Sản xuất ' + money(x.san_xuat) + '</button></div>' +
@@ -11489,6 +11558,258 @@ async function mvThemSp() {
         toast('Đã thêm. Bấm nút Sản xuất để đặt số lượng.', 4000);
       } catch (e) { busy(false); baoTin((e && e.message) || 'Thêm lỗi', 'Không thêm được'); }
     }, true);
+}
+
+
+/* ---------- Lịch dạng lưới tháng (anh Việt chốt 18/08/2026) ----------
+
+Vì sao đổi từ danh sách sang lưới: anh nói "Sales sẽ biết được ngày nào ít
+đơn để mà dồn khách vào nhận ngày đó". Danh sách cho biết ngày nào có bao
+nhiêu, nhưng không cho thấy CHỖ TRỐNG - mà chỗ trống mới là thứ sales cần
+tìm khi đang nói chuyện với khách.
+
+Nền ô đậm dần theo số lượng, nên ngày cao điểm nổi lên còn ngày trống nhạt
+hẳn ra. Ngày quá khứ làm mờ: dồn khách vào một ngày đã qua thì vô nghĩa. */
+function mvVeLuoi(d, ds) {
+  var L = d.lich || { ngay: [], o: {} };
+  var tong = {};
+  L.ngay.forEach(function (ng) {
+    var o = L.o[ng] || {}, t = 0;
+    Object.keys(o).forEach(function (m) { t += (o[m].chot || 0) + (o[m].cho || 0); });
+    tong[ng] = t;
+  });
+  var max = 0;
+  Object.keys(tong).forEach(function (k) { if (tong[k] > max) max = tong[k]; });
+
+  var a = d.tu_ngay, b = d.den_ngay;
+  if (!a || !b) return '<div class="emp"><div class="e2">Mùa chưa khai ngày.</div></div>';
+  var thang = [], cur = a.slice(0, 7);
+  var stop = b.slice(0, 7), dem = 0;
+  while (dem++ < 24) {
+    thang.push(cur);
+    if (cur === stop) break;
+    var y = +cur.slice(0, 4), m = +cur.slice(5, 7) + 1;
+    if (m > 12) { m = 1; y++; }
+    cur = y + '-' + (m < 10 ? '0' : '') + m;
+  }
+  var homNay = new Date().toISOString().slice(0, 10);
+
+  var html = '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 8px;line-height:1.6">' +
+    'Ô càng đậm là ngày càng nhiều đơn. Bấm vào một ngày để xem chi tiết. ' +
+    'Ngày nhạt là ngày còn trống, dồn khách vào đó được.</div>';
+
+  thang.forEach(function (th) {
+    var y = +th.slice(0, 4), mo = +th.slice(5, 7);
+    var dauThang = new Date(y, mo - 1, 1);
+    var soNgay = new Date(y, mo, 0).getDate();
+    /* Tuần bắt đầu từ thứ hai, đúng cách người Việt đọc lịch. */
+    var lech = (dauThang.getDay() + 6) % 7;
+    var o = '';
+    for (var i = 0; i < lech; i++) o += '<div></div>';
+    for (var dd = 1; dd <= soNgay; dd++) {
+      var iso = y + '-' + (mo < 10 ? '0' : '') + mo + '-' + (dd < 10 ? '0' : '') + dd;
+      var t = tong[iso] || 0;
+      var qua = iso < homNay;
+      var dam = max > 0 ? Math.min(1, t / max) : 0;
+      var nen = t > 0 ? 'rgba(15,118,110,' + (0.10 + dam * 0.72).toFixed(2) + ')' : '#fafbfc';
+      var chu = t > 0 && dam > 0.55 ? '#fff' : (t > 0 ? '#0f766e' : '#c9ced8');
+      var ngoai = (iso >= (d.tu_ngay || '') && iso <= (d.den_ngay || ''));
+      o += '<div ' + (t ? 'data-mvng="' + iso + '"' : '') + ' style="aspect-ratio:1;border-radius:8px;' +
+        'background:' + (ngoai ? nen : '#f4f5f7') + ';border:1px solid ' + (t > 0 ? 'transparent' : '#eef0f3') +
+        ';display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+        (qua ? 'opacity:.42;' : '') + (t ? 'cursor:pointer;' : '') + '">' +
+        '<div style="font-size:10.5px;color:' + (t > 0 ? chu : '#aeb4bf') + ';line-height:1">' + dd + '</div>' +
+        (t ? '<b style="font-size:12.5px;color:' + chu + ';line-height:1.25">' + t + '</b>' : '') +
+        '</div>';
+    }
+    html += '<div class="sec">' + mvTenThang(mo) + ' ' + y + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">' +
+      ['H', 'B', 'T', 'N', 'S', 'B', 'C'].map(function (x) {
+        return '<div style="text-align:center;font-size:10px;color:#aeb4bf;font-weight:700">' + x + '</div>';
+      }).join('') + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">' + o + '</div>';
+  });
+  return html;
+}
+
+function mvTenThang(m) {
+  return ['Tháng một', 'Tháng hai', 'Tháng ba', 'Tháng tư', 'Tháng năm', 'Tháng sáu',
+    'Tháng bảy', 'Tháng tám', 'Tháng chín', 'Tháng mười', 'Tháng mười một', 'Tháng mười hai'][m - 1] || ('Tháng ' + m);
+}
+
+function mvXemNgay(iso) {
+  var d = MV.data, L = d.lich || { o: {} }, o = L.o[iso] || {};
+  var ten = {};
+  (d.dong || []).forEach(function (x) { ten[x.ma_hang] = x.ten_banh || x.ma_hang; });
+  var dong = Object.keys(o).sort().map(function (m) {
+    var v = o[m];
+    return '<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #f2f4f7;font-size:13px">' +
+      '<div style="flex:1;min-width:0">' + h(String(ten[m] || m)) + '</div>' +
+      '<b style="color:#0f766e">' + money(v.chot || 0) + '</b>' +
+      (v.cho ? '<span style="color:#b45309">+' + money(v.cho) + ' chờ</span>' : '') + '</div>';
+  }).join('');
+  var khach = Object.keys(o).map(function (m) { return o[m].khach || ''; }).filter(Boolean).join(', ');
+  var hop = hopKhung(mvNgayDay(iso), dong +
+    (khach ? '<div style="font-size:11.5px;color:#6b7280;margin-top:10px;line-height:1.6">Khách: ' +
+      h(khach.slice(0, 260)) + '</div>' : ''));
+  hop.box.querySelector('.x').onclick = hop.dong;
+}
+
+/* ---------- Đợt hàng nhà in (anh Việt chốt 18/08/2026) ----------
+
+Hạn mức thật là TỔNG CÁC ĐỢT ĐÃ VỀ, không phải một con số gõ tay. Đợt hẹn
+ngày mai thì số hộp đó chưa có trong tay: cộng trước là bán trên một con số
+chưa tồn tại, và tới ngày nhà in giao thiếu thì hộp đã vào tay khách hết. */
+function mvVeDot(d) {
+  var ds = d.dot || [];
+  var html = '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
+    'Hạn mức bán được tính bằng <b>tổng các đợt đã về</b>. Đợt chưa về không cộng vào, ' +
+    'nên hàng chưa tới kho thì chưa bán ra được.</div>';
+  if (!ds.length) {
+    return html + '<div class="emp"><div class="e1">🚚</div><div>Chưa khai đợt nào.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Chưa khai đợt thì máy dùng số ở ô ' +
+      'Sản xuất như cũ. Khai đợt đầu tiên là máy chuyển sang tính theo đợt.</div></div>';
+  }
+  var gop = {};
+  ds.forEach(function (x, i) { (gop[x.ma_hang] = gop[x.ma_hang] || []).push([x, i]); });
+  html += Object.keys(gop).map(function (ma) {
+    var cac = gop[ma], ve = 0, cho = 0;
+    cac.forEach(function (p) { if (p[0].da_ve) ve += p[0].so_luong || 0; else cho += p[0].so_luong || 0; });
+    return '<div class="sec">' + h(String(cac[0][0].ten_banh || ma)) + '</div><div class="card">' +
+      '<div style="padding:9px 14px;background:#f8fafb;font-size:12px;color:#374151">' +
+      'Đã về <b style="color:#0a8a4a">' + money(ve) + '</b>' +
+      (cho ? ' · đang chờ <b style="color:#b45309">' + money(cho) + '</b>' : '') +
+      ' · hạn mức bán được là <b>' + money(ve) + '</b></div>' +
+      cac.map(function (p) {
+        var x = p[0], i = p[1];
+        return '<div style="padding:11px 14px;border-top:1px solid #f2f4f7;display:flex;align-items:center;gap:9px">' +
+          '<div style="flex:1;min-width:0">' +
+          '<b style="font-size:14px">' + money(x.so_luong) + ' cái</b>' +
+          '<div style="font-size:11.5px;color:#98a2b3">' +
+          (x.da_ve ? 'đã về' + (x.ngay_ve_that ? ' ' + mvNgay(x.ngay_ve_that) : '')
+            : 'hẹn ' + (x.ngay_du_kien ? mvNgay(x.ngay_du_kien) : 'chưa rõ ngày')) +
+          (x.ghi_chu ? ' · ' + h(x.ghi_chu) : '') + '</div></div>' +
+          '<button data-mvdotve="' + i + '" data-ve="' + (x.da_ve ? '1' : '0') + '" ' +
+          'style="border:1.5px solid ' + (x.da_ve ? '#0a8a4a' : '#d1d5db') + ';background:' +
+          (x.da_ve ? '#dcfce7' : '#fff') + ';color:' + (x.da_ve ? '#0a8a4a' : '#374151') +
+          ';border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:800">' +
+          (x.da_ve ? '✓ Đã về' : 'Đánh dấu về') + '</button>' +
+          (x.da_ve ? '' : '<span data-mvdotxoa="' + i + '" style="color:#b3261e;font-size:17px;cursor:pointer;padding:0 3px">&times;</span>') +
+          '</div>';
+      }).join('') + '</div>';
+  }).join('');
+  return html;
+}
+
+async function mvKhaiDot() {
+  var ds = (MV.data.dong || []);
+  if (!ds.length) return baoTin('Chưa có sản phẩm nào trong mùa. Bấm Thêm sản phẩm trước.', 'Chưa có gì để khai');
+  sheet('Khai đợt cho sản phẩm nào',
+    ds.map(function (x) { return { value: x.ma_hang, label: x.ten_banh || x.ma_hang, phu: x.ma_hang, tim: x.ma_hang }; }),
+    '', async function (it) {
+      var sl = await hoiNhap('Số lượng đợt này của "' + String(it.label).slice(0, 34) + '"', '');
+      if (sl === null) return;
+      var so = Number(String(sl).replace(/[^0-9]/g, ''));
+      if (!so) return toast('Nhập số lượng lớn hơn 0 giúp em.', 3500);
+      var ng = await hoiNhap('Ngày dự kiến hàng về (YYYY-MM-DD), để trống nếu chưa rõ', '');
+      if (ng === null) return;
+      var gc = await hoiNhap('Ghi chú (không bắt buộc)', '');
+      if (gc === null) return;
+      busy(true);
+      try {
+        MV.data = await api('vagabond.mua_vu.them_dot',
+          { mua: MV.mua, ma_hang: it.value, so_luong: so, ngay_du_kien: ng, ghi_chu: gc });
+        busy(false); MV.xem = 'dot'; mvVe();
+        toast('Đã khai đợt. Bấm Đánh dấu về khi hàng tới kho thì hạn mức mới nhích lên.', 5000);
+      } catch (e) { busy(false); baoTin((e && e.message) || 'Khai đợt lỗi', 'Không khai được'); }
+    }, true);
+}
+
+async function mvDotVe(i, ve) {
+  if (ve) {
+    var ok = await confirmSheet('Đánh dấu hàng đã về?',
+      'Hạn mức bán được sẽ tăng thêm đúng số của đợt này, và sales bán tiếp được ngay.', 'Hàng đã về');
+    if (!ok) return;
+  }
+  busy(true);
+  try {
+    MV.data = await api('vagabond.mua_vu.danh_dau_dot_ve', { mua: MV.mua, chi_so: i, da_ve: ve });
+    busy(false); mvVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi', 'Không lưu được'); }
+}
+
+async function mvXoaDot(i) {
+  var ok = await confirmSheet('Bỏ đợt này?', 'Đợt chưa về nên bỏ đi không ảnh hưởng số đang bán.', 'Bỏ đợt', true);
+  if (!ok) return;
+  busy(true);
+  try {
+    MV.data = await api('vagabond.mua_vu.xoa_dot', { mua: MV.mua, chi_so: i });
+    busy(false); mvVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Xoá lỗi', 'Không xoá được'); }
+}
+
+/* ---------- Định mức hộp và bánh lẻ (anh Việt chốt 18/08/2026) ----------
+
+Bán một hộp MOONGARDEN là lấy đi mấy cái bánh 110g bên trong. Trước 18/08
+hai thứ đếm độc lập, nên bán 2000 hộp mà bảng vẫn báo bánh lẻ "còn 192"
+trong khi lò bánh đó đã vào hết trong hộp. */
+function mvVeDinhMuc(d) {
+  var ds = d.dinh_muc || [];
+  var html = '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
+    'Khai một hộp gồm những bánh lẻ nào. Bán một hộp là máy trừ luôn số bánh lẻ bên trong ' +
+    'khỏi hạn mức của bánh đó, nên không bán trùng một lò bánh cho hai chỗ.</div>';
+  if (!ds.length) {
+    return html + '<div class="emp"><div class="e1">🎁</div><div>Chưa khai định mức nào.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Chưa khai thì hộp và bánh lẻ ' +
+      'đếm độc lập, và một lò bánh có thể bị bán hai lần.</div></div>';
+  }
+  var gop = {};
+  ds.forEach(function (m) { (gop[m.ma_hop] = gop[m.ma_hop] || []).push(m); });
+  html += Object.keys(gop).map(function (hop) {
+    var cac = gop[hop];
+    var tong = 0;
+    cac.forEach(function (m) { tong += m.so_luong || 0; });
+    return '<div class="sec">' + h(String(cac[0].ten_hop || hop)) + ' · ' + money(tong) + ' bánh mỗi hộp</div>' +
+      '<div class="card">' + cac.map(function (m) {
+        return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7;display:flex;align-items:center;gap:9px">' +
+          '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(String(m.ten_banh || m.ma_banh)) + '</b>' +
+          '<div style="font-size:11px;color:#98a2b3">' + h(m.ma_banh) + '</div></div>' +
+          '<b style="font-size:15px;color:#7c3aed">' + money(m.so_luong) + '</b>' +
+          '<span data-mvdmxoa="1" data-hop="' + h(m.ma_hop) + '" data-banh="' + h(m.ma_banh) + '" ' +
+          'style="color:#b3261e;font-size:17px;cursor:pointer;padding:0 3px">&times;</span></div>';
+      }).join('') + '</div>';
+  }).join('');
+  return html;
+}
+
+async function mvKhaiDinhMuc() {
+  var ds = (MV.data.dong || []);
+  if (ds.length < 2) return baoTin('Cần có cả hộp và bánh lẻ trong mùa mới khai được định mức.', 'Chưa đủ sản phẩm');
+  var mon = function (x) { return { value: x.ma_hang, label: x.ten_banh || x.ma_hang, phu: x.ma_hang, tim: x.ma_hang }; };
+  sheet('Chọn HỘP', ds.map(mon), '', function (hop) {
+    sheet('Trong hộp đó có bánh lẻ nào', ds.filter(function (x) { return x.ma_hang !== hop.value; }).map(mon), '',
+      async function (banh) {
+        var sl = await hoiNhap('Một hộp "' + String(hop.label).slice(0, 26) + '" có mấy cái "' +
+          String(banh.label).slice(0, 26) + '"', '');
+        if (sl === null) return;
+        var so = Number(String(sl).replace(/[^0-9]/g, ''));
+        if (!so) return toast('Nhập số lớn hơn 0 giúp em.', 3500);
+        busy(true);
+        try {
+          MV.data = await api('vagabond.mua_vu.them_dinh_muc',
+            { mua: MV.mua, ma_hop: hop.value, ma_banh: banh.value, so_luong: so });
+          busy(false); MV.xem = 'dm'; mvVe();
+        } catch (e) { busy(false); baoTin((e && e.message) || 'Khai lỗi', 'Không khai được'); }
+      }, true);
+  }, true);
+}
+
+async function mvXoaDm(hop, banh) {
+  busy(true);
+  try {
+    MV.data = await api('vagabond.mua_vu.xoa_dinh_muc', { mua: MV.mua, ma_hop: hop, ma_banh: banh });
+    busy(false); mvVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Xoá lỗi', 'Không xoá được'); }
 }
 /* ---------- Van don: sales phan don, shipper giao kem anh, book xe, chi phi ---------- */
 var vdNgay = null, vdLoc = null, vdTay = null;
@@ -12208,7 +12529,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '203';
+var APPVER = '204';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
