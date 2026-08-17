@@ -555,6 +555,21 @@ def bang(mua=None):
 			"khach": l.ten_khach or "",
 		}
 
+	# Hinh: uu tien anh Pancake keo ve, thieu thi lay anh trong danh muc Mon.
+	# Uyen tao Mon truoc roi moi them anh, nen nhieu dong keo ve dung luc
+	# chua co anh nao va se mai mai trong neu khong co duong lui nay.
+	thieu_anh = [d.ma_hang for d in doc.dong if not str(d.hinh or "").strip()]
+	anh_mon = {}
+	if thieu_anh:
+		for r in frappe.get_all(
+			"Item",
+			filters={"name": ["in", thieu_anh]},
+			fields=["name", "image"],
+			limit_page_length=0,
+		):
+			if r.get("image"):
+				anh_mon[r["name"]] = r["image"]
+
 	# Muc canh bao cua tung ngay TINH O DAY chu khong o man hinh (QT-19).
 	# Neu man tu tinh thi hai noi cung giu mot luat va se lech nhau vao mot
 	# ngay khong ai doan truoc - dung cai bay da lam hong ba viec 16/08.
@@ -583,7 +598,7 @@ def bang(mua=None):
 			{
 				"ma_hang": d.ma_hang,
 				"ten_banh": d.ten_banh or "",
-				"hinh": d.hinh or "",
+				"hinh": d.hinh or anh_mon.get(d.ma_hang, ""),
 				"nhan_ngan": d.nhan_ngan or "",
 				"khong_tran": cint(d.khong_tran),
 				"tran_ngay": cint(d.tran_ngay),
