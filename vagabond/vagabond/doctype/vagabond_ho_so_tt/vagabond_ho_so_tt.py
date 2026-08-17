@@ -55,6 +55,28 @@ class VagabondHoSoTT(Document):
 		# "TK cong ty" cung khong co hoa don mua nao ca: tien di thang tu tai
 		# khoan cong ty, ke toan tu dinh khoan. Xep chung nhom khong-hoa-don.
 		la_hoan_ung = (self.loai or "NCC") in ("Hoan ung", "Hoan ung HD", "TK cong ty")
+
+		# Chi tu TK cong ty ma khong co hoa don GTGT thi ho so chi con dua vao
+		# chung tu roi: phai noi ro la chung tu gi VA phai dinh kem file that.
+		# Khong kiem o lan luu dau tien - luc do ban ghi chua ton tai nen chua
+		# the dinh kem duoc gi; tu lan luu thu hai tro di thi bat buoc.
+		if (self.loai or "") == "TK cong ty" and (self.loai_cp_thue or "") == "Chi phi khong hop le":
+			if not (self.loai_chung_tu or "").strip():
+				frappe.throw(
+					"Khoản chi không có hoá đơn thì phải chọn Loại chứng từ đính kèm, "
+					"rồi đính kèm đúng chứng từ đó."
+				)
+			if not self.is_new():
+				co_tep = frappe.db.count(
+					"File",
+					{"attached_to_doctype": self.doctype, "attached_to_name": self.name},
+				)
+				if not co_tep:
+					frappe.throw(
+						"Hồ sơ %s chưa đính kèm chứng từ nào. Đã chọn loại chứng từ là "
+						"\"%s\" thì phải tải đúng file đó lên mới lưu được."
+						% (self.name, self.loai_chung_tu)
+					)
 		for d in self.dong:
 			nhan = d.hoa_don or d.so_hd_ncc or d.noi_dung or ("dòng %s" % d.idx)
 			if flt(d.so_tien) <= 0:

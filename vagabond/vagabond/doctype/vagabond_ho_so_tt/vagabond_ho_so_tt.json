@@ -9,6 +9,7 @@
   "loai",
   "ngay",
   "loai_cp_thue",
+  "loai_chung_tu",
   "tk_chi",
   "nha_cung_cap",
   "ten_ncc",
@@ -272,6 +273,15 @@
    "label": "Loai chi phi thue",
    "mandatory_depends_on": "eval:doc.loai=='TK cong ty'",
    "options": "\nChi phi hop le\nChi phi khong hop le"
+  },
+  {
+   "depends_on": "eval:doc.loai=='TK cong ty' && doc.loai_cp_thue=='Chi phi khong hop le'",
+   "description": "Khoan chi khong co hoa don he thong thi phai co chung tu khac chung minh. Chon loai roi dinh kem file that.",
+   "fieldname": "loai_chung_tu",
+   "fieldtype": "Select",
+   "label": "Loai chung tu dinh kem",
+   "mandatory_depends_on": "eval:doc.loai=='TK cong ty' && doc.loai_cp_thue=='Chi phi khong hop le'",
+   "options": "\nBảng báo giá\nHợp đồng mua bán hàng hóa giữa hai bên\nHóa đơn giá trị gia tăng đầu vào\nChứng từ thanh toán cho người bán\nPhiếu chi\nỦy nhiệm chi đã chi tiền\nPhiếu nhập kho vật liệu, hàng hóa\nPhiếu xuất kho của bên bán hàng\nBiên bản bàn giao hàng hóa\nBiên bản thanh lý hợp đồng\nBiên bản nghiệm thu"
   }
  ],
  "links": [],
