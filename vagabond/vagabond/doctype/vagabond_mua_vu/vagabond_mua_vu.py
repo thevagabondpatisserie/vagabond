@@ -26,7 +26,12 @@ class VagabondMuaVu(Document):
 		hang gioi han thi mot don giu cho chua chot van la mot hop khong con
 		de ban cho nguoi khac. Khach huy thi don huy, so tu tra lai.
 		"""
-		from vagabond.mua_vu import banh_le_trong_hop, con_ban_duoc, han_muc_tu_dot
+		from vagabond.mua_vu import (
+			banh_le_trong_hop,
+			con_ban_duoc,
+			han_muc_tu_dot,
+			nhan_tu_ten,
+		)
 
 		han = han_muc_tu_dot([d.as_dict() for d in self.get("dot") or []])
 		ban_hop = {
@@ -36,7 +41,16 @@ class VagabondMuaVu(Document):
 		trong_hop = banh_le_trong_hop(
 			[m.as_dict() for m in self.get("dinh_muc") or []], ban_hop
 		)
+		# Nhan ngan cho o lich thang. Nguoi go de trong thi may tu dat, va
+		# nhan da co thi giu nguyen - doi nhan cua mot dong dang dung se lam
+		# sales doc nham o lich.
+		da_dung = {
+			str(d.nhan_ngan).strip() for d in self.dong if str(d.nhan_ngan or "").strip()
+		}
 		for d in self.dong:
+			if not str(d.nhan_ngan or "").strip():
+				d.nhan_ngan = nhan_tu_ten(d.ten_banh or d.ma_hang, da_dung)
+				da_dung.add(d.nhan_ngan)
 			# Han muc: uu tien tong cac dot da ve, roi moi den o go tay. Mua
 			# chua khai dot nao thi o go tay giu nguyen hieu luc.
 			if d.ma_hang in han:
