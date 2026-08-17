@@ -46,8 +46,9 @@
   },
   {
    "fieldname": "noi_dung",
-   "fieldtype": "Data",
-   "label": "Noi dung"
+   "fieldtype": "Autocomplete",
+   "label": "Noi dung",
+   "options": "Tiền nước\nTiền điện\nTiền thuê nhà\nTiền hoàn ứng\nĐóng BHXH\nĐóng KPCĐ (Liên đoàn lao động)"
   },
   {
    "fieldname": "ben_ban",
