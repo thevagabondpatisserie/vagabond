@@ -5,25 +5,43 @@ class VagabondMuaVu(Document):
 	def validate(self):
 		"""Con ban duoc TINH o day, khong tin so tu ngoai gui vao (QT-19).
 
+		Phep tinh KHONG nam trong tep nay
+		---------------------------------
+		Ba phep duoi day goi thang sang vagabond/mua_vu.py, noi chung la ham
+		THUAN va bo kiem thu chay duoc khong can site.
+
+		Co y de vay: neu viet phep o day thi bo kiem thu buoc phai co mot ban
+		sao rieng, va hai ban se lech nhau vao mot ngay khong ai doan truoc -
+		dung cai bay da lam hong ba viec trong ngay 16/08/2026 (hai cho dinh
+		tuyen, hai duong doi soat, regex chep hai ban). Mot cho tinh, mot cho
+		kiem.
+
 		Khac han bang kiem banh theo ngay
 		---------------------------------
-		Ben theo ngay, nguon hang la ton dau cong bep lam trong ngay, va moi
-		sang lai dem lai tu dau.
+		Ben theo ngay, nguon hang la ton dau cong bep lam trong ngay, moi sang
+		dem lai tu dau. Ben mua vu, nguon hang la mot HAN MUC cho ca mua: 100
+		hop MOONLAPIS la 100, khong hon.
 
-		Ben mua vu, nguon hang la MOT HAN MUC CO DINH cho ca mua: 100 hop
-		MOONLAPIS la 100, khong hon. Nha in giao them thi sales sua o "So
-		luong san xuat" len; hong mat mot chuc hop thi sua xuong. Nen o do
-		la o duy nhat nguoi duoc go, con lai may dem het.
-
-		Vi sao "cho chot" cung tru: y Loan Anh 01/08/2026 ben bang ngay, va
-		o mua vu con dung hon - hang gioi han thi mot don giu cho chua chot
-		van la mot hop khong con de ban cho nguoi khac. Khach huy thi don
-		huy, so tu tra lai.
+		"Cho chot" cung tru (y Loan Anh 01/08/2026, o mua vu con dung hon):
+		hang gioi han thi mot don giu cho chua chot van la mot hop khong con
+		de ban cho nguoi khac. Khach huy thi don huy, so tu tra lai.
 		"""
+		from vagabond.mua_vu import banh_le_trong_hop, con_ban_duoc, han_muc_tu_dot
+
+		han = han_muc_tu_dot([d.as_dict() for d in self.get("dot") or []])
+		ban_hop = {
+			d.ma_hang: (d.da_dat or 0) + (d.cho_chot or 0) + (d.don_khac or 0)
+			for d in self.dong
+		}
+		trong_hop = banh_le_trong_hop(
+			[m.as_dict() for m in self.get("dinh_muc") or []], ban_hop
+		)
 		for d in self.dong:
-			d.co_the_ban = (
-				(d.san_xuat or 0)
-				- (d.da_dat or 0)
-				- (d.cho_chot or 0)
-				- (d.don_khac or 0)
+			# Han muc: uu tien tong cac dot da ve, roi moi den o go tay. Mua
+			# chua khai dot nao thi o go tay giu nguyen hieu luc.
+			if d.ma_hang in han:
+				d.san_xuat = han[d.ma_hang]
+			d.trong_hop = trong_hop.get(d.ma_hang, 0)
+			d.co_the_ban = con_ban_duoc(
+				d.san_xuat, d.da_dat, d.cho_chot, d.don_khac, d.trong_hop
 			)

@@ -15,6 +15,10 @@
   "dong_bo_luc",
   "sec_bang",
   "dong",
+  "sec_dot",
+  "dot",
+  "sec_dinh_muc",
+  "dinh_muc",
   "sec_lich",
   "lich",
   "ghi_chu"
@@ -87,6 +91,30 @@
    "fieldtype": "Table",
    "label": "Don theo ngay",
    "options": "Vagabond Mua Vu Lich"
+  },
+  {
+   "fieldname": "sec_dot",
+   "fieldtype": "Section Break",
+   "label": "Cac dot san xuat"
+  },
+  {
+   "fieldname": "dot",
+   "fieldtype": "Table",
+   "label": "Dot nha in giao",
+   "options": "Vagabond Mua Vu Dot",
+   "description": "Nhap tung dot kem ngay du kien. Chi dot da ve moi cong vao han muc ban duoc."
+  },
+  {
+   "fieldname": "sec_dinh_muc",
+   "fieldtype": "Section Break",
+   "label": "Dinh muc hop va banh le"
+  },
+  {
+   "fieldname": "dinh_muc",
+   "fieldtype": "Table",
+   "label": "Mot hop gom nhung banh nao",
+   "options": "Vagabond Mua Vu Dinh Muc",
+   "description": "Ban mot hop thi tru luon so banh le ben trong khoi han muc banh le do."
   },
   {
    "fieldname": "ghi_chu",
