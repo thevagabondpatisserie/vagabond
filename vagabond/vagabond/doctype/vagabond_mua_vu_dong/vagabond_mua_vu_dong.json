@@ -15,25 +15,94 @@
   "da_dat",
   "cho_chot",
   "don_khac",
+  "trong_hop",
   "co_the_ban",
   "ten_khach_cho",
   "ghi_chu"
  ],
  "fields": [
-  {"fieldname": "ma_hang", "fieldtype": "Data", "in_list_view": 1, "label": "Ma hang", "reqd": 1},
-  {"fieldname": "ten_banh", "fieldtype": "Data", "in_list_view": 1, "label": "Ten san pham"},
-  {"fieldname": "hinh", "fieldtype": "Data", "label": "Hinh (URL Pancake)"},
-  {"fieldname": "cb1", "fieldtype": "Column Break"},
-  {"fieldname": "san_xuat", "fieldtype": "Int", "in_list_view": 1, "label": "So luong san xuat",
-   "description": "Nhap tay. So hop nha in giao duoc, hoac so banh bep lam duoc ca mua."},
-  {"fieldname": "da_giao", "fieldtype": "Int", "label": "Da giao", "read_only": 1},
-  {"fieldname": "cb2", "fieldtype": "Column Break"},
-  {"fieldname": "da_dat", "fieldtype": "Int", "in_list_view": 1, "label": "Da dat", "read_only": 1},
-  {"fieldname": "cho_chot", "fieldtype": "Int", "label": "Cho chot", "read_only": 1},
-  {"fieldname": "don_khac", "fieldtype": "Int", "label": "Kenh khac", "read_only": 1},
-  {"fieldname": "co_the_ban", "fieldtype": "Int", "in_list_view": 1, "label": "Con ban duoc", "read_only": 1},
-  {"fieldname": "ten_khach_cho", "fieldtype": "Small Text", "label": "Khach dang cho chot"},
-  {"fieldname": "ghi_chu", "fieldtype": "Data", "label": "Ghi chu"}
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ma hang",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_banh",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ten san pham"
+  },
+  {
+   "fieldname": "hinh",
+   "fieldtype": "Data",
+   "label": "Hinh (URL Pancake)"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "san_xuat",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "So luong san xuat",
+   "description": "Nhap tay. So hop nha in giao duoc, hoac so banh bep lam duoc ca mua."
+  },
+  {
+   "fieldname": "da_giao",
+   "fieldtype": "Int",
+   "label": "Da giao",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "da_dat",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Da dat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cho_chot",
+   "fieldtype": "Int",
+   "label": "Cho chot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "don_khac",
+   "fieldtype": "Int",
+   "label": "Kenh khac",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trong_hop",
+   "fieldtype": "Int",
+   "label": "Nam trong hop",
+   "read_only": 1,
+   "description": "So banh le da bi cac hop an di theo dinh muc. May tinh, khong sua tay."
+  },
+  {
+   "fieldname": "co_the_ban",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Con ban duoc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_khach_cho",
+   "fieldtype": "Small Text",
+   "label": "Khach dang cho chot"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Data",
+   "label": "Ghi chu"
+  }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
