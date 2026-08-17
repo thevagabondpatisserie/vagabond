@@ -520,6 +520,97 @@ la("ghi chu rong", tach(""), ("", ""))
 la("ghi chu khong theo khuon", tach("Ghi chu tu do"), ("", ""))
 la("so ngan khong phai dien thoai", tach("Pancake #12 - Ba Ba - 123"), ("Ba Ba", ""))
 
+
+# =====================================================================
+# Kiem banh theo mua: han muc theo dot, dinh muc hop, chot chan ban lo
+# =====================================================================
+print("19. Han muc mua vu va chot chan ban lo")
+
+def _nap_mv():
+	src = open("vagabond/mua_vu.py", encoding="utf-8").read()
+	mt = {"re": re, "cint": lambda x: int(x or 0), "flt": lambda x: float(x or 0)}
+	for ten in ("han_muc_tu_dot", "banh_le_trong_hop", "con_ban_duoc", "con_sau_khi_them"):
+		m = re.search(r"^def %s\(.*?(?=^def |^@|^# =|\Z)" % ten, src, re.S | re.M)
+		if not m:
+			print("KHONG THAY ham %s trong mua_vu.py" % ten); sys.exit(1)
+		exec(compile(m.group(0), "mua_vu:%s" % ten, "exec"), mt, mt)
+	return mt
+
+Mv = _nap_mv()
+hmdot = Mv["han_muc_tu_dot"]; trhop = Mv["banh_le_trong_hop"]
+conban = Mv["con_ban_duoc"]; conthem = Mv["con_sau_khi_them"]
+
+# --- Han muc tinh tu cac dot nha in ---
+la("chua khai dot nao thi tra rong, o go tay giu hieu luc", hmdot([]), {})
+la("mot dot da ve", hmdot([{"ma_hang": "A", "so_luong": 100, "da_ve": 1}]), {"A": 100})
+# Cho nay la mau chot: dot HEN ngay mai thi hang CHUA co trong tay.
+la("dot chua ve KHONG duoc cong",
+   hmdot([{"ma_hang": "A", "so_luong": 100, "da_ve": 0}]), {"A": 0})
+la("hai dot, mot ve mot chua",
+   hmdot([{"ma_hang": "A", "so_luong": 100, "da_ve": 1},
+          {"ma_hang": "A", "so_luong": 50, "da_ve": 0}]), {"A": 100})
+la("ba dot ve het thi cong don",
+   hmdot([{"ma_hang": "A", "so_luong": 40, "da_ve": 1},
+          {"ma_hang": "A", "so_luong": 30, "da_ve": 1},
+          {"ma_hang": "A", "so_luong": 30, "da_ve": 1}]), {"A": 100})
+la("hai ma khac nhau khong lan sang nhau",
+   hmdot([{"ma_hang": "A", "so_luong": 10, "da_ve": 1},
+          {"ma_hang": "B", "so_luong": 20, "da_ve": 1}]), {"A": 10, "B": 20})
+la("dot khong co ma hang thi bo qua", hmdot([{"so_luong": 99, "da_ve": 1}]), {})
+
+# --- Dinh muc hop an banh le ---
+DM = [{"ma_hop": "HOP", "ma_banh": "BANH", "so_luong": 6}]
+la("ban 10 hop an 60 banh le", trhop(DM, {"HOP": 10}), {"BANH": 60})
+la("chua ban hop nao thi khong an gi", trhop(DM, {"HOP": 0}), {"BANH": 0})
+la("khong khai dinh muc thi khong an gi", trhop([], {"HOP": 10}), {})
+la("dinh muc so luong 0 bi bo qua",
+   trhop([{"ma_hop": "HOP", "ma_banh": "BANH", "so_luong": 0}], {"HOP": 10}), {})
+la("hai hop cung an mot loai banh thi cong don",
+   trhop([{"ma_hop": "H1", "ma_banh": "B", "so_luong": 2},
+          {"ma_hop": "H2", "ma_banh": "B", "so_luong": 3}], {"H1": 10, "H2": 10}), {"B": 50})
+
+# --- Con ban duoc ---
+la("con ban duoc tru du bon muc", conban(100, 20, 5, 3, 2), 70)
+la("con ban duoc GIU DAU AM chu khong ep ve 0", conban(10, 20, 0, 0, 0), -10)
+la("banh le bi hop an het thi ve 0", conban(200, 0, 0, 0, 200), 0)
+
+# --- Chot chan: neu ban them thi con bao nhieu ---
+DONG = [
+	{"ma_hang": "HOP", "ten_banh": "Hop qua", "san_xuat": 100, "da_dat": 90, "cho_chot": 0, "don_khac": 0},
+	{"ma_hang": "BANH", "ten_banh": "Banh le", "san_xuat": 600, "da_dat": 0, "cho_chot": 0, "don_khac": 0},
+]
+con, am = conthem(DONG, DM, "HOP", 5)
+la("ban 5 hop nua con 5", con, 5)
+la("ban 5 hop nua khong lam am gi", am, [])
+con, am = conthem(DONG, DM, "HOP", 15)
+la("ban 15 hop la vuot, con -5", con, -5)
+# Ca dau em viet mong ["HOP"], chay len moi thay mac: ban 105 hop thi cung
+# an 630 banh le tren han muc 600, nen BANH am theo. Ma dung, ca sai - va
+# do chinh la thu bo kiem sinh ra de bat: em khong tu nhin ra day.
+la("vuot thi bao ca hop lan banh le ben trong",
+   sorted(x[0] for x in am), ["BANH", "HOP"])
+# Ca dang gia nhat cua ca bo: ban hop KHONG am chinh cai hop, ma am BANH LE
+# ben trong. Day la cho de bo sot nhat, va la ly do viec 5 phai lam truoc.
+DONG2 = [
+	{"ma_hang": "HOP", "ten_banh": "Hop qua", "san_xuat": 100, "da_dat": 0, "cho_chot": 0, "don_khac": 0},
+	{"ma_hang": "BANH", "ten_banh": "Banh le", "san_xuat": 60, "da_dat": 0, "cho_chot": 0, "don_khac": 0},
+]
+con, am = conthem(DONG2, DM, "HOP", 20)
+la("ban 20 hop thi chinh hop van con 80", con, 80)
+la("nhung banh le ben trong bi am, va phai bat duoc",
+   [x[0] for x in am], ["BANH"])
+la("banh le am dung 60 cai", dict(am)["BANH"], -60)
+la("ma khong nam trong mua thi khong bi rang buoc",
+   conthem(DONG, DM, "MA_LA", 999)[0], None)
+la("ban dung bang so con lai thi KHONG chan", conthem(DONG, DM, "HOP", 10)[1], [])
+# Ban 101 hop: hop am 1, va banh le an 606 tren 600 nen am 6.
+la("ban qua mot cai la chan", len(conthem(DONG, DM, "HOP", 11)[1]) >= 1, True)
+la("ban qua mot cai thi chinh hop am dung 1", dict(conthem(DONG, DM, "HOP", 11)[1])["HOP"], -1)
+# Cho chot cung tru, y het bang ngay
+DONG3 = [{"ma_hang": "H", "ten_banh": "H", "san_xuat": 10, "da_dat": 5, "cho_chot": 4, "don_khac": 0}]
+la("cho chot cung an vao han muc", conthem(DONG3, [], "H", 1)[0], 0)
+la("cho chot lam vuot thi chan", len(conthem(DONG3, [], "H", 2)[1]), 1)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
