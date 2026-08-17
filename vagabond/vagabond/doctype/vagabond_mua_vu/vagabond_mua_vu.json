@@ -1,0 +1,144 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:ten_mua",
+ "creation": "2026-08-17 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ten_mua",
+  "tinh_trang",
+  "cb1",
+  "tu_ngay",
+  "den_ngay",
+  "cb2",
+  "dong_bo_luc",
+  "sec_bang",
+  "dong",
+  "sec_lich",
+  "lich",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten_mua",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ten mua vu",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Vi du: Trung thu 2026, Tet 2027"
+  },
+  {
+   "default": "Dang ban",
+   "fieldname": "tinh_trang",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tinh trang",
+   "options": "Dang ban\nDa dong"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tu_ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Tu ngay",
+   "reqd": 1
+  },
+  {
+   "fieldname": "den_ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Den ngay",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dong_bo_luc",
+   "fieldtype": "Datetime",
+   "label": "Dong bo Pancake luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_bang",
+   "fieldtype": "Section Break",
+   "label": "Bang kiem theo mua"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Cac san pham",
+   "options": "Vagabond Mua Vu Dong"
+  },
+  {
+   "fieldname": "sec_lich",
+   "fieldtype": "Section Break",
+   "label": "Lich giao theo ngay"
+  },
+  {
+   "fieldname": "lich",
+   "fieldtype": "Table",
+   "label": "Don theo ngay",
+   "options": "Vagabond Mua Vu Lich"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-17 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Mua Vu",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "tu_ngay",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
