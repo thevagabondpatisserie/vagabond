@@ -4,45 +4,275 @@
  "creation": "2026-08-13 04:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": ["ma", "loai", "ngay", "nha_cung_cap", "ten_ncc", "email_ncc", "cb1", "trang_thai", "tong_tien", "da_tam_ung", "con_lai", "da_tra", "han_tra_som_nhat", "sb1", "dong", "sb4", "ten_nhan", "stk_nhan", "cb3", "ngan_hang_nhan", "noi_dung_ck", "sb2", "nguoi_tao", "fin_boi", "fin_luc", "gd_boi", "gd_luc", "cb2", "ly_do_tu_choi", "ngay_thanh_toan", "ma_giao_dich", "phuong_thuc", "sb3", "email_da_gui", "email_gui_luc", "email_gui_toi", "ghi_chu"],
+ "field_order": [
+  "ma",
+  "loai",
+  "ngay",
+  "loai_cp_thue",
+  "tk_chi",
+  "nha_cung_cap",
+  "ten_ncc",
+  "email_ncc",
+  "cb1",
+  "trang_thai",
+  "tong_tien",
+  "da_tam_ung",
+  "con_lai",
+  "da_tra",
+  "han_tra_som_nhat",
+  "sb1",
+  "dong",
+  "sb4",
+  "ten_nhan",
+  "stk_nhan",
+  "cb3",
+  "ngan_hang_nhan",
+  "noi_dung_ck",
+  "sb2",
+  "nguoi_tao",
+  "fin_boi",
+  "fin_luc",
+  "gd_boi",
+  "gd_luc",
+  "cb2",
+  "ly_do_tu_choi",
+  "ngay_thanh_toan",
+  "ma_giao_dich",
+  "phuong_thuc",
+  "sb3",
+  "email_da_gui",
+  "email_gui_luc",
+  "email_gui_toi",
+  "ghi_chu"
+ ],
  "fields": [
-  {"fieldname": "ma", "fieldtype": "Data", "label": "Ma ho so", "reqd": 1, "unique": 1, "in_list_view": 1, "read_only": 1},
-  {"fieldname": "loai", "fieldtype": "Select", "label": "Loai ho so", "options": "NCC\nHoan ung HD\nHoan ung", "default": "NCC", "in_list_view": 1},
-  {"fieldname": "ngay", "fieldtype": "Date", "label": "Ngay lap", "in_list_view": 1},
-  {"fieldname": "nha_cung_cap", "fieldtype": "Link", "options": "Supplier", "label": "Nha cung cap / nguoi duoc hoan ung", "reqd": 1, "in_list_view": 1},
-  {"fieldname": "ten_ncc", "fieldtype": "Data", "label": "Ten nha cung cap"},
-  {"fieldname": "email_ncc", "fieldtype": "Data", "label": "Email nha cung cap"},
-  {"fieldname": "cb1", "fieldtype": "Column Break"},
-  {"fieldname": "trang_thai", "fieldtype": "Select", "label": "Trang thai", "options": "Nhap\nCho ke toan\nCho giam doc\nDa duyet\nDa thanh toan\nTu choi\nHuy", "default": "Nhap", "in_list_view": 1},
-  {"fieldname": "tong_tien", "fieldtype": "Currency", "label": "Tong de nghi tra", "read_only": 1, "in_list_view": 1},
-  {"fieldname": "da_tam_ung", "fieldtype": "Currency", "label": "Tru so tien da tam ung"},
-  {"fieldname": "con_lai", "fieldtype": "Currency", "label": "Con lai phai chuyen", "read_only": 1},
-  {"fieldname": "da_tra", "fieldtype": "Currency", "label": "Da tra", "read_only": 1},
-  {"fieldname": "han_tra_som_nhat", "fieldtype": "Date", "label": "Han tra som nhat", "read_only": 1},
-  {"fieldname": "sb1", "fieldtype": "Section Break", "label": "Hoa don trong ho so"},
-  {"fieldname": "dong", "fieldtype": "Table", "options": "Vagabond Ho So TT Dong", "label": "Hoa don"},
-  {"fieldname": "sb4", "fieldtype": "Section Break", "label": "Tai khoan nhan tien"},
-  {"fieldname": "ten_nhan", "fieldtype": "Data", "label": "Ten nguoi thu huong"},
-  {"fieldname": "stk_nhan", "fieldtype": "Data", "label": "So tai khoan"},
-  {"fieldname": "cb3", "fieldtype": "Column Break"},
-  {"fieldname": "ngan_hang_nhan", "fieldtype": "Data", "label": "Ngan hang"},
-  {"fieldname": "noi_dung_ck", "fieldtype": "Small Text", "label": "Noi dung chuyen khoan"},
-  {"fieldname": "sb2", "fieldtype": "Section Break", "label": "Duyet"},
-  {"fieldname": "nguoi_tao", "fieldtype": "Data", "label": "Nguoi lap", "read_only": 1},
-  {"fieldname": "fin_boi", "fieldtype": "Data", "label": "Ke toan duyet", "read_only": 1},
-  {"fieldname": "fin_luc", "fieldtype": "Datetime", "label": "Ke toan duyet luc", "read_only": 1},
-  {"fieldname": "gd_boi", "fieldtype": "Data", "label": "Giam doc duyet", "read_only": 1},
-  {"fieldname": "gd_luc", "fieldtype": "Datetime", "label": "Giam doc duyet luc", "read_only": 1},
-  {"fieldname": "cb2", "fieldtype": "Column Break"},
-  {"fieldname": "ly_do_tu_choi", "fieldtype": "Small Text", "label": "Ly do tu choi"},
-  {"fieldname": "ngay_thanh_toan", "fieldtype": "Date", "label": "Ngay thanh toan"},
-  {"fieldname": "ma_giao_dich", "fieldtype": "Data", "label": "Ma giao dich ngan hang"},
-  {"fieldname": "phuong_thuc", "fieldtype": "Data", "label": "Phuong thuc tra"},
-  {"fieldname": "sb3", "fieldtype": "Section Break", "label": "Thu bao nha cung cap"},
-  {"fieldname": "email_da_gui", "fieldtype": "Check", "label": "Da gui thu bao", "read_only": 1},
-  {"fieldname": "email_gui_luc", "fieldtype": "Datetime", "label": "Gui luc", "read_only": 1},
-  {"fieldname": "email_gui_toi", "fieldtype": "Data", "label": "Gui toi", "read_only": 1},
-  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"}
+  {
+   "fieldname": "ma",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ma ho so",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "NCC",
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Loai ho so",
+   "options": "NCC\nHoan ung HD\nHoan ung\nTK cong ty"
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Ngay lap"
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Nha cung cap / nguoi duoc hoan ung",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_ncc",
+   "fieldtype": "Data",
+   "label": "Ten nha cung cap"
+  },
+  {
+   "fieldname": "email_ncc",
+   "fieldtype": "Data",
+   "label": "Email nha cung cap"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Nhap",
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Trang thai",
+   "options": "Nhap\nCho ke toan\nCho giam doc\nDa duyet\nDa thanh toan\nTu choi\nHuy"
+  },
+  {
+   "fieldname": "tong_tien",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Tong de nghi tra",
+   "read_only": 1
+  },
+  {
+   "fieldname": "da_tam_ung",
+   "fieldtype": "Currency",
+   "label": "Tru so tien da tam ung"
+  },
+  {
+   "fieldname": "con_lai",
+   "fieldtype": "Currency",
+   "label": "Con lai phai chuyen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "da_tra",
+   "fieldtype": "Currency",
+   "label": "Da tra",
+   "read_only": 1
+  },
+  {
+   "fieldname": "han_tra_som_nhat",
+   "fieldtype": "Date",
+   "label": "Han tra som nhat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb1",
+   "fieldtype": "Section Break",
+   "label": "Hoa don trong ho so"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Hoa don",
+   "options": "Vagabond Ho So TT Dong"
+  },
+  {
+   "fieldname": "sb4",
+   "fieldtype": "Section Break",
+   "label": "Tai khoan nhan tien"
+  },
+  {
+   "fieldname": "ten_nhan",
+   "fieldtype": "Data",
+   "label": "Ten nguoi thu huong"
+  },
+  {
+   "fieldname": "stk_nhan",
+   "fieldtype": "Data",
+   "label": "So tai khoan"
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngan_hang_nhan",
+   "fieldtype": "Data",
+   "label": "Ngan hang"
+  },
+  {
+   "fieldname": "noi_dung_ck",
+   "fieldtype": "Small Text",
+   "label": "Noi dung chuyen khoan"
+  },
+  {
+   "fieldname": "sb2",
+   "fieldtype": "Section Break",
+   "label": "Duyet"
+  },
+  {
+   "fieldname": "nguoi_tao",
+   "fieldtype": "Data",
+   "label": "Nguoi lap",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fin_boi",
+   "fieldtype": "Data",
+   "label": "Ke toan duyet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fin_luc",
+   "fieldtype": "Datetime",
+   "label": "Ke toan duyet luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gd_boi",
+   "fieldtype": "Data",
+   "label": "Giam doc duyet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gd_luc",
+   "fieldtype": "Datetime",
+   "label": "Giam doc duyet luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ly_do_tu_choi",
+   "fieldtype": "Small Text",
+   "label": "Ly do tu choi"
+  },
+  {
+   "fieldname": "ngay_thanh_toan",
+   "fieldtype": "Date",
+   "label": "Ngay thanh toan"
+  },
+  {
+   "fieldname": "ma_giao_dich",
+   "fieldtype": "Data",
+   "label": "Ma giao dich ngan hang"
+  },
+  {
+   "fieldname": "phuong_thuc",
+   "fieldtype": "Data",
+   "label": "Phuong thuc tra"
+  },
+  {
+   "fieldname": "sb3",
+   "fieldtype": "Section Break",
+   "label": "Thu bao nha cung cap"
+  },
+  {
+   "fieldname": "email_da_gui",
+   "fieldtype": "Check",
+   "label": "Da gui thu bao",
+   "read_only": 1
+  },
+  {
+   "fieldname": "email_gui_luc",
+   "fieldtype": "Datetime",
+   "label": "Gui luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "email_gui_toi",
+   "fieldtype": "Data",
+   "label": "Gui toi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  },
+  {
+   "depends_on": "eval:doc.loai=='TK cong ty'",
+   "fieldname": "tk_chi",
+   "fieldtype": "Link",
+   "label": "Tai khoan chi cua cong ty",
+   "mandatory_depends_on": "eval:doc.loai=='TK cong ty'",
+   "options": "Bank Account"
+  },
+  {
+   "depends_on": "eval:doc.loai=='TK cong ty'",
+   "description": "Hop le: co hoa don GTGT mang ten Vagabond. Khong hop le: bien lai noi bo, hoa don dung ten chu nha, khong hoa don.",
+   "fieldname": "loai_cp_thue",
+   "fieldtype": "Select",
+   "label": "Loai chi phi thue",
+   "mandatory_depends_on": "eval:doc.loai=='TK cong ty'",
+   "options": "\nChi phi hop le\nChi phi khong hop le"
+  }
  ],
  "links": [],
  "modified": "2026-08-13 13:30:00.000000",
@@ -51,10 +281,47 @@
  "name": "Vagabond Ho So TT",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
-  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Accounts Manager", "write": 1},
-  {"create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Accounts User", "write": 1},
-  {"create": 1, "email": 1, "print": 1, "read": 1, "report": 1, "role": "Purchase User", "write": 1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase User",
+   "write": 1
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
