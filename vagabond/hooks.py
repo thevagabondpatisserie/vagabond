@@ -138,6 +138,13 @@ doc_events = {
 		# 13/08/2026). Nhip dong bo Pancake duoc mien - xem ghi chu trong
 		# vagabond.ban_hang.kiem_truoc_khi_luu.
 		"validate": "vagabond.ban_hang.kiem_truoc_khi_luu",
+		# Chan ban lo han muc mua vu (anh Viet chot 18/08/2026: "tuyet doi
+		# khong cho phep ban lo").
+		#
+		# Dat o before_submit chu khong o validate: bill con nhap la sales
+		# dang go, chan giua luc go la lam ho ket khong luu duoc gi. Ghi so
+		# moi la luc so that su vao sach.
+		"before_submit": "vagabond.mua_vu.chan_ban_lo",
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
 		"on_submit": "vagabond.khach_hang.cong_diem_hoa_don",
