@@ -324,7 +324,7 @@ def _buoc_ke_tiep_khi_gui(nguoi=None):
 
 
 @frappe.whitelist()
-def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None):
+def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None, loai_cp_thue=None):
 	"""Lập một hồ sơ từ danh sách hoá đơn đã tick.
 
 	hoa_don: danh sách mã Purchase Invoice, hoặc danh sách
@@ -375,7 +375,23 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None):
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
-	doc.loai = LOAI_HU_HD if (loai or "") == LOAI_HU_HD else LOAI_NCC
+	if (loai or "") == LOAI_TKCT:
+		# Chi tu TK cong ty, the "chi phi hop le": van tick hoa don GTGT that
+		# nhu luong NCC, chi khac o cho tien di tu tai khoan cong ty da chon
+		# va ho so mang san phan loai chi phi thue.
+		tk_chi = (tk_chi or "").strip()
+		if not tk_chi or not frappe.db.exists("Bank Account", tk_chi):
+			frappe.throw("Chưa chọn tài khoản ngân hàng của công ty để chi.")
+		if (loai_cp_thue or "").strip() != CP_HOP_LE:
+			frappe.throw(
+				"Luồng chi từ TK công ty có tick hoá đơn chỉ dùng cho chi phí hợp lệ. "
+				"Khoản không hoá đơn thì gõ tay từng khoản ở màn riêng."
+			)
+		doc.loai = LOAI_TKCT
+		doc.tk_chi = tk_chi
+		doc.loai_cp_thue = CP_HOP_LE
+	else:
+		doc.loai = LOAI_HU_HD if (loai or "") == LOAI_HU_HD else LOAI_NCC
 	doc.ngay = nowdate()
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
@@ -485,7 +501,8 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 
 
 @frappe.whitelist()
-def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu="", gui_luon=0):
+def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu="", gui_luon=0,
+		loai_chung_tu=None, tep=None):
 	"""Lập hồ sơ chi thẳng từ tài khoản công ty, không qua Purchasing.
 
 	Luồng thứ tư, anh Việt chốt 17/08/2026. Ba luồng cũ đều kết thúc bằng một
@@ -520,7 +537,22 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			"Mở Bank Account bên Next điền ô Account giúp em." % tk_chi
 		)
 
+	if isinstance(tep, str):
+		tep = frappe.parse_json(tep)
+	tep = tep or []
 	loai_cp_thue = (loai_cp_thue or "").strip()
+	loai_chung_tu = (loai_chung_tu or "").strip()
+	if loai_cp_thue == CP_KHONG_HOP_LE:
+		# Khong co hoa don he thong thi ho so chi con dua vao chung tu roi.
+		# Bat o day chu khong doi den luc duyet: de trong ma van luu duoc thi
+		# ho so nam do khong ai nho quay lai dinh kem.
+		if not loai_chung_tu:
+			frappe.throw("Chưa chọn loại chứng từ đính kèm.")
+		if not tep:
+			frappe.throw(
+				"Chưa đính kèm chứng từ nào. Đã chọn loại chứng từ là \"%s\" thì phải "
+				"tải đúng file đó lên mới lập được hồ sơ." % loai_chung_tu
+			)
 	if loai_cp_thue not in (CP_HOP_LE, CP_KHONG_HOP_LE):
 		frappe.throw(
 			"Chưa chọn loại chi phí thuế. Có hoá đơn GTGT mang tên Vagabond thì chọn "
@@ -566,6 +598,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	doc.ngay = nowdate()
 	doc.tk_chi = tk_chi
 	doc.loai_cp_thue = loai_cp_thue
+	doc.loai_chung_tu = loai_chung_tu
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
@@ -580,8 +613,28 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 		doc.append("dong", d)
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
+
+	# File da duoc tai len truoc khi ho so ton tai (khong the lam nguoc lai),
+	# gio moi gan vao ho so. Dung db.set_value chu khong save: File co
+	# validate rieng, ma o day chi can doi con tro.
+	da_gan = 0
+	for t in tep:
+		ma_tep = t.get("ma") if isinstance(t, dict) else t
+		if not ma_tep or not frappe.db.exists("File", ma_tep):
+			continue
+		frappe.db.set_value("File", ma_tep, {
+			"attached_to_doctype": "Vagabond Ho So TT",
+			"attached_to_name": doc.name,
+		}, update_modified=False)
+		da_gan = da_gan + 1
+	if loai_cp_thue == CP_KHONG_HOP_LE and not da_gan:
+		frappe.throw("Không gắn được chứng từ nào vào hồ sơ, thử tải lại file giúp em.")
+
 	frappe.db.commit()
-	_ghi_vet(doc.name, "Lập hồ sơ chi từ TK công ty %s đ" % _tien(doc.tong_tien))
+	_ghi_vet(doc.name, "Lập hồ sơ chi từ TK công ty %s đ%s" % (
+		_tien(doc.tong_tien),
+		(" · %s, %d chứng từ" % (loai_chung_tu, da_gan)) if loai_chung_tu else "",
+	))
 	return {"ok": 1, "ma": doc.name, "trang_thai": doc.trang_thai}
 
 
@@ -1133,6 +1186,15 @@ def chi_tiet(name):
 			"loai_cp_thue": doc.loai_cp_thue or "",
 			"nhan_cp_thue": NHAN_CP_THUE.get(doc.loai_cp_thue, ""),
 			"tk_chi": doc.tk_chi or "",
+			"loai_chung_tu": doc.loai_chung_tu or "",
+			"tep_dinh_kem": [
+				{"ten": f.file_name or "", "url": f.file_url or ""}
+				for f in frappe.get_all(
+					"File",
+					filters={"attached_to_doctype": "Vagabond Ho So TT", "attached_to_name": doc.name},
+					fields=["file_name", "file_url"], limit_page_length=0,
+				)
+			],
 			"ncc": doc.nha_cung_cap, "ten_ncc": doc.ten_ncc,
 			"email_ncc": doc.email_ncc or "",
 			"trang_thai": doc.trang_thai, "nhan": NHAN.get(doc.trang_thai, doc.trang_thai),
@@ -1369,10 +1431,13 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 	dong thi Payment Entry co hai ba dong tro cung mot Purchase Invoice, va
 	ERPNext se phan bo chong len nhau - tra 3 trieu ma so sach ghi tra 9.
 	"""
-	if (doc.loai or LOAI_NCC) == LOAI_TKCT:
+	con = [d for d in doc.dong if d.hoa_don]
+	# Chi tu TK cong ty co hai the: chon hoa don GTGT co that thi van la
+	# Payment Entry xoa cong no nhu luong NCC; go tay khoan khong hoa don
+	# thi khong co gi de xoa, ghi thang Journal Entry theo dinh khoan.
+	if (doc.loai or LOAI_NCC) == LOAI_TKCT and not con:
 		return _tao_but_toan_tkct(doc, ngay, phuong_thuc)
 
-	con = [d for d in doc.dong if d.hoa_don]
 	if not con:
 		frappe.throw(
 			"Hồ sơ %s chưa có hoá đơn mua nào để xoá công nợ. Với hồ sơ hoàn ứng, "
@@ -1410,6 +1475,11 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 			"allocated_amount": min(flt(tien), flt(hd.get("outstanding_amount"))),
 			"due_date": hd.get("due_date"),
 		})
+	if (doc.loai or LOAI_NCC) == LOAI_TKCT and doc.tk_chi:
+		tk_nh = frappe.db.get_value('Bank Account', doc.tk_chi, 'account')
+		if tk_nh:
+			pe.paid_from = tk_nh
+			pe.bank_account = doc.tk_chi
 	pe.setup_party_account_field()
 	pe.set_missing_values()
 	pe.flags.ignore_permissions = True
