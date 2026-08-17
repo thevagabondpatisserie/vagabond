@@ -11941,7 +11941,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '198';
+var APPVER = '199';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -14977,7 +14977,7 @@ async function scrDuyetYcXem(name) {
         ly_do: m.ly_do_duyet || '',
         da_len_don: m.da_len_don,
         nguoi: m.nguoi_duyet_dong || '',
-        ton: m.ton, cho_ve: m.cho_ve, cho_duyet: m.cho_duyet,
+        ton: m.ton, ton_tat_ca: m.ton_tat_ca, cho_ve: m.cho_ve, cho_duyet: m.cho_duyet,
         canh_bao: m.canh_bao, muc_canh_bao: m.muc_canh_bao,
         moi: 0
       };
