@@ -53,9 +53,21 @@ from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 DT = "Vagabond Mua Vu"
 BO_QUA_TT = {6, 7}  # da huy, da xoa
 
-# Hang mua vu tren he deu mang tien to BASS. Van cho ca BAWC va BAWS vao vi
-# mot mua co the ban kem banh thuong (vi du hop qua co mot banh o nho), va
-# luc do sales van muon dem chung o mot cho.
+# Hang mua vu tren he deu mang tien to BASS.
+#
+# Chay thu that 17/08/2026 va sua ngay
+# ------------------------------------
+# Ban dau em cho ca BAWC va BAWS vao day, nghi rang "mot mua co the ban kem
+# banh thuong". Dong bo thu mua Trung thu 2026 thi bang phinh ra 67 dong -
+# toan bo banh o ban trong ba thang - trong khi hang trung thu chi co 12.
+# Sales mo ra phai cuon qua 55 dong khong lien quan moi thay hop MOONLAPIS.
+#
+# Nen tach lam hai muc:
+#   TU_THEM  - chi BASS moi duoc may TU dua vao bang.
+#   DEM_CHO  - dong da nam trong bang thi dem, du mang tien to gi. Sales
+#              bam Them san pham keo mot banh o vao mua qua tang thi no
+#              van duoc dem binh thuong.
+TU_THEM = ("BASS",)
 TIEN_TO_MA = ("BASS", "BAWC", "BAWS")
 
 MAX_TRANG = 30  # ca mua vai thang, nhieu don hon mot ngay
@@ -271,6 +283,10 @@ def dong_bo(mua=None):
 	co = {d.ma_hang: d for d in doc.dong}
 	for ma in set(list(dem_chot) + list(dem_cho) + list(khac)):
 		if ma not in co:
+			# CHI hang mua vu moi duoc tu dua vao. Banh thuong ban trong
+			# cung khoang ngay thi khong lien quan den han muc mua nay.
+			if not ma.upper().startswith(TU_THEM):
+				continue
 			d = doc.append("dong", {"ma_hang": ma, "ten_banh": ten.get(ma, ""), "san_xuat": 0})
 			co[ma] = d
 		elif ten.get(ma) and not co[ma].ten_banh:
@@ -294,6 +310,10 @@ def dong_bo(mua=None):
 	doc.set("lich", [])
 	for (ma, ngay), o_l in sorted(theo_ngay.items(), key=lambda x: (x[0][1], x[0][0])):
 		if not (o_l["chot"] or o_l["cho"]):
+			continue
+		# Lich chi ke san pham CO trong bang. Khong loc thi lich mua trung
+		# thu ke ca don banh sinh nhat cua ba thang.
+		if ma not in co:
 			continue
 		doc.append(
 			"lich",
