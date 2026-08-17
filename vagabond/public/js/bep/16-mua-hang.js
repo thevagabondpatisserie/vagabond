@@ -139,8 +139,12 @@ function dyBaSo(x) {
       '<div style="font-size:11px;color:#98a2b3;text-transform:uppercase;letter-spacing:.3px">' + nhan + '</div>' +
       '<div style="font-size:15px;font-weight:' + (dam ? '800' : '600') + ';color:' + mau + '">' + num(gt) + '</div></div>';
   }
-  return '<div style="display:flex;gap:6px;padding:8px 12px;background:#f7f8fa;border-radius:11px;margin:0 12px 8px">' +
-    o('Tồn kho', x.ton, x.ton > 0 ? '#0d9488' : '#98a2b3', 0) +
+  var conXanh = x.ton > 0.0001;
+  var khacKho = (x.ton_tat_ca || 0) - (x.ton || 0);
+  return '<div style="display:flex;gap:6px;padding:8px 12px;border-radius:11px;margin:0 12px 8px;background:' +
+    (conXanh ? '#e7f8ef' : '#f7f8fa') + (conXanh ? ';border:1.5px solid #a7e3c0' : '') + '">' +
+    o('Kho tổng', x.ton, conXanh ? '#0f7a44' : '#98a2b3', conXanh) +
+    o('Kho bếp', khacKho, khacKho > 0.0001 ? '#0d9488' : '#98a2b3', 0) +
     o('Chờ về', x.cho_ve, x.cho_ve > 0 ? '#b45309' : '#98a2b3', 0) +
     o('Phiếu khác', x.cho_duyet, x.cho_duyet > 0 ? '#b45309' : '#98a2b3', 0) + '</div>';
 }
@@ -254,10 +258,15 @@ async function scrDuyetYcXem(name) {
   html += L.map(function (x, i) {
     var chua = x.duyet === null || x.duyet === undefined;
     var tuChoi = !chua && x.duyet <= 0.0001;
-    return '<div class="ic1' + (x.moi ? ' ok' : '') + '" data-dr="' + i + '">' +
+    /* Kho tong con hang thi to ca dong xanh la: Uyen liec mot cai la biet
+       dong nao dang can can nhac tu choi hoac giam so, khoi doc tung chu. */
+    var conHang = x.ton > 0.0001;
+    return '<div class="ic1' + (x.moi ? ' ok' : '') + '" data-dr="' + i + '"' +
+      (conHang && chua ? ' style="background:#f2fbf6;border-left:5px solid #1f9254"' : '') + '>' +
       '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
       '<div class="in">' + h(x.ten) +
       '<div class="ig">' + h(x.ma) + (x.da_len_don > 0.0001 ? ' · đã lên đơn ' + num(x.da_len_don) : '') + '</div>' +
+      (conHang ? '<div style="margin-top:5px;display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:700;color:#0f7a44;background:#d5f2e3">🟢 Kho tổng còn ' + num(x.ton) + ' ' + h(x.dvt) + '</div>' : '') +
       (chua ? '' : '<div style="margin-top:5px;display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:600;color:#fff;background:' +
         (tuChoi ? '#c0392b' : (x.duyet < x.xin - 0.0001 ? '#c77700' : '#1f9254')) + '">' +
         (tuChoi ? 'Từ chối' : (x.duyet < x.xin - 0.0001 ? 'Duyệt ' + num(x.duyet) + '/' + num(x.xin) : 'Duyệt đủ')) +
@@ -280,8 +289,13 @@ async function scrDuyetYcXem(name) {
       '</div>';
   }).join('');
 
+  var conChua = L.filter(function (x) { return x.duyet === null || x.duyet === undefined; }).length;
   var b = frame('Duyệt ' + name, html, {
-    footer: '<button class="btn" id="dySub">Lưu quyết định duyệt</button>'
+    footer:
+      (conChua
+        ? '<button class="btn gh" id="dyHet" style="margin:0 0 9px">✅ Duyệt tất cả ' + conChua + ' món còn lại</button>'
+        : '') +
+      '<button class="btn" id="dySub" style="margin:0">Lưu quyết định duyệt</button>'
   });
 
   b.onclick = async function (e) {
@@ -323,6 +337,33 @@ async function scrDuyetYcXem(name) {
   });
   var sb = document.getElementById('dySub');
   if (sb) sb.onclick = dyLuu;
+
+  var hb = document.getElementById('dyHet');
+  if (hb) hb.onclick = async function () {
+    /* Bam nut nay khi con thay doi chua luu thi de mat cong Uyen vua go:
+       may chu chi nhin nhung dong CHUA co nguoi duyet, khong biet gi ve
+       cac o dang sua tren man. Nen bat luu truoc. */
+    if (L.filter(function (x) { return x.moi; }).length) {
+      return toast('Còn thay đổi chưa lưu. Bấm "Lưu quyết định duyệt" trước rồi hãy duyệt phần còn lại.', 6500);
+    }
+    var conHang = L.filter(function (x) {
+      return (x.duyet === null || x.duyet === undefined) && x.ton > 0.0001;
+    }).length;
+    var msg = 'Duyệt đủ ' + conChua + ' món chưa ai đụng tới, đúng bằng số nhân viên đã xin.\n\n' +
+      'Món đã từ chối hoặc đã cắt bớt giữ nguyên, nút này không đụng tới.';
+    if (conHang) {
+      msg += '\n\nLưu ý: trong đó có ' + conHang + ' món kho tổng vẫn còn hàng (dòng tô xanh). ' +
+        'Xem lại mấy dòng đó trước khi duyệt hết.';
+    }
+    if (!await confirmSheet('Duyệt tất cả các món còn lại?', msg, 'Duyệt hết')) return;
+    busy(1);
+    try {
+      var r = await api('vagabond.duyet_ycmh.duyet_het', { name: name });
+      busy(0);
+      toast(r.da_duyet ? ('Đã duyệt đủ ' + r.da_duyet + ' món.') : 'Không còn món nào chưa duyệt.', 4500);
+      return veLai();
+    } catch (e) { busy(0); toast(errMsg(e), 7000); }
+  };
 }
 
 /* ---------------- Cong no phai tra ---------------- */
