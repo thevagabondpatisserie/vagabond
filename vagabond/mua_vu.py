@@ -177,7 +177,7 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 	sai chu khong phai chan dung.
 	"""
 	so_them = cint(so_them)
-	ban = {}
+	ban_truoc = {}
 	theo_ma = {}
 	for d in dong or []:
 		d = d or {}
@@ -185,27 +185,37 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 		if not ma:
 			continue
 		theo_ma[ma] = d
-		ban[ma] = cint(d.get("da_dat")) + cint(d.get("cho_chot")) + cint(d.get("don_khac"))
+		ban_truoc[ma] = (
+			cint(d.get("da_dat")) + cint(d.get("cho_chot")) + cint(d.get("don_khac"))
+		)
 	if ma_hang not in theo_ma:
 		# Ma khong nam trong mua nay thi khong bi rang buoc han muc.
 		return None, []
-	ban[ma_hang] = ban.get(ma_hang, 0) + so_them
+	ban_sau = dict(ban_truoc)
+	ban_sau[ma_hang] = ban_sau.get(ma_hang, 0) + so_them
 
-	trong = banh_le_trong_hop(dinh_muc, ban)
+	# Phai tinh CA HAI moc, truoc va sau khi them (sua 18/08/2026 sau khi
+	# nghiem thu bat duoc). Ban dau chi tinh moc sau roi bao moi dong am, va
+	# nhu the la sai nang: HOP MOONGARDEN dang -62 vi chua khai dot nha in,
+	# nen ban mot HOP MOONLAPIS cung bi chan kem cau "se lay het HOP
+	# MOONGARDEN ben trong hop" - mot cau vo nghia vi MOONGARDEN khong nam
+	# trong MOONLAPIS. Mot ma ban lo se chan ca mua.
+	#
+	# Luat dung: don nay chi bi chan boi nhung dong ma CHINH NO lam xau di.
+	# Dong da am san tu truoc va don nay khong dung toi thi khong lien quan.
+	trong_truoc = banh_le_trong_hop(dinh_muc, ban_truoc)
+	trong_sau = banh_le_trong_hop(dinh_muc, ban_sau)
 	am, con_cua_ma = [], None
 	for ma, d in theo_ma.items():
-		con = con_ban_duoc(
-			d.get("san_xuat"),
-			d.get("da_dat"),
-			d.get("cho_chot"),
-			d.get("don_khac"),
-			trong.get(ma, 0),
-		)
+		sx, dat = d.get("san_xuat"), d.get("da_dat")
+		cho, khac = d.get("cho_chot"), d.get("don_khac")
+		con_truoc = con_ban_duoc(sx, dat, cho, khac, trong_truoc.get(ma, 0))
+		con_sau = con_ban_duoc(sx, dat, cho, khac, trong_sau.get(ma, 0))
 		if ma == ma_hang:
-			con -= so_them
-			con_cua_ma = con
-		if con < 0 and not cint(d.get("khong_tran")):
-			am.append((ma, con))
+			con_sau -= so_them
+			con_cua_ma = con_sau
+		if con_sau < 0 and con_sau < con_truoc and not cint(d.get("khong_tran")):
+			am.append((ma, con_sau))
 	return con_cua_ma, am
 
 
