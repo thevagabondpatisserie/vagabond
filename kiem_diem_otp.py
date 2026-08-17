@@ -679,6 +679,30 @@ la("ten rong van tra ra mot nhan dung duoc", bool(nhanten("")), True)
 la("ten toan so van tra ra nhan", bool(nhanten("110 80")), True)
 la("nhan khong bao gio dai qua sau chu", len(nhanten("Bánh Trung Thu Nhân Dứa Bưởi Xí Muội")) <= 6, True)
 
+# --- Mot ma ban lo KHONG duoc chan ca mua (bat duoc luc nghiem thu 18/08) ---
+# Truoc khi sua: HOP MOONGARDEN dang -62 vi chua khai dot nha in, va vi the
+# ban mot HOP MOONLAPIS cung bi chan kem cau "se lay het HOP MOONGARDEN ben
+# trong hop" - MOONGARDEN khong nam trong MOONLAPIS. Mot ma hong chan ca mua.
+DONG6 = [
+	{"ma_hang": "MG", "ten_banh": "Hop MG", "san_xuat": 0, "da_dat": 62, "cho_chot": 0, "don_khac": 0},
+	{"ma_hang": "ML", "ten_banh": "Hop ML", "san_xuat": 100, "da_dat": 24, "cho_chot": 0, "don_khac": 0},
+]
+la("MG dang -62 nhung ban ML thi KHONG bi chan", conthem(DONG6, [], "ML", 70)[1], [])
+la("ban ML van tru dung han muc cua chinh ML", conthem(DONG6, [], "ML", 70)[0], 6)
+la("ban ML qua han muc thi chi bao ML, khong bao MG",
+   [x[0] for x in conthem(DONG6, [], "ML", 80)[1]], ["ML"])
+# Chinh cai ma dang am van phai bi chan khi ban them.
+la("ban them chinh ma dang am thi van chan",
+   [x[0] for x in conthem(DONG6, [], "MG", 1)[1]], ["MG"])
+# Dong am san MA don nay lam am them thi VAN phai chan.
+DONG7 = [
+	{"ma_hang": "HOP", "ten_banh": "Hop", "san_xuat": 100, "da_dat": 0, "cho_chot": 0, "don_khac": 0},
+	{"ma_hang": "B", "ten_banh": "Banh", "san_xuat": 0, "da_dat": 5, "cho_chot": 0, "don_khac": 0},
+]
+la("dong am san ma don nay lam am them thi VAN chan",
+   [x[0] for x in conthem(DONG7, [{"ma_hop": "HOP", "ma_banh": "B", "so_luong": 2}], "HOP", 3)[1]],
+   ["B"])
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
