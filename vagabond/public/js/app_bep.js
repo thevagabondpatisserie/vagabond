@@ -814,7 +814,11 @@ async function scrHome() {
       card('🏭', 'Lệnh sản xuất', 'Tạo lệnh, trừ nguyên liệu, in tem', wcn, 'MFG') + '</div>';
   }
   html += '<div class="sec">Bán hàng</div><div class="card">' +
-    card('\uD83C\uDF82', 'Kiểm bánh hôm nay', 'Tồn - bếp làm - đã đặt - bán được, đồng bộ Pancake', 0, 'KBD') + '</div>';
+    card('\uD83C\uDF82', 'Kiểm bánh hôm nay', 'Tồn - bếp làm - đã đặt - bán được, đồng bộ Pancake', 0, 'KBD') +
+    /* Kiem banh theo MUA dat ngay duoi kiem banh theo ngay (anh Viet
+       17/08/2026). Hai bang tra loi hai cau hoi khac han: bang ngay hoi
+       "hom nay con bao nhieu", bang mua hoi "ca mua con bao nhieu". */
+    card('🌕', 'Kiểm bánh theo mùa', 'Bánh trung thu, Tết... hàng sản xuất một lô có số lượng giới hạn', 0, 'KBM') + '</div>';
   if (isKho()) {
     var rcn = 0;
     try { rcn = (await getList('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 })).length; } catch (e) { }
@@ -980,7 +984,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'HT', 'KH', 'DTREO'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'HT', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
@@ -1256,6 +1260,7 @@ function scrNhom(nh) {
 /* Mot cho duy nhat dinh tuyen tu o nho sang man hinh. */
 function vgbGo(k) {
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
+  if (k === 'KBM') return go(scrMuaVuDs);
   if (k === 'BTPO') { location.href = '/btp'; return; }
   if (k === 'PAY') return go(scrPayList);
   if (k === 'BGIA') return go(scrBangGia);
@@ -11223,6 +11228,268 @@ async function htMbBiz(ma) {
     if ((kq.nhac_lo || []).length) baoTin(kq.nhac_lo.join('\n'), 'Có chỗ cần xem lại');
   };
 }
+
+
+/* ================= Kiểm bánh theo MÙA (anh Việt 17/08/2026) =================
+
+Vì sao tách hẳn khỏi bảng kiểm bánh theo ngày
+---------------------------------------------
+Bảng theo ngày trả lời "hôm nay còn bao nhiêu cái để bán", mỗi sáng đếm lại
+từ đầu vì bếp làm mới mỗi ngày.
+
+Bảng mùa trả lời một câu khác: "cả mùa này còn bao nhiêu cái". Hộp MOONLAPIS
+in 100 hộp là 100, không có chuyện mai làm thêm. Khách đặt giao ngày 25/09 và
+khách đặt giao ngày 02/10 đều ăn vào cùng con số 100 đó.
+
+Nên nguồn hàng ở đây không phải tồn đầu cộng bếp làm, mà là một HẠN MỨC gõ
+tay - nhà in giao thêm thì sửa lên, hộp hỏng thì sửa xuống. Kế thừa nguyên si
+phần còn lại từ bảng ngày: kéo đơn Pancake, chia Đã đặt / Chờ chốt, đơn kênh
+khác đếm từ hoá đơn, trạng thái huỷ và xoá không đếm. */
+
+var MV = { ds: null, mua: null, data: null, xem: 'sp' };
+
+async function scrMuaVuDs() {
+  frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các mùa vụ...</div></div>');
+  try { MV.ds = await api('vagabond.mua_vu.danh_sach', {}); }
+  catch (e) {
+    return frame('Kiểm bánh theo mùa',
+      '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+  }
+  var ds = (MV.ds && MV.ds.ds) || [];
+  var html = '<div style="font-size:11.5px;color:#98a2b3;padding:2px 2px 10px;line-height:1.6">' +
+    'Dành cho hàng sản xuất một lô có số lượng giới hạn: bánh trung thu, bánh Tết, ' +
+    'panettone. Số lượng sản xuất do mình gõ tay, phần còn lại máy đếm từ đơn Pancake.</div>';
+
+  if (!ds.length) {
+    html += '<div class="emp"><div class="e1">🌕</div><div>Chưa có mùa vụ nào.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bấm nút bên dưới để lập mùa đầu tiên.</div></div>';
+  } else {
+    html += '<div class="card">' + ds.map(function (x) {
+      var mau = x.dang_chay ? '#0a8a4a' : (x.tinh_trang === 'Da dong' ? '#98a2b3' : '#b45309');
+      return '<div class="hub" data-mv="' + h(x.name) + '">' +
+        '<div class="hub-i">' + (x.dang_chay ? '🌕' : '🌑') + '</div>' +
+        '<div class="hub-t"><div class="t1">' + h(x.ten_mua) + '</div>' +
+        '<div class="t2">' + mvNgay(x.tu_ngay) + ' đến ' + mvNgay(x.den_ngay) +
+        ' · ' + money(x.so_sp) + ' sản phẩm</div></div>' +
+        '<b style="font-size:11.5px;color:' + mau + ';white-space:nowrap">' +
+        (x.dang_chay ? 'Đang chạy' : (x.tinh_trang === 'Da dong' ? 'Đã đóng' : 'Chưa tới')) + '</b></div>';
+    }).join('') + '</div>';
+  }
+
+  var b = frame('Kiểm bánh theo mùa', html, { footer: '<button class="btn" id="mvMoi" style="margin:0">➕ Lập mùa vụ mới</button>' });
+  b.querySelectorAll('[data-mv]').forEach(function (n) {
+    n.onclick = function () { MV.mua = n.getAttribute('data-mv'); go(scrMuaVu); };
+  });
+  document.getElementById('mvMoi').onclick = mvLapMua;
+}
+
+function mvNgay(s) {
+  if (!s) return '';
+  var p = String(s).split('-');
+  return p.length === 3 ? (p[2] + '/' + p[1]) : String(s);
+}
+
+async function mvLapMua() {
+  var ten = await hoiNhap('Tên mùa vụ, ví dụ "Trung thu 2026"', '');
+  if (ten === null) return;
+  if (!(ten || '').trim()) return toast('Đặt tên cho mùa vụ giúp em.', 3500);
+  var t1 = await hoiNhap('Bán từ ngày (YYYY-MM-DD)', String(new Date().toISOString().slice(0, 10)));
+  if (t1 === null) return;
+  var t2 = await hoiNhap('Bán đến ngày (YYYY-MM-DD)', '');
+  if (t2 === null) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.mua_vu.tao_mua', { ten_mua: ten, tu_ngay: t1, den_ngay: t2 });
+    busy(false);
+    MV.mua = kq.mua;
+    toast('Đã lập mùa ' + kq.mua, 3000);
+    go(scrMuaVu);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Lập mùa lỗi', 'Không lập được'); }
+}
+
+async function scrMuaVu() {
+  frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đồng bộ đơn Pancake cả mùa...</div></div>');
+  try { MV.data = await api('vagabond.mua_vu.dong_bo', { mua: MV.mua }); }
+  catch (e) {
+    /* Đồng bộ hỏng thì vẫn mở bảng bằng số cũ: sales còn nhìn được hạn mức
+       và số đã đặt lần trước, hơn là màn trắng. */
+    try { MV.data = await api('vagabond.mua_vu.bang', { mua: MV.mua }); }
+    catch (e2) {
+      return frame('Kiểm bánh theo mùa',
+        '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
+    }
+    toast('Chưa đồng bộ được Pancake, đang hiện số của lần trước.', 5000);
+  }
+  mvVe();
+}
+
+function mvVe() {
+  var d = MV.data;
+  if (!d || !d.co_so) return frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">🌑</div><div>Mùa vụ này không còn.</div></div>');
+  var ds = d.dong || [];
+
+  var tongSx = 0, tongDat = 0, tongCon = 0;
+  ds.forEach(function (x) {
+    tongSx += x.san_xuat || 0;
+    tongDat += (x.da_dat || 0) + (x.cho_chot || 0) + (x.don_khac || 0);
+    tongCon += x.co_the_ban || 0;
+  });
+
+  var html =
+    '<div style="display:flex;gap:7px;margin-bottom:10px">' +
+    mvO('Sản xuất', tongSx, '#374151') + mvO('Đã nhận', tongDat, '#b45309') +
+    mvO('Còn bán', tongCon, tongCon < 0 ? '#b3261e' : '#0a8a4a') +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
+    h(d.ten_mua) + ' · ' + mvNgay(d.tu_ngay) + ' đến ' + mvNgay(d.den_ngay) +
+    (d.dong_bo_luc ? ' · đồng bộ ' + h(String(d.dong_bo_luc).slice(11, 16)) : '') + '</div>' +
+    '<div style="display:flex;gap:7px;margin-bottom:10px">' +
+    ['sp', 'lich'].map(function (k) {
+      var on = MV.xem === k;
+      return '<button data-mvx="' + k + '" style="flex:1;border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
+        ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' + (on ? '#0f766e' : '#374151') +
+        ';border-radius:9px;padding:8px;font-size:12.5px;font-weight:' + (on ? '800' : '600') + '">' +
+        (k === 'sp' ? 'Theo sản phẩm' : 'Lịch theo ngày') + '</button>';
+    }).join('') + '</div>';
+
+  html += MV.xem === 'sp' ? mvVeSanPham(ds) : mvVeLich(d, ds);
+
+  var b = frame('Kiểm bánh theo mùa', html, {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="mvThem" style="margin:0;flex:0 0 42%">➕ Thêm sản phẩm</button>' +
+      '<button class="btn" id="mvSoat" style="margin:0;flex:1">🔄 Đồng bộ Pancake</button></div>'
+  });
+
+  b.querySelectorAll('[data-mvx]').forEach(function (n) {
+    n.onclick = function () { MV.xem = n.getAttribute('data-mvx'); mvVe(); };
+  });
+  b.querySelectorAll('[data-mvsx]').forEach(function (n) {
+    n.onclick = function () { mvSuaSx(n.getAttribute('data-mvsx')); };
+  });
+  document.getElementById('mvThem').onclick = mvThemSp;
+  document.getElementById('mvSoat').onclick = function () { go(scrMuaVu, true); };
+}
+
+function mvO(nhan, so, mau) {
+  return '<div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:9px 10px;text-align:center">' +
+    '<div style="font-size:11px;color:#9ca3af">' + h(nhan) + '</div>' +
+    '<b style="font-size:17px;color:' + mau + '">' + money(so) + '</b></div>';
+}
+
+function mvVeSanPham(ds) {
+  if (!ds.length) {
+    return '<div class="emp"><div class="e1">📦</div><div>Chưa có sản phẩm nào trong mùa.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bấm Thêm sản phẩm để đặt số lượng sản xuất, ' +
+      'hoặc bấm Đồng bộ để máy tự kéo về từ đơn Pancake.</div></div>';
+  }
+  return '<div class="card">' + ds.map(function (x) {
+    var con = x.co_the_ban || 0;
+    var mau = con < 0 ? '#b3261e' : (con === 0 ? '#b45309' : '#0a8a4a');
+    /* Hết hàng và bán lố là hai chuyện khác nhau, phải nhìn ra ngay: bán lố
+       nghĩa là đã có đơn không giao được, sales phải gọi khách ngay hôm nay. */
+    var nhan = con < 0 ? 'BÁN LỐ ' + money(-con) : (con === 0 ? 'HẾT' : 'còn ' + money(con));
+    return '<div style="padding:12px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="display:flex;gap:10px;align-items:center">' +
+      (x.hinh ? '<div style="width:44px;height:44px;flex:none;border-radius:9px;background-image:url(' + x.hinh +
+        ');background-size:cover;background-position:center;border:1px solid #e3e6ec"></div>' : '') +
+      '<div style="flex:1;min-width:0">' +
+      '<b style="font-size:13.5px">' + h(x.ten_banh || x.ma_hang) + '</b>' +
+      '<div style="font-size:11px;color:#98a2b3">' + h(x.ma_hang) + '</div></div>' +
+      '<div style="text-align:right"><b style="font-size:15px;color:' + mau + '">' + h(nhan) + '</b>' +
+      '<div style="font-size:11px;color:#9ca3af">trên ' + money(x.san_xuat) + '</div></div></div>' +
+      '<div style="display:flex;gap:6px;margin-top:8px;font-size:11.5px;flex-wrap:wrap">' +
+      mvChip('Đã đặt', x.da_dat, '#0f766e') +
+      mvChip('Chờ chốt', x.cho_chot, '#b45309') +
+      mvChip('Kênh khác', x.don_khac, '#6b7280') +
+      '<button data-mvsx="' + h(x.ma_hang) + '" style="margin-left:auto;border:1.5px solid #0f766e;' +
+      'background:#fff;color:#0f766e;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
+      '✏️ Sản xuất ' + money(x.san_xuat) + '</button></div>' +
+      (x.ten_khach_cho ? '<div style="font-size:11px;color:#b45309;margin-top:6px">Đang chờ chốt: ' +
+        h(String(x.ten_khach_cho).slice(0, 120)) + '</div>' : '') +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+function mvChip(nhan, so, mau) {
+  if (!so) return '';
+  return '<span style="background:#f5f6f8;border-radius:999px;padding:4px 9px;color:' + mau + ';font-weight:700">' +
+    h(nhan) + ' ' + money(so) + '</span>';
+}
+
+/* Lịch theo ngày: anh Việt yêu cầu "tạo bảng các ngày trong tháng thể hiện
+   những ngày nào có khách đã đặt bao nhiêu hộp". Chỉ hiện ngày CÓ đơn - một
+   mùa dài ba tháng mà kê đủ 90 dòng thì cuộn mãi không thấy ngày cao điểm. */
+function mvVeLich(d, ds) {
+  var lich = d.lich || { ngay: [], o: {} };
+  if (!lich.ngay.length) {
+    return '<div class="emp"><div class="e1">📅</div><div>Chưa có đơn nào trong mùa.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bấm Đồng bộ Pancake để kéo đơn về.</div></div>';
+  }
+  var ten = {};
+  ds.forEach(function (x) { ten[x.ma_hang] = x.ten_banh || x.ma_hang; });
+
+  return '<div class="card">' + lich.ngay.map(function (ng) {
+    var o = lich.o[ng] || {};
+    var tong = 0;
+    Object.keys(o).forEach(function (m) { tong += (o[m].chot || 0) + (o[m].cho || 0); });
+    var dong = Object.keys(o).sort().map(function (m) {
+      var v = o[m];
+      return '<div style="display:flex;gap:8px;font-size:11.5px;padding:3px 0">' +
+        '<div style="flex:1;min-width:0;color:#374151">' + h(String(ten[m] || m).slice(0, 42)) + '</div>' +
+        '<b style="color:#0f766e">' + money(v.chot || 0) + '</b>' +
+        (v.cho ? '<span style="color:#b45309">+' + money(v.cho) + ' chờ</span>' : '') + '</div>';
+    }).join('');
+    return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+      '<b style="font-size:13px">' + h(mvNgayDay(ng)) + '</b>' +
+      '<b style="margin-left:auto;font-size:14px;color:#0f172a">' + money(tong) + '</b></div>' +
+      dong + '</div>';
+  }).join('') + '</div>';
+}
+
+function mvNgayDay(s) {
+  var p = String(s).split('-');
+  if (p.length !== 3) return String(s);
+  var thu = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  var dt = new Date(s + 'T00:00:00');
+  return thu[dt.getDay()] + ' ' + p[2] + '/' + p[1];
+}
+
+async function mvSuaSx(ma) {
+  var cu = 0, ten = ma;
+  (MV.data.dong || []).forEach(function (x) { if (x.ma_hang === ma) { cu = x.san_xuat || 0; ten = x.ten_banh || ma; } });
+  var v = await hoiNhap('Số lượng sản xuất cả mùa cho "' + String(ten).slice(0, 40) + '"', String(cu));
+  if (v === null) return;
+  var so = Number(String(v).replace(/[^0-9]/g, ''));
+  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+  busy(true);
+  try {
+    await api('vagabond.mua_vu.luu_o', { mua: MV.mua, ma_hang: ma, truong: 'san_xuat', gia_tri: so });
+    MV.data = await api('vagabond.mua_vu.bang', { mua: MV.mua });
+    busy(false); mvVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi', 'Không lưu được'); }
+}
+
+async function mvThemSp() {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.mua_vu.tim_san_pham', { mua: MV.mua }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được danh mục', 'Lỗi'); }
+  busy(false);
+  var ds = (kq && kq.ds) || [];
+  if (!ds.length) return baoTin('Chưa có sản phẩm mùa vụ nào trong danh mục.', 'Chưa có dữ liệu');
+  sheet('Thêm sản phẩm vào mùa',
+    ds.map(function (x) {
+      return { value: x.ma, label: x.ten, phu: x.ma + (x.da_co ? ' · đã có trong mùa' : ''), tim: x.ma };
+    }), '', async function (it) {
+      busy(true);
+      try {
+        MV.data = await api('vagabond.mua_vu.them_dong', { mua: MV.mua, ma_hang: it.value });
+        busy(false); mvVe();
+        toast('Đã thêm. Bấm nút Sản xuất để đặt số lượng.', 4000);
+      } catch (e) { busy(false); baoTin((e && e.message) || 'Thêm lỗi', 'Không thêm được'); }
+    }, true);
+}
 /* ---------- Van don: sales phan don, shipper giao kem anh, book xe, chi phi ---------- */
 var vdNgay = null, vdLoc = null, vdTay = null;
 function vdChupAnh(cb, nguon) {
@@ -11941,7 +12208,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '200';
+var APPVER = '201';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
