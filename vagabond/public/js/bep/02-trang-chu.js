@@ -63,6 +63,10 @@ async function scrHome() {
        17/08/2026). Hai bang tra loi hai cau hoi khac han: bang ngay hoi
        "hom nay con bao nhieu", bang mua hoi "ca mua con bao nhieu". */
     card('🌕', 'Kiểm bánh theo mùa', 'Bánh trung thu, Tết... hàng sản xuất một lô có số lượng giới hạn', 0, 'KBM') + '</div>';
+  /* Cho san de chen chip canh bao han muc mua vu. Ve SAU khi man da dung
+     xong (mvChipCanhBao), y het cach the Bao cao tong hop dien doanh thu
+     hom nay: hong thi trang chu van nguyen ven. */
+  html += '<div id="mvCanhBao"></div>';
   if (isKho()) {
     var rcn = 0;
     try { rcn = (await getList('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 })).length; } catch (e) { }
@@ -193,6 +197,43 @@ async function scrHome() {
   };
   vgbGomNhom();
   bcSoHomNay();
+  mvChipCanhBao();
+}
+
+/* Chip do canh bao han muc mua vu (anh Viet chot 18/08/2026).
+
+   Chay SAU khi ve xong trang chu, va hong thi im lang bo qua - mot loi doc
+   bang mua vu khong duoc lam vo trang chu cua ca quan.
+
+   Ban lo hien rieng va hien truoc: con so am nghia la da co don khong giao
+   duoc, va do la viec phai goi khach ngay hom nay. */
+async function mvChipCanhBao() {
+  var o = document.getElementById('mvCanhBao');
+  if (!o) return;
+  var kq;
+  try { kq = await api('vagabond.mua_vu.canh_bao', {}); } catch (e) { return; }
+  if (!kq || !kq.so) return;
+  var lo = (kq.ds || []).filter(function (x) { return x.ban_lo; });
+  var it = (kq.ds || []).filter(function (x) { return !x.ban_lo; });
+  var chip = function (x) {
+    var mau = x.ban_lo ? '#b3261e' : '#b45309';
+    var nen = x.ban_lo ? '#fef2f2' : '#fffbeb';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid ' +
+      (x.ban_lo ? '#fee2e2' : '#fef3c7') + '">' +
+      '<div style="flex:1;min-width:0;font-size:12.5px;color:#374151">' + h(String(x.ten).slice(0, 40)) + '</div>' +
+      '<b style="font-size:12.5px;color:' + mau + ';white-space:nowrap">' +
+      (x.ban_lo ? 'BÁN LỐ ' + money(-x.con) : 'còn ' + money(x.con) + '/' + money(x.san_xuat)) + '</b></div>';
+  };
+  o.innerHTML = '<div class="sec">Cảnh báo hàng mùa vụ</div>' +
+    '<div class="card" data-go="KBM" style="cursor:pointer;background:' +
+    (lo.length ? '#fef2f2' : '#fffbeb') + ';border:1.5px solid ' + (lo.length ? '#fecaca' : '#fde68a') + '">' +
+    (lo.length ? '<div style="padding:9px 12px;font-size:12px;font-weight:800;color:#b3261e">' +
+      money(lo.length) + ' mã đã bán lố, phải gọi khách ngay</div>' : '') +
+    lo.slice(0, 5).map(chip).join('') +
+    (it.length ? '<div style="padding:9px 12px;font-size:12px;font-weight:700;color:#b45309">' +
+      money(it.length) + ' mã còn dưới ' + money(kq.nguong) + '% hạn mức</div>' : '') +
+    it.slice(0, 5).map(chip).join('') +
+    '<div style="padding:8px 12px;font-size:11px;color:#98a2b3">Bấm để mở bảng Kiểm bánh theo mùa</div></div>';
 }
 
 /* Doanh thu hom nay hien thang tren the "Bao cao tong hop" o trang chu, de
