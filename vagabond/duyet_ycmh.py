@@ -13,11 +13,27 @@ Phuong an da chot (PA-3)
 ------------------------
 Giu nguyen `qty`. Them `sl_duyet` va `ly_do_duyet` ben canh.
 
-    sl_duyet de trong   chua ai duyet
-    sl_duyet = 0        TU CHOI, bat buoc co ly do
-    0 < sl_duyet < qty  duyet mot phan
-    sl_duyet = qty      duyet du
-    sl_duyet > qty      KHONG BAO GIO. Muon mua them thi lap phieu moi.
+    nguoi_duyet_dong trong  chua ai duyet
+    sl_duyet = 0            TU CHOI, bat buoc co ly do
+    0 < sl_duyet < qty      duyet mot phan
+    sl_duyet = qty          duyet du
+    sl_duyet > qty          KHONG BAO GIO. Muon mua them thi lap phieu moi.
+
+Su co 17/08/2026 va vi sao dau hieu "da duyet" nam o nguoi_duyet_dong
+---------------------------------------------------------------------
+Ban dau lay "sl_duyet de trong" lam dau hieu chua ai duyet. Sai: sl_duyet
+la kieu Float, ma Float trong Frappe KHONG giu duoc gia tri trong, luon ve
+0. Nen moi dong chua ai dung toi deu doc ra 0, tuc la "tu choi". Ket qua:
+1.321 dong bi coi la da tu choi va khong ra duoc mot don mua nao trong hai
+ngay 15 den 17/08.
+
+Dau hieu dung la `nguoi_duyet_dong`, kieu Data, giu duoc chuoi rong that.
+Ba cho phai dung chung mot dau hieu nay: chan_don_mua_trai_duyet, danh_sach
+va chi_tiet. Dung bao gio quay lai kiem tra `sl_duyet is None`.
+
+Luat da chot (PA A+, anh Viet 17/08/2026): mon nao chua co ten nguoi duyet
+thi TUYET DOI khong keo len don mua duoc. De Uyen do mat thoi gian, co nut
+"Duyet tat ca cac mon con lai" o cuoi man - xem ham duyet_het.
 
 Hai phuong an bi loai: sua de len `qty` thi mat so goc va phai mo quyen sua
 sau khi gui duyet ngay tren chinh o so luong; xoa dong thi vi pham QT-20.
@@ -161,11 +177,17 @@ def _ghi_vet(name, viec):
 # --------------------------------------------------------- ba con so nen
 
 
-def boi_canh_hang(ma_hang, bo_qua_phieu=None):
+def boi_canh_hang(ma_hang, bo_qua_phieu=None, kho=None):
 	"""Ba con so giup thu mua quyet dinh, quy ve DON VI KHO cua tung mat hang.
 
-	Tra ve {ma_hang: {ton, cho_ve, so_don_cho_ve, hen_gan_nhat,
+	Tra ve {ma_hang: {ton, ton_tat_ca, cho_ve, so_don_cho_ve, hen_gan_nhat,
 	                  cho_duyet, so_phieu_cho_duyet}}
+
+	`kho` la kho ma phieu yeu cau se nhan hang, thuong la "Kho tong 307 - TV".
+	Truyen vao thi `ton` chi dem Bin cua dung kho do, con `ton_tat_ca` van la
+	tong moi kho. Uyen can con so cua kho tong de quyet dinh, chu tong ca bep
+	Pastry, Baker, Lab thi khong noi len dieu gi - hang o bep khong keo nguoc
+	ve kho tong duoc.
 
 	Ba cau hoi cho CA PHIEU chu khong phai ba cau cho moi dong. Mot phieu
 	hai muoi dong ma de moi dong tu di hoi la sau muoi cau hoi, man hinh
@@ -180,6 +202,7 @@ def boi_canh_hang(ma_hang, bo_qua_phieu=None):
 	ra = {
 		m: {
 			"ton": 0.0,
+			"ton_tat_ca": 0.0,
 			"cho_ve": 0.0,
 			"so_don_cho_ve": 0,
 			"hen_gan_nhat": "",
@@ -189,14 +212,32 @@ def boi_canh_hang(ma_hang, bo_qua_phieu=None):
 		for m in ds
 	}
 
-	# 1. TON KHO TONG. Bin giu san so luong theo don vi kho nen chi phai cong.
+	# 1. TON KHO. Bin giu san so luong theo don vi kho nen chi phai cong.
+	#    Dem hai con so: rieng kho nhan hang (thuong la Kho tong 307) va tong
+	#    moi kho. Man duyet in con so cua kho nhan hang, vi do moi la so Uyen
+	#    dung de quyet dinh co mua nua hay khong.
 	for r in frappe.db.sql(
 		"""select item_code, sum(actual_qty) as sl
 		from `tabBin` where item_code in %(ds)s group by item_code""",
 		{"ds": ds},
 		as_dict=True,
 	):
-		ra[r["item_code"]]["ton"] = flt(r["sl"])
+		ra[r["item_code"]]["ton_tat_ca"] = flt(r["sl"])
+
+	kho = str(kho or "").strip()
+	if kho:
+		for r in frappe.db.sql(
+			"""select item_code, sum(actual_qty) as sl
+			from `tabBin`
+			where item_code in %(ds)s and warehouse = %(kho)s
+			group by item_code""",
+			{"ds": ds, "kho": kho},
+			as_dict=True,
+		):
+			ra[r["item_code"]]["ton"] = flt(r["sl"])
+	else:
+		for m in ds:
+			ra[m]["ton"] = ra[m]["ton_tat_ca"]
 
 	# 2. DANG CHO VE. Da dat don mua, nha cung cap chua giao het.
 	#    Bo don da huy mem va don da dong: hai loai do khong con hang se ve.
@@ -229,7 +270,7 @@ def boi_canh_hang(ma_hang, bo_qua_phieu=None):
 	dk_bo_qua = " and mri.parent != %(bo_qua)s" if bo_qua_phieu else ""
 	for r in frappe.db.sql(
 		"""select mri.item_code,
-			sum((ifnull(mri.sl_duyet, mri.qty) - mri.ordered_qty)
+			sum((""" + SQL_SO_HIEU_LUC + """ - mri.ordered_qty)
 				* mri.conversion_factor) as sl,
 			count(distinct mri.parent) as so_phieu
 		from `tabMaterial Request Item` mri
@@ -238,7 +279,7 @@ def boi_canh_hang(ma_hang, bo_qua_phieu=None):
 			and mri.docstatus = 1
 			and mr.material_request_type = %(loai)s
 			and mr.status not in ('Stopped', 'Cancelled')
-			and ifnull(mri.sl_duyet, mri.qty) - mri.ordered_qty > %(eps)s"""
+			and """ + SQL_SO_HIEU_LUC + """ - mri.ordered_qty > %(eps)s"""
 		+ dk_bo_qua
 		+ """
 		group by mri.item_code""",
@@ -260,9 +301,12 @@ def _canh_bao(x, xin):
 		return ""
 	y = []
 	if x["ton"] >= xin - EPS:
-		y.append("Kho còn %s, đủ cho yêu cầu này" % _so(x["ton"]))
+		y.append("Kho tổng còn %s, đủ cho yêu cầu này" % _so(x["ton"]))
 	elif x["ton"] > EPS:
-		y.append("Kho còn %s" % _so(x["ton"]))
+		y.append("Kho tổng còn %s" % _so(x["ton"]))
+	khac = flt(x.get("ton_tat_ca")) - flt(x["ton"])
+	if khac > EPS:
+		y.append("Các kho bếp còn thêm %s" % _so(khac))
 	if x["cho_ve"] > EPS:
 		y.append(
 			"Đang có %s chờ về từ %d đơn đã đặt%s"
@@ -295,6 +339,25 @@ def _muc_canh_bao(x, xin):
 	if x["cho_ve"] > EPS or x["cho_duyet"] > EPS or x["ton"] > EPS:
 		return 1
 	return 0
+
+
+def _da_duyet(r):
+	"""Dong nay da co nguoi duyet chua.
+
+	Doc `nguoi_duyet_dong` chu KHONG doc `sl_duyet`: xem phan dau tep.
+	Nhan duoc ca Document lan dict nen dung chung cho moi cho.
+	"""
+	lay = r.get if hasattr(r, "get") else (lambda k, d=None: r[k] if k in r else d)
+	return bool(str(lay("nguoi_duyet_dong") or "").strip())
+
+
+# Bieu thuc SQL dung chung cho hai cho phai dem "chua duyet" trong mot cau.
+SQL_CHUA_DUYET = "ifnull(mri.nguoi_duyet_dong, '') = ''"
+# So thuc su se duoc dat mua: chua duyet thi tam lay so nhan vien xin.
+SQL_SO_HIEU_LUC = (
+	"case when ifnull(mri.nguoi_duyet_dong, '') = '' "
+	"then mri.qty else ifnull(mri.sl_duyet, 0) end"
+)
 
 
 def _so(v):
@@ -338,14 +401,15 @@ def danh_sach(so_ngay=45, chi_con_cho=1):
 	# Dem dong da duyet va dong con cho, mot cau hoi cho ca tap.
 	dem = {}
 	for r in frappe.db.sql(
-		"""select parent,
+		"""select mri.parent as parent,
 			count(*) as tong,
-			sum(case when sl_duyet is null then 1 else 0 end) as cho,
-			sum(case when sl_duyet is not null and sl_duyet <= %(eps)s
+			sum(case when """ + SQL_CHUA_DUYET + """ then 1 else 0 end) as cho,
+			sum(case when not (""" + SQL_CHUA_DUYET + """)
+				and ifnull(mri.sl_duyet, 0) <= %(eps)s
 				then 1 else 0 end) as tu_choi
-		from `tabMaterial Request Item`
-		where parent in %(ds)s and docstatus = 1
-		group by parent""",
+		from `tabMaterial Request Item` mri
+		where mri.parent in %(ds)s and mri.docstatus = 1
+		group by mri.parent""",
 		{"ds": [p["name"] for p in phieu], "eps": EPS},
 		as_dict=True,
 	):
@@ -384,7 +448,16 @@ def chi_tiet(name):
 			"Người lập bấm Gửi duyệt trước." % name
 		)
 
-	bc = boi_canh_hang([r.item_code for r in d.items], bo_qua_phieu=name)
+	kho_nhan = d.get("set_warehouse") or ""
+	if not kho_nhan:
+		# Phieu khong dat kho chung thi lay kho cua dong dau tien co ghi.
+		for r in d.items:
+			if r.get("warehouse"):
+				kho_nhan = r.warehouse
+				break
+	bc = boi_canh_hang(
+		[r.item_code for r in d.items], bo_qua_phieu=name, kho=kho_nhan
+	)
 	mon = []
 	for r in d.items:
 		he_so = flt(r.conversion_factor) or 1.0
@@ -393,6 +466,7 @@ def chi_tiet(name):
 		g = bc.get(r.item_code) or {}
 		x = {
 			"ton": flt(g.get("ton")) / he_so,
+			"ton_tat_ca": flt(g.get("ton_tat_ca")) / he_so,
 			"cho_ve": flt(g.get("cho_ve")) / he_so,
 			"so_don_cho_ve": cint(g.get("so_don_cho_ve")),
 			"hen_gan_nhat": g.get("hen_gan_nhat") or "",
@@ -400,7 +474,9 @@ def chi_tiet(name):
 			"so_phieu_cho_duyet": cint(g.get("so_phieu_cho_duyet")),
 		}
 		xin = flt(r.qty)
-		duyet = r.get("sl_duyet")
+		# Chua co ten nguoi duyet nghia la chua ai dung toi, tra ve None de
+		# app hien o trong. KHONG dua vao sl_duyet: xem phan dau tep.
+		duyet = r.get("sl_duyet") if _da_duyet(r) else None
 		mon.append(
 			{
 				"dong": r.name,
@@ -417,6 +493,8 @@ def chi_tiet(name):
 				"can_ngay": str(r.schedule_date or ""),
 				"mo_ta": frappe.utils.strip_html(r.description or "").strip()[:400],
 				"ton": x["ton"],
+				"ton_tat_ca": x["ton_tat_ca"],
+				"kho_ton": kho_nhan,
 				"cho_ve": x["cho_ve"],
 				"so_don_cho_ve": x["so_don_cho_ve"],
 				"hen_gan_nhat": x["hen_gan_nhat"],
@@ -433,7 +511,7 @@ def chi_tiet(name):
 		"trang_thai": d.status,
 		"bo_phan": d.get("bo_phan_yeu_cau") or "",
 		"nguoi_yeu_cau": d.get("nguoi_yeu_cau") or d.get("nguoi_lap_ten") or d.owner,
-		"kho_nhan": d.get("set_warehouse") or "",
+		"kho_nhan": kho_nhan,
 		"mon": mon,
 		"con_cho": len([x for x in mon if x["sl_duyet"] is None]),
 		"da_tu_choi": len([x for x in mon if x["sl_duyet"] is not None and x["sl_duyet"] <= EPS]),
@@ -531,6 +609,59 @@ def duyet_dong(name, dong=None):
 
 
 @frappe.whitelist()
+def duyet_het(name):
+	"""Duyet du moi dong CHUA AI DUNG TOI trong phieu.
+
+	Vi sao co nut nay (anh Viet chot 17/08/2026): luat la bat buoc duyet
+	tung dong, nhung mot phieu hai muoi lam dong thi Uyen bam hai muoi lam
+	lan cho nhung dong khong co gi de ban. Cach lam dung: Uyen xu ly truoc
+	may dong co van de - cat bot hoac tu choi kem ly do - roi bam nut nay
+	de nhung dong con lai duoc duyet du mot luot.
+
+	Nut nay KHONG dung toi dong da co nguoi duyet. Dong da tu choi van la
+	tu choi, dong da cat bot van giu so da cat. Nho vay bam nham cung khong
+	xoa mat quyet dinh nao da ghi.
+
+	Cung khong dung toi `qty`: so nhan vien xin nam nguyen, dung rang buoc
+	goc cua anh Viet.
+	"""
+	_kiem_quyen()
+	d = frappe.get_doc("Material Request", name)
+	if d.material_request_type != LOAI:
+		frappe.throw("Phiếu %s không phải yêu cầu mua hàng." % name)
+	if d.docstatus != 1:
+		frappe.throw("Phiếu %s chưa gửi duyệt nên chưa duyệt dòng được." % name)
+
+	nguoi = frappe.session.user
+	luc = now_datetime()
+	dem = 0
+	ten = []
+	for r in d.items:
+		if _da_duyet(r):
+			continue
+		r.sl_duyet = flt(r.qty)
+		r.ly_do_duyet = None
+		r.nguoi_duyet_dong = nguoi
+		r.duyet_luc = luc
+		dem += 1
+		if len(ten) < 12:
+			ten.append(r.item_name or r.item_code)
+
+	if not dem:
+		return {"da_duyet": 0, "name": name}
+
+	d.flags.ignore_permissions = True
+	d.save()
+	_ghi_vet(
+		name,
+		"Duyệt tất cả các món còn lại: %d dòng duyệt đủ (%s%s)."
+		% (dem, ", ".join(ten), "..." if dem > len(ten) else ""),
+	)
+	frappe.db.commit()
+	return {"da_duyet": dem, "name": name}
+
+
+@frappe.whitelist()
 def bo_duyet(name, dong_ten, ly_do=None):
 	"""Go quyet dinh duyet cua mot dong, tra ve trang thai chua ai duyet.
 
@@ -547,8 +678,10 @@ def bo_duyet(name, dong_ten, ly_do=None):
 			"%s đã lên đơn mua rồi nên không gỡ duyệt được."
 			% (r.item_name or r.item_code)
 		)
-	cu = r.get("sl_duyet")
-	r.sl_duyet = None
+	cu = r.get("sl_duyet") if _da_duyet(r) else None
+	# Dau hieu "chua duyet" nam o nguoi_duyet_dong. sl_duyet dat lai 0 chi
+	# cho gon mat, mot minh no khong con y nghia gi.
+	r.sl_duyet = 0
 	r.ly_do_duyet = None
 	r.nguoi_duyet_dong = None
 	r.duyet_luc = None
@@ -591,17 +724,29 @@ def chan_don_mua_trai_duyet(doc, method=None):
 		for r in frappe.get_all(
 			"Material Request Item",
 			filters={"name": ["in", khoa]},
-			fields=["name", "item_name", "item_code", "qty", "sl_duyet", "ly_do_duyet"],
+			fields=[
+				"name", "item_name", "item_code", "qty",
+				"sl_duyet", "ly_do_duyet", "nguoi_duyet_dong",
+			],
 			limit_page_length=0,
 		)
 	}
 	loi = []
 	for r in doc.get("items") or []:
 		m = duyet.get(r.get("material_request_item"))
-		if not m or m.get("sl_duyet") is None:
+		if not m:
+			continue
+		ten = m.get("item_name") or m.get("item_code")
+		# Luat A (anh Viet chot 17/08/2026): chua co ten nguoi duyet thi
+		# khong len don duoc. Bao dung chu "chua duyet", dung bao "tu choi".
+		if not _da_duyet(m):
+			loi.append(
+				"%s chưa được thu mua duyệt. Mở màn Duyệt yêu cầu mua, "
+				"bấm Duyệt đủ hoặc Duyệt tất cả các món còn lại rồi quay "
+				"lại tách đơn." % ten
+			)
 			continue
 		cho = flt(m["sl_duyet"])
-		ten = m.get("item_name") or m.get("item_code")
 		if cho <= EPS:
 			loi.append(
 				"%s đã bị thu mua từ chối%s"
