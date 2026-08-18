@@ -594,11 +594,53 @@ TK_HAY_DUNG = (
 )
 
 
+def _tach_so_tk(r):
+	"""Tach so hieu va ten that cua mot tai khoan. THUAN.
+
+	Nghiem thu v213 tren site that bat duoc: trong 270 tai khoan thi phan
+	lon co truong account_number RONG, so hieu bi go dinh vao dau ten, vi du
+	account_name la "1111 - Tien Viet Nam". Cot So hieu vi vay hien trong
+	trang mot mang.
+
+	Do la rac du lieu that, se don rieng. Nhung man Danh muc phai doc duoc
+	ca hai kieu ghi chu khong duoc de cot trong, nen o day tach tay: uu tien
+	account_number, khong co thi lay cum so o dau ten, va bo cum so do khoi
+	ten de khong hien lap hai lan.
+	"""
+	so = str(r.get("account_number") or "").strip()
+	ten = str(r.get("account_name") or "").strip()
+	if not ten:
+		ten = str(r.get("name") or "").strip()
+	dau = ten.split(" - ")[0].strip()
+	la_so = bool(dau) and dau.replace(".", "").isdigit()
+	if la_so:
+		if not so:
+			so = dau
+		if dau == so:
+			con = ten[len(dau):].lstrip(" -").strip()
+			if con:
+				ten = con
+	if not so:
+		dau2 = str(r.get("name") or "").split(" - ")[0].strip()
+		if dau2 and dau2.replace(".", "").isdigit():
+			so = dau2
+	return so, ten
+
+
+def _them_tk(r, bc=None):
+	"""So hieu va ten da thut theo cap. THUAN."""
+	so, ten = _tach_so_tk(r)
+	ban = dict(r)
+	ban["account_name"] = ten
+	return {
+		"so_hieu": so,
+		"ten_cay": _thut_cay(ban, bc, "account_name", "parent_account"),
+	}
+
+
 def _xep_tk(r, bc=None):
 	"""Tai khoan nay thuoc nhom nao. THUAN."""
-	so = str(r.get("account_number") or "").strip()
-	if not so:
-		so = str(r.get("name") or "").split(" - ")[0].strip()
+	so = _tach_so_tk(r)[0]
 	if r.get("is_group"):
 		return "nhom"
 	if so.startswith("111") or so.startswith("112"):
@@ -623,7 +665,7 @@ BANG_TAI_KHOAN = khai.bang(
 	truong=["name", "account_name", "account_number", "account_type",
 	        "root_type", "is_group", "disabled", "parent_account", "lft"],
 	cot=khai.cot(
-		("account_number", "Số hiệu", "chu"),
+		("so_hieu", "Số hiệu", "chu"),
 		("ten_cay", "Tên tài khoản", "chu"),
 		("_chip", "Nhóm", "chip"),
 		("root_type", "Loại", "chu"),
@@ -643,7 +685,7 @@ BANG_TAI_KHOAN = khai.bang(
 		{"k": "khac", "ten": "Khác", "ic": "📎"},
 	),
 	xep=_xep_tk,
-	them=lambda r, bc=None: {"ten_cay": _thut_cay(r, bc, "account_name", "parent_account")},
+	them=_them_tk,
 	truoc=_cay_cha("Account", "parent_account"),
 	sap="lft asc",
 	tom_tat=[("_dong", "Số tài khoản", "so")],
