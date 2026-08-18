@@ -101,10 +101,6 @@ async function scrHome() {
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
-      /* Hoan tien dat ngay duoi Cong no phai thu (anh Viet 16/08/2026):
-         hai man nay cung mot mach nghiep vu tien nong voi khach, nhan vien
-         di theo thu tu do chu khong nhay sang phan he khac. */
-      card('↩️', 'Hoàn tiền / Trả hàng', 'Phiếu hoàn tiền khách, hàng về Kho Hàng Hủy, đối soát lệnh chi', 0, 'HT') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
@@ -129,6 +125,13 @@ async function scrHome() {
       + '</div>';
   }
   if (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager')) {
+    /* Badge do so phieu hoan tien dang CHO CHI (anh Viet 18/08/2026): "chi
+       Dung Ke toan truong de nhan biet".
+
+       Hong thi bang 0 chu khong chan trang chu: mot phep dem hong khong
+       duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
+    var htChoChi = 0;
+    try { htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
     /* Phan he Bao cao (anh Viet 12/08/2026): so lieu thoi gian thuc, gop
        ca ba diem ban, xem theo ngay - tuan - thang - quy - nam va xuat
        Excel cho ke toan. Mot cua vao, 12 bao cao ben trong. */
@@ -145,6 +148,14 @@ async function scrHome() {
       card('🔗', 'Đối chiếu hoá đơn mua', 'Nối hoá đơn nhà cung cấp với phiếu nhập kho rồi ghi sổ một nút', 0, 'DCM') +
       card('📒', 'Công nợ phải thu', 'Khách nào còn nợ mình', 0, 'CN') +
       card('💸', 'Công nợ phải trả', 'Mình còn nợ nhà cung cấp nào', 0, 'CNPT') +
+      /* Hoan tien doi han tu khoi Ban hang sang day (anh Viet 18/08/2026).
+         Ly do dung: nguoi QUYET CHI la ke toan chu khong phai Sales. Sales
+         chi lap phieu, va van lap duoc tu nut Hoan tien tren man Chi tiet
+         don nhu cu - duong do khong doi.
+
+         So badge lay tu MAY CHU (dem_cho_chi), khong dem o day: man hinh
+         chi duoc hien so, khong duoc tu tinh so. */
+      card('↩️', 'Danh sách Phiếu hoàn tiền (Cash-back)', 'Phiếu chờ chi, ảnh bằng chứng, tài khoản khách, đối soát lệnh chi', htChoChi, 'HT') +
       /* Ho so thanh toan (APP): thu mua lap, ke toan duyet, giam doc duyet,
          chuyen tien roi may do SePay xoa cong no, xong gui thu bao nha cung
          cap. Anh Viet 13/08/2026: lam tren app cho do roi so voi desktop. */
@@ -326,7 +337,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'HT', 'KH', 'DTREO'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
@@ -337,7 +348,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */

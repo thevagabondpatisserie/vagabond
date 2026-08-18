@@ -603,7 +603,50 @@ async function scrHdView(name) {
       '<b style="white-space:nowrap;font-size:13px">' + money(r.grand_total) + '</b></div>';
   });
   html += '</div>';
+  /* ---- Khoi hop dong phap ly (anh Viet 18/08/2026) ----
+     Chi hien khi hop dong co goc la mot to bao gia da chot: to phap ly lay
+     tung dong hang tu do ra, va bao gia cung chinh la Phu luc 01. Hop dong
+     go tay khong co goc thi khong bay nut ra roi bam vao chi de nhan cau
+     bao loi. */
+  if (hd.bao_gia) {
+    html += '<div class="sec">Hợp đồng pháp lý</div><div class="card" style="padding:12px 14px;line-height:1.7">' +
+      '<div style="font-size:13px">Lập từ báo giá <b>' + h(hd.bao_gia) + '</b>, tờ này được đính kèm làm <b>Phụ lục 01</b> trong cùng tệp PDF.</div>' +
+      (hd.ten_khach ? '<div style="font-size:13px;margin-top:4px">Bên A: <b>' + h(hd.ten_khach) + '</b>' + (hd.ma_so_thue ? ' · MST ' + h(hd.ma_so_thue) : '') + '</div>' : '') +
+      (hd.dai_dien ? '<div style="font-size:13px">Đại diện: ' + h(hd.dai_dien) + (hd.chuc_vu ? ' - ' + h(hd.chuc_vu) : '') + '</div>' : '') +
+      (hd.email ? '<div style="font-size:13px">Email nhận hợp đồng: ' + h(hd.email) + '</div>' : '<div style="font-size:12.5px;color:#b3261e">Chưa có email bên A, chưa gửi thư được.</div>') +
+      (hd.dat_coc_pt ? '<div style="font-size:13px">Điều 2 chia hai đợt: đợt 1 ' + hd.dat_coc_pt + '% (' + money(hd.dat_coc_tien) + ' đ), đợt 2 phần còn lại.</div>'
+                     : '<div style="font-size:13px">Điều 2: thanh toán một lần 100% trước khi giao.</div>') +
+      '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn gh" id="hdXem" style="margin:0;flex:1;padding:8px 10px;font-size:13px">👁 Xem trước</button>' +
+      '<button class="btn gh" id="hdPdf" style="margin:0;flex:1;padding:8px 10px;font-size:13px">📄 Xuất PDF</button>' +
+      '<button class="btn" id="hdMail" style="margin:0;flex:1.2;padding:8px 10px;font-size:13px">📧 Gửi Email</button>' +
+      '</div></div>';
+  }
   var b = frame('Chi tiết hợp đồng', html, { footer: '<button class="btn" id="hdGan">🔗 Gắn hoá đơn vào hợp đồng</button>' });
+  var nXem = document.getElementById('hdXem');
+  if (nXem) nXem.onclick = async function () {
+    busy(true);
+    try {
+      var ht = await api('vagabond.hop_dong_pdf.xem_truoc', { name: name });
+      busy(false);
+      var hop = hopKhung('Hợp đồng ' + (hd.so_hop_dong || name),
+        '<div style="background:#fff;padding:4px">' + ht + '</div>',
+        '<button class="btn" id="hdXemDong" style="margin:0;flex:1">Đóng</button>');
+      hop.box.querySelector('.x').onclick = hop.dong;
+      hop.box.querySelector('#hdXemDong').onclick = hop.dong;
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không dựng được tờ hợp đồng'); }
+  };
+  var nPdf = document.getElementById('hdPdf');
+  if (nPdf) nPdf.onclick = async function () {
+    busy(true);
+    try {
+      var fl = await api('vagabond.hop_dong_pdf.xuat_pdf', { name: name });
+      busy(false); bcTaiVe(fl.ten_file, fl.b64, fl.kieu);
+      toast('Đã tải ' + fl.ten_file + ' (đã gồm Phụ lục 01)', 4500);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Xuất PDF lỗi'); }
+  };
+  var nMail = document.getElementById('hdMail');
+  if (nMail) nMail.onclick = function () { hdGuiMail(hd); };
   document.getElementById('hdTt').onclick = function () {
     sheet('Đổi trạng thái', ['Nháp', 'Đang thực hiện', 'Hoàn tất', 'Đã thanh lý', 'Huỷ'].map(function (t) { return { value: t, label: t, icon: '📌' }; }), hd.trang_thai, async function (o) {
       busy(true);
@@ -697,7 +740,7 @@ async function scrHdTao() {
 
    Màn này CHỈ ĐỌC. Phiếu hoàn tiền sinh ra từ nút Hoàn tiền trên màn Chi
    tiết đơn; đẻ thêm một cửa tạo phiếu ở đây là mở một đường vòng. */
-var htDsData = null, htDsLoc = 'tat_ca';
+var htDsData = null, htDsLoc = 'tat_ca', htDsTim = '', htCtData = null;
 
 /* ---------- Form gửi yêu cầu hoàn tiền, mở từ màn Chi tiết đơn ----------
 
@@ -981,30 +1024,99 @@ async function htFGui() {
   } catch (e) { busy(false); baoTin((e && e.message) || 'Gửi yêu cầu lỗi', 'Không gửi được'); }
 }
 
+/* ---------- Gửi hợp đồng qua email ----------
+
+Đi đúng nếp gửi báo giá: máy chủ tính lại danh sách người nhận bằng ĐÚNG
+phép lọc của hàm gửi (QT-19), bày ra hết, rồi mới cho bấm. Gửi nhầm một tờ
+hợp đồng sang địa chỉ khác là loại lỗi không rút lại được, và ở đây còn
+nặng hơn báo giá vì tờ này có mã số thuế và người đại diện hai bên. */
+async function hdGuiMail(hd) {
+  var em = await hoiChu('Gửi hợp đồng qua email',
+    'Tệp PDF hợp đồng <b>' + h(hd.so_hop_dong || hd.name) + '</b> sẽ được đính kèm, đã gồm báo giá ' +
+    h(hd.bao_gia || '') + ' làm Phụ lục 01. <b>Nhiều email thì ngăn nhau bằng dấu phẩy.</b>',
+    hd.email || '', { goi_y: 'ten@congty.com, ketoan@congty.com', bat_buoc: true });
+  if (em === null) return;
+
+  busy(true);
+  var ng;
+  try { ng = await api('vagabond.hop_dong_pdf.xem_nguoi_nhan', { name: hd.name, email: em }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không kiểm được danh sách người nhận'); }
+  busy(false);
+  if (ng.sai && ng.sai.length) return baoTin('Địa chỉ này chưa đúng dạng email: ' + ng.sai.join(', ') + '. Anh chị sửa lại giúp em.');
+  if (!ng.nhan.length) return baoTin('Chưa có địa chỉ nào hợp lệ để gửi.');
+
+  var mo = 'Hợp đồng ' + (hd.so_hop_dong || hd.name) + ' · ' + money(hd.gia_tri) + ' đ\n\n' +
+    'Gửi tới:\n' + ng.nhan.map(function (x) { return '  • ' + x; }).join('\n');
+  if (ng.cc && ng.cc.length) mo += '\n\nCC nội bộ:\n' + ng.cc.map(function (x) { return '  • ' + x; }).join('\n');
+  mo += '\n\nNgười gửi: ' + (ng.tu || 'hộp thư mặc định của hệ thống');
+  if (!ng.tu_co_that && ng.tu_khai) mo += '\n(Hộp thư ' + ng.tu_khai + ' chưa được bật gửi đi)';
+  if (!await hoiCo('Xác nhận gửi hợp đồng', mo, 'Gửi thư')) return;
+
+  var loi = await hoiChu('Lời nhắn thêm (không bắt buộc)',
+    'Câu này nằm trong thân thư, trên phần chào cuối.', '',
+    { nhieu_dong: true, goi_y: 'Vd: Anh chị xem giúp em phần Điều 2 rồi phản hồi trước thứ Sáu.' });
+  if (loi === null) return;
+
+  busy(true);
+  try {
+    var r = await api('vagabond.hop_dong_pdf.gui_email', { name: hd.name, email: em, loi_nhan: loi || '' });
+    busy(false);
+    toast('Đã gửi ' + r.ten_file + ' tới ' + (r.nhan || []).length + ' địa chỉ' +
+      ((r.cc || []).length ? ' và CC ' + r.cc.length + ' nội bộ' : ''), 5000);
+    go(function () { scrHdView(hd.name); }, true);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Gửi thư lỗi'); }
+}
+
+
 async function scrHoanTien() {
-  frame('Hoàn tiền / Trả hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu hoàn tiền...</div></div>');
-  try { htDsData = await api('vagabond.hoan_tien.ds', { trang_thai: htDsLoc }); }
+  frame('Phiếu hoàn tiền (Cash-back)', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu hoàn tiền...</div></div>');
+  try { htDsData = await api('vagabond.hoan_tien.ds', { trang_thai: htDsLoc, tim: htDsTim }); }
   catch (e) {
-    frame('Hoàn tiền / Trả hàng', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    frame('Phiếu hoàn tiền (Cash-back)', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
   htDsVe();
 }
 
 function htDsTen(t) {
-  return { 'Cho chi': 'Chờ chi', 'Da chi': 'Đã chi', 'Da doi soat': 'Đã đối soát', 'Da huy': 'Đã huỷ' }[t] || t;
+  return { 'Cho chi': 'Chờ chi', 'Da chi': 'Đã chi', 'Da doi soat': 'Đã đối soát', 'Da huy': 'Đã huỷ / Từ chối' }[t] || t;
 }
 
+/* ---------- Danh sách phiếu hoàn tiền ----------
+
+Anh Việt 18/08/2026 giao ba việc cho màn này: chuyển hẳn sang khối Kế toán,
+làm mỗi dòng bấm được để xem chi tiết, và thêm chip trạng thái với thanh
+tìm kiếm.
+
+Ô tìm và chip đều gửi thẳng lên MÁY CHỦ chứ không lọc mảng đã tải về. Hai
+lý do, và lý do thứ hai mới là lý do thật: một, danh sách có thể dài hàng
+trăm dòng; hai, nếu lọc ở máy khách thì con số trên chip chỉ đếm được phần
+đã kéo về, và kế toán sẽ tin vào một con số sai.
+
+Ô tìm gõ xong phải bấm Enter hoặc nút kính lúp. Cố tình không tự tìm theo
+từng phím: mỗi phím là một lượt gọi máy chủ, mà đây là màn kế toán ngồi
+đọc chứ không phải ô tìm tức thời. */
 function htDsVe() {
   var d = htDsData, ds = d.ds || [], dem = d.dem || {};
-  var loc = [['tat_ca', 'Tất cả'], ['Cho chi', 'Chờ chi'], ['Da chi', 'Đã chi'], ['Da doi soat', 'Đã đối soát']];
-  var html = '<div style="display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px">' +
+  var loc = [['tat_ca', 'Tất cả'], ['Cho chi', 'Chờ chi'], ['Da chi', 'Đã chi'],
+             ['Da doi soat', 'Đã đối soát'], ['Da huy', 'Đã huỷ / Từ chối']];
+  var html = '<div style="display:flex;gap:7px;margin-bottom:9px">' +
+    '<input id="htTim" value="' + h(htDsTim) + '" placeholder="Tìm tên khách, mã phiếu, mã hoá đơn" ' +
+    'style="flex:1;border:1.5px solid #e5e7eb;border-radius:9px;padding:9px 12px;font-size:13px">' +
+    '<button id="htTimNut" style="flex:none;border:1.5px solid #0f766e;background:#ccfbf1;color:#0f766e;' +
+    'border-radius:9px;padding:0 14px;font-size:15px;font-weight:800">🔍</button>' +
+    (htDsTim ? '<button id="htTimXoa" style="flex:none;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;' +
+      'border-radius:9px;padding:0 13px;font-size:14px">✕</button>' : '') +
+    '</div>';
+
+  html += '<div style="display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px">' +
     loc.map(function (x) {
       var on = htDsLoc === x[0];
       return '<button class="htf" data-htf="' + x[0] + '" style="flex:none;border:1.5px solid ' +
         (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' +
         (on ? '#0f766e' : '#374151') + ';border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:' +
-        (on ? '800' : '600') + '">' + h(x[1]) + (dem[x[0]] !== undefined ? ' · ' + money(dem[x[0]]) : '') + '</button>';
+        (on ? '800' : '600') + ';white-space:nowrap">' + h(x[1]) +
+        (dem[x[0]] !== undefined ? ' · ' + money(dem[x[0]]) : '') + '</button>';
     }).join('') + '</div>';
 
   if (d.kho_huy) {
@@ -1014,21 +1126,31 @@ function htDsVe() {
   }
 
   if (!ds.length) {
-    html += '<div class="emp"><div class="e1">🧾</div><div>Chưa có phiếu hoàn tiền nào.</div>' +
-      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Phiếu được lập từ nút Hoàn tiền trên màn Chi tiết đơn.</div></div>';
+    html += '<div class="emp"><div class="e1">🧾</div><div>' +
+      (htDsTim ? 'Không có phiếu nào khớp "' + h(htDsTim) + '".' : 'Chưa có phiếu hoàn tiền nào.') + '</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">' +
+      (htDsTim ? 'Anh chị xoá ô tìm hoặc đổi chip trạng thái để xem lại.'
+               : 'Phiếu được lập từ nút Hoàn tiền trên màn Chi tiết đơn.') + '</div></div>';
   } else {
     html += '<div class="card">' + ds.map(function (x) {
-      var mau = x.trang_thai === 'Da doi soat' ? '#0a8a4a' : (x.trang_thai === 'Da chi' ? '#b45309' : '#b3261e');
-      return '<div style="padding:12px 14px;border-bottom:1px solid #f2f4f7">' +
+      var mau = x.trang_thai === 'Da doi soat' ? '#0a8a4a'
+        : (x.trang_thai === 'Da chi' ? '#b45309'
+          : (x.trang_thai === 'Da huy' ? '#6b7280' : '#b3261e'));
+      /* Ca dong la mot vung bam duoc (htmo), tru cac nut ben trong. Truoc
+         18/08/2026 dong nay khong bam duoc o dau ca, nen ke toan khong co
+         duong nao xem anh to hay so tai khoan khach. */
+      return '<div class="htmo" data-ht="' + h(x.name) + '" style="padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
         '<div style="display:flex;align-items:center;gap:9px">' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(x.ten_khach || '(khách lẻ)') + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) + ' · ' + h(x.hoa_don) + '</div></div>' +
         '<div style="text-align:right"><b style="font-size:15px">' + money(x.so_tien) + ' đ</b>' +
-        '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + h(htDsTen(x.trang_thai)) + '</div></div></div>' +
+        '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + h(htDsTen(x.trang_thai)) + '</div></div>' +
+        '<div style="flex:none;color:#c9cfda;font-size:17px">›</div></div>' +
         '<div style="font-size:11.5px;color:#6b7280;margin-top:5px">' + h(htLyDoTen(x.ly_do || '')) +
         (x.phieu_chi
           ? ' · phiếu chi ' + h(x.phieu_chi) + (x.phieu_chi_da_ghi ? ' (đã ghi sổ)' : ' <b style="color:#b3261e">(chưa ghi sổ)</b>')
-          : (x.da_doi_soat ? ' · <b style="color:#b3261e">chưa có phiếu chi</b>' : ' · chứng từ sinh sau khi tiền ra')) +
+          : (x.trang_thai === 'Da huy' ? ' · <b style="color:#6b7280">đã từ chối, không chi</b>'
+            : (x.da_doi_soat ? ' · <b style="color:#b3261e">chưa có phiếu chi</b>' : ' · chứng từ sinh sau khi tiền ra'))) +
         '</div>' +
         /* Anh bang chung: ke toan ngoi xa quay, day la can cu duy nhat de
            quyet. Bay anh nho ra ngay tren dong chu khong bat bam vao xem -
@@ -1040,24 +1162,39 @@ function htDsVe() {
                 'background-image:url(' + a.url + ');background-size:cover;background-position:center;border:1px solid #e3e6ec"></div>';
             }).join('') + '</div>'
           : '<div style="font-size:11px;color:#b3261e;margin-top:6px">Chưa có ảnh bằng chứng</div>') +
+        (x.trang_thai === 'Da huy' ? '' :
         '<div style="display:flex;gap:7px;margin-top:8px">' +
         '<button class="htmb" data-ht="' + h(x.name) + '" style="flex:2;border:1.5px solid #0f766e;background:#ccfbf1;' +
         'color:#0f766e;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:800">🏦 Xuất thông tin chuyển khoản MB Biz</button>' +
-        '</div></div>';
+        '</div>') + '</div>';
     }).join('') + '</div>';
   }
 
-  var b = frame('Hoàn tiền / Trả hàng', html, {
+  var b = frame('Phiếu hoàn tiền (Cash-back)', html, {
     footer: '<button class="btn gh" id="htDsSoat" style="margin:0">🔄 Đối soát lệnh chi</button>'
   });
+  var oTim = document.getElementById('htTim');
+  var chay = function () {
+    htDsTim = (oTim && oTim.value || '').trim();
+    go(scrHoanTien, true);
+  };
+  if (oTim) oTim.onkeydown = function (e) { if (e.key === 'Enter') chay(); };
+  var nTim = document.getElementById('htTimNut');
+  if (nTim) nTim.onclick = chay;
+  var nXoa = document.getElementById('htTimXoa');
+  if (nXoa) nXoa.onclick = function () { htDsTim = ''; go(scrHoanTien, true); };
+
   b.querySelectorAll('.htf').forEach(function (n) {
     n.onclick = function () { htDsLoc = n.getAttribute('data-htf'); go(scrHoanTien, true); };
   });
   b.querySelectorAll('.htanh').forEach(function (n) {
-    n.onclick = function () { rndXemAnh(n.getAttribute('data-url')); };
+    n.onclick = function (e) { e.stopPropagation(); rndXemAnh(n.getAttribute('data-url')); };
   });
   b.querySelectorAll('.htmb').forEach(function (n) {
-    n.onclick = function () { htMbBiz(n.getAttribute('data-ht')); };
+    n.onclick = function (e) { e.stopPropagation(); htMbBiz(n.getAttribute('data-ht')); };
+  });
+  b.querySelectorAll('.htmo').forEach(function (n) {
+    n.onclick = function () { htChiTiet(n.getAttribute('data-ht')); };
   });
   var s = document.getElementById('htDsSoat');
   if (s) s.onclick = async function () {
@@ -1072,6 +1209,185 @@ function htDsVe() {
     } catch (e) { busy(false); }
   };
 }
+
+
+/* ---------- Chi tiết một phiếu hoàn tiền ----------
+
+Màn này là chỗ chị Dung quyết chi hay từ chối, nên nó phải bày đủ ba thứ mà
+màn danh sách không bày nổi: ảnh bằng chứng xem được to, số tài khoản khách
+đọc được từng chữ số, và đơn gốc gồm những món gì.
+
+Nút Từ chối chỉ hiện khi máy chủ nói còn từ chối được. Không tự đoán ở đây:
+điều kiện thật là tiền chưa ra, và chỉ máy chủ biết chắc điều đó. */
+async function htChiTiet(ma) {
+  frame('Phiếu hoàn tiền', '<div class="emp"><div class="e1">⏳</div><div>Đang mở phiếu...</div></div>');
+  var d;
+  try { d = await api('vagabond.hoan_tien.chi_tiet', { ho_so: ma }); }
+  catch (e) {
+    frame('Phiếu hoàn tiền', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được phiếu') + '</div></div>');
+    return;
+  }
+  htCtData = d;
+  htCtVe();
+}
+
+function htCtDong(nhan, gtri, dam) {
+  return '<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #f2f4f7">' +
+    '<div style="flex:0 0 40%;font-size:12px;color:#6b7280">' + h(nhan) + '</div>' +
+    '<div style="flex:1;font-size:13.5px;' + (dam ? 'font-weight:800' : 'font-weight:600') +
+    ';word-break:break-all">' + h(gtri === 0 || gtri ? String(gtri) : '(chưa có)') + '</div></div>';
+}
+
+function htCtVe() {
+  var d = htCtData;
+  var mau = d.trang_thai === 'Da doi soat' ? '#0a8a4a'
+    : (d.trang_thai === 'Da chi' ? '#b45309' : (d.trang_thai === 'Da huy' ? '#6b7280' : '#b3261e'));
+
+  var html = '<div class="card" style="padding:14px">' +
+    '<div style="display:flex;align-items:flex-start;gap:10px">' +
+    '<div style="flex:1;min-width:0"><b style="font-size:16px">' + h(d.ten_khach || '(khách lẻ)') + '</b>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(d.name) + '</div></div>' +
+    '<div style="text-align:right"><b style="font-size:18px">' + money(d.so_tien) + ' đ</b>' +
+    '<div style="font-size:11.5px;font-weight:800;color:' + mau + '">' + h(htDsTen(d.trang_thai)) + '</div></div>' +
+    '</div></div>';
+
+  if (d.trang_thai === 'Da huy') {
+    html += '<div style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;padding:11px 13px;' +
+      'margin-top:11px;font-size:12.5px;line-height:1.65;color:#374151">' +
+      '<b>Phiếu đã bị từ chối, không chi tiền.</b><br>Lý do: ' + h(d.ly_do_tu_choi || '(không ghi)') +
+      (d.nguoi_tu_choi ? '<br>Người từ chối: ' + h(d.nguoi_tu_choi) : '') +
+      (d.ngay_tu_choi ? '<br>Lúc: ' + h(String(d.ngay_tu_choi).slice(0, 16)) : '') + '</div>';
+  }
+
+  html += '<div class="sec">Lý do và diễn giải</div><div class="card" style="padding:2px 14px 8px">' +
+    htCtDong('Lý do hoàn', htLyDoTen(d.ly_do || ''), 1) +
+    htCtDong('Diễn giải', d.dien_giai || '') +
+    htCtDong('Người lập', d.nguoi_duyet || '') +
+    htCtDong('Lập lúc', String(d.creation || '').slice(0, 16)) +
+    '</div>';
+
+  html += '<div class="sec">Tài khoản nhận tiền của khách</div><div class="card" style="padding:2px 14px 8px">' +
+    htCtDong('Chủ tài khoản', d.ten_tk || '', 1) +
+    htCtDong('Số tài khoản', d.so_tk || '', 1) +
+    htCtDong('Ngân hàng', d.ngan_hang || '') +
+    htCtDong('Điện thoại', d.sdt || '') +
+    htCtDong('Nội dung chuyển khoản', d.noi_dung_ck || '', 1) +
+    '</div>';
+
+  html += '<div class="sec">Ảnh bằng chứng</div>';
+  if ((d.anh || []).length) {
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:2px">' +
+      d.anh.map(function (a) {
+        return '<div class="htcanh" data-url="' + h(a.url) + '" style="width:92px;height:92px;border-radius:10px;' +
+          'background-image:url(' + a.url + ');background-size:cover;background-position:center;' +
+          'border:1px solid #e3e6ec;cursor:pointer"></div>';
+      }).join('') + '</div>' +
+      '<div style="font-size:11px;color:#9ca3af;padding:7px 2px 0">Bấm vào ảnh để xem to.</div>';
+  } else {
+    html += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+      'border-radius:10px;padding:10px 12px;line-height:1.6">Phiếu này chưa có ảnh bằng chứng. ' +
+      'Anh chị bảo bạn Sales chụp lại bánh hỏng hoặc màn hình khách yêu cầu rồi đính vào, ' +
+      'trước khi quyết chi.</div>';
+  }
+
+  if (d.don) {
+    html += '<div class="sec">Đơn gốc ' + h(d.don.name) + '</div><div class="card" style="padding:2px 14px 10px">' +
+      htCtDong('Ngày đơn', d.don.ngay) +
+      htCtDong('Tổng đơn', money(d.don.tong) + ' đ', 1) +
+      htCtDong('Đã thu', money(d.don.da_thu) + ' đ') +
+      (d.don.diem_ban ? htCtDong('Điểm bán', d.don.diem_ban) : '') +
+      '<div style="padding:9px 0 0">' + (d.don.mon || []).map(function (m) {
+        return '<div style="display:flex;gap:8px;font-size:12.5px;padding:3px 0;color:#374151">' +
+          '<div style="flex:1;min-width:0">' + h(m.ten) + '</div>' +
+          '<div style="flex:none;color:#6b7280">x' + money(m.sl) + '</div>' +
+          '<div style="flex:none;font-weight:700">' + money(m.tien) + '</div></div>';
+      }).join('') + '</div></div>';
+  }
+
+  html += '<div class="sec">Chứng từ hệ sinh ra</div><div class="card" style="padding:2px 14px 8px">' +
+    htCtDong('Hoá đơn trả hàng', d.hoa_don_tra || '') +
+    htCtDong('Phiếu chi', d.phieu_chi ? (d.phieu_chi + (d.phieu_chi_trang_thai ? ' · ' + d.phieu_chi_trang_thai : '')) : '') +
+    htCtDong('Đã đối soát SePay', d.da_doi_soat ? 'Rồi' : 'Chưa') +
+    htCtDong('Mã giao dịch ngân hàng', d.ma_gd || '') +
+    htCtDong('Kho nhận hàng trả', d.kho_huy || '') +
+    '</div>';
+
+  var chan = '';
+  if (d.trang_thai !== 'Da huy') {
+    chan += '<button class="btn gh" id="htCtMb" style="margin:0;flex:1">🏦 Chuyển khoản</button>';
+  }
+  if (d.con_tu_choi_duoc && d.duoc_tu_choi) {
+    chan += '<button class="btn" id="htCtTc" style="margin:0;flex:1;background:#b3261e;border-color:#b3261e">Từ chối hoàn tiền</button>';
+  }
+  var b = frame('Phiếu hoàn tiền', html, chan ? { footer: chan } : undefined);
+
+  b.querySelectorAll('.htcanh').forEach(function (n) {
+    n.onclick = function () { rndXemAnh(n.getAttribute('data-url')); };
+  });
+  var nMb = document.getElementById('htCtMb');
+  if (nMb) nMb.onclick = function () { htMbBiz(d.name); };
+  var nTc = document.getElementById('htCtTc');
+  if (nTc) nTc.onclick = function () { htFormTuChoi(d.name); };
+}
+
+
+/* ---------- Form từ chối hoàn tiền ----------
+
+Lý do bắt buộc, và kiểm ở CẢ hai nơi. Ở đây kiểm để người bấm biết ngay mà
+sửa; ở máy chủ kiểm vì đó mới là chỗ chặn thật (QT-19). Câu chữ này về sau
+là thứ duy nhất giải thích được vì sao khách không nhận được tiền. */
+function htFormTuChoi(ma) {
+  var goi = [
+    'Khách đổi ý, không yêu cầu hoàn nữa',
+    'Ảnh bằng chứng không hợp lệ',
+    'Đơn đã được xử lý bằng cách khác',
+    'Sai số tiền, lập lại phiếu mới'
+  ];
+  var than =
+    '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+    'border-radius:9px;padding:10px 12px;margin-bottom:12px;line-height:1.6">' +
+    'Từ chối là chặn hẳn một khoản tiền sắp ra. Phiếu chuyển sang <b>Đã huỷ</b>, ' +
+    'không bị xoá, và máy sẽ không tự đối soát phiếu này nữa.</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px">' +
+    goi.map(function (g, i) {
+      return '<button class="httcg" data-g="' + h(g) + '" style="border:1.5px solid #e5e7eb;background:#fff;' +
+        'color:#374151;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600">' + h(g) + '</button>';
+    }).join('') + '</div>' +
+    '<textarea id="htTcLd" rows="4" placeholder="Lý do từ chối (bắt buộc, ít nhất 5 ký tự)" ' +
+    'style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:11px 12px;font-size:13.5px;' +
+    'font-family:inherit;box-sizing:border-box"></textarea>';
+
+  var hop = hopKhung('Từ chối hoàn tiền', than,
+    '<button class="btn gh" id="htTcHuy" style="margin:0;flex:1">Thôi</button>' +
+    '<button class="btn" id="htTcOk" style="margin:0;flex:1;background:#b3261e;border-color:#b3261e">Xác nhận từ chối</button>');
+  hop.box.querySelector('.x').onclick = hop.dong;
+  hop.box.querySelector('#htTcHuy').onclick = hop.dong;
+  var o = hop.box.querySelector('#htTcLd');
+  hop.box.querySelectorAll('.httcg').forEach(function (n) {
+    n.onclick = function () {
+      var g = n.getAttribute('data-g');
+      o.value = o.value.trim() ? (o.value.trim() + '. ' + g) : g;
+      o.focus();
+    };
+  });
+  hop.box.querySelector('#htTcOk').onclick = async function () {
+    var ld = (o.value || '').trim();
+    if (ld.length < 5) {
+      return baoTin('Phải ghi rõ lý do từ chối, ít nhất 5 ký tự. Câu này sẽ nằm lại trong ' +
+        'hồ sơ và là thứ duy nhất giải thích được vì sao khách không nhận được tiền.', 'Chưa gửi được');
+    }
+    busy(true);
+    try {
+      var kq = await api('vagabond.hoan_tien.tu_choi', { ho_so: ma, ly_do: ld });
+      busy(false);
+      hop.dong();
+      toast(kq.ghi_chu || 'Đã từ chối phiếu', 3500);
+      htDsData = null;
+      go(scrHoanTien, true);
+    } catch (e) { busy(false); }
+  };
+}
+
 
 /* ---------- Xuất thông tin chuyển khoản cho MB Biz ----------
 
