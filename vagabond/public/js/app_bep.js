@@ -741,12 +741,19 @@ function leavesUnder(roots) {
 }
 function hasRole(r) { return S.roles.indexOf(r) >= 0; }
 
-/* Ai duoc xem don mua hang va cong no phai tra: ke toan, thu mua, giam doc.
-   Danh sach nay khop voi QUYEN_MUA ben vagabond/mua_hang.py - o day chi de
-   an nut cho gon mat, con chan that su thi nam o may chu. */
+/* Ai duoc vao phan he Thu mua: thu mua, ke toan, giam doc.
+
+   Khop voi QUYEN_THU_MUA ben vagabond/quyen_phan_he.py - o day chi de an
+   nut cho gon mat, con chan that su thi nam o may chu.
+
+   Anh Viet 18/08/2026 bao cac nut mua hang "de chung chung khien toan bo
+   nhan vien deu nhin thay". Thu pham la vai 'Bo phan dat hang' truoc day
+   nam trong danh sach nay: vai do sinh ra de LAP YEU CAU MUA nen gan nhu ai
+   cung co, ke ca bep va sales. Da go ra khoi day. */
 function coQuyenMua() {
-  return hasRole('System Manager') || hasRole('Accounts Manager') || hasRole('Accounts User')
-    || hasRole('Purchase Manager') || hasRole('Purchase User') || hasRole('Bộ phận đặt hàng');
+  return hasRole('System Manager') || hasRole('Thu mua') || hasRole('Giám đốc')
+    || hasRole('Purchase Manager') || hasRole('Purchase User')
+    || hasRole('Accounts Manager') || hasRole('Accounts User');
 }
 
 /* Ai duoc go dau huy mot phieu nhap. Khop voi QUYEN_HUY ben
@@ -1045,14 +1052,24 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
+  /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
+     của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
-  { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
+  { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'HT', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
+  /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
+     đang để chung chung khiến toàn bộ nhân viên đều nhìn thấy". Nhóm này
+     nằm ngay trên Kế toán và chỉ hiện với Thu mua, Kế toán, Giám đốc.
+
+     Không cần khoá riêng ở đây: các ô bên trong đều dựng có điều kiện
+     coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
+     vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
+  { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
@@ -1152,6 +1169,13 @@ function vgbGomNhom() {
   VGB_HUB.XKD = {
     cnt: 0,
     html: vgbODong('XKD', '🔁', 'Xuất điều chuyển nội bộ', 'Chuyển hàng sang kho khác')
+  };
+  /* Ô cho bộ phận Bếp (anh Việt 18/08/2026: "các bạn nhân sự Bếp đang bị
+     nghẽn ở khâu nhận hàng"). Không khoá theo vai: ai có khai Kho phụ trách
+     thì thấy hàng về kho mình, ai chưa khai thì màn tự nói phải làm gì. */
+  VGB_HUB.NHANDC = {
+    cnt: 0,
+    html: vgbODong('NHANDC', '📦', 'Hàng chuyển về kho tôi', 'Kho khác vừa chuyển gì sang bộ phận mình')
   };
 
   var daXep = {};
@@ -1365,6 +1389,7 @@ function vgbGo(k) {
   if (k === 'DSCOD') return go(scrVdCod);
   if (k === 'CBTT') return go(scrCanhBaoTT);
   if (k === 'RND') return go(scrRndList);
+  if (k === 'NHANDC') return go(scrHangVeKho);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
@@ -2351,6 +2376,83 @@ function errMsg(e) {
   return (m || 'Có lỗi xảy ra').replace(/<[^>]*>/g, '').slice(0, 180);
 }
 
+
+
+/* ---------- Hàng chuyển về kho tôi (anh Việt 18/08/2026) ----------
+
+Anh nói bộ phận Bếp "đang bị nghẽn ở khâu nhận hàng". Em đọc lại luồng thì
+thấy không ai chặn các bạn ấy cả: phiếu điều chuyển ở hệ này ghi sổ MỘT BƯỚC
+bên kho xuất, nên hàng vào kho bếp ngay lập tức mà bên bếp không có màn nào
+thấy nó đã về, về lúc nào, ai chuyển, gồm những gì.
+
+Màn này lấp đúng chỗ trống đó, và nó CHỈ ĐỌC. Bước "xác nhận đã nhận" và xử
+lý nhận thiếu (chênh lệch sinh bút toán hao hụt) đụng vào giá vốn nên phải
+chờ anh Việt duyệt phương án trước - em để trong bảng mapping luồng kho. */
+var HVK = { ngay: 14, mo: '' };
+
+async function scrHangVeKho() {
+  vgbCss();
+  frame('Hàng chuyển về kho tôi', '<div class="emp"><div class="e1">⏳</div><div>Đang xem hàng về kho...</div></div>');
+  var kq;
+  try { kq = await api('vagabond.xuat_kho.hang_chuyen_ve', { so_ngay: HVK.ngay }); }
+  catch (e) {
+    return frame('Hàng chuyển về kho tôi',
+      '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
+  }
+  if (!kq.co_kho) {
+    return frame('Hàng chuyển về kho tôi',
+      '<div class="emp"><div class="e1">🏷️</div><div>' + h(kq.nhac || 'Chưa khai kho phụ trách.') + '</div></div>');
+  }
+  var ds = kq.ds || [];
+  var html =
+    '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 8px;line-height:1.6">' +
+    'Hàng các kho khác đã chuyển sang <b>' + h((kq.kho || []).join(', ')) + '</b>. ' +
+    'Bấm một phiếu để xem danh sách hàng bên trong.</div>' +
+    '<div class="vtb" style="padding-left:0;padding-right:0">' +
+    [[7, '7 ngày'], [14, '14 ngày'], [30, '30 ngày']].map(function (x) {
+      return '<div class="vt' + (HVK.ngay === x[0] ? ' on' : '') + '" data-hvn="' + x[0] + '">' + x[1] + '</div>';
+    }).join('') + '</div>';
+
+  if (!ds.length) {
+    html += '<div class="emp"><div class="e1">📦</div><div>Không có phiếu nào chuyển về kho của bạn trong ' +
+      HVK.ngay + ' ngày qua.</div></div>';
+  } else {
+    html += '<div class="card">' + ds.map(function (x) {
+      var mo = HVK.mo === x.ma;
+      return '<div style="border-bottom:1px solid #f2f4f7">' +
+        '<div data-hvm="' + h(x.ma) + '" style="padding:12px 14px;display:flex;gap:10px;align-items:center;cursor:pointer">' +
+        '<div style="flex:1;min-width:0">' +
+        '<b style="font-size:13.5px">' + h(x.kho_xuat || 'Kho khác') + ' → ' + h(x.kho_nhan) + '</b>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' +
+        dmy(x.ngay) + (x.gio ? ' ' + h(x.gio) : '') + ' · ' + h(x.nguoi_ten) + ' · ' + h(x.ma) + '</div></div>' +
+        '<div style="text-align:right"><b style="font-size:14px;color:#0f766e">' + money(x.so_dong) + ' món</b>' +
+        '<div style="font-size:11px;color:#9ca3af">' + money(x.tong_sl) + ' đơn vị</div></div>' +
+        '<span style="color:#c3c8d4;font-size:20px">' + (mo ? '&#8964;' : '&#8250;') + '</span></div>' +
+        (mo
+          ? '<div style="padding:0 14px 12px">' + (x.hang || []).map(function (m) {
+            return '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid #f6f7f9;font-size:12.5px">' +
+              '<div style="flex:1;min-width:0">' + h(m.ten) + '<div style="font-size:11px;color:#aeb4bf">' + h(m.ma) + '</div></div>' +
+              '<b style="color:#0f766e;white-space:nowrap">' + money(m.sl) + ' ' + h(m.dvt) + '</b></div>';
+          }).join('') +
+          (x.ghi_chu ? '<div style="font-size:11px;color:#98a2b3;margin-top:8px">' + h(x.ghi_chu) + '</div>' : '') +
+          '</div>'
+          : '') +
+        '</div>';
+    }).join('') + '</div>';
+  }
+
+  var b = frame('Hàng chuyển về kho tôi', html);
+  b.querySelectorAll('[data-hvn]').forEach(function (n) {
+    n.onclick = function () { HVK.ngay = +n.getAttribute('data-hvn'); HVK.mo = ''; go(scrHangVeKho, true); };
+  });
+  b.querySelectorAll('[data-hvm]').forEach(function (n) {
+    n.onclick = function () {
+      var m = n.getAttribute('data-hvm');
+      HVK.mo = (HVK.mo === m) ? '' : m;
+      go(scrHangVeKho, true);
+    };
+  });
+}
 /* ---------- 7. Tao moi: buoc 1 thong tin chung ---------- */
 function startDraft(T) {
   S.draft = {
@@ -11312,7 +11414,7 @@ tay - nhà in giao thêm thì sửa lên, hộp hỏng thì sửa xuống. Kế 
 phần còn lại từ bảng ngày: kéo đơn Pancake, chia Đã đặt / Chờ chốt, đơn kênh
 khác đếm từ hoá đơn, trạng thái huỷ và xoá không đếm. */
 
-var MV = { ds: null, mua: null, data: null, xem: 'sp' };
+var MV = { ds: null, mua: null, data: null, xem: 'sp', loc: 'all', tim: '' };
 
 async function scrMuaVuDs() {
   frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các mùa vụ...</div></div>');
@@ -11429,8 +11531,9 @@ async function mvXin() {
 async function mvNapLai() {
   if (!mvConODay()) return mvTatNhip();
   /* Đang mở hộp thoại thì để yên: vẽ lại giữa lúc người ta đang gõ số sản
-     xuất là cướp mất ô nhập của họ. */
+     xuất là cướp mất ô nhập của họ. Ô tìm nhanh cũng vậy. */
   if (document.querySelector('.sh')) return;
+  if (document.activeElement && document.activeElement.id === 'mvTim') return;
   var d;
   try { d = await api('vagabond.mua_vu.bang', { mua: MV.mua }); } catch (e) { return; }
   if (!mvConODay() || document.querySelector('.sh')) return;
@@ -11503,9 +11606,22 @@ function mvVe() {
   b.querySelectorAll('[data-mvx]').forEach(function (n) {
     n.onclick = function () { MV.xem = n.getAttribute('data-mvx'); mvVe(); };
   });
-  b.querySelectorAll('[data-mvsx]').forEach(function (n) {
-    n.onclick = function () { mvSuaSx(n.getAttribute('data-mvsx')); };
+  mvGanNutSx(b);
+  b.querySelectorAll('[data-mvloc]').forEach(function (n) {
+    n.onclick = function () { MV.loc = n.getAttribute('data-mvloc'); mvVe(); };
   });
+  /* Gõ tìm chỉ vẽ lại ĐÚNG khối danh sách, không vẽ lại cả màn: vẽ lại cả
+     màn thì ô nhập bị dựng mới và con trỏ nhảy ra ngoài sau mỗi ký tự. */
+  var oT = document.getElementById('mvTim');
+  if (oT) {
+    oT.oninput = function () {
+      MV.tim = oT.value || '';
+      var kh = document.getElementById('mvDsSp');
+      if (!kh) return;
+      kh.innerHTML = mvDsSpHtml(ds);
+      mvGanNutSx(kh);
+    };
+  }
   b.querySelectorAll('[data-mvng]').forEach(function (n) {
     n.onclick = function () { mvXemNgay(n.getAttribute('data-mvng')); };
   });
@@ -11535,10 +11651,66 @@ function mvChuMoc(d) {
     (d.dong_bo_luc ? ' · đồng bộ ' + h(String(d.dong_bo_luc).slice(11, 16)) : '');
 }
 
+function mvGanNutSx(root) {
+  root.querySelectorAll('[data-mvsx]').forEach(function (n) {
+    n.onclick = function () { mvSuaSx(n.getAttribute('data-mvsx')); };
+  });
+}
+
 function mvO(nhan, so, mau) {
   return '<div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:9px 10px;text-align:center">' +
     '<div style="font-size:11px;color:#9ca3af">' + h(nhan) + '</div>' +
     '<b style="font-size:17px;color:' + mau + '">' + money(so) + '</b></div>';
+}
+
+/* ---------- Chip lọc và ô tìm nhanh (anh Việt 18/08/2026) ----------
+
+Mùa trung thu này bảng đã 19 dòng và còn dài thêm mỗi lần thêm món. Cuộn hết
+bảng để tìm một mã, giữa lúc đang có khách trên điện thoại, là chậm.
+
+Bốn chip em chọn đúng bốn câu sales hỏi bảng này, xếp theo mức gấp:
+  BÁN LỐ trước nhất  - đã có đơn không giao được, phải gọi khách NGAY
+  SẮP HẾT            - còn dưới 10 phần trăm, cần chốt đợt hàng mới
+  CÒN BÁN            - danh sách để chào khách
+  THEO HỘP           - bánh chỉ làm theo hộp, xem để bếp biết phải làm bao nhiêu
+
+Chip nào không có mã nào thì ẩn hẳn, để hàng chip không bao giờ dài quá màn. */
+var MV_NGUONG_SAP_HET = 10;   /* phần trăm, khớp NGUONG_CANH_BAO bên mua_vu.py */
+
+function mvNhomCua(x) {
+  if (x.khong_tran) return 'hop';
+  var con = x.co_the_ban || 0;
+  if (con < 0) return 'lo';
+  var sx = x.san_xuat || 0;
+  if (sx > 0 && (con * 100 / sx) < MV_NGUONG_SAP_HET) return 'het';
+  if (sx <= 0 && con <= 0) return 'het';
+  return 'con';
+}
+
+/* Bán lố lên đầu, rồi sắp hết, rồi còn bán, cuối cùng là bánh theo hộp.
+   Trong cùng nhóm thì mã ít còn lại nhất lên trước. Trước 18/08 bảng xếp
+   theo thứ tự dòng trong cơ sở dữ liệu, tức là không theo thứ tự nào cả. */
+var MV_THU_TU = { lo: 0, het: 1, con: 2, hop: 3 };
+
+function mvSapXep(ds) {
+  return (ds || []).slice().sort(function (a, b) {
+    var ta = MV_THU_TU[mvNhomCua(a)], tb = MV_THU_TU[mvNhomCua(b)];
+    if (ta !== tb) return ta - tb;
+    return (a.co_the_ban || 0) - (b.co_the_ban || 0);
+  });
+}
+
+function mvKhop(x, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return ((x.ten_banh || '') + ' ' + (x.ma_hang || '') + ' ' + (x.nhan_ngan || ''))
+    .toLowerCase().indexOf(q) >= 0;
+}
+
+function mvLocDs(ds) {
+  var r = mvSapXep(ds).filter(function (x) { return mvKhop(x, MV.tim); });
+  if (MV.loc !== 'all') r = r.filter(function (x) { return mvNhomCua(x) === MV.loc; });
+  return r;
 }
 
 function mvVeSanPham(ds) {
@@ -11547,7 +11719,38 @@ function mvVeSanPham(ds) {
       '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bấm Thêm sản phẩm để đặt số lượng sản xuất, ' +
       'hoặc bấm Đồng bộ để máy tự kéo về từ đơn Pancake.</div></div>';
   }
-  return '<div class="card">' + ds.map(function (x) {
+  var dem = { all: ds.length, lo: 0, het: 0, con: 0, hop: 0 };
+  ds.forEach(function (x) { dem[mvNhomCua(x)]++; });
+  var CHIP = [
+    ['all', 'Tất cả', '#101828'],
+    ['lo', 'Bán lố', '#b3261e'],
+    ['het', 'Sắp hết', '#b45309'],
+    ['con', 'Còn bán', '#0a8a4a'],
+    ['hop', 'Theo hộp', '#7c3aed']
+  ];
+  return '<div style="display:flex;gap:6px;overflow-x:auto;padding:0 2px 9px">' +
+    CHIP.map(function (c) {
+      if (!dem[c[0]] && c[0] !== 'all') return '';
+      var on = MV.loc === c[0];
+      return '<button data-mvloc="' + c[0] + '" style="flex:0 0 auto;border:1.5px solid ' +
+        (on ? c[2] : '#e5e7eb') + ';background:' + (on ? c[2] : '#fff') + ';color:' +
+        (on ? '#fff' : c[2]) + ';border-radius:999px;padding:6px 13px;font-size:12px;font-weight:800">' +
+        h(c[1]) + ' ' + dem[c[0]] + '</button>';
+    }).join('') + '</div>' +
+    '<div style="padding:0 2px 10px">' +
+    '<input id="mvTim" placeholder="Tìm theo tên bánh, mã hàng hoặc nhãn" value="' + h(MV.tim) +
+    '" style="width:100%;box-sizing:border-box;border:1px solid #d0d5dd;border-radius:10px;' +
+    'padding:11px 12px;font-size:15px;background:#fff;color:#101828"></div>' +
+    '<div id="mvDsSp">' + mvDsSpHtml(ds) + '</div>';
+}
+
+function mvDsSpHtml(ds) {
+  var loc = mvLocDs(ds);
+  if (!loc.length) {
+    return '<div class="emp"><div class="e1">🔍</div><div>Không có mã nào khớp.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bỏ bớt điều kiện lọc hoặc xoá ô tìm.</div></div>';
+  }
+  return '<div class="card">' + loc.map(function (x) {
     var con = x.co_the_ban || 0;
     /* Bánh chỉ làm theo hộp thì không có trần riêng, nên không có chuyện
        "bán lố": trần thật của nó nằm ở dòng cái hộp. */
@@ -12738,7 +12941,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '209';
+var APPVER = '210';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
