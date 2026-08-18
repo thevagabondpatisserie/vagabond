@@ -1277,7 +1277,13 @@ async function mvNapLai() {
   MV.data = d;
   /* Số không đổi thì không vẽ lại. Vẽ lại mỗi 30 giây mà không có gì mới
      chỉ làm màn giật và làm mất chỗ người ta đang đọc. */
-  if (dau === MV_DAU) return;
+  if (dau === MV_DAU) {
+    /* Số không đổi thì không vẽ lại cả màn, nhưng vẫn phải nhích giờ đồng
+       bộ, để nhìn là biết hệ đang chạy chứ không phải đang chết. */
+    var nMoc = document.getElementById('mvMoc');
+    if (nMoc) nMoc.innerHTML = mvChuMoc(d);
+    return;
+  }
   MV_DAU = dau;
   mvVe();
 }
@@ -1307,9 +1313,8 @@ function mvVe() {
     mvO('Sản xuất', tongSx, '#374151') + mvO('Đã nhận', tongDat, '#b45309') +
     mvO('Còn bán', tongCon, tongCon < 0 ? '#b3261e' : '#0a8a4a') +
     '</div>' +
-    '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
-    h(d.ten_mua) + ' · ' + mvNgay(d.tu_ngay) + ' đến ' + mvNgay(d.den_ngay) +
-    (d.dong_bo_luc ? ' · đồng bộ ' + h(String(d.dong_bo_luc).slice(11, 16)) : '') + '</div>' +
+    '<div id="mvMoc" style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
+    mvChuMoc(d) + '</div>' +
     '<div style="display:flex;gap:7px;margin-bottom:10px">' +
     [['sp', 'Sản phẩm'], ['lich', 'Lịch tháng'], ['dot', 'Đợt hàng'], ['dm', 'Định mức']].map(function (x) {
       var on = MV.xem === x[0];
@@ -1359,6 +1364,14 @@ function mvVe() {
     n.onclick = function () { mvXoaDm(n.getAttribute('data-hop'), n.getAttribute('data-banh')); };
   });
   document.getElementById('mvSoat').onclick = mvSoatTay;
+}
+
+/* Dòng mốc tách riêng ra hàm vì hai nơi dùng: lần vẽ đầu, và nhịp tự làm
+   mới khi số không đổi. Nhịp mà không đụng vào dòng này thì giờ đồng bộ
+   đứng yên hàng chục phút, và người nhìn sẽ tưởng hệ chết. */
+function mvChuMoc(d) {
+  return h(d.ten_mua) + ' · ' + mvNgay(d.tu_ngay) + ' đến ' + mvNgay(d.den_ngay) +
+    (d.dong_bo_luc ? ' · đồng bộ ' + h(String(d.dong_bo_luc).slice(11, 16)) : '');
 }
 
 function mvO(nhan, so, mau) {
