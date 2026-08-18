@@ -1155,6 +1155,52 @@ if _sh:
 	la("khong doc ra viet tat thi bo han phan do",
 	   _sh("2026-08-18", ""), "20260818/HDMB/VGB")
 
+# --- Cau chu Dieu 2: CHO VUA VO KHI NGHIEM THU v215 ---
+#
+# Cau "Ben A thanh toan 100% gia tri Hop dong" co dau phan tram khong duoc
+# thoat, nen Python doc "% g" thanh mot o dinh dang va nem TypeError. Ca to
+# hop dong tra ve 500. Bo kiem cu khong bat duoc vi khong ca nao dung tay
+# to voi coc bang 0 - no chi soi chuoi trong ma nguon chu khong CHAY.
+_ns_hd2 = dict(_ns_hd)
+_ns_hd2["flt"] = lambda x: float(x or 0)
+_ns_hd2["cint"] = lambda x: int(float(x or 0))
+_ns_hd2["_tien_vn"] = lambda v: "{:,.0f}".format(float(v or 0)).replace(",", ".")
+_ns_hd2["_chu_so_tien"] = lambda v: "(bang chu)"
+_m2 = re.search(r"^def _so_chu\(.*?(?=^def |^@|\Z)", _hdp_src, re.S | re.M)
+if _m2:
+	exec(compile(_m2.group(0), "hop_dong_pdf:_so_chu", "exec"), _ns_hd2, _ns_hd2)
+_m3 = re.search(r"^def cau_dieu_2\(.*?(?=^def |^@|\Z)", _hdp_src, re.S | re.M)
+la("Dieu 2 tach thanh phep THUAN kiem duoc", bool(_m3), True)
+if _m3:
+	exec(compile(_m3.group(0), "hop_dong_pdf:cau_dieu_2", "exec"), _ns_hd2, _ns_hd2)
+	_cd2 = _ns_hd2["cau_dieu_2"]
+	# Ba nhanh deu phai DUNG DUOC, khong nem loi.
+	for _pt, _nhan in ((0, "khong coc"), (50, "coc mot nua"), (100, "tra du truoc")):
+		try:
+			_ra = _cd2(24750000, _pt)
+			# Chi can DUNG DUOC va ra mot cau co nghia. Bay o day la loi
+			# dinh dang chuoi, no nem TypeError chu khong tra cau sai.
+			_ok = bool(_ra) and "Bên A thanh toán" in _ra
+		except Exception as _e:
+			_ra, _ok = str(_e), False
+		la("Dieu 2 dung duoc khi %s" % _nhan, _ok, True)
+	def _thu_d2(tong, pt, chua):
+		"""Goi cau_dieu_2 va tra ve co chua duoc chuoi khong. Nem loi thi
+		bao HONG chu khong lam do ca bo kiem."""
+		try:
+			return all(c in _cd2(tong, pt) for c in chua)
+		except Exception:
+			return False
+
+	la("khong chia dot thi noi tra mot lan 100%",
+	   _thu_d2(1000, 0, ["100% giá trị Hợp đồng"]), True)
+	la("co chia dot thi noi dot 01 va dot 02",
+	   _thu_d2(1000, 50, ["Đợt 01", "Đợt 02"]), True)
+	# So tien hai dot in ra phai la so DA CHIA, khong phai tong.
+	la("dot 1 in dung so da chia", _thu_d2(1000, 50, ["500 VNĐ"]), True)
+	# _html phai goi phep chung, khong dung mot ban chep thu hai.
+	la("_html dung chung phep Dieu 2", "cau_dieu_2(d.get(\"gia_tri\")" in _hdp_src, True)
+
 # --- To phap ly: dung tieu de va dung can cu ---
 la("tieu de la hop dong mua ban hang hoa", "HỢP ĐỒNG MUA BÁN HÀNG HÓA" in _hdp_src, True)
 la("khong con goi la hop dong dich vu", "HỢP ĐỒNG DỊCH VỤ" in _hdp_src, False)
