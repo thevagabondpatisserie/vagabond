@@ -496,8 +496,8 @@ def _html(name):
 		"Thành phố Hồ Chí Minh, %s</p>" % _ngay_vn(d.get("ngay_ky") or nowdate())
 	)
 	ra.append(
-		'<table style="width:100%;margin-top:6px;font-size:12px;page-break-inside:avoid">'
-		'<tr><td style="width:50%;text-align:center;vertical-align:top">'
+		'<table style="width:100%%;margin-top:6px;font-size:12px;page-break-inside:avoid">'
+		'<tr><td style="width:50%%;text-align:center;vertical-align:top">'
 		"<b>ĐẠI DIỆN BÊN A</b><br><i>(Ký, ghi rõ họ tên và đóng dấu)</i>"
 		'<div style="height:78px"></div>%s</td>'
 		'<td style="width:50%%;text-align:center;vertical-align:top">'
