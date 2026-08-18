@@ -1249,6 +1249,194 @@ def tim_khach(tim=None, so_dong=60):
 	)
 
 
+# ------------------------------------------------- tao khach tu to bao gia
+
+# Anh Viet 18/08/2026: "khach hang nhan bao gia co khi la khach hang moi thi
+# sao em, dau co trong he thong dau, em de xuat cho nay xem lam sao, hay la co
+# nut tao khach hang cho Loan Anh tao duoc khong?"
+#
+# Dung la mot lo hong that trong luong: to bao gia cho phep de trong o Khach
+# hang - va nen the, vi bao gia thi gui cho ai cung duoc - nhung buoc CHOT
+# THANH HOP DONG lai bat buoc phai co ho so khach, vi hop dong con phai gan
+# hoa don va theo doi cong no. Truoc hom nay khong co duong nao di tu cai
+# thu nhat sang cai thu hai ma khong bo app ra mo Desk.
+#
+# Ba dieu anh Viet chot 18/08/2026:
+#   trung ma so thue  gan luon vao khach cu va bao ro, khong tao them dong
+#   nhom khach        Commercial
+#   dat o dau         ca trong o chon khach, ca o buoc chot hop dong
+
+NHOM_KHACH_MOI = "Commercial"
+
+
+def _chuan_mst(s):
+	"""Ma so thue ve dang de so sanh: bo dau cach, dau gach, dau cham. THUAN.
+
+	Nguoi go tay hay them dau gach o ma so thue don vi truc thuoc, kieu
+	"0314693309-001". Hai cach go cua cung mot ma so phai coi la mot, neu
+	khong thi phep do trung thanh vo dung.
+	"""
+	return "".join(c for c in str(s or "") if c.isdigit())
+
+
+def _tim_theo_mst(mst):
+	"""Cac khach dang co cung ma so thue. Tra ve danh sach, co the rong."""
+	so = _chuan_mst(mst)
+	if not so:
+		return []
+	# Loc tho o may chu roi so chinh xac o day: cot tax_id tren he go moi
+	# kieu, khong the LIKE thang duoc.
+	ds = frappe.get_all(
+		"Customer",
+		filters={"tax_id": ["like", "%%%s%%" % so[:10]]},
+		fields=["name", "customer_name", "tax_id", "customer_group", "disabled"],
+		limit_page_length=50,
+	)
+	return [d for d in ds if _chuan_mst(d.get("tax_id")) == so]
+
+
+@frappe.whitelist()
+def xem_truoc_tao_khach(name):
+	"""To nay tao khach duoc chua, va tao ra se thanh cai gi.
+
+	Bay het ra TRUOC khi bam, vi tao mot ho so khach la them mot dong vao
+	so 43.220 khach dang co - va dong rac thi khong ai di don.
+	"""
+	_quyen()
+	doc = frappe.get_doc(DT, name)
+	ten = (doc.ten_khach or "").strip()
+	mst = (doc.ma_so_thue or "").strip()
+	trung = _tim_theo_mst(mst)
+	# Trung TEN thi chi canh bao chu khong chan: hai cong ty khac ma so thue
+	# van co the trung ten, va nguoi bam phai la nguoi quyet.
+	gan_giong = []
+	if ten:
+		gan_giong = [
+			d for d in frappe.get_all(
+				"Customer",
+				filters={"customer_name": ["like", "%%%s%%" % ten[:30]]},
+				fields=["name", "customer_name", "tax_id"],
+				limit_page_length=10,
+			)
+			if d["name"] not in {x["name"] for x in trung}
+		]
+	return {
+		"da_gan": doc.khach_hang or "",
+		"ten_khach": ten,
+		"ma_so_thue": mst,
+		"dia_chi": doc.dia_chi or "",
+		"nguoi_lien_he": doc.nguoi_lien_he or "",
+		"chuc_vu": doc.chuc_vu or "",
+		"dien_thoai": doc.dien_thoai or "",
+		"email": doc.email or "",
+		"nhom": NHOM_KHACH_MOI,
+		"trung_mst": trung,
+		"gan_giong": gan_giong[:5],
+		"thieu_ten": 0 if ten else 1,
+	}
+
+
+@frappe.whitelist()
+def tao_khach(name):
+	"""Tao ho so khach tu thong tin da go tren to bao gia, roi gan vao to.
+
+	Do trung theo MA SO THUE truoc. Ma so thue la duy nhat theo luat, nen
+	trung ma so nghia la cung mot phap nhan: luc do gan vao ho so cu chu
+	KHONG tao them dong moi.
+	"""
+	_quyen(sua=True)
+	doc = frappe.get_doc(DT, name)
+	if doc.khach_hang and frappe.db.exists("Customer", doc.khach_hang):
+		return {
+			"khach": doc.khach_hang,
+			"moi": 0,
+			"ghi_chu": "Tờ này đã gắn khách %s rồi, em không tạo thêm." % doc.khach_hang,
+		}
+	ten = (doc.ten_khach or "").strip()
+	if not ten:
+		frappe.throw(
+			"Chưa có tên công ty khách trên tờ báo giá. Anh chị bấm Sửa báo giá, "
+			"điền ô Tên công ty khách rồi tạo lại nhé."
+		)
+
+	trung = _tim_theo_mst(doc.ma_so_thue)
+	if trung:
+		kh = trung[0]["name"]
+		frappe.db.set_value(DT, name, "khach_hang", kh)
+		frappe.db.commit()
+		return {
+			"khach": kh,
+			"moi": 0,
+			"ghi_chu": "Mã số thuế %s đã có sẵn hồ sơ khách %s. Em gắn tờ này "
+			"vào hồ sơ đó thay vì tạo thêm một dòng trùng."
+			% (doc.ma_so_thue, trung[0].get("customer_name") or kh),
+		}
+
+	nhom = NHOM_KHACH_MOI
+	if not frappe.db.exists("Customer Group", nhom):
+		nhom = frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
+	kh = frappe.get_doc({
+		"doctype": "Customer",
+		"customer_name": ten,
+		"customer_type": "Company",
+		"customer_group": nhom,
+		"tax_id": (doc.ma_so_thue or "").strip() or None,
+		"mobile_no": (doc.dien_thoai or "").strip() or None,
+	})
+	kh.insert(ignore_permissions=True)
+
+	# Dia chi va nguoi lien he la hai doctype rieng cua ERPNext, khong phai
+	# hai o tren Customer. Thieu chung thi lan sau mo lai ho so khach se
+	# trong tron, va nguoi ta lai go tay lan nua.
+	if (doc.dia_chi or "").strip():
+		try:
+			dc = frappe.get_doc({
+				"doctype": "Address",
+				"address_title": ten[:100],
+				"address_type": "Billing",
+				"address_line1": (doc.dia_chi or "").strip()[:240],
+				"city": "TP.HCM",
+				"country": "Vietnam",
+				"is_primary_address": 1,
+				"links": [{"link_doctype": "Customer", "link_name": kh.name}],
+			})
+			dc.insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "bao_gia: tao dia chi khach")
+
+	if (doc.nguoi_lien_he or "").strip():
+		try:
+			cum = (doc.nguoi_lien_he or "").strip().split()
+			lh = frappe.get_doc({
+				"doctype": "Contact",
+				"first_name": " ".join(cum[:-1]) or cum[0],
+				"last_name": cum[-1] if len(cum) > 1 else "",
+				"designation": (doc.chuc_vu or "").strip() or None,
+				"is_primary_contact": 1,
+				"links": [{"link_doctype": "Customer", "link_name": kh.name}],
+			})
+			if (doc.dien_thoai or "").strip():
+				lh.append("phone_nos", {
+					"phone": doc.dien_thoai.strip(), "is_primary_mobile_no": 1
+				})
+			if (doc.email or "").strip():
+				lh.append("email_ids", {
+					"email_id": doc.email.strip(), "is_primary": 1
+				})
+			lh.insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "bao_gia: tao nguoi lien he khach")
+
+	frappe.db.set_value(DT, name, "khach_hang", kh.name)
+	frappe.db.commit()
+	return {
+		"khach": kh.name,
+		"moi": 1,
+		"ghi_chu": "Đã tạo hồ sơ khách %s, nhóm %s, và gắn vào tờ báo giá này. "
+		"Giờ chốt thành hợp đồng được rồi." % (kh.name, nhom),
+	}
+
+
 @frappe.whitelist()
 def thong_tin_khach(khach):
 	_quyen()
