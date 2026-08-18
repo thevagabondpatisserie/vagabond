@@ -339,16 +339,41 @@ function srvErr(status, body) {
   e.status = status; e.exc_type = exc;
   return e;
 }
+/* Hạn giờ cho MỌI lời gọi máy chủ (anh Việt báo 18/08/2026).
+
+   Triệu chứng: bấm Đồng bộ Pancake thì màn đứng im ở khung chờ, mãi mãi.
+   Đọc bản ghi thì thấy máy chủ chạy xong cả ba lần anh bấm, mà màn vẫn nằm
+   ở khung chờ. Nguyên nhân: fetch KHÔNG có hạn giờ mặc định, nên một lần
+   mạng chập giữa chừng là lời hứa treo vĩnh viễn, không thành công cũng
+   không thất bại - và mọi màn hình chờ nó đều kẹt theo, không có đường ra.
+
+   60 giây: đủ dài cho việc nặng thật như xuất hoá đơn hàng loạt, đủ ngắn
+   để người dùng không ngồi nhìn đồng hồ cát không biết chuyện gì. */
+var API_HAN_GIO = 60000;
+
 async function rawCall(method, args) {
-  var r;
+  var ctl = window.AbortController ? new AbortController() : null;
+  var hen = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) { } }, API_HAN_GIO) : null;
+  var r, txt;
   try {
     r = await fetch('/api/method/' + method, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': csrfTok() },
-      body: JSON.stringify(args || {})
+      body: JSON.stringify(args || {}),
+      signal: ctl ? ctl.signal : undefined
     });
-  } catch (ne) { throw new Error('Mất kết nối mạng, kiểm tra rồi thử lại'); }
-  var txt = await r.text();
+    /* Đọc thân trả lời cũng nằm trong hạn giờ: máy chủ trả đầu mà nghẽn
+       giữa thân thì vẫn là treo. */
+    txt = await r.text();
+  } catch (ne) {
+    if (ctl && ctl.signal.aborted) {
+      throw new Error('Máy chủ chưa trả lời sau ' + Math.round(API_HAN_GIO / 1000) +
+        ' giây. Kiểm tra mạng rồi bấm lại; vẫn vậy thì báo em kiểm tra máy chủ.');
+    }
+    throw new Error('Mất kết nối mạng, kiểm tra rồi thử lại');
+  } finally {
+    if (hen) clearTimeout(hen);
+  }
   if (!r.ok) throw srvErr(r.status, txt);
   var j = {};
   try { j = JSON.parse(txt); } catch (x) { }
@@ -11348,20 +11373,82 @@ async function mvLapMua() {
   } catch (e) { busy(false); baoTin((e && e.message) || 'Lập mùa lỗi', 'Không lập được'); }
 }
 
+/* ---------- Mở màn và nhịp tự làm mới (anh Việt báo 18/08/2026) ----------
+
+Trước 18/08 màn này ĐỢI cả lượt kéo Pancake mới vẽ ra được. Anh bấm Đồng bộ
+Pancake thì màn đứng im ở khung chờ, mãi mãi. Đọc bản ghi thì thấy máy chủ
+chạy xong cả ba lần anh bấm, mà màn vẫn nằm ở khung chờ: lượt kéo đi ra
+Internet, một lần mạng chập giữa chừng là lời hứa treo và màn kẹt theo.
+
+Nay tách hẳn hai việc. Mở màn thì VẼ NGAY bằng số trong cơ sở dữ liệu, nhanh
+và không bao giờ treo được. Việc kéo Pancake giao cho hậu trường, xong thì
+nhịp dưới đây tự nạp lại. Máy chủ cũng tự kéo mỗi phút, nên số vẫn mới kể cả
+lúc không ai mở màn. */
+var MV_NHIP = null;
+var MV_GIAY = 30;   /* anh Việt chốt: xin đồng bộ 30 giây một lần khi đang mở màn */
+var MV_DAU = '';    /* dấu của lần vẽ trước, để không vẽ lại khi số không đổi */
+
 async function scrMuaVu() {
-  frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đồng bộ đơn Pancake cả mùa...</div></div>');
-  try { MV.data = await api('vagabond.mua_vu.dong_bo', { mua: MV.mua }); }
+  frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang mở bảng...</div></div>');
+  try { MV.data = await api('vagabond.mua_vu.bang', { mua: MV.mua }); }
   catch (e) {
-    /* Đồng bộ hỏng thì vẫn mở bảng bằng số cũ: sales còn nhìn được hạn mức
-       và số đã đặt lần trước, hơn là màn trắng. */
-    try { MV.data = await api('vagabond.mua_vu.bang', { mua: MV.mua }); }
-    catch (e2) {
-      return frame('Kiểm bánh theo mùa',
-        '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
-    }
-    toast('Chưa đồng bộ được Pancake, đang hiện số của lần trước.', 5000);
+    return frame('Kiểm bánh theo mùa',
+      '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
   }
+  MV_DAU = mvDau(MV.data);
   mvVe();
+  mvXin();
+  mvBatNhip();
+}
+
+function mvDau(d) {
+  try { return JSON.stringify([(d || {}).dong, (d || {}).lich, (d || {}).dot, (d || {}).dinh_muc]); }
+  catch (e) { return String(Math.random()); }
+}
+
+/* Còn đứng ở màn mùa vụ không. Nhịp phải tự tắt khi người ta đi chỗ khác,
+   nếu không nó chạy ngầm cả buổi và tốn pin điện thoại của các bạn. */
+function mvConODay() { return S.stack[S.stack.length - 1] === scrMuaVu; }
+
+function mvTatNhip() { if (MV_NHIP) { clearInterval(MV_NHIP); MV_NHIP = null; } }
+
+function mvBatNhip() {
+  mvTatNhip();
+  MV_NHIP = setInterval(function () {
+    if (!mvConODay()) return mvTatNhip();
+    mvXin();
+    setTimeout(mvNapLai, 7000);
+  }, MV_GIAY * 1000);
+}
+
+/* Xin máy chủ kéo Pancake. Trả về ngay, không đợi kéo xong. */
+async function mvXin() {
+  try { await api('vagabond.mua_vu.xin_dong_bo', { mua: MV.mua }); } catch (e) { }
+}
+
+async function mvNapLai() {
+  if (!mvConODay()) return mvTatNhip();
+  /* Đang mở hộp thoại thì để yên: vẽ lại giữa lúc người ta đang gõ số sản
+     xuất là cướp mất ô nhập của họ. */
+  if (document.querySelector('.sh')) return;
+  var d;
+  try { d = await api('vagabond.mua_vu.bang', { mua: MV.mua }); } catch (e) { return; }
+  if (!mvConODay() || document.querySelector('.sh')) return;
+  var dau = mvDau(d);
+  MV.data = d;
+  /* Số không đổi thì không vẽ lại. Vẽ lại mỗi 30 giây mà không có gì mới
+     chỉ làm màn giật và làm mất chỗ người ta đang đọc. */
+  if (dau === MV_DAU) return;
+  MV_DAU = dau;
+  mvVe();
+}
+
+/* Nút Đồng bộ Pancake: xin kéo rồi nạp lại hai nhịp. Không đợi, không treo. */
+async function mvSoatTay() {
+  toast('Đang kéo đơn Pancake về, số tự cập nhật trong ít giây.', 4000);
+  await mvXin();
+  setTimeout(mvNapLai, 7000);
+  setTimeout(mvNapLai, 16000);
 }
 
 function mvVe() {
@@ -11432,7 +11519,7 @@ function mvVe() {
   b.querySelectorAll('[data-mvdmxoa]').forEach(function (n) {
     n.onclick = function () { mvXoaDm(n.getAttribute('data-hop'), n.getAttribute('data-banh')); };
   });
-  document.getElementById('mvSoat').onclick = function () { go(scrMuaVu, true); };
+  document.getElementById('mvSoat').onclick = mvSoatTay;
 }
 
 function mvO(nhan, so, mau) {
@@ -12638,7 +12725,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '207';
+var APPVER = '208';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
