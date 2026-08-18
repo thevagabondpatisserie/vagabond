@@ -478,6 +478,18 @@ def chi_tiet(name=None):
 # la viec dung vao gia von, phai cho anh Viet duyet phuong an truoc.
 
 
+def _gio_hhmm(v):
+	"""Gio dang HH:MM. posting_time cua Frappe la timedelta hoac "9:33:00",
+	cat cung 5 ky tu thi ra "9:33:" - thua mot dau hai cham."""
+	t = str(v or "").strip()
+	if not t:
+		return ""
+	p = t.split(":")
+	if len(p) < 2:
+		return t[:5]
+	return "%02d:%02d" % (cint(p[0]), cint(p[1]))
+
+
 def _kho_phu_trach(nguoi=None):
 	"""Cac kho nguoi nay phu trach, doc tu o Kho phu trach tren User."""
 	nguoi = nguoi or frappe.session.user
@@ -494,9 +506,15 @@ def hang_chuyen_ve(so_ngay=14, kho=None):
 	"""
 	so_ngay = max(1, min(cint(so_ngay) or 14, 90))
 	cua_toi = _kho_phu_trach()
+	# Chua khai kho phu trach thi KHONG duoc truyen kho tuy y. Bo qua cho
+	# nay la ai chua khai cung xem duoc moi kho, tuc la man khoa nguoc: nguoi
+	# duoc khai thi bi gioi han, nguoi chua khai thi mo toang.
 	if kho:
-		if cua_toi and kho not in cua_toi:
-			frappe.throw("Kho này không nằm trong các kho bạn phụ trách.")
+		if kho not in cua_toi:
+			frappe.throw(
+				"Kho này không nằm trong các kho bạn phụ trách. Cần xem kho khác "
+				"thì báo anh Việt khai thêm ở màn Quản lý người dùng."
+			)
 		cua_toi = [kho]
 	if not cua_toi:
 		# Khong doan bua kho nao: tra rong kem loi nhac theo QT-24.
@@ -542,7 +560,7 @@ def hang_chuyen_ve(so_ngay=14, kho=None):
 			{
 				"ma": d["parent"],
 				"ngay": str(p["posting_date"]),
-				"gio": str(p["posting_time"] or "")[:5],
+				"gio": _gio_hhmm(p["posting_time"]),
 				"nguoi": p["owner"],
 				"ghi_chu": p.get("remarks") or "",
 				"kho_xuat": d.get("s_warehouse") or "",
