@@ -1603,7 +1603,38 @@ la("sua nguoi ky cung bo xung ho", "_bo_xung_ho(nguoi_ky_a)" in _than_sua, True)
 _than_goi = _bg2_src.split("def goi_y_hop_dong(")[1].split("\n@frappe")[0]
 la("may do san so hop dong", "so_goi_y" in _than_goi, True)
 la("tra ca viet tat de man hinh dung lai so", '"viet_tat"' in _than_goi, True)
-la("ben B lay tu cai dat chu khong lay Sales", "_ben_b()" in _than_goi, True)
+# Nghiem thu tren site that 18/08/2026: o "dai dien" trong Cai dat bao gia
+# dang ghi "Loan Anh / Sales Manager", nen do san tu do la do dung ten ban
+# Sales vao o ky - dung cai anh Viet cam. Gio do san tu HOP DONG GAN NHAT
+# da dien, khong co thi de trong.
+la("khong do ten nguoi ky ben B tu cai dat bao gia",
+   'b.get("dai_dien")' in _than_goi, False)
+la("nguoi ky ben B lay tu hop dong gan nhat",
+   "tabHop Dong Ban Hang" in _than_goi and "order by creation desc" in _than_goi, True)
+_than_ct = _hdp_src.split("def chi_tiet(")[1].split("\n@frappe")[0]
+la("to in khong lui ve dai dien cai dat nua",
+   '_bo_xung_ho(d["ben_b"].get("dai_dien"))' in _than_ct, False)
+la("o dai dien ben B in dung nguoi ky",
+   'b["dai_dien"] = (d.get("nguoi_ky_b") or "").strip()' in _than_html, True)
+if _ns_full:
+	# Cai dat co ten Sales, hop dong chua dien nguoi ky: to in ra KHONG
+	# duoc co ten do o bat cu cho nao.
+	_d_leak = dict(_HD_GIA)
+	_d_leak.update({"nguoi_ky_a": "Trang Phạm", "chuc_vu_ky_a": "Giám đốc",
+	                "nguoi_ky_b": "", "chuc_vu_ky_b": ""})
+	_d_leak["ben_b"] = dict(_HD_GIA["ben_b"])
+	_d_leak["ben_b"].update({"dai_dien": "Loan Anh", "chuc_vu": "Sales Manager"})
+	try:
+		_ns_full["chi_tiet"] = lambda name: _d_leak
+		_to_leak = _ns_full["_html"]("HDBH-TEST")
+	except Exception:
+		_to_leak = None
+	la("dung duoc to khi chua dien nguoi ky ben B", bool(_to_leak), True)
+	if _to_leak:
+		la("ten Sales khong lot vao to hop dong", "Loan Anh" in _to_leak, False)
+		la("chuc danh Sales khong lot vao to hop dong",
+		   "Sales Manager" in _to_leak, False)
+		la("cho nguoi ky trong thi in cham cham", "..........." in _to_leak, True)
 la("man hinh co phep dung so hop dong", "function bgSoHd(" in _bgjs_src, True)
 la("man hinh do san so vao o input", "bgSoHd(f.ngay_ky, g.viet_tat, g.loai)" in _bgjs_src, True)
 la("go tay roi thi may thoi de len", "tuDong = false" in _bgjs_src, True)
