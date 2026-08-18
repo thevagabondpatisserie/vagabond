@@ -1118,13 +1118,25 @@ _ns_hd.setdefault("getdate", None)
 _vt = _ns_hd.get("viet_tat_khach")
 if _vt:
 	la("bo cum loai hinh doanh nghiep", _vt("CÔNG TY TNHH M.O.I COSMETICS"), "MOI")
-	la("ten rieng dai thi lay chu cai dau", _vt("CÔNG TY TNHH PATISSERIE VAGABOND"), "PV")
+	# Anh Viet 18/08/2026 bat loi: *"cong ty SECOMM nhung may lai suggest
+	# la VAN"*. Thuat toan cu bo cum loai hinh xong con "TU VAN GIAI PHAP
+	# SECOMM", roi thay tu dau ngan va viet hoa nen tuong la ten viet tat
+	# san. Gio bo them cum nganh nghe, con dung mot tu thi lay nguyen tu do.
+	la("bo ca cum nganh nghe, giu ten rieng",
+	   _vt("CÔNG TY TNHH TƯ VẤN GIẢI PHÁP SECOMM"), "SECOMM")
+	la("ten rieng dai thi lay nguyen tu",
+	   _vt("CÔNG TY TNHH PATISSERIE VAGABOND"), "VAGABOND")
 	# Bay: "CO PHAN" va "CỔ PHẦN" phai la mot. Khong bo dau thi ra "CP" -
 	# tuc lay dung hai chu cua cai dang le phai bo di.
 	la("chu co dau van bi coi la cum loai hinh", _vt("CÔNG TY CỔ PHẦN PYRAMID"), "PYRAMID")
 	la("ten khong co cum loai hinh van doc duoc", _vt("Pyramid"), "PYRAMID")
 	la("ten rong thi tra rong chu khong bia", _vt(""), "")
-	la("nhieu tu thi ghep chu cai dau", _vt("CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ ABC"), "TMDVA")
+	la("cum nganh nghe khong lot vao viet tat",
+	   _vt("CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ ABC"), "ABC")
+	# Con nhieu tu rieng that thi moi ghep chu cai dau.
+	la("nhieu tu rieng thi ghep chu cai dau",
+	   _vt("JU YOUNG - ISU FUTURE GROW"), "JYIFG")
+	la("khong cat cut ten hai chu dau", _vt("CÔNG TY CP KFC VIỆT NAM"), "KFC")
 
 # --- Chia hai dot: hai so PHAI cong lai dung tong ---
 _ch = _ns_hd.get("chia_hai_dot")
@@ -1161,45 +1173,6 @@ if _sh:
 # thoat, nen Python doc "% g" thanh mot o dinh dang va nem TypeError. Ca to
 # hop dong tra ve 500. Bo kiem cu khong bat duoc vi khong ca nao dung tay
 # to voi coc bang 0 - no chi soi chuoi trong ma nguon chu khong CHAY.
-_ns_hd2 = dict(_ns_hd)
-_ns_hd2["flt"] = lambda x: float(x or 0)
-_ns_hd2["cint"] = lambda x: int(float(x or 0))
-_ns_hd2["_tien_vn"] = lambda v: "{:,.0f}".format(float(v or 0)).replace(",", ".")
-_ns_hd2["_chu_so_tien"] = lambda v: "(bang chu)"
-_m2 = re.search(r"^def _so_chu\(.*?(?=^def |^@|\Z)", _hdp_src, re.S | re.M)
-if _m2:
-	exec(compile(_m2.group(0), "hop_dong_pdf:_so_chu", "exec"), _ns_hd2, _ns_hd2)
-_m3 = re.search(r"^def cau_dieu_2\(.*?(?=^def |^@|\Z)", _hdp_src, re.S | re.M)
-la("Dieu 2 tach thanh phep THUAN kiem duoc", bool(_m3), True)
-if _m3:
-	exec(compile(_m3.group(0), "hop_dong_pdf:cau_dieu_2", "exec"), _ns_hd2, _ns_hd2)
-	_cd2 = _ns_hd2["cau_dieu_2"]
-	# Ba nhanh deu phai DUNG DUOC, khong nem loi.
-	for _pt, _nhan in ((0, "khong coc"), (50, "coc mot nua"), (100, "tra du truoc")):
-		try:
-			_ra = _cd2(24750000, _pt)
-			# Chi can DUNG DUOC va ra mot cau co nghia. Bay o day la loi
-			# dinh dang chuoi, no nem TypeError chu khong tra cau sai.
-			_ok = bool(_ra) and "Bên A thanh toán" in _ra
-		except Exception as _e:
-			_ra, _ok = str(_e), False
-		la("Dieu 2 dung duoc khi %s" % _nhan, _ok, True)
-	def _thu_d2(tong, pt, chua):
-		"""Goi cau_dieu_2 va tra ve co chua duoc chuoi khong. Nem loi thi
-		bao HONG chu khong lam do ca bo kiem."""
-		try:
-			return all(c in _cd2(tong, pt) for c in chua)
-		except Exception:
-			return False
-
-	la("khong chia dot thi noi tra mot lan 100%",
-	   _thu_d2(1000, 0, ["100% giá trị Hợp đồng"]), True)
-	la("co chia dot thi noi dot 01 va dot 02",
-	   _thu_d2(1000, 50, ["Đợt 01", "Đợt 02"]), True)
-	# So tien hai dot in ra phai la so DA CHIA, khong phai tong.
-	la("dot 1 in dung so da chia", _thu_d2(1000, 50, ["500 VNĐ"]), True)
-	# _html phai goi phep chung, khong dung mot ban chep thu hai.
-	la("_html dung chung phep Dieu 2", "cau_dieu_2(d.get(\"gia_tri\")" in _hdp_src, True)
 
 # --- DUNG THAT CA TO HOP DONG, khong chi soi chuoi ---
 #
@@ -1266,6 +1239,53 @@ except Exception as _e:
 	_ns_full = None
 	print("   (khong nap duoc hop_dong_pdf: %s)" % _e)
 la("nap duoc ca mo dun hop dong", _ns_full is not None, True)
+
+# --- Dieu 2: CHAY that ham chu khong soi chuoi ---
+#
+# Cau "Ben A thanh toan 100% gia tri Hop dong" co dau phan tram khong duoc
+# thoat, nen Python doc "% g" thanh mot o dinh dang va nem TypeError. Ca to
+# hop dong tra ve 500. Bo kiem cu khong bat duoc vi khong ca nao dung tay
+# to voi coc bang 0 - no chi soi chuoi trong ma nguon chu khong CHAY.
+#
+# Tu 18/08/2026 lay thang ham trong _ns_full (ca mo dun da nap) chu khong
+# exec rieng mot ham nua: cau_dieu_2 gio goi vi_en, _gach, _esc... nen tach
+# ra khoi mo dun la no thieu ban be va nem NameError, bo kiem bao HONG oan.
+la("Dieu 2 tach thanh phep THUAN kiem duoc",
+   bool(re.search(r"^def cau_dieu_2\(", _hdp_src, re.M)), True)
+if _ns_full:
+	_cd2 = _ns_full["cau_dieu_2"]
+	# Ba nhanh deu phai DUNG DUOC, khong nem loi.
+	for _pt, _nhan in ((0, "khong coc"), (50, "coc mot nua"), (100, "tra du truoc")):
+		try:
+			_ra = _cd2(24750000, _pt)
+			# Chi can DUNG DUOC va ra mot cau co nghia. Bay o day la loi
+			# dinh dang chuoi, no nem TypeError chu khong tra cau sai.
+			_ok = bool(_ra) and "Bên A thanh toán" in _ra
+		except Exception as _e:
+			_ra, _ok = str(_e), False
+		la("Dieu 2 dung duoc khi %s" % _nhan, _ok, True)
+
+	def _thu_d2(tong, pt, chua):
+		"""Goi cau_dieu_2 va tra ve co chua duoc chuoi khong. Nem loi thi
+		bao HONG chu khong lam do ca bo kiem."""
+		try:
+			return all(c in _cd2(tong, pt) for c in chua)
+		except Exception:
+			return False
+
+	la("khong chia dot thi noi tra mot lan 100%",
+	   _thu_d2(1000, 0, ["100% giá trị Hợp đồng"]), True)
+	la("co chia dot thi noi dot 01 va dot 02",
+	   _thu_d2(1000, 50, ["Đợt 01", "Đợt 02"]), True)
+	# So tien hai dot in ra phai la so DA CHIA, khong phai tong.
+	la("dot 1 in dung so da chia", _thu_d2(1000, 50, ["500 VNĐ"]), True)
+# _html phai goi phep chung, khong dung mot ban chep thu hai.
+# _html phai goi PHEP CHUNG cau_dieu_2, khong chep lai cau lan thu hai, va
+# so tien dua vao phai la gia tri hop dong chu khong phai con so nao khac.
+_than_html = _hdp_src.split("def _html(")[1].split("\ndef ")[0]
+la("_html dung chung phep Dieu 2", "cau_dieu_2(tong, pt1, n1, n2)" in _than_html, True)
+la("Dieu 2 lay dung gia tri hop dong", 'tong = flt(d.get("gia_tri"))' in _than_html, True)
+
 
 if _ns_full:
 	_HD_GIA = {
@@ -1342,7 +1362,13 @@ la("co o ky hai ben", "ĐẠI DIỆN BÊN A" in _hdp_src and "ĐẠI DIỆN BÊN
 la("so tien co dong bang chu", "_chu_so_tien" in _hdp_src, True)
 
 # --- Phu luc: bao gia da chot phai nam trong CUNG mot tep PDF ---
-_than_pdf = _hdp_src.split("def xuat_pdf(")[1].split("\ndef ")[0]
+# Tu 18/08/2026 khoi phu luc tach thanh ham rieng _khoi_phu_luc (de con cho
+# nhet ban scan khach da ky vao). Bo kiem phai doc ca hai phan, khong thi no
+# soi mot mieng nguon da rong ruot roi bao dat.
+_than_pdf = (
+	_hdp_src.split("def _khoi_phu_luc(")[1].split("\ndef ")[0]
+	+ _hdp_src.split("def xuat_pdf(")[1].split("\ndef ")[0]
+)
 la("PDF gom phu luc", "PHỤ LỤC 01" in _than_pdf, True)
 la("phu luc bat dau o trang moi", "page-break-before:always" in _than_pdf, True)
 la("phu luc dung dung to bao gia that", "mod_bg._html(bg)" in _than_pdf, True)
@@ -1441,6 +1467,177 @@ _than_chot = _bgjs_src.split("async function bgChotHopDong(")[1].split("\n/* ---
 la("chot hop dong thieu khach thi hoi tao", "bgTaoKhach(d.name, false)" in _than_chot, True)
 la("khong con bo do bang mot cau bao loi",
    "Bấm Sửa báo giá, chọn lại ô Khách hàng rồi quay lại nhé" in _than_chot, False)
+
+
+
+# =====================================================================
+# Nhom 27. Sua the thuc hop dong va man tao hop dong (anh Viet 18/08/2026)
+# =====================================================================
+print("27. The thuc hop dong va man tao hop dong")
+
+_ht_src2 = open("vagabond/public/js/bep/07-hop-thoai.js", encoding="utf-8").read()
+_khjs_src = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_hdjson = open(
+	"vagabond/vagabond/doctype/hop_dong_ban_hang/hop_dong_ban_hang.json",
+	encoding="utf-8",
+).read()
+
+# --- 1. Bo dau gach dai: phai CHAN O MOT CHO, khong don tay tung o ---
+#
+# Anh Viet: *"Cam dung em-dash: thay toan bo dau em-dash thanh dau gach
+# ngang tieu chuan cho toan bo van ban"*. Ma nguon sach san roi, cai nguy
+# hiem la chu NGUOI GO tren bao gia. Nen phep don phai nam trong _esc, la
+# cua ngo duy nhat moi chu di qua truoc khi vao to in.
+if _ns_full:
+	_don = _ns_full["don_dau_dai"]
+	la("doi en dash thanh gach thuong", _don("A – B"), "A - B")
+	la("doi em dash thanh gach thuong", _don("A — B"), "A - B")
+	la("doi dau tru toan hoc thanh gach thuong", _don("A − B"), "A - B")
+	la("doi gach khong ngat dong", _don("A ‑ B"), "A - B")
+	la("gach thuong thi giu nguyen", _don("A - B"), "A - B")
+	la("rong thi ra rong chu khong nem loi", _don(None), "")
+	# Va phai chay THAT qua _esc, khong phai chi co ham nam do.
+	la("_esc don luon dau gach dai", _ns_full["_esc"]("Gói A – Gói B"),
+	   "Gói A - Gói B")
+	la("_esc van thoat the HTML", _ns_full["_esc"]("<b>&</b>"),
+	   "&lt;b&gt;&amp;&lt;/b&gt;")
+la("to bao gia dung chung phep don gach", "don_dau_dai" in _bg2_src, True)
+# Ma nguon cua ca hai tep khong duoc con dau nao loai nay.
+for _f in ("vagabond/hop_dong_pdf.py", "vagabond/bao_gia.py"):
+	_t = open(_f, encoding="utf-8").read()
+	la("ma nguon %s khong con dau gach dai" % _f.split("/")[-1],
+	   ("–" in _t) or ("—" in _t), False)
+
+# --- 2. Font Arial cho ca hop dong lan phu luc ---
+la("hop dong khai font Arial", 'FONT_TO = "Arial' in _hdp_src, True)
+la("to bao gia cung khai font Arial", 'PHONG = "Arial' in _bg2_src, True)
+# Arial phai duoc ap o KHUNG NGOAI cua tep PDF, khong chi o vai the con:
+# wkhtmltopdf khong thua ke font vao bang neu khong khai het.
+_khung = _hdp_src.split("def xuat_pdf(")[1].split("\ndef ")[0]
+la("khung PDF ap font cho moi the",
+   "body,td,th,div,p,span,b,i,table{font-family:%s}" in _khung, True)
+if _ns_full:
+	# Do lieu THU phai co san dau gach dai o dung cho nguoi ta hay go: ten
+	# mon, dia diem giao, ghi chu. Do lieu sach thi ca kiem "khong con dau
+	# gach dai" luon dat ma khong chung minh duoc gi.
+	_to_a = None
+	try:
+		_d_dash = dict(_HD_GIA)
+		_d_dash.update({
+			"dia_diem_giao": "307/1 Nguyễn Văn Trỗi – Phú Nhuận",
+			"ten": "Gói tea break — 50 khách",
+			"dong_bao_gia": [
+				{"ten_mon": "Bánh ngọt – set 3 vị", "dvt": "Gói", "so_luong": 1,
+				 "don_gia": 25720000, "thanh_tien": 25720000}
+			],
+		})
+		_ns_full["chi_tiet"] = lambda name: _d_dash
+		_to_a = _ns_full["_html"]("HDBH-TEST")
+	except Exception:
+		_to_a = None
+	la("dung duoc to sau khi doi the thuc", bool(_to_a), True)
+	if _to_a:
+		la("to in ra khong con dau gach dai",
+		   ("–" in _to_a) or ("—" in _to_a), False)
+		# Chu van phai con nguyen, chi doi rieng dau gach.
+		la("chu quanh dau gach van giu nguyen",
+		   "Bánh ngọt - set 3 vị" in _to_a, True)
+		la("dia diem giao doi dung dau gach",
+		   "Nguyễn Văn Trỗi - Phú Nhuận" in _to_a, True)
+		la("to in ra co font Arial", "Arial" in _to_a, True)
+
+# --- 3. Song ngu: tieng Anh nam ngay duoi tieng Viet, in nghieng ---
+la("co phep ghep cap Viet Anh", "def vi_en(" in _hdp_src, True)
+la("phan tieng Anh in nghieng", "font-style:italic" in _hdp_src, True)
+if _ns_full and _to_a:
+	la("co du sau ARTICLE tieng Anh",
+	   sum(1 for _i in range(1, 7) if ("ARTICLE %d:" % _i) in _to_a), 6)
+	for _c in ("SOCIALIST REPUBLIC OF VIETNAM", "GOODS SALE AND PURCHASE CONTRACT",
+	           "FOR AND ON BEHALF OF PARTY A", "FOR AND ON BEHALF OF PARTY B"):
+		la("to co cau tieng Anh %s" % _c[:22], _c in _to_a, True)
+
+# --- 4. Khoi chu ky: khong Ms./Mr., khong lay ten Sales ---
+#
+# Anh Viet: *"Khoi chu ky cuoi hop dong tuyet doi khong duoc ghi Ms./Mr. va
+# khong duoc lay mac dinh ten cua ban Sales"*.
+if _ns_full:
+	_bo = _ns_full["_bo_xung_ho"]
+	la("bo Ms. co dau cham", _bo("Ms. Trang Phạm"), "Trang Phạm")
+	la("bo Ms dinh lien ten", _bo("Ms.Trang Phạm"), "Trang Phạm")
+	la("bo Mr.", _bo("Mr. Lâm Thành Kim"), "Lâm Thành Kim")
+	la("bo Ong tieng Viet co dau", _bo("Ông NGUYỄN HOÀNG VIỆT"),
+	   "NGUYỄN HOÀNG VIỆT")
+	la("bo Ba tieng Viet co dau", _bo("Bà Trang"), "Trang")
+	la("ten khong co xung ho thi giu nguyen", _bo("Trang Phạm"), "Trang Phạm")
+	la("rong thi ra rong", _bo(""), "")
+	# Bay: ten NGUOI ta bat dau bang chu trung voi xung ho thi khong duoc cat.
+	la("khong cat nham ten Basil", _bo("Basil Nguyễn"), "Basil Nguyễn")
+	_to_ky = None
+	try:
+		_d_ky = dict(_HD_GIA)
+		_d_ky.update({"nguoi_ky_a": "Ms. Trang Phạm", "chuc_vu_ky_a": "Giám đốc",
+		              "nguoi_ky_b": "Nguyễn Hoàng Việt", "chuc_vu_ky_b": "Giám đốc"})
+		_ns_full["chi_tiet"] = lambda name: _d_ky
+		_to_ky = _ns_full["_html"]("HDBH-TEST")
+	except Exception:
+		_to_ky = None
+	la("dung duoc to co o nguoi ky", bool(_to_ky), True)
+	if _to_ky:
+		la("o ky in ten da bo xung ho", "Trang Phạm" in _to_ky, True)
+		la("o ky khong con chu Ms.", "Ms." in _to_ky, False)
+		la("o ky khong con chu Mr.", "Mr." in _to_ky, False)
+		la("o ky in chuc vu", "Giám đốc" in _to_ky, True)
+la("doctype co o nguoi ky ben A", '"fieldname": "nguoi_ky_a"' in _hdjson, True)
+la("doctype co o chuc vu ben A", '"fieldname": "chuc_vu_ky_a"' in _hdjson, True)
+la("doctype co o nguoi ky ben B", '"fieldname": "nguoi_ky_b"' in _hdjson, True)
+la("doctype co o chuc vu ben B", '"fieldname": "chuc_vu_ky_b"' in _hdjson, True)
+la("doctype co o ban scan phu luc", '"fieldname": "phu_luc_scan"' in _hdjson, True)
+# May chu phai bo xung ho MOT LAN NUA luc luu, khong tin man hinh.
+_than_tao2 = _bg2_src.split("def tao_hop_dong(")[1].split("\ndef ")[0]
+la("luc tao van bo xung ho o may chu", '"nguoi_ky_a": _bo_ho(nguoi_ky_a)' in _than_tao2, True)
+la("khong bia ten nguoi ky ben A", 'doc.nguoi_lien_he' in _than_tao2.split('"nguoi_ky_a"')[1].split("}")[0], False)
+_than_sua = _hd_src.split("def sua_nguoi_ky(")[1].split("\n@frappe")[0]
+la("sua nguoi ky cung bo xung ho", "_bo_xung_ho(nguoi_ky_a)" in _than_sua, True)
+
+# --- 5. So hop dong do san, tinh lai duoc ngay tren man hinh ---
+_than_goi = _bg2_src.split("def goi_y_hop_dong(")[1].split("\n@frappe")[0]
+la("may do san so hop dong", "so_goi_y" in _than_goi, True)
+la("tra ca viet tat de man hinh dung lai so", '"viet_tat"' in _than_goi, True)
+la("ben B lay tu cai dat chu khong lay Sales", "_ben_b()" in _than_goi, True)
+la("man hinh co phep dung so hop dong", "function bgSoHd(" in _bgjs_src, True)
+la("man hinh do san so vao o input", "bgSoHd(f.ngay_ky, g.viet_tat, g.loai)" in _bgjs_src, True)
+la("go tay roi thi may thoi de len", "tuDong = false" in _bgjs_src, True)
+# Man hinh va may chu phai ra CUNG mot so, khong duoc lech mau.
+if _ns_full:
+	la("mau so hop dong dung nhu anh Viet chot",
+	   _ns_full["so_hop_dong"]("2026-08-18", "CÔNG TY TNHH TƯ VẤN GIẢI PHÁP SECOMM"),
+	   "20260818/HDMB/SECOMM-VGB")
+
+# --- 6. Popup chon ngay phai doi duoc tua de ---
+la("phep chon ngay nhan tua de", "function pickDate(cur, cb, tuaDe)" in _ht_src2, True)
+la("hoiNgay chuyen tua de xuong", "function hoiNgay(macDinhIso, tuaDe)" in _ht_src2, True)
+la("khong go cung chu Chon ngay nua",
+   "h(tuaDe || 'Chọn ngày')" in _ht_src2, True)
+la("man tao hop dong doi tua de", "'Chọn ngày tạo hợp đồng'" in _bgjs_src, True)
+
+# --- 7. Ban scan phu luc: uu tien ban khach da ky ---
+_than_pl = _hdp_src.split("def _khoi_phu_luc(")[1].split("\ndef ")[0]
+la("phu luc uu tien ban scan", "phu_luc_scan" in _than_pl, True)
+la("chua co ban ky thi canh bao ro", "CHƯA có chữ ký" in _than_pl, True)
+la("man tao hop dong cho chon tep", "hdChonTep" in _bgjs_src, True)
+la("tai tep len sau khi da co hop dong", "async function bgTaiPhuLuc(" in _bgjs_src, True)
+la("tep gan dung o phu_luc_scan", "fd.append('fieldname', 'phu_luc_scan')" in _bgjs_src, True)
+# Tep hong thi hop dong VAN CON - khong duoc xoa cai vua tao.
+_than_chot2 = _bgjs_src.split("async function bgChotHopDong(")[1]
+la("tep hong khong lam mat hop dong", "Đã tạo hợp đồng, thiếu phụ lục" in _than_chot2, True)
+la("man chi tiet doc duoc ban scan", '"phu_luc_scan": doc.get("phu_luc_scan")' in _hd_src, True)
+la("man chi tiet co nut dinh kem", "hdScanTep" in _khjs_src, True)
+la("man chi tiet co nut sua nguoi ky", "hdFormNguoiKy" in _khjs_src, True)
+# QT-20: go ra chi bo tro, khong xoa tep.
+la("go phu luc khong xoa tep", "def go_phu_luc_scan(" in _hd_src, True)
+_than_go = _hd_src.split("def go_phu_luc_scan(")[1].split("\n@frappe")[0]
+la("go phu luc chi dat o ve rong", 'set_value("Hop Dong Ban Hang", name, "phu_luc_scan", "")' in _than_go, True)
+la("go phu luc khong goi lenh xoa", "delete" in _than_go.lower(), False)
 
 print("-" * 60)
 if so_hong:
