@@ -6243,11 +6243,16 @@ function hoiSo(tuaDe, nhan, macDinh) {
   });
 }
 
-/* Chon ngay bang lich co san, tra ve dang YYYY-MM-DD hoac null. */
-function hoiNgay(macDinhIso) {
+/* Chon ngay bang lich co san, tra ve dang YYYY-MM-DD hoac null.
+
+   Tham so tuaDe khong bat buoc. Anh Viet 18/08/2026: *"Popup chon ngay doi
+   tu 'Chon ngay' thanh 'Chon ngay tao hop dong'"*. Doi thang chu trong
+   pickDate thi ba cho goi khac cung bi doi theo, nen truyen tua de vao chu
+   khong sua chu co san. */
+function hoiNgay(macDinhIso, tuaDe) {
   return new Promise(function (xong) {
     var da = false;
-    pickDate(macDinhIso || today(), function (v) { da = true; xong(v || null); });
+    pickDate(macDinhIso || today(), function (v) { da = true; xong(v || null); }, tuaDe);
     // pickDate dong bang nut x thi khong goi cb, nen doi khung bien mat roi
     // tra null - khong lam vay thi cho await treo mai.
     var canh = setInterval(function () {
@@ -6288,14 +6293,14 @@ function baoTin(noiDung, tuaDe) {
 function hoiNhap(nhan, macDinh, tuaDe) { return hoiChu(tuaDe || 'Nhập thông tin', nhan, macDinh); }
 function xacNhan(noiDung, tuaDe, nhanOk) { return hoiCo(tuaDe || 'Xác nhận', noiDung, nhanOk); }
 
-function pickDate(cur, cb) {
+function pickDate(cur, cb, tuaDe) {
   var base = /^\d{4}-\d{2}-\d{2}$/.test(cur || '') ? cur : today();
   var sel = base, pp = base.split('-'), vy = +pp[0], vm = +pp[1] - 1;
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>Chọn ngày</b><div class="x">&times;</div></div>' +
+  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || 'Chọn ngày') + '</b><div class="x">&times;</div></div>' +
     '<div class="shl" style="padding:6px 12px 16px"></div>';
   var bd = box.querySelector('.shl');
   function close() { try { ov.remove(); } catch (x) { } }
@@ -10980,11 +10985,30 @@ async function scrHdView(name) {
       (hd.email ? '<div style="font-size:13px">Email nhận hợp đồng: ' + h(hd.email) + '</div>' : '<div style="font-size:12.5px;color:#b3261e">Chưa có email bên A, chưa gửi thư được.</div>') +
       (hd.dat_coc_pt ? '<div style="font-size:13px">Điều 2 chia hai đợt: đợt 1 ' + hd.dat_coc_pt + '% (' + money(hd.dat_coc_tien) + ' đ), đợt 2 phần còn lại.</div>'
                      : '<div style="font-size:13px">Điều 2: thanh toán một lần 100% trước khi giao.</div>') +
+      /* Hai dong duoi day la hai cho anh Viet bat loi hom 18/08/2026: khoi
+         chu ky in ra ten Sales, va phu luc dinh kem la ban may dung chu
+         khong phai ban khach da ky. Bay thang len man chi tiet de nhin mot
+         cai la biet to nay da du dieu kien gui khach chua. */
+      '<div style="font-size:13px;margin-top:6px">Người ký: ' +
+        (hd.nguoi_ky_a ? '<b>' + h(hd.nguoi_ky_a) + '</b>' + (hd.chuc_vu_ky_a ? ' (' + h(hd.chuc_vu_ky_a) + ')' : '') : '<span style="color:#b3261e">bên A còn trống</span>') +
+        ' · ' +
+        (hd.nguoi_ky_b ? '<b>' + h(hd.nguoi_ky_b) + '</b>' + (hd.chuc_vu_ky_b ? ' (' + h(hd.chuc_vu_ky_b) + ')' : '') : '<span style="color:#b3261e">bên B còn trống</span>') +
+      '</div>' +
+      (hd.phu_luc_scan
+        ? '<div style="font-size:13px;color:#0a6b3a">Phụ lục 01: đã đính kèm bản khách ký, bấm để xem <a href="' + h(hd.phu_luc_scan) + '" target="_blank">tệp</a>.</div>'
+        : '<div style="font-size:13px;color:#b3261e">Phụ lục 01: chưa có bản khách ký, đang ghép bản báo giá do máy dựng.</div>') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn gh" id="hdSuaKy" style="margin:0;flex:1;padding:8px 10px;font-size:13px">✍️ Người ký</button>' +
+      '<button class="btn gh" id="hdScan" style="margin:0;flex:1.4;padding:8px 10px;font-size:13px">📎 ' + (hd.phu_luc_scan ? 'Đổi bản scan' : 'Đính kèm bản scan') + '</button>' +
+      (hd.phu_luc_scan ? '<button class="btn gh" id="hdScanGo" style="margin:0;flex:0.7;padding:8px 10px;font-size:13px">Gỡ</button>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="hdXem" style="margin:0;flex:1;padding:8px 10px;font-size:13px">👁 Xem trước</button>' +
       '<button class="btn gh" id="hdPdf" style="margin:0;flex:1;padding:8px 10px;font-size:13px">📄 Xuất PDF</button>' +
       '<button class="btn" id="hdMail" style="margin:0;flex:1.2;padding:8px 10px;font-size:13px">📧 Gửi Email</button>' +
-      '</div></div>';
+      '</div>' +
+      '<input type="file" id="hdScanTep" accept="image/*,application/pdf" style="display:none">' +
+      '</div>';
   }
   var b = frame('Chi tiết hợp đồng', html, { footer: '<button class="btn" id="hdGan">🔗 Gắn hoá đơn vào hợp đồng</button>' });
   var nXem = document.getElementById('hdXem');
@@ -11011,6 +11035,37 @@ async function scrHdView(name) {
   };
   var nMail = document.getElementById('hdMail');
   if (nMail) nMail.onclick = function () { hdGuiMail(hd); };
+  var nSuaKy = document.getElementById('hdSuaKy');
+  if (nSuaKy) nSuaKy.onclick = async function () {
+    if (!await hdFormNguoiKy(hd)) return;
+    go(function () { scrHdView(name); }, true);
+  };
+  var nScan = document.getElementById('hdScan');
+  var oScan = document.getElementById('hdScanTep');
+  if (nScan) nScan.onclick = function () { oScan.click(); };
+  if (oScan) oScan.onchange = async function () {
+    var t = oScan.files && oScan.files[0];
+    if (!t) return;
+    if (t.size > 12 * 1024 * 1024) {
+      oScan.value = '';
+      return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại giúp em.', 'Tệp quá nặng');
+    }
+    busy(true);
+    try { await bgTaiPhuLuc(name, t); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được bản scan lên. Anh chị thử lại, hoặc chụp lại ảnh nhẹ hơn.'); }
+    busy(false); toast('Đã đính kèm bản scan làm Phụ lục 01', 3500);
+    go(function () { scrHdView(name); }, true);
+  };
+  var nScanGo = document.getElementById('hdScanGo');
+  if (nScanGo) nScanGo.onclick = async function () {
+    if (!await hoiCo('Gỡ bản scan phụ lục',
+      'Gỡ ra thì PDF hợp đồng quay lại ghép bản báo giá do máy dựng, bản đó chưa có chữ ký hai bên. Tệp vẫn nằm trong kho tệp chứ không bị xoá.',
+      'Gỡ ra', true)) return;
+    busy(true);
+    try { await api('vagabond.hop_dong.go_phu_luc_scan', { name: name }); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không gỡ được'); }
+    busy(false); go(function () { scrHdView(name); }, true);
+  };
   document.getElementById('hdTt').onclick = function () {
     sheet('Đổi trạng thái', ['Nháp', 'Đang thực hiện', 'Hoàn tất', 'Đã thanh lý', 'Huỷ'].map(function (t) { return { value: t, label: t, icon: '📌' }; }), hd.trang_thai, async function (o) {
       busy(true);
@@ -11394,6 +11449,52 @@ async function htFGui() {
 phép lọc của hàm gửi (QT-19), bày ra hết, rồi mới cho bấm. Gửi nhầm một tờ
 hợp đồng sang địa chỉ khác là loại lỗi không rút lại được, và ở đây còn
 nặng hơn báo giá vì tờ này có mã số thuế và người đại diện hai bên. */
+/* Sua bon o cua khoi chu ky tren mot hop dong da tao.
+
+   Anh Viet 18/08/2026: *"Khoi chu ky cuoi hop dong tuyet doi khong duoc ghi
+   Ms./Mr. va khong duoc lay mac dinh ten cua ban Sales"*. Man tao hop dong
+   da hoi bon o nay roi, day la duong sua lai khi go nham.
+
+   Tra ve true neu co luu, false neu bam Thoi. */
+function hdFormNguoiKy(hd) {
+  return new Promise(function (xong) {
+    function o(id, gtri, goiY) {
+      return '<input class="tin" id="' + id + '" value="' + h(gtri || '') + '" placeholder="' + h(goiY || '') +
+        '" style="height:auto;font-size:15px;font-weight:500;text-align:left;padding:10px 12px;margin:0">';
+    }
+    var than =
+      rndLbl('Người ký Bên A (khách hàng)') +
+      o('hkKyA', hd.nguoi_ky_a, 'Họ và tên người đặt bút ký') +
+      '<div style="height:7px"></div>' + o('hkCvA', hd.chuc_vu_ky_a, 'Chức vụ, vd Giám đốc') +
+      '<div style="height:12px"></div>' +
+      rndLbl('Người ký Bên B (Vagabond)') +
+      o('hkKyB', hd.nguoi_ky_b, 'Họ và tên người đặt bút ký') +
+      '<div style="height:7px"></div>' + o('hkCvB', hd.chuc_vu_ky_b, 'Chức vụ, vd Giám đốc') +
+      '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:8px">Bốn ô này in thẳng xuống khối chữ ký cuối hợp đồng. Ghi đúng họ tên, không ghi Ms./Mr., và thường là Giám đốc chứ không phải bạn làm báo giá.</div>';
+    var k = hopKhung('Người ký hợp đồng', than,
+      '<button class="btn gh" data-hkx style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn" data-hkluu style="flex:2;margin:0">Lưu</button>');
+    var tra = function (v) { k.dong(); xong(v); };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(false); };
+    k.box.onclick = async function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-hkx]')) return tra(false);
+      if (!e.target.closest('[data-hkluu]')) return;
+      var v = {
+        name: hd.name,
+        nguoi_ky_a: String(k.box.querySelector('#hkKyA').value || '').trim(),
+        chuc_vu_ky_a: String(k.box.querySelector('#hkCvA').value || '').trim(),
+        nguoi_ky_b: String(k.box.querySelector('#hkKyB').value || '').trim(),
+        chuc_vu_ky_b: String(k.box.querySelector('#hkCvB').value || '').trim()
+      };
+      busy(true);
+      try { await api('vagabond.hop_dong.sua_nguoi_ky', v); }
+      catch (er) { busy(false); return baoTin((er && er.message) || 'Không lưu được người ký'); }
+      busy(false); toast('Đã lưu người ký', 3000);
+      tra(true);
+    };
+  });
+}
+
 async function hdGuiMail(hd) {
   var em = await hoiChu('Gửi hợp đồng qua email',
     'Tệp PDF hợp đồng <b>' + h(hd.so_hop_dong || hd.name) + '</b> sẽ được đính kèm, đã gồm báo giá ' +
@@ -13369,7 +13470,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '218';
+var APPVER = '219';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -23042,6 +23143,153 @@ async function bgTaoKhach(name, dangSoan) {
 }
 
 
+/* ---------- Man hinh tao hop dong ----------
+
+   Anh Viet 18/08/2026 test that va bat ba loi UX:
+
+     1. *"He thong can tu dong generate ra mot ma so hop dong goi y de dien
+        san vao o input, user chi can xem lai hoac an chon cho nhanh thay
+        vi go tay"*.
+     2. *"Popup chon ngay doi tu 'Chon ngay' thanh 'Chon ngay tao hop
+        dong'"*.
+     3. *"Khoi chu ky cuoi hop dong tuyet doi khong duoc ghi Ms./Mr. va
+        khong duoc lay mac dinh ten cua ban Sales. Em phai thiet ke them o
+        nhap lieu de user dien 'Ho ten nguoi ky' va 'Chuc vu'"*.
+
+   Va them mot yeu cau nua ve phu luc: *"cho phep Sales upload ban Bao gia
+   da scan/chup anh (co chu ky/moc cua 2 ben)"*.
+
+   Truoc hom nay day la ba hop thoai hoi noi tiep nhau. Gio gom lai MOT man
+   duy nhat: nhin thay het cac o cung luc, sua o nao truoc cung duoc, bam
+   Thoi mot lan la thoat han chu khong phai bam ba lan.
+
+   O so hop dong tu dung lai moi khi doi ngay ky, NHUNG chi khi user chua
+   go tay vao o do. Go tay roi ma may van de len thi mat cong go. */
+function bgSoHd(ngayIso, vietTat, loai) {
+  var so = String(ngayIso || '').replace(/-/g, '').slice(0, 8);
+  loai = loai || 'HDMB';
+  return vietTat ? so + '/' + loai + '/' + vietTat + '-VGB' : so + '/' + loai + '/VGB';
+}
+
+function bgFormHopDong(g) {
+  g = g || {};
+  return new Promise(function (xong) {
+    var f = {
+      ngay_ky: g.ngay || today(),
+      ngay_su_kien: '',
+      nguoi_ky_a: g.nguoi_ky_a || '',
+      chuc_vu_ky_a: g.chuc_vu_ky_a || '',
+      nguoi_ky_b: g.nguoi_ky_b || '',
+      chuc_vu_ky_b: g.chuc_vu_ky_b || '',
+      tep: null
+    };
+    var tuDong = true;   /* so hop dong con do may dung, user chua go tay */
+
+    function o(id, gtri, goiY) {
+      return '<input class="tin" id="' + id + '" value="' + h(gtri || '') + '" placeholder="' + h(goiY || '') +
+        '" style="height:auto;font-size:15px;font-weight:500;text-align:left;padding:10px 12px;margin:0">';
+    }
+    function nutNgay(id, nhan) {
+      return '<button class="btn gh" id="' + id + '" style="margin:0;text-align:left;padding:10px 12px;font-size:15px">' + h(nhan) + '</button>';
+    }
+    var than =
+      rndLbl('Số hợp đồng') + o('hdSo', bgSoHd(f.ngay_ky, g.viet_tat, g.loai), 'Vd 20260818/HDMB/MOI-VGB') +
+      '<div ' + BGNHAN + ' style="margin-bottom:12px">Máy dựng sẵn theo ngày ký và tên viết tắt của khách. Hai bên đã thống nhất số khác thì sửa thẳng vào ô này.</div>' +
+
+      rndLbl('Ngày ký hợp đồng') + nutNgay('hdNgayKy', bgNgayVn(f.ngay_ky)) +
+      '<div style="height:12px"></div>' +
+
+      rndLbl('Ngày sự kiện hoặc ngày giao hàng (không bắt buộc)') + nutNgay('hdNgaySk', 'Chưa chọn') +
+      '<div style="height:14px"></div>' +
+
+      '<div style="border-top:1px solid #eef0f4;padding-top:12px"></div>' +
+      rndLbl('Người ký Bên A (khách hàng)') +
+      o('hdKyA', f.nguoi_ky_a, 'Họ và tên người đặt bút ký') +
+      '<div style="height:7px"></div>' +
+      o('hdCvA', f.chuc_vu_ky_a, 'Chức vụ, vd Giám đốc') +
+      '<div style="height:12px"></div>' +
+
+      rndLbl('Người ký Bên B (Vagabond)') +
+      o('hdKyB', f.nguoi_ky_b, 'Họ và tên người đặt bút ký') +
+      '<div style="height:7px"></div>' +
+      o('hdCvB', f.chuc_vu_ky_b, 'Chức vụ, vd Giám đốc') +
+      '<div ' + BGNHAN + ' style="margin-bottom:14px">Bốn ô này in thẳng xuống khối chữ ký cuối hợp đồng. Ghi đúng họ tên người đặt bút ký, không ghi Ms./Mr., và thường là Giám đốc chứ không phải bạn làm báo giá.</div>' +
+
+      '<div style="border-top:1px solid #eef0f4;padding-top:12px"></div>' +
+      rndLbl('Phụ lục 01: bản báo giá đã ký') +
+      '<button class="btn gh" id="hdChonTep" style="margin:0;padding:10px 12px;font-size:15px">📎 Chọn ảnh chụp hoặc bản scan</button>' +
+      '<div ' + BGNHAN + ' id="hdTepTen">Chưa chọn tệp. Để trống thì hệ thống vẫn ghép bản báo giá do máy dựng làm phụ lục, nhưng bản đó chưa có chữ ký và mộc hai bên.</div>' +
+      '<input type="file" id="hdTep" accept="image/*,application/pdf" style="display:none">';
+
+    var k = hopKhung('Tạo hợp đồng', than,
+      '<button class="btn gh" data-hdx style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn" data-hdok style="flex:2;margin:0">Tạo hợp đồng</button>');
+
+    var iSo = k.box.querySelector('#hdSo');
+    var bNk = k.box.querySelector('#hdNgayKy');
+    var bSk = k.box.querySelector('#hdNgaySk');
+    var oTep = k.box.querySelector('#hdTep');
+    var lTep = k.box.querySelector('#hdTepTen');
+
+    iSo.oninput = function () { tuDong = false; };
+    bNk.onclick = async function () {
+      var v = await hoiNgay(f.ngay_ky, 'Chọn ngày tạo hợp đồng');
+      if (!v) return;
+      f.ngay_ky = v; bNk.textContent = bgNgayVn(v);
+      if (tuDong) iSo.value = bgSoHd(v, g.viet_tat, g.loai);
+    };
+    bSk.onclick = async function () {
+      var v = await hoiNgay(f.ngay_su_kien || f.ngay_ky, 'Chọn ngày sự kiện hoặc ngày giao hàng');
+      if (!v) return;
+      f.ngay_su_kien = v; bSk.textContent = bgNgayVn(v);
+    };
+    k.box.querySelector('#hdChonTep').onclick = function () { oTep.click(); };
+    oTep.onchange = function () {
+      var t = oTep.files && oTep.files[0];
+      if (!t) return;
+      if (t.size > 12 * 1024 * 1024) {
+        oTep.value = '';
+        return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại giúp em.', 'Tệp quá nặng');
+      }
+      f.tep = t;
+      lTep.textContent = 'Đã chọn: ' + t.name + ' (' + Math.max(1, Math.round(t.size / 1024)) + ' KB). Bản này sẽ được ghép vào cuối PDF hợp đồng làm Phụ lục 01.';
+    };
+
+    var tra = function (v) { k.dong(); xong(v); };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(null); };
+    k.box.onclick = function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-hdx]')) return tra(null);
+      if (!e.target.closest('[data-hdok]')) return;
+      var so = String(iSo.value || '').trim();
+      if (!so) { iSo.focus(); return baoTin('Chưa có số hợp đồng. Bấm vào ô Số hợp đồng, lấy lại số máy gợi ý hoặc gõ số hai bên đã thống nhất rồi bấm Tạo hợp đồng.', 'Thiếu số hợp đồng'); }
+      f.so = so;
+      f.nguoi_ky_a = String(k.box.querySelector('#hdKyA').value || '').trim();
+      f.chuc_vu_ky_a = String(k.box.querySelector('#hdCvA').value || '').trim();
+      f.nguoi_ky_b = String(k.box.querySelector('#hdKyB').value || '').trim();
+      f.chuc_vu_ky_b = String(k.box.querySelector('#hdCvB').value || '').trim();
+      tra(f);
+    };
+  });
+}
+
+/* Tai ban scan phu luc len va gan thang vao o phu_luc_scan cua hop dong.
+   Phai co hop dong roi moi tai duoc, vi Frappe gan tep theo doctype va ten
+   ban ghi - tai truoc thi tep nam lo lung khong ai doc duoc. */
+async function bgTaiPhuLuc(hopDong, tep) {
+  var fd = new FormData();
+  fd.append('file', tep, tep.name || ('phu-luc-' + hopDong));
+  fd.append('is_private', '1');
+  fd.append('doctype', 'Hop Dong Ban Hang');
+  fd.append('docname', hopDong);
+  fd.append('fieldname', 'phu_luc_scan');
+  var hd = {};
+  hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
+  var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
+  var j = await r.json();
+  if (!r.ok || !j.message) throw new Error('Không tải được bản scan lên');
+  return j.message.file_url;
+}
+
 async function bgChotHopDong(d) {
   /* Chua co ho so khach thi HOI luon co tao khong, khong bat quay lai sua
      to (anh Viet 18/08/2026). Truoc hom nay cho nay chi bao loi roi bo do,
@@ -23056,16 +23304,35 @@ async function bgChotHopDong(d) {
       'Tạo hồ sơ khách')) return;
     return bgTaoKhach(d.name, false);
   }
-  var so = await hoiChu('Số hợp đồng', 'Nhập số hợp đồng hai bên đã thống nhất (để trống cũng được).', '', { goi_y: 'Vd 026-022/PYR-VAGABOND' });
-  if (so === null) return;
-  var nsk = await hoiNgay(today());
-  if (nsk === null) return;
   busy(true);
+  var g;
+  try { g = await api('vagabond.bao_gia.goi_y_hop_dong', { name: d.name }); }
+  catch (e) { g = {}; }
+  busy(false);
+  var f = await bgFormHopDong(g);
+  if (!f) return;
+  busy(true);
+  var nm;
   try {
-    var nm = await api('vagabond.bao_gia.tao_hop_dong', { name: d.name, so_hop_dong: so || '', ngay_ky: today(), ngay_su_kien: nsk });
-    busy(false); toast('Đã tạo hợp đồng ' + nm, 4000);
-    go(function () { scrHdView(nm); }, true);
-  } catch (e) { busy(false); baoTin((e && e.message) || 'Không tạo được hợp đồng'); }
+    nm = await api('vagabond.bao_gia.tao_hop_dong', {
+      name: d.name, so_hop_dong: f.so, ngay_ky: f.ngay_ky,
+      ngay_su_kien: f.ngay_su_kien || '',
+      nguoi_ky_a: f.nguoi_ky_a, chuc_vu_ky_a: f.chuc_vu_ky_a,
+      nguoi_ky_b: f.nguoi_ky_b, chuc_vu_ky_b: f.chuc_vu_ky_b
+    });
+  } catch (e) { busy(false); return baoTin((e && e.message) || 'Không tạo được hợp đồng'); }
+  /* Hop dong da tao xong roi moi tai tep. Tep hong thi hop dong VAN CON,
+     chi bao rieng phan tep de dinh kem lai o man hinh hop dong - khong xoa
+     hop dong vua tao. */
+  var loiTep = '';
+  if (f.tep) {
+    try { await bgTaiPhuLuc(nm, f.tep); }
+    catch (e2) { loiTep = (e2 && e2.message) || 'Không tải được bản scan'; }
+  }
+  busy(false);
+  if (loiTep) baoTin('Hợp đồng ' + nm + ' đã tạo xong, nhưng bản scan phụ lục chưa lên được: ' + loiTep + '.\n\nAnh chị mở hợp đồng rồi bấm Đính kèm bản scan để thử lại nhé.', 'Đã tạo hợp đồng, thiếu phụ lục');
+  else toast('Đã tạo hợp đồng ' + nm, 4000);
+  go(function () { scrHdView(nm); }, true);
 }
 
 /* ---------- Soan bao gia: moi dong nhap thang tai cho ---------- */
