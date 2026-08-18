@@ -960,7 +960,16 @@ la("chua gom lan nao ma khong doc duoc gi thi khong ve de",
 for _m in ("BANG_NHOM_SP", "BANG_KHO", "BANG_TAI_KHOAN", "BANG_NHOM_NCC", "BANG_NHOM_KHACH"):
 	_than = _dm_src.split(_m + " = khai.bang(")[1].split("\n)")[0]
 	la("%s sap theo lft de ra dung thu tu cay" % _m, 'sap="lft asc"' in _than, True)
-	la("%s thut ten theo cap" % _m, "_thut_cay(" in _than, True)
+	# Thut co the viet thang trong than, hoac goi qua mot phep them rieng.
+	# Ca nay phai soi ca hai duong, neu khong doi sang phep rieng la bao
+	# hong oan.
+	_co_thut = "_thut_cay(" in _than
+	if not _co_thut and "them=" in _than:
+		_ten_them = _than.split("them=")[1].split(",")[0].strip()
+		if _ten_them.startswith("_"):
+			_kho = _dm_src.split("def " + _ten_them + "(")
+			_co_thut = len(_kho) > 1 and "_thut_cay(" in _kho[1].split("\ndef ")[0]
+	la("%s thut ten theo cap" % _m, _co_thut, True)
 
 # --- Phep thut cay phai THUAN va khong lap vo han ---
 _ns = {}
@@ -973,6 +982,28 @@ la("con cap 2 thut hai", _tc({"n": "C", "p": "B"}, _bc, "n", "p"), "　　C")
 # Cay tro vong lai chinh no thi khong duoc treo may.
 la("cay tro vong khong lam treo",
    bool(_tc({"n": "X", "p": "V"}, {"cay": {"V": "W", "W": "V"}}, "n", "p")), True)
+
+# --- Nghiem thu v213 tren site that: cot So hieu tai khoan hien trong ---
+# 270 tai khoan tren he thi phan lon account_number RONG, so hieu bi go
+# dinh vao dau ten. Cot cu tro thang vao account_number nen trong tron.
+_ns_tk = {}
+exec(re.search(r"^def _tach_so_tk\(.*?(?=^def _them_tk)", _dm_src, re.S | re.M).group(0), _ns_tk)
+_tach = _ns_tk["_tach_so_tk"]
+la("so hieu go dinh vao dau ten van tach ra duoc",
+   _tach({"name": "1111 - Tiền Việt Nam - TV", "account_number": "",
+          "account_name": "1111 - Tiền Việt Nam"}), ("1111", "Tiền Việt Nam"))
+la("co account_number that thi giu nguyen ten",
+   _tach({"name": "11211 - Tiền gửi MB Bank - TV", "account_number": "11211",
+          "account_name": "Tiền gửi MB Bank"}), ("11211", "Tiền gửi MB Bank"))
+la("tai khoan khong co so thi de trong chu khong bia",
+   _tach({"name": "Debtors - TV", "account_number": "",
+          "account_name": "Debtors"}), ("", "Debtors"))
+la("cot So hieu khong tro thang vao account_number nua",
+   '("account_number", "Số hiệu"' in _dm_src, False)
+la("cot So hieu doc tu phep tach", '("so_hieu", "Số hiệu", "chu")' in _dm_src, True)
+_than_tk = _dm_src.split("BANG_TAI_KHOAN = khai.bang(")[1].split("\n)")[0]
+la("DMTK dung phep them rieng", "them=_them_tk," in _than_tk, True)
+la("phep xep chip dung chung mot phep tach", "_tach_so_tk(r)[0]" in _dm_src, True)
 
 print("-" * 60)
 if so_hong:
