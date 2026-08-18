@@ -749,6 +749,90 @@ la("khoa duoc tha trong finally", "finally:\n\t\t_tha_khoa(mua)" in _mv_src, Tru
 la("gian cach nho hon nhip man de nhip khong bi nuot",
    int(re.search(r"GIAN_CACH_DONG_BO = (\d+)", _mv_src).group(1)) < 30, True)
 
+# =====================================================================
+# Nhom 22. Phan he Thu mua khoa cung, va chip loc man mua vu
+# =====================================================================
+print("22. Phan he Thu mua va chip loc mua vu")
+
+_q_src = open("vagabond/quyen_phan_he.py", encoding="utf-8").read()
+_mh_src = open("vagabond/mua_hang.py", encoding="utf-8").read()
+_dy_src = open("vagabond/duyet_ycmh.py", encoding="utf-8").read()
+_ncc_src = open("vagabond/ncc.py", encoding="utf-8").read()
+_bg_src = open("vagabond/bang_gia.py", encoding="utf-8").read()
+_kh_src = open("vagabond/public/js/bep/01-khung-app.js", encoding="utf-8").read()
+_tc_src = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+_mv_man = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_xk_src = open("vagabond/xuat_kho.py", encoding="utf-8").read()
+
+# --- Cho ro that: vai "Bo phan dat hang" gan nhu ai cung co ---
+# Vai do sinh ra de LAP YEU CAU MUA. No khong duoc keo theo quyen xem gia
+# mua va cong no. Bon tep duoi day truoc 18/08/2026 deu lot vai nay.
+for _t, _n in ((_mh_src, "mua_hang"), (_dy_src, "duyet_ycmh"), (_ncc_src, "ncc"),
+               (_bg_src, "bang_gia")):
+	la("%s khong con vai Bo phan dat hang o bat cu dau" % _n,
+	   "Bộ phận đặt hàng" in _t, False)
+# Nhung XEM gia thi van rong hon: thu kho phai doi chieu gia luc nhan hang.
+la("bang gia: XEM gia van mo cho thu kho", '"Stock Manager"' in _bg_src, True)
+la("bang gia: KHAI gia sieu chat hon XEM gia",
+   "QUYEN_SUA = QUYEN_THU_MUA" in _bg_src, True)
+# Ca nay bat duoc lo hong cua chinh bo kiem: bon ca tren chi soi bon tep
+# GOI quyen, khong soi chinh cho KHAI quyen. Tra vai do vao quyen_phan_he.py
+# la ca bon tep kia lai mo toang ma khong ca nao keu.
+la("chinh noi khai quyen cung khong duoc co Bo phan dat hang",
+   "Bộ phận đặt hàng" in _q_src, False)
+
+# --- Mot noi khai, khong co ban sao ---
+la("co mot noi duy nhat khai quyen Thu mua", "QUYEN_THU_MUA = {" in _q_src, True)
+for _t, _n in ((_mh_src, "mua_hang"), (_dy_src, "duyet_ycmh"), (_ncc_src, "ncc"), (_bg_src, "bang_gia")):
+	la("%s nap quyen tu quyen_phan_he chu khong chep lai" % _n,
+	   "from vagabond.quyen_phan_he import" in _t, True)
+
+# --- Ai duoc vao, ai khong ---
+la("Thu mua duoc vao", 'ROLE_THU_MUA' in _q_src, True)
+la("Giam doc duoc vao", 'ROLE_GIAM_DOC' in _q_src, True)
+# Anh Viet chot 18/08/2026: ke toan VAN thay, vi cong no phai tra la viec
+# hang ngay cua ho.
+la("ke toan van thay phan he Thu mua", '"Accounts Manager"' in _q_src, True)
+la("cau bao loi noi ro phai lam gi tiep (QT-24)",
+   "báo anh Việt cấp thêm chức vụ" in _q_src, True)
+
+# --- Man khop may chu ---
+la("man an nut theo dung danh sach may chu",
+   "hasRole('Thu mua')" in _kh_src and "hasRole('Giám đốc')" in _kh_src, True)
+la("man KHONG con lay Bo phan dat hang lam quyen mua",
+   "coQuyenMua" in _kh_src and "Bộ phận đặt hàng" not in _kh_src.split("function coQuyenMua")[1][:400], True)
+
+# --- Phan he Thu mua nam dung cho, ngay tren Ke toan ---
+_i_tm = _tc_src.index("k: 'TM'")
+_i_kt = _tc_src.index("k: 'KT'")
+la("co phan he Thu mua", _i_tm > 0, True)
+la("Thu mua nam NGAY TREN Ke toan", _i_tm < _i_kt, True)
+la("cac nut mua hang da roi khoi nhom Dat hang",
+   "keys: ['Purchase', 'Transfer', 'RND'] }" in _tc_src, True)
+for _k in ("DUYETYC", "PO", "CNPT", "NCC", "BGIA"):
+	la("nut %s da vao phan he Thu mua" % _k,
+	   _k in _tc_src[_i_tm:_i_kt], True)
+
+# --- Bep nhin duoc hang chuyen ve kho minh ---
+la("co API hang chuyen ve kho minh", "def hang_chuyen_ve" in _xk_src, True)
+la("chi lay kho NGUOI DO phu trach, khong bay kho nguoi khac",
+   "_kho_phu_trach()" in _xk_src, True)
+la("chua khai kho phu trach thi noi ro phai lam gi (QT-24)",
+   "chưa khai Kho phụ trách" in _xk_src, True)
+la("chi lay phieu DA GHI SO", '"docstatus": 1' in _xk_src, True)
+
+# --- Chip loc man mua vu ---
+la("co bon nhom trang thai", "MV_THU_TU = { lo: 0, het: 1, con: 2, hop: 3 }" in _mv_man, True)
+la("ban lo xep len dau", _mv_man.index("lo: 0") < _mv_man.index("con: 2"), True)
+la("nguong sap het khop nguong canh bao may chu",
+   int(re.search(r"MV_NGUONG_SAP_HET = (\d+)", _mv_man).group(1))
+   == int(re.search(r"NGUONG_CANH_BAO = ([\d.]+)", _mv_src).group(1).split(".")[0]), True)
+la("go tim khong ve lai ca man", "kh.innerHTML = mvDsSpHtml(ds)" in _mv_man, True)
+la("nhip khong cuop o tim dang go",
+   "document.activeElement.id === 'mvTim'" in _mv_man, True)
+la("loc rong thi noi ro phai lam gi (QT-24)",
+   "Bỏ bớt điều kiện lọc hoặc xoá ô tìm" in _mv_man, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
