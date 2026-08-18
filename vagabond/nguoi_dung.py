@@ -27,6 +27,9 @@ Nguyen tac an toan:
 import json
 
 import frappe
+
+from vagabond.quyen_phan_he import ROLE_GIAM_DOC, ROLE_THU_MUA
+
 from frappe.utils import cint, now_datetime
 
 from vagabond.nhan_su import link_app, thu_moi_html, _lien_ket_dat_mat_khau
@@ -149,7 +152,10 @@ GOI = [
 			"Đối chiếu hoá đơn mua với phiếu nhập kho",
 			"Lập hồ sơ thanh toán (APP) gửi kế toán duyệt",
 		],
-		"vai": ["Purchase User", "Bộ phận đặt hàng", "Mua hàng R&D", "Kiểm kê viên"],
+		"vai": [
+			ROLE_THU_MUA, "Purchase User", "Bộ phận đặt hàng", "Mua hàng R&D",
+			"Kiểm kê viên",
+		],
 	},
 	{
 		"k": "ketoan",
@@ -195,7 +201,10 @@ GOI = [
 			"Xem toàn bộ phân hệ Báo cáo",
 			"Xem công nợ, doanh số, giá vốn",
 		],
-		"vai": ["AP Giám đốc", "Vagabond Bao cao", "Sales Manager", "Accounts User"],
+		"vai": [
+			ROLE_GIAM_DOC, "AP Giám đốc", "Vagabond Bao cao", "Sales Manager",
+			"Accounts User",
+		],
 	},
 	{
 		"k": "chucongty",

@@ -28,16 +28,18 @@ import io
 import json
 
 import frappe
+
+from vagabond.quyen_phan_he import QUYEN_THU_MUA
+
 from frappe.utils import cint, flt, nowdate
 
-QUYEN_XEM = {
-	"System Manager", "Purchase User", "Purchase Manager",
-	"Accounts Manager", "Accounts User", "Bộ phận đặt hàng", "Stock Manager",
-}
-QUYEN_SUA = {
-	"System Manager", "Purchase Manager", "Purchase User",
-	"Accounts Manager", "Bộ phận đặt hàng",
-}
+# XEM gia mua: Thu mua, ke toan, va THU KHO (thu kho phai doi chieu gia luc
+# nhan hang nen giu Stock Manager). Vai "Bo phan dat hang" go ra 18/08/2026:
+# lap yeu cau mua khong can biet gia, va vai do thi gan nhu ai cung co.
+QUYEN_XEM = QUYEN_THU_MUA | {"Stock Manager"}
+# KHAI gia mua la viec cua Thu mua. XEM thi de rong hon (QUYEN_XEM tren
+# kia van co thu kho) vi thu kho phai doi chieu gia luc nhan hang.
+QUYEN_SUA = QUYEN_THU_MUA
 
 # Bang gia mua cua ERPNext. Tao neu chua co - site nay dung ten mac dinh.
 BANG_GIA_MUA = "Standard Buying"

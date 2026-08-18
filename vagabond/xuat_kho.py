@@ -19,7 +19,7 @@ va so ke toan cua ERPNext van dung nguyen.
 import json
 
 import frappe
-from frappe.utils import cint, flt, nowdate
+from frappe.utils import add_days, cint, flt, nowdate
 
 from vagabond import chung_tu
 
@@ -459,3 +459,115 @@ def chi_tiet(name=None):
 			for d in doc.items
 		],
 	}
+
+
+# ===================================================================
+# HANG CHUYEN VE KHO MINH (anh Viet 18/08/2026)
+# ===================================================================
+#
+# Anh Viet: "cac ban nhan su Bep (Hieu baker, Han bep pho...) dang bi nghen
+# o khau nhan hang".
+#
+# Doc lai luong thi thay khong ai chan ho ca. Cai thieu la mot cho DE NHIN:
+# phieu dieu chuyen o he nay ghi so MOT BUOC ben kho xuat (xem luu_dieu_chuyen
+# tren kia), nen hang vao kho bep ngay lap tuc ma ben bep khong co man nao
+# thay no da ve, ve luc nao, ai chuyen, gom nhung gi.
+#
+# Man nay lap dung cho trong do. No CHI DOC, khong sinh chung tu nao: buoc
+# "xac nhan da nhan" va xu ly nhan thieu (chenh lech sinh but toan hao hut)
+# la viec dung vao gia von, phai cho anh Viet duyet phuong an truoc.
+
+
+def _kho_phu_trach(nguoi=None):
+	"""Cac kho nguoi nay phu trach, doc tu o Kho phu trach tren User."""
+	nguoi = nguoi or frappe.session.user
+	tho = frappe.db.get_value("User", nguoi, "custom_kho_phu_trach") or ""
+	return [x.strip() for x in str(tho).split(",") if x.strip()]
+
+
+@frappe.whitelist()
+def hang_chuyen_ve(so_ngay=14, kho=None):
+	"""Cac phieu dieu chuyen da ghi so co kho NHAN la kho minh phu trach.
+
+	Tra ve kem so dong va tong so luong de nhin phat biet phieu to hay nho,
+	khong phai mo tung cai.
+	"""
+	so_ngay = max(1, min(cint(so_ngay) or 14, 90))
+	cua_toi = _kho_phu_trach()
+	if kho:
+		if cua_toi and kho not in cua_toi:
+			frappe.throw("Kho này không nằm trong các kho bạn phụ trách.")
+		cua_toi = [kho]
+	if not cua_toi:
+		# Khong doan bua kho nao: tra rong kem loi nhac theo QT-24.
+		return {
+			"co_kho": 0,
+			"ds": [],
+			"nhac": "Tài khoản của bạn chưa khai Kho phụ trách nên máy chưa biết "
+			"lấy hàng về kho nào. Báo anh Việt khai giúp ở màn Quản lý người dùng.",
+		}
+
+	tu = add_days(nowdate(), -so_ngay)
+	dong = frappe.get_all(
+		"Stock Entry Detail",
+		filters={"t_warehouse": ["in", cua_toi], "docstatus": 1},
+		fields=["parent", "item_code", "item_name", "qty", "uom", "s_warehouse", "t_warehouse"],
+		limit_page_length=0,
+	)
+	if not dong:
+		return {"co_kho": 1, "ds": [], "kho": cua_toi}
+
+	cac_phieu = sorted({d["parent"] for d in dong})
+	dau = {
+		p["name"]: p
+		for p in frappe.get_all(
+			"Stock Entry",
+			filters={
+				"name": ["in", cac_phieu],
+				"docstatus": 1,
+				"stock_entry_type": "Material Transfer",
+				"posting_date": [">=", tu],
+			},
+			fields=["name", "posting_date", "posting_time", "owner", "remarks"],
+			limit_page_length=0,
+		)
+	}
+	gop = {}
+	for d in dong:
+		p = dau.get(d["parent"])
+		if not p:
+			continue
+		o = gop.setdefault(
+			d["parent"],
+			{
+				"ma": d["parent"],
+				"ngay": str(p["posting_date"]),
+				"gio": str(p["posting_time"] or "")[:5],
+				"nguoi": p["owner"],
+				"ghi_chu": p.get("remarks") or "",
+				"kho_xuat": d.get("s_warehouse") or "",
+				"kho_nhan": d.get("t_warehouse") or "",
+				"so_dong": 0,
+				"tong_sl": 0.0,
+				"hang": [],
+			},
+		)
+		o["so_dong"] += 1
+		o["tong_sl"] += flt(d.get("qty"))
+		o["hang"].append(
+			{
+				"ma": d["item_code"],
+				"ten": d.get("item_name") or d["item_code"],
+				"sl": flt(d.get("qty")),
+				"dvt": d.get("uom") or "",
+			}
+		)
+
+	ten = {}
+	for u in {x["nguoi"] for x in gop.values()}:
+		ten[u] = frappe.db.get_value("User", u, "full_name") or u
+	ds = sorted(gop.values(), key=lambda x: (x["ngay"], x["gio"]), reverse=True)
+	for x in ds:
+		x["nguoi_ten"] = ten.get(x["nguoi"], x["nguoi"])
+		x["tong_sl"] = round(x["tong_sl"], 3)
+	return {"co_kho": 1, "ds": ds, "kho": cua_toi, "so_ngay": so_ngay}

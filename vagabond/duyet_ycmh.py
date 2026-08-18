@@ -54,15 +54,16 @@ dong - xem boi_canh_hang.
 import json
 
 import frappe
+
+from vagabond.quyen_phan_he import QUYEN_THU_MUA
+
 from frappe.utils import cint, flt, now_datetime
 
-QUYEN_DUYET = {
-	"System Manager",
-	"Purchase Manager",
-	"Purchase User",
-	"Accounts Manager",
-	"Bộ phận đặt hàng",
-}
+# Duyet yeu cau mua la quyet dinh MUA hay khong, va nhin thay ca gia. Do la
+# viec cua Thu mua chu khong phai cua nguoi lap yeu cau - truoc 18/08/2026
+# vai "Bo phan dat hang" nam trong day nen ai lap yeu cau cung tu duyet
+# duoc yeu cau cua chinh minh.
+QUYEN_DUYET = QUYEN_THU_MUA
 
 # Sai so cho phep khi so sanh so luong co phan le (kg, lit).
 EPS = 0.0001
@@ -154,8 +155,9 @@ def _them_trang_thai_tu_choi():
 def _kiem_quyen():
 	if not QUYEN_DUYET & set(frappe.get_roles()):
 		frappe.throw(
-			"Duyệt yêu cầu mua hàng chỉ mở cho thu mua, kế toán và giám đốc. "
-			"Cần vào đây thì báo quản lý cấp quyền Bộ phận đặt hàng."
+			"Duyệt yêu cầu mua hàng chỉ mở cho Thu mua, Kế toán và Giám đốc. "
+			"Cần vào đây thì báo anh Việt cấp thêm chức vụ Thu mua trong màn "
+			"Quản lý người dùng."
 		)
 
 

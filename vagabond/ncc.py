@@ -21,14 +21,14 @@ import base64
 import io
 
 import frappe
+
+from vagabond.quyen_phan_he import QUYEN_THU_MUA
+
 from frappe.utils import add_days, cint, flt, getdate, nowdate
 
 # Ai duoc dung phan he nay. Khop voi QUYEN_MUA ben mua_hang.py: gia mua va
 # nha cung cap la thong tin nhay cam, khong mo cho ca tiem.
-QUYEN_NCC = {
-	"System Manager", "Accounts Manager", "Accounts User",
-	"Purchase User", "Purchase Manager", "AP Giám đốc",
-}
+QUYEN_NCC = QUYEN_THU_MUA | {"AP Giám đốc"}
 
 
 def _kiem(viec):

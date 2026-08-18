@@ -18,23 +18,17 @@ from frappe.utils import add_days, cint, flt, getdate, nowdate
 # khai = tang khung, cho khai bao man danh sach. Dat ten tat de khong lan
 # voi vagabond/hop_dong.py, la mo dun hop dong mua ban chu khong lien quan.
 from vagabond.khung import hop_dong as khai
+from vagabond.quyen_phan_he import QUYEN_THU_MUA, chan_neu_khong_thu_mua
 from vagabond.khung import tinh as _tinh
 
-QUYEN_MUA = {
-	"System Manager",
-	"Accounts Manager",
-	"Accounts User",
-	"Purchase Manager",
-	"Purchase User",
-	"Bộ phận đặt hàng",
-}
+# Danh sach nay o vagabond/quyen_phan_he.py, dung chung voi duyet YCMH,
+# danh muc nha cung cap va bang gia mua. Mot noi khai, khong co ban sao -
+# truoc 18/08/2026 bon noi giu bon ban va deu lot vai "Bo phan dat hang".
+QUYEN_MUA = QUYEN_THU_MUA
 
 
 def _kiem_quyen():
-	if not QUYEN_MUA & set(frappe.get_roles()):
-		frappe.throw(
-			"Đơn mua hàng và công nợ phải trả chỉ mở cho kế toán, thu mua và giám đốc."
-		)
+	chan_neu_khong_thu_mua("xem đơn mua hàng và công nợ phải trả")
 
 
 # Cac nhom trang thai cua don mua hang. Mot don chi thuoc DUNG MOT nhom -
