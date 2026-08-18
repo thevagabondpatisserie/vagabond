@@ -820,6 +820,24 @@ la("chi lay kho NGUOI DO phu trach, khong bay kho nguoi khac",
 la("chua khai kho phu trach thi noi ro phai lam gi (QT-24)",
    "chưa khai Kho phụ trách" in _xk_src, True)
 la("chi lay phieu DA GHI SO", '"docstatus": 1' in _xk_src, True)
+# Hai loi em tu bat duoc luc nghiem thu v210, va ca hai deu la loi that.
+# Mot: chua khai kho phu trach thi KHONG duoc truyen kho tuy y - bo qua cho
+# nay la man khoa NGUOC, nguoi duoc khai bi gioi han con nguoi chua khai thi
+# xem duoc moi kho.
+la("chua khai kho thi khong duoc truyen kho tuy y",
+   "if kho not in cua_toi:" in _xk_src, True)
+# Hai: posting_time cua Frappe la "9:33:00", cat cung 5 ky tu ra "9:33:".
+la("gio duoc dinh dang chu khong cat cung", "def _gio_hhmm" in _xk_src, True)
+la("khong con cat cung 5 ky tu gio", 'posting_time"] or "")[:5]' in _xk_src, False)
+
+_gio = {}
+exec(re.search(r"^def _gio_hhmm\(.*?(?=^def )", _xk_src, re.S | re.M).group(0),
+     {"cint": lambda x: int(x or 0)}, _gio)
+_g = _gio["_gio_hhmm"]
+la("gio mot chu so duoc them so 0", _g("9:33:00"), "09:33")
+la("gio hai chu so giu nguyen", _g("17:51:00"), "17:51")
+la("gio rong tra rong", _g(None), "")
+la("gio khong co dau hai cham thi khong lam vo", _g("abc"), "abc")
 
 # --- Chip loc man mua vu ---
 la("co bon nhom trang thai", "MV_THU_TU = { lo: 0, het: 1, con: 2, hop: 3 }" in _mv_man, True)
