@@ -197,8 +197,32 @@ def _():
 
 @ca("danh bạ chỉ trả về màn mà người đang đăng nhập được vào")
 def _():
+	# Quản trị thấy hết. Kiểm bao gồm chứ không kiểm bằng: danh bạ còn dài
+	# thêm mỗi lần thêm một màn, chốt cứng danh sách là ca này hỏng mỗi lần
+	# ai đó làm đúng việc của mình.
 	ra = {x["ma"] for x in khung_ds.danh_ba()}
-	la("có đủ hai màn mẫu", ra, {"PO", "HDM"})
+	la("có hai màn mẫu ban đầu", {"PO", "HDM"} <= ra, True)
+	la("có phân hệ Danh mục", {"DMSP", "DMKHO", "DMTK"} <= ra, True)
+
+	# Và điều ca này thật sự muốn kiểm: danh bạ LỌC theo quyền.
+	import frappe
+
+	cu = frappe.get_roles
+	try:
+		frappe.get_roles = lambda *a, **k: ["Cashier"]
+		it = {x["ma"] for x in khung_ds.danh_ba()}
+		la("vai không liên quan thì danh bạ trống trơn", it, set())
+
+		# Bếp xem được danh mục hàng ngày, KHÔNG xem được giá mua và tài khoản.
+		frappe.get_roles = lambda *a, **k: ["Bếp phó"]
+		bep = {x["ma"] for x in khung_ds.danh_ba()}
+		la("bếp xem được danh mục sản phẩm", "DMSP" in bep, True)
+		la("bếp xem được công thức định mức", "DMBOM" in bep, True)
+		la("bếp KHÔNG xem được giá mua", "DMGIA" in bep, False)
+		la("bếp KHÔNG xem được tài khoản kế toán", "DMTK" in bep, False)
+		la("bếp KHÔNG xem được hồ sơ khách hàng", "DMKH" in bep, False)
+	finally:
+		frappe.get_roles = cu
 
 
 @ca("hợp đồng dữ liệu trả về đủ mọi khoá màn hình cần")
