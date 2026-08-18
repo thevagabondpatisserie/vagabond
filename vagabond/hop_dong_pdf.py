@@ -317,12 +317,17 @@ def chi_tiet(name):
 		d["bg_thue_pt"] = flt(bg.thue_pt)
 		d["bg_gia_da_gom_vat"] = cint(bg.gia_da_gom_vat)
 		d["bg_giao_hang"] = bg.giao_hang or ""
-	# Nguoi ky ben B de trong thi lui ve nguoi dai dien khai trong Cai dat
-	# bao gia. Van sua tay duoc tren man tao hop dong.
-	if not (d.get("nguoi_ky_b") or "").strip():
-		d["nguoi_ky_b"] = _bo_xung_ho(d["ben_b"].get("dai_dien"))
+	# Nguoi ky ben B: KHONG lui ve o "dai dien" cua Cai dat bao gia nua.
+	#
+	# Nghiem thu 18/08/2026 bat duoc: o do dang ghi "Loan Anh / Sales
+	# Manager", tuc la ban Sales, dung y cai anh Viet cam: *"khong duoc lay
+	# mac dinh ten cua ban Sales"*. O do la nguoi lien he tren to bao gia,
+	# khong phai nguoi dat but ky hop dong.
+	#
+	# De trong thi to in ra cham cham de nguoi ta dien tay, va man tao hop
+	# dong do san bang nguoi ky cua hop dong gan nhat (xem goi_y_hop_dong).
 	if not (d.get("chuc_vu_ky_b") or "").strip():
-		d["chuc_vu_ky_b"] = d["ben_b"].get("chuc_vu") or "Giám đốc"
+		d["chuc_vu_ky_b"] = "Giám đốc"
 	d["co_phu_luc_scan"] = 1 if d.get("phu_luc_scan") else 0
 	return d
 
@@ -537,7 +542,19 @@ def _gach(vi, en):
 def _html(name):
 	"""To hop dong mua ban hang hoa song ngu, cau truc hanh chinh Viet Nam."""
 	d = chi_tiet(name)
-	b = d["ben_b"]
+	b = dict(d["ben_b"])
+	# O "Dai dien" cua khoi thong tin Ben B phai la NGUOI KY, khong phai o
+	# "dai dien" khai trong Cai dat bao gia.
+	#
+	# Nghiem thu tren site that 18/08/2026: o do dang ghi "Loan Anh / Sales
+	# Manager". Anh Viet: *"khong duoc lay mac dinh ten cua ban Sales"*.
+	# Chan ngay tai day, la cho DUY NHAT chu chay ra giay, nen du du lieu
+	# vao co ban the nao thi to in ra van sach.
+	#
+	# De trong thi in cham cham, nhin la biet con thieu. Con hon in ten ban
+	# Sales ra roi ky gui khach.
+	b["dai_dien"] = (d.get("nguoi_ky_b") or "").strip()
+	b["chuc_vu"] = (d.get("chuc_vu_ky_b") or "").strip() or "Giám đốc"
 	a = {
 		"ten": d.get("ten_khach"),
 		"mst": d.get("ma_so_thue"),

@@ -2192,6 +2192,20 @@ def goi_y_hop_dong(name):
 	d = frappe.get_doc(DT, name)
 	ngay = nowdate()
 	b = _ben_b()
+	# Nguoi ky ben B lay tu HOP DONG GAN NHAT da dien, khong lay o "dai
+	# dien" trong Cai dat bao gia.
+	#
+	# Nghiem thu 18/08/2026 bat duoc: o do dang ghi "Loan Anh / Sales
+	# Manager". Anh Viet: *"khong duoc lay mac dinh ten cua ban Sales"*.
+	# Nho lai nguoi ky lan truoc thi lan dau phai go tay, tu lan hai tro di
+	# may do san, va do san bang chinh cai NGUOI TA DA CHON chu khong phai
+	# cai may doan.
+	ky_b = frappe.db.sql(
+		"""select nguoi_ky_b, chuc_vu_ky_b from `tabHop Dong Ban Hang`
+		where ifnull(nguoi_ky_b, '') != '' order by creation desc limit 1""",
+		as_dict=True,
+	)
+	ky_b = ky_b[0] if ky_b else {}
 	return {
 		"ngay": ngay,
 		# Tra ca viet tat va ma loai de man hinh dung lai so khi user doi
@@ -2202,8 +2216,8 @@ def goi_y_hop_dong(name):
 		"ten_khach": d.ten_khach or "",
 		"nguoi_ky_a": _bo_ho(d.nguoi_lien_he or ""),
 		"chuc_vu_ky_a": (d.chuc_vu or "").strip() or "Giám đốc",
-		"nguoi_ky_b": _bo_ho(b.get("dai_dien") or ""),
-		"chuc_vu_ky_b": (b.get("chuc_vu") or "").strip() or "Giám đốc",
+		"nguoi_ky_b": _bo_ho(ky_b.get("nguoi_ky_b") or ""),
+		"chuc_vu_ky_b": (ky_b.get("chuc_vu_ky_b") or "").strip() or "Giám đốc",
 	}
 
 
