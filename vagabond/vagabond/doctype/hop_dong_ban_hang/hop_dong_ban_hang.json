@@ -188,6 +188,51 @@
    "fieldname": "thoi_gian_giao",
    "fieldtype": "Small Text",
    "label": "Thoi gian ban giao"
+  },
+  {
+   "fieldname": "sec_ky",
+   "fieldtype": "Section Break",
+   "label": "Người ký trên hợp đồng"
+  },
+  {
+   "fieldname": "nguoi_ky_a",
+   "fieldtype": "Data",
+   "label": "Ho ten nguoi ky ben A",
+   "description": "Ghi rõ họ và tên, không ghi Ms. hay Mr. Thường là Giám đốc chứ không phải người liên hệ."
+  },
+  {
+   "fieldname": "chuc_vu_ky_a",
+   "fieldtype": "Data",
+   "label": "Chuc vu nguoi ky ben A",
+   "default": "Giám đốc"
+  },
+  {
+   "fieldname": "cb_ky",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "nguoi_ky_b",
+   "fieldtype": "Data",
+   "label": "Ho ten nguoi ky ben B",
+   "description": "Người đại diện Vagabond ký hợp đồng. Mặc định lấy từ Cài đặt báo giá, sửa được."
+  },
+  {
+   "fieldname": "chuc_vu_ky_b",
+   "fieldtype": "Data",
+   "label": "Chuc vu nguoi ky ben B",
+   "default": "Giám đốc"
+  },
+  {
+   "fieldname": "sec_pl",
+   "fieldtype": "Section Break",
+   "label": "Phụ lục đính kèm"
+  },
+  {
+   "fieldname": "phu_luc_scan",
+   "fieldtype": "Attach",
+   "label": "Ban bao gia da ky (scan)",
+   "description": "Bản báo giá đã có chữ ký và mộc hai bên. Có tệp này thì PDF hợp đồng đính bản này làm Phụ lục 01 thay cho bản báo giá tự dựng."
   }
  ],
  "links": [
@@ -202,7 +247,7 @@
    "link_fieldname": "custom_hop_dong"
   }
  ],
- "modified": "2026-08-18 12:00:00.000000",
+ "modified": "2026-08-18 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Hop Dong Ban Hang",
