@@ -986,6 +986,30 @@ async function scrHome() {
   vgbGomNhom();
   bcSoHomNay();
   mvChipCanhBao();
+  vgbNapKhungCo();
+}
+
+/* Danh bạ các màn danh sách mà TÀI KHOẢN NÀY được xem, do máy chủ trả về.
+
+   Vì sao hỏi máy chủ chứ không tự đoán theo vai ở màn: danh sách quyền chỉ
+   được khai MỘT nơi, ở Python. Đoán lại ở đây là đẻ ra bản sao thứ hai, và
+   hai bản sẽ lệch nhau vào một ngày không ai đoán trước.
+
+   Chạy SAU khi trang chủ đã dựng xong, và hỏng thì im lặng bỏ qua: một lỗi
+   đọc danh bạ không được làm vỡ trang chủ của cả quán. Lần đầu vào chưa có
+   danh bạ thì nhóm Danh mục chưa hiện, xong lượt hỏi thì tự hiện ra. */
+var VGB_KHUNG_CO = null;
+
+async function vgbNapKhungCo() {
+  if (VGB_KHUNG_CO) return;
+  var ds;
+  try { ds = await api('vagabond.khung.ds.danh_ba', {}); } catch (e) { return; }
+  var m = {};
+  (ds || []).forEach(function (x) { if (x && x.ma) m[x.ma] = x.ten || x.ma; });
+  VGB_KHUNG_CO = m;
+  /* Chỉ vẽ lại khi vẫn đang đứng ở trang chủ. Người ta bấm đi màn khác
+     trong lúc chờ mà mình vẽ đè lên là cướp màn của họ. */
+  if (S.stack[S.stack.length - 1] === scrHome) vgbGomNhom();
 }
 
 /* Chip do canh bao han muc mua vu (anh Viet chot 18/08/2026).
@@ -1051,6 +1075,37 @@ lieu va van dung ham card() cu de dung tung dong; xong roi vgbGomNhom() moi
 doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
+/* ---------- Phân hệ DANH MỤC (anh Việt 18/08/2026) ----------
+
+Anh nói: "để đảm bảo mọi phân hệ hoạt động trơn tru mà không bị rác dữ liệu,
+anh muốn quy hoạch lại toàn bộ dữ liệu nền tảng".
+
+Không màn hình nào ở đây được viết tay. Cả 16 danh mục đi qua tầng khung
+danh sách: khai báo cột và bộ lọc bên Python, giao diện tự hiện, và bộ lọc
+chạy ở MÁY CHỦ. Điều cuối là bắt buộc chứ không phải cho đẹp - doctype
+Customer của tiệm đang có 43.220 dòng, kéo hết về điện thoại là treo máy.
+
+Ô nào người dùng không đủ quyền thì máy chủ không trả về trong danh bạ, nên
+ô đó không hiện. Chặn thật nằm ở vagabond/danh_muc_nen.py. */
+var VGB_DM = [
+  { m: 'DMSP', ic: '🎂', ten: 'Danh mục sản phẩm', mo: 'Toàn bộ mặt hàng, lọc theo nhóm và đơn vị tính' },
+  { m: 'DMNSP', ic: '🗂️', ten: 'Nhóm sản phẩm', mo: 'Cây nhóm hàng của tiệm' },
+  { m: 'DMDVT', ic: '📏', ten: 'Đơn vị tính', mo: 'Kg, gram, cái, hộp...' },
+  { m: 'DMQD', ic: '🔄', ten: 'Quy đổi đơn vị tính', mo: 'Một kg bằng bao nhiêu gram' },
+  { m: 'DMKHO', ic: '🏬', ten: 'Kho hàng', mo: 'Cây kho, kho cha và kho chứa hàng' },
+  { m: 'DMBOM', ic: '🧪', ten: 'Công thức định mức', mo: 'Một món ăn hết bao nhiêu nguyên liệu' },
+  { m: 'DMNCC', ic: '🏭', ten: 'Nhà cung cấp', mo: 'Hồ sơ nhà cung cấp' },
+  { m: 'DMNNCC', ic: '📁', ten: 'Nhóm nhà cung cấp', mo: 'Cây nhóm nhà cung cấp' },
+  { m: 'DMGIA', ic: '💰', ten: 'Bảng giá mua vào', mo: 'Giá mua theo món và nhà cung cấp' },
+  { m: 'DMKH', ic: '👥', ten: 'Danh mục khách hàng', mo: 'Lọc khách sỉ B2B và khách lẻ B2C' },
+  { m: 'DMNKH', ic: '📁', ten: 'Nhóm khách hàng', mo: 'Cây nhóm khách hàng' },
+  { m: 'DMPT', ic: '💳', ten: 'Phương thức thanh toán', mo: 'Tiền mặt, chuyển khoản, thẻ, ví' },
+  { m: 'DMNH', ic: '🏦', ten: 'Danh mục ngân hàng', mo: '581 ngân hàng NAPAS, dùng chung với tệp MB Biz' },
+  { m: 'DMTK', ic: '🧮', ten: 'Tài khoản kế toán', mo: 'Lọc sẵn nhóm hay dùng: tiền, công nợ, doanh thu' },
+  { m: 'DMTHUE', ic: '🧾', ten: 'Thuế bán ra', mo: 'Mẫu thuế áp cho hoá đơn bán' },
+  { m: 'DMTHUEM', ic: '🧾', ten: 'Thuế mua vào', mo: 'Mẫu thuế áp cho hoá đơn mua' }
+];
+
 var VGB_NHOM = [
   /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
@@ -1071,6 +1126,10 @@ var VGB_NHOM = [
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
+  /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
+     các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
+     16 nhánh chép tay. */
+  { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
@@ -1148,18 +1207,34 @@ function vgbSoNhom(nh) {
   return t;
 }
 
+/* Bản chụp các dòng đọc được từ scrHome ở lượt gom ĐẦU TIÊN.
+
+   Vì sao phải giữ: hàm này đọc các dòng [data-go] rồi GHI ĐÈ body bằng lưới
+   ô lớn. Nên từ lượt gom thứ hai trở đi, [data-go] không còn dòng nào và
+   lưới sẽ trống trơn. Bắt được lúc dựng phân hệ Danh mục 18/08/2026, khi
+   danh bạ máy chủ về muộn và cần gom lại lượt hai. */
+var VGB_DONG_GOC = null;
+
 function vgbGomNhom() {
   vgbCss();
   VGB_HUB = {};
   var body = document.getElementById('vgbBody');
   if (!body) return;
   var rows = body.querySelectorAll('[data-go]');
-  for (var i = 0; i < rows.length; i++) {
-    var el = rows[i];
-    var b = el.querySelector('.bdg');
-    var n = b ? parseInt((b.textContent || '').replace(/\D/g, ''), 10) : 0;
-    VGB_HUB[el.dataset.go] = { html: el.outerHTML, cnt: n || 0 };
+  if (rows.length) {
+    VGB_DONG_GOC = {};
+    for (var i = 0; i < rows.length; i++) {
+      var el = rows[i];
+      var b = el.querySelector('.bdg');
+      var n = b ? parseInt((b.textContent || '').replace(/\D/g, ''), 10) : 0;
+      VGB_DONG_GOC[el.dataset.go] = { html: el.outerHTML, cnt: n || 0 };
+    }
+  } else if (!VGB_DONG_GOC) {
+    /* Chưa gom lần nào mà cũng không đọc được dòng nào: không có gì để vẽ,
+       và vẽ đè một lưới trống lên màn đang có là làm hỏng màn. */
+    return;
   }
+  for (var gk in VGB_DONG_GOC) VGB_HUB[gk] = VGB_DONG_GOC[gk];
 
   /* Hai o nho cua Xuat kho - dung o day de khong phai dong vao scrHome. */
   VGB_HUB.XKH = {
@@ -1170,6 +1245,18 @@ function vgbGomNhom() {
     cnt: 0,
     html: vgbODong('XKD', '🔁', 'Xuất điều chuyển nội bộ', 'Chuyển hàng sang kho khác')
   };
+  /* Phân hệ Danh mục. VGB_KHUNG_CO là danh bạ máy chủ trả về, chỉ gồm các
+     màn tài khoản này đủ quyền xem. Ô nào không có trong đó thì không dựng,
+     nên người không đủ quyền không nhìn thấy ô. */
+  for (var dmi = 0; dmi < VGB_DM.length; dmi++) {
+    var dmx = VGB_DM[dmi];
+    if (VGB_KHUNG_CO && !VGB_KHUNG_CO[dmx.m]) continue;
+    VGB_HUB['DM:' + dmx.m] = {
+      cnt: 0,
+      html: vgbODong('DM:' + dmx.m, dmx.ic, dmx.ten, dmx.mo)
+    };
+  }
+
   /* Ô cho bộ phận Bếp (anh Việt 18/08/2026: "các bạn nhân sự Bếp đang bị
      nghẽn ở khâu nhận hàng"). Không khoá theo vai: ai có khai Kho phụ trách
      thì thấy hàng về kho mình, ai chưa khai thì màn tự nói phải làm gì. */
@@ -1390,6 +1477,9 @@ function vgbGo(k) {
   if (k === 'CBTT') return go(scrCanhBaoTT);
   if (k === 'RND') return go(scrRndList);
   if (k === 'NHANDC') return go(scrHangVeKho);
+  /* Một nhánh tiền tố cho cả 16 danh mục. Chép 16 nhánh tay là 16 cơ hội
+     gõ nhầm một mã, và đó đúng là lỗi dead link ngày 16/08. */
+  if (k.indexOf('DM:') === 0) return kgMo(k.slice(3));
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
@@ -12952,7 +13042,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '212';
+var APPVER = '213';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
