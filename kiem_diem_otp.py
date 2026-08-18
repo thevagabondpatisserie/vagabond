@@ -1201,6 +1201,133 @@ if _m3:
 	# _html phai goi phep chung, khong dung mot ban chep thu hai.
 	la("_html dung chung phep Dieu 2", "cau_dieu_2(d.get(\"gia_tri\")" in _hdp_src, True)
 
+# --- DUNG THAT CA TO HOP DONG, khong chi soi chuoi ---
+#
+# Bai hoc dat hai lan trong cung mot ngay: v215 vo o cau 100%, va ngay sau
+# khi va cho do thi v216 lai vo o khoi o ky vi "width:100%" va "width:50%"
+# cung nam trong mot khoi co toan tu dinh dang. Hai lan deu la MOT loai
+# loi, va bo kiem soi-chuoi khong the bat duoc loai nay.
+#
+# Nen ca nay DUNG THAT ca to hop dong trong mot khong gian ten gia lap
+# frappe. Cham hon mot chut, nhung no chay dung duong ma may chu chay.
+def _nap_hop_dong_pdf():
+	"""Nap hop_dong_pdf.py voi frappe gia lap. Tra ve khong gian ten."""
+	import datetime
+	import types
+	import unicodedata as _ud
+
+	_fr = types.ModuleType("frappe")
+	_fr.whitelist = lambda *a, **k: (lambda f: f)
+	_fr.throw = lambda *a, **k: (_ for _ in ()).throw(Exception(a[0] if a else "throw"))
+	_fr.get_roles = lambda *a, **k: []
+	_fr.db = types.SimpleNamespace(
+		exists=lambda *a, **k: False, get_value=lambda *a, **k: None
+	)
+	_fr.session = types.SimpleNamespace(user="x")
+	_fr.log_error = lambda *a, **k: None
+	_fr.sendmail = lambda **k: None
+	_u = types.ModuleType("frappe.utils")
+	_u.flt = lambda x, *a: float(x or 0)
+	_u.cint = lambda x, *a: int(float(x or 0))
+	_u.nowdate = lambda: "2026-08-18"
+
+	def _gd(x=None):
+		if isinstance(x, (datetime.date, datetime.datetime)):
+			return x
+		return datetime.date.fromisoformat(str(x)[:10])
+
+	_u.getdate = _gd
+	_fr.utils = _u
+
+	_cn = types.ModuleType("vagabond.cong_no")
+	_cn._tien_vn = lambda v: "{:,.0f}".format(float(v or 0)).replace(",", ".")
+	_cn._chu_so_tien = lambda v: "Hai mươi lăm triệu đồng"
+
+	ns = {
+		"__name__": "vagabond.hop_dong_pdf",
+		"frappe": _fr,
+		"unicodedata": _ud,
+		"base64": __import__("base64"),
+		"flt": _u.flt, "cint": _u.cint, "getdate": _gd, "nowdate": _u.nowdate,
+		"_tien_vn": _cn._tien_vn, "_chu_so_tien": _cn._chu_so_tien,
+	}
+	# Bo cac dong import that di, phan con lai chay duoc nguyen ven.
+	than = "\n".join(
+		l for l in _hdp_src.split("\n")
+		if not l.startswith("import ") and not l.startswith("from ")
+	)
+	exec(compile(than, "hop_dong_pdf", "exec"), ns, ns)
+	return ns
+
+
+try:
+	_ns_full = _nap_hop_dong_pdf()
+except Exception as _e:
+	_ns_full = None
+	print("   (khong nap duoc hop_dong_pdf: %s)" % _e)
+la("nap duoc ca mo dun hop dong", _ns_full is not None, True)
+
+if _ns_full:
+	_HD_GIA = {
+		"name": "HDBH-TEST", "ten": "Gói tea break", "so_hop_dong": "",
+		"khach_hang": "KH-01", "ngay_ky": "2026-08-18", "gia_tri": 25720000,
+		"ten_khach": "CÔNG TY TNHH M.O.I COSMETICS", "ma_so_thue": "0314693309",
+		"dia_chi": "Phòng 9.1, Ree Tower", "dai_dien": "Ông LÂM THÀNH KIM",
+		"chuc_vu": "Giám đốc", "dien_thoai": "", "email": "a@b.com",
+		"dat_coc_pt": 50, "ngay_dot1": 3, "ngay_dot2": 3,
+		"dia_diem_giao": "307/1 Nguyễn Văn Trỗi", "thoi_gian_giao": "",
+		"bao_gia": "VGB-PQ-2026-0001",
+		"dong_bao_gia": [
+			{"ten_mon": "Bánh thiết kế riêng", "dvt": "Gói", "so_luong": 1,
+			 "don_gia": 25720000, "thanh_tien": 25720000}
+		],
+		"bg_thue_pt": 8, "bg_gia_da_gom_vat": 1, "bg_giao_hang": "",
+		"so_goi_y": "20260818/HDMB/MOI-VGB", "tien_dot1": 12860000,
+		"tien_dot2": 12860000,
+		"ben_b": {
+			"ten": "CÔNG TY TNHH PATISSERIE VAGABOND", "mst": "0318561568",
+			"dia_chi": "9 Trần Cao Vân", "dai_dien": "Ông NGUYỄN HOÀNG VIỆT",
+			"chuc_vu": "Giám đốc", "dien_thoai": "", "email": "",
+			"ngan_hang": "Số tài khoản: 31561568",
+		},
+	}
+
+	def _dung_to(sua=None):
+		"""Dung that to hop dong voi du lieu gia. Nem loi thi tra ve None."""
+		d = dict(_HD_GIA)
+		if sua:
+			d.update(sua)
+		_ns_full["chi_tiet"] = lambda name: d
+		try:
+			return _ns_full["_html"]("HDBH-TEST")
+		except Exception as _e2:
+			return None
+
+	# Ba nhanh coc, va ca ba deu phai dung ra mot to hoan chinh.
+	for _pt, _nhan in ((50, "coc mot nua"), (0, "khong coc"), (100, "tra du truoc")):
+		_to = _dung_to({"dat_coc_pt": _pt})
+		la("dung duoc ca to khi %s" % _nhan, bool(_to), True)
+		if _to:
+			# Dem theo "ĐIỀU n:" chu khong theo chuoi "ĐIỀU " - chuoi do
+			# con khop ca tua "ĐIỀU KHOẢN CHUNG" nen dem ra 7.
+			la("to khi %s co du sau Dieu" % _nhan,
+			   sum(1 for _i in range(1, 7) if ("ĐIỀU %d:" % _i) in _to), 6)
+			la("to khi %s co o ky hai ben" % _nhan,
+			   "ĐẠI DIỆN BÊN A" in _to and "ĐẠI DIỆN BÊN B" in _to, True)
+	# Khong co bao gia nguon thi van phai dung duoc, bang mot dong gop.
+	_to2 = _dung_to({"bao_gia": "", "dong_bao_gia": []})
+	la("khong co bao gia van dung duoc to", bool(_to2), True)
+	if _to2:
+		la("thieu bao gia thi khong noi den phu luc", "Phụ lục 01" in _to2, False)
+	# Ten cong ty khach phai in ra dung tren to.
+	_to3 = _dung_to({})
+	la("ten ben A in dung tren to",
+	   bool(_to3) and "M.O.I COSMETICS" in _to3, True)
+	la("ten ben B in dung tren to",
+	   bool(_to3) and "PATISSERIE VAGABOND" in _to3, True)
+	la("so hop dong tu sinh khi de trong",
+	   bool(_to3) and "20260818/HDMB/MOI-VGB" in _to3, True)
+
 # --- To phap ly: dung tieu de va dung can cu ---
 la("tieu de la hop dong mua ban hang hoa", "HỢP ĐỒNG MUA BÁN HÀNG HÓA" in _hdp_src, True)
 la("khong con goi la hop dong dich vu", "HỢP ĐỒNG DỊCH VỤ" in _hdp_src, False)
