@@ -339,16 +339,41 @@ function srvErr(status, body) {
   e.status = status; e.exc_type = exc;
   return e;
 }
+/* Hạn giờ cho MỌI lời gọi máy chủ (anh Việt báo 18/08/2026).
+
+   Triệu chứng: bấm Đồng bộ Pancake thì màn đứng im ở khung chờ, mãi mãi.
+   Đọc bản ghi thì thấy máy chủ chạy xong cả ba lần anh bấm, mà màn vẫn nằm
+   ở khung chờ. Nguyên nhân: fetch KHÔNG có hạn giờ mặc định, nên một lần
+   mạng chập giữa chừng là lời hứa treo vĩnh viễn, không thành công cũng
+   không thất bại - và mọi màn hình chờ nó đều kẹt theo, không có đường ra.
+
+   60 giây: đủ dài cho việc nặng thật như xuất hoá đơn hàng loạt, đủ ngắn
+   để người dùng không ngồi nhìn đồng hồ cát không biết chuyện gì. */
+var API_HAN_GIO = 60000;
+
 async function rawCall(method, args) {
-  var r;
+  var ctl = window.AbortController ? new AbortController() : null;
+  var hen = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) { } }, API_HAN_GIO) : null;
+  var r, txt;
   try {
     r = await fetch('/api/method/' + method, {
       method: 'POST', credentials: 'same-origin', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': csrfTok() },
-      body: JSON.stringify(args || {})
+      body: JSON.stringify(args || {}),
+      signal: ctl ? ctl.signal : undefined
     });
-  } catch (ne) { throw new Error('Mất kết nối mạng, kiểm tra rồi thử lại'); }
-  var txt = await r.text();
+    /* Đọc thân trả lời cũng nằm trong hạn giờ: máy chủ trả đầu mà nghẽn
+       giữa thân thì vẫn là treo. */
+    txt = await r.text();
+  } catch (ne) {
+    if (ctl && ctl.signal.aborted) {
+      throw new Error('Máy chủ chưa trả lời sau ' + Math.round(API_HAN_GIO / 1000) +
+        ' giây. Kiểm tra mạng rồi bấm lại; vẫn vậy thì báo em kiểm tra máy chủ.');
+    }
+    throw new Error('Mất kết nối mạng, kiểm tra rồi thử lại');
+  } finally {
+    if (hen) clearTimeout(hen);
+  }
   if (!r.ok) throw srvErr(r.status, txt);
   var j = {};
   try { j = JSON.parse(txt); } catch (x) { }
