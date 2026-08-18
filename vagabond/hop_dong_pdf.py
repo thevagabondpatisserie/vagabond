@@ -70,42 +70,80 @@ def _khong_dau(s):
 	return s.replace("đ", "d").replace("Đ", "D")
 
 
+# Hai nhom tu bi bo khi rut ten viet tat.
+#
+# Nhom mot: loai hinh doanh nghiep. Cong ty nao cung co nen khong phan biet
+# duoc ai voi ai.
+TU_LOAI_HINH = {
+	"CONG", "TY", "TNHH", "CO", "PHAN", "CP", "MTV", "MOT", "THANH", "VIEN",
+	"DOANH", "NGHIEP", "TU", "NHAN", "HO", "KINH", "SO", "CHI", "NHANH",
+	"VN", "VIETNAM", "VIET", "NAM", "AND", "VA", "GROUP", "HOLDINGS",
+	"CORPORATION", "CORP", "COMPANY", "LIMITED", "LTD", "JSC", "INC",
+}
+
+# Nhom hai: nganh nghe. Day la nhom anh Viet bat duoc loi 18/08/2026:
+# "CONG TY TNHH TU VAN GIAI PHAP SECOMM" ra "VAN" chu khong phai "SECOMM".
+#
+# Ly do loi: bo duoc "TU" nhung giu lai "VAN" (cua chu "VAN" trong "tu van"),
+# roi thay tu dau tien chi 3 chu nen tuong do la mot cum viet tat.
+#
+# Ten cong ty Viet Nam gan nhu luon co dang: loai hinh + nganh nghe + TEN
+# RIENG. Bo ca hai nhom dau thi con lai dung cai can lay.
+TU_NGANH_NGHE = {
+	"TUVAN", "VAN", "GIAI", "PHAP", "THUONG", "MAI", "DICH", "VU", "SAN",
+	"XUAT", "NHAP", "KHAU", "DAU", "PHAT", "TRIEN", "XAY", "DUNG", "KY",
+	"THUAT", "CONGNGHE", "NGHE", "GIAO", "DUC", "DAO", "TAO", "VAN", "TAI",
+	"LOGISTICS", "SOLUTIONS", "SOLUTION", "SERVICES", "SERVICE", "TRADING",
+	"TECHNOLOGY", "TECH", "CONSULTING", "COSMETICS", "FOOD", "FOODS",
+	"BEVERAGE", "MEDIA", "AGENCY", "PATISSERIE", "BAKERY", "RESTAURANT",
+	"HOTEL", "TRAVEL", "TOUR", "TOURS", "REAL", "ESTATE", "PROPERTY",
+	"DEVELOPMENT", "INVESTMENT", "MANAGEMENT", "INTERNATIONAL", "GLOBAL",
+	"THUCPHAM", "THUC", "PHAM", "MY", "NGHIENCUU", "NGHIEN", "CUU",
+}
+
+
 def viet_tat_khach(ten):
 	"""Cum viet tat cua ten cong ty, dung trong so hop dong. THUAN.
 
-	"CONG TY TNHH M.O.I COSMETICS" -> "MOI"
-	"CONG TY TNHH PATISSERIE VAGABOND" -> "PV"
+	"CONG TY TNHH TU VAN GIAI PHAP SECOMM"  -> "SECOMM"
+	"CONG TY TNHH M.O.I COSMETICS"          -> "MOI"
+	"CONG TY TNHH ELLE VIET NAM"            -> "ELLE"
+	"CONG TY TNHH PATISSERIE VAGABOND"      -> "VAGABOND"
 
-	Cach lam: bo cac tu chi loai hinh doanh nghiep (cong ty nao cung co nen
-	khong phan biet duoc ai voi ai), roi nhin phan ten rieng con lai. Neu tu
-	dau tien cua no da ngan san - tuc no von la mot cum viet tat nhu MOI,
-	PYR, KFC - thi lay nguyen tu do; con neu la mot tu dai thi lay chu cai
-	dau cua cac tu.
+	Cach lam: ten cong ty Viet Nam gan nhu luon co dang loai hinh, roi nganh
+	nghe, roi TEN RIENG. Bo hai nhom dau thi con lai dung cai can lay.
 
-	So sanh phai BO DAU truoc: "CO PHAN" va "CỔ PHẦN" la mot, va neu khong
-	bo dau thi "CONG TY CỔ PHẦN PYRAMID" ra "CP" - lay dung hai chu cua cai
-	phan dang le phai bo di.
+	Bo het ca hai nhom ma khong con gi (vi du "CONG TY TNHH THUONG MAI") thi
+	lui ve lay tu CUOI CUNG cua phan da bo loai hinh - trong tieng Viet ten
+	rieng nam o cuoi, khong nam o dau.
 
 	Day chi la GOI Y. Nguoi lap sua tay duoc truoc khi ky, nen tha doan hoi
 	tho con hon bat ho go tay tu dau.
 	"""
-	bo = {
-		"CONG", "TY", "TNHH", "CO", "PHAN", "CP", "MTV", "MOT", "THANH",
-		"VIEN", "DOANH", "NGHIEP", "TU", "NHAN", "HO", "KINH", "SO",
-		"CHI", "NHANH", "VN", "VIETNAM", "VIET", "NAM", "AND", "VA",
-	}
 	tho = str(ten or "").replace(".", "").replace(",", " ").replace("-", " ")
 	tu = [t for t in tho.split() if t]
-	giu = [t for t in tu if _khong_dau(t).upper() not in bo]
-	if not giu:
-		giu = tu
-	if not giu:
+	if not tu:
 		return ""
-	dau = "".join(c for c in _khong_dau(giu[0]).upper() if c.isalnum())
-	if len(giu) == 1 or (dau and len(dau) <= 5):
-		ra = dau
+	# Buoc mot: bo loai hinh doanh nghiep.
+	con = [t for t in tu if _khong_dau(t).upper() not in TU_LOAI_HINH]
+	if not con:
+		con = tu
+	# Buoc hai: bo nganh nghe. Neu bo het thi giu nguyen buoc mot.
+	rieng = [t for t in con if _khong_dau(t).upper() not in TU_NGANH_NGHE]
+	if not rieng:
+		rieng = con[-1:]
+
+	# Con dung MOT tu thi lay nguyen tu do, con nhieu tu thi ghep chu cai
+	# dau. Khong doan them gi nua.
+	#
+	# Truoc do co mot nhanh "tu dau viet hoa ngan thi lay nguyen", de bat
+	# cac cum nhu MOI hay KFC. Nhanh do thua va con hai: "JU YOUNG ISU
+	# FUTURE GROW" bi cat con "JU". Bo di thi MOI va KFC van dung, vi sau
+	# khi bo nganh nghe chung chi con dung mot tu.
+	if len(rieng) == 1:
+		ra = _khong_dau(rieng[0]).upper()
 	else:
-		ra = "".join(_khong_dau(t)[0] for t in giu if _khong_dau(t))
+		ra = "".join(_khong_dau(t)[0] for t in rieng if _khong_dau(t))
 	ra = "".join(c for c in ra.upper() if c.isalnum())
 	return ra[:12]
 
@@ -145,9 +183,36 @@ def chia_hai_dot(tong, phan_tram_dot1):
 	return dot1, tong - dot1
 
 
+# Anh Viet 18/08/2026: *"Cam dung em-dash: trong van ban tieng Viet, thay
+# toan bo dau em-dash thanh dau gach ngang tieu chuan cho toan bo van ban"*.
+#
+# Ma nguon cua app khong con dau nao loai nay, nhung to hop dong in ra ca
+# nhung chu do NGUOI GO: ten mon tren bao gia, dieu kien thanh toan, ghi
+# chu... Nguoi go tren may Mac hay Word rat de sinh ra dau dai, va lam sach
+# tung o mot thi kieu gi cung sot. Nen chan o mot cho duy nhat: moi chu di
+# vao to in deu chay qua _esc.
+DAU_DAI = {
+	"\u2013": "-",   # en dash
+	"\u2014": "-",   # em dash
+	"\u2012": "-",   # figure dash
+	"\u2015": "-",   # horizontal bar
+	"\u2212": "-",   # minus sign
+	"\u2010": "-",   # hyphen
+	"\u2011": "-",   # non-breaking hyphen
+}
+
+
+def don_dau_dai(s):
+	"""Doi moi kieu gach dai ve gach ngang thuong. THUAN."""
+	t = str(s or "")
+	for k, v in DAU_DAI.items():
+		t = t.replace(k, v)
+	return t
+
+
 def _esc(s):
 	return (
-		str(s or "")
+		don_dau_dai(s)
 		.replace("&", "&amp;")
 		.replace("<", "&lt;")
 		.replace(">", "&gt;")
@@ -156,6 +221,42 @@ def _esc(s):
 
 def _br(s):
 	return _esc(s).replace("\n", "<br>")
+
+
+# Xung ho phai bo khoi o ky (anh Viet 18/08/2026): "Phai ghi ro ho va ten
+# chu khong ghi Ms." O ky la cho phap ly, khong phai cho chao hoi.
+XUNG_HO = ("MS.", "MS", "MR.", "MR", "MRS.", "MRS", "MISS", "ONG", "BA", "ANH", "CHI")
+
+
+def _bo_xung_ho(ten):
+	"""Bo Ms., Mr., Ong, Ba... o dau ten. THUAN.
+
+	Ho so khach hay luu ten kieu "Ms.Trang Pham" vi do la cach Sales go khi
+	nhan tin. Dua nguyen si vao o ky hop dong thi to giay thanh khong dung
+	the thuc.
+	"""
+	t = str(ten or "").strip()
+	if not t:
+		return ""
+	# Tach ca truong hop khong co dau cach sau dau cham: "Ms.Trang Pham".
+	tho = t.replace(".", ". ")
+	tu = [x for x in tho.split() if x]
+	while tu and _khong_dau(tu[0]).upper().rstrip(".") + ("." if tu[0].endswith(".") else "") in XUNG_HO:
+		tu.pop(0)
+	if not tu:
+		return t
+	return " ".join(tu)
+
+
+def _ngay_en(d):
+	"""Ngay thang kieu Anh, dung cho phan song ngu."""
+	thang = ("January", "February", "March", "April", "May", "June", "July",
+	         "August", "September", "October", "November", "December")
+	try:
+		x = getdate(d)
+		return "%d %s %d" % (x.day, thang[x.month - 1], x.year)
+	except Exception:
+		return "..... ..... ....."
 
 
 def _ngay_vn(d):
@@ -216,6 +317,13 @@ def chi_tiet(name):
 		d["bg_thue_pt"] = flt(bg.thue_pt)
 		d["bg_gia_da_gom_vat"] = cint(bg.gia_da_gom_vat)
 		d["bg_giao_hang"] = bg.giao_hang or ""
+	# Nguoi ky ben B de trong thi lui ve nguoi dai dien khai trong Cai dat
+	# bao gia. Van sua tay duoc tren man tao hop dong.
+	if not (d.get("nguoi_ky_b") or "").strip():
+		d["nguoi_ky_b"] = _bo_xung_ho(d["ben_b"].get("dai_dien"))
+	if not (d.get("chuc_vu_ky_b") or "").strip():
+		d["chuc_vu_ky_b"] = d["ben_b"].get("chuc_vu") or "Giám đốc"
+	d["co_phu_luc_scan"] = 1 if d.get("phu_luc_scan") else 0
 	return d
 
 
@@ -227,14 +335,22 @@ def _bang_hang(d):
 	vat = ""
 	if d.get("bg_gia_da_gom_vat") or flt(d.get("bg_thue_pt")):
 		vat = "<br>(đã gồm VAT %s%%)" % (_tien_vn(d.get("bg_thue_pt")) if flt(d.get("bg_thue_pt")) else "8")
+	def _th(vi, en, rong="", canh="center"):
+		return (
+			'<th style="border:1px solid #000;padding:5px 6px;text-align:%s;%s">'
+			"%s<div style=\"font-style:italic;color:#555;font-weight:normal;"
+			'font-size:10.5px">%s</div></th>' % (canh, rong, vi, en)
+		)
+
 	th = (
 		'<tr style="background:#f2f2f2">'
-		'<th style="border:1px solid #000;padding:5px 6px;width:34px">STT</th>'
-		'<th style="border:1px solid #000;padding:5px 6px;text-align:left">Tên hàng</th>'
-		'<th style="border:1px solid #000;padding:5px 6px;width:52px">ĐVT</th>'
-		'<th style="border:1px solid #000;padding:5px 6px;width:62px">Số lượng</th>'
-		'<th style="border:1px solid #000;padding:5px 6px;width:100px">Đơn giá%s</th>'
-		'<th style="border:1px solid #000;padding:5px 6px;width:110px">Thành tiền%s</th></tr>' % (vat, vat)
+		+ _th("STT", "No.", "width:36px")
+		+ _th("Tên hàng", "Description", "", "left")
+		+ _th("ĐVT", "Unit", "width:56px")
+		+ _th("Số lượng", "Qty", "width:62px")
+		+ _th("Đơn giá%s" % vat, "Unit price", "width:100px")
+		+ _th("Thành tiền%s" % vat, "Amount", "width:110px")
+		+ "</tr>"
 	)
 	hang = []
 	if dong:
@@ -262,7 +378,9 @@ def _bang_hang(d):
 		)
 	tong = (
 		'<tr><td colspan="5" style="border:1px solid #000;padding:5px 6px;text-align:right;'
-		'font-weight:bold">TỔNG TIỀN%s</td>'
+		'font-weight:bold">TỔNG TIỀN%s'
+		'<div style="font-style:italic;color:#555;font-weight:normal;font-size:10.5px">'
+		"TOTAL</div></td>"
 		'<td style="border:1px solid #000;padding:5px 6px;text-align:right;font-weight:bold">%s</td></tr>'
 		% (vat.replace("<br>", " "), _tien_vn(d.get("gia_tri")))
 	)
@@ -272,34 +390,42 @@ def _bang_hang(d):
 	)
 
 
-def _o_ben(nhan, b):
-	"""Khoi thong tin mot ben, dung khuon bang hai cot cua mau anh Viet gui."""
+def _o_ben(nhan, nhan_en, b):
+	"""Khoi thong tin mot ben, song ngu, dung khuon mau anh Viet gui."""
 	dong = [
-		("Tên công ty", b.get("ten")),
-		("Địa chỉ", b.get("dia_chi")),
-		("Mã số thuế", b.get("mst")),
-		("Đại diện", b.get("dai_dien")),
-		("Chức vụ", b.get("chuc_vu")),
+		("Tên công ty", "Company", b.get("ten")),
+		("Địa chỉ", "Address", b.get("dia_chi")),
+		("Mã số thuế", "Tax code", b.get("mst")),
+		# Bo xung ho o CA khoi thong tin ben, khong chi o ky. Ho so khach
+		# hay luu "Ms.Trang Pham" vi do la cach Sales go khi nhan tin, ma
+		# to hop dong thi khong ghi Ms. o cho nao ca.
+		("Đại diện", "Representative", _bo_xung_ho(b.get("dai_dien"))),
+		("Chức vụ", "Title", b.get("chuc_vu")),
 	]
 	if b.get("dien_thoai"):
-		dong.append(("Điện thoại", b.get("dien_thoai")))
+		dong.append(("Điện thoại", "Tel", b.get("dien_thoai")))
 	if b.get("email"):
-		dong.append(("Email", b.get("email")))
+		dong.append(("Email", "Email", b.get("email")))
 	if b.get("ngan_hang"):
-		dong.append(("Tài khoản", b.get("ngan_hang")))
+		dong.append(("Tài khoản", "Bank details", b.get("ngan_hang")))
 	than = "".join(
-		'<tr><td style="padding:2px 0;width:110px;vertical-align:top">%s</td>'
-		'<td style="padding:2px 0;vertical-align:top">: %s</td></tr>' % (_esc(k), _br(v or "..........."))
-		for k, v in dong
+		'<tr><td style="padding:2px 0;width:150px;vertical-align:top">%s'
+		'<div style="font-style:italic;color:#555;font-size:11px">%s</div></td>'
+		'<td style="padding:2px 0;vertical-align:top">: %s</td></tr>'
+		% (_esc(k), _esc(k_en), _br(v or "..........."))
+		for k, k_en, v in dong
 	)
 	return (
-		'<div style="font-weight:bold;margin:11px 0 3px">%s</div>'
-		'<table style="width:100%%;font-size:12px;border-collapse:collapse">%s</table>' % (_esc(nhan), than)
+		'<div style="margin:11px 0 3px">'
+		'<div style="font-weight:bold">%s</div>'
+		'<div style="font-style:italic;color:#555;font-size:11px">%s</div></div>'
+		'<table style="width:100%%;font-size:12px;border-collapse:collapse">%s</table>'
+		% (_esc(nhan), _esc(nhan_en), than)
 	)
 
 
 def cau_dieu_2(tong, pt1, n1=3, n2=3):
-	"""Cau chu cua Dieu 2, chia hai dot hoac tra mot lan. THUAN.
+	"""Cau chu cua Dieu 2, chia hai dot hoac tra mot lan. THUAN, song ngu.
 
 	Tach han ra khoi _html vi day chinh la cho vua vo khi nghiem thu v215:
 	cau "Ben A thanh toan 100% gia tri Hop dong" co dau phan tram khong
@@ -314,29 +440,102 @@ def cau_dieu_2(tong, pt1, n1=3, n2=3):
 	n1 = cint(n1) or 3
 	n2 = cint(n2) or 3
 	dot1, dot2 = chia_hai_dot(tong, pt1)
-	if pt1 <= 0 or pt1 >= 100:
+
+	def _dot(vi, en):
 		return (
-			"<p style='margin:4px 0 4px 14px'>Bên A thanh toán 100%% giá trị Hợp đồng, "
-			"tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d "
-			"(%s) ngày bàn giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất.</p>"
-			% (_tien_vn(tong), _chu_so_tien(tong), n2, _so_chu(n2))
+			'<div style="margin:4px 0 0 14px">%s</div>'
+			'<div style="margin:1px 0 0 14px;font-style:italic;color:#555">%s</div>'
+			% (vi, en)
 		)
+
+	if pt1 <= 0 or pt1 >= 100:
+		return _dot(
+			"Bên A thanh toán 100%% giá trị Hợp đồng, tương đương số tiền "
+			"<b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d (%s) ngày bàn "
+			"giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất."
+			% (_tien_vn(tong), _chu_so_tien(tong), n2, _so_chu(n2)),
+			"Party A shall pay 100%% of the Contract value, equivalent to "
+			"<b>VND %s</b>, at the latest %02d (%s) days before the delivery date "
+			"agreed by both Parties." % (_tien_vn(tong), n2, _so_chu_en(n2)),
+		)
+	return _dot(
+		"Đợt 01: Bên A thanh toán %s%% giá trị Hợp đồng, tương đương số tiền "
+		"<b>%s VNĐ</b> (Bằng chữ: %s), trong vòng %02d (%s) ngày kể từ ngày Hợp "
+		"đồng được hai Bên ký kết."
+		% (_tien_vn(pt1), _tien_vn(dot1), _chu_so_tien(dot1), n1, _so_chu(n1)),
+		"Instalment 01: Party A shall pay %s%% of the Contract value, equivalent "
+		"to <b>VND %s</b>, within %02d (%s) days from the signing date."
+		% (_tien_vn(pt1), _tien_vn(dot1), n1, _so_chu_en(n1)),
+	) + _dot(
+		"Đợt 02: Bên A thanh toán %s%% giá trị Hợp đồng còn lại, tương đương số "
+		"tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d (%s) ngày bàn "
+		"giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất."
+		% (_tien_vn(100.0 - pt1), _tien_vn(dot2), _chu_so_tien(dot2), n2, _so_chu(n2)),
+		"Instalment 02: Party A shall pay the remaining %s%% of the Contract "
+		"value, equivalent to <b>VND %s</b>, at the latest %02d (%s) days before "
+		"the delivery date agreed by both Parties."
+		% (_tien_vn(100.0 - pt1), _tien_vn(dot2), n2, _so_chu_en(n2)),
+	)
+
+
+def _so_chu_en(n):
+	"""Doc mot so nho bang chu tieng Anh, dung cho "03 (three) days". THUAN."""
+	bang = {
+		1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+		7: "seven", 8: "eight", 9: "nine", 10: "ten", 14: "fourteen",
+		15: "fifteen", 20: "twenty", 30: "thirty",
+	}
+	return bang.get(cint(n), str(cint(n)))
+
+
+# ------------------------------------------------------- to hop dong song ngu
+#
+# Anh Viet 18/08/2026 chot ba dieu ve the thuc:
+#
+#   font        Arial cho ca hop dong lan phu luc. Truoc do dung Times New
+#               Roman, va chu "PHU LUC 01" bi vo font tren ban PDF.
+#   dau gach    khong dung en dash, chi dung gach ngang thuong. Day cung la
+#               quy uoc trinh bay chung cua tiem.
+#   song ngu    dich toan bo sang tieng Anh, dat NGAY DUOI phan tieng Viet
+#               tuong ung, in nghieng.
+#
+# Cach dung song ngu o day di theo dung nep to bao gia: MOT cua duy nhat
+# sinh chu tieng Anh, nen khong the co chuyen mot doan quen ban tieng Anh
+# hay mot doan quen in nghieng. Bai hoc tu to bao gia 15/08/2026: khi co ba
+# cho ghep chu Anh thang vao HTML thi to in ra nua nghieng nua dung.
+
+FONT_TO = "Arial,'Liberation Sans',Helvetica,sans-serif"
+
+
+def _en(chu):
+	"""Mot doan tieng Anh: in nghieng, mau nhat hon. Rong thi tra ve rong."""
+	chu = (chu or "").strip()
+	if not chu:
+		return ""
+	return '<div style="font-style:italic;color:#555;margin:1px 0 0">%s</div>' % chu
+
+
+def vi_en(vi, en, dam=False):
+	"""Mot cap cau Viet - Anh. THUAN."""
+	kieu = "font-weight:bold;" if dam else ""
+	return '<div style="%smargin:5px 0 0">%s</div>%s' % (kieu, vi, _en(en))
+
+
+def _gach(vi, en):
+	"""Mot gach dau dong song ngu.
+
+	Dung GACH NGANG THUONG chu khong phai en dash - quy uoc trinh bay cua
+	tiem, va anh Viet nhac lai 18/08/2026 cho rieng to hop dong.
+	"""
 	return (
-		"<p style='margin:4px 0 4px 14px'>Đợt 01: Bên A thanh toán %s%% giá trị Hợp đồng, "
-		"tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), trong vòng %02d (%s) ngày kể "
-		"từ ngày Hợp đồng được hai Bên ký kết.</p>"
-		"<p style='margin:4px 0 4px 14px'>Đợt 02: Bên A thanh toán %s%% giá trị Hợp đồng "
-		"còn lại, tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d "
-		"(%s) ngày bàn giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất.</p>"
-		% (
-			_tien_vn(pt1), _tien_vn(dot1), _chu_so_tien(dot1), n1, _so_chu(n1),
-			_tien_vn(100.0 - pt1), _tien_vn(dot2), _chu_so_tien(dot2), n2, _so_chu(n2),
-		)
+		'<div style="margin:5px 0 0 0;padding-left:14px;text-indent:-14px">- %s</div>'
+		'<div style="margin:1px 0 0 14px;font-style:italic;color:#555">%s</div>'
+		% (vi, en)
 	)
 
 
 def _html(name):
-	"""To hop dong mua ban hang hoa, cau truc hanh chinh Viet Nam."""
+	"""To hop dong mua ban hang hoa song ngu, cau truc hanh chinh Viet Nam."""
 	d = chi_tiet(name)
 	b = d["ben_b"]
 	a = {
@@ -352,13 +551,15 @@ def _html(name):
 	pt1 = flt(d.get("dat_coc_pt"))
 	n1 = cint(d.get("ngay_dot1")) or 3
 	n2 = cint(d.get("ngay_dot2")) or 3
+	tong = flt(d.get("gia_tri"))
+	dot1, dot2 = chia_hai_dot(tong, pt1)
 
-	dieu2_dot = cau_dieu_2(d.get("gia_tri"), pt1, n1, n2)
-
-	def dieu(so_dieu, tua):
+	def dieu(so_dieu, tua_vi, tua_en):
 		return (
-			'<div style="font-weight:bold;margin:13px 0 4px;text-transform:uppercase">'
-			"ĐIỀU %d: %s</div>" % (so_dieu, _esc(tua))
+			'<div style="margin:14px 0 4px">'
+			'<div style="font-weight:bold;text-transform:uppercase">ĐIỀU %d: %s</div>'
+			'<div style="font-style:italic;color:#555;text-transform:uppercase">'
+			"ARTICLE %d: %s</div></div>" % (so_dieu, _esc(tua_vi), so_dieu, _esc(tua_en))
 		)
 
 	ra = []
@@ -366,149 +567,316 @@ def _html(name):
 		'<div style="text-align:center;line-height:1.5">'
 		'<div style="font-weight:bold;font-size:13px">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>'
 		'<div style="font-weight:bold;font-size:12.5px;text-decoration:underline">'
-		"Độc lập – Tự do – Hạnh phúc</div></div>"
+		"Độc lập - Tự do - Hạnh phúc</div>"
+		'<div style="font-style:italic;color:#555;font-size:11.5px">'
+		"SOCIALIST REPUBLIC OF VIETNAM - Independence - Freedom - Happiness</div></div>"
 	)
 	ra.append(
 		'<div style="text-align:center;margin:18px 0 4px">'
 		'<div style="font-weight:bold;font-size:16px">HỢP ĐỒNG MUA BÁN HÀNG HÓA</div>'
-		'<div style="font-size:12px;margin-top:3px">Số: %s</div></div>' % _esc(so)
+		'<div style="font-style:italic;color:#555;font-size:12.5px">GOODS SALE AND PURCHASE CONTRACT</div>'
+		'<div style="font-size:12px;margin-top:3px">Số / <i>No.</i>: %s</div></div>' % _esc(so)
 	)
 	ra.append(
-		'<div style="margin-top:12px;font-size:12px;line-height:1.65">'
-		"<b>Căn cứ:</b><br>"
-		"–&nbsp;&nbsp;Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015 của Quốc hội nước "
-		"Cộng hòa Xã hội Chủ nghĩa Việt Nam;<br>"
-		"–&nbsp;&nbsp;Luật Thương mại số 36/2005/QH11 ngày 14/06/2005 của Quốc hội nước "
-		"Cộng hòa Xã hội Chủ nghĩa Việt Nam;<br>"
-		"–&nbsp;&nbsp;Căn cứ nhu cầu và khả năng của hai Bên.</div>"
+		'<div style="margin-top:12px;font-size:12px;line-height:1.6">'
+		"<b>Căn cứ:</b>"
+		'<div style="font-style:italic;color:#555">Pursuant to:</div>'
+		+ _gach(
+			"Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015 của Quốc hội nước "
+			"Cộng hòa Xã hội Chủ nghĩa Việt Nam;",
+			"The Civil Code No. 91/2015/QH13 dated 24 November 2015 of the "
+			"National Assembly of the Socialist Republic of Vietnam;",
+		)
+		+ _gach(
+			"Luật Thương mại số 36/2005/QH11 ngày 14/06/2005 của Quốc hội nước "
+			"Cộng hòa Xã hội Chủ nghĩa Việt Nam;",
+			"The Commercial Law No. 36/2005/QH11 dated 14 June 2005 of the "
+			"National Assembly of the Socialist Republic of Vietnam;",
+		)
+		+ _gach(
+			"Căn cứ nhu cầu và khả năng của hai Bên.",
+			"The needs and capabilities of both Parties.",
+		)
+		+ "</div>"
 	)
 	ra.append(
-		'<p style="margin:12px 0 0">Hôm nay, %s, tại Thành phố Hồ Chí Minh, chúng tôi gồm:</p>'
-		% _ngay_vn(d.get("ngay_ky") or nowdate())
+		vi_en(
+			"Hôm nay, %s, tại Thành phố Hồ Chí Minh, chúng tôi gồm:"
+			% _ngay_vn(d.get("ngay_ky") or nowdate()),
+			"Today, %s, in Ho Chi Minh City, we are:"
+			% _ngay_en(d.get("ngay_ky") or nowdate()),
+		)
 	)
-	ra.append(_o_ben("BÊN MUA (gọi tắt là Bên A)", a))
-	ra.append(_o_ben("BÊN BÁN (gọi tắt là Bên B)", b))
+	ra.append(_o_ben("BÊN MUA (gọi tắt là Bên A)", "THE BUYER (hereinafter referred to as Party A)", a))
+	ra.append(_o_ben("BÊN BÁN (gọi tắt là Bên B)", "THE SELLER (hereinafter referred to as Party B)", b))
 	ra.append(
-		"<p>Sau khi thỏa thuận, hai Bên thống nhất ký Hợp đồng mua bán hàng hóa với "
-		"những nội dung dưới đây:</p>"
+		vi_en(
+			"Sau khi thỏa thuận, hai Bên thống nhất ký Hợp đồng mua bán hàng hóa "
+			"với những nội dung dưới đây:",
+			"After negotiation, both Parties agree to sign this Goods Sale and "
+			"Purchase Contract with the following terms:",
+		)
 	)
 
-	ra.append(dieu(1, "HÀNG HÓA"))
-	ra.append("<p>Bên B đồng ý bán và Bên A đồng ý mua số lượng hàng hóa như sau:</p>")
+	ra.append(dieu(1, "HÀNG HÓA", "GOODS"))
+	ra.append(
+		vi_en(
+			"Bên B đồng ý bán và Bên A đồng ý mua số lượng hàng hóa như sau:",
+			"Party B agrees to sell and Party A agrees to buy the following goods:",
+		)
+	)
 	ra.append(_bang_hang(d))
-	ra.append("<p><i>(Bằng chữ: %s./.)</i></p>" % _chu_so_tien(d.get("gia_tri")))
-	if d.get("bao_gia"):
+	ra.append(
+		'<div style="margin-top:4px"><i>(Bằng chữ: %s./.)</i>'
+		'<div style="font-style:italic;color:#555">(In words: %s VND only.)</div></div>'
+		% (_chu_so_tien(tong), _tien_vn(tong))
+	)
+	if d.get("bao_gia") or d.get("phu_luc_scan"):
 		ra.append(
-			'<p style="font-size:11.5px;color:#333">Chi tiết quy cách, hình ảnh và điều kiện '
-			"vận hành xem tại <b>Phụ lục 01 - Báo giá số %s</b> đính kèm, là bộ phận không "
-			"tách rời của Hợp đồng này.</p>" % _esc(d["bao_gia"])
+			vi_en(
+				"Chi tiết quy cách, hình ảnh và điều kiện vận hành xem tại "
+				"<b>Phụ lục 01</b> đính kèm, là bộ phận không tách rời của Hợp đồng này.",
+				"Detailed specifications, images and operating conditions are set "
+				"out in <b>Appendix 01</b> attached hereto, which forms an "
+				"integral part of this Contract.",
+			)
 		)
 
-	ra.append(dieu(2, "THANH TOÁN"))
+	ra.append(dieu(2, "THANH TOÁN", "PAYMENT"))
 	ra.append(
-		"<p>–&nbsp;&nbsp;Hình thức thanh toán: Chuyển khoản theo số tài khoản do Bên B "
-		"cung cấp trong Hợp đồng này.</p><p>–&nbsp;&nbsp;Phương thức thanh toán:</p>"
+		_gach(
+			"Hình thức thanh toán: Chuyển khoản theo số tài khoản do Bên B cung "
+			"cấp trong Hợp đồng này.",
+			"Payment method: Bank transfer to the account provided by Party B herein.",
+		)
 	)
-	ra.append(dieu2_dot)
+	ra.append(_gach("Phương thức thanh toán:", "Payment schedule:"))
+	ra.append(cau_dieu_2(tong, pt1, n1, n2))
 	if b.get("ngan_hang"):
-		ra.append(
-			"<p>–&nbsp;&nbsp;Thông tin chuyển khoản:</p>"
-			'<div style="margin-left:14px">%s</div>' % _br(b["ngan_hang"])
+		ra.append(_gach("Thông tin chuyển khoản:", "Bank details:"))
+		ra.append('<div style="margin-left:14px">%s</div>' % _br(b["ngan_hang"]))
+	ra.append(
+		_gach(
+			"Chứng từ kèm theo: Hóa đơn giá trị gia tăng hợp lệ (cung cấp sau khi giao hàng).",
+			"Accompanying documents: A valid VAT invoice (issued after delivery).",
 		)
-	ra.append(
-		"<p>–&nbsp;&nbsp;Chứng từ kèm theo: Hóa đơn giá trị gia tăng hợp lệ "
-		"(cung cấp sau khi giao hàng).</p>"
 	)
 
-	ra.append(dieu(3, "QUY CÁCH, CHẤT LƯỢNG HÀNG HÓA"))
+	ra.append(dieu(3, "QUY CÁCH, CHẤT LƯỢNG HÀNG HÓA", "SPECIFICATIONS AND QUALITY"))
 	ra.append(
-		"<p>–&nbsp;&nbsp;Hàng hóa do Bên B cung cấp được sản xuất đúng quy cách, số lượng, "
-		"tiêu chuẩn như mẫu đã được hai Bên duyệt.</p>"
-		"<p>–&nbsp;&nbsp;Trong trường hợp hàng hóa do Bên B bàn giao bị hư hỏng hoặc thiếu, "
-		"Bên B có trách nhiệm khắc phục trong thời gian sớm nhất.</p>"
-		"<p>–&nbsp;&nbsp;Bên B không đổi lại hàng trong trường hợp sản phẩm hư hỏng do các "
-		"điều kiện khách quan gây ra (tác động ngoại lực, rơi vỡ do lỗi của người sử dụng).</p>"
+		_gach(
+			"Hàng hóa do Bên B cung cấp được sản xuất đúng quy cách, số lượng, "
+			"tiêu chuẩn như mẫu đã được hai Bên duyệt.",
+			"The goods supplied by Party B shall be produced in accordance with "
+			"the specifications, quantity and standards of the samples approved "
+			"by both Parties.",
+		)
+		+ _gach(
+			"Trong trường hợp hàng hóa do Bên B bàn giao bị hư hỏng hoặc thiếu, "
+			"Bên B có trách nhiệm khắc phục trong thời gian sớm nhất.",
+			"If the goods delivered by Party B are damaged or short in quantity, "
+			"Party B shall remedy the situation as soon as possible.",
+		)
+		+ _gach(
+			"Bên B không đổi lại hàng trong trường hợp sản phẩm hư hỏng do các "
+			"điều kiện khách quan gây ra (tác động ngoại lực, rơi vỡ do lỗi của "
+			"người sử dụng).",
+			"Party B shall not replace goods damaged by objective causes "
+			"(external impact, dropping or breakage due to the user's fault).",
+		)
 	)
 
-	ra.append(dieu(4, "ĐỊA ĐIỂM, THỜI GIAN BÀN GIAO HÀNG HÓA"))
+	ra.append(dieu(4, "ĐỊA ĐIỂM, THỜI GIAN BÀN GIAO HÀNG HÓA", "PLACE AND TIME OF DELIVERY"))
 	tg = d.get("thoi_gian_giao") or d.get("bg_giao_hang") or ""
 	ra.append(
-		"<p>–&nbsp;&nbsp;Thời gian: %s</p>"
-		"<p>–&nbsp;&nbsp;Địa điểm bàn giao hàng: %s</p>"
-		% (_br(tg) or "theo lịch giao hàng hai Bên thống nhất bằng văn bản.",
-		   _br(d.get("dia_diem_giao")) or "...........")
+		_gach(
+			"Thời gian: %s"
+			% (_br(tg) or "theo lịch giao hàng hai Bên thống nhất bằng văn bản."),
+			"Time: %s"
+			% (_br(tg) or "as per the delivery schedule agreed in writing by both Parties."),
+		)
+		+ _gach(
+			"Địa điểm bàn giao hàng: %s" % (_br(d.get("dia_diem_giao")) or "..........."),
+			"Place of delivery: %s" % (_br(d.get("dia_diem_giao")) or "..........."),
+		)
 	)
 
-	ra.append(dieu(5, "TRÁCH NHIỆM CỦA HAI BÊN"))
+	ra.append(dieu(5, "TRÁCH NHIỆM CỦA HAI BÊN", "RESPONSIBILITIES OF THE PARTIES"))
+	ra.append(vi_en("5.1. Trách nhiệm của Bên A:", "5.1. Responsibilities of Party A:", dam=True))
 	ra.append(
-		"<p><b>5.1. Trách nhiệm của Bên A:</b></p>"
-		"<p>–&nbsp;&nbsp;Thanh toán cho Bên B theo quy định tại Điều 2 của Hợp đồng này.</p>"
-		"<p>–&nbsp;&nbsp;Hỗ trợ, tạo điều kiện thuận lợi, chuẩn bị mặt bằng và các điều kiện "
-		"làm việc sẵn sàng cho Bên B trong thời gian giao hàng.</p>"
-		"<p>–&nbsp;&nbsp;Trong trường hợp Bên A đơn phương hủy Hợp đồng mà không được sự "
-		"chấp thuận của Bên B, Bên A sẽ không được hoàn lại khoản tiền đã thanh toán cho Bên B.</p>"
-		"<p>–&nbsp;&nbsp;Kiểm tra chi tiết quy cách, số lượng, tiêu chuẩn hàng hóa và ký nhận "
-		"biên bản giao nhận tại thời điểm Bên B giao hàng.</p>"
-		"<p><b>5.2. Trách nhiệm của Bên B:</b></p>"
-		"<p>–&nbsp;&nbsp;Giao hàng đúng quy cách, thời gian, số lượng, tiêu chuẩn như đã cam "
-		"kết và quy định tại Điều 1.</p>"
-		"<p>–&nbsp;&nbsp;Cung cấp đầy đủ các chứng từ kèm theo tại Điều 2.</p>"
-		"<p>–&nbsp;&nbsp;Nhanh chóng giải quyết khiếu nại của khách hàng liên quan đến hàng hóa "
-		"do Bên B cung cấp.</p>"
-		"<p>–&nbsp;&nbsp;Chịu trách nhiệm trước pháp luật về nguồn gốc, phẩm chất, tính pháp lý "
-		"của hàng hóa do Bên B cung cấp.</p>"
-		"<p>–&nbsp;&nbsp;Trong trường hợp xảy ra sự cố ngộ độc thực phẩm, Bên B phải bồi thường "
-		"nếu có thiệt hại xảy ra cho Bên A; trường hợp này phải có sự điều tra và chứng minh do "
-		"lỗi của nhà sản xuất.</p>"
-		"<p>–&nbsp;&nbsp;Bên B không chịu trách nhiệm về chất lượng sản phẩm nếu Bên A không "
-		"tuân thủ quy trình bảo quản theo hướng dẫn của Bên B.</p>"
-		"<p>–&nbsp;&nbsp;Bên B cam kết bảo đảm vệ sinh an toàn thực phẩm đối với nguyên liệu và "
-		"sản phẩm bánh do Bên B sản xuất, kinh doanh và chịu hoàn toàn trách nhiệm trước người "
-		"tiêu dùng và cơ quan quản lý Nhà nước về những vi phạm vệ sinh an toàn thực phẩm theo "
-		"quy định của pháp luật.</p>"
-		"<p>–&nbsp;&nbsp;Bảo đảm hàng hóa thuộc quyền sở hữu, kinh doanh hợp pháp của Bên B, "
-		"không thuộc các trường hợp bị cấm lưu thông mua bán, không vi phạm pháp luật về quyền "
-		"sở hữu tài sản và quyền sở hữu trí tuệ, không bị tranh chấp bởi bất kỳ bên thứ ba nào.</p>"
-		"<p>–&nbsp;&nbsp;Bàn giao đầy đủ hàng hóa theo thời gian, địa điểm, số lượng, chất lượng "
-		"đã cam kết.</p>"
+		_gach(
+			"Thanh toán cho Bên B theo quy định tại Điều 2 của Hợp đồng này.",
+			"Pay Party B in accordance with Article 2 of this Contract.",
+		)
+		+ _gach(
+			"Hỗ trợ, tạo điều kiện thuận lợi, chuẩn bị mặt bằng và các điều kiện "
+			"làm việc sẵn sàng cho Bên B trong thời gian giao hàng.",
+			"Support and facilitate Party B, prepare the venue and working "
+			"conditions during the delivery period.",
+		)
+		+ _gach(
+			"Trong trường hợp Bên A đơn phương hủy Hợp đồng mà không được sự chấp "
+			"thuận của Bên B, Bên A sẽ không được hoàn lại khoản tiền đã thanh "
+			"toán cho Bên B.",
+			"If Party A unilaterally terminates this Contract without Party B's "
+			"consent, Party A shall not be refunded any amount already paid to Party B.",
+		)
+		+ _gach(
+			"Kiểm tra chi tiết quy cách, số lượng, tiêu chuẩn hàng hóa và ký nhận "
+			"biên bản giao nhận tại thời điểm Bên B giao hàng.",
+			"Inspect the specifications, quantity and standards of the goods and "
+			"sign the handover record at the time of delivery.",
+		)
+	)
+	ra.append(vi_en("5.2. Trách nhiệm của Bên B:", "5.2. Responsibilities of Party B:", dam=True))
+	ra.append(
+		_gach(
+			"Giao hàng đúng quy cách, thời gian, số lượng, tiêu chuẩn như đã cam "
+			"kết và quy định tại Điều 1.",
+			"Deliver the goods in the correct specifications, time, quantity and "
+			"standards as committed and stipulated in Article 1.",
+		)
+		+ _gach(
+			"Cung cấp đầy đủ các chứng từ kèm theo tại Điều 2.",
+			"Provide all accompanying documents stipulated in Article 2.",
+		)
+		+ _gach(
+			"Nhanh chóng giải quyết khiếu nại của khách hàng liên quan đến hàng "
+			"hóa do Bên B cung cấp.",
+			"Promptly resolve customer complaints relating to the goods supplied "
+			"by Party B.",
+		)
+		+ _gach(
+			"Chịu trách nhiệm trước pháp luật về nguồn gốc, phẩm chất, tính pháp "
+			"lý của hàng hóa do Bên B cung cấp.",
+			"Be legally responsible for the origin, quality and legality of the "
+			"goods supplied by Party B.",
+		)
+		+ _gach(
+			"Trong trường hợp xảy ra sự cố ngộ độc thực phẩm, Bên B phải bồi "
+			"thường nếu có thiệt hại xảy ra cho Bên A; trường hợp này phải có sự "
+			"điều tra và chứng minh do lỗi của nhà sản xuất.",
+			"In the event of food poisoning, Party B shall compensate any damage "
+			"caused to Party A, subject to investigation proving the fault of the "
+			"manufacturer.",
+		)
+		+ _gach(
+			"Bên B không chịu trách nhiệm về chất lượng sản phẩm nếu Bên A không "
+			"tuân thủ quy trình bảo quản theo hướng dẫn của Bên B.",
+			"Party B shall not be liable for product quality if Party A fails to "
+			"follow Party B's storage instructions.",
+		)
+		+ _gach(
+			"Bên B cam kết bảo đảm vệ sinh an toàn thực phẩm đối với nguyên liệu "
+			"và sản phẩm bánh do Bên B sản xuất, kinh doanh và chịu hoàn toàn "
+			"trách nhiệm trước người tiêu dùng và cơ quan quản lý Nhà nước về "
+			"những vi phạm vệ sinh an toàn thực phẩm theo quy định của pháp luật.",
+			"Party B undertakes to ensure food safety and hygiene for the "
+			"ingredients and pastry products it produces and trades, and bears "
+			"full responsibility before consumers and State authorities for any "
+			"food safety violations under the law.",
+		)
+		+ _gach(
+			"Bảo đảm hàng hóa thuộc quyền sở hữu, kinh doanh hợp pháp của Bên B, "
+			"không thuộc các trường hợp bị cấm lưu thông mua bán, không vi phạm "
+			"pháp luật về quyền sở hữu tài sản và quyền sở hữu trí tuệ, không bị "
+			"tranh chấp bởi bất kỳ bên thứ ba nào.",
+			"Warrant that the goods are lawfully owned and traded by Party B, are "
+			"not prohibited from circulation, do not infringe property or "
+			"intellectual property rights, and are not subject to any third party "
+			"dispute.",
+		)
+		+ _gach(
+			"Bàn giao đầy đủ hàng hóa theo thời gian, địa điểm, số lượng, chất "
+			"lượng đã cam kết.",
+			"Deliver the goods in full according to the committed time, place, "
+			"quantity and quality.",
+		)
 	)
 
-	ra.append(dieu(6, "ĐIỀU KHOẢN CHUNG"))
+	ra.append(dieu(6, "ĐIỀU KHOẢN CHUNG", "GENERAL PROVISIONS"))
 	ra.append(
-		"<p>–&nbsp;&nbsp;Hợp đồng này đã được hai Bên đọc kỹ, hiểu rõ và cam kết thực hiện "
-		"nghiêm túc các điều khoản đã thỏa thuận.</p>"
-		"<p>–&nbsp;&nbsp;Các sửa đổi, bổ sung đối với Hợp đồng này phải được hai Bên thống nhất, "
-		"lập thành văn bản và do đại diện có thẩm quyền của hai Bên ký kết.</p>"
-		"<p>–&nbsp;&nbsp;Hai Bên chủ động thông báo cho nhau tiến độ thực hiện Hợp đồng. Nếu có "
-		"mâu thuẫn hoặc tranh chấp phát sinh, hai Bên phải thông báo kịp thời bằng văn bản và "
-		"tích cực bàn bạc giải quyết trên tinh thần hợp tác. Trường hợp không tự giải quyết được "
-		"trong thời hạn 30 (ba mươi) ngày kể từ thời điểm một Bên gửi thông báo bằng văn bản đầu "
-		"tiên, hai Bên sẽ đưa vụ việc đến Tòa án có thẩm quyền tại Thành phố Hồ Chí Minh để giải "
-		"quyết. Quyết định của Tòa án là quyết định cuối cùng và bắt buộc đối với hai Bên. Các "
-		"chi phí liên quan do Bên thua kiện chịu.</p>"
-		"<p>–&nbsp;&nbsp;Hợp đồng này có hiệu lực kể từ ngày ký, được lập thành 02 (hai) bản có "
-		"giá trị pháp lý như nhau, mỗi Bên giữ 01 (một) bản. Hợp đồng tự động thanh lý khi hai "
-		"Bên hoàn thành quyền và nghĩa vụ của mình.</p>"
+		_gach(
+			"Hợp đồng này đã được hai Bên đọc kỹ, hiểu rõ và cam kết thực hiện "
+			"nghiêm túc các điều khoản đã thỏa thuận.",
+			"Both Parties have carefully read, fully understood and undertake to "
+			"strictly perform the agreed terms of this Contract.",
+		)
+		+ _gach(
+			"Các sửa đổi, bổ sung đối với Hợp đồng này phải được hai Bên thống "
+			"nhất, lập thành văn bản và do đại diện có thẩm quyền của hai Bên ký kết.",
+			"Any amendment or supplement to this Contract must be agreed by both "
+			"Parties, made in writing and signed by their authorised representatives.",
+		)
+		+ _gach(
+			"Hai Bên chủ động thông báo cho nhau tiến độ thực hiện Hợp đồng. Nếu "
+			"có mâu thuẫn hoặc tranh chấp phát sinh, hai Bên phải thông báo kịp "
+			"thời bằng văn bản và tích cực bàn bạc giải quyết trên tinh thần hợp "
+			"tác. Trường hợp không tự giải quyết được trong thời hạn 30 (ba mươi) "
+			"ngày kể từ thời điểm một Bên gửi thông báo bằng văn bản đầu tiên, hai "
+			"Bên sẽ đưa vụ việc đến Tòa án có thẩm quyền tại Thành phố Hồ Chí Minh "
+			"để giải quyết. Quyết định của Tòa án là quyết định cuối cùng và bắt "
+			"buộc đối với hai Bên. Các chi phí liên quan do Bên thua kiện chịu.",
+			"The Parties shall keep each other informed of the progress of this "
+			"Contract. Any dispute shall be promptly notified in writing and "
+			"settled through cooperative negotiation. If not resolved within 30 "
+			"(thirty) days from the first written notice, the dispute shall be "
+			"referred to the competent Court in Ho Chi Minh City. The Court's "
+			"decision shall be final and binding on both Parties, and all related "
+			"costs shall be borne by the losing Party.",
+		)
+		+ _gach(
+			"Hợp đồng này có hiệu lực kể từ ngày ký, được lập thành 02 (hai) bản "
+			"có giá trị pháp lý như nhau, mỗi Bên giữ 01 (một) bản. Hợp đồng tự "
+			"động thanh lý khi hai Bên hoàn thành quyền và nghĩa vụ của mình.",
+			"This Contract takes effect from the signing date and is made in 02 "
+			"(two) counterparts of equal legal validity, each Party keeping 01 "
+			"(one). The Contract is automatically liquidated when both Parties "
+			"have fulfilled their rights and obligations.",
+		)
 	)
 
 	ra.append(
-		'<p style="text-align:right;font-style:italic;margin-top:16px">'
-		"Thành phố Hồ Chí Minh, %s</p>" % _ngay_vn(d.get("ngay_ky") or nowdate())
+		'<div style="text-align:right;margin-top:16px">'
+		'<div style="font-style:italic">Thành phố Hồ Chí Minh, %s</div>'
+		'<div style="font-style:italic;color:#555">Ho Chi Minh City, %s</div></div>'
+		% (_ngay_vn(d.get("ngay_ky") or nowdate()), _ngay_en(d.get("ngay_ky") or nowdate()))
 	)
+
+	# Khoi o ky. Anh Viet 18/08/2026: "tuyet doi khong duoc ghi Ms./Mr. va
+	# khong duoc lay mac dinh ten cua ban Sales" - nguoi ky thuong la Giam
+	# doc. Ten lay tu o rieng do nguoi lap dien, va da duoc loc bo Ms./Mr.
+	ky_a = _bo_xung_ho(d.get("nguoi_ky_a"))
+	ky_b = _bo_xung_ho(d.get("nguoi_ky_b"))
+	cv_a = (d.get("chuc_vu_ky_a") or "").strip()
+	cv_b = (d.get("chuc_vu_ky_b") or "").strip()
+
+	def o_ky(nhan_vi, nhan_en, ten, chuc):
+		return (
+			'<td style="width:50%%;text-align:center;vertical-align:top">'
+			"<b>%s</b>"
+			'<div style="font-style:italic;color:#555;font-size:11px">%s</div>'
+			'<div style="font-size:11px"><i>(Ký, ghi rõ họ tên và đóng dấu)</i></div>'
+			'<div style="font-style:italic;color:#555;font-size:10.5px">'
+			"(Signature, full name and seal)</div>"
+			'<div style="height:78px"></div>'
+			'<div style="font-weight:bold">%s</div>'
+			'<div style="font-size:11px">%s</div></td>'
+			% (nhan_vi, nhan_en, _esc(ten) or "...........", _esc(chuc))
+		)
+
 	ra.append(
 		'<table style="width:100%%;margin-top:6px;font-size:12px;page-break-inside:avoid">'
-		'<tr><td style="width:50%%;text-align:center;vertical-align:top">'
-		"<b>ĐẠI DIỆN BÊN A</b><br><i>(Ký, ghi rõ họ tên và đóng dấu)</i>"
-		'<div style="height:78px"></div>%s</td>'
-		'<td style="width:50%%;text-align:center;vertical-align:top">'
-		"<b>ĐẠI DIỆN BÊN B</b><br><i>(Ký, ghi rõ họ tên và đóng dấu)</i>"
-		'<div style="height:78px"></div>%s</td></tr></table>'
-		% (_esc(d.get("dai_dien") or ""), _esc(b.get("dai_dien") or ""))
+		"<tr>%s%s</tr></table>"
+		% (
+			o_ky("ĐẠI DIỆN BÊN A", "FOR AND ON BEHALF OF PARTY A", ky_a, cv_a),
+			o_ky("ĐẠI DIỆN BÊN B", "FOR AND ON BEHALF OF PARTY B", ky_b, cv_b),
+		)
 	)
 	return (
-		'<div style="font-family:\'Times New Roman\',Times,serif;font-size:12.5px;'
-		'line-height:1.6;color:#000">' + "".join(ra) + "</div>"
-	)
+		'<div style="font-family:%s;font-size:12.5px;line-height:1.55;color:#000">'
+		% FONT_TO
+	) + "".join(ra) + "</div>"
 
 
 def _so_chu(n):
@@ -532,11 +900,103 @@ def xem_truoc(name):
 
 
 @frappe.whitelist()
-def xuat_pdf(name, kem_phu_luc=1):
-	"""To hop dong PDF, tu dinh kem bao gia da chot lam Phu luc 01.
+def _anh_data(url):
+	"""Doc mot tep dinh kem thanh chuoi data: de nhung thang vao HTML.
 
-	Anh Viet 18/08/2026: "File PDF xuat ra phai bao gom phan Hop dong chinh
-	(phap ly) va tu dong dinh kem Bao gia da chot o trang cuoi lam Phu luc."
+	wkhtmltopdf khong tai duoc anh qua duong dan noi bo cua site (no chay o
+	tien trinh khac, khong co phien dang nhap), nen phai nhung san.
+	Tra ve rong neu doc khong duoc - luc do to van xuat, chi thieu anh.
+	"""
+	import mimetypes
+	import os
+
+	try:
+		duong = (url or "").split("?")[0]
+		if not duong:
+			return "", ""
+		if duong.startswith("/private/files/"):
+			that = frappe.get_site_path("private", "files", os.path.basename(duong))
+		elif duong.startswith("/files/"):
+			that = frappe.get_site_path("public", "files", os.path.basename(duong))
+		else:
+			return "", ""
+		kieu = mimetypes.guess_type(that)[0] or ""
+		with open(that, "rb") as f:
+			noi = f.read()
+		return kieu, base64.b64encode(noi).decode()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hop_dong_pdf: doc tep phu luc")
+		return "", ""
+
+
+def _khoi_phu_luc(name, so_hd):
+	"""Trang Phu luc 01. Uu tien BAN DA KY do Sales tai len.
+
+	Anh Viet 18/08/2026: "Bao gia dinh kem lam phu luc phai la ban da duoc
+	khach hang xac nhan."
+
+	Nen thu tu uu tien la:
+	  1. ban scan da co chu ky va moc hai ben, neu Sales da tai len
+	  2. ban bao gia he tu dung, neu chua co ban scan
+
+	Truong hop 2 khong bi bo di: no van dung khi hai ben moi chi thong nhat
+	qua email va chua ky giay. Nhung to nao dung ban tu dung thi phai NOI RO
+	tren trang phu luc, de nguoi doc biet day chua phai ban co chu ky.
+	"""
+	tep = frappe.db.get_value(DT, name, "phu_luc_scan")
+	bg = frappe.db.get_value(DT, name, "bao_gia")
+	dau = (
+		'<div style="page-break-before:always"></div>'
+		'<div style="font-family:%s;text-align:center;font-weight:bold;'
+		'font-size:15px;margin:0 0 2px">PHỤ LỤC 01</div>'
+		'<div style="font-family:%s;text-align:center;font-style:italic;'
+		'color:#555;font-size:12px;margin:0 0 10px">APPENDIX 01</div>' % (FONT_TO, FONT_TO)
+	)
+
+	if tep:
+		kieu, b64 = _anh_data(tep)
+		ghi = (
+			'<div style="font-family:%s;text-align:center;font-size:11.5px;margin:0 0 12px">'
+			"Bản báo giá đã được hai Bên xác nhận, là bộ phận không tách rời của "
+			"Hợp đồng số %s"
+			'<div style="font-style:italic;color:#555">The quotation confirmed by '
+			"both Parties, forming an integral part of Contract No. %s</div></div>"
+			% (FONT_TO, _esc(so_hd), _esc(so_hd))
+		)
+		if b64 and kieu.startswith("image/"):
+			return dau + ghi + (
+				'<div style="text-align:center"><img src="data:%s;base64,%s" '
+				'style="max-width:100%%;max-height:250mm"></div>' % (kieu, b64)
+			)
+		# Tep PDF hoac tep khong doc duoc: khong nhung vao duoc, nhung van
+		# phai noi ro cho nguoi doc biet ban da ky nam o dau.
+		return dau + ghi + (
+			'<div style="font-family:%s;text-align:center;font-size:12px;'
+			'border:1px dashed #888;padding:22px;margin-top:10px">'
+			"Bản báo giá đã ký được lưu kèm hồ sơ hợp đồng %s trên hệ thống."
+			'<div style="font-style:italic;color:#555">The signed quotation is '
+			"stored with contract record %s in the system.</div></div>"
+			% (FONT_TO, _esc(name), _esc(name))
+		)
+
+	if bg and frappe.db.exists(DT_BG, bg):
+		from vagabond import bao_gia as mod_bg
+
+		return dau + (
+			'<div style="font-family:%s;text-align:center;font-size:11.5px;margin:0 0 4px">'
+			"Báo giá số %s, là bộ phận không tách rời của Hợp đồng số %s"
+			'<div style="font-style:italic;color:#555">Quotation No. %s, forming an '
+			"integral part of Contract No. %s</div></div>"
+			'<div style="font-family:%s;text-align:center;font-size:11px;color:#b3261e;'
+			'margin:0 0 12px">Bản hệ thống dựng, CHƯA có chữ ký hai bên.</div>'
+			% (FONT_TO, _esc(bg), _esc(so_hd), _esc(bg), _esc(so_hd), FONT_TO)
+		) + mod_bg._html(bg)
+	return ""
+
+
+@frappe.whitelist()
+def xuat_pdf(name, kem_phu_luc=1):
+	"""To hop dong PDF, tu dinh kem bao gia lam Phu luc 01.
 
 	Gop bang cach noi HAI khoi HTML trong cung mot lan dung PDF, ngan bang
 	mot ngat trang cung. Khong gop hai tep PDF roi lai voi nhau: lam vay
@@ -545,31 +1005,26 @@ def xuat_pdf(name, kem_phu_luc=1):
 	_quyen()
 	from frappe.utils.pdf import get_pdf
 
+	so_hd = frappe.db.get_value(DT, name, "so_hop_dong") or name
 	than = _html(name)
 	if cint(kem_phu_luc):
-		bg = frappe.db.get_value(DT, name, "bao_gia")
-		if bg and frappe.db.exists(DT_BG, bg):
-			from vagabond import bao_gia as mod_bg
+		than += _khoi_phu_luc(name, so_hd)
 
-			than += (
-				'<div style="page-break-before:always"></div>'
-				'<div style="font-family:\'Times New Roman\',Times,serif;text-align:center;'
-				'font-weight:bold;font-size:14px;margin:0 0 10px">PHỤ LỤC 01</div>'
-				'<div style="font-family:\'Times New Roman\',Times,serif;text-align:center;'
-				'font-size:11.5px;margin:0 0 14px">Báo giá số %s, là bộ phận không tách rời '
-				"của Hợp đồng số %s</div>" % (_esc(bg), _esc(frappe.db.get_value(DT, name, "so_hop_dong") or name))
-			) + mod_bg._html(bg)
-
+	# Font Arial dat o CAP KHUNG, khong chi trong tung khoi (anh Viet
+	# 18/08/2026: "toan bo hop dong va phu luc bat buoc su dung font Arial").
+	# Chu "PHU LUC 01" truoc do bi vo font vi khoi do dung Times New Roman
+	# ma ban PDF khong co bo chu do day du cho tieng Viet.
 	khung = (
 		"<html><head><meta charset='utf-8'>"
-		"<style>@page{margin:14mm 12mm}body{margin:0}"
-		"p{margin:5px 0}table{page-break-inside:auto}tr{page-break-inside:avoid}</style>"
-		"</head><body>" + than + "</body></html>"
-	)
+		"<style>@page{margin:14mm 12mm}"
+		"body,td,th,div,p,span,b,i,table{font-family:%s}"
+		"body{margin:0}p{margin:5px 0}"
+		"table{page-break-inside:auto}tr{page-break-inside:avoid}</style>"
+		"</head><body>" % FONT_TO
+	) + than + "</body></html>"
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
-	so = (frappe.db.get_value(DT, name, "so_hop_dong") or name).replace("/", "-")
 	return {
-		"ten_file": "Hop-dong-%s.pdf" % so,
+		"ten_file": "Hop-dong-%s.pdf" % str(so_hd).replace("/", "-"),
 		"b64": base64.b64encode(noi_dung).decode(),
 		"kieu": "application/pdf",
 	}

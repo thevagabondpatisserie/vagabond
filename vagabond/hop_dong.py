@@ -108,6 +108,13 @@ def chi_tiet(name):
 			"dat_coc_tien": flt(doc.get("dat_coc_tien")),
 			"dia_diem_giao": doc.get("dia_diem_giao") or "",
 			"thoi_gian_giao": doc.get("thoi_gian_giao") or "",
+			# Nguoi ky va ban scan phu luc (anh Viet 18/08/2026). Man chi
+			# tiet phai doc duoc de biet con thieu gi truoc khi gui khach.
+			"nguoi_ky_a": doc.get("nguoi_ky_a") or "",
+			"chuc_vu_ky_a": doc.get("chuc_vu_ky_a") or "",
+			"nguoi_ky_b": doc.get("nguoi_ky_b") or "",
+			"chuc_vu_ky_b": doc.get("chuc_vu_ky_b") or "",
+			"phu_luc_scan": doc.get("phu_luc_scan") or "",
 		},
 		"hoa_don": hoa_don,
 	}
@@ -144,6 +151,43 @@ def doi_trang_thai(name, trang_thai):
 		frappe.throw("Trạng thái không hợp lệ")
 	frappe.db.set_value("Hop Dong Ban Hang", name, "trang_thai", trang_thai)
 	return trang_thai
+
+
+@frappe.whitelist()
+def sua_nguoi_ky(name, nguoi_ky_a=None, chuc_vu_ky_a=None,
+                 nguoi_ky_b=None, chuc_vu_ky_b=None):
+	"""Sua bon o cua khoi chu ky sau khi da tao hop dong.
+
+	Anh Viet 18/08/2026: *"Khoi chu ky cuoi hop dong tuyet doi khong duoc
+	ghi Ms./Mr. va khong duoc lay mac dinh ten cua ban Sales"*. Man tao hop
+	dong da hoi bon o nay, nhung go nham thi phai sua duoc, khong bat lam
+	lai ca to.
+
+	Bo xung ho ngay tai day chu khong tin vao man hinh: cung mot ham voi
+	luc tao thi go kieu gi cung ra mot ket qua.
+	"""
+	_quyen()
+	from vagabond.hop_dong_pdf import _bo_xung_ho
+
+	frappe.db.set_value("Hop Dong Ban Hang", name, {
+		"nguoi_ky_a": _bo_xung_ho(nguoi_ky_a),
+		"chuc_vu_ky_a": (chuc_vu_ky_a or "").strip(),
+		"nguoi_ky_b": _bo_xung_ho(nguoi_ky_b),
+		"chuc_vu_ky_b": (chuc_vu_ky_b or "").strip(),
+	})
+	return True
+
+
+@frappe.whitelist()
+def go_phu_luc_scan(name):
+	"""Go ban scan phu luc ra khoi hop dong.
+
+	QT-20: khong xoa han tep, chi bo tro tren hop dong. Tep van nam trong
+	kho tep cua he thong, can thi tim lai duoc.
+	"""
+	_quyen()
+	frappe.db.set_value("Hop Dong Ban Hang", name, "phu_luc_scan", "")
+	return True
 
 
 @frappe.whitelist()

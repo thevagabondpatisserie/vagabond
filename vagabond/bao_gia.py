@@ -1481,13 +1481,24 @@ def thong_tin_khach(khach):
 
 # ------------------------------------------------------------------- to in
 
-PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
+# Anh Viet 18/08/2026: *"Toan bo hop dong va phu luc bat buoc su dung font
+# Arial"*. To bao gia chinh la phu luc cua hop dong nen phai doi theo,
+# neu khong thi trong mot tep PDF co hai kieu chu khac nhau.
+# Liberation Sans dung lam hang du: no do cung kich thuoc voi Arial va
+# co du dau tieng Viet, may nao thieu Arial thi roi vao no chu khong
+# roi vao mot phong khong co dau.
+PHONG = "Arial,'Liberation Sans',Helvetica,sans-serif"
 VIEN = "1px solid #c9c4bd"
 LA_MA = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"]
 
 
 def _esc(s):
-	return frappe.utils.escape_html(str(s or ""))
+	# To bao gia di kem hop dong lam phu luc, nen theo dung luat trinh bay
+	# cua hop dong: khong dau gach dai (anh Viet 18/08/2026). Doi tai day
+	# thi ca to in lan thu gui khach deu sach, khong phai nho Sales go lai.
+	from vagabond.hop_dong_pdf import don_dau_dai
+
+	return frappe.utils.escape_html(don_dau_dai(s))
 
 
 def _br(s):
@@ -2158,7 +2169,48 @@ def gui_email(name, email=None, loi_nhan=None):
 
 
 @frappe.whitelist()
-def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
+def goi_y_hop_dong(name):
+	"""Do san moi o cua man hinh tao hop dong de user chi viec xem lai.
+
+	Anh Viet 18/08/2026: *"He thong can tu dong generate ra mot ma so hop
+	dong goi y de dien san vao o input, user chi can xem lai hoac an chon
+	cho nhanh thay vi go tay"*.
+
+	Ba o nguoi ky do san nhung KHONG lay ten Sales:
+	  - Ben A lay nguoi lien he ghi tren to bao gia, da bo Ms./Mr.
+	  - Ben B lay dai dien khai trong Cai dat bao gia (Giam doc cong ty).
+	User van sua duoc ca ba o, may chi do san chu khong chot.
+	"""
+	_quyen()
+	from vagabond.hop_dong_pdf import (
+		_ben_b,
+		_bo_xung_ho as _bo_ho,
+		so_hop_dong as _sinh_so,
+		viet_tat_khach,
+	)
+
+	d = frappe.get_doc(DT, name)
+	ngay = nowdate()
+	b = _ben_b()
+	return {
+		"ngay": ngay,
+		# Tra ca viet tat va ma loai de man hinh dung lai so khi user doi
+		# ngay ky, khong phai goi lai may chu chi de doi tam chu so dau.
+		"viet_tat": viet_tat_khach(d.ten_khach or d.khach_hang or ""),
+		"loai": "HDMB",
+		"so_goi_y": _sinh_so(ngay, d.ten_khach or d.khach_hang or ""),
+		"ten_khach": d.ten_khach or "",
+		"nguoi_ky_a": _bo_ho(d.nguoi_lien_he or ""),
+		"chuc_vu_ky_a": (d.chuc_vu or "").strip() or "Giám đốc",
+		"nguoi_ky_b": _bo_ho(b.get("dai_dien") or ""),
+		"chuc_vu_ky_b": (b.get("chuc_vu") or "").strip() or "Giám đốc",
+	}
+
+
+@frappe.whitelist()
+def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None,
+                 nguoi_ky_a=None, chuc_vu_ky_a=None,
+                 nguoi_ky_b=None, chuc_vu_ky_b=None):
 	"""Bao gia khach duyet thi bam mot nut ra Hop dong ban hang."""
 	_quyen(sua=True)
 	doc = frappe.get_doc(DT, name)
@@ -2186,7 +2238,11 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
 	# Sang nam khach doi ten cong ty hay doi nguoi dai dien thi to hop dong
 	# da ky van phai doc ra dung cai da ky - do la ca diem cua mot to phap
 	# ly. Bao gia cung da chup san cac o nay nen chi viec chep sang.
-	from vagabond.hop_dong_pdf import chia_hai_dot, so_hop_dong as _sinh_so
+	from vagabond.hop_dong_pdf import (
+		_bo_xung_ho as _bo_ho,
+		chia_hai_dot,
+		so_hop_dong as _sinh_so,
+	)
 
 	ngay = ngay_ky or nowdate()
 	so = (so_hop_dong or "").strip() or _sinh_so(ngay, doc.ten_khach or doc.khach_hang)
@@ -2216,6 +2272,14 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
 		"ngay_dot1": 3,
 		"ngay_dot2": 3,
 		"thoi_gian_giao": doc.giao_hang or "",
+		# Nguoi ky KHONG mac dinh lay ten Sales (anh Viet 18/08/2026):
+		# nguoi ky thuong la Giam doc chu khong phai ban lam bao gia. Man
+		# hinh hoi rieng, va o day chi nhan lai. De trong thi de trong,
+		# khong bia.
+		"nguoi_ky_a": _bo_ho(nguoi_ky_a),
+		"chuc_vu_ky_a": (chuc_vu_ky_a or "").strip(),
+		"nguoi_ky_b": _bo_ho(nguoi_ky_b),
+		"chuc_vu_ky_b": (chuc_vu_ky_b or "").strip(),
 	})
 	hd.insert(ignore_permissions=True)
 	frappe.db.set_value(DT, name, {"hop_dong": hd.name, "trang_thai": "Đã lên hợp đồng"})
