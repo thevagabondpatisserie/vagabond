@@ -97,11 +97,16 @@ function hoiSo(tuaDe, nhan, macDinh) {
   });
 }
 
-/* Chon ngay bang lich co san, tra ve dang YYYY-MM-DD hoac null. */
-function hoiNgay(macDinhIso) {
+/* Chon ngay bang lich co san, tra ve dang YYYY-MM-DD hoac null.
+
+   Tham so tuaDe khong bat buoc. Anh Viet 18/08/2026: *"Popup chon ngay doi
+   tu 'Chon ngay' thanh 'Chon ngay tao hop dong'"*. Doi thang chu trong
+   pickDate thi ba cho goi khac cung bi doi theo, nen truyen tua de vao chu
+   khong sua chu co san. */
+function hoiNgay(macDinhIso, tuaDe) {
   return new Promise(function (xong) {
     var da = false;
-    pickDate(macDinhIso || today(), function (v) { da = true; xong(v || null); });
+    pickDate(macDinhIso || today(), function (v) { da = true; xong(v || null); }, tuaDe);
     // pickDate dong bang nut x thi khong goi cb, nen doi khung bien mat roi
     // tra null - khong lam vay thi cho await treo mai.
     var canh = setInterval(function () {
@@ -142,14 +147,14 @@ function baoTin(noiDung, tuaDe) {
 function hoiNhap(nhan, macDinh, tuaDe) { return hoiChu(tuaDe || 'Nhập thông tin', nhan, macDinh); }
 function xacNhan(noiDung, tuaDe, nhanOk) { return hoiCo(tuaDe || 'Xác nhận', noiDung, nhanOk); }
 
-function pickDate(cur, cb) {
+function pickDate(cur, cb, tuaDe) {
   var base = /^\d{4}-\d{2}-\d{2}$/.test(cur || '') ? cur : today();
   var sel = base, pp = base.split('-'), vy = +pp[0], vm = +pp[1] - 1;
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>Chọn ngày</b><div class="x">&times;</div></div>' +
+  box.innerHTML = '<div class="shh"><b>' + h(tuaDe || 'Chọn ngày') + '</b><div class="x">&times;</div></div>' +
     '<div class="shl" style="padding:6px 12px 16px"></div>';
   var bd = box.querySelector('.shl');
   function close() { try { ov.remove(); } catch (x) { } }

@@ -616,11 +616,30 @@ async function scrHdView(name) {
       (hd.email ? '<div style="font-size:13px">Email nhận hợp đồng: ' + h(hd.email) + '</div>' : '<div style="font-size:12.5px;color:#b3261e">Chưa có email bên A, chưa gửi thư được.</div>') +
       (hd.dat_coc_pt ? '<div style="font-size:13px">Điều 2 chia hai đợt: đợt 1 ' + hd.dat_coc_pt + '% (' + money(hd.dat_coc_tien) + ' đ), đợt 2 phần còn lại.</div>'
                      : '<div style="font-size:13px">Điều 2: thanh toán một lần 100% trước khi giao.</div>') +
+      /* Hai dong duoi day la hai cho anh Viet bat loi hom 18/08/2026: khoi
+         chu ky in ra ten Sales, va phu luc dinh kem la ban may dung chu
+         khong phai ban khach da ky. Bay thang len man chi tiet de nhin mot
+         cai la biet to nay da du dieu kien gui khach chua. */
+      '<div style="font-size:13px;margin-top:6px">Người ký: ' +
+        (hd.nguoi_ky_a ? '<b>' + h(hd.nguoi_ky_a) + '</b>' + (hd.chuc_vu_ky_a ? ' (' + h(hd.chuc_vu_ky_a) + ')' : '') : '<span style="color:#b3261e">bên A còn trống</span>') +
+        ' · ' +
+        (hd.nguoi_ky_b ? '<b>' + h(hd.nguoi_ky_b) + '</b>' + (hd.chuc_vu_ky_b ? ' (' + h(hd.chuc_vu_ky_b) + ')' : '') : '<span style="color:#b3261e">bên B còn trống</span>') +
+      '</div>' +
+      (hd.phu_luc_scan
+        ? '<div style="font-size:13px;color:#0a6b3a">Phụ lục 01: đã đính kèm bản khách ký, bấm để xem <a href="' + h(hd.phu_luc_scan) + '" target="_blank">tệp</a>.</div>'
+        : '<div style="font-size:13px;color:#b3261e">Phụ lục 01: chưa có bản khách ký, đang ghép bản báo giá do máy dựng.</div>') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn gh" id="hdSuaKy" style="margin:0;flex:1;padding:8px 10px;font-size:13px">✍️ Người ký</button>' +
+      '<button class="btn gh" id="hdScan" style="margin:0;flex:1.4;padding:8px 10px;font-size:13px">📎 ' + (hd.phu_luc_scan ? 'Đổi bản scan' : 'Đính kèm bản scan') + '</button>' +
+      (hd.phu_luc_scan ? '<button class="btn gh" id="hdScanGo" style="margin:0;flex:0.7;padding:8px 10px;font-size:13px">Gỡ</button>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="hdXem" style="margin:0;flex:1;padding:8px 10px;font-size:13px">👁 Xem trước</button>' +
       '<button class="btn gh" id="hdPdf" style="margin:0;flex:1;padding:8px 10px;font-size:13px">📄 Xuất PDF</button>' +
       '<button class="btn" id="hdMail" style="margin:0;flex:1.2;padding:8px 10px;font-size:13px">📧 Gửi Email</button>' +
-      '</div></div>';
+      '</div>' +
+      '<input type="file" id="hdScanTep" accept="image/*,application/pdf" style="display:none">' +
+      '</div>';
   }
   var b = frame('Chi tiết hợp đồng', html, { footer: '<button class="btn" id="hdGan">🔗 Gắn hoá đơn vào hợp đồng</button>' });
   var nXem = document.getElementById('hdXem');
@@ -647,6 +666,37 @@ async function scrHdView(name) {
   };
   var nMail = document.getElementById('hdMail');
   if (nMail) nMail.onclick = function () { hdGuiMail(hd); };
+  var nSuaKy = document.getElementById('hdSuaKy');
+  if (nSuaKy) nSuaKy.onclick = async function () {
+    if (!await hdFormNguoiKy(hd)) return;
+    go(function () { scrHdView(name); }, true);
+  };
+  var nScan = document.getElementById('hdScan');
+  var oScan = document.getElementById('hdScanTep');
+  if (nScan) nScan.onclick = function () { oScan.click(); };
+  if (oScan) oScan.onchange = async function () {
+    var t = oScan.files && oScan.files[0];
+    if (!t) return;
+    if (t.size > 12 * 1024 * 1024) {
+      oScan.value = '';
+      return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại giúp em.', 'Tệp quá nặng');
+    }
+    busy(true);
+    try { await bgTaiPhuLuc(name, t); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được bản scan lên. Anh chị thử lại, hoặc chụp lại ảnh nhẹ hơn.'); }
+    busy(false); toast('Đã đính kèm bản scan làm Phụ lục 01', 3500);
+    go(function () { scrHdView(name); }, true);
+  };
+  var nScanGo = document.getElementById('hdScanGo');
+  if (nScanGo) nScanGo.onclick = async function () {
+    if (!await hoiCo('Gỡ bản scan phụ lục',
+      'Gỡ ra thì PDF hợp đồng quay lại ghép bản báo giá do máy dựng, bản đó chưa có chữ ký hai bên. Tệp vẫn nằm trong kho tệp chứ không bị xoá.',
+      'Gỡ ra', true)) return;
+    busy(true);
+    try { await api('vagabond.hop_dong.go_phu_luc_scan', { name: name }); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không gỡ được'); }
+    busy(false); go(function () { scrHdView(name); }, true);
+  };
   document.getElementById('hdTt').onclick = function () {
     sheet('Đổi trạng thái', ['Nháp', 'Đang thực hiện', 'Hoàn tất', 'Đã thanh lý', 'Huỷ'].map(function (t) { return { value: t, label: t, icon: '📌' }; }), hd.trang_thai, async function (o) {
       busy(true);
@@ -1030,6 +1080,52 @@ async function htFGui() {
 phép lọc của hàm gửi (QT-19), bày ra hết, rồi mới cho bấm. Gửi nhầm một tờ
 hợp đồng sang địa chỉ khác là loại lỗi không rút lại được, và ở đây còn
 nặng hơn báo giá vì tờ này có mã số thuế và người đại diện hai bên. */
+/* Sua bon o cua khoi chu ky tren mot hop dong da tao.
+
+   Anh Viet 18/08/2026: *"Khoi chu ky cuoi hop dong tuyet doi khong duoc ghi
+   Ms./Mr. va khong duoc lay mac dinh ten cua ban Sales"*. Man tao hop dong
+   da hoi bon o nay roi, day la duong sua lai khi go nham.
+
+   Tra ve true neu co luu, false neu bam Thoi. */
+function hdFormNguoiKy(hd) {
+  return new Promise(function (xong) {
+    function o(id, gtri, goiY) {
+      return '<input class="tin" id="' + id + '" value="' + h(gtri || '') + '" placeholder="' + h(goiY || '') +
+        '" style="height:auto;font-size:15px;font-weight:500;text-align:left;padding:10px 12px;margin:0">';
+    }
+    var than =
+      rndLbl('Người ký Bên A (khách hàng)') +
+      o('hkKyA', hd.nguoi_ky_a, 'Họ và tên người đặt bút ký') +
+      '<div style="height:7px"></div>' + o('hkCvA', hd.chuc_vu_ky_a, 'Chức vụ, vd Giám đốc') +
+      '<div style="height:12px"></div>' +
+      rndLbl('Người ký Bên B (Vagabond)') +
+      o('hkKyB', hd.nguoi_ky_b, 'Họ và tên người đặt bút ký') +
+      '<div style="height:7px"></div>' + o('hkCvB', hd.chuc_vu_ky_b, 'Chức vụ, vd Giám đốc') +
+      '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:8px">Bốn ô này in thẳng xuống khối chữ ký cuối hợp đồng. Ghi đúng họ tên, không ghi Ms./Mr., và thường là Giám đốc chứ không phải bạn làm báo giá.</div>';
+    var k = hopKhung('Người ký hợp đồng', than,
+      '<button class="btn gh" data-hkx style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn" data-hkluu style="flex:2;margin:0">Lưu</button>');
+    var tra = function (v) { k.dong(); xong(v); };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(false); };
+    k.box.onclick = async function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-hkx]')) return tra(false);
+      if (!e.target.closest('[data-hkluu]')) return;
+      var v = {
+        name: hd.name,
+        nguoi_ky_a: String(k.box.querySelector('#hkKyA').value || '').trim(),
+        chuc_vu_ky_a: String(k.box.querySelector('#hkCvA').value || '').trim(),
+        nguoi_ky_b: String(k.box.querySelector('#hkKyB').value || '').trim(),
+        chuc_vu_ky_b: String(k.box.querySelector('#hkCvB').value || '').trim()
+      };
+      busy(true);
+      try { await api('vagabond.hop_dong.sua_nguoi_ky', v); }
+      catch (er) { busy(false); return baoTin((er && er.message) || 'Không lưu được người ký'); }
+      busy(false); toast('Đã lưu người ký', 3000);
+      tra(true);
+    };
+  });
+}
+
 async function hdGuiMail(hd) {
   var em = await hoiChu('Gửi hợp đồng qua email',
     'Tệp PDF hợp đồng <b>' + h(hd.so_hop_dong || hd.name) + '</b> sẽ được đính kèm, đã gồm báo giá ' +
