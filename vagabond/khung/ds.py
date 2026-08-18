@@ -35,6 +35,24 @@ from vagabond.khung.hop_dong import GIOI_HAN_DONG  # noqa: F401  (de mo dun khac
 NGUON_BANG = {
 	"PO": ("vagabond.mua_hang", "BANG_PO"),
 	"HDM": ("vagabond.ke_toan", "BANG_HOA_DON_MUA"),
+	# Phan he Danh muc (anh Viet 18/08/2026). Muoi sau man, khong mot dong
+	# JavaScript nao - dung cai loi hua cua tang khung hom 15/08.
+	"DMSP": ("vagabond.danh_muc_nen", "BANG_SP"),
+	"DMNSP": ("vagabond.danh_muc_nen", "BANG_NHOM_SP"),
+	"DMDVT": ("vagabond.danh_muc_nen", "BANG_DVT"),
+	"DMQD": ("vagabond.danh_muc_nen", "BANG_QUY_DOI"),
+	"DMKHO": ("vagabond.danh_muc_nen", "BANG_KHO"),
+	"DMBOM": ("vagabond.danh_muc_nen", "BANG_BOM"),
+	"DMNCC": ("vagabond.danh_muc_nen", "BANG_NCC"),
+	"DMNNCC": ("vagabond.danh_muc_nen", "BANG_NHOM_NCC"),
+	"DMGIA": ("vagabond.danh_muc_nen", "BANG_GIA_MUA"),
+	"DMKH": ("vagabond.danh_muc_nen", "BANG_KHACH"),
+	"DMNKH": ("vagabond.danh_muc_nen", "BANG_NHOM_KHACH"),
+	"DMPT": ("vagabond.danh_muc_nen", "BANG_PT_THANH_TOAN"),
+	"DMNH": ("vagabond.danh_muc_nen", "BANG_NGAN_HANG"),
+	"DMTK": ("vagabond.danh_muc_nen", "BANG_TAI_KHOAN"),
+	"DMTHUE": ("vagabond.danh_muc_nen", "BANG_THUE"),
+	"DMTHUEM": ("vagabond.danh_muc_nen", "BANG_THUE_MUA"),
 }
 
 
