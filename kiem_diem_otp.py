@@ -728,8 +728,14 @@ la("mo man mua vu chi doc CSDL, khong doi Pancake",
 la("man co duong xin dong bo nen", "vagabond.mua_vu.xin_dong_bo" in _man_src, True)
 la("nhip tu lam moi dat 30 giay", "var MV_GIAY = 30;" in _man_src, True)
 la("nhip tu tat khi roi man", "function mvConODay" in _man_src, True)
-la("khong ve lai khi so khong doi", "if (dau === MV_DAU) return;" in _man_src, True)
+la("khong ve lai ca man khi so khong doi",
+   "if (dau === MV_DAU) {" in _man_src and "mvVe();" in _man_src, True)
 la("dang mo hop thoai thi khong ve de", _man_src.count("querySelector('.sh')") >= 2, True)
+# Nhip im lang qua thi nguoi dung tuong he chet, nen gio dong bo phai nhich
+# ke ca khi so khong doi.
+la("so khong doi van phai nhich gio dong bo", "nMoc.innerHTML = mvChuMoc(d)" in _man_src, True)
+la("chu moc dung chung mot ham, khong chep hai ban",
+   _man_src.count("mvChuMoc(") >= 3, True)
 
 # May chu tu keo, ke ca luc khong ai mo man.
 la("co nhip scheduler moi phut", '"* * * * *": ["vagabond.mua_vu.dong_bo_tu_dong"]' in _hook_src, True)
