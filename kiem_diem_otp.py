@@ -703,6 +703,46 @@ la("dong am san ma don nay lam am them thi VAN chan",
    [x[0] for x in conthem(DONG7, [{"ma_hop": "HOP", "ma_banh": "B", "so_luong": 2}], "HOP", 3)[1]],
    ["B"])
 
+# =====================================================================
+# Nhom 21. Man mua vu khong duoc phep treo, va nhip tu dong bo
+# =====================================================================
+print("21. Man mua vu khong treo va nhip tu dong bo")
+
+_mv_src = open("vagabond/mua_vu.py", encoding="utf-8").read()
+_nen_src = open("vagabond/public/js/bep/00-nen.js", encoding="utf-8").read()
+_man_src = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_hook_src = open("vagabond/hooks.py", encoding="utf-8").read()
+
+# Loi goc anh Viet bao 18/08/2026: fetch khong co han gio nen mot lan mang
+# chap la MOI man hinh cho deu ket vinh vien, khong rieng man mua vu.
+la("moi loi goi may chu deu co han gio", "AbortController" in _nen_src, True)
+la("han gio duoc gan vao fetch", "signal: ctl ? ctl.signal : undefined" in _nen_src, True)
+la("het gio phai noi nguoi dung lam gi tiep (QT-24)",
+   "Kiểm tra mạng rồi bấm lại" in _nen_src, True)
+la("doc than tra loi cung nam trong han gio",
+   _nen_src.index("txt = await r.text()") > _nen_src.index("signal: ctl"), True)
+
+# Man mua vu KHONG duoc goi dong_bo tren duong mo man nua.
+la("mo man mua vu chi doc CSDL, khong doi Pancake",
+   "vagabond.mua_vu.dong_bo'" in _man_src, False)
+la("man co duong xin dong bo nen", "vagabond.mua_vu.xin_dong_bo" in _man_src, True)
+la("nhip tu lam moi dat 30 giay", "var MV_GIAY = 30;" in _man_src, True)
+la("nhip tu tat khi roi man", "function mvConODay" in _man_src, True)
+la("khong ve lai khi so khong doi", "if (dau === MV_DAU) return;" in _man_src, True)
+la("dang mo hop thoai thi khong ve de", _man_src.count("querySelector('.sh')") >= 2, True)
+
+# May chu tu keo, ke ca luc khong ai mo man.
+la("co nhip scheduler moi phut", '"* * * * *": ["vagabond.mua_vu.dong_bo_tu_dong"]' in _hook_src, True)
+la("co ham cho scheduler goi", "def dong_bo_tu_dong" in _mv_src, True)
+la("co ham cho hang doi nen goi", "def dong_bo_mot_mua" in _mv_src, True)
+la("xin dong bo tra ve ngay, khong keo tai cho", "frappe.enqueue" in _mv_src, True)
+
+# Hai luot keo cung luc la cho de treo that: luot sau nam cho khoa dong CSDL.
+la("co khoa chan hai luot keo cung luc", "def _gianh_khoa" in _mv_src, True)
+la("khoa duoc tha trong finally", "finally:\n\t\t_tha_khoa(mua)" in _mv_src, True)
+la("gian cach nho hon nhip man de nhip khong bi nuot",
+   int(re.search(r"GIAN_CACH_DONG_BO = (\d+)", _mv_src).group(1)) < 30, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
