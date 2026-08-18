@@ -11700,11 +11700,22 @@ function mvSapXep(ds) {
   });
 }
 
+/* Bỏ dấu tiếng Việt trước khi so khớp. Trên điện thoại, giữa lúc đang nói
+   chuyện với khách, gần như không ai gõ đủ dấu: gõ "dua" phải ra "Dứa Bưởi"
+   và "Dừa Sáp". Bắt được lúc nghiệm thu v211, khi gõ "dua" thì màn trả về
+   không có mã nào khớp trong khi mùa có hai món dứa dừa. */
+function mvKhongDau(s) {
+  s = String(s || '').toLowerCase();
+  try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { }
+  return s.replace(/đ/g, 'd');
+}
+
 function mvKhop(x, q) {
   if (!q) return true;
-  q = q.toLowerCase();
-  return ((x.ten_banh || '') + ' ' + (x.ma_hang || '') + ' ' + (x.nhan_ngan || ''))
-    .toLowerCase().indexOf(q) >= 0;
+  q = mvKhongDau(q).trim();
+  if (!q) return true;
+  return mvKhongDau((x.ten_banh || '') + ' ' + (x.ma_hang || '') + ' ' + (x.nhan_ngan || ''))
+    .indexOf(q) >= 0;
 }
 
 function mvLocDs(ds) {
@@ -12941,7 +12952,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '211';
+var APPVER = '212';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
