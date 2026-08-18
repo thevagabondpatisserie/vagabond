@@ -13369,7 +13369,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '217';
+var APPVER = '218';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -22945,8 +22945,117 @@ async function bgGuiMail(d) {
   catch (e) { busy(false); baoTin((e && e.message) || 'Gửi thư lỗi'); }
 }
 
+/* ---------- Tạo hồ sơ khách từ chính tờ báo giá ----------
+
+Anh Việt 18/08/2026: "khách hàng nhận báo giá có khi là khách hàng mới thì
+sao em, đâu có trong hệ thống đâu... hay là có nút Tạo khách hàng cho Loan
+Anh tạo được không?"
+
+Lỗ hổng thật trong luồng: tờ báo giá cho phép để trống ô Khách hàng, và nên
+thế vì báo giá thì gửi cho ai cũng được. Nhưng bước chốt thành hợp đồng lại
+bắt buộc phải có hồ sơ khách, vì hợp đồng còn gắn hoá đơn và theo dõi công
+nợ. Trước hôm nay không có đường nào đi từ cái thứ nhất sang cái thứ hai mà
+không bỏ app ra mở Desk.
+
+Hai điều màn này phải làm đúng. Một, tờ đang soạn phải được LƯU trước, vì
+máy chủ đọc thông tin khách từ tờ đã lưu chứ không tin cục dữ liệu app gửi
+lên (QT-19). Hai, phải bày ra hết các hồ sơ trùng TRƯỚC khi tạo: hệ đang có
+43.220 khách, thêm một dòng rác thì không ai đi dọn. */
+async function bgTaoKhach(name, dangSoan) {
+  var ma = name;
+  if (dangSoan) {
+    /* Lưu tờ trước. Máy chủ chỉ đọc được tên công ty, MST, địa chỉ khi
+       chúng đã nằm trong hồ sơ, không đọc từ các ô đang gõ dở. */
+    bgDoc();
+    if (!(bgTay.ten_khach || '').trim()) {
+      return baoTin('Chưa có tên công ty khách trên tờ này. Anh chị điền ô Tên công ty khách rồi bấm lại nhé.', 'Chưa tạo được');
+    }
+    busy(true);
+    try { var kq = await api('vagabond.bao_gia.luu', { du_lieu: JSON.stringify(bgTay) }); ma = kq.name; }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu tờ báo giá lỗi'); }
+    busy(false);
+  }
+
+  busy(true);
+  var xt;
+  try { xt = await api('vagabond.bao_gia.xem_truoc_tao_khach', { name: ma }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được thông tin khách trên tờ'); }
+  busy(false);
+
+  if (xt.thieu_ten) {
+    return baoTin('Chưa có tên công ty khách trên tờ báo giá. Anh chị bấm Sửa báo giá, điền ô Tên công ty khách rồi tạo lại nhé.', 'Chưa tạo được');
+  }
+  if (xt.da_gan) {
+    return baoTin('Tờ này đã gắn khách ' + xt.da_gan + ' rồi, không cần tạo thêm.', 'Đã có khách');
+  }
+
+  var o = function (nhan, gtri) {
+    return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f2f4f7">' +
+      '<div style="flex:0 0 38%;font-size:12px;color:#6b7280">' + h(nhan) + '</div>' +
+      '<div style="flex:1;font-size:13.5px;font-weight:600;word-break:break-word">' + h(gtri || '(để trống)') + '</div></div>';
+  };
+
+  /* Trùng mã số thuế thì KHÔNG tạo mới. Mã số thuế là duy nhất theo luật,
+     trùng nghĩa là cùng một pháp nhân - anh Việt chốt 18/08/2026. */
+  var canh = '';
+  if ((xt.trung_mst || []).length) {
+    canh = '<div style="background:#e8f6ee;border:1px solid #a7e0c0;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12.5px;line-height:1.65;color:#0a6b3a">' +
+      '<b>Mã số thuế này đã có hồ sơ khách rồi.</b><br>' +
+      xt.trung_mst.map(function (k) { return '• ' + h(k.customer_name || k.name) + ' (' + h(k.name) + ')'; }).join('<br>') +
+      '<br>Em sẽ gắn tờ này vào hồ sơ đó thay vì tạo thêm một dòng trùng.</div>';
+  } else if ((xt.gan_giong || []).length) {
+    canh = '<div style="background:#fff8ec;border:1px solid #f5d9a0;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12.5px;line-height:1.65;color:#8a5a08">' +
+      '<b>Có khách tên gần giống, anh chị xem giúp có phải cùng một công ty không:</b><br>' +
+      xt.gan_giong.map(function (k) { return '• ' + h(k.customer_name || k.name) + (k.tax_id ? ' · MST ' + h(k.tax_id) : ' · chưa có MST'); }).join('<br>') +
+      '<br>Nếu đúng là công ty cũ thì bấm Thôi rồi chọn thẳng trong danh sách khách.</div>';
+  }
+
+  var than = canh +
+    '<div class="card" style="padding:2px 14px 8px;margin-bottom:10px">' +
+    o('Tên công ty', xt.ten_khach) +
+    o('Mã số thuế', xt.ma_so_thue) +
+    o('Địa chỉ', xt.dia_chi) +
+    o('Người đại diện', xt.nguoi_lien_he + (xt.chuc_vu ? ' - ' + xt.chuc_vu : '')) +
+    o('Điện thoại', xt.dien_thoai) +
+    o('Email', xt.email) +
+    o('Nhóm khách', xt.nhom) +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#9ca3af;line-height:1.6">Địa chỉ và người đại diện được lưu thành hồ sơ riêng của khách, nên lần sau mở lại là có sẵn, không phải gõ tay nữa.</div>';
+
+  var hop = hopKhung((xt.trung_mst || []).length ? 'Gắn vào khách đã có' : 'Tạo hồ sơ khách mới', than,
+    '<button class="btn gh" id="bgTkThoi" style="margin:0;flex:1">Thôi</button>' +
+    '<button class="btn" id="bgTkOk" style="margin:0;flex:1.4">' +
+    ((xt.trung_mst || []).length ? 'Gắn vào hồ sơ có sẵn' : 'Tạo và gắn vào tờ này') + '</button>');
+  hop.box.querySelector('.x').onclick = hop.dong;
+  hop.box.querySelector('#bgTkThoi').onclick = hop.dong;
+  hop.box.querySelector('#bgTkOk').onclick = async function () {
+    busy(true);
+    var r;
+    try { r = await api('vagabond.bao_gia.tao_khach', { name: ma }); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không tạo được hồ sơ khách'); }
+    busy(false);
+    hop.dong();
+    baoTin(r.ghi_chu, r.moi ? 'Đã tạo hồ sơ khách' : 'Đã gắn khách');
+    bgTay = null; bgMoRong = {};
+    go(function () { scrBgXem(ma); }, true);
+  };
+}
+
+
 async function bgChotHopDong(d) {
-  if (!d.khach_hang) return baoTin('Hợp đồng phải gắn với một khách hàng có trong hệ thống. Bấm Sửa báo giá, chọn lại ô Khách hàng rồi quay lại nhé.');
+  /* Chua co ho so khach thi HOI luon co tao khong, khong bat quay lai sua
+     to (anh Viet 18/08/2026). Truoc hom nay cho nay chi bao loi roi bo do,
+     ma khach moi thi lam gi da co ho so. */
+  if (!d.khach_hang) {
+    if (!(d.ten_khach || '').trim()) {
+      return baoTin('Tờ này chưa có tên công ty khách. Anh chị bấm Sửa báo giá, điền ô Tên công ty khách rồi quay lại nhé.', 'Chưa lên hợp đồng được');
+    }
+    if (!await hoiCo('Chưa có hồ sơ khách',
+      'Hợp đồng phải gắn với một khách hàng có trong hệ thống, vì còn gắn hoá đơn và theo dõi công nợ.\n\n' +
+      'Tờ này đang ghi khách là "' + (d.ten_khach || '') + '". Em tạo hồ sơ khách từ chính thông tin trên tờ nhé?',
+      'Tạo hồ sơ khách')) return;
+    return bgTaoKhach(d.name, false);
+  }
   var so = await hoiChu('Số hợp đồng', 'Nhập số hợp đồng hai bên đã thống nhất (để trống cũng được).', '', { goi_y: 'Vd 026-022/PYR-VAGABOND' });
   if (so === null) return;
   var nsk = await hoiNgay(today());
@@ -23569,7 +23678,18 @@ async function bgChonKhach(name) {
     '<div class="shl"></div>';
   var lst = box.querySelector('.shl');
   function ve(dangTim) {
-    var dau = '<div class="shi" data-kh=""><span>✨</span><span style="flex:1;min-width:0">Khách mới, chưa có trong hệ thống</span></div>';
+    /* Hai muc dau, va chung khac han nhau (anh Viet 18/08/2026):
+
+         "Khach moi, chua co trong he thong"  de trong o Khach hang. To bao
+             gia van in va van gui duoc - bao gia thi gui cho ai cung duoc.
+         "Tao ho so khach tu to nay"          tao that mot Customer. Chi
+             can den khi sap len HOP DONG, vi hop dong con gan hoa don va
+             theo doi cong no nen bat buoc phai co ho so.
+
+       Truoc hom nay chi co muc thu nhat, nen tu to bao gia khong co duong
+       nao di sang hop dong ma khong bo app ra mo Desk. */
+    var dau = '<div class="shi" data-kh=""><span>✨</span><span style="flex:1;min-width:0">Khách mới, chưa có trong hệ thống<div style="color:#a0a6b4;font-size:12px;margin-top:2px">Để trống ô khách. Vẫn in và gửi báo giá được.</div></span></div>' +
+      '<div class="shi" data-kh="_tao" style="background:#f0fdfa"><span>🏢</span><span style="flex:1;min-width:0"><b style="color:#0f766e">Tạo hồ sơ khách từ tờ này</b><div style="color:#0f766e;font-size:12px;margin-top:2px">Lấy sẵn tên công ty, MST, địa chỉ đã gõ. Cần có hồ sơ mới lên hợp đồng được.</div></span></div>';
     if (dangTim) { lst.innerHTML = dau + '<div class="emp" style="padding:18px"><div class="e2">Đang tìm...</div></div>'; return; }
     lst.innerHTML = dau + (ds.length ? ds.map(function (x) {
       return '<div class="shi' + (x.name === bgTay.khach_hang ? ' on' : '') + '" data-kh="' + h(x.name) + '"><span>🏢</span>' +
@@ -23602,6 +23722,7 @@ async function bgChonKhach(name) {
     var r = e.target.closest('[data-kh]'); if (!r) return;
     var ma = r.getAttribute('data-kh');
     dong();
+    if (ma === '_tao') { bgTaoKhach(name, true); return; }
     if (!ma) { bgTay.khach_hang = ''; return go(function () { scrBgSua(name); }, true); }
     bgTay.khach_hang = ma;
     busy(true);
