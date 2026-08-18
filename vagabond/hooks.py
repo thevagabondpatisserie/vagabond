@@ -17,6 +17,13 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 # "phat sinh" tu chay, sales khoi dem tay.
 scheduler_events = {
 	"cron": {
+		# Moi phut: keo don Pancake ve cho cac mua vu DANG BAN. Anh Viet
+		# 18/08/2026: "de kip thoi bat don moi (va nhung don bi chinh sua,
+		# them san pham...) cung kip thoi day ve de khong bi lech so".
+		# Mua vu la hang co han muc cung, mot don ve muon la mot lan sales
+		# hua nham voi khach, nen nhip nay dat sat hon 5 phut cua kiem banh
+		# theo ngay. Ham tu bo qua khi khong co mua nao dang ban.
+		"* * * * *": ["vagabond.mua_vu.dong_bo_tu_dong"],
 		# Khach sua don ben Pancake (dia chi, mon, tien) luc nao cung duoc,
 		# nen ca kiem banh lan van don phai tu bam theo, khong doi ai bam nut.
 		"*/5 * * * *": [

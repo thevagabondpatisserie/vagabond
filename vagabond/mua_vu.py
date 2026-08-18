@@ -76,7 +76,7 @@ TU_THEM = ("BASS",)
 TIEN_TO_MA = ("BASS", "BAWC", "BAWS")
 
 MAX_TRANG = 30  # ca mua vai thang, nhieu don hon mot ngay
-GIAN_CACH_DONG_BO = 30  # giay. Keo ca mua nang hon keo mot ngay nen gian ra.
+GIAN_CACH_DONG_BO = 20  # giay. Man tu xin moi 30 giay nen gian cach phai nho hon.
 
 # Tran ngay cua mot mua. Mot mua dai hon nua nam thi gan nhu chac la go
 # nham ngay, va keo Pancake ca nam la mot cu goi rat nang.
@@ -461,12 +461,112 @@ def tao_mua(ten_mua=None, tu_ngay=None, den_ngay=None):
 	return {"ok": 1, "mua": doc.name}
 
 
+KHOA_KEO = "vagabond_mua_vu_dang_keo"
+
+
+def _gianh_khoa(mua, giay=180):
+	"""Chi mot luot keo Pancake duoc chay tai mot thoi diem cho mot mua.
+
+	Vi sao can (anh Viet bao 18/08/2026: "bam Dong bo Pancake thi bi dung
+	im"): man cu, scheduler va nut bam co the cung goi mot luc. Hai luot
+	cung save mot tai lieu thi luot sau nam cho khoa dong CSDL cua luot
+	truoc, va nguoi dung ngoi nhin dong ho cat. Gap nhau thi luot sau tra
+	so hien co luon, vi no khong them duoc thong tin gi ma van bat cho.
+	"""
+	try:
+		c = frappe.cache()
+		k = "%s:%s" % (KHOA_KEO, mua)
+		if c.get_value(k):
+			return False
+		c.set_value(k, "1", expires_in_sec=giay)
+		return True
+	except Exception:
+		# Cache hong thi cu cho chay, khong lay cai phanh de chan ca viec.
+		return True
+
+
+def _tha_khoa(mua):
+	try:
+		frappe.cache().delete_value("%s:%s" % (KHOA_KEO, mua))
+	except Exception:
+		pass
+
+
+@frappe.whitelist()
+def xin_dong_bo(mua=None):
+	"""Man hinh XIN may chu keo Pancake, va tra ve NGAY, khong doi.
+
+	Anh Viet bao 18/08/2026: bam Dong bo Pancake thi man dung im mai. Doc
+	lai ban ghi thi thay may chu chay xong ca ba lan anh bam, ma man van
+	nam o khung cho. Nguyen nhan goc: man cu DOI ca luot keo Pancake moi ve
+	duoc, ma luot do di ra Internet - mot lan mang chap la trinh duyet treo
+	vinh vien vi tu no khong bo cuoc bao gio.
+
+	Nay man ve NGAY bang so trong CSDL, con viec keo giao cho hau truong.
+	Man khong con duong nao de treo nua.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not mua or not frappe.db.exists(DT, mua):
+		return {"ok": 0}
+	# Nhieu may cung mo man thi cung xin moi 30 giay, va man nao cung xin
+	# cho cung mot mua. Chan o day de hang doi khong phinh ra vo ich.
+	try:
+		c = frappe.cache()
+		kx = "vagabond_mua_vu_da_xin:%s" % mua
+		if c.get_value(kx):
+			return {"ok": 1, "da_xin": 1}
+		c.set_value(kx, "1", expires_in_sec=15)
+	except Exception:
+		pass
+	frappe.enqueue(
+		"vagabond.mua_vu.dong_bo_mot_mua",
+		queue="short",
+		timeout=300,
+		mua=mua,
+	)
+	return {"ok": 1}
+
+
+def dong_bo_mot_mua(mua=None):
+	"""Cho hang doi nen goi. Nuot loi de khong lam ban nhat ky moi phut."""
+	try:
+		_keo_ve(mua)
+	except Exception:
+		frappe.log_error(
+			title="Vagabond: dong bo mua vu %s loi" % mua, message=frappe.get_traceback()
+		)
+
+
+def dong_bo_tu_dong():
+	"""Cho scheduler goi moi phut: quet moi mua DANG BAN.
+
+	Anh Viet 18/08/2026: "cai dum anh ham de dong bo tu dong tu Pancake ve
+	de kip thoi bat don moi (va nhung don bi chinh sua, them san pham...)".
+	Keo lai ca mua moi lan chu khong keo them, nen don sua o Pancake cung
+	ve dung so - khong co duong nao lech.
+	"""
+	try:
+		for ma in mua_dang_chay():
+			dong_bo_mot_mua(ma)
+	except Exception:
+		frappe.log_error(
+			title="Vagabond: nhip dong bo mua vu loi", message=frappe.get_traceback()
+		)
+
+
 @frappe.whitelist()
 def dong_bo(mua=None):
 	"""Dem lai ca mua tu Pancake: theo san pham va theo tung ngay giao."""
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
+	return _keo_ve(mua)
+
+
+def _keo_ve(mua=None):
+	"""Ruot cua dong bo. KHONG kiem quyen - nguoi goi tu kiem."""
 	doc = frappe.get_doc(DT, mua)
 
 	# Man hinh cua nhieu nguoi tu goi lien tuc. Vua dong bo trong vong
@@ -480,6 +580,18 @@ def dong_bo(mua=None):
 	if not k or not c.pancake_shop_id:
 		frappe.throw("Chưa điền khoá Pancake trong Cài đặt. Báo em để kiểm tra lại.")
 
+	if not _gianh_khoa(mua):
+		# Da co luot keo khac dang chay. Doi no thi cho lau ma khong duoc
+		# them gi, nen tra so hien co luon.
+		return bang(mua)
+	try:
+		return _keo_that(doc, mua, c, k)
+	finally:
+		_tha_khoa(mua)
+
+
+def _keo_that(doc, mua, c, k):
+	"""Phan that su di ra Pancake va ghi lai. Da nam trong khoa."""
 	dau, cuoi = _khoang_unix(doc.tu_ngay, doc.den_ngay)
 	dons = _keo_don(c, k, dau, cuoi)
 	dem_chot, dem_cho, theo_ngay, ten, hinh = _dem(dons)
