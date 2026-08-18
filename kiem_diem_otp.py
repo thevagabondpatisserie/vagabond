@@ -851,6 +851,42 @@ la("nhip khong cuop o tim dang go",
 la("loc rong thi noi ro phai lam gi (QT-24)",
    "Bỏ bớt điều kiện lọc hoặc xoá ô tìm" in _mv_man, True)
 
+# --- O tim phai khop ca khi go KHONG DAU ---
+# Bat duoc luc nghiem thu v211: go "dua" thi man bao khong co ma nao khop,
+# trong khi mua co ca Dua Buoi lan Dua Sap. Tren dien thoai, giua luc dang
+# noi chuyen voi khach, gan nhu khong ai go du dau.
+la("co phep bo dau tieng Viet", "function mvKhongDau" in _mv_man, True)
+la("o tim di qua phep bo dau", "mvKhongDau(q)" in _mv_man, True)
+
+def _kd(x):
+	import unicodedata
+	x = str(x or "").lower()
+	x = "".join(c for c in unicodedata.normalize("NFD", x) if unicodedata.category(c) != "Mn")
+	return x.replace("đ", "d")
+
+def _khop(x, q):
+	q = _kd(q).strip()
+	if not q:
+		return True
+	return q in _kd("%s %s %s" % (x.get("ten_banh", ""), x.get("ma_hang", ""), x.get("nhan_ngan", "")))
+
+_DS = [
+	{"ten_banh": "Dứa Bưởi Xí Muội, 80gram", "ma_hang": "BASS00050", "nhan_ngan": "DB80"},
+	{"ten_banh": "Dừa Sáp Hạt Chia, 80gram", "ma_hang": "BASS00051", "nhan_ngan": "DS80"},
+	{"ten_banh": "Đậu Ngự Trần Bì, 80gram", "ma_hang": "BASS00055", "nhan_ngan": "DN80"},
+	{"ten_banh": "HỘP MOONLAPIS", "ma_hang": "BASS00039", "nhan_ngan": "ML"},
+]
+_n = lambda q: len([x for x in _DS if _khop(x, q)])
+la("go 'dua' khong dau ra ca Dua Buoi va Dua Sap", _n("dua"), 2)
+# Go CO dau cung ra du, khong bi hut - dau cua nguoi go cung bi bo di.
+la("go 'dứa' co dau van ra du hai mon", _n("dứa"), 2)
+la("go nhieu chu khong dau", _n("dau ngu"), 1)
+la("chu d gach ngang doi thanh d thuong", _n("đậu"), 1)
+la("tim duoc theo ma hang", _n("bass00039"), 1)
+la("tim duoc theo nhan ngan tren lich", _n("ml"), 1)
+la("khong khop gi thi tra 0", _n("xxx"), 0)
+la("o tim rong thi khong loc gi", _n("   "), 4)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
