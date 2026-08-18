@@ -89,6 +89,105 @@
    "fieldname": "ghi_chu",
    "fieldtype": "Text",
    "label": "Ghi chu noi bo"
+  },
+  {
+   "fieldname": "sec_ba",
+   "fieldtype": "Section Break",
+   "label": "Bên A - thông tin in lên hợp đồng"
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "label": "Ten cong ty ben A",
+   "description": "Chép từ báo giá lúc chốt. Chụp lại tại thời điểm ký, sau này khách đổi tên công ty thì hợp đồng cũ vẫn đúng."
+  },
+  {
+   "fieldname": "ma_so_thue",
+   "fieldtype": "Data",
+   "label": "Ma so thue ben A"
+  },
+  {
+   "fieldname": "dia_chi",
+   "fieldtype": "Small Text",
+   "label": "Dia chi ben A"
+  },
+  {
+   "fieldname": "cb_ba",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "dai_dien",
+   "fieldtype": "Data",
+   "label": "Nguoi dai dien ben A"
+  },
+  {
+   "fieldname": "chuc_vu",
+   "fieldtype": "Data",
+   "label": "Chuc vu"
+  },
+  {
+   "fieldname": "dien_thoai",
+   "fieldtype": "Data",
+   "label": "Dien thoai"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email nhan hop dong",
+   "options": "Email"
+  },
+  {
+   "fieldname": "sec_dk",
+   "fieldtype": "Section Break",
+   "label": "Điều khoản in lên hợp đồng"
+  },
+  {
+   "fieldname": "bao_gia",
+   "fieldtype": "Link",
+   "label": "Bao gia nguon",
+   "options": "Bao Gia Ban Hang",
+   "read_only": 1,
+   "description": "Tờ báo giá đã chốt. Được đính vào PDF hợp đồng làm Phụ lục 01."
+  },
+  {
+   "fieldname": "dat_coc_pt",
+   "fieldtype": "Percent",
+   "label": "Dot 1 (%)",
+   "description": "Chép từ ô Đặt cọc trên báo giá. Điều 2 chia hai đợt theo con số này."
+  },
+  {
+   "fieldname": "dat_coc_tien",
+   "fieldtype": "Currency",
+   "label": "Tien dot 1",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_dk",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "ngay_dot1",
+   "fieldtype": "Int",
+   "label": "So ngay tra dot 1 sau khi ky",
+   "default": "3"
+  },
+  {
+   "fieldname": "ngay_dot2",
+   "fieldtype": "Int",
+   "label": "So ngay tra dot 2 truoc khi giao",
+   "default": "3"
+  },
+  {
+   "fieldname": "dia_diem_giao",
+   "fieldtype": "Small Text",
+   "label": "Dia diem ban giao hang hoa"
+  },
+  {
+   "fieldname": "thoi_gian_giao",
+   "fieldtype": "Small Text",
+   "label": "Thoi gian ban giao"
   }
  ],
  "links": [
@@ -103,7 +202,7 @@
    "link_fieldname": "custom_hop_dong"
   }
  ],
- "modified": "2026-08-14 09:00:00.000000",
+ "modified": "2026-08-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Hop Dong Ban Hang",
