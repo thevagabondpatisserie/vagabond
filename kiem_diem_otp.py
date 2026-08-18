@@ -1370,6 +1370,78 @@ la("bay du nguoi nhan truoc khi gui", "xem_nguoi_nhan" in _than_mail, True)
 la("phai bam xac nhan moi gui", "hoiCo('Xác nhận gửi hợp đồng'" in _than_mail, True)
 la("email sai dang thi chan tu may chu", "ng.sai && ng.sai.length" in _than_mail, True)
 
+# =====================================================================
+# Nhom 26. Tao ho so khach tu to bao gia (anh Viet 18/08/2026)
+# =====================================================================
+print("26. Tao khach tu to bao gia")
+
+_bg2_src = open("vagabond/bao_gia.py", encoding="utf-8").read()
+_bgjs_src = open("vagabond/public/js/bep/22-bao-gia.js", encoding="utf-8").read()
+
+# --- Phep chuan hoa ma so thue phai THUAN va bo het dau cau ---
+_ns_mst = {}
+_m4 = re.search(r"^def _chuan_mst\(.*?(?=^def |^@|\Z)", _bg2_src, re.S | re.M)
+la("phep chuan hoa ma so thue ton tai", bool(_m4), True)
+if _m4:
+	exec(compile(_m4.group(0), "bao_gia:_chuan_mst", "exec"), _ns_mst, _ns_mst)
+	_cm = _ns_mst["_chuan_mst"]
+	# Nguoi go tay hay them dau gach o ma so don vi truc thuoc. Hai cach go
+	# cua CUNG mot ma so phai coi la mot, neu khong phep do trung vo dung.
+	la("bo dau gach o ma so don vi truc thuoc", _cm("0314693309-001"), "0314693309001")
+	la("bo dau cach thua", _cm(" 0314693309 "), "0314693309")
+	la("bo dau cham", _cm("0314.693.309"), "0314693309")
+	la("rong thi tra rong", _cm(""), "")
+	la("chi giu chu so", _cm("MST: 0314693309"), "0314693309")
+
+# --- Trung ma so thue thi GAN khach cu, khong tao them dong ---
+_than_tk = _bg2_src.split("def tao_khach(")[1].split("\n@frappe")[0]
+la("do trung theo ma so thue truoc khi tao", "_tim_theo_mst(doc.ma_so_thue)" in _than_tk, True)
+la("trung thi gan vao khach cu", 'frappe.db.set_value(DT, name, "khach_hang", kh)' in _than_tk, True)
+la("trung thi tra ve co moi bang 0", '"moi": 0' in _than_tk, True)
+# Phep do trung phai so CHINH XAC sau khi chuan hoa, khong tin phep LIKE:
+# LIKE "%031469%" con khop ca nhung ma so khac chi trung mot doan.
+_than_tim = _bg2_src.split("def _tim_theo_mst(")[1].split("\n@frappe")[0]
+la("so chinh xac sau khi chuan hoa chu khong tin LIKE",
+   '_chuan_mst(d.get("tax_id")) == so' in _than_tim, True)
+la("ma so rong thi khong do trung bua", "if not so:" in _than_tim, True)
+
+# --- To da gan khach roi thi khong tao them ---
+la("to da co khach thi khong tao them", "if doc.khach_hang and frappe.db.exists" in _than_tk, True)
+la("thieu ten cong ty thi chan", "Chưa có tên công ty khách" in _than_tk, True)
+
+# --- Dia chi va nguoi lien he la hai doctype rieng, phai tao kem ---
+la("tao kem dia chi khach", '"doctype": "Address"' in _than_tk, True)
+la("tao kem nguoi lien he", '"doctype": "Contact"' in _than_tk, True)
+# Hong mot trong hai KHONG duoc keo do ca viec tao khach.
+la("hong dia chi khong keo do viec tao khach",
+   _than_tk.split('"doctype": "Address"')[1].split("except Exception")[0].count("try:") == 0
+   and "except Exception" in _than_tk.split('"doctype": "Address"')[1], True)
+
+# --- Nhom khach anh Viet chot ---
+la("nhom khach moi la Commercial", 'NHOM_KHACH_MOI = "Commercial"' in _bg2_src, True)
+la("nhom khong ton tai thi lay nhom la bat ky, khong de trong",
+   'frappe.db.get_value("Customer Group", {"is_group": 0}, "name")' in _than_tk, True)
+
+# --- Man hinh: hai muc khac han nhau trong hop chon khach ---
+la("van con muc de trong o khach", "Khách mới, chưa có trong hệ thống" in _bgjs_src, True)
+la("them muc tao ho so khach", "Tạo hồ sơ khách từ tờ này" in _bgjs_src, True)
+la("bam muc do thi goi phep tao khach", "bgTaoKhach(name, true)" in _bgjs_src, True)
+
+# --- Bay ra het TRUOC khi tao ---
+_than_js = _bgjs_src.split("async function bgTaoKhach(")[1].split("\nasync function ")[0]
+la("hoi may chu truoc khi tao", "xem_truoc_tao_khach" in _than_js, True)
+la("bay ra cac ho so trung ma so thue", "trung_mst" in _than_js, True)
+la("bay ra ca ten gan giong de nguoi ta tu quyet", "gan_giong" in _than_js, True)
+# To dang soan phai LUU truoc: may chu doc tu ho so da luu chu khong tin
+# cuc du lieu app gui len (QT-19).
+la("to dang soan phai luu truoc khi tao khach", "vagabond.bao_gia.luu" in _than_js, True)
+
+# --- Buoc chot hop dong: hoi tao khach chu khong chi bao loi ---
+_than_chot = _bgjs_src.split("async function bgChotHopDong(")[1].split("\n/* ---------- Soan bao gia")[0]
+la("chot hop dong thieu khach thi hoi tao", "bgTaoKhach(d.name, false)" in _than_chot, True)
+la("khong con bo do bang mot cau bao loi",
+   "Bấm Sửa báo giá, chọn lại ô Khách hàng rồi quay lại nhé" in _than_chot, False)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
