@@ -887,6 +887,93 @@ la("tim duoc theo nhan ngan tren lich", _n("ml"), 1)
 la("khong khop gi thi tra 0", _n("xxx"), 0)
 la("o tim rong thi khong loc gi", _n("   "), 4)
 
+# =====================================================================
+# Nhom 23. Phan he Danh muc: du man, dung cho, dung quyen
+# =====================================================================
+print("23. Phan he Danh muc du lieu nen")
+
+_dm_src = open("vagabond/danh_muc_nen.py", encoding="utf-8").read()
+_khungds_src = open("vagabond/khung/ds.py", encoding="utf-8").read()
+_tc2_src = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+
+# --- Du 16 man, va moi man deu duoc dang ky vao tang khung ---
+_ma_dm = re.findall(r'ma="(DM[A-Z]*)"', _dm_src)
+la("khai du 16 danh muc", len(_ma_dm), 16)
+la("khong co ma nao trung", len(set(_ma_dm)), 16)
+for _m in _ma_dm:
+	la("man %s da dang ky vao tang khung" % _m, '"%s": ("vagabond.danh_muc_nen"' % _m in _khungds_src, True)
+	la("man %s co o tren app" % _m, "'%s'" % _m in _tc2_src, True)
+
+# --- Man hinh khong duoc viet tay: di qua tang khung ---
+# Day la ca giu cho quy hoach nay khong bi pha: them mot danh muc moi ma
+# viet man rieng la quay lai dung cai benh 16 ban sao.
+la("phan he KHONG dung mot dong scr rieng nao",
+   bool(re.search(r"function scrDanhMuc[A-Z]", _tc2_src)), False)
+la("mot nhanh dinh tuyen tien to cho ca 16 man",
+   "k.indexOf('DM:') === 0" in _tc2_src, True)
+la("o duoc dung tu bang khai bao, khong chep tay",
+   "for (var dmi = 0; dmi < VGB_DM.length; dmi++)" in _tc2_src, True)
+
+# --- Danh muc nam NGAY TREN Cai dat ---
+_i_dm = _tc2_src.index("k: 'DM'")
+_i_khac = _tc2_src.index("k: 'KHAC'")
+la("Danh muc nam ngay tren Cai dat", _i_dm < _i_khac, True)
+
+# --- Quyen: khong man nao mo cho tat ca, va chia dung viec ---
+la("gia mua khong mo cho ca tiem", "quyen=XEM_MUA" in _dm_src, True)
+la("ho so khach hang khong mo cho ca tiem", "quyen=XEM_KHACH" in _dm_src, True)
+la("tai khoan ke toan khong mo cho ca tiem", "quyen=XEM_TIEN" in _dm_src, True)
+la("bep KHONG nam trong nhom xem tien",
+   "Bếp phó" in _dm_src.split("XEM_TIEN = {")[1].split("}")[0], False)
+la("bep KHONG nam trong nhom xem khach",
+   "Bếp phó" in _dm_src.split("XEM_KHACH = {")[1].split("}")[0], False)
+la("bep CO nam trong nhom xem chung",
+   "Bếp phó" in _dm_src.split("XEM_CHUNG = {")[1].split("}")[0], True)
+# Ca nay bat duoc lo hong cua chinh bo kiem lan thu lua: ba ca tren soi
+# XEM_TIEN, XEM_KHACH, XEM_CHUNG ma bo quen XEM_MUA. Them "Bep pho" vao
+# XEM_MUA la bep xem duoc gia mua ma khong ca nao keu.
+la("bep KHONG xem duoc gia mua va nha cung cap",
+   "Bếp phó" in _dm_src.split("XEM_MUA = ")[1].split("\n")[0], False)
+la("gia mua khong lot vai Bo phan dat hang",
+   "Bộ phận đặt hàng" in _dm_src.split("XEM_MUA = ")[1].split("\n")[0], False)
+
+# --- Man hinh khong tu doan quyen, hoi may chu ---
+# Doan lai o man la de ra ban sao thu hai cua danh sach quyen.
+la("man hoi danh ba tu may chu", "vagabond.khung.ds.danh_ba" in _tc2_src, True)
+la("o nao may chu khong tra ve thi khong dung",
+   "if (VGB_KHUNG_CO && !VGB_KHUNG_CO[dmx.m]) continue;" in _tc2_src, True)
+
+# --- Bay em bat duoc luc dung: gom nhom lan hai lam mat het o ---
+# vgbGomNhom doc cac dong [data-go] roi GHI DE body. Tu luot hai tro di
+# khong con dong nao de doc, nen phai giu ban chup.
+# Kiem ca ba manh, khong chi ten bien: doi ten bien roi de nguyen cho dung
+# thi ca kiem "co chuoi VGB_DONG_GOC" van khop ma ma da hong.
+la("giu ban chup dong goc de gom lai duoc luot hai",
+   "var VGB_DONG_GOC = null;" in _tc2_src, True)
+la("ban chup duoc ghi khi doc duoc dong", "VGB_DONG_GOC = {};" in _tc2_src, True)
+la("ban chup duoc dung lai o luot gom sau",
+   "for (var gk in VGB_DONG_GOC) VGB_HUB[gk] = VGB_DONG_GOC[gk];" in _tc2_src, True)
+la("chua gom lan nao ma khong doc duoc gi thi khong ve de",
+   "} else if (!VGB_DONG_GOC) {" in _tc2_src, True)
+
+# --- Cay thu muc: sap theo lft chu khong tu dung cay o man ---
+for _m in ("BANG_NHOM_SP", "BANG_KHO", "BANG_TAI_KHOAN", "BANG_NHOM_NCC", "BANG_NHOM_KHACH"):
+	_than = _dm_src.split(_m + " = khai.bang(")[1].split("\n)")[0]
+	la("%s sap theo lft de ra dung thu tu cay" % _m, 'sap="lft asc"' in _than, True)
+	la("%s thut ten theo cap" % _m, "_thut_cay(" in _than, True)
+
+# --- Phep thut cay phai THUAN va khong lap vo han ---
+_ns = {}
+exec(re.search(r"^def _thut_cay\(.*?(?=^def |^BANG_|^# ={5})", _dm_src, re.S | re.M).group(0), _ns)
+_tc = _ns["_thut_cay"]
+_bc = {"cay": {"B": "A", "C": "B", "A": ""}}
+la("goc khong thut", _tc({"n": "A", "p": ""}, _bc, "n", "p"), "A")
+la("con cap 1 thut mot", _tc({"n": "B", "p": "A"}, _bc, "n", "p"), "　B")
+la("con cap 2 thut hai", _tc({"n": "C", "p": "B"}, _bc, "n", "p"), "　　C")
+# Cay tro vong lai chinh no thi khong duoc treo may.
+la("cay tro vong khong lam treo",
+   bool(_tc({"n": "X", "p": "V"}, {"cay": {"V": "W", "W": "V"}}, "n", "p")), True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
