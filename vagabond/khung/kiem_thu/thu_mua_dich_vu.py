@@ -156,3 +156,95 @@ def _():
 def _():
 	d = md.dong_dich_vu("C" * 300, "57194", 1000)
 	dung("tên món cắt còn tối đa 140 ký tự", len(d["item_name"]) <= 140)
+
+
+# ------------------------------------------- chua dong chiet khau bi cong
+
+# Ba dong hang nhu may da tao ra tu hoa don GSM, thu gon lai cho de doc.
+# Tong tho 2.415.426, trong do 2.270.370 la dong chiet khau bi cong nham dau.
+GSM_DONG = [
+	{"ten": "Cước phí vận chuyển", "tien": 120111},
+	{"ten": "Phí nền tảng", "tien": 7667},
+	{"ten": "Chiết khấu thương mại", "tien": 2270370},
+]
+
+
+@ca("chữa chiết khấu: số suy ra lệch quá xa số ghi trên hoá đơn thì không đụng vào")
+def _():
+	# Hai dong con lai cong duoc 127.778. Neu dau hoa don cung ghi 127.778 thi
+	# chiet khau suy ra bang 0, trong khi hoa don ghi dong chiet khau 2.270.370.
+	# Lech the la co gi khac dang sai, khong phai chuyen lam tron - khong duoc
+	# tu y dung vao phieu, de cong chan lech o buoc ghi so no chan.
+	dung("chênh 2,27 triệu thì bỏ qua",
+		md.ke_hoach_sua_chiet_khau(GSM_DONG, GSM_CHI_TIET, 127778) is None)
+
+
+@ca("chữa chiết khấu: dựng đúng kế hoạch khi con số hợp lý")
+def _():
+	# Dong con lai 127.778. Neu dau hoa don ghi truoc thue = 127.778 - 2.270.370
+	# thi so am, vo ly. Dung bo so that: lay tong dong con lai tru dung chiet khau.
+	dong = [
+		{"ten": "Cước phí vận chuyển", "tien": 24338904},
+		{"ten": "Chiết khấu thương mại", "tien": 2270370},
+	]
+	kh = md.ke_hoach_sua_chiet_khau(dong, GSM_CHI_TIET, 22068519)
+	dung("có kế hoạch chữa", kh is not None)
+	la("bỏ đúng một dòng", len(kh["bo"]), 1)
+	la("bỏ đúng dòng chiết khấu", kh["bo"][0], 1)
+	la("dòng còn lại", kh["con_lai"], 24338904)
+	# 24.338.904 - 22.068.519 = 2.270.385, tuc dong chiet khau 2.270.370 cong
+	# them 15d m-invoice lam tron tung dong. Nuot ca vao chiet khau thi tong
+	# tren ERP khop tuyet doi voi hoa don.
+	la("chiết khấu nuốt luôn phần làm tròn", kh["chiet_khau"], 2270385)
+	dung("sau khi chữa thì khớp tuyệt đối",
+		not md.lech_qua_nguong(kh["con_lai"] - kh["chiet_khau"], 22068519))
+
+
+@ca("chữa chiết khấu: dòng ghi chú diễn giải cũng bị bỏ khỏi lưới")
+def _():
+	dong = [
+		{"ten": "Cước phí vận chuyển", "tien": 24338904},
+		{"ten": "Ghi chú, không tính tiền", "tien": 999999},
+		{"ten": "Chiết khấu thương mại", "tien": 2270370},
+	]
+	kh = md.ke_hoach_sua_chiet_khau(dong, GSM_CHI_TIET, 22068519)
+	dung("có kế hoạch chữa", kh is not None)
+	la("bỏ hai dòng", len(kh["bo"]), 2)
+	la("dòng còn lại không tính dòng ghi chú", kh["con_lai"], 24338904)
+
+
+@ca("chữa chiết khấu: hoá đơn không có dòng chiết khấu thì không đụng vào")
+def _():
+	sach = [{"tchat": 1, "thtien": 100}, {"tchat": 5, "thtien": 200}]
+	dung("không có tchat 3 hay 4 thì bỏ qua",
+		md.ke_hoach_sua_chiet_khau(GSM_DONG, sach, 100) is None)
+	dung("chi tiết rỗng thì bỏ qua",
+		md.ke_hoach_sua_chiet_khau(GSM_DONG, [], 100) is None)
+
+
+@ca("chữa chiết khấu: ghép theo tên không ra thì không đụng vào")
+def _():
+	# Hoa don hang hoa co ma mat hang that: ten dong la ten cua Mat hang chu
+	# khong phai ten tren hoa don dien tu, ghep khong ra. Khong duoc doan mo.
+	dong = [{"ten": "Bột mì số 13", "tien": 24338904}]
+	dung("không ghép được dòng nào thì trả về None",
+		md.ke_hoach_sua_chiet_khau(dong, GSM_CHI_TIET, 22068519) is None)
+
+
+@ca("chữa chiết khấu: chiết khấu ra số âm là dấu hiệu sai, không đụng vào")
+def _():
+	dong = [
+		{"ten": "Cước phí vận chuyển", "tien": 1000},
+		{"ten": "Chiết khấu thương mại", "tien": 2270370},
+	]
+	dung("dòng còn lại nhỏ hơn tiền trước thuế thì bỏ qua",
+		md.ke_hoach_sua_chiet_khau(dong, GSM_CHI_TIET, 22068519) is None)
+
+
+@ca("chữa chiết khấu: đọc đúng tập tên theo tính chất")
+def _():
+	ck, gc = md.ten_theo_tinh_chat(GSM_CHI_TIET)
+	dung("tên dòng chiết khấu vào tập chiết khấu", "Chiết khấu thương mại" in ck)
+	dung("tên dòng ghi chú vào tập ghi chú", "Ghi chú, không tính tiền" in gc)
+	dung("dòng hàng thường không vào tập nào", "Cước phí vận chuyển" not in (ck | gc))
+	la("chi tiết rỗng ra hai tập rỗng", len(md.ten_theo_tinh_chat([])[0]), 0)
