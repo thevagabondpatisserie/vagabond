@@ -1992,17 +1992,42 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None):
 		noi_dung += "\nĐiều kiện thanh toán: %s" % doc.thanh_toan
 	if doc.giao_hang:
 		noi_dung += "\nGiao hàng: %s" % doc.giao_hang
+	# Chup lai (snapshot) thong tin Ben A tai thoi diem chot, khong tro sang
+	# ho so khach hang.
+	#
+	# Sang nam khach doi ten cong ty hay doi nguoi dai dien thi to hop dong
+	# da ky van phai doc ra dung cai da ky - do la ca diem cua mot to phap
+	# ly. Bao gia cung da chup san cac o nay nen chi viec chep sang.
+	from vagabond.hop_dong_pdf import chia_hai_dot, so_hop_dong as _sinh_so
+
+	ngay = ngay_ky or nowdate()
+	so = (so_hop_dong or "").strip() or _sinh_so(ngay, doc.ten_khach or doc.khach_hang)
+	coc_pt = flt(doc.dat_coc_pt)
+	coc_tien = chia_hai_dot(doc.tong_cong, coc_pt)[0]
 	hd = frappe.get_doc({
 		"doctype": "Hop Dong Ban Hang",
 		"ten": doc.ten,
-		"so_hop_dong": so_hop_dong or None,
+		"so_hop_dong": so,
 		"loai": "B2B sỉ",
 		"khach_hang": doc.khach_hang,
-		"ngay_ky": ngay_ky or nowdate(),
+		"ngay_ky": ngay,
 		"ngay_su_kien": ngay_su_kien or None,
 		"gia_tri": flt(doc.tong_cong),
 		"mo_ta": noi_dung,
 		"ghi_chu": "Lập từ báo giá %s" % doc.name,
+		"bao_gia": doc.name,
+		"ten_khach": doc.ten_khach or "",
+		"ma_so_thue": doc.ma_so_thue or "",
+		"dia_chi": doc.dia_chi or "",
+		"dai_dien": doc.nguoi_lien_he or "",
+		"chuc_vu": doc.chuc_vu or "",
+		"dien_thoai": doc.dien_thoai or "",
+		"email": doc.email or "",
+		"dat_coc_pt": coc_pt,
+		"dat_coc_tien": coc_tien,
+		"ngay_dot1": 3,
+		"ngay_dot2": 3,
+		"thoi_gian_giao": doc.giao_hang or "",
 	})
 	hd.insert(ignore_permissions=True)
 	frappe.db.set_value(DT, name, {"hop_dong": hd.name, "trang_thai": "Đã lên hợp đồng"})

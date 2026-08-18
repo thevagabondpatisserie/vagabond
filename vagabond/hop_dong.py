@@ -91,6 +91,23 @@ def chi_tiet(name):
 			"gia_tri": flt(doc.gia_tri),
 			"mo_ta": doc.mo_ta or "",
 			"ghi_chu": doc.ghi_chu or "",
+			# Khoi phap ly (anh Viet 18/08/2026). Man Chi tiet hop dong dua
+			# vao doc "bao_gia" de biet co bay ba nut Xem truoc, Xuat PDF,
+			# Gui Email hay khong: hop dong go tay khong co goc bao gia thi
+			# khong dung duoc to phap ly, va khong bay nut ra roi de nguoi
+			# ta bam vao chi de nhan mot cau bao loi.
+			"bao_gia": doc.get("bao_gia") or "",
+			"ten_khach": doc.get("ten_khach") or "",
+			"ma_so_thue": doc.get("ma_so_thue") or "",
+			"dia_chi": doc.get("dia_chi") or "",
+			"dai_dien": doc.get("dai_dien") or "",
+			"chuc_vu": doc.get("chuc_vu") or "",
+			"dien_thoai": doc.get("dien_thoai") or "",
+			"email": doc.get("email") or "",
+			"dat_coc_pt": flt(doc.get("dat_coc_pt")),
+			"dat_coc_tien": flt(doc.get("dat_coc_tien")),
+			"dia_diem_giao": doc.get("dia_diem_giao") or "",
+			"thoi_gian_giao": doc.get("thoi_gian_giao") or "",
 		},
 		"hoa_don": hoa_don,
 	}
