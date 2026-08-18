@@ -113,6 +113,18 @@ doc_events = {
 	# `sl_duyet`. Khong chan o day thi mot dong da tu choi van len duoc don,
 	# va ca man Duyet yeu cau mua thanh vo nghia.
 	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
+	# Hoa don mua DICH VU: gom ve mot dong, so lay tu DAU hoa don dien tu.
+	#
+	# Dat o before_validate chu khong o validate: ERPNext tinh lai tong tien
+	# SAU buoc nay, dat o validate thi con so khong an - cung ly do voi hang
+	# OWNER ben Sales Invoice.
+	#
+	# Chan lech tong dat o before_submit: ban nhap con dang go thi cu de go,
+	# ghi so moi la luc so that su vao sach.
+	"Purchase Invoice": {
+		"before_validate": "vagabond.mua_dich_vu.truoc_khi_luu",
+		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
+	},
 	# Phieu chi hoan tien khach: chua dinh kem uy nhiem chi thi khong ghi so
 	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
 	# de giai trinh, nhac tren man thi bo qua duoc.
