@@ -298,6 +298,43 @@ def _o_ben(nhan, b):
 	)
 
 
+def cau_dieu_2(tong, pt1, n1=3, n2=3):
+	"""Cau chu cua Dieu 2, chia hai dot hoac tra mot lan. THUAN.
+
+	Tach han ra khoi _html vi day chinh la cho vua vo khi nghiem thu v215:
+	cau "Ben A thanh toan 100% gia tri Hop dong" co dau phan tram khong
+	duoc thoat, nen Python doc "% g" thanh mot o dinh dang va nem loi
+	"must be real number, not str". Ca to hop dong tra ve 500.
+
+	Bo kiem truoc do khong bat duoc vi khong ca nao dung tay to voi coc
+	bang 0. Nay phep nay THUAN nen kiem duoc ca hai nhanh ma khong can site.
+	"""
+	tong = flt(tong)
+	pt1 = flt(pt1)
+	n1 = cint(n1) or 3
+	n2 = cint(n2) or 3
+	dot1, dot2 = chia_hai_dot(tong, pt1)
+	if pt1 <= 0 or pt1 >= 100:
+		return (
+			"<p style='margin:4px 0 4px 14px'>Bên A thanh toán 100%% giá trị Hợp đồng, "
+			"tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d "
+			"(%s) ngày bàn giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất.</p>"
+			% (_tien_vn(tong), _chu_so_tien(tong), n2, _so_chu(n2))
+		)
+	return (
+		"<p style='margin:4px 0 4px 14px'>Đợt 01: Bên A thanh toán %s%% giá trị Hợp đồng, "
+		"tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), trong vòng %02d (%s) ngày kể "
+		"từ ngày Hợp đồng được hai Bên ký kết.</p>"
+		"<p style='margin:4px 0 4px 14px'>Đợt 02: Bên A thanh toán %s%% giá trị Hợp đồng "
+		"còn lại, tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d "
+		"(%s) ngày bàn giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất.</p>"
+		% (
+			_tien_vn(pt1), _tien_vn(dot1), _chu_so_tien(dot1), n1, _so_chu(n1),
+			_tien_vn(100.0 - pt1), _tien_vn(dot2), _chu_so_tien(dot2), n2, _so_chu(n2),
+		)
+	)
+
+
 def _html(name):
 	"""To hop dong mua ban hang hoa, cau truc hanh chinh Viet Nam."""
 	d = chi_tiet(name)
@@ -313,32 +350,10 @@ def _html(name):
 	}
 	so = d.get("so_hop_dong") or d["so_goi_y"]
 	pt1 = flt(d.get("dat_coc_pt"))
-	pt2 = 100.0 - pt1
 	n1 = cint(d.get("ngay_dot1")) or 3
 	n2 = cint(d.get("ngay_dot2")) or 3
 
-	dieu2_dot = ""
-	if pt1 <= 0 or pt1 >= 100:
-		# Khong chia dot: mot lan tra du. Van phai noi ro moc thoi gian.
-		dieu2_dot = (
-			"<p style='margin:4px 0 4px 14px'>Bên A thanh toán 100% giá trị Hợp đồng, "
-			"tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d "
-			"(%s) ngày bàn giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất.</p>"
-			% (_tien_vn(d.get("gia_tri")), _chu_so_tien(d.get("gia_tri")), n2, _so_chu(n2))
-		)
-	else:
-		dieu2_dot = (
-			"<p style='margin:4px 0 4px 14px'>Đợt 01: Bên A thanh toán %s%% giá trị Hợp đồng, "
-			"tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), trong vòng %02d (%s) ngày kể "
-			"từ ngày Hợp đồng được hai Bên ký kết.</p>"
-			"<p style='margin:4px 0 4px 14px'>Đợt 02: Bên A thanh toán %s%% giá trị Hợp đồng "
-			"còn lại, tương đương số tiền <b>%s VNĐ</b> (Bằng chữ: %s), chậm nhất trước %02d "
-			"(%s) ngày bàn giao hàng hóa theo lịch giao hàng đã được hai Bên thống nhất.</p>"
-			% (
-				_tien_vn(pt1), _tien_vn(d["tien_dot1"]), _chu_so_tien(d["tien_dot1"]), n1, _so_chu(n1),
-				_tien_vn(pt2), _tien_vn(d["tien_dot2"]), _chu_so_tien(d["tien_dot2"]), n2, _so_chu(n2),
-			)
-		)
+	dieu2_dot = cau_dieu_2(d.get("gia_tri"), pt1, n1, n2)
 
 	def dieu(so_dieu, tua):
 		return (
