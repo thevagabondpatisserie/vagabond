@@ -178,12 +178,19 @@ function leavesUnder(roots) {
 }
 function hasRole(r) { return S.roles.indexOf(r) >= 0; }
 
-/* Ai duoc xem don mua hang va cong no phai tra: ke toan, thu mua, giam doc.
-   Danh sach nay khop voi QUYEN_MUA ben vagabond/mua_hang.py - o day chi de
-   an nut cho gon mat, con chan that su thi nam o may chu. */
+/* Ai duoc vao phan he Thu mua: thu mua, ke toan, giam doc.
+
+   Khop voi QUYEN_THU_MUA ben vagabond/quyen_phan_he.py - o day chi de an
+   nut cho gon mat, con chan that su thi nam o may chu.
+
+   Anh Viet 18/08/2026 bao cac nut mua hang "de chung chung khien toan bo
+   nhan vien deu nhin thay". Thu pham la vai 'Bo phan dat hang' truoc day
+   nam trong danh sach nay: vai do sinh ra de LAP YEU CAU MUA nen gan nhu ai
+   cung co, ke ca bep va sales. Da go ra khoi day. */
 function coQuyenMua() {
-  return hasRole('System Manager') || hasRole('Accounts Manager') || hasRole('Accounts User')
-    || hasRole('Purchase Manager') || hasRole('Purchase User') || hasRole('Bộ phận đặt hàng');
+  return hasRole('System Manager') || hasRole('Thu mua') || hasRole('Giám đốc')
+    || hasRole('Purchase Manager') || hasRole('Purchase User')
+    || hasRole('Accounts Manager') || hasRole('Accounts User');
 }
 
 /* Ai duoc go dau huy mot phieu nhap. Khop voi QUYEN_HUY ben

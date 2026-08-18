@@ -965,3 +965,80 @@ function errMsg(e) {
   return (m || 'Có lỗi xảy ra').replace(/<[^>]*>/g, '').slice(0, 180);
 }
 
+
+
+/* ---------- Hàng chuyển về kho tôi (anh Việt 18/08/2026) ----------
+
+Anh nói bộ phận Bếp "đang bị nghẽn ở khâu nhận hàng". Em đọc lại luồng thì
+thấy không ai chặn các bạn ấy cả: phiếu điều chuyển ở hệ này ghi sổ MỘT BƯỚC
+bên kho xuất, nên hàng vào kho bếp ngay lập tức mà bên bếp không có màn nào
+thấy nó đã về, về lúc nào, ai chuyển, gồm những gì.
+
+Màn này lấp đúng chỗ trống đó, và nó CHỈ ĐỌC. Bước "xác nhận đã nhận" và xử
+lý nhận thiếu (chênh lệch sinh bút toán hao hụt) đụng vào giá vốn nên phải
+chờ anh Việt duyệt phương án trước - em để trong bảng mapping luồng kho. */
+var HVK = { ngay: 14, mo: '' };
+
+async function scrHangVeKho() {
+  vgbCss();
+  frame('Hàng chuyển về kho tôi', '<div class="emp"><div class="e1">⏳</div><div>Đang xem hàng về kho...</div></div>');
+  var kq;
+  try { kq = await api('vagabond.xuat_kho.hang_chuyen_ve', { so_ngay: HVK.ngay }); }
+  catch (e) {
+    return frame('Hàng chuyển về kho tôi',
+      '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
+  }
+  if (!kq.co_kho) {
+    return frame('Hàng chuyển về kho tôi',
+      '<div class="emp"><div class="e1">🏷️</div><div>' + h(kq.nhac || 'Chưa khai kho phụ trách.') + '</div></div>');
+  }
+  var ds = kq.ds || [];
+  var html =
+    '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 8px;line-height:1.6">' +
+    'Hàng các kho khác đã chuyển sang <b>' + h((kq.kho || []).join(', ')) + '</b>. ' +
+    'Bấm một phiếu để xem danh sách hàng bên trong.</div>' +
+    '<div class="vtb" style="padding-left:0;padding-right:0">' +
+    [[7, '7 ngày'], [14, '14 ngày'], [30, '30 ngày']].map(function (x) {
+      return '<div class="vt' + (HVK.ngay === x[0] ? ' on' : '') + '" data-hvn="' + x[0] + '">' + x[1] + '</div>';
+    }).join('') + '</div>';
+
+  if (!ds.length) {
+    html += '<div class="emp"><div class="e1">📦</div><div>Không có phiếu nào chuyển về kho của bạn trong ' +
+      HVK.ngay + ' ngày qua.</div></div>';
+  } else {
+    html += '<div class="card">' + ds.map(function (x) {
+      var mo = HVK.mo === x.ma;
+      return '<div style="border-bottom:1px solid #f2f4f7">' +
+        '<div data-hvm="' + h(x.ma) + '" style="padding:12px 14px;display:flex;gap:10px;align-items:center;cursor:pointer">' +
+        '<div style="flex:1;min-width:0">' +
+        '<b style="font-size:13.5px">' + h(x.kho_xuat || 'Kho khác') + ' → ' + h(x.kho_nhan) + '</b>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' +
+        dmy(x.ngay) + (x.gio ? ' ' + h(x.gio) : '') + ' · ' + h(x.nguoi_ten) + ' · ' + h(x.ma) + '</div></div>' +
+        '<div style="text-align:right"><b style="font-size:14px;color:#0f766e">' + money(x.so_dong) + ' món</b>' +
+        '<div style="font-size:11px;color:#9ca3af">' + money(x.tong_sl) + ' đơn vị</div></div>' +
+        '<span style="color:#c3c8d4;font-size:20px">' + (mo ? '&#8964;' : '&#8250;') + '</span></div>' +
+        (mo
+          ? '<div style="padding:0 14px 12px">' + (x.hang || []).map(function (m) {
+            return '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid #f6f7f9;font-size:12.5px">' +
+              '<div style="flex:1;min-width:0">' + h(m.ten) + '<div style="font-size:11px;color:#aeb4bf">' + h(m.ma) + '</div></div>' +
+              '<b style="color:#0f766e;white-space:nowrap">' + money(m.sl) + ' ' + h(m.dvt) + '</b></div>';
+          }).join('') +
+          (x.ghi_chu ? '<div style="font-size:11px;color:#98a2b3;margin-top:8px">' + h(x.ghi_chu) + '</div>' : '') +
+          '</div>'
+          : '') +
+        '</div>';
+    }).join('') + '</div>';
+  }
+
+  var b = frame('Hàng chuyển về kho tôi', html);
+  b.querySelectorAll('[data-hvn]').forEach(function (n) {
+    n.onclick = function () { HVK.ngay = +n.getAttribute('data-hvn'); HVK.mo = ''; go(scrHangVeKho, true); };
+  });
+  b.querySelectorAll('[data-hvm]').forEach(function (n) {
+    n.onclick = function () {
+      var m = n.getAttribute('data-hvm');
+      HVK.mo = (HVK.mo === m) ? '' : m;
+      go(scrHangVeKho, true);
+    };
+  });
+}

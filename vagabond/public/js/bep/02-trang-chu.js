@@ -264,14 +264,24 @@ doc lai cac dong da dung duoc, xep vao nhom rong. Them nghiep vu moi chi can
 them key vao VGB_NHOM, khong phai sua cho nao khac.
 */
 var VGB_NHOM = [
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
+  /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
+     của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
-  { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV'] },
+  { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'HT', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
+  /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
+     đang để chung chung khiến toàn bộ nhân viên đều nhìn thấy". Nhóm này
+     nằm ngay trên Kế toán và chỉ hiện với Thu mua, Kế toán, Giám đốc.
+
+     Không cần khoá riêng ở đây: các ô bên trong đều dựng có điều kiện
+     coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
+     vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
+  { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
   { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
@@ -371,6 +381,13 @@ function vgbGomNhom() {
   VGB_HUB.XKD = {
     cnt: 0,
     html: vgbODong('XKD', '🔁', 'Xuất điều chuyển nội bộ', 'Chuyển hàng sang kho khác')
+  };
+  /* Ô cho bộ phận Bếp (anh Việt 18/08/2026: "các bạn nhân sự Bếp đang bị
+     nghẽn ở khâu nhận hàng"). Không khoá theo vai: ai có khai Kho phụ trách
+     thì thấy hàng về kho mình, ai chưa khai thì màn tự nói phải làm gì. */
+  VGB_HUB.NHANDC = {
+    cnt: 0,
+    html: vgbODong('NHANDC', '📦', 'Hàng chuyển về kho tôi', 'Kho khác vừa chuyển gì sang bộ phận mình')
   };
 
   var daXep = {};
@@ -584,6 +601,7 @@ function vgbGo(k) {
   if (k === 'DSCOD') return go(scrVdCod);
   if (k === 'CBTT') return go(scrCanhBaoTT);
   if (k === 'RND') return go(scrRndList);
+  if (k === 'NHANDC') return go(scrHangVeKho);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);

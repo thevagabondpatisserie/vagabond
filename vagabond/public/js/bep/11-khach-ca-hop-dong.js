@@ -1151,7 +1151,7 @@ tay - nhà in giao thêm thì sửa lên, hộp hỏng thì sửa xuống. Kế 
 phần còn lại từ bảng ngày: kéo đơn Pancake, chia Đã đặt / Chờ chốt, đơn kênh
 khác đếm từ hoá đơn, trạng thái huỷ và xoá không đếm. */
 
-var MV = { ds: null, mua: null, data: null, xem: 'sp' };
+var MV = { ds: null, mua: null, data: null, xem: 'sp', loc: 'all', tim: '' };
 
 async function scrMuaVuDs() {
   frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các mùa vụ...</div></div>');
@@ -1268,8 +1268,9 @@ async function mvXin() {
 async function mvNapLai() {
   if (!mvConODay()) return mvTatNhip();
   /* Đang mở hộp thoại thì để yên: vẽ lại giữa lúc người ta đang gõ số sản
-     xuất là cướp mất ô nhập của họ. */
+     xuất là cướp mất ô nhập của họ. Ô tìm nhanh cũng vậy. */
   if (document.querySelector('.sh')) return;
+  if (document.activeElement && document.activeElement.id === 'mvTim') return;
   var d;
   try { d = await api('vagabond.mua_vu.bang', { mua: MV.mua }); } catch (e) { return; }
   if (!mvConODay() || document.querySelector('.sh')) return;
@@ -1342,9 +1343,22 @@ function mvVe() {
   b.querySelectorAll('[data-mvx]').forEach(function (n) {
     n.onclick = function () { MV.xem = n.getAttribute('data-mvx'); mvVe(); };
   });
-  b.querySelectorAll('[data-mvsx]').forEach(function (n) {
-    n.onclick = function () { mvSuaSx(n.getAttribute('data-mvsx')); };
+  mvGanNutSx(b);
+  b.querySelectorAll('[data-mvloc]').forEach(function (n) {
+    n.onclick = function () { MV.loc = n.getAttribute('data-mvloc'); mvVe(); };
   });
+  /* Gõ tìm chỉ vẽ lại ĐÚNG khối danh sách, không vẽ lại cả màn: vẽ lại cả
+     màn thì ô nhập bị dựng mới và con trỏ nhảy ra ngoài sau mỗi ký tự. */
+  var oT = document.getElementById('mvTim');
+  if (oT) {
+    oT.oninput = function () {
+      MV.tim = oT.value || '';
+      var kh = document.getElementById('mvDsSp');
+      if (!kh) return;
+      kh.innerHTML = mvDsSpHtml(ds);
+      mvGanNutSx(kh);
+    };
+  }
   b.querySelectorAll('[data-mvng]').forEach(function (n) {
     n.onclick = function () { mvXemNgay(n.getAttribute('data-mvng')); };
   });
@@ -1374,10 +1388,66 @@ function mvChuMoc(d) {
     (d.dong_bo_luc ? ' · đồng bộ ' + h(String(d.dong_bo_luc).slice(11, 16)) : '');
 }
 
+function mvGanNutSx(root) {
+  root.querySelectorAll('[data-mvsx]').forEach(function (n) {
+    n.onclick = function () { mvSuaSx(n.getAttribute('data-mvsx')); };
+  });
+}
+
 function mvO(nhan, so, mau) {
   return '<div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:9px 10px;text-align:center">' +
     '<div style="font-size:11px;color:#9ca3af">' + h(nhan) + '</div>' +
     '<b style="font-size:17px;color:' + mau + '">' + money(so) + '</b></div>';
+}
+
+/* ---------- Chip lọc và ô tìm nhanh (anh Việt 18/08/2026) ----------
+
+Mùa trung thu này bảng đã 19 dòng và còn dài thêm mỗi lần thêm món. Cuộn hết
+bảng để tìm một mã, giữa lúc đang có khách trên điện thoại, là chậm.
+
+Bốn chip em chọn đúng bốn câu sales hỏi bảng này, xếp theo mức gấp:
+  BÁN LỐ trước nhất  - đã có đơn không giao được, phải gọi khách NGAY
+  SẮP HẾT            - còn dưới 10 phần trăm, cần chốt đợt hàng mới
+  CÒN BÁN            - danh sách để chào khách
+  THEO HỘP           - bánh chỉ làm theo hộp, xem để bếp biết phải làm bao nhiêu
+
+Chip nào không có mã nào thì ẩn hẳn, để hàng chip không bao giờ dài quá màn. */
+var MV_NGUONG_SAP_HET = 10;   /* phần trăm, khớp NGUONG_CANH_BAO bên mua_vu.py */
+
+function mvNhomCua(x) {
+  if (x.khong_tran) return 'hop';
+  var con = x.co_the_ban || 0;
+  if (con < 0) return 'lo';
+  var sx = x.san_xuat || 0;
+  if (sx > 0 && (con * 100 / sx) < MV_NGUONG_SAP_HET) return 'het';
+  if (sx <= 0 && con <= 0) return 'het';
+  return 'con';
+}
+
+/* Bán lố lên đầu, rồi sắp hết, rồi còn bán, cuối cùng là bánh theo hộp.
+   Trong cùng nhóm thì mã ít còn lại nhất lên trước. Trước 18/08 bảng xếp
+   theo thứ tự dòng trong cơ sở dữ liệu, tức là không theo thứ tự nào cả. */
+var MV_THU_TU = { lo: 0, het: 1, con: 2, hop: 3 };
+
+function mvSapXep(ds) {
+  return (ds || []).slice().sort(function (a, b) {
+    var ta = MV_THU_TU[mvNhomCua(a)], tb = MV_THU_TU[mvNhomCua(b)];
+    if (ta !== tb) return ta - tb;
+    return (a.co_the_ban || 0) - (b.co_the_ban || 0);
+  });
+}
+
+function mvKhop(x, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return ((x.ten_banh || '') + ' ' + (x.ma_hang || '') + ' ' + (x.nhan_ngan || ''))
+    .toLowerCase().indexOf(q) >= 0;
+}
+
+function mvLocDs(ds) {
+  var r = mvSapXep(ds).filter(function (x) { return mvKhop(x, MV.tim); });
+  if (MV.loc !== 'all') r = r.filter(function (x) { return mvNhomCua(x) === MV.loc; });
+  return r;
 }
 
 function mvVeSanPham(ds) {
@@ -1386,7 +1456,38 @@ function mvVeSanPham(ds) {
       '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bấm Thêm sản phẩm để đặt số lượng sản xuất, ' +
       'hoặc bấm Đồng bộ để máy tự kéo về từ đơn Pancake.</div></div>';
   }
-  return '<div class="card">' + ds.map(function (x) {
+  var dem = { all: ds.length, lo: 0, het: 0, con: 0, hop: 0 };
+  ds.forEach(function (x) { dem[mvNhomCua(x)]++; });
+  var CHIP = [
+    ['all', 'Tất cả', '#101828'],
+    ['lo', 'Bán lố', '#b3261e'],
+    ['het', 'Sắp hết', '#b45309'],
+    ['con', 'Còn bán', '#0a8a4a'],
+    ['hop', 'Theo hộp', '#7c3aed']
+  ];
+  return '<div style="display:flex;gap:6px;overflow-x:auto;padding:0 2px 9px">' +
+    CHIP.map(function (c) {
+      if (!dem[c[0]] && c[0] !== 'all') return '';
+      var on = MV.loc === c[0];
+      return '<button data-mvloc="' + c[0] + '" style="flex:0 0 auto;border:1.5px solid ' +
+        (on ? c[2] : '#e5e7eb') + ';background:' + (on ? c[2] : '#fff') + ';color:' +
+        (on ? '#fff' : c[2]) + ';border-radius:999px;padding:6px 13px;font-size:12px;font-weight:800">' +
+        h(c[1]) + ' ' + dem[c[0]] + '</button>';
+    }).join('') + '</div>' +
+    '<div style="padding:0 2px 10px">' +
+    '<input id="mvTim" placeholder="Tìm theo tên bánh, mã hàng hoặc nhãn" value="' + h(MV.tim) +
+    '" style="width:100%;box-sizing:border-box;border:1px solid #d0d5dd;border-radius:10px;' +
+    'padding:11px 12px;font-size:15px;background:#fff;color:#101828"></div>' +
+    '<div id="mvDsSp">' + mvDsSpHtml(ds) + '</div>';
+}
+
+function mvDsSpHtml(ds) {
+  var loc = mvLocDs(ds);
+  if (!loc.length) {
+    return '<div class="emp"><div class="e1">🔍</div><div>Không có mã nào khớp.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bỏ bớt điều kiện lọc hoặc xoá ô tìm.</div></div>';
+  }
+  return '<div class="card">' + loc.map(function (x) {
     var con = x.co_the_ban || 0;
     /* Bánh chỉ làm theo hộp thì không có trần riêng, nên không có chuyện
        "bán lố": trần thật của nó nằm ở dòng cái hộp. */
