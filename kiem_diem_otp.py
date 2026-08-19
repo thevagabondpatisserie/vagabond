@@ -2891,6 +2891,24 @@ for _tong, _pt, _tt in ((200000, 50.0, 10000.0), (500000, 50.0, 10000.0),
 	la("tran theo bill %s d khop tran_dung_duoc" % _tong,
 	   tran_dung_duoc(_tong, 10 ** 9, 1.0, _pt, _tt), _mong)
 
+# --- 31c ter. Chu tren man tinh tien cho don food app (Felix 19/08/2026) ---
+#
+# Don GrabFood, BeFood, GreenSM, ShopeeFood: khach da tra tien cho app roi,
+# app dang giu tien, quay khong thu dong nao ca. De chu "Thu tien" o do la
+# de nhan vien va khach dung tai quay cung hieu nham.
+la("nut chot bill doi chu theo loai don",
+   "(laApp ? '🧾 Lưu hoá đơn ' : '💰 Thu tiền ')" in _pos_src, True)
+la("bang xac nhan cung doi chu theo loai don",
+   "(laApp ? 'Lưu hoá đơn ' : 'Thu ')" in _pos_src, True)
+la("nut trong bang xac nhan cung doi",
+   "laApp ? 'Lưu hoá đơn' : 'Thu tiền, lưu hoá đơn'" in _pos_src, True)
+# Don tai quay thi VAN phai giu chu Thu tien, vi quay that su thu tien.
+la("don tai quay van giu chu Thu tien", "'💰 Thu tiền '" in _pos_src, True)
+la("dong giai thich nguon da doi theo y anh Viet",
+   "máy đã tự động chọn nguồn tương ứng cho bạn" in _pos_src, True)
+la("khong con cau vao nguon nao ra nguon do",
+   "vào nguồn nào ra nguồn đó" in _pos_src, False)
+
 # --- 31d. Ham doc mau ZNS ---
 _zl_src = open("vagabond/zalo.py", encoding="utf-8").read()
 la("co ham doc mau ZNS", "def thu_mau(" in _zl_src, True)
