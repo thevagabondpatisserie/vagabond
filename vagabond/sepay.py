@@ -53,6 +53,11 @@ TIEN_TO = "SEPAY-"
 
 USERAPI = "https://my.sepay.vn/userapi/transactions/list"
 
+# Duong dan diem nhan, khong kem ten mien. Man hinh ghep voi ten mien
+# nguoi dung dang mo, vi ten mien noi bo cua Frappe Cloud khong phai cai
+# de dan sang SePay.
+DUONG_DAN = "/api/method/vagabond.sepay.webhook"
+
 
 # --------------------------------------------------------------- cau hinh
 
@@ -226,6 +231,14 @@ def _ghi_chua_map(so_tk, tid):
 
 
 def _goi_userapi(tham_so):
+	"""Goi userapi cua SePay. Tra ve danh sach giao dich.
+
+	frappe.make_get_request KHONG ton tai trong Python thuong. No chi co
+	trong khong gian ten cua Server Script - Frappe tiem san vao do. Kich
+	ban keo hang gio la Server Script nen goi thang duoc; tep nay la ma
+	nguon that nen phai import cho tu te. Bat duoc luc chay thu nap bu tren
+	site that ngay 19/08/2026, ngay sau khi deploy v229.
+	"""
 	from urllib.parse import urlencode
 
 	stg = frappe.get_doc(STG_SEPAY)
@@ -236,9 +249,17 @@ def _goi_userapi(tham_so):
 			"Vào SePay Settings dán token vào rồi chạy lại."
 		)
 	url = "%s?%s" % (USERAPI, urlencode(tham_so))
-	res = frappe.make_get_request(
-		url, headers={"Authorization": "Bearer " + tk, "Content-Type": "application/json"}
-	)
+	dau = {"Authorization": "Bearer " + tk, "Content-Type": "application/json"}
+	try:
+		from frappe.integrations.utils import make_get_request
+
+		res = make_get_request(url, headers=dau)
+	except ImportError:
+		import requests
+
+		r = requests.get(url, headers=dau, timeout=30)
+		r.raise_for_status()
+		res = r.json()
 	return (res or {}).get("transactions") or []
 
 
@@ -350,11 +371,17 @@ def tinh_trang():
 	_kiem_quyen()
 	quan_ly = bool({"System Manager", "Accounts Manager"} & set(frappe.get_roles()))
 	c = cfg()
+	# frappe.utils.get_url() tra ve ten mien NOI BO cua Frappe Cloud
+	# (vagabond.s.frappe.cloud) chu khong phai ten mien anh Viet dang dung.
+	# Ca hai deu vao dung mot site, nhung dan cho SePay thi phai la ten mien
+	# that. Nen tra ve DUONG DAN khong co ten mien, de man hinh ghep voi
+	# chinh ten mien nguoi dung dang mo.
 	goc = (frappe.utils.get_url() or "").rstrip("/")
 	ra = {
 		"bat": cint(c.get("sepay_bat")),
 		"co_khoa": 1 if _khoa_that() else 0,
-		"duong_dan": goc + "/api/method/vagabond.sepay.webhook",
+		"duong_dan_path": DUONG_DAN,
+		"duong_dan": goc + DUONG_DAN,
 		"ban_do": _ban_do(),
 		"chua_map": [x for x in str(c.get("sepay_chua_map") or "").split(",") if x.strip()],
 		"sua_duoc": 1 if quan_ly else 0,
@@ -398,7 +425,11 @@ def dat_khoa():
 	frappe.db.set_single_value("Vagabond Settings", "sepay_bat", 1)
 	frappe.db.commit()
 	frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
-	return {"khoa": moi, "duong_dan": (frappe.utils.get_url() or "").rstrip("/") + "/api/method/vagabond.sepay.webhook"}
+	return {
+		"khoa": moi,
+		"duong_dan_path": DUONG_DAN,
+		"duong_dan": (frappe.utils.get_url() or "").rstrip("/") + DUONG_DAN,
+	}
 
 
 # ------------------------------------------------- doi chieu tay tien vao
