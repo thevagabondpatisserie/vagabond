@@ -139,6 +139,13 @@ async function posInTamTinh() {
   if (!posDon.mon.length) return toast('Hoá đơn chưa có món nào.');
   var thieuGia = posDon.mon.filter(function (m) { return !m.rate; });
   if (thieuGia.length) return toast('Món ' + thieuGia[0].ten + ' chưa có giá trong danh mục.');
+  /* Ve tru diem KHONG di theo phieu tam tinh: phieu tam tinh con duoc sua
+     (them bot mon) truoc khi chot, ma diem thi tru mot lan la xong. De ve
+     lai cho luc bam Thu tien, va noi ro cho thu ngan biet. */
+  if (posDon.diemVe) {
+    return toast('Đã xác nhận trừ ' + money(posDon.diemVe.so_diem) + ' điểm cho khách. Điểm chỉ trừ ' +
+      'khi bấm Thu tiền, phiếu tạm tính chưa trừ. Bấm Bỏ ở khối điểm nếu muốn in tạm tính trước.', 6000);
+  }
   var giamTay = posSoTien(posDon.giam);
   var tong = posDon.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
   await posTinhKm();

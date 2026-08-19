@@ -272,8 +272,16 @@ function posNoiTimKhach() {
   var hop = document.getElementById('posTenGoi');
   if (!o || !hop) return;
   var nBo = document.getElementById('posBoKhach');
-  if (nBo) nBo.onclick = function () {
+  if (nBo) nBo.onclick = async function () {
     posDoc();
+    /* Bo khach thi phai bo luon ve tru diem: ve gan voi MOT khach cu the,
+       de lai thi may chu se tu choi luc chot bill va thu ngan khong hieu
+       vi sao. */
+    if (posDon.diemVe || posDon.diemPhien) {
+      var ve = (posDon.diemVe && posDon.diemVe.ve) || (posDon.diemPhien && posDon.diemPhien.phien);
+      try { await api('vagabond.diem_otp.bo_ve', { phien: ve }); } catch (e) { }
+    }
+    posDiemDat();
     posDon.khach_ma = ''; posDon.khach_hang = '';
     posDon.kmKq = null;
     go(scrPosQuay, true);
@@ -319,6 +327,7 @@ function posNoiTimKhach() {
         var ma = el.getAttribute('data-kchon');
         var k = ds.filter(function (x) { return x.name === ma; })[0] || {};
         posDoc();
+        posDiemDat();
         posDon.khach_ma = ma;
         posDon.ten = k.customer_name || ma;
         if (k.mobile_no && !posDon.sdt) posDon.sdt = k.mobile_no;
@@ -1451,3 +1460,212 @@ async function kmSheetLo(lo) {
 }
 
 
+/* ==================================================================
+   Khach hang than thiet ngay tren man TINH TIEN (anh Viet 19/08/2026)
+
+   Truoc hom nay toan bo phan hang va diem chi song o man Doanh thu Sales.
+   Thu ngan bam bill tay tai quay thi chon khach xong khong thay gi ca:
+   khong hang, khong so diem, khong biet khach duoc tich bao nhieu. Chip
+   "hang" trong 09-tinh-tien-quay.js doc posDon.khach_hang, ma o do chua
+   bao gio duoc gan gia tri - tuc la ma chet.
+
+   Hai khoi duoi day bu cho phan do, va them o TRU TIEN BANG DIEM.
+
+   Luong tru diem tai quay khac luong tren hoa don o mot cho: hoa don chua
+   ton tai luc thu ngan nhap diem. Nen pha xac nhan ma CHUA tru diem, no
+   chi cap mot VE. Diem chi that su bi tru luc bam Thu tien, khi may chu da
+   co to hoa don that de kiem lai tran. Xem chu thich dai o dau phan quay
+   trong vagabond/diem_otp.py.
+   ================================================================== */
+
+var posDemNguoc = null;
+
+function posDiemDat() {
+  /* Dat lai toan bo trang thai diem. Goi khi doi khach hoac chot xong bill. */
+  posDon.diemThe = null;
+  posDon.diemTt = null;
+  posDon.diemNhap = '';
+  posDon.diemPhien = null;
+  posDon.diemHan = 0;
+  posDon.diemVe = null;
+}
+
+function posDiemTat() {
+  if (posDemNguoc) { clearInterval(posDemNguoc); posDemNguoc = null; }
+}
+
+async function posTaiThe(tongTruocDiem) {
+  /* Nap the hang va tran diem cho khach dang chon. Loi thi bo qua im lang:
+     khong ai duoc phep ket bill chi vi khoi the khong tai duoc. */
+  if (!posDon.khach_ma) { posDon.diemThe = null; posDon.diemTt = null; return; }
+  try {
+    posDon.diemThe = await api('vagabond.khach_hang.the_tren_don', {
+      khach: posDon.khach_ma, tien: Math.max(0, tongTruocDiem || 0)
+    });
+  } catch (e) { posDon.diemThe = null; }
+  try {
+    posDon.diemTt = await api('vagabond.diem_otp.tinh_trang_quay', {
+      khach: posDon.khach_ma, tong: Math.max(0, tongTruocDiem || 0)
+    });
+  } catch (e) { posDon.diemTt = null; }
+}
+
+function posVeThe() {
+  /* Khoi hang the va so diem. Chi hien khi da chon khach. */
+  var t = posDon.diemThe;
+  if (!t || !t.co) return '';
+  var anh = t.anh_hang
+    ? '<img src="' + h(t.anh_hang) + '" alt="" style="width:44px;height:44px;border-radius:9px;object-fit:cover;flex:none">'
+    : '<span style="font-size:26px">🎫</span>';
+  var uu = t.giam_gia
+    ? '<span style="background:#ecfdf5;color:#047857;border-radius:999px;padding:2px 8px;font-size:11.5px;font-weight:700">giảm ' + money(t.giam_gia) + '%</span>'
+    : '';
+  return '<div class="card" style="padding:12px 14px;margin-top:10px;border:1.5px solid #bae6fd;background:#f0f9ff">' +
+    '<div style="display:flex;align-items:center;gap:10px">' + anh +
+    '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(t.ten || t.khach) + '</b>' +
+    '<div style="font-size:12px;color:#0369a1;margin-top:2px">hạng ' + h(t.ten_hang || 'chưa xếp') + ' ' + uu + '</div></div></div>' +
+    '<div style="display:flex;gap:8px;margin-top:10px">' +
+    '<div style="flex:1;background:#fff;border:1.5px solid #e0f2fe;border-radius:9px;padding:8px 10px">' +
+    '<div style="font-size:11.5px;color:#6b7280">Số điểm hiện có</div>' +
+    '<div style="font-size:18px;font-weight:800;color:#0f172a">' + money(t.diem_hien_tai) + '</div></div>' +
+    '<div style="flex:1;background:#fff;border:1.5px solid #dcfce7;border-radius:9px;padding:8px 10px">' +
+    '<div style="font-size:11.5px;color:#6b7280">Điểm tích cho bill này</div>' +
+    '<div style="font-size:18px;font-weight:800;color:#15803d">' + money(t.diem_don_nay) + '</div>' +
+    '<div style="font-size:11px;color:#94a3b8">hạng ' + h(t.ten_hang || '') + ' tích ' + money(t.tich_diem_pt) + '%</div></div>' +
+    '</div>' + posVeTruDiem() + '</div>';
+}
+
+function posVeTruDiem() {
+  /* Ba trang thai: chua xin ma, dang cho khach doc ma, da xac nhan xong. */
+  var tt = posDon.diemTt || {};
+  if (posDon.diemVe) {
+    return '<div style="margin-top:10px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:10px;padding:10px 12px">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+      '<div style="flex:1;font-size:13px;color:#065f46"><b>Đã xác nhận trừ ' + money(posDon.diemVe.so_diem) + ' điểm</b>' +
+      '<div style="font-size:12px;margin-top:2px">giảm ' + money(posDon.diemVe.so_tien) + ' đ · điểm chỉ thật sự trừ khi bấm Thu tiền</div></div>' +
+      '<button id="posDiemBo" style="border:1.5px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:700">Bỏ</button>' +
+      '</div></div>';
+  }
+  if (posDon.diemPhien) {
+    return '<div style="margin-top:10px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 12px">' +
+      '<div style="font-size:13px;color:#92400e"><b>Đã gửi mã tới số ****' + h(posDon.diemPhien.duoi_so || '') + '</b>' +
+      (posDon.diemPhien.gia_lap ? ' <span style="color:#b45309">(chế độ giả lập, mã nằm trong Error Log)</span>' : '') +
+      '<div style="font-size:12px;margin-top:2px">Trừ ' + money(posDon.diemPhien.so_diem) + ' điểm, giảm ' +
+      money(posDon.diemPhien.so_tien) + ' đ. Nhờ khách đọc mã 6 số. <span id="posDiemDem"></span></div></div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
+      '<input class="tin" id="posDiemMa" placeholder="Mã 6 số khách đọc" inputmode="numeric" maxlength="6" style="flex:1;margin:0">' +
+      '<button id="posDiemXn" style="border:0;background:#0b7c93;color:#fff;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:700">Xác nhận</button>' +
+      '</div>' +
+      '<div style="margin-top:6px"><button id="posDiemHuy" style="border:0;background:transparent;color:#6b7280;font-size:12.5px;text-decoration:underline;padding:0">Huỷ lượt trừ điểm này</button></div>' +
+      '</div>';
+  }
+  if (!tt.dung_duoc) {
+    return tt.vi_sao
+      ? '<div style="margin-top:10px;font-size:12px;color:#94a3b8">Trừ tiền bằng điểm: ' + h(tt.vi_sao) + '</div>'
+      : '';
+  }
+  return '<div style="margin-top:10px;background:#fff;border:1.5px dashed #7dd3fc;border-radius:10px;padding:10px 12px">' +
+    '<div style="font-size:12.5px;color:#0369a1;font-weight:700;margin-bottom:6px">TRỪ TIỀN BẰNG ĐIỂM</div>' +
+    '<div style="font-size:11.5px;color:#6b7280;margin-bottom:7px">Bill này dùng được tối đa <b>' + money(tt.toi_da) +
+    '</b> điểm (bằng ' + money(tt.tran_pt) + '% giá trị bill). 1 điểm = ' + money(tt.quy_doi) + ' đ.</div>' +
+    '<div style="display:flex;gap:8px">' +
+    '<input class="tin" id="posDiemNhap" placeholder="Số điểm khách muốn dùng" inputmode="numeric" value="' +
+    h(posDon.diemNhap || '') + '" style="flex:1;margin:0">' +
+    '<button id="posDiemXin" style="border:0;background:#0b7c93;color:#fff;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:700">Gửi mã</button>' +
+    '</div>' +
+    '<div style="margin-top:6px"><button id="posDiemToiDa" style="border:0;background:transparent;color:#0b7c93;font-size:12.5px;text-decoration:underline;padding:0">Dùng tối đa ' + money(tt.toi_da) + ' điểm</button></div>' +
+    '</div>';
+}
+
+function posGanTruDiem(goiLai) {
+  /* Noi cac nut cua khoi diem. goiLai la ham ve lai man hinh. */
+  posDiemTat();
+  var nNhap = document.getElementById('posDiemNhap');
+  if (nNhap) nNhap.oninput = function () { posDon.diemNhap = nNhap.value; };
+
+  var nToiDa = document.getElementById('posDiemToiDa');
+  if (nToiDa) nToiDa.onclick = function () {
+    posDon.diemNhap = String((posDon.diemTt || {}).toi_da || 0);
+    goiLai();
+  };
+
+  var nXin = document.getElementById('posDiemXin');
+  if (nXin) nXin.onclick = async function () {
+    var so = parseInt(String(posDon.diemNhap || '').replace(/[^0-9]/g, ''), 10) || 0;
+    if (so <= 0) return toast('Nhập số điểm khách muốn dùng trước đã.');
+    busy(true);
+    try {
+      /* Gui ca gio hang len: may chu tinh lai tong bill roi moi duyet so
+         diem. Khong gui tong tien - QT-19. */
+      var kq = await api('vagabond.diem_otp.xin_ma_quay', {
+        khach: posDon.khach_ma,
+        so_diem: so,
+        items: JSON.stringify(posDon.mon.map(function (m) {
+          return { item_code: m.item_code, qty: m.qty, rate: m.rate };
+        })),
+        giam_gia: posSoTien(posDon.giam),
+        phi_ship: 0,
+        ctkm_ap: JSON.stringify(posDon.ctkm || []),
+        combo_ap: JSON.stringify(posDon.combo || []),
+        ma_voucher: posDon.maVc || '',
+        quay: (posQuay && posQuay.ma) || '',
+        nguon: posNguonThuc(),
+        sdt: posDon.sdt || '',
+        ngay: today()
+      });
+      busy(false);
+      if (!kq || !kq.ok) return toast('Không gửi được mã cho khách: ' + ((kq && kq.chi_tiet) || 'thử lại giúp em'), 5000);
+      posDon.diemPhien = kq;
+      posDon.diemHan = Date.now() + (kq.song_giay || 180) * 1000;
+      goiLai();
+    } catch (e) { busy(false); toast((e && e.message) || 'Xin mã lỗi, thử lại.', 5000); }
+  };
+
+  var nXn = document.getElementById('posDiemXn');
+  var nMa = document.getElementById('posDiemMa');
+  if (nXn) nXn.onclick = async function () {
+    var ma = String((nMa && nMa.value) || '').replace(/[^0-9]/g, '');
+    if (ma.length !== 6) return toast('Mã xác nhận gồm 6 chữ số.');
+    busy(true);
+    try {
+      var kq = await api('vagabond.diem_otp.xac_nhan_quay', {
+        phien: posDon.diemPhien.phien, ma: ma
+      });
+      busy(false);
+      posDon.diemVe = kq;
+      posDon.diemPhien = null;
+      toast('Đã xác nhận. Điểm sẽ trừ khi bấm Thu tiền.', 3500);
+      goiLai();
+    } catch (e) { busy(false); toast((e && e.message) || 'Mã không đúng.', 5000); }
+  };
+
+  var nHuy = document.getElementById('posDiemHuy');
+  if (nHuy) nHuy.onclick = async function () {
+    try { await api('vagabond.diem_otp.bo_ve', { phien: posDon.diemPhien.phien }); } catch (e) { }
+    posDon.diemPhien = null;
+    goiLai();
+  };
+
+  var nBo = document.getElementById('posDiemBo');
+  if (nBo) nBo.onclick = async function () {
+    try { await api('vagabond.diem_otp.bo_ve', { phien: posDon.diemVe.ve }); } catch (e) { }
+    posDon.diemVe = null;
+    posDon.diemNhap = '';
+    goiLai();
+  };
+
+  /* Dong ho dem nguoc cho ma OTP. Chi ve lai mot the span, khong ve lai ca
+     man hinh moi giay - ve lai ca man thi o nhap ma mat con tro. */
+  var nDem = document.getElementById('posDiemDem');
+  if (nDem && posDon.diemHan) {
+    posDemNguoc = setInterval(function () {
+      var n = document.getElementById('posDiemDem');
+      if (!n) return posDiemTat();
+      var con = Math.max(0, Math.round((posDon.diemHan - Date.now()) / 1000));
+      n.innerHTML = con > 0
+        ? 'Mã còn <b>' + con + '</b> giây.'
+        : '<b style="color:#b3261e">Mã đã hết hạn, bấm Huỷ rồi gửi lại.</b>';
+      if (con <= 0) posDiemTat();
+    }, 1000);
+  }
+}

@@ -852,18 +852,39 @@ async function scrDsView(name, can) {
     try { dsvHt = await api('vagabond.hoan_tien.tinh_trang', { si_name: d.name }); } catch (e) { dsvHt = null; }
   }
 
+  // Chu tren khoi nay do anh Viet chot 19/08/2026.
+  //
+  // Cu ghi "Đã hoàn tiền" ngay khi mot phieu vua duoc TAO, trong khi tien
+  // thi chi Dung moi chi. Sales doc dong do tuong khach da nhan tien roi.
+  // Nen doi thanh "Đã tạo phiếu hoàn tiền". Va phieu bi anh Viet tu choi
+  // thi goi thang la "Phiếu hoàn tiền đã bị từ chối", chu khong goi la
+  // "đã huỷ" - hai chuyen khac nhau ve trach nhiem.
+  var DSV_TT_HT = {
+    'Cho chi': 'chờ chi',
+    'Da chi': 'đã chi tiền',
+    'Da doi soat': 'đã đối soát',
+  };
+
+  function dsvKhoiHt(t, mau) {
+    var nen = mau === 'xam' ? '#f8fafc' : '#fef2f2';
+    var vien = mau === 'xam' ? '#e2e8f0' : '#fecaca';
+    var chu = mau === 'xam' ? '#475569' : '#991b1b';
+    var dau = mau === 'xam'
+      ? '<b>Phiếu hoàn tiền đã bị từ chối</b> ' + money(t.so_tien) + ' đ · phiếu ' + h(t.name)
+      : '<b>Đã tạo phiếu hoàn tiền</b> ' + money(t.so_tien) + ' đ · phiếu ' + h(t.name) +
+        ' · ' + h(DSV_TT_HT[t.trang_thai] || t.trang_thai);
+    return '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:' + nen + ';' +
+      'border:1.5px solid ' + vien + ';font-size:12.5px;color:' + chu + '">' + dau + '</div>';
+  }
+
   function dsvVeHt() {
     if (!dsvHt) return '';
-    if (dsvHt.da_hoan) {
-      var t = dsvHt.da_hoan;
-      return '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#fef2f2;' +
-        'border:1.5px solid #fecaca;font-size:12.5px;color:#991b1b">' +
-        '<b>Đã hoàn tiền</b> ' + money(t.so_tien) + ' đ · phiếu ' + h(t.name) +
-        ' · ' + h({ 'Cho chi': 'chờ chi', 'Da chi': 'đã chi', 'Da doi soat': 'đã đối soát', 'Da huy': 'đã huỷ' }[t.trang_thai] || t.trang_thai) +
-        '</div>';
-    }
-    if (!dsvHt.duoc) return '';
-    return '<div style="margin-top:10px"><button id="dsvHoanTien" ' +
+    if (dsvHt.da_hoan) return dsvKhoiHt(dsvHt.da_hoan, 'do');
+    // Phieu bi tu choi KHONG chan lap phieu moi nua (sua 19/08/2026), nen
+    // ve ca dong xam bao da tung co phieu LAN nut hoan tien.
+    var truoc = dsvHt.bi_tu_choi ? dsvKhoiHt(dsvHt.bi_tu_choi, 'xam') : '';
+    if (!dsvHt.duoc) return truoc;
+    return truoc + '<div style="margin-top:10px"><button id="dsvHoanTien" ' +
       'style="width:100%;border:1.5px solid #fecaca;background:#fff;color:#b91c1c;border-radius:10px;' +
       'padding:10px;font-size:13.5px;font-weight:700">↩︎ Hoàn tiền / Trả hàng</button></div>';
   }
