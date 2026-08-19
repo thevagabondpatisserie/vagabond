@@ -481,8 +481,13 @@ async function scrPosBill(name) {
           : '<button class="btn" id="pbGhiSo" style="flex:1;margin:0">📒 Ghi sổ tại quầy</button>')
         : '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#15803d;font-weight:700">✅ Đã ghi sổ</div>') +
       '</div>' +
-      (posCoNuoc(d.items || [])
-        ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" id="pbPhieuMon" style="flex:1;margin:0">🧾 In phiếu làm món</button><button class="btn gh" id="pbTemLy" style="flex:1;margin:0">🏷 In tem món</button></div>'
+      /* Tem hien khi bill co bat ky mon nao; phieu lam mon chi hien khi co
+         mon nuoc. Cung mot luat voi hai man bao thanh cong ben man tinh
+         tien, xem ghi chu o posNutIn. */
+      ((d.items || []).length
+        ? '<div style="display:flex;gap:8px;margin-top:8px">' +
+          (posCoNuoc(d.items || []) ? '<button class="btn gh" id="pbPhieuMon" style="flex:1;margin:0">🧾 In phiếu làm món</button>' : '') +
+          '<button class="btn gh" id="pbTemLy" style="flex:1;margin:0">🏷 In tem món</button></div>'
         : '') +
       '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="pbSua" style="flex:1;margin:0">✏️ Sửa hoá đơn</button>' +
@@ -916,13 +921,20 @@ function posInTemLy(d) {
   if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
   var maApp = posMaAppCuaBill(d);
   var tem = ly.map(function (m, i) {
-    /* Dong giua: tuy chon pha che voi mon nuoc, ghi chu rieng voi moi mon.
-       Mon banh khong co tuy chon thi de trong chu khong in "100% da". */
+    /* Dong giua: tuy chon pha che voi mon nuoc, ghi chu rieng voi moi mon,
+       VA ghi chu cua ca bill. Mon banh khong co tuy chon thi de trong chu
+       khong in "100% da".
+
+       Ghi chu bill duoc them 19/08/2026 theo De: *"khi in tem thi moi ghi
+       chu phai duoc in theo"*. Truoc day o "Ghi chu bill" - goi qua, de
+       lanh, giao lau 2 - chi song tren man hinh va tren phieu lam mon,
+       khong co cho nao tren tem, nen ban dong goi khong bao gio thay. */
     var giua = [];
     if (m.combo) giua.push('★ ' + m.combo);
     if ((m.tc || []).length) giua.push(m.tc.join(', '));
     else if (posLaNuoc(m)) giua.push('100% đường · 100% đá');
     if (m.gc) giua.push(m.gc);
+    if (d.ghi_chu) giua.push(d.ghi_chu);
     return '<div class="tem">' +
       (maApp
         ? '<div class="app">' + h(maApp) + '</div>'
@@ -932,18 +944,61 @@ function posInTemLy(d) {
       '<div class="f"><span>' + h(d.bill || d.name || '') + (d.so_ban ? ' · Bàn ' + h(d.so_ban) : '') + '</span><span>' + (i + 1) + '/' + ly.length + '</span></div>' +
       '</div>';
   }).join('');
-  w.document.write('<html><head><meta charset="utf-8"><title>Tem món ' + h(d.bill || d.name || '') + '</title><style>' +
-    '@page{size:' + inKho('tem').css + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
+  w.document.write(temKhung('Tem món ' + (d.bill || d.name || ''), tem));
+  w.document.close();
+}
+
+
+/* Khung trang in cua tem, dung chung cho ban in that va ban in thu can tem.
+
+   Hai ban PHAI dung chung mot khung. Neu ban in thu ve mot khung rieng thi
+   no chi chung minh duoc rang ban in thu can dung, con ban that thi khong. */
+function temKhung(tieuDe, than, vien) {
+  var k = inKho('tem');
+  var rong = k.rong || 40, cao = k.cao || 30;
+  var ngang = Number(k.ngang) || 0, doc = Number(k.doc) || 0;
+  var xoay = Number(k.xoay) === 90;
+  /* Xoay 90 do thi kho trang doi chieu, con o tem van ve theo chieu cu roi
+     quay lai - de mat chu tren tem khong doi. */
+  var trang = xoay ? (cao + 'mm ' + rong + 'mm') : (rong + 'mm ' + cao + 'mm');
+  return '<html><head><meta charset="utf-8"><title>' + h(tieuDe) + '</title><style>' +
+    '@page{size:' + trang + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
     'body{font-family:Arial,sans-serif;color:#000}' +
-    '.tem{width:' + inKho('tem').rong + 'mm;height:' + (inKho('tem').cao || 30) + 'mm;padding:1.5mm 2mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}' +
+    /* Dich ngang va dich doc: chinh mot lan tren man Cai dat cho vua giay
+       that, khong sua ma nguon. Dung padding chu khong dung transform vi
+       transform hay bi driver may in bo qua luc in. */
+    '.tem{width:' + rong + 'mm;height:' + cao + 'mm;' +
+    'padding:' + (1.5 + doc) + 'mm ' + (2 - ngang) + 'mm ' + (1.5 - doc) + 'mm ' + (2 + ngang) + 'mm;' +
+    'page-break-after:always;overflow:hidden;display:flex;flex-direction:column' +
+    (vien ? ';outline:.2mm solid #000;outline-offset:-.2mm' : '') +
+    (xoay ? ';transform:rotate(90deg);transform-origin:' + (cao / 2) + 'mm ' + (cao / 2) + 'mm' : '') + '}' +
     '.h{font-size:6.5px;text-align:center;letter-spacing:.06em}' +
     '.app{font-size:10px;font-weight:bold;text-align:center;background:#000;color:#fff;padding:.6mm 0;line-height:1.1}' +
     '.t{font-size:11px;font-weight:bold;text-align:center;line-height:1.15;margin-top:.5mm;flex:1;display:flex;align-items:center;justify-content:center}' +
     '.c{font-size:8px;text-align:center;line-height:1.2}' +
     '.f{display:flex;justify-content:space-between;font-size:7.5px;margin-top:.5mm;font-weight:bold}' +
-    '</style></head><body>' + tem +
+    '</style></head><body>' + than +
     '<script>window.onload=function(){setTimeout(function(){window.print()},900)}<' + '/script>' +
-    '</body></html>');
+    '</body></html>';
+}
+
+
+/* In thu can tem: hai tem co vien bao quanh dung mep giay.
+
+   Nhin mot cai la biet lech bao nhieu: vien in ra khong trung mep giay thi
+   do dung khoang ho roi go vao hai o dich ngang va dich doc. Khong phai
+   doan, khong phai deploy lai. */
+function posInTemThu() {
+  var k = inKho('tem');
+  var w = window.open('', '_blank');
+  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  var mot = '<div class="tem">' +
+    '<div class="h">CĂN TEM &middot; ' + (k.rong || 40) + ' x ' + (k.cao || 30) + 'mm</div>' +
+    '<div class="t">VIỀN PHẢI TRÙNG MÉP GIẤY</div>' +
+    '<div class="c">lệch bao nhiêu mm thì gõ vào ô dịch ngang / dịch dọc</div>' +
+    '<div class="f"><span>ngang ' + (Number(k.ngang) || 0) + '</span><span>dọc ' + (Number(k.doc) || 0) + '</span></div>' +
+    '</div>';
+  w.document.write(temKhung('In thử căn tem', mot + mot, 1));
   w.document.close();
 }
 

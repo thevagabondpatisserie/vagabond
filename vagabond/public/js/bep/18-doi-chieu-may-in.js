@@ -239,6 +239,21 @@ async function scrMayIn() {
   miVe();
 }
 
+/* Doc bon o so tren man ve mot cuc. Ve lai man thi giu nguyen so dang go,
+   khong bat go lai tu dau. */
+function miCtDoc() {
+  var g = function (id) { var o = document.getElementById(id); return o ? Number(o.value) || 0 : 0; };
+  var cu = (miData && miData.can_tem) || {};
+  var o = document.getElementById('ctNgang');
+  if (!o) return { ngang: Number(cu.ngang) || 0, doc: Number(cu.doc) || 0,
+                   rong: Number(cu.rong) || 0, cao: Number(cu.cao) || 0, xoay: Number(cu.xoay) || 0 };
+  return { ngang: g('ctNgang'), doc: g('ctDoc'), rong: g('ctRong'), cao: g('ctCao'),
+           xoay: Number(cu.xoay) || 0 };
+}
+
+/* Ve lai man ma KHONG goi lai may chu: giu nguyen so dang go do. */
+function scrMayIn0() { miVe(); }
+
 function miTenVaiTro(k) {
   var ds = (miData && miData.vai_tro) || [];
   for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i].ten;
@@ -288,6 +303,36 @@ function miVe() {
         '</div></div></div>';
     }).join('')) + '</div>';
 
+  /* Can tem: hai o so va mot nut in thu.
+
+     De bao 19/08/2026 tem in ra bi lech khoi giay. Kho khai trong ma nguon
+     la 40 x 30mm va dung dung; cai lech den tu hai lop nam giua CSS va
+     giay that, la le mac dinh cua trinh duyet va phep co gian cua driver
+     may in. Hai lop do khac nhau tren tung may, nen sua cung so trong ma
+     nguon roi deploy la mot vong lap khong loi ra. Cho chinh tai cho, va
+     cho mot ban in co vien de nhin ra lech bao nhieu. */
+  var ct = (miData && miData.can_tem) || { ngang: 0, doc: 0, rong: 0, cao: 0, xoay: 0 };
+  html += '<div class="sec">Căn tem</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.65;margin-bottom:10px">' +
+    'Bấm <b>In thử căn tem</b>, máy in ra hai tem có viền bao quanh. Viền trùng mép giấy là vừa. ' +
+    'Lệch sang phải thì gõ số âm vào ô dịch ngang, lệch xuống thì gõ số âm vào ô dịch dọc, ' +
+    'tính bằng mi li mét. Chỉnh một lần dùng mãi.</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Dịch ngang (mm)</div>' +
+    '<input class="tin" id="ctNgang" type="number" step="0.5" value="' + (Number(ct.ngang) || 0) + '"></div>' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Dịch dọc (mm)</div>' +
+    '<input class="tin" id="ctDoc" type="number" step="0.5" value="' + (Number(ct.doc) || 0) + '"></div></div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Rộng tem (mm), 0 là theo khổ đã chọn</div>' +
+    '<input class="tin" id="ctRong" type="number" step="0.5" value="' + (Number(ct.rong) || 0) + '"></div>' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cao tem (mm)</div>' +
+    '<input class="tin" id="ctCao" type="number" step="0.5" value="' + (Number(ct.cao) || 0) + '"></div></div>' +
+    kmHangChip(posChipNut('data-ctxoay="0"', 'Chữ nằm ngang', Number(ct.xoay) !== 90) +
+               posChipNut('data-ctxoay="90"', 'Xoay 90 độ', Number(ct.xoay) === 90)) +
+    '<button class="btn gh" id="ctThu" style="margin:10px 0 0;width:100%">🏷 In thử căn tem</button>' +
+    (miSuaDuoc ? '<button class="btn" id="ctLuu" style="margin:8px 0 0;width:100%">💾 Lưu căn tem</button>' : '') +
+    '</div>';
+
   html += '<div class="sec">Danh sách máy in</div>';
   if (!miDs.length) {
     html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280">Chưa khai máy in nào.</div>';
@@ -311,8 +356,45 @@ function miVe() {
   } : null);
 
   b.onclick = function (e) {
+    var x = e.target.closest('[data-ctxoay]');
+    if (x) {
+      miData.can_tem = miCtDoc();
+      miData.can_tem.xoay = +x.getAttribute('data-ctxoay');
+      return go(scrMayIn0, true);
+    }
     var t = e.target.closest('[data-mimo]');
     if (t) { miMo = +t.getAttribute('data-mimo'); miMoi = 0; go(scrMayInSua); }
+  };
+  var nThu = document.getElementById('ctThu');
+  /* In thu bang DUNG thong so dang go tren man, chua luu cung in thu duoc.
+     Bat luu truoc moi duoc thu la bat nguoi dung luu mot con so ho chua
+     biet co dung khong. */
+  if (nThu) nThu.onclick = function () {
+    var c = miCtDoc();
+    CFGBH = CFGBH || {};
+    CFGBH.kho_in = CFGBH.kho_in || {};
+    var t = CFGBH.kho_in.tem || { rong: 40, cao: 30 };
+    CFGBH.kho_in.tem = {
+      k: t.k || 'tem_40x30',
+      rong: c.rong > 0 ? c.rong : (t.rong || 40),
+      cao: c.cao > 0 ? c.cao : (t.cao || 30),
+      ngang: c.ngang, doc: c.doc, xoay: c.xoay,
+      css: '', cuon: 0
+    };
+    CFGBH.kho_in.tem.css = CFGBH.kho_in.tem.rong + 'mm ' + CFGBH.kho_in.tem.cao + 'mm';
+    posInTemThu();
+  };
+  var nCtLuu = document.getElementById('ctLuu');
+  if (nCtLuu) nCtLuu.onclick = async function () {
+    var c = miCtDoc();
+    busy(true);
+    try {
+      miData = await api('vagabond.may_in.luu_can_tem', c);
+      miDs = miData.may || [];
+      busy(false);
+      toast('Đã lưu căn tem. Tải lại app ở quầy để máy in nhận số mới.', 4500);
+      go(scrMayIn0, true);
+    } catch (e2) { busy(false); baoTin((e2 && e2.message) || 'Không lưu được căn tem'); }
   };
   var nt = document.getElementById('miThem');
   if (nt) nt.onclick = function () {

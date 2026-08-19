@@ -59,6 +59,28 @@ function posDsCheDo() {
   });
   return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
 }
+/* Hai nut in tren man bao thanh cong, dung chung cho ca luong tien mat lan
+   luong chuyen khoan.
+
+   Vi sao tach ra thanh mot ham: truoc 19/08/2026 hai man tu ve hai lan, va
+   ca hai deu khoa NUT IN TEM sau dieu kien "bill co mon nuoc". Trong khi
+   chinh ham in tem da doi tu 10/08 theo anh Viet - *"moi mon deu duoc in
+   tem chu khong rieng mon nuoc, hop entremet cung can tem"* - ma cai khoa
+   thi khong ai doi theo. Ket qua: don GrabFood ban mot hu banh Almond
+   Tuile thi khong co nut in tem nao ca (De bao 19/08/2026).
+
+   Nay TEM hien khi bill co bat ky mon nao, con PHIEU LAM MON van chi hien
+   khi co mon nuoc - phieu do la phieu cho quay pha che, bill toan banh thi
+   in ra khong ai dung. */
+function posNutIn(d) {
+  var mon = (d && d.mon) || [];
+  if (!mon.length) return '';
+  var coNuoc = posCoNuoc(mon);
+  return '<div style="display:flex;gap:8px;margin-top:8px">' +
+    (coNuoc ? '<button class="btn gh" data-pm style="flex:1;margin:0">🧾 In phiếu làm món</button>' : '') +
+    '<button class="btn gh" data-tem style="flex:1;margin:0">🏷 In tem món</button></div>';
+}
+
 function posNguonThuc() {
   if (!posQuay || !posDon) return '';
   if (posDon.che_do === 'Tại chỗ') return posQuay.tai_cho;
@@ -1202,9 +1224,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
     '<div style="display:flex;gap:8px;margin-top:14px">' +
     (posBillVua ? '<button class="btn gh" data-in style="flex:0 0 34%;margin:0">🖨 In hoá đơn</button>' : '') +
     '<button class="btn" data-y style="flex:1;margin:0">Hoá đơn mới</button></div>' +
-    (posBillVua && posCoNuoc(posBillVua.mon)
-      ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" data-pm style="flex:1;margin:0">🧾 In phiếu làm món</button><button class="btn gh" data-tem style="flex:1;margin:0">🏷 In tem món</button></div>'
-      : '') +
+    (posBillVua ? posNutIn(posBillVua) : '') +
     '</div>';
   document.body.appendChild(ov);
   /* Tien ve la doi ngay thanh nut ghi so - cashier chot bill tai cho. */
@@ -1336,6 +1356,12 @@ async function posLuuDon() {
     truDiem: (r && r.tru_diem) || null,
     kmAp: ((posDon.kmKq && posDon.kmKq.ap) || []).slice(),
     thu: thu, pt: laApp ? posDon.che_do : posDon.pt,
+    /* mtc PHAI co mat. Tem in ra ghep "GrabFood 678" tu nguon cong ma tham
+       chieu; thieu o nay thi ham in tem khong tim thay ma nao, va con so
+       De go vao chip 678 chi song tren man hinh chu khong bao gio di toi
+       may in (De bao 19/08/2026). Voi don san thi ma nam o posDon.ma, voi
+       don thuong thi nam o posDon.mtc - dung dung cach may chu nhan. */
+    mtc: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
     quay: (posQuay && posQuay.ma) || '', nguon: nguonCk,
     ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 0,
     diem: (r && r.diem) || null
@@ -1354,9 +1380,7 @@ async function posLuuDon() {
     '<div style="display:flex;gap:8px;margin-top:16px">' +
     '<button class="btn gh" data-in style="flex:1;margin:0">🖨 In hoá đơn</button>' +
     '<button class="btn" data-y style="flex:1;margin:0">🧾 Hoá đơn mới</button></div>' +
-    (posCoNuoc(posBillVua.mon)
-      ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" data-pm style="flex:1;margin:0">🧾 In phiếu làm món</button><button class="btn gh" data-tem style="flex:1;margin:0">🏷 In tem món</button></div>'
-      : '') +
+    posNutIn(posBillVua) +
     '<button class="btn gh" data-ds style="margin-top:8px">📋 Về danh sách hoá đơn</button></div>';
   document.body.appendChild(ov);
   ov.onclick = function (e) {

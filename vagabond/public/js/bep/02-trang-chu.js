@@ -22,6 +22,11 @@ async function scrHome() {
     card(TYPES.Purchase.icon, TYPES.Purchase.title, TYPES.Purchase.sub, n[0], 'Purchase') +
     card(TYPES.Transfer.icon, TYPES.Transfer.title, TYPES.Transfer.sub, n[1], 'Transfer') +
     card(TYPES.Manufacture.icon, TYPES.Manufacture.title, TYPES.Manufacture.sub, n[2], 'Manufacture') +
+    /* Đề nghị chi: MỌI nhân viên đều thấy, không khoá theo quyền mua hàng
+       (anh Việt 19/08/2026). Bạn bếp mua chai nước mắm, bạn quầy mua bình
+       gas thì đều lập được ngay trên điện thoại, Uyên nhận và chạy tiếp
+       chuỗi duyệt. Trước đó phiếu này chỉ lập được trên Desk. */
+    card('🧾', 'Tạo yêu cầu thanh toán nội bộ', 'Ứng tiền mua đồ cho tiệm, hoặc xin trả thẳng cho người bán', 0, 'DNC') +
     /* Uyen theo doi don mua hang va cong no nha cung cap ngay tren app,
        khoi mo Desk (anh Viet 12/08/2026). Hai o nay chi hien voi ke toan,
        thu mua va giam doc - gia mua la thong tin nhay cam. */
@@ -333,7 +338,7 @@ var VGB_DM = [
 var VGB_NHOM = [
   /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -704,6 +709,7 @@ function vgbGo(k) {
   /* Một nhánh tiền tố cho cả 16 danh mục. Chép 16 nhánh tay là 16 cơ hội
      gõ nhầm một mã, và đó đúng là lỗi dead link ngày 16/08. */
   if (k.indexOf('DM:') === 0) return kgMo(k.slice(3));
+  if (k === 'DNC') return go(scrDeNghiChi);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
