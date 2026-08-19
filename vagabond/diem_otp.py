@@ -245,17 +245,28 @@ def _gui_zns(so84, ma, ten_khach, so_diem, so_tien):
 			message="So %s | khach %s | %s diem | %s d\nMa: %s" % (so84, ten_khach, so_diem, so_tien, ma),
 		)
 		return True, "", True
+	# CHI GUI DUNG MOT THAM SO: otp.
+	#
+	# Mau 623902 anh Viet dang ky voi Zalo la "Mau OTP" va khai dung MOT
+	# tham so <otp>, kieu string, do dai 10. Gui kem cac tham so mau khong
+	# khai (ten_khach, so_diem, so_tien, phut) thi Zalo tu choi CA TIN, va
+	# khach khong nhan duoc ma nao.
+	#
+	# Cach lam nay giong y mau dang nhap 622530 dang chay tot, xem
+	# dang_nhap._gui_zns.
+	#
+	# DANH DOI PHAI BIET: tin khach nhan duoc chi co ma so, khong noi ro
+	# dang duyet tru bao nhieu diem va giam bao nhieu tien. Khach gat dau
+	# ma khong thay minh gat dau cho cai gi. So diem van duoc khoa chac o
+	# may chu (ghi vao ban ghi OTP luc xin ma, pha xac nhan khong nhan lai
+	# so tu may khach), nen khong ai be duoc con so; nhung lop "khach tu
+	# doc thay" thi mat. Muon co lai thi phai dang ky mot mau ZNS moi co
+	# du cac tham so ten_khach, so_diem, so_tien, roi sua lai dict nay.
 	xong, loi = zalo.gui_tin(
 		cfg(),
 		so84,
 		c["mau_zns"],
-		{
-			"ten_khach": str(ten_khach or "")[:60],
-			"so_diem": _so(so_diem),
-			"so_tien": _so(so_tien),
-			"otp": ma,
-			"phut": str(max(1, int(round(c["otp_giay"] / 60.0)))),
-		},
+		{"otp": ma},
 		dau_vet="vgb-diem-%s" % so84,
 	)
 	return xong, loi, False

@@ -275,21 +275,37 @@ DOI_NGAY_CANH_BAO = "de_va_bao"  # van de, nhung go khoi chuyen va bao nguoi
 DOI_NGAY_CHAN = "chan"  # khong de, chi bao
 
 
-def luat_doi_ngay(trang_thai, co_chuyen):
+def luat_doi_ngay(trang_thai, co_chuyen, qua_han=0):
 	"""Pancake doi ngay giao thi lam gi. THUAN, khong doc co so du lieu.
 
 	trang_thai  trang thai hien tai cua van don ben minh
 	co_chuyen   van don da duoc gan chuyen hoac shipper chua
+	qua_han     ngay giao dang luu da troi qua chua (1 la roi)
 
 	Van don da xong viec (Da giao, Khong giao duoc, Huy) thi khong tra ve
 	nhanh nao ca: viec da xong roi, doi ngay khong con nghia gi.
+
+	VI SAO CO THAM SO qua_han
+	Don 91842 day ra bai hoc nay. Ben sales tra loi: "hien tren app se
+	khong co thao tac doi trang thai gi het, ben em chi thao tac chuyen doi
+	lai ngay nhan, don hang 14.8 thi trong ngay 14.8 moi cap nhat lai sang
+	ngay 18/8". Nghia la don do doi ngay tu 14/08, ma van don ben minh van
+	nam o "Dang giao" tu hom do toi gio.
+
+	"Dang giao" ma ngay giao da troi qua thi khong con nghia la shipper
+	dang cam banh tren duong nua, no chi la trang thai bo quen. Chan cap
+	nhat vi mot trang thai bo quen thi don ket lai vinh vien o ngay sai.
+	Nen truong hop do van de, nhung PHAI bao cho nguoi biet.
 	"""
 	tt = (trang_thai or "").strip()
 	if tt == "Chờ giao":
 		return DOI_NGAY_CANH_BAO if co_chuyen else DOI_NGAY_DUOC
 	if tt == "Đang giao":
-		# Shipper dang cam banh tren duong. Doi ngay luc nay la chuyen NGUOI
-		# phai xu: goi shipper quay ve hay giao luon. May khong duoc tu quyet.
+		if cint(qua_han):
+			return DOI_NGAY_CANH_BAO
+		# Ngay giao la hom nay hoac mai: shipper co the dang cam banh tren
+		# duong that. Doi ngay luc nay la chuyen NGUOI phai xu, may khong
+		# duoc tu quyet.
 		return DOI_NGAY_CHAN
 	return ""
 
@@ -534,7 +550,8 @@ def _theo_ngay_giao(o, cu, pid):
 			return
 		ma = str(o.get("display_id") or pid)
 		co_chuyen = bool((cu.get("chuyen") or "").strip() or (cu.get("shipper") or "").strip())
-		luat = luat_doi_ngay(cu.get("trang_thai"), co_chuyen)
+		qua_han = 1 if ngay_cu < nowdate() else 0
+		luat = luat_doi_ngay(cu.get("trang_thai"), co_chuyen, qua_han)
 		if luat == DOI_NGAY_CHAN:
 			nhat_ky.ghi(
 				"van_don", ma, "Van Don", cu.name, "Pancake doi ngay giao khi dang giao",
@@ -556,9 +573,15 @@ def _theo_ngay_giao(o, cu, pid):
 			doi["chuyen"] = ""
 			doi["thu_tu"] = 0
 			can_xem = 1
-			ghi_chu = ("Don da duoc go khoi chuyen %s vi doi sang ngay khac. "
-			           "Nho dieu phoi xep lai tuyen cho ngay moi."
-			           % ((cu.get("chuyen") or "").strip() or "(chua dat ten)"))
+			if (cu.get("trang_thai") or "").strip() == "Đang giao":
+				ghi_chu = ("Van don nay nam o trang thai Dang giao ma ngay giao da "
+				           "troi qua, nen may hieu la trang thai bo quen chu khong "
+				           "phai shipper dang tren duong. Da doi ngay theo Pancake. "
+				           "Nho dieu phoi soat lai trang thai giup.")
+			else:
+				ghi_chu = ("Don da duoc go khoi chuyen %s vi doi sang ngay khac. "
+				           "Nho dieu phoi xep lai tuyen cho ngay moi."
+				           % ((cu.get("chuyen") or "").strip() or "(chua dat ten)"))
 		frappe.db.set_value("Van Don", cu.name, doi, update_modified=False)
 		nhat_ky.ghi(
 			"van_don", ma, "Van Don", cu.name, "doi ngay giao theo Pancake",

@@ -551,6 +551,38 @@ def _tach_email(chuoi):
 # thu, ma nhin con so van thay hop ly.
 
 
+# Hai kieu chiet khau. Chuoi luu trong co so du lieu KHONG DAU, giong het
+# nep cua phan he Khuyen mai (xem khuyen_mai.py), de hai noi cung mot ngon
+# ngu va sau nay gom lai duoc.
+CK_PT = "Phan tram"
+CK_TIEN = "So tien"
+
+
+def tien_chiet_khau(goc, kieu, gia_tri):
+	"""So tien chiet khau tren mot goc. THUAN.
+
+	Anh Viet chot 19/08/2026 sau yeu cau cua Loan Anh: chiet khau phai
+	nhap duoc CA hai kieu, theo phan tram va theo so tien.
+
+	kieu rong thi hieu la phan tram. Day la cho quan trong nhat cua ham
+	nay: moi to bao gia cu deu co o kieu de trong, va chung phai chay y
+	nguyen nhu truoc, khong lech mot dong.
+
+	Ba chan cung:
+	  - khong bao gio am
+	  - khong bao gio vuot qua goc, du nguoi go 200% hay go so tien lon hon
+	    ca to. Cho vuot la to bao gia ra so am.
+	  - lam tron ve dong
+	"""
+	g = flt(goc)
+	v = flt(gia_tri)
+	if g <= 0 or v <= 0:
+		return 0.0
+	if (kieu or "") == CK_TIEN:
+		return float(min(round(v, 0), round(g, 0)))
+	return float(min(round(g * v / 100.0, 0), round(g, 0)))
+
+
 def phan_bo_chiet_khau(cac_tien, tong_ck):
 	"""Chia chiet khau cua ca to ve tung dong theo ti le. THUAN.
 
@@ -646,10 +678,14 @@ def _tinh(doc):
 		d.so_luong = flt(d.so_luong)
 		d.don_gia = flt(d.don_gia)
 		d.chiet_khau = flt(d.chiet_khau)
-		d.thanh_tien = round(d.so_luong * d.don_gia * (1 - d.chiet_khau / 100.0), 0)
+		# Chiet khau cua RIENG dong nay. To cu de trong o kieu_ck thi doc
+		# la phan tram, dung y nhu truoc khi co tinh nang nay.
+		goc_dong = round(d.so_luong * d.don_gia, 0)
+		d.ck_tien_dong = tien_chiet_khau(goc_dong, d.get("kieu_ck"), d.chiet_khau)
+		d.thanh_tien = goc_dong - d.ck_tien_dong
 		tam += d.thanh_tien
 	doc.tam_tinh = tam
-	doc.chiet_khau_tien = round(tam * flt(doc.chiet_khau_pt) / 100.0, 0)
+	doc.chiet_khau_tien = tien_chiet_khau(tam, doc.get("kieu_ck"), doc.chiet_khau_pt)
 	sau_ck = tam - doc.chiet_khau_tien
 
 	# NHANH MOI: thue khai theo tung dong, tach ra tien hang va tien thue.
@@ -710,7 +746,7 @@ F_CHU = (
 	"chinh_sach_huy_vi", "chinh_sach_huy_en", "luu_y_vi", "luu_y_en",
 	"giao_hang", "dong_goi", "ghi_chu", "ghi_chu_noi_bo",
 	"ten_nguoi_lap_in", "chuc_vu_lap", "dt_nguoi_lap", "email_lap",
-	"kieu_thue",
+	"kieu_thue", "kieu_ck",
 )
 F_SO = ("chiet_khau_pt", "thue_pt", "phi_giao", "dat_coc_pt", "thue_phi_giao_pt")
 F_CO = ("song_ngu", "gia_da_gom_vat")
@@ -783,6 +819,8 @@ def _goi(doc):
 			"so_luong": flt(d.so_luong),
 			"don_gia": flt(d.don_gia),
 			"chiet_khau": flt(d.chiet_khau),
+			"kieu_ck": d.get("kieu_ck") or "",
+			"ck_tien_dong": flt(d.get("ck_tien_dong")),
 			"thue_pt": flt(d.thue_pt),
 			"thanh_tien": flt(d.thanh_tien),
 		})
@@ -933,7 +971,7 @@ def moi():
 		"chinh_sach_huy_en": c["chinh_sach_huy_en"],
 		"luu_y_vi": c["luu_y_vi"], "luu_y_en": c["luu_y_en"],
 		"giao_hang": "", "dong_goi": "", "ghi_chu": "", "ghi_chu_noi_bo": "",
-		"chiet_khau_pt": 0, "chiet_khau_tien": 0, "thue_pt": 8, "thue_tien": 0,
+		"chiet_khau_pt": 0, "chiet_khau_tien": 0, "kieu_ck": "", "thue_pt": 8, "thue_tien": 0,
 		"phi_giao": 0, "dat_coc_pt": 50, "dat_coc_tien": 0,
 		"tam_tinh": 0, "tong_cong": 0,
 		"nguoi_lap": nd,
@@ -1017,6 +1055,9 @@ def _do_vao(doc, d):
 		row["so_luong"] = flt(x.get("so_luong")) or 1
 		row["don_gia"] = flt(x.get("don_gia"))
 		row["chiet_khau"] = flt(x.get("chiet_khau"))
+		# Kieu chiet khau cua dong. Chi nhan dung hai chuoi da biet, con
+		# lai coi nhu de trong tuc phan tram - QT-19, khong tin may khach.
+		row["kieu_ck"] = x.get("kieu_ck") if x.get("kieu_ck") in (CK_PT, CK_TIEN) else None
 		# Dong khong khai muc thue thi lay muc cua to, de sales khong phai
 		# go lai tung dong khi ca to cung mot muc.
 		row["thue_pt"] = (
@@ -1993,7 +2034,12 @@ def _html(name=None, d=None):
 			"center", ngat=False,
 		)
 		if co_ck:
-			o += td(("%g%%" % flt(x["chiet_khau"])) if flt(x["chiet_khau"]) else "-", "center")
+			if not flt(x["chiet_khau"]):
+				o += td("-", "center")
+			elif (x.get("kieu_ck") or "") == CK_TIEN:
+				o += td(_tien_vn(x["chiet_khau"]), "center", ngat=False)
+			else:
+				o += td("%g%%" % flt(x["chiet_khau"]), "center")
 		o += td(_tien_vn(x["thanh_tien"]), "right", dam=True, ngat=False) + "</tr>"
 		ra.append(o)
 
@@ -2018,9 +2064,11 @@ def _html(name=None, d=None):
 			or d.get("tom_tat_thue")):
 		ra.append(dong_cong("Cộng tiền hàng", "Subtotal", d["tam_tinh"]))
 	if flt(d["chiet_khau_tien"]):
-		ra.append(dong_cong(
-			"Chiết khấu %g%%" % flt(d["chiet_khau_pt"]), "Discount", -flt(d["chiet_khau_tien"])
-		))
+		# In dung kieu dang dung. Chiet khau theo so tien ma in ra "%" thi
+		# khach doc so 500000% - buon cuoi va mat uy tin.
+		nhan_ck = ("Chiết khấu" if (d.get("kieu_ck") or "") == CK_TIEN
+		           else "Chiết khấu %g%%" % flt(d["chiet_khau_pt"]))
+		ra.append(dong_cong(nhan_ck, "Discount", -flt(d["chiet_khau_tien"])))
 	if flt(d["phi_giao"]):
 		ra.append(dong_cong("Phí giao hàng", "Delivery fee", d["phi_giao"]))
 	# Ba dong khach hay hoi (anh Viet 18/08/2026): *"nhieu khach ho yeu cau
@@ -2661,7 +2709,7 @@ def tu_mau(name_mau):
 		"phan_loai", "mau_in",
 		"thanh_toan", "thanh_toan_en", "yeu_cau_vi", "yeu_cau_en",
 		"chinh_sach_huy_vi", "chinh_sach_huy_en", "luu_y_vi", "luu_y_en",
-		"giao_hang", "dong_goi", "ghi_chu", "chiet_khau_pt", "thue_pt",
+		"giao_hang", "dong_goi", "ghi_chu", "chiet_khau_pt", "kieu_ck", "thue_pt",
 		"phi_giao", "dat_coc_pt", "hieu_luc_ngay",
 	)
 	for f in giu:
