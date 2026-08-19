@@ -3962,6 +3962,202 @@ la("man hinh tach rieng truong hop trung giao dich",
    "x.trung_voi; });" in _js40, True)
 la("man hinh van giu canh bao so tien lech", "SỐ TIỀN LỆCH" in _js40, True)
 
+print("\n[41] De nghi chi doi sang bang ke nhieu dong")
+
+
+def _nap_ham_dnc():
+	"""Doc cac ham THUAN cua de_nghi_chi.py, khong import ca mo dun.
+
+	Cung cach lam voi _nap_ham_that o dau tep: import ca mo dun thi keo theo
+	frappe, ma may chay cong kiem khong co frappe. Cat lay than ham roi chay
+	trong mot khong gian ten co san flt.
+
+	Doc THAN HAM THAT chu khong chep lai o day: chep lai thi sua ban that ma
+	quen sua ban chep, ca kiem van xanh trong khi he da hong.
+	"""
+	src = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+	can = ["cac_dong", "cong_bang_ke", "tien_phieu", "can_giam_doc_duyet",
+	       "buoc_ke_tiep", "can_tru_tam_ung", "_tien"]
+	mt = {
+		"flt": lambda x: float(x or 0),
+		"NGUONG_GIAM_DOC": 2000000.0,
+		"TT_CHO_GIAM_DOC": "Cho giam doc",
+		"TT_CHO_KE_TOAN": "Cho ke toan",
+	}
+	for ten in can:
+		m = re.search(r"^def %s\(.*?(?=^def |\Z)" % re.escape(ten), src, re.S | re.M)
+		if not m:
+			print("KHONG THAY ham %s trong de_nghi_chi.py" % ten)
+			sys.exit(1)
+		exec(compile(m.group(0), "de_nghi_chi:%s" % ten, "exec"), mt, mt)
+	return mt
+
+
+_H41 = _nap_ham_dnc()
+H41_cong = _H41["cong_bang_ke"]
+H41_tien = _H41["tien_phieu"]
+H41_buoc = _H41["buoc_ke_tiep"]
+H41_cantru = _H41["can_tru_tam_ung"]
+
+# Anh Viet 19/08/2026: *"Hien tai he thong dang la 1 phieu = 1 khoan chi.
+# Viec nay qua mat thoi gian. Em hay cau truc lai theo dang Master-Detail
+# (1 phieu = Nhieu khoan chi)."*
+
+_dnc41 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+_js41 = open("vagabond/public/js/bep/16-mua-hang.js", encoding="utf-8").read()
+_dtc41 = json.load(open(
+	"vagabond/vagabond/doctype/vagabond_de_nghi_chi/vagabond_de_nghi_chi.json", encoding="utf-8"))
+_dtd41 = json.load(open(
+	"vagabond/vagabond/doctype/vagabond_de_nghi_chi_dong/vagabond_de_nghi_chi_dong.json", encoding="utf-8"))
+_dtm41 = json.load(open(
+	"vagabond/vagabond/doctype/vagabond_loai_chung_tu/vagabond_loai_chung_tu.json", encoding="utf-8"))
+
+_tr41 = {f["fieldname"]: f for f in _dtc41["fields"]}
+_trd41 = {f["fieldname"]: f for f in _dtd41["fields"]}
+_trm41 = {f["fieldname"]: f for f in _dtm41["fields"]}
+
+# --- Cau truc hai bang ---
+la("bang con la Table tren phieu cha", _tr41["cac_khoan"]["fieldtype"], "Table")
+la("bang con tro dung doctype", _tr41["cac_khoan"]["options"], "Vagabond De Nghi Chi Dong")
+la("bang con la istable", _dtd41.get("istable"), 1)
+la("phieu cha co Tong tien", _tr41["tong_tien"]["fieldtype"], "Currency")
+# Tong tien PHAI chi doc: de nguoi sua tay tren Desk la mo lai dung cai cua
+# ma cong_bang_ke sinh ra de dong.
+la("Tong tien chi doc", _tr41["tong_tien"].get("read_only"), 1)
+la("phieu cha co o Thuoc ma Tam ung", _tr41["thuoc_tam_ung"]["fieldtype"], "Link")
+la("o Tam ung tro ve chinh doctype de nghi chi",
+   _tr41["thuoc_tam_ung"]["options"], "Vagabond De Nghi Chi")
+
+# Anh Viet: *"O chon 'Ngan hang' cua nguoi thu huong bat buoc phai thiet lap
+# kieu Link tro ve Doctype Danh muc Ngan hang chuan NAPAS ma em da tao dot
+# truoc. Khong duoc hardcode hay tu tao list rieng."*
+la("Ngan hang la Link", _tr41["ngan_hang"]["fieldtype"], "Link")
+la("Ngan hang tro ve danh muc NAPAS chuan", _tr41["ngan_hang"]["options"], "Bank")
+la("khong tu de ra danh sach ngan hang rieng trong ma",
+   "VIETCOMBANK" in _dnc41 or "Techcombank" in _dnc41, False)
+
+for _t41 in ("noi_dung", "so_tien", "phan_loai", "loai_chung_tu", "so_hoa_don",
+             "ngay_hoa_don", "mst"):
+	la("dong bang ke co truong %s" % _t41, _t41 in _trd41, True)
+la("loai chung tu tren dong la Link ve Danh muc",
+   (_trd41["loai_chung_tu"]["fieldtype"], _trd41["loai_chung_tu"]["options"]),
+   ("Link", "Vagabond Loai Chung Tu"))
+
+# --- Co la_hoa_don_vat thay cho so chuoi ---
+#
+# So chuoi voi chu "Hoa don VAT" thi doi ten dong danh muc la ba o hoa don im
+# lang bien mat, va phieu van gui di duoc ma thieu so hoa don.
+la("danh muc co co la_hoa_don_vat", _trm41["la_hoa_don_vat"]["fieldtype"], "Check")
+la("danh muc co co bat_buoc_tep", _trm41["bat_buoc_tep"]["fieldtype"], "Check")
+_dong41 = [x for x in _dnc41.split("\n")
+           if x.strip() and not x.lstrip().startswith("#")]
+_ma41 = "\n".join(_dong41)
+la("may chu doc CO chu khong so chuoi ten loai chung tu",
+   'la_hoa_don_vat' in _ma41, True)
+la("man hinh doc CO chu khong so chuoi ten loai chung tu",
+   "ct.la_hoa_don_vat" in _js41 and "=== 'Hoá đơn VAT'" not in _js41, True)
+
+# --- Cong tien o MAY CHU (QT-19) ---
+la("co ham cong bang ke", "def cong_bang_ke(" in _dnc41, True)
+_tkl41 = _dnc41.split("def truoc_khi_luu(")[1].split("\n@frappe.whitelist()")[0]
+la("moi lan luu la may chu cong lai tong tien",
+   "doc.tong_tien = cong_bang_ke(doc)" in _tkl41, True)
+la("khong nhan tong tien tu man hinh",
+   'doc.tong_tien = flt(d.get("tong_tien"))' in _dnc41, False)
+
+# CAI BAY LON NHAT cua lan doi cau truc nay.
+#
+# so_tien tren phieu cha van con do, nhung phieu lap tu 20/08/2026 de no bang
+# 0 vi tien da nam o cac dong. Cho nao con doc so_tien se thay 0. Nguy nhat la
+# buoc_ke_tiep: doc 0 thi MOI phieu moi, du 50 trieu, deu roi thang xuong ke
+# toan va khong bao gio qua tay giam doc. Khong bao loi gi ca.
+la("co ham doc so tien that cua phieu", "def tien_phieu(" in _dnc41, True)
+_duyet41 = _dnc41.split("def duyet(")[1].split("\n@frappe.whitelist()")[0]
+la("buoc duyet ke tiep KHONG doc truong so_tien cu",
+   "buoc_ke_tiep(doc.so_tien)" in _duyet41, False)
+la("buoc duyet ke tiep doc so tien that",
+   "buoc_ke_tiep(tien_phieu(doc))" in _duyet41, True)
+
+# Phep chay THAT: mot phieu 50 trieu nam o bang ke phai len giam doc.
+_phieu41 = {"so_tien": 0, "tong_tien": 0, "cac_khoan": [
+	{"so_tien": 30000000}, {"so_tien": 20000000}]}
+la("cong bang ke ra dung tong", H41_cong(_phieu41), 50000000)
+la("phieu 50 trieu o bang ke VAN phai len giam doc",
+   H41_buoc(H41_tien(_phieu41)), "Cho giam doc")
+# Phieu mot dong cu, tien con nam o truong cu.
+la("phieu cu doc duoc so tien tu truong cu",
+   H41_tien({"so_tien": 5000000, "cac_khoan": []}), 5000000)
+la("phieu cu 5 trieu cung len giam doc",
+   H41_buoc(H41_tien({"so_tien": 5000000, "cac_khoan": []})), "Cho giam doc")
+la("phieu nho di thang xuong ke toan",
+   H41_buoc(H41_tien({"so_tien": 0, "cac_khoan": [{"so_tien": 50000}]})), "Cho ke toan")
+
+# --- Can tru hoan ung ---
+la("con no khi hoan ung it hon tam ung", H41_cantru(2000000, 1500000)[0], 500000)
+la("khong con no khi hoan du", H41_cantru(2000000, 2000000)[0], 0)
+# CO Y khong chan khi vuot: nhan vien ung 2 trieu roi tieu 2 trieu 3 la
+# chuyen binh thuong, va luc do cong ty no lai ho 300 nghin.
+la("tieu vuot tam ung thi cong ty no lai", H41_cantru(2000000, 2300000)[1], 300000)
+la("tieu vuot KHONG bi bao la con no", H41_cantru(2000000, 2300000)[0], 0)
+_ct41 = _dnc41.split("def can_tru_tam_ung(")[1].split("\ndef ")[0]
+la("ham can tru khong nem loi khi vuot", "frappe.throw" in _ct41, False)
+
+_lc41 = _dnc41.split("def ly_do_chan(")[1].split("\ndef ")[0]
+la("hoan ung bat buoc chi ro thuoc ma tam ung nao",
+   "NV_HOAN_UNG and not" in _lc41, True)
+la("phieu khong phai hoan ung thi khong duoc gan ma tam ung",
+   'nv != NV_HOAN_UNG and (p.get("thuoc_tam_ung")' in _lc41, True)
+# Soi TUNG DONG: mot phieu muoi dong ma dong thu bay la cai may danh trung
+# thi van phai chan.
+la("chan tai san co dinh soi tung dong", "for i, d in enumerate(cac_dong(p), 1)" in _lc41, True)
+
+# --- Chan trung hoa don, ke ca trung ngay trong mot phieu ---
+_th41 = _dnc41.split("def trung_hoa_don(")[1].split("\ndef ")[0]
+la("soi trung tren bang con", '"Vagabond De Nghi Chi Dong"' in _th41, True)
+la("van soi duoc phieu mot dong cu", '"so_hoa_don": d.get("so_hoa_don")' in _th41, True)
+# Ca MOI sinh ra do doi sang nhieu dong: hai ban cung chup mot to bill roi
+# cung dan vao mot phieu. Khong mot phep tra co so du lieu nao bat duoc.
+# Kiem PHEP SO chu khong kiem ten bien: bo doan so di ma de lai dong khoi
+# tao "trong_phieu = {}" thi ca kiem cu theo ten bien van xanh. Da thu that
+# bang mot lan pha hoai co chu y va no lot.
+la("bat duoc trung NGAY TRONG mot phieu",
+   "if khoa in trong_phieu:" in _th41 and "trong_phieu[khoa] = i" in _th41, True)
+
+# --- Chuyen phieu cu, QT-20 cam xoa ---
+la("co ham chuyen phieu mot dong", "def chuyen_phieu_mot_dong(" in _dnc41, True)
+_cv41 = _dnc41.split("def chuyen_phieu_mot_dong(")[1]
+la("chuyen phieu KHONG xoa gi", "db_delete" in _cv41 or ".delete(" in _cv41, False)
+la("chuyen phieu lap lai duoc", "if r[\"name\"] in da_co:" in _cv41, True)
+la("patch co goi chuyen phieu",
+   "chuyen_phieu_mot_dong()" in open("vagabond/patches/dong_bo_cau_truc.py", encoding="utf-8").read(), True)
+
+# --- Man hinh dang The ---
+#
+# Anh Viet: *"bang chi tiet khong duoc thiet ke dang luoi (Grid) vi se bi tran
+# man hinh. Em hay thiet ke moi dong khoan chi la mot khoi The (Card)."*
+la("moi khoan chi la mot The", "function dncTheKhoan(" in _js41, True)
+la("The dung lop card chu khong phai luoi", "'<div class=\"card\" data-kid=" in _js41, True)
+la("khong dung grid cho bang ke", "grid-template-columns" in _js41.split("function dncTheKhoan(")[1].split("\nfunction ")[0], False)
+la("co nut Them khoan chi ro rang", "+ Thêm khoản chi" in _js41, True)
+la("moi khoan mang id rieng, khong dua vao vi tri", "dncKhoanMoi()" in _js41 and "k.id" in _js41, True)
+la("tong nhay theo thoi gian thuc khi go tien", "n.oninput = dncNhayTong" in _js41, True)
+# Ve lai ca trang moi lan go mot chu so thi o dang go mat con tro.
+la("nhay tong KHONG ve lai ca trang",
+   "dncVe(" in _js41.split("function dncNhayTong(")[1].split("\n}")[0], False)
+la("tra ma so thue khi roi o", "n.onblur = function () { dncTraMst(" in _js41, True)
+la("dung lai API tra MST da co", "vagabond.api.tra_mst" in _js41, True)
+_tm41 = _js41.split("async function dncTraMst(")[1]
+la("tra khong ra thi van cho go tay", "gõ tay" in _tm41, True)
+la("khong de len ten nguoi ta da go", "!(oTen.value || '').trim()" in _tm41, True)
+la("o ngan hang dung bang chon co o tim", "nhChon(dncForm.ngan_hang" in _js41, True)
+la("khong con o go tu do cho ngan hang",
+   'id="dnc_ngan_hang" placeholder="Ngân hàng"' in _js41, False)
+
+# --- Cong ngo ---
+_cn41 = open("vagabond/khung/kiem_thu/thu_cua_ngo.py", encoding="utf-8").read()
+for _h41 in ("chi_tiet", "tam_ung_cua_toi"):
+	la("cong ngo biet %s" % _h41, '"%s"' % _h41 in _cn41, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
