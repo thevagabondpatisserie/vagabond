@@ -965,7 +965,8 @@ async function scrHome() {
         card('🖨', 'Máy in', 'Sổ máy in từng điểm bán và khổ giấy cho mỗi loại phiếu', 0, 'CDMI') +
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
-        card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN')
+        card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
+        card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE')
       : '') +
     /* Quan ly nguoi dung: anh Viet, chi Dung va De. Bay theo goi chuc vu chu
        khong bay ma tran 40 vai tro cua Frappe ra man hinh dien thoai. */
@@ -1141,7 +1142,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1500,6 +1501,7 @@ function vgbGo(k) {
   if (k === 'CDQQ') return go(scrQuyenQuay);
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
+  if (k === 'CDSE') return go(scrSePay);
   if (k === 'TS') return go(scrTaiSan);
   if (k === 'BT') return go(scrButToan);
   if (k === 'QLND') return go(scrNguoiDung);
@@ -12044,15 +12046,21 @@ function htCtVe() {
   if (d.don) {
     html += '<div class="sec">Đơn gốc ' + h(d.don.name) + '</div><div class="card" style="padding:2px 14px 10px">' +
       htCtDong('Ngày đơn', d.don.ngay) +
+      /* Ma don Pancake la thu DUY NHAT phep doi soat tu dong dem tim trong
+         noi dung chuyen khoan. De trong thi dong "SePay da nhan" chac chan
+         ra 0, va nguoi doc phai biet ngay do la vi sao. */
+      htCtDong('Mã đơn Pancake', d.don.ma_pancake || '') +
       htCtDong('Tổng đơn', money(d.don.tong) + ' đ', 1) +
-      /* Voi phieu tien nop thua thi hai con so nay la CAN CU DUY NHAT de
-         chi Dung quyet: da nhan bao nhieu, don bao nhieu, chenh la bao
-         nhieu. Bay ra thang chu khong bat chi mo sang man khac doi chieu. */
+      /* Truoc 19/08/2026 dong nay chi hien cho phieu tien nop thua. Nhung
+         truoc khi chuyen tien ra, phieu tra hang cung can dung mot cau hoi:
+         tien khach da that su vao chua. Ca Ms.Giang hom 19/08 la vi khong
+         co dong nay ma khong ai tra loi duoc. */
+      htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay) + ' đ', 1) +
       (d.loai_hoan === 'Tien nop thua'
-        ? htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay) + ' đ', 1) +
-          htCtDong('Khách nộp thừa',
+        ? htCtDong('Khách nộp thừa',
             money(Math.max(0, Number(d.don.da_nhan_sepay || 0) - Number(d.don.tong || 0))) + ' đ', 1)
         : '') +
+      (Number(d.don.da_nhan_sepay || 0) <= 0 ? htCtSepayTrong(d) : '') +
       htCtDong('Đã thu', money(d.don.da_thu) + ' đ') +
       (d.don.diem_ban ? htCtDong('Điểm bán', d.don.diem_ban) : '') +
       '<div style="padding:9px 0 0">' + (d.don.mon || []).map(function (m) {
@@ -12071,6 +12079,26 @@ function htCtVe() {
     htCtDong('Kho nhận hàng trả', d.kho_huy || '') +
     '</div>';
 
+  /* Doi chieu TAY khoan tien vao. Chi hien cho nguoi duoc quyen, va noi ro
+     day la mot chu ky cua nguoi chu khong phai mot phep may tu chay. */
+  html += '<div class="sec">Giao dịch tiền vào đã đối chiếu</div><div class="card" style="padding:2px 14px 12px">';
+  if (d.gd_vao_ct) {
+    html += htCtDong('Giao dịch', d.gd_vao_ct.name) +
+      htCtDong('Ngày về', String(d.gd_vao_ct.date || '')) +
+      htCtDong('Số tiền vào', money(d.gd_vao_ct.deposit) + ' đ', 1) +
+      htCtDong('Nội dung', d.gd_vao_ct.description || '') +
+      htCtDong('Người đối chiếu', d.nguoi_gan_gd_vao || '');
+  } else {
+    html += '<div style="font-size:12.5px;color:#6b7280;padding:10px 0 4px;line-height:1.6">' +
+      'Chưa ai gắn khoản tiền vào nào cho phiếu này. Khi khách tự gõ nội dung ' +
+      'chuyển khoản thì máy không tự khớp được, phải có người nhìn sao kê và chọn.</div>';
+  }
+  if (d.duoc_doi_chieu && d.trang_thai !== 'Da huy') {
+    html += '<button class="btn gh" id="htCtGd" style="margin:8px 0 0;width:100%">🔎 ' +
+      (d.gd_vao_ct ? 'Chọn lại giao dịch tiền vào' : 'Đối chiếu tay khoản tiền vào') + '</button>';
+  }
+  html += '</div>';
+
   var chan = '';
   if (d.trang_thai !== 'Da huy') {
     chan += '<button class="btn gh" id="htCtMb" style="margin:0;flex:1">🏦 Chuyển khoản</button>';
@@ -12087,6 +12115,90 @@ function htCtVe() {
   if (nMb) nMb.onclick = function () { htMbBiz(d.name); };
   var nTc = document.getElementById('htCtTc');
   if (nTc) nTc.onclick = function () { htFormTuChoi(d.name); };
+  var nGd = document.getElementById('htCtGd');
+  if (nGd) nGd.onclick = function () { htFormGdVao(d); };
+}
+
+
+/* Vi sao dong "SePay da nhan" ra 0 - noi thang thay vi de nguoi doc doan.
+
+   Hai nguyen nhan, va cach xu ly khac han nhau. Thieu ma don Pancake thi
+   phep doi soat khong co gi de tim, sua o hoa don. Co ma don ma van 0 thi
+   khach da tu go noi dung chuyen khoan, phai doi chieu tay. */
+function htCtSepayTrong(d) {
+  var vi_sao = d.don.ma_pancake
+    ? 'Đơn có mã Pancake <b>' + h(d.don.ma_pancake) + '</b> nhưng không giao dịch nào ' +
+      'mang mã này trong nội dung. Thường là khách tự gõ nội dung chuyển khoản thay vì ' +
+      'quét mã QR, nên máy không có gì để bám. Dùng nút đối chiếu tay ở dưới.'
+    : 'Hoá đơn này chưa có mã đơn Pancake, mà đó là thứ duy nhất phép đối soát dựa vào. ' +
+      'Nên con số 0 ở đây <b>không</b> có nghĩa là khách chưa chuyển tiền.';
+  return '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+    'border-radius:9px;padding:9px 11px;margin:8px 0 2px;line-height:1.6">' + vi_sao + '</div>';
+}
+
+
+/* ---------- Đối chiếu tay khoản tiền vào ----------
+
+Máy chỉ lọc ra ứng viên gần đúng số tiền và gần đúng ngày. Chọn dòng nào là
+việc của người, và tên người đó được ghi lại ngay cạnh giao dịch. Không để
+máy tự chọn: một khoản 650.000 đ ngày 13/08 có thể là của bất kỳ đơn nào
+cùng số tiền. */
+async function htFormGdVao(d) {
+  var soTien = Number((d.don && d.don.tong) || d.so_tien || 0);
+  var ngay = (d.don && d.don.ngay) || '';
+  frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
+  var kq;
+  try {
+    kq = await api('vagabond.sepay.tim_gd_vao', { so_tien: soTien, ngay: ngay, so_ngay: 30 });
+  } catch (e) {
+    frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
+    return;
+  }
+  var rows = (kq && kq.rows) || [];
+  var than =
+    '<div style="font-size:12.5px;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;' +
+    'border-radius:9px;padding:10px 12px;margin-bottom:11px;line-height:1.6">' +
+    'Đang tìm khoản tiền vào quanh <b>' + money(soTien) + ' đ</b>' +
+    (ngay ? ' và quanh ngày <b>' + h(ngay) + '</b>' : '') + '. ' +
+    'Chọn đúng dòng khách đã chuyển. Tên anh chị được ghi lại cạnh giao dịch này.</div>';
+  if (!rows.length) {
+    than += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+      'border-radius:9px;padding:10px 12px;line-height:1.6">Không có giao dịch tiền vào nào ' +
+      'gần số tiền và ngày này trong sao kê đang có. Nếu tiền chắc chắn đã về thì sao kê ' +
+      'còn thiếu, báo anh Việt nạp bù giúp.</div>';
+  } else {
+    than += rows.map(function (r) {
+      return '<button class="htgdv" data-gd="' + h(r.name) + '" style="display:block;width:100%;text-align:left;' +
+        'border:1.5px solid #e5e7eb;background:#fff;border-radius:11px;padding:10px 12px;margin-bottom:8px">' +
+        '<div style="display:flex;gap:8px;align-items:baseline">' +
+        '<div style="flex:1;font-weight:800;font-size:14px;color:#0a8a4a">+' + money(r.deposit) + ' đ</div>' +
+        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '')) + '</div></div>' +
+        '<div style="font-size:11.5px;color:#6b7280;margin-top:3px;word-break:break-all">' +
+        h(String(r.description || '').slice(0, 140)) + '</div></button>';
+    }).join('');
+  }
+  if (d.gd_vao_ct) {
+    than += '<button class="btn gh" id="htGdBo" style="margin:6px 0 0;width:100%">Bỏ gắn giao dịch hiện tại</button>';
+  }
+  var b = frame('Đối chiếu tiền vào', than);
+  b.querySelectorAll('.htgdv').forEach(function (n) {
+    n.onclick = function () { htGdGan(d.name, n.getAttribute('data-gd')); };
+  });
+  var nBo = document.getElementById('htGdBo');
+  if (nBo) nBo.onclick = function () { htGdGan(d.name, ''); };
+}
+
+
+async function htGdGan(ma, gd) {
+  try {
+    await api('vagabond.hoan_tien.gan_gd_vao', { ho_so: ma, gd: gd });
+    toast(gd ? 'Đã gắn giao dịch ' + gd : 'Đã bỏ gắn giao dịch', 3500);
+  } catch (e) {
+    toast((e && e.message) || 'Không gắn được giao dịch', 5000);
+    return;
+  }
+  htChiTiet(ma);
 }
 
 
@@ -13764,7 +13876,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '228';
+var APPVER = '229';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -19205,6 +19317,150 @@ async function dmTao(boQuaTrung) {
 }
 
 
+
+/* ================= SePay: nhận giao dịch ngân hàng =================
+
+Ngày 19/08/2026 Uyên báo sao kê OCB kéo về thiếu giao dịch. Đọc lại mới ra
+là hệ thống không hề NHẬN webhook, nó KÉO mỗi giờ một lần bằng một Server
+Script, và con trỏ since_id của kịch bản đó đã vượt qua toàn bộ giao dịch
+OCB cũ hơn ngày tài khoản này được khai vào bản đồ.
+
+Màn này bày ra ba thứ mà trước đó không ai nhìn thấy được: đường dẫn thật
+để dán sang SePay, con trỏ và kết quả lần kéo gần nhất, và số tài khoản nào
+đang bị bỏ qua vì chưa khai. */
+
+var seData = null;
+
+async function scrSePay() {
+  frame('SePay', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { seData = await api('vagabond.sepay.tinh_trang', {}); }
+  catch (e) {
+    frame('SePay', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  seVe();
+}
+
+function seVe() {
+  var d = seData || {};
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">HAI ĐƯỜNG VÀO SỔ</div>' +
+    '<div style="font-size:13.5px;color:#374151;line-height:1.65;margin-top:4px">' +
+    '<b>Webhook</b> là SePay gọi sang ngay khi tiền về, tính bằng giây. ' +
+    '<b>Nhịp kéo</b> là máy tự hỏi SePay mỗi giờ một lần, chậm nhưng là lưới an toàn ' +
+    'khi webhook lỡ một gói. Cả hai cùng ghi một khoá <code>SEPAY-&lt;mã&gt;</code> nên ' +
+    'không bao giờ sinh hai dòng cho một giao dịch.</div></div>';
+
+  html += '<div class="sec">Webhook</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12px;color:#6b7280">Đường dẫn dán vào ô "URL nhận webhook" bên SePay</div>' +
+    '<div id="seUrl" style="font-size:12.5px;font-weight:700;color:#0a58ca;word-break:break-all;' +
+    'background:#f8fafc;border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:6px 0 10px">' +
+    h(d.duong_dan || '') + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">' +
+    posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
+    posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Đã có khoá' : '⚠️ Chưa có khoá', !!d.co_khoa) +
+    '</div>' +
+    (d.sua_duoc ? '<button class="btn gh" id="seSinh" style="margin:0;width:100%">🔑 Sinh khoá mới và bật nhận</button>' : '') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+    'Khoá chỉ hiện ra <b>một lần</b> ngay sau khi sinh. Dán nó vào tab Bảo mật của webhook ' +
+    'bên SePay. Không có khoá thì ai biết đường dẫn cũng bắn được giao dịch giả vào sổ.</div></div>';
+
+  var k = d.keo || {};
+  html += '<div class="sec">Nhịp kéo hàng giờ</div><div class="card" style="padding:2px 14px 10px">' +
+    htCtDong('Trạng thái', k.bat ? 'Đang chạy' : 'Đang tắt') +
+    htCtDong('Lần kéo gần nhất', k.lan_cuoi || '') +
+    htCtDong('Kết quả', k.ket_qua || '') +
+    htCtDong('Con trỏ since_id', k.con_tro || '') +
+    '<div style="font-size:11.5px;color:#98a2b3;padding:8px 0 0;line-height:1.6">' +
+    'Con trỏ chỉ tiến, không lùi. Giao dịch nào có mã nhỏ hơn con trỏ mà lúc đó tài khoản ' +
+    'chưa khai thì bị bỏ qua <b>vĩnh viễn</b> - phải nạp bù mới lấy lại được.</div></div>';
+
+  html += '<div class="sec">Bản đồ tài khoản</div><div class="card" style="padding:2px 14px 10px">' +
+    Object.keys(d.ban_do || {}).map(function (so) {
+      return htCtDong(so, (d.ban_do || {})[so]);
+    }).join('') +
+    ((d.chua_map || []).length
+      ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+        'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6">Đang có giao dịch của ' +
+        '<b>' + h((d.chua_map || []).join(', ')) + '</b> bị bỏ qua vì chưa khai trong bản đồ. ' +
+        'Khai bổ sung trong SePay Settings rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
+      : '') + '</div>';
+
+  html += '<div class="sec">Số dòng đang có trong sổ</div><div class="card" style="padding:2px 14px 10px">' +
+    (d.tai_khoan || []).map(function (t) {
+      return htCtDong(t.bank_account || '', t.so + ' dòng, từ ' + (t.dau || '') + ' đến ' + (t.cuoi || ''));
+    }).join('') + '</div>';
+
+  if (d.sua_duoc) {
+    html += '<div class="sec">Nạp bù sao kê cũ</div><div class="card" style="padding:12px 14px">' +
+      '<div style="font-size:12.5px;color:#374151;line-height:1.65;margin-bottom:10px">' +
+      'Đi lấy lại những giao dịch con trỏ đã bỏ qua. Thao tác này <b>chỉ thêm</b> dòng mới, ' +
+      'không sửa và không xoá dòng nào, chạy lại bao nhiêu lần cũng ra kết quả như lần đầu.</div>' +
+      '<input class="tin" id="seTk" placeholder="Số tài khoản (để trống là tất cả)" style="margin-bottom:8px">' +
+      '<div style="display:flex;gap:8px">' +
+      '<input class="tin" id="seTu" type="date" style="flex:1">' +
+      '<input class="tin" id="seDen" type="date" style="flex:1"></div>' +
+      '<button class="btn gh" id="seThu" style="margin:10px 0 0;width:100%">🔍 Chạy thử, chỉ đếm</button>' +
+      '<button class="btn" id="seThat" style="margin:8px 0 0;width:100%">⬇️ Nạp bù thật</button>' +
+      '<div id="seKq" style="margin-top:10px"></div></div>';
+  }
+
+  var b = frame('SePay', html);
+  var nSinh = document.getElementById('seSinh');
+  if (nSinh) nSinh.onclick = seSinhKhoa;
+  var nThu = document.getElementById('seThu');
+  if (nThu) nThu.onclick = function () { seNapBu(0); };
+  var nThat = document.getElementById('seThat');
+  if (nThat) nThat.onclick = function () { seNapBu(1); };
+  return b;
+}
+
+async function seSinhKhoa() {
+  var r;
+  try { r = await api('vagabond.sepay.dat_khoa', {}); }
+  catch (e) { toast((e && e.message) || 'Không sinh được khoá', 5000); return; }
+  /* Hiện nguyên văn đúng một lần. Cất xong thì chính máy chủ cũng chỉ đọc
+     lại được để so sánh, không bày ra màn nào nữa. */
+  frame('Khoá webhook SePay',
+    '<div style="font-size:13px;color:#374151;line-height:1.65;margin-bottom:11px">' +
+    'Dán hai dòng này sang SePay: đường dẫn vào ô <b>URL nhận webhook</b>, khoá vào tab ' +
+    '<b>Bảo mật</b> (kiểu API Key, tên header <code>Authorization</code>, giá trị ' +
+    '<code>Apikey &lt;khoá&gt;</code>). Khoá này <b>không hiện lại</b> lần nữa.</div>' +
+    '<div style="font-size:12px;color:#6b7280">Đường dẫn</div>' +
+    '<div style="font-size:12.5px;font-weight:700;word-break:break-all;background:#f8fafc;' +
+    'border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:4px 0 11px">' + h(r.duong_dan) + '</div>' +
+    '<div style="font-size:12px;color:#6b7280">Khoá</div>' +
+    '<div style="font-size:13px;font-weight:800;word-break:break-all;background:#fffbeb;' +
+    'border:1px solid #fde68a;border-radius:9px;padding:10px 11px;margin-top:4px">' + h(r.khoa) + '</div>');
+}
+
+async function seNapBu(that) {
+  var tk = (document.getElementById('seTk') || {}).value || '';
+  var tu = (document.getElementById('seTu') || {}).value || '';
+  var den = (document.getElementById('seDen') || {}).value || '';
+  var o = document.getElementById('seKq');
+  if (o) o.innerHTML = '<div style="font-size:12.5px;color:#6b7280">Đang gọi sang SePay...</div>';
+  var r;
+  try {
+    r = await api('vagabond.sepay.nap_bu', { so_tk: tk, tu_ngay: tu, den_ngay: den, that: that ? 1 : 0 });
+  } catch (e) {
+    if (o) o.innerHTML = '<div style="font-size:12.5px;color:#b3261e">' + h((e && e.message) || 'Không nạp được') + '</div>';
+    return;
+  }
+  var chua = Object.keys(r.chua_map || {});
+  if (o) {
+    o.innerHTML =
+      '<div style="font-size:12.5px;color:#374151;line-height:1.7;background:#f8fafc;' +
+      'border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px">' +
+      '<b>' + (r.that ? 'Đã nạp thật' : 'Chạy thử, chưa ghi gì') + '</b><br>' +
+      'Đọc từ SePay: ' + r.tong_doc + ' giao dịch<br>' +
+      (r.that ? 'Đã thêm: ' : 'Sẽ thêm: ') + '<b>' + r.them + '</b> dòng<br>' +
+      'Đã có sẵn: ' + r.da_co + ' dòng<br>' +
+      'Bỏ qua vì chưa khai tài khoản: ' + r.bo_qua +
+      (chua.length ? ' (' + h(chua.join(', ')) + ')' : '') + '</div>';
+  }
+  if (that) scrSePay();
+}
 /* ---------- Doi chieu hoa don mua (Uyen 12/08/2026) ----------
 
    Uyen noi phieu xong bam Luu ma trang thai khong doi, vi con thieu nut
@@ -23244,15 +23500,18 @@ async function scrBgXem(name) {
     html += '<div class="hub" style="cursor:default">' + bgAnhO(x.hinh, 42) + '<div class="ht" style="margin-left:10px"><div class="h1">' + h(x.ten_mon) + (x.loai === 'Phí' ? ' <span style="font-size:11px;color:#b45309">(phí)</span>' : '') + '</div>' +
       (x.ten_en ? '<div class="h2" style="font-style:italic">' + h(x.ten_en) + '</div>' : '') +
       '<div class="h2">' + money(x.so_luong) + ' ' + h(x.dvt || '') + ' × ' + money(x.don_gia) + ' đ' +
-      (x.chiet_khau ? ' · CK ' + x.chiet_khau + '%' : '') + '</div></div>' +
+      (x.chiet_khau ? ' · CK ' + (x.kieu_ck === 'So tien' ? money(x.chiet_khau) + ' đ' : x.chiet_khau + '%') : '') + '</div></div>' +
       '<b style="white-space:nowrap;font-size:13px">' + money(x.thanh_tien) + '</b></div>';
   });
   html += '</div>';
   html += '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between"><span>Cộng tiền hàng</span><b>' + money(d.tam_tinh) + ' đ</b></div>' +
-    (d.chiet_khau_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu ' + d.chiet_khau_pt + '%</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
+    /* Man chi doc nay bi bo quen o dot v228: no in thang chiet_khau_pt kem
+       dau %, nen mot to giam 2.401.376 d hien ra "Chiet khau 2401376%".
+       Loan Anh bao ngay 19/08/2026. Cung mot phep doc voi man sua. */
+    (d.chiet_khau_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu' + (d.kieu_ck === 'So tien' ? '' : ' ' + (Number(d.chiet_khau_pt) || 0) + '%') + '</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
     (d.phi_giao ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Phí giao hàng</span><b>' + money(d.phi_giao) + ' đ</b></div>' : '') +
-    (d.thue_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Thuế GTGT ' + d.thue_pt + '%</span><b>' + money(d.thue_tien) + ' đ</b></div>' : '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT</div>') +
+    bgXemThueHtml(d) +
     '<hr><div style="display:flex;justify-content:space-between"><span><b>TỔNG CỘNG</b></span><b style="font-size:17px">' + money(d.tong_cong) + ' đ</b></div>' +
     (d.dat_coc_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đặt cọc ' + d.dat_coc_pt + '%</span><b style="color:#0a8a4a">' + money(d.dat_coc_tien) + ' đ</b></div>' : '') +
     '</div>';
@@ -24046,6 +24305,36 @@ function bgTomTatThueHtml() {
   }
   return ra;
 }
+
+/* Khoi thue cua man CHI DOC.
+
+   Truoc 19/08/2026 cho nay chi biet hai truong hop: co thue_tien thi in
+   "Thue GTGT <thue_pt>%", khong thi in "Don gia da bao gom VAT". Ca hai
+   deu doc o thue_pt CUA TO, trong khi to co the dang tinh thue theo tung
+   dong - luc do thue_pt cua to khong con y nghia gi. Ket qua la man hinh
+   noi mot dang con to PDF in mot dang. */
+function bgXemThueHtml(d) {
+  var d1 = function (nhan, tien) {
+    return '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>' +
+      nhan + '</span><b>' + money(tien) + ' đ</b></div>';
+  };
+  if (d.kieu_thue === 'Theo từng dòng') {
+    var muc = ((d.tom_tat_thue || {}).theo_muc || []).filter(function (m) {
+      return Number(m.tien_hang) || Number(m.tien_thue);
+    });
+    var ra = d1('Cộng tiền hàng chưa thuế', (d.tom_tat_thue || {}).tien_hang || 0);
+    if (muc.length > 1) {
+      muc.forEach(function (m) { ra += d1('Thuế GTGT ' + m.thue_pt + '% trên ' + money(m.tien_hang), m.tien_thue); });
+      ra += d1('Cộng tiền thuế GTGT', (d.tom_tat_thue || {}).tien_thue || 0);
+    } else {
+      ra += d1('Thuế GTGT ' + (muc.length ? muc[0].thue_pt : 0) + '%', (d.tom_tat_thue || {}).tien_thue || 0);
+    }
+    return ra;
+  }
+  if (Number(d.thue_tien)) return d1('Thuế GTGT ' + (Number(d.thue_pt) || 0) + '%', d.thue_tien);
+  return '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT</div>';
+}
+
 
 function bgTongHtml() {
   var d = bgTay;
