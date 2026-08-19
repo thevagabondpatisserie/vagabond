@@ -37,6 +37,10 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 CUA_NGO = {
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi", "doi_soat", "ds", "ds_ngan_hang",
+		# gan_gd_vao them ngay 19/08/2026: gan tay mot khoan tien VAO cho
+		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
+		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
+		"gan_gd_vao",
 		"sepay_tien_ra", "tao", "tao_tien_du", "thong_tin_chuyen_khoan",
 		"tinh_trang", "tu_choi", "xem_tien_du",
 	],
@@ -65,7 +69,7 @@ def _ten_whitelist(duong_dan):
 	return sorted(ten)
 
 
-@ca("cửa ngõ: hoàn tiền mở đúng 12 hàm ra ngoài, không thừa không thiếu")
+@ca("cửa ngõ: hoàn tiền mở đúng 13 hàm ra ngoài, không thừa không thiếu")
 def _():
 	# Ham `dong_bo_so_hddt` PHAI KHONG co trong danh sach: no ghi vao co so
 	# du lieu va chi duoc goi tu ben trong. Neu no loi ra day nghia la
