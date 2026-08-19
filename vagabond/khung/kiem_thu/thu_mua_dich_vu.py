@@ -111,22 +111,23 @@ def _():
 
 # ------------------------------------------------------- gom mot lan thoi
 
-@ca("gom dòng: lưu lại lần hai không gom đè lên lần một")
+@ca("khớp rồi: lưu lại lần hai không gom đè lên lần một")
 def _():
-	dung("một dòng đúng số là đã gom rồi", md.da_gom_roi(1, 22068519, 22068519))
-	dung("một dòng lệch một đồng vẫn coi là đã gom",
-		md.da_gom_roi(1, 22068520, 22068519))
-	dung("929 dòng thì chưa gom", not md.da_gom_roi(929, 120111, 22068519))
-	dung("một dòng nhưng sai số thì gom lại",
-		not md.da_gom_roi(1, 26609274, 22068519))
-	dung("không dòng nào thì chưa gom", not md.da_gom_roi(0, 0, 22068519))
+	dung("đúng gốc là khớp rồi", md.da_khop_roi(22068519, 22068519))
+	dung("lệch một đồng vẫn coi là khớp", md.da_khop_roi(22068520, 22068519))
+	dung("cộng thô 26,6 triệu thì chưa khớp", not md.da_khop_roi(26609274, 22068519))
+	dung("không dòng nào thì chưa khớp", not md.da_khop_roi(0, 22068519))
 
 
-@ca("gom dòng: kế toán đã tách nhiều dòng theo tài khoản thì không gom đè")
+@ca("khớp rồi: kế toán tách nhiều dòng theo tài khoản mà tổng đúng thì không đụng vào")
 def _():
 	# Anh Viet muon cho tach dong tong thanh vai dong theo tai khoan, vi du
-	# phan giao khach vao 6417 phan giao bep vao 6277. Gom de la mat cong do.
-	dung("hai dòng là không gom nữa", not md.da_gom_roi(2, 11000000, 22068519))
+	# phan giao khach vao 6417 phan giao bep vao 6277. Xet theo TONG chu
+	# khong theo so dong nen tach bao nhieu dong cung khong bi gom de.
+	dung("hai dòng cộng đúng gốc thì để yên",
+		md.da_khop_roi(11000000 + 11068519, 22068519))
+	dung("hai dòng cộng sai gốc thì phải cân lại",
+		not md.da_khop_roi(11000000 + 11000000, 22068519))
 
 
 # ---------------------------------------------------------- dung mot dong
@@ -248,3 +249,89 @@ def _():
 	dung("tên dòng ghi chú vào tập ghi chú", "Ghi chú, không tính tiền" in gc)
 	dung("dòng hàng thường không vào tập nào", "Cước phí vận chuyển" not in (ck | gc))
 	la("chi tiết rỗng ra hai tập rỗng", len(md.ten_theo_tinh_chat([])[0]), 0)
+
+
+# ------------------------------------- phi ngoai thue, ve may bay Viet Thinh
+
+# Ba hoa don that cua CONG TY TNHH MTV THUONG MAI DICH VU DU LICH VIET THINH,
+# ky hieu C26TVT. Ve may bay co phi xuat ve nam NGOAI co so tinh thue: khong
+# co trong tien truoc thue, khong co trong chi tiet, khong co trong ke thue,
+# nhung van nam trong tong tien. Tren ban in no o mot bang rieng ten
+# "Ten loai phi" (VMBTHPKhac, VMBTHTKhac).
+VT_752 = {"so_hd": "752", "tien_truoc_thue": 1641499, "tien_thue": 131320,
+	"tong_tien": 1850000}
+VT_768 = {"so_hd": "768", "tien_truoc_thue": 1882240, "tien_thue": 150579,
+	"tong_tien": 2150000}
+VT_797 = {"so_hd": "797", "tien_truoc_thue": 2345203, "tien_thue": 187616,
+	"tong_tien": 2650000}
+
+# Ho kinh doanh khong co thue: m-invoice bo trong ca hai o.
+HKD = {"so_hd": "19252", "tien_truoc_thue": 0, "tien_thue": 0, "tong_tien": 320760}
+
+
+@ca("gốc dòng hàng: lấy tổng tiền trừ thuế, KHÔNG lấy tiền trước thuế")
+def _():
+	# Day la cho code ban dau lam sai. Hai con so chi trung nhau khi hoa don
+	# khong co khoan nao nam ngoai co so tinh thue.
+	la("Việt Thịnh 752", md.goc_dong_hang(VT_752), 1718680)
+	la("Việt Thịnh 768", md.goc_dong_hang(VT_768), 1999421)
+	la("Việt Thịnh 797", md.goc_dong_hang(VT_797), 2462384)
+	dung("gốc KHÁC tiền trước thuế khi có phí",
+		md.goc_dong_hang(VT_752) != VT_752["tien_truoc_thue"])
+
+
+@ca("gốc dòng hàng: một công thức xử đúng cả ba nhóm hoá đơn đã gặp")
+def _():
+	la("GSM không có phí thì gốc trùng tiền trước thuế",
+		md.goc_dong_hang(GSM_DAU), 22068519)
+	la("hộ kinh doanh không có thuế thì gốc là trọn tổng tiền",
+		md.goc_dong_hang(HKD), 320760)
+	la("Việt Thịnh có phí thì gốc lớn hơn tiền trước thuế",
+		md.goc_dong_hang(VT_752), 1718680)
+
+
+@ca("gốc dòng hàng: cộng thuế vào gốc phải ra đúng tổng tiền hoá đơn")
+def _():
+	# Bat bien cua ca mo dun. Sai cho nay la sai tat ca.
+	for nhan, d in [("GSM", GSM_DAU), ("752", VT_752), ("768", VT_768),
+			("797", VT_797), ("hộ kinh doanh", HKD)]:
+		dung("%s: gốc cộng thuế bằng tổng tiền" % nhan,
+			not md.lech_qua_nguong(
+				md.goc_dong_hang(d) + md.so_theo_dau_hoa_don(d)[1], d["tong_tien"]))
+
+
+@ca("phí ngoài thuế: đọc ra đúng số phí của từng hoá đơn Việt Thịnh")
+def _():
+	la("752", md.phi_ngoai_thue(VT_752), 77181)
+	la("768", md.phi_ngoai_thue(VT_768), 117181)
+	la("797", md.phi_ngoai_thue(VT_797), 117181)
+
+
+@ca("phí ngoài thuế: hoá đơn không có phí thì bằng không, không đẻ dòng thừa")
+def _():
+	la("GSM", md.phi_ngoai_thue(GSM_DAU), 0)
+	la("hộ kinh doanh", md.phi_ngoai_thue(HKD), 0)
+	la("đầu hoá đơn rỗng", md.phi_ngoai_thue({}), 0)
+
+
+@ca("dòng phí: dựng đúng một dòng, tên cố định để lần lưu sau nhận lại được")
+def _():
+	d = md.dong_phi("752", 77181, "6427 - Chi phí dịch vụ mua ngoài - TV", "Main - TV")
+	la("số lượng", d["qty"], 1)
+	la("số tiền", d["amount"], 77181)
+	la("tên món cố định", d["item_name"], md.TEN_DONG_PHI)
+	la("tài khoản chi phí", d["expense_account"], "6427 - Chi phí dịch vụ mua ngoài - TV")
+	dung("mô tả có số hoá đơn", "752" in d["description"])
+	dung("tên món nói rõ là không chịu thuế", "không chịu thuế" in d["item_name"])
+
+
+@ca("vé máy bay: hai dòng cộng lại đúng gốc, cộng thuế ra đúng tổng hoá đơn")
+def _():
+	# Day la ket qua ke toan mong doi cua luong Mua dich vu voi hoa don 752.
+	truoc, thue, tong = md.so_theo_dau_hoa_don(VT_752)
+	phi = md.phi_ngoai_thue(VT_752)
+	la("dòng vé chịu thuế", truoc, 1641499)
+	la("dòng phí không chịu thuế", phi, 77181)
+	la("hai dòng cộng lại", truoc + phi, md.goc_dong_hang(VT_752))
+	la("cộng thuế ra tổng hoá đơn", truoc + phi + thue, tong)
+	la("tổng hoá đơn", tong, 1850000)
