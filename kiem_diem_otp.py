@@ -3577,6 +3577,80 @@ la("ba o moi khong o nao mang default",
    [f["fieldname"] for f in _dt35["fields"]
     if f["fieldname"] in ("nguoi_ung", "ten_nguoi_ung", "so_ncc") and f.get("default")], [])
 
+# ==========================================================================
+# NHOM 37: doi soat phieu hoan tien phai giu duoc dau da khop
+#
+# Su co that, phieu HT-2026-00899 ngay 19/08/2026. Chi Dung hoi may co tu
+# doi soat phieu hoan tien khong, tien da chi tu MB Biz roi. Doc du lieu
+# that thi:
+#
+#   Tien 185.000 d DA RA khoi tai khoan MB luc 18:00:48.
+#   Sao ke co dung dong do, noi dung "THE VAGABOND HOAN TIEN HDB-26-08-00581".
+#   Phieu HT-2026-00899 tro dung hoa don HDB-26-08-00581, dung so tien.
+#   Nhip doi soat chay luc 18:36 va KHOP dung phieu do.
+#   Nhung phieu van nam o "Cho chi", da_doi_soat ~ 0.
+#
+# Vi sao: buoc sinh chung tu ngay sau do nem NameError (_tien_vn chua bao
+# gio duoc dinh nghia), khoi except goi frappe.db.rollback(), va cai
+# rollback do xoa luon dau "da doi soat" vua ghi - vi hai viec nam chung
+# mot giao dich co so du lieu. Cu 35 phut moi gio lai khop, lai hong, lai
+# xoa dau. Khong ai nhin thay gi.
+#
+# Nhom nay khoa lai ca hai: ham bi thieu, va ranh gioi giao dich.
+# ==========================================================================
+print("\n[37] Doi soat phieu hoan tien giu duoc dau da khop")
+
+_ht37 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_js37 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+
+# --- Ham bi thieu: kiem BANG CACH CHAY, khong bang doc mat ---
+_m37 = re.search(r"^def _tien_vn\(.*?(?=^@|^def |\Z)", _ht37, re.S | re.M)
+if not _m37:
+	la("hoan_tien.py co dinh nghia _tien_vn", False, True)
+else:
+	_mt37 = {}
+	exec(compile(_m37.group(0), "hoan_tien:_tien_vn", "exec"), _mt37, _mt37)
+	_tvn = _mt37["_tien_vn"]
+	for _v37, _mong37 in ((0, "0"), (1000, "1.000"), (185000, "185.000"),
+	                      (1234567, "1.234.567"), (None, "0"), ("", "0")):
+		la("_tien_vn(%r)" % _v37, _tvn(_v37), _mong37)
+
+# MOI cho goi _tien_vn deu phai co ham that dung sau. Ca kiem nay bat dung
+# cai da no: goi mot ham khong ton tai.
+_goi37 = len(re.findall(r"_tien_vn\(", _ht37))
+la("co it nhat ba cho dang goi _tien_vn", _goi37 >= 4, True)
+
+# --- Ranh gioi giao dich: dau da khop phai duoc ghi TRUOC khi sinh chung tu ---
+_than37 = _ht37.split("def doi_soat(")[1].split("\n@frappe.whitelist()")[0]
+_vt_dau = _than37.find('"trang_thai": "Da doi soat",')
+_vt_commit = _than37.find("frappe.db.commit()", _vt_dau)
+_vt_sinh = _than37.find("_sinh_chung_tu(ho)")
+_vt_rollback = _than37.find("frappe.db.rollback()")
+la("co commit ngay sau khi danh dau da doi soat", _vt_dau < _vt_commit < _vt_sinh, True)
+la("rollback nam SAU commit nen khong xoa duoc dau da khop", _vt_commit < _vt_rollback, True)
+la("hong sinh chung tu thi ghi loi len chinh phieu",
+   'DT, d["name"], "loi_sinh_ct",' in _ht37, True)
+la("cau bao loi noi ro phai lam gi (QT-24)",
+   "Nhờ kế toán bấm lại nút Đối soát lệnh chi" in _ht37, True)
+la("phieu co o giu loi", '"fieldname": "loi_sinh_ct"' in _ht37, True)
+la("danh sach tra ra o loi de man hinh bay", '"so_hddt", "loi_sinh_ct",' in _ht37, True)
+la("man danh sach bay canh bao", "x.loi_sinh_ct" in _js37, True)
+la("man chi tiet bay canh bao", "if (d.loi_sinh_ct) {" in _js37, True)
+
+# --- Xuat Excel cho chi Dung ---
+la("co ham xuat Excel", "def xuat_excel(trang_thai=\"\", tim=\"\", so_dong=500):" in _ht37, True)
+la("xuat dung bo loc dang hien tren man, khong viet lai truy van",
+   "kq = ds(trang_thai=trang_thai, so_dong=so_dong, tim=tim)" in _ht37, True)
+# So tai khoan bat dau bang so 0: de dang so thi Excel an mat so 0 dau, va
+# ke toan chuyen nham tai khoan.
+la("so tai khoan ep thanh chuoi trong Excel", '"\'" + str(r.get("so_tk") or "")' in _ht37, True)
+la("Excel co cot canh bao loi sinh chung tu", '"Cảnh báo",' in _ht37, True)
+la("man hinh co nut xuat Excel", "id=\"htDsXls\"" in _js37, True)
+la("nut Excel gui dung chip va o tim dang chon",
+   "trang_thai: htDsLoc === 'tat_ca' ? '' : htDsLoc, tim: htDsTim" in _js37, True)
+_cn37 = open("vagabond/khung/kiem_thu/thu_cua_ngo.py", encoding="utf-8").read()
+la("xuat_excel nam trong danh sach cua ngo", '"xem_tien_du", "xuat_excel",' in _cn37, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
