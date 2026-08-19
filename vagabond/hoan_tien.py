@@ -106,6 +106,7 @@ NHAN_TRANG_THAI = {
 	"Cho chi": "Chờ chi",
 	"Da chi": "Đã chi",
 	"Da doi soat": "Đã đối soát",
+	"Hoan thanh": "Hoàn thành",
 	"Da huy": "Đã huỷ / Từ chối",
 }
 
@@ -233,6 +234,38 @@ TRUONG_MOI = {
 		{
 			"fieldname": "nguoi_gan_gd_vao", "label": "Người đối chiếu",
 			"fieldtype": "Data", "insert_after": "gd_vao", "read_only": 1,
+		},
+		# Luong KET THUC phieu hoan tien (anh Viet 19/08/2026): *"Thiet ke
+		# nut de dinh kem uy nhiem chi cho phieu hoan tien sau khi da doi
+		# soat -> chi Dung vao dinh kem file cho sales lay de gui khach ->
+		# hoan thanh -> may tu ghi so. Hien chua co luong ket thuc cho cai
+		# phieu nay."*
+		#
+		# Vi sao van giu HAI nhip chu khong ghi so ngay luc dinh tep: chi
+		# Dung chot 16/08 rang nut ghi so phai nam trong tay ke toan. Dinh
+		# tep la mot viec, quyet ghi so la mot viec khac - va giua hai nhip
+		# do la khoang thoi gian Sales tai tep ve gui khach. Gop lam mot thi
+		# mat dung cai khoang ay.
+		#
+		# Ban than TEP UNC khong luu o day. No dinh vao Payment Entry, vi
+		# hook chan_thieu_uy_nhiem_chi dem tep tren Payment Entry chu khong
+		# dem o day; va vi o hoa don nay con dinh anh bang chung cua Sales,
+		# tron hai loai vao mot cho thi man hinh khong tach ra duoc nua.
+		{
+			"fieldname": "nguoi_dinh_unc", "label": "Người đính uỷ nhiệm chi",
+			"fieldtype": "Data", "insert_after": "ngay_gan_gd_vao", "read_only": 1,
+		},
+		{
+			"fieldname": "ngay_dinh_unc", "label": "Lúc đính uỷ nhiệm chi",
+			"fieldtype": "Datetime", "insert_after": "nguoi_dinh_unc", "read_only": 1,
+		},
+		{
+			"fieldname": "nguoi_hoan_thanh", "label": "Người kết thúc phiếu",
+			"fieldtype": "Data", "insert_after": "ngay_dinh_unc", "read_only": 1,
+		},
+		{
+			"fieldname": "ngay_hoan_thanh", "label": "Lúc kết thúc phiếu",
+			"fieldtype": "Datetime", "insert_after": "nguoi_hoan_thanh", "read_only": 1,
 		},
 		{
 			"fieldname": "ngay_gan_gd_vao", "label": "Lúc đối chiếu",
@@ -1887,6 +1920,18 @@ def ds(trang_thai="", so_dong=100, tim=""):
 			PE, filters={"name": ["in", ma_pc]}, fields=["name", "docstatus"], limit_page_length=0
 		):
 			pc[p["name"]] = cint(p["docstatus"])
+	# Da co uy nhiem chi chua - dem mot luot cho ca trang chu khong moi
+	# dong mot cau. Chi Dung can nhin luot la biet phieu nao con cho minh
+	# dinh giay to, khong phai mo tung phieu ra xem.
+	unc = {}
+	if ma_pc:
+		for f in frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": PE, "attached_to_name": ["in", ma_pc]},
+			fields=["attached_to_name"],
+			limit_page_length=0,
+		):
+			unc[f["attached_to_name"]] = unc.get(f["attached_to_name"], 0) + 1
 	# Anh bang chung: ke toan ngoi xa quay, cai duy nhat ho co de quyet la
 	# anh Sales chup. Tra thang duong dan de man ve thanh o anh bam xem to.
 	anh = {}
@@ -1914,6 +1959,7 @@ def ds(trang_thai="", so_dong=100, tim=""):
 	for d in ds_:
 		d["ten_khach"] = ten.get(d.get("khach") or "", d.get("khach") or "")
 		d["phieu_chi_da_ghi"] = 1 if pc.get(d.get("phieu_chi") or "") == 1 else 0
+		d["co_unc"] = 1 if unc.get(d.get("phieu_chi") or "") else 0
 		d["anh"] = anh.get(d["name"], [])
 		that = so_hddt.get(d.get("hoa_don") or "", "")
 		if that and that != (d.get("so_hddt") or "").strip():
@@ -1923,7 +1969,7 @@ def ds(trang_thai="", so_dong=100, tim=""):
 	# Dem theo dung o tim dang go, neu khong thi go "Nhung" ra 3 dong ma
 	# chip van bao 40, va ke toan khong biet tin cai nao.
 	dem = {}
-	for t in ("Cho chi", "Da chi", "Da doi soat", "Da huy"):
+	for t in ("Cho chi", "Da chi", "Da doi soat", "Hoan thanh", "Da huy"):
 		l2 = dict(loc)
 		l2["trang_thai"] = t
 		dem[t] = len(
@@ -2002,7 +2048,7 @@ def xuat_excel(trang_thai="", tim="", so_dong=500):
 		[
 			"Mã phiếu", "Ngày lập", "Khách", "Loại phiếu", "Hoá đơn gốc",
 			"Số tiền", "Trạng thái", "Đã đối soát", "Mã giao dịch ngân hàng",
-			"Hoá đơn trả hàng", "Phiếu chi", "Số hoá đơn điện tử",
+			"Hoá đơn trả hàng", "Phiếu chi", "Uỷ nhiệm chi", "Số hoá đơn điện tử",
 			"Chủ tài khoản", "Số tài khoản", "Ngân hàng", "Nội dung chuyển khoản",
 			"Người duyệt", "Lý do", "Cảnh báo",
 		],
@@ -2020,6 +2066,10 @@ def xuat_excel(trang_thai="", tim="", so_dong=500):
 			r.get("ma_gd") or "",
 			r.get("hoa_don_tra") or "",
 			r.get("phieu_chi") or "",
+			# Cot nay chinh la cai chi Dung dung de biet phieu nao con thieu
+			# giay to goc. Thieu UNC thi ho so khong giai trinh duoc, du tien
+			# da ra va sao ke da khop.
+			"Đã đính" if cint(r.get("co_unc")) else "Chưa đính",
 			r.get("so_hddt") or "",
 			r.get("ten_tk") or "",
 			# Ep chuoi: so tai khoan bat dau bang so 0 ma de dang so thi
@@ -2138,6 +2188,27 @@ def chi_tiet(ho_so):
 		)
 		ra["gd_vao_ct"] = g
 	ra["duoc_doi_chieu"] = 1 if _duoc_tu_choi() else 0
+
+	# Uy nhiem chi va luong ket thuc. Ba co duoi day quyet dinh man hinh ve
+	# nut nao, va deu tinh o may chu chu khong de man tu suy (QT-19).
+	ra["unc"] = _ds_unc(d.phieu_chi)
+	ra["co_unc"] = 1 if ra["unc"] else 0
+	# Duoc dinh UNC: da doi soat, co phieu chi con song, va nguoi dang xem
+	# la ke toan. Thieu mot trong ba thi man khong ve nut, de khong ai bam
+	# vao mot cai nut chi de nhan lai mot dong loi.
+	ra["dinh_duoc_unc"] = 1 if (
+		_duoc_tu_choi()
+		and cint(d.da_doi_soat)
+		and d.phieu_chi
+		and ra["phieu_chi_trang_thai"] in ("Bản nháp", "Đã ghi sổ")
+		and d.trang_thai != "Da huy"
+	) else 0
+	# Duoc bam Hoan thanh: nhu tren, cong them DA CO tep UNC va phieu chua
+	# dong. Phieu chi da ghi so tu truoc van cho bam, vi luc do viec con lai
+	# chi la dong ho so.
+	ra["ket_thuc_duoc"] = 1 if (
+		ra["dinh_duoc_unc"] and ra["co_unc"] and d.trang_thai != "Hoan thanh"
+	) else 0
 	return ra
 
 
@@ -2277,4 +2348,248 @@ def tu_choi(ho_so, ly_do=None):
 		"ho_so": ho_so,
 		"ghi_chu": "Đã từ chối phiếu %s. Phiếu chuyển sang Đã huỷ và không "
 		"còn được máy tự đối soát nữa." % ho_so,
+	}
+
+
+# ------------------------------------------------- ket thuc phieu hoan tien
+#
+# Anh Viet 19/08/2026: *"Thiet ke nut de dinh kem uy nhiem chi cho phieu
+# hoan tien sau khi da doi soat -> chi Dung vao dinh kem file cho sales lay
+# de gui khach -> hoan thanh -> may tu ghi so. Hien chua co luong ket thuc
+# cho cai phieu nay."*
+#
+# Truoc hom nay phieu hoan tien di den "Da doi soat" roi dung lai o do mai
+# mai. Muon ghi so, ke toan phai roi man /bep, vao Desk, tim dung Payment
+# Entry giua hang tram phieu, dinh tep vao do roi bam Submit. Khong ai lam
+# duoc viec do neu khong thuoc duong di, nen tren thuc te chung tu nam nhap
+# vo thoi han.
+#
+# Ba ham duoi day dung lai doan duong ay ngay tren man hoan tien.
+
+
+def _pe_cua(ho_so):
+	"""Payment Entry cua ho so, kem docstatus. Nem loi neu thieu.
+
+	Tach rieng vi ca ba ham ket thuc deu can dung mot phep kiem, va thong
+	bao loi phai chi duong ra chu khong chi bao hong (QT-24).
+	"""
+	d = frappe.get_doc(DT, ho_so)
+	if d.trang_thai == "Da huy":
+		frappe.throw(
+			"Phiếu %s đã huỷ hoặc bị từ chối nên không kết thúc được. Nếu tiền "
+			"đã lỡ chuyển đi thì lập phiếu thu lại, đừng mở lại phiếu này." % ho_so
+		)
+	if not cint(d.da_doi_soat):
+		frappe.throw(
+			"Phiếu %s chưa đối soát được với sao kê ngân hàng nên chưa có phiếu "
+			"chi để đính uỷ nhiệm chi. Vào thẻ Giao dịch ngân hàng bấm Đối soát, "
+			"hoặc gắn tay giao dịch tiền ra, rồi quay lại đây." % ho_so
+		)
+	if not d.phieu_chi:
+		frappe.throw(
+			"Phiếu %s đã đối soát nhưng máy chưa sinh được phiếu chi. Xem dòng "
+			"\"Lỗi khi sinh chứng từ\" ngay trên màn này để biết vướng ở đâu, "
+			"báo em rồi hãy đính uỷ nhiệm chi." % ho_so
+		)
+	if not frappe.db.exists(PE, d.phieu_chi):
+		frappe.throw(
+			"Phiếu chi %s ghi trên hồ sơ nhưng không còn trên hệ thống. Dừng lại "
+			"ở đây và báo em, đừng lập phiếu chi mới đè lên." % d.phieu_chi
+		)
+	return d, cint(frappe.db.get_value(PE, d.phieu_chi, "docstatus"))
+
+
+def _dem_unc(ma_pe):
+	"""So tep dang dinh tren mot Payment Entry. Dem THAT o may chu.
+
+	QT-19: khong tin co unc_da_dinh nao tren man, cung khong tin truong
+	ngay_dinh_unc. Tep co the bi go tren Desk sau khi da ghi vet, va luc do
+	con so duy nhat dung la con so dem ngay luc hoi.
+	"""
+	try:
+		return cint(
+			frappe.db.count("File", {"attached_to_doctype": PE, "attached_to_name": ma_pe})
+		)
+	except Exception:
+		return 0
+
+
+def _ds_unc(ma_pe):
+	"""Danh sach tep UNC de Sales tai ve gui khach."""
+	if not ma_pe:
+		return []
+	try:
+		return [
+			{"url": f["file_url"], "ten": f["file_name"], "luc": str(f["creation"])}
+			for f in frappe.get_all(
+				"File",
+				filters={"attached_to_doctype": PE, "attached_to_name": ma_pe},
+				fields=["file_url", "file_name", "creation"],
+				order_by="creation asc",
+				limit_page_length=0,
+			)
+		]
+	except Exception:
+		return []
+
+
+@frappe.whitelist()
+def dinh_unc(ho_so=None, ten=None, noi_dung=None):
+	"""Chi Dung dinh uy nhiem chi vao phieu chi cua mot ho so hoan tien.
+
+	KHONG ghi so o buoc nay. Dinh xong thi Sales tai tep ve gui khach, roi
+	ke toan moi bam Hoan thanh. Xem ghi chu o dau muc nay ve vi sao hai
+	nhip.
+
+	Tep dinh vao PAYMENT ENTRY chu khong vao ho so, vi hook
+	chan_thieu_uy_nhiem_chi dem tep tren Payment Entry, va vi ho so con
+	dang giu anh bang chung cua Sales.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _duoc_tu_choi():
+		frappe.throw(
+			"Chỉ kế toán hoặc giám đốc mới đính uỷ nhiệm chi được. Nhờ chị Dung "
+			"đính giúp rồi anh chị tải về gửi khách."
+		)
+	if not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+
+	d, ds_pe = _pe_cua(ho_so)
+	if ds_pe >= 2:
+		frappe.throw(
+			"Phiếu chi %s đã bị huỷ nên đính thêm giấy tờ vào đó không còn ý "
+			"nghĩa. Báo em để dựng lại chứng từ." % d.phieu_chi
+		)
+
+	ten = (ten or "").strip() or "uy-nhiem-chi.pdf"
+	noi = (noi_dung or "").strip()
+	if not noi:
+		frappe.throw(
+			"Chưa chọn tệp uỷ nhiệm chi. Tải UNC từ e-banking về máy rồi bấm "
+			"Chọn tệp lại giúp em."
+		)
+	if "," in noi and noi[:5].lower() == "data:":
+		noi = noi.split(",", 1)[1]
+
+	# Kiem kich thuoc THAT sau khi giai ma, khong tin do dai chuoi tren man.
+	try:
+		so_byte = len(base64.b64decode(noi))
+	except Exception:
+		frappe.throw(
+			"Tệp gửi lên bị hỏng giữa đường nên máy không đọc được. Chọn lại "
+			"tệp và thử lần nữa giúp em."
+		)
+	if so_byte <= 0:
+		frappe.throw("Tệp uỷ nhiệm chi rỗng. Kiểm lại tệp tải từ e-banking giúp em.")
+	if so_byte > 12 * 1024 * 1024:
+		frappe.throw(
+			"Tệp uỷ nhiệm chi nặng %s MB, quá 12 MB nên máy không nhận. Xuất "
+			"lại bản PDF hoặc chụp nhỏ hơn giúp em."
+			% ("{:.1f}".format(so_byte / 1024.0 / 1024.0))
+		)
+
+	f = frappe.get_doc({
+		"doctype": "File",
+		"file_name": ten,
+		"attached_to_doctype": PE,
+		"attached_to_name": d.phieu_chi,
+		"content": noi,
+		"decode": True,
+		"is_private": 1,
+	})
+	f.flags.ignore_permissions = True
+	f.insert(ignore_permissions=True)
+
+	frappe.db.set_value(DT, ho_so, {
+		"nguoi_dinh_unc": frappe.session.user,
+		"ngay_dinh_unc": now_datetime(),
+	})
+	try:
+		frappe.get_doc(DT, ho_so).add_comment(
+			"Comment", "Đính uỷ nhiệm chi %s vào phiếu chi %s." % (ten, d.phieu_chi)
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet dinh UNC")
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"ho_so": ho_so,
+		"phieu_chi": d.phieu_chi,
+		"unc": _ds_unc(d.phieu_chi),
+		"ghi_chu": "Đã đính %s vào phiếu chi %s. Sales tải tệp này gửi khách, "
+		"xong thì bấm Hoàn thành để máy ghi sổ." % (ten, d.phieu_chi),
+	}
+
+
+@frappe.whitelist()
+def hoan_thanh(ho_so=None):
+	"""Ket thuc phieu: ghi so phieu chi va dong ho so.
+
+	Day la cho DUY NHAT trong ca luong nay may tu bam Submit ho nguoi. Nen
+	no chi chay khi ba dieu deu that o may chu: da doi soat, co phieu chi,
+	va tren phieu chi co it nhat mot tep dinh kem. Ba dieu do deu doc lai
+	tu co so du lieu chu khong nhan tu man hinh (QT-19).
+
+	Lap lai duoc: phieu chi da ghi so roi thi khong ghi lan hai, chi dong
+	ho so lai. Ke toan bam nham hai lan khong sinh ra hai but toan.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _duoc_tu_choi():
+		frappe.throw("Chỉ kế toán hoặc giám đốc mới kết thúc phiếu hoàn tiền được.")
+	if not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+
+	d, ds_pe = _pe_cua(ho_so)
+	if ds_pe >= 2:
+		frappe.throw(
+			"Phiếu chi %s đã bị huỷ nên không ghi sổ được. Báo em để dựng lại "
+			"chứng từ trước khi kết thúc phiếu." % d.phieu_chi
+		)
+
+	if not _dem_unc(d.phieu_chi):
+		frappe.throw(
+			"Phiếu chi %s chưa có uỷ nhiệm chi nào đính kèm nên chưa ghi sổ "
+			"được. Dòng sao kê SePay không thay được UNC khi giải trình với cơ "
+			"quan thuế. Bấm Đính uỷ nhiệm chi ở ngay trên rồi quay lại."
+			% d.phieu_chi
+		)
+
+	da_ghi_san = ds_pe == 1
+	if not da_ghi_san:
+		pe = frappe.get_doc(PE, d.phieu_chi)
+		pe.flags.ignore_permissions = True
+		# Hook chan_thieu_uy_nhiem_chi van chay o day va van la hang rao
+		# that: co tinh KHONG tat no di, vi day dung la truong hop no sinh
+		# ra de canh.
+		pe.submit()
+
+	frappe.db.set_value(DT, ho_so, {
+		"trang_thai": "Hoan thanh",
+		"nguoi_hoan_thanh": frappe.session.user,
+		"ngay_hoan_thanh": now_datetime(),
+	})
+	try:
+		frappe.get_doc(DT, ho_so).add_comment(
+			"Comment",
+			"Kết thúc phiếu hoàn tiền. Phiếu chi %s %s."
+			% (d.phieu_chi, "đã ghi sổ từ trước" if da_ghi_san else "vừa được ghi sổ"),
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet hoan thanh")
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"ho_so": ho_so,
+		"phieu_chi": d.phieu_chi,
+		"da_ghi_san": 1 if da_ghi_san else 0,
+		"ghi_chu": (
+			"Phiếu chi %s đã ghi sổ từ trước, em chỉ đóng hồ sơ lại." % d.phieu_chi
+			if da_ghi_san
+			else "Đã ghi sổ phiếu chi %s và đóng phiếu hoàn tiền %s."
+			% (d.phieu_chi, ho_so)
+		),
 	}
