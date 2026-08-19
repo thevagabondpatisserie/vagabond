@@ -809,8 +809,11 @@ _i_tm = _tc_src.index("k: 'TM'")
 _i_kt = _tc_src.index("k: 'KT'")
 la("co phan he Thu mua", _i_tm > 0, True)
 la("Thu mua nam NGAY TREN Ke toan", _i_tm < _i_kt, True)
+# Tu 19/08/2026 nhom nay co them DNC (de nghi chi), nhung cac nut mua hang
+# van phai o ngoai - do moi la dieu ca kiem nay giu.
 la("cac nut mua hang da roi khoi nhom Dat hang",
-   "keys: ['Purchase', 'Transfer', 'RND'] }" in _tc_src, True)
+   [k for k in ("DUYETYC", "PO", "CNPT", "NCC", "BGIA")
+    if ("'%s'" % k) in _tc_src.split("k: 'DH'")[1].split("}")[0]], [])
 for _k in ("DUYETYC", "PO", "CNPT", "NCC", "BGIA"):
 	la("nut %s da vao phan he Thu mua" % _k,
 	   _k in _tc_src[_i_tm:_i_kt], True)
@@ -3682,6 +3685,124 @@ la("nut Excel gui dung chip va o tim dang chon",
    "trang_thai: htDsLoc === 'tat_ca' ? '' : htDsLoc, tim: htDsTim" in _js37, True)
 _cn37 = open("vagabond/khung/kiem_thu/thu_cua_ngo.py", encoding="utf-8").read()
 la("xuat_excel nam trong danh sach cua ngo", '"xem_tien_du", "xuat_excel",' in _cn37, True)
+
+# ==========================================================================
+# NHOM 38: tem mon va nut de nghi chi trong phan he Dat hang
+#
+# De bao 19/08/2026 ba chuyen tren mot cai tem: chip "GrabFood 678" khong
+# in ra, ghi chu bill khong in ra, va tem lech khoi giay.
+#
+# Hai chuyen dau la LOI DU LIEU chu khong phai loi trinh bay: cuc thong tin
+# hoa don vua luu ma man tinh tien truyen sang ham in tem khong mang ma
+# tham chieu, va ham in tem khong doc toi ghi chu cua ca bill. Nhom nay
+# khoa lai duong di cua hai o do.
+# ==========================================================================
+print("\n[38] Tem mon va de nghi chi")
+
+_js38 = open("vagabond/public/js/bep/09-tinh-tien-quay.js", encoding="utf-8").read()
+_tem38 = open("vagabond/public/js/bep/10-bill-quay.js", encoding="utf-8").read()
+_mi38 = open("vagabond/may_in.py", encoding="utf-8").read()
+_dnc38 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+_tc38 = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+
+# --- Ma tham chieu phai di toi duoc may in ---
+la("hoa don vua luu mang theo ma tham chieu",
+   "mtc: laApp ? (posDon.ma || '') : (posDon.mtc || '')," in _js38, True)
+# RANG BUOC THAT: o gui len may chu va o gui sang ham in tem phai lay tu
+# CUNG mot cho, neu khong thi hoa don luu mot ma ma tem in mot ma.
+la("ma gui len may chu va ma in tem lay cung mot nguon",
+   _js38.count("laApp ? (posDon.ma || '') : (posDon.mtc || '')") >= 2, True)
+la("ham in tem ghep nguon voi ma tham chieu",
+   "var ma = (d.mtc || d.ma || '').trim();" in _tem38, True)
+
+# --- Ghi chu bill phai in theo ---
+la("tem in ca ghi chu cua bill", "if (d.ghi_chu) giua.push(d.ghi_chu);" in _tem38, True)
+la("tem van in tuy chon pha che", "'100% đường · 100% đá'" in _tem38, True)
+la("tem van in ghi chu rieng cua mon", "if (m.gc) giua.push(m.gc);" in _tem38, True)
+
+# --- Can tem: chinh tai cho, khong sua ma nguon ---
+la("co o cat thong so can tem", 'TRUONG_CAN = "vgb_can_tem"' in _mi38, True)
+la("co ham luu can tem", "def luu_can_tem(" in _mi38, True)
+la("chan so lech vo ly", "ngoài khoảng cho phép" in _mi38, True)
+la("thong so can tem di kem kho tem cho app",
+   't["ngang"], t["doc"], t["xoay"] = c["ngang"], c["doc"], c["xoay"]' in _mi38, True)
+la("co ban in thu co vien", "function posInTemThu()" in _tem38, True)
+# Ban in thu ma ve khung rieng thi no chi chung minh chinh no dung.
+la("in thu va in that dung CHUNG mot khung",
+   _tem38.count("temKhung(") >= 3, True)
+la("man Cai dat co o dich ngang va dich doc",
+   'id="ctNgang"' in open("vagabond/public/js/bep/18-doi-chieu-may-in.js", encoding="utf-8").read()
+   and 'id="ctDoc"' in open("vagabond/public/js/bep/18-doi-chieu-may-in.js", encoding="utf-8").read(), True)
+la("in thu duoc ngay chua can luu",
+   "posInTemThu();" in open("vagabond/public/js/bep/18-doi-chieu-may-in.js", encoding="utf-8").read(), True)
+
+# Phep tinh le tem: kiem BANG CACH CHAY.
+def _le38(goc, dich):
+	return (goc + dich, goc - dich)
+
+
+for _d38, _mong38 in ((0, (1.5, 1.5)), (1, (2.5, 0.5)), (-1, (0.5, 2.5))):
+	la("dich doc %g mm thi le tren duoi doi nguoc chieu" % _d38, _le38(1.5, _d38), _mong38)
+
+# --- De nghi chi: nut nam trong Dat hang va MOI nguoi deu thay ---
+la("co ham lap phieu tu app", "def tao(du_lieu=None, gui_luon=0):" in _dnc38, True)
+# Chi soi THAN ham tao: gui_duyet dat trang thai la dung viec cua no.
+_than_tao38 = _dnc38.split("def tao(du_lieu=None, gui_luon=0):")[1]
+la("ham tao khong tu dat trang thai gui duyet",
+   "gui_duyet(doc.name)" in _than_tao38 and "doc.trang_thai = TT_CHO_DUYET" not in _than_tao38, True)
+la("ham tao khong chep lai luat nghiep vu",
+   "TK_THEO_PHAN_LOAI" in _dnc38.split("def tao(du_lieu=None")[1], False)
+la("the nam trong nhom Dat hang", "'Purchase', 'Transfer', 'RND', 'DNC'" in _tc38, True)
+la("the co duong den man hinh", "if (k === 'DNC') return go(scrDeNghiChi);" in _tc38, True)
+# The nay PHAI nam ngoai khoi coQuyenMua: nam trong la chi thu mua thay,
+# dung cai anh Viet bao khong duoc.
+_khoi38 = _tc38.split("card(TYPES.Manufacture.icon")[1].split("(coQuyenMua()")[0]
+la("the de nghi chi nam NGOAI khoi khoa theo quyen mua", "'DNC')" in _khoi38, True)
+la("co man hinh de nghi chi", "async function scrDeNghiChi()" in
+   open("vagabond/public/js/bep/16-mua-hang.js", encoding="utf-8").read(), True)
+
+# --- Nut in tem phai hien voi MOI bill, khong rieng bill co mon nuoc ---
+#
+# Ham in tem doi tu 10/08/2026 sang in cho moi mon, nhung CAI KHOA truoc
+# nut thi khong ai doi theo. Ket qua: don GrabFood ban mot hu banh Almond
+# Tuile thi khong co nut in tem nao (De bao 19/08/2026, anh Viet gui anh
+# man bao thanh cong chi co ba nut in hoa don, hoa don moi, ve danh sach).
+la("hai man bao thanh cong dung chung mot ham ve nut in",
+   _js38.count("posNutIn(") >= 3, True)
+la("khong con khoa nut in theo dieu kien co mon nuoc",
+   "posCoNuoc(posBillVua.mon)" in _js38, False)
+la("tem hien khi bill co bat ky mon nao", "if (!mon.length) return '';" in _js38, True)
+la("phieu lam mon VAN chi hien khi co mon nuoc",
+   "(coNuoc ? '<button class=\"btn gh\" data-pm" in _js38, True)
+la("man danh sach bill cung theo luat do",
+   "((d.items || []).length" in _tem38 and "posCoNuoc(d.items || []) ? '<button" in _tem38, True)
+
+# Phep kiem THAT: dung lai ham chon nut bang JS.
+_m38 = re.search(r"function posNutIn\(d\) \{.*?\n\}", _js38, re.S)
+if not _m38:
+	la("tim thay ham posNutIn", False, True)
+else:
+	try:
+		import subprocess as _sp38
+
+		_ma38 = ("var posCoNuoc = function (m) { return m.some(function (x) { return x.nuoc; }); };"
+		         + _m38.group(0)
+		         + "var ra = [];"
+		         + "[[], [{nuoc:1}], [{}], [{},{nuoc:1}]].forEach(function (m) {"
+		         + " var s = posNutIn({mon: m});"
+		         + " ra.push([s.indexOf('data-tem') >= 0, s.indexOf('data-pm') >= 0]); });"
+		         + "console.log(JSON.stringify(ra));")
+		_kq38 = _sp38.run(["node", "-e", _ma38], capture_output=True, text=True, timeout=20)
+		_ra38 = json.loads(_kq38.stdout.strip()) if _kq38.returncode == 0 else None
+	except Exception:
+		_ra38 = None
+	if _ra38 is None:
+		print("   (khong chay duoc node, bo qua phep chay thu posNutIn)")
+	else:
+		la("bill rong thi khong co nut nao", _ra38[0], [False, False])
+		la("bill chi co mon nuoc: co ca tem lan phieu lam mon", _ra38[1], [True, True])
+		la("bill chi co banh: CO tem, khong co phieu lam mon", _ra38[2], [True, False])
+		la("bill tron banh va nuoc: co ca hai", _ra38[3], [True, True])
 
 print("-" * 60)
 if so_hong:
