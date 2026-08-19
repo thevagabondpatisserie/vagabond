@@ -87,6 +87,16 @@ TRUONG_MOI = {
 			),
 		},
 		{
+			"fieldname": "sepay_hmac", "label": "Khoá HMAC-SHA256 của webhook SePay",
+			"fieldtype": "Password", "insert_after": "sepay_khoa",
+			"description": (
+				"Secret Key dạng whsec_... lấy ở tab Bảo mật bên SePay khi chọn "
+				"HMAC-SHA256. Đây là cách nên dùng: SePay ký cả gói tin nên đổi "
+				"một đồng trong đó là chữ ký hỏng, và chữ ký đi ở header "
+				"X-SePay-Signature mà Frappe không đụng tới."
+			),
+		},
+		{
 			"fieldname": "sepay_chua_map", "label": "Số tài khoản SePay chưa khai",
 			"fieldtype": "Small Text", "insert_after": "sepay_khoa", "read_only": 1,
 			"description": (
@@ -144,6 +154,104 @@ def _khoa_gui_len():
 	return ""
 
 
+def _than_tho():
+	"""Nguyen van goi tin, dang byte. HMAC phai ky tren dung chuoi nay."""
+	try:
+		return frappe.request.get_data() or b""
+	except Exception:
+		return b""
+
+
+def _chu_ky_gui_len():
+	"""Chu ky SePay gui kem. Header X-SePay-Signature, Frappe khong dung toi."""
+	try:
+		h = frappe.request.headers
+	except Exception:
+		return ""
+	for ten in ("X-SePay-Signature", "X-Sepay-Signature", "X-Signature"):
+		v = (h.get(ten) or "").strip()
+		if v:
+			return v
+	return ""
+
+
+def _tach_chu_ky(tho):
+	"""Boc lay phan chu ky that trong mot header co the co nhieu dang.
+
+	Cac dang gap ngoai doi: chu ky tran, "sha256=<chu ky>", va dang nhieu
+	phan cach nhau bang dau phay kieu "t=<moc gio>,v1=<chu ky>". Nhan het
+	de khong phai doan dung mot dang roi hong ca duong nhan.
+	"""
+	t = str(tho or "").strip()
+	if not t:
+		return []
+	ra = []
+	for phan in t.split(","):
+		phan = phan.strip()
+		if not phan:
+			continue
+		if "=" in phan:
+			ten, _, gt = phan.partition("=")
+			ten = ten.strip().lower()
+			# "sha256=abc" hoac "v1=abc" thi lay phan sau; "t=1699" la moc
+			# gio, bo qua.
+			if ten in ("t", "timestamp"):
+				continue
+			ra.append(gt.strip())
+			if ten in ("sha256", "v1", "signature", "sig"):
+				continue
+		ra.append(phan)
+	return [x for x in dict.fromkeys(ra) if x]
+
+
+def _hmac_dung(khoa, than):
+	"""Cac dang chu ky hop le cho mot khoa va mot goi tin. Hex va base64."""
+	import base64
+	import hashlib
+
+	tho = hmac.new(khoa.encode("utf-8"), than, hashlib.sha256).digest()
+	return {tho.hex(), tho.hex().upper(), base64.b64encode(tho).decode()}
+
+
+def _kiem_hmac():
+	"""Xac thuc bang chu ky HMAC-SHA256 cua SePay.
+
+	Tra ve (co_dung_duong_nay, dat_hay_khong). Chua khai khoa hoac goi tin
+	khong mang chu ky thi tra (False, False) de duong X-Api-Key con co co
+	hoi chay.
+	"""
+	khoa = ""
+	try:
+		khoa = key(cfg(), "sepay_hmac")
+	except Exception:
+		khoa = ""
+	gui = _chu_ky_gui_len()
+	if not khoa or not gui:
+		return False, False
+
+	than = _than_tho()
+	dung = _hmac_dung(khoa, than)
+	for x in _tach_chu_ky(gui):
+		for y in dung:
+			if hmac.compare_digest(x, y):
+				return True, True
+
+	# Sai chu ky. Ghi lai DU de doi chieu ma KHONG ghi khoa: chu ky nhan
+	# duoc, va vai ky tu dau cua chu ky minh tinh ra. Neu SePay ky tren mot
+	# chuoi khac (vi du co them moc gio o dau) thi day la thu duy nhat noi
+	# ra dieu do, khoi phai doan lan nua.
+	try:
+		frappe.log_error(
+			"Chu ky nhan duoc: %s\nDo dai goi tin: %d byte\n"
+			"Chu ky may tinh ra (hex, 12 ky tu dau): %s"
+			% (gui[:200], len(than), sorted(dung)[0][:12]),
+			"sepay: chu ky HMAC khong khop",
+		)
+	except Exception:
+		pass
+	return True, False
+
+
 # --------------------------------------------------------------- diem nhan
 
 
@@ -172,11 +280,28 @@ def _webhook():
 	if not cint(cfg().get("sepay_bat")):
 		return _tu_choi(403, "Diem nhan SePay dang tat trong Cai dat.")
 
-	that = _khoa_that()
-	if not that:
-		return _tu_choi(403, "Chua dat khoa bao mat webhook trong Cai dat.")
-	if not hmac.compare_digest(_khoa_gui_len(), that):
-		return _tu_choi(401, "Khoa bao mat khong dung.")
+	# Hai duong xac thuc, thu HMAC truoc.
+	#
+	# Vi sao uu tien HMAC: SePay ky ca goi tin nen doi mot dong trong do la
+	# chu ky hong, con khoa bi mat thi chi chung minh "nguoi goi biet khoa".
+	# Va quan trong hon ve mat ky thuat, chu ky di o header
+	# X-SePay-Signature ma Frappe khong dung toi - trong khi duong API Key
+	# cua SePay bat buoc gui o header Authorization, va Frappe tra 401 cho
+	# header do truoc khi goi tin vao toi day (nghiem thu 19/08/2026).
+	co_hmac, hmac_dat = _kiem_hmac()
+	if co_hmac:
+		if not hmac_dat:
+			return _tu_choi(401, "Chu ky HMAC khong dung.")
+	else:
+		that = _khoa_that()
+		if not that:
+			return _tu_choi(
+				403,
+				"Chua dat khoa bao mat webhook trong Cai dat. Vao Cai dat, the "
+				"SePay, dan Secret Key HMAC cua SePay vao hoac sinh khoa moi.",
+			)
+		if not hmac.compare_digest(_khoa_gui_len(), that):
+			return _tu_choi(401, "Khoa bao mat khong dung.")
 
 	goi = frappe.local.form_dict or {}
 	try:
@@ -393,6 +518,7 @@ def tinh_trang():
 	ra = {
 		"bat": cint(c.get("sepay_bat")),
 		"co_khoa": 1 if _khoa_that() else 0,
+		"co_hmac": 1 if (key(c, "sepay_hmac") if c else "") else 0,
 		"duong_dan_path": DUONG_DAN,
 		"duong_dan": goc + DUONG_DAN,
 		"ban_do": _ban_do(),
@@ -421,6 +547,37 @@ def tinh_trang():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "sepay: dem giao dich")
 	return ra
+
+
+@frappe.whitelist()
+def dat_hmac(khoa=None):
+	"""Cat Secret Key HMAC do SePay sinh ra.
+
+	Khoa nay do SePay sinh, nguoi dung tu dan vao - may khong tu lay duoc,
+	va cung khong nen: no la khoa cua ben thu ba.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới đặt được khoá bảo mật.")
+	k = str(khoa or "").strip()
+	if not k:
+		frappe.db.set_single_value("Vagabond Settings", "sepay_hmac", "")
+		frappe.db.commit()
+		frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
+		return {"ok": 1, "co_hmac": 0}
+	if len(k) < 12:
+		frappe.throw(
+			"Chuỗi này ngắn quá, không giống Secret Key của SePay. Khoá thật "
+			"bắt đầu bằng whsec_ và dài vài chục ký tự. Anh chị copy lại từ tab "
+			"Bảo mật bên SePay giúp em."
+		)
+	frappe.db.set_single_value("Vagabond Settings", "sepay_hmac", k)
+	frappe.db.set_single_value("Vagabond Settings", "sepay_bat", 1)
+	frappe.db.commit()
+	frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
+	return {"ok": 1, "co_hmac": 1}
 
 
 @frappe.whitelist()

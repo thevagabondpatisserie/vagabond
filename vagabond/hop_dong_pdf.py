@@ -667,15 +667,29 @@ def _html(name):
 	if (d.get("email_ky_b") or "").strip():
 		b["email"] = d["email_ky_b"].strip()
 	# Ben A cung mot luat: khai nguoi ky rieng thi in nguoi do, khong khai
-	# thi lui ve nguoi lien he chup tu to bao gia.
+	# thi lui ve nguoi dai dien chup tu to bao gia.
+	#
+	# NHUNG so dien thoai va email thi KHONG lui ve dau ca (Loan Anh
+	# 19/08/2026: *"tao thong tin hop dong khong co dien so dien thoai va
+	# email thi can de trong luon chu em khong can tu map thong tin cua
+	# nguoi nhan bao gia (thuong la nhan vien) vao hop dong nhu vay nha"*).
+	#
+	# Truoc day hai o nay lui ve dien_thoai/email cua to bao gia, ma do la
+	# nguoi LIEN HE - thuong la mot ban nhan vien, khong phai nguoi ky. To
+	# hop dong 20260819 in ra ten nguoi ky la Nguyen Thu Ha nhung email lai
+	# la thuydiep@ustudio.global, hai nguoi khac han nhau dung canh nhau
+	# tren mot dong chu ky.
+	#
+	# De trong thi khoi thong tin ben BO HAN dong do di, nhin la biet con
+	# thieu. Ben B da chay luat nay tu truoc, nay ben A giong het.
 	a = {
 		"ten": d.get("ten_khach"),
 		"mst": d.get("ma_so_thue"),
 		"dia_chi": d.get("dia_chi"),
 		"dai_dien": (d.get("nguoi_ky_a") or "").strip() or d.get("dai_dien"),
 		"chuc_vu": (d.get("chuc_vu_ky_a") or "").strip() or d.get("chuc_vu"),
-		"dien_thoai": (d.get("dt_ky_a") or "").strip() or d.get("dien_thoai"),
-		"email": (d.get("email_ky_a") or "").strip() or d.get("email"),
+		"dien_thoai": (d.get("dt_ky_a") or "").strip(),
+		"email": (d.get("email_ky_a") or "").strip(),
 	}
 	so = d.get("so_hop_dong") or d["so_goi_y"]
 	pt1 = flt(d.get("dat_coc_pt"))

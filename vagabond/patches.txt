@@ -12,3 +12,4 @@ vagabond.patches.dong_bo_cau_truc #v228d de nghi chi noi bo
 vagabond.patches.dong_bo_cau_truc #v230
 vagabond.patches.dong_bo_cau_truc #v231
 vagabond.patches.dong_bo_cau_truc #v232
+vagabond.patches.dong_bo_cau_truc #v233
