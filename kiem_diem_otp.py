@@ -8,6 +8,7 @@ kiem la ham THUAN - so vao, so ra - nen chep lai logic o day la du, va neu
 ban that trong diem_otp.py doi ma ban nay khong doi thi cong se bao lech.
 """
 
+import json
 import os
 import re
 import sys
@@ -2612,7 +2613,7 @@ _HS_NGAY = dict(re.findall(r"^(DOI_NGAY_[A-Z_]+) = \"([a-z_]+)\"", _vd_src, re.M
 la("doc duoc ba hang so luat doi ngay", sorted(_HS_NGAY), ["DOI_NGAY_CANH_BAO", "DOI_NGAY_CHAN", "DOI_NGAY_DUOC"])
 _vd = _nap_ham_thuan("vagabond/van_don.py",
                      ["_lech_mui", "_ngay_hop_le", "_ngay_tu_iso", "luat_doi_ngay"],
-                     dict(_HS_NGAY, re=re))
+                     dict(_HS_NGAY, re=re, cint=lambda x: int(float(x or 0))))
 _ngay_tu_iso = _vd.get("_ngay_tu_iso")
 _luat_ngay = _vd.get("luat_doi_ngay")
 
@@ -2717,6 +2718,34 @@ if _luat_ngay:
 	):
 		la("doi ngay khi %s%s: %s" % (_tt or "(rong)", " co chuyen" if _co_chuyen else "", _vi_sao),
 		   _luat_ngay(_tt, _co_chuyen), _mong)
+
+	# --- Nhanh qua_han, hoc tu don 91842 ---
+	#
+	# Sales tra loi 19/08/2026: "hien tren app se khong co thao tac doi
+	# trang thai gi het, ben em chi thao tac chuyen doi lai ngay nhan, don
+	# hang 14.8 thi trong ngay 14.8 moi cap nhat lai sang ngay 18/8".
+	# Nghia la van don ket o "Dang giao" tu 14/08 toi gio, khong phai
+	# shipper dang cam banh. Chan cap nhat mot trang thai bo quen thi don
+	# ket lai vinh vien o ngay sai.
+	for _tt, _co_chuyen, _qh, _mong, _vi_sao in (
+		("Đang giao", False, 1, _HS_NGAY["DOI_NGAY_CANH_BAO"],
+		 "ngay giao da troi qua nen day la trang thai bo quen, de va bao"),
+		("Đang giao", True, 1, _HS_NGAY["DOI_NGAY_CANH_BAO"], "co chuyen cung vay"),
+		("Đang giao", False, 0, _HS_NGAY["DOI_NGAY_CHAN"],
+		 "ngay giao la hom nay hoac mai thi van chan"),
+		("Chờ giao", False, 1, _HS_NGAY["DOI_NGAY_DUOC"], "cho giao thi qua han hay khong deu de"),
+		("Đã giao", False, 1, "", "viec da xong thi qua han cung khong lam gi"),
+	):
+		la("doi ngay khi %s qua_han %d: %s" % (_tt, _qh, _vi_sao),
+		   _luat_ngay(_tt, _co_chuyen, _qh), _mong)
+	# Khong truyen qua_han thi phai giu nguyen nep cu, khong duoc tu noi long.
+	la("khong truyen qua_han thi mac dinh la chua qua han",
+	   _luat_ngay("Đang giao", False), _HS_NGAY["DOI_NGAY_CHAN"])
+
+# Ma nguon phai that su tinh qua_han va truyen vao luat.
+la("nhip dong bo co tinh qua han", 'qua_han = 1 if ngay_cu < nowdate() else 0' in _vd_src, True)
+la("nhip dong bo truyen qua_han vao luat",
+   "luat_doi_ngay(cu.get(\"trang_thai\"), co_chuyen, qua_han)" in _vd_src, True)
 
 # Ca that 91928: van don Cho giao chua xep chuyen, Pancake doi 17 sang 18.
 if _ngay_tu_iso and _luat_ngay:
@@ -2916,6 +2945,132 @@ _than_tm = _zl_src.split("def thu_mau(")[1]
 la("doc mau ZNS chi cho System Manager", "System Manager" in _than_tm, True)
 la("doc mau ZNS goi dung duong template/info", "template/info" in _than_tm, True)
 la("doc mau ZNS khong gui tin nao", "message/template" in _than_tm, False)
+
+print("32. Chiet khau theo phan tram hoac theo so tien")
+
+# ---------------------------------------------------------------------------
+# Nhom 32. Hai kieu chiet khau tren to bao gia (anh Viet 19/08/2026, theo
+# yeu cau cua Loan Anh: "mo them tinh nang giam gia theo so tien (VND)").
+#
+# Cho de vo nhat cua tinh nang nay: to bao gia CU deu de trong o kieu_ck.
+# Neu ham thuan doc o trong thanh "so tien" thi mot to dang chiet khau 10%
+# bong thanh chiet khau 10 dong, va khong ai thay ngay.
+# ---------------------------------------------------------------------------
+
+_bg32_src = open("vagabond/bao_gia.py", encoding="utf-8").read()
+_js32_src = open("vagabond/public/js/bep/22-bao-gia.js", encoding="utf-8").read()
+
+_bg32 = _nap_ham_thuan("vagabond/bao_gia.py", ["tien_chiet_khau"],
+                       {"CK_PT": "Phan tram", "CK_TIEN": "So tien"})
+_tien_ck = _bg32.get("tien_chiet_khau")
+la("nap duoc ham tien_chiet_khau", bool(_tien_ck), True)
+
+if _tien_ck:
+	# --- Nep cu phai giu nguyen tuyet doi ---
+	la("kieu rong hieu la phan tram", _tien_ck(1000000, "", 10), 100000.0)
+	la("kieu None cung hieu la phan tram", _tien_ck(1000000, None, 10), 100000.0)
+	la("kieu la rac cung hieu la phan tram", _tien_ck(1000000, "abc", 10), 100000.0)
+	la("kieu Phan tram", _tien_ck(1000000, "Phan tram", 10), 100000.0)
+	# --- Kieu moi ---
+	la("kieu So tien tru dung so do", _tien_ck(1000000, "So tien", 250000), 250000.0)
+	la("So tien le van dung", _tien_ck(1000000, "So tien", 1), 1.0)
+	# --- Ba chan cung ---
+	la("khong bao gio vuot goc khi go phan tram lon",
+	   _tien_ck(1000000, "Phan tram", 250), 1000000.0)
+	la("khong bao gio vuot goc khi go so tien lon",
+	   _tien_ck(1000000, "So tien", 9999999), 1000000.0)
+	la("gia tri am ra 0", _tien_ck(1000000, "So tien", -5), 0.0)
+	la("phan tram am ra 0", _tien_ck(1000000, "Phan tram", -5), 0.0)
+	la("goc bang 0 ra 0", _tien_ck(0, "So tien", 500), 0.0)
+	la("goc am ra 0", _tien_ck(-1000, "Phan tram", 10), 0.0)
+	la("gia tri 0 ra 0", _tien_ck(1000000, "Phan tram", 0), 0.0)
+	# Lam tron ve dong, khong de lai so le.
+	la("lam tron ve dong", _tien_ck(333333, "Phan tram", 3), round(333333 * 3 / 100.0, 0))
+	la("ket qua luon la so nguyen dong",
+	   _tien_ck(333333, "Phan tram", 3) == int(_tien_ck(333333, "Phan tram", 3)), True)
+	# Phep bat bien: to KHONG BAO GIO ra so am.
+	_am = []
+	for _goc in (0, 1, 999, 1000000, 67200000):
+		for _kieu in ("", "Phan tram", "So tien"):
+			for _v in (0, 1, 10, 50, 100, 250, 999999999):
+				if _goc - _tien_ck(_goc, _kieu, _v) < 0:
+					_am.append((_goc, _kieu, _v))
+	la("chiet khau khong bao gio lam to ra so am", _am[:3], [])
+
+# --- May chu va may khach phai tinh RA CUNG MOT SO ---
+#
+# 22-bao-gia.js co ban sao bgTienCk. Lech nhau la sales doc mot so con
+# khach nhan to in mot so khac. Cat than ham JS ra chay bang node roi doi
+# chieu, giong cach nhom 28 lam voi bang thue.
+import subprocess as _sp32
+
+_m32 = re.search(r"function bgTienCk\(goc, kieu, giaTri\) \{.*?\n\}", _js32_src, re.S)
+la("tim thay ban sao bgTienCk trong JS", bool(_m32), True)
+if _m32 and _tien_ck:
+	_bo32 = [(1000000, "", 10), (1000000, "Phan tram", 10), (1000000, "So tien", 250000),
+	         (1000000, "Phan tram", 250), (1000000, "So tien", 9999999),
+	         (333333, "Phan tram", 3), (0, "So tien", 500), (67200000, "So tien", 1234567),
+	         (67200000, "Phan tram", 7.5), (999, "Phan tram", 33)]
+	_ma32 = (_m32.group(0) + "\nvar ra=[];" +
+	         "".join("ra.push(bgTienCk(%r,%s,%r));" % (g, ("''" if k == "" else "'%s'" % k), v)
+	                 for g, k, v in _bo32) +
+	         "console.log(JSON.stringify(ra));")
+	try:
+		_kq32 = _sp32.run(["node", "-e", _ma32], capture_output=True, text=True, timeout=30)
+		_js_ra = json.loads(_kq32.stdout.strip()) if _kq32.returncode == 0 else None
+	except Exception:
+		_js_ra = None
+	if _js_ra is None:
+		print("   (khong chay duoc node, bo qua phep doi chieu JS)")
+	else:
+		_py_ra = [_tien_ck(g, k, v) for g, k, v in _bo32]
+		_lech = [(_bo32[i], _py_ra[i], _js_ra[i]) for i in range(len(_bo32))
+		         if abs(float(_py_ra[i]) - float(_js_ra[i])) > 0.5]
+		la("may khach va may chu tinh chiet khau ra cung mot so", _lech[:3], [])
+
+# --- Ma nguon: hai cap deu phai di qua ham thuan ---
+la("cap to dung ham thuan",
+   "doc.chiet_khau_tien = tien_chiet_khau(tam, doc.get(\"kieu_ck\"), doc.chiet_khau_pt)" in _bg32_src, True)
+la("cap dong dung ham thuan",
+   "d.ck_tien_dong = tien_chiet_khau(goc_dong, d.get(\"kieu_ck\"), d.chiet_khau)" in _bg32_src, True)
+la("khong con phep nhan 1 tru chiet khau chia 100 o cap dong",
+   "(1 - d.chiet_khau / 100.0)" in _bg32_src, False)
+la("kieu_ck cua to duoc luu xuong", '"kieu_thue", "kieu_ck",' in _bg32_src, True)
+la("kieu_ck cua dong chi nhan hai chuoi da biet",
+   'x.get("kieu_ck") if x.get("kieu_ck") in (CK_PT, CK_TIEN) else None' in _bg32_src, True)
+la("kieu_ck cua dong duoc goi ra man hinh", '"kieu_ck": d.get("kieu_ck") or ""' in _bg32_src, True)
+
+# --- To in phai ghi dung don vi ---
+la("to in khong ghi phan tram khi chiet khau la so tien",
+   'nhan_ck = ("Chiết khấu" if (d.get("kieu_ck") or "") == CK_TIEN' in _bg32_src, True)
+la("o CK cua dong in ra tien khi kieu la so tien",
+   '_tien_vn(x["chiet_khau"]), "center"' in _bg32_src, True)
+
+# --- Man hinh phai co du bon chip ---
+la("co chip chiet khau tong theo phan tram", "data-t=\"ck-pt\"" in _js32_src, True)
+la("co chip chiet khau tong theo so tien", "data-t=\"ck-tien\"" in _js32_src, True)
+la("co chip chiet khau dong", "data-ckd=" in _js32_src, True)
+la("doi kieu thi xoa so cu ve 0", "dck.chiet_khau = 0;" in _js32_src, True)
+la("nhan o nhap doi theo kieu", "x.kieu_ck === 'So tien' ? 'CK đ' : 'CK%'" in _js32_src, True)
+la("khoi tong khong ghi phan tram khi la so tien",
+   "d.kieu_ck === 'So tien' ? '' : ' ' + (Number(d.chiet_khau_pt) || 0) + '%'" in _js32_src, True)
+
+# --- Doctype ---
+try:
+	for _tep32, _can32 in (
+		("vagabond/vagabond/doctype/bao_gia_ban_hang/bao_gia_ban_hang.json", {"kieu_ck"}),
+		("vagabond/vagabond/doctype/bao_gia_dong/bao_gia_dong.json", {"kieu_ck", "ck_tien_dong"}),
+	):
+		_d32 = json.load(open(_tep32, encoding="utf-8"))
+		_o32 = {f["fieldname"] for f in _d32["fields"]}
+		la("doctype %s co du o moi" % _tep32.split("/")[-1], _can32 - _o32, set())
+		for _f32 in _d32["fields"]:
+			if _f32["fieldname"] == "kieu_ck":
+				# O phai CHO PHEP de trong, vi moi to cu deu dang de trong.
+				la("kieu_ck cho phep de trong (%s)" % _tep32.split("/")[-1],
+				   str(_f32.get("options", "")).startswith("\n"), True)
+except Exception as _e32b:
+	la("doc duoc doctype bao gia", str(_e32b), "")
 
 print("-" * 60)
 if so_hong:
