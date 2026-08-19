@@ -1884,7 +1884,8 @@ function seVe() {
     (d.sua_duoc ? '<button class="btn gh" id="seSinh" style="margin:0;width:100%">🔑 Sinh khoá mới và bật nhận</button>' : '') +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
     'Khoá chỉ hiện ra <b>một lần</b> ngay sau khi sinh. Dán nó vào tab Bảo mật của webhook ' +
-    'bên SePay. Không có khoá thì ai biết đường dẫn cũng bắn được giao dịch giả vào sổ.</div></div>';
+    'bên SePay, gửi ở header <b>X-Api-Key</b>. Không có khoá thì ai biết đường dẫn cũng ' +
+    'bắn được giao dịch giả vào sổ.</div></div>';
 
   var k = d.keo || {};
   html += '<div class="sec">Nhịp kéo hàng giờ</div><div class="card" style="padding:2px 14px 10px">' +
@@ -1944,9 +1945,14 @@ async function seSinhKhoa() {
      lại được để so sánh, không bày ra màn nào nữa. */
   frame('Khoá webhook SePay',
     '<div style="font-size:13px;color:#374151;line-height:1.65;margin-bottom:11px">' +
+    /* Nghiem thu 19/08/2026: header Authorization bi chinh Frappe tra 401
+       truoc khi vao toi diem nhan, vi Frappe doc header do de tim khoa API
+       cua no. Phai dung X-Api-Key. Ghi ro o day de khong ai huong dan lai
+       theo cach cu. */
     'Dán hai dòng này sang SePay: đường dẫn vào ô <b>URL nhận webhook</b>, khoá vào tab ' +
-    '<b>Bảo mật</b> (kiểu API Key, tên header <code>Authorization</code>, giá trị ' +
-    '<code>Apikey &lt;khoá&gt;</code>). Khoá này <b>không hiện lại</b> lần nữa.</div>' +
+    '<b>Bảo mật</b> với tên header <code>X-Api-Key</code> và giá trị là đúng chuỗi khoá. ' +
+    '<b>Không dùng header <code>Authorization</code></b> - Frappe chặn header đó trước khi ' +
+    'vào tới đây. Khoá này <b>không hiện lại</b> lần nữa.</div>' +
     '<div style="font-size:12px;color:#6b7280">Đường dẫn</div>' +
     '<div style="font-size:12.5px;font-weight:700;word-break:break-all;background:#f8fafc;' +
     'border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:4px 0 11px">' + h(seUrl(r)) + '</div>' +
