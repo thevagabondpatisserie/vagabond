@@ -5,31 +5,155 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "loai", "ma_mon", "ma_tv", "ten_mon", "ten_en", "dvt", "dvt_en",
-  "so_luong", "don_gia", "chiet_khau", "thanh_tien",
-  "sec_mt", "hinh", "kich_thuoc", "mo_ta", "mo_ta_en", "di_ung_vi", "di_ung_en", "danh_muc_vi", "danh_muc_en"
+  "loai",
+  "ma_mon",
+  "ma_tv",
+  "ten_mon",
+  "ten_en",
+  "dvt",
+  "dvt_en",
+  "so_luong",
+  "don_gia",
+  "chiet_khau",
+  "thue_pt",
+  "thanh_tien",
+  "sec_mt",
+  "hinh",
+  "kich_thuoc",
+  "mo_ta",
+  "mo_ta_en",
+  "di_ung_vi",
+  "di_ung_en",
+  "danh_muc_vi",
+  "danh_muc_en"
  ],
  "fields": [
-  {"fieldname": "loai", "fieldtype": "Select", "label": "Loai dong", "options": "Món\nPhí", "default": "Món", "in_list_view": 1, "columns": 1},
-  {"fieldname": "ma_mon", "fieldtype": "Link", "options": "Item", "label": "Ma mon trong danh muc"},
-  {"fieldname": "ma_tv", "fieldtype": "Link", "options": "Bao Gia Thu Vien", "label": "Lay tu thu vien"},
-  {"fieldname": "ten_mon", "fieldtype": "Data", "label": "Ten tren bao gia", "reqd": 1, "in_list_view": 1, "columns": 3},
-  {"fieldname": "ten_en", "fieldtype": "Data", "label": "Name (EN)"},
-  {"fieldname": "dvt", "fieldtype": "Data", "label": "Don vi tinh", "in_list_view": 1, "columns": 1},
-  {"fieldname": "dvt_en", "fieldtype": "Data", "label": "Unit"},
-  {"fieldname": "so_luong", "fieldtype": "Float", "label": "So luong", "default": "1", "in_list_view": 1, "columns": 1},
-  {"fieldname": "don_gia", "fieldtype": "Currency", "label": "Don gia", "in_list_view": 1, "columns": 2},
-  {"fieldname": "chiet_khau", "fieldtype": "Percent", "label": "Chiet khau dong (%)"},
-  {"fieldname": "thanh_tien", "fieldtype": "Currency", "label": "Thanh tien", "read_only": 1, "in_list_view": 1, "columns": 2},
-  {"fieldname": "sec_mt", "fieldtype": "Section Break", "label": "Noi dung in len muc Menu"},
-  {"fieldname": "hinh", "fieldtype": "Attach Image", "label": "Hinh minh hoa"},
-  {"fieldname": "kich_thuoc", "fieldtype": "Data", "label": "Kich thuoc / quy cach"},
-  {"fieldname": "mo_ta", "fieldtype": "Text", "label": "Mo ta (VI)"},
-  {"fieldname": "mo_ta_en", "fieldtype": "Text", "label": "Mo ta (EN)"},
-  {"fieldname": "di_ung_vi", "fieldtype": "Small Text", "label": "Thong tin di ung"},
-  {"fieldname": "di_ung_en", "fieldtype": "Small Text", "label": "Allergen"},
-  {"fieldname": "danh_muc_vi", "fieldtype": "Data", "label": "Danh muc"},
-  {"fieldname": "danh_muc_en", "fieldtype": "Data", "label": "Category"}
+  {
+   "fieldname": "loai",
+   "fieldtype": "Select",
+   "label": "Loai dong",
+   "options": "Món\nPhí",
+   "default": "Món",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "ma_mon",
+   "fieldtype": "Link",
+   "options": "Item",
+   "label": "Ma mon trong danh muc"
+  },
+  {
+   "fieldname": "ma_tv",
+   "fieldtype": "Link",
+   "options": "Bao Gia Thu Vien",
+   "label": "Lay tu thu vien"
+  },
+  {
+   "fieldname": "ten_mon",
+   "fieldtype": "Data",
+   "label": "Ten tren bao gia",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "ten_en",
+   "fieldtype": "Data",
+   "label": "Name (EN)"
+  },
+  {
+   "fieldname": "dvt",
+   "fieldtype": "Data",
+   "label": "Don vi tinh",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "dvt_en",
+   "fieldtype": "Data",
+   "label": "Unit"
+  },
+  {
+   "fieldname": "so_luong",
+   "fieldtype": "Float",
+   "label": "So luong",
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "don_gia",
+   "fieldtype": "Currency",
+   "label": "Don gia",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "chiet_khau",
+   "fieldtype": "Percent",
+   "label": "Chiet khau dong (%)"
+  },
+  {
+   "fieldname": "thue_pt",
+   "fieldtype": "Percent",
+   "label": "VAT %",
+   "default": "8",
+   "description": "Mức thuế của riêng dòng này. Tờ trộn được bánh 8% với phí dịch vụ 10%."
+  },
+  {
+   "fieldname": "thanh_tien",
+   "fieldtype": "Currency",
+   "label": "Thanh tien",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "sec_mt",
+   "fieldtype": "Section Break",
+   "label": "Noi dung in len muc Menu"
+  },
+  {
+   "fieldname": "hinh",
+   "fieldtype": "Attach Image",
+   "label": "Hinh minh hoa"
+  },
+  {
+   "fieldname": "kich_thuoc",
+   "fieldtype": "Data",
+   "label": "Kich thuoc / quy cach"
+  },
+  {
+   "fieldname": "mo_ta",
+   "fieldtype": "Text",
+   "label": "Mo ta (VI)"
+  },
+  {
+   "fieldname": "mo_ta_en",
+   "fieldtype": "Text",
+   "label": "Mo ta (EN)"
+  },
+  {
+   "fieldname": "di_ung_vi",
+   "fieldtype": "Small Text",
+   "label": "Thong tin di ung"
+  },
+  {
+   "fieldname": "di_ung_en",
+   "fieldtype": "Small Text",
+   "label": "Allergen"
+  },
+  {
+   "fieldname": "danh_muc_vi",
+   "fieldtype": "Data",
+   "label": "Danh muc"
+  },
+  {
+   "fieldname": "danh_muc_en",
+   "fieldtype": "Data",
+   "label": "Category"
+  }
  ],
  "istable": 1,
  "links": [],
