@@ -324,11 +324,16 @@ def _buoc_ke_tiep_khi_gui(nguoi=None):
 
 
 @frappe.whitelist()
-def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None, loai_cp_thue=None):
+def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
+		loai_cp_thue=None, nguoi_ung=None):
 	"""Lập một hồ sơ từ danh sách hoá đơn đã tick.
 
 	hoa_don: danh sách mã Purchase Invoice, hoặc danh sách
 	{"hoa_don": ..., "so_tien": ...} khi trả một phần.
+
+	nguoi_ung: bắt buộc với hồ sơ Hoàn ứng có hoá đơn. Đó là người đã ứng
+	tiền mua hộ, tức người NHẬN lại tiền - khác hẳn nhà cung cấp trên từng
+	dòng hoá đơn.
 	"""
 	_kiem(VAI_LAP, "lập hồ sơ thanh toán")
 	if isinstance(hoa_don, str):
@@ -362,16 +367,37 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None, 
 			"tong_hd": flt(hd.grand_total),
 			"con_no": flt(hd.outstanding_amount),
 			"so_tien": so_tien,
+			# Ten nha cung cap cua RIENG dong nay. Ho so gom nhieu nha thi
+			# dau ho so khong con noi duoc dong nay cua ai; khong ghi o day
+			# la ke toan phai mo tung hoa don ra doi chieu.
+			"ben_ban": hd.supplier_name or hd.supplier or "",
 		})
 
-	# Mot ho so mot nha cung cap: chuyen tien la chuyen cho MOT nguoi, gom
-	# hai nha cung cap vao mot ho so thi khong the doi chieu duoc voi ai.
-	if len(ncc_thay) > 1:
+	# Mot ho so mot nha cung cap - NHUNG chi voi hai luong tra thang cho ho.
+	#
+	# Uyen 19/08/2026, qua anh Viet: *"phai gop duoc nha cung cap luc lam
+	# APP hoan ung (hien tai chi lam duoc theo tung NCC rat mat thoi gian vi
+	# hoan ung la toan mua le te lat nhat)"*.
+	#
+	# Ly do cu ghi o day la "chuyen tien la chuyen cho MOT nguoi". Dung voi
+	# luong cong no NCC va luong chi tu TK cong ty: tien di thang toi nha
+	# cung cap, hai nha trong mot ho so thi khong doi chieu duoc voi ai.
+	#
+	# Nhung voi HOAN UNG CO HOA DON thi tien KHONG di toi nha cung cap. Uyen
+	# da tra ho ho bang tien mat roi; cong ty chuyen tra lai cho UYEN. Nen
+	# so nha cung cap trong ho so khong lien quan gi den viec chuyen tien -
+	# cai rang buoc do la ap nham tu luong kia sang.
+	nhieu_ncc = (loai or "") == LOAI_HU_HD
+	if len(ncc_thay) > 1 and not nhieu_ncc:
 		frappe.throw(
-			"Hồ sơ chỉ gom hoá đơn của MỘT nhà cung cấp. Đang chọn %d nhà: %s."
-			% (len(ncc_thay), ", ".join(sorted(ncc_thay)))
+			"Hồ sơ %s chỉ gom hoá đơn của MỘT nhà cung cấp, vì tiền chuyển "
+			"thẳng cho họ. Đang chọn %d nhà: %s. Nếu đây là khoản anh chị đã "
+			"ứng tiền mua hộ thì lập theo luồng \"Hoàn ứng có hoá đơn\", "
+			"luồng đó gom được nhiều nhà cùng lúc."
+			% (NHAN_LOAI.get(loai or LOAI_NCC, "thanh toán"),
+			   len(ncc_thay), ", ".join(sorted(ncc_thay)))
 		)
-	ma_ncc = (ncc or "").strip() or list(ncc_thay)[0]
+	ma_ncc = (ncc or "").strip() or sorted(ncc_thay)[0]
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
@@ -393,13 +419,47 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None, 
 	else:
 		doc.loai = LOAI_HU_HD if (loai or "") == LOAI_HU_HD else LOAI_NCC
 	doc.ngay = nowdate()
-	doc.nha_cung_cap = ma_ncc
-	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
-	doc.email_ncc = _email_ncc(ma_ncc)
+	doc.so_ncc = len(ncc_thay)
+
+	if nhieu_ncc:
+		# HO SO HOAN UNG: ben nhan tien la NGUOI DA UNG, khong phai nha cung
+		# cap. Truoc day cho nay dien san so tai khoan cua nha cung cap vao
+		# o nguoi thu huong roi de nguoi dung sua tay - mot cai bay that su,
+		# vi bam Luu ma quen sua la tien di thang toi nha cung cap trong khi
+		# ho da duoc tra tien mat roi. Ho so APP.26.08.007 lap 19/08/2026
+		# mang dung hinh do: dau ho so ghi AEON, o nguoi thu huong lai la
+		# mot ca nhan.
+		ma_ung = (nguoi_ung or "").strip()
+		if not ma_ung:
+			frappe.throw(
+				"Chưa chọn người được hoàn ứng. Đây là người đã ứng tiền mua hộ "
+				"và sẽ nhận lại tiền, chọn ở hàng chip trên cùng màn hình giúp em."
+			)
+		if not frappe.db.exists("Supplier", ma_ung):
+			frappe.throw(
+				"Không có nhà cung cấp %s. Người được hoàn ứng phải có sẵn hồ sơ "
+				"nhà cung cấp để còn theo dõi công nợ." % ma_ung
+			)
+		doc.nguoi_ung = ma_ung
+		doc.ten_nguoi_ung = frappe.db.get_value("Supplier", ma_ung, "supplier_name") or ma_ung
+		# Dau ho so mang ten NGUOI DUOC HOAN UNG, dung y nhu ho so hoan ung
+		# khong hoa don. Nha cung cap cua tung khoan nam o tung dong.
+		doc.nha_cung_cap = ma_ung
+		doc.ten_ncc = doc.ten_nguoi_ung
+		# KHONG dien email nha cung cap: thu bao "da thanh toan" gui cho ho
+		# la bao nham, tien cong ty tra la tra cho nguoi ung.
+		doc.email_ncc = ""
+		lay_tk = ma_ung
+	else:
+		doc.nha_cung_cap = ma_ncc
+		doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
+		doc.email_ncc = _email_ncc(ma_ncc)
+		lay_tk = ma_ncc
+
 	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
-	for k, v in (_tk_nhan(ma_ncc) or {}).items():
+	for k, v in (_tk_nhan(lay_tk) or {}).items():
 		doc.set(k, v)
 	if not doc.ten_nhan:
 		doc.ten_nhan = doc.ten_ncc
@@ -1196,6 +1256,13 @@ def chi_tiet(name):
 				)
 			],
 			"ncc": doc.nha_cung_cap, "ten_ncc": doc.ten_ncc,
+			"nguoi_ung": doc.get("nguoi_ung") or "",
+			"ten_nguoi_ung": doc.get("ten_nguoi_ung") or "",
+			# So nha cung cap that su co mat trong ho so. Doc lai tu cac dong
+			# chu khong tin o o da luu: ho so cu lap truoc 19/08/2026 chua co
+			# o nay, va man hinh van phai hien dung.
+			"so_ncc": len({((d.get("ben_ban") or d.get("ncc_hd") or "").strip()) for d in dong
+			               if (d.get("ben_ban") or d.get("ncc_hd") or "").strip()}),
 			"email_ncc": doc.email_ncc or "",
 			"trang_thai": doc.trang_thai, "nhan": NHAN.get(doc.trang_thai, doc.trang_thai),
 			"tong_tien": flt(doc.tong_tien), "da_tra": flt(doc.da_tra),
@@ -1448,45 +1515,72 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 	for d in con:
 		gom[d.hoa_don] = gom.get(d.hoa_don, 0.0) + flt(d.so_tien)
 
-	cong_ty = frappe.db.get_value("Purchase Invoice", con[0].hoa_don, "company")
-	pe = frappe.new_doc("Payment Entry")
-	pe.payment_type = "Pay"
-	pe.company = cong_ty
-	pe.posting_date = ngay
-	pe.party_type = "Supplier"
-	pe.party = doc.nha_cung_cap
-	pe.paid_amount = flt(doc.tong_tien)
-	pe.received_amount = flt(doc.tong_tien)
-	pe.reference_no = doc.ma_giao_dich or doc.name
-	pe.reference_date = ngay
-	pe.remarks = "Hồ sơ thanh toán %s - %s" % (doc.name, doc.ten_ncc or doc.nha_cung_cap)
-	if phuong_thuc and frappe.db.exists("Mode of Payment", phuong_thuc):
-		pe.mode_of_payment = phuong_thuc
+	# MOT BUT TOAN CHO MOI NHA CUNG CAP.
+	#
+	# Truoc 19/08/2026 cho nay dung mot Payment Entry duy nhat voi
+	# pe.party = doc.nha_cung_cap. Dung chung nao ho so con bi chan mot nha
+	# mot ho so. Tu khi ho so hoan ung gom duoc nhieu nha, mot Payment Entry
+	# khong the xoa no cua hai ben khac nhau: truong party chi nhan MOT
+	# nguoi, va ERPNext se tu choi cac dong tham chieu tro sang hoa don cua
+	# ben khac.
+	#
+	# Nen gom theo NHA CUNG CAP THAT CUA TUNG HOA DON, khong doc dau ho so.
+	# Dau ho so cua luong hoan ung mang ten NGUOI DUOC HOAN UNG, dung no lam
+	# party la ghi no sai cua.
+	theo_ncc = {}
 	for ten_hd, tien in gom.items():
 		hd = frappe.db.get_value(
-			"Purchase Invoice", ten_hd, ["grand_total", "outstanding_amount", "posting_date", "due_date"],
+			"Purchase Invoice", ten_hd,
+			["supplier", "company", "grand_total", "outstanding_amount", "due_date"],
 			as_dict=True,
 		) or {}
-		pe.append("references", {
-			"reference_doctype": "Purchase Invoice",
-			"reference_name": ten_hd,
-			"total_amount": flt(hd.get("grand_total")),
-			"outstanding_amount": flt(hd.get("outstanding_amount")),
-			"allocated_amount": min(flt(tien), flt(hd.get("outstanding_amount"))),
-			"due_date": hd.get("due_date"),
-		})
-	if (doc.loai or LOAI_NCC) == LOAI_TKCT and doc.tk_chi:
-		tk_nh = frappe.db.get_value('Bank Account', doc.tk_chi, 'account')
-		if tk_nh:
-			pe.paid_from = tk_nh
-			pe.bank_account = doc.tk_chi
-	pe.setup_party_account_field()
-	pe.set_missing_values()
-	pe.flags.ignore_permissions = True
-	pe.insert(ignore_permissions=True)
-	pe.submit()
+		if not hd.get("supplier"):
+			frappe.throw(
+				"Hoá đơn %s không đọc được nhà cung cấp nên chưa sinh bút toán "
+				"được. Nhờ kế toán mở hoá đơn đó kiểm lại." % ten_hd
+			)
+		o = theo_ncc.setdefault(hd["supplier"], {"cong_ty": hd.get("company"), "hd": []})
+		o["hd"].append((ten_hd, tien, hd))
+
+	ra = []
+	for ma_ncc in sorted(theo_ncc):
+		o = theo_ncc[ma_ncc]
+		tong_nhom = sum(t for _, t, _ in o["hd"])
+		pe = frappe.new_doc("Payment Entry")
+		pe.payment_type = "Pay"
+		pe.company = o["cong_ty"]
+		pe.posting_date = ngay
+		pe.party_type = "Supplier"
+		pe.party = ma_ncc
+		pe.paid_amount = flt(tong_nhom)
+		pe.received_amount = flt(tong_nhom)
+		pe.reference_no = doc.ma_giao_dich or doc.name
+		pe.reference_date = ngay
+		pe.remarks = "Hồ sơ thanh toán %s - %s" % (doc.name, doc.ten_ncc or doc.nha_cung_cap)
+		if phuong_thuc and frappe.db.exists("Mode of Payment", phuong_thuc):
+			pe.mode_of_payment = phuong_thuc
+		for ten_hd, tien, hd in o["hd"]:
+			pe.append("references", {
+				"reference_doctype": "Purchase Invoice",
+				"reference_name": ten_hd,
+				"total_amount": flt(hd.get("grand_total")),
+				"outstanding_amount": flt(hd.get("outstanding_amount")),
+				"allocated_amount": min(flt(tien), flt(hd.get("outstanding_amount"))),
+				"due_date": hd.get("due_date"),
+			})
+		if (doc.loai or LOAI_NCC) == LOAI_TKCT and doc.tk_chi:
+			tk_nh = frappe.db.get_value('Bank Account', doc.tk_chi, 'account')
+			if tk_nh:
+				pe.paid_from = tk_nh
+				pe.bank_account = doc.tk_chi
+		pe.setup_party_account_field()
+		pe.set_missing_values()
+		pe.flags.ignore_permissions = True
+		pe.insert(ignore_permissions=True)
+		pe.submit()
+		ra.append(pe.name)
 	frappe.db.commit()
-	return pe.name
+	return ", ".join(ra)
 
 
 # --------------------------------------------------------- thư báo nhà cung cấp
@@ -1504,6 +1598,17 @@ def gui_email_ncc(name, email=None, gui_that=1):
 	"""
 	_kiem(VAI_LAP | VAI_FIN, "gửi thư báo nhà cung cấp")
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	# Ho so hoan ung: tien cong ty chuyen la chuyen cho NGUOI DA UNG, con
+	# nha cung cap thi da duoc tra tien tu luc mua. Gui thu "chung toi da
+	# thanh toan cong no" cho ho la bao mot viec khong xay ra, va voi ho so
+	# gom nhieu nha thi con khong biet gui cho ai.
+	if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD):
+		frappe.throw(
+			"Hồ sơ %s là hồ sơ hoàn ứng: tiền công ty chuyển là trả lại cho "
+			"%s, còn nhà cung cấp đã được trả tiền từ lúc mua. Thư báo thanh "
+			"toán chỉ dùng cho hồ sơ công nợ nhà cung cấp."
+			% (doc.name, doc.ten_ncc or doc.nha_cung_cap)
+		)
 	if doc.trang_thai != TT_DA_TRA and cint(gui_that):
 		frappe.throw(
 			"Hồ sơ chưa ở trạng thái Đã thanh toán, gửi thư báo lúc này là "
@@ -1901,6 +2006,8 @@ def _to_app_html(name):
 			   "white-space:nowrap;" if khong_ngat else "", noi)
 		)
 
+	nhieu_nha = len({(x["ben_ban"] or x["ncc_hd"] or "").strip() for x in dong
+	                 if (x["ben_ban"] or x["ncc_hd"] or "").strip()}) > 1
 	hang = []
 	for i, x in enumerate(dong, 1):
 		hang.append(
@@ -1909,7 +2016,10 @@ def _to_app_html(name):
 			+ _td(_ngay_vn(x["ngay_hd"]) or "-", "center", khong_ngat=True)
 			+ _td(h(x["hoa_don"] or "-"), khong_ngat=True)
 			+ _td(h(x["so_hd_ncc"] or "-"), "center", khong_ngat=True)
-			+ _td(h(x["noi_dung"] or x["ncc_hd"] or ""))
+			# Ho so gom nhieu nha thi ten nha cung cap phai nam TRONG bang,
+			# khong the chi ghi mot lan o dau to nhu truoc.
+			+ _td(h((("%s - " % (x["ben_ban"] or x["ncc_hd"])) if (nhieu_nha and (x["ben_ban"] or x["ncc_hd"])) else "")
+			        + (x["noi_dung"] or ("" if nhieu_nha else (x["ncc_hd"] or "")))))
 			+ _td(_tien(x["so_tien"]), "right", dam=True, khong_ngat=True)
 			+ _td(h(x["ghi_chu"] or x["ben_ban"] or ""))
 			+ "</tr>"
@@ -1952,7 +2062,12 @@ def _to_app_html(name):
 	ben_nhan = (
 		'<table style="width:100%;border:none;border-collapse:collapse">'
 		+ _o_tt("Đề nghị thanh toán cho:", h(hs["ten_nhan"] or hs["ten_ncc"] or hs["ncc"]))
-		+ _o_tt("Mã nhà cung cấp:", h(hs["ncc"]))
+		+ _o_tt(
+			"Người được hoàn ứng:" if la_hu else "Mã nhà cung cấp:",
+			h(hs.get("ten_nguoi_ung") or hs["ncc"]),
+		)
+		+ (_o_tt("Gồm nhà cung cấp:", "%d nhà, liệt kê trong bảng dưới" % hs.get("so_ncc", 0))
+		   if nhieu_nha else "")
 		+ _o_tt("Số tài khoản:", h(hs["stk_nhan"] or "..............."))
 		+ _o_tt("Ngân hàng:", h(hs["ngan_hang_nhan"] or "..............."))
 		+ _o_tt("Nội dung chuyển khoản:", h(hs["noi_dung_ck"] or "..............."))

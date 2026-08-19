@@ -10,3 +10,4 @@ vagabond.patches.dong_bo_cau_truc #v228c tra whitelist cho hoan_tien.ds
 vagabond.patches.dong_bo_cau_truc #v229
 vagabond.patches.dong_bo_cau_truc #v228d de nghi chi noi bo
 vagabond.patches.dong_bo_cau_truc #v230
+vagabond.patches.dong_bo_cau_truc #v231
