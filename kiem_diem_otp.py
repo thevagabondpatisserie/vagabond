@@ -3804,6 +3804,119 @@ else:
 		la("bill chi co banh: CO tem, khong co phieu lam mon", _ra38[2], [True, False])
 		la("bill tron banh va nuoc: co ca hai", _ra38[3], [True, True])
 
+print("\n[39] Luong ket thuc phieu hoan tien: dinh UNC roi ghi so")
+
+# Anh Viet 19/08/2026: *"Thiet ke nut de dinh kem uy nhiem chi cho phieu hoan
+# tien sau khi da doi soat -> chi Dung vao dinh kem file cho sales lay de gui
+# khach -> hoan thanh -> may tu ghi so. Hien chua co luong ket thuc cho cai
+# phieu nay."*
+#
+# Nhom ca nay canh dung mot thu: khong duoc phep ghi so mot but toan chi khi
+# tren phieu chi chua co uy nhiem chi. Do la dieu chi Dung chot 16/08 va la
+# ly do hook chan_thieu_uy_nhiem_chi ton tai. Them mot duong tu dong Submit
+# la them mot duong co the vong qua hook do.
+
+_ht39 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_js39 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_dt39 = open("vagabond/vagabond/doctype/vagabond_hoan_tien/vagabond_hoan_tien.json", encoding="utf-8").read()
+
+la("doctype co trang thai Hoan thanh",
+   "Cho chi\\nDa chi\\nDa doi soat\\nHoan thanh\\nDa huy" in _dt39, True)
+la("trang thai cu KHONG bi doi ten",
+   all(t in _dt39 for t in ("Cho chi", "Da chi", "Da doi soat", "Da huy")), True)
+la("nhan tieng Viet cho trang thai moi", '"Hoan thanh": "Hoàn thành"' in _ht39, True)
+la("chip dem co Hoan thanh",
+   '("Cho chi", "Da chi", "Da doi soat", "Hoan thanh", "Da huy")' in _ht39, True)
+
+_than_dinh39 = _ht39.split("def dinh_unc(")[1].split("\n@frappe.whitelist()")[0]
+_than_ht39 = _ht39.split("def hoan_thanh(")[1].split("\n@frappe.whitelist()")[0]
+
+la("dinh_unc co whitelist", "@frappe.whitelist()\ndef dinh_unc(" in _ht39, True)
+la("hoan_thanh co whitelist", "@frappe.whitelist()\ndef hoan_thanh(" in _ht39, True)
+
+# Dinh tep KHONG duoc ghi so. Do la ca hai nhip, va cung la khoang thoi
+# gian Sales tai tep ve gui khach.
+la("dinh_unc khong tu ghi so", ".submit()" in _than_dinh39, False)
+la("dinh_unc chan nguoi khong phai ke toan", "_duoc_tu_choi()" in _than_dinh39, True)
+la("dinh_unc dinh tep vao Payment Entry chu khong vao ho so",
+   '"attached_to_doctype": PE' in _than_dinh39, True)
+la("dinh_unc khong dinh nham vao ho so hoan tien",
+   '"attached_to_doctype": DT' in _than_dinh39, False)
+la("dinh_unc chan tep rong", "Tệp uỷ nhiệm chi rỗng" in _than_dinh39, True)
+# Do dai chuoi base64 khong phai so byte that. Phai giai ma roi moi do.
+la("dinh_unc do kich thuoc SAU khi giai ma", "base64.b64decode(noi)" in _than_dinh39, True)
+
+la("hoan_thanh doi phai co UNC that tren phieu chi", "_dem_unc(" in _than_ht39, True)
+la("hoan_thanh khong tat hook chan thieu UNC",
+   "ignore_validate" in _than_ht39 or "flags.ignore_mandatory" in _than_ht39, False)
+la("hoan_thanh lap lai duoc, khong ghi so hai lan",
+   "if not da_ghi_san:" in _than_ht39, True)
+la("hoan_thanh dat dung trang thai", '"trang_thai": "Hoan thanh"' in _than_ht39, True)
+la("hoan_thanh ghi ten nguoi bam", '"nguoi_hoan_thanh": frappe.session.user' in _than_ht39, True)
+
+# _dem_unc phai HOI CO SO DU LIEU chu khong doc mot co da luu tren ho so:
+# tep co the bi go tren Desk sau khi da ghi vet ngay_dinh_unc (QT-19).
+_dem39 = _ht39.split("def _dem_unc(")[1].split("\ndef ")[0]
+la("_dem_unc dem that o co so du lieu", "frappe.db.count(" in _dem39, True)
+# Doc phan MA THAT, bo chu thich va bo ca chuoi mo ta: chinh chu thich cua
+# ham do co nhac ten truong nay de giai thich vi sao KHONG dung no. Kiem
+# theo chuoi con thi ca kiem se do chinh loi giai thich cua minh - da vap
+# ba lan roi (frappe.make_get_request, pe.party, kq.get("rows")).
+def _ma_that39(than):
+	"""Bo chuoi mo ta va cac dong chu thich, tra lai phan ma chay that."""
+	if than.count('"""') >= 2:
+		than = than.split('"""', 2)[2]
+	return "\n".join(
+		x for x in than.split("\n") if x.strip() and not x.strip().startswith("#")
+	)
+
+la("_dem_unc khong tin truong ngay_dinh_unc",
+   "ngay_dinh_unc" in _ma_that39(_dem39), False)
+# Chinh phep kiem tren phai biet do: bo vao mot than gia co truong do trong
+# phan ma that thi no BAT BUOC phai thay.
+la("phep kiem tren that su soi duoc phan ma",
+   "ngay_dinh_unc" in _ma_that39('ma_pe):\n\t"""Chu thich co ngay_dinh_unc."""\n\treturn d.ngay_dinh_unc\n'),
+   True)
+
+# _pe_cua la cong chung cho ca hai ham. Thong bao loi phai chi duong ra,
+# khong duoc chi bao hong (QT-24).
+_pe39 = _ht39.split("def _pe_cua(")[1].split("\ndef ")[0]
+for _cau39 in ("chưa đối soát", "chưa sinh được phiếu chi", "đã huỷ hoặc bị từ chối"):
+	la("cong _pe_cua noi ro vuong o dau: %s" % _cau39, _cau39 in _pe39, True)
+la("loi thieu doi soat co chi duong lam tiep", "bấm Đối soát" in _pe39, True)
+
+# Truong moi phai co trong TRUONG_MOI, neu khong thi migrate khong tao cot
+# va moi lan ghi la mot lan im lang mat du lieu.
+_tm39 = _ht39.split("TRUONG_MOI = {")[1].split("\n}")[0]
+for _t39 in ("nguoi_dinh_unc", "ngay_dinh_unc", "nguoi_hoan_thanh", "ngay_hoan_thanh"):
+	la("TRUONG_MOI khai truong %s" % _t39, '"fieldname": "%s"' % _t39 in _tm39, True)
+
+# Cong ngo: hai ham moi phai co ten trong danh sach, neu khong thi mot
+# decorator bam nham la khong ai biet.
+_cn39 = open("vagabond/khung/kiem_thu/thu_cua_ngo.py", encoding="utf-8").read()
+la("cong ngo biet dinh_unc", '"dinh_unc"' in _cn39, True)
+la("cong ngo biet hoan_thanh", '"hoan_thanh"' in _cn39, True)
+
+# Man hinh: nut chi ve khi MAY CHU cho phep, khong tu suy o may khach.
+la("man chi tiet co the uy nhiem chi", "function htCtUnc(d)" in _js39, True)
+la("nut dinh UNC theo co cua may chu", "if (d.dinh_duoc_unc)" in _js39, True)
+la("nut hoan thanh theo co cua may chu", "if (d.ket_thuc_duoc)" in _js39, True)
+la("nut hoan thanh co hoi lai truoc khi ghi so", "hoiCo('Hoàn thành phiếu hoàn tiền'" in _js39, True)
+la("chip loc co Hoan thanh", "['Hoan thanh', 'Hoàn thành']" in _js39, True)
+la("danh sach hien phieu nao con thieu UNC", "chưa có UNC" in _js39, True)
+# UNC la chung tu goc, nen KHONG duoc nen lai nhu anh bang chung.
+_unc39 = _js39.split("function htUncGui(")[1].split("\nasync function ")[0]
+la("khong nen lai tep UNC truoc khi gui", "toDataURL" in _unc39, False)
+
+# Ba khoa may chu tra ve phai dung ten voi ba khoa man hinh doc. Day dung
+# la kieu loi da lam tep Excel dau tien xuat ra 0 dong (kq.get("rows")).
+_ct39 = _ht39.split("def chi_tiet(")[1].split("\n@frappe.whitelist()")[0]
+for _k39 in ("unc", "co_unc", "dinh_duoc_unc", "ket_thuc_duoc"):
+	la("chi_tiet tra ve khoa %s" % _k39, 'ra["%s"]' % _k39 in _ct39, True)
+	la("man hinh doc dung khoa %s" % _k39, "d.%s" % _k39 in _js39, True)
+la("ds() tra co_unc cho tung dong", 'd["co_unc"] =' in _ht39, True)
+la("Excel cua chi Dung co cot uy nhiem chi", '"Uỷ nhiệm chi"' in _ht39, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
