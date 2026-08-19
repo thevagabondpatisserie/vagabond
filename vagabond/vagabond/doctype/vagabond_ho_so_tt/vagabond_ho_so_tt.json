@@ -14,6 +14,9 @@
   "nha_cung_cap",
   "ten_ncc",
   "email_ncc",
+  "nguoi_ung",
+  "ten_nguoi_ung",
+  "so_ncc",
   "cb1",
   "trang_thai",
   "tong_tien",
@@ -87,6 +90,26 @@
    "fieldname": "email_ncc",
    "fieldtype": "Data",
    "label": "Email nha cung cap"
+  },
+  {
+   "fieldname": "nguoi_ung",
+   "fieldtype": "Link",
+   "label": "Nguoi duoc hoan ung",
+   "options": "Supplier",
+   "description": "Chi dung cho ho so Hoan ung co hoa don: nguoi da ung tien mua ho, tuc nguoi NHAN lai tien. Khac han nha cung cap tren tung dong hoa don."
+  },
+  {
+   "fieldname": "ten_nguoi_ung",
+   "fieldtype": "Data",
+   "label": "Ten nguoi duoc hoan ung",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_ncc",
+   "fieldtype": "Int",
+   "label": "So nha cung cap trong ho so",
+   "read_only": 1,
+   "description": "Ho so hoan ung co hoa don gom duoc nhieu nha cung cap. O nay dem san de man hinh va to in khong phai dem lai."
   },
   {
    "fieldname": "cb1",
