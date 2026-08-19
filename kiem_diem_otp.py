@@ -2610,7 +2610,8 @@ def _nap_ham_thuan(duong_dan, cac_ten, moi_truong=None):
 # ma bo kiem van dat thi bo kiem khong con bao ve gi.
 _HS_NGAY = dict(re.findall(r"^(DOI_NGAY_[A-Z_]+) = \"([a-z_]+)\"", _vd_src, re.M))
 la("doc duoc ba hang so luat doi ngay", sorted(_HS_NGAY), ["DOI_NGAY_CANH_BAO", "DOI_NGAY_CHAN", "DOI_NGAY_DUOC"])
-_vd = _nap_ham_thuan("vagabond/van_don.py", ["_ngay_tu_iso", "luat_doi_ngay"],
+_vd = _nap_ham_thuan("vagabond/van_don.py",
+                     ["_lech_mui", "_ngay_hop_le", "_ngay_tu_iso", "luat_doi_ngay"],
                      dict(_HS_NGAY, re=re))
 _ngay_tu_iso = _vd.get("_ngay_tu_iso")
 _luat_ngay = _vd.get("luat_doi_ngay")
@@ -2618,15 +2619,87 @@ _luat_ngay = _vd.get("luat_doi_ngay")
 la("nap duoc hai ham thuan cua van_don", bool(_ngay_tu_iso and _luat_ngay), True)
 
 if _ngay_tu_iso:
-	# Doc ngay tu chuoi Pancake that. Chuoi cua don 91928 lay tu API luc
-	# 09:20 ngay 19/08/2026.
-	la("doc ngay tu chuoi Pancake that", _ngay_tu_iso("2026-08-18T08:00:00"), "2026-08-18")
-	la("doc ngay khi co mui gio", _ngay_tu_iso("2026-08-18T08:00:00+07:00"), "2026-08-18")
-	la("doc ngay khi ngan cach bang dau cach", _ngay_tu_iso("2026-08-18 08:00:00"), "2026-08-18")
+	# ---------------------------------------------------------------
+	# BAI HOC 19/08/2026, ghi ra day de khong ai vo tinh go mat.
+	#
+	# Ban dau ham nay cat thang t[:10] cua chuoi ISO. Ba muoi phut sau khi
+	# deploy, 75 van don bi day lui dung mot ngay va 27 don cua hom nay
+	# bien mat khoi man Van don.
+	#
+	# Nguyen nhan: Pancake tra estimate_delivery_date theo GIO UTC va
+	# KHONG khai mui gio. Don 92194 giao ngay 19/08 duoc ghi la
+	# "2026-08-18T17:00:00", cong 7 tieng moi ra 00:00 ngay 19/08.
+	#
+	# Bo kiem cu KHONG bat duoc vi no chi thu phep cat chuoi, chua bao gio
+	# hoi "chuoi nay nghia la gi". Ba ca duoi day la ca THAT lay tu API.
+	# ---------------------------------------------------------------
+	la("don 92194: 17:00 UTC la nua dem hom sau gio Viet",
+	   _ngay_tu_iso("2026-08-18T17:00:00"), "2026-08-19")
+	la("don 92186: cung moc do, cung ra ngay hom sau",
+	   _ngay_tu_iso("2026-08-18T17:00:00"), "2026-08-19")
+	la("don 91928: 08:00 UTC van la ngay hom do",
+	   _ngay_tu_iso("2026-08-18T08:00:00"), "2026-08-18")
+	# Ranh gioi: 16:59:59 UTC con la hom nay, 17:00:00 la hom sau.
+	la("16:59:59 UTC van la ngay hom do", _ngay_tu_iso("2026-08-18T16:59:59"), "2026-08-18")
+	la("17:00:00 UTC da sang ngay hom sau", _ngay_tu_iso("2026-08-18T17:00:00"), "2026-08-19")
+	# Chuoi CO khai mui gio thi phai ton trong phan khai do.
+	la("chuoi khai +07:00 thi giu nguyen ngay",
+	   _ngay_tu_iso("2026-08-19T00:00:00+07:00"), "2026-08-19")
+	la("chuoi khai Z la UTC", _ngay_tu_iso("2026-08-18T17:00:00Z"), "2026-08-19")
+	# 10:00 o mui -05:00 la 15:00 UTC, cong 7 tieng ra 22:00 ngay 18 gio Viet.
+	la("chuoi khai mui am", _ngay_tu_iso("2026-08-18T10:00:00-05:00"), "2026-08-18")
+	# Con 14:00 o mui -05:00 la 19:00 UTC, sang 02:00 ngay 19 gio Viet.
+	la("chuoi khai mui am, qua ngay", _ngay_tu_iso("2026-08-18T14:00:00-05:00"), "2026-08-19")
+	la("doc ngay khi ngan cach bang dau cach",
+	   _ngay_tu_iso("2026-08-18 08:00:00"), "2026-08-18")
+	# Chi co phan ngay, khong co gio: khong quy doi duoc thi tra thang.
+	la("chi co phan ngay thi tra thang", _ngay_tu_iso("2026-08-18"), "2026-08-18")
 	# Doc khong duoc thi phai tra RONG, tuyet doi khong duoc doan.
 	for _xau in ("", None, "khong phai ngay", "18/08/2026", "2026-13-01T08:00:00",
 	             "2026-08-99T08:00:00", "1899-08-18T08:00:00", "2026-08"):
 		la("chuoi hong %r tra ve rong" % (_xau,), _ngay_tu_iso(_xau), "")
+
+	# --- Phep bat bien that su bao ve duoc: cua so keo va phep doc ngay
+	# phai noi cung mot thu ngon ngu ---
+	#
+	# van_don keo don theo cua so _khoang_unix(D), la nua dem den nua dem
+	# GIO VIET NAM doi ra unix. Vay thi MOI moc thoi gian nam trong cua so
+	# do, khi doc nguoc lai, deu phai ra dung ngay D. Neu hai phep nay lech
+	# mui gio nhau thi ca bo dong bo sai, va day chinh la ca da xay ra.
+	import datetime as _dt31
+	from zoneinfo import ZoneInfo as _ZI31
+
+	_VN31 = _ZI31("Asia/Ho_Chi_Minh")
+
+	def _cua_so31(ngay):
+		d = _dt31.date.fromisoformat(ngay)
+		dau = _dt31.datetime(d.year, d.month, d.day, tzinfo=_VN31)
+		return int(dau.timestamp()), int((dau + _dt31.timedelta(days=1)).timestamp()) - 1
+
+	for _ngay31 in ("2026-08-18", "2026-08-19", "2026-12-31", "2027-01-01", "2026-02-28"):
+		_dau31, _cuoi31 = _cua_so31(_ngay31)
+		_hong31 = []
+		# Quet ca ngay, moi 15 phut mot moc, cong hai dau bien.
+		for _ts31 in list(range(_dau31, _cuoi31 + 1, 900)) + [_dau31, _cuoi31]:
+			_iso31 = _dt31.datetime.utcfromtimestamp(_ts31).strftime("%Y-%m-%dT%H:%M:%S")
+			if _ngay_tu_iso(_iso31) != _ngay31:
+				_hong31.append(_iso31)
+		la("moi moc trong cua so keo cua %s deu doc ra dung ngay do" % _ngay31,
+		   _hong31[:3], [])
+		# Va moc NGAY TRUOC cua so thi phai ra ngay hom truoc.
+		_truoc31 = _dt31.datetime.utcfromtimestamp(_dau31 - 1).strftime("%Y-%m-%dT%H:%M:%S")
+		_hom_truoc = (_dt31.date.fromisoformat(_ngay31) - _dt31.timedelta(days=1)).isoformat()
+		la("moc sat truoc cua so %s doc ra hom truoc" % _ngay31,
+		   _ngay_tu_iso(_truoc31), _hom_truoc)
+
+if _vd.get("_lech_mui"):
+	_lech_mui = _vd["_lech_mui"]
+	la("khong khai mui gio thi tra None", _lech_mui(""), None)
+	la("Z la 0 phut", _lech_mui("Z"), 0)
+	la("+07:00 la 420 phut", _lech_mui("+07:00"), 420)
+	la("-05:30 la am 330 phut", _lech_mui("-05:30"), -330)
+	la("+07 khong co phut cung doc duoc", _lech_mui("+07"), 420)
+	la("chuoi rac tra None", _lech_mui("abc"), None)
 
 if _luat_ngay:
 	# Bang quyet dinh day du. Cot cuoi la ly do, de nguoi doc bo kiem hieu
