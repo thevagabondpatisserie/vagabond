@@ -80,8 +80,10 @@ TRUONG_MOI = {
 			"fieldname": "sepay_khoa", "label": "Khoá bảo mật webhook SePay",
 			"fieldtype": "Password", "insert_after": "sepay_bat",
 			"description": (
-				"Chuỗi bí mật dán sang tab Bảo mật của webhook bên SePay. Không "
-				"có khoá thì ai biết đường dẫn cũng bắn được giao dịch giả vào sổ."
+				"Chuỗi bí mật dán sang tab Bảo mật của webhook bên SePay, gửi ở "
+				"header X-Api-Key (KHÔNG dùng Authorization, Frappe chặn header "
+				"đó trước khi vào tới đây). Không có khoá thì ai biết đường dẫn "
+				"cũng bắn được giao dịch giả vào sổ."
 			),
 		},
 		{
@@ -115,7 +117,18 @@ def _khoa_that():
 
 
 def _khoa_gui_len():
-	"""Khoa trong goi tin. Nhan ca ba cach SePay va cac he khac hay dung."""
+	"""Khoa trong goi tin. Nhan ca ba cach SePay va cac he khac hay dung.
+
+	QUAN TRONG - KHONG DUNG HEADER "Authorization" voi diem nhan nay.
+	Nghiem thu that ngay 19/08/2026 tren site: goi tin mang
+	"Authorization: Apikey <khoa>" bi chinh FRAPPE tra 401 AuthenticationError
+	TRUOC KHI vao den ham nay. Frappe doc header do de tim khoa API cua no,
+	gap mot kieu la thi tu choi ca yeu cau. Goi tin mang "X-Api-Key" thi vao
+	binh thuong va tra ve 200.
+
+	Van doc "Authorization" o day de phong Frappe doi cach xu ly ve sau,
+	nhung huong dan tren man Cai dat phai la X-Api-Key.
+	"""
 	try:
 		h = frappe.request.headers
 	except Exception:
