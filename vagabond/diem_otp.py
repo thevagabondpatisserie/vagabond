@@ -803,3 +803,363 @@ def xem_ma_gia_lap(si_name=None):
 		"Mã chạy thử được ghi vào Nhật ký lỗi với tiêu đề \"Vagabond: ZNS gia lap "
 		"(tru diem)\". Mở Error Log để xem, hệ không trả mã qua đường này."
 	)
+
+
+# ===================================================================== quay
+#
+# Tru diem NGAY TREN MAN TINH TIEN, luc hoa don chua ton tai.
+#
+# Anh Viet chon luong nay 19/08/2026: thu ngan nhap so diem ngay tren man
+# tinh tien chu khong phai bam Tam tinh ra bill nhap truoc. Muot hon cho
+# quay, nhung phai viet mot luong giu tien moi, nen ba doan duoi day co
+# nhieu chu thich hon binh thuong.
+#
+# Ba pha, KHAC voi luong tren hoa don o cho pha hai KHONG tru diem:
+#
+#   1. xin_ma_quay    may chu tinh lai tong gio hang, duyet so diem, gui ZNS
+#   2. xac_nhan_quay  so ma. Dung thi danh dau ve DA XAC THUC. VAN CHUA tru.
+#   3. dung_ve        goi tu tao_don_tay NGAY SAU khi hoa don da luu. Kiem
+#                     lai tran tren grand_total THAT roi moi tru diem.
+#
+# Vi sao tach pha 3 ra: giua luc khach doc ma va luc thu ngan bam Thu tien,
+# gio hang co the doi (bot mon, them khuyen mai). Neu tru diem ngay o pha 2
+# thi khach mat diem cho mot to bill co the khong bao gio duoc lap, hoac
+# duoc lap voi so tien khac han. Tru o pha 3 thi con so tru luon dua tren
+# to bill THAT da nam trong co so du lieu - dung tinh than QT-19.
+#
+# Ve chi dung duoc MOT LAN va co han: xem HAN_DUNG_PHUT.
+
+HAN_DUNG_PHUT = 30  # ve xac thuc roi thi con dung duoc bao lau
+
+
+def _tong_tam_tinh(items, giam_gia=0, phi_ship=0, km_giam=0):
+	"""Tinh lai tong gio hang o MAY CHU. Tra ve so tien truoc khi tru diem.
+
+	QT-19: khong nhan tong tien tu may khach. May khach chi gui len gio
+	hang, con phep cong thi may chu lam.
+
+	Luu y ve don gia: giong tao_don_tay, don gia van lay tu may khach, vi
+	thu ngan duoc phep dat gia tay tai quay. Do KHONG phai lo hong o day:
+	con so cuoi cung ma diem duoc tru vao la grand_total THAT cua to hoa
+	don, kiem lai o dung_ve(). Tong tinh o day chi de duyet so diem va de
+	tin ZNS gui cho khach ghi dung so tien.
+	"""
+	tong = 0.0
+	for r in items or []:
+		ma = (r.get("item_code") or "").strip()
+		if not ma:
+			continue
+		sl = flt(r.get("qty") or 0)
+		if sl <= 0:
+			continue
+		tong += sl * flt(r.get("rate") or 0)
+	tong += flt(phi_ship)
+	tong -= flt(giam_gia) + flt(km_giam)
+	return max(0.0, tong)
+
+
+def _km_giam_quay(items, ctkm_ap, ma_voucher, combo_ap, quay, nguon, khach, sdt, ngay):
+	"""So tien khuyen mai giam, tinh lai o may chu. Loi thi tra 0.
+
+	Dung DUNG duong ma tao_don_tay dung, de con so hien tren man tinh tien
+	khong lech voi con so cuoi cung tren hoa don.
+	"""
+	if not (ctkm_ap or combo_ap or (ma_voucher or "").strip()):
+		return 0.0
+	try:
+		from vagabond import khuyen_mai as _km
+
+		kq = _km.tinh(
+			items, ctkm=ctkm_ap, ma=ma_voucher, combo=combo_ap, quay=quay,
+			nguon=nguon, khach=khach or None, sdt=sdt, ngay=ngay,
+		)
+		return flt(kq.get("tong_giam"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "diem_otp: tinh khuyen mai o quay")
+		return 0.0
+
+
+def _ve_con_dung_duoc(ve, khach=None):
+	"""Doc mot ve va kiem no con dung duoc khong. Nem loi neu khong.
+
+	Tra ve ban ghi OTP.
+	"""
+	if not ve:
+		frappe.throw("Chưa có vé trừ điểm. Bấm Trừ điểm rồi xác nhận mã trước giúp em.")
+	o = frappe.db.get_value(
+		DT_OTP, ve,
+		["name", "khach", "so_diem", "da_dung", "da_xac_thuc", "han_dung", "muc_dich", "hoa_don"],
+		as_dict=True,
+	)
+	if not o or o.get("muc_dich") != MUC_DICH:
+		frappe.throw("Không tìm thấy vé trừ điểm này. Bấm Trừ điểm lại từ đầu giúp em.")
+	if cint(o.get("da_dung")):
+		frappe.throw(
+			"Vé trừ điểm này đã dùng cho hoá đơn %s rồi. Muốn trừ tiếp thì xin mã mới."
+			% (o.get("hoa_don") or "khác")
+		)
+	if not cint(o.get("da_xac_thuc")):
+		frappe.throw("Khách chưa xác nhận mã cho lượt trừ điểm này. Nhập mã rồi bấm lại giúp em.")
+	if o.get("han_dung") and now_datetime() > o["han_dung"]:
+		frappe.throw(
+			"Vé trừ điểm đã quá %d phút nên hết hiệu lực. Bấm Trừ điểm lại để xin mã mới."
+			% HAN_DUNG_PHUT
+		)
+	if khach and (o.get("khach") or "") != khach:
+		frappe.throw(
+			"Vé trừ điểm này của khách %s, không dùng cho khách %s được. "
+			"Bấm Trừ điểm lại cho đúng khách giúp em." % (o.get("khach"), khach)
+		)
+	return o
+
+
+@frappe.whitelist()
+@rate_limit(limit=30, seconds=600)
+def xin_ma_quay(khach=None, so_diem=None, items=None, giam_gia=0, phi_ship=0,
+                ctkm_ap=None, ma_voucher="", combo_ap=None, quay="", nguon="",
+                sdt="", ngay=None):
+	"""Pha 1 cua luong quay: duyet so diem va gui ZNS. CHUA tru diem."""
+	import json as _json
+
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	khach = (khach or "").strip()
+	if not khach:
+		frappe.throw(
+			"Chưa chọn khách hàng thân thiết nên chưa trừ điểm được. "
+			"Chọn khách ở ô Khách rồi bấm lại giúp em."
+		)
+	if not frappe.db.exists("Customer", khach):
+		frappe.throw("Không có khách %s trong hệ thống. Chọn lại giúp em." % khach)
+	_kiem_khach_tieu_duoc(khach)
+
+	con_khoa = _dang_bi_khoa(khach)
+	if con_khoa:
+		frappe.throw(
+			"Khách này vừa nhập sai mã nhiều lần nên tính năng trừ điểm đang khoá "
+			"%d phút. Cần mở sớm thì xin mã OTP của quản lý ca." % con_khoa
+		)
+
+	so84 = _sdt_khach(khach)
+	if not so84:
+		frappe.throw(
+			"Khách %s chưa có số điện thoại trong hồ sơ nên chưa gửi mã được. "
+			"Vào màn Khách hàng bổ sung số rồi quay lại." % khach
+		)
+
+	if isinstance(items, str):
+		items = _json.loads(items or "[]")
+	if isinstance(ctkm_ap, str):
+		ctkm_ap = _json.loads(ctkm_ap or "null")
+	if isinstance(combo_ap, str):
+		combo_ap = _json.loads(combo_ap or "null")
+
+	km_giam = _km_giam_quay(items, ctkm_ap, ma_voucher, combo_ap, quay, nguon, khach, sdt, ngay)
+	tong = _tong_tam_tinh(items, giam_gia, phi_ship, km_giam)
+	if tong <= 0:
+		frappe.throw(
+			"Giỏ hàng đang trống hoặc bằng 0 đ nên chưa trừ điểm được. "
+			"Chọn món cho khách rồi bấm lại giúp em."
+		)
+
+	c = _cd()
+	so_du = _so_du(khach)
+	duyet, loi = kiem_so_diem(so_diem, tong, so_du, c["quy_doi"], c["tran_pt"], c["bill_toi_thieu"])
+	if loi:
+		frappe.throw(loi)
+
+	ma = _sinh_ma()
+	doc = frappe.new_doc(DT_OTP)
+	doc.update({
+		"sdt": so84,
+		"ma_bam": _bam(ma),
+		"het_han": now_datetime() + timedelta(seconds=c["otp_giay"]),
+		"muc_dich": MUC_DICH,
+		"khach": khach,
+		# Chua co hoa don nao ca - day chinh la diem khac cua luong quay.
+		"hoa_don": None,
+		"so_diem": duyet,
+		"tong_bill": tong,
+		"nguoi_xin": frappe.session.user,
+	})
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+
+	ten = frappe.db.get_value("Customer", khach, "customer_name") or khach
+	tien = tien_tu_diem(duyet, c["quy_doi"])
+	xong, loi_gui, gia_lap = _gui_zns(so84, ma, ten, duyet, tien)
+	if not xong:
+		return {"ok": 0, "ly_do": "khong_gui_duoc", "chi_tiet": loi_gui}
+
+	return {
+		"ok": 1,
+		"phien": doc.name,
+		"so_diem": duyet,
+		"so_tien": tien,
+		"tong_tam_tinh": tong,
+		"duoi_so": so84[-4:],
+		"song_giay": c["otp_giay"],
+		"gia_lap": 1 if gia_lap else 0,
+	}
+
+
+@frappe.whitelist()
+@rate_limit(limit=60, seconds=600)
+def xac_nhan_quay(phien=None, ma=None):
+	"""Pha 2 cua luong quay: so ma. Dung thi cap VE, VAN CHUA tru diem."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	ma = re.sub(r"\D", "", str(ma or ""))
+	if len(ma) != 6:
+		frappe.throw("Mã xác nhận gồm 6 chữ số. Nhập lại giúp em.")
+
+	o = frappe.db.get_value(
+		DT_OTP, phien,
+		["name", "khach", "ma_bam", "so_lan_sai", "so_diem", "het_han",
+		 "da_dung", "da_xac_thuc", "muc_dich"],
+		as_dict=True,
+	)
+	if not o or o.get("muc_dich") != MUC_DICH:
+		frappe.throw("Không tìm thấy lượt xin mã này. Bấm Trừ điểm lại từ đầu giúp em.")
+	if cint(o.get("da_dung")):
+		frappe.throw("Lượt này đã dùng rồi. Bấm Trừ điểm lại nếu cần trừ thêm.")
+	if cint(o.get("da_xac_thuc")):
+		# Bam hai lan thi khong phai loi cua ai, tra lai ve cu.
+		return {"ok": 1, "ve": o["name"], "so_diem": int(flt(o.get("so_diem"))),
+		        "so_tien": tien_tu_diem(o.get("so_diem"), _cd()["quy_doi"]),
+		        "han_dung_phut": HAN_DUNG_PHUT}
+	if o.get("het_han") and now_datetime() > o["het_han"]:
+		frappe.throw("Mã đã hết hạn. Bấm Gửi lại mã rồi đọc mã mới cho khách.")
+	if cint(o.get("so_lan_sai")) >= SAI_TOI_DA:
+		frappe.throw("Mã này đã nhập sai %d lần nên không dùng được nữa. Bấm Gửi lại mã." % SAI_TOI_DA)
+
+	if o["ma_bam"] != _bam(ma):
+		con = SAI_TOI_DA - cint(o.get("so_lan_sai")) - 1
+		frappe.db.set_value(DT_OTP, o["name"], "so_lan_sai", cint(o.get("so_lan_sai")) + 1)
+		frappe.db.commit()
+		if con <= 0:
+			frappe.throw("Mã không đúng. Mã này đã hết lượt nhập, bấm Gửi lại mã giúp em.")
+		frappe.throw("Mã không đúng. Còn %d lần nhập, kiểm tra lại rồi gõ lại giúp em." % con)
+
+	frappe.db.set_value(
+		DT_OTP, o["name"],
+		{"da_xac_thuc": 1, "han_dung": now_datetime() + timedelta(minutes=HAN_DUNG_PHUT)},
+		update_modified=False,
+	)
+	frappe.db.commit()
+	c = _cd()
+	return {
+		"ok": 1,
+		"ve": o["name"],
+		"so_diem": int(flt(o.get("so_diem"))),
+		"so_tien": tien_tu_diem(o.get("so_diem"), c["quy_doi"]),
+		"han_dung_phut": HAN_DUNG_PHUT,
+	}
+
+
+def dung_ve(ve, si_name):
+	"""Pha 3: tru diem that vao to hoa don VUA LUU. Nem loi neu khong hop le.
+
+	KHONG whitelist: chi tao_don_tay duoc goi. Mo ra cho may khach goi thi
+	ai cung tru duoc diem vao bat ky hoa don nao.
+	"""
+	si = _hoa_don(si_name)
+	_kiem_don_con_tru_duoc(si)
+	khach = _khach_cua_don(si)
+	if not khach:
+		frappe.throw(
+			"Hoá đơn %s chưa gắn khách hàng thân thiết nên không trừ điểm được. "
+			"Chọn khách rồi lập lại bill giúp em." % si_name
+		)
+
+	# Khoa dong khach truoc khi ghi: hai may cung tru mot luc thi khong duoc
+	# phep ca hai cung doc mot so du.
+	frappe.db.sql("select name from `tabCustomer` where name = %s for update", khach)
+
+	o = _ve_con_dung_duoc(ve, khach)
+	if _diem_da_tru(si_name) > 0:
+		frappe.throw("Hoá đơn %s đã được trừ điểm rồi. Tải lại màn hình giúp em." % si_name)
+
+	# Kiem LAI tran tren grand_total THAT. Giua luc khach doc ma va luc bam
+	# Thu tien, gio hang co the da doi.
+	c = _cd()
+	so_du = _so_du(khach)
+	duyet, loi = kiem_so_diem(
+		o.get("so_diem"), si["grand_total"], so_du, c["quy_doi"], c["tran_pt"], c["bill_toi_thieu"]
+	)
+	if loi:
+		# QT-24: noi ro phai lam gi tiep, va noi ro diem CHUA bi tru.
+		frappe.throw(
+			"%s Bill đã lưu là %s nhưng em CHƯA trừ điểm của khách. Mở bill đó ra "
+			"trừ điểm lại giúp em." % (loi, si_name)
+		)
+
+	frappe.db.set_value(
+		DT_OTP, o["name"], {"da_dung": 1, "hoa_don": si_name}, update_modified=False
+	)
+	tien = _ghi_tru_diem(khach, duyet, si_name, c["quy_doi"])
+	return {"so_diem": duyet, "so_tien": tien}
+
+
+@frappe.whitelist()
+def bo_ve(phien=None):
+	"""Thu ngan doi y truoc khi chot bill: huy ve, khong tru diem.
+
+	Khong xoa ban ghi (QT-20), chi danh dau da dung de khong ai xai lai.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	o = frappe.db.get_value(DT_OTP, phien, ["name", "da_dung", "muc_dich"], as_dict=True)
+	if not o or o.get("muc_dich") != MUC_DICH:
+		return {"ok": 1}
+	if cint(o.get("da_dung")):
+		frappe.throw("Vé này đã dùng cho một hoá đơn rồi nên không bỏ được.")
+	frappe.db.set_value(
+		DT_OTP, o["name"],
+		{"da_dung": 1, "ghi_chu_bo": "Thu ngân bỏ vé lúc %s" % now_datetime()},
+		update_modified=False,
+	)
+	return {"ok": 1}
+
+
+@frappe.whitelist()
+def tinh_trang_quay(khach=None, tong=0):
+	"""Man tinh tien hoi: khach nay dung duoc bao nhieu diem. CHI DOC."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	khach = (khach or "").strip()
+	c = _cd()
+	ra = {
+		"quy_doi": c["quy_doi"], "tran_pt": c["tran_pt"],
+		"otp_giay": c["otp_giay"], "gia_lap": c["gia_lap"],
+		"dung_duoc": 0, "toi_da": 0, "so_du": 0, "vi_sao": "",
+	}
+	if not khach:
+		ra["vi_sao"] = "Chưa chọn khách hàng thân thiết."
+		return ra
+	hang = (frappe.db.get_value("Customer", khach, "vgb_hang") or "").strip()
+	if hang.upper() in HANG_CAM_TIEU:
+		ra["vi_sao"] = (
+			"Hạng %s đã nhận ưu đãi giảm giá thẳng trên bill nên không dùng điểm được." % hang
+		)
+		return ra
+	so_du = _so_du(khach)
+	ra["so_du"] = int(so_du)
+	con_khoa = _dang_bi_khoa(khach)
+	if con_khoa:
+		ra["vi_sao"] = "Khách vừa nhập sai mã nhiều lần, tính năng trừ điểm đang khoá %d phút." % con_khoa
+		return ra
+	toi_da = tran_dung_duoc(tong, so_du, c["quy_doi"], c["tran_pt"], c["bill_toi_thieu"])
+	ra["toi_da"] = int(toi_da)
+	if toi_da <= 0:
+		ra["vi_sao"] = (
+			"Khách chưa đủ điểm, hoặc bill còn nhỏ quá. Bill phải trên %s đ mới trừ điểm được."
+			% _so(flt(c["bill_toi_thieu"]) * 2)
+		)
+		return ra
+	ra["dung_duoc"] = 1
+	return ra

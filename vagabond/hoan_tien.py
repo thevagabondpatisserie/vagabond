@@ -1539,20 +1539,38 @@ def tinh_trang(si_name=None):
 	)
 	if not d:
 		return {"duoc": 0, "vi_sao": "Không có hoá đơn này."}
-	da = frappe.db.get_value(
-		DT, {"hoa_don": si_name}, ["name", "trang_thai", "so_tien", "da_doi_soat"], as_dict=True
+	# Phieu DA BI TU CHOI thi khong duoc chan don nay nua.
+	#
+	# Anh Viet bat duoc 19/08/2026 tren don 91433: phieu HT-2026-00871 anh da
+	# tu choi, vay ma man Chi tiet don van bao "Đã hoàn tiền ... đã huỷ" va
+	# van khong cho lap phieu moi. Sales ket cung, khong hoan duoc dong nao
+	# cho khach.
+	#
+	# Cho nay la mot cho lech cua chinh tep nay: cac ham khac (dong 545, 813,
+	# 1262, 1364) deu da loai "Da huy" ra tu lau, rieng tinh_trang thi khong.
+	# Nen day khong phai doi luat, day la sua cho quen.
+	CON_SONG = ["name", "trang_thai", "so_tien", "da_doi_soat"]
+	song = frappe.db.get_value(
+		DT, {"hoa_don": si_name, "trang_thai": ["!=", "Da huy"]}, CON_SONG, as_dict=True
 	)
-	if da:
+	if song:
 		return {
 			"duoc": 0,
-			"da_hoan": da,
+			"da_hoan": song,
 			"vi_sao": "Đơn này đã có yêu cầu hoàn tiền %s, đang ở trạng thái \"%s\"."
-			% (da["name"], da["trang_thai"]),
+			% (song["name"], song["trang_thai"]),
 		}
+	# Khong con phieu song. Van tra ve phieu bi tu choi gan nhat de man hinh
+	# noi ro cho sales biet da tung co mot phieu va no bi tu choi, chu khong
+	# im lang nhu chua tung co gi.
+	bi_tu_choi = frappe.db.get_value(
+		DT, {"hoa_don": si_name, "trang_thai": "Da huy"}, CON_SONG,
+		as_dict=True, order_by="creation desc",
+	)
 	if cint(d.docstatus) != 1:
-		return {"duoc": 0, "vi_sao": "Đơn chưa ghi sổ nên sửa hoặc huỷ thẳng được, không cần hoàn tiền."}
+		return {"duoc": 0, "bi_tu_choi": bi_tu_choi, "vi_sao": "Đơn chưa ghi sổ nên sửa hoặc huỷ thẳng được, không cần hoàn tiền."}
 	if cint(d.get("vgb_huy")):
-		return {"duoc": 0, "vi_sao": "Đơn đã mang dấu huỷ."}
+		return {"duoc": 0, "bi_tu_choi": bi_tu_choi, "vi_sao": "Đơn đã mang dấu huỷ."}
 	# Goi y san tai khoan khach da dung o lan truoc, neu co. Doc tu chinh
 	# ho so hoan tien cu cua khach nay chu khong doan.
 	goi_y = {}
@@ -1566,6 +1584,7 @@ def tinh_trang(si_name=None):
 			goi_y = {k: v for k, v in cu.items() if v}
 	return {
 		"duoc": 1,
+		"bi_tu_choi": bi_tu_choi,
 		"so_tien": flt(d.grand_total),
 		"ly_do_co_the": list(LY_DO),
 		"goi_y_tk": goi_y,

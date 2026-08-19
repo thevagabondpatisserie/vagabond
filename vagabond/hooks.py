@@ -63,6 +63,9 @@ scheduler_events = {
 		"0 3 * * *": [
 			"vagabond.van_don.don_dep_anh_giao",
 			"vagabond.dang_nhap.don_dep_phien",
+			# Nhat ky dong bo la vet ky thuat, khong phai chung tu ke toan,
+			# nen don sau 90 ngay. Cac dong dang cho nguoi xem thi giu lai.
+			"vagabond.nhat_ky_dong_bo.don_cu",
 		],
 	},
 }

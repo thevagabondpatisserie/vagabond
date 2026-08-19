@@ -21,6 +21,7 @@ import frappe
 import requests
 from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate
 
+from vagabond import nhat_ky_dong_bo as nhat_ky
 from vagabond.kiem_banh import BO_QUA_TT, _keo_don, _khoang_unix
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 
@@ -169,6 +170,60 @@ def _gio_tu_iso(s):
 		return s[11:16]
 	if " " in s and len(s) >= 16:
 		return s[11:16]
+	return ""
+
+
+def _ngay_tu_iso(s):
+	"""Lay phan NGAY (YYYY-MM-DD) tu chuoi ISO datetime cua Pancake. THUAN.
+
+	Tra rong khi khong doc duoc, va ben goi phai coi rong la "khong biet"
+	chu tuyet doi khong duoc coi la "hom nay": doan bay la ghi de mot ngay
+	giao that bang mot ngay bia ra.
+	"""
+	t = str(s or "").strip()
+	if len(t) >= 10 and t[4] == "-" and t[7] == "-":
+		ngay = t[:10]
+		try:
+			y, m, d = int(ngay[:4]), int(ngay[5:7]), int(ngay[8:10])
+		except ValueError:
+			return ""
+		if 2000 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31:
+			return ngay
+	return ""
+
+
+# Luat doi ngay giao theo Pancake. Anh Viet duyet 19/08/2026.
+#
+# Cau chuyen: don 91928 khach doi ngay giao tu 17/08 sang 18/08 tren Pancake.
+# Nhip dong bo CO chay qua don do, CO ghi de gio giao thanh 08:00 cua ban
+# moi, nhung khong he dung toi ngay giao - vi dict cac o duoc cap nhat khong
+# he co khoa ngay_giao. Van don ket lai o 17/08, loc danh sach ngay 18/08
+# khong thay don, bep va shipper deu khong biet.
+#
+# Nguyen tac: cai gi khach quyet thi Pancake duoc de, cai gi ben minh van
+# hanh quyet thi Pancake khong duoc de nhung PHAI BAO. Im lang chinh la thu
+# lam mat don 91928.
+DOI_NGAY_DUOC = "de"  # de thang, chi ghi nhat ky
+DOI_NGAY_CANH_BAO = "de_va_bao"  # van de, nhung go khoi chuyen va bao nguoi
+DOI_NGAY_CHAN = "chan"  # khong de, chi bao
+
+
+def luat_doi_ngay(trang_thai, co_chuyen):
+	"""Pancake doi ngay giao thi lam gi. THUAN, khong doc co so du lieu.
+
+	trang_thai  trang thai hien tai cua van don ben minh
+	co_chuyen   van don da duoc gan chuyen hoac shipper chua
+
+	Van don da xong viec (Da giao, Khong giao duoc, Huy) thi khong tra ve
+	nhanh nao ca: viec da xong roi, doi ngay khong con nghia gi.
+	"""
+	tt = (trang_thai or "").strip()
+	if tt == "Chờ giao":
+		return DOI_NGAY_CANH_BAO if co_chuyen else DOI_NGAY_DUOC
+	if tt == "Đang giao":
+		# Shipper dang cam banh tren duong. Doi ngay luc nay la chuyen NGUOI
+		# phai xu: goi shipper quay ve hay giao luon. May khong duoc tu quyet.
+		return DOI_NGAY_CHAN
 	return ""
 
 
@@ -395,6 +450,100 @@ def dong_bo_pancake(ngay=None):
 	return _dong_bo_pancake(ngay)
 
 
+def _theo_ngay_giao(o, cu, pid):
+	"""Ap luat doi ngay giao cho MOT van don da co. Khong nem loi ra ngoai.
+
+	Tach rieng khoi vong so sanh chung vi ba le. Mot, quyet dinh phu thuoc
+	trang thai van don chu khong chi phu thuoc gia tri lech. Hai, doi ngay
+	con keo theo viec go khoi chuyen cu. Ba, day la o duy nhat ma may KHONG
+	duoc phep tu quyet trong moi tinh huong.
+	"""
+	try:
+		ngay_moi = _ngay_tu_iso(o.get("estimate_delivery_date"))
+		if not ngay_moi:
+			return
+		ngay_cu = str(cu.get("ngay_giao") or "")[:10]
+		if not ngay_cu or ngay_cu == ngay_moi:
+			return
+		ma = str(o.get("display_id") or pid)
+		co_chuyen = bool((cu.get("chuyen") or "").strip() or (cu.get("shipper") or "").strip())
+		luat = luat_doi_ngay(cu.get("trang_thai"), co_chuyen)
+		if luat == DOI_NGAY_CHAN:
+			nhat_ky.ghi(
+				"van_don", ma, "Van Don", cu.name, "Pancake doi ngay giao khi dang giao",
+				"ngay_giao", ngay_cu, ngay_moi, can_nguoi_xem=1,
+				ghi_chu=("Shipper dang cam hang tren duong nen may KHONG tu doi ngay. "
+				         "Nho dieu phoi goi shipper roi tu doi tay."),
+			)
+			return
+		if not luat:
+			# Van don da giao xong, khong giao duoc, hoac da huy. Viec xong roi.
+			return
+		doi = {"ngay_giao": ngay_moi}
+		can_xem = 0
+		ghi_chu = ""
+		if luat == DOI_NGAY_CANH_BAO:
+			# Chuyen duoc xep theo NGAY. Don da doi sang ngay khac ma con
+			# nam trong chuyen cu thi chuyen do sai, va thu tu diem dung cua
+			# ca chuyen sai theo.
+			doi["chuyen"] = ""
+			doi["thu_tu"] = 0
+			can_xem = 1
+			ghi_chu = ("Don da duoc go khoi chuyen %s vi doi sang ngay khac. "
+			           "Nho dieu phoi xep lai tuyen cho ngay moi."
+			           % ((cu.get("chuyen") or "").strip() or "(chua dat ten)"))
+		frappe.db.set_value("Van Don", cu.name, doi, update_modified=False)
+		nhat_ky.ghi(
+			"van_don", ma, "Van Don", cu.name, "doi ngay giao theo Pancake",
+			"ngay_giao", ngay_cu, ngay_moi, can_nguoi_xem=can_xem, ghi_chu=ghi_chu,
+		)
+	except Exception:
+		# Ngay giao hong thi phan con lai cua nhip van phai chay.
+		frappe.log_error(frappe.get_traceback(), "van_don: theo ngay giao")
+
+
+def _theo_don_huy(o):
+	"""Pancake bao don da huy hoac da xoa thi van don ben minh phai biet.
+
+	Khong dung "xoa" bao gio, chi chuyen trang thai va ghi vet - QT-20.
+	"""
+	try:
+		pid = str(o.get("id") or "")
+		if not pid:
+			return
+		cu = frappe.db.get_value(
+			"Van Don", {"pancake_id": pid}, ["name", "trang_thai", "chuyen"], as_dict=True
+		)
+		if not cu:
+			return
+		ma = str(o.get("display_id") or pid)
+		tt = (cu.get("trang_thai") or "").strip()
+		if tt == "Chờ giao":
+			frappe.db.set_value(
+				"Van Don", cu.name,
+				{"trang_thai": "Huỷ", "chuyen": "", "thu_tu": 0,
+				 "ly_do_loi": "Pancake bao don da huy"},
+				update_modified=False,
+			)
+			nhat_ky.ghi(
+				"van_don", ma, "Van Don", cu.name, "huy van don theo Pancake",
+				"trang_thai", tt, "Huỷ", can_nguoi_xem=0,
+				ghi_chu="Don chua roi tiem nen may tu huy van don.",
+			)
+			return
+		if tt == "Đang giao":
+			nhat_ky.ghi(
+				"van_don", ma, "Van Don", cu.name, "Pancake huy don khi dang giao",
+				"trang_thai", tt, "Huỷ", can_nguoi_xem=1,
+				ghi_chu=("Shipper dang cam hang tren duong. May KHONG tu huy. "
+				         "Nho dieu phoi goi shipper ngay."),
+			)
+			return
+		# Da giao, khong giao duoc, hoac da huy san: khong dung toi.
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "van_don: theo don huy")
+
+
 def _dong_bo_pancake(ngay=None):
 	"""Ruot cua dong_bo_pancake, khong kiem quyen - de scheduler goi duoc."""
 	ngay = ngay or nowdate()
@@ -414,6 +563,11 @@ def _dong_bo_pancake(ngay=None):
 	for o in ds:
 		if (o.get("status") or 0) in BO_QUA_TT:
 			bo_qua += 1
+			# Truoc 19/08/2026 cho nay bo qua HOAN TOAN, ke ca khi ben minh
+			# da co van don. Hau qua: khach huy don tren Pancake ma shipper
+			# van thay don cho giao, van xep tuyen, van chay di giao mot don
+			# khong con ton tai.
+			_theo_don_huy(o)
 			continue
 		pid = str(o.get("id") or "")
 		if not pid:
@@ -430,6 +584,9 @@ def _dong_bo_pancake(ngay=None):
 				"khach", "sdt", "nguoi_nhan", "sdt_nhan",
 				"buoi", "goi_truoc", "chup_truoc",
 				"dia_chi", "gio_giao", "ghi_chu", "tien_thu_ho",
+				# Ba o duoi day KHONG nam trong vong so sanh chung ma danh
+				# rieng cho luat doi ngay giao, xem luat_doi_ngay().
+				"ngay_giao", "chuyen", "shipper",
 			],
 			as_dict=True,
 		)
@@ -452,6 +609,10 @@ def _dong_bo_pancake(ngay=None):
 				moi["gio_giao"] = _gio_tu_iso(o.get("estimate_delivery_date"))
 				moi["ghi_chu"] = (o.get("note") or "").strip()
 				moi["tien_thu_ho"] = _cod_tu_don(o, si_cu)
+				# NGAY GIAO di duong rieng, khong tha vao vong so sanh chung.
+				# Vong chung chi biet "khac thi ghi de", ma ngay giao thi tuy
+				# trang thai van don moi biet duoc phep de hay khong.
+				_theo_ngay_giao(o, cu, pid)
 				doi = {}
 				for k2, v2 in moi.items():
 					if k2 not in cu:
@@ -469,6 +630,11 @@ def _dong_bo_pancake(ngay=None):
 				if doi:
 					frappe.db.set_value("Van Don", cu.name, doi, update_modified=False)
 					lam_moi += 1
+					nhat_ky.ghi_nhieu(
+						"van_don", str(o.get("display_id") or pid), "Van Don",
+						cu.name, "Pancake sua don",
+						{k3: (cu.get(k3), v3) for k3, v3 in doi.items()},
+					)
 				# Bang mon: khach them banh hay doi loi chuc thi ghi lai.
 				mon_moi = _mon_tu_pancake(o)
 				if mon_moi and _mon_khac(cu.name, mon_moi):

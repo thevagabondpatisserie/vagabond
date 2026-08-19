@@ -4,3 +4,4 @@
 vagabond.khoa_ma_pancake
 vagabond.khoa_ma_pancake #chay lai 07/08/2026, lan dau vap ImplicitCommitError
 vagabond.patches.dong_bo_cau_truc #v223b phi ngoai thue
+vagabond.patches.dong_bo_cau_truc #v224

@@ -108,3 +108,61 @@ def gui_tin(c, sdt84, template_id, du_lieu, dau_vet=None):
 		frappe.log_error(title="Vagabond: ZNS khong gui duoc", message=json.dumps(j)[:1000])
 		return False, j.get("message") or "Zalo từ chối tin"
 	return True, ""
+
+
+@frappe.whitelist()
+def thu_mau(template_id=None):
+	"""CHI DOC: hoi Zalo xem mot mau ZNS co nhung tham so gi.
+
+	Vi sao can ham nay
+	------------------
+	Moi mau ZNS co bo tham so rieng do nguoi tao mau dat ten. Gui sai ten
+	mot tham so la Zalo tu choi ca tin, va loi tra ve chi noi chung chung.
+	Truoc khi tat che gia lap de gui that cho khach, phai doi chieu bo tham
+	so cua mau voi dict ma code dang gui (xem diem_otp._gui_zns).
+
+	Ham nay KHONG gui tin nao, khong ton mot tin ZNS nao.
+	"""
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw("Chỉ System Manager mới xem được mẫu ZNS. Nhờ anh Việt mở giúp.")
+	from vagabond.lib import cfg
+
+	ma = str(template_id or "").strip()
+	if not ma:
+		frappe.throw("Chưa nhập mã mẫu ZNS. Ví dụ 623902.")
+	c = cfg()
+	try:
+		tok = token(c)
+	except Exception as e:
+		return {"ok": 0, "loi": str(e)}
+	try:
+		r = requests.get(
+			"%s/template/info" % ZALO_OA,
+			headers={"access_token": tok},
+			params={"template_id": ma},
+			timeout=TIMEOUT,
+		)
+		j = r.json() if r.content else {}
+	except Exception:
+		frappe.log_error(title="Vagabond: doc mau ZNS loi mang", message=frappe.get_traceback())
+		return {"ok": 0, "loi": "Không gọi được Zalo"}
+	if j.get("error") not in (0, None):
+		return {"ok": 0, "loi": j.get("message") or "Zalo từ chối", "tho": j}
+	d = j.get("data") or {}
+	return {
+		"ok": 1,
+		"template_id": d.get("templateId") or ma,
+		"ten": d.get("templateName") or "",
+		"trang_thai": d.get("status") or "",
+		"chat_luong": d.get("templateQuality") or "",
+		"gia": d.get("price") or "",
+		"tham_so": [
+			{
+				"ten": p.get("name"),
+				"kieu": p.get("type"),
+				"bat_buoc": p.get("require"),
+				"toi_da": p.get("maxLength"),
+			}
+			for p in (d.get("listParams") or [])
+		],
+	}
