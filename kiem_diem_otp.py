@@ -4092,6 +4092,16 @@ la("phieu cu 5 trieu cung len giam doc",
 la("phieu nho di thang xuong ke toan",
    H41_buoc(H41_tien({"so_tien": 0, "cac_khoan": [{"so_tien": 50000}]})), "Cho ke toan")
 
+# Truong so_tien cu KHONG duoc con bat buoc: phieu nhieu dong de no trong,
+# va Frappe nem MandatoryError truoc khi bat ky ma nao cua minh chay. Da vap
+# that tren site 20/08/2026 ngay lan thu dau tien lap phieu.
+la("truong so_tien cu khong con bat buoc", _tr41["so_tien"].get("reqd"), None)
+la("truong so_tien cu chi doc", _tr41["so_tien"].get("read_only"), 1)
+# Va may chu ghi vao do dung bang tong, phong khi con doan ma nao chua tim ra
+# het van doc truong cu.
+la("may chu soi guong so_tien cu bang tong tien",
+   "doc.so_tien = doc.tong_tien" in _tkl41, True)
+
 # --- Can tru hoan ung ---
 la("con no khi hoan ung it hon tam ung", H41_cantru(2000000, 1500000)[0], 500000)
 la("khong con no khi hoan du", H41_cantru(2000000, 2000000)[0], 0)
