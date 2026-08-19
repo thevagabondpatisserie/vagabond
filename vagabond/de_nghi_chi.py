@@ -187,6 +187,29 @@ def buoc_ke_tiep(so_tien, nguong=NGUONG_GIAM_DOC):
 	return TT_CHO_GIAM_DOC if can_giam_doc_duyet(so_tien, nguong) else TT_CHO_KE_TOAN
 
 
+def tien_phieu(phieu):
+	"""Số tiền thật của một phiếu, dù là phiếu cũ hay phiếu mới. THUẦN.
+
+	Vì sao phải có hàm này chứ không đọc thẳng một trường
+	------------------------------------------------------
+	Đổi sang bảng kê nhiều dòng đẻ ra một cái bẫy im lặng: `so_tien` trên
+	phiếu cha vẫn còn đó, nhưng phiếu lập từ 20/08/2026 để nó bằng 0 vì tiền
+	đã nằm ở các dòng. Bất kỳ chỗ nào còn đọc `so_tien` sẽ thấy 0.
+
+	Chỗ nguy nhất là `buoc_ke_tiep`: đọc 0 thì MỌI phiếu mới, dù 50 triệu,
+	đều rơi thẳng xuống kế toán và không bao giờ qua tay giám đốc. Không báo
+	lỗi gì cả, phiếu vẫn chạy trơn tru, và cấp duyệt biến mất trong im lặng.
+
+	Nên gom về một hàm: có bảng kê thì cộng bảng kê, không có thì mới đọc
+	trường cũ.
+	"""
+	tong = cong_bang_ke(phieu)
+	if tong > 0:
+		return tong
+	p = phieu or {}
+	return flt(p.get("tong_tien")) or flt(p.get("so_tien"))
+
+
 def tk_goi_y(phan_loai, chung_tu_thue):
 	"""Tài khoản chi phí gợi ý cho phiếu này. THUẦN.
 
@@ -221,6 +244,111 @@ def can_chon_ncc(hinh_thuc, chung_tu_thue):
 	)
 
 
+# ==================================================== bảng kê nhiều dòng
+#
+# Anh Việt 19/08/2026: *"Hiện tại hệ thống đang là 1 phiếu = 1 khoản chi.
+# Việc này quá mất thời gian. Em hãy cấu trúc lại theo dạng Master-Detail
+# (1 phiếu = Nhiều khoản chi)."*
+#
+# Bộ phận mua hàng đi chợ một buổi về có mười mấy hoá đơn lẻ. Trước hôm nay
+# đó là mười mấy phiếu, mỗi phiếu gõ lại đúng một bộ tên tài khoản, số tài
+# khoản, ngân hàng giống hệt nhau, rồi Uyên duyệt mười mấy lần.
+
+
+def cac_dong(phieu):
+	"""Bảng kê của phiếu, luôn trả về list. THUẦN.
+
+	Nhận cả dict lẫn Document, và cả trường hợp chưa có dòng nào.
+	"""
+	p = phieu or {}
+	ds = p.get("cac_khoan") if hasattr(p, "get") else None
+	if not ds:
+		return []
+	ra = []
+	for d in ds:
+		ra.append(d if isinstance(d, dict) else (d.as_dict() if hasattr(d, "as_dict") else dict(d)))
+	return ra
+
+
+def cong_bang_ke(phieu):
+	"""Tổng tiền của phiếu, cộng từ bảng kê. THUẦN.
+
+	Đây là con số DUY NHẤT được dùng để so với ngưỡng giám đốc duyệt. Màn
+	hình có tự cộng để hiện cho người gõ thấy ngay, nhưng số đó không bao giờ
+	được tin (QT-19): sửa một dòng trong công cụ nhà phát triển của trình
+	duyệt là hạ được một phiếu 50 triệu xuống dưới ngưỡng 2 triệu và đi thẳng
+	qua mặt giám đốc.
+	"""
+	return sum(flt(d.get("so_tien")) for d in cac_dong(phieu))
+
+
+def thieu_gi_dong(dong, so_thu_tu, la_hd_vat=False, phai_co_tep=False, co_tep=True):
+	"""Một dòng bảng kê còn thiếu gì. THUẦN.
+
+	`la_hd_vat` và `phai_co_tep` đọc từ Danh mục loại chứng từ chứ không so
+	chuỗi với chữ "Hoá đơn VAT", vì đổi tên một dòng danh mục thì không được
+	phép làm im lặng tắt mất ba ô hoá đơn. Xem `vagabond_loai_chung_tu.py`.
+	"""
+	d = dong or {}
+	stt = "Khoản %s" % so_thu_tu
+	thieu = []
+
+	if not (d.get("noi_dung") or "").strip():
+		thieu.append("%s: chưa ghi nội dung chi" % stt)
+	if flt(d.get("so_tien")) <= 0:
+		thieu.append("%s: số tiền phải lớn hơn 0" % stt)
+
+	pl = (d.get("phan_loai") or "").strip()
+	if not pl:
+		thieu.append("%s: chưa chọn phân loại chi phí" % stt)
+	elif pl not in TK_THEO_PHAN_LOAI and pl not in PL_TAM_UNG:
+		thieu.append("%s: phân loại \"%s\" không nằm trong danh mục" % (stt, pl))
+
+	if not (d.get("loai_chung_tu") or "").strip():
+		thieu.append("%s: chưa chọn loại chứng từ" % stt)
+
+	if la_hd_vat:
+		if not (d.get("so_hoa_don") or "").strip():
+			thieu.append("%s: hoá đơn VAT thì phải có số hoá đơn" % stt)
+		if not d.get("ngay_hoa_don"):
+			thieu.append("%s: hoá đơn VAT thì phải có ngày hoá đơn" % stt)
+		if not (d.get("mst") or "").strip():
+			thieu.append("%s: hoá đơn VAT thì phải có mã số thuế người bán" % stt)
+
+	if phai_co_tep and not co_tep:
+		thieu.append("%s: loại chứng từ này bắt buộc đính kèm tệp" % stt)
+
+	return thieu
+
+
+def can_tru_tam_ung(tien_tam_ung, da_hoan_ung):
+	"""Còn nợ bao nhiêu sau khi cấn trừ. THUẦN.
+
+	Trả về (con_no, cong_ty_no_lai, cau_nhac).
+
+	CỐ Ý KHÔNG chặn khi hoàn ứng vượt tạm ứng. Nhân viên ứng 2 triệu rồi
+	tiêu 2 triệu 3 là chuyện bình thường ngoài đời, và lúc đó công ty nợ lại
+	họ 300 nghìn. Chặn ở đây là bắt người ta khai gian cho khớp con số, mà
+	một khi đã khai gian một lần thì cả bảng cấn trừ không còn dùng được.
+	"""
+	ung = flt(tien_tam_ung)
+	hoan = flt(da_hoan_ung)
+	con = ung - hoan
+	if con > 0.5:
+		return con, 0.0, "Còn %s đ chưa hoàn ứng." % _tien(con)
+	if con < -0.5:
+		return 0.0, -con, "Đã tiêu vượt tạm ứng %s đ, công ty trả lại phần này." % _tien(-con)
+	return 0.0, 0.0, "Đã hoàn ứng đủ."
+
+
+def _tien(v):
+	"""Số tiền cho người Việt đọc. THUẦN."""
+	try:
+		return "{:,.0f}".format(flt(v)).replace(",", ".")
+	except Exception:
+		return str(v)
+
+
 def thieu_gi(phieu):
 	"""Phiếu còn thiếu những gì trước khi gửi đi duyệt. THUẦN.
 
@@ -232,40 +360,39 @@ def thieu_gi(phieu):
 	"""
 	p = phieu or {}
 	thieu = []
+	dm = p.get("_dm_chung_tu") or {}
 
-	if not (p.get("ten_khoan_chi") or "").strip():
-		thieu.append("Tên khoản chi")
-	if flt(p.get("so_tien")) <= 0:
-		thieu.append("Số tiền yêu cầu phải lớn hơn 0")
 	if not p.get("ngay_can_tt"):
 		thieu.append("Ngày cần thanh toán")
 
 	nv = (p.get("loai_nghiep_vu") or "").strip()
 	if nv not in LOAI_NGHIEP_VU:
 		thieu.append("Loại nghiệp vụ")
-	elif nv == NV_CHI_PHI:
-		pl = (p.get("phan_loai") or "").strip()
-		if not pl:
-			thieu.append("Phân loại chi tiêu")
-		elif pl not in TK_THEO_PHAN_LOAI:
-			thieu.append("Phân loại chi tiêu không nằm trong danh mục")
+
+	# Bảng kê. Từ 20/08/2026 đây mới là chỗ chứa nội dung, số tiền, phân loại
+	# và hoá đơn; các trường cùng tên trên phiếu cha chỉ còn để đọc phiếu cũ.
+	ds = cac_dong(p)
+	if not ds:
+		thieu.append("Bảng kê chưa có khoản chi nào, bấm Thêm khoản chi giúp em")
+	for i, d in enumerate(ds, 1):
+		mo = dm.get((d.get("loai_chung_tu") or "").strip()) or {}
+		thieu.extend(
+			thieu_gi_dong(
+				d, i,
+				la_hd_vat=bool(mo.get("la_hoa_don_vat")),
+				phai_co_tep=bool(mo.get("bat_buoc_tep")),
+				co_tep=bool(d.get("_co_tep")),
+			)
+		)
 
 	ht = (p.get("hinh_thuc") or "").strip()
 	if ht not in (HT_NHAN_VIEN, HT_NCC):
 		thieu.append("Hình thức thụ hưởng")
 
-	ct = (p.get("chung_tu_thue") or "").strip()
-	if ct not in (CT_CO_VAT, CT_KHONG_VAT):
-		thieu.append("Chứng từ thuế")
-	elif ct == CT_CO_VAT:
-		if not (p.get("so_hoa_don") or "").strip():
-			thieu.append("Số hoá đơn")
-		if not p.get("ngay_hoa_don"):
-			thieu.append("Ngày hoá đơn")
-		if not (p.get("mst") or "").strip():
-			thieu.append("Mã số thuế người bán")
-
-	if can_chon_ncc(ht, ct) and not (p.get("nha_cung_cap") or "").strip():
+	# Có hoá đơn VAT thì phải gắn được người bán, nếu không thì tờ hoá đơn
+	# không lên bảng kê mua vào được. Trước đây đọc cờ trên phiếu; nay đọc
+	# từ CÁC DÒNG, vì một phiếu giờ có thể vừa có dòng có hoá đơn vừa không.
+	if co_hoa_don_vat(p) and ht == HT_NCC and not (p.get("nha_cung_cap") or "").strip():
 		thieu.append(
 			"Nhà cung cấp (hoá đơn VAT phải gắn người bán thì mới lên được "
 			"bảng kê mua vào)"
@@ -283,6 +410,21 @@ def thieu_gi(phieu):
 	return thieu
 
 
+def co_hoa_don_vat(phieu):
+	"""Phiếu có ít nhất một dòng mang hoá đơn VAT không. THUẦN.
+
+	Đọc theo CỜ của Danh mục loại chứng từ, truyền vào qua `_dm_chung_tu`.
+	Không so chuỗi với chữ "Hoá đơn VAT": xem lý do trong
+	`vagabond_loai_chung_tu.py`.
+	"""
+	p = phieu or {}
+	dm = p.get("_dm_chung_tu") or {}
+	for d in cac_dong(p):
+		if (dm.get((d.get("loai_chung_tu") or "").strip()) or {}).get("la_hoa_don_vat"):
+			return True
+	return False
+
+
 def ly_do_chan(phieu):
 	"""Phiếu này có bị chặn thẳng không, và vì sao. THUẦN.
 
@@ -290,21 +432,37 @@ def ly_do_chan(phieu):
 	đi đường khác. Trả về câu giải thích, hoặc None nếu không chặn.
 	"""
 	p = phieu or {}
-	pl = (p.get("phan_loai") or "").strip()
-	if pl in CHAN_TSCD:
-		return (
-			"Khoản này là tài sản cố định nên không đi đường đề nghị chi lặt "
-			"vặt được. Tài sản cố định cần đơn mua hàng, cần theo dõi khấu hao "
-			"và cần hồ sơ tài sản, nhét vào một phiếu hoàn tiền là mất cả ba. "
-			"Anh chị lập Đơn mua hàng giúp em, hoặc nhắn Uyên để Uyên lập."
-		)
-	if la_tam_ung((p.get("loai_nghiep_vu") or "")) and (
-		(p.get("chung_tu_thue") or "").strip() == CT_CO_VAT
-	):
+	# Soi TỪNG DÒNG, không soi trường phan_loai trên phiếu cha nữa. Một phiếu
+	# mười dòng mà dòng thứ bảy là cái máy đánh trứng thì vẫn phải chặn, chứ
+	# không phải chỉ chặn khi cả phiếu là tài sản cố định.
+	for i, d in enumerate(cac_dong(p), 1):
+		if (d.get("phan_loai") or "").strip() in CHAN_TSCD:
+			return (
+				"Khoản %s là tài sản cố định nên không đi đường đề nghị chi lặt "
+				"vặt được. Tài sản cố định cần đơn mua hàng, cần theo dõi khấu hao "
+				"và cần hồ sơ tài sản, nhét vào một phiếu hoàn tiền là mất cả ba. "
+				"Anh chị tách khoản đó ra và lập Đơn mua hàng giúp em, hoặc nhắn "
+				"Uyên để Uyên lập." % i
+			)
+	if la_tam_ung((p.get("loai_nghiep_vu") or "")) and co_hoa_don_vat(p):
 		return (
 			"Tạm ứng thì chưa phát sinh chi phí nên chưa có hoá đơn VAT. Nếu "
 			"đã có hoá đơn rồi thì đây là khoản hoàn ứng chứ không phải tạm "
 			"ứng, anh chị đổi Loại nghiệp vụ giúp em."
+		)
+	# Hoàn ứng thì phải nói rõ hoàn cho lần tạm ứng nào, nếu không thì bảng
+	# cấn trừ không bao giờ khớp và không ai biết nhân viên còn nợ bao nhiêu.
+	nv = (p.get("loai_nghiep_vu") or "").strip()
+	if nv == NV_HOAN_UNG and not (p.get("thuoc_tam_ung") or "").strip():
+		return (
+			"Phiếu hoàn ứng phải chỉ rõ nó hoàn cho lần tạm ứng nào. Bấm ô "
+			"\"Thuộc mã Tạm ứng\" rồi chọn phiếu tạm ứng của anh chị giúp em. "
+			"Nếu khoản này không phải hoàn ứng thì đổi Loại nghiệp vụ sang Chi phí."
+		)
+	if nv != NV_HOAN_UNG and (p.get("thuoc_tam_ung") or "").strip():
+		return (
+			"Chỉ phiếu Hoàn ứng mới gắn được vào một mã tạm ứng. Anh chị đổi "
+			"Loại nghiệp vụ sang Hoàn ứng, hoặc bỏ ô Thuộc mã Tạm ứng đi giúp em."
 		)
 	return None
 
@@ -445,40 +603,145 @@ def _ma_tk_theo_so_hieu(so_hieu, cong_ty=None):
 	return frappe.db.get_value("Account", loc, "name")
 
 
+DM_CT = "Vagabond Loai Chung Tu"
+
+# Bộ khởi tạo danh mục loại chứng từ. Chỉ tạo khi thiếu, KHÔNG đè lên dòng
+# kế toán đã sửa: danh mục này chị Dung tự thêm bớt được, và một lần deploy
+# không được phép xoá công sức đó.
+DM_CT_MAC_DINH = (
+	# (tên, là hoá đơn VAT, bắt buộc tệp, thứ tự)
+	("Hoá đơn VAT", 1, 1, 10),
+	("Hoá đơn bán lẻ", 0, 1, 20),
+	("Phiếu thu của người bán", 0, 1, 30),
+	("Báo giá", 0, 1, 40),
+	("Hợp đồng", 0, 1, 50),
+	("Biên bản", 0, 1, 60),
+	("Bảng kê không hoá đơn", 0, 0, 70),
+	("Không có chứng từ", 0, 0, 80),
+)
+
+
+def dung_danh_muc_chung_tu():
+	"""Tạo các dòng danh mục còn thiếu. LẶP LẠI ĐƯỢC, gọi bao nhiêu lần cũng được."""
+	for ten, vat, tep, tt in DM_CT_MAC_DINH:
+		if frappe.db.exists(DM_CT, ten):
+			continue
+		d = frappe.get_doc({
+			"doctype": DM_CT, "ten": ten, "la_hoa_don_vat": vat,
+			"bat_buoc_tep": tep, "dang_dung": 1, "thu_tu": tt,
+		})
+		d.flags.ignore_permissions = True
+		d.insert(ignore_permissions=True)
+
+
+def _dm_chung_tu():
+	"""Ánh xạ tên loại chứng từ sang hai cờ của nó.
+
+	Đọc một lần rồi truyền vào các hàm THUẦN qua khoá `_dm_chung_tu`, để
+	`thieu_gi` và `ly_do_chan` vẫn kiểm thử được mà không cần site.
+	"""
+	ra = {}
+	try:
+		for r in frappe.get_all(
+			DM_CT, fields=["name", "la_hoa_don_vat", "bat_buoc_tep"], limit_page_length=0
+		):
+			ra[r["name"]] = {
+				"la_hoa_don_vat": cint(r.get("la_hoa_don_vat")),
+				"bat_buoc_tep": cint(r.get("bat_buoc_tep")),
+			}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: doc danh muc chung tu loi")
+	return ra
+
+
+def _kem_dm(doc):
+	"""Bản dict của phiếu, có kèm danh mục chứng từ để các hàm THUẦN dùng."""
+	d = doc.as_dict() if hasattr(doc, "as_dict") else dict(doc or {})
+	d["_dm_chung_tu"] = _dm_chung_tu()
+	return d
+
+
 def trung_hoa_don(doc):
 	"""Tờ hoá đơn này đã nằm ở phiếu khác hoặc hoá đơn mua nào chưa.
 
 	Hai bạn cùng chụp một tờ bill, hoặc một người nộp lại lần hai sau khi bị
 	trả lại. Trả về danh sách mã chứng từ đã có, rỗng nghĩa là chưa trùng.
 	"""
-	khoa = khoa_trung_hoa_don(doc.get("mst"), doc.get("so_hoa_don"), doc.get("ngay_hoa_don"))
-	if not khoa:
-		return []
+	ma_minh = doc.get("name") or ""
+	ds = cac_dong(doc)
+	# Phiếu một dòng lập trước 20/08/2026 vẫn giữ hoá đơn trên phiếu cha, nên
+	# vẫn phải soi. Bỏ nhánh này là mở lại đúng cái cửa mà hàm này sinh ra để
+	# đóng, chỉ cho những tờ hoá đơn cũ.
+	if not ds and (doc.get("so_hoa_don") or "").strip():
+		ds = [{
+			"mst": doc.get("mst"), "so_hoa_don": doc.get("so_hoa_don"),
+			"ngay_hoa_don": doc.get("ngay_hoa_don"),
+		}]
 
 	da_co = []
-	loc = {
-		"so_hoa_don": doc.get("so_hoa_don"),
-		"trang_thai": ["!=", TT_TRA_LAI],
-		"name": ["!=", doc.get("name") or ""],
-	}
-	for k in frappe.get_all(DT, filters=loc, fields=["name", "mst", "ngay_hoa_don"]):
-		if khoa_trung_hoa_don(k.get("mst"), doc.get("so_hoa_don"), k.get("ngay_hoa_don")) == khoa:
-			da_co.append(k["name"])
+	# Trùng NGAY TRONG một phiếu: hai bạn cùng chụp một tờ bill rồi cùng dán
+	# vào một phiếu. Đây là ca mới sinh ra do đổi sang nhiều dòng, và không
+	# một phép kiểm nào tra cơ sở dữ liệu bắt được nó.
+	trong_phieu = {}
+	for i, d in enumerate(ds, 1):
+		khoa = khoa_trung_hoa_don(d.get("mst"), d.get("so_hoa_don"), d.get("ngay_hoa_don"))
+		if not khoa:
+			continue
+		if khoa in trong_phieu:
+			da_co.append("chính phiếu này, khoản %s và khoản %s" % (trong_phieu[khoa], i))
+			continue
+		trong_phieu[khoa] = i
 
-	if doc.get("nha_cung_cap"):
-		da_co += [
-			h["name"]
-			for h in frappe.get_all(
-				PI,
-				filters={
-					"bill_no": doc.get("so_hoa_don"),
-					"supplier": doc.get("nha_cung_cap"),
-					"docstatus": ["<", 2],
-				},
-				fields=["name"],
-			)
-		]
-	return da_co
+		# Phiếu khác trên hệ.
+		for k in frappe.get_all(
+			"Vagabond De Nghi Chi Dong",
+			filters={"so_hoa_don": d.get("so_hoa_don"), "parent": ["!=", ma_minh]},
+			fields=["parent", "mst", "ngay_hoa_don"],
+			limit_page_length=0,
+		):
+			if khoa_trung_hoa_don(k.get("mst"), d.get("so_hoa_don"), k.get("ngay_hoa_don")) != khoa:
+				continue
+			if frappe.db.get_value(DT, k["parent"], "trang_thai") == TT_TRA_LAI:
+				continue
+			da_co.append(k["parent"])
+
+		# Phiếu cũ một dòng, hoá đơn còn nằm trên phiếu cha.
+		for k in frappe.get_all(
+			DT,
+			filters={
+				"so_hoa_don": d.get("so_hoa_don"),
+				"trang_thai": ["!=", TT_TRA_LAI],
+				"name": ["!=", ma_minh],
+			},
+			fields=["name", "mst", "ngay_hoa_don"],
+			limit_page_length=0,
+		):
+			if khoa_trung_hoa_don(k.get("mst"), d.get("so_hoa_don"), k.get("ngay_hoa_don")) == khoa:
+				da_co.append(k["name"])
+
+		# Hoá đơn mua đã vào sổ.
+		if doc.get("nha_cung_cap"):
+			da_co += [
+				h["name"]
+				for h in frappe.get_all(
+					PI,
+					filters={
+						"bill_no": d.get("so_hoa_don"),
+						"supplier": doc.get("nha_cung_cap"),
+						"docstatus": ["<", 2],
+					},
+					fields=["name"],
+					limit_page_length=0,
+				)
+			]
+	# Giữ thứ tự nhìn thấy, bỏ trùng lặp: một phiếu bị nhắc hai lần trong câu
+	# báo lỗi thì người đọc tưởng là hai phiếu khác nhau.
+	ra, thay = [], set()
+	for x in da_co:
+		if x not in thay:
+			thay.add(x)
+			ra.append(x)
+	return ra
 
 
 def truoc_khi_luu(doc, method=None):
@@ -488,22 +751,46 @@ def truoc_khi_luu(doc, method=None):
 	if not doc.get("trang_thai"):
 		doc.trang_thai = TT_NHAP
 
-	chan = ly_do_chan(doc.as_dict() if hasattr(doc, "as_dict") else doc)
+	chan = ly_do_chan(_kem_dm(doc))
 	if chan:
 		frappe.throw(chan)
+
+	# TỔNG TIỀN CỘNG LẠI Ở ĐÂY, mỗi lần lưu, không nhận số từ màn hình.
+	#
+	# Đây là con số quyết định phiếu có phải lên giám đốc duyệt hay không.
+	# Nhận số của máy khách thì sửa một dòng trong công cụ nhà phát triển của
+	# trình duyệt là hạ được phiếu 50 triệu xuống dưới ngưỡng 2 triệu và đi
+	# thẳng qua mặt giám đốc. Đúng tinh thần QT-19.
+	doc.tong_tien = cong_bang_ke(doc)
+
+	dm = _dm_chung_tu()
+	for d in doc.get("cac_khoan") or []:
+		mo = dm.get((d.get("loai_chung_tu") or "").strip()) or {}
+		# Tài khoản chi phí của TỪNG DÒNG. Chỉ điền khi kế toán chưa tự chọn:
+		# đè lên lựa chọn của chị Dung là lỗi nặng hơn hẳn việc để trống.
+		if not d.get("tk_chi_phi"):
+			ma = _ma_tk_theo_so_hieu(
+				tk_goi_y(
+					d.get("phan_loai"),
+					CT_CO_VAT if mo.get("la_hoa_don_vat") else CT_KHONG_VAT,
+				),
+				doc.get("company"),
+			)
+			if ma:
+				d.tk_chi_phi = ma
+		# Dòng không phải hoá đơn VAT thì ba ô hoá đơn phải sạch. Người lập
+		# gõ số hoá đơn rồi đổi loại chứng từ sang Báo giá, số cũ nằm lại và
+		# sẽ đi khoá trùng của một tờ hoá đơn không tồn tại.
+		if not mo.get("la_hoa_don_vat"):
+			d.so_hoa_don = None
+			d.ngay_hoa_don = None
+			d.mst = None
+			d.ten_ban = None
+			d.dia_chi_ban = None
 
 	# Tạm ứng thì không có phân loại chi phí, xoá đi cho khỏi lẫn vào báo cáo.
 	if la_tam_ung(doc.get("loai_nghiep_vu")):
 		doc.phan_loai = None
-
-	# Tài khoản gợi ý: chỉ điền khi kế toán chưa tự chọn. Đè lên lựa chọn của
-	# chị Dung là lỗi nặng hơn hẳn việc để trống.
-	if not doc.get("tk_chi_phi"):
-		ma = _ma_tk_theo_so_hieu(
-			tk_goi_y(doc.get("phan_loai"), doc.get("chung_tu_thue")), doc.get("company")
-		)
-		if ma:
-			doc.tk_chi_phi = ma
 
 	# Tài khoản nhận tiền: lấy của nhà cung cấp, hoặc của chính người lập.
 	if not (doc.get("so_tk") or "").strip():
@@ -537,9 +824,17 @@ def gui_duyet(ma_phieu):
 	if doc.nguoi_tao != frappe.session.user and "System Manager" not in _vai():
 		frappe.throw("Chỉ người lập phiếu mới gửi phiếu này đi duyệt được.")
 
-	thieu = thieu_gi(doc.as_dict())
+	# Tệp đính kèm: đếm một lần rồi gắn cờ vào từng dòng. Hệ đang đính tệp
+	# vào cả PHIẾU chứ chưa đính theo dòng, nên ở đây cờ là chung cho mọi
+	# dòng. Khi nào đính theo dòng thì chỉ phải đổi đúng chỗ này.
+	d_dict = _kem_dm(doc)
+	co_tep = bool(_so_tep(ma_phieu))
+	for d in d_dict.get("cac_khoan") or []:
+		d["_co_tep"] = co_tep
+
+	thieu = thieu_gi(d_dict)
 	if thieu:
-		frappe.throw("Còn thiếu: %s." % ", ".join(thieu))
+		frappe.throw("Còn thiếu: %s." % "; ".join(thieu))
 
 	# Ảnh bill hoặc hoá đơn: bắt buộc trước khi gửi đi duyệt. Uyên ngồi xa
 	# quầy, cái duy nhất chị có để quyết là tấm ảnh người lập chụp.
@@ -552,9 +847,8 @@ def gui_duyet(ma_phieu):
 	trung = trung_hoa_don(doc.as_dict())
 	if trung:
 		frappe.throw(
-			"Số hoá đơn %s đã nằm ở %s rồi. Nếu đây là tờ khác thì anh chị "
-			"kiểm lại số hoá đơn và ngày giúp em."
-			% (doc.so_hoa_don, ", ".join(trung))
+			"Có hoá đơn trong bảng kê đã nằm ở %s rồi. Nếu đây là tờ khác thì "
+			"anh chị kiểm lại số hoá đơn và ngày giúp em." % ", ".join(trung)
 		)
 
 	doc.trang_thai = TT_CHO_DUYET
@@ -585,7 +879,7 @@ def duyet(ma_phieu, ghi_chu=None):
 				"chuyển khoản đính kèm. Đính thêm rồi bấm lại giúp em."
 			)
 		doc.duyet_boi, doc.duyet_luc = nguoi, luc
-		doc.trang_thai = buoc_ke_tiep(doc.so_tien)
+		doc.trang_thai = buoc_ke_tiep(tien_phieu(doc))
 	elif doc.trang_thai == TT_CHO_GIAM_DOC:
 		doc.gd_boi, doc.gd_luc = nguoi, luc
 		doc.trang_thai = TT_CHO_KE_TOAN
@@ -637,15 +931,35 @@ def danh_sach(trang_thai="", so_dong=100):
 		filters=loc,
 		fields=[
 			"name", "ten_khoan_chi", "loai_nghiep_vu", "phan_loai", "so_tien",
+			"tong_tien", "thuoc_tam_ung",
 			"ngay_can_tt", "hinh_thuc", "nha_cung_cap", "chung_tu_thue",
 			"phuong_thuc", "trang_thai", "nguoi_tao", "creation", "ho_so_tt",
 		],
 		order_by="creation desc",
 		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
 	)
+	# Số dòng và tiêu đề rút gọn: danh sách phải nói được "phiếu này có mấy
+	# khoản" mà không phải mở từng phiếu ra.
+	dem, dau = {}, {}
+	if ds:
+		for r in frappe.get_all(
+			"Vagabond De Nghi Chi Dong",
+			filters={"parent": ["in", [d["name"] for d in ds]]},
+			fields=["parent", "noi_dung", "idx"],
+			order_by="parent asc, idx asc",
+			limit_page_length=0,
+		):
+			dem[r["parent"]] = dem.get(r["parent"], 0) + 1
+			dau.setdefault(r["parent"], r.get("noi_dung") or "")
 	for d in ds:
 		d["nhan_trang_thai"] = NHAN_TRANG_THAI.get(d["trang_thai"]) or d["trang_thai"]
-		d["can_giam_doc"] = 1 if can_giam_doc_duyet(d["so_tien"]) else 0
+		d["so_khoan"] = dem.get(d["name"], 0)
+		d["tien"] = tien_phieu(d)
+		d["can_giam_doc"] = 1 if can_giam_doc_duyet(d["tien"]) else 0
+		# Tiêu đề: phiếu mới lấy nội dung khoản đầu, phiếu cũ lấy trường cũ.
+		d["tieu_de"] = dau.get(d["name"]) or d.get("ten_khoan_chi") or "(chưa đặt tên)"
+		if d["so_khoan"] > 1:
+			d["tieu_de"] += " và %s khoản khác" % (d["so_khoan"] - 1)
 	return {"ds": ds, "nguong_giam_doc": NGUONG_GIAM_DOC}
 
 
@@ -659,6 +973,10 @@ def danh_muc():
 		"hinh_thuc": [HT_NHAN_VIEN, HT_NCC],
 		"chung_tu_thue": [CT_CO_VAT, CT_KHONG_VAT],
 		"phuong_thuc": [PT_TIEN_MAT, PT_CHUYEN_KHOAN],
+		# Danh mục loại chứng từ, kèm hai cờ. Màn hình bật ba ô hoá đơn theo
+		# cờ `la_hoa_don_vat` chứ không so tên, để đổi tên dòng danh mục
+		# không làm im lặng tắt mất ba ô đó.
+		"loai_chung_tu": _ds_chung_tu(),
 		"nguong_giam_doc": NGUONG_GIAM_DOC,
 		"nhac_ncc": "Nếu chưa có nhà cung cấp trong danh mục, anh chị liên hệ Uyên để tạo mã giúp.",
 	}
@@ -685,23 +1003,54 @@ def tao(du_lieu=None, gui_luon=0):
 	d = frappe.parse_json(du_lieu) if isinstance(du_lieu, str) else (du_lieu or {})
 	if not isinstance(d, dict):
 		frappe.throw("Dữ liệu gửi lên không đúng định dạng.")
-	if not str(d.get("ten_khoan_chi") or "").strip():
-		frappe.throw("Chưa đặt tên khoản chi. Ghi ngắn gọn mua gì hoặc chi cho việc gì.")
-	if flt(d.get("so_tien")) <= 0:
-		frappe.throw("Số tiền phải lớn hơn 0.")
+
+	dong = d.get("cac_khoan") or []
+	if isinstance(dong, str):
+		dong = frappe.parse_json(dong) or []
+	if not isinstance(dong, list) or not dong:
+		frappe.throw(
+			"Bảng kê chưa có khoản chi nào. Bấm \"+ Thêm khoản chi\" rồi ghi ít "
+			"nhất một khoản giúp em."
+		)
+	# Chặn phiếu khổng lồ ngay tại cổng. 200 dòng là đã quá xa mọi nhu cầu
+	# thật của một buổi đi chợ, mà lại đủ để làm nghẽn cả lần lưu.
+	if len(dong) > 200:
+		frappe.throw(
+			"Một phiếu tối đa 200 khoản, phiếu này có %s. Anh chị tách ra làm "
+			"nhiều phiếu giúp em." % len(dong)
+		)
 
 	doc = frappe.new_doc(DT)
 	for f in (
-		"ten_khoan_chi", "loai_nghiep_vu", "phan_loai", "dien_giai",
-		"hinh_thuc", "nha_cung_cap", "phuong_thuc", "ten_tk", "so_tk",
-		"ngan_hang", "chung_tu_thue", "so_hoa_don", "mst", "ghi_chu",
+		"loai_nghiep_vu", "dien_giai", "hinh_thuc", "nha_cung_cap",
+		"phuong_thuc", "ten_tk", "so_tk", "ngan_hang", "thuoc_tam_ung",
+		"ghi_chu",
 	):
 		v = d.get(f)
 		doc.set(f, (str(v).strip() if isinstance(v, str) else v) or None)
-	doc.so_tien = flt(d.get("so_tien"))
 	doc.ngay_can_tt = d.get("ngay_can_tt") or None
-	doc.ngay_hoa_don = d.get("ngay_hoa_don") or None
 	doc.nguoi_tao = frappe.session.user
+
+	for k in dong:
+		if not isinstance(k, dict):
+			continue
+		doc.append("cac_khoan", {
+			"noi_dung": str(k.get("noi_dung") or "").strip() or None,
+			"so_tien": flt(k.get("so_tien")),
+			"phan_loai": str(k.get("phan_loai") or "").strip() or None,
+			"loai_chung_tu": str(k.get("loai_chung_tu") or "").strip() or None,
+			"so_hoa_don": str(k.get("so_hoa_don") or "").strip() or None,
+			"ngay_hoa_don": k.get("ngay_hoa_don") or None,
+			"mst": str(k.get("mst") or "").strip() or None,
+			"ten_ban": str(k.get("ten_ban") or "").strip() or None,
+			"dia_chi_ban": str(k.get("dia_chi_ban") or "").strip() or None,
+			"ghi_chu": str(k.get("ghi_chu") or "").strip() or None,
+		})
+	# Tên phiếu cho dễ tìm trên Desk. KHÔNG dùng làm số liệu: mọi con số đọc
+	# từ bảng kê.
+	doc.ten_khoan_chi = (
+		str((dong[0] or {}).get("noi_dung") or "").strip() or "Đề nghị chi"
+	)[:130]
 	doc.trang_thai = TT_NHAP
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
@@ -717,3 +1066,251 @@ def tao(du_lieu=None, gui_luon=0):
 		"ok": 1, "ma": doc.name, "trang_thai": doc.trang_thai,
 		"nhan_trang_thai": NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai,
 	}
+
+
+def _ds_chung_tu():
+	"""Danh mục loại chứng từ cho màn hình, kèm hai cờ.
+
+	Tự dựng danh mục nếu site còn trống, để lần deploy đầu tiên không rơi vào
+	cảnh màn hình có ô chọn mà trong ô không có gì.
+	"""
+	try:
+		if not frappe.db.count(DM_CT):
+			dung_danh_muc_chung_tu()
+			frappe.db.commit()
+		return [
+			{
+				"ten": r["name"],
+				"la_hoa_don_vat": cint(r.get("la_hoa_don_vat")),
+				"bat_buoc_tep": cint(r.get("bat_buoc_tep")),
+			}
+			for r in frappe.get_all(
+				DM_CT,
+				filters={"dang_dung": 1},
+				fields=["name", "la_hoa_don_vat", "bat_buoc_tep", "thu_tu"],
+				order_by="thu_tu asc, name asc",
+				limit_page_length=0,
+			)
+		]
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: doc danh muc chung tu loi")
+		return []
+
+
+# ------------------------------------------------------ cấn trừ hoàn ứng
+
+
+def _tong_hoan_ung(ma_tam_ung):
+	"""Đã hoàn ứng bao nhiêu cho một phiếu tạm ứng.
+
+	CHỈ tính phiếu chưa bị trả lại. Một phiếu hoàn ứng bị Uyên trả về để sửa
+	thì chưa phải là tiền đã quyết toán, mà tính nó vào là bảng cấn trừ báo
+	nhân viên đã trả xong trong khi thực tế chưa.
+	"""
+	if not ma_tam_ung:
+		return 0.0
+	tong = 0.0
+	for r in frappe.get_all(
+		DT,
+		filters={
+			"thuoc_tam_ung": ma_tam_ung,
+			"trang_thai": ["!=", TT_TRA_LAI],
+		},
+		fields=["name", "tong_tien", "so_tien"],
+		limit_page_length=0,
+	):
+		tong += flt(r.get("tong_tien")) or flt(r.get("so_tien"))
+	return tong
+
+
+@frappe.whitelist()
+def tam_ung_cua_toi(nguoi=None):
+	"""Các phiếu tạm ứng còn dư nợ của một người, để chọn khi lập hoàn ứng.
+
+	Anh Việt 19/08/2026 đặt ô "Thuộc mã Tạm ứng" để *"sau này làm luồng cấn
+	trừ hoàn ứng"*. Hàm này là mặt đọc của ô đó.
+
+	Chỉ liệt kê phiếu ĐÃ HOÀN TẤT: tạm ứng chưa chi thì chưa có tiền trong
+	tay ai, hoàn ứng cho nó là hoàn một khoản chưa tồn tại.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	nguoi = (nguoi or "").strip() or frappe.session.user
+	# Người thường chỉ thấy tạm ứng của chính mình. Mua hàng và kế toán thấy
+	# của mọi người, vì họ là người lập hộ và người đối chiếu.
+	if nguoi != frappe.session.user and not (
+		_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)
+	):
+		nguoi = frappe.session.user
+
+	ra = []
+	for r in frappe.get_all(
+		DT,
+		filters={
+			"loai_nghiep_vu": NV_TAM_UNG,
+			"nguoi_tao": nguoi,
+			"trang_thai": TT_HOAN_TAT,
+		},
+		fields=["name", "ten_khoan_chi", "tong_tien", "so_tien", "creation", "ngay_can_tt"],
+		order_by="creation desc",
+		limit_page_length=0,
+	):
+		ung = flt(r.get("tong_tien")) or flt(r.get("so_tien"))
+		hoan = _tong_hoan_ung(r["name"])
+		con, cong_ty_no, nhac = can_tru_tam_ung(ung, hoan)
+		ra.append({
+			"ma": r["name"],
+			"ten": r.get("ten_khoan_chi") or "",
+			"ngay": str(r.get("creation") or "")[:10],
+			"da_ung": ung,
+			"da_hoan_ung": hoan,
+			"con_no": con,
+			"cong_ty_no_lai": cong_ty_no,
+			"nhac": nhac,
+		})
+	return {"ds": ra, "nguoi": nguoi}
+
+
+@frappe.whitelist()
+def chi_tiet(ma_phieu=None):
+	"""Một phiếu đầy đủ, kèm bảng kê và tình trạng cấn trừ."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not frappe.db.exists(DT, ma_phieu):
+		frappe.throw(
+			"Không tìm thấy phiếu %s. Quay lại danh sách rồi mở phiếu khác "
+			"giúp em." % ma_phieu
+		)
+	doc = frappe.get_doc(DT, ma_phieu)
+	if doc.nguoi_tao != frappe.session.user and not (
+		_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)
+	):
+		frappe.throw("Phiếu này của người khác nên anh chị không mở được.")
+
+	ra = doc.as_dict()
+	for k in list(ra.keys()):
+		if k.startswith("_"):
+			ra.pop(k, None)
+	ra["nhan_trang_thai"] = NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai
+	# Tính lại ở máy chủ chứ không trả trường đã lưu: nếu vì lý do gì đó
+	# trường `tong_tien` lệch với bảng kê thì màn hình phải thấy số ĐÚNG.
+	ra["tien"] = tien_phieu(ra)
+	ra["can_giam_doc"] = 1 if can_giam_doc_duyet(ra["tien"]) else 0
+	ra["so_tep"] = _so_tep(ma_phieu)
+	ra["tep"] = [
+		{"url": f["file_url"], "ten": f["file_name"]}
+		for f in frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": DT, "attached_to_name": ma_phieu},
+			fields=["file_url", "file_name"],
+			limit_page_length=0,
+		)
+	]
+
+	# Cấn trừ. Phiếu tạm ứng thì nhìn xuống, phiếu hoàn ứng thì nhìn lên.
+	ra["can_tru"] = None
+	if (doc.loai_nghiep_vu or "") == NV_TAM_UNG:
+		hoan = _tong_hoan_ung(ma_phieu)
+		con, cong_ty_no, nhac = can_tru_tam_ung(ra["tien"], hoan)
+		ra["can_tru"] = {
+			"vai": "tam_ung", "da_ung": ra["tien"], "da_hoan_ung": hoan,
+			"con_no": con, "cong_ty_no_lai": cong_ty_no, "nhac": nhac,
+			"phieu_hoan": frappe.get_all(
+				DT,
+				filters={"thuoc_tam_ung": ma_phieu, "trang_thai": ["!=", TT_TRA_LAI]},
+				fields=["name", "tong_tien", "so_tien", "trang_thai"],
+				limit_page_length=0,
+			),
+		}
+	elif doc.get("thuoc_tam_ung"):
+		g = frappe.db.get_value(
+			DT, doc.thuoc_tam_ung, ["name", "tong_tien", "so_tien"], as_dict=True
+		) or {}
+		ung = flt(g.get("tong_tien")) or flt(g.get("so_tien"))
+		hoan = _tong_hoan_ung(doc.thuoc_tam_ung)
+		con, cong_ty_no, nhac = can_tru_tam_ung(ung, hoan)
+		ra["can_tru"] = {
+			"vai": "hoan_ung", "ma_tam_ung": doc.thuoc_tam_ung, "da_ung": ung,
+			"da_hoan_ung": hoan, "con_no": con, "cong_ty_no_lai": cong_ty_no,
+			"nhac": nhac,
+		}
+	return ra
+
+
+# ------------------------------------------- chuyển phiếu cũ sang bảng kê
+
+
+def chuyen_phieu_mot_dong():
+	"""Đưa mỗi phiếu một dòng cũ thành một phiếu có đúng một dòng bảng kê.
+
+	QT-20 cấm xoá vĩnh viễn, nên hàm này KHÔNG xoá gì cả: các trường cũ trên
+	phiếu cha vẫn nằm nguyên đó, chỉ thêm một dòng bảng kê chép lại đúng nội
+	dung ấy. Phiếu cũ mở ra vẫn đọc được, và từ nay đọc được bằng cùng một
+	màn hình với phiếu mới.
+
+	LẶP LẠI ĐƯỢC: phiếu nào đã có dòng thì bỏ qua. Chạy lần thứ hai không
+	sinh ra dòng thứ hai.
+
+	Ánh xạ loại chứng từ: cờ cũ chỉ có hai giá trị, có VAT và không VAT. Có
+	VAT thì về dòng "Hoá đơn VAT", không VAT thì về "Bảng kê không hoá đơn"
+	chứ KHÔNG về "Không có chứng từ" - phiếu cũ nào cũng đã bắt buộc đính
+	kèm ảnh bill rồi, nên nói là không có chứng từ thì sai với thực tế.
+	"""
+	da_co = set()
+	for r in frappe.get_all(
+		"Vagabond De Nghi Chi Dong", fields=["parent"], limit_page_length=0
+	):
+		da_co.add(r["parent"])
+
+	chuyen, bo_qua = 0, 0
+	for r in frappe.get_all(
+		DT,
+		fields=[
+			"name", "ten_khoan_chi", "so_tien", "phan_loai", "chung_tu_thue",
+			"so_hoa_don", "ngay_hoa_don", "mst", "tk_chi_phi",
+		],
+		limit_page_length=0,
+	):
+		if r["name"] in da_co:
+			bo_qua += 1
+			continue
+		co_vat = (r.get("chung_tu_thue") or "").strip() == CT_CO_VAT
+		loai = "Hoá đơn VAT" if co_vat else "Bảng kê không hoá đơn"
+		if not frappe.db.exists(DM_CT, loai):
+			loai = None
+		try:
+			# Ghi thẳng vào bảng con, KHÔNG qua doc.save(): save sẽ chạy
+			# before_validate, mà hàm đó có thể chặn phiếu cũ vì luật nay đã
+			# khác luật lúc phiếu được lập. Một lần migrate không được phép
+			# làm phiếu lịch sử không lưu lại được.
+			dong = frappe.get_doc({
+				"doctype": "Vagabond De Nghi Chi Dong",
+				"parent": r["name"],
+				"parenttype": DT,
+				"parentfield": "cac_khoan",
+				"idx": 1,
+				"noi_dung": r.get("ten_khoan_chi") or "Khoản chi",
+				"so_tien": flt(r.get("so_tien")),
+				"phan_loai": r.get("phan_loai") or None,
+				"loai_chung_tu": loai,
+				"tk_chi_phi": r.get("tk_chi_phi") or None,
+				"so_hoa_don": r.get("so_hoa_don") if co_vat else None,
+				"ngay_hoa_don": r.get("ngay_hoa_don") if co_vat else None,
+				"mst": r.get("mst") if co_vat else None,
+				"ghi_chu": "Chuyển tự động từ phiếu một dòng ngày 20/08/2026.",
+			})
+			dong.flags.ignore_permissions = True
+			dong.db_insert()
+			frappe.db.set_value(
+				DT, r["name"], "tong_tien", flt(r.get("so_tien")), update_modified=False
+			)
+			chuyen += 1
+		except Exception:
+			frappe.log_error(
+				frappe.get_traceback(), "de_nghi_chi: chuyen phieu %s loi" % r["name"]
+			)
+	if chuyen:
+		frappe.db.commit()
+	return {"chuyen": chuyen, "bo_qua": bo_qua}
