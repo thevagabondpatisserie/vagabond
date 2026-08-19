@@ -810,6 +810,11 @@ async function scrHome() {
     card(TYPES.Purchase.icon, TYPES.Purchase.title, TYPES.Purchase.sub, n[0], 'Purchase') +
     card(TYPES.Transfer.icon, TYPES.Transfer.title, TYPES.Transfer.sub, n[1], 'Transfer') +
     card(TYPES.Manufacture.icon, TYPES.Manufacture.title, TYPES.Manufacture.sub, n[2], 'Manufacture') +
+    /* Đề nghị chi: MỌI nhân viên đều thấy, không khoá theo quyền mua hàng
+       (anh Việt 19/08/2026). Bạn bếp mua chai nước mắm, bạn quầy mua bình
+       gas thì đều lập được ngay trên điện thoại, Uyên nhận và chạy tiếp
+       chuỗi duyệt. Trước đó phiếu này chỉ lập được trên Desk. */
+    card('🧾', 'Tạo yêu cầu thanh toán nội bộ', 'Ứng tiền mua đồ cho tiệm, hoặc xin trả thẳng cho người bán', 0, 'DNC') +
     /* Uyen theo doi don mua hang va cong no nha cung cap ngay tren app,
        khoi mo Desk (anh Viet 12/08/2026). Hai o nay chi hien voi ke toan,
        thu mua va giam doc - gia mua la thong tin nhay cam. */
@@ -1121,7 +1126,7 @@ var VGB_DM = [
 var VGB_NHOM = [
   /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND'] },
+  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
@@ -1492,6 +1497,7 @@ function vgbGo(k) {
   /* Một nhánh tiền tố cho cả 16 danh mục. Chép 16 nhánh tay là 16 cơ hội
      gõ nhầm một mã, và đó đúng là lỗi dead link ngày 16/08. */
   if (k.indexOf('DM:') === 0) return kgMo(k.slice(3));
+  if (k === 'DNC') return go(scrDeNghiChi);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
@@ -8256,6 +8262,28 @@ function posDsCheDo() {
   });
   return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
 }
+/* Hai nut in tren man bao thanh cong, dung chung cho ca luong tien mat lan
+   luong chuyen khoan.
+
+   Vi sao tach ra thanh mot ham: truoc 19/08/2026 hai man tu ve hai lan, va
+   ca hai deu khoa NUT IN TEM sau dieu kien "bill co mon nuoc". Trong khi
+   chinh ham in tem da doi tu 10/08 theo anh Viet - *"moi mon deu duoc in
+   tem chu khong rieng mon nuoc, hop entremet cung can tem"* - ma cai khoa
+   thi khong ai doi theo. Ket qua: don GrabFood ban mot hu banh Almond
+   Tuile thi khong co nut in tem nao ca (De bao 19/08/2026).
+
+   Nay TEM hien khi bill co bat ky mon nao, con PHIEU LAM MON van chi hien
+   khi co mon nuoc - phieu do la phieu cho quay pha che, bill toan banh thi
+   in ra khong ai dung. */
+function posNutIn(d) {
+  var mon = (d && d.mon) || [];
+  if (!mon.length) return '';
+  var coNuoc = posCoNuoc(mon);
+  return '<div style="display:flex;gap:8px;margin-top:8px">' +
+    (coNuoc ? '<button class="btn gh" data-pm style="flex:1;margin:0">🧾 In phiếu làm món</button>' : '') +
+    '<button class="btn gh" data-tem style="flex:1;margin:0">🏷 In tem món</button></div>';
+}
+
 function posNguonThuc() {
   if (!posQuay || !posDon) return '';
   if (posDon.che_do === 'Tại chỗ') return posQuay.tai_cho;
@@ -9399,9 +9427,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
     '<div style="display:flex;gap:8px;margin-top:14px">' +
     (posBillVua ? '<button class="btn gh" data-in style="flex:0 0 34%;margin:0">🖨 In hoá đơn</button>' : '') +
     '<button class="btn" data-y style="flex:1;margin:0">Hoá đơn mới</button></div>' +
-    (posBillVua && posCoNuoc(posBillVua.mon)
-      ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" data-pm style="flex:1;margin:0">🧾 In phiếu làm món</button><button class="btn gh" data-tem style="flex:1;margin:0">🏷 In tem món</button></div>'
-      : '') +
+    (posBillVua ? posNutIn(posBillVua) : '') +
     '</div>';
   document.body.appendChild(ov);
   /* Tien ve la doi ngay thanh nut ghi so - cashier chot bill tai cho. */
@@ -9533,6 +9559,12 @@ async function posLuuDon() {
     truDiem: (r && r.tru_diem) || null,
     kmAp: ((posDon.kmKq && posDon.kmKq.ap) || []).slice(),
     thu: thu, pt: laApp ? posDon.che_do : posDon.pt,
+    /* mtc PHAI co mat. Tem in ra ghep "GrabFood 678" tu nguon cong ma tham
+       chieu; thieu o nay thi ham in tem khong tim thay ma nao, va con so
+       De go vao chip 678 chi song tren man hinh chu khong bao gio di toi
+       may in (De bao 19/08/2026). Voi don san thi ma nam o posDon.ma, voi
+       don thuong thi nam o posDon.mtc - dung dung cach may chu nhan. */
+    mtc: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
     quay: (posQuay && posQuay.ma) || '', nguon: nguonCk,
     ghi_chu: posDon.ghi_chu || '', ten: posDon.ten || '', so_ban: posDon.so_ban || '', tam_tinh: 0,
     diem: (r && r.diem) || null
@@ -9551,9 +9583,7 @@ async function posLuuDon() {
     '<div style="display:flex;gap:8px;margin-top:16px">' +
     '<button class="btn gh" data-in style="flex:1;margin:0">🖨 In hoá đơn</button>' +
     '<button class="btn" data-y style="flex:1;margin:0">🧾 Hoá đơn mới</button></div>' +
-    (posCoNuoc(posBillVua.mon)
-      ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" data-pm style="flex:1;margin:0">🧾 In phiếu làm món</button><button class="btn gh" data-tem style="flex:1;margin:0">🏷 In tem món</button></div>'
-      : '') +
+    posNutIn(posBillVua) +
     '<button class="btn gh" data-ds style="margin-top:8px">📋 Về danh sách hoá đơn</button></div>';
   document.body.appendChild(ov);
   ov.onclick = function (e) {
@@ -10049,8 +10079,13 @@ async function scrPosBill(name) {
           : '<button class="btn" id="pbGhiSo" style="flex:1;margin:0">📒 Ghi sổ tại quầy</button>')
         : '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#15803d;font-weight:700">✅ Đã ghi sổ</div>') +
       '</div>' +
-      (posCoNuoc(d.items || [])
-        ? '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" id="pbPhieuMon" style="flex:1;margin:0">🧾 In phiếu làm món</button><button class="btn gh" id="pbTemLy" style="flex:1;margin:0">🏷 In tem món</button></div>'
+      /* Tem hien khi bill co bat ky mon nao; phieu lam mon chi hien khi co
+         mon nuoc. Cung mot luat voi hai man bao thanh cong ben man tinh
+         tien, xem ghi chu o posNutIn. */
+      ((d.items || []).length
+        ? '<div style="display:flex;gap:8px;margin-top:8px">' +
+          (posCoNuoc(d.items || []) ? '<button class="btn gh" id="pbPhieuMon" style="flex:1;margin:0">🧾 In phiếu làm món</button>' : '') +
+          '<button class="btn gh" id="pbTemLy" style="flex:1;margin:0">🏷 In tem món</button></div>'
         : '') +
       '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="pbSua" style="flex:1;margin:0">✏️ Sửa hoá đơn</button>' +
@@ -10484,13 +10519,20 @@ function posInTemLy(d) {
   if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
   var maApp = posMaAppCuaBill(d);
   var tem = ly.map(function (m, i) {
-    /* Dong giua: tuy chon pha che voi mon nuoc, ghi chu rieng voi moi mon.
-       Mon banh khong co tuy chon thi de trong chu khong in "100% da". */
+    /* Dong giua: tuy chon pha che voi mon nuoc, ghi chu rieng voi moi mon,
+       VA ghi chu cua ca bill. Mon banh khong co tuy chon thi de trong chu
+       khong in "100% da".
+
+       Ghi chu bill duoc them 19/08/2026 theo De: *"khi in tem thi moi ghi
+       chu phai duoc in theo"*. Truoc day o "Ghi chu bill" - goi qua, de
+       lanh, giao lau 2 - chi song tren man hinh va tren phieu lam mon,
+       khong co cho nao tren tem, nen ban dong goi khong bao gio thay. */
     var giua = [];
     if (m.combo) giua.push('★ ' + m.combo);
     if ((m.tc || []).length) giua.push(m.tc.join(', '));
     else if (posLaNuoc(m)) giua.push('100% đường · 100% đá');
     if (m.gc) giua.push(m.gc);
+    if (d.ghi_chu) giua.push(d.ghi_chu);
     return '<div class="tem">' +
       (maApp
         ? '<div class="app">' + h(maApp) + '</div>'
@@ -10500,18 +10542,61 @@ function posInTemLy(d) {
       '<div class="f"><span>' + h(d.bill || d.name || '') + (d.so_ban ? ' · Bàn ' + h(d.so_ban) : '') + '</span><span>' + (i + 1) + '/' + ly.length + '</span></div>' +
       '</div>';
   }).join('');
-  w.document.write('<html><head><meta charset="utf-8"><title>Tem món ' + h(d.bill || d.name || '') + '</title><style>' +
-    '@page{size:' + inKho('tem').css + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
+  w.document.write(temKhung('Tem món ' + (d.bill || d.name || ''), tem));
+  w.document.close();
+}
+
+
+/* Khung trang in cua tem, dung chung cho ban in that va ban in thu can tem.
+
+   Hai ban PHAI dung chung mot khung. Neu ban in thu ve mot khung rieng thi
+   no chi chung minh duoc rang ban in thu can dung, con ban that thi khong. */
+function temKhung(tieuDe, than, vien) {
+  var k = inKho('tem');
+  var rong = k.rong || 40, cao = k.cao || 30;
+  var ngang = Number(k.ngang) || 0, doc = Number(k.doc) || 0;
+  var xoay = Number(k.xoay) === 90;
+  /* Xoay 90 do thi kho trang doi chieu, con o tem van ve theo chieu cu roi
+     quay lai - de mat chu tren tem khong doi. */
+  var trang = xoay ? (cao + 'mm ' + rong + 'mm') : (rong + 'mm ' + cao + 'mm');
+  return '<html><head><meta charset="utf-8"><title>' + h(tieuDe) + '</title><style>' +
+    '@page{size:' + trang + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
     'body{font-family:Arial,sans-serif;color:#000}' +
-    '.tem{width:' + inKho('tem').rong + 'mm;height:' + (inKho('tem').cao || 30) + 'mm;padding:1.5mm 2mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column}' +
+    /* Dich ngang va dich doc: chinh mot lan tren man Cai dat cho vua giay
+       that, khong sua ma nguon. Dung padding chu khong dung transform vi
+       transform hay bi driver may in bo qua luc in. */
+    '.tem{width:' + rong + 'mm;height:' + cao + 'mm;' +
+    'padding:' + (1.5 + doc) + 'mm ' + (2 - ngang) + 'mm ' + (1.5 - doc) + 'mm ' + (2 + ngang) + 'mm;' +
+    'page-break-after:always;overflow:hidden;display:flex;flex-direction:column' +
+    (vien ? ';outline:.2mm solid #000;outline-offset:-.2mm' : '') +
+    (xoay ? ';transform:rotate(90deg);transform-origin:' + (cao / 2) + 'mm ' + (cao / 2) + 'mm' : '') + '}' +
     '.h{font-size:6.5px;text-align:center;letter-spacing:.06em}' +
     '.app{font-size:10px;font-weight:bold;text-align:center;background:#000;color:#fff;padding:.6mm 0;line-height:1.1}' +
     '.t{font-size:11px;font-weight:bold;text-align:center;line-height:1.15;margin-top:.5mm;flex:1;display:flex;align-items:center;justify-content:center}' +
     '.c{font-size:8px;text-align:center;line-height:1.2}' +
     '.f{display:flex;justify-content:space-between;font-size:7.5px;margin-top:.5mm;font-weight:bold}' +
-    '</style></head><body>' + tem +
+    '</style></head><body>' + than +
     '<script>window.onload=function(){setTimeout(function(){window.print()},900)}<' + '/script>' +
-    '</body></html>');
+    '</body></html>';
+}
+
+
+/* In thu can tem: hai tem co vien bao quanh dung mep giay.
+
+   Nhin mot cai la biet lech bao nhieu: vien in ra khong trung mep giay thi
+   do dung khoang ho roi go vao hai o dich ngang va dich doc. Khong phai
+   doan, khong phai deploy lai. */
+function posInTemThu() {
+  var k = inKho('tem');
+  var w = window.open('', '_blank');
+  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  var mot = '<div class="tem">' +
+    '<div class="h">CĂN TEM &middot; ' + (k.rong || 40) + ' x ' + (k.cao || 30) + 'mm</div>' +
+    '<div class="t">VIỀN PHẢI TRÙNG MÉP GIẤY</div>' +
+    '<div class="c">lệch bao nhiêu mm thì gõ vào ô dịch ngang / dịch dọc</div>' +
+    '<div class="f"><span>ngang ' + (Number(k.ngang) || 0) + '</span><span>dọc ' + (Number(k.doc) || 0) + '</span></div>' +
+    '</div>';
+  w.document.write(temKhung('In thử căn tem', mot + mot, 1));
   w.document.close();
 }
 
@@ -13909,7 +13994,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '235';
+var APPVER = '236';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -17521,6 +17606,150 @@ async function scrHdMua() {
 }
 
 
+
+
+/* ================= Đề nghị chi nội bộ =================
+
+Anh Việt 19/08/2026: nút này nằm trong phân hệ Đặt hàng và MỌI nhân viên
+đều thấy, vì mua chai nước mắm hay bình gas là việc của bạn bếp bạn quầy
+chứ không riêng thu mua. Lập xong thì Uyên và chuỗi duyệt xử tiếp.
+
+Màn cố ý ngắn: sáu ô bắt buộc, phần còn lại chỉ hiện khi cần. Bạn đứng
+trong bếp cầm điện thoại một tay thì mỗi ô thừa là một lần bỏ dở. */
+var dncDm = null, dncForm = null;
+
+function dncMoi() {
+  return {
+    ten_khoan_chi: '', loai_nghiep_vu: 'Chi phí', phan_loai: '', so_tien: '',
+    ngay_can_tt: '', dien_giai: '',
+    hinh_thuc: 'Hoàn tiền cho nhân viên', nha_cung_cap: '', phuong_thuc: 'Chuyển khoản',
+    ten_tk: '', so_tk: '', ngan_hang: '',
+    chung_tu_thue: 'Không hoá đơn VAT', so_hoa_don: '', ngay_hoa_don: '', mst: ''
+  };
+}
+
+async function scrDeNghiChi() {
+  frame('Đề nghị chi', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
+  if (!dncDm) {
+    try { dncDm = await api('vagabond.de_nghi_chi.danh_muc', {}); }
+    catch (e) {
+      frame('Đề nghị chi', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+      return;
+    }
+  }
+  if (!dncForm) dncForm = dncMoi();
+  var ds = { ds: [] };
+  try { ds = await api('vagabond.de_nghi_chi.danh_sach', { so_dong: 30 }); } catch (e2) { }
+  dncVe(ds.ds || []);
+}
+
+function dncDoc() {
+  var g = function (id) { var o = document.getElementById(id); return o ? o.value : null; };
+  var f = dncForm;
+  ['ten_khoan_chi', 'so_tien', 'ngay_can_tt', 'dien_giai', 'nha_cung_cap',
+   'ten_tk', 'so_tk', 'ngan_hang', 'so_hoa_don', 'ngay_hoa_don', 'mst'].forEach(function (k) {
+    var v = g('dnc_' + k);
+    if (v !== null) f[k] = v;
+  });
+  return f;
+}
+
+function dncVe(lichSu) {
+  var f = dncForm, dm = dncDm || {};
+  var chip = function (ten, ds, dang) {
+    return '<div class="sec">' + ten + '</div><div class="card" style="padding:10px 12px">' +
+      kmHangChip((ds || []).map(function (x) {
+        return posChipNut('data-dnc="' + h(dang) + '|' + h(x) + '"', h(x), f[dang] === x);
+      }).join('')) + '</div>';
+  };
+  var laTamUng = f.loai_nghiep_vu === 'Tạm ứng';
+  var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.65;color:#374151">' +
+    'Bạn ứng tiền túi mua đồ cho tiệm, hoặc cần công ty trả thẳng cho người bán thì lập phiếu ở đây. ' +
+    'Gửi xong Uyên nhận và chạy tiếp các bước duyệt. Khoản từ <b>' +
+    money(dm.nguong_giam_doc || 2000000) + ' đ</b> trở lên cần giám đốc duyệt thêm một cấp.</div>';
+
+  html += '<div class="sec">Khoản chi</div><div class="card" style="padding:12px 14px">' +
+    '<input class="tin" id="dnc_ten_khoan_chi" placeholder="Mua gì, chi cho việc gì" value="' + h(f.ten_khoan_chi) + '" style="margin-bottom:8px">' +
+    '<div style="display:flex;gap:8px">' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Số tiền (đ)</div>' +
+    '<input class="tin" id="dnc_so_tien" type="number" inputmode="numeric" value="' + h(f.so_tien) + '"></div>' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cần trả trước ngày</div>' +
+    '<input class="tin" id="dnc_ngay_can_tt" type="date" value="' + h(f.ngay_can_tt) + '"></div></div>' +
+    '<input class="tin" id="dnc_dien_giai" placeholder="Diễn giải thêm (không bắt buộc)" value="' + h(f.dien_giai) + '" style="margin-top:8px">' +
+    '</div>';
+
+  html += chip('Loại nghiệp vụ', dm.loai_nghiep_vu, 'loai_nghiep_vu');
+  html += chip('Phân loại chi tiêu', laTamUng ? dm.phan_loai_tam_ung : dm.phan_loai, 'phan_loai');
+  html += chip('Ai nhận tiền', dm.hinh_thuc, 'hinh_thuc');
+
+  if (f.hinh_thuc === 'Thanh toán cho nhà cung cấp') {
+    html += '<div class="card" style="padding:12px 14px">' +
+      '<input class="tin" id="dnc_nha_cung_cap" placeholder="Mã nhà cung cấp" value="' + h(f.nha_cung_cap) + '">' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.6">' + h(dm.nhac_ncc || '') + '</div></div>';
+  }
+
+  html += chip('Phương thức thanh toán', dm.phuong_thuc, 'phuong_thuc');
+  if (f.phuong_thuc === 'Chuyển khoản') {
+    html += '<div class="card" style="padding:12px 14px">' +
+      '<input class="tin" id="dnc_ten_tk" placeholder="Tên chủ tài khoản" value="' + h(f.ten_tk) + '" style="margin-bottom:8px">' +
+      '<input class="tin" id="dnc_so_tk" placeholder="Số tài khoản" value="' + h(f.so_tk) + '" style="margin-bottom:8px">' +
+      '<input class="tin" id="dnc_ngan_hang" placeholder="Ngân hàng" value="' + h(f.ngan_hang) + '"></div>';
+  }
+
+  html += chip('Chứng từ thuế', dm.chung_tu_thue, 'chung_tu_thue');
+  if (f.chung_tu_thue === 'Có hoá đơn VAT') {
+    html += '<div class="card" style="padding:12px 14px">' +
+      '<input class="tin" id="dnc_so_hoa_don" placeholder="Số hoá đơn" value="' + h(f.so_hoa_don) + '" style="margin-bottom:8px">' +
+      '<input class="tin" id="dnc_ngay_hoa_don" type="date" value="' + h(f.ngay_hoa_don) + '" style="margin-bottom:8px">' +
+      '<input class="tin" id="dnc_mst" placeholder="Mã số thuế người bán" value="' + h(f.mst) + '"></div>';
+  }
+
+  if ((lichSu || []).length) {
+    html += '<div class="sec">Phiếu của tôi · ' + lichSu.length + '</div><div class="card">' +
+      lichSu.slice(0, 12).map(function (x) {
+        return '<div style="display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+          '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(x.ten_khoan_chi || x.name) + '</b>' +
+          '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) + ' · ' + h(x.phan_loai || '') + '</div></div>' +
+          '<div style="text-align:right"><b style="font-size:13.5px">' + money(x.so_tien) + ' đ</b>' +
+          '<div style="font-size:11px;font-weight:700;color:#6b7280">' + h(x.nhan_trang_thai || '') + '</div></div></div>';
+      }).join('') + '</div>';
+  }
+
+  var b = frame('Đề nghị chi', html, {
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn" id="dncGui" style="margin:0;flex:2">📤 Lập và gửi duyệt</button>' +
+      '<button class="btn gh" id="dncNhap" style="margin:0;flex:1">💾 Lưu nháp</button></div>'
+  });
+
+  b.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-dnc]');
+    if (!t) return;
+    var p = t.getAttribute('data-dnc').split('|');
+    dncDoc();
+    dncForm[p[0]] = p[1];
+    /* Doi loai nghiep vu thi bang phan loai doi theo, nen phai xoa lua chon
+       cu - giu lai la luu xuong mot phan loai khong thuoc loai nay. */
+    if (p[0] === 'loai_nghiep_vu') dncForm.phan_loai = '';
+    dncVe(lichSu);
+  });
+
+  var luu = async function (gui) {
+    var f2 = dncDoc();
+    if (!(f2.ten_khoan_chi || '').trim()) return baoTin('Chưa đặt tên khoản chi.');
+    if (!(Number(f2.so_tien) > 0)) return baoTin('Chưa nhập số tiền.');
+    if (!f2.phan_loai) return baoTin('Chưa chọn phân loại chi tiêu.');
+    busy(true);
+    try {
+      var r = await api('vagabond.de_nghi_chi.tao', { du_lieu: JSON.stringify(f2), gui_luon: gui ? 1 : 0 });
+      busy(false);
+      dncForm = dncMoi();
+      toast('Đã lập phiếu ' + r.ma + ' · ' + h(r.nhan_trang_thai), 4000);
+      go(scrDeNghiChi, true);
+    } catch (e3) { busy(false); baoTin((e3 && e3.message) || 'Không lập được phiếu'); }
+  };
+  document.getElementById('dncGui').onclick = function () { luu(1); };
+  document.getElementById('dncNhap').onclick = function () { luu(0); };
+}
 /* ===== Cai dat: chuoi cuoi ngay theo tung diem ban (anh Viet 12/08/2026) =====
 
 Truoc day muon doi gio chay hay bat tat mot chi nhanh la phai sua code roi
@@ -19779,6 +20008,21 @@ async function scrMayIn() {
   miVe();
 }
 
+/* Doc bon o so tren man ve mot cuc. Ve lai man thi giu nguyen so dang go,
+   khong bat go lai tu dau. */
+function miCtDoc() {
+  var g = function (id) { var o = document.getElementById(id); return o ? Number(o.value) || 0 : 0; };
+  var cu = (miData && miData.can_tem) || {};
+  var o = document.getElementById('ctNgang');
+  if (!o) return { ngang: Number(cu.ngang) || 0, doc: Number(cu.doc) || 0,
+                   rong: Number(cu.rong) || 0, cao: Number(cu.cao) || 0, xoay: Number(cu.xoay) || 0 };
+  return { ngang: g('ctNgang'), doc: g('ctDoc'), rong: g('ctRong'), cao: g('ctCao'),
+           xoay: Number(cu.xoay) || 0 };
+}
+
+/* Ve lai man ma KHONG goi lai may chu: giu nguyen so dang go do. */
+function scrMayIn0() { miVe(); }
+
 function miTenVaiTro(k) {
   var ds = (miData && miData.vai_tro) || [];
   for (var i = 0; i < ds.length; i++) if (ds[i].k === k) return ds[i].ten;
@@ -19828,6 +20072,36 @@ function miVe() {
         '</div></div></div>';
     }).join('')) + '</div>';
 
+  /* Can tem: hai o so va mot nut in thu.
+
+     De bao 19/08/2026 tem in ra bi lech khoi giay. Kho khai trong ma nguon
+     la 40 x 30mm va dung dung; cai lech den tu hai lop nam giua CSS va
+     giay that, la le mac dinh cua trinh duyet va phep co gian cua driver
+     may in. Hai lop do khac nhau tren tung may, nen sua cung so trong ma
+     nguon roi deploy la mot vong lap khong loi ra. Cho chinh tai cho, va
+     cho mot ban in co vien de nhin ra lech bao nhieu. */
+  var ct = (miData && miData.can_tem) || { ngang: 0, doc: 0, rong: 0, cao: 0, xoay: 0 };
+  html += '<div class="sec">Căn tem</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.65;margin-bottom:10px">' +
+    'Bấm <b>In thử căn tem</b>, máy in ra hai tem có viền bao quanh. Viền trùng mép giấy là vừa. ' +
+    'Lệch sang phải thì gõ số âm vào ô dịch ngang, lệch xuống thì gõ số âm vào ô dịch dọc, ' +
+    'tính bằng mi li mét. Chỉnh một lần dùng mãi.</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Dịch ngang (mm)</div>' +
+    '<input class="tin" id="ctNgang" type="number" step="0.5" value="' + (Number(ct.ngang) || 0) + '"></div>' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Dịch dọc (mm)</div>' +
+    '<input class="tin" id="ctDoc" type="number" step="0.5" value="' + (Number(ct.doc) || 0) + '"></div></div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Rộng tem (mm), 0 là theo khổ đã chọn</div>' +
+    '<input class="tin" id="ctRong" type="number" step="0.5" value="' + (Number(ct.rong) || 0) + '"></div>' +
+    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cao tem (mm)</div>' +
+    '<input class="tin" id="ctCao" type="number" step="0.5" value="' + (Number(ct.cao) || 0) + '"></div></div>' +
+    kmHangChip(posChipNut('data-ctxoay="0"', 'Chữ nằm ngang', Number(ct.xoay) !== 90) +
+               posChipNut('data-ctxoay="90"', 'Xoay 90 độ', Number(ct.xoay) === 90)) +
+    '<button class="btn gh" id="ctThu" style="margin:10px 0 0;width:100%">🏷 In thử căn tem</button>' +
+    (miSuaDuoc ? '<button class="btn" id="ctLuu" style="margin:8px 0 0;width:100%">💾 Lưu căn tem</button>' : '') +
+    '</div>';
+
   html += '<div class="sec">Danh sách máy in</div>';
   if (!miDs.length) {
     html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280">Chưa khai máy in nào.</div>';
@@ -19851,8 +20125,45 @@ function miVe() {
   } : null);
 
   b.onclick = function (e) {
+    var x = e.target.closest('[data-ctxoay]');
+    if (x) {
+      miData.can_tem = miCtDoc();
+      miData.can_tem.xoay = +x.getAttribute('data-ctxoay');
+      return go(scrMayIn0, true);
+    }
     var t = e.target.closest('[data-mimo]');
     if (t) { miMo = +t.getAttribute('data-mimo'); miMoi = 0; go(scrMayInSua); }
+  };
+  var nThu = document.getElementById('ctThu');
+  /* In thu bang DUNG thong so dang go tren man, chua luu cung in thu duoc.
+     Bat luu truoc moi duoc thu la bat nguoi dung luu mot con so ho chua
+     biet co dung khong. */
+  if (nThu) nThu.onclick = function () {
+    var c = miCtDoc();
+    CFGBH = CFGBH || {};
+    CFGBH.kho_in = CFGBH.kho_in || {};
+    var t = CFGBH.kho_in.tem || { rong: 40, cao: 30 };
+    CFGBH.kho_in.tem = {
+      k: t.k || 'tem_40x30',
+      rong: c.rong > 0 ? c.rong : (t.rong || 40),
+      cao: c.cao > 0 ? c.cao : (t.cao || 30),
+      ngang: c.ngang, doc: c.doc, xoay: c.xoay,
+      css: '', cuon: 0
+    };
+    CFGBH.kho_in.tem.css = CFGBH.kho_in.tem.rong + 'mm ' + CFGBH.kho_in.tem.cao + 'mm';
+    posInTemThu();
+  };
+  var nCtLuu = document.getElementById('ctLuu');
+  if (nCtLuu) nCtLuu.onclick = async function () {
+    var c = miCtDoc();
+    busy(true);
+    try {
+      miData = await api('vagabond.may_in.luu_can_tem', c);
+      miDs = miData.may || [];
+      busy(false);
+      toast('Đã lưu căn tem. Tải lại app ở quầy để máy in nhận số mới.', 4500);
+      go(scrMayIn0, true);
+    } catch (e2) { busy(false); baoTin((e2 && e2.message) || 'Không lưu được căn tem'); }
   };
   var nt = document.getElementById('miThem');
   if (nt) nt.onclick = function () {
