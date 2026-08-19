@@ -16,7 +16,37 @@
   "gia_tri",
   "sec_mo_ta",
   "mo_ta",
-  "ghi_chu"
+  "ghi_chu",
+  "sec_ba",
+  "ten_khach",
+  "ma_so_thue",
+  "dia_chi",
+  "cb_ba",
+  "dai_dien",
+  "chuc_vu",
+  "dien_thoai",
+  "email",
+  "sec_dk",
+  "bao_gia",
+  "dat_coc_pt",
+  "dat_coc_tien",
+  "cb_dk",
+  "ngay_dot1",
+  "ngay_dot2",
+  "dia_diem_giao",
+  "thoi_gian_giao",
+  "sec_ky",
+  "nguoi_ky_a",
+  "chuc_vu_ky_a",
+  "dt_ky_a",
+  "email_ky_a",
+  "cb_ky",
+  "nguoi_ky_b",
+  "chuc_vu_ky_b",
+  "dt_ky_b",
+  "email_ky_b",
+  "sec_pl",
+  "phu_luc_scan"
  ],
  "fields": [
   {
@@ -207,6 +237,16 @@
    "default": "Giám đốc"
   },
   {
+   "fieldname": "dt_ky_a",
+   "fieldtype": "Data",
+   "label": "SĐT người ký bên A"
+  },
+  {
+   "fieldname": "email_ky_a",
+   "fieldtype": "Data",
+   "label": "Email người ký bên A"
+  },
+  {
    "fieldname": "cb_ky",
    "fieldtype": "Column Break",
    "label": ""
@@ -222,6 +262,16 @@
    "fieldtype": "Data",
    "label": "Chuc vu nguoi ky ben B",
    "default": "Giám đốc"
+  },
+  {
+   "fieldname": "dt_ky_b",
+   "fieldtype": "Data",
+   "label": "SĐT người ký bên B"
+  },
+  {
+   "fieldname": "email_ky_b",
+   "fieldtype": "Data",
+   "label": "Email người ký bên B"
   },
   {
    "fieldname": "sec_pl",
