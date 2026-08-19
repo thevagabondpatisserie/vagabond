@@ -3246,6 +3246,82 @@ la("ma nguon ghi lai vi sao khong dung Authorization",
    "KHONG DUNG HEADER \"Authorization\" voi diem nhan nay." in _se_src, True)
 la("diem nhan van doc duoc X-Api-Key", '"X-Api-Key"' in _se_src, True)
 
+# --- HMAC-SHA256: duong xac thuc chinh ---
+#
+# Man Bao mat cua SePay co bon lua chon. "API Key" bat buoc gui o header
+# Authorization, ma Frappe tra 401 cho header do truoc khi goi tin vao toi
+# diem nhan. "HMAC-SHA256" gui chu ky o X-SePay-Signature, Frappe khong
+# dung toi - va con chac hon vi no ky ca goi tin.
+la("co ham kiem chu ky HMAC", "def _kiem_hmac():" in _se_src, True)
+la("chu ky doc tu header X-SePay-Signature", '"X-SePay-Signature"' in _se_src, True)
+la("HMAC duoc thu TRUOC duong khoa bi mat",
+   _se_src.index("co_hmac, hmac_dat = _kiem_hmac()") < _se_src.index("that = _khoa_that()\n\t\tif not that:"), True)
+la("chu ky sai thi tu choi han, khong lui sang duong khac",
+   'return _tu_choi(401, "Chu ky HMAC khong dung.")' in _se_src, True)
+la("ky tren NGUYEN VAN goi tin", "frappe.request.get_data() or b\"\"" in _se_src, True)
+la("chu ky sai thi ghi lai du de doi chieu", '"sepay: chu ky HMAC khong khop"' in _se_src, True)
+la("khong ghi khoa vao nhat ky loi",
+   "khoa" in _se_src.split('"sepay: chu ky HMAC khong khop"')[0][-700:].lower()
+   and "% (gui[:200], len(than), sorted(dung)[0][:12])" in _se_src, True)
+la("o cat khoa HMAC la Password", '"fieldname": "sepay_hmac", "label": "Khoá HMAC-SHA256 của webhook SePay",\n\t\t\t"fieldtype": "Password"' in _se_src, True)
+la("nguoi dung tu dan khoa HMAC, may khong tu sinh", "def dat_hmac(khoa=None):" in _se_src, True)
+la("chan chuoi qua ngan khong giong Secret Key", "không giống Secret Key của SePay" in _se_src, True)
+
+# Phep kiem THAT: dung lai chu ky bang chinh cac ham cua tep, roi thu
+# nhieu dang header khac nhau.
+_m36 = re.search(r"^def _tach_chu_ky\(.*?(?=^@|^def |\Z)", _se_src, re.S | re.M)
+_m36b = re.search(r"^def _hmac_dung\(.*?(?=^@|^def |\Z)", _se_src, re.S | re.M)
+if not (_m36 and _m36b):
+	la("tim thay hai ham chu ky", False, True)
+else:
+	import hmac as _hm36
+	_mt36 = {"hmac": _hm36}
+	exec(compile(_m36.group(0), "sepay:_tach_chu_ky", "exec"), _mt36, _mt36)
+	exec(compile(_m36b.group(0), "sepay:_hmac_dung", "exec"), _mt36, _mt36)
+	_tach = _mt36["_tach_chu_ky"]
+	_dung36 = _mt36["_hmac_dung"]
+	_khoa36 = "whsec_thu_nghiem_1234567890"
+	_than36 = b'{"id":123,"transferAmount":650000}'
+	_bo36 = _dung36(_khoa36, _than36)
+	_hex36 = [x for x in _bo36 if x.islower() and len(x) == 64][0]
+	_b6436 = [x for x in _bo36 if x.endswith("=") or ("+" in x or "/" in x) or (not all(c in "0123456789abcdefABCDEF" for c in x))][0]
+	la("sinh du ba dang chu ky (hex thuong, hex hoa, base64)", len(_bo36), 3)
+	for _nhan36, _gui36 in (
+		("chu ky tran", _hex36),
+		("co tien to sha256", "sha256=" + _hex36),
+		("kieu nhieu phan v1", "t=1755600000,v1=" + _hex36),
+		("hex chu hoa", _hex36.upper()),
+		("base64", _b6436),
+	):
+		_khop = any(x in _bo36 for x in _tach(_gui36))
+		la("nhan duoc chu ky dang: %s" % _nhan36, _khop, True)
+	la("chu ky sai thi khong khop",
+	   any(x in _bo36 for x in _tach("a" * 64)), False)
+	la("goi tin bi sua mot chu la chu ky hong",
+	   _hex36 in _dung36(_khoa36, b'{"id":123,"transferAmount":950000}'), False)
+
+# --- Hop dong: khong tu map thong tin nguoi lien he vao nguoi ky ---
+_hd36 = open("vagabond/hop_dong_pdf.py", encoding="utf-8").read()
+la("dien thoai ben A chi lay tu nguoi ky",
+   '"dien_thoai": (d.get("dt_ky_a") or "").strip(),' in _hd36, True)
+la("email ben A chi lay tu nguoi ky",
+   '"email": (d.get("email_ky_a") or "").strip(),' in _hd36, True)
+la("khong con lui ve dien thoai cua to bao gia",
+   '(d.get("dt_ky_a") or "").strip() or d.get("dien_thoai")' in _hd36, False)
+la("khong con lui ve email cua to bao gia",
+   '(d.get("email_ky_a") or "").strip() or d.get("email")' in _hd36, False)
+# Ten va chuc vu thi VAN duoc lui ve dai dien cong ty - Loan Anh chi noi ve
+# so dien thoai va email.
+la("ten nguoi ky van lui ve dai dien cong ty",
+   '"dai_dien": (d.get("nguoi_ky_a") or "").strip() or d.get("dai_dien"),' in _hd36, True)
+la("de trong thi khoi thong tin bo han dong do",
+   'if b.get("dien_thoai"):' in _hd36 and 'if b.get("email"):' in _hd36, True)
+
+# --- Man Cai dat ---
+la("man Cai dat co o dan khoa HMAC", 'id="seHm"' in _js33b, True)
+la("man Cai dat chi ro chon HMAC-SHA256 ben SePay", "chọn <b>HMAC-SHA256</b>" in _js33b, True)
+la("man Cai dat dan dung khong chon API Key", "Đừng chọn API Key" in _js33b, True)
+
 la("man SePay ghep duong dan voi ten mien nguoi dung dang mo",
    "return location.origin + d.duong_dan_path;" in _js33b, True)
 # frappe.utils.get_url() tra ve ten mien noi bo cua Frappe Cloud, dan cho
