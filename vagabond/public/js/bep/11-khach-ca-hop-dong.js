@@ -826,24 +826,43 @@ function hoanMoForm(don) {
       return baoTin((t && t.vi_sao) || 'Đơn này không hoàn tiền được.', 'Không gửi được yêu cầu');
     }
     if (t.so_tien) { htF.tong = Number(t.so_tien); if (htF.muc) htF.tien = Math.round(htF.tong * htF.muc / 100); }
-    /* Tự điền tên và số điện thoại khách từ chính đơn hàng (anh Việt
-       17/08/2026). Nhân viên vừa đọc số của khách xong cách đó ba phút,
-       bắt gõ lại là vừa mất thời gian vừa thêm một chỗ gõ sai. */
-    if (t.khach) {
-      if (t.khach.ten && !htF.ten_khach) htF.ten_khach = t.khach.ten;
-      if (t.khach.sdt && !htF.sdt) htF.sdt = t.khach.sdt;
-      htF.nguon_khach = t.khach.nguon || '';
-      /* Tên chủ tài khoản mặc định là tên khách, vì phần lớn khách nhận về
-         chính tài khoản của mình. Sales sửa lại được khi khách nhờ chuyển
-         hộ người khác. */
-      if (htF.ten_khach && !htF.ten_tk) htF.ten_tk = htF.ten_khach;
-    }
-    if (t.goi_y_tk && t.goi_y_tk.so_tk && !htF.so_tk) {
-      htF.goi_y = t.goi_y_tk;
-      if (t.goi_y_tk.ten_tk) htF.ten_tk = t.goi_y_tk.ten_tk;
-      htF.so_tk = t.goi_y_tk.so_tk || '';
-      htF.ngan_hang = t.goi_y_tk.ngan_hang || '';
-    }
+    htDoSanKhach(t);
+    hoanVeForm();
+  }).catch(function () { });
+}
+
+/* Đổ sẵn tên khách, số điện thoại và tài khoản khách dùng lần trước.
+
+   Tách ra thành hàm riêng vì luồng chuyển lại tiền dư dùng chung y hệt:
+   khách vẫn là khách đó, tài khoản nhận vẫn là tài khoản đó. */
+function htDoSanKhach(t) {
+  if (!htF || !t) return;
+  /* Tự điền tên và số điện thoại khách từ chính đơn hàng (anh Việt
+     17/08/2026). Nhân viên vừa đọc số của khách xong cách đó ba phút, bắt
+     gõ lại là vừa mất thời gian vừa thêm một chỗ gõ sai. */
+  if (t.khach) {
+    if (t.khach.ten && !htF.ten_khach) htF.ten_khach = t.khach.ten;
+    if (t.khach.sdt && !htF.sdt) htF.sdt = t.khach.sdt;
+    htF.nguon_khach = t.khach.nguon || '';
+    /* Tên chủ tài khoản mặc định là tên khách, vì phần lớn khách nhận về
+       chính tài khoản của mình. Sales sửa lại được khi khách nhờ chuyển hộ
+       người khác. */
+    if (htF.ten_khach && !htF.ten_tk) htF.ten_tk = htF.ten_khach;
+  }
+  if (t.goi_y_tk && t.goi_y_tk.so_tk && !htF.so_tk) {
+    htF.goi_y = t.goi_y_tk;
+    if (t.goi_y_tk.ten_tk) htF.ten_tk = t.goi_y_tk.ten_tk;
+    htF.so_tk = t.goi_y_tk.so_tk || '';
+    htF.ngan_hang = t.goi_y_tk.ngan_hang || '';
+  }
+}
+
+/* Luồng tiền dư cũng cần tên khách và tài khoản, đọc từ chính đường của
+   luồng hoàn tiền. Hỏng thì để trống chứ không chặn Sales lại. */
+function htNapGoiY(don) {
+  api('vagabond.hoan_tien.tinh_trang', { si_name: don.name }).then(function (t) {
+    if (!htF || htF.don !== don.name || !t) return;
+    htDoSanKhach(t);
     hoanVeForm();
   }).catch(function () { });
 }
@@ -888,22 +907,79 @@ function htFDong() { if (htFHop) { htFHop.dong(); htFHop = null; } htF = null; }
 function htLyDoTen(k) {
   return {
     'Khach doi y': 'Khách đổi ý', 'Banh hong': 'Bánh hỏng', 'Di ung': 'Dị ứng',
-    'Giao sai mon': 'Giao sai món', 'Giao tre': 'Giao trễ', 'Khac': 'Khác'
+    'Giao sai mon': 'Giao sai món', 'Giao tre': 'Giao trễ', 'Khac': 'Khác',
+    'Doi size nho hon': 'Đổi size nhỏ hơn',
+    'Khach tu den lay, khong giao': 'Khách tự đến lấy, không giao',
+    'Bo bot mon': 'Bỏ bớt món', 'Chuyen du tien': 'Chuyển dư tiền'
   }[k] || k;
+}
+
+/* ---------- Chuyển lại tiền khách nộp thừa (anh Việt 18/08/2026) ----------
+
+   *"anh nhờ em thiết kế luôn 1 nút riêng kế bên nút Hoàn tiền đó là nút
+   Chuyển lại cho khách thanh toán dư... ví dụ khách chuyển bao gồm cả tiền
+   ship nhưng mà sau đó đổi ý muốn đến tiệm pickup, cần chuyển lại cho khách
+   phần tiền ship bị dư ra"*.
+
+   Dùng lại đúng form của hoàn tiền vì hai luồng giống nhau tới 90%: cùng
+   một cửa duyệt của chị Dung, cùng ra tiền từ tài khoản MB công ty, cùng
+   đối soát SePay. Chỉ khác bốn chỗ, và bốn chỗ đó đều rẽ theo cờ f.du:
+
+     - Trần: tối đa là phần khách chuyển VƯỢT tổng đơn, không phải cả đơn.
+     - Bộ lý do khác hẳn.
+     - Ảnh không bắt buộc: bằng chứng nằm ngay trong sổ, là chênh lệch giữa
+       số SePay đã nhận và tổng đơn, máy tự tính chứ không ai khai.
+     - Gọi endpoint khác, và endpoint đó KHÔNG lập hoá đơn trả hàng. */
+function hoanMoFormDu(don) {
+  busy(true);
+  api('vagabond.hoan_tien.xem_tien_du', { si_name: don.name }).then(function (t) {
+    busy(false);
+    if (!t || !t.duoc) {
+      return baoTin((t && t.vi_sao) || 'Đơn này không có phần dư để chuyển lại.',
+        'Không lập được phiếu');
+    }
+    htF = {
+      don: don.name, du: 1, tong: Number(t.tong_don || 0), tran: Number(t.tran || 0),
+      da_nhan: Number(t.da_nhan || 0), tien: Number(t.tran || 0), muc: 100,
+      ly_do: '', dien_giai: '', ten_tk: '', so_tk: '', ngan_hang: '', sdt: '',
+      ten_khach: '', nguon_khach: '', anh: [], goi_y: null,
+      hddt: (don.custom_hddt_so || t.canh_bao_hddt || '')
+    };
+    hoanVeForm();
+    htNapGoiY(don);
+  }).catch(function (e) {
+    busy(false); baoTin((e && e.message) || 'Không đọc được phần dư của đơn này.');
+  });
 }
 
 function hoanVeForm() {
   var f = htF; if (!f) return;
   if (htFHop) { htFHop.dong(); htFHop = null; }
-  var mucs = [[100, 'Hoàn 100%'], [50, 'Hoàn 50%'], [0, 'Nhập số khác']];
+  var du = !!f.du;
+  var tranF = du ? Number(f.tran || 0) : Number(f.tong || 0);
+  var mucs = du
+    ? [[100, 'Trả hết phần dư'], [0, 'Nhập số khác']]
+    : [[100, 'Hoàn 100%'], [50, 'Hoàn 50%'], [0, 'Nhập số khác']];
   var than =
-    '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
-    'Đơn <b>' + h(f.don) + '</b> · tổng <b>' + money(f.tong) + ' đ</b><br>' +
-    'Yêu cầu này gửi kế toán duyệt. Tiền chỉ ra sau khi kế toán chuyển khoản thật.</div>' +
-    (f.hddt ? '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
+    (du
+      ? '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
+        'Đơn <b>' + h(f.don) + '</b><br>' +
+        'Đã nhận <b>' + money(f.da_nhan) + ' đ</b>, giá trị đơn <b>' + money(f.tong) + ' đ</b>, ' +
+        'khách nộp thừa <b style="color:#b45309">' + money(f.tran) + ' đ</b>.<br>' +
+        'Yêu cầu này gửi kế toán duyệt. Tiền chỉ ra sau khi kế toán chuyển khoản thật.</div>' +
+        /* Câu này là điểm khác biệt quan trọng nhất giữa hai luồng, và là
+           thứ chị Dung cần đọc trước khi duyệt. */
+        '<div style="font-size:12px;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
+        'Đây <b>không phải trả hàng</b>. Khách nhận đủ hàng, giá đúng. Máy sẽ ' +
+        '<b>không lập hoá đơn trả hàng</b>, doanh thu của đơn giữ nguyên ' +
+        money(f.tong) + ' đ và hoá đơn điện tử không phải điều chỉnh.</div>'
+      : '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
+        'Đơn <b>' + h(f.don) + '</b> · tổng <b>' + money(f.tong) + ' đ</b><br>' +
+        'Yêu cầu này gửi kế toán duyệt. Tiền chỉ ra sau khi kế toán chuyển khoản thật.</div>') +
+    (f.hddt && !du ? '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
       'Đơn này <b>đã xuất hoá đơn điện tử số ' + h(f.hddt) + '</b>. Hoàn tiền xong thì tờ đó phải xử lý riêng bên m-invoice, máy không tự làm.</div>' : '') +
 
-    rndLbl('Mức hoàn tiền') +
+    rndLbl(du ? 'Số tiền chuyển lại' : 'Mức hoàn tiền') +
     '<div style="display:flex;gap:7px;margin-bottom:9px">' +
     mucs.map(function (m) {
       var on = f.muc === m[0];
@@ -913,11 +989,14 @@ function hoanVeForm() {
     }).join('') + '</div>' +
     '<input class="nt" id="htFTien" inputmode="numeric" placeholder="Số tiền hoàn" value="' + h(money(f.tien)) + '"' +
     (f.muc ? ' readonly style="background:#f7f8fa;color:#374151"' : '') + '>' +
-    '<div id="htFTienNhac" style="font-size:11.5px;color:#9ca3af;margin:5px 0 12px">Tối đa ' + money(f.tong) + ' đ, đúng bằng tổng đơn.</div>' +
+    '<div id="htFTienNhac" style="font-size:11.5px;color:#9ca3af;margin:5px 0 12px">' +
+    (du ? 'Tối đa ' + money(tranF) + ' đ, đúng bằng phần khách nộp thừa.'
+        : 'Tối đa ' + money(tranF) + ' đ, đúng bằng tổng đơn.') + '</div>' +
 
-    rndLbl('Lý do hoàn') +
+    rndLbl(du ? 'Lý do dư tiền' : 'Lý do hoàn') +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px">' +
-    ['Khach doi y', 'Banh hong', 'Di ung', 'Giao sai mon', 'Giao tre', 'Khac'].map(function (k) {
+    (du ? ['Doi size nho hon', 'Khach tu den lay, khong giao', 'Bo bot mon', 'Chuyen du tien', 'Khac']
+        : ['Khach doi y', 'Banh hong', 'Di ung', 'Giao sai mon', 'Giao tre', 'Khac']).map(function (k) {
       var on = f.ly_do === k;
       return '<button data-htl="' + h(k) + '" style="border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
         ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' + (on ? '#0f766e' : '#374151') +
@@ -925,7 +1004,7 @@ function hoanVeForm() {
         h(htLyDoTen(k)) + '</button>';
     }).join('') + '</div>' +
     '<textarea class="nt" id="htFGhi" rows="2" placeholder="' +
-    (f.ly_do === 'Khac' ? 'Bắt buộc: ghi rõ vì sao hoàn' : 'Diễn giải thêm (không bắt buộc)') +
+    (f.ly_do === 'Khac' ? 'Bắt buộc: ghi rõ vì sao ' + (du ? 'dư' : 'hoàn') : 'Diễn giải thêm (không bắt buộc)') +
     '">' + h(f.dien_giai) + '</textarea>' +
 
     '<div style="height:14px"></div>' + rndLbl('Khách hàng') +
@@ -950,9 +1029,14 @@ function hoanVeForm() {
     '<div style="height:7px"></div>' +
     '<input class="nt" id="htFTen" placeholder="Tên chủ tài khoản" value="' + h(f.ten_tk) + '">' +
 
-    '<div style="height:14px"></div>' + rndLbl('Bằng chứng · bắt buộc') +
+    '<div style="height:14px"></div>' + rndLbl(du ? 'Ảnh kèm theo · không bắt buộc' : 'Bằng chứng · bắt buộc') +
     '<div style="font-size:11.5px;color:#9ca3af;margin-bottom:7px;line-height:1.6">' +
-    'Ảnh khách phản ánh, hoặc ảnh bánh hỏng. Kế toán ngồi xa quầy, đây là căn cứ duy nhất để duyệt.</div>' +
+    (du
+      /* Với tiền dư thì bằng chứng nằm ngay trong sổ: chênh lệch giữa số
+         SePay đã nhận và tổng đơn, máy tự tính chứ không ai khai. Bắt ảnh ở
+         đây là bắt một thứ không nói thêm điều gì. */
+      ? 'Chênh lệch giữa số đã nhận và tổng đơn là căn cứ đủ rồi, máy tự tính. Có ảnh tin nhắn khách xin đổi thì đính kèm cho rõ, không có cũng gửi được.'
+      : 'Ảnh khách phản ánh, hoặc ảnh bánh hỏng. Kế toán ngồi xa quầy, đây là căn cứ duy nhất để duyệt.') + '</div>' +
     '<div class="att" id="htFAnh">' +
     f.anh.map(function (a, i) {
       return '<div class="ph" style="background-image:url(' + a.url + ');background-size:cover;background-position:center;position:relative">' +
@@ -961,7 +1045,7 @@ function hoanVeForm() {
     '<div class="ph" id="htFCam"><div style="font-size:22px">📷</div>Thêm ảnh</div></div>' +
     '<input type="file" accept="image/*" id="htFFile" style="display:none">';
 
-  htFHop = hopKhung('Yêu cầu hoàn tiền', than,
+  htFHop = hopKhung(du ? 'Chuyển lại tiền khách nộp thừa' : 'Yêu cầu hoàn tiền', than,
     '<button class="btn gh" id="htFThoi" style="margin:0;flex:0 0 34%">Thôi</button>' +
     '<button class="btn" id="htFGui" style="margin:0;flex:1">Gửi duyệt</button>');
   var box = htFHop.box;
@@ -972,7 +1056,8 @@ function hoanVeForm() {
     n.onclick = function () {
       htFDoc(box);
       f.muc = Number(n.getAttribute('data-htm'));
-      if (f.muc) f.tien = Math.round(f.tong * f.muc / 100);
+      /* Voi tien du thi 100% nghia la tra het PHAN DU, khong phai ca don. */
+      if (f.muc) f.tien = Math.round(tranF * f.muc / 100);
       hoanVeForm();
     };
   });
@@ -1040,31 +1125,46 @@ function htFThemAnh(file) {
 
 async function htFGui() {
   var f = htF; if (!f) return;
-  if (!f.ly_do) return toast('Chọn lý do hoàn giúp em.', 3500);
-  if (f.ly_do === 'Khac' && !(f.dien_giai || '').trim()) return toast('Lý do "Khác" thì phải ghi rõ vì sao hoàn.', 4000);
-  if (!f.tien || f.tien <= 0) return toast('Nhập số tiền hoàn lớn hơn 0.', 3500);
-  if (f.tien > f.tong) return toast('Số tiền hoàn không được lớn hơn tổng đơn ' + money(f.tong) + ' đ.', 4500);
+  var du = !!f.du;
+  var tranF = du ? Number(f.tran || 0) : Number(f.tong || 0);
+  if (!f.ly_do) return toast(du ? 'Chọn lý do dư tiền giúp em.' : 'Chọn lý do hoàn giúp em.', 3500);
+  if (f.ly_do === 'Khac' && !(f.dien_giai || '').trim())
+    return toast('Lý do "Khác" thì phải ghi rõ vì sao ' + (du ? 'dư' : 'hoàn') + '.', 4000);
+  if (!f.tien || f.tien <= 0) return toast('Nhập số tiền lớn hơn 0.', 3500);
+  if (f.tien > tranF)
+    return toast(du
+      ? 'Số tiền chuyển lại không được lớn hơn phần khách nộp thừa ' + money(tranF) + ' đ.'
+      : 'Số tiền hoàn không được lớn hơn tổng đơn ' + money(tranF) + ' đ.', 4500);
   if (!(f.ngan_hang || '').trim()) return toast('Bấm ô ngân hàng để chọn ngân hàng của khách.', 4000);
   if (!(f.so_tk || '').trim() || !(f.ten_tk || '').trim())
     return toast('Điền đủ số tài khoản và tên chủ tài khoản của khách.', 4500);
-  if (!f.anh.length) return toast('Phải đính kèm ít nhất một ảnh làm căn cứ.', 4000);
+  /* Anh bat buoc voi TRA HANG thoi. Voi tien du thi bang chung la chenh
+     lech giua so da nhan va tong don, may tu tinh. */
+  if (!du && !f.anh.length) return toast('Phải đính kèm ít nhất một ảnh làm căn cứ.', 4000);
 
-  var ok = await confirmSheet('Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
-    'Kế toán nhận thư báo ngay. Tiền chỉ ra khi kế toán chuyển khoản thật, và máy ' +
-    'chỉ sinh chứng từ sau khi ngân hàng báo tiền đã đi.', 'Gửi duyệt');
+  var ok = await confirmSheet(
+    du ? 'Chuyển lại ' + money(f.tien) + ' đ cho khách?' : 'Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
+    du
+      ? 'Kế toán nhận thư báo ngay. Máy KHÔNG lập hoá đơn trả hàng, doanh thu của đơn ' +
+        'giữ nguyên ' + money(f.tong) + ' đ. Tiền chỉ ra khi kế toán chuyển khoản thật.'
+      : 'Kế toán nhận thư báo ngay. Tiền chỉ ra khi kế toán chuyển khoản thật, và máy ' +
+        'chỉ sinh chứng từ sau khi ngân hàng báo tiền đã đi.',
+    'Gửi duyệt');
   if (!ok) return;
 
   busy(true);
   try {
-    var kq = await api('vagabond.hoan_tien.tao', {
+    var goiF = {
       si_name: f.don, ly_do: f.ly_do, dien_giai: f.dien_giai, so_tien: f.tien,
       ten_tk: f.ten_tk, so_tk: f.so_tk, ngan_hang: f.ngan_hang, sdt_khach: f.sdt,
       tep: JSON.stringify(f.anh.map(function (a) { return { ten: a.ten, noi_dung: a.b64 }; }))
-    });
+    };
+    var kq = await api(du ? 'vagabond.hoan_tien.tao_tien_du' : 'vagabond.hoan_tien.tao', goiF);
     busy(false);
     htFDong();
     baoTin(
       'Đã gửi yêu cầu ' + kq.ho_so + ', số tiền ' + money(kq.so_tien) + ' đ.\n\n' +
+      (du ? 'Đây là phiếu TIỀN NỘP THỪA: máy không lập hoá đơn trả hàng, doanh thu của đơn giữ nguyên.\n\n' : '') +
       (kq.da_bao_ke_toan ? 'Đã báo kế toán qua email.' : 'Chưa gửi được email báo kế toán, nhưng phiếu đã nằm trên màn Hoàn tiền.') +
       '\n\nNội dung chuyển khoản kế toán sẽ dùng:\n' + kq.noi_dung_ck +
       (kq.mot_phan ? '\n\nHoàn một phần nên khách giữ lại hàng, máy không lập phiếu chuyển Kho Hàng Hủy.' : '') +
@@ -1097,11 +1197,19 @@ function hdFormNguoiKy(hd) {
       rndLbl('Người ký Bên A (khách hàng)') +
       o('hkKyA', hd.nguoi_ky_a, 'Họ và tên người đặt bút ký') +
       '<div style="height:7px"></div>' + o('hkCvA', hd.chuc_vu_ky_a, 'Chức vụ, vd Giám đốc') +
+      '<div style="height:7px"></div>' + o('hkDtA', hd.dt_ky_a, 'SĐT người ký') +
+      '<div style="height:7px"></div>' + o('hkEmA', hd.email_ky_a, 'Email người ký') +
       '<div style="height:12px"></div>' +
       rndLbl('Người ký Bên B (Vagabond)') +
       o('hkKyB', hd.nguoi_ky_b, 'Họ và tên người đặt bút ký') +
       '<div style="height:7px"></div>' + o('hkCvB', hd.chuc_vu_ky_b, 'Chức vụ, vd Giám đốc') +
-      '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:8px">Bốn ô này in thẳng xuống khối chữ ký cuối hợp đồng. Ghi đúng họ tên, không ghi Ms./Mr., và thường là Giám đốc chứ không phải bạn làm báo giá.</div>';
+      '<div style="height:7px"></div>' + o('hkDtB', hd.dt_ky_b, 'SĐT người ký') +
+      '<div style="height:7px"></div>' + o('hkEmB', hd.email_ky_b, 'Email người ký') +
+      /* Anh Viet 18/08/2026: *"hien em dang lay thong tin email va so dien
+         thoai cua Loan Anh gan cho anh la sao"*. Nen sdt va email phai hoi
+         rieng cho NGUOI KY, khong lay o lien he cua to bao gia. */
+      '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:8px">Các ô này in thẳng xuống khối thông tin hai bên và khối chữ ký cuối hợp đồng. Ghi đúng họ tên, không ghi Ms./Mr., và thường là Giám đốc chứ không phải bạn làm báo giá. SĐT và email phải là của chính người ký.</div>' +
+      '<div style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:6px">Bên B khai một lần trong Cài đặt câu chữ khung tờ báo giá thì mọi hợp đồng sau tự điền sẵn.</div>';
     var k = hopKhung('Người ký hợp đồng', than,
       '<button class="btn gh" data-hkx style="flex:1;margin:0">Thôi</button>' +
       '<button class="btn" data-hkluu style="flex:2;margin:0">Lưu</button>');
@@ -1114,8 +1222,12 @@ function hdFormNguoiKy(hd) {
         name: hd.name,
         nguoi_ky_a: String(k.box.querySelector('#hkKyA').value || '').trim(),
         chuc_vu_ky_a: String(k.box.querySelector('#hkCvA').value || '').trim(),
+        dt_ky_a: String(k.box.querySelector('#hkDtA').value || '').trim(),
+        email_ky_a: String(k.box.querySelector('#hkEmA').value || '').trim(),
         nguoi_ky_b: String(k.box.querySelector('#hkKyB').value || '').trim(),
-        chuc_vu_ky_b: String(k.box.querySelector('#hkCvB').value || '').trim()
+        chuc_vu_ky_b: String(k.box.querySelector('#hkCvB').value || '').trim(),
+        dt_ky_b: String(k.box.querySelector('#hkDtB').value || '').trim(),
+        email_ky_b: String(k.box.querySelector('#hkEmB').value || '').trim()
       };
       busy(true);
       try { await api('vagabond.hop_dong.sua_nguoi_ky', v); }
@@ -1148,9 +1260,26 @@ async function hdGuiMail(hd) {
   if (!ng.tu_co_that && ng.tu_khai) mo += '\n(Hộp thư ' + ng.tu_khai + ' chưa được bật gửi đi)';
   if (!await hoiCo('Xác nhận gửi hợp đồng', mo, 'Gửi thư')) return;
 
-  var loi = await hoiChu('Lời nhắn thêm (không bắt buộc)',
-    'Câu này nằm trong thân thư, trên phần chào cuối.', '',
-    { nhieu_dong: true, goi_y: 'Vd: Anh chị xem giúp em phần Điều 2 rồi phản hồi trước thứ Sáu.' });
+  /* Chip cau co san thay vi bat sales go tay (anh Viet 18/08/2026): *"em
+     tao ra khoang 5 chip nhung loi nhan than thu thuong hay su dung nhat de
+     sales chi viec lua chon chu khong phai go"*.
+
+     Dung lai dung hop thoai cua to bao gia, chi doi bo cau. Doc cau tu Cai
+     dat nen anh sua duoc ma khong can deploy; may chu hong thi lui ve bo
+     cai san trong app chu khong bay ra hop thoai rong. */
+  var cauHd = [];
+  try {
+    var cdHd = await api('vagabond.bao_gia.cd_doc', {});
+    cauHd = (cdHd && cdHd.loi_nhan_hd_mau) || [];
+  } catch (e) { cauHd = []; }
+  if (!cauHd.length) cauHd = [
+    'Anh chị xem giúp em phần Điều 2 rồi phản hồi trước thứ Sáu ạ.',
+    'Anh chị ký đóng dấu rồi gửi lại bên em một bản scan giúp em ạ.',
+    'Bên em đã đính kèm báo giá đã chốt làm Phụ lục 01 của Hợp đồng ạ.',
+    'Sau khi nhận cọc đợt 1 bên em sẽ lên lịch sản xuất ngay ạ.',
+    'Anh chị cần điều chỉnh chỗ nào thì báo em, bên em gửi lại bản mới ạ.'
+  ];
+  var loi = await bgHoiLoiNhan(cauHd, hd.ngay_su_kien || hd.ngay_ky);
   if (loi === null) return;
 
   busy(true);
@@ -1238,6 +1367,12 @@ function htDsVe() {
       return '<div class="htmo" data-ht="' + h(x.name) + '" style="padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
         '<div style="display:flex;align-items:center;gap:9px">' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(x.ten_khach || '(khách lẻ)') + '</b>' +
+        /* Ke toan phai nhin ra NGAY day la phieu tra hang hay phieu tien
+           nop thua, vi hai loai sinh chung tu khac han nhau: mot ben khu
+           doanh thu, mot ben khong dung toi doanh thu. */
+        (x.loai_hoan === 'Tien nop thua'
+          ? '<span style="display:inline-block;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:800;margin-left:6px">TIỀN DƯ</span>'
+          : '') +
         '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) + ' · ' + h(x.hoa_don) + '</div></div>' +
         '<div style="text-align:right"><b style="font-size:15px">' + money(x.so_tien) + ' đ</b>' +
         '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + h(htDsTen(x.trang_thai)) + '</div></div>' +
@@ -1356,6 +1491,10 @@ function htCtVe() {
   }
 
   html += '<div class="sec">Lý do và diễn giải</div><div class="card" style="padding:2px 14px 8px">' +
+    htCtDong('Loại phiếu',
+      d.loai_hoan === 'Tien nop thua'
+        ? 'Tiền nộp thừa · KHÔNG lập hoá đơn trả hàng, doanh thu giữ nguyên'
+        : 'Trả hàng · lập hoá đơn trả hàng để khử doanh thu', 1) +
     htCtDong('Lý do hoàn', htLyDoTen(d.ly_do || ''), 1) +
     htCtDong('Diễn giải', d.dien_giai || '') +
     htCtDong('Người lập', d.nguoi_duyet || '') +
@@ -1390,6 +1529,14 @@ function htCtVe() {
     html += '<div class="sec">Đơn gốc ' + h(d.don.name) + '</div><div class="card" style="padding:2px 14px 10px">' +
       htCtDong('Ngày đơn', d.don.ngay) +
       htCtDong('Tổng đơn', money(d.don.tong) + ' đ', 1) +
+      /* Voi phieu tien nop thua thi hai con so nay la CAN CU DUY NHAT de
+         chi Dung quyet: da nhan bao nhieu, don bao nhieu, chenh la bao
+         nhieu. Bay ra thang chu khong bat chi mo sang man khac doi chieu. */
+      (d.loai_hoan === 'Tien nop thua'
+        ? htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay) + ' đ', 1) +
+          htCtDong('Khách nộp thừa',
+            money(Math.max(0, Number(d.don.da_nhan_sepay || 0) - Number(d.don.tong || 0))) + ' đ', 1)
+        : '') +
       htCtDong('Đã thu', money(d.don.da_thu) + ' đ') +
       (d.don.diem_ban ? htCtDong('Điểm bán', d.don.diem_ban) : '') +
       '<div style="padding:9px 0 0">' + (d.don.mon || []).map(function (m) {

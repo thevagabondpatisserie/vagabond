@@ -287,6 +287,9 @@ async function scrPosDs() {
   var oD = document.getElementById('posDsDate');
   if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; go(scrPosDs, true); };
   veODate('posDsDate');
+  /* O tim don dung chung, khong gioi han ngay (anh Viet 18/08/2026). Hai
+     man tinh tien deu dung chung mot o va mot phep tim. */
+  timDonGan();
   b.addEventListener('click', function (e) {
     var t = e.target.closest('[data-pdbuoc]'); if (!t) return;
     var bu = +t.getAttribute('data-pdbuoc');

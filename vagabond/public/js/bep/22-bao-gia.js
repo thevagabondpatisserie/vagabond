@@ -872,8 +872,12 @@ function bgFormHopDong(g) {
       ngay_su_kien: '',
       nguoi_ky_a: g.nguoi_ky_a || '',
       chuc_vu_ky_a: g.chuc_vu_ky_a || '',
+      dt_ky_a: g.dt_ky_a || '',
+      email_ky_a: g.email_ky_a || '',
       nguoi_ky_b: g.nguoi_ky_b || '',
       chuc_vu_ky_b: g.chuc_vu_ky_b || '',
+      dt_ky_b: g.dt_ky_b || '',
+      email_ky_b: g.email_ky_b || '',
       tep: null
     };
     var tuDong = true;   /* so hop dong con do may dung, user chua go tay */
@@ -900,12 +904,20 @@ function bgFormHopDong(g) {
       o('hdKyA', f.nguoi_ky_a, 'Họ và tên người đặt bút ký') +
       '<div style="height:7px"></div>' +
       o('hdCvA', f.chuc_vu_ky_a, 'Chức vụ, vd Giám đốc') +
+      '<div style="height:7px"></div>' +
+      o('hdDtA', f.dt_ky_a, 'SĐT người ký') +
+      '<div style="height:7px"></div>' +
+      o('hdEmA', f.email_ky_a, 'Email người ký') +
       '<div style="height:12px"></div>' +
 
       rndLbl('Người ký Bên B (Vagabond)') +
       o('hdKyB', f.nguoi_ky_b, 'Họ và tên người đặt bút ký') +
       '<div style="height:7px"></div>' +
       o('hdCvB', f.chuc_vu_ky_b, 'Chức vụ, vd Giám đốc') +
+      '<div style="height:7px"></div>' +
+      o('hdDtB', f.dt_ky_b, 'SĐT người ký') +
+      '<div style="height:7px"></div>' +
+      o('hdEmB', f.email_ky_b, 'Email người ký') +
       '<div ' + BGNHAN + ' style="margin-bottom:14px">Bốn ô này in thẳng xuống khối chữ ký cuối hợp đồng. Ghi đúng họ tên người đặt bút ký, không ghi Ms./Mr., và thường là Giám đốc chứ không phải bạn làm báo giá.</div>' +
 
       '<div style="border-top:1px solid #eef0f4;padding-top:12px"></div>' +
@@ -958,8 +970,12 @@ function bgFormHopDong(g) {
       f.so = so;
       f.nguoi_ky_a = String(k.box.querySelector('#hdKyA').value || '').trim();
       f.chuc_vu_ky_a = String(k.box.querySelector('#hdCvA').value || '').trim();
+      f.dt_ky_a = String(k.box.querySelector('#hdDtA').value || '').trim();
+      f.email_ky_a = String(k.box.querySelector('#hdEmA').value || '').trim();
       f.nguoi_ky_b = String(k.box.querySelector('#hdKyB').value || '').trim();
       f.chuc_vu_ky_b = String(k.box.querySelector('#hdCvB').value || '').trim();
+      f.dt_ky_b = String(k.box.querySelector('#hdDtB').value || '').trim();
+      f.email_ky_b = String(k.box.querySelector('#hdEmB').value || '').trim();
       tra(f);
     };
   });
@@ -1011,7 +1027,9 @@ async function bgChotHopDong(d) {
       name: d.name, so_hop_dong: f.so, ngay_ky: f.ngay_ky,
       ngay_su_kien: f.ngay_su_kien || '',
       nguoi_ky_a: f.nguoi_ky_a, chuc_vu_ky_a: f.chuc_vu_ky_a,
-      nguoi_ky_b: f.nguoi_ky_b, chuc_vu_ky_b: f.chuc_vu_ky_b
+      dt_ky_a: f.dt_ky_a, email_ky_a: f.email_ky_a,
+      nguoi_ky_b: f.nguoi_ky_b, chuc_vu_ky_b: f.chuc_vu_ky_b,
+      dt_ky_b: f.dt_ky_b, email_ky_b: f.email_ky_b
     });
   } catch (e) { busy(false); return baoTin((e && e.message) || 'Không tạo được hợp đồng'); }
   /* Hop dong da tao xong roi moi tai tep. Tep hong thi hop dong VAN CON,
@@ -1044,7 +1062,11 @@ function bgTinh() {
   bgTay.tam_tinh = tam;
   bgTay.chiet_khau_tien = Math.round(tam * (Number(bgTay.chiet_khau_pt) || 0) / 100);
   var sau = tam - bgTay.chiet_khau_tien;
-  if (bgTay.gia_da_gom_vat) { bgTay.thue_tien = 0; bgTay.tong_cong = sau + (Number(bgTay.phi_giao) || 0); }
+  if (bgTheoDong()) {
+    var bt = bgBangThue();
+    bgTay.thue_tien = bt.tien_thue;
+    bgTay.tong_cong = bt.tong_cong;
+  } else if (bgTay.gia_da_gom_vat) { bgTay.thue_tien = 0; bgTay.tong_cong = sau + (Number(bgTay.phi_giao) || 0); }
   else { bgTay.thue_tien = Math.round(sau * (Number(bgTay.thue_pt) || 0) / 100); bgTay.tong_cong = sau + bgTay.thue_tien + (Number(bgTay.phi_giao) || 0); }
   bgTay.dat_coc_tien = Math.round(bgTay.tong_cong * (Number(bgTay.dat_coc_pt) || 0) / 100);
 }
@@ -1067,7 +1089,7 @@ function bgDoc() {
       'di_ung_vi', 'di_ung_en', 'danh_muc_vi', 'danh_muc_en'].forEach(function (f) {
         var v = g('dg_' + i + '_' + f); if (v !== undefined) x[f] = v;
       });
-    ['so_luong', 'don_gia', 'chiet_khau'].forEach(function (f) {
+    ['so_luong', 'don_gia', 'chiet_khau', 'thue_pt'].forEach(function (f) {
       var v = g('dg_' + i + '_' + f);
       if (v !== undefined) x[f] = vgbSo(v);
     });
@@ -1098,13 +1120,101 @@ function bgTongHien() {
   });
 }
 
+/* Muc thue mac dinh cho dong moi: lay muc cua to, de sales khong phai go
+   lai tung dong khi ca to cung mot muc. */
+function bgMucThueMacDinh() {
+  var v = Number(bgTay && bgTay.thue_pt);
+  return isNaN(v) ? 8 : v;
+}
+
+/* To nay tinh thue theo tung dong hay theo ca to. O de trong doc la cach
+   cu, dung y do: to dang co tren he khong duoc doi mot dong. */
+function bgTheoDong() {
+  return (bgTay && bgTay.kieu_thue) === 'Theo từng dòng';
+}
+
+/* Tach thue cho ca to NGAY TREN MAN, dung y het phep cua may chu.
+
+   Vi sao lam lai o day: sales sua so nao thi phai thay tong doi ngay, cho
+   duoc may chu tra loi thi man giat. Nhung day chi la de NHIN - con so luu
+   xuong va con so in ra van do may chu tinh lai (QT-19), nen neu hai ben
+   lech nhau thi cai dung la cai cua may chu.
+
+   Hai phep duoi day phai giong het bao_gia.phan_bo_chiet_khau va
+   bao_gia.tach_thue. Bo kiem chay CA HAI ban tren cung bo so va so tung
+   dong, nen khong the am tham lech nhau. */
+function bgBangThue() {
+  var ds = (bgTay.dong || []).map(function (x) { return Number(x.thanh_tien) || 0; });
+  var tong = ds.reduce(function (a, b) { return a + b; }, 0);
+  var ck = Number(bgTay.chiet_khau_tien) || 0;
+  var daGom = !!bgTay.gia_da_gom_vat;
+  /* Dong cuoi nhan phan du nen tong cac phan chia luon bang dung ck. */
+  var tru = [], da = 0;
+  ds.forEach(function (t, i) {
+    var x = (tong <= 0 || ck <= 0) ? 0
+      : (i === ds.length - 1 ? ck - da : Math.round(ck * t / tong));
+    tru.push(x); da += x;
+  });
+  function tach(nen, pt) {
+    if (!pt) return { hang: nen, thue: 0 };
+    if (daGom) { var h = Math.round(nen * 100 / (100 + pt)); return { hang: h, thue: nen - h }; }
+    return { hang: nen, thue: Math.round(nen * pt / 100) };
+  }
+  var muc = {}, tHang = 0, tThue = 0;
+  (bgTay.dong || []).forEach(function (x, i) {
+    var pt = Number(x.thue_pt) || 0;
+    var r = tach(ds[i] - tru[i], pt);
+    muc[pt] = muc[pt] || { thue_pt: pt, tien_hang: 0, tien_thue: 0 };
+    muc[pt].tien_hang += r.hang; muc[pt].tien_thue += r.thue;
+    tHang += r.hang; tThue += r.thue;
+  });
+  var pg = Number(bgTay.phi_giao) || 0;
+  if (pg) {
+    var ppt = Number(bgTay.thue_phi_giao_pt) || 0;
+    var rp = tach(pg, ppt);
+    muc[ppt] = muc[ppt] || { thue_pt: ppt, tien_hang: 0, tien_thue: 0 };
+    muc[ppt].tien_hang += rp.hang; muc[ppt].tien_thue += rp.thue;
+    tHang += rp.hang; tThue += rp.thue;
+  }
+  var dsMuc = Object.keys(muc).map(function (k) { return muc[k]; })
+    .sort(function (a, b) { return a.thue_pt - b.thue_pt; });
+  return { theo_muc: dsMuc, tien_hang: tHang, tien_thue: tThue, tong_cong: tHang + tThue };
+}
+
+/* Ba dong khach hay hoi, hien ngay tren man soan (anh Viet 18/08/2026):
+   *"nhieu khach ho yeu cau so tien truoc thue va so tien sau thue, so tien
+   thue"*. Sales nhin thay dung cai se in ra to PDF. */
+function bgTomTatThueHtml() {
+  var bt = bgBangThue();
+  var d1 = function (nhan, tien) {
+    return '<div style="display:flex;justify-content:space-between;margin-top:6px">' +
+      '<span>' + h(nhan) + '</span><b>' + money(tien) + ' đ</b></div>';
+  };
+  var muc = bt.theo_muc.filter(function (m) { return m.tien_hang || m.tien_thue; });
+  var ra = d1('Cộng tiền hàng chưa thuế', bt.tien_hang);
+  if (muc.length > 1) {
+    muc.forEach(function (m) {
+      ra += '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:12.5px;color:#6b7280">' +
+        '<span>VAT ' + m.thue_pt + '% trên ' + money(m.tien_hang) + '</span><span>' + money(m.tien_thue) + ' đ</span></div>';
+    });
+    ra += d1('Cộng tiền thuế GTGT', bt.tien_thue);
+  } else {
+    ra += d1('Thuế GTGT ' + (muc.length ? muc[0].thue_pt : 0) + '%', bt.tien_thue);
+  }
+  if (!bgTay.gia_da_gom_vat) {
+    ra += '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Đơn giá chưa gồm VAT, thuế được cộng thêm lên tổng.</div>';
+  }
+  return ra;
+}
+
 function bgTongHtml() {
   var d = bgTay;
   return '<div style="display:flex;justify-content:space-between"><span>Cộng tiền hàng</span><b>' + money(d.tam_tinh) + ' đ</b></div>' +
     (Number(d.chiet_khau_pt) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu ' + (Number(d.chiet_khau_pt) || 0) + '%</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
     (Number(d.phi_giao) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Phí giao hàng</span><b>' + money(d.phi_giao) + ' đ</b></div>' : '') +
-    (d.gia_da_gom_vat ? '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT, không cộng thêm thuế lên tổng</div>'
-      : '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Thuế GTGT ' + (Number(d.thue_pt) || 0) + '%</span><b>' + money(d.thue_tien) + ' đ</b></div>') +
+    (bgTheoDong() ? bgTomTatThueHtml()
+      : (d.gia_da_gom_vat ? '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT, không cộng thêm thuế lên tổng</div>'
+        : '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Thuế GTGT ' + (Number(d.thue_pt) || 0) + '%</span><b>' + money(d.thue_tien) + ' đ</b></div>')) +
     '<hr><div style="display:flex;justify-content:space-between"><span><b>TỔNG CỘNG</b></span><b style="font-size:18px">' + money(d.tong_cong) + ' đ</b></div>' +
     (Number(d.dat_coc_pt) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đặt cọc ' + (Number(d.dat_coc_pt) || 0) + '%</span><b style="color:#0a8a4a">' + money(d.dat_coc_tien) + ' đ</b></div>' : '');
 }
@@ -1329,10 +1439,18 @@ async function scrBgSua(name) {
       bgOChu('dg_' + i + '_dvt', x.dvt, 'đvt', '62px') +
       '<span style="font-size:12px;color:#8a8f9c">Giá</span>' + bgOSo('dg_' + i + '_don_gia', x.don_gia, 116, true) +
       '<span style="font-size:12px;color:#8a8f9c">CK%</span>' + bgOSo('dg_' + i + '_chiet_khau', x.chiet_khau, 52) +
+      /* Muc thue cua RIENG dong (anh Viet 18/08/2026). To tron duoc banh 8%
+         voi phi dich vu 10% va mon khong chiu thue, nen muc thue la thuoc
+         tinh cua dong chu khong phai cua to. */
+      '<span style="font-size:12px;color:#8a8f9c">VAT%</span>' + bgOSo('dg_' + i + '_thue_pt', x.thue_pt, 52) +
       '<b id="dg_' + i + '_tt" style="margin-left:auto;font-size:14.5px;white-space:nowrap">' + money(x.thanh_tien) + ' đ</b></div>' +
       '<div style="display:flex;flex-direction:row;gap:8px;align-items:center">' +
       posChipNut('data-loai="' + i + '"', x.loai === 'Phí' ? 'Là khoản phí' : 'Là món bánh', x.loai === 'Phí') +
       posChipNut('data-mo="' + i + '"', mo ? 'Thu gọn ▴' : 'Mô tả, dị ứng, kích thước ▾', mo) +
+      [0, 8, 10].map(function (v) {
+        return posChipNut('data-vat="' + i + ':' + v + '"', 'VAT ' + v + '%',
+          (Number(x.thue_pt) || 0) === v);
+      }).join('') +
       posChipNut('data-luutv="' + i + '"', '📚 Lưu vào thư viện', false) +
       (d.song_ngu ? posChipNut('data-dich="' + i + '"', '🌐 Dịch dòng này', false) : '') +
       '</div></div></div>';
@@ -1429,7 +1547,7 @@ async function scrBgSua(name) {
     var el = e.target;
     if (el && el.getAttribute && el.getAttribute('data-tien') === '1') vgbTienGo(el);
     var id = (el && el.id) || '';
-    if (/^dg_\d+_(so_luong|don_gia|chiet_khau)$/.test(id)) bgTongHien();
+    if (/^dg_\d+_(so_luong|don_gia|chiet_khau|thue_pt)$/.test(id)) bgTongHien();
   });
 
   /* Roi o ma so thue la tra luon, khong bat bam nut. Dung 'blur' chu khong
@@ -1458,6 +1576,15 @@ async function scrBgSua(name) {
       bgTay.moc[+p[0]].trach_nhiem = p[1]; return go(function () { scrBgSua(name); }, true);
     }
     if ((el = e.target.closest('[data-anh]'))) return bgDoiAnh(+el.getAttribute('data-anh'), name);
+    if ((el = e.target.closest('[data-vat]'))) {
+      /* Doc man ve bgTay truoc da, khong thi chu nguoi ta vua go o cac o
+         khac bi mat khi ve lai. */
+      bgDoc();
+      var pv = String(el.getAttribute('data-vat')).split(':');
+      var dgv = bgTay.dong[+pv[0]];
+      if (dgv) dgv.thue_pt = Number(pv[1]) || 0;
+      return go(function () { scrBgSua(name); }, true);
+    }
     if ((el = e.target.closest('[data-luutv]'))) return bgLuuThuVien(+el.getAttribute('data-luutv'), name);
     if ((el = e.target.closest('[data-dich]'))) return bgDichDong(+el.getAttribute('data-dich'), name);
     if (e.target.closest('[data-t="dichto"]')) return bgDichTo(name);
@@ -1501,7 +1628,7 @@ async function scrBgSua(name) {
         mo_ta: m.mo_ta || '', mo_ta_en: m.mo_ta_en || '',
         di_ung_vi: m.di_ung_vi || '', di_ung_en: m.di_ung_en || '',
         danh_muc_vi: m.nguon === 'item' ? (m.nhom || '') : '', danh_muc_en: '',
-        so_luong: 1, don_gia: m.gia || 0, chiet_khau: 0, thanh_tien: 0
+        so_luong: 1, don_gia: m.gia || 0, chiet_khau: 0, thue_pt: bgMucThueMacDinh(), thanh_tien: 0
       });
     });
     toast('Đã thêm ' + ds.length + ' dòng, giờ chỉ cần gõ số lượng', 3500);
@@ -1509,7 +1636,7 @@ async function scrBgSua(name) {
   };
   document.getElementById('bgThemTay').onclick = function () {
     bgDoc();
-    bgTay.dong.push({ loai: 'Món', ma_mon: '', ma_tv: '', ten_mon: '', ten_en: '', dvt: '', dvt_en: '', hinh: '', kich_thuoc: '', mo_ta: '', mo_ta_en: '', di_ung_vi: '', di_ung_en: '', danh_muc_vi: '', danh_muc_en: '', so_luong: 1, don_gia: 0, chiet_khau: 0, thanh_tien: 0 });
+    bgTay.dong.push({ loai: 'Món', ma_mon: '', ma_tv: '', ten_mon: '', ten_en: '', dvt: '', dvt_en: '', hinh: '', kich_thuoc: '', mo_ta: '', mo_ta_en: '', di_ung_vi: '', di_ung_en: '', danh_muc_vi: '', danh_muc_en: '', so_luong: 1, don_gia: 0, chiet_khau: 0, thue_pt: bgMucThueMacDinh(), thanh_tien: 0 });
     go(function () { scrBgSua(name); }, true);
   };
   document.getElementById('bgThemDv').onclick = function () {

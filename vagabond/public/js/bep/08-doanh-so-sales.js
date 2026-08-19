@@ -131,6 +131,7 @@ async function scrDoanhSo() {
       }
     } catch (e2) { }
   })();
+  timDonGan();
   b.addEventListener('click', function (e) {
     var t = e.target.closest('[data-dsbuoc]'); if (!t) return;
     var bu = +t.getAttribute('data-dsbuoc');
@@ -257,7 +258,88 @@ function chipNgay(attr) {
     posChipNut(attr + '="-1"', '\u25c0 Hôm trước', false) +
     posChipNut(attr + '="0"', 'Hôm nay', false) +
     posChipNut(attr + '="1"', 'Hôm sau \u25b6', false) +
+    '</div>' + timDonO();
+}
+
+/* ---------- Ô tìm đơn, dùng chung mọi màn tính tiền ----------
+
+   Anh Việt 18/08/2026: *"em viết script để có thêm ô Tìm kiếm... cho tất cả
+   các màn tính tiền ở mọi điểm bán luôn. Nhập bất cứ thông tin gì thì cũng
+   sẽ có thể tìm ra được đơn ấy nhanh, hiện tại anh đang phải dò bằng tay
+   nếu muốn kiếm lại 1 đơn nào đó"*.
+
+   Điểm cốt lõi: ô này tìm KHÔNG GIỚI HẠN NGÀY. Các màn tính tiền đều xem
+   theo ngày, nên muốn tìm lại một đơn cũ mà không nhớ ngày thì phải lật
+   từng ngày một, đúng là dò tay. Gõ mã đơn Pancake, mã đơn ERP, số điện
+   thoại, tên khách hay địa chỉ đều ra.
+
+   Gõ xong bấm Enter hoặc nút kính lúp chứ không tìm theo từng phím: mỗi
+   phím là một lượt gọi máy chủ, mà đây là ô tra cứu chứ không phải ô lọc
+   danh sách đang hiện. */
+function timDonO() {
+  return '<div style="display:flex;gap:7px;margin-top:9px">' +
+    '<input id="tdO" placeholder="Nhập mã đơn Pancake, mã đơn ERP, SĐT, tên khách, địa chỉ..." ' +
+    'style="flex:1;min-width:0;border:1.5px solid #e5e7eb;border-radius:9px;padding:9px 12px;font-size:13px">' +
+    '<button id="tdNut" class="btn gh" style="margin:0;width:auto;padding:8px 14px;flex:0 0 auto">🔍</button>' +
     '</div>';
+}
+
+/* Gắn sự kiện cho ô tìm. Gọi sau mỗi lần vẽ lại màn. */
+function timDonGan() {
+  var o = document.getElementById('tdO');
+  var n = document.getElementById('tdNut');
+  if (!o || !n) return;
+  var chay = function () { timDonChay(String(o.value || '')); };
+  n.onclick = chay;
+  o.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); chay(); } };
+}
+
+async function timDonChay(tu) {
+  tu = String(tu || '').trim();
+  if (tu.length < 3) return toast('Gõ ít nhất 3 ký tự rồi tìm giúp em.', 3500);
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.ban_hang.tim_don', { tu_khoa: tu }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không tìm được', 'Lỗi tìm đơn'); }
+  busy(false);
+  var ds = (kq && kq.ds) || [];
+  if (!ds.length) return baoTin((kq && kq.vi_sao) || 'Không thấy đơn nào khớp.', 'Không tìm thấy');
+
+  var than = '<div style="font-size:12.5px;color:#6b7280;margin-bottom:9px">Tìm "' +
+    h(kq.tu_khoa || tu) + '" · ' + ds.length + ' đơn, mới nhất lên trước. Bấm vào một dòng để mở.</div>' +
+    ds.map(function (x) {
+      var vn = String(x.ngay || '').split('-').reverse().join('/');
+      var tt = x.vgb_huy ? 'đã huỷ' : (x.docstatus === 1 ? 'đã chốt' : 'chưa chốt');
+      var mau = x.vgb_huy ? '#b3261e' : (x.docstatus === 1 ? '#0a8a4a' : '#b45309');
+      return '<div data-td="' + h(x.name) + '" style="padding:11px 12px;border:1px solid #eef0f4;' +
+        'border-radius:10px;margin-bottom:7px;cursor:pointer">' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' +
+        h(x.ten_tren_don || '(khách lẻ)') + '</b>' +
+        '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) +
+        (x.custom_pancake_display_id ? ' · Pancake #' + h(x.custom_pancake_display_id) : '') +
+        '</div></div>' +
+        '<div style="text-align:right"><b style="font-size:14px">' + money(x.grand_total) + ' đ</b>' +
+        '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + tt + '</div></div></div>' +
+        '<div style="font-size:11.5px;color:#6b7280;margin-top:4px">' + vn +
+        (x.sdt_tren_don ? ' · ' + h(x.sdt_tren_don) : '') +
+        (x.custom_nguon ? ' · ' + h(x.custom_nguon) : '') +
+        (x.vgb_pt_thanh_toan ? ' · ' + h(x.vgb_pt_thanh_toan) : '') +
+        (x.custom_hddt_so ? ' · HĐĐT ' + h(x.custom_hddt_so) : '') + '</div></div>';
+    }).join('');
+
+  var hop = hopKhung('Kết quả tìm đơn', than,
+    '<button class="btn gh" id="tdDong" style="margin:0;flex:1">Đóng</button>');
+  hop.box.querySelector('.x').onclick = hop.dong;
+  hop.box.querySelector('#tdDong').onclick = hop.dong;
+  hop.box.querySelectorAll('[data-td]').forEach(function (el) {
+    el.onclick = function () {
+      var ten = el.getAttribute('data-td');
+      hop.dong();
+      /* Mo thang man chi tiet don, khong bat nguoi ta quay lai chon ngay. */
+      go(function () { scrDsView(ten, 0); });
+    };
+  });
 }
 
 function veODate(id) {
@@ -395,11 +477,19 @@ async function scrDsView(name, can) {
 
        Nut nay chi GUI YEU CAU, khong sinh chung tu va khong dong tien nao -
        xem ghi chu dau hoan_tien.tao. */
-    foot = '<div style="display:flex;gap:8px">' +
-      '<button class="btn gh" id="dsvHoan" style="margin:0;flex:0 0 44%;color:#b45309;border-color:#fde68a">↩️ Hoàn tiền</button>' +
+    /* Hai nut canh nhau, hai luong khac han (anh Viet 18/08/2026): *"anh
+       nho em thiet ke luon 1 nut rieng ke ben nut Hoan tien do la nut
+       Chuyen lai cho khach thanh toan du"*.
+
+       Hoan tien la TRA HANG: khach tra banh ve, doanh thu khu di.
+       Chuyen lai tien du la khach NOP THUA: hang giao du, gia dung, doanh
+       thu giu nguyen, chi tra lai phan chuyen vuot. */
+    foot = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn gh" id="dsvHoan" style="margin:0;flex:1 1 44%;color:#b45309;border-color:#fde68a">↩️ Hoàn tiền</button>' +
+      '<button class="btn gh" id="dsvDu" style="margin:0;flex:1 1 44%;color:#0f766e;border-color:#99f6e4">💸 Chuyển lại tiền dư</button>' +
       (can && !d.custom_hddt_so
-        ? '<button class="btn" id="dsvHddt" style="margin:0;flex:1">Xuất HĐĐT (Chờ ký)</button>'
-        : '<button class="btn gh" id="dsvXemHoan" style="margin:0;flex:1">Xem danh sách hoàn tiền</button>') +
+        ? '<button class="btn" id="dsvHddt" style="margin:0;flex:1 1 100%">Xuất HĐĐT (Chờ ký)</button>'
+        : '<button class="btn gh" id="dsvXemHoan" style="margin:0;flex:1 1 100%">Xem danh sách hoàn tiền</button>') +
       '</div>';
   } else if (can && !d.custom_hddt_so) {
     foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
@@ -407,6 +497,8 @@ async function scrDsView(name, can) {
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
+  var nDu = document.getElementById('dsvDu');
+  if (nDu) nDu.onclick = function () { hoanMoFormDu(d); };
   var nXemHoan = document.getElementById('dsvXemHoan');
   if (nXemHoan) nXemHoan.onclick = function () { go(scrHoanTien); };
   var nHuy = document.getElementById('dsvHuy');
