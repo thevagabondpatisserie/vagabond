@@ -86,7 +86,7 @@
    "fieldtype": "Select",
    "label": "Trang thai",
    "in_list_view": 1,
-   "options": "Cho chi\nDa chi\nDa doi soat\nDa huy",
+   "options": "Cho chi\nDa chi\nDa doi soat\nHoan thanh\nDa huy",
    "default": "Cho chi"
   },
   {
