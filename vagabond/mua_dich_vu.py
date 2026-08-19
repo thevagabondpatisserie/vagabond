@@ -87,6 +87,13 @@ TC_GHI_CHU = "4"
 # minh da them de khong them lan hai moi lan luu.
 TEN_DONG_PHI = "Phí khác theo hoá đơn, không chịu thuế"
 
+# Ly do ghi vao o Chiet khau khi hoa don co khoan giam nam NGOAI luoi dong
+# hang. Ca that: Nha van hoa Thanh Nien, hoa don ban hang C26TVH so 187 ngay
+# 02/08/2026, dong hang 10.101.010 ma tong thanh toan 10.000.000, chan trang
+# ghi "Da giam 101.010d tuong ung 20% muc ty le % de tinh thue gia tri gia
+# tang theo Nghi quyet so 204/2025/QH15".
+LY_DO_GIAM_NGOAI_DONG = "Giảm ngoài dòng hàng theo đầu hoá đơn điện tử"
+
 # Dong chiet khau suy ra tu tong duoc phep lech bao nhieu so voi dong chiet
 # khau ghi tren hoa don. Khoang nay chinh la phan m-invoice lam tron tung
 # dong: rieng hoa don GSM 57194 la 15d tren 929 dong. Lech qua nguong nay
@@ -218,6 +225,43 @@ def phi_ngoai_thue(dau):
 	"""
 	truoc, _thue, _tong = so_theo_dau_hoa_don(dau)
 	return goc_dong_hang(dau) - truoc
+
+
+def giam_ngoai_dong(dau, chi_tiet):
+	"""Khoan GIAM nam ngoai luoi dong hang. THUAN.
+
+	Anh em sinh doi cua `phi_ngoai_thue`, nhung soi tu huong khac va vi vay
+	chac chan hon.
+
+	`phi_ngoai_thue` do bang hieu giua goc va `tien_truoc_thue`. Cach do
+	dung cho ve may bay, nhung no phu thuoc vao viec m-invoice dien o
+	`tien_truoc_thue` theo kieu nao.
+
+	Ham nay do bang hieu giua CHINH PHAN CHI TIET cua hoa don va goc:
+
+	    giam = tong dong chi tiet  -  (tong_tien - tien_thue)
+
+	Duong nghia la hoa don tu no da cong ra nhieu hon so phai tra, tuc co
+	mot khoan giam o cap dau hoa don ma phan chi tiet khong mang.
+
+	Ca that gap 19/08/2026: Nha van hoa Thanh Nien, hoa don ban hang C26TVH
+	so 187, mau so 2 nen khong co thue GTGT tach rieng.
+
+	    dong hang               10.101.010
+	    tong tien thanh toan    10.000.000
+	    ------------------------------------
+	    giam                       101.010
+
+	Chan hoa don ghi ro: "Da giam 101.010d tuong ung 20% muc ty le % de tinh
+	thue gia tri gia tang theo Nghi quyet so 204/2025/QH15". Dung 1% cua
+	10.101.010, tuc 20% cua muc ty le 5%.
+
+	Khoan giam nay khong nam trong `chi_tiet`, khong nam o o chiet khau
+	thuong mai (hoa don ghi 0), va cung khong co dong `tchat` 3 nao. No o
+	mot cho khac han, y het chuyen phi ve may bay - va do la ly do phai do
+	no bang hieu chu khong di tim no.
+	"""
+	return gom_dong_theo_tinh_chat(chi_tiet) - goc_dong_hang(dau)
 
 
 def la_hoa_don_am(dau):
@@ -357,6 +401,31 @@ def ke_hoach_sua_chiet_khau(dong, chi_tiet, goc, cho_phep=SAI_LECH_LAM_TRON):
 	if abs(chiet_khau - ghi_tren_hoa_don) > flt(cho_phep):
 		return None
 	return {"bo": bo, "chiet_khau": chiet_khau, "con_lai": con_lai}
+
+
+def ke_hoach_giam_ngoai_dong(tong_dong, dau, chi_tiet, cho_phep=SAI_LECH_LAM_TRON):
+	"""Phan thua co dung la khoan giam o dau hoa don khong. THUAN.
+
+	Tra ve so tien dua vao o Chiet khau, hoac None neu khong dung vao phieu.
+
+	Dieu kien: phan thua tren PHIEU phai trung voi khoan giam do duoc tu
+	chinh HOA DON (hieu giua tong chi tiet va goc). Hai con so nay den tu hai
+	nguon doc lap - mot ben la luoi dong dang nam tren phieu, mot ben la
+	phan chi tiet m-invoice - nen trung nhau la bang chung du manh.
+
+	Khong dung dieu kien nao mem hon the. Neu chi thay "phieu thua tien" ma
+	da tru bot di thi may dang bia ra mot khoan giam khong ai xac nhan, tren
+	mot chung tu thue.
+	"""
+	giam = giam_ngoai_dong(dau, chi_tiet)
+	if giam <= 0:
+		return None
+	thua = flt(tong_dong) - goc_dong_hang(dau)
+	if thua <= 0:
+		return None
+	if lech_qua_nguong(thua, giam, cho_phep):
+		return None
+	return thua
 
 
 def lech_qua_nguong(a, b, nguong=NGUONG_LECH):
@@ -564,19 +633,34 @@ def _can_phan_thua(doc, dau, goc):
 	ct = frappe.db.get_value("MInvoice Invoice", doc.get("custom_minvoice_id"), "chi_tiet")
 	if not ct:
 		return
+	chi_tiet = json.loads(ct or "[]")
 	dong = [
 		{"ten": (d.get("item_name") or "").strip(), "tien": flt(d.get("amount"))}
 		for d in doc.get("items")
 	]
-	kh = ke_hoach_sua_chiet_khau(dong, json.loads(ct or "[]"), goc)
-	if not kh:
+
+	# Duong mot: chi tiet co dong chiet khau thuong mai bi cong thay vi tru
+	# (hoa don GSM). Bo dong do ra khoi luoi roi dat so tien do vao o Chiet
+	# khau.
+	kh = ke_hoach_sua_chiet_khau(dong, chi_tiet, goc)
+	if kh:
+		giu = [d for i, d in enumerate(doc.get("items")) if i not in kh["bo"]]
+		if not giu:
+			return
+		doc.set("items", giu)
+		doc.apply_discount_on = "Net Total"
+		doc.discount_amount = kh["chiet_khau"]
 		return
-	giu = [d for i, d in enumerate(doc.get("items")) if i not in kh["bo"]]
-	if not giu:
+
+	# Duong hai: khong co dong chiet khau nao ca, khoan giam nam o CAP DAU
+	# hoa don (Nha van hoa Thanh Nien, giam theo Nghi quyet 204/2025/QH15).
+	# Giu nguyen luoi, chi dat phan chenh vao o Chiet khau.
+	giam = ke_hoach_giam_ngoai_dong(
+		sum([flt(d.get("tien")) for d in dong]), dau, chi_tiet)
+	if not giam:
 		return
-	doc.set("items", giu)
 	doc.apply_discount_on = "Net Total"
-	doc.discount_amount = kh["chiet_khau"]
+	doc.discount_amount = giam
 
 
 def _can_phan_thieu(doc, dau, goc, tong_dong):

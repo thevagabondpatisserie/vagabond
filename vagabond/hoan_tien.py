@@ -1683,6 +1683,30 @@ def _khach_tren_don(si_name, ma_khach=None):
 
 
 @frappe.whitelist()
+def dong_bo_so_hddt(ma_phieu, ma_don, dang_luu=""):
+	"""Lay so hoa don dien tu cua don goc, va va lai neu phieu dang giu so cu.
+
+	Chi Dung 19/08/2026: *"phieu hoan tien neu co them so hoa don dien tu thi
+	nhanh hon do phai kiem a, thi c se thay the hoa don nhanh hon a"*.
+
+	Vi sao khong de mac fetch_from lo het: Frappe chi keo lai gia tri fetch
+	moi lan LUU phieu. Ma trinh tu that thi nguoc: phieu hoan tien duoc lap
+	NGAY LUC khach doi tra, con hoa don dien tu thi phat hanh sau, co khi
+	sang hom sau. Den luc so hoa don co that thi khong ai luu lai phieu nua,
+	nen o do nam trong mai mai - dung cai o ma ke toan can nhat.
+
+	Nen moi lan man hinh doc phieu, doc luon so tren don goc. Lech thi va
+	lai vao phieu, khong doi modified de khong lam ban lich su sua doi.
+	"""
+	if not ma_don:
+		return (dang_luu or "").strip()
+	that = (frappe.db.get_value(SI, ma_don, "custom_hddt_so") or "").strip()
+	if that and that != (dang_luu or "").strip():
+		frappe.db.set_value(DT, ma_phieu, "so_hddt", that, update_modified=False)
+		return that
+	return (dang_luu or "").strip() or that
+
+
 def ds(trang_thai="", so_dong=100, tim=""):
 	"""Danh sach phieu hoan tien cho man Hoan tien tren app.
 
@@ -1730,6 +1754,7 @@ def ds(trang_thai="", so_dong=100, tim=""):
 			"name", "hoa_don", "hoa_don_tra", "phieu_chi", "khach", "so_tien",
 			"ly_do", "trang_thai", "da_doi_soat", "noi_dung_ck", "creation",
 			"ten_tk", "so_tk", "ngan_hang", "nguoi_duyet", "loai_hoan",
+			"so_hddt",
 		],
 		order_by="creation desc",
 		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
@@ -1762,10 +1787,25 @@ def ds(trang_thai="", so_dong=100, tim=""):
 			anh.setdefault(f["attached_to_name"], []).append(
 				{"url": f["file_url"], "ten": f["file_name"]}
 			)
+	# So hoa don dien tu cua don goc: doc mot luot cho ca trang roi va lai o
+	# nao con trong. Mot cau truy van cho ca danh sach, khong phai moi dong
+	# mot cau.
+	ma_don = list({d["hoa_don"] for d in ds_ if d.get("hoa_don")})
+	so_hddt = {}
+	if ma_don:
+		for si in frappe.get_all(
+			SI, filters={"name": ["in", ma_don]},
+			fields=["name", "custom_hddt_so"], limit_page_length=0
+		):
+			so_hddt[si["name"]] = (si["custom_hddt_so"] or "").strip()
 	for d in ds_:
 		d["ten_khach"] = ten.get(d.get("khach") or "", d.get("khach") or "")
 		d["phieu_chi_da_ghi"] = 1 if pc.get(d.get("phieu_chi") or "") == 1 else 0
 		d["anh"] = anh.get(d["name"], [])
+		that = so_hddt.get(d.get("hoa_don") or "", "")
+		if that and that != (d.get("so_hddt") or "").strip():
+			frappe.db.set_value(DT, d["name"], "so_hddt", that, update_modified=False)
+			d["so_hddt"] = that
 	# Con so tren chip la so THAT cua ca so, khong phai so dong dang hien.
 	# Dem theo dung o tim dang go, neu khong thi go "Nhung" ra 3 dong ma
 	# chip van bao 40, va ke toan khong biet tin cai nao.
@@ -1839,6 +1879,9 @@ def chi_tiet(ho_so):
 	ra["ten_khach"] = (
 		frappe.db.get_value("Customer", d.khach, "customer_name") if d.khach else ""
 	) or (d.khach or "")
+	# So hoa don dien tu cua don goc, doc lai tu don chu khong tin o dang
+	# luu: hoa don thuong duoc phat hanh SAU luc lap phieu hoan tien.
+	ra["so_hddt"] = dong_bo_so_hddt(d.name, d.hoa_don, d.get("so_hddt"))
 	ra["anh"] = [
 		{"url": f["file_url"], "ten": f["file_name"]}
 		for f in frappe.get_all(
