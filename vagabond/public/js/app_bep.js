@@ -11901,6 +11901,14 @@ function htDsVe() {
           : (x.trang_thai === 'Da huy' ? ' · <b style="color:#6b7280">đã từ chối, không chi</b>'
             : (x.da_doi_soat ? ' · <b style="color:#b3261e">chưa có phiếu chi</b>' : ' · chứng từ sinh sau khi tiền ra'))) +
         '</div>' +
+        /* Tien da ra, da khop sao ke, nhung chung tu chua sinh duoc. Truoc
+           19/08/2026 chuyen nay im lang tuyet doi: phieu nam mai o "Cho
+           chi" trong khi tien da di, va nhip doi soat cu 35 phut moi gio
+           lai hong lai lang. Bay len dong dau cho ke toan nhin thay. */
+        (x.loi_sinh_ct
+          ? '<div style="font-size:11.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+            'border-radius:8px;padding:7px 9px;margin-top:7px;line-height:1.55">⚠️ ' + h(x.loi_sinh_ct) + '</div>'
+          : '') +
         /* Anh bang chung: ke toan ngoi xa quay, day la can cu duy nhat de
            quyet. Bay anh nho ra ngay tren dong chu khong bat bam vao xem -
            mot cai bam nua la mot co hoi de duyet cho xong. */
@@ -11920,7 +11928,9 @@ function htDsVe() {
   }
 
   var b = frame('Phiếu hoàn tiền (Cash-back)', html, {
-    footer: '<button class="btn gh" id="htDsSoat" style="margin:0">🔄 Đối soát lệnh chi</button>'
+    footer: '<div style="display:flex;gap:8px">' +
+      '<button class="btn gh" id="htDsSoat" style="margin:0;flex:2">🔄 Đối soát lệnh chi</button>' +
+      '<button class="btn gh" id="htDsXls" style="margin:0;flex:1">📊 Xuất Excel</button></div>'
   });
   var oTim = document.getElementById('htTim');
   var chay = function () {
@@ -11932,6 +11942,21 @@ function htDsVe() {
   if (nTim) nTim.onclick = chay;
   var nXoa = document.getElementById('htTimXoa');
   if (nXoa) nXoa.onclick = function () { htDsTim = ''; go(scrHoanTien, true); };
+
+  var nXls = document.getElementById('htDsXls');
+  /* Xuat DUNG cai dang hien tren man: cung chip trang thai, cung o tim.
+     Tep khac man hinh la mot ngay nao do hai ben cai nhau ve mot con so. */
+  if (nXls) nXls.onclick = async function () {
+    busy(true);
+    try {
+      var fl = await api('vagabond.hoan_tien.xuat_excel', {
+        trang_thai: htDsLoc === 'tat_ca' ? '' : htDsLoc, tim: htDsTim, so_dong: 500
+      });
+      busy(false);
+      bcTaiVe(fl.ten_file, fl.b64, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      toast('Đã tải ' + fl.ten_file + ' · ' + fl.so_dong + ' phiếu', 4000);
+    } catch (e) { busy(false); toast((e && e.message) || 'Không xuất được Excel', 5000); }
+  };
 
   b.querySelectorAll('.htf').forEach(function (n) {
     n.onclick = function () { htDsLoc = n.getAttribute('data-htf'); go(scrHoanTien, true); };
@@ -12069,6 +12094,14 @@ function htCtVe() {
           '<div style="flex:none;color:#6b7280">x' + money(m.sl) + '</div>' +
           '<div style="flex:none;font-weight:700">' + money(m.tien) + '</div></div>';
       }).join('') + '</div></div>';
+  }
+
+  /* Tien da ra ma chung tu chua sinh duoc: noi ngay dau man, truoc ca khoi
+     chung tu, vi day la viec phai lam chu khong phai mot dong ghi chu. */
+  if (d.loi_sinh_ct) {
+    html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
+      '<b style="font-size:13.5px;color:#b3261e">Tiền đã ra nhưng chứng từ chưa sinh được</b>' +
+      '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-top:4px">' + h(d.loi_sinh_ct) + '</div></div>';
   }
 
   html += '<div class="sec">Chứng từ hệ sinh ra</div><div class="card" style="padding:2px 14px 8px">' +
@@ -13876,7 +13909,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '233';
+var APPVER = '234';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
