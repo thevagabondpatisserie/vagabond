@@ -1,0 +1,121 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-08-19 09:40:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "nhip",
+  "ma_don",
+  "doi_tuong",
+  "ten_doi_tuong",
+  "cb1",
+  "viec",
+  "truong",
+  "gia_tri_cu",
+  "gia_tri_moi",
+  "sec_nguoi",
+  "can_nguoi_xem",
+  "da_xem",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "nhip",
+   "fieldtype": "Data",
+   "label": "Nhip dong bo",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ma_don",
+   "fieldtype": "Data",
+   "label": "Ma don Pancake",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "doi_tuong",
+   "fieldtype": "Data",
+   "label": "Doctype bi tac dong"
+  },
+  {
+   "fieldname": "ten_doi_tuong",
+   "fieldtype": "Data",
+   "label": "Ten ban ghi",
+   "search_index": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "viec",
+   "fieldtype": "Data",
+   "label": "Viec da lam",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "truong",
+   "fieldtype": "Data",
+   "label": "Truong"
+  },
+  {
+   "fieldname": "gia_tri_cu",
+   "fieldtype": "Small Text",
+   "label": "Gia tri cu"
+  },
+  {
+   "fieldname": "gia_tri_moi",
+   "fieldtype": "Small Text",
+   "label": "Gia tri moi"
+  },
+  {
+   "fieldname": "sec_nguoi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "can_nguoi_xem",
+   "fieldtype": "Check",
+   "label": "Can nguoi xem",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "da_xem",
+   "fieldtype": "Check",
+   "label": "Da xem"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-19 09:40:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Nhat Ky Dong Bo",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 0,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
