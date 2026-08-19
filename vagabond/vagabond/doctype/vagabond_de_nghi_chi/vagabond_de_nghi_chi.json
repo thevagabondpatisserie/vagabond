@@ -12,6 +12,11 @@
   "loai_nghiep_vu",
   "phan_loai",
   "so_tien",
+  "sec_bk",
+  "cac_khoan",
+  "tong_tien",
+  "sec_hu",
+  "thuoc_tam_ung",
   "ngay_can_tt",
   "dien_giai",
   "cb1",
@@ -60,7 +65,8 @@
    "label": "Tên khoản chi",
    "reqd": 1,
    "in_list_view": 1,
-   "description": "Một câu ngắn để người duyệt hiểu ngay, ví dụ Mua đá cho quầy ngày 19/08."
+   "description": "Một câu ngắn để người duyệt hiểu ngay, ví dụ Mua đá cho quầy ngày 19/08. Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu.",
+   "read_only": 1
   },
   {
    "fieldname": "loai_nghiep_vu",
@@ -78,14 +84,18 @@
    "label": "Phân loại chi tiêu",
    "options": "\nMua đồ cúng\nMua nguyên vật liệu\nMua công cụ dụng cụ\nMua đồng phục nhân viên\nPhí giặt ủi\nPhí in ấn\nPhí sửa chữa bảo trì\nMua máy móc-tài sản cố định\nVận chuyển\nNộp thuế\nPhí công tác\nQuảng cáo-marketing\nTiếp khách-quà cáp\nTiền thuê nhà\nPhí an ninh\nPhí ngân hàng\nTrả lãi vay\nTiền bảo hiểm\nTiền điện\nTiền nước\nTiền điện thoại\nTiền internet\nTiền lương\nTiền rác-vệ sinh môi trường\nChi cho event\nTiền hoa hồng-môi giới\nPhí phần mềm-bản quyền\nKhảo sát thị trường\nTiền thưởng-phúc lợi nhân viên\nChi phí quản lý doanh nghiệp\nThuê thiết bị máy móc",
    "in_standard_filter": 1,
-   "depends_on": "eval:doc.loai_nghiep_vu=='Chi phí'"
+   "depends_on": "eval:doc.loai_nghiep_vu=='Chi phí'",
+   "read_only": 1,
+   "description": "Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu."
   },
   {
    "fieldname": "so_tien",
    "fieldtype": "Currency",
-   "label": "Số tiền yêu cầu",
+   "label": "So tien (phieu mot dong cu)",
    "reqd": 1,
-   "in_list_view": 1
+   "in_list_view": 1,
+   "read_only": 1,
+   "description": "Truong cua thoi phieu mot dong, giu lai de doc phieu cu. Phieu lap tu 20/08/2026 tro di dung Tong tien."
   },
   {
    "fieldname": "ngay_can_tt",
@@ -131,7 +141,8 @@
    "fieldtype": "Link",
    "label": "Tài khoản hạch toán",
    "options": "Account",
-   "description": "Máy gợi ý theo phân loại. Kế toán sửa được, và sửa rồi thì máy không đè lên nữa."
+   "description": "Máy gợi ý theo phân loại. Kế toán sửa được, và sửa rồi thì máy không đè lên nữa. Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu.",
+   "read_only": 1
   },
   {
    "fieldname": "ho_so_tt",
@@ -205,13 +216,17 @@
    "options": "Có hoá đơn VAT\nKhông hoá đơn VAT",
    "default": "Không hoá đơn VAT",
    "reqd": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "description": "Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu."
   },
   {
    "fieldname": "so_hoa_don",
    "fieldtype": "Data",
    "label": "Số hoá đơn",
-   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'"
+   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'",
+   "read_only": 1,
+   "description": "Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu."
   },
   {
    "fieldname": "cb3",
@@ -221,13 +236,17 @@
    "fieldname": "ngay_hoa_don",
    "fieldtype": "Date",
    "label": "Ngày hoá đơn",
-   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'"
+   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'",
+   "read_only": 1,
+   "description": "Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu."
   },
   {
    "fieldname": "mst",
    "fieldtype": "Data",
    "label": "Mã số thuế người bán",
-   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'"
+   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'",
+   "read_only": 1,
+   "description": "Da chuyen xuong bang ke tung dong tu 20/08/2026, giu o day de doc phieu cu."
   },
   {
    "fieldname": "sec_dy",
@@ -302,6 +321,38 @@
    "fieldname": "ghi_chu",
    "fieldtype": "Small Text",
    "label": "Ghi chú"
+  },
+  {
+   "fieldname": "sec_bk",
+   "fieldtype": "Section Break",
+   "label": "Bang ke khoan chi"
+  },
+  {
+   "fieldname": "cac_khoan",
+   "fieldtype": "Table",
+   "label": "Cac khoan chi",
+   "options": "Vagabond De Nghi Chi Dong",
+   "description": "Moi dong la mot khoan chi. Tong tien cua phieu do MAY CHU cong lai tu bang nay, khong nhan so tu man hinh."
+  },
+  {
+   "fieldname": "tong_tien",
+   "fieldtype": "Currency",
+   "label": "Tong tien",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "May chu tu cong tu bang ke moi lan luu. Day la con so dung de so voi nguong giam doc duyet."
+  },
+  {
+   "fieldname": "sec_hu",
+   "fieldtype": "Section Break",
+   "label": "Can tru tam ung"
+  },
+  {
+   "fieldname": "thuoc_tam_ung",
+   "fieldtype": "Link",
+   "label": "Thuoc ma Tam ung",
+   "options": "Vagabond De Nghi Chi",
+   "description": "Chi dien khi Loai nghiep vu la Hoan ung. Tro ve phieu Tam ung da Hoan tat cua chinh nguoi nay, de may can tru duoc."
   }
  ],
  "index_web_pages_for_search": 1,
