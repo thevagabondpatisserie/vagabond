@@ -13759,7 +13759,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '224';
+var APPVER = '225';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -16014,8 +16014,14 @@ function posVeTruDiem() {
   }
   return '<div style="margin-top:10px;background:#fff;border:1.5px dashed #7dd3fc;border-radius:10px;padding:10px 12px">' +
     '<div style="font-size:12.5px;color:#0369a1;font-weight:700;margin-bottom:6px">TRỪ TIỀN BẰNG ĐIỂM</div>' +
+    /* Noi ro tran nao dang chan. In "bang 50% gia tri bill" canh mot con so
+       thuc ra la SO DU cua khach thi thu ngan doc sai ngay (bat duoc luc
+       nghiem thu 19/08/2026). */
     '<div style="font-size:11.5px;color:#6b7280;margin-bottom:7px">Bill này dùng được tối đa <b>' + money(tt.toi_da) +
-    '</b> điểm (bằng ' + money(tt.tran_pt) + '% giá trị bill). 1 điểm = ' + money(tt.quy_doi) + ' đ.</div>' +
+    '</b> điểm' + (tt.do_so_du
+      ? ' vì khách chỉ còn ngần ấy điểm (trần theo bill là ' + money(tt.tran_theo_bill) + ' điểm).'
+      : ', bằng ' + money(tt.tran_pt) + '% giá trị bill.') +
+    ' 1 điểm = ' + money(tt.quy_doi) + ' đ.</div>' +
     '<div style="display:flex;gap:8px">' +
     '<input class="tin" id="posDiemNhap" placeholder="Số điểm khách muốn dùng" inputmode="numeric" value="' +
     h(posDon.diemNhap || '') + '" style="flex:1;margin:0">' +
