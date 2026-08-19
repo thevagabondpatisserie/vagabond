@@ -9,9 +9,9 @@
   "ten",
   "ten_en",
   "trang_thai",
-  "song_ngu",
   "la_mau",
   "ten_mau",
+  "song_ngu",
   "ngay_bao_gia",
   "hieu_luc_ngay",
   "hieu_luc_den",
@@ -35,6 +35,8 @@
   "phi_giao",
   "cb3",
   "thue_pt",
+  "kieu_thue",
+  "thue_phi_giao_pt",
   "thue_tien",
   "gia_da_gom_vat",
   "tong_cong",
@@ -229,6 +231,20 @@
    "fieldtype": "Percent",
    "label": "Thue GTGT (%)",
    "default": "8"
+  },
+  {
+   "fieldname": "kieu_thue",
+   "fieldtype": "Select",
+   "label": "Cách tính thuế",
+   "options": "Theo tờ (cũ)\nTheo từng dòng",
+   "default": "Theo từng dòng",
+   "description": "Để trống đọc là \"Theo tờ (cũ)\": tờ đang có trên hệ không đổi một đồng."
+  },
+  {
+   "fieldname": "thue_phi_giao_pt",
+   "fieldtype": "Percent",
+   "label": "VAT phí giao %",
+   "default": "0"
   },
   {
    "fieldname": "thue_tien",
