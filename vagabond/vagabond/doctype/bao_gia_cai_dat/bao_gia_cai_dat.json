@@ -6,45 +6,228 @@
  "engine": "InnoDB",
  "issingle": 1,
  "field_order": [
-  "sec_ban", "ten_ban", "mst_ban", "dia_chi_ban", "web_ban",
-  "cb1", "dai_dien_ban", "chuc_vu_ban", "dt_ban", "email_ban",
-  "sec_mo", "loi_mo_vi", "loi_mo_en",
-  "sec_tt", "thanh_toan_vi", "thanh_toan_en", "ngan_hang_vi", "ngan_hang_en",
-  "sec_vh", "yeu_cau_vi", "yeu_cau_en",
-  "sec_huy", "chinh_sach_huy_vi", "chinh_sach_huy_en",
-  "sec_luu_y", "luu_y_vi", "luu_y_en",
-  "sec_moc", "moc_mau"
+  "sec_ban",
+  "ten_ban",
+  "mst_ban",
+  "dia_chi_ban",
+  "web_ban",
+  "cb1",
+  "dai_dien_ban",
+  "chuc_vu_ban",
+  "dt_ban",
+  "email_ban",
+  "sec_ky",
+  "nguoi_ky_ban",
+  "chuc_vu_ky_ban",
+  "cb_ky",
+  "dt_ky_ban",
+  "email_ky_ban",
+  "sec_mo",
+  "loi_mo_vi",
+  "loi_mo_en",
+  "sec_tt",
+  "thanh_toan_vi",
+  "thanh_toan_en",
+  "ngan_hang_vi",
+  "ngan_hang_en",
+  "sec_vh",
+  "yeu_cau_vi",
+  "yeu_cau_en",
+  "sec_huy",
+  "chinh_sach_huy_vi",
+  "chinh_sach_huy_en",
+  "sec_luu_y",
+  "luu_y_vi",
+  "luu_y_en",
+  "sec_moc",
+  "moc_mau"
  ],
  "fields": [
-  {"fieldname": "sec_ban", "fieldtype": "Section Break", "label": "Thong tin ben ban in len moi to"},
-  {"fieldname": "ten_ban", "fieldtype": "Data", "label": "Ten cong ty", "default": "CÔNG TY TNHH PATISSERIE VAGABOND"},
-  {"fieldname": "mst_ban", "fieldtype": "Data", "label": "Ma so thue", "default": "0318561568"},
-  {"fieldname": "dia_chi_ban", "fieldtype": "Small Text", "label": "Dia chi ben ban", "default": "307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà, TP.HCM"},
-  {"fieldname": "web_ban", "fieldtype": "Data", "label": "Website", "default": "www.thevagabondpatisserie.com"},
-  {"fieldname": "cb1", "fieldtype": "Column Break"},
-  {"fieldname": "dai_dien_ban", "fieldtype": "Data", "label": "Nguoi dai dien mac dinh", "default": "Ms. Loan Anh"},
-  {"fieldname": "chuc_vu_ban", "fieldtype": "Data", "label": "Chuc vu", "default": "Sales Manager"},
-  {"fieldname": "dt_ban", "fieldtype": "Data", "label": "Dien thoai", "default": "0933 751 352"},
-  {"fieldname": "email_ban", "fieldtype": "Data", "label": "Email", "default": "anhntl@thevagabondpatisserie.com"},
-  {"fieldname": "sec_mo", "fieldtype": "Section Break", "label": "Loi mo dau"},
-  {"fieldname": "loi_mo_vi", "fieldtype": "Text", "label": "Loi mo tieng Viet"},
-  {"fieldname": "loi_mo_en", "fieldtype": "Text", "label": "Loi mo tieng Anh"},
-  {"fieldname": "sec_tt", "fieldtype": "Section Break", "label": "Dieu khoan thanh toan"},
-  {"fieldname": "thanh_toan_vi", "fieldtype": "Text", "label": "Dieu khoan thanh toan (VI)"},
-  {"fieldname": "thanh_toan_en", "fieldtype": "Text", "label": "Payment terms (EN)"},
-  {"fieldname": "ngan_hang_vi", "fieldtype": "Small Text", "label": "Thong tin chuyen khoan (VI)"},
-  {"fieldname": "ngan_hang_en", "fieldtype": "Small Text", "label": "Bank details (EN)"},
-  {"fieldname": "sec_vh", "fieldtype": "Section Break", "label": "Yeu cau van hanh"},
-  {"fieldname": "yeu_cau_vi", "fieldtype": "Text", "label": "Yeu cau van hanh (VI)"},
-  {"fieldname": "yeu_cau_en", "fieldtype": "Text", "label": "Operation requirements (EN)"},
-  {"fieldname": "sec_huy", "fieldtype": "Section Break", "label": "Chinh sach huy va thay doi"},
-  {"fieldname": "chinh_sach_huy_vi", "fieldtype": "Text", "label": "Chinh sach huy (VI)"},
-  {"fieldname": "chinh_sach_huy_en", "fieldtype": "Text", "label": "Cancellation policy (EN)"},
-  {"fieldname": "sec_luu_y", "fieldtype": "Section Break", "label": "Luu y"},
-  {"fieldname": "luu_y_vi", "fieldtype": "Text", "label": "Luu y (VI)"},
-  {"fieldname": "luu_y_en", "fieldtype": "Text", "label": "Notes (EN)"},
-  {"fieldname": "sec_moc", "fieldtype": "Section Break", "label": "Timeline mau, to moi tu chep sang"},
-  {"fieldname": "moc_mau", "fieldtype": "Table", "options": "Bao Gia Moc", "label": "Moc mac dinh"}
+  {
+   "fieldname": "sec_ban",
+   "fieldtype": "Section Break",
+   "label": "Thong tin ben ban in len moi to"
+  },
+  {
+   "fieldname": "ten_ban",
+   "fieldtype": "Data",
+   "label": "Ten cong ty",
+   "default": "CÔNG TY TNHH PATISSERIE VAGABOND"
+  },
+  {
+   "fieldname": "mst_ban",
+   "fieldtype": "Data",
+   "label": "Ma so thue",
+   "default": "0318561568"
+  },
+  {
+   "fieldname": "dia_chi_ban",
+   "fieldtype": "Small Text",
+   "label": "Dia chi ben ban",
+   "default": "307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà, TP.HCM"
+  },
+  {
+   "fieldname": "web_ban",
+   "fieldtype": "Data",
+   "label": "Website",
+   "default": "www.thevagabondpatisserie.com"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dai_dien_ban",
+   "fieldtype": "Data",
+   "label": "Nguoi dai dien mac dinh",
+   "default": "Ms. Loan Anh"
+  },
+  {
+   "fieldname": "chuc_vu_ban",
+   "fieldtype": "Data",
+   "label": "Chuc vu",
+   "default": "Sales Manager"
+  },
+  {
+   "fieldname": "dt_ban",
+   "fieldtype": "Data",
+   "label": "Dien thoai",
+   "default": "0933 751 352"
+  },
+  {
+   "fieldname": "email_ban",
+   "fieldtype": "Data",
+   "label": "Email",
+   "default": "anhntl@thevagabondpatisserie.com"
+  },
+  {
+   "fieldname": "sec_ky",
+   "fieldtype": "Section Break",
+   "label": "Người ký hợp đồng (Bên B)",
+   "description": "Anh Việt 18/08/2026: khai một lần ở đây, mọi hợp đồng sau tự điền. Ô \"Đại diện\" phía trên là người liên hệ trên tờ báo giá, không phải người đặt bút ký hợp đồng."
+  },
+  {
+   "fieldname": "nguoi_ky_ban",
+   "fieldtype": "Data",
+   "label": "Họ tên người ký"
+  },
+  {
+   "fieldname": "chuc_vu_ky_ban",
+   "fieldtype": "Data",
+   "label": "Chức vụ",
+   "default": "Giám đốc"
+  },
+  {
+   "fieldname": "cb_ky",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "dt_ky_ban",
+   "fieldtype": "Data",
+   "label": "SĐT người ký"
+  },
+  {
+   "fieldname": "email_ky_ban",
+   "fieldtype": "Data",
+   "label": "Email người ký"
+  },
+  {
+   "fieldname": "sec_mo",
+   "fieldtype": "Section Break",
+   "label": "Loi mo dau"
+  },
+  {
+   "fieldname": "loi_mo_vi",
+   "fieldtype": "Text",
+   "label": "Loi mo tieng Viet"
+  },
+  {
+   "fieldname": "loi_mo_en",
+   "fieldtype": "Text",
+   "label": "Loi mo tieng Anh"
+  },
+  {
+   "fieldname": "sec_tt",
+   "fieldtype": "Section Break",
+   "label": "Dieu khoan thanh toan"
+  },
+  {
+   "fieldname": "thanh_toan_vi",
+   "fieldtype": "Text",
+   "label": "Dieu khoan thanh toan (VI)"
+  },
+  {
+   "fieldname": "thanh_toan_en",
+   "fieldtype": "Text",
+   "label": "Payment terms (EN)"
+  },
+  {
+   "fieldname": "ngan_hang_vi",
+   "fieldtype": "Small Text",
+   "label": "Thong tin chuyen khoan (VI)"
+  },
+  {
+   "fieldname": "ngan_hang_en",
+   "fieldtype": "Small Text",
+   "label": "Bank details (EN)"
+  },
+  {
+   "fieldname": "sec_vh",
+   "fieldtype": "Section Break",
+   "label": "Yeu cau van hanh"
+  },
+  {
+   "fieldname": "yeu_cau_vi",
+   "fieldtype": "Text",
+   "label": "Yeu cau van hanh (VI)"
+  },
+  {
+   "fieldname": "yeu_cau_en",
+   "fieldtype": "Text",
+   "label": "Operation requirements (EN)"
+  },
+  {
+   "fieldname": "sec_huy",
+   "fieldtype": "Section Break",
+   "label": "Chinh sach huy va thay doi"
+  },
+  {
+   "fieldname": "chinh_sach_huy_vi",
+   "fieldtype": "Text",
+   "label": "Chinh sach huy (VI)"
+  },
+  {
+   "fieldname": "chinh_sach_huy_en",
+   "fieldtype": "Text",
+   "label": "Cancellation policy (EN)"
+  },
+  {
+   "fieldname": "sec_luu_y",
+   "fieldtype": "Section Break",
+   "label": "Luu y"
+  },
+  {
+   "fieldname": "luu_y_vi",
+   "fieldtype": "Text",
+   "label": "Luu y (VI)"
+  },
+  {
+   "fieldname": "luu_y_en",
+   "fieldtype": "Text",
+   "label": "Notes (EN)"
+  },
+  {
+   "fieldname": "sec_moc",
+   "fieldtype": "Section Break",
+   "label": "Timeline mau, to moi tu chep sang"
+  },
+  {
+   "fieldname": "moc_mau",
+   "fieldtype": "Table",
+   "options": "Bao Gia Moc",
+   "label": "Moc mac dinh"
+  }
  ],
  "links": [],
  "modified": "2026-08-14 18:00:00.000000",
@@ -53,10 +236,29 @@
  "name": "Bao Gia Cai Dat",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 1, "print": 1, "read": 1, "role": "System Manager", "share": 1, "write": 1},
-  {"read": 1, "write": 1, "role": "Sales Manager"},
-  {"read": 1, "role": "Sales User"},
-  {"read": 1, "role": "Accounts User"}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "write": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "read": 1,
+   "role": "Sales User"
+  },
+  {
+   "read": 1,
+   "role": "Accounts User"
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
