@@ -1155,6 +1155,22 @@ def tinh_trang_quay(khach=None, tong=0):
 		return ra
 	toi_da = tran_dung_duoc(tong, so_du, c["quy_doi"], c["tran_pt"], c["bill_toi_thieu"])
 	ra["toi_da"] = int(toi_da)
+	# Tra ve CA HAI tran de man hinh noi dung ly do, dung cai nao dang chan.
+	#
+	# Ban dau man hinh in "toi da N diem (bang 50% gia tri bill)". Nghiem thu
+	# 19/08/2026 ra ngay cho sai: khach Mr. Tri con 90.940 diem, bill 200.000,
+	# tran theo bill la 100.000 diem nhung so du chi 90.940 nen tran that la
+	# 90.940. Con so in ra dung, nhung cau giai thich thi sai - thu ngan doc
+	# xong se tuong 50% cua 200.000 la 90.940.
+	tran_bill = 0.0
+	if flt(c["quy_doi"]) > 0:
+		tran_tien = flt(tong) * flt(c["tran_pt"]) / 100.0
+		con_lai = flt(tong) - flt(c["bill_toi_thieu"])
+		if con_lai < tran_tien:
+			tran_tien = con_lai
+		tran_bill = max(0.0, tran_tien / flt(c["quy_doi"]))
+	ra["tran_theo_bill"] = int(tran_bill)
+	ra["do_so_du"] = 1 if int(so_du) < int(tran_bill) else 0
 	if toi_da <= 0:
 		ra["vi_sao"] = (
 			"Khách chưa đủ điểm, hoặc bill còn nhỏ quá. Bill phải trên %s đ mới trừ điểm được."
