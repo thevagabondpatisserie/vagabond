@@ -315,7 +315,7 @@ async function scrPosQuay() {
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     (posDon.pt === 'Công nợ' && !laApp ? posKhoiKhachNo() : '') +
     (laApp
-      ? '<div style="font-size:13.5px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' thanh toán bằng nguồn <b>' + h(posDon.pt || posDon.che_do) + '</b> - vào nguồn nào ra nguồn đó.</div>'
+      ? '<div style="font-size:13.5px;color:#6b7280">Nguồn thanh toán <b>' + h(posDon.pt || posDon.che_do) + '</b> · máy đã tự động chọn nguồn tương ứng cho bạn.</div>'
       : '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
         (posDon.pt === 'Chuyển khoản'
           ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc()), phaiThu, posNguonThuc())
@@ -382,7 +382,11 @@ async function scrPosQuay() {
      chung cuoi buoi - in phieu giu mon kem QR, cashier chot sau. Don app
      thi khong co khai niem tam tinh. */
   var footer = (laApp ? '' : '<button class="btn gh" id="posTam" style="flex:0 0 34%;margin:0">🖨 Tạm tính</button>') +
-    '<button class="btn" id="posLuu" style="flex:1;margin:0">💰 Thu tiền ' + money(phaiThu) + ' đ</button>';
+    /* Don food app: khach da tra tien cho app roi, app dang giu, quay
+       khong thu dong nao ca. Dung chu "Thu tien" o day la de nhan vien
+       hieu nham va de khach dung tai quay hieu nham (Felix 19/08/2026). */
+    '<button class="btn" id="posLuu" style="flex:1;margin:0">' +
+    (laApp ? '🧾 Lưu hoá đơn ' : '💰 Thu tiền ') + money(phaiThu) + ' đ</button>';
   var b = frame('Tính tiền · ' + (posQuay.ma || ''), html, { footer: '<div style="display:flex;gap:8px">' + footer + '</div>' });
   if (!laApp && posDon.pt !== 'Chuyển khoản') veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
   posDemHomNay();
@@ -1173,7 +1177,7 @@ function posKhoiQr(noiDung, tien, nguon, maDiem) {
     return '<div style="border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;background:#f0fdf4">' +
       '<div style="font-size:34px">✅</div>' +
       '<div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(posSepayNhan) + ' đ</div>' +
-      '<div style="font-size:13px;color:#374151;margin-top:4px">SePay khớp nội dung <b>' + h(noiDung) + '</b>. Bấm Thu tiền để lưu hoá đơn rồi ghi sổ.</div>' +
+      '<div style="font-size:13px;color:#374151;margin-top:4px">SePay khớp nội dung <b>' + h(noiDung) + '</b>. Bấm nút cuối màn để lưu hoá đơn rồi ghi sổ.</div>' +
       '</div>';
   }
   return '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
@@ -1278,12 +1282,13 @@ async function posLuuDon() {
     });
     if (trung.length) canhBao += '\n⚠ CÓ ' + trung.length + ' HOÁ ĐƠN CÙNG SỐ TIỀN ' + money(phaiThu) + ' đ vừa lưu chưa đầy 2 phút. Có phải bấm trùng không? Kiểm trong danh sách hoá đơn trước khi thu tiếp.';
   } catch (e) { }
-  var ok = await confirmSheet('Thu ' + money(phaiThu) + ' đ - ' + (laApp ? posDon.che_do : posDon.pt),
+  var ok = await confirmSheet(
+    (laApp ? 'Lưu hoá đơn ' : 'Thu ') + money(phaiThu) + ' đ - ' + (laApp ? posDon.che_do : posDon.pt),
     posQuay.ten + ' · ' + posDon.che_do + '\n' + posDon.mon.map(function (m) { return m.ten + ' x' + money(m.qty); }).join(', ') +
     (giamKm ? '\n' + ((posDon.kmKq.ap || []).map(function (a) { return a.ten + ' −' + money(a.giam) + ' đ'; }).join('\n')) : '') +
     (giamTay ? '\nGiảm tay ' + money(giamTay) + ' đ' : '') +
     (giamDiem ? '\nTrừ ' + money(posDon.diemVe.so_diem) + ' điểm thành viên −' + money(giamDiem) + ' đ' : '') + canhBao,
-    'Thu tiền, lưu hoá đơn');
+    laApp ? 'Lưu hoá đơn' : 'Thu tiền, lưu hoá đơn');
   if (!ok) return;
   var otpKm = await posXinOtpKm();
   if (posDon.kmKq && posDon.kmKq.can_otp && !otpKm) return toast('Chưa có mã OTP nên chưa lưu được hoá đơn.', 4000);
