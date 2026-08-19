@@ -1,0 +1,103 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:ten",
+ "creation": "2026-08-20 00:30:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ten",
+  "la_hoa_don_vat",
+  "bat_buoc_tep",
+  "dang_dung",
+  "thu_tu",
+  "mo_ta"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Ten loai chung tu",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "la_hoa_don_vat",
+   "fieldtype": "Check",
+   "label": "La hoa don VAT",
+   "in_list_view": 1,
+   "description": "Bat co nay thi man hinh moi hien So hoa don, Ngay hoa don va Ma so thue nguoi ban. Man hinh doc CO nay chu khong so ten, nen doi ten dong khong lam gay gi."
+  },
+  {
+   "fieldname": "bat_buoc_tep",
+   "fieldtype": "Check",
+   "label": "Bat buoc dinh kem tep",
+   "in_list_view": 1,
+   "description": "Bat thi khoan chi chon loai nay phai co it nhat mot tep dinh kem moi gui duyet duoc."
+  },
+  {
+   "fieldname": "dang_dung",
+   "fieldtype": "Check",
+   "label": "Dang dung",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "thu_tu",
+   "fieldtype": "Int",
+   "label": "Thu tu hien"
+  },
+  {
+   "fieldname": "mo_ta",
+   "fieldtype": "Small Text",
+   "label": "Mo ta"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-20 00:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Loai Chung Tu",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Purchase Manager"
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "thu_tu",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "ten",
+ "track_changes": 1
+}
