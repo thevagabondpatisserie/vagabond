@@ -2568,6 +2568,240 @@ else:
 	finally:
 		__import__("shutil").rmtree(_thu30, ignore_errors=True)
 
+print("31. Bam theo Pancake va tru diem tai quay")
+
+# ---------------------------------------------------------------------------
+# Nhom 31. Ba viec anh Viet giao 19/08/2026
+#
+#   a. Van don phai bam theo NGAY GIAO cua Pancake (ca 91928)
+#   b. Man tinh tien phai hien hang, diem, va co o tru tien bang diem
+#   c. Phieu hoan tien bi tu choi khong duoc chan lap phieu moi
+# ---------------------------------------------------------------------------
+
+_vd_src = open("vagabond/van_don.py", encoding="utf-8").read()
+_do_src = open("vagabond/diem_otp.py", encoding="utf-8").read()
+_nk_src = open("vagabond/nhat_ky_dong_bo.py", encoding="utf-8").read()
+_pos_src = open("vagabond/public/js/bep/09-tinh-tien-quay.js", encoding="utf-8").read()
+_km13_src = open("vagabond/public/js/bep/13-khuyen-mai.js", encoding="utf-8").read()
+_bq_src = open("vagabond/public/js/bep/10-bill-quay.js", encoding="utf-8").read()
+_ds8_src = open("vagabond/public/js/bep/08-doanh-so-sales.js", encoding="utf-8").read()
+_ht2_src = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_bh2_src = open("vagabond/ban_hang.py", encoding="utf-8").read()
+
+
+def _nap_ham_thuan(duong_dan, cac_ten, moi_truong=None):
+	"""Cat lay than cac ham THUAN tu mot tep roi chay. Dung lai cach cua
+	_nap_ham_that o dau tep: khong import ca mo dun vi may nay khong co
+	frappe."""
+	src = open(duong_dan, encoding="utf-8").read()
+	mt = dict(moi_truong or {})
+	mt.setdefault("flt", lambda x: float(x or 0))
+	for ten in cac_ten:
+		m = re.search(r"^def %s\(.*?(?=^def |\Z)" % re.escape(ten), src, re.S | re.M)
+		if not m:
+			print("   KHONG THAY ham %s trong %s" % (ten, duong_dan))
+			continue
+		exec(compile(m.group(0), "%s:%s" % (duong_dan, ten), "exec"), mt, mt)
+	return mt
+
+
+# --- 31a. Luat doi ngay giao ---
+# Ba hang so doc THANG tu ma nguon chu khong chep tay: doi ten mot hang so
+# ma bo kiem van dat thi bo kiem khong con bao ve gi.
+_HS_NGAY = dict(re.findall(r"^(DOI_NGAY_[A-Z_]+) = \"([a-z_]+)\"", _vd_src, re.M))
+la("doc duoc ba hang so luat doi ngay", sorted(_HS_NGAY), ["DOI_NGAY_CANH_BAO", "DOI_NGAY_CHAN", "DOI_NGAY_DUOC"])
+_vd = _nap_ham_thuan("vagabond/van_don.py", ["_ngay_tu_iso", "luat_doi_ngay"],
+                     dict(_HS_NGAY, re=re))
+_ngay_tu_iso = _vd.get("_ngay_tu_iso")
+_luat_ngay = _vd.get("luat_doi_ngay")
+
+la("nap duoc hai ham thuan cua van_don", bool(_ngay_tu_iso and _luat_ngay), True)
+
+if _ngay_tu_iso:
+	# Doc ngay tu chuoi Pancake that. Chuoi cua don 91928 lay tu API luc
+	# 09:20 ngay 19/08/2026.
+	la("doc ngay tu chuoi Pancake that", _ngay_tu_iso("2026-08-18T08:00:00"), "2026-08-18")
+	la("doc ngay khi co mui gio", _ngay_tu_iso("2026-08-18T08:00:00+07:00"), "2026-08-18")
+	la("doc ngay khi ngan cach bang dau cach", _ngay_tu_iso("2026-08-18 08:00:00"), "2026-08-18")
+	# Doc khong duoc thi phai tra RONG, tuyet doi khong duoc doan.
+	for _xau in ("", None, "khong phai ngay", "18/08/2026", "2026-13-01T08:00:00",
+	             "2026-08-99T08:00:00", "1899-08-18T08:00:00", "2026-08"):
+		la("chuoi hong %r tra ve rong" % (_xau,), _ngay_tu_iso(_xau), "")
+
+if _luat_ngay:
+	# Bang quyet dinh day du. Cot cuoi la ly do, de nguoi doc bo kiem hieu
+	# vi sao chu khong chi thay mot chuoi.
+	for _tt, _co_chuyen, _mong, _vi_sao in (
+		("Chờ giao", False, _HS_NGAY["DOI_NGAY_DUOC"], "chua ai dung toi, de thang"),
+		("Chờ giao", True, _HS_NGAY["DOI_NGAY_CANH_BAO"], "da xep chuyen ngay cu, phai go ra va bao"),
+		("Đang giao", False, _HS_NGAY["DOI_NGAY_CHAN"], "shipper dang cam banh, nguoi phai xu"),
+		("Đang giao", True, _HS_NGAY["DOI_NGAY_CHAN"], "shipper dang cam banh, nguoi phai xu"),
+		("Đã giao", False, "", "viec da xong"),
+		("Đã giao", True, "", "viec da xong"),
+		("Không giao được", False, "", "viec da xong"),
+		("Huỷ", False, "", "viec da xong"),
+		("", False, "", "khong ro trang thai thi khong lam gi"),
+	):
+		la("doi ngay khi %s%s: %s" % (_tt or "(rong)", " co chuyen" if _co_chuyen else "", _vi_sao),
+		   _luat_ngay(_tt, _co_chuyen), _mong)
+
+# Ca that 91928: van don Cho giao chua xep chuyen, Pancake doi 17 sang 18.
+if _ngay_tu_iso and _luat_ngay:
+	_ngay_moi = _ngay_tu_iso("2026-08-18T08:00:00")
+	la("ca 91928: doc duoc ngay moi", _ngay_moi, "2026-08-18")
+	la("ca 91928: khac ngay dang luu", _ngay_moi != "2026-08-17", True)
+	la("ca 91928: luat cho phep de thang", _luat_ngay("Chờ giao", False), _HS_NGAY["DOI_NGAY_DUOC"])
+
+# --- 31a bis. Ma nguon phai that su goi luat do ---
+la("nhip dong bo goi _theo_ngay_giao", "_theo_ngay_giao(o, cu, pid)" in _vd_src, True)
+la("nhip dong bo goi _theo_don_huy", "_theo_don_huy(o)" in _vd_src, True)
+la("truy van don cu co doc ngay_giao", '"ngay_giao", "chuyen", "shipper",' in _vd_src, True)
+la("nhanh chan KHONG ghi ngay giao",
+   _vd_src.count("if luat == DOI_NGAY_CHAN:"), 1)
+la("nhanh canh bao go don khoi chuyen", 'doi["chuyen"] = ""' in _vd_src, True)
+la("huy don Pancake chuyen van don sang Huy", '"trang_thai": "Huỷ"' in _vd_src, True)
+la("khong bao gio xoa van don", ".delete()" in _vd_src, False)
+# Hai ham nay tuyet doi khong duoc nem loi ra ngoai: nhip dong bo con phai
+# chay tiep cho cac don khac.
+for _ten in ("_theo_ngay_giao", "_theo_don_huy"):
+	_m = re.search(r"^def %s\(.*?(?=^def )" % _ten, _vd_src, re.S | re.M)
+	la("%s co boc try" % _ten, bool(_m) and "except Exception:" in _m.group(0), True)
+
+# --- 31a ter. Nhat ky dong bo ---
+la("co mo dun nhat ky dong bo", os.path.isfile("vagabond/nhat_ky_dong_bo.py"), True)
+la("co doctype nhat ky dong bo",
+   os.path.isfile("vagabond/vagabond/doctype/vagabond_nhat_ky_dong_bo/vagabond_nhat_ky_dong_bo.json"), True)
+la("nhat ky khong bao gio nem loi", _nk_src.count("except Exception:") >= 3, True)
+la("nhat ky co co can_nguoi_xem", "can_nguoi_xem" in _nk_src, True)
+la("nhip van don co ghi nhat ky", "nhat_ky.ghi" in _vd_src, True)
+la("cron don nhat ky da khai trong hooks",
+   "vagabond.nhat_ky_dong_bo.don_cu" in _hook_src, True)
+try:
+	import json as _json31
+	_nk_dt = _json31.load(open(
+		"vagabond/vagabond/doctype/vagabond_nhat_ky_dong_bo/vagabond_nhat_ky_dong_bo.json",
+		encoding="utf-8"))
+	_nk_o = {f["fieldname"] for f in _nk_dt["fields"]}
+	la("doctype nhat ky co du cac o can thiet",
+	   {"ma_don", "truong", "gia_tri_cu", "gia_tri_moi", "can_nguoi_xem"} - _nk_o, set())
+except Exception as _e31:
+	la("doc duoc doctype nhat ky", str(_e31), "")
+
+# --- 31b. Tru tien bang diem tai quay ---
+_dq = _nap_ham_thuan("vagabond/diem_otp.py", ["_tong_tam_tinh"])
+_tong_tam_tinh = _dq.get("_tong_tam_tinh")
+la("nap duoc _tong_tam_tinh", bool(_tong_tam_tinh), True)
+
+if _tong_tam_tinh:
+	_gio = [{"item_code": "A", "qty": 2, "rate": 100000},
+	        {"item_code": "B", "qty": 1, "rate": 55000}]
+	la("cong gio hang", _tong_tam_tinh(_gio), 255000.0)
+	la("cong them phi ship", _tong_tam_tinh(_gio, 0, 30000), 285000.0)
+	la("tru giam gia tay", _tong_tam_tinh(_gio, 55000, 0), 200000.0)
+	la("tru ca khuyen mai", _tong_tam_tinh(_gio, 0, 0, 25000), 230000.0)
+	la("gio rong ra 0", _tong_tam_tinh([]), 0.0)
+	# Dong hong khong duoc lam vo phep cong, va khong duoc tinh vao.
+	la("bo qua dong thieu ma hang",
+	   _tong_tam_tinh([{"qty": 1, "rate": 999}] + _gio), 255000.0)
+	la("bo qua dong so luong 0",
+	   _tong_tam_tinh([{"item_code": "C", "qty": 0, "rate": 999}] + _gio), 255000.0)
+	la("bo qua dong so luong am",
+	   _tong_tam_tinh([{"item_code": "C", "qty": -3, "rate": 999}] + _gio), 255000.0)
+	# Giam nhieu hon gia tri gio thi ve 0 chu KHONG duoc am: so am chay
+	# thang vao tran_dung_duoc roi ra tran am, va tran am thi kiem_so_diem
+	# tu choi - nhung ra 0 thi cau bao loi doc de hieu hon.
+	la("giam qua tay van khong am", _tong_tam_tinh(_gio, 900000, 0), 0.0)
+
+# Ba pha phai co du, va pha ba TUYET DOI khong duoc whitelist.
+la("co pha xin ma tai quay", "def xin_ma_quay(" in _do_src, True)
+la("co pha xac nhan tai quay", "def xac_nhan_quay(" in _do_src, True)
+la("co pha dung ve", "def dung_ve(" in _do_src, True)
+_m_ve = re.search(r"(@frappe\.whitelist\(\)\s*\n(@[^\n]*\n)*)?def dung_ve\(", _do_src)
+la("dung_ve KHONG duoc whitelist", bool(_m_ve and _m_ve.group(1)), False)
+la("xin_ma_quay co chan goi lien tuc", "@rate_limit" in _do_src.split("def xin_ma_quay(")[0][-200:], True)
+# Pha hai KHONG duoc tru diem. Neu ai them _ghi_tru_diem vao do thi khach
+# mat diem cho mot to bill co the khong bao gio duoc lap.
+_than_xn = _do_src.split("def xac_nhan_quay(")[1].split("\ndef ")[0]
+la("pha xac nhan KHONG tru diem", "_ghi_tru_diem" in _than_xn, False)
+la("pha xac nhan chi cap ve", "da_xac_thuc" in _than_xn, True)
+_than_dv = _do_src.split("def dung_ve(")[1].split("\ndef ")[0]
+la("pha ba khoa dong khach truoc khi ghi", "for update" in _than_dv, True)
+la("pha ba kiem lai tran tren grand_total that", 'si["grand_total"]' in _than_dv, True)
+la("pha ba danh dau ve da dung", '"da_dung": 1' in _than_dv, True)
+la("pha ba chan tru hai lan", "_diem_da_tru(si_name)" in _than_dv, True)
+# Ve phai gan voi DUNG mot khach.
+_than_kiem = _do_src.split("def _ve_con_dung_duoc(")[1].split("\ndef ")[0]
+for _dieu in ("da_dung", "da_xac_thuc", "han_dung", "khach"):
+	la("ve bi tu choi khi sai %s" % _dieu, _dieu in _than_kiem, True)
+
+# Doctype OTP phai co du bon o moi.
+try:
+	import json as _json32
+	_otp_dt = _json32.load(open(
+		"vagabond/vagabond/doctype/vagabond_otp/vagabond_otp.json", encoding="utf-8"))
+	_otp_o = {f["fieldname"] for f in _otp_dt["fields"]}
+	la("doctype OTP da co o cua luong quay",
+	   {"da_xac_thuc", "han_dung", "tong_bill"} - _otp_o, set())
+except Exception as _e32:
+	la("doc duoc doctype OTP", str(_e32), "")
+
+# tao_don_tay phai nhan ve va goi dung_ve SAU khi hoa don da luu.
+la("tao_don_tay nhan ve_diem", "\tve_diem=\"\"," in _bh2_src, True)
+la("tao_don_tay goi dung_ve", "_diem.dung_ve(ve_diem.strip(), si.name)" in _bh2_src, True)
+_i_save = _bh2_src.find("\tsi.flags.ignore_permissions = True\n\tsi.save()\n\tfrappe.db.commit()")
+_i_ve = _bh2_src.find("_diem.dung_ve(")
+la("goi dung_ve SAU khi luu hoa don", _i_save > 0 and _i_ve > _i_save, True)
+# Khong duoc boc try quanh dung_ve: nuot loi thi thu ngan tuong da giam
+# tien cho khach trong khi bill thu du.
+_khoi_ve = _bh2_src[_i_ve - 400:_i_ve] if _i_ve > 400 else ""
+la("khong nuot loi khi tru diem", "try:" in _khoi_ve.split("diem_da_tru")[-1], False)
+
+# --- 31b bis. Man tinh tien ---
+la("man tinh tien nap the khach", "await posTaiThe(" in _pos_src, True)
+la("man tinh tien ve khoi the", "html += posVeThe();" in _pos_src, True)
+la("man tinh tien tru giam tu diem khoi phai thu",
+   "tong - giam - giamDiem" in _pos_src, True)
+la("man tinh tien gui ve len may chu", "ve_diem:" in _pos_src, True)
+la("man tinh tien KHONG gui so tien giam tu diem",
+   "giam_diem:" in _pos_src, False)
+la("o nhap diem duoc doc lai vao trang thai", "posDiemNhap" in _pos_src, True)
+la("co ham ve the hang", "function posVeThe(" in _km13_src, True)
+la("co ham ve o tru diem", "function posVeTruDiem(" in _km13_src, True)
+la("khoi the hien so diem hien co", "Số điểm hiện có" in _km13_src, True)
+la("khoi the hien so diem tich cho bill", "Điểm tích cho bill này" in _km13_src, True)
+la("khoi the hien ten hang", "hạng " in _km13_src, True)
+la("o tru diem co tieu de", "TRỪ TIỀN BẰNG ĐIỂM" in _km13_src, True)
+la("may khach chi gui gio hang khi xin ma",
+   "items: JSON.stringify(posDon.mon.map" in _km13_src, True)
+la("bo khach thi bo luon ve", "posDiemDat();" in _km13_src, True)
+la("phieu tam tinh khong mang ve tru diem", "posDon.diemVe" in _bq_src, True)
+la("phieu tam tinh KHONG gui ve_diem", "ve_diem" in _bq_src, False)
+
+# --- 31c. Phieu hoan tien bi tu choi ---
+la("tinh_trang loai phieu da huy khi xet",
+   '{"hoa_don": si_name, "trang_thai": ["!=", "Da huy"]}, CON_SONG' in _ht2_src, True)
+la("tinh_trang van tra ve phieu bi tu choi", "bi_tu_choi" in _ht2_src, True)
+_than_tt = _ht2_src.split("def tinh_trang(")[1].split("\n@frappe.whitelist()")[0]
+la("nhanh cho phep lap phieu moi co mang bi_tu_choi",
+   '"duoc": 1,\n\t\t"bi_tu_choi": bi_tu_choi,' in _than_tt, True)
+la("man hinh doi chu thanh Da tao phieu hoan tien",
+   "Đã tạo phiếu hoàn tiền" in _ds8_src, True)
+la("man hinh doi chu thanh Phieu hoan tien da bi tu choi",
+   "Phiếu hoàn tiền đã bị từ chối" in _ds8_src, True)
+la("man hinh khong con chu Da hoan tien", "<b>Đã hoàn tiền</b>" in _ds8_src, False)
+la("man hinh khong con dich Da huy thanh da huy",
+   "'Da huy': 'đã huỷ'" in _ds8_src, False)
+la("phieu bi tu choi van hien nut hoan tien",
+   "truoc + '<div style=\"margin-top:10px\"><button id=\"dsvHoanTien\"" in _ds8_src, True)
+
+# --- 31d. Ham doc mau ZNS ---
+_zl_src = open("vagabond/zalo.py", encoding="utf-8").read()
+la("co ham doc mau ZNS", "def thu_mau(" in _zl_src, True)
+_than_tm = _zl_src.split("def thu_mau(")[1]
+la("doc mau ZNS chi cho System Manager", "System Manager" in _than_tm, True)
+la("doc mau ZNS goi dung duong template/info", "template/info" in _than_tm, True)
+la("doc mau ZNS khong gui tin nao", "message/template" in _than_tm, False)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
