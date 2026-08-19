@@ -128,6 +128,11 @@ doc_events = {
 		"before_validate": "vagabond.mua_dich_vu.truoc_khi_luu",
 		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
 	},
+	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,
+	# chan thang phan loai tai san co dinh. Luat nam o de_nghi_chi.py.
+	"Vagabond De Nghi Chi": {
+		"before_validate": "vagabond.de_nghi_chi.truoc_khi_luu",
+	},
 	# Phieu chi hoan tien khach: chua dinh kem uy nhiem chi thi khong ghi so
 	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
 	# de giai trinh, nhac tren man thi bo qua duoc.
