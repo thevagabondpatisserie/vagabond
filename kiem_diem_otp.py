@@ -2055,6 +2055,214 @@ la("man bill quay gan o tim", "timDonGan();" in _bq_src, True)
 la("bam ket qua mo thang man chi tiet don", "scrDsView(ten, 0)" in _ds_src, True)
 la("khong tim theo tung phim", "if (e.key === 'Enter')" in _ds_src, True)
 
+
+
+# --- DUNG THAT CA TO BAO GIA, khong chi soi chuoi ---
+#
+# Bai hoc ngay 19/08/2026: em them khoi tach thue vao _html cua to bao gia
+# va dat bien ten "muc", trung voi mot ham muc() da co san trong chinh ham
+# do. Ghi de xong thi dong muc("Quy trinh van hanh") phia duoi nem
+#
+#     TypeError: 'list' object is not callable
+#
+# Ca to bao gia lan phu luc cua hop dong tra ve 500. Bo kiem 787 ca luc do
+# van bao DAT HET, vi khong ca nao DUNG THAT to bao gia - chung chi soi
+# chuoi trong ma nguon.
+#
+# Day dung la loai loi ma nhom 25 da hoc mot lan voi to hop dong (loi dau
+# phan tram), va lan do da dung _nap_hop_dong_pdf de chua. Nhung to bao gia
+# thi chua co phep tuong tu, nen cai bay van con nguyen mot nua.
+def _nap_bao_gia():
+	"""Nap bao_gia.py voi frappe gia lap. Tra ve khong gian ten."""
+	import datetime
+	import types
+
+	_fr = types.ModuleType("frappe")
+	_fr.whitelist = lambda *a, **k: (lambda f: f)
+	_fr.throw = lambda *a, **k: (_ for _ in ()).throw(Exception(a[0] if a else "throw"))
+	_fr.get_roles = lambda *a, **k: ["System Manager"]
+	_fr.session = types.SimpleNamespace(user="x")
+	_fr.db = types.SimpleNamespace(
+		exists=lambda *a, **k: False, get_value=lambda *a, **k: None,
+		sql=lambda *a, **k: [], set_value=lambda *a, **k: None,
+	)
+	_fr.get_all = lambda *a, **k: []
+	_fr.get_doc = lambda *a, **k: None
+	_fr.get_single = lambda *a, **k: types.SimpleNamespace(as_dict=lambda: {})
+	_fr.log_error = lambda *a, **k: None
+	_fr.sendmail = lambda **k: None
+	_fr.escape_html = lambda s: (
+		str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+	)
+	_u = types.ModuleType("frappe.utils")
+	_u.flt = lambda x, *a: float(x or 0)
+	_u.cint = lambda x, *a: int(float(x or 0))
+	_u.nowdate = lambda: "2026-08-19"
+	_u.escape_html = _fr.escape_html
+
+	def _gd(x=None):
+		if isinstance(x, (datetime.date, datetime.datetime)):
+			return x
+		return datetime.date.fromisoformat(str(x)[:10])
+
+	_u.getdate = _gd
+	_fr.utils = _u
+
+	ns = {
+		"__name__": "vagabond.bao_gia", "frappe": _fr, "json": __import__("json"),
+		"re": re, "base64": __import__("base64"),
+		"flt": _u.flt, "cint": _u.cint, "getdate": _gd, "nowdate": _u.nowdate,
+		"_tien_vn": lambda v: "{:,.0f}".format(float(v or 0)).replace(",", "."),
+		"_chu_so_tien": lambda v: "(bằng chữ)",
+		# Cac ten AST vua cat di cung lenh import phai duoc cam lai bang tay.
+		"_ngay_vn": lambda d: "19/08/2026",
+		"_qr_data_uri": lambda *a, **k: "",
+		"TEN_NGAN_HANG_DAY_DU": "MB - Ngân hàng TMCP Quân đội",
+		"add_days": lambda d, n: "2026-09-03",
+		"cfg": lambda *a, **k: types.SimpleNamespace(),
+		"sdt": lambda s: str(s or ""),
+		"khong_dau": lambda s: str(s or ""),
+	}
+	# Bo cac lenh import bang AST chu khong bang startswith.
+	#
+	# bao_gia.py co lenh "from ... import (" trai ra NHIEU DONG. Loc theo
+	# startswith chi bo duoc dong dau, con cac ten trong ngoac o lai thanh
+	# rac va Python nem "unexpected indent". AST biet dung dong dau va dong
+	# cuoi cua tung lenh nen cat sach.
+	# _html goi "from vagabond.hop_dong_pdf import khung_style" NGAY TRONG
+	# than ham, va AST khong dong toi cac import long trong ham. Nen cam san
+	# mo dun gia vao sys.modules de lenh do nap duoc.
+	import sys as _sys
+
+	_hdp = types.ModuleType("vagabond.hop_dong_pdf")
+	_hdp.khung_style = lambda phong=None: "*{font-family:%s}" % (phong or "Arial")
+	_hdp.don_dau_dai = lambda x: str(x or "").replace("\u2013", "-").replace("\u2014", "-")
+	_vgb = _sys.modules.get("vagabond") or types.ModuleType("vagabond")
+	_sys.modules["vagabond"] = _vgb
+	_sys.modules["vagabond.hop_dong_pdf"] = _hdp
+	_dm = types.ModuleType("vagabond.danh_muc")
+	_dm.khong_dau = lambda s: str(s or "")
+	_sys.modules["vagabond.danh_muc"] = _dm
+	_tk = types.ModuleType("vagabond.tai_khoan")
+	_tk.qr_ngan_hang = lambda *a, **k: ""
+	_tk.tk_nhan = lambda *a, **k: {}
+	_sys.modules["vagabond.tai_khoan"] = _tk
+	_vgb.tai_khoan = _tk
+	_vgb.danh_muc = _dm
+	_vgb.hop_dong_pdf = _hdp
+	_sys.modules["frappe"] = _fr
+	_sys.modules["frappe.utils"] = _u
+
+	import ast as _ast
+
+	cay = _ast.parse(_bg2_src)
+	dong = _bg2_src.split("\n")
+	bo = set()
+	for nut in cay.body:
+		if isinstance(nut, (_ast.Import, _ast.ImportFrom)):
+			for i in range(nut.lineno - 1, (nut.end_lineno or nut.lineno)):
+				bo.add(i)
+	than = "\n".join("" if i in bo else l for i, l in enumerate(dong))
+	exec(compile(than, "bao_gia", "exec"), ns, ns)
+	return ns
+
+
+try:
+	_ns_bg = _nap_bao_gia()
+except Exception as _e:
+	_ns_bg = None
+	print("   (khong nap duoc bao_gia: %s)" % _e)
+la("nap duoc ca mo dun bao gia", _ns_bg is not None, True)
+
+if _ns_bg:
+	_BG_GIA = {
+		"name": "VGB-PQ-TEST", "ten": "Bánh trung thu 2026", "ten_en": "",
+		"song_ngu": 1, "gia_da_gom_vat": 1, "kieu_thue": "Theo từng dòng",
+		"trang_thai": "Nháp", "ngay_bao_gia": "2026-08-19", "hieu_luc_den": "2026-09-03",
+		"ten_khach": "CÔNG TY TNHH TƯ VẤN GIẢI PHÁP SECOMM", "ma_so_thue": "0314742605",
+		"dia_chi": "P.702A Tầng 7", "nguoi_lien_he": "Trang Phạm", "chuc_vu": "Giám đốc",
+		"dien_thoai": "0979999264", "email": "trang.pham@secomm.vn",
+		"chiet_khau_pt": 0, "chiet_khau_tien": 0, "thue_pt": 8, "thue_tien": 1572678,
+		"thue_phi_giao_pt": 0, "phi_giao": 0, "dat_coc_pt": 50, "dat_coc_tien": 10908750,
+		"tam_tinh": 21817500, "tong_cong": 21817500,
+		"loi_mo": "", "loi_mo_en": "", "thanh_toan": "", "thanh_toan_en": "",
+		"giao_hang": "", "dong_goi": "", "ghi_chu": "",
+		"yeu_cau_vi": "", "yeu_cau_en": "", "chinh_sach_huy_vi": "", "chinh_sach_huy_en": "",
+		"luu_y_vi": "", "luu_y_en": "",
+		"ten_nguoi_lap_in": "Loan Anh", "chuc_vu_lap": "Sales Manager",
+		"dt_nguoi_lap": "0933751352", "email_lap": "anhntl@thevagabondpatisserie.com",
+		"moc": [{"moc_vi": "Chốt số lượng", "moc_en": "Confirm quantity",
+		         "noi_dung_vi": "Chốt trước 3 ngày", "noi_dung_en": "3 days before",
+		         "trach_nhiem": "Hai bên"}],
+		"dong": [
+			{"loai": "Món", "ten_mon": "HỘP MOONLAPIS, năm 2026", "ten_en": "", "dvt": "Món",
+			 "dvt_en": "", "so_luong": 3, "don_gia": 2200000, "chiet_khau": 7,
+			 "thue_pt": 8, "thanh_tien": 6138000, "hinh": "", "kich_thuoc": "",
+			 "mo_ta": "", "mo_ta_en": "", "di_ung_vi": "", "di_ung_en": "",
+			 "danh_muc_vi": "", "danh_muc_en": ""},
+			{"loai": "Món", "ten_mon": "HỘP MOONGARDEN, năm 2026", "ten_en": "", "dvt": "Món",
+			 "dvt_en": "", "so_luong": 17, "don_gia": 950000, "chiet_khau": 7,
+			 "thue_pt": 8, "thanh_tien": 15019500, "hinh": "", "kich_thuoc": "",
+			 "mo_ta": "", "mo_ta_en": "", "di_ung_vi": "", "di_ung_en": "",
+			 "danh_muc_vi": "", "danh_muc_en": ""},
+			{"loai": "Phí", "ten_mon": "Thiệp lời chúc in logo", "ten_en": "", "dvt": "thiệp",
+			 "dvt_en": "", "so_luong": 20, "don_gia": 3000, "chiet_khau": 0,
+			 "thue_pt": 10, "thanh_tien": 60000, "hinh": "", "kich_thuoc": "",
+			 "mo_ta": "", "mo_ta_en": "", "di_ung_vi": "", "di_ung_en": "",
+			 "danh_muc_vi": "", "danh_muc_en": ""},
+			{"loai": "Phí", "ten_mon": "Logo thương hiệu", "ten_en": "", "dvt": "logo",
+			 "dvt_en": "", "so_luong": 60, "don_gia": 10000, "chiet_khau": 0,
+			 "thue_pt": 0, "thanh_tien": 600000, "hinh": "", "kich_thuoc": "",
+			 "mo_ta": "", "mo_ta_en": "", "di_ung_vi": "", "di_ung_en": "",
+			 "danh_muc_vi": "", "danh_muc_en": ""},
+		],
+	}
+
+	def _dung_bg(sua=None):
+		"""Dung THAT to bao gia. Nem loi thi tra ve chuoi loi de doc duoc."""
+		d = dict(_BG_GIA)
+		if sua:
+			d.update(sua)
+		d["tom_tat_thue"] = _ns_bg["tom_tat_thue"](d)
+		try:
+			return _ns_bg["_html"](d=d)
+		except Exception as _e2:
+			return "LOI: %s" % _e2
+
+	# Ba nhanh: tron nhieu muc thue, mot muc, va nhanh cu.
+	for _nhan, _sua in (
+		("tron nhieu muc thue", {}),
+		("chi mot muc thue", {"dong": _BG_GIA["dong"][:2]}),
+		("nhanh cu theo to", {"kieu_thue": "Theo tờ (cũ)"}),
+		("co chiet khau to", {"chiet_khau_pt": 10, "chiet_khau_tien": 2181750}),
+		("khong gom VAT", {"gia_da_gom_vat": 0}),
+	):
+		_to_bg = _dung_bg(_sua)
+		la("dung duoc to bao gia khi %s" % _nhan,
+		   bool(_to_bg) and not str(_to_bg).startswith("LOI:"), True)
+		if str(_to_bg).startswith("LOI:"):
+			print("        %s" % _to_bg[:150])
+
+	# To tron muc phai in du ba dong khach hoi.
+	_to_bg = _dung_bg()
+	if not str(_to_bg).startswith("LOI:"):
+		for _c in ("Cộng tiền hàng chưa thuế", "Subtotal excluding VAT",
+		           "Cộng tiền thuế GTGT", "TỔNG TIỀN TẠM TÍNH"):
+			la("to bao gia in dong %s" % _c[:26], _c in _to_bg, True)
+		# Va cac muc de muc khac VAN PHAI CON - day chinh la cho bi ghi de.
+		# Ba muc nay do ham muc() in ra. Chung la BANG CHUNG rang ham do
+		# khong bi ghi de - dung cai loi 19/08/2026 khi em dat bien trung
+		# ten "muc" lam ca to nem TypeError.
+		for _c in ("Quy trình vận hành", "Điều khoản thanh toán", "Báo giá tạm tính"):
+			la("to bao gia con muc %s" % _c[:22], _c in _to_bg, True)
+		la("to bao gia khong con dau gach dai",
+		   ("–" in _to_bg) or ("—" in _to_bg), False)
+	# Nhanh cu KHONG duoc in cac dong tach thue.
+	_to_cu = _dung_bg({"kieu_thue": "Theo tờ (cũ)"})
+	if not str(_to_cu).startswith("LOI:"):
+		la("nhanh cu khong in dong tach thue",
+		   "Cộng tiền hàng chưa thuế" in _to_cu, False)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
