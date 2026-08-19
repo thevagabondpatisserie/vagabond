@@ -38,6 +38,22 @@ SO_NGAY_MAC_DINH = 180
 # Doc mot lan bao nhieu ma hoa don, de cau lenh IN khong phinh qua to.
 CO_LO = 200
 
+# Lech duoi bao nhieu dong thi bao cao nay coi nhu khong lech.
+#
+# Cong chan ghi so dung nguong 1 dong va dung la phai the: hoa don dien tu la
+# so da gui co quan thue. Nhung bao cao thi khac, no de tim viec that. Quet
+# 47.184 hoa don ngay 19/08/2026:
+#
+#     dau ra, lech 1 den 100 dong        1.569 hoa don   lam tron, khong phai loi
+#     dau ra, lech tren 1.000 dong           7 hoa don   dang nhin
+#     dau vao, lech 1 den 100 dong         153 hoa don   lam tron
+#     dau vao, lech tren 100.000 dong      101 hoa don   dang nhin
+#
+# De nguong 1 dong thi 1.722 dong lam tron se nhan chim 108 ca that. Bao cao
+# keu oan nhieu lan thi khong ai doc nua, ma khong ai doc chinh la ly do 11
+# hoa don am bi nuot ma khong ai biet.
+NGUONG_BAO_CAO = 100.0
+
 KHONG_CO = "khong_co_chung_tu"
 DA_HUY = "chung_tu_da_huy"
 
@@ -61,7 +77,7 @@ MO_TA = {
 # ------------------------------------------------------------ phep THUAN
 
 
-def xep_loai(dau, chung_tu):
+def xep_loai(dau, chung_tu, nguong=NGUONG_BAO_CAO):
 	"""Hoa don nay dang o tinh trang nao. THUAN.
 
 	`chung_tu` la danh sach dict {"ten", "tong", "tong_thue", "docstatus"}.
@@ -79,7 +95,7 @@ def xep_loai(dau, chung_tu):
 		return DA_HUY if ds else KHONG_CO
 	tong = sum([flt(c.get("tong")) for c in con])
 	thue = sum([flt(c.get("tong_thue")) for c in con])
-	return md.chan_doan_lech(dau, tong, thue)
+	return md.chan_doan_lech(dau, tong, thue, nguong)
 
 
 def dang_lo(ma):
@@ -139,17 +155,20 @@ def _chung_tu_theo_ma(ma_hoa_don):
 
 
 @frappe.whitelist()
-def bao_cao(tu_ngay=None, den_ngay=None, chi_van_de=1, gioi_han=3000):
+def bao_cao(tu_ngay=None, den_ngay=None, chi_van_de=1, gioi_han=3000,
+		nguong=None):
 	"""Doi chieu co da_tao_chung_tu voi chung tu that. CHI DOC.
 
 	Khong truyen ngay thi lay 180 ngay gan nhat. `chi_van_de = 0` thi tra ve
-	ca nhung hoa don da khop, dung khi muon dem tong.
+	ca nhung hoa don da khop, dung khi muon dem tong. `nguong` de trong thi
+	lay NGUONG_BAO_CAO, truyen 1 thi soi gat nhu cong chan ghi so.
 	"""
 	if not frappe.has_permission(PI, "read"):
 		frappe.throw("Cần quyền đọc Hoá đơn mua hàng mới xem được báo cáo này.")
 	den_ngay = den_ngay or nowdate()
 	tu_ngay = tu_ngay or add_days(den_ngay, -SO_NGAY_MAC_DINH)
 	gioi_han = cint(gioi_han) or 3000
+	nguong = flt(nguong) if nguong else NGUONG_BAO_CAO
 
 	hoa_don = frappe.db.get_all(
 		"MInvoice Invoice",
@@ -169,7 +188,7 @@ def bao_cao(tu_ngay=None, den_ngay=None, chi_van_de=1, gioi_han=3000):
 	hang = []
 	for h in hoa_don:
 		ds = co_chung_tu.get(h["name"]) or []
-		ma = xep_loai(h, ds)
+		ma = xep_loai(h, ds, nguong)
 		hang.append({
 			"ma_hoa_don": h["name"],
 			"loai": h["loai"],
@@ -194,6 +213,7 @@ def bao_cao(tu_ngay=None, den_ngay=None, chi_van_de=1, gioi_han=3000):
 	return {
 		"tu_ngay": str(tu_ngay),
 		"den_ngay": str(den_ngay),
+		"nguong": nguong,
 		"da_quet": len(hoa_don),
 		"co_van_de": len([h for h in hang if dang_lo(h["xep_loai"])]),
 		"tom_tat": tom_tat,

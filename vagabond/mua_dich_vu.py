@@ -250,7 +250,7 @@ def so_dong_theo_dau(tien):
 	return 1, tien
 
 
-def chan_doan_lech(dau, tong_phieu, tong_thue_tren_phieu):
+def chan_doan_lech(dau, tong_phieu, tong_thue_tren_phieu, nguong=NGUONG_LECH):
 	"""Vi sao tong phieu khong bang dau hoa don. THUAN.
 
 	Bao cao lech tong khong thi ke toan phai tu mo ra doan. Ba nguyen nhan
@@ -264,15 +264,24 @@ def chan_doan_lech(dau, tong_phieu, tong_thue_tren_phieu):
 	                    trong khi hoa don -402.600, thieu dung phan thue
 	                    -29.822.
 	    lech_khac       chua xep duoc, de nguoi doc.
+
+	`nguong` mac dinh 1 dong, dung cho cong chan ghi so: hoa don dien tu la
+	so da gui co quan thue, lech mot dong cung la sai.
+
+	Bao cao doi soat thi dat nguong cao hon. Quet that ngay 19/08/2026 tren
+	47.184 hoa don: 1.569 hoa don DAU RA lech tu 1 den 100 dong, toan bo la
+	sai so lam tron giua ERPNext va m-invoice. Bao cao ma keu 1.569 lan vi
+	vai dong thi khong ai doc nua, va do dung la ly do khong ai phat hien ra
+	11 hoa don am bi nuot.
 	"""
 	_truoc, thue, tong = so_theo_dau_hoa_don(dau)
 	tong_phieu = flt(tong_phieu)
-	if not lech_qua_nguong(tong_phieu, tong):
+	if not lech_qua_nguong(tong_phieu, tong, nguong):
 		return "khop"
 	if tong and tong_phieu and (tong < 0) != (tong_phieu < 0):
 		return "dau_nguoc"
 	if thue and not flt(tong_thue_tren_phieu) and not lech_qua_nguong(
-			tong_phieu + flt(thue), tong):
+			tong_phieu + flt(thue), tong, nguong):
 		return "thieu_dong_thue"
 	return "lech_khac"
 
