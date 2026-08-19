@@ -557,6 +557,54 @@ def _tach_email(chuoi):
 CK_PT = "Phan tram"
 CK_TIEN = "So tien"
 
+# ------------------------------------------------------- cach tinh thue
+#
+# Su co 19/08/2026, to VGB-PQ-2026-0008 cua Loan Anh. To hien tren app la
+# "Thue GTGT 8% = 2.566.929 d, tong 34.653.539 d", nhung to PDF gui khach
+# lai in "Thue GTGT 0% / VAT 0" trong khi dong tong van la 34.653.539 d.
+# Mot to bao gia ma cac dong khong cong lai ra dung dong tong.
+#
+# Chuoi nhan qua, doc tu du lieu that chu khong doan:
+#
+#   1. moi() khong tra ve o kieu_thue. App vi the khong co gia tri nao de
+#      gui len.
+#   2. _do_vao lam `doc.set(f, d.get(f) or None)` cho ca F_CHU, nen
+#      kieu_thue thanh None.
+#   3. _tinh doc None la "" nen chay NHANH CU: thue 8% tren tong. Ra
+#      2.566.929 va 34.653.539.
+#   4. Luc INSERT, cot kieu_thue trong doctype co "default": "Theo tung
+#      dong", nen MariaDB dien gia tri do vao. To duoc GHI o mot che do
+#      khac han che do vua dung de TINH.
+#   5. Luc in, tom_tat_thue doc kieu_thue tu o dia (da la "Theo tung
+#      dong") roi cong lai theo tung dong - moi dong 0% - ra 0.
+#
+# Va lan luu ke tiep thi app da co kieu_thue tu may chu gui xuong, nen no
+# gui len "Theo tung dong" that, _tinh chay nhanh moi, va TIEN THUE BIEN
+# MAT KHOI TONG. Do dung la to VGB-PQ-2026-0007: 34.653.539 tut ve
+# 32.086.610 ma khong ai bam gi.
+#
+# Hai cai chan tu day tro di. Mot, mot cach doc duy nhat qua _kieu_thue(),
+# de tinh va in khong bao gio doc khac nhau. Hai, _do_vao luon ghi mot gia
+# tri RO RANG xuong o nay, va doctype khong con "default" - de khong con
+# duong nao cho co so du lieu tu quyet che do thay minh.
+KT_TO = "Theo tờ (cũ)"
+KT_DONG = "Theo từng dòng"
+
+# To moi lap tu app di theo cach moi. To da nam tren he ma de trong o nay
+# thi doc la cach cu, dung y nhu truoc khi co tinh nang.
+KT_MAC_DINH_TO_MOI = KT_DONG
+
+
+def _kieu_thue(doc):
+	"""Cach tinh thue cua mot to. MOT cach doc duy nhat cho ca he.
+
+	De trong doc la cach cu. Chuoi la doc cung la cach cu, vi mot gia tri
+	khong hieu duoc khong duoc phep doi cach tinh tien cua mot to da gui
+	khach.
+	"""
+	v = str((doc.get("kieu_thue") if hasattr(doc, "get") else "") or "").strip()
+	return KT_DONG if v == KT_DONG else KT_TO
+
 
 def tien_chiet_khau(goc, kieu, gia_tri):
 	"""So tien chiet khau tren mot goc. THUAN.
@@ -692,7 +740,7 @@ def _tinh(doc):
 	# To cu de trong o kieu_thue thi doc la "Theo to (cu)" va chay dung
 	# nhanh duoi, con so khong doi mot dong. Khong co lenh nao chay len du
 	# lieu qua khu.
-	if (doc.get("kieu_thue") or "") == "Theo từng dòng":
+	if _kieu_thue(doc) == KT_DONG:
 		bt = bang_thue(
 			[
 				{"thanh_tien": flt(d.thanh_tien), "thue_pt": flt(d.thue_pt)}
@@ -718,6 +766,35 @@ def _tinh(doc):
 	return doc
 
 
+def _kiem_to_khop(d):
+	"""Chan mot to bao gia ma cac dong khong cong lai ra dong tong.
+
+	Ngay 19/08/2026 to VGB-PQ-2026-0008 in ra cho khach mot bang nhu the
+	nay: cong tien hang chua thue 32.086.610, thue GTGT 0% la 0, roi TONG
+	TIEN 34.653.539. Ba dong do khong the cung dung.
+
+	Cai gia cua viec in bua la mot to sai gui thang tay khach hang. Cai gia
+	cua viec dung lai la sales phai mo to ra bam Luu them mot lan. Khong
+	can can nhac lau.
+	"""
+	tt = d.get("tom_tat_thue") or None
+	tong = flt(d.get("tong_cong"))
+	if tt:
+		ra = flt(tt["tien_hang"]) + flt(tt["tien_thue"])
+	else:
+		ra = (flt(d.get("tam_tinh")) - flt(d.get("chiet_khau_tien"))
+		      + flt(d.get("thue_tien")) + flt(d.get("phi_giao")))
+	if abs(ra - tong) <= 1:
+		return
+	frappe.throw(
+		"Tờ báo giá %s đang có số liệu không khớp nhau nên em chưa in được: "
+		"cộng các dòng lại ra %s đ nhưng ô tổng đang lưu %s đ. Nhờ anh chị mở "
+		"tờ này ra, kiểm lại mức thuế của từng dòng rồi bấm Lưu một lần nữa - "
+		"máy sẽ tính lại toàn bộ và hai con số về khớp. Sau đó in lại được ngay."
+		% (d.get("name") or "", _tien_vn(ra), _tien_vn(tong))
+	)
+
+
 def tom_tat_thue(doc):
 	"""Bang Tom tat thue cua mot to. Tinh luc IN, khong luu xuong o dia.
 
@@ -725,7 +802,7 @@ def tom_tat_thue(doc):
 	cua to duoc DINH NGHIA bang chinh tong do. Luu xuong thanh hai ban ghi
 	roi la co ngay hai con so co the lech nhau vao mot ngay nao do.
 	"""
-	if (doc.get("kieu_thue") or "") != "Theo từng dòng":
+	if _kieu_thue(doc) != KT_DONG:
 		return None
 	return bang_thue(
 		[
@@ -795,7 +872,7 @@ def _goi(doc):
 		"thue_tien": flt(doc.thue_tien),
 		"tong_cong": flt(doc.tong_cong),
 		"dat_coc_tien": flt(doc.dat_coc_tien),
-		"kieu_thue": doc.get("kieu_thue") or "Theo tờ (cũ)",
+		"kieu_thue": _kieu_thue(doc),
 		"thue_phi_giao_pt": flt(doc.get("thue_phi_giao_pt")),
 		# Bang Tom tat thue, TINH LUC DOC chu khong luu. Man hinh chi viec
 		# ve, khong tu cong lai - hai noi cung cong thi hai noi se lech.
@@ -972,6 +1049,10 @@ def moi():
 		"luu_y_vi": c["luu_y_vi"], "luu_y_en": c["luu_y_en"],
 		"giao_hang": "", "dong_goi": "", "ghi_chu": "", "ghi_chu_noi_bo": "",
 		"chiet_khau_pt": 0, "chiet_khau_tien": 0, "kieu_ck": "", "thue_pt": 8, "thue_tien": 0,
+		# BAT BUOC co mat. Thieu dong nay la app khong gui kieu_thue len,
+		# may chu tinh mot dang roi co so du lieu ghi mot dang - dung su co
+		# to VGB-PQ-2026-0008 ngay 19/08/2026.
+		"kieu_thue": KT_MAC_DINH_TO_MOI,
 		"phi_giao": 0, "dat_coc_pt": 50, "dat_coc_tien": 0,
 		"tam_tinh": 0, "tong_cong": 0,
 		"nguoi_lap": nd,
@@ -1026,8 +1107,24 @@ def _do_vao(doc, d):
 	Hai phep anh xa khac nhau thi som muon to xem truoc va to in that lech
 	nhau, ma loai lech do rat kho thay.
 	"""
+	# Che do thue cua to TRUOC khi do du lieu moi vao. Phai lay o day vi
+	# vong lap F_CHU ngay duoi se ghi de o do bang None neu app khong gui.
+	kt_cu = _kieu_thue(doc) if not doc.is_new() else ""
 	for f in F_CHU:
 		doc.set(f, d.get(f) or None)
+	# O nay KHONG duoc de None. Doctype tung mang "default": "Theo tung
+	# dong", nen mot o None luc INSERT se bi co so du lieu dien gia tri mac
+	# dinh vao, va to bi GHI o mot che do khac han che do vua dung de TINH.
+	# Ghi thang mot gia tri ro rang la bit han duong do, khong phu thuoc
+	# vao viec doctype con default hay khong.
+	#
+	# App khong gui gi thi GIU NGUYEN che do cu cua to, khong tu doi. Doi
+	# che do thue la doi so tien cuoi cung, viec do phai do nguoi bam.
+	gui = str(d.get("kieu_thue") or "").strip()
+	if gui in (KT_TO, KT_DONG):
+		doc.kieu_thue = gui
+	else:
+		doc.kieu_thue = kt_cu or KT_MAC_DINH_TO_MOI
 	# Bo cuc to in va phan loai. Kiem o MAY CHU chu khong tin app: app gui
 	# len ma la thi to se in bang mot khuon khong ton tai (QT-19).
 	if d.get("mau_in") in MA_MAU_IN:
@@ -2060,6 +2157,7 @@ def _html(name=None, d=None):
 			)
 		)
 
+	_kiem_to_khop(d)
 	if (flt(d["chiet_khau_tien"]) or flt(d["phi_giao"]) or flt(d["thue_tien"])
 			or d.get("tom_tat_thue")):
 		ra.append(dong_cong("Cộng tiền hàng", "Subtotal", d["tam_tinh"]))
@@ -2722,3 +2820,121 @@ def tu_mau(name_mau):
 	if d.get("hieu_luc_ngay"):
 		d["hieu_luc_den"] = add_days(nowdate(), int(d["hieu_luc_ngay"]))
 	return d
+
+
+# ---------------------------------------------------- sua che do thue bi lech
+
+
+# Moc thoi gian patch #v228 chay tren site that, doc tu Patch Log:
+#   vagabond.patches.dong_bo_cau_truc #v228 -> 2026-08-19 13:47:11
+# Truoc moc nay tren he KHONG co o "Cach tinh thue", nen khong mot to nao
+# co the do NGUOI chon che do "Theo tung dong". To nao mang gia tri do ma
+# lap truoc moc thi chac chan la do cot co "default" tu dien vao luc
+# Migrate, khong phai y cua ai.
+MOC_CO_O_KIEU_THUE = "2026-08-19 13:47:11"
+
+
+def sua_kieu_thue_bi_dat_mac_dinh():
+	"""Tra lai che do thue cho cac to bi cot default ghi de. LAP LAI DUOC.
+
+	Vi sao phai co ham nay
+	----------------------
+	O "kieu_thue" ra doi o dot v228 va mang "default": "Theo tung dong".
+	Khi Frappe Migrate them cot do, MariaDB dien gia tri mac dinh vao MOI
+	dong da co. Ca 12 to bao gia dang co tren he, ke ca nhung to lap tu
+	14/08, deu bi doi sang che do moi ma khong ai bam gi.
+
+	Cai gia phai tra khong phai ly thuyet. To VGB-PQ-2026-0008 in ra cho
+	khach: cong tien hang chua thue 32.086.610, thue GTGT 0%, tong tien
+	34.653.539 - ba dong khong the cung dung. Va to VGB-PQ-2026-0007, khi
+	Loan Anh bam Luu lan nua, tong tut tu 34.653.539 xuong 32.086.610 vi
+	tien thue bien mat khoi tong.
+
+	Ham nay KHONG dung vao mot o tien nao. No chi tra lai dung cai o che do
+	ma he thong da tu doi, cho hai nhom to:
+
+	  Nhom mot, to lap TRUOC khi o nay ton tai. Khong the do nguoi chon.
+	  Nhom hai, to co con so luu KHONG khop voi che do dang mang. Tinh lai
+	           theo che do cu thi khop - tuc luc luu no da chay che do cu.
+
+	Nhom hai la phep thu co suc chung minh: mot to that su duoc luu o che
+	do "Theo tung dong" thi tinh lai theo che do do phai ra dung con so da
+	luu. Ra lech nghia la no chua bao gio duoc tinh o che do do.
+	"""
+	ra = {"xem": 0, "sua": [], "bo_qua": 0}
+	try:
+		ds = frappe.get_all(DT, filters={"kieu_thue": KT_DONG},
+		                    fields=["name", "creation"], limit_page_length=0)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "bao_gia: doc danh sach to de sua kieu thue")
+		return ra
+	for r in ds:
+		ra["xem"] += 1
+		try:
+			doc = frappe.get_doc(DT, r["name"])
+		except Exception:
+			continue
+		vi_sao = ""
+		if str(r["creation"]) < MOC_CO_O_KIEU_THUE:
+			vi_sao = "tờ lập trước khi ô Cách tính thuế ra đời"
+		else:
+			bt = bang_thue(
+				[{"thanh_tien": flt(d.thanh_tien), "thue_pt": flt(d.thue_pt)}
+				 for d in (doc.get("dong") or [])],
+				ck_to=flt(doc.chiet_khau_tien),
+				phi_giao=flt(doc.phi_giao),
+				phi_giao_pt=flt(doc.get("thue_phi_giao_pt")),
+				da_gom=1 if doc.gia_da_gom_vat else 0,
+			)
+			sau_ck = flt(doc.tam_tinh) - flt(doc.chiet_khau_tien)
+			cu = (sau_ck + flt(doc.phi_giao)) if doc.gia_da_gom_vat else (
+				sau_ck + round(sau_ck * flt(doc.thue_pt) / 100.0, 0) + flt(doc.phi_giao))
+			lech_dong = abs(flt(bt["tong_cong"]) - flt(doc.tong_cong))
+			lech_to = abs(flt(cu) - flt(doc.tong_cong))
+			if lech_dong > 1 and lech_to <= 1:
+				vi_sao = ("số đang lưu %s đ khớp cách cũ chứ không khớp cách theo dòng (%s đ)"
+				          % (_tien_vn(doc.tong_cong), _tien_vn(bt["tong_cong"])))
+		if not vi_sao:
+			ra["bo_qua"] += 1
+			continue
+		try:
+			# set_value chu khong save: save se chay lai _tinh va doi con
+			# so tien, ma o day em CHI duoc phep tra lai o che do.
+			frappe.db.set_value(DT, r["name"], "kieu_thue", KT_TO, update_modified=False)
+			frappe.get_doc({
+				"doctype": "Comment", "comment_type": "Info",
+				"reference_doctype": DT, "reference_name": r["name"],
+				"content": ("Trả lại Cách tính thuế về \"%s\": %s. Không có ô tiền nào bị "
+				            "sửa. (dọn hậu quả cột default của đợt v228)" % (KT_TO, vi_sao)),
+			}).insert(ignore_permissions=True)
+			ra["sua"].append({"to": r["name"], "vi_sao": vi_sao})
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "bao_gia: sua kieu thue %s" % r["name"])
+	if ra["sua"]:
+		frappe.db.commit()
+	return ra
+
+
+@frappe.whitelist()
+def soi_kieu_thue():
+	"""Xem truoc ham tren se dung vao nhung to nao. KHONG ghi gi."""
+	_quyen()
+	ds = frappe.get_all(DT, fields=["name", "creation", "kieu_thue", "tam_tinh",
+	                                "chiet_khau_tien", "thue_tien", "tong_cong",
+	                                "gia_da_gom_vat", "thue_pt", "trang_thai"],
+	                    limit_page_length=0, order_by="creation")
+	ra = []
+	for r in ds:
+		doc = frappe.get_doc(DT, r["name"])
+		bt = bang_thue(
+			[{"thanh_tien": flt(d.thanh_tien), "thue_pt": flt(d.thue_pt)}
+			 for d in (doc.get("dong") or [])],
+			ck_to=flt(doc.chiet_khau_tien), phi_giao=flt(doc.phi_giao),
+			phi_giao_pt=flt(doc.get("thue_phi_giao_pt")),
+			da_gom=1 if doc.gia_da_gom_vat else 0,
+		)
+		r["tong_theo_dong"] = flt(bt["tong_cong"])
+		r["lech"] = flt(bt["tong_cong"]) - flt(r["tong_cong"])
+		r["truoc_moc"] = 1 if str(r["creation"]) < MOC_CO_O_KIEU_THUE else 0
+		ra.append(r)
+	return {"rows": ra, "moc": MOC_CO_O_KIEU_THUE}

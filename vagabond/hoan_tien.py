@@ -167,6 +167,35 @@ TRUONG_MOI = {
 			"fieldname": "ngay_tu_choi", "label": "Ngày từ chối",
 			"fieldtype": "Datetime", "insert_after": "nguoi_tu_choi", "read_only": 1,
 		},
+		# Doi chieu TAY khoan tien VAO (anh Viet 19/08/2026, ca Ms.Giang).
+		#
+		# Cach doi soat tu dong dua hoan toan vao noi dung chuyen khoan: no
+		# tim mach S<shop>O<so don>T do Pancake sinh trong ma QR. Khach nao
+		# tu go noi dung - "TRUONG LINH GIANG chuyen tien" - thi khong mach
+		# nao de bam, va don trong nhu chua nhan dong nao du tien da nam
+		# trong tai khoan cong ty. Truong nay giu dong Bank Transaction ma
+		# NGUOI da nhin va xac nhan, de chi Dung quyet chi co can cu.
+		{
+			"fieldname": "sec_gd_vao", "label": "Giao dịch tiền vào đã đối chiếu",
+			"fieldtype": "Section Break", "insert_after": "ngay_tu_choi",
+		},
+		{
+			"fieldname": "gd_vao", "label": "Giao dịch tiền vào",
+			"fieldtype": "Link", "options": "Bank Transaction",
+			"insert_after": "sec_gd_vao", "read_only": 1,
+			"description": (
+				"Khoản khách đã chuyển vào, do người đối chiếu tay chọn khi nội "
+				"dung chuyển khoản không mang mã đơn."
+			),
+		},
+		{
+			"fieldname": "nguoi_gan_gd_vao", "label": "Người đối chiếu",
+			"fieldtype": "Data", "insert_after": "gd_vao", "read_only": 1,
+		},
+		{
+			"fieldname": "ngay_gan_gd_vao", "label": "Lúc đối chiếu",
+			"fieldtype": "Datetime", "insert_after": "nguoi_gan_gd_vao", "read_only": 1,
+		},
 	],
 	"Payment Entry": [
 		{
@@ -1912,6 +1941,13 @@ def chi_tiet(ho_so):
 			"da_nhan_sepay": _tien_da_nhan(si),
 			"tong": flt(si.grand_total),
 			"da_thu": flt(si.grand_total) - flt(si.outstanding_amount),
+			# Ma don Pancake (anh Viet 19/08/2026: *"bo sung luon truong ma
+			# don hang Pancake tu keo ben hoa don HDB- ve, can truong do de
+			# doi chieu"*). Day khong phai mot o trang tri: chinh chuoi nay
+			# la thu duy nhat _sepay_theo_don dem tim trong noi dung chuyen
+			# khoan. De trong nghia la dong "SePay da nhan" CHAC CHAN ra 0,
+			# va nguoi doc can biet ngay do la vi sao chu khong doan.
+			"ma_pancake": (si.get("custom_pancake_display_id") or "").strip(),
 			"diem_ban": si.get("custom_diem_ban") or "",
 			"mon": [
 				{"ten": r.item_name, "sl": flt(r.qty), "tien": flt(r.amount)}
@@ -1933,7 +1969,86 @@ def chi_tiet(ho_so):
 	)
 	ra["kho_huy"] = _cd()["kho_huy"]
 	ra["tk_chi"] = _cd()["tk_chi"]
+
+	# Giao dich tien vao da doi chieu tay, neu co.
+	ra["gd_vao_ct"] = None
+	if d.get("gd_vao") and frappe.db.exists("Bank Transaction", d.get("gd_vao")):
+		g = frappe.db.get_value(
+			"Bank Transaction", d.get("gd_vao"),
+			["name", "date", "deposit", "description", "reference_number", "bank_account"],
+			as_dict=True,
+		)
+		ra["gd_vao_ct"] = g
+	ra["duoc_doi_chieu"] = 1 if _duoc_tu_choi() else 0
 	return ra
+
+
+@frappe.whitelist()
+def gan_gd_vao(ho_so=None, gd=None):
+	"""Gan tay mot giao dich tien vao cho phieu hoan tien.
+
+	Vi sao viec nay phai co nguoi bam chu khong de may tu doan: mot khoan
+	650.000 d vao ngay 13/08 co the la cua bat ky don nao cung so tien do.
+	May chi loc ra ung vien; chon ai la trach nhiem cua nguoi doi chieu, va
+	ten nguoi do duoc ghi lai ngay canh giao dich.
+
+	KHONG doi so tien cua phieu, khong sinh chung tu. Day thuan tuy la mot
+	dau vet de chi Dung quyet chi.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _duoc_tu_choi():
+		frappe.throw("Chỉ kế toán hoặc giám đốc mới đối chiếu giao dịch tiền vào được.")
+	if not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+	d = frappe.get_doc(DT, ho_so)
+	if d.trang_thai == "Da huy":
+		frappe.throw("Phiếu %s đã huỷ nên không đối chiếu thêm được." % ho_so)
+
+	gd = (gd or "").strip()
+	if not gd:
+		# Bo gan: van la mot thao tac co ghi vet, khong xoa vet cu di dau.
+		frappe.db.set_value(DT, ho_so, {
+			"gd_vao": None,
+			"nguoi_gan_gd_vao": frappe.session.user,
+			"ngay_gan_gd_vao": frappe.utils.now(),
+		})
+		frappe.db.commit()
+		return {"ok": 1, "gd": ""}
+
+	g = frappe.db.get_value(
+		"Bank Transaction", gd,
+		["name", "date", "deposit", "withdrawal", "docstatus", "description"], as_dict=True,
+	)
+	if not g:
+		frappe.throw("Không có giao dịch ngân hàng %s. Tìm lại giúp em." % gd)
+	if cint(g["docstatus"]) >= 2:
+		frappe.throw("Giao dịch %s đã bị huỷ nên không dùng làm căn cứ được." % gd)
+	if flt(g["deposit"]) <= 0:
+		frappe.throw(
+			"Giao dịch %s là tiền RA khỏi tài khoản, không phải tiền khách nộp "
+			"vào. Chọn lại một dòng có cột tiền vào giúp em." % gd
+		)
+
+	# Mot giao dich chi lam can cu cho MOT phieu. Cho hai phieu cung tro vao
+	# mot khoan la mo duong chi hai lan cho mot lan khach chuyen.
+	khac = frappe.db.get_value(
+		DT, {"gd_vao": gd, "name": ["!=", ho_so], "trang_thai": ["!=", "Da huy"]}, "name"
+	)
+	if khac:
+		frappe.throw(
+			"Giao dịch %s đã được gắn cho phiếu %s rồi. Một khoản tiền vào chỉ "
+			"làm căn cứ cho một phiếu hoàn." % (gd, khac)
+		)
+
+	frappe.db.set_value(DT, ho_so, {
+		"gd_vao": gd,
+		"nguoi_gan_gd_vao": frappe.session.user,
+		"ngay_gan_gd_vao": frappe.utils.now(),
+	})
+	frappe.db.commit()
+	return {"ok": 1, "gd": gd, "so_tien": flt(g["deposit"]), "ngay": str(g["date"] or "")}
 
 
 @frappe.whitelist()
