@@ -3917,6 +3917,51 @@ for _k39 in ("unc", "co_unc", "dinh_duoc_unc", "ket_thuc_duoc"):
 la("ds() tra co_unc cho tung dong", 'd["co_unc"] =' in _ht39, True)
 la("Excel cua chi Dung co cot uy nhiem chi", '"Uỷ nhiệm chi"' in _ht39, True)
 
+print("\n[40] Khoa trung giao dich: mot lan tien ra chi khop mot phieu")
+
+# Anh Viet 19/08/2026 duyet lam sau luong ket thuc: "khoa trung giao dich".
+#
+# Vong quet trong doi_soat() lap NGOAI la ho so, TRONG la giao dich, va truoc
+# hom nay khong giu dau vet giao dich nao da dung. Hai phieu hoan cua CUNG
+# mot hoa don goc, cung so tien - rat hay gap khi khach doi banh hai lan tren
+# mot don - deu bam vao dong tien ra dau tien tim thay. Moi phieu khop xong
+# lai sinh mot phieu chi rieng, nen so phinh len dung bang so tien khong he
+# ra khoi ngan hang.
+
+_ht40 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_js40 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+
+la("co ham doc giao dich da bi chiem", "def _gd_da_chiem(" in _ht40, True)
+_gdc40 = _ht40.split("def _gd_da_chiem(")[1].split("\n@frappe.whitelist()")[0]
+la("phieu da huy khong giu giao dich", '"trang_thai": ["!=", "Da huy"]' in _gdc40, True)
+la("cho phep mot phieu giu lai giao dich cua chinh no", "tru_ho_so" in _gdc40, True)
+
+_ds40 = _ht40.split("def doi_soat(ho_so=None")[1].split("\ndef doi_soat_tu_dong")[0]
+la("doi_soat doc danh sach giao dich da chiem", "_gd_da_chiem(tru_ho_so=ho_so)" in _ds40, True)
+la("doi_soat bo qua giao dich cua phieu khac",
+   'chu_cu and chu_cu != d["name"]' in _ds40, True)
+# Boi them NGAY trong vong quet: hai ho so cung khop trong CUNG mot lan chay
+# thi ho so thu hai phai thay dau ho so thu nhat vua dat.
+la("doi_soat boi them dau ngay trong vong quet",
+   'da_chiem[g["name"]] = d["name"]' in _ds40, True)
+la("va boi truoc luc sinh chung tu",
+   _ds40.index('da_chiem[g["name"]] = d["name"]') < _ds40.index("_sinh_chung_tu(ho)"), True)
+# Khong duoc im lang bo qua: co the la hai lan hoan that, va luc do sao ke
+# con thieu mot dong chu khong phai phieu sai.
+la("truong hop trung duoc bay len cho nguoi xem", '"trung_voi": chu_cu' in _ds40, True)
+
+# Duong SePay goi thang phai co CUNG mot khoa. Mot hang rao chi dung o mot
+# duong thi duong con lai la cua sau.
+_st40 = _ht40.split("def sepay_tien_ra(")[1].split("\ndef doi_soat_tu_dong")[0]
+la("duong SePay goi thang cung khoa trung", "_gd_da_chiem(" in _st40, True)
+la("duong SePay noi ro trung voi phieu nao", '"trung_voi": chu_cu' in _st40, True)
+la("duong SePay chi duong xu ly tiep", "sao kê còn thiếu một dòng" in _st40, True)
+
+# Man hinh phai tach HAI loai can xem lai, vi cach xu ly khac han nhau.
+la("man hinh tach rieng truong hop trung giao dich",
+   "x.trung_voi; });" in _js40, True)
+la("man hinh van giu canh bao so tien lech", "SỐ TIỀN LỆCH" in _js40, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
