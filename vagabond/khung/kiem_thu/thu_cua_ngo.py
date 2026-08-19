@@ -37,7 +37,9 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 CUA_NGO = {
 	"de_nghi_chi.py": [
 		"danh_muc", "danh_sach", "duyet", "goi_y_tai_khoan", "gui_duyet",
-		"tra_lai",
+		# tao them ngay 19/08/2026: cong lap phieu tu APP cho moi nhan vien,
+		# truoc do phieu chi lap duoc tren Desk.
+		"tao", "tra_lai",
 	],
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi", "doi_soat", "ds", "ds_ngan_hang",
