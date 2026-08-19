@@ -1864,7 +1864,10 @@ def ds(trang_thai="", so_dong=100, tim=""):
 			"name", "hoa_don", "hoa_don_tra", "phieu_chi", "khach", "so_tien",
 			"ly_do", "trang_thai", "da_doi_soat", "noi_dung_ck", "creation",
 			"ten_tk", "so_tk", "ngan_hang", "nguoi_duyet", "loai_hoan",
-			"so_hddt", "loi_sinh_ct",
+			# ma_gd la ma giao dich ngan hang da khop. Thieu no thi cot do
+			# trong tep Excel cua chi Dung luon rong, ma do lai chinh la cot
+			# ke toan dung de doi chieu voi sao ke.
+			"so_hddt", "loi_sinh_ct", "ma_gd",
 		],
 		order_by="creation desc",
 		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
@@ -1978,7 +1981,14 @@ def xuat_excel(trang_thai="", tim="", so_dong=500):
 
 	_kiem_quyen()
 	kq = ds(trang_thai=trang_thai, so_dong=so_dong, tim=tim)
-	rows = kq.get("rows") or []
+	# ds() tra danh sach duoi khoa "ds", KHONG phai "rows".
+	#
+	# Ban dau em viet kq.get("rows") - doc theo tri nho tu ho_so_tt.danh_sach
+	# von dung khoa "rows" - nen tep Excel dau tien xuat ra rong tron, 0 dong,
+	# trong khi man hinh dang hien 8 phieu. Bo kiem luc do khong bat duoc vi
+	# no chi soi chu trong ma nguon chu khong chay thu. Nay co ca kiem doi
+	# chieu ten khoa that.
+	rows = kq.get("ds") or []
 
 	bang = [
 		["PHIẾU HOÀN TIỀN (CASH-BACK)"],

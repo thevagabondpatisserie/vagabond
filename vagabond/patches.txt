@@ -3,7 +3,6 @@
 [post_model_sync]
 vagabond.khoa_ma_pancake
 vagabond.khoa_ma_pancake #chay lai 07/08/2026, lan dau vap ImplicitCommitError
-vagabond.patches.dong_bo_cau_truc #v228c tra whitelist cho hoan_tien.ds
 vagabond.patches.dong_bo_cau_truc #v229
 vagabond.patches.dong_bo_cau_truc #v228d de nghi chi noi bo
 vagabond.patches.dong_bo_cau_truc #v230
@@ -11,3 +10,4 @@ vagabond.patches.dong_bo_cau_truc #v231
 vagabond.patches.dong_bo_cau_truc #v232
 vagabond.patches.dong_bo_cau_truc #v233
 vagabond.patches.dong_bo_cau_truc #v234
+vagabond.patches.dong_bo_cau_truc #v235
