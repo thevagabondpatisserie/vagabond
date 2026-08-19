@@ -17,17 +17,47 @@ from vagabond import de_nghi_chi as dn
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 
-def _phieu(**k):
-	"""Dựng một phiếu hợp lệ tối thiểu, rồi cho ca kiểm sửa đúng phần nó soi."""
-	p = {
-		"ten_khoan_chi": "Mua đá cho quầy",
-		"loai_nghiep_vu": dn.NV_CHI_PHI,
-		"phan_loai": "Mua đồ cúng",
+# Danh mục loại chứng từ giả lập, đủ hai cờ mà các hàm THUẦN cần.
+#
+# Vì sao truyền vào chứ không đọc cơ sở dữ liệu: `thieu_gi` và `ly_do_chan`
+# phải kiểm thử được mà không cần site, nên chúng nhận danh mục qua khoá
+# `_dm_chung_tu` thay vì tự đi hỏi. Bộ ca này là chỗ chứng minh điều đó.
+CT_VAT = "Hoá đơn VAT"
+CT_KHONG = "Bảng kê không hoá đơn"
+DM_GIA = {
+	CT_VAT: {"la_hoa_don_vat": 1, "bat_buoc_tep": 1},
+	CT_KHONG: {"la_hoa_don_vat": 0, "bat_buoc_tep": 0},
+}
+
+
+def _khoan(**k):
+	"""Một dòng bảng kê hợp lệ tối thiểu."""
+	d = {
+		"noi_dung": "Mua đá cho quầy",
 		"so_tien": 150000,
+		"phan_loai": "Mua đồ cúng",
+		"loai_chung_tu": CT_KHONG,
+		"_co_tep": 1,
+	}
+	d.update(k)
+	return d
+
+
+def _phieu(**k):
+	"""Dựng một phiếu hợp lệ tối thiểu, rồi cho ca kiểm sửa đúng phần nó soi.
+
+	Đổi 20/08/2026 sang bảng kê nhiều dòng: nội dung, số tiền, phân loại và
+	hoá đơn nay nằm ở `cac_khoan`. Các ca kiểm bên dưới sửa dòng qua tham số
+	`khoan=`, hoặc truyền thẳng `cac_khoan=` khi cần nhiều dòng.
+	"""
+	khoan = k.pop("khoan", None)
+	p = {
+		"loai_nghiep_vu": dn.NV_CHI_PHI,
 		"ngay_can_tt": "2026-08-20",
 		"hinh_thuc": dn.HT_NHAN_VIEN,
-		"chung_tu_thue": dn.CT_KHONG_VAT,
 		"phuong_thuc": dn.PT_TIEN_MAT,
+		"cac_khoan": [_khoan(**(khoan or {}))],
+		"_dm_chung_tu": DM_GIA,
 	}
 	p.update(k)
 	return p
@@ -86,8 +116,8 @@ def _():
 	# Tam ung la tien dua TRUOC, chua tieu nen chua the co hoa don. Co hoa
 	# don roi tuc la da tieu, do la hoan ung.
 	ly_do = dn.ly_do_chan(_phieu(
-		loai_nghiep_vu=dn.NV_TAM_UNG, phan_loai=None,
-		chung_tu_thue=dn.CT_CO_VAT))
+		loai_nghiep_vu=dn.NV_TAM_UNG,
+		khoan={"phan_loai": None, "loai_chung_tu": CT_VAT}))
 	dung("phải chặn lại", bool(ly_do))
 	dung("và nói rõ nên đổi sang hoàn ứng", "hoàn ứng" in (ly_do or ""))
 
@@ -130,7 +160,7 @@ def _():
 
 @ca("chặn: mua máy móc tài sản cố định không đi đường chi lặt vặt")
 def _():
-	ly_do = dn.ly_do_chan(_phieu(phan_loai="Mua máy móc-tài sản cố định"))
+	ly_do = dn.ly_do_chan(_phieu(khoan={"phan_loai": "Mua máy móc-tài sản cố định"}))
 	dung("phải chặn lại", bool(ly_do))
 	dung("và chỉ sang luồng mua hàng", "Đơn mua hàng" in (ly_do or ""))
 
@@ -138,7 +168,7 @@ def _():
 @ca("chặn: các phân loại khác thì không chặn oan")
 def _():
 	for x in ("Mua đồ cúng", "Tiền điện", "Phí in ấn", "Vận chuyển"):
-		dung("%s phải đi qua được" % x, dn.ly_do_chan(_phieu(phan_loai=x)) is None)
+		dung("%s phải đi qua được" % x, dn.ly_do_chan(_phieu(khoan={"phan_loai": x})) is None)
 
 
 # ----------------------------------------- tài khoản gợi ý theo phân loại
@@ -193,8 +223,10 @@ def _():
 	# khong co hoa don mua thi khoan do khong len bang ke mua vao 01-2/GTGT
 	# va thue dau vao khong khau tru duoc.
 	dung("vẫn bắt buộc", dn.can_chon_ncc(dn.HT_NHAN_VIEN, dn.CT_CO_VAT))
-	thieu = dn.thieu_gi(_phieu(chung_tu_thue=dn.CT_CO_VAT, so_hoa_don="123",
-		ngay_hoa_don="2026-08-19", mst="0301340144"))
+	thieu = dn.thieu_gi(_phieu(
+		hinh_thuc=dn.HT_NCC,
+		khoan={"loai_chung_tu": CT_VAT, "so_hoa_don": "123",
+		       "ngay_hoa_don": "2026-08-19", "mst": "0301340144"}))
 	dung("và báo thiếu nhà cung cấp",
 		any("Nhà cung cấp" in x for x in thieu))
 
@@ -211,24 +243,29 @@ def _():
 def _():
 	# Nguoi lap sua mot cai roi bam lai moi biet con thieu cai nua la kieu
 	# lam nguoi ta bo cuoc giua chung.
-	thieu = dn.thieu_gi({"loai_nghiep_vu": dn.NV_CHI_PHI})
+	thieu = dn.thieu_gi({
+		"loai_nghiep_vu": dn.NV_CHI_PHI,
+		"cac_khoan": [{"_co_tep": 1}],
+		"_dm_chung_tu": DM_GIA,
+	})
 	dung("báo từ bốn thứ trở lên trong một lần", len(thieu) >= 4)
-	for x in ("Tên khoản chi", "Ngày cần thanh toán", "Phân loại chi tiêu"):
+	for x in ("nội dung chi", "Ngày cần thanh toán", "phân loại chi phí"):
 		dung("có nhắc %s" % x, any(x in t for t in thieu))
 
 
 @ca("soát thiếu: số tiền phải lớn hơn không")
 def _():
 	dung("số không thì chặn",
-		any("lớn hơn 0" in x for x in dn.thieu_gi(_phieu(so_tien=0))))
+		any("lớn hơn 0" in x for x in dn.thieu_gi(_phieu(khoan={"so_tien": 0}))))
 	dung("số âm cũng chặn",
-		any("lớn hơn 0" in x for x in dn.thieu_gi(_phieu(so_tien=-5000))))
+		any("lớn hơn 0" in x for x in dn.thieu_gi(_phieu(khoan={"so_tien": -5000}))))
 
 
 @ca("soát thiếu: có hoá đơn VAT thì đòi đủ số, ngày và mã số thuế")
 def _():
-	thieu = dn.thieu_gi(_phieu(chung_tu_thue=dn.CT_CO_VAT, nha_cung_cap="NCC-001"))
-	for x in ("Số hoá đơn", "Ngày hoá đơn", "Mã số thuế"):
+	thieu = dn.thieu_gi(_phieu(nha_cung_cap="NCC-001",
+		khoan={"loai_chung_tu": CT_VAT}))
+	for x in ("số hoá đơn", "ngày hoá đơn", "mã số thuế"):
 		dung("đòi %s" % x, any(x in t for t in thieu))
 
 
@@ -243,7 +280,8 @@ def _():
 @ca("soát thiếu: tạm ứng không đòi phân loại chi tiêu")
 def _():
 	la("tạm ứng đủ điều kiện dù bỏ trống phân loại",
-		dn.thieu_gi(_phieu(loai_nghiep_vu=dn.NV_TAM_UNG, phan_loai=None)), [])
+		dn.thieu_gi(_phieu(loai_nghiep_vu=dn.NV_TAM_UNG,
+			khoan={"phan_loai": "Ứng lương"})), [])
 
 
 # ------------------------------------------------------- ai được bấm duyệt
@@ -309,3 +347,133 @@ def _():
 	for tt in (dn.TT_NHAP, dn.TT_CHO_DUYET, dn.TT_CHO_GIAM_DOC,
 			dn.TT_CHO_KE_TOAN, dn.TT_HOAN_TAT, dn.TT_TRA_LAI):
 		dung("trạng thái %s có nhãn" % tt, len(dn.NHAN_TRANG_THAI.get(tt) or "") > 3)
+
+
+# ================================= bảng kê nhiều dòng (20/08/2026)
+#
+# Anh Việt 19/08/2026: *"Hiện tại hệ thống đang là 1 phiếu = 1 khoản chi. Việc
+# này quá mất thời gian. Em hãy cấu trúc lại theo dạng Master-Detail."*
+
+
+@ca("bảng kê: tổng tiền là tổng các dòng, không phải số ai đó gõ vào")
+def _():
+	p = _phieu(cac_khoan=[_khoan(so_tien=30000), _khoan(so_tien=12500),
+		_khoan(so_tien=7500)])
+	la("cộng đủ ba dòng", dn.cong_bang_ke(p), 50000)
+	# Số trên phiếu cha có thể là bất kỳ thứ gì; nó KHÔNG được thắng bảng kê.
+	p["tong_tien"] = 999999999
+	p["so_tien"] = 1
+	la("bảng kê thắng mọi số ghi sẵn", dn.tien_phieu(p), 50000)
+
+
+@ca("bảng kê: phiếu rỗng thì chặn, không cho gửi một phiếu không có gì")
+def _():
+	thieu = dn.thieu_gi(_phieu(cac_khoan=[]))
+	dung("có báo bảng kê rỗng", any("chưa có khoản chi nào" in x for x in thieu))
+
+
+@ca("bảng kê: phiếu một dòng cũ vẫn đọc ra đúng số tiền")
+def _():
+	# QT-20 cấm xoá, nên trường `so_tien` cũ vẫn nằm đó. Phiếu lập trước
+	# 20/08/2026 chưa có dòng nào, tiền vẫn nằm ở trường ấy.
+	la("đọc được từ trường cũ", dn.tien_phieu({"so_tien": 750000, "cac_khoan": []}), 750000)
+	la("phiếu trống trơn thì bằng không", dn.tien_phieu({}), 0)
+
+
+@ca("CÁI BẪY: phiếu nhiều dòng vượt ngưỡng VẪN phải qua giám đốc")
+def _():
+	# Đây là chỗ nguy nhất của cả lần đổi cấu trúc.
+	#
+	# `so_tien` trên phiếu cha nay bằng 0 với mọi phiếu mới. Chỗ nào còn đọc
+	# nó sẽ thấy 0, và `buoc_ke_tiep(0)` trả về "chờ kế toán" - tức là MỌI
+	# phiếu mới, dù năm mươi triệu, đi thẳng xuống kế toán và không bao giờ
+	# qua tay giám đốc. Không báo lỗi gì cả, phiếu vẫn chạy trơn tru, cấp
+	# duyệt biến mất trong im lặng.
+	to = _phieu(cac_khoan=[_khoan(so_tien=30000000), _khoan(so_tien=20000000)])
+	la("số tiền thật là năm mươi triệu", dn.tien_phieu(to), 50000000)
+	la("và phiếu rơi vào bước giám đốc",
+		dn.buoc_ke_tiep(dn.tien_phieu(to)), dn.TT_CHO_GIAM_DOC)
+	nho = _phieu(cac_khoan=[_khoan(so_tien=50000)])
+	la("phiếu nhỏ vẫn đi thẳng xuống kế toán",
+		dn.buoc_ke_tiep(dn.tien_phieu(nho)), dn.TT_CHO_KE_TOAN)
+
+
+@ca("hoá đơn VAT: đọc theo CỜ của danh mục chứ không so tên")
+def _():
+	# Đổi tên dòng danh mục thành "Hoá đơn GTGT" thì ba ô hoá đơn KHÔNG được
+	# im lặng biến mất. Ca này chứng minh điều đó bằng một danh mục đặt tên
+	# khác hẳn.
+	dm = {"Hoá đơn GTGT bản thể mới": {"la_hoa_don_vat": 1, "bat_buoc_tep": 1}}
+	p = _phieu(khoan={"loai_chung_tu": "Hoá đơn GTGT bản thể mới"})
+	p["_dm_chung_tu"] = dm
+	dung("vẫn nhận ra là hoá đơn VAT", dn.co_hoa_don_vat(p))
+	thieu = dn.thieu_gi(p)
+	for x in ("số hoá đơn", "ngày hoá đơn", "mã số thuế"):
+		dung("vẫn đòi %s" % x, any(x in t for t in thieu))
+
+
+@ca("hoá đơn VAT: dòng không phải hoá đơn thì không đòi gì thêm")
+def _():
+	la("phiếu chỉ có bảng kê không hoá đơn thì đủ điều kiện",
+		dn.thieu_gi(_phieu()), [])
+	dung("và không tính là có hoá đơn VAT", not dn.co_hoa_don_vat(_phieu()))
+
+
+@ca("chặn tài sản cố định: soi TỪNG DÒNG chứ không soi cả phiếu")
+def _():
+	# Một phiếu mười dòng mà dòng thứ hai là cái máy đánh trứng thì vẫn phải
+	# chặn. Soi cả phiếu thì lọt.
+	p = _phieu(cac_khoan=[
+		_khoan(noi_dung="Nước đá"),
+		_khoan(noi_dung="Máy đánh trứng", phan_loai="Mua máy móc-tài sản cố định"),
+		_khoan(noi_dung="Giấy lau"),
+	])
+	ly_do = dn.ly_do_chan(p)
+	dung("phải chặn lại", bool(ly_do))
+	dung("và nói rõ là khoản số mấy", "Khoản 2" in (ly_do or ""))
+
+
+@ca("bắt buộc tệp: loại chứng từ nào đòi tệp thì thiếu tệp là chặn")
+def _():
+	p = _phieu(khoan={"loai_chung_tu": CT_VAT, "so_hoa_don": "123",
+		"ngay_hoa_don": "2026-08-19", "mst": "0301340144", "_co_tep": 0},
+		hinh_thuc=dn.HT_NCC, nha_cung_cap="NCC-001")
+	thieu = dn.thieu_gi(p)
+	dung("có báo thiếu tệp", any("đính kèm tệp" in x for x in thieu))
+	p2 = _phieu(khoan={"loai_chung_tu": CT_VAT, "so_hoa_don": "123",
+		"ngay_hoa_don": "2026-08-19", "mst": "0301340144", "_co_tep": 1},
+		hinh_thuc=dn.HT_NCC, nha_cung_cap="NCC-001")
+	la("có tệp rồi thì hết thiếu", dn.thieu_gi(p2), [])
+
+
+@ca("cấn trừ hoàn ứng: còn nợ, hoàn đủ, và tiêu vượt")
+def _():
+	con, cty, _ = dn.can_tru_tam_ung(2000000, 1500000)
+	la("ứng 2 triệu hoàn 1 triệu rưỡi thì còn nợ nửa triệu", con, 500000)
+	la("và công ty không nợ lại gì", cty, 0)
+	con, cty, _ = dn.can_tru_tam_ung(2000000, 2000000)
+	la("hoàn đủ thì hết nợ", con, 0)
+	# CỐ Ý không chặn: nhân viên ứng 2 triệu rồi tiêu 2 triệu 3 là chuyện
+	# bình thường, và lúc đó công ty nợ lại họ 300 nghìn. Chặn ở đây là bắt
+	# người ta khai gian cho khớp con số.
+	con, cty, nhac = dn.can_tru_tam_ung(2000000, 2300000)
+	la("tiêu vượt thì không còn nợ", con, 0)
+	la("mà công ty nợ lại ba trăm nghìn", cty, 300000)
+	dung("và nói rõ ra cho người đọc", "vượt" in nhac)
+
+
+@ca("hoàn ứng: phải chỉ rõ hoàn cho lần tạm ứng nào")
+def _():
+	ly_do = dn.ly_do_chan(_phieu(loai_nghiep_vu=dn.NV_HOAN_UNG))
+	dung("thiếu mã tạm ứng thì chặn", bool(ly_do))
+	dung("và chỉ đúng ô cần bấm", "Thuộc mã Tạm ứng" in (ly_do or ""))
+	dung("có mã rồi thì đi qua được",
+		dn.ly_do_chan(_phieu(loai_nghiep_vu=dn.NV_HOAN_UNG,
+			thuoc_tam_ung="DNC-2026-00001")) is None)
+
+
+@ca("hoàn ứng: phiếu chi phí thường thì không được gắn mã tạm ứng")
+def _():
+	ly_do = dn.ly_do_chan(_phieu(thuoc_tam_ung="DNC-2026-00001"))
+	dung("chặn lại", bool(ly_do))
+	dung("và bảo đổi loại nghiệp vụ", "Loại nghiệp vụ" in (ly_do or ""))
