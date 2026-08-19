@@ -1304,7 +1304,8 @@ async function scrHoanTien() {
 }
 
 function htDsTen(t) {
-  return { 'Cho chi': 'Chờ chi', 'Da chi': 'Đã chi', 'Da doi soat': 'Đã đối soát', 'Da huy': 'Đã huỷ / Từ chối' }[t] || t;
+  return { 'Cho chi': 'Chờ chi', 'Da chi': 'Đã chi', 'Da doi soat': 'Đã đối soát',
+           'Hoan thanh': 'Hoàn thành', 'Da huy': 'Đã huỷ / Từ chối' }[t] || t;
 }
 
 /* ---------- Danh sách phiếu hoàn tiền ----------
@@ -1324,7 +1325,8 @@ từng phím: mỗi phím là một lượt gọi máy chủ, mà đây là màn
 function htDsVe() {
   var d = htDsData, ds = d.ds || [], dem = d.dem || {};
   var loc = [['tat_ca', 'Tất cả'], ['Cho chi', 'Chờ chi'], ['Da chi', 'Đã chi'],
-             ['Da doi soat', 'Đã đối soát'], ['Da huy', 'Đã huỷ / Từ chối']];
+             ['Da doi soat', 'Đã đối soát'], ['Hoan thanh', 'Hoàn thành'],
+             ['Da huy', 'Đã huỷ / Từ chối']];
   var html = '<div style="display:flex;gap:7px;margin-bottom:9px">' +
     '<input id="htTim" value="' + h(htDsTim) + '" placeholder="Tìm tên khách, mã phiếu, mã hoá đơn" ' +
     'style="flex:1;border:1.5px solid #e5e7eb;border-radius:9px;padding:9px 12px;font-size:13px">' +
@@ -1358,9 +1360,10 @@ function htDsVe() {
                : 'Phiếu được lập từ nút Hoàn tiền trên màn Chi tiết đơn.') + '</div></div>';
   } else {
     html += '<div class="card">' + ds.map(function (x) {
-      var mau = x.trang_thai === 'Da doi soat' ? '#0a8a4a'
-        : (x.trang_thai === 'Da chi' ? '#b45309'
-          : (x.trang_thai === 'Da huy' ? '#6b7280' : '#b3261e'));
+      var mau = x.trang_thai === 'Hoan thanh' ? '#065f46'
+        : (x.trang_thai === 'Da doi soat' ? '#0a8a4a'
+          : (x.trang_thai === 'Da chi' ? '#b45309'
+            : (x.trang_thai === 'Da huy' ? '#6b7280' : '#b3261e')));
       /* Ca dong la mot vung bam duoc (htmo), tru cac nut ben trong. Truoc
          18/08/2026 dong nay khong bam duoc o dau ca, nen ke toan khong co
          duong nao xem anh to hay so tai khoan khach. */
@@ -1379,7 +1382,10 @@ function htDsVe() {
         '<div style="flex:none;color:#c9cfda;font-size:17px">›</div></div>' +
         '<div style="font-size:11.5px;color:#6b7280;margin-top:5px">' + h(htLyDoTen(x.ly_do || '')) +
         (x.phieu_chi
-          ? ' · phiếu chi ' + h(x.phieu_chi) + (x.phieu_chi_da_ghi ? ' (đã ghi sổ)' : ' <b style="color:#b3261e">(chưa ghi sổ)</b>')
+          ? ' · phiếu chi ' + h(x.phieu_chi) + (x.phieu_chi_da_ghi ? ' (đã ghi sổ)' : ' <b style="color:#b3261e">(chưa ghi sổ)</b>') +
+            /* Chi Dung can nhin luot ca danh sach la biet phieu nao dang
+               cho minh dinh giay to, khong phai mo tung phieu ra xem. */
+            (x.co_unc ? ' · <b style="color:#065f46">có UNC</b>' : ' · <b style="color:#b45309">chưa có UNC</b>')
           : (x.trang_thai === 'Da huy' ? ' · <b style="color:#6b7280">đã từ chối, không chi</b>'
             : (x.da_doi_soat ? ' · <b style="color:#b3261e">chưa có phiếu chi</b>' : ' · chứng từ sinh sau khi tiền ra'))) +
         '</div>' +
@@ -1496,8 +1502,9 @@ function htCtDong(nhan, gtri, dam) {
 
 function htCtVe() {
   var d = htCtData;
-  var mau = d.trang_thai === 'Da doi soat' ? '#0a8a4a'
-    : (d.trang_thai === 'Da chi' ? '#b45309' : (d.trang_thai === 'Da huy' ? '#6b7280' : '#b3261e'));
+  var mau = d.trang_thai === 'Hoan thanh' ? '#065f46'
+    : (d.trang_thai === 'Da doi soat' ? '#0a8a4a'
+      : (d.trang_thai === 'Da chi' ? '#b45309' : (d.trang_thai === 'Da huy' ? '#6b7280' : '#b3261e')));
 
   var html = '<div class="card" style="padding:14px">' +
     '<div style="display:flex;align-items:flex-start;gap:10px">' +
@@ -1614,6 +1621,8 @@ function htCtVe() {
   }
   html += '</div>';
 
+  html += htCtUnc(d);
+
   var chan = '';
   if (d.trang_thai !== 'Da huy') {
     chan += '<button class="btn gh" id="htCtMb" style="margin:0;flex:1">🏦 Chuyển khoản</button>';
@@ -1632,6 +1641,113 @@ function htCtVe() {
   if (nTc) nTc.onclick = function () { htFormTuChoi(d.name); };
   var nGd = document.getElementById('htCtGd');
   if (nGd) nGd.onclick = function () { htFormGdVao(d); };
+
+  var nUncN = document.getElementById('htUncNut');
+  var nUncT = document.getElementById('htUncTep');
+  if (nUncN && nUncT) {
+    nUncN.onclick = function () { nUncT.value = ''; nUncT.click(); };
+    nUncT.onchange = function () { htUncGui(d, nUncT.files && nUncT.files[0]); };
+  }
+  var nKt = document.getElementById('htUncXong');
+  if (nKt) nKt.onclick = function () { htUncKetThuc(d); };
+}
+
+
+/* ---------- Uỷ nhiệm chi và kết thúc phiếu ----------
+
+Anh Việt 19/08/2026: đính uỷ nhiệm chi -> sales lấy gửi khách -> hoàn thành
+-> máy tự ghi sổ. Trước đó phiếu đi tới "Đã đối soát" rồi đứng lại vĩnh
+viễn, vì bước ghi sổ nằm trên Desk chứ không nằm trên màn này.
+
+Vì sao vẫn để HAI nhịp chứ không ghi sổ ngay lúc đính tệp: chị Dung chốt
+16/08 rằng nút ghi sổ phải nằm trong tay kế toán. Và giữa hai nhịp đó chính
+là khoảng Sales tải tệp về gửi khách. Gộp làm một thì mất đúng khoảng ấy. */
+function htCtUnc(d) {
+  var tep = d.unc || [];
+  /* Cờ "đã có UNC hay chưa" đọc thẳng từ máy chủ chứ không đếm lại mảng ở
+     đây. Máy chủ đếm tệp thật trên phiếu chi ngay lúc hỏi; đếm lại ở màn
+     là mở đường cho hai bên nói hai con số khác nhau (QT-19). */
+  var coUnc = !!d.co_unc;
+  var h_ = '<div class="sec">Uỷ nhiệm chi và kết thúc phiếu</div>' +
+    '<div class="card" style="padding:12px 14px">';
+
+  if (coUnc && tep.length) {
+    h_ += tep.map(function (t) {
+      return '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
+        'style="display:flex;gap:9px;align-items:center;text-decoration:none;' +
+        'border:1.5px solid #d1fae5;background:#f0fdf4;border-radius:10px;' +
+        'padding:9px 11px;margin-bottom:7px">' +
+        '<div style="flex:none;font-size:17px">📄</div>' +
+        '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:700;color:#065f46;word-break:break-all">' +
+        h(t.ten) + '</div>' +
+        '<div style="font-size:11.5px;color:#4b7a63">Đính lúc ' +
+        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></a>';
+    }).join('');
+  } else {
+    h_ += '<div style="font-size:12.5px;color:#6b7280;line-height:1.6;padding-bottom:4px">' +
+      'Chưa có uỷ nhiệm chi nào. Dòng sao kê SePay <b>không</b> thay được UNC khi ' +
+      'giải trình với cơ quan thuế, nên phiếu chỉ khép lại được sau khi có tệp này.</div>';
+  }
+
+  if (d.dinh_duoc_unc) {
+    h_ += '<button class="btn gh" id="htUncNut" style="margin:6px 0 0;width:100%">📎 ' +
+      (coUnc ? 'Đính thêm uỷ nhiệm chi' : 'Đính uỷ nhiệm chi') + '</button>' +
+      '<input type="file" id="htUncTep" accept="image/*,application/pdf" style="display:none">';
+  }
+  if (d.ket_thuc_duoc) {
+    h_ += '<button class="btn" id="htUncXong" style="margin:8px 0 0;width:100%">✅ Hoàn thành và ghi sổ</button>' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-top:6px;line-height:1.55">' +
+      'Bấm nút này là máy ghi sổ phiếu chi ' + h(d.phieu_chi || '') + ' và đóng phiếu ' +
+      'hoàn tiền. Trước khi bấm, anh chị nhớ gửi tệp trên cho khách.</div>';
+  } else if (d.trang_thai === 'Hoan thanh') {
+    h_ += '<div style="font-size:12.5px;color:#065f46;background:#f0fdf4;border:1px solid #a7f3d0;' +
+      'border-radius:9px;padding:9px 11px;margin-top:8px;line-height:1.6">Phiếu đã kết thúc' +
+      (d.nguoi_hoan_thanh ? ' bởi <b>' + h(d.nguoi_hoan_thanh) + '</b>' : '') +
+      (d.ngay_hoan_thanh ? ' lúc ' + h(String(d.ngay_hoan_thanh).slice(0, 16)) : '') + '.</div>';
+  }
+  return h_ + '</div>';
+}
+
+function htUncGui(d, file) {
+  if (!file) return;
+  /* Không nén, không đổi định dạng: uỷ nhiệm chi là chứng từ gốc để giải
+     trình thuế, chỉnh một pixel cũng là chỉnh chứng từ. Chỉ chặn tệp quá
+     nặng ngay tại đây để người bấm biết liền, máy chủ vẫn chặn lần nữa. */
+  if (file.size > 12 * 1024 * 1024) {
+    return toast('Tệp nặng quá 12 MB nên máy không nhận. Xuất lại bản PDF nhỏ hơn giúp em.', 4500);
+  }
+  var fr = new FileReader();
+  fr.onload = async function () {
+    var url = String(fr.result || '');
+    toast('Đang tải uỷ nhiệm chi lên...', 2500);
+    try {
+      var kq = await api('vagabond.hoan_tien.dinh_unc', {
+        ho_so: d.name, ten: file.name || 'uy-nhiem-chi.pdf', noi_dung: url
+      });
+      toast((kq && kq.ghi_chu) || 'Đã đính uỷ nhiệm chi.', 5000);
+      htChiTiet(d.name);
+    } catch (e) {
+      toast(h((e && e.message) || 'Không đính được uỷ nhiệm chi'), 6000);
+    }
+  };
+  fr.readAsDataURL(file);
+}
+
+async function htUncKetThuc(d) {
+  var ok = await hoiCo('Hoàn thành phiếu hoàn tiền',
+    'Máy sẽ ghi sổ phiếu chi ' + h(d.phieu_chi || '') + ' và đóng phiếu ' + h(d.name) +
+    '. Ghi sổ rồi thì không sửa lại được, chỉ huỷ bút toán mới đổi được. ' +
+    'Anh chị đã gửi uỷ nhiệm chi cho khách chưa?', 'Ghi sổ');
+  if (!ok) return;
+  toast('Đang ghi sổ...', 2500);
+  try {
+    var kq = await api('vagabond.hoan_tien.hoan_thanh', { ho_so: d.name });
+    toast((kq && kq.ghi_chu) || 'Đã kết thúc phiếu.', 5500);
+    htChiTiet(d.name);
+  } catch (e) {
+    toast(h((e && e.message) || 'Không kết thúc được phiếu'), 6500);
+  }
 }
 
 
