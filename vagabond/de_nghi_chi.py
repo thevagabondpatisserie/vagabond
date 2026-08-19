@@ -762,6 +762,19 @@ def truoc_khi_luu(doc, method=None):
 	# trình duyệt là hạ được phiếu 50 triệu xuống dưới ngưỡng 2 triệu và đi
 	# thẳng qua mặt giám đốc. Đúng tinh thần QT-19.
 	doc.tong_tien = cong_bang_ke(doc)
+	# Soi guong sang truong `so_tien` cu.
+	#
+	# Hai ly do, va ly do thu hai moi la ly do that. Mot: truong do dang la
+	# bat buoc trong doctype, khong dien thi khong luu duoc phieu nao ca - da
+	# vap that tren site ngay 20/08/2026 voi MandatoryError. Hai: van con the
+	# co doan ma nao do doc `so_tien` ma em chua tim ra het; de no bang 0 thi
+	# doan ay doc ra 0 va im lang tinh sai. Ghi dung so vao day thi du co bo
+	# sot cho nao, cho do van doc ra con so dung.
+	#
+	# Van KHONG duoc dung `so_tien` de quyet dinh gi ca: moi phep quyet dinh
+	# di qua `tien_phieu()`. Day chi la ban sao cho an toan.
+	if doc.tong_tien:
+		doc.so_tien = doc.tong_tien
 
 	dm = _dm_chung_tu()
 	for d in doc.get("cac_khoan") or []:
