@@ -54,6 +54,10 @@ NGUONG_LECH = 1.0
 TC_CHIET_KHAU = "3"
 TC_GHI_CHU = "4"
 
+# Ten dong phi ngoai thue. Dat thanh hang so vi may phai nhan lai duoc dong
+# minh da them de khong them lan hai moi lan luu.
+TEN_DONG_PHI = "Phí khác theo hoá đơn, không chịu thuế"
+
 # Dong chiet khau suy ra tu tong duoc phep lech bao nhieu so voi dong chiet
 # khau ghi tren hoa don. Khoang nay chinh la phan m-invoice lam tron tung
 # dong: rieng hoa don GSM 57194 la 15d tren 929 dong. Lech qua nguong nay
@@ -121,6 +125,51 @@ def so_theo_dau_hoa_don(dau):
 	return truoc, thue, tong
 
 
+def goc_dong_hang(dau):
+	"""Tong cac dong hang tren phieu PHAI bang bao nhieu. THUAN.
+
+	Day la con so quan trong nhat cua ca mo dun, va cung la cho ban dau lam
+	sai. Tren ERPNext, tong phieu = tong dong hang + cac dong thue. Dong
+	thue cua minh la loai Actual, so cung bung nguyen tu hoa don. Vay:
+
+	    tong dong hang = tong_tien - tien_thue
+
+	KHONG phai `tien_truoc_thue`. Hai con so do chi trung nhau khi hoa don
+	khong co khoan nao nam ngoai co so tinh thue.
+
+	Mot cong thuc nay xu dung ca ba nhom da gap:
+
+	    GSM 57194        23.834.001 - 1.765.482 = 22.068.519, trung tien
+	                     truoc thue vi khong co phi.
+	    Viet Thinh 752    1.850.000 -   131.320 =  1.718.680, tuc tien truoc
+	                     thue 1.641.499 cong 77.181 phi ngoai thue.
+	    Ho kinh doanh       320.760 -         0 =    320.760, tron ven.
+
+	Khong can chia nhanh theo loai doi tac, khong can doan.
+	"""
+	_truoc, thue, tong = so_theo_dau_hoa_don(dau)
+	return tong - thue
+
+
+def phi_ngoai_thue(dau):
+	"""Phan tien nam NGOAI co so tinh thue. THUAN.
+
+	Ve may bay cua dai ly co phi xuat ve, phi san bay, phu phi he thong. Cac
+	khoan nay khong chiu thue GTGT nen khong nam trong `tien_truoc_thue`,
+	nhung van phai tra nen van nam trong `tong_tien`. Tren ban in hoa don
+	chung nam o mot bang rieng ten "Ten loai phi".
+
+	Doctype MInvoice Invoice khong co truong nao chua bang phi do - no bi bo
+	ngay o buoc keo du lieu ve. Nhung so tien thi suy nguoc duoc chinh xac
+	tu hieu ba con so tong, nen khong can keo lai.
+
+	Phi khong duoc khau tru thue dau vao, nen phai vao tai khoan chi phi
+	chu khong vao 1331.
+	"""
+	truoc, _thue, _tong = so_theo_dau_hoa_don(dau)
+	return goc_dong_hang(dau) - truoc
+
+
 def gom_dong_theo_tinh_chat(chi_tiet):
 	"""Cong phan chi tiet cho DUNG DAU. THUAN.
 
@@ -162,7 +211,7 @@ def ten_theo_tinh_chat(chi_tiet):
 	return ck, gc
 
 
-def ke_hoach_sua_chiet_khau(dong, chi_tiet, truoc_thue, cho_phep=SAI_LECH_LAM_TRON):
+def ke_hoach_sua_chiet_khau(dong, chi_tiet, goc, cho_phep=SAI_LECH_LAM_TRON):
 	"""Dung ke hoach chua phieu bi cong nham dong chiet khau. THUAN.
 
 	`dong` la danh sach {"ten": ..., "tien": ...} cua cac dong hang dang co.
@@ -183,7 +232,7 @@ def ke_hoach_sua_chiet_khau(dong, chi_tiet, truoc_thue, cho_phep=SAI_LECH_LAM_TR
 	if not bo:
 		return None
 	con_lai = sum([flt(d.get("tien")) for i, d in enumerate(dong) if i not in bo])
-	chiet_khau = con_lai - flt(truoc_thue)
+	chiet_khau = con_lai - flt(goc)
 	if chiet_khau < 0:
 		return None
 	ghi_tren_hoa_don = sum([
@@ -199,15 +248,14 @@ def lech_qua_nguong(a, b, nguong=NGUONG_LECH):
 	return abs(flt(a) - flt(b)) > flt(nguong)
 
 
-def da_gom_roi(so_dong, tien_dong_dau, truoc_thue):
-	"""Phieu da gom thanh mot dong dung so chua. THUAN.
+def da_khop_roi(tong_dong, goc):
+	"""Luoi mat hang da dung so chua. THUAN.
 
-	Co ham nay de luu lai lan hai khong gom lai lan nua: gom lai la ghi de
-	chinh cai vua gom, va neu ke toan da tach dong theo tai khoan thi mat.
+	Xet theo TONG chu khong theo so dong. Nho vay mot ham lo duoc ca hai
+	viec: khong gom de len cai vua gom, va khong dung vao phieu ma ke toan
+	da tu tach dong theo tai khoan mien la tong van dung.
 	"""
-	if cint(so_dong) != 1:
-		return False
-	return not lech_qua_nguong(tien_dong_dau, truoc_thue)
+	return not lech_qua_nguong(tong_dong, goc)
 
 
 def dong_dich_vu(ten_ncc, so_hd, truoc_thue, tk_chi_phi=None, trung_tam=None):
@@ -224,6 +272,30 @@ def dong_dich_vu(ten_ncc, so_hd, truoc_thue, tk_chi_phi=None, trung_tam=None):
 		"conversion_factor": 1,
 		"rate": flt(truoc_thue),
 		"amount": flt(truoc_thue),
+	}
+	if tk_chi_phi:
+		dong["expense_account"] = tk_chi_phi
+	if trung_tam:
+		dong["cost_center"] = trung_tam
+	return dong
+
+
+def dong_phi(so_hd, tien, tk_chi_phi=None, trung_tam=None):
+	"""Dung dong PHI NGOAI THUE. THUAN.
+
+	De rieng mot dong co ten ro rang chu khong cong gop vao dong hang: luc
+	quyet toan nhin ra ngay phan nao co hoa don thue phan nao khong.
+	"""
+	mo_ta = "%s theo hoá đơn %s" % (TEN_DONG_PHI, so_hd or "")
+	dong = {
+		"item_name": TEN_DONG_PHI,
+		"description": mo_ta,
+		"qty": 1,
+		"uom": "Nos",
+		"stock_uom": "Nos",
+		"conversion_factor": 1,
+		"rate": flt(tien),
+		"amount": flt(tien),
 	}
 	if tk_chi_phi:
 		dong["expense_account"] = tk_chi_phi
@@ -276,59 +348,84 @@ def truoc_khi_luu(doc, method=None):
 		# Luong mua hang thuong: giu nguyen luoi mat hang, chi chua dong
 		# chiet khau bi cong nham dau neu co.
 		try:
-			_sua_chiet_khau(doc, dau)
+			_can_theo_dau_hoa_don(doc, dau)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "mua_dich_vu: sua chiet khau")
+			frappe.log_error(frappe.get_traceback(), "mua_dich_vu: can theo dau hoa don")
 		return
 	truoc_thue, _thue, _tong = so_theo_dau_hoa_don(dau)
-	if truoc_thue <= 0:
+	goc = goc_dong_hang(dau)
+	if goc <= 0:
 		return
 
 	dong_hien = doc.get("items") or []
-	tien_dau = flt(dong_hien[0].get("amount")) if dong_hien else 0
-	if da_gom_roi(len(dong_hien), tien_dau, truoc_thue):
+	if da_khop_roi(sum([flt(d.get("amount")) for d in dong_hien]), goc):
 		return
 
 	tk = doc.get("vgb_tk_chi_phi") or _tk_chi_phi_dang_dung(doc)
 	tt = _trung_tam_mac_dinh(doc)
-	dong = dong_dich_vu(
-		doc.get("supplier_name") or doc.get("supplier"),
-		dau.get("so_hd") or doc.get("bill_no"),
-		truoc_thue,
-		tk,
-		tt,
-	)
+	so_hd = dau.get("so_hd") or doc.get("bill_no")
+	phi = phi_ngoai_thue(dau)
+
 	doc.set("items", [])
-	doc.append("items", dong)
+	# Dong chiu thue truoc, dong phi sau. Hai dong chu khong mot: dong tren
+	# co hoa don thue de khau tru, dong duoi thi khong.
+	doc.append("items", dong_dich_vu(
+		doc.get("supplier_name") or doc.get("supplier"), so_hd,
+		truoc_thue if phi > 0 else goc, tk, tt))
+	if phi > 0:
+		doc.append("items", dong_phi(so_hd, phi, tk, tt))
 
 
-def _sua_chiet_khau(doc, dau):
-	"""Chua phieu MUA HANG bi cong nham dong chiet khau thuong mai.
+def _can_theo_dau_hoa_don(doc, dau):
+	"""Can luoi mat hang cua phieu MUA HANG cho khop dau hoa don dien tu.
 
 	Khong dung vao `MInvoice Make Docs`: script do dai, nam trong co so du
-	lieu, git khong thay, va no sinh ra MOI hoa don keo tu m-invoice. Sua o
-	day thi viec chua nam trong ma nguon, co kiem thu, va co the go ra bang
-	mot dot deploy neu sai.
+	lieu, git khong thay, va no sinh ra MOI hoa don keo tu m-invoice. Can o
+	day thi viec nam trong ma nguon, co kiem thu, va go ra duoc bang mot dot
+	deploy neu sai.
 
-	Cach chua: bo dong chiet khau va dong ghi chu ra khoi luoi, roi dat lai
-	so tien do vao o Chiet khau cua ca phieu. Dung ban chat ke toan, va tong
-	phieu khop tuyet doi voi hoa don dien tu.
+	Hai chieu lech, hai cach can:
+
+	THUA tien, tuc chi tiet co dong chiet khau thuong mai bi cong thay vi
+	tru (hoa don GSM). Bo dong chiet khau va dong ghi chu ra khoi luoi, dat
+	so tien do vao o Chiet khau cua ca phieu.
+
+	THIEU tien, tuc hoa don co khoan nam ngoai co so tinh thue ma m-invoice
+	khong day vao chi tiet (ve may bay Viet Thinh). Them mot dong phi bang
+	dung phan thieu.
+
+	Lam gi cung chi de dat toi mot dich: tong dong hang bang `goc_dong_hang`.
 	"""
-	if frappe.utils.cint(doc.get("docstatus")) != 0:
+	if cint(doc.get("docstatus")) != 0:
 		return
+	goc = goc_dong_hang(dau)
+	if goc <= 0:
+		return
+	dong_hien = doc.get("items") or []
+	if not dong_hien:
+		return
+	tong_dong = sum([flt(d.get("amount")) for d in dong_hien])
+	if da_khop_roi(tong_dong, goc):
+		return
+
+	if tong_dong > goc:
+		_can_phan_thua(doc, dau, goc)
+	else:
+		_can_phan_thieu(doc, dau, goc, tong_dong)
+
+
+def _can_phan_thua(doc, dau, goc):
+	"""Thua tien thi bo dong chiet khau ra, dat vao o Chiet khau cua phieu."""
 	if flt(doc.get("discount_amount")):
-		return
-	truoc_thue, _thue, _tong = so_theo_dau_hoa_don(dau)
-	if truoc_thue <= 0:
 		return
 	ct = frappe.db.get_value("MInvoice Invoice", doc.get("custom_minvoice_id"), "chi_tiet")
 	if not ct:
 		return
 	dong = [
 		{"ten": (d.get("item_name") or "").strip(), "tien": flt(d.get("amount"))}
-		for d in (doc.get("items") or [])
+		for d in doc.get("items")
 	]
-	kh = ke_hoach_sua_chiet_khau(dong, json.loads(ct or "[]"), truoc_thue)
+	kh = ke_hoach_sua_chiet_khau(dong, json.loads(ct or "[]"), goc)
 	if not kh:
 		return
 	giu = [d for i, d in enumerate(doc.get("items")) if i not in kh["bo"]]
@@ -337,6 +434,28 @@ def _sua_chiet_khau(doc, dau):
 	doc.set("items", giu)
 	doc.apply_discount_on = "Net Total"
 	doc.discount_amount = kh["chiet_khau"]
+
+
+def _can_phan_thieu(doc, dau, goc, tong_dong):
+	"""Thieu tien thi them mot dong phi bang dung phan thieu.
+
+	Chi them khi phan thieu dung bang phi ngoai thue suy ra tu dau hoa don.
+	Lech chut it la chuyen lam tron nen van cho; lech nhieu la co gi khac
+	dang sai, khong tu y them - de cong chan lech o buoc ghi so no chan.
+	"""
+	thieu = goc - tong_dong
+	if thieu <= 0 or thieu >= goc:
+		return
+	if lech_qua_nguong(thieu, phi_ngoai_thue(dau), SAI_LECH_LAM_TRON):
+		return
+	if [d for d in doc.get("items") if (d.get("item_name") or "").strip() == TEN_DONG_PHI]:
+		return
+	doc.append("items", dong_phi(
+		dau.get("so_hd") or doc.get("bill_no"),
+		thieu,
+		doc.get("vgb_tk_chi_phi") or _tk_chi_phi_dang_dung(doc),
+		_trung_tam_mac_dinh(doc),
+	))
 
 
 def chan_lech_tong(doc, method=None):
