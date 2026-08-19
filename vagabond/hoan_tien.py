@@ -1345,6 +1345,38 @@ def khi_ghi_so_phieu_chi(doc, method=None):
 # ------------------------------------------------------------ doi soat SePay
 
 
+def _gd_da_chiem(tru_ho_so=None):
+	"""Cac ma giao dich ngan hang DA duoc mot phieu hoan tien khac chiem.
+
+	Vi sao phai co: mot dong tien ra tren sao ke la MOT lan tien roi khoi
+	tai khoan. Cho hai phieu cung tro vao no la khai hai lan chi cho mot lan
+	chuyen, va vi moi phieu khop xong deu sinh mot phieu chi rieng nen so
+	se phinh len dung bang so tien khong he ra khoi ngan hang.
+
+	Duong nay khong phai gia thuyet. Vong quet trong doi_soat() lap NGOAI la
+	ho so, TRONG la giao dich, va khong giu dau vet giao dich nao da dung.
+	Hai phieu hoan cua CUNG mot hoa don goc, cung so tien - chuyen rat hay
+	gap khi khach doi banh hai lan tren mot don - se cung bam vao dong tien
+	ra dau tien tim thay.
+
+	Cho phep mot phieu giu lai chinh giao dich cua no (tham so tru_ho_so),
+	de ke toan bam lai nut Doi soat cho phieu dang vuong loi_sinh_ct thi
+	khong bi chinh minh chan.
+
+	Phieu DA HUY thi nha giao dich ra, vi tien do hoac chua ra, hoac da duoc
+	thu lai bang mot phieu khac.
+	"""
+	loc = {"trang_thai": ["!=", "Da huy"], "ma_gd": ["!=", ""]}
+	if tru_ho_so:
+		loc["name"] = ["!=", tru_ho_so]
+	ra = {}
+	for r in frappe.get_all(DT, filters=loc, fields=["name", "ma_gd"], limit_page_length=0):
+		ma = (r.get("ma_gd") or "").strip()
+		if ma:
+			ra.setdefault(ma, r["name"])
+	return ra
+
+
 @frappe.whitelist()
 def doi_soat(ho_so=None, so_ngay=30):
 	"""Tim giao dich CHI tren sao ke ngan hang khop voi phieu hoan tien.
@@ -1395,11 +1427,32 @@ def doi_soat(ho_so=None, so_ngay=30):
 		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc sao ke loi")
 		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Chưa đọc được sao kê ngân hàng."}
 
+	# Khoa trung giao dich. Doc mot lan truoc vong quet, roi BOI THEM ngay
+	# trong vong: hai ho so cung duoc khop trong CUNG mot lan chay thi ho so
+	# thu hai phai thay dau ho so thu nhat vua dat, chu khong doc lai co so
+	# du lieu (o thoi diem do ban ghi da co nhung doc lai moi dong la mot
+	# cau truy van cho moi cap ho so - giao dich).
+	da_chiem = _gd_da_chiem(tru_ho_so=ho_so)
+
 	da, xem, sinh = 0, [], []
 	for d in ds:
 		for g in gds:
 			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
 			if not khop_giao_dich(mo_ta, d["hoa_don"]):
+				continue
+			chu_cu = da_chiem.get(g["name"])
+			if chu_cu and chu_cu != d["name"]:
+				# Bay len cho NGUOI xem chu khong im lang bo qua: day co the
+				# la hai phieu that cho hai lan hoan that, va luc do sao ke
+				# con thieu mot dong chu khong phai phieu sai.
+				xem.append({
+					"ho_so": d["name"],
+					"hoa_don": d["hoa_don"],
+					"tien_phieu": flt(d["so_tien"]),
+					"tien_chuyen": flt(g["withdrawal"]),
+					"giao_dich": g["name"],
+					"trung_voi": chu_cu,
+				})
 				continue
 			# Khop noi dung roi van phai so TIEN. Noi dung dung ma so tien
 			# lech nghia la ke toan chuyen thieu hoac thua, va do la viec
@@ -1426,6 +1479,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 					"loi_sinh_ct": "",
 				},
 			)
+			da_chiem[g["name"]] = d["name"]
 			# GHI XUONG NGAY, TRUOC khi sinh chung tu.
 			#
 			# Truoc 19/08/2026 hai viec nay nam chung mot giao dich co so du
@@ -1528,12 +1582,30 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 				"{:,.0f}".format(flt(d["so_tien"])).replace(",", "."),
 			),
 		}
+	# Khoa trung giao dich, giong het duong chay theo gio. SePay co the goi
+	# lai cung mot giao dich (co che thu lai cua ho), va hai phieu hoan cua
+	# cung mot hoa don goc thi deu khop noi dung nhu nhau. Thieu khoa nay la
+	# mot lan tien ra sinh ra hai phieu chi.
+	ma_gd_sach = (ma_gd or "").strip()
+	if ma_gd_sach:
+		chu_cu = _gd_da_chiem(tru_ho_so=d["name"]).get(ma_gd_sach)
+		if chu_cu:
+			return {
+				"khop": 0,
+				"ma": ma,
+				"ho_so": d["name"],
+				"trung_voi": chu_cu,
+				"vi_sao": "Giao dịch %s đã được gắn cho phiếu %s rồi. Một lần tiền ra "
+				"chỉ khớp cho một phiếu hoàn. Nếu đây thật sự là hai lần hoàn khác "
+				"nhau thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp."
+				% (ma_gd_sach, chu_cu),
+			}
 	frappe.db.set_value(
 		DT,
 		d["name"],
 		{
 			"da_doi_soat": 1,
-			"ma_gd": (ma_gd or "").strip(),
+			"ma_gd": ma_gd_sach,
 			"ngay_doi_soat": now_datetime(),
 			"trang_thai": "Da doi soat",
 		},
