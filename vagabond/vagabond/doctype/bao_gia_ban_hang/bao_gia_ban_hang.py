@@ -86,7 +86,14 @@ class BaoGiaBanHang(Document):
 		for d in self.dong:
 			if flt(d.so_luong) <= 0:
 				frappe.throw("Dòng %s: số lượng phải lớn hơn 0." % (d.ten_mon or d.idx))
-			if flt(d.chiet_khau) < 0 or flt(d.chiet_khau) > 100:
+			# Tran 100 chi dung cho chiet khau tinh theo PHAN TRAM. Tu dot
+			# v228 mot dong con chiet khau duoc theo SO TIEN, va mot dong
+			# giam 500.000 d se vap ngay cai chan nay neu khong tach ra.
+			if flt(d.chiet_khau) < 0:
+				frappe.throw("Dòng %s: chiết khấu không được âm." % (d.ten_mon or d.idx))
+			if (d.get("kieu_ck") or "") != "So tien" and flt(d.chiet_khau) > 100:
 				frappe.throw(
-					"Dòng %s: chiết khấu phải trong khoảng 0 đến 100%%." % (d.ten_mon or d.idx)
+					"Dòng %s: chiết khấu theo phần trăm phải trong khoảng 0 đến 100%%. "
+					"Muốn giảm một số tiền cụ thể thì bấm chip \"Giảm giá theo số tiền\" "
+					"của dòng đó." % (d.ten_mon or d.idx)
 				)

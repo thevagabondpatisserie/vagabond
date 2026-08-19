@@ -244,9 +244,8 @@
    "fieldname": "kieu_thue",
    "fieldtype": "Select",
    "label": "Cách tính thuế",
-   "options": "Theo tờ (cũ)\nTheo từng dòng",
-   "default": "Theo từng dòng",
-   "description": "Để trống đọc là \"Theo tờ (cũ)\": tờ đang có trên hệ không đổi một đồng."
+   "options": "\nTheo tờ (cũ)\nTheo từng dòng",
+   "description": "Để trống đọc là \"Theo tờ (cũ)\": tờ đang có trên hệ không đổi một đồng. Ô này KHÔNG được đặt default: cột có default thì lúc INSERT cơ sở dữ liệu tự điền, và tờ bị GHI ở một chế độ khác chế độ vừa dùng để TÍNH (sự cố VGB-PQ-2026-0008 ngày 19/08/2026)."
   },
   {
    "fieldname": "thue_phi_giao_pt",
