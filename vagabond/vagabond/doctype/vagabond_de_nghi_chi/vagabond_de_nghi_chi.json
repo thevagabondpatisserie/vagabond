@@ -92,10 +92,9 @@
    "fieldname": "so_tien",
    "fieldtype": "Currency",
    "label": "So tien (phieu mot dong cu)",
-   "reqd": 1,
    "in_list_view": 1,
    "read_only": 1,
-   "description": "Truong cua thoi phieu mot dong, giu lai de doc phieu cu. Phieu lap tu 20/08/2026 tro di dung Tong tien."
+   "description": "Truong cua thoi phieu mot dong. Tu 20/08/2026 may chu ghi vao day dung bang Tong tien, de moi doan ma cu con doc truong nay van doc ra so dung. Phieu lap tu 20/08/2026 tro di dung Tong tien."
   },
   {
    "fieldname": "ngay_can_tt",
