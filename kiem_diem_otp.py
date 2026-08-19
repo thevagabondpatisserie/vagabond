@@ -1866,8 +1866,10 @@ _bgto = open(
 la("to bao gia co o cach tinh thue", '"fieldname": "kieu_thue"' in _bgto, True)
 la("to bao gia co o thue phi giao", '"fieldname": "thue_phi_giao_pt"' in _bgto, True)
 _than_tinh = _bg2_src.split("def _tinh(doc):")[1].split("\ndef ")[0]
+# Tu 19/08/2026 phep doc che do gom ve MOT ham _kieu_thue, vi _tinh va
+# tom_tat_thue tung doc rieng va do la mach dan toi to VGB-PQ-2026-0008.
 la("to de trong o kieu thue thi chay nhanh cu",
-   'if (doc.get("kieu_thue") or "") == "Theo từng dòng":' in _than_tinh, True)
+   "if _kieu_thue(doc) == KT_DONG:" in _than_tinh, True)
 la("nhanh cu van con nguyen",
    'doc.thue_tien = round(sau_ck * flt(doc.thue_pt)' in _than_tinh, True)
 la("nhanh moi dung chung phep bang_thue", "bang_thue(" in _than_tinh, True)
@@ -2242,11 +2244,44 @@ if _ns_bg:
 		],
 	}
 
+	def _cong_lai_bg(d):
+		"""Cong lai bon con so cua to, dung y phep cua _tinh.
+
+		Vi sao ca kiem phai lam viec nay thay vi giu so co dinh trong khuon
+		mau: tu 19/08/2026 ham in co mot cong chan to khong khop
+		(_kiem_to_khop), va no chan dung. Mot khuon mau co tam_tinh va
+		tong_cong dat cung mot cho, roi moi bien the lai doi dong hang hoac
+		doi chiet khau, la mot khuon KHONG the cong lai ra dung tong - tuc
+		chinh la cai to sai ma cong do sinh ra de chan. Sua khuon cho khop
+		la dung, ha cong xuong cho khuon lot qua moi la sai.
+		"""
+		tam = sum(float(x["thanh_tien"]) for x in d["dong"])
+		ck = _ns_bg["tien_chiet_khau"](tam, d.get("kieu_ck"), d.get("chiet_khau_pt"))
+		gom = 1 if d.get("gia_da_gom_vat") else 0
+		d["tam_tinh"] = tam
+		d["chiet_khau_tien"] = ck
+		if (d.get("kieu_thue") or "") == "Theo từng dòng":
+			bt = _ns_bg["bang_thue"](
+				[{"thanh_tien": float(x["thanh_tien"]), "thue_pt": float(x.get("thue_pt") or 0)}
+				 for x in d["dong"]],
+				ck_to=ck, phi_giao=float(d.get("phi_giao") or 0),
+				phi_giao_pt=float(d.get("thue_phi_giao_pt") or 0), da_gom=gom,
+			)
+			d["thue_tien"] = bt["tien_thue"]
+			d["tong_cong"] = bt["tong_cong"]
+		else:
+			sau = tam - ck
+			d["thue_tien"] = 0.0 if gom else round(sau * float(d.get("thue_pt") or 0) / 100.0, 0)
+			d["tong_cong"] = sau + d["thue_tien"] + float(d.get("phi_giao") or 0)
+		d["dat_coc_tien"] = round(d["tong_cong"] * float(d.get("dat_coc_pt") or 0) / 100.0, 0)
+		return d
+
 	def _dung_bg(sua=None):
 		"""Dung THAT to bao gia. Nem loi thi tra ve chuoi loi de doc duoc."""
 		d = dict(_BG_GIA)
 		if sua:
 			d.update(sua)
+		_cong_lai_bg(d)
 		d["tom_tat_thue"] = _ns_bg["tom_tat_thue"](d)
 		try:
 			return _ns_bg["_html"](d=d)
@@ -3071,6 +3106,276 @@ try:
 				   str(_f32.get("options", "")).startswith("\n"), True)
 except Exception as _e32b:
 	la("doc duoc doctype bao gia", str(_e32b), "")
+
+# ==========================================================================
+# NHOM 33: nhan giao dich SePay va doi chieu tay khoan tien vao
+#
+# Bai hoc tu vu mui gio v224 con nguyen: bo kiem viet bang cach doc lai
+# chinh ma minh vua viet thi no chi khoa lai dieu minh DANG TIN, chu khong
+# doi chieu voi thuc te. Nen nhom nay khong chi kiem "ma nguon co chuoi X",
+# ma kiem nhung RANG BUOC noi hai manh code doc lap voi nhau lai:
+#
+#   - Khoa chong trung cua tep moi phai TRUNG TUNG KY TU voi khoa ma Server
+#     Script "SePay - Dong bo giao dich (hang gio)" dang ghi tren site that.
+#     Lech mot ky tu la moi giao dich sinh hai dong, va khong phep kiem nao
+#     khac bat duoc.
+#   - O ma don ma man hinh dem GIAI THICH phai la dung o ma phep doi soat
+#     dem TIM. Hai o khac nhau thi man hinh se giai thich mot dang bang mot
+#     con so lay tu dang khac.
+# ==========================================================================
+print("\n[33] Nhan giao dich SePay va doi chieu tay tien vao")
+
+_se_src = open("vagabond/sepay.py", encoding="utf-8").read()
+_ht_src = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_js33 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+
+# --- Khoa chong trung: mot ky tu lech la sinh dong doi ---
+la("tien to khoa chong trung dung bang SEPAY-", 'TIEN_TO = "SEPAY-"' in _se_src, True)
+la("webhook kiem ton tai truoc khi ghi",
+   'frappe.db.exists(BT, {"transaction_id": ma})' in _se_src, True)
+la("nap bu cung kiem ton tai truoc khi ghi",
+   'frappe.db.exists(BT, {"transaction_id": TIEN_TO + str(tid)})' in _se_src, True)
+la("ca hai duong deu ghi cung mot khoa",
+   _se_src.count("TIEN_TO + ") >= 2, True)
+
+# --- Webhook khong duoc lam sap, va khong duoc de SePay gui lai vo tan ---
+la("webhook boc toan bo trong try", "def webhook():" in _se_src and
+   _se_src.split("def webhook():")[1].lstrip().startswith('"""'), True)
+la("webhook nuot loi roi van tra success",
+   '"sepay: webhook vo loi"' in _se_src and '{"success": True, "message": "Da ghi nhan' in _se_src, True)
+la("tai khoan chua khai tra success chu khong tra loi",
+   'return {"success": True, "message": "So tai khoan %s chua khai' in _se_src, True)
+la("giao dich da co tra success", 'da co trong so.' in _se_src, True)
+
+# --- Bao mat ---
+la("so sanh khoa bang compare_digest chu khong bang dau bang",
+   "hmac.compare_digest(_khoa_gui_len(), that)" in _se_src, True)
+la("chua dat khoa thi tu choi han", "Chua dat khoa bao mat webhook" in _se_src, True)
+la("tat trong Cai dat thi tu choi", "Diem nhan SePay dang tat" in _se_src, True)
+la("khoa cat dang Password chu khong dang Data",
+   '"fieldname": "sepay_khoa", "label": "Khoá bảo mật webhook SePay",\n\t\t\t"fieldtype": "Password"' in _se_src, True)
+
+# --- Doc khoa tu header: kiem BANG CACH CHAY, khong bang doc mat ---
+_m33 = re.search(r"^def _khoa_gui_len\(.*?(?=^@|^def |\Z)", _se_src, re.S | re.M)
+if not _m33:
+	la("tim thay ham _khoa_gui_len", False, True)
+else:
+	class _Req33:
+		def __init__(self, h):
+			self.headers = h
+
+	class _Frappe33:
+		request = None
+
+	_mt33 = {"frappe": _Frappe33}
+	exec(compile(_m33.group(0), "sepay:_khoa_gui_len", "exec"), _mt33, _mt33)
+	_doc33 = _mt33["_khoa_gui_len"]
+	for _ten33, _gui33, _mong33 in (
+		("Apikey", {"Authorization": "Apikey abc123"}, "abc123"),
+		("ApiKey hoa thuong khac nhau", {"Authorization": "ApiKey abc123"}, "abc123"),
+		("Bearer", {"Authorization": "Bearer abc123"}, "abc123"),
+		("khong tien to", {"Authorization": "abc123"}, "abc123"),
+		("header rieng", {"X-Api-Key": "abc123"}, "abc123"),
+		("khong co header", {}, ""),
+		("khoang trang thua", {"Authorization": "  Apikey   abc123  "}, "abc123"),
+	):
+		_Frappe33.request = _Req33(_gui33)
+		la("doc khoa tu header: %s" % _ten33, _doc33(), _mong33)
+	_Frappe33.request = None
+	la("khong co request thi tra chuoi rong", _doc33(), "")
+
+# --- Nap bu: mac dinh phai la chay thu ---
+la("nap bu mac dinh la chay thu", "def nap_bu(so_tk=\"\", tu_ngay=\"\", den_ngay=\"\", so_trang=40, that=0)" in _se_src, True)
+la("chay thu thi khong ghi gi", "if not cint(that):" in _se_src, True)
+la("nap bu chi cho quan ly hoac ke toan",
+   'Chỉ quản lý hoặc kế toán mới nạp bù sao kê được.' in _se_src, True)
+
+# --- Khong duoc dung vao con tro cua nhip keo ---
+_ghi33 = [d for d in _se_src.splitlines()
+          if "last_since_id" in d and ("set_value" in d or "db_set" in d or "set_single_value" in d)]
+la("khong dong nao ghi de con tro since_id cua nhip keo", _ghi33, [])
+
+# --- Man phieu hoan tien ---
+la("chi tiet phieu tra ra ma don Pancake",
+   '"ma_pancake": (si.get("custom_pancake_display_id") or "").strip(),' in _ht_src, True)
+# RANG BUOC THAT: o man hinh GIAI THICH phai la dung o phep doi soat dem TIM.
+la("o ma don man hinh doc trung voi o _tien_da_nhan doc",
+   _ht_src.count('custom_pancake_display_id') >= 2, True)
+la("dong SePay da nhan khong con bi khoa theo loai phieu",
+   "htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay)" in _js33
+   and "(d.loai_hoan === 'Tien nop thua'\n        ? htCtDong('SePay đã nhận'" not in _js33, True)
+la("khi ra 0 thi man hinh noi ro vi sao", "function htCtSepayTrong(d)" in _js33, True)
+la("noi rieng hai nguyen nhan khac nhau", "d.don.ma_pancake\n    ? 'Đơn có mã Pancake" in _js33, True)
+
+# --- Gan tay giao dich tien vao ---
+la("gan tay chi cho ke toan va giam doc",
+   "Chỉ kế toán hoặc giám đốc mới đối chiếu giao dịch tiền vào được." in _ht_src, True)
+la("chan gan mot dong tien RA", 'là tiền RA khỏi tài khoản' in _ht_src, True)
+la("chan gan mot giao dich da thuoc phieu khac",
+   'Một khoản tiền vào chỉ ' in _ht_src, True)
+la("ghi lai ai gan va luc nao", '"nguoi_gan_gd_vao": frappe.session.user' in _ht_src, True)
+la("gan tay KHONG doi so tien cua phieu", '"so_tien"' not in _ht_src.split("def gan_gd_vao")[1].split("return {\"ok\": 1, \"gd\": gd")[0], True)
+la("phieu da huy thi khong gan them", 'đã huỷ nên không đối chiếu thêm được' in _ht_src, True)
+
+# --- Truong moi phai duoc dung lai moi lan Migrate ---
+_tt33 = open("vagabond/truong_tu_them.py", encoding="utf-8").read()
+la("nhom truong sepay duoc dung lai khi Migrate", '_dung_nhom(sepay.TRUONG_MOI, "sepay")' in _tt33, True)
+la("sepay nam trong danh sach import", "mua_dich_vu, noi_bo, sepay," in _tt33, True)
+for _o33 in ("gd_vao", "nguoi_gan_gd_vao", "ngay_gan_gd_vao"):
+	la("phieu hoan tien co o %s" % _o33, '"fieldname": "%s"' % _o33 in _ht_src, True)
+for _o33 in ("sepay_bat", "sepay_khoa", "sepay_chua_map"):
+	la("Cai dat co o %s" % _o33, '"fieldname": "%s"' % _o33 in _se_src, True)
+
+# --- Man Cai dat SePay ---
+_js33b = open("vagabond/public/js/bep/17-cai-dat.js", encoding="utf-8").read()
+_js33c = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+la("co man Cai dat SePay", "async function scrSePay()" in _js33b, True)
+la("man SePay duoc noi vao menu", "if (k === 'CDSE') return go(scrSePay);" in _js33c, True)
+la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDSE'," in _js33c, True)
+la("man SePay bay ra duong dan day du", "d.duong_dan" in _js33b, True)
+la("man SePay canh bao tai khoan chua khai", "d.chua_map || []" in _js33b, True)
+la("nut nap bu that tach roi nut chay thu",
+   "seNapBu(0)" in _js33b and "seNapBu(1)" in _js33b, True)
+
+# ==========================================================================
+# NHOM 34: che do tinh thue cua to bao gia
+#
+# Su co that, to VGB-PQ-2026-0008 ngay 19/08/2026. To PDF gui khach in ra
+# ba dong khong the cung dung:
+#     Cong tien hang chua thue   32.086.610
+#     Thue GTGT 0% / VAT                  0
+#     TONG TIEN TAM TINH         34.653.539
+#
+# Nguyen nhan khong nam o phep tinh thue, ma o cho o "kieu_thue" mang
+# "default" trong doctype: may chu TINH o mot che do, co so du lieu GHI o
+# che do khac. Bai kiem nay dung lai dung con so cua to do va khoa lai ca
+# hai dieu: phep tinh cua tung che do, va viec khong che do nao duoc phep
+# tu doi sau lung nguoi dung.
+# ==========================================================================
+print("\n[34] Che do tinh thue cua to bao gia")
+
+_bg34_src = open("vagabond/bao_gia.py", encoding="utf-8").read()
+_bgjs34 = open("vagabond/public/js/bep/22-bao-gia.js", encoding="utf-8").read()
+
+
+# Dung lai chinh cac ham da nap tu bao_gia.py o nhom 28, khong cat ban sao
+# thu hai: hai ban sao la hai co hoi de ban kiem trach khoi ban that.
+if not _ns_bg:
+	print("   (chua nap duoc bao_gia, bo qua nhom 34)")
+	sys.exit(1)
+_bang_thue = _ns_bg["bang_thue"]
+_tien_ck34 = _ns_bg["tien_chiet_khau"]
+
+# --- MOT cach doc che do, kiem bang cach CHAY ---
+_kt34 = _ns_bg["_kieu_thue"]
+for _v34, _mong34 in (
+	(None, "Theo tờ (cũ)"), ("", "Theo tờ (cũ)"),
+	("Theo tờ (cũ)", "Theo tờ (cũ)"), ("Theo từng dòng", "Theo từng dòng"),
+	("theo từng dòng", "Theo tờ (cũ)"), ("lung tung", "Theo tờ (cũ)"),
+	("  Theo từng dòng  ", "Theo từng dòng"),
+):
+	la("doc che do thue tu %r" % _v34, _kt34({"kieu_thue": _v34}), _mong34)
+
+# --- Dung lai to VGB-PQ-2026-0008 bang so that ---
+_DONG34 = [34305570.0, 108342.0, 74074.0]
+_TAM34 = sum(_DONG34)
+_CK34 = 2401376.0
+la("to 0008: cong tien hang dung bang so tren to PDF", _TAM34, 34487986.0)
+la("to 0008: chiet khau theo so tien ra dung so tren to PDF",
+   _tien_ck34(_TAM34, "So tien", 2401376), 2401376.0)
+
+_SAU_CK34 = _TAM34 - _CK34
+la("to 0008: cong tien hang chua thue", _SAU_CK34, 32086610.0)
+
+# Cach cu, thue 8% tren tong. Day la con so ma may chu DA TINH luc luu.
+_THUE_TO34 = round(_SAU_CK34 * 8.0 / 100.0, 0)
+_TONG_TO34 = _SAU_CK34 + _THUE_TO34
+la("cach cu ra dung so thue tren man hinh", _THUE_TO34, 2566929.0)
+la("cach cu ra dung so tong da luu", _TONG_TO34, 34653539.0)
+
+# Cach theo tung dong voi moi dong 0%. Day la con so to PDF in ra.
+_BT34 = _bang_thue([{"thanh_tien": x, "thue_pt": 0} for x in _DONG34],
+                   ck_to=_CK34, phi_giao=0, phi_giao_pt=0, da_gom=0)
+la("cach theo dong: tien thue bang 0", _BT34["tien_thue"], 0.0)
+la("cach theo dong: tong chi con 32.086.610", _BT34["tong_cong"], 32086610.0)
+
+# ĐÂY LA PHEP KIEM THAT SU: hai che do ra hai con so KHAC NHAU tren cung
+# mot to. Nen mot to bi ghi sai che do la mot to sai tien, khong phai mot
+# to sai chu.
+la("hai che do ra hai so khac nhau, lech dung bang tien thue",
+   round(_TONG_TO34 - _BT34["tong_cong"], 0), 2566929.0)
+
+# --- Luat sua chua phai bat dung to 0008 va tha cac to khac ---
+def _co_phai_bi_doi(tam, ck, thue_pt, phi, da_gom, dong_pt, tong_luu):
+	bt = _bang_thue([{"thanh_tien": t, "thue_pt": p} for t, p in dong_pt],
+	                ck_to=ck, phi_giao=phi, phi_giao_pt=0, da_gom=da_gom)
+	sau = tam - ck
+	cu = (sau + phi) if da_gom else (sau + round(sau * thue_pt / 100.0, 0) + phi)
+	return abs(bt["tong_cong"] - tong_luu) > 1 and abs(cu - tong_luu) <= 1
+
+
+la("luat bat dung to 0008",
+   _co_phai_bi_doi(_TAM34, _CK34, 8, 0, 0, [(x, 0) for x in _DONG34], 34653539.0), True)
+la("luat THA to 0007 (da nhat quan o che do moi)",
+   _co_phai_bi_doi(_TAM34, _CK34, 8, 0, 0, [(x, 0) for x in _DONG34], 32086610.0), False)
+la("luat THA to gia da gom VAT (hai che do ra cung mot so)",
+   _co_phai_bi_doi(28800000.0, 0, 8, 0, 1, [(28800000.0, 0)], 28800000.0), False)
+la("luat THA to that su khai 8% tung dong",
+   _co_phai_bi_doi(1000000.0, 0, 8, 0, 0, [(1000000.0, 8)], 1080000.0), False)
+
+# --- Mot cach doc duy nhat ---
+la("_tinh doc che do qua _kieu_thue", "if _kieu_thue(doc) == KT_DONG:" in _bg34_src, True)
+la("tom_tat_thue doc che do qua _kieu_thue", "if _kieu_thue(doc) != KT_DONG:" in _bg34_src, True)
+la("_goi tra ve che do da chuan hoa", '"kieu_thue": _kieu_thue(doc),' in _bg34_src, True)
+la("khong con cho nao so chuoi thue tho",
+   '(doc.get("kieu_thue") or "") == "Theo từng dòng"' in _bg34_src, False)
+
+# --- To moi phai mang theo che do ---
+la("moi() tra ve o kieu_thue", '"kieu_thue": KT_MAC_DINH_TO_MOI,' in _bg34_src, True)
+la("_do_vao luon ghi mot gia tri ro rang", "doc.kieu_thue = kt_cu or KT_MAC_DINH_TO_MOI" in _bg34_src, True)
+la("_do_vao giu che do cu khi app khong gui", "kt_cu = _kieu_thue(doc) if not doc.is_new() else \"\"" in _bg34_src, True)
+
+# --- Doctype KHONG duoc mang default cho cac o quyet dinh cach tinh tien ---
+for _tep34 in ("vagabond/vagabond/doctype/bao_gia_ban_hang/bao_gia_ban_hang.json",
+               "vagabond/vagabond/doctype/bao_gia_dong/bao_gia_dong.json"):
+	_d34 = json.load(open(_tep34, encoding="utf-8"))
+	_xau34 = [f["fieldname"] for f in _d34["fields"]
+	          if f["fieldname"].startswith("kieu_") and f.get("default")]
+	# Cot co default thi luc Migrate MariaDB dien gia tri do vao MOI dong
+	# da co, va luc INSERT no dien vao dong nao de trong. Ca hai deu la
+	# doi cach tinh tien cua mot to sau lung nguoi lap.
+	la("%s: khong o kieu_ nao mang default" % _tep34.split("/")[-1], _xau34, [])
+	for _f34 in _d34["fields"]:
+		if _f34["fieldname"] == "kieu_thue":
+			la("kieu_thue cho phep de trong", str(_f34.get("options", "")).startswith("\n"), True)
+
+# --- Cong chan to khong khop ---
+la("co phep kiem truoc khi in", "def _kiem_to_khop(d):" in _bg34_src, True)
+la("phep kiem duoc goi truoc khi ve bang tong", "\t_kiem_to_khop(d)\n" in _bg34_src, True)
+la("cau bao loi noi ro phai lam gi (QT-24)", "bấm Lưu một lần nữa" in _bg34_src, True)
+
+# --- Ham sua chua ---
+la("ham sua chua chi dung set_value chu khong save",
+   'frappe.db.set_value(DT, r["name"], "kieu_thue", KT_TO, update_modified=False)' in _bg34_src, True)
+la("ham sua chua ghi vet vao Comment", '"reference_doctype": DT, "reference_name": r["name"],' in _bg34_src, True)
+la("ham sua chua duoc goi khi Migrate",
+   "bao_gia.sua_kieu_thue_bi_dat_mac_dinh()" in open("vagabond/patches/dong_bo_cau_truc.py", encoding="utf-8").read(), True)
+la("co ham soi de xem truoc, khong ghi gi", "def soi_kieu_thue():" in _bg34_src, True)
+
+# --- Man chi doc cua bao gia ---
+la("man chi doc khong con in thang chiet_khau_pt kem dau phan tram",
+   "'<span>Chiết khấu ' + d.chiet_khau_pt + '%</span>'" in _bgjs34, False)
+la("man chi doc doc kieu_ck nhu man sua",
+   "d.kieu_ck === 'So tien' ? '' : ' ' + (Number(d.chiet_khau_pt) || 0) + '%'" in _bgjs34, True)
+la("chiet khau tung dong tren man chi doc cung doc kieu_ck",
+   "x.kieu_ck === 'So tien' ? money(x.chiet_khau) + ' đ'" in _bgjs34, True)
+la("man chi doc biet ca che do theo tung dong", "function bgXemThueHtml(d)" in _bgjs34, True)
+
+# --- Chiet khau so tien khong duoc vap tran 100 cua doctype ---
+_ctl34 = open("vagabond/vagabond/doctype/bao_gia_ban_hang/bao_gia_ban_hang.py", encoding="utf-8").read()
+la("tran 100 chi ap cho chiet khau phan tram",
+   '(d.get("kieu_ck") or "") != "So tien" and flt(d.chiet_khau) > 100' in _ctl34, True)
+la("van chan chiet khau am", "chiết khấu không được âm" in _ctl34, True)
 
 print("-" * 60)
 if so_hong:
