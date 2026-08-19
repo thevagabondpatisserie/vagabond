@@ -1682,9 +1682,13 @@ def _khach_tren_don(si_name, ma_khach=None):
 	return ra
 
 
-@frappe.whitelist()
 def dong_bo_so_hddt(ma_phieu, ma_don, dang_luu=""):
 	"""Lay so hoa don dien tu cua don goc, va va lai neu phieu dang giu so cu.
+
+	KHONG whitelist: ham nay GHI vao co so du lieu va chi duoc goi tu ben
+	trong. Ca kiem `thu_cua_ngo` chot dieu do. Dat ham nay ngay tren `ds` da
+	tung lam decorator @frappe.whitelist() cua `ds` bam nham sang day va man
+	Hoan tien tren app chet ngay, 19/08/2026.
 
 	Chi Dung 19/08/2026: *"phieu hoan tien neu co them so hoa don dien tu thi
 	nhanh hon do phai kiem a, thi c se thay the hoa don nhanh hon a"*.
@@ -1707,6 +1711,7 @@ def dong_bo_so_hddt(ma_phieu, ma_don, dang_luu=""):
 	return (dang_luu or "").strip() or that
 
 
+@frappe.whitelist()
 def ds(trang_thai="", so_dong=100, tim=""):
 	"""Danh sach phieu hoan tien cho man Hoan tien tren app.
 

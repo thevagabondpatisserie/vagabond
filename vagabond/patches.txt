@@ -6,3 +6,4 @@ vagabond.khoa_ma_pancake #chay lai 07/08/2026, lan dau vap ImplicitCommitError
 vagabond.patches.dong_bo_cau_truc #v227c nguong bao cao doi soat
 vagabond.patches.dong_bo_cau_truc #v228
 vagabond.patches.dong_bo_cau_truc #v228b giam ngoai dong va so hddt
+vagabond.patches.dong_bo_cau_truc #v228c tra whitelist cho hoan_tien.ds
