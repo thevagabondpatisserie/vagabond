@@ -12067,9 +12067,20 @@ function htDsVe() {
     try {
       var kq = await api('vagabond.hoan_tien.doi_soat', {});
       busy(false);
+      /* Tách hai loại "cần xem lại" ra: số tiền lệch là kế toán chuyển
+         thiếu hoặc thừa, còn trùng giao dịch là hai phiếu cùng trỏ vào một
+         lần tiền ra. Gộp làm một dòng thì người đọc không biết phải làm gì
+         tiếp, mà hai việc đó xử lý khác hẳn nhau. */
+      var xx = kq.xem_xet || [];
+      var trung = xx.filter(function (x) { return x.trung_voi; });
+      var lech = xx.filter(function (x) { return !x.trung_voi; });
       baoTin(kq.ghi_chu ? kq.ghi_chu :
         ('Đã khớp ' + money(kq.da_khop || 0) + ' phiếu trên ' + money(kq.so_phieu_quet || 0) + ' phiếu chờ.' +
-         ((kq.xem_xet || []).length ? '\n\nCó ' + kq.xem_xet.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '')));
+         (lech.length ? '\n\nCó ' + lech.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '') +
+         (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác ' +
+          '(' + trung.map(function (x) { return x.ho_so + ' trùng ' + x.trung_voi; }).join(', ') + '). ' +
+          'Một lần tiền ra chỉ khớp cho một phiếu. Nếu đây thật sự là hai lần hoàn khác nhau ' +
+          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '')));
       go(scrHoanTien, true);
     } catch (e) { busy(false); }
   };
@@ -14110,7 +14121,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '237';
+var APPVER = '238';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
