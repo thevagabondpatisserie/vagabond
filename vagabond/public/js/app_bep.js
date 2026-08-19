@@ -48,7 +48,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .lgfp{text-align:center;font-size:13.5px;color:#0B7C93;font-weight:600;padding:12px 8px 2px;cursor:pointer;user-select:none}
 .lgfp:active{color:#05323C}
 .vb{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 24px}
-.vf{flex:0 0 auto;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 12px);background:#fff;border-top:1px solid #e3e6ee;box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+.vf{flex:0 0 auto;padding:10px 12px calc(env(safe-area-inset-bottom,8px) + 14px);background:#fff;border-top:1px solid #e3e6ee;box-shadow:0 -2px 10px rgba(0,0,0,.05)}
 .btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:600;background:#50DBF2;color:#05323C;cursor:pointer}
 .btn:active{background:#2FC9E6}
 .btn[disabled]{background:#c3c8d4;color:#fff}
@@ -8419,9 +8419,11 @@ function posNutNguon(ds, chon) {
 function posNutPt(ds, chon) {
   return ds.map(function (p) {
     var on = p.v === chon;
-    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:6px 8px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:8px 10px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
       posONhan({ lg: p.lg, ic: p.lg ? '' : (p.ic || '🏦') }, 24) +
-      '<span style="font-size:14px;line-height:1.15;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
+      /* min-width:0 để nhãn dài như "Chuyển khoản ngân hàng" xuống dòng
+         gọn thay vì bị cắt cụt bởi overflow:hidden của nút. */
+      '<span style="flex:0 1 auto;min-width:0;font-size:14px;line-height:1.3;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
   }).join('');
 }
 async function scrPosQuay() {
@@ -8570,8 +8572,12 @@ async function scrPosQuay() {
       : '') +
     '<input class="tin" id="posTen" placeholder="Tên khách, mã khách, MST hoặc số điện thoại" autocomplete="off" value="' + h(posDon.ten || '') + '">' +
     '<div id="posTenGoi"></div></div>' +
-    '<input class="tin" id="posSdt" placeholder="Số điện thoại" inputmode="tel" value="' + h(posDon.sdt || '') + '">' +
-    '<input class="tin" id="posGhiChu" placeholder="Ghi chú bill: gói quà, để lạnh, giao lầu 2..." value="' + h(posDon.ghi_chu || '') + '">' +
+    /* Ba ô này trước đây dính sát nhau không có một khoảng nào, ngón tay to
+       là bấm nhầm ô. Đặt khoảng ngay tại đây chứ KHÔNG sửa .tin toàn hệ:
+       lớp .tin đang dùng ở 109 chỗ khắp các màn, đổi nó là đổi cả những màn
+       không ai yêu cầu và không ai kiểm lại. */
+    '<input class="tin" id="posSdt" placeholder="Số điện thoại" inputmode="tel" style="margin-top:12px" value="' + h(posDon.sdt || '') + '">' +
+    '<input class="tin" id="posGhiChu" placeholder="Ghi chú bill: gói quà, để lạnh, giao lầu 2..." style="margin-top:12px" value="' + h(posDon.ghi_chu || '') + '">' +
     '</div>';
   /* Hang, so diem hien co, so diem se tich, va o tru tien bang diem.
      Toan bo khoi nay dung o 13-khuyen-mai.js (anh Viet 19/08/2026). */
@@ -14121,7 +14127,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '238';
+var APPVER = '239';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -17743,16 +17749,40 @@ chứ không riêng thu mua. Lập xong thì Uyên và chuỗi duyệt xử ti�
 
 Màn cố ý ngắn: sáu ô bắt buộc, phần còn lại chỉ hiện khi cần. Bạn đứng
 trong bếp cầm điện thoại một tay thì mỗi ô thừa là một lần bỏ dở. */
-var dncDm = null, dncForm = null;
+var dncDm = null, dncForm = null, dncMoTu = {}, dncTamUng = null;
+
+/* Một khoản chi rỗng. Mỗi khoản mang một `id` riêng chứ không dựa vào vị trí
+   trong mảng: xoá khoản thứ hai giữa lúc đang gõ khoản thứ tư thì mọi chỉ số
+   sau đó lùi một bậc, và ô đang gõ dở bị gán sang khoản khác. */
+var dncIdSau = 1;
+function dncKhoanMoi() {
+  return {
+    id: 'k' + (dncIdSau++), noi_dung: '', so_tien: '', phan_loai: '',
+    loai_chung_tu: '', so_hoa_don: '', ngay_hoa_don: '', mst: '',
+    ten_ban: '', dia_chi_ban: '', ghi_chu: ''
+  };
+}
 
 function dncMoi() {
   return {
-    ten_khoan_chi: '', loai_nghiep_vu: 'Chi phí', phan_loai: '', so_tien: '',
-    ngay_can_tt: '', dien_giai: '',
+    loai_nghiep_vu: 'Chi phí', ngay_can_tt: '', dien_giai: '',
     hinh_thuc: 'Hoàn tiền cho nhân viên', nha_cung_cap: '', phuong_thuc: 'Chuyển khoản',
-    ten_tk: '', so_tk: '', ngan_hang: '',
-    chung_tu_thue: 'Không hoá đơn VAT', so_hoa_don: '', ngay_hoa_don: '', mst: ''
+    ten_tk: '', so_tk: '', ngan_hang: '', thuoc_tam_ung: '',
+    cac_khoan: [dncKhoanMoi()]
   };
+}
+
+/* Tra hai cờ của một loại chứng từ. Đọc từ DANH MỤC máy chủ gửi về, không so
+   chuỗi với chữ "Hoá đơn VAT": đổi tên một dòng danh mục thì ba ô hoá đơn
+   không được phép im lặng biến mất. */
+function dncCoCT(ten) {
+  return dncMoTu[(ten || '').trim()] || { la_hoa_don_vat: 0, bat_buoc_tep: 0 };
+}
+
+function dncTong(f) {
+  return ((f && f.cac_khoan) || []).reduce(function (t, k) {
+    return t + (Number(String(k.so_tien).replace(/[^0-9.-]/g, '')) || 0);
+  }, 0);
 }
 
 async function scrDeNghiChi() {
@@ -17763,6 +17793,8 @@ async function scrDeNghiChi() {
       frame('Đề nghị chi', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
       return;
     }
+    dncMoTu = {};
+    ((dncDm && dncDm.loai_chung_tu) || []).forEach(function (x) { dncMoTu[x.ten] = x; });
   }
   if (!dncForm) dncForm = dncMoi();
   var ds = { ds: [] };
@@ -17770,45 +17802,153 @@ async function scrDeNghiChi() {
   dncVe(ds.ds || []);
 }
 
+/* Đọc mọi ô đang hiện trên màn về lại đối tượng. Gọi trước MỌI lần vẽ lại,
+   nếu không thì chữ người ta vừa gõ bay mất khi bấm một cái chip. */
 function dncDoc() {
-  var g = function (id) { var o = document.getElementById(id); return o ? o.value : null; };
   var f = dncForm;
-  ['ten_khoan_chi', 'so_tien', 'ngay_can_tt', 'dien_giai', 'nha_cung_cap',
-   'ten_tk', 'so_tk', 'ngan_hang', 'so_hoa_don', 'ngay_hoa_don', 'mst'].forEach(function (k) {
+  var g = function (id) { var o = document.getElementById(id); return o ? o.value : null; };
+  ['ngay_can_tt', 'dien_giai', 'nha_cung_cap', 'ten_tk', 'so_tk'].forEach(function (k) {
     var v = g('dnc_' + k);
     if (v !== null) f[k] = v;
+  });
+  (f.cac_khoan || []).forEach(function (k) {
+    ['noi_dung', 'so_tien', 'so_hoa_don', 'ngay_hoa_don', 'mst', 'ten_ban', 'dia_chi_ban', 'ghi_chu'].forEach(function (o) {
+      var v = g('dnk_' + o + '_' + k.id);
+      if (v !== null) k[o] = v;
+    });
   });
   return f;
 }
 
+/* Cập nhật con số tổng NGAY trên màn, không vẽ lại cả trang.
+   Vẽ lại cả trang mỗi lần gõ một chữ số thì ô đang gõ mất con trỏ. */
+function dncNhayTong() {
+  var f = dncDoc();
+  var o = document.getElementById('dncTongSo');
+  if (o) o.textContent = money(dncTong(f)) + ' đ';
+  var c = document.getElementById('dncTongCanh');
+  if (c) {
+    var nguong = (dncDm && dncDm.nguong_giam_doc) || 2000000;
+    c.innerHTML = dncTong(f) >= nguong
+      ? 'Từ ' + money(nguong) + ' đ trở lên nên phiếu này cần <b>giám đốc duyệt thêm một cấp</b>.'
+      : 'Dưới ' + money(nguong) + ' đ nên phiếu đi thẳng từ mua hàng sang kế toán.';
+  }
+}
+
+/* Một khoản chi = một Thẻ. Cố ý KHÔNG dùng lưới: mười cột trên màn điện
+   thoại thì chữ bị cắt hoặc phải cuộn ngang, mà bạn bếp cầm máy một tay. */
+function dncTheKhoan(k, i, tong) {
+  var ct = dncCoCT(k.loai_chung_tu);
+  var o = function (id, nhan, gtri, kieu, gy) {
+    return '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">' + h(nhan) + '</div>' +
+      '<input class="tin" id="dnk_' + id + '_' + k.id + '"' +
+      (kieu ? ' type="' + kieu + '"' : '') +
+      (kieu === 'number' ? ' inputmode="numeric"' : '') +
+      (gy ? ' placeholder="' + h(gy) + '"' : '') +
+      ' value="' + h(gtri || '') + '"></div>';
+  };
+  var html = '<div class="card" data-kid="' + h(k.id) + '" style="padding:12px 14px;margin-bottom:10px;border:1.5px solid #e5e7eb">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">' +
+    '<span style="flex:none;background:#0f766e;color:#fff;border-radius:999px;width:24px;height:24px;' +
+    'display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800">' + i + '</span>' +
+    '<b style="flex:1;font-size:13.5px;color:#0f172a">Khoản chi ' + i + '</b>' +
+    (tong > 1
+      ? '<button class="dncXoa" data-kid="' + h(k.id) + '" style="flex:none;border:1.5px solid #fecaca;background:#fef2f2;' +
+        'color:#b3261e;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700">Xoá</button>'
+      : '') +
+    '</div>';
+
+  html += '<input class="tin" id="dnk_noi_dung_' + k.id + '" placeholder="Mua gì, chi cho việc gì" value="' +
+    h(k.noi_dung || '') + '" style="margin-bottom:8px">';
+  html += '<div style="display:flex;gap:8px;margin-bottom:9px">' + o('so_tien', 'Số tiền (đ)', k.so_tien, 'number') + '</div>';
+
+  html += '<button class="dncPl" data-kid="' + h(k.id) + '" style="width:100%;text-align:left;border:1.5px solid ' +
+    (k.phan_loai ? '#0f766e' : '#e5e7eb') + ';background:#fff;border-radius:11px;padding:11px 13px;font-size:14px;' +
+    'color:' + (k.phan_loai ? '#0f172a' : '#9ca3af') + ';font-weight:' + (k.phan_loai ? '600' : '400') + ';margin-bottom:8px">' +
+    (k.phan_loai ? h(k.phan_loai) : 'Chọn phân loại chi phí') + '</button>';
+
+  html += '<button class="dncCt" data-kid="' + h(k.id) + '" style="width:100%;text-align:left;border:1.5px solid ' +
+    (k.loai_chung_tu ? '#0f766e' : '#e5e7eb') + ';background:#fff;border-radius:11px;padding:11px 13px;font-size:14px;' +
+    'color:' + (k.loai_chung_tu ? '#0f172a' : '#9ca3af') + ';font-weight:' + (k.loai_chung_tu ? '600' : '400') + '">' +
+    (k.loai_chung_tu ? h(k.loai_chung_tu) : 'Chọn loại chứng từ đính kèm') + '</button>';
+
+  /* Ba ô hoá đơn chỉ hiện khi loại chứng từ mang CỜ hoá đơn VAT. */
+  if (ct.la_hoa_don_vat) {
+    html += '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e5e7eb">' +
+      '<div style="font-size:11.5px;color:#0f766e;font-weight:800;margin-bottom:7px">THÔNG TIN HOÁ ĐƠN VAT</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+      o('so_hoa_don', 'Số hoá đơn', k.so_hoa_don) +
+      o('ngay_hoa_don', 'Ngày hoá đơn', k.ngay_hoa_don, 'date') + '</div>' +
+      '<div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Mã số thuế người bán</div>' +
+      '<input class="tin dncMst" id="dnk_mst_' + k.id + '" data-kid="' + h(k.id) + '" inputmode="numeric" ' +
+      'placeholder="Gõ xong bấm ra ngoài, máy tự tra tên" value="' + h(k.mst || '') + '">' +
+      '<div id="dncMstNhac_' + k.id + '" style="font-size:11.5px;color:#98a2b3;margin-top:5px;line-height:1.55">' +
+      'Máy tra tên và địa chỉ công ty từ cổng thông tin. Tra không ra thì anh chị gõ tay, vẫn lưu được.</div>' +
+      '<input class="tin" id="dnk_ten_ban_' + k.id + '" placeholder="Tên người bán" value="' +
+      h(k.ten_ban || '') + '" style="margin-top:8px">' +
+      '<input class="tin" id="dnk_dia_chi_ban_' + k.id + '" placeholder="Địa chỉ người bán" value="' +
+      h(k.dia_chi_ban || '') + '" style="margin-top:8px">' +
+      '</div>';
+  }
+  return html + '</div>';
+}
+
 function dncVe(lichSu) {
   var f = dncForm, dm = dncDm || {};
+  var nguong = dm.nguong_giam_doc || 2000000;
   var chip = function (ten, ds, dang) {
     return '<div class="sec">' + ten + '</div><div class="card" style="padding:10px 12px">' +
       kmHangChip((ds || []).map(function (x) {
         return posChipNut('data-dnc="' + h(dang) + '|' + h(x) + '"', h(x), f[dang] === x);
       }).join('')) + '</div>';
   };
-  var laTamUng = f.loai_nghiep_vu === 'Tạm ứng';
+  var tong = dncTong(f);
+  var khoan = f.cac_khoan || [];
+
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.65;color:#374151">' +
     'Bạn ứng tiền túi mua đồ cho tiệm, hoặc cần công ty trả thẳng cho người bán thì lập phiếu ở đây. ' +
-    'Gửi xong Uyên nhận và chạy tiếp các bước duyệt. Khoản từ <b>' +
-    money(dm.nguong_giam_doc || 2000000) + ' đ</b> trở lên cần giám đốc duyệt thêm một cấp.</div>';
-
-  html += '<div class="sec">Khoản chi</div><div class="card" style="padding:12px 14px">' +
-    '<input class="tin" id="dnc_ten_khoan_chi" placeholder="Mua gì, chi cho việc gì" value="' + h(f.ten_khoan_chi) + '" style="margin-bottom:8px">' +
-    '<div style="display:flex;gap:8px">' +
-    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Số tiền (đ)</div>' +
-    '<input class="tin" id="dnc_so_tien" type="number" inputmode="numeric" value="' + h(f.so_tien) + '"></div>' +
-    '<div style="flex:1"><div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cần trả trước ngày</div>' +
-    '<input class="tin" id="dnc_ngay_can_tt" type="date" value="' + h(f.ngay_can_tt) + '"></div></div>' +
-    '<input class="tin" id="dnc_dien_giai" placeholder="Diễn giải thêm (không bắt buộc)" value="' + h(f.dien_giai) + '" style="margin-top:8px">' +
-    '</div>';
+    'Một phiếu ghi được <b>nhiều khoản</b>, đi chợ một buổi về thì gộp hết vào một phiếu, ' +
+    'không phải lập từng cái.</div>';
 
   html += chip('Loại nghiệp vụ', dm.loai_nghiep_vu, 'loai_nghiep_vu');
-  html += chip('Phân loại chi tiêu', laTamUng ? dm.phan_loai_tam_ung : dm.phan_loai, 'phan_loai');
-  html += chip('Ai nhận tiền', dm.hinh_thuc, 'hinh_thuc');
 
+  /* Hoàn ứng thì phải nói rõ hoàn cho lần tạm ứng nào, nếu không thì bảng
+     cấn trừ không bao giờ khớp. */
+  if (f.loai_nghiep_vu === 'Hoàn ứng') {
+    var tu = (dncTamUng || []).filter(function (x) { return x.ma === f.thuoc_tam_ung; })[0];
+    html += '<div class="sec">Cấn trừ tạm ứng</div><div class="card" style="padding:12px 14px">' +
+      '<button class="btn gh" id="dncTu" style="margin:0;width:100%;text-align:left">' +
+      (f.thuoc_tam_ung ? '🔗 ' + h(f.thuoc_tam_ung) : '🔗 Chọn phiếu tạm ứng cần hoàn') + '</button>';
+    if (tu) {
+      html += '<div style="font-size:12.5px;color:#374151;background:#f0fdf4;border:1px solid #a7f3d0;' +
+        'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
+        'Đã ứng <b>' + money(tu.da_ung) + ' đ</b>, đã hoàn <b>' + money(tu.da_hoan_ung) + ' đ</b>. ' +
+        h(tu.nhac || '') + '</div>';
+    }
+    html += '</div>';
+  }
+
+  /* ---- Bảng kê dạng Thẻ ---- */
+  html += '<div class="sec">Bảng kê khoản chi · ' + khoan.length + ' khoản</div>' +
+    khoan.map(function (k, i) { return dncTheKhoan(k, i + 1, khoan.length); }).join('') +
+    '<button class="btn gh" id="dncThem" style="margin:0 0 10px;width:100%">+ Thêm khoản chi</button>';
+
+  html += '<div class="card" style="padding:13px 14px;background:#f0fdfa;border:1.5px solid #99f6e4;margin-bottom:10px">' +
+    '<div style="display:flex;align-items:baseline;gap:10px">' +
+    '<div style="flex:1;font-size:13.5px;font-weight:700;color:#0f766e">Tổng tiền phiếu</div>' +
+    '<div id="dncTongSo" style="font-size:20px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div>' +
+    '<div id="dncTongCanh" style="font-size:11.5px;color:#0f766e;margin-top:5px;line-height:1.55">' +
+    (tong >= nguong
+      ? 'Từ ' + money(nguong) + ' đ trở lên nên phiếu này cần <b>giám đốc duyệt thêm một cấp</b>.'
+      : 'Dưới ' + money(nguong) + ' đ nên phiếu đi thẳng từ mua hàng sang kế toán.') + '</div></div>';
+
+  html += '<div class="sec">Thời hạn và diễn giải</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cần trả trước ngày</div>' +
+    '<input class="tin" id="dnc_ngay_can_tt" type="date" value="' + h(f.ngay_can_tt) + '" style="margin-bottom:8px">' +
+    '<input class="tin" id="dnc_dien_giai" placeholder="Diễn giải thêm (không bắt buộc)" value="' + h(f.dien_giai) + '"></div>';
+
+  html += chip('Ai nhận tiền', dm.hinh_thuc, 'hinh_thuc');
   if (f.hinh_thuc === 'Thanh toán cho nhà cung cấp') {
     html += '<div class="card" style="padding:12px 14px">' +
       '<input class="tin" id="dnc_nha_cung_cap" placeholder="Mã nhà cung cấp" value="' + h(f.nha_cung_cap) + '">' +
@@ -17820,24 +17960,22 @@ function dncVe(lichSu) {
     html += '<div class="card" style="padding:12px 14px">' +
       '<input class="tin" id="dnc_ten_tk" placeholder="Tên chủ tài khoản" value="' + h(f.ten_tk) + '" style="margin-bottom:8px">' +
       '<input class="tin" id="dnc_so_tk" placeholder="Số tài khoản" value="' + h(f.so_tk) + '" style="margin-bottom:8px">' +
-      '<input class="tin" id="dnc_ngan_hang" placeholder="Ngân hàng" value="' + h(f.ngan_hang) + '"></div>';
-  }
-
-  html += chip('Chứng từ thuế', dm.chung_tu_thue, 'chung_tu_thue');
-  if (f.chung_tu_thue === 'Có hoá đơn VAT') {
-    html += '<div class="card" style="padding:12px 14px">' +
-      '<input class="tin" id="dnc_so_hoa_don" placeholder="Số hoá đơn" value="' + h(f.so_hoa_don) + '" style="margin-bottom:8px">' +
-      '<input class="tin" id="dnc_ngay_hoa_don" type="date" value="' + h(f.ngay_hoa_don) + '" style="margin-bottom:8px">' +
-      '<input class="tin" id="dnc_mst" placeholder="Mã số thuế người bán" value="' + h(f.mst) + '"></div>';
+      /* Ngân hàng là NÚT mở bảng chọn có ô tìm, không phải ô gõ tự do: danh
+         mục NAPAS có 581 dòng và gõ tay thì sai chính tả là tệp chuyển tiền
+         MB Biz không nhận. */
+      '<button class="btn gh" id="dncNh" style="margin:0;width:100%;text-align:left;color:' +
+      (f.ngan_hang ? '#0f172a' : '#9ca3af') + '">' +
+      (f.ngan_hang ? '🏦 ' + h(f.ngan_hang) : '🏦 Chọn ngân hàng') + '</button></div>';
   }
 
   if ((lichSu || []).length) {
     html += '<div class="sec">Phiếu của tôi · ' + lichSu.length + '</div><div class="card">' +
       lichSu.slice(0, 12).map(function (x) {
         return '<div style="display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
-          '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(x.ten_khoan_chi || x.name) + '</b>' +
-          '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) + ' · ' + h(x.phan_loai || '') + '</div></div>' +
-          '<div style="text-align:right"><b style="font-size:13.5px">' + money(x.so_tien) + ' đ</b>' +
+          '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(x.tieu_de || x.ten_khoan_chi || x.name) + '</b>' +
+          '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) +
+          (x.so_khoan > 1 ? ' · ' + x.so_khoan + ' khoản' : '') + '</div></div>' +
+          '<div style="text-align:right"><b style="font-size:13.5px">' + money(x.tien != null ? x.tien : x.so_tien) + ' đ</b>' +
           '<div style="font-size:11px;font-weight:700;color:#6b7280">' + h(x.nhan_trang_thai || '') + '</div></div></div>';
       }).join('') + '</div>';
   }
@@ -17848,23 +17986,131 @@ function dncVe(lichSu) {
       '<button class="btn gh" id="dncNhap" style="margin:0;flex:1">💾 Lưu nháp</button></div>'
   });
 
+  /* Tổng nhảy theo thời gian thực khi gõ tiền. Chỉ đổi đúng con số, không
+     vẽ lại trang, để ô đang gõ không mất con trỏ. */
+  b.querySelectorAll('input[id^="dnk_so_tien_"]').forEach(function (n) {
+    n.oninput = dncNhayTong;
+  });
+
+  /* Tra mã số thuế khi rời ô. Luôn cho sửa tay: tra không ra thì hai ô tên
+     và địa chỉ vẫn gõ được như thường. */
+  b.querySelectorAll('.dncMst').forEach(function (n) {
+    n.onblur = function () { dncTraMst(n.getAttribute('data-kid'), n.value); };
+  });
+
   b.addEventListener('click', function (e) {
     var t = e.target.closest('[data-dnc]');
     if (!t) return;
     var p = t.getAttribute('data-dnc').split('|');
     dncDoc();
     dncForm[p[0]] = p[1];
-    /* Doi loai nghiep vu thi bang phan loai doi theo, nen phai xoa lua chon
-       cu - giu lai la luu xuong mot phan loai khong thuoc loai nay. */
-    if (p[0] === 'loai_nghiep_vu') dncForm.phan_loai = '';
+    if (p[0] === 'loai_nghiep_vu') {
+      /* Đổi loại nghiệp vụ thì bảng phân loại đổi theo, nên phải xoá lựa
+         chọn cũ ở mọi khoản - giữ lại là lưu xuống một phân loại không
+         thuộc loại này. */
+      (dncForm.cac_khoan || []).forEach(function (k) { k.phan_loai = ''; });
+      if (p[1] !== 'Hoàn ứng') dncForm.thuoc_tam_ung = '';
+    }
     dncVe(lichSu);
   });
 
+  var nThem = document.getElementById('dncThem');
+  if (nThem) nThem.onclick = function () {
+    dncDoc();
+    if ((dncForm.cac_khoan || []).length >= 200) {
+      return baoTin('Một phiếu tối đa 200 khoản. Anh chị tách ra làm nhiều phiếu giúp em.');
+    }
+    dncForm.cac_khoan.push(dncKhoanMoi());
+    dncVe(lichSu);
+  };
+
+  b.querySelectorAll('.dncXoa').forEach(function (n) {
+    n.onclick = async function () {
+      dncDoc();
+      var kid = n.getAttribute('data-kid');
+      var k = (dncForm.cac_khoan || []).filter(function (x) { return x.id === kid; })[0];
+      if (k && ((k.noi_dung || '').trim() || Number(k.so_tien) > 0)) {
+        if (!await hoiCo('Xoá khoản chi', 'Xoá "' + h(k.noi_dung || 'khoản này') + '" khỏi bảng kê?', 'Xoá', 1)) return;
+      }
+      dncForm.cac_khoan = (dncForm.cac_khoan || []).filter(function (x) { return x.id !== kid; });
+      if (!dncForm.cac_khoan.length) dncForm.cac_khoan = [dncKhoanMoi()];
+      dncVe(lichSu);
+    };
+  });
+
+  b.querySelectorAll('.dncPl').forEach(function (n) {
+    n.onclick = function () {
+      dncDoc();
+      var kid = n.getAttribute('data-kid');
+      var k = (dncForm.cac_khoan || []).filter(function (x) { return x.id === kid; })[0];
+      if (!k) return;
+      var ds = dncForm.loai_nghiep_vu === 'Tạm ứng' ? (dm.phan_loai_tam_ung || []) : (dm.phan_loai || []);
+      sheet('Phân loại chi phí', ds.map(function (x) { return { value: x, label: x }; }),
+        k.phan_loai || '', function (it) { k.phan_loai = it.value; dncVe(lichSu); }, true);
+    };
+  });
+
+  b.querySelectorAll('.dncCt').forEach(function (n) {
+    n.onclick = function () {
+      dncDoc();
+      var kid = n.getAttribute('data-kid');
+      var k = (dncForm.cac_khoan || []).filter(function (x) { return x.id === kid; })[0];
+      if (!k) return;
+      sheet('Loại chứng từ đính kèm',
+        ((dm.loai_chung_tu) || []).map(function (x) {
+          return {
+            value: x.ten, label: x.ten,
+            phu: (x.la_hoa_don_vat ? 'Có số hoá đơn và mã số thuế' : '') +
+                 (x.bat_buoc_tep ? (x.la_hoa_don_vat ? ' · ' : '') + 'Bắt buộc đính tệp' : '')
+          };
+        }),
+        k.loai_chung_tu || '', function (it) { k.loai_chung_tu = it.value; dncVe(lichSu); }, true);
+    };
+  });
+
+  var nNh = document.getElementById('dncNh');
+  if (nNh) nNh.onclick = function () {
+    dncDoc();
+    nhChon(dncForm.ngan_hang, function (v) { dncForm.ngan_hang = v; dncVe(lichSu); });
+  };
+
+  var nTu = document.getElementById('dncTu');
+  if (nTu) nTu.onclick = async function () {
+    dncDoc();
+    busy(true);
+    try { dncTamUng = (await api('vagabond.de_nghi_chi.tam_ung_cua_toi', {})).ds || []; }
+    catch (e4) { busy(false); return baoTin((e4 && e4.message) || 'Không đọc được danh sách tạm ứng'); }
+    busy(false);
+    if (!dncTamUng.length) {
+      return baoTin('Anh chị chưa có phiếu tạm ứng nào đã hoàn tất, nên chưa có gì để hoàn ứng. ' +
+        'Nếu khoản này không phải hoàn ứng thì đổi Loại nghiệp vụ sang Chi phí giúp em.', 'Chưa có tạm ứng');
+    }
+    sheet('Chọn phiếu tạm ứng',
+      dncTamUng.map(function (x) {
+        return { value: x.ma, label: x.ma + ' · ' + money(x.da_ung) + ' đ', phu: (x.ten || '') + ' · ' + (x.nhac || '') };
+      }),
+      dncForm.thuoc_tam_ung || '',
+      function (it) { dncForm.thuoc_tam_ung = it.value; dncVe(lichSu); }, true);
+  };
+
   var luu = async function (gui) {
     var f2 = dncDoc();
-    if (!(f2.ten_khoan_chi || '').trim()) return baoTin('Chưa đặt tên khoản chi.');
-    if (!(Number(f2.so_tien) > 0)) return baoTin('Chưa nhập số tiền.');
-    if (!f2.phan_loai) return baoTin('Chưa chọn phân loại chi tiêu.');
+    /* Nhắc CẢ danh sách còn thiếu trong một lần, không bắt sửa một cái rồi
+       bấm lại mới biết còn thiếu cái nữa. Máy chủ vẫn kiểm lại lần nữa. */
+    var thieu = [];
+    (f2.cac_khoan || []).forEach(function (k, i) {
+      var stt = 'Khoản ' + (i + 1);
+      if (!(k.noi_dung || '').trim()) thieu.push(stt + ': chưa ghi nội dung');
+      if (!(Number(k.so_tien) > 0)) thieu.push(stt + ': chưa nhập số tiền');
+      if (!k.phan_loai) thieu.push(stt + ': chưa chọn phân loại');
+      if (!k.loai_chung_tu) thieu.push(stt + ': chưa chọn loại chứng từ');
+      if (dncCoCT(k.loai_chung_tu).la_hoa_don_vat) {
+        if (!(k.so_hoa_don || '').trim()) thieu.push(stt + ': thiếu số hoá đơn');
+        if (!k.ngay_hoa_don) thieu.push(stt + ': thiếu ngày hoá đơn');
+        if (!(k.mst || '').trim()) thieu.push(stt + ': thiếu mã số thuế người bán');
+      }
+    });
+    if (thieu.length) return baoTin(thieu.join('\n'), 'Còn thiếu');
     busy(true);
     try {
       var r = await api('vagabond.de_nghi_chi.tao', { du_lieu: JSON.stringify(f2), gui_luon: gui ? 1 : 0 });
@@ -17876,6 +18122,44 @@ function dncVe(lichSu) {
   };
   document.getElementById('dncGui').onclick = function () { luu(1); };
   document.getElementById('dncNhap').onclick = function () { luu(0); };
+}
+
+/* Tra mã số thuế qua cổng thông tin, điền hộ tên và địa chỉ người bán.
+
+   Ba điều cố ý:
+   - KHÔNG ghi đè khi người ta đã tự gõ tên. Máy tra được một cái tên viết
+     hoa toàn bộ mà đè lên cái tên người ta vừa gõ đúng là một lần mất công.
+   - Tra không ra thì chỉ nhắc, không chặn. Hộ kinh doanh thường không có
+     trong cơ sở dữ liệu đăng ký doanh nghiệp, mà hoá đơn của họ vẫn hợp lệ.
+   - Chỉ vẽ lại đúng hai ô, không vẽ lại cả trang: người ta vừa rời ô mã số
+     thuế và rất có thể đang gõ ô kế tiếp. */
+async function dncTraMst(kid, mst) {
+  var k = ((dncForm && dncForm.cac_khoan) || []).filter(function (x) { return x.id === kid; })[0];
+  if (!k) return;
+  k.mst = (mst || '').trim();
+  var nhac = document.getElementById('dncMstNhac_' + kid);
+  var so = k.mst.replace(/[^0-9]/g, '');
+  if (so.length < 10) {
+    if (nhac && so.length) nhac.innerHTML = 'Mã số thuế phải 10, 12 hoặc 13 số. Anh chị kiểm lại giúp em.';
+    return;
+  }
+  if (nhac) nhac.innerHTML = 'Đang tra cổng thông tin...';
+  var r = null;
+  try { r = await api('vagabond.api.tra_mst', { mst: k.mst }); } catch (e) { r = null; }
+  var oTen = document.getElementById('dnk_ten_ban_' + kid);
+  var oDc = document.getElementById('dnk_dia_chi_ban_' + kid);
+  if (r && r.ok) {
+    if (oTen && !(oTen.value || '').trim()) { oTen.value = r.ten || ''; k.ten_ban = r.ten || ''; }
+    if (oDc && !(oDc.value || '').trim()) { oDc.value = r.dia_chi || ''; k.dia_chi_ban = r.dia_chi || ''; }
+    if (nhac) nhac.innerHTML = 'Đã tra được: <b>' + h(r.ten || '') + '</b>. Sai thì anh chị sửa tay bên dưới.';
+    return;
+  }
+  if (nhac) {
+    nhac.innerHTML = (r && r.ly_do === 'khong_tim_thay')
+      ? 'Không tìm thấy mã số thuế này trên cổng thông tin. Hộ kinh doanh thường không có ở đó, ' +
+        'anh chị gõ tay tên và địa chỉ bên dưới, phiếu vẫn lưu được bình thường.'
+      : 'Chưa tra được (mạng hoặc cổng thông tin đang bận). Anh chị gõ tay giúp em, phiếu vẫn lưu được.';
+  }
 }
 /* ===== Cai dat: chuoi cuoi ngay theo tung diem ban (anh Viet 12/08/2026) =====
 
