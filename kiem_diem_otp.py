@@ -3232,6 +3232,20 @@ _js33c = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
 la("co man Cai dat SePay", "async function scrSePay()" in _js33b, True)
 la("man SePay duoc noi vao menu", "if (k === 'CDSE') return go(scrSePay);" in _js33c, True)
 la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDSE'," in _js33c, True)
+# Nghiem thu that ngay 19/08/2026: goi tin mang header "Authorization" bi
+# CHINH FRAPPE tra 401 truoc khi vao toi diem nhan, vi Frappe doc header do
+# de tim khoa API cua no. Chi "X-Api-Key" moi vao duoc. Huong dan tren man
+# hinh la thu duy nhat anh Viet doc khi cau hinh ben SePay, nen no sai la
+# webhook khong bao gio nhan duoc goi nao ma khong ai hieu vi sao.
+la("man hinh huong dan dung header X-Api-Key", "X-Api-Key" in _js33b, True)
+la("man hinh noi ro khong duoc dung Authorization",
+   "Không dùng header <code>Authorization</code>" in _js33b, True)
+la("khong con huong dan Apikey trong Authorization",
+   "Apikey &lt;khoá&gt;" in _js33b, False)
+la("ma nguon ghi lai vi sao khong dung Authorization",
+   "KHONG DUNG HEADER \"Authorization\" voi diem nhan nay." in _se_src, True)
+la("diem nhan van doc duoc X-Api-Key", '"X-Api-Key"' in _se_src, True)
+
 la("man SePay ghep duong dan voi ten mien nguoi dung dang mo",
    "return location.origin + d.duong_dan_path;" in _js33b, True)
 # frappe.utils.get_url() tra ve ten mien noi bo cua Frappe Cloud, dan cho
