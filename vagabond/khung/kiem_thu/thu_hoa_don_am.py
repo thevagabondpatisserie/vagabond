@@ -218,3 +218,45 @@ def _():
 	goc = md.goc_dong_hang(UC_HOAN)
 	dung("đủ hai dòng là khớp", md.da_khop_roi(-36700000 + 17430000, goc))
 	dung("mới có dòng vé thì chưa khớp", not md.da_khop_roi(-36700000, goc))
+
+
+# ----------------------------------------- nguong cua bao cao doi soat
+
+@ca("ngưỡng: cổng chặn ghi sổ vẫn soi gắt một đồng, không được nới")
+def _():
+	# Hoa don dien tu la so da gui co quan thue. Cho nay khong bao gio noi.
+	la("lệch một đồng vẫn cho qua", md.chan_doan_lech(UC_MUA, 36700001, 0), "khop")
+	la("lệch hai đồng là chặn", md.chan_doan_lech(UC_MUA, 36700002, 0), "lech_khac")
+
+
+@ca("ngưỡng: báo cáo đối soát bỏ qua sai số làm tròn dưới 100 đồng")
+def _():
+	# Quet that 19/08/2026: 1.569 hoa don dau ra lech tu 1 den 100 dong, toan
+	# bo la lam tron. De nguong 1 dong thi chung nhan chim 108 ca that.
+	mot_phieu = lambda tong: [
+		{"ten": "X", "tong": tong, "tong_thue": 0, "docstatus": 1}]
+	la("lệch 7 đồng, báo cáo coi là khớp",
+		ds.xep_loai(UC_MUA, mot_phieu(36699993)), ds.KHOP)
+	la("lệch 99 đồng, vẫn khớp",
+		ds.xep_loai(UC_MUA, mot_phieu(36699901)), ds.KHOP)
+	la("lệch 150 đồng thì phải nhìn",
+		ds.xep_loai(UC_MUA, mot_phieu(36699850)), ds.LECH_KHAC)
+
+
+@ca("ngưỡng: gọi báo cáo với ngưỡng một đồng thì soi gắt như cổng")
+def _():
+	mot_phieu = [{"ten": "X", "tong": 36699993, "tong_thue": 0, "docstatus": 1}]
+	la("ngưỡng mặc định bỏ qua", ds.xep_loai(UC_MUA, mot_phieu), ds.KHOP)
+	la("ngưỡng một đồng thì bắt", ds.xep_loai(UC_MUA, mot_phieu, 1), ds.LECH_KHAC)
+
+
+@ca("ngưỡng: dấu ngược và thiếu dòng thuế không bị ngưỡng che mất")
+def _():
+	# Hai kieu sai nay khong bao gio la chuyen lam tron, nen du nguong nao
+	# cung phai loi ra.
+	la("Grab lật dấu", ds.xep_loai(GRAB, [
+		{"ten": "A", "tong": 52277861, "tong_thue": 0, "docstatus": 0}]),
+		ds.DAU_NGUOC)
+	la("Green Ball thiếu thuế", ds.xep_loai(GB, [
+		{"ten": "B", "tong": -372778, "tong_thue": 0, "docstatus": 0}]),
+		ds.THIEU_THUE)
