@@ -2794,6 +2794,30 @@ la("man hinh khong con dich Da huy thanh da huy",
 la("phieu bi tu choi van hien nut hoan tien",
    "truoc + '<div style=\"margin-top:10px\"><button id=\"dsvHoanTien\"" in _ds8_src, True)
 
+# --- 31c bis. Cau giai thich tran diem phai noi dung tran nao dang chan ---
+#
+# Nghiem thu tren site that 19/08/2026: khach Mr. Tri con 90.940 diem, bill
+# 200.000 d. Tran theo bill la 100.000 diem, so du 90.940, nen tran that la
+# 90.940. Con so in ra dung nhung cau giai thich lai ghi "bang 50% gia tri
+# bill" - doc xong thu ngan tuong 50% cua 200.000 la 90.940.
+_than_ttq = _do_src.split("def tinh_trang_quay(")[1].split("\ndef ")[0]
+la("tinh_trang_quay tra ve ca tran theo bill", '"tran_theo_bill"' in _than_ttq, True)
+la("tinh_trang_quay noi ro dang bi chan boi so du", '"do_so_du"' in _than_ttq, True)
+la("man hinh noi ly do khi so du chan", "vì khách chỉ còn ngần ấy điểm" in _km13_src, True)
+la("man hinh chi noi 50% khi dung la 50%", "bằng ' + money(tt.tran_pt) + '% giá trị bill." in _km13_src, True)
+
+# Phep tinh tran theo bill phai TRUNG voi tran_dung_duoc khi so du du lon.
+# Neu hai cong thuc lech nhau thi cau giai thich lai sai theo mot kieu khac.
+for _tong, _pt, _tt in ((200000, 50.0, 10000.0), (500000, 50.0, 10000.0),
+                        (30000, 50.0, 10000.0), (19000, 50.0, 10000.0)):
+	_tran_tien = _tong * _pt / 100.0
+	_con = _tong - _tt
+	if _con < _tran_tien:
+		_tran_tien = _con
+	_mong = int(max(0.0, _tran_tien))
+	la("tran theo bill %s d khop tran_dung_duoc" % _tong,
+	   tran_dung_duoc(_tong, 10 ** 9, 1.0, _pt, _tt), _mong)
+
 # --- 31d. Ham doc mau ZNS ---
 _zl_src = open("vagabond/zalo.py", encoding="utf-8").read()
 la("co ham doc mau ZNS", "def thu_mau(" in _zl_src, True)
