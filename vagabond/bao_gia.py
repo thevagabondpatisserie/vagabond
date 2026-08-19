@@ -1681,7 +1681,7 @@ def thong_tin_khach(khach):
 # Liberation Sans dung lam hang du: no do cung kich thuoc voi Arial va
 # co du dau tieng Viet, may nao thieu Arial thi roi vao no chu khong
 # roi vao mot phong khong co dau.
-PHONG = "Arial,'Liberation Sans',Helvetica,sans-serif"
+from vagabond.phong_chu import NGAN_XEP as PHONG  # noqa: E402
 VIEN = "1px solid #c9c4bd"
 LA_MA = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"]
 
@@ -2268,6 +2268,9 @@ def xuat_pdf(name):
 	"""To bao gia ra PDF A4 doc de gui khach."""
 	_quyen()
 	from frappe.utils.pdf import get_pdf
+	from vagabond.phong_chu import bao_dam_phong
+
+	bao_dam_phong()
 
 	# To bao gia di kem hop dong lam phu luc nen phai dung CHUNG mot phong
 	# voi hop dong. Quet bang dau sao cho moi the, xem chu thich dai o

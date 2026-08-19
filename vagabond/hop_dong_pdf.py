@@ -577,7 +577,12 @@ def _so_chu_en(n):
 # hay mot doan quen in nghieng. Bai hoc tu to bao gia 15/08/2026: khi co ba
 # cho ghep chu Anh thang vao HTML thi to in ra nua nghieng nua dung.
 
-FONT_TO = "Arial,'Liberation Sans',Helvetica,sans-serif"
+# Xau phong lay tu vagabond/phong_chu.py de bao gia va hop dong khong bao
+# gio lech nhau. Doc chu thich dai o day neu thac mac vi sao phai mang
+# theo bo phong rieng: server chi co Liberation Sans 1.07.4, ban do thieu
+# chu tieng Viet co dau thanh nen wkhtmltopdf muon tam DejaVu Sans cho
+# rieng nhung chu do, thanh ra hai kieu chu lech nhau trong cung mot tu.
+from vagabond.phong_chu import NGAN_XEP as FONT_TO  # noqa: E402
 
 # Anh Viet 18/08/2026, lan thu hai: *"hien tai van bi loi font (co ve no
 # khong phai la font ARIAL, anh dinh kem luon cho em cai font ne)"*.
@@ -1129,6 +1134,11 @@ def xuat_pdf(name, kem_phu_luc=1):
 	"""
 	_quyen()
 	from frappe.utils.pdf import get_pdf
+	from vagabond.phong_chu import bao_dam_phong
+
+	# Chep bo phong sang thu muc nguoi dung neu container nay chua co. Lan
+	# thu hai tro di chi ton mot phep kiem thu muc.
+	bao_dam_phong()
 
 	so_hd = frappe.db.get_value(DT, name, "so_hop_dong") or name
 	than = _html(name)
