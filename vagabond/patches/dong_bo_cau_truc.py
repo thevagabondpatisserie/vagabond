@@ -77,3 +77,21 @@ def execute():
 			frappe.logger().info("dong_bo_cau_truc: them %d ngan hang" % kq["them"])
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: nap danh muc ngan hang")
+
+	# Danh muc loai chung tu dinh kem, va chuyen phieu de nghi chi mot dong
+	# sang bang ke nhieu dong (anh Viet 19/08/2026).
+	#
+	# Chay lai duoc: chi tao dong danh muc con thieu, va chi chuyen phieu nao
+	# CHUA co dong nao trong bang ke.
+	try:
+		from vagabond import de_nghi_chi
+
+		de_nghi_chi.dung_danh_muc_chung_tu()
+		kq = de_nghi_chi.chuyen_phieu_mot_dong()
+		if kq.get("chuyen"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: chuyen %d phieu de nghi chi sang bang ke"
+				% kq["chuyen"]
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: chuyen de nghi chi sang bang ke")
