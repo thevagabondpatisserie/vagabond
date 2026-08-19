@@ -30,6 +30,7 @@
   "dong",
   "sec_tien",
   "tam_tinh",
+  "kieu_ck",
   "chiet_khau_pt",
   "chiet_khau_tien",
   "phi_giao",
@@ -205,6 +206,13 @@
    "fieldtype": "Currency",
    "label": "Cong tien hang",
    "read_only": 1
+  },
+  {
+   "fieldname": "kieu_ck",
+   "fieldtype": "Select",
+   "label": "Kieu chiet khau tong",
+   "options": "\nPhan tram\nSo tien",
+   "description": "De trong la hieu theo phan tram, dung y nhu truoc khi co tinh nang chiet khau theo so tien (19/08/2026)."
   },
   {
    "fieldname": "chiet_khau_pt",
@@ -428,7 +436,7 @@
   }
  ],
  "links": [],
- "modified": "2026-08-15 04:00:00.000000",
+ "modified": "2026-08-19 12:20:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Bao Gia Ban Hang",
