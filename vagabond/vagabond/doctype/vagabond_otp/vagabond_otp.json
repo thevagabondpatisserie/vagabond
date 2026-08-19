@@ -16,7 +16,11 @@
   "khach",
   "hoa_don",
   "so_diem",
-  "nguoi_xin"
+  "nguoi_xin",
+  "da_xac_thuc",
+  "han_dung",
+  "tong_bill",
+  "ghi_chu_bo"
  ],
  "fields": [
   {
@@ -85,11 +89,31 @@
    "fieldname": "nguoi_xin",
    "fieldtype": "Data",
    "label": "Nguoi xin ma"
+  },
+  {
+   "fieldname": "da_xac_thuc",
+   "fieldtype": "Check",
+   "label": "Da xac thuc (luong quay)"
+  },
+  {
+   "fieldname": "han_dung",
+   "fieldtype": "Datetime",
+   "label": "Han dung ve"
+  },
+  {
+   "fieldname": "tong_bill",
+   "fieldtype": "Currency",
+   "label": "Tong tam tinh luc xin ma"
+  },
+  {
+   "fieldname": "ghi_chu_bo",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu bo ve"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-08-07 08:40:00.000000",
+ "modified": "2026-08-19 09:50:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond OTP",
