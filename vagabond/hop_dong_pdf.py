@@ -274,15 +274,28 @@ def _ben_b():
 	from vagabond.bao_gia import _cd
 
 	c = _cd()
+	# Uu tien khoi NGUOI KY khai rieng cho hop dong; khong khai thi moi lui
+	# ve khoi nguoi lien he cua to bao gia.
+	#
+	# Anh Viet 18/08/2026: *"hien em dang lay thong tin email va so dien
+	# thoai cua Loan Anh gan cho anh la sao"*. Dung vay: ba o dai_dien_ban,
+	# dt_ban, email_ban la nguoi lien he cua to bao gia, Loan Anh khai ten
+	# minh vao do la dung viec cua no. To hop dong thi phai lay nguoi dat
+	# but ky, va so dien thoai email di kem phai la cua chinh nguoi do.
 	return {
 		"ten": c.get("ten_ban") or "CÔNG TY TNHH PATISSERIE VAGABOND",
 		"mst": c.get("mst_ban") or "",
 		"dia_chi": c.get("dia_chi_ban") or "",
-		"dai_dien": c.get("dai_dien_ban") or "",
-		"chuc_vu": c.get("chuc_vu_ban") or "Giám đốc",
-		"dien_thoai": c.get("dt_ban") or "",
-		"email": c.get("email_ban") or "",
+		"dai_dien": c.get("nguoi_ky_ban") or c.get("dai_dien_ban") or "",
+		"chuc_vu": c.get("chuc_vu_ky_ban") or c.get("chuc_vu_ban") or "Giám đốc",
+		"dien_thoai": c.get("dt_ky_ban") or c.get("dt_ban") or "",
+		"email": c.get("email_ky_ban") or c.get("email_ban") or "",
 		"ngan_hang": c.get("ngan_hang_vi") or "",
+		# Giu rieng de goi y cho man tao hop dong, khong lan voi o tren.
+		"ky_ten": c.get("nguoi_ky_ban") or "",
+		"ky_chuc_vu": c.get("chuc_vu_ky_ban") or "Giám đốc",
+		"ky_dt": c.get("dt_ky_ban") or "",
+		"ky_email": c.get("email_ky_ban") or "",
 	}
 
 
@@ -311,9 +324,19 @@ def chi_tiet(name):
 				"so_luong": flt(r.so_luong),
 				"don_gia": flt(r.don_gia),
 				"thanh_tien": flt(r.thanh_tien),
+				"thue_pt": flt(r.get("thue_pt")),
 			}
 			for r in (bg.dong or [])
 		]
+		# Bang tach thue cua to hop dong lay DUNG phep cua to bao gia, khong
+		# tu cong lai lan hai: hai noi cung cong thi hai noi se lech nhau
+		# vao mot ngay khong ai doan truoc.
+		try:
+			from vagabond.bao_gia import tom_tat_thue as _tt_bg
+
+			d["tom_tat_thue"] = _tt_bg(bg.as_dict())
+		except Exception:
+			d["tom_tat_thue"] = None
 		d["bg_thue_pt"] = flt(bg.thue_pt)
 		d["bg_gia_da_gom_vat"] = cint(bg.gia_da_gom_vat)
 		d["bg_giao_hang"] = bg.giao_hang or ""
@@ -337,9 +360,22 @@ def chi_tiet(name):
 def _bang_hang(d):
 	"""Bang Dieu 1. Lay tung dong tu bao gia nguon neu con, khong thi mot dong gop."""
 	dong = d.get("dong_bao_gia") or []
+	# To tron nhieu muc thue thi KHONG duoc ghi mot con so phan tram o day:
+	# ghi "da gom VAT 8%" trong khi trong bang co ca dong 10% va dong 0% la
+	# noi sai voi khach. Truong hop do chi ghi "da gom VAT", con chi tiet
+	# tung muc nam o cac dong tach thue ngay duoi.
+	tt0 = d.get("tom_tat_thue") or None
+	nhieu_muc = bool(tt0) and len([
+		m for m in tt0["theo_muc"] if flt(m["tien_hang"]) or flt(m["tien_thue"])
+	]) > 1
 	vat = ""
 	if d.get("bg_gia_da_gom_vat") or flt(d.get("bg_thue_pt")):
-		vat = "<br>(đã gồm VAT %s%%)" % (_tien_vn(d.get("bg_thue_pt")) if flt(d.get("bg_thue_pt")) else "8")
+		if nhieu_muc:
+			vat = "<br>(đã gồm VAT)"
+		else:
+			vat = "<br>(đã gồm VAT %s%%)" % (
+				_tien_vn(d.get("bg_thue_pt")) if flt(d.get("bg_thue_pt")) else "8"
+			)
 	def _th(vi, en, rong="", canh="center"):
 		return (
 			'<th style="border:1px solid #000;padding:5px 6px;text-align:%s;%s">'
@@ -389,6 +425,38 @@ def _bang_hang(d):
 		'<td style="border:1px solid #000;padding:5px 6px;text-align:right;font-weight:bold">%s</td></tr>'
 		% (vat.replace("<br>", " "), _tien_vn(d.get("gia_tri")))
 	)
+	# Ba dong khach hay hoi, in ngay duoi dong TONG TIEN (anh Viet
+	# 18/08/2026): *"nhieu khach ho yeu cau so tien truoc thue va so tien
+	# sau thue, so tien thue"*.
+	if tt0:
+		def _dong_cong(vi, en, tien, dam=False):
+			return (
+				'<tr><td colspan="5" style="border:1px solid #000;padding:4px 6px;'
+				'text-align:right;%s">%s'
+				'<div style="font-style:italic;color:#555;font-weight:normal;'
+				'font-size:10px">%s</div></td>'
+				'<td style="border:1px solid #000;padding:4px 6px;text-align:right;%s">%s</td></tr>'
+				% ("font-weight:bold" if dam else "", _esc(vi), _esc(en),
+				   "font-weight:bold" if dam else "", _tien_vn(tien))
+			)
+
+		muc = [m for m in tt0["theo_muc"] if flt(m["tien_hang"]) or flt(m["tien_thue"])]
+		tong += _dong_cong("Cộng tiền hàng chưa thuế", "Subtotal excluding VAT", tt0["tien_hang"])
+		if len(muc) > 1:
+			for m in muc:
+				tong += _dong_cong(
+					"Thuế GTGT %g%% trên %s" % (flt(m["thue_pt"]), _tien_vn(m["tien_hang"])),
+					"VAT %g%%" % flt(m["thue_pt"]), m["tien_thue"],
+				)
+			tong += _dong_cong("Cộng tiền thuế GTGT", "Total VAT", tt0["tien_thue"])
+		else:
+			tong += _dong_cong(
+				"Thuế GTGT %g%%" % (flt(muc[0]["thue_pt"]) if muc else 0),
+				"VAT", tt0["tien_thue"],
+			)
+		tong += _dong_cong(
+			"TỔNG CỘNG ĐÃ GỒM THUẾ", "Total including VAT", tt0["tong_cong"], dam=True
+		)
 	return (
 		'<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0">'
 		+ th + "".join(hang) + tong + "</table>"
@@ -511,6 +579,38 @@ def _so_chu_en(n):
 
 FONT_TO = "Arial,'Liberation Sans',Helvetica,sans-serif"
 
+# Anh Viet 18/08/2026, lan thu hai: *"hien tai van bi loi font (co ve no
+# khong phai la font ARIAL, anh dinh kem luon cho em cai font ne)"*.
+#
+# Em da tai mot to PDF THAT do site sinh ra ve roi doc xem trong do nhung
+# nhung phong gi. Ket qua:
+#
+#     LiberationSans, LiberationSans-Bold, LiberationSans-Italic,
+#     LiberationSans-BoldItalic, DejaVuSans, DejaVuSans-Bold
+#
+# Doc ra hai dieu. Mot, may chu CO SAN Liberation Sans du bon kieu. Do la
+# ban thay the do rong khop tung ly voi Arial, in ra nhin nhu Arial that,
+# nen khai "Arial" roi de fontconfig thay bang no la dung y do. Khong
+# thieu phong.
+#
+# Hai, VAN CON mot phan chu roi ve DejaVu Sans. Do moi la cho anh nhin ra
+# "loi font": trong cung mot to co hai kieu chu. Nguyen nhan la cau CSS cu
+# chi liet ke mot so the (body, td, th, div, p, span, b, i, table). The nao
+# ngoai danh sach do - li, ul, strong, em, small, h1 den h6 - thi khong
+# nhan font-family nao ca va roi ve phong mac dinh cua may chu.
+#
+# Da thu huong nhet phong vao tep: wkhtmltopdf ve chu thanh duong thay vi
+# nhung phong, to hop dong phinh tu 69 KB len 3,4 MB va khong con copy
+# duoc chu. May chu da co san phong thi khong dang doi nhu vay.
+def khung_style(phong=None):
+	"""Cau CSS ap font cho MOI the trong to in.
+
+	Dung dau sao chu khong liet ke ten the: chi can mot the nam ngoai danh
+	sach la cho do roi ve phong khac, va trong mot to hop dong thi hai kieu
+	chu canh nhau nhin ra ngay.
+	"""
+	return "*{font-family:%s}" % (phong or FONT_TO)
+
 
 def _en(chu):
 	"""Mot doan tieng Anh: in nghieng, mau nhat hon. Rong thi tra ve rong."""
@@ -555,14 +655,22 @@ def _html(name):
 	# Sales ra roi ky gui khach.
 	b["dai_dien"] = (d.get("nguoi_ky_b") or "").strip()
 	b["chuc_vu"] = (d.get("chuc_vu_ky_b") or "").strip() or "Giám đốc"
+	# So dien thoai va email in canh ten phai la CUA CHINH NGUOI KY do,
+	# khong thi to hop dong ghi ten Giam doc ma so may thi cua ban Sales.
+	if (d.get("dt_ky_b") or "").strip():
+		b["dien_thoai"] = d["dt_ky_b"].strip()
+	if (d.get("email_ky_b") or "").strip():
+		b["email"] = d["email_ky_b"].strip()
+	# Ben A cung mot luat: khai nguoi ky rieng thi in nguoi do, khong khai
+	# thi lui ve nguoi lien he chup tu to bao gia.
 	a = {
 		"ten": d.get("ten_khach"),
 		"mst": d.get("ma_so_thue"),
 		"dia_chi": d.get("dia_chi"),
-		"dai_dien": d.get("dai_dien"),
-		"chuc_vu": d.get("chuc_vu"),
-		"dien_thoai": d.get("dien_thoai"),
-		"email": d.get("email"),
+		"dai_dien": (d.get("nguoi_ky_a") or "").strip() or d.get("dai_dien"),
+		"chuc_vu": (d.get("chuc_vu_ky_a") or "").strip() or d.get("chuc_vu"),
+		"dien_thoai": (d.get("dt_ky_a") or "").strip() or d.get("dien_thoai"),
+		"email": (d.get("email_ky_a") or "").strip() or d.get("email"),
 	}
 	so = d.get("so_hop_dong") or d["so_goi_y"]
 	pt1 = flt(d.get("dat_coc_pt"))
@@ -1033,11 +1141,10 @@ def xuat_pdf(name, kem_phu_luc=1):
 	# ma ban PDF khong co bo chu do day du cho tieng Viet.
 	khung = (
 		"<html><head><meta charset='utf-8'>"
-		"<style>@page{margin:14mm 12mm}"
-		"body,td,th,div,p,span,b,i,table{font-family:%s}"
+		"<style>@page{margin:14mm 12mm}%s"
 		"body{margin:0}p{margin:5px 0}"
 		"table{page-break-inside:auto}tr{page-break-inside:avoid}</style>"
-		"</head><body>" % FONT_TO
+		"</head><body>" % khung_style()
 	) + than + "</body></html>"
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
 	return {
@@ -1104,7 +1211,7 @@ def gui_email(name, email=None, loi_nhan=None):
 	tep = xuat_pdf(name)
 	so = d.get("so_hop_dong") or name
 	than = (
-		'<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+		'<div style="font-family:Arial,Liberation Sans,Helvetica,sans-serif;font-size:14px;'
 		'line-height:1.6;color:#1c1a17">'
 		"<p>Kính gửi Quý khách %s,</p>"
 		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách <b>Hợp đồng mua bán hàng hóa "

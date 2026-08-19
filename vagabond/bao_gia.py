@@ -193,6 +193,21 @@ LOI_NHAN_MAU = (
 	"Bên em có thể điều chỉnh menu theo yêu cầu riêng của Quý khách ạ.",
 )
 
+# Cau goi y RIENG cho thu gui HOP DONG, khac bo cua bao gia vi hai buoc noi
+# hai chuyen khac nhau: bao gia con thuong luong gia, hop dong da chot gia
+# va chi con soat dieu khoan roi ky.
+#
+# Anh Viet 18/08/2026: *"em tao ra khoang 5 chip nhung loi nhan than thu
+# thuong hay su dung nhat de sales chi viec lua chon chu khong phai go"*.
+LOI_NHAN_HD_MAU = (
+	"Anh chị xem giúp em phần Điều 2 rồi phản hồi trước thứ Sáu ạ.",
+	"Anh chị ký đóng dấu rồi gửi lại bên em một bản scan giúp em ạ.",
+	"Bên em đã đính kèm báo giá đã chốt làm Phụ lục 01 của Hợp đồng ạ.",
+	"Sau khi nhận cọc đợt 1 bên em sẽ lên lịch sản xuất ngay ạ.",
+	"Anh chị cần điều chỉnh chỗ nào thì báo em, bên em gửi lại bản mới ạ.",
+	"Bản cứng bên em sẽ gửi kèm khi giao hàng để hai bên ký đối ạ.",
+)
+
 TRUONG_CAI_DAT = {
 	"Bao Gia Cai Dat": [
 		{
@@ -218,6 +233,14 @@ TRUONG_CAI_DAT = {
 			"default": "\n".join(LOI_NHAN_MAU),
 			"description": "Mỗi dòng một câu, hiện thành chip bấm nhanh. "
 						   "Viết {ngay} thì app thay bằng ngày hết hiệu lực.",
+		},
+		{
+			"fieldname": "loi_nhan_hd_mau",
+			"label": "Câu gợi ý cho thư gửi Hợp đồng",
+			"fieldtype": "Small Text", "insert_after": "loi_nhan_mau",
+			"default": "\n".join(LOI_NHAN_HD_MAU),
+			"description": "Mỗi dòng một câu, hiện thành chip bấm nhanh ở "
+						   "bước gửi hợp đồng. Khác bộ câu của báo giá.",
 		},
 	]
 }
@@ -293,6 +316,14 @@ MAC_DINH = {
 	"chuc_vu_ban": "",
 	"dt_ban": "",
 	"email_ban": "",
+	# Nguoi KY hop dong cua Ben B, khac han bon o phia tren. Anh Viet
+	# 18/08/2026: *"hien em dang lay thong tin email va so dien thoai cua
+	# Loan Anh gan cho anh la sao"*. Khai mot lan o day, moi hop dong sau
+	# tu dien.
+	"nguoi_ky_ban": "",
+	"chuc_vu_ky_ban": "Giám đốc",
+	"dt_ky_ban": "",
+	"email_ky_ban": "",
 }
 
 # Bo mau khoi dau. Moi mau chi khai NHUNG O NO MUON DOI so voi to trang;
@@ -460,6 +491,7 @@ def _cd():
 	ra["email_gui"] = (d.get("email_gui") or "").strip() or EMAIL_GUI_MAC_DINH
 	ra["cc_noi_bo"] = _tach_dong(d.get("cc_noi_bo")) or list(CC_NOI_BO_MAC_DINH)
 	ra["loi_nhan_mau"] = _tach_dong(d.get("loi_nhan_mau")) or list(LOI_NHAN_MAU)
+	ra["loi_nhan_hd_mau"] = _tach_dong(d.get("loi_nhan_hd_mau")) or list(LOI_NHAN_HD_MAU)
 	return ra
 
 
@@ -497,6 +529,111 @@ def _tach_email(chuoi):
 # ------------------------------------------------------------------- doc so
 
 
+# ------------------------------------------------------------- tach thue
+#
+# Anh Viet 18/08/2026: *"phan thue cua cac mat hang tren bao gia va tren hop
+# dong lam sao de co the tach ra duoc dong thue rieng vi cac mon cua
+# Vagabond la luon bao gom thue nen can phai chia nguoc ra. Nhieu khach ho
+# yeu cau so tien truoc thue va so tien sau thue, so tien thue. Dong thoi
+# khi chiet khau thi phai chiet khau tren so tien truoc thue, roi moi tinh
+# thue vao."*
+#
+# MOT DIEU VE THU TU CAN NOI RO
+# Voi chiet khau tinh bang PHAN TRAM, tinh tren gia gom thue hay tren gia
+# truoc thue deu ra CUNG mot tong, vi ca hai deu la phep nhan. Tong gom VAT
+# 8% la 10.800.000 chiet khau 10%: duong nao cung ra hang 9.000.000, thue
+# 720.000, tong 9.720.000. Cai doi khong phai so tien ma la TO IN RA CO CHO
+# GHI ba con so do hay khong.
+#
+# Cho thu tu SAI THAT nam o day: chiet khau cua ca to phai duoc chia nguoc
+# ve tung dong TRUOC khi tach thue tung dong. Khong lam buoc do thi tien
+# thue duoc tinh tren nen chua tru chiet khau, tuc khai thue cao hon thuc
+# thu, ma nhin con so van thay hop ly.
+
+
+def phan_bo_chiet_khau(cac_tien, tong_ck):
+	"""Chia chiet khau cua ca to ve tung dong theo ti le. THUAN.
+
+	Dong CUOI nhan phan du, nen tong cac phan chia LUON bang dung tong_ck,
+	khong bao gio lech mot dong vi lam tron.
+	"""
+	tien = [flt(x) for x in (cac_tien or [])]
+	tong = sum(tien)
+	ck = flt(tong_ck)
+	if not tien:
+		return []
+	if tong <= 0 or ck <= 0:
+		return [0.0] * len(tien)
+	ra, da = [], 0.0
+	for i, t in enumerate(tien):
+		x = (ck - da) if i == len(tien) - 1 else round(ck * t / tong, 0)
+		ra.append(x)
+		da += x
+	return ra
+
+
+def tach_thue(nen, pt, da_gom):
+	"""Tach mot so tien thanh (tien hang, tien thue). THUAN.
+
+	da_gom True nghia la so dua vao DA gom thue, phai chia nguoc ra bang
+	cong thuc thue = nen x pt / (100 + pt).
+
+	Phan du cua phep lam tron luon roi vao TIEN THUE chu khong roi vao tien
+	hang. Ly do: con so neo la tong da gom thue - do la so khach tra va la
+	so da in tren to bao gia khach cam. Tien hang cong tien thue phai bang
+	dung con so neo do, khong duoc lech mot dong.
+	"""
+	n = flt(nen)
+	p = flt(pt)
+	if p <= 0:
+		return (n, 0.0)
+	if da_gom:
+		hang = round(n * 100.0 / (100.0 + p), 0)
+		return (hang, n - hang)
+	return (n, round(n * p / 100.0, 0))
+
+
+def bang_thue(dong, ck_to=0, phi_giao=0, phi_giao_pt=0, da_gom=1):
+	"""Tach thue cho ca to bao gia. THUAN, khong doc co so du lieu.
+
+	Phep bat bien: tien_hang + tien_thue phai bang dung tong_cong. Ca kiem
+	soi dung cho nay, vi do la cho de vo nhat khi lam tron.
+	"""
+	ds = list(dong or [])
+	tien = [flt(x.get("thanh_tien")) for x in ds]
+	tru = phan_bo_chiet_khau(tien, ck_to)
+	chi_tiet, theo_muc = [], {}
+	t_hang = t_thue = 0.0
+	for i, x in enumerate(ds):
+		nen = tien[i] - tru[i]
+		pt = flt(x.get("thue_pt"))
+		hang, thue = tach_thue(nen, pt, da_gom)
+		chi_tiet.append({"thue_pt": pt, "nen": nen, "tien_hang": hang, "tien_thue": thue})
+		g = theo_muc.setdefault(pt, {"thue_pt": pt, "tien_hang": 0.0, "tien_thue": 0.0})
+		g["tien_hang"] += hang
+		g["tien_thue"] += thue
+		t_hang += hang
+		t_thue += thue
+	# Phi giao la truong cua TO chu khong phai mot dong, nen di rieng va co
+	# muc thue rieng. Chiet khau to khong an vao phi giao.
+	pg = flt(phi_giao)
+	if pg:
+		ppt = flt(phi_giao_pt)
+		hang, thue = tach_thue(pg, ppt, da_gom)
+		g = theo_muc.setdefault(ppt, {"thue_pt": ppt, "tien_hang": 0.0, "tien_thue": 0.0})
+		g["tien_hang"] += hang
+		g["tien_thue"] += thue
+		t_hang += hang
+		t_thue += thue
+	return {
+		"chi_tiet": chi_tiet,
+		"theo_muc": [theo_muc[k] for k in sorted(theo_muc)],
+		"tien_hang": t_hang,
+		"tien_thue": t_thue,
+		"tong_cong": t_hang + t_thue,
+	}
+
+
 def _tinh(doc):
 	"""Cong lai toan bo con so tren to bao gia, tinh o may chu.
 
@@ -514,6 +651,27 @@ def _tinh(doc):
 	doc.tam_tinh = tam
 	doc.chiet_khau_tien = round(tam * flt(doc.chiet_khau_pt) / 100.0, 0)
 	sau_ck = tam - doc.chiet_khau_tien
+
+	# NHANH MOI: thue khai theo tung dong, tach ra tien hang va tien thue.
+	# To cu de trong o kieu_thue thi doc la "Theo to (cu)" va chay dung
+	# nhanh duoi, con so khong doi mot dong. Khong co lenh nao chay len du
+	# lieu qua khu.
+	if (doc.get("kieu_thue") or "") == "Theo từng dòng":
+		bt = bang_thue(
+			[
+				{"thanh_tien": flt(d.thanh_tien), "thue_pt": flt(d.thue_pt)}
+				for d in (doc.get("dong") or [])
+			],
+			ck_to=doc.chiet_khau_tien,
+			phi_giao=flt(doc.phi_giao),
+			phi_giao_pt=flt(doc.get("thue_phi_giao_pt")),
+			da_gom=1 if doc.gia_da_gom_vat else 0,
+		)
+		doc.thue_tien = bt["tien_thue"]
+		doc.tong_cong = bt["tong_cong"]
+		doc.dat_coc_tien = round(doc.tong_cong * flt(doc.dat_coc_pt) / 100.0, 0)
+		return doc
+
 	if doc.gia_da_gom_vat:
 		doc.thue_tien = 0
 		doc.tong_cong = sau_ck + flt(doc.phi_giao)
@@ -524,6 +682,27 @@ def _tinh(doc):
 	return doc
 
 
+def tom_tat_thue(doc):
+	"""Bang Tom tat thue cua mot to. Tinh luc IN, khong luu xuong o dia.
+
+	Khong luu la co y: bang nay chi la phep gom cac dong lai, ma thue_tien
+	cua to duoc DINH NGHIA bang chinh tong do. Luu xuong thanh hai ban ghi
+	roi la co ngay hai con so co the lech nhau vao mot ngay nao do.
+	"""
+	if (doc.get("kieu_thue") or "") != "Theo từng dòng":
+		return None
+	return bang_thue(
+		[
+			{"thanh_tien": flt(d.get("thanh_tien")), "thue_pt": flt(d.get("thue_pt"))}
+			for d in (doc.get("dong") or [])
+		],
+		ck_to=flt(doc.get("chiet_khau_tien")),
+		phi_giao=flt(doc.get("phi_giao")),
+		phi_giao_pt=flt(doc.get("thue_phi_giao_pt")),
+		da_gom=1 if doc.get("gia_da_gom_vat") else 0,
+	)
+
+
 F_CHU = (
 	"ten", "ten_en", "khach_hang", "ten_khach", "ma_so_thue", "dia_chi",
 	"nguoi_lien_he", "chuc_vu", "dien_thoai", "email", "loi_mo", "loi_mo_en",
@@ -531,8 +710,9 @@ F_CHU = (
 	"chinh_sach_huy_vi", "chinh_sach_huy_en", "luu_y_vi", "luu_y_en",
 	"giao_hang", "dong_goi", "ghi_chu", "ghi_chu_noi_bo",
 	"ten_nguoi_lap_in", "chuc_vu_lap", "dt_nguoi_lap", "email_lap",
+	"kieu_thue",
 )
-F_SO = ("chiet_khau_pt", "thue_pt", "phi_giao", "dat_coc_pt")
+F_SO = ("chiet_khau_pt", "thue_pt", "phi_giao", "dat_coc_pt", "thue_phi_giao_pt")
 F_CO = ("song_ngu", "gia_da_gom_vat")
 F_DONG = (
 	"loai", "ma_mon", "ma_tv", "ten_mon", "ten_en", "dvt", "dvt_en", "hinh",
@@ -579,6 +759,11 @@ def _goi(doc):
 		"thue_tien": flt(doc.thue_tien),
 		"tong_cong": flt(doc.tong_cong),
 		"dat_coc_tien": flt(doc.dat_coc_tien),
+		"kieu_thue": doc.get("kieu_thue") or "Theo tờ (cũ)",
+		"thue_phi_giao_pt": flt(doc.get("thue_phi_giao_pt")),
+		# Bang Tom tat thue, TINH LUC DOC chu khong luu. Man hinh chi viec
+		# ve, khong tu cong lai - hai noi cung cong thi hai noi se lech.
+		"tom_tat_thue": tom_tat_thue(doc),
 	})
 	# Phien ban. May chu tra luon KET LUAN "to nay con sua duoc khong" chu
 	# khong de app tu suy tu trang thai: mot ngay nao do luat sua doi thi chi
@@ -598,6 +783,7 @@ def _goi(doc):
 			"so_luong": flt(d.so_luong),
 			"don_gia": flt(d.don_gia),
 			"chiet_khau": flt(d.chiet_khau),
+			"thue_pt": flt(d.thue_pt),
 			"thanh_tien": flt(d.thanh_tien),
 		})
 		ra["dong"].append(x)
@@ -831,6 +1017,12 @@ def _do_vao(doc, d):
 		row["so_luong"] = flt(x.get("so_luong")) or 1
 		row["don_gia"] = flt(x.get("don_gia"))
 		row["chiet_khau"] = flt(x.get("chiet_khau"))
+		# Dong khong khai muc thue thi lay muc cua to, de sales khong phai
+		# go lai tung dong khi ca to cung mot muc.
+		row["thue_pt"] = (
+			flt(x.get("thue_pt")) if x.get("thue_pt") not in (None, "")
+			else flt(doc.thue_pt)
+		)
 		doc.append("dong", row)
 	if not doc.get("dong"):
 		frappe.throw("Báo giá phải có ít nhất một dòng sản phẩm.")
@@ -1184,7 +1376,9 @@ def cd_luu(du_lieu):
 	doc = frappe.get_single(DT_CD)
 	for f in (
 		"ten_ban", "mst_ban", "dia_chi_ban", "web_ban", "dai_dien_ban",
-		"chuc_vu_ban", "dt_ban", "email_ban", "loi_mo_vi", "loi_mo_en",
+		"chuc_vu_ban", "dt_ban", "email_ban",
+		"nguoi_ky_ban", "chuc_vu_ky_ban", "dt_ky_ban", "email_ky_ban",
+		"loi_mo_vi", "loi_mo_en",
 		"thanh_toan_vi", "thanh_toan_en", "ngan_hang_vi", "ngan_hang_en",
 		"yeu_cau_vi", "yeu_cau_en", "chinh_sach_huy_vi", "chinh_sach_huy_en",
 		"luu_y_vi", "luu_y_en",
@@ -1820,7 +2014,8 @@ def _html(name=None, d=None):
 			)
 		)
 
-	if flt(d["chiet_khau_tien"]) or flt(d["phi_giao"]) or flt(d["thue_tien"]):
+	if (flt(d["chiet_khau_tien"]) or flt(d["phi_giao"]) or flt(d["thue_tien"])
+			or d.get("tom_tat_thue")):
 		ra.append(dong_cong("Cộng tiền hàng", "Subtotal", d["tam_tinh"]))
 	if flt(d["chiet_khau_tien"]):
 		ra.append(dong_cong(
@@ -1828,7 +2023,25 @@ def _html(name=None, d=None):
 		))
 	if flt(d["phi_giao"]):
 		ra.append(dong_cong("Phí giao hàng", "Delivery fee", d["phi_giao"]))
-	if flt(d["thue_tien"]):
+	# Ba dong khach hay hoi (anh Viet 18/08/2026): *"nhieu khach ho yeu cau
+	# so tien truoc thue va so tien sau thue, so tien thue"*. Tron nhieu muc
+	# thue thi in them mot dong cho tung muc.
+	tt = d.get("tom_tat_thue") or None
+	if tt:
+		muc = [m for m in tt["theo_muc"] if flt(m["tien_hang"]) or flt(m["tien_thue"])]
+		ra.append(dong_cong("Cộng tiền hàng chưa thuế", "Subtotal excluding VAT", tt["tien_hang"]))
+		if len(muc) > 1:
+			for m in muc:
+				ra.append(dong_cong(
+					"Thuế GTGT %g%% trên %s" % (flt(m["thue_pt"]), _tien_vn(m["tien_hang"])),
+					"VAT %g%%" % flt(m["thue_pt"]), m["tien_thue"],
+				))
+			ra.append(dong_cong("Cộng tiền thuế GTGT", "Total VAT", tt["tien_thue"]))
+		else:
+			ra.append(dong_cong(
+				"Thuế GTGT %g%%" % (flt(muc[0]["thue_pt"]) if muc else 0), "VAT", tt["tien_thue"]
+			))
+	elif flt(d["thue_tien"]):
 		ra.append(dong_cong("Thuế GTGT %g%%" % flt(d["thue_pt"]), "VAT", d["thue_tien"]))
 	ra.append(dong_cong("TỔNG TIỀN TẠM TÍNH", "Estimated Total", d["tong_cong"], dam=True))
 	ra.append("</table>")
@@ -2048,9 +2261,14 @@ def xuat_pdf(name):
 	_quyen()
 	from frappe.utils.pdf import get_pdf
 
+	# To bao gia di kem hop dong lam phu luc nen phai dung CHUNG mot phong
+	# voi hop dong. Quet bang dau sao cho moi the, xem chu thich dai o
+	# hop_dong_pdf.khung_style.
+	from vagabond.hop_dong_pdf import khung_style
+
 	khung = (
 		"<html><head><meta charset='utf-8'>"
-		"<style>@page{margin:11mm 9mm}body{margin:0}"
+		"<style>@page{margin:11mm 9mm}body{margin:0}" + khung_style(PHONG) +
 		"table{page-break-inside:auto}tr{page-break-inside:avoid}</style>"
 		"</head><body>" + _html(name) + "</body></html>"
 	)
@@ -2116,7 +2334,7 @@ def gui_email(name, email=None, loi_nhan=None):
 
 	tep = xuat_pdf(name)
 	than = (
-		'<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;'
+		'<div style="font-family:Arial,Liberation Sans,Helvetica,sans-serif;font-size:14px;'
 		'line-height:1.6;color:#1c1a17">'
 		"<p>Kính gửi Quý khách %s,</p>"
 		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách bảng báo giá "
@@ -2201,11 +2419,19 @@ def goi_y_hop_dong(name):
 	# may do san, va do san bang chinh cai NGUOI TA DA CHON chu khong phai
 	# cai may doan.
 	ky_b = frappe.db.sql(
-		"""select nguoi_ky_b, chuc_vu_ky_b from `tabHop Dong Ban Hang`
+		"""select nguoi_ky_b, chuc_vu_ky_b, dt_ky_b, email_ky_b
+		from `tabHop Dong Ban Hang`
 		where ifnull(nguoi_ky_b, '') != '' order by creation desc limit 1""",
 		as_dict=True,
 	)
 	ky_b = ky_b[0] if ky_b else {}
+	# Cai dat bao gia dung TRUOC hop dong gan nhat: cho do la cho anh Viet
+	# khai co chu dich, con hop dong gan nhat chi la thoi quen.
+	if (b.get("ky_ten") or "").strip():
+		ky_b = {
+			"nguoi_ky_b": b.get("ky_ten"), "chuc_vu_ky_b": b.get("ky_chuc_vu"),
+			"dt_ky_b": b.get("ky_dt"), "email_ky_b": b.get("ky_email"),
+		}
 	return {
 		"ngay": ngay,
 		# Tra ca viet tat va ma loai de man hinh dung lai so khi user doi
@@ -2216,15 +2442,19 @@ def goi_y_hop_dong(name):
 		"ten_khach": d.ten_khach or "",
 		"nguoi_ky_a": _bo_ho(d.nguoi_lien_he or ""),
 		"chuc_vu_ky_a": (d.chuc_vu or "").strip() or "Giám đốc",
+		"dt_ky_a": d.dien_thoai or "",
+		"email_ky_a": d.email or "",
 		"nguoi_ky_b": _bo_ho(ky_b.get("nguoi_ky_b") or ""),
 		"chuc_vu_ky_b": (ky_b.get("chuc_vu_ky_b") or "").strip() or "Giám đốc",
+		"dt_ky_b": ky_b.get("dt_ky_b") or "",
+		"email_ky_b": ky_b.get("email_ky_b") or "",
 	}
 
 
 @frappe.whitelist()
 def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None,
-                 nguoi_ky_a=None, chuc_vu_ky_a=None,
-                 nguoi_ky_b=None, chuc_vu_ky_b=None):
+                 nguoi_ky_a=None, chuc_vu_ky_a=None, dt_ky_a=None, email_ky_a=None,
+                 nguoi_ky_b=None, chuc_vu_ky_b=None, dt_ky_b=None, email_ky_b=None):
 	"""Bao gia khach duyet thi bam mot nut ra Hop dong ban hang."""
 	_quyen(sua=True)
 	doc = frappe.get_doc(DT, name)
@@ -2292,8 +2522,12 @@ def tao_hop_dong(name, so_hop_dong=None, ngay_ky=None, ngay_su_kien=None,
 		# khong bia.
 		"nguoi_ky_a": _bo_ho(nguoi_ky_a),
 		"chuc_vu_ky_a": (chuc_vu_ky_a or "").strip(),
+		"dt_ky_a": (dt_ky_a or "").strip(),
+		"email_ky_a": (email_ky_a or "").strip(),
 		"nguoi_ky_b": _bo_ho(nguoi_ky_b),
 		"chuc_vu_ky_b": (chuc_vu_ky_b or "").strip(),
+		"dt_ky_b": (dt_ky_b or "").strip(),
+		"email_ky_b": (email_ky_b or "").strip(),
 	})
 	hd.insert(ignore_permissions=True)
 	frappe.db.set_value(DT, name, {"hop_dong": hd.name, "trang_thai": "Đã lên hợp đồng"})

@@ -4195,3 +4195,106 @@ def xhd_khach_tra_mst(mst=None):
 	"""Trang khach tra MST ra ten + dia chi, dung chung nguon VietQR."""
 	from vagabond.api import tra_mst
 	return tra_mst(mst)
+
+
+# ---------------------------------------------------------- tim mot don
+#
+# Anh Viet 18/08/2026: *"em viet script de co them o Tim kiem... cho tat ca
+# cac man tinh tien o moi diem ban luon. Nhap bat cu thong tin gi thi cung
+# se co the tim ra duoc don ay nhanh, hien tai anh dang phai do bang tay neu
+# muon kiem lai 1 don nao do"*.
+#
+# Man Doanh thu Sales va man Bill quay deu xem theo NGAY. Muon tim lai mot
+# don cu ma khong nho ngay thi phai lat tung ngay mot, do dung la do tay.
+# Nen phep tim nay co y KHONG gioi han ngay.
+#
+# Tim tren nhung o nguoi ta thuc su nho: ma don Pancake, ma don ERP, so
+# dien thoai, ten khach, dia chi, ma tham chieu chuyen khoan, so hoa don
+# dien tu. O remarks la cho chua nhieu nhat vi khuon cua no la
+# "<nguon> #<ma don> - <ten khach> - <so dien thoai>", nen mot cau LIKE tren
+# do bat duoc ca ten lan so dien thoai.
+
+
+def chuan_tim(s):
+	"""Chuan hoa tu khoa tim. THUAN.
+
+	Bo khoang trang thua va cac dau cau hay dinh vao khi chep dan: dau
+	ngoac, dau cham cuoi cau, dau thang o dau ma don Pancake.
+	"""
+	t = str(s or "").strip()
+	t = re.sub(r"^[#\s]+", "", t)
+	t = re.sub(r"[\s]+", " ", t)
+	return t.strip(" .,;:()[]")
+
+
+def la_so_dien_thoai(s):
+	"""Tu khoa nay trong nhu mot so dien thoai khong. THUAN.
+
+	Dung de biet co nen do them ban BO SO 0 O DAU hay khong: nguoi ta luu
+	"0933751352" nhung go tim "933751352" la chuyen thuong.
+	"""
+	t = re.sub(r"[^0-9]", "", str(s or ""))
+	return len(t) >= 8 and len(t) <= 11
+
+
+@frappe.whitelist()
+def tim_don(tu_khoa="", so_dong=40):
+	"""Tim hoa don ban hang theo bat ky manh thong tin nao. KHONG theo ngay.
+
+	Tra ve danh sach gon de man hinh bay ra, moi dong du de nhan ra don va
+	bam vao mo chi tiet.
+	"""
+	_kiem_quyen()
+	tu = chuan_tim(tu_khoa)
+	if len(tu) < 3:
+		return {"ds": [], "vi_sao": "Gõ ít nhất 3 ký tự rồi tìm giúp em."}
+
+	mau = ["%%%s%%" % tu]
+	# So dien thoai: do them ban bo so 0 o dau va ban chi con chu so, vi
+	# nguoi ta hay go thieu so 0 hoac go kem dau cach.
+	if la_so_dien_thoai(tu):
+		chi_so = re.sub(r"[^0-9]", "", tu)
+		mau.append("%%%s%%" % chi_so)
+		if chi_so.startswith("0"):
+			mau.append("%%%s%%" % chi_so[1:])
+		else:
+			mau.append("%%0%s%%" % chi_so)
+	mau = list(dict.fromkeys(mau))
+
+	o_tim = (
+		"name", "custom_pancake_display_id", "custom_pancake_id",
+		"vgb_ma_tham_chieu", "custom_hddt_so", "customer_name", "remarks",
+		"vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi",
+	)
+	dieu, gia_tri = [], []
+	for m in mau:
+		for o in o_tim:
+			dieu.append("`tabSales Invoice`.`%s` like %%s" % o)
+			gia_tri.append(m)
+
+	ds = frappe.db.sql(
+		"""select name, posting_date, docstatus, grand_total, customer_name,
+		       remarks, custom_pancake_display_id, custom_nguon,
+		       vgb_pt_thanh_toan, custom_hddt_so, vgb_huy, vgb_quay
+		from `tabSales Invoice`
+		where (%s)
+		order by posting_date desc, creation desc
+		limit %d""" % (" or ".join(dieu), max(1, min(200, cint(so_dong) or 40))),
+		tuple(gia_tri),
+		as_dict=True,
+	)
+	for d in ds:
+		ten, so = "", ""
+		try:
+			from vagabond.hoan_tien import tach_ghi_chu_don
+
+			ten, so = tach_ghi_chu_don(d.get("remarks"))
+		except Exception:
+			pass
+		d["ten_tren_don"] = ten or d.get("customer_name") or ""
+		d["sdt_tren_don"] = so
+		d["ngay"] = str(d.get("posting_date") or "")
+	return {"ds": ds, "tu_khoa": tu, "vi_sao": "" if ds else (
+		"Không thấy đơn nào khớp \"%s\". Thử gõ mã đơn Pancake, số điện thoại "
+		"khách, hoặc một phần tên khách giúp em." % tu
+	)}

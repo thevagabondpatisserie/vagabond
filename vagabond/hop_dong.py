@@ -112,8 +112,12 @@ def chi_tiet(name):
 			# tiet phai doc duoc de biet con thieu gi truoc khi gui khach.
 			"nguoi_ky_a": doc.get("nguoi_ky_a") or "",
 			"chuc_vu_ky_a": doc.get("chuc_vu_ky_a") or "",
+			"dt_ky_a": doc.get("dt_ky_a") or "",
+			"email_ky_a": doc.get("email_ky_a") or "",
 			"nguoi_ky_b": doc.get("nguoi_ky_b") or "",
 			"chuc_vu_ky_b": doc.get("chuc_vu_ky_b") or "",
+			"dt_ky_b": doc.get("dt_ky_b") or "",
+			"email_ky_b": doc.get("email_ky_b") or "",
 			"phu_luc_scan": doc.get("phu_luc_scan") or "",
 		},
 		"hoa_don": hoa_don,
@@ -154,8 +158,8 @@ def doi_trang_thai(name, trang_thai):
 
 
 @frappe.whitelist()
-def sua_nguoi_ky(name, nguoi_ky_a=None, chuc_vu_ky_a=None,
-                 nguoi_ky_b=None, chuc_vu_ky_b=None):
+def sua_nguoi_ky(name, nguoi_ky_a=None, chuc_vu_ky_a=None, dt_ky_a=None, email_ky_a=None,
+                 nguoi_ky_b=None, chuc_vu_ky_b=None, dt_ky_b=None, email_ky_b=None):
 	"""Sua bon o cua khoi chu ky sau khi da tao hop dong.
 
 	Anh Viet 18/08/2026: *"Khoi chu ky cuoi hop dong tuyet doi khong duoc
@@ -172,8 +176,12 @@ def sua_nguoi_ky(name, nguoi_ky_a=None, chuc_vu_ky_a=None,
 	frappe.db.set_value("Hop Dong Ban Hang", name, {
 		"nguoi_ky_a": _bo_xung_ho(nguoi_ky_a),
 		"chuc_vu_ky_a": (chuc_vu_ky_a or "").strip(),
+		"dt_ky_a": (dt_ky_a or "").strip(),
+		"email_ky_a": (email_ky_a or "").strip(),
 		"nguoi_ky_b": _bo_xung_ho(nguoi_ky_b),
 		"chuc_vu_ky_b": (chuc_vu_ky_b or "").strip(),
+		"dt_ky_b": (dt_ky_b or "").strip(),
+		"email_ky_b": (email_ky_b or "").strip(),
 	})
 	return True
 
