@@ -1,0 +1,405 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:DNC-{YYYY}-{#####}",
+ "creation": "2026-08-19 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "sec_nd",
+  "ten_khoan_chi",
+  "loai_nghiep_vu",
+  "phan_loai",
+  "so_tien",
+  "ngay_can_tt",
+  "dien_giai",
+  "cb1",
+  "trang_thai",
+  "nguoi_tao",
+  "company",
+  "tk_chi_phi",
+  "ho_so_tt",
+  "sec_th",
+  "hinh_thuc",
+  "nha_cung_cap",
+  "phuong_thuc",
+  "cb2",
+  "ten_tk",
+  "so_tk",
+  "ngan_hang",
+  "sec_ct",
+  "chung_tu_thue",
+  "so_hoa_don",
+  "cb3",
+  "ngay_hoa_don",
+  "mst",
+  "sec_dy",
+  "gui_luc",
+  "duyet_boi",
+  "duyet_luc",
+  "gd_boi",
+  "gd_luc",
+  "cb4",
+  "kt_boi",
+  "kt_luc",
+  "tra_lai_boi",
+  "tra_lai_luc",
+  "ly_do_tra_lai",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_nd",
+   "fieldtype": "Section Break",
+   "label": "Nội dung khoản chi"
+  },
+  {
+   "fieldname": "ten_khoan_chi",
+   "fieldtype": "Data",
+   "label": "Tên khoản chi",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Một câu ngắn để người duyệt hiểu ngay, ví dụ Mua đá cho quầy ngày 19/08."
+  },
+  {
+   "fieldname": "loai_nghiep_vu",
+   "fieldtype": "Select",
+   "label": "Loại nghiệp vụ",
+   "options": "Chi phí\nTạm ứng\nHoàn ứng",
+   "default": "Chi phí",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "description": "Chi phí là tiền đã tiêu. Tạm ứng là tiền công ty đưa trước và sẽ thu lại."
+  },
+  {
+   "fieldname": "phan_loai",
+   "fieldtype": "Select",
+   "label": "Phân loại chi tiêu",
+   "options": "\nMua đồ cúng\nMua nguyên vật liệu\nMua công cụ dụng cụ\nMua đồng phục nhân viên\nPhí giặt ủi\nPhí in ấn\nPhí sửa chữa bảo trì\nMua máy móc-tài sản cố định\nVận chuyển\nNộp thuế\nPhí công tác\nQuảng cáo-marketing\nTiếp khách-quà cáp\nTiền thuê nhà\nPhí an ninh\nPhí ngân hàng\nTrả lãi vay\nTiền bảo hiểm\nTiền điện\nTiền nước\nTiền điện thoại\nTiền internet\nTiền lương\nTiền rác-vệ sinh môi trường\nChi cho event\nTiền hoa hồng-môi giới\nPhí phần mềm-bản quyền\nKhảo sát thị trường\nTiền thưởng-phúc lợi nhân viên\nChi phí quản lý doanh nghiệp\nThuê thiết bị máy móc",
+   "in_standard_filter": 1,
+   "depends_on": "eval:doc.loai_nghiep_vu=='Chi phí'"
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "Số tiền yêu cầu",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ngay_can_tt",
+   "fieldtype": "Date",
+   "label": "Ngày cần thanh toán",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "dien_giai",
+   "fieldtype": "Small Text",
+   "label": "Diễn giải thêm"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Nhap\nCho duyet\nCho giam doc\nCho ke toan\nHoan tat\nBi tra lai",
+   "default": "Nhap",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nguoi_tao",
+   "fieldtype": "Data",
+   "label": "Người lập",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Công ty",
+   "options": "Company"
+  },
+  {
+   "fieldname": "tk_chi_phi",
+   "fieldtype": "Link",
+   "label": "Tài khoản hạch toán",
+   "options": "Account",
+   "description": "Máy gợi ý theo phân loại. Kế toán sửa được, và sửa rồi thì máy không đè lên nữa."
+  },
+  {
+   "fieldname": "ho_so_tt",
+   "fieldtype": "Link",
+   "label": "Hồ sơ thanh toán",
+   "options": "Vagabond Ho So TT",
+   "read_only": 1,
+   "description": "Chứng từ chi thật được lập từ phiếu này."
+  },
+  {
+   "fieldname": "sec_th",
+   "fieldtype": "Section Break",
+   "label": "Ai nhận tiền"
+  },
+  {
+   "fieldname": "hinh_thuc",
+   "fieldtype": "Select",
+   "label": "Hình thức thụ hưởng",
+   "options": "Hoàn tiền cho nhân viên\nThanh toán cho nhà cung cấp",
+   "default": "Hoàn tiền cho nhân viên",
+   "reqd": 1
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "fieldtype": "Link",
+   "label": "Nhà cung cấp",
+   "options": "Supplier",
+   "depends_on": "eval:doc.hinh_thuc=='Thanh toán cho nhà cung cấp' || doc.chung_tu_thue=='Có hoá đơn VAT'",
+   "description": "Chưa có nhà cung cấp trong danh mục thì anh chị liên hệ Uyên để tạo mã giúp. Có hoá đơn VAT thì bắt buộc phải chọn, kể cả khi tiền trả lại cho nhân viên, vì hoá đơn là của người bán."
+  },
+  {
+   "fieldname": "phuong_thuc",
+   "fieldtype": "Select",
+   "label": "Phương thức thanh toán",
+   "options": "Tiền mặt\nChuyển khoản",
+   "default": "Chuyển khoản"
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ten_tk",
+   "fieldtype": "Data",
+   "label": "Tên chủ tài khoản",
+   "depends_on": "eval:doc.phuong_thuc=='Chuyển khoản'",
+   "description": "Lần đầu gõ tay, những lần sau máy tự điền lại theo người lập."
+  },
+  {
+   "fieldname": "so_tk",
+   "fieldtype": "Data",
+   "label": "Số tài khoản",
+   "depends_on": "eval:doc.phuong_thuc=='Chuyển khoản'"
+  },
+  {
+   "fieldname": "ngan_hang",
+   "fieldtype": "Link",
+   "label": "Ngân hàng",
+   "options": "Bank",
+   "depends_on": "eval:doc.phuong_thuc=='Chuyển khoản'"
+  },
+  {
+   "fieldname": "sec_ct",
+   "fieldtype": "Section Break",
+   "label": "Chứng từ thuế"
+  },
+  {
+   "fieldname": "chung_tu_thue",
+   "fieldtype": "Select",
+   "label": "Chứng từ thuế",
+   "options": "Có hoá đơn VAT\nKhông hoá đơn VAT",
+   "default": "Không hoá đơn VAT",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "so_hoa_don",
+   "fieldtype": "Data",
+   "label": "Số hoá đơn",
+   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'"
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay_hoa_don",
+   "fieldtype": "Date",
+   "label": "Ngày hoá đơn",
+   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'"
+  },
+  {
+   "fieldname": "mst",
+   "fieldtype": "Data",
+   "label": "Mã số thuế người bán",
+   "depends_on": "eval:doc.chung_tu_thue=='Có hoá đơn VAT'"
+  },
+  {
+   "fieldname": "sec_dy",
+   "fieldtype": "Section Break",
+   "label": "Vết duyệt"
+  },
+  {
+   "fieldname": "gui_luc",
+   "fieldtype": "Datetime",
+   "label": "Gửi duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duyet_boi",
+   "fieldtype": "Data",
+   "label": "Mua hàng duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duyet_luc",
+   "fieldtype": "Datetime",
+   "label": "Mua hàng duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gd_boi",
+   "fieldtype": "Data",
+   "label": "Giám đốc duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gd_luc",
+   "fieldtype": "Datetime",
+   "label": "Giám đốc duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kt_boi",
+   "fieldtype": "Data",
+   "label": "Kế toán hạch toán",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kt_luc",
+   "fieldtype": "Datetime",
+   "label": "Kế toán hạch toán lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_lai_boi",
+   "fieldtype": "Data",
+   "label": "Người trả lại",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_lai_luc",
+   "fieldtype": "Datetime",
+   "label": "Trả lại lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_tra_lai",
+   "fieldtype": "Small Text",
+   "label": "Lý do trả lại",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-19 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond De Nghi Chi",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 0,
+   "if_owner": 1,
+   "share": 1,
+   "print": 1
+  },
+  {
+   "role": "AP Officer",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "if_owner": 0,
+   "share": 1,
+   "print": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "if_owner": 0,
+   "share": 1,
+   "print": 1
+  },
+  {
+   "role": "AP Kiểm soát (FIN)",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "if_owner": 0,
+   "share": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "if_owner": 0,
+   "share": 1,
+   "print": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "if_owner": 0,
+   "share": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "if_owner": 0,
+   "share": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ten_khoan_chi",
+ "track_changes": 1
+}
