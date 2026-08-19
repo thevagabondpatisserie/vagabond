@@ -25,7 +25,9 @@
   "di_ung_vi",
   "di_ung_en",
   "danh_muc_vi",
-  "danh_muc_en"
+  "danh_muc_en",
+  "kieu_ck",
+  "ck_tien_dong"
  ],
  "fields": [
   {
@@ -153,11 +155,25 @@
    "fieldname": "danh_muc_en",
    "fieldtype": "Data",
    "label": "Category"
+  },
+  {
+   "fieldname": "kieu_ck",
+   "fieldtype": "Select",
+   "label": "Kieu chiet khau dong",
+   "options": "\nPhan tram\nSo tien",
+   "description": "De trong la hieu theo phan tram."
+  },
+  {
+   "fieldname": "ck_tien_dong",
+   "fieldtype": "Currency",
+   "label": "Tien chiet khau dong",
+   "read_only": 1,
+   "description": "May tu tinh, khong nhap tay."
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-14 18:00:00.000000",
+ "modified": "2026-08-19 12:20:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Bao Gia Dong",
