@@ -3645,6 +3645,38 @@ la("xuat dung bo loc dang hien tren man, khong viet lai truy van",
 # ke toan chuyen nham tai khoan.
 la("so tai khoan ep thanh chuoi trong Excel", '"\'" + str(r.get("so_tk") or "")' in _ht37, True)
 la("Excel co cot canh bao loi sinh chung tu", '"Cảnh báo",' in _ht37, True)
+
+# --- PHEP KIEM THAT SU: hai ham phai noi cung mot ngon ngu ---
+#
+# Tep Excel dau tien xuat ra RONG TRON, 0 dong, trong khi man hinh dang
+# hien 8 phieu. Vi xuat_excel doc kq.get("rows") con ds() tra danh sach
+# duoi khoa "ds". Ca kiem cu chi soi chu trong ma nguon nen khong thay gi.
+#
+# Hai phep duoi day doi chieu THAT: ten khoa, va tung ten cot.
+_than_ds37 = _ht37.split("def ds(trang_thai=")[1].split("\n@frappe.whitelist()")[0]
+_khoa_tra = set(re.findall(r'return \{\s*"(\w+)"', _than_ds37)) | set(re.findall(r'"(\w+)": ds_', _than_ds37))
+la("ds() tra danh sach duoi khoa \"ds\"", '"ds": ds_' in _than_ds37, True)
+_than_xls37 = _ht37.split("def xuat_excel(")[1].split("\n@frappe.whitelist()")[0]
+la("xuat_excel doc dung khoa do", 'kq.get("ds")' in _than_xls37, True)
+# Kiem dong LENH chu khong kiem chuoi xuat hien trong tep: doan ghi chu
+# ke lai loi cu cung chua dung chuoi do.
+la("xuat_excel khong con doc khoa \"rows\"",
+   [d for d in _than_xls37.splitlines()
+    if 'kq.get("rows")' in d and not d.strip().startswith("#")], [])
+
+# Moi o ma tep Excel doc ra deu phai la o ds() that su tra ve - hoac o goc
+# trong get_all, hoac o duoc dap them ben duoi.
+#
+# Lay khoi fields DAI NHAT trong ds(): ham nay co vai cau get_all, cac cau
+# phu chi lay mot hai o (ten khach, trang thai phieu chi), con cau chinh
+# moi la cau dung nhung o di ra tep Excel.
+_cac_khoi37 = re.findall(r"fields=\[(.*?)\]", _than_ds37, re.S)
+_o_ds37 = set(re.findall(r'"(\w+)"', max(_cac_khoi37, key=len) if _cac_khoi37 else ""))
+_o_them37 = set(re.findall(r'd\["(\w+)"\] = ', _than_ds37))
+_o_co37 = _o_ds37 | _o_them37
+_o_doc37 = set(re.findall(r'r\.get\("(\w+)"\)', _than_xls37))
+la("moi o Excel doc deu co trong ds()", sorted(_o_doc37 - _o_co37), [])
+la("ma giao dich ngan hang co trong ds()", "ma_gd" in _o_ds37, True)
 la("man hinh co nut xuat Excel", "id=\"htDsXls\"" in _js37, True)
 la("nut Excel gui dung chip va o tim dang chon",
    "trang_thai: htDsLoc === 'tat_ca' ? '' : htDsLoc, tim: htDsTim" in _js37, True)
