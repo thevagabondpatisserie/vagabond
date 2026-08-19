@@ -1879,13 +1879,27 @@ function seVe() {
     h(seUrl(d)) + '</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">' +
     posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
-    posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Đã có khoá' : '⚠️ Chưa có khoá', !!d.co_khoa) +
+    posChipNut('data-sehm="1"', d.co_hmac ? '🛡 Đã có khoá HMAC' : '⚠️ Chưa có khoá HMAC', !!d.co_hmac) +
+    posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Có khoá dự phòng' : '○ Không khoá dự phòng', !!d.co_khoa) +
     '</div>' +
-    (d.sua_duoc ? '<button class="btn gh" id="seSinh" style="margin:0;width:100%">🔑 Sinh khoá mới và bật nhận</button>' : '') +
+    /* HMAC la duong chinh, khong phai lua chon thu hai.
+       Mot, no ky ca goi tin nen doi mot dong trong do la chu ky hong.
+       Hai, chu ky di o header X-SePay-Signature ma Frappe khong dung toi,
+       trong khi duong API Key cua SePay bat buoc gui o header
+       Authorization va Frappe tra 401 cho header do truoc khi goi tin vao
+       toi diem nhan (nghiem thu tren site 19/08/2026). */
+    '<div style="font-size:12.5px;color:#374151;line-height:1.65;margin-bottom:8px">' +
+    'Bên SePay chọn <b>HMAC-SHA256</b>, bấm nút sinh Secret Key rồi copy chuỗi ' +
+    '<code>whsec_...</code> dán vào ô dưới đây. Đừng chọn API Key: cách đó bắt gửi ở header ' +
+    '<code>Authorization</code>, mà Frappe chặn header đó trước khi gói tin vào tới đây.</div>' +
+    (d.sua_duoc
+      ? '<input class="tin" id="seHm" type="password" placeholder="Dán Secret Key whsec_... của SePay" style="margin-bottom:8px">' +
+        '<button class="btn" id="seLuuHm" style="margin:0;width:100%">🛡 Lưu khoá HMAC và bật nhận</button>' +
+        '<button class="btn gh" id="seSinh" style="margin:8px 0 0;width:100%">🔑 Sinh khoá dự phòng (header X-Api-Key)</button>'
+      : '') +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
-    'Khoá chỉ hiện ra <b>một lần</b> ngay sau khi sinh. Dán nó vào tab Bảo mật của webhook ' +
-    'bên SePay, gửi ở header <b>X-Api-Key</b>. Không có khoá thì ai biết đường dẫn cũng ' +
-    'bắn được giao dịch giả vào sổ.</div></div>';
+    'Khoá dự phòng chỉ dùng khi cần thử tay, gửi ở header <b>X-Api-Key</b>. Không có khoá ' +
+    'nào thì ai biết đường dẫn cũng bắn được giao dịch giả vào sổ.</div></div>';
 
   var k = d.keo || {};
   html += '<div class="sec">Nhịp kéo hàng giờ</div><div class="card" style="padding:2px 14px 10px">' +
@@ -1930,11 +1944,24 @@ function seVe() {
   var b = frame('SePay', html);
   var nSinh = document.getElementById('seSinh');
   if (nSinh) nSinh.onclick = seSinhKhoa;
+  var nHm = document.getElementById('seLuuHm');
+  if (nHm) nHm.onclick = seLuuHmac;
   var nThu = document.getElementById('seThu');
   if (nThu) nThu.onclick = function () { seNapBu(0); };
   var nThat = document.getElementById('seThat');
   if (nThat) nThat.onclick = function () { seNapBu(1); };
   return b;
+}
+
+async function seLuuHmac() {
+  var o = document.getElementById('seHm');
+  var k = (o && o.value || '').trim();
+  if (!k) return toast('Chưa dán Secret Key.', 4000);
+  try { await api('vagabond.sepay.dat_hmac', { khoa: k }); }
+  catch (e) { return toast((e && e.message) || 'Không lưu được khoá', 5000); }
+  if (o) o.value = '';
+  toast('Đã lưu khoá HMAC và bật nhận webhook.', 4000);
+  scrSePay();
 }
 
 async function seSinhKhoa() {
