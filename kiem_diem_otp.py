@@ -1513,9 +1513,23 @@ la("hop dong khai font Arial", 'FONT_TO = "Arial' in _hdp_src, True)
 la("to bao gia cung khai font Arial", 'PHONG = "Arial' in _bg2_src, True)
 # Arial phai duoc ap o KHUNG NGOAI cua tep PDF, khong chi o vai the con:
 # wkhtmltopdf khong thua ke font vao bang neu khong khai het.
+# Nghiem thu 18/08/2026: em tai mot to PDF THAT tu site ve roi doc phong
+# nhung trong do, thay LAN LON LiberationSans voi DejaVuSans. Nguyen nhan la
+# cau CSS cu chi liet ke mot so the, the nao ngoai danh sach (li, h3,
+# small...) thi roi ve phong mac dinh. Nen ca kiem doi tu "co liet ke du
+# the" sang "quet bang dau sao".
 _khung = _hdp_src.split("def xuat_pdf(")[1].split("\ndef ")[0]
-la("khung PDF ap font cho moi the",
-   "body,td,th,div,p,span,b,i,table{font-family:%s}" in _khung, True)
+la("khung PDF ap font bang dau sao", "khung_style()" in _khung, True)
+la("khong con liet ke tung the nua",
+   "body,td,th,div,p,span,b,i,table{font-family:" in _hdp_src, False)
+if _ns_full:
+	_ks = _ns_full["khung_style"]()
+	la("cau CSS bat dau bang dau sao", _ks.startswith("*{font-family:"), True)
+	la("cau CSS co Arial dung dau", "Arial" in _ks, True)
+	la("cau CSS co Liberation Sans lam hang du", "Liberation Sans" in _ks, True)
+	la("to bao gia dung chung phep khung_style", "khung_style(PHONG)" in _bg2_src, True)
+	la("to bao gia khong con liet ke tung the",
+	   "body,td,th,div,p,span,b,i,table{font-family:" in _bg2_src, False)
 if _ns_full:
 	# Do lieu THU phai co san dau gach dai o dung cho nguoi ta hay go: ten
 	# mon, dia diem giao, ghi chu. Do lieu sach thi ca kiem "khong con dau
@@ -1669,6 +1683,377 @@ la("go phu luc khong xoa tep", "def go_phu_luc_scan(" in _hd_src, True)
 _than_go = _hd_src.split("def go_phu_luc_scan(")[1].split("\n@frappe")[0]
 la("go phu luc chi dat o ve rong", 'set_value("Hop Dong Ban Hang", name, "phu_luc_scan", "")' in _than_go, True)
 la("go phu luc khong goi lenh xoa", "delete" in _than_go.lower(), False)
+
+
+# --- 8. SDT va email cua NGUOI KY, khong phai cua ban Sales ---
+#
+# Anh Viet 18/08/2026: *"cho nhap thong tin nguoi ky ben mua va ben ban thi
+# em can cho nhap ca sdt va email nua (hien em dang lay thong tin email va
+# so dien thoai cua Loan Anh gan cho anh la sao). Nhap lan dau thoi cho
+# Vagabond thi luu het cho may cai hop dong sau nay"*.
+for _o in ("dt_ky_a", "email_ky_a", "dt_ky_b", "email_ky_b"):
+	la("doctype hop dong co o %s" % _o, '"fieldname": "%s"' % _o in _hdjson, True)
+_cdjson = open(
+	"vagabond/vagabond/doctype/bao_gia_cai_dat/bao_gia_cai_dat.json", encoding="utf-8"
+).read()
+for _o in ("nguoi_ky_ban", "chuc_vu_ky_ban", "dt_ky_ban", "email_ky_ban"):
+	la("cai dat co o %s de khai mot lan" % _o, '"fieldname": "%s"' % _o in _cdjson, True)
+	la("cai dat cho ghi o %s" % _o, '"%s"' % _o in _bg2_src, True)
+for _o in ("hdDtA", "hdEmA", "hdDtB", "hdEmB"):
+	la("man tao hop dong hoi o %s" % _o, _o in _bgjs_src, True)
+la("man sua nguoi ky hoi du bon o", all(
+	_x in _khjs_src for _x in ("hkDtA", "hkEmA", "hkDtB", "hkEmB")), True)
+_than_bb = _hdp_src.split("def _ben_b(")[1].split("\n@frappe")[0]
+la("ben B uu tien nguoi ky da khai",
+   'c.get("nguoi_ky_ban") or c.get("dai_dien_ban")' in _than_bb, True)
+la("sdt ben B uu tien cua nguoi ky", 'c.get("dt_ky_ban") or c.get("dt_ban")' in _than_bb, True)
+if _ns_full:
+	# Cai dat khai ten Sales o o lien he, khai Giam doc o o nguoi ky. To in
+	# ra phai mang thong tin Giam doc, khong duoc mang cua Sales.
+	_d_lh = dict(_HD_GIA)
+	_d_lh.update({
+		"nguoi_ky_a": "Trang Phạm", "chuc_vu_ky_a": "Giám đốc",
+		"dt_ky_a": "0979999264", "email_ky_a": "trang.pham@secomm.vn",
+		"nguoi_ky_b": "Nguyễn Hoàng Việt", "chuc_vu_ky_b": "Giám đốc",
+		"dt_ky_b": "0901486556", "email_ky_b": "vietnh@thevagabondpatisserie.com",
+	})
+	_d_lh["ben_b"] = dict(_HD_GIA["ben_b"])
+	_d_lh["ben_b"].update({
+		"dai_dien": "Nguyễn Thị Loan Anh", "chuc_vu": "Sales Manager",
+		"dien_thoai": "0933751352", "email": "anhntl@thevagabondpatisserie.com",
+	})
+	try:
+		_ns_full["chi_tiet"] = lambda name: _d_lh
+		_to_lh = _ns_full["_html"]("HDBH-TEST")
+	except Exception:
+		_to_lh = None
+	la("dung duoc to co du lien he nguoi ky", bool(_to_lh), True)
+	if _to_lh:
+		la("sdt Sales khong lot vao to", "0933751352" in _to_lh, False)
+		la("email Sales khong lot vao to", "anhntl@" in _to_lh, False)
+		la("sdt nguoi ky ben B in dung", "0901486556" in _to_lh, True)
+		la("email nguoi ky ben B in dung", "vietnh@" in _to_lh, True)
+		la("sdt nguoi ky ben A in dung", "0979999264" in _to_lh, True)
+
+# --- 9. Chip cau goi y cho thu gui hop dong ---
+la("co bo cau rieng cho thu hop dong", "LOI_NHAN_HD_MAU" in _bg2_src, True)
+_ns_cau = {}
+_m_cau = re.search(r"^LOI_NHAN_HD_MAU = \((.*?)\)\n", _bg2_src, re.S | re.M)
+la("doc duoc bo cau hop dong", bool(_m_cau), True)
+if _m_cau:
+	exec(compile("LOI_NHAN_HD_MAU = (" + _m_cau.group(1) + ")", "x", "exec"), _ns_cau, _ns_cau)
+	_cau_hd = _ns_cau["LOI_NHAN_HD_MAU"]
+	la("co it nhat nam cau goi y", len(_cau_hd) >= 5, True)
+	la("cau nao cung co noi dung", all(len(str(c).strip()) > 10 for c in _cau_hd), True)
+	# Bo cau hop dong khong duoc trung bo cua bao gia: hai buoc noi hai
+	# chuyen khac nhau, trung nhau la mot trong hai cho dat sai bo.
+	_m_bg = re.search(r"^LOI_NHAN_MAU = \((.*?)\)\n", _bg2_src, re.S | re.M)
+	if _m_bg:
+		exec(compile("LOI_NHAN_MAU = (" + _m_bg.group(1) + ")", "x", "exec"), _ns_cau, _ns_cau)
+		la("hai bo cau khong trung nhau",
+		   bool(set(_cau_hd) & set(_ns_cau["LOI_NHAN_MAU"])), False)
+la("cai dat co o sua bo cau hop dong", '"fieldname": "loi_nhan_hd_mau"' in _bg2_src, True)
+la("man hop dong dung hop thoai chip", "bgHoiLoiNhan(cauHd" in _khjs_src, True)
+_than_mail = _khjs_src.split("async function hdGuiMail(")[1]
+la("may chu hong van co cau du phong", "if (!cauHd.length) cauHd = [" in _than_mail, True)
+
+
+
+
+# =====================================================================
+# Nhom 28. Tach thue tung dong va chiet khau truoc thue (anh Viet 18/08/2026)
+# =====================================================================
+print("28. Tach thue tung dong")
+
+_ns_th = {"flt": lambda x, *a: float(x or 0)}
+for _t in ("phan_bo_chiet_khau", "tach_thue", "bang_thue"):
+	_m = re.search(r"^def %s\(.*?(?=^def |\Z)" % _t, _bg2_src, re.S | re.M)
+	la("phep %s ton tai" % _t, bool(_m), True)
+	if _m:
+		exec(compile(_m.group(0), "bao_gia:%s" % _t, "exec"), _ns_th, _ns_th)
+_pb = _ns_th.get("phan_bo_chiet_khau")
+_tt = _ns_th.get("tach_thue")
+_bt = _ns_th.get("bang_thue")
+
+# --- Phan bo chiet khau: tong cac phan chia LUON bang dung tong chiet khau
+if _pb:
+	for _tien, _ck in (([1000, 2000, 3000], 600), ([333, 333, 334], 100),
+	                   ([1, 1, 1], 1), ([10], 7), ([7, 11, 13], 5), ([100, 1], 33)):
+		la("chia chiet khau %s khong lech dong nao" % _ck,
+		   abs(sum(_pb(_tien, _ck)) - _ck) < 0.001, True)
+	la("khong co dong nao thi tra rong", _pb([], 100), [])
+	la("chiet khau bang 0 thi khong tru ai", _pb([10, 20], 0), [0.0, 0.0])
+	la("tong bang 0 khong lam vo phep", _pb([0, 0], 50), [0.0, 0.0])
+
+# --- Tach thue: chia nguoc roi cong lai phai ra DUNG so ban dau
+if _tt:
+	for _nen, _pt in ((10800000, 8), (21847500, 8), (999, 10), (1, 8),
+	                  (6138000, 8), (15019500, 8), (333, 8), (7, 10)):
+		_h, _th = _tt(_nen, _pt, True)
+		la("chia nguoc %s @ %s%% cong lai khong lech" % (_nen, _pt),
+		   abs(_h + _th - _nen) < 0.001, True)
+	la("muc 0% thi khong co thue", _tt(500000, 0, True), (500000.0, 0.0))
+	la("chua gom thue thi cong them", _tt(1000000, 8, False), (1000000.0, 80000.0))
+	la("da gom thue 8% cua 10.800.000", _tt(10800000, 8, True), (10000000.0, 800000.0))
+
+# --- Ca to: phep bat bien tien hang cong tien thue bang tong
+if _bt:
+	_dong_thu = [
+		{"thanh_tien": 6138000, "thue_pt": 8}, {"thanh_tien": 15019500, "thue_pt": 8},
+		{"thanh_tien": 60000, "thue_pt": 10}, {"thanh_tien": 600000, "thue_pt": 0},
+	]
+	for _ck in (0, 2000000, 1, 21817500):
+		_r = _bt(_dong_thu, ck_to=_ck, phi_giao=35000, phi_giao_pt=10, da_gom=1)
+		la("ck %s: hang cong thue bang tong" % _ck,
+		   abs(_r["tien_hang"] + _r["tien_thue"] - _r["tong_cong"]) < 0.001, True)
+		_mong = sum(x["thanh_tien"] for x in _dong_thu) - _ck + 35000
+		la("ck %s: tong khop so goc" % _ck, abs(_r["tong_cong"] - _mong) < 0.001, True)
+		la("ck %s: bang tom tat cong dung" % _ck,
+		   abs(sum(m["tien_thue"] for m in _r["theo_muc"]) - _r["tien_thue"]) < 0.001, True)
+	_r0 = _bt([{"thanh_tien": 100000, "thue_pt": 0}], da_gom=1)
+	la("to toan 0% thi khong co thue", _r0["tien_thue"], 0.0)
+	la("to toan 0% thi tien hang bang tong", _r0["tien_hang"], 100000.0)
+	_r1 = _bt([{"thanh_tien": 5000000, "thue_pt": 8},
+	           {"thanh_tien": 5000000, "thue_pt": 8}], da_gom=1)
+	la("mot muc thi khop cach tinh gop",
+	   abs(_r1["tien_thue"] - _tt(10000000, 8, True)[1]) <= 1, True)
+	la("to rong khong lam vo phep", _bt([], da_gom=1)["tong_cong"], 0.0)
+
+	# --- Chiet khau PHAN TRAM: truoc thue hay sau thue deu ra mot tong ---
+	#
+	# Anh Viet 18/08/2026: *"khi chiet khau thi phai chiet khau tren so tien
+	# truoc thue, roi moi tinh thue vao"*. Ca nay ghi lai bang so rang voi
+	# chiet khau phan tram thi hai duong ra CUNG mot ket qua, nen doi thu tu
+	# khong lam thay doi so tien khach tra - no chi lam to in ra co cho ghi
+	# ba con so khach hoi.
+	_a_h, _a_t = _tt(round(10800000 * 0.9, 0), 8, True)
+	_b_h = round(_tt(10800000, 8, True)[0] * 0.9, 0)
+	la("chiet khau % truoc hay sau thue deu mot tien hang", _a_h, _b_h)
+	la("chiet khau % truoc hay sau thue deu mot tien thue", _a_t, round(_b_h * 0.08, 0))
+
+	# --- Cho SAI THAT: thue phai tinh tren nen DA TRU chiet khau ---
+	_r_ck = _bt([{"thanh_tien": 10800000, "thue_pt": 8}], ck_to=1080000, da_gom=1)
+	la("thue tinh tren nen da tru chiet khau",
+	   _r_ck["tien_thue"], _tt(10800000 - 1080000, 8, True)[1])
+	la("thue khong tinh tren nen chua tru",
+	   _r_ck["tien_thue"] == _tt(10800000, 8, True)[1], False)
+
+# --- Doctype va lung tinh tien ---
+_bgdong = open(
+	"vagabond/vagabond/doctype/bao_gia_dong/bao_gia_dong.json", encoding="utf-8"
+).read()
+la("dong bao gia co o muc thue", '"fieldname": "thue_pt"' in _bgdong, True)
+_bgto = open(
+	"vagabond/vagabond/doctype/bao_gia_ban_hang/bao_gia_ban_hang.json", encoding="utf-8"
+).read()
+la("to bao gia co o cach tinh thue", '"fieldname": "kieu_thue"' in _bgto, True)
+la("to bao gia co o thue phi giao", '"fieldname": "thue_phi_giao_pt"' in _bgto, True)
+_than_tinh = _bg2_src.split("def _tinh(doc):")[1].split("\ndef ")[0]
+la("to de trong o kieu thue thi chay nhanh cu",
+   'if (doc.get("kieu_thue") or "") == "Theo từng dòng":' in _than_tinh, True)
+la("nhanh cu van con nguyen",
+   'doc.thue_tien = round(sau_ck * flt(doc.thue_pt)' in _than_tinh, True)
+la("nhanh moi dung chung phep bang_thue", "bang_thue(" in _than_tinh, True)
+la("dong moi lay muc thue cua to lam mac dinh", "else flt(doc.thue_pt)" in _bg2_src, True)
+la("bang tom tat tinh luc doc, khong luu", "def tom_tat_thue(doc):" in _bg2_src, True)
+la("bang tom tat khong nam trong doctype", '"fieldname": "tom_tat_thue"' in _bgto, False)
+la("to bao gia in dong tien hang chua thue", "Cộng tiền hàng chưa thuế" in _bg2_src, True)
+la("to hop dong in dong tien hang chua thue", "Cộng tiền hàng chưa thuế" in _hdp_src, True)
+la("to hop dong in dong tong da gom thue", "TỔNG CỘNG ĐÃ GỒM THUẾ" in _hdp_src, True)
+la("to hop dong co ban tieng Anh cua ba dong",
+   "Subtotal excluding VAT" in _hdp_src and "Total including VAT" in _hdp_src, True)
+la("to tron muc thi nhan cot bo con so", '"<br>(đã gồm VAT)"' in _hdp_src, True)
+la("hop dong lay bang thue tu to bao gia", "tom_tat_thue as _tt_bg" in _hdp_src, True)
+
+# --- Man hinh va may chu phai ra CUNG mot con so ---
+#
+# Man tu tinh de sales sua so la thay tong doi ngay, khong phai cho may chu.
+# Nhung hai noi cung giu mot luat thi kieu gi cung co ngay chung lech nhau.
+# Ca nay chay CA HAI ban tren cung bo so va so tung dong.
+la("man hinh co phep tach thue rieng", "function bgBangThue()" in _bgjs_src, True)
+la("man hinh biet to nao tinh theo dong", "function bgTheoDong()" in _bgjs_src, True)
+la("man hinh co o VAT tren tung dong", "dg_' + i + '_thue_pt" in _bgjs_src, True)
+la("man hinh co chip nhanh 0 8 10", "[0, 8, 10].map" in _bgjs_src, True)
+la("dong moi lay muc thue cua to", "function bgMucThueMacDinh()" in _bgjs_src, True)
+la("man hinh doc o VAT khi ve lai", "'chiet_khau', 'thue_pt'" in _bgjs_src, True)
+
+if _bt:
+	import json as _json
+	import subprocess as _sp
+
+	_bo_thu = [
+		([(6138000, 8), (15019500, 8), (60000, 10), (600000, 0)], 0, 35000, 10, 1),
+		([(6138000, 8), (15019500, 8), (60000, 10), (600000, 0)], 2000000, 0, 0, 1),
+		([(1000, 8), (1, 8), (3, 10)], 7, 0, 0, 1),
+		([(10000000, 8)], 0, 0, 0, 0),
+		([(333, 8), (333, 8), (334, 8)], 100, 0, 0, 1),
+	]
+	_js_bt = _bgjs_src.split("function bgBangThue() {")[1]
+	_js_bt = _js_bt[: _js_bt.index("\n}\n")]
+	_js = """
+var bgTay = null;
+function bgBangThue() {%s
+}
+var _kq = [];
+%s.forEach(function (c) {
+  bgTay = {
+    dong: c[0].map(function (x) { return { thanh_tien: x[0], thue_pt: x[1] }; }),
+    chiet_khau_tien: c[1], phi_giao: c[2], thue_phi_giao_pt: c[3], gia_da_gom_vat: c[4]
+  };
+  var r = bgBangThue();
+  _kq.push([r.tien_hang, r.tien_thue, r.tong_cong]);
+});
+console.log(JSON.stringify(_kq));
+""" % (_js_bt, _json.dumps([[list(map(list, c[0])), c[1], c[2], c[3], c[4]] for c in _bo_thu]))
+	try:
+		_p = _sp.run(["node", "-e", _js], capture_output=True, timeout=30)
+		_ra_js = _json.loads(_p.stdout.decode().strip())
+	except Exception:
+		_ra_js = None
+	la("chay duoc ban JavaScript de doi chieu", _ra_js is not None, True)
+	if _ra_js is not None:
+		for _i, _c in enumerate(_bo_thu):
+			_r = _bt([{"thanh_tien": t, "thue_pt": p} for t, p in _c[0]],
+			         ck_to=_c[1], phi_giao=_c[2], phi_giao_pt=_c[3], da_gom=_c[4])
+			la("bo %d: man hinh khop may chu" % (_i + 1),
+			   [round(x) for x in _ra_js[_i]],
+			   [round(x) for x in (_r["tien_hang"], _r["tien_thue"], _r["tong_cong"])])
+
+
+
+# =====================================================================
+# Nhom 29. Chuyen lai tien nop thua va o tim don (anh Viet 18/08/2026)
+# =====================================================================
+print("29. Tien nop thua va o tim don")
+
+_ht2_src = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_bh2_src = open("vagabond/ban_hang.py", encoding="utf-8").read()
+_ds_src = open("vagabond/public/js/bep/08-doanh-so-sales.js", encoding="utf-8").read()
+_bq_src = open("vagabond/public/js/bep/10-bill-quay.js", encoding="utf-8").read()
+
+# --- Tran tien du: phep THUAN, kiem bang so vao so ra ---
+_ns_du = {"flt": lambda x, *a: float(x or 0),
+          "_tien_vn": lambda v: "{:,.0f}".format(float(v or 0)).replace(",", ".")}
+_m_du = re.search(r"^def tran_tien_du\(.*?(?=^def |^@|\Z)", _ht2_src, re.S | re.M)
+la("phep tran tien du ton tai", bool(_m_du), True)
+if _m_du:
+	exec(compile(_m_du.group(0), "hoan_tien:tran_tien_du", "exec"), _ns_du, _ns_du)
+	_td = _ns_du["tran_tien_du"]
+	# Ca 91433 that: nhan 1.100.000 cho don 915.000, du dung 185.000.
+	la("ca 91433: tran dung bang phan du", _td(1100000, 915000)[1], 185000.0)
+	la("ca 91433: duoc phep lap phieu", _td(1100000, 915000)[0], True)
+	# Nhan dung bang don thi khong co gi de tra.
+	la("nhan dung bang don thi khong duoc", _td(915000, 915000)[0], False)
+	# Nhan THIEU thi cang khong duoc: do la don con no, khong phai don du.
+	la("nhan thieu thi khong duoc", _td(500000, 915000)[0], False)
+	la("nhan thieu thi tran bang 0", _td(500000, 915000)[1], 0.0)
+	# Chua doi soat duoc dong nao thi cung khong duoc.
+	la("chua nhan dong nao thi khong duoc", _td(0, 915000)[0], False)
+	la("don tong bang 0 thi khong tinh duoc", _td(100000, 0)[0], False)
+	# Cau nhac phai chi duong lam gi tiep (QT-24), khong duoc cut ngun.
+	la("cau nhac chi duong sang nut Hoan tien",
+	   "Hoàn tiền" in _td(915000, 915000)[2], True)
+	la("cau nhac noi ro hai con so",
+	   "915.000" in _td(915000, 915000)[2] and "đã nhận" in _td(915000, 915000)[2], True)
+
+# --- Doctype va hang so ---
+_htjson = open(
+	"vagabond/vagabond/doctype/vagabond_hoan_tien/vagabond_hoan_tien.json", encoding="utf-8"
+).read()
+la("co hang so phan biet hai loai phieu",
+   'LOAI_TIEN_DU = "Tien nop thua"' in _ht2_src, True)
+la("co bo ly do rieng cho tien du", "LY_DO_DU = (" in _ht2_src, True)
+la("truong loai_hoan khai trong ma nguon", '"fieldname": "loai_hoan"' in _ht2_src, True)
+# De trong doc la "Tra hang": phieu cu khong duoc doi nghia.
+la("o loai phieu co lua chon rong dung dau",
+   '"options": "\\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU))' in _ht2_src, True)
+
+# --- Cho quan trong nhat: tien du KHONG duoc lap hoa don tra hang ---
+_than_sinh = _ht2_src.split("def _sinh_chung_tu(ho_so):")[1].split("\ndef ")[0]
+la("sinh chung tu re nhanh theo loai phieu",
+   'if (ho_so.get("loai_hoan") or "") == LOAI_TIEN_DU:' in _than_sinh, True)
+# Nhanh tien du phai THOAT truoc khi cham toi _lap_hoa_don_tra.
+_nhanh_du = _than_sinh.split('== LOAI_TIEN_DU:')[1].split("toan_bo = tien >=")[0]
+la("nhanh tien du khong lap hoa don tra hang", "_lap_hoa_don_tra" in _nhanh_du, False)
+la("nhanh tien du khong thu hoi diem", "_thu_hoi_diem" in _nhanh_du, False)
+la("nhanh tien du khong lap phieu kho", "_chuyen_kho_huy" in _nhanh_du, False)
+la("nhanh tien du co lap phieu chi", "_lap_phieu_chi_du" in _nhanh_du, True)
+la("nhanh tien du thoat som bang return", "return {" in _nhanh_du, True)
+# Phieu chi cua tien du KHONG tro vao hoa don nao.
+_than_chi_du = _ht2_src.split("def _lap_phieu_chi_du(si, ho_so):")[1].split("\ndef ")[0]
+la("phieu chi tien du khong tro vao hoa don", "get_payment_entry" in _than_chi_du, False)
+la("phieu chi tien du de o trang thai nhap", ".submit()" in _than_chi_du, False)
+la("phieu chi tien du la phieu Pay", 'pe.payment_type = "Pay"' in _than_chi_du, True)
+la("phieu chi tien du ghi ro khong dung doanh thu",
+   "KHÔNG lập hoá đơn" in _than_chi_du, True)
+
+# --- Tran tinh lai o may chu (QT-19) ---
+_than_tao_du = _ht2_src.split("def tao_tien_du(")[1].split("\n@frappe")[0]
+la("tran tinh lai o may chu", "tran_tien_du(nhan, flt(si.grand_total))" in _than_tao_du, True)
+la("chan vuot tran", "lớn hơn phần khách nộp dư" in _than_tao_du, True)
+la("phieu ghi dung loai", '"loai_hoan": LOAI_TIEN_DU' in _than_tao_du, True)
+la("van bao ke toan nhu phieu hoan tien", "_bao_ke_toan(ho_so, si)" in _than_tao_du, True)
+la("van vao trang thai cho chi de chi Dung duyet",
+   '"trang_thai": "Cho chi"' in _than_tao_du, True)
+# Anh KHONG bat buoc voi tien du, vi bang chung nam trong so sach.
+la("tien du khong bat buoc anh", "Phải đính kèm ít nhất một ảnh" in _than_tao_du, False)
+
+# --- Man hinh ---
+la("man chi tiet don co nut tien du", "dsvDu" in _ds_src, True)
+la("nut tien du goi dung ham", "hoanMoFormDu(d)" in _ds_src, True)
+la("co ham mo form tien du", "function hoanMoFormDu(" in _khjs_src, True)
+la("form re nhanh theo co du", "var du = !!f.du;" in _khjs_src, True)
+la("form tien du goi dung endpoint",
+   "du ? 'vagabond.hoan_tien.tao_tien_du' : 'vagabond.hoan_tien.tao'" in _khjs_src, True)
+la("form tien du chan theo tran chu khong theo tong don",
+   "if (f.tien > tranF)" in _khjs_src, True)
+la("form tien du khong bat anh", "if (!du && !f.anh.length)" in _khjs_src, True)
+la("form noi ro khong lap hoa don tra hang",
+   "không lập hoá đơn trả hàng" in _khjs_src, True)
+la("danh sach danh dau phieu tien du", "TIỀN DƯ" in _khjs_src, True)
+la("man chi tiet bay so SePay da nhan", "SePay đã nhận" in _khjs_src, True)
+la("man chi tiet bay phan nop thua", "Khách nộp thừa" in _khjs_src, True)
+la("danh sach tra ve co loai phieu", '"nguoi_duyet", "loai_hoan"' in _ht2_src, True)
+
+# --- O tim don ---
+_ns_tim = {"re": re}
+for _t in ("chuan_tim", "la_so_dien_thoai"):
+	_m = re.search(r"^def %s\(.*?(?=^def |^@|\Z)" % _t, _bh2_src, re.S | re.M)
+	la("phep %s ton tai" % _t, bool(_m), True)
+	if _m:
+		exec(compile(_m.group(0), "ban_hang:%s" % _t, "exec"), _ns_tim, _ns_tim)
+_ct = _ns_tim.get("chuan_tim")
+_lsdt = _ns_tim.get("la_so_dien_thoai")
+if _ct:
+	la("bo dau thang o dau ma don Pancake", _ct("  #91433 "), "91433")
+	la("bo dau cham cuoi cau", _ct("91433."), "91433")
+	la("giu nguyen ma don ERP", _ct("HDB-26-08-00581"), "HDB-26-08-00581")
+	la("bo dau ngoac khi chep dan", _ct("(0918432684)"), "0918432684")
+	la("gom khoang trang thua", _ct("  Mr.   Trí  "), "Mr. Trí")
+	la("rong thi ra rong", _ct(None), "")
+if _lsdt:
+	la("nhan ra so dien thoai co so 0", _lsdt("0918432684"), True)
+	la("nhan ra so dien thoai thieu so 0", _lsdt("918432684"), True)
+	la("nhan ra so co dau cach", _lsdt("0933 751 352"), True)
+	# Ma don Pancake nam chu so nhung khong phai so dien thoai.
+	la("ma don 5 chu so khong phai sdt", _lsdt("91433"), False)
+	la("chu thi khong phai sdt", _lsdt("abc"), False)
+_than_tim = _bh2_src.split("def tim_don(")[1].split("\ndef ")[0]
+la("tim khong gioi han ngay", "posting_date =" in _than_tim, False)
+la("tim tren ma don Pancake", '"custom_pancake_display_id"' in _than_tim, True)
+la("tim tren ma don ERP", '"name"' in _than_tim, True)
+la("tim tren ghi chu don, cho chua ten va sdt", '"remarks"' in _than_tim, True)
+la("tim tren dia chi xuat hoa don", '"vgb_xhd_dia_chi"' in _than_tim, True)
+la("tim tren ma tham chieu chuyen khoan", '"vgb_ma_tham_chieu"' in _than_tim, True)
+la("go it chu qua thi nhac chu khong quet ca bang", "ít nhất 3 ký tự" in _than_tim, True)
+la("co tran so dong tra ve", "min(200, cint(so_dong)" in _than_tim, True)
+la("moi nhat len truoc", "order by posting_date desc" in _than_tim, True)
+# Hai man tinh tien deu phai co o tim, va dung CHUNG mot phep.
+la("o tim nam trong thanh ngay dung chung", "'</div>' + timDonO();" in _ds_src, True)
+la("man doanh thu sales gan o tim", "timDonGan();" in _ds_src, True)
+la("man bill quay gan o tim", "timDonGan();" in _bq_src, True)
+la("bam ket qua mo thang man chi tiet don", "scrDsView(ten, 0)" in _ds_src, True)
+la("khong tim theo tung phim", "if (e.key === 'Enter')" in _ds_src, True)
 
 print("-" * 60)
 if so_hong:
