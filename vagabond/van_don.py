@@ -173,22 +173,89 @@ def _gio_tu_iso(s):
 	return ""
 
 
-def _ngay_tu_iso(s):
-	"""Lay phan NGAY (YYYY-MM-DD) tu chuoi ISO datetime cua Pancake. THUAN.
+def _lech_mui(duoi):
+	"""So phut lech mui gio ghi o duoi chuoi ISO. None la KHONG khai. THUAN.
 
-	Tra rong khi khong doc duoc, va ben goi phai coi rong la "khong biet"
-	chu tuyet doi khong duoc coi la "hom nay": doan bay la ghi de mot ngay
-	giao that bang mot ngay bia ra.
+	"Z" la 0, "+07:00" la 420, "-05:30" la -330. Chuoi rong tra None, va
+	ben goi phai hieu None la "Pancake khong khai", chu khong phai la 0.
 	"""
+	t = str(duoi or "").strip()
+	if not t:
+		return None
+	if t in ("Z", "z"):
+		return 0
+	dau = t[0]
+	if dau not in ("+", "-"):
+		return None
+	so = t[1:].replace(":", "")
+	if len(so) == 2:
+		so += "00"
+	if len(so) != 4 or not so.isdigit():
+		return None
+	phut = int(so[:2]) * 60 + int(so[2:])
+	return -phut if dau == "-" else phut
+
+
+def _ngay_tu_iso(s):
+	"""Ngay giao THEO GIO VIET NAM, doc tu chuoi Pancake tra ve. THUAN.
+
+	VI SAO PHAI QUY DOI MUI GIO
+	Ngay 19/08/2026 em deploy ban dau cua ham nay, no cat thang t[:10] cua
+	chuoi ISO. Ba muoi phut sau, 75 van don bi day lui dung mot ngay va 27
+	don cua hom nay bien mat khoi man Van don. Nguyen nhan: Pancake tra
+	estimate_delivery_date theo GIO UTC va KHONG khai mui gio.
+
+	Don 92194 giao hom 19/08 duoc Pancake ghi la:
+
+		estimate_delivery_date : 2026-08-18T17:00:00
+		tags                   : ["13h - 15h"]
+
+	17:00 UTC cong 7 tieng la 00:00 ngay 19/08 gio Viet Nam. Cat thang phan
+	ngay thi ra 18/08, lui mot ngay.
+
+	Doc them: phan GIO cua chuoi nay khong phai gio giao. Hai don 92194 va
+	92186 cung mang 17:00 nhung mot don khung 13h-15h con mot don 17h-19h.
+	Gio giao that nam o THE khung gio, con estimate_delivery_date chi cho
+	biet NGAY. Vi vay ham nay chi tra ve ngay.
+
+	Chuoi co khai mui gio (Z hoac +07:00) thi ton trong phan khai do. Chuoi
+	khong khai thi hieu la UTC, dung nhu Pancake dang tra.
+
+	Doc khong duoc thi tra RONG, va ben goi phai coi rong la "khong biet"
+	chu tuyet doi khong duoc coi la hom nay.
+	"""
+	from datetime import datetime, timedelta, timezone
+	from zoneinfo import ZoneInfo
+
 	t = str(s or "").strip()
-	if len(t) >= 10 and t[4] == "-" and t[7] == "-":
-		ngay = t[:10]
-		try:
-			y, m, d = int(ngay[:4]), int(ngay[5:7]), int(ngay[8:10])
-		except ValueError:
-			return ""
-		if 2000 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31:
-			return ngay
+	if len(t) < 10 or t[4] != "-" or t[7] != "-":
+		return ""
+	if len(t) < 19:
+		# Chi co phan ngay, khong co gio thi khong quy doi duoc. Tra thang,
+		# vi doan bay gio khong lam ngay dung hon.
+		return _ngay_hop_le(t[:10])
+	try:
+		goc = datetime.strptime(t[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")
+	except ValueError:
+		return ""
+	lech = _lech_mui(t[19:])
+	if lech is None:
+		lech = 0
+	utc = (goc - timedelta(minutes=lech)).replace(tzinfo=timezone.utc)
+	return _ngay_hop_le(utc.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d"))
+
+
+def _ngay_hop_le(ngay):
+	"""Chuoi yyyy-mm-dd co ra hon khong. Khong hop le thi tra rong. THUAN."""
+	t = str(ngay or "")
+	if len(t) != 10 or t[4] != "-" or t[7] != "-":
+		return ""
+	try:
+		y, m, d = int(t[:4]), int(t[5:7]), int(t[8:10])
+	except ValueError:
+		return ""
+	if 2000 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31:
+		return t
 	return ""
 
 
