@@ -8,6 +8,7 @@ kiem la ham THUAN - so vao, so ra - nen chep lai logic o day la du, va neu
 ban that trong diem_otp.py doi ma ban nay khong doi thi cong se bao lech.
 """
 
+import os
 import re
 import sys
 
@@ -1183,6 +1184,13 @@ if _sh:
 #
 # Nen ca nay DUNG THAT ca to hop dong trong mot khong gian ten gia lap
 # frappe. Cham hon mot chut, nhung no chay dung duong ma may chu chay.
+# Xau phong that, doc thang tu vagabond/phong_chu.py. Hai bo gia lap duoi
+# day deu cat het dong import di, nen FONT_TO va PHONG phai duoc bom vao
+# tay. Doc tu tep goc chu khong chep tay de khong bao gio lech nhau.
+_pc_src = open("vagabond/phong_chu.py", encoding="utf-8").read()
+_NGAN_XEP = re.search(r'NGAN_XEP = "([^"]+)"', _pc_src).group(1)
+
+
 def _nap_hop_dong_pdf():
 	"""Nap hop_dong_pdf.py voi frappe gia lap. Tra ve khong gian ten."""
 	import datetime
@@ -1223,6 +1231,7 @@ def _nap_hop_dong_pdf():
 		"base64": __import__("base64"),
 		"flt": _u.flt, "cint": _u.cint, "getdate": _gd, "nowdate": _u.nowdate,
 		"_tien_vn": _cn._tien_vn, "_chu_so_tien": _cn._chu_so_tien,
+		"FONT_TO": _NGAN_XEP,
 	}
 	# Bo cac dong import that di, phan con lai chay duoc nguyen ven.
 	than = "\n".join(
@@ -1509,8 +1518,15 @@ for _f in ("vagabond/hop_dong_pdf.py", "vagabond/bao_gia.py"):
 	   ("–" in _t) or ("—" in _t), False)
 
 # --- 2. Font Arial cho ca hop dong lan phu luc ---
-la("hop dong khai font Arial", 'FONT_TO = "Arial' in _hdp_src, True)
-la("to bao gia cung khai font Arial", 'PHONG = "Arial' in _bg2_src, True)
+# Tu v223 xau phong khong con viet tay trong tung tep nua ma lay chung tu
+# vagabond/phong_chu.py, de hai to khong bao gio lech nhau.
+la("hop dong lay xau phong tu phong_chu",
+   "from vagabond.phong_chu import NGAN_XEP as FONT_TO" in _hdp_src, True)
+la("to bao gia lay xau phong tu phong_chu",
+   "from vagabond.phong_chu import NGAN_XEP as PHONG" in _bg2_src, True)
+la("xau phong dat Vagabond Sans len dau",
+   _NGAN_XEP.startswith("'Vagabond Sans'"), True)
+la("xau phong van con Arial lam luoi do", "Arial" in _NGAN_XEP, True)
 # Arial phai duoc ap o KHUNG NGOAI cua tep PDF, khong chi o vai the con:
 # wkhtmltopdf khong thua ke font vao bang neu khong khai het.
 # Nghiem thu 18/08/2026: em tai mot to PDF THAT tu site ve roi doc phong
@@ -2122,6 +2138,7 @@ def _nap_bao_gia():
 		"cfg": lambda *a, **k: types.SimpleNamespace(),
 		"sdt": lambda s: str(s or ""),
 		"khong_dau": lambda s: str(s or ""),
+		"PHONG": _NGAN_XEP,
 	}
 	# Bo cac lenh import bang AST chu khong bang startswith.
 	#
@@ -2147,6 +2164,12 @@ def _nap_bao_gia():
 	_tk.qr_ngan_hang = lambda *a, **k: ""
 	_tk.tk_nhan = lambda *a, **k: {}
 	_sys.modules["vagabond.tai_khoan"] = _tk
+	_pc = types.ModuleType("vagabond.phong_chu")
+	_pc.NGAN_XEP = _NGAN_XEP
+	_pc.HO_PHONG = "Vagabond Sans"
+	_pc.bao_dam_phong = lambda: 0
+	_sys.modules["vagabond.phong_chu"] = _pc
+	_vgb.phong_chu = _pc
 	_vgb.tai_khoan = _tk
 	_vgb.danh_muc = _dm
 	_vgb.hop_dong_pdf = _hdp
@@ -2262,6 +2285,288 @@ if _ns_bg:
 	if not str(_to_cu).startswith("LOI:"):
 		la("nhanh cu khong in dong tach thue",
 		   "Cộng tiền hàng chưa thuế" in _to_cu, False)
+
+print("30. Bo phong Vagabond Sans")
+
+# ---------------------------------------------------------------------------
+# Nhom 30. Bo phong tieng Viet cho to PDF (anh Viet 19/08/2026)
+#
+# Anh Viet: "hien tai van bi loi font (co ve no khong phai la font ARIAL)".
+# Em tai to hop dong THAT ve, doc bang phong nhung va doc luon bang ma
+# nguoi dung. Ket qua: DejaVuSans duoc goi cho DUNG 46 chu, va ca 46 chu
+# do deu la chu cai tieng Viet co dau thanh. Server co Liberation Sans
+# nhung la ban 1.07.4 khong co bang Latin Extended Additional, nen
+# wkhtmltopdf lay Liberation cho chu khong dau roi muon DejaVu cho rieng
+# chu co dau. Hai kieu chu lech nhau trong cung mot tu.
+#
+# Nhom kiem nay giu ba hang rao:
+#   1. Bon tep phong di kem phai co that, dung ten ho, du bon kieu.
+#   2. Bon tep do phai co DU 46 chu da tung roi sang DejaVu, cong them
+#      dong tien va chu d gach.
+#   3. Dung wkhtmltopdf dung lai DUNG hoan canh server: chi cho fontconfig
+#      nhin thay bo phong cua minh va DejaVu. To PDF sinh ra khong duoc
+#      chua mot chu DejaVu nao.
+# ---------------------------------------------------------------------------
+
+# Dung 46 ma chu ma DejaVu da gach ra tren to hop dong that HDBH-2026-0863.
+_MA_VIET = [
+	0x1ED1, 0x1ED9, 0x1EAD, 0x1EF1, 0x1EE7, 0x01B0, 0x1EDB, 0x1EC7, 0x01A1,
+	0x1EA1, 0x1EE9, 0x1EA7, 0x1EA3, 0x1ED3, 0x01AF, 0x1EA4, 0x1EA2, 0x1ECB,
+	0x1EC9, 0x1EC5, 0x1ED7, 0x1EDD, 0x1EBF, 0x1EE5, 0x1ECF, 0x1EA5, 0x1EE3,
+	0x1EEF, 0x1ED8, 0x1EC1, 0x1EB1, 0x1EC3, 0x1EEB, 0x1EA9, 0x1EAB, 0x1EB7,
+	0x1EAF, 0x1ED5, 0x1EE1, 0x1EED, 0x1EB5, 0x1EBD, 0x1EDF, 0x1ECD, 0x1EF9,
+	0x1EF7,
+]
+# Them may chu hay dung khac: d gach, dong tien, dau cham tron, gach ngang.
+_MA_THEM = [0x0111, 0x0110, 0x20AB, 0x2022, 0x00A0]
+
+_PHONG_DIR = "vagabond/fonts"
+_CAC_KIEU_PHONG = (
+	("VagabondSans-Regular.ttf", "Regular"),
+	("VagabondSans-Bold.ttf", "Bold"),
+	("VagabondSans-Italic.ttf", "Italic"),
+	("VagabondSans-BoldItalic.ttf", "Bold Italic"),
+)
+
+
+def _bang_ten(duong_dan):
+	"""Doc bang 'name' cua tep TrueType. Chi dung thu vien chuan.
+
+	Khong dua vao fontTools vi may chay cong kiem truoc khi deploy khong
+	chac co goi do.
+	"""
+	import struct
+
+	d = open(duong_dan, "rb").read()
+	n = struct.unpack(">H", d[4:6])[0]
+	off = leng = None
+	for i in range(n):
+		r = 12 + 16 * i
+		if d[r:r + 4] == b"name":
+			off, leng = struct.unpack(">II", d[r + 8:r + 16])
+	if off is None:
+		return {}
+	so, kho = struct.unpack(">HH", d[off + 2:off + 6])
+	ra = {}
+	for i in range(so):
+		r = off + 6 + 12 * i
+		pid, eid, lid, nid, dl, do = struct.unpack(">HHHHHH", d[r:r + 12])
+		v = d[off + kho + do:off + kho + do + dl]
+		try:
+			ra[nid] = v.decode("utf-16-be") if pid == 3 else v.decode("latin-1")
+		except Exception:
+			pass
+	return ra
+
+
+def _bang_ma(duong_dan):
+	"""Doc bang 'cmap' cua tep TrueType, tra ve tap ma chu co that."""
+	import struct
+
+	d = open(duong_dan, "rb").read()
+	n = struct.unpack(">H", d[4:6])[0]
+	off = None
+	for i in range(n):
+		r = 12 + 16 * i
+		if d[r:r + 4] == b"cmap":
+			off = struct.unpack(">I", d[r + 8:r + 12])[0]
+	if off is None:
+		return set()
+	nt = struct.unpack(">H", d[off + 2:off + 4])[0]
+	sub = None
+	for i in range(nt):
+		r = off + 4 + 8 * i
+		pid, eid, o = struct.unpack(">HHI", d[r:r + 8])
+		if (pid, eid) in ((3, 1), (3, 10), (0, 3), (0, 4), (0, 6)):
+			sub = off + o
+	if sub is None:
+		return set()
+	fmt = struct.unpack(">H", d[sub:sub + 2])[0]
+	ra = set()
+	if fmt == 4:
+		sx2 = struct.unpack(">H", d[sub + 6:sub + 8])[0]
+		seg = sx2 // 2
+		het = [struct.unpack(">H", d[sub + 14 + 2 * i:sub + 16 + 2 * i])[0]
+		       for i in range(seg)]
+		sb = sub + 16 + sx2
+		dau = [struct.unpack(">H", d[sb + 2 * i:sb + 2 + 2 * i])[0]
+		       for i in range(seg)]
+		for i in range(seg):
+			if dau[i] > het[i] or het[i] == 0xFFFF:
+				continue
+			for c in range(dau[i], het[i] + 1):
+				ra.add(c)
+	elif fmt == 12:
+		ng = struct.unpack(">I", d[sub + 12:sub + 16])[0]
+		for i in range(ng):
+			r = sub + 16 + 12 * i
+			a, b, _g = struct.unpack(">III", d[r:r + 12])
+			for c in range(a, min(b, a + 5000) + 1):
+				ra.add(c)
+	return ra
+
+
+for _tep, _kieu in _CAC_KIEU_PHONG:
+	_dd = os.path.join(_PHONG_DIR, _tep)
+	_co = os.path.isfile(_dd)
+	la("co tep phong %s" % _tep, _co, True)
+	if not _co:
+		continue
+	_ten = _bang_ten(_dd)
+	la("%s khai ho Vagabond Sans" % _kieu, _ten.get(1), "Vagabond Sans")
+	la("%s khai dung kieu chu" % _kieu, _ten.get(2), _kieu)
+	# Giay phep OFL cam ban sua doi dung ten danh rieng "Liberation" LAM
+	# TEN PHONG. O nhan hieu va o mo ta thi van duoc phep nhac lai nguon
+	# goc, va nhac la dung, nen chi soi cac o mang ten phong.
+	la("%s da bo ten Liberation khoi ten phong" % _kieu,
+	   any("Liberation" in str(_ten.get(i, "")) for i in (1, 3, 4, 6, 16, 17)),
+	   False)
+	la("%s van ghi nhan nguon goc Liberation" % _kieu,
+	   "Liberation" in str(_ten.get(7, "")), True)
+	la("%s van ghi ro giay phep OFL" % _kieu,
+	   "Open Font License" in str(_ten.get(13, "")), True)
+	_ma = _bang_ma(_dd)
+	_thieu = [hex(c) for c in _MA_VIET + _MA_THEM if c not in _ma]
+	la("%s co du chu tieng Viet co dau" % _kieu, _thieu, [])
+
+la("co toan van giay phep OFL",
+   os.path.isfile(os.path.join(_PHONG_DIR, "OFL.txt"))
+   and len(open(os.path.join(_PHONG_DIR, "OFL.txt"), encoding="utf-8").read()) > 3000,
+   True)
+la("co ghi chu vi sao mang phong theo",
+   os.path.isfile(os.path.join(_PHONG_DIR, "README.md")), True)
+la("co tep dung lai bo phong", os.path.isfile("dung_phong.py"), True)
+
+# --- Ham chep phong: nap that, frappe gia lap ---
+try:
+	import ast as _ast30
+	import types as _types30
+
+	_pc_cay = _ast30.parse(_pc_src)
+	_pc_dong = _pc_src.split("\n")
+	_pc_bo = set()
+	for _nut in _pc_cay.body:
+		if isinstance(_nut, (_ast30.Import, _ast30.ImportFrom)):
+			for _i in range(_nut.lineno - 1, (_nut.end_lineno or _nut.lineno)):
+				_pc_bo.add(_i)
+	_pc_than = "\n".join(
+		"" if _i in _pc_bo else _l for _i, _l in enumerate(_pc_dong)
+	)
+	_fr30 = _types30.ModuleType("frappe")
+	_fr30.whitelist = lambda *a, **k: (lambda f: f)
+	_fr30.throw = lambda *a, **k: (_ for _ in ()).throw(Exception("throw"))
+	_fr30.get_roles = lambda *a, **k: ["System Manager"]
+	_fr30.log_error = lambda *a, **k: None
+	_fr30.get_traceback = lambda *a, **k: ""
+	_ns30 = {"__name__": "vagabond.phong_chu", "__file__": "vagabond/phong_chu.py",
+	         "frappe": _fr30, "os": os, "shutil": __import__("shutil")}
+	exec(compile(_pc_than, "phong_chu", "exec"), _ns30, _ns30)
+	_nap30 = True
+except Exception as _e30:
+	_nap30 = False
+	print("   (khong nap duoc phong_chu: %s)" % _e30)
+
+la("nap duoc phong_chu.py", _nap30, True)
+
+if _nap30:
+	import tempfile as _tf30
+
+	_nha_cu = os.environ.get("HOME")
+	_xdg_cu = os.environ.get("XDG_DATA_HOME")
+	_tmp30 = _tf30.mkdtemp()
+	try:
+		os.environ["HOME"] = _tmp30
+		os.environ.pop("XDG_DATA_HOME", None)
+		la("nhan ra hai thu muc dich", len(_ns30["cac_thu_muc_dich"]()), 2)
+		la("thu muc dich nam trong HOME",
+		   all(d.startswith(_tmp30) for d in _ns30["cac_thu_muc_dich"]()), True)
+		la("luc dau chua co phong",
+		   any(_ns30["da_du"](d) for d in _ns30["cac_thu_muc_dich"]()), False)
+		_lan1 = _ns30["bao_dam_phong"]()
+		la("chep duoc ca hai thu muc", _lan1, 2)
+		la("chep xong thi da du",
+		   all(_ns30["da_du"](d) for d in _ns30["cac_thu_muc_dich"]()), True)
+		# Goi lan hai khong duoc chep lai, chi kiem roi thoi.
+		_dich1 = _ns30["cac_thu_muc_dich"]()[0]
+		_moc = os.path.getmtime(os.path.join(_dich1, "VagabondSans-Regular.ttf"))
+		la("goi lan hai van bao du", _ns30["bao_dam_phong"](), 2)
+		la("goi lan hai khong chep de len",
+		   os.path.getmtime(os.path.join(_dich1, "VagabondSans-Regular.ttf")), _moc)
+		# Tep bi cut mot nua thi phai chep lai, khong duoc bo qua.
+		_tep1 = os.path.join(_dich1, "VagabondSans-Regular.ttf")
+		open(_tep1, "wb").write(b"hong")
+		la("phat hien tep phong bi hong", _ns30["da_du"](_dich1), False)
+		_ns30["bao_dam_phong"]()
+		la("chep lai duoc tep bi hong", _ns30["da_du"](_dich1), True)
+		# HOME tro vao cho khong ghi duoc thi KHONG duoc nem loi.
+		os.environ["HOME"] = "/proc/khong-co-that"
+		try:
+			_kq30 = _ns30["bao_dam_phong"]()
+			_yen = True
+		except Exception:
+			_kq30, _yen = None, False
+		la("HOME hong van khong nem loi", _yen, True)
+		la("HOME hong thi bao khong chep duoc cho nao", _kq30, 0)
+	finally:
+		if _nha_cu is not None:
+			os.environ["HOME"] = _nha_cu
+		if _xdg_cu is not None:
+			os.environ["XDG_DATA_HOME"] = _xdg_cu
+		__import__("shutil").rmtree(_tmp30, ignore_errors=True)
+
+# --- Dien tap that: dung lai dung hoan canh server ---
+#
+# Chi cho fontconfig nhin thay bo phong cua minh va DejaVu, dung nhu server
+# sau khi da chep phong. In mot doan tieng Viet du dau thanh roi doc xem
+# trong to PDF co phong gi. Co mot chu DejaVu la hong.
+_wk = None
+for _d30 in os.environ.get("PATH", "").split(os.pathsep):
+	_t30 = os.path.join(_d30, "wkhtmltopdf")
+	if os.path.isfile(_t30) and os.access(_t30, os.X_OK):
+		_wk = _t30
+		break
+if not _wk:
+	print("   (khong co wkhtmltopdf, bo qua dien tap dung to PDF)")
+else:
+	import subprocess as _sp30
+	import tempfile as _tf31
+
+	_thu30 = _tf31.mkdtemp()
+	try:
+		_chu = "".join(chr(c) for c in _MA_VIET)
+		_html30 = (
+			"<html><head><meta charset='utf-8'><style>*{font-family:%s}"
+			"</style></head><body><h1>HỢP ĐỒNG MUA BÁN</h1>"
+			"<p>%s</p><p><b>%s</b></p><p><i>%s</i></p>"
+			"<p><b><i>Tổng cộng đã gồm thuế: "
+			"10.800.000 ₫</i></b></p></body></html>"
+			% (_NGAN_XEP, _chu, _chu, _chu)
+		)
+		_ph30 = os.path.join(_thu30, "t.html")
+		open(_ph30, "w", encoding="utf-8").write(_html30)
+		_cf30 = os.path.join(_thu30, "fonts.conf")
+		open(_cf30, "w", encoding="utf-8").write(
+			"<?xml version='1.0'?><fontconfig>"
+			"<dir>%s</dir><dir>/usr/share/fonts/truetype/dejavu</dir>"
+			"<cachedir>%s</cachedir></fontconfig>"
+			% (os.path.abspath(_PHONG_DIR), os.path.join(_thu30, "cache"))
+		)
+		_pdf30 = os.path.join(_thu30, "t.pdf")
+		_mt30 = dict(os.environ)
+		_mt30["FONTCONFIG_FILE"] = _cf30
+		_sp30.call([_wk, "--quiet", _ph30, _pdf30], env=_mt30,
+		           stdout=_sp30.DEVNULL, stderr=_sp30.DEVNULL, timeout=120)
+		_ra30 = open(_pdf30, "rb").read() if os.path.isfile(_pdf30) else b""
+		la("dung duoc to PDF thu", len(_ra30) > 2000, True)
+		_ho30 = sorted(set(re.findall(rb"/BaseFont\s*/([A-Za-z0-9+\-,]+)", _ra30)))
+		_ho30 = [h.decode() for h in _ho30]
+		la("to PDF thu khong con mot chu DejaVu nao",
+		   [h for h in _ho30 if "DejaVu" in h], [])
+		la("to PDF thu chi dung phong Vagabond Sans",
+		   [h for h in _ho30 if not h.startswith("VagabondSans")], [])
+		la("to PDF thu dung du bon kieu chu", len(_ho30), 4)
+	finally:
+		__import__("shutil").rmtree(_thu30, ignore_errors=True)
 
 print("-" * 60)
 if so_hong:
