@@ -3232,7 +3232,19 @@ _js33c = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
 la("co man Cai dat SePay", "async function scrSePay()" in _js33b, True)
 la("man SePay duoc noi vao menu", "if (k === 'CDSE') return go(scrSePay);" in _js33c, True)
 la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDSE'," in _js33c, True)
-la("man SePay bay ra duong dan day du", "d.duong_dan" in _js33b, True)
+la("man SePay ghep duong dan voi ten mien nguoi dung dang mo",
+   "return location.origin + d.duong_dan_path;" in _js33b, True)
+# frappe.utils.get_url() tra ve ten mien noi bo cua Frappe Cloud, dan cho
+# SePay la sai. Bat duoc luc nghiem thu v229 tren site that.
+la("may chu tra ve ca duong dan khong kem ten mien", '"duong_dan_path": DUONG_DAN,' in _se_src, True)
+la("nap bu import make_get_request cho tu te",
+   "from frappe.integrations.utils import make_get_request" in _se_src, True)
+# Kiem loi GOI chu khong kiem chu "frappe.make_get_request" xuat hien
+# trong ma nguon: cau giai thich vi sao khong duoc goi no cung chua dung
+# chuoi do.
+la("khong con dong nao GOI frappe.make_get_request",
+   [d for d in _se_src.splitlines()
+    if "frappe.make_get_request(" in d and not d.strip().startswith("#")], [])
 la("man SePay canh bao tai khoan chua khai", "d.chua_map || []" in _js33b, True)
 la("nut nap bu that tach roi nut chay thu",
    "seNapBu(0)" in _js33b and "seNapBu(1)" in _js33b, True)
