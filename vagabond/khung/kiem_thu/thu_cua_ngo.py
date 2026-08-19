@@ -42,11 +42,15 @@ CUA_NGO = {
 		"tao", "tra_lai",
 	],
 	"hoan_tien.py": [
-		"chi_tiet", "dem_cho_chi", "doi_soat", "ds", "ds_ngan_hang",
+		"chi_tiet", "dem_cho_chi",
+		# dinh_unc va hoan_thanh them ngay 19/08/2026: luong KET THUC phieu
+		# hoan tien. Truoc do phieu di den "Da doi soat" roi dung mai o do,
+		# vi buoc ghi so nam tren Desk chu khong tren man /bep.
+		"dinh_unc", "doi_soat", "ds", "ds_ngan_hang",
 		# gan_gd_vao them ngay 19/08/2026: gan tay mot khoan tien VAO cho
 		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
-		"gan_gd_vao",
+		"gan_gd_vao", "hoan_thanh",
 		"sepay_tien_ra", "tao", "tao_tien_du", "thong_tin_chuyen_khoan",
 		"tinh_trang", "tu_choi",
 		# xuat_excel them ngay 19/08/2026: chi Dung can danh sach hoan tien
