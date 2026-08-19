@@ -35,6 +35,11 @@ UC_CHI_TIET = [
 GRAB = {"so_hd": "511599", "tien_truoc_thue": -52277861, "tien_thue": -4182229,
 	"tong_tien": -56460090}
 
+# Ve may bay Viet Thinh 752, dung de doi chieu chieu nguoc lai.
+VT752_DAU = {"so_hd": "752", "tien_truoc_thue": 1641499, "tien_thue": 131320,
+	"tong_tien": 1850000}
+VT752_CHI_TIET = [{"tchat": 1, "thtien": 1641499, "ten": "Vé DIN-HAN"}]
+
 # Green Ball: cac dong hang dung so, chung tu chi thieu dong thue.
 GB = {"so_hd": "1430", "tien_truoc_thue": -372778, "tien_thue": -29822,
 	"tong_tien": -402600}
@@ -260,3 +265,103 @@ def _():
 	la("Green Ball thiếu thuế", ds.xep_loai(GB, [
 		{"ten": "B", "tong": -372778, "tong_thue": 0, "docstatus": 0}]),
 		ds.THIEU_THUE)
+
+
+# --------------------------------- khoan giam nam ngoai luoi dong hang
+
+# Nha van hoa Thanh Nien TP.HCM, hoa don ban hang C26TVH so 187 ngay
+# 02/08/2026, mau so 2 nen khong tach thue GTGT. Chi phi phoi hop dia diem
+# hoat dong van hanh mo hinh quay banh Phap trong khuon kho du an
+# "BOOK GARDEN 21", hop dong 76-HD/NVH.
+#
+#     dong hang             10.101.010
+#     tong tien thanh toan  10.000.000
+#     ----------------------------------
+#     giam                     101.010
+#
+# Chan hoa don: "Da giam 101.010d tuong ung 20% muc ty le % de tinh thue gia
+# tri gia tang theo Nghi quyet so 204/2025/QH15". Dung 1% cua 10.101.010.
+#
+# Kiem tren he 19/08/2026: o `tien_truoc_thue` cua ban ghi nay BANG 0. Day
+# chinh la ly do phai do khoan giam bang phan chi tiet chu khong bang
+# `phi_ngoai_thue`: neu do bang `tien_truoc_thue` thi
+# `so_theo_dau_hoa_don` se bu o trong bang tong tru thue, ra dung 10.000.000,
+# va phi ngoai thue thanh 0 - may se khong thay khoan giam nao ca.
+NVH = {"so_hd": "187", "tien_truoc_thue": 0, "tien_thue": 0,
+	"tong_tien": 10000000}
+NVH_CHI_TIET = [
+	{"tchat": 1, "thtien": 10101010,
+	 "ten": "Chi phí phối hợp địa điểm hoạt động vận hành mô hình quầy"},
+]
+
+
+@ca("giảm ngoài dòng: đo đúng 101.010 của hoá đơn Nhà văn hoá Thanh Niên")
+def _():
+	giam = md.giam_ngoai_dong(NVH, NVH_CHI_TIET)
+	la("khoản giảm", giam, 101010)
+	dung("đúng 1% của dòng hàng, tức 20% mức tỷ lệ 5%",
+		abs(giam - 10101010 * 0.01) < 1)
+
+
+@ca("giảm ngoài dòng: hoá đơn không có khoản giảm thì bằng không")
+def _():
+	# Ve may bay Viet Thinh: chi tiet 1.641.499, goc 1.718.680, tuc chi tiet
+	# THIEU chu khong thua. Ham phai ra so am, va nhanh can thua khong duoc
+	# dung vao.
+	dung("vé máy bay ra số âm vì thiếu chứ không thừa",
+		md.giam_ngoai_dong(VT752_DAU, VT752_CHI_TIET) < 0)
+	la("hoá đơn khớp sẵn thì bằng không",
+		md.giam_ngoai_dong(UC_MUA, [{"tchat": 1, "thtien": 36700000}]), 0)
+
+
+@ca("giảm ngoài dòng: dựng đúng kế hoạch đưa 101.010 vào ô Chiết khấu")
+def _():
+	la("phiếu đang ghi 10.101.010",
+		md.ke_hoach_giam_ngoai_dong(10101010, NVH, NVH_CHI_TIET), 101010)
+
+
+@ca("giảm ngoài dòng: lệch dưới 100 đồng vẫn cho, lệch nhiều thì không đụng")
+def _():
+	dung("lệch 50 đồng vẫn dựng được kế hoạch",
+		md.ke_hoach_giam_ngoai_dong(10101060, NVH, NVH_CHI_TIET) is not None)
+	dung("lệch 5.000 đồng thì không đụng vào phiếu",
+		md.ke_hoach_giam_ngoai_dong(10106010, NVH, NVH_CHI_TIET) is None)
+
+
+@ca("giảm ngoài dòng: phiếu đã đúng số rồi thì không tự bịa ra khoản giảm")
+def _():
+	# Day la cho nguy hiem nhat. May tuyet doi khong duoc tu tru bot tien
+	# tren mot chung tu thue chi vi thay so khong khop.
+	dung("phiếu đã bằng gốc thì không có kế hoạch nào",
+		md.ke_hoach_giam_ngoai_dong(10000000, NVH, NVH_CHI_TIET) is None)
+	dung("phiếu thiếu tiền thì cũng không",
+		md.ke_hoach_giam_ngoai_dong(9000000, NVH, NVH_CHI_TIET) is None)
+	dung("hoá đơn không có khoản giảm thì dù phiếu thừa cũng không đụng",
+		md.ke_hoach_giam_ngoai_dong(
+			37000000, UC_MUA, [{"tchat": 1, "thtien": 36700000}]) is None)
+
+
+@ca("giảm ngoài dòng: không lẫn với đường chiết khấu thương mại của GSM")
+def _():
+	# Hoa don GSM thua tien vi co dong chiet khau tchat 3 bi cong thay vi
+	# tru. Duong do da co san va phai duoc uu tien, duong giam ngoai dong
+	# chi la duong hai.
+	gsm_dau = {"so_hd": "57194", "tien_truoc_thue": 22068519,
+		"tien_thue": 1765482, "tong_tien": 23834001}
+	ct = [{"tchat": 1, "thtien": 24338889, "ten": "Cước phí vận chuyển"},
+		{"tchat": 3, "thtien": 2270370, "ten": "Chiết khấu thương mại"}]
+	# gom dung dau: 24.338.889 - 2.270.370 = 22.068.519, dung bang goc.
+	la("cộng đúng dấu ra đúng gốc", md.gom_dong_theo_tinh_chat(ct), 22068519)
+	la("nên không còn khoản giảm ngoài dòng nào",
+		md.giam_ngoai_dong(gsm_dau, ct), 0)
+
+
+@ca("giảm ngoài dòng: đo bằng chi tiết chứ không bằng ô tiền trước thuế")
+def _():
+	# Chot lai bang mot ca rieng vi day la ly do ton tai cua ham moi. Ban ghi
+	# that cua hoa don 187 de trong o tien truoc thue, nen duong do cu tit.
+	la("ô tiền trước thuế bị bù thành tổng trừ thuế",
+		md.so_theo_dau_hoa_don(NVH)[0], 10000000)
+	la("nên phí ngoài thuế bằng không, không thấy gì", md.phi_ngoai_thue(NVH), 0)
+	la("còn đo bằng chi tiết thì ra đúng 101.010",
+		md.giam_ngoai_dong(NVH, NVH_CHI_TIET), 101010)
