@@ -1851,6 +1851,17 @@ async function scrSePay() {
   seVe();
 }
 
+/* Duong dan day du de dan sang SePay.
+
+   Khong dung thang chuoi may chu tra ve: frappe.utils.get_url() cho ra ten
+   mien noi bo cua Frappe Cloud (vagabond.s.frappe.cloud). Ca hai ten mien
+   deu vao dung mot site, nhung cai dan cho ben thu ba phai la ten mien
+   that cua cong ty - tuc chinh cai anh chi dang mo. */
+function seUrl(d) {
+  if (d && d.duong_dan_path) return location.origin + d.duong_dan_path;
+  return (d && d.duong_dan) || '';
+}
+
 function seVe() {
   var d = seData || {};
   var html = '<div class="card" style="padding:13px 14px">' +
@@ -1865,7 +1876,7 @@ function seVe() {
     '<div style="font-size:12px;color:#6b7280">Đường dẫn dán vào ô "URL nhận webhook" bên SePay</div>' +
     '<div id="seUrl" style="font-size:12.5px;font-weight:700;color:#0a58ca;word-break:break-all;' +
     'background:#f8fafc;border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:6px 0 10px">' +
-    h(d.duong_dan || '') + '</div>' +
+    h(seUrl(d)) + '</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">' +
     posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
     posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Đã có khoá' : '⚠️ Chưa có khoá', !!d.co_khoa) +
@@ -1938,7 +1949,7 @@ async function seSinhKhoa() {
     '<code>Apikey &lt;khoá&gt;</code>). Khoá này <b>không hiện lại</b> lần nữa.</div>' +
     '<div style="font-size:12px;color:#6b7280">Đường dẫn</div>' +
     '<div style="font-size:12.5px;font-weight:700;word-break:break-all;background:#f8fafc;' +
-    'border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:4px 0 11px">' + h(r.duong_dan) + '</div>' +
+    'border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:4px 0 11px">' + h(seUrl(r)) + '</div>' +
     '<div style="font-size:12px;color:#6b7280">Khoá</div>' +
     '<div style="font-size:13px;font-weight:800;word-break:break-all;background:#fffbeb;' +
     'border:1px solid #fde68a;border-radius:9px;padding:10px 11px;margin-top:4px">' + h(r.khoa) + '</div>');
