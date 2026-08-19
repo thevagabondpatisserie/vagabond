@@ -46,7 +46,10 @@ CUA_NGO = {
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
 		"gan_gd_vao",
 		"sepay_tien_ra", "tao", "tao_tien_du", "thong_tin_chuyen_khoan",
-		"tinh_trang", "tu_choi", "xem_tien_du",
+		"tinh_trang", "tu_choi",
+		# xuat_excel them ngay 19/08/2026: chi Dung can danh sach hoan tien
+		# ra tep de theo doi.
+		"xem_tien_du", "xuat_excel",
 	],
 }
 
