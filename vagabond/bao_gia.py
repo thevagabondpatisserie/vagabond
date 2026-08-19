@@ -2028,10 +2028,17 @@ def _html(name=None, d=None):
 	# thue thi in them mot dong cho tung muc.
 	tt = d.get("tom_tat_thue") or None
 	if tt:
-		muc = [m for m in tt["theo_muc"] if flt(m["tien_hang"]) or flt(m["tien_thue"])]
+		# TEN BIEN: co y KHONG dat la "muc".
+		#
+		# Nghiem thu tren site that 19/08/2026 vo ngay o day: trong ham nay
+		# da co san mot ham ten muc() de in tua de tung muc cua to bao gia.
+		# Dat bien trung ten la ghi de len ham do, va dong muc("Quy trinh
+		# van hanh"...) phia duoi nem TypeError: 'list' object is not
+		# callable. Ca to bao gia va ca phu luc cua hop dong tra ve 500.
+		muc_thue = [m for m in tt["theo_muc"] if flt(m["tien_hang"]) or flt(m["tien_thue"])]
 		ra.append(dong_cong("Cộng tiền hàng chưa thuế", "Subtotal excluding VAT", tt["tien_hang"]))
-		if len(muc) > 1:
-			for m in muc:
+		if len(muc_thue) > 1:
+			for m in muc_thue:
 				ra.append(dong_cong(
 					"Thuế GTGT %g%% trên %s" % (flt(m["thue_pt"]), _tien_vn(m["tien_hang"])),
 					"VAT %g%%" % flt(m["thue_pt"]), m["tien_thue"],
@@ -2039,7 +2046,8 @@ def _html(name=None, d=None):
 			ra.append(dong_cong("Cộng tiền thuế GTGT", "Total VAT", tt["tien_thue"]))
 		else:
 			ra.append(dong_cong(
-				"Thuế GTGT %g%%" % (flt(muc[0]["thue_pt"]) if muc else 0), "VAT", tt["tien_thue"]
+				"Thuế GTGT %g%%" % (flt(muc_thue[0]["thue_pt"]) if muc_thue else 0),
+				"VAT", tt["tien_thue"]
 			))
 	elif flt(d["thue_tien"]):
 		ra.append(dong_cong("Thuế GTGT %g%%" % flt(d["thue_pt"]), "VAT", d["thue_tien"]))
