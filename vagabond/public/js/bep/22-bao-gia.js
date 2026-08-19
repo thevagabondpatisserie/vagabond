@@ -1049,6 +1049,19 @@ async function bgChotHopDong(d) {
 /* ---------- Soan bao gia: moi dong nhap thang tai cho ---------- */
 var bgTay = null, bgMoRong = {};
 
+/* Ban sao may khach cua bao_gia.tien_chiet_khau. HAI PHEP NAY PHAI GIONG
+   HET NHAU: mot ben tinh de bay len man hinh, mot ben tinh de ghi xuong so.
+   Lech nhau la sales doc mot so, khach nhan to in mot so khac.
+   Kieu de trong hieu la phan tram, dung y nhu truoc khi co tinh nang chiet
+   khau theo so tien (anh Viet 19/08/2026). */
+function bgTienCk(goc, kieu, giaTri) {
+  var g = Number(goc) || 0;
+  var v = Number(giaTri) || 0;
+  if (g <= 0 || v <= 0) return 0;
+  if (kieu === 'So tien') return Math.min(Math.round(v), Math.round(g));
+  return Math.min(Math.round(g * v / 100), Math.round(g));
+}
+
 function bgTinh() {
   if (!bgTay) return;
   var tam = 0;
@@ -1056,11 +1069,13 @@ function bgTinh() {
     x.so_luong = Number(x.so_luong) || 0;
     x.don_gia = Number(x.don_gia) || 0;
     x.chiet_khau = Number(x.chiet_khau) || 0;
-    x.thanh_tien = Math.round(x.so_luong * x.don_gia * (1 - x.chiet_khau / 100));
+    var gocDong = Math.round(x.so_luong * x.don_gia);
+    x.ck_tien_dong = bgTienCk(gocDong, x.kieu_ck, x.chiet_khau);
+    x.thanh_tien = gocDong - x.ck_tien_dong;
     tam += x.thanh_tien;
   });
   bgTay.tam_tinh = tam;
-  bgTay.chiet_khau_tien = Math.round(tam * (Number(bgTay.chiet_khau_pt) || 0) / 100);
+  bgTay.chiet_khau_tien = bgTienCk(tam, bgTay.kieu_ck, bgTay.chiet_khau_pt);
   var sau = tam - bgTay.chiet_khau_tien;
   if (bgTheoDong()) {
     var bt = bgBangThue();
@@ -1210,7 +1225,7 @@ function bgTomTatThueHtml() {
 function bgTongHtml() {
   var d = bgTay;
   return '<div style="display:flex;justify-content:space-between"><span>Cộng tiền hàng</span><b>' + money(d.tam_tinh) + ' đ</b></div>' +
-    (Number(d.chiet_khau_pt) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu ' + (Number(d.chiet_khau_pt) || 0) + '%</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
+    (Number(d.chiet_khau_tien) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu' + (d.kieu_ck === 'So tien' ? '' : ' ' + (Number(d.chiet_khau_pt) || 0) + '%') + '</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
     (Number(d.phi_giao) ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Phí giao hàng</span><b>' + money(d.phi_giao) + ' đ</b></div>' : '') +
     (bgTheoDong() ? bgTomTatThueHtml()
       : (d.gia_da_gom_vat ? '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT, không cộng thêm thuế lên tổng</div>'
@@ -1438,7 +1453,8 @@ async function scrBgSua(name) {
       '<span style="font-size:12px;color:#8a8f9c">SL</span>' + bgOSo('dg_' + i + '_so_luong', x.so_luong, 62) +
       bgOChu('dg_' + i + '_dvt', x.dvt, 'đvt', '62px') +
       '<span style="font-size:12px;color:#8a8f9c">Giá</span>' + bgOSo('dg_' + i + '_don_gia', x.don_gia, 116, true) +
-      '<span style="font-size:12px;color:#8a8f9c">CK%</span>' + bgOSo('dg_' + i + '_chiet_khau', x.chiet_khau, 52) +
+      '<span style="font-size:12px;color:#8a8f9c">' + (x.kieu_ck === 'So tien' ? 'CK đ' : 'CK%') + '</span>' +
+      bgOSo('dg_' + i + '_chiet_khau', x.chiet_khau, x.kieu_ck === 'So tien' ? 88 : 52) +
       /* Muc thue cua RIENG dong (anh Viet 18/08/2026). To tron duoc banh 8%
          voi phi dich vu 10% va mon khong chiu thue, nen muc thue la thuoc
          tinh cua dong chu khong phai cua to. */
@@ -1447,6 +1463,11 @@ async function scrBgSua(name) {
       '<div style="display:flex;flex-direction:row;gap:8px;align-items:center">' +
       posChipNut('data-loai="' + i + '"', x.loai === 'Phí' ? 'Là khoản phí' : 'Là món bánh', x.loai === 'Phí') +
       posChipNut('data-mo="' + i + '"', mo ? 'Thu gọn ▴' : 'Mô tả, dị ứng, kích thước ▾', mo) +
+      /* Hai chip chon kieu chiet khau cua RIENG dong nay (anh Viet
+         19/08/2026: *"chiet khau theo tung dong hang hoa"*). */
+      posChipNut('data-ckd="' + i + ':Phan tram"', 'CK %',
+        (x.kieu_ck || 'Phan tram') === 'Phan tram') +
+      posChipNut('data-ckd="' + i + ':So tien"', 'CK số tiền', x.kieu_ck === 'So tien') +
       [0, 8, 10].map(function (v) {
         return posChipNut('data-vat="' + i + ':' + v + '"', 'VAT ' + v + '%',
           (Number(x.thue_pt) || 0) === v);
@@ -1477,7 +1498,13 @@ async function scrBgSua(name) {
   };
   html += '<div class="sec">Chiết khấu, phí, đặt cọc · bấm vào chip để sửa số</div>' +
     '<div class="card" style="padding:12px 14px">' + kmHangChip(
-      cSua('ck', 'Chiết khấu', (Number(d.chiet_khau_pt) || 0) + '%') +
+      /* Hai chip chon kieu chiet khau (anh Viet 19/08/2026, theo yeu cau
+         cua Loan Anh). Chip dang dung thi to dam len, bam chip kia la doi
+         kieu VA mo luon o nhap so - khoi phai bam hai lan. */
+      posChipNut('data-t="ck-pt"', 'Chiết khấu %: <b>' + (Number(d.chiet_khau_pt) || 0) + '%</b> ✎',
+                 (d.kieu_ck || 'Phan tram') === 'Phan tram') +
+      posChipNut('data-t="ck-tien"', 'Chiết khấu số tiền: <b>' + money(d.kieu_ck === 'So tien' ? d.chiet_khau_pt : 0) + ' đ</b> ✎',
+                 d.kieu_ck === 'So tien') +
       cSua('phi', 'Phí giao hàng', money(d.phi_giao) + ' đ') +
       cSua('coc', 'Đặt cọc', (Number(d.dat_coc_pt) || 0) + '%') +
       (d.gia_da_gom_vat ? '' : cSua('vatpt', 'Thuế GTGT', (Number(d.thue_pt) || 0) + '%'))
@@ -1585,13 +1612,45 @@ async function scrBgSua(name) {
       if (dgv) dgv.thue_pt = Number(pv[1]) || 0;
       return go(function () { scrBgSua(name); }, true);
     }
+    if ((el = e.target.closest('[data-ckd]'))) {
+      bgDoc();
+      var pk = el.getAttribute('data-ckd').split(':');
+      var dck = (bgTay.dong || [])[+pk[0]];
+      if (dck && (dck.kieu_ck || 'Phan tram') !== pk[1]) {
+        /* Doi kieu thi so cu vo nghia: 10 phan tram khong phai 10 dong.
+           Xoa ve 0 de sales go lai, an toan hon la giu mot con so sai. */
+        dck.kieu_ck = pk[1] === 'So tien' ? 'So tien' : '';
+        dck.chiet_khau = 0;
+      }
+      return go(function () { scrBgSua(name); }, true);
+    }
     if ((el = e.target.closest('[data-luutv]'))) return bgLuuThuVien(+el.getAttribute('data-luutv'), name);
     if ((el = e.target.closest('[data-dich]'))) return bgDichDong(+el.getAttribute('data-dich'), name);
     if (e.target.closest('[data-t="dichto"]')) return bgDichTo(name);
-    if (e.target.closest('[data-t="ck"]')) {
+    if (e.target.closest('[data-t="ck-pt"]')) {
       bgDoc();
-      var v = await hoiSo('Chiết khấu tổng', 'Phần trăm chiết khấu trên tổng tiền hàng (0 tới 100).', bgTay.chiet_khau_pt || 0);
-      if (v === null) return; bgTay.chiet_khau_pt = Math.min(100, Math.max(0, v));
+      var v = await hoiSo('Chiết khấu tổng theo phần trăm',
+        'Phần trăm chiết khấu trên tổng tiền hàng (0 tới 100).',
+        bgTay.kieu_ck === 'So tien' ? 0 : (bgTay.chiet_khau_pt || 0));
+      if (v === null) return;
+      bgTay.kieu_ck = 'Phan tram';
+      bgTay.chiet_khau_pt = Math.min(100, Math.max(0, v));
+      return go(function () { scrBgSua(name); }, true);
+    }
+    if (e.target.closest('[data-t="ck-tien"]')) {
+      bgDoc();
+      /* Tran la TONG TIEN HANG: go nhieu hon ca to thi to ra so am. May
+         chu cung chan lai lan nua trong bao_gia.tien_chiet_khau. */
+      var tam0 = 0;
+      (bgTay.dong || []).forEach(function (x) {
+        tam0 += Math.round((Number(x.so_luong) || 0) * (Number(x.don_gia) || 0));
+      });
+      var v2 = await hoiSo('Chiết khấu tổng theo số tiền',
+        'Số tiền chiết khấu trừ thẳng vào tổng tiền hàng (tối đa ' + money(tam0) + ' đ).',
+        bgTay.kieu_ck === 'So tien' ? (bgTay.chiet_khau_pt || 0) : 0);
+      if (v2 === null) return;
+      bgTay.kieu_ck = 'So tien';
+      bgTay.chiet_khau_pt = Math.max(0, Math.min(tam0, v2));
       return go(function () { scrBgSua(name); }, true);
     }
     if (e.target.closest('[data-t="phi"]')) {
