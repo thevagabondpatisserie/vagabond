@@ -3389,6 +3389,104 @@ la("tran 100 chi ap cho chiet khau phan tram",
    '(d.get("kieu_ck") or "") != "So tien" and flt(d.chiet_khau) > 100' in _ctl34, True)
 la("van chan chiet khau am", "chiết khấu không được âm" in _ctl34, True)
 
+# ==========================================================================
+# NHOM 35: ho so hoan ung gom duoc nhieu nha cung cap
+#
+# Uyen 19/08/2026, qua anh Viet: *"phai gop duoc nha cung cap luc lam APP
+# hoan ung (hien tai chi lam duoc theo tung NCC rat mat thoi gian vi hoan
+# ung la toan mua le te lat nhat)"*.
+#
+# Cho de sai nhat khong nam o man hinh ma nam o BUT TOAN. Mot Payment Entry
+# chi mang MOT party; ho so gom ba nha cung cap ma van dung mot but toan
+# thi hai nha con lai khong duoc xoa no, hoac ERPNext tu choi ca but toan.
+# Nhom nay khoa lai phep gom theo nha cung cap THAT CUA TUNG HOA DON.
+# ==========================================================================
+print("\n[35] Ho so hoan ung gom nhieu nha cung cap")
+
+_hs35 = open("vagabond/ho_so_tt.py", encoding="utf-8").read()
+_js35 = open("vagabond/public/js/bep/19-ho-so-tt.js", encoding="utf-8").read()
+
+# --- Chan mot nha van con, nhung chi cho hai luong tra thang cho ho ---
+la("van chan nhieu nha voi luong khong phai hoan ung",
+   "if len(ncc_thay) > 1 and not nhieu_ncc:" in _hs35, True)
+la("chi luong Hoan ung HD moi duoc gom nhieu nha",
+   'nhieu_ncc = (loai or "") == LOAI_HU_HD' in _hs35, True)
+la("cau bao loi chi duong sang luong hoan ung (QT-24)",
+   'luồng đó gom được nhiều nhà cùng lúc' in _hs35, True)
+
+# --- But toan: mot cho moi nha cung cap ---
+la("but toan gom theo nha cung cap cua tung hoa don", "theo_ncc = {}" in _hs35, True)
+# Kiem dong LENH chu khong kiem chuoi xuat hien trong tep: doan ghi chu
+# giai thich vi sao khong duoc lam the cung chua dung chuoi do.
+la("party lay tu hoa don chu khong lay dau ho so",
+   "pe.party = ma_ncc" in _hs35
+   and [d for d in _hs35.splitlines()
+        if d.strip() == "pe.party = doc.nha_cung_cap"] == [], True)
+la("so tien cua but toan la tong CUA NHOM, khong phai tong ho so",
+   "pe.paid_amount = flt(tong_nhom)" in _hs35, True)
+la("tra ve tat ca ma but toan da sinh", 'return ", ".join(ra)' in _hs35, True)
+la("hoa don khong doc duoc nha cung cap thi dung lai",
+   "không đọc được nhà cung cấp nên chưa sinh bút toán" in _hs35, True)
+
+# Phep gom: dung lai bang tay tren du lieu gia, kiem BANG CACH CHAY.
+def _gom35(cap):
+	"""cap la [(ten_hoa_don, nha_cung_cap, so_tien)]. Tra ve {nha: tong}."""
+	ra = {}
+	for _ten, _nha, _tien in cap:
+		ra[_nha] = ra.get(_nha, 0.0) + float(_tien)
+	return ra
+
+_bo35 = [("HDM-1", "AEON", 56759), ("HDM-2", "KAMEREO", 1200000),
+         ("HDM-3", "AEON", 40000), ("HDM-4", "BACH HOA", 15000)]
+_kq35 = _gom35(_bo35)
+la("ba nha cung cap ra ba but toan", len(_kq35), 3)
+la("AEON gom hai hoa don thanh mot but toan", _kq35["AEON"], 96759.0)
+la("tong cac but toan bang tong ho so", sum(_kq35.values()), 1311759.0)
+la("mot nha thi van chi mot but toan", len(_gom35([("HDM-1", "AEON", 1000)])), 1)
+
+# --- Nguoi duoc hoan ung ---
+la("ho so hoan ung bat buoc chon nguoi duoc hoan ung",
+   "Chưa chọn người được hoàn ứng." in _hs35, True)
+la("dau ho so hoan ung mang ten nguoi duoc hoan ung",
+   "doc.nha_cung_cap = ma_ung" in _hs35, True)
+# Cho nay tung la mot cai bay that: may dien san so tai khoan cua NHA CUNG
+# CAP vao o nguoi thu huong, bam Luu ma quen sua la tien di nham.
+la("so tai khoan nhan tien lay tu nguoi ung chu khong tu nha cung cap",
+   "lay_tk = ma_ung" in _hs35 and "for k, v in (_tk_nhan(lay_tk) or {}).items():" in _hs35, True)
+la("khong dien email nha cung cap cho ho so hoan ung", 'doc.email_ncc = ""' in _hs35, True)
+la("thu bao NCC bi chan voi ho so hoan ung",
+   "toán chỉ dùng cho hồ sơ công nợ nhà cung cấp." in _hs35
+   and "if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD):" in _hs35, True)
+
+# --- Tung dong phai mang ten nha cung cap cua no ---
+la("moi dong luu ten nha cung cap cua rieng no",
+   '"ben_ban": hd.supplier_name or hd.supplier or "",' in _hs35, True)
+la("chi tiet tra ve so nha cung cap", '"so_ncc": len({' in _hs35, True)
+la("to in ghi ten nha cung cap trong bang khi gom nhieu nha", "nhieu_nha = len({" in _hs35, True)
+
+# --- Man hinh ---
+la("doi chip nha cung cap KHONG xoa hoa don da tick", "if (!laHU) hsTaoChon = {};" in _js35, True)
+la("co chip tat ca nha cung cap", "'📚 Tất cả nhà cung cấp'" in _js35, True)
+la("dem so nha cung cap dang chon", "var soNha = Object.keys(nhaChon).length;" in _js35, True)
+la("man hinh chan luu khi chua chon nguoi duoc hoan ung",
+   "if (laHU && !hsTaoNguoiUng) return baoTin" in _js35, True)
+la("ho so hoan ung khong gui bo loc ncc len may chu", "ncc: laHU ? '' : hsTaoNcc," in _js35, True)
+la("man chi tiet an the thu bao NCC voi ho so hoan ung",
+   "if (hs.trang_thai === 'Da thanh toan' && !laHU) {" in _js35, True)
+
+# --- Doctype ---
+_dt35 = json.load(open("vagabond/vagabond/doctype/vagabond_ho_so_tt/vagabond_ho_so_tt.json", encoding="utf-8"))
+_o35 = {f["fieldname"] for f in _dt35["fields"]}
+la("doctype co du ba o moi", {"nguoi_ung", "ten_nguoi_ung", "so_ncc"} - _o35, set())
+la("cac o moi deu nam trong field_order",
+   {"nguoi_ung", "ten_nguoi_ung", "so_ncc"} - set(_dt35.get("field_order") or []), set())
+# Bai hoc tu su co bao gia cung ngay: o quyet dinh cach xu ly khong duoc
+# mang default, vi cot co default thi co so du lieu tu dien luc INSERT va
+# luc Migrate.
+la("ba o moi khong o nao mang default",
+   [f["fieldname"] for f in _dt35["fields"]
+    if f["fieldname"] in ("nguoi_ung", "ten_nguoi_ung", "so_ncc") and f.get("default")], [])
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
