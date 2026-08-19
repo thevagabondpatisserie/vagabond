@@ -1827,3 +1827,147 @@ async function dmTao(boQuaTrung) {
 }
 
 
+
+/* ================= SePay: nhận giao dịch ngân hàng =================
+
+Ngày 19/08/2026 Uyên báo sao kê OCB kéo về thiếu giao dịch. Đọc lại mới ra
+là hệ thống không hề NHẬN webhook, nó KÉO mỗi giờ một lần bằng một Server
+Script, và con trỏ since_id của kịch bản đó đã vượt qua toàn bộ giao dịch
+OCB cũ hơn ngày tài khoản này được khai vào bản đồ.
+
+Màn này bày ra ba thứ mà trước đó không ai nhìn thấy được: đường dẫn thật
+để dán sang SePay, con trỏ và kết quả lần kéo gần nhất, và số tài khoản nào
+đang bị bỏ qua vì chưa khai. */
+
+var seData = null;
+
+async function scrSePay() {
+  frame('SePay', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { seData = await api('vagabond.sepay.tinh_trang', {}); }
+  catch (e) {
+    frame('SePay', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  seVe();
+}
+
+function seVe() {
+  var d = seData || {};
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">HAI ĐƯỜNG VÀO SỔ</div>' +
+    '<div style="font-size:13.5px;color:#374151;line-height:1.65;margin-top:4px">' +
+    '<b>Webhook</b> là SePay gọi sang ngay khi tiền về, tính bằng giây. ' +
+    '<b>Nhịp kéo</b> là máy tự hỏi SePay mỗi giờ một lần, chậm nhưng là lưới an toàn ' +
+    'khi webhook lỡ một gói. Cả hai cùng ghi một khoá <code>SEPAY-&lt;mã&gt;</code> nên ' +
+    'không bao giờ sinh hai dòng cho một giao dịch.</div></div>';
+
+  html += '<div class="sec">Webhook</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12px;color:#6b7280">Đường dẫn dán vào ô "URL nhận webhook" bên SePay</div>' +
+    '<div id="seUrl" style="font-size:12.5px;font-weight:700;color:#0a58ca;word-break:break-all;' +
+    'background:#f8fafc;border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:6px 0 10px">' +
+    h(d.duong_dan || '') + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">' +
+    posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
+    posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Đã có khoá' : '⚠️ Chưa có khoá', !!d.co_khoa) +
+    '</div>' +
+    (d.sua_duoc ? '<button class="btn gh" id="seSinh" style="margin:0;width:100%">🔑 Sinh khoá mới và bật nhận</button>' : '') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+    'Khoá chỉ hiện ra <b>một lần</b> ngay sau khi sinh. Dán nó vào tab Bảo mật của webhook ' +
+    'bên SePay. Không có khoá thì ai biết đường dẫn cũng bắn được giao dịch giả vào sổ.</div></div>';
+
+  var k = d.keo || {};
+  html += '<div class="sec">Nhịp kéo hàng giờ</div><div class="card" style="padding:2px 14px 10px">' +
+    htCtDong('Trạng thái', k.bat ? 'Đang chạy' : 'Đang tắt') +
+    htCtDong('Lần kéo gần nhất', k.lan_cuoi || '') +
+    htCtDong('Kết quả', k.ket_qua || '') +
+    htCtDong('Con trỏ since_id', k.con_tro || '') +
+    '<div style="font-size:11.5px;color:#98a2b3;padding:8px 0 0;line-height:1.6">' +
+    'Con trỏ chỉ tiến, không lùi. Giao dịch nào có mã nhỏ hơn con trỏ mà lúc đó tài khoản ' +
+    'chưa khai thì bị bỏ qua <b>vĩnh viễn</b> - phải nạp bù mới lấy lại được.</div></div>';
+
+  html += '<div class="sec">Bản đồ tài khoản</div><div class="card" style="padding:2px 14px 10px">' +
+    Object.keys(d.ban_do || {}).map(function (so) {
+      return htCtDong(so, (d.ban_do || {})[so]);
+    }).join('') +
+    ((d.chua_map || []).length
+      ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+        'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6">Đang có giao dịch của ' +
+        '<b>' + h((d.chua_map || []).join(', ')) + '</b> bị bỏ qua vì chưa khai trong bản đồ. ' +
+        'Khai bổ sung trong SePay Settings rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
+      : '') + '</div>';
+
+  html += '<div class="sec">Số dòng đang có trong sổ</div><div class="card" style="padding:2px 14px 10px">' +
+    (d.tai_khoan || []).map(function (t) {
+      return htCtDong(t.bank_account || '', t.so + ' dòng, từ ' + (t.dau || '') + ' đến ' + (t.cuoi || ''));
+    }).join('') + '</div>';
+
+  if (d.sua_duoc) {
+    html += '<div class="sec">Nạp bù sao kê cũ</div><div class="card" style="padding:12px 14px">' +
+      '<div style="font-size:12.5px;color:#374151;line-height:1.65;margin-bottom:10px">' +
+      'Đi lấy lại những giao dịch con trỏ đã bỏ qua. Thao tác này <b>chỉ thêm</b> dòng mới, ' +
+      'không sửa và không xoá dòng nào, chạy lại bao nhiêu lần cũng ra kết quả như lần đầu.</div>' +
+      '<input class="tin" id="seTk" placeholder="Số tài khoản (để trống là tất cả)" style="margin-bottom:8px">' +
+      '<div style="display:flex;gap:8px">' +
+      '<input class="tin" id="seTu" type="date" style="flex:1">' +
+      '<input class="tin" id="seDen" type="date" style="flex:1"></div>' +
+      '<button class="btn gh" id="seThu" style="margin:10px 0 0;width:100%">🔍 Chạy thử, chỉ đếm</button>' +
+      '<button class="btn" id="seThat" style="margin:8px 0 0;width:100%">⬇️ Nạp bù thật</button>' +
+      '<div id="seKq" style="margin-top:10px"></div></div>';
+  }
+
+  var b = frame('SePay', html);
+  var nSinh = document.getElementById('seSinh');
+  if (nSinh) nSinh.onclick = seSinhKhoa;
+  var nThu = document.getElementById('seThu');
+  if (nThu) nThu.onclick = function () { seNapBu(0); };
+  var nThat = document.getElementById('seThat');
+  if (nThat) nThat.onclick = function () { seNapBu(1); };
+  return b;
+}
+
+async function seSinhKhoa() {
+  var r;
+  try { r = await api('vagabond.sepay.dat_khoa', {}); }
+  catch (e) { toast((e && e.message) || 'Không sinh được khoá', 5000); return; }
+  /* Hiện nguyên văn đúng một lần. Cất xong thì chính máy chủ cũng chỉ đọc
+     lại được để so sánh, không bày ra màn nào nữa. */
+  frame('Khoá webhook SePay',
+    '<div style="font-size:13px;color:#374151;line-height:1.65;margin-bottom:11px">' +
+    'Dán hai dòng này sang SePay: đường dẫn vào ô <b>URL nhận webhook</b>, khoá vào tab ' +
+    '<b>Bảo mật</b> (kiểu API Key, tên header <code>Authorization</code>, giá trị ' +
+    '<code>Apikey &lt;khoá&gt;</code>). Khoá này <b>không hiện lại</b> lần nữa.</div>' +
+    '<div style="font-size:12px;color:#6b7280">Đường dẫn</div>' +
+    '<div style="font-size:12.5px;font-weight:700;word-break:break-all;background:#f8fafc;' +
+    'border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:4px 0 11px">' + h(r.duong_dan) + '</div>' +
+    '<div style="font-size:12px;color:#6b7280">Khoá</div>' +
+    '<div style="font-size:13px;font-weight:800;word-break:break-all;background:#fffbeb;' +
+    'border:1px solid #fde68a;border-radius:9px;padding:10px 11px;margin-top:4px">' + h(r.khoa) + '</div>');
+}
+
+async function seNapBu(that) {
+  var tk = (document.getElementById('seTk') || {}).value || '';
+  var tu = (document.getElementById('seTu') || {}).value || '';
+  var den = (document.getElementById('seDen') || {}).value || '';
+  var o = document.getElementById('seKq');
+  if (o) o.innerHTML = '<div style="font-size:12.5px;color:#6b7280">Đang gọi sang SePay...</div>';
+  var r;
+  try {
+    r = await api('vagabond.sepay.nap_bu', { so_tk: tk, tu_ngay: tu, den_ngay: den, that: that ? 1 : 0 });
+  } catch (e) {
+    if (o) o.innerHTML = '<div style="font-size:12.5px;color:#b3261e">' + h((e && e.message) || 'Không nạp được') + '</div>';
+    return;
+  }
+  var chua = Object.keys(r.chua_map || {});
+  if (o) {
+    o.innerHTML =
+      '<div style="font-size:12.5px;color:#374151;line-height:1.7;background:#f8fafc;' +
+      'border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px">' +
+      '<b>' + (r.that ? 'Đã nạp thật' : 'Chạy thử, chưa ghi gì') + '</b><br>' +
+      'Đọc từ SePay: ' + r.tong_doc + ' giao dịch<br>' +
+      (r.that ? 'Đã thêm: ' : 'Sẽ thêm: ') + '<b>' + r.them + '</b> dòng<br>' +
+      'Đã có sẵn: ' + r.da_co + ' dòng<br>' +
+      'Bỏ qua vì chưa khai tài khoản: ' + r.bo_qua +
+      (chua.length ? ' (' + h(chua.join(', ')) + ')' : '') + '</div>';
+  }
+  if (that) scrSePay();
+}

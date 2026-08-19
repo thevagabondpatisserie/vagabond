@@ -1528,15 +1528,21 @@ function htCtVe() {
   if (d.don) {
     html += '<div class="sec">Đơn gốc ' + h(d.don.name) + '</div><div class="card" style="padding:2px 14px 10px">' +
       htCtDong('Ngày đơn', d.don.ngay) +
+      /* Ma don Pancake la thu DUY NHAT phep doi soat tu dong dem tim trong
+         noi dung chuyen khoan. De trong thi dong "SePay da nhan" chac chan
+         ra 0, va nguoi doc phai biet ngay do la vi sao. */
+      htCtDong('Mã đơn Pancake', d.don.ma_pancake || '') +
       htCtDong('Tổng đơn', money(d.don.tong) + ' đ', 1) +
-      /* Voi phieu tien nop thua thi hai con so nay la CAN CU DUY NHAT de
-         chi Dung quyet: da nhan bao nhieu, don bao nhieu, chenh la bao
-         nhieu. Bay ra thang chu khong bat chi mo sang man khac doi chieu. */
+      /* Truoc 19/08/2026 dong nay chi hien cho phieu tien nop thua. Nhung
+         truoc khi chuyen tien ra, phieu tra hang cung can dung mot cau hoi:
+         tien khach da that su vao chua. Ca Ms.Giang hom 19/08 la vi khong
+         co dong nay ma khong ai tra loi duoc. */
+      htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay) + ' đ', 1) +
       (d.loai_hoan === 'Tien nop thua'
-        ? htCtDong('SePay đã nhận', money(d.don.da_nhan_sepay) + ' đ', 1) +
-          htCtDong('Khách nộp thừa',
+        ? htCtDong('Khách nộp thừa',
             money(Math.max(0, Number(d.don.da_nhan_sepay || 0) - Number(d.don.tong || 0))) + ' đ', 1)
         : '') +
+      (Number(d.don.da_nhan_sepay || 0) <= 0 ? htCtSepayTrong(d) : '') +
       htCtDong('Đã thu', money(d.don.da_thu) + ' đ') +
       (d.don.diem_ban ? htCtDong('Điểm bán', d.don.diem_ban) : '') +
       '<div style="padding:9px 0 0">' + (d.don.mon || []).map(function (m) {
@@ -1555,6 +1561,26 @@ function htCtVe() {
     htCtDong('Kho nhận hàng trả', d.kho_huy || '') +
     '</div>';
 
+  /* Doi chieu TAY khoan tien vao. Chi hien cho nguoi duoc quyen, va noi ro
+     day la mot chu ky cua nguoi chu khong phai mot phep may tu chay. */
+  html += '<div class="sec">Giao dịch tiền vào đã đối chiếu</div><div class="card" style="padding:2px 14px 12px">';
+  if (d.gd_vao_ct) {
+    html += htCtDong('Giao dịch', d.gd_vao_ct.name) +
+      htCtDong('Ngày về', String(d.gd_vao_ct.date || '')) +
+      htCtDong('Số tiền vào', money(d.gd_vao_ct.deposit) + ' đ', 1) +
+      htCtDong('Nội dung', d.gd_vao_ct.description || '') +
+      htCtDong('Người đối chiếu', d.nguoi_gan_gd_vao || '');
+  } else {
+    html += '<div style="font-size:12.5px;color:#6b7280;padding:10px 0 4px;line-height:1.6">' +
+      'Chưa ai gắn khoản tiền vào nào cho phiếu này. Khi khách tự gõ nội dung ' +
+      'chuyển khoản thì máy không tự khớp được, phải có người nhìn sao kê và chọn.</div>';
+  }
+  if (d.duoc_doi_chieu && d.trang_thai !== 'Da huy') {
+    html += '<button class="btn gh" id="htCtGd" style="margin:8px 0 0;width:100%">🔎 ' +
+      (d.gd_vao_ct ? 'Chọn lại giao dịch tiền vào' : 'Đối chiếu tay khoản tiền vào') + '</button>';
+  }
+  html += '</div>';
+
   var chan = '';
   if (d.trang_thai !== 'Da huy') {
     chan += '<button class="btn gh" id="htCtMb" style="margin:0;flex:1">🏦 Chuyển khoản</button>';
@@ -1571,6 +1597,90 @@ function htCtVe() {
   if (nMb) nMb.onclick = function () { htMbBiz(d.name); };
   var nTc = document.getElementById('htCtTc');
   if (nTc) nTc.onclick = function () { htFormTuChoi(d.name); };
+  var nGd = document.getElementById('htCtGd');
+  if (nGd) nGd.onclick = function () { htFormGdVao(d); };
+}
+
+
+/* Vi sao dong "SePay da nhan" ra 0 - noi thang thay vi de nguoi doc doan.
+
+   Hai nguyen nhan, va cach xu ly khac han nhau. Thieu ma don Pancake thi
+   phep doi soat khong co gi de tim, sua o hoa don. Co ma don ma van 0 thi
+   khach da tu go noi dung chuyen khoan, phai doi chieu tay. */
+function htCtSepayTrong(d) {
+  var vi_sao = d.don.ma_pancake
+    ? 'Đơn có mã Pancake <b>' + h(d.don.ma_pancake) + '</b> nhưng không giao dịch nào ' +
+      'mang mã này trong nội dung. Thường là khách tự gõ nội dung chuyển khoản thay vì ' +
+      'quét mã QR, nên máy không có gì để bám. Dùng nút đối chiếu tay ở dưới.'
+    : 'Hoá đơn này chưa có mã đơn Pancake, mà đó là thứ duy nhất phép đối soát dựa vào. ' +
+      'Nên con số 0 ở đây <b>không</b> có nghĩa là khách chưa chuyển tiền.';
+  return '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+    'border-radius:9px;padding:9px 11px;margin:8px 0 2px;line-height:1.6">' + vi_sao + '</div>';
+}
+
+
+/* ---------- Đối chiếu tay khoản tiền vào ----------
+
+Máy chỉ lọc ra ứng viên gần đúng số tiền và gần đúng ngày. Chọn dòng nào là
+việc của người, và tên người đó được ghi lại ngay cạnh giao dịch. Không để
+máy tự chọn: một khoản 650.000 đ ngày 13/08 có thể là của bất kỳ đơn nào
+cùng số tiền. */
+async function htFormGdVao(d) {
+  var soTien = Number((d.don && d.don.tong) || d.so_tien || 0);
+  var ngay = (d.don && d.don.ngay) || '';
+  frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
+  var kq;
+  try {
+    kq = await api('vagabond.sepay.tim_gd_vao', { so_tien: soTien, ngay: ngay, so_ngay: 30 });
+  } catch (e) {
+    frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
+    return;
+  }
+  var rows = (kq && kq.rows) || [];
+  var than =
+    '<div style="font-size:12.5px;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;' +
+    'border-radius:9px;padding:10px 12px;margin-bottom:11px;line-height:1.6">' +
+    'Đang tìm khoản tiền vào quanh <b>' + money(soTien) + ' đ</b>' +
+    (ngay ? ' và quanh ngày <b>' + h(ngay) + '</b>' : '') + '. ' +
+    'Chọn đúng dòng khách đã chuyển. Tên anh chị được ghi lại cạnh giao dịch này.</div>';
+  if (!rows.length) {
+    than += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+      'border-radius:9px;padding:10px 12px;line-height:1.6">Không có giao dịch tiền vào nào ' +
+      'gần số tiền và ngày này trong sao kê đang có. Nếu tiền chắc chắn đã về thì sao kê ' +
+      'còn thiếu, báo anh Việt nạp bù giúp.</div>';
+  } else {
+    than += rows.map(function (r) {
+      return '<button class="htgdv" data-gd="' + h(r.name) + '" style="display:block;width:100%;text-align:left;' +
+        'border:1.5px solid #e5e7eb;background:#fff;border-radius:11px;padding:10px 12px;margin-bottom:8px">' +
+        '<div style="display:flex;gap:8px;align-items:baseline">' +
+        '<div style="flex:1;font-weight:800;font-size:14px;color:#0a8a4a">+' + money(r.deposit) + ' đ</div>' +
+        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '')) + '</div></div>' +
+        '<div style="font-size:11.5px;color:#6b7280;margin-top:3px;word-break:break-all">' +
+        h(String(r.description || '').slice(0, 140)) + '</div></button>';
+    }).join('');
+  }
+  if (d.gd_vao_ct) {
+    than += '<button class="btn gh" id="htGdBo" style="margin:6px 0 0;width:100%">Bỏ gắn giao dịch hiện tại</button>';
+  }
+  var b = frame('Đối chiếu tiền vào', than);
+  b.querySelectorAll('.htgdv').forEach(function (n) {
+    n.onclick = function () { htGdGan(d.name, n.getAttribute('data-gd')); };
+  });
+  var nBo = document.getElementById('htGdBo');
+  if (nBo) nBo.onclick = function () { htGdGan(d.name, ''); };
+}
+
+
+async function htGdGan(ma, gd) {
+  try {
+    await api('vagabond.hoan_tien.gan_gd_vao', { ho_so: ma, gd: gd });
+    toast(gd ? 'Đã gắn giao dịch ' + gd : 'Đã bỏ gắn giao dịch', 3500);
+  } catch (e) {
+    toast((e && e.message) || 'Không gắn được giao dịch', 5000);
+    return;
+  }
+  htChiTiet(ma);
 }
 
 

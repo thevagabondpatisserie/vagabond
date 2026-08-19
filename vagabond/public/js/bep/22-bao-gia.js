@@ -419,15 +419,18 @@ async function scrBgXem(name) {
     html += '<div class="hub" style="cursor:default">' + bgAnhO(x.hinh, 42) + '<div class="ht" style="margin-left:10px"><div class="h1">' + h(x.ten_mon) + (x.loai === 'Phí' ? ' <span style="font-size:11px;color:#b45309">(phí)</span>' : '') + '</div>' +
       (x.ten_en ? '<div class="h2" style="font-style:italic">' + h(x.ten_en) + '</div>' : '') +
       '<div class="h2">' + money(x.so_luong) + ' ' + h(x.dvt || '') + ' × ' + money(x.don_gia) + ' đ' +
-      (x.chiet_khau ? ' · CK ' + x.chiet_khau + '%' : '') + '</div></div>' +
+      (x.chiet_khau ? ' · CK ' + (x.kieu_ck === 'So tien' ? money(x.chiet_khau) + ' đ' : x.chiet_khau + '%') : '') + '</div></div>' +
       '<b style="white-space:nowrap;font-size:13px">' + money(x.thanh_tien) + '</b></div>';
   });
   html += '</div>';
   html += '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between"><span>Cộng tiền hàng</span><b>' + money(d.tam_tinh) + ' đ</b></div>' +
-    (d.chiet_khau_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu ' + d.chiet_khau_pt + '%</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
+    /* Man chi doc nay bi bo quen o dot v228: no in thang chiet_khau_pt kem
+       dau %, nen mot to giam 2.401.376 d hien ra "Chiet khau 2401376%".
+       Loan Anh bao ngay 19/08/2026. Cung mot phep doc voi man sua. */
+    (d.chiet_khau_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Chiết khấu' + (d.kieu_ck === 'So tien' ? '' : ' ' + (Number(d.chiet_khau_pt) || 0) + '%') + '</span><b>-' + money(d.chiet_khau_tien) + ' đ</b></div>' : '') +
     (d.phi_giao ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Phí giao hàng</span><b>' + money(d.phi_giao) + ' đ</b></div>' : '') +
-    (d.thue_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Thuế GTGT ' + d.thue_pt + '%</span><b>' + money(d.thue_tien) + ' đ</b></div>' : '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT</div>') +
+    bgXemThueHtml(d) +
     '<hr><div style="display:flex;justify-content:space-between"><span><b>TỔNG CỘNG</b></span><b style="font-size:17px">' + money(d.tong_cong) + ' đ</b></div>' +
     (d.dat_coc_tien ? '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đặt cọc ' + d.dat_coc_pt + '%</span><b style="color:#0a8a4a">' + money(d.dat_coc_tien) + ' đ</b></div>' : '') +
     '</div>';
@@ -1221,6 +1224,36 @@ function bgTomTatThueHtml() {
   }
   return ra;
 }
+
+/* Khoi thue cua man CHI DOC.
+
+   Truoc 19/08/2026 cho nay chi biet hai truong hop: co thue_tien thi in
+   "Thue GTGT <thue_pt>%", khong thi in "Don gia da bao gom VAT". Ca hai
+   deu doc o thue_pt CUA TO, trong khi to co the dang tinh thue theo tung
+   dong - luc do thue_pt cua to khong con y nghia gi. Ket qua la man hinh
+   noi mot dang con to PDF in mot dang. */
+function bgXemThueHtml(d) {
+  var d1 = function (nhan, tien) {
+    return '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>' +
+      nhan + '</span><b>' + money(tien) + ' đ</b></div>';
+  };
+  if (d.kieu_thue === 'Theo từng dòng') {
+    var muc = ((d.tom_tat_thue || {}).theo_muc || []).filter(function (m) {
+      return Number(m.tien_hang) || Number(m.tien_thue);
+    });
+    var ra = d1('Cộng tiền hàng chưa thuế', (d.tom_tat_thue || {}).tien_hang || 0);
+    if (muc.length > 1) {
+      muc.forEach(function (m) { ra += d1('Thuế GTGT ' + m.thue_pt + '% trên ' + money(m.tien_hang), m.tien_thue); });
+      ra += d1('Cộng tiền thuế GTGT', (d.tom_tat_thue || {}).tien_thue || 0);
+    } else {
+      ra += d1('Thuế GTGT ' + (muc.length ? muc[0].thue_pt : 0) + '%', (d.tom_tat_thue || {}).tien_thue || 0);
+    }
+    return ra;
+  }
+  if (Number(d.thue_tien)) return d1('Thuế GTGT ' + (Number(d.thue_pt) || 0) + '%', d.thue_tien);
+  return '<div style="font-size:12.5px;color:#8a8f9c;margin-top:6px">Đơn giá đã bao gồm VAT</div>';
+}
+
 
 function bgTongHtml() {
   var d = bgTay;
