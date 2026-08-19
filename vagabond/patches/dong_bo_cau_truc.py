@@ -50,6 +50,21 @@ def execute():
 		# duoc phien ban moi, ma loi that thi chi la thieu vai truong.
 		frappe.log_error(frappe.get_traceback(), "patches: dong bo cau truc")
 
+	# Tra lai che do thue cho cac to bao gia bi cot "default" cua dot v228
+	# ghi de. Chi sua o che do, khong dung vao mot o tien nao, va lap lai
+	# duoc: chay lan thu hai thi khong con to nao thoa dieu kien.
+	try:
+		from vagabond import bao_gia
+
+		kq = bao_gia.sua_kieu_thue_bi_dat_mac_dinh()
+		if kq.get("sua"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: tra lai cach tinh thue cho %d to bao gia"
+				% len(kq["sua"])
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: sua kieu thue bao gia")
+
 	# Danh muc 581 ngan hang theo tep chuyen tien lo cua MB Biz.
 	#
 	# Chay lai duoc, va chi THEM cai con thieu - khong dung vao ngan hang da
