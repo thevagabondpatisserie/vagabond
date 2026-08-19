@@ -48,7 +48,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .lgfp{text-align:center;font-size:13.5px;color:#0B7C93;font-weight:600;padding:12px 8px 2px;cursor:pointer;user-select:none}
 .lgfp:active{color:#05323C}
 .vb{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 24px}
-.vf{flex:0 0 auto;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 12px);background:#fff;border-top:1px solid #e3e6ee;box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+.vf{flex:0 0 auto;padding:10px 12px calc(env(safe-area-inset-bottom,8px) + 14px);background:#fff;border-top:1px solid #e3e6ee;box-shadow:0 -2px 10px rgba(0,0,0,.05)}
 .btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:600;background:#50DBF2;color:#05323C;cursor:pointer}
 .btn:active{background:#2FC9E6}
 .btn[disabled]{background:#c3c8d4;color:#fff}

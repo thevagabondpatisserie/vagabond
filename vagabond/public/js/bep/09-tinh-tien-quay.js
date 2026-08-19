@@ -216,9 +216,11 @@ function posNutNguon(ds, chon) {
 function posNutPt(ds, chon) {
   return ds.map(function (p) {
     var on = p.v === chon;
-    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:6px 8px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
+    return '<button class="ptc" data-pt="' + h(p.v) + '" style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:8px 10px;border-radius:10px;overflow:hidden;border:1.5px solid ' + (on ? '#0d9488;background:#ccfbf1;color:#0f766e' : '#e5e7eb;background:#fff;color:#374151') + '">' +
       posONhan({ lg: p.lg, ic: p.lg ? '' : (p.ic || '🏦') }, 24) +
-      '<span style="font-size:14px;line-height:1.15;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
+      /* min-width:0 để nhãn dài như "Chuyển khoản ngân hàng" xuống dòng
+         gọn thay vì bị cắt cụt bởi overflow:hidden của nút. */
+      '<span style="flex:0 1 auto;min-width:0;font-size:14px;line-height:1.3;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
   }).join('');
 }
 async function scrPosQuay() {
@@ -367,8 +369,12 @@ async function scrPosQuay() {
       : '') +
     '<input class="tin" id="posTen" placeholder="Tên khách, mã khách, MST hoặc số điện thoại" autocomplete="off" value="' + h(posDon.ten || '') + '">' +
     '<div id="posTenGoi"></div></div>' +
-    '<input class="tin" id="posSdt" placeholder="Số điện thoại" inputmode="tel" value="' + h(posDon.sdt || '') + '">' +
-    '<input class="tin" id="posGhiChu" placeholder="Ghi chú bill: gói quà, để lạnh, giao lầu 2..." value="' + h(posDon.ghi_chu || '') + '">' +
+    /* Ba ô này trước đây dính sát nhau không có một khoảng nào, ngón tay to
+       là bấm nhầm ô. Đặt khoảng ngay tại đây chứ KHÔNG sửa .tin toàn hệ:
+       lớp .tin đang dùng ở 109 chỗ khắp các màn, đổi nó là đổi cả những màn
+       không ai yêu cầu và không ai kiểm lại. */
+    '<input class="tin" id="posSdt" placeholder="Số điện thoại" inputmode="tel" style="margin-top:12px" value="' + h(posDon.sdt || '') + '">' +
+    '<input class="tin" id="posGhiChu" placeholder="Ghi chú bill: gói quà, để lạnh, giao lầu 2..." style="margin-top:12px" value="' + h(posDon.ghi_chu || '') + '">' +
     '</div>';
   /* Hang, so diem hien co, so diem se tich, va o tru tien bang diem.
      Toan bo khoi nay dung o 13-khuyen-mai.js (anh Viet 19/08/2026). */
