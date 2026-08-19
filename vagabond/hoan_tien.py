@@ -31,6 +31,7 @@ su chuyen di. Ke toan mo phieu, chuyen khoan that, dinh kem uy nhiem chi,
 roi moi ghi so.
 """
 
+import base64
 import json
 import re
 
@@ -92,6 +93,39 @@ LY_DO_DU = (
 
 LOAI_TRA_HANG = "Tra hang"
 LOAI_TIEN_DU = "Tien nop thua"
+
+# Chu tieng Viet cho hai o Select. Chi dung khi XUAT RA cho nguoi doc (tep
+# Excel cua chi Dung); trong co so du lieu van la chuoi khong dau, vi doi
+# gia tri Select la phai chay len toan bo du lieu cu.
+NHAN_LOAI_HOAN = {
+	"": "Trả hàng",
+	LOAI_TRA_HANG: "Trả hàng",
+	LOAI_TIEN_DU: "Tiền nộp thừa",
+}
+NHAN_TRANG_THAI = {
+	"Cho chi": "Chờ chi",
+	"Da chi": "Đã chi",
+	"Da doi soat": "Đã đối soát",
+	"Da huy": "Đã huỷ / Từ chối",
+}
+
+
+def _tien_vn(v):
+	"""So tien dang nguoi Viet doc duoc: 1234567 -> "1.234.567".
+
+	Ham nay dang duoc goi o BA cho trong tep tu truoc ma CHUA BAO GIO duoc
+	dinh nghia. Hai cho nam trong nhanh bao loi nen khong ai vap; cho thu
+	ba nam giua luong sinh chung tu cua phieu tien nop thua, va no da no
+	that ngay 19/08/2026 voi phieu HT-2026-00899:
+
+	    NameError: name '_tien_vn' is not defined
+
+	Hau qua khong dung o mot dong bao loi xau. Xem ghi chu trong doi_soat().
+	"""
+	try:
+		return "{:,.0f}".format(float(v or 0)).replace(",", ".")
+	except Exception:
+		return str(v)
 
 
 def tran_tien_du(da_nhan, tong_don):
@@ -175,6 +209,14 @@ TRUONG_MOI = {
 		# nao de bam, va don trong nhu chua nhan dong nao du tien da nam
 		# trong tai khoan cong ty. Truong nay giu dong Bank Transaction ma
 		# NGUOI da nhin va xac nhan, de chi Dung quyet chi co can cu.
+		{
+			"fieldname": "loi_sinh_ct", "label": "Lỗi khi sinh chứng từ",
+			"fieldtype": "Small Text", "insert_after": "ngay_tu_choi", "read_only": 1,
+			"description": (
+				"Tiền đã ra và đã khớp sao kê nhưng máy chưa sinh được hoá đơn trả "
+				"hàng hoặc phiếu chi. Để trống là mọi thứ bình thường."
+			),
+		},
 		{
 			"fieldname": "sec_gd_vao", "label": "Giao dịch tiền vào đã đối chiếu",
 			"fieldtype": "Section Break", "insert_after": "ngay_tu_choi",
@@ -1348,8 +1390,28 @@ def doi_soat(ho_so=None, so_ngay=30):
 					"ma_gd": g["name"],
 					"ngay_doi_soat": now_datetime(),
 					"trang_thai": "Da doi soat",
+					"loi_sinh_ct": "",
 				},
 			)
+			# GHI XUONG NGAY, TRUOC khi sinh chung tu.
+			#
+			# Truoc 19/08/2026 hai viec nay nam chung mot giao dich co so du
+			# lieu: danh dau da doi soat, roi sinh chung tu, hong thi
+			# rollback. Ma rollback do xoa luon cai dau da doi soat vua ghi.
+			#
+			# Ket qua thay tren phieu HT-2026-00899: tien 185.000 d DA RA
+			# khoi tai khoan MB luc 18:00, sao ke co dung dong do voi dung
+			# noi dung "THE VAGABOND HOAN TIEN HDB-26-08-00581", may khop
+			# dung phieu - nhung mot loi NameError trong buoc sinh chung tu
+			# lam rollback xoa het, nen phieu van nam o "Cho chi". Nhip cham
+			# 35 phut moi gio lai chay lai, lai hong, lai xoa dau. Ca chuoi
+			# lap vo tan va khong ai nhin thay gi ngoai mot phieu mai khong
+			# nhuc nhich.
+			#
+			# Hai su that khac han nhau, khong duoc gop lam mot:
+			#   tien da ra va da khop  -> la SU THAT, ghi xuong ngay.
+			#   chung tu sinh duoc chua -> la viec sau, hong thi ghi ro loi.
+			frappe.db.commit()
 			da += 1
 			# TIEN DA RA THAT. Day la moc duy nhat sinh chung tu.
 			#
@@ -1367,6 +1429,20 @@ def doi_soat(ho_so=None, so_ngay=30):
 				frappe.log_error(
 					frappe.get_traceback(), "hoan_tien: sinh chung tu sau doi soat loi %s" % d["name"]
 				)
+				# Ghi loi LEN CHINH PHIEU. Error Log chi ke toan biet duong
+				# mo, ma nguoi ngoi truoc phieu moi la nguoi can biet vi sao
+				# chua co phieu chi.
+				try:
+					frappe.db.set_value(
+						DT, d["name"], "loi_sinh_ct",
+						("Tiền đã ra và đã khớp sao kê, nhưng máy chưa sinh được "
+						 "chứng từ: %s. Nhờ kế toán bấm lại nút Đối soát lệnh chi, "
+						 "còn không được thì báo anh Việt."
+						 % str(frappe.get_traceback()).strip().splitlines()[-1][:200]),
+					)
+					frappe.db.commit()
+				except Exception:
+					pass
 			break
 	frappe.db.commit()
 	return {"da_khop": da, "xem_xet": xem[:50], "so_phieu_quet": len(ds), "da_sinh": sinh}
@@ -1788,7 +1864,7 @@ def ds(trang_thai="", so_dong=100, tim=""):
 			"name", "hoa_don", "hoa_don_tra", "phieu_chi", "khach", "so_tien",
 			"ly_do", "trang_thai", "da_doi_soat", "noi_dung_ck", "creation",
 			"ten_tk", "so_tk", "ngan_hang", "nguoi_duyet", "loai_hoan",
-			"so_hddt",
+			"so_hddt", "loi_sinh_ct",
 		],
 		order_by="creation desc",
 		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
@@ -1885,6 +1961,78 @@ def dem_cho_chi():
 
 	_kiem_quyen()
 	return {"cho_chi": frappe.db.count(DT, {"trang_thai": "Cho chi"})}
+
+
+@frappe.whitelist()
+def xuat_excel(trang_thai="", tim="", so_dong=500):
+	"""Danh sach phieu hoan tien ra Excel cho chi Dung theo doi.
+
+	Chi Dung 19/08/2026, qua anh Viet: *"cho anh nut xuat duoc danh sach
+	hoan tien nay ra excel"*.
+
+	Xuat DUNG cai dang hien tren man: cung bo loc, cung o tim, cung thu tu.
+	Tep Excel ma khac man hinh la mot ngay nao do hai ben cai nhau ve mot
+	con so, nen o day goi thang ds() chu khong viet lai truy van.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	kq = ds(trang_thai=trang_thai, so_dong=so_dong, tim=tim)
+	rows = kq.get("rows") or []
+
+	bang = [
+		["PHIẾU HOÀN TIỀN (CASH-BACK)"],
+		[
+			"Xuất lúc", str(now_datetime())[:19],
+			"Bộ lọc", NHAN_TRANG_THAI.get(trang_thai, "Tất cả") if trang_thai else "Tất cả",
+			"Ô tìm", tim or "(không)",
+		],
+		["Số phiếu", len(rows), "Tổng tiền", sum(flt(r.get("so_tien")) for r in rows)],
+		[],
+		[
+			"Mã phiếu", "Ngày lập", "Khách", "Loại phiếu", "Hoá đơn gốc",
+			"Số tiền", "Trạng thái", "Đã đối soát", "Mã giao dịch ngân hàng",
+			"Hoá đơn trả hàng", "Phiếu chi", "Số hoá đơn điện tử",
+			"Chủ tài khoản", "Số tài khoản", "Ngân hàng", "Nội dung chuyển khoản",
+			"Người duyệt", "Lý do", "Cảnh báo",
+		],
+	]
+	for r in rows:
+		bang.append([
+			r.get("name") or "",
+			str(r.get("creation") or "")[:10],
+			r.get("ten_khach") or r.get("khach") or "",
+			NHAN_LOAI_HOAN.get(r.get("loai_hoan") or "", "Trả hàng"),
+			r.get("hoa_don") or "",
+			flt(r.get("so_tien")),
+			NHAN_TRANG_THAI.get(r.get("trang_thai"), r.get("trang_thai") or ""),
+			"Rồi" if cint(r.get("da_doi_soat")) else "Chưa",
+			r.get("ma_gd") or "",
+			r.get("hoa_don_tra") or "",
+			r.get("phieu_chi") or "",
+			r.get("so_hddt") or "",
+			r.get("ten_tk") or "",
+			# Ep chuoi: so tai khoan bat dau bang so 0 ma de dang so thi
+			# Excel an mat so 0 dau, va ke toan chuyen nham tai khoan.
+			"'" + str(r.get("so_tk") or ""),
+			r.get("ngan_hang") or "",
+			r.get("noi_dung_ck") or "",
+			r.get("nguoi_duyet") or "",
+			r.get("ly_do") or "",
+			r.get("loi_sinh_ct") or "",
+		])
+	bang.append([])
+	bang.append(["TỔNG", "", "", "", "", sum(flt(r.get("so_tien")) for r in rows)])
+
+	from frappe.utils.xlsxutils import make_xlsx
+
+	tep = make_xlsx(bang, "Phieu hoan tien")
+	noi_dung = tep.getvalue() if hasattr(tep, "getvalue") else tep
+	return {
+		"ten_file": "phieu-hoan-tien-%s.xlsx" % nowdate(),
+		"b64": base64.b64encode(noi_dung).decode(),
+		"so_dong": len(rows),
+	}
 
 
 @frappe.whitelist()
