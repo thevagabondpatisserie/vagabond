@@ -32,6 +32,22 @@ from vagabond.lib import cfg
 
 TRUONG = "vgb_may_in"
 
+# Can tem: dich ngang, dich doc, va kho tem tu dat.
+#
+# Vi sao phai co, thay vi sua cho dung mot lan roi thoi (De 19/08/2026:
+# *"kho tem in ra dang bi lech"*). Kho giay khai trong ma nguon la
+# 40 x 30mm va dung dung, nhung giua CSS va giay that con hai lop nua:
+# trinh duyet tu them le, va driver may in tu co gian cho vua. Hai lop do
+# khac nhau tren tung may, tung ban Chrome, tung lan doi giay.
+#
+# Doan tu xa roi sua cung so trong ma nguon la mot vong lap khong loi ra:
+# sua, deploy, in thu, van lech, sua tiep. Nen thay vi doan, cho chinh
+# bang hai o so tren man Cai dat va mot nut in thu co vien bao quanh -
+# nhin la biet lech bao nhieu mi li, chinh mot lan dung mai, doi may in
+# khac cung khong phai sua ma nguon.
+TRUONG_CAN = "vgb_can_tem"
+CAN_MAC_DINH = {"ngang": 0.0, "doc": 0.0, "rong": 0.0, "cao": 0.0, "xoay": 0}
+
 QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager"}
 
 # Bon loai phieu app dang in. Them loai moi thi them mot dong o day, man
@@ -154,6 +170,62 @@ def ds(chi_bat=False):
 	return [d for d in ra if d["bat"]] if chi_bat else ra
 
 
+def can_tem():
+	"""Thong so can tem dang dung. Hong dinh dang thi ve mac dinh."""
+	try:
+		tho = json.loads((cfg().get(TRUONG_CAN) or "").strip() or "{}")
+	except Exception:
+		tho = {}
+	if not isinstance(tho, dict):
+		tho = {}
+	ra = dict(CAN_MAC_DINH)
+	for k in ("ngang", "doc", "rong", "cao"):
+		try:
+			ra[k] = float(tho.get(k) or 0)
+		except Exception:
+			ra[k] = 0.0
+	ra["xoay"] = 90 if int(tho.get("xoay") or 0) == 90 else 0
+	return ra
+
+
+@frappe.whitelist()
+def luu_can_tem(ngang=0, doc=0, rong=0, cao=0, xoay=0):
+	"""Luu thong so can tem tu man Cai dat."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not QUYEN_SUA & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới chỉnh được căn tem.")
+
+	def _so(v, ten, nho_nhat, lon_nhat):
+		try:
+			x = float(v or 0)
+		except Exception:
+			frappe.throw("Ô %s phải là một con số, tính bằng mi li mét." % ten)
+		if x < nho_nhat or x > lon_nhat:
+			frappe.throw(
+				"Ô %s đang là %g, ngoài khoảng cho phép %g đến %g mm. Lệch quá "
+				"khoảng này thì không phải căn nữa mà là sai khổ giấy."
+				% (ten, x, nho_nhat, lon_nhat)
+			)
+		return x
+
+	moi = {
+		"ngang": _so(ngang, "dịch ngang", -15, 15),
+		"doc": _so(doc, "dịch dọc", -15, 15),
+		"rong": _so(rong, "chiều rộng tem", 0, 120),
+		"cao": _so(cao, "chiều cao tem", 0, 120),
+		"xoay": 90 if int(xoay or 0) == 90 else 0,
+	}
+	frappe.db.set_single_value(
+		"Vagabond Settings", TRUONG_CAN, json.dumps(moi, ensure_ascii=False)
+	)
+	frappe.db.commit()
+	frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
+	_ghi_vet("Chỉnh căn tem: %s" % json.dumps(moi, ensure_ascii=False))
+	return danh_sach()
+
+
 def kho_theo_vai_tro():
 	"""Bang tra loai phieu -> kho giay, gui cho app cung cau hinh ban hang.
 
@@ -171,6 +243,17 @@ def kho_theo_vai_tro():
 		k = bang.get(v["k"]) or KHO_MAC_DINH.get(v["k"]) or "80mm"
 		kho = [x for x in KHO_GIAY if x["k"] == k]
 		ra[v["k"]] = dict(kho[0]) if kho else dict(KHO_GIAY[0])
+	# Thong so can tem di kem luon kho tem, de ban in ben app chi phai doc
+	# MOT cho. Kho tu dat khac 0 thi de len kho chon san.
+	c = can_tem()
+	t = ra.get("tem") or {}
+	if c["rong"] > 0:
+		t["rong"] = c["rong"]
+	if c["cao"] > 0:
+		t["cao"] = c["cao"]
+	t["css"] = "%gmm %gmm" % (t.get("rong") or 40, t.get("cao") or 30)
+	t["ngang"], t["doc"], t["xoay"] = c["ngang"], c["doc"], c["xoay"]
+	ra["tem"] = t
 	return ra
 
 
@@ -235,6 +318,7 @@ def danh_sach():
 		"may": ds(),
 		"vai_tro": VAI_TRO,
 		"kho_giay": KHO_GIAY,
+		"can_tem": can_tem(),
 		"diem": [{"ma": d["ma"], "ten": d["ten_ngan"] or d["ten"]} for d in diem_ban.ds()],
 		"sua_duoc": 1 if QUYEN_SUA & set(frappe.get_roles()) else 0,
 	}

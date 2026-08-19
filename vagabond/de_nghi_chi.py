@@ -662,3 +662,58 @@ def danh_muc():
 		"nguong_giam_doc": NGUONG_GIAM_DOC,
 		"nhac_ncc": "Nếu chưa có nhà cung cấp trong danh mục, anh chị liên hệ Uyên để tạo mã giúp.",
 	}
+
+
+@frappe.whitelist()
+def tao(du_lieu=None, gui_luon=0):
+	"""Lập một đề nghị chi từ APP. Ai cũng lập được.
+
+	Anh Việt 19/08/2026: *"nút Tạo yêu cầu thanh toán nội bộ em cho vào phân
+	hệ đặt hàng dùm anh và cho mọi nhân viên đều nhìn thấy để làm khi các bạn
+	mua hàng"*.
+
+	Trước hàm này, phiếu chỉ lập được trên Desk. Mà anh Việt đã chốt từ
+	13/08: *"anh thấy thao tác trên desktop bị rối quá nên mình làm trên
+	app"*. Bạn bếp và bạn quầy mua chai nước mắm thì không ai mở Desk.
+
+	Hàm này CỐ Ý mỏng: nó chỉ đổ dữ liệu vào doctype rồi lưu. Mọi luật
+	nghiệp vụ - tài khoản hạch toán theo phân loại, chặn tài sản cố định,
+	bắt buộc số hoá đơn khi có VAT - đều nằm ở `truoc_khi_luu` và chạy qua
+	hook before_validate. Viết lại luật ở đây là mở đường cho hai bộ luật
+	lệch nhau, mà một trong hai sẽ sai vào một ngày không ai để ý.
+	"""
+	d = frappe.parse_json(du_lieu) if isinstance(du_lieu, str) else (du_lieu or {})
+	if not isinstance(d, dict):
+		frappe.throw("Dữ liệu gửi lên không đúng định dạng.")
+	if not str(d.get("ten_khoan_chi") or "").strip():
+		frappe.throw("Chưa đặt tên khoản chi. Ghi ngắn gọn mua gì hoặc chi cho việc gì.")
+	if flt(d.get("so_tien")) <= 0:
+		frappe.throw("Số tiền phải lớn hơn 0.")
+
+	doc = frappe.new_doc(DT)
+	for f in (
+		"ten_khoan_chi", "loai_nghiep_vu", "phan_loai", "dien_giai",
+		"hinh_thuc", "nha_cung_cap", "phuong_thuc", "ten_tk", "so_tk",
+		"ngan_hang", "chung_tu_thue", "so_hoa_don", "mst", "ghi_chu",
+	):
+		v = d.get(f)
+		doc.set(f, (str(v).strip() if isinstance(v, str) else v) or None)
+	doc.so_tien = flt(d.get("so_tien"))
+	doc.ngay_can_tt = d.get("ngay_can_tt") or None
+	doc.ngay_hoa_don = d.get("ngay_hoa_don") or None
+	doc.nguoi_tao = frappe.session.user
+	doc.trang_thai = TT_NHAP
+	doc.flags.ignore_permissions = True
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+
+	# Gửi duyệt luôn thì đi qua ĐÚNG hàm gui_duyet, không tự đặt trạng thái.
+	# Hàm đó giữ luật ai duyệt trước ai duyệt sau và mốc 2 triệu; đặt tay ở
+	# đây là lách mất cả hai.
+	if cint(gui_luon):
+		gui_duyet(doc.name)
+		doc.reload()
+	return {
+		"ok": 1, "ma": doc.name, "trang_thai": doc.trang_thai,
+		"nhan_trang_thai": NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai,
+	}
