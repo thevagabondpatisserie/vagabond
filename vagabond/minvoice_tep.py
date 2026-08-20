@@ -132,17 +132,15 @@ def _cai_dat_chung():
 def _tai_pdf_tho(hid, loai):
 	"""Goi sang M-Invoice lay byte PDF cua mot hoa don. Tra (bytes, loi).
 
-	Duong that do duoc ngay 20/08/2026 bang cach ban tham do khong token
-	vao tung duong ung vien: duong ton tai tra 401 (doi xac thuc), duong
-	khong co tra 404. Ket qua:
-	  /erp/qlhd-api/invoices/<id>/download/pdf   -> 401, DUONG THAT
-	  /erp/qlhd-api/invoices/<id>/pdf            -> 404, khong ton tai
-	  /erp/qlhd-api/invoices/batch-download/...  -> 404, chi co ban session
-	Van giu them hai duong du phong phia sau, phong M-Invoice doi duong:
-	duong nao tra ve %PDF that thi dung o do.
+	Do duong ngay 20/08/2026, hai bang chung:
+	1. Tham do khong token: /erp/qlhd-api/invoices/<id>/download/... tra 401
+	   (co that, cho moi ten tep), con /pdf va batch-download tra 404.
+	2. Doc bundle SPA cua trang quan ly: ho tai XML bang GET
+	   .../<id>/download/invoice.xml, nen PDF thu invoice.pdf truoc; goi
+	   "download/pdf" tran da nghiem thu tra 400 (thieu ten tep).
+	Moi lan truot deu ghi kem ruot phan hoi de lan sau khong phai doan.
+	Neu tra ve goi zip (PK) thi boc lay tep .pdf dau tien ben trong.
 	"""
-	import base64
-
 	import requests
 
 	from vagabond.minvoice_dong_bo import LOAI_RA, _cai_dat
@@ -150,31 +148,56 @@ def _tai_pdf_tho(hid, loai):
 	cd = _cai_dat()
 	dau = {"apiToken": cd["token"]}
 	kieu = "out" if loai == LOAI_RA else "in"
+	goc = cd["base"] + "/erp/qlhd-api/invoices/"
 	cac_duong = [
-		cd["base"] + "/erp/qlhd-api/invoices/%s/download/pdf" % hid,
-		cd["base"] + "/erp/qlhd-api/invoices/batch-download/pdf?ids=%s&type=%s" % (hid, kieu),
-		cd["base"] + "/erp/qlhd-api/invoices/%s/pdf" % hid,
+		goc + "%s/download/invoice.pdf" % hid,
+		goc + "%s/download/pdf?type=%s" % (hid, kieu),
+		goc + "%s/download/pdf" % hid,
 	]
 	vet = []
 	for duong in cac_duong:
 		try:
 			r = requests.get(duong, headers=dau, timeout=40)
 			if r.status_code != 200:
-				vet.append("%s -> HTTP %s" % (duong, r.status_code))
+				vet.append("%s -> HTTP %s [%s]" % (duong, r.status_code, r.content[:120]))
 				continue
-			if la_pdf(r.content):
-				return r.content, ""
-			# Co the la JSON boc base64.
-			try:
-				ruot = base64.b64decode(boc_b64_trong_json(json.loads(r.content)))
-			except Exception:
-				ruot = b""
-			if la_pdf(ruot):
+			ruot = _boc_pdf(r.content)
+			if ruot:
 				return ruot, ""
-			vet.append("%s -> 200 nhung khong phai PDF (%s...)" % (duong, r.content[:60]))
+			vet.append("%s -> 200 nhung khong phai PDF (%s...)" % (duong, r.content[:80]))
 		except Exception as e:
 			vet.append("%s -> %s" % (duong, str(e)[:120]))
 	return None, "\n".join(vet)
+
+
+def _boc_pdf(ruot):
+	"""Boc byte PDF tu phan hoi: PDF tran, goi zip, hay JSON boc base64."""
+	import base64
+
+	if la_pdf(ruot):
+		return ruot
+	# Goi zip: duong tai ve hay duoc nen lai, tep .pdf nam ben trong.
+	if isinstance(ruot, (bytes, bytearray)) and ruot[:2] == b"PK":
+		try:
+			import io as _io
+			import zipfile
+
+			with zipfile.ZipFile(_io.BytesIO(bytes(ruot))) as z:
+				for ten in z.namelist():
+					if ten.lower().endswith(".pdf"):
+						trong = z.read(ten)
+						if la_pdf(trong):
+							return trong
+		except Exception:
+			return None
+	# JSON boc base64.
+	try:
+		giai = base64.b64decode(boc_b64_trong_json(json.loads(ruot)))
+		if la_pdf(giai):
+			return giai
+	except Exception:
+		pass
+	return None
 
 
 def _pdf_dang_co(hid):
