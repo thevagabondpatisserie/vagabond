@@ -46,7 +46,20 @@
   "dt_ky_b",
   "email_ky_b",
   "sec_pl",
-  "phu_luc_scan"
+  "phu_luc_scan",
+  "sec_tt",
+  "tt_truoc_thuong_thao",
+  "ly_do_thuong_thao",
+  "cb_tt",
+  "nguoi_mo_thuong_thao",
+  "ngay_mo_thuong_thao",
+  "sec_tep_chot",
+  "tep_hop_dong_chot",
+  "tep_chot_ten",
+  "tep_chot_ghi_chu",
+  "cb_tep",
+  "tep_chot_nguoi",
+  "tep_chot_luc"
  ],
  "fields": [
   {
@@ -75,10 +88,11 @@
    "fieldname": "trang_thai",
    "fieldtype": "Select",
    "label": "Trang thai",
-   "options": "Nháp\nĐang thực hiện\nHoàn tất\nĐã thanh lý\nHuỷ",
+   "options": "Nháp\nĐã gửi khách\nĐang thương thảo\nĐang thực hiện\nHoàn tất\nĐã thanh lý\nHuỷ",
    "default": "Nháp",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "description": "Đang thương thảo: khách đòi sửa, Sales đang mở lại số liệu. Máy tự trả về trạng thái cũ khi chốt điều chỉnh."
   },
   {
    "fieldname": "cb1",
@@ -283,6 +297,80 @@
    "fieldtype": "Attach",
    "label": "Ban bao gia da ky (scan)",
    "description": "Bản báo giá đã có chữ ký và mộc hai bên. Có tệp này thì PDF hợp đồng đính bản này làm Phụ lục 01 thay cho bản báo giá tự dựng."
+  },
+  {
+   "fieldname": "sec_tt",
+   "fieldtype": "Section Break",
+   "label": "Thương thảo và điều chỉnh"
+  },
+  {
+   "fieldname": "tt_truoc_thuong_thao",
+   "fieldtype": "Data",
+   "label": "Trạng thái trước khi mở thương thảo",
+   "read_only": 1,
+   "description": "Máy cất tạm ở đây để chốt xong thì trả hợp đồng về đúng chỗ cũ. Rỗng nghĩa là không đang thương thảo."
+  },
+  {
+   "fieldname": "ly_do_thuong_thao",
+   "fieldtype": "Small Text",
+   "label": "Lý do khách yêu cầu điều chỉnh",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_tt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguoi_mo_thuong_thao",
+   "fieldtype": "Data",
+   "label": "Người mở thương thảo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ngay_mo_thuong_thao",
+   "fieldtype": "Datetime",
+   "label": "Mở thương thảo lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_tep_chot",
+   "fieldtype": "Section Break",
+   "label": "Bản hợp đồng đã chốt (thay bản máy tự sinh)"
+  },
+  {
+   "fieldname": "tep_hop_dong_chot",
+   "fieldtype": "Attach",
+   "label": "Tệp hợp đồng đã chốt",
+   "read_only": 1,
+   "description": "Bản PDF hai bên tự redline và chốt bên ngoài. Có tệp này thì tờ gửi khách là bản này, KHÔNG phải bản máy tự sinh. Máy không đọc nội dung tệp."
+  },
+  {
+   "fieldname": "tep_chot_ten",
+   "fieldtype": "Data",
+   "label": "Tên tệp đã chốt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tep_chot_ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú về bản đã chốt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_tep",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tep_chot_nguoi",
+   "fieldtype": "Data",
+   "label": "Người tải bản đã chốt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tep_chot_luc",
+   "fieldtype": "Datetime",
+   "label": "Tải lên lúc",
+   "read_only": 1
   }
  ],
  "links": [
@@ -297,7 +385,7 @@
    "link_fieldname": "custom_hop_dong"
   }
  ],
- "modified": "2026-08-18 16:00:00.000000",
+ "modified": "2026-08-21 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Hop Dong Ban Hang",
