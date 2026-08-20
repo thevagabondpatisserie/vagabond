@@ -250,3 +250,90 @@ def _():
 	dung("kết thúc 20/08", gt.SU_CO_DEN.startswith("2026-08-20"))
 	la("đúng hai nhóm", sorted(gt.SU_CO_NHOM),
 		["Material Request", "Purchase Order"])
+
+
+# ============================ thư gộp nhiều đơn (anh Việt báo 20/08/2026)
+#
+# Uyên gộp ba đơn vào một lá thư, chỉ đơn đầu hiện "Đã gửi", hai đơn kia
+# nằm nguyên ở "Chưa gửi" nên Uyên bấm gửi lại và nhà cung cấp nhận hai
+# lần. Đúng lỗi đã chữa hôm 03/08 rồi tái phát khi luồng thư dọn vào mã
+# nguồn: bản trong app gom theo ô `reference_name`, mà ô đó chỉ chứa được
+# một đơn.
+
+
+THAN_THU_GOP = (
+	"Kính gửi quý nhà cung cấp, đính kèm 3 đơn mua hàng"
+	"<table><tr><td>DMH-2026-00134</td><td>1.200.000</td></tr>"
+	"<tr><td>DMH-2026-00139</td><td>850.000</td></tr>"
+	"<tr><td>DMH-2026-00146</td><td>430.000</td></tr></table>"
+)
+
+
+@ca("thư gộp: dò đủ ba mã đơn nằm trong thân thư, không sót đơn nào")
+def _():
+	ra = tt.tim_ma_trong_thu(THAN_THU_GOP)
+	la("đủ ba mã", sorted(ra),
+		["DMH-2026-00134", "DMH-2026-00139", "DMH-2026-00146"])
+
+
+@ca("thư gộp: mã dài phải đứng trước, nếu không bản sửa đổi bị nuốt")
+def _():
+	ra = tt.tim_ma_trong_thu("DMH-2026-00133 và DMH-2026-00133-1")
+	dung("có cả hai", len(ra) == 2)
+	dung("bản sửa đổi đứng trước", ra[0] == "DMH-2026-00133-1")
+
+
+@ca("thư gộp: nhận cả mã phiếu yêu cầu vật tư, không riêng đơn mua hàng")
+def _():
+	ra = tt.tim_ma_trong_thu("Phiếu MAT-MR-2026-00007 kèm DMH-2026-00146")
+	la("hai mã", sorted(ra), ["DMH-2026-00146", "MAT-MR-2026-00007"])
+
+
+@ca("thư gộp: mỗi mã chỉ kể một lần dù thân thư nhắc nhiều lần")
+def _():
+	ra = tt.tim_ma_trong_thu("DMH-2026-00146 ... DMH-2026-00146 ... DMH-2026-00146")
+	la("một mã", ra, ["DMH-2026-00146"])
+
+
+@ca("thư gộp: thư thường không có mã thì trả về danh sách rỗng")
+def _():
+	la("rỗng", tt.tim_ma_trong_thu("Kính gửi quý khách, xin cảm ơn."), [])
+	la("chuỗi None", tt.tim_ma_trong_thu(None), [])
+
+
+@ca("thư gộp: dò xong vẫn phải hỏi hệ xem mã có thật, hàm thuần chỉ nhặt")
+def _():
+	import inspect
+
+	nguon = inspect.getsource(tt._cac_chung_tu_cua_thu)
+	dung("có kiểm tồn tại", "frappe.db.exists" in nguon)
+	dung("có gọi hàm dò", "tim_ma_trong_thu" in nguon)
+
+
+@ca("thư gộp: nhịp soát gom theo chứng từ chứ không gom theo ô tham chiếu")
+def _():
+	import inspect
+
+	nguon = inspect.getsource(tt.soat_tu_dong)
+	dung("không còn gom theo ô tham chiếu",
+		"(x.reference_doctype, x.reference_name)" not in nguon)
+	dung("gom qua hàm dò thân thư", "_cac_chung_tu_cua_thu" in nguon)
+
+
+@ca("thư gộp: hook lúc vào hàng đợi cũng đóng dấu cho mọi đơn trong thư")
+def _():
+	import inspect
+
+	nguon = inspect.getsource(tt.danh_dau_cho_gui)
+	dung("dùng hàm dò thân thư", "_cac_chung_tu_cua_thu" in nguon)
+
+
+@ca("thư gộp: có đường soát lại quãng dài để vá các đơn đã bị sót")
+def _():
+	import inspect
+
+	dung("có hàm soát lại", hasattr(tt, "soat_lai"))
+	nguon = inspect.getsource(tt.soat_lai)
+	dung("chặn người không có quyền sửa đơn", "has_permission" in nguon)
+	dung("chặn trần số ngày, không cho quét cả bảng", "min(" in nguon)
+	dung("gom qua hàm dò thân thư", "_cac_chung_tu_cua_thu" in nguon)

@@ -61,7 +61,11 @@ CUA_NGO = {
 		"tao", "xuat_excel", "xuat_pdf"],
 	# Trang thai gui thu tren chung tu. `danh_dau_cho_gui` la hook va
 	# `soat_tu_dong` la nhip lap lich, ca hai chay tu ben trong.
-	"trang_thai_thu.py": ["tinh_trang"],
+	"trang_thai_thu.py": ["soat_lai", "tinh_trang"],
+	# Chuyen BTP cap 1 sang Phantom, them 21/08/2026. `chuyen` mac dinh chi
+	# chay thu; phai truyen chay_that=1 moi ghi.
+	"phantom.py": ["chung_tu_thu", "chuyen", "dong_lenh", "trang_thai",
+		"xem_truoc"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
 	"email_sach.py": ["kiem"],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
