@@ -171,6 +171,10 @@ doc_events = {
 	# `sl_duyet`. Khong chan o day thi mot dong da tu choi van len duoc don,
 	# va ca man Duyet yeu cau mua thanh vo nghia.
 	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
+	# Tu chon lo cho nguyen lieu bi tru. Xem dau tep lo_hang.py: bep khong
+	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
+	# ra phieu san xuat nen phai va o mot cho duy nhat.
+	"Stock Entry": {"before_validate": "vagabond.lo_hang.gan_lo"},
 	# GAN ASSIGNEE THAT vao phieu luc phieu sinh ra (anh Viet 21/08/2026).
 	#
 	# Dat o hook chu khong sua muoi cho tao phieu: phieu sinh ra tu app, tu

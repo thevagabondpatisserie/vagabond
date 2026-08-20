@@ -660,6 +660,50 @@ def tinh_trang():
 	return ra
 
 
+def dau_khoa(k):
+	"""Dau van tay cua mot khoa: dai bao nhieu, bon ky tu cuoi la gi. THUAN.
+
+	KHONG BAO GIO tra ve ca khoa. Bon ky tu cuoi du de nguoi dung liec mat
+	doi chieu voi ben SePay, ma lo ra thi khong ai doan nguoc duoc.
+	"""
+	k = str(k or "").strip()
+	if not k:
+		return {"co": 0, "dai": 0, "duoi": ""}
+	return {"co": 1, "dai": len(k), "duoi": k[-4:] if len(k) > 8 else "..."}
+
+
+@frappe.whitelist()
+def soi_khoa():
+	"""Bon o khoa dang giu gi, de doi chieu voi ben SePay ma khong lo khoa.
+
+	Sinh ra toi 20/08/2026: webhook "ERP Next" tra 401 lien tuc, anh Viet
+	bao da dan lai Secret Key roi. Doc log thi biet chu ky khong khop nhung
+	khong biet vi sao. Cho de nham nhat la man Cai dat co HAI o khoa khac
+	nhau - mot o cho X-Api-Key, mot o cho Secret Key HMAC - dan nham o thi
+	duong HMAC van doc khoa cu.
+
+	Man hinh bay bon van tay nay ra thi ba giay la biet dan dung o chua.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới soi được khoá bảo mật.")
+	c = cfg()
+	ra = {}
+	for o in ("sepay_khoa", "sepay_khoa_2", "sepay_hmac", "sepay_hmac_2"):
+		try:
+			ra[o] = dau_khoa(key(c, o))
+		except Exception:
+			ra[o] = {"co": 0, "dai": 0, "duoi": ""}
+	ra["duong_dang_chay"] = "HMAC" if (ra["sepay_hmac"]["co"] or ra["sepay_hmac_2"]["co"]) else "X-Api-Key"
+	ra["ghi_chu"] = (
+		"Secret Key bên SePay phải nằm ở ô HMAC. Đối chiếu bốn ký tự cuối "
+		"với chuỗi bên SePay; lệch là dán nhầm ô."
+	)
+	return ra
+
+
 @frappe.whitelist()
 def dat_hmac(khoa=None, khe=1):
 	"""Cat Secret Key HMAC do SePay sinh ra.
