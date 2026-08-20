@@ -102,7 +102,12 @@
   "tk_hoan_tien",
   "sec_push",
   "push_khoa_cong_khai",
-  "push_khoa_rieng"
+  "push_khoa_rieng",
+  "sec_gui_thu",
+  "webhook_bao_dong",
+  "cb_gui_thu",
+  "email_bao_dong_lan_cuoi",
+  "email_da_cuu_su_co_1608"
  ],
  "fields": [
   {
@@ -647,11 +652,40 @@
    "label": "Khoa rieng VAPID",
    "read_only": 1,
    "description": "May tu sinh, khong ai phai go. Khoa nay KHONG bao gio gui xuong trinh duyet."
+  },
+  {
+   "fieldname": "sec_gui_thu",
+   "fieldtype": "Section Break",
+   "label": "Duong thu di va canh bao"
+  },
+  {
+   "fieldname": "webhook_bao_dong",
+   "fieldtype": "Data",
+   "label": "Webhook nhom quan tri (bao dong do)",
+   "description": "Dan duong dan webhook cua nhom Lark, Slack, Google Chat hoac cau Zalo vao day. De trong thi may chi bao bang thu toi o Email nhan thu canh bao. Tu 16/08/2026 ca tiem khong gui duoc email nao suot nhieu ngay ma khong ai biet, o nay sinh ra tu do."
+  },
+  {
+   "fieldname": "cb_gui_thu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email_bao_dong_lan_cuoi",
+   "fieldtype": "Datetime",
+   "label": "Lan hu coi gan nhat",
+   "read_only": 1,
+   "description": "May tu ghi. Hu xong thi im 3 tieng de khong ban lai mot su co suot dem."
+  },
+  {
+   "fieldname": "email_da_cuu_su_co_1608",
+   "fieldtype": "Datetime",
+   "label": "Da chay lenh cuu email su co 16/08",
+   "read_only": 1,
+   "description": "May tu ghi. Co moc nay roi thi lenh cuu khong chay lai duoc, tranh nha cung cap nhan hai lan mot don."
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-15 04:00:00.000000",
+ "modified": "2026-08-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

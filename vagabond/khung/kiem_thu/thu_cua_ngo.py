@@ -49,6 +49,16 @@ CUA_NGO = {
 		# truoc do phieu chi lap duoc tren Desk.
 		"tam_ung_cua_toi", "tao", "tra_lai",
 	],
+	# Duong thu di, them 21/08/2026 sau su co ca tiem khong gui duoc email.
+	# `bu_nguoi_gui` va `canh_bao_email_loi` KHONG duoc co mat o day: mot cai
+	# la hook nam tren duong di cua MOI email trong he, mot cai la nhip lap
+	# lich. Ho ra thi la decorator vua bam nham.
+	"gui_thu.py": ["cuu_su_co_1608", "suc_khoe", "va_hang_doi_ket"],
+	# Trang thai gui thu tren chung tu. `danh_dau_cho_gui` la hook va
+	# `soat_tu_dong` la nhip lap lich, ca hai chay tu ben trong.
+	"trang_thai_thu.py": ["tinh_trang"],
+	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
+	"email_sach.py": ["kiem"],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach"],
@@ -127,6 +137,22 @@ def _():
 		duoc = _ten_whitelist(os.path.join(GOI, tep))
 		la("số hàm mở ra ngoài của %s" % tep, len(duoc), len(mong))
 		la("đúng danh sách của %s" % tep, duoc, sorted(mong))
+
+
+@ca("cửa ngõ: hook và nhịp lập lịch của đường thư không được mở ra ngoài")
+def _():
+	duoc = _ten_whitelist(os.path.join(GOI, "gui_thu.py"))
+	# `va_hang_doi_ket` sua du lieu that cua hang doi thu, `bu_nguoi_gui`
+	# nam tren duong di cua MOI email trong he. Mo cai thu hai ra ngoai la
+	# cho phep goi tu trinh duyet vao dung cho nhay cam nhat.
+	dung("bu_nguoi_gui phải nằm ngoài danh sách", "bu_nguoi_gui" not in duoc)
+	dung("canh_bao_email_loi phải nằm ngoài danh sách",
+		"canh_bao_email_loi" not in duoc)
+	dung("ban_webhook phải nằm ngoài danh sách", "ban_webhook" not in duoc)
+	dung("va_hang_doi_ket phải nằm trong danh sách", "va_hang_doi_ket" in duoc)
+	tt = _ten_whitelist(os.path.join(GOI, "trang_thai_thu.py"))
+	dung("danh_dau_cho_gui phải nằm ngoài danh sách", "danh_dau_cho_gui" not in tt)
+	dung("soat_tu_dong phải nằm ngoài danh sách", "soat_tu_dong" not in tt)
 
 
 @ca("cửa ngõ: hàm nội bộ đồng bộ số hoá đơn không được mở ra ngoài")

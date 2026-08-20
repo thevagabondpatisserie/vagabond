@@ -46,6 +46,14 @@ def dung():
 		hop_thu.dung()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: hop thu")
+	# Cot trang thai gui email: CHEN THEM lua chon "Dang cho gui" vao truong
+	# cu, khong khai lai ca truong. Xem tai lieu trong trang_thai_thu.dung.
+	try:
+		from vagabond import trang_thai_thu
+
+		trang_thai_thu.dung()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: trang thai thu")
 	try:
 		duyet_ycmh._them_trang_thai_tu_choi()
 	except Exception:
