@@ -563,6 +563,8 @@ async function scrHopDong() {
     sheet('Lọc trạng thái', [
       { value: '', label: 'Tất cả', icon: '📚' },
       { value: 'Nháp', label: 'Nháp', icon: '📝' },
+      { value: 'Đã gửi khách', label: 'Đã gửi khách', icon: '📧' },
+      { value: 'Đang thương thảo', label: 'Đang thương thảo', icon: '✏️' },
       { value: 'Đang thực hiện', label: 'Đang thực hiện', icon: '🚚' },
       { value: 'Hoàn tất', label: 'Hoàn tất', icon: '✅' },
       { value: 'Đã thanh lý', label: 'Đã thanh lý', icon: '🧾' },
@@ -595,6 +597,7 @@ async function scrHdView(name) {
     '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đã xuất hoá đơn</span><b>' + money(d.da_xuat) + ' đ · ' + d.so_hd_chot + ' chốt' + (d.so_hd_nhap ? ' + ' + d.so_hd_nhap + ' nháp' : '') + '</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Đã thu</span><b style="color:#0a8a4a">' + money(d.da_thu) + ' đ</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Còn phải thu</span><b style="color:#b3261e">' + money(d.con_no) + ' đ</b></div></div>';
+  html += hdKhoiThuongThao(hd, d);
   html += '<div class="sec">Hoá đơn thuộc hợp đồng · bấm vào để xem hoặc gỡ</div><div class="card">';
   if (!d.hoa_don.length) html += '<div class="emp" style="padding:20px"><div class="e1">🧾</div><div>Chưa gắn hoá đơn nào.</div></div>';
   d.hoa_don.forEach(function (r) {
@@ -634,13 +637,23 @@ async function scrHdView(name) {
       (hd.phu_luc_scan ? '<button class="btn gh" id="hdScanGo" style="margin:0;flex:0.7;padding:8px 10px;font-size:13px">Gỡ</button>' : '') +
       '</div>' +
       '<div style="display:flex;gap:8px;margin-top:8px">' +
-      '<button class="btn gh" id="hdXem" style="margin:0;flex:1;padding:8px 10px;font-size:13px">👁 Xem trước</button>' +
-      '<button class="btn gh" id="hdPdf" style="margin:0;flex:1;padding:8px 10px;font-size:13px">📄 Xuất PDF</button>' +
-      '<button class="btn" id="hdMail" style="margin:0;flex:1.2;padding:8px 10px;font-size:13px">📧 Gửi Email</button>' +
+      (hd.tep_hop_dong_chot
+        /* Đã có bản hai bên chốt: nút Xuất PDF tự sinh TẮT hẳn, không phải
+           chỉ mờ đi. Máy chủ cũng chặn đường đó, nên có mở công cụ nhà phát
+           triển gọi tay cũng không ra tờ máy tự sinh. */
+        ? '<button class="btn gh" id="hdXem" style="margin:0;flex:1;padding:8px 10px;font-size:13px">👁 Xem bản máy dựng</button>' +
+          '<button class="btn gh" id="hdTaiChot" style="margin:0;flex:1.3;padding:8px 10px;font-size:13px">📄 Tải bản đã chốt</button>' +
+          '<button class="btn" id="hdMail" style="margin:0;flex:1.2;padding:8px 10px;font-size:13px">📧 Gửi Email</button>'
+        : '<button class="btn gh" id="hdXem" style="margin:0;flex:1;padding:8px 10px;font-size:13px">👁 Xem trước</button>' +
+          '<button class="btn gh" id="hdPdf" style="margin:0;flex:1;padding:8px 10px;font-size:13px">📄 Xuất PDF</button>' +
+          '<button class="btn" id="hdMail" style="margin:0;flex:1.2;padding:8px 10px;font-size:13px">📧 Gửi Email</button>') +
       '</div>' +
+      hdKhoiBanChot(hd) +
       '<input type="file" id="hdScanTep" accept="image/*,application/pdf" style="display:none">' +
+      '<input type="file" id="hdChotTep" accept="application/pdf" style="display:none">' +
       '</div>';
   }
+  html += hdKhoiLichSu(d);
   var b = frame('Chi tiết hợp đồng', html, { footer: '<button class="btn" id="hdGan">🔗 Gắn hoá đơn vào hợp đồng</button>' });
   var nXem = document.getElementById('hdXem');
   if (nXem) nXem.onclick = async function () {
@@ -666,6 +679,7 @@ async function scrHdView(name) {
   };
   var nMail = document.getElementById('hdMail');
   if (nMail) nMail.onclick = function () { hdGuiMail(hd); };
+  hdGanNutDieuChinh(hd, d, name);
   var nSuaKy = document.getElementById('hdSuaKy');
   if (nSuaKy) nSuaKy.onclick = async function () {
     if (!await hdFormNguoiKy(hd)) return;
@@ -698,7 +712,17 @@ async function scrHdView(name) {
     busy(false); go(function () { scrHdView(name); }, true);
   };
   document.getElementById('hdTt').onclick = function () {
-    sheet('Đổi trạng thái', ['Nháp', 'Đang thực hiện', 'Hoàn tất', 'Đã thanh lý', 'Huỷ'].map(function (t) { return { value: t, label: t, icon: '📌' }; }), hd.trang_thai, async function (o) {
+    /* CỐ Ý không bày "Đang thương thảo" ở đây: vào thương thảo phải qua nút
+       Điều chỉnh (đường đó bắt ghi lý do và chụp lại bản gốc), ra thì phải
+       qua Chốt điều chỉnh hoặc Đóng thương thảo (hai đường đó sinh phiên
+       bản và trả về đúng trạng thái cũ). Máy chủ cũng chặn, đây chỉ là để
+       màn hình không mời người ta đi đường vòng. */
+    if (hd.trang_thai === 'Đang thương thảo') {
+      return baoTin('Hợp đồng đang thương thảo nên không đổi trạng thái tay được. ' +
+        'Bấm Chốt điều chỉnh để ghi lại bản mới, hoặc Đóng thương thảo nếu khách ' +
+        'thôi không sửa nữa.', 'Đang thương thảo');
+    }
+    sheet('Đổi trạng thái', ['Nháp', 'Đã gửi khách', 'Đang thực hiện', 'Hoàn tất', 'Đã thanh lý', 'Huỷ'].map(function (t) { return { value: t, label: t, icon: '📌' }; }), hd.trang_thai, async function (o) {
       busy(true);
       try { await api('vagabond.hop_dong.doi_trang_thai', { name: name, trang_thai: o.value }); busy(false); }
       catch (e) { busy(false); baoTin((e && e.message) || 'Lỗi'); }
@@ -2944,4 +2968,357 @@ async function mvXoaDm(hop, banh) {
     MV.data = await api('vagabond.mua_vu.xoa_dinh_muc', { mua: MV.mua, ma_hop: hop, ma_banh: banh });
     busy(false); mvVe();
   } catch (e) { busy(false); baoTin((e && e.message) || 'Xoá lỗi', 'Không xoá được'); }
+}
+
+
+/* ==================== THƯƠNG THẢO VÀ ĐIỀU CHỈNH HỢP ĐỒNG ====================
+
+Loan Anh bên Sales đặt bài, anh Việt chuyển sang 21/08/2026: *"Khách hàng yêu
+cầu chỉnh sửa điều khoản hợp đồng sau khi nhận được bản hệ thống sinh ra."*
+
+NGUYÊN TẮC SỐ MỘT, nhắc lại ở đây vì đây là nơi người dùng chạm vào:
+
+    Máy KHÔNG đọc tệp của khách để điền số hộ Sales.
+
+Có đúng hai đường, và chúng không gặp nhau. Đường SỐ LIỆU là form dưới đây,
+Sales gõ tay từng ô. Đường TỆP chỉ nhận một bản PDF rồi cất đi, không mở ra,
+không rút một con số nào. Một con số rút sai từ PDF không dừng ở tờ hợp đồng:
+nó chảy thẳng vào hoá đơn, vào sổ kế toán và vào lệnh xuất kho. */
+
+var hdSua = null;   /* {name, gt:{}} khi đang soạn bản điều chỉnh */
+
+/* Ô Sales sửa được lúc thương thảo. Khai đúng bằng danh sách SUA_DUOC bên
+   Python; máy chủ vẫn lọc lại một lần nữa nên đây chỉ là để dựng màn. */
+var HD_O_SUA = [
+  { k: 'gia_tri', nhan: 'Giá trị hợp đồng', kieu: 'tien' },
+  { k: 'dat_coc_pt', nhan: 'Đợt 1 (%)', kieu: 'so' },
+  { k: 'dat_coc_tien', nhan: 'Tiền đợt 1', kieu: 'tien' },
+  { k: 'ngay_dot1', nhan: 'Số ngày trả đợt 1 sau khi ký', kieu: 'so' },
+  { k: 'ngay_dot2', nhan: 'Số ngày trả đợt 2 trước khi giao', kieu: 'so' },
+  { k: 'ngay_ky', nhan: 'Ngày ký', kieu: 'ngay' },
+  { k: 'ngay_su_kien', nhan: 'Ngày sự kiện / giao', kieu: 'ngay' },
+  { k: 'dia_diem_giao', nhan: 'Địa điểm bàn giao', kieu: 'chu' },
+  { k: 'thoi_gian_giao', nhan: 'Thời gian bàn giao', kieu: 'chu' },
+  { k: 'ten', nhan: 'Tên hợp đồng', kieu: 'chu' },
+  { k: 'so_hop_dong', nhan: 'Số hợp đồng', kieu: 'chu' },
+  { k: 'mo_ta', nhan: 'Mô tả nội dung', kieu: 'dai' },
+  { k: 'ten_khach', nhan: 'Tên công ty bên A', kieu: 'chu' },
+  { k: 'ma_so_thue', nhan: 'Mã số thuế bên A', kieu: 'chu' },
+  { k: 'dia_chi', nhan: 'Địa chỉ bên A', kieu: 'dai' },
+  { k: 'dai_dien', nhan: 'Người đại diện bên A', kieu: 'chu' },
+  { k: 'chuc_vu', nhan: 'Chức vụ đại diện', kieu: 'chu' },
+  { k: 'dien_thoai', nhan: 'Điện thoại bên A', kieu: 'chu' },
+  { k: 'email', nhan: 'Email nhận hợp đồng', kieu: 'chu' }
+];
+
+var HD_MO_DUOC = ['Nháp', 'Đã gửi khách', 'Đang thực hiện'];
+
+function hdKhoiThuongThao(hd, d) {
+  var dang = hd.trang_thai === 'Đang thương thảo';
+  var pb = d.so_phien_ban || 0;
+  if (dang) {
+    return '<div class="card" style="padding:13px 15px;border:1.5px solid #f59e0b;background:#fffbeb">' +
+      '<div style="font-size:13px;font-weight:800;color:#92400e">ĐANG THƯƠNG THẢO</div>' +
+      (hd.ly_do_thuong_thao
+        ? '<div style="font-size:12.5px;color:#78350f;margin-top:4px;line-height:1.6">Lý do: ' +
+          h(hd.ly_do_thuong_thao) + '</div>' : '') +
+      (hd.nguoi_mo_thuong_thao
+        ? '<div style="font-size:11.5px;color:#a16207;margin-top:2px">' + h(hd.nguoi_mo_thuong_thao) +
+          ' mở lúc ' + h(String(hd.ngay_mo_thuong_thao || '').slice(0, 16)) + '</div>' : '') +
+      '<div style="font-size:12px;color:#78350f;margin-top:8px;line-height:1.6">' +
+      'Sửa số liệu xong thì bấm Chốt điều chỉnh, máy sinh bản mới và trả hợp đồng ' +
+      'về trạng thái cũ. Khách thôi không sửa nữa thì bấm Đóng thương thảo.</div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px">' +
+      '<button class="btn gh" id="hdTtDong" style="margin:0;flex:1;padding:9px 10px;font-size:13px">Đóng thương thảo</button>' +
+      '<button class="btn gh" id="hdTtSua" style="margin:0;flex:1.2;padding:9px 10px;font-size:13px">✏️ Sửa số liệu</button>' +
+      '<button class="btn" id="hdTtChot" style="margin:0;flex:1.2;padding:9px 10px;font-size:13px">Chốt điều chỉnh</button>' +
+      '</div></div>';
+  }
+  if (HD_MO_DUOC.indexOf(hd.trang_thai) < 0) return '';
+  return '<div class="card" style="padding:12px 15px">' +
+    '<div style="display:flex;gap:10px;align-items:center">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700">Khách đòi sửa hợp đồng?</div>' +
+    '<div style="font-size:12px;color:#8a90a0;margin-top:2px;line-height:1.55">' +
+    'Mở thương thảo để sửa lại số liệu, hoặc tải lên bản hai bên đã chốt.' +
+    (pb ? ' Đang ở <b>' + h('Hợp đồng v' + pb) + '</b>.' : '') + '</div></div>' +
+    '<button class="btn gh" id="hdTtMo" style="margin:0;flex:none;width:auto;padding:9px 14px;font-size:13px;white-space:nowrap">✏️ Điều chỉnh</button>' +
+    '</div></div>';
+}
+
+function hdKhoiBanChot(hd) {
+  if (hd.tep_hop_dong_chot) {
+    return '<div style="margin-top:10px;border:1.5px solid #a7f3d0;background:#ecfdf5;border-radius:10px;padding:11px 12px">' +
+      '<div style="font-size:11.5px;font-weight:800;color:#047857">BẢN HỢP ĐỒNG ĐÃ CHỐT ĐANG DÙNG</div>' +
+      '<div style="font-size:13.5px;font-weight:700;color:#065f46;margin-top:3px;word-break:break-all">' +
+      h(hd.tep_chot_ten || 'hop-dong-da-chot.pdf') + '</div>' +
+      '<div style="font-size:11.5px;color:#4b7a63;margin-top:2px">' +
+      h(hd.tep_chot_nguoi || '') + ' tải lên lúc ' + h(String(hd.tep_chot_luc || '').slice(0, 16)) + '</div>' +
+      (hd.tep_chot_ghi_chu ? '<div style="font-size:12px;color:#065f46;margin-top:4px;line-height:1.55">' + h(hd.tep_chot_ghi_chu) + '</div>' : '') +
+      '<div style="font-size:12px;color:#065f46;margin-top:6px;line-height:1.6">' +
+      'Tờ gửi khách và tờ đem đi ký là bản này. Nút Xuất PDF tự sinh đã tắt.</div>' +
+      '<div style="display:flex;gap:8px;margin-top:9px">' +
+      '<button class="btn gh" id="hdChotDoi" style="margin:0;flex:1;padding:8px 10px;font-size:13px">Đổi tệp khác</button>' +
+      '<button class="btn gh" id="hdChotGo" style="margin:0;flex:1;padding:8px 10px;font-size:13px">Gỡ, dùng lại bản máy</button>' +
+      '</div></div>';
+  }
+  return '<div style="margin-top:10px;border:1.5px dashed #d1d5db;border-radius:10px;padding:11px 12px">' +
+    '<div style="font-size:13px;font-weight:700;color:#374151">Hai bên đã redline và chốt bản riêng?</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:3px;line-height:1.6">' +
+    'Tải bản PDF đã chốt lên đây. Từ lúc đó tờ gửi khách là bản của anh chị, ' +
+    'không phải bản máy tự sinh.</div>' +
+    '<button class="btn gh" id="hdChotTai" style="margin:8px 0 0;width:100%;font-size:13.5px">' +
+    '📎 Upload bản Hợp đồng đã chốt</button>' +
+    '<div style="font-size:11px;color:#9ca3af;margin-top:7px;line-height:1.55">' +
+    'Máy chỉ cất tệp, KHÔNG đọc nội dung bên trong. Số liệu đổi thì anh chị vẫn ' +
+    'phải gõ tay qua nút Điều chỉnh, để kế toán và kho không lệch nhau.</div></div>';
+}
+
+function hdKhoiLichSu(d) {
+  var pb = d.so_phien_ban || 0;
+  if (!pb) return '';
+  return '<div class="sec">Lịch sử phiên bản · ' + pb + ' bản</div>' +
+    '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12.5px;color:#6b7280;line-height:1.6">' +
+    'Mỗi lần chốt một lần điều chỉnh, máy ghi lại một bản kèm đúng những ô đã đổi.</div>' +
+    '<button class="btn gh" id="hdLichSu" style="margin:9px 0 0;width:100%;font-size:13.5px">' +
+    '🕘 Xem nhật ký thay đổi</button></div>';
+}
+
+function hdGanNutDieuChinh(hd, d, name) {
+  var lai = function () { go(function () { scrHdView(name); }, true); };
+
+  var nMo = document.getElementById('hdTtMo');
+  if (nMo) nMo.onclick = async function () {
+    var ly = await hoiChu('Mở thương thảo',
+      'Khách yêu cầu sửa cái gì? Câu này nằm lại trong nhật ký và là thứ ' +
+      'Giám đốc đọc đầu tiên.', '', { nhieu_dong: 1, goi_y: 'Ví dụ: khách xin dời ngày giao và giảm cọc còn 30%' });
+    if (ly === null) return;
+    busy(true);
+    try {
+      var r = await api('vagabond.hop_dong_dieu_chinh.mo_thuong_thao', { name: name, ly_do: ly });
+      busy(false);
+      if (r && r.nhac) baoTin(h(r.nhac), 'Hợp đồng đã có hoá đơn');
+      else toast('Đã mở thương thảo. Bấm Sửa số liệu để cập nhật.', 4000);
+      lai();
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không mở được', 'Lỗi'); }
+  };
+
+  var nSua = document.getElementById('hdTtSua');
+  if (nSua) nSua.onclick = function () {
+    hdSua = { name: name, gt: {} };
+    HD_O_SUA.forEach(function (o) { hdSua.gt[o.k] = hd[o.k]; });
+    go(scrHdSuaSoLieu);
+  };
+
+  var nChot = document.getElementById('hdTtChot');
+  if (nChot) nChot.onclick = async function () {
+    var gc = await hoiChu('Chốt điều chỉnh',
+      'Ghi thêm gì cho bản này không? Để trống cũng được, máy vẫn giữ lý do đã ghi lúc mở.',
+      '', { nhieu_dong: 1 });
+    if (gc === null) return;
+    busy(true);
+    try {
+      var r = await api('vagabond.hop_dong_dieu_chinh.chot_dieu_chinh', { name: name, ghi_chu: gc });
+      busy(false);
+      hdKhacBietHop(r.nhan, r.khac_biet || [], r.loi_nhan);
+      lai();
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không chốt được', 'Lỗi'); }
+  };
+
+  var nDong = document.getElementById('hdTtDong');
+  if (nDong) nDong.onclick = async function () {
+    if (!await hoiCo('Đóng thương thảo',
+      'Hợp đồng quay lại trạng thái cũ và KHÔNG sinh phiên bản mới. Những ô ' +
+      'anh chị đã sửa thì vẫn giữ nguyên như đang sửa, chỉ là không có bản ghi ' +
+      'nào đánh dấu lần này.', 'Đóng lại')) return;
+    busy(true);
+    try { await api('vagabond.hop_dong_dieu_chinh.huy_thuong_thao', { name: name }); busy(false); lai(); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Lỗi', 'Lỗi'); }
+  };
+
+  /* ---- Đường TỆP. Chỉ cất tệp, không đọc. ---- */
+  var oChot = document.getElementById('hdChotTep');
+  var moTep = function () { if (oChot) { oChot.value = ''; oChot.click(); } };
+  var nTai = document.getElementById('hdChotTai');
+  var nDoi = document.getElementById('hdChotDoi');
+  if (nTai) nTai.onclick = function () { hdCanhBaoGhiDe(hd, moTep); };
+  if (nDoi) nDoi.onclick = function () { hdCanhBaoGhiDe(hd, moTep); };
+  if (oChot) oChot.onchange = function () { hdTaiBanChot(name, oChot.files && oChot.files[0]); };
+
+  var nGo = document.getElementById('hdChotGo');
+  if (nGo) nGo.onclick = async function () {
+    var ly = await hoiChu('Gỡ bản đã chốt',
+      'Vì sao quay lại dùng bản máy tự sinh? Câu này nằm lại trong nhật ký của hợp đồng.', '');
+    if (ly === null) return;
+    if (!String(ly || '').trim()) return baoTin('Phải ghi lý do thì mới gỡ được.', 'Thiếu lý do');
+    busy(true);
+    try {
+      var r = await api('vagabond.hop_dong_dieu_chinh.go_ban_chot', { name: name, ly_do: ly });
+      busy(false); toast((r && r.loi_nhan) || 'Đã gỡ.', 4500); lai();
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không gỡ được', 'Lỗi'); }
+  };
+
+  var nTaiChot = document.getElementById('hdTaiChot');
+  if (nTaiChot) nTaiChot.onclick = async function () {
+    busy(true);
+    try {
+      var f = await api('vagabond.hop_dong_dieu_chinh.tai_ve_ban_chot', { name: name });
+      busy(false); bcTaiVe(f.ten_file, f.b64, f.kieu);
+      toast('Đã tải ' + f.ten_file, 4000);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không tải được', 'Lỗi'); }
+  };
+
+  var nLs = document.getElementById('hdLichSu');
+  if (nLs) nLs.onclick = function () { hdXemLichSu(name); };
+}
+
+/* Cảnh báo trước khi tải lên. Anh Việt dặn phải nói rõ: *"Bản upload này sẽ
+   ghi đè và thay thế bản hợp đồng tự sinh của hệ thống."* */
+async function hdCanhBaoGhiDe(hd, tiep) {
+  var ok = await hoiCo('Upload bản Hợp đồng đã chốt',
+    '<b>Bản upload này sẽ ghi đè và thay thế bản hợp đồng tự sinh của hệ thống.</b>' +
+    '<br><br>Từ lúc tải lên, nút Xuất PDF tự sinh tắt hẳn, và thư gửi khách sẽ đính ' +
+    'đúng tệp anh chị vừa chọn.' +
+    '<br><br>Máy <b>không đọc</b> nội dung tệp. Nếu bản chốt có đổi giá hay số lượng ' +
+    'thì anh chị vẫn phải gõ tay qua nút Điều chỉnh, không thì kế toán và kho vẫn ' +
+    'chạy theo con số cũ.',
+    'Đã hiểu, chọn tệp');
+  if (ok) tiep();
+}
+
+function hdTaiBanChot(name, file) {
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name || '')) {
+    return baoTin('Chỉ nhận tệp PDF. Bản Word thì bấm Lưu thành PDF rồi chọn lại, ' +
+      'vì bản gửi khách phải là bản không sửa được nữa.', 'Sai định dạng');
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    return baoTin('Tệp nặng ' + Math.round(file.size / 1048576) + ' MB, quá 20 MB. ' +
+      'Xuất lại bản PDF nhẹ hơn giúp em.', 'Tệp quá nặng');
+  }
+  var fr = new FileReader();
+  fr.onload = async function () {
+    var gc = await hoiChu('Ghi chú cho bản này',
+      'Ví dụ: bản chốt sau buổi họp 21/08, khách bỏ điều 5 và thêm điều khoản bảo mật.',
+      '', { nhieu_dong: 1 });
+    if (gc === null) gc = '';
+    busy(true);
+    try {
+      var r = await api('vagabond.hop_dong_dieu_chinh.tai_ban_chot', {
+        name: name, ten: file.name || 'hop-dong-da-chot.pdf',
+        noi_dung: String(fr.result || ''), ghi_chu: gc
+      });
+      busy(false);
+      toast((r && r.loi_nhan) || 'Đã tải lên.', 5500);
+      go(function () { scrHdView(name); }, true);
+    } catch (e) {
+      busy(false); baoTin((e && e.message) || 'Không tải lên được', 'Lỗi');
+    }
+  };
+  fr.readAsDataURL(file);
+}
+
+/* ---- Form sửa số liệu. Sales gõ TAY từng ô. ---- */
+function scrHdSuaSoLieu() {
+  var f = hdSua;
+  if (!f) return go(scrHopDong, true);
+  var o = function (c) {
+    var v = f.gt[c.k];
+    var id = 'hds_' + c.k;
+    if (c.kieu === 'dai') {
+      return '<div class="vxl">' + h(c.nhan) + '</div>' +
+        '<textarea class="vxi" id="' + id + '" data-hds="' + h(c.k) + '" rows="3" style="font-family:inherit">' +
+        h(v == null ? '' : v) + '</textarea>';
+    }
+    return '<div class="vxl">' + h(c.nhan) + '</div>' +
+      '<input class="vxi' + (c.kieu === 'tien' ? ' tien' : '') + '" id="' + id + '" data-hds="' + h(c.k) + '"' +
+      (c.kieu === 'ngay' ? ' type="date"' : '') +
+      (c.kieu === 'so' || c.kieu === 'tien' ? ' inputmode="decimal"' : '') +
+      ' value="' + h(v == null ? '' : (c.kieu === 'tien' ? tienChuoi(v) : v)) + '">';
+  };
+  var html = '<div class="vxf">' +
+    '<div style="font-size:12.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+    'border-radius:10px;padding:11px 12px;line-height:1.65">' +
+    '<b>Anh chị gõ tay từng ô.</b> Máy cố ý không đọc tệp của khách để điền hộ: ' +
+    'một con số rút sai từ PDF sẽ chạy thẳng vào hoá đơn, sổ kế toán và lệnh xuất kho, ' +
+    'mà vẫn trông rất hợp lý.</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:10px;line-height:1.6">' +
+    'Đổi <b>dòng hàng</b> (thêm bớt món, đổi số lượng từng món) thì phải sửa ở tờ ' +
+    'báo giá nguồn rồi lập lại hợp đồng, vì Phụ lục 01 lấy từng dòng từ đó ra. ' +
+    'Ô dưới đây là các điều khoản của chính tờ hợp đồng.</div>' +
+    HD_O_SUA.map(o).join('') +
+    '</div>';
+  var b = frame('Sửa số liệu hợp đồng', html, {
+    footer: '<button class="btn" id="hdsLuu" style="margin:0">Lưu số liệu mới</button>'
+  });
+  b.querySelectorAll('[data-hds]').forEach(function (n) {
+    var k = n.getAttribute('data-hds');
+    var doc = function () { f.gt[k] = n.classList.contains('tien') ? soTien(n.value) : n.value; };
+    n.oninput = doc; n.onchange = doc;
+  });
+  document.getElementById('hdsLuu').onclick = async function () {
+    busy(true);
+    try {
+      var r = await api('vagabond.hop_dong_dieu_chinh.cap_nhat_so_lieu', {
+        name: f.name, gt: JSON.stringify(f.gt)
+      });
+      busy(false);
+      toast('Đã lưu ' + ((r && r.da_sua) || []).length + ' ô. Bấm Chốt điều chỉnh để ghi thành bản mới.', 5000);
+      var nm = f.name; hdSua = null;
+      go(function () { scrHdView(nm); }, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không lưu được', 'Lỗi'); }
+  };
+}
+
+/* ---- Nhật ký phiên bản ---- */
+function hdDongKhac(k) {
+  var ve = function (v) {
+    if (k.kieu === 'tien') return money(v) + ' đ';
+    if (v === '' || v === null || v === undefined) return '(trống)';
+    return String(v);
+  };
+  return '<div style="border-top:1px solid #f2f4f7;padding:7px 0;font-size:12.5px;line-height:1.55">' +
+    '<div style="font-weight:700;color:#374151">' + h(k.nhan) + '</div>' +
+    '<div style="color:#b3261e;text-decoration:line-through">' + h(ve(k.tu)) + '</div>' +
+    '<div style="color:#047857;font-weight:700">' + h(ve(k.den)) + '</div></div>';
+}
+
+function hdKhacBietHop(nhan, khac, loi) {
+  var than = '<div style="font-size:13px;color:#374151;line-height:1.6">' + h(loi || '') + '</div>';
+  if (khac && khac.length) {
+    than += '<div style="margin-top:10px">' + khac.map(hdDongKhac).join('') + '</div>';
+  }
+  var k = hopKhung(nhan || 'Đã chốt', than,
+    '<button class="btn" data-hbok style="flex:1;margin:0">Đã hiểu</button>');
+  k.box.querySelector('.x').onclick = k.dong;
+  k.box.querySelector('[data-hbok]').onclick = k.dong;
+}
+
+async function hdXemLichSu(name) {
+  busy(true);
+  var r;
+  try { r = await api('vagabond.hop_dong_dieu_chinh.lich_su', { name: name }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được nhật ký', 'Lỗi'); }
+  busy(false);
+  var ds = (r && r.ds) || [];
+  if (!ds.length) return baoTin('Hợp đồng này chưa có bản điều chỉnh nào.', 'Nhật ký trống');
+  var than = ds.map(function (x) {
+    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:9px">' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
+      '<b style="font-size:14px">' + h(x.nhan || ('Hợp đồng v' + x.phien_ban)) + '</b>' +
+      '<span style="font-size:12.5px;font-weight:700">' + money(x.gia_tri) + ' đ</span></div>' +
+      '<div style="font-size:11.5px;color:#8a90a0;margin-top:2px">' +
+      h(x.nguoi || '') + ' · ' + h(String(x.luc || '').slice(0, 16)) +
+      (x.trang_thai_luc_chot ? ' · ' + h(x.trang_thai_luc_chot) : '') + '</div>' +
+      (x.ly_do ? '<div style="font-size:12.5px;color:#4b5563;margin-top:5px;line-height:1.55">' + h(x.ly_do) + '</div>' : '') +
+      (x.tep_chot ? '<div style="font-size:12px;margin-top:4px">📄 Bản chốt đính kèm</div>' : '') +
+      ((x.khac_biet && x.khac_biet.length)
+        ? '<div style="margin-top:6px">' + x.khac_biet.map(hdDongKhac).join('') + '</div>'
+        : '<div style="font-size:12px;color:#9ca3af;margin-top:5px">Bản gốc, không có gì để so.</div>') +
+      '</div>';
+  }).join('');
+  var k = hopKhung('Nhật ký thay đổi · ' + ds.length + ' bản', than,
+    '<button class="btn" data-hlok style="flex:1;margin:0">Đóng</button>');
+  k.box.querySelector('.x').onclick = k.dong;
+  k.box.querySelector('[data-hlok]').onclick = k.dong;
 }
