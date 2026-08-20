@@ -17,13 +17,14 @@ vài dòng trong công cụ nhà phát triển của trình duyệt là xem đư
 người khác. Nên toàn bộ ma trận nằm ở đây, và màn hình chỉ vẽ lại thứ máy
 chủ đã lọc.
 
-Một điều cố ý KHÔNG làm trong lần này
--------------------------------------
+Lớp Assignee (v243)
+-------------------
 Anh Việt còn yêu cầu *"mỗi phiếu sinh ra phải được gắn cho đúng một/một nhóm
-Assignee cụ thể"*. Gắn Assignee thật là một lớp khác: phải sửa chỗ SINH
-phiếu ở nhiều mô đun (kho, sản xuất, mua hàng, kế toán). Làm lớp lọc theo
-vai trước vì nó chặn được ngay cái sai đang có; lớp Assignee làm sau và báo
-riêng, chứ gộp vào một lần thì cả hai đều làm vội.
+Assignee cụ thể"*. Việc đó nằm ở `vagabond/giao_viec.py`, làm sau và deploy
+riêng đúng như đã hẹn. Hai tệp phải nói CÙNG một câu: luật "ai phải làm"
+bên đó soi đúng vào các bộ lọc dưới đây. Sửa một bên mà quên bên kia là để
+màn Việc cần làm và ô Assigned To của Desk cãi nhau, và lúc đó không ai tin
+cái nào nữa.
 """
 
 import frappe
@@ -383,9 +384,14 @@ def danh_sach(loai="", trang_thai=""):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "viec_can_lam: gom %s loi" % ma_loai)
 
+	dich_danh = _giao_dich_danh(nguoi)
 	for v in tat_ca:
 		v["nhan_tt"] = NHAN_TT.get(v.get("tt"), v.get("tt") or "")
 		v["mau"] = MAU_TT.get(v.get("tt"), "#8a8f98")
+		# Dòng nào máy đã GIAO đích danh cho người này thì đánh dấu, để tách
+		# khỏi những dòng chỉ hiện ra vì họ có vai đó. Hai chuyện khác nhau:
+		# "việc của bộ phận tôi" và "việc giao cho tôi".
+		v["cua_toi"] = 1 if v.get("ma") in dich_danh else 0
 
 	# Đếm chip TRƯỚC khi lọc, để con số trên chip là số thật của cả sổ chứ
 	# không phải số dòng đang hiện.
@@ -420,7 +426,28 @@ def danh_sach(loai="", trang_thai=""):
 			sorted(dem_tt.keys(), key=lambda x: (0 if x in ("tre_hen", "qua_han") else 1, x))
 		],
 		"vai_chinh": _ten_vai(vai),
+		"so_dich_danh": sum(1 for v in tat_ca if v.get("cua_toi")),
 	}
+
+
+def _giao_dich_danh(nguoi):
+	"""Mã phiếu đang được GIAO đích danh cho người này (ToDo còn mở).
+
+	Một truy vấn cho cả màn, không phải một truy vấn cho mỗi dòng.
+	"""
+	try:
+		return {
+			t["reference_name"]
+			for t in frappe.get_all(
+				"ToDo",
+				filters={"allocated_to": nguoi, "status": "Open"},
+				fields=["reference_name"],
+				limit_page_length=0,
+			)
+			if t.get("reference_name")
+		}
+	except Exception:
+		return set()
 
 
 def _ten_vai(vai):

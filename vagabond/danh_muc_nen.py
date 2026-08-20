@@ -22,21 +22,55 @@ bo loc chay o MAY CHU chu khong keo het ve dien thoai roi loc bang
 JavaScript. Dieu do la bat buoc chu khong phai cho dep: doctype Customer
 cua tiem dang co 43.220 dong.
 
-Quyen (anh Viet chot 18/08/2026)
---------------------------------
-"Phan he Danh muc chua du lieu song con, chi mo quyen Xem Sua Xoa cho role
-Giam doc va System Manager. Cac role khac chi co quyen Xem o mot so danh
-muc lien quan."
+Quyen - SIET LAI 21/08/2026
+---------------------------
+Anh Viet 18/08/2026 mo tuong doi rong: "cac role khac chi co quyen Xem o mot
+so danh muc lien quan". Ba ngay sau anh siet han lai:
 
-Moi man o day la CHI DOC - khung danh sach khong co duong ghi nao. Sua va
-xoa van di qua cac man cu, moi man da co bo quyen rieng chat hon. Nen o day
-chi con phai chia XEM, va chia theo dung viec that:
+    "Danh muc la Nguon su that duy nhat. Chi nhung tai khoan so huu Role la
+    Ke toan, Thu mua va Giam doc moi duoc phep nhin thay phan he Danh muc
+    nay tren man hinh chinh cua App va co quyen thao tac them/sua du lieu.
+    Cac Role khac (Sales, Kho, Bep...) tuyet doi khong duoc nhin thay menu
+    nay de tranh tinh trang rac du lieu."
 
-    XEM_CHUNG  san pham, nhom, don vi tinh, kho, cong thuc - bep va kho tra
-               hang ngay, dong lai la chan viec
+Nen mot CONG DUY NHAT: VAO_DANH_MUC. Moi bang trong tep nay deu phai giao
+voi tap do, khong bang nao duoc mo rong hon. Cac tap XEM_* ben duoi chi con
+lam viec CHIA NHO trong pham vi da siet, chu khong con mo them ai.
+
+Cai gia phai tra, noi thang cho anh Viet biet
+---------------------------------------------
+Bep va kho MAT duong tra ma hang, don vi tinh, kho va cong thuc tren man
+Danh muc. Ho van chon duoc mon trong luc lap phieu (o chon mon di duong
+khac, khong qua tep nay), nhung khong con man tra cuu rieng.
+
+Do la doi lay dieu anh Viet muon: khong ai ngoai ba vai do cham vao du lieu
+nen. Neu sau nay bep keu thi mo lai o XEM_CHUNG - mot dong sua, va khi do la
+mot quyet dinh co y chu khong phai mot cho so hut.
+
+Ba tap chia nho trong pham vi da siet:
+
+    XEM_CHUNG  san pham, nhom, don vi tinh, kho, cong thuc
     XEM_MUA    nha cung cap va gia mua - gia mua la thong tin nhay cam
-    XEM_KHACH  khach hang - so dien thoai khach, khong mo cho ca tiem
+    XEM_KHACH  khach hang - so dien thoai khach
     XEM_TIEN   tai khoan ke toan, thue, ngan hang, phuong thuc thanh toan
+
+Quyen TAO MOI (21/08/2026)
+--------------------------
+Anh Viet: "Xay dung Form nhap lieu (Form View) tuong ung... toi uu voi giao
+dien Mobile App". Duong tao nam o khung danh sach (khung/ds.py), khai bang
+ham khai.tao() ngay trong tung bang duoi day, va chan bang tap SUA_DM - hep
+hon ca VAO_DANH_MUC vi xem mot danh muc khac han voi de ra mot dong moi
+trong do.
+
+BA danh muc CO Y khong co nut Tao moi
+-------------------------------------
+Cong thuc dinh muc (BOM), Thue ban ra va Thue mua vao. Ca ba deu khong dung
+duoc neu chi dien mot form phang: BOM phai co luoi nguyen lieu, hai mau thue
+phai co luoi dong thue. Bay ra mot nut Tao moi roi ghi xuong mot ban ghi
+thieu luoi con la de ra dung cai rac du lieu anh Viet dang muon chan.
+
+Cong thuc thi da co man rieng trong luong san xuat. Hai mau thue mot nam khai
+mot lan, van khai tren Desk.
 """
 
 import frappe
@@ -46,34 +80,82 @@ from vagabond.quyen_phan_he import QUYEN_THU_MUA, ROLE_GIAM_DOC, ROLE_THU_MUA
 
 QT = "System Manager"
 
-# Danh muc dung hang ngay o moi bo phan. Dong lai la chan viec cua bep va
-# kho, nen mo rong - nhung van la mot danh sach co ten, khong phai mo cho
-# tat ca (khung tu choi khai bao thieu quyen).
-XEM_CHUNG = {
-	QT, ROLE_GIAM_DOC, ROLE_THU_MUA,
-	"Stock Manager", "Stock User", "Kiểm kê viên",
-	"Manufacturing Manager", "Manufacturing User", "Bếp phó",
-	"Sales Manager", "Sales User",
-	"Accounts Manager", "Accounts User",
-	"Purchase Manager", "Purchase User",
-	"Bộ phận đặt hàng",
-}
+# ==================================================== CONG DUY NHAT
+#
+# Ke toan, Thu mua, Giam doc. Ten vai lay tu site that, khong bia: Uyen giu
+# "AP Officer", chi Dung giu "AP Kiem soat (FIN)", anh Viet va De giu
+# "AP Giam doc". Hai vai ERPNext (Accounts/Purchase) giu lai de khong ai
+# dang lam viec bi mat quyen giua chung.
+#
+# "Bo phan dat hang" CO Y khong nam trong day. Vai do gan nhu ai cung co -
+# Hieu baker, Han bep pho, Uyen Duyen sales, De, Kien thu kho deu co - nen
+# de no vao la mo lai dung cai cua anh Viet vua dong.
+VAI_KE_TOAN_DM = {"AP Kiểm soát (FIN)", "Accounts Manager", "Accounts User"}
+VAI_THU_MUA_DM = {ROLE_THU_MUA, "AP Officer", "Purchase Manager", "Purchase User"}
+VAI_GIAM_DOC_DM = {ROLE_GIAM_DOC, "AP Giám đốc", QT}
 
-# Gia mua va nha cung cap: khop voi phan he Thu mua, cong thu kho vi thu
-# kho phai doi chieu gia luc nhan hang.
-XEM_MUA = QUYEN_THU_MUA | {"Stock Manager"}
+VAO_DANH_MUC = VAI_KE_TOAN_DM | VAI_THU_MUA_DM | VAI_GIAM_DOC_DM
 
-# Ho so khach hang co so dien thoai, khong mo cho ca tiem.
-XEM_KHACH = {QT, ROLE_GIAM_DOC, "Sales Manager", "Sales User",
-             "Accounts Manager", "Accounts User"}
 
-# Tai khoan ke toan, thue, ngan hang, phuong thuc thanh toan.
-XEM_TIEN = {QT, ROLE_GIAM_DOC, "Accounts Manager", "Accounts User",
-            "AP Kiểm soát (FIN)"}
+def _siet(*tap):
+	"""Giao voi VAO_DANH_MUC. Khong bang nao duoc rong hon cong.
+
+	Vi sao la mot HAM chu khong phai viet tay phep giao o tung cho: viet tay
+	thi hom nao them mot bang moi la quen mot lan, va quen o day nghia la
+	Sales lai nhin thay danh muc. Ham nay khong quen duoc.
+	"""
+	ra = set()
+	for t in tap:
+		ra |= set(t)
+	return ra & VAO_DANH_MUC
+
+
+# Danh muc dung hang ngay. Truoc 21/08 mo cho ca bep, kho va sales; nay
+# siet ve trong cong.
+XEM_CHUNG = _siet(
+	VAO_DANH_MUC,
+)
+
+# Gia mua va nha cung cap. Ca ba nhom trong cong deu can: thu mua khai gia,
+# ke toan doi chieu hoa don mua, giam doc duyet.
+#
+# QUYEN_THU_MUA cua quyen_phan_he.py CO Y duoc gop vao day chu khong dung mot
+# minh: tap do viet bang ten vai ERPNext (Purchase User, Accounts Manager) va
+# thieu han ba vai THAT dang chay tren site - Uyen giu "AP Officer", chi Dung
+# giu "AP Kiem soat (FIN)", anh Viet va De giu "AP Giam doc". Dung mot minh
+# tap cu thi dung ba nguoi lam viec do hang ngay bi khoa ra ngoai.
+XEM_MUA = _siet(VAO_DANH_MUC, QUYEN_THU_MUA, {"Stock Manager"})
+
+# Ho so khach hang co so dien thoai cua khach. Sales tung co phan, nay bi cong
+# siet ra ngoai. Trong cong thi van chia tiep: THU MUA khong can danh ba khach,
+# nen khong mo. Chia nho o day khong phai de kho nhau, ma vi so dien thoai
+# khach la thu duy nhat trong ca phan he Danh muc thuoc ve NGUOI NGOAI cong ty.
+XEM_KHACH = _siet(VAI_KE_TOAN_DM, VAI_GIAM_DOC_DM)
+
+# Tai khoan ke toan, thue, ngan hang, phuong thuc thanh toan. Ke toan va giam
+# doc. Thu mua khong mo: sua he thong tai khoan la sua so sach ca cong ty.
+#
+# Viet bang VAI_* chu khong liet ke tay: ban cu liet ke tay va SOT "AP Giam
+# doc", tuc la anh Viet va De - hai nguoi duy nhat le ra phai thay het - lai
+# khong vao duoc. Bo kiem khai bao cua khung bat duoc ngay hom nay.
+XEM_TIEN = _siet(VAI_KE_TOAN_DM, VAI_GIAM_DOC_DM)
+
+# ==================================================== QUYEN TAO MOI
+#
+# Hep hon quyen XEM. Xem mot danh muc va de ra mot dong moi trong do la hai
+# viec khac han: rac du lieu sinh ra o ve thu hai chu khong phai ve thu nhat.
+#
+# Ke toan va Thu mua tao duoc danh muc thuoc viec cua ho, Giam doc tao duoc
+# tat ca. Chia nho o tung bang ben duoi bang tham so quyen_tao.
+SUA_DM = VAO_DANH_MUC
+SUA_TIEN = _siet(VAI_KE_TOAN_DM, VAI_GIAM_DOC_DM)
+SUA_MUA = _siet(VAI_THU_MUA_DM, VAI_KE_TOAN_DM, VAI_GIAM_DOC_DM)
+SUA_KHACH = XEM_KHACH
 
 LOI_CHUNG = (
-	"Danh mục này chưa mở cho tài khoản của bạn. Cần xem thì báo anh Việt "
-	"cấp thêm chức vụ trong màn Quản lý người dùng."
+	"Phân hệ Danh mục chỉ mở cho Kế toán, Thu mua và Giám đốc, vì đây là dữ "
+	"liệu nền của cả hệ thống. Cần xem thì báo anh Việt cấp thêm chức vụ "
+	"trong màn Quản lý người dùng."
 )
 
 
@@ -140,6 +222,13 @@ BANG_SP = khai.bang(
 	xep=_xep_sp,
 	sap="item_group asc, item_name asc",
 	tom_tat=[("_dong", "Số mặt hàng", "so")],
+	tao=khai.tao(
+		nhan="Tạo mặt hàng mới",
+		quyen=SUA_DM,
+		# Đi tới màn Danh mục sản phẩm đã có: màn đó tự đặt mã theo nhóm và
+		# cảnh báo trùng tên, form chung ở đây không biết làm hai việc ấy.
+		di_toi="CDSP",
+	),
 )
 
 
@@ -170,6 +259,18 @@ BANG_NHOM_SP = khai.bang(
 	# truoc con sau, khong phai tu dung lai cay o man hinh.
 	sap="lft asc",
 	tom_tat=[("_dong", "Số nhóm", "so")],
+	tao=khai.tao(
+		nhan="Tạo nhóm sản phẩm",
+		quyen=SUA_DM,
+		o=[
+			khai.o("item_group_name", "Tên nhóm", "chu", bat_buoc=1,
+			       goi_y="Ví dụ: Bánh mì, Nguyên liệu khô"),
+			khai.o("parent_item_group", "Thuộc nhóm cha", "lien_ket",
+			       doctype="Item Group", loc={"is_group": 1}, bat_buoc=1,
+			       mo_ta="Cây nhóm hàng phải có gốc. Chưa rõ thì chọn nhóm tổng."),
+			khai.o("is_group", "Là nhóm cha, chứa nhóm con", "co"),
+		],
+	),
 )
 
 
@@ -241,6 +342,19 @@ BANG_DVT = khai.bang(
 	xep=lambda r, bc=None: "nguyen" if r.get("must_be_whole_number") else "le",
 	sap="name asc",
 	tom_tat=[("_dong", "Số đơn vị tính", "so")],
+	tao=khai.tao(
+		nhan="Tạo đơn vị tính",
+		quyen=SUA_DM,
+		ghi_chu=(
+			"Hệ đang có hơn 200 đơn vị tính cho một tiệm bánh. Tra kỹ danh sách "
+			"trước khi thêm: mỗi đơn vị trùng nghĩa là một chỗ tồn kho chia đôi."
+		),
+		o=[
+			khai.o("uom_name", "Tên đơn vị", "chu", bat_buoc=1, goi_y="Ví dụ: Khay, Vỉ"),
+			khai.o("must_be_whole_number", "Chỉ nhận số nguyên", "co",
+			       mo_ta="Bật cho cái, hộp, khay. Tắt cho kg, lít."),
+		],
+	),
 )
 
 
@@ -264,6 +378,16 @@ BANG_QUY_DOI = khai.bang(
 	),
 	sap="from_uom asc, to_uom asc",
 	tom_tat=[("_dong", "Số cặp quy đổi", "so")],
+	tao=khai.tao(
+		nhan="Tạo quy đổi đơn vị",
+		quyen=SUA_DM,
+		o=[
+			khai.o("from_uom", "Từ đơn vị", "lien_ket", doctype="UOM", bat_buoc=1),
+			khai.o("to_uom", "Sang đơn vị", "lien_ket", doctype="UOM", bat_buoc=1),
+			khai.o("value", "Hệ số quy đổi", "so", bat_buoc=1,
+			       mo_ta="Một đơn vị ở trên bằng bao nhiêu đơn vị ở dưới. Ví dụ 1 kg bằng 1000 gram thì điền 1000."),
+		],
+	),
 )
 
 
@@ -303,6 +427,17 @@ BANG_KHO = khai.bang(
 	truoc=_cay_cha("Warehouse", "parent_warehouse"),
 	sap="lft asc",
 	tom_tat=[("_dong", "Số kho", "so")],
+	tao=khai.tao(
+		nhan="Tạo kho hàng",
+		quyen=SUA_DM,
+		o=[
+			khai.o("warehouse_name", "Tên kho", "chu", bat_buoc=1),
+			khai.o("parent_warehouse", "Thuộc kho cha", "lien_ket",
+			       doctype="Warehouse", loc={"is_group": 1}, bat_buoc=1),
+			khai.o("is_group", "Là kho cha, chứa kho con", "co",
+			       mo_ta="Kho cha không chứa hàng, chỉ để gom. Hàng chỉ nằm ở kho con."),
+		],
+	),
 )
 
 
@@ -388,6 +523,20 @@ BANG_NCC = khai.bang(
 	xep=lambda r, bc=None: "ngung" if r.get("disabled") else "dang",
 	sap="supplier_name asc",
 	tom_tat=[("_dong", "Số nhà cung cấp", "so")],
+	tao=khai.tao(
+		nhan="Tạo nhà cung cấp",
+		quyen=SUA_MUA,
+		o=[
+			khai.o("supplier_name", "Tên nhà cung cấp", "chu", bat_buoc=1),
+			khai.o("supplier_group", "Nhóm nhà cung cấp", "lien_ket",
+			       doctype="Supplier Group", bat_buoc=1),
+			khai.o("tax_id", "Mã số thuế", "chu",
+			       mo_ta="Điền sớm thì tới lúc nhận hoá đơn không phải quay lại sửa."),
+			khai.o("supplier_type", "Loại", "chon",
+			       chon=[("Company", "Công ty"), ("Individual", "Cá nhân")],
+			       mac_dinh="Company"),
+		],
+	),
 )
 
 
@@ -412,6 +561,16 @@ BANG_NHOM_NCC = khai.bang(
 	truoc=_cay_cha("Supplier Group", "parent_supplier_group"),
 	sap="lft asc",
 	tom_tat=[("_dong", "Số nhóm", "so")],
+	tao=khai.tao(
+		nhan="Tạo nhóm nhà cung cấp",
+		quyen=SUA_MUA,
+		o=[
+			khai.o("supplier_group_name", "Tên nhóm", "chu", bat_buoc=1),
+			khai.o("parent_supplier_group", "Thuộc nhóm cha", "lien_ket",
+			       doctype="Supplier Group", loc={"is_group": 1}, bat_buoc=1),
+			khai.o("is_group", "Là nhóm cha", "co"),
+		],
+	),
 )
 
 
@@ -448,6 +607,23 @@ BANG_GIA_MUA = khai.bang(
 	),
 	sap="item_name asc, price_list asc",
 	tom_tat=[("_dong", "Số dòng giá", "so")],
+	tao=khai.tao(
+		nhan="Khai giá mua vào",
+		quyen=SUA_MUA,
+		ghi_chu=(
+			"Giá khai ở đây là giá máy gợi ý lúc lập đơn mua. Nó KHÔNG tự sửa "
+			"giá trên đơn đã lập."
+		),
+		o=[
+			khai.o("item_code", "Mặt hàng", "lien_ket", doctype="Item", bat_buoc=1),
+			khai.o("price_list", "Bảng giá", "lien_ket", doctype="Price List",
+			       loc={"buying": 1}, bat_buoc=1),
+			khai.o("supplier", "Nhà cung cấp", "lien_ket", doctype="Supplier",
+			       mo_ta="Để trống là giá chung, không riêng nhà nào."),
+			khai.o("uom", "Đơn vị tính", "lien_ket", doctype="UOM"),
+			khai.o("price_list_rate", "Đơn giá", "tien", bat_buoc=1),
+		],
+	),
 )
 
 
@@ -505,6 +681,21 @@ BANG_KHACH = khai.bang(
 	xep=_xep_khach,
 	sap="modified desc",
 	tom_tat=[("_dong", "Số khách hàng", "so")],
+	tao=khai.tao(
+		nhan="Tạo khách hàng",
+		quyen=SUA_KHACH,
+		ghi_chu="Mã khách máy tự đặt theo nhóm (KL, SI, DN, SA, NB), không phải điền.",
+		o=[
+			khai.o("customer_name", "Tên khách", "chu", bat_buoc=1),
+			khai.o("customer_group", "Nhóm khách", "lien_ket",
+			       doctype="Customer Group", bat_buoc=1),
+			khai.o("customer_type", "Loại", "chon",
+			       chon=[("Company", "Công ty"), ("Individual", "Cá nhân")],
+			       mac_dinh="Individual"),
+			khai.o("tax_id", "Mã số thuế", "chu"),
+			khai.o("mobile_no", "Số điện thoại", "chu"),
+		],
+	),
 )
 
 
@@ -529,6 +720,16 @@ BANG_NHOM_KHACH = khai.bang(
 	truoc=_cay_cha("Customer Group", "parent_customer_group"),
 	sap="lft asc",
 	tom_tat=[("_dong", "Số nhóm", "so")],
+	tao=khai.tao(
+		nhan="Tạo nhóm khách hàng",
+		quyen=SUA_KHACH,
+		o=[
+			khai.o("customer_group_name", "Tên nhóm", "chu", bat_buoc=1),
+			khai.o("parent_customer_group", "Thuộc nhóm cha", "lien_ket",
+			       doctype="Customer Group", loc={"is_group": 1}, bat_buoc=1),
+			khai.o("is_group", "Là nhóm cha", "co"),
+		],
+	),
 )
 
 
@@ -560,6 +761,23 @@ BANG_PT_THANH_TOAN = khai.bang(
 	xep=lambda r, bc=None: "dang" if r.get("enabled") else "ngung",
 	sap="name asc",
 	tom_tat=[("_dong", "Số phương thức", "so")],
+	tao=khai.tao(
+		nhan="Tạo phương thức thanh toán",
+		quyen=SUA_TIEN,
+		ghi_chu=(
+			"Khai xong nhớ vào màn Phương thức thanh toán ở Cài đặt gán mã gửi "
+			"cơ quan thuế và tài khoản ghi sổ, không thì phương thức này chưa "
+			"dùng được ngoài quầy."
+		),
+		o=[
+			khai.o("mode_of_payment", "Tên phương thức", "chu", bat_buoc=1),
+			khai.o("type", "Loại", "chon",
+			       chon=[("Cash", "Tiền mặt"), ("Bank", "Ngân hàng"),
+			             ("General", "Khác"), ("Phone", "Ví điện thoại")],
+			       mac_dinh="Bank"),
+			khai.o("enabled", "Đang dùng", "co", mac_dinh=1),
+		],
+	),
 )
 
 
@@ -582,6 +800,18 @@ BANG_NGAN_HANG = khai.bang(
 	),
 	sap="bank_name asc",
 	tom_tat=[("_dong", "Số ngân hàng", "so")],
+	tao=khai.tao(
+		nhan="Tạo ngân hàng",
+		quyen=SUA_TIEN,
+		ghi_chu=(
+			"Danh mục này đã có 581 ngân hàng NAPAS. Tra kỹ trước khi thêm, "
+			"gần như chắc chắn ngân hàng cần dùng đã có sẵn."
+		),
+		o=[
+			khai.o("bank_name", "Tên ngân hàng", "chu", bat_buoc=1),
+			khai.o("swift_number", "Mã SWIFT hoặc BIN", "chu"),
+		],
+	),
 )
 
 
@@ -689,6 +919,23 @@ BANG_TAI_KHOAN = khai.bang(
 	truoc=_cay_cha("Account", "parent_account"),
 	sap="lft asc",
 	tom_tat=[("_dong", "Số tài khoản", "so")],
+	tao=khai.tao(
+		nhan="Tạo tài khoản kế toán",
+		quyen=SUA_TIEN,
+		ghi_chu=(
+			"Thêm một tài khoản là sửa hệ thống tài khoản của cả công ty. Chỉ "
+			"thêm khi chị Dung đã chốt số hiệu và tài khoản cha."
+		),
+		o=[
+			khai.o("account_name", "Tên tài khoản", "chu", bat_buoc=1),
+			khai.o("account_number", "Số hiệu", "chu", bat_buoc=1,
+			       goi_y="Ví dụ 1311"),
+			khai.o("parent_account", "Thuộc tài khoản cha", "lien_ket",
+			       doctype="Account", loc={"is_group": 1}, bat_buoc=1,
+			       mo_ta="Loại và tính chất tài khoản kế thừa từ tài khoản cha."),
+			khai.o("is_group", "Là tài khoản tổng hợp", "co"),
+		],
+	),
 )
 
 

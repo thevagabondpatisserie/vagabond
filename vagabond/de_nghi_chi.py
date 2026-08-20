@@ -956,38 +956,56 @@ def duyet(ma_phieu, ghi_chu=None):
 	}
 
 
+VAI_BUOC = {
+	TT_CHO_DUYET: VAI_DUYET,
+	TT_CHO_GIAM_DOC: VAI_GIAM_DOC,
+	TT_CHO_KE_TOAN: VAI_KE_TOAN,
+}
+
+
+def _het_viec(ma_phieu):
+	"""Phiếu đã chi xong: gỡ khỏi hộp việc của mọi người. Nuốt lỗi."""
+	try:
+		from vagabond import giao_viec
+
+		giao_viec.go_giao(DT, ma_phieu)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: go viec loi")
+
+
 def _bao_buoc_ke_tiep(doc):
-	"""Bắn thông báo cho người phải duyệt ở BƯỚC KẾ TIẾP.
+	"""GIAO phiếu cho người phải duyệt ở BƯỚC KẾ TIẾP, rồi bắn thông báo.
 
 	Anh Việt 20/08/2026: *"Khi có một phiếu mới chuyển sang trạng thái chờ
-	duyệt của đúng User đó, hệ thống phải bắn notification."*
+	duyệt của đúng User đó, hệ thống phải bắn notification."* Và 21/08/2026:
+	*"gắn Assignee thật vào từng phiếu lúc sinh phiếu"*.
 
-	Bắn theo VAI chứ không theo tên người, cùng lý do đã ghi ở đầu tệp: viết
+	Giao theo VAI chứ không theo tên người, cùng lý do đã ghi ở đầu tệp: viết
 	cứng tên thì ai nghỉ phép là tắc.
+
+	Việc giao đi qua giao_viec.giao_vai, và chính hàm đó bắn chuông - nên ở
+	đây KHÔNG gọi thong_bao nữa, gọi nữa là mỗi bước rung hai lần.
 
 	KHÔNG BAO GIỜ ném lỗi: phiếu đã duyệt xong và đã lưu rồi, một cái chuông
 	hỏng không được phép cuốn theo thao tác duyệt thật.
 	"""
 	try:
-		from vagabond import thong_bao
+		from vagabond import giao_viec
 
-		vai = {
-			TT_CHO_DUYET: VAI_DUYET,
-			TT_CHO_GIAM_DOC: VAI_GIAM_DOC,
-			TT_CHO_KE_TOAN: VAI_KE_TOAN,
-		}.get(doc.trang_thai)
+		vai = VAI_BUOC.get(doc.trang_thai)
 		if not vai:
+			# Phiếu đã xong hoặc đã huỷ: gỡ việc để nó rời hộp của mọi người.
+			giao_viec.go_giao(DT, doc.name)
 			return
 		tien = tien_phieu(doc.as_dict() if hasattr(doc, "as_dict") else doc)
-		thong_bao.bao_cho_vai(
+		giao_viec.giao_vai(
+			DT,
+			doc.name,
 			sorted(vai),
-			"Phiếu chờ bạn duyệt",
 			"%s · %s đ · %s" % (
 				doc.name, _tien(tien),
 				(doc.get("ten_khoan_chi") or "").strip() or "đề nghị chi",
 			),
-			"/bep",
-			"ttnb-%s" % doc.name,
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: bao buoc ke tiep loi")
@@ -1009,6 +1027,20 @@ def tra_lai(ma_phieu, ly_do):
 	doc.tra_lai_boi = frappe.session.user
 	doc.tra_lai_luc = now_datetime()
 	doc.save(ignore_permissions=True)
+	# Trả lại thì việc thuộc về NGƯỜI LẬP, không còn thuộc người duyệt. Giao
+	# đích danh chứ không giao theo vai: chỉ một người sửa được phiếu này.
+	try:
+		from vagabond import giao_viec
+
+		if doc.nguoi_tao:
+			giao_viec.giao(
+				DT, doc.name, [doc.nguoi_tao],
+				"%s bị trả lại: %s" % (doc.name, doc.ly_do_tra_lai[:120]),
+			)
+		else:
+			giao_viec.go_giao(DT, doc.name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: giao lai nguoi lap loi")
 	return {"ok": 1, "trang_thai": doc.trang_thai}
 
 
@@ -1642,6 +1674,7 @@ def doi_soat(so_ngay=30):
 			# Ghi xuống NGAY. Tiền đã ra là sự thật, không được để chung một
 			# giao dịch cơ sở dữ liệu với bất kỳ việc nào có thể hỏng.
 			frappe.db.commit()
+			_het_viec(d["name"])
 			da += 1
 			break
 	return {
@@ -1689,6 +1722,7 @@ def khi_co_giao_dich(ma_bt):
 				"ngay_da_chi": now_datetime(),
 			})
 			frappe.db.commit()
+			_het_viec(d["name"])
 			return
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: khop ngay sau webhook loi")

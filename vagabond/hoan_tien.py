@@ -36,7 +36,7 @@ import json
 import re
 
 import frappe
-from frappe.utils import cint, flt, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, now_datetime, nowdate
 
 from vagabond.lib import cfg, sdt
 
@@ -270,6 +270,62 @@ TRUONG_MOI = {
 		{
 			"fieldname": "ngay_gan_gd_vao", "label": "Lúc đối chiếu",
 			"fieldtype": "Datetime", "insert_after": "nguoi_gan_gd_vao", "read_only": 1,
+		},
+		# NOI MA HOA DON THAY THE (anh Viet 20/08/2026).
+		#
+		# Chi Dung: *"khong can nut click vao m-invoice vi moi hoa don ben
+		# m-invoice khong co link rieng. Chi ay se tu tim hoa don roi tu thay
+		# the."* Anh Viet: *"vi du hoa don da thay the roi thi em viet luong
+		# automation de noi ma hoa don da thay the do vao don hang truoc do
+		# va vao phieu hoan tien luon duoc khong?"*
+		#
+		# Ba truong nay la cho ghi ma do. Viec THAY THE van do chi Dung lam
+		# tay ben M-Invoice; he thong tuyet doi khong phat hanh, khong huy,
+		# khong thay the mot to nao - anh Viet da dan 13/08/2026.
+		{
+			"fieldname": "sec_htt", "label": "Hoá đơn thay thế",
+			"fieldtype": "Section Break", "insert_after": "ngay_gan_gd_vao",
+		},
+		{
+			"fieldname": "so_hddt_thay_the", "label": "Số hoá đơn thay thế",
+			"fieldtype": "Data", "insert_after": "sec_htt", "read_only": 1,
+			"description": (
+				"Số tờ hoá đơn đã thay thế tờ cũ bên M-Invoice. Ghi từ màn phiếu "
+				"hoàn tiền, máy tự nối ngược lên đơn hàng gốc."
+			),
+		},
+		{
+			"fieldname": "ky_hieu_hddt_thay_the", "label": "Ký hiệu hoá đơn thay thế",
+			"fieldtype": "Data", "insert_after": "so_hddt_thay_the", "read_only": 1,
+		},
+		{
+			"fieldname": "nguoi_ghi_thay_the", "label": "Người ghi hoá đơn thay thế",
+			"fieldtype": "Data", "insert_after": "ky_hieu_hddt_thay_the", "read_only": 1,
+		},
+		{
+			"fieldname": "ngay_ghi_thay_the", "label": "Lúc ghi hoá đơn thay thế",
+			"fieldtype": "Datetime", "insert_after": "nguoi_ghi_thay_the", "read_only": 1,
+		},
+	],
+	# Doi ung tren DON HANG GOC. Ghi o ca hai noi chu khong chi mot: ke toan
+	# tra tu don hang ra, sales tra tu phieu hoan tien ra, va hai duong do
+	# khong bao gio gap nhau neu chi ghi mot ben.
+	"Sales Invoice": [
+		{
+			"fieldname": "custom_hddt_thay_the", "label": "Hoá đơn thay thế",
+			"fieldtype": "Data", "insert_after": "custom_hddt_so", "read_only": 1,
+			"description": (
+				"Tờ hoá đơn điện tử đã thay thế tờ ghi ở ô Số hoá đơn. Ghi từ màn "
+				"phiếu hoàn tiền trên app. Máy KHÔNG tự phát hành hay huỷ tờ nào."
+			),
+		},
+		{
+			"fieldname": "custom_hddt_thay_the_luc", "label": "Lúc ghi hoá đơn thay thế",
+			"fieldtype": "Datetime", "insert_after": "custom_hddt_thay_the", "read_only": 1,
+		},
+		{
+			"fieldname": "custom_hddt_thay_the_phieu", "label": "Phiếu hoàn tiền ghi nhận",
+			"fieldtype": "Data", "insert_after": "custom_hddt_thay_the_luc", "read_only": 1,
 		},
 	],
 	"Payment Entry": [
@@ -2703,6 +2759,162 @@ def _mau_lien_ket_hddt():
 		return ""
 
 
+@frappe.whitelist()
+def ghi_hddt_thay_the(ma_phieu, so, ky_hieu=None):
+	"""Nối mã hoá đơn THAY THẾ vào phiếu hoàn tiền VÀ vào đơn hàng gốc.
+
+	Anh Việt 20/08/2026: *"ví dụ hoá đơn đã thay thế rồi thì em viết luồng
+	automation để nối mã hoá đơn đã thay thế đó vào đơn hàng trước đó và vào
+	phiếu hoàn tiền luôn được không?"*
+
+	Ranh giới, cố ý và không thương lượng
+	-------------------------------------
+	Hàm này CHỈ GHI LẠI một con số người thật đã đọc bên M-Invoice. Nó không
+	phát hành, không huỷ, không thay thế, không gửi gì sang cơ quan thuế.
+	Anh Việt dặn 13/08/2026 sau lần phải đi xoá tay hoá đơn bên M-Invoice:
+	*"những vấn đề liên quan đến hoá đơn điện tử gửi sang cơ quan thuế, rất
+	nhạy cảm, khó sửa chữa"*. Việc thay thế vẫn nằm trong tay chị Dung.
+
+	Automation ở đây là chỗ NỐI: ghi một lần trên phiếu hoàn tiền thì đơn
+	hàng gốc, phiếu hoàn tiền và nhật ký đều có, thay vì chị Dung phải nhớ
+	mở ba nơi. Đó đúng là phần máy làm được mà không đụng tới hoá đơn thật.
+	"""
+	_kiem_quyen()
+	so = (str(so or "")).strip()
+	if not so:
+		frappe.throw(
+			"Chưa nhập số hoá đơn thay thế. Mở tờ hoá đơn mới bên M-Invoice, "
+			"chép số hoá đơn rồi dán vào ô này."
+		)
+	if len(so) > 30:
+		frappe.throw("Số hoá đơn dài bất thường (%d ký tự). Kiểm lại xem có dán nhầm cả dòng không." % len(so))
+	kh = (str(ky_hieu or "")).strip()
+
+	d = frappe.get_doc(DT, ma_phieu)
+	if not d.hoa_don or not frappe.db.exists(SI, d.hoa_don):
+		frappe.throw(
+			"Phiếu này chưa gắn đơn hàng gốc nên không có tờ hoá đơn nào để "
+			"thay thế. Gắn đơn hàng cho phiếu trước đã."
+		)
+	cu_so = (frappe.db.get_value(SI, d.hoa_don, "custom_hddt_so") or "").strip()
+	if cu_so and so == cu_so:
+		frappe.throw(
+			"Số vừa nhập trùng đúng số hoá đơn cũ (%s). Tờ thay thế phải mang "
+			"số khác. Kiểm lại bên M-Invoice xem đã chép đúng tờ mới chưa." % cu_so
+		)
+
+	luc = now_datetime()
+	frappe.db.set_value(DT, d.name, {
+		"so_hddt_thay_the": so,
+		"ky_hieu_hddt_thay_the": kh,
+		"nguoi_ghi_thay_the": frappe.session.user,
+		"ngay_ghi_thay_the": luc,
+	}, update_modified=False)
+	# Đơn hàng gốc: ghi cả mã phiếu đã ghi nhận, để từ đơn hàng lần ngược ra
+	# được phiếu hoàn tiền chứ không phải đi tìm.
+	frappe.db.set_value(SI, d.hoa_don, {
+		"custom_hddt_thay_the": ("%s %s" % (kh, so)).strip(),
+		"custom_hddt_thay_the_luc": luc,
+		"custom_hddt_thay_the_phieu": d.name,
+	}, update_modified=False)
+	# Dấu vết trên chính đơn hàng. QT-20: không xoá gì, và mọi lần ghi đè
+	# đều còn lại một dòng để đối chiếu.
+	try:
+		frappe.get_doc({
+			"doctype": "Comment", "comment_type": "Info",
+			"reference_doctype": SI, "reference_name": d.hoa_don,
+			"content": (
+				"Ghi nhận hoá đơn thay thế %s (ký hiệu %s) cho tờ cũ %s, "
+				"từ phiếu hoàn tiền %s."
+				% (so, kh or "chưa ghi", cu_so or "chưa ghi", d.name)
+			),
+		}).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet hoa don thay the")
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"so": so,
+		"ky_hieu": kh,
+		"so_cu": cu_so,
+		"don": d.hoa_don,
+		"loi_nhan": "Đã nối %s vào đơn %s và vào phiếu %s." % (so, d.hoa_don, d.name),
+		"hddt": _hddt_cua_don(d.hoa_don),
+	}
+
+
+@frappe.whitelist()
+def go_hddt_thay_the(ma_phieu, ly_do):
+	"""Gỡ mã hoá đơn thay thế đã ghi nhầm. Bắt buộc ghi lý do.
+
+	Không xoá lặng lẽ: ô trống lại nhưng nhật ký vẫn giữ cả số cũ lẫn lý do
+	gỡ, đúng QT-20.
+	"""
+	_kiem_quyen()
+	ly_do = (str(ly_do or "")).strip()
+	if not ly_do:
+		frappe.throw("Phải ghi lý do gỡ thì người sau mới hiểu vì sao ô này trống lại.")
+	d = frappe.get_doc(DT, ma_phieu)
+	cu = (d.get("so_hddt_thay_the") or "").strip()
+	if not cu:
+		frappe.throw("Phiếu này chưa ghi hoá đơn thay thế nào, không có gì để gỡ.")
+	frappe.db.set_value(DT, d.name, {
+		"so_hddt_thay_the": "", "ky_hieu_hddt_thay_the": "",
+	}, update_modified=False)
+	if d.hoa_don and frappe.db.exists(SI, d.hoa_don):
+		frappe.db.set_value(SI, d.hoa_don, {
+			"custom_hddt_thay_the": "", "custom_hddt_thay_the_phieu": "",
+		}, update_modified=False)
+		try:
+			frappe.get_doc({
+				"doctype": "Comment", "comment_type": "Info",
+				"reference_doctype": SI, "reference_name": d.hoa_don,
+				"content": "Gỡ hoá đơn thay thế %s (phiếu %s). Lý do: %s" % (cu, d.name, ly_do),
+			}).insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet go hoa don thay the")
+	frappe.db.commit()
+	return {"ok": 1, "loi_nhan": "Đã gỡ %s. Nhật ký trên đơn hàng vẫn giữ lại vết." % cu}
+
+
+@frappe.whitelist()
+def can_ghi_thay_the(so_ngay=90):
+	"""Phiếu hoàn tiền có hoá đơn gốc mà CHƯA ghi tờ thay thế.
+
+	Danh sách nhắc việc cho chị Dung: thay thế xong bên M-Invoice rồi thì
+	còn một bước nối mã về đây, và bước đó rất dễ quên vì nó nằm ở phần mềm
+	khác.
+	"""
+	_kiem_quyen()
+	tu = add_days(nowdate(), -int(so_ngay or 90))
+	ra = []
+	for d in frappe.get_all(
+		DT,
+		filters={"creation": [">=", tu]},
+		fields=["name", "hoa_don", "so_hddt", "so_hddt_thay_the", "trang_thai", "creation"],
+		order_by="creation desc",
+		limit_page_length=200,
+	):
+		if (d.get("so_hddt_thay_the") or "").strip():
+			continue
+		if not (d.get("so_hddt") or "").strip():
+			continue
+		ra.append({
+			"phieu": d["name"], "don": d.get("hoa_don") or "",
+			"so_hddt": (d.get("so_hddt") or "").strip(),
+			"trang_thai": d.get("trang_thai") or "",
+			"ngay": str(d.get("creation") or "")[:10],
+		})
+	return {
+		"dong": ra,
+		"tong": len(ra),
+		"ghi_chu": (
+			"" if ra else
+			"Không còn phiếu nào chờ nối mã hoá đơn thay thế trong %d ngày gần đây." % int(so_ngay or 90)
+		),
+	}
+
+
 def _hddt_cua_don(ma_don):
 	"""Thông tin hoá đơn điện tử của một đơn, để màn hình hiện và mở liên kết."""
 	if not ma_don:
@@ -2711,7 +2923,8 @@ def _hddt_cua_don(ma_don):
 		d = frappe.db.get_value(
 			SI, ma_don,
 			["custom_hddt_ky_hieu", "custom_hddt_so", "custom_hddt_trang_thai",
-			 "custom_hddt_id", "custom_hddt_sobaomat"],
+			 "custom_hddt_id", "custom_hddt_sobaomat",
+			 "custom_hddt_thay_the", "custom_hddt_thay_the_luc"],
 			as_dict=True,
 		) or {}
 	except Exception:
@@ -2754,4 +2967,9 @@ def _hddt_cua_don(ma_don):
 		# Chưa khai mẫu đường dẫn thì màn hình mở trang chủ M-Invoice và chép
 		# sẵn mã tra cứu, vẫn dùng được ngay chứ không đứng chờ.
 		"da_khai_mau": 1 if lien_ket else 0,
+		# Tờ đã thay thế tờ này, nếu có ai ghi nhận. Đọc từ ĐƠN HÀNG chứ
+		# không từ phiếu hoàn tiền: một đơn có thể có nhiều phiếu, nhưng chỉ
+		# có một tờ hoá đơn đang có hiệu lực.
+		"thay_the": (d.get("custom_hddt_thay_the") or "").strip(),
+		"thay_the_luc": str(d.get("custom_hddt_thay_the_luc") or ""),
 	}

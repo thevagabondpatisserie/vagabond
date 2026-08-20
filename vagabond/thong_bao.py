@@ -7,11 +7,11 @@ chuông báo trên App."*
 
 Chia làm hai lớp, và cố ý deploy làm hai lần
 --------------------------------------------
-Lớp một (tệp này, v242): sinh cặp khoá VAPID, nhận và giữ đăng ký của từng
-máy, và một hàm `gui` biết tự im lặng khi chưa gửi được.
+Lớp một (v242): sinh cặp khoá VAPID, nhận và giữ đăng ký của từng máy, và
+một hàm `gui` biết tự im lặng khi chưa gửi được.
 
-Lớp hai (v243): thêm thư viện `pywebpush` vào phần phụ thuộc của app rồi bật
-đường gửi thật.
+Lớp hai (v243, ĐÃ BẬT): `pywebpush` vào phần phụ thuộc của app, khoá riêng
+đổi sang dạng PEM trước khi ký, và một đường `thu_gui` để tự kiểm thử.
 
 Vì sao tách: thêm một thư viện Python là đổi bước dựng bản build trên Frappe
 Cloud. Dựng hỏng thì HỎNG CẢ LẦN DEPLOY, tức là mọi thứ khác trong cùng bản
@@ -56,6 +56,29 @@ def _sinh_khoa():
 		serialization.PublicFormat.UncompressedPoint,
 	)
 	return _b64(so), _b64(cong)
+
+
+def _pem(rieng):
+	"""Đổi khoá riêng dạng base64url 32 byte sang PEM cho pywebpush.
+
+	Vì sao không đưa thẳng chuỗi base64url: py_vapid có nhận dạng đó, nhưng
+	cách nó đoán định dạng đã đổi vài lần giữa các phiên bản. PEM thì phiên
+	bản nào cũng đọc được. Đây là chỗ mà đoán sai định dạng dẫn tới hỏng im
+	lặng - thông báo không bắn mà không ai báo gì - nên chọn đường chắc.
+	"""
+	from cryptography.hazmat.primitives import serialization
+	from cryptography.hazmat.primitives.asymmetric import ec
+
+	s = (rieng or "").strip()
+	if "-----BEGIN" in s:
+		return s
+	raw = base64.urlsafe_b64decode((s + "=" * ((4 - len(s) % 4) % 4)).encode())
+	k = ec.derive_private_key(int.from_bytes(raw, "big"), ec.SECP256R1())
+	return k.private_bytes(
+		serialization.Encoding.PEM,
+		serialization.PrivateFormat.PKCS8,
+		serialization.NoEncryption(),
+	).decode()
 
 
 def _cai_dat():
@@ -149,9 +172,19 @@ def gui(nguoi, tieu_de, than, duong_dan="/bep", tag=None):
 		try:
 			from pywebpush import webpush
 		except ImportError:
-			# Lớp hai chưa deploy. Im lặng là đúng: không có gì hỏng cả, chỉ
-			# là chưa bật.
-			return {"gui": 0, "vi_sao": "chua cai pywebpush"}
+			# Bản build thiếu thư viện. Không nuốt hẳn: ghi log để còn tra ra,
+			# vì triệu chứng ở ngoài chỉ là "không thấy thông báo".
+			frappe.log_error(
+				"Ban build nay chua co pywebpush. Kiem lai pyproject.toml roi "
+				"deploy lai tren Frappe Cloud.",
+				"thong_bao: thieu pywebpush",
+			)
+			return {"gui": 0, "vi_sao": "ban build chua co pywebpush"}
+		try:
+			khoa = _pem(rieng)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "thong_bao: khoa VAPID hong")
+			return {"gui": 0, "vi_sao": "khoa VAPID hong"}
 
 		than_goi = json.dumps({
 			"tieu_de": tieu_de, "than": than,
@@ -166,7 +199,7 @@ def gui(nguoi, tieu_de, than, duong_dan="/bep", tag=None):
 						"keys": {"p256dh": d["khoa_p256dh"], "auth": d["khoa_auth"]},
 					},
 					data=than_goi,
-					vapid_private_key=rieng,
+					vapid_private_key=khoa,
 					vapid_claims={"sub": "mailto:thevagabondbakery@gmail.com"},
 				)
 				n += 1
@@ -182,6 +215,69 @@ def gui(nguoi, tieu_de, than, duong_dan="/bep", tag=None):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "thong_bao: gui loi")
 		return {"gui": 0}
+
+
+@frappe.whitelist()
+def tinh_hinh():
+	"""Máy này đã đăng ký chưa, và cả hệ có bao nhiêu máy đang nhận.
+
+	Màn Cài đặt đọc để nói đúng tình trạng chứ không đoán: người dùng bấm
+	Bật rồi mà không thấy gì thì phải biết là kẹt ở bước nào.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	co_thu_vien = 1
+	try:
+		import pywebpush  # noqa: F401
+	except ImportError:
+		co_thu_vien = 0
+	cong = ""
+	try:
+		cong = (_cai_dat().get("push_khoa_cong_khai") or "").strip()
+	except Exception:
+		cong = ""
+	return {
+		"may_cua_toi": len(_ds_dang_ky(frappe.session.user)),
+		"co_thu_vien": co_thu_vien,
+		"co_khoa": 1 if cong else 0,
+		"tong_may": frappe.db.count(DT_DK, {"con_dung": 1}),
+	}
+
+
+@frappe.whitelist()
+def thu_gui():
+	"""Bắn một tin kiểm thử về CHÍNH máy của người đang bấm.
+
+	Chỉ gửi cho bản thân, không có tham số người nhận: một đường gửi thông
+	báo tuỳ ý ai cũng gọi được là một cái loa cho kẻ xấu.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	kq = gui(
+		frappe.session.user,
+		"Vagabond: thử chuông",
+		"Nếu điện thoại vừa rung thì thông báo đã chạy đúng.",
+		"/bep",
+		"thu-chuong",
+	) or {}
+	if kq.get("gui"):
+		return {"ok": 1, "loi_nhan": "Đã bắn tới %d máy. Kiểm điện thoại xem có rung không." % kq["gui"]}
+	vi_sao = kq.get("vi_sao") or "chưa rõ"
+	cach = {
+		"nguoi nay chua dang ky may nao": (
+			"Máy này chưa đăng ký. Bấm nút Bật thông báo ở trên, và nhớ phải "
+			"thêm app ra màn hình chính trước thì trình duyệt mới cho bật."
+		),
+		"ban build chua co pywebpush": (
+			"Bản build trên máy chủ còn thiếu thư viện gửi. Báo anh Việt deploy "
+			"lại bản mới nhất trên Frappe Cloud."
+		),
+		"chua co khoa VAPID": "Máy chủ chưa sinh khoá. Bấm Bật thông báo một lần rồi thử lại.",
+		"khoa VAPID hong": "Khoá trên máy chủ hỏng. Báo anh Việt xem nhật ký lỗi.",
+	}.get(vi_sao, "Chưa gửi được. Báo anh Việt xem nhật ký lỗi trên Desk.")
+	return {"ok": 0, "loi_nhan": cach}
 
 
 def bao_cho_vai(vai, tieu_de, than, duong_dan="/bep", tag=None):

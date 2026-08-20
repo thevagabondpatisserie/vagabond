@@ -120,6 +120,31 @@ doc_events = {
 	# `sl_duyet`. Khong chan o day thi mot dong da tu choi van len duoc don,
 	# va ca man Duyet yeu cau mua thanh vo nghia.
 	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
+	# GAN ASSIGNEE THAT vao phieu luc phieu sinh ra (anh Viet 21/08/2026).
+	#
+	# Dat o hook chu khong sua muoi cho tao phieu: phieu sinh ra tu app, tu
+	# Desk, tu nut Create cua ERPNext va tu dong bo - sua cho tao thi luon
+	# sot mot duong. Luat ai phai lam nam trong vagabond/giao_viec.py va soi
+	# dung vao bo loc cua man Viec can lam.
+	#
+	# on_update_after_submit chu khong on_update: yeu cau mua doi status
+	# (Pending -> Ordered) SAU khi da ghi so, va do la luc phai go viec ra
+	# khoi hop cua thu mua.
+	"Material Request": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_submit": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_update_after_submit": "vagabond.giao_viec.khi_xong",
+		"on_cancel": "vagabond.giao_viec.khi_xong",
+	},
+	"Purchase Receipt": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_submit": "vagabond.giao_viec.khi_xong",
+		"on_cancel": "vagabond.giao_viec.khi_xong",
+	},
+	"Phieu Kiem Ke": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
+	},
 	# Hoa don mua DICH VU: gom ve mot dong, so lay tu DAU hoa don dien tu.
 	#
 	# Dat o before_validate chu khong o validate: ERPNext tinh lai tong tien
