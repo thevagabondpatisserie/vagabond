@@ -5793,6 +5793,17 @@ la("khong con ghi cung use_multi_level_bom bang 0",
 la("hoi he truoc khi lap lenh", "mfgNoNhieuCap()" in _sx48, True)
 la("hoi mot lan roi nho lai", "if (mfgPhantom !== null)" in _sx48, True)
 
+# Doc bang con thi KHONG duoc truyen `parent=`: do la tham so cua duong
+# REST ben ngoai, `frappe.get_all` trong may chu nem TypeError. Dung loi da
+# lam man Don chung tu thu tra ve ma 500 ngay lan mo dau tien toi 20/08.
+la("khong truyen parent vao get_all", 'parent="BOM"' in _ph48, False)
+la("khong truyen parent vao get_all lan hai", 'parent="Stock Entry"' in _ph48, False)
+for _tep48 in ("vagabond/trang_thai_thu.py", "vagabond/nha_cung_cap.py",
+               "vagabond/phantom.py"):
+	_n48 = open(_tep48, encoding="utf-8").read()
+	la("%s khong dung parent= trong get_all" % _tep48.split("/")[-1],
+	   "\n\t\tparent=" in _n48 or "\n\t\t\tparent=" in _n48, False)
+
 # ---------- 48.4 Hang rao dong vo: phan moi khong duoc ghep ra ngoai vo ----
 # Toi 20/08 v250 len that roi bam vao man Phantom thi bao "frame is not
 # defined": phan 24-phantom.js bi ghep SAU 23-dong-vo.js nen nam ngoai vo
