@@ -467,8 +467,20 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		doc.append("dong", d)
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
+
+	# Dinh PDF ban the hien cua tung hoa don vao ho so, de ke toan truong
+	# duyet ngay tren phieu thay vi tai tay tu M-Invoice (anh Viet
+	# 20/08/2026). Ham nay tu nuot loi: M-Invoice sap thi ho so van tao
+	# duoc, chi thieu tep.
+	from vagabond import minvoice_tep
+
+	so_pdf = minvoice_tep.dinh_vao_ho_so(doc)
+
 	frappe.db.commit()
-	return {"ok": 1, "ma": doc.name, "tong_tien": flt(doc.tong_tien), "trang_thai": doc.trang_thai}
+	return {
+		"ok": 1, "ma": doc.name, "tong_tien": flt(doc.tong_tien),
+		"trang_thai": doc.trang_thai, "so_pdf_hddt": so_pdf,
+	}
 
 
 # ------------------------------------------------------------- APP hoàn ứng

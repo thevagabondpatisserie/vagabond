@@ -35,6 +35,10 @@ def dung():
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")
 	_dung_nhom(mua_dich_vu.TRUONG_MOI, "mua_dich_vu")
 	_dung_nhom(sepay.TRUONG_MOI, "sepay")
+	# M-Invoice: cau hinh keo PDF ban the hien (them 20/08/2026).
+	from vagabond import minvoice_tep
+
+	_dung_nhom(minvoice_tep.TRUONG_MOI, "minvoice_tep")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()

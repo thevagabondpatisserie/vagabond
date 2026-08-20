@@ -97,6 +97,24 @@ TRUONG_MOI = {
 			),
 		},
 		{
+			"fieldname": "sepay_hmac_2", "label": "Khoá HMAC webhook thứ hai (ACB)",
+			"fieldtype": "Password", "insert_after": "sepay_hmac",
+			"description": (
+				"Secret Key của webhook THỨ HAI bên SePay, dùng khi mỗi tài "
+				"khoản ngân hàng (OCB, ACB...) có một webhook riêng và SePay "
+				"sinh cho mỗi cái một khoá khác nhau. Cả hai webhook trỏ về "
+				"cùng một đường dẫn, máy tự thử lần lượt từng khoá."
+			),
+		},
+		{
+			"fieldname": "sepay_khoa_2", "label": "Khoá dự phòng thứ hai (ACB)",
+			"fieldtype": "Password", "insert_after": "sepay_hmac_2",
+			"description": (
+				"Khoá X-Api-Key dự phòng cho webhook thứ hai, chỉ dùng khi "
+				"webhook đó không chọn được HMAC."
+			),
+		},
+		{
 			"fieldname": "sepay_chua_map", "label": "Số tài khoản SePay chưa khai",
 			"fieldtype": "Small Text", "insert_after": "sepay_khoa", "read_only": 1,
 			"description": (
@@ -124,6 +142,25 @@ def _khoa_that():
 		return key(cfg(), "sepay_khoa")
 	except Exception:
 		return ""
+
+
+def _cac_khoa(ten_goc):
+	"""Ca hai khe khoa cua mot loai (sepay_khoa / sepay_hmac).
+
+	Tu 20/08/2026 chay song song hai webhook - OCB va ACB - va SePay sinh
+	cho moi webhook mot Secret Key rieng, nguoi dung khong tu chon duoc.
+	Nen diem nhan phai thu lan luot tung khoa; khop mot cai la du.
+	"""
+	ra = []
+	c = cfg()
+	for ten in (ten_goc, ten_goc + "_2"):
+		try:
+			k = key(c, ten)
+		except Exception:
+			k = ""
+		if k:
+			ra.append(k)
+	return ra
 
 
 def _khoa_gui_len():
@@ -220,17 +257,15 @@ def _kiem_hmac():
 	khong mang chu ky thi tra (False, False) de duong X-Api-Key con co co
 	hoi chay.
 	"""
-	khoa = ""
-	try:
-		khoa = key(cfg(), "sepay_hmac")
-	except Exception:
-		khoa = ""
+	cac_khoa = _cac_khoa("sepay_hmac")
 	gui = _chu_ky_gui_len()
-	if not khoa or not gui:
+	if not cac_khoa or not gui:
 		return False, False
 
 	than = _than_tho()
-	dung = _hmac_dung(khoa, than)
+	dung = set()
+	for khoa in cac_khoa:
+		dung |= _hmac_dung(khoa, than)
 	for x in _tach_chu_ky(gui):
 		for y in dung:
 			if hmac.compare_digest(x, y):
@@ -293,15 +328,16 @@ def _webhook():
 		if not hmac_dat:
 			return _tu_choi(401, "Chu ky HMAC khong dung.")
 	else:
-		that = _khoa_that()
-		if not that:
+		cac = _cac_khoa("sepay_khoa")
+		if not cac:
 			return _tu_choi(
 				403,
-				"Chua dat khoa bao mat webhook trong Cai dat. Vao Cai dat, the "
-				"SePay, dan Secret Key HMAC cua SePay vao hoac sinh khoa moi.",
+				"Chưa đặt khoá bảo mật webhook trong Cài đặt. Vào Cài đặt, thẻ "
+				"SePay, dán Secret Key HMAC của SePay vào hoặc sinh khoá mới.",
 			)
-		if not hmac.compare_digest(_khoa_gui_len(), that):
-			return _tu_choi(401, "Khoa bao mat khong dung.")
+		gui_len = _khoa_gui_len()
+		if not any(hmac.compare_digest(gui_len, k) for k in cac):
+			return _tu_choi(401, "Khoá bảo mật không đúng.")
 
 	goi = frappe.local.form_dict or {}
 	try:
@@ -533,6 +569,8 @@ def tinh_trang():
 		"bat": cint(c.get("sepay_bat")),
 		"co_khoa": 1 if _khoa_that() else 0,
 		"co_hmac": 1 if (key(c, "sepay_hmac") if c else "") else 0,
+		"co_hmac_2": 1 if (key(c, "sepay_hmac_2") if c else "") else 0,
+		"co_khoa_2": 1 if (key(c, "sepay_khoa_2") if c else "") else 0,
 		"duong_dan_path": DUONG_DAN,
 		"duong_dan": goc + DUONG_DAN,
 		"ban_do": _ban_do(),
@@ -541,6 +579,14 @@ def tinh_trang():
 		"tai_khoan": [],
 		"keo": {},
 	}
+	# Danh sach tai khoan ngan hang de o "Them vao ban do" co cai ma chon.
+	try:
+		ra["ds_tai_khoan"] = frappe.get_all(
+			"Bank Account", filters={"is_company_account": 1},
+			pluck="name", limit_page_length=50,
+		) or frappe.get_all("Bank Account", pluck="name", limit_page_length=50)
+	except Exception:
+		ra["ds_tai_khoan"] = []
 	try:
 		stg = frappe.get_doc(STG_SEPAY)
 		ra["keo"] = {
@@ -564,7 +610,7 @@ def tinh_trang():
 
 
 @frappe.whitelist()
-def dat_hmac(khoa=None):
+def dat_hmac(khoa=None, khe=1):
 	"""Cat Secret Key HMAC do SePay sinh ra.
 
 	Khoa nay do SePay sinh, nguoi dung tu dan vao - may khong tu lay duoc,
@@ -575,23 +621,76 @@ def dat_hmac(khoa=None):
 	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới đặt được khoá bảo mật.")
+	# khe 2 la webhook thu hai (ACB): moi webhook ben SePay co mot Secret
+	# Key rieng do ho sinh, nen phai co hai o chua.
+	o = "sepay_hmac" if cint(khe) != 2 else "sepay_hmac_2"
 	k = str(khoa or "").strip()
 	if not k:
-		frappe.db.set_single_value("Vagabond Settings", "sepay_hmac", "")
+		frappe.db.set_single_value("Vagabond Settings", o, "")
 		frappe.db.commit()
 		frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
-		return {"ok": 1, "co_hmac": 0}
+		return {"ok": 1, "co_hmac": 0, "khe": cint(khe) or 1}
 	if len(k) < 12:
 		frappe.throw(
 			"Chuỗi này ngắn quá, không giống Secret Key của SePay. Khoá thật "
 			"bắt đầu bằng whsec_ và dài vài chục ký tự. Anh chị copy lại từ tab "
 			"Bảo mật bên SePay giúp em."
 		)
-	frappe.db.set_single_value("Vagabond Settings", "sepay_hmac", k)
+	frappe.db.set_single_value("Vagabond Settings", o, k)
 	frappe.db.set_single_value("Vagabond Settings", "sepay_bat", 1)
 	frappe.db.commit()
 	frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
-	return {"ok": 1, "co_hmac": 1}
+	return {"ok": 1, "co_hmac": 1, "khe": cint(khe) or 1}
+
+
+@frappe.whitelist()
+def them_tai_khoan(so_tk=None, tai_khoan=None):
+	"""Khai them mot so tai khoan (vd ACB) vao ban do ngay tren man Cai dat.
+
+	Truoc day ban do chi sua duoc bang tay trong SePay Settings tren Desk,
+	va OCB da tung mat ca thang giao dich chi vi chua ai khai. Gio man Cai
+	dat khai duoc luon, va khai xong thi so tai khoan do bien khoi danh
+	sach "chua khai".
+
+	CHI THEM VA DOI, khong xoa: go mot dong khoi ban do la giao dich cua
+	tai khoan do bat dau roi lang le, viec do phai lam co y thuc tren Desk.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới khai được bản đồ tài khoản.")
+	so_tk = "".join(ch for ch in str(so_tk or "") if ch.isdigit())
+	if not so_tk or len(so_tk) < 6:
+		frappe.throw(
+			"Số tài khoản trông chưa đúng (%s). Gõ đúng dãy số tài khoản như "
+			"bên SePay hiển thị giúp em." % (so_tk or "trống")
+		)
+	tk = str(tai_khoan or "").strip()
+	if not tk or not frappe.db.exists("Bank Account", tk):
+		frappe.throw(
+			"Chưa chọn tài khoản ngân hàng trong ERPNext để hứng giao dịch. "
+			"Nếu ACB chưa có trong danh sách thì tạo Bank Account trên Desk "
+			"trước rồi quay lại đây."
+		)
+	stg = frappe.get_doc(STG_SEPAY)
+	ban_do = {}
+	try:
+		ban_do = json.loads(stg.get("account_map") or "{}") or {}
+	except Exception:
+		ban_do = {}
+	ban_do[so_tk] = tk
+	stg.account_map = json.dumps(ban_do, ensure_ascii=False, indent=1)
+	stg.flags.ignore_permissions = True
+	stg.save(ignore_permissions=True)
+	# Ra khoi danh sach "chua khai" neu dang nam trong do.
+	cu_ds = [x for x in str(cfg().get("sepay_chua_map") or "").split(",") if x.strip()]
+	if so_tk in cu_ds:
+		cu_ds.remove(so_tk)
+		frappe.db.set_single_value("Vagabond Settings", "sepay_chua_map", ",".join(cu_ds))
+	frappe.db.commit()
+	frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
+	return {"ok": 1, "ban_do": ban_do}
 
 
 @frappe.whitelist()

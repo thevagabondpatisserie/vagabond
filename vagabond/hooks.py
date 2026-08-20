@@ -38,6 +38,16 @@ scheduler_events = {
 			"vagabond.trang_thai_thu.soat_tu_dong",
 		],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
+		# Keo hoa don M-Invoice, ban trong ma nguon (truoc 20/08/2026 nam
+		# trong Server Script tren site va da sot hoa don dau vao tu 14/08,
+		# xem dau tep minvoice_dong_bo.py). Cung nhip 15 phut voi kich ban
+		# cu; hai duong idempotent nen chay song song mot thoi gian de doi
+		# chieu roi tat kich ban cu.
+		"7,22,37,52 * * * *": ["vagabond.minvoice_dong_bo.dong_bo_tu_dong"],
+		# Keo PDF ban the hien cua hoa don dau vao con thieu, moi gio.
+		"40 * * * *": ["vagabond.minvoice_tep.keo_pdf_thieu"],
+		# 1h10 dem: quet lui 30 ngay de lanh not "vo ruot" va vet sot cu.
+		"10 1 * * *": ["vagabond.minvoice_dong_bo.tu_lanh_hang_dem"],
 		# Moi 15 phut: duong thu di co dang hong khong. Tu 16/08/2026 ca tiem
 		# khong gui duoc mot email nao suot nhieu ngay, va minh chi biet vi
 		# Uyen di hoi. Khong co nhip nay thi lan sau cung the.
@@ -78,6 +88,10 @@ scheduler_events = {
 			# Nhat ky dong bo la vet ky thuat, khong phai chung tu ke toan,
 			# nen don sau 90 ngay. Cac dong dang cho nguoi xem thi giu lai.
 			"vagabond.nhat_ky_dong_bo.don_cu",
+			# PDF ban the hien hoa don qua 60 ngay: xoa cho nhe he thong.
+			# La ban cache, ban goc van nam ben M-Invoice (anh Viet duyet
+			# 20/08/2026).
+			"vagabond.minvoice_tep.don_dep_pdf",
 		],
 	},
 }

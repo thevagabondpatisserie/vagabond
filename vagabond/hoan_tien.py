@@ -2543,23 +2543,120 @@ def _dem_unc(ma_pe):
 		return 0
 
 
+DUOI_ANH = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic")
+
+
+def _la_anh(ten):
+	t = str(ten or "").lower()
+	return any(t.endswith(d) for d in DUOI_ANH)
+
+
 def _ds_unc(ma_pe):
-	"""Danh sach tep UNC de Sales tai ve gui khach."""
+	"""Danh sach tep UNC de Sales xem va tai ve gui khach.
+
+	Tra kem ma File (tep) va co la_anh: tu 20/08/2026 man hinh ve anh UNC
+	thanh hinh nho thay vi mot dong ten tep IMG_xxx.jpg (anh Viet: "Dung
+	the hinh anh de render anh duoi dang Thumbnail nho, click vao thi
+	phong to"). Anh di qua duong tai_unc chu khong qua /private/files, vi
+	tep dinh vao Payment Entry ma Sales khong co quyen doc doctype do.
+	"""
 	if not ma_pe:
 		return []
 	try:
 		return [
-			{"url": f["file_url"], "ten": f["file_name"], "luc": str(f["creation"])}
+			{
+				"url": f["file_url"], "ten": f["file_name"],
+				"luc": str(f["creation"]), "tep": f["name"],
+				"la_anh": 1 if _la_anh(f["file_name"] or f["file_url"]) else 0,
+				"co": cint(f["file_size"]),
+			}
 			for f in frappe.get_all(
 				"File",
 				filters={"attached_to_doctype": PE, "attached_to_name": ma_pe},
-				fields=["file_url", "file_name", "creation"],
+				fields=["name", "file_url", "file_name", "creation", "file_size"],
 				order_by="creation asc",
 				limit_page_length=0,
 			)
 		]
 	except Exception:
 		return []
+
+
+@frappe.whitelist()
+def tai_unc(ho_so=None, tep=None, co="lon"):
+	"""Ruot mot tep UNC, tra ve base64 de man hinh ve hinh va tai ve.
+
+	Vi sao khong dua thang duong /private/files: tep UNC dinh vao PAYMENT
+	ENTRY, ma Sales khong co quyen doc Payment Entry nen Frappe tra 403.
+	Duong nay kiem quyen theo PHIEU HOAN TIEN - ai xem duoc phieu thi xem
+	duoc UNC cua phieu do - roi tu doc tep ho.
+
+	Chong doc chui (IDOR): tep phai dang dinh vao dung phieu chi cua ho so
+	nay. Dua ma File cua phieu khac la bi tu choi, du ma do co that.
+
+	co="nho" tra ve hinh thu nho ~360px cho luoi anh; "lon" tra nguyen
+	ruot tep de phong to va tai ve.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not ho_so or not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+	ma_pe = frappe.db.get_value(DT, ho_so, "phieu_chi")
+	if not ma_pe:
+		frappe.throw("Phiếu này chưa có phiếu chi nên chưa có uỷ nhiệm chi nào.")
+	f = frappe.db.get_value(
+		"File", {"name": tep, "attached_to_doctype": PE, "attached_to_name": ma_pe},
+		["name", "file_name", "file_url"], as_dict=True,
+	)
+	if not f:
+		frappe.throw(
+			"Tệp này không nằm trên phiếu chi của phiếu hoàn tiền %s. Tải lại "
+			"trang rồi bấm lại giúp em." % ho_so
+		)
+	doc_tep = frappe.get_doc("File", f.name)
+	try:
+		ruot = doc_tep.get_content()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc tep UNC")
+		frappe.throw(
+			"Tệp %s có trong sổ nhưng máy đọc không ra nội dung. Có thể tệp đã "
+			"bị gỡ trên Desk; nhờ chị Dung đính lại giúp." % (f.file_name or tep)
+		)
+	if isinstance(ruot, str):
+		ruot = ruot.encode("utf-8")
+
+	mime = "application/octet-stream"
+	ten_thap = str(f.file_name or f.file_url or "").lower()
+	if _la_anh(ten_thap):
+		mime = "image/" + ("jpeg" if ten_thap.endswith((".jpg", ".jpeg")) else ten_thap.rsplit(".", 1)[-1])
+	elif ten_thap.endswith(".pdf"):
+		mime = "application/pdf"
+
+	if (co or "") == "nho" and _la_anh(ten_thap):
+		# Hinh thu nho cho luoi anh: giu payload nhe de mo phieu khong cho
+		# ca chuc MB anh chup man hinh e-banking.
+		try:
+			from io import BytesIO
+
+			from PIL import Image
+
+			im = Image.open(BytesIO(ruot))
+			im.thumbnail((360, 360))
+			if im.mode not in ("RGB", "L"):
+				im = im.convert("RGB")
+			ra = BytesIO()
+			im.save(ra, format="JPEG", quality=80)
+			ruot = ra.getvalue()
+			mime = "image/jpeg"
+		except Exception:
+			# Khong nen duoc thi tra nguyen ban, cham hon nhung van xem duoc.
+			pass
+
+	return {
+		"ok": 1, "ten": f.file_name or "uy-nhiem-chi",
+		"mime": mime, "b64": base64.b64encode(ruot).decode("ascii"),
+	}
 
 
 @frappe.whitelist()
