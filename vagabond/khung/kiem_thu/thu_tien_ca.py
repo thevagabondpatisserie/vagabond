@@ -186,11 +186,11 @@ def _():
 	dung("khớp thì im", "Chênh lệch" not in nq._html_bien_ban(goc2))
 
 
-@ca("số thành chữ kiểu kế toán: 1.234.567 đọc đúng")
+@ca("số thành chữ kiểu kế toán: 1.234.567 đọc đúng, không kéo thư viện mạng")
 def _():
-	from vagabond.cong_no import _chu_so_tien
-
-	la("số lẻ đủ hàng", _chu_so_tien(1234567),
+	# Doc tu nop_quy chu KHONG tu cong_no: cong_no keo ban_hang keo requests,
+	# ma may CI cua GitHub khong cai goi ngoai. Bai hoc PR #2 do 3 ca.
+	la("số lẻ đủ hàng", nq.chu_so_tien(1234567),
 		"Một triệu hai trăm ba mươi bốn nghìn năm trăm sáu mươi bảy đồng")
-	la("mốt và lăm", _chu_so_tien(2125000),
+	la("mốt và lăm", nq.chu_so_tien(2125000),
 		"Hai triệu một trăm hai mươi lăm nghìn đồng")
