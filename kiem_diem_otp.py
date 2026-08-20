@@ -6004,6 +6004,33 @@ la("luu hoa don xong thi doi sang loi cam on", "cfdCamOn(thu)" in _pos50, True)
 la("man tinh tien co khoi man hinh khach", "html += cfdKhoi();" in _pos50, True)
 la("man tinh tien noi nut mo", "cfdGan();" in _pos50, True)
 
+# ---------- 50.7b BAY: nut .btn trong hang flex nuot tron be ngang ----------
+#
+# CA NAY CHOT LAI MOT LOI DA THAY TAN MAT tren site that ngay 21/08/2026.
+# Lop .btn trong 00-nen.js mang width:100%. Dat mot nut .btn vao mot hang
+# display:flex ma khong ghi flex:none thi nut chiem tron be ngang, cot chu ben
+# canh bi bop con khoang 10px, va chu "Ca lam viec" ro xuong MOT KY TU MOI
+# DONG. Khong co loi nao bao, cong kiem van xanh, chi nhin mat moi thay.
+#
+# Khoi Ca lam viec cua v248 dinh dung loi nay, khoi Man hinh khach cua v253
+# chep lai y het. Nay ca hai da va, va ca kiem giu cho ai chep tiep.
+la("lop .btn van la width:100%, day la ly do phai co flex:none",
+   ".btn{display:block;width:100%" in open("vagabond/public/js/bep/00-nen.js", encoding="utf-8").read(), True)
+_pos50b = _pos50 if False else open("vagabond/public/js/bep/09-tinh-tien-quay.js", encoding="utf-8").read()
+_cfd50b = open("vagabond/public/js/bep/25-man-hinh-khach.js", encoding="utf-8").read()
+for _ten50b, _ma50c, _id50 in (("Ca lam viec", _pos50b, "posCaNut"), ("Man hinh khach", _cfd50b, "cfdMoNut")):
+	_dong50 = [l for l in _ma50c.split("\n") if 'id="%s"' % _id50 in l and "<button" in l]
+	la("tim thay nut %s" % _id50, len(_dong50), 1)
+	if _dong50:
+		la("nut %s co flex:none" % _id50, "flex:none" in _dong50[0], True)
+		la("nut %s co width:auto" % _id50, "width:auto" in _dong50[0], True)
+
+# ---------- 50.7c Ten mon dai phai xuong dong chu khong cat cut ----------
+# Man hinh khach doc tu xa hai ba met. "Americano Dua Xiem ..." khong noi duoc
+# khach dang mua gi, nen cho xuong hai dong thay vi cat bang dau ba cham.
+la("ten mon xuong toi hai dong", "-webkit-line-clamp: 2" in _tr50, True)
+la("khong cat cut ten mon bang dau ba cham", "text-overflow: ellipsis" in _tr50, False)
+
 # ---------- 50.8 Hang rao dong vo van con nguyen ----------
 # Phan moi mang so 25, phai ghep TRUOC 99-dong-vo.js. Ghep sau la nam ngoai
 # vo ham va man hinh chet ngay khi bam - da xay ra that toi 20/08/2026.
