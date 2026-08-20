@@ -5793,6 +5793,25 @@ la("khong con ghi cung use_multi_level_bom bang 0",
 la("hoi he truoc khi lap lenh", "mfgNoNhieuCap()" in _sx48, True)
 la("hoi mot lan roi nho lai", "if (mfgPhantom !== null)" in _sx48, True)
 
+# ---------- 48.4 Hang rao dong vo: phan moi khong duoc ghep ra ngoai vo ----
+# Toi 20/08 v250 len that roi bam vao man Phantom thi bao "frame is not
+# defined": phan 24-phantom.js bi ghep SAU 23-dong-vo.js nen nam ngoai vo
+# ham. node --check dat, ca bo kiem thu dat, chi bam that moi thay.
+import os as _os48
+
+_bep48 = sorted(t for t in _os48.listdir("vagabond/public/js/bep")
+                if len(t) > 3 and t[:2].isdigit() and t.endswith(".js"))
+la("phan dong vo la phan cuoi cung", _bep48[-1], "99-dong-vo.js")
+_may48 = open("dung_app_bep.py", encoding="utf-8").read()
+la("may ghep tu chan khi phan cuoi khong phai dong vo",
+   "ten[-1] != TEP_DONG_VO" in _may48, True)
+_ghep48 = open("vagabond/public/js/app_bep.js", encoding="utf-8").read()
+_vt48 = _ghep48.rfind("})();")
+for _ham48 in ("function scrDonChungTuThu", "function scrChuyenPhantom",
+               "function scrNccTao"):
+	la("%s nam TRONG vo ham" % _ham48.split()[1],
+	   0 < _ghep48.find(_ham48) < _vt48, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)

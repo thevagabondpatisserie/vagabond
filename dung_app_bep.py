@@ -38,6 +38,9 @@ DICH = os.path.join(GOC, "vagabond", "public", "js", "app_bep.js")
 # quen trong thu muc khong lang le chui vao ban ghep.
 MAU_TEN = re.compile(r"^\d\d-[a-z0-9-]+\.js$")
 
+# Phan dong vo ham, luon phai la phan cuoi cung. Xem hang rao trong cac_phan().
+TEP_DONG_VO = "99-dong-vo.js"
+
 
 def cac_phan():
 	"""Danh sach duong dan cac phan, da xep dung thu tu ghep."""
@@ -49,6 +52,21 @@ def cac_phan():
 	so = [t[:2] for t in ten]
 	if len(set(so)) != len(so):
 		raise SystemExit("Co hai phan trung so thu tu: %s" % ", ".join(ten))
+	# HANG RAO DONG VO. Ca app nam trong mot vo ham do 00-nen.js mo ra va
+	# 99-dong-vo.js dong lai. Phan nao ghep SAU dong vo thi nam ngoai vo,
+	# khong thay `frame` hay `api` nua, va man hinh cua no chet ngay khi bam.
+	#
+	# Toi 20/08/2026 chuyen do xay ra that: phan 24-phantom.js moi them bi
+	# ghep sau 23-dong-vo.js cu. `node --check` van dat, ca bo kiem thu van
+	# dat, chi bam that moi thay "frame is not defined". Nen phep kiem phai
+	# nam o day, cho ngay TRUOC luc ghep.
+	if ten[-1] != TEP_DONG_VO:
+		raise SystemExit(
+			"Phan cuoi cung phai la %s, dang la %s.\n"
+			"Phan nao ghep sau phan dong vo thi nam ngoai vo ham va man hinh "
+			"cua no se chet. Doi so thu tu cua phan moi xuong duoi 99."
+			% (TEP_DONG_VO, ten[-1])
+		)
 	return [os.path.join(THU_MUC, t) for t in ten]
 
 
