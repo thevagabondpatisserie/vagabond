@@ -5634,12 +5634,16 @@ la("email thieu duoi bi chan", _ns47["email_hop_le"]("ai@gmail"), False)
 la("email dung thi qua", _ns47["email_hop_le"]("ketoan@vagabond.vn"), True)
 la("email thieu a coi bi chan", _ns47["email_hop_le"]("ketoan.vagabond.vn"), False)
 la("hai dau a coi bi chan", _ns47["email_hop_le"]("a@b@c.vn"), False)
-# Email nam trong nhom bat buoc: khong co email thi don mua hang lap ra
-# khong gui di dau duoc.
-la("thieu email thi khong cho ghi",
-   "Email nhận đơn mua hàng" in _ns47["thieu_o_nao"]({"ten": "A", "nhom": "B"}), True)
-la("du ba o thi khong con thieu gi",
-   _ns47["thieu_o_nao"]({"ten": "A", "nhom": "B", "email": "a@b.vn"}), [])
+# Email KHONG con bat buoc tu 21/08/2026: co nha cung cap chi ban qua app
+# hoac san thuong mai dien tu, khong nhan don qua email. Bat buoc email
+# nghia la khong lap noi ho so cho nhung ben do.
+la("thieu email van cho ghi",
+   _ns47["thieu_o_nao"]({"ten": "A", "nhom": "B"}), [])
+la("thieu ten thi van chan",
+   "Tên nhà cung cấp" in _ns47["thieu_o_nao"]({"nhom": "B"}), True)
+la("gom ba o email CC, bo trong va bo trung",
+   _ns47["loc_email_cc"](["a@v.com", "", "A@v.com", "b@v.com"]),
+   ["a@v.com", "b@v.com"])
 # Chan trung: hai ho so cung mot MST la cong no tach lam doi.
 la("chan trung ma so thue", "đã có trong hệ" in _ncc47, True)
 la("chan trung ten nha cung cap", "Đã có nhà cung cấp tên" in _ncc47, True)
@@ -5684,6 +5688,110 @@ la("go tep chi bo con tro", '"attached_to_doctype": None' in _go47, True)
 la("man ho so co nut tai ban the hien len", "Tải bản thể hiện hoá đơn lên" in _js19_47, True)
 la("chua co tep thi noi ro ke toan truong can gi", "mới duyệt được" in _js19_47, True)
 la("nut tai len goi dung cua dinh_tep", "vagabond.ho_so_tt.dinh_tep" in _js19_47, True)
+
+# ============================================================ NHOM 48
+print("\n[48] v250: Thu gop nhieu don, email CC nha cung cap, Phantom cap 1")
+
+_tt48 = open("vagabond/trang_thai_thu.py", encoding="utf-8").read()
+_ncc48 = open("vagabond/nha_cung_cap.py", encoding="utf-8").read()
+_mh48 = open("vagabond/public/js/bep/16-mua-hang.js", encoding="utf-8").read()
+_ph48 = open("vagabond/phantom.py", encoding="utf-8").read()
+_js48 = open("vagabond/public/js/bep/24-phantom.js", encoding="utf-8").read()
+_sx48 = open("vagabond/public/js/bep/05-san-xuat.js", encoding="utf-8").read()
+
+# ---------- 48.1 Thu gop: mot la thu, nhieu don, phai dong dau het ----------
+# Uyen gop ba don vao mot thu, chi don dau hien "Da gui", hai don kia nam
+# nguyen o "Chua gui" nen Uyen bam gui lai va nha cung cap nhan hai lan.
+la("co phep tim ma trong than thu", "def tim_ma_trong_thu(" in _tt48, True)
+la("co phep quy mot la thu ra nhieu chung tu",
+   "def _cac_chung_tu_cua_thu(" in _tt48, True)
+_soat48 = _tt48.split("def soat_tu_dong(")[1].split("# =====")[0]
+la("nhip soat khong con gom theo o tham chieu",
+   "(x.reference_doctype, x.reference_name)" in _soat48, False)
+la("nhip soat gom qua phep do than thu", "_cac_chung_tu_cua_thu" in _soat48, True)
+_hook48 = _tt48.split("def danh_dau_cho_gui(")[1].split("def soat_tu_dong")[0]
+la("hook luc vao hang doi cung dong dau het",
+   "_cac_chung_tu_cua_thu" in _hook48, True)
+_do48 = _tt48.split("def _cac_chung_tu_cua_thu(")[1].split("def danh_dau_cho_gui")[0]
+# Doan mach: ma do ra tu than thu phai TON TAI THAT moi nhan, khong thi
+# mot chuoi ngau nhien trong giong ma don cung thanh chung tu.
+la("ma do ra phai co that moi nhan", "frappe.db.exists" in _do48, True)
+la("chi nhan doctype co cot trang thai", "loai not in CHUNG_TU_CO_GUI" in _do48, True)
+la("uu tien doc Communication, khong doc MIME base64",
+   "_than_thu" in _do48, True)
+la("man chi tiet cung tim thu gop", "_thu_gop_co_nhac" in _tt48, True)
+la("co duong soat lai quang dai de va don da sot", "def soat_lai(" in _tt48, True)
+_sl48 = _tt48.split("def soat_lai(")[1].split("# =====")[0]
+la("soat lai chan nguoi khong co quyen", "has_permission" in _sl48, True)
+la("soat lai chan tran so ngay", "min(int(so_ngay" in _sl48, True)
+
+# ---------- 48.2 Nha cung cap: email khong bat buoc, them ba o CC ----------
+_ns48 = {}
+exec(compile(_ncc48.split("# ------------------------------------------------------- phan can Frappe")[0],
+             "nha_cung_cap:thuan48", "exec"), _ns48)
+la("khong email van lap duoc ho so",
+   _ns48["thieu_o_nao"]({"ten": "A", "nhom": "B"}), [])
+la("ba o CC gom lai, bo trung khac hoa thuong",
+   _ns48["loc_email_cc"](["A@v.com", "a@v.com", "b@v.com"]), ["A@v.com", "b@v.com"])
+la("go lien mot chuoi ngan bang dau phay cung tach duoc",
+   _ns48["loc_email_cc"]("a@v.com, b@v.com"), ["a@v.com", "b@v.com"])
+la("o email phu CC khai trong ma nguon", '"email_cc"' in _ncc48, True)
+la("o CC dat ngay sau o email", '"insert_after": "email_id"' in _ncc48, True)
+la("email CC sai dinh dang thi chan", "Email CC" in _ncc48, True)
+la("email CC vao thanh nguoi lien he phu", '"is_primary": 0' in _ncc48, True)
+# Man hinh: bo dau sao bat buoc, them ba o.
+_ncc2_48 = _mh48.split("async function scrNccTao()")[1]
+la("man khong con chan khi thieu email",
+   "Đơn mua hàng gửi qua email nên ô này bắt buộc" in _ncc2_48, False)
+la("noi ro co ben chi mua qua app va san", "sàn thương mại điện tử" in _ncc2_48, True)
+for _o48 in ("nccCc1", "nccCc2", "nccCc3"):
+	la("co o %s" % _o48, _o48 in _ncc2_48, True)
+la("khoi CC co tieu de dung nhu anh Viet dat",
+   "Các email phụ cần CC" in _ncc2_48, True)
+
+# ---------- 48.3 Phantom cap 1: chay thu la mac dinh ----------
+la("chay that phai goi ro", "def chuyen(chay_that=0)" in _ph48, True)
+_ch48 = _ph48.split("def chuyen(chay_that=0)")[1].split("# -----")[0]
+la("chua chay that thi tra ve som", "if not that:" in _ch48, True)
+la("chay that moi dung hang rao", 'ke["hang_rao"]["chan"]' in _ch48, True)
+# Thu tu la co y: sua dong cong thuc TRUOC, doi ma hang SAU. Nua chung
+# hong thi he van o trang thai cu doc duoc va bep van chay.
+la("sua dong cong thuc truoc khi doi ma hang",
+   _ch48.find('"BOM Item"') < _ch48.find('"is_stock_item"'), True)
+la("ghi thang xuong bang chu khong qua doc.save",
+   "frappe.db.set_value(\"Item\"" in _ch48, True)
+la("dung lai bang no sau khi sua co", "update_exploded_items" in _ch48, True)
+# Hai buc tuong thay cho phep kiem cua ERPNext bi bo qua.
+_hr48 = _ph48.split("def _hang_rao(")[1].split("# -----")[0]
+la("con lenh treo thi chan", "_lenh_treo" in _hr48, True)
+la("con ton kho thi chan", "_ton_con_lai" in _hr48, True)
+# Bo co dne ma khong dien bom_no thi khong co gi de no xuong.
+_ke48 = _ph48.split("def _ke_hoach(")[1].split("@frappe.whitelist()")[0]
+la("khong co cong thuc con thi KHONG bo co chan",
+   "phải lập BOM trước" in _ke48, True)
+la("dong cua BOM da ngung hoat dong thi de yen",
+   "BOM cha đã ngừng hoạt động" in _ke48, True)
+# Don chung tu thu: dong chu khong xoa (QT-20).
+_dl48 = _ph48.split("def dong_lenh(")[1]
+la("dong lenh bang duong Close cua ERPNext", "stop_unstop" in _dl48, True)
+la("dong lenh khong xoa gi", "delete" in _dl48, False)
+la("dong lenh da dong roi thi noi ro, khong bao loi",
+   "đã ở trạng thái" in _dl48, True)
+# Cau tu choi phai noi viec phai lam tiep (QT-24).
+la("cau tu choi chi duong sang man Don chung tu thu",
+   "Dọn chứng từ thử" in _ph48, True)
+la("cau tu choi noi hau qua neu bo qua", "nằm lại trong kho" in _ph48, True)
+# Man hinh.
+la("man Don chung tu thu co that", "async function scrDonChungTuThu()" in _js48, True)
+la("man Chuyen Phantom co that", "async function scrChuyenPhantom()" in _js48, True)
+la("man chuyen mo ra la ban CHAY THU", "vagabond.phantom.xem_truoc" in _js48, True)
+la("nut ghi that truyen chay_that bang 1", "chay_that: 1" in _js48, True)
+la("nut ghi that hoi lai mot lan nua", "KHÔNG có nút hoàn tác" in _js48, True)
+# Luong san xuat: no nhieu cap phai HOI he chu khong ghi cung.
+la("khong con ghi cung use_multi_level_bom bang 0",
+   "use_multi_level_bom: 0" in _sx48, False)
+la("hoi he truoc khi lap lenh", "mfgNoNhieuCap()" in _sx48, True)
+la("hoi mot lan roi nho lai", "if (mfgPhantom !== null)" in _sx48, True)
 
 print("-" * 60)
 if so_hong:
