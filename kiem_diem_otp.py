@@ -5302,6 +5302,25 @@ la("man hinh canh bao dung cau ghi de",
 la("man hinh noi ro may khong doc tep", "không đọc</b> nội dung tệp" in _js45, True)
 la("form sua so lieu nhac Sales go tay", "Anh chị gõ tay từng ô" in _js45, True)
 
+# ---------- 45.5b Hai loi bat duoc luc CHAY THU tren site that ----------
+#
+# Ca nhom 45 xanh het roi moi chay thu tren site, va chay thu van loi ra hai
+# thu ma doc ma nguon khong the thay:
+#
+#   1. `da_sua` tra ve 6 o trong khi nguoi ta chi sua 4, vi Frappe nhet
+#      `modified` va `modified_by` vao chinh cai dict minh dua cho set_value.
+#   2. Tai len mot tep PDF hong thi nem "PdfStreamError" tho ra man - mot
+#      cau tieng Anh khong noi len dieu gi voi Sales dang dung dien thoai.
+#
+# Hai ca duoi day chot lai ca hai, de lan sau doi ma khong lam hong lai.
+la("dem o da sua TRUOC khi goi set_value", "da_sua = sorted(dat.keys())" in _hdc45, True)
+la("khong doc lai dat.keys() sau khi set_value",
+   'return {"ok": 1, "da_sua": sorted(dat.keys())}' in _hdc45, False)
+la("tep PDF hong thi bao bang tieng Viet, khong nem loi tho",
+   "Tệp PDF này máy đọc không ra" in _duong_tep45, True)
+la("cau bao loi tep hong noi ro phai lam gi tiep",
+   "bấm In rồi chọn Lưu thành" in _duong_tep45, True)
+
 # ---------- 45.6 Man hinh ----------
 la("co nut Dieu chinh tren man chi tiet", "hdTtMo" in _js45, True)
 la("co nut Upload ban Hop dong da chot", "Upload bản Hợp đồng đã chốt" in _js45, True)
