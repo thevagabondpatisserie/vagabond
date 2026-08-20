@@ -130,7 +130,7 @@ CUA_NGO = {
 	# diem nhan cua SePay (allow_guest, tu xac thuc bang khoa); cac duong
 	# con lai deu qua _kiem_quyen.
 	"sepay.py": [
-		"dat_hmac", "dat_khoa", "nap_bu", "them_tai_khoan",
+		"dat_hmac", "dat_khoa", "nap_bu", "soi_khoa", "them_tai_khoan",
 		"tim_gd_vao", "tinh_trang", "webhook",
 	],
 	# Ho so nha cung cap, them 21/08/2026 sau khi Uyen khong tao duoc NCC
