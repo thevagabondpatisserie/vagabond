@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<!-- Man hinh phu quay ra phia khach tai quay (anh Viet chot 20/08/2026).
+
+     TRANG NAY KHONG GOI MOT API NAO. Toan bo du lieu den tu tab tinh tien
+     qua BroadcastChannel. Ly do: neu no goi API ma phien dang nhap het han
+     thi Frappe da ra form dang nhap, va cai form do se nam chan giua man
+     hinh ngay truoc mat khach. No chi la cai ti vi, khong phai mot phien
+     lam viec. Vi vay trang nay cung khong can dang nhap, va khong biet gi
+     ve co so du lieu.
+
+     Cai gi duoc bay len day do 25-man-hinh-khach.js quyet dinh. Man hinh
+     nay quay ra cho dong nguoi qua lai nen khong bao gio bay so dien
+     thoai, ma khach, hang the, diem tich luy hay cong no.
+
+     Keo cua so nay sang man hinh phu roi bam nut mo rong la xong. -->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Vagabond</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: #0f1720; color: #f7f8fa; overflow: hidden;
+  -webkit-user-select: none; user-select: none;
+}
+#man { height: 100%; display: flex; flex-direction: column; }
+.giua { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4vh 4vw; }
+.dau { padding: 2.2vh 3vw; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #1f2b38; }
+.dau img { width: 44px; height: 44px; border-radius: 12px; }
+.dau b { font-size: clamp(17px, 2vw, 24px); letter-spacing: .3px; }
+.dau span { font-size: clamp(12px, 1.2vw, 16px); color: #7c8b9c; }
+.than { flex: 1; display: flex; min-height: 0; }
+.trai { flex: 1.15; padding: 2.4vh 3vw; display: flex; flex-direction: column; min-width: 0; }
+.phai { flex: 1; padding: 2.4vh 3vw; display: flex; flex-direction: column; align-items: center; justify-content: center; border-left: 1px solid #1f2b38; }
+.nhan { font-size: clamp(11px, 1.1vw, 15px); color: #7c8b9c; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 1.4vh; }
+#dsMon { flex: 1; overflow: hidden; }
+.mon { display: flex; align-items: baseline; gap: 12px; padding: 1.35vh 0; border-bottom: 1px solid #1a2531; font-size: clamp(15px, 1.7vw, 23px); }
+.mon .sl { color: #4fd1c5; font-weight: 800; min-width: 2.6em; }
+.mon .ten { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mon .tien { font-weight: 700; white-space: nowrap; }
+.cong { padding-top: 1.8vh; }
+.dong { display: flex; justify-content: space-between; font-size: clamp(13px, 1.3vw, 18px); color: #9aa8b8; padding: .5vh 0; }
+.tong { display: flex; justify-content: space-between; align-items: baseline; margin-top: 1vh; }
+.tong span { font-size: clamp(14px, 1.5vw, 20px); color: #9aa8b8; }
+.tong b { font-size: clamp(30px, 4.4vw, 62px); color: #4fd1c5; letter-spacing: -1px; }
+#qrAnh { width: min(38vh, 78%); aspect-ratio: 1; background: #fff; border-radius: 18px; padding: 12px; display: block; }
+.qrTien { font-size: clamp(24px, 3.2vw, 46px); font-weight: 800; margin-top: 2vh; }
+.qrNd { font-size: clamp(12px, 1.2vw, 17px); color: #9aa8b8; margin-top: .6vh; text-align: center; }
+.qrTk { font-size: clamp(11px, 1.05vw, 15px); color: #62717f; margin-top: .4vh; text-align: center; }
+.xanh { color: #34d399; }
+.chao h1 { font-size: clamp(34px, 5.6vw, 84px); letter-spacing: -1px; }
+.chao p { font-size: clamp(14px, 1.7vw, 24px); color: #7c8b9c; margin-top: 1.6vh; }
+.chao img { width: clamp(88px, 11vw, 160px); border-radius: 26px; margin-bottom: 3vh; }
+.to { font-size: clamp(40px, 7vw, 110px); }
+#nutTo {
+  position: fixed; right: 14px; bottom: 14px; z-index: 9;
+  background: #1b2836; color: #7c8b9c; border: 1px solid #2a3a4b;
+  border-radius: 10px; padding: 8px 13px; font-size: 13px; cursor: pointer; opacity: .35;
+}
+#nutTo:hover { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="man"></div>
+<button id="nutTo" type="button">Toàn màn hình</button>
+<script>
+(function () {
+  'use strict';
+
+  var KENH = 'vagabond-cfd';
+  var GT = 1;
+  /* Chin muoi giay khong nghe gi thi ve man chao. Tab tinh tien phat nhip
+     ba giay mot lan, nen im chin muoi giay nghia la no da dong, may da tat,
+     hay mat mang. Khong duoc de so tien cua khach truoc nam lai tren man. */
+  var HET_HAN = 90000;
+  /* Loi cam on giu tam giay roi ve man chao. */
+  var CAM_ON_GIU = 8000;
+  var LOGO = '/assets/vagabond/pwa/icon-192.png';
+
+  var man = document.getElementById('man');
+  var goi = null;        /* goi tin dang ve */
+  var nhanLuc = 0;       /* luc nhan goi gan nhat */
+  var tabNghe = '';      /* dang bam theo tab tinh tien nao */
+  var kenh = null;
+
+  function so(v) {
+    var n = Math.round(Number(v) || 0);
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function ch(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function veChao() {
+    man.innerHTML =
+      '<div class="giua"><div class="chao">' +
+      '<img src="' + LOGO + '" alt="">' +
+      '<h1>The Vagabond Pâtisserie</h1>' +
+      '<p>Kính chào quý khách</p>' +
+      '</div></div>';
+  }
+
+  function veCamOn(g) {
+    man.innerHTML =
+      '<div class="giua"><div class="chao">' +
+      '<div class="to">✅</div>' +
+      '<h1 class="xanh">Cảm ơn quý khách</h1>' +
+      '<p>' + (g && g.tra ? 'Đã thanh toán ' + so(g.tra) + ' đ. ' : '') + 'Hẹn gặp lại</p>' +
+      '</div></div>';
+  }
+
+  function veDon(g) {
+    var mon = (g.mon || []).map(function (m) {
+      return '<div class="mon"><span class="sl">' + so(m.sl) + '×</span>' +
+        '<span class="ten">' + ch(m.ten) + '</span>' +
+        '<span class="tien">' + so(m.tien) + '</span></div>';
+    }).join('');
+
+    var phai;
+    if (g.qr && g.qr.du) {
+      phai = '<div style="text-align:center">' +
+        '<div class="to">✅</div>' +
+        '<div class="qrTien xanh">Đã nhận ' + so(g.qr.nhan) + ' đ</div>' +
+        '<div class="qrNd">Cảm ơn quý khách, thu ngân đang hoàn tất hoá đơn</div></div>';
+    } else if (g.qr) {
+      phai = '<div class="nhan">Quét mã để chuyển khoản</div>' +
+        '<img id="qrAnh" src="' + ch(g.qr.url) + '" alt="Mã QR chuyển khoản">' +
+        '<div class="qrTien">' + so(g.tra) + ' đ</div>' +
+        '<div class="qrNd">Nội dung: <b>' + ch(g.qr.nd) + '</b></div>' +
+        '<div class="qrTk">' + ch(g.qr.ten) + '<br>' + ch(g.qr.bank + ' ' + g.qr.stk) + '</div>';
+    } else {
+      phai = '<div style="text-align:center">' +
+        '<div class="nhan">Thanh toán</div>' +
+        '<div class="qrTien">' + ch(g.pt || 'Tại quầy') + '</div>' +
+        '<div class="qrNd">Mời quý khách thanh toán tại quầy</div></div>';
+    }
+
+    man.innerHTML =
+      '<div class="dau"><img src="' + LOGO + '" alt="">' +
+      '<div><b>The Vagabond Pâtisserie</b><br><span>' + ch(g.quay || '') + '</span></div></div>' +
+      '<div class="than">' +
+      '<div class="trai"><div class="nhan">Đơn của quý khách</div>' +
+      '<div id="dsMon">' + mon + '</div>' +
+      '<div class="cong">' +
+      (g.giam > 0 ? '<div class="dong"><span>Tạm tính</span><span>' + so(g.tong) + ' đ</span></div>' +
+        '<div class="dong"><span>Giảm giá</span><span class="xanh">&minus;' + so(g.giam) + ' đ</span></div>' : '') +
+      '<div class="tong"><span>Tổng cộng</span><b>' + so(g.tra) + ' đ</b></div>' +
+      '</div></div>' +
+      '<div class="phai">' + phai + '</div>' +
+      '</div>';
+  }
+
+  function ve() {
+    if (!goi || goi.man === 'chao') return veChao();
+    if (goi.man === 'cam_on') return veCamOn(goi);
+    veDon(goi);
+  }
+
+  function nhan(m) {
+    if (!m || m.gt !== GT || m.loai !== 'trang_thai') return;
+    /* Hai tab tinh tien cung mo thi bam theo mot tab thoi, khong nhay qua
+       nhay lai. Tab dang nghe im qua lau thi moi nhuong cho tab khac. */
+    var im = Date.now() - nhanLuc;
+    if (tabNghe && m.tab !== tabNghe && im < HET_HAN) return;
+    tabNghe = m.tab || '';
+    nhanLuc = Date.now();
+    goi = m;
+    ve();
+    /* Bao nguoc lai cho man tinh tien biet man hinh khach dang bat that.
+       Thu ngan nhin chip do, khong phai doan. */
+    try { kenh.postMessage({ gt: GT, loai: 'song', luc: nhanLuc }); } catch (e) { }
+    if (m.man === 'cam_on') {
+      setTimeout(function () {
+        if (goi && goi.man === 'cam_on') { goi = null; ve(); }
+      }, CAM_ON_GIU);
+    }
+  }
+
+  try {
+    kenh = new BroadcastChannel(KENH);
+  } catch (e) {
+    man.innerHTML = '<div class="giua"><div class="chao"><div class="to">🖥</div>' +
+      '<h1>Chưa dùng được</h1>' +
+      '<p>Trình duyệt này không có BroadcastChannel. Dùng Chrome hoặc Safari bản mới.</p>' +
+      '</div></div>';
+    return;
+  }
+
+  kenh.onmessage = function (e) { nhan(e && e.data); };
+
+  veChao();
+  /* BroadcastChannel khong luu tin cu: mo man hinh nay sau khi thu ngan da
+     bam vai mon thi khong nhan duoc gi. Nen xin mot lan luc mo, va xin lai
+     vai lan dau phong khi tab tinh tien dang ban. */
+  function xin() { try { kenh.postMessage({ gt: GT, loai: 'xin' }); } catch (e) { } }
+  xin();
+  var conXin = 5;
+  var henXin = setInterval(function () {
+    if (nhanLuc || conXin-- <= 0) return clearInterval(henXin);
+    xin();
+  }, 1500);
+
+  /* Canh gac: het han khong nghe nhip thi ve man chao. */
+  setInterval(function () {
+    if (!nhanLuc) return;
+    if (Date.now() - nhanLuc < HET_HAN) return;
+    nhanLuc = 0; tabNghe = ''; goi = null;
+    ve();
+  }, 1000);
+
+  var nutTo = document.getElementById('nutTo');
+  nutTo.onclick = function () {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } catch (e) { }
+  };
+})();
+</script>
+</body>
+</html>
