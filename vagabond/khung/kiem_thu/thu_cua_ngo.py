@@ -54,6 +54,11 @@ CUA_NGO = {
 	# la hook nam tren duong di cua MOI email trong he, mot cai la nhip lap
 	# lich. Ho ra thi la decorator vua bam nham.
 	"gui_thu.py": ["cuu_su_co_1608", "suc_khoe", "va_hang_doi_ket"],
+	# Luong dong tien, them 21/08/2026: ca lam viec tai quay va phieu nop
+	# quy. Cac ham _doanh_thu_he_thong, _ca_dang_mo la noi bo, khong mo.
+	"ca_quay.py": ["chi_tiet", "chot_ca", "danh_sach", "mo_ca", "tinh_trang"],
+	"nop_quy.py": ["ca_cho_nop", "chi_tiet", "danh_sach", "ky_giao", "ky_nhan",
+		"tao", "xuat_excel", "xuat_pdf"],
 	# Trang thai gui thu tren chung tu. `danh_dau_cho_gui` la hook va
 	# `soat_tu_dong` la nhip lap lich, ca hai chay tu ben trong.
 	"trang_thai_thu.py": ["tinh_trang"],

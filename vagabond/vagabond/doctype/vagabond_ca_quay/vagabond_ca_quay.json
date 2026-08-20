@@ -1,0 +1,206 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Ca Quay",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "editable_grid": 1,
+ "istable": 0,
+ "track_changes": 1,
+ "autoname": "format:CA-{YYYY}-{#####}",
+ "field_order": [
+  "quay",
+  "ngay",
+  "trang_thai",
+  "cb0",
+  "mo_luc",
+  "nguoi_mo",
+  "tien_le_dau_ca",
+  "sec_chot",
+  "chot_luc",
+  "nguoi_chot",
+  "cb1",
+  "tien_mat_dem",
+  "phieu_nop",
+  "sec_bang",
+  "dong",
+  "tong_may",
+  "cb2",
+  "tong_dem",
+  "tong_lech",
+  "sec_ghi",
+  "ly_do_lech",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "quay",
+   "fieldtype": "Data",
+   "label": "Ma quay",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngay",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Đang mở\nĐã chốt\nĐã nộp quỹ",
+   "default": "Đang mở",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb0",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mo_luc",
+   "fieldtype": "Datetime",
+   "label": "Mo luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_mo",
+   "fieldtype": "Link",
+   "label": "Nguoi mo ca",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tien_le_dau_ca",
+   "fieldtype": "Currency",
+   "label": "Tien le dau ca (opening float)"
+  },
+  {
+   "fieldname": "sec_chot",
+   "fieldtype": "Section Break",
+   "label": "Chot ca"
+  },
+  {
+   "fieldname": "chot_luc",
+   "fieldtype": "Datetime",
+   "label": "Chot luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_chot",
+   "fieldtype": "Link",
+   "label": "Nguoi chot ca",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tien_mat_dem",
+   "fieldtype": "Currency",
+   "label": "Tien mat dem duoc luc chot",
+   "read_only": 1,
+   "description": "So se thanh Tien ky vong khi lap Phieu nop quy."
+  },
+  {
+   "fieldname": "phieu_nop",
+   "fieldtype": "Link",
+   "label": "Phieu nop quy",
+   "options": "Vagabond Nop Quy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_bang",
+   "fieldtype": "Section Break",
+   "label": "Doi soat tung phuong thuc"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Bang doi soat",
+   "options": "Vagabond Ca Quay Dong"
+  },
+  {
+   "fieldname": "tong_may",
+   "fieldtype": "Currency",
+   "label": "Tong may ghi nhan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tong_dem",
+   "fieldtype": "Currency",
+   "label": "Tong thu ngan dem",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tong_lech",
+   "fieldtype": "Currency",
+   "label": "Tong lech (dem tru phai co)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_ghi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ly_do_lech",
+   "fieldtype": "Small Text",
+   "label": "Ly do lech"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-08-20 16:00:00.000000",
+ "creation": "2026-08-20 16:00:00.000000",
+ "links": [],
+ "states": [],
+ "actions": [],
+ "allow_rename": 0,
+ "index_web_pages_for_search": 1
+}

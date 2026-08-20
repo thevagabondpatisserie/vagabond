@@ -1,0 +1,58 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Nop Quy Ca",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "editable_grid": 1,
+ "istable": 1,
+ "field_order": [
+  "ca",
+  "quay",
+  "ngay",
+  "tien_mat_dem"
+ ],
+ "fields": [
+  {
+   "fieldname": "ca",
+   "fieldtype": "Link",
+   "label": "Ca",
+   "options": "Vagabond Ca Quay",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "quay",
+   "fieldtype": "Data",
+   "label": "Quay",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngay",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "tien_mat_dem",
+   "fieldtype": "Currency",
+   "label": "Tien mat dem luc chot",
+   "in_list_view": 1,
+   "columns": 3
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-08-20 16:00:00.000000",
+ "creation": "2026-08-20 16:00:00.000000",
+ "links": [],
+ "states": [],
+ "actions": [],
+ "allow_rename": 0,
+ "index_web_pages_for_search": 1
+}

@@ -1,0 +1,51 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Nop Quy Menh Gia",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "editable_grid": 1,
+ "istable": 1,
+ "field_order": [
+  "menh_gia",
+  "so_to",
+  "thanh_tien"
+ ],
+ "fields": [
+  {
+   "fieldname": "menh_gia",
+   "fieldtype": "Int",
+   "label": "Menh gia (d)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "so_to",
+   "fieldtype": "Int",
+   "label": "So to",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "thanh_tien",
+   "fieldtype": "Currency",
+   "label": "Thanh tien",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 3
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-08-20 16:00:00.000000",
+ "creation": "2026-08-20 16:00:00.000000",
+ "links": [],
+ "states": [],
+ "actions": [],
+ "allow_rename": 0,
+ "index_web_pages_for_search": 1
+}

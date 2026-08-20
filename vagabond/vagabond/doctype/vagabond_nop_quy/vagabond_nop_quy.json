@@ -1,0 +1,236 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Nop Quy",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "editable_grid": 1,
+ "istable": 0,
+ "track_changes": 1,
+ "autoname": "format:NQ-{YYYY}-{#####}",
+ "field_order": [
+  "ngay",
+  "trang_thai",
+  "cb0",
+  "tien_le_giu_lai",
+  "tien_ky_vong",
+  "sec_ca",
+  "ca",
+  "sec_mg",
+  "menh_gia",
+  "tong_thuc_nhan",
+  "cb1",
+  "lech",
+  "ly_do_lech",
+  "sec_giao",
+  "nguoi_giao",
+  "ten_nguoi_giao",
+  "giao_luc",
+  "cb2",
+  "chu_ky_ben_giao",
+  "sec_nhan",
+  "nguoi_nhan",
+  "ten_nguoi_nhan",
+  "nhan_luc",
+  "cb3",
+  "chu_ky_ben_nhan",
+  "sec_ghi",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngay nop",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Nháp\nChờ ký nhận\nĐã nộp quỹ",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb0",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tien_le_giu_lai",
+   "fieldtype": "Currency",
+   "label": "Tien le de lai quay cho ca sau"
+  },
+  {
+   "fieldname": "tien_ky_vong",
+   "fieldtype": "Currency",
+   "label": "Tien mat ky vong",
+   "read_only": 1,
+   "description": "Tong tien mat dem luc chot cua cac ca, tru tien le de lai."
+  },
+  {
+   "fieldname": "sec_ca",
+   "fieldtype": "Section Break",
+   "label": "Cac ca ban giao"
+  },
+  {
+   "fieldname": "ca",
+   "fieldtype": "Table",
+   "label": "Ca",
+   "options": "Vagabond Nop Quy Ca"
+  },
+  {
+   "fieldname": "sec_mg",
+   "fieldtype": "Section Break",
+   "label": "Bang ke menh gia thuc nhan"
+  },
+  {
+   "fieldname": "menh_gia",
+   "fieldtype": "Table",
+   "label": "Menh gia",
+   "options": "Vagabond Nop Quy Menh Gia"
+  },
+  {
+   "fieldname": "tong_thuc_nhan",
+   "fieldtype": "Currency",
+   "label": "Tong tien mat thuc nhan",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lech",
+   "fieldtype": "Currency",
+   "label": "Lech so voi ky vong",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ly_do_lech",
+   "fieldtype": "Small Text",
+   "label": "Ly do lech (bat buoc khi lech)"
+  },
+  {
+   "fieldname": "sec_giao",
+   "fieldtype": "Section Break",
+   "label": "Ben giao"
+  },
+  {
+   "fieldname": "nguoi_giao",
+   "fieldtype": "Link",
+   "label": "Nguoi giao",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_nguoi_giao",
+   "fieldtype": "Data",
+   "label": "Ten nguoi giao",
+   "read_only": 1
+  },
+  {
+   "fieldname": "giao_luc",
+   "fieldtype": "Datetime",
+   "label": "Giao luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "chu_ky_ben_giao",
+   "fieldtype": "Signature",
+   "label": "Chu ky ben giao",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_nhan",
+   "fieldtype": "Section Break",
+   "label": "Ben nhan (ke toan / giam doc)"
+  },
+  {
+   "fieldname": "nguoi_nhan",
+   "fieldtype": "Link",
+   "label": "Nguoi nhan",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_nguoi_nhan",
+   "fieldtype": "Data",
+   "label": "Ten nguoi nhan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhan_luc",
+   "fieldtype": "Datetime",
+   "label": "Nhan luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "chu_ky_ben_nhan",
+   "fieldtype": "Signature",
+   "label": "Chu ky ben nhan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_ghi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-08-20 16:00:00.000000",
+ "creation": "2026-08-20 16:00:00.000000",
+ "links": [],
+ "states": [],
+ "actions": [],
+ "allow_rename": 0,
+ "index_web_pages_for_search": 1
+}
