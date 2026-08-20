@@ -1,0 +1,363 @@
+# -*- coding: utf-8 -*-
+"""Ca làm việc tại quầy: mở ca, chốt ca mù, đối soát từng phương thức.
+
+Vì sao có tệp này
+-----------------
+Trước giờ "chốt ca" chỉ là một BẢNG BÁO CÁO (`ban_hang.pos_chot_ca`): máy
+cộng doanh thu trong ngày cho thu ngân nhìn, nhìn xong là hết, không lưu
+lại gì. Không có tiền lẻ đầu ca, không có số thu ngân tự đếm, nên khi két
+lệch thì không truy được lệch từ ca nào, và tiền mặt bàn giao về quỹ không
+có chứng từ gốc để đối chiếu.
+
+Anh Việt 20/08/2026: cần luồng dòng tiền chặt từ Mở ca tới Bàn giao tiền
+cho kế toán. Tệp này lo nửa đầu: ca. Nửa sau (phiếu nộp quỹ, bảng kê mệnh
+giá, ký hai bên) nằm ở `nop_quy.py`.
+
+Ba nguyên tắc
+-------------
+Một, ĐẾM MÙ. Lúc chốt ca thu ngân chỉ thấy các ô trống để gõ số mình đếm
+được theo từng phương thức, KHÔNG thấy số máy. Cho thấy số máy trước là
+mời người ta gõ lại đúng số đó, và phép đối soát thành vô nghĩa.
+
+Hai, số máy chốt tại thời điểm chốt. Doanh thu hệ thống của ca đọc từ
+hoá đơn quầy (`vgb_quay`, `vgb_pt_thanh_toan`, giờ tạo nằm trong khoảng
+mở tới chốt), tính xong GHI CỨNG vào dòng ca. Không tính lại lúc xem, vì
+hoá đơn có thể bị sửa sau đó bằng OTP quản lý, mà biên bản thì phải giữ
+đúng con số tại thời khắc hai bên nhìn nhau.
+
+Ba, tiền mặt là phương thức duy nhất mang tiền lẻ đầu ca. Phải có trong
+két = tiền lẻ đầu ca + doanh thu tiền mặt. Các phương thức khác (chuyển
+khoản, thẻ, ví) không có khái niệm đầu ca.
+
+Lệch ca thuộc về ai
+-------------------
+Lệch bắt ở đây là lệch CỦA CA: giữa số thu ngân đếm và số máy ghi nhận
+trong đúng khoảng giờ người đó đứng quầy. Lệch lúc bàn giao tiền về quỹ là
+chuyện khác, bắt ở `nop_quy.py`. Tách hai tầng để lệch do bán hàng và lệch
+do vận chuyển tiền không trộn vào nhau.
+"""
+
+import json
+
+import frappe
+from frappe.utils import cint, flt, get_datetime, now_datetime, nowdate
+
+CA = "Vagabond Ca Quay"
+DONG = "Vagabond Ca Quay Dong"
+
+TT_DANG_MO = "Đang mở"
+TT_DA_CHOT = "Đã chốt"
+TT_DA_NOP = "Đã nộp quỹ"
+
+TIEN_MAT = "Tiền mặt"
+
+# Lệch dưới mức này coi như tròn số, không bắt gõ lý do. 1.000đ vì tiền
+# mặt Việt Nam không có tờ nhỏ hơn thực tế lưu thông ở quầy bánh.
+NGUONG_LECH = 1000.0
+
+
+# ============================================================ phép THUẦN
+#
+# Không chạm Frappe nên kiểm thử được không cần site.
+
+
+def ghep_doi_soat(pt_may, pt_dem, tien_le_dau_ca=0.0, so_bill=None):
+	"""Ghép số máy và số đếm thành bảng đối soát từng phương thức. THUẦN.
+
+	`pt_may` và `pt_dem` là dict tên phương thức sang số tiền. Lấy HỢP của
+	hai tập tên: máy có mà thu ngân không đếm thì đếm coi như 0 (thiếu cả
+	dòng), thu ngân đếm ra tiền ở phương thức máy không ghi nhận thì máy
+	coi như 0 (thừa không rõ nguồn) - cả hai đều phải lộ ra, không được
+	nuốt.
+
+	Chỉ dòng Tiền mặt được cộng tiền lẻ đầu ca vào cột phải có.
+	"""
+	tien_le_dau_ca = flt(tien_le_dau_ca)
+	ten = sorted(set(list(pt_may or {}) + list(pt_dem or {})))
+	# Tiền mặt luôn đứng đầu bảng: đó là dòng có tiền lẻ đầu ca và là dòng
+	# hay lệch nhất, người đọc tìm nó trước tiên.
+	ten.sort(key=lambda t: (0 if t == TIEN_MAT else 1, t))
+	ra = []
+	for t in ten:
+		may = flt((pt_may or {}).get(t))
+		dem = flt((pt_dem or {}).get(t))
+		phai_co = may + (tien_le_dau_ca if t == TIEN_MAT else 0.0)
+		ra.append({
+			"phuong_thuc": t,
+			"so_bill": cint((so_bill or {}).get(t)),
+			"may": may,
+			"phai_co": phai_co,
+			"dem": dem,
+			"lech": dem - phai_co,
+		})
+	return ra
+
+
+def tong_lech(bang):
+	"""Tổng lệch tuyệt đối của cả bảng. THUẦN."""
+	return sum(abs(flt(d.get("lech"))) for d in bang or [])
+
+
+def can_ly_do(bang, nguong=NGUONG_LECH):
+	"""Ca này có bắt buộc gõ lý do không. THUẦN.
+
+	Xét TỪNG dòng chứ không xét tổng: thiếu 500k tiền mặt mà thừa 500k
+	chuyển khoản thì tổng bằng 0 nhưng vẫn là hai chuyện phải giải thích.
+	"""
+	return any(abs(flt(d.get("lech"))) >= flt(nguong) for d in bang or [])
+
+
+def doc_so_dem(tho):
+	"""Đọc chuỗi JSON số đếm của thu ngân thành dict sạch. THUẦN.
+
+	Nhận cả dict lẫn chuỗi JSON. Số âm là gõ nhầm, chặn thẳng ở đây chứ
+	không đợi ra bảng đối soát rồi mới thấy số kỳ dị.
+	"""
+	if isinstance(tho, str):
+		tho = json.loads(tho or "{}")
+	ra = {}
+	for k, v in (tho or {}).items():
+		t = str(k or "").strip()
+		if not t:
+			continue
+		tien = flt(v)
+		if tien < 0:
+			raise ValueError("Số đếm của %s là số âm." % t)
+		ra[t] = tien
+	return ra
+
+
+# ========================================================= chạm vào hệ
+
+
+def _kiem_quyen():
+	from vagabond.ban_hang import _kiem_quyen as kq
+
+	kq()
+
+
+def _ca_dang_mo(quay):
+	"""Tên ca đang mở của một quầy, hoặc None."""
+	return frappe.db.get_value(
+		CA, {"quay": quay, "trang_thai": TT_DANG_MO}, "name"
+	)
+
+
+def _doanh_thu_he_thong(quay, tu_luc, den_luc):
+	"""Doanh thu hệ thống theo phương thức trong khoảng giờ của ca.
+
+	Đọc từ hoá đơn quầy: đúng quầy, giờ TẠO nằm trong ca. Dùng giờ tạo chứ
+	không dùng posting_date vì bill quầy sinh ra ngay lúc tính tiền, còn ca
+	là một khoảng giờ có thể vắt qua nửa đêm.
+
+	Bỏ bill huỷ (không phải doanh thu) và bill tạm tính (chưa chốt tiền).
+	"""
+	ds = frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"vgb_quay": quay,
+			"creation": ["between", [str(tu_luc), str(den_luc)]],
+			"docstatus": ["<", 2],
+		},
+		fields=["name", "grand_total", "vgb_pt_thanh_toan", "vgb_tam_tinh", "vgb_huy"],
+		limit_page_length=0,
+	)
+	pt, so_bill = {}, {}
+	for r in ds:
+		if cint(r.get("vgb_huy")) or cint(r.get("vgb_tam_tinh")):
+			continue
+		t = (r.get("vgb_pt_thanh_toan") or "").strip() or "Chưa rõ"
+		pt[t] = pt.get(t, 0.0) + flt(r.get("grand_total"))
+		so_bill[t] = so_bill.get(t, 0) + 1
+	return pt, so_bill
+
+
+@frappe.whitelist()
+def tinh_trang(quay):
+	"""Màn quầy hỏi: quầy này đang có ca mở không.
+
+	Trả về đủ để vẽ dòng trạng thái, nhưng KHÔNG trả doanh thu hệ thống:
+	số đó chỉ lộ ra sau khi thu ngân đã gõ số đếm (đếm mù).
+	"""
+	_kiem_quyen()
+	quay = (quay or "").strip()
+	# Danh sach phuong thuc tai quay: man chot ca ve moi phuong thuc mot o
+	# trong de thu ngan go so dem. Chi tra TEN, khong tra so lieu nao.
+	from vagabond import pt_thanh_toan
+
+	try:
+		pt = pt_thanh_toan.ten_quay()
+	except Exception:
+		pt = [TIEN_MAT]
+	ten = _ca_dang_mo(quay)
+	if not ten:
+		return {"dang_mo": 0, "phuong_thuc": pt}
+	d = frappe.db.get_value(
+		CA, ten, ["name", "mo_luc", "nguoi_mo", "tien_le_dau_ca"], as_dict=True
+	)
+	return {
+		"dang_mo": 1,
+		"ma": d.name,
+		"mo_luc": str(d.mo_luc),
+		"nguoi_mo": d.nguoi_mo,
+		"tien_le_dau_ca": flt(d.tien_le_dau_ca),
+		"phuong_thuc": pt,
+	}
+
+
+@frappe.whitelist()
+def mo_ca(quay, tien_le_dau_ca=0):
+	"""Mở ca: khai tiền lẻ đầu ca cho một quầy.
+
+	Một quầy chỉ một ca mở tại một thời điểm. Quên chốt ca hôm qua thì
+	phải chốt nó trước, không cho mở đè: mở đè là bill lọt vào khe giữa
+	hai ca, không ca nào nhận.
+	"""
+	_kiem_quyen()
+	quay = (quay or "").strip()
+	if not quay:
+		frappe.throw("Thiếu mã quầy.")
+	tien_le = flt(tien_le_dau_ca)
+	if tien_le < 0:
+		frappe.throw("Tiền lẻ đầu ca không thể là số âm.")
+	dang = _ca_dang_mo(quay)
+	if dang:
+		frappe.throw(
+			"Quầy này đang có ca %s chưa chốt (mở lúc %s). Chốt ca đó trước "
+			"rồi mới mở ca mới."
+			% (dang, frappe.db.get_value(CA, dang, "mo_luc"))
+		)
+	doc = frappe.get_doc({
+		"doctype": CA,
+		"quay": quay,
+		"ngay": nowdate(),
+		"trang_thai": TT_DANG_MO,
+		"mo_luc": now_datetime(),
+		"nguoi_mo": frappe.session.user,
+		"tien_le_dau_ca": tien_le,
+	})
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ma": doc.name, "mo_luc": str(doc.mo_luc), "tien_le_dau_ca": tien_le}
+
+
+@frappe.whitelist()
+def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
+	"""Chốt ca mù: nhận số thu ngân đếm, so với số máy, ghi cứng biên bản.
+
+	`dem` là JSON tên phương thức sang số tiền thu ngân đếm được. Máy tính
+	doanh thu hệ thống TẠI ĐÂY, sau khi đã nhận số đếm, nên thu ngân không
+	có cách nào nhìn thấy số máy trước lúc gõ.
+
+	Có dòng lệch từ 1.000đ mà không gõ lý do thì máy trả bảng đối soát về
+	kèm cờ `can_ly_do`, KHÔNG chốt. Màn hình cho gõ lý do rồi gọi lại.
+	"""
+	_kiem_quyen()
+	quay = (quay or "").strip()
+	ten = _ca_dang_mo(quay)
+	if not ten:
+		frappe.throw("Quầy này không có ca nào đang mở.")
+	try:
+		so_dem = doc_so_dem(dem)
+	except ValueError as e:
+		frappe.throw(str(e))
+	if not so_dem:
+		frappe.throw("Chưa có số đếm nào. Gõ số tiền đếm được của từng phương thức, kể cả bằng 0.")
+
+	doc = frappe.get_doc(CA, ten)
+	luc = now_datetime()
+	pt_may, so_bill = _doanh_thu_he_thong(quay, doc.mo_luc, luc)
+	bang = ghep_doi_soat(pt_may, so_dem, doc.tien_le_dau_ca, so_bill)
+
+	if can_ly_do(bang) and not (ly_do_lech or "").strip():
+		return {
+			"can_ly_do": 1,
+			"bang": bang,
+			"tong_lech": tong_lech(bang),
+			"nhac": (
+				"Có phương thức lệch từ %s đồng. Gõ lý do (đếm sót, trả nhầm "
+				"tiền thừa, khách chuyển thiếu...) rồi bấm chốt lại."
+				% int(NGUONG_LECH)
+			),
+		}
+
+	doc.chot_luc = luc
+	doc.nguoi_chot = frappe.session.user
+	doc.trang_thai = TT_DA_CHOT
+	doc.ly_do_lech = (ly_do_lech or "").strip()
+	doc.ghi_chu = (ghi_chu or "").strip()
+	doc.set("dong", [])
+	for d in bang:
+		doc.append("dong", d)
+	doc.tong_may = sum(flt(d["may"]) for d in bang)
+	doc.tong_dem = sum(flt(d["dem"]) for d in bang)
+	doc.tong_lech = sum(flt(d["lech"]) for d in bang)
+	# Số tiền mặt đếm được lúc chốt: chính là số phiếu nộp quỹ sẽ kỳ vọng.
+	doc.tien_mat_dem = flt(so_dem.get(TIEN_MAT))
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {
+		"ma": doc.name,
+		"da_chot": 1,
+		"bang": bang,
+		"tong_lech": tong_lech(bang),
+		"tien_mat_dem": flt(doc.tien_mat_dem),
+	}
+
+
+@frappe.whitelist()
+def danh_sach(quay=None, tu_ngay=None, den_ngay=None, trang_thai=None, so_dong=200):
+	"""Danh sách ca, cho màn lịch sử và cho phiếu nộp quỹ chọn ca."""
+	_kiem_quyen()
+	loc = {}
+	if quay:
+		loc["quay"] = quay
+	if trang_thai:
+		loc["trang_thai"] = trang_thai
+	if tu_ngay and den_ngay:
+		loc["ngay"] = ["between", [tu_ngay, den_ngay]]
+	elif tu_ngay:
+		loc["ngay"] = [">=", tu_ngay]
+	ds = frappe.get_all(
+		CA,
+		filters=loc,
+		fields=["name", "quay", "ngay", "trang_thai", "mo_luc", "chot_luc",
+			"tien_le_dau_ca", "tien_mat_dem", "tong_may", "tong_dem",
+			"tong_lech", "nguoi_mo", "nguoi_chot", "phieu_nop"],
+		order_by="mo_luc desc",
+		limit=cint(so_dong) or 200,
+	)
+	return {"ds": ds}
+
+
+@frappe.whitelist()
+def chi_tiet(ma):
+	"""Một ca, đủ bảng đối soát từng phương thức."""
+	_kiem_quyen()
+	doc = frappe.get_doc(CA, ma)
+	return {
+		"ma": doc.name,
+		"quay": doc.quay,
+		"ngay": str(doc.ngay),
+		"trang_thai": doc.trang_thai,
+		"mo_luc": str(doc.mo_luc or ""),
+		"chot_luc": str(doc.chot_luc or ""),
+		"nguoi_mo": doc.nguoi_mo,
+		"nguoi_chot": doc.nguoi_chot,
+		"tien_le_dau_ca": flt(doc.tien_le_dau_ca),
+		"tien_mat_dem": flt(doc.tien_mat_dem),
+		"tong_may": flt(doc.tong_may),
+		"tong_dem": flt(doc.tong_dem),
+		"tong_lech": flt(doc.tong_lech),
+		"ly_do_lech": doc.ly_do_lech or "",
+		"ghi_chu": doc.ghi_chu or "",
+		"phieu_nop": doc.phieu_nop or "",
+		"bang": [
+			{
+				"phuong_thuc": d.phuong_thuc, "so_bill": cint(d.so_bill),
+				"may": flt(d.may), "phai_co": flt(d.phai_co),
+				"dem": flt(d.dem), "lech": flt(d.lech),
+			}
+			for d in doc.dong
+		],
+	}
