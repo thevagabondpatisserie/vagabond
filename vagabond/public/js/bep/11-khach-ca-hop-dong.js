@@ -1684,6 +1684,13 @@ function htCtVe() {
     nUncN.onclick = function () { nUncT.value = ''; nUncT.click(); };
     nUncT.onchange = function () { htUncGui(d, nUncT.files && nUncT.files[0]); };
   }
+  b.querySelectorAll('.htuncanh').forEach(function (n) {
+    n.onclick = function () { htUncPhongTo(d.name, n.getAttribute('data-tep'), n.getAttribute('data-ten')); };
+  });
+  b.querySelectorAll('.htunctep').forEach(function (n) {
+    n.onclick = function () { htUncTaiTep(d.name, n.getAttribute('data-tep'), n.getAttribute('data-ten')); };
+  });
+  htUncNapAnh(b, d.name);
   var nKt = document.getElementById('htUncXong');
   if (nKt) nKt.onclick = function () { htUncKetThuc(d); };
 
@@ -1852,9 +1859,28 @@ function htCtUnc(d) {
     '<div class="card" style="padding:12px 14px">';
 
   if (coUnc && tep.length) {
-    h_ += tep.map(function (t) {
-      return '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
-        'style="display:flex;gap:9px;align-items:center;text-decoration:none;' +
+    /* Anh UNC ve thanh HINH NHO chu khong con la mot dong ten tep
+       IMG_xxx.jpg (anh Viet 20/08/2026: "Dung the img de render anh duoi
+       dang Thumbnail nho, click vao thi phong to"). Ruot anh di qua duong
+       tai_unc cua may chu chu khong qua /private/files: tep dinh vao
+       Payment Entry ma Sales khong co quyen doc doctype do, dua duong dan
+       tho la Sales bam vao chi nhan 403. */
+    var anhUnc = tep.filter(function (t) { return t.la_anh && t.tep; });
+    var tepKhac = tep.filter(function (t) { return !(t.la_anh && t.tep); });
+    if (anhUnc.length) {
+      h_ += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:7px">' +
+        anhUnc.map(function (t) {
+          return '<div class="htuncanh" data-tep="' + h(t.tep) + '" data-ten="' + h(t.ten) + '" ' +
+            'style="width:86px;height:86px;border-radius:10px;border:1.5px solid #d1fae5;' +
+            'background:#f0fdf4;display:flex;align-items:center;justify-content:center;' +
+            'overflow:hidden;font-size:20px;color:#a7c4b5">⏳</div>';
+        }).join('') + '</div>' +
+        '<div style="font-size:11.5px;color:#4b7a63;margin-bottom:7px">Bấm vào ảnh để ' +
+        'phóng to, trong ảnh phóng to có nút tải về gửi khách.</div>';
+    }
+    h_ += tepKhac.map(function (t) {
+      return '<div class="htunctep" data-tep="' + h(t.tep || '') + '" data-ten="' + h(t.ten) + '" ' +
+        'style="display:flex;gap:9px;align-items:center;cursor:pointer;' +
         'border:1.5px solid #d1fae5;background:#f0fdf4;border-radius:10px;' +
         'padding:9px 11px;margin-bottom:7px">' +
         '<div style="flex:none;font-size:17px">📄</div>' +
@@ -1862,7 +1888,7 @@ function htCtUnc(d) {
         '<div style="font-size:13px;font-weight:700;color:#065f46;word-break:break-all">' +
         h(t.ten) + '</div>' +
         '<div style="font-size:11.5px;color:#4b7a63">Đính lúc ' +
-        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></a>';
+        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></div>';
     }).join('');
   } else {
     h_ += '<div style="font-size:12.5px;color:#6b7280;line-height:1.6;padding-bottom:4px">' +
@@ -1887,6 +1913,57 @@ function htCtUnc(d) {
       (d.ngay_hoan_thanh ? ' lúc ' + h(String(d.ngay_hoan_thanh).slice(0, 16)) : '') + '.</div>';
   }
   return h_ + '</div>';
+}
+
+/* Nap hinh nho cua tung anh UNC sau khi man da ve. Goi mot luot, moi anh
+   mot yeu cau rieng de anh nao hong khong keo do anh khac. */
+async function htUncNapAnh(b, hoSo) {
+  var o = b.querySelectorAll('.htuncanh');
+  for (var i = 0; i < o.length; i++) {
+    var n = o[i];
+    try {
+      var r = await api('vagabond.hoan_tien.tai_unc', {
+        ho_so: hoSo, tep: n.getAttribute('data-tep'), co: 'nho'
+      });
+      n.innerHTML = '<img src="data:' + r.mime + ';base64,' + r.b64 + '" alt="" ' +
+        'style="width:100%;height:100%;object-fit:cover;display:block">';
+    } catch (e) { n.textContent = '🚫'; n.title = (e && e.message) || ''; }
+  }
+}
+
+/* Phong to mot anh UNC: keo ban day du roi mo overlay co nut tai ve. */
+async function htUncPhongTo(hoSo, tep, ten) {
+  toast('Đang tải ảnh gốc...', 2000);
+  var r;
+  try { r = await api('vagabond.hoan_tien.tai_unc', { ho_so: hoSo, tep: tep, co: 'lon' }); }
+  catch (e) { return toast((e && e.message) || 'Không tải được ảnh', 5000); }
+  var url = 'data:' + r.mime + ';base64,' + r.b64;
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);' +
+    'display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:88%;border-radius:8px">' +
+    '<div style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:18px;' +
+    'color:#fff;font-size:32px;line-height:1">&times;</div>' +
+    '<a download="' + h(ten || r.ten || 'uy-nhiem-chi') + '" href="' + url + '" ' +
+    'style="position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);' +
+    'left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;text-decoration:none;' +
+    'font-weight:800;font-size:14px;border-radius:12px;padding:11px 22px">⬇️ Tải về gửi khách</a>';
+  ov.onclick = function (e) { if (e.target.tagName !== 'A' && e.target.tagName !== 'IMG') ov.remove(); };
+  document.body.appendChild(ov);
+}
+
+/* Tai mot tep UNC khong phai anh (PDF...) ve may qua duong tai_unc. */
+async function htUncTaiTep(hoSo, tep, ten) {
+  toast('Đang tải tệp...', 2000);
+  var r;
+  try { r = await api('vagabond.hoan_tien.tai_unc', { ho_so: hoSo, tep: tep, co: 'lon' }); }
+  catch (e) { return toast((e && e.message) || 'Không tải được tệp', 5000); }
+  var a = document.createElement('a');
+  a.href = 'data:' + r.mime + ';base64,' + r.b64;
+  a.download = ten || r.ten || 'uy-nhiem-chi';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function htUncGui(d, file) {

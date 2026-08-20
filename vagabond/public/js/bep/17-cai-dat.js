@@ -1881,6 +1881,7 @@ function seVe() {
     posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
     posChipNut('data-sehm="1"', d.co_hmac ? '🛡 Đã có khoá HMAC' : '⚠️ Chưa có khoá HMAC', !!d.co_hmac) +
     posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Có khoá dự phòng' : '○ Không khoá dự phòng', !!d.co_khoa) +
+    posChipNut('data-sehm2="1"', d.co_hmac_2 ? '🛡 Có khoá HMAC 2 (ACB)' : '○ Chưa có khoá ACB', !!d.co_hmac_2) +
     '</div>' +
     /* HMAC la duong chinh, khong phai lua chon thu hai.
        Mot, no ky ca goi tin nen doi mot dong trong do la chu ky hong.
@@ -1895,6 +1896,14 @@ function seVe() {
     (d.sua_duoc
       ? '<input class="tin" id="seHm" type="password" placeholder="Dán Secret Key whsec_... của SePay" style="margin-bottom:8px">' +
         '<button class="btn" id="seLuuHm" style="margin:0;width:100%">🛡 Lưu khoá HMAC và bật nhận</button>' +
+        /* Webhook THU HAI (ACB) chay song song: SePay sinh cho moi webhook
+           mot Secret Key rieng, nguoi dung khong chon duoc, nen phai co o
+           thu hai. Ca hai webhook dan CUNG mot duong dan o tren. */
+        '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:12px 0 6px">Chạy thêm ' +
+        'tài khoản <b>ACB</b>: bên SePay tạo webhook <b>thứ hai</b> cho tài khoản ACB, trỏ về ' +
+        'cùng đường dẫn trên, chọn HMAC-SHA256 rồi dán Secret Key của webhook đó vào đây.</div>' +
+        '<input class="tin" id="seHm2" type="password" placeholder="Dán Secret Key whsec_... của webhook ACB" style="margin-bottom:8px">' +
+        '<button class="btn" id="seLuuHm2" style="margin:0;width:100%">🛡 Lưu khoá HMAC thứ hai (ACB)</button>' +
         '<button class="btn gh" id="seSinh" style="margin:8px 0 0;width:100%">🔑 Sinh khoá dự phòng (header X-Api-Key)</button>'
       : '') +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
@@ -1919,7 +1928,20 @@ function seVe() {
       ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
         'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6">Đang có giao dịch của ' +
         '<b>' + h((d.chua_map || []).join(', ')) + '</b> bị bỏ qua vì chưa khai trong bản đồ. ' +
-        'Khai bổ sung trong SePay Settings rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
+        'Khai ngay ở ô dưới rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
+      : '') +
+    (d.sua_duoc
+      ? '<div style="font-size:12px;color:#6b7280;margin-top:10px">Khai thêm tài khoản (ví dụ ACB)</div>' +
+        '<input class="tin" id="seMapSo" inputmode="numeric" placeholder="Số tài khoản như SePay hiển thị"' +
+        ' value="' + h((d.chua_map || [])[0] || '') + '" style="margin:6px 0 8px">' +
+        '<select class="tin" id="seMapTk" style="margin-bottom:8px">' +
+        '<option value="">- Chọn tài khoản ngân hàng trong ERPNext -</option>' +
+        (d.ds_tai_khoan || []).map(function (t) { return '<option value="' + h(t) + '">' + h(t) + '</option>'; }).join('') +
+        '</select>' +
+        '<button class="btn" id="seMapThem" style="margin:0;width:100%">➕ Thêm vào bản đồ</button>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">Nếu ACB chưa có ' +
+        'trong danh sách chọn thì tạo Bank Account trên Desk trước. Khai xong nhớ chạy <b>nạp bù</b> ' +
+        'bên dưới để lấy lại các giao dịch đã bị bỏ qua.</div>'
       : '') + '</div>';
 
   html += '<div class="sec">Số dòng đang có trong sổ</div><div class="card" style="padding:2px 14px 10px">' +
@@ -1945,7 +1967,11 @@ function seVe() {
   var nSinh = document.getElementById('seSinh');
   if (nSinh) nSinh.onclick = seSinhKhoa;
   var nHm = document.getElementById('seLuuHm');
-  if (nHm) nHm.onclick = seLuuHmac;
+  if (nHm) nHm.onclick = function () { seLuuHmac(1); };
+  var nHm2 = document.getElementById('seLuuHm2');
+  if (nHm2) nHm2.onclick = function () { seLuuHmac(2); };
+  var nMap = document.getElementById('seMapThem');
+  if (nMap) nMap.onclick = seThemTaiKhoan;
   var nThu = document.getElementById('seThu');
   if (nThu) nThu.onclick = function () { seNapBu(0); };
   var nThat = document.getElementById('seThat');
@@ -1953,14 +1979,25 @@ function seVe() {
   return b;
 }
 
-async function seLuuHmac() {
-  var o = document.getElementById('seHm');
+async function seLuuHmac(khe) {
+  var o = document.getElementById(khe === 2 ? 'seHm2' : 'seHm');
   var k = (o && o.value || '').trim();
   if (!k) return toast('Chưa dán Secret Key.', 4000);
-  try { await api('vagabond.sepay.dat_hmac', { khoa: k }); }
+  try { await api('vagabond.sepay.dat_hmac', { khoa: k, khe: khe === 2 ? 2 : 1 }); }
   catch (e) { return toast((e && e.message) || 'Không lưu được khoá', 5000); }
   if (o) o.value = '';
-  toast('Đã lưu khoá HMAC và bật nhận webhook.', 4000);
+  toast(khe === 2 ? 'Đã lưu khoá HMAC thứ hai (ACB).' : 'Đã lưu khoá HMAC và bật nhận webhook.', 4000);
+  scrSePay();
+}
+
+async function seThemTaiKhoan() {
+  var so = (document.getElementById('seMapSo') || {}).value || '';
+  var tk = (document.getElementById('seMapTk') || {}).value || '';
+  if (!so.trim()) return toast('Chưa gõ số tài khoản.', 4000);
+  if (!tk) return toast('Chưa chọn tài khoản ngân hàng trong ERPNext.', 4000);
+  try { await api('vagabond.sepay.them_tai_khoan', { so_tk: so.trim(), tai_khoan: tk }); }
+  catch (e) { return toast((e && e.message) || 'Không thêm được', 6000); }
+  toast('Đã khai ' + so.trim() + ' vào bản đồ. Nhớ chạy nạp bù để lấy giao dịch cũ.', 5000);
   scrSePay();
 }
 
