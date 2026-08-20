@@ -38,6 +38,10 @@ scheduler_events = {
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
 		# Moi gio: doi soat lenh chi hoan tien voi sao ke SePay.
 		"35 * * * *": ["vagabond.hoan_tien.doi_soat_tu_dong"],
+		# Doi soat phieu thanh toan noi bo voi dong tien ra (OCB, MB...).
+		# Lech 20 phut so voi nhip hoan tien de hai nhip khong cung luc quet
+		# ca bang Bank Transaction.
+		"55 * * * *": ["vagabond.de_nghi_chi.doi_soat_tu_dong"],
 		# Gio chay chuoi cuoi ngay khai trong Vagabond Settings, sua duoc
 		# ngay tren app (mac dinh 23:00, ca ba buoc xong truoc 23h30). Chi
 		# Dung so xuat hoa don sat 24h, lo nghen mang la to hoa don lot

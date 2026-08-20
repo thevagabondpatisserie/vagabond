@@ -2260,6 +2260,7 @@ def chi_tiet(ho_so):
 		)
 		ra["gd_vao_ct"] = g
 	ra["duoc_doi_chieu"] = 1 if _duoc_tu_choi() else 0
+	ra["hddt"] = _hddt_cua_don(d.hoa_don)
 
 	# Uy nhiem chi va luong ket thuc. Ba co duoi day quyet dinh man hinh ve
 	# nut nao, va deu tinh o may chu chu khong de man tu suy (QT-19).
@@ -2664,4 +2665,93 @@ def hoan_thanh(ho_so=None):
 			else "Đã ghi sổ phiếu chi %s và đóng phiếu hoàn tiền %s."
 			% (d.phieu_chi, ho_so)
 		),
+	}
+
+
+# ---------------------------------------- hoá đơn điện tử của đơn gốc
+#
+# Anh Việt 20/08/2026: *"Hiển thị mã hóa đơn VAT: Truy xuất và hiển thị mã
+# hóa đơn điện tử (M-Invoice) đã xuất cho đơn hàng gốc đó. Nút Liên kết trực
+# tiếp: bấm vào sẽ mở thẳng tới chứng từ đó trên hệ thống M-invoice."*
+#
+# Khối này CHỈ ĐỌC và CHỈ mở liên kết. Tuyệt đối không phát hành, không ký,
+# không huỷ, không sửa một tờ hoá đơn nào.
+#
+# Anh Việt dặn 13/08/2026 sau lần phải đi xoá tay hoá đơn bên m-invoice:
+# *"những vấn đề liên quan đến hoá đơn điện tử gửi sang cơ quan thuế, rất
+# nhạy cảm, khó sửa chữa"*. Nên ở đây chỉ có đường đọc, không có đường ghi.
+
+
+def _mau_lien_ket_hddt():
+	"""Mẫu đường dẫn tới một tờ hoá đơn bên M-Invoice.
+
+	ĐỂ TRONG CÀI ĐẶT chứ không viết cứng, vì em KHÔNG biết chắc đường dẫn
+	sâu của M-Invoice. Tra tài liệu của họ thì trang hướng dẫn lỗi máy chủ,
+	còn trang tra cứu là ứng dụng JavaScript nên không đọc được đường dẫn từ
+	mã nguồn. Đoán một đường dẫn rồi in ra nút bấm là đưa cho chị Dung một
+	cái nút dẫn tới trang lỗi.
+
+	Nên: chị Dung mở một tờ hoá đơn bên M-Invoice, chép đường dẫn trên thanh
+	địa chỉ, dán vào Cài đặt và thay phần mã tờ hoá đơn bằng {id}. Từ đó nút
+	này dẫn đúng tới từng tờ.
+
+	Ba chỗ thay được: {host} {id} {so} {sobaomat}
+	"""
+	try:
+		return (cfg().get("minvoice_mau_lien_ket") or "").strip()
+	except Exception:
+		return ""
+
+
+def _hddt_cua_don(ma_don):
+	"""Thông tin hoá đơn điện tử của một đơn, để màn hình hiện và mở liên kết."""
+	if not ma_don:
+		return None
+	try:
+		d = frappe.db.get_value(
+			SI, ma_don,
+			["custom_hddt_ky_hieu", "custom_hddt_so", "custom_hddt_trang_thai",
+			 "custom_hddt_id", "custom_hddt_sobaomat"],
+			as_dict=True,
+		) or {}
+	except Exception:
+		# Trường có thể chưa có trên site cũ. Thiếu hoá đơn điện tử không
+		# được phép làm hỏng cả màn phiếu hoàn tiền.
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc hoa don dien tu loi")
+		return None
+
+	so = str(d.get("custom_hddt_so") or "").strip()
+	kh = (d.get("custom_hddt_ky_hieu") or "").strip()
+	if not (so or kh):
+		return None
+
+	host = ""
+	try:
+		host = (cfg().get("minvoice_host") or "").strip().rstrip("/")
+		if host and not host.startswith("http"):
+			host = "https://" + host
+	except Exception:
+		host = ""
+
+	lien_ket = ""
+	mau = _mau_lien_ket_hddt()
+	if mau and host:
+		lien_ket = (
+			mau.replace("{host}", host)
+			.replace("{id}", str(d.get("custom_hddt_id") or ""))
+			.replace("{so}", so)
+			.replace("{sobaomat}", str(d.get("custom_hddt_sobaomat") or ""))
+		)
+	return {
+		"ky_hieu": kh,
+		"so": so,
+		"ma": ("%s %s" % (kh, so)).strip(),
+		"trang_thai": (d.get("custom_hddt_trang_thai") or "").strip(),
+		"id": str(d.get("custom_hddt_id") or ""),
+		"so_bao_mat": str(d.get("custom_hddt_sobaomat") or ""),
+		"host": host,
+		"lien_ket": lien_ket,
+		# Chưa khai mẫu đường dẫn thì màn hình mở trang chủ M-Invoice và chép
+		# sẵn mã tra cứu, vẫn dùng được ngay chứ không đứng chờ.
+		"da_khai_mau": 1 if lien_ket else 0,
 	}

@@ -146,6 +146,9 @@ TT_CHO_GIAM_DOC = "Cho giam doc"
 TT_CHO_KE_TOAN = "Cho ke toan"
 TT_HOAN_TAT = "Hoan tat"
 TT_TRA_LAI = "Bi tra lai"
+# Da chi: TIEN DA RA THAT khoi tai khoan, do doi soat SePay xac nhan chu
+# khong do ai bam. Them 20/08/2026 cung lan noi webhook OCB.
+TT_DA_CHI = "Da chi"
 
 NHAN_TRANG_THAI = {
 	TT_NHAP: "Nháp",
@@ -153,8 +156,44 @@ NHAN_TRANG_THAI = {
 	TT_CHO_GIAM_DOC: "Chờ giám đốc duyệt",
 	TT_CHO_KE_TOAN: "Chờ kế toán hạch toán",
 	TT_HOAN_TAT: "Hoàn tất",
+	TT_DA_CHI: "Đã chi",
 	TT_TRA_LAI: "Bị trả lại",
 }
+
+# Chip tren man Danh sach. Anh Viet 20/08/2026 goi ten nam chip: Nhap, Cho
+# duyet, Cho chi, Da chi, Da huy.
+#
+# Vi sao GOM chu khong doi ten trang thai: chuoi duyet ba cap (mua hang,
+# giam doc tu 2 trieu, ke toan) la thu anh Viet chot hom 19/08 va dang chay
+# dung. Doi trang thai la doi ca chuoi do. Nen giu nguyen ben duoi, con
+# chip chi la cach GOM lai cho de nhin.
+CHIP_TRANG_THAI = (
+	("tat_ca", "Tất cả", None),
+	("nhap", "Nháp", (TT_NHAP,)),
+	("cho_duyet", "Chờ duyệt", (TT_CHO_DUYET, TT_CHO_GIAM_DOC)),
+	("cho_chi", "Chờ chi", (TT_CHO_KE_TOAN, TT_HOAN_TAT)),
+	("da_chi", "Đã chi", (TT_DA_CHI,)),
+	("da_huy", "Đã huỷ", (TT_TRA_LAI,)),
+)
+
+# Chip loc thoi gian.
+CHIP_THOI_GIAN = (
+	("30", "30 ngày"),
+	("7", "7 ngày"),
+	("90", "90 ngày"),
+	("0", "Tất cả"),
+)
+
+
+def trang_thai_theo_chip(chip):
+	"""Chip nay ung voi nhung trang thai nao. THUAN.
+
+	Tra ve None nghia la khong loc (chip Tat ca).
+	"""
+	for k, _ten, ds in CHIP_TRANG_THAI:
+		if k == (chip or "").strip():
+			return list(ds) if ds else None
+	return None
 
 # Anh Việt chốt 19/08/2026. Từ ngưỡng này trở lên thì thêm một cấp giám đốc.
 # Một phiếu 50 nghìn tiền đá và một phiếu 50 triệu mua máy không nên đi cùng
@@ -805,6 +844,12 @@ def truoc_khi_luu(doc, method=None):
 	if la_tam_ung(doc.get("loai_nghiep_vu")):
 		doc.phan_loai = None
 
+	# Nội dung chuyển khoản: sinh từ mã phiếu, và chỉ sinh khi phiếu ĐÃ có
+	# mã (lần lưu đầu tiên thì chưa). Đây là thứ duy nhất phép đối soát bám
+	# vào, nên nó phải luôn khớp với mã phiếu chứ không ai gõ tay.
+	if doc.get("name") and not (doc.get("noi_dung_ck") or "").strip():
+		doc.noi_dung_ck = noi_dung_ck(doc.name)
+
 	# Tài khoản nhận tiền: lấy của nhà cung cấp, hoặc của chính người lập.
 	if not (doc.get("so_tk") or "").strip():
 		goi_y = (
@@ -903,7 +948,10 @@ def duyet(ma_phieu, ghi_chu=None):
 	if (ghi_chu or "").strip():
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
-	return {"ok": 1, "trang_thai": doc.trang_thai}
+	return {
+		"ok": 1, "trang_thai": doc.trang_thai,
+		"nhan_trang_thai": NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai,
+	}
 
 
 @frappe.whitelist()
@@ -923,6 +971,84 @@ def tra_lai(ma_phieu, ly_do):
 	doc.tra_lai_luc = now_datetime()
 	doc.save(ignore_permissions=True)
 	return {"ok": 1, "trang_thai": doc.trang_thai}
+
+
+@frappe.whitelist()
+def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100):
+	"""Danh sách phiếu cho MÀN DANH SÁCH, kèm số đếm từng chip.
+
+	Anh Việt 20/08/2026: *"Bất kỳ phân hệ nào có nút Tạo phiếu thì bắt buộc
+	phải có màn hình Danh sách để xem lại."*
+
+	Con số trên chip là số THẬT của cả sổ trong khoảng thời gian đang chọn,
+	không phải số dòng đang hiện. Đếm theo đúng ô tìm đang gõ, nếu không thì
+	gõ "Nước" ra 3 dòng mà chip vẫn báo 40 và người đọc không biết tin cái
+	nào (bài học từ màn Hoàn tiền).
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	goc = {}
+	# Người thường chỉ thấy phiếu của mình. Mua hàng, giám đốc, kế toán thấy
+	# hết, vì họ là người duyệt và người chi.
+	if not (_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)):
+		goc["nguoi_tao"] = frappe.session.user
+	sn = cint(so_ngay)
+	if sn > 0:
+		goc["creation"] = [">=", frappe.utils.add_days(nowdate(), -sn)]
+
+	hoac = None
+	tim = (tim or "").strip()
+	if tim:
+		hoac = [["name", "like", "%" + tim + "%"], ["ten_khoan_chi", "like", "%" + tim + "%"]]
+
+	loc = dict(goc)
+	tt = trang_thai_theo_chip(chip)
+	if tt:
+		loc["trang_thai"] = ["in", tt]
+
+	ds = frappe.get_all(
+		DT, filters=loc, or_filters=hoac,
+		fields=[
+			"name", "ten_khoan_chi", "loai_nghiep_vu", "so_tien", "tong_tien",
+			"trang_thai", "nguoi_tao", "creation", "ngay_can_tt", "phuong_thuc",
+			"hinh_thuc", "nha_cung_cap", "ma_gd", "ngay_da_chi", "thuoc_tam_ung",
+		],
+		order_by="creation desc",
+		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
+	)
+	dem_dong = {}
+	if ds:
+		for r in frappe.get_all(
+			"Vagabond De Nghi Chi Dong",
+			filters={"parent": ["in", [d["name"] for d in ds]]},
+			fields=["parent"], limit_page_length=0,
+		):
+			dem_dong[r["parent"]] = dem_dong.get(r["parent"], 0) + 1
+	for d in ds:
+		d["nhan_trang_thai"] = NHAN_TRANG_THAI.get(d["trang_thai"]) or d["trang_thai"]
+		d["tien"] = tien_phieu(d)
+		d["so_khoan"] = dem_dong.get(d["name"], 0)
+		d["tieu_de"] = d.get("ten_khoan_chi") or "(chưa đặt tên)"
+		if d["so_khoan"] > 1:
+			d["tieu_de"] += " và %s khoản khác" % (d["so_khoan"] - 1)
+
+	# Đếm chip: một truy vấn cho mỗi chip, trên cùng bộ lọc gốc.
+	dem = {}
+	for k, _ten, nhom in CHIP_TRANG_THAI:
+		l2 = dict(goc)
+		if nhom:
+			l2["trang_thai"] = ["in", list(nhom)]
+		dem[k] = len(frappe.get_all(
+			DT, filters=l2, or_filters=hoac, fields=["name"], limit_page_length=0
+		))
+	return {
+		"ds": ds, "dem": dem, "chip": chip, "so_ngay": sn, "tim": tim,
+		"chip_trang_thai": [{"k": k, "ten": t} for k, t, _n in CHIP_TRANG_THAI],
+		"chip_thoi_gian": [{"k": k, "ten": t} for k, t in CHIP_THOI_GIAN],
+		"duoc_duyet": 1 if (_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)) else 0,
+		"nguong_giam_doc": NGUONG_GIAM_DOC,
+	}
 
 
 @frappe.whitelist()
@@ -1067,6 +1193,10 @@ def tao(du_lieu=None, gui_luon=0):
 	doc.trang_thai = TT_NHAP
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
+	# Nội dung chuyển khoản chỉ dựng được SAU khi phiếu có mã: doctype này
+	# đánh mã theo format nên lúc before_validate chạy thì `name` còn trống.
+	frappe.db.set_value(DT, doc.name, "noi_dung_ck", noi_dung_ck(doc.name), update_modified=False)
+	doc.noi_dung_ck = noi_dung_ck(doc.name)
 	frappe.db.commit()
 
 	# Gửi duyệt luôn thì đi qua ĐÚNG hàm gui_duyet, không tự đặt trạng thái.
@@ -1207,11 +1337,23 @@ def chi_tiet(ma_phieu=None):
 		if k.startswith("_"):
 			ra.pop(k, None)
 	ra["nhan_trang_thai"] = NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai
+	# Bù cho phiếu lập thẳng trên Desk, hoặc phiếu cũ lập trước 20/08/2026.
+	if not (ra.get("noi_dung_ck") or "").strip():
+		ra["noi_dung_ck"] = noi_dung_ck(doc.name)
+		frappe.db.set_value(DT, doc.name, "noi_dung_ck", ra["noi_dung_ck"], update_modified=False)
 	# Tính lại ở máy chủ chứ không trả trường đã lưu: nếu vì lý do gì đó
 	# trường `tong_tien` lệch với bảng kê thì màn hình phải thấy số ĐÚNG.
 	ra["tien"] = tien_phieu(ra)
 	ra["can_giam_doc"] = 1 if can_giam_doc_duyet(ra["tien"]) else 0
 	ra["so_tep"] = _so_tep(ma_phieu)
+	# Nút Duyệt chỉ vẽ khi MÁY CHỦ nói người đang xem duyệt được ở BƯỚC HIỆN
+	# TẠI. Không để màn hình tự suy theo vai: luật thật còn có "người lập
+	# không tự duyệt phiếu của chính mình", mà màn hình thì không biết ai lập.
+	duoc, vi_sao = duoc_duyet_khong(
+		doc.trang_thai, _vai(), doc.nguoi_tao == frappe.session.user
+	)
+	ra["duoc_duyet_buoc_nay"] = 1 if duoc else 0
+	ra["vi_sao_khong_duyet"] = "" if duoc else vi_sao
 	ra["tep"] = [
 		{"url": f["file_url"], "ten": f["file_name"]}
 		for f in frappe.get_all(
@@ -1327,3 +1469,187 @@ def chuyen_phieu_mot_dong():
 	if chuyen:
 		frappe.db.commit()
 	return {"chuyen": chuyen, "bo_qua": bo_qua}
+
+
+# ================================ đối soát ngân hàng cho phiếu TTNB
+#
+# Anh Việt 20/08/2026: *"Khi phiếu đã được duyệt và kế toán đi tiền từ ngân
+# hàng OCB, em hãy nối logic Webhook SePay (tương tự luồng hoàn tiền MB) vào
+# phiếu TTNB này. Khi dòng tiền ra khớp, hệ thống tự động đổi trạng thái
+# phiếu thành 'Đã chi'."*
+#
+# Cùng một cơ chế với luồng hoàn tiền, và cố ý dùng lại đúng bài học của nó:
+# một dòng tiền ra chỉ khớp cho MỘT phiếu (xem v238), và tiền đã ra là SỰ
+# THẬT nên ghi xuống ngay chứ không gộp vào một giao dịch cơ sở dữ liệu với
+# việc khác (xem v234).
+
+BT = "Bank Transaction"
+
+
+def noi_dung_ck(ma_phieu):
+	"""Nội dung chuyển khoản cho một phiếu. THUẦN.
+
+	Chính chuỗi này là thứ duy nhất phép đối soát bám vào, nên nó phải chứa
+	nguyên mã phiếu và không được có dấu tiếng Việt: nhiều ngân hàng bỏ dấu
+	hoặc cắt bớt nội dung, và một mã bị cắt là một phiếu không bao giờ tự
+	khớp được.
+	"""
+	return ("THE VAGABOND %s" % (ma_phieu or "")).strip()
+
+
+def khop_noi_dung(mo_ta, ma_phieu):
+	"""Nội dung chuyển khoản này có mang mã phiếu kia không. THUẦN.
+
+	Bỏ mọi ký tự không phải chữ và số ở cả hai bên rồi mới so. Ngân hàng hay
+	thay dấu gạch ngang bằng dấu cách, hoặc bỏ hẳn, nên "TTNB-26-08-00001"
+	và "TTNB 26 08 00001" phải là một.
+	"""
+	sach = lambda x: "".join(ch for ch in str(x or "").upper() if ch.isalnum())
+	m = sach(ma_phieu)
+	return bool(m) and m in sach(mo_ta)
+
+
+def _gd_da_chiem_ttnb(tru_phieu=None):
+	"""Giao dịch nào đã được một phiếu TTNB khác chiếm.
+
+	Bài học v238 của luồng hoàn tiền, mang nguyên sang đây: một dòng tiền ra
+	trên sao kê là MỘT lần tiền rời khỏi tài khoản. Cho hai phiếu cùng trỏ
+	vào nó là ghi nhận hai lần chi cho một lần chuyển.
+	"""
+	loc = {"trang_thai": ["!=", TT_TRA_LAI], "ma_gd": ["!=", ""]}
+	if tru_phieu:
+		loc["name"] = ["!=", tru_phieu]
+	ra = {}
+	for r in frappe.get_all(DT, filters=loc, fields=["name", "ma_gd"], limit_page_length=0):
+		ma = (r.get("ma_gd") or "").strip()
+		if ma:
+			ra.setdefault(ma, r["name"])
+	return ra
+
+
+def _phieu_cho_chi():
+	"""Các phiếu đã duyệt xong, đang chờ tiền ra.
+
+	CHỈ những phiếu đã qua hết chuỗi duyệt. Phiếu còn ở Nháp hoặc còn chờ
+	duyệt mà tự nhảy sang Đã chi vì ngân hàng tình cờ có một khoản trùng nội
+	dung là chuyện không được phép xảy ra.
+	"""
+	return frappe.get_all(
+		DT,
+		filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
+		fields=["name", "tong_tien", "so_tien", "trang_thai"],
+		limit_page_length=0,
+	)
+
+
+@frappe.whitelist()
+def doi_soat(so_ngay=30):
+	"""Tìm dòng tiền RA trên sao kê khớp với phiếu TTNB đang chờ chi.
+
+	Chạy được bằng tay từ màn Danh sách, và chạy theo giờ qua
+	`doi_soat_tu_dong`.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	ds = _phieu_cho_chi()
+	if not ds:
+		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Không có phiếu nào đang chờ chi."}
+
+	try:
+		gds = frappe.db.sql(
+			"""select name, description, withdrawal, date, reference_number
+			from `tabBank Transaction`
+			where docstatus < 2 and ifnull(withdrawal, 0) > 0
+			  and date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)""",
+			(cint(so_ngay) or 30,),
+			as_dict=True,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: doc sao ke loi")
+		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Chưa đọc được sao kê ngân hàng."}
+
+	da_chiem = _gd_da_chiem_ttnb()
+	da, xem = 0, []
+	for d in ds:
+		tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
+		for g in gds:
+			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
+			if not khop_noi_dung(mo_ta, d["name"]):
+				continue
+			chu_cu = da_chiem.get(g["name"])
+			if chu_cu and chu_cu != d["name"]:
+				xem.append({
+					"phieu": d["name"], "giao_dich": g["name"],
+					"trung_voi": chu_cu, "tien_phieu": tien,
+					"tien_chuyen": flt(g["withdrawal"]),
+				})
+				continue
+			# Khớp nội dung rồi vẫn phải so TIỀN. Nội dung đúng mà số tiền
+			# lệch nghĩa là kế toán chuyển thiếu hoặc thừa, và đó là việc
+			# người phải xem chứ không phải máy tự đánh dấu xong.
+			if abs(flt(g["withdrawal"]) - tien) > 1:
+				xem.append({
+					"phieu": d["name"], "giao_dich": g["name"],
+					"tien_phieu": tien, "tien_chuyen": flt(g["withdrawal"]),
+				})
+				continue
+			da_chiem[g["name"]] = d["name"]
+			frappe.db.set_value(DT, d["name"], {
+				"trang_thai": TT_DA_CHI,
+				"ma_gd": g["name"],
+				"ngay_da_chi": now_datetime(),
+			})
+			# Ghi xuống NGAY. Tiền đã ra là sự thật, không được để chung một
+			# giao dịch cơ sở dữ liệu với bất kỳ việc nào có thể hỏng.
+			frappe.db.commit()
+			da += 1
+			break
+	return {
+		"da_khop": da, "xem_xet": xem, "so_phieu_quet": len(ds),
+		"ghi_chu": "" if da or xem else "Chưa có dòng tiền ra nào khớp phiếu đang chờ chi.",
+	}
+
+
+def doi_soat_tu_dong():
+	"""Chạy theo giờ. Tự thoát nếu không có phiếu nào chờ."""
+	try:
+		frappe.set_user("Administrator")
+		doi_soat()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: doi soat tu dong loi")
+
+
+def khi_co_giao_dich(ma_bt):
+	"""Gọi ngay sau khi webhook SePay ghi một dòng sao kê mới.
+
+	Nhờ vậy phiếu chuyển sang Đã chi trong vài giây thay vì chờ tới nhịp
+	chạy theo giờ. Hàm này KHÔNG BAO GIỜ được nem lỗi ra ngoài: webhook đã
+	ghi xong dòng tiền rồi, làm hỏng phản hồi trả về cho SePay là khiến họ
+	gửi lại mãi.
+	"""
+	try:
+		g = frappe.db.get_value(
+			BT, ma_bt, ["name", "withdrawal", "description", "reference_number"], as_dict=True
+		)
+		if not g or flt(g.get("withdrawal")) <= 0:
+			return
+		mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
+		da_chiem = _gd_da_chiem_ttnb()
+		if da_chiem.get(g["name"]):
+			return
+		for d in _phieu_cho_chi():
+			if not khop_noi_dung(mo_ta, d["name"]):
+				continue
+			tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
+			if abs(flt(g["withdrawal"]) - tien) > 1:
+				return
+			frappe.db.set_value(DT, d["name"], {
+				"trang_thai": TT_DA_CHI,
+				"ma_gd": g["name"],
+				"ngay_da_chi": now_datetime(),
+			})
+			frappe.db.commit()
+			return
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: khop ngay sau webhook loi")

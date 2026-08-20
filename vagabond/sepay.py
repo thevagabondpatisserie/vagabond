@@ -346,6 +346,20 @@ def _webhook():
 	bt.insert(ignore_permissions=True)
 	bt.submit()
 	frappe.db.commit()
+
+	# Doi soat ngay cho phieu thanh toan noi bo (anh Viet 20/08/2026): tien ra
+	# tu OCB khop noi dung thi phieu chuyen sang "Da chi" trong vai giay, thay
+	# vi cho toi nhip chay theo gio.
+	#
+	# Boc trong try o ben trong ham do: dong sao ke DA ghi xong roi, mot loi o
+	# buoc doi soat khong duoc phep lam hong phan hoi tra ve cho SePay - hong
+	# la ho gui lai mai.
+	try:
+		from vagabond import de_nghi_chi
+
+		de_nghi_chi.khi_co_giao_dich(bt.name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "sepay: goi doi soat TTNB loi")
 	return {"success": True, "message": "Da ghi %s." % bt.name}
 
 
