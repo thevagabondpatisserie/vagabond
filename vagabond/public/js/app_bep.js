@@ -1176,6 +1176,12 @@ async function scrHome() {
       : '') +
     /* Quan ly nguoi dung: anh Viet, chi Dung va De. Bay theo goi chuc vu chu
        khong bay ma tran 40 vai tro cua Frappe ra man hinh dien thoai. */
+    /* Bo chuyen BTP cap 1 sang Phantom. Chi giam doc va quan ly he thong,
+       vi day la thao tac doi cau hinh kho cua ca tram ma hang. */
+    (hasRole('System Manager') || hasRole('Giám đốc')
+      ? card('🧹', 'Dọn chứng từ thử', 'Đóng nốt lệnh sản xuất treo trên bán thành phẩm trước khi chuyển Phantom', 0, 'PTDON') +
+        card('👻', 'Chuyển bán thành phẩm sang Phantom', 'Bỏ ghi sổ kho cấp BTP, chạy thử xem trước rồi mới ghi thật', 0, 'PTCH')
+      : '') +
     (hasRole('System Manager') || hasRole('Quản lý người dùng')
       ? card('👥', 'Quản lý người dùng', 'Mời tài khoản mới, xếp gói chức vụ, bật tắt nhân viên nghỉ', 0, 'QLND') +
         card('🗝', 'Quản lý quyền', 'Mười một gói chức vụ, gói nào làm được gì và ai đang giữ', 0, 'QLQ')
@@ -1352,7 +1358,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -1751,6 +1757,8 @@ function vgbGo(k) {
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'CDSE') return go(scrSePay);
   if (k === 'CDTB') return go(scrThongBao);
+  if (k === 'PTDON') return go(scrDonChungTuThu);
+  if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);
   if (k === 'TS') return go(scrTaiSan);
   if (k === 'BT') return go(scrButToan);
@@ -4118,13 +4126,33 @@ async function mfgDemand(horizon) {
   }).filter(function (a) { return a.need > 0; });
 }
 
+/* Nổ nhiều cấp hay không thì HỎI HỆ, không ghi cứng ở đây.
+
+   Trước 21/08/2026 chỗ này ghi cứng 0, đúng vì bán thành phẩm cấp 1 còn
+   theo tồn kho nên lệnh phải đòi thẳng mã đó. Sau khi chuyển cấp đó thành
+   Phantom thì ngược lại: để 0 là lệnh đòi một mã không còn kho để lấy, và
+   bếp đứng. Bật cứng lên 1 trước ngày chuyển cũng sai, vì 71 dòng bán
+   thành phẩm đang sẵn công thức con sẽ nổ ngay hôm nay.
+
+   Nên đọc trạng thái thật một lần mỗi phiên rồi nhớ lại. */
+var mfgPhantom = null;
+
+async function mfgNoNhieuCap() {
+  if (mfgPhantom !== null) return mfgPhantom;
+  try {
+    var r = await api('vagabond.phantom.trang_thai', {});
+    mfgPhantom = (r && r.da_phantom) ? 1 : 0;
+  } catch (e) { mfgPhantom = 0; }
+  return mfgPhantom;
+}
+
 async function mfgCreateWO(row) {
   var doc = {
     doctype: 'Work Order', company: COMPANY,
     production_item: row.code, item_name: row.name, bom_no: row.bom,
     qty: row.qty, stock_uom: row.uom,
     fg_warehouse: row.fg || mfg.fg, source_warehouse: row.src || mfg.src,
-    skip_transfer: 1, use_multi_level_bom: 0,
+    skip_transfer: 1, use_multi_level_bom: await mfgNoNhieuCap(),
     planned_start_date: today() + ' 05:00:00'
   };
   var ins = await api('frappe.client.insert', { doc: doc });
@@ -15104,7 +15132,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '249';
+var APPVER = '250';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18898,8 +18926,8 @@ var nccF = null, nccDm = null;
 function nccOMoi() {
   return {
     mst: '', ten: '', nhom: '', loai: 'Company', dia_chi: '', tinh: '',
-    nguoi_lien_he: '', email: '', dien_thoai: '',
-    so_tk: '', ngan_hang: '', chu_tk: '', tra_xong: 0
+    nguoi_lien_he: '', email: '', email_cc: '', email_cc2: '', email_cc3: '',
+    dien_thoai: '', so_tk: '', ngan_hang: '', chu_tk: '', tra_xong: 0
   };
 }
 
@@ -18907,6 +18935,7 @@ function nccDoc() {
   if (!nccF) return;
   [['nccMst', 'mst'], ['nccTen', 'ten'], ['nccNhom', 'nhom'], ['nccLoai', 'loai'],
    ['nccDiaChi', 'dia_chi'], ['nccNguoi', 'nguoi_lien_he'], ['nccEmail', 'email'],
+   ['nccCc1', 'email_cc'], ['nccCc2', 'email_cc2'], ['nccCc3', 'email_cc3'],
    ['nccDt', 'dien_thoai'], ['nccStk', 'so_tk'], ['nccNh', 'ngan_hang'],
    ['nccChuTk', 'chu_tk']].forEach(function (c) {
     var o = document.getElementById(c[0]);
@@ -18962,10 +18991,19 @@ async function scrNccTao() {
   html += '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">BƯỚC 2 · LIÊN HỆ</div>' +
     '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:4px 0 11px">' +
-    'Đơn mua hàng gửi thẳng vào email này, nên đây là ô <b>bắt buộc</b>. Sai một ký tự là thư không tới nơi.</div>' +
+    'Có email thì đơn mua hàng gửi thẳng vào đó. Nhà cung cấp chỉ đặt qua app hay sàn thương mại điện tử ' +
+    'thì bỏ trống ô email cũng lưu được, lúc đó mình tự đặt hàng rồi vào đánh dấu đã gửi.</div>' +
     o('nccDiaChi', 'Địa chỉ', f.dia_chi, '', 'Địa chỉ ghi trên hoá đơn.') +
     o('nccNguoi', 'Người đại diện / liên hệ', f.nguoi_lien_he, '', 'Người mình gọi khi cần giục hàng hoặc đối chiếu công nợ.') +
-    o('nccEmail', 'Email nhận đơn mua hàng', f.email, 'email', '', 1) +
+    o('nccEmail', 'Email nhận đơn mua hàng', f.email, 'email', 'Bỏ trống nếu nhà cung cấp này không nhận đơn qua email.') +
+    '<div style="border-top:1px dashed #e5e7eb;margin:2px 0 11px;padding-top:11px">' +
+    '<div style="font-size:12.5px;color:#374151;font-weight:600;margin-bottom:4px">Các email phụ cần CC</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:9px;line-height:1.5">' +
+    'Có nhà cung cấp muốn gửi cùng lúc cho kế toán và kho của họ. Điền vào đây thì mỗi lần gửi ' +
+    'đơn mua hàng máy tự CC thêm, khỏi nhớ.</div>' +
+    o('nccCc1', 'Email CC 1', f.email_cc, 'email') +
+    o('nccCc2', 'Email CC 2', f.email_cc2, 'email') +
+    o('nccCc3', 'Email CC 3', f.email_cc3, 'email') + '</div>' +
     o('nccDt', 'Số điện thoại', f.dien_thoai, 'tel') + '</div>';
 
   html += '<div class="card" style="padding:13px 14px">' +
@@ -19022,7 +19060,6 @@ async function scrNccTao() {
     var f2 = nccF;
     if (!(f2.ten || '').trim()) return toast('Chưa có tên nhà cung cấp. Gõ mã số thuế để máy điền hộ, hoặc gõ tên tay.', 5000);
     if (!(f2.nhom || '').trim()) return toast('Chưa chọn nhóm nhà cung cấp.', 4500);
-    if (!(f2.email || '').trim()) return toast('Chưa có email. Đơn mua hàng gửi qua email nên ô này bắt buộc.', 5500);
     if (!await confirmSheet('Lưu hồ sơ nhà cung cấp?',
       'Máy sẽ lập hồ sơ "' + f2.ten + '" kèm địa chỉ, người liên hệ và số tài khoản trong một lần.', 'Lưu')) return;
     busy(1);
@@ -28519,3 +28556,214 @@ async function scrBgCaiDat() {
 })();
 
 
+
+/* ---------------- Chuyen BTP cap 1 thanh Phantom (anh Viet giao 21/08/2026)
+
+   139 ma ban thanh phan dang ghi so kho trong khi chua ai lam lenh san
+   xuat nao cho chung. Man nay lam hai viec, dung thu tu:
+
+     1. Don chung tu thu   - dong not cac lenh san xuat con treo
+     2. Chuyen Phantom     - chay thu truoc, doc ky, roi moi ghi that
+
+   Nut ghi that co CHU DO va hoi lai mot lan nua, vi khong co nut hoan tac.
+   Tien to pt = phantom. Da kiem va cham ten truoc khi dat (QT-28). */
+
+var ptKe = null;
+
+function ptSo(n) { return (n || 0).toLocaleString('vi-VN'); }
+
+function ptO(nhan, gt, mau) {
+  return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;' +
+    'border-bottom:1px solid #f3f4f6"><div style="font-size:13px;color:#6b7280">' + nhan +
+    '</div><div style="font-size:14px;font-weight:700;color:' + (mau || '#111827') + '">' +
+    gt + '</div></div>';
+}
+
+/* ---------------- Man 1: don chung tu thu ---------------- */
+
+async function scrDonChungTuThu() {
+  frame('Dọn chứng từ thử', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d;
+  try { d = await api('vagabond.phantom.chung_tu_thu', {}); }
+  catch (e) {
+    frame('Dọn chứng từ thử',
+      '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>');
+    return;
+  }
+
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.6">' +
+    'Trước khi bỏ theo dõi tồn kho của ' + ptSo(d.so_btp) + ' mã bán thành phẩm, ' +
+    'phải dọn hết chứng từ còn treo trên chúng. Còn một lệnh treo mà đã bỏ tồn kho ' +
+    'thì lệnh đó đòi một mã không còn kho để lấy, và bếp đứng.</div></div>';
+
+  var lenh = d.lenh_treo || [];
+  html += '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">LỆNH SẢN XUẤT CÒN TREO · ' +
+    ptSo(lenh.length) + '</div>';
+  if (!lenh.length) {
+    html += '<div style="font-size:13px;color:#0f7a44;margin-top:8px">' +
+      '✓ Không còn lệnh nào treo.</div>';
+  } else {
+    lenh.forEach(function (x, i) {
+      html += '<div style="border-top:1px solid #f3f4f6;padding:10px 0">' +
+        '<div style="font-size:14px;font-weight:700">' + h(x.production_item) +
+        ' <span style="font-weight:500;color:#6b7280">' + h(x.item_name || '') + '</span></div>' +
+        '<div style="font-size:12px;color:#6b7280;margin:3px 0 8px">' + h(x.name) +
+        ' · ' + h(x.status) + ' · đã làm ' + ptSo(x.produced_qty) + '/' + ptSo(x.qty) + '</div>' +
+        '<button class="btn2 ptDong" data-ma="' + h(x.name) + '" data-i="' + i +
+        '" style="margin:0;height:36px;font-size:13px">Đóng lệnh này</button></div>';
+    });
+    html += '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
+      'Đóng chứ không xoá. Lệnh vẫn tra lại được, chỉ thôi đòi nguyên liệu.</div>';
+  }
+  html += '</div>';
+
+  var ton = d.ton_con_lai || [];
+  html += '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">MÃ CÒN TỒN KHO · ' + ptSo(ton.length) + '</div>';
+  if (!ton.length) {
+    html += '<div style="font-size:13px;color:#0f7a44;margin-top:8px">' +
+      '✓ Không mã nào còn tồn.</div>';
+  } else {
+    ton.forEach(function (x) {
+      html += ptO(h(x.item_code) + '<div style="font-size:11.5px;color:#98a2b3">' +
+        h(x.warehouse) + '</div>', ptSo(x.actual_qty) + ' ' + h(x.stock_uom || ''), '#b45309');
+    });
+    html += '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
+      'Số này phải xuất hết hoặc kiểm kê về 0 trước. Bỏ tồn kho khi còn số dư thì ' +
+      'số đó nằm lại trong kho mà không màn nào đọc ra nữa.</div>';
+  }
+  html += '</div>';
+
+  var nhap = d.phieu_nhap || [];
+  if (nhap.length) {
+    html += '<div class="card" style="padding:13px 14px">' +
+      '<div style="font-size:12px;color:#98a2b3">PHIẾU KHO CÒN NHÁP · ' + ptSo(nhap.length) + '</div>' +
+      '<div style="font-size:12.5px;color:#374151;margin:4px 0 8px;line-height:1.6">' +
+      'Nháp thì chưa ghi sổ nên không chặn, nhưng ghi sổ sau khi chuyển Phantom là hỏng. ' +
+      'Anh chị vào Desk xoá hoặc để nguyên rồi bỏ hẳn.</div>';
+    nhap.forEach(function (x) {
+      html += ptO(h(x.name) + '<div style="font-size:11.5px;color:#98a2b3">' +
+        h((x.cac_ma || []).join(', ')) + '</div>', h(x.stock_entry_type || x.purpose || ''));
+    });
+    html += '</div>';
+  }
+
+  var xong = !(d.chan);
+  var b = frame('Dọn chứng từ thử', html, {
+    footer: '<button class="btn" id="ptSang" style="margin:0' +
+      (xong ? '' : ';opacity:.5') + '">' +
+      (xong ? 'Xong, sang bước chuyển Phantom' : 'Còn vướng, xem lại ở trên') + '</button>'
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.ptDong'), function (o) {
+    o.onclick = async function () {
+      var ma = o.getAttribute('data-ma');
+      if (!await confirmSheet('Đóng lệnh ' + ma + '?',
+        'Lệnh vẫn nằm nguyên trên hệ và tra lại được, chỉ thôi đòi nguyên liệu ' +
+        'và thôi chặn việc chuyển Phantom.', 'Đóng lệnh')) return;
+      busy(1);
+      try { var r = await api('vagabond.phantom.dong_lenh', { ma: ma, ly_do: 'Dọn chứng từ thử trước khi chuyển Phantom' }); busy(0); toast((r && r.ghi_chu) || 'Đã đóng lệnh.', 5000); }
+      catch (e) { busy(0); return toast(errMsg(e), 7000); }
+      go(scrDonChungTuThu, true);
+    };
+  });
+
+  var sang = document.getElementById('ptSang');
+  if (sang) sang.onclick = function () {
+    if (!xong) return toast('Còn chứng từ treo hoặc còn tồn kho, dọn nốt rồi hãy sang.', 5500);
+    ptKe = null;
+    go(scrChuyenPhantom);
+  };
+}
+
+/* ---------------- Man 2: chuyen Phantom ---------------- */
+
+async function scrChuyenPhantom() {
+  frame('Chuyển Phantom', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d;
+  try { d = await api('vagabond.phantom.xem_truoc', {}); }
+  catch (e) {
+    frame('Chuyển Phantom',
+      '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>');
+    return;
+  }
+  ptKe = d;
+
+  var noRa = (d.doi_dong || []).filter(function (x) { return x.viec === 'bat_no'; });
+  var chan = (d.doi_dong || []).filter(function (x) { return x.viec === 'chan_no'; });
+
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">BẢN CHẠY THỬ · CHƯA GHI GÌ</div>' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:5px 0 10px">' +
+    'Đây là danh sách máy SẼ đổi nếu anh bấm chạy thật. Đọc kỹ ba con số dưới đây.</div>' +
+    ptO('Mã bán thành phẩm bỏ theo dõi tồn kho', ptSo((d.doi_ma || []).length)) +
+    ptO('Dòng công thức mở nổ xuống nguyên liệu', ptSo(noRa.length)) +
+    ptO('Dòng công thức chặn nổ ở cấp giữ tồn (C1, C2)', ptSo(chan.length)) +
+    ptO('Công thức cha phải dựng lại bảng nổ', ptSo((d.bom_dung_lai || []).length)) +
+    '</div>';
+
+  if (d.hang_rao && d.hang_rao.chan) {
+    html += '<div class="card" style="padding:13px 14px;border:1px solid #f5c2c0;background:#fff5f5">' +
+      '<div style="font-size:12px;color:#b3261e">CHƯA CHẠY THẬT ĐƯỢC</div>' +
+      '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin-top:5px">' +
+      h(d.hang_rao.vi_sao) + '</div>' +
+      '<button class="btn2" id="ptVeDon" style="margin:10px 0 0;height:38px">Sang màn Dọn chứng từ thử</button></div>';
+  }
+
+  if ((d.vuong_dong || []).length) {
+    html += '<div class="card" style="padding:13px 14px">' +
+      '<div style="font-size:12px;color:#b45309">DÒNG CHƯA XỬ ĐƯỢC · ' +
+      ptSo(d.vuong_dong.length) + '</div>' +
+      '<div style="font-size:12.5px;color:#374151;margin:4px 0 8px;line-height:1.6">' +
+      'Những dòng này máy để nguyên, không đụng vào. Xử xong thì chạy lại.</div>';
+    d.vuong_dong.slice(0, 30).forEach(function (x) {
+      html += ptO(h(x.ma) + '<div style="font-size:11.5px;color:#98a2b3">' +
+        h(x.bom_cha) + '</div>', '<span style="font-size:12px;font-weight:500;color:#b45309">' +
+        h(x.vi_sao) + '</span>');
+    });
+    html += '</div>';
+  }
+
+  if ((d.doi_ma || []).length) {
+    html += '<div class="card" style="padding:13px 14px">' +
+      '<div style="font-size:12px;color:#98a2b3">MÃ SẼ THÀNH PHANTOM · ' +
+      ptSo(d.doi_ma.length) + '</div>';
+    d.doi_ma.slice(0, 200).forEach(function (x) {
+      html += ptO(h(x.ma), '<span style="font-size:12.5px;font-weight:500;color:' +
+        (x.vuong ? '#b45309' : '#6b7280') + '">' + h(x.vuong || x.ten || '') + '</span>');
+    });
+    if (d.doi_ma.length > 200) {
+      html += '<div style="font-size:12px;color:#98a2b3;margin-top:8px">' +
+        'và ' + ptSo(d.doi_ma.length - 200) + ' mã nữa.</div>';
+    }
+    html += '</div>';
+  }
+
+  var chayDuoc = !(d.hang_rao && d.hang_rao.chan) && (d.doi_ma || []).length;
+  frame('Chuyển Phantom', html, {
+    footer: '<button class="btn" id="ptChay" style="margin:0;background:#b3261e' +
+      (chayDuoc ? '' : ';opacity:.45') + '">Chạy thật, ghi xuống hệ</button>'
+  });
+
+  var ve = document.getElementById('ptVeDon');
+  if (ve) ve.onclick = function () { go(scrDonChungTuThu); };
+
+  var nut = document.getElementById('ptChay');
+  if (nut) nut.onclick = async function () {
+    if (!chayDuoc) return toast('Chưa chạy thật được, đọc phần màu đỏ ở trên.', 5000);
+    if (!await confirmSheet('Ghi thật xuống hệ?',
+      'Máy sẽ bỏ theo dõi tồn kho của ' + ptSo(d.doi_ma.length) + ' mã và sửa ' +
+      ptSo((d.doi_dong || []).length) + ' dòng công thức. KHÔNG có nút hoàn tác. ' +
+      'Nên chạy ngoài giờ bếp đang làm.', 'Ghi thật')) return;
+    busy(1);
+    var r;
+    try { r = await api('vagabond.phantom.chuyen', { chay_that: 1 }); }
+    catch (e) { busy(0); return toast(errMsg(e), 9000); }
+    busy(0);
+    toast((r && r.ghi_chu) || 'Đã chuyển xong.', 9000);
+    ptKe = null;
+    go(scrChuyenPhantom, true);
+  };
+}
