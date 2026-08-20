@@ -44,8 +44,13 @@ scheduler_events = {
 		# cu; hai duong idempotent nen chay song song mot thoi gian de doi
 		# chieu roi tat kich ban cu.
 		"7,22,37,52 * * * *": ["vagabond.minvoice_dong_bo.dong_bo_tu_dong"],
-		# Keo PDF ban the hien cua hoa don dau vao con thieu, moi gio.
-		"40 * * * *": ["vagabond.minvoice_tep.keo_pdf_thieu"],
+		# BO NHIP KEO PDF (21/08/2026). Duong tai ban the hien cua API
+		# qlhd tra 400 o moi bien the ten tep da thu, va tai lieu cong khai
+		# cua M-Invoice khong noi dinh dang dung. Anh Viet chot: *"Phan ban
+		# the hien hoa don chac thoi khoi keo api... Em cho nut tai len luc
+		# lam APP la duoc roi"*. Nut do nam o man Ho so APP, xem
+		# ho_so_tt.dinh_tep. Ham keo_pdf_thieu giu lai trong ma nguon de
+		# ngay nao co duong dung thi bat lai bang mot dong.
 		# 1h10 dem: quet lui 30 ngay de lanh not "vo ruot" va vet sot cu.
 		"10 1 * * *": ["vagabond.minvoice_dong_bo.tu_lanh_hang_dem"],
 		# Moi 15 phut: duong thu di co dang hong khong. Tu 16/08/2026 ca tiem

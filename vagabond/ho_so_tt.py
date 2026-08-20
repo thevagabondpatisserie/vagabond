@@ -1310,6 +1310,92 @@ def chi_tiet(name):
 
 
 @frappe.whitelist()
+def dinh_tep(name=None, tep=None):
+	"""Dinh tep vao ho so: ban the hien hoa don, bang ke, giay to kem theo.
+
+	Vi sao lam duong nay thay vi keo PDF tu M-Invoice (anh Viet chot
+	21/08/2026: *"Phan ban the hien hoa don chac thoi khoi keo api... Em cho
+	nut tai len luc lam APP la duoc roi"*): duong API cua M-Invoice tra 400
+	o moi bien the ten tep da thu, va cho mot cai khong chac ay thi ke toan
+	truong van khong co gi de duyet. Nguoi lap ho so mo M-Invoice bam tai
+	ve, roi dinh len day - mot thao tac, chac chan.
+
+	Tep da nam san tren may chu (man hinh tai len truoc bang upload_file),
+	o day chi doi con tro `attached_to` cho no thuoc ve ho so. Dung
+	db.set_value chu khong save: File co validate rieng, ma o day khong dung
+	den noi dung tep.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đính tệp vào hồ sơ")
+	if not frappe.db.exists("Vagabond Ho So TT", name):
+		frappe.throw("Không tìm thấy hồ sơ %s. Quay lại danh sách rồi mở lại giúp em." % name)
+	tt = frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai")
+	if tt in (TT_HUY, TT_TU_CHOI):
+		frappe.throw(
+			"Hồ sơ %s đã %s nên không đính thêm giấy tờ được. Lập hồ sơ mới "
+			"nếu vẫn cần thanh toán." % (name, NHAN.get(tt, tt).lower())
+		)
+	if isinstance(tep, str):
+		try:
+			tep = frappe.parse_json(tep)
+		except Exception:
+			tep = [tep]
+	if isinstance(tep, dict):
+		tep = [tep]
+	if not tep:
+		frappe.throw("Chưa chọn tệp nào. Bấm nút chọn tệp rồi thử lại giúp em.")
+	da_gan = 0
+	for t in tep:
+		ma_tep = t.get("ma") if isinstance(t, dict) else t
+		if not ma_tep or not frappe.db.exists("File", ma_tep):
+			continue
+		frappe.db.set_value("File", ma_tep, {
+			"attached_to_doctype": "Vagabond Ho So TT",
+			"attached_to_name": name,
+			"is_private": 1,
+		}, update_modified=False)
+		da_gan += 1
+	if not da_gan:
+		frappe.throw(
+			"Tệp gửi lên không còn trên máy chủ. Chọn tệp rồi bấm đính lại giúp em."
+		)
+	try:
+		frappe.get_doc("Vagabond Ho So TT", name).add_comment(
+			"Comment", "Đính thêm %d tệp chứng từ vào hồ sơ." % da_gan
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghi vet dinh tep")
+	frappe.db.commit()
+	return {
+		"ok": 1, "da_gan": da_gan,
+		"tep": _dinh_kem([("Vagabond Ho So TT", name)]),
+		"ghi_chu": "Đã đính %d tệp vào hồ sơ %s." % (da_gan, name),
+	}
+
+
+@frappe.whitelist()
+def go_tep(name=None, tep=None):
+	"""Go mot tep dinh nham khoi ho so. KHONG xoa tep, chi bo lien ket."""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "gỡ tệp khỏi hồ sơ")
+	if not frappe.db.exists("Vagabond Ho So TT", name):
+		frappe.throw("Không tìm thấy hồ sơ %s." % name)
+	f = frappe.db.get_value(
+		"File", {"name": tep, "attached_to_doctype": "Vagabond Ho So TT", "attached_to_name": name},
+		["name", "file_name"], as_dict=True,
+	)
+	if not f:
+		frappe.throw("Tệp này không nằm trên hồ sơ %s. Tải lại trang giúp em." % name)
+	frappe.db.set_value("File", f.name, {
+		"attached_to_doctype": None, "attached_to_name": None,
+	}, update_modified=False)
+	try:
+		frappe.get_doc("Vagabond Ho So TT", name).add_comment("Comment", "Gỡ tệp %s khỏi hồ sơ." % (f.file_name or f.name))
+	except Exception:
+		pass
+	frappe.db.commit()
+	return {"ok": 1, "tep": _dinh_kem([("Vagabond Ho So TT", name)])}
+
+
+@frappe.whitelist()
 def duyet(name, buoc, ly_do=""):
 	"""buoc: gui_fin / fin / gd / tu_choi / huy.
 

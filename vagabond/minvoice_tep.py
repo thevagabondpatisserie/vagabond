@@ -95,11 +95,12 @@ TRUONG_MOI = {
 		},
 		{
 			"fieldname": "minvoice_pdf_bat", "label": "Tự kéo PDF bản thể hiện",
-			"fieldtype": "Check", "insert_after": "sec_minvoice_pdf", "default": "1",
+			"fieldtype": "Check", "insert_after": "sec_minvoice_pdf", "default": "0",
 			"description": (
-				"Bật thì mỗi giờ máy kéo PDF bản thể hiện của hoá đơn đầu vào "
-				"về làm tệp đính kèm, để hồ sơ APP tự có hoá đơn cho kế toán "
-				"trưởng duyệt."
+				"ĐANG TẮT từ 21/08/2026: đường tải bản thể hiện của API "
+				"M-Invoice trả lỗi 400 ở mọi biến thể đã thử. Bản thể hiện nay "
+				"tải tay bằng nút trên màn Hồ sơ APP. Khi nào M-Invoice cho "
+				"đúng đường thì sửa minvoice_tep._tai_pdf_tho rồi bật lại ô này."
 			),
 		},
 		{
@@ -281,7 +282,7 @@ def dinh_vao_ho_so(doc):
 	sap thi ho so van phai tao duoc (nguyen tac 2 o dau tep).
 	"""
 	try:
-		if not cint(_cai_dat_chung().get("minvoice_pdf_bat") or 1):
+		if not cint(_cai_dat_chung().get("minvoice_pdf_bat")):
 			return 0
 		da_dinh = 0
 		da_gap = set()
@@ -335,7 +336,7 @@ def keo_pdf_thieu():
 		if not frappe.db.exists("DocType", DT_HD):
 			return
 		c = _cai_dat_chung()
-		if not cint(c.get("minvoice_pdf_bat") or 1):
+		if not cint(c.get("minvoice_pdf_bat")):
 			return
 		ngay_giu = cint(c.get("minvoice_pdf_ngay_giu")) or 60
 		bo_qua = _bo_qua()

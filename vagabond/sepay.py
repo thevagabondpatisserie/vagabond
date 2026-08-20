@@ -241,13 +241,56 @@ def _tach_chu_ky(tho):
 	return [x for x in dict.fromkeys(ra) if x]
 
 
-def _hmac_dung(khoa, than):
+def _moc_gio_gui_len():
+	"""Moc gio SePay gui kem, header X-SePay-Timestamp.
+
+	Nghiem thu 21/08/2026 tren nhat ky gui that cua SePay: moi goi tin deu
+	mang ca X-SePay-Signature va X-SePay-Timestamp. Nhieu he ky tren chuoi
+	GHEP moc gio voi than goi chu khong ky rieng than, nen phai giu lay con
+	so nay de con thu.
+	"""
+	try:
+		h = frappe.request.headers
+	except Exception:
+		return ""
+	for ten in ("X-SePay-Timestamp", "X-Sepay-Timestamp", "X-Timestamp"):
+		v = (h.get(ten) or "").strip()
+		if v:
+			return v
+	return ""
+
+
+def _cac_chuoi_ky(than, moc):
+	"""Cac chuoi CO THE da duoc ky, thu lan luot.
+
+	Vi sao phai thu nhieu: webhook "ERP Next" cua tiem tra 401 lien tuc 328
+	lan trong ngay 20/08/2026, va tai lieu cong khai cua SePay khong noi ro
+	chuoi ky gom nhung gi. Bon dang duoi day la bon cach cac cong thanh toan
+	hay dung. Thu them mot dang khong lam yeu xac thuc: van phai co dung
+	khoa bi mat moi tinh ra duoc chu ky, chi la minh khong con phai doan
+	dung mot cach ghep.
+	"""
+	ra = [than]
+	if moc:
+		m = moc.encode("utf-8")
+		ra.append(m + b"." + than)
+		ra.append(m + than)
+		ra.append(than + m)
+	return ra
+
+
+def _hmac_dung(khoa, than, moc=None):
 	"""Cac dang chu ky hop le cho mot khoa va mot goi tin. Hex va base64."""
 	import base64
 	import hashlib
 
-	tho = hmac.new(khoa.encode("utf-8"), than, hashlib.sha256).digest()
-	return {tho.hex(), tho.hex().upper(), base64.b64encode(tho).decode()}
+	ra = set()
+	for chuoi in _cac_chuoi_ky(than, moc):
+		tho = hmac.new(khoa.encode("utf-8"), chuoi, hashlib.sha256).digest()
+		ra.add(tho.hex())
+		ra.add(tho.hex().upper())
+		ra.add(base64.b64encode(tho).decode())
+	return ra
 
 
 def _kiem_hmac():
@@ -263,9 +306,10 @@ def _kiem_hmac():
 		return False, False
 
 	than = _than_tho()
+	moc = _moc_gio_gui_len()
 	dung = set()
 	for khoa in cac_khoa:
-		dung |= _hmac_dung(khoa, than)
+		dung |= _hmac_dung(khoa, than, moc)
 	for x in _tach_chu_ky(gui):
 		for y in dung:
 			if hmac.compare_digest(x, y):
@@ -277,9 +321,16 @@ def _kiem_hmac():
 	# ra dieu do, khoi phai doan lan nua.
 	try:
 		frappe.log_error(
-			"Chu ky nhan duoc: %s\nDo dai goi tin: %d byte\n"
-			"Chu ky may tinh ra (hex, 12 ky tu dau): %s"
-			% (gui[:200], len(than), sorted(dung)[0][:12]),
+			"Chu ky nhan duoc: %s\nMoc gio nhan duoc: %s\n"
+			"Do dai goi tin: %d byte\nSo khoa da thu: %d\n"
+			"So cach ghep chuoi ky da thu: %d\n"
+			"Chu ky may tinh ra (hex, 12 ky tu dau): %s\n\n"
+			"Da thu ca bon cach ghep (than; moc.than; moc+than; than+moc) "
+			"voi moi khoa dang khai. Van khong khop nghia la KHOA BI MAT "
+			"dang luu trong Cai dat khac voi khoa ben SePay: vao Cai dat, "
+			"the SePay, dan lai Secret Key cua webhook do."
+			% (gui[:200], moc or "(khong co)", len(than), len(cac_khoa),
+			   len(_cac_chuoi_ky(than, moc)), sorted(dung)[0][:12]),
 			"sepay: chu ky HMAC khong khop",
 		)
 	except Exception:

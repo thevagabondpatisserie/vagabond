@@ -523,19 +523,17 @@ BANG_NCC = khai.bang(
 	xep=lambda r, bc=None: "ngung" if r.get("disabled") else "dang",
 	sap="supplier_name asc",
 	tom_tat=[("_dong", "Số nhà cung cấp", "so")],
+	# Nut Tao moi dan sang man RIENG (NCCTAO) chu khong dung form chung.
+	#
+	# Vi sao: form chung chi ghi duoc cac truong nam tren chinh bang
+	# Supplier. Ma ho so mot nha cung cap nam o BON bang - dia chi o
+	# Address, email o Contact, so tai khoan o Bank Account. Uyen tao bang
+	# form chung ngay 21/08/2026 thi ra mot cai ten trong danh sach, den luc
+	# gui don mua hang moi phat hien khong co email de gui.
 	tao=khai.tao(
 		nhan="Tạo nhà cung cấp",
 		quyen=SUA_MUA,
-		o=[
-			khai.o("supplier_name", "Tên nhà cung cấp", "chu", bat_buoc=1),
-			khai.o("supplier_group", "Nhóm nhà cung cấp", "lien_ket",
-			       doctype="Supplier Group", bat_buoc=1),
-			khai.o("tax_id", "Mã số thuế", "chu",
-			       mo_ta="Điền sớm thì tới lúc nhận hoá đơn không phải quay lại sửa."),
-			khai.o("supplier_type", "Loại", "chon",
-			       chon=[("Company", "Công ty"), ("Individual", "Cá nhân")],
-			       mac_dinh="Company"),
-		],
+		di_toi="NCCTAO",
 	),
 )
 
