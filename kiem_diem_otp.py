@@ -5853,6 +5853,11 @@ la("phieu da ghi so thi khong dung vao", "docstatus" in _gan49, True)
 # Duong du phong khi ERPNext doi cach goi.
 la("co duong du phong cong thang so kho", "Stock Ledger Entry" in _lh49, True)
 
+# Cau bao loi phai goi TEN MON chu khong phai ma tran: o before_validate
+# ERPNext chua kip dien item_name, va bep khong thuoc ma NVLT00166.
+la("tra ten mon cho cau bao loi", "def _ten_hang(" in _lh49, True)
+la("cau bao loi dung ten mon", "_ten_hang(d, ma)" in _lh49, True)
+
 # ---------- 49.2 Hop xac nhan phai xo so nguyen lieu se tru ----------
 la("co phep tinh nguyen lieu cua ke hoach", "async function mfgNvlCuaKe(" in _sx49, True)
 _hop49 = _sx49.split("Máy làm luôn giúp bếp")[1][:1400]
