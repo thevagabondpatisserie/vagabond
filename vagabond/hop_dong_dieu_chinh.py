@@ -375,9 +375,14 @@ def cap_nhat_so_lieu(name, gt=None):
 		frappe.throw("Giá trị hợp đồng không âm được. Kiểm lại con số vừa gõ giúp em.")
 	if "dat_coc_pt" in dat and not (0 <= dat["dat_coc_pt"] <= 100):
 		frappe.throw("Phần trăm đợt 1 phải nằm trong khoảng 0 đến 100.")
+	# Chup lai TEN O TRUOC khi goi set_value: Frappe nhet them `modified` va
+	# `modified_by` vao chinh cai dict minh dua vao, nen doc sau khi goi thi
+	# man hinh bao "da luu 6 o" trong khi nguoi ta chi sua 4. Bat duoc luc
+	# chay thu tren site that ngay 21/08/2026.
+	da_sua = sorted(dat.keys())
 	frappe.db.set_value(DT, doc.name, dat)
 	frappe.db.commit()
-	return {"ok": 1, "da_sua": sorted(dat.keys())}
+	return {"ok": 1, "da_sua": da_sua}
 
 
 @frappe.whitelist()
@@ -567,13 +572,30 @@ def tai_ban_chot(name, ten=None, noi_dung=None, ghi_chu=None):
 			% ("{:.1f}".format(so_byte / 1024.0 / 1024.0))
 		)
 
-	f = frappe.get_doc({
-		"doctype": "File", "file_name": ten,
-		"attached_to_doctype": DT, "attached_to_name": doc.name,
-		"content": noi, "decode": True, "is_private": 1,
-	})
-	f.flags.ignore_permissions = True
-	f.insert(ignore_permissions=True)
+	# Frappe tu kiem va nen lai tep PDF luc luu. Tep hong thi no nem
+	# PdfStreamError - mot cau tieng Anh khong noi len dieu gi voi Sales
+	# dang dung dien thoai. Boc lai theo QT-24: noi ro phai lam gi tiep.
+	#
+	# Luu y cho nguoi doc sau: phep kiem do la CUA KHUNG Frappe, khong phai
+	# cua tep nay. No chi xac nhan tep con doc duoc, va KHONG rut mot con
+	# so nao ra khoi tep. Nguyen tac so mot o dau tep van nguyen ven.
+	try:
+		f = frappe.get_doc({
+			"doctype": "File", "file_name": ten,
+			"attached_to_doctype": DT, "attached_to_name": doc.name,
+			"content": noi, "decode": True, "is_private": 1,
+		})
+		f.flags.ignore_permissions = True
+		f.insert(ignore_permissions=True)
+	except Exception as e:
+		if "Pdf" in type(e).__name__ or "pdf" in str(e).lower():
+			frappe.log_error(frappe.get_traceback(), "hop_dong_dieu_chinh: tep PDF hong")
+			frappe.throw(
+				"Tệp PDF này máy đọc không ra, nhiều khả năng nó hỏng hoặc bị "
+				"khoá mật khẩu. Mở lại bằng máy tính, bấm In rồi chọn Lưu thành "
+				"PDF để xuất một bản mới, xong tải lên lại giúp em."
+			)
+		raise
 
 	frappe.db.set_value(DT, doc.name, {
 		"tep_hop_dong_chot": f.file_url,
