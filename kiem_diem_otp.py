@@ -5102,6 +5102,219 @@ for _k44, _b44 in sorted(_DM44b.items()):
 			la("o chon %s cua %s co danh sach" % (_o44["k"], _b44["ma"]),
 			   len(_o44.get("chon") or []) >= 2, True)
 
+# ============================================================
+# 45. v244: Thuong thao va Dieu chinh hop dong (Contract Amendment)
+# ============================================================
+#
+# Loan Anh ben Sales dat bai, anh Viet chuyen sang 21/08/2026: *"Khach hang
+# yeu cau chinh sua dieu khoan hop dong sau khi nhan duoc ban he thong sinh
+# ra."*
+#
+# NHOM NAY CO BA CA QUAN TRONG HON CA PHAN CON LAI, dat ngay dau nhom:
+# duong TEP khong duoc doc tep cua khach. Anh Viet: *"Tuyet doi KHONG dung
+# AI hay tool tu dong doc file cua khach de ghi de so lieu vao Database."*
+#
+# Vi sao ba ca do dang mot nhom rieng: chung khong kiem mot tinh nang, chung
+# kiem mot RANH GIOI. Tinh nang hong thi nguoi dung keu ngay; ranh gioi nay
+# vo thi mot con so sai chay thang vao hoa don, so ke toan va lenh xuat kho,
+# ma van trong rat hop ly - khong ai keu ca.
+print("\n[45] v244: Thuong thao va Dieu chinh hop dong")
+
+_hdc45 = open("vagabond/hop_dong_dieu_chinh.py", encoding="utf-8").read()
+_hd45 = open("vagabond/hop_dong.py", encoding="utf-8").read()
+_pdf45 = open("vagabond/hop_dong_pdf.py", encoding="utf-8").read()
+_js45 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_dt45 = json.load(open(
+	"vagabond/vagabond/doctype/hop_dong_ban_hang/hop_dong_ban_hang.json", encoding="utf-8"))
+_pb45 = json.load(open(
+	"vagabond/vagabond/doctype/hop_dong_phien_ban/hop_dong_phien_ban.json", encoding="utf-8"))
+
+# ---------- 45.1 RANH GIOI: duong tep KHONG doc tep ----------
+#
+# Cat rieng phan "duong tep" ra roi soi. Soi ca tep thi khong noi len duoc
+# gi: mo dun nao cung co the co chu "pdf" o dau do trong mot cau ghi chu.
+_duong_tep45 = _hdc45.split("# ĐƯỜNG TỆP: nhận bản hợp đồng hai bên đã chốt bên ngoài")[1]
+
+# Moi ten thu vien doc PDF, rut chu, hay goi mo hinh. Danh sach nay chan
+# theo TEN chu khong theo y dinh: ai them mot thu vien doc PDF vao day thi
+# ca kiem keu, va do dung la luc can mot nguoi that ngoi lai suy nghi.
+_CAM_DOC45 = (
+	"PdfReader", "PyPDF", "pypdf", "pdfplumber", "fitz", "pymupdf",
+	"pdfminer", "extract_text", "get_text", "OCR", "pytesseract",
+	"tesseract", "openai", "anthropic", "gemini", "llm", "completion",
+	"embedding", "vision", "parse_pdf", "doc_intelligence",
+)
+_lot45 = sorted({x for x in _CAM_DOC45 if x.lower() in _duong_tep45.lower()})
+la("duong tep KHONG dung thu vien doc PDF hay goi mo hinh nao", _lot45, [])
+
+# Duong tep khong duoc GHI mot truong tai chinh nao. Day la ca bat duoc
+# dung cai hong nguy hiem nhat: doc tep roi am tham dien gia vao hop dong.
+_TIEN45 = ("gia_tri", "dat_coc_pt", "dat_coc_tien", "ngay_dot1", "ngay_dot2")
+_ghi_tien45 = sorted({t for t in _TIEN45 if ('"%s"' % t) in _duong_tep45})
+la("duong tep KHONG ghi mot truong tai chinh nao", _ghi_tien45, [])
+
+# Va nguoc lai: duong SO LIEU khong duoc dong vao tep.
+_duong_so45 = _hdc45.split("def cap_nhat_so_lieu(")[1].split("\n@frappe.whitelist()")[0]
+la("duong so lieu khong doc tep nao",
+   any(x in _duong_so45 for x in ("get_content", "b64decode", "file_url", "File")), False)
+la("duong so lieu nhan so tu goi tin cua man hinh", "loc_o_sua_duoc(goi)" in _duong_so45, True)
+
+# ---------- 45.2 Phep thuan: so sanh phien ban ----------
+_ns45 = {}
+exec(compile(_hdc45.split("# PHẦN CHẠM CƠ SỞ DỮ LIỆU")[0], "hop_dong_dieu_chinh:thuan", "exec"), _ns45)
+H45_so = _ns45["so_sanh"]
+H45_chuan = _ns45["chuan"]
+H45_loc = _ns45["loc_o_sua_duoc"]
+H45_nhan = _ns45["nhan_phien_ban"]
+H45_TRUONG = _ns45["TRUONG_THEO_DOI"]
+H45_SUA = _ns45["SUA_DUOC"]
+
+# Chuan hoa: cung mot con so ma Frappe tra ve ba kieu khac nhau.
+la("so nguyen va so thuc bang nhau sau khi chuan", H45_chuan(50000, "tien"), H45_chuan(50000.0, "tien"))
+la("chuoi so va so bang nhau sau khi chuan", H45_chuan("50000", "tien"), H45_chuan(50000, "tien"))
+la("o rong kieu tien ve khong", H45_chuan(None, "tien"), 0)
+la("o rong kieu chu ve chuoi rong", H45_chuan(None, "chu"), "")
+la("chu co khoang trang thua van bang nhau", H45_chuan(" Vagabond ", "chu"), H45_chuan("Vagabond", "chu"))
+
+_cu45 = {"ten": "HĐ tiệc cưới", "gia_tri": 50000000, "dat_coc_pt": 50,
+         "ngay_su_kien": "2026-09-10", "dia_diem_giao": "Số 1 Lê Lợi"}
+_moi45 = {"ten": "HĐ tiệc cưới", "gia_tri": 42000000, "dat_coc_pt": 30,
+          "ngay_su_kien": "2026-09-17", "dia_diem_giao": "Số 1 Lê Lợi"}
+_k45 = H45_so(_cu45, _moi45)
+la("bat dung ba o da doi", len(_k45), 3)
+la("o khong doi thi khong vao bang",
+   any(x["truong"] in ("ten", "dia_diem_giao") for x in _k45), False)
+la("ghi lai ca gia tri cu", [x["tu"] for x in _k45 if x["truong"] == "gia_tri"], [50000000])
+la("ghi lai ca gia tri moi", [x["den"] for x in _k45 if x["truong"] == "gia_tri"], [42000000])
+la("bang khac biet chua dung ba o do",
+   sorted(x["truong"] for x in _k45), ["dat_coc_pt", "gia_tri", "ngay_su_kien"])
+la("hai ban giong het nhau thi bang khac biet rong", H45_so(_cu45, dict(_cu45)), [])
+la("so 50000 va chuoi 50000 khong bi coi la doi",
+   H45_so({"gia_tri": 50000}, {"gia_tri": "50000"}), [])
+# Dien gia tri DUNG KIEU cho tung o roi so voi mot anh chup rong: phai bat
+# het moi o. Dien "x" cho ca o tien thi chuan() doc ra 0, ma o rong cung la
+# 0, nen nam o tien khong keu - dung nhu no phai the.
+_day45 = {}
+for _k45b, _n45b, _kieu45b in H45_TRUONG:
+	_day45[_k45b] = 7 if _kieu45b in ("tien", "so") else ("2026-09-10" if _kieu45b == "ngay" else "x")
+_het45 = H45_so({}, _day45)
+la("anh chup rong so voi ban dien du thi bat het moi o", len(_het45), len(H45_TRUONG))
+# Thu tu bang khac biet phai bam DUNG thu tu khai bao, khong phai thu tu
+# ngau nhien cua dict hay thu tu chu cai. Giam doc doc muoi dong thi thu tu
+# phai co dinh, khong thi lan nao mo ra cung nhu mot to moi.
+#
+# So CA danh sach chu khong so vai o le: ba o le rat de trung nhau giua thu
+# tu khai bao va thu tu chu cai, va luc do ca kiem xanh ma thu tu da hong.
+la("thu tu bang khac biet bam dung thu tu khai bao",
+   [x["truong"] for x in _het45], [k for k, _, _ in H45_TRUONG])
+la("o tien de trong va o tien ghi chu la cung mot con so khong",
+   H45_so({"gia_tri": None}, {"gia_tri": "khong phai so"}), [])
+
+# Loc o sua duoc: hang rao that, khong phai trang tri.
+la("bo o khong nam trong danh sach sua duoc",
+   sorted(H45_loc({"gia_tri": 1, "khach_hang": "KL-001", "trang_thai": "Huỷ"})), ["gia_tri"])
+la("khong cho doi khach hang giua chung", "khach_hang" in H45_SUA, False)
+la("khong cho doi bao gia nguon giua chung", "bao_gia" in H45_SUA, False)
+la("khong cho doi trang thai qua duong nay", "trang_thai" in H45_SUA, False)
+la("cho sua gia tri hop dong", "gia_tri" in H45_SUA, True)
+# Moi o sua duoc phai nam trong danh sach theo doi, khong thi sua xong ma
+# bang khac biet khong noi gi.
+_ngoai45 = sorted(set(H45_SUA) - {k for k, _, _ in H45_TRUONG})
+la("moi o sua duoc deu duoc theo doi trong nhat ky", _ngoai45, [])
+la("nhan phien ban dung dang", H45_nhan(2), "Hợp đồng v2")
+
+# ---------- 45.3 Vong doi ----------
+_MO45 = _ns45["MO_DUOC"]
+la("mo duoc tu Nhap", "Nháp" in _MO45, True)
+# Day la trang thai QUAN TRONG NHAT: khach doi sua SAU KHI da nhan ban he
+# thong sinh ra, va gui thu xong la hop dong roi vao dung trang thai nay.
+la("mo duoc tu Da gui khach", "Đã gửi khách" in _MO45, True)
+la("mo duoc tu Dang thuc hien", "Đang thực hiện" in _MO45, True)
+la("KHONG mo tu Hoan tat", "Hoàn tất" in _MO45, False)
+la("KHONG mo tu Da thanh ly", "Đã thanh lý" in _MO45, False)
+la("KHONG mo tu Huy", "Huỷ" in _MO45, False)
+
+_tt45 = [f for f in _dt45["fields"] if f["fieldname"] == "trang_thai"][0]["options"].split("\n")
+for _t45 in ("Nháp", "Đã gửi khách", "Đang thương thảo", "Đang thực hiện",
+             "Hoàn tất", "Đã thanh lý", "Huỷ"):
+	la("doctype co trang thai %s" % _t45, _t45 in _tt45, True)
+# "Da gui khach" tung duoc gui_email ghi vao bang set_value ma KHONG co
+# trong o chon - moi hop dong da gui deu mang mot trang thai vo hinh.
+la("gui email dat trang thai qua hang so, khong go chuoi tay",
+   'set_value(DT, name, "trang_thai", TT_DA_GUI)' in _pdf45, True)
+
+# Bat buoc ghi ly do khi mo thuong thao.
+_mo45 = _hdc45.split("def mo_thuong_thao(")[1].split("\n@frappe.whitelist()")[0]
+la("mo thuong thao bat buoc ghi ly do", "len(ly_do) < 5" in _mo45, True)
+la("chup ban goc truoc khi ai dung vao", "if not _so_phien_ban(doc.name):" in _mo45, True)
+la("nho lai trang thai cu de con tra ve", '"tt_truoc_thuong_thao": tt_cu' in _mo45, True)
+la("canh bao khi hop dong da co hoa don", "_tien_hoa_don(doc.name)" in _mo45, True)
+
+# Khong cho di duong vong: doi trang thai tay khong thoat duoc thuong thao.
+la("doi trang thai tay khong thoat duoc thuong thao",
+   "dang == TT_THUONG_THAO" in _hd45, True)
+la("man hinh cung khong bay Dang thuong thao ra o doi trang thai tay",
+   "'Nháp', 'Đã gửi khách', 'Đang thực hiện', 'Hoàn tất', 'Đã thanh lý', 'Huỷ'" in _js45, True)
+# Sua so lieu chi mo khi DANG thuong thao.
+la("chi sua so lieu khi dang thuong thao",
+   'doc.trang_thai != TT_THUONG_THAO' in _duong_so45, True)
+
+# ---------- 45.4 Phien ban ----------
+la("co doctype luu phien ban rieng", _pb45["name"], "Hop Dong Phien Ban")
+_ten_pb45 = {f["fieldname"] for f in _pb45["fields"]}
+for _f45 in ("hop_dong", "phien_ban", "anh_chup", "khac_biet", "ly_do", "nguoi", "luc"):
+	la("phien ban co truong %s" % _f45, _f45 in _ten_pb45, True)
+# Giu CA to chu khong chi giu phan khac biet.
+la("anh chup giu nguyen van ca to", '"anh_chup": json.dumps(anh_chup(doc)' in _hdc45, True)
+la("anh chup va bang khac biet la chi doc",
+   all([f for f in _pb45["fields"] if f["fieldname"] == k][0].get("read_only") == 1
+       for k in ("anh_chup", "khac_biet")), True)
+_chot45 = _hdc45.split("def chot_dieu_chinh(")[1].split("\n@frappe.whitelist()")[0]
+la("chot thi so voi ban truoc do", "_ban_moi_nhat(doc.name)" in _chot45, True)
+la("chot thi tra hop dong ve trang thai cu", 'doc.get("tt_truoc_thuong_thao")' in _chot45, True)
+la("chot xong bao Giam doc", "_bao_giam_doc(doc, pb, khac)" in _chot45, True)
+# Dong thuong thao thi KHONG sinh phien ban: khong co gi duoc chot ca.
+_huy45 = _hdc45.split("def huy_thuong_thao(")[1].split("\ndef _bao_giam_doc(")[0]
+la("dong thuong thao khong sinh phien ban", "_ghi_phien_ban(" in _huy45, False)
+la("dong thuong thao van ghi mot dong nhat ky", "add_comment" in _huy45, True)
+
+# ---------- 45.5 Ban hop dong da chot thay ban may tu sinh ----------
+la("co duong tai ban chot", "def tai_ban_chot(" in _hdc45, True)
+la("chi nhan PDF", 'DUOI_NHAN = (".pdf",)' in _hdc45, True)
+la("tep cat rieng tu", '"is_private": 1' in _duong_tep45, True)
+# Chan o MAY CHU chu khong chi an nut: duong gui email va duong tai ve deu
+# di qua xuat_pdf, an nut chi bit mot cua.
+_xp45 = _pdf45.split("def xuat_pdf(")[1].split("\n# ---")[0]
+la("xuat PDF tu sinh bi chan khi da co ban chot", "if ban_chot_cua(name):" in _xp45, True)
+_ge45 = _pdf45.split("def gui_email(")[1]
+la("gui email dinh kem ban da chot khi co",
+   "tai_ve_ban_chot(name) if la_ban_chot else xuat_pdf(name)" in _ge45, True)
+la("chi mot cong duy nhat hoi co ban chot hay khong",
+   _pdf45.count("ban_chot_cua(name)"), 2)
+# Go ban chot: bat buoc ghi ly do, va KHONG xoa tep (QT-20).
+_go45 = _hdc45.split("def go_ban_chot(")[1].split("\ndef ban_chot_cua(")[0]
+la("go ban chot bat buoc ghi ly do", "Phải ghi lý do gỡ" in _go45, True)
+la("go ban chot khong xoa tep", any(x in _go45 for x in ("delete_doc", "remove_file")), False)
+la("go ban chot van ghi vet", "add_comment" in _go45, True)
+# Canh bao tren man phai dung nguyen van cau anh Viet dat ra.
+la("man hinh canh bao dung cau ghi de",
+   "sẽ ghi đè và thay thế bản hợp đồng tự sinh của hệ thống" in _js45, True)
+la("man hinh noi ro may khong doc tep", "không đọc</b> nội dung tệp" in _js45, True)
+la("form sua so lieu nhac Sales go tay", "Anh chị gõ tay từng ô" in _js45, True)
+
+# ---------- 45.6 Man hinh ----------
+la("co nut Dieu chinh tren man chi tiet", "hdTtMo" in _js45, True)
+la("co nut Upload ban Hop dong da chot", "Upload bản Hợp đồng đã chốt" in _js45, True)
+la("co man sua so lieu rieng", "function scrHdSuaSoLieu(" in _js45, True)
+la("co nhat ky thay doi tren man", "function hdXemLichSu(" in _js45, True)
+la("chi tiet hop dong tra ve so phien ban", '"so_phien_ban"' in _hd45, True)
+# Danh sach o tren man phai nam gon trong danh sach may chu cho sua, khong
+# thi Sales go xong bam Luu ma o do bi bo lang le.
+_o_man45 = re.findall(r"\{ k: '([a-z_0-9]+)', nhan:", _js45.split("var HD_O_SUA = [")[1].split("];")[0])
+la("man hinh bay dung so o", len(_o_man45) >= 15, True)
+la("moi o tren man deu nam trong danh sach may chu cho sua",
+   sorted(set(_o_man45) - set(H45_SUA)), [])
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
