@@ -912,6 +912,7 @@ def gui_duyet(ma_phieu):
 	doc.trang_thai = TT_CHO_DUYET
 	doc.gui_luc = now_datetime()
 	doc.save(ignore_permissions=True)
+	_bao_buoc_ke_tiep(doc)
 	return {"ok": 1, "trang_thai": doc.trang_thai}
 
 
@@ -948,10 +949,48 @@ def duyet(ma_phieu, ghi_chu=None):
 	if (ghi_chu or "").strip():
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
+	_bao_buoc_ke_tiep(doc)
 	return {
 		"ok": 1, "trang_thai": doc.trang_thai,
 		"nhan_trang_thai": NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai,
 	}
+
+
+def _bao_buoc_ke_tiep(doc):
+	"""Bắn thông báo cho người phải duyệt ở BƯỚC KẾ TIẾP.
+
+	Anh Việt 20/08/2026: *"Khi có một phiếu mới chuyển sang trạng thái chờ
+	duyệt của đúng User đó, hệ thống phải bắn notification."*
+
+	Bắn theo VAI chứ không theo tên người, cùng lý do đã ghi ở đầu tệp: viết
+	cứng tên thì ai nghỉ phép là tắc.
+
+	KHÔNG BAO GIỜ ném lỗi: phiếu đã duyệt xong và đã lưu rồi, một cái chuông
+	hỏng không được phép cuốn theo thao tác duyệt thật.
+	"""
+	try:
+		from vagabond import thong_bao
+
+		vai = {
+			TT_CHO_DUYET: VAI_DUYET,
+			TT_CHO_GIAM_DOC: VAI_GIAM_DOC,
+			TT_CHO_KE_TOAN: VAI_KE_TOAN,
+		}.get(doc.trang_thai)
+		if not vai:
+			return
+		tien = tien_phieu(doc.as_dict() if hasattr(doc, "as_dict") else doc)
+		thong_bao.bao_cho_vai(
+			sorted(vai),
+			"Phiếu chờ bạn duyệt",
+			"%s · %s đ · %s" % (
+				doc.name, _tien(tien),
+				(doc.get("ten_khoan_chi") or "").strip() or "đề nghị chi",
+			),
+			"/bep",
+			"ttnb-%s" % doc.name,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: bao buoc ke tiep loi")
 
 
 @frappe.whitelist()
