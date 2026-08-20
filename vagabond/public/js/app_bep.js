@@ -15132,7 +15132,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '250';
+var APPVER = '251';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -28553,9 +28553,6 @@ async function scrBgCaiDat() {
   };
 }
 
-})();
-
-
 
 /* ---------------- Chuyen BTP cap 1 thanh Phantom (anh Viet giao 21/08/2026)
 
@@ -28767,3 +28764,18 @@ async function scrChuyenPhantom() {
     go(scrChuyenPhantom, true);
   };
 }
+})();
+
+/* Phan DONG VO, luon la phan CUOI CUNG cua ban ghep.
+   -------------------------------------------------
+   Ca app nam trong mot vo ham do `00-nen.js` mo ra. Phan nao ghep SAU dong
+   vo thi nam ngoai vo, khong thay `frame`, `api`, `go` nua, va man hinh cua
+   no chet ngay khi bam vao.
+
+   Chuyen do da xay ra that toi ngay 20/08/2026: phan `24-phantom.js` moi
+   them bi ghep sau `23-dong-vo.js` cu, len that roi bam thi bao
+   "frame is not defined".
+
+   Vi vay tep nay mang so 99 chu khong phai so ke tiep: de phan moi them bao
+   gio cung ghep TRUOC no. `dung_app_bep.py` cung tu kiem lai dieu nay va tu
+   choi ghep neu phan cuoi khong phai phan dong vo. */
