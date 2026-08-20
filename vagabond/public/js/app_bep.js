@@ -631,6 +631,97 @@ function promptSheet(title, placeholder) {
   });
 }
 
+
+/* ==================== PWA: biểu tượng màn hình chính và thông báo đẩy ====
+
+Anh Việt 20/08/2026: *"Khi user dùng tính năng 'Add to Homescreen', hiện tại
+đang mất logo thương hiệu"* và *"Khi có một phiếu mới chuyển sang trạng thái
+chờ duyệt của đúng User đó, hệ thống phải bắn notification làm rung điện
+thoại"*.
+
+Trang /bep không nằm trong git (nó là một Page trên site), nên không chèn
+được thẻ <link rel="manifest"> vào HTML gốc. Thay vào đó chèn từ đây bằng
+JavaScript - hiệu lực y hệt, mà mã nguồn vẫn nằm trong git. */
+
+function pwaGan() {
+  try {
+    if (!document.querySelector('link[rel="manifest"]')) {
+      var l = document.createElement('link');
+      l.rel = 'manifest';
+      l.href = '/manifest.json';
+      document.head.appendChild(l);
+    }
+    /* Màu thanh trạng thái trên điện thoại, cho khớp thanh tiêu đề app. */
+    if (!document.querySelector('meta[name="theme-color"]')) {
+      var m = document.createElement('meta');
+      m.name = 'theme-color';
+      m.content = '#05323C';
+      document.head.appendChild(m);
+    }
+    /* iOS không đọc manifest cho biểu tượng, nó đọc apple-touch-icon. Thiếu
+       thẻ này là iPhone tự chụp màn hình trang làm biểu tượng, và đó chính
+       là cái "mất logo" anh Việt thấy. */
+    if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+      var a = document.createElement('link');
+      a.rel = 'apple-touch-icon';
+      a.href = '/assets/vagabond/pwa/icon-192.png';
+      document.head.appendChild(a);
+    }
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () { });
+    }
+  } catch (e) { }
+}
+
+/* Xin quyền thông báo. CỐ Ý không gọi ngay lúc mở app.
+
+   Trình duyệt chỉ cho hỏi MỘT lần: người dùng bấm Chặn là chặn vĩnh viễn,
+   muốn mở lại phải vào phần cài đặt của trình duyệt tìm từng mục. Nên chỉ
+   hỏi khi người ta đã cài app ra màn hình chính, tức là đã tỏ ý muốn dùng
+   lâu dài, đúng như anh Việt dặn. */
+function pwaDaCaiRaManHinh() {
+  try {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+  } catch (e) { return false; }
+}
+
+async function pwaXinQuyenThongBao(batBuocHoi) {
+  try {
+    if (!('Notification' in window) || !navigator.serviceWorker) return 'khong_ho_tro';
+    if (Notification.permission === 'granted') return await pwaDangKyDay();
+    if (Notification.permission === 'denied') return 'da_chan';
+    if (!batBuocHoi && !pwaDaCaiRaManHinh()) return 'chua_cai';
+    var q = await Notification.requestPermission();
+    if (q !== 'granted') return 'tu_choi';
+    return await pwaDangKyDay();
+  } catch (e) { return 'loi'; }
+}
+
+async function pwaDangKyDay() {
+  try {
+    var kh = await api('vagabond.thong_bao.khoa_cong_khai', {});
+    if (!kh || !kh.khoa) return 'chua_khai_khoa';
+    var reg = await navigator.serviceWorker.ready;
+    var dk = await reg.pushManager.getSubscription();
+    if (!dk) {
+      dk = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: pwaB64(kh.khoa)
+      });
+    }
+    await api('vagabond.thong_bao.dang_ky', { goi: JSON.stringify(dk) });
+    return 'xong';
+  } catch (e) { return 'loi'; }
+}
+
+/* Khoá VAPID gửi xuống dạng base64url, trình duyệt đòi Uint8Array. */
+function pwaB64(s) {
+  var d = (s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(d), ra = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) ra[i] = raw.charCodeAt(i);
+  return ra;
+}
 /* ---------- 3. State + router ---------- */
 var APPNAME = 'The Vagabond Pâtisserie';
 var S = {
@@ -1393,113 +1484,142 @@ function vgbGomNhom() {
   };
 }
 
+/* ---------- Việc cần làm ----------
+
+Anh Việt 20/08/2026: *"Hiện tại màn hình này đang hiển thị sai đối tượng (Kế
+toán đang phải nhìn thấy cả Phiếu nhập kho của Bếp/Kho)."*
+
+Bản cũ gom việc ngay tại đây bằng một loạt lời gọi getList, và dòng lấy Phiếu
+nhập kho không có một điều kiện vai nào cả. Nay toàn bộ việc gom và lọc nằm ở
+máy chủ trong `vagabond/viec_can_lam.py`, màn này chỉ vẽ lại: lọc theo vai mà
+đặt ở máy khách thì sửa vài dòng trong trình duyệt là xem được việc người
+khác. */
+var vclLoc = { loai: '', trang_thai: '' };
+
 async function scrVclList() {
   vgbCss();
   frame('Việc cần làm', '<div class="emp"><div class="e1">⏳</div><div class="e2">Đang gom việc của bạn...</div></div>');
-  var td = today();
-  var giu = khoGiuCuaToi();
-  var khoNhan = giu.length ? giu : S.wh;
-  var TT = typeOf('Material Transfer');
-  var TM = typeOf('Manufacture');
-  var R = [], daCo = {};
-  function them(o) { R.push(o); }
-  function tre(n) { return !!(n && String(n) < td); }
-  async function lay(fn) { try { await fn(); } catch (e) { } }
-
-  await lay(async function () {
-    var ds = await getList('Purchase Receipt', { fields: ['name', 'supplier_name', 'posting_date'], filters: { docstatus: 0 }, limit_page_length: 60, order_by: 'posting_date asc' });
-    (ds || []).forEach(function (x) {
-      them({ nhom: 'Phiếu nhập kho chờ đếm hàng', icon: '📥', t: x.name, s: (x.supplier_name || '') + ' · ' + dmy(x.posting_date), chip: 'chờ nhận', mau: '#1a73c7', mo: function () { go(function () { scrRecvDoc(x.name); }); } });
-    });
-  });
-
-  await lay(async function () {
-    var f = { material_request_type: 'Material Transfer', docstatus: 1, status: ['in', ['Pending', 'Partially Ordered']] };
-    if (giu.length) f.set_from_warehouse = ['in', giu];
-    var ds = await getList('Material Request', { fields: ['name', 'set_from_warehouse', 'set_warehouse', 'schedule_date'], filters: f, limit_page_length: 60, order_by: 'schedule_date asc' });
-    (ds || []).forEach(function (x) {
-      daCo[x.name] = 1;
-      them({ nhom: 'Kho bạn giữ phải soạn hàng', icon: '🧺', t: x.name, s: shortWh(x.set_from_warehouse) + ' → ' + shortWh(x.set_warehouse) + ' · cần ' + dmy(x.schedule_date), chip: tre(x.schedule_date) ? 'trễ hẹn' : 'chờ soạn', mau: tre(x.schedule_date) ? '#c0392b' : '#c77700', mo: function () { go(function () { scrMRView(x.name, TT); }); } });
-    });
-  });
-
-  await lay(async function () {
-    var f = { material_request_type: 'Material Transfer', docstatus: 1, status: ['in', ['Pending', 'Partially Ordered']] };
-    if (khoNhan && khoNhan.length) f.set_warehouse = ['in', khoNhan];
-    var ds = await getList('Material Request', { fields: ['name', 'set_from_warehouse', 'set_warehouse', 'schedule_date', 'per_ordered'], filters: f, limit_page_length: 60, order_by: 'schedule_date asc' });
-    (ds || []).forEach(function (x) {
-      if (daCo[x.name]) return;
-      if (!((x.per_ordered || 0) > 0)) return;
-      daCo[x.name] = 1;
-      them({ nhom: 'Hàng đã chuyển, chờ bạn xác nhận nhận', icon: '📦', t: x.name, s: shortWh(x.set_from_warehouse) + ' → ' + shortWh(x.set_warehouse) + ' · cần ' + dmy(x.schedule_date), chip: 'chờ nhận', mau: '#0a8f9e', mo: function () { go(function () { scrMRView(x.name, TT); }); } });
-    });
-  });
-
-  var bep = shortDep(S.me.bo_phan || '');
-  if (bep && bep.indexOf('Bếp') === 0) {
-    await lay(async function () {
-      var ds = await getList('Material Request', { fields: ['name', 'set_warehouse', 'schedule_date', 'bo_phan_yeu_cau'], filters: { material_request_type: 'Manufacture', docstatus: 1, status: ['in', ['Pending', 'Partially Ordered']], custom_bep_nhan: bep }, limit_page_length: 60, order_by: 'schedule_date asc' });
-      (ds || []).forEach(function (x) {
-        them({ nhom: 'Bếp bạn phải làm', icon: '🎂', t: x.name, s: (x.bo_phan_yeu_cau || '') + ' · cần ' + dmy(x.schedule_date), chip: tre(x.schedule_date) ? 'trễ hẹn' : 'chờ làm', mau: tre(x.schedule_date) ? '#c0392b' : '#7a4bbf', mo: function () { go(function () { scrMRView(x.name, TM); }); } });
-      });
-    });
+  var kq;
+  try { kq = await api('vagabond.viec_can_lam.danh_sach', vclLoc); }
+  catch (e) {
+    frame('Việc cần làm', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' +
+      h((e && e.message) || 'Không gom được việc') + '</div></div>');
+    return;
   }
+  vclVe(kq);
+}
 
-  await lay(async function () {
-    var ds = await getList('Stock Entry', { fields: ['name', 'purpose', 'from_warehouse', 'to_warehouse', 'posting_date', 'owner'], filters: { docstatus: 0, purpose: ['in', ['Material Transfer', 'Material Issue']] }, limit_page_length: 60, order_by: 'creation desc' });
-    (ds || []).forEach(function (x) {
-      var cuaToi = (x.owner === S.user) || (giu.length && giu.indexOf(x.from_warehouse) >= 0);
-      if (!cuaToi) return;
-      them({ nhom: 'Phiếu xuất nháp chờ ghi sổ', icon: '📤', t: x.name, s: shortWh(x.from_warehouse) + (x.to_warehouse ? ' → ' + shortWh(x.to_warehouse) : '') + ' · ' + dmy(x.posting_date), chip: 'bản nháp', mau: '#8a8f98', mo: function () { go(function () { scrXkView(x.name); }); } });
-    });
-  });
-
-  if (kkCanPost()) {
-    await lay(async function () {
-      var ds = await getList('Phieu Kiem Ke', { fields: ['name', 'kho', 'ngay_kiem'], filters: { trang_thai: 'Chờ duyệt' }, limit_page_length: 40, order_by: 'ngay_kiem asc' });
-      (ds || []).forEach(function (x) {
-        them({ nhom: 'Phiếu kiểm kê chờ bạn chốt sổ', icon: '🧮', t: x.name, s: shortWh(x.kho) + ' · kiểm ' + dmy(x.ngay_kiem), chip: 'chờ chốt', mau: '#c77700', mo: function () { go(scrKkList); } });
-      });
-    });
-  }
-
-  if (hasRole('Purchase User') || hasRole('Stock Manager') || hasRole('System Manager')) {
-    await lay(async function () {
-      var ds = await getList('Purchase Order', { fields: ['name', 'supplier_name', 'schedule_date', 'trang_thai_pnk'], filters: { docstatus: 1, status: ['not in', ['Closed', 'Completed']], schedule_date: ['<', td] }, limit_page_length: 30, order_by: 'schedule_date asc' });
-      (ds || []).forEach(function (x) {
-        if ((x.trang_thai_pnk || '') === 'Đã nhập đủ') return;
-        them({ nhom: 'Cảnh báo: đơn mua quá hẹn chưa nhập đủ', icon: '⚠️', t: x.name, s: (x.supplier_name || '') + ' · hẹn ' + dmy(x.schedule_date) + ' · ' + (x.trang_thai_pnk || 'Chưa tạo phiếu'), chip: 'quá hẹn', mau: '#c0392b', mo: function () { toast('Đơn ' + x.name + ' cần xử lý trên máy tính.', 4200); } });
-      });
-    });
-  }
-
-  var nhoms = [];
-  R.forEach(function (x) { if (nhoms.indexOf(x.nhom) < 0) nhoms.push(x.nhom); });
+function vclVe(kq) {
+  var ds = kq.ds || [], dl = kq.dem_loai || {}, dt = kq.dem_trang_thai || {};
   var body = '';
-  if (!R.length) {
-    body = '<div class="emp"><div class="e1">🎉</div><div class="e2">Không có việc nào đang chờ bạn</div></div>';
+
+  body += '<div style="padding:13px 14px 4px;font-size:13px;color:#8a90a0">' +
+    (kq.tong ? 'Đang chờ bạn xử lý <b>' + kq.tong + '</b> việc' : 'Không có việc nào đang chờ bạn') +
+    ' · vai <b>' + h(kq.vai_chinh || '') + '</b></div>';
+
+  /* Chip loại phiếu. Chỉ bày loại người này ĐƯỢC THẤY và ĐANG CÓ việc: bày
+     ra chip rồi bấm vào không có gì là một cách nói dối nhẹ nhàng. */
+  var cl = kq.chip_loai || [];
+  if (cl.length) {
+    body += '<div style="display:flex;gap:7px;overflow-x:auto;padding:6px 12px 8px">' +
+      '<button class="vclL" data-l="" style="flex:none;border:1.5px solid ' +
+      (!vclLoc.loai ? '#0f766e' : '#e5e7eb') + ';background:' + (!vclLoc.loai ? '#ccfbf1' : '#fff') +
+      ';color:' + (!vclLoc.loai ? '#0f766e' : '#374151') + ';border-radius:999px;padding:6px 13px;' +
+      'font-size:12.5px;font-weight:' + (!vclLoc.loai ? '800' : '600') + ';white-space:nowrap">Tất cả · ' +
+      (kq.tong || 0) + '</button>' +
+      cl.map(function (c) {
+        var on = vclLoc.loai === c.k;
+        return '<button class="vclL" data-l="' + h(c.k) + '" style="flex:none;border:1.5px solid ' +
+          (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#ccfbf1' : '#fff') + ';color:' +
+          (on ? '#0f766e' : '#374151') + ';border-radius:999px;padding:6px 13px;font-size:12.5px;' +
+          'font-weight:' + (on ? '800' : '600') + ';white-space:nowrap">' + c.ic + ' ' + h(c.ten) +
+          ' · ' + (dl[c.k] || 0) + '</button>';
+      }).join('') + '</div>';
+  }
+
+  /* Chip trạng thái, đúng theo loại đang chọn. */
+  var ct = kq.chip_trang_thai || [];
+  if (ct.length > 1) {
+    body += '<div style="display:flex;gap:7px;overflow-x:auto;padding:0 12px 8px">' +
+      '<button class="vclT" data-t="" style="flex:none;border:1px solid ' +
+      (!vclLoc.trang_thai ? '#0f766e' : '#e5e7eb') + ';background:' +
+      (!vclLoc.trang_thai ? '#f0fdfa' : '#fff') + ';color:' +
+      (!vclLoc.trang_thai ? '#0f766e' : '#6b7280') + ';border-radius:999px;padding:5px 12px;' +
+      'font-size:12px;font-weight:' + (!vclLoc.trang_thai ? '800' : '600') + ';white-space:nowrap">Mọi trạng thái</button>' +
+      ct.map(function (c) {
+        var on = vclLoc.trang_thai === c.k;
+        return '<button class="vclT" data-t="' + h(c.k) + '" style="flex:none;border:1px solid ' +
+          (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#f0fdfa' : '#fff') + ';color:' +
+          (on ? '#0f766e' : '#6b7280') + ';border-radius:999px;padding:5px 12px;font-size:12px;' +
+          'font-weight:' + (on ? '800' : '600') + ';white-space:nowrap">' + h(c.ten) +
+          ' · ' + (dt[c.k] || 0) + '</button>';
+      }).join('') + '</div>';
+  }
+
+  if (!ds.length) {
+    body += '<div class="emp"><div class="e1">🎉</div><div class="e2">' +
+      (vclLoc.loai || vclLoc.trang_thai ? 'Không có việc nào trong nhóm đang lọc' : 'Không có việc nào đang chờ bạn') +
+      '</div></div>';
   } else {
-    body = '<div style="padding:14px 14px 0;font-size:13px;color:#8a90a0">Đang chờ bạn xử lý <b>' + R.length + '</b> việc</div>';
+    var nhoms = [];
+    ds.forEach(function (x) { if (nhoms.indexOf(x.nhom) < 0) nhoms.push(x.nhom); });
     nhoms.forEach(function (n) {
       body += '<div class="sec">' + h(n) + '</div>';
-      R.forEach(function (x, i) {
+      ds.forEach(function (x, i) {
         if (x.nhom !== n) return;
-        body += '<div data-v="' + i + '" style="background:#fff;border-radius:16px;margin:8px 12px;padding:13px 15px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(16,24,40,.07)">' +
-          '<div style="font-size:22px">' + x.icon + '</div>' +
-          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">' + h(x.t) + '</div>' +
-          '<div style="font-size:12.5px;color:#8a90a0;margin-top:2px">' + h(x.s) + '</div></div>' +
-          '<span style="padding:3px 10px;border-radius:11px;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap;background:' + x.mau + '">' + h(x.chip) + '</span></div>';
+        body += '<div data-v="' + i + '" style="background:#fff;border-radius:16px;margin:8px 12px;padding:13px 15px;' +
+          'display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(16,24,40,.07)">' +
+          '<div style="font-size:22px">' + (vclIcon(x.loai) || '📄') + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">' + h(x.ma) + '</div>' +
+          '<div style="font-size:12.5px;color:#8a90a0;margin-top:2px">' + h(x.phu || '') +
+          (x.ngay ? ' · ' + dmy(x.ngay) : '') +
+          (x.tien ? ' · ' + money(x.tien) + ' đ' : '') + '</div></div>' +
+          '<span style="padding:3px 10px;border-radius:11px;font-size:11.5px;font-weight:700;color:#fff;' +
+          'white-space:nowrap;background:' + x.mau + '">' + h(x.nhan_tt) + '</span></div>';
       });
     });
   }
+
   var b = frame('Việc cần làm', body);
+  b.querySelectorAll('.vclL').forEach(function (n) {
+    n.onclick = function () {
+      vclLoc.loai = n.getAttribute('data-l');
+      vclLoc.trang_thai = '';
+      go(scrVclList, true);
+    };
+  });
+  b.querySelectorAll('.vclT').forEach(function (n) {
+    n.onclick = function () { vclLoc.trang_thai = n.getAttribute('data-t'); go(scrVclList, true); };
+  });
   b.onclick = function (e) {
     var el = e.target.closest('[data-v]');
     if (!el) return;
-    var x = R[+el.dataset.v];
-    if (x && x.mo) x.mo();
+    vclMo(ds[+el.dataset.v]);
   };
 }
+
+function vclIcon(l) {
+  return {
+    chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
+    kiem_ke: '🧮', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
+    ho_so_tt: '🏦', don_mua: '⚠️'
+  }[l] || '';
+}
+
+/* Bấm vào một việc thì mở đúng màn của loại đó. */
+function vclMo(x) {
+  if (!x) return;
+  var l = x.loai;
+  if (l === 'chuyen_kho') return go(function () { scrMRView(x.ma, typeOf('Material Transfer')); });
+  if (l === 'san_xuat') return go(function () { scrMRView(x.ma, typeOf('Manufacture')); });
+  if (l === 'nhap_kho') return go(function () { scrRecvDoc(x.ma); });
+  if (l === 'xuat_kho') return go(function () { scrXkView(x.ma); });
+  if (l === 'kiem_ke') return go(scrKkList);
+  if (l === 'de_nghi_chi') return ttnbCt(x.ma);
+  if (l === 'hoan_tien') return htChiTiet(x.ma);
+  toast('Phiếu ' + x.ma + ' cần xử lý trên máy tính.', 4200);
+}
+
 function vgbODong(k, icon, t1, t2) {
   return '<div class="hub" data-go="' + k + '"><div class="hi">' + icon + '</div>' +
     '<div class="ht"><div class="h1">' + h(t1) + '</div><div class="h2">' + h(t2) + '</div></div>' +
@@ -14260,7 +14380,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '241';
+var APPVER = '242';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
