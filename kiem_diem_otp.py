@@ -3753,7 +3753,10 @@ la("ham tao khong tu dat trang thai gui duyet",
 la("ham tao khong chep lai luat nghiep vu",
    "TK_THEO_PHAN_LOAI" in _dnc38.split("def tao(du_lieu=None")[1], False)
 la("the nam trong nhom Dat hang", "'Purchase', 'Transfer', 'RND', 'DNC'" in _tc38, True)
-la("the co duong den man hinh", "if (k === 'DNC') return go(scrDeNghiChi);" in _tc38, True)
+# Doi 20/08/2026: the dan vao MAN DANH SACH chu khong dan thang vao form.
+# Anh Viet: "bat ky phan he nao co nut Tao phieu thi bat buoc phai co man
+# hinh Danh sach de xem lai". Vao danh sach truoc thi thay ngay phieu cu.
+la("the co duong den man hinh", "if (k === 'DNC') return go(scrTTNB);" in _tc38, True)
 # The nay PHAI nam ngoai khoi coQuyenMua: nam trong la chi thu mua thay,
 # dung cai anh Viet bao khong duoc.
 _khoi38 = _tc38.split("card(TYPES.Manufacture.icon")[1].split("(coQuyenMua()")[0]
@@ -3993,6 +3996,24 @@ def _nap_ham_dnc():
 	return mt
 
 
+def _nap_ham_dnc42():
+	"""Doc THAN HAM THAT cua hai phep THUAN moi, khong import ca mo dun."""
+	src = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+	mt = {"CHIP_TRANG_THAI": None, "TT_NHAP": "Nhap", "TT_CHO_DUYET": "Cho duyet",
+	      "TT_CHO_GIAM_DOC": "Cho giam doc", "TT_CHO_KE_TOAN": "Cho ke toan",
+	      "TT_HOAN_TAT": "Hoan tat", "TT_DA_CHI": "Da chi", "TT_TRA_LAI": "Bi tra lai"}
+	m = re.search(r"^CHIP_TRANG_THAI = \(.*?^\)", src, re.S | re.M)
+	exec(compile(m.group(0), "de_nghi_chi:CHIP", "exec"), mt, mt)
+	for ten in ("trang_thai_theo_chip", "khop_noi_dung", "noi_dung_ck"):
+		m = re.search(r"^def %s\(.*?(?=^def |\Z)" % re.escape(ten), src, re.S | re.M)
+		exec(compile(m.group(0), "de_nghi_chi:%s" % ten, "exec"), mt, mt)
+	return mt
+
+
+_H42 = _nap_ham_dnc42()
+H42_chip = _H42["trang_thai_theo_chip"]
+H42_khop = _H42["khop_noi_dung"]
+
 _H41 = _nap_ham_dnc()
 H41_cong = _H41["cong_bang_ke"]
 H41_tien = _H41["tien_phieu"]
@@ -4167,6 +4188,144 @@ la("khong con o go tu do cho ngan hang",
 _cn41 = open("vagabond/khung/kiem_thu/thu_cua_ngo.py", encoding="utf-8").read()
 for _h41 in ("chi_tiet", "tam_ung_cua_toi"):
 	la("cong ngo biet %s" % _h41, '"%s"' % _h41 in _cn41, True)
+
+print("\n[42] Ma phieu TTNB, o nhap tien, man Danh sach va doi soat OCB")
+
+# Anh Viet 20/08/2026, ba nhom nang cap sau khi xem man that tren dien thoai.
+
+_dnc42 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+_js42 = open("vagabond/public/js/bep/16-mua-hang.js", encoding="utf-8").read()
+_nen42 = open("vagabond/public/js/bep/00-nen.js", encoding="utf-8").read()
+_ht42 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_jh42 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_sp42 = open("vagabond/sepay.py", encoding="utf-8").read()
+_dt42 = json.load(open(
+	"vagabond/vagabond/doctype/vagabond_de_nghi_chi/vagabond_de_nghi_chi.json", encoding="utf-8"))
+_tr42 = {f["fieldname"]: f for f in _dt42["fields"]}
+
+# --- 1.1 Ma phieu doi tien to ---
+la("ma phieu doi sang TTNB theo dang nam - thang",
+   _dt42.get("autoname"), "format:TTNB-{YY}-{MM}-{#####}")
+# Doi autoname KHONG doi ten phieu cu (QT-20): phieu DNC-2026-xxxxx van con
+# nguyen, chi phieu moi mang ma moi.
+la("khong co doan nao doi ten phieu cu",
+   "rename_doc" in _dnc42 or "frappe.rename_doc" in _dnc42, False)
+
+# --- 1.2 Ham dinh dang tien dung chung ---
+la("co ham doc so tien dung chung", "function soTien(" in _nen42, True)
+la("co ham dinh dang chuoi tien", "function tienChuoi(" in _nen42, True)
+la("co ham cham tien khi dang go", "function tienGo(" in _nen42, True)
+# Gan mot lan o tang document: man nao ve ra sau cung duoc huong, khong phai
+# nho gan lai sau moi lan ve lai.
+la("gan mot lan cho ca app", "document.addEventListener('input'" in _nen42, True)
+# Gom ca cach khai cu cua man Bao gia, de ca app chi con MOT hanh vi.
+la("nhan ca cach khai cu data-tien", "data-tien') === '1'" in _nen42, True)
+# Giu con tro khi go: khong giu thi moi lan go mot chu so con tro nhay ve
+# cuoi va khong sua duoc chu so o giua.
+la("giu vi tri con tro khi cham lai", "setSelectionRange" in _nen42, True)
+
+# O tien KHONG duoc dung type="number": trinh duyet coi "2.000.000" la khong
+# hop le va tra ve chuoi rong, tuc la mat trang so tien ma khong bao gi.
+_the42 = _js42.split("function dncTheKhoan(")[1].split("\nfunction ")[0]
+la("o so tien khong con la type number", "'so_tien', 'Số tiền (đ)', k.so_tien, 'number'" in _the42, False)
+la("o so tien la o tien co dau cham", "'so_tien', 'Số tiền (đ)', k.so_tien, 'tien'" in _the42, True)
+
+# MOI cho doc o tien phai qua soTien. Doc thang bang Number thi "2.000.000"
+# ra NaN, va mot o tien ra NaN thi phieu luu xuong so 0 ma khong bao gi ca.
+la("khong con cho nao doc o tien bang Number tho",
+   "Number(k.so_tien)" in _js42 or "Number(String(k.so_tien)" in _js42, False)
+la("tong tien tren man doc qua soTien",
+   "soTien(k.so_tien)" in _js42.split("function dncTong(")[1].split("\n}")[0], True)
+# Gui len may chu phai gui SO, khong gui chuoi co cham: flt() ben Python doc
+# "2.000.000" ra 2.0, sai mot trieu lan ma khong bao gi.
+la("gui len may chu thi doi ve so that",
+   "k.so_tien = soTien(k.so_tien)" in _js42, True)
+
+# --- 2.1 Man Danh sach ---
+la("co man danh sach TTNB", "async function scrTTNB(" in _js42, True)
+la("the tren trang chu dan vao danh sach",
+   "if (k === 'DNC') return go(scrTTNB);" in
+   open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read(), True)
+la("co cua doc danh sach o may chu", "def ds_man(" in _dnc42, True)
+la("co chip trang thai", "CHIP_TRANG_THAI = (" in _dnc42, True)
+la("co chip loc thoi gian", "CHIP_THOI_GIAN = (" in _dnc42, True)
+for _c42 in ("nhap", "cho_duyet", "cho_chi", "da_chi", "da_huy"):
+	la("chip %s co trong danh sach" % _c42, '"%s"' % _c42 in _dnc42, True)
+# Chip GOM chuoi duyet ba cap lai, KHONG duoc xoa trang thai nao: chuoi mua
+# hang, giam doc tu 2 trieu, ke toan la thu anh Viet chot 19/08.
+for _t42 in ("Cho duyet", "Cho giam doc", "Cho ke toan", "Hoan tat", "Bi tra lai"):
+	la("trang thai cu %s van con" % _t42, _t42 in _tr42["trang_thai"]["options"], True)
+la("them trang thai Da chi", "Da chi" in _tr42["trang_thai"]["options"], True)
+la("chip Cho duyet gom ca hai cap duyet",
+   sorted(H42_chip("cho_duyet") or []), ["Cho duyet", "Cho giam doc"])
+la("chip Da chi chi ung mot trang thai", H42_chip("da_chi"), ["Da chi"])
+la("chip Tat ca thi khong loc gi", H42_chip("tat_ca"), None)
+
+# --- 2.2 Nut duyet ---
+la("nut duyet theo co cua may chu", "if (d.duoc_duyet_buoc_nay)" in _js42, True)
+la("nhan nut dung chu anh Viet dat", "Duyệt thanh toán nội bộ" in _js42, True)
+_ct42 = _dnc42.split("def chi_tiet(")[1].split("\n@frappe.whitelist()")[0]
+la("may chu tra co duyet duoc hay khong", 'ra["duoc_duyet_buoc_nay"]' in _ct42, True)
+# Luat that con co "nguoi lap khong tu duyet phieu cua chinh minh", ma man
+# hinh thi khong biet ai lap. Nen co phai tinh o may chu.
+la("co duyet tinh bang dung ham luat cu", "duoc_duyet_khong(" in _ct42, True)
+
+# --- 2.3 Doi soat OCB ---
+la("co ham doi soat dong tien ra", "def doi_soat(so_ngay=30)" in _dnc42, True)
+la("co nhip chay theo gio", "def doi_soat_tu_dong(" in _dnc42, True)
+la("nhip chay theo gio duoc khai trong hooks",
+   "vagabond.de_nghi_chi.doi_soat_tu_dong" in
+   open("vagabond/hooks.py", encoding="utf-8").read(), True)
+la("webhook SePay goi doi soat ngay", "de_nghi_chi.khi_co_giao_dich" in _sp42, True)
+# Webhook DA ghi xong dong tien roi: mot loi o buoc doi soat khong duoc lam
+# hong phan hoi tra ve cho SePay, hong la ho gui lai mai.
+_kcgd42 = _dnc42.split("def khi_co_giao_dich(")[1]
+la("doi soat sau webhook khong nem loi ra ngoai", "except Exception:" in _kcgd42, True)
+
+_ds42 = _dnc42.split("def doi_soat(so_ngay=30)")[1].split("\ndef doi_soat_tu_dong")[0]
+# CHI phieu da qua het chuoi duyet moi duoc tu nhay sang Da chi. Phieu con o
+# Nhap ma tu nhay vi ngan hang tinh co co khoan trung noi dung la khong duoc.
+la("chi quet phieu da duyet xong", "_phieu_cho_chi()" in _ds42, True)
+_pcc42 = _dnc42.split("def _phieu_cho_chi(")[1].split("\n@frappe.whitelist()")[0]
+la("phieu cho chi khong gom phieu Nhap", "TT_NHAP" in _pcc42, False)
+la("phieu cho chi la phieu da qua duyet",
+   "TT_CHO_KE_TOAN" in _pcc42 and "TT_HOAN_TAT" in _pcc42, True)
+# Bai hoc v238: mot dong tien ra chi khop cho MOT phieu.
+la("khoa trung giao dich", "_gd_da_chiem_ttnb(" in _ds42, True)
+la("noi dung khop roi van phai so tien", 'abs(flt(g["withdrawal"]) - tien) > 1' in _ds42, True)
+# Tien da ra la SU THAT: ghi xuong ngay, khong gop chung giao dich co so du
+# lieu voi viec khac (bai hoc v234, phieu HT-2026-00899).
+la("ghi xuong ngay sau khi khop", "frappe.db.commit()" in _ds42, True)
+
+# Noi dung chuyen khoan phai mang nguyen ma phieu va khong dau tieng Viet:
+# nhieu ngan hang bo dau hoac cat bot noi dung.
+la("noi dung chuyen khoan sinh tu ma phieu", "def noi_dung_ck(" in _dnc42, True)
+la("phep so bo het ky tu khong phai chu so", "def khop_noi_dung(" in _dnc42, True)
+la("khop duoc du ngan hang doi gach ngang thanh dau cach",
+   H42_khop("THE VAGABOND TTNB 26 08 00001", "TTNB-26-08-00001"), True)
+la("khop duoc khi ngan hang giu nguyen gach ngang",
+   H42_khop("CK THE VAGABOND TTNB-26-08-00001 ND", "TTNB-26-08-00001"), True)
+la("KHONG khop nham sang phieu khac",
+   H42_khop("THE VAGABOND TTNB-26-08-00002", "TTNB-26-08-00001"), False)
+la("noi dung rong thi khong khop", H42_khop("", "TTNB-26-08-00001"), False)
+
+# --- 3. M-Invoice tren man Hoan tien ---
+la("man hoan tien co the hoa don dien tu", "function htCtHddt(" in _jh42, True)
+la("co nut xem hoa don ben M-Invoice", "Xem hoá đơn bên M-Invoice" in _jh42, True)
+la("may chu tra thong tin hoa don dien tu", "def _hddt_cua_don(" in _ht42, True)
+la("chi_tiet hoan tien tra khoa hddt", 'ra["hddt"]' in _ht42, True)
+# Duong dan sau cua M-Invoice de trong CAI DAT chu khong viet cung: doan mot
+# duong dan roi in ra nut bam la dua cho chi Dung mot cai nut dan toi trang loi.
+la("mau duong dan de o cai dat", "minvoice_mau_lien_ket" in _ht42, True)
+la("cai dat co o khai mau duong dan",
+   "minvoice_mau_lien_ket" in open(
+	   "vagabond/vagabond/doctype/vagabond_settings/vagabond_settings.json",
+	   encoding="utf-8").read(), True)
+# Khoi nay CHI DOC. Anh Viet dan 13/08 sau lan phai di xoa tay hoa don:
+# hoa don dien tu gui sang co quan thue rat nhay cam, kho sua chua.
+_hd42 = _ht42.split("def _hddt_cua_don(")[1]
+for _cam42 in ("set_value(SI", "xuat_hoa_don", ".submit()", ".cancel()", "requests.post"):
+	la("khoi hoa don dien tu khong %s" % _cam42, _cam42 in _hd42, False)
 
 print("-" * 60)
 if so_hong:
