@@ -5429,7 +5429,10 @@ la("chuoi ngan khong bi nhan nham la PDF", _ns46b["boc_b64_trong_json"]({"data":
 
 # Tep hoa don mua mang gia von, phai cat rieng tu.
 la("PDF luu is_private", '"is_private": 1' in _mtep46, True)
-la("ruot tep phai la PDF that moi luu", "la_pdf(" in _mtep46.split("def _tai_pdf_tho")[1].split("\ndef ")[0], True)
+# v247 va 2: phep kiem %PDF don ve _boc_pdf (them boc zip va JSON b64),
+# _tai_pdf_tho chi nhan ruot da qua phep boc do.
+la("ruot tep phai la PDF that moi luu", "_boc_pdf(" in _mtep46.split("def _tai_pdf_tho")[1].split("\ndef ")[0], True)
+la("phep boc dung la_pdf lam thuoc do cuoi", "la_pdf(" in _mtep46.split("def _boc_pdf")[1].split("\ndef ")[0], True)
 # Duong dinh vao ho so KHONG BAO GIO duoc lam hong viec tao ho so.
 _dinh46 = _mtep46.split("def dinh_vao_ho_so(")[1].split("\ndef ")[0]
 la("dinh vao ho so nuot loi, khong throw", "frappe.throw" in _dinh46, False)
