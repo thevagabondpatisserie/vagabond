@@ -58,6 +58,15 @@ CUA_NGO = {
 	# Nhap tep sao ke ngan hang, them 21/08/2026. Bu nhung khoan SePay khong
 	# day ve. Ba duong deu chan bang _chan(): chi Ke toan, Thu mua, Giam doc.
 	"nhap_sao_ke.py": ["danh_sach_tai_khoan", "tai_len", "xem_truoc", "nap"],
+	# Thuong thao va dieu chinh hop dong, them 21/08/2026 (bai cua Loan Anh).
+	#
+	# `ban_chot_cua` CO Y khong nam trong danh sach: no la cong noi bo cho
+	# hop_dong_pdf.py hoi truoc khi dung to, khong phai duong app goi. Neu
+	# no loi ra day nghia la mot decorator vua bam nham ham.
+	"hop_dong_dieu_chinh.py": [
+		"chot_dieu_chinh", "cap_nhat_so_lieu", "go_ban_chot", "huy_thuong_thao",
+		"lich_su", "mo_thuong_thao", "tai_ban_chot", "tai_ve_ban_chot",
+	],
 	# Thong bao day, them 20/08/2026.
 	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
 	"hoan_tien.py": [
