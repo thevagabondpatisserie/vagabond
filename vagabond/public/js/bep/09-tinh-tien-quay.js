@@ -394,6 +394,9 @@ async function scrPosQuay() {
     '<div id="posCaTt" style="font-size:12.5px;color:#98a2b3">Đang xem ca của quầy...</div></div>' +
     '<button class="btn gh" id="posCaNut" style="margin:0;padding:8px 14px;display:none"></button>' +
     '</div></div>';
+  /* Man hinh phu quay ra phia khach. HTML nam trong 25-man-hinh-khach.js
+     de phan nay chi co mot dong, do dung do cua phien khac. */
+  html += cfdKhoi();
   html += '<div class="sec">Nguồn đơn</div><div class="card" style="padding:12px 14px">' +
     '<div id="posNd" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' + posNutNguon(posDsCheDo(), posDon.che_do) + '</div>' +
     (laApp ? '<input class="tin" id="posMa" style="margin-top:10px" placeholder="' + h((qApp.nhan || 'Mã đơn bên app') + (qApp.vd ? ' - vd ' + qApp.vd : '')) + '" value="' + h(posDon.ma || '') + '">' : '') +
@@ -552,6 +555,7 @@ async function scrPosQuay() {
   if (!laApp && posDon.pt !== 'Chuyển khoản') veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
   posDemHomNay();
   posCaVe();
+  cfdGan();
   /* Noi cac nut cua khoi diem. Truyen ham ve lai man de moi nhanh khoi
      phai tu goi go(scrPosQuay, true) - de quen mot cho la man hinh dung im
      sau khi bam. */
@@ -632,6 +636,8 @@ async function scrPosQuay() {
   });
   /* Chuyen khoan dang cho tien: poll SePay de bao ngay khi tien ve. */
   if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posSepayNhan < phaiThu - 1) posPollBat(posDon.bill, phaiThu);
+  /* Man hinh khach bam theo man nay: moi lan ve lai la mot lan day. */
+  cfdDay(posDon, posQuay, phaiThu, nguonThuc, laApp);
 }
 async function posDemHomNay() {
   if (!posQuay) return;
@@ -1483,6 +1489,7 @@ async function posLuuDon() {
   posDangLuu = false;
   busy(false);
   var thu = (r && r.grand_total) || phaiThu;
+  cfdCamOn(thu);
   var laCK = !laApp && posDon.pt === 'Chuyển khoản';
   var thoi = !laApp && posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
   var maCk = posDon.mtc || posDon.bill || '';
