@@ -1,0 +1,141 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:HDPB-{YYYY}-{#####}",
+ "creation": "2026-08-21 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "hop_dong",
+  "phien_ban",
+  "nhan",
+  "cb1",
+  "trang_thai_luc_chot",
+  "gia_tri",
+  "nguoi",
+  "luc",
+  "sec_ly_do",
+  "ly_do",
+  "khac_biet",
+  "sec_anh",
+  "anh_chup",
+  "tep_chot"
+ ],
+ "fields": [
+  {
+   "fieldname": "hop_dong",
+   "fieldtype": "Link",
+   "options": "Hop Dong Ban Hang",
+   "label": "Hop dong",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "phien_ban",
+   "fieldtype": "Int",
+   "label": "Phien ban thu",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Ban goc la 1. Moi lan chot mot lan dieu chinh thi tang mot."
+  },
+  {
+   "fieldname": "nhan",
+   "fieldtype": "Data",
+   "label": "Nhan",
+   "in_list_view": 1,
+   "description": "Vi du: Hop dong v2. Dung de hien tren man va trong thu."
+  },
+  {"fieldname": "cb1", "fieldtype": "Column Break"},
+  {
+   "fieldname": "trang_thai_luc_chot",
+   "fieldtype": "Data",
+   "label": "Trang thai hop dong luc chot"
+  },
+  {
+   "fieldname": "gia_tri",
+   "fieldtype": "Currency",
+   "label": "Gia tri hop dong o ban nay",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Data",
+   "label": "Nguoi chot ban nay"
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Chot luc"
+  },
+  {
+   "fieldname": "sec_ly_do",
+   "fieldtype": "Section Break",
+   "label": "Vi sao dieu chinh"
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Small Text",
+   "label": "Ly do khach yeu cau dieu chinh",
+   "description": "Bat buoc ghi khi mo thuong thao. Day la thu Giam doc doc dau tien."
+  },
+  {
+   "fieldname": "khac_biet",
+   "fieldtype": "Long Text",
+   "label": "Khac biet so voi ban truoc",
+   "read_only": 1,
+   "description": "May tu dung, dang JSON. Moi dong la mot truong da doi, kem gia tri cu va gia tri moi."
+  },
+  {
+   "fieldname": "sec_anh",
+   "fieldtype": "Section Break",
+   "label": "Anh chup toan bo to hop dong"
+  },
+  {
+   "fieldname": "anh_chup",
+   "fieldtype": "Long Text",
+   "label": "Anh chup (JSON)",
+   "read_only": 1,
+   "description": "Nguyen van moi truong cua hop dong luc chot ban nay. Khong ai duoc sua."
+  },
+  {
+   "fieldname": "tep_chot",
+   "fieldtype": "Attach",
+   "label": "Tep hop dong da chot cua ban nay",
+   "description": "Ban PDF hai ben tu redline va chot ben ngoai, neu ban nay dung ban do thay cho to may tu sinh."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-21 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Hop Dong Phien Ban",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "export": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
