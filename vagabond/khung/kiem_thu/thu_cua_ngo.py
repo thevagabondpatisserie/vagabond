@@ -49,6 +49,11 @@ CUA_NGO = {
 		# truoc do phieu chi lap duoc tren Desk.
 		"tam_ung_cua_toi", "tao", "tra_lai",
 	],
+	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
+	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
+	"viec_can_lam.py": ["danh_sach"],
+	# Thong bao day, them 20/08/2026.
+	"thong_bao.py": ["dang_ky", "khoa_cong_khai"],
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",
 		# dinh_unc va hoan_thanh them ngay 19/08/2026: luong KET THUC phieu
