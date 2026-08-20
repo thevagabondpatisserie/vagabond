@@ -5823,6 +5823,62 @@ for _ham48 in ("function scrDonChungTuThu", "function scrChuyenPhantom",
 	la("%s nam TRONG vo ham" % _ham48.split()[1],
 	   0 < _ghep48.find(_ham48) < _vt48, True)
 
+# ============================================================ NHOM 49
+print("\n[49] v252: Tu chon lo cho nguyen lieu, so NVL truoc khi lam luon, soi khoa SePay")
+
+_lh49 = open("vagabond/lo_hang.py", encoding="utf-8").read()
+_hk49 = open("vagabond/hooks.py", encoding="utf-8").read()
+_sx49 = open("vagabond/public/js/bep/05-san-xuat.js", encoding="utf-8").read()
+_sp49 = open("vagabond/sepay.py", encoding="utf-8").read()
+_cd49 = open("vagabond/public/js/bep/17-cai-dat.js", encoding="utf-8").read()
+
+# ---------- 49.1 Lo hang: va o MOT cho cho ca ba luong ----------
+# Khai bam lam mot cai Plain Croissant thi may nem ra "Serial No / Batch No
+# are mandatory for Item NVLT00166". App chi gan lo cho THANH PHAM, con
+# NGUYEN LIEU bi tru thi de trong.
+la("co hook Stock Entry truoc khi kiem",
+   '"Stock Entry": {"before_validate": "vagabond.lo_hang.gan_lo"}' in _hk49, True)
+# Va o man hinh la va ba lan va lan thu tu se quen.
+for _ham49 in ("def chia_theo_lo(", "def cau_thieu_lo(", "def gan_lo(",
+               "def _ton_tung_lo(", "def _xep_het_han_truoc("):
+	la("co %s" % _ham49.split("(")[0], _ham49 in _lh49, True)
+_xep49 = _lh49.split("def _xep_het_han_truoc(")[1].split("def _kho_khac_con")[0]
+la("xep theo ngay het han", "expiry_date" in _xep49, True)
+la("lo khong ghi han xep sau cung", "(1, \"\"" in _xep49, True)
+_gan49 = _lh49.split("def gan_lo(")[1].split("def _dong_can_lo")[0]
+la("dat co dung truong lo cu", "use_serial_batch_fields" in _gan49, True)
+la("thieu hang thi noi ro chu khong nem loi tieng Anh",
+   "cau_thieu_lo(" in _gan49, True)
+la("phieu da ghi so thi khong dung vao", "docstatus" in _gan49, True)
+# Duong du phong khi ERPNext doi cach goi.
+la("co duong du phong cong thang so kho", "Stock Ledger Entry" in _lh49, True)
+
+# ---------- 49.2 Hop xac nhan phai xo so nguyen lieu se tru ----------
+la("co phep tinh nguyen lieu cua ke hoach", "async function mfgNvlCuaKe(" in _sx49, True)
+_hop49 = _sx49.split("Máy làm luôn giúp bếp")[1][:1400]
+la("hop hien so nguyen lieu se tru", "NGUYÊN LIỆU SẼ TRỪ" in _sx49, True)
+la("hien ca ton hien co", "tồn " in _sx49, True)
+la("canh bao mã không đủ tồn", "THIẾU" in _sx49, True)
+la("nhac but toan kho khong sua lai duoc", "không sửa lại được" in _sx49, True)
+_nvl49 = _sx49.split("async function mfgNvlCuaKe(")[1].split("async function mfgRunFresh")[0]
+la("chia dung ti le theo san luong BOM", "bq[f.bom]" in _nvl49, True)
+la("doc ton tai dung kho se bi tru", "stockOf(thu_tu, src)" in _nvl49, True)
+
+# ---------- 49.3 Soi khoa SePay: doi chieu ma khong lo khoa ----------
+_soi49 = _sp49.split("def dau_khoa(")[1].split("@frappe.whitelist()")[0]
+la("chi tra bon ky tu cuoi", "k[-4:]" in _soi49, True)
+la("khoa ngan thi khong he lo gi", '"..."' in _soi49, True)
+la("co duong soi khoa", "def soi_khoa(" in _sp49, True)
+_sk49 = _sp49.split("def soi_khoa(")[1].split("@frappe.whitelist()")[0]
+la("soi khoa chan nguoi ngoai", "_kiem_quyen()" in _sk49, True)
+la("soi ca bon o khoa", "sepay_hmac_2" in _sk49, True)
+# Khong duoc lo ca khoa ra ngoai.
+for _cam49 in ('return key(c,', 'ra[o] = key(c'):
+	la("khong tra ca khoa (%s)" % _cam49, _cam49 in _sk49, False)
+la("man Cai dat bay dau van tay", "function seDauKhoa(" in _cd49, True)
+la("man Cai dat goi duong soi khoa", "vagabond.sepay.soi_khoa" in _cd49, True)
+la("noi ro Secret Key phai nam o o HMAC", "phải nằm ở ô" in _cd49, True)
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
