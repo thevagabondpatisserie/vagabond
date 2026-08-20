@@ -132,11 +132,14 @@ def _cai_dat_chung():
 def _tai_pdf_tho(hid, loai):
 	"""Goi sang M-Invoice lay byte PDF cua mot hoa don. Tra (bytes, loi).
 
-	Thu lan luot cac duong da do duoc tu trang quan ly cua M-Invoice
-	(doc bundle cua SPA ngay 20/08/2026):
-	  /erp/qlhd-api/invoices/batch-download/pdf?ids=<id>&type=...  -> byte PDF
-	  /erp/qlhd-api/invoices/<id>/pdf                              -> JSON b64
-	Duong nao tra ve %PDF that thi dung o do.
+	Duong that do duoc ngay 20/08/2026 bang cach ban tham do khong token
+	vao tung duong ung vien: duong ton tai tra 401 (doi xac thuc), duong
+	khong co tra 404. Ket qua:
+	  /erp/qlhd-api/invoices/<id>/download/pdf   -> 401, DUONG THAT
+	  /erp/qlhd-api/invoices/<id>/pdf            -> 404, khong ton tai
+	  /erp/qlhd-api/invoices/batch-download/...  -> 404, chi co ban session
+	Van giu them hai duong du phong phia sau, phong M-Invoice doi duong:
+	duong nao tra ve %PDF that thi dung o do.
 	"""
 	import base64
 
@@ -148,8 +151,8 @@ def _tai_pdf_tho(hid, loai):
 	dau = {"apiToken": cd["token"]}
 	kieu = "out" if loai == LOAI_RA else "in"
 	cac_duong = [
+		cd["base"] + "/erp/qlhd-api/invoices/%s/download/pdf" % hid,
 		cd["base"] + "/erp/qlhd-api/invoices/batch-download/pdf?ids=%s&type=%s" % (hid, kieu),
-		cd["base"] + "/erp/qlhd-api/invoices/batch-download/pdf?ids=%s" % hid,
 		cd["base"] + "/erp/qlhd-api/invoices/%s/pdf" % hid,
 	]
 	vet = []
