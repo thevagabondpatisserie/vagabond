@@ -231,6 +231,20 @@
    "read": 1,
    "report": 1,
    "role": "Accounts User"
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager"
   }
  ],
  "sort_field": "modified",
