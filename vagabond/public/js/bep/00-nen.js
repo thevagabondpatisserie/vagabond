@@ -631,3 +631,94 @@ function promptSheet(title, placeholder) {
   });
 }
 
+
+/* ==================== PWA: biểu tượng màn hình chính và thông báo đẩy ====
+
+Anh Việt 20/08/2026: *"Khi user dùng tính năng 'Add to Homescreen', hiện tại
+đang mất logo thương hiệu"* và *"Khi có một phiếu mới chuyển sang trạng thái
+chờ duyệt của đúng User đó, hệ thống phải bắn notification làm rung điện
+thoại"*.
+
+Trang /bep không nằm trong git (nó là một Page trên site), nên không chèn
+được thẻ <link rel="manifest"> vào HTML gốc. Thay vào đó chèn từ đây bằng
+JavaScript - hiệu lực y hệt, mà mã nguồn vẫn nằm trong git. */
+
+function pwaGan() {
+  try {
+    if (!document.querySelector('link[rel="manifest"]')) {
+      var l = document.createElement('link');
+      l.rel = 'manifest';
+      l.href = '/manifest.json';
+      document.head.appendChild(l);
+    }
+    /* Màu thanh trạng thái trên điện thoại, cho khớp thanh tiêu đề app. */
+    if (!document.querySelector('meta[name="theme-color"]')) {
+      var m = document.createElement('meta');
+      m.name = 'theme-color';
+      m.content = '#05323C';
+      document.head.appendChild(m);
+    }
+    /* iOS không đọc manifest cho biểu tượng, nó đọc apple-touch-icon. Thiếu
+       thẻ này là iPhone tự chụp màn hình trang làm biểu tượng, và đó chính
+       là cái "mất logo" anh Việt thấy. */
+    if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+      var a = document.createElement('link');
+      a.rel = 'apple-touch-icon';
+      a.href = '/assets/vagabond/pwa/icon-192.png';
+      document.head.appendChild(a);
+    }
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () { });
+    }
+  } catch (e) { }
+}
+
+/* Xin quyền thông báo. CỐ Ý không gọi ngay lúc mở app.
+
+   Trình duyệt chỉ cho hỏi MỘT lần: người dùng bấm Chặn là chặn vĩnh viễn,
+   muốn mở lại phải vào phần cài đặt của trình duyệt tìm từng mục. Nên chỉ
+   hỏi khi người ta đã cài app ra màn hình chính, tức là đã tỏ ý muốn dùng
+   lâu dài, đúng như anh Việt dặn. */
+function pwaDaCaiRaManHinh() {
+  try {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+  } catch (e) { return false; }
+}
+
+async function pwaXinQuyenThongBao(batBuocHoi) {
+  try {
+    if (!('Notification' in window) || !navigator.serviceWorker) return 'khong_ho_tro';
+    if (Notification.permission === 'granted') return await pwaDangKyDay();
+    if (Notification.permission === 'denied') return 'da_chan';
+    if (!batBuocHoi && !pwaDaCaiRaManHinh()) return 'chua_cai';
+    var q = await Notification.requestPermission();
+    if (q !== 'granted') return 'tu_choi';
+    return await pwaDangKyDay();
+  } catch (e) { return 'loi'; }
+}
+
+async function pwaDangKyDay() {
+  try {
+    var kh = await api('vagabond.thong_bao.khoa_cong_khai', {});
+    if (!kh || !kh.khoa) return 'chua_khai_khoa';
+    var reg = await navigator.serviceWorker.ready;
+    var dk = await reg.pushManager.getSubscription();
+    if (!dk) {
+      dk = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: pwaB64(kh.khoa)
+      });
+    }
+    await api('vagabond.thong_bao.dang_ky', { goi: JSON.stringify(dk) });
+    return 'xong';
+  } catch (e) { return 'loi'; }
+}
+
+/* Khoá VAPID gửi xuống dạng base64url, trình duyệt đòi Uint8Array. */
+function pwaB64(s) {
+  var d = (s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(d), ra = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) ra[i] = raw.charCodeAt(i);
+  return ra;
+}
