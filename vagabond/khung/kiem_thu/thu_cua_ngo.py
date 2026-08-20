@@ -89,6 +89,10 @@ CUA_NGO = {
 		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
 		"gan_gd_vao", "hoan_thanh",
+		# tai_unc them 20/08/2026: Sales xem va tai UNC lam bang chung gui
+		# khach. Tep dinh vao Payment Entry ma Sales khong doc duoc doctype
+		# do, nen phai co cua rieng kiem quyen theo phieu hoan tien.
+		"tai_unc",
 		# Noi ma hoa don THAY THE, them 21/08/2026. Ba duong nay chi GHI LAI
 		# mot con so nguoi that da doc ben M-Invoice; khong duong nao phat
 		# hanh, huy hay thay the mot to hoa don nao.
@@ -98,6 +102,27 @@ CUA_NGO = {
 		# xuat_excel them ngay 19/08/2026: chi Dung can danh sach hoan tien
 		# ra tep de theo doi.
 		"xem_tien_du", "xuat_excel",
+	],
+	# M-Invoice trong ma nguon, them 20/08/2026 sau vu sot hoa don dau vao
+	# tu 14/08. `dong_bo_tu_dong` va `tu_lanh_hang_dem` la nhip lap lich,
+	# khong duoc mo ra ngoai.
+	"minvoice_dong_bo.py": ["keo"],
+	# `keo_pdf_thieu`, `don_dep_pdf` la nhip lap lich; `dinh_vao_ho_so` la
+	# ham noi bo goi tu ho_so_tt. Chi `lay_pdf` mo ra ngoai.
+	"minvoice_tep.py": ["lay_pdf"],
+	# Tai cau truc BOM bep, them 20/08/2026. Sau cua, cua nao cung co
+	# _chan() chi cho quan ly he thong va giam doc.
+	"don_bep.py": [
+		"lam_tuoi_xem_truoc", "lam_tuoi_thuc_hien",
+		"so_che_xem_truoc", "so_che_thuc_hien",
+		"trung_xem_truoc", "trung_thuc_hien",
+	],
+	# SePay, chot danh sach 20/08/2026 khi them duong ACB. `webhook` la
+	# diem nhan cua SePay (allow_guest, tu xac thuc bang khoa); cac duong
+	# con lai deu qua _kiem_quyen.
+	"sepay.py": [
+		"dat_hmac", "dat_khoa", "nap_bu", "them_tai_khoan",
+		"tim_gd_vao", "tinh_trang", "webhook",
 	],
 	# Khung danh sach dung chung. Duong `tao_moi` them 21/08/2026 khi anh
 	# Viet mo nut Tao moi cho ca 16 danh muc: mot duong ghi duy nhat cho ca
