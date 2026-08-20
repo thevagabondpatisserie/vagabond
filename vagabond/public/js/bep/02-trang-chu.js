@@ -194,6 +194,12 @@ async function scrHome() {
       : '') +
     /* Quan ly nguoi dung: anh Viet, chi Dung va De. Bay theo goi chuc vu chu
        khong bay ma tran 40 vai tro cua Frappe ra man hinh dien thoai. */
+    /* Bo chuyen BTP cap 1 sang Phantom. Chi giam doc va quan ly he thong,
+       vi day la thao tac doi cau hinh kho cua ca tram ma hang. */
+    (hasRole('System Manager') || hasRole('Giám đốc')
+      ? card('🧹', 'Dọn chứng từ thử', 'Đóng nốt lệnh sản xuất treo trên bán thành phẩm trước khi chuyển Phantom', 0, 'PTDON') +
+        card('👻', 'Chuyển bán thành phẩm sang Phantom', 'Bỏ ghi sổ kho cấp BTP, chạy thử xem trước rồi mới ghi thật', 0, 'PTCH')
+      : '') +
     (hasRole('System Manager') || hasRole('Quản lý người dùng')
       ? card('👥', 'Quản lý người dùng', 'Mời tài khoản mới, xếp gói chức vụ, bật tắt nhân viên nghỉ', 0, 'QLND') +
         card('🗝', 'Quản lý quyền', 'Mười một gói chức vụ, gói nào làm được gì và ai đang giữ', 0, 'QLQ')
@@ -370,7 +376,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -769,6 +775,8 @@ function vgbGo(k) {
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'CDSE') return go(scrSePay);
   if (k === 'CDTB') return go(scrThongBao);
+  if (k === 'PTDON') return go(scrDonChungTuThu);
+  if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);
   if (k === 'TS') return go(scrTaiSan);
   if (k === 'BT') return go(scrButToan);

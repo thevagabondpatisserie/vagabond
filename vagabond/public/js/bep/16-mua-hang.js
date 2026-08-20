@@ -545,8 +545,8 @@ var nccF = null, nccDm = null;
 function nccOMoi() {
   return {
     mst: '', ten: '', nhom: '', loai: 'Company', dia_chi: '', tinh: '',
-    nguoi_lien_he: '', email: '', dien_thoai: '',
-    so_tk: '', ngan_hang: '', chu_tk: '', tra_xong: 0
+    nguoi_lien_he: '', email: '', email_cc: '', email_cc2: '', email_cc3: '',
+    dien_thoai: '', so_tk: '', ngan_hang: '', chu_tk: '', tra_xong: 0
   };
 }
 
@@ -554,6 +554,7 @@ function nccDoc() {
   if (!nccF) return;
   [['nccMst', 'mst'], ['nccTen', 'ten'], ['nccNhom', 'nhom'], ['nccLoai', 'loai'],
    ['nccDiaChi', 'dia_chi'], ['nccNguoi', 'nguoi_lien_he'], ['nccEmail', 'email'],
+   ['nccCc1', 'email_cc'], ['nccCc2', 'email_cc2'], ['nccCc3', 'email_cc3'],
    ['nccDt', 'dien_thoai'], ['nccStk', 'so_tk'], ['nccNh', 'ngan_hang'],
    ['nccChuTk', 'chu_tk']].forEach(function (c) {
     var o = document.getElementById(c[0]);
@@ -609,10 +610,19 @@ async function scrNccTao() {
   html += '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">BƯỚC 2 · LIÊN HỆ</div>' +
     '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:4px 0 11px">' +
-    'Đơn mua hàng gửi thẳng vào email này, nên đây là ô <b>bắt buộc</b>. Sai một ký tự là thư không tới nơi.</div>' +
+    'Có email thì đơn mua hàng gửi thẳng vào đó. Nhà cung cấp chỉ đặt qua app hay sàn thương mại điện tử ' +
+    'thì bỏ trống ô email cũng lưu được, lúc đó mình tự đặt hàng rồi vào đánh dấu đã gửi.</div>' +
     o('nccDiaChi', 'Địa chỉ', f.dia_chi, '', 'Địa chỉ ghi trên hoá đơn.') +
     o('nccNguoi', 'Người đại diện / liên hệ', f.nguoi_lien_he, '', 'Người mình gọi khi cần giục hàng hoặc đối chiếu công nợ.') +
-    o('nccEmail', 'Email nhận đơn mua hàng', f.email, 'email', '', 1) +
+    o('nccEmail', 'Email nhận đơn mua hàng', f.email, 'email', 'Bỏ trống nếu nhà cung cấp này không nhận đơn qua email.') +
+    '<div style="border-top:1px dashed #e5e7eb;margin:2px 0 11px;padding-top:11px">' +
+    '<div style="font-size:12.5px;color:#374151;font-weight:600;margin-bottom:4px">Các email phụ cần CC</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:9px;line-height:1.5">' +
+    'Có nhà cung cấp muốn gửi cùng lúc cho kế toán và kho của họ. Điền vào đây thì mỗi lần gửi ' +
+    'đơn mua hàng máy tự CC thêm, khỏi nhớ.</div>' +
+    o('nccCc1', 'Email CC 1', f.email_cc, 'email') +
+    o('nccCc2', 'Email CC 2', f.email_cc2, 'email') +
+    o('nccCc3', 'Email CC 3', f.email_cc3, 'email') + '</div>' +
     o('nccDt', 'Số điện thoại', f.dien_thoai, 'tel') + '</div>';
 
   html += '<div class="card" style="padding:13px 14px">' +
@@ -669,7 +679,6 @@ async function scrNccTao() {
     var f2 = nccF;
     if (!(f2.ten || '').trim()) return toast('Chưa có tên nhà cung cấp. Gõ mã số thuế để máy điền hộ, hoặc gõ tên tay.', 5000);
     if (!(f2.nhom || '').trim()) return toast('Chưa chọn nhóm nhà cung cấp.', 4500);
-    if (!(f2.email || '').trim()) return toast('Chưa có email. Đơn mua hàng gửi qua email nên ô này bắt buộc.', 5500);
     if (!await confirmSheet('Lưu hồ sơ nhà cung cấp?',
       'Máy sẽ lập hồ sơ "' + f2.ten + '" kèm địa chỉ, người liên hệ và số tài khoản trong một lần.', 'Lưu')) return;
     busy(1);

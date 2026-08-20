@@ -646,13 +646,33 @@ async function mfgDemand(horizon) {
   }).filter(function (a) { return a.need > 0; });
 }
 
+/* Nổ nhiều cấp hay không thì HỎI HỆ, không ghi cứng ở đây.
+
+   Trước 21/08/2026 chỗ này ghi cứng 0, đúng vì bán thành phẩm cấp 1 còn
+   theo tồn kho nên lệnh phải đòi thẳng mã đó. Sau khi chuyển cấp đó thành
+   Phantom thì ngược lại: để 0 là lệnh đòi một mã không còn kho để lấy, và
+   bếp đứng. Bật cứng lên 1 trước ngày chuyển cũng sai, vì 71 dòng bán
+   thành phẩm đang sẵn công thức con sẽ nổ ngay hôm nay.
+
+   Nên đọc trạng thái thật một lần mỗi phiên rồi nhớ lại. */
+var mfgPhantom = null;
+
+async function mfgNoNhieuCap() {
+  if (mfgPhantom !== null) return mfgPhantom;
+  try {
+    var r = await api('vagabond.phantom.trang_thai', {});
+    mfgPhantom = (r && r.da_phantom) ? 1 : 0;
+  } catch (e) { mfgPhantom = 0; }
+  return mfgPhantom;
+}
+
 async function mfgCreateWO(row) {
   var doc = {
     doctype: 'Work Order', company: COMPANY,
     production_item: row.code, item_name: row.name, bom_no: row.bom,
     qty: row.qty, stock_uom: row.uom,
     fg_warehouse: row.fg || mfg.fg, source_warehouse: row.src || mfg.src,
-    skip_transfer: 1, use_multi_level_bom: 0,
+    skip_transfer: 1, use_multi_level_bom: await mfgNoNhieuCap(),
     planned_start_date: today() + ' 05:00:00'
   };
   var ins = await api('frappe.client.insert', { doc: doc });
