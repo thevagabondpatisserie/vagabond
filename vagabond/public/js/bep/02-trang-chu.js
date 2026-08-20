@@ -717,6 +717,7 @@ function vgbGo(k) {
   if (k === 'PAY') return go(scrPayList);
   if (k === 'BGIA') return go(scrBangGia);
   if (k === 'NCC') return go(scrNcc);
+  if (k === 'NCCTAO') return go(scrNccTao);
   if (k === 'STOCK') return go(scrStock);
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
