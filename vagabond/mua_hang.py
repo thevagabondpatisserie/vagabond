@@ -113,7 +113,7 @@ def ds_po(so_ngay=60, tu_khoa="", ncc=None, nhom=None):
 			"name", "supplier", "supplier_name", "transaction_date", "schedule_date",
 			"grand_total", "total_qty", "status", "per_received", "per_billed",
 			"docstatus", "owner", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
-		],
+		] + _o_gui_thu("Purchase Order"),
 		order_by="transaction_date desc, name desc",
 		limit_page_length=0,
 	)
@@ -237,7 +237,44 @@ def xem_po(name):
 		"con_nhan": sum(x["con_lai"] for x in mon),
 		"so_mon_con": len([x for x in mon if x["con_lai"] > 0.0001]),
 		"lich_su_nhan": _lich_su_nhan_po(name),
+		# Duong thu di. Man hinh khong tu dich ma loi, may dich san roi day
+		# xuong ca cau - de mot ngay doi cau chu thi sua mot cho.
+		"gui_thu": _tinh_trang_gui_thu("Purchase Order", name),
 	}
+
+
+def _o_gui_thu(loai_chung_tu):
+	"""Ten cac cot trang thai gui email, neu doctype nay co.
+
+	Hoi meta chu khong viet cung: cot nay do `trang_thai_thu.dung` dung ra
+	trong after_migrate, va giua hai lan deploy thi no co the chua ton tai.
+	Liet ke cung mot cot chua co la ca man Don mua hang khong mo duoc.
+	"""
+	try:
+		from vagabond import trang_thai_thu
+
+		meta = frappe.get_meta(loai_chung_tu)
+		return [
+			o for o in (trang_thai_thu.O_TRANG_THAI, trang_thai_thu.O_LY_DO)
+			if meta.has_field(o)
+		]
+	except Exception:
+		return []
+
+
+def _tinh_trang_gui_thu(loai_chung_tu, ma):
+	"""Tinh trang gui thu cua mot chung tu. Hong thi tra ve rong, khong nem.
+
+	Man Don mua hang khong duoc chet chi vi phan hien trang thai thu hong -
+	no la thong tin ben le, con danh sach mon hang moi la viec chinh.
+	"""
+	try:
+		from vagabond import trang_thai_thu
+
+		return trang_thai_thu.tinh_trang(loai_chung_tu, ma)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "mua_hang: tinh trang gui thu")
+		return {}
 
 
 def _lich_su_nhan_po(name):

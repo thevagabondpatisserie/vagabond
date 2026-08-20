@@ -32,8 +32,16 @@ scheduler_events = {
 			# Chuoi cuoi ngay go cua o day. Ham tu kiem gio va moi ngay chi
 			# lam mot lan, nen de chung nhip 5 phut la du.
 			"vagabond.ban_hang.tu_ghi_so_cuoi_ngay",
+			# Trang thai gui email tren don mua hang va phieu yeu cau vat tu:
+			# chi doi sang "Da gui" khi hang doi that su bao Sent. Nhip 5 phut
+			# la du sat, vi bo lap lich cua Frappe cung nhat thu theo nhip do.
+			"vagabond.trang_thai_thu.soat_tu_dong",
 		],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
+		# Moi 15 phut: duong thu di co dang hong khong. Tu 16/08/2026 ca tiem
+		# khong gui duoc mot email nao suot nhieu ngay, va minh chi biet vi
+		# Uyen di hoi. Khong co nhip nay thi lan sau cung the.
+		"*/15 * * * *": ["vagabond.gui_thu.canh_bao_email_loi"],
 		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu.
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
 		# Moi gio: doi soat lenh chi hoan tien voi sao ke SePay.
@@ -109,6 +117,30 @@ doc_events = {
 		# duong thu sau la quen.
 		"before_validate": "vagabond.email_sach.don",
 		"after_insert": "vagabond.email_sach.ghi_vet",
+	},
+	# O NGUOI GUI RONG LAM CHET CA DUONG THU DI.
+	#
+	# Tu 16/08/2026, 117 tren 118 email cua ca tiem mat o `sender`,
+	# `smtplib.quoteaddr(None)` no, va 26 don mua hang cua Uyen khong toi tay
+	# nha cung cap. Goc la hook `email_sach.don` ngay tren, da va.
+	#
+	# `bu_nguoi_gui` la luoi hung, cho moi ly do khac lam o do rong: ai do
+	# goi `frappe.sendmail` quen truyen `sender`, hop thu mac dinh bi tat,
+	# hoac mot hook nao do sau nay lai dung vao.
+	#
+	# `danh_dau_cho_gui` la nhip MOT trong ba nhip cua trang thai gui thu:
+	# dat "Dang cho gui" ngay luc thu vao hang doi. Hai nhip sau do
+	# `trang_thai_thu.soat_tu_dong` lo, vi Frappe doi trang thai hang doi
+	# bang db.set_value nen khong no hook.
+	#
+	# Ca hai deu o `after_insert` chu khong `before_insert`: ghi o
+	# `before_insert` thi tang `validate` chay sau do xoa lai duoc, va do
+	# dung la chuyen da xay ra hom 17/08.
+	"Email Queue": {
+		"after_insert": [
+			"vagabond.gui_thu.bu_nguoi_gui",
+			"vagabond.trang_thai_thu.danh_dau_cho_gui",
+		]
 	},
 	# Ma khach hang sinh theo nhom (KL, SI, DN, SA, NB). Dat o autoname chu
 	# khong o before_insert: before_insert chay SAU khi Frappe da chot ten,
