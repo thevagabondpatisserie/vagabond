@@ -13,7 +13,7 @@ python3 dung_app_bep.py --kiem     chỉ kiểm, lệch thì trả mã lỗi 1
 
 **Thứ tự ghép là thứ tự tên tệp.** Tiền tố hai chữ số giữ đúng thứ tự đó. Đổi chỗ hai phần là đổi thứ tự khai báo trong một hàm, có thể làm vỡ app mà không báo gì.
 
-**Từng phần một mình không đọc được.** Cả 20.216 dòng nằm trong một hàm duy nhất: `00-nen.js` mở vỏ hàm và `23-dong-vo.js` đóng lại. Nên `node --check` trên một phần sẽ báo lỗi cú pháp. Đó là cố ý, không phải thiếu sót. Chỉ tệp ghép lại mới đọc được, và cổng kiểm tra trước deploy chạy `node --check` trên tệp ghép.
+**Từng phần một mình không đọc được.** Cả 20.216 dòng nằm trong một hàm duy nhất: `00-nen.js` mở vỏ hàm và `99-dong-vo.js` đóng lại. Nên `node --check` trên một phần sẽ báo lỗi cú pháp. Đó là cố ý, không phải thiếu sót. Chỉ tệp ghép lại mới đọc được, và cổng kiểm tra trước deploy chạy `node --check` trên tệp ghép.
 
 ## Vì sao tách ra
 
@@ -56,7 +56,8 @@ Giai đoạn 2 (bỏ vỏ hàm, phục vụ thẳng các phần, khỏi đẩy 1
 | `20-danh-muc-quyen.js` | 17.457 - 18.065 | danh mục nhà cung cấp, người dùng và quyền |
 | `21-ke-toan-khac.js` | 18.066 - 18.977 | tài sản, hạch toán tay, ngân hàng, cảnh báo, bảng giá mua |
 | `22-bao-gia.js` | 18.978 - 20.213 | báo giá và hợp đồng mua bán |
-| `23-dong-vo.js` | 20.214 - hết | đóng vỏ hàm |
+| `24-phantom.js` | ... | chuyển bán thành phẩm sang Phantom, dọn chứng từ thử |
+| `99-dong-vo.js` | cuối | đóng vỏ hàm. LUÔN là phần cuối cùng, phần mới thêm phải mang số nhỏ hơn 99 |
 
 ## Vài chỗ dễ vấp
 
