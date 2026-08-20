@@ -129,6 +129,10 @@ CUA_NGO = {
 		"dat_hmac", "dat_khoa", "nap_bu", "them_tai_khoan",
 		"tim_gd_vao", "tinh_trang", "webhook",
 	],
+	# Ho so nha cung cap, them 21/08/2026 sau khi Uyen khong tao duoc NCC
+	# tren app. `tao` ghi mot lan xuong bon bang; cac ham `_gan_*` la ham noi
+	# bo, ho ra day nghia la mot decorator vua bam nham.
+	"nha_cung_cap.py": ["chi_tiet", "danh_muc", "tao"],
 	# Khung danh sach dung chung. Duong `tao_moi` them 21/08/2026 khi anh
 	# Viet mo nut Tao moi cho ca 16 danh muc: mot duong ghi duy nhat cho ca
 	# khung, va no chi ghi duoc dung nhung truong da khai trong tao()["o"].
