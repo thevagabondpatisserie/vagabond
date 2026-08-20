@@ -52,8 +52,14 @@ CUA_NGO = {
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach"],
+	# Gan Assignee that, them 21/08/2026. Chi mot duong DOC, va no chi doc
+	# viec cua CHINH nguoi dang dang nhap - khong co tham so nguoi nhan.
+	"giao_viec.py": ["cua_toi"],
+	# Nhap tep sao ke ngan hang, them 21/08/2026. Bu nhung khoan SePay khong
+	# day ve. Ba duong deu chan bang _chan(): chi Ke toan, Thu mua, Giam doc.
+	"nhap_sao_ke.py": ["danh_sach_tai_khoan", "tai_len", "xem_truoc", "nap"],
 	# Thong bao day, them 20/08/2026.
-	"thong_bao.py": ["dang_ky", "khoa_cong_khai"],
+	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",
 		# dinh_unc va hoan_thanh them ngay 19/08/2026: luong KET THUC phieu
@@ -64,12 +70,20 @@ CUA_NGO = {
 		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
 		"gan_gd_vao", "hoan_thanh",
+		# Noi ma hoa don THAY THE, them 21/08/2026. Ba duong nay chi GHI LAI
+		# mot con so nguoi that da doc ben M-Invoice; khong duong nao phat
+		# hanh, huy hay thay the mot to hoa don nao.
+		"ghi_hddt_thay_the", "go_hddt_thay_the", "can_ghi_thay_the",
 		"sepay_tien_ra", "tao", "tao_tien_du", "thong_tin_chuyen_khoan",
 		"tinh_trang", "tu_choi",
 		# xuat_excel them ngay 19/08/2026: chi Dung can danh sach hoan tien
 		# ra tep de theo doi.
 		"xem_tien_du", "xuat_excel",
 	],
+	# Khung danh sach dung chung. Duong `tao_moi` them 21/08/2026 khi anh
+	# Viet mo nut Tao moi cho ca 16 danh muc: mot duong ghi duy nhat cho ca
+	# khung, va no chi ghi duoc dung nhung truong da khai trong tao()["o"].
+	"khung/ds.py": ["chay", "danh_ba", "tao_moi", "tim_lien_ket"],
 }
 
 

@@ -213,14 +213,42 @@ def _():
 		it = {x["ma"] for x in khung_ds.danh_ba()}
 		la("vai không liên quan thì danh bạ trống trơn", it, set())
 
-		# Bếp xem được danh mục hàng ngày, KHÔNG xem được giá mua và tài khoản.
-		frappe.get_roles = lambda *a, **k: ["Bếp phó"]
-		bep = {x["ma"] for x in khung_ds.danh_ba()}
-		la("bếp xem được danh mục sản phẩm", "DMSP" in bep, True)
-		la("bếp xem được công thức định mức", "DMBOM" in bep, True)
-		la("bếp KHÔNG xem được giá mua", "DMGIA" in bep, False)
-		la("bếp KHÔNG xem được tài khoản kế toán", "DMTK" in bep, False)
-		la("bếp KHÔNG xem được hồ sơ khách hàng", "DMKH" in bep, False)
+		# SIẾT LẠI 21/08/2026. Anh Việt: *"Chỉ những tài khoản sở hữu Role
+		# là Kế toán, Thu mua và Giám đốc mới được phép nhìn thấy phân hệ
+		# Danh mục này... Các Role khác (Sales, Kho, Bếp...) tuyệt đối không
+		# được nhìn thấy menu này để tránh tình trạng rác dữ liệu."*
+		#
+		# Bản trước của ca này khẳng định điều NGƯỢC LẠI - bếp xem được danh
+		# mục sản phẩm và công thức - vì đó là chính sách ngày 18/08. Giữ
+		# nguyên ca cũ thì cổng deploy sẽ chặn đúng cái anh Việt vừa yêu cầu.
+		for _vai in (["Bếp phó"], ["Stock User"], ["Sales User"],
+		             ["Bộ phận đặt hàng"], ["Kiểm kê viên"]):
+			frappe.get_roles = lambda *a, **k: list(_vai)
+			thay = {x["ma"] for x in khung_ds.danh_ba()}
+			la("%s không thấy một danh mục nào" % _vai[0],
+				sorted(m for m in thay if m.startswith("DM")), [])
+
+		# Ba nhóm trong cổng thì thấy, và thấy đúng phần việc của mình.
+		frappe.get_roles = lambda *a, **k: ["AP Officer"]
+		thu_mua = {x["ma"] for x in khung_ds.danh_ba()}
+		la("thu mua thấy nhà cung cấp", "DMNCC" in thu_mua, True)
+		la("thu mua thấy giá mua", "DMGIA" in thu_mua, True)
+		la("thu mua KHÔNG thấy hồ sơ khách hàng", "DMKH" in thu_mua, False)
+		la("thu mua KHÔNG thấy hệ thống tài khoản", "DMTK" in thu_mua, False)
+
+		frappe.get_roles = lambda *a, **k: ["AP Kiểm soát (FIN)"]
+		ke_toan = {x["ma"] for x in khung_ds.danh_ba()}
+		la("kế toán thấy hệ thống tài khoản", "DMTK" in ke_toan, True)
+		la("kế toán thấy hồ sơ khách hàng", "DMKH" in ke_toan, True)
+		la("kế toán thấy danh mục sản phẩm", "DMSP" in ke_toan, True)
+
+		# Anh Việt và Dễ giữ vai "AP Giám đốc". Bản liệt kê tay của XEM_TIEN
+		# từng SÓT đúng vai này, tức là hai người lẽ ra thấy hết lại không
+		# vào được. Ca này chốt lại để không sót lần nữa.
+		frappe.get_roles = lambda *a, **k: ["AP Giám đốc"]
+		gd = {x["ma"] for x in khung_ds.danh_ba()}
+		la("giám đốc thấy đủ cả 16 danh mục",
+			len([m for m in gd if m.startswith("DM")]), 16)
 	finally:
 		frappe.get_roles = cu
 
