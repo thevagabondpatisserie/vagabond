@@ -170,6 +170,9 @@ async function scrHome() {
          tai khoan tieng Viet ma chi hai but toan go tay, va khong mot tai
          san nao duoc khai. */
       card('🏗️', 'Tài sản và công cụ dụng cụ', 'Khai tài sản, chạy khấu hao và phân bổ 242 hàng tháng', 0, 'TS') +
+      /* Nop quy tien mat: gom cac ca da chot, bang ke menh gia, hai ben ky
+         tay, bien ban PDF. Mo ca / chot ca nam o man Tinh tien tung quay. */
+      card('💵', 'Nộp quỹ tiền mặt', 'Gom ca đã chốt, bảng kê mệnh giá, ký giao nhận, biên bản PDF', 0, 'NQ') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') + '</div>';
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
@@ -362,7 +365,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'BC:BC05'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -742,6 +745,7 @@ function vgbGo(k) {
   if (k === 'KM') return go(scrKhuyenMai);
   if (k === 'CN') return go(scrCongNo);
   if (k === 'HT') return go(scrHoanTien);
+  if (k === 'NQ') return go(scrNopQuy);
   if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
