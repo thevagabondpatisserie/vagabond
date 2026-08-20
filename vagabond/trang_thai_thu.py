@@ -39,6 +39,8 @@ trong cột là một trạng thái không lọc được, tức không dùng đ
 được.
 """
 
+import re
+
 import frappe
 from frappe.utils import add_to_date, now_datetime
 
@@ -68,6 +70,14 @@ THEO_HANG_DOI = {
 # Quét lùi bao nhiêu phút mỗi nhịp. Rộng hơn nhịp chạy (5 phút) nhiều lần,
 # để một nhịp lỡ không làm mất luôn bản ghi.
 CUA_SO_SOAT_PHUT = 45
+
+# Mẫu mã chứng từ nằm trong thân thư: DMH-2026-00146, MAT-MR-2026-00007, và
+# bản sửa đổi có đuôi số như DMH-2026-00133-1.
+MAU_MA = re.compile(r"\b[A-Z]{2,6}(?:-[A-Z]{2,6}){0,2}-\d{4}-\d{4,6}(?:-\d{1,2})?\b")
+
+# Quét lùi bao nhiêu ngày khi màn hình hỏi một chứng từ đã gửi thư tới đâu.
+# Có mốc thì câu lệnh dò thân thư không phải quét cả bảng Communication.
+CUA_SO_HOI_NGAY = 120
 
 
 # ============================================================ phép THUẦN
@@ -99,6 +109,36 @@ def gop_nhieu_thu(ds_trang_thai):
 		if uu_tien in co:
 			return uu_tien
 	return None
+
+
+def tim_ma_trong_thu(chuoi):
+	"""Nhặt mọi mã chứng từ có mặt trong tiêu đề cộng thân thư. THUẦN.
+
+	Vì sao phải dò thân thư
+	-----------------------
+	Một bản ghi hàng đợi chỉ có MỘT ô `reference_name`. Uyên gộp ba đơn vào
+	một lá thư thì hàng đợi vẫn chỉ đóng dấu được đơn đầu, hai đơn còn lại
+	nằm nguyên ở "Chưa gửi". Uyên thấy vậy thì bấm gửi lại, và nhà cung cấp
+	nhận thư hai lần. Chiều 20/08/2026 chuyện này xảy ra thật với
+	DMH-2026-00139 và DMH-2026-00146.
+
+	Đây là bài học cũ, đã học một lần hồi 03/08/2026 rồi lại quên: bản đầu
+	hôm đó dựa vào bảng `Communication Link` để biết thư gồm những đơn nào,
+	chạy thật thì bảng đó rỗng. Nguồn đầy đủ và không phụ thuộc bảng phụ nào
+	chính là THÂN THƯ, vì mẫu thư gộp in đủ mã từng đơn ra bảng tóm tắt.
+
+	Trả về danh sách mã ứng viên, XẾP DÀI TRƯỚC. Xếp dài trước là bắt buộc:
+	đơn sửa đổi `DMH-2026-00133-1` mà đứng sau thì sẽ bị nuốt thành
+	`DMH-2026-00133`. Hàm này chỉ nhặt, không hỏi hệ xem mã có thật không.
+	"""
+	ra, da = [], set()
+	for m in MAU_MA.findall(chuoi or ""):
+		if m in da:
+			continue
+		da.add(m)
+		ra.append(m)
+	ra.sort(key=len, reverse=True)
+	return ra
 
 
 def cau_nhac(trang_thai, loi=None):
@@ -162,6 +202,94 @@ def _ghi(loai_chung_tu, ma, trang_thai, ly_do=""):
 	return True
 
 
+def _than_thu(ma_thu, bo_nho=None):
+	"""Lấy tiêu đề cộng thân của một lá thư trong hàng đợi.
+
+	Ưu tiên bản ghi `Communication` vì ở đó thân thư là HTML thường, đọc
+	thẳng được. Ô `message` của hàng đợi là bản MIME đã mã hoá base64, dò
+	chữ trong đó thì không ra gì; chỉ mở ra khi thư không gắn Communication.
+	"""
+	if bo_nho is not None and ma_thu in bo_nho:
+		return bo_nho[ma_thu]
+	cau = ""
+	try:
+		c = frappe.db.get_value(
+			"Communication", ma_thu, ["subject", "content"], as_dict=True
+		)
+		if c:
+			cau = "%s\n%s" % (c.get("subject") or "", c.get("content") or "")
+	except Exception:
+		cau = ""
+	if bo_nho is not None:
+		bo_nho[ma_thu] = cau
+	return cau
+
+
+def _boc_mime(chuoi):
+	"""Mở bản MIME của hàng đợi ra lấy phần chữ. Chỉ dùng khi không có Communication."""
+	try:
+		import email as thu_mime
+
+		msg = thu_mime.message_from_string(chuoi or "")
+		phan = [msg.get("Subject") or ""]
+		for p in msg.walk():
+			if p.get_content_maintype() != "text":
+				continue
+			try:
+				than = p.get_payload(decode=True)
+			except Exception:
+				continue
+			if not than:
+				continue
+			phan.append(than.decode(p.get_content_charset() or "utf-8", "ignore"))
+		return "\n".join(phan)
+	except Exception:
+		return ""
+
+
+def _cac_chung_tu_cua_thu(hang, bo_nho=None):
+	"""Một lá thư trong hàng đợi ứng với những chứng từ nào.
+
+	Luôn có chứng từ gắn ở ô tham chiếu. Ngoài ra dò thêm mã trong thân thư,
+	vì thư gộp mang nhiều đơn mà ô tham chiếu chỉ chứa được một.
+
+	Mã dò ra phải TỒN TẠI THẬT mới nhận. Không có phép kiểm này thì một
+	chuỗi ngẫu nhiên trông giống mã đơn cũng thành chứng từ, và máy sẽ đóng
+	dấu "Đã gửi" lên thứ không hề được gửi.
+	"""
+	ra, da = [], set()
+
+	def them(loai, ma):
+		if not loai or not ma or loai not in CHUNG_TU_CO_GUI:
+			return
+		if (loai, ma) in da:
+			return
+		if not _co_o(loai) or not frappe.db.exists(loai, ma):
+			return
+		da.add((loai, ma))
+		ra.append((loai, ma))
+
+	them((hang.get("reference_doctype") or "").strip(),
+		(hang.get("reference_name") or "").strip())
+
+	try:
+		ma_thu = (hang.get("communication") or "").strip()
+		cau = _than_thu(ma_thu, bo_nho) if ma_thu else _boc_mime(hang.get("message"))
+		for ma in tim_ma_trong_thu(cau):
+			for loai in CHUNG_TU_CO_GUI:
+				them(loai, ma)
+				# Đuôi "-1" trong thân thư có thể là số thứ tự chứ không phải
+				# bản sửa đổi. Không tìm ra bản đủ đuôi thì thử bản gốc.
+				if (loai, ma) not in da:
+					goc = re.sub(r"-\d{1,2}$", "", ma)
+					if goc != ma:
+						them(loai, goc)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "trang_thai_thu: do than thu")
+
+	return ra
+
+
 def danh_dau_cho_gui(doc, method=None):
 	"""Hook after_insert của Email Queue: đặt ngay "Đang chờ gửi".
 
@@ -173,12 +301,12 @@ def danh_dau_cho_gui(doc, method=None):
 	"""
 	try:
 		loai = (doc.get("reference_doctype") or "").strip()
-		ma = (doc.get("reference_name") or "").strip()
-		if not loai or not ma or loai not in CHUNG_TU_CO_GUI:
+		if not loai or loai not in CHUNG_TU_CO_GUI:
 			return
-		if not _co_o(loai) or not frappe.db.exists(loai, ma):
-			return
-		_ghi(loai, ma, DANG_CHO, "")
+		# Thư gộp mang nhiều đơn: đóng dấu "Đang chờ gửi" cho TẤT CẢ, không
+		# chỉ đơn nằm ở ô tham chiếu. Xem `tim_ma_trong_thu`.
+		for loai_ct, ma in _cac_chung_tu_cua_thu(doc, {}):
+			_ghi(loai_ct, ma, DANG_CHO, "")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "trang_thai_thu: danh dau cho gui")
 
@@ -202,17 +330,20 @@ def soat_tu_dong():
 				"reference_doctype": ["in", list(CHUNG_TU_CO_GUI)],
 			},
 			fields=["name", "status", "error", "reference_doctype", "reference_name",
-				"modified"],
+				"communication", "modified"],
 			order_by="modified asc",
 			limit=1000,
 		)
 		if not ds:
 			return
 
+		# Gom theo CHỨNG TỪ chứ không theo ô tham chiếu: một lá thư gộp ba
+		# đơn thì cả ba đơn phải nhận trạng thái của lá thư đó.
+		bo_nho = {}
 		nhom = {}
 		for x in ds:
-			khoa = (x.reference_doctype, x.reference_name)
-			nhom.setdefault(khoa, []).append(x)
+			for khoa in _cac_chung_tu_cua_thu(x, bo_nho):
+				nhom.setdefault(khoa, []).append(x)
 
 		da_doi = 0
 		for (loai, ma), hang in nhom.items():
@@ -236,6 +367,65 @@ def soat_tu_dong():
 			frappe.db.commit()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "trang_thai_thu: soat tu dong")
+
+
+@frappe.whitelist()
+def soat_lai(so_ngay=7):
+	"""Soát lại một quãng dài, để vá các đơn bị sót trước khi có bản này.
+
+	Nhịp lập lịch chỉ nhìn lùi 45 phút, nên các thư gộp gửi từ hôm trước sẽ
+	không bao giờ được soát lại. Hàm này chạy đúng phép đó trên cửa sổ rộng,
+	gọi tay một lần sau khi deploy là đủ.
+
+	Chỉ đọc hàng đợi rồi ghi lại trạng thái đúng của hàng đợi, nên chạy mấy
+	lần cũng ra một kết quả.
+	"""
+	if not frappe.has_permission("Purchase Order", "write"):
+		frappe.throw(
+			"Chỉ người có quyền sửa đơn mua hàng mới soát lại được. "
+			"Anh chị nhờ anh Việt chạy giúp."
+		)
+	ngay = max(1, min(int(so_ngay or 7), 90))
+	moc = add_to_date(now_datetime(), days=-ngay)
+	ds = frappe.get_all(
+		HANG_DOI,
+		filters={
+			"modified": [">=", moc],
+			"reference_doctype": ["in", list(CHUNG_TU_CO_GUI)],
+		},
+		fields=["name", "status", "error", "reference_doctype", "reference_name",
+			"communication", "modified"],
+		order_by="modified asc",
+		limit=5000,
+	)
+	bo_nho = {}
+	nhom = {}
+	for x in ds:
+		for khoa in _cac_chung_tu_cua_thu(x, bo_nho):
+			nhom.setdefault(khoa, []).append(x)
+
+	da_doi = []
+	for (loai, ma), hang in nhom.items():
+		trang_thai = gop_nhieu_thu([x.status for x in hang])
+		if not trang_thai:
+			continue
+		ly_do = ""
+		if trang_thai == GUI_LOI:
+			loi = [x for x in hang if theo_hang_doi(x.status) == GUI_LOI]
+			loi.sort(key=lambda x: x.modified or "")
+			ly_do = cau_loi(loi[-1].error if loi else "")
+		cu = frappe.db.get_value(loai, ma, O_TRANG_THAI)
+		if _ghi(loai, ma, trang_thai, ly_do):
+			da_doi.append({"ma": ma, "loai": loai, "cu": cu or "", "moi": trang_thai})
+	if da_doi:
+		frappe.db.commit()
+	return {
+		"so_thu": len(ds),
+		"so_chung_tu": len(nhom),
+		"da_doi": da_doi,
+		"ghi_chu": "Soát %d ngày, %d lá thư, sửa %d chứng từ."
+			% (ngay, len(ds), len(da_doi)),
+	}
 
 
 # ===================================================== cột và ô trên Desk
@@ -318,6 +508,38 @@ def _dung_o_ly_do():
 		create_custom_fields(khai, update=True)
 
 
+def _thu_gop_co_nhac(ma):
+	"""Các lá thư gộp có nhắc tới mã chứng từ này trong thân thư.
+
+	Dò bằng `like` trên bảng Communication, có chặn mốc thời gian để không
+	quét cả bảng. Thư cũ hơn mốc thì thôi, vì cột trạng thái trên chứng từ
+	đã chốt từ lâu rồi, màn hình chi tiết không cần liệt kê lại.
+	"""
+	ma = (ma or "").strip()
+	if not ma:
+		return []
+	try:
+		moc = add_to_date(now_datetime(), days=-CUA_SO_HOI_NGAY)
+		cac_thu = frappe.get_all(
+			"Communication",
+			filters={"creation": [">=", moc], "content": ["like", "%" + ma + "%"]},
+			pluck="name",
+			limit=20,
+		)
+		if not cac_thu:
+			return []
+		return frappe.get_all(
+			HANG_DOI,
+			filters={"communication": ["in", cac_thu]},
+			fields=["name", "status", "error", "sender", "creation", "modified"],
+			order_by="creation desc",
+			limit=20,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "trang_thai_thu: tim thu gop")
+		return []
+
+
 @frappe.whitelist()
 def tinh_trang(loai_chung_tu, ma):
 	"""Màn hình hỏi: chứng từ này gửi thư tới đâu rồi.
@@ -336,6 +558,15 @@ def tinh_trang(loai_chung_tu, ma):
 		order_by="creation desc",
 		limit=20,
 	)
+	# Cộng thêm các lá thư GỘP có nhắc tới mã này mà ô tham chiếu lại trỏ
+	# sang đơn khác. Không cộng thì màn hình báo "Chưa gửi" trong khi thư đã
+	# đi rồi, và người dùng sẽ bấm gửi lại.
+	da_co = set(x.name for x in ds)
+	for x in _thu_gop_co_nhac(ma):
+		if x.name not in da_co:
+			da_co.add(x.name)
+			ds.append(x)
+	ds.sort(key=lambda x: x.creation or "", reverse=True)
 	trang_thai = gop_nhieu_thu([x.status for x in ds]) or CHUA_GUI
 	loi = [x for x in ds if theo_hang_doi(x.status) == GUI_LOI]
 	return {

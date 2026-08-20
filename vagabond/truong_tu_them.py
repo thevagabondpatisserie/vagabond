@@ -39,6 +39,10 @@ def dung():
 	from vagabond import minvoice_tep
 
 	_dung_nhom(minvoice_tep.TRUONG_MOI, "minvoice_tep")
+	# Nha cung cap: o "Email phu can CC" (them 21/08/2026).
+	from vagabond import nha_cung_cap
+
+	_dung_nhom(nha_cung_cap.TRUONG_MOI, "nha_cung_cap")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()

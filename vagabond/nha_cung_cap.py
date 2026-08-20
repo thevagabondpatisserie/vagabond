@@ -6,9 +6,9 @@ Vi sao tep nay ton tai
 Uyen thu tao nha cung cap tren app ngay 21/08/2026 va vap hai chuyen mot
 luc. Mot, quyen: vai Purchase Manager cua Uyen co Sua ma khong co Tao, nen
 may tra "khong co quyen truy cap doctype". Hai, form chi co bon o (ten,
-nhom, ma so thue, loai) - thieu email thi luong gui don mua hang sau nay
-khong co cho gui, thieu so tai khoan thi den luc lap ho so thanh toan lai
-phai mo Desk go tay.
+nhom, ma so thue, loai) - thieu cho ghi email thi luong gui don mua hang
+sau nay khong co dia chi, thieu so tai khoan thi den luc lap ho so thanh
+toan lai phai mo Desk go tay.
 
 Trong ERPNext, ho so mot nha cung cap KHONG nam trong mot bang. Ten va ma
 so thue o `Supplier`, dia chi o `Address`, nguoi lien he va email o
@@ -22,9 +22,11 @@ Nguyen tac
    lien he, tai khoan. Ba cai sau hong thi ghi Error Log va van tra ve ma
    nha cung cap - khong dung ho so da tao, vi bat nguoi dung go lai tu dau
    con te hon la thieu mot o sua sau duoc.
-2. EMAIL LA CUA NGO CUA DON MUA HANG. `ho_so_tt._email_ncc` doc email theo
-   thu tu: email tren ho so, roi lien he chinh, roi lien he bat ky. Nen o
-   day ghi ca hai cho va danh dau lien he chinh, de moi duong doc deu ra.
+2. EMAIL LA CUA NGO CUA DON MUA HANG NHUNG KHONG BAT BUOC. Anh Viet
+   21/08/2026: co nha cung cap chi mua duoc qua app hay san thuong mai
+   dien tu, ho khong co hom thu nao de gui don ca. Co email thi ghi vao CA
+   HAI cho (o tren ho so va lien he chinh) vi `ho_so_tt._email_ncc` doc
+   theo thu tu do; khong co thi de trong, don mua se mang kenh khac Email.
 3. MA SO THUE tra cuu bang `vagabond.api.tra_mst` (VietQR, da chay san cho
    hoa don va bao gia). Tra cuu chi DIEN HO vao o tren man; nguoi dung van
    nhin thay va sua duoc truoc khi bam Luu. May khong tu ghi thang vao co
@@ -55,17 +57,42 @@ def chuan_mst(mst):
 def thieu_o_nao(goi):
 	"""Danh sach o bat buoc con trong. Tra ve [] la du de ghi.
 
-	Email nam trong nhom bat buoc: don mua hang gui cho nha cung cap qua
-	email, khong co email thi phieu lap ra khong gui di dau duoc.
+	EMAIL KHONG BAT BUOC (anh Viet 21/08/2026): *"co nhung NCC khong mua qua
+	email, ma phai mua qua app, san thuong mai dien tu..."*. Bat buoc mot o
+	ma nghiep vu khong can la ep nguoi dung go bua mot dia chi cho qua cua -
+	roi thu don mua hang bay vao mot hom thu khong ai doc.
+
+	He da co cot "Kenh dat hang" tren don mua (Email, Zalo, App nha cung
+	cap, Mua truc tiep) va don kenh khac Email tu mang trang thai "Khong mua
+	qua email", nen thieu email khong lam hong duong nao ca.
 	"""
 	thieu = []
 	if not str(goi.get("ten") or "").strip():
 		thieu.append("Tên nhà cung cấp")
 	if not str(goi.get("nhom") or "").strip():
 		thieu.append("Nhóm nhà cung cấp")
-	if not str(goi.get("email") or "").strip():
-		thieu.append("Email nhận đơn mua hàng")
 	return thieu
+
+
+def loc_email_cc(ds):
+	"""Danh sach email CC sach: bo trong, bo trung, giu thu tu nguoi go.
+
+	Nhan ca chuoi ngan cach bang dau phay lan danh sach, vi man hinh gui
+	ba o rieng con cho khac trong he lai luu mot chuoi.
+	"""
+	if isinstance(ds, str):
+		ds = ds.replace(";", ",").split(",")
+	ra, da = [], set()
+	for x in (ds or []):
+		e = str(x or "").strip()
+		if not e:
+			continue
+		khoa = e.lower()
+		if khoa in da:
+			continue
+		da.add(khoa)
+		ra.append(e)
+	return ra
 
 
 def email_hop_le(email):
@@ -89,6 +116,20 @@ from frappe.utils import cint
 
 VAI_SUA = {"System Manager", "Thu mua", "Purchase Manager", "Purchase Master Manager",
            "Accounts Manager", "Accounts User", "Giám đốc", "AP Giám đốc"}
+
+TRUONG_MOI = {
+	"Supplier": [
+		{
+			"fieldname": "email_cc", "label": "Email phụ cần CC",
+			"fieldtype": "Small Text", "insert_after": "email_id",
+			"description": (
+				"Các địa chỉ cần CC khi gửi đơn mua hàng, cách nhau bằng dấu "
+				"phẩy. Nhiều nhà cung cấp muốn cả kế toán và kho cùng nhận "
+				"một thư."
+			),
+		},
+	]
+}
 
 
 def _kiem_quyen():
@@ -131,7 +172,7 @@ def _gan_dia_chi(ma_ncc, ten_ncc, dia_chi, tinh=None):
 	return d.name
 
 
-def _gan_lien_he(ma_ncc, ten_ncc, nguoi, email, dien_thoai):
+def _gan_lien_he(ma_ncc, ten_ncc, nguoi, email, dien_thoai, cc=None):
 	"""Ghi nguoi lien he, danh dau la lien he CHINH.
 
 	Danh dau chinh khong phai de cho dep: `ho_so_tt._email_ncc` va duong gui
@@ -148,6 +189,13 @@ def _gan_lien_he(ma_ncc, ten_ncc, nguoi, email, dien_thoai):
 	})
 	if email:
 		doc.append("email_ids", {"email_id": email, "is_primary": 1})
+	# Email CC nam CUNG mot lien he, danh dau khong phai chinh. De day thi
+	# hop soan thu cua Frappe goi y duoc, ma duong doc email chinh cua
+	# `ho_so_tt._email_ncc` van chi thay dia chi chinh.
+	for e in (cc or []):
+		if email and e.strip().lower() == email.strip().lower():
+			continue
+		doc.append("email_ids", {"email_id": e, "is_primary": 0})
 	if dien_thoai:
 		doc.append("phone_nos", {"phone": dien_thoai, "is_primary_mobile_no": 1})
 	doc.flags.ignore_permissions = True
@@ -188,7 +236,8 @@ def _gan_tai_khoan(ma_ncc, ten_ncc, so_tk, ngan_hang, chu_tk):
 @frappe.whitelist()
 def tao(ten=None, nhom=None, mst=None, loai="Company", dia_chi=None, tinh=None,
         nguoi_lien_he=None, email=None, dien_thoai=None,
-        so_tk=None, ngan_hang=None, chu_tk=None):
+        so_tk=None, ngan_hang=None, chu_tk=None,
+        email_cc=None, email_cc2=None, email_cc3=None):
 	"""Lap ho so nha cung cap day du tu mot goi cua man hinh.
 
 	Tra ve ma nha cung cap, kem danh sach phan nao ghi duoc va phan nao
@@ -200,12 +249,21 @@ def tao(ten=None, nhom=None, mst=None, loai="Company", dia_chi=None, tinh=None,
 	thieu = thieu_o_nao(goi)
 	if thieu:
 		frappe.throw("Còn thiếu: %s. Điền nốt rồi bấm Lưu lại giúp em." % ", ".join(thieu))
+	# Email khong bat buoc, nhung DA GO thi phai dung dang. Bo trong khac
+	# han go sai: bo trong la co y, con go sai la thu bay vao hu khong.
 	email = str(email or "").strip()
-	if not email_hop_le(email):
+	if email and not email_hop_le(email):
 		frappe.throw(
 			"Email \"%s\" trông chưa đúng - kiểm lại xem có thiếu dấu chấm "
 			"hay phần đuôi không (ví dụ .com). Đơn mua hàng gửi qua email "
 			"này nên sai một ký tự là thư không tới." % email
+		)
+	cc = loc_email_cc([email_cc, email_cc2, email_cc3])
+	sai_cc = [e for e in cc if not email_hop_le(e)]
+	if sai_cc:
+		frappe.throw(
+			"Email CC \"%s\" trông chưa đúng. Sửa lại hoặc bỏ trống giúp em."
+			% ", ".join(sai_cc)
 		)
 	ten = str(ten).strip()
 	nhom = str(nhom).strip()
@@ -257,12 +315,20 @@ def tao(ten=None, nhom=None, mst=None, loai="Company", dia_chi=None, tinh=None,
 		except Exception:
 			hong.append("địa chỉ")
 			frappe.log_error(frappe.get_traceback(), "nha_cung_cap: ghi dia chi %s" % doc.name)
-	try:
-		_gan_lien_he(doc.name, ten, nguoi_lien_he, email, dien_thoai)
-		xong.append("người liên hệ")
-	except Exception:
-		hong.append("người liên hệ")
-		frappe.log_error(frappe.get_traceback(), "nha_cung_cap: ghi lien he %s" % doc.name)
+	if email or dien_thoai or (nguoi_lien_he or "").strip() or cc:
+		try:
+			_gan_lien_he(doc.name, ten, nguoi_lien_he, email, dien_thoai, cc)
+			xong.append("người liên hệ")
+		except Exception:
+			hong.append("người liên hệ")
+			frappe.log_error(frappe.get_traceback(), "nha_cung_cap: ghi lien he %s" % doc.name)
+	if cc:
+		try:
+			frappe.db.set_value("Supplier", doc.name, "email_cc", ", ".join(cc))
+			xong.append("%d email CC" % len(cc))
+		except Exception:
+			hong.append("email CC")
+			frappe.log_error(frappe.get_traceback(), "nha_cung_cap: ghi email cc %s" % doc.name)
 	so_tk = "".join(ch for ch in str(so_tk or "") if ch.isalnum())
 	if so_tk:
 		try:
@@ -315,6 +381,7 @@ def chi_tiet(ma=None):
 			[c.get("first_name") or "", c.get("last_name") or ""]
 		)).strip()
 		ra["email"] = ra["email"] or (c.get("email_id") or "")
+	ra["email_cc"] = frappe.db.get_value("Supplier", ma, "email_cc") or ""
 	tk = frappe.get_all(
 		"Bank Account", filters={"party_type": "Supplier", "party": ma},
 		fields=["account_name", "bank_account_no", "bank"],
