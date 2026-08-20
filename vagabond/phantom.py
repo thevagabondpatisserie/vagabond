@@ -197,7 +197,13 @@ def _ton_con_lai(cac_ma):
 
 
 def _phieu_nhap(cac_ma):
-	"""Phiếu kho còn nháp có dính các mã này. Chỉ cảnh báo, không chặn."""
+	"""Phiếu kho còn nháp có dính các mã này. Chỉ cảnh báo, không chặn.
+
+	Đọc thẳng bảng con, KHÔNG truyền `parent=`. Ô `parent` là tham số của
+	đường REST bên ngoài, `frappe.get_all` ở trong máy chủ không nhận nó và
+	sẽ ném TypeError. Đây đúng là lỗi đã làm màn này trả về mã 500 ngay lần
+	mở đầu tiên tối 20/08/2026.
+	"""
 	if not cac_ma:
 		return []
 	dong = frappe.get_all(
@@ -205,7 +211,6 @@ def _phieu_nhap(cac_ma):
 		filters={"item_code": ["in", list(cac_ma)], "docstatus": 0},
 		fields=["parent", "item_code", "qty"],
 		limit_page_length=0,
-		parent="Stock Entry",
 	)
 	cha = {}
 	for d in dong:
@@ -287,7 +292,6 @@ def _ke_hoach():
 				"parenttype": "BOM"},
 			fields=["name", "parent", "item_code", "do_not_explode", "bom_no"],
 			limit_page_length=0,
-			parent="BOM",
 		):
 			if d.parent not in chang_cua_bom:
 				# BOM cha đã ngừng hoạt động thì để yên, không dựng lại.
