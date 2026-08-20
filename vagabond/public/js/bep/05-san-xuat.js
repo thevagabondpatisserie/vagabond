@@ -846,9 +846,28 @@ async function scrMfgView(name) {
     busy(0);
     if (plan.length) {
       var lines = plan.map(function (f) { return '- ' + f.name + ': ' + num(f.qty) + ' ' + (f.uom || ''); }).join('\n');
+      /* Xo ca so nguyen lieu se bi tru ra cho Khai xac nhan (anh Viet
+         21/08/2026). Truoc day hop nay chi noi "may se tu tru nguyen lieu"
+         ma khong noi tru cai gi, bao nhieu - nguoi bam khong co gi de kiem
+         lai, va bam xong la but toan kho da ghi, khong sua duoc. */
+      busy(1);
+      var nvl = [];
+      try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; }
+      busy(0);
+      var them = '';
+      if (nvl.length) {
+        var thieu = nvl.filter(function (x) { return x.thieu > 0.0001; });
+        them = '\n\nNGUYÊN LIỆU SẼ TRỪ tại kho ' + shortWh(src) + ':\n' +
+          nvl.slice(0, 14).map(function (x) {
+            return '- ' + x.name + ': ' + num(x.need) + ' ' + (x.uom || '') +
+              '  (tồn ' + num(x.ton) + (x.thieu > 0.0001 ? ', THIẾU ' + num(x.thieu) : '') + ')';
+          }).join('\n') +
+          (nvl.length > 14 ? '\n- và ' + (nvl.length - 14) + ' nguyên liệu nữa' : '') +
+          (thieu.length ? '\n\nCó ' + thieu.length + ' nguyên liệu không đủ tồn tại kho này. Bấm tiếp thì máy sẽ báo lỗi thiếu hàng chứ không ghi âm kho.' : '');
+      }
       var okf = await confirmSheet('Máy làm luôn giúp bếp',
         'Các bán thành phẩm làm tươi sau đây chưa có tồn. Máy sẽ tự tạo lệnh và trừ nguyên liệu cho từng loại ngay trước khi hoàn tất món chính:\n\n' +
-        lines + '\n\nBếp chỉ cần bấm một lần, không phải nhập tồn thủ công.', 'Đồng ý, làm luôn');
+        lines + them + '\n\nBút toán kho ghi xong không sửa lại được.', 'Đồng ý, làm luôn');
       if (!okf) return;
     }
     busy(1);
@@ -925,6 +944,53 @@ async function mfgFreshPlan(mats, ratio, src) {
   });
   return out;
 }
+/* Ke hoach lam tuoi se tru nhung nguyen lieu nao, bao nhieu.
+
+   Chi doc MOT cap cong thuc: neu trong do lai co ban thanh pham lam tuoi
+   thi may van tu lam tiep, nhung hop xac nhan khong nen bay ca cay ra man
+   hinh dien thoai. Cot "tồn" doc tai dung cai kho se bi tru. */
+async function mfgNvlCuaKe(plan, src) {
+  if (!plan || !plan.length) return [];
+  var boms = plan.map(function (f) { return f.bom; }).filter(Boolean);
+  if (!boms.length) return [];
+  var bq = {};
+  (await getList('BOM', {
+    fields: ['name', 'quantity'], filters: { name: ['in', boms] }, limit_page_length: 0
+  })).forEach(function (b) { bq[b.name] = b.quantity || 1; });
+
+  var dong = await inChunks(boms, 40, function (lot) {
+    return getList('BOM Item', {
+      parent: 'BOM',
+      fields: ['parent', 'item_code', 'item_name', 'stock_qty', 'stock_uom'],
+      filters: { parent: ['in', lot] }, limit_page_length: 0
+    });
+  });
+
+  var ti = {};
+  plan.forEach(function (f) {
+    if (!f.bom) return;
+    ti[f.bom] = (ti[f.bom] || 0) + ((f.qty || 0) / (bq[f.bom] || 1));
+  });
+
+  var gom = {}, thu_tu = [];
+  dong.forEach(function (r) {
+    var t = ti[r.parent];
+    if (!t) return;
+    var c = r.item_code;
+    if (!gom[c]) { gom[c] = { code: c, name: r.item_name || c, uom: r.stock_uom, need: 0 }; thu_tu.push(c); }
+    gom[c].need = r3(gom[c].need + (r.stock_qty || 0) * t);
+  });
+  if (!thu_tu.length) return [];
+
+  var tn = await stockOf(thu_tu, src);
+  return thu_tu.map(function (c) {
+    var x = gom[c];
+    x.ton = tn[c] || 0;
+    x.thieu = r3(Math.max(0, x.need - x.ton));
+    return x;
+  }).sort(function (a, b) { return (b.thieu > 0 ? 1 : 0) - (a.thieu > 0 ? 1 : 0); });
+}
+
 async function mfgRunFresh(list, depth) {
   depth = depth || 1;
   for (var i = 0; i < list.length; i++) {

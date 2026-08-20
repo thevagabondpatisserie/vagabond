@@ -1848,6 +1848,12 @@ async function scrSePay() {
     frame('SePay', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
+  /* Dau van tay cua tung o khoa. Toi 20/08/2026 webhook tra 401 lien tuc
+     trong khi anh Viet quyet la da dan lai Secret Key: cho de nham la man
+     nay co HAI o khoa, dan vao o X-Api-Key thi duong HMAC van doc khoa cu.
+     Bay bon ky tu cuoi ra thi ba giay la biet dan dung o chua. */
+  try { seData.dau_khoa = await api('vagabond.sepay.soi_khoa', {}); }
+  catch (e2) { seData.dau_khoa = null; }
   seVe();
 }
 
@@ -1860,6 +1866,31 @@ async function scrSePay() {
 function seUrl(d) {
   if (d && d.duong_dan_path) return location.origin + d.duong_dan_path;
   return (d && d.duong_dan) || '';
+}
+
+/* Bay dau van tay cua tung o khoa: dai bao nhieu, bon ky tu cuoi la gi.
+   Khong bao gio hien ca khoa. Bon ky tu cuoi du de liec mat doi chieu voi
+   ben SePay, ma lo ra thi khong ai doan nguoc duoc. */
+function seDauKhoa(d) {
+  var k = d && d.dau_khoa;
+  if (!k) return '';
+  function dong(nhan, o, chinh) {
+    var v = k[o] || {};
+    var mau = v.co ? (chinh ? '#0f7a44' : '#6b7280') : '#b45309';
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;' +
+      'border-bottom:1px solid #f3f4f6"><div style="font-size:12.5px;color:#6b7280">' + nhan +
+      '</div><div style="font-size:12.5px;font-weight:700;color:' + mau + '">' +
+      (v.co ? (v.dai + ' ký tự · cuối ' + h(v.duoi)) : 'chưa có') + '</div></div>';
+  }
+  return '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;' +
+    'padding:9px 11px;margin-bottom:10px">' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:3px">KHOÁ ĐANG LƯU · ĐỐI CHIẾU VỚI SEPAY</div>' +
+    dong('Secret Key HMAC (webhook 1)', 'sepay_hmac', 1) +
+    dong('Secret Key HMAC 2 (ACB)', 'sepay_hmac_2', 1) +
+    dong('Khoá X-Api-Key (dự phòng)', 'sepay_khoa') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' +
+    'Secret Key bên SePay phải nằm ở ô <b>HMAC</b>. Mở SePay, xem bốn ký tự cuối của ' +
+    'Secret Key, so với dòng trên. Lệch nghĩa là đang dán nhầm ô.</div></div>';
 }
 
 function seVe() {
@@ -1877,6 +1908,7 @@ function seVe() {
     '<div id="seUrl" style="font-size:12.5px;font-weight:700;color:#0a58ca;word-break:break-all;' +
     'background:#f8fafc;border:1px solid #e5e7eb;border-radius:9px;padding:9px 11px;margin:6px 0 10px">' +
     h(seUrl(d)) + '</div>' +
+    seDauKhoa(d) +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">' +
     posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
     posChipNut('data-sehm="1"', d.co_hmac ? '🛡 Đã có khoá HMAC' : '⚠️ Chưa có khoá HMAC', !!d.co_hmac) +
