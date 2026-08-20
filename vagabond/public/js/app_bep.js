@@ -1152,6 +1152,9 @@ async function scrHome() {
          tai khoan tieng Viet ma chi hai but toan go tay, va khong mot tai
          san nao duoc khai. */
       card('🏗️', 'Tài sản và công cụ dụng cụ', 'Khai tài sản, chạy khấu hao và phân bổ 242 hàng tháng', 0, 'TS') +
+      /* Nop quy tien mat: gom cac ca da chot, bang ke menh gia, hai ben ky
+         tay, bien ban PDF. Mo ca / chot ca nam o man Tinh tien tung quay. */
+      card('💵', 'Nộp quỹ tiền mặt', 'Gom ca đã chốt, bảng kê mệnh giá, ký giao nhận, biên bản PDF', 0, 'NQ') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') + '</div>';
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
@@ -1344,7 +1347,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'BT', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'BC:BC05'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -1724,6 +1727,7 @@ function vgbGo(k) {
   if (k === 'KM') return go(scrKhuyenMai);
   if (k === 'CN') return go(scrCongNo);
   if (k === 'HT') return go(scrHoanTien);
+  if (k === 'NQ') return go(scrNopQuy);
   if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
@@ -8665,6 +8669,130 @@ function posNutPt(ds, chon) {
       '<span style="flex:0 1 auto;min-width:0;font-size:14px;line-height:1.3;font-weight:' + (on ? '700' : '500') + '">' + h(p.v) + '</span></button>';
   }).join('');
 }
+/* ---------------- Ca lam viec tai quay ----------------
+   Mo ca khai tien le dau ca. Chot ca DEM MU: thu ngan chi thay o trong de
+   go so minh dem, khong thay so may - thay truoc thi go lai dung so do va
+   phep doi soat vo nghia. Luat nam o vagabond/ca_quay.py. */
+var caPos = null;
+
+async function posCaVe() {
+  var tt = document.getElementById('posCaTt'), nut = document.getElementById('posCaNut');
+  if (!tt || !nut) return;
+  try { caPos = await api('vagabond.ca_quay.tinh_trang', { quay: posQuay.ma }); }
+  catch (e) { tt.textContent = 'Không đọc được ca: ' + ((e && e.message) || ''); return; }
+  if (caPos.dang_mo) {
+    tt.innerHTML = 'Ca <b>' + h(caPos.ma) + '</b> mở lúc ' + h(String(caPos.mo_luc).slice(11, 16)) +
+      ' · tiền lẻ đầu ca <b>' + money(caPos.tien_le_dau_ca) + ' đ</b>';
+    nut.textContent = 'Chốt ca';
+    nut.style.display = '';
+    nut.onclick = function () { go(scrChotCa); };
+  } else {
+    tt.textContent = 'Quầy chưa mở ca. Mở ca để tiền mặt cuối ngày đối soát được.';
+    nut.textContent = 'Mở ca';
+    nut.style.display = '';
+    nut.onclick = posMoCa;
+  }
+}
+
+async function posMoCa() {
+  var tien = await hoiSo('Mở ca ' + posQuay.ten, 'Tiền lẻ đầu ca đếm được trong két (đ)', '');
+  if (tien === null) return;
+  busy(true);
+  try {
+    var k = await api('vagabond.ca_quay.mo_ca', { quay: posQuay.ma, tien_le_dau_ca: tien });
+    busy(false);
+    toast('Đã mở ca ' + k.ma + ' · tiền lẻ ' + money(tien) + ' đ', 4000);
+    posCaVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không mở được ca', 'Mở ca'); }
+}
+
+/* Man chot ca: moi phuong thuc mot o, go xong bam chot. Co lech thi may
+   tra bang doi soat ve va doi ly do roi moi chot that. */
+async function scrChotCa() {
+  if (!posQuay || !caPos || !caPos.dang_mo) return go(scrPosQuay, true);
+  var dsPt = caPos.phuong_thuc || ['Tiền mặt'];
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<b style="font-size:15px">Chốt ca ' + h(caPos.ma) + ' · ' + h(posQuay.ten) + '</b>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">Mở lúc ' + h(String(caPos.mo_luc).slice(11, 16)) +
+    ' · tiền lẻ đầu ca ' + money(caPos.tien_le_dau_ca) + ' đ</div>' +
+    '<div style="margin-top:9px;background:#fff6e5;border:1.5px solid #fde3a7;border-radius:9px;padding:9px 12px;font-size:12.5px;color:#8a5b00">' +
+    'Đếm tiền TRƯỚC rồi mới gõ. Máy cố ý không hiện số hệ thống ở bước này - gõ đúng số mình đếm được, kể cả bằng 0.</div></div>';
+  html += '<div class="sec">Số đếm được theo từng phương thức</div><div class="card" style="padding:12px 14px">' +
+    dsPt.map(function (t, i) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0' +
+        (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
+        '<div style="flex:1;font-size:14px;font-weight:600">' + h(t) + '</div>' +
+        '<input class="tin caDem" data-pt="' + h(t) + '" inputmode="numeric" placeholder="0" style="width:150px;text-align:right;margin:0">' +
+        '</div>';
+    }).join('') + '</div>';
+  html += '<div class="card" style="padding:12px 14px">' +
+    '<div class="h2" style="margin-bottom:6px">Ghi chú ca (không bắt buộc)</div>' +
+    '<input class="tin" id="caGhiChu" style="margin:0" placeholder="Bàn giao cho ai, sự cố trong ca...">' +
+    '</div>';
+  html += '<button class="btn" id="caChotNut" style="width:100%">Chốt ca và xem đối soát</button>';
+  var b = frame('Chốt ca', html);
+  b.querySelectorAll('.caDem').forEach(function (o) {
+    o.oninput = function () { o.value = o.value.replace(/[^0-9]/g, ''); };
+  });
+  document.getElementById('caChotNut').onclick = async function () {
+    var dem = {};
+    b.querySelectorAll('.caDem').forEach(function (o) {
+      if (o.value !== '') dem[o.getAttribute('data-pt')] = Number(o.value) || 0;
+    });
+    if (!Object.keys(dem).length) return toast('Chưa gõ số đếm nào. Ô nào không có tiền thì gõ 0.', 4500);
+    var ghiChu = (document.getElementById('caGhiChu') || {}).value || '';
+    busy(true);
+    var k;
+    try { k = await api('vagabond.ca_quay.chot_ca', { quay: posQuay.ma, dem: JSON.stringify(dem), ghi_chu: ghiChu }); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không chốt được ca', 'Chốt ca'); }
+    busy(false);
+    if (k.can_ly_do) {
+      var lyDo = await hoiChu('Ca đang lệch', caLechChu(k.bang) + '\n' + (k.nhac || 'Gõ lý do lệch:'), '', { nhieu_dong: 1 });
+      if (lyDo === null || !String(lyDo).trim()) return toast('Chưa chốt: ca lệch thì phải có lý do.', 5000);
+      busy(true);
+      try { k = await api('vagabond.ca_quay.chot_ca', { quay: posQuay.ma, dem: JSON.stringify(dem), ghi_chu: ghiChu, ly_do_lech: lyDo }); }
+      catch (e2) { busy(false); return baoTin((e2 && e2.message) || 'Không chốt được ca', 'Chốt ca'); }
+      busy(false);
+    }
+    caPos = null;
+    scrDoiSoatCa(k);
+  };
+}
+
+function caLechChu(bang) {
+  return (bang || []).filter(function (d) { return Math.abs(d.lech) >= 1; })
+    .map(function (d) { return d.phuong_thuc + ': ' + (d.lech > 0 ? 'thừa ' : 'thiếu ') + money(Math.abs(d.lech)) + ' đ'; })
+    .join('; ');
+}
+
+/* Bang doi soat sau khi chot: xanh la khop, do la lech, kem cot phai co
+   (may cong tien le dau ca cho dong Tien mat). */
+function scrDoiSoatCa(k) {
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<b style="font-size:15px">Đối soát ca ' + h(k.ma || '') + '</b>' +
+    '<div style="font-size:13px;margin-top:4px;color:' + (k.tong_lech >= 1 ? '#b3261e' : '#0f766e') + ';font-weight:700">' +
+    (k.tong_lech >= 1 ? 'Tổng lệch ' + money(k.tong_lech) + ' đ' : 'Khớp toàn bộ ✓') + '</div></div>';
+  html += '<div class="card" style="padding:6px 14px">' +
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<tr style="color:#98a2b3;font-size:11.5px"><td style="padding:7px 0">PHƯƠNG THỨC</td>' +
+    '<td style="text-align:right">PHẢI CÓ</td><td style="text-align:right">ĐÃ ĐẾM</td><td style="text-align:right">LỆCH</td></tr>' +
+    (k.bang || []).map(function (d) {
+      var lech = Math.round(d.lech);
+      return '<tr style="border-top:1px solid #f2f4f7">' +
+        '<td style="padding:8px 0">' + h(d.phuong_thuc) + (d.so_bill ? ' <span style="color:#98a2b3;font-size:11px">(' + d.so_bill + ' bill)</span>' : '') + '</td>' +
+        '<td style="text-align:right">' + money(d.phai_co) + '</td>' +
+        '<td style="text-align:right">' + money(d.dem) + '</td>' +
+        '<td style="text-align:right;font-weight:700;color:' + (Math.abs(lech) >= 1 ? '#b3261e' : '#0f766e') + '">' +
+        (lech > 0 ? '+' : '') + money(lech) + '</td></tr>';
+    }).join('') + '</table></div>';
+  html += '<div class="card" style="padding:11px 14px;font-size:12.5px;color:#6b7280;line-height:1.6">' +
+    'Tiền mặt đếm được <b>' + money(k.tien_mat_dem || 0) + ' đ</b> của ca này sẽ thành tiền kỳ vọng ' +
+    'khi lập Phiếu nộp quỹ (màn Kế toán · Nộp quỹ tiền mặt).</div>';
+  html += '<button class="btn" id="caVeQuay" style="width:100%">Về màn quầy</button>';
+  var b = frame('Đối soát ca', html);
+  document.getElementById('caVeQuay').onclick = function () { go(scrPosQuay, true); };
+}
+
 async function scrPosQuay() {
   await cfgBanHang();
   posPollTat();
@@ -8703,6 +8831,15 @@ async function scrPosQuay() {
     '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15.5px;color:#0b7c93">Danh sách hoá đơn bán hàng trong ngày</div>' +
     '<div id="posHomNay" style="font-size:12.5px;color:#0b7c93;margin-top:2px">' + h(posHomNayTxt || 'Đang đếm hoá đơn hôm nay...') + '</div></div>' +
     '<span style="color:#0b7c93;font-size:22px">&#8250;</span></div></div>';
+  /* Ca lam viec: mo ca khai tien le, chot ca dem mu. Trang thai doc SAU
+     khi man da ve (posCaVe) de khong bat khach cho mot vong API nua. */
+  html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
+    '<div style="display:flex;align-items:center;gap:10px">' +
+    '<span style="font-size:20px">🕐</span>' +
+    '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">Ca làm việc</div>' +
+    '<div id="posCaTt" style="font-size:12.5px;color:#98a2b3">Đang xem ca của quầy...</div></div>' +
+    '<button class="btn gh" id="posCaNut" style="margin:0;padding:8px 14px;display:none"></button>' +
+    '</div></div>';
   html += '<div class="sec">Nguồn đơn</div><div class="card" style="padding:12px 14px">' +
     '<div id="posNd" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">' + posNutNguon(posDsCheDo(), posDon.che_do) + '</div>' +
     (laApp ? '<input class="tin" id="posMa" style="margin-top:10px" placeholder="' + h((qApp.nhan || 'Mã đơn bên app') + (qApp.vd ? ' - vd ' + qApp.vd : '')) + '" value="' + h(posDon.ma || '') + '">' : '') +
@@ -8860,6 +8997,7 @@ async function scrPosQuay() {
   var b = frame('Tính tiền · ' + (posQuay.ma || ''), html, { footer: '<div style="display:flex;gap:8px">' + footer + '</div>' });
   if (!laApp && posDon.pt !== 'Chuyển khoản') veOMtc(posDon.pt, 'posMtc', 'posMtcNhan');
   posDemHomNay();
+  posCaVe();
   /* Noi cac nut cua khoi diem. Truyen ham ve lai man de moi nhanh khoi
      phai tu goi go(scrPosQuay, true) - de quen mot cho la man hinh dung im
      sau khi bam. */
@@ -14965,7 +15103,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '247';
+var APPVER = '248';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -25583,6 +25721,310 @@ async function bgNhapExcel() {
 
 
 
+/* ================= NOP QUY TIEN MAT =================
+   Nua sau cua luong dong tien: cua hang truong gom cac ca DA CHOT, dem
+   tien theo menh gia, ky tay tren man; ke toan hoac giam doc dem lai va
+   ky nhan. Ky nhan xong phieu khoa cung. Luat o vagabond/nop_quy.py.
+
+   Nut "Ky nhan tien" chi hien voi vai ke toan/giam doc (may chu bao qua
+   o duoc_ky_nhan), va may chu con chan lai lan nua luc goi that. */
+var nqLoc = '', nqNgay = 30, nqTim = '';
+var nqXem = null;
+var NQ_MENH_GIA = [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000];
+var NQ_MAU_TT = {
+  'Nháp': ['#f2f4f7', '#6b7280'],
+  'Chờ ký nhận': ['#fef3c7', '#92400e'],
+  'Đã nộp quỹ': ['#dcfce7', '#166534']
+};
+
+function nqChipTt(tt) {
+  var m = NQ_MAU_TT[tt] || ['#f2f4f7', '#374151'];
+  return '<span style="background:' + m[0] + ';color:' + m[1] + ';border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700;white-space:nowrap">' + h(tt) + '</span>';
+}
+
+function nqTuNgay() {
+  if (!nqNgay) return null;
+  var d = new Date(); d.setDate(d.getDate() - nqNgay);
+  return d.toISOString().slice(0, 10);
+}
+
+/* ---- Ky tay tren man hinh: canvas nho, tra ve anh data URL ---- */
+function nqKyTay(tuaDe) {
+  return new Promise(function (xong) {
+    var than = '<div style="font-size:12.5px;color:#6b7280;margin-bottom:8px">Ký bằng ngón tay hoặc chuột vào khung dưới.</div>' +
+      '<canvas id="nqCv" width="560" height="200" style="width:100%;height:150px;border:1.5px dashed #98a2b3;border-radius:10px;background:#fff;touch-action:none"></canvas>';
+    var k = hopKhung(tuaDe || 'Ký tên', than,
+      '<button class="btn gh" data-nqx style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn gh" data-nqxoa style="flex:1;margin:0">Ký lại</button>' +
+      '<button class="btn" data-nqok style="flex:2;margin:0">Xong, lưu chữ ký</button>');
+    var cv = document.getElementById('nqCv'), cx = cv.getContext('2d');
+    cx.lineWidth = 3; cx.lineCap = 'round'; cx.strokeStyle = '#101828';
+    var dang = false, coNet = false;
+    function toa(e) {
+      var r = cv.getBoundingClientRect();
+      return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height];
+    }
+    cv.onpointerdown = function (e) { dang = true; coNet = true; var t = toa(e); cx.beginPath(); cx.moveTo(t[0], t[1]); cv.setPointerCapture(e.pointerId); };
+    cv.onpointermove = function (e) { if (!dang) return; var t = toa(e); cx.lineTo(t[0], t[1]); cx.stroke(); };
+    cv.onpointerup = cv.onpointercancel = function () { dang = false; };
+    k.box.onclick = function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-nqx]')) { k.dong(); return xong(null); }
+      if (e.target.closest('[data-nqxoa]')) { cx.clearRect(0, 0, cv.width, cv.height); coNet = false; return; }
+      if (e.target.closest('[data-nqok]')) {
+        if (!coNet) return toast('Chưa có nét ký nào.', 3000);
+        var anh = cv.toDataURL('image/png');
+        k.dong(); return xong(anh);
+      }
+    };
+  });
+}
+
+/* ---- Danh sach phieu nop quy ---- */
+async function scrNopQuy() {
+  frame('Nộp quỹ tiền mặt', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc phiếu nộp quỹ...</div></div>');
+  var kq;
+  try {
+    kq = await api('vagabond.nop_quy.danh_sach', {
+      trang_thai: nqLoc, tu_ngay: nqTuNgay(), den_ngay: nqNgay ? today() : null, tim: nqTim
+    });
+  } catch (e) {
+    frame('Nộp quỹ tiền mặt', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  var ds = kq.ds || [], dem = kq.dem || {};
+  var html = '<div class="card" style="padding:10px 12px">' +
+    mkChipNgay([[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng'], [0, 'Tất cả']], nqNgay, 'data-nqngay') + '</div>';
+  html += '<div class="card" style="padding:10px 12px"><div style="display:flex;flex-wrap:wrap;gap:8px">' +
+    [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ ký nhận', 'Chờ ký nhận'], ['Đã nộp quỹ', 'Đã nộp quỹ']].map(function (c) {
+      var on = nqLoc === c[0];
+      var so = dem[c[0]] !== undefined ? dem[c[0]] : 0;
+      return '<button class="chip' + (on ? ' on' : '') + '" data-nqloc="' + h(c[0]) + '" style="font-family:inherit">' + h(c[1]) + ' · ' + so + '</button>';
+    }).join('') + '</div></div>';
+  html += '<div style="display:flex;gap:9px;margin:2px 0 6px">' +
+    '<button class="btn" id="nqTao" style="flex:2;margin:0">＋ Lập phiếu nộp quỹ</button>' +
+    '<button class="btn gh" id="nqXls" style="flex:1;margin:0">⬇ Tải Excel</button></div>';
+  if (!ds.length) {
+    html += '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div><div>Không có phiếu nào ở nhóm này.</div></div></div>';
+  } else {
+    html += '<div class="lst">' + ds.map(function (d) {
+      return '<div class="shi" data-nq="' + h(d.name) + '" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+        '<div style="flex:1;min-width:0">' +
+        '<b style="font-size:14.5px">' + h(d.name) + '</b> ' + nqChipTt(d.trang_thai) +
+        '<div style="font-size:12px;color:#98a2b3;margin-top:3px">' + h(d.ngay) + ' · ' + d.so_ca + ' ca · giao: ' + h(d.nguoi_giao) +
+        (d.nguoi_nhan ? ' · nhận: ' + h(d.nguoi_nhan) : '') + '</div>' +
+        (Math.abs(d.lech) >= 1 ? '<div style="font-size:12px;color:#b3261e;font-weight:700;margin-top:2px">Lệch ' + (d.lech > 0 ? '+' : '') + money(d.lech) + ' đ</div>' : '') +
+        '</div>' +
+        '<b style="white-space:nowrap">' + money(d.tong_thuc_nhan) + ' đ</b></div>';
+    }).join('') + '</div>';
+  }
+  var b = frame('Nộp quỹ tiền mặt', html);
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-nqngay]');
+    if (t) { nqNgay = parseInt(t.getAttribute('data-nqngay'), 10); return go(scrNopQuy, true); }
+    t = e.target.closest('[data-nqloc]');
+    if (t) { nqLoc = t.getAttribute('data-nqloc'); return go(scrNopQuy, true); }
+    t = e.target.closest('[data-nq]');
+    if (t) { nqXem = t.getAttribute('data-nq'); return go(scrNopQuyXem, true); }
+  };
+  document.getElementById('nqTao').onclick = function () { go(scrNopQuyTao); };
+  /* Xuat DUNG bo loc dang xem - tep khac man hinh la co ngay hai ben cai
+     nhau ve mot con so. */
+  document.getElementById('nqXls').onclick = async function () {
+    busy(true);
+    try {
+      var fl = await api('vagabond.nop_quy.xuat_excel', {
+        trang_thai: nqLoc, tu_ngay: nqTuNgay(), den_ngay: nqNgay ? today() : null, tim: nqTim, so_dong: 500
+      });
+      busy(false);
+      bcTaiVe(fl.ten_file, fl.b64);
+      toast('Đã tải ' + fl.ten_file + ' · ' + fl.so_dong + ' phiếu', 4000);
+    } catch (e) { busy(false); toast((e && e.message) || 'Không xuất được Excel', 5000); }
+  };
+}
+
+/* ---- Lap phieu: chon ca, bang ke menh gia, ky ben giao ---- */
+async function scrNopQuyTao() {
+  frame('Lập phiếu nộp quỹ', '<div class="emp"><div class="e1">⏳</div></div>');
+  var kq;
+  try { kq = await api('vagabond.nop_quy.ca_cho_nop', {}); }
+  catch (e) { frame('Lập phiếu nộp quỹ', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || '') + '</div></div>'); return; }
+  var dsCa = kq.ds || [];
+  var html = '';
+  if (!dsCa.length) {
+    html += '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div>' +
+      '<div>Chưa có ca nào Đã chốt đang chờ nộp.<br>Chốt ca ở màn Tính tiền của từng quầy trước.</div></div></div>';
+    var b0 = frame('Lập phiếu nộp quỹ', html);
+    return;
+  }
+  html += '<div class="sec">Chọn ca bàn giao</div><div class="card" style="padding:6px 14px">' +
+    dsCa.map(function (c, i) {
+      return '<label style="display:flex;gap:10px;align-items:center;padding:9px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + ';cursor:pointer">' +
+        '<input type="checkbox" class="nqCa" data-ca="' + h(c.name) + '" data-tien="' + c.tien_mat_dem + '" checked>' +
+        '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(c.name) + '</b>' +
+        '<div style="font-size:12px;color:#98a2b3">' + h(c.quay) + ' · ' + h(c.ngay) +
+        (Math.abs(c.tong_lech) >= 1 ? ' · <span style="color:#b3261e">ca lệch ' + money(c.tong_lech) + '</span>' : '') + '</div></div>' +
+        '<b style="white-space:nowrap">' + money(c.tien_mat_dem) + ' đ</b></label>';
+    }).join('') + '</div>';
+  html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px">' +
+    '<div style="flex:1;font-size:13.5px;font-weight:600">Tiền lẻ để lại quầy cho ca sau</div>' +
+    '<input class="tin" id="nqGiuLai" inputmode="numeric" placeholder="0" style="width:140px;text-align:right;margin:0"></div>';
+  html += '<div class="sec">Bảng kê mệnh giá thực nộp</div><div class="card" style="padding:6px 14px">' +
+    NQ_MENH_GIA.map(function (mg, i) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
+        '<div style="width:90px;text-align:right;font-weight:700">' + money(mg) + '</div>' +
+        '<div style="color:#98a2b3;font-size:12px">đ ×</div>' +
+        '<input class="tin nqTo" data-mg="' + mg + '" inputmode="numeric" placeholder="0" style="width:90px;text-align:right;margin:0">' +
+        '<div style="flex:1;text-align:right;font-size:13px" id="nqTt' + mg + '">0 đ</div></div>';
+    }).join('') +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #101828;font-size:15px">' +
+    '<b>Tổng thực nộp</b><b id="nqTong">0 đ</b></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:2px 0;color:#5a6070;font-size:13px">' +
+    '<span>Kỳ vọng (tiền các ca trừ tiền để lại)</span><span id="nqKyVong">0 đ</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:2px 0 8px;font-size:13px;font-weight:700">' +
+    '<span>Lệch</span><span id="nqLech">0 đ</span></div></div>';
+  html += '<button class="btn" id="nqLap" style="width:100%">Ký bên giao và lập phiếu</button>';
+  var b = frame('Lập phiếu nộp quỹ', html);
+
+  function tinh() {
+    var tienCa = 0;
+    b.querySelectorAll('.nqCa').forEach(function (o) { if (o.checked) tienCa += Number(o.getAttribute('data-tien')) || 0; });
+    var giu = Number((document.getElementById('nqGiuLai').value || '').replace(/[^0-9]/g, '')) || 0;
+    var tong = 0;
+    b.querySelectorAll('.nqTo').forEach(function (o) {
+      var mg = Number(o.getAttribute('data-mg')), so = Number(o.value.replace(/[^0-9]/g, '')) || 0;
+      var tt = mg * so; tong += tt;
+      var oTt = document.getElementById('nqTt' + mg);
+      if (oTt) oTt.textContent = money(tt) + ' đ';
+    });
+    var kyVong = Math.max(0, tienCa - giu), lech = tong - kyVong;
+    document.getElementById('nqTong').textContent = money(tong) + ' đ';
+    document.getElementById('nqKyVong').textContent = money(kyVong) + ' đ';
+    var oL = document.getElementById('nqLech');
+    oL.textContent = (lech > 0 ? '+' : '') + money(lech) + ' đ';
+    oL.style.color = Math.abs(lech) >= 1 ? '#b3261e' : '#0f766e';
+  }
+  b.querySelectorAll('.nqTo, .nqCa').forEach(function (o) { o.oninput = o.onchange = tinh; });
+  document.getElementById('nqGiuLai').oninput = function () {
+    this.value = this.value.replace(/[^0-9]/g, ''); tinh();
+  };
+  tinh();
+
+  document.getElementById('nqLap').onclick = async function () {
+    var chon = [];
+    b.querySelectorAll('.nqCa').forEach(function (o) { if (o.checked) chon.push(o.getAttribute('data-ca')); });
+    if (!chon.length) return toast('Chưa chọn ca nào.', 3500);
+    var bangKe = {};
+    b.querySelectorAll('.nqTo').forEach(function (o) {
+      var so = Number(o.value.replace(/[^0-9]/g, '')) || 0;
+      if (so > 0) bangKe[o.getAttribute('data-mg')] = so;
+    });
+    if (!Object.keys(bangKe).length) return toast('Bảng kê mệnh giá đang trống.', 3500);
+    var giu = Number((document.getElementById('nqGiuLai').value || '').replace(/[^0-9]/g, '')) || 0;
+    var thamSo = { ds_ca: JSON.stringify(chon), bang_ke: JSON.stringify(bangKe), tien_le_giu_lai: giu };
+    busy(true);
+    var k;
+    try { k = await api('vagabond.nop_quy.tao', thamSo); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không lập được phiếu', 'Lập phiếu'); }
+    busy(false);
+    if (k.can_ly_do) {
+      var lyDo = await hoiChu('Lệch bàn giao', (k.nhac || '') + '\nGõ lý do:', '', { nhieu_dong: 1 });
+      if (lyDo === null || !String(lyDo).trim()) return toast('Chưa lập: lệch thì phải có lý do.', 5000);
+      thamSo.ly_do_lech = lyDo;
+      busy(true);
+      try { k = await api('vagabond.nop_quy.tao', thamSo); }
+      catch (e2) { busy(false); return baoTin((e2 && e2.message) || 'Không lập được phiếu', 'Lập phiếu'); }
+      busy(false);
+    }
+    /* Phieu da lap (Nhap). Ky ben giao ngay tai cho cho tron mot buoc. */
+    var anh = await nqKyTay('Bên giao ký tên · ' + k.ma);
+    if (anh) {
+      busy(true);
+      try { await api('vagabond.nop_quy.ky_giao', { ma: k.ma, chu_ky: anh }); busy(false); toast('Đã lập và ký ' + k.ma, 4000); }
+      catch (e3) { busy(false); baoTin((e3 && e3.message) || 'Phiếu đã lập nhưng chưa ký được', 'Ký bên giao'); }
+    } else {
+      toast('Đã lập ' + k.ma + ' (Nháp, chưa ký bên giao)', 4500);
+    }
+    nqXem = k.ma;
+    go(scrNopQuyXem, true);
+  };
+}
+
+/* ---- Chi tiet phieu: bang ke, hai chu ky, Ky nhan tien, Tai PDF ---- */
+async function scrNopQuyXem() {
+  frame('Phiếu nộp quỹ', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d;
+  try { d = await api('vagabond.nop_quy.chi_tiet', { ma: nqXem }); }
+  catch (e) { frame('Phiếu nộp quỹ', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || '') + '</div></div>'); return; }
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<b style="font-size:15.5px">' + h(d.ma) + '</b> ' + nqChipTt(d.trang_thai) +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:4px">Ngày ' + h(d.ngay) +
+    ' · Bên giao: <b>' + h(d.ten_nguoi_giao) + '</b>' +
+    (d.ten_nguoi_nhan ? ' · Bên nhận: <b>' + h(d.ten_nguoi_nhan) + '</b>' : '') + '</div></div>';
+  html += '<div class="sec">Các ca bàn giao</div><div class="card" style="padding:6px 14px">' +
+    (d.ca || []).map(function (c, i) {
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
+        '<div>' + h(c.ca) + ' <span style="color:#98a2b3;font-size:12px">' + h(c.quay) + ' · ' + h(c.ngay) + '</span></div>' +
+        '<b>' + money(c.tien_mat_dem) + ' đ</b></div>';
+    }).join('') + '</div>';
+  html += '<div class="sec">Bảng kê mệnh giá</div><div class="card" style="padding:6px 14px">' +
+    (d.menh_gia || []).map(function (m, i) {
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + ';font-size:13.5px">' +
+        '<span>' + money(m.menh_gia) + ' đ × ' + m.so_to + ' tờ</span><b>' + money(m.thanh_tien) + ' đ</b></div>';
+    }).join('') +
+    '<div style="display:flex;justify-content:space-between;padding:9px 0;border-top:2px solid #101828;font-size:15px"><b>Thực nhận</b><b>' + money(d.tong_thuc_nhan) + ' đ</b></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:13px;color:#5a6070"><span>Kỳ vọng</span><span>' + money(d.tien_ky_vong) + ' đ</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:2px 0 8px;font-size:13px;font-weight:700;color:' + (Math.abs(d.lech) >= 1 ? '#b3261e' : '#0f766e') + '">' +
+    '<span>Lệch</span><span>' + (d.lech > 0 ? '+' : '') + money(d.lech) + ' đ</span></div>' +
+    (d.ly_do_lech ? '<div style="font-size:12.5px;color:#8a5b00;background:#fff6e5;border-radius:8px;padding:8px 10px;margin-bottom:8px">Lý do lệch: ' + h(d.ly_do_lech) + '</div>' : '') +
+    '</div>';
+  html += '<div class="sec">Chữ ký</div><div class="card" style="padding:12px 14px"><div style="display:flex;gap:12px">' +
+    ['giao', 'nhan'].map(function (ben) {
+      var anh = ben === 'giao' ? d.chu_ky_ben_giao : d.chu_ky_ben_nhan;
+      var ten = ben === 'giao' ? d.ten_nguoi_giao : (d.ten_nguoi_nhan || '(chưa ký)');
+      return '<div style="flex:1;text-align:center"><div style="font-size:11.5px;color:#98a2b3;font-weight:700">' + (ben === 'giao' ? 'BÊN GIAO' : 'BÊN NHẬN') + '</div>' +
+        (anh ? '<img src="' + anh + '" style="height:64px;max-width:100%;object-fit:contain">' : '<div style="height:64px;display:flex;align-items:center;justify-content:center;color:#c3c8d4">✍️</div>') +
+        '<div style="font-size:12.5px;font-weight:600">' + h(ten) + '</div></div>';
+    }).join('') + '</div></div>';
+  var nut = '';
+  if (d.trang_thai === 'Nháp') {
+    nut += '<button class="btn" id="nqKyGiao" style="width:100%">Ký bên giao</button>';
+  }
+  /* Nut Ky nhan tien: chi ve ra khi may chu bao nguoi nay du vai. May chu
+     con chan lai lan nua trong nop_quy.ky_nhan - an nut chi la lich su. */
+  if (d.trang_thai === 'Chờ ký nhận' && d.duoc_ky_nhan) {
+    nut += '<button class="btn" id="nqKyNhan" style="width:100%">🖊 Ký nhận tiền (kế toán / giám đốc)</button>';
+  }
+  nut += '<button class="btn gh" id="nqPdf" style="width:100%">📄 Tải biên bản PDF</button>';
+  html += nut;
+  var b = frame('Phiếu nộp quỹ', html);
+  var oGiao = document.getElementById('nqKyGiao');
+  if (oGiao) oGiao.onclick = async function () {
+    var anh = await nqKyTay('Bên giao ký tên · ' + d.ma);
+    if (!anh) return;
+    busy(true);
+    try { await api('vagabond.nop_quy.ky_giao', { ma: d.ma, chu_ky: anh }); busy(false); toast('Đã ký bên giao', 3000); go(scrNopQuyXem, true); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Không ký được', 'Ký bên giao'); }
+  };
+  var oNhan = document.getElementById('nqKyNhan');
+  if (oNhan) oNhan.onclick = async function () {
+    var dongY = await hoiCo('Ký nhận tiền', 'Đã đếm lại và nhận đủ ' + money(d.tong_thuc_nhan) + ' đ tiền mặt của phiếu ' + d.ma + '?\nKý nhận xong phiếu khoá cứng, không sửa được nữa.', 'Đã đếm đủ, ký');
+    if (!dongY) return;
+    var anh = await nqKyTay('Bên nhận ký tên · ' + d.ma);
+    if (!anh) return;
+    busy(true);
+    try { await api('vagabond.nop_quy.ky_nhan', { ma: d.ma, chu_ky: anh }); busy(false); toast('Đã ký nhận, phiếu vào quỹ ✓', 4000); go(scrNopQuyXem, true); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Không ký được', 'Ký nhận tiền'); }
+  };
+  document.getElementById('nqPdf').onclick = async function () {
+    busy(true);
+    try {
+      var fl = await api('vagabond.nop_quy.xuat_pdf', { ma: d.ma });
+      busy(false);
+      bcTaiVe(fl.ten_file, fl.b64, fl.kieu || 'application/pdf');
+      toast('Đã tải ' + fl.ten_file, 3500);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không xuất được PDF', 'Tải PDF'); }
+  };
+}
 /* ========== QUAN LY HOP DONG MUA BAN: BAO GIA + HOP DONG ==========
    (anh Viet 14/08/2026, lam lai theo gop y buoi chieu)
 
