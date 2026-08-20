@@ -5,7 +5,10 @@ description = "Cong dat banh online cua The Vagabond Patisserie: noi Frappe voi 
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
-dependencies = ["requests>=2.31.0"]
+# pywebpush keo theo py_vapid, http_ece va cryptography - du bo de ky VAPID
+# va ma hoa than tin theo dung chuan Web Push. Them tu v243, lop hai cua
+# thong_bao.py.
+dependencies = ["requests>=2.31.0", "pywebpush>=1.14.0"]
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]

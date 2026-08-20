@@ -8,6 +8,7 @@ kiem la ham THUAN - so vao, so ra - nen chep lai logic o day la du, va neu
 ban that trong diem_otp.py doi ma ban nay khong doi thi cong se bao lech.
 """
 
+import ast
 import json
 import os
 import re
@@ -897,6 +898,52 @@ la("o tim rong thi khong loc gi", _n("   "), 4)
 # =====================================================================
 print("23. Phan he Danh muc du lieu nen")
 
+def _nap_danh_muc_nen():
+	"""Nap danh_muc_nen.py THAT bang mot frappe gia, de soi GIA TRI chu khong soi chu.
+
+	Mo dun nay chi khai bao luc nap, khong ham nao goi frappe, nen mot
+	frappe rong la du. Doi lai duoc mot dieu quan trong: bo kiem doc dung
+	cai tap quyen ma may chu se dung, chu khong doc mot doan chuoi trong
+	tep - va vi vay khong the qua duoc bang cach doi cach viet.
+	"""
+	import types
+
+	_fr = types.ModuleType("frappe")
+	_fr.throw = lambda *a, **k: None
+	_fr.get_roles = lambda *a, **k: []
+	_fr.get_all = lambda *a, **k: []
+	_fr.db = types.SimpleNamespace(get_value=lambda *a, **k: None, count=lambda *a, **k: 0)
+	_fr.parse_json = lambda x: x
+	_fr.whitelist = lambda *a, **k: (lambda f: f)
+	_fu = types.ModuleType("frappe.utils")
+	for _n in ("add_days", "getdate", "nowdate", "flt", "cint"):
+		setattr(_fu, _n, lambda *a, **k: None)
+	_cu = {k: sys.modules[k] for k in list(sys.modules) if k == "frappe" or k.startswith("frappe.")}
+	sys.modules["frappe"] = _fr
+	sys.modules["frappe.utils"] = _fu
+	if "." not in sys.path:
+		sys.path.insert(0, ".")
+	try:
+		for _k in [k for k in list(sys.modules) if k.startswith("vagabond")]:
+			del sys.modules[_k]
+		import importlib
+
+		try:
+			_m = importlib.import_module("vagabond.danh_muc_nen")
+		except Exception as _e:
+			# LoiKhaiBao la co y nem luc nap - do la hang rao cua khung. Nhung
+			# de no lam VO ca bo kiem thi nguoi doc chi thay mot vet do, phai
+			# lan nguoc lai moi biet chuyen gi. Bien thanh mot ca hong co ten.
+			return {"_LOI_NAP": str(_e)}
+		return {k: getattr(_m, k) for k in dir(_m) if not k.startswith("__")}
+	finally:
+		for _k in [k for k in list(sys.modules) if k == "frappe" or k.startswith("frappe.")]:
+			del sys.modules[_k]
+		sys.modules.update(_cu)
+		for _k in [k for k in list(sys.modules) if k.startswith("vagabond")]:
+			del sys.modules[_k]
+
+
 _dm_src = open("vagabond/danh_muc_nen.py", encoding="utf-8").read()
 _khungds_src = open("vagabond/khung/ds.py", encoding="utf-8").read()
 _tc2_src = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
@@ -925,22 +972,62 @@ _i_khac = _tc2_src.index("k: 'KHAC'")
 la("Danh muc nam ngay tren Cai dat", _i_dm < _i_khac, True)
 
 # --- Quyen: khong man nao mo cho tat ca, va chia dung viec ---
+#
+# BAN CU CUA BO KIEM NAY DOC BANG CACH CAT CHUOI - `_dm_src.split("XEM_TIEN =
+# {")` - nen no chi doc duoc khi cac tap viet dung dang chu literal. Ngay
+# 21/08/2026 doi sang ham _siet() thi phep cat chuoi vo, va no vo bang
+# IndexError chu khong bang mot ca hong: tuc la neu doi cach viet ma khong
+# doi chuoi tim thi bo kiem TE HAN ca im lang, no dung han.
+#
+# Nay nap MO DUN THAT bang mot frappe gia va soi GIA TRI, khong soi chu. Ca
+# kieu nay khong the qua duoc bang cach doi cach viet.
 la("gia mua khong mo cho ca tiem", "quyen=XEM_MUA" in _dm_src, True)
 la("ho so khach hang khong mo cho ca tiem", "quyen=XEM_KHACH" in _dm_src, True)
 la("tai khoan ke toan khong mo cho ca tiem", "quyen=XEM_TIEN" in _dm_src, True)
-la("bep KHONG nam trong nhom xem tien",
-   "Bếp phó" in _dm_src.split("XEM_TIEN = {")[1].split("}")[0], False)
-la("bep KHONG nam trong nhom xem khach",
-   "Bếp phó" in _dm_src.split("XEM_KHACH = {")[1].split("}")[0], False)
-la("bep CO nam trong nhom xem chung",
-   "Bếp phó" in _dm_src.split("XEM_CHUNG = {")[1].split("}")[0], True)
-# Ca nay bat duoc lo hong cua chinh bo kiem lan thu lua: ba ca tren soi
-# XEM_TIEN, XEM_KHACH, XEM_CHUNG ma bo quen XEM_MUA. Them "Bep pho" vao
-# XEM_MUA la bep xem duoc gia mua ma khong ca nao keu.
-la("bep KHONG xem duoc gia mua va nha cung cap",
-   "Bếp phó" in _dm_src.split("XEM_MUA = ")[1].split("\n")[0], False)
-la("gia mua khong lot vai Bo phan dat hang",
-   "Bộ phận đặt hàng" in _dm_src.split("XEM_MUA = ")[1].split("\n")[0], False)
+
+_DM44 = _nap_danh_muc_nen()
+la("danh_muc_nen.py nap duoc, khong loi khai bao",
+   _DM44.get("_LOI_NAP") or "", "")
+if _DM44.get("_LOI_NAP"):
+	# Nap hong thi moi ca duoi day deu vo nghia. Dung o day, va cho no mot
+	# tap rong de phan con lai cua bo kiem con chay tiep.
+	_DM44 = {"VAO_DANH_MUC": set(), "XEM_CHUNG": set(), "XEM_MUA": set(),
+	         "XEM_KHACH": set(), "XEM_TIEN": set()}
+# Anh Viet 21/08/2026: *"Cac Role khac (Sales, Kho, Bep...) tuyet doi khong
+# duoc nhin thay menu nay de tranh tinh trang rac du lieu."*
+_CAM44 = (
+	"Stock Manager", "Stock User", "Kiểm kê viên", "Nhan hang dieu chuyen",
+	"Manufacturing Manager", "Manufacturing User", "Bếp phó",
+	"Sales Manager", "Sales User", "Bộ phận đặt hàng",
+)
+for _t44 in ("XEM_CHUNG", "XEM_MUA", "XEM_KHACH", "XEM_TIEN"):
+	_tap44 = _DM44[_t44]
+	la("%s khong lot vai Sales, Kho hay Bep" % _t44,
+	   sorted(set(_tap44) & set(_CAM44)), [])
+	la("%s nam gon trong cong VAO_DANH_MUC" % _t44,
+	   sorted(set(_tap44) - set(_DM44["VAO_DANH_MUC"])), [])
+	la("%s khong rong" % _t44, bool(_tap44), True)
+
+# Ba vai THAT dang chay tren site phai vao duoc, khong duoc quen. Ban truoc
+# cua XEM_TIEN liet ke tay va sot dung "AP Giam doc", tuc la anh Viet va De
+# khong xem duoc he thong tai khoan.
+for _v44 in ("AP Kiểm soát (FIN)", "AP Giám đốc"):
+	la("%s xem duoc he thong tai khoan" % _v44, _v44 in _DM44["XEM_TIEN"], True)
+la("AP Officer (Uyen) xem duoc gia mua", "AP Officer" in _DM44["XEM_MUA"], True)
+# Thu mua KHONG can danh ba khach: so dien thoai khach la thu duy nhat trong
+# ca phan he thuoc ve nguoi ngoai cong ty.
+la("Thu mua khong xem danh ba khach", "AP Officer" in _DM44["XEM_KHACH"], False)
+
+# Moi bang deu phai di qua cong. Duyet TUNG bang chu khong duyet mot vai
+# bang tieu bieu: them mot bang moi ma quen siet thi ca nay keu ngay.
+for _t44 in sorted(_DM44):
+	if not _t44.startswith("BANG_"):
+		continue
+	_b44 = _DM44[_t44]
+	la("bang %s khong lot vai bi cam" % _b44["ma"],
+	   sorted(set(_b44["quyen"]) & set(_CAM44)), [])
+	la("bang %s nam trong cong" % _b44["ma"],
+	   sorted(set(_b44["quyen"]) - set(_DM44["VAO_DANH_MUC"])), [])
 
 # --- Man hinh khong tu doan quyen, hoi may chu ---
 # Doan lai o man la de ra ban sao thu hai cua danh sach quyen.
@@ -1003,10 +1090,14 @@ la("co account_number that thi giu nguyen ten",
 la("tai khoan khong co so thi de trong chu khong bia",
    _tach({"name": "Debtors - TV", "account_number": "",
           "account_name": "Debtors"}), ("", "Debtors"))
-la("cot So hieu khong tro thang vao account_number nua",
-   '("account_number", "Số hiệu"' in _dm_src, False)
-la("cot So hieu doc tu phep tach", '("so_hieu", "Số hiệu", "chu")' in _dm_src, True)
 _than_tk = _dm_src.split("BANG_TAI_KHOAN = khai.bang(")[1].split("\n)")[0]
+# Soi trong PHAN KHAI COT cua rieng bang nay, khong soi ca tep. Soi ca tep
+# thi ngay 21/08/2026 no keu oan: form Tao moi cua DMTK co o nhap
+# account_number - mot viec hoan toan khac voi cot cua danh sach.
+_cot_tk = _than_tk.split("cot=khai.cot(")[1].split("\n\t),")[0]
+la("cot So hieu khong tro thang vao account_number nua",
+   '("account_number", "Số hiệu"' in _cot_tk, False)
+la("cot So hieu doc tu phep tach", '("so_hieu", "Số hiệu", "chu")' in _cot_tk, True)
 la("DMTK dung phep them rieng", "them=_them_tk," in _than_tk, True)
 la("phep xep chip dung chung mot phep tach", "_tach_so_tk(r)[0]" in _dm_src, True)
 
@@ -4478,6 +4569,538 @@ _dnc43 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
 la("duyet xong co bao buoc ke tiep", "_bao_buoc_ke_tiep(doc)" in _dnc43, True)
 _bbkt43 = _dnc43.split("def _bao_buoc_ke_tiep(")[1].split("\n@frappe.whitelist()")[0]
 la("bao that bai khong lam hong viec duyet", "except Exception:" in _bbkt43, True)
+
+# ============================================================
+# 44. v243: logo PWA that su duoc gan, thong bao gui that,
+#     Assignee that, ma hoa don thay the, nhap sao ke, Danh muc CRUD
+# ============================================================
+#
+# Anh Viet 21/08/2026: *"Logo van chua hien khi them vao man hinh chinh. Va
+# em sai logo, logo ben anh co nen robin egg."*
+#
+# BAI HOC CUA NHOM 43, ghi ra day de khong lap lai
+# ------------------------------------------------
+# Nhom 43 co ca "co gan manifest tu JavaScript" va no XANH. Nhung ham
+# pwaGan() KHONG CHO NAO GOI, nen khong the manifest nao duoc chen va logo
+# khong bao gio hien. Ca kiem soi than ham, ma than ham thi dung; cai sai
+# nam o cho KHONG AI GOI HAM DO.
+#
+# Day la cung mot kieu hong da gap hai lan truoc: ca kiem khang dinh mot
+# thu gan dung thay vi thu that su can. Nen nhom nay soi CHO GOI truoc, roi
+# moi soi than ham.
+print("\n[44] v243: PWA goi that, thong bao gui that, Assignee that, sao ke, Danh muc CRUD")
+
+_nen44 = open("vagabond/public/js/bep/00-nen.js", encoding="utf-8").read()
+_vd44 = open("vagabond/public/js/bep/12-van-don.js", encoding="utf-8").read()
+_mf44 = json.load(open("vagabond/www/manifest.json", encoding="utf-8"))
+_tb44 = open("vagabond/thong_bao.py", encoding="utf-8").read()
+_gv44 = open("vagabond/giao_viec.py", encoding="utf-8").read()
+_ht44 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_sk44 = open("vagabond/nhap_sao_ke.py", encoding="utf-8").read()
+_hd44 = open("vagabond/khung/hop_dong.py", encoding="utf-8").read()
+_ds44 = open("vagabond/khung/ds.py", encoding="utf-8").read()
+_kds44 = open("vagabond/public/js/bep/15-khuon-danh-sach.js", encoding="utf-8").read()
+_hook44 = open("vagabond/hooks.py", encoding="utf-8").read()
+
+
+def _bo_chu_thich_js(nguon):
+	"""Bo chu thich khoi ma JavaScript truoc khi soi.
+
+	BAT BUOC phai co truoc khi dem cho goi ham. Khong co no thi mot lan
+	`/* pwaGan(); */` van duoc dem la mot lan goi - va do dung la cach ca
+	kiem nay bi qua mat trong lan thu pha hoai dau tien ngay 21/08/2026.
+	"""
+	ra = []
+	i, n = 0, len(nguon)
+	while i < n:
+		if nguon.startswith("/*", i):
+			j = nguon.find("*/", i + 2)
+			i = n if j < 0 else j + 2
+			continue
+		if nguon.startswith("//", i):
+			# Chi coi la chu thich khi `//` dung dau dong (co the co khoang
+			# trang truoc). Khong thi `https://...` trong chuoi bi cat mat.
+			k = nguon.rfind("\n", 0, i)
+			if nguon[k + 1:i].strip() == "":
+				j = nguon.find("\n", i)
+				i = n if j < 0 else j
+				continue
+		ra.append(nguon[i])
+		i += 1
+	return "".join(ra)
+
+
+def _chay_pwa_bang_node():
+	"""Chay THAT khoi PWA cua 00-nen.js bang node, tra ve cai da chen vao head.
+
+	Cat tu dong khai PWA_MAU tro di - do la mot khoi kin, khong dinh gi toi
+	phan tren cua tep. Roi dung mot DOM gia du nho de khoi do chay duoc.
+
+	Tra ve None neu may khong co node. KHONG im lang: cho goi in mot dong
+	bao ra man hinh, vi mot ca bi bo qua lang le doc y het mot ca da dat.
+	"""
+	import shutil
+	import subprocess
+	import tempfile
+
+	if not shutil.which("node"):
+		return None
+	nguon = open("vagabond/public/js/bep/00-nen.js", encoding="utf-8").read()
+	moc = "var PWA_MAU ="
+	if moc not in nguon:
+		return {"loi": "khong tim thay khoi PWA"}
+	khoi = nguon[nguon.index(moc):]
+
+	kich_ban = """
+var _head = [];
+var document = {
+  head: {appendChild: function (n) { _head.push(n); }},
+  querySelector: function (q) {
+    for (var i = 0; i < _head.length; i++) {
+      var n = _head[i];
+      if (q.indexOf('link[rel="' + n.rel + '"]') === 0) return n;
+      if (n.name && q.indexOf('[name="' + n.name + '"]') > -1) return n;
+    }
+    return null;
+  },
+  createElement: function (t) {
+    return {tag: t, _a: {}, setAttribute: function (k, v) { this._a[k] = v; }};
+  }
+};
+var _sw = null;
+var navigator = {
+  serviceWorker: {
+    register: function (u, o) { _sw = {url: u, scope: o && o.scope}; return {catch: function () {}}; }
+  }
+};
+var window = {matchMedia: function () { return {matches: false}; }};
+var atob = function (s) { return Buffer.from(s, 'base64').toString('binary'); };
+function api() { return Promise.resolve({}); }
+__KHOI__
+function _tim(dk) {
+  for (var i = 0; i < _head.length; i++) if (dk(_head[i])) return _head[i];
+  return null;
+}
+var _mf = _tim(function (n) { return n.rel === 'manifest'; });
+var _ap = _tim(function (n) { return n.rel === 'apple-touch-icon'; });
+var _th = _tim(function (n) { return n.name === 'theme-color'; });
+console.log(JSON.stringify({
+  da_gan: PWA_DA_GAN,
+  manifest: _mf && _mf.href,
+  apple: _ap && _ap.href,
+  apple_sizes: _ap && _ap._a && _ap._a.sizes,
+  theme: _th && _th.content,
+  sw: _sw && _sw.url,
+  sw_scope: _sw && _sw.scope
+}));
+"""
+	kich_ban = kich_ban.replace("__KHOI__", khoi)
+	with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+		f.write(kich_ban)
+		duong = f.name
+	try:
+		r = subprocess.run(["node", duong], capture_output=True, text=True, timeout=30)
+		if r.returncode != 0:
+			return {"loi": (r.stderr or "").strip()[:300]}
+		return json.loads(r.stdout.strip().splitlines()[-1])
+	except Exception as e:
+		return {"loi": str(e)[:300]}
+	finally:
+		try:
+			os.unlink(duong)
+		except OSError:
+			pass
+
+
+def _goi_ham(nguon, ten):
+	"""Dem so LAN GOI mot ham trong mot tep JavaScript, bo qua dong dinh nghia.
+
+	Bo chu thich truoc, roi tim `ten(` va loai truong hop dung ngay sau
+	`function `. Tho, nhung du de tra loi dung cau hoi da bo sot lan truoc:
+	ham nay co ai goi khong.
+	"""
+	nguon = _bo_chu_thich_js(nguon)
+	so = 0
+	i = 0
+	while True:
+		i = nguon.find(ten + "(", i)
+		if i < 0:
+			return so
+		truoc = nguon[max(0, i - 9):i]
+		if not truoc.endswith("function "):
+			so += 1
+		i += 1
+
+
+# --- 44.1 Logo PWA: ham PHAI duoc goi that ---
+la("pwaGan CO CHO GOI, khong chi khai bao", _goi_ham(_nen44, "pwaGan") >= 1, True)
+_nen44s = _bo_chu_thich_js(_nen44)
+la("goi pwaGan ngay luc nap tep, khong doi dang nhap",
+   "if (typeof document !== 'undefined' && document.head) pwaGan();" in _nen44s, True)
+# Ca manh nhat cua ca nhom: CHAY THAT khoi PWA bang node voi mot DOM gia,
+# roi doc xem the nao da duoc chen vao head.
+#
+# Vi sao phai chay chu khong doc chu: nhom 43 co ca "co gan manifest tu
+# JavaScript" va no XANH suot, trong khi pwaGan() khong cho nao goi nen
+# khong the nao duoc chen va logo khong bao gio hien. Doc chu tra loi
+# "trong ham co viet the" - chay that tra loi "the co that su nam trong
+# head khong". Chi cau thu hai moi la cau anh Viet hoi.
+_pwa44 = _chay_pwa_bang_node()
+if _pwa44 is None:
+	print("      BO QUA ca chay that pwaGan: may nay khong co node. "
+	      "Nho chay lai tren may co node truoc khi deploy.")
+else:
+	la("chay that thi pwaGan da duoc goi", _pwa44.get("da_gan"), 1)
+	la("chay that thi the manifest nam trong head",
+	   _pwa44.get("manifest"), "/manifest.json")
+	la("chay that thi apple-touch-icon nam trong head",
+	   _pwa44.get("apple"), "/assets/vagabond/pwa/icon-180.png")
+	la("chay that thi apple-touch-icon khai dung 180x180",
+	   _pwa44.get("apple_sizes"), "180x180")
+	la("chay that thi theme-color la mau robin egg",
+	   _pwa44.get("theme"), "#50DBF2")
+	la("chay that thi service worker duoc dang ky o goc",
+	   _pwa44.get("sw"), "/sw.js")
+	la("service worker dang ky voi pham vi toan site",
+	   _pwa44.get("sw_scope"), "/")
+# Xin quyen thong bao cung tung bi bo quen y het: khai ma khong goi.
+la("pwaXinQuyenThongBao CO CHO GOI",
+   _goi_ham(_nen44, "pwaXinQuyenThongBao") + _goi_ham(_vd44, "pwaXinQuyenThongBao") >= 1, True)
+_vd44s = _bo_chu_thich_js(_vd44)
+# CA HAI nhanh vao duoc man hinh chinh deu phai goi. __boot co hai duong ra
+# scrHome (mot qua whoAmI, mot qua syncUser); bo mot duong la nguoi dang
+# nhap kieu do khong bao gio duoc hoi.
+la("ca hai nhanh vao man hinh chinh deu xin quyen",
+   _vd44s.count("reset(scrHome); pwaSauDangNhap();"), 2)
+la("goi xin quyen sau khi vao duoc man hinh chinh", "pwaSauDangNhap()" in _vd44s, True)
+la("xin quyen khong chan man hinh, co hen gio", "setTimeout(function () { pwaXinQuyenThongBao(0); }" in _vd44, True)
+
+# --- 44.2 Dung mau thuong hieu, khong phai mau bia ---
+# Anh Viet: *"logo ben anh co nen robin egg"*. #50DBF2 la mau .vh cua app,
+# va lech duoi mot don vi so voi nen that cua tep logo 2025 (#4FDBF2).
+la("manifest dung mau robin egg cho nen", _mf44["background_color"], "#50DBF2")
+la("manifest dung mau robin egg cho thanh trang thai", _mf44["theme_color"], "#50DBF2")
+la("khong con mau navy cu trong manifest",
+   "#05323C" in json.dumps(_mf44), False)
+la("theme-color trong ma nguon cung la robin egg", "PWA_MAU = '#50DBF2'" in _nen44, True)
+la("khong viet cung mau navy trong ham gan", "'#05323C'" in _nen44.split("function pwaGan(")[1][:1400], False)
+
+_ic44 = {str(i.get("sizes")): i for i in _mf44.get("icons") or []}
+for _c44 in ("180x180", "192x192", "512x512"):
+	la("manifest co bieu tuong %s" % _c44, _c44 in _ic44, True)
+# iOS doc apple-touch-icon va no muon dung 180x180.
+la("apple-touch-icon tro vao tep 180", "pwa/icon-180.png" in _nen44, True)
+la("apple-touch-icon khai ro co 180x180", "'sizes', '180x180'" in _nen44, True)
+la("co the mo app khong thanh dia chi tren Safari cu",
+   "apple-mobile-web-app-capable" in _nen44, True)
+
+# Tep bieu tuong phai CO THAT, dung kich thuoc, va nen dung mau robin egg.
+# Ca nay bat duoc lan truoc: bieu tuong dung dung nhung dung logo den tren
+# nen navy, tuc la tep co that ma van sai.
+try:
+	from PIL import Image as _Img44
+
+	_co_pil44 = True
+except ImportError:
+	_co_pil44 = False
+for _f44, _canh44 in (("icon-180.png", 180), ("icon-192.png", 192),
+                      ("icon-512.png", 512), ("icon-512-maskable.png", 512)):
+	_d44 = "vagabond/public/pwa/" + _f44
+	la("tep bieu tuong %s co that" % _f44, os.path.exists(_d44), True)
+	if _co_pil44 and os.path.exists(_d44):
+		_im44 = _Img44.open(_d44)
+		la("bieu tuong %s dung kich thuoc" % _f44, _im44.size, (_canh44, _canh44))
+		_g44 = _im44.convert("RGB").getpixel((2, 2))
+		# Goc anh phai la nen robin egg (79,219,242), khong phai navy hay den.
+		la("goc bieu tuong %s la nen robin egg" % _f44,
+		   all(abs(_g44[_i] - (79, 219, 242)[_i]) <= 3 for _i in range(3)), True)
+
+# --- 44.3 Thong bao: lop hai da bat that ---
+# Soi DONG dependencies chu khong soi ca tep: chu thich ngay tren dong do
+# cung co chu "pywebpush", va ca kiem doc ca tep thi van xanh sau khi da go
+# thu vien ra khoi phan phu thuoc. Bat duoc luc thu pha hoai 21/08/2026.
+_pyp44 = [
+	d for d in open("pyproject.toml", encoding="utf-8").read().splitlines()
+	if d.startswith("dependencies")
+]
+la("co dung mot dong dependencies", len(_pyp44), 1)
+la("pywebpush da vao phan phu thuoc cua app", "pywebpush" in _pyp44[0], True)
+_req44 = [
+	d for d in open("requirements.txt", encoding="utf-8").read().splitlines()
+	if d.strip() and not d.strip().startswith("#")
+]
+la("pywebpush co ca trong requirements.txt",
+   any(d.strip().startswith("pywebpush") for d in _req44), True)
+la("doi khoa sang PEM truoc khi ky", "def _pem(" in _tb44, True)
+la("ham gui dung khoa PEM chu khong dung chuoi tho",
+   "vapid_private_key=khoa," in _tb44, True)
+la("thieu thu vien thi ghi log chu khong im lang",
+   "thong_bao: thieu pywebpush" in _tb44, True)
+la("co duong tu kiem thu chuong", "def thu_gui(" in _tb44, True)
+# Duong thu gui chi gui cho CHINH minh: mot duong gui thong bao tuy y nguoi
+# nhan la mot cai loa cho ke xau.
+_thu44 = _tb44.split("def thu_gui(")[1].split("\ndef bao_cho_vai(")[0]
+la("thu gui chi gui cho chinh nguoi dang bam",
+   "frappe.session.user," in _thu44, True)
+la("thu gui khong nhan tham so nguoi nhan",
+   "def thu_gui():" in _tb44, True)
+# QT-24: bao loi phai noi phai lam gi tiep.
+la("thu gui hong thi noi ro phai lam gi", "loi_nhan" in _thu44, True)
+
+# --- 44.4 Assignee that ---
+la("co mo dun giao viec rieng", os.path.exists("vagabond/giao_viec.py"), True)
+la("giao theo VAI chu khong viet cung ten nguoi", "def giao_vai(" in _gv44, True)
+la("giao xong thi go viec cua buoc cu", "def go_giao(" in _gv44, True)
+# Go viec la DONG chu khong xoa, theo QT-20.
+la("go viec la dong chu khong xoa", '"status", "Closed"' in _gv44, True)
+la("khong co lenh xoa ToDo nao", "delete_doc" in _gv44, False)
+# O _assign la ban sao, phai chep lai moi lan doi thi Desk moi hien dung.
+la("dong bo lai o _assign cho Desk", "def _dong_bo_nhan(" in _gv44, True)
+la("chan tran nguoi nhan", "TRAN_NGUOI" in _gv44, True)
+# Goi tu giua luong luu phieu, nem loi la cuon theo ca thao tac luu that.
+for _h44 in ("giao", "giao_vai", "go_giao", "khi_sinh_phieu", "khi_xong"):
+	_than44 = _gv44.split("def %s(" % _h44)[1].split("\ndef ")[0]
+	la("ham %s khong nem loi ra ngoai" % _h44, "except Exception:" in _than44, True)
+# Hook phai duoc CAM VAO hooks.py, khong thi ham nay khong bao gio chay -
+# dung cai bay da sap vao pwaGan.
+# Doc doc_events THAT bang ast chu khong tim chuoi trong ca tep: tim chuoi
+# thi go hook cua Purchase Receipt di van xanh, vi Material Request con giu
+# chuoi do. Bat duoc luc thu pha hoai 21/08/2026.
+_de44 = {}
+for _nut44 in ast.parse(_hook44).body:
+	if isinstance(_nut44, ast.Assign) and getattr(_nut44.targets[0], "id", "") == "doc_events":
+		_de44 = ast.literal_eval(_nut44.value)
+# Soi TUNG SU KIEN mot, khong soi ca khoi cua doctype. Soi ca khoi thi go
+# `after_insert` cua Phieu Kiem Ke di van xanh, vi `on_update` cua chinh no
+# con giu chuoi do - ma go after_insert nghia la phieu vua lap khong duoc
+# giao cho ai ca. Bat duoc luot pha hoai thu hai 21/08/2026.
+_CAN_HOOK44 = {
+	"Material Request": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_submit": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_update_after_submit": "vagabond.giao_viec.khi_xong",
+		"on_cancel": "vagabond.giao_viec.khi_xong",
+	},
+	"Purchase Receipt": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_submit": "vagabond.giao_viec.khi_xong",
+		"on_cancel": "vagabond.giao_viec.khi_xong",
+	},
+	"Phieu Kiem Ke": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
+	},
+}
+for _dt44, _can44 in sorted(_CAN_HOOK44.items()):
+	_khoi44 = _de44.get(_dt44) or {}
+	for _sk44b, _ham44 in sorted(_can44.items()):
+		_gan44 = _khoi44.get(_sk44b)
+		_gan44 = _gan44 if isinstance(_gan44, list) else [_gan44]
+		la("hook %s cua %s tro dung ham giao viec" % (_sk44b, _dt44),
+		   _ham44 in _gan44, True)
+la("het viec thi go ra khoi hop", "def _het_viec_chua(" in _gv44, True)
+# Luat "het viec" khai TUNG doctype: luat chung se xoa ca nhung lan nguoi
+# that tu tay gan Assignee tren Desk.
+la("khong dung luat chung de go viec",
+   'if dt == "Phieu Kiem Ke":' in _gv44.split("def _het_viec_chua(")[1].split("\ndef ")[0], True)
+_dnc44 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+la("de nghi chi giao viec qua mo dun chung", "giao_viec.giao_vai(" in _dnc44, True)
+la("phieu tra lai giao NGUOC ve nguoi lap", "[doc.nguoi_tao]," in _dnc44, True)
+la("phieu da chi thi go viec", "_het_viec(d[\"name\"])" in _dnc44, True)
+# Mot buoc chi duoc rung MOT lan: giao_vai da ban chuong, goi them
+# thong_bao o day nua la moi buoc rung hai lan.
+_bbkt44 = _dnc44.split("def _bao_buoc_ke_tiep(")[1].split("\n@frappe.whitelist()")[0]
+la("khong ban chuong hai lan cho mot buoc", "thong_bao.bao_cho_vai(" in _bbkt44, False)
+_vcl44 = open("vagabond/viec_can_lam.py", encoding="utf-8").read()
+la("man Viec can lam danh dau viec giao dich danh", "def _giao_dich_danh(" in _vcl44, True)
+la("dem viec dich danh bang MOT truy van cho ca man",
+   _vcl44.split("def _giao_dich_danh(")[1].split("\ndef ")[0].count("frappe.get_all("), 1)
+
+# --- 44.5 Ma hoa don thay the ---
+# Anh Viet 13/08/2026: *"Tu nay em khong goi y lam nhung thu trong qua khu
+# nua... Dac biet la nhung van de lien quan den hoa don dien tu gui sang co
+# quan thue, rat nhay cam, kho sua chua!"*
+#
+# Nen ba ca duoi day la ba ca QUAN TRONG NHAT cua nhom: chung khang dinh
+# rang duong moi nay chi GHI LAI mot con so, khong dung toi hoa don that.
+_tt44 = _ht44.split("def ghi_hddt_thay_the(")[1].split("\n@frappe.whitelist()")[0]
+la("khong goi sang M-Invoice trong duong ghi thay the", "minvoice" in _tt44.lower(), False)
+la("khong goi requests trong duong ghi thay the", "requests." in _tt44, False)
+la("khong phat hanh hay huy hoa don nao",
+   any(x in _tt44 for x in ("InvoiceApi", "/Save", "cancel", "huy_hoa_don")), False)
+la("noi ma thay the vao CA don goc va phieu hoan", _tt44.count("frappe.db.set_value") >= 2, True)
+la("chan truong hop nhap trung so hoa don cu", "trùng đúng số hoá đơn cũ" in _tt44, True)
+la("ghi vet tren don hang", '"doctype": "Comment"' in _tt44, True)
+# Go la de trong o, nhung khong xoa vet - QT-20.
+_go44 = _ht44.split("def go_hddt_thay_the(")[1].split("\n@frappe.whitelist()")[0]
+la("go ma thay the bat buoc ghi ly do", "Phải ghi lý do gỡ" in _go44, True)
+la("go ma thay the van giu lai vet", '"doctype": "Comment"' in _go44, True)
+la("man phieu hoan tien co o nhap ma thay the",
+   "ghi_hddt_thay_the" in open("vagabond/public/js/bep/11-khach-ca-hop-dong.js",
+                               encoding="utf-8").read(), True)
+
+# --- 44.6 Nhap tep sao ke ---
+_ns44 = {}
+exec(compile(_sk44.split("# PHẦN CHẠM CƠ SỞ DỮ LIỆU")[0], "nhap_sao_ke:thuan", "exec"), _ns44)
+_doc_so = _ns44["doc_so"]
+_doc_ngay = _ns44["doc_ngay"]
+_doc_bang = _ns44["doc_bang"]
+_khoa_dong = _ns44["khoa_dong"]
+
+# Doc tien: doan sai dau thap phan la sai mot trieu lan, va sai em ru vi con
+# so van "trong nhu tien".
+la("doc tien kieu Viet 1.234.567", _doc_so("1.234.567"), 1234567.0)
+la("doc tien kieu Viet co phan le", _doc_so("1.234.567,00"), 1234567.0)
+la("doc tien kieu Anh 1,234,567.00", _doc_so("1,234,567.00"), 1234567.0)
+la("doc khoan nho 3.894 khong thanh 3,894", _doc_so("3.894"), 3894.0)
+la("doc so am trong ngoac", _doc_so("(12.500)"), -12500.0)
+la("o rong tra ve khong", _doc_so(""), 0.0)
+la("bo duoi don vi tien te", _doc_so("95.000 VND"), 95000.0)
+la("nhan thang so tu Excel", _doc_so(1234.5), 1234.5)
+
+la("doc ngay kieu Viet", _doc_ngay("12/08/2026"), "2026-08-12")
+la("doc ngay kem gio", _doc_ngay("12/08/2026 10:38:00"), "2026-08-12")
+la("doc ngay kieu ISO", _doc_ngay("2026-08-12"), "2026-08-12")
+la("thang 13 la khong doc duoc chu khong bia", _doc_ngay("13/13/2026"), "")
+la("chu khong phai ngay thi tra rong", _doc_ngay("Tổng cộng"), "")
+
+# Tim dong tieu de: sao ke ngan hang luon co may dong dau la ten ngan hang
+# va ky sao ke. Doc cung "dong 1 la tieu de" la hong ngay tep dau tien.
+_bang44 = [
+	["NGÂN HÀNG TMCP PHƯƠNG ĐÔNG", "", "", "", "", "", "", ""],
+	["Sao kê tài khoản 0004100012345678", "", "", "", "", "", "", ""],
+	["Từ ngày 01/08/2026 đến 31/08/2026", "", "", "", "", "", "", ""],
+	["STT", "Ngày thực hiện", "Ngày ghi nhận", "Số giao dịch", "Nội dung",
+	 "PS giảm (Nợ)", "PS tăng (Có)", "Số dư"],
+	["1", "12/08/2026", "12/08/2026", "FT26224001", "CK tra tien banh", "", "50.000", "1.050.000"],
+	["2", "12/08/2026", "12/08/2026", "FT26224002", "Mua nuoc mam", "3.894", "", "1.046.106"],
+	["3", "13/08/2026", "13/08/2026", "FT26225001", "TTNB 26 08 00001", "95.000", "", "951.106"],
+	["", "", "", "", "TỔNG CỘNG", "98.894", "50.000", ""],
+]
+_ds44b, _loi44 = _doc_bang(_bang44)
+la("bo qua phan dau tep, tim dung dong tieu de", _loi44, "")
+la("doc dung so dong giao dich", len(_ds44b), 3)
+la("dong tong cong khong bi tinh la giao dich",
+   any("TỔNG" in (d["noi_dung"] or "") for d in _ds44b), False)
+
+
+def _o44(i, k):
+	"""Lay mot o cua dong thu i, tra ve None neu doc bang hong.
+
+	Khong de bo kiem VO bang IndexError: mot ca hong co ten thi doc duoc
+	ngay la hong o dau, con mot vet do vo thi phai lan nguoc lai tu dau.
+	"""
+	return _ds44b[i][k] if len(_ds44b) > i else None
+
+
+la("doc dung khoan tien vao", _o44(0, "tien_vao"), 50000.0)
+la("doc dung khoan duoi 100k ma SePay bo sot", _o44(1, "tien_ra"), 3894.0)
+la("doc dung so giao dich cua ngan hang", _o44(2, "so_gd"), "FT26225001")
+la("doc dung noi dung de con doi soat duoc", _o44(2, "noi_dung"), "TTNB 26 08 00001")
+
+# Khu trung: uu tien so giao dich that cua ngan hang.
+la("khoa khu trung uu tien so giao dich",
+   _khoa_dong(_ds44b[0]) if _ds44b else None, "OCBSK-FT26224001")
+la("hai dong cung so giao dich sinh cung mot khoa",
+   _khoa_dong({"so_gd": "FT1", "ngay": "2026-08-12", "tien_ra": 1, "tien_vao": 0, "noi_dung": "a"}),
+   _khoa_dong({"so_gd": "FT1", "ngay": "2026-08-13", "tien_ra": 9, "tien_vao": 0, "noi_dung": "b"}))
+# Ngan hang de trong so giao dich thi van phai khu trung duoc, bang bo ba
+# ngay, tien, noi dung.
+_k1_44 = _khoa_dong({"so_gd": "", "ngay": "2026-08-12", "tien_ra": 3894, "tien_vao": 0, "noi_dung": "Mua nuoc mam"})
+_k2_44 = _khoa_dong({"so_gd": "", "ngay": "2026-08-12", "tien_ra": 3894, "tien_vao": 0, "noi_dung": "Mua nuoc mam"})
+la("thieu so giao dich van khu trung duoc", _k1_44, _k2_44)
+la("khac noi dung thi khac khoa",
+   _k1_44 == _khoa_dong({"so_gd": "", "ngay": "2026-08-12", "tien_ra": 3894,
+                         "tien_vao": 0, "noi_dung": "Mua duong"}), False)
+la("tep rong noi ro thay vi im", _doc_bang([])[1] != "", True)
+la("tep khong co cot tien thi bao ro",
+   _doc_bang([["A", "B"], ["1", "2"]])[1] != "", True)
+
+# Hai nhip: xem truoc roi moi ghi.
+la("co duong xem truoc rieng", "def xem_truoc(" in _sk44, True)
+_xt44 = _sk44.split("def xem_truoc(")[1].split("\n@frappe.whitelist()")[0]
+la("xem truoc KHONG ghi mot dong nao",
+   any(x in _xt44 for x in (".insert(", ".submit(", "set_value")), False)
+# QT-19: doc lai tep tu dau, khong nhan danh sach dong tu man hinh gui len.
+_nap44 = _sk44.split("def nap(")[1].split("\ndef _chan(")[0]
+la("khi ghi that thi doc lai tep tu dau", "_doc_tep(file_url)" in _nap44, True)
+la("khong nhan danh sach dong tu man hinh", "def nap(file_url, tai_khoan):" in _sk44, True)
+la("ghi tung dong roi commit ngay", "frappe.db.commit()" in _nap44, True)
+la("mot dong hong khong keo do ca lo", "frappe.db.rollback()" in _nap44, True)
+la("nap xong doi soat ngay phieu cho chi", "de_nghi_chi.khi_co_giao_dich(ma)" in _nap44, True)
+# Khu trung hai luot: theo so giao dich, va theo bo ba ngay-tien-tai khoan.
+_dc44 = _sk44.split("def _da_co(")[1].split("\ndef _phan_loai(")[0]
+la("do trung theo so tham chieu cua SePay", '"reference_number"' in _dc44, True)
+la("do trung theo ngay cong so tien", '"date": ("between"' in _dc44, True)
+# Chi ke toan, thu mua, giam doc duoc ghi vao so ngan hang.
+la("co cong chan rieng cho nhap sao ke", "def _chan(" in _sk44, True)
+for _h44 in ("tai_len", "xem_truoc", "nap"):
+	la("duong %s co qua cong chan" % _h44,
+	   "_chan()" in _sk44.split("def %s(" % _h44)[1].split("\n@frappe.whitelist()")[0], True)
+la("tep sao ke cat rieng tu, khong de duong cong khai", '"is_private": 1' in _sk44, True)
+la("co man nhap sao ke tren app",
+   "scrNhapSaoKe" in open("vagabond/public/js/bep/17-cai-dat.js", encoding="utf-8").read(), True)
+la("man nhap sao ke co duong di tu trang chu",
+   "if (k === 'NHAPSK') return go(scrNhapSaoKe);" in _tc2_src, True)
+
+# --- 44.7 Danh muc: nut Tao moi va form nhap lieu ---
+la("khung co khai bao form tao moi", "def tao(" in _hd44, True)
+la("khung co khai bao o tren form", "def o(" in _hd44, True)
+la("kieu o dong lai thanh mot danh sach", "KIEU_O = (" in _hd44, True)
+# Quyen TAO khong bao gio duoc rong hon quyen XEM.
+la("khung chan quyen tao rong hon quyen xem",
+   "tao moi ma khong cho xem" in _hd44, True)
+# Duong ghi: chi ghi dung nhung truong da khai.
+_tm44 = _ds44.split("def tao_moi(")[1]
+la("duong tao moi loc truong theo khai bao", 'for c in t["o"]:' in _tm44, True)
+la("duong tao moi kiem quyen xem truoc", "_cong_quyen(b)" in _tm44, True)
+la("duong tao moi kiem quyen tao rieng", 't["quyen"] & set(frappe.get_roles())' in _tm44, True)
+la("duong tao moi khong nhan doctype tu man hinh", "doctype=b[\"doctype\"]" in _tm44, True)
+# O lien ket: khong nhan doctype tu man hinh, chi nhan ma man va ten o.
+_tl44 = _ds44.split("def tim_lien_ket(")[1].split("\n@frappe.whitelist()")[0]
+la("tra cuu lien ket khong nhan doctype tu man hinh",
+   "def tim_lien_ket(ma, o, tu_khoa=\"\", so_dong=20):" in _ds44, True)
+la("tra cuu lien ket doc doctype tu khai bao", 'c["doctype"]' in _tl44, True)
+la("tra cuu lien ket co gioi han so dong", "limit_page_length=int(so_dong" in _tl44, True)
+# Man hinh chi hien nut khi may chu tra ve khoi tao.
+la("nut Tao moi chi hien khi may chu cho phep", "kq.tao ? { fab: 1 }" in _kds44, True)
+la("mot form dung chung cho moi danh muc", "function scrKgTao(" in _kds44, True)
+la("khong viet 13 man tao rieng",
+   bool(re.search(r"function scrTao(SanPham|Kho|Ncc)", _kds44)), False)
+# Danh muc co man tao rieng tot hon thi dan sang man do.
+la("co duong dan sang man tao rieng", "di_toi" in _hd44 and "t.di_toi" in _kds44, True)
+
+_DM44b = _nap_danh_muc_nen()
+la("danh_muc_nen.py van nap duoc sau khi them form tao moi",
+   _DM44b.get("_LOI_NAP") or "", "")
+_co_tao44 = [v["ma"] for k, v in sorted(_DM44b.items()) if k.startswith("BANG_") and v.get("tao")]
+_khong_tao44 = [v["ma"] for k, v in sorted(_DM44b.items()) if k.startswith("BANG_") and not v.get("tao")]
+la("13 danh muc co nut Tao moi", len(_co_tao44), 13)
+# Ba cai con lai KHONG phai bi quen: chung can luoi dong con ma form phang
+# khong dung noi, va bay ra nut roi ghi mot ban ghi thieu luoi la de ra
+# dung cai rac du lieu anh Viet muon chan.
+la("ba danh muc can luoi dong con thi khong co nut",
+   sorted(_khong_tao44), ["DMBOM", "DMTHUE", "DMTHUEM"])
+for _k44, _b44 in sorted(_DM44b.items()):
+	if not _k44.startswith("BANG_") or not _b44.get("tao"):
+		continue
+	_t44b = _b44["tao"]
+	la("form %s co quyen hep hon hoac bang quyen xem" % _b44["ma"],
+	   sorted(set(_t44b["quyen"]) - set(_b44["quyen"])), [])
+	la("form %s khong lot vai bi cam" % _b44["ma"],
+	   sorted(set(_t44b["quyen"]) & set(_CAM44)), [])
+	if _t44b.get("di_toi"):
+		continue
+	la("form %s co it nhat mot o" % _b44["ma"], len(_t44b["o"]) >= 1, True)
+	for _o44 in _t44b["o"]:
+		la("o %s cua %s co kieu hop le" % (_o44["k"], _b44["ma"]),
+		   _o44["kieu"] in ("chu", "chu_dai", "so", "tien", "chon", "lien_ket", "co", "ngay"), True)
+		if _o44["kieu"] == "lien_ket":
+			la("o lien ket %s cua %s khai ro doctype" % (_o44["k"], _b44["ma"]),
+			   bool(_o44.get("doctype")), True)
+		if _o44["kieu"] == "chon":
+			la("o chon %s cua %s co danh sach" % (_o44["k"], _b44["ma"]),
+			   len(_o44.get("chon") or []) >= 2, True)
 
 print("-" * 60)
 if so_hong:
