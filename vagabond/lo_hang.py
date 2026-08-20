@@ -234,7 +234,7 @@ def gan_lo(doc, method=None):
 			if thieu > LI_TI:
 				frappe.throw(
 					cau_thieu_lo(
-						d.get("item_name") or ma, ma, kho, thieu,
+						_ten_hang(d, ma), ma, kho, thieu,
 						d.get("uom") or d.get("stock_uom") or "",
 						_kho_khac_con(ma, kho),
 					),
@@ -255,6 +255,22 @@ def gan_lo(doc, method=None):
 	except Exception:
 		# Hỏng ở đây không được kéo đổ cả phiếu: để ERPNext xử như trước.
 		frappe.log_error(frappe.get_traceback(), "lo_hang: gan lo tu dong")
+
+
+def _ten_hang(d, ma):
+	"""Tên món để đưa vào câu báo lỗi.
+
+	Ở `before_validate` thì ERPNext chưa kịp điền `item_name`, nên câu lỗi
+	sẽ chỉ có mã trần kiểu NVLT00166. Bếp không thuộc mã, và một câu lỗi
+	không đọc được thì cũng như không có (QT-24). Nên tra thẳng bảng Item.
+	"""
+	ten = (d.get("item_name") or "").strip()
+	if ten:
+		return ten
+	try:
+		return frappe.get_cached_value("Item", ma, "item_name") or ma
+	except Exception:
+		return ma
 
 
 def _dong_can_lo(d):
