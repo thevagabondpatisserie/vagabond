@@ -5884,6 +5884,133 @@ la("man Cai dat bay dau van tay", "function seDauKhoa(" in _cd49, True)
 la("man Cai dat goi duong soi khoa", "vagabond.sepay.soi_khoa" in _cd49, True)
 la("noi ro Secret Key phai nam o o HMAC", "phải nằm ở ô" in _cd49, True)
 
+# ============================================================ NHOM 50
+print("\n[50] v253: Man hinh phu cho khach - ranh gioi rieng tu, bat tay, nhip tim")
+
+_cfd50 = open("vagabond/public/js/bep/25-man-hinh-khach.js", encoding="utf-8").read()
+_tr50 = open("vagabond/www/man-hinh-khach.html", encoding="utf-8").read()
+_pos50 = open("vagabond/public/js/bep/09-tinh-tien-quay.js", encoding="utf-8").read()
+
+# ---------- 50.1 RANH GIOI RIENG TU: man nay quay ra cho dong nguoi ----------
+#
+# CA QUAN TRONG NHAT CUA NHOM. Man hinh phu treo ngay quay, ai dung xep hang
+# cung doc duoc. Goi tin gui sang no chi duoc mang ten mon, so luong, so tien
+# va ma QR. So dien thoai khach, ma khach, hang the, diem tich luy, cong no
+# va ma so thue phai O LAI trong may thu ngan.
+#
+# Phep kiem chay THAT: dua vao mot don hang co du cac o cam roi doc goi tin
+# ra, chu khong chi doc ma nguon. Doc ma nguon thi mot ngay nao do ai do
+# them "don.sdt" vao qua mot bien trung gian la khong bat duoc.
+_ham50 = re.search(r"function cfdDungGoi\(don, quay, phaiThu, qr, tab, luc\) \{.*?\n\}",
+                   _cfd50, re.S)
+la("tim thay ham dung goi tin", bool(_ham50), True)
+
+_CAM50 = ["0912345678", "KH00123", "Hạng Vàng", "9999 điểm", "MST0101234567",
+          "12 Lý Thường Kiệt", "khach@vidu.com"]
+if _ham50:
+	import subprocess as _sp50
+	_don50 = json.dumps({
+		"pt": "Chuyển khoản", "bill": "VGBQWERT",
+		"mon": [{"ten": "Croissant bơ", "qty": 2, "rate": 45000},
+		        {"ten": "Latte đá", "qty": 1, "rate": 55000}],
+		# Nhung o duoi day la o CAM. Chung co that trong posDon.
+		"sdt": "0912345678", "ten": "Nguyễn Văn A", "khach_ma": "KH00123",
+		"khach_hang": "Hạng Vàng", "ghi_chu": "khach@vidu.com",
+		"diemVe": {"so_diem": 9999, "so_tien": 20000},
+		"diemThe": {"diem": "9999 điểm"},
+		"khach_no": {"ma": "KH00123", "no": 5000000},
+		"xh": {"mst": "MST0101234567", "dc": "12 Lý Thường Kiệt", "email": "khach@vidu.com"},
+	}, ensure_ascii=False)
+	_ma50 = ("var CFD_GT=1;\n" + _ham50.group(0) +
+	         "\nvar g=cfdDungGoi(" + _don50 + ",{ten:'Thảo Điền',ma:'TCV'},115000," +
+	         "{url:'https://img.vietqr.io/image/MB-123-qr_only.png',nd:'TCV VGBQWERT'," +
+	         "ten:'CTY VAGABOND',bank:'MB',stk:'123',nhan:0,du:false},'TAB123',777);" +
+	         "console.log(JSON.stringify(g));")
+	try:
+		_kq50 = _sp50.run(["node", "-e", _ma50], capture_output=True, text=True, timeout=30)
+		_goi50 = json.loads(_kq50.stdout.strip()) if _kq50.returncode == 0 else None
+	except Exception:
+		_goi50 = None
+	if _goi50 is None:
+		print("   (khong chay duoc node, BO QUA phep chay that goi tin CFD)")
+	else:
+		_van50 = json.dumps(_goi50, ensure_ascii=False)
+		for _c50 in _CAM50:
+			la("goi tin KHONG mang %s" % _c50, _c50 in _van50, False)
+		la("chi co dung cac o da khai", sorted(_goi50.keys()),
+		   ["giam", "gt", "loai", "luc", "man", "mon", "pt", "qr", "quay", "tab", "tong", "tra"])
+		la("moi mon chi ba o", sorted(_goi50["mon"][0].keys()), ["sl", "ten", "tien"])
+		la("ten mon di qua", _goi50["mon"][0]["ten"], "Croissant bơ")
+		la("tam tinh dung", _goi50["tong"], 145000)
+		la("so phai tra dung", _goi50["tra"], 115000)
+		la("phan giam tu bu ra", _goi50["giam"], 30000)
+		la("gio hang co mon thi ve man don", _goi50["man"], "don")
+		la("ma tab di theo goi tin", _goi50["tab"], "TAB123")
+	# Gio hang rong thi phai ve man chao chu khong phai man don trong.
+	_ma50b = ("var CFD_GT=1;\n" + _ham50.group(0) +
+	          "\nconsole.log(cfdDungGoi({mon:[]},{ten:'TCV'},0,null,'T',1).man);")
+	try:
+		_kq50b = _sp50.run(["node", "-e", _ma50b], capture_output=True, text=True, timeout=30)
+		la("gio hang rong thi ve man chao", _kq50b.stdout.strip(), "chao")
+	except Exception:
+		pass
+
+# Ban than ma nguon cung khong duoc nhac den cac o cam, de nguoi doc sau
+# khong tuong la co the them vao.
+for _o50 in ("don.sdt", "don.khach_ma", "don.khach_hang", "don.khach_no",
+             "don.diemVe", "don.xh", "don.ten"):
+	la("ma nguon khong dung %s" % _o50, _o50 in _cfd50, False)
+
+# ---------- 50.2 Trang khach KHONG duoc goi mot API nao ----------
+#
+# Phien dang nhap het han ma trang goi API thi Frappe da ra form dang nhap,
+# va cai form do nam chan giua man hinh ngay truoc mat khach.
+for _goi50b in ("frappe.call", "/api/method", "XMLHttpRequest", "fetch(", "$.ajax"):
+	la("trang khach khong goi %s" % _goi50b, _goi50b in _tr50, False)
+la("trang khach khong keo app_bep.js", "app_bep" in _tr50, False)
+la("trang khach tu nhan biet trinh duyet cu", "BroadcastChannel" in _tr50, True)
+la("trang khach xin khong cho may tim kiem doc", "noindex" in _tr50, True)
+
+# ---------- 50.3 Bat tay: BroadcastChannel khong luu tin cu ----------
+la("trang khach co xin trang thai luc mo", "loai: 'xin'" in _tr50, True)
+la("ben phat co tra loi khi co ai xin", "m.loai === 'xin'" in _cfd50, True)
+la("tra loi bang dung goi cuoi cung", "cfdPhat(cfdGoiCuoi)" in _cfd50, True)
+
+# ---------- 50.4 Nhip tim: tab tinh tien tat thi man khach phai ve man chao ----
+la("ben phat co nhip tim", "function cfdNhipBat(" in _cfd50, True)
+la("roi man tinh tien thi tat nhip", "getElementById('posNd')" in _cfd50, True)
+_nhip50 = int(re.search(r"var CFD_NHIP = (\d+)", _cfd50).group(1))
+_han50 = int(re.search(r"var HET_HAN = (\d+)", _tr50).group(1))
+la("nhip phat ba giay", _nhip50, 3000)
+la("han cho phai dai hon nhip nhieu lan", _han50 >= _nhip50 * 10, True)
+la("trang khach co canh gac het han", "nhanLuc = 0; tabNghe = ''" in _tr50, True)
+
+# ---------- 50.5 Hai tab tinh tien khong duoc lam man khach nhay ----------
+la("goi tin mang ma tab", "tab: String(tab" in _cfd50, True)
+la("trang khach bam theo mot tab", "tabNghe" in _tr50, True)
+la("tab im qua lau thi moi nhuong", "im < HET_HAN" in _tr50, True)
+
+# ---------- 50.6 Trang thai phai nhin thay duoc, khong bao bua ----------
+# Bai hoc su co email 16/08: khong bao giao thanh cong khi chua ai xac nhan.
+la("trang khach bao nguoc lai la no con song", "loai: 'song'" in _tr50, True)
+la("ben phat nghe tin song", "m.loai === 'song'" in _cfd50, True)
+la("chip noi that khi chua mo", "Chưa mở màn hình khách" in _cfd50, True)
+la("chip noi that khi da mo", "Đang bật" in _cfd50, True)
+la("trinh duyet khong co BroadcastChannel thi noi thang", "không có BroadcastChannel" in _cfd50, True)
+
+# ---------- 50.7 Man tinh tien phai thuc su goi sang ----------
+la("man tinh tien day trang thai o cuoi man", "cfdDay(posDon, posQuay, phaiThu, nguonThuc, laApp)" in _pos50, True)
+la("luu hoa don xong thi doi sang loi cam on", "cfdCamOn(thu)" in _pos50, True)
+la("man tinh tien co khoi man hinh khach", "html += cfdKhoi();" in _pos50, True)
+la("man tinh tien noi nut mo", "cfdGan();" in _pos50, True)
+
+# ---------- 50.8 Hang rao dong vo van con nguyen ----------
+# Phan moi mang so 25, phai ghep TRUOC 99-dong-vo.js. Ghep sau la nam ngoai
+# vo ham va man hinh chet ngay khi bam - da xay ra that toi 20/08/2026.
+_ten50 = sorted(t for t in os.listdir("vagabond/public/js/bep") if re.match(r"^\d\d-[a-z0-9-]+\.js$", t))
+la("phan man hinh khach co trong ban ghep", "25-man-hinh-khach.js" in _ten50, True)
+la("phan cuoi van la phan dong vo", _ten50[-1], "99-dong-vo.js")
+
 print("-" * 60)
 if so_hong:
 	print("HONG %d/%d ca" % (so_hong, so_ca)); sys.exit(1)
