@@ -3242,9 +3242,12 @@ la("tai khoan chua khai tra success chu khong tra loi",
 la("giao dich da co tra success", 'da co trong so.' in _se_src, True)
 
 # --- Bao mat ---
+# Tu v247 diem nhan giu duoc HAI khoa (OCB + ACB) nen phep so chay qua
+# any(), nhung tung phep van phai la compare_digest - so bang == la mo
+# duong cho timing attack.
 la("so sanh khoa bang compare_digest chu khong bang dau bang",
-   "hmac.compare_digest(_khoa_gui_len(), that)" in _se_src, True)
-la("chua dat khoa thi tu choi han", "Chua dat khoa bao mat webhook" in _se_src, True)
+   "any(hmac.compare_digest(gui_len, k) for k in cac)" in _se_src, True)
+la("chua dat khoa thi tu choi han", "Chưa đặt khoá bảo mật webhook" in _se_src, True)
 la("tat trong Cai dat thi tu choi", "Diem nhan SePay dang tat" in _se_src, True)
 la("khoa cat dang Password chu khong dang Data",
    '"fieldname": "sepay_khoa", "label": "Khoá bảo mật webhook SePay",\n\t\t\t"fieldtype": "Password"' in _se_src, True)
@@ -3349,7 +3352,7 @@ la("diem nhan van doc duoc X-Api-Key", '"X-Api-Key"' in _se_src, True)
 la("co ham kiem chu ky HMAC", "def _kiem_hmac():" in _se_src, True)
 la("chu ky doc tu header X-SePay-Signature", '"X-SePay-Signature"' in _se_src, True)
 la("HMAC duoc thu TRUOC duong khoa bi mat",
-   _se_src.index("co_hmac, hmac_dat = _kiem_hmac()") < _se_src.index("that = _khoa_that()\n\t\tif not that:"), True)
+   _se_src.index("co_hmac, hmac_dat = _kiem_hmac()") < _se_src.index('cac = _cac_khoa("sepay_khoa")'), True)
 la("chu ky sai thi tu choi han, khong lui sang duong khac",
    'return _tu_choi(401, "Chu ky HMAC khong dung.")' in _se_src, True)
 la("ky tren NGUYEN VAN goi tin", "frappe.request.get_data() or b\"\"" in _se_src, True)
@@ -3358,7 +3361,8 @@ la("khong ghi khoa vao nhat ky loi",
    "khoa" in _se_src.split('"sepay: chu ky HMAC khong khop"')[0][-700:].lower()
    and "% (gui[:200], len(than), sorted(dung)[0][:12])" in _se_src, True)
 la("o cat khoa HMAC la Password", '"fieldname": "sepay_hmac", "label": "Khoá HMAC-SHA256 của webhook SePay",\n\t\t\t"fieldtype": "Password"' in _se_src, True)
-la("nguoi dung tu dan khoa HMAC, may khong tu sinh", "def dat_hmac(khoa=None):" in _se_src, True)
+# v247: dat_hmac them tham so khe de giu khoa webhook thu hai (ACB).
+la("nguoi dung tu dan khoa HMAC, may khong tu sinh", "def dat_hmac(khoa=None, khe=1):" in _se_src, True)
 la("chan chuoi qua ngan khong giong Secret Key", "không giống Secret Key của SePay" in _se_src, True)
 
 # Phep kiem THAT: dung lai chu ky bang chinh cac ham cua tep, roi thu
@@ -5333,6 +5337,207 @@ _o_man45 = re.findall(r"\{ k: '([a-z_0-9]+)', nhan:", _js45.split("var HD_O_SUA 
 la("man hinh bay dung so o", len(_o_man45) >= 15, True)
 la("moi o tren man deu nam trong danh sach may chu cho sua",
    sorted(set(_o_man45) - set(H45_SUA)), [])
+
+# ============================================================
+# 46. v247: M-Invoice trong ma nguon, SePay ACB, UNC hinh nho, don Bep
+# ============================================================
+#
+# Bon viec anh Viet giao 20/08/2026 trong cung mot buc thu. Diem chung:
+# ca bon deu dong vao du lieu that (hoa don thue, sao ke ngan hang, chung
+# tu chi tien, cong thuc san xuat), nen nhom nay soi ranh gioi va duong
+# du phong nhieu hon soi giao dien.
+print("\n[46] v247: M-Invoice, SePay ACB, UNC hinh nho, don Bep")
+
+_mdb46 = open("vagabond/minvoice_dong_bo.py", encoding="utf-8").read()
+_mtep46 = open("vagabond/minvoice_tep.py", encoding="utf-8").read()
+_sp46 = open("vagabond/sepay.py", encoding="utf-8").read()
+_ht46 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_db46 = open("vagabond/don_bep.py", encoding="utf-8").read()
+_hs46 = open("vagabond/ho_so_tt.py", encoding="utf-8").read()
+_hk46 = open("vagabond/hooks.py", encoding="utf-8").read()
+_js11_46 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_js17_46 = open("vagabond/public/js/bep/17-cai-dat.js", encoding="utf-8").read()
+_dt_ht46 = json.load(open(
+	"vagabond/vagabond/doctype/vagabond_hoan_tien/vagabond_hoan_tien.json", encoding="utf-8"))
+_MOC46 = "# ------------------------------------------------------- phan can Frappe"
+
+# ---------- 46.1 M-Invoice: ba nguyen nhan sot hoa don, ba cai chot ----------
+#
+# Su co that: hoa don dau vao sot tu 14/08 (to 598 CACAO BEN TRE 1.590.000 d
+# khong co trong he). Ba nguyen nhan da mo ra, moi cai mot ca kiem giu cho
+# no khong quay lai.
+
+# (1) Dau vao phai keo TRUOC dau ra: dau vao xep sau la chet chum khi dut
+# ket noi giua chung. Soi dung thu tu hai dong append trong _keo.
+_keo46 = _mdb46.split("def _keo(")[1].split("\n@frappe.whitelist()")[0]
+la("dau vao keo truoc dau ra",
+   _keo46.find('cac_loai.append(("INPUT_') < _keo46.find('cac_loai.append(("OUTPUT_'), True)
+# (2) Moi loai boc rieng: dau ra loi thi dau vao da keo xong van nguyen.
+la("tung loai co try/except rieng", _keo46.count("except Exception:") >= 1, True)
+la("loi giua chung ghi ro loai nao vao Error Log", "dut giua chung o loai" in _keo46, True)
+# (3) Ghi xuong TUNG TRANG, khong doi het luot: GET hay POST deu ghi that.
+la("commit nam trong vong lap trang",
+   _keo46.split("while trang <=")[1].split("except Exception:")[0].count("frappe.db.commit()"), 1)
+
+# "Vo ruot": ban ghi insert luc M-Invoice chua do du lieu (so_hd=0) phai
+# duoc do lai khi ho da co so that. Phep thuan nap bang python3 tran.
+_ns46 = {}
+exec(compile(_mdb46.split(_MOC46)[0], "minvoice_dong_bo:thuan", "exec"), _ns46)
+la("ban ghi rong ma M-Invoice da co so thi do lai", _ns46["vo_ruot"](0, {"shdon": 598}), True)
+la("ban ghi rong ma ho van chua co so thi cho luot sau", _ns46["vo_ruot"](0, {"shdon": 0}), False)
+la("ban ghi da co so thi khong dong vao", _ns46["vo_ruot"](598, {"shdon": 598}), False)
+la("chua lanh dung chung mot ham du lieu voi insert",
+   "_du_lieu(inv, loai))\n\t\t\t\t\t\t\tlanh += 1" in _keo46.replace("    ", "\t") or
+   _keo46.count("_du_lieu(inv, loai)") >= 2, True)
+
+# Bang trang thai cua CQT: dung ten that, ma la thi tra nguyen ma.
+la("ma 1 la hoa don Goc", _ns46["trang_thai_chu"]("1"), "Gốc")
+la("ma 6 la da huy", _ns46["trang_thai_chu"](6), "Đã huỷ")
+la("ma la tra nguyen van, khong doan", _ns46["trang_thai_chu"]("9"), "9")
+# Doi tac: dau ra la nguoi MUA (nm), dau vao la nguoi BAN (nb).
+la("dau ra lay ten nguoi mua",
+   _ns46["doi_tac_cua"]({"nmten": "A", "nbten": "B"}, _ns46["LOAI_RA"])["ten"], "A")
+la("dau vao lay ten nguoi ban",
+   _ns46["doi_tac_cua"]({"nmten": "A", "nbten": "B"}, _ns46["LOAI_VAO"])["ten"], "B")
+la("ma tra cuu do dung dong ttkhac",
+   _ns46["ma_tra_cuu_cua"]({"ttkhac": [{"ttruong": "x"}, {"ttruong": "Mã tra cứu", "dlieu": "ABC"}]}),
+   "ABC")
+la("khong co ttkhac thi khong vo", _ns46["ma_tra_cuu_cua"]({}), None)
+
+# Duong chay tay co cong chan vai; nhip lap lich khong duoc whitelist
+# (danh sach cua ngo da chot o thu_cua_ngo, day chi kiem cong chan).
+_keo_wl46 = _mdb46.split("def keo(")[1].split("\ndef ")[0]
+la("keo bu chi cho quan ly va ke toan",
+   '{"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _keo_wl46, True)
+# Nhip lap lich phai co trong hooks, thieu la ca he im lang dung keo.
+for _h46 in ("minvoice_dong_bo.dong_bo_tu_dong", "minvoice_dong_bo.tu_lanh_hang_dem",
+             "minvoice_tep.keo_pdf_thieu", "minvoice_tep.don_dep_pdf"):
+	la("hooks co nhip vagabond.%s" % _h46, "vagabond." + _h46 in _hk46, True)
+
+# ---------- 46.2 PDF ban the hien: keo ve, dinh vao ho so, don 60 ngay ----------
+_ns46b = {}
+exec(compile(_mtep46.split(_MOC46)[0], "minvoice_tep:thuan", "exec"), _ns46b)
+la("ten tep PDF theo ky hieu va so", _ns46b["ten_tep_pdf"]("1C26MAA", 617), "HDDT-1C26MAA-617.pdf")
+la("ky tu la trong ky hieu khong lot vao ten tep",
+   "/" in _ns46b["ten_tep_pdf"]("1/C26", 5), False)
+la("PDF that bat dau bang %PDF", _ns46b["la_pdf"](b"%PDF-1.7 abc"), True)
+la("JSON bao loi khong phai PDF", _ns46b["la_pdf"](b'{"error":1}'), False)
+la("chuoi thuong cung khong phai PDF", _ns46b["la_pdf"]("x"), False)
+la("boc duoc base64 trong goi JSON", _ns46b["boc_b64_trong_json"]({"data": "A" * 500}), "A" * 500)
+la("boc duoc ca khi boc hai lop", _ns46b["boc_b64_trong_json"]({"result": {"pdf": "B" * 500}}), "B" * 500)
+la("chuoi ngan khong bi nhan nham la PDF", _ns46b["boc_b64_trong_json"]({"data": "ngan"}), "")
+
+# Tep hoa don mua mang gia von, phai cat rieng tu.
+la("PDF luu is_private", '"is_private": 1' in _mtep46, True)
+la("ruot tep phai la PDF that moi luu", "la_pdf(" in _mtep46.split("def _tai_pdf_tho")[1].split("\ndef ")[0], True)
+# Duong dinh vao ho so KHONG BAO GIO duoc lam hong viec tao ho so.
+_dinh46 = _mtep46.split("def dinh_vao_ho_so(")[1].split("\ndef ")[0]
+la("dinh vao ho so nuot loi, khong throw", "frappe.throw" in _dinh46, False)
+la("dinh vao ho so co luoi do cuoi cung", _dinh46.count("except Exception:") >= 2, True)
+la("tao ho so co goi duong dinh PDF", "minvoice_tep.dinh_vao_ho_so(doc)" in _hs46, True)
+# Don 60 ngay la don CACHE: xoa ban sao tro cung file_url truoc, roi ban goc.
+_don46 = _mtep46.split("def don_dep_pdf(")[1]
+la("don dep xoa ban sao truoc ban goc",
+   _don46.find('"name": ["!=", g.name]') < _don46.find('frappe.delete_doc("File", g.name'), True)
+la("so ngay giu doc tu cai dat, mac dinh 60",
+   'cint(_cai_dat_chung().get("minvoice_pdf_ngay_giu")) or 60' in _don46, True)
+# Hoa don keo loi lien tuc thi thoi, khong dot het luot goi cua to khac.
+la("co gioi han so lan thu lai", "LOI_TOI_DA" in _mtep46.split("def keo_pdf_thieu")[1], True)
+la("moi nhip co han muc, khong keo vo han", "MOI_NHIP" in _mtep46, True)
+la("truong cau hinh PDF co dang ky trong truong_tu_them",
+   'minvoice_tep.TRUONG_MOI' in open("vagabond/truong_tu_them.py", encoding="utf-8").read(), True)
+
+# ---------- 46.3 SePay: webhook thu hai cho ACB ----------
+#
+# SePay sinh cho MOI webhook mot Secret Key rieng, nguoi dung khong chon
+# duoc, nen chay hai tai khoan (OCB + ACB) la phai giu duoc hai khoa.
+la("co ham doc ca hai khe khoa", "def _cac_khoa(" in _sp46, True)
+la("khe thu hai la ten khoa cong _2", 'ten_goc + "_2"' in _sp46, True)
+la("kiem HMAC thu ca hai khoa", '_cac_khoa("sepay_hmac")' in _sp46, True)
+la("duong X-Api-Key cung thu ca hai khoa", '_cac_khoa("sepay_khoa")' in _sp46, True)
+_hmac46 = _sp46.split("def _kiem_hmac(")[1].split("\ndef ")[0]
+la("chu ky van so bang compare_digest, khong so bang ==",
+   "hmac.compare_digest(x, y)" in _hmac46, True)
+la("truong khoa ACB co trong khai bao truong", '"fieldname": "sepay_hmac_2"' in _sp46, True)
+la("khoa du phong ACB cung co", '"fieldname": "sepay_khoa_2"' in _sp46, True)
+_dh46 = _sp46.split("def dat_hmac(")[1].split("\n@frappe.whitelist()")[0]
+la("dat_hmac nhan khe 2", 'cint(khe) != 2 else "sepay_hmac_2"' in _dh46, True)
+
+# Khai ban do tai khoan ngay tren app: CHI THEM VA DOI, khong xoa.
+_tk46 = _sp46.split("def them_tai_khoan(")[1].split("\n@frappe.whitelist()")[0]
+la("them tai khoan chi cho quan ly va ke toan",
+   '{"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _tk46, True)
+la("so tai khoan chi giu chu so", "ch.isdigit()" in _tk46, True)
+la("tai khoan ERPNext phai co that", 'frappe.db.exists("Bank Account", tk)' in _tk46, True)
+la("khai xong thi ra khoi danh sach chua khai", "cu_ds.remove(so_tk)" in _tk46, True)
+la("duong them khong co lenh xoa dong ban do", "ban_do.pop" in _tk46 or "del ban_do" in _tk46, False)
+# Man Cai dat: o khoa ACB va o khai ban do.
+la("man cai dat co o khoa HMAC thu hai", "seHm2" in _js17_46, True)
+la("man cai dat khai duoc ban do tai khoan", "vagabond.sepay.them_tai_khoan" in _js17_46, True)
+la("so tai khoan chua khai duoc dien san vao o", "(d.chua_map || [])[0]" in _js17_46, True)
+
+# ---------- 46.4 UNC: hinh nho cho Sales xem va tai ----------
+#
+# Tep UNC dinh vao PAYMENT ENTRY ma Sales khong doc duoc doctype do, nen
+# duong dan /private/files tho voi ho la mot cai 403. Moi thu phai di qua
+# tai_unc, va tai_unc phai kiem theo PHIEU chu khong tin ma File tren man.
+_tai46 = _ht46.split("def tai_unc(")[1].split("\n@frappe.whitelist()")[0]
+la("tai_unc doi tep phai dinh dung phieu chi cua ho so",
+   '"attached_to_name": ma_pe' in _tai46, True)
+la("tai_unc co cong chan quyen", "_kiem_quyen()" in _tai46, True)
+la("hinh thu nho co gioi han kich thuoc", "thumbnail((360, 360))" in _tai46, True)
+la("khong nen duoc thi tra nguyen ban chu khong vo", "pass" in _tai46.split("except Exception:")[-1], True)
+_dsu46 = _ht46.split("def _ds_unc(")[1].split("\n@frappe.whitelist()")[0]
+la("danh sach UNC tra kem ma tep va co la_anh", '"la_anh"' in _dsu46 and '"tep"' in _dsu46, True)
+# Quyen doc phieu hoan tien cho Sales (anh Viet 20/08/2026), chi DOC.
+_sales46 = [x for x in _dt_ht46["permissions"] if x.get("role") in ("Sales User", "Sales Manager")]
+la("hai vai Sales co quyen doc phieu hoan tien", len(_sales46), 2)
+for _p46 in _sales46:
+	la("vai %s chi doc, khong sua khong tao" % _p46["role"],
+	   tuple(int(_p46.get(k) or 0) for k in ("read", "write", "create", "delete")),
+	   (1, 0, 0, 0))
+# Man hinh: anh ve bang the img qua duong tai_unc, khong con link tho.
+la("anh UNC ve bang the img", "class=\"htuncanh\"" in _js11_46.replace("'", "\""), True)
+la("hinh nho goi tai_unc co=nho", "co: 'nho'" in _js11_46, True)
+la("phong to goi tai_unc co=lon", "co: 'lon'" in _js11_46, True)
+la("anh phong to co nut tai ve", "Tải về gửi khách" in _js11_46, True)
+_ctu46 = _js11_46.split("function htCtUnc(")[1].split("\nfunction ")[0]
+la("khong con the a tro thang vao duong dan tep rieng tu",
+   "'<a href=\"' + h(t.url)" in _ctu46, False)
+
+# ---------- 46.5 Don Bep: lam tuoi, bo So che, gop trung ----------
+_ns46c = {}
+exec(compile(_db46.split(_MOC46)[0], "don_bep:thuan", "exec"), _ns46c)
+# He so doc tu chinh hai BOM so che: long do 1.0, long trang 32/30.
+la("mot gram long do la mot gram trung", _ns46c["he_so_cua"]("BTPB00046"), 1.0)
+la("ma long do cu cung tinh nhu the", _ns46c["he_so_cua"]("5HVQDZAMZGB6"), 1.0)
+la("long trang can nhieu trung hon phan minh", round(_ns46c["he_so_cua"]("BTPB00045"), 4), round(32.0 / 30.0, 4))
+# NVLT00042 la long do trung MUOI mua cua Ami, khong phai trung tach ra.
+la("long do muoi mua ngoai KHONG bi dong vao", _ns46c["he_so_cua"]("NVLT00042"), 0.0)
+la("ma cam ghi ro trong hang so", _ns46c["MA_CAM"], "NVLT00042")
+_tong46, _ghi46 = _ns46c["gop_dong_trung"]([("BTPB00046", 25), ("BTPB00045", 30)])
+la("25g long do cong 30g long trang la 57g trung", _tong46, 57.0)
+la("cach tinh ghi ro tung dong de doi chieu", len(_ghi46), 2)
+_tong46b, _ = _ns46c["gop_dong_trung"]([("NVLT00042", 100)])
+la("dong long do muoi khong sinh ra gram trung nao", _tong46b, 0.0)
+
+# Moi cua cua don_bep deu phai qua cong chan giam doc.
+for _f46 in ("lam_tuoi_xem_truoc", "lam_tuoi_thuc_hien", "so_che_xem_truoc",
+             "so_che_thuc_hien", "trung_xem_truoc", "trung_thuc_hien"):
+	la("cua %s co qua cong chan" % _f46,
+	   "_chan()" in _db46.split("def %s(" % _f46)[1].split("\n@frappe.whitelist()")[0].split("\ndef ")[0], True)
+# Mac dinh CHI danh dau lam tuoi; tat ton kho la che do rieng phai goi ro.
+la("che do mac dinh la lam_tuoi, khong phai phantom",
+   'def lam_tuoi_thuc_hien(che_do="lam_tuoi")' in _db46, True)
+la("che do phantom bao cao tung ma bi ERPNext chan", '"bi_chan"' in _db46, True)
+# BOM da ghi so: thay dong bang cach tao BAN MOI, khong choc thang vao bang.
+_tt46 = _db46.split("def _thay_mot_bom(")[1].split("\n@frappe.whitelist()")[0]
+la("thay trung bang cach sao chep BOM", "frappe.copy_doc(" in _tt46, True)
+la("khong update thang vao bang BOM Item", "update `tabBOM Item`" in _db46.lower(), False)
+la("ban cu ngung hoat dong, khong xoa", '{"is_active": 0, "is_default": 0}' in _tt46, True)
+_tth46 = _db46.split("def trung_thuc_hien(")[1]
+la("tung BOM boc rieng, hong mot khong do ca lo", "frappe.db.rollback()" in _tth46, True)
+la("chi tat ma trung khi khong con cong thuc nao dung", "if not _bom_dinh_trung():" in _tth46, True)
 
 print("-" * 60)
 if so_hong:
