@@ -77,6 +77,20 @@ bang JavaScript la cach lam ra man 6.127 dong treo dien thoai hom 12/08.
 KIEU_COT = ("chu", "tien", "so", "phan_tram", "ngay", "chip")
 KIEU_LOC = ("ngay", "chon_mot", "chon_nhieu", "tim_chu", "khoang_so", "co")
 
+# Kieu o tren FORM TAO MOI (anh Viet 21/08/2026). Dong lai dung sau kieu,
+# cung ly do da ghi o KIEU_COT: de moi man tu dat ten kieu moi la den luc
+# giao dien phai biet mot chuc kieu, va no se biet sai mot kieu.
+#
+#     chu       mot dong chu
+#     chu_dai   nhieu dong chu
+#     so        so, ban phim so
+#     tien      so tien, tu dinh dang bang ham tien dung chung cua app
+#     chon      chon mot trong danh sach co san (khai o `chon`)
+#     lien_ket  chon mot ban ghi cua doctype khac (khai o `doctype`)
+#     co        bat tat
+#     ngay      ngay
+KIEU_O = ("chu", "chu_dai", "so", "tien", "chon", "lien_ket", "co", "ngay")
+
 # Tran mac dinh. bao_cao.py da chay 600 dong tot tren dien thoai that.
 # Man nao nang hon thi tu khai tran rieng, nhung khong duoc bo tran.
 GIOI_HAN_DONG = 600
@@ -192,6 +206,93 @@ def chip(*bo):
 	return ra
 
 
+def o(k, nhan, kieu="chu", **thet):
+	"""Mot o tren form tao moi.
+
+	  k         ten truong trong co so du lieu
+	  nhan      chu hien tren man
+	  kieu      mot trong KIEU_O
+	  bat_buoc  1 thi khong de trong duoc
+	  chon      rieng kieu chon: danh sach [(gia_tri, nhan)] hoac [chuoi]
+	  doctype   rieng kieu lien_ket: bang duoc phep tra cuu
+	  loc       rieng kieu lien_ket: dict dieu kien them khi tra cuu
+	  goi_y     chu mo trong o khi con trong
+	  mo_ta     mot cau giai thich duoi o
+	  mac_dinh  gia tri dien san
+	"""
+	c = dict(thet)
+	c["k"] = k
+	c["nhan"] = nhan
+	c["kieu"] = kieu
+	if not k:
+		raise LoiKhaiBao("O tren form thieu khoa k.")
+	if kieu not in KIEU_O:
+		raise LoiKhaiBao(
+			"O %s co kieu %r khong nam trong %s." % (k, kieu, ", ".join(KIEU_O))
+		)
+	if kieu == "chon" and not c.get("chon"):
+		raise LoiKhaiBao("O chon %s phai khai danh sach chon." % k)
+	if kieu == "lien_ket" and not c.get("doctype"):
+		raise LoiKhaiBao("O lien ket %s phai khai doctype duoc tra cuu." % k)
+	if kieu == "chon":
+		# Chuan hoa ve [(gia_tri, nhan)] ngay tu day, de man hinh khong phai
+		# doan dang nao.
+		c["chon"] = [
+			(x, x) if isinstance(x, str) else (x[0], x[1] if len(x) > 1 else x[0])
+			for x in c["chon"]
+		]
+	return c
+
+
+def tao(nhan, quyen, o=None, loi_quyen=None, truoc_khi_ghi=None, ghi_chu=None, di_toi=None):
+	"""Khai bao duong TAO MOI cua mot man danh sach.
+
+	Anh Viet 21/08/2026: *"Em hay thiet ke them nut Tao moi (noi bat, thuong
+	la nut + o goc phai man hinh) trong tat ca cac man hinh danh sach cua
+	phan he nay... Xay dung Form nhap lieu (Form View) tuong ung... toi uu
+	voi giao dien Mobile App."*
+
+	Vi sao khai chu khong viet 16 form: dung 16 man hinh tay la 16 co hoi go
+	nham mot ten truong, va 16 cho phai sua moi lan doi chinh sach quyen.
+	Khai o day thi giao dien tu hien, va CHAN NAM O MAY CHU - danh sach o
+	duoi day cung chinh la danh sach truong duy nhat duoc phep ghi.
+
+	  nhan            chu tren nut va tren dau form, vi du "Tạo mặt hàng"
+	  quyen           tap vai duoc tao. HEP HON hoac bang quyen xem.
+	  o               danh sach o, dung ham o() o tren
+	  truoc_khi_ghi   ham THUAN: nhan dict gia tri, tra ve dict da don dep
+	  ghi_chu         mot cau dan them hien tren dau form
+	  di_toi          khoa mot man da co san, thay vi dung form o day
+
+	Vi sao co `di_toi`: hai danh muc da co man tao rieng va man do LAM TOT
+	HON form chung - man Danh muc san pham tu dat ma va canh bao trung ten,
+	form chung khong biet lam hai viec do. Dung mot form chung nhat nhoa de
+	de len mot man da tot la lam ung dung te di. Nut van o dung cho, chi
+	khac la no dan sang man kia.
+	"""
+	if not quyen:
+		raise LoiKhaiBao("Duong tao moi %s chua khai quyen." % nhan)
+	if not o and not di_toi:
+		raise LoiKhaiBao("Form tao moi %s phai co it nhat mot o, hoac khai di_toi." % nhan)
+	thay = set()
+	for c in o or []:
+		if c["k"] in thay:
+			raise LoiKhaiBao("O %s khai hai lan tren form %s." % (c["k"], nhan))
+		thay.add(c["k"])
+	return {
+		"nhan": nhan,
+		"quyen": set(quyen),
+		"o": list(o or []),
+		"di_toi": di_toi or "",
+		"loi_quyen": loi_quyen or (
+			"Tài khoản của bạn không được tạo mới ở danh mục này. Cần thêm thì "
+			"báo anh Việt cấp thêm chức vụ trong màn Quản lý người dùng."
+		),
+		"truoc_khi_ghi": truoc_khi_ghi,
+		"ghi_chu": ghi_chu or "",
+	}
+
+
 def bang(
 	ma,
 	ten,
@@ -211,6 +312,7 @@ def bang(
 	tom_tat=None,
 	tom_tat_theo_chip=0,
 	dieu_kien=None,
+	tao=None,
 ):
 	"""Khai bao mot man danh sach. Tra ve dictionary, kiem ngay luc nap.
 
@@ -257,6 +359,15 @@ def bang(
 		raise LoiKhaiBao("Man %s co chip nhung chua khai ham xep." % ma)
 	if xep and not chip:
 		raise LoiKhaiBao("Man %s co ham xep nhung chua khai danh sach chip." % ma)
+	if tao:
+		# Quyen TAO khong bao gio duoc rong hon quyen XEM. Nguoi tao duoc mot
+		# dong ma khong xem duoc danh sach thi khong bao gio biet minh vua tao
+		# trung, va do dung la cach de ra rac du lieu.
+		du = tao["quyen"] - set(quyen)
+		if du:
+			raise LoiKhaiBao(
+				"Man %s cho vai %s tao moi ma khong cho xem." % (ma, ", ".join(sorted(du)))
+			)
 	return {
 		"ma": ma,
 		"ten": ten,
@@ -277,4 +388,5 @@ def bang(
 		"tom_tat": list(tom_tat or []),
 		"tom_tat_theo_chip": int(tom_tat_theo_chip or 0),
 		"dieu_kien": dict(dieu_kien or {}),
+		"tao": tao,
 	}

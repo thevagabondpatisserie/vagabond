@@ -23,7 +23,7 @@ man trong mot lan deploy.
 import json
 
 import frappe
-from frappe.utils import add_days, getdate, nowdate
+from frappe.utils import add_days, flt, getdate, nowdate
 
 from vagabond.khung import tinh
 from vagabond.khung.hop_dong import GIOI_HAN_DONG  # noqa: F401  (de mo dun khac lay)
@@ -241,7 +241,157 @@ def dung(b, tham=None, day_du=0):
 	kq["loc"] = [dict(f, gt=dang.get(f["k"])) for f in b["loc"]]
 	kq["tu"] = str(tu_ngay or "")
 	kq["den"] = str(den_ngay or "")
+	# Khai bao form TAO MOI, chi gui xuong khi nguoi nay THAT SU duoc tao.
+	# Gui xuong roi de man hinh tu quyet la de nut Tao moi hien voi nguoi
+	# khong bam duoc - bay ra mot cai nut rong la mot cach noi doi nhe.
+	kq["tao"] = _khai_tao(b)
 	return kq
+
+
+def _khai_tao(b):
+	"""Phan khai bao form tao moi, da loc theo quyen cua nguoi dang hoi.
+
+	Tra ve None neu man chua mo duong tao, hoac nguoi nay khong du quyen.
+	Ham TAO THAT van kiem quyen lai lan nua - day chi la lop cho man hinh
+	biet duong ve, khong phai lop chan.
+	"""
+	t = b.get("tao")
+	if not t:
+		return None
+	if not (t["quyen"] & set(frappe.get_roles())):
+		return None
+	return {
+		"nhan": t["nhan"],
+		"ghi_chu": t["ghi_chu"],
+		"di_toi": t.get("di_toi") or "",
+		"o": [
+			{k: v for k, v in c.items() if k not in ("loc",)}
+			for c in t["o"]
+		],
+	}
+
+
+# ------------------------------------------------------------- tao moi
+
+
+def _o_theo_khoa(t):
+	return {c["k"]: c for c in t["o"]}
+
+
+def _don_gia_tri(c, v):
+	"""Ep mot gia tri ve dung kieu cua o. THUAN theo nghia khong doc CSDL.
+
+	Day la cho DUY NHAT gia tri tu man hinh di vao co so du lieu, nen no
+	phai la cai ray chu khong phai cai phieu. Kieu nao khong nhan ra thi
+	tra ve chuoi da cat khoang trang, khong bao gio tra ve nguyen goi.
+	"""
+	kieu = c.get("kieu")
+	if kieu == "co":
+		return 1 if str(v).strip().lower() in ("1", "true", "yes", "on", "co") else 0
+	if kieu in ("so", "tien"):
+		try:
+			return flt(str(v).replace(",", "").replace(" ", "")) if str(v).strip() else 0
+		except Exception:
+			return 0
+	if kieu == "chon":
+		hop_le = {x[0] for x in c.get("chon") or []}
+		s = str(v or "").strip()
+		if s and s not in hop_le:
+			frappe.throw(
+				"Ô %s nhận giá trị %s không có trong danh sách cho phép."
+				% (c.get("nhan") or c["k"], s)
+			)
+		return s
+	return str(v or "").strip()
+
+
+@frappe.whitelist()
+def tim_lien_ket(ma, o, tu_khoa="", so_dong=20):
+	"""Tra cuu cho mot o kieu lien_ket TRÊN MỘT FORM ĐÃ KHAI.
+
+	Nhan ma man va ten o chu KHONG nhan doctype tu man hinh. Nhan doctype
+	tu man hinh la mo mot duong doc bat ky bang nao trong he, ke ca User va
+	Vagabond Settings.
+	"""
+	b = lay_bang(ma)
+	_cong_quyen(b)
+	t = b.get("tao")
+	if not t or not (t["quyen"] & set(frappe.get_roles())):
+		frappe.throw(t["loi_quyen"] if t else "Màn này chưa mở đường tạo mới.")
+	c = _o_theo_khoa(t).get(o)
+	if not c or c.get("kieu") != "lien_ket":
+		frappe.throw("Ô %s không phải ô liên kết." % o)
+	dk = dict(c.get("loc") or {})
+	q = str(tu_khoa or "").strip()
+	ds = frappe.get_all(
+		c["doctype"],
+		filters=dk,
+		or_filters=([["name", "like", "%" + q + "%"]] if q else None),
+		fields=["name"],
+		order_by="modified desc",
+		limit_page_length=int(so_dong or 20),
+	)
+	return {"ds": [{"ma": r["name"], "ten": r["name"]} for r in ds]}
+
+
+@frappe.whitelist()
+def tao_moi(ma, gt=None):
+	"""Ghi mot dong moi vao danh muc. Duong DUY NHAT app duoc ghi vao khung.
+
+	Ba hang rao, theo dung thu tu:
+
+	  1. Quyen XEM man (cong chung cua khung).
+	  2. Quyen TAO rieng cua man, hep hon hoac bang quyen xem.
+	  3. LOC TRUONG. Chi nhung truong da khai trong tao()["o"] moi duoc ghi.
+	     Man hinh gui them truong nao khac thi truong do bi bo LANG LE -
+	     khong nem loi, vi nem loi la noi cho ke do biet truong do co ton
+	     tai. Day la hang rao that: thieu no thi mot goi tin nan tay dat
+	     duoc `disabled`, `owner`, hay bat ky truong nao cua doctype.
+	"""
+	b = lay_bang(ma)
+	_cong_quyen(b)
+	t = b.get("tao")
+	if not t:
+		frappe.throw("Màn %s chưa mở đường tạo mới." % b["ten"])
+	if not (t["quyen"] & set(frappe.get_roles())):
+		frappe.throw(t["loi_quyen"])
+	if t.get("di_toi"):
+		frappe.throw(
+			"Danh mục này tạo mới ở màn riêng chứ không ở đây. Bấm nút Tạo mới "
+			"trên màn danh sách, máy dẫn sang đúng chỗ."
+		)
+
+	goi = frappe.parse_json(gt) if isinstance(gt, str) else (gt or {})
+	if not isinstance(goi, dict):
+		frappe.throw("Dữ liệu gửi lên không đúng định dạng.")
+
+	sach = {}
+	for c in t["o"]:
+		if c["k"] not in goi:
+			if c.get("mac_dinh") is not None:
+				sach[c["k"]] = c["mac_dinh"]
+			continue
+		sach[c["k"]] = _don_gia_tri(c, goi.get(c["k"]))
+
+	thieu = [
+		c.get("nhan") or c["k"]
+		for c in t["o"]
+		if c.get("bat_buoc") and not str(sach.get(c["k"]) or "").strip()
+	]
+	if thieu:
+		frappe.throw("Chưa điền: %s. Điền đủ rồi bấm Lưu lại giúp em." % ", ".join(thieu))
+
+	if t.get("truoc_khi_ghi"):
+		sach = t["truoc_khi_ghi"](sach) or sach
+
+	doc = frappe.get_doc(dict(doctype=b["doctype"], **sach))
+	doc.insert()
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"ma": doc.name,
+		"loi_nhan": "Đã tạo %s trong %s." % (doc.name, b["ten"]),
+	}
 
 
 @frappe.whitelist()
