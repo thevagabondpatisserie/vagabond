@@ -1,4 +1,29 @@
 /* ---------------- Don mua hang (PO) ---------------- */
+
+/* Trang thai duong thu di.
+
+   Uyen bam Gui, man bao thanh cong, bon muoi phut sau doi thanh "Gui loi",
+   nha cung cap khong nhan duoc gi. Cai man bao thanh cong do la loi noi doi:
+   luc bam Gui thi thu moi chui vao hang doi, chua ai gui gi ca.
+
+   Nen o day KHONG bao gio tu suy ra "Da gui". Chu do chi hien khi may chu
+   noi la hang doi da Sent. Con lai la "Dang cho gui", va hong thi noi ro
+   hong vi sao chu khong go hai chu "Gui loi" roi de nguoi ta ngoi doan. */
+var THU_MAU = {
+  'Đã gửi': ['#dcfce7', '#166534', '✅'],
+  'Đang chờ gửi': ['#fef3c7', '#92400e', '⏳'],
+  'Gửi lỗi': ['#fee2e2', '#b3261e', '⚠️'],
+  'Chưa gửi': ['#f2f4f7', '#6b7280', '✉️']
+};
+
+function thuChip(tt) {
+  var m = THU_MAU[tt];
+  if (!m) return '';
+  return '<span style="display:inline-block;background:' + m[0] + ';color:' + m[1] +
+    ';border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:700;white-space:nowrap">' +
+    m[2] + ' ' + h(tt) + '</span>';
+}
+
 async function scrDonMua() {
   frame('Đơn mua hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc đơn mua hàng...</div></div>');
   var kq;
@@ -36,7 +61,9 @@ async function scrDonMua() {
         '<div style="font-size:12px;color:' + mau + ';font-weight:600;margin-top:3px">' + h(ten) +
         (d.tre_ngay ? ' ' + d.tre_ngay + ' ngày' : '') +
         (d.nhom === 'nhan_mot_phan' ? ' · đã nhận ' + Math.round(d.per_received) + '%' : '') +
-        (d.con_nhan > 0.0001 ? ' · <span style="color:#b45309">còn ' + money(d.con_nhan) + ' của ' + d.so_mon_con + ' món</span>' : '') + '</div></div>' +
+        (d.con_nhan > 0.0001 ? ' · <span style="color:#b45309">còn ' + money(d.con_nhan) + ' của ' + d.so_mon_con + ' món</span>' : '') + '</div>' +
+        (d.trang_thai_gui_email ? '<div style="margin-top:5px">' + thuChip(d.trang_thai_gui_email) + '</div>' : '') +
+        '</div>' +
         '<b style="white-space:nowrap">' + money(d.grand_total) + ' đ</b></div>';
     }).join('') + '</div>';
   }
@@ -95,12 +122,38 @@ async function scrDonMuaXem() {
       }).join('') + '</div>';
   }
 
+  /* Thu gui nha cung cap. Dat TRUOC muc "Da noi voi" vi khi mot don khong
+     toi tay nha cung cap thi day la thu dau tien nguoi ta can biet. */
+  var gt = d.gui_thu || {};
+  if (gt.trang_thai) {
+    var loi = gt.trang_thai === 'Gửi lỗi';
+    html += '<div class="sec">Thư gửi nhà cung cấp</div>' +
+      '<div class="card" style="padding:12px 14px">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      thuChip(gt.trang_thai) +
+      (gt.so_thu > 1 ? '<span style="font-size:12px;color:#98a2b3">' + gt.so_thu + ' lá thư</span>' : '') +
+      /* Cham hoi: bam vao la ra day du, khong bam thi khong chiem cho. */
+      '<span data-thugiaithich style="cursor:pointer;font-size:12px;color:#0B7C93;font-weight:700" title="Bấm để xem giải thích">❔</span>' +
+      '</div>' +
+      '<div id="thuNhac" style="display:none;margin-top:9px;background:' +
+      (loi ? '#fff1f0;border:1.5px solid #fecdca;color:#7a271a' : '#f2f7f8;border:1.5px solid #d6e6ea;color:#33505a') +
+      ';border-radius:9px;padding:10px 12px;font-size:13px;line-height:1.65">' +
+      h(gt.nhac || '') +
+      (loi ? '<div style="margin-top:7px;font-size:12.5px">Báo giúp em kèm mã đơn <b>' + h(d.name) + '</b>.</div>' : '') +
+      '</div></div>';
+  }
+
   html += '<div class="sec">Đã nối với</div><div class="card" style="padding:12px 14px;font-size:13.5px;line-height:1.8">' +
     '<div>Phiếu nhập kho: ' + (d.phieu_nhap.length ? '<b>' + d.phieu_nhap.map(h).join(', ') + '</b>' : '<span style="color:#b45309">chưa có phiếu nào</span>') + '</div>' +
     '<div>Hoá đơn mua: ' + (d.hoa_don.length ? '<b>' + d.hoa_don.map(h).join(', ') + '</b>' : '<span style="color:#b45309">chưa có hoá đơn nào</span>') + '</div>' +
     '</div>';
 
-  frame('Đơn mua hàng', html);
+  var bx = frame('Đơn mua hàng', html);
+  bx.onclick = function (e) {
+    if (!e.target.closest('[data-thugiaithich]')) return;
+    var n = document.getElementById('thuNhac');
+    if (n) n.style.display = n.style.display === 'none' ? 'block' : 'none';
+  };
 }
 
 
