@@ -3357,9 +3357,21 @@ la("chu ky sai thi tu choi han, khong lui sang duong khac",
    'return _tu_choi(401, "Chu ky HMAC khong dung.")' in _se_src, True)
 la("ky tren NGUYEN VAN goi tin", "frappe.request.get_data() or b\"\"" in _se_src, True)
 la("chu ky sai thi ghi lai du de doi chieu", '"sepay: chu ky HMAC khong khop"' in _se_src, True)
-la("khong ghi khoa vao nhat ky loi",
-   "khoa" in _se_src.split('"sepay: chu ky HMAC khong khop"')[0][-700:].lower()
-   and "% (gui[:200], len(than), sorted(dung)[0][:12])" in _se_src, True)
+# Nhat ky loi phai du de doi chieu ma TUYET DOI khong duoc in khoa bi mat
+# ra. Cat dung khoi log_error do roi soi tung dong: chi duoc phep in chu ky
+# nhan duoc, moc gio, do dai goi tin, so khoa da thu, va 12 ky tu dau cua
+# chu ky may tinh ra.
+_log36 = _se_src.split('"sepay: chu ky HMAC khong khop"')[0]
+_log36 = _log36[_log36.rfind("frappe.log_error("):]
+la("nhat ky loi in 12 ky tu dau chu ky may tinh ra",
+   "sorted(dung)[0][:12]" in _log36, True)
+# Soi rieng PHAN THAM SO cua chuoi dinh dang: `len(cac_khoa)` chi la mot
+# con so nen vo hai, nhung `khoa` hay `cac_khoa[0]` lot vao day la chinh
+# khoa bi mat bi ghi ra Error Log - noi ai doc duoc Desk cung xem duoc.
+_ts36 = _log36.split("% (", 1)[1] if "% (" in _log36 else _log36
+_ts36 = _ts36.replace("len(cac_khoa)", "").replace("len(_cac_chuoi_ky(than, moc))", "")
+la("nhat ky loi KHONG in khoa bi mat", "khoa" in _ts36, False)
+la("nhat ky loi noi ro phai lam gi tiep", "dan lai Secret Key" in _log36, True)
 la("o cat khoa HMAC la Password", '"fieldname": "sepay_hmac", "label": "Khoá HMAC-SHA256 của webhook SePay",\n\t\t\t"fieldtype": "Password"' in _se_src, True)
 # v247: dat_hmac them tham so khe de giu khoa webhook thu hai (ACB).
 la("nguoi dung tu dan khoa HMAC, may khong tu sinh", "def dat_hmac(khoa=None, khe=1):" in _se_src, True)
@@ -3369,12 +3381,15 @@ la("chan chuoi qua ngan khong giong Secret Key", "không giống Secret Key củ
 # nhieu dang header khac nhau.
 _m36 = re.search(r"^def _tach_chu_ky\(.*?(?=^@|^def |\Z)", _se_src, re.S | re.M)
 _m36b = re.search(r"^def _hmac_dung\(.*?(?=^@|^def |\Z)", _se_src, re.S | re.M)
-if not (_m36 and _m36b):
-	la("tim thay hai ham chu ky", False, True)
+# Tu 21/08/2026 _hmac_dung goi _cac_chuoi_ky, nen phai nap kem ham do.
+_m36c = re.search(r"^def _cac_chuoi_ky\(.*?(?=^@|^def |\Z)", _se_src, re.S | re.M)
+if not (_m36 and _m36b and _m36c):
+	la("tim thay ba ham chu ky", False, True)
 else:
 	import hmac as _hm36
 	_mt36 = {"hmac": _hm36}
 	exec(compile(_m36.group(0), "sepay:_tach_chu_ky", "exec"), _mt36, _mt36)
+	exec(compile(_m36c.group(0), "sepay:_cac_chuoi_ky", "exec"), _mt36, _mt36)
 	exec(compile(_m36b.group(0), "sepay:_hmac_dung", "exec"), _mt36, _mt36)
 	_tach = _mt36["_tach_chu_ky"]
 	_dung36 = _mt36["_hmac_dung"]
@@ -3384,6 +3399,15 @@ else:
 	_hex36 = [x for x in _bo36 if x.islower() and len(x) == 64][0]
 	_b6436 = [x for x in _bo36 if x.endswith("=") or ("+" in x or "/" in x) or (not all(c in "0123456789abcdefABCDEF" for c in x))][0]
 	la("sinh du ba dang chu ky (hex thuong, hex hoa, base64)", len(_bo36), 3)
+	# Co moc gio thi thu them ba cach ghep: moc.than, moc+than, than+moc.
+	# Moi cach lai ra ba dang ma hoa, tong 12. Chu ky dung theo BAT KY cach
+	# nao cung phai duoc nhan - vi SePay khong noi ho ghep kieu gi.
+	_bo36m = _dung36(_khoa36, _than36, "1755600000")
+	la("co moc gio thi thu du bon cach ghep", len(_bo36m), 12)
+	la("chu ky chi ky than goi van nam trong tap", _hex36 in _bo36m, True)
+	_ghep36 = _mt36["_cac_chuoi_ky"](_than36, "1755600000")
+	la("bon chuoi ky deu khac nhau", len(set(_ghep36)), 4)
+	la("khong co moc gio thi chi mot chuoi", len(_mt36["_cac_chuoi_ky"](_than36, "")), 1)
 	for _nhan36, _gui36 in (
 		("chu ky tran", _hex36),
 		("co tien to sha256", "sha256=" + _hex36),
@@ -5411,8 +5435,13 @@ la("keo bu chi cho quan ly va ke toan",
    '{"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _keo_wl46, True)
 # Nhip lap lich phai co trong hooks, thieu la ca he im lang dung keo.
 for _h46 in ("minvoice_dong_bo.dong_bo_tu_dong", "minvoice_dong_bo.tu_lanh_hang_dem",
-             "minvoice_tep.keo_pdf_thieu", "minvoice_tep.don_dep_pdf"):
+             "minvoice_tep.don_dep_pdf"):
 	la("hooks co nhip vagabond.%s" % _h46, "vagabond." + _h46 in _hk46, True)
+# 21/08/2026: nhip keo PDF da BO. Duong tai ban the hien cua API qlhd tra
+# 400 o moi bien the ten tep, nen de nhip do chay chi to sinh rac Error Log
+# moi gio. Anh Viet chot chuyen sang nut tai len tren man Ho so APP.
+la("khong con nhip tu keo PDF trong hooks",
+   "minvoice_tep.keo_pdf_thieu" in _hk46, False)
 
 # ---------- 46.2 PDF ban the hien: keo ve, dinh vao ho so, don 60 ngay ----------
 _ns46b = {}
@@ -5541,6 +5570,120 @@ la("ban cu ngung hoat dong, khong xoa", '{"is_active": 0, "is_default": 0}' in _
 _tth46 = _db46.split("def trung_thuc_hien(")[1]
 la("tung BOM boc rieng, hong mot khong do ca lo", "frappe.db.rollback()" in _tth46, True)
 la("chi tat ma trung khi khong con cong thuc nao dung", "if not _bom_dinh_trung():" in _tth46, True)
+
+# ============================================================
+# 47. v249: man Duyet YCMH giu duoc so, ho so nha cung cap, tai tep tay
+# ============================================================
+#
+# Ba viec anh Viet giao 21/08/2026, deu tu mot buoi Uyen ngoi thao tac that
+# tren dien thoai va vap:
+#
+#   1. Man Duyet yeu cau mua: go so vao o Duyet thi may NUOT mat, bam Luu
+#      thi bao "Chua sua dong nao". Nguyen nhan: moi thao tac nho deu ve lai
+#      man va TAI LAI du lieu tu may chu, ghi de len nhung gi vua go.
+#   2. Tao nha cung cap: khong co quyen Tao, va form chi bon o nen thieu
+#      email - trong khi don mua hang gui qua email.
+#   3. Ban the hien hoa don: duong API tra 400, doi sang nut tai len tay.
+#
+# NHOM NAY CO MOT CA QUAN TRONG HON CA: "man khong tai lai du lieu khi ve
+# lai". Do la ca chan dung cai loi da lam Uyen ngoi go lai 27 dong ma khong
+# luu duoc dong nao.
+print("\n[47] v249: Duyet YCMH giu so, ho so NCC, tai tep tay")
+
+_mh47 = open("vagabond/public/js/bep/16-mua-hang.js", encoding="utf-8").read()
+_ncc47 = open("vagabond/nha_cung_cap.py", encoding="utf-8").read()
+_hs47 = open("vagabond/ho_so_tt.py", encoding="utf-8").read()
+_js19_47 = open("vagabond/public/js/bep/19-ho-so-tt.js", encoding="utf-8").read()
+_dm47 = open("vagabond/danh_muc_nen.py", encoding="utf-8").read()
+_tc47 = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+_duyet47 = _mh47.split("async function scrDuyetYcXem(")[1].split("\n/* ----------------")[0]
+
+# ---------- 47.1 RANH GIOI: man khong duoc tu ghi de cai nguoi ta vua go ----------
+la("man duyet nhan co giu man", "async function scrDuyetYcXem(name, giuMan)" in _mh47, True)
+la("ve lai mac dinh la GIU, khong tai lai",
+   "function veLai(taiLai) { go(function () { scrDuyetYcXem(name, !taiLai); }, true); }" in _duyet47, True)
+la("co duong dung lai du lieu dang co", "if (dungLai) {" in _duyet47, True)
+# Sau khi LUU hoac GO DUYET tren may chu thi PHAI tai lai - luc do ban may
+# chu moi la ban dung.
+for _sau47 in ("Đã lưu: ", "Đã gỡ duyệt"):
+	_doan47 = _duyet47.split(_sau47)[1][:260]
+	la("sau khi %s thi tai lai tu may chu" % _sau47.strip(), "veLai(1)" in _doan47, True)
+# O nhap khong duoc ve lai man: tren dien thoai, cham nut Luu lam o mat tieu
+# diem truoc, DOM bi thay moi va cu cham roi vao khoang khong.
+_onc47 = _duyet47.split("el.onchange = function ()")[1].split("};")[0]
+la("roi o nhap KHONG ve lai ca man", "veLai(" in _onc47, False)
+la("go den dau ghi den do", "el.oninput = function ()" in _duyet47, True)
+la("nut Luu noi ro dang giu bao nhieu dong", "function dyNhanLuu()" in _duyet47, True)
+la("moi duong sua so deu di qua mot cua", "function dyDat(" in _duyet47, True)
+# Khong con doi duyet het moi cho luu.
+la("khong bat duyet het moi duoc luu", "chưa đụng tới vẫn nằm chờ" in _duyet47, True)
+la("cau bao khi chua go gi noi ro phai lam gi",
+   "Gõ số vào ô \"Duyệt\"" in _duyet47, True)
+# Nut duyet het: truoc bao loi bat nguoi dung tu bam Luu, nay lam ho.
+la("duyet het thi luu ho phan dang go", "Lưu rồi duyệt hết" in _duyet47, True)
+
+# ---------- 47.2 Ho so nha cung cap: mot goi, bon bang ----------
+_ns47 = {}
+exec(compile(_ncc47.split("# ------------------------------------------------------- phan can Frappe")[0],
+             "nha_cung_cap:thuan", "exec"), _ns47)
+la("ma so thue 10 so giu nguyen", _ns47["chuan_mst"]("0318917687"), "0318917687")
+la("ma chi nhanh 13 so phai co gach", _ns47["chuan_mst"]("0311638525027"), "0311638525-027")
+la("ma 12 so cua ho kinh doanh van nhan", len(_ns47["chuan_mst"]("012345678901")), 12)
+la("so rac thi tra rong", _ns47["chuan_mst"]("123"), "")
+la("email thieu duoi bi chan", _ns47["email_hop_le"]("ai@gmail"), False)
+la("email dung thi qua", _ns47["email_hop_le"]("ketoan@vagabond.vn"), True)
+la("email thieu a coi bi chan", _ns47["email_hop_le"]("ketoan.vagabond.vn"), False)
+la("hai dau a coi bi chan", _ns47["email_hop_le"]("a@b@c.vn"), False)
+# Email nam trong nhom bat buoc: khong co email thi don mua hang lap ra
+# khong gui di dau duoc.
+la("thieu email thi khong cho ghi",
+   "Email nhận đơn mua hàng" in _ns47["thieu_o_nao"]({"ten": "A", "nhom": "B"}), True)
+la("du ba o thi khong con thieu gi",
+   _ns47["thieu_o_nao"]({"ten": "A", "nhom": "B", "email": "a@b.vn"}), [])
+# Chan trung: hai ho so cung mot MST la cong no tach lam doi.
+la("chan trung ma so thue", "đã có trong hệ" in _ncc47, True)
+la("chan trung ten nha cung cap", "Đã có nhà cung cấp tên" in _ncc47, True)
+# Lien he phai duoc danh dau CHINH, vi duong gui don mua hang doc o do.
+la("danh dau lien he chinh", '"is_primary_contact": 1' in _ncc47, True)
+la("ghi email ca hai cho de moi duong doc deu ra",
+   'dat["email_id"] = email' in _ncc47 and '"supplier_primary_contact": doc.name' in _ncc47, True)
+la("tai khoan ngan hang gan theo party Supplier",
+   '"party_type": "Supplier"' in _ncc47, True)
+la("ngan hang go tay khong khop danh muc thi bo trong",
+   'frappe.db.exists("Bank", nh)' in _ncc47, True)
+# Ba phan phu hong thi van giu ho so, khong bat go lai tu dau.
+_tao47 = _ncc47.split("def tao(")[1]
+la("phan phu hong thi ghi Error Log chu khong do ca ho so",
+   _tao47.count("hong.append(") >= 3, True)
+la("bao cao ro phan nao chua ghi duoc", "chưa ghi được" in _ncc47, True)
+# Cua ngo va dinh tuyen.
+la("nut Tao NCC dan sang man rieng", 'di_toi="NCCTAO"' in _dm47, True)
+la("form chung khong con giu bon o cua NCC",
+   'khai.o("supplier_name", "Tên nhà cung cấp"' in _dm47, False)
+la("co nhanh dinh tuyen NCCTAO", "if (k === 'NCCTAO') return go(scrNccTao);" in _tc47, True)
+la("co man tao NCC tren app", "async function scrNccTao(" in _mh47, True)
+la("man NCC dat ma so thue len dau va tra cuu khi roi o",
+   "mo.onblur" in _mh47 and "vagabond.api.tra_mst" in _mh47, True)
+# Tra cuu chi DIEN HO vao o dang trong, khong de len cai nguoi ta da go.
+_mst47 = _mh47.split("mo.onblur = async function ()")[1].split("var lb = document.getElementById('nccLuu')")[0]
+la("tra cuu chi dien vao o dang trong", "!(oTen.value || '').trim()" in _mst47, True)
+la("tra cuu khong ghi thang xuong co so du lieu",
+   any(x in _mst47 for x in ("nha_cung_cap.tao", "frappe.client.set_value", "set_value")), False)
+la("khong tra ra thi noi ro go tay", "gõ tên tay giúp em" in _mst47, True)
+
+# ---------- 47.3 Ban the hien hoa don: tai tay thay vi keo API ----------
+la("co cua dinh tep vao ho so", "def dinh_tep(" in _hs47, True)
+la("co cua go tep dinh nham", "def go_tep(" in _hs47, True)
+_dinh47 = _hs47.split("def dinh_tep(")[1].split("@frappe.whitelist()")[0]
+la("tep dinh vao ho so de rieng tu", '"is_private": 1' in _dinh47, True)
+la("ho so da huy thi khong dinh them", "đã %s nên không đính thêm" in _dinh47, True)
+_go47 = _hs47.split("def go_tep(")[1].split("@frappe.whitelist()")[0]
+# QT-20: go la bo lien ket, KHONG xoa tep.
+la("go tep khong xoa tep", "delete_doc" in _go47, False)
+la("go tep chi bo con tro", '"attached_to_doctype": None' in _go47, True)
+la("man ho so co nut tai ban the hien len", "Tải bản thể hiện hoá đơn lên" in _js19_47, True)
+la("chua co tep thi noi ro ke toan truong can gi", "mới duyệt được" in _js19_47, True)
+la("nut tai len goi dung cua dinh_tep", "vagabond.ho_so_tt.dinh_tep" in _js19_47, True)
 
 print("-" * 60)
 if so_hong:
