@@ -418,6 +418,56 @@ def _tien(n):
 	return "{:,.0f}".format(flt(n)).replace(",", ".")
 
 
+def chu_so_tien(so):
+	"""Đọc số tiền bằng chữ cho biên bản. THUẦN.
+
+	`cong_no.py` có một bản y hệt, nhưng KHÔNG import từ đó: cong_no kéo
+	ban_hang, ban_hang mở đầu bằng `import requests`, mà máy chạy CI của
+	GitHub không cài gói ngoài nào - đầu workflow đã dặn bộ kiểm thử phải
+	chạy tay không. Chính dây chuyền import đó đã làm đỏ 3 ca trên PR #2
+	trong khi máy local xanh. Một hàm đọc số thì không có quyền kéo theo
+	thư viện mạng.
+	"""
+	so = int(round(flt(so)))
+	if so == 0:
+		return "Không đồng"
+	don_vi = ["", "nghìn", "triệu", "tỷ", "nghìn tỷ"]
+	so_chu = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"]
+
+	def doc_ba(n, day_du):
+		tram, chuc, dv = n // 100, (n // 10) % 10, n % 10
+		ra = []
+		if tram or day_du:
+			ra.append(so_chu[tram] + " trăm")
+		if chuc == 0 and dv and (tram or day_du):
+			ra.append("lẻ")
+		elif chuc == 1:
+			ra.append("mười")
+		elif chuc > 1:
+			ra.append(so_chu[chuc] + " mươi")
+		if dv:
+			if chuc > 1 and dv == 1:
+				ra.append("mốt")
+			elif chuc >= 1 and dv == 5:
+				ra.append("lăm")
+			else:
+				ra.append(so_chu[dv])
+		return " ".join(x for x in ra if x)
+
+	cum = []
+	n = so
+	while n > 0:
+		cum.append(n % 1000)
+		n //= 1000
+	phan = []
+	for i in range(len(cum) - 1, -1, -1):
+		if cum[i] == 0:
+			continue
+		phan.append(doc_ba(cum[i], i != len(cum) - 1) + (" " + don_vi[i] if don_vi[i] else ""))
+	ra = " ".join(phan).strip()
+	return (ra[0].upper() + ra[1:] + " đồng") if ra else "Không đồng"
+
+
 def _html_bien_ban(d):
 	"""Dựng HTML biên bản bàn giao tiền mặt theo thể thức hành chính. THUẦN
 	theo nghĩa chỉ đọc dict `d`, không hỏi thêm hệ.
@@ -426,8 +476,6 @@ def _html_bien_ban(d):
 	giao nhận, bảng kê mệnh giá, tổng bằng số và bằng chữ, hai chữ ký. Chữ
 	"BÊN GIAO" trái "BÊN NHẬN" phải theo đúng lối biên bản hai bên.
 	"""
-	from vagabond.cong_no import _chu_so_tien
-
 	def ky(anh, ten, luc):
 		o = ""
 		if anh:
@@ -525,7 +573,7 @@ def _html_bien_ban(d):
 		"ky_vong": _tien(d.get("tien_ky_vong")),
 		"dong_mg": dong_mg or "<tr><td colspan='3' style='text-align:center'>(trống)</td></tr>",
 		"thuc_nhan": _tien(d.get("tong_thuc_nhan")),
-		"bang_chu": _chu_so_tien(d.get("tong_thuc_nhan")),
+		"bang_chu": chu_so_tien(d.get("tong_thuc_nhan")),
 		"khoi_lech": khoi_lech,
 		"ky_giao": ky(d.get("chu_ky_ben_giao"), d.get("ten_nguoi_giao"), d.get("giao_luc")),
 		"ky_nhan": ky(d.get("chu_ky_ben_nhan"), d.get("ten_nguoi_nhan"), d.get("nhan_luc")),
