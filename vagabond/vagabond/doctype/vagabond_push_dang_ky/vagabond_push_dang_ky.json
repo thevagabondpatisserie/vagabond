@@ -1,0 +1,76 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-20 03:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "nguoi",
+  "endpoint",
+  "khoa_p256dh",
+  "khoa_auth",
+  "con_dung"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Nguoi dung",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "endpoint",
+   "fieldtype": "Small Text",
+   "label": "Endpoint",
+   "reqd": 1,
+   "description": "Dia chi may chu day cua trinh duyet. Day la khoa dinh danh mot MAY, khong phai mot nguoi."
+  },
+  {
+   "fieldname": "khoa_p256dh",
+   "fieldtype": "Data",
+   "label": "Khoa p256dh"
+  },
+  {
+   "fieldname": "khoa_auth",
+   "fieldtype": "Data",
+   "label": "Khoa auth"
+  },
+  {
+   "fieldname": "con_dung",
+   "fieldtype": "Check",
+   "label": "Con dung",
+   "default": "1",
+   "in_list_view": 1,
+   "description": "Tat khi may bao 404 hoac 410, tuc la nguoi ta da go app. KHONG xoa ban ghi (QT-20)."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-20 03:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Push Dang Ky",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
