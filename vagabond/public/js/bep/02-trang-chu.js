@@ -26,7 +26,7 @@ async function scrHome() {
        (anh Việt 19/08/2026). Bạn bếp mua chai nước mắm, bạn quầy mua bình
        gas thì đều lập được ngay trên điện thoại, Uyên nhận và chạy tiếp
        chuỗi duyệt. Trước đó phiếu này chỉ lập được trên Desk. */
-    card('🧾', 'Tạo yêu cầu thanh toán nội bộ', 'Ứng tiền mua đồ cho tiệm, hoặc xin trả thẳng cho người bán', 0, 'DNC') +
+    card('🧾', 'Thanh toán nội bộ', 'Ứng tiền mua đồ cho tiệm, hoặc xin trả thẳng cho người bán. Lập phiếu và xem lại phiếu cũ', 0, 'DNC') +
     /* Uyen theo doi don mua hang va cong no nha cung cap ngay tren app,
        khoi mo Desk (anh Viet 12/08/2026). Hai o nay chi hien voi ke toan,
        thu mua va giam doc - gia mua la thong tin nhay cam. */
@@ -709,7 +709,7 @@ function vgbGo(k) {
   /* Một nhánh tiền tố cho cả 16 danh mục. Chép 16 nhánh tay là 16 cơ hội
      gõ nhầm một mã, và đó đúng là lỗi dead link ngày 16/08. */
   if (k.indexOf('DM:') === 0) return kgMo(k.slice(3));
-  if (k === 'DNC') return go(scrDeNghiChi);
+  if (k === 'DNC') return go(scrTTNB);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);

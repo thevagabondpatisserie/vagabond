@@ -1632,6 +1632,7 @@ function htCtVe() {
   }
   html += '</div>';
 
+  html += htCtHddt(d);
   html += htCtUnc(d);
 
   var chan = '';
@@ -1661,6 +1662,68 @@ function htCtVe() {
   }
   var nKt = document.getElementById('htUncXong');
   if (nKt) nKt.onclick = function () { htUncKetThuc(d); };
+
+  var nHd = document.getElementById('htHddtMo');
+  if (nHd) nHd.onclick = function () { htHddtMo(d); };
+  var nHdC = document.getElementById('htHddtChep');
+  if (nHdC) nHdC.onclick = function () { htHddtChep(d); };
+}
+
+
+/* ---------- Hoá đơn điện tử của đơn gốc ----------
+
+Anh Việt 20/08/2026: chị Dung cần xuất hoá đơn thay thế cho đơn đã hoàn tiền,
+nên phải thấy ngay mã hoá đơn đã xuất và bấm một phát sang được M-Invoice.
+
+Khối này CHỈ ĐỌC và CHỈ mở liên kết. Không phát hành, không ký, không huỷ,
+không sửa tờ nào - anh Việt đã dặn sau lần phải đi xoá tay hoá đơn bên
+M-Invoice ngày 13/08. */
+function htCtHddt(d) {
+  var v = d.hddt;
+  var h_ = '<div class="sec">Hoá đơn điện tử của đơn gốc</div>' +
+    '<div class="card" style="padding:12px 14px">';
+  if (!v) {
+    return h_ + '<div style="font-size:12.5px;color:#6b7280;line-height:1.6">' +
+      'Đơn gốc chưa xuất hoá đơn điện tử, hoặc đơn này không xuất hoá đơn. ' +
+      'Không có gì để lập hoá đơn thay thế.</div></div>';
+  }
+  h_ += htCtDong('Mã hoá đơn', v.ma || '', 1) +
+    (v.trang_thai ? htCtDong('Trạng thái bên M-Invoice', v.trang_thai) : '') +
+    (v.so_bao_mat ? htCtDong('Mã tra cứu', v.so_bao_mat) : '');
+  h_ += '<button class="btn gh" id="htHddtMo" style="margin:9px 0 0;width:100%">' +
+    '🔗 Xem hoá đơn bên M-Invoice</button>';
+  if (!v.da_khai_mau) {
+    h_ += '<button class="btn gh" id="htHddtChep" style="margin:8px 0 0;width:100%">' +
+      '📋 Chép mã tra cứu</button>' +
+      '<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+      'border-radius:9px;padding:9px 11px;margin-top:8px;line-height:1.6">' +
+      'Nút trên đang mở trang chủ M-Invoice chứ chưa nhảy thẳng tới tờ hoá đơn, ' +
+      'vì em chưa biết đường dẫn sâu của họ. Chị Dung mở một tờ bất kỳ bên đó, ' +
+      'chép đường dẫn trên thanh địa chỉ gửi anh Việt, em khai vào Cài đặt một ' +
+      'lần là từ đó bấm một phát ra đúng tờ.</div>';
+  }
+  return h_ + '</div>';
+}
+
+function htHddtMo(d) {
+  var v = d.hddt || {};
+  var u = v.lien_ket || v.host;
+  if (!u) {
+    return baoTin('Chưa khai host M-Invoice trong Cài đặt nên em chưa biết mở đi đâu.', 'Thiếu cấu hình');
+  }
+  window.open(u, '_blank', 'noopener');
+}
+
+function htHddtChep(d) {
+  var v = d.hddt || {};
+  var t = v.so_bao_mat || v.so || '';
+  if (!t) return toast('Đơn này không có mã tra cứu.', 3000);
+  try {
+    navigator.clipboard.writeText(t);
+    toast('Đã chép mã tra cứu ' + t + '. Dán vào ô tra cứu bên M-Invoice.', 5000);
+  } catch (e) {
+    baoTin('Mã tra cứu: ' + t, 'Chép tay giúp em');
+  }
 }
 
 

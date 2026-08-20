@@ -234,6 +234,76 @@ var VN = { 'Draft': 'Nháp', 'Pending': 'Chờ xử lý', 'Partially Ordered': '
 function vnSt(x) { return VN[x] || x || ''; }
 function money(n) { return (Math.round(n || 0)).toLocaleString('vi-VN'); }
 function num(n) { var v = Math.round((n || 0) * 1000) / 1000; return v.toLocaleString('vi-VN'); }
+
+/* ---------- Ô nhập tiền: dấu chấm hàng nghìn khi đang gõ ----------
+
+Anh Việt 20/08/2026: *"khi user gõ số phải tự động có dấu phân cách hàng
+nghìn (dấu chấm). Không chỉ làm ở màn này, hãy viết một hàm format dùng
+chung để áp dụng cho mọi ô input số tiền trên App."*
+
+Ba điều phải cẩn thận, và điều thứ ba là chỗ nguy nhất:
+
+MỘT. Ô có dấu chấm thì KHÔNG dùng được type="number" nữa: trình duyệt coi
+"2.000.000" là chuỗi không hợp lệ và trả về value rỗng. Nên ô tiền chuyển
+sang type="text" cộng inputmode="numeric" - bàn phím số vẫn bật lên trên
+điện thoại, mà giá trị thì đọc được.
+
+HAI. Không đụng tới ô SỐ LƯỢNG, ô mm căn tem, ô phần trăm. Những ô đó có số
+lẻ và có số âm, chấm vào là hỏng. Vì vậy hàm này chỉ áp cho ô nào TỰ KHAI
+lớp `tien`, chứ không quét tất cả input số trên trang.
+
+BA. Mọi chỗ ĐỌC ô tiền phải đọc qua `soTien()`. Đọc thẳng bằng Number() thì
+"2.000.000" ra NaN, và một ô tiền ra NaN thì phiếu lưu xuống số 0 mà không
+báo gì cả. Bộ kiểm có một ca soi đúng chuyện này. */
+
+function soTien(v) {
+  /* Nhận cả phần tử DOM lẫn chuỗi. Bỏ mọi thứ không phải chữ số, kể cả
+     dấu chấm mình vừa chèn vào, dấu cách, và chữ "đ" người ta gõ thêm. */
+  if (v && v.nodeType === 1) v = v.value;
+  var s = String(v == null ? '' : v).replace(/[^0-9-]/g, '');
+  if (s === '' || s === '-') return 0;
+  return Number(s) || 0;
+}
+
+function tienChuoi(v) {
+  var n = soTien(v);
+  return n ? n.toLocaleString('vi-VN') : '';
+}
+
+/* Đặt lại giá trị đã chấm, GIỮ NGUYÊN vị trí con trỏ.
+
+   Không giữ con trỏ thì mỗi lần gõ một chữ số con trỏ nhảy về cuối, và
+   người ta không sửa được chữ số ở giữa. Cách giữ: đếm xem bên trái con trỏ
+   có bao nhiêu CHỮ SỐ, rồi sau khi chấm lại thì đặt con trỏ sau đúng chừng
+   ấy chữ số. Đếm chữ số chứ không đếm ký tự, vì số dấu chấm đã đổi. */
+function tienGo(el) {
+  if (!el) return;
+  var cu = el.value || '';
+  var vt = el.selectionStart == null ? cu.length : el.selectionStart;
+  var soTruoc = (cu.slice(0, vt).match(/[0-9]/g) || []).length;
+  var moi = tienChuoi(cu);
+  if (moi === cu) return;
+  el.value = moi;
+  if (el.selectionStart == null) return;
+  var dem = 0, i = 0;
+  for (; i < moi.length && dem < soTruoc; i++) {
+    if (moi[i] >= '0' && moi[i] <= '9') dem++;
+  }
+  try { el.setSelectionRange(i, i); } catch (e) { }
+}
+
+/* Một lần gắn cho cả app. Bắt ở tầng document nên màn nào vẽ ra sau cũng
+   được hưởng, không phải nhớ gắn lại sau mỗi lần vẽ lại. */
+document.addEventListener('input', function (e) {
+  var t = e.target;
+  if (!t || !t.getAttribute) return;
+  /* Nhận CẢ HAI cách khai. `class="tien"` là cách mới. `data-tien="1"` là
+     cách màn Báo giá đã tự làm từ trước; gom vào đây để cả app chỉ còn một
+     hành vi duy nhất, thay vì mỗi màn một kiểu chấm. */
+  if ((t.classList && t.classList.contains('tien')) || t.getAttribute('data-tien') === '1') {
+    tienGo(t);
+  }
+}, true);
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function addDays(iso, n) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 /* Input ngay cua trinh duyet hien theo locale may (iOS ra 01 Aug 2026).
