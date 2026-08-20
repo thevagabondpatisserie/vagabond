@@ -12532,6 +12532,13 @@ function htCtVe() {
     nUncN.onclick = function () { nUncT.value = ''; nUncT.click(); };
     nUncT.onchange = function () { htUncGui(d, nUncT.files && nUncT.files[0]); };
   }
+  b.querySelectorAll('.htuncanh').forEach(function (n) {
+    n.onclick = function () { htUncPhongTo(d.name, n.getAttribute('data-tep'), n.getAttribute('data-ten')); };
+  });
+  b.querySelectorAll('.htunctep').forEach(function (n) {
+    n.onclick = function () { htUncTaiTep(d.name, n.getAttribute('data-tep'), n.getAttribute('data-ten')); };
+  });
+  htUncNapAnh(b, d.name);
   var nKt = document.getElementById('htUncXong');
   if (nKt) nKt.onclick = function () { htUncKetThuc(d); };
 
@@ -12700,9 +12707,28 @@ function htCtUnc(d) {
     '<div class="card" style="padding:12px 14px">';
 
   if (coUnc && tep.length) {
-    h_ += tep.map(function (t) {
-      return '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
-        'style="display:flex;gap:9px;align-items:center;text-decoration:none;' +
+    /* Anh UNC ve thanh HINH NHO chu khong con la mot dong ten tep
+       IMG_xxx.jpg (anh Viet 20/08/2026: "Dung the img de render anh duoi
+       dang Thumbnail nho, click vao thi phong to"). Ruot anh di qua duong
+       tai_unc cua may chu chu khong qua /private/files: tep dinh vao
+       Payment Entry ma Sales khong co quyen doc doctype do, dua duong dan
+       tho la Sales bam vao chi nhan 403. */
+    var anhUnc = tep.filter(function (t) { return t.la_anh && t.tep; });
+    var tepKhac = tep.filter(function (t) { return !(t.la_anh && t.tep); });
+    if (anhUnc.length) {
+      h_ += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:7px">' +
+        anhUnc.map(function (t) {
+          return '<div class="htuncanh" data-tep="' + h(t.tep) + '" data-ten="' + h(t.ten) + '" ' +
+            'style="width:86px;height:86px;border-radius:10px;border:1.5px solid #d1fae5;' +
+            'background:#f0fdf4;display:flex;align-items:center;justify-content:center;' +
+            'overflow:hidden;font-size:20px;color:#a7c4b5">⏳</div>';
+        }).join('') + '</div>' +
+        '<div style="font-size:11.5px;color:#4b7a63;margin-bottom:7px">Bấm vào ảnh để ' +
+        'phóng to, trong ảnh phóng to có nút tải về gửi khách.</div>';
+    }
+    h_ += tepKhac.map(function (t) {
+      return '<div class="htunctep" data-tep="' + h(t.tep || '') + '" data-ten="' + h(t.ten) + '" ' +
+        'style="display:flex;gap:9px;align-items:center;cursor:pointer;' +
         'border:1.5px solid #d1fae5;background:#f0fdf4;border-radius:10px;' +
         'padding:9px 11px;margin-bottom:7px">' +
         '<div style="flex:none;font-size:17px">📄</div>' +
@@ -12710,7 +12736,7 @@ function htCtUnc(d) {
         '<div style="font-size:13px;font-weight:700;color:#065f46;word-break:break-all">' +
         h(t.ten) + '</div>' +
         '<div style="font-size:11.5px;color:#4b7a63">Đính lúc ' +
-        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></a>';
+        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></div>';
     }).join('');
   } else {
     h_ += '<div style="font-size:12.5px;color:#6b7280;line-height:1.6;padding-bottom:4px">' +
@@ -12735,6 +12761,57 @@ function htCtUnc(d) {
       (d.ngay_hoan_thanh ? ' lúc ' + h(String(d.ngay_hoan_thanh).slice(0, 16)) : '') + '.</div>';
   }
   return h_ + '</div>';
+}
+
+/* Nap hinh nho cua tung anh UNC sau khi man da ve. Goi mot luot, moi anh
+   mot yeu cau rieng de anh nao hong khong keo do anh khac. */
+async function htUncNapAnh(b, hoSo) {
+  var o = b.querySelectorAll('.htuncanh');
+  for (var i = 0; i < o.length; i++) {
+    var n = o[i];
+    try {
+      var r = await api('vagabond.hoan_tien.tai_unc', {
+        ho_so: hoSo, tep: n.getAttribute('data-tep'), co: 'nho'
+      });
+      n.innerHTML = '<img src="data:' + r.mime + ';base64,' + r.b64 + '" alt="" ' +
+        'style="width:100%;height:100%;object-fit:cover;display:block">';
+    } catch (e) { n.textContent = '🚫'; n.title = (e && e.message) || ''; }
+  }
+}
+
+/* Phong to mot anh UNC: keo ban day du roi mo overlay co nut tai ve. */
+async function htUncPhongTo(hoSo, tep, ten) {
+  toast('Đang tải ảnh gốc...', 2000);
+  var r;
+  try { r = await api('vagabond.hoan_tien.tai_unc', { ho_so: hoSo, tep: tep, co: 'lon' }); }
+  catch (e) { return toast((e && e.message) || 'Không tải được ảnh', 5000); }
+  var url = 'data:' + r.mime + ';base64,' + r.b64;
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);' +
+    'display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:88%;border-radius:8px">' +
+    '<div style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:18px;' +
+    'color:#fff;font-size:32px;line-height:1">&times;</div>' +
+    '<a download="' + h(ten || r.ten || 'uy-nhiem-chi') + '" href="' + url + '" ' +
+    'style="position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);' +
+    'left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;text-decoration:none;' +
+    'font-weight:800;font-size:14px;border-radius:12px;padding:11px 22px">⬇️ Tải về gửi khách</a>';
+  ov.onclick = function (e) { if (e.target.tagName !== 'A' && e.target.tagName !== 'IMG') ov.remove(); };
+  document.body.appendChild(ov);
+}
+
+/* Tai mot tep UNC khong phai anh (PDF...) ve may qua duong tai_unc. */
+async function htUncTaiTep(hoSo, tep, ten) {
+  toast('Đang tải tệp...', 2000);
+  var r;
+  try { r = await api('vagabond.hoan_tien.tai_unc', { ho_so: hoSo, tep: tep, co: 'lon' }); }
+  catch (e) { return toast((e && e.message) || 'Không tải được tệp', 5000); }
+  var a = document.createElement('a');
+  a.href = 'data:' + r.mime + ';base64,' + r.b64;
+  a.download = ten || r.ten || 'uy-nhiem-chi';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function htUncGui(d, file) {
@@ -14888,7 +14965,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '246';
+var APPVER = '247';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -21292,6 +21369,7 @@ function seVe() {
     posChipNut('data-sebat="1"', d.bat ? '● Đang nhận' : '○ Đang tắt', !!d.bat) +
     posChipNut('data-sehm="1"', d.co_hmac ? '🛡 Đã có khoá HMAC' : '⚠️ Chưa có khoá HMAC', !!d.co_hmac) +
     posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Có khoá dự phòng' : '○ Không khoá dự phòng', !!d.co_khoa) +
+    posChipNut('data-sehm2="1"', d.co_hmac_2 ? '🛡 Có khoá HMAC 2 (ACB)' : '○ Chưa có khoá ACB', !!d.co_hmac_2) +
     '</div>' +
     /* HMAC la duong chinh, khong phai lua chon thu hai.
        Mot, no ky ca goi tin nen doi mot dong trong do la chu ky hong.
@@ -21306,6 +21384,14 @@ function seVe() {
     (d.sua_duoc
       ? '<input class="tin" id="seHm" type="password" placeholder="Dán Secret Key whsec_... của SePay" style="margin-bottom:8px">' +
         '<button class="btn" id="seLuuHm" style="margin:0;width:100%">🛡 Lưu khoá HMAC và bật nhận</button>' +
+        /* Webhook THU HAI (ACB) chay song song: SePay sinh cho moi webhook
+           mot Secret Key rieng, nguoi dung khong chon duoc, nen phai co o
+           thu hai. Ca hai webhook dan CUNG mot duong dan o tren. */
+        '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:12px 0 6px">Chạy thêm ' +
+        'tài khoản <b>ACB</b>: bên SePay tạo webhook <b>thứ hai</b> cho tài khoản ACB, trỏ về ' +
+        'cùng đường dẫn trên, chọn HMAC-SHA256 rồi dán Secret Key của webhook đó vào đây.</div>' +
+        '<input class="tin" id="seHm2" type="password" placeholder="Dán Secret Key whsec_... của webhook ACB" style="margin-bottom:8px">' +
+        '<button class="btn" id="seLuuHm2" style="margin:0;width:100%">🛡 Lưu khoá HMAC thứ hai (ACB)</button>' +
         '<button class="btn gh" id="seSinh" style="margin:8px 0 0;width:100%">🔑 Sinh khoá dự phòng (header X-Api-Key)</button>'
       : '') +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
@@ -21330,7 +21416,20 @@ function seVe() {
       ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
         'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6">Đang có giao dịch của ' +
         '<b>' + h((d.chua_map || []).join(', ')) + '</b> bị bỏ qua vì chưa khai trong bản đồ. ' +
-        'Khai bổ sung trong SePay Settings rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
+        'Khai ngay ở ô dưới rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
+      : '') +
+    (d.sua_duoc
+      ? '<div style="font-size:12px;color:#6b7280;margin-top:10px">Khai thêm tài khoản (ví dụ ACB)</div>' +
+        '<input class="tin" id="seMapSo" inputmode="numeric" placeholder="Số tài khoản như SePay hiển thị"' +
+        ' value="' + h((d.chua_map || [])[0] || '') + '" style="margin:6px 0 8px">' +
+        '<select class="tin" id="seMapTk" style="margin-bottom:8px">' +
+        '<option value="">- Chọn tài khoản ngân hàng trong ERPNext -</option>' +
+        (d.ds_tai_khoan || []).map(function (t) { return '<option value="' + h(t) + '">' + h(t) + '</option>'; }).join('') +
+        '</select>' +
+        '<button class="btn" id="seMapThem" style="margin:0;width:100%">➕ Thêm vào bản đồ</button>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">Nếu ACB chưa có ' +
+        'trong danh sách chọn thì tạo Bank Account trên Desk trước. Khai xong nhớ chạy <b>nạp bù</b> ' +
+        'bên dưới để lấy lại các giao dịch đã bị bỏ qua.</div>'
       : '') + '</div>';
 
   html += '<div class="sec">Số dòng đang có trong sổ</div><div class="card" style="padding:2px 14px 10px">' +
@@ -21356,7 +21455,11 @@ function seVe() {
   var nSinh = document.getElementById('seSinh');
   if (nSinh) nSinh.onclick = seSinhKhoa;
   var nHm = document.getElementById('seLuuHm');
-  if (nHm) nHm.onclick = seLuuHmac;
+  if (nHm) nHm.onclick = function () { seLuuHmac(1); };
+  var nHm2 = document.getElementById('seLuuHm2');
+  if (nHm2) nHm2.onclick = function () { seLuuHmac(2); };
+  var nMap = document.getElementById('seMapThem');
+  if (nMap) nMap.onclick = seThemTaiKhoan;
   var nThu = document.getElementById('seThu');
   if (nThu) nThu.onclick = function () { seNapBu(0); };
   var nThat = document.getElementById('seThat');
@@ -21364,14 +21467,25 @@ function seVe() {
   return b;
 }
 
-async function seLuuHmac() {
-  var o = document.getElementById('seHm');
+async function seLuuHmac(khe) {
+  var o = document.getElementById(khe === 2 ? 'seHm2' : 'seHm');
   var k = (o && o.value || '').trim();
   if (!k) return toast('Chưa dán Secret Key.', 4000);
-  try { await api('vagabond.sepay.dat_hmac', { khoa: k }); }
+  try { await api('vagabond.sepay.dat_hmac', { khoa: k, khe: khe === 2 ? 2 : 1 }); }
   catch (e) { return toast((e && e.message) || 'Không lưu được khoá', 5000); }
   if (o) o.value = '';
-  toast('Đã lưu khoá HMAC và bật nhận webhook.', 4000);
+  toast(khe === 2 ? 'Đã lưu khoá HMAC thứ hai (ACB).' : 'Đã lưu khoá HMAC và bật nhận webhook.', 4000);
+  scrSePay();
+}
+
+async function seThemTaiKhoan() {
+  var so = (document.getElementById('seMapSo') || {}).value || '';
+  var tk = (document.getElementById('seMapTk') || {}).value || '';
+  if (!so.trim()) return toast('Chưa gõ số tài khoản.', 4000);
+  if (!tk) return toast('Chưa chọn tài khoản ngân hàng trong ERPNext.', 4000);
+  try { await api('vagabond.sepay.them_tai_khoan', { so_tk: so.trim(), tai_khoan: tk }); }
+  catch (e) { return toast((e && e.message) || 'Không thêm được', 6000); }
+  toast('Đã khai ' + so.trim() + ' vào bản đồ. Nhớ chạy nạp bù để lấy giao dịch cũ.', 5000);
   scrSePay();
 }
 
