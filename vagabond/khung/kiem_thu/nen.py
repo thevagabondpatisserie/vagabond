@@ -170,6 +170,15 @@ def gia_lap():
 	ut.nowtime = lambda: "09:00:00"
 	ut.now_datetime = lambda: datetime.datetime(2026, 8, 15, 9, 0, 0)
 	ut.get_datetime = lambda v=None: datetime.datetime(2026, 8, 15, 9, 0, 0)
+	ut.add_to_date = lambda d=None, years=0, months=0, weeks=0, days=0, hours=0, \
+		minutes=0, seconds=0, **k: (
+			(d if isinstance(d, datetime.datetime) else ut.now_datetime())
+			+ datetime.timedelta(weeks=weeks, days=days + years * 365 + months * 30,
+				hours=hours, minutes=minutes, seconds=seconds)
+		)
+	ut.escape_html = lambda v: (
+		str(v or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+	)
 	ut.cstr = lambda v: "" if v is None else str(v)
 	ut.fmt_money = lambda v, **k: str(v)
 	ut.date_diff = lambda a, b: (_getdate(a) - _getdate(b)).days
