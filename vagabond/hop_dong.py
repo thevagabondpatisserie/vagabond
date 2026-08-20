@@ -119,10 +119,29 @@ def chi_tiet(name):
 			"dt_ky_b": doc.get("dt_ky_b") or "",
 			"email_ky_b": doc.get("email_ky_b") or "",
 			"phu_luc_scan": doc.get("phu_luc_scan") or "",
+			# --- Thuong thao va dieu chinh (anh Viet 21/08/2026, bai cua
+			# Loan Anh ben Sales). Man chi tiet phai doc duoc ba thu: dang
+			# thuong thao hay khong, ly do lan nay, va co ban chot tai len
+			# chua - vi ca ba deu doi hinh dang cua khoi nut ben duoi. ---
+			"ly_do_thuong_thao": doc.get("ly_do_thuong_thao") or "",
+			"nguoi_mo_thuong_thao": doc.get("nguoi_mo_thuong_thao") or "",
+			"ngay_mo_thuong_thao": str(doc.get("ngay_mo_thuong_thao") or ""),
+			"tep_hop_dong_chot": doc.get("tep_hop_dong_chot") or "",
+			"tep_chot_ten": doc.get("tep_chot_ten") or "",
+			"tep_chot_nguoi": doc.get("tep_chot_nguoi") or "",
+			"tep_chot_luc": str(doc.get("tep_chot_luc") or ""),
+			"tep_chot_ghi_chu": doc.get("tep_chot_ghi_chu") or "",
+			"ngay_dot1": int(doc.get("ngay_dot1") or 0),
+			"ngay_dot2": int(doc.get("ngay_dot2") or 0),
 		},
 		"hoa_don": hoa_don,
 	}
 	kq.update(_tong(name))
+	# So phien ban da chot, de man hien nhan "Hop dong v3" ngay tren dau.
+	try:
+		kq["so_phien_ban"] = frappe.db.count("Hop Dong Phien Ban", {"hop_dong": name})
+	except Exception:
+		kq["so_phien_ban"] = 0
 	return kq
 
 
@@ -149,10 +168,30 @@ def tao(ten, so_hop_dong=None, loai=None, khach_hang=None, ngay_ky=None, ngay_su
 
 @frappe.whitelist()
 def doi_trang_thai(name, trang_thai):
+	"""Doi trang thai bang tay tren man chi tiet.
+
+	CO Y khong cho nhay vao hay ra khoi "Dang thuong thao" bang duong nay.
+	Vao thuong thao thi phai qua nut Dieu chinh, vi duong do bat ghi ly do
+	va chup lai ban goc; ra thi phai qua Chot dieu chinh hoac Dong thuong
+	thao, vi hai duong do sinh phien ban va tra ve dung trang thai cu.
+
+	Bo hang rao nay di la mo mot duong vong: bam doi trang thai tay la thoat
+	khoi thuong thao ma khong de lai mot dong nhat ky nao - dung cai anh
+	Viet dat ra luong nay de chan.
+	"""
 	_quyen()
+	from vagabond.hop_dong_dieu_chinh import TT_THUONG_THAO
+
 	hop_le = {"Nháp", "Đang thực hiện", "Hoàn tất", "Đã thanh lý", "Huỷ"}
 	if trang_thai not in hop_le:
 		frappe.throw("Trạng thái không hợp lệ")
+	dang = frappe.db.get_value("Hop Dong Ban Hang", name, "trang_thai")
+	if dang == TT_THUONG_THAO:
+		frappe.throw(
+			"Hợp đồng đang thương thảo nên không đổi trạng thái tay được. Bấm "
+			"Chốt điều chỉnh để ghi lại bản mới, hoặc Đóng thương thảo nếu "
+			"khách thôi không sửa nữa."
+		)
 	frappe.db.set_value("Hop Dong Ban Hang", name, "trang_thai", trang_thai)
 	return trang_thai
 

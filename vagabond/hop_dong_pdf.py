@@ -1148,7 +1148,20 @@ def xuat_pdf(name, kem_phu_luc=1):
 	"""
 	_quyen()
 	from frappe.utils.pdf import get_pdf
+	from vagabond.hop_dong_dieu_chinh import ban_chot_cua
 	from vagabond.phong_chu import bao_dam_phong
+
+	# Hai ben da chot mot ban rieng thi to may tu sinh KHONG con la to hop
+	# dong nua (anh Viet 21/08/2026). Chan o MAY CHU chu khong chi an nut
+	# tren man: con duong gui email va con duong tai ve deu di qua day, an
+	# nut chi bit mot cua.
+	if ban_chot_cua(name):
+		frappe.throw(
+			"Hợp đồng này đã có bản chốt do hai bên tự thoả thuận, nên bản máy "
+			"tự sinh không còn là bản chuẩn nữa. Bấm nút Tải bản đã chốt để lấy "
+			"đúng tờ gửi khách. Muốn quay lại dùng bản máy tự sinh thì gỡ bản đã "
+			"chốt ra trước, và phải ghi lý do."
+		)
 
 	# Chep bo phong sang thu muc nguoi dung neu container nay chua co. Lan
 	# thu hai tro di chi ton mot phep kiem thu muc.
@@ -1232,15 +1245,20 @@ def gui_email(name, email=None, loi_nhan=None):
 	toi_la = (frappe.session.user or "").strip().lower()
 	cc = [x for x in cc if x.lower() not in da_co and x.lower() != toi_la]
 
-	tep = xuat_pdf(name)
+	# Tep dinh kem: uu tien BAN DA CHOT hai ben tu redline. Doc qua mot
+	# cong duy nhat (`ban_chot_cua`) chu khong tu doc truong o day - de hom
+	# nao them mot duong gui thu nua thi khong ai quen hoi.
+	from vagabond.hop_dong_dieu_chinh import ban_chot_cua, tai_ve_ban_chot
+
+	la_ban_chot = bool(ban_chot_cua(name))
+	tep = tai_ve_ban_chot(name) if la_ban_chot else xuat_pdf(name)
 	so = d.get("so_hop_dong") or name
 	than = (
 		'<div style="font-family:Arial,Liberation Sans,Helvetica,sans-serif;font-size:14px;'
 		'line-height:1.6;color:#1c1a17">'
 		"<p>Kính gửi Quý khách %s,</p>"
 		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách <b>Hợp đồng mua bán hàng hóa "
-		"số %s</b> theo nội dung hai bên đã thống nhất. Bản báo giá đã chốt được đính kèm "
-		"trong cùng tệp PDF làm Phụ lục 01.</p>"
+		"số %s</b> theo nội dung hai bên đã thống nhất.%s</p>"
 		"<p>Tổng giá trị Hợp đồng là <b>%s đ</b> (Bằng chữ: %s).</p>%s"
 		"<p>Quý khách vui lòng kiểm tra lại thông tin doanh nghiệp, người đại diện và các "
 		"điều khoản. Nếu cần điều chỉnh, xin phản hồi lại email này trước khi ký.</p>"
@@ -1248,6 +1266,9 @@ def gui_email(name, email=None, loi_nhan=None):
 	) % (
 		_esc(d.get("ten_khach") or ""),
 		_esc(so),
+		(" Đây là bản hai bên đã thống nhất và chốt nội dung."
+		 if la_ban_chot else
+		 " Bản báo giá đã chốt được đính kèm trong cùng tệp PDF làm Phụ lục 01."),
 		_tien_vn(d.get("gia_tri")),
 		_chu_so_tien(d.get("gia_tri")),
 		("<p>%s</p>" % _br(loi_nhan)) if (loi_nhan or "").strip() else "",
@@ -1274,10 +1295,22 @@ def gui_email(name, email=None, loi_nhan=None):
 			"hop_dong_pdf: gui email",
 		)
 	frappe.sendmail(**gui)
-	if d.get("trang_thai") in (None, "", "Nháp", "Mới"):
+	# Gui xong thi to chuyen sang "Da gui khach". Trang thai nay TRUOC DAY
+	# khong co trong o chon cua doctype, va set_value thi khong kiem danh
+	# sach Select nen khong ai bao gi - moi hop dong da gui deu mang mot
+	# trang thai vo hinh. v244 khai no vao doctype cho khop du lieu that.
+	#
+	# KHONG dat de len "Dang thuong thao": hop dong dang thuong thao ma gui
+	# thu xong tu nhay ra khoi thuong thao la mat ca ban ghi phien ban.
+	from vagabond.hop_dong_dieu_chinh import TT_DA_GUI, TT_THUONG_THAO
+
+	if d.get("trang_thai") in (None, "", "Nháp", "Mới") and d.get("trang_thai") != TT_THUONG_THAO:
 		try:
-			frappe.db.set_value(DT, name, "trang_thai", "Đã gửi khách")
+			frappe.db.set_value(DT, name, "trang_thai", TT_DA_GUI)
 		except Exception:
-			pass
+			frappe.log_error(frappe.get_traceback(), "hop_dong_pdf: dat trang thai da gui")
 	frappe.db.commit()
-	return {"ok": 1, "nhan": nhan, "cc": cc, "ten_file": tep["ten_file"]}
+	return {
+		"ok": 1, "nhan": nhan, "cc": cc, "ten_file": tep["ten_file"],
+		"la_ban_chot": 1 if la_ban_chot else 0,
+	}
