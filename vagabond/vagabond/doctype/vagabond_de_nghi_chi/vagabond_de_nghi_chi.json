@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 0,
- "autoname": "format:DNC-{YYYY}-{#####}",
+ "autoname": "format:TTNB-{YY}-{MM}-{#####}",
  "creation": "2026-08-19 16:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -51,6 +51,10 @@
   "tra_lai_boi",
   "tra_lai_luc",
   "ly_do_tra_lai",
+  "sec_ds",
+  "noi_dung_ck",
+  "ma_gd",
+  "ngay_da_chi",
   "ghi_chu"
  ],
  "fields": [
@@ -116,7 +120,7 @@
    "fieldname": "trang_thai",
    "fieldtype": "Select",
    "label": "Trạng thái",
-   "options": "Nhap\nCho duyet\nCho giam doc\nCho ke toan\nHoan tat\nBi tra lai",
+   "options": "Nhap\nCho duyet\nCho giam doc\nCho ke toan\nHoan tat\nDa chi\nBi tra lai",
    "default": "Nhap",
    "read_only": 1,
    "in_list_view": 1,
@@ -352,6 +356,30 @@
    "label": "Thuoc ma Tam ung",
    "options": "Vagabond De Nghi Chi",
    "description": "Chi dien khi Loai nghiep vu la Hoan ung. Tro ve phieu Tam ung da Hoan tat cua chinh nguoi nay, de may can tru duoc."
+  },
+  {
+   "fieldname": "sec_ds",
+   "fieldtype": "Section Break",
+   "label": "Doi soat ngan hang"
+  },
+  {
+   "fieldname": "noi_dung_ck",
+   "fieldtype": "Data",
+   "label": "Noi dung chuyen khoan",
+   "read_only": 1,
+   "description": "May tu sinh tu ma phieu. Ke toan chuyen tien phai dan DUNG chuoi nay vao noi dung, thi may moi tu doi soat duoc khi SePay bao co."
+  },
+  {
+   "fieldname": "ma_gd",
+   "fieldtype": "Data",
+   "label": "Ma giao dich ngan hang",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ngay_da_chi",
+   "fieldtype": "Datetime",
+   "label": "Luc tien ra khoi tai khoan",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
