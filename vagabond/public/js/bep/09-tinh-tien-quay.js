@@ -392,7 +392,10 @@ async function scrPosQuay() {
     '<span style="font-size:20px">🕐</span>' +
     '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">Ca làm việc</div>' +
     '<div id="posCaTt" style="font-size:12.5px;color:#98a2b3">Đang xem ca của quầy...</div></div>' +
-    '<button class="btn gh" id="posCaNut" style="margin:0;padding:8px 14px;display:none"></button>' +
+    /* flex:none BAT BUOC. Lop .btn mang width:100%, de nguyen trong mot hang
+       flex thi nut nuot tron be ngang va cot chu ben trai bi bop con mot ky
+       tu moi dong. Thay tan mat tren site that ngay 21/08/2026. */
+    '<button class="btn gh" id="posCaNut" style="margin:0;padding:8px 14px;flex:none;width:auto;display:none"></button>' +
     '</div></div>';
   /* Man hinh phu quay ra phia khach. HTML nam trong 25-man-hinh-khach.js
      de phan nay chi co mot dong, do dung do cua phien khac. */
