@@ -1667,6 +1667,11 @@ function htCtVe() {
   if (nHd) nHd.onclick = function () { htHddtMo(d); };
   var nHdC = document.getElementById('htHddtChep');
   if (nHdC) nHdC.onclick = function () { htHddtChep(d); };
+
+  var nTtL = document.getElementById('htTtLuu');
+  if (nTtL) nTtL.onclick = function () { htTtLuu(d); };
+  var nTtG = document.getElementById('htTtGo');
+  if (nTtG) nTtG.onclick = function () { htTtGo(d); };
 }
 
 
@@ -1702,7 +1707,84 @@ function htCtHddt(d) {
       'chép đường dẫn trên thanh địa chỉ gửi anh Việt, em khai vào Cài đặt một ' +
       'lần là từ đó bấm một phát ra đúng tờ.</div>';
   }
+  h_ += htCtThayThe(d, v);
   return h_ + '</div>';
+}
+
+/* ---------- Nối mã hoá đơn THAY THẾ ----------
+
+Chị Dung 20/08/2026: *"không cần nút click vào M-Invoice vì mỗi hoá đơn bên
+M-Invoice không có link riêng. Chị ấy sẽ tự tìm hoá đơn rồi tự thay thế."*
+Anh Việt: *"ví dụ hoá đơn đã thay thế rồi thì em viết luồng automation để nối
+mã hoá đơn đã thay thế đó vào đơn hàng trước đó và vào phiếu hoàn tiền luôn
+được không?"*
+
+Nên khối này KHÔNG thay thế hoá đơn. Việc thay thế chị Dung làm tay bên
+M-Invoice, ở đây chỉ ghi lại số tờ mới rồi máy tự nối vào cả đơn hàng gốc lẫn
+phiếu hoàn tiền, kèm một dòng nhật ký trên đơn. Đó là phần máy làm được mà
+không đụng tới hoá đơn đã gửi cơ quan thuế. */
+function htCtThayThe(d, v) {
+  var tt = (v && v.thay_the) || '';
+  if (tt) {
+    return '<div style="margin-top:10px;border:1.5px solid #a7f3d0;background:#ecfdf5;' +
+      'border-radius:10px;padding:10px 12px">' +
+      '<div style="font-size:11.5px;color:#047857;font-weight:700">ĐÃ THAY THẾ BẰNG</div>' +
+      '<div style="font-size:15px;font-weight:800;color:#065f46;margin-top:2px;word-break:break-all">' +
+      h(tt) + '</div>' +
+      (v.thay_the_luc ? '<div style="font-size:11.5px;color:#4b7a63;margin-top:2px">Ghi nhận lúc ' +
+        h(String(v.thay_the_luc).slice(0, 16)) + '</div>' : '') +
+      '<button class="btn gh" id="htTtGo" style="margin:8px 0 0;width:100%;font-size:14px">' +
+      'Ghi nhầm, gỡ ra</button></div>';
+  }
+  return '<div style="margin-top:10px;border:1.5px dashed #d1d5db;border-radius:10px;padding:10px 12px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.6">' +
+    'Thay thế xong bên M-Invoice thì dán số tờ mới vào đây. Máy nối luôn vào ' +
+    'đơn hàng gốc và phiếu này, không phải mở lại ba nơi.</div>' +
+    '<div style="display:flex;gap:8px;margin-top:8px">' +
+    '<input id="htTtKh" class="lgi" style="flex:0 0 40%;margin:0" placeholder="Ký hiệu, ví dụ C26TVP">' +
+    '<input id="htTtSo" class="lgi" style="flex:1;margin:0" placeholder="Số hoá đơn mới" inputmode="numeric">' +
+    '</div>' +
+    '<button class="btn" id="htTtLuu" style="margin:8px 0 0;width:100%;font-size:15px">' +
+    'Nối mã hoá đơn thay thế</button>' +
+    '<div style="font-size:11px;color:#9ca3af;margin-top:7px;line-height:1.55">' +
+    'Ô này chỉ GHI LẠI con số. Máy không phát hành, không huỷ, không thay thế ' +
+    'tờ nào bên cơ quan thuế.</div></div>';
+}
+
+async function htTtLuu(d) {
+  var so = (document.getElementById('htTtSo') || {}).value || '';
+  var kh = (document.getElementById('htTtKh') || {}).value || '';
+  if (!String(so).trim()) {
+    return baoTin('Chưa nhập số hoá đơn mới. Mở tờ thay thế bên M-Invoice rồi chép số vào ô này.', 'Thiếu số hoá đơn');
+  }
+  busy(true);
+  try {
+    var r = await api('vagabond.hoan_tien.ghi_hddt_thay_the', { ma_phieu: d.name, so: so, ky_hieu: kh });
+    busy(false);
+    toast((r && r.loi_nhan) || 'Đã nối mã hoá đơn thay thế.', 5000);
+    htChiTiet(d.name);
+  } catch (e) {
+    busy(false);
+    baoTin((e && e.message) || 'Chưa nối được mã.', 'Lỗi');
+  }
+}
+
+async function htTtGo(d) {
+  var ly_do = await hoiChu('Gỡ mã hoá đơn thay thế', 'Vì sao gỡ? Câu này nằm lại trong nhật ký của đơn hàng.', '');
+  if (ly_do === null) return;
+  if (!String(ly_do || '').trim()) {
+    return baoTin('Phải ghi lý do thì mới gỡ được. Ô này trống lại mà không ai biết vì sao là chỗ sinh ra hiểu nhầm.', 'Thiếu lý do');
+  }
+  busy(true);
+  try {
+    var r = await api('vagabond.hoan_tien.go_hddt_thay_the', { ma_phieu: d.name, ly_do: ly_do });
+    busy(false);
+    toast((r && r.loi_nhan) || 'Đã gỡ.', 4000);
+    htChiTiet(d.name);
+  } catch (e) {
+    busy(false);
+    baoTin((e && e.message) || 'Chưa gỡ được.', 'Lỗi');
+  }
 }
 
 function htHddtMo(d) {

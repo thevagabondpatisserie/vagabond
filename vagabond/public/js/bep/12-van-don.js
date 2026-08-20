@@ -716,7 +716,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '242';
+var APPVER = '243';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -741,15 +741,27 @@ function adopt(u) {
   S.user = u; S.me.user = u;
   try { if (window.frappe) { if (!frappe.session) frappe.session = {}; frappe.session.user = u; } } catch (e) { }
 }
+/* Xin quyen thong bao SAU khi da vao duoc man hinh chinh.
+
+   Khong await, va cham 1,5 giay: xin quyen la viec nen, hop thoai cua trinh
+   duyet ma bat ngay luc app dang ve man hinh chinh thi vua che mat man vua
+   de bi bam Chan theo phan xa. Ban than pwaXinQuyenThongBao con tu im lang
+   neu app chua duoc them ra man hinh chinh.
+
+   Ham nay ton tai vi ban v242 khai pwaXinQuyenThongBao ma khong cho nao goi. */
+function pwaSauDangNhap() {
+  try { setTimeout(function () { pwaXinQuyenThongBao(0); }, 1500); } catch (e) { }
+}
+
 async function __boot(){
   clearFresh();
   try {
     var real = await whoAmI();
-    if (real && real !== 'Guest') { adopt(real); reset(scrHome); return; }
+    if (real && real !== 'Guest') { adopt(real); reset(scrHome); pwaSauDangNhap(); return; }
     if (real === 'Guest') { reset(scrLogin); return; }
     syncUser();
     for (var i = 0; i < 5 && (!S.user || S.user === 'Guest'); i++) { await napAgain(200); syncUser(); }
-    if (S.user && S.user !== 'Guest') { reset(scrHome); return; }
+    if (S.user && S.user !== 'Guest') { reset(scrHome); pwaSauDangNhap(); return; }
     reset(scrLogin);
   } catch(e) { var el=document.getElementById('vgb'); if(el) el.textContent = 'Loi khoi dong: '+String(e.message||e); }
 }

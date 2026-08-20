@@ -287,11 +287,22 @@ async function scrKhungDs() {
     ) + '</div>' +
     kgNhacCat(kq) +
     (xem === 'bang' ? kgVeBang(kq) : kgVeThe(kq)) +
-    '<div style="text-align:center;color:#a0a6b4;font-size:11.5px;padding:9px 14px 2px;line-height:1.6">' +
+    '<div style="text-align:center;color:#a0a6b4;font-size:11.5px;padding:9px 14px 60px;line-height:1.6">' +
       h(kq.ten) + ' · ' + (kq.tu ? h(kq.tu) + ' đến ' + h(kq.den) : 'tất cả các kỳ') +
       ' · màn này dựng từ khuôn dùng chung, số liệu do máy chủ cộng.</div>';
 
-  var b = frame(kq.ten, html);
+  /* Nút + góc phải, dùng đúng cơ chế fab có sẵn của khung app chứ không tự
+     nhét một nút vào thân màn: nút trong thân màn sẽ cuộn theo nội dung,
+     và mất hút ngay khi danh sách dài hơn một trang.
+
+     Chỉ có nút khi máy chủ trả về khối `tao`, tức là tài khoản này thật sự
+     được tạo mới ở danh mục đó. */
+  var b = frame(kq.ten, html, kq.tao ? { fab: 1 } : undefined);
+  var nTao = document.getElementById('vgbFab');
+  if (nTao) {
+    nTao.title = kq.tao.nhan;
+    nTao.onclick = function () { kgMoTao(kq); };
+  }
   b.onclick = function (e) {
     var t = e.target.closest('[data-kgchip]');
     if (t) { ts.chip = t.getAttribute('data-kgchip'); return go(scrKhungDs, true); }
@@ -317,3 +328,169 @@ async function scrKhungDs() {
   });
 }
 
+
+
+/* ========== NÚT TẠO MỚI VÀ FORM NHẬP LIỆU DÙNG CHUNG ==========
+
+Anh Việt 21/08/2026: *"Hiện tại App mới chỉ cho phép xem và tra cứu. Em hãy
+thiết kế thêm nút Tạo mới (nổi bật, thường là nút + hoặc nút hành động ở góc
+phải màn hình) trong tất cả các màn hình danh sách của phân hệ này... Xây
+dựng Form nhập liệu (Form View) tương ứng... tối ưu với giao diện Mobile App."*
+
+MỘT form cho cả mười ba danh mục, không phải mười ba màn chép tay. Máy chủ
+khai ô nào thì màn dựng ô đó; thêm một danh mục về sau chỉ là thêm khai báo
+bên Python, không đụng một dòng JavaScript nào.
+
+Nút chỉ hiện khi MÁY CHỦ trả về khối `tao` - và máy chủ chỉ trả khi tài
+khoản này thật sự được tạo. Bày ra một cái nút bấm vào báo lỗi quyền là một
+cách nói dối nhẹ. */
+
+var kgForm = null;   /* {ma, nhan, ghi_chu, o:[...], gt:{}} */
+
+function kgMoTao(kq) {
+  var t = kq.tao;
+  if (!t) return;
+  /* Danh mục có màn tạo riêng tốt hơn form chung thì dẫn sang màn đó. */
+  if (t.di_toi) return vgbGo(t.di_toi);
+  kgForm = { ma: kq.ma, nhan: t.nhan, ghi_chu: t.ghi_chu, o: t.o || [], gt: {} };
+  (kgForm.o || []).forEach(function (c) {
+    if (c.mac_dinh !== undefined && c.mac_dinh !== null) kgForm.gt[c.k] = c.mac_dinh;
+  });
+  go(scrKgTao);
+}
+
+function kgOVe(c, gt) {
+  var v = gt[c.k];
+  var id = 'kgo_' + c.k;
+  var nhan = '<div class="vxl">' + h(c.nhan) + (c.bat_buoc ? ' <span style="color:#d92d20">*</span>' : '') + '</div>';
+  var o = '';
+  if (c.kieu === 'co') {
+    return '<label style="display:flex;align-items:center;gap:11px;background:#fff;border-radius:12px;' +
+      'padding:13px 14px;margin-top:12px"><input type="checkbox" id="' + id + '" data-kgo="' + h(c.k) + '"' +
+      (v ? ' checked' : '') + ' style="width:22px;height:22px;flex:none">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600;color:#101828">' +
+      h(c.nhan) + '</div>' +
+      (c.mo_ta ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px;line-height:1.5">' + h(c.mo_ta) + '</div>' : '') +
+      '</div></label>';
+  }
+  if (c.kieu === 'chon') {
+    o = '<select class="vxs" id="' + id + '" data-kgo="' + h(c.k) + '">' +
+      (c.bat_buoc ? '' : '<option value="">- chưa chọn -</option>') +
+      (c.chon || []).map(function (x) {
+        return '<option value="' + h(x[0]) + '"' + (String(v) === String(x[0]) ? ' selected' : '') + '>' +
+          h(x[1]) + '</option>';
+      }).join('') + '</select>';
+  } else if (c.kieu === 'lien_ket') {
+    /* Ô liên kết: gõ chữ, máy chủ tra, chọn một dòng. Danh sách KHÔNG kéo
+       hết về: doctype Customer của tiệm có 43.220 dòng. */
+    o = '<input class="vxi" id="' + id + '" data-kglk="' + h(c.k) + '" autocomplete="off" ' +
+      'placeholder="' + h(c.goi_y || 'Gõ vài chữ để tìm') + '" value="' + h(v == null ? '' : v) + '">' +
+      '<div id="' + id + '_ds" style="display:none;background:#fff;border:1px solid #e4e7ec;border-radius:10px;' +
+      'margin-top:4px;max-height:190px;overflow-y:auto"></div>';
+  } else if (c.kieu === 'chu_dai') {
+    o = '<textarea class="vxi" id="' + id + '" data-kgo="' + h(c.k) + '" rows="3" ' +
+      'placeholder="' + h(c.goi_y || '') + '" style="font-family:inherit">' + h(v == null ? '' : v) + '</textarea>';
+  } else {
+    var so = (c.kieu === 'so' || c.kieu === 'tien');
+    o = '<input class="vxi' + (c.kieu === 'tien' ? ' tien' : '') + '" id="' + id + '" data-kgo="' + h(c.k) + '"' +
+      (c.kieu === 'ngay' ? ' type="date"' : '') +
+      (so ? ' inputmode="decimal"' : '') +
+      ' placeholder="' + h(c.goi_y || '') + '" value="' +
+      h(v == null ? '' : (c.kieu === 'tien' ? tienChuoi(v) : v)) + '">';
+  }
+  return nhan + o +
+    (c.mo_ta ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:5px;line-height:1.5">' + h(c.mo_ta) + '</div>' : '');
+}
+
+function scrKgTao() {
+  var f = kgForm;
+  if (!f) return go(scrKhungDs, true);
+  var html = '<div class="vxf">' +
+    (f.ghi_chu
+      ? '<div style="font-size:12.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+        'border-radius:10px;padding:10px 12px;line-height:1.6">' + h(f.ghi_chu) + '</div>'
+      : '') +
+    f.o.map(function (c) { return kgOVe(c, f.gt); }).join('') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:16px;line-height:1.6">' +
+    'Ô có dấu <span style="color:#d92d20">*</span> là bắt buộc. Máy chủ kiểm lại ' +
+    'một lần nữa trước khi ghi, nên điền thiếu thì nó nói rõ thiếu ô nào.</div>' +
+    '</div>';
+
+  var b = frame(f.nhan, html, {
+    footer: '<button class="btn" id="kgLuu" style="margin:0">Lưu lại</button>'
+  });
+
+  b.querySelectorAll('[data-kgo]').forEach(function (n) {
+    var k = n.getAttribute('data-kgo');
+    var doc = function () {
+      f.gt[k] = (n.type === 'checkbox') ? (n.checked ? 1 : 0)
+        : (n.classList.contains('tien') ? soTien(n.value) : n.value);
+    };
+    n.onchange = doc;
+    n.oninput = doc;
+  });
+  b.querySelectorAll('[data-kglk]').forEach(function (n) { kgGanLienKet(f, n); });
+
+  document.getElementById('kgLuu').onclick = function () { kgGhi(f); };
+}
+
+/* Ô liên kết: gõ -> đợi 250ms -> hỏi máy chủ -> hiện danh sách -> bấm chọn.
+
+   Đợi 250ms chứ không hỏi mỗi phím: gõ "Vinamilk" là tám lần hỏi, và tám
+   câu trả lời về không đúng thứ tự thì ô hiện kết quả của chữ "Vinami". */
+function kgGanLienKet(f, n) {
+  var k = n.getAttribute('data-kglk');
+  var oDs = document.getElementById('kgo_' + k + '_ds');
+  var hen = null;
+  function dong() { if (oDs) { oDs.style.display = 'none'; oDs.innerHTML = ''; } }
+  n.oninput = function () {
+    f.gt[k] = n.value;
+    if (hen) clearTimeout(hen);
+    hen = setTimeout(async function () {
+      var r;
+      try { r = await api('vagabond.khung.ds.tim_lien_ket', { ma: f.ma, o: k, tu_khoa: n.value }); }
+      catch (e) { return dong(); }
+      var ds = (r && r.ds) || [];
+      if (!ds.length) {
+        oDs.innerHTML = '<div style="padding:11px 13px;font-size:12.5px;color:#98a2b3">' +
+          'Không có dòng nào khớp. Gõ ít chữ hơn thử xem.</div>';
+        oDs.style.display = 'block';
+        return;
+      }
+      oDs.innerHTML = ds.map(function (x) {
+        return '<div data-kgpick="' + h(x.ma) + '" style="padding:11px 13px;font-size:13.5px;' +
+          'border-bottom:1px solid #f2f4f7;cursor:pointer">' + h(x.ten) + '</div>';
+      }).join('');
+      oDs.style.display = 'block';
+      oDs.querySelectorAll('[data-kgpick]').forEach(function (d) {
+        d.onclick = function () {
+          n.value = d.getAttribute('data-kgpick');
+          f.gt[k] = n.value;
+          dong();
+        };
+      });
+    }, 250);
+  };
+  n.onblur = function () { setTimeout(dong, 220); };
+}
+
+async function kgGhi(f) {
+  var thieu = f.o.filter(function (c) {
+    return c.bat_buoc && !String(f.gt[c.k] == null ? '' : f.gt[c.k]).trim();
+  });
+  if (thieu.length) {
+    return baoTin('Chưa điền: ' + thieu.map(function (c) { return c.nhan; }).join(', ') +
+      '. Điền đủ rồi bấm Lưu lại giúp em.', 'Thiếu thông tin');
+  }
+  busy(true);
+  try {
+    var r = await api('vagabond.khung.ds.tao_moi', { ma: f.ma, gt: JSON.stringify(f.gt) });
+    busy(false);
+    toast((r && r.loi_nhan) || 'Đã tạo xong.', 5000);
+    kgForm = null;
+    go(scrKhungDs, true);
+  } catch (e) {
+    busy(false);
+    baoTin((e && e.message) || 'Chưa tạo được. Kiểm lại các ô rồi thử lần nữa.', 'Chưa lưu được');
+  }
+}

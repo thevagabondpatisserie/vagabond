@@ -2015,3 +2015,266 @@ async function seNapBu(that) {
   }
   if (that) scrSePay();
 }
+
+
+/* ==================== NHẬP TỆP SAO KÊ NGÂN HÀNG ====================
+
+Anh Việt 20/08/2026: *"Sao kê OCB của Uyên vẫn bị thiếu những khoản dưới
+100k, và kéo về bị không đầy đủ."* Và 21/08/2026: *"Chỗ nhập tệp em cho vào
+màn app luôn nhé để Uyên nhập."*
+
+Đã dò tới cùng: gọi thẳng API SePay ba ngày 12, 13, 14/08 thì họ trả về 12,
+10, 5 giao dịch và ERPNext đang giữ đủ cả ba con số. Gom theo tài khoản thì
+OCB không có một khoản nào dưới 100k, trong khi MB có sáu. Chỗ mất nằm giữa
+NGÂN HÀNG và SePay, ngoài tầm sửa của tiệm. Màn này là phần trong tầm.
+
+Hai nhịp, cố ý: XEM TRƯỚC rồi mới GHI. Nhập tệp mà máy ghi luôn là cách nhân
+đôi cả sổ ngân hàng chỉ bằng một cú bấm nhầm. */
+
+var skTk = '', skFile = '', skTen = '', skXt = null;
+
+async function scrNhapSaoKe() {
+  frame('Nhập sao kê ngân hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
+  var tk;
+  try { tk = await api('vagabond.nhap_sao_ke.danh_sach_tai_khoan', {}); }
+  catch (e) {
+    frame('Nhập sao kê ngân hàng',
+      '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  var ds = (tk && tk.ds) || [];
+  if (!skTk && ds.length) skTk = ds[0].ma;
+
+  var html =
+    '<div class="card" style="padding:13px 15px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.65">' +
+    'Ngân hàng gửi sao kê dạng Excel hoặc CSV thì tải lên đây. Máy chỉ thêm ' +
+    'những dòng còn thiếu, dòng nào đã có trong sổ thì bỏ qua, không ghi đè.' +
+    '</div></div>' +
+
+    '<div class="sec">1. Chọn tài khoản</div>' +
+    '<div class="card" style="padding:12px 14px">' +
+    '<select id="skTk" class="vxs">' +
+    ds.map(function (x) {
+      return '<option value="' + h(x.ma) + '"' + (x.ma === skTk ? ' selected' : '') + '>' +
+        h(x.ten) + (x.so_tk ? ' · ' + h(x.so_tk) : '') + (x.ngan_hang ? ' · ' + h(x.ngan_hang) : '') +
+        '</option>';
+    }).join('') +
+    '</select>' +
+    (ds.length ? '' : '<div style="font-size:12.5px;color:#b3261e;margin-top:8px">' +
+      'Chưa có tài khoản ngân hàng nào trên hệ. Khai ở Desk rồi quay lại.</div>') +
+    '</div>' +
+
+    '<div class="sec">2. Chọn tệp sao kê</div>' +
+    '<div class="card" style="padding:12px 14px">' +
+    '<input type="file" id="skTep" accept=".xlsx,.xlsm,.csv" style="display:none">' +
+    '<button class="btn gh" id="skChon" style="margin:0;width:100%">' +
+    (skTen ? '📄 ' + h(skTen) : '📎 Chọn tệp .xlsx hoặc .csv') + '</button>' +
+    '<div style="font-size:11.5px;color:#9ca3af;margin-top:8px;line-height:1.6">' +
+    'Sao kê phải có các cột Nội dung và PS giảm hoặc PS tăng. Mấy dòng đầu là ' +
+    'tên ngân hàng và kỳ sao kê thì cứ để nguyên, máy tự tìm dòng tiêu đề.</div>' +
+    '</div>' +
+    '<div id="skKq"></div>';
+
+  var b = frame('Nhập sao kê ngân hàng', html);
+  var oTk = document.getElementById('skTk');
+  if (oTk) oTk.onchange = function () { skTk = oTk.value; skXt = null; skVeKq(); };
+  var oT = document.getElementById('skTep');
+  var oC = document.getElementById('skChon');
+  if (oC && oT) {
+    oC.onclick = function () { oT.value = ''; oT.click(); };
+    oT.onchange = function () { skTaiLen(oT.files && oT.files[0]); };
+  }
+  skVeKq();
+}
+
+function skTaiLen(file) {
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) {
+    return baoTin('Tệp nặng quá 20 MB. Cắt sao kê theo tháng rồi tải từng tệp giúp em.', 'Tệp quá nặng');
+  }
+  var fr = new FileReader();
+  fr.onload = async function () {
+    busy(true);
+    try {
+      var r = await api('vagabond.nhap_sao_ke.tai_len', {
+        ten: file.name || 'sao-ke.xlsx', noi_dung: String(fr.result || '')
+      });
+      skFile = r.file_url; skTen = r.ten; skXt = null;
+      var xt = await api('vagabond.nhap_sao_ke.xem_truoc', { file_url: skFile, tai_khoan: skTk });
+      busy(false);
+      skXt = xt;
+      go(scrNhapSaoKe, true);
+    } catch (e) {
+      busy(false);
+      skFile = ''; skTen = ''; skXt = null;
+      baoTin((e && e.message) || 'Chưa đọc được tệp.', 'Chưa nhập được');
+    }
+  };
+  fr.readAsDataURL(file);
+}
+
+function skVeKq() {
+  var o = document.getElementById('skKq');
+  if (!o) return;
+  if (!skXt) { o.innerHTML = ''; return; }
+  var x = skXt;
+  o.innerHTML =
+    '<div class="sec">3. Xem trước, chưa ghi gì</div>' +
+    '<div class="card" style="padding:13px 15px">' +
+    '<div style="display:flex;gap:10px;text-align:center;margin-bottom:10px">' +
+    skO('Đọc được', x.tong, '#374151') +
+    skO('Sẽ thêm', x.se_them, '#047857') +
+    skO('Đã có', x.bo_qua, '#9ca3af') +
+    '</div>' +
+    '<div style="font-size:12.5px;color:#4b5563;line-height:1.7;border-top:1px solid #f0f2f6;padding-top:9px">' +
+    'Kỳ <b>' + h(x.tu_ngay) + '</b> đến <b>' + h(x.den_ngay) + '</b><br>' +
+    'Tiền vào sẽ thêm: <b>' + money(x.tien_vao) + ' đ</b><br>' +
+    'Tiền ra sẽ thêm: <b>' + money(x.tien_ra) + ' đ</b></div>' +
+    (x.mau_them && x.mau_them.length
+      ? '<div style="font-size:11.5px;color:#6b7280;margin-top:10px;font-weight:700">DÒNG SẼ THÊM (' +
+        x.mau_them.length + (x.se_them > x.mau_them.length ? ' trên ' + x.se_them : '') + ')</div>' +
+        x.mau_them.map(skDong).join('')
+      : '<div style="font-size:12.5px;color:#047857;margin-top:10px">' +
+        'Sổ đã đủ, không dòng nào thiếu. Không cần ghi gì thêm.</div>') +
+    '</div>' +
+    (x.se_them
+      ? '<div style="padding:0 12px 14px"><button class="btn" id="skGhi" style="margin:0;width:100%">' +
+        'Ghi ' + x.se_them + ' dòng vào sổ</button>' +
+        '<div style="font-size:11px;color:#9ca3af;margin-top:7px;line-height:1.55;text-align:center">' +
+        'Ghi rồi thì dòng nằm trong sổ ngân hàng thật. Muốn bỏ phải huỷ từng dòng trên Desk.</div></div>'
+      : '');
+  var n = document.getElementById('skGhi');
+  if (n) n.onclick = skGhi;
+}
+
+function skO(nhan, so, mau) {
+  return '<div style="flex:1;background:#f8fafc;border-radius:10px;padding:9px 4px">' +
+    '<div style="font-size:19px;font-weight:800;color:' + mau + '">' + (so || 0) + '</div>' +
+    '<div style="font-size:11px;color:#8a90a0;margin-top:1px">' + h(nhan) + '</div></div>';
+}
+
+function skDong(d) {
+  var vao = Number(d.tien_vao) || 0, ra = Number(d.tien_ra) || 0;
+  return '<div style="border-top:1px solid #f2f4f7;padding:7px 0;font-size:12px;line-height:1.5">' +
+    '<div style="display:flex;gap:8px"><div style="flex:1;min-width:0;color:#374151">' +
+    h(d.noi_dung || '(không có nội dung)') + '</div>' +
+    '<div style="flex:none;font-weight:800;color:' + (vao ? '#047857' : '#b3261e') + '">' +
+    (vao ? '+' + money(vao) : '-' + money(ra)) + '</div></div>' +
+    '<div style="color:#9ca3af;font-size:11px">' + h(dmy(d.ngay)) +
+    (d.so_gd ? ' · ' + h(d.so_gd) : ' · ngân hàng không ghi số giao dịch') +
+    (d.vi_sao ? ' · ' + h(d.vi_sao) : '') + '</div></div>';
+}
+
+async function skGhi() {
+  if (!skXt || !skXt.se_them) return;
+  var ok = await hoiCo('Ghi sao kê vào sổ',
+    'Máy sẽ thêm <b>' + skXt.se_them + '</b> dòng vào sổ ngân hàng, kỳ ' +
+    h(skXt.tu_ngay) + ' đến ' + h(skXt.den_ngay) + '. Dòng đã có thì bỏ qua. ' +
+    'Ghi rồi muốn bỏ phải huỷ từng dòng trên Desk.', 'Ghi vào sổ');
+  if (!ok) return;
+  busy(true);
+  try {
+    var r = await api('vagabond.nhap_sao_ke.nap', { file_url: skFile, tai_khoan: skTk });
+    busy(false);
+    skFile = ''; skTen = ''; skXt = null;
+    var than = h(r.loi_nhan || 'Đã ghi xong.');
+    if (r.hong && r.hong.length) {
+      than += '<div style="margin-top:9px;font-size:12px;color:#b3261e;line-height:1.6">' +
+        r.hong.slice(0, 8).map(function (x) {
+          return h(x.ngay + ' ' + (x.so_gd || '')) + ': ' + h(x.loi);
+        }).join('<br>') + '</div>';
+    }
+    baoTin(than, 'Nhập sao kê xong');
+    go(scrNhapSaoKe, true);
+  } catch (e) {
+    busy(false);
+    baoTin((e && e.message) || 'Chưa ghi được.', 'Lỗi');
+  }
+}
+
+
+/* ==================== THÔNG BÁO TRÊN ĐIỆN THOẠI ====================
+
+Anh Việt 20/08/2026: *"Khi có một phiếu mới chuyển sang trạng thái chờ duyệt
+của đúng User đó, hệ thống phải bắn notification làm rung điện thoại."*
+
+Vì sao có màn riêng chứ không hỏi quyền ngay lúc mở app: trình duyệt chỉ cho
+hỏi MỘT lần, bấm Chặn là chặn vĩnh viễn và phải vào phần cài đặt của trình
+duyệt tìm từng mục mới mở lại được. Nên chỉ hỏi khi người ta chủ động bấm,
+hoặc khi đã thêm app ra màn hình chính - tức là đã tỏ ý dùng lâu dài. */
+
+async function scrThongBao() {
+  frame('Thông báo trên điện thoại', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc...</div></div>');
+  var t = {};
+  try { t = await api('vagabond.thong_bao.tinh_hinh', {}); } catch (e) { t = {}; }
+
+  var daCai = pwaDaCaiRaManHinh();
+  var quyen = ('Notification' in window) ? Notification.permission : 'khong_ho_tro';
+  var ho_tro = ('Notification' in window) && !!navigator.serviceWorker;
+
+  function hang(nhan, xong, phu) {
+    return '<div style="display:flex;gap:11px;align-items:flex-start;padding:10px 0;' +
+      'border-bottom:1px solid #f2f4f7">' +
+      '<div style="flex:none;font-size:17px">' + (xong ? '✅' : '⬜') + '</div>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;color:#101828">' +
+      h(nhan) + '</div>' +
+      (phu ? '<div style="font-size:12px;color:#8a90a0;margin-top:2px;line-height:1.55">' + phu + '</div>' : '') +
+      '</div></div>';
+  }
+
+  var html = '<div class="sec">Tình trạng</div><div class="card" style="padding:6px 15px 12px">' +
+    hang('Trình duyệt hỗ trợ thông báo', ho_tro,
+      ho_tro ? '' : 'Trình duyệt này không có Web Push. Dùng Safari trên iPhone hoặc Chrome trên Android.') +
+    hang('Đã thêm app ra màn hình chính', daCai,
+      daCai ? '' : 'Trên iPhone bắt buộc phải thêm ra màn hình chính thì mới bật thông báo được. ' +
+        'Bấm nút Chia sẻ dưới thanh địa chỉ rồi chọn "Thêm vào MH chính".') +
+    hang('Đã cho phép hiện thông báo', quyen === 'granted',
+      quyen === 'denied'
+        ? 'Trình duyệt đang CHẶN. Phải vào phần cài đặt của trình duyệt, tìm mục Thông báo ' +
+          'của trang này và bật lại, vì trình duyệt không cho hỏi lần hai.'
+        : '') +
+    hang('Máy này đã đăng ký nhận', (t.may_cua_toi || 0) > 0,
+      (t.may_cua_toi || 0) > 0 ? 'Bạn đang nhận trên ' + t.may_cua_toi + ' máy.' : '') +
+    hang('Máy chủ gửi được', !!t.co_thu_vien,
+      t.co_thu_vien ? '' : 'Bản build trên máy chủ chưa có thư viện gửi. Báo anh Việt deploy bản mới nhất.') +
+    '</div>' +
+
+    '<div style="padding:12px 12px 4px">' +
+    '<button class="btn" id="tbBat" style="margin:0;width:100%">🔔 Bật thông báo trên máy này</button>' +
+    '<button class="btn gh" id="tbThu" style="margin:8px 0 0;width:100%">Thử một tin, xem có rung không</button>' +
+    '</div>' +
+    '<div style="text-align:center;color:#a0a6b4;font-size:11.5px;padding:8px 16px 4px;line-height:1.6">' +
+    'Thông báo bắn cho người phải xử lý ở bước kế tiếp, theo chức vụ chứ không theo tên. ' +
+    'Ai nghỉ phép thì người cùng chức vụ vẫn nhận được.</div>';
+
+  var b = frame('Thông báo trên điện thoại', html);
+  document.getElementById('tbBat').onclick = async function () {
+    busy(true);
+    var r = await pwaXinQuyenThongBao(1);
+    busy(false);
+    var noi = {
+      xong: 'Đã bật. Thử bấm nút dưới xem điện thoại có rung không.',
+      da_chan: 'Trình duyệt đang chặn thông báo của trang này. Phải vào phần cài đặt ' +
+        'của trình duyệt bật lại, vì trình duyệt không cho hỏi lần hai.',
+      tu_choi: 'Bạn vừa bấm Không cho phép. Bấm lại nút này để hỏi lần nữa.',
+      chua_cai: 'Phải thêm app ra màn hình chính trước đã.',
+      khong_ho_tro: 'Trình duyệt này không có Web Push.',
+      chua_khai_khoa: 'Máy chủ chưa sinh được khoá. Báo anh Việt xem nhật ký lỗi.',
+      loi: 'Có lỗi lúc đăng ký. Thử lại một lần nữa; vẫn lỗi thì báo anh Việt.'
+    }[r] || 'Chưa rõ kết quả, thử lại giúp em.';
+    baoTin(noi, r === 'xong' ? 'Đã bật thông báo' : 'Chưa bật được');
+    if (r === 'xong') go(scrThongBao, true);
+  };
+  document.getElementById('tbThu').onclick = async function () {
+    busy(true);
+    try {
+      var r = await api('vagabond.thong_bao.thu_gui', {});
+      busy(false);
+      baoTin(h(r.loi_nhan || ''), r.ok ? 'Đã bắn thử' : 'Chưa gửi được');
+    } catch (e) {
+      busy(false);
+      baoTin((e && e.message) || 'Chưa gửi được.', 'Lỗi');
+    }
+  };
+}

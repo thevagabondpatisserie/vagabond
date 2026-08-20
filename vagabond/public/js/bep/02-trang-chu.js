@@ -183,7 +183,11 @@ async function scrHome() {
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
-        card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE')
+        card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE') +
+        /* Nhập tệp sao kê: bù những khoản SePay không đẩy về. OCB không có
+           một khoản nào dưới 100k trong khi MB có sáu - chỗ mất nằm giữa
+           NGÂN HÀNG và SePay, ngoài tầm sửa của tiệm. Đây là phần trong tầm. */
+        card('📑', 'Nhập tệp sao kê ngân hàng', 'Tải tệp ngân hàng gửi, máy bù đúng những dòng còn thiếu', 0, 'NHAPSK')
       : '') +
     /* Quan ly nguoi dung: anh Viet, chi Dung va De. Bay theo goi chuc vu chu
        khong bay ma tran 40 vai tro cua Frappe ra man hinh dien thoai. */
@@ -191,6 +195,10 @@ async function scrHome() {
       ? card('👥', 'Quản lý người dùng', 'Mời tài khoản mới, xếp gói chức vụ, bật tắt nhân viên nghỉ', 0, 'QLND') +
         card('🗝', 'Quản lý quyền', 'Mười một gói chức vụ, gói nào làm được gì và ai đang giữ', 0, 'QLQ')
       : '') +
+    /* Thông báo đẩy: MỌI vai đều thấy ô này, vì phiếu chờ ai thì báo người
+       đó. Để trong Cài đặt chứ không hỏi ngay lúc mở app: trình duyệt chỉ
+       cho hỏi một lần, bấm Chặn là chặn vĩnh viễn. */
+    card('🔔', 'Thông báo trên điện thoại', 'Bật rung khi có phiếu chờ bạn duyệt, và kiểm thử một tin', 0, 'CDTB') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
     card('👤', 'Tài khoản', 'Thông tin tài khoản và đăng xuất', 0, 'ACC') +
     '</div>' +
@@ -359,7 +367,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -566,6 +574,7 @@ function vclVe(kq) {
 
   body += '<div style="padding:13px 14px 4px;font-size:13px;color:#8a90a0">' +
     (kq.tong ? 'Đang chờ bạn xử lý <b>' + kq.tong + '</b> việc' : 'Không có việc nào đang chờ bạn') +
+    (kq.so_dich_danh ? ', trong đó <b>' + kq.so_dich_danh + '</b> giao đích danh cho bạn' : '') +
     ' · vai <b>' + h(kq.vai_chinh || '') + '</b></div>';
 
   /* Chip loại phiếu. Chỉ bày loại người này ĐƯỢC THẤY và ĐANG CÓ việc: bày
@@ -621,7 +630,12 @@ function vclVe(kq) {
         body += '<div data-v="' + i + '" style="background:#fff;border-radius:16px;margin:8px 12px;padding:13px 15px;' +
           'display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(16,24,40,.07)">' +
           '<div style="font-size:22px">' + (vclIcon(x.loai) || '📄') + '</div>' +
-          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">' + h(x.ma) + '</div>' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">' + h(x.ma) +
+          /* Dấu này chỉ hiện khi máy đã GIAO đích danh phiếu cho người đang
+             xem. Việc của bộ phận và việc giao cho mình là hai chuyện, và
+             lẫn hai chuyện đó là cách một phiếu nằm ba ngày không ai nhận. */
+          (x.cua_toi ? ' <span style="background:#0f766e;color:#fff;font-size:10.5px;font-weight:800;' +
+            'border-radius:6px;padding:2px 6px;vertical-align:2px">GIAO BẠN</span>' : '') + '</div>' +
           '<div style="font-size:12.5px;color:#8a90a0;margin-top:2px">' + h(x.phu || '') +
           (x.ngay ? ' · ' + dmy(x.ngay) : '') +
           (x.tien ? ' · ' + money(x.tien) + ' đ' : '') + '</div></div>' +
@@ -749,6 +763,8 @@ function vgbGo(k) {
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'CDSE') return go(scrSePay);
+  if (k === 'CDTB') return go(scrThongBao);
+  if (k === 'NHAPSK') return go(scrNhapSaoKe);
   if (k === 'TS') return go(scrTaiSan);
   if (k === 'BT') return go(scrButToan);
   if (k === 'QLND') return go(scrNguoiDung);

@@ -643,7 +643,11 @@ Trang /bep không nằm trong git (nó là một Page trên site), nên không c
 được thẻ <link rel="manifest"> vào HTML gốc. Thay vào đó chèn từ đây bằng
 JavaScript - hiệu lực y hệt, mà mã nguồn vẫn nằm trong git. */
 
+var PWA_MAU = '#50DBF2';   /* nen that cua tep logo 2025, trung .vh cua app */
+var PWA_DA_GAN = 0;         /* de bo kiem thu doc duoc rang ham DA CHAY */
+
 function pwaGan() {
+  PWA_DA_GAN = 1;
   try {
     if (!document.querySelector('link[rel="manifest"]')) {
       var l = document.createElement('link');
@@ -655,23 +659,52 @@ function pwaGan() {
     if (!document.querySelector('meta[name="theme-color"]')) {
       var m = document.createElement('meta');
       m.name = 'theme-color';
-      m.content = '#05323C';
+      m.content = PWA_MAU;
       document.head.appendChild(m);
     }
-    /* iOS không đọc manifest cho biểu tượng, nó đọc apple-touch-icon. Thiếu
-       thẻ này là iPhone tự chụp màn hình trang làm biểu tượng, và đó chính
-       là cái "mất logo" anh Việt thấy. */
+    /* iOS không đọc manifest cho biểu tượng, nó đọc apple-touch-icon, và nó
+       muốn đúng 180x180. Thiếu thẻ này là iPhone tự chụp màn hình trang làm
+       biểu tượng, và đó chính là cái "mất logo" anh Việt thấy.
+
+       iOS cũng KHÔNG đọc lại thẻ này sau khi đã thêm ra màn hình chính. Ai
+       đã thêm nhầm biểu tượng trắng thì phải xoá đi rồi thêm lại. */
     if (!document.querySelector('link[rel="apple-touch-icon"]')) {
       var a = document.createElement('link');
       a.rel = 'apple-touch-icon';
-      a.href = '/assets/vagabond/pwa/icon-192.png';
+      a.setAttribute('sizes', '180x180');
+      a.href = '/assets/vagabond/pwa/icon-180.png';
       document.head.appendChild(a);
+    }
+    /* Safari cũ đọc hai thẻ này để mở app không có thanh địa chỉ. */
+    if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+      var c = document.createElement('meta');
+      c.name = 'apple-mobile-web-app-capable';
+      c.content = 'yes';
+      document.head.appendChild(c);
+      var t = document.createElement('meta');
+      t.name = 'apple-mobile-web-app-title';
+      t.content = 'Vagabond';
+      document.head.appendChild(t);
     }
     if (navigator.serviceWorker) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () { });
     }
   } catch (e) { }
 }
+
+/* GỌI NGAY LÚC NẠP TỆP, khong doi __boot.
+
+   Vi sao: ban v242 co du ham pwaGan nhung KHONG CHO NAO GOI no, nen khong
+   the manifest nao duoc chen, va anh Viet bao "Logo van chua hien khi them
+   vao man hinh chinh". Bo kiem thu luc do chi soi rang trong than ham co
+   chu manifest, nen no xanh trong khi tinh nang chet.
+
+   Dat o day chu khong trong __boot vi hai le. Mot, iOS doc the
+   apple-touch-icon ngay luc nguoi ta bam Chia se roi Them vao man hinh
+   chinh, viec do co the xay ra truoc khi dang nhap xong. Hai, __boot co
+   nhanh thoat som (reset(scrLogin)) nen dat trong do la mat luon o man
+   dang nhap. */
+if (typeof document !== 'undefined' && document.head) pwaGan();
 
 /* Xin quyền thông báo. CỐ Ý không gọi ngay lúc mở app.
 
