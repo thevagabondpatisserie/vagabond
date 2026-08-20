@@ -4010,6 +4010,23 @@ def _nap_ham_dnc42():
 	return mt
 
 
+def _nap_ham_vcl43():
+	"""Doc THAN HAM THAT cua phep THUAN trong viec_can_lam.py."""
+	src = open("vagabond/viec_can_lam.py", encoding="utf-8").read()
+	mt = {}
+	for ten in ("VAI_KE_TOAN", "VAI_THU_MUA", "VAI_KHO", "VAI_GIAM_DOC", "VAI_QUAN_LY"):
+		m = re.search(r"^%s = \{.*?\}" % re.escape(ten), src, re.S | re.M)
+		exec(compile(m.group(0), "viec_can_lam:%s" % ten, "exec"), mt, mt)
+	m = re.search(r"^MA_TRAN = \{.*?^\}", src, re.S | re.M)
+	exec(compile(m.group(0), "viec_can_lam:MA_TRAN", "exec"), mt, mt)
+	m = re.search(r"^def thay_duoc\(.*?(?=^def |\Z)", src, re.S | re.M)
+	exec(compile(m.group(0), "viec_can_lam:thay_duoc", "exec"), mt, mt)
+	return mt
+
+
+_H43 = _nap_ham_vcl43()
+H43_thay = _H43["thay_duoc"]
+
 _H42 = _nap_ham_dnc42()
 H42_chip = _H42["trang_thai_theo_chip"]
 H42_khop = _H42["khop_noi_dung"]
@@ -4326,6 +4343,141 @@ la("cai dat co o khai mau duong dan",
 _hd42 = _ht42.split("def _hddt_cua_don(")[1]
 for _cam42 in ("set_value(SI", "xuat_hoa_don", ".submit()", ".cancel()", "requests.post"):
 	la("khoi hoa don dien tu khong %s" % _cam42, _cam42 in _hd42, False)
+
+print("\n[43] Ma tran phan luong Viec can lam, va PWA")
+
+# Anh Viet 20/08/2026: *"Hien tai man hinh nay dang hien thi sai doi tuong
+# (Ke toan dang phai nhin thay ca Phieu nhap kho cua Bep/Kho). Em hay viet
+# lai logic query de phieu chi hien thi dung nguoi, dung buoc."*
+
+_vcl43 = open("vagabond/viec_can_lam.py", encoding="utf-8").read()
+_tc43 = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+_nen43 = open("vagabond/public/js/bep/00-nen.js", encoding="utf-8").read()
+_tb43 = open("vagabond/thong_bao.py", encoding="utf-8").read()
+_mf43 = json.load(open("vagabond/www/manifest.json", encoding="utf-8"))
+_sw43 = open("vagabond/www/sw.js", encoding="utf-8").read()
+
+# --- Loc theo vai phai o MAY CHU ---
+#
+# Loc theo vai ma dat o may khach thi khong phai la loc, do la trang tri:
+# sua vai dong trong cong cu nha phat trien cua trinh duyet la xem duoc viec
+# cua nguoi khac.
+la("co mo dun gom viec o may chu", "def danh_sach(" in _vcl43, True)
+la("man hinh goi may chu chu khong tu gom",
+   "vagabond.viec_can_lam.danh_sach" in _tc43, True)
+# Ban cu goi getList thang tu may khach cho tung loai phieu.
+_scr43 = _tc43.split("async function scrVclList(")[1].split("\nfunction vgbODong(")[0]
+la("man hinh khong con tu goi getList de gom viec", "getList(" in _scr43, False)
+
+# --- Ma tran ---
+la("co bang ma tran khai ro", "MA_TRAN = {" in _vcl43, True)
+la("co ham quyet dinh thay duoc hay khong", "def thay_duoc(" in _vcl43, True)
+# Mac dinh la DONG: them mot loai phieu moi ma quen khai vai thi no an voi
+# moi nguoi, chu khong hien ra voi ca tiem.
+_td43 = _vcl43.split("def thay_duoc(")[1].split("\ndef ")[0]
+la("khong khai vai thi khong ai thay", "if not can:" in _td43 and "return False" in _td43, True)
+
+# Ke toan KHONG duoc thay phieu nhap xuat kho. Day dung la cho anh Viet keu.
+la("ke toan khong thay phieu nhap kho", H43_thay("nhap_kho", {"AP Kiểm soát (FIN)"}), False)
+la("ke toan khong thay phieu xuat kho", H43_thay("xuat_kho", {"Accounts Manager"}), False)
+la("ke toan khong thay yeu cau san xuat", H43_thay("san_xuat", {"AP Kiểm soát (FIN)"}), False)
+# Ngoai le DUY NHAT: kiem ke cho CHOT SO la buoc gia tri, dung nhu anh Viet
+# dan "tru khi co buoc cho Ke toan duyet gia tri".
+la("ke toan VAN thay kiem ke cho chot so", H43_thay("kiem_ke", {"AP Kiểm soát (FIN)"}), True)
+la("ke toan thay de nghi chi", H43_thay("de_nghi_chi", {"AP Kiểm soát (FIN)"}), True)
+la("ke toan thay hoan tien", H43_thay("hoan_tien", {"Accounts Manager"}), True)
+
+# Kho va bep KHONG thay viec tien.
+la("kho khong thay hoan tien", H43_thay("hoan_tien", {"Stock User"}), False)
+la("kho khong thay de nghi chi", H43_thay("de_nghi_chi", {"Stock User"}), False)
+la("kho thay phieu chuyen kho", H43_thay("chuyen_kho", {"Stock User"}), True)
+la("kho thay phieu nhap kho", H43_thay("nhap_kho", {"Stock Manager"}), True)
+
+# Thu mua.
+la("thu mua thay yeu cau mua hang", H43_thay("ycmh", {"AP Officer"}), True)
+la("thu mua thay de nghi chi", H43_thay("de_nghi_chi", {"AP Officer"}), True)
+la("thu mua khong thay hoan tien khach", H43_thay("hoan_tien", {"Purchase User"}), False)
+
+# Giam doc thay het.
+for _l43 in ("chuyen_kho", "nhap_kho", "de_nghi_chi", "hoan_tien", "kiem_ke"):
+	la("giam doc thay %s" % _l43, H43_thay(_l43, {"AP Giám đốc"}), True)
+
+# Nguoi khong vai gi thi khong thay gi ca.
+for _l43 in ("chuyen_kho", "nhap_kho", "de_nghi_chi", "hoan_tien"):
+	la("nhan vien thuong khong thay %s" % _l43, H43_thay(_l43, {"Employee"}), False)
+la("loai la khong ai thay", H43_thay("loai_khong_co_that", {"System Manager"}), False)
+
+# Cong ma tran phai la cong DUY NHAT: khong thay thi khong chay luon truy van.
+_ds43 = _vcl43.split("def danh_sach(")[1]
+la("khong thay thi khong chay truy van", "if not thay_duoc(ma_loai, vai):" in _ds43, True)
+la("mot nguon loi khong lam sap ca man", "frappe.log_error" in _ds43, True)
+# Chip chi bay loai NGUOI NAY duoc thay.
+la("chip chi bay loai duoc thay", "if thay_duoc(k, vai) and dem_loai.get(k)" in _ds43, True)
+
+# --- Chip tren man ---
+la("man co chip loai phieu", 'class="vclL"' in _tc43, True)
+la("man co chip trang thai", 'class="vclT"' in _tc43, True)
+la("doi chip loai thi bo chip trang thai cu",
+   "vclLoc.trang_thai = '';" in _tc43, True)
+
+# --- PWA ---
+la("manifest co ten thuong hieu", _mf43.get("short_name"), "Vagabond")
+la("manifest mo thang vao app", _mf43.get("start_url"), "/bep")
+_ic43 = {str(i.get("sizes")): i for i in _mf43.get("icons") or []}
+la("co bieu tuong 192", "192x192" in _ic43, True)
+la("co bieu tuong 512", "512x512" in _ic43, True)
+la("co bieu tuong maskable",
+   any((i.get("purpose") or "") == "maskable" for i in _mf43.get("icons") or []), True)
+import os
+for _f43 in ("icon-192.png", "icon-512.png", "icon-512-maskable.png"):
+	la("tep bieu tuong %s co that" % _f43,
+	   os.path.exists("vagabond/public/pwa/" + _f43), True)
+
+# iOS KHONG doc manifest de lay bieu tuong, no doc apple-touch-icon. Thieu
+# the do la iPhone tu chup man hinh lam bieu tuong - dung cai "mat logo"
+# anh Viet thay.
+la("co gan apple-touch-icon cho iOS", "apple-touch-icon" in _nen43, True)
+la("co gan manifest tu JavaScript", "rel = 'manifest'" in _nen43, True)
+
+# Service Worker PHAI nam o www/ de co pham vi toan site. De o public/ thi
+# no chi dieu khien duoc /assets/vagabond/... chu khong dieu khien duoc /bep.
+la("service worker nam o www de co pham vi goc",
+   os.path.exists("vagabond/www/sw.js"), True)
+la("dang ky service worker o goc", "register('/sw.js'" in _nen43, True)
+la("service worker co bat su kien push", "addEventListener('push'" in _sw43, True)
+la("thong bao co rung dien thoai", "vibrate" in _sw43, True)
+# Bo nho dem ngoai tuyen cho app ke toan la con dao hai luoi: mo ra thay so
+# cu ma tuong so moi thi nguy hon han khong mo duoc app.
+la("service worker khong lam bo nho dem", "caches.open" in _sw43, False)
+
+# Xin quyen thong bao: trinh duyet chi cho hoi MOT lan, bam Chan la chan
+# vinh vien. Nen chi hoi khi da cai ra man hinh chinh.
+la("chi xin quyen khi da cai ra man hinh chinh",
+   "pwaDaCaiRaManHinh()" in _nen43, True)
+
+# --- Thong bao day ---
+la("khoa rieng do MAY CHU sinh", "def _sinh_khoa(" in _tb43, True)
+la("khoa rieng cat o o Password",
+   '"push_khoa_rieng"' in open(
+	   "vagabond/vagabond/doctype/vagabond_settings/vagabond_settings.json",
+	   encoding="utf-8").read(), True)
+_kcc43 = _tb43.split("def khoa_cong_khai(")[1].split("\n@frappe.whitelist()")[0]
+la("chi gui khoa CONG KHAI xuong trinh duyet",
+   "push_khoa_rieng" in _kcc43.split("return")[-1], False)
+# Dang ky khoa theo MAY chu khong theo nguoi: mot nguoi co dien thoai rieng
+# va may quay, khoa theo nguoi thi cai may thu hai la mat thong bao may dau.
+la("dang ky khoa theo endpoint", '{"endpoint": ep}' in _tb43, True)
+# Ham gui duoc goi giua luong duyet phieu, nem loi la cuon theo ca thao tac
+# duyet that.
+_gui43 = _tb43.split("def gui(")[1].split("\ndef bao_cho_vai(")[0]
+la("ham gui khong nem loi ra ngoai", "except Exception:" in _gui43, True)
+la("may go app thi tat co chu khong xoa", '"con_dung", 0' in _gui43, True)
+# Bao theo VAI chu khong viet cung ten nguoi.
+la("bao theo vai chu khong theo ten nguoi", "def bao_cho_vai(" in _tb43, True)
+_dnc43 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
+la("duyet xong co bao buoc ke tiep", "_bao_buoc_ke_tiep(doc)" in _dnc43, True)
+_bbkt43 = _dnc43.split("def _bao_buoc_ke_tiep(")[1].split("\n@frappe.whitelist()")[0]
+la("bao that bai khong lam hong viec duyet", "except Exception:" in _bbkt43, True)
 
 print("-" * 60)
 if so_hong:
