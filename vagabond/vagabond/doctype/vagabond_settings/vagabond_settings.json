@@ -35,6 +35,7 @@
   "minvoice_ma_dvcs",
   "minvoice_series",
   "minvoice_ma_thue",
+  "minvoice_mau_lien_ket",
   "sec_gsm",
   "greensm_client_id",
   "greensm_client_secret",
@@ -618,6 +619,12 @@
    "label": "Tai khoan ngan hang chi hoan tien",
    "options": "Bank Account",
    "description": "Chi Dung chot 16/08/2026: dung tai khoan ngan hang CONG TY (MB Bank), khong dung quy tam ung OCB."
+  },
+  {
+   "fieldname": "minvoice_mau_lien_ket",
+   "fieldtype": "Data",
+   "label": "Mau duong dan toi mot to hoa don",
+   "description": "De trong thi nut tren man Hoan tien chi mo trang chu M-Invoice va chep san ma tra cuu. Muon bam mot phat ra dung to hoa don: mo mot to bat ky ben M-Invoice, chep duong dan tren thanh dia chi vao day roi thay phan ma to hoa don bang {id}. Bon cho thay duoc: {host} {id} {so} {sobaomat}"
   }
  ],
  "issingle": 1,
