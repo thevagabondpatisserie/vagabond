@@ -40,7 +40,7 @@ body {
 #dsMon { flex: 1; overflow: hidden; }
 .mon { display: flex; align-items: baseline; gap: 12px; padding: 1.35vh 0; border-bottom: 1px solid #1a2531; font-size: clamp(15px, 1.7vw, 23px); }
 .mon .sl { color: #4fd1c5; font-weight: 800; min-width: 2.6em; }
-.mon .ten { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mon .ten { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .mon .tien { font-weight: 700; white-space: nowrap; }
 .cong { padding-top: 1.8vh; }
 .dong { display: flex; justify-content: space-between; font-size: clamp(13px, 1.3vw, 18px); color: #9aa8b8; padding: .5vh 0; }

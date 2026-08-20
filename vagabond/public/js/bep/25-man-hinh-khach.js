@@ -206,7 +206,8 @@ function cfdKhoi() {
     '<span style="font-size:20px">🖥</span>' +
     '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">Màn hình khách</div>' +
     '<div id="cfdChip" style="font-size:12.5px;color:#98a2b3">Chưa mở màn hình khách.</div></div>' +
-    '<button class="btn gh" id="cfdMoNut" style="margin:0;padding:8px 14px">Mở</button>' +
+    /* flex:none BAT BUOC, xem chu thich cung kieu o khoi Ca lam viec. */
+    '<button class="btn gh" id="cfdMoNut" style="margin:0;padding:8px 14px;flex:none;width:auto">Mở</button>' +
     '</div></div>';
 }
 
