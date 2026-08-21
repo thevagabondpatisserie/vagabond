@@ -111,6 +111,10 @@ CUA_NGO = {
 		"lich_su", "mo_thuong_thao", "tai_ban_chot", "tai_ve_ban_chot",
 	],
 	# Thong bao day, them 20/08/2026.
+	# Phieu thanh toan TRUOC cho nha cung cap, them 21/08/2026. Bon cua:
+	# ba cua DOC de app bay man hinh, mot cua GHI dung phieu o trang thai
+	# nhap. Khong cua nao ghi so, khong cua nao chuyen tien.
+	"tra_truoc.py": ["chi_tiet_don", "ds_don_mua", "ds_nguon_tien", "tao_phieu"],
 	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",
