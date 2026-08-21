@@ -394,6 +394,7 @@ def tao_phieu(don=None, so_tien=None, nguon_tien=None, loai_chung_tu=None,
 	_ghi_chu(pe, d, tien, nguon_tien, loai_chung_tu, ghi_chu)
 	pe.flags.ignore_permissions = True
 	pe.insert(ignore_permissions=True)
+	_giu_ghi_chu(pe)
 
 	_gan_tep(pe.name, tep)
 	_bao_ke_toan(pe.name, d, tien)
@@ -426,16 +427,16 @@ def _dung_phieu(d, tien, tk_so_cai):
 	pe = get_payment_entry(
 		PO, d.name, party_amount=tien, bank_account=tk_so_cai)
 
-	# MOT NET CUA ERPNext DE BI TUONG LA LOI, DUNG "SUA":
-	# khi co `party_amount`, ERPNext dat luon total_amount va
-	# outstanding_amount cua dong tham chieu BANG so tien tra truoc chu
-	# khong bang gia tri don. Da kiem tren site that: don 933.120 ung
-	# 300.000 thi dong tham chieu ghi total 300.000.
-	# Viec can tru sau nay chay theo `allocated_amount`, khong theo
-	# total_amount, nen khong sao. Sua tay hai o kia la dam vao dung cho
-	# ERPNext dang tu tinh, va co the lam allocated vuot outstanding.
-	# Gia tri that cua don duoc ghi vao phan ghi chu ben duoi de ke toan
-	# van doc duoc.
+	# MOT NET DE BI TUONG LA LOI, DUNG "SUA":
+	# ngay sau loi goi nay, dong tham chieu co total_amount BANG so tien
+	# tra truoc chu khong bang gia tri don - do la cach `party_amount`
+	# hoat dong. Nhung luc `insert`, `set_missing_ref_details` cua ERPNext
+	# doc lai don that va dat lai dung con so.
+	# Da kiem tren site that 21/08/2026, phieu APP-26-08-533: don 933.120
+	# ung 300.000, sau khi luu dong tham chieu ghi total 933.120,
+	# outstanding 933.120, allocated 300.000. Dung het.
+	# Ket luan: KHONG dung tay vao ba o do. Cham vao la pha dung cho
+	# ERPNext dang tu tinh.
 	pe.posting_date = nowdate()
 	pe.reference_date = nowdate()
 	if pe.get("workflow_state") is not None or _co_o_workflow():
@@ -479,7 +480,34 @@ def _ghi_chu(pe, d, tien, nguon_tien, loai_chung_tu, ghi_chu):
 	gc = (ghi_chu or "").strip()
 	if gc:
 		them += " Ghi chú người lập: %s" % gc
-	pe.remarks = ((pe.get("remarks") or "").strip() + "\n" + them).strip()
+	# Cat vao mot o tam tren chinh doc chu KHONG dat thang vao remarks:
+	# `validate` cua ERPNext se dung len remarks truoc khi luu. Ghi that
+	# nam o `_giu_ghi_chu`, chay sau insert.
+	pe.vgb_ghi_chu_tra_truoc = them
+
+
+def _giu_ghi_chu(pe):
+	"""Ghi lai phan ghi chu cua minh SAU khi luu.
+
+	Vi sao khong dat truoc roi thoi: `validate` cua Payment Entry goi
+	`set_remarks()` va no DUNG len o remarks, nen moi thu minh dat truoc
+	insert deu bay mat. Bat duoc bang kiem tich hop tren site that ngay
+	21/08/2026, phieu APP-26-08-533: remarks chi con dong may tu sinh.
+
+	Cach giu: bat co `custom_remarks` roi ghi thang xuong co so du lieu.
+	Co do la cua ERPNext, dung de bao "ghi chu nay nguoi dat, dung tu sinh
+	nua". Ghi bang db_set de khong chay lai ca vong validate.
+
+	Nuot loi: mat mot dong ghi chu khong duoc lam hong ca phieu.
+	"""
+	try:
+		if not pe.get("vgb_ghi_chu_tra_truoc"):
+			return
+		gop = (pe.vgb_ghi_chu_tra_truoc + "\n" + (pe.get("remarks") or "")).strip()
+		pe.db_set("custom_remarks", 1, update_modified=False)
+		pe.db_set("remarks", gop, update_modified=False)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "tra_truoc: giu ghi chu loi")
 
 
 def _gan_tep(ten_phieu, tep):
