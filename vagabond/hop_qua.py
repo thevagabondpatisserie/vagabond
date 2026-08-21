@@ -167,24 +167,65 @@ def _chan():
 		frappe.throw("Chỉ Sales, kế toán hoặc giám đốc mới tuỳ biến hộp được.")
 
 
+def _ruot_tu_mua_vu(ma_mon):
+	"""Ruột hộp đọc từ bảng ĐỊNH MỨC MÙA VỤ - nguồn sự thật của hàng mùa vụ.
+
+	Bảng `Vagabond Mua Vu Dinh Muc` do Sales khai ngay trên màn Kiểm bánh
+	theo mùa từ v205, và chính chốt chặn bán lố đang đọc nó. Nên đây mới là
+	nơi giữ ruột hộp, không phải Product Bundle.
+	"""
+	dong = frappe.get_all("Vagabond Mua Vu Dinh Muc", filters={
+		"ma_hop": ma_mon, "parenttype": "Vagabond Mua Vu",
+	}, fields=["ma_banh", "ten_banh", "so_luong", "parent"],
+		order_by="idx asc")
+	if not dong:
+		return None, None
+	return [{
+		"ma": d.ma_banh, "ten": d.ten_banh or d.ma_banh, "sl": d.so_luong or 1,
+	} for d in dong], dong[0].parent
+
+
 @frappe.whitelist()
 def ruot_goc(ma_mon):
-	"""Ruột chuẩn của một hộp, đọc từ Product Bundle trong danh mục.
+	"""Ruột chuẩn của một hộp.
 
-	Chưa khai Product Bundle thì trả danh sách rỗng kèm lời nhắc, KHÔNG đoán
-	bừa món nào nằm trong hộp.
+	Đọc hai nguồn theo thứ tự: ĐỊNH MỨC MÙA VỤ trước, Product Bundle sau.
+	Chưa khai ở đâu cả thì trả danh sách rỗng kèm lời nhắc, KHÔNG đoán bừa
+	món nào nằm trong hộp.
+
+	VÌ SAO MÙA VỤ ĐI TRƯỚC PRODUCT BUNDLE
+	-------------------------------------
+	Định mức mùa vụ là nơi Sales đã khai thật từ v205 (13 dòng cho hai hộp
+	Trung thu 2026) và là nơi chốt chặn bán lố đang đọc. Khai thêm một bản
+	Product Bundle nữa là hai bảng cùng nói về một hộp, và hai bảng thì sớm
+	muộn cũng lệch nhau.
+
+	Thêm nữa ERPNext TỪ CHỐI tạo Product Bundle cho món đang theo tồn kho:
+	`product_bundle.validate_main_item` ném "Parent Item {0} must not be a
+	Stock Item". Hai hộp Trung thu đều đang theo tồn và PHẢI giữ như vậy, vì
+	hạn mức mùa vụ và chốt chặn bán lố đều đếm trên tồn của chính cái hộp.
+	Tắt cờ đó đi là gãy luôn phần Kiểm bánh theo mùa.
+
+	Product Bundle giữ lại làm đường thứ hai cho hộp quà KHÔNG theo tồn, ví
+	dụ set quà ghép từ hàng có sẵn.
 	"""
 	_chan()
 	ma_mon = (ma_mon or "").strip()
 	if not ma_mon:
 		return {"ma_mon": "", "ruot": [], "co_khai": 0}
+
+	ruot, mua = _ruot_tu_mua_vu(ma_mon)
+	if ruot:
+		return {"ma_mon": ma_mon, "co_khai": 1, "nguon": "mua_vu",
+			"mua_vu": mua, "ruot": chuan_ruot(ruot)}
+
 	pb = frappe.db.get_value("Product Bundle", {"new_item_code": ma_mon}, "name")
 	if not pb:
 		return {
-			"ma_mon": ma_mon, "ruot": [], "co_khai": 0,
-			"nhac": "Hộp này chưa khai ruột trong danh mục. Vào Desk, mở "
-				"Product Bundle, tạo một bản ghi cho %s rồi liệt kê bánh bên "
-				"trong. Khai một lần, mọi báo giá về sau dùng chung." % ma_mon,
+			"ma_mon": ma_mon, "ruot": [], "co_khai": 0, "nguon": "",
+			"nhac": "Hộp này chưa khai ruột ở đâu cả. Vào app, màn Kiểm bánh "
+				"theo mùa, mục Định mức, khai bánh trong hộp %s. Khai một lần, "
+				"mọi báo giá về sau dùng chung." % ma_mon,
 		}
 	dong = frappe.get_all("Product Bundle Item", filters={"parent": pb},
 		fields=["item_code", "description", "qty"], order_by="idx asc")
@@ -195,7 +236,7 @@ def ruot_goc(ma_mon):
 				fields=["name", "item_name"]):
 			ten[it.name] = it.item_name
 	return {
-		"ma_mon": ma_mon, "co_khai": 1, "bundle": pb,
+		"ma_mon": ma_mon, "co_khai": 1, "nguon": "product_bundle", "bundle": pb,
 		"ruot": chuan_ruot([{
 			"ma": d.item_code,
 			"ten": ten.get(d.item_code) or d.description or d.item_code,
@@ -241,6 +282,7 @@ def xem_tuy_bien(ma_mon, ruot=None, don_gia_goc=0, phu_thu=0):
 		"ruot_goc": goc.get("ruot") or [],
 		"ruot": moi,
 		"co_khai_goc": goc.get("co_khai") or 0,
+		"nguon_goc": goc.get("nguon") or "",
 		"nhac": goc.get("nhac") or "",
 		"da_doi": 1 if da_doi_ruot(goc.get("ruot"), moi) else 0,
 		"mo_ta": mo_ta_thay_doi(goc.get("ruot"), moi),
