@@ -132,7 +132,14 @@ def mot_nha_cung_cap():
 
 
 def mot_mon_theo_ton(cty):
-	"""Một mã hàng theo tồn kho, KHÔNG lô, KHÔNG serial, KHÔNG tài sản.
+	"""Một mã hàng theo tồn kho, MUA ĐƯỢC, không lô, không serial, không tài sản.
+
+	`is_purchase_item` là bắt buộc, không phải cho gọn: lần chạy đầu tiên
+	ngày 21/08/2026 khung này chọn nhầm BAWC00146 là hàng chỉ để bán, và
+	ERPNext chặn ngay với câu "Sản phẩm BAWC00146 chưa được đánh dấu là
+	purchase". Đó là bằng chứng khung chạy đúng, nhưng ca kiểm đỏ vì đề
+	bài sai chứ không phải vì hệ hỏng, và một ca kiểm đỏ nhầm thì lần sau
+	không ai đọc nó nữa.
 
 	Loại lô và serial ra để chứng từ ảo không phải khai số lô, chứ không
 	phải vì đường đó không đáng kiểm. Muốn kiểm đường lô thì viết ca riêng
@@ -140,7 +147,7 @@ def mot_mon_theo_ton(cty):
 	"""
 	return _mot("Item", {
 		"is_stock_item": 1, "disabled": 0, "has_batch_no": 0,
-		"has_serial_no": 0, "is_fixed_asset": 0,
+		"has_serial_no": 0, "is_fixed_asset": 0, "is_purchase_item": 1,
 	})
 
 
@@ -156,15 +163,23 @@ def phieu_nhap_ao(so_luong=1, don_gia=1000):
 	ca kiểm. Phiếu này sẽ biến mất khi ca kiểm kết thúc.
 	"""
 	cty = cong_ty()
+	ncc, mon, kho = mot_nha_cung_cap(), mot_mon_theo_ton(cty), mot_kho(cty)
+	# Nói rõ thiếu cái gì. Thiếu dữ liệu nền mà để nó nổ trong lòng ERPNext
+	# thì câu lỗi trả về không ai đoán ra là do đâu.
+	for nhan, gia_tri in (("nhà cung cấp", ncc), ("mã hàng mua được", mon),
+			("kho lá", kho)):
+		if not gia_tri:
+			frappe.throw("Site này chưa có %s nào hợp lệ để dựng chứng từ thử."
+				% nhan)
 	doc = frappe.new_doc("Purchase Receipt")
 	doc.company = cty
-	doc.supplier = mot_nha_cung_cap()
+	doc.supplier = ncc
 	doc.posting_date = frappe.utils.today()
 	doc.append("items", {
-		"item_code": mot_mon_theo_ton(cty),
+		"item_code": mon,
 		"qty": so_luong,
 		"rate": don_gia,
-		"warehouse": mot_kho(cty),
+		"warehouse": kho,
 	})
 	doc.insert()
 	_DA_TAO.append((doc.doctype, doc.name))
