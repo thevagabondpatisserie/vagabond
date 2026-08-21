@@ -16,6 +16,7 @@ from vagabond.khung.kiem_that import nen
 
 # Nạp các mô đun ca kiểm. Thêm bộ ca mới thì thêm tên vào đây, giống cách
 # `khung/kiem_thu/chay.py` làm.
+from vagabond.khung.kiem_that import thu_don_huy  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhap_kho  # noqa: F401,E402
 
 QUYEN = ("System Manager", "Giám đốc", "AP Giám đốc")
