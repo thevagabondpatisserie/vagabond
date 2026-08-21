@@ -107,7 +107,14 @@
   "webhook_bao_dong",
   "cb_gui_thu",
   "email_bao_dong_lan_cuoi",
-  "email_da_cuu_su_co_1608"
+  "email_da_cuu_su_co_1608",
+  "sec_qz",
+  "qz_chung_thu",
+  "qz_khoa_rieng",
+  "cb_qz",
+  "qz_may_in_hoa_don",
+  "qz_may_in_tem",
+  "qz_dpi"
  ],
  "fields": [
   {
@@ -681,6 +688,47 @@
    "label": "Da chay lenh cuu email su co 16/08",
    "read_only": 1,
    "description": "May tu ghi. Co moc nay roi thi lenh cuu khong chay lai duoc, tranh nha cung cap nhan hai lan mot don."
+  },
+  {
+   "fieldname": "sec_qz",
+   "fieldtype": "Section Break",
+   "label": "In ngam QZ Tray (may in nhiet o quay)"
+  },
+  {
+   "fieldname": "qz_chung_thu",
+   "fieldtype": "Code",
+   "label": "Chung thu cong khai QZ Tray (PEM)",
+   "description": "Dan tron noi dung tep chung-thu.pem, ca dong BEGIN CERTIFICATE va END CERTIFICATE. De TRONG thi app in bang trinh duyet nhu cu, khong hong gi. Cach sinh chung thu xem project doc claude/v256-in-ngam-qz-va-loi-ke-toan-mua.md."
+  },
+  {
+   "fieldname": "qz_khoa_rieng",
+   "fieldtype": "Password",
+   "label": "Khoa rieng QZ Tray (PEM, khong dat mat khau)",
+   "description": "Khoa rieng chi nam o may chu, KHONG bao gio gui xuong trinh duyet. Frappe ma hoa o nay luc luu. Nghi lo khoa thi sinh cap moi va cai lai chung thu tren may quay."
+  },
+  {
+   "fieldname": "cb_qz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qz_may_in_hoa_don",
+   "fieldtype": "Data",
+   "label": "Manh ten may in HOA DON",
+   "default": "EPSON",
+   "description": "Chi can mot manh ten, khong can ten day du: ten may in tren Windows doi theo cong USB va theo may, con manh EPSON thi nam nguyen trong ten driver o moi may quay."
+  },
+  {
+   "fieldname": "qz_may_in_tem",
+   "fieldtype": "Data",
+   "label": "Manh ten may in TEM ly, tem hop",
+   "default": "Xprinter"
+  },
+  {
+   "fieldname": "qz_dpi",
+   "fieldtype": "Int",
+   "label": "Do phan giai may in nhiet (DPI)",
+   "default": "203",
+   "description": "May in nhiet 80mm va may dan tem thong dung deu la 203 DPI. Doi so nay la doi kich thuoc anh raster app dung xuong QZ."
   }
  ],
  "issingle": 1,
