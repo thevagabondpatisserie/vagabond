@@ -1496,6 +1496,13 @@ async function scrBgSua(name) {
       '<div style="display:flex;flex-direction:row;gap:8px;align-items:center">' +
       posChipNut('data-loai="' + i + '"', x.loai === 'Phí' ? 'Là khoản phí' : 'Là món bánh', x.loai === 'Phí') +
       posChipNut('data-mo="' + i + '"', mo ? 'Thu gọn ▴' : 'Mô tả, dị ứng, kích thước ▾', mo) +
+      /* Tuy bien ruot hop qua (21/08/2026). Chi hien voi dong la hop, va
+         hien luon so mon dang co de Sales khoi phai mo ra xem. Xem
+         28-hop-qua.js. */
+      (hqLaHop(x)
+        ? posChipNut('data-hq="' + i + '"', '🎁 Tuỳ biến hộp' +
+            (hqNhan(x) ? ' · ' + hqNhan(x) : ''), !!hqNhan(x))
+        : '') +
       /* Hai chip chon kieu chiet khau cua RIENG dong nay (anh Viet
          19/08/2026: *"chiet khau theo tung dong hang hoa"*). */
       posChipNut('data-ckd="' + i + ':Phan tram"', 'CK %',
@@ -1628,6 +1635,7 @@ async function scrBgSua(name) {
     if (e.target.closest('[data-t="tramst"]')) return bgTraMst(name, true);
     if ((el = e.target.closest('[data-mo]'))) { bgDoc(); var k = el.getAttribute('data-mo'); bgMoRong[k] = !bgMoRong[k]; return go(function () { scrBgSua(name); }, true); }
     if ((el = e.target.closest('[data-loai]'))) { bgDoc(); var j = +el.getAttribute('data-loai'); bgTay.dong[j].loai = bgTay.dong[j].loai === 'Phí' ? 'Món' : 'Phí'; return go(function () { scrBgSua(name); }, true); }
+    if ((el = e.target.closest('[data-hq]'))) return hqMo(+el.getAttribute('data-hq'), name);
     if ((el = e.target.closest('[data-xoa]'))) { bgDoc(); bgTay.dong.splice(+el.getAttribute('data-xoa'), 1); bgMoRong = {}; return go(function () { scrBgSua(name); }, true); }
     if ((el = e.target.closest('[data-xdv]'))) { bgDoc(); bgTay.dich_vu.splice(+el.getAttribute('data-xdv'), 1); return go(function () { scrBgSua(name); }, true); }
     if ((el = e.target.closest('[data-xmc]'))) { bgDoc(); bgTay.moc.splice(+el.getAttribute('data-xmc'), 1); return go(function () { scrBgSua(name); }, true); }
