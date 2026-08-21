@@ -208,8 +208,14 @@ doc_events = {
 	#
 	# Chan lech tong dat o before_submit: ban nhap con dang go thi cu de go,
 	# ghi so moi la luc so that su vao sach.
+	#
+	# giu_tk_theo_phieu_nhap dat o "validate" chu khong "before_validate":
+	# no phai chay SAU set_expense_account cua ERPNext de sua lai con so ham
+	# do vua dien. Frappe chay phuong thuc cua lop truoc roi moi toi cac hook
+	# cung ten, nen "validate" la dung nhip. Dat truoc la bi ghi de lai ngay.
 	"Purchase Invoice": {
 		"before_validate": "vagabond.mua_dich_vu.truoc_khi_luu",
+		"validate": "vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
 		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
 	},
 	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,
@@ -286,6 +292,11 @@ update_website_context = ["vagabond.lib.og_theo_ten_mien"]
 # tri tren may tinh) bang thu chi huong dan mo app dien thoai.
 override_doctype_class = {
 	"User": "vagabond.nhan_su.NguoiDung",
+	# Hang ve chua co hoa don phai theo doi duoc theo tung nha cung cap (chi
+	# Dung chot 21/08/2026). ERPNext khong gan doi tac vao dong so cai cua
+	# tai khoan cho hoa don, hai lop nay gan vao. Xem vagabond/ke_toan_mua.py.
+	"Purchase Receipt": "vagabond.lop_mua_hang.PhieuNhapKho",
+	"Purchase Invoice": "vagabond.lop_mua_hang.HoaDonMua",
 }
 
 

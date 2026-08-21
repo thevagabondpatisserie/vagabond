@@ -7,12 +7,14 @@ var posBillVua = null;
 /* Mau in kho 80mm, in qua trinh duyet (AirPrint / may in nhiet co driver).
    Logo den tren nen trang de hop in nhiet; thieu anh thi tu an, van in chu. */
 async function posInBill(d) {
-  /* Mo cua so TRUOC khi goi mang de giu user gesture (khoi bi chan popup).
+  /* Quyet dinh duong in TRUOC khi goi mang de giu user gesture (khoi bi
+     chan popup). In ngam thi khong mo cua so nao, khong thi mo ngay bay
+     gio - xem hai nhip o 27-in-ngam.js.
      Bill that chua co link XHD thi tu xin: truoc day chi duong in lai tu
      chi tiet bill moi co QR, in ngay sau thu tien bi thieu (loi anh Viet
      bao 09/08) - gio moi duong in deu co. */
-  var w = window.open('', '_blank');
-  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  var inW = inMoCuaSoNeuCan('hoa_don');
+  if (inW === 'chan') return;
   if (!d.tam_tinh && !d.huy && d.name && !d.xhd_url) {
     try { var lk0 = await api('vagabond.ban_hang.pos_link_xhd', { name: d.name }); d.xhd_url = (lk0 && lk0.url) || ''; } catch (e0) { }
   }
@@ -59,7 +61,8 @@ async function posInBill(d) {
      nhau hai lien roi bat nhan vien cam keo cat giua - khong thong minh.
      Can lien thu hai thi bam In lai them mot lan, may tu ra to nua. */
   var lien2 = '';
-  w.document.write('<html><head><meta charset="utf-8"><title>' + h(d.bill || d.name || 'Hoá đơn') + '</title><style>' +
+  var inTieuDe = h(d.bill || d.name || 'Hoá đơn');
+  var inToBill = ('<html><head><meta charset="utf-8"><title>' + inTieuDe + '</title><style>' +
     '@page{size:' + inKho('hoa_don').css + ';margin:0}' +
     '*{margin:0;padding:0;box-sizing:border-box}' +
     'body{width:' + inKho('hoa_don').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:11.5px;color:#000;padding:4mm 0 6mm}' +
@@ -127,9 +130,8 @@ async function posInBill(d) {
     qrKhoi +
     '<div class="ft">' + (d.tam_tinh ? 'Phiếu giữ món, chưa phải hoá đơn thanh toán.' : 'Cảm ơn quý khách!') + '<br>thevagabondpatisserie.com</div>' +
     lien2 +
-    '<script>window.onload=function(){setTimeout(function(){window.print()},1100)}<' + '/script>' +
     '</body></html>');
-  w.document.close();
+  await inTo('hoa_don', inTieuDe, inToBill, inKho('hoa_don').rong, 1100, inW);
 }
 
 /* In phieu tam tinh: luu bill tam tinh vao so (giu mon, chua thanh toan)
@@ -858,11 +860,13 @@ function posLaNuoc(m) {
 function posCoNuoc(mon) { return (mon || []).some(posLaNuoc); }
 function posMonNuoc(mon) { return (mon || []).filter(posLaNuoc); }
 
-function posInPhieuMon(d) {
+async function posInPhieuMon(d) {
   var nuoc = posMonNuoc(d.mon || []);
   if (!nuoc.length) return toast('Hoá đơn không có món nước nào.');
-  var w = window.open('', '_blank');
-  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  /* Phieu lam mon di ra may in HOA DON: no la giay cuon 80mm nhu bill,
+     khong phai tem dan ly. */
+  var inW = inMoCuaSoNeuCan('hoa_don');
+  if (inW === 'chan') return;
   var gio = new Date();
   var hs = function (n) { return (n < 10 ? '0' : '') + n; };
   var rows = nuoc.map(function (m) {
@@ -874,7 +878,7 @@ function posInPhieuMon(d) {
       (m.gc ? '<div class="tc" style="font-weight:bold">&#9755; ' + h(m.gc) + '</div>' : '') +
       '</div>';
   }).join('');
-  w.document.write('<html><head><meta charset="utf-8"><title>Phiếu làm món ' + h(d.bill || d.name || '') + '</title><style>' +
+  var inToPhieu = ('<html><head><meta charset="utf-8"><title>Phiếu làm món ' + h(d.bill || d.name || '') + '</title><style>' +
     '@page{size:' + inKho('phieu_mon').css + ';margin:0}*{margin:0;padding:0;box-sizing:border-box}' +
     'body{width:' + inKho('phieu_mon').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;color:#000;padding:3mm 0 6mm}' +
     'h1{font-size:15px;text-align:center;letter-spacing:.1em}' +
@@ -890,9 +894,8 @@ function posInPhieuMon(d) {
     (d.so_ban ? '<div style="text-align:center;font-size:17px;font-weight:bold;margin:1mm 0">BÀN ' + h(d.so_ban) + '</div>' : '') +
     '<hr>' + rows +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
-    '<script>window.onload=function(){setTimeout(function(){window.print()},900)}<' + '/script>' +
     '</body></html>');
-  w.document.close();
+  await inTo('hoa_don', 'Phiếu làm món', inToPhieu, inKho('phieu_mon').rong, 900, inW);
 }
 
 /* Ma don cua san food app doc ra tu mot hoa don da luu: uu tien ma tham
@@ -909,7 +912,7 @@ function posMaAppCuaBill(d) {
 /* Tem dan mon: MOI mon deu duoc in tem chu khong rieng mon nuoc (anh Viet
    10/08/2026) - hop entremet cung can tem de khach nhin la biet banh gi.
    Moi don vi mot tem: 3 ly tra ra 3 tem, 2 hop banh ra 2 tem. */
-function posInTemLy(d) {
+async function posInTemLy(d) {
   var mon = (d.mon || []).filter(function (m) { return (m.ten || '').trim(); });
   if (!mon.length) return toast('Hoá đơn không có món nào để in tem.');
   var ly = [];
@@ -917,8 +920,8 @@ function posInTemLy(d) {
     var n = Math.max(1, Math.round(m.qty || 1));
     for (var i = 0; i < n; i++) ly.push(m);
   });
-  var w = window.open('', '_blank');
-  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  var inW = inMoCuaSoNeuCan('tem');
+  if (inW === 'chan') return;
   var maApp = posMaAppCuaBill(d);
   var tem = ly.map(function (m, i) {
     /* Dong giua: tuy chon pha che voi mon nuoc, ghi chu rieng voi moi mon,
@@ -944,8 +947,12 @@ function posInTemLy(d) {
       '<div class="f"><span>' + h(d.bill || d.name || '') + (d.so_ban ? ' · Bàn ' + h(d.so_ban) : '') + '</span><span>' + (i + 1) + '/' + ly.length + '</span></div>' +
       '</div>';
   }).join('');
-  w.document.write(temKhung('Tem món ' + (d.bill || d.name || ''), tem));
-  w.document.close();
+  /* Tem di ra may in TEM, khong duoc lan sang may in bill. Moi tem la mot
+     trang rieng nen day ca cuon xuong QZ mot lan, QZ cat trang theo
+     page-break-after cua tung the .tem. */
+  await inTo('tem', 'Tem món ' + (d.bill || d.name || ''),
+    temKhung('Tem món ' + (d.bill || d.name || ''), tem),
+    inKho('tem').rong, 900, inW);
 }
 
 
@@ -978,7 +985,6 @@ function temKhung(tieuDe, than, vien) {
     '.c{font-size:8px;text-align:center;line-height:1.2}' +
     '.f{display:flex;justify-content:space-between;font-size:7.5px;margin-top:.5mm;font-weight:bold}' +
     '</style></head><body>' + than +
-    '<script>window.onload=function(){setTimeout(function(){window.print()},900)}<' + '/script>' +
     '</body></html>';
 }
 
@@ -988,18 +994,18 @@ function temKhung(tieuDe, than, vien) {
    Nhin mot cai la biet lech bao nhieu: vien in ra khong trung mep giay thi
    do dung khoang ho roi go vao hai o dich ngang va dich doc. Khong phai
    doan, khong phai deploy lai. */
-function posInTemThu() {
+async function posInTemThu() {
   var k = inKho('tem');
-  var w = window.open('', '_blank');
-  if (!w) return toast('Trình duyệt chặn cửa sổ in. Cho phép popup rồi bấm lại.', 4000);
+  var inW = inMoCuaSoNeuCan('tem');
+  if (inW === 'chan') return;
   var mot = '<div class="tem">' +
     '<div class="h">CĂN TEM &middot; ' + (k.rong || 40) + ' x ' + (k.cao || 30) + 'mm</div>' +
     '<div class="t">VIỀN PHẢI TRÙNG MÉP GIẤY</div>' +
     '<div class="c">lệch bao nhiêu mm thì gõ vào ô dịch ngang / dịch dọc</div>' +
     '<div class="f"><span>ngang ' + (Number(k.ngang) || 0) + '</span><span>dọc ' + (Number(k.doc) || 0) + '</span></div>' +
     '</div>';
-  w.document.write(temKhung('In thử căn tem', mot + mot, 1));
-  w.document.close();
+  await inTo('tem', 'In thử căn tem', temKhung('In thử căn tem', mot + mot, 1),
+    inKho('tem').rong, 900, inW);
 }
 
 

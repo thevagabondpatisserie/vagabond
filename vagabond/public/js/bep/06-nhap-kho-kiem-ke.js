@@ -1373,7 +1373,10 @@ async function kkTem(i) {
   var nv = await promptSheet('In bao nhiêu tem cho ' + r.item_name + '?', 'Số tem, ví dụ 1');
   if (nv === null) return;
   var n = Math.max(1, parseInt(nv, 10) || 1);
-  var w = window.open('', '_blank');
+  /* Cua so nay mo o day chu khong doi toi sau khi luu phieu: sau vai await
+     la trinh duyet chan popup. In ngam duoc thi khong mo gi ca. */
+  var w = inMoCuaSoNeuCan('tem');
+  if (w === 'chan') return;
   busy(1);
   try {
     if (kk.dirty) { try { await kkSave(0); } catch (e0) { } }
@@ -1391,10 +1394,10 @@ async function kkTem(i) {
     busy(0);
     var u = '/printview?doctype=Batch&name=' + encodeURIComponent(bid) +
       '&format=' + encodeURIComponent('Vagabond - Tem nhan hang') + '&no_letterhead=1&trigger_print=1';
-    if (w) { w.location.href = u; } else { window.location.href = u; }
+    await inToTuDuongDan('tem', 'Tem nhãn hàng', u, inKho('tem').rong, w);
   } catch (e) {
     busy(0);
-    if (w) { try { w.close(); } catch (e2) { } }
+    if (w && w !== 'chan') { try { w.close(); } catch (e2) { } }
     toast(errMsg(e), 7000);
   }
 }

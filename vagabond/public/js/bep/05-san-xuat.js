@@ -1317,14 +1317,17 @@ function scrMfgLabel() {
   draw();
 }
 function mfgPrint(batch, n) {
-  var w = window.open('', '_blank');
+  /* Tem HACCP do may chu dung bang Print Format, khong phai app tu ve.
+     Van di duoc duong in ngam: xem inToTuDuongDan o 27-in-ngam.js. */
+  var w = inMoCuaSoNeuCan('tem');
+  if (w === 'chan') return;
   var fmt = n > 1 ? 'Vagabond - Tem HACCP nhieu tem' : 'Vagabond - Tem HACCP';
   api('frappe.client.set_value', { doctype: 'Batch', name: batch, fieldname: { custom_so_tem: n } })
     .catch(function () { })
     .then(function () {
       var u = '/printview?doctype=Batch&name=' + encodeURIComponent(batch) +
         '&format=' + encodeURIComponent(fmt) + '&no_letterhead=1&trigger_print=1';
-      if (w) { w.location.href = u; } else { window.location.href = u; }
+      inToTuDuongDan('tem', 'Tem HACCP', u, inKho('tem').rong, w);
     });
 }
 

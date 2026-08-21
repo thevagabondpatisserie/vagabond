@@ -350,6 +350,10 @@ function scrDoiSoatCa(k) {
 async function scrPosQuay() {
   await cfgBanHang();
   posPollTat();
+  /* Do QZ Tray NGAY luc mo man quay, khong doi toi luc bam In. Do luc bam
+     la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
+     27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
+  inNgamDo();
   if (!posQuay) return go(scrPosChonQuay, true);
   if (!posDon) posDon = posMoi();
   var laApp = posDon.che_do !== 'Tại chỗ' && posDon.che_do !== 'Mang về';
