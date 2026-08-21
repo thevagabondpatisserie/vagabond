@@ -5863,7 +5863,8 @@ la("co phep tinh nguyen lieu cua ke hoach", "async function mfgNvlCuaKe(" in _sx
 _hop49 = _sx49.split("Máy làm luôn giúp bếp")[1][:1400]
 la("hop hien so nguyen lieu se tru", "NGUYÊN LIỆU SẼ TRỪ" in _sx49, True)
 la("hien ca ton hien co", "tồn " in _sx49, True)
-la("canh bao mã không đủ tồn", "THIẾU" in _sx49, True)
+# v255 doi hop chu thanh hop chip: chu THIEU hoa thanh chip "· thiếu" do.
+la("canh bao mã không đủ tồn", ("THIẾU" in _sx49) or ("· thiếu " in _sx49), True)
 la("nhac but toan kho khong sua lai duoc", "không sửa lại được" in _sx49, True)
 _nvl49 = _sx49.split("async function mfgNvlCuaKe(")[1].split("async function mfgRunFresh")[0]
 la("chia dung ti le theo san luong BOM", "bq[f.bom]" in _nvl49, True)
@@ -6037,6 +6038,77 @@ la("khong cat cut ten mon bang dau ba cham", "text-overflow: ellipsis" in _tr50,
 _ten50 = sorted(t for t in os.listdir("vagabond/public/js/bep") if re.match(r"^\d\d-[a-z0-9-]+\.js$", t))
 la("phan man hinh khach co trong ban ghep", "25-man-hinh-khach.js" in _ten50, True)
 la("phan cuoi van la phan dong vo", _ten50[-1], "99-dong-vo.js")
+
+# ============================================================ NHOM 51
+print("\n[51] v255: Tai cau truc san xuat - don du lieu, dinh tuyen kho, cong thuc")
+
+_dd51 = open("vagabond/don_du_lieu.py", encoding="utf-8").read()
+_ct51 = open("vagabond/cong_thuc.py", encoding="utf-8").read()
+_lh51 = open("vagabond/lo_hang.py", encoding="utf-8").read()
+_sx51 = open("vagabond/public/js/bep/05-san-xuat.js", encoding="utf-8").read()
+_ctjs51 = open("vagabond/public/js/bep/26-cong-thuc.js", encoding="utf-8").read()
+_tc51 = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
+
+# ---------- 51.1 Khoi 2: bo don du lieu, moi cua deu chay thu mac dinh ----
+for _cua51 in ("def nuoc_het_ton(chay_that=0)", "def don_kho_do_dang(chay_that=0)",
+               "def doi_ten(chay_that=0", "def ma_thay_the(chay_that=0)",
+               "def nap_bom_thu_vien(chay_that=0)"):
+	la("co cua %s" % _cua51.split("(")[0].replace("def ", ""), _cua51 in _dd51, True)
+# Xa ton bang PHIEU ghi so, giu vet (QT-20), khong sua thang bang ton.
+la("xa ton bang Material Issue", '"Material Issue"' in _dd51, True)
+la("khong dung vao bang Bin", 'set_value("Bin' in _dd51, False)
+# ERPNext chan doi is_stock_item khi con BOM tro toi, nen ghi thang bang -
+# nhung chi sau khi da kiem ton 0 va khong lenh treo.
+la("nuoc: kiem lenh treo truoc khi tat ton", "_lenh_treo_dung(ma=MA_NUOC)" in _dd51, True)
+la("kho do dang: kiem lenh treo theo kho", "_lenh_treo_dung(cac_kho=KHO_DO_DANG)" in _dd51, True)
+la("bo tam khong nam trong nhom bo thay the", "NVLT00243" in _dd51, False)
+# Nap BOM: chi nap NHAP de bep truong duyet, khong nap de cong thuc dang chay.
+la("bom thu vien nap dang nhap, khong submit", "để NHÁP, không submit" in _dd51, True)
+la("khong nap de cong thuc dang chay", "không nạp đè" in _dd51, True)
+
+# ---------- 51.2 Ma thay the trong luong xuat kho ----------
+la("lo_hang doc bang Item Alternative", "Item Alternative" in _lh51, True)
+la("thay the phai cung don vi goc", "stock_uom" in _lh51.split("def _cac_ma_thay_the")[1].split("def gan_lo")[0], True)
+la("dong thay the ghi ro thay cho ma nao", "Dùng thay %s" in _lh51, True)
+# Chia lo theo so luong GOC: dong khai bang Tui/Hop mang he so quy doi.
+la("chia lo nhan he so quy doi", "flt(d.qty) * he_so" in _lh51, True)
+
+# ---------- 51.3 Khoi 1: man tao lenh khong tu tick, kho theo bep ----------
+la("khong con tu tick mon", "a.on = a.qty > 0 ? 1 : 0" in _sx51, False)
+la("mac dinh khong tick", "a.on = 0" in _sx51, True)
+la("co chip chon tat ca", "Chọn tất cả" in _sx51, True)
+la("co ham loc kho theo bep", "function mfgWhOpts()" in _sx51, True)
+la("quan ly van thay het kho", "function mfgQuanLy()" in _sx51, True)
+la("o chon kho dung ban loc", "sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts()" in _sx51, True)
+# Kho luu tu phien truoc ma khong thuoc bep minh thi bo.
+la("kho luu cu khac bep thi bo", "hopLe.indexOf(mfg.src) < 0" in _sx51, True)
+
+# ---------- 51.4 Khoi 1: hop xac nhan chip thay khoi chu ----------
+la("co hop chip mfgSheetKe", "function mfgSheetKe(" in _sx51, True)
+la("nut xac nhan ro rang", "Xác nhận tạo lệnh" in _sx51, True)
+la("chip thieu ton to mau do", "#b3261e" in _sx51.split("function mfgSheetKe")[1].split("async function scrMfgView")[0], True)
+la("khong con hop chu gach dau dong cu", "NGUYÊN LIỆU SẼ TRỪ tại kho" in _sx51, False)
+
+# ---------- 51.5 Khoi 3: so can thuc te ----------
+la("co hop hai so mfgSheetHoanTat", "function mfgSheetHoanTat(" in _sx51, True)
+la("thanh pham nhap theo so can", "r.qty = can" in _sx51, True)
+la("chenh lech ghi vao phieu", "Chênh" in _sx51, True)
+la("so theo lenh van bi chan tran con lai", "q > left + 0.0001" in _sx51, True)
+la("bo don co cua mo tran vuot lenh", "def dat_tran_vuot_lenh" in _dd51, True)
+
+# ---------- 51.6 Khoi 4: danh muc cong thuc ----------
+la("man co ba tab va tab chua phan", "'khac'" in _ctjs51 and "Quầy Bar" in _ctjs51, True)
+la("co chip trang thai", "CT_TT" in _ctjs51, True)
+la("co o tim kiem", "ctTim" in _ctjs51, True)
+la("the tren trang chu", "'CTBOM'" in _tc51, True)
+# Phien ban: dieu chinh KHONG cancel ban cu - ERPNext chan cancel khi co
+# lenh tro vao. Ban moi ghi so, ban cu lui ve is_active=0, van tra duoc.
+la("dieu chinh khong cancel", ".cancel(" in _ct51, False)
+la("ban cu lui ve ban luu", '"is_default": 0, "is_active": 0' in _ct51, True)
+la("ban moi thanh mac dinh", '"is_default": 1, "is_active": 1' in _ct51, True)
+la("chuoi phien ban qua custom_ban_truoc", "custom_ban_truoc" in _ct51, True)
+la("chi bep truong duoc sua", "Manufacturing Manager" in _ct51, True)
+la("nut dieu chinh tren man", "Điều chỉnh (ra phiên bản mới)" in _ctjs51, True)
 
 print("-" * 60)
 if so_hong:
