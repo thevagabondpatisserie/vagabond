@@ -124,3 +124,48 @@ def _nguon_mua_vu():
 	dm = inspect.getsource(hq._ruot_tu_mua_vu)
 	dung("doc dung bang", "Vagabond Mua Vu Dinh Muc" in dm)
 	dung("loc dung cot ma hop", "ma_hop" in dm)
+
+
+@ca("hop qua: quyen tuy bien PHAI lay tu bao_gia.QUYEN_SUA")
+def _quyen():
+	# Ngay 21/08/2026 Loan Anh bi chan khong tuy bien duoc hop du chi ay sua
+	# bao gia moi ngay, vi cho nay tu che mot danh sach vai rieng va bo sot
+	# "Sales User". Chot bang ca kiem de khong ai dung lai danh sach rieng.
+	#
+	# Doc bao_gia.py bang AST chu KHONG import: bao_gia keo cong_no, cong_no
+	# keo ban_hang, ban_hang import requests. May chay CI cua GitHub tay
+	# khong nen ca kiem nao keo theo thu vien mang la ca kiem dat sai cho.
+	import ast
+	import inspect
+	import os
+
+	tep = os.path.join(os.path.dirname(os.path.abspath(hq.__file__)),
+		"bao_gia.py")
+	cay = ast.parse(open(tep, encoding="utf-8").read())
+	quyen = None
+	for n in cay.body:
+		if isinstance(n, ast.Assign) and any(
+				getattr(t, "id", "") == "QUYEN_SUA" for t in n.targets):
+			quyen = ast.literal_eval(n.value)
+	dung("bao_gia co khai QUYEN_SUA", quyen is not None)
+	dung("bao_gia co Sales User", "Sales User" in (quyen or ()))
+	nguon = inspect.getsource(hq._quyen_sua)
+	dung("import tu bao_gia", "from vagabond.bao_gia import QUYEN_SUA" in nguon)
+	dung("khong tu che danh sach vai", "Sales User" not in nguon)
+	chan = inspect.getsource(hq._chan)
+	dung("cong goi ham chung", "_quyen_sua()" in chan)
+
+
+@ca("hop qua: doi ngang thi KHONG bu them tien")
+def _doi_ngang():
+	# Banh trong hop deu loai 80 gram (anh Viet chot 21/08/2026).
+	moi = [{"ma": "A", "ten": "A", "sl": 2}, {"ma": "C", "ten": "C", "sl": 2}]
+	dung("doi mon van du so", hq.doi_ngang(GOC, moi))
+	dung("bot mon la khong ngang", not hq.doi_ngang(GOC, [{"ma": "A", "sl": 1}]))
+	la("doi ngang, phu thu 0, khong nhac", hq.nhac_phu_thu(GOC, moi, 0), "")
+	dung("doi ngang ma go phu thu thi nhac",
+		"để 0" in hq.nhac_phu_thu(GOC, moi, 50000))
+	dung("them mon thi nhac ghi duong",
+		"dương" in hq.nhac_phu_thu(GOC, GOC + [{"ma": "Z", "ten": "Z", "sl": 1}], 0))
+	dung("bot mon thi nhac ghi am",
+		"ÂM" in hq.nhac_phu_thu(GOC, [{"ma": "A", "ten": "A", "sl": 1}], 0))
