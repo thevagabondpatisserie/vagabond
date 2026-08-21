@@ -7768,12 +7768,29 @@ async function scrDsView(name, can) {
      phai co duong huy (anh Viet). Van la HUY MEM: don nam nguyen trong
      danh sach, chi bi loc khoi doanh thu. */
   if (d.docstatus === 0 && !d.vgb_huy) {
-    foot = '<div style="display:flex;gap:8px">' +
-      '<button class="btn gh" id="dsvHuy" style="margin:0;flex:0 0 36%;color:#b3261e;border-color:#fecaca">Huỷ đơn</button>' +
-      '<button class="btn" id="dsvChot" style="margin:0;flex:1">Ghi sổ hoá đơn bán hàng</button></div>';
+    /* Ba nut cho don CHUA GHI SO (anh Viet 21/08/2026).
+
+       "Huy don" cu chi dat dau huy. Dung khi khach chua tra dong nao: bam
+       nham, trung don, khach hoi gia roi thoi.
+
+       Nhung khach chot banh roi chuyen tien, hai ba tieng sau bao huy thi
+       chi dat dau huy la con lai mot khoan tien vao khong chung tu. Nut
+       "Huy don va hoan tien" lo ca hai: dat dau huy TRUOC roi lap phieu gui
+       ke toan. Phai dat dau truoc vi chuoi cuoi ngay luc 23:00 tu ghi so
+       nhung don nhap da nhan du tien roi xuat hoa don dien tu luon.
+
+       Khong gop hai nut lam mot vi hai ca that su khac nhau, va ca "chua
+       tra dong nao" la ca pho bien hon. */
+    foot = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn gh" id="dsvHuy" style="margin:0;flex:1 1 44%;color:#b3261e;border-color:#fecaca">🚫 Huỷ đơn</button>' +
+      '<button class="btn gh" id="dsvHuyHoan" style="margin:0;flex:1 1 44%;color:#b45309;border-color:#fde68a">↩️ Huỷ đơn và hoàn tiền</button>' +
+      '<button class="btn" id="dsvChot" style="margin:0;flex:1 1 100%">Ghi sổ hoá đơn bán hàng</button></div>';
   } else if (d.docstatus === 0) {
-    foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px">Đơn này đã huỷ' +
-      (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>';
+    /* Da bam Huy don roi moi nho ra khach da chuyen tien. Van phai co duong
+       tra tien, khong thi phai nho ke toan lap tay tren Desk. */
+    foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px 6px 10px">Đơn này đã huỷ' +
+      (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>' +
+      '<button class="btn gh" id="dsvHuyHoan" style="margin:0;color:#b45309;border-color:#fde68a">↩️ Khách đã chuyển tiền, hoàn lại cho khách</button>';
   } else if (d.docstatus === 1 && !d.vgb_huy) {
     /* Don DA GHI SO thi khong con huy duoc nua, va do la dung: to da vao so
        thi phai khu bang mot to nguoc chieu chu khong xoa di. Nen cho don da
@@ -7802,6 +7819,8 @@ async function scrDsView(name, can) {
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
+  var nHuyHoan = document.getElementById('dsvHuyHoan');
+  if (nHuyHoan) nHuyHoan.onclick = function () { hoanMoFormHuy(d); };
   var nDu = document.getElementById('dsvDu');
   if (nDu) nDu.onclick = function () { hoanMoFormDu(d); };
   var nXemHoan = document.getElementById('dsvXemHoan');
@@ -12210,16 +12229,69 @@ function hoanMoFormDu(don) {
   });
 }
 
+/* Huỷ đơn CHƯA GHI SỔ và trả lại tiền khách đã chuyển (anh Việt 21/08/2026).
+
+   Khách chốt bánh, chuyển tiền, hai ba tiếng sau báo huỷ. Hoá đơn mới ở dạng
+   nháp nên nút Hoàn tiền không nhận: luồng đó neo vào hoá đơn đã ghi sổ.
+
+   Cái bẫy không nằm ở kế toán mà nằm ở đồng hồ. Chuỗi cuối ngày lúc 23:00 tự
+   ghi sổ những đơn nháp đã đủ điều kiện rồi phát hành hoá đơn điện tử, mà
+   "đủ điều kiện" chính là chuyển khoản đã về đủ tiền. Nên bấm nút này là máy
+   đánh dấu huỷ đơn TRƯỚC, lập phiếu sau. */
+function hoanMoFormHuy(don) {
+  busy(true);
+  api('vagabond.hoan_tien.xem_huy_nhap', { si_name: don.name }).then(function (t) {
+    busy(false);
+    if (!t || !t.duoc) {
+      return baoTin((t && t.vi_sao) || 'Đơn này chưa lập được phiếu huỷ và hoàn tiền.',
+        'Không lập được phiếu');
+    }
+    htF = {
+      don: don.name, huy: 1, tong: Number(t.tong_don || 0), tran: Number(t.tran || 0),
+      da_nhan: Number(t.da_nhan || 0), tien: Number(t.tran || 0), muc: 100,
+      da_huy: Number(t.da_huy || 0),
+      ly_do: '', dien_giai: '', ten_tk: '', so_tk: '', ngan_hang: '', sdt: '',
+      ten_khach: '', nguon_khach: '', anh: [], goi_y: null, hddt: ''
+    };
+    hoanVeForm();
+    htNapGoiY(don);
+  }).catch(function (e) {
+    busy(false); baoTin((e && e.message) || 'Không đọc được tình trạng của đơn này.');
+  });
+}
+
 function hoanVeForm() {
   var f = htF; if (!f) return;
   if (htFHop) { htFHop.dong(); htFHop = null; }
   var du = !!f.du;
-  var tranF = du ? Number(f.tran || 0) : Number(f.tong || 0);
+  var huy = !!f.huy;
+  /* Trần của phiếu huỷ là SỐ ĐÃ NHẬN chứ không phải tổng đơn: khách đặt cọc
+     một phần rồi huỷ thì chỉ trả lại đúng phần đã nhận. */
+  var tranF = (du || huy) ? Number(f.tran || 0) : Number(f.tong || 0);
   var mucs = du
     ? [[100, 'Trả hết phần dư'], [0, 'Nhập số khác']]
-    : [[100, 'Hoàn 100%'], [50, 'Hoàn 50%'], [0, 'Nhập số khác']];
+    : (huy
+      ? [[100, 'Trả hết số đã nhận'], [0, 'Nhập số khác']]
+      : [[100, 'Hoàn 100%'], [50, 'Hoàn 50%'], [0, 'Nhập số khác']]);
   var than =
-    (du
+    (huy
+      ? '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
+        'Đơn <b>' + h(f.don) + '</b> · giá trị <b>' + money(f.tong) + ' đ</b><br>' +
+        'Máy thấy khách đã chuyển <b style="color:#b45309">' + money(f.da_nhan) + ' đ</b>.<br>' +
+        'Yêu cầu này gửi kế toán duyệt. Tiền chỉ ra sau khi kế toán chuyển khoản thật.</div>' +
+        /* Hai câu này là thứ chị Dung cần đọc trước khi duyệt, và cũng là
+           thứ giữ cho không ai nghĩ tới việc ghi sổ đơn để "có cái mà đính". */
+        '<div style="font-size:12px;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
+        'Đơn này <b>chưa từng ghi sổ</b> nên không có doanh thu để khử. Máy sẽ ' +
+        '<b>không lập hoá đơn trả hàng</b> và <b>không có hoá đơn điện tử nào</b> ' +
+        'phải xử lý. Khoản tiền này là tiền khách chuyển trước, mình giữ hộ và nay trả lại.</div>' +
+        '<div style="font-size:12px;color:#7c2d12;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
+        (f.da_huy
+          ? 'Đơn đã mang dấu huỷ từ trước, phiếu này chỉ lo phần trả tiền.'
+          : 'Bấm gửi là máy <b>đánh dấu huỷ đơn ngay</b>, trước khi lập phiếu. ' +
+            'Phải làm vậy vì chuỗi cuối ngày lúc 23:00 sẽ tự ghi sổ những đơn nháp ' +
+            'đã nhận đủ tiền rồi xuất hoá đơn điện tử luôn.') + '</div>'
+      : du
       ? '<div style="font-size:12.5px;color:#6b7280;margin-bottom:10px;line-height:1.6">' +
         'Đơn <b>' + h(f.don) + '</b><br>' +
         'Đã nhận <b>' + money(f.da_nhan) + ' đ</b>, giá trị đơn <b>' + money(f.tong) + ' đ</b>, ' +
@@ -12237,7 +12309,7 @@ function hoanVeForm() {
     (f.hddt && !du ? '<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.6">' +
       'Đơn này <b>đã xuất hoá đơn điện tử số ' + h(f.hddt) + '</b>. Hoàn tiền xong thì tờ đó phải xử lý riêng bên m-invoice, máy không tự làm.</div>' : '') +
 
-    rndLbl(du ? 'Số tiền chuyển lại' : 'Mức hoàn tiền') +
+    rndLbl(du ? 'Số tiền chuyển lại' : huy ? 'Số tiền trả lại khách' : 'Mức hoàn tiền') +
     '<div style="display:flex;gap:7px;margin-bottom:9px">' +
     mucs.map(function (m) {
       var on = f.muc === m[0];
@@ -12249,11 +12321,13 @@ function hoanVeForm() {
     (f.muc ? ' readonly style="background:#f7f8fa;color:#374151"' : '') + '>' +
     '<div id="htFTienNhac" style="font-size:11.5px;color:#9ca3af;margin:5px 0 12px">' +
     (du ? 'Tối đa ' + money(tranF) + ' đ, đúng bằng phần khách nộp thừa.'
+        : huy ? 'Tối đa ' + money(tranF) + ' đ, đúng bằng số máy thấy đã nhận.'
         : 'Tối đa ' + money(tranF) + ' đ, đúng bằng tổng đơn.') + '</div>' +
 
-    rndLbl(du ? 'Lý do dư tiền' : 'Lý do hoàn') +
+    rndLbl(du ? 'Lý do dư tiền' : huy ? 'Lý do huỷ đơn' : 'Lý do hoàn') +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px">' +
     (du ? ['Doi size nho hon', 'Khach tu den lay, khong giao', 'Bo bot mon', 'Chuyen du tien', 'Khac']
+        : huy ? ['Khach doi y', 'Khach dat nham ngay', 'Bep khong kip lam', 'Het nguyen lieu', 'Trung don', 'Khac']
         : ['Khach doi y', 'Banh hong', 'Di ung', 'Giao sai mon', 'Giao tre', 'Khac']).map(function (k) {
       var on = f.ly_do === k;
       return '<button data-htl="' + h(k) + '" style="border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
@@ -12262,7 +12336,7 @@ function hoanVeForm() {
         h(htLyDoTen(k)) + '</button>';
     }).join('') + '</div>' +
     '<textarea class="nt" id="htFGhi" rows="2" placeholder="' +
-    (f.ly_do === 'Khac' ? 'Bắt buộc: ghi rõ vì sao ' + (du ? 'dư' : 'hoàn') : 'Diễn giải thêm (không bắt buộc)') +
+    (f.ly_do === 'Khac' ? 'Bắt buộc: ghi rõ vì sao ' + (du ? 'dư' : huy ? 'huỷ' : 'hoàn') : 'Diễn giải thêm (không bắt buộc)') +
     '">' + h(f.dien_giai) + '</textarea>' +
 
     '<div style="height:14px"></div>' + rndLbl('Khách hàng') +
@@ -12294,6 +12368,12 @@ function hoanVeForm() {
          SePay đã nhận và tổng đơn, máy tự tính chứ không ai khai. Bắt ảnh ở
          đây là bắt một thứ không nói thêm điều gì. */
       ? 'Chênh lệch giữa số đã nhận và tổng đơn là căn cứ đủ rồi, máy tự tính. Có ảnh tin nhắn khách xin đổi thì đính kèm cho rõ, không có cũng gửi được.'
+      : huy
+      /* Với phiếu huỷ thì ngược lại: việc khách xin huỷ KHÔNG nằm trong sổ
+         sách chỗ nào cả. Sổ chỉ thấy một đơn nháp và một khoản tiền vào.
+         Ảnh tin nhắn là căn cứ duy nhất, và cái mốc giờ trên đó là thứ sau
+         này quyết được có giữ lại phí nguyên liệu hay không. */
+      ? 'Ảnh tin nhắn khách xin huỷ, nhìn rõ mốc giờ. Việc khách xin huỷ không nằm trong sổ sách chỗ nào, đây là căn cứ duy nhất kế toán có để duyệt.'
       : 'Ảnh khách phản ánh, hoặc ảnh bánh hỏng. Kế toán ngồi xa quầy, đây là căn cứ duy nhất để duyệt.') + '</div>' +
     '<div class="att" id="htFAnh">' +
     f.anh.map(function (a, i) {
@@ -12303,7 +12383,10 @@ function hoanVeForm() {
     '<div class="ph" id="htFCam"><div style="font-size:22px">📷</div>Thêm ảnh</div></div>' +
     '<input type="file" accept="image/*" id="htFFile" style="display:none">';
 
-  htFHop = hopKhung(du ? 'Chuyển lại tiền khách nộp thừa' : 'Yêu cầu hoàn tiền', than,
+  htFHop = hopKhung(
+    du ? 'Chuyển lại tiền khách nộp thừa'
+      : huy ? 'Huỷ đơn và hoàn tiền cho khách'
+      : 'Yêu cầu hoàn tiền', than,
     '<button class="btn gh" id="htFThoi" style="margin:0;flex:0 0 34%">Thôi</button>' +
     '<button class="btn" id="htFGui" style="margin:0;flex:1">Gửi duyệt</button>');
   var box = htFHop.box;
@@ -12340,8 +12423,9 @@ function hoanVeForm() {
   if (oT && !f.muc) oT.oninput = function () {
     var v = Number(String(oT.value).replace(/[^0-9]/g, '')) || 0;
     var nhac = box.querySelector('#htFTienNhac');
-    if (v > f.tong) { nhac.textContent = 'Vượt tổng đơn ' + money(f.tong) + ' đ. Nhập lại số nhỏ hơn.'; nhac.style.color = '#b3261e'; }
-    else { nhac.textContent = 'Tối đa ' + money(f.tong) + ' đ, đúng bằng tổng đơn.'; nhac.style.color = '#9ca3af'; }
+    var chu = du ? 'phần khách nộp thừa' : huy ? 'số máy thấy đã nhận' : 'tổng đơn';
+    if (v > tranF) { nhac.textContent = 'Vượt ' + chu + ' ' + money(tranF) + ' đ. Nhập lại số nhỏ hơn.'; nhac.style.color = '#b3261e'; }
+    else { nhac.textContent = 'Tối đa ' + money(tranF) + ' đ, đúng bằng ' + chu + '.'; nhac.style.color = '#9ca3af'; }
   };
 
   box.querySelector('#htFGui').onclick = function () { htFDoc(box); htFGui(); };
@@ -12384,14 +12468,18 @@ function htFThemAnh(file) {
 async function htFGui() {
   var f = htF; if (!f) return;
   var du = !!f.du;
-  var tranF = du ? Number(f.tran || 0) : Number(f.tong || 0);
-  if (!f.ly_do) return toast(du ? 'Chọn lý do dư tiền giúp em.' : 'Chọn lý do hoàn giúp em.', 3500);
+  var huy = !!f.huy;
+  var tranF = (du || huy) ? Number(f.tran || 0) : Number(f.tong || 0);
+  if (!f.ly_do) return toast(du ? 'Chọn lý do dư tiền giúp em.'
+    : huy ? 'Chọn lý do huỷ đơn giúp em.' : 'Chọn lý do hoàn giúp em.', 3500);
   if (f.ly_do === 'Khac' && !(f.dien_giai || '').trim())
-    return toast('Lý do "Khác" thì phải ghi rõ vì sao ' + (du ? 'dư' : 'hoàn') + '.', 4000);
+    return toast('Lý do "Khác" thì phải ghi rõ vì sao ' + (du ? 'dư' : huy ? 'huỷ' : 'hoàn') + '.', 4000);
   if (!f.tien || f.tien <= 0) return toast('Nhập số tiền lớn hơn 0.', 3500);
   if (f.tien > tranF)
     return toast(du
       ? 'Số tiền chuyển lại không được lớn hơn phần khách nộp thừa ' + money(tranF) + ' đ.'
+      : huy
+      ? 'Số tiền trả lại không được lớn hơn số máy thấy đã nhận ' + money(tranF) + ' đ.'
       : 'Số tiền hoàn không được lớn hơn tổng đơn ' + money(tranF) + ' đ.', 4500);
   if (!(f.ngan_hang || '').trim()) return toast('Bấm ô ngân hàng để chọn ngân hàng của khách.', 4000);
   if (!(f.so_tk || '').trim() || !(f.ten_tk || '').trim())
@@ -12401,14 +12489,28 @@ async function htFGui() {
   if (!du && !f.anh.length) return toast('Phải đính kèm ít nhất một ảnh làm căn cứ.', 4000);
 
   var ok = await confirmSheet(
-    du ? 'Chuyển lại ' + money(f.tien) + ' đ cho khách?' : 'Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
+    du ? 'Chuyển lại ' + money(f.tien) + ' đ cho khách?'
+      : huy ? 'Huỷ đơn và trả lại ' + money(f.tien) + ' đ?'
+      : 'Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
     du
       ? 'Kế toán nhận thư báo ngay. Máy KHÔNG lập hoá đơn trả hàng, doanh thu của đơn ' +
         'giữ nguyên ' + money(f.tong) + ' đ. Tiền chỉ ra khi kế toán chuyển khoản thật.'
+      : huy
+      ? 'Máy đánh dấu huỷ đơn ngay, rồi gửi phiếu cho kế toán. Đơn chưa từng ghi sổ nên ' +
+        'KHÔNG có doanh thu, KHÔNG hoá đơn trả hàng, KHÔNG hoá đơn điện tử. ' +
+        'Tiền chỉ ra khi kế toán chuyển khoản thật.'
       : 'Kế toán nhận thư báo ngay. Tiền chỉ ra khi kế toán chuyển khoản thật, và máy ' +
         'chỉ sinh chứng từ sau khi ngân hàng báo tiền đã đi.',
     'Gửi duyệt');
   if (!ok) return;
+
+  /* Đặt cờ huỷ là thao tác đã có sẵn một chốt kiểm soát là mã OTP quản lý.
+     Cửa mới dùng lại đúng chốt đó chứ không tự mở một đường vòng. */
+  var otpHuy = null;
+  if (huy && !f.da_huy) {
+    otpHuy = await posXinPhep('Huỷ đơn ' + f.don + ' và hoàn ' + money(f.tien) + ' đ');
+    if (otpHuy === null) return;
+  }
 
   busy(true);
   try {
@@ -12417,12 +12519,19 @@ async function htFGui() {
       ten_tk: f.ten_tk, so_tk: f.so_tk, ngan_hang: f.ngan_hang, sdt_khach: f.sdt,
       tep: JSON.stringify(f.anh.map(function (a) { return { ten: a.ten, noi_dung: a.b64 }; }))
     };
-    var kq = await api(du ? 'vagabond.hoan_tien.tao_tien_du' : 'vagabond.hoan_tien.tao', goiF);
+    if (huy) goiF.otp = otpHuy || '';
+    var kq = await api(
+      du ? 'vagabond.hoan_tien.tao_tien_du'
+        : huy ? 'vagabond.hoan_tien.tao_huy_nhap'
+        : 'vagabond.hoan_tien.tao',
+      goiF);
     busy(false);
     htFDong();
     baoTin(
       'Đã gửi yêu cầu ' + kq.ho_so + ', số tiền ' + money(kq.so_tien) + ' đ.\n\n' +
       (du ? 'Đây là phiếu TIỀN NỘP THỪA: máy không lập hoá đơn trả hàng, doanh thu của đơn giữ nguyên.\n\n' : '') +
+      (huy ? 'Đã đánh dấu huỷ đơn nên chuỗi ghi sổ cuối ngày sẽ không đụng tới nó nữa.\n' +
+             'Đơn chưa từng ghi sổ nên không có doanh thu, không hoá đơn trả hàng, không hoá đơn điện tử.\n\n' : '') +
       (kq.da_bao_ke_toan ? 'Đã báo kế toán qua email.' : 'Chưa gửi được email báo kế toán, nhưng phiếu đã nằm trên màn Hoàn tiền.') +
       '\n\nNội dung chuyển khoản kế toán sẽ dùng:\n' + kq.noi_dung_ck +
       (kq.mot_phan ? '\n\nHoàn một phần nên khách giữ lại hàng, máy không lập phiếu chuyển Kho Hàng Hủy.' : '') +
@@ -15351,7 +15460,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '258';
+var APPVER = '259';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
