@@ -52,7 +52,7 @@ nguồn sự thật vẫn nằm ở Pancake, đồng bộ lại là có ngay.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import frappe
 from frappe.utils import add_days, flt, now_datetime
@@ -231,6 +231,32 @@ def _shop():
 	return c, (c.pancake_shop_id or "").strip()
 
 
+def khoang_quet(so_ngay=NGAY_GIU, moc_cuoi=None):
+	"""Khoảng thời gian quét Pancake, trả về UNIX GIÂY chứ không phải chuỗi.
+
+	Pancake nhận startDateTime và endDateTime là UNIX giây. Truyền chuỗi ISO
+	thì nó trả về DANH SÁCH RỖNG và không báo lỗi gì cả: HTTP vẫn 200, "data"
+	vẫn có, chỉ là không có phần tử nào. Nhìn từ ngoài y hệt "shop không có
+	đơn huỷ nào", nên rất khó ngờ.
+
+	Đã ngã đúng chỗ này hai lần. Lần một ở kiem_banh, đã ghi cảnh báo ngay
+	đầu tệp đó. Lần hai ở chính màn này ngày 21/08/2026: deploy v264 xong,
+	dong_bo chạy sạch không lỗi, trả về quet 0 trong khi Pancake đang có ba
+	đơn huỷ 92252, 92245, 92156 mà anh Việt chụp màn hình gửi sang.
+
+	Tham số `moc_cuoi` chỉ để ca kiểm thử đóng cứng thời điểm, chạy thật thì
+	để trống.
+	"""
+	from zoneinfo import ZoneInfo
+
+	tz = ZoneInfo("Asia/Ho_Chi_Minh")
+	cuoi = moc_cuoi or datetime.now(tz)
+	if cuoi.tzinfo is None:
+		cuoi = cuoi.replace(tzinfo=tz)
+	dau = cuoi - timedelta(days=int(so_ngay or NGAY_GIU))
+	return int(dau.timestamp()), int(cuoi.timestamp())
+
+
 def _keo_don_huy(so_ngay=NGAY_GIU):
 	"""Kéo đơn Pancake bị huỷ trong khoảng ngày, quét theo NGÀY CẬP NHẬT.
 
@@ -249,8 +275,7 @@ def _keo_don_huy(so_ngay=NGAY_GIU):
 	k = key(c, "pancake_api_key")
 	if not k:
 		frappe.throw("Chưa khai khoá API Pancake trong Vagabond Settings.")
-	cuoi = now_datetime()
-	dau = add_days(cuoi, -int(so_ngay or NGAY_GIU))
+	dau, cuoi = khoang_quet(so_ngay)
 	ra = []
 	for trang in range(1, 11):
 		r = requests.get(
@@ -258,8 +283,8 @@ def _keo_don_huy(so_ngay=NGAY_GIU):
 			params={
 				"api_key": k,
 				"updateStatus": "updated_at",
-				"startDateTime": str(dau)[:19],
-				"endDateTime": str(cuoi)[:19],
+				"startDateTime": dau,
+				"endDateTime": cuoi,
 				"page_size": 100,
 				"page_number": trang,
 			},
