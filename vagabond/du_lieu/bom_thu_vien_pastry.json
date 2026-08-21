@@ -1,0 +1,1604 @@
+{
+ "nguon": "BOM_Pastry_Vagabond (Google Drive), ban dung 18/08/2026, trich 21/08/2026",
+ "ghi_chu": "Cong thuc ME cua cac khoi thu vien dung chung. SL theo gram tru khi dvt ghi khac.",
+ "khoi": [
+  {
+   "sheet": "01_Crumble-Crunchy-Tuile",
+   "ten": "Crumble",
+   "ma_btp": "BTPB00060",
+   "me_gram": 5100.0,
+   "dong": [
+    {
+     "ma": "NVLT00242",
+     "sl": 1320.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00070",
+     "sl": 1000.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 1250.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 1500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00044",
+     "sl": 10.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "01_Crumble-Crunchy-Tuile",
+   "ten": "Dark Chocolate Crunchy",
+   "ma_btp": "",
+   "me_gram": 2380.0,
+   "dong": [
+    {
+     "ma": "BTPB00060",
+     "sl": 1280.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00039",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00004",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00322",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00174",
+     "sl": 150.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "01_Crumble-Crunchy-Tuile",
+   "ten": "Matcha Crunchy",
+   "ma_btp": "BTPB00003",
+   "me_gram": 2180.0,
+   "dong": [
+    {
+     "ma": "BTPB00060",
+     "sl": 1000.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00059",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00029",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 300.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00004",
+     "sl": 500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00174",
+     "sl": 200.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "01_Crumble-Crunchy-Tuile",
+   "ten": "Tuile",
+   "ma_btp": "",
+   "me_gram": null,
+   "dong": [
+    {
+     "ma": "NVLT00070",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 50.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "01_Crumble-Crunchy-Tuile",
+   "ten": "Coconut Crumble",
+   "ma_btp": "BTPB00005",
+   "me_gram": 2250.0,
+   "dong": [
+    {
+     "ma": "NVLT00242",
+     "sl": 660.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00070",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00185",
+     "sl": 625.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 750.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00044",
+     "sl": 5.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "01_Crumble-Crunchy-Tuile",
+   "ten": "Pistachio Crumble",
+   "ma_btp": "BTPB00006",
+   "me_gram": 200.0,
+   "dong": [
+    {
+     "ma": "BTPB00060",
+     "sl": 140.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00124",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00294",
+     "sl": 10.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "White Sponge",
+   "ma_btp": "BTPB00007",
+   "me_gram": 1050.0,
+   "dong": [
+    {
+     "ma": "NVLT00041",
+     "sl": 500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 75.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00175",
+     "sl": 75.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "Dark Sponge",
+   "ma_btp": "BTPB00008",
+   "me_gram": 1076.0,
+   "dong": [
+    {
+     "ma": "NVLT00041",
+     "sl": 500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 75.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00175",
+     "sl": 75.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00039",
+     "sl": 26.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "Dark cocoa biscuit (Naked)",
+   "ma_btp": "BTPB00009",
+   "me_gram": 1431.0,
+   "dong": [
+    {
+     "ma": "BTPB00046",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 113.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 300.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 260.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 130.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 83.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00175",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00039",
+     "sl": 85.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 2.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00044",
+     "sl": 8.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "Coffee Sponge",
+   "ma_btp": "BTPB00010",
+   "me_gram": 1419.0,
+   "dong": [
+    {
+     "ma": "BTPB00046",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 300.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 250.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 125.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 75.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00175",
+     "sl": 75.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00158",
+     "sl": 8.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00039",
+     "sl": 40.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00156",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 225.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 3.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00044",
+     "sl": 8.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00164",
+     "sl": 2.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "Matcha sponge",
+   "ma_btp": "BTPB00011",
+   "me_gram": 1075.0,
+   "dong": [
+    {
+     "ma": "BTPB00046",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 380.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00041",
+     "sl": 58.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 88.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 76.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 70.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00059",
+     "sl": 32.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00127",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 1.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 138.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00164",
+     "sl": 2.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "Dark cocoa biscuit (Naked)",
+   "ma_btp": "BTPB00009",
+   "me_gram": 144.0,
+   "dong": [
+    {
+     "ma": "BTPB00046",
+     "sl": 20.0,
+     "dvt": "300"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 11.0,
+     "dvt": "170.0"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 30.0,
+     "dvt": "450"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 26.0,
+     "dvt": "390.0"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 15.0,
+     "dvt": "225.0"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 8.0,
+     "dvt": "125.0"
+    },
+    {
+     "ma": "NVLT00175",
+     "sl": 5.0,
+     "dvt": "75.0"
+    },
+    {
+     "ma": "NVLT00322",
+     "sl": 3.0,
+     "dvt": "40.0"
+    },
+    {
+     "ma": "NVLT00039",
+     "sl": 3.0,
+     "dvt": "50.0"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 1.0,
+     "dvt": "3.0"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 21.0,
+     "dvt": "310.0"
+    },
+    {
+     "ma": "NVLT00044",
+     "sl": 1.0,
+     "dvt": "12.0"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "02_Biscuit-Sponge",
+   "ten": "Almond biscuit",
+   "ma_btp": "BTPB00056",
+   "me_gram": 1585.0,
+   "dong": [
+    {
+     "ma": "NVLT00041",
+     "sl": 600.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00045",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 206.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 96.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 332.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 42.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00175",
+     "sl": 36.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 3.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00127",
+     "sl": 60.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "03_Batter",
+   "ten": "Crepe batter (Bột crepe)",
+   "ma_btp": "",
+   "me_gram": 4830.0,
+   "dong": [
+    {
+     "ma": "NVLT00041",
+     "sl": 1500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 330.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 970.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 180.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 1500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 350.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "Earl grey custard",
+   "ma_btp": "BTPB00013",
+   "me_gram": 860.0,
+   "dong": [
+    {
+     "ma": "NVLT00013",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "",
+     "sl": 5.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00046",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00070",
+     "sl": 70.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 45.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00046",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00005",
+     "sl": 40.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [
+    "Earl grey"
+   ],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "Matcha custard",
+   "ma_btp": "BTPB00014",
+   "me_gram": 860.0,
+   "dong": [
+    {
+     "ma": "NVLT00013",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00059",
+     "sl": 8.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00046",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00070",
+     "sl": 70.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 42.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00046",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00005",
+     "sl": 40.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "Caramel custard (1 ct custard + 120gr cara sauce)",
+   "ma_btp": "",
+   "me_gram": 895.0,
+   "dong": [
+    {
+     "ma": "NVLT00013",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00046",
+     "sl": 120.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 25.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00046",
+     "sl": 40.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00005",
+     "sl": 160.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "\"CỐM\" custard",
+   "ma_btp": "BTPB00016",
+   "me_gram": 530.0,
+   "dong": [
+    {
+     "ma": "",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 150.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00305",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00014",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00008",
+     "sl": 20.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [
+    "Cốm tươi"
+   ],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "Pastry cream (canele)",
+   "ma_btp": "",
+   "me_gram": null,
+   "dong": [
+    {
+     "ma": "NVLT00013",
+     "sl": 250.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00046",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00070",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00046",
+     "sl": 17.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00080",
+     "sl": 25.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00005",
+     "sl": 100.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "Pastry cream (Crepe)",
+   "ma_btp": "",
+   "me_gram": null,
+   "dong": [
+    {
+     "ma": "NVLT00162",
+     "sl": 1.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 80.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00172",
+     "sl": 6.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "04_Custard-Pastry_cream",
+   "ten": "Vanilla",
+   "ma_btp": "",
+   "me_gram": 517.0,
+   "dong": [
+    {
+     "ma": "BTPB00046",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00005",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 30.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Avocado chantilly cream",
+   "ma_btp": "BTPB00044",
+   "me_gram": 1221.0,
+   "dong": [
+    {
+     "ma": "NVLT00190",
+     "sl": 675.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00008",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00036",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 13.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00014",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 83.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 500.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Caramel ganache montee",
+   "ma_btp": "BTPB00018",
+   "me_gram": 965.0,
+   "dong": [
+    {
+     "ma": "NVLT00068",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 460.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00008",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00036",
+     "sl": 120.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 25.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Caramel tea ganache montee",
+   "ma_btp": "BTPB00019",
+   "me_gram": 755.0,
+   "dong": [
+    {
+     "ma": "NVLT00013",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 110.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00036",
+     "sl": 130.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 25.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 40.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 350.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [
+    "Caramel tea"
+   ],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Milk chocolate ganache montee",
+   "ma_btp": "BTPB00020",
+   "me_gram": 1295.0,
+   "dong": [
+    {
+     "ma": "NVLT00002",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00028",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00322",
+     "sl": 105.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00051",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 40.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 700.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Vanilla bean",
+   "ma_btp": "",
+   "me_gram": 284.0,
+   "dong": [
+    {
+     "ma": "NVLT00002",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00046",
+     "sl": 4.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 100.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "White chocolate ganache montee",
+   "ma_btp": "BTPB00022",
+   "me_gram": 282.0,
+   "dong": [
+    {
+     "ma": "NVLT00002",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00046",
+     "sl": 2.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 100.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Tiramisu ganache montee (Kem tiramisu)",
+   "ma_btp": "",
+   "me_gram": 1380.0,
+   "dong": [
+    {
+     "ma": "NVLT00002",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00008",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00036",
+     "sl": 125.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 55.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00151",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00080",
+     "sl": 50.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Hojicha ganache montee",
+   "ma_btp": "BTPB00024",
+   "me_gram": 698.0,
+   "dong": [
+    {
+     "ma": "NVLT00002",
+     "sl": 330.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00056",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00036",
+     "sl": 40.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 32.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 266.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Matcha ganache montee",
+   "ma_btp": "BTPB00025",
+   "me_gram": 1138.0,
+   "dong": [
+    {
+     "ma": "NVLT00002",
+     "sl": 500.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00059",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00036",
+     "sl": 148.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 420.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Pandan cream",
+   "ma_btp": "BTPB00026",
+   "me_gram": 382.0,
+   "dong": [
+    {
+     "ma": "NVLT00305",
+     "sl": 156.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00053",
+     "sl": 7.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 34.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00111",
+     "sl": 15.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00041",
+     "sl": 120.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00046",
+     "sl": 20.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 15.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 5.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 10.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Pastry cream",
+   "ma_btp": "BTPB00027",
+   "me_gram": null,
+   "dong": [
+    {
+     "ma": "NVLT00013",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 80.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00172",
+     "sl": 6.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00162",
+     "sl": 1.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Vanilla",
+   "ma_btp": "",
+   "me_gram": 517.0,
+   "dong": [
+    {
+     "ma": "BTPB00046",
+     "sl": 100.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 30.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 10.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00005",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 30.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  },
+  {
+   "sheet": "05_Whipped_Ganache_montee",
+   "ten": "Earlgrey Chocolate Ganache montee",
+   "ma_btp": "",
+   "me_gram": 2378.0,
+   "dong": [
+    {
+     "ma": "",
+     "sl": 12.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00013",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 400.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 50.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "BTPB00059",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00322",
+     "sl": 60.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00028",
+     "sl": 200.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00002",
+     "sl": 900.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00242",
+     "sl": 496.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [
+    "Earlgrey"
+   ],
+   "sl_hong": []
+  },
+  {
+   "sheet": "06_Compote-Confit",
+   "ten": "Cherry compote",
+   "ma_btp": "BTPB00028",
+   "me_gram": 1896.0,
+   "dong": [
+    {
+     "ma": "NVLT00087",
+     "sl": 1074.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 241.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00092",
+     "sl": 216.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00068",
+     "sl": 241.0,
+     "dvt": "gr"
+    },
+    {
+     "ma": "NVLT00168",
+     "sl": 16.0,
+     "dvt": "gr"
+    }
+   ],
+   "thieu_ma": [],
+   "sl_hong": []
+  }
+ ]
+}
