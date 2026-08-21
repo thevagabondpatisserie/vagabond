@@ -1593,21 +1593,23 @@ def _lap_phieu_chi_du(si, ho_so):
 		pe.reference_no = ho_so.noi_dung_ck or noi_dung_ck(si.name)
 		pe.reference_date = nowdate()
 		pe.vgb_hoan_tien = ho_so.name
+		from vagabond.chung_tu_tien import dat_dien_giai
+
 		if (ho_so.get("loai_hoan") or "") == LOAI_HUY_NHAP:
-			pe.remarks = (
+			dat_dien_giai(pe, (
 				"Trả lại tiền của đơn %s theo phiếu %s. Đơn đã huỷ khi còn ở dạng "
 				"nháp, chưa từng ghi sổ nên KHÔNG có doanh thu, KHÔNG có hoá đơn "
 				"trả hàng và KHÔNG có hoá đơn điện tử. Khoản này là tiền khách "
 				"chuyển trước, công ty giữ hộ và nay trả lại. Nội dung chuyển "
 				"khoản: %s" % (si.name, ho_so.name, ho_so.noi_dung_ck)
-			)
+			))
 		else:
-			pe.remarks = (
+			dat_dien_giai(pe, (
 				"Trả lại tiền khách nộp thừa cho đơn %s theo phiếu %s. Khách đã chuyển "
 				"dư so với giá trị đơn; doanh thu của đơn giữ nguyên, KHÔNG lập hoá đơn "
 				"trả hàng và KHÔNG điều chỉnh hoá đơn điện tử. Nội dung chuyển khoản: %s"
 				% (si.name, ho_so.name, ho_so.noi_dung_ck)
-			)
+			))
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
 		return pe
@@ -1654,10 +1656,10 @@ def _lap_phieu_chi(si, tra, ho_so):
 		pe.reference_no = ho_so.noi_dung_ck or noi_dung_ck(tra.name)
 		pe.reference_date = nowdate()
 		pe.vgb_hoan_tien = ho_so.name
-		pe.remarks = "Hoàn tiền khách theo phiếu %s, nội dung chuyển khoản: %s" % (
-			ho_so.name,
-			ho_so.noi_dung_ck,
-		)
+		from vagabond.chung_tu_tien import dat_dien_giai
+
+		dat_dien_giai(pe, "Hoàn tiền khách theo phiếu %s cho hoá đơn trả hàng %s. "
+			"Nội dung chuyển khoản: %s" % (ho_so.name, tra.name, ho_so.noi_dung_ck))
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
 		return pe
