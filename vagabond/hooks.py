@@ -200,6 +200,17 @@ doc_events = {
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
 	},
+	# Cay kho bon chang cua bep (Khai chot 21/08/2026): moi dong nguyen lieu
+	# cua lenh san xuat lay dung kho cua chang no.
+	#
+	# Dat o hook chu khong o cho tao lenh tren app: lenh san xuat sinh ra tu
+	# it nhat bon duong - man Tao lenh, man Ban thanh pham can lam, mo dun
+	# phantom, va tay nguoi tren Desk. Sua mot duong la ba duong kia van lay
+	# sai kho, ma sai kho thi tru nham ton cua bep khac, khong ai thay cho
+	# toi luc kiem ke.
+	"Work Order": {
+		"validate": "vagabond.kho_san_xuat.gan_kho_nguon",
+	},
 	# Hoa don mua DICH VU: gom ve mot dong, so lay tu DAU hoa don dien tu.
 	#
 	# Dat o before_validate chu khong o validate: ERPNext tinh lai tong tien

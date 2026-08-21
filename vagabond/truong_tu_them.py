@@ -47,6 +47,14 @@ def dung():
 	from vagabond import cong_thuc
 
 	_dung_nhom(cong_thuc.TRUONG_MOI, "cong_thuc")
+	# Cay kho bon chang: nguoi phu trach, chang, kho nguon (them 21/08/2026).
+	from vagabond import kho_san_xuat
+
+	_dung_nhom(kho_san_xuat.TRUONG_MOI, "kho_san_xuat")
+	# Tuy bien ruot hop qua tren dong bao gia (them 21/08/2026).
+	from vagabond import hop_qua
+
+	_dung_nhom(hop_qua.TRUONG_MOI, "hop_qua")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()
