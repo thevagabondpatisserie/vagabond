@@ -95,3 +95,23 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: chuyen de nghi chi sang bang ke")
+
+	# Bieu mau in do ma nguon giu. Xem vagabond/mau_in/__init__.py.
+	#
+	# Chay lai duoc: chi ghi de khi noi dung tep .html trong repo KHAC voi
+	# ban dang nam trong co so du lieu.
+	try:
+		from vagabond import mau_in
+
+		kq = mau_in.dong_bo()
+		if kq.get("da_sua"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: cap nhat mau in %s" % ", ".join(kq["da_sua"])
+			)
+		if kq.get("chua_co"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: chua co ban ghi Print Format cho %s"
+				% ", ".join(kq["chua_co"])
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: dong bo mau in")

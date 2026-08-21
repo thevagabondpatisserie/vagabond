@@ -550,7 +550,10 @@ def _phieu(loai, khach, cong_ty, tk_ke_toan, so_tien, dien_giai, tham_chieu, ho_
 	pe.received_amount = flt(so_tien)
 	pe.reference_no = tham_chieu
 	pe.reference_date = nowdate()
-	pe.remarks = dien_giai
+	# Qua chung_tu_tien de ERPNext khong dung lai o Dien giai trong validate.
+	from vagabond.chung_tu_tien import dat_dien_giai
+
+	dat_dien_giai(pe, dien_giai)
 	if ho_so:
 		pe.vgb_hoan_tien = ho_so
 	pe.flags.ignore_permissions = True

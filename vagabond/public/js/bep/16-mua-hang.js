@@ -663,7 +663,33 @@ async function scrNccTao() {
     footer: '<button class="btn" id="nccLuu" style="margin:0">Lưu hồ sơ nhà cung cấp</button>'
   });
 
-  /* Tra cuu ma so thue khi roi o. Chi dien vao nhung o DANG TRONG: nguoi
+  /* Khoa mem mot o nhap: khong sua duoc, nhung nhin ra ngay la may dien ho.
+   Dung readOnly chu khong dung disabled - disabled thi trinh duyet khong
+   gui gia tri o do di, ma ham nccDoc() ben duoi doc thang tu DOM. */
+function nccKhoaO(cac) {
+  (cac || []).forEach(function (o) {
+    if (!o) return;
+    o.readOnly = true;
+    o.dataset.khoa = '1';
+    o.style.background = '#f0fdf4';
+    o.style.borderColor = '#86efac';
+    o.style.color = '#166534';
+  });
+}
+
+function nccMoO(cac) {
+  (cac || []).forEach(function (o) {
+    if (!o) return;
+    o.readOnly = false;
+    delete o.dataset.khoa;
+    o.style.background = '';
+    o.style.borderColor = '';
+    o.style.color = '';
+    o.focus();
+  });
+}
+
+/* Tra cuu ma so thue khi roi o. Chi dien vao nhung o DANG TRONG: nguoi
      dung da go tay ten rieng cho de nho thi may khong duoc de len. */
   var mo = document.getElementById('nccMst');
   if (mo) mo.onblur = async function () {
@@ -685,11 +711,28 @@ async function scrNccTao() {
     var da = [];
     if (oTen && !(oTen.value || '').trim()) { oTen.value = r.ten || ''; nccF.ten = oTen.value; da.push('tên'); }
     if (oDc && !(oDc.value || '').trim() && r.dia_chi) { oDc.value = r.dia_chi; nccF.dia_chi = r.dia_chi; da.push('địa chỉ'); }
+    /* Anh Viet 21/08/2026: o nao may lay tu cong thue thi KHOA lai, kem dau
+       tich xanh, de khoi ai sua bay thanh mot cai ten khong khop hoa don.
+
+       Nhung khoa cung thi co ngay ket: cong thue tra ten viet tat hoac ten
+       cu, ma nguoi dung khong sua duoc thi ho bo luon man nay. Nen khoa MEM:
+       khoa san, va co nut "Sua tay" ngay canh de mo ra. */
+    if (da.length) nccKhoaO([oTen, oDc]);
     if (kq) {
-      kq.innerHTML = '<span style="color:#0f7a44">✓ ' + h(r.ten || '') + '</span>' +
-        (da.length ? '<span style="color:#6b7280"> · đã điền hộ ' + da.join(' và ') + ', sửa lại được</span>'
-                   : '<span style="color:#6b7280"> · giữ nguyên những ô anh chị đã gõ</span>');
+      kq.innerHTML = '<span style="color:#0f7a44;font-weight:700">✓ ' + h(r.ten || '') + '</span>' +
+        (da.length
+          ? '<span style="color:#6b7280"> · máy lấy từ cổng thuế và đã khoá ' + da.join(' và ') +
+            '. <a href="#" id="nccMoKhoa" style="color:#0f766e;font-weight:700">Sửa tay</a></span>'
+          : '<span style="color:#6b7280"> · giữ nguyên những ô anh chị đã gõ</span>');
     }
+    var mk = document.getElementById('nccMoKhoa');
+    if (mk) mk.onclick = function (ev) {
+      ev.preventDefault();
+      nccMoO([oTen, oDc]);
+      var k2 = document.getElementById('nccMstKq');
+      if (k2) k2.innerHTML = '<span style="color:#b45309">Đang sửa tay. ' +
+        'Tên khác với cổng thuế thì hoá đơn điện tử có thể bị từ chối.</span>';
+    };
   };
 
   var lb = document.getElementById('nccLuu');
