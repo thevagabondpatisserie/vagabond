@@ -232,3 +232,19 @@ def _():
 	dung("nằm sau Công nợ nhà cung cấp", i_ncc < i_tt)
 	dung("nằm trước Hoàn ứng có hoá đơn", i_tt < i_hu)
 	dung("đã đổi lời từ Bốn luồng sang Năm luồng", "Năm luồng" in than)
+
+@ca("trả trước: ghi chú của mình phải sống sót qua set_remarks của ERPNext")
+def _():
+	# Bat duoc bang kiem tich hop tren site that 21/08/2026, phieu
+	# APP-26-08-533: dat pe.remarks TRUOC insert thi `validate` goi
+	# `set_remarks()` va dung len, ghi chu bay sach.
+	src = _ma_nguon()
+	dung("KHÔNG đặt thẳng remarks trước khi lưu", "pe.remarks =" not in src)
+	dung("cắt vào ô tạm", "vgb_ghi_chu_tra_truoc" in src)
+	dung("ghi lại sau khi lưu", "_giu_ghi_chu(pe)" in src)
+	dung("bật cờ custom_remarks để ERPNext thôi tự sinh",
+		'db_set("custom_remarks", 1' in src)
+	# Thu tu bat buoc: _giu_ghi_chu phai nam SAU insert.
+	than = src.split("def tao_phieu")[1]
+	dung("gọi sau insert",
+		than.find("pe.insert(") < than.find("_giu_ghi_chu(pe)"))
