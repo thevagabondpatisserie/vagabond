@@ -1,0 +1,133 @@
+<style>
+.apv { font-family:'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif; font-size: 11px; color: #000; }
+.apv table { width: 100%; border-collapse: collapse; }
+.apv .hdr td { border: none; vertical-align: top; }
+.apv .title { text-align:center; font-size:15px; font-weight:bold; margin:14px 0 12px; }
+.apv .meta td { border:none; padding:2px 4px; }
+.apv .meta .lb { width:32%; }
+.apv .meta .vl { font-weight:bold; }
+.apv .sep { border-top:2px solid #000; margin:6px 0; }
+.apv .inv th, .apv .inv td { border:1px solid #000; padding:4px 6px; }
+.apv .inv th { text-align:center; font-weight:bold; }
+.apv .inv td.nd { text-align:left; line-height:1.45; }
+.apv .r { text-align:right; } .apv .c { text-align:center; }
+.apv .sig th, .apv .sig td { border:1px solid #000; padding:6px; }
+</style>
+{% set cb = frappe.get_doc("Bank Account", doc.bank_account) if doc.bank_account else None %}
+{% set pb = frappe.get_doc("Bank Account", doc.party_bank_account) if doc.party_bank_account else None %}
+{#- Ho so doi tac. Payment Entry co the tro sang Supplier hoac Customer nen
+    doc doi tuong theo dung party_type chu khong doan. -#}
+{% set la_ncc = (doc.party_type == "Supplier") %}
+{% set la_khach = (doc.party_type == "Customer") %}
+{#- CHI hoi hai bang Supplier va Customer. Payment Entry con nhan party_type
+    la Employee hay Shareholder, va hai bang do KHONG co cot supplier_name
+    hay customer_name - hoi bua vao la Frappe nem loi cot khong ton tai va
+    ban in ra TRANG. Kieu hong nay chi lo ra dung luc ai do bam nut In. -#}
+{% set dt_ten = (frappe.db.get_value("Supplier", doc.party, "supplier_name") if la_ncc
+	else (frappe.db.get_value("Customer", doc.party, "customer_name") if la_khach else "")) if doc.party else "" %}
+{% set dt_ma = frappe.db.get_value("Supplier", doc.party, "custom_ma_ncc") if la_ncc else "" %}
+{% set dt_mst = (frappe.db.get_value("Supplier", doc.party, "tax_id") if la_ncc
+	else (frappe.db.get_value("Customer", doc.party, "tax_id") if la_khach else "")) if doc.party else "" %}
+{#- O "Ma doi tac" PHAI ra ma dinh danh, khong duoc ra ten cong ty mot lan nua.
+    Uu tien: ma NCC tiem tu dat -> ID cua ban ghi (doc.party) neu no khac ten ->
+    ma so thue. Ly do phai co nhanh cuoi: he nay dat ten ban ghi Supplier bang
+    chinh ten cong ty, nen doc.party va ten cong ty la mot chuoi. In ra hai
+    dong giong het nhau thi o "Ma" khong noi len dieu gi. -#}
+{% set ma_hien = dt_ma or (doc.party if (doc.party and doc.party != dt_ten) else (dt_mst or doc.party)) %}
+{#- Gom cac dong chung tu tham chieu. Khong loc rieng Purchase Invoice nua:
+    tu luong tra truoc NCC (21/08/2026) phieu con neo vao Purchase Order, va
+    luong hoan ung / hoan tien khach thi KHONG neo vao chung tu nao ca. -#}
+{% set dong = [] %}
+{% for rf in doc.references %}
+  {% if rf.reference_doctype == "Purchase Invoice" %}
+    {% set pi = frappe.db.get_value("Purchase Invoice", rf.reference_name, ["bill_no","bill_date","posting_date","remarks"], as_dict=True) %}
+    {% set _ = dong.append({
+      "ngay": (pi.bill_date or pi.posting_date) if pi else None,
+      "so": (pi.bill_no if (pi and pi.bill_no) else rf.reference_name),
+      "loai": "Hoá đơn",
+      "nd": ("Thanh toán hoá đơn mua hàng " ~ rf.reference_name) ~ ((". " ~ pi.remarks) if (pi and pi.remarks) else ""),
+      "tien": rf.allocated_amount }) %}
+  {% elif rf.reference_doctype == "Purchase Order" %}
+    {% set po = frappe.db.get_value("Purchase Order", rf.reference_name, ["transaction_date","schedule_date","grand_total"], as_dict=True) %}
+    {% set mon = frappe.db.get_value("Purchase Order Item", {"parent": rf.reference_name}, "item_name") %}
+    {% set _ = dong.append({
+      "ngay": (po.transaction_date if po else None),
+      "so": rf.reference_name,
+      "loai": "Đơn mua hàng",
+      "nd": ("Trả trước theo đơn mua hàng " ~ rf.reference_name)
+            ~ ((", hàng: " ~ mon) if mon else "")
+            ~ ((". Tổng giá trị đơn " ~ frappe.utils.fmt_money(po.grand_total, 0) ~ " đ") if (po and po.grand_total) else "")
+            ~ ". Khoản trả trước, chưa có hoá đơn, sẽ cấn trừ khi hoá đơn về.",
+      "tien": rf.allocated_amount }) %}
+  {% else %}
+    {% set _ = dong.append({
+      "ngay": doc.posting_date,
+      "so": rf.reference_name,
+      "loai": rf.reference_doctype,
+      "nd": (rf.reference_doctype ~ " " ~ rf.reference_name),
+      "tien": rf.allocated_amount }) %}
+  {% endif %}
+{% endfor %}
+{#- KHONG co chung tu tham chieu nao: hoan ung khong hoa don, hoan tien khach,
+    chi tu tai khoan cong ty. Van PHAI in ra mot dong noi dung giai trinh,
+    lay tu o Dien giai cua phieu. Mot chung tu chi tien ma bang noi dung de
+    trong thi khong giai trinh duoc voi co quan thue. -#}
+{% if not dong %}
+  {% set _ = dong.append({
+    "ngay": doc.reference_date or doc.posting_date,
+    "so": doc.reference_no or "-",
+    "loai": "Chứng từ",
+    "nd": (doc.remarks or doc.custom_noi_dung_tt or "Chi tiền theo đề nghị đã duyệt."),
+    "tien": doc.paid_amount }) %}
+{% endif %}
+{% set chi_hoa_don = dong|selectattr("loai","equalto","Hoá đơn")|list|length == dong|length %}
+{% set bills = doc.references|selectattr("reference_doctype","equalto","Purchase Invoice")|list %}
+<div class="apv">
+<table class="hdr"><tr>
+<td style="width:50%"><img src="/files/vagabond_logo_print.png" width="150" height="62" style="width:150px !important; height:62px !important; object-fit:contain; max-width:150px !important;"></td>
+<td style="width:50%; text-align:right"><b>CÔNG TY TNHH PATISSERIE VAGABOND</b><br>MST: 0318561568<br>9 Trần Cao Vân, Phường Sài Gòn, TP.HCM</td>
+</tr></table>
+<div class="title">CHỨNG TỪ THANH TOÁN / PAYMENT VOUCHER</div>
+<table class="meta">
+<tr><td class="lb">Số chứng từ / Voucher No.:</td><td class="vl">{{ doc.name }}</td></tr>
+<tr><td class="lb">Thanh toán từ / Payment from:</td><td class="vl">CÔNG TY TNHH PATISSERIE VAGABOND{% if cb %} ({{ cb.bank }}{% if cb.branch_code %} - {{ cb.branch_code }}{% endif %}){% endif %}</td></tr>
+<tr><td class="lb">Số tài khoản / Account number:</td><td class="vl">{{ cb.bank_account_no if cb else "" }}</td></tr>
+</table><div class="sep"></div>
+<table class="meta">
+<tr><td class="lb">Thanh toán cho / Payment for:</td><td class="vl">{{ dt_ten or doc.party_name or doc.party }}</td></tr>
+<tr><td class="lb">{{ "Mã NCC / Vendor code:" if la_ncc else ("Mã khách / Customer code:" if la_khach else "Mã đối tác / Party code:") }}</td><td class="vl">{{ ma_hien }}</td></tr>
+{% if dt_mst %}<tr><td class="lb">Mã số thuế / Tax ID:</td><td class="vl">{{ dt_mst }}</td></tr>{% endif %}
+{% if pb %}<tr><td class="lb">Chủ tài khoản / Account holder:</td><td class="vl">{{ pb.account_name }}</td></tr>
+<tr><td class="lb">Số tài khoản / Account number:</td><td class="vl">{{ pb.bank_account_no }}</td></tr>
+<tr><td class="lb">Ngân hàng / Bank name:</td><td class="vl">{{ pb.bank }}</td></tr>{% endif %}
+</table><div class="sep"></div>
+<table class="meta">
+<tr><td class="lb">Nội dung TT / Payment content:</td><td class="vl">{{ doc.custom_noi_dung_tt or ("VAGABOND TT HD " ~ bills|map(attribute="reference_name")|join(", ") ~ " NCC " ~ (dt_ten or doc.party_name or "")) if bills else (doc.custom_noi_dung_tt or doc.reference_no or doc.name) }}</td></tr>
+<tr><td class="lb">Ngày thanh toán / Payment date:</td><td class="vl">{{ frappe.utils.formatdate(doc.reference_date or doc.posting_date, "dd/MM/yyyy") }}</td></tr>
+</table>
+<table class="inv" style="margin-top:8px">
+<tr><th style="width:6%">Số TT<br>No</th><th style="width:13%">{{ "Ngày hóa đơn<br>Invoice date" if chi_hoa_don else "Ngày chứng từ<br>Doc. date" }}</th><th style="width:17%">{{ "Số hóa đơn<br>Invoice number" if chi_hoa_don else "Số chứng từ<br>Document no" }}</th><th>Nội dung / Description</th><th style="width:15%">Số tiền / Amount</th><th style="width:9%">Ghi chú<br>Remark</th></tr>
+{% for r in dong %}
+<tr><td class="c">{{ loop.index }}</td>
+<td class="c">{{ frappe.utils.formatdate(r.ngay, "dd/MM/yyyy") if r.ngay else "" }}</td>
+<td class="c">{{ r.so }}</td>
+<td class="nd">{{ r.nd }}</td>
+<td class="r">{{ frappe.utils.fmt_money(r.tien, 0) }}</td><td></td></tr>
+{% endfor %}
+<tr><td colspan="4"><b>Tổng / Total due this Payment:</b></td><td class="r"><b>{{ frappe.utils.fmt_money(doc.total_allocated_amount or doc.paid_amount, 0) }}</b></td><td></td></tr>
+<tr><td colspan="4">Trừ số tiền đã tạm ứng / Less advance Payment:</td><td class="r">{{ frappe.utils.fmt_money(doc.total_allocated_amount - doc.paid_amount, 0) if (doc.total_allocated_amount or 0) > doc.paid_amount else "-" }}</td><td></td></tr>
+<tr><td colspan="4"><b>Còn lại / Remaining amount:</b></td><td class="r"><b>{{ frappe.utils.fmt_money(doc.paid_amount, 0) }}</b></td><td></td></tr>
+<tr><td colspan="2">Số tiền bằng chữ /<br>Total amount in words:</td><td colspan="4"><b>{% set w = frappe.utils.money_in_words(doc.paid_amount, "VND") %}{{ w.replace("Chỉ VNĐ ","").replace("Only ","").rstrip(". ") }} đồng</b></td></tr>
+</table>
+{% if doc.remarks and doc.references %}
+<table class="meta" style="margin-top:6px"><tr><td class="lb" style="vertical-align:top">Diễn giải / Remarks:</td><td style="line-height:1.45">{{ doc.remarks }}</td></tr></table>
+{% endif %}
+<div style="text-align:center; font-weight:bold; margin:12px 0 6px">PHẦN XÁC NHẬN THANH TOÁN / <i>Payment Certificate</i></div>
+<table class="sig">
+<tr><th style="width:26%">Tiến trình thanh toán<br>Payment process</th><th style="width:34%">Họ và tên<br>Full name</th><th>Chữ ký và ngày ký<br>Signature and Date</th></tr>
+{%- set fin_u = doc.custom_fin_verified_by -%}
+{%- set apr_u = doc.custom_approved_by -%}
+<tr><td><b>Requested By:</b><br><i>Officer/Person in charge</i></td><td class="c">{{ frappe.db.get_value("User", doc.owner, "full_name") or "" }}</td><td class="c" style="height:60px">{{ frappe.utils.format_datetime(doc.creation, "dd/MM/yyyy") }}</td></tr>
+<tr><td><b>Verified By:</b><br><i>FIN(CA)</i></td><td class="c">{{ frappe.db.get_value("User", fin_u, "full_name") if fin_u else "" }}</td><td class="c" style="height:60px">{% if fin_u %}{% set fs = frappe.db.get_value("User", fin_u, "custom_chu_ky") %}{% if fs %}<div><img src="{{ fs }}" style="height:44px"></div>{% endif %}<div>{{ frappe.utils.format_datetime(doc.custom_fin_verified_on, "dd/MM/yyyy HH:mm") if doc.custom_fin_verified_on else "" }}</div>{% endif %}</td></tr>
+<tr><td><b>Approved By:</b><br><i>Director</i></td><td class="c">{{ frappe.db.get_value("User", apr_u, "full_name") if apr_u else "" }}</td><td class="c" style="height:78px">{% if apr_u and doc.workflow_state == "Đã duyệt - Đã ghi sổ" %}{% set asg = frappe.db.get_value("User", apr_u, "custom_chu_ky") %}{% if asg %}<div><img src="{{ asg }}" style="height:60px"></div>{% endif %}<div>{{ frappe.utils.format_datetime(doc.custom_approved_on, "dd/MM/yyyy HH:mm") if doc.custom_approved_on else "" }}</div>{% endif %}</td></tr>
+</table></div>
