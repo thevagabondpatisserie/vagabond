@@ -161,6 +161,12 @@ def gui(nguoi, tieu_de, than, duong_dan="/bep", tag=None):
 	mất một việc thật vì một cái chuông. Nên mọi thứ ở đây đều nuốt lỗi và
 	chỉ ghi log.
 	"""
+	# Bộ kiểm thử tích hợp đang chạy thì TUYỆT ĐỐI không bắn ra ngoài. Điểm
+	# lưu của cơ sở dữ liệu lùi lại được một chứng từ ảo, nhưng không lùi
+	# lại được một cái chuông đã kêu trên điện thoại người thật lúc nửa
+	# đêm. Xem vagabond/khung/kiem_that/nen.py.
+	if frappe.flags.get("vagabond_kiem_that"):
+		return {"gui": 0, "vi_sao": "dang chay kiem thu tich hop"}
 	try:
 		ds = _ds_dang_ky(nguoi)
 		if not ds:

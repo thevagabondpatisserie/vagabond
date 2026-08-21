@@ -113,13 +113,90 @@ tiến, đó là bỏ đi hai năm.
 
 ---
 
-## 5. Bộ kiểm thử
+## 5. Soi mã nguồn gốc trước khi can thiệp vào lõi
+
+**Không có tài liệu nào tốt bằng chính mã nguồn.** Quy tắc này sinh ra ngày
+21/08/2026, sau khi cả tiệm không nhập được hàng vì một hook đúng đề bài
+nhưng sai với luật của ERPNext.
+
+Trước khi viết bất kỳ hook, lớp thay thế hay bản vá nào can thiệp vào các
+doctype lõi của ERPNext - **Kế toán (GL Entry, Journal Entry, Payment
+Entry), Tồn kho (Stock Ledger Entry, Bin, Stock Entry), Mua (Purchase
+Receipt, Purchase Invoice, Purchase Order), Bán (Sales Invoice, Delivery
+Note, Sales Order)** - bắt buộc làm hai bước sau, không được bỏ:
+
+**Bước 1. Kéo mã nguồn gốc về máy.** Đúng nhánh mà site đang chạy:
 
 ```
-python3 vagabond/khung/kiem_thu/chay.py -im   # tầng khung, hơn 240 ca
+mkdir -p /tmp/reference_repos
+git clone --depth 1 -b version-16 https://github.com/frappe/frappe.git   /tmp/reference_repos/frappe
+git clone --depth 1 -b version-16 https://github.com/frappe/erpnext.git  /tmp/reference_repos/erpnext
+```
+
+Đây là repo công khai, `--depth 1` nên chỉ mất chừng nửa phút. Số nhánh
+phải khớp với phiên bản đang chạy, đọc ở Frappe Cloud, đừng đoán.
+
+**Bước 2. Đọc thẳng vào hàm kiểm tra, trước khi đề xuất giải pháp.** Các
+tệp phải soi tuỳ chỗ mình định chạm:
+
+| Chạm vào | Đọc tệp |
+|---|---|
+| Bút toán, sổ cái | `erpnext/accounts/general_ledger.py`, `erpnext/accounts/doctype/gl_entry/gl_entry.py`, `erpnext/accounts/party.py` |
+| Công nợ, cấn trừ | `erpnext/accounts/utils.py` (`get_payment_ledger_entries`), `erpnext/accounts/doctype/payment_entry/` |
+| Chứng từ mua, bán | `erpnext/controllers/accounts_controller.py`, `erpnext/controllers/buying_controller.py`, `erpnext/controllers/selling_controller.py` |
+| Tồn kho | `erpnext/stock/stock_ledger.py`, `erpnext/controllers/stock_controller.py` |
+| Cơ chế nền | `frappe/model/document.py`, `frappe/database/database.py` |
+
+Cách dò nhanh một câu báo lỗi thật đã gặp trên màn hình:
+
+```
+grep -rn "Receivable / Payable" --include=*.py /tmp/reference_repos/erpnext
+grep -rn "def validate_" -A 12 /tmp/reference_repos/erpnext/accounts/doctype/gl_entry/gl_entry.py
+```
+
+**Câu phải tự hỏi và phải trả lời được bằng trích dẫn mã nguồn:** không
+phải "code của mình có đúng không", mà **"hệ lõi có CHO PHÉP làm việc này
+không"**. Hai câu đó khác nhau, và ngày 21/08/2026 mình chỉ hỏi câu thứ
+nhất.
+
+Ví dụ thật, chép nguyên từ `erpnext/accounts/party.py`:
+
+```python
+def validate_account_party_type(self):
+	if self.party_type and self.party:
+		account_type = frappe.get_cached_value("Account", self.account, "account_type")
+		if account_type and (account_type not in ["Receivable", "Payable", "Equity"]):
+			frappe.throw(_("Party Type and Party can only be set for Receivable / Payable account..."))
+```
+
+Mười một dòng này, đọc mất ba mươi giây, đáng lẽ đã tiết kiệm được một
+buổi chiều cả tiệm không nhập được hàng.
+
+Đọc xong thì **chép đoạn điều kiện vào chú thích đầu hàm của mình**, kèm
+đường dẫn tệp. Sáu tháng nữa ERPNext đổi luật thì người sau còn biết chỗ
+mà đối chiếu.
+
+---
+
+## 6. Bộ kiểm thử, HAI TẦNG
+
+### Tầng một: kiểm thử phép thuần, chạy tay không
+
+```
+python3 vagabond/khung/kiem_thu/chay.py -im   # tầng khung, hơn 300 ca
 python3 kiem_diem_otp.py                      # hơn 2000 ca
 python3 kiem_phien_ban.py
 sh kiem_truoc_deploy.sh                        # cổng 8 công đoạn
+```
+
+Chạy được ở mọi nơi, kể cả máy chạy CI của GitHub: không Frappe, không
+site, không thư viện mạng. Ca kiểm nào kéo theo `requests` là ca kiểm đặt
+sai chỗ. Tái hiện môi trường CI ngay tại máy:
+
+```
+mkdir -p /tmp/chanreq
+printf 'raise ImportError("gia lap CI")\n' > /tmp/chanreq/requests.py
+PYTHONPATH=/tmp/chanreq python3 vagabond/khung/kiem_thu/chay.py -im
 ```
 
 Thêm tính năng thì thêm ca kiểm cho nó, trong cùng lần sửa. Ca kiểm phải
@@ -127,9 +204,56 @@ chốt lại **cái bẫy đã làm hỏng**, không chỉ chốt đường đi 
 sẵn có để thấy văn phong: mỗi ca có một câu tiếng Việt nói rõ nó giữ điều
 gì.
 
+### Tầng hai: KIỂM THỬ TÍCH HỢP, bắt buộc với sổ cái và tồn kho
+
+**Tầng một không bao giờ chứng minh được rằng hệ lõi chấp thuận việc mình
+làm.** Ngày 21/08/2026 nó trả về 0 trong khi cả tiệm không nhập được hàng:
+hàm `gan_doi_tac` chạy đúng răm rắp, chỉ có điều ERPNext từ chối cái nó
+vừa điền. Mock và unit test thuần mù trước loại lỗi đó.
+
+Nên: **mọi thay đổi chạm tới GL Entry hoặc Stock Ledger Entry tuyệt đối
+không được chỉ có unit test.** Bắt buộc có ca kiểm tích hợp trong
+`vagabond/khung/kiem_that/`, và ca đó phải:
+
+1. Dựng chứng từ thật (Purchase Receipt, Stock Entry, Sales Invoice...).
+2. Gọi `insert()` rồi `submit()` **ghi thẳng xuống cơ sở dữ liệu**, để
+   ERPNext chạy trọn chuỗi validation của nó.
+3. **Frappe hay ERPNext ném lỗi thì ca kiểm ĐỎ**, kèm nguyên văn câu lỗi.
+4. Đọc lại sổ cái vừa sinh ra và chốt từng điều kiện mình cần.
+
+Chạy nó trên site thật:
+
+```
+bench --site <site> execute vagabond.khung.kiem_that.cua.chay
+```
+
+hoặc gọi cửa `vagabond.khung.kiem_that.cua.chay` từ Desk. Chỉ giám đốc và
+System Manager mở được.
+
+**Ba lớp bảo vệ dữ liệu thật, không được gỡ cái nào:**
+
+- **Điểm lưu.** Mỗi ca chạy trong một `frappe.db.savepoint`, xong thì
+  `frappe.db.rollback(save_point=...)`. Chứng từ ảo tồn tại thật lúc chạy
+  rồi biến mất hoàn toàn.
+- **Khoá tay lái giao dịch.** `frappe.db._disable_transaction_control` bật
+  suốt lúc chạy, để một lời gọi `commit()` lạc trong hook nào đó không ghi
+  chứng từ ảo vào sổ thật. Ca kiểm tự gọi `commit` là phá hỏng cả tầng
+  này, và có ca kiểm tầng khung dò bằng AST để chặn.
+- **Cấm gửi ra ngoài.** Cờ `frappe.flags.vagabond_kiem_that` bật suốt lúc
+  chạy; `thong_bao.gui` đọc cờ đó rồi im lặng. Điểm lưu lùi được một dòng
+  cơ sở dữ liệu, không lùi được một cái chuông đã kêu trên điện thoại
+  người thật.
+
+Kết quả trả về có hai khoá **phải luôn rỗng**: `chung_tu_con_sot` và
+`so_luong_lech`. Không rỗng nghĩa là có chứng từ thử nằm lại trong sổ
+thật, phải đi dọn ngay và báo anh Việt, không được bỏ qua.
+
+**Không ca kiểm tích hợp nào được chạm tới hoá đơn điện tử đã gửi cơ quan
+thuế, và không ca nào được sửa dữ liệu quá khứ.**
+
 ---
 
-## 6. Deploy
+## 7. Deploy
 
 Chỉ anh Việt hoặc phiên đang trực tiếp làm mới được bấm deploy. Không bao
 giờ để trợ lý tự động bấm.
@@ -148,7 +272,7 @@ Trạng thái Success không nói được rằng màn hình bấm được.
 
 ---
 
-## 7. Cách làm việc mong đợi
+## 8. Cách làm việc mong đợi
 
 Đọc trước khi sửa. Sửa nhỏ, sửa đúng chỗ gốc thay vì vá ở ba nơi. Khi hai
 đường cùng chạy được thì chọn đường mà sáu tháng nữa đọc lại vẫn hiểu.
