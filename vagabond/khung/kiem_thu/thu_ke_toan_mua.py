@@ -12,33 +12,69 @@ TK_CU = "335 - Chi phí phải trả - TV"
 TK_KHO = "152 - Nguyên liệu, vật liệu - TV"
 
 
-@ca("ke toan mua: gan doi tac vao dong tai khoan cho hoa don")
-def _gan_dung_dong():
+@ca("ke toan mua: KHONG duoc gan doi tac vao tai khoan cho hoa don")
+def _khong_gan_doi_tac():
+	# Ngay 21/08/2026 Kien khong nhap kho duoc vi hai lop thay the cua v256
+	# dinh doi tac vao dong so cua tai khoan 3311. ERPNext nem loi "Loai doi
+	# tac va Doi tac chi co the duoc dat cho tai khoan Phai thu / Phai tra".
+	# Ba ca duoi day chot lai de khong phien nao dung lai viec do.
+	dung("Payable duoc gan", km.duoc_gan_doi_tac("Payable"))
+	dung("Receivable duoc gan", km.duoc_gan_doi_tac("Receivable"))
+	dung("SRBNB KHONG duoc gan", not km.duoc_gan_doi_tac(km.LOAI_TK))
+	# Ham dinh doi tac cu phai bien mat han, khong duoc de lai de ai do goi.
+	dung("khong con ham gan_doi_tac", not hasattr(km, "gan_doi_tac"))
+
+
+@ca("ke toan mua: hooks KHONG duoc ghi de lop Phieu nhap va Hoa don mua")
+def _hooks_sach():
+	# Doc hooks.py bang chu chu KHONG import: hooks keo ca app, may chay CI
+	# tay khong se no. Doc thang chuoi la du de chot.
+	import os
+
+	tep = os.path.join(os.path.dirname(os.path.abspath(km.__file__)), "hooks.py")
+	noi_dung = open(tep, encoding="utf-8").read()
+	dung("khong con lop_mua_hang", "lop_mua_hang" not in noi_dung)
+	dung("khong ghi de Purchase Receipt",
+		'"Purchase Receipt": "vagabond' not in noi_dung)
+	dung("khong ghi de Purchase Invoice",
+		'"Purchase Invoice": "vagabond' not in noi_dung)
+
+
+@ca("ke toan mua: gom so cai tai khoan cho theo tung nha cung cap")
+def _gom_ncc():
 	dong = [
-		{"account": TK_KHO, "debit": 8640000, "credit": 0},
-		{"account": TK_MOI, "debit": 0, "credit": 8640000},
+		{"voucher_type": "Purchase Receipt", "voucher_no": "PNK-1",
+			"debit": 0, "credit": 5000000},
+		{"voucher_type": "Purchase Receipt", "voucher_no": "PNK-2",
+			"debit": 0, "credit": 3000000},
+		{"voucher_type": "Purchase Invoice", "voucher_no": "HDM-1",
+			"debit": 5000000, "credit": 0},
 	]
-	km.gan_doi_tac(dong, TK_MOI, "NCC-0007")
-	la("ma ncc", dong[1].get("party"), "NCC-0007")
-	la("loai doi tac", dong[1].get("party_type"), "Supplier")
-	# Dong kho tuyet doi khong duoc dinh doi tac: 152 khong phai tai khoan
-	# cong no, gan vao la bao cao tuoi no doc sai ngay.
-	dung("dong kho khong co doi tac", not dong[0].get("party"))
+	tra = {
+		("Purchase Receipt", "PNK-1"): "NCC-0007",
+		("Purchase Receipt", "PNK-2"): "NCC-0009",
+		("Purchase Invoice", "HDM-1"): "NCC-0007",
+	}
+	bang = km.gom_theo_ncc(dong, tra)
+	la("so nha cung cap", len(bang), 2)
+	# NCC-0009 con no 3 trieu nen phai dung truoc, NCC-0007 da can bang.
+	la("xep no nhieu truoc", bang[0]["ncc"], "NCC-0009")
+	la("du co NCC-0009", bang[0]["du_co"], 3000000)
+	la("du co NCC-0007", bang[1]["du_co"], 0)
+	la("tong khop so du tai khoan", sum(x["du_co"] for x in bang), 3000000)
 
 
-@ca("ke toan mua: khong ghi de doi tac ERPNext da dien")
-def _khong_ghi_de():
-	dong = [{"account": TK_MOI, "debit": 0, "credit": 100,
-		"party_type": "Supplier", "party": "NCC-CU"}]
-	km.gan_doi_tac(dong, TK_MOI, "NCC-MOI")
-	la("giu nguyen doi tac cu", dong[0]["party"], "NCC-CU")
-
-
-@ca("ke toan mua: thieu ma nha cung cap thi khong gan bua")
-def _thieu_ncc():
-	dong = [{"account": TK_MOI, "debit": 0, "credit": 100}]
-	km.gan_doi_tac(dong, TK_MOI, None)
-	dung("khong gan bua", not dong[0].get("party"))
+@ca("ke toan mua: chung tu khong tra ra NCC thi gom vao nhom rong")
+def _ncc_khong_ro():
+	# But toan tay chen vao tai khoan cho thi khong co nha cung cap. Phai
+	# giu lai chu khong duoc bo di, neu khong tong bang lech so du tai khoan
+	# ma khong ai biet.
+	dong = [{"voucher_type": "Journal Entry", "voucher_no": "BT-1",
+		"debit": 0, "credit": 700000}]
+	bang = km.gom_theo_ncc(dong, {})
+	la("van giu dong", len(bang), 1)
+	la("nhom rong", bang[0]["ncc"], "")
+	la("tong khong mat", bang[0]["du_co"], 700000)
 
 
 @ca("ke toan mua: doc so cai doan dung tai khoan cho cua phieu nhap")

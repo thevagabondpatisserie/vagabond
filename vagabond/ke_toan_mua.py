@@ -6,9 +6,51 @@ trả người bán, phải nằm trong nhóm 331 và phải theo dõi được 
 nhà cung cấp.
 
 ERPNext gọi chỗ chờ này là "Stock Received But Not Billed" (viết tắt SRBNB
-trong tệp này), khai ở Company. Mặc định ERPNext KHÔNG gắn đối tác vào dòng
-sổ cái của tài khoản đó, nên sổ chi tiết công nợ không biết nợ ai. Tệp này
-vá đúng chỗ đó.
+trong tệp này), khai ở Company. ERPNext KHÔNG gắn đối tác vào dòng sổ cái
+của tài khoản đó, và đó KHÔNG phải thiếu sót có thể vá - đọc mục ngay dưới
+trước khi định vá lại.
+
+KHÔNG BAO GIỜ GẮN ĐỐI TÁC VÀO DÒNG SỔ CỦA TÀI KHOẢN CHỜ - ĐÃ LÀM CHẾT NHẬP KHO
+--------------------------------------------------------------------------
+Ngày 21/08/2026 chiều, Kiên bấm Xác nhận nhập kho trên PNK-2026-00154 và bị
+chặn cứng, cả tiệm không nhập được hàng:
+
+    Loại đối tác và Đối tác chỉ có thể được đặt cho tài khoản
+    Phải thu / Phải trả 3311 - Phải trả người bán, hàng về chưa có hoá đơn
+
+Câu đó do ERPNext ném, ở `erpnext/accounts/party.py`:
+
+    def validate_account_party_type(self):
+        if self.party_type and self.party:
+            account_type = frappe.get_cached_value("Account", self.account,
+                "account_type")
+            if account_type and (account_type not in
+                    ["Receivable", "Payable", "Equity"]):
+                frappe.throw(...)
+
+Nghĩa là ERPNext chỉ cho đính đối tác lên dòng sổ của tài khoản loại
+Receivable, Payable hoặc Equity. Tài khoản chờ của mình mang loại
+"Stock Received But Not Billed", nên đính đối tác vào là **không bao giờ
+hợp lệ**, không phải trục trặc cấu hình.
+
+Hai điều kiện này kẹp nhau thành một cái gọng, phải hiểu rõ mới khỏi đi
+vòng lại:
+
+  * Muốn đính đối tác thì tài khoản phải là Payable.
+  * Nhưng để nó là Payable thì `accounts/utils.get_payment_ledger_entries`
+    sinh Payment Ledger Entry cho MỌI dòng vào tài khoản đó, và số dư hoá
+    đơn mua bị tính sai (ba bước ở mục ngay dưới).
+
+Không có đường nào đi lọt giữa hai cái đó mà không phải chép lại mã nguồn
+ERPNext. Nên chọn: **giữ loại tài khoản SRBNB, BỎ hẳn việc đính đối tác.**
+Chi tiết theo nhà cung cấp lấy từ CHỨNG TỪ chứ không từ trường đối tác, xem
+`gom_theo_ncc` và cửa `so_chi_tiet_ncc` cuối tệp. Cách đó còn chắc hơn, vì
+số liệu bám vào phiếu nhập thật chứ không phụ thuộc một trường có thể quên
+điền.
+
+Bản v256 đã có hai lớp thay thế `PhieuNhapKho` và `HoaDonMua` đính đối tác
+theo đúng đề bài. Chúng bị GỠ ở v261 vì lý do trên. Đừng dựng lại. Đã có ca
+kiểm `ke toan mua: KHONG duoc gan doi tac vao tai khoan cho` chốt việc này.
 
 VÌ SAO KHÔNG TRỎ THẲNG VÀO 331 - đọc trước khi định "sửa cho đúng đề bài"
 ------------------------------------------------------------------------
@@ -60,32 +102,52 @@ TK_DE_NGHI_TEN = "Phải trả người bán, hàng về chưa có hoá đơn"
 # đúng cái bẫy đã tả ở đầu tệp.
 LOAI_TK = "Stock Received But Not Billed"
 
+# Ba loại tài khoản DUY NHẤT mà ERPNext cho đính đối tác lên dòng sổ cái.
+# Chép từ `erpnext/accounts/party.validate_account_party_type` (v16). Tài
+# khoản chờ hoá đơn không nằm trong đây, nên không đính đối tác được.
+LOAI_TK_CHO_DOI_TAC = ("Receivable", "Payable", "Equity")
+
 QUYEN_KT = ("System Manager", "Accounts Manager", "Giám đốc", "AP Giám đốc")
 
 
 # ---------------------------------------------------------------- phép thuần
 
 
-def gan_doi_tac(cac_dong, tk_cho, ma_ncc):
-	"""Gắn đối tác vào các dòng sổ cái rơi vào tài khoản chờ hoá đơn.
+def duoc_gan_doi_tac(loai_tk):
+	"""ERPNext có cho đính đối tác lên dòng sổ của loại tài khoản này không.
 
-	`cac_dong` là danh sách dòng sổ cái ERPNext vừa dựng (mỗi dòng là một
-	từ điển có khoá `account`). Trả về CHÍNH danh sách đó sau khi sửa, để
-	gọi được kiểu `return gan_doi_tac(super().get_gl_entries(), ...)`.
-
-	Không đụng vào dòng đã có đối tác: dòng phải trả của hoá đơn mua cũng
-	nằm trên nhóm 331 và ERPNext đã điền đúng rồi, ghi đè lên là hỏng.
+	Chép đúng điều kiện của `erpnext/accounts/party.validate_account_party_type`
+	trên ERPNext v16. Có hàm này để ca kiểm chốt được rằng tài khoản chờ hoá
+	đơn KHÔNG nằm trong danh sách, chứ không phải để đi vá.
 	"""
-	if not cac_dong or not tk_cho or not ma_ncc:
-		return cac_dong
-	for d in cac_dong:
-		if d.get("account") != tk_cho:
-			continue
-		if d.get("party"):
-			continue
-		d["party_type"] = "Supplier"
-		d["party"] = ma_ncc
-	return cac_dong
+	return loai_tk in LOAI_TK_CHO_DOI_TAC
+
+
+def gom_theo_ncc(cac_dong, ncc_cua_chung_tu):
+	"""Gộp sổ cái tài khoản chờ theo từng nhà cung cấp.
+
+	`cac_dong` là các dòng GL Entry, mỗi dòng có `voucher_type`,
+	`voucher_no`, `debit`, `credit`. `ncc_cua_chung_tu` là từ điển tra mã
+	nhà cung cấp theo chứng từ, khoá dạng `(voucher_type, voucher_no)`.
+
+	Đây là chỗ THAY cho trường đối tác trên dòng sổ. Chứng từ nào không tra
+	ra nhà cung cấp thì gom vào nhóm rỗng chứ không bỏ đi, để tổng luôn
+	khớp số dư tài khoản - kế toán soi thấy chênh là biết ngay.
+	"""
+	gom = {}
+	for d in cac_dong or ():
+		khoa = (d.get("voucher_type"), d.get("voucher_no"))
+		ncc = ncc_cua_chung_tu.get(khoa) or ""
+		o = gom.setdefault(ncc, {"ncc": ncc, "so_dong": 0, "no": 0.0, "co": 0.0})
+		o["so_dong"] += 1
+		o["no"] += flt(d.get("debit"))
+		o["co"] += flt(d.get("credit"))
+	ra = []
+	for o in gom.values():
+		o["du_co"] = o["co"] - o["no"]
+		ra.append(o)
+	# Nợ nhiều xếp trước, rồi tới mã cho dễ dò.
+	return sorted(ra, key=lambda x: (-x["du_co"], x["ncc"]))
 
 
 def tk_cho_theo_so_cai(cac_dong_gl, cac_tk_ung_vien):
@@ -262,6 +324,66 @@ def kiem_tra(cong_ty=None):
 		"tien_chua_hoa_don": sum(
 			flt(p.grand_total) * (100 - flt(p.per_billed)) / 100 for p in chua_hoa_don),
 		"so_nha_cung_cap": len({p.supplier for p in chua_hoa_don}),
+		# Từ v261 phải luôn rỗng. Còn tên lớp nào ở đây nghĩa là có phiên
+		# dựng lại việc đính đối tác, và nhập kho sẽ chết lần nữa.
+		"ghi_de_lop_mua_hang": [
+			x for x in (frappe.get_hooks("override_doctype_class") or {})
+			if x in ("Purchase Receipt", "Purchase Invoice")
+		],
+	}
+
+
+def _ncc_cua_chung_tu(cac_dong):
+	"""Tra mã nhà cung cấp cho từng chứng từ, gọi mỗi loại chứng từ một lần."""
+	theo_loai = {}
+	for d in cac_dong or ():
+		theo_loai.setdefault(d.get("voucher_type"), set()).add(d.get("voucher_no"))
+	ra = {}
+	for loai, cac_ma in theo_loai.items():
+		if loai not in ("Purchase Receipt", "Purchase Invoice"):
+			continue
+		for r in frappe.get_all(loai, filters={"name": ["in", list(cac_ma)]},
+				fields=["name", "supplier"]):
+			ra[(loai, r.name)] = r.supplier
+	return ra
+
+
+@frappe.whitelist()
+def so_chi_tiet_ncc(cong_ty=None, tai_khoan=None):
+	"""Sổ chi tiết hàng về chưa có hoá đơn, tách theo từng nhà cung cấp.
+
+	THAY cho việc đính đối tác lên dòng sổ cái, việc mà ERPNext không cho
+	làm với tài khoản loại "Stock Received But Not Billed" (lý do đầy đủ ở
+	đầu tệp). Nhà cung cấp lấy từ chính phiếu nhập hoặc hoá đơn mua.
+
+	Tổng cột `du_co` của bảng này luôn bằng số dư tài khoản. Lệch là dấu
+	hiệu có bút toán tay chen vào, phải soi chứ không được bỏ qua.
+	"""
+	_chan()
+	cong_ty = cong_ty or _cong_ty_mac_dinh()
+	tk = tai_khoan or tk_cho_hien_tai(cong_ty)
+	if not tk:
+		frappe.throw("Công ty %s chưa khai tài khoản hàng về chưa có hoá đơn."
+			% cong_ty)
+	dong = frappe.get_all("GL Entry", filters={
+		"account": tk, "company": cong_ty, "is_cancelled": 0,
+	}, fields=["voucher_type", "voucher_no", "debit", "credit", "posting_date"],
+		limit_page_length=0)
+	bang = gom_theo_ncc(dong, _ncc_cua_chung_tu(dong))
+	ten_ncc = {}
+	for r in frappe.get_all("Supplier", filters={
+		"name": ["in", [x["ncc"] for x in bang if x["ncc"]] or [""]],
+	}, fields=["name", "supplier_name"]):
+		ten_ncc[r.name] = r.supplier_name
+	for x in bang:
+		x["ten_ncc"] = ten_ncc.get(x["ncc"]) or x["ncc"] or "Không rõ nhà cung cấp"
+	return {
+		"cong_ty": cong_ty,
+		"tai_khoan": tk,
+		"loai_tk": frappe.get_cached_value("Account", tk, "account_type"),
+		"so_dong": len(dong),
+		"du_co_tong": sum(x["du_co"] for x in bang),
+		"theo_ncc": bang,
 	}
 
 
