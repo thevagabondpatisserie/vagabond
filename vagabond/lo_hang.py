@@ -199,6 +199,41 @@ def _kho_khac_con(ma, kho):
 		return []
 
 
+def _cac_ma_thay_the(ma):
+	"""Các mã thay thế đã duyệt cho một mã, cùng đơn vị gốc.
+
+	Đọc bảng Item Alternative theo CẢ HAI chiều (bản ghi khai a-b với cờ
+	hai chiều thì b cũng thay được cho a). Chỉ nhận mã cùng stock_uom:
+	gram thay gram, không để cái thay gram rồi số lượng thành vô nghĩa.
+	"""
+	try:
+		dvt = frappe.get_cached_value("Item", ma, "stock_uom")
+		ra = []
+		for x in frappe.get_all("Item Alternative",
+				filters={"item_code": ma}, pluck="alternative_item_code",
+				limit_page_length=0):
+			ra.append(x)
+		for x in frappe.get_all("Item Alternative",
+				filters={"alternative_item_code": ma, "two_way": 1},
+				pluck="item_code", limit_page_length=0):
+			ra.append(x)
+		loc = []
+		for m in ra:
+			if m == ma or m in loc:
+				continue
+			it = frappe.get_cached_value(
+				"Item", m, ["stock_uom", "disabled", "is_stock_item"],
+				as_dict=True) or {}
+			if it.get("disabled") or not it.get("is_stock_item"):
+				continue
+			if it.get("stock_uom") != dvt:
+				continue
+			loc.append(m)
+		return loc
+	except Exception:
+		return []
+
+
 def gan_lo(doc, method=None):
 	"""Hook before_validate của Stock Entry: điền lô cho các dòng bị trừ.
 
@@ -229,22 +264,57 @@ def gan_lo(doc, method=None):
 				moi.append(x)
 				continue
 			ma, kho = d.item_code, d.s_warehouse
+			# Chia lô theo SỐ LƯỢNG GỐC (stock qty). Dòng khai bằng đơn vị
+			# phụ (Túi, Hộp) mang hệ số quy đổi, mà tồn từng lô thì luôn
+			# tính theo đơn vị gốc - chia theo d.qty trần là chia sai.
+			he_so = flt(d.get("conversion_factor")) or 1
+			can_goc = flt(d.qty) * he_so
 			ton = _ton_tung_lo(ma, kho)
-			phan, thieu = chia_theo_lo(flt(d.qty), _xep_het_han_truoc(ton))
+			phan, thieu = chia_theo_lo(can_goc, _xep_het_han_truoc(ton))
+
+			# Thiếu thì thử MÃ THAY THẾ đã duyệt trước khi chặn: hết bơ
+			# Avonmore mà bơ Anchor còn đầy kệ thì bếp không việc gì phải
+			# đứng chờ. Máy lấy phần thiếu từ mã thay thế, ghi rõ trên
+			# từng dòng để kế toán giá thành lần lại được.
+			phan_thay = []
+			if thieu > LI_TI:
+				for ma_thay in _cac_ma_thay_the(ma):
+					ton_thay = _ton_tung_lo(ma_thay, kho)
+					p2, thieu = chia_theo_lo(thieu, _xep_het_han_truoc(ton_thay))
+					for ten_lo, so in p2:
+						phan_thay.append((ma_thay, ten_lo, so))
+					if thieu <= LI_TI:
+						break
 			if thieu > LI_TI:
 				frappe.throw(
 					cau_thieu_lo(
 						_ten_hang(d, ma), ma, kho, thieu,
-						d.get("uom") or d.get("stock_uom") or "",
+						d.get("stock_uom") or d.get("uom") or "",
 						_kho_khac_con(ma, kho),
 					),
 					title="Thiếu hàng trong kho",
 				)
 			for i, (ten_lo, so) in enumerate(phan):
 				x = _boc(d, giu_ten=(i == 0))
-				x["qty"] = so
+				x["qty"] = round(so / he_so, 6)
 				x["batch_no"] = ten_lo
 				x["use_serial_batch_fields"] = 1
+				moi.append(x)
+			for j, (ma_thay, ten_lo, so) in enumerate(phan_thay):
+				# Giữ tên dòng gốc đúng MỘT lần: nếu mã chính không góp được
+				# lô nào thì dòng thay thế đầu tiên thừa kế tên dòng gốc.
+				x = _boc(d, giu_ten=(not phan and j == 0))
+				x["item_code"] = ma_thay
+				# Dòng thay thế đi bằng đơn vị GỐC cho khỏi kéo hệ số quy
+				# đổi của mã cũ sang mã mới.
+				x["qty"] = so
+				x["uom"] = frappe.get_cached_value("Item", ma_thay, "stock_uom")
+				x["conversion_factor"] = 1
+				x["batch_no"] = ten_lo
+				x["use_serial_batch_fields"] = 1
+				x.pop("item_name", None)
+				x.pop("description", None)
+				x["description"] = "Dùng thay %s đang hết tại kho (mã thay thế đã duyệt)." % ma
 				moi.append(x)
 
 		doc.set("items", [])
