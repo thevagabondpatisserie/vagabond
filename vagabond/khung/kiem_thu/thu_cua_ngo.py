@@ -66,6 +66,13 @@ CUA_NGO = {
 	# chay thu; phai truyen chay_that=1 moi ghi.
 	"phantom.py": ["chung_tu_thu", "chuyen", "dong_lenh", "trang_thai",
 		"xem_truoc"],
+	# Bo don du lieu san xuat mot lan, them 21/08/2026. Moi cua deu
+	# chay_that=0 mac dinh, goi trong chi tra ke hoach.
+	"don_du_lieu.py": ["dat_tran_vuot_lenh", "doi_ten", "don_kho_do_dang",
+		"ma_thay_the", "nap_bom_thu_vien", "nuoc_het_ton"],
+	# Danh muc cong thuc BOM cho bep truong, them 21/08/2026.
+	"cong_thuc.py": ["bo_nhap", "chi_tiet", "danh_sach", "dieu_chinh",
+		"ghi_so", "sua_nhap", "tao_moi"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
 	"email_sach.py": ["kiem"],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
