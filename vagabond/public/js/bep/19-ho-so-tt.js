@@ -345,9 +345,14 @@ var HU_CHUNG_TU = ['Bảng báo giá', 'Hợp đồng mua bán hàng hóa giữa
 function huManHienTai() { return huMode === 'tkct' ? scrChiCongTyTao : scrHoanUngTao; }
 
 async function hsChonLoaiMoi() {
-  var c = await hoiChon('Lập hồ sơ thanh toán', 'Bốn luồng khác nhau về chứng từ lẫn về tiền, chọn đúng loại thì các bước sau tự bày ra cho hợp.', [
+  var c = await hoiChon('Lập hồ sơ thanh toán', 'Năm luồng khác nhau về chứng từ lẫn về tiền, chọn đúng loại thì các bước sau tự bày ra cho hợp.', [
     { k: 'ncc', icon: '🏭', nhan: 'Công nợ nhà cung cấp',
       mo_ta: 'Gom hoá đơn mua đến hạn của một nhà cung cấp, công ty trả thẳng cho họ từ tài khoản MB.' },
+    /* Luong thu nam, anh Viet giao 21/08/2026. Dat ngay duoi Cong no NCC vi
+       hai cai cung la tra tien cho nha cung cap, khac o cho da co hoa don
+       hay chua. Than luong nam trong 30-tra-truoc.js. */
+    { k: 'tt', icon: '⏩', nhan: 'Tạo phiếu thanh toán trước cho NCC',
+      mo_ta: 'Trả trước khi chưa có hoá đơn: đơn in ấn, đơn đặt sản xuất có điều khoản cọc. Neo vào đơn mua hàng, hoá đơn về thì tự cấn trừ.' },
     { k: 'hu_hd', icon: '🧾', nhan: 'Hoàn ứng có hoá đơn',
       mo_ta: 'Uyên đã ứng tiền OCB mua hàng có hoá đơn, hàng đã nhập kho. Chọn nhiều hoá đơn gom chung một hồ sơ để hoàn lại tiền.' },
     { k: 'hu_khd', icon: '🧮', nhan: 'Hoàn ứng không hoá đơn',
@@ -356,6 +361,7 @@ async function hsChonLoaiMoi() {
       mo_ta: 'Chi trả trực tiếp từ tài khoản công ty cho chi phí phát sinh, không qua Purchasing. Kế toán chủ động định khoản.' }
   ]);
   if (!c) return;
+  if (c === 'tt') { ttReset(); return go(scrTraTruocTao); }
   if (c === 'tkct') { huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huChonHd = {}; huLoaiCt = ''; huTep = []; return go(scrChiCongTyTao); }
   if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; return go(scrHoanUngTao); }
   if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
