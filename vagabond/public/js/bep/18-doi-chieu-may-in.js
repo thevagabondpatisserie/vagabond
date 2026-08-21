@@ -237,6 +237,36 @@ async function scrMayIn() {
   }
   miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
   miVe();
+  miVeQz();
+}
+
+/* Do QZ Tray roi thay ruot khoi tinh trang. Tach ra khoi miVe vi miVe
+   duoc goi lai moi lan sua mot o, con do QZ thi cham va khong can lam
+   lai theo tung nhip go. */
+async function miVeQz() {
+  var o = document.getElementById('qzKhoi');
+  if (!o) return;
+  var t;
+  try { t = await inNgamTinhTrang(); }
+  catch (e) { t = { co: 0, loi: (e && e.message) || 'không dò được' }; }
+  if (!document.getElementById('qzKhoi')) return;
+  if (t.co) {
+    o.setAttribute('style', 'padding:12px 14px;background:#ecfdf3;border:1.5px solid #6ce9a6');
+    o.innerHTML = '<b style="font-size:14px;color:#05603a">✅ Máy này đang in ngầm qua QZ Tray</b>' +
+      '<div style="font-size:12.5px;color:#05603a;margin-top:4px;line-height:1.6">' +
+      'Bấm In là giấy ra ngay, không hiện hộp thoại in của trình duyệt.<br>' +
+      'Hoá đơn ra máy <b>' + h(t.may_hoa_don || 'chưa tìm thấy') + '</b><br>' +
+      'Tem ra máy <b>' + h(t.may_tem || 'chưa tìm thấy') + '</b><br>' +
+      '<span style="color:#3b7c60">Máy in QZ thấy được: ' + h((t.may || []).join(', ') || 'không có') + '</span></div>';
+    return;
+  }
+  o.setAttribute('style', 'padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d');
+  o.innerHTML = '<b style="font-size:14px;color:#92400e">Máy này đang in qua hộp thoại trình duyệt</b>' +
+    '<div style="font-size:12.5px;color:#7c4a03;margin-top:4px;line-height:1.6">' +
+    'Lý do: ' + h(t.loi || 'không rõ') + '.<br>' +
+    'In vẫn chạy bình thường, chỉ là thu ngân phải bấm thêm một nhịp và phải đặt sẵn ' +
+    'máy in mặc định trên máy tính. Muốn in thẳng thì cài QZ Tray và dán chứng thư ' +
+    'theo hướng dẫn ở project doc v256.</div>';
 }
 
 /* Doc bon o so tren man ve mot cuc. Ve lai man thi giu nguyen so dang go,
@@ -282,14 +312,12 @@ function miVe() {
     'Khai từng máy in đang có ở các điểm bán, kèm số sê-ri để sau này còn biết máy nào hỏng thì gọi bảo hành cái nào. ' +
     'Khổ giấy khai ở đây được app dùng thật khi in.</div></div>';
 
-  /* Cai bay lon nhat cua man nay la nguoi dung tuong khai xong la phieu tu
-     chay dung may. Noi ngay tu dau, khong giau xuong cuoi. */
-  html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d">' +
-    '<b style="font-size:14px;color:#92400e">Máy in nào in phiếu nào thì đặt ở máy tính</b>' +
-    '<div style="font-size:12.5px;color:#7c4a03;margin-top:4px;line-height:1.6">' +
-    'App in qua hộp thoại in của trình duyệt, mà trình duyệt không cho phần mềm tự chọn máy in. ' +
-    'Nên phần "in loại phiếu nào" dưới đây là để ghi nhớ và để app biết khổ giấy, ' +
-    'còn muốn phiếu chạy đúng máy thì đặt máy in mặc định trên từng máy tính ở quầy.</div></div>';
+  /* Khoi in ngam. Do THAT tren chinh may nay chu khong doc cau hinh: khai
+     dung het ma QZ Tray tren may quay bi tat thi van khong in ngam duoc,
+     va nguoi dung can biet dieu do o day chu khong phai luc dang tinh
+     tien cho khach. scrMayIn thay ruot khoi nay sau khi do xong. */
+  html += '<div class="card" id="qzKhoi" style="padding:12px 14px;background:#f8fafc;border:1.5px solid #e4e7ec">' +
+    '<b style="font-size:14px;color:#344054">⏳ Đang dò QZ Tray trên máy này...</b></div>';
 
   html += '<div class="sec">Khổ giấy từng loại phiếu</div><div class="card">' +
     ((miData.vai_tro || []).map(function (v) {
