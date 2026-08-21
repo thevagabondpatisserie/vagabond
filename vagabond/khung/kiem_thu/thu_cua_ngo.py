@@ -121,11 +121,15 @@ CUA_NGO = {
 		# mot con so nguoi that da doc ben M-Invoice; khong duong nao phat
 		# hanh, huy hay thay the mot to hoa don nao.
 		"ghi_hddt_thay_the", "go_hddt_thay_the", "can_ghi_thay_the",
-		"sepay_tien_ra", "tao", "tao_tien_du", "thong_tin_chuyen_khoan",
+		"sepay_tien_ra", "tao",
+		# tao_huy_nhap va xem_huy_nhap them 21/08/2026: khach chot banh,
+		# chuyen tien, roi huy khi hoa don con nhap. Hai cua nay la loai
+		# phieu thu ba, khong khu doanh thu vi don chua tung ghi so.
+		"tao_huy_nhap", "tao_tien_du", "thong_tin_chuyen_khoan",
 		"tinh_trang", "tu_choi",
 		# xuat_excel them ngay 19/08/2026: chi Dung can danh sach hoan tien
 		# ra tep de theo doi.
-		"xem_tien_du", "xuat_excel",
+		"xem_huy_nhap", "xem_tien_du", "xuat_excel",
 	],
 	# M-Invoice trong ma nguon, them 20/08/2026 sau vu sot hoa don dau vao
 	# tu 14/08. `dong_bo_tu_dong` va `tu_lanh_hang_dem` la nhip lap lich,
