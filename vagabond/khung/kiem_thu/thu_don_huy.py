@@ -120,3 +120,50 @@ def _ba_don_that():
 	la("tong dang giu ho", dh.tien_cho_hoan(bang), 2375000)
 	la("moi don hoan het so da nhan",
 		[dh.muc_hoan(d["da_nhan"]) for d in bang], [705000, 920000, 750000])
+
+
+@ca("don huy: moc quet Pancake phai la UNIX GIAY, truyen chuoi ISO ra 0 don")
+def _moc_unix():
+	# Ca nay sinh ra tu su co that ngay 21/08/2026: v264 deploy sach, dong_bo
+	# chay khong loi, tra ve quet 0 trong khi Pancake dang co ba don huy.
+	# Nguyen nhan: truyen startDateTime kieu "2026-07-22 18:20:00". Pancake
+	# tra HTTP 200 voi data rong, khong he bao loi. Cung cai bay da ghi o dau
+	# tep kiem_banh.py ma phien nay van roi vao.
+	from datetime import datetime, timedelta
+	from zoneinfo import ZoneInfo
+
+	tz = ZoneInfo("Asia/Ho_Chi_Minh")
+	moc = datetime(2026, 8, 21, 18, 20, 0, tzinfo=tz)
+	dau, cuoi = dh.khoang_quet(30, moc)
+	dung("moc dau la so nguyen", isinstance(dau, int))
+	dung("moc cuoi la so nguyen", isinstance(cuoi, int))
+	la("cuoi dung bang moc truyen vao", cuoi, int(moc.timestamp()))
+	la("dau lui dung 30 ngay", cuoi - dau, 30 * 86400)
+	la("mot ngay thi lui dung mot ngay",
+		dh.khoang_quet(1, moc)[0], int((moc - timedelta(days=1)).timestamp()))
+
+
+@ca("don huy: chan hoi quy - tep nguon khong duoc truyen moc quet dang chuoi")
+def _khong_chuoi_iso():
+	# Doc thang ma nguon. Ca tren chi kiem ham thuan, nhung neu mai mot co
+	# nguoi sua lai cho goi Pancake thanh chuoi thi ham thuan van xanh ma
+	# that te van hong. Ca nay dong dinh dung cho goi that.
+	import ast
+	import os
+
+	tep = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+		os.path.abspath(__file__)))), "don_huy.py")
+	with open(tep, encoding="utf-8") as f:
+		cay = ast.parse(f.read())
+	thay = 0
+	for nut in ast.walk(cay):
+		if not isinstance(nut, ast.Dict):
+			continue
+		for khoa, gia_tri in zip(nut.keys, nut.values):
+			if not (isinstance(khoa, ast.Constant)
+					and khoa.value in ("startDateTime", "endDateTime")):
+				continue
+			thay += 1
+			dung("%s phai la bien so nguyen, khong duoc la chuoi hay cat lat"
+				% khoa.value, isinstance(gia_tri, ast.Name))
+	la("van con dung hai moc trong loi goi Pancake", thay, 2)
