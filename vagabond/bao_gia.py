@@ -831,6 +831,9 @@ F_DONG = (
 	"loai", "ma_mon", "ma_tv", "ten_mon", "ten_en", "dvt", "dvt_en", "hinh",
 	"kich_thuoc", "mo_ta", "mo_ta_en", "di_ung_vi", "di_ung_en",
 	"danh_muc_vi", "danh_muc_en",
+	# Tuy bien ruot hop qua, them 21/08/2026. `ruot_hop` la chuoi JSON cua
+	# RIENG dong nay, ma hop goc trong danh muc khong doi. Xem hop_qua.py.
+	"ruot_hop",
 )
 
 
@@ -1155,6 +1158,9 @@ def _do_vao(doc, d):
 		# Kieu chiet khau cua dong. Chi nhan dung hai chuoi da biet, con
 		# lai coi nhu de trong tuc phan tram - QT-19, khong tin may khach.
 		row["kieu_ck"] = x.get("kieu_ck") if x.get("kieu_ck") in (CK_PT, CK_TIEN) else None
+		# Phu thu tuy bien hop: nan qua flt de may khach khong day chu vao o
+		# tien (QT-19, khong tin may khach).
+		row["phu_thu_hop"] = flt(x.get("phu_thu_hop"))
 		# Dong khong khai muc thue thi lay muc cua to, de sales khong phai
 		# go lai tung dong khi ca to cung mot muc.
 		row["thue_pt"] = (
