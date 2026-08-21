@@ -75,7 +75,7 @@ CUA_NGO = {
 		"ghi_so", "sua_nhap", "tao_moi"],
 	# Loi ke toan mua hang, them 21/08/2026. `giu_tk_theo_phieu_nhap` la hook
 	# nen KHONG whitelist, chi hai cua nay mo cho ke toan truong.
-	"ke_toan_mua.py": ["dat_tk_hang_chua_hoa_don", "kiem_tra"],
+	"ke_toan_mua.py": ["dat_tk_hang_chua_hoa_don", "kiem_tra", "so_chi_tiet_ncc"],
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate
 	# cua Work Order nen KHONG whitelist.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_nguoi_phu_trach", "soat_chang"],
