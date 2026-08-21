@@ -40,8 +40,21 @@ import json
 import frappe
 from frappe.utils import cint, flt
 
-QUYEN = ("System Manager", "Giám đốc", "AP Giám đốc", "Sales Manager",
-	"Vagabond Sales", "Accounts Manager")
+# AI SỬA ĐƯỢC BÁO GIÁ THÌ TUỲ BIẾN ĐƯỢC HỘP TRÊN CHÍNH BÁO GIÁ ĐÓ.
+#
+# Ngày 21/08/2026 Loan Anh mở màn báo giá, bấm chip Tuỳ biến hộp và bị chặn,
+# dù chị ấy sửa báo giá bình thường mỗi ngày. Lý do: chỗ này tự chế ra một
+# danh sách vai riêng và bỏ sót "Sales User" - đúng vai mà Loan Anh đang giữ.
+# Anh Việt thêm "Sales Manager" cho chị ấy vẫn không ăn, vì ô nhập vai không
+# lưu và vì kể cả có lưu thì đó cũng là chữa triệu chứng.
+#
+# Nên bỏ hẳn danh sách riêng, dùng thẳng `bao_gia.QUYEN_SUA`. Tuỳ biến hộp
+# không phải một quyền mới: nó là sửa một dòng của tờ báo giá. Hai danh sách
+# cho cùng một việc thì sớm muộn cũng lệch nhau, và người chịu là Sales.
+def _quyen_sua():
+	from vagabond.bao_gia import QUYEN_SUA
+
+	return set(QUYEN_SUA)
 
 # Nhóm hàng nào được coi là hộp quà có ruột. Để rộng vừa đủ: nhóm mùa vụ và
 # nhóm hộp quà. Món ngoài nhóm này vẫn khai ruột được nếu có Product Bundle,
@@ -129,6 +142,37 @@ def don_gia_sau_phu_thu(don_gia_goc, phu_thu):
 	return g if g > 0 else 0.0
 
 
+# BÁNH TRONG HỘP ĐỀU 80 GRAM NÊN ĐỔI NGANG THÌ KHÔNG BÙ TIỀN.
+#
+# Anh Việt chốt 21/08/2026: "nếu đổi bánh thì đổi ngang thôi chứ không bù
+# thêm tiền, bánh vẫn đều là loại 80 grams hết mà". Nên ô phụ thu chỉ có
+# nghĩa khi SỐ MÓN đổi, tức khách thêm bánh hoặc bớt bánh. Đổi món này lấy
+# món kia mà vẫn đủ số thì phụ thu phải là 0.
+#
+# Chốt câu nhắc ở máy chủ chứ không viết cứng trên điện thoại (QT-19), và
+# chỉ NHẮC chứ không chặn: vẫn có ca thật khách xin thêm một bánh và tự
+# nguyện trả tiền, chặn cứng là làm khó Sales.
+def doi_ngang(goc, moi):
+	"""Lần tuỳ biến này có phải đổi ngang không: tổng số món giữ nguyên."""
+	return so_mon(goc) == so_mon(moi)
+
+
+def nhac_phu_thu(goc, moi, phu_thu):
+	"""Câu nhắc cạnh ô phụ thu. Chuỗi rỗng nghĩa là không có gì phải nhắc."""
+	sg, sm = so_mon(goc), so_mon(moi)
+	if sg == sm:
+		if flt(phu_thu):
+			return ("Đổi ngang %s món mà vẫn đang ghi phụ thu. Bánh trong hộp "
+				"đều loại 80 gram nên đổi ngang thì để 0, kiểm lại giúp."
+				% _so(sm))
+		return ""
+	if sm > sg:
+		return ("Hộp chuẩn %s món, hộp này %s món. Khách thêm bánh thì ghi "
+			"phụ thu dương cho đúng." % (_so(sg), _so(sm)))
+	return ("Hộp chuẩn %s món, hộp này %s món. Khách bớt bánh thì ghi phụ thu "
+		"ÂM để trừ tiền." % (_so(sg), _so(sm)))
+
+
 def mo_ta_thay_doi(goc, moi):
 	"""Một câu tiếng Việt tả đúng chỗ khác nhau, để in lên báo giá và cho
 	bếp đọc. Trả chuỗi rỗng nếu không đổi gì."""
@@ -163,8 +207,10 @@ def _so(v):
 
 
 def _chan():
-	if not set(frappe.get_roles()) & set(QUYEN):
-		frappe.throw("Chỉ Sales, kế toán hoặc giám đốc mới tuỳ biến hộp được.")
+	if not set(frappe.get_roles()) & _quyen_sua():
+		frappe.throw(
+			"Tài khoản này không sửa được báo giá nên cũng không tuỳ biến hộp "
+			"được. Nhờ quản lý cấp vai Sales rồi thử lại.")
 
 
 def _ruot_tu_mua_vu(ma_mon):
@@ -288,6 +334,8 @@ def xem_tuy_bien(ma_mon, ruot=None, don_gia_goc=0, phu_thu=0):
 		"mo_ta": mo_ta_thay_doi(goc.get("ruot"), moi),
 		"so_mon": so_mon(moi),
 		"so_mon_goc": so_mon(goc.get("ruot")),
+		"doi_ngang": 1 if doi_ngang(goc.get("ruot"), moi) else 0,
+		"nhac_phu_thu": nhac_phu_thu(goc.get("ruot"), moi, phu_thu),
 		"don_gia_moi": don_gia_sau_phu_thu(don_gia_goc, phu_thu),
 		"phu_thu": flt(phu_thu),
 	}
