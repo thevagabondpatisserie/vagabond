@@ -115,3 +115,23 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: dong bo mau in")
+
+	# Quyen doc Purchase Order cho ba vai duyet phieu chi (anh Viet 21/08/2026).
+	#
+	# Tu v265 phieu tra truoc neo vao Purchase Order, ma ERPNext doc lai
+	# chung tu goc moi lan LUU phieu, nen ai khong doc duoc don mua hang thi
+	# khong duyet duoc phieu. Doc `vagabond/quyen_ap.py` de biet vi sao phai
+	# di qua ham cua Frappe chu khong chen tay dong Custom DocPerm.
+	#
+	# Chay lai duoc: chi cap cai con thieu.
+	try:
+		from vagabond import quyen_ap
+
+		kq = quyen_ap.dung()
+		if kq.get("them"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: cap %d quyen cho vai duyet chi: %s"
+				% (len(kq["them"]), ", ".join(kq["them"]))
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: quyen vai duyet chi")
