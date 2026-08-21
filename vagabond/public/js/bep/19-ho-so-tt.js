@@ -157,7 +157,7 @@ async function scrHoSoTT() {
 var hsTaoNcc = '', hsTaoChon = {}, hsTaoGhiChu = '', hsTaoLoai = 'NCC';
 /* Nguoi da ung tien mua ho, tuc nguoi NHAN lai tien. Chi dung cho luong
    hoan ung co hoa don. */
-var hsTaoNguoiUng = '', hsTaoDsUng = null;
+var hsTaoNguoiUng = '', hsTaoDsUng = null, hsUngTim = '';
 
 async function scrHoSoTTTao() {
   var laHU = hsTaoLoai === 'Hoan ung HD';
@@ -191,6 +191,8 @@ async function scrHoSoTTTao() {
      day nhu truoc la mo duong chuyen nham tien cho ho. */
   if (laHU) {
     var dsu = (hsTaoDsUng && hsTaoDsUng.ncc) || [];
+    var q = hsUngTim.trim().toLowerCase();
+    if (q) dsu = dsu.filter(function (x) { return String(x.ten || x.ncc).toLowerCase().indexOf(q) >= 0; });
     var hay = dsu.filter(function (x) { return x.hay_dung; }).slice(0, 8);
     if (!hay.length) hay = dsu.slice(0, 8);
     html += '<div class="sec">Người được hoàn ứng · bắt buộc</div>' +
@@ -201,7 +203,9 @@ async function scrHoSoTTTao() {
       (hsTaoNguoiUng ? '' :
         '<div style="font-size:12px;color:#b3261e;margin-top:8px;line-height:1.6">' +
         'Chưa chọn ai. Đây là người đã bỏ tiền túi mua hộ và sẽ nhận lại tiền, ' +
-        'không phải nhà cung cấp trên hoá đơn.</div>') + '</div>';
+        'không phải nhà cung cấp trên hoá đơn.</div>') +
+      hsKhungTimNcc('hsUngTim', hsUngTim, hay.length,
+        'Người mới ứng tiền lần đầu thì chưa có hồ sơ. Tạo ở đây rồi chọn luôn.') + '</div>';
   }
 
   html += '<div class="sec">Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ</div>' +
@@ -279,6 +283,15 @@ async function scrHoSoTTTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsu]'), function (el) {
     el.onclick = function () { hsTaoNguoiUng = el.getAttribute('data-hsu'); go(scrHoSoTTTao, true); };
   });
+  var oUt = document.getElementById('hsUngTim');
+  if (oUt) oUt.onchange = function () { hsUngTim = oUt.value.trim(); go(scrHoSoTTTao, true); };
+  hsNoiNutTaoNcc(hsUngTim, function (ma) {
+    /* Tao xong thi nap lai danh sach, khong thi nguoi vua tao khong co
+       trong `hsTaoDsUng` da cache va chip moi khong hien ra. */
+    hsTaoDsUng = null;
+    if (ma) { hsTaoNguoiUng = ma; hsUngTim = ''; }
+    go(scrHoSoTTTao, true);
+  });
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
@@ -344,6 +357,34 @@ var HU_CHUNG_TU = ['Bảng báo giá', 'Hợp đồng mua bán hàng hóa giữa
   'Biên bản bàn giao hàng hóa', 'Biên bản thanh lý hợp đồng', 'Biên bản nghiệm thu'];
 function huManHienTai() { return huMode === 'tkct' ? scrChiCongTyTao : scrHoanUngTao; }
 
+/* KHONG THAY TEN THI PHAI TAO DUOC NGAY TAI CHO
+   -------------------------------------------------
+   Anh Viet 21/08/2026: chi Dung lap phieu dong BHXH, go "BHXH CO SO TAN
+   DINH" roi "bao hiem xa hoi" deu khong ra gi, va man hinh khong co duong
+   nao tao moi. Ca tiem co 520 nha cung cap ma khong co ben bao hiem nao.
+   Bi ket o do thi chi khong lam duoc viec, ma cung khong biet phai di dau.
+
+   Nen moi cho chon nha cung cap deu phai co ba thu: o go tim, cau noi ro
+   la khong tim thay, va nut tao moi mang san chu vua go sang man tao. */
+function hsKhungTimNcc(idO, tuKhoa, soThay, moTaTao) {
+  return '<input class="tin" id="' + idO + '" placeholder="Gõ tên để tìm nhà cung cấp" value="' +
+    h(tuKhoa || '') + '" style="margin-top:9px">' +
+    ((tuKhoa && !soThay)
+      ? '<div style="font-size:12.5px;color:#b45309;margin-top:8px;line-height:1.55">Không có nhà cung cấp nào tên giống "' +
+        h(tuKhoa) + '". Bấm nút dưới để lập hồ sơ mới, máy điền sẵn cái tên vừa gõ.</div>'
+      : '') +
+    '<div style="margin-top:9px;padding-top:9px;border-top:1px dashed #e5e7eb">' +
+    '<button class="btn gh" id="hsTaoNccMoi" style="margin:0">➕ Không thấy tên? Tạo nhà cung cấp mới</button>' +
+    (moTaTao ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' + h(moTaTao) + '</div>' : '') +
+    '</div>';
+}
+
+function hsNoiNutTaoNcc(tuKhoa, chon) {
+  var n = document.getElementById('hsTaoNccMoi');
+  if (!n) return;
+  n.onclick = function () { nccTaoNhanh(tuKhoa, chon); };
+}
+
 async function hsChonLoaiMoi() {
   var c = await hoiChon('Lập hồ sơ thanh toán', 'Năm luồng khác nhau về chứng từ lẫn về tiền, chọn đúng loại thì các bước sau tự bày ra cho hợp.', [
     { k: 'ncc', icon: '🏭', nhan: 'Công nợ nhà cung cấp',
@@ -391,7 +432,8 @@ async function scrHoanUngTao() {
     kmHangChip((hay.concat(khac.slice(0, 24))).map(function (x) {
       return posChipNut('data-hun="' + h(x.ncc) + '"', (x.hay_dung ? '⭐ ' : '') + h(x.ten), huNguoi === x.ncc);
     }).join('')) +
-    '<input class="tin" id="huTim" placeholder="Không thấy tên? gõ để tìm nhà cung cấp" value="' + h(huTim) + '" style="margin-top:9px">' +
+    hsKhungTimNcc('huTim', huTim, (hay.concat(khac)).length,
+      'Người nhận tiền nào cũng phải có hồ sơ nhà cung cấp thì máy mới ghi sổ và theo dõi công nợ được.') +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
@@ -453,6 +495,10 @@ async function scrHoanUngTao() {
   });
   var ot = document.getElementById('huTim');
   if (ot) ot.onchange = function () { huTim = ot.value.trim(); go(scrHoanUngTao, true); };
+  hsNoiNutTaoNcc(huTim, function (ma) {
+    if (ma) { huNguoi = ma; huTim = ''; }
+    go(scrHoanUngTao, true);
+  });
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hux]'); if (!r) return;
     huSuaDong(+r.getAttribute('data-hux'));
@@ -777,7 +823,8 @@ async function scrChiCongTyTao() {
       var ten = x.ten || x.ncc;
       return posChipNut('data-hun="' + h(x.ncc) + '"', (x.hay_dung ? '⭐ ' : '') + h(ten) + (hopLe && x.con_no ? ' · ' + money(x.con_no) : ''), huNguoi === x.ncc);
     }).join('')) +
-    (hopLe ? '' : '<input class="tin" id="huTim" placeholder="Không thấy tên? gõ để tìm nhà cung cấp" value="' + h(huTim) + '" style="margin-top:9px">') +
+    (hopLe ? '' : hsKhungTimNcc('huTim', huTim, ncc.length,
+      'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.')) +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
@@ -880,6 +927,10 @@ async function scrChiCongTyTao() {
   });
   var ot = document.getElementById('huTim');
   if (ot) ot.onchange = function () { huTim = ot.value.trim(); go(scrChiCongTyTao, true); };
+  hsNoiNutTaoNcc(huTim, function (ma) {
+    if (ma) { huNguoi = ma; huTim = ''; }
+    go(scrChiCongTyTao, true);
+  });
   b.addEventListener('click', function (e) {
     var r1 = e.target.closest('[data-hux]');
     if (r1) return huSuaDong(+r1.getAttribute('data-hux'));

@@ -541,6 +541,25 @@ async function scrDuyetYcXem(name, giuMan) {
    Tien to ncc = nha cung cap. Da kiem va cham ten truoc khi dat (QT-28). */
 
 var nccF = null, nccDm = null;
+/* Man tao nha cung cap duoc goi tu NHIEU cho: man Mua hang, va cac man lap
+   ho so thanh toan khi go mai khong ra ten. `nccXongThi` la cho de man goi
+   cai lai mot viec phai lam sau khi luu xong - thuong la quay ve dung man
+   cu voi nha cung cap vua tao da duoc chon san.
+   Anh Viet 21/08/2026: chi Dung lap phieu dong BHXH ma khong tim ra ben
+   BHXH, vi ca tiem chua co ho so nha cung cap nao ten nhu vay va man do
+   khong co duong tao moi. */
+var nccXongThi = null;
+
+function nccTaoNhanh(goiY, xong) {
+  /* Mo man tao nha cung cap, dien san cai ten nguoi ta vua go tim.
+     Go "bao hiem xa hoi" khong ra gi ma bam tao moi thi o Ten phai co san
+     chu do, khong bat go lai lan nua. */
+  nccF = nccOMoi();
+  var g = String(goiY || '').trim();
+  if (g) nccF.ten = g;
+  nccXongThi = xong || null;
+  go(scrNccTao);
+}
 
 function nccOMoi() {
   return {
@@ -688,6 +707,11 @@ async function scrNccTao() {
     busy(0);
     toast((r && r.ghi_chu) || 'Đã lập hồ sơ nhà cung cấp.', 6000);
     nccF = null;
+    /* Co man nao dang doi khong. Lay ra roi XOA NGAY: khong de lai cai bay
+       cho lan sau ai do mo man tao tu man Mua hang lai bi nem di cho khac. */
+    var cb = nccXongThi;
+    nccXongThi = null;
+    if (cb) return cb((r && r.ma) || '', (r && r.ten) || f2.ten);
     back();
   };
 }
