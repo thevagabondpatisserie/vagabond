@@ -303,11 +303,13 @@ update_website_context = ["vagabond.lib.og_theo_ten_mien"]
 # tri tren may tinh) bang thu chi huong dan mo app dien thoai.
 override_doctype_class = {
 	"User": "vagabond.nhan_su.NguoiDung",
-	# Hang ve chua co hoa don phai theo doi duoc theo tung nha cung cap (chi
-	# Dung chot 21/08/2026). ERPNext khong gan doi tac vao dong so cai cua
-	# tai khoan cho hoa don, hai lop nay gan vao. Xem vagabond/ke_toan_mua.py.
-	"Purchase Receipt": "vagabond.lop_mua_hang.PhieuNhapKho",
-	"Purchase Invoice": "vagabond.lop_mua_hang.HoaDonMua",
+	# 21/08/2026: DA GO hai lop PhieuNhapKho va HoaDonMua o day. Chung dinh
+	# doi tac vao dong so cai cua tai khoan cho hoa don, ma ERPNext chi cho
+	# dinh doi tac len tai khoan loai Receivable/Payable/Equity, nen moi
+	# lan Xac nhan nhap kho deu bi chan cung va CA TIEM khong nhap duoc
+	# hang. DUNG DUNG LAI. Chi tiet theo nha cung cap lay tu chung tu, xem
+	# cua `vagabond.ke_toan_mua.so_chi_tiet_ncc`. Ly do day du o dau tep
+	# vagabond/ke_toan_mua.py.
 }
 
 
