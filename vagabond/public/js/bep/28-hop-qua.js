@@ -47,7 +47,36 @@ function hqNhan(x) {
   if (!r.length) return '';
   var t = hqSoMon(r) + ' món';
   if (x.phu_thu_hop) t += ' · phụ thu ' + money(x.phu_thu_hop);
+  else t += ' · đổi ngang';
   return t;
+}
+
+/* DOI NGANG THI KHONG BU TIEN.
+
+   Anh Viet chot 21/08/2026: "neu doi banh thi doi ngang thoi chu khong bu
+   them tien, banh van deu la loai 80 grams het ma". Nen o phu thu chi co
+   nghia khi SO MON doi. Cho nay chi NHAC chu khong chan, va so cuoi cung
+   van do may chu chot (QT-19), day chi la dong chu cho Sales nhin. */
+function hqNhacSoMon(soGoc, soMon, phuThu) {
+  var vang = 'margin-top:11px;padding:10px 12px;background:#fffbeb;' +
+    'border:1.5px solid #fcd34d;border-radius:11px;font-size:12.5px;color:#92400e';
+  var xanh = 'margin-top:11px;padding:10px 12px;background:#ecfdf3;' +
+    'border:1.5px solid #a6f4c5;border-radius:11px;font-size:12.5px;color:#05603a';
+  var t;
+  if (soGoc === soMon) {
+    if (phuThu) {
+      t = 'Đổi ngang <b>' + soMon + '</b> món mà vẫn đang ghi phụ thu ' +
+        money(phuThu) + ' đ. Bánh đều loại 80 gram nên đổi ngang thì để <b>0</b>, kiểm lại giúp.';
+      return '<div id="hq_nhac" style="' + vang + '">' + t + '</div>';
+    }
+    t = 'Đổi ngang <b>' + soMon + '</b> món, không cộng thêm tiền. Đúng ý rồi.';
+    return '<div id="hq_nhac" style="' + xanh + '">' + t + '</div>';
+  }
+  t = 'Hộp chuẩn có <b>' + soGoc + '</b> món, hộp này đang <b>' + soMon + '</b> món. ' +
+    (soMon > soGoc
+      ? 'Khách thêm bánh thì ghi phụ thu <b>dương</b> cho đúng.'
+      : 'Khách bớt bánh thì ghi phụ thu <b>âm</b> để trừ tiền.');
+  return '<div id="hq_nhac" style="' + vang + '">' + t + '</div>';
 }
 
 /* ---------- Hop thoai tuy bien ---------- */
@@ -141,12 +170,7 @@ function hqVe() {
 
   /* Doi chieu so mon. Noi ra chu KHONG chan: co khach xin them mot banh va
      chiu tien, do la viec that chu khong phai loi. */
-  if (e.co_khai_goc && soMon !== soGoc) {
-    s += '<div style="margin-top:11px;padding:10px 12px;background:#fffbeb;' +
-      'border:1.5px solid #fcd34d;border-radius:11px;font-size:12.5px;color:#92400e">' +
-      'Hộp chuẩn có <b>' + soGoc + '</b> món, hộp này đang <b>' + soMon + '</b> món. ' +
-      'Cố ý thì cứ để vậy, nhớ ghi phụ thu cho đúng.</div>';
-  }
+  if (e.co_khai_goc) s += hqNhacSoMon(soGoc, soMon, e.phu_thu);
 
   s += '<div style="font-size:12px;color:#8a8f9c;margin:14px 0 6px">PHỤ THU VÀ ĐƠN GIÁ</div>' +
     '<div style="display:flex;align-items:center;gap:10px;padding:5px 0">' +
@@ -158,8 +182,9 @@ function hqVe() {
     '" style="width:130px;height:38px;border:1.5px solid #e4e7ec;border-radius:9px;' +
     'text-align:right;font-size:14px;padding:0 9px"></div>' +
     '<div style="font-size:12px;color:#98a2b3;line-height:1.55;margin:4px 0 9px">' +
-    'Gõ số âm nếu khách bớt món và được trừ tiền. Phụ thu cộng thẳng vào đơn giá của dòng, ' +
-    'hoá đơn vẫn in một dòng hộp.</div>' +
+    '<b>Đổi bánh này lấy bánh kia thì để 0</b>, bánh trong hộp đều loại 80 gram nên đổi ngang ' +
+    'không bù thêm tiền. Chỉ gõ số khi khách <b>thêm</b> bánh (số dương) hoặc <b>bớt</b> bánh ' +
+    '(số âm, trừ tiền). Phụ thu cộng thẳng vào đơn giá của dòng, hoá đơn vẫn in một dòng hộp.</div>' +
     '<div style="display:flex;align-items:center;gap:10px;border-top:1px solid #f2f4f7;padding-top:10px">' +
     '<span style="width:118px;font-size:13.5px;font-weight:600">Đơn giá mới</span>' +
     '<b id="hq_gia_moi" style="font-size:16.5px;color:#05603a">' +
@@ -175,6 +200,10 @@ function hqVe() {
       hqDocO();
       var g = hqOv.querySelector('#hq_gia_moi');
       if (g) g.textContent = money(Math.max(0, (hqE.don_gia_goc || 0) + (hqE.phu_thu || 0))) + ' đ';
+      var n = hqOv.querySelector('#hq_nhac');
+      if (n && hqE.co_khai_goc) {
+        n.outerHTML = hqNhacSoMon(hqSoMon(hqE.goc), hqSoMon(hqE.ruot), hqE.phu_thu);
+      }
     };
   }
 }
@@ -233,7 +262,8 @@ async function hqApDung() {
   x.mo_ta = kq.mo_ta ? ((cu ? cu + ' ' : '') + '(Tuỳ biến: ' + kq.mo_ta + ')') : cu;
   var ten = e.ten;
   hqDong();
-  toast(kq.mo_ta ? ('Đã ghi: ' + kq.mo_ta) : 'Đã lưu ruột hộp vào dòng.', 5000);
+  toast((kq.mo_ta ? ('Đã ghi: ' + kq.mo_ta) : 'Đã lưu ruột hộp vào dòng.') +
+    (kq.nhac_phu_thu ? ' - ' + kq.nhac_phu_thu : ''), 5000);
   return go(function () { scrBgSua(ten); }, true);
 }
 
