@@ -35,39 +35,39 @@
  ],
  "fields": [
   {
+   "description": "De trong duoc TU 21/08/2026: don Pancake da huy thi khong bao gio co Sales Invoice. Luc do ma don nam o truong ma_don_pancake. Rang buoc mem nam o vagabond/don_huy.py, phai co MOT trong hai.",
    "fieldname": "hoa_don",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Hoa don goc",
    "options": "Sales Invoice",
-   "reqd": 1,
-   "read_only": 1,
-   "in_list_view": 1
+   "read_only": 1
   },
   {
-   "fieldname": "so_hddt",
+   "description": "So hoa don dien tu cua don goc. Co san o day de ke toan khong phai mo don ra tim moi lan can lap hoa don thay the.",
    "fetch_from": "hoa_don.custom_hddt_so",
    "fetch_if_empty": 0,
+   "fieldname": "so_hddt",
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "So hoa don dien tu",
-   "read_only": 1,
-   "description": "So hoa don dien tu cua don goc. Co san o day de ke toan khong phai mo don ra tim moi lan can lap hoa don thay the."
+   "read_only": 1
   },
   {
    "fieldname": "khach",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Khach hang",
    "options": "Customer",
-   "read_only": 1,
-   "in_list_view": 1
+   "read_only": 1
   },
   {
    "fieldname": "so_tien",
    "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "So tien hoan",
-   "read_only": 1,
-   "in_list_view": 1
+   "read_only": 1
   },
   {
    "fieldname": "cb1",
@@ -76,18 +76,18 @@
   {
    "fieldname": "ly_do",
    "fieldtype": "Select",
-   "label": "Ly do hoan",
-   "reqd": 1,
    "in_list_view": 1,
-   "options": "Khach doi y\nBanh hong\nDi ung\nGiao sai mon\nGiao tre\nKhac"
+   "label": "Ly do hoan",
+   "options": "Khach doi y\nBanh hong\nDi ung\nGiao sai mon\nGiao tre\nKhac",
+   "reqd": 1
   },
   {
+   "default": "Cho chi",
    "fieldname": "trang_thai",
    "fieldtype": "Select",
-   "label": "Trang thai",
    "in_list_view": 1,
-   "options": "Cho chi\nDa chi\nDa doi soat\nHoan thanh\nDa huy",
-   "default": "Cho chi"
+   "label": "Trang thai",
+   "options": "Cho chi\nDa chi\nDa doi soat\nHoan thanh\nDa huy"
   },
   {
    "fieldname": "dien_giai",
