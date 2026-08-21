@@ -479,7 +479,11 @@ def _ghi_chu(pe, d, tien, nguon_tien, loai_chung_tu, ghi_chu):
 	gc = (ghi_chu or "").strip()
 	if gc:
 		them += " Ghi chú người lập: %s" % gc
-	pe.remarks = ((pe.get("remarks") or "").strip() + "\n" + them).strip()
+	# Đi qua chung_tu_tien chứ KHÔNG gán thẳng pe.remarks: ERPNext dựng lại ô
+	# này trong validate và xoá mất câu của mình. Xem chung_tu_tien.dat_dien_giai.
+	from vagabond.chung_tu_tien import them_dien_giai
+
+	them_dien_giai(pe, them)
 
 
 def _gan_tep(ten_phieu, tep):

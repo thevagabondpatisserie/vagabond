@@ -1596,6 +1596,8 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 	dong thi Payment Entry co hai ba dong tro cung mot Purchase Invoice, va
 	ERPNext se phan bo chong len nhau - tra 3 trieu ma so sach ghi tra 9.
 	"""
+	from vagabond.chung_tu_tien import dat_dien_giai
+
 	con = [d for d in doc.dong if d.hoa_don]
 	# Chi tu TK cong ty co hai the: chon hoa don GTGT co that thi van la
 	# Payment Entry xoa cong no nhu luong NCC; go tay khoan khong hoa don
@@ -1654,7 +1656,13 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 		pe.received_amount = flt(tong_nhom)
 		pe.reference_no = doc.ma_giao_dich or doc.name
 		pe.reference_date = ngay
-		pe.remarks = "Hồ sơ thanh toán %s - %s" % (doc.name, doc.ten_ncc or doc.nha_cung_cap)
+		dat_dien_giai(pe, "Thanh toán công nợ nhà cung cấp %s theo hồ sơ %s. "
+			"Gồm %d hoá đơn: %s. Số tiền %s đ.%s" % (
+				frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc,
+				doc.name, len(o["hd"]),
+				", ".join(t for t, _x, _y in o["hd"]),
+				"{:,.0f}".format(flt(tong_nhom)),
+				(" Ghi chú: %s" % doc.ghi_chu) if doc.get("ghi_chu") else ""))
 		if phuong_thuc and frappe.db.exists("Mode of Payment", phuong_thuc):
 			pe.mode_of_payment = phuong_thuc
 		for ten_hd, tien, hd in o["hd"]:

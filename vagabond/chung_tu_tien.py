@@ -230,3 +230,67 @@ def tinh_trang(name=None):
 			else "Chưa có Uỷ nhiệm chi đính kèm nên chưa ghi sổ được. Tải UNC từ e-banking rồi đính kèm."
 		),
 	}
+
+
+# ------------------------------------------------- diễn giải trên phiếu tiền
+
+
+# Số ký tự tối đa ghi vào ô Diễn giải. Ô `remarks` của Payment Entry là
+# Small Text nên chứa thoải mái, nhưng cắt lại cho bản in khỏi tràn trang.
+DAI_DIEN_GIAI = 1000
+
+
+def dat_dien_giai(pe, noi_dung):
+	"""Ghi diễn giải lên phiếu tiền VÀ giữ cho ERPNext không xoá mất.
+
+	VÌ SAO PHẢI CÓ HÀM NÀY, ĐỪNG GÁN THẲNG `pe.remarks`
+	----------------------------------------------------
+	Đọc thẳng mã nguồn ERPNext version-16,
+	`erpnext/accounts/doctype/payment_entry/payment_entry.py`:
+
+	    def set_remarks(self):
+	        if self.custom_remarks:
+	            return
+	        ...
+	        self.set("remarks", "\\n".join(remarks))
+
+	Hàm này nằm trong `validate()` (dòng 189). Nghĩa là mỗi lần lưu phiếu,
+	ERPNext DỰNG LẠI ô Diễn giải từ đầu bằng câu máy sinh kiểu "Amount VNĐ
+	3600000.0 paid to ... adjusted against Purchase Order ...", và GHI ĐÈ
+	lên câu mình vừa viết. Trừ đúng một trường hợp: `custom_remarks` bật.
+
+	Và hook `validate` của app chạy SAU hàm của lớp, xem
+	`frappe/model/document.py::Document.hook.compose` - `fn(self)` chạy
+	trước rồi mới tới các hook. Nên không sửa lại được ở hook validate của
+	mình mà không hiểu rõ thứ tự.
+
+	Anh Việt phát hiện 21/08/2026 khi in thử Chứng từ thanh toán: ô Diễn
+	giải trên phiếu APP-26-08-534 ra nguyên câu tiếng Anh của ERPNext,
+	trong khi mã nguồn của mình rõ ràng có ghi câu tiếng Việt đầy đủ. Lỗi
+	này ăn vào CẢ NĂM luồng sinh Payment Entry, không riêng luồng nào.
+
+	Hàm trả về chính `pe` để gọi nối chuỗi cho gọn.
+	"""
+	noi_dung = " ".join(str(noi_dung or "").split())
+	if not noi_dung:
+		return pe
+	pe.remarks = noi_dung[:DAI_DIEN_GIAI]
+	# Bật cờ NGAY SAU khi ghi, đừng tách ra chỗ khác: tách ra là có ngày ai
+	# đó xoá nhầm một dòng rồi cả câu diễn giải biến mất mà không ai hay.
+	try:
+		if pe.meta.has_field("custom_remarks"):
+			pe.custom_remarks = 1
+	except Exception:
+		# Bản ERPNext nào không có ô đó thì thôi, đừng làm hỏng cả luồng chi
+		# tiền chỉ vì một ô ghi chú.
+		pass
+	return pe
+
+
+def them_dien_giai(pe, noi_dung):
+	"""Nối thêm một đoạn vào diễn giải đang có, vẫn giữ cờ chống ghi đè."""
+	cu = " ".join(str(pe.get("remarks") or "").split())
+	moi = " ".join(str(noi_dung or "").split())
+	if not moi:
+		return pe
+	return dat_dien_giai(pe, (cu + " " + moi).strip() if cu else moi)
