@@ -94,6 +94,42 @@ LY_DO_DU = (
 LOAI_TRA_HANG = "Tra hang"
 LOAI_TIEN_DU = "Tien nop thua"
 
+# --------------------------------------------------- huy don chua ghi so
+#
+# Anh Viet 21/08/2026: khach chot banh, chuyen tien, hai ba tieng sau bao
+# huy. Hoa don moi o dang nhap nen khong co gi de dinh vao phieu hoan tien.
+#
+# VI SAO PHAI CO CUA RIENG, KHONG DUNG LAI HAI CUA CU
+#
+# Ca hai luong cu deu neo vao mot hoa don DA GHI SO. `_kiem_tra_duoc` tu
+# choi thang moi hoa don docstatus khac 1, va cau tu choi la "Bill chua ghi
+# so thi sua hoac huy thang la duoc". Cau do dung khi chua co dong nao chay
+# qua, nhung o day tien khach DA VE that. Huy thang thi con lai mot khoan
+# tien vao khong chung tu va mot khoan tien ra khong chung tu.
+#
+# CAI BAY THAT SU KHONG NAM O KE TOAN, NO NAM O DONG HO
+#
+# `ban_hang.tu_ghi_so_cuoi_ngay` chay khoang 23:00 moi ngay, quet don
+# Pancake con nhap va TU GHI SO nhung don da du dieu kien, roi phat hanh
+# hoa don dien tu luon. "Du dieu kien" chinh la chuyen khoan va SePay da
+# thay du tien - dung cai don nay. No chi chua ra don co co `vgb_huy`.
+#
+# Nen viec dau tien cua `tao_huy_nhap` khong phai lap phieu, ma la DANH DAU
+# HUY cai don nhap do. Danh dau truoc, lap phieu sau. Lam nguoc lai ma buoc
+# sau hong thi con lai mot don chua danh dau, va toi 23:00 no thanh mot to
+# hoa don dien tu da gui co quan thue cho cai banh chua bao gio lam - dung
+# vung cam anh Viet chot 13/08.
+LOAI_HUY_NHAP = "Huy don chua ghi so"
+
+LY_DO_HUY = (
+	"Khach doi y",
+	"Khach dat nham ngay",
+	"Bep khong kip lam",
+	"Het nguyen lieu",
+	"Trung don",
+	"Khac",
+)
+
 # Chu tieng Viet cho hai o Select. Chi dung khi XUAT RA cho nguoi doc (tep
 # Excel cua chi Dung); trong co so du lieu van la chuoi khong dau, vi doi
 # gia tri Select la phai chay len toan bo du lieu cu.
@@ -101,6 +137,7 @@ NHAN_LOAI_HOAN = {
 	"": "Trả hàng",
 	LOAI_TRA_HANG: "Trả hàng",
 	LOAI_TIEN_DU: "Tiền nộp thừa",
+	LOAI_HUY_NHAP: "Huỷ đơn chưa ghi sổ",
 }
 NHAN_TRANG_THAI = {
 	"Cho chi": "Chờ chi",
@@ -153,6 +190,34 @@ def tran_tien_du(da_nhan, tong_don):
 	return True, du, ""
 
 
+def tran_huy_nhap(da_nhan, tong_don):
+	"""So tien toi da duoc tra lai khi huy mot don CHUA GHI SO. THUAN.
+
+	Tra ve (duoc, tran, cau_nhac).
+
+	Tran la so tien THAT SU DA NHAN, khong phai tong don. Hai con so nay
+	khac nhau o ca khach dat coc mot phan: don 2.000.000 ma khach moi chuyen
+	500.000 thi huy don chi duoc tra lai 500.000. Lay tong don lam tran o
+	day la mo duong chi ra mot khoan chua bao gio nhan duoc.
+
+	Chua thay dong nao ve thi KHONG lap phieu. Khong co tien vao thi khong
+	co gi de tra, va cai can lam chi la bam Huy don.
+	"""
+	nhan, tong = flt(da_nhan), flt(tong_don)
+	if nhan <= 0.5:
+		return False, 0.0, (
+			"Máy chưa thấy đồng nào về cho đơn này nên chưa có gì để hoàn. Nếu chỉ "
+			"cần huỷ đơn thì bấm nút Huỷ đơn là đủ. Còn nếu chắc chắn khách đã "
+			"chuyển thật mà máy không thấy, mở màn Đối soát kiểm lại trước, đừng "
+			"lập phiếu chi khi chưa biết tiền có về hay không."
+		)
+	if tong > 0 and nhan > tong + 0.5:
+		# Khach chuyen vuot roi huy: van tra lai DUNG so da nhan, ca phan
+		# vuot. Ghi lai o day de nguoi doc sau khong tuong la bo sot.
+		return True, round(nhan, 0), ""
+	return True, round(nhan, 0), ""
+
+
 def _tien_da_nhan(si):
 	"""Tien SePay da nhan cho mot hoa don. Khong doc duoc thi tra 0."""
 	try:
@@ -178,11 +243,13 @@ TRUONG_MOI = {
 			# la phieu tra hang, va khong co lenh nao chay len du lieu cu.
 			"fieldname": "loai_hoan", "label": "Loại phiếu",
 			"fieldtype": "Select", "insert_after": "so_tien",
-			"options": "\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU)),
+			"options": "\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU, LOAI_HUY_NHAP)),
 			"read_only": 1,
 			"description": (
 				"Trả hàng thì khử doanh thu bằng hoá đơn trả hàng. Tiền nộp thừa "
-				"thì KHÔNG đụng doanh thu, chỉ trả lại khoản khách chuyển dư."
+				"và Huỷ đơn chưa ghi sổ thì KHÔNG đụng doanh thu: một bên trả lại "
+				"khoản khách chuyển dư, một bên trả lại tiền của đơn chưa từng "
+				"được ghi nhận doanh thu."
 			),
 		},
 		{
@@ -980,6 +1047,203 @@ def _kiem_tra_duoc(si):
 		)
 
 
+def _kiem_huy_nhap_duoc(si):
+	"""Don nhap nay co lap phieu huy va hoan tien duoc khong.
+
+	Nguoc han `_kiem_tra_duoc`: o kia doi docstatus PHAI bang 1, o day doi
+	PHAI bang 0. Hai cua khong dung chung duoc mot phep kiem.
+	"""
+	if cint(si.docstatus) != 0:
+		frappe.throw(
+			"Hoá đơn %s đã ghi sổ rồi nên không dùng cửa này. Đơn đã ghi sổ thì "
+			"dùng nút Hoàn tiền hoặc Chuyển lại tiền dư, vì lúc đó doanh thu đã "
+			"ghi nhận và phải khử bằng một tờ ngược chiều." % si.name
+		)
+	if cint(si.get("vgb_tam_tinh") or 0):
+		frappe.throw(
+			"Phiếu %s là phiếu tạm tính, tức phiếu giữ món chứ khách chưa trả "
+			"tiền. Không có khoản nào để hoàn." % si.name
+		)
+	# Don nhap thi khong the co hoa don dien tu. Neu co that thi du lieu dang
+	# o trang thai khong ai luong truoc duoc, dung cho may tu quyet.
+	so_hddt = (si.get("custom_hddt_so") or "").strip()
+	if so_hddt:
+		frappe.throw(
+			"Đơn %s còn ở dạng nháp mà đã mang số hoá đơn điện tử %s. Đây là "
+			"trạng thái bất thường, máy không tự xử. Báo anh Việt trước khi làm "
+			"gì tiếp." % (si.name, so_hddt)
+		)
+	ho = frappe.db.get_value(
+		DT, {"hoa_don": si.name, "trang_thai": ["!=", "Da huy"]},
+		["name", "trang_thai"], as_dict=True,
+	)
+	if ho:
+		frappe.throw(
+			"Đơn %s đã có phiếu hoàn tiền %s đang ở trạng thái \"%s\". Mở màn Hoàn "
+			"tiền để xem, đừng gửi thêm phiếu thứ hai."
+			% (si.name, ho["name"], ho["trang_thai"])
+		)
+
+
+@frappe.whitelist()
+def xem_huy_nhap(si_name=None):
+	"""Don nhap nay huy va hoan lai duoc bao nhieu. Man hinh hoi TRUOC khi mo form."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	si = frappe.get_doc(SI, si_name)
+	nhan = _tien_da_nhan(si)
+	duoc, tran, nhac = tran_huy_nhap(nhan, flt(si.grand_total))
+	cu = frappe.db.get_value(
+		DT, {"hoa_don": si.name, "trang_thai": ["!=", "Da huy"]},
+		["name", "trang_thai", "so_tien", "loai_hoan"], as_dict=True,
+	)
+	da_huy = cint(si.get("vgb_huy") or 0)
+	return {
+		"duoc": 1 if duoc and not cu and cint(si.docstatus) == 0 else 0,
+		"tran": tran,
+		"da_nhan": nhan,
+		"tong_don": flt(si.grand_total),
+		"da_huy": da_huy,
+		"ly_do": list(LY_DO_HUY),
+		"da_co": cu or None,
+		"vi_sao": (
+			("Đơn này đã có phiếu %s đang ở trạng thái \"%s\", xử lý xong phiếu đó "
+			 "rồi mới lập phiếu mới được." % (cu["name"], cu["trang_thai"])) if cu
+			else ("Hoá đơn này đã ghi sổ rồi, dùng nút Hoàn tiền chứ không dùng cửa này."
+			      if cint(si.docstatus) != 0 else nhac)
+		),
+	}
+
+
+@frappe.whitelist()
+def tao_huy_nhap(
+	si_name=None,
+	ly_do=None,
+	dien_giai="",
+	so_tien=0,
+	ten_tk="",
+	so_tk="",
+	ngan_hang="",
+	sdt_khach="",
+	otp=None,
+	tep=None,
+):
+	"""Huy mot don CHUA GHI SO va tra lai tien khach da chuyen.
+
+	Anh Viet giao 21/08/2026.
+
+	THU TU HAI BUOC KHONG DUOC DAO
+	------------------------------
+	Danh dau huy don TRUOC, lap phieu SAU.
+
+	Lam nguoc lai ma buoc sau hong thi con lai mot don nhap chua danh dau,
+	va chuoi cuoi ngay luc 23:00 se ghi so no roi phat hanh hoa don dien tu.
+	Con lam dung thu tu ma buoc sau hong thi chi con mot don da huy khong co
+	phieu hoan - kho chiu, nhung sua lai duoc bang cach bam lai, va khong to
+	hoa don thue nao bi dinh vao.
+
+	VE KE TOAN
+	----------
+	Tien khach chuyen vao khi chua giao hang va chua ghi so KHONG phai doanh
+	thu. Do la tien khach ung truoc, minh giu ho va dang no khach dung bang
+	so do. Huy don la tra lai khoan giu ho. Nen o day KHONG lap hoa don tra
+	hang, khong khu doanh thu, khong dinh gi den hoa don dien tu - giong het
+	luong Tien nop thua, chi khac ly do.
+
+	OTP: dat co huy la thao tac da co san mot chot kiem soat la ma OTP quan
+	ly. Cua moi nay dung lai dung chot do chu khong tu mo mot duong vong.
+	"""
+	from vagabond import chung_tu
+	from vagabond.ban_hang import _ghi_vet, _kiem_quyen, _otp_kiem
+
+	_kiem_quyen()
+	si = frappe.get_doc(SI, si_name)
+	_kiem_huy_nhap_duoc(si)
+
+	ly_do = (ly_do or "").strip()
+	if ly_do not in LY_DO_HUY:
+		frappe.throw("Phải chọn lý do huỷ. Chọn một trong: %s." % ", ".join(LY_DO_HUY))
+	if ly_do == "Khac" and not (dien_giai or "").strip():
+		frappe.throw("Lý do \"Khác\" thì phải ghi rõ vì sao huỷ. Gõ vào ô Diễn giải giúp em.")
+
+	# TRAN TINH LAI O MAY CHU (QT-19), khong tin con so man hinh gui len.
+	nhan = _tien_da_nhan(si)
+	duoc, tran, nhac = tran_huy_nhap(nhan, flt(si.grand_total))
+	if not duoc:
+		frappe.throw(nhac)
+	tien = flt(so_tien) or tran
+	if tien > tran + 0.5:
+		frappe.throw(
+			"Số tiền hoàn (%s đ) lớn hơn số máy thấy đã nhận cho đơn này (%s đ). "
+			"Chỉ trả lại được đúng phần đã thật sự nhận."
+			% (_tien_vn(tien), _tien_vn(tran))
+		)
+
+	tk = re.sub(r"\s+", "", str(so_tk or ""))
+	if not tk or not (ten_tk or "").strip() or not (ngan_hang or "").strip():
+		frappe.throw(
+			"Còn thiếu thông tin tài khoản nhận tiền. Điền đủ tên ngân hàng, số tài "
+			"khoản và tên chủ tài khoản của khách rồi gửi lại."
+		)
+
+	cach = _otp_kiem(otp, "huỷ đơn chưa ghi sổ và hoàn tiền")
+
+	ghi = ("[Huỷ đơn chưa ghi sổ] %s. %s" % (ly_do, (dien_giai or "").strip())).strip()
+
+	# BUOC MOT: danh dau huy. Lam truoc de chuoi ghi so cuoi ngay khong bao
+	# gio cham toi don nay nua, ke ca khi buoc hai o duoi hong.
+	if not cint(si.get("vgb_huy") or 0):
+		_ghi_vet(
+			si.name,
+			"Huỷ đơn chưa ghi sổ và hoàn %s đ cho khách. Lý do: %s"
+			% (_tien_vn(tien), ly_do),
+			cach,
+		)
+		chung_tu.danh_dau_huy(si, ghi, ghi_vet=False)
+		frappe.db.commit()
+
+	# BUOC HAI: lap phieu gui ke toan.
+	ho_so = frappe.get_doc({
+		"doctype": DT,
+		"hoa_don": si.name,
+		"khach": si.customer,
+		"so_tien": tien,
+		"loai_hoan": LOAI_HUY_NHAP,
+		"ly_do": "Khac",
+		"dien_giai": ghi,
+		"trang_thai": "Cho chi",
+		"ten_tk": (ten_tk or "").strip(),
+		"so_tk": tk,
+		"ngan_hang": (ngan_hang or "").strip() or None,
+		"sdt": sdt(sdt_khach) or "",
+		"nguoi_duyet": frappe.session.user,
+		"cach_duyet": "Gui duyet tu man Chi tiet don (huy don chua ghi so)",
+		"noi_dung_ck": noi_dung_ck(si.name),
+	})
+	ho_so.flags.ignore_permissions = True
+	ho_so.insert(ignore_permissions=True)
+
+	anh = _doc_tep(tep)
+	dinh = _dinh_kem(ho_so.name, anh) if anh else 0
+	frappe.db.commit()
+
+	da_gui, nguoi_nhan = _bao_ke_toan(ho_so, si)
+	return {
+		"ok": 1,
+		"ho_so": ho_so.name,
+		"so_tien": tien,
+		"tran": tran,
+		"da_nhan": nhan,
+		"tong_don": flt(si.grand_total),
+		"da_huy_don": 1,
+		"so_anh": dinh,
+		"noi_dung_ck": ho_so.noi_dung_ck,
+		"da_bao_ke_toan": da_gui,
+		"nguoi_nhan": nguoi_nhan,
+	}
+
+
 def _sinh_chung_tu(ho_so):
 	"""Nhip 2: TIEN DA RA THAT roi thi moi sinh chung tu.
 
@@ -1003,37 +1267,54 @@ def _sinh_chung_tu(ho_so):
 	if ho_so.get("hoa_don_tra"):
 		return {"bo_qua": 1, "vi_sao": "Hồ sơ này đã sinh chứng từ rồi."}
 	si = frappe.get_doc(SI, ho_so.hoa_don)
+	loai = (ho_so.get("loai_hoan") or "").strip()
+
+	# HAI LOAI PHIEU KHONG DUNG TOI DOANH THU di chung mot duong: chi mot
+	# phieu chi, khong hoa don tra hang, khong thu hoi diem, khong phieu kho.
+	#
+	# TIEN NOP THUA: khach nhan du hang, gia dung, doanh thu dung. Khoan du
+	# la tien minh giu ho khach. Khu doanh thu de tra mot khoan nop thua la
+	# ghi sai ban chat, va lam so lech voi to hoa don dien tu dang DUNG.
+	#
+	# HUY DON CHUA GHI SO: don chua bao gio duoc ghi nhan doanh thu, khong co
+	# gi de khu. Tien khach chuyen vao khi chua giao hang la tien ung truoc,
+	# minh giu ho. Lap hoa don tra hang o day la khu mot khoan doanh thu chua
+	# ton tai, va de lam duoc dieu do thi truoc het phai ghi so mot to hoa
+	# don khong co that.
+	#
+	# Nhanh nay dat TRUOC phep tim Kho Hang Huy la co y: hai loai phieu nay
+	# khong dung den kho, nen mot cai kho chua dung xong khong duoc phep chan
+	# duong tra tien cho khach.
+	if loai in (LOAI_TIEN_DU, LOAI_HUY_NHAP):
+		pe = _lap_phieu_chi_du(si, ho_so)
+		ho_so.phieu_chi = pe.name if pe else None
+		ho_so.dien_giai = (
+			(ho_so.dien_giai or "").strip()
+			+ ("\n" if ho_so.dien_giai else "")
+			+ (
+				("Trả lại tiền khách nộp thừa. KHÔNG lập hoá đơn trả hàng, doanh thu "
+				 "của đơn giữ nguyên %s đ và hoá đơn điện tử không phải điều chỉnh."
+				 % _tien_vn(si.grand_total))
+				if loai == LOAI_TIEN_DU
+				else
+				("Trả lại tiền của đơn đã huỷ khi còn ở dạng nháp. Đơn chưa từng "
+				 "được ghi sổ nên KHÔNG có doanh thu để khử, KHÔNG lập hoá đơn trả "
+				 "hàng và KHÔNG có hoá đơn điện tử nào phải xử lý.")
+			)
+		).strip()
+		ho_so.flags.ignore_permissions = True
+		ho_so.save(ignore_permissions=True)
+		return {
+			"bo_qua": 0, "hoa_don_tra": "", "phieu_kho": "",
+			"phieu_chi": ho_so.phieu_chi, "toan_bo": 0, "loai": loai,
+		}
+
 	kho = kho_huy(si.company)
 	if not kho:
 		frappe.log_error("Chua dung duoc Kho Hang Huy", "hoan_tien: sinh chung tu loi")
 		return {"bo_qua": 1, "vi_sao": "Chưa dựng được Kho Hàng Hủy."}
 
 	tien = flt(ho_so.so_tien)
-
-	# Phieu TIEN NOP THUA di duong khac han: khong lap hoa don tra hang,
-	# khong thu hoi diem, khong phieu kho. Chi mot phieu chi.
-	#
-	# Vi sao khong khu doanh thu: khach nhan du hang, gia dung, doanh thu
-	# dung. Khoan du la tien minh giu ho khach chu khong phai doanh thu.
-	# Khu doanh thu de tra mot khoan nop thua la ghi sai ban chat, va se lam
-	# so lech voi to hoa don dien tu dang DUNG.
-	if (ho_so.get("loai_hoan") or "") == LOAI_TIEN_DU:
-		pe = _lap_phieu_chi_du(si, ho_so)
-		ho_so.phieu_chi = pe.name if pe else None
-		ho_so.dien_giai = (
-			(ho_so.dien_giai or "").strip()
-			+ ("\n" if ho_so.dien_giai else "")
-			+ ("Trả lại tiền khách nộp thừa. KHÔNG lập hoá đơn trả hàng, doanh thu "
-			   "của đơn giữ nguyên %s đ và hoá đơn điện tử không phải điều chỉnh."
-			   % _tien_vn(si.grand_total))
-		).strip()
-		ho_so.flags.ignore_permissions = True
-		ho_so.save(ignore_permissions=True)
-		return {
-			"bo_qua": 0, "hoa_don_tra": "", "phieu_kho": "",
-			"phieu_chi": ho_so.phieu_chi, "toan_bo": 0, "loai": LOAI_TIEN_DU,
-		}
-
 	toan_bo = tien >= flt(si.grand_total) - 0.5
 
 	tra = _lap_hoa_don_tra(si, kho, ho_so.ly_do, ho_so.name, tien)
@@ -1254,7 +1535,11 @@ def _thu_hoi_diem(si, ma_tra, ly_do):
 
 
 def _lap_phieu_chi_du(si, ho_so):
-	"""Phieu chi tra lai tien khach nop thua, de o trang thai NHAP.
+	"""Phieu chi cho hai loai KHONG dung toi doanh thu, de o trang thai NHAP.
+
+	Dung chung cho phieu Tien nop thua va phieu Huy don chua ghi so. Ca hai
+	deu tra lai mot khoan tien minh dang giu ho khach, khac nhau o ly do chu
+	khong khac o but toan.
 
 	Khac phieu chi cua luong tra hang o mot diem cot loi: KHONG tro vao mot
 	hoa don nao ca. Khoan nay khong gan voi doanh thu cua to hoa don, no la
@@ -1290,12 +1575,21 @@ def _lap_phieu_chi_du(si, ho_so):
 		pe.reference_no = ho_so.noi_dung_ck or noi_dung_ck(si.name)
 		pe.reference_date = nowdate()
 		pe.vgb_hoan_tien = ho_so.name
-		pe.remarks = (
-			"Trả lại tiền khách nộp thừa cho đơn %s theo phiếu %s. Khách đã chuyển "
-			"dư so với giá trị đơn; doanh thu của đơn giữ nguyên, KHÔNG lập hoá đơn "
-			"trả hàng và KHÔNG điều chỉnh hoá đơn điện tử. Nội dung chuyển khoản: %s"
-			% (si.name, ho_so.name, ho_so.noi_dung_ck)
-		)
+		if (ho_so.get("loai_hoan") or "") == LOAI_HUY_NHAP:
+			pe.remarks = (
+				"Trả lại tiền của đơn %s theo phiếu %s. Đơn đã huỷ khi còn ở dạng "
+				"nháp, chưa từng ghi sổ nên KHÔNG có doanh thu, KHÔNG có hoá đơn "
+				"trả hàng và KHÔNG có hoá đơn điện tử. Khoản này là tiền khách "
+				"chuyển trước, công ty giữ hộ và nay trả lại. Nội dung chuyển "
+				"khoản: %s" % (si.name, ho_so.name, ho_so.noi_dung_ck)
+			)
+		else:
+			pe.remarks = (
+				"Trả lại tiền khách nộp thừa cho đơn %s theo phiếu %s. Khách đã chuyển "
+				"dư so với giá trị đơn; doanh thu của đơn giữ nguyên, KHÔNG lập hoá đơn "
+				"trả hàng và KHÔNG điều chỉnh hoá đơn điện tử. Nội dung chuyển khoản: %s"
+				% (si.name, ho_so.name, ho_so.noi_dung_ck)
+			)
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
 		return pe

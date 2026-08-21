@@ -2079,14 +2079,16 @@ la("co bo ly do rieng cho tien du", "LY_DO_DU = (" in _ht2_src, True)
 la("truong loai_hoan khai trong ma nguon", '"fieldname": "loai_hoan"' in _ht2_src, True)
 # De trong doc la "Tra hang": phieu cu khong duoc doi nghia.
 la("o loai phieu co lua chon rong dung dau",
-   '"options": "\\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU))' in _ht2_src, True)
+   '"options": "\\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU' in _ht2_src, True)
 
 # --- Cho quan trong nhat: tien du KHONG duoc lap hoa don tra hang ---
 _than_sinh = _ht2_src.split("def _sinh_chung_tu(ho_so):")[1].split("\ndef ")[0]
+# Tu 21/08/2026 nhanh nay gom HAI loai khong dung toi doanh thu: tien nop
+# thua va huy don chua ghi so. Ca kiem giu nguyen y dinh cu.
 la("sinh chung tu re nhanh theo loai phieu",
-   'if (ho_so.get("loai_hoan") or "") == LOAI_TIEN_DU:' in _than_sinh, True)
-# Nhanh tien du phai THOAT truoc khi cham toi _lap_hoa_don_tra.
-_nhanh_du = _than_sinh.split('== LOAI_TIEN_DU:')[1].split("toan_bo = tien >=")[0]
+   "if loai in (LOAI_TIEN_DU, LOAI_HUY_NHAP):" in _than_sinh, True)
+# Nhanh do phai THOAT truoc khi cham toi _lap_hoa_don_tra.
+_nhanh_du = _than_sinh.split("if loai in (LOAI_TIEN_DU, LOAI_HUY_NHAP):")[1].split("toan_bo = tien >=")[0]
 la("nhanh tien du khong lap hoa don tra hang", "_lap_hoa_don_tra" in _nhanh_du, False)
 la("nhanh tien du khong thu hoi diem", "_thu_hoi_diem" in _nhanh_du, False)
 la("nhanh tien du khong lap phieu kho", "_chuyen_kho_huy" in _nhanh_du, False)
@@ -2116,8 +2118,13 @@ la("man chi tiet don co nut tien du", "dsvDu" in _ds_src, True)
 la("nut tien du goi dung ham", "hoanMoFormDu(d)" in _ds_src, True)
 la("co ham mo form tien du", "function hoanMoFormDu(" in _khjs_src, True)
 la("form re nhanh theo co du", "var du = !!f.du;" in _khjs_src, True)
+# Tu 21/08/2026 form co BA nhanh nen loi goi tach thanh nhieu dong.
+_than_gui = _khjs_src.split("async function htFGui()")[1].split("\n}")[0]
+_goi_ep = _than_gui.split("var kq = await api(")[1].split("goiF);")[0]
 la("form tien du goi dung endpoint",
-   "du ? 'vagabond.hoan_tien.tao_tien_du' : 'vagabond.hoan_tien.tao'" in _khjs_src, True)
+   "du ? 'vagabond.hoan_tien.tao_tien_du'" in _goi_ep, True)
+la("form tra hang van goi dung endpoint cu",
+   "'vagabond.hoan_tien.tao'" in _goi_ep, True)
 la("form tien du chan theo tran chu khong theo tong don",
    "if (f.tien > tranF)" in _khjs_src, True)
 la("form tien du khong bat anh", "if (!du && !f.anh.length)" in _khjs_src, True)
@@ -6109,6 +6116,98 @@ la("ban moi thanh mac dinh", '"is_default": 1, "is_active": 1' in _ct51, True)
 la("chuoi phien ban qua custom_ban_truoc", "custom_ban_truoc" in _ct51, True)
 la("chi bep truong duoc sua", "Manufacturing Manager" in _ct51, True)
 la("nut dieu chinh tren man", "Điều chỉnh (ra phiên bản mới)" in _ctjs51, True)
+
+# ============================================================ NHOM 52
+print("\n[52] Huy don chua ghi so va hoan tien: nut, form, va cai bay dong ho")
+
+_ds52 = open("vagabond/public/js/bep/08-doanh-so-sales.js", encoding="utf-8").read()
+_kh52 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8").read()
+_ht52 = open("vagabond/hoan_tien.py", encoding="utf-8").read()
+_bh52 = open("vagabond/ban_hang.py", encoding="utf-8").read()
+
+# ---------- 52.1 CAI BAY DONG HO: chuoi cuoi ngay chi chua ra don co co huy ----
+#
+# CA QUAN TRONG NHAT CUA NHOM, dat ngay dau.
+#
+# `tu_ghi_so_cuoi_ngay` chay khoang 23:00 moi ngay, quet don Pancake con
+# nhap va TU GHI SO nhung don da du dieu kien, roi phat hanh hoa don dien
+# tu luon. "Du dieu kien" chinh la chuyen khoan va SePay da thay du tien.
+# No chi chua ra don co co vgb_huy.
+#
+# Nghia la mot don khach da huy ma khong ai danh dau thi sang hom sau thanh
+# mot to hoa don dien tu da gui co quan thue cho cai banh chua bao gio lam.
+# Do la vung cam anh Viet chot 13/08.
+_quet52 = _bh52.split("def _quet_don_treo(")[1].split("\ndef ")[0]
+la("lượt quét đơn treo vẫn chừa ra đơn có cờ huỷ", '"vgb_huy": 0' in _quet52, True)
+la("lượt quét vẫn chừa ra phiếu tạm tính", '"vgb_tam_tinh": 0' in _quet52, True)
+_ly52 = _bh52.split("def _ly_do_treo(")[1].split("\ndef ")[0]
+la("chuyển khoản đã về đủ tiền là ĐỦ ĐIỀU KIỆN ghi sổ",
+   'return "san_sang"' in _ly52 and 'flt(g.get("nhan")) >= flt(r.get("grand_total"))' in _ly52, True)
+
+# ---------- 52.2 Danh dau huy TRUOC, lap phieu SAU ----------
+_tao52 = _ht52.split("def tao_huy_nhap(")[1].split("\ndef ")[0]
+_vt_huy52 = _tao52.find("chung_tu.danh_dau_huy(")
+_vt_lap52 = _tao52.find('"doctype": DT')
+la("có gọi đánh dấu huỷ", _vt_huy52 > 0, True)
+la("đánh dấu huỷ đứng TRƯỚC lúc lập hồ sơ", 0 < _vt_huy52 < _vt_lap52, True)
+la("chốt dữ liệu ngay sau khi đặt cờ",
+   "frappe.db.commit()" in _tao52[_vt_huy52:_vt_lap52], True)
+la("vẫn qua mã OTP quản lý như nút Huỷ đơn", "_otp_kiem(otp" in _tao52, True)
+
+# ---------- 52.3 Ba nut tren man don CHUA GHI SO ----------
+la("có nút huỷ đơn và hoàn tiền", 'id="dsvHuyHoan"' in _ds52, True)
+la("nút cũ Huỷ đơn vẫn còn", 'id="dsvHuy"' in _ds52, True)
+la("nút ghi sổ vẫn còn", 'id="dsvChot"' in _ds52, True)
+la("nút mới nối vào form", "hoanMoFormHuy(d)" in _ds52, True)
+# Don DA mang dau huy roi moi nho ra khach da chuyen tien: van phai co duong.
+_da_huy52 = _ds52.split("} else if (d.docstatus === 0) {")[1][:900]
+la("đơn đã huỷ vẫn có đường hoàn tiền", 'id="dsvHuyHoan"' in _da_huy52, True)
+# Nut nam TRONG hang flex phai khai flex, khong thi lop .btn mang
+# width:100% se nuot tron be ngang va bop cac nut ben canh - dung cai bay
+# nhom 50.7b da chot. Nut dung mot minh mot dong thi khong can.
+_hang52 = _ds52.split("if (d.docstatus === 0 && !d.vgb_huy) {")[1].split("} else if")[0]
+for _n52 in ('id="dsvHuyHoan"', 'id="dsvHuy"', 'id="dsvChot"'):
+	_dong52 = [l for l in _hang52.split("\n") if _n52 in l and "<button" in l]
+	la("nút %s trong hàng flex có khai flex" % _n52, len(_dong52) == 1 and "flex:" in _dong52[0], True)
+
+# ---------- 52.4 Form dung lai form hoan tien, khac o ba cho ----------
+la("có cửa mở form riêng", "function hoanMoFormHuy(" in _kh52, True)
+la("gọi đúng cửa xem trước", "vagabond.hoan_tien.xem_huy_nhap" in _kh52, True)
+la("gọi đúng cửa lập phiếu", "vagabond.hoan_tien.tao_huy_nhap" in _kh52, True)
+# Van la form cu: xin du so tai khoan khach nhu nut Hoan tien.
+for _o52 in ("htFStk", "htFTen", "htFNh", "htFSdt", "htFKhach"):
+	la("form vẫn xin ô %s như nút Hoàn tiền" % _o52, _o52 in _kh52, True)
+# Tran cua phieu huy la SO DA NHAN, khong phai tong don.
+la("trần lấy theo số đã nhận",
+   "var tranF = (du || huy) ? Number(f.tran || 0) : Number(f.tong || 0);" in _kh52, True)
+la("ô tiền chặn theo trần chứ không theo tổng đơn",
+   "if (v > tranF)" in _kh52, True)
+la("có xin mã OTP trước khi gửi", "posXinPhep('Huỷ đơn " in _kh52, True)
+# Anh BAT BUOC: viec khach xin huy khong nam trong so sach cho nao.
+_anh52 = _kh52.split("if (!du && !f.anh.length)")[1][:120]
+la("phiếu huỷ vẫn bắt buộc đính ảnh", "Phải đính kèm ít nhất một ảnh" in _anh52, True)
+la("nhắc chụp rõ mốc giờ", "mốc giờ" in _kh52, True)
+
+# ---------- 52.5 KHONG dung toi doanh thu ----------
+# Don chua tung ghi so thi khong co doanh thu de khu. Lap hoa don tra hang
+# o day la khu mot khoan doanh thu chua ton tai.
+_sinh52 = _ht52.split("def _sinh_chung_tu(")[1].split("\ndef ")[0]
+_truoc52 = _sinh52.split("if loai in (LOAI_TIEN_DU, LOAI_HUY_NHAP):")[0]
+la("hai loại không đụng doanh thu đi chung một nhánh",
+   "if loai in (LOAI_TIEN_DU, LOAI_HUY_NHAP):" in _sinh52, True)
+for _cam52 in ("_lap_hoa_don_tra(", "_thu_hoi_diem(", "_chuyen_kho_huy(", "kho_huy("):
+	la("nhánh đó nằm trước %s" % _cam52, _cam52 in _truoc52, False)
+# Man hinh phai noi ro cho ke toan doc truoc khi duyet.
+la("form nói rõ chưa từng ghi sổ", "chưa từng ghi sổ" in _kh52, True)
+la("form nói rõ không có hoá đơn điện tử nào", "không có hoá đơn điện tử nào" in _kh52, True)
+
+# ---------- 52.6 Cua kiem nguoc han cua hoan tien cu ----------
+_cu52 = _ht52.split("def _kiem_tra_duoc(")[1].split("\ndef ")[0]
+_moi52 = _ht52.split("def _kiem_huy_nhap_duoc(")[1].split("\ndef ")[0]
+la("cửa cũ đòi hoá đơn ĐÃ ghi sổ", "cint(si.docstatus) != 1" in _cu52, True)
+la("cửa mới đòi hoá đơn CÒN nháp", "cint(si.docstatus) != 0" in _moi52, True)
+la("cửa mới chặn phiếu tạm tính", "vgb_tam_tinh" in _moi52, True)
+la("cửa mới chặn lập phiếu thứ hai cho cùng một đơn", "trang_thai" in _moi52, True)
 
 print("-" * 60)
 if so_hong:

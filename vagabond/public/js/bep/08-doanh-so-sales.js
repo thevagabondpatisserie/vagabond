@@ -463,12 +463,29 @@ async function scrDsView(name, can) {
      phai co duong huy (anh Viet). Van la HUY MEM: don nam nguyen trong
      danh sach, chi bi loc khoi doanh thu. */
   if (d.docstatus === 0 && !d.vgb_huy) {
-    foot = '<div style="display:flex;gap:8px">' +
-      '<button class="btn gh" id="dsvHuy" style="margin:0;flex:0 0 36%;color:#b3261e;border-color:#fecaca">Huỷ đơn</button>' +
-      '<button class="btn" id="dsvChot" style="margin:0;flex:1">Ghi sổ hoá đơn bán hàng</button></div>';
+    /* Ba nut cho don CHUA GHI SO (anh Viet 21/08/2026).
+
+       "Huy don" cu chi dat dau huy. Dung khi khach chua tra dong nao: bam
+       nham, trung don, khach hoi gia roi thoi.
+
+       Nhung khach chot banh roi chuyen tien, hai ba tieng sau bao huy thi
+       chi dat dau huy la con lai mot khoan tien vao khong chung tu. Nut
+       "Huy don va hoan tien" lo ca hai: dat dau huy TRUOC roi lap phieu gui
+       ke toan. Phai dat dau truoc vi chuoi cuoi ngay luc 23:00 tu ghi so
+       nhung don nhap da nhan du tien roi xuat hoa don dien tu luon.
+
+       Khong gop hai nut lam mot vi hai ca that su khac nhau, va ca "chua
+       tra dong nao" la ca pho bien hon. */
+    foot = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn gh" id="dsvHuy" style="margin:0;flex:1 1 44%;color:#b3261e;border-color:#fecaca">🚫 Huỷ đơn</button>' +
+      '<button class="btn gh" id="dsvHuyHoan" style="margin:0;flex:1 1 44%;color:#b45309;border-color:#fde68a">↩️ Huỷ đơn và hoàn tiền</button>' +
+      '<button class="btn" id="dsvChot" style="margin:0;flex:1 1 100%">Ghi sổ hoá đơn bán hàng</button></div>';
   } else if (d.docstatus === 0) {
-    foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px">Đơn này đã huỷ' +
-      (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>';
+    /* Da bam Huy don roi moi nho ra khach da chuyen tien. Van phai co duong
+       tra tien, khong thi phai nho ke toan lap tay tren Desk. */
+    foot = '<div style="text-align:center;color:#b3261e;font-weight:600;padding:6px 6px 10px">Đơn này đã huỷ' +
+      (d.vgb_huy_ly_do ? ': ' + h(d.vgb_huy_ly_do) : '') + '</div>' +
+      '<button class="btn gh" id="dsvHuyHoan" style="margin:0;color:#b45309;border-color:#fde68a">↩️ Khách đã chuyển tiền, hoàn lại cho khách</button>';
   } else if (d.docstatus === 1 && !d.vgb_huy) {
     /* Don DA GHI SO thi khong con huy duoc nua, va do la dung: to da vao so
        thi phai khu bang mot to nguoc chieu chu khong xoa di. Nen cho don da
@@ -497,6 +514,8 @@ async function scrDsView(name, can) {
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
+  var nHuyHoan = document.getElementById('dsvHuyHoan');
+  if (nHuyHoan) nHuyHoan.onclick = function () { hoanMoFormHuy(d); };
   var nDu = document.getElementById('dsvDu');
   if (nDu) nDu.onclick = function () { hoanMoFormDu(d); };
   var nXemHoan = document.getElementById('dsvXemHoan');
