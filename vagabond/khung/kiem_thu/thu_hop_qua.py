@@ -106,3 +106,21 @@ def _phu_thu_am():
 @ca("hop qua: KHONG cho don gia xuong duoi 0")
 def _khong_am():
 	la("chan san", hq.don_gia_sau_phu_thu(100000, -500000), 0)
+
+
+@ca("hop qua: hop theo mua PHAI doc dinh muc mua vu, KHONG doc Product Bundle")
+def _nguon_mua_vu():
+	# Chot bang ca kiem chu khong bang loi ghi chu: ERPNext tu choi tao
+	# Product Bundle cho mon dang theo ton kho, ma hai hop Trung thu deu
+	# theo ton va phai giu nhu vay cho chot chan ban lo dem duoc. Ly do day
+	# du o dau ham ruot_goc.
+	import inspect
+
+	nguon = inspect.getsource(hq.ruot_goc)
+	dung("doc mua vu truoc", "_ruot_tu_mua_vu" in nguon)
+	dung("co noi ly do", "validate_main_item" in nguon)
+	# Ham doc dinh muc mua vu phai ton tai va doc dung bang.
+	dung("co ham doc dinh muc", callable(getattr(hq, "_ruot_tu_mua_vu", None)))
+	dm = inspect.getsource(hq._ruot_tu_mua_vu)
+	dung("doc dung bang", "Vagabond Mua Vu Dinh Muc" in dm)
+	dung("loc dung cot ma hop", "ma_hop" in dm)
