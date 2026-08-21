@@ -121,6 +121,11 @@ LOAI_TIEN_DU = "Tien nop thua"
 # vung cam anh Viet chot 13/08.
 LOAI_HUY_NHAP = "Huy don chua ghi so"
 
+# Don Pancake DA HUY ma chua bao gio ve ERPNext. Khac han LOAI_HUY_NHAP: ca
+# kia con mot hoa don nhap de bam vao, ca nay khong co gi ca. Xem dau tep
+# vagabond/don_huy.py.
+LOAI_HUY_PANCAKE = "Huy don Pancake"
+
 LY_DO_HUY = (
 	"Khach doi y",
 	"Khach dat nham ngay",
@@ -138,6 +143,7 @@ NHAN_LOAI_HOAN = {
 	LOAI_TRA_HANG: "Trả hàng",
 	LOAI_TIEN_DU: "Tiền nộp thừa",
 	LOAI_HUY_NHAP: "Huỷ đơn chưa ghi sổ",
+	LOAI_HUY_PANCAKE: "Huỷ đơn Pancake",
 }
 NHAN_TRANG_THAI = {
 	"Cho chi": "Chờ chi",
@@ -243,13 +249,25 @@ TRUONG_MOI = {
 			# la phieu tra hang, va khong co lenh nao chay len du lieu cu.
 			"fieldname": "loai_hoan", "label": "Loại phiếu",
 			"fieldtype": "Select", "insert_after": "so_tien",
-			"options": "\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU, LOAI_HUY_NHAP)),
+			"options": "\n".join(("", LOAI_TRA_HANG, LOAI_TIEN_DU, LOAI_HUY_NHAP, LOAI_HUY_PANCAKE)),
 			"read_only": 1,
 			"description": (
 				"Trả hàng thì khử doanh thu bằng hoá đơn trả hàng. Tiền nộp thừa "
 				"và Huỷ đơn chưa ghi sổ thì KHÔNG đụng doanh thu: một bên trả lại "
 				"khoản khách chuyển dư, một bên trả lại tiền của đơn chưa từng "
 				"được ghi nhận doanh thu."
+			),
+		},
+		{
+			# Don Pancake da huy khong co Sales Invoice de bam vao, nen ma
+			# don phai co cho dung cua no. Chi Dung chot 21/08/2026 dieu 4:
+			# theo doi 131 theo SO DON, vi don online do chung vao mot ma
+			# khach "Khach le Online".
+			"fieldname": "ma_don_pancake", "label": "Mã đơn Pancake",
+			"fieldtype": "Data", "insert_after": "hoa_don", "read_only": 1,
+			"description": (
+				"Điền khi phiếu thuộc loại Huỷ đơn Pancake. Đơn đó chưa bao giờ "
+				"có hoá đơn trong ERPNext nên không có gì để liên kết."
 			),
 		},
 		{

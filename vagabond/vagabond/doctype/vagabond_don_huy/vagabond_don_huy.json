@@ -1,0 +1,185 @@
+{
+ "actions": [],
+ "autoname": "format:DH-{ma_don}",
+ "creation": "2026-08-21 18:00:00.000000",
+ "description": "Ban dem cac don Pancake da huy ma tien khach con nam o cong ty. Nguon su that la Pancake, bang nay chi de man hinh doc nhanh va de dem so viec.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_don",
+  "ma_hien_thi",
+  "ten_khach",
+  "sdt",
+  "cb1",
+  "tong_don",
+  "da_nhan",
+  "ngay_dat",
+  "ngay_giao",
+  "sec_tt",
+  "trang_thai",
+  "ho_so_hoan",
+  "hoa_don",
+  "cb2",
+  "huy_luc",
+  "dong_bo_luc",
+  "sec_them",
+  "ghi_chu_don",
+  "ma_gd"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_don",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ma don Pancake",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "ma_hien_thi",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ma hien thi"
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ten khach"
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "So dien thoai"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tong_don",
+   "fieldtype": "Currency",
+   "label": "Tong tien don"
+  },
+  {
+   "fieldname": "da_nhan",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Khach da chuyen"
+  },
+  {
+   "fieldname": "ngay_dat",
+   "fieldtype": "Datetime",
+   "label": "Ngay dat"
+  },
+  {
+   "fieldname": "ngay_giao",
+   "fieldtype": "Datetime",
+   "label": "Ngay giao du kien"
+  },
+  {
+   "fieldname": "sec_tt",
+   "fieldtype": "Section Break",
+   "label": "Tinh trang hoan tien"
+  },
+  {
+   "default": "Cho hoan",
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trang thai",
+   "options": "Cho hoan\nDang hoan\nDa hoan\nKhong phai hoan\nBo qua"
+  },
+  {
+   "fieldname": "ho_so_hoan",
+   "fieldtype": "Link",
+   "label": "Ho so hoan tien",
+   "options": "Vagabond Hoan Tien",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoa don (neu don da tung ve he)",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "huy_luc",
+   "fieldtype": "Datetime",
+   "label": "Pancake danh dau huy luc"
+  },
+  {
+   "fieldname": "dong_bo_luc",
+   "fieldtype": "Datetime",
+   "label": "Dong bo lan cuoi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_them",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ghi_chu_don",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu tren don"
+  },
+  {
+   "fieldname": "ma_gd",
+   "fieldtype": "Data",
+   "label": "Ma giao dich ngan hang",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-21 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Don Huy",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "huy_luc",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

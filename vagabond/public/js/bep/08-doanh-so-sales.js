@@ -106,6 +106,16 @@ async function scrDoanhSo() {
       '<b style="white-space:nowrap;font-size:13px">' + money(r.grand_total) + '</b></div>';
   });
   html += '</div>';
+
+  /* Cua vao man Don da huy cho hoan. Dat o day chu khong o trang chu vi
+     anh Viet chon 21/08/2026: sales dang xem don thi nhay qua duoc ngay.
+     Huy hieu dem nap sau, de man chinh khong phai cho them mot luot goi. */
+  html += '<div class="card" style="margin-top:2px"><div class="hub" data-ds="donhuy">' +
+    '<div class="hi">↩️</div><div class="ht">' +
+    '<div class="h1">Đơn đã huỷ chờ hoàn tiền</div>' +
+    '<div class="h2" id="dsDemHuy">Đơn khách huỷ mà tiền vẫn còn ở công ty</div>' +
+    '</div><div style="color:#98a2b3;font-size:18px">›</div></div></div>';
+
   var foot = '<div style="display:flex;gap:10px"><button class="btn gh" data-ds="dongbo" style="flex:1">🔄 Đồng bộ Pancake</button>' +
     (nhap.length ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
   var b = frame('Doanh thu Sales', html, { footer: foot, action: '➕', onAction: function () { go(scrDsNhapTay); } });
@@ -132,6 +142,17 @@ async function scrDoanhSo() {
     } catch (e2) { }
   })();
   timDonGan();
+  /* Dem so don dang cho hoan, nap rieng va nuot loi: mot cai huy hieu hong
+     khong duoc lam chet ca man doanh thu. */
+  (async function () {
+    try {
+      var n = await api('vagabond.don_huy.dem_cho_hoan', {});
+      var o3 = document.getElementById('dsDemHuy');
+      if (o3 && n) {
+        o3.innerHTML = '<b style="color:#b3261e">' + n + ' đơn</b> đang chờ hoàn tiền';
+      }
+    } catch (e3) { }
+  })();
   b.addEventListener('click', function (e) {
     var t = e.target.closest('[data-dsbuoc]'); if (!t) return;
     var bu = +t.getAttribute('data-dsbuoc');
@@ -160,6 +181,7 @@ async function scrDoanhSo() {
 }
 var dsDangDongBo = false;
 async function dsHanh(k) {
+  if (k === 'donhuy') return go(scrDonHuy);
   if (k === 'gotrung') {
     busy(true);
     var ke;
