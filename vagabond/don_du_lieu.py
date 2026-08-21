@@ -333,15 +333,19 @@ def ma_thay_the(chay_that=0):
 			"cho %d mã. Muốn ghi thật thì truyền chay_that=1."
 			% (len(cap_moi), len(ke["bat_co"])))
 		return ke
+	# BẬT CỜ TRƯỚC, khai cặp SAU. ERPNext từ chối tạo Item Alternative cho
+	# mã chưa bật allow_alternative_item ("Không được đặt sản phẩm thay thế
+	# cho sản phẩm ..."), vấp thật ngay lần chạy đầu 21/08/2026.
+	for m in ke["bat_co"]:
+		frappe.db.set_value("Item", m, "allow_alternative_item", 1,
+			update_modified=False)
+		frappe.clear_document_cache("Item", m)
 	for a, b in cap_moi:
 		doc = frappe.new_doc("Item Alternative")
 		doc.item_code = a
 		doc.alternative_item_code = b
 		doc.two_way = 1
 		doc.insert(ignore_permissions=True)
-	for m in ke["bat_co"]:
-		frappe.db.set_value("Item", m, "allow_alternative_item", 1,
-			update_modified=False)
 	frappe.db.commit()
 	ke["ghi_chu"] = ("Đã khai %d cặp, bật cờ %d mã. Từ giờ hết bơ chính thì "
 		"máy tự lấy bơ thay thế cùng kho và ghi chú trên phiếu."
