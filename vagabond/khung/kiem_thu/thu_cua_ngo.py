@@ -80,6 +80,11 @@ CUA_NGO = {
 	# duoc. Chay tren site that nen phai co cua, `nen.py` va cac tep `thu_`
 	# la noi bo, KHONG duoc mo ra ngoai.
 	"khung/kiem_that/cua.py": ["chay"],
+	# Don Pancake da huy cho hoan tien, them 21/08/2026. `don_ban_dem`,
+	# `_keo_don_huy`, `_doc_don`, `_phieu` la ham noi bo, KHONG mo ra ngoai:
+	# `_phieu` dung chung tu ke toan, ho ra la ai cung goi duoc.
+	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dong_bo", "ds", "tao_hoan",
+		"xem_hoan", "xuat_excel"],
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate
 	# cua Work Order nen KHONG whitelist.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_nguoi_phu_trach", "soat_chang"],
