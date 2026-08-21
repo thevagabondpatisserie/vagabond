@@ -60,7 +60,10 @@ async function scrHome() {
     } catch (e) { }
     html += '<div class="sec">Bếp</div><div class="card">' +
       card('🧑‍🍳', 'Bảng bếp hôm nay', 'Tổng số bánh cần làm, gộp theo món', kcn, 'KIT') +
-      card('🏭', 'Lệnh sản xuất', 'Tạo lệnh, trừ nguyên liệu, in tem', wcn, 'MFG') + '</div>';
+      card('🏭', 'Lệnh sản xuất', 'Tạo lệnh, trừ nguyên liệu, in tem', wcn, 'MFG') +
+      /* Danh muc cong thuc cho bep truong (anh Viet 21/08/2026): xem, tao
+         moi va dieu chinh BOM ngay tren dien thoai, khoi mo Desk. */
+      card('📖', 'Danh mục công thức', 'Công thức ba khu: Pastry, Baker, Quầy Bar - tạo mới và điều chỉnh có phiên bản', 0, 'CTBOM') + '</div>';
   }
   html += '<div class="sec">Bán hàng</div><div class="card">' +
     card('\uD83C\uDF82', 'Kiểm bánh hôm nay', 'Tồn - bếp làm - đã đặt - bán được, đồng bộ Pancake', 0, 'KBD') +
@@ -356,7 +359,7 @@ var VGB_NHOM = [
   /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
   { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
-  { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO'] },
+  { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO', 'CTBOM'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
@@ -727,6 +730,7 @@ function vgbGo(k) {
   if (k === 'STOCK') return go(scrStock);
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
+  if (k === 'CTBOM') return go(scrCongThuc);
   if (k === 'RCV') return go(scrRecvList);
   if (k === 'KK') return go(scrKkList);
   if (k === 'DS') return go(scrDoanhSo);

@@ -259,6 +259,11 @@ function mfgInitWh() {
   if (S.wh.indexOf(mfg.src) < 0) mfg.src = '';
   if (S.wh.indexOf(mfg.fg) < 0) mfg.fg = '';
   var k = mfgKey();
+  if (k && !mfgQuanLy()) {
+    var hopLe = mfgWhOpts().map(function (o) { return o.value; });
+    if (hopLe.length && hopLe.indexOf(mfg.src) < 0) mfg.src = '';
+    if (hopLe.length && hopLe.indexOf(mfg.fg) < 0) mfg.fg = '';
+  }
   if (!mfg.src) mfg.src = (k && whFind(k, 'nguyên liệu')) || whFind('pastry', 'nguyên liệu') || whFind('nguyên liệu') || S.wh[0] || '';
   if (!mfg.fg) mfg.fg = (k && whFind(k, 'thành phẩm')) || whFind('pastry', 'thành phẩm') || whFind('thành phẩm') || S.wh[0] || '';
 }
@@ -346,11 +351,29 @@ function mfgWhCard() {
     '<div class="fld" data-mw="fg"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
     '<div class="fv">' + h(shortWh(mfg.fg) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div></div>';
 }
+/* Kho cua bep nao thi bep do thay (anh Viet 21/08/2026). Truoc day o chon
+   kho xo ra ca 14 kho, va 70 tren 75 lenh cua ca hai bep deu lap nham o
+   kho Pastry. Nguoi thuoc mot bep chi con thay kho cua bep minh; quan ly
+   (Giam doc, Manufacturing Manager, System Manager) van thay het de xu
+   ca le. Bep chua khai bo phan cung thay het, vi chan nham nguoi con te
+   hon cho chon rong. */
+function mfgQuanLy() {
+  return hasRole('System Manager') || hasRole('Giám đốc') || hasRole('Manufacturing Manager');
+}
+function mfgWhOpts() {
+  var k = mfgKey();
+  if (!k || mfgQuanLy()) return whOpts();
+  var tu = k === 'baker' ? 'baker' : (k === 'pastry' ? 'pastry' : 'lab');
+  var loc = whOpts().filter(function (o) {
+    return String(o.value).toLowerCase().indexOf(tu) >= 0;
+  });
+  return loc.length ? loc : whOpts();
+}
 function mfgWhTap(e, redraw) {
   var t = e.target.closest('[data-mw]');
   if (!t) return false;
   var k = t.dataset.mw;
-  sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', whOpts(), mfg[k], function (o) {
+  sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts(), mfg[k], function (o) {
     mfg[k] = o.value; mfgSaveWh(); redraw();
   }, true);
   return true;
@@ -512,7 +535,12 @@ async function scrMfgNew() {
     var chips = [[0, 'Đến hôm nay'], [1, 'Đến ngày mai'], [7, 'Đến hết tuần']].map(function (c) {
       return '<div class="chip' + (mfgN.horizon === c[0] ? ' on' : '') + '" data-hz="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
-    var body = mfgWhCard() + '<div class="chips">' + chips + '</div>' +
+    var coBom = rows.filter(function (r) { return r.bom; });
+    var chonHet = coBom.length && coBom.every(function (r) { return r.on; });
+    var chipChon = rows.length
+      ? '<div class="chip" data-all="1">' + (chonHet ? '✕ Bỏ chọn hết' : '✓ Chọn tất cả') + '</div>'
+      : '';
+    var body = mfgWhCard() + '<div class="chips">' + chips + chipChon + '</div>' +
       (rows.length ? rows.map(function (r, i) {
         var img = r.image ? '<img class="im3" src="' + h(r.image) + '">' : '<div class="im3 im3p">🍰</div>';
         return '<div class="ic1' + (r.on && r.bom ? ' ok' : '') + '" data-i="' + i + '">' +
@@ -546,6 +574,12 @@ async function scrMfgNew() {
       if (mfgWhTap(e, draw)) return;
       var hz = e.target.closest('[data-hz]');
       if (hz) { mfgN.horizon = +hz.dataset.hz; mfgN.rows = null; return scrMfgNew(); }
+      var ca = e.target.closest('[data-all]');
+      if (ca) {
+        var dangHet = rows.filter(function (r) { return r.bom; }).every(function (r) { return r.on; });
+        rows.forEach(function (r) { if (r.bom) r.on = dangHet ? 0 : 1; });
+        return draw();
+      }
       var t = e.target.closest('[data-k],[data-m],[data-p],[data-dec]');
       if (!t) return;
       if (t.dataset.k != null) { var i = +t.dataset.k; rows[i].on = !rows[i].on; return draw(); }
@@ -641,7 +675,11 @@ async function mfgDemand(horizon) {
     a.uom = m.stock_uom || a.uom;
     a.bom = bm[c] ? bm[c].name : '';
     a.qty = Math.max(0, r3(a.need - a.wo));
-    a.on = a.qty > 0 ? 1 : 0;
+    /* KHONG tu tick san mon nao (anh Viet 21/08/2026). Truoc day mon nao
+       con thieu la may tick het, bep quen nhin la mot cham "Tao 38 lenh"
+       de ra 38 lenh that. Gio bep tu tick tung mon, hoac cham "Chon tat
+       ca" khi that su muon het. */
+    a.on = 0;
     return a;
   }).filter(function (a) { return a.need > 0; });
 }
@@ -776,6 +814,95 @@ async function scrMfgBtp(woNames, depth) {
 }
 
 /* ---------- 12c-4. Chi tiet lenh va hoan tat san xuat ---------- */
+/* Hop hoan tat: hai o so - "lam theo lenh" de tru nguyen lieu, va "thuc te
+   can duoc" de nhap kho thanh pham (anh Viet 21/08/2026). Trai dua nay ra
+   900 gram cui, trai mai 1.100; khoa cung so ly thuyet la ep bep khai man
+   cho khop, va so lieu chet tu do. Tran vuot lenh dat o may chu (50%%),
+   vuot nua thi may chu tu chan voi cau ro rang. */
+function mfgSheetHoanTat(left, uom) {
+  return new Promise(function (res) {
+    var ov = document.createElement('div'); ov.className = 'sh';
+    ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
+      '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Hoàn tất sản xuất</div>' +
+      '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">Nguyên liệu trừ theo số làm; thành phẩm nhập kho theo số CÂN THỰC TẾ. Hai số lệch nhau bao nhiêu, máy ghi lại bấy nhiêu.</div>' +
+      '<div style="font-size:12px;color:#8a8f9c;margin-bottom:6px">Số lượng làm theo lệnh (còn lại ' + num(left) + ')</div>' +
+      '<div class="qr" style="margin-bottom:12px"><div class="stp"><button data-m1>&minus;</button>' +
+      '<input type="number" inputmode="decimal" id="htLenh" value="' + left + '"><button data-p1>+</button></div>' +
+      '<div class="uml">' + h(uom || '') + '</div></div>' +
+      '<div style="font-size:12px;color:#8a8f9c;margin-bottom:6px">Thực tế cân được</div>' +
+      '<div class="qr"><div class="stp"><button data-m2>&minus;</button>' +
+      '<input type="number" inputmode="decimal" id="htCan" value="' + left + '"><button data-p2>+</button></div>' +
+      '<div class="uml">' + h(uom || '') + '</div></div>' +
+      '<button class="btn" data-y style="margin-top:14px">Tiếp tục</button>' +
+      '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
+    document.body.appendChild(ov);
+    var i1 = ov.querySelector('#htLenh'), i2 = ov.querySelector('#htCan');
+    var cham = 0;
+    i2.addEventListener('input', function () { cham = 1; });
+    function v(x) { return Math.max(0, parseFloat(x.value) || 0); }
+    ov.onclick = function (e) {
+      var t = e.target;
+      function bum(inp, d) { inp.value = Math.max(0, r3(v(inp) + d)); if (inp === i1 && !cham) i2.value = inp.value; }
+      if (t.hasAttribute && t.hasAttribute('data-m1')) return bum(i1, -1);
+      if (t.hasAttribute && t.hasAttribute('data-p1')) return bum(i1, 1);
+      if (t.hasAttribute && t.hasAttribute('data-m2')) { cham = 1; return bum(i2, -1); }
+      if (t.hasAttribute && t.hasAttribute('data-p2')) { cham = 1; return bum(i2, 1); }
+      if (t.hasAttribute && t.hasAttribute('data-y')) {
+        var r = { theo_lenh: v(i1), thuc_te: cham ? v(i2) : v(i1) };
+        ov.remove(); return res(r);
+      }
+      if (t.hasAttribute && t.hasAttribute('data-n') || t === ov) { ov.remove(); return res(null); }
+    };
+    i1.addEventListener('input', function () { if (!cham) i2.value = i1.value; });
+  });
+}
+
+/* Hop "May lam luon giup bep" ve lai bang chip (anh Viet 21/08/2026):
+   truoc la mot khoi chu gach dau dong kho doc tren dien thoai, gio moi
+   nguyen lieu la mot vien chip, thieu ton thi chip do, va nut xac nhan
+   ro rang o cuoi. */
+function mfgSheetKe(plan, nvl, src) {
+  return new Promise(function (res) {
+    function chip(t, phu, bad) {
+      return '<span style="display:inline-block;margin:0 6px 8px 0;padding:7px 11px;border-radius:99px;' +
+        'font-size:12.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
+        (bad ? 'background:#fde8e8;color:#b3261e;border:1px solid #f5c2c0'
+             : 'background:#eef2f7;color:#374151;border:1px solid #e2e8f0') + '">' +
+        h(t) + (phu ? ' <span style="font-weight:500;opacity:.75">' + h(phu) + '</span>' : '') + '</span>';
+    }
+    var thieu = (nvl || []).filter(function (x) { return x.thieu > 0.0001; });
+    var html = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:82vh;overflow:auto">' +
+      '<div style="font-size:17.5px;font-weight:700;margin-bottom:4px">Máy làm luôn giúp bếp</div>' +
+      '<div style="font-size:12.5px;color:#8a8f9c;margin-bottom:12px;line-height:1.5">' +
+      'Các bán thành phẩm làm tươi chưa có tồn. Máy tự tạo lệnh và trừ nguyên liệu ngay trước khi hoàn tất món chính. Bút toán kho ghi xong không sửa lại được.</div>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:7px;letter-spacing:.4px">SẼ LÀM TƯƠI</div><div>' +
+      (plan || []).map(function (f) { return chip(f.name, num(f.qty) + ' ' + (f.uom || ''), false); }).join('') + '</div>';
+    if ((nvl || []).length) {
+      html += '<div style="font-size:11.5px;color:#98a2b3;margin:10px 0 7px;letter-spacing:.4px">NGUYÊN LIỆU SẼ TRỪ · KHO ' +
+        h(shortWh(src).toUpperCase()) + '</div><div>' +
+        nvl.slice(0, 24).map(function (x) {
+          var bad = x.thieu > 0.0001;
+          return chip(x.name, num(x.need) + (bad ? ' · thiếu ' + num(x.thieu) : ''), bad);
+        }).join('') +
+        (nvl.length > 24 ? chip('và ' + (nvl.length - 24) + ' nguyên liệu nữa', '', false) : '') + '</div>';
+      if (thieu.length) {
+        html += '<div style="font-size:12.5px;color:#b3261e;margin-top:6px;line-height:1.5">Có ' + thieu.length +
+          ' nguyên liệu không đủ tồn tại kho này. Máy sẽ tự lấy mã thay thế đã duyệt nếu còn, hết cả thì báo thiếu chứ không ghi âm kho.</div>';
+      }
+    }
+    html += '<button class="btn gr" data-y style="margin-top:14px">✅ Xác nhận tạo lệnh</button>' +
+      '<button class="btn gh" data-n style="margin-top:9px">Huỷ</button></div>';
+    var ov = document.createElement('div'); ov.className = 'sh';
+    ov.innerHTML = html;
+    document.body.appendChild(ov);
+    ov.onclick = function (e) {
+      var t = e.target;
+      if (t.hasAttribute && t.hasAttribute('data-y')) { ov.remove(); return res(true); }
+      if ((t.hasAttribute && t.hasAttribute('data-n')) || t === ov) { ov.remove(); return res(false); }
+    };
+  });
+}
+
 async function scrMfgView(name) {
   frame('Lệnh sản xuất', '<div class="emp"><div class="e1">⏳</div></div>');
   var d = null;
@@ -836,38 +963,22 @@ async function scrMfgView(name) {
   };
   if (!canDo) return;
   document.getElementById('mFin').onclick = async function () {
-    var q = await qtySheet('Hoàn tất sản xuất', 'Số lượng làm được thực tế', left, d.stock_uom);
-    if (!q) return;
-    if (q > left + 0.0001) return toast('Không được nhiều hơn số còn lại là ' + num(left));
+    var hai = await mfgSheetHoanTat(left, d.stock_uom);
+    if (!hai) return;
+    var q = hai.theo_lenh;
+    var can = hai.thuc_te;
+    if (!q && !can) return;
+    if (!q) q = can;
+    if (q > left + 0.0001) return toast('Số làm theo lệnh không được quá số còn lại là ' + num(left) + '. Thực tế cân dư thì ghi vào ô cân được.', 6000);
     var ratio = (d.qty || 1) ? q / (d.qty || 1) : 1;
     var plan = [];
     busy(1);
     try { plan = await mfgFreshPlan(mats, ratio, src); } catch (e) { }
+    var nvl = [];
+    if (plan.length) { try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; } }
     busy(0);
     if (plan.length) {
-      var lines = plan.map(function (f) { return '- ' + f.name + ': ' + num(f.qty) + ' ' + (f.uom || ''); }).join('\n');
-      /* Xo ca so nguyen lieu se bi tru ra cho Khai xac nhan (anh Viet
-         21/08/2026). Truoc day hop nay chi noi "may se tu tru nguyen lieu"
-         ma khong noi tru cai gi, bao nhieu - nguoi bam khong co gi de kiem
-         lai, va bam xong la but toan kho da ghi, khong sua duoc. */
-      busy(1);
-      var nvl = [];
-      try { nvl = await mfgNvlCuaKe(plan, src); } catch (e3) { nvl = []; }
-      busy(0);
-      var them = '';
-      if (nvl.length) {
-        var thieu = nvl.filter(function (x) { return x.thieu > 0.0001; });
-        them = '\n\nNGUYÊN LIỆU SẼ TRỪ tại kho ' + shortWh(src) + ':\n' +
-          nvl.slice(0, 14).map(function (x) {
-            return '- ' + x.name + ': ' + num(x.need) + ' ' + (x.uom || '') +
-              '  (tồn ' + num(x.ton) + (x.thieu > 0.0001 ? ', THIẾU ' + num(x.thieu) : '') + ')';
-          }).join('\n') +
-          (nvl.length > 14 ? '\n- và ' + (nvl.length - 14) + ' nguyên liệu nữa' : '') +
-          (thieu.length ? '\n\nCó ' + thieu.length + ' nguyên liệu không đủ tồn tại kho này. Bấm tiếp thì máy sẽ báo lỗi thiếu hàng chứ không ghi âm kho.' : '');
-      }
-      var okf = await confirmSheet('Máy làm luôn giúp bếp',
-        'Các bán thành phẩm làm tươi sau đây chưa có tồn. Máy sẽ tự tạo lệnh và trừ nguyên liệu cho từng loại ngay trước khi hoàn tất món chính:\n\n' +
-        lines + them + '\n\nBút toán kho ghi xong không sửa lại được.', 'Đồng ý, làm luôn');
+      var okf = await mfgSheetKe(plan, nvl, src);
       if (!okf) return;
     }
     busy(1);
@@ -875,21 +986,33 @@ async function scrMfgView(name) {
       if (plan.length) await mfgRunFresh(plan, 1);
       var it = await mfgLoadItem(d.production_item);
       var batch = await mfgBatchOf(d.name);
-      if (!batch) batch = await mfgMakeBatch(d.production_item, it, q, d.name);
+      if (!batch) batch = await mfgMakeBatch(d.production_item, it, can, d.name);
       var se = await api('erpnext.manufacturing.doctype.work_order.work_order.make_stock_entry',
         { work_order_id: d.name, purpose: 'Manufacture', qty: q });
       se.set_posting_time = 1;
       se.posting_date = today();
       se.posting_time = nowStamp().slice(11);
+      /* Nguyen lieu tru theo so LAM (q); thanh pham nhap kho theo so CAN
+         THUC TE (can). Lech nhau la hao hut hay doi du that cua me,
+         ghi thang vao phieu de ke toan gia thanh doc duoc. */
       (se.items || []).forEach(function (r) {
-        if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
+        if (r.is_finished_item) {
+          if (batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
+          if (Math.abs(can - q) > 0.0001) r.qty = can;
+        }
       });
+      if (Math.abs(can - q) > 0.0001) {
+        se.fg_completed_qty = can;
+        se.remarks = 'Làm theo lệnh ' + num(q) + ' ' + (d.stock_uom || '') +
+          ', cân thực tế ' + num(can) + '. Chênh ' + num(r3(can - q)) +
+          ' (' + (q ? Math.round((can - q) / q * 1000) / 10 : 0) + '%).';
+      }
       var ins = await api('frappe.client.insert', { doc: se });
       await api('frappe.client.submit', { doc: ins });
       busy(0);
-      toast('Đã hoàn tất và trừ nguyên liệu');
+      toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || ''), 5000);
       if (!batch) return go(scrMfgList, true);
-      mfgL = { batch: batch, item: d.production_item, name: d.item_name || d.production_item, qty: q, uom: d.stock_uom, meta: it };
+      mfgL = { batch: batch, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
       return go(scrMfgLabel, true);
     } catch (err) { busy(0); toast(errMsg(err), 7000); }
   };
