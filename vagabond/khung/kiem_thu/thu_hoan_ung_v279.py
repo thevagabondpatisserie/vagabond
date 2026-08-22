@@ -279,3 +279,43 @@ def _dem_mot_luot():
 	dung("chi hoi ma chua biet", "HS_DEM_BTH[m] === undefined" in nen)
 	# Ve lai vo co la cuop mat o nguoi ta dang go.
 	dung("chi ve lai khi co so moi", "if (doi) veLaiNutBanTheHien();" in nen)
+
+
+# ------------------------------ v280: nhom tai khoan tam ung la 141, khong phai 1411
+
+
+@ca("tam ung: hoi ca NHOM 141 nen ACB o so cai 1412 khong bi rot")
+def _nhom_tam_ung():
+	s = _doc("ho_so_tt.py")
+	# Ngay 22/08/2026 v279 len that: bang chon tai khoan hoan ung chi hien
+	# moi OCB. Ly do that: OCB o so cai 1411, ACB o 1412, ma _tk_ung hoi
+	# dung chuoi "1411". Hoi ca nhom 141 thi ca hai deu vao.
+	dung("co hang so nhom", 'TK_NHOM_TAM_UNG = "141"' in s)
+	dung("van giu hang so OCB rieng", 'TK_QUY_TAM_UNG = "1411"' in s)
+
+	i = s.find("def _tk_ung(")
+	than = s[i:i + 400]
+	dung("_tk_ung hoi ca nhom", "TK_NHOM_TAM_UNG" in than)
+	la("_tk_ung khong con hoi rieng 1411", "TK_QUY_TAM_UNG" in than, False)
+
+
+@ca("tam ung: bang TK cong ty tru ca nhom 141 ra, khong chi tru 1411")
+def _tk_cong_ty_tru_ca_nhom():
+	s = _doc("ho_so_tt.py")
+	i = s.find("def ds_tk_cong_ty(")
+	than = s[i:i + 2000]
+	# Neu chi tru 1411 thi tai khoan tam ung ACB se hien nham trong bang
+	# "tai khoan cong ty", ke toan chon vao la hach toan sai quy.
+	dung("tru ca nhom", "TK_NHOM_TAM_UNG" in than)
+
+
+@ca("tam ung: tai khoan MAC DINH van chot 1411 cho khoi doc so lieu so hai")
+def _mac_dinh_van_1411():
+	s = _doc("ho_so_tt.py")
+	i = s.find("def _bank_account_quy(")
+	than = s[i:i + 900]
+	# Ham nay tra ve DUNG MOT tai khoan. Noi ra ca nhom 141 thi no luc tra
+	# ACB luc tra OCB tuy thu tu ban ghi, sao ke doc ra se so hai.
+	dung("van hoi 1411", "TK_QUY_TAM_UNG" in than)
+	la("khong hoi ca nhom", "TK_NHOM_TAM_UNG" in than, False)
+	dung("co chot thu tu", "order_by" in than)
