@@ -22,6 +22,7 @@
   "dinh_muc",
   "sec_lich",
   "lich",
+  "ma_loai_tru",
   "ghi_chu"
  ],
  "fields": [
@@ -123,6 +124,12 @@
    "label": "Mot hop gom nhung banh nao",
    "options": "Vagabond Mua Vu Dinh Muc",
    "description": "Ban mot hop thi tru luon so banh le ben trong khoi han muc banh le do."
+  },
+  {
+   "description": "Moi dong mot ma hang. Ma nam trong day thi dong bo KHONG tu keo ve mua nua. Nut X tren man hinh tu ghi vao day.",
+   "fieldname": "ma_loai_tru",
+   "fieldtype": "Small Text",
+   "label": "Ma loai tru khoi mua"
   },
   {
    "fieldname": "ghi_chu",
