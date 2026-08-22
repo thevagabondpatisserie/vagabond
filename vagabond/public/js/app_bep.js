@@ -13789,12 +13789,17 @@ async function mvNapLai() {
     return;
   }
   MV_DAU = dau;
+  /* Số cả mùa đổi nghĩa là bảng lịch vừa đổi, mà bảng theo ngày ĐỌC từ bảng
+     lịch. Không xoá thì tab Có thể bán giữ số cũ sau mỗi lượt đồng bộ, và
+     người dùng nhìn thấy một con số đã chết mà không biết. */
+  MV.cbData = null;
   mvVe();
 }
 
 /* Nút Đồng bộ Pancake: xin kéo rồi nạp lại hai nhịp. Không đợi, không treo. */
 async function mvSoatTay() {
   toast('Đang kéo đơn Pancake về, số tự cập nhật trong ít giây.', 4000);
+  MV.cbData = null;   /* bắt bảng theo ngày xin lại số sau lượt kéo */
   await mvXin();
   setTimeout(mvNapLai, 7000);
   setTimeout(mvNapLai, 16000);
@@ -13838,8 +13843,12 @@ function mvVe() {
     : MV.xem === 'dot' ? mvVeDot(d)
     : mvVeDinhMuc(d);
 
+  /* Tab Có thể bán KHÔNG có nút riêng ở chân màn: bếp gõ thẳng vào ô "Bếp
+     làm" của từng dòng, đúng cách màn kiểm bánh hàng ngày đang làm (anh Việt
+     chốt 22/08/2026 - "bỏ nút này, bếp tự nhập theo cột sản xuất ở trên").
+     Hai đường nhập cho cùng một con số là hai đường để gõ nhầm. */
   var nutChinh = MV.xem === 'sl'
-    ? '<button class="btn gh" id="mvThemSl" style="margin:0;flex:0 0 46%">👩‍🍳 Bếp nhập số</button>'
+    ? ''
     : MV.xem === 'dot'
     ? '<button class="btn gh" id="mvThemDot" style="margin:0;flex:0 0 46%">➕ Khai đợt hàng</button>'
     : MV.xem === 'dm'
@@ -13874,8 +13883,6 @@ function mvVe() {
   });
   var nT = document.getElementById('mvThem');
   if (nT) nT.onclick = mvThemSp;
-  var nS = document.getElementById('mvThemSl');
-  if (nS) nS.onclick = mvNhapSanLuong;
   b.querySelectorAll('[data-cbngay]').forEach(function (n) {
     n.onclick = function () { mvChonNgay(n.getAttribute('data-cbngay')); };
   });
@@ -14303,10 +14310,22 @@ function mvKep(x, a, b) {
   return x;
 }
 
+/* Cộng một ngày, TỰ ghép chuỗi chứ tuyệt đối không đi qua toISOString.
+
+   Anh Việt bắt được 22/08/2026: cả bảy chip đều ghi "Thứ bảy 22/08".
+
+   Vì sao: new Date('2026-08-22T00:00:00') là nửa đêm GIỜ MÁY, tức 17h00 ngày
+   21 giờ UTC. toISOString() trả về giờ UTC nên cắt ra được '2026-08-21', lùi
+   đúng một ngày. Cộng 1 vào rồi cắt lại thành 22 - vòng tròn, ngày không bao
+   giờ nhích. Máy ở Việt Nam (UTC+7) là dính chắc chắn, không phải ngẫu nhiên.
+
+   Đây cũng chính là bẫy mà _ngay_tao bên máy chủ phải chừa, chỉ khác đầu. */
 function mvNgaySau(s) {
-  var dt = new Date(String(s) + 'T00:00:00');
+  var p = String(s).split('-');
+  var dt = new Date(+p[0], +p[1] - 1, +p[2]);
   dt.setDate(dt.getDate() + 1);
-  return dt.toISOString().slice(0, 10);
+  return dt.getFullYear() + '-' +
+    ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2);
 }
 
 /* Một thẻ sản phẩm. Bố cục ô đúng thứ tự màn kiểm bánh hàng ngày để bếp và
@@ -14338,8 +14357,15 @@ function mvTheCoTheBan(x) {
   if (!x.la_hop && (x.trong_hop || 0)) o += mvOCb('Nằm trong hộp', x.trong_hop, '#6b7280');
   if (x.la_hop) {
     o += mvOCb('Vỏ hộp còn', x.co_the_ban, '#374151');
-    o += x.ruot_khong_rang_buoc
-      ? mvOChu('Ruột ghép được', 'chưa khai định mức ruột')
+    /* Ba trạng thái khác nhau, ba câu khác nhau. Câu cũ gộp cả ba thành
+       "chưa khai định mức ruột" và nói SAI với MOONGARDEN: hộp đó khai đủ 5
+       ruột, chỉ là cả 5 đều mang cờ "không đặt trần" nên phép ghép ngược bỏ
+       qua hết (anh Việt bắt được 22/08/2026). */
+    o += x.chua_khai_dinh_muc
+      ? mvOChu('Ruột ghép được', 'chưa khai định mức ruột cho hộp này')
+      : x.ruot_khong_rang_buoc
+      ? mvOChu('Ruột ghép được', 'ruột chỉ làm theo hộp, không đặt trần riêng, ' +
+        'nên chỉ số vỏ hộp chặn được')
       : mvOCb('Ruột ghép được', x.ghep_duoc, '#374151');
   }
 
@@ -14437,29 +14463,6 @@ async function mvSuaBepLam(ma) {
   } catch (e) {
     baoTin((e && e.message) || 'Lưu lỗi', 'Không ghi được');
   } finally { busy(false); }
-}
-
-async function mvNhapSanLuong() {
-  var ds = (MV.data.dong || []).filter(function (x) { return !x.la_hop; });
-  if (!ds.length) return toast('Mùa này chưa có vị bánh lẻ nào để nhập.', 4000);
-  sheet('Bếp làm được vị nào?', ds.map(function (x) {
-    return { value: x.ma_hang, label: String(x.ten_banh || x.ma_hang).slice(0, 46),
-      phu: 'đang cộng ' + money(x.san_xuat || 0) + ' cả mùa' };
-  }), '', async function (it) {
-    var v = await hoiNhap('Ngày ' + mvNgayDay(MV.cbNgay) + ' làm thêm được bao nhiêu cái?', '');
-    if (v === null) return;
-    var so = Number(String(v).replace(/[^0-9]/g, ''));
-    if (isNaN(so) || so <= 0) return toast('Nhập một con số lớn hơn 0 giúp em.', 3500);
-    busy(true);
-    try {
-      MV.data = await api('vagabond.mua_vu.them_san_luong',
-        { mua: MV.mua, ngay: MV.cbNgay, ma_hang: it.value, so_luong: so });
-      MV_DAU = mvDau(MV.data);
-      MV.cbData = null;
-      mvVe();
-      toast('Đã ghi ' + money(so) + ' cái.', 2500);
-    } finally { busy(false); }
-  });
 }
 
 /* ================= GỠ MỘT SẢN PHẨM KHỎI MÙA =================
@@ -15930,7 +15933,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '276';
+var APPVER = '277';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
