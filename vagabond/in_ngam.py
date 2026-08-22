@@ -107,7 +107,7 @@ def ky(chuoi=None, thuat_toan="SHA512"):
 
 
 @frappe.whitelist()
-def dinh_tuyen():
+def dinh_tuyen(diem=""):
 	"""Quy tắc chọn máy in theo loại giấy, cho máy quầy tự dò tên máy in.
 
 	Trả về mảnh tên cần tìm chứ không phải tên máy in đầy đủ: tên máy in
@@ -116,9 +116,21 @@ def dinh_tuyen():
 	"""
 	_chan()
 	cd = _cai_dat()
+	# So may in tren app di TRUOC: quan ly cua hang tu gan duoc ngay tren may
+	# quay, phan theo diem ban, du bon loai phieu. Hai o cu tren Desk giu lai
+	# lam luoi do cho may nao chua kip gan.
+	try:
+		from vagabond import may_in
+
+		tuyen = may_in.tuyen_qz(diem)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "in_ngam: doc so may in")
+		tuyen = {}
 	return {
 		"hoa_don": (cd.get("qz_may_in_hoa_don") or "EPSON").strip(),
 		"tem": (cd.get("qz_may_in_tem") or "Xprinter").strip(),
+		"tuyen": tuyen,
+		"diem": str(diem or "").strip().upper(),
 		"dpi": int(cd.get("qz_dpi") or 203),
 		"da_bat": 1 if (cd.get("qz_chung_thu") or "").strip() else 0,
 	}
