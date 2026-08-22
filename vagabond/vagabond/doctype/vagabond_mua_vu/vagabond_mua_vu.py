@@ -72,8 +72,19 @@ class VagabondMuaVu(Document):
 			# khong biet hop thieu vi nha in giao thieu hay vi bep chua lam kip.
 			if d.ma_hang in han:
 				d.nha_in_giao = han[d.ma_hang]
-			if d.ma_hang in bep:
-				d.san_xuat = bep[d.ma_hang]
+			# O "San xuat" CONG hai phan, khong bao gio thay the (anh Viet
+			# 22/08/2026: "tab San luong nhap so vao he thong nuot luon").
+			#
+			# Ban truoc viet `d.san_xuat = bep[d.ma_hang]`, tuc bep nhap 120
+			# cai cua mot ngay la con so ca mua go tay 1700 bien mat khong
+			# mot loi bao. Nguoi go mat viec cua minh, va con so con lai
+			# khong sai kieu de nhin ra, no chi be di.
+			#
+			# Nay tach lam hai o ro rang:
+			#   sx_dau_mua - so bep da lam TRUOC khi mo so ngay, nguoi go tay
+			#   san_luong  - cac dong bep nhap theo tung ngay
+			# va o "San xuat" la tong hai thu, chi doc, khong ai go thang.
+			d.san_xuat = cint(d.sx_dau_mua) + cint(bep.get(d.ma_hang, 0))
 			d.trong_hop = trong_hop.get(d.ma_hang, 0)
 			d.co_the_ban = con_ban_duoc(
 				nguon_cung(d.san_xuat, d.nha_in_giao),
