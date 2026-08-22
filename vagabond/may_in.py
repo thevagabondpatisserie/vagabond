@@ -89,6 +89,7 @@ MAC_DINH = [
 		"vai_tro": ["hoa_don", "chot_ca"],
 		"kho": "80mm",
 		"ghi_chu": "",
+		"qz": "",
 		"bat": 1,
 	},
 	{
@@ -105,6 +106,7 @@ MAC_DINH = [
 		"vai_tro": ["tem"],
 		"kho": "tem_40x30",
 		"ghi_chu": "Khổ giấy nhận được 20 đến 82mm. Tốc độ 125 đến 150mm/s. Lệnh EPSON ESC/POS. Sản xuất 2023.",
+		"qz": "",
 		"bat": 1,
 	},
 	{
@@ -121,6 +123,7 @@ MAC_DINH = [
 		"vai_tro": ["phieu_mon"],
 		"kho": "80mm",
 		"ghi_chu": "Khổ giấy 80mm. Tốc độ tối đa 230mm/s.",
+		"qz": "",
 		"bat": 1,
 	},
 ]
@@ -153,6 +156,9 @@ def _chuan(d, i=0):
 		"vai_tro": vt,
 		"kho": _kho_hop_le(str((d or {}).get("kho") or "").strip()) or "80mm",
 		"ghi_chu": str((d or {}).get("ghi_chu") or "").strip(),
+		# Manh ten may in tren may tinh o quay. Doc phan "VI SAO LA MANH TEN"
+		# trong tuyen_qz. Rong khi chua ai gan.
+		"qz": str((d or {}).get("qz") or "").strip(),
 		"bat": 1 if cint((d or {}).get("bat") if (d or {}).get("bat") is not None else 1) else 0,
 	}
 
@@ -254,6 +260,41 @@ def kho_theo_vai_tro():
 	t["css"] = "%gmm %gmm" % (t.get("rong") or 40, t.get("cao") or 30)
 	t["ngang"], t["doc"], t["xoay"] = c["ngang"], c["doc"], c["xoay"]
 	ra["tem"] = t
+	return ra
+
+
+def tuyen_qz(diem=""):
+	"""Loai phieu -> danh sach manh ten may in tren may tinh, theo diem ban.
+
+	VI SAO LA MANH TEN CHU KHONG PHAI TEN DAY DU
+	--------------------------------------------
+	Ten may in tren Windows doi theo cong USB va theo tung may: cung mot cai
+	may tem, quay nay ghi "Xprinter XP-350B", quay kia ghi
+	"XP-350B (Copy 1)". Luu ten day du thi doi cong USB mot cai la mat duong
+	in. Manh "XP-350" thi nam nguyen trong ca hai.
+
+	VI SAO TRA VE DANH SACH CHU KHONG PHAI MOT CHUOI
+	-----------------------------------------------
+	Mot loai phieu co the co nhieu may nhan, va hai diem ban co hai doi may
+	khac hang nhau. Tra ve danh sach thi ben app do lan luot, thay cai nao
+	truoc dung cai do; het danh sach ma khong thay thi roi ve hop thoai
+	trinh duyet chu KHONG in bua vao may dau tien - in tem ra may hoa don la
+	hong ca cuon giay.
+
+	`diem` rong nghia la khong loc theo diem: dung cho may nao chua gan diem,
+	va cho luc anh Viet ngoi nha xem cau hinh.
+	"""
+	diem = str(diem or "").strip().upper()
+	ra = {v["k"]: [] for v in VAI_TRO}
+	for m in ds(chi_bat=True):
+		manh = (m.get("qz") or "").strip()
+		if not manh:
+			continue
+		if diem and m.get("diem") and m["diem"] != diem:
+			continue
+		for v in m["vai_tro"]:
+			if v in ra and manh not in ra[v]:
+				ra[v].append(manh)
 	return ra
 
 

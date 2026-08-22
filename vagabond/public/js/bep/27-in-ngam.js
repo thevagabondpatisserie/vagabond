@@ -114,19 +114,37 @@ function inNgamDo(ep) {
   return IN_QZ.dang_do;
 }
 
-/* Chon may in theo vai tro. Khong tim thay manh ten thi tra null de roi
+/* Manh ten can tim cho mot loai phieu, xep theo do uu tien.
+
+   So may in tren app di TRUOC: quan ly cua hang tu gan duoc ngay tai quay,
+   phan theo diem ban, du bon loai phieu. Hai o cu khai tren Desk chi con la
+   luoi do cho may nao chua kip gan. */
+function inManhCho(vaiTro) {
+  var ra = [];
+  var t = IN_QZ.tuyen || {};
+  var tu_so = (t.tuyen && t.tuyen[vaiTro]) || [];
+  for (var i = 0; i < tu_so.length; i++) {
+    if (tu_so[i] && ra.indexOf(tu_so[i]) < 0) ra.push(tu_so[i]);
+  }
+  var cu = vaiTro === 'tem' ? t.tem : t.hoa_don;
+  if (cu && ra.indexOf(cu) < 0) ra.push(cu);
+  return ra;
+}
+
+/* Chon may in theo vai tro. Khong tim thay manh ten nao thi tra null de roi
    ve trinh duyet, chu KHONG in bua vao may dau tien: in tem ly ra may in
    hoa don la hong ca cuon giay. */
 function inChonMay(vaiTro) {
-  var manh = (vaiTro === 'tem'
-    ? (IN_QZ.tuyen && IN_QZ.tuyen.tem)
-    : (IN_QZ.tuyen && IN_QZ.tuyen.hoa_don)) || '';
-  if (!manh) return null;
-  var m = manh.toLowerCase();
-  var hop = (IN_QZ.may || []).filter(function (t) {
-    return String(t).toLowerCase().indexOf(m) >= 0;
-  });
-  return hop.length ? hop[0] : null;
+  var manh = inManhCho(vaiTro);
+  for (var i = 0; i < manh.length; i++) {
+    var m = String(manh[i]).toLowerCase();
+    if (!m) continue;
+    var hop = (IN_QZ.may || []).filter(function (t) {
+      return String(t).toLowerCase().indexOf(m) >= 0;
+    });
+    if (hop.length) return hop[0];
+  }
+  return null;
 }
 
 /* ---------- Tang 2: bien HTML thanh anh raster ---------- */
@@ -345,12 +363,20 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
    nao, de khoi phai doan khi quay keu "may khong ra giay". */
 async function inNgamTinhTrang() {
   await inNgamDo(1);
+  /* Bay ca BON loai phieu chu khong chi hai: tu khi so may in gan duoc ten
+     rieng cho tung loai, "phieu mon" va "chot ca" cung co duong di rieng,
+     ma neu khong hien ra thi khong ai biet no dang di dau. */
+  var theo_vai = {};
+  ['hoa_don', 'phieu_mon', 'tem', 'chot_ca'].forEach(function (k) {
+    theo_vai[k] = { may: inChonMay(k), manh: inManhCho(k) };
+  });
   return {
     co: IN_QZ.co,
     loi: IN_QZ.loi,
     may: IN_QZ.may,
     may_hoa_don: inChonMay('hoa_don'),
     may_tem: inChonMay('tem'),
+    theo_vai: theo_vai,
     tuyen: IN_QZ.tuyen
   };
 }

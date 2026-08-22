@@ -15482,7 +15482,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '269';
+var APPVER = '270';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -22946,13 +22946,26 @@ async function miVeQz() {
   catch (e) { t = { co: 0, loi: (e && e.message) || 'không dò được' }; }
   if (!document.getElementById('qzKhoi')) return;
   if (t.co) {
+    /* Bay ca BON loai phieu. Truoc day chi hien hoa don va tem, nen "phieu
+       mon" va "chot ca" di dau thi khong ai biet, va khong ai sua duoc. */
+    var dong = (miData.vai_tro || []).map(function (v) {
+      var x = (t.theo_vai || {})[v.k] || {};
+      return '<div style="display:flex;gap:8px;align-items:baseline;margin-top:3px">' +
+        '<span style="flex:0 0 auto">' + (v.ic || '🖨') + '</span>' +
+        '<span style="flex:1">' + h(v.ten) + '</span>' +
+        (x.may
+          ? '<b style="flex:1;text-align:right">' + h(x.may) + '</b>'
+          : '<span style="flex:1;text-align:right;color:#b45309">chưa khớp máy nào</span>') +
+        '</div>';
+    }).join('');
     o.setAttribute('style', 'padding:12px 14px;background:#ecfdf3;border:1.5px solid #6ce9a6');
     o.innerHTML = '<b style="font-size:14px;color:#05603a">✅ Máy này đang in ngầm qua QZ Tray</b>' +
       '<div style="font-size:12.5px;color:#05603a;margin-top:4px;line-height:1.6">' +
-      'Bấm In là giấy ra ngay, không hiện hộp thoại in của trình duyệt.<br>' +
-      'Hoá đơn ra máy <b>' + h(t.may_hoa_don || 'chưa tìm thấy') + '</b><br>' +
-      'Tem ra máy <b>' + h(t.may_tem || 'chưa tìm thấy') + '</b><br>' +
-      '<span style="color:#3b7c60">Máy in QZ thấy được: ' + h((t.may || []).join(', ') || 'không có') + '</span></div>';
+      'Bấm In là giấy ra ngay, không hiện hộp thoại in của trình duyệt.</div>' +
+      '<div style="font-size:12.5px;color:#05603a;margin-top:8px">' + dong + '</div>' +
+      '<div style="font-size:11.5px;color:#3b7c60;margin-top:8px;line-height:1.55">' +
+      'Máy in QZ thấy được: ' + h((t.may || []).join(', ') || 'không có') + '<br>' +
+      'Dòng nào nói chưa khớp thì mở máy in đó ở danh sách dưới và chạm chọn tên.</div>';
     return;
   }
   o.setAttribute('style', 'padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d');
@@ -23130,6 +23143,34 @@ function miVe() {
   if (nl) nl.onclick = function () { miLuu(); };
 }
 
+/* ---------- Gan ten may in that cho tung may trong so ----------
+
+   De khong dung ban Desk (anh Viet 22/08/2026), viec gan ten may in phai
+   lam duoc ngay tren may quay. Hai ham nay lo phan kho nhat: nguoi dung
+   khong phai go dung tung ky tu cai ten dai loong ngoong ma Windows dat cho
+   may in, chi cham vao ten QZ doc duoc la xong. */
+
+/* Vai manh ten NGAN hon de goi y. Ten day du chua so cong USB hoac duoi
+   "(Copy 1)", doi day cam la lech; manh ngan thi song sot. */
+function miQzGoiY(ten) {
+  var day = String(ten || '').trim();
+  var t = day.replace(/\s*\(.*?\)\s*$/, '').trim();
+  var ra = [];
+  if (t && t !== day) ra.push(t);
+  var tu = t.split(/\s+/).filter(Boolean);
+  if (tu.length > 1) ra.push(tu.slice(0, 2).join(' '));
+  if (tu.length && tu[0].length >= 3) ra.push(tu[0]);
+  return ra.filter(function (x, i) { return x && ra.indexOf(x) === i && x !== day; });
+}
+
+/* May in nao tren may tinh NAY dang khop voi manh dang go. */
+function miQzKhop(manh) {
+  var m = String(manh || '').toLowerCase().trim();
+  if (!m) return [];
+  var ds = (typeof IN_QZ !== 'undefined' && IN_QZ.may) ? IN_QZ.may : [];
+  return ds.filter(function (t) { return String(t).toLowerCase().indexOf(m) >= 0; });
+}
+
 function scrMayInSua() {
   var d = (miDs || [])[miMo];
   if (!d) return go(scrMayIn, true);
@@ -23164,6 +23205,53 @@ function scrMayInSua() {
     }).join('')) +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
     'Số này app dùng thật khi in. Đổi ở đây là bản in đổi theo, không phải sửa phần mềm.</div></div>';
+
+  /* Khoi gan ten may in that. Dat NGAY SAU kho giay vi hai thu nay di voi
+     nhau: kho giay quyet dinh ban in trong the nao, ten may quyet dinh no
+     ra cai may nao. */
+  var qzCo = (typeof IN_QZ !== 'undefined' && IN_QZ.co) ? 1 : 0;
+  var qzDs = (typeof IN_QZ !== 'undefined' && IN_QZ.may) ? IN_QZ.may : [];
+  var khop = miQzKhop(d.qz);
+  html += '<div class="sec">Tên máy in trên máy tính ở quầy</div>' +
+    '<div class="card" style="padding:11px 12px">' +
+    '<input class="tin" id="miQz" value="' + h(d.qz || '') + '" placeholder="Ví dụ XP-350 hoặc TM-T82" style="width:100%;margin:0">' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.6">' +
+    'Chỉ cần một <b>mảnh ngắn</b> của tên, không cần gõ đủ. Tên máy in trên Windows đổi ' +
+    'theo cổng USB, mảnh ngắn thì sống sót qua mỗi lần cắm lại.</div>';
+
+  if (!qzCo) {
+    html += '<div style="margin-top:9px;padding:9px 11px;border-radius:9px;background:#fffbeb;' +
+      'border:1px solid #fcd34d;font-size:12.5px;color:#7c4a03;line-height:1.6">' +
+      'Máy tính này chưa nối được QZ Tray nên chưa dò được tên máy in. ' +
+      'Gõ tay cũng được, nhưng ra đúng quầy rồi chạm chọn thì chắc hơn.</div>';
+  } else if (!qzDs.length) {
+    html += '<div style="margin-top:9px;font-size:12.5px;color:#b45309">QZ Tray không thấy máy in nào trên máy tính này.</div>';
+  } else {
+    html += '<div style="font-size:11.5px;color:#6b7280;margin:10px 0 6px">CHẠM MỘT TÊN QZ ĐANG THẤY</div>' +
+      kmHangChip(qzDs.map(function (t) {
+        return posChipNut('data-miqz="' + h(t) + '"', h(t), String(d.qz || '') === t);
+      }).join(''));
+    var gy = [];
+    qzDs.forEach(function (t) { gy = gy.concat(miQzGoiY(t)); });
+    gy = gy.filter(function (x, i) { return gy.indexOf(x) === i; });
+    if (gy.length) {
+      html += '<div style="font-size:11.5px;color:#6b7280;margin:10px 0 6px">HOẶC LẤY MẢNH NGẮN HƠN</div>' +
+        kmHangChip(gy.map(function (t) {
+          return posChipNut('data-miqz="' + h(t) + '"', h(t), String(d.qz || '') === t);
+        }).join(''));
+    }
+  }
+
+  if (d.qz) {
+    html += '<div style="margin-top:10px;padding:9px 11px;border-radius:9px;font-size:12.5px;line-height:1.6;' +
+      (khop.length === 1
+        ? 'background:#ecfdf3;border:1px solid #6ce9a6;color:#05603a">✅ Trên máy tính này đang khớp đúng một máy: <b>' + h(khop[0]) + '</b>'
+        : khop.length > 1
+          ? 'background:#fffbeb;border:1px solid #fcd34d;color:#7c4a03">⚠️ Mảnh này khớp ' + khop.length + ' máy: <b>' + h(khop.join(', ')) + '</b>. Máy sẽ lấy cái đầu tiên. Gõ dài thêm cho khỏi nhầm.'
+        : 'background:#fef2f2;border:1px solid #fecaca;color:#b3261e">Chưa khớp máy in nào trên máy tính này. Nếu đang ngồi ở quầy khác thì bình thường, còn ngồi ngay quầy đó thì kiểm lại tên.') +
+      '</div>';
+  }
+  html += '</div>';
 
   html += '<div class="sec">Thông số thiết bị</div><div class="card">' +
     o('Hãng', 'miHang', d.hang, '') +
@@ -23207,8 +23295,18 @@ function scrMayInSua() {
     }
     t = e.target.closest('[data-mikho]');
     if (t) { miDoc(); d.kho = t.getAttribute('data-mikho'); return go(scrMayInSua, true); }
+    t = e.target.closest('[data-miqz]');
+    if (t) { miDoc(); d.qz = t.getAttribute('data-miqz'); return go(scrMayInSua, true); }
     if (e.target.closest('[data-mibat]')) { miDoc(); d.bat = d.bat ? 0 : 1; return go(scrMayInSua, true); }
   };
+  /* Chua do QZ lan nao (vao thang man nay chu khong qua man danh sach) thi
+     do roi ve lai, de danh sach ten may in hien ra cho ma cham. */
+  if (typeof inNgamDo === 'function' && typeof IN_QZ !== 'undefined' && !IN_QZ.do_roi) {
+    inNgamDo().then(function () {
+      if (miMo === (miDs || []).indexOf(d)) go(scrMayInSua, true);
+    }).catch(function () { });
+  }
+
   if (!miSuaDuoc) return;
   document.getElementById('miLuu2').onclick = function () { miDoc(); miLuu(); };
   document.getElementById('miBo').onclick = async function () {
@@ -23235,6 +23333,7 @@ function miDoc() {
   if ((g = v('miNguon')) !== null) d.nguon_dien = g;
   if ((g = v('miXuatXu')) !== null) d.xuat_xu = g;
   if ((g = v('miGhiChu')) !== null) d.ghi_chu = g;
+  if ((g = v('miQz')) !== null) d.qz = g;
 }
 
 async function miLuu(veDanhSach) {
@@ -29973,19 +30072,37 @@ function inNgamDo(ep) {
   return IN_QZ.dang_do;
 }
 
-/* Chon may in theo vai tro. Khong tim thay manh ten thi tra null de roi
+/* Manh ten can tim cho mot loai phieu, xep theo do uu tien.
+
+   So may in tren app di TRUOC: quan ly cua hang tu gan duoc ngay tai quay,
+   phan theo diem ban, du bon loai phieu. Hai o cu khai tren Desk chi con la
+   luoi do cho may nao chua kip gan. */
+function inManhCho(vaiTro) {
+  var ra = [];
+  var t = IN_QZ.tuyen || {};
+  var tu_so = (t.tuyen && t.tuyen[vaiTro]) || [];
+  for (var i = 0; i < tu_so.length; i++) {
+    if (tu_so[i] && ra.indexOf(tu_so[i]) < 0) ra.push(tu_so[i]);
+  }
+  var cu = vaiTro === 'tem' ? t.tem : t.hoa_don;
+  if (cu && ra.indexOf(cu) < 0) ra.push(cu);
+  return ra;
+}
+
+/* Chon may in theo vai tro. Khong tim thay manh ten nao thi tra null de roi
    ve trinh duyet, chu KHONG in bua vao may dau tien: in tem ly ra may in
    hoa don la hong ca cuon giay. */
 function inChonMay(vaiTro) {
-  var manh = (vaiTro === 'tem'
-    ? (IN_QZ.tuyen && IN_QZ.tuyen.tem)
-    : (IN_QZ.tuyen && IN_QZ.tuyen.hoa_don)) || '';
-  if (!manh) return null;
-  var m = manh.toLowerCase();
-  var hop = (IN_QZ.may || []).filter(function (t) {
-    return String(t).toLowerCase().indexOf(m) >= 0;
-  });
-  return hop.length ? hop[0] : null;
+  var manh = inManhCho(vaiTro);
+  for (var i = 0; i < manh.length; i++) {
+    var m = String(manh[i]).toLowerCase();
+    if (!m) continue;
+    var hop = (IN_QZ.may || []).filter(function (t) {
+      return String(t).toLowerCase().indexOf(m) >= 0;
+    });
+    if (hop.length) return hop[0];
+  }
+  return null;
 }
 
 /* ---------- Tang 2: bien HTML thanh anh raster ---------- */
@@ -30204,12 +30321,20 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
    nao, de khoi phai doan khi quay keu "may khong ra giay". */
 async function inNgamTinhTrang() {
   await inNgamDo(1);
+  /* Bay ca BON loai phieu chu khong chi hai: tu khi so may in gan duoc ten
+     rieng cho tung loai, "phieu mon" va "chot ca" cung co duong di rieng,
+     ma neu khong hien ra thi khong ai biet no dang di dau. */
+  var theo_vai = {};
+  ['hoa_don', 'phieu_mon', 'tem', 'chot_ca'].forEach(function (k) {
+    theo_vai[k] = { may: inChonMay(k), manh: inManhCho(k) };
+  });
   return {
     co: IN_QZ.co,
     loi: IN_QZ.loi,
     may: IN_QZ.may,
     may_hoa_don: inChonMay('hoa_don'),
     may_tem: inChonMay('tem'),
+    theo_vai: theo_vai,
     tuyen: IN_QZ.tuyen
   };
 }
