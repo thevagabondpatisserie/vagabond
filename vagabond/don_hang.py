@@ -176,6 +176,30 @@ def tao_don(don=None):
 	if not hang:
 		return {"ok": 0, "ly_do": "gio_hang_rong"}
 
+	# CHOT CHAN HAN MUC MUA VU (them 21/08/2026 cung dot dua hang mua vu len web).
+	#
+	# Trinh duyet da khoa nut o nhung mon het hang, nhung ai cung goi thang
+	# endpoint nay duoc, va giua luc khach mo trang voi luc khach bam dat co the
+	# da co nguoi khac mua mat. Hang mua vu la hang co han muc cung: ban lo mot
+	# hop la mot loi hua khong giu duoc, khong phai mot dong so am tren bang.
+	#
+	# Goi thang kiem_han_muc chu khong goi kiem_truoc_khi_ban, vi ham kia co
+	# _kiem_quyen() danh cho nhan vien, con day la khach vang lai.
+	try:
+		from vagabond import mua_vu
+
+		nhac = mua_vu.kiem_han_muc(
+			[{"item_code": h["variation_id"], "qty": h.get("quantity") or 0} for h in hang],
+			ngay=_ngay_iso(don.get("ngay_nhan")),
+		)
+		if nhac:
+			return {"ok": 0, "ly_do": "het_hang_mua_vu", "nhac": nhac}
+	except Exception:
+		# Hong phep kiem KHONG duoc chan don thuong. Ghi log roi di tiep: chan
+		# nham ca tiem vi mot loi phu la cai gia dat hon nhieu so voi mot don
+		# mua vu lot qua, ma don do van con chot chan o before_submit ben trong.
+		frappe.log_error(frappe.get_traceback(), "don_hang: kiem han muc mua vu")
+
 	# Doi ma hang sang UUID truoc khi gui. Thieu mot ma la dung lai bao ngay,
 	# con hon de Pancake tu choi ca don voi loi chung chung.
 	for h in hang:
