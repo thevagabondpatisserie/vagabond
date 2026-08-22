@@ -1200,11 +1200,25 @@ def _mo_so_va_them(doc, cac_ngay):
 	mo_so, them_ngay = {}, {}
 
 	# Banh le: o go tay la ton mo so, cac dong bep nhap la vao them tung ngay.
+	# Ma NAO da khai dot nha in. Ma khong co dot nao thi o "Tong nha in giao"
+	# go tay GIU NGUYEN HIEU LUC, y het luat cua han_muc_tu_dot ben bang ca mua.
+	#
+	# Thieu doan nay thi cac dong HOP hien 0 tren bang theo ngay trong khi bang
+	# San pham bao 1600, vi mua Trung thu 2026 khong khai dot nao ca, so vo hop
+	# la nguoi go thang vao o. Da gap that ngay 22/08/2026.
+	co_dot = {
+		str((x.ma_hang or "")).strip()
+		for x in (doc.get("dot") or [])
+		if str((x.ma_hang or "")).strip()
+	}
+
 	# Khai HET ma cua mua, ke ca ma dang bang 0. Bo ma 0 di thi san pham do
 	# bien mat khoi bang, va sales tuong mua khong co no chu khong phai no
 	# dang het - hai chuyen khac han nhau khi dang tu van khach.
 	for d in doc.dong:
 		mo_so[d.ma_hang] = cint(d.get("sx_dau_mua"))
+		if d.ma_hang not in co_dot:
+			mo_so[d.ma_hang] += cint(d.get("nha_in_giao"))
 	for x in doc.get("san_luong") or []:
 		ma = str(x.ma_hang or "").strip()
 		if not ma:
