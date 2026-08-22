@@ -438,6 +438,24 @@ def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None):
 		ma: cint(o.get("co_the_ban")) for ma, o in (o_ngay or {}).items() if ma not in hop
 	}
 	ghep = ghep_duoc_tu_ruot(dinh_muc, con_banh, khong_tran or set())
+
+	# Hop nao CO khai dinh muc, du ruot cua no co dat tran hay khong. Phai tach
+	# ra khoi co "ruot_khong_rang_buoc", vi hai chuyen nay khac han nhau ma ban
+	# truoc gop lam mot va noi SAI (anh Viet bat duoc 22/08/2026):
+	#
+	#   chua khai gi ca        -> canh bao that, phai di khai dinh muc
+	#   khai roi, ruot khong dat tran -> binh thuong, banh 80g chi lam theo hop
+	#                                    nen chi so vo hop chan duoc
+	#
+	# MOONGARDEN khai du 5 ruot, ca 5 deu mang co khong_tran, nen ghep_duoc_tu_ruot
+	# bo qua het va tra ve None. Man hinh doc None thanh "chua khai dinh muc" la
+	# noi oan cho nguoi da khai.
+	co_dinh_muc = set()
+	for m in dinh_muc or []:
+		h = str((m or {}).get("ma_hop") or "").strip()
+		if h:
+			co_dinh_muc.add(h)
+
 	for ma, o in (o_ngay or {}).items():
 		if ma in hop:
 			g = ghep.get(ma)
@@ -445,11 +463,13 @@ def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None):
 			o["ghep_duoc"] = cint(g) if g is not None else 0
 			o["con_thuc_te"] = con_hop_thuc_te(o.get("co_the_ban"), g)
 			o["ruot_khong_rang_buoc"] = 1 if g is None else 0
+			o["chua_khai_dinh_muc"] = 0 if ma in co_dinh_muc else 1
 		else:
 			o["la_hop"] = 0
 			o["ghep_duoc"] = 0
 			o["con_thuc_te"] = cint(o.get("co_the_ban"))
 			o["ruot_khong_rang_buoc"] = 0
+			o["chua_khai_dinh_muc"] = 0
 	return o_ngay
 
 
@@ -1358,6 +1378,7 @@ def bang_ngay(mua=None, ngay=None):
 				"ghep_duoc": o["ghep_duoc"],
 				"con_thuc_te": o["con_thuc_te"],
 				"ruot_khong_rang_buoc": o["ruot_khong_rang_buoc"],
+				"chua_khai_dinh_muc": o["chua_khai_dinh_muc"],
 				"ten_khach_ps": c.get("khach_ps") or "",
 				"ten_khach_cho": c.get("khach") or "",
 				"ten_khach_khac": c.get("khach_khac") or "",
