@@ -114,11 +114,31 @@
    "in_list_view": 0,
    "label": "TK Co",
    "options": "Account"
+  },
+  {
+   "description": "Loại giấy tờ chứng minh khoản chi này. Danh mục kế toán tự thêm bớt được.",
+   "fieldname": "loai_chung_tu",
+   "fieldtype": "Link",
+   "label": "Loại chứng từ",
+   "options": "Vagabond Loai Chung Tu"
+  },
+  {
+   "description": "Mã các tệp File đính cho riêng dòng này, mỗi dòng một mã. Bản in gom theo dòng để ghi rõ ảnh thuộc khoản chi nào.",
+   "fieldname": "tep",
+   "fieldtype": "Small Text",
+   "label": "Tệp chứng từ"
+  },
+  {
+   "description": "Dòng này lấy từ một phiếu thanh toán nội bộ đã duyệt. Giữ mối nối để đối chiếu ngược.",
+   "fieldname": "de_nghi_chi",
+   "fieldtype": "Link",
+   "label": "Phiếu thanh toán nội bộ",
+   "options": "Vagabond De Nghi Chi"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-13 16:30:00.000000",
+ "modified": "2026-08-22 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Ho So TT Dong",

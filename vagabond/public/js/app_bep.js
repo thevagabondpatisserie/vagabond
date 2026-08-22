@@ -15933,7 +15933,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '277';
+var APPVER = '278';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -24825,15 +24825,18 @@ async function scrHoanUngTao() {
      sao ke OCB. */
   html += hsoKhoi('Các khoản đã chi · bấm một dòng để sửa hoặc xoá')
     + '<div class="card" style="padding:0;overflow-x:auto">'
-    + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:860px">'
     + '<tr style="background:#f8fafc;color:#6b7280;font-size:11.5px;text-align:left">'
     + '<th style="padding:8px 10px;font-weight:700">STT</th>'
     + '<th style="padding:8px 10px;font-weight:700">Ngày mua</th>'
     + '<th style="padding:8px 10px;font-weight:700">Nội dung</th>'
+    + '<th style="padding:8px 10px;font-weight:700">Loại chứng từ</th>'
+    + '<th style="padding:8px 10px;font-weight:700">Chứng từ</th>'
+    + '<th style="padding:8px 10px;font-weight:700">Phiếu nội bộ</th>'
     + '<th style="padding:8px 10px;font-weight:700;text-align:right">Số tiền</th>'
     + '<th style="padding:8px 10px;font-weight:700">Mã giao dịch</th></tr>';
   if (!huDong.length) {
-    html += '<tr><td colspan="5" style="padding:24px;text-align:center;color:#6b7280">Chưa có khoản nào. Bấm <b>➕ Thêm khoản chi</b> ở dưới.</td></tr>';
+    html += '<tr><td colspan="8" style="padding:24px;text-align:center;color:#6b7280">Chưa có khoản nào. Bấm <b>➕ Gõ tay</b> ở dưới.</td></tr>';
   }
   huDong.forEach(function (x, i) {
     html += '<tr data-hux="' + i + '" style="border-top:1px solid #eef2f5;cursor:pointer">'
@@ -24844,6 +24847,7 @@ async function scrHoanUngTao() {
       + (x.ben_ban ? '<br><span style="color:#6b7280;font-size:11.5px">' + h(x.ben_ban) + '</span>' : '')
       + '<br><span style="font-size:11.5px;color:' + (x.co_vat ? '#0e7490' : '#92400e') + '">'
       + (x.co_vat ? '🧾 có hoá đơn VAT' : '📄 không hoá đơn') + (x.loai_chi ? ' · ' + h(x.loai_chi) : '') + '</span></td>'
+      + huOLoaiCt(x, i) + huOTep(x, i) + huOPhieu(x, i)
       + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(x.so_tien) + '</td>'
       + '<td style="padding:9px 10px;white-space:nowrap;font-size:11.5px;color:' + (x.ma_giao_dich ? '#0e7490' : '#b45309') + '">'
       + (x.ma_giao_dich ? h(x.ma_giao_dich) : '⚠️ chưa gắn') + '</td></tr>';
@@ -24872,6 +24876,19 @@ async function scrHoanUngTao() {
     go(scrHoanUngTao, true);
   });
   b.addEventListener('click', function (e) {
+    /* Ba nut moi nam TRONG dong, ma ca dong lai la nut mo bang sua. Khong
+       chan noi len thi bam Tai chung tu cung mo luon bang sua de len tren. */
+    var n = e.target.closest('[data-hulct],[data-hutep],[data-huphieu],[data-hugotep]');
+    if (n) {
+      e.stopPropagation();
+      if (n.hasAttribute('data-hulct')) return huChonLoaiCt(+n.getAttribute('data-hulct'));
+      if (n.hasAttribute('data-hutep')) return huThemTepDong(+n.getAttribute('data-hutep'));
+      if (n.hasAttribute('data-hugotep')) {
+        var p = n.getAttribute('data-hugotep').split('|');
+        return huGoTepDong(+p[0], p[1]);
+      }
+      return huNoiPhieuNoiBo(+n.getAttribute('data-huphieu'));
+    }
     var r = e.target.closest('[data-hux]'); if (!r) return;
     huSuaDong(+r.getAttribute('data-hux'));
   });
@@ -24893,7 +24910,7 @@ async function scrHoanUngTao() {
     busy(true);
     try {
       var kq = await api('vagabond.ho_so_tt.tao_hoan_ung', {
-        nguoi_ung: huNguoi, dong: JSON.stringify(huDong), ghi_chu: huGhiChu,
+        nguoi_ung: huNguoi, dong: JSON.stringify(huDongGuiDi()), ghi_chu: huGhiChu,
         da_tam_ung: huTamUng || 0, gui_luon: guiLuon ? 1 : 0
       });
       busy(false);
@@ -25770,6 +25787,254 @@ async function scrNoiDungCK(hs, ck) {
 }
 
 
+
+/* ============================================================================
+   SIẾT HỒ SƠ HOÀN ỨNG: loại chứng từ, tệp chứng từ, nối phiếu nội bộ
+   ============================================================================
+
+   Anh Việt 22/08/2026: *"Luồng 'Hoàn ứng không hóa đơn' hiện tại đang có rủi
+   ro gian lận cao. Kế toán trưởng yêu cầu siết chặt hồ sơ, bắt buộc phải có
+   chứng từ đính kèm"*.
+
+   Lỗ hổng thật: một dòng hoàn ứng chỉ cần nội dung, số tiền và mã giao dịch.
+   Mã giao dịch chứng minh TIỀN ĐÃ ĐI, không chứng minh tiền đi mua cái gì.
+
+   Ba thứ thêm vào, tất cả gắn theo TỪNG DÒNG chứ không phải cả hồ sơ, vì một
+   hồ sơ hoàn ứng gom hàng chục khoản của nhiều người bán. Đính một xấp ảnh
+   vào hồ sơ thì kế toán vẫn phải ngồi đoán ảnh nào của khoản nào.
+
+   Tệp tải lên NGAY lúc bấm, không đợi tới lúc lưu hồ sơ: máy chủ trả về mã
+   tệp, dòng giữ mã đó. Làm vậy để ảnh chụp xong là thấy ngay hình thu nhỏ,
+   và để lỗi mạng lộ ra tại chỗ chứ không đợi tới lúc bấm Lập rồi mới đổ. */
+
+var HU_DM_CT = null;   /* danh mục loại chứng từ, tải một lần rồi giữ */
+
+async function huLayDmCt() {
+  if (!HU_DM_CT) {
+    var kq = await api('vagabond.ho_so_tt.ds_loai_chung_tu', {});
+    HU_DM_CT = (kq && kq.ds) || [];
+  }
+  return HU_DM_CT;
+}
+
+/* ---------- Cột 1: loại chứng từ ---------- */
+
+function huOLoaiCt(x, i) {
+  var co = (x.loai_chung_tu || '').trim();
+  return '<td style="padding:7px 8px">' +
+    '<div data-hulct="' + i + '" style="cursor:pointer;border:1.5px solid ' +
+    (co ? '#99f6e4' : '#e5e7eb') + ';background:' + (co ? '#f0fdfa' : '#fff') +
+    ';border-radius:8px;padding:5px 8px;font-size:11.5px;color:' +
+    (co ? '#0f766e' : '#9ca3af') + ';font-weight:' + (co ? '700' : '500') +
+    ';white-space:nowrap;display:flex;align-items:center;gap:5px">' +
+    '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;max-width:120px">' +
+    h(co || 'Chọn loại') + '</span><span style="font-size:9px">▾</span></div></td>';
+}
+
+async function huChonLoaiCt(i) {
+  var ds;
+  busy(true);
+  try { ds = await huLayDmCt(); } catch (e) {
+    busy(false); return baoTin(errMsg(e) || 'Chưa đọc được danh mục chứng từ.', 'Lỗi');
+  }
+  busy(false);
+  if (!ds.length) return baoTin('Danh mục loại chứng từ đang trống. Báo em để nạp lại.', 'Chưa có dữ liệu');
+  sheet('Loại chứng từ · ' + ds.length + ' loại',
+    ds.map(function (r) {
+      return {
+        value: r.ma, label: r.ten,
+        phu: (r.bat_buoc_tep ? 'bắt buộc có tệp' : 'không bắt buộc tệp') +
+             (r.vat ? ' · hoá đơn VAT' : '') + (r.mo_ta ? ' · ' + r.mo_ta : ''),
+        tim: r.ten
+      };
+    }),
+    huDong[i] ? (huDong[i].loai_chung_tu || '') : '',
+    function (it) {
+      if (!huDong[i]) return;
+      huDong[i].loai_chung_tu = it.value;
+      go(scrHoanUngTao, true);
+    }, true);
+}
+
+/* ---------- Cột 2: tệp chứng từ, hiện hình thu nhỏ ----------
+
+   Kế toán nhìn lướt bảng là biết dòng nào đã có giấy tờ, dòng nào chưa. Chữ
+   "đã có 2 tệp" không làm được việc đó bằng hai cái hình nhỏ. */
+
+function huOTep(x, i) {
+  var ds = x.tep || [];
+  var o = '<td style="padding:7px 8px;white-space:nowrap">';
+  if (ds.length) {
+    o += '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:132px">';
+    ds.slice(0, 3).forEach(function (t) {
+      o += '<span data-hugotep="' + i + '|' + h(t.ma) + '" title="Chạm để gỡ ' + h(t.ten || '') + '" ' +
+        'style="position:relative;display:inline-block;cursor:pointer">' +
+        (t.la_anh
+          ? '<img src="' + h(t.url) + '" style="width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db">'
+          : '<span style="display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border:1px solid #d1d5db;border-radius:6px;background:#f9fafb;font-size:15px">📄</span>') +
+        '</span>';
+    });
+    if (ds.length > 3) {
+      o += '<span style="font-size:11px;color:#6b7280">+' + (ds.length - 3) + '</span>';
+    }
+    o += '<span data-hutep="' + i + '" style="cursor:pointer;font-size:16px;color:#0f766e;padding:0 3px">＋</span>';
+    o += '</div>';
+  } else {
+    o += '<div data-hutep="' + i + '" style="cursor:pointer;border:1.5px dashed #fca5a5;background:#fef2f2;' +
+      'border-radius:8px;padding:6px 8px;font-size:11.5px;color:#b91c1c;font-weight:700;text-align:center">' +
+      '📎 Tải chứng từ</div>';
+  }
+  return o + '</td>';
+}
+
+async function huThemTepDong(i) {
+  if (!huDong[i]) return;
+  var f = await huChonTep();
+  if (!f) return;
+  if (f.size > 12 * 1024 * 1024) {
+    return toast('Tệp nặng quá 12 MB nên máy không nhận. Chụp lại nhỏ hơn giúp em.', 5500);
+  }
+  busy(true);
+  var t;
+  try { t = await huUpTep(f); }
+  catch (e) { busy(false); return toast('Không tải tệp lên được: ' + ((e && e.message) || ''), 6500); }
+  busy(false);
+  var ten = t.ten || '';
+  var duoi = ten.indexOf('.') >= 0 ? ten.split('.').pop().toLowerCase() : '';
+  huDong[i].tep = (huDong[i].tep || []).concat([{
+    ma: t.ma, ten: ten, url: t.url,
+    la_anh: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].indexOf(duoi) >= 0 ? 1 : 0
+  }]);
+  toast('Đã đính ' + ten + ' vào khoản số ' + (i + 1), 3000);
+  go(scrHoanUngTao, true);
+}
+
+async function huGoTepDong(i, ma) {
+  if (!huDong[i]) return;
+  var ds = huDong[i].tep || [];
+  var t = ds.filter(function (x) { return x.ma === ma; })[0];
+  var ok = await xacNhan('Gỡ "' + ((t && t.ten) || ma) + '" khỏi khoản số ' + (i + 1) + '?',
+    'Gỡ chứng từ', 'Gỡ');
+  if (!ok) return;
+  huDong[i].tep = ds.filter(function (x) { return x.ma !== ma; });
+  go(scrHoanUngTao, true);
+}
+
+/* ---------- Cột 3: nối phiếu thanh toán nội bộ ----------
+
+   Khoản nào quản lý đã lập phiếu và đã được duyệt thì không việc gì phải
+   khai lại từ đầu. Bấm một nút, máy kéo số tiền, nội dung và TẤT CẢ tệp của
+   phiếu đó sang dòng này.
+
+   Chỉ hiện phiếu đã duyệt và CHƯA nối hồ sơ nào. Một phiếu nối hai lần là
+   công ty trả tiền hai lần cho cùng một khoản, nên backend chặn thêm lần
+   nữa lúc ghi chứ không tin mỗi màn hình. */
+
+function huOPhieu(x, i) {
+  var co = (x.de_nghi_chi || '').trim();
+  return '<td style="padding:7px 8px;white-space:nowrap">' +
+    '<div data-huphieu="' + i + '" style="cursor:pointer;border:1.5px solid ' +
+    (co ? '#c7d2fe' : '#e5e7eb') + ';background:' + (co ? '#eef2ff' : '#fff') +
+    ';border-radius:8px;padding:5px 8px;font-size:11.5px;color:' +
+    (co ? '#4338ca' : '#6b7280') + ';font-weight:' + (co ? '700' : '500') + '">' +
+    (co ? '🔗 ' + h(co) : '🔗 Nối phiếu') + '</div></td>';
+}
+
+async function huNoiPhieuNoiBo(i) {
+  if (!huDong[i]) return;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', {}); }
+  catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được danh sách phiếu.', 'Lỗi'); }
+  busy(false);
+  var ds = (kq && kq.ds) || [];
+  if (!ds.length) {
+    return baoTin('Không có phiếu thanh toán nội bộ nào đã duyệt mà chưa nối hồ sơ.\n\n' +
+      'Phiếu còn nháp hoặc đang chờ duyệt thì chưa nối được, và phiếu đã nối vào hồ sơ ' +
+      'khác cũng không hiện ra ở đây để tránh trả tiền hai lần.', 'Chưa có phiếu nào');
+  }
+  sheet('Phiếu thanh toán nội bộ · ' + ds.length + ' phiếu',
+    ds.map(function (r) {
+      return {
+        value: r.ma,
+        label: r.ten + ' · ' + money(r.so_tien) + ' đ',
+        phu: r.ma + ' · ' + (r.nguoi_ten || r.nguoi_tao) + ' · ' + hsNgayVn(r.ngay) +
+             ' · ' + r.trang_thai + (r.so_tep ? ' · ' + r.so_tep + ' tệp' : ' · chưa có tệp'),
+        tim: r.ma + ' ' + r.ten + ' ' + (r.nguoi_ten || '') + ' ' + (r.dien_giai || '')
+      };
+    }), huDong[i].de_nghi_chi || '',
+    function (it) { huXemVaNoiPhieu(i, it.value); }, true);
+}
+
+async function huXemVaNoiPhieu(i, ma) {
+  busy(true);
+  var p;
+  try { p = await api('vagabond.ho_so_tt.xem_phieu_noi_bo', { phieu: ma }); }
+  catch (e) { busy(false); return baoTin(errMsg(e) || 'Không đọc được phiếu này.', 'Không nối được'); }
+  busy(false);
+  var cu = huDong[i] || {};
+  var doiTien = Number(cu.so_tien || 0) > 0 && Math.abs(Number(cu.so_tien) - Number(p.so_tien)) > 1;
+  var noi = '<div class="card" style="padding:0"><div class="kv"><span>Phiếu</span><b>' + h(p.ma) + '</b></div>' +
+    '<div class="kv"><span>Nội dung</span><b style="text-align:right">' + h(p.noi_dung) + '</b></div>' +
+    '<div class="kv"><span>Số tiền</span><b>' + money(p.so_tien) + ' đ</b></div>' +
+    '<div class="kv"><span>Người lập</span><b>' + h(p.nguoi_ten || p.nguoi_tao) + '</b></div>' +
+    '<div class="kv"><span>Trạng thái</span><b>' + h(p.trang_thai) + '</b></div>' +
+    '<div class="kv"><span>Tệp đính kèm</span><b>' + ((p.tep || []).length || 'chưa có') + '</b></div></div>';
+  if ((p.tep || []).length) {
+    noi += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">' +
+      p.tep.map(function (t) {
+        return '<img src="' + h(t.url) + '" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #d1d5db">';
+      }).join('') + '</div>';
+  }
+  noi += '<div style="font-size:12.5px;color:#5a6070;line-height:1.55;margin-top:12px">' +
+    'Nhận thì máy đắp <b>số tiền, nội dung và toàn bộ tệp</b> của phiếu này vào khoản số ' +
+    (i + 1) + '.' +
+    (doiTien
+      ? '<div style="color:#b45309;margin-top:6px"><b>Khoản này đang ghi ' + money(cu.so_tien) +
+        ' đ, phiếu ghi ' + money(p.so_tien) + ' đ.</b> Nhận thì số của phiếu đè lên số đang có.</div>'
+      : '') +
+    '</div>';
+  var hop = hopKhung('Nối phiếu ' + p.ma, noi,
+    '<button class="btn gh" data-hpdong style="flex:1">Thôi</button>' +
+    '<button class="btn" data-hpok style="flex:2">Nhận vào khoản ' + (i + 1) + '</button>');
+  hop.box.querySelector('.x').onclick = hop.dong;
+  hop.ov.onclick = function (e) {
+    if (e.target === hop.ov || e.target.closest('[data-hpdong]')) return hop.dong();
+    if (!e.target.closest('[data-hpok]')) return;
+    hop.dong();
+    var d = huDong[i];
+    d.de_nghi_chi = p.ma;
+    d.so_tien = Number(p.so_tien) || d.so_tien;
+    if (p.noi_dung) d.noi_dung = p.noi_dung;
+    if (p.ben_ban && !d.ben_ban) d.ben_ban = p.ben_ban;
+    if (p.so_hoa_don && !d.so_hd_ncc) d.so_hd_ncc = p.so_hoa_don;
+    if (p.loai_chung_tu && !d.loai_chung_tu) d.loai_chung_tu = p.loai_chung_tu;
+    if (p.co_vat) d.co_vat = 1;
+    var daCo = (d.tep || []).map(function (t) { return t.ma; });
+    (p.tep || []).forEach(function (t) {
+      if (daCo.indexOf(t.ma) >= 0) return;
+      var ten = t.ten || '';
+      var duoi = ten.indexOf('.') >= 0 ? ten.split('.').pop().toLowerCase() : '';
+      d.tep = (d.tep || []).concat([{
+        ma: t.ma, ten: ten, url: t.url,
+        la_anh: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].indexOf(duoi) >= 0 ? 1 : 0
+      }]);
+    });
+    toast('Đã nối phiếu ' + p.ma + ' vào khoản số ' + (i + 1), 3600);
+    go(scrHoanUngTao, true);
+  };
+}
+
+/* Gửi lên máy chủ thì chỉ cần MÃ tệp, phần tên và đường dẫn là để vẽ màn
+   hình. Gửi cả cục cũng không sai nhưng nặng vô ích khi hồ sơ ba chục dòng. */
+function huDongGuiDi() {
+  return huDong.map(function (x) {
+    var d = {};
+    Object.keys(x).forEach(function (k) { if (k !== 'tep') d[k] = x[k]; });
+    d.tep = (x.tep || []).map(function (t) { return t.ma; });
+    return d;
+  });
+}
 /* ================= DANH MUC NHA CUNG CAP =================
    Uyen hoi 14/08/2026: "co may mat hang chua gan NCC, em gan NCC o muc nao?"
 

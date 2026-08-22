@@ -533,6 +533,11 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 			frappe.throw("Khoản \"%s\" ghi 0 đồng." % (noi_dung or "chưa đặt tên"))
 		if not noi_dung:
 			frappe.throw("Có khoản %s đ chưa ghi nội dung chi." % _tien(tien))
+		# Chung tu cua rieng dong nay (anh Viet 22/08/2026, siet ho so hoan
+		# ung). Loc qua _tep_hop_le de khong luu ma tep ma ma khong con tren
+		# may chu: ban in gap ma la se im lang bo qua, ke toan tuong co anh
+		# ma mo ra khong thay gi.
+		ma_tep = _tep_hop_le(x.get("tep"))
 		sach.append({
 			"ngay_hd": x.get("ngay_hd") or nowdate(),
 			"so_hd_ncc": (x.get("so_hd_ncc") or "").strip(),
@@ -543,6 +548,9 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 			"so_tien": tien,
 			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
+			"loai_chung_tu": (x.get("loai_chung_tu") or "").strip() or None,
+			"tep": "\n".join(ma_tep),
+			"de_nghi_chi": (x.get("de_nghi_chi") or "").strip() or None,
 		})
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
@@ -564,6 +572,12 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 		doc.append("dong", d)
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
+	# Tep cua tung dong phai THUOC VE ho so, khong thi don don tep mo coi cua
+	# Frappe don mat sau vai ngay va bo ho so thanh rong ruot.
+	_gan_tep_ve_ho_so(doc.name, sach)
+	# Dong nao lay tu phieu noi bo thi dong dau phieu do lai, khong cho nguoi
+	# khac noi lan hai vao mot ho so khac.
+	_khoa_phieu_noi_bo(doc.name, sach)
 	frappe.db.commit()
 	return {
 		"ok": 1, "ma": doc.name, "tong_tien": flt(doc.tong_tien),
@@ -1226,6 +1240,13 @@ def chi_tiet(name):
 			"ghi_chu": d.ghi_chu or "",
 			"po": [], "pnk": [], "scan": [], "hddt": [],
 			"ncc_hd": "", "trang_thai_hd": "",
+			# Chung tu cua rieng dong nay (v278). `tep_dong` tach khoi `scan`
+			# la co y: `scan` la giay to keo theo tu hoa don mua, con day la
+			# thu nguoi lap tu dinh vao khoan chi. Tron hai thu vao nhau thi
+			# ban in khong con noi duoc anh nao tu dau ra.
+			"loai_chung_tu": d.get("loai_chung_tu") or "",
+			"de_nghi_chi": d.get("de_nghi_chi") or "",
+			"tep_dong": _ho_tep(_tep_cua_dong(d.get("tep"))),
 		}
 		if d.hoa_don:
 			hd = frappe.db.get_value(
@@ -1979,36 +2000,29 @@ def xuat_ho_so(name):
 				da_pnk.add(pnk)
 				_in_html("Purchase Receipt", pnk, "Phiếu nhập kho")
 
-	# Ban scan: moi anh mot trang, canh giua, khong keo qua khung giay.
-	da_lay = set()
-	for nhom in [x["scan"] for x in d["dong"]] + [d.get("ho_so_dinh_kem") or []]:
-		for f in nhom:
-			if f["file"] in da_lay:
-				continue
-			da_lay.add(f["file"])
-			ten = f["ten"] or f["file"]
-			duoi = ten.rsplit(".", 1)[-1].lower() if "." in ten else ""
-			if duoi in ("jpg", "jpeg", "png", "gif", "bmp", "webp"):
-				try:
-					noi = frappe.get_doc("File", f["file"]).get_content()
-					if isinstance(noi, str):
-						noi = noi.encode("utf-8")
-					b64 = base64.b64encode(noi).decode()
-					kieu = "png" if duoi == "png" else ("gif" if duoi == "gif" else "jpeg")
-					phan.append(
-						NGAT
-						+ '<div style="font-family:Arial,sans-serif;text-align:center">'
-						+ '<div style="font-size:11px;color:#666;margin-bottom:6px">%s</div>' % h(ten)
-						+ '<img src="data:image/%s;base64,%s" style="max-width:100%%;max-height:960px">' % (kieu, b64)
-						+ "</div>"
-					)
-					muc_luc.append("Bản scan %s" % ten)
-				except Exception:
-					hong.append("Bản scan %s" % ten)
-			elif duoi == "pdf":
-				pdf_rieng.append(f)
-			else:
-				hong.append("%s (định dạng %s chưa gộp được)" % (ten, duoi or "lạ"))
+	# Anh chung tu: 4 anh mot trang A4, moi anh co dong nhan ghi ro thuoc
+	# khoan nao (anh Viet 22/08/2026). Truoc day moi anh mot trang, ba chuc
+	# khoan la ba chuc to giay.
+	anh, bo_qua = _gom_anh_ho_so(d)
+	if anh:
+		phan.append(
+			NGAT
+			+ '<div style="font-family:Arial,sans-serif">'
+			+ '<div style="font-size:14px;font-weight:bold;margin-bottom:8px">'
+			+ 'CHỨNG TỪ ĐÍNH KÈM'
+			+ '<span style="display:block;font-style:italic;font-weight:normal;'
+			+ 'font-size:11px;color:#666">Supporting documents</span></div>'
+			+ '<div style="font-size:10.5px;color:#666;margin-bottom:6px">'
+			+ '%d ảnh, xếp 4 ảnh một trang. Dòng chữ dưới mỗi ảnh ghi rõ ảnh '
+			'thuộc khoản chi nào.</div></div>' % len(anh)
+		)
+		phan.append(luoi_anh(anh))
+		muc_luc.append("Chứng từ đính kèm: %d ảnh" % len(anh))
+	for f in bo_qua:
+		if (f.get("duoi") or "") == "pdf":
+			pdf_rieng.append({"file": f.get("file"), "ten": f.get("ten")})
+		else:
+			hong.append("%s (%s)" % (f.get("ten"), f.get("nhan")))
 
 	# Trang muc luc dat o CUOI: doc xong bo ho so moi doi chieu lai cho tien.
 	ml = (
@@ -2094,6 +2108,8 @@ def _to_app_html(name):
 	nhà. Phông DejaVu Sans đứng đầu danh sách là cố ý: wkhtmltopdf trên máy
 	chủ chỉ có phông đó dựng đủ dấu tiếng Việt.
 	"""
+	from vagabond import mau_chuan as mc
+
 	d = chi_tiet(name)
 	hs, dong = d["ho_so"], d["dong"]
 	h = frappe.utils.escape_html
@@ -2101,10 +2117,6 @@ def _to_app_html(name):
 
 	PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
 	VIEN = "1px solid #c9c4bd"
-	o_th = (
-		'style="border:%s;padding:6px 7px;background:#f3f0ec;font-size:10.5px;'
-		'font-weight:bold;text-align:center"' % VIEN
-	)
 	def _td(noi, canh="left", dam=False, khong_ngat=False):
 		return (
 			'<td style="border:%s;padding:5px 7px;font-size:10.5px;text-align:%s;%s%s">%s</td>'
@@ -2142,20 +2154,10 @@ def _to_app_html(name):
 			   VIEN, "font-weight:bold;" if dam else "", tien, VIEN)
 		)
 
-	cuoi_bang = _dong_tong("TỔNG CỘNG", _tien(hs["tong_tien"]))
+	cuoi_bang = _dong_tong(mc.sn("TỔNG CỘNG", "TOTAL", co_en="9px"), _tien(hs["tong_tien"]))
 	if flt(hs.get("da_tam_ung")):
-		cuoi_bang += _dong_tong("Trừ số tiền đã tạm ứng", _tien(hs["da_tam_ung"]), dam=False)
-		cuoi_bang += _dong_tong("CÒN LẠI PHẢI CHUYỂN", _tien(hs["con_lai"]))
-
-	def _o_ky(chuc, ten):
-		return (
-			'<td style="border:none;width:33.33%%;text-align:center;vertical-align:top">'
-			'<div style="font-size:11px;font-weight:bold;letter-spacing:.4px">%s</div>'
-			'<div style="font-size:9px;color:#666;margin-top:2px">(Ký, ghi rõ họ tên)</div>'
-			'<div style="height:62px"></div>'
-			'<div style="font-size:11px;font-weight:bold">%s</div></td>'
-			% (chuc, h(ten or ""))
-		)
+		cuoi_bang += _dong_tong(mc.sn("Trừ số tiền đã tạm ứng", "Less advance paid", co_en="9px"), _tien(hs["da_tam_ung"]), dam=False)
+		cuoi_bang += _dong_tong(mc.sn("CÒN LẠI PHẢI CHUYỂN", "BALANCE TO TRANSFER", co_en="9px"), _tien(hs["con_lai"]))
 
 	def _o_tt(nhan, gt):
 		return (
@@ -2167,56 +2169,62 @@ def _to_app_html(name):
 
 	ben_nhan = (
 		'<table style="width:100%;border:none;border-collapse:collapse">'
-		+ _o_tt("Đề nghị thanh toán cho:", h(hs["ten_nhan"] or hs["ten_ncc"] or hs["ncc"]))
+		+ _o_tt(mc.sn("Đề nghị thanh toán cho:", "Pay to", co_en="9px"),
+		        h(hs["ten_nhan"] or hs["ten_ncc"] or hs["ncc"]))
 		+ _o_tt(
-			"Người được hoàn ứng:" if la_hu else "Mã nhà cung cấp:",
+			mc.sn("Người được hoàn ứng:" if la_hu else "Mã nhà cung cấp:",
+			      "Settled to" if la_hu else "Supplier code", co_en="9px"),
 			h(hs.get("ten_nguoi_ung") or hs["ncc"]),
 		)
-		+ (_o_tt("Gồm nhà cung cấp:", "%d nhà, liệt kê trong bảng dưới" % hs.get("so_ncc", 0))
+		+ (_o_tt(mc.sn("Gồm nhà cung cấp:", "Suppliers included", co_en="9px"),
+		         "%d nhà, liệt kê trong bảng dưới" % hs.get("so_ncc", 0))
 		   if nhieu_nha else "")
-		+ _o_tt("Số tài khoản:", h(hs["stk_nhan"] or "..............."))
-		+ _o_tt("Ngân hàng:", h(hs["ngan_hang_nhan"] or "..............."))
-		+ _o_tt("Nội dung chuyển khoản:", h(hs["noi_dung_ck"] or "..............."))
+		+ _o_tt(mc.sn("Số tài khoản:", "Account no.", co_en="9px"),
+		        h(hs["stk_nhan"] or "..............."))
+		+ _o_tt(mc.sn("Ngân hàng:", "Bank", co_en="9px"),
+		        h(hs["ngan_hang_nhan"] or "..............."))
+		+ _o_tt(mc.sn("Nội dung chuyển khoản:", "Transfer remark", co_en="9px"),
+		        h(hs["noi_dung_ck"] or "..............."))
 		+ "</table>"
 	)
 
 	return (
 		'<div style="font-family:%s;color:#1c1a17;font-size:12px;line-height:1.45">'
-		'<table style="width:100%%;border:none;border-collapse:collapse"><tr>'
-		'<td style="border:none;width:45%%;vertical-align:middle">'
-		'<img src="/files/vagabond_logo_print.png" width="150" height="62" '
-		'style="width:150px !important;height:62px !important;object-fit:contain">'
-		"</td>"
-		'<td style="border:none;text-align:right;vertical-align:middle;font-size:9.5px;'
-		'color:#444;line-height:1.5">'
-		'<b style="font-size:10.5px;color:#1c1a17">CÔNG TY TNHH PATISSERIE VAGABOND</b><br>'
-		"MST: 0318561568<br>"
-		"9 Trần Cao Vân, Phường Sài Gòn, TP.HCM<br>"
-		"www.thevagabondpatisserie.com"
-		"</td></tr></table>"
-		'<div style="text-align:center;margin:14px 0 2px">'
+		+ mc.dai_logo()
+		+ '<div style="text-align:center;margin:14px 0 2px">'
 		'<div style="font-size:19px;font-weight:bold;letter-spacing:1px">%s</div>'
-		'<div style="font-size:11px;color:#555;margin-top:3px">'
-		"Số: <b>%s</b> &nbsp;·&nbsp; Ngày %s</div></div>"
-		'<div style="font-size:11px;margin:12px 0 3px">Kính gửi: <b>Ban Giám đốc</b></div>'
+		'<div style="font-size:11.5px;font-style:italic;color:#666;margin-top:1px">'
+		+ ("Advance Settlement Request" if la_hu else "Payment Request") +
+		"</div>"
+		'<div style="font-size:11px;color:#555;margin-top:4px">'
+		"Số / No.: <b>%s</b> &nbsp;·&nbsp; Ngày / Date: <b>%s</b></div></div>"
+		'<div style="font-size:11px;margin:12px 0 3px">Kính gửi: <b>Ban Giám đốc</b>'
+		'<span style="font-style:italic;color:#777"> / To: Board of Directors</span></div>'
 		"%s"
 		'<table style="width:100%%;border-collapse:collapse;margin-top:10px">'
-		"<tr>"
-		"<th %s>STT</th><th %s>Ngày hoá đơn</th><th %s>Số hoá đơn</th>"
-		"<th %s>Số hoá đơn NCC</th><th %s>Nội dung</th><th %s>Số tiền</th><th %s>Ghi chú</th>"
-		"</tr>%s%s</table>"
-		'<table style="width:100%%;border:none;border-collapse:collapse;margin-top:26px">'
-		"<tr>%s%s%s</tr></table></div>"
+		"<tr>%s%s%s%s%s%s%s</tr>%s%s</table>"
+		"%s</div>"
 	) % (
 		PHONG,
 		"GIẤY ĐỀ NGHỊ HOÀN ỨNG" if la_hu else "GIẤY ĐỀ NGHỊ THANH TOÁN",
 		h(hs["ma"]), _ngay_vn(hs["ngay"]),
 		ben_nhan,
-		o_th, o_th, o_th, o_th, o_th, o_th, o_th,
+		mc.o_th("STT", "No."),
+		mc.o_th("Ngày hoá đơn", "Invoice date"),
+		mc.o_th("Số hoá đơn", "Invoice no."),
+		mc.o_th("Số hoá đơn NCC", "Supplier invoice no."),
+		mc.o_th("Nội dung", "Description"),
+		mc.o_th("Số tiền", "Amount"),
+		mc.o_th("Ghi chú", "Remarks"),
 		"".join(hang), cuoi_bang,
-		_o_ky("NGƯỜI ĐỀ NGHỊ", hs["nguoi_tao_ten"]),
-		_o_ky("KẾ TOÁN (FIN)", hs["fin_ten"]),
-		_o_ky("GIÁM ĐỐC", hs["gd_ten"]),
+		# Khoi chu ky CHUAN CHUNG, dung tu vagabond/mau_chuan.py. Moi ho so
+		# thanh toan tren APP deu lay tu do ra, sua mot lan la ca he doi
+		# theo (anh Viet 22/08/2026).
+		mc.khoi_chu_ky({
+			"NGƯỜI ĐỀ NGHỊ": hs["nguoi_tao_ten"],
+			"KẾ TOÁN TRƯỞNG": hs["fin_ten"],
+			"GIÁM ĐỐC": hs["gd_ten"],
+		}),
 	)
 
 
@@ -2425,3 +2433,519 @@ def gan_giao_dich(name, ma_giao_dich, dong=None):
 		% (ma_gd, cho, frappe.session.user),
 	)
 	return {"ok": 1, "loi_nhan": "Đã gán giao dịch %s vào %s %s." % (ma_gd, cho, name)}
+
+
+# ============================================================================
+# CHỨNG TỪ TỪNG DÒNG: loại chứng từ, tệp đính kèm, nối phiếu nội bộ
+# ============================================================================
+#
+# Anh Việt 22/08/2026: *"Luồng 'Hoàn ứng không hóa đơn' hiện tại đang có rủi
+# ro gian lận cao. Kế toán trưởng yêu cầu siết chặt hồ sơ, bắt buộc phải có
+# chứng từ đính kèm"*.
+#
+# Lỗ hổng cụ thể: hồ sơ hoàn ứng không hoá đơn chỉ gồm mấy dòng gõ tay và
+# một mã giao dịch ngân hàng. Mã giao dịch chứng minh TIỀN ĐÃ ĐI, không
+# chứng minh tiền đi để MUA CÁI GÌ. Ai gõ được số cũng gõ được một dòng.
+#
+# Ba thứ bịt lỗ đó, và cả ba đều gắn vào TỪNG DÒNG chứ không phải cả hồ sơ:
+#
+#   1. Loại chứng từ  - khai rõ đang lấy gì làm bằng chứng cho khoản này.
+#   2. Tệp chứng từ   - ảnh chụp bill, phiếu thu, biên bản.
+#   3. Phiếu nội bộ   - khoản đã có phiếu quản lý duyệt thì nối thẳng vào,
+#                       kéo cả số tiền lẫn tệp sang, khỏi khai lại.
+#
+# Vì sao gắn theo DÒNG chứ không theo hồ sơ: một hồ sơ hoàn ứng gom hàng
+# chục khoản của nhiều người bán khác nhau. Đính một xấp ảnh vào hồ sơ thì
+# kế toán vẫn phải ngồi đoán ảnh nào của khoản nào. Gắn theo dòng thì bản in
+# ghi được "ảnh này thuộc khoản số 3", đối chiếu bằng mắt là xong.
+
+DM_CHUNG_TU = "Vagabond Loai Chung Tu"
+DNC = "Vagabond De Nghi Chi"
+
+# Trạng thái phiếu nội bộ được phép nối vào hồ sơ hoàn ứng. Chỉ nhận phiếu
+# đã qua cửa duyệt: nối phiếu còn nháp là mở lại đúng cái lỗ hổng vừa bịt.
+TT_PHIEU_NOI_BO = ("Hoan tat", "Da chi")
+
+
+@frappe.whitelist()
+def ds_loai_chung_tu():
+	"""Danh mục loại chứng từ cho ô chọn trên màn hình.
+
+	Dùng chung đúng một danh mục với phiếu thanh toán nội bộ
+	(`Vagabond Loai Chung Tu`), không dựng danh sách riêng. Hai màn khai hai
+	bộ tên khác nhau thì đến lúc đối chiếu không ai ghép được.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đọc danh mục chứng từ")
+	try:
+		from vagabond.de_nghi_chi import dung_danh_muc_chung_tu
+
+		dung_danh_muc_chung_tu()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: dung danh muc chung tu")
+	ds = frappe.get_all(
+		DM_CHUNG_TU,
+		filters={"dang_dung": 1},
+		fields=["name", "ten", "la_hoa_don_vat", "bat_buoc_tep", "mo_ta", "thu_tu"],
+		order_by="thu_tu asc, name asc",
+		limit_page_length=0,
+	)
+	return {
+		"ds": [
+			{
+				"ma": r["name"],
+				"ten": r.get("ten") or r["name"],
+				"vat": cint(r.get("la_hoa_don_vat")),
+				"bat_buoc_tep": cint(r.get("bat_buoc_tep")),
+				"mo_ta": r.get("mo_ta") or "",
+			}
+			for r in ds
+		]
+	}
+
+
+def _tep_cua_dong(chuoi):
+	"""Tách chuỗi mã tệp của một dòng thành danh sách. Chuỗi rỗng ra []."""
+	return [x.strip() for x in str(chuoi or "").replace(",", "\n").split("\n") if x.strip()]
+
+
+def _ho_tep(ma_tep):
+	"""Thông tin hiển thị của một loạt mã tệp, giữ nguyên thứ tự đã lưu."""
+	ma_tep = [m for m in (ma_tep or []) if m]
+	if not ma_tep:
+		return []
+	try:
+		co = {
+			r["name"]: r
+			for r in frappe.get_all(
+				"File",
+				filters={"name": ["in", ma_tep]},
+				fields=["name", "file_name", "file_url", "is_private", "file_size"],
+				limit_page_length=0,
+			)
+		}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc tep cua dong")
+		return []
+	ra = []
+	for m in ma_tep:
+		r = co.get(m)
+		if not r:
+			continue
+		ten = r.get("file_name") or m
+		duoi = ten.rsplit(".", 1)[-1].lower() if "." in ten else ""
+		ra.append({
+			"file": m,
+			"ten": ten,
+			"url": r.get("file_url") or "",
+			"rieng": cint(r.get("is_private")),
+			"co": cint(r.get("file_size")),
+			"la_anh": 1 if duoi in ("jpg", "jpeg", "png", "gif", "bmp", "webp") else 0,
+			"duoi": duoi,
+		})
+	return ra
+
+
+@frappe.whitelist()
+def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60):
+	"""Phiếu thanh toán nội bộ đã duyệt, chưa nối vào hồ sơ nào.
+
+	Anh Việt 22/08/2026: *"mở ra một Modal danh sách các 'Phiếu thanh toán
+	nội bộ' (của các quản lý) có trạng thái Đã duyệt/Đã chi"*.
+
+	Hai bộ lọc quan trọng:
+
+	  - CHỈ trạng thái đã qua duyệt. Phiếu còn nháp mà nối được thì người
+	    lập hồ sơ tự viết phiếu rồi tự nối, cửa duyệt thành vô nghĩa.
+	  - CHỈ phiếu chưa nối hồ sơ nào (`ho_so_tt` còn trống). Một phiếu nội
+	    bộ nối vào hai hồ sơ là công ty trả tiền hai lần cho một khoản. Đây
+	    là rủi ro nặng nhất của cả tính năng này nên chặn ngay ở khâu liệt kê,
+	    và chặn lần nữa lúc nối.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đọc phiếu thanh toán nội bộ")
+	loc = {
+		"trang_thai": ["in", list(TT_PHIEU_NOI_BO)],
+		"ho_so_tt": ["in", ["", None]],
+	}
+	if cint(so_ngay) > 0:
+		loc["creation"] = [">=", add_days(nowdate(), -cint(so_ngay))]
+	q = (tu_khoa or "").strip()
+	try:
+		ds = frappe.get_all(
+			DNC,
+			filters=loc,
+			or_filters=(
+				{
+					"name": ["like", "%" + q + "%"],
+					"ten_khoan_chi": ["like", "%" + q + "%"],
+					"nguoi_tao": ["like", "%" + q + "%"],
+					"dien_giai": ["like", "%" + q + "%"],
+				}
+				if q
+				else None
+			),
+			fields=[
+				"name", "ten_khoan_chi", "so_tien", "tong_tien", "trang_thai",
+				"nguoi_tao", "ngay_can_tt", "dien_giai", "loai_nghiep_vu",
+				"phan_loai", "creation", "hinh_thuc", "nha_cung_cap",
+			],
+			order_by="creation desc",
+			limit_page_length=cint(gioi_han) or 60,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc ds phieu noi bo")
+		return {"ds": [], "loi": "Chưa đọc được danh sách phiếu nội bộ."}
+	ra = []
+	for r in ds:
+		tien = flt(r.get("tong_tien")) or flt(r.get("so_tien"))
+		ra.append({
+			"ma": r["name"],
+			"ten": r.get("ten_khoan_chi") or r["name"],
+			"so_tien": tien,
+			"trang_thai": r.get("trang_thai") or "",
+			"nguoi_tao": r.get("nguoi_tao") or "",
+			"nguoi_ten": _ten_nguoi(r.get("nguoi_tao")),
+			"ngay": str(r.get("ngay_can_tt") or "")[:10] or str(r.get("creation") or "")[:10],
+			"dien_giai": r.get("dien_giai") or "",
+			"loai": r.get("loai_nghiep_vu") or "",
+			"phan_loai": r.get("phan_loai") or "",
+			"so_tep": len(_dinh_kem([(DNC, r["name"])])),
+		})
+	return {"ds": ra, "tong": len(ra)}
+
+
+def _ten_nguoi(email):
+	if not email:
+		return ""
+	try:
+		return frappe.db.get_value("User", email, "full_name") or email
+	except Exception:
+		return email
+
+
+@frappe.whitelist()
+def xem_phieu_noi_bo(phieu=None):
+	"""Đọc trọn một phiếu nội bộ để đắp vào dòng hoàn ứng.
+
+	Trả về đúng ba thứ màn hình cần: số tiền, nội dung, và danh sách tệp
+	đính kèm. Máy KHÔNG tự ghi vào hồ sơ ở đây - người lập xem rồi mới bấm
+	nhận, vì đắp nhầm phiếu thì phải gỡ tay.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đọc phiếu thanh toán nội bộ")
+	phieu = (phieu or "").strip()
+	if not phieu or not frappe.db.exists(DNC, phieu):
+		frappe.throw("Không tìm thấy phiếu thanh toán nội bộ %s." % (phieu or "(trống)"))
+	d = frappe.get_doc(DNC, phieu)
+	if d.trang_thai not in TT_PHIEU_NOI_BO:
+		frappe.throw(
+			"Phiếu %s đang ở trạng thái \"%s\" nên chưa nối được. Chỉ nối phiếu "
+			"đã duyệt xong hoặc đã chi." % (phieu, d.trang_thai)
+		)
+	if (d.get("ho_so_tt") or "").strip():
+		frappe.throw(
+			"Phiếu %s đã nối vào hồ sơ %s rồi. Một phiếu chỉ được nối một lần, "
+			"không thì công ty trả tiền hai lần cho cùng một khoản."
+			% (phieu, d.ho_so_tt)
+		)
+	tep = _dinh_kem([(DNC, phieu)])
+	# Phieu nhieu dong thi gop noi dung lai cho gon, van giu tung so tien de
+	# nguoi lap doi chieu duoc voi tong.
+	cac_dong = []
+	for r in (d.get("cac_khoan") or []):
+		cac_dong.append({
+			"noi_dung": r.get("noi_dung") or "",
+			"so_tien": flt(r.get("so_tien")),
+			"loai_chung_tu": r.get("loai_chung_tu") or "",
+			"so_hoa_don": r.get("so_hoa_don") or "",
+			"ten_ban": r.get("ten_ban") or "",
+		})
+	tong = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
+	noi_dung = (d.get("ten_khoan_chi") or "").strip()
+	if not noi_dung and cac_dong:
+		noi_dung = ", ".join(x["noi_dung"] for x in cac_dong if x["noi_dung"])[:180]
+	return {
+		"ma": phieu,
+		"ten": d.get("ten_khoan_chi") or phieu,
+		"noi_dung": noi_dung or phieu,
+		"so_tien": tong,
+		"trang_thai": d.trang_thai,
+		"nguoi_tao": d.get("nguoi_tao") or "",
+		"nguoi_ten": _ten_nguoi(d.get("nguoi_tao")),
+		"ngay": str(d.get("ngay_can_tt") or "")[:10] or str(d.get("creation") or "")[:10],
+		"dien_giai": d.get("dien_giai") or "",
+		"ben_ban": d.get("nha_cung_cap") or "",
+		"so_hoa_don": d.get("so_hoa_don") or "",
+		"co_vat": 1 if (d.get("chung_tu_thue") or "").startswith("Có") else 0,
+		"loai_chung_tu": (cac_dong[0]["loai_chung_tu"] if cac_dong else ""),
+		"cac_dong": cac_dong,
+		"tep": [{"ma": t["file"], "ten": t["ten"], "url": t["url"]} for t in tep],
+	}
+
+
+def _tep_hop_le(tep):
+	"""Lọc danh sách tệp người dùng gửi lên, chỉ giữ mã còn thật trên máy chủ.
+
+	Nhận cả ba dạng màn hình có thể gửi: chuỗi nhiều dòng, danh sách mã,
+	danh sách {ma: ...}. Nhận rộng ở cửa vào để màn hình khỏi phải nhớ đúng
+	một dạng, nhưng ra khỏi hàm này thì chỉ còn một dạng duy nhất.
+	"""
+	if isinstance(tep, str):
+		try:
+			tep = frappe.parse_json(tep)
+		except Exception:
+			tep = _tep_cua_dong(tep)
+	if isinstance(tep, dict):
+		tep = [tep]
+	ra = []
+	for t in (tep or []):
+		ma = (t.get("ma") or t.get("file") or t.get("name")) if isinstance(t, dict) else t
+		ma = str(ma or "").strip()
+		if not ma or ma in ra:
+			continue
+		try:
+			if frappe.db.exists("File", ma):
+				ra.append(ma)
+		except Exception:
+			continue
+	return ra
+
+
+def _gan_tep_ve_ho_so(ten_ho_so, sach):
+	"""Trỏ mọi tệp của mọi dòng về hồ sơ, và để chế độ riêng tư.
+
+	Riêng tư là bắt buộc, không phải tuỳ chọn: hồ sơ thanh toán là giấy tờ
+	tiền bạc, để công khai thì ai có đường dẫn cũng mở được.
+	"""
+	for d in (sach or []):
+		for ma in _tep_cua_dong(d.get("tep")):
+			try:
+				frappe.db.set_value("File", ma, {
+					"attached_to_doctype": "Vagabond Ho So TT",
+					"attached_to_name": ten_ho_so,
+					"is_private": 1,
+				}, update_modified=False)
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "ho_so_tt: gan tep dong ve ho so")
+
+
+def _khoa_phieu_noi_bo(ten_ho_so, sach):
+	"""Đóng dấu hồ sơ lên phiếu nội bộ đã nối, để không ai nối lại lần hai.
+
+	Đây là chốt chặn THỨ HAI. Chốt thứ nhất nằm ở `ds_phieu_noi_bo` và
+	`xem_phieu_noi_bo`, nhưng hai người lập hai hồ sơ cùng lúc thì cả hai đều
+	thấy phiếu còn trống. Chốt ở đây chạy lúc ghi, nên người sau ghi đè lên
+	người trước là lộ ra ngay ở nhật ký.
+	"""
+	for d in (sach or []):
+		ma = (d.get("de_nghi_chi") or "").strip()
+		if not ma:
+			continue
+		try:
+			cu = frappe.db.get_value(DNC, ma, "ho_so_tt")
+			if cu and cu != ten_ho_so:
+				frappe.log_error(
+					"Phiếu %s đang nối hồ sơ %s, nay bị hồ sơ %s nối chồng."
+					% (ma, cu, ten_ho_so),
+					"ho_so_tt: phieu noi bo bi noi hai lan",
+				)
+				continue
+			frappe.db.set_value(DNC, ma, "ho_so_tt", ten_ho_so, update_modified=False)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: khoa phieu noi bo")
+
+
+@frappe.whitelist()
+def dinh_tep_dong(name=None, dong=None, tep=None):
+	"""Đính thêm tệp cho MỘT dòng của hồ sơ đã lập.
+
+	Dùng khi kế toán mở hồ sơ ra và thấy khoản nào còn thiếu giấy tờ. Lúc
+	đang lập thì màn hình giữ tệp trong bộ nhớ rồi gửi một lượt qua
+	`tao_hoan_ung`, không đi đường này.
+
+	`dong` đếm từ 1 cho khớp cột STT người dùng nhìn thấy trên màn và trên
+	bản in. Đếm từ 0 ở đây là mời gọi lệch một dòng.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đính tệp vào khoản chi")
+	if not frappe.db.exists("Vagabond Ho So TT", name):
+		frappe.throw("Không tìm thấy hồ sơ %s." % name)
+	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	if doc.trang_thai in (TT_HUY, TT_TU_CHOI):
+		frappe.throw(
+			"Hồ sơ %s đã %s nên không đính thêm giấy tờ được."
+			% (name, NHAN.get(doc.trang_thai, doc.trang_thai).lower())
+		)
+	i = cint(dong)
+	if i < 1 or i > len(doc.dong):
+		frappe.throw("Hồ sơ %s không có khoản số %s." % (name, dong))
+	ma_moi = _tep_hop_le(tep)
+	if not ma_moi:
+		frappe.throw("Tệp gửi lên không còn trên máy chủ. Chọn tệp rồi đính lại giúp em.")
+	d = doc.dong[i - 1]
+	da_co = _tep_cua_dong(d.tep)
+	d.tep = "\n".join(da_co + [m for m in ma_moi if m not in da_co])
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	_gan_tep_ve_ho_so(name, [{"tep": d.tep}])
+	try:
+		doc.add_comment("Comment", "Đính %d tệp chứng từ cho khoản số %d." % (len(ma_moi), i))
+	except Exception:
+		pass
+	frappe.db.commit()
+	return {"ok": 1, "dong": i, "tep": _ho_tep(_tep_cua_dong(d.tep))}
+
+
+@frappe.whitelist()
+def go_tep_dong(name=None, dong=None, tep=None):
+	"""Gỡ một tệp khỏi một dòng. KHÔNG xoá tệp, chỉ bỏ khỏi dòng đó."""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "gỡ tệp khỏi khoản chi")
+	if not frappe.db.exists("Vagabond Ho So TT", name):
+		frappe.throw("Không tìm thấy hồ sơ %s." % name)
+	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	i = cint(dong)
+	if i < 1 or i > len(doc.dong):
+		frappe.throw("Hồ sơ %s không có khoản số %s." % (name, dong))
+	d = doc.dong[i - 1]
+	con = [m for m in _tep_cua_dong(d.tep) if m != str(tep or "").strip()]
+	d.tep = "\n".join(con)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1, "dong": i, "tep": _ho_tep(con)}
+
+
+# ------------------------------------------------------- Dàn trang ảnh 2x2
+
+
+# Bốn ảnh một trang A4, xếp 2 cột 2 dòng.
+#
+# Anh Việt 22/08/2026: *"yêu cầu bắt buộc là phải tiết kiệm giấy và chuẩn
+# form mẫu... ép các ảnh này hiển thị 4 ảnh / 1 trang A4"*.
+#
+# Trước đây mỗi ảnh chiếm trọn một trang. Một hồ sơ hoàn ứng ba chục khoản
+# là ba chục tờ giấy cho phần ảnh, kế toán in ra kẹp không nổi.
+#
+# Vì sao dùng BẢNG chứ không CSS Grid hay Flexbox, dù đề bài nói Grid:
+# bản in đi qua wkhtmltopdf, engine WebKit đời cũ. Grid gần như không được
+# hỗ trợ và Flexbox thì vỡ chỗ ngắt trang - ô cuối bị cắt đôi giữa hai
+# trang. Bảng hai cột hai dòng cho ra đúng bố cục ấy và ngắt trang chuẩn.
+# Đây là chỗ phải chọn cái CHẠY ĐƯỢC trên máy in thật thay vì cái đúng sách.
+#
+# Khung mỗi ô cao cố định, ảnh đặt `max-width`/`max-height` 100% nên ảnh
+# đứng hay ảnh ngang đều co vừa khung mà KHÔNG méo, không tràn viền.
+
+ANH_MOI_TRANG = 4
+CAO_O_ANH = "104mm"   # 4 ô vừa một trang A4 dọc sau khi trừ lề và dòng nhãn
+DUOI_ANH = ("jpg", "jpeg", "png", "gif", "bmp", "webp")
+
+
+def _anh_b64(ma_tep):
+	"""Đọc một tệp ảnh thành chuỗi base64 nhúng thẳng vào HTML.
+
+	Nhúng thẳng thay vì để đường dẫn: tệp để riêng tư, mà wkhtmltopdf gọi
+	lại máy chủ thì KHÔNG mang theo phiên đăng nhập nên tải về ảnh rỗng.
+	Đã mất một buổi vì đúng chỗ này.
+	"""
+	try:
+		noi = frappe.get_doc("File", ma_tep).get_content()
+		if isinstance(noi, str):
+			noi = noi.encode("utf-8")
+		return base64.b64encode(noi).decode()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc anh %s" % ma_tep)
+		return ""
+
+
+def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
+	"""Xếp danh sách ảnh thành các trang lưới 2x2.
+
+	anh: [{"b64":..., "kieu":"jpeg", "nhan": "Khoản 3 · bill điện"}]
+
+	Trả về HTML đã kèm sẵn ngắt trang giữa các trang. Hàm THUẦN, không chạm
+	Frappe, nên kiểm thử được không cần site.
+	"""
+	h = frappe.utils.escape_html
+	if not anh:
+		return ""
+	trang = []
+	for i in range(0, len(anh), moi_trang):
+		lo = anh[i:i + moi_trang]
+		o = []
+		for x in lo:
+			o.append(
+				'<td style="width:50%%;height:%s;padding:3mm;vertical-align:middle;'
+				'text-align:center;border:1px solid #e3ded7">'
+				'<div style="height:%s;display:table-cell;vertical-align:middle;'
+				'text-align:center;width:100%%">'
+				'<img src="data:image/%s;base64,%s" '
+				'style="max-width:100%%;max-height:%s;object-fit:contain">'
+				"</div>"
+				'<div style="font-size:9px;color:#555;margin-top:2mm;line-height:1.35">%s</div>'
+				"</td>"
+				% (CAO_O_ANH, CAO_O_ANH, x.get("kieu") or "jpeg", x.get("b64") or "",
+				   CAO_O_ANH, h(x.get("nhan") or ""))
+			)
+		# O trong cho du hang, khong thi bang co mot o thi no keo rong ca trang.
+		while len(o) % 2:
+			o.append('<td style="width:50%;border:none"></td>')
+		hang = ""
+		for j in range(0, len(o), 2):
+			hang += "<tr>" + o[j] + o[j + 1] + "</tr>"
+		trang.append(
+			'<div style="page-break-before:always">'
+			'<table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+			+ hang + "</table></div>"
+		)
+	return "".join(trang)
+
+
+def _gom_anh_ho_so(d):
+	"""Gom mọi ảnh của một hồ sơ, mỗi ảnh mang theo nhãn nói rõ nó của đâu.
+
+	Anh Việt 22/08/2026: *"Dưới mỗi ảnh đính kèm trong file PDF, in thêm một
+	dòng text nhỏ ghi rõ ảnh này thuộc khoản chi nào (STT dòng hàng) để Kế
+	toán dễ đối chiếu"*.
+
+	Thứ tự gom là thứ tự đọc: hết ảnh của khoản 1 rồi mới sang khoản 2, cuối
+	cùng mới tới giấy tờ đính chung cho cả hồ sơ. Ảnh trùng chỉ lấy một lần.
+	"""
+	h = frappe.utils.escape_html
+	anh, da_lay, bo_qua = [], set(), []
+
+	def _nap(f, nhan):
+		ma = f.get("file")
+		if not ma or ma in da_lay:
+			return
+		da_lay.add(ma)
+		ten = f.get("ten") or ma
+		duoi = ten.rsplit(".", 1)[-1].lower() if "." in ten else ""
+		# Giu ca MA File that: khuc ghep PDF o duoi doc noi dung tep bang ma
+		# nay. Chi giu ten hien thi la ghep hong ma khong ai biet vi sao.
+		if duoi not in DUOI_ANH:
+			bo_qua.append({"file": ma, "ten": ten, "nhan": nhan, "duoi": duoi})
+			return
+		b64 = _anh_b64(ma)
+		if not b64:
+			bo_qua.append({"file": ma, "ten": ten, "nhan": nhan, "duoi": duoi})
+			return
+		anh.append({
+			"b64": b64,
+			"kieu": "png" if duoi == "png" else ("gif" if duoi == "gif" else "jpeg"),
+			"nhan": "%s · %s" % (nhan, ten),
+		})
+
+	for i, x in enumerate(d["dong"], 1):
+		# Nhan phai co STT dong, do la ca ly do dong nhan nay ton tai.
+		goc = "Khoản %d" % i
+		mo_ta = (x.get("noi_dung") or "").strip()
+		if mo_ta:
+			goc += ": " + mo_ta[:48]
+		if x.get("loai_chung_tu"):
+			goc += " [%s]" % x["loai_chung_tu"]
+		if x.get("de_nghi_chi"):
+			goc += " (phiếu %s)" % x["de_nghi_chi"]
+		for f in (x.get("tep_dong") or []):
+			_nap(f, goc)
+		for f in (x.get("scan") or []):
+			_nap(f, goc + " · kèm hoá đơn mua")
+	for f in (d.get("ho_so_dinh_kem") or []):
+		_nap(f, "Đính chung cả hồ sơ")
+	return anh, bo_qua
