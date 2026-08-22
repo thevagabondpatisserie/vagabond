@@ -15933,7 +15933,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '278';
+var APPVER = '279';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -24627,7 +24627,8 @@ async function scrHoSoTTTao() {
       (laHU ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(r.ten_ncc || r.ncc || '') + '</div>' : '') +
       '<div class="t2">' + h(r.hoa_don) + ' · HĐ ' + hsNgayVn(r.ngay_hd) + (r.han_tra ? ' · hạn ' + hsNgayVn(r.han_tra) : '') + '</div>' +
       (r.tre_ngay > 0 ? '<div class="t2" style="color:#b3261e;font-weight:700">Quá hạn ' + r.tre_ngay + ' ngày</div>' : '') +
-      '</div><b style="white-space:nowrap">' + money(r.con_no) + ' đ</b></div>';
+      '</div><b style="white-space:nowrap">' + money(r.con_no) + ' đ</b>' +
+      hsONutBanTheHien(r.hoa_don) + '</div>';
   });
   html += '</div>';
 
@@ -24639,6 +24640,16 @@ async function scrHoSoTTTao() {
   var b = frame(tenMan, html, { footer: foot });
 
   var ghiChon = function (r) { hsTaoChon[r.hoa_don] = { con_no: Number(r.con_no || 0), ten_ncc: r.ten_ncc || r.ncc || '' }; };
+
+  /* Nut tai ban the hien nam NGAY canh tung hoa don. Bam vao khong duoc lam
+     tick chon hoa don do nhay theo, nen phai chan noi len. */
+  b.addEventListener('click', function (e) {
+    var n = e.target.closest('[data-hsbth]');
+    if (!n) return;
+    e.stopPropagation();
+    hsTaiBanTheHien(n.getAttribute('data-hsbth'));
+  }, true);
+  hsDemBanTheHien(hd.rows || []);
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsn]'), function (el) {
     el.onclick = function () {
@@ -24715,6 +24726,9 @@ async function scrHoSoTTTao() {
    CHUA co hoa don nao ca - Uyen go tay dung nhung gi trong xap chung tu.
    May sinh hoa don mua sau, luc giam doc duyet. */
 var huNguoi = '', huDong = [], huGhiChu = '', huTamUng = 0, huTim = '';
+/* Tai khoan nhan tien hoan ung (ACB hay OCB). Thay cho viec chon nha cung
+   cap o man hoan ung khong hoa don - anh Viet 22/08/2026. */
+var huTkHoan = '';
 /* Luong 4: chi thang tu TK cong ty. Dung chung man go khoan chi voi hoan
    ung, khac o cho co them tai khoan chi, loai chi phi thue va TK No. */
 var huMode = 'hu', huTkChi = '', huCpThue = '', huTkTim = '';
@@ -24787,25 +24801,37 @@ async function scrHoanUngTao() {
   hsoBuoc = 0;
   huMode = 'hu';
   frame('Lập hồ sơ hoàn ứng', '<div class="emp"><div class="e1">⏳</div><div>Đang tải danh sách...</div></div>');
-  var dsn;
-  try { dsn = await api('vagabond.ho_so_tt.ds_nguoi_ung', huTim ? { tu_khoa: huTim } : {}); }
+  var dstk;
+  try { dstk = await api('vagabond.ho_so_tt.ds_tk_hoan_ung', {}); }
   catch (e) { frame('Lập hồ sơ hoàn ứng', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
-  var ncc = dsn.ncc || [];
-  if (!huNguoi && ncc.length) huNguoi = ncc[0].ncc;
+  var tkHu = (dstk && dstk.tk) || [];
+  if (!huTkHoan && tkHu.length) huTkHoan = tkHu[0].ma;
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
     'Gõ từng khoản đã chi hộ bằng tiền tạm ứng: hàng test không nhập kho, hàng phát sinh, chi phí bảo trì... ' +
     'Nhiều nhà cung cấp nhỏ lẻ gộp chung một hồ sơ được, vì tiền là hoàn lại cho <b>một</b> người.<br>' +
     'Máy chỉ giữ những gì mình gõ. Đến bước <b>giám đốc duyệt</b> mới sinh hoá đơn mua thật, nên hồ sơ bị từ chối giữa chừng không để lại rác trên sổ.</div>';
 
-  var hay = ncc.filter(function (x) { return x.hay_dung; });
-  var khac = ncc.filter(function (x) { return !x.hay_dung; });
-  html += hsoKhoi('Hoàn ứng cho ai') + '<div class="card" style="padding:10px 12px">' +
-    kmHangChip((hay.concat(khac.slice(0, 24))).map(function (x) {
-      return posChipNut('data-hun="' + h(x.ncc) + '"', (x.hay_dung ? '⭐ ' : '') + h(x.ten), huNguoi === x.ncc);
-    }).join('')) +
-    hsKhungTimNcc('huTim', huTim, (hay.concat(khac)).length,
-      'Người nhận tiền nào cũng phải có hồ sơ nhà cung cấp thì máy mới ghi sổ và theo dõi công nợ được.') +
+  /* Anh Viet 22/08/2026: bo han danh sach nha cung cap o day. Khoan hoan
+     ung khong hoa don khong thuoc ve nha cung cap nao ca - do la tien nguoi
+     ung da bo ra ho o hang chuc cho, gio tra lai vao dung MOT trong hai tai
+     khoan ung. Bat chon nha cung cap trong danh sach vai tram dong vua vo
+     nghia vua la cho de chon nham nhat man hinh.
+     So tai khoan hien ngay canh ten vi hai tai khoan de lan khi chi nhin
+     ten ngan hang. */
+  html += hsoKhoi('Hoàn ứng về tài khoản nào') + '<div class="card" style="padding:10px 12px">' +
+    (tkHu.length
+      ? kmHangChip(tkHu.map(function (x) {
+          return posChipNut('data-hutk="' + h(x.ma) + '"', h(x.nhan), huTkHoan === x.ma);
+        }).join('')) +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
+        (dstk.doan
+          ? '⚠️ Chưa có tài khoản nào gắn vào quỹ tạm ứng ' + '1411' + ', nên em bày tạm mọi tài khoản công ty. ' +
+            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn ACB và OCB.'
+          : 'Tiền hoàn ứng luôn trả về tài khoản đã ứng ra. Chọn đúng tài khoản thì số dư quỹ tạm ứng mới khớp.') +
+        '</div>'
+      : '<div style="font-size:13px;color:#b45309;line-height:1.6">Chưa khai tài khoản ngân hàng nào. ' +
+        'Nhờ chị Dung tạo Bank Account cho ACB và OCB bên Next trước đã.</div>') +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
@@ -24834,9 +24860,10 @@ async function scrHoanUngTao() {
     + '<th style="padding:8px 10px;font-weight:700">Chứng từ</th>'
     + '<th style="padding:8px 10px;font-weight:700">Phiếu nội bộ</th>'
     + '<th style="padding:8px 10px;font-weight:700;text-align:right">Số tiền</th>'
-    + '<th style="padding:8px 10px;font-weight:700">Mã giao dịch</th></tr>';
+    + '<th style="padding:8px 10px;font-weight:700">Mã giao dịch</th>'
+    + '<th style="padding:8px 10px;font-weight:700;text-align:center">Xoá</th></tr>';
   if (!huDong.length) {
-    html += '<tr><td colspan="8" style="padding:24px;text-align:center;color:#6b7280">Chưa có khoản nào. Bấm <b>➕ Gõ tay</b> ở dưới.</td></tr>';
+    html += '<tr><td colspan="9" style="padding:24px;text-align:center;color:#6b7280">Chưa có khoản nào. Bấm <b>➕ Gõ tay</b> ở dưới.</td></tr>';
   }
   huDong.forEach(function (x, i) {
     html += '<tr data-hux="' + i + '" style="border-top:1px solid #eef2f5;cursor:pointer">'
@@ -24850,12 +24877,19 @@ async function scrHoanUngTao() {
       + huOLoaiCt(x, i) + huOTep(x, i) + huOPhieu(x, i)
       + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(x.so_tien) + '</td>'
       + '<td style="padding:9px 10px;white-space:nowrap;font-size:11.5px;color:' + (x.ma_giao_dich ? '#0e7490' : '#b45309') + '">'
-      + (x.ma_giao_dich ? h(x.ma_giao_dich) : '⚠️ chưa gắn') + '</td></tr>';
+      + (x.ma_giao_dich ? h(x.ma_giao_dich) : '⚠️ chưa gắn') + '</td>'
+      + huOXoa(i) + '</tr>';
   });
   html += '</table></div>';
 
-  html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-    '<button class="btn gh" id="huSepay" style="flex:2;margin:0">🏦 Lấy từ sao kê OCB</button>' +
+  /* Mot nut cho moi tai khoan that su co giao dich chi ra. Anh Viet
+     22/08/2026 bao thieu cua ACB - truoc day ma nguon chi biet moi OCB. */
+  var nutSk = tkHu.map(function (x) {
+    return '<button class="btn gh" data-husk="' + h(x.ma) + '" style="flex:2;margin:0">🏦 Lấy từ sao kê ' +
+      h(x.ngan_hang || x.ten) + '</button>';
+  }).join('');
+  html += '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">' +
+    (nutSk || '<button class="btn gh" id="huSepay" style="flex:2;margin:0">🏦 Lấy từ sao kê</button>') +
     '<button class="btn gh" id="huThem" style="flex:1;margin:0">➕ Gõ tay</button>' +
     '<button class="btn gh" id="huUng" style="flex:1;margin:0">➖ Trừ ứng</button></div>';
 
@@ -24866,21 +24900,16 @@ async function scrHoanUngTao() {
     '<button class="btn gh" id="huNhap" style="flex:1">💾 Lưu nháp</button></div>';
   var b = frame('Lập hồ sơ hoàn ứng', html, { footer: foot });
 
-  Array.prototype.forEach.call(document.querySelectorAll('[data-hun]'), function (el) {
-    el.onclick = function () { huNguoi = el.getAttribute('data-hun'); go(scrHoanUngTao, true); };
-  });
-  var ot = document.getElementById('huTim');
-  if (ot) ot.onchange = function () { huTim = ot.value.trim(); go(scrHoanUngTao, true); };
-  hsNoiNutTaoNcc(huTim, function (ma) {
-    if (ma) { huNguoi = ma; huTim = ''; }
-    go(scrHoanUngTao, true);
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hutk]'), function (el) {
+    el.onclick = function () { huTkHoan = el.getAttribute('data-hutk'); go(scrHoanUngTao, true); };
   });
   b.addEventListener('click', function (e) {
     /* Ba nut moi nam TRONG dong, ma ca dong lai la nut mo bang sua. Khong
        chan noi len thi bam Tai chung tu cung mo luon bang sua de len tren. */
-    var n = e.target.closest('[data-hulct],[data-hutep],[data-huphieu],[data-hugotep]');
+    var n = e.target.closest('[data-hulct],[data-hutep],[data-huphieu],[data-hugotep],[data-huxoa]');
     if (n) {
       e.stopPropagation();
+      if (n.hasAttribute('data-huxoa')) return huXoaDong(+n.getAttribute('data-huxoa'));
       if (n.hasAttribute('data-hulct')) return huChonLoaiCt(+n.getAttribute('data-hulct'));
       if (n.hasAttribute('data-hutep')) return huThemTepDong(+n.getAttribute('data-hutep'));
       if (n.hasAttribute('data-hugotep')) {
@@ -24893,7 +24922,11 @@ async function scrHoanUngTao() {
     huSuaDong(+r.getAttribute('data-hux'));
   });
   document.getElementById('huThem').onclick = function () { huSuaDong(-1); };
-  document.getElementById('huSepay').onclick = function () { huLaySepay(); };
+  var sk0 = document.getElementById('huSepay');
+  if (sk0) sk0.onclick = function () { huLaySepay(); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-husk]'), function (el) {
+    el.onclick = function () { huLaySepay(el.getAttribute('data-husk')); };
+  });
   document.getElementById('huUng').onclick = async function () {
     var v = await hoiNhap('Đã tạm ứng trước bao nhiêu đồng? (gõ 0 nếu không có)', String(huTamUng || 0));
     if (v === null) return;
@@ -24904,13 +24937,13 @@ async function scrHoanUngTao() {
   var luu = async function (guiLuon) {
     var gc = document.getElementById('huGc');
     huGhiChu = gc ? gc.value : '';
-    if (!huNguoi) return baoTin('Chưa chọn người được hoàn ứng.');
+    if (!huTkHoan) return baoTin('Chưa chọn tài khoản nhận tiền hoàn ứng.');
     if (!huDong.length) return baoTin('Chưa nhập khoản chi nào.');
     if (Number(huTamUng) > huTong()) return baoTin('Số đã tạm ứng lớn hơn tổng hồ sơ, xem lại giúp em.');
     busy(true);
     try {
       var kq = await api('vagabond.ho_so_tt.tao_hoan_ung', {
-        nguoi_ung: huNguoi, dong: JSON.stringify(huDongGuiDi()), ghi_chu: huGhiChu,
+        tk_hoan: huTkHoan, dong: JSON.stringify(huDongGuiDi()), ghi_chu: huGhiChu,
         da_tam_ung: huTamUng || 0, gui_luon: guiLuon ? 1 : 0
       });
       busy(false);
@@ -24935,14 +24968,19 @@ async function scrHoanUngTao() {
    mot giao dich nen so du quy 1411 tu khop. */
 var huGdChon = {};
 
-async function huLaySepay() {
+async function huLaySepay(taiKhoan) {
   busy(true);
   var kq;
-  try { kq = await api('vagabond.ho_so_tt.sepay_ocb', { so_ngay: 60 }); }
-  catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được sao kê', 'Sao kê OCB'); }
+  var g = { so_ngay: 60 };
+  if (taiKhoan) g.tai_khoan = taiKhoan;
+  try { kq = await api('vagabond.ho_so_tt.sepay_ocb', g); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không đọc được sao kê', 'Sao kê ngân hàng'); }
   busy(false);
-  if (kq.loi) return baoTin(kq.loi, 'Sao kê OCB');
-  if (!(kq.rows || []).length) return baoTin('Không còn giao dịch chi nào từ quỹ OCB trong 60 ngày mà chưa nằm trong hồ sơ nào.', 'Sao kê OCB');
+  var tenNh = (kq && kq.ngan_hang) ? ('Sao kê ' + kq.ngan_hang) : 'Sao kê ngân hàng';
+  if (kq.loi) return baoTin(kq.loi, tenNh);
+  if (!(kq.rows || []).length) {
+    return baoTin('Không còn giao dịch chi nào từ tài khoản này trong 60 ngày mà chưa nằm trong hồ sơ nào.', tenNh);
+  }
   huGdChon = {};
   go(function () { scrHuSepay(kq); });
 }
@@ -24953,7 +24991,7 @@ async function scrHuSepay(kq) {
   var tong = chon.reduce(function (a, r) { return a + Number(r.so_tien || 0); }, 0);
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">'
-    + 'Đây là các khoản <b>đã chi ra</b> từ quỹ tạm ứng OCB mà chưa nằm trong hồ sơ nào. '
+    + 'Đây là các khoản <b>đã chi ra</b> từ tài khoản ' + h((kq.ngan_hang || 'tạm ứng') + (kq.so_tk ? ' · ' + kq.so_tk : '')) + ' mà chưa nằm trong hồ sơ nào. '
     + 'Tick khoản nào thì máy lấy sẵn ngày, số tiền và mã giao dịch, mình chỉ cần bổ sung nội dung và số hoá đơn nếu có.</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">'
@@ -26034,6 +26072,146 @@ function huDongGuiDi() {
     d.tep = (x.tep || []).map(function (t) { return t.ma; });
     return d;
   });
+}
+
+/* ---------- Xoá một khoản chi ----------
+
+Anh Việt 22/08/2026: *"Em cho anh thêm nút xoá cái dòng nữa để có thể xoá
+dòng nếu add nhầm."*
+
+Thêm nhầm một dòng là chuyện xảy ra hàng ngày, mà trước đây muốn bỏ thì phải
+mở bảng sửa dòng rồi tìm nút xoá trong đó - không ai biết là có. Nay có dấu
+nhân ngay cuối dòng, nhìn là thấy.
+
+Hỏi lại trước khi xoá vì thao tác này không lùi được, và trên điện thoại thì
+ngón tay chạm nhầm rất dễ. */
+
+function huOXoa(i) {
+  return '<td style="padding:7px 8px;text-align:center">' +
+    '<span data-huxoa="' + i + '" title="Xoá khoản này" ' +
+    'style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;' +
+    'border:1.5px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:8px;' +
+    'cursor:pointer;font-size:16px;line-height:1">&times;</span></td>';
+}
+
+async function huXoaDong(i) {
+  var x = huDong[i];
+  if (!x) return;
+  var ten = (x.noi_dung || '').trim() || 'khoản số ' + (i + 1);
+  var ok = await xacNhan(
+    'Xoá "' + ten + '" (' + money(x.so_tien) + ' đ) khỏi hồ sơ đang lập?' +
+    ((x.tep || []).length ? '\n\nKhoản này đang có ' + x.tep.length + ' tệp chứng từ, xoá dòng là bỏ luôn.' : '') +
+    ((x.de_nghi_chi || '') ? '\n\nPhiếu nội bộ ' + x.de_nghi_chi + ' sẽ được trả lại để nối vào hồ sơ khác.' : ''),
+    'Xoá khoản chi', 'Xoá');
+  if (!ok) return;
+  huDong.splice(i, 1);
+  toast('Đã xoá ' + ten, 2800);
+  go(scrHoanUngTao, true);
+}
+
+/* ---------- Xoá một khoản khỏi hồ sơ ĐÃ LẬP ----------
+
+Khác hẳn ở trên: hồ sơ đã lập thì mảng nằm trong cơ sở dữ liệu, phải qua
+backend. Backend giữ ba điều mà màn hình không được tự quyết: chỉ xoá khi hồ
+sơ chưa qua cửa duyệt nào, không cho xoá dòng cuối cùng, và trả lại phiếu
+nội bộ đã nối. */
+
+async function hsXoaDongHoSo(hs, stt, ten) {
+  var ok = await xacNhan(
+    'Xoá "' + (ten || ('khoản số ' + stt)) + '" khỏi hồ sơ ' + hs.ma + '?\n\n' +
+    'Tệp chứng từ vẫn giữ trên máy chủ, chỉ dòng này bị bỏ.',
+    'Xoá khoản chi', 'Xoá');
+  if (!ok) return;
+  busy(true);
+  try {
+    var r = await api('vagabond.ho_so_tt.xoa_dong', { name: hs.ma, dong: stt });
+    busy(false);
+    toast((r && r.ghi_chu) || 'Đã xoá khoản chi.', 4000);
+    go(function () { scrHoSoTTView(hs.ma); }, true);
+  } catch (e) {
+    busy(false);
+    baoTin(errMsg(e) || 'Không xoá được khoản chi.', 'Chưa xoá được');
+  }
+}
+
+/* ---------- Bản thể hiện của hoá đơn, tải ngay lúc chọn hoá đơn ----------
+
+Anh Việt 22/08/2026: *"khi chọn hoá đơn để hoàn ứng cho đơn vị đó thì em cho
+luôn nút tải lên tệp thể hiện hoá đơn ở kế bên, bỏ cái nút đó ở bước sau cho
+nó chặt chẽ, rồi combine luôn vào file để in ra trong bộ hồ sơ pdf."*
+
+Vì sao chặt hơn hẳn cách cũ: trước đây nút tải nằm ở màn xem hồ sơ, tức là
+SAU khi đã lập xong. Thiếu bản thể hiện thì phải quay lại tìm từng hoá đơn
+một, mà lúc đó không ai còn nhớ tờ nào đã có tờ nào chưa. Nay nút nằm ngay
+cạnh hoá đơn lúc đang chọn, và số tệp hiện luôn trên nút.
+
+Tệp đính vào chính HOÁ ĐƠN chứ không vào hồ sơ: bản thể hiện là giấy tờ của
+tờ hoá đơn, không phải của hồ sơ. Đính vào hoá đơn thì lần sau hoá đơn ấy
+nằm trong hồ sơ khác vẫn có sẵn, và bộ hồ sơ PDF tự gộp vào qua đường `scan`
+mà không phải nối thêm dây nào. */
+
+var HS_DEM_BTH = {};   /* mã hoá đơn -> số bản thể hiện đang có */
+
+function hsONutBanTheHien(maHd) {
+  var n = HS_DEM_BTH[maHd];
+  var co = n > 0;
+  return '<span data-hsbth="' + h(maHd) + '" title="Tải bản thể hiện của hoá đơn" ' +
+    'style="flex:none;margin-left:8px;display:inline-flex;align-items:center;gap:4px;' +
+    'padding:6px 9px;border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:700;' +
+    'border:1.5px ' + (co ? 'solid #99f6e4' : 'dashed #fca5a5') + ';' +
+    'background:' + (co ? '#f0fdfa' : '#fef2f2') + ';color:' + (co ? '#0f766e' : '#b91c1c') + '">' +
+    (co ? '📄 ' + n + ' bản' : '📎 Bản thể hiện') + '</span>';
+}
+
+/* Dem mot luot cho ca danh sach roi ve lai, chu khong hoi tung dong: man
+   chon hoa don bay vai chuc dong, hoi tung dong la vai chuc luot goi mang. */
+async function hsDemBanTheHien(rows) {
+  var ma = (rows || []).map(function (r) { return r.hoa_don; }).filter(Boolean);
+  if (!ma.length) return;
+  var chuaBiet = ma.filter(function (m) { return HS_DEM_BTH[m] === undefined; });
+  if (!chuaBiet.length) return;
+  try {
+    var kq = await api('vagabond.ho_so_tt.dem_tep_hoa_don', { hoa_don: JSON.stringify(chuaBiet) });
+    var d = (kq && kq.dem) || {};
+    var doi = false;
+    Object.keys(d).forEach(function (m) {
+      if (HS_DEM_BTH[m] !== d[m]) { HS_DEM_BTH[m] = d[m]; doi = true; }
+    });
+    /* Chi ve lai khi that su co so moi. Ve lai vo co la cuop mat cai o
+       nguoi ta dang go do. */
+    if (doi) veLaiNutBanTheHien();
+  } catch (e) { /* dem hong thi nut van bam duoc, khong chan luong */ }
+}
+
+function veLaiNutBanTheHien() {
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hsbth]'), function (el) {
+    var ma = el.getAttribute('data-hsbth');
+    var moi = document.createElement('div');
+    moi.innerHTML = hsONutBanTheHien(ma);
+    if (moi.firstChild) el.parentNode.replaceChild(moi.firstChild, el);
+  });
+}
+
+async function hsTaiBanTheHien(maHd) {
+  var f = await huChonTep();
+  if (!f) return;
+  if (f.size > 12 * 1024 * 1024) {
+    return toast('Tệp nặng quá 12 MB nên máy không nhận. Xuất lại bản PDF nhỏ hơn giúp em.', 5500);
+  }
+  busy(true);
+  var t;
+  try { t = await huUpTep(f); }
+  catch (e) { busy(false); return toast('Không tải tệp lên được: ' + ((e && e.message) || ''), 6500); }
+  try {
+    await api('vagabond.ho_so_tt.dinh_tep_hoa_don', { hoa_don: maHd, tep: JSON.stringify([t]) });
+    busy(false);
+    HS_DEM_BTH[maHd] = (HS_DEM_BTH[maHd] || 0) + 1;
+    veLaiNutBanTheHien();
+    toast('Đã đính bản thể hiện vào hoá đơn ' + maHd, 3600);
+  } catch (e2) {
+    busy(false);
+    baoTin(errMsg(e2) || 'Không đính được bản thể hiện.', 'Chưa đính được');
+  }
 }
 /* ================= DANH MUC NHA CUNG CAP =================
    Uyen hoi 14/08/2026: "co may mat hang chua gan NCC, em gan NCC o muc nao?"
