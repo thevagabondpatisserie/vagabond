@@ -307,3 +307,40 @@ def _():
 	]), {"LE1": 150, "LE2": 7})
 	la("chưa ai nhập thì rỗng, ô gõ tay giữ nguyên hiệu lực",
 		mv.san_luong_theo_ma([]), {})
+
+
+# ------------------------- o "Tong nha in giao" go tay van phai co hieu luc
+
+
+@ca("Mã chưa khai đợt nào thì ô Tổng nhà in giao gõ tay vẫn tính vào tồn mở sổ")
+def _():
+	"""Bẫy đã gặp thật ngày 22/08/2026.
+
+	Mùa Trung thu 2026 không khai đợt hàng nào, số vỏ hộp 1600 và 100 là người gõ
+	thẳng vào ô "Tổng nhà in giao". Bản đầu của _mo_so_va_them chỉ đọc bảng đợt,
+	nên hai dòng HỘP hiện 0 trên bảng theo ngày trong khi bảng Sản phẩm báo 1600.
+	Luật đúng là luật của han_muc_tu_dot: chưa khai đợt thì ô gõ tay giữ nguyên
+	hiệu lực; khai rồi thì đợt nói lên, ô gõ tay thôi.
+	"""
+	import inspect
+
+	mv = _mv()
+	nguon = "\n".join(
+		d for d in inspect.getsource(mv._mo_so_va_them).split("\n")
+		if not d.strip().startswith("#")
+	)
+	dung("phải dựng tập mã đã khai đợt", "co_dot" in nguon)
+	dung("mã không có đợt thì cộng ô nhà in giao vào tồn mở sổ",
+		'mo_so[d.ma_hang] += cint(d.get("nha_in_giao"))' in nguon)
+
+
+@ca("Vỏ hộp gõ tay chảy đúng vào phép cuộn và ghép ngược")
+def _():
+	mv = _mv()
+	# HOPA co 300 vo go tay, ruot du ghep 50 -> ban duoc that la 50.
+	ra = mv.cuon_ton_theo_ngay(
+		["2026-09-01"], {"HOPA": 300, "LE1": 100, "LE2": 0}, {}, {}, DM
+	)
+	o = mv.ghep_theo_ngay(ra["2026-09-01"], DM, {"LE2"})
+	la("vỏ hộp gõ tay vào đúng tồn đầu", o["HOPA"]["ton_dau"], 300)
+	la("bán được thật là 50", o["HOPA"]["con_thuc_te"], 50)
