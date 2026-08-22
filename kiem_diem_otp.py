@@ -542,6 +542,15 @@ def _nap_mv():
 	for ten in (
 		"han_muc_tu_dot",
 		"banh_le_trong_hop",
+		# Bon ham duoi day them 21/08/2026 khi tach o "San xuat" thanh hai o
+		# va them phep ghep nguoc ruot ra hop. con_sau_khi_them GOI
+		# nguon_cung nen phai nap truoc, khong thi NameError.
+		"san_luong_theo_ma",
+		"nguon_cung",
+		"ma_la_hop",
+		"ghep_duoc_tu_ruot",
+		"con_hop_thuc_te",
+		"_ruot_cua_hop",
 		"con_ban_duoc",
 		"con_sau_khi_them",
 		"muc_tran",
@@ -705,6 +714,129 @@ DONG7 = [
 la("dong am san ma don nay lam am them thi VAN chan",
    [x[0] for x in conthem(DONG7, [{"ma_hop": "HOP", "ma_banh": "B", "so_luong": 2}], "HOP", 3)[1]],
    ["B"])
+
+# =====================================================================
+# Nhom 20. Ghep nguoc ruot ra hop, va hai nguon cung tach doi
+# =====================================================================
+print("20. Ghep nguoc ruot ra hop va hai nguon cung")
+
+# Day la phep de sai nhat cua ca phan he Trung thu, va sai thi khong ai thay
+# ngay: no khong nem loi, no chi tra ra mot con so lon hon su that va sales ban
+# theo con so do. Ngay 18/08/2026 da co mot lan dung kieu do - ban 2000 hop
+# MOONGARDEN ma bang van bao banh le 110g "con 192" - nen moi phep o day deu
+# duoc chot bang mot ca kiem.
+#
+# Ca kiem nay nam trong kiem_diem_otp.py chu KHONG nam trong bo kiem thu tang
+# khung, vi mua_vu.py co "import requests" o dau tep. Bo tang khung phai chay
+# duoc tren may CI tay khong, nen o do khong duoc import mo dun nghiep vu nao
+# keo theo thu vien mang. Cach nap o day la doc thang ma nguon tung ham.
+nguoncung = Mv["nguon_cung"]; slma = Mv["san_luong_theo_ma"]
+malahop = Mv["ma_la_hop"]; ghepnguoc = Mv["ghep_duoc_tu_ruot"]
+conhop = Mv["con_hop_thuc_te"]
+
+
+def _dm(*bo):
+	return [{"ma_hop": h, "ma_banh": b, "so_luong": n} for h, b, n in bo]
+
+
+# --- Hai nguon cung, khong trung nhau (anh Viet chot 21/08/2026) ---
+la("chi nha in giao", nguoncung(0, 100), 100)
+la("chi bep lam", nguoncung(240, 0), 240)
+la("cong ca hai", nguoncung(240, 100), 340)
+la("rong thanh 0", nguoncung(None, None), 0)
+
+la("san luong cong don nhieu me cua mot vi", slma([
+	{"ngay": "2026-09-01", "ma_hang": "B110", "so_luong": 120},
+	{"ngay": "2026-09-01", "ma_hang": "B110", "so_luong": 80},
+	{"ngay": "2026-09-02", "ma_hang": "B110", "so_luong": 200},
+]).get("B110"), 400)
+la("dong thieu ma thi bo", "" in slma([{"ma_hang": "", "so_luong": 9}]), False)
+la("chua nhap ngay nao thi rong, o go tay giu hieu luc", slma([]), {})
+
+la("ma_la_hop nhat dung cot ma_hop",
+   sorted(malahop(_dm(("MG", "B110", 2), ("ML", "B150", 4)))), ["MG", "ML"])
+
+# --- Ghep nguoc: ruot con lai ghep duoc bao nhieu hop ---
+la("vi eo hep nhat quyet dinh so hop",
+   ghepnguoc(_dm(("MG", "B110", 2), ("MG", "B080", 4)),
+             {"B110": 50, "B080": 60}).get("MG"), 15)
+la("chia co du thi lam tron xuong",
+   ghepnguoc(_dm(("MG", "B110", 2)), {"B110": 7}).get("MG"), 3)
+la("mot banh khong ghep noi mot hop",
+   ghepnguoc(_dm(("MG", "B110", 2)), {"B110": 1}).get("MG"), 0)
+la("ruot dang am thi ghep duoc 0, khong ra so am",
+   ghepnguoc(_dm(("MG", "B110", 2)), {"B110": -40}).get("MG"), 0)
+
+# Bay lon nhat cua phep nay. Banh 80g khong co lo rieng, chi lam theo hop, nen
+# han muc cua no bang 0. De no vao phep lay nho nhat thi moi hop deu ra 0 va ca
+# mua bi chan - chan sai chu khong phai chan dung.
+_DM2 = _dm(("MG", "B110", 2), ("MG", "B080", 4))
+la("khong bo qua banh khong_tran thi hop chet oan",
+   ghepnguoc(_DM2, {"B110": 50, "B080": 0}).get("MG"), 0)
+la("bo qua dung thi con 25 hop",
+   ghepnguoc(_DM2, {"B110": 50, "B080": 0}, {"B080"}).get("MG"), 25)
+
+# Phai phan biet "ghep duoc 0 hop" voi "khong biet, khong rang buoc".
+la("hop co khai dinh muc thi co mat",
+   "MG" in ghepnguoc(_dm(("MG", "B110", 2)), {"B110": 10}), True)
+la("hop khong khai dinh muc thi vang mat",
+   "ML" in ghepnguoc(_dm(("MG", "B110", 2)), {"B110": 10}), False)
+la("moi ruot deu khong tran thi cung vang mat",
+   "MG" in ghepnguoc(_dm(("MG", "B080", 4)), {"B080": 0}, {"B080"}), False)
+
+_G2 = ghepnguoc(_dm(("MG", "B110", 2), ("ML", "B150", 4)), {"B110": 10, "B150": 40})
+la("hai hop khac nhau khong anh huong nhau, hop mot", _G2.get("MG"), 5)
+la("hai hop khac nhau khong anh huong nhau, hop hai", _G2.get("ML"), 10)
+
+# --- Hop con ban duoc that: lay so nho hon ---
+la("vo it hon ruot", conhop(30, 100), 30)
+la("ruot it hon vo", conhop(100, 30), 30)
+la("chua khai dinh muc thi chi vo noi len", conhop(80, None), 80)
+# Am phai giu nguyen: man hinh to do va chot chan nem loi. Ep ve 0 la giau mat
+# mot su that dang co.
+la("vo dang am thi giu am", conhop(-12, None), -12)
+la("vo am ruot duong van lay vo", conhop(-12, 40), -12)
+
+# --- Mot mua du duong, di tu dau toi cuoi ---
+# Nha in giao 100 hop MG, bep lam 300 banh B110, moi hop 2 banh, da ban 40 hop.
+_TH = trhop(_dm(("MG", "B110", 2)), {"MG": 40})
+la("40 hop an 80 banh", _TH.get("B110"), 80)
+_CONHOP = conban(nguoncung(0, 100), 40, 0, 0, 0)
+_CONBANH = conban(nguoncung(300, 0), 0, 0, 0, _TH.get("B110", 0))
+la("vo con 60", _CONHOP, 60)
+la("banh le con 220", _CONBANH, 220)
+la("ruot ghep duoc 110 hop",
+   ghepnguoc(_dm(("MG", "B110", 2)), {"B110": _CONBANH}).get("MG"), 110)
+la("vo la cho nghen nen hop con 60", conhop(_CONHOP, 110), 60)
+
+# Van mua do nhung bep moi lam 150 banh: ruot thanh cho nghen.
+# Neu chi nhin vo hop thi sales tuong con 60 va se ban lo 25 hop.
+_CB2 = conban(nguoncung(150, 0), 0, 0, 0, _TH.get("B110", 0))
+la("banh le con 70", _CB2, 70)
+_G3 = ghepnguoc(_dm(("MG", "B110", 2)), {"B110": _CB2}).get("MG")
+la("ruot chi ghep duoc 35", _G3, 35)
+la("hop con ban duoc that la 35 chu khong phai 60", conhop(_CONHOP, _G3), 35)
+
+# --- Chot chan ban lo phai doc nguon cung gop hai o ---
+_DONG8 = [
+	{"ma_hang": "HOP", "ten_banh": "Hop", "san_xuat": 0, "nha_in_giao": 100,
+	 "da_dat": 90, "cho_chot": 0, "don_khac": 0},
+]
+la("chan ban lo doc ca o nha in giao", conthem(_DONG8, [], "HOP", 5)[0], 5)
+la("ban qua so nha in giao thi bi chan",
+   [x[0] for x in conthem(_DONG8, [], "HOP", 20)[1]], ["HOP"])
+
+
+# --- Dong mo ta ruot cua hop, hien duoi ten hop tren web ---
+ruothop = Mv["_ruot_cua_hop"]
+la("mot hop hai vi", ruothop(
+	_dm(("MG", "B110", 2), ("MG", "B080", 4)),
+	{"B110": "Banh 110g", "B080": "Banh 80g"}).get("MG"),
+   "2 x Banh 110g, 4 x Banh 80g")
+la("thieu ten thi lay ma", ruothop(_dm(("MG", "B110", 2)), {}).get("MG"), "2 x B110")
+la("dong so luong 0 thi bo", "MG" in ruothop(_dm(("MG", "B110", 0)), {}), False)
+la("khong khai dinh muc thi rong", ruothop([], {}), {})
+
 
 # =====================================================================
 # Nhom 21. Man mua vu khong duoc phep treo, va nhip tu dong bo

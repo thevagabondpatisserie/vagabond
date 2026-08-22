@@ -17,6 +17,7 @@
   "dong",
   "sec_dot",
   "dot",
+  "san_luong",
   "sec_dinh_muc",
   "dinh_muc",
   "sec_lich",
@@ -103,6 +104,13 @@
    "label": "Dot nha in giao",
    "options": "Vagabond Mua Vu Dot",
    "description": "Nhap tung dot kem ngay du kien. Chi dot da ve moi cong vao han muc ban duoc."
+  },
+  {
+   "description": "Bep truong nhap moi ngay. Tong cac dong chay vao o San xuat cua bang tren.",
+   "fieldname": "san_luong",
+   "fieldtype": "Table",
+   "label": "San luong bep theo ngay",
+   "options": "Vagabond Mua Vu San Luong"
   },
   {
    "fieldname": "sec_dinh_muc",

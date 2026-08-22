@@ -11,6 +11,7 @@
   "nhan_ngan",
   "cb1",
   "san_xuat",
+  "nha_in_giao",
   "khong_tran",
   "tran_ngay",
   "da_giao",
@@ -20,6 +21,9 @@
   "don_khac",
   "trong_hop",
   "co_the_ban",
+  "ghep_duoc",
+  "con_thuc_te",
+  "ruot_khong_rang_buoc",
   "ten_khach_cho",
   "ghi_chu"
  ],
@@ -59,6 +63,13 @@
    "in_list_view": 1,
    "label": "So luong san xuat",
    "description": "Nhap tay. So hop nha in giao duoc, hoac so banh bep lam duoc ca mua."
+  },
+  {
+   "description": "So hop nha in da giao. KHONG trung voi o San xuat: o kia la so bep lam ra.",
+   "fieldname": "nha_in_giao",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Tong nha in giao"
   },
   {
    "fieldname": "khong_tran",
@@ -114,6 +125,27 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Con ban duoc",
+   "read_only": 1
+  },
+  {
+   "description": "Chi co nghia voi dong la HOP: ruot con lai ghep duoc bao nhieu hop nua.",
+   "fieldname": "ghep_duoc",
+   "fieldtype": "Int",
+   "label": "Ruot ghep duoc",
+   "read_only": 1
+  },
+  {
+   "description": "Voi hop la so nho hon giua vo con va ruot ghep duoc. Voi banh le bang Con ban duoc.",
+   "fieldname": "con_thuc_te",
+   "fieldtype": "Int",
+   "label": "Con ban duoc that",
+   "read_only": 1
+  },
+  {
+   "description": "Bat khi dong nay la hop nhung khong ruot nao co han muc rieng, nen chi vo hop chan duoc.",
+   "fieldname": "ruot_khong_rang_buoc",
+   "fieldtype": "Check",
+   "label": "Ruot khong rang buoc",
    "read_only": 1
   },
   {

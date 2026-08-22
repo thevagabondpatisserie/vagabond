@@ -173,6 +173,15 @@ CUA_NGO = {
 	# Viet mo nut Tao moi cho ca 16 danh muc: mot duong ghi duy nhat cho ca
 	# khung, va no chi ghi duoc dung nhung truong da khai trong tao()["o"].
 	"khung/ds.py": ["chay", "danh_ba", "tao_moi", "tim_lien_ket"],
+	# Kiem banh theo mua, khai 21/08/2026 khi them tab San luong theo ngay.
+	# Ba duong them_san_luong, sua_san_luong, xoa_san_luong nam ngay canh
+	# nhau va ngay tren mot ham cu, tuc dung cho de mot decorator bam nham.
+	"mua_vu.py": [
+		"bang", "canh_bao", "danh_dau_dot_ve", "danh_sach", "doi_tinh_trang", "dong_bo",
+		"hang_theo_mua", "kiem_truoc_khi_ban", "luu_o", "sua_san_luong", "tao_mua",
+		"them_dinh_muc", "them_dong", "them_dot", "them_san_luong", "tim_san_pham",
+		"xin_dong_bo", "xoa_dinh_muc", "xoa_dong", "xoa_dot", "xoa_san_luong"
+	],
 }
 
 
