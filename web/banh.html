@@ -12,6 +12,7 @@
 :root{
   --bg:#000000; --bg-2:#070707; --card:#0B0B0B;
   --cyan:#29BDB3; --cyan-bright:#3FD8CD; --cyan-dim:#1B6F69;
+  --amber:#DB7E2A; --amber-2:rgba(219,126,42,.72);
   --paper:#FFFFFF; --fog:rgba(255,255,255,.62); --fog-2:rgba(255,255,255,.36);
   --line:rgba(255,255,255,.16); --line-2:rgba(255,255,255,.08);
   --qualy:'Qualy Text',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -53,6 +54,32 @@ header{position:sticky;top:0;z-index:40;background:rgba(0,0,0,.82);backdrop-filt
 .tab+.tab{border-left:1px solid var(--line-2)}
 .tab.on{color:var(--paper)}
 .tab.on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--cyan);box-shadow:0 0 16px rgba(41,189,179,.7)}
+/* ===== NHOM IN SEASON =====
+   Hang mua vu (Trung thu, Tet) khong tron voi banh tuoi. Mau nhan doi sang ho
+   phach #DB7E2A - mau nay lay tu chinh bang mau tren web thuong hieu, khong
+   phai mau moi bia ra. */
+.tab.mua{color:var(--amber-2)}
+.tab.mua.on{color:var(--amber)}
+.tab.mua.on::after{background:var(--amber);box-shadow:0 0 16px rgba(219,126,42,.7)}
+.mua-hd{padding:4px 0 18px}
+.mua-hd .num{color:var(--amber)}
+.mua-han{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-2);margin-top:10px}
+.mua-luoi{display:grid;gap:18px;grid-template-columns:1fr;padding-bottom:28px}
+@media(min-width:700px){.mua-luoi{grid-template-columns:repeat(2,1fr);gap:22px}}
+@media(min-width:1040px){.mua-luoi{grid-template-columns:repeat(3,1fr)}}
+.mua-the{position:relative;border:1px solid rgba(219,126,42,.34);background:linear-gradient(180deg,rgba(219,126,42,.07),rgba(0,0,0,0) 46%);overflow:hidden}
+.mua-the .anh{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#0d0d0d}
+.mua-the .than{padding:16px 16px 18px}
+.mua-the h3{font-family:var(--qualy);font-size:19px;line-height:1.25;margin:0}
+.mua-the .ruot{font-size:12.5px;color:var(--fog-2);margin-top:6px;line-height:1.55}
+.mua-the .hang{display:flex;align-items:center;gap:10px;margin-top:14px}
+.mua-the .gia{font-size:15px;font-weight:700}
+.mua-the .con{margin-left:auto;font-family:var(--sans);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber-2)}
+.mua-badge{position:absolute;top:12px;left:12px;z-index:2;font-family:var(--sans);font-size:10px;letter-spacing:.18em;text-transform:uppercase;background:var(--amber);color:#140b03;padding:5px 10px;border-radius:2px}
+.mua-nut{width:100%;margin-top:14px;padding:13px 10px;border:1px solid var(--amber);background:var(--amber);color:#140b03;font-family:var(--sans);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.mua-nut:hover{background:transparent;color:var(--amber)}
+.mua-nut[disabled]{background:transparent;border-color:var(--line);color:var(--fog-2);cursor:not-allowed}
+.mua-the.het .anh{filter:grayscale(1) brightness(.55)}
 
 /* ---------- hero ---------- */
 .hero{padding-top:40px;padding-bottom:26px;border-bottom:1px solid var(--line-2)}
@@ -380,9 +407,25 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
 </div></header>
 
 <nav class="tabs">
+  <!-- Tab mua vu GHIM DAU tien theo y anh Viet 21/08/2026. An san, chi hien khi
+       may chu bao dang co mua chay - het mua ma con tab la khach bam vao mot
+       trang trong. -->
+  <button class="tab mua" data-tab="season" id="tabMua" hidden>In season</button>
   <button class="tab on" data-tab="today">Có sẵn hôm nay</button>
   <button class="tab" data-tab="order">Đặt bánh trước</button>
 </nav>
+
+<!-- ============ IN SEASON ============ -->
+<main id="season" hidden>
+  <section class="wrap">
+    <div class="mua-hd">
+      <div class="meta"><span class="num" id="muaSo">00 / In season</span></div>
+      <h1 class="h1" id="muaTen">Hàng theo mùa</h1>
+      <div class="mua-han" id="muaHan"></div>
+    </div>
+    <div class="mua-luoi" id="muaLuoi"></div>
+  </section>
+</main>
 
 <!-- ============ HOM NAY ============ -->
 <main id="today">
@@ -802,8 +845,9 @@ function setTab(t){
   tabNow=t;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   $('#today').hidden=t!=='today'; $('#order').hidden=t!=='order';
+  var mS=$('#season'); if(mS) mS.hidden=t!=='season';
 }
-function go(t){ nav(t==='order'?'#/dat-truoc':'#/'); window.scrollTo({top:0,behavior:'smooth'}); }
+function go(t){ nav(t==='season'?'#/in-season':(t==='order'?'#/dat-truoc':'#/')); window.scrollTo({top:0,behavior:'smooth'}); }
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>go(b.dataset.tab));
 
 function applyRoute(){
@@ -811,6 +855,7 @@ function applyRoute(){
   const mBanh=h.match(/^\/banh\/(.+)$/);
   const isGio=/^\/gio-hang/.test(h);
   const isTruoc=/^\/dat-truoc/.test(h);
+  const isMua=/^\/in-season/.test(h);
 
   if(mBanh){
     const c=CAKES.find(x=>slug(x.k)===mBanh[1]);
@@ -824,7 +869,7 @@ function applyRoute(){
     return;
   }
   closeSheetUI(); closeCoUI();
-  setTab(isTruoc?'order':'today');
+  setTab(isMua?'season':(isTruoc?'order':'today'));
   drawBar();
 }
 window.addEventListener('popstate',applyRoute);
@@ -1521,6 +1566,91 @@ function lamTuoiTon(){
     if(typeof cur!=='undefined'&&cur&&document.querySelector('#sheet').classList.contains('open')) drawSizes();
   });
 }
+/* =======================================================
+   NHOM IN SEASON - hang mua vu
+
+   Doc tu MOT nguon khac han cac tab kia: cua
+   vagabond.mua_vu.hang_theo_mua, chu KHONG phai bang kiem banh theo ngay.
+   Hai bang tra loi hai cau hoi khac nhau, ben ngay hoi "hom nay con bao
+   nhieu cai", ben mua hoi "ca mua nay con bao nhieu cai" (anh Viet chot
+   21/08/2026).
+
+   So hien ra la con_thuc_te, tuc may chu da lay so nho hon giua vo hop con
+   va ruot ghep duoc. Trang KHONG tu tinh lai: hai noi cung giu mot luat la
+   se lech nhau vao mot ngay khong ai doan truoc.
+
+   Mon het hang van HIEN, chi khoa nut. An di thi khach tuong tiem khong lam
+   mon do, con hien ma khoa thi khach biet de hoi dot sau.
+   ======================================================= */
+var MUA={co:0,mon:[]};
+
+function napHangMua(){
+  return fetch("/api/method/vagabond.mua_vu.hang_theo_mua",{headers:{Accept:"application/json"}})
+    .then(function(r){return r.json();})
+    .then(function(j){ MUA=(j&&j.message)||{co:0,mon:[]}; veHangMua(); })
+    .catch(function(){});
+}
+
+function veHangMua(){
+  var tab=$('#tabMua'), luoi=$('#muaLuoi');
+  if(!tab||!luoi) return;
+  if(!MUA.co||!(MUA.mon||[]).length){
+    tab.hidden=true;
+    if(tabNow==='season') go('today');
+    return;
+  }
+  tab.hidden=false;
+  $('#muaTen').textContent=MUA.ten_mua||'Hàng theo mùa';
+  var han=$('#muaHan');
+  if(MUA.den_ngay){
+    var d=new Date(MUA.den_ngay+'T00:00:00');
+    var con=Math.ceil((d-new Date())/86400000);
+    han.textContent = con>0
+      ? ('Nhận đặt tới hết '+dmy(d)+' · còn '+con+' ngày')
+      : ('Nhận đặt tới hết '+dmy(d));
+  } else han.textContent='';
+  luoi.innerHTML=(MUA.mon||[]).map(function(m){
+    var het=!!m.het;
+    return '<article class="mua-the'+(het?' het':'')+'">'+
+      (m.la_hop?'<span class="mua-badge">Seasonal</span>':'')+
+      (m.anh?'<img class="anh" src="'+m.anh+'" alt="" loading="lazy">':'<div class="anh"></div>')+
+      '<div class="than">'+
+      '<h3>'+esc(m.ten)+'</h3>'+
+      (m.ruot?'<div class="ruot">Gồm '+esc(m.ruot)+'</div>':'')+
+      '<div class="hang"><span class="gia">'+vnd(m.gia||0)+'</span>'+
+      '<span class="con">'+(het?'Hết hàng':'Còn '+m.con)+'</span></div>'+
+      '<button class="mua-nut" data-mua="'+esc(m.ma)+'"'+(het?' disabled':'')+'>'+
+      (het?'Hết hàng':'Thêm vào giỏ')+'</button>'+
+      '</div></article>';
+  }).join('');
+  luoi.querySelectorAll('[data-mua]').forEach(function(n){
+    n.onclick=function(){ themHangMua(n.getAttribute('data-mua')); };
+  });
+}
+
+function themHangMua(ma){
+  var m=(MUA.mon||[]).find(function(x){return x.ma===ma;});
+  if(!m||m.het) return;
+  /* Chan ngay tren trinh duyet cho nhanh. Chot chan THAT nam o may chu trong
+     don_hang.tao_don, vi ai cung goi thang endpoint duoc va giua luc mo trang
+     voi luc bam dat co the da co nguoi khac mua mat. */
+  if(daCoTrongGio(ma)>=m.con){
+    toast('Mùa này chỉ còn '+m.con+' phần. Cần nhiều hơn anh chị gọi 0931 224 334 giúp em nhé.');
+    return;
+  }
+  var o={ k:m.ten, img:m.anh||'', id:m.ma, cm:0, price:m.gia||0, wish:'', adds:[], qty:1 };
+  var key=cartKey(o);
+  var hit=CART.find(function(x){return cartKey(x)===key;});
+  if(hit) hit.qty++; else CART.push(o);
+  drawBar(); drawCart();
+  toast(hit?('Thêm 1 phần nữa, giỏ có '+cartCount()+' món'):('Đã thêm '+m.ten+' vào giỏ'));
+}
+
+napHangMua();
+/* Nhip 5 phut: hang mua vu ban ca thang chu khong doi tung phut nhu banh
+   trong ngay, nen khong can nhip 60 giay. */
+setInterval(napHangMua,300000);
+
 lamTuoiTon();
 setInterval(lamTuoiTon,60000);
 applyRoute();
