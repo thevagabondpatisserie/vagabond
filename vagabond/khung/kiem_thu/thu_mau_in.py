@@ -95,7 +95,9 @@ def _nhan_cot():
 	s = _mau()
 	dung("co bien chi_hoa_don", "chi_hoa_don" in s)
 	dung("co nhan So chung tu", "Số chứng từ" in s)
-	dung("van giu nhan So hoa don cho ca chi co hoa don", "Số hóa đơn" in s)
+	# 22/08/2026 doi sang chinh ta "hoá đơn" cho khop 1245 cho khac trong
+	# repo; ban in cu lac mot minh mot kieu.
+	dung("van giu nhan So hoa don cho ca chi co hoa don", "Số hoá đơn" in s)
 
 
 @ca("mau in: chi hoi Supplier va Customer, khong hoi bua bang khac")
