@@ -563,13 +563,24 @@ var payTab = '';
 async function scrPayList() {
   frame('Duyệt phiếu chi', '<div class="emp"><div class="e1">⏳</div></div>');
   var mine = myPayStates();
+  /* CHI phieu CHI, tuc payment_type = "Pay".
+
+     Anh Viet 22/08/2026: *"sao tu nhien lai co ca HDM cua khach le online
+     the nhi"*. Vi sao lot vao: luong duyet dat tren CA doctype Payment
+     Entry, nen Frappe gan trang thai "Nhap" cho MOI phieu tien moi, ke ca
+     phieu THU tien khach do may tu tao khi doi soat sao ke. O `custom_loai_chi`
+     khong phan biet duoc vi no co gia tri mac dinh, phieu thu cung mang
+     "Thanh toan cong no NCC".
+
+     Loc theo `payment_type` la cach chac nhat: phieu thu tien khach khong
+     phai phieu chi, khong bao gio duoc xuat hien o man nay. */
   var docs = await getList('Payment Entry', {
     fields: ['name', 'posting_date', 'party_name', 'party', 'paid_amount', 'workflow_state', 'mode_of_payment', 'custom_loai_chi', 'remarks', 'owner'],
-    filters: { workflow_state: ['in', mine] }, limit_page_length: 60, order_by: 'posting_date desc, name desc'
+    filters: { payment_type: 'Pay', workflow_state: ['in', mine] }, limit_page_length: 60, order_by: 'posting_date desc, name desc'
   });
   var done = await getList('Payment Entry', {
     fields: ['name', 'posting_date', 'party_name', 'paid_amount', 'workflow_state'],
-    filters: { workflow_state: ['in', ['Đã duyệt - Đã ghi sổ', 'Bị trả lại']] }, limit_page_length: 25, order_by: 'modified desc'
+    filters: { payment_type: 'Pay', workflow_state: ['in', ['Đã duyệt - Đã ghi sổ', 'Bị trả lại']] }, limit_page_length: 25, order_by: 'modified desc'
   });
   if (!payTab) payTab = mine[0] || 'Xong';
   function draw() {
@@ -599,6 +610,16 @@ async function scrPayList() {
 async function scrPayView(name) {
   frame(name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d = await api('frappe.client.get', { doctype: 'Payment Entry', name: name });
+  /* Chan ca o man chi tiet: mo bang duong dan cu hoac bang lich su trinh
+     duyet thi van khong duoc bay nut duyet chi len mot phieu THU tien. */
+  if (d && d.payment_type !== 'Pay') {
+    frame(name, '<div class="emp"><div class="e1">🧾</div>' +
+      '<div class="e2">Đây là phiếu THU tiền khách, không phải phiếu chi</div>' +
+      '<div style="font-size:13px;color:#8a90a0;margin-top:8px;line-height:1.6;padding:0 18px">' +
+      'Màn Duyệt phiếu chi chỉ dành cho tiền đi ra. Phiếu thu tiền khách do máy ' +
+      'tự tạo khi đối soát sao kê, kế toán xử lý ở màn khác.</div></div>');
+    return;
+  }
   var files = await getList('File', { fields: ['file_url', 'file_name'], filters: { attached_to_doctype: 'Payment Entry', attached_to_name: name }, limit_page_length: 20 });
   var acts = PAYFLOW.filter(function (t) { return t.state === d.workflow_state && hasRole(t.role); });
   var refs = (d.references || []).map(function (r) {

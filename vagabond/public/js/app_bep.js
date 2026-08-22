@@ -821,22 +821,71 @@ function reset(fn) {
 }
 function render() { var f = S.stack[S.stack.length - 1]; if (f) f(); }
 
-/* Man hinh nao cung ve lai bang cach ghi de root.innerHTML, nen moi lan
-   bam mot nut la khung cuon moi tinh - nguoi dung bi nem len dau trang.
-   Anh Viet bao 09/08/2026 o man tinh tien quay, nhung loi nay co o MOI man.
-   Cach chua: truoc khi ghi de thi nho vi tri cuon kem tieu de man hinh cu;
-   ghi de xong, neu van dung man do (tieu de khong doi) thi tra vi tri cu ve.
-   Doi sang man khac thi tieu de khac nen van bat dau tu dau trang. */
-var VGB_TD = '', VGB_CUON = 0;
+/* GIU VI TRI CUON, dung chung cho MOI man hinh.
+
+   Man nao cung ve lai bang cach ghi de root.innerHTML, nen moi lan bam mot
+   nut la khung cuon moi tinh va nguoi dung bi nem len dau trang. Anh Viet
+   bao lan dau 09/08/2026 o man tinh tien quay, va lan hai 22/08/2026 o man
+   thanh toan truoc cho NCC: *"cu bam nut nao trong phieu la lai bi cuon ve
+   dau trang"*.
+
+   BAN VA DAU TIEN CHUA DU, VA DAY LA LY DO
+   ----------------------------------------
+   Ban truoc doc vi tri cuon ngay dau `frame()` roi tra lai o cuoi. Nghe thi
+   dung, nhung hau het man hinh goi `frame()` HAI LAN cho mot lan bam:
+
+       frame(tieu_de, '<div class="emp">⏳ Dang tai...</div>');   // lan 1
+       ... await may chu ...
+       frame(tieu_de, noi_dung_that);                            // lan 2
+
+   Lan 1 ve ra mot khung ngan tun, scrollTop tut ve 0. Lan 2 doc scrollTop
+   thay 0, tuong nguoi dung dang o dau trang, va ghi de mat vi tri that.
+   Cang nhieu man dung khung cho thi cang dinh, nen nhin vao thi giong nhu
+   "bam nut nao cung nhay len dau".
+
+   CACH CHUA
+   ---------
+   Ghi vi tri NGAY LUC NGUOI DUNG CUON chu khong doi den luc ve lai man. Cai
+   bay duy nhat: chinh minh dat `scrollTop` cung sinh ra su kien `scroll`, va
+   luc khung con ngan thi trinh duyet ket qua ve 0 - neu ghi lai gia tri do
+   thi vi tri lai mat lan nua. Nen co co `VGB_DANG_TRA` de bo qua dung nhung
+   su kien do minh gay ra.
+
+   Doi sang man khac thi tieu de khac, xoa vi tri de bat dau tu dau trang. */
+var VGB_TD = '', VGB_CUON = 0, VGB_DANG_TRA = 0;
+
+function vgbTheoDoiCuon(ob) {
+  if (!ob || ob.vgbDaNghe) return;
+  ob.vgbDaNghe = 1;
+  ob.addEventListener('scroll', function () {
+    if (VGB_DANG_TRA) return;
+    VGB_CUON = ob.scrollTop || 0;
+  }, { passive: true });
+}
+
+function vgbTraCuon(ob, dat) {
+  if (!ob || !dat) return;
+  VGB_DANG_TRA = 1;
+  ob.scrollTop = dat;
+  var thoi = function () { VGB_DANG_TRA = 0; };
+  try {
+    requestAnimationFrame(function () {
+      /* Anh mon, ma QR... tai xong moi day chieu cao len, dat lai mot nhip
+         nua cho chac. Chi dat khi khung dang o 0, tuc lan truoc bi ket. */
+      if (ob.isConnected && ob.scrollTop !== dat && ob.scrollTop === 0) ob.scrollTop = dat;
+      requestAnimationFrame(thoi);
+    });
+  } catch (e) { setTimeout(thoi, 80); }
+}
 
 function frame(title, bodyHtml, opt) {
   opt = opt || {};
   /* Tieu de tab trinh duyet theo man hinh, liec tab biet ngay dang o dau */
   try { document.title = (title && title !== APPNAME) ? title + ' · Vagabond' : APPNAME; } catch (e) { }
-  var cuOb = document.getElementById('vgbBody');
-  if (cuOb) VGB_CUON = cuOb.scrollTop || 0;
-  var giuCuon = !!(cuOb && VGB_TD === title && VGB_CUON > 0);
+  var doiMan = (VGB_TD !== title);
+  if (doiMan) VGB_CUON = 0;
   VGB_TD = title;
+  var giuCuon = (!doiMan && VGB_CUON > 0);
   var showBack = S.stack.length > 1;
   root.innerHTML =
     '<div class="vh">' +
@@ -863,17 +912,8 @@ function frame(title, bodyHtml, opt) {
   var f = document.getElementById('vgbFab'); if (f && opt.onFab) f.onclick = opt.onFab;
   dSkin(root);
   var moiOb = document.getElementById('vgbBody');
-  if (giuCuon && moiOb) {
-    var dat = VGB_CUON;
-    moiOb.scrollTop = dat;
-    /* Anh mon, QR... tai xong moi day chieu cao len; dat lai mot nhip nua
-       cho chac, nhung chi khi nguoi dung chua tu cuon di cho khac. */
-    try {
-      requestAnimationFrame(function () {
-        if (moiOb.isConnected && moiOb.scrollTop !== dat && moiOb.scrollTop === 0) moiOb.scrollTop = dat;
-      });
-    } catch (e) { }
-  }
+  vgbTheoDoiCuon(moiOb);
+  if (giuCuon) vgbTraCuon(moiOb, VGB_CUON);
   return moiOb;
 }
 
@@ -3383,13 +3423,24 @@ var payTab = '';
 async function scrPayList() {
   frame('Duyệt phiếu chi', '<div class="emp"><div class="e1">⏳</div></div>');
   var mine = myPayStates();
+  /* CHI phieu CHI, tuc payment_type = "Pay".
+
+     Anh Viet 22/08/2026: *"sao tu nhien lai co ca HDM cua khach le online
+     the nhi"*. Vi sao lot vao: luong duyet dat tren CA doctype Payment
+     Entry, nen Frappe gan trang thai "Nhap" cho MOI phieu tien moi, ke ca
+     phieu THU tien khach do may tu tao khi doi soat sao ke. O `custom_loai_chi`
+     khong phan biet duoc vi no co gia tri mac dinh, phieu thu cung mang
+     "Thanh toan cong no NCC".
+
+     Loc theo `payment_type` la cach chac nhat: phieu thu tien khach khong
+     phai phieu chi, khong bao gio duoc xuat hien o man nay. */
   var docs = await getList('Payment Entry', {
     fields: ['name', 'posting_date', 'party_name', 'party', 'paid_amount', 'workflow_state', 'mode_of_payment', 'custom_loai_chi', 'remarks', 'owner'],
-    filters: { workflow_state: ['in', mine] }, limit_page_length: 60, order_by: 'posting_date desc, name desc'
+    filters: { payment_type: 'Pay', workflow_state: ['in', mine] }, limit_page_length: 60, order_by: 'posting_date desc, name desc'
   });
   var done = await getList('Payment Entry', {
     fields: ['name', 'posting_date', 'party_name', 'paid_amount', 'workflow_state'],
-    filters: { workflow_state: ['in', ['Đã duyệt - Đã ghi sổ', 'Bị trả lại']] }, limit_page_length: 25, order_by: 'modified desc'
+    filters: { payment_type: 'Pay', workflow_state: ['in', ['Đã duyệt - Đã ghi sổ', 'Bị trả lại']] }, limit_page_length: 25, order_by: 'modified desc'
   });
   if (!payTab) payTab = mine[0] || 'Xong';
   function draw() {
@@ -3419,6 +3470,16 @@ async function scrPayList() {
 async function scrPayView(name) {
   frame(name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d = await api('frappe.client.get', { doctype: 'Payment Entry', name: name });
+  /* Chan ca o man chi tiet: mo bang duong dan cu hoac bang lich su trinh
+     duyet thi van khong duoc bay nut duyet chi len mot phieu THU tien. */
+  if (d && d.payment_type !== 'Pay') {
+    frame(name, '<div class="emp"><div class="e1">🧾</div>' +
+      '<div class="e2">Đây là phiếu THU tiền khách, không phải phiếu chi</div>' +
+      '<div style="font-size:13px;color:#8a90a0;margin-top:8px;line-height:1.6;padding:0 18px">' +
+      'Màn Duyệt phiếu chi chỉ dành cho tiền đi ra. Phiếu thu tiền khách do máy ' +
+      'tự tạo khi đối soát sao kê, kế toán xử lý ở màn khác.</div></div>');
+    return;
+  }
   var files = await getList('File', { fields: ['file_url', 'file_name'], filters: { attached_to_doctype: 'Payment Entry', attached_to_name: name }, limit_page_length: 20 });
   var acts = PAYFLOW.filter(function (t) { return t.state === d.workflow_state && hasRole(t.role); });
   var refs = (d.references || []).map(function (r) {
@@ -15482,7 +15543,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '270';
+var APPVER = '271';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
