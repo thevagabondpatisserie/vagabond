@@ -15930,7 +15930,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '275';
+var APPVER = '276';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -23421,8 +23421,116 @@ async function miVeQz() {
     '<div style="font-size:12.5px;color:#7c4a03;margin-top:4px;line-height:1.6">' +
     'Lý do: ' + h(t.loi || 'không rõ') + '.<br>' +
     'In vẫn chạy bình thường, chỉ là thu ngân phải bấm thêm một nhịp và phải đặt sẵn ' +
-    'máy in mặc định trên máy tính. Muốn in thẳng thì cài QZ Tray và dán chứng thư ' +
-    'theo hướng dẫn ở project doc v256.</div>';
+    'máy in mặc định trên máy tính.</div>' +
+    '<div style="font-size:12.5px;color:#7c4a03;margin-top:8px;line-height:1.6">' +
+    miGoY(t) + '</div>' +
+    '<button class="btn gh" id="miDoQz" style="margin-top:10px">🔎 Kiểm tra QZ trên máy này</button>' +
+    '<div id="miDoKq" style="font-size:12px;color:#7c4a03;margin-top:8px;line-height:1.6"></div>';
+  var nut = document.getElementById('miDoQz');
+  if (nut) nut.onclick = function () { miDoQzChay(); };
+}
+
+/* ---------- Chi dung viec phai lam, theo dung LOI dang gap ----------
+
+Anh Viet 22/08/2026: da dan chung thu roi ma hop vang van bao y het, vi
+dong huong dan cu chi biet noi mot cau "cai QZ Tray va dan chung thu".
+
+Hai loi nay khac han nhau va cach chua cung khac han:
+
+  - "Chua dan chung thu": may chu chua co chung thu. Viec o Vagabond
+    Settings, lam mot lan cho ca tiem.
+  - "Unable to establish connection with QZ": trinh duyet KHONG mo noi
+    duong toi QZ Tray tren chinh may thu ngan. Chung thu khong lien quan gi
+    o day - chung thu chi de QZ khoi hoi "Untrusted website" SAU KHI da noi
+    duoc. Dan chung thu ma QZ khong chay thi van y nguyen loi nay.
+
+Viec dua nguoi ta di sai duong o day dat lam: moi may quay la mot lan De
+phai chay toi tan noi. */
+function miGoY(t) {
+  var loi = String((t && t.loi) || '');
+  var noi_duoc = /connection|connect|websocket|refus|timeout|unable/i.test(loi);
+  if (!noi_duoc && /chứng thư|chung thu/i.test(loi)) {
+    return '<b>Việc cần làm:</b> dán chứng thư QZ Tray vào Vagabond Settings. ' +
+      'Làm một lần cho cả tiệm, xem hướng dẫn ở project doc v256.';
+  }
+  if (!noi_duoc) return 'Xem hướng dẫn ở project doc v256.';
+  return '<b>Đây KHÔNG phải lỗi chứng thư.</b> Chứng thư chỉ để QZ khỏi hỏi ' +
+    '"Untrusted website" sau khi đã nối được. Lỗi này là trình duyệt không mở ' +
+    'nổi đường tới QZ Tray trên chính máy tính này. Làm theo thứ tự:<br>' +
+    '<b>1.</b> Nhìn khay đồng hồ góc phải màn hình, có biểu tượng QZ Tray không. ' +
+    'Không có thì mở QZ Tray lên. Máy vừa khởi động lại thì hay quên bật.<br>' +
+    '<b>2.</b> Mở tab mới, gõ <b>https://localhost:8181</b>. Báo "không kết nối được" ' +
+    'tức là QZ chưa chạy, quay lại bước 1. Báo cảnh báo bảo mật thì bấm Nâng cao, ' +
+    'Tiếp tục truy cập, rồi quay lại đây bấm kiểm tra.<br>' +
+    '<b>3.</b> Vẫn hỏng thì bấm nút kiểm tra bên dưới rồi chụp màn gửi em.';
+}
+
+/* ---------- Do thang tung cua, chi dich danh cua nao hong ----------
+
+Thu vien QZ thu lan luot localhost roi localhost.qz.io. Hong ca hai thi no
+chi tra ve dung mot cau "Unable to establish connection with QZ", khong noi
+hong o dau. Ham nay thu RIENG tung cua va bao ket qua tung cai, vi hai ket
+qua khac nhau chi ra hai benh khac han:
+
+  - Ca hai deu khong noi duoc  -> QZ Tray khong chay, hoac bi tuong lua chan.
+  - localhost.qz.io noi duoc, localhost thi khong -> QZ co chay, chi la
+    trinh duyet chua chiu chung thu localhost. Vao https://localhost:8181
+    bam chap nhan mot lan la xong.
+
+Dung WebSocket tho chu khong qua thu vien QZ, vi thu vien nuot mat ket qua
+tung cua. */
+function miDoMotCua(url) {
+  return new Promise(function (xong) {
+    var s, kip = 0;
+    var het = setTimeout(function () {
+      if (kip) return;
+      kip = 1;
+      try { s.close(); } catch (e) { }
+      xong(0);
+    }, 3500);
+    try { s = new WebSocket(url); } catch (e) { clearTimeout(het); return xong(0); }
+    s.onopen = function () {
+      if (kip) return;
+      kip = 1; clearTimeout(het);
+      try { s.close(); } catch (e) { }
+      xong(1);
+    };
+    s.onerror = function () {
+      if (kip) return;
+      kip = 1; clearTimeout(het);
+      xong(0);
+    };
+  });
+}
+
+async function miDoQzChay() {
+  var o = document.getElementById('miDoKq');
+  if (o) o.innerHTML = 'Đang thử...';
+  var a = await miDoMotCua('wss://localhost:8181');
+  var b = await miDoMotCua('wss://localhost.qz.io:8181');
+  var ket;
+  if (a || b) {
+    if (a && b) {
+      ket = '<b>QZ Tray đang chạy và nối được cả hai cửa.</b> Lỗi nằm ở bước sau, ' +
+        'nhiều khả năng là chứng thư hoặc chữ ký. Chụp màn này gửi em.';
+    } else if (b) {
+      ket = '<b>QZ Tray đang chạy.</b> Trình duyệt chưa chịu chứng thư của cửa ' +
+        'localhost. Mở tab mới vào <b>https://localhost:8181</b>, bấm Nâng cao rồi ' +
+        'Tiếp tục truy cập, xong quay lại đây tải lại trang.';
+    } else {
+      ket = '<b>QZ Tray đang chạy.</b> Cửa localhost.qz.io không vào được, thường ' +
+        'là mạng tiệm chặn. Không sao, cửa localhost đủ dùng. Tải lại trang thử in.';
+    }
+  } else {
+    ket = '<b>Không cửa nào trả lời, nên QZ Tray đang KHÔNG chạy trên máy này.</b> ' +
+      'Mở QZ Tray lên (tìm trong Start menu), chờ biểu tượng hiện ở khay đồng hồ ' +
+      'góc phải, rồi tải lại trang này. Nếu máy chưa cài thì cài QZ Tray trước, ' +
+      'hướng dẫn ở project doc v256.';
+  }
+  if (o) {
+    o.innerHTML = 'wss://localhost:8181 &rarr; ' + (a ? 'nối được' : 'không nối được') + '<br>' +
+      'wss://localhost.qz.io:8181 &rarr; ' + (b ? 'nối được' : 'không nối được') + '<br><br>' + ket;
+  }
 }
 
 /* Doc bon o so tren man ve mot cuc. Ve lai man thi giu nguyen so dang go,
