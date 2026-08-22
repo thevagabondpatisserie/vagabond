@@ -50,3 +50,4 @@ vagabond.patches.dong_bo_cau_truc #v272
 vagabond.patches.dong_bo_cau_truc #v273
 vagabond.patches.dong_bo_cau_truc #v274
 vagabond.patches.dong_bo_cau_truc #v275
+vagabond.patches.dong_bo_cau_truc #v276
