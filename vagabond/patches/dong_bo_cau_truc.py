@@ -135,3 +135,19 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: quyen vai duyet chi")
+
+	# Tach o "San xuat" cu thanh hai o: "San xuat" cua bep va "Tong nha in
+	# giao" cua nha in (anh Viet chot 21/08/2026). Chuyen so cua cac dong HOP
+	# sang o moi, dong banh le giu nguyen.
+	#
+	# Chay lai duoc: chi chuyen khi o moi dang bang 0.
+	try:
+		from vagabond import mua_vu
+
+		kq = mua_vu.chuyen_so_nha_in()
+		if kq.get("mua_da_doi"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: chuyen so nha in cho %d mua vu" % kq["mua_da_doi"]
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: chuyen so nha in mua vu")
