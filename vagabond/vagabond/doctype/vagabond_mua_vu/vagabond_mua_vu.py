@@ -1,4 +1,5 @@
 from frappe.model.document import Document
+from frappe.utils import cint
 
 
 class VagabondMuaVu(Document):
@@ -29,11 +30,18 @@ class VagabondMuaVu(Document):
 		from vagabond.mua_vu import (
 			banh_le_trong_hop,
 			con_ban_duoc,
+			con_hop_thuc_te,
+			ghep_duoc_tu_ruot,
 			han_muc_tu_dot,
+			ma_la_hop,
+			nguon_cung,
 			nhan_tu_ten,
+			san_luong_theo_ma,
 		)
 
 		han = han_muc_tu_dot([d.as_dict() for d in self.get("dot") or []])
+		bep = san_luong_theo_ma([d.as_dict() for d in self.get("san_luong") or []])
+		la_hop = ma_la_hop([m.as_dict() for m in self.get("dinh_muc") or []])
 		ban_hop = {
 			d.ma_hang: (d.da_dat or 0) + (d.cho_chot or 0) + (d.don_khac or 0)
 			for d in self.dong
@@ -51,11 +59,54 @@ class VagabondMuaVu(Document):
 			if not str(d.nhan_ngan or "").strip():
 				d.nhan_ngan = nhan_tu_ten(d.ten_banh or d.ma_hang, da_dung)
 				da_dung.add(d.nhan_ngan)
-			# Han muc: uu tien tong cac dot da ve, roi moi den o go tay. Mua
-			# chua khai dot nao thi o go tay giu nguyen hieu luc.
+			# HAI NGUON CUNG, KHONG TRUNG NHAU (anh Viet chot 21/08/2026)
+			#
+			#   o "Tong nha in giao"  <- tong cac dot DA VE cua nha in
+			#   o "San xuat"          <- tong san luong bep nhap theo ngay
+			#
+			# Ma nao chua khai dot thi o nha in go tay giu nguyen hieu luc, ma
+			# nao chua ai nhap san luong ngay nao thi o san xuat go tay giu
+			# nguyen hieu luc. Cung mot luat cho ca hai o.
+			#
+			# Truoc ban nay chi co mot o San xuat gom ca hai thu, nen nhin vao
+			# khong biet hop thieu vi nha in giao thieu hay vi bep chua lam kip.
 			if d.ma_hang in han:
-				d.san_xuat = han[d.ma_hang]
+				d.nha_in_giao = han[d.ma_hang]
+			if d.ma_hang in bep:
+				d.san_xuat = bep[d.ma_hang]
 			d.trong_hop = trong_hop.get(d.ma_hang, 0)
 			d.co_the_ban = con_ban_duoc(
-				d.san_xuat, d.da_dat, d.cho_chot, d.don_khac, d.trong_hop
+				nguon_cung(d.san_xuat, d.nha_in_giao),
+				d.da_dat,
+				d.cho_chot,
+				d.don_khac,
+				d.trong_hop,
 			)
+
+		# GHEP NGUOC: ruot con lai ghep duoc bao nhieu hop nua.
+		#
+		# Phai chay SAU vong lap tren, vi no can co_the_ban cua tung banh le da
+		# tinh xong. Chay hai vong la co y, khong phai thua.
+		#
+		# Luu y ve chan ban lo: rang buoc ruot da duoc con_sau_khi_them chan san
+		# tu truoc, vi ban mot hop lam banh le trong hop tang len va dong banh le
+		# do se am. Hai cot moi o day la de NHIN THAY va de trang web quyet dinh
+		# hien nut Het hang, chu khong phai them mot lop chan thu hai.
+		con_banh = {d.ma_hang: cint(d.co_the_ban) for d in self.dong}
+		khong_tran = {d.ma_hang for d in self.dong if cint(d.khong_tran)}
+		ghep = ghep_duoc_tu_ruot(
+			[m.as_dict() for m in self.get("dinh_muc") or []], con_banh, khong_tran
+		)
+		for d in self.dong:
+			if d.ma_hang in la_hop:
+				g = ghep.get(d.ma_hang)
+				d.ghep_duoc = cint(g) if g is not None else 0
+				d.con_thuc_te = con_hop_thuc_te(d.co_the_ban, g)
+				# Hop ma khong ruot nao co han muc rieng: chi vo hop chan duoc.
+				# Im lang o day la ban lo ma khong ai biet, nen bat co de man
+				# hinh hien chip canh bao.
+				d.ruot_khong_rang_buoc = 1 if g is None else 0
+			else:
+				d.ghep_duoc = 0
+				d.con_thuc_te = cint(d.co_the_ban)
+				d.ruot_khong_rang_buoc = 0
