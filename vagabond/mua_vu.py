@@ -182,6 +182,38 @@ def ma_la_hop(dinh_muc):
 	return ra
 
 
+def tach_ma_loai_tru(chuoi):
+	"""Doc o Ma loai tru thanh mot tap ma, viet HOA het. THUAN.
+
+	O do la Small Text, moi dong mot ma, nguoi go tay duoc nen phai chiu duoc
+	dong trong, khoang trang thua, dau phay, va chu thuong.
+	"""
+	ra = set()
+	for khuc in str(chuoi or "").replace(",", "\n").split("\n"):
+		ma = khuc.strip().upper()
+		if ma:
+			ra.add(ma)
+	return ra
+
+
+def them_ma_loai_tru(chuoi, ma):
+	"""Them mot ma vao o Ma loai tru, tra ve chuoi moi. THUAN.
+
+	Giu nguyen thu tu cac ma da co roi moi noi ma moi vao cuoi, de nguoi doc
+	thay duoc cai nao bi loai truoc cai nao sau. Ma da co thi khong them lan
+	hai.
+	"""
+	ma = str(ma or "").strip().upper()
+	cu = []
+	for khuc in str(chuoi or "").replace(",", "\n").split("\n"):
+		x = khuc.strip().upper()
+		if x and x not in cu:
+			cu.append(x)
+	if ma and ma not in cu:
+		cu.append(ma)
+	return "\n".join(cu)
+
+
 def ghep_duoc_tu_ruot(dinh_muc, con_cua_banh, khong_tran=None):
 	"""Ruot con lai ghep duoc THEM bao nhieu hop nua, theo tung ma hop. THUAN.
 
@@ -685,6 +717,18 @@ def _keo_ve(mua=None):
 		_tha_khoa(mua)
 
 
+def _ten_tu_item(ma):
+	"""Ten san pham lay ben danh muc Item. Rong thi tra chuoi rong.
+
+	Dung cho dong may TU nhat tu hoa don ban ra: nhung dong do khong di qua
+	Pancake nen khong co ten kem theo, va bang se hien tro moi ma hang.
+	"""
+	try:
+		return frappe.db.get_value("Item", ma, "item_name") or ""
+	except Exception:
+		return ""
+
+
 def _keo_that(doc, mua, c, k):
 	"""Phan that su di ra Pancake va ghi lai. Da nam trong khoa."""
 	dau, cuoi = _khoang_unix(doc.tu_ngay, doc.den_ngay)
@@ -695,6 +739,11 @@ def _keo_that(doc, mua, c, k):
 	# Giu nguyen dong san pham nguoi da them va SO LUONG SAN XUAT ho da go.
 	# Day la o duy nhat nguoi go, dong bo ma xoa mat no la xoa cong viec
 	# cua ho.
+	# Ma bi nguoi dung bam X gat ra khoi mua. Khong co danh sach nay thi lan
+	# dong bo sau lai keo chinh cai ma vua gat ve, va nguoi dung bam X mai
+	# khong xong (anh Viet 22/08/2026 voi Banh Ba Trang trong mua Trung thu).
+	loai_tru = tach_ma_loai_tru(doc.get("ma_loai_tru"))
+
 	co = {d.ma_hang: d for d in doc.dong}
 	for ma in set(list(dem_chot) + list(dem_cho) + list(khac)):
 		if ma not in co:
@@ -702,10 +751,17 @@ def _keo_that(doc, mua, c, k):
 			# cung khoang ngay thi khong lien quan den han muc mua nay.
 			if not ma.upper().startswith(TU_THEM):
 				continue
-			d = doc.append("dong", {"ma_hang": ma, "ten_banh": ten.get(ma, ""), "san_xuat": 0})
+			if ma.upper() in loai_tru:
+				continue
+			d = doc.append(
+				"dong",
+				{"ma_hang": ma, "ten_banh": ten.get(ma) or _ten_tu_item(ma), "san_xuat": 0},
+			)
 			co[ma] = d
-		elif ten.get(ma) and not co[ma].ten_banh:
-			co[ma].ten_banh = ten[ma]
+		elif not co[ma].ten_banh:
+			# Dong may tu nhat tu hoa don ban ra thi khong di qua Pancake nen
+			# khong co ten, bang hien tro moi ma hang. Hoi Item de bu vao.
+			co[ma].ten_banh = ten.get(ma) or _ten_tu_item(ma)
 
 	for ma, d in co.items():
 		d.da_dat = dem_chot.get(ma, 0)
@@ -829,6 +885,7 @@ def bang(mua=None):
 			for ng in sorted(sl_theo_ngay, reverse=True)
 		],
 		"ten_mua": doc.ten_mua,
+		"ma_loai_tru": sorted(tach_ma_loai_tru(doc.get("ma_loai_tru"))),
 		"tu_ngay": str(doc.tu_ngay),
 		"den_ngay": str(doc.den_ngay),
 		"tinh_trang": doc.tinh_trang,
@@ -955,32 +1012,83 @@ def them_dong(mua=None, ma_hang=None):
 
 
 @frappe.whitelist()
-def xoa_dong(mua=None, ma_hang=None):
-	"""Bo mot san pham khoi mua. Chi bo duoc khi CHUA co don nao.
+def xoa_dong(mua=None, ma_hang=None, dong_y_go=0):
+	"""Bo mot san pham khoi mua, va ghi ma do vao danh sach loai tru.
 
-	Co don roi ma bo di la giau mat mot con so dang co that: khach van dat,
-	don van chay, ma bang khong con dong nao de tru.
+	HAI MUC CHAN, KHONG PHAI MOT (anh Viet chot 22/08/2026)
+	-------------------------------------------------------
+	Don Pancake, tuc da_dat va cho_chot, la LOI HUA VOI KHACH: khach da bam
+	dat, don dang chay. Bo dong di la giau mat mot con so dang co that, nen
+	van chan cung, khong co duong vong.
+
+	Rieng don_khac thi khac han. No khong phai don, no la con so MAY TU SUY
+	ra tu hoa don ban ra trong khoang ngay cua mua. Chinh cho nay sinh ra
+	ca bay: Banh Ba Trang la hang Tet Doan Ngo, ban tai quay dung mot cai
+	ngay 18/08, mang tien to BASS nen bi may tu keo vao mua Trung thu, roi
+	khoa luon khong cho ai go ra. Voi truong hop nay cho go, nhung phai
+	truyen dong_y_go=1 de nguoi dung xac nhan mot cau chu khong bam nham.
+
+	Go xong con ghi ma vao o Ma loai tru, neu khong lan dong bo sau lai keo
+	dung cai ma vua go ve.
 	"""
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
 	doc = frappe.get_doc(DT, mua)
-	giu = []
+	giu, thay = [], None
 	for d in doc.dong:
 		if d.ma_hang != ma_hang:
 			giu.append(d)
 			continue
-		if (d.da_dat or 0) or (d.cho_chot or 0) or (d.don_khac or 0):
-			frappe.throw(
-				"Sản phẩm %s đã có %d đơn nên không bỏ khỏi mùa được. Muốn ngừng bán "
-				"thì đặt Số lượng sản xuất về 0."
-				% (ma_hang, (d.da_dat or 0) + (d.cho_chot or 0) + (d.don_khac or 0))
-			)
+		thay = d
+	if thay is None:
+		frappe.throw("Không thấy sản phẩm %s trong mùa này." % ma_hang)
+
+	don_that = cint(thay.da_dat) + cint(thay.cho_chot)
+	if don_that:
+		frappe.throw(
+			"Sản phẩm %s đang có %d đơn Pancake nên không bỏ khỏi mùa được. "
+			"Muốn ngừng bán thì đặt số Bếp làm và Tổng nhà in giao về 0."
+			% (ma_hang, don_that)
+		)
+	if cint(thay.don_khac) and not cint(dong_y_go):
+		frappe.throw(
+			"Sản phẩm %s có %d cái đã bán qua kênh khác trong khoảng ngày của mùa. "
+			"Đây là số máy tự đếm từ hoá đơn chứ không phải đơn đặt. Xác nhận một lần nữa "
+			"nếu món này thực sự không thuộc mùa." % (ma_hang, cint(thay.don_khac))
+		)
+
 	doc.set("dong", giu)
+	doc.ma_loai_tru = them_ma_loai_tru(doc.get("ma_loai_tru"), ma_hang)
+	# Bang lich ke theo ma, khong don thi lich con dong cua mot ma da bi go.
+	doc.set("lich", [d for d in (doc.get("lich") or []) if d.ma_hang != ma_hang])
 	doc.flags.ignore_permissions = True
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
+	_ghi_vet_go(mua, ma_hang, cint(thay.don_khac))
 	return bang(mua)
+
+
+def _ghi_vet_go(mua, ma_hang, so_kenh_khac):
+	"""Ghi mot dong Comment len mua, de sau con truy ai go mon nao luc nao.
+
+	QT-20: khong xoa vinh vien ma khong de lai vet. O Ma loai tru cho biet
+	ma nao bi go, nhung khong cho biet ai go va luc nao.
+	"""
+	try:
+		frappe.get_doc(
+			{
+				"doctype": "Comment",
+				"comment_type": "Info",
+				"reference_doctype": DT,
+				"reference_name": mua,
+				"content": "Gỡ sản phẩm %s khỏi mùa và thêm vào danh sách loại trừ. "
+				"Số đã bán qua kênh khác lúc gỡ: %d." % (ma_hang, so_kenh_khac),
+			}
+		).insert(ignore_permissions=True)
+		frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "mua_vu: ghi vet go san pham")
 
 
 @frappe.whitelist()

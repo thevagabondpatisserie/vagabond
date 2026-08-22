@@ -2569,6 +2569,9 @@ function mvChuMoc(d) {
 }
 
 function mvGanNutSx(root) {
+  root.querySelectorAll('[data-mvgo]').forEach(function (n) {
+    n.onclick = function () { mvGoKhoiMua(n.getAttribute('data-mvgo')); };
+  });
   root.querySelectorAll('[data-mvnhain]').forEach(function (n) {
     n.onclick = function () { mvSuaNhaIn(n.getAttribute('data-mvnhain')); };
   });
@@ -2730,8 +2733,11 @@ function mvDsSpHtml(ds) {
           ((x.co_the_ban || 0) > con
             ? ' <span style="color:#b45309">· nghẽn ở ruột, bếp cần làm thêm</span>' : '') +
           (x.ruot_khong_rang_buoc
-            ? '<div style="color:#b3261e;margin-top:4px">⚠️ Hộp này chưa khai định mức ruột, ' +
-              'máy chỉ chặn được theo số vỏ hộp.</div>' : '') +
+            /* Câu cũ nói "chưa khai định mức ruột" là nói sai: hộp có khai
+               đủ ruột, chỉ là mọi ruột đều mang cờ "không đặt trần" nên phép
+               ghép ngược bỏ qua hết (anh Việt bắt được 22/08/2026). */
+            ? '<div style="color:#b45309;margin-top:4px">⚠️ Ruột của hộp này không ruột nào ' +
+              'đặt trần, nên máy chỉ chặn được theo số vỏ hộp.</div>' : '') +
           '</div>' : '') +
       '<div style="display:flex;gap:6px;margin-top:8px;font-size:11.5px;flex-wrap:wrap;align-items:center">' +
       mvChip('Bán lẻ', banLe, '#0f766e') +
@@ -2747,7 +2753,14 @@ function mvDsSpHtml(ds) {
       '✏️ Bếp làm ' + money(x.san_xuat) + '</button>' +
       '<button data-mvnhain="' + h(x.ma_hang) + '" style="border:1.5px solid #7c3aed;' +
       'background:#fff;color:#7c3aed;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
-      '🖨️ Nhà in ' + money(x.nha_in_giao || 0) + '</button></div>' +
+      '🖨️ Nhà in ' + money(x.nha_in_giao || 0) + '</button>' +
+      /* Nút gỡ. Máy TỰ đưa vào bảng mọi mã BASS bán trong khoảng ngày của
+         mùa, nên hàng của mùa khác lọt vào là chuyện sẽ còn xảy ra: Bánh Bá
+         Trạng là hàng Tết Đoan Ngọ, bán tại quầy đúng một cái, thế là nằm
+         trong mùa Trung thu. Không có nút này thì không ai gỡ ra được. */
+      '<button data-mvgo="' + h(x.ma_hang) + '" title="Gỡ khỏi mùa" ' +
+      'style="border:1.5px solid #fecdca;background:#fff;color:#b3261e;border-radius:8px;' +
+      'padding:5px 10px;font-size:12px;font-weight:800">✕</button></div>' +
       (banLe ? '<div style="font-size:11px;color:#98a2b3;margin-top:6px">Bán lẻ gồm: đã đặt ' +
         money(x.da_dat) + ' · chờ chốt ' + money(x.cho_chot) + ' · kênh khác ' + money(x.don_khac) +
         '</div>' : '') +
@@ -2945,6 +2958,42 @@ async function mvXoaSanLuong(ngay, ma) {
     MV.data = await api('vagabond.mua_vu.xoa_san_luong',
       { mua: MV.mua, ngay: ngay, ma_hang: ma });
     mvVe();
+  } finally { busy(false); }
+}
+
+/* ================= GỠ MỘT SẢN PHẨM KHỎI MÙA =================
+
+   Vì sao cần: đồng bộ TỰ đưa vào bảng mọi mã BASS bán trong khoảng ngày của
+   mùa, dù mã đó thuộc mùa khác. Bánh Bá Trạng là hàng Tết Đoan Ngọ, bán tại
+   quầy đúng một cái ngày 18/08, thế là nằm trong mùa Trung thu và còn hiện ra
+   trên trang đặt bánh của khách.
+
+   Hai mức chặn, giống hệt máy chủ, để người bấm biết mình đang gỡ cái gì:
+   có đơn Pancake thì chặn cứng, chỉ có số máy tự đếm từ hoá đơn thì hỏi thêm
+   một câu rồi mới cho gỡ. Gỡ xong mã vào danh sách loại trừ nên lần đồng bộ
+   sau không kéo về nữa. */
+async function mvGoKhoiMua(ma) {
+  var x = null;
+  (MV.data.dong || []).forEach(function (r) { if (r.ma_hang === ma) x = r; });
+  if (!x) return;
+  var ten = String(x.ten_banh || ma).slice(0, 40);
+  var donThat = (x.da_dat || 0) + (x.cho_chot || 0);
+  if (donThat) {
+    return toast('"' + ten + '" đang có ' + money(donThat) + ' đơn Pancake nên không gỡ được. ' +
+      'Muốn ngừng bán thì đặt Bếp làm và Nhà in về 0.', 6000);
+  }
+  var khac = x.don_khac || 0;
+  var phu = khac
+    ? ('Món này có ' + money(khac) + ' cái đã bán qua kênh khác trong khoảng ngày của mùa. ' +
+       'Đó là số máy tự đếm từ hoá đơn chứ không phải đơn đặt.')
+    : 'Mã này sẽ vào danh sách loại trừ, lần đồng bộ sau máy không kéo về nữa.';
+  if (!(await hoiCo('Gỡ "' + ten + '" khỏi mùa?', phu))) return;
+  busy(true);
+  try {
+    MV.data = await api('vagabond.mua_vu.xoa_dong',
+      { mua: MV.mua, ma_hang: ma, dong_y_go: khac ? 1 : 0 });
+    mvVe();
+    toast('Đã gỡ "' + ten + '" khỏi mùa.', 3000);
   } finally { busy(false); }
 }
 
