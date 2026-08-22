@@ -281,3 +281,61 @@ def _to_de_nghi_dung_khuon():
 	# sua mot duong quen duong kia.
 	dung("bo ham chu ky cu", "def _o_ky(" not in s)
 
+
+
+# ------------------------------------- Bẫy định dạng % làm chết Xuất bộ hồ sơ
+
+
+@ca("khuon chuan: moi manh HTML deu CO dau % nen khong duoc ghep vao khuon %")
+def _html_co_dau_phan_tram():
+	from vagabond import mau_chuan as mc
+
+	# Day la SU THAT gay ra loi 500 ngay 22/08/2026, chot lai de phien sau
+	# doc ca kiem nay la hieu ngay vi sao khong duoc ghep thang.
+	dung("dai_logo co dau %", "%" in mc.dai_logo())
+	dung("khoi_chu_ky co dau %", "%" in mc.khoi_chu_ky())
+	# Ghep thang vao mot khuon dinh dang la no ngay. Chung minh bang cach
+	# thu that chu khong noi suong.
+	no = False
+	try:
+		_ = ("<div>" + mc.dai_logo() + "%s</div>") % "x"
+	except (ValueError, TypeError):
+		no = True
+	dung("ghep thang vao khuon thi NO that", no)
+
+
+@ca("khuon chuan: an_phan_tram cuu duoc chuoi phai ghep thang")
+def _an_phan_tram():
+	from vagabond import mau_chuan as mc
+
+	ra = ("<div>" + mc.an_phan_tram(mc.dai_logo()) + "%s</div>") % "x"
+	dung("khong con no", ra.endswith("x</div>"))
+	# Sau khi dinh dang xong thi dau % phai tro lai nguyen ven, khong duoc
+	# de lai %% trong ban in.
+	dung("dau % tro lai binh thuong", "width:45%;" in ra)
+	dung("khong con %% sot lai", "%%" not in ra)
+
+
+@ca("to de nghi: KHONG ghep ham mau_chuan vao giua khuon dinh dang")
+def _to_de_nghi_khong_ghep_vao_khuon():
+	s = _doc("ho_so_tt.py")
+	i = s.find("def _to_app_html(")
+	j = s.find("def xuat_excel(")
+	than = s[i:j if j > i else i + 9000]
+	# Cai da lam chet nut Xuat bo ho so: `+ mc.dai_logo()` nam trong mot
+	# bieu thuc ket thuc bang `) % (`.
+	for dong in than.split("\n"):
+		# Bo qua dong chu thich: chinh doan giai thich cai bay nay cung nhac
+		# ten ham, ma no khong phai ma chay.
+		if dong.lstrip().startswith("#"):
+			continue
+		if "mc.dai_logo()" in dong:
+			dung("dai_logo chi noi chuoi, khong nam trong khuon %",
+			     "+ mc.dai_logo()" in dong)
+	# Khuon cua tieu de va cua bang phai dinh dang XONG truoc khi noi.
+	dung("tieu de dinh dang truoc", "dau_trang = (" in than)
+	dung("bang dinh dang truoc", "bang = (" in than)
+	dung("chu ky dung san truoc", "chu_ky = mc.khoi_chu_ky(" in than)
+	# Cau lenh return cuoi chi con phep NOI chuoi, khong con phep %.
+	k = than.rfind("\treturn (")
+	dung("return cuoi khong con dinh dang %", ") % (" not in than[k:])

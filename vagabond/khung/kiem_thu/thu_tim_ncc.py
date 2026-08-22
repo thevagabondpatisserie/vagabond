@@ -59,23 +59,32 @@ def _():
 # --------------------------------------------------- du ba man deu co nut
 
 
-@ca("tìm NCC: cả ba màn chọn nhà cung cấp đều có nút tạo mới")
+@ca("tìm NCC: màn nào CÒN chọn nhà cung cấp thì phải có nút tạo mới")
 def _():
 	js = _js("19-ho-so-tt.js")
-	# Ba man: hoan ung khong hoa don, chi tu TK cong ty, va o chon nguoi
-	# duoc hoan ung cua man hoan ung co hoa don.
-	dung("có ba chỗ dựng khung tìm", js.count("hsKhungTimNcc(") >= 4)
-	dung("có ba chỗ nối nút", js.count("hsNoiNutTaoNcc(") >= 4)
-	for man in ("scrHoanUngTao", "scrChiCongTyTao", "scrHoSoTTTao"):
+	# Truoc 22/08/2026 co BA man chon nha cung cap. Nay con HAI.
+	#
+	# `scrHoanUngTao` (hoan ung khong hoa don) da bo han o chon nha cung
+	# cap: anh Viet chot khoan hoan ung khong hoa don khong thuoc ve nha
+	# cung cap nao ca, tien tra ve dung mot trong hai tai khoan ung, nen man
+	# do gio chon TAI KHOAN. Day KHONG phai lo sot - dung khoi phuc lai o
+	# chon nha cung cap o man ay.
+	dung("hai chỗ dựng khung tìm", js.count("hsKhungTimNcc(") >= 3)
+	dung("hai chỗ nối nút", js.count("hsNoiNutTaoNcc(") >= 3)
+	for man in ("scrChiCongTyTao", "scrHoSoTTTao"):
 		than = js.split("function " + man)[1].split("\nasync function ")[0]
 		dung("%s có nối nút tạo" % man, "hsNoiNutTaoNcc(" in than)
+	# Chot nguoc lai: man hoan ung khong hoa don KHONG duoc chon NCC nua.
+	than_hu = js.split("function scrHoanUngTao")[1].split("\nasync function ")[0]
+	dung("scrHoanUngTao KHÔNG còn chọn nhà cung cấp", "hsNoiNutTaoNcc(" not in than_hu)
+	dung("scrHoanUngTao chọn tài khoản thay vào đó", "ds_tk_hoan_ung" in than_hu)
 
 
 @ca("tìm NCC: tạo xong thì chọn luôn người vừa tạo, không bắt tìm lại")
 def _():
 	js = _js("19-ho-so-tt.js")
-	# Ba lan goi deu phai gan ma vua tao vao bien dang chon.
-	dung("gán vào huNguoi", js.count("if (ma) { huNguoi = ma;") >= 2)
+	# Man nao con chon nha cung cap thi tao xong phai gan luon ma vua tao.
+	dung("gán vào huNguoi", js.count("if (ma) { huNguoi = ma;") >= 1)
 	dung("gán vào hsTaoNguoiUng", "hsTaoNguoiUng = ma;" in js)
 
 
