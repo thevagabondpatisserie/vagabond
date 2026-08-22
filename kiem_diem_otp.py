@@ -551,6 +551,8 @@ def _nap_mv():
 		"ghep_duoc_tu_ruot",
 		"con_hop_thuc_te",
 		"_ruot_cua_hop",
+		"tach_ma_loai_tru",
+		"them_ma_loai_tru",
 		"con_ban_duoc",
 		"con_sau_khi_them",
 		"muc_tran",
@@ -825,6 +827,38 @@ _DONG8 = [
 la("chan ban lo doc ca o nha in giao", conthem(_DONG8, [], "HOP", 5)[0], 5)
 la("ban qua so nha in giao thi bi chan",
    [x[0] for x in conthem(_DONG8, [], "HOP", 20)[1]], ["HOP"])
+
+
+# --- Danh sach ma bi go khoi mua (nut X, them 22/08/2026) ---
+#
+# Vi sao phai co danh sach nay chu khong chi xoa dong: dong bo TU dua vao bang
+# moi ma BASS ban trong khoang ngay cua mua. Banh Ba Trang la hang Tet Doan
+# Ngo, ban tai quay dung mot cai ngay 18/08, the la nam trong mua Trung thu va
+# con hien ra tren trang dat banh cua khach. Xoa dong ma khong ghi lai thi lan
+# dong bo sau no quay ve, nguoi dung bam X mai khong xong.
+tachlt = Mv["tach_ma_loai_tru"]; themlt = Mv["them_ma_loai_tru"]
+
+la("o rong thi khong loai ai", tachlt(""), set())
+la("o None thi khong loai ai", tachlt(None), set())
+la("mot ma mot dong", sorted(tachlt("BASS00036\nBASS00099")), ["BASS00036", "BASS00099"])
+la("go tay bang dau phay van doc duoc", sorted(tachlt("BASS00036, BASS00099")),
+   ["BASS00036", "BASS00099"])
+la("dong trong va khoang trang thua thi bo", sorted(tachlt("  BASS00036  \n\n\n")),
+   ["BASS00036"])
+la("chu thuong van khop vi doi hoa het", sorted(tachlt("bass00036")), ["BASS00036"])
+
+la("them vao o rong", themlt("", "BASS00036"), "BASS00036")
+la("them noi vao cuoi, giu thu tu cu",
+   themlt("BASS00099", "BASS00036"), "BASS00099\nBASS00036")
+la("them lai ma da co thi khong nhan doi",
+   themlt("BASS00036", "BASS00036"), "BASS00036")
+la("them lai ma da co, viet thuong, cung khong nhan doi",
+   themlt("BASS00036", "bass00036"), "BASS00036")
+la("them ma rong thi giu nguyen o", themlt("BASS00036", ""), "BASS00036")
+la("don dep luon dong trung san co", themlt("A\nA\nB", "C"), "A\nB\nC")
+# Vong tron phai khop: go ra roi doc lai thi ma do phai nam trong tap loai tru.
+la("go xong doc lai thi thay ma do",
+   "BASS00036" in tachlt(themlt("BASS00099", "BASS00036")), True)
 
 
 # --- Dong mo ta ruot cua hop, hien duoi ten hop tren web ---
