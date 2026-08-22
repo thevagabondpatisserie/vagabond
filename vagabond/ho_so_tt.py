@@ -494,7 +494,8 @@ MON_KHONG_VAT = "CP-MUANHO-KHD"
 
 
 @frappe.whitelist()
-def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0):
+def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0,
+		tk_hoan=None):
 	"""Lập hồ sơ hoàn ứng: gõ tay từng khoản đã chi hộ bằng tiền tạm ứng.
 
 	Anh Việt 13/08/2026: "APP này có khả năng đính kèm các hoá đơn từ nhiều
@@ -514,9 +515,22 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 		dong = frappe.parse_json(dong)
 	if not dong:
 		frappe.throw("Chưa nhập khoản chi nào.")
+	# Anh Viet 22/08/2026: man nay khong bat chon nha cung cap nua, chi chon
+	# TAI KHOAN nhan tien (ACB hay OCB). Ma nha cung cap van phai co, vi so
+	# cai treo cong no theo ma - nhung nay may tu suy tu tai khoan chu khong
+	# bat nguoi lap doi trong danh sach vai tram dong.
+	tk_hoan = (tk_hoan or "").strip()
 	ma_ncc = (nguoi_ung or "").strip()
+	if tk_hoan and not ma_ncc:
+		ma_ncc = _ncc_cua_tk_hoan(tk_hoan)
 	if not ma_ncc:
-		frappe.throw("Chưa chọn người được hoàn ứng.")
+		frappe.throw(
+			"Tài khoản %s chưa gắn với mã nhà cung cấp nào nên máy không treo "
+			"công nợ được. Mở Bank Account đó bên Next, điền ô Party là mã "
+			"người ứng, rồi lập lại giúp em." % tk_hoan
+			if tk_hoan else
+			"Chưa chọn tài khoản nhận tiền hoàn ứng. Chọn ACB hay OCB giúp em."
+		)
 	if not frappe.db.exists("Supplier", ma_ncc):
 		frappe.throw(
 			"Không có nhà cung cấp %s. Người được hoàn ứng phải có sẵn hồ sơ "
@@ -553,6 +567,12 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 			"de_nghi_chi": (x.get("de_nghi_chi") or "").strip() or None,
 		})
 
+	# Hang rao chung tu: chi chan khi GUI di duyet, luu nhap thi khong.
+	# Nhap la cho lam do, bat du giay to ngay tu dong dau thi khong ai luu
+	# nhap duoc nua (anh Viet chot 22/08/2026).
+	if cint(gui_luon):
+		_chan_thieu_chung_tu(sach)
+
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
 	doc.loai = LOAI_HU
@@ -566,6 +586,12 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(ma_ncc) or {}).items():
 		doc.set(k, v)
+	# Tai khoan nguoi lap CHON de len tren tai khoan mac dinh cua ma NCC:
+	# nguoi ung co ca ACB lan OCB, cai chon tay moi la cai dung cho to nay.
+	if tk_hoan:
+		for k, v in (_tk_tu_bank_account(tk_hoan) or {}).items():
+			if v:
+				doc.set(k, v)
 	if not doc.ten_nhan:
 		doc.ten_nhan = doc.ten_ncc
 	for d in sach:
@@ -812,7 +838,7 @@ def _gd_da_gom():
 
 
 @frappe.whitelist()
-def sepay_ocb(so_ngay=60, chi_chua_gom=1):
+def sepay_ocb(so_ngay=60, chi_chua_gom=1, tai_khoan=None):
 	"""Giao dịch CHI RA từ quỹ tạm ứng OCB, để Uyên tick thay vì gõ tay.
 
 	Anh Việt 13/08/2026: *"tất cả các loại hoàn ứng thì đều là trả lại tiền
@@ -825,9 +851,15 @@ def sepay_ocb(so_ngay=60, chi_chua_gom=1):
 	giao dịch đã nằm trong hồ sơ khác - tick vào cũng bị chặn lúc lưu.
 	"""
 	_kiem(VAI_LAP, "xem giao dịch quỹ tạm ứng")
-	tk = _bank_account_quy()
+	# Anh Viet 22/08/2026 mo them cua sao ke ACB. Truyen tai khoan thi doc
+	# dung tai khoan do; bo trong thi giu nguyen nep cu, tu tim quy 1411.
+	# Mot ham cho ca hai ngan hang, khong tach doi: tach doi la sau nay sua
+	# mot ben quen ben kia.
+	tk = (tai_khoan or "").strip() or _bank_account_quy()
 	if not tk:
 		return {"rows": [], "loi": "Chưa khai Bank Account nào trỏ vào tài khoản %s." % TK_QUY_TAM_UNG}
+	if not frappe.db.exists("Bank Account", tk):
+		return {"rows": [], "loi": "Không có tài khoản ngân hàng %s." % tk}
 	ds = frappe.get_all(
 		"Bank Transaction",
 		filters={
@@ -853,10 +885,13 @@ def sepay_ocb(so_ngay=60, chi_chua_gom=1):
 			"noi_dung": (r.description or "").strip(),
 			"trang_thai": r.status or "",
 		})
+	nh = frappe.db.get_value("Bank Account", tk, ["bank", "bank_account_no"], as_dict=True) or {}
 	return {
 		"rows": ra,
 		"tong": sum(x["so_tien"] for x in ra),
 		"tai_khoan": tk,
+		"ngan_hang": (nh.get("bank") or "").strip(),
+		"so_tk": (nh.get("bank_account_no") or "").strip(),
 		"so_gd": len(ra),
 	}
 
@@ -2115,8 +2150,9 @@ def _to_app_html(name):
 	h = frappe.utils.escape_html
 	la_hu = hs["loai"] in (LOAI_HU, LOAI_HU_HD)
 
-	PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
-	VIEN = "1px solid #c9c4bd"
+	# Lay tu khuon chuan, khong khai lai: khai lai la mo duong cho hai ban in
+	# lech phong nhau ma khong ai de y.
+	VIEN = mc.VIEN
 	def _td(noi, canh="left", dam=False, khong_ngat=False):
 		return (
 			'<td style="border:%s;padding:5px 7px;font-size:10.5px;text-align:%s;%s%s">%s</td>'
@@ -2188,27 +2224,32 @@ def _to_app_html(name):
 		+ "</table>"
 	)
 
-	return (
-		'<div style="font-family:%s;color:#1c1a17;font-size:12px;line-height:1.45">'
-		+ mc.dai_logo()
-		+ '<div style="text-align:center;margin:14px 0 2px">'
+	# KHONG ghep HTML tinh toan san vao chuoi dinh dang %.
+	#
+	# Ngay 22/08/2026 dung cai bay nay: `mc.dai_logo()` tra ve CSS co
+	# `width:45%;`, ghep vao giua mot chuoi dinh dang thi Python doc `%;`
+	# thanh mot lenh dinh dang va no "unsupported format character ';'".
+	# Ca nut Xuat bo ho so chet, ke toan bam ra loi 500.
+	#
+	# Nen o day dinh dang TRUOC roi moi noi chuoi, va moi manh HTML dong deu
+	# di qua %s chu khong ghep thang vao khuon.
+	tieu_de_vi = "GIẤY ĐỀ NGHỊ HOÀN ỨNG" if la_hu else "GIẤY ĐỀ NGHỊ THANH TOÁN"
+	tieu_de_en = "Advance Settlement Request" if la_hu else "Payment Request"
+
+	dau_trang = (
+		'<div style="text-align:center;margin:14px 0 2px">'
 		'<div style="font-size:19px;font-weight:bold;letter-spacing:1px">%s</div>'
-		'<div style="font-size:11.5px;font-style:italic;color:#666;margin-top:1px">'
-		+ ("Advance Settlement Request" if la_hu else "Payment Request") +
-		"</div>"
+		'<div style="font-size:11.5px;font-style:italic;color:#666;margin-top:1px">%s</div>'
 		'<div style="font-size:11px;color:#555;margin-top:4px">'
 		"Số / No.: <b>%s</b> &nbsp;·&nbsp; Ngày / Date: <b>%s</b></div></div>"
 		'<div style="font-size:11px;margin:12px 0 3px">Kính gửi: <b>Ban Giám đốc</b>'
 		'<span style="font-style:italic;color:#777"> / To: Board of Directors</span></div>'
-		"%s"
+	) % (h(tieu_de_vi), h(tieu_de_en), h(hs["ma"]), _ngay_vn(hs["ngay"]))
+
+	bang = (
 		'<table style="width:100%%;border-collapse:collapse;margin-top:10px">'
 		"<tr>%s%s%s%s%s%s%s</tr>%s%s</table>"
-		"%s</div>"
 	) % (
-		PHONG,
-		"GIẤY ĐỀ NGHỊ HOÀN ỨNG" if la_hu else "GIẤY ĐỀ NGHỊ THANH TOÁN",
-		h(hs["ma"]), _ngay_vn(hs["ngay"]),
-		ben_nhan,
 		mc.o_th("STT", "No."),
 		mc.o_th("Ngày hoá đơn", "Invoice date"),
 		mc.o_th("Số hoá đơn", "Invoice no."),
@@ -2217,14 +2258,26 @@ def _to_app_html(name):
 		mc.o_th("Số tiền", "Amount"),
 		mc.o_th("Ghi chú", "Remarks"),
 		"".join(hang), cuoi_bang,
-		# Khoi chu ky CHUAN CHUNG, dung tu vagabond/mau_chuan.py. Moi ho so
-		# thanh toan tren APP deu lay tu do ra, sua mot lan la ca he doi
-		# theo (anh Viet 22/08/2026).
-		mc.khoi_chu_ky({
-			"NGƯỜI ĐỀ NGHỊ": hs["nguoi_tao_ten"],
-			"KẾ TOÁN TRƯỞNG": hs["fin_ten"],
-			"GIÁM ĐỐC": hs["gd_ten"],
-		}),
+	)
+
+	# Khoi chu ky CHUAN CHUNG, dung tu vagabond/mau_chuan.py. Moi ho so
+	# thanh toan tren APP deu lay tu do ra, sua mot lan la ca he doi theo
+	# (anh Viet 22/08/2026).
+	chu_ky = mc.khoi_chu_ky({
+		"NGƯỜI ĐỀ NGHỊ": hs["nguoi_tao_ten"],
+		"KẾ TOÁN TRƯỞNG": hs["fin_ten"],
+		"GIÁM ĐỐC": hs["gd_ten"],
+	})
+
+	return (
+		'<div style="font-family:' + mc.PHONG + ';color:#1c1a17;font-size:12px;'
+		'line-height:1.45">'
+		+ mc.dai_logo()
+		+ dau_trang
+		+ ben_nhan
+		+ bang
+		+ chu_ky
+		+ "</div>"
 	)
 
 
@@ -2949,3 +3002,399 @@ def _gom_anh_ho_so(d):
 	for f in (d.get("ho_so_dinh_kem") or []):
 		_nap(f, "Đính chung cả hồ sơ")
 	return anh, bo_qua
+
+
+# ============================================================================
+# XOÁ MỘT DÒNG KHỎI HỒ SƠ - quy tắc chung, mọi màn đều phải có
+# ============================================================================
+#
+# Anh Việt 22/08/2026: *"Em cho anh thêm nút xoá cái dòng nữa để có thể xoá
+# dòng nếu add nhầm. Em viết hẳn phần này vào backend để tất cả các nơi đều
+# phải có dòng xoá để xoá khi thao tác sai rồi mới chốt phiếu."*
+#
+# Vì sao phải là một cửa CHUNG ở backend chứ không phải mỗi màn tự cắt mảng
+# của mình: thêm nhầm một dòng là chuyện xảy ra hàng ngày, mà hồ sơ đã lập
+# rồi thì mảng nằm trong cơ sở dữ liệu chứ không còn trong bộ nhớ màn hình.
+# Mỗi màn tự xoá kiểu của mình thì sớm muộn có màn quên trừ lại tổng tiền,
+# quên gỡ tệp, hoặc cho xoá cả hồ sơ đã duyệt.
+#
+# Ba điều cửa này giữ, và giữ ở MỘT chỗ:
+#
+#   1. Chỉ xoá được khi hồ sơ CHƯA qua cửa duyệt nào. Hồ sơ đã gửi kế toán
+#      mà người lập vẫn rút dòng ra được thì con số chị Dung nhìn lúc duyệt
+#      không còn là con số được duyệt.
+#   2. Xoá dòng cuối cùng là xoá hết ruột hồ sơ, chặn - bảo người ta huỷ cả
+#      hồ sơ cho rõ ràng, đừng để lại một cái vỏ rỗng trong danh sách.
+#   3. Dòng có nối phiếu nội bộ thì TRẢ phiếu đó về trạng thái chưa nối,
+#      không thì phiếu kẹt vĩnh viễn, không hồ sơ nào nối lại được.
+
+# Trạng thái còn được sửa ruột hồ sơ. Cố ý chỉ có Nháp và Bị trả lại.
+TT_SUA_DUOC_RUOT = (TT_NHAP, TT_TU_CHOI)
+
+
+def _kiem_sua_duoc_ruot(doc, viec="xoá khoản chi"):
+	"""Hồ sơ này còn cho sửa ruột không. Dùng chung cho mọi thao tác cắt dòng."""
+	if doc.trang_thai not in TT_SUA_DUOC_RUOT:
+		frappe.throw(
+			"Hồ sơ %s đang ở trạng thái \"%s\" nên không %s được nữa.\n\n"
+			"Hồ sơ đã gửi đi duyệt thì con số phải đứng yên, không thì cái "
+			"kế toán duyệt không còn là cái người lập gửi. Muốn sửa thì nhờ "
+			"kế toán trả lại hồ sơ, hoặc huỷ rồi lập tờ mới."
+			% (doc.name, NHAN.get(doc.trang_thai, doc.trang_thai), viec)
+		)
+
+
+def _tra_phieu_noi_bo(ma_phieu, ten_ho_so):
+	"""Cắt dòng có nối phiếu nội bộ thì trả phiếu về trạng thái chưa nối.
+
+	Bỏ bước này là phiếu kẹt vĩnh viễn: nó mang mã một hồ sơ không còn dòng
+	nào của nó, mà `ds_phieu_noi_bo` lại lọc bỏ mọi phiếu đã có hồ sơ. Không
+	ai nối lại được và cũng không ai hiểu vì sao.
+	"""
+	ma_phieu = (ma_phieu or "").strip()
+	if not ma_phieu:
+		return
+	try:
+		if frappe.db.get_value(DNC, ma_phieu, "ho_so_tt") == ten_ho_so:
+			frappe.db.set_value(DNC, ma_phieu, "ho_so_tt", None, update_modified=False)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: tra phieu noi bo khi xoa dong")
+
+
+@frappe.whitelist()
+def xoa_dong(name=None, dong=None):
+	"""Xoá một khoản chi khỏi hồ sơ đã lập.
+
+	`dong` đếm từ 1 cho khớp cột STT trên màn và trên bản in.
+
+	KHÔNG xoá tệp khỏi máy chủ, chỉ bỏ dòng. Tệp đính nhầm thì gỡ bằng
+	`go_tep_dong`; xoá thẳng tệp ở đây thì người lập bấm nhầm một cái là mất
+	ảnh chứng từ không lấy lại được.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xoá khoản chi khỏi hồ sơ")
+	if not frappe.db.exists("Vagabond Ho So TT", name):
+		frappe.throw("Không tìm thấy hồ sơ %s." % name)
+	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	_kiem_sua_duoc_ruot(doc, "xoá khoản chi")
+	i = cint(dong)
+	if i < 1 or i > len(doc.dong):
+		frappe.throw("Hồ sơ %s không có khoản số %s." % (name, dong))
+	if len(doc.dong) <= 1:
+		frappe.throw(
+			"Đây là khoản cuối cùng của hồ sơ %s. Xoá nốt thì còn lại một hồ "
+			"sơ rỗng nằm trong danh sách mà không ai biết để làm gì.\n\n"
+			"Muốn bỏ hẳn thì huỷ cả hồ sơ." % name
+		)
+	d = doc.dong[i - 1]
+	mo_ta = (d.noi_dung or "").strip() or "khoản số %d" % i
+	so_tien = flt(d.so_tien)
+	phieu = (d.get("de_nghi_chi") or "").strip()
+	doc.remove(d)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	_tra_phieu_noi_bo(phieu, name)
+	try:
+		doc.add_comment(
+			"Comment",
+			"Xoá khoản số %d: %s (%s đ)%s."
+			% (i, mo_ta, _tien(so_tien), ", trả lại phiếu %s" % phieu if phieu else ""),
+		)
+	except Exception:
+		pass
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"da_xoa": mo_ta,
+		"con_lai": len(doc.dong),
+		"tong_tien": flt(doc.tong_tien),
+		"ghi_chu": "Đã xoá %s khỏi hồ sơ %s." % (mo_ta, name),
+	}
+
+
+# ============================================================================
+# HÀNG RÀO CHỨNG TỪ: khoản từ 200.000đ trở lên phải có giấy tờ
+# ============================================================================
+#
+# Anh Việt chốt 22/08/2026: *"em cho chặn luôn lúc lập gửi kế toán nhé, và
+# ngưỡng tiền miễn trừ là 200k anh đồng ý"*.
+#
+# Từ đây "siết hồ sơ" không còn là lời nhắc trên màn mà là hàng rào thật:
+# thiếu giấy tờ thì máy không cho gửi.
+#
+# Vì sao có ngưỡng miễn trừ: chặt đều tay mọi khoản thì Uyên phải chụp cả
+# hoá đơn gửi xe 5.000đ. Công sức bỏ ra không đáng với rủi ro chặn được, mà
+# quy trình nào phiền quá thì người ta tìm đường đi vòng - lúc đó mất cả
+# những khoản đáng lẽ chặn được.
+#
+# Vì sao chặn lúc GỬI chứ không lúc lưu nháp: nháp là chỗ làm dở. Bắt đủ
+# giấy tờ ngay từ khi gõ dòng đầu thì không ai lưu nháp được nữa, mà nháp
+# chính là thứ giữ cho người ta khỏi phải làm một lèo trong một lần ngồi.
+
+NGUONG_MIEN_CHUNG_TU = 200000.0
+
+
+def thieu_chung_tu(dong, dm=None, nguong=NGUONG_MIEN_CHUNG_TU):
+	"""Những khoản chưa đủ giấy tờ để gửi đi duyệt.
+
+	Hàm THUẦN: không chạm Frappe, nhận sẵn danh mục qua `dm` nên kiểm thử
+	được mà không cần site.
+
+	dong: [{noi_dung, so_tien, loai_chung_tu, tep}] - `tep` là danh sách mã
+	tệp hoặc chuỗi nhiều dòng.
+	dm:   {ten loại chứng từ: {"bat_buoc_tep": 0/1}}
+
+	Trả về danh sách {stt, noi_dung, so_tien, vi_sao}.
+	"""
+	dm = dm or {}
+	ra = []
+	for i, x in enumerate(dong or [], 1):
+		tien = flt((x or {}).get("so_tien"))
+		if tien < flt(nguong):
+			continue
+		loai = str((x or {}).get("loai_chung_tu") or "").strip()
+		tep = (x or {}).get("tep")
+		if isinstance(tep, str):
+			tep = _tep_cua_dong(tep)
+		co_tep = len([t for t in (tep or []) if t])
+		mo_ta = str((x or {}).get("noi_dung") or "").strip() or "khoản số %d" % i
+		if not loai:
+			ra.append({
+				"stt": i, "noi_dung": mo_ta, "so_tien": tien,
+				"vi_sao": "chưa chọn loại chứng từ",
+			})
+			continue
+		# Loai chung tu nao khai "bat buoc tep" thi phai co tep that. Loai
+		# khong bat buoc (Bang ke khong hoa don, Khong co chung tu) van qua
+		# duoc - do la cua thoat co chu dinh cho khoan that su khong co giay.
+		if cint((dm.get(loai) or {}).get("bat_buoc_tep")) and not co_tep:
+			ra.append({
+				"stt": i, "noi_dung": mo_ta, "so_tien": tien,
+				"vi_sao": 'loại "%s" bắt buộc có tệp chứng từ nhưng chưa đính' % loai,
+			})
+	return ra
+
+
+def _chan_thieu_chung_tu(dong):
+	"""Ném lỗi nếu còn khoản chưa đủ giấy tờ. Gọi ngay trước khi gửi đi duyệt."""
+	try:
+		from vagabond.de_nghi_chi import _dm_chung_tu
+
+		dm = _dm_chung_tu()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc danh muc de chan chung tu")
+		return
+	thieu = thieu_chung_tu(dong, dm)
+	if not thieu:
+		return
+	dong_loi = "\n".join(
+		"  · Khoản %d - %s (%s đ): %s" % (t["stt"], t["noi_dung"], _tien(t["so_tien"]), t["vi_sao"])
+		for t in thieu
+	)
+	frappe.throw(
+		"Chưa gửi được. %d khoản từ %s đ trở lên còn thiếu chứng từ:\n\n%s\n\n"
+		"Kế toán trưởng chốt 22/08/2026: khoản từ %s đ trở lên phải có giấy "
+		"tờ đính kèm mới gửi đi duyệt được. Khoản nhỏ hơn thì không bắt.\n\n"
+		"Thật sự không có giấy tờ thì chọn loại \"Bảng kê không hoá đơn\" "
+		"hoặc \"Không có chứng từ\", hai loại đó không đòi tệp."
+		% (len(thieu), _tien(NGUONG_MIEN_CHUNG_TU), dong_loi, _tien(NGUONG_MIEN_CHUNG_TU))
+	)
+
+
+@frappe.whitelist()
+def soat_chung_tu(name=None, dong=None):
+	"""Màn hình hỏi trước: hồ sơ này gửi được chưa, thiếu ở khoản nào.
+
+	Cho màn hình bật cảnh báo SỚM, ngay lúc người ta còn đang gõ, thay vì để
+	bấm Gửi rồi mới đổ ra một cục lỗi.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "soát chứng từ hồ sơ")
+	if isinstance(dong, str):
+		dong = frappe.parse_json(dong)
+	if not dong and name:
+		if not frappe.db.exists("Vagabond Ho So TT", name):
+			frappe.throw("Không tìm thấy hồ sơ %s." % name)
+		doc = frappe.get_doc("Vagabond Ho So TT", name)
+		dong = [
+			{
+				"noi_dung": d.noi_dung, "so_tien": flt(d.so_tien),
+				"loai_chung_tu": d.get("loai_chung_tu"), "tep": d.get("tep"),
+			}
+			for d in doc.dong
+		]
+	try:
+		from vagabond.de_nghi_chi import _dm_chung_tu
+
+		dm = _dm_chung_tu()
+	except Exception:
+		dm = {}
+	thieu = thieu_chung_tu(dong or [], dm)
+	return {
+		"nguong": NGUONG_MIEN_CHUNG_TU,
+		"thieu": thieu,
+		"gui_duoc": 0 if thieu else 1,
+	}
+
+
+# ============================================================================
+# HOÀN ỨNG KHÔNG HOÁ ĐƠN: hoàn về TÀI KHOẢN, không phải về nhà cung cấp
+# ============================================================================
+#
+# Anh Việt 22/08/2026: *"không cần chọn danh sách NCC cho dạng hoàn ứng
+# không hoá đơn bởi vì hoàn vào chỉ có 1 hoặc là ACB hoặc là OCB thôi (em
+# cho hiển thị cả stk nhé)"*.
+#
+# Màn cũ bắt chọn một nhà cung cấp trong danh sách vài trăm dòng, mà bản
+# chất khoản này KHÔNG thuộc về nhà cung cấp nào cả: đây là tiền của người
+# ứng đã bỏ ra hộ công ty ở hàng chục chỗ khác nhau, giờ trả lại vào đúng
+# một trong hai tài khoản ứng. Bắt chọn nhà cung cấp ở đây vừa vô nghĩa vừa
+# là chỗ dễ chọn nhầm nhất trên cả màn hình.
+#
+# Số tài khoản hiện ra ngay cạnh tên, vì hai tài khoản dễ lẫn khi chỉ nhìn
+# tên ngân hàng.
+
+# Tài khoản quỹ tạm ứng: 1411 là nơi tiền ứng nằm. Ngược hẳn `ds_tk_cong_ty`
+# vốn LOẠI 1411 ra vì màn kia chi tiền công ty, còn màn này trả tiền ứng.
+def _tk_ung(b):
+	return str(b.get("account") or "").strip().startswith(TK_QUY_TAM_UNG)
+
+
+@frappe.whitelist()
+def ds_tk_hoan_ung():
+	"""Các tài khoản nhận tiền hoàn ứng: ACB và OCB của người ứng.
+
+	Lấy đúng những Bank Account gắn vào tài khoản sổ cái quỹ tạm ứng 1411.
+	Không có cái nào khớp thì trả về mọi tài khoản công ty còn dùng, kèm cờ
+	`doan` để màn hình nói rõ đây là bản đoán - thà hiện thừa vài dòng còn
+	hơn hiện bảng trống và chặn người ta lập hồ sơ.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem tài khoản hoàn ứng")
+	tat_ca = frappe.get_all(
+		"Bank Account",
+		filters={"disabled": 0},
+		fields=["name", "account_name", "bank", "bank_account_no", "account", "party", "party_type"],
+		limit_page_length=0,
+	)
+	ung = [b for b in tat_ca if _tk_ung(b)]
+	doan = 0
+	if not ung:
+		doan = 1
+		ung = [b for b in tat_ca if b.get("account")]
+	ra = []
+	for b in ung:
+		ten_nh = (b.get("bank") or "").strip()
+		ra.append({
+			"ma": b["name"],
+			"ten": b.get("account_name") or b["name"],
+			"ngan_hang": ten_nh,
+			"so_tk": b.get("bank_account_no") or "",
+			"tk_so_cai": b.get("account") or "",
+			# Nguoi dung tien voi tai khoan nay, de con treo cong no dung ma.
+			"nguoi": b.get("party") if b.get("party_type") == "Supplier" else "",
+			# Nhan gon cho chip tren man: "ACB · 1234567890"
+			"nhan": (ten_nh or b.get("account_name") or b["name"])
+			        + ((" · " + b["bank_account_no"]) if b.get("bank_account_no") else ""),
+		})
+	ra.sort(key=lambda x: x["nhan"])
+	return {"tk": ra, "doan": doan}
+
+
+def _tk_tu_bank_account(ten):
+	"""Ba ô tài khoản nhận tiền, đọc từ một Bank Account cụ thể."""
+	o = frappe.db.get_value(
+		"Bank Account", ten,
+		["account_name", "bank_account_no", "bank", "iban"], as_dict=True,
+	) or {}
+	return {
+		"ten_nhan": (o.get("account_name") or "").strip(),
+		"stk_nhan": (o.get("bank_account_no") or o.get("iban") or "").strip(),
+		"ngan_hang_nhan": (o.get("bank") or "").strip(),
+	}
+
+
+def _ncc_cua_tk_hoan(ten):
+	"""Mã nhà cung cấp gắn với một tài khoản hoàn ứng.
+
+	Sổ cái treo công nợ theo MÃ nhà cung cấp, nên dù màn hình không bắt chọn
+	nữa thì máy vẫn phải suy ra được mã. Tài khoản chưa gắn Party thì trả về
+	rỗng và người gọi sẽ báo lỗi chỉ rõ chỗ phải khai.
+	"""
+	o = frappe.db.get_value(
+		"Bank Account", ten, ["party", "party_type"], as_dict=True
+	) or {}
+	if (o.get("party_type") or "") == "Supplier" and (o.get("party") or "").strip():
+		return o["party"].strip()
+	return ""
+
+
+@frappe.whitelist()
+def dinh_tep_hoa_don(hoa_don=None, tep=None):
+	"""Đính bản thể hiện của hoá đơn vào THẲNG hoá đơn mua, ngay lúc chọn.
+
+	Anh Việt 22/08/2026: *"khi chọn hoá đơn để hoàn ứng cho đơn vị đó thì em
+	cho luôn nút tải lên tệp thể hiện hoá đơn ở kế bên, bỏ cái nút đó ở bước
+	sau cho nó chặt chẽ, rồi combine luôn vào file để in ra trong bộ hồ sơ
+	pdf"*.
+
+	Vì sao đính vào HOÁ ĐƠN chứ không vào hồ sơ: bản thể hiện là giấy tờ của
+	tờ hoá đơn đó, không phải của hồ sơ. Đính vào hồ sơ thì lần sau hoá đơn
+	ấy nằm trong hồ sơ khác lại phải tải lên lần nữa, và ai mở hoá đơn trên
+	Next cũng không thấy bản thể hiện đâu.
+
+	Đính vào hoá đơn thì `_chung_tu_cua_hoa_don` nhặt được ngay qua đường
+	`scan`, nên bộ hồ sơ PDF tự gộp vào mà không phải nối thêm dây nào.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đính bản thể hiện hoá đơn")
+	hoa_don = (hoa_don or "").strip()
+	if not hoa_don or not frappe.db.exists("Purchase Invoice", hoa_don):
+		frappe.throw("Không tìm thấy hoá đơn mua %s." % (hoa_don or "(trống)"))
+	ma_moi = _tep_hop_le(tep)
+	if not ma_moi:
+		frappe.throw("Tệp gửi lên không còn trên máy chủ. Chọn tệp rồi đính lại giúp em.")
+	for ma in ma_moi:
+		try:
+			frappe.db.set_value("File", ma, {
+				"attached_to_doctype": "Purchase Invoice",
+				"attached_to_name": hoa_don,
+				"is_private": 1,
+			}, update_modified=False)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: dinh ban the hien %s" % hoa_don)
+	try:
+		frappe.get_doc("Purchase Invoice", hoa_don).add_comment(
+			"Comment", "Đính %d bản thể hiện hoá đơn từ app." % len(ma_moi)
+		)
+	except Exception:
+		pass
+	frappe.db.commit()
+	return {"ok": 1, "hoa_don": hoa_don, "tep": _dinh_kem([("Purchase Invoice", hoa_don)])}
+
+
+@frappe.whitelist()
+def dem_tep_hoa_don(hoa_don=None):
+	"""Mỗi hoá đơn đang có mấy bản thể hiện, để màn hình tô nút cho đúng.
+
+	Nhận một mã hoặc cả danh sách: màn chọn hoá đơn bày vài chục dòng một
+	lúc, hỏi từng dòng một là vài chục lượt gọi mạng.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem bản thể hiện hoá đơn")
+	if isinstance(hoa_don, str):
+		try:
+			hoa_don = frappe.parse_json(hoa_don)
+		except Exception:
+			hoa_don = [hoa_don]
+	ds = [str(x).strip() for x in (hoa_don or []) if str(x or "").strip()]
+	if not ds:
+		return {"dem": {}}
+	dem = {m: 0 for m in ds}
+	try:
+		for f in frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": "Purchase Invoice", "attached_to_name": ["in", ds]},
+			fields=["attached_to_name"],
+			limit_page_length=0,
+		):
+			m = f["attached_to_name"]
+			dem[m] = dem.get(m, 0) + 1
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: dem ban the hien hoa don")
+	return {"dem": dem}
