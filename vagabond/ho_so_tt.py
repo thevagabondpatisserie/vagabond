@@ -77,6 +77,13 @@ NHAN_CP_THUE = {
 # da chot 04/08/2026 nen no gan nhu khong doi.
 TK_QUY_TAM_UNG = "1411"
 
+# Ca NHOM tai khoan tam ung, khong rieng OCB. Ngay 22/08/2026 v279 len that
+# thi bang chon tai khoan hoan ung chi hien mot dong OCB, mat ACB, vi ACB nam
+# o so cai 1412 chu khong phai 1411. Doi voi cau hoi "day co phai tai khoan
+# tam ung khong" thi phai hoi ca nhom 141, con TK_QUY_TAM_UNG chi dung cho
+# cho nao that su can dung ACB hay OCB cu the.
+TK_NHOM_TAM_UNG = "141"
+
 TT_NHAP = "Nhap"
 TT_CHO_FIN = "Cho ke toan"
 TT_CHO_GD = "Cho giam doc"
@@ -815,11 +822,17 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 
 
 def _bank_account_quy():
-	"""Bank Account tro vao tai khoan 1411 - quy tam ung OCB."""
+	"""Bank Account tro vao tai khoan 1411 - quy tam ung OCB.
+
+	Co tinh giu nguyen 1411 chu khong noi ra ca nhom 141: day la tai khoan
+	MAC DINH khi man hinh khong noi ro lay sao ke ngan hang nao. Noi ra ca
+	nhom thi ham nay se luc tra ACB luc tra OCB, doc so lieu ra so hai.
+	"""
 	r = frappe.get_all(
 		"Bank Account",
 		filters={"is_company_account": 1, "account": ["like", TK_QUY_TAM_UNG + "%"]},
 		pluck="name",
+		order_by="name asc",
 		limit_page_length=1,
 	)
 	return r[0] if r else None
@@ -954,7 +967,7 @@ def ds_tk_cong_ty():
 	):
 		if not b.account:
 			continue
-		if str(b.account).strip().startswith(TK_QUY_TAM_UNG):
+		if str(b.account).strip().startswith(TK_NHOM_TAM_UNG):
 			continue
 		ra.append({
 			"ma": b.name,
@@ -3255,7 +3268,8 @@ def soat_chung_tu(name=None, dong=None):
 # Tài khoản quỹ tạm ứng: 1411 là nơi tiền ứng nằm. Ngược hẳn `ds_tk_cong_ty`
 # vốn LOẠI 1411 ra vì màn kia chi tiền công ty, còn màn này trả tiền ứng.
 def _tk_ung(b):
-	return str(b.get("account") or "").strip().startswith(TK_QUY_TAM_UNG)
+	"""Bank Account nay co phai tai khoan tam ung khong. Ca nhom 141."""
+	return str(b.get("account") or "").strip().startswith(TK_NHOM_TAM_UNG)
 
 
 @frappe.whitelist()
