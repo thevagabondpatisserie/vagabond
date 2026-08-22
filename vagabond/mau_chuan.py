@@ -162,3 +162,21 @@ def khung_trang(noi_dung, tieu_de_tep=""):
 		"</style></head><body>%s</body></html>"
 		% (h(tieu_de_tep), PHONG, noi_dung)
 	)
+
+
+def an_phan_tram(s):
+	"""Nhân đôi dấu % để chuỗi HTML này đi qua được một khuôn định dạng %.
+
+	Vì sao cần
+	----------
+	Mọi hàm trong tệp này trả về HTML có CSS, mà CSS đầy `width:45%`. Ghép
+	một chuỗi như thế VÀO GIỮA một khuôn định dạng `%` thì Python đọc `%;`
+	thành một lệnh định dạng và nổ "unsupported format character".
+
+	Ngày 22/08/2026 đã dính đúng cái bẫy này: `dai_logo()` ghép thẳng vào
+	khuôn của tờ đề nghị, nút Xuất bộ hồ sơ chết, kế toán bấm ra lỗi 500.
+
+	CÁCH ĐÚNG là định dạng trước rồi mới nối chuỗi, hoặc truyền mảnh HTML
+	qua `%s`. Hàm này chỉ dành cho chỗ nào bắt buộc phải ghép thẳng.
+	"""
+	return str(s or "").replace("%", "%%")
