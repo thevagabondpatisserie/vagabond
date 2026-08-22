@@ -4,13 +4,73 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": ["ngay", "ma_hang", "so_luong", "cho_chot", "ten_khach"],
+ "field_order": [
+  "ngay",
+  "ma_hang",
+  "so_luong",
+  "phat_sinh",
+  "cho_chot",
+  "don_khac",
+  "ten_khach",
+  "ten_khach_ps",
+  "ten_khach_khac"
+ ],
  "fields": [
-  {"fieldname": "ngay", "fieldtype": "Date", "in_list_view": 1, "label": "Ngay giao", "reqd": 1},
-  {"fieldname": "ma_hang", "fieldtype": "Data", "in_list_view": 1, "label": "Ma hang", "reqd": 1},
-  {"fieldname": "so_luong", "fieldtype": "Int", "in_list_view": 1, "label": "Da chot"},
-  {"fieldname": "cho_chot", "fieldtype": "Int", "in_list_view": 1, "label": "Cho chot"},
-  {"fieldname": "ten_khach", "fieldtype": "Small Text", "label": "Khach"}
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Ngay giao",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ma hang",
+   "reqd": 1
+  },
+  {
+   "fieldname": "so_luong",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Da chot"
+  },
+  {
+   "fieldname": "phat_sinh",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Phat sinh",
+   "description": "Phan cua Da chot duoc tao dung trong ngay giao."
+  },
+  {
+   "fieldname": "cho_chot",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Cho chot"
+  },
+  {
+   "fieldname": "don_khac",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Kenh khac",
+   "description": "Ban qua Grab, Shopee, khach si, quay - dem tu hoa don ban ra ngay do."
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Small Text",
+   "label": "Khach"
+  },
+  {
+   "fieldname": "ten_khach_ps",
+   "fieldtype": "Small Text",
+   "label": "Khach phat sinh"
+  },
+  {
+   "fieldname": "ten_khach_khac",
+   "fieldtype": "Small Text",
+   "label": "Don kenh khac"
+  }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,

@@ -10,6 +10,7 @@
   "hinh",
   "nhan_ngan",
   "cb1",
+  "sx_dau_mua",
   "san_xuat",
   "nha_in_giao",
   "khong_tran",
@@ -58,11 +59,18 @@
    "fieldtype": "Column Break"
   },
   {
+   "description": "So bep da lam duoc TRUOC khi mo so nhap theo ngay. O nay nguoi go tay.",
+   "fieldname": "sx_dau_mua",
+   "fieldtype": "Int",
+   "label": "Bep lam truoc khi mo so"
+  },
+  {
    "fieldname": "san_xuat",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "So luong san xuat",
-   "description": "Nhap tay. So hop nha in giao duoc, hoac so banh bep lam duoc ca mua."
+   "description": "May cong: o Bep lam truoc khi mo so + tong cac dong San luong theo ngay.",
+   "read_only": 1
   },
   {
    "description": "So hop nha in da giao. KHONG trung voi o San xuat: o kia la so bep lam ra.",

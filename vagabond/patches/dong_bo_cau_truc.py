@@ -151,3 +151,20 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: chuyen so nha in mua vu")
+
+	# Mo so nhap san luong theo ngay (anh Viet 22/08/2026). O "San xuat" cu
+	# vua la so go tay vua la tong cac dong bep nhap, va cai sau GHI DE cai
+	# truoc - go 1700 cho ca mua roi bep nhap 120 mot ngay la mat 1700.
+	#
+	# Tu ban nay tach lam hai o va o San xuat la tong. Ham duoi dua so cu vao
+	# o go tay moi. Chay lai duoc: chi dat khi o moi dang bang 0.
+	try:
+		from vagabond import mua_vu
+
+		kq = mua_vu.mo_so_san_luong_ngay()
+		if kq.get("mua_da_doi"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: mo so san luong ngay cho %d mua vu" % kq["mua_da_doi"]
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: mo so san luong ngay mua vu")

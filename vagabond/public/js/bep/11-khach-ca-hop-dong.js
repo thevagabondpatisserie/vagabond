@@ -2316,7 +2316,9 @@ tay - nhà in giao thêm thì sửa lên, hộp hỏng thì sửa xuống. Kế 
 phần còn lại từ bảng ngày: kéo đơn Pancake, chia Đã đặt / Chờ chốt, đơn kênh
 khác đếm từ hoá đơn, trạng thái huỷ và xoá không đếm. */
 
-var MV = { ds: null, mua: null, data: null, xem: 'sp', loc: 'all', tim: '' };
+/* cbNgay, cbData, cbDangTai: riêng cho tab Có thể bán, xem mvVeCoTheBan. */
+var MV = { ds: null, mua: null, data: null, xem: 'sp', loc: 'all', tim: '',
+  cbNgay: '', cbData: null, cbDangTai: false };
 
 async function scrMuaVuDs() {
   frame('Kiểm bánh theo mùa', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc các mùa vụ...</div></div>');
@@ -2482,10 +2484,10 @@ function mvVe() {
     '<div id="mvMoc" style="font-size:11.5px;color:#98a2b3;padding:0 2px 10px;line-height:1.6">' +
     mvChuMoc(d) + '</div>' +
     '<div style="display:flex;gap:7px;margin-bottom:10px">' +
-    /* Tab "Sản lượng" thêm 21/08/2026: bếp trưởng vào đây nhập số làm được
-       mỗi ngày cho từng vị. Tổng các dòng đó chạy vào ô "Bếp làm" của bảng
-       sản phẩm, và ô đó KHÔNG trùng với ô "Nhà in giao". */
-    [['sp', 'Sản phẩm'], ['sl', 'Sản lượng'], ['lich', 'Lịch tháng'],
+    /* Tab "Có thể bán" (anh Việt 22/08/2026, đổi tên từ "Sản lượng" vì tên cũ
+       không đúng bản chất). Cột dựng y hệt màn Kiểm bánh hàng ngày của bánh ổ,
+       xem mvVeCoTheBan để biết từng cột lấy ở đâu ra. */
+    [['sp', 'Sản phẩm'], ['sl', 'Có thể bán'], ['lich', 'Lịch tháng'],
      ['dot', 'Đợt hàng'], ['dm', 'Định mức']].map(function (x) {
       var on = MV.xem === x[0];
       return '<button data-mvx="' + x[0] + '" style="flex:1;border:1.5px solid ' + (on ? '#0f766e' : '#e5e7eb') +
@@ -2495,13 +2497,13 @@ function mvVe() {
     }).join('') + '</div>';
 
   html += MV.xem === 'sp' ? mvVeSanPham(ds)
-    : MV.xem === 'sl' ? mvVeSanLuong(d, ds)
+    : MV.xem === 'sl' ? mvVeCoTheBan(d)
     : MV.xem === 'lich' ? mvVeLuoi(d, ds)
     : MV.xem === 'dot' ? mvVeDot(d)
     : mvVeDinhMuc(d);
 
   var nutChinh = MV.xem === 'sl'
-    ? '<button class="btn gh" id="mvThemSl" style="margin:0;flex:0 0 46%">➕ Nhập sản lượng</button>'
+    ? '<button class="btn gh" id="mvThemSl" style="margin:0;flex:0 0 46%">👩‍🍳 Bếp nhập số</button>'
     : MV.xem === 'dot'
     ? '<button class="btn gh" id="mvThemDot" style="margin:0;flex:0 0 46%">➕ Khai đợt hàng</button>'
     : MV.xem === 'dm'
@@ -2538,11 +2540,11 @@ function mvVe() {
   if (nT) nT.onclick = mvThemSp;
   var nS = document.getElementById('mvThemSl');
   if (nS) nS.onclick = mvNhapSanLuong;
-  b.querySelectorAll('[data-mvslxoa]').forEach(function (n) {
-    n.onclick = function () { mvXoaSanLuong(n.getAttribute('data-ngay'), n.getAttribute('data-ma')); };
+  b.querySelectorAll('[data-cbngay]').forEach(function (n) {
+    n.onclick = function () { mvChonNgay(n.getAttribute('data-cbngay')); };
   });
-  b.querySelectorAll('[data-mvslsua]').forEach(function (n) {
-    n.onclick = function () { mvSuaSanLuong(n.getAttribute('data-ngay'), n.getAttribute('data-ma')); };
+  b.querySelectorAll('[data-cbsua]').forEach(function (n) {
+    n.onclick = function () { mvSuaBepLam(n.getAttribute('data-cbsua')); };
   });
   var nD = document.getElementById('mvThemDot');
   if (nD) nD.onclick = mvKhaiDot;
@@ -2869,52 +2871,236 @@ async function mvSuaSx(ma) {
 
    Cùng một mã trong cùng một ngày thì máy chủ CỘNG DỒN vào dòng đã có, vì
    bếp làm hai mẻ sáng chiều là chuyện thường. */
-function mvVeSanLuong(d, ds) {
-  var ngay = d.san_luong || [];
-  var tong = {};
-  ngay.forEach(function (n) {
-    (n.dong || []).forEach(function (x) {
-      tong[x.ma_hang] = (tong[x.ma_hang] || 0) + (x.so_luong || 0);
-    });
-  });
-  var dau = '<div class="card" style="padding:12px 14px;margin-bottom:10px">' +
-    '<div style="font-size:12px;color:#475467;line-height:1.6">' +
-    'Số bếp làm được mỗi ngày. Tổng của một vị chạy thẳng vào ô <b>Bếp làm</b> ' +
-    'bên tab Sản phẩm, và <b>không</b> đụng tới ô Nhà in giao.</div></div>';
-  if (!ngay.length) {
-    return dau + '<div class="emp"><div class="e1">👩‍🍳</div>' +
-      '<div>Chưa có ngày nào được nhập.</div>' +
-      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">' +
-      'Bấm "Nhập sản lượng" ở chân màn hình.</div></div>';
+/* ================= TAB CÓ THỂ BÁN (v274) =================
+
+   Anh Việt 22/08/2026: "Cấu hình các cột y chang như màn kiểm bánh hàng ngày
+   của bánh ổ và đồng bộ api để tính ra số hộp bánh MOONLAPIS và MOONGARDEN,
+   và các vị bánh lẻ có sản xuất dư cho ngày đó để up sale cho khách."
+
+   Cột dựng đúng theo màn /kiem-banh, không thêm không bớt:
+
+     Tồn đầu + Bếp làm - Đã đặt - Phát sinh - Chờ chốt - Kênh khác = CÓ THỂ BÁN
+
+   Khác đúng một chỗ, và chỗ đó nằm ở máy chủ chứ không ở đây: bên bánh ổ tồn
+   đầu ngày do người gõ tay theo từng lô NSX, bên mùa vụ không ai gõ, máy CUỘN
+   từ ngày đầu mùa tới ngày đang xem. Xem cuon_ton_theo_ngay trong mua_vu.py.
+
+   Dòng HỘP có thêm hai ô "Ruột ghép được" và "BÁN ĐƯỢC THẬT", vì vỏ hộp còn
+   300 mà ruột chỉ ghép nổi 40 thì bán được thật là 40. Nhìn một ô là bán lố
+   mà không ai biết.
+
+   Số của tab này KHÔNG lấy từ bảng Sản phẩm mà gọi riêng vagabond.mua_vu
+   .bang_ngay, vì bảng Sản phẩm là số CẢ MÙA còn ở đây là số CỦA MỘT NGÀY. */
+
+function mvVeCoTheBan(d) {
+  var hn = (MV.cbData && MV.cbData.hom_nay) || new Date().toISOString().slice(0, 10);
+  if (!MV.cbNgay) MV.cbNgay = mvKep(hn, d.tu_ngay, d.den_ngay);
+
+  var chip = mvChipNgay(d);
+  /* Chưa có số của ngày này thì xin về, và trong lúc chờ vẫn vẽ hàng chip để
+     người bấm thấy màn phản ứng ngay chứ không đứng hình. */
+  if (!MV.cbData || MV.cbData.ngay !== MV.cbNgay) {
+    mvTaiNgay();
+    return chip + '<div class="emp"><div class="e1">⏳</div><div>Đang tính số của ngày này…</div></div>';
   }
-  var tenCua = {};
-  (ds || []).forEach(function (x) { tenCua[x.ma_hang] = x.ten_banh || x.ma_hang; });
-  return dau + '<div class="card">' + ngay.map(function (n) {
-    var congNgay = (n.dong || []).reduce(function (a, x) { return a + (x.so_luong || 0); }, 0);
-    return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
-      '<div style="display:flex;align-items:center;gap:8px">' +
-      '<b style="font-size:13.5px">' + h(mvNgay(n.ngay)) + '</b>' +
-      '<span style="margin-left:auto;font-size:12px;color:#0f766e;font-weight:800">' +
-      money(congNgay) + ' cái</span></div>' +
-      (n.dong || []).map(function (x) {
-        return '<div style="display:flex;align-items:center;gap:8px;margin-top:7px;font-size:12.5px">' +
-          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-          h(tenCua[x.ma_hang] || x.ten_banh || x.ma_hang) + '</span>' +
-          '<b>' + money(x.so_luong) + '</b>' +
-          '<button data-mvslsua="1" data-ngay="' + h(n.ngay) + '" data-ma="' + h(x.ma_hang) + '" ' +
-          'style="border:1px solid #d0d5dd;background:#fff;border-radius:7px;padding:3px 8px;font-size:11px">✏️</button>' +
-          '<button data-mvslxoa="1" data-ngay="' + h(n.ngay) + '" data-ma="' + h(x.ma_hang) + '" ' +
-          'style="border:1px solid #fecdca;background:#fff;color:#b3261e;border-radius:7px;padding:3px 8px;font-size:11px">🗑️</button>' +
-          '</div>';
-      }).join('') + '</div>';
-  }).join('') + '</div>' +
-    '<div class="card" style="padding:12px 14px;margin-top:10px">' +
-    '<div style="font-size:12px;color:#475467;font-weight:800;margin-bottom:7px">Cộng cả mùa</div>' +
-    Object.keys(tong).sort().map(function (ma) {
-      return '<div style="display:flex;gap:8px;font-size:12.5px;margin-top:5px">' +
-        '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-        h(tenCua[ma] || ma) + '</span><b>' + money(tong[ma]) + '</b></div>';
+
+  if (MV.cbData.loi) {
+    return chip + '<div class="emp"><div class="e1">⚠️</div><div>' + h(MV.cbData.loi) + '</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">Bấm lại ngày để thử lần nữa.</div></div>';
+  }
+
+  var ds = MV.cbData.dong || [];
+  if (!ds.length) {
+    return chip + '<div class="emp"><div class="e1">📦</div>' +
+      '<div>Ngày này chưa có sản phẩm nào.</div>' +
+      '<div style="font-size:12px;color:#9ca3af;margin-top:6px">' +
+      'Bấm Đồng bộ Pancake để kéo đơn về.</div></div>';
+  }
+
+  var hop = 0, le = 0;
+  ds.forEach(function (x) {
+    if (x.la_hop) hop += Math.max(0, x.con_thuc_te || 0);
+    /* Bánh chỉ làm theo hộp không phải hàng bán lẻ, cộng vào là hứa với sales
+       một con số không bán được. */
+    else if (!x.khong_tran) le += Math.max(0, x.co_the_ban || 0);
+  });
+
+  return chip +
+    '<div style="display:flex;gap:7px;margin-bottom:10px">' +
+    mvO('Hộp còn bán', hop, hop > 0 ? '#0a8a4a' : '#9ca3af') +
+    mvO('Bánh lẻ dư', le, le > 0 ? '#0a8a4a' : '#9ca3af') +
+    '</div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 9px;line-height:1.6">' +
+    'Số của riêng ngày ' + h(mvNgayDay(MV.cbNgay)) + '. Ô <b>Bếp làm</b> bấm vào ' +
+    'gõ được, các ô còn lại máy đếm từ đơn nên không sửa tay.</div>' +
+    ds.map(mvTheCoTheBan).join('');
+}
+
+/* Hàng chip ngày: hôm nay và một tuần tới, kẹp trong khoảng mùa. Một tuần chứ
+   không ba ngày như bên bánh ổ, vì bánh trung thu khách đặt trước cả tuần và
+   việc sales cần nhất là nhìn ra ngày nào còn trống để đổi ngày giao sang. */
+function mvChipNgay(d) {
+  var hn = (MV.cbData && MV.cbData.hom_nay) || new Date().toISOString().slice(0, 10);
+  var so = (MV.cbData && MV.cbData.so_ngay_chip) || 7;
+  var ra = [], x = mvKep(hn, d.tu_ngay, d.den_ngay);
+  for (var k = 0; k < so; k++) {
+    if (x > String(d.den_ngay)) break;
+    ra.push(x);
+    x = mvNgaySau(x);
+  }
+  if (ra.indexOf(MV.cbNgay) < 0) ra.unshift(MV.cbNgay);
+  return '<div style="display:flex;gap:6px;overflow-x:auto;padding:0 0 10px;-webkit-overflow-scrolling:touch">' +
+    ra.map(function (ng) {
+      var on = ng === MV.cbNgay;
+      return '<button data-cbngay="' + h(ng) + '" style="flex:0 0 auto;border:1.5px solid ' +
+        (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#ccfbf1' : '#fff') +
+        ';color:' + (on ? '#0f766e' : '#374151') + ';border-radius:999px;padding:6px 13px;' +
+        'font-size:12px;font-weight:' + (on ? '800' : '600') + ';white-space:nowrap">' +
+        h(mvNgayDay(ng)) + (ng === hn ? ' ·' : '') + '</button>';
     }).join('') + '</div>';
+}
+
+function mvKep(x, a, b) {
+  x = String(x || ''); a = String(a || ''); b = String(b || '');
+  if (a && x < a) return a;
+  if (b && x > b) return b;
+  return x;
+}
+
+function mvNgaySau(s) {
+  var dt = new Date(String(s) + 'T00:00:00');
+  dt.setDate(dt.getDate() + 1);
+  return dt.toISOString().slice(0, 10);
+}
+
+/* Một thẻ sản phẩm. Bố cục ô đúng thứ tự màn kiểm bánh hàng ngày để bếp và
+   sales chuyển qua lại giữa hai màn mà không phải học lại chỗ nào nằm đâu. */
+function mvTheCoTheBan(x) {
+  var ban = x.la_hop ? (x.con_thuc_te || 0) : (x.co_the_ban || 0);
+  /* Bánh mang cờ "không đặt trần" là bánh CHỈ làm theo hộp: bánh 80g trong
+     MOONGARDEN và MOONLAPIS không có lô riêng nên không có hạn mức riêng, và
+     số của nó âm là chuyện bình thường chứ không phải bán lố. Tô đỏ ở đây là
+     báo động giả, và báo động giả thì lần sau không ai tin nữa. Máy chủ cũng
+     loại đúng những dòng này khỏi phép chặn bán lố, xem con_sau_khi_them. */
+  var theoHop = !x.la_hop && x.khong_tran;
+  var mauBan = theoHop ? '#6b7280' : (ban < 0 ? '#b3261e' : (ban > 0 ? '#0a8a4a' : '#9ca3af'));
+  var nenBan = theoHop ? '#f9fafb' : (ban < 0 ? '#fef3f2' : (ban > 0 ? '#ecfdf5' : '#f9fafb'));
+  var dd = String(MV.cbNgay).slice(8, 10) + '/' + String(MV.cbNgay).slice(5, 7);
+
+  var o = '';
+  o += mvOCb('Tồn đầu ngày', x.ton_dau, '#374151');
+  o += x.la_hop
+    ? mvOCb('Nhà in giao ' + dd, x.bep_lam, '#374151')
+    : mvOCb('Bếp làm ' + dd, x.bep_lam, '#0f766e', x.ma_hang);
+  o += mvOCb('Đã đặt', x.da_dat, '#b45309');
+  o += mvOCb('Phát sinh', x.phat_sinh, '#b45309');
+  o += mvOChu('Khách phát sinh', x.ten_khach_ps);
+  o += mvOCb('Chờ chốt', x.cho_chot, '#7c3aed');
+  o += mvOChu('Khách chờ', x.ten_khach_cho);
+  o += mvOCb('Kênh khác', x.don_khac, '#0369a1');
+  o += mvOChu('Đơn kênh khác', x.ten_khach_khac);
+  if (!x.la_hop && (x.trong_hop || 0)) o += mvOCb('Nằm trong hộp', x.trong_hop, '#6b7280');
+  if (x.la_hop) {
+    o += mvOCb('Vỏ hộp còn', x.co_the_ban, '#374151');
+    o += x.ruot_khong_rang_buoc
+      ? mvOChu('Ruột ghép được', 'chưa khai định mức ruột')
+      : mvOCb('Ruột ghép được', x.ghep_duoc, '#374151');
+  }
+
+  return '<div class="card" style="padding:11px 12px;margin-bottom:9px">' +
+    '<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">' +
+    (x.hinh
+      ? '<img src="' + h(x.hinh) + '" style="width:38px;height:38px;border-radius:9px;object-fit:cover;flex:0 0 auto">'
+      : '<div style="width:38px;height:38px;border-radius:9px;background:#f2f4f7;flex:0 0 auto"></div>') +
+    '<div style="flex:1;min-width:0">' +
+    '<div style="font-size:13px;font-weight:800;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+    h(x.ten_banh || x.ma_hang) + '</div>' +
+    '<div style="font-size:11px;color:#9ca3af">' + h(x.ma_hang) +
+    (x.la_hop ? ' · hộp' : (theoHop ? ' · chỉ làm theo hộp' : '')) + '</div></div>' +
+    '<div style="flex:0 0 auto;text-align:right;background:' + nenBan +
+    ';border-radius:9px;padding:5px 11px">' +
+    '<div style="font-size:10px;color:#9ca3af;font-weight:700">' +
+    (theoHop ? 'THEO HỘP' : 'BÁN ĐƯỢC') + '</div>' +
+    '<b style="font-size:19px;color:' + mauBan + '">' + money(ban) + '</b></div></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px">' + o + '</div></div>';
+}
+
+/* Ô số. Truyền ma_hang vào là ô đó gõ được, và chỉ ô "Bếp làm" mới được truyền
+   - mọi ô khác máy đếm từ đơn, mở cho sửa tay là mở đường cho hai con số cãi
+   nhau, đúng cái mà cả phân hệ này sinh ra để chấm dứt. */
+function mvOCb(nhan, so, mau, ma) {
+  var sua = ma
+    ? ' data-cbsua="' + h(ma) + '" style="cursor:pointer;border:1.5px dashed #99f6e4;background:#f0fdfa'
+    : ' style="border:1px solid #eef0f3;background:#fff';
+  return '<div' + sua + ';border-radius:9px;padding:6px 9px;min-width:82px;flex:1 1 82px">' +
+    '<div style="font-size:10px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+    h(nhan) + (ma ? ' ✏️' : '') + '</div>' +
+    '<b style="font-size:15px;color:' + mau + '">' + money(so || 0) + '</b></div>';
+}
+
+function mvOChu(nhan, chu) {
+  if (!String(chu || '').trim()) return '';
+  return '<div style="border:1px solid #eef0f3;background:#fff;border-radius:9px;padding:6px 9px;flex:1 1 100%">' +
+    '<div style="font-size:10px;color:#9ca3af">' + h(nhan) + '</div>' +
+    '<div style="font-size:11.5px;color:#475467;line-height:1.5">' + h(chu) + '</div></div>';
+}
+
+/* Xin số của một ngày. Cờ mvCbDangTai chặn gọi chồng: hàm vẽ gọi hàm này, và
+   không có cờ thì mỗi nhịp tự làm mới lại bắn thêm một lượt gọi nữa. */
+async function mvTaiNgay() {
+  if (MV.cbDangTai) return;
+  MV.cbDangTai = true;
+  try {
+    var r = await api('vagabond.mua_vu.bang_ngay', { mua: MV.mua, ngay: MV.cbNgay });
+    MV.cbData = r;
+    /* Máy chủ kẹp ngày vào trong khoảng mùa, nên ngày trả về có thể khác ngày
+       xin. Nhận lại theo máy chủ, không thì màn xin đi xin lại mãi một ngày
+       nằm ngoài mùa. */
+    if (r && r.ngay) MV.cbNgay = r.ngay;
+  } catch (e) {
+    /* Ghi ngay vào kết quả rỗng chứ KHÔNG để null: hàm vẽ thấy null là gọi lại
+       hàm này, và hai cái gọi nhau vòng tròn không bao giờ dứt. */
+    MV.cbData = { co_so: 0, ngay: MV.cbNgay, dong: [], loi: (e && e.message) || 'Không đọc được' };
+  } finally {
+    MV.cbDangTai = false;
+  }
+  if (MV.xem === 'sl') mvVe();
+}
+
+function mvChonNgay(ng) {
+  MV.cbNgay = ng;
+  MV.cbData = null;
+  mvVe();
+}
+
+/* Bếp gõ số làm được trong ngày. ĐẶT LẠI chứ không cộng dồn: người gõ đang
+   nhìn thấy con số cũ ngay trên ô và gõ để LẤY con số đó. Cộng dồn ở đây là
+   con số tự nhân đôi trước mắt họ. Nút "Bếp nhập số" ở chân màn mới là đường
+   cộng dồn, dùng khi bếp làm hai mẻ sáng chiều. */
+async function mvSuaBepLam(ma) {
+  var x = null;
+  (MV.cbData && MV.cbData.dong || []).forEach(function (y) { if (y.ma_hang === ma) x = y; });
+  if (!x) return;
+  var v = await hoiNhap(
+    'Ngày ' + mvNgayDay(MV.cbNgay) + ' bếp làm được bao nhiêu cái ' + (x.ten_banh || ma) + '?',
+    String(x.bep_lam || 0)
+  );
+  if (v === null) return;
+  var so = Number(String(v).replace(/[^0-9]/g, ''));
+  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+  busy(true);
+  try {
+    MV.cbData = await api('vagabond.mua_vu.dat_san_luong',
+      { mua: MV.mua, ngay: MV.cbNgay, ma_hang: ma, so_luong: so });
+    /* Số cả mùa bên bảng Sản phẩm cũng đổi theo, nên phải xin lại luôn, không
+       thì hai tab nói hai con số khác nhau. */
+    MV.data = await api('vagabond.mua_vu.bang', { mua: MV.mua });
+    MV_DAU = mvDau(MV.data);
+    mvVe();
+    toast('Đã ghi ' + money(so) + ' cái cho ngày ' + mvNgayDay(MV.cbNgay) + '.', 2600);
+  } catch (e) {
+    baoTin((e && e.message) || 'Lưu lỗi', 'Không ghi được');
+  } finally { busy(false); }
 }
 
 async function mvNhapSanLuong() {
@@ -2924,41 +3110,20 @@ async function mvNhapSanLuong() {
     return { value: x.ma_hang, label: String(x.ten_banh || x.ma_hang).slice(0, 46),
       phu: 'đang cộng ' + money(x.san_xuat || 0) + ' cả mùa' };
   }), '', async function (it) {
-    var v = await hoiNhap('Hôm nay làm được bao nhiêu cái?', '');
+    var v = await hoiNhap('Ngày ' + mvNgayDay(MV.cbNgay) + ' làm thêm được bao nhiêu cái?', '');
     if (v === null) return;
     var so = Number(String(v).replace(/[^0-9]/g, ''));
     if (isNaN(so) || so <= 0) return toast('Nhập một con số lớn hơn 0 giúp em.', 3500);
     busy(true);
     try {
       MV.data = await api('vagabond.mua_vu.them_san_luong',
-        { mua: MV.mua, ma_hang: it.value, so_luong: so });
+        { mua: MV.mua, ngay: MV.cbNgay, ma_hang: it.value, so_luong: so });
+      MV_DAU = mvDau(MV.data);
+      MV.cbData = null;
       mvVe();
       toast('Đã ghi ' + money(so) + ' cái.', 2500);
     } finally { busy(false); }
   });
-}
-
-async function mvSuaSanLuong(ngay, ma) {
-  var v = await hoiNhap('Sửa lại số làm được ngày ' + mvNgay(ngay), '');
-  if (v === null) return;
-  var so = Number(String(v).replace(/[^0-9]/g, ''));
-  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
-  busy(true);
-  try {
-    MV.data = await api('vagabond.mua_vu.sua_san_luong',
-      { mua: MV.mua, ngay: ngay, ma_hang: ma, so_luong: so });
-    mvVe();
-  } finally { busy(false); }
-}
-
-async function mvXoaSanLuong(ngay, ma) {
-  if (!(await hoiCo('Xoá dòng sản lượng này?', 'Số bếp làm được sẽ giảm theo.'))) return;
-  busy(true);
-  try {
-    MV.data = await api('vagabond.mua_vu.xoa_san_luong',
-      { mua: MV.mua, ngay: ngay, ma_hang: ma });
-    mvVe();
-  } finally { busy(false); }
 }
 
 /* ================= GỠ MỘT SẢN PHẨM KHỎI MÙA =================
