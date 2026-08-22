@@ -344,3 +344,78 @@ def _():
 	o = mv.ghep_theo_ngay(ra["2026-09-01"], DM, {"LE2"})
 	la("vỏ hộp gõ tay vào đúng tồn đầu", o["HOPA"]["ton_dau"], 300)
 	la("bán được thật là 50", o["HOPA"]["con_thuc_te"], 50)
+
+
+# ------------------------- ba trang thai cua o "Ruot ghep duoc"
+
+
+@ca("Hộp khai đủ định mức mà ruột không đặt trần thì KHÔNG được báo chưa khai")
+def _():
+	"""Anh Việt bắt được 22/08/2026.
+
+	MOONGARDEN khai đủ 5 ruột, cả 5 đều mang cờ "không đặt trần" nên
+	ghep_duoc_tu_ruot bỏ qua hết và trả None. Bản cũ đọc None thành "chưa khai
+	định mức ruột" - nói oan cho người đã khai. Ba trạng thái phải tách rõ.
+	"""
+	mv = _mv()
+	dm = [
+		{"ma_hop": "HOPA", "ma_banh": "LE1", "so_luong": 1},
+		{"ma_hop": "HOPA", "ma_banh": "LE2", "so_luong": 1},
+	]
+	ra = mv.cuon_ton_theo_ngay(
+		["2026-09-01"], {"HOPA": 500, "HOPB": 40, "LE1": 90, "LE2": 90}, {}, {}, dm
+	)
+	o = mv.ghep_theo_ngay(ra["2026-09-01"], dm, {"LE1", "LE2"})
+	la("HOPA đã khai định mức", o["HOPA"]["chua_khai_dinh_muc"], 0)
+	la("nhưng không ruột nào ràng buộc", o["HOPA"]["ruot_khong_rang_buoc"], 1)
+	la("nên chỉ vỏ hộp chặn, bán được 500", o["HOPA"]["con_thuc_te"], 500)
+
+
+@ca("Hộp CHƯA khai định mức nào thì mới được báo chưa khai")
+def _():
+	mv = _mv()
+	dm = [{"ma_hop": "HOPA", "ma_banh": "LE1", "so_luong": 1}]
+	ra = mv.cuon_ton_theo_ngay(["2026-09-01"], {"HOPA": 500, "LE1": 90}, {}, {}, dm)
+	o = mv.ghep_theo_ngay(ra["2026-09-01"], dm)
+	la("HOPA khai rồi", o["HOPA"]["chua_khai_dinh_muc"], 0)
+	la("ruột ràng buộc bình thường", o["HOPA"]["ruot_khong_rang_buoc"], 0)
+	la("ghép được 90", o["HOPA"]["ghep_duoc"], 90)
+	la("bánh lẻ không bao giờ mang cờ này", o["LE1"]["chua_khai_dinh_muc"], 0)
+
+
+# --------------------- hàng chip ngày bên màn hình: bẫy múi giờ
+
+
+@ca("mvNgaySau bên màn hình không được đi qua toISOString")
+def _():
+	"""Anh Việt bắt được 22/08/2026: cả bảy chip đều ghi "Thứ bảy 22/08".
+
+	new Date('2026-08-22T00:00:00') là nửa đêm GIỜ MÁY, tức 17h00 ngày 21 giờ
+	UTC. toISOString() trả giờ UTC nên cắt ra '2026-08-21', lùi đúng một ngày;
+	cộng 1 vào lại thành 22 - vòng tròn, ngày không bao giờ nhích. Máy ở Việt
+	Nam (UTC+7) dính chắc chắn chứ không phải ngẫu nhiên, nên bộ kiểm phải giữ
+	cửa này chứ không trông vào việc thử tay.
+
+	Ca kiểm đọc thẳng mã nguồn vì tầng khung không chạy được JavaScript.
+	"""
+	import os
+	import re
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	tep = os.path.join(goc, "public", "js", "bep", "11-khach-ca-hop-dong.js")
+	nguon = io_doc(tep)
+
+	m = re.search(r"function mvNgaySau\(s\) \{(.*?)\n\}", nguon, re.S)
+	dung("tìm thấy hàm mvNgaySau", bool(m))
+	if not m:
+		return
+	than = m.group(1)
+	dung("KHÔNG được dùng toISOString trong phép cộng ngày",
+		"toISOString" not in than)
+	dung("phải tự ghép chuỗi từ getFullYear", "getFullYear" in than)
+
+
+def io_doc(duong_dan):
+	import io as _io
+
+	return _io.open(duong_dan, encoding="utf-8").read()
