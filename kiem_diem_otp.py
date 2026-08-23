@@ -9,6 +9,7 @@ ban that trong diem_otp.py doi ma ban nay khong doi thi cong se bao lech.
 """
 
 import ast
+import datetime as _dt
 import json
 import os
 import re
@@ -2913,13 +2914,22 @@ def _nap_ham_thuan(duong_dan, cac_ten, moi_truong=None):
 # ma bo kiem van dat thi bo kiem khong con bao ve gi.
 _HS_NGAY = dict(re.findall(r"^(DOI_NGAY_[A-Z_]+) = \"([a-z_]+)\"", _vd_src, re.M))
 la("doc duoc ba hang so luat doi ngay", sorted(_HS_NGAY), ["DOI_NGAY_CANH_BAO", "DOI_NGAY_CHAN", "DOI_NGAY_DUOC"])
+# Tu v288 phep doc ngay Pancake nam o vagabond/ngay_pancake.py chu khong con
+# o van_don.py nua: hai mo dun tung tu viet lay mot ban va lech nhau dung mot
+# ngay. Ba ham thuan nap tu tep moi, con luat_doi_ngay van o van_don.
+_np = _nap_ham_thuan("vagabond/ngay_pancake.py",
+                     ["_lech_mui", "ngay_hop_le", "_tu_unix", "ngay_tu_iso"],
+                     {"datetime": _dt.datetime, "timedelta": _dt.timedelta,
+                      "timezone": _dt.timezone, "MUI_VN": "Asia/Ho_Chi_Minh",
+                      "UNIX_NHO_NHAT": 946684800, "UNIX_LON_NHAT": 4102444800})
+_np["_ngay_hop_le"] = _np.get("ngay_hop_le")
 _vd = _nap_ham_thuan("vagabond/van_don.py",
-                     ["_lech_mui", "_ngay_hop_le", "_ngay_tu_iso", "luat_doi_ngay"],
+                     ["luat_doi_ngay"],
                      dict(_HS_NGAY, re=re, cint=lambda x: int(float(x or 0))))
-_ngay_tu_iso = _vd.get("_ngay_tu_iso")
+_ngay_tu_iso = _np.get("ngay_tu_iso")
 _luat_ngay = _vd.get("luat_doi_ngay")
 
-la("nap duoc hai ham thuan cua van_don", bool(_ngay_tu_iso and _luat_ngay), True)
+la("nap duoc ham doc ngay va luat doi ngay", bool(_ngay_tu_iso and _luat_ngay), True)
 
 if _ngay_tu_iso:
 	# ---------------------------------------------------------------
