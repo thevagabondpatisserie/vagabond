@@ -81,6 +81,11 @@ async function scrHome() {
     html += '<div class="sec">Kho</div><div class="card">' +
       card('\ud83d\udce5', 'Nhập kho', 'Quét mã phiếu, đếm hàng rồi nhập máy', rcn, 'RCV') + '</div>';
   }
+  /* So nhan banh (anh Viet 23/08/2026): thay cai bang Excel ma cua hang phai
+     go tay roi chup gui vao nhom Zalo moi sang. Khong khoa theo quyen kho:
+     ban quay nhan banh chu khong phai thu kho. */
+  html += '<div class="sec">Cửa hàng</div><div class="card">' +
+    card('🥐', 'Nhận bánh đầu ngày', 'Bếp giao bao nhiêu, quầy còn bao nhiêu. Thay bảng Excel gửi Zalo', 0, 'NBANH') + '</div>';
   if (isRnd()) {
     var rdn = 0;
     try { rdn = (await getList('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 })).length; } catch (e) { }
@@ -360,7 +365,7 @@ var VGB_NHOM = [
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
   { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO', 'CTBOM'] },
-  { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC'] },
+  { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
@@ -858,6 +863,7 @@ function vgbGo(k) {
   if (k === 'MFG') return go(scrMfgList);
   if (k === 'CTBOM') return go(scrCongThuc);
   if (k === 'RCV') return go(scrRecvList);
+  if (k === 'NBANH') return go(scrNhanBanh);
   if (k === 'KK') return go(scrKkList);
   if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
