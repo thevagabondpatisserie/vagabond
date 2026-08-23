@@ -1762,7 +1762,8 @@ function scrNhom(nh) {
    Lech mot dong thi hong LANG LE: may khach doi dia chi sang mot duong ma
    may chu khong biet, nguoi dung bam thi khong sao, F5 mot cai la 404. */
 var VGB_DUONG = {
-  'don-da-huy': 'DTREO',
+  'don-con-treo': 'DTREO',
+  'don-da-huy': 'DHUY',
   'ho-so-thanh-toan': 'APPTT',
   'cong-no-phai-tra': 'CNPT',
   'hoa-don-mua': 'HDMUA',
@@ -1832,6 +1833,10 @@ function vgbGo(k) {
   if (k === 'KK') return go(scrKkList);
   if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
+  /* Man "Don da huy cho hoan" truoc gio chi mo duoc tu man khac, khong co
+     khoa rieng. Them khoa o day de no co DIA CHI that, con o nho tren trang
+     chu thi giu nguyen nhu cu, khong them the moi. */
+  if (k === 'DHUY') return go(scrDonHuy);
   if (k === 'POS') return go(scrPosChonQuay);
   if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
@@ -16014,7 +16019,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '285';
+var APPVER = '286';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

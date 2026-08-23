@@ -38,7 +38,11 @@ Web Page nào đang có. Ca kiểm `thu_duong_app.py` canh chuyện trùng này.
 # nam sau mot man cha (vi du chi tiet mot phieu) thi khong khai o day: mo
 # thang vao do ma khong co du lieu cha la vo man.
 DUONG = {
-	"don-da-huy": "DTREO",
+	# 23/08/2026: doi ten tu "don-da-huy" sang "don-con-treo". Dat sai ten
+	# thi dia chi noi mot dang ma man hien ra mot dang khac, nhan vien bam
+	# "don da huy" lai ra "don con treo".
+	"don-con-treo": "DTREO",
+	"don-da-huy": "DHUY",
 	"ho-so-thanh-toan": "APPTT",
 	"cong-no-phai-tra": "CNPT",
 	"hoa-don-mua": "HDMUA",
