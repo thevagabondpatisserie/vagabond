@@ -271,6 +271,21 @@ TRUONG_MOI = {
 			),
 		},
 		{
+			# Phiếu thu của luồng huỷ đơn Pancake. Luồng đó sinh HAI chân:
+			# một phiếu thu cho khoản khách đã chuyển vào, một phiếu chi trả
+			# lại. Ô `phieu_chi` sẵn có giữ chân ra, còn chân vào trước đây
+			# không có chỗ nào ghi, nên mở phiếu ra không lần được cặp bút
+			# toán khớp nhau.
+			"fieldname": "phieu_thu", "label": "Phiếu thu khoản khách chuyển",
+			"fieldtype": "Link", "options": "Payment Entry",
+			"insert_after": "phieu_chi", "read_only": 1,
+			"description": (
+				"Chỉ có ở phiếu thuộc loại Huỷ đơn Pancake. Đơn đó chưa từng ghi "
+				"doanh thu nên khoản khách chuyển vào là tiền giữ hộ, phải ghi "
+				"nhận trước khi trả lại."
+			),
+		},
+		{
 			"fieldname": "sec_tc", "label": "Từ chối hoàn tiền",
 			"fieldtype": "Section Break", "insert_after": "noi_dung_ck",
 		},
@@ -2822,13 +2837,23 @@ def _pe_cua(ho_so):
 			"Phiếu %s đã huỷ hoặc bị từ chối nên không kết thúc được. Nếu tiền "
 			"đã lỡ chuyển đi thì lập phiếu thu lại, đừng mở lại phiếu này." % ho_so
 		)
-	if not cint(d.da_doi_soat):
-		frappe.throw(
-			"Phiếu %s chưa đối soát được với sao kê ngân hàng nên chưa có phiếu "
-			"chi để đính uỷ nhiệm chi. Vào thẻ Giao dịch ngân hàng bấm Đối soát, "
-			"hoặc gắn tay giao dịch tiền ra, rồi quay lại đây." % ho_so
-		)
+	# Hỏi PHIẾU CHI trước, đối soát sau. Thứ tự này có lý do.
+	#
+	# Luồng hoàn tiền thường sinh phiếu chi TẠI bước đối soát, nên chưa đối
+	# soát thì đúng là chưa có gì để đính. Nhưng luồng huỷ đơn Pancake sinh
+	# sẵn hai phiếu nháp ngay lúc lập hồ sơ, trước khi tiền ra. Hỏi đối soát
+	# trước thì kế toán cầm uỷ nhiệm chi thật trong tay vẫn bị chặn, mà chặn
+	# xong cũng không ai gỡ được vì phiếu chi thì đã có sẵn rồi.
+	#
+	# Nên phép kiểm thật là "có phiếu chi hay không". Đối soát chỉ còn là câu
+	# giải thích cho trường hợp chưa có.
 	if not d.phieu_chi:
+		if not cint(d.da_doi_soat):
+			frappe.throw(
+				"Phiếu %s chưa đối soát được với sao kê ngân hàng nên chưa có phiếu "
+				"chi để đính uỷ nhiệm chi. Vào thẻ Giao dịch ngân hàng bấm Đối soát, "
+				"hoặc gắn tay giao dịch tiền ra, rồi quay lại đây." % ho_so
+			)
 		frappe.throw(
 			"Phiếu %s đã đối soát nhưng máy chưa sinh được phiếu chi. Xem dòng "
 			"\"Lỗi khi sinh chứng từ\" ngay trên màn này để biết vướng ở đâu, "

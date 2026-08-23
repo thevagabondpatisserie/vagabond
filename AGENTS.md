@@ -106,6 +106,29 @@ tiến, đó là bỏ đi hai năm.
   hỏng. "Kho Pastry còn thiếu 78 Gram men tươi, kho Baker đang còn 13.000,
   anh chị chuyển kho rồi bấm lại" mới là câu đạt.
 - **QT-28. Kiểm tên trước khi đặt tiền tố mới.**
+- **QT-31. Chọn từ danh mục thì phải là Ô CHỌN, không được là ô gõ.**
+  Tên gọi trong phiên làm việc: `SKILL_BANK_ROUTING`. Anh Việt chốt
+  23/08/2026, sau khi cùng một lỗi quay lại lần thứ hai.
+
+  Mọi trường mà giá trị hợp lệ đến từ một danh mục có sẵn - ngân hàng,
+  nhà cung cấp, kho, tài khoản sổ cái, loại chứng từ - đều phải là ô chọn
+  có tìm nhanh, trỏ thẳng vào danh mục đó. **Tuyệt đối không dùng ô nhập
+  tự do.** Ô gõ tự do sinh ra rác trong cơ sở dữ liệu và làm hỏng đồng bộ.
+
+  Riêng ngân hàng thì danh mục là 581 dòng Napas trong
+  `vagabond/du_lieu/napas.json`, một nguồn duy nhất. Màn hình gọi
+  `nhChon()`, máy chủ gọi `ngan_hang.chuan_hoa_hoac_bao()` ngay trước khi
+  ghi vào bất kỳ ô `Link -> Bank` nào.
+
+  Vì sao phải chặn ở CẢ HAI tầng chứ không chỉ sửa giao diện: sửa giao
+  diện là hết lỗi hôm nay, nhưng một màn khác mai mốt lại dựng một ô
+  `Data` là lỗi quay lại y nguyên. Đã quay lại đúng như vậy hai lần:
+  17/08/2026 gõ "MB", 22/08/2026 gõ "VietinBank", cùng một câu báo lỗi
+  "Không tìm thấy Ngan hang". Tầng máy chủ mới là tầng giữ được dữ liệu
+  sạch, vì nó đúng kể cả khi một phiên khác viết lại màn hình.
+
+  Ca kiểm `thu_dinh_tuyen_ngan_hang.py` soi mã nguồn `bep/` và sẽ đỏ nếu
+  có ai dựng lại một ô nhập tự do cho ngân hàng.
 - **Không dùng AI hay công cụ tự động đọc tệp của khách để ghi đè số liệu
   xuống cơ sở dữ liệu.** Đọc để trình ra cho người xác nhận thì được.
 - **Hoá đơn điện tử đã gửi cơ quan thuế là vùng cấm.** Không tự động sửa,

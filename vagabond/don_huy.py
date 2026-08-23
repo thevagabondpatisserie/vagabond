@@ -86,6 +86,34 @@ NHAN_TT = {
 TT_XONG = ("Hoan thanh",)
 TT_HUY_HO_SO = ("Da huy",)
 
+# Lý do huỷ đơn. KHOÁ không dấu, NHÃN có dấu.
+#
+# Vì sao hai phần chứ không phải một: khoá đi vào diễn giải chứng từ và vào
+# nhật ký, nên phải là chuỗi ASCII ổn định, không đổi theo cách viết. Nhãn là
+# thứ người ta đọc, nên phải có dấu tiếng Việt tử tế.
+#
+# Ngày 22/08/2026 anh Việt chụp màn hình chỉ ra sáu con chip đang hiện nguyên
+# khoá: "Khach dat nham ngay", "Bep khong kip lam". Gốc là màn hình tự dựng
+# danh sách chip bằng chính chuỗi khoá. Nên bảng này đặt ở MÁY CHỦ và màn
+# hình đọc xuống, không màn nào được tự chế bảng thứ hai.
+LY_DO_HUY = (
+	("Khach doi y", "Khách đổi ý"),
+	("Khach dat nham ngay", "Khách đặt nhầm ngày"),
+	("Bep khong kip lam", "Bếp không kịp làm"),
+	("Het nguyen lieu", "Hết nguyên liệu"),
+	("Trung don", "Trùng đơn"),
+	("Khac", "Khác"),
+)
+
+
+def nhan_ly_do(khoa):
+	"""Khoá lý do huỷ -> nhãn có dấu. THUẦN. Khoá lạ thì trả lại nguyên văn."""
+	k = str(khoa or "").strip()
+	for a, b in LY_DO_HUY:
+		if a == k:
+			return b
+	return k
+
 
 # ---------------------------------------------------------------- phép thuần
 
@@ -586,6 +614,12 @@ def xem_hoan(ma_don):
 		"duoc": duoc,
 		"da_co": cu or None,
 		"noi_dung_ck": noi_dung_chuyen_khoan(d.ma_don, d.ma_hien_thi),
+		# Màn hình vẽ chip từ bảng này chứ không tự chế danh sách. Xem ghi
+		# chú ở LY_DO_HUY về vì sao.
+		"ly_do_chon": [{"k": a, "ten": b} for a, b in LY_DO_HUY],
+		"goi_y_bang_chung": (
+			"Chụp hình khung chat với khách, khung chat bếp không làm kịp,..."
+		),
 		"vi_sao": (
 			("Đơn này đã có hồ sơ %s đang ở trạng thái \"%s\"." % (
 				cu["name"], cu["trang_thai"])) if cu
@@ -596,9 +630,83 @@ def xem_hoan(ma_don):
 	}
 
 
+def _bang_chung_hop_le(tep):
+	"""Lọc danh sách ảnh bằng chứng, chỉ giữ mã tệp còn thật trên máy chủ.
+
+	Nhận rộng ở cửa vào - chuỗi JSON, danh sách mã, danh sách {ma: ...} - vì
+	màn hình có thể gửi theo cả ba dạng, nhưng ra khỏi hàm này thì chỉ còn
+	một dạng duy nhất là danh sách mã File.
+
+	Lọc theo `frappe.db.exists` chứ không tin danh sách màn gửi lên: gửi mã
+	bịa thì phiếu sẽ mang một danh sách ảnh không mở được, mà vẫn qua được
+	phép kiểm "đã có bằng chứng".
+	"""
+	if isinstance(tep, str):
+		try:
+			tep = frappe.parse_json(tep)
+		except Exception:
+			tep = [x.strip() for x in tep.replace(",", "\n").split("\n") if x.strip()]
+	if isinstance(tep, dict):
+		tep = [tep]
+	ra = []
+	for t in (tep or []):
+		ma = (t.get("ma") or t.get("file") or t.get("name")) if isinstance(t, dict) else t
+		ma = str(ma or "").strip()
+		if not ma or ma in ra:
+			continue
+		try:
+			if frappe.db.exists("File", ma):
+				ra.append(ma)
+		except Exception:
+			continue
+	return ra
+
+
+def _gan_bang_chung(tep_bc, ten_ho_so, ten_phieu_chi=None):
+	"""Trỏ ảnh bằng chứng về hồ sơ hoàn tiền, để chế độ riêng tư.
+
+	Riêng tư là bắt buộc chứ không phải tuỳ chọn: ảnh khung chat có tên và số
+	điện thoại khách, để công khai thì ai có đường dẫn cũng mở được.
+
+	Một tệp chỉ đính vào ĐÚNG MỘT chứng từ trong Frappe, nên bản trên phiếu
+	chi là bản NHÂN ĐÔI chứ không phải chuyển chỗ. Làm vậy để hồ sơ vẫn giữ
+	ảnh cho Sales xem, mà kế toán mở Payment Entry bên ERPNext cũng thấy ngay
+	căn cứ, không phải lần ngược sang màn khác.
+	"""
+	from vagabond.hoan_tien import DT as HT_DT
+
+	for ma in (tep_bc or []):
+		try:
+			frappe.db.set_value("File", ma, {
+				"attached_to_doctype": HT_DT,
+				"attached_to_name": ten_ho_so,
+				"is_private": 1,
+			}, update_modified=False)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "don_huy: gan bang chung ve ho so")
+		if not ten_phieu_chi:
+			continue
+		try:
+			goc = frappe.get_doc("File", ma)
+			ban = frappe.get_doc({
+				"doctype": "File",
+				"file_name": goc.file_name,
+				"file_url": goc.file_url,
+				"is_private": 1,
+				"attached_to_doctype": "Payment Entry",
+				"attached_to_name": ten_phieu_chi,
+			})
+			ban.flags.ignore_permissions = True
+			# Hai bản ghi File cùng trỏ một tệp trên đĩa. Không cho Frappe nhân
+			# đôi tệp thật, vừa tốn chỗ vừa làm hai bản lệch nhau khi gỡ một bên.
+			ban.insert(ignore_permissions=True, ignore_if_duplicate=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "don_huy: chep bang chung sang phieu chi")
+
+
 @frappe.whitelist()
 def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
-		sdt_khach="", dien_giai="", otp=None):
+		sdt_khach="", dien_giai="", otp=None, bang_chung=None):
 	"""Lập hồ sơ hoàn tiền cho một đơn Pancake CHƯA BAO GIỜ về ERPNext.
 
 	Sinh đủ HAI CHÂN như chị Dung chốt 21/08/2026 điều 2:
@@ -641,6 +749,27 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 		frappe.throw("Còn thiếu thông tin tài khoản nhận tiền. Điền đủ tên ngân "
 			"hàng, số tài khoản và tên chủ tài khoản của khách rồi gửi lại.")
 
+	# SKILL_BANK_ROUTING / QT-31: đổi về tên chuẩn TRƯỚC khi ghi, vì `ngan_hang`
+	# là ô Link trỏ vào doctype Bank. Gõ tay "VietinBank" rồi ghi thẳng thì
+	# Frappe ném "Không tìm thấy Ngan hang: VietinBank" - đúng lỗi 22/08/2026.
+	from vagabond import ngan_hang as nh
+
+	ngan_hang = nh.chuan_hoa_hoac_bao(ngan_hang, "Ngân hàng nhận tiền")
+
+	# Bằng chứng BẮT BUỘC (anh Việt chốt 23/08/2026). Tiền ra thật và người
+	# bấm nút thường là Sales, nên phải có ảnh khung chat làm căn cứ. Chặn ở
+	# máy chủ chứ không chỉ làm mờ nút trên màn: làm mờ nút thì ai gọi thẳng
+	# cửa vẫn lập được phiếu trắng bằng chứng.
+	#
+	# Cả hai phép kiểm này đứng TRƯỚC _otp_kiem, để người dùng không bị tiêu
+	# mất một mã OTP rồi mới biết là thiếu ảnh.
+	tep_bc = _bang_chung_hop_le(bang_chung)
+	if not tep_bc:
+		frappe.throw(
+			"Chưa có ảnh bằng chứng. Chụp khung chat khách xin huỷ, hoặc khung "
+			"chat bếp báo không làm kịp, rồi tải lên ô Tải lên bằng chứng."
+		)
+
 	# Cùng một lớp khoá với luồng hoàn tiền đang chạy: tiền ra thật, và
 	# người bấm ở đây thường là Sales chứ không phải kế toán. Sếp tự thao
 	# tác thì khỏi nhập mã.
@@ -651,8 +780,8 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 	tk_ke_toan = _tk_ngan_hang(cong_ty)
 	mo_ta = dien_giai_don(d.ma_don, d.ma_hien_thi, d.ten_khach)
 	noi_dung = noi_dung_chuyen_khoan(d.ma_don, d.ma_hien_thi)
-	ghi = ("[Huỷ đơn Pancake] %s. %s %s" % (
-		mo_ta, (ly_do or "").strip(), (dien_giai or "").strip())).strip()
+	ghi = ("[Huỷ đơn Pancake] %s. Lý do: %s. %s" % (
+		mo_ta, nhan_ly_do(ly_do) or "không ghi", (dien_giai or "").strip())).strip()
 
 	ho_so = frappe.get_doc({
 		"doctype": HT,
@@ -691,6 +820,25 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 		"tải từ e-banking." % (mo_ta, ho_so.name, noi_dung),
 		noi_dung, ho_so.name)
 
+	# Nối phiếu chi vào hồ sơ. THIẾU DÒNG NÀY LÀ KẸT CẢ ĐUÔI LUỒNG.
+	#
+	# `hoan_tien.dinh_unc` và `hoan_tien.tai_unc` đều đọc `phieu_chi` trên hồ
+	# sơ để biết đính uỷ nhiệm chi vào đâu và cho Sales tải từ đâu. Luồng huỷ
+	# đơn sinh Payment Entry thẳng ở đây chứ không qua bước đối soát, nên
+	# trước đây ô này để trống và kế toán không có chỗ đính uỷ nhiệm chi,
+	# Sales cũng không tải được gì gửi khách.
+	try:
+		if chi:
+			ho_so.db_set("phieu_chi", chi.name, update_modified=False)
+		if thu:
+			ho_so.db_set("phieu_thu", thu.name, update_modified=False)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "don_huy: noi phieu vao ho so")
+
+	# Ảnh bằng chứng đi theo hồ sơ, và chép một bản sang phiếu chi để người
+	# mở chứng từ bên ERPNext thấy ngay căn cứ mà không phải lần ngược.
+	_gan_bang_chung(tep_bc, ho_so.name, chi.name if chi else None)
+
 	d.ho_so_hoan = ho_so.name
 	d.trang_thai = DANG_HOAN
 	d.save(ignore_permissions=True)
@@ -705,6 +853,8 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 		"phieu_chi": chi.name if chi else None,
 		"noi_dung_ck": noi_dung,
 		"khach": khach,
+		"ngan_hang": ngan_hang,
+		"so_anh": len(tep_bc),
 		"nhac": ("Hai phiếu đang ở dạng NHÁP. Kế toán đính giấy báo Có và uỷ "
 			"nhiệm chi tải từ e-banking rồi mới ghi sổ."),
 	}

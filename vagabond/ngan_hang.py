@@ -319,3 +319,132 @@ def tep_lo(dong=None):
 			else ""
 		),
 	}
+
+
+# ==================================================================
+# Doi chuoi nguoi go thanh TEN CHUAN trong danh muc
+# ==================================================================
+#
+# SKILL_BANK_ROUTING (anh Viet chot 23/08/2026), xem QT-31 trong AGENTS.md
+# -----------------------------------------------------------------------
+# Moi o "Ngan hang" tren moi man deu phai la o CHON tu danh muc Napas, khong
+# duoc la o go tu do. Ly do da tra gia hai lan:
+#
+#   17/08/2026  man hoan tien: go "MB" -> "Khong tim thay Ngan hang: MB"
+#   22/08/2026  man don da huy: go "VietinBank" -> "Khong tim thay Ngan hang:
+#               VietinBank", quan ly khong gui duyet duoc, phieu ket lai
+#
+# Ca hai lan cung mot goc: truong `ngan_hang` la Link tro vao doctype Bank,
+# ma ten day du trong Bank la "VIETINBANK - Ngan hang TMCP Cong thuong Viet
+# Nam". Nguoi ta go ten thuong mai, Frappe doi ten day du, va cau bao loi thi
+# cut ngui khong chi duong ra.
+#
+# Sua o giao dien la du de het loi HOM NAY. Nhung mot man khac mai mot lai
+# dung mot o Data la loi quay lai y nguyen. Nen chan o CA HAI TANG:
+#
+#   Tang giao dien  o chon co tim nhanh, goi ham nhChon() dung chung.
+#   Tang may chu    ham duoi day. Ai lo truyen chuoi go tay xuong thi van
+#                   duoc doi ve ten chuan neu doan duoc, con khong doan
+#                   duoc thi bao loi CO GOI Y chu khong bao cut.
+#
+# Tang may chu moi la tang giu duoc du lieu sach, vi no dung ke ca khi mot
+# phien khac viet lai man hinh.
+
+
+def khop_ten(tu_khoa, danh_muc):
+	"""Doi chuoi nguoi go thanh ten day du trong danh muc. THUAN.
+
+	`danh_muc` la list [(ten, hinh_thuc)] nhu `doc_danh_muc()` tra ve. Truyen
+	vao chu khong tu doc, de kiem thu duoc ma khong can Frappe, khong can
+	site, khong can tep.
+
+	Tra dict: ten (chuoi rong neu khong chac), goi_y (toi da 8 ten gan giong),
+	cach (noi ro khop bang duong nao, de doc nhat ky con hieu).
+
+	Thu tu bon buoc, HEP TRUOC RONG SAU. Dao thu tu la hong: neu do chuoi
+	con chay truoc thi go "MB" se dinh vao mot ngan hang khac co chu "mb"
+	trong ten, nen phai thu ma dung truoc da.
+	"""
+	tk = str(tu_khoa or "").strip()
+	if not tk:
+		return {"ten": "", "goi_y": [], "cach": "rong"}
+	ds = [(str(t).strip(), str(ht or "").strip()) for t, ht in (danh_muc or []) if t]
+	if not ds:
+		return {"ten": "", "goi_y": [], "cach": "danh muc rong"}
+
+	# Buoc 1: trung y nguyen ten day du. Nguoi chon tu o chon thi vao day.
+	tk_th = tk.lower()
+	for ten, _ht in ds:
+		if ten.lower() == tk_th:
+			return {"ten": ten, "goi_y": [], "cach": "ten day du"}
+
+	# Buoc 2: trung MA, tuc khuc truoc dau " - ". Go "MB", "VCB", "VIETINBANK".
+	tk_ma = tk.upper().replace(" ", "")
+	trung_ma = [ten for ten, _ in ds if ten.split(" - ")[0].strip().upper().replace(" ", "") == tk_ma]
+	if len(trung_ma) == 1:
+		return {"ten": trung_ma[0], "goi_y": [], "cach": "ma ngan hang"}
+	if len(trung_ma) > 1:
+		# Mot ma nhieu chi nhanh (KBNN, NHNN, SINOPAC). Khong tu chon ho.
+		return {"ten": "", "goi_y": trung_ma[:8], "cach": "ma trung nhieu chi nhanh"}
+
+	# Buoc 3: ten thuong mai -> ma. "vietcombank" -> "VCB".
+	bd = BI_DANH.get(_khong_dau(tk).replace(" ", ""), "")
+	if bd:
+		trung_bd = [ten for ten, _ in ds if ten.split(" - ")[0].strip().upper() == bd]
+		if len(trung_bd) == 1:
+			return {"ten": trung_bd[0], "goi_y": [], "cach": "ten thuong mai"}
+
+	# Buoc 4: do chuoi khong dau. Ra dung MOT thi nhan, ra nhieu thi hoi lai.
+	kd = _khong_dau(tk)
+	do = [ten for ten, _ in ds if kd in _khong_dau(ten)]
+	if len(do) == 1:
+		return {"ten": do[0], "goi_y": [], "cach": "do chuoi"}
+	return {"ten": "", "goi_y": do[:8], "cach": "khong ro" if do else "khong co"}
+
+
+def chuan_hoa_hoac_bao(tu_khoa, ten_o="Ngân hàng"):
+	"""Doi ve ten chuan, khong doi duoc thi nem loi CO GOI Y.
+
+	Dung ngay truoc khi ghi vao bat ky truong Link -> Bank nao. Goi xong thi
+	yen tam la chuoi tra ve co that trong doctype Bank.
+	"""
+	ds = doc_danh_muc()
+	kq = khop_ten(tu_khoa, ds)
+	ten = kq.get("ten") or ""
+	if not ten:
+		goi = kq.get("goi_y") or []
+		if goi:
+			frappe.throw(
+				"%s \"%s\" khớp với %d ngân hàng nên máy không dám chọn thay. "
+				"Bấm vào ô %s rồi chọn đúng một dòng trong danh mục. Các dòng "
+				"gần giống: %s"
+				% (ten_o, tu_khoa, len(goi), ten_o.lower(), "; ".join(goi))
+			)
+		frappe.throw(
+			"Không có ngân hàng nào tên \"%s\" trong danh mục %d ngân hàng của "
+			"hệ thống. Bấm vào ô %s rồi gõ vài chữ để tìm và chọn, đừng gõ tay "
+			"vào ô." % (tu_khoa, len(ds), ten_o.lower())
+		)
+	# Ten lay tu danh muc da tham dinh chu khong phai tu nguoi dung, nen tao
+	# ban ghi Bank con thieu la an toan. Xay ra khi nap_danh_muc lo mot dong.
+	if not frappe.db.exists("Bank", ten):
+		try:
+			doc = frappe.get_doc({"doctype": "Bank", "bank_name": ten})
+			doc.flags.ignore_permissions = True
+			doc.insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ngan_hang: bu ban ghi Bank")
+			frappe.throw(
+				"Ngân hàng \"%s\" có trong danh mục nhưng chưa có trong sổ ngân "
+				"hàng của hệ thống. Báo em để nạp lại danh mục giúp." % ten
+			)
+	return ten
+
+
+@frappe.whitelist()
+def chuan_hoa(ten=""):
+	"""Cho man hinh hoi thu truoc khi gui: chuoi nay ra ten chuan nao."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	return khop_ten(ten, doc_danh_muc())

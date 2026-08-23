@@ -24,7 +24,8 @@ nen.gia_lap()
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_chi_loi_qz,
-	thu_cua_ngo, thu_de_nghi_chi, thu_dien_giai, thu_don_du_lieu, thu_don_huy,
+	thu_cua_ngo, thu_de_nghi_chi, thu_dien_giai, thu_dinh_tuyen_ngan_hang,
+	thu_don_du_lieu, thu_don_huy,
 	thu_ds,
 	thu_gui_thu,
 	thu_hoa_don_am, thu_hoan_ung_v279, thu_hop_dong, thu_hop_qua, thu_huy_don_nhap, thu_ke_toan_mua,
