@@ -346,3 +346,104 @@ def _to_de_nghi_khong_ghep_vao_khuon():
 	# Cau lenh return cuoi chi con phep NOI chuoi, khong con phep %.
 	k = than.rfind("\treturn (")
 	dung("return cuoi khong con dinh dang %", ") % (" not in than[k:])
+
+
+@ca("ban in: dong nhan phai nam CHUNG khoi chong ngat trang voi anh cua no")
+def _():
+	# Ca chan cho dung loi anh Viet bao ngay 23/08/2026. Trong ban xuat that
+	# cua ho so APP.26.08.011: anh IMG_2710 nam o trang 6, dong nhan cua no
+	# roi sang trang 7 mot minh. Ly do: anh va nhan la HAI khoi anh em, moi
+	# khoi tu chong ngat trang ben trong no, nhung khong gi cam ngat trang
+	# GIUA hai khoi.
+	#
+	# LUU Y cho ai sua ca kiem nay: ban dau em viet no bang cach so vi tri
+	# chuoi, kieu "dong nhan phai dung sau the img". Sai. Da co y tra lai
+	# dung loi cu de thu, va ca kiem VAN XANH, vi dong nhan van dung sau the
+	# img ke ca khi no da bi day ra NGOAI khoi. Muon biet mot the co nam
+	# trong mot the khac khong thi phai DEM DO SAU, khong co duong tat.
+	from vagabond import ho_so_tt as t
+
+	o = t._o_anh({"b64": "AAA", "kieu": "jpeg", "nhan": "Khoản 7 · bill điện"}, "90mm")
+	dung("chỉ có ĐÚNG MỘT khối chống ngắt trang", o.count("page-break-inside:avoid") == 1)
+
+	mo = o.index('<div style="page-break-inside:avoid">')
+	sau, k, het = 0, mo, -1
+	while k < len(o):
+		if o.startswith("<div", k):
+			sau += 1
+			k += 4
+		elif o.startswith("</div>", k):
+			sau -= 1
+			k += 6
+			if sau == 0:
+				het = k
+				break
+		else:
+			k += 1
+	dung("khối chống ngắt trang có đóng đúng chỗ", het > 0)
+
+	vi_anh = o.index("<img")
+	vi_nhan = o.index("Khoản 7")
+	dung("thẻ ảnh nằm TRONG khối", mo < vi_anh < het)
+	dung("dòng nhãn nằm TRONG khối, không bị đẩy ra ngoài", mo < vi_nhan < het)
+
+
+@ca("ban in: KHONG dung display:table-cell cho div ben trong o bang")
+def _():
+	# Div mang display:table-cell ma khong nam trong mot table la cau truc
+	# khong hop le; trinh duyet phai tu dung mot bang an bao quanh. WebKit
+	# doi cu trong wkhtmltopdf tinh chieu cao bang an do theo co THAT cua
+	# anh chu khong theo co da co, nen anh chup dien thoai 4032px bien thanh
+	# mot khoi cao vo ly va day hang thu hai sang trang moi.
+	from vagabond import ho_so_tt as t
+
+	o = t._o_anh({"b64": "AAA", "kieu": "jpeg", "nhan": "x"}, "90mm")
+	dung("không còn display:table-cell", "display:table-cell" not in o)
+	dung("canh giữa dọc bằng line-height", "line-height:90mm" in o)
+
+
+@ca("ban in: hai hang anh cong tieu de phai LOT vao vung in A4, con du rong rai")
+def _():
+	# Day la phep tinh da SAI o v281 va lam ca bo ho so tran giay.
+	# Ban v281: o anh 104mm, nhan tu do, dem 6mm => mot hang 120mm, hai hang
+	# 240mm, cong tieu de 14mm la 254mm => con 13mm tren 267mm. Sat qua.
+	#
+	# Bai hoc: bo cuc in KHONG duoc vua khit. Moi ban wkhtmltopdf tinh le
+	# mot kieu, phai chua du rong rai thi moi may deu ra dung.
+	from vagabond import ho_so_tt as t
+	from vagabond.mau_in.le_in import CAO_TRONG_MM
+
+	def mm(chuoi):
+		return float(str(chuoi).replace("mm", ""))
+
+	DEM_MM = 6.0        # padding 3mm tren va 3mm duoi cua moi o
+	TIEU_DE_MM = 14.0   # khoi "CHUNG TU DINH KEM" o trang dau
+	DU_TOI_THIEU = 25.0
+
+	mot_hang = mm(t.CAO_O_ANH) + DEM_MM + mm(t.CAO_NHAN)
+	can = mot_hang * 2 + TIEU_DE_MM
+	du = CAO_TRONG_MM - can
+	dung("hai hàng cộng tiêu đề lọt vùng in 267mm: cần %.0fmm" % can, du > 0)
+	dung("còn dư ít nhất %.0fmm cho chắc, đang dư %.0fmm" % (DU_TOI_THIEU, du),
+		du >= DU_TOI_THIEU)
+
+	mot = mm(t.CAO_O_1_HANG) + DEM_MM + mm(t.CAO_NHAN)
+	dung("trang một hàng cũng phải lọt vùng in", mot <= CAO_TRONG_MM)
+
+
+@ca("le in: chi ap 15mm cho ban in kho A4/A5, tuyet doi chua mau Tem ra")
+def _():
+	from vagabond.mau_in.le_in import duoc_ap_le_chung, kho_giay_trong_mau
+
+	TEM = "@page { size: 62mm 45mm; margin: 0; }"
+	A4 = "<style>@page{size:A4 portrait;margin:15mm}</style>"
+
+	dung("đọc đúng khổ giấy mẫu tự khai", kho_giay_trong_mau(TEM) == "62mm 45mm")
+	dung("mẫu A4 thì được áp", duoc_ap_le_chung("Vagabond - Phiếu nhập kho", "Purchase Receipt", A4))
+	dung("mẫu A5 thì được áp", duoc_ap_le_chung("Vagabond - Phiếu nhỏ", "X", "@page{size:A5}"))
+	dung("mẫu không khai gì thì được áp", duoc_ap_le_chung("Vagabond - Đơn đặt hàng", "Purchase Order", ""))
+	dung("Tem HACCP bị chừa ra", not duoc_ap_le_chung("Vagabond - Tem HACCP", "Batch", TEM))
+	dung("Tem nhãn hàng bị chừa ra dù không đọc được HTML",
+		not duoc_ap_le_chung("Vagabond - Tem nhan hang", "Batch", ""))
+	dung("mẫu khổ tem mà tên không có chữ Tem vẫn bị chừa ra",
+		not duoc_ap_le_chung("Vagabond - Nhan lo hang", "Batch", TEM))
