@@ -367,7 +367,8 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 # han nhau, tong ca mua khong noi len duoc dieu do.
 
 
-def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc):
+def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc,
+		chot_ton=None):
 	"""Cuon ton qua tung ngay cua mua. THUAN.
 
 	cac_ngay  : list "YYYY-MM-DD" tang dan, tu ngay dau mua den ngay can xem.
@@ -379,16 +380,35 @@ def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc):
 	            hop     -> vo hop nha in giao dung ngay do
 	cam_ngay  : {(ma, ngay): {"da_dat", "phat_sinh", "cho_chot", "don_khac"}}
 	dinh_muc  : list dict co ma_hop, ma_banh, so_luong
+	chot_ton  : {(ma, ngay): so nguoi dem tay} - xem phan duoi
 
 	Tra ve {ngay: {ma: {ton_dau, them, da_dat, phat_sinh, cho_chot, don_khac,
-	                    trong_hop, co_the_ban}}}
+	                    trong_hop, co_the_ban, chot_tay}}}
 
 	Am la duoc phep va la CO Y: am nghia la ngay do da nhan qua tay, va con so
 	am chinh la thu can hien mau do. Ep ve 0 la giau mat mot su that dang co.
+
+	CHOT TON DAU NGAY (23/08/2026)
+	------------------------------
+	Anh Viet: *"cai so ton dau o man kiem banh trung thu CHO PHEP SUA SO DUOC
+	de Loan Anh sua so cho khop so ton hien tai"*.
+
+	Co mot dong chot cho (ma, ngay) thi ngay do KHONG cuon tu hom truoc nua ma
+	lay thang con so nguoi dem duoc, roi cuon tiep tu do. Nghia la mot lan chot
+	cat dut phep cuon tai dung ngay do, y het mot lan kiem ke.
+
+	VI SAO PHAI CHOT CHU KHONG PHAI LUU THANG O "ton_dau": vi ton_dau khong he
+	duoc luu o dau ca, no la ket qua cua phep cuon. Ghi len no thi lan cuon ke
+	tiep xoa mat, va nguoi go khong hieu vi sao so minh vua nhap bien di.
+
+	O "chot_tay" bat len cho ben goi biet o do la nguoi dem chu khong phai may
+	tinh. Man hinh PHAI hien dau do: khong co no thi ba hom sau so venh voi
+	phep cuon va khong ai truy duoc vi sao.
 	"""
 	hop = ma_la_hop(dinh_muc)
+	chot = chot_ton or {}
 	ma_tat_ca = set(mo_so or {})
-	for k in list(them_ngay or {}) + list(cam_ngay or {}):
+	for k in list(them_ngay or {}) + list(cam_ngay or {}) + list(chot):
 		ma_tat_ca.add(k[0])
 
 	ton = {ma: cint((mo_so or {}).get(ma)) for ma in ma_tat_ca}
@@ -412,11 +432,14 @@ def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc):
 			dd, ps = cint(c.get("da_dat")), cint(c.get("phat_sinh"))
 			cc, dk = cint(c.get("cho_chot")), cint(c.get("don_khac"))
 			th = 0 if ma in hop else cint(trong_hop.get(ma))
-			dau = cint(ton.get(ma))
+			# Co nguoi dem tay thi lay so cua ho, cat dut phep cuon tai day.
+			co_chot = (ma, ng) in chot
+			dau = cint(chot[(ma, ng)]) if co_chot else cint(ton.get(ma))
 			con = dau + them - dd - ps - cc - dk - th
 			o_ngay[ma] = {
 				"ton_dau": dau, "them": them, "da_dat": dd, "phat_sinh": ps,
 				"cho_chot": cc, "don_khac": dk, "trong_hop": th, "co_the_ban": con,
+				"chot_tay": 1 if co_chot else 0,
 			}
 			ton[ma] = con
 		ra[ng] = o_ngay
@@ -1253,6 +1276,37 @@ def _mo_so_va_them(doc, cac_ngay):
 	return mo_so, them_ngay
 
 
+def _chot_ton_tu_doc(doc, trong_khoang=None):
+	"""Doc bang chot ton cua mot mua thanh {(ma, ngay): so}. Cham CSDL.
+
+	Hai dong cung mot (ma, ngay) thi lay dong GO SAU. Chuyen do khong nen xay
+	ra vi dat_ton_dau thay tai cho, nhung neu co ai them tay tren Desk thi
+	phai co luat ro rang chu khong de may chon bua.
+	"""
+	ra = {}
+	for x in doc.get("chot_ton") or []:
+		if not x.ma_hang or not x.ngay:
+			continue
+		ng = str(getdate(x.ngay))
+		if trong_khoang is not None and ng not in trong_khoang:
+			continue
+		ra[(x.ma_hang, ng)] = cint(x.so_luong)
+	return ra
+
+
+def _ai_chot(doc, trong_khoang=None):
+	"""{(ma, ngay): (nguoi_chot, luc_chot)}. De man hinh noi duoc AI go so nay."""
+	ra = {}
+	for x in doc.get("chot_ton") or []:
+		if not x.ma_hang or not x.ngay:
+			continue
+		ng = str(getdate(x.ngay))
+		if trong_khoang is not None and ng not in trong_khoang:
+			continue
+		ra[(x.ma_hang, ng)] = (x.nguoi_chot or "", str(x.luc_chot or ""))
+	return ra
+
+
 def _cam_tu_lich(doc, trong_khoang):
 	"""Doc bang lich thanh {(ma, ngay): {da_dat, phat_sinh, cho_chot, don_khac}}.
 
@@ -1314,7 +1368,9 @@ def bang_ngay(mua=None, ngay=None):
 
 	dm = [m.as_dict() for m in doc.get("dinh_muc") or []]
 	khong_tran = {d.ma_hang for d in doc.dong if cint(d.khong_tran)}
-	cuon = cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam, dm)
+	chot = _chot_ton_tu_doc(doc, trong_khoang)
+	ai = _ai_chot(doc, trong_khoang)
+	cuon = cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam, dm, chot)
 	o_ngay = ghep_theo_ngay(cuon.get(str(ng)) or {}, dm, khong_tran)
 
 	# Anh va ten lay tu bang san pham, de man nay khong phai hoi them lan nao.
@@ -1353,6 +1409,11 @@ def bang_ngay(mua=None, ngay=None):
 				"nhan_ngan": t["nhan_ngan"],
 				"khong_tran": t["khong_tran"],
 				"ton_dau": o["ton_dau"],
+				# Ba o nay de man hinh hien duoc dau "chot tay" va noi AI go.
+				# Khong co chung thi so venh voi phep cuon ma khong ai truy duoc.
+				"ton_dau_chot_tay": o.get("chot_tay") or 0,
+				"ton_dau_nguoi": (ai.get((ma, str(ng))) or ("", ""))[0],
+				"ton_dau_luc": (ai.get((ma, str(ng))) or ("", ""))[1],
 				"bep_lam": o["them"],
 				"da_dat": o["da_dat"],
 				"phat_sinh": o["phat_sinh"],
@@ -1438,6 +1499,83 @@ def dat_san_luong(mua=None, ngay=None, ma_hang=None, so_luong=0):
 	doc.set("san_luong", [])
 	for x in con:
 		doc.append("san_luong", x)
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return bang_ngay(doc.name, ng)
+
+
+@frappe.whitelist()
+def dat_ton_dau(mua=None, ngay=None, ma_hang=None, so_luong=0, go=0):
+	"""Nguoi dem tay chot ton dau ngay cua mot vi. DAT LAI, khong cong.
+
+	Anh Viet 23/08/2026: *"cho phep sua so duoc de Loan Anh sua so cho khop so
+	ton hien tai"*.
+
+	`go=1` thi BO chot, tra o do ve cho may tu cuon. Phai co duong go rieng chu
+	khong the muon so 0 lam dau hieu: 0 la mot con so dem duoc that su - het
+	sach hang - va lan dau ai do dem ra 0 roi thay o nhay ve so may cuon la
+	mat long tin vao ca man hinh.
+
+	KHONG cong don. Nguoi go dang nhin thay con so cu ngay tren o va go de LAY
+	con so do; cong don o day la con so tu nhan doi truoc mat ho. Cung ly do
+	voi dat_san_luong.
+
+	Ghi kem TEN NGUOI va GIO. Day la con so cat dut phep cuon cua ca nhung ngay
+	sau no, nen ba hom sau so co venh thi phai truy duoc ai go, luc nao.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	doc = _ban_ghi_mua(mua)
+	ma = str(ma_hang or "").strip()
+	if not ma:
+		frappe.throw("Chưa chọn mã hàng.")
+	if not any(d.ma_hang == ma for d in doc.dong):
+		frappe.throw("Không thấy mã %s trong mùa này. Bấm Đồng bộ rồi thử lại." % ma)
+	ng = getdate(ngay) if ngay else getdate()
+	if ng < getdate(doc.tu_ngay) or ng > getdate(doc.den_ngay):
+		frappe.throw("Ngày %s nằm ngoài khoảng của mùa này." % ng)
+
+	bo = cint(go) == 1
+	# Dem duoc thi khong the ra so am. Con so am tren man la KET QUA cua phep
+	# cuon (ban lo), khong phai thu dem duoc, nen khong nhan o day.
+	so = max(0, cint(so_luong))
+
+	ten = ""
+	for d in doc.dong:
+		if d.ma_hang == ma:
+			ten = d.ten_banh or ""
+			break
+
+	con, thay = [], False
+	for x in doc.get("chot_ton") or []:
+		if x.ma_hang == ma and getdate(x.ngay) == ng:
+			thay = True
+			if bo:
+				continue
+			con.append({
+				"ngay": ng, "ma_hang": ma, "ten_banh": ten, "so_luong": so,
+				"nguoi_chot": frappe.session.user, "luc_chot": now_datetime(),
+				"ghi_chu": x.ghi_chu,
+			})
+		else:
+			con.append({
+				"ngay": x.ngay, "ma_hang": x.ma_hang, "ten_banh": x.ten_banh,
+				"so_luong": x.so_luong, "nguoi_chot": x.nguoi_chot,
+				"luc_chot": x.luc_chot, "ghi_chu": x.ghi_chu,
+			})
+	if bo and not thay:
+		frappe.throw("Ô này đang do máy cuộn ra, chưa ai chốt tay nên không có gì để gỡ.")
+	if not bo and not thay:
+		con.append({
+			"ngay": ng, "ma_hang": ma, "ten_banh": ten, "so_luong": so,
+			"nguoi_chot": frappe.session.user, "luc_chot": now_datetime(),
+			"ghi_chu": "",
+		})
+
+	doc.set("chot_ton", [])
+	for x in con:
+		doc.append("chot_ton", x)
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return bang_ngay(doc.name, ng)

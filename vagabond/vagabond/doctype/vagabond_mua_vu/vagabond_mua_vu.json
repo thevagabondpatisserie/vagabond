@@ -18,6 +18,7 @@
   "sec_dot",
   "dot",
   "san_luong",
+  "chot_ton",
   "sec_dinh_muc",
   "dinh_muc",
   "sec_lich",
@@ -112,6 +113,13 @@
    "fieldtype": "Table",
    "label": "San luong bep theo ngay",
    "options": "Vagabond Mua Vu San Luong"
+  },
+  {
+   "fieldname": "chot_ton",
+   "fieldtype": "Table",
+   "label": "Chot ton dau ngay dem tay",
+   "options": "Vagabond Mua Vu Chot Ton",
+   "description": "Nguoi dem tay ghi de len so may cuon ra. Xem vagabond/mua_vu.py, ham dat_ton_dau."
   },
   {
    "fieldname": "sec_dinh_muc",

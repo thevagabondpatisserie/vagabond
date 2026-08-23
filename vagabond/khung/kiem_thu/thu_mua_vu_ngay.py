@@ -487,3 +487,132 @@ def _dung_ban_ghi_mua():
 	nen = src[j:j + 2000]
 	dung("chan mua rong", "frappe.db.exists(DT, ma)" in nen)
 	dung("cau bao loi chi duong ra", "chọn lại mùa" in nen)
+
+
+# ---------------------------------------------------------------------------
+# CHOT TON DAU NGAY (v291, 23/08/2026)
+#
+# Anh Viet: *"cai so ton dau o man kiem banh trung thu CHO PHEP SUA SO DUOC de
+# Loan Anh sua so cho khop so ton hien tai"*.
+#
+# "Ton dau ngay" khong phai so duoc luu, no la ket qua cua phep cuon. Nen viec
+# cho sua khong phai la them mot o cho go, ma la them mot duong CAT DUT phep
+# cuon tai dung mot ngay. Cac ca duoi day canh dung cho cat do.
+# ---------------------------------------------------------------------------
+
+
+@ca("chốt tồn: có người đếm tay thì ngày đó lấy số của họ, không cuộn từ hôm trước")
+def _():
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	ngay = ["2026-08-23", "2026-08-24"]
+	# Khong chot: 100 tru 10 con 90, hom sau ton dau 90.
+	khong = cuon_ton_theo_ngay(
+		ngay, {"B1": 100}, {}, {("B1", "2026-08-23"): {"da_dat": 10}}, [])
+	la("chưa chốt, ngày đầu tồn đầu 100", khong["2026-08-23"]["B1"]["ton_dau"], 100)
+	la("chưa chốt, ngày sau cuộn ra 90", khong["2026-08-24"]["B1"]["ton_dau"], 90)
+
+	# Loan Anh dem thuc te ngay 24 chi con 70.
+	co = cuon_ton_theo_ngay(
+		ngay, {"B1": 100}, {}, {("B1", "2026-08-23"): {"da_dat": 10}}, [],
+		{("B1", "2026-08-24"): 70})
+	la("chốt rồi thì ngày 24 lấy số đếm được", co["2026-08-24"]["B1"]["ton_dau"], 70)
+	la("ngày TRƯỚC ngày chốt không bị đụng tới",
+		co["2026-08-23"]["B1"]["ton_dau"], 100)
+
+
+@ca("chốt tồn: cuộn tiếp từ số đã chốt chứ không quay về số cũ")
+def _():
+	"""Chot ma khong cuon tiep tu no thi ngay ke tiep so lai vot len, va nguoi
+	dem thay cong suc cua minh bay mat sau dung mot ngay."""
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	ngay = ["2026-08-23", "2026-08-24", "2026-08-25"]
+	r = cuon_ton_theo_ngay(
+		ngay, {"B1": 100}, {},
+		{("B1", "2026-08-24"): {"da_dat": 5}}, [],
+		{("B1", "2026-08-24"): 70})
+	la("ngày chốt lấy 70", r["2026-08-24"]["B1"]["ton_dau"], 70)
+	la("ngày chốt còn bán 65", r["2026-08-24"]["B1"]["co_the_ban"], 65)
+	la("ngày SAU cuộn tiếp từ 65", r["2026-08-25"]["B1"]["ton_dau"], 65)
+
+
+@ca("chốt tồn: số 0 là con số đếm được thật, không phải dấu hiệu xoá")
+def _():
+	"""Het sach hang la mot su that phai ghi duoc. Muon so 0 lam dau hieu xoa
+	thi lan dau ai do dem ra 0 se thay o nhay ve so may cuon, va mat long tin
+	vao ca man hinh."""
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	r = cuon_ton_theo_ngay(
+		["2026-08-23"], {"B1": 100}, {}, {}, [], {("B1", "2026-08-23"): 0})
+	la("chốt 0 thì tồn đầu bằng 0 chứ không phải 100",
+		r["2026-08-23"]["B1"]["ton_dau"], 0)
+	la("và cờ chốt tay vẫn bật", r["2026-08-23"]["B1"]["chot_tay"], 1)
+
+
+@ca("chốt tồn: cờ chốt_tay phải bật ĐÚNG ô được chốt, không lan sang ô khác")
+def _():
+	"""Khong co co nay thi ba hom sau so venh voi phep cuon va khong ai truy
+	duoc la do dem tay hay do may tinh sai. Bat nham o cung te y het."""
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	ngay = ["2026-08-23", "2026-08-24"]
+	r = cuon_ton_theo_ngay(
+		ngay, {"B1": 100, "B2": 50}, {}, {}, [], {("B1", "2026-08-24"): 70})
+	la("ô được chốt bật cờ", r["2026-08-24"]["B1"]["chot_tay"], 1)
+	la("mã khác cùng ngày KHÔNG bật cờ", r["2026-08-24"]["B2"]["chot_tay"], 0)
+	la("cùng mã ngày khác KHÔNG bật cờ", r["2026-08-23"]["B1"]["chot_tay"], 0)
+	la("mã khác cùng ngày giữ nguyên số cuộn",
+		r["2026-08-24"]["B2"]["ton_dau"], 50)
+
+
+@ca("chốt tồn: mã chỉ xuất hiện trong bảng chốt vẫn phải có mặt trong bảng")
+def _():
+	"""Bo sot thi go so cho mot ma xong lam moi lai la dong do bien mat."""
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	r = cuon_ton_theo_ngay(
+		["2026-08-23"], {}, {}, {}, [], {("BLA", "2026-08-23"): 12})
+	dung("mã BLA có trong bảng", "BLA" in r["2026-08-23"])
+	la("và mang đúng số đã chốt", r["2026-08-23"]["BLA"]["ton_dau"], 12)
+
+
+@ca("chốt tồn: không truyền bảng chốt thì kết quả y hệt bản cũ")
+def _():
+	"""Hang rao chong hoi quy: ham nay dang chay that cho ca mua trung thu,
+	them tham so moi ma doi ket qua cu la lam lech so cua ca tiem."""
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	ngay = ["2026-08-23", "2026-08-24"]
+	cam = {("B1", "2026-08-23"): {"da_dat": 10, "cho_chot": 3}}
+	khong_truyen = cuon_ton_theo_ngay(ngay, {"B1": 100}, {}, cam, [])
+	truyen_rong = cuon_ton_theo_ngay(ngay, {"B1": 100}, {}, cam, [], {})
+	truyen_none = cuon_ton_theo_ngay(ngay, {"B1": 100}, {}, cam, [], None)
+	la("bảng rỗng cho kết quả y hệt", truyen_rong, khong_truyen)
+	la("None cho kết quả y hệt", truyen_none, khong_truyen)
+	la("số cũ vẫn đúng", khong_truyen["2026-08-24"]["B1"]["ton_dau"], 87)
+
+
+@ca("chốt tồn: HÀNG RÀO có thật sự cắn không")
+def _():
+	"""Dung lai dung ba cach hong, phai thay ket qua sai ngay.
+
+	Ngay 23/08 da co mot ca kiem so vi tri chuoi ma khong bat duoc loi that,
+	nen tu nay hang rao nao cung phai tu chung minh no do khi loi quay lai.
+	"""
+	from vagabond.mua_vu import cuon_ton_theo_ngay
+
+	ngay = ["2026-08-23", "2026-08-24", "2026-08-25"]
+
+	# 1. Neu chot KHONG cat duoc phep cuon thi ngay 24 van ra 100.
+	r = cuon_ton_theo_ngay(ngay, {"B1": 100}, {}, {}, [],
+		{("B1", "2026-08-24"): 70})
+	dung("chốt có cắt được phép cuộn", r["2026-08-24"]["B1"]["ton_dau"] != 100)
+
+	# 2. Neu chot khong cuon tiep thi ngay 25 se ra 100 chu khong phai 70.
+	dung("ngày sau cuộn tiếp từ số đã chốt",
+		r["2026-08-25"]["B1"]["ton_dau"] == 70)
+
+	# 3. Neu co chot_tay khong ton tai thi man hinh khong hien duoc dau.
+	dung("kết quả có mang cờ chốt_tay", "chot_tay" in r["2026-08-24"]["B1"])

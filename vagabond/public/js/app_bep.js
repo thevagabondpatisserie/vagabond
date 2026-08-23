@@ -14166,6 +14166,9 @@ function mvVe() {
   b.querySelectorAll('[data-cbngay]').forEach(function (n) {
     n.onclick = function () { mvChonNgay(n.getAttribute('data-cbngay')); };
   });
+  b.querySelectorAll('[data-cbton]').forEach(function (n) {
+    n.onclick = function () { mvSuaTonDau(n.getAttribute('data-cbton')); };
+  });
   b.querySelectorAll('[data-cbsua]').forEach(function (n) {
     n.onclick = function () { mvSuaBepLam(n.getAttribute('data-cbsua')); };
   });
@@ -14554,8 +14557,10 @@ function mvVeCoTheBan(d) {
     mvO('Bánh lẻ dư', le, le > 0 ? '#0a8a4a' : '#9ca3af') +
     '</div>' +
     '<div style="font-size:11.5px;color:#98a2b3;padding:0 2px 9px;line-height:1.6">' +
-    'Số của riêng ngày ' + h(mvNgayDay(MV.cbNgay)) + '. Ô <b>Bếp làm</b> bấm vào ' +
-    'gõ được, các ô còn lại máy đếm từ đơn nên không sửa tay.</div>' +
+    'Số của riêng ngày ' + h(mvNgayDay(MV.cbNgay)) + '. Ô <b>Tồn đầu ngày</b> và ' +
+    'ô <b>Bếp làm</b> bấm vào gõ được, các ô còn lại máy đếm từ đơn nên không ' +
+    'sửa tay. Ô tồn đầu <span style="color:#a16207;font-weight:700">viền vàng</span> ' +
+    'là số có người đếm tay, những ngày sau cuộn tiếp từ số đó.</div>' +
     ds.map(mvTheCoTheBan).join('');
 }
 
@@ -14623,7 +14628,13 @@ function mvTheCoTheBan(x) {
   var dd = String(MV.cbNgay).slice(8, 10) + '/' + String(MV.cbNgay).slice(5, 7);
 
   var o = '';
-  o += mvOCb('Tồn đầu ngày', x.ton_dau, '#374151');
+  /* Ô Tồn đầu ngày gõ được từ v291 (anh Việt 23/08/2026, cho Loan Anh sửa số
+     cho khớp số đếm thật). Ô này KHÁC ô Bếp làm ở một chỗ quan trọng: tồn đầu
+     không phải số được lưu, nó là số máy cuộn ra. Gõ vào đây là CẮT ĐỨT phép
+     cuộn tại đúng ngày này, và mọi ngày sau đó cuộn tiếp từ con số vừa gõ.
+     Vì vậy phải hiện dấu cho biết ô đang là số đếm tay chứ không phải số máy
+     tính: không có dấu thì ba hôm sau số vênh mà không ai truy được vì sao. */
+  o += mvOTonDau(x);
   o += x.la_hop
     ? mvOCb('Nhà in giao ' + dd, x.bep_lam, '#374151')
     : mvOCb('Bếp làm ' + dd, x.bep_lam, '#0f766e', x.ma_hang);
@@ -14670,6 +14681,28 @@ function mvTheCoTheBan(x) {
 /* Ô số. Truyền ma_hang vào là ô đó gõ được, và chỉ ô "Bếp làm" mới được truyền
    - mọi ô khác máy đếm từ đơn, mở cho sửa tay là mở đường cho hai con số cãi
    nhau, đúng cái mà cả phân hệ này sinh ra để chấm dứt. */
+/* Ô Tồn đầu ngày. Hai bộ mặt: máy cuộn ra thì viền nét đứt xanh như ô Bếp
+   làm; có người đếm tay thì viền vàng đậm kèm chữ "đếm tay" và tên người gõ.
+   Phân biệt bằng MÀU và bằng CHỮ chứ không chỉ bằng màu, để người mù màu và
+   người in ra giấy đen trắng vẫn đọc được. */
+function mvOTonDau(x) {
+  var chot = x.ton_dau_chot_tay ? 1 : 0;
+  var vien = chot
+    ? 'border:1.5px solid #f0b100;background:#fffbeb'
+    : 'border:1.5px dashed #99f6e4;background:#f0fdfa';
+  var ai = String(x.ton_dau_nguoi || '').split('@')[0];
+  var duoi = chot
+    ? '<div style="font-size:9.5px;color:#a16207;white-space:nowrap;overflow:hidden;' +
+      'text-overflow:ellipsis">đếm tay' + (ai ? ' · ' + h(ai) : '') + '</div>'
+    : '';
+  return '<div data-cbton="' + h(x.ma_hang) + '" style="cursor:pointer;' + vien +
+    ';border-radius:9px;padding:6px 9px;min-width:82px;flex:1 1 82px">' +
+    '<div style="font-size:10px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+    'Tồn đầu ngày ✏️</div>' +
+    '<b style="font-size:15px;color:' + (chot ? '#a16207' : '#374151') + '">' +
+    money(x.ton_dau || 0) + '</b>' + duoi + '</div>';
+}
+
 function mvOCb(nhan, so, mau, ma) {
   var sua = ma
     ? ' data-cbsua="' + h(ma) + '" style="cursor:pointer;border:1.5px dashed #99f6e4;background:#f0fdfa'
@@ -14713,6 +14746,69 @@ function mvChonNgay(ng) {
   MV.cbNgay = ng;
   MV.cbData = null;
   mvVe();
+}
+
+/* Người đếm tay chốt tồn đầu ngày.
+
+   KHÁC ô Bếp làm ở chỗ nguy hiểm nhất: tồn đầu KHÔNG phải số được lưu, nó là
+   số máy cuộn ra từ hôm trước. Gõ vào đây là cắt đứt phép cuộn tại đúng ngày
+   này, và MỌI NGÀY SAU cuộn tiếp từ con số vừa gõ. Nên phải nói rõ điều đó
+   ngay trên hộp hỏi, chứ không để người gõ tưởng mình chỉ sửa một ô.
+
+   Ô đã chốt thì hỏi thêm một nhịp: gõ số mới hay trả về cho máy tự tính. Không
+   có đường trả về thì một lần gõ nhầm là kẹt vĩnh viễn, và số 0 không dùng làm
+   dấu hiệu xoá được vì 0 là con số đếm được thật (hết sạch hàng). */
+async function mvSuaTonDau(ma) {
+  var x = null;
+  (MV.cbData && MV.cbData.dong || []).forEach(function (y) { if (y.ma_hang === ma) x = y; });
+  if (!x) return;
+  var ten = x.ten_banh || ma;
+  var ngay = mvNgayDay(MV.cbNgay);
+
+  if (x.ton_dau_chot_tay) {
+    var ai = String(x.ton_dau_nguoi || '').split('@')[0];
+    var chon = await hoiChon(
+      'Ô này đang là số đếm tay',
+      'Tồn đầu ngày ' + h(ngay) + ' của ' + h(ten) + ' đang là <b>' +
+      money(x.ton_dau || 0) + '</b>, do ' + h(ai || 'người dùng') + ' đếm tay' +
+      (x.ton_dau_luc ? ' lúc ' + h(String(x.ton_dau_luc).slice(0, 16)) : '') + '.',
+      [{ k: 'sua', icon: '✏️', nhan: 'Gõ lại số khác',
+         mo_ta: 'Đếm lại và thay bằng số mới' },
+       { k: 'go', icon: '↩️', nhan: 'Trả về cho máy tự tính',
+         mo_ta: 'Bỏ số đếm tay, cuộn lại từ hôm trước như cũ' }]);
+    if (!chon) return;
+    if (chon === 'go') return mvGhiTonDau(ma, 0, 1, ten, ngay);
+  }
+
+  /* Chuoi nay chen THANG vao HTML trong hoiChu, nen ten banh phai qua h()
+     va xuong dong phai la <br> chu khong phai \n. */
+  var v = await hoiNhap(
+    'Ngày ' + h(ngay) + ' đếm được bao nhiêu cái <b>' + h(ten) + '</b>?<br>' +
+    '<span style="color:#a16207">Số này thay cho số máy cuộn ra, và những ngày ' +
+    'sau cuộn tiếp từ nó.</span>',
+    String(x.ton_dau || 0), 'Chốt tồn đầu ngày');
+  if (v === null) return;
+  var so = Number(String(v).replace(/[^0-9]/g, ''));
+  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+  return mvGhiTonDau(ma, so, 0, ten, ngay);
+}
+
+async function mvGhiTonDau(ma, so, go, ten, ngay) {
+  busy(true);
+  try {
+    MV.cbData = await api('vagabond.mua_vu.dat_ton_dau',
+      { mua: MV.mua, ngay: MV.cbNgay, ma_hang: ma, so_luong: so, go: go });
+    /* Số cả mùa bên bảng Sản phẩm cuộn theo tồn đầu nên cũng đổi, phải xin
+       lại luôn, không thì hai tab nói hai con số khác nhau. */
+    MV.data = await api('vagabond.mua_vu.bang', { mua: MV.mua });
+    MV_DAU = mvDau(MV.data);
+    mvVe();
+    toast(go
+      ? 'Đã trả ô tồn đầu ngày ' + ngay + ' về cho máy tự tính.'
+      : 'Đã chốt tồn đầu ngày ' + ngay + ' là ' + money(so) + ' cái.', 2800);
+  } catch (e) {
+    baoTin((e && e.message) || 'Lưu lỗi', 'Không ghi được');
+  } finally { busy(false); }
 }
 
 /* Bếp gõ số làm được trong ngày. ĐẶT LẠI chứ không cộng dồn: người gõ đang
@@ -16213,7 +16309,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '290';
+var APPVER = '291';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
