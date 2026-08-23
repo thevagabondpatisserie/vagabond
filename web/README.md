@@ -1,24 +1,28 @@
-# Thư mục web
+# Thư mục web (ĐÃ CHUYỂN, giữ lại để không đứt đường dẫn cũ)
 
-Mã nguồn các màn hình chạy bằng Web Page của Frappe. Các tệp ở đây là **bản sao để đối chiếu và khôi phục**, không tự động deploy - Frappe vẫn đọc từ bản ghi Web Page trong database.
+Từ **v288 (23/08/2026)** mã nguồn Web Page nằm ở `vagabond/trang/`, và mỗi
+lần Migrate máy tự đẩy xuống cơ sở dữ liệu. Đọc `vagabond/trang/__init__.py`.
 
-| Tệp | Web Page | Đường dẫn |
-|---|---|---|
-| `banh.html` | `banh-vagabond-ban-mau` (trường `main_section_html`) | `order.thevagabondpatisserie.com` |
-| `app_nhom_xuat_kho.js` | `màn-hình-nghiệp-vụ` (trường `javascript`) | `app.thevagabondpatisserie.com/bep` |
+Thư mục này trước đây là **bản sao chép tay để đối chiếu**, không tự deploy.
+Cách đó có một lỗ hổng đã lộ ra: bản sao dễ cũ hơn bản trên site mà không ai
+biết, vì không có gì bắt buộc phải cập nhật nó.
 
-## Quy tắc
+| Tệp cũ | Nay nằm ở |
+|---|---|
+| `banh.html` | `vagabond/trang/banh.html` |
+| `app_nhom_xuat_kho.js` | không còn dùng, xem bên dưới |
 
-Sửa Web Page xong thì cập nhật tệp ở đây trong cùng ngày. Trước khi vá phải đọc bản ghi ngay trước đó, vá xong đọc lại so bằng SHA-256 - đã có lần hai phiên cùng sửa một Web Page và nuốt mất phần vừa vá của nhau.
+`app_nhom_xuat_kho.js` là bản chép tay của trường `javascript` trang `bep`
+từ thời trang đó còn dán nguyên mã app. Nay trang `bep` chỉ còn đoạn nạp
+`app_bep.js` dài 737 byte, nằm ở `vagabond/trang/bep.js`. Tệp cũ giữ lại làm
+tư liệu, KHÔNG được đẩy lên site.
 
-## Bẫy: tiện ích trình duyệt chèn rác vào nội dung
+## Bẫy vẫn còn nguyên giá trị: tiện ích trình duyệt chèn rác
 
-Ngày 06/08/2026 phát hiện `main_section_html` đang chứa hai thẻ `<script src="//local.adguard.org?...">` do tiện ích chặn quảng cáo trên máy người sửa chèn vào, rồi bị lưu thẳng vào database. Khách vào trang sẽ tải hai đường dẫn chết đó. Đã gỡ.
+Ngày 06/08/2026 phát hiện `main_section_html` đang chứa hai thẻ
+`<script src="//local.adguard.org?...">` do tiện ích chặn quảng cáo trên máy
+người sửa chèn vào, rồi bị lưu thẳng vào database. Khách vào trang sẽ tải hai
+đường dẫn chết đó.
 
-Khi lấy nội dung Web Page ra để lưu, luôn lọc lại:
-
-```
-<script[^>]*local\.adguard\.org[^>]*></script>
-```
-
-và kiểm SHA-256 của tệp so với nội dung trong database trước khi commit.
+`vagabond/trang/loc_rac()` nay lọc đúng mẫu này mỗi lần đẩy xuống, và có ca
+kiểm thử canh. Không phải nhớ bằng tay nữa.
