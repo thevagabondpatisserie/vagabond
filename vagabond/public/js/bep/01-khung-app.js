@@ -60,9 +60,18 @@ function back() {
 function reset(fn) {
   S.stack = [fn];
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
-  render();
+  return render();
 }
-function render() { var f = S.stack[S.stack.length - 1]; if (f) f(); }
+/* TRA VE ket qua cua ham man hinh, dung nuot di.
+
+   Phan lon man hinh la `async`: no ve tam mot cai dong ho cat roi `await`
+   du lieu, xong moi ve that. Nuot promise di thi ai goi render() cung khong
+   biet luc nao man ve xong.
+
+   Ngay 23/08/2026 dinh dung loi do: __boot goi reset(scrHome) roi mo ngay
+   man theo dia chi, nhung scrHome ve THAT muon hon va de len man vua mo,
+   nen F5 tai /don-da-huy van ra trang chu. */
+function render() { var f = S.stack[S.stack.length - 1]; if (f) return f(); }
 
 /* GIU VI TRI CUON, dung chung cho MOI man hinh.
 
