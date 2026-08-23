@@ -76,15 +76,21 @@ def dong_bo():
 
 	# Le giay: dat cho MOI mau in cua tiem, ke ca mau chua keo ve repo. Bon o
 	# nay nam trong ban ghi chu khong trong HTML nen ha CSS xuong khong toi.
-	from vagabond.mau_in.le_in import LE_MM
+	from vagabond.mau_in.le_in import LE_MM, duoc_ap_le_chung
 
-	for ten in frappe.get_all(
-		"Print Format", filters={"standard": "No", "name": ["like", "Vagabond%"]}, pluck="name"
+	for r in frappe.get_all(
+		"Print Format",
+		filters={"standard": "No", "name": ["like", "Vagabond%"]},
+		fields=["name", "doc_type", "html"] + list(LE_BAN_GHI),
 	):
-		hien = frappe.db.get_value("Print Format", ten, LE_BAN_GHI, as_dict=True) or {}
-		if all(int(hien.get(o) or 0) == LE_MM for o in LE_BAN_GHI):
+		# Khong ap le chung cho ban in khac kho A4/A5, dien hinh la tem
+		# 62x45mm. Xem duoc_ap_le_chung() trong le_in.py de biet vi sao.
+		if not duoc_ap_le_chung(r.get("name"), r.get("doc_type"), r.get("html")):
+			ra.setdefault("bo_qua_le", []).append(r.get("name"))
+			continue
+		if all(int(r.get(o) or 0) == LE_MM for o in LE_BAN_GHI):
 			continue
 		for o in LE_BAN_GHI:
-			frappe.db.set_value("Print Format", ten, o, LE_MM, update_modified=False)
-		ra.setdefault("da_dat_le", []).append(ten)
+			frappe.db.set_value("Print Format", r["name"], o, LE_MM, update_modified=False)
+		ra.setdefault("da_dat_le", []).append(r["name"])
 	return ra
