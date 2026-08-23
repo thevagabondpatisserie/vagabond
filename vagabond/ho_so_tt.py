@@ -2932,10 +2932,32 @@ def go_tep_dong(name=None, dong=None, tep=None):
 # đứng hay ảnh ngang đều co vừa khung mà KHÔNG méo, không tràn viền.
 
 ANH_MOI_TRANG = 4
-CAO_O_ANH = "104mm"   # 4 ô vừa một trang A4 dọc sau khi trừ lề và dòng nhãn
-# Trang chỉ có MỘT hàng thì cho hàng đó cao gần hết trang, đừng để nửa dưới
-# trắng trơn. Vùng in A4 sau lề 15mm là 267mm, trừ dòng nhãn và tiêu đề.
-CAO_O_1_HANG = "215mm"
+
+# PHEP TINH CHIEU CAO, doc truoc khi chinh mot con so nao o day.
+#
+# Vung in A4 doc sau le 15mm hai dau la 267mm. Mot trang luoi day du gom:
+#     tieu de "CHUNG TU DINH KEM"        ~14mm  (chi co o trang dau)
+#     2 hang x (khung anh + dem 6mm + nhan)
+# Nay: 90 + 6 + 14 = 110mm moi hang, 2 hang 220mm, cong tieu de la 234mm
+# tren 267mm. Du 33mm.
+#
+# Ban v281 lay 104mm nen mot hang thanh 120mm, hai hang 240mm, cong tieu de
+# la 254mm - CHI CON 13mm du. Sat qua. May cua anh Viet no tran, wkhtmltopdf
+# day hang thu hai sang trang moi, thanh 2 anh mot trang va nua duoi to giay
+# bo trang. Do la loi anh Viet bao ngay 23/08/2026: *"cac anh van xep doc,
+# de lai nhung khoang trang khong lo gay lang phi giay"*.
+#
+# BAI HOC: bo cuc in KHONG duoc vua khit. Moi ban wkhtmltopdf tinh le mot
+# kieu, phai chua du rong rai thi moi may deu ra dung.
+CAO_O_ANH = "90mm"
+
+# Trang chi co MOT hang thi cho hang do cao gan het trang, dung de nua duoi
+# trang tron. Van chua cho cho nhan nen khong lay tron 267mm.
+CAO_O_1_HANG = "205mm"
+
+# Chieu cao danh cho dong nhan duoi anh. Dat CO DINH de chieu cao mot hang
+# doan truoc duoc, khong phu thuoc ten tep dai hay ngan.
+CAO_NHAN = "14mm"
 DUOI_ANH = ("jpg", "jpeg", "png", "gif", "bmp", "webp")
 
 
@@ -3076,6 +3098,51 @@ def _pdf_ra_anh(noi_dung, toi_da=TRANG_TOI_DA_MOI_PDF, dpi=DPI_RASTER):
 		return []
 
 
+def _o_anh(x, cao_o, ca_hang=False):
+	"""Dựng MỘT ô ảnh kèm dòng nhãn. Hàm THUẦN, không chạm Frappe.
+
+	Ba điều bắt buộc, đừng gỡ cái nào:
+
+	1. Ảnh và nhãn nằm trong CÙNG MỘT khối `page-break-inside:avoid`. Nếu để
+	   thành hai khối anh em thì trình in được phép ngắt trang GIỮA chúng.
+	   Ngày 23/08/2026 đã ra đúng lỗi đó: ảnh IMG_2710 ở trang 6, dòng nhãn
+	   của nó rơi sang trang 7 một mình.
+
+	2. KHÔNG dùng `display:table-cell` cho div bên trong `<td>`. Div mang
+	   display:table-cell mà không nằm trong table là cấu trúc không hợp lệ,
+	   trình duyệt phải tự dựng bảng ẩn bao quanh, và WebKit đời cũ trong
+	   wkhtmltopdf tính chiều cao khối ẩn đó theo cỡ THẬT của ảnh chứ không
+	   theo cỡ đã co. Ảnh chụp điện thoại 4032px thành một khối cao vô lý,
+	   đẩy hàng thứ hai sang trang mới. Canh giữa dọc bằng `line-height`
+	   bằng đúng chiều cao khung, cách này wkhtmltopdf hiểu chắc chắn.
+
+	3. Nhãn có chiều cao CỐ ĐỊNH và `word-break`, để một tên tệp dài không
+	   tự ý kéo hàng cao thêm rồi làm vỡ phép tính chỗ.
+	"""
+	h = frappe.utils.escape_html
+	return (
+		'<td %sstyle="width:%s;padding:3mm;vertical-align:top;'
+		'border:1px solid #e3ded7">'
+		# Mot khoi duy nhat: anh va nhan khong bao gio tach trang.
+		'<div style="page-break-inside:avoid">'
+		'<div style="height:%s;line-height:%s;text-align:center">'
+		'<img src="data:image/%s;base64,%s" '
+		'style="max-width:100%%;max-height:%s;object-fit:contain;vertical-align:middle">'
+		"</div>"
+		'<div style="height:%s;overflow:hidden;font-size:9px;color:#555;'
+		'margin-top:2mm;line-height:1.35;word-break:break-word">%s</div>'
+		"</div></td>"
+		% (
+			'colspan="2" ' if ca_hang else "",
+			"100%" if ca_hang else "50%",
+			cao_o, cao_o,
+			x.get("kieu") or "jpeg", x.get("b64") or "",
+			cao_o,
+			CAO_NHAN, h(x.get("nhan") or ""),
+		)
+	)
+
+
 def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	"""Xếp danh sách ảnh thành các trang lưới 2x2.
 
@@ -3083,46 +3150,30 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 
 	Trả về HTML đã kèm sẵn ngắt trang giữa các trang. Hàm THUẦN, không chạm
 	Frappe, nên kiểm thử được không cần site.
+
+	Dùng BẢNG hai cột chứ không CSS Grid hay Flexbox: bản in đi qua
+	wkhtmltopdf (Print Settings của tiệm đang đặt wkhtmltopdf, đã kiểm ngày
+	23/08/2026), engine WebKit đời cũ gần như không hỗ trợ Grid, còn Flexbox
+	thì vỡ chỗ ngắt trang.
 	"""
-	h = frappe.utils.escape_html
 	if not anh:
 		return ""
 	trang = []
 	for i in range(0, len(anh), moi_trang):
 		lo = anh[i:i + moi_trang]
 		# Chieu cao o tinh theo SO HANG THAT cua trang nay, khong dong cung.
-		#
-		# Anh Viet 23/08/2026: *"qua nhieu khoang trong gay phi giay"*. Ban cu
-		# luon lay chieu cao mot o bang 1/2 trang, nen trang cuoi con hai anh
-		# thi mot hang anh nam tren va nua trang duoi bo trong. Trang chi co
-		# mot hang thi cho hang do cao gan het trang - anh to ra, giay khong
-		# phi met nao.
+		# Trang chi co mot hang thi cho hang do cao gan het trang - anh to ra,
+		# giay khong phi met nao.
 		so_hang = (len(lo) + 1) // 2
 		cao_o = CAO_O_1_HANG if so_hang == 1 else CAO_O_ANH
-		o = []
-		for x in lo:
-			o.append(
-				'<td style="width:50%%;height:%s;padding:3mm;vertical-align:middle;'
-				'text-align:center;border:1px solid #e3ded7">'
-				'<div style="height:%s;display:table-cell;vertical-align:middle;'
-				'text-align:center;width:100%%">'
-				'<img src="data:image/%s;base64,%s" '
-				'style="max-width:100%%;max-height:%s;object-fit:contain">'
-				"</div>"
-				'<div style="font-size:9px;color:#555;margin-top:2mm;line-height:1.35">%s</div>'
-				"</td>"
-				% (cao_o, cao_o, x.get("kieu") or "jpeg", x.get("b64") or "",
-				   cao_o, h(x.get("nhan") or ""))
-			)
+		le = len(lo) % 2
+		hang = ""
+		for j in range(0, len(lo) - le, 2):
+			hang += "<tr>" + _o_anh(lo[j], cao_o) + _o_anh(lo[j + 1], cao_o) + "</tr>"
 		# Le mot anh thi cho no chiem CA HANG thay vi de mot o trong ben canh.
 		# O trong ben canh mot to hoa don la mot nua mat giay khong in gi.
-		le = len(o) % 2
-		hang = ""
-		for j in range(0, len(o) - le, 2):
-			hang += "<tr>" + o[j] + o[j + 1] + "</tr>"
 		if le:
-			hang += "<tr>" + o[-1].replace('width:50%', 'width:100%', 1).replace(
-				'<td ', '<td colspan="2" ', 1) + "</tr>"
+			hang += "<tr>" + _o_anh(lo[-1], cao_o, ca_hang=True) + "</tr>"
 		trang.append(
 			'<div style="%s">'
 			'<table style="width:100%%;border-collapse:collapse;table-layout:fixed">'
