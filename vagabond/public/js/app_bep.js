@@ -15933,7 +15933,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '280';
+var APPVER = '281';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -25558,12 +25558,17 @@ async function scrHoSoTTView(name) {
   });
   html += '</div>';
 
-  /* Tep dinh thang vao ho so: ban the hien hoa don, bang ke, giay to kem.
-     Nut tai len nam ngay day chu khong bat mo Desk (anh Viet 21/08/2026).
-     Duong keo PDF tu API M-Invoice da bo: no tra 400 o moi bien the ten tep,
-     ma ke toan truong thi van can to hoa don de duyet ngay hom nay. */
-  html += '<div class="sec">Tệp đính kèm thẳng vào hồ sơ</div><div class="card" style="padding:12px 14px">';
+  /* Khối "Tệp đính kèm thẳng vào hồ sơ" ĐÃ BỎ ô tải lên (anh Việt 23/08/2026:
+     *"do đã có nút đính kèm Bản thể hiện hoá đơn ở từng hoá đơn rồi nên bỏ ô
+     này đi"*). Mỗi dòng hoá đơn đã có nút đính kèm riêng, mà đính theo dòng
+     thì tệp bám đúng khoản chi và bản in ghi được nhãn "Khoản 3"; đính chung
+     cả hồ sơ thì không ai biết tờ đó của khoản nào.
+
+     Nhưng KHÔNG xoá hẳn khối: hồ sơ cũ đã đính tệp theo đường này thì tệp đó
+     vẫn phải nhìn thấy và gỡ được, không thì nó nằm trong bộ hồ sơ xuất ra mà
+     trên màn hình không còn dấu vết nào. Hết tệp thì khối tự biến mất. */
   if ((d.ho_so_dinh_kem || []).length) {
+    html += '<div class="sec">Tệp đính kèm thẳng vào hồ sơ</div><div class="card" style="padding:12px 14px">';
     html += '<div style="font-size:13px;line-height:1.9">' +
       d.ho_so_dinh_kem.map(function (f) {
         return '<div style="display:flex;gap:8px;align-items:center">' +
@@ -25571,12 +25576,9 @@ async function scrHoSoTTView(name) {
           '<button data-hsgotep="' + h(f.file || '') + '" style="flex:none;border:1px solid #e5e7eb;background:#fff;color:#98a2b3;' +
           'border-radius:8px;padding:3px 9px;font-size:12px">Gỡ</button></div>';
       }).join('') + '</div>';
-  } else {
-    html += '<div style="font-size:12.5px;color:#6b7280;line-height:1.6">Chưa có tệp nào. ' +
-      'Kế toán trưởng cần nhìn <b>bản thể hiện hoá đơn</b> mới duyệt được, nên tải từ M-Invoice về rồi đính lên đây.</div>';
+    html += '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
+      'Tệp cũ đính chung cả hồ sơ. Từ nay đính bản thể hiện vào <b>từng dòng hoá đơn</b> ở trên.</div></div>';
   }
-  html += '<button class="btn gh" id="hsThemTep" style="margin:10px 0 0;width:100%">📄 Tải bản thể hiện hoá đơn lên</button>' +
-    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.5">Nhận ảnh chụp hoặc tệp PDF. Tệp để riêng tư: chỉ người xem được hồ sơ mới mở được.</div></div>';
 
   html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
     '<button class="btn gh" data-hsv="xuatbo" style="flex:1;margin:0">📦 Xuất bộ hồ sơ</button>' +
@@ -25626,8 +25628,6 @@ async function scrHoSoTTView(name) {
     el.onclick = function (ev) { ev.stopPropagation(); hsHanh(el.getAttribute('data-hsv'), hs); };
   });
 
-  var nTep = document.getElementById('hsThemTep');
-  if (nTep) nTep.onclick = function () { hsDinhTep(hs); };
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsgotep]'), function (el) {
     el.onclick = async function (ev) {
       ev.stopPropagation();
@@ -25651,24 +25651,6 @@ async function scrHoSoTTView(name) {
    ho khong noi dinh dang dung. Nguoi lap ho so mo M-Invoice bam tai ve roi
    dinh len day - mot thao tac chac chan, hon la mot nhip tu dong khong bao
    gio chay. */
-async function hsDinhTep(hs) {
-  var f = await huChonTep();
-  if (!f) return;
-  if (f.size > 12 * 1024 * 1024) {
-    return toast('Tệp nặng quá 12 MB nên máy không nhận. Xuất lại bản PDF nhỏ hơn hoặc chụp lại giúp em.', 5500);
-  }
-  busy(true);
-  var t;
-  try { t = await huUpTep(f); }
-  catch (e) { busy(false); return toast('Không tải tệp lên được: ' + ((e && e.message) || ''), 6500); }
-  try {
-    var r = await api('vagabond.ho_so_tt.dinh_tep', { name: hs.ma, tep: JSON.stringify([t]) });
-    busy(false);
-    toast((r && r.ghi_chu) || 'Đã đính tệp vào hồ sơ.', 5000);
-    go(function () { scrHoSoTTView(hs.ma); }, true);
-  } catch (e2) { busy(false); toast((e2 && e2.message) || 'Không đính được tệp', 6500); }
-}
-
 async function hsHanh(k, hs) {
   if (k === 'khoptay') return go(function () { scrTimGiaoDich(hs.ma, hs.tong_tien); });
   if (k === 'noidungck') {
