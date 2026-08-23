@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "creation": "2026-08-23 23:30:00.000000",
+ "description": "Chot ton dau ngay do nguoi dem tay, ghi de len so may cuon ra.",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ngay",
+  "ma_hang",
+  "ten_banh",
+  "so_luong",
+  "nguoi_chot",
+  "luc_chot",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Ngay chot",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ma hang",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_banh",
+   "fieldtype": "Data",
+   "label": "Ten san pham",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_luong",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Ton dau ngay dem duoc"
+  },
+  {
+   "fieldname": "nguoi_chot",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Nguoi chot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_chot",
+   "fieldtype": "Datetime",
+   "label": "Chot luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Data",
+   "label": "Ghi chu"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-23 23:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Mua Vu Chot Ton",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
