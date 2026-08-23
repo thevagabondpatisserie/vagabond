@@ -201,6 +201,15 @@ CUA_NGO = {
 	# duy nhat. Them cua thu hai vao day thi phai hoi lai: mot man goi y ma
 	# ghi duoc vao he la sai thiet ke.
 	"goi_y_ycsx.py": ["goi_y"],
+	# So nhan banh dau ngay cua cua hang, them 23/08/2026. Mo dun nay ghi vao
+	# SO RIENG, khong dung ton kho ERPNext va khong sinh but toan nao. Them
+	# cua moi vao day thi phai tu hoi: cua do co lo dong vao Stock Entry
+	# khong. Neu co thi dung lai va hoi anh Viet, vi but toan doi ung cua
+	# nhap kho khong nguon di thang vao 632 Gia von hang ban.
+	"nhan_banh.py": [
+		"bang", "chot_ngay", "dat_ton_dau", "diem_nhan", "ghi_nhan",
+		"mon_hay_nhan", "sua_so", "tim_mon", "xoa_mon"
+	],
 }
 
 
