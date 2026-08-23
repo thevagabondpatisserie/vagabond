@@ -4971,8 +4971,15 @@ _vd44s = _bo_chu_thich_js(_vd44)
 # CA HAI nhanh vao duoc man hinh chinh deu phai goi. __boot co hai duong ra
 # scrHome (mot qua whoAmI, mot qua syncUser); bo mot duong la nguoi dang
 # nhap kieu do khong bao gio duoc hoi.
-la("ca hai nhanh vao man hinh chinh deu xin quyen",
-   _vd44s.count("reset(scrHome); pwaSauDangNhap();"), 2)
+# 23/08/2026 doi cach soi: truoc day dem dung chuoi mot dong
+# "reset(scrHome); pwaSauDangNhap();". Chuoi do vo ngay khi them mot dong
+# vao giua hai lenh (bam duong dan luc F5), trong khi HANH VI khong doi.
+# Ca kiem soi cach xuong dong thi bat den ca lan sua vo hai, con lan sua co
+# hai that thi van lot neu giu nguyen dinh dang. Nay dem TUNG LENH.
+_boot44 = _vd44s[_vd44s.index("async function __boot()"):]
+_boot44 = _boot44[:_boot44.index("window.addEventListener('popstate'")]
+la("ca hai nhanh vao man hinh chinh deu ve scrHome", _boot44.count("reset(scrHome)"), 2)
+la("ca hai nhanh vao man hinh chinh deu xin quyen", _boot44.count("pwaSauDangNhap()"), 2)
 la("goi xin quyen sau khi vao duoc man hinh chinh", "pwaSauDangNhap()" in _vd44s, True)
 la("xin quyen khong chan man hinh, co hen gio", "setTimeout(function () { pwaXinQuyenThongBao(0); }" in _vd44, True)
 

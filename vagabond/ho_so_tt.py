@@ -394,6 +394,10 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 	# da tra ho ho bang tien mat roi; cong ty chuyen tra lai cho UYEN. Nen
 	# so nha cung cap trong ho so khong lien quan gi den viec chuyen tien -
 	# cai rang buoc do la ap nham tu luong kia sang.
+	# Chan truoc khi lam bat cu viec gi khac: mot hoa don chi duoc nam trong
+	# MOT ho so con song. Xem _chan_hoa_don_trung de biet vi sao chan cung.
+	_chan_hoa_don_trung(dong)
+
 	nhieu_ncc = (loai or "") == LOAI_HU_HD
 	if len(ncc_thay) > 1 and not nhieu_ncc:
 		frappe.throw(
@@ -577,6 +581,11 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	# Hang rao chung tu: chi chan khi GUI di duyet, luu nhap thi khong.
 	# Nhap la cho lam do, bat du giay to ngay tu dong dau thi khong ai luu
 	# nhap duoc nua (anh Viet chot 22/08/2026).
+	# Chan hoa don trung o CA HAI luc, luu nhap lan gui di duyet. Khac voi
+	# hang rao chung tu: thieu giay to thi con bo sung duoc nen chi chan luc
+	# gui, con hoa don trung thi luu nhap da la sai roi.
+	_chan_hoa_don_trung(sach)
+
 	if cint(gui_luon):
 		_chan_thieu_chung_tu(sach)
 
@@ -710,6 +719,9 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
 		})
+
+	# Luong chi tu TK cong ty cung phai chan: dong o day co the mang hoa don.
+	_chan_hoa_don_trung(sach)
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
@@ -1222,6 +1234,28 @@ def _truong_hddt_pi():
 	return ra
 
 
+def _da_ghi_so(doctype, ten_ds):
+	"""Lọc lấy những chứng từ ĐÃ GHI SỔ (docstatus = 1), giữ nguyên thứ tự.
+
+	Nháp (0) và đã huỷ (2) đều bị loại. Hàm gọn để ca kiểm gọi thẳng.
+	"""
+	if not ten_ds:
+		return []
+	try:
+		ok = {
+			r["name"]
+			for r in frappe.get_all(
+				doctype,
+				filters={"name": ["in", list(ten_ds)], "docstatus": 1},
+				fields=["name"],
+				limit_page_length=0,
+			)
+		}
+	except Exception:
+		return list(ten_ds)
+	return [x for x in ten_ds if x in ok]
+
+
 def _ho_so_chung_tu(ten_pi):
 	"""Đơn mua hàng, phiếu nhập kho và bản scan gắn với một hoá đơn mua.
 
@@ -1242,6 +1276,23 @@ def _ho_so_chung_tu(ten_pi):
 				pnk.append(r.purchase_receipt)
 	except Exception:
 		pass
+
+	# CHI LAY CHUNG TU DA GHI SO (docstatus = 1).
+	#
+	# Anh Viet 23/08/2026: *"he thong dang keo/noi nham ban in PNK Nhap (ban
+	# cho kiem dem, khong co so thuc nhan)"*.
+	#
+	# Da doi chieu tren site: rieng ho so APP.26.08.011 thi PNK-2026-00054
+	# dang docstatus 1, so thuc nhan day du, va to giay trong bo ho so la ANH
+	# SCAN kho dinh kem chu khong phai ban in may sinh ra. Nghia la ca do
+	# khong phai do doan nay.
+	#
+	# Nhung van chot lai, vi hien tai KHONG co bo loc nao ca: mot phieu nhap
+	# con nhap ma lot vao day thi bo ho so mang so luong chua kiem dem di
+	# duyet chi tien. Doc chung tu da huy (docstatus 2) cung vay. Chan o day
+	# re hon nhieu so voi phat hien sau khi tien da chuyen.
+	po = _da_ghi_so("Purchase Order", po)
+	pnk = _da_ghi_so("Purchase Receipt", pnk)
 	scan = _dinh_kem([("Purchase Invoice", ten_pi)]
 		+ [("Purchase Order", x) for x in po]
 		+ [("Purchase Receipt", x) for x in pnk])
@@ -1358,7 +1409,13 @@ def chi_tiet(name):
 			"ma_giao_dich": doc.ma_giao_dich or "", "phuong_thuc": doc.phuong_thuc or "",
 			"ten_nhan": doc.ten_nhan or "", "stk_nhan": doc.stk_nhan or "",
 			"ngan_hang_nhan": doc.ngan_hang_nhan or "",
-			"noi_dung_ck": doc.noi_dung_ck or "",
+			# Chua ai bam nut sinh noi dung thi TU SINH tai cho, dung de ban
+			# in ra dong "..............." roi ke toan go tay moi lan.
+			#
+			# Chi tinh de HIEN, khong ghi xuong co so du lieu o day: ham nay
+			# la ham DOC, mot ham doc ma lang le ghi thi kho lan ra khi so
+			# lieu sai. Nut "Sinh noi dung chuyen khoan" van la cho ghi.
+			"noi_dung_ck": doc.noi_dung_ck or _noi_dung_ck(doc),
 			"email_da_gui": cint(doc.email_da_gui),
 			"email_gui_luc": str(doc.email_gui_luc or ""),
 			"email_gui_toi": doc.email_gui_toi or "",
@@ -1882,16 +1939,48 @@ def _thu_html(doc):
 DAI_ND_CK = 90
 
 
-def _noi_dung_ck(doc):
-	"""Nội dung chuyển khoản: mã hồ sơ đứng trước, không dấu, viết hoa.
+def _so_hd_ncc(doc):
+	"""Số hoá đơn của NHÀ CUNG CẤP trên từng dòng, theo đúng thứ tự dòng.
 
-	Mã đứng ĐẦU chuỗi vì hai lẽ: ngân hàng cắt bớt thì cắt ở đuôi, và
-	_sepay_theo_ma_app dò được ngay. Bỏ dấu vì ngân hàng đẩy nội dung có dấu
-	về SePay là thành dấu hỏi.
+	Lấy số của NCC (bill_no) chứ không lấy mã HDM nội bộ: nhà cung cấp đối
+	chiếu công nợ theo số của họ, mã HDM-2026-xxxxx họ không biết là gì.
 	"""
+	ra = []
+	for d in doc.dong or []:
+		so = str(getattr(d, "so_hd_ncc", "") or "").strip()
+		if not so and getattr(d, "hoa_don", None):
+			so = str(frappe.db.get_value("Purchase Invoice", d.hoa_don, "bill_no") or "").strip()
+		so = re.sub(r"[^A-Za-z0-9]", "", _bo_dau(so)).upper()
+		if so and so not in ra:
+			ra.append(so)
+	return ra
+
+
+def _noi_dung_ck(doc):
+	"""Nội dung chuyển khoản: mã hồ sơ đứng trước, rồi số hoá đơn NCC.
+
+	Anh Việt 23/08/2026 đề nghị dạng:
+	    THE VAGABOND THANH TOAN HD26957 HD26958 MA PHIEU APP.26.08.011
+
+	ĐÃ ĐỔI MỘT ĐIỂM so với đề nghị đó, và đây là lý do, đừng đảo lại:
+	mã hồ sơ phải đứng ĐẦU chứ không đứng cuối. Ngân hàng cắt nội dung ở
+	ĐUÔI khi vượt hạn mức (quanh 90 ký tự tuỳ ngân hàng). Đặt mã ở cuối thì
+	hồ sơ nào nhiều hoá đơn là mã bị cắt mất, mà mã chính là thứ
+	`_sepay_theo_ma_app` dò để tự khớp tiền đã chi. Mất mã thì nút "Dò SePay"
+	im lặng báo chưa chuyển trong khi tiền đã đi - sai lặng lẽ, không ai
+	thấy. Số hoá đơn bị cắt bớt thì nhà cung cấp vẫn đối chiếu được vì đã có
+	mã hồ sơ và số tiền.
+
+	Bỏ dấu vì ngân hàng đẩy nội dung có dấu về SePay là thành dấu hỏi.
+	"""
+	viec = "HOAN UNG" if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD) else "THANH TOAN"
+	phan = ["VAGABOND", doc.name, viec]
+	phan += ["HD" + x for x in _so_hd_ncc(doc)]
+	# Ten NCC dat CUOI CUNG: day la phan duoc phep mat khi ngan hang cat.
 	ten = _bo_dau(doc.ten_nhan or doc.ten_ncc or doc.nha_cung_cap or "").upper()
-	viec = "HOAN UNG" if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD) else "TT CONG NO"
-	nd = "VAGABOND %s %s %s" % (doc.name, viec, ten)
+	if ten:
+		phan.append(ten)
+	nd = " ".join(phan)
 	nd = re.sub(r"[^A-Za-z0-9 .]", " ", nd)
 	nd = re.sub(r"\s+", " ", nd).strip()
 	return nd[:DAI_ND_CK].strip()
@@ -2932,10 +3021,32 @@ def go_tep_dong(name=None, dong=None, tep=None):
 # đứng hay ảnh ngang đều co vừa khung mà KHÔNG méo, không tràn viền.
 
 ANH_MOI_TRANG = 4
-CAO_O_ANH = "104mm"   # 4 ô vừa một trang A4 dọc sau khi trừ lề và dòng nhãn
-# Trang chỉ có MỘT hàng thì cho hàng đó cao gần hết trang, đừng để nửa dưới
-# trắng trơn. Vùng in A4 sau lề 15mm là 267mm, trừ dòng nhãn và tiêu đề.
-CAO_O_1_HANG = "215mm"
+
+# PHEP TINH CHIEU CAO, doc truoc khi chinh mot con so nao o day.
+#
+# Vung in A4 doc sau le 15mm hai dau la 267mm. Mot trang luoi day du gom:
+#     tieu de "CHUNG TU DINH KEM"        ~14mm  (chi co o trang dau)
+#     2 hang x (khung anh + dem 6mm + nhan)
+# Nay: 90 + 6 + 14 = 110mm moi hang, 2 hang 220mm, cong tieu de la 234mm
+# tren 267mm. Du 33mm.
+#
+# Ban v281 lay 104mm nen mot hang thanh 120mm, hai hang 240mm, cong tieu de
+# la 254mm - CHI CON 13mm du. Sat qua. May cua anh Viet no tran, wkhtmltopdf
+# day hang thu hai sang trang moi, thanh 2 anh mot trang va nua duoi to giay
+# bo trang. Do la loi anh Viet bao ngay 23/08/2026: *"cac anh van xep doc,
+# de lai nhung khoang trang khong lo gay lang phi giay"*.
+#
+# BAI HOC: bo cuc in KHONG duoc vua khit. Moi ban wkhtmltopdf tinh le mot
+# kieu, phai chua du rong rai thi moi may deu ra dung.
+CAO_O_ANH = "90mm"
+
+# Trang chi co MOT hang thi cho hang do cao gan het trang, dung de nua duoi
+# trang tron. Van chua cho cho nhan nen khong lay tron 267mm.
+CAO_O_1_HANG = "205mm"
+
+# Chieu cao danh cho dong nhan duoi anh. Dat CO DINH de chieu cao mot hang
+# doan truoc duoc, khong phu thuoc ten tep dai hay ngan.
+CAO_NHAN = "14mm"
 DUOI_ANH = ("jpg", "jpeg", "png", "gif", "bmp", "webp")
 
 
@@ -3076,6 +3187,51 @@ def _pdf_ra_anh(noi_dung, toi_da=TRANG_TOI_DA_MOI_PDF, dpi=DPI_RASTER):
 		return []
 
 
+def _o_anh(x, cao_o, ca_hang=False):
+	"""Dựng MỘT ô ảnh kèm dòng nhãn. Hàm THUẦN, không chạm Frappe.
+
+	Ba điều bắt buộc, đừng gỡ cái nào:
+
+	1. Ảnh và nhãn nằm trong CÙNG MỘT khối `page-break-inside:avoid`. Nếu để
+	   thành hai khối anh em thì trình in được phép ngắt trang GIỮA chúng.
+	   Ngày 23/08/2026 đã ra đúng lỗi đó: ảnh IMG_2710 ở trang 6, dòng nhãn
+	   của nó rơi sang trang 7 một mình.
+
+	2. KHÔNG dùng `display:table-cell` cho div bên trong `<td>`. Div mang
+	   display:table-cell mà không nằm trong table là cấu trúc không hợp lệ,
+	   trình duyệt phải tự dựng bảng ẩn bao quanh, và WebKit đời cũ trong
+	   wkhtmltopdf tính chiều cao khối ẩn đó theo cỡ THẬT của ảnh chứ không
+	   theo cỡ đã co. Ảnh chụp điện thoại 4032px thành một khối cao vô lý,
+	   đẩy hàng thứ hai sang trang mới. Canh giữa dọc bằng `line-height`
+	   bằng đúng chiều cao khung, cách này wkhtmltopdf hiểu chắc chắn.
+
+	3. Nhãn có chiều cao CỐ ĐỊNH và `word-break`, để một tên tệp dài không
+	   tự ý kéo hàng cao thêm rồi làm vỡ phép tính chỗ.
+	"""
+	h = frappe.utils.escape_html
+	return (
+		'<td %sstyle="width:%s;padding:3mm;vertical-align:top;'
+		'border:1px solid #e3ded7">'
+		# Mot khoi duy nhat: anh va nhan khong bao gio tach trang.
+		'<div style="page-break-inside:avoid">'
+		'<div style="height:%s;line-height:%s;text-align:center">'
+		'<img src="data:image/%s;base64,%s" '
+		'style="max-width:100%%;max-height:%s;object-fit:contain;vertical-align:middle">'
+		"</div>"
+		'<div style="height:%s;overflow:hidden;font-size:9px;color:#555;'
+		'margin-top:2mm;line-height:1.35;word-break:break-word">%s</div>'
+		"</div></td>"
+		% (
+			'colspan="2" ' if ca_hang else "",
+			"100%" if ca_hang else "50%",
+			cao_o, cao_o,
+			x.get("kieu") or "jpeg", x.get("b64") or "",
+			cao_o,
+			CAO_NHAN, h(x.get("nhan") or ""),
+		)
+	)
+
+
 def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	"""Xếp danh sách ảnh thành các trang lưới 2x2.
 
@@ -3083,46 +3239,30 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 
 	Trả về HTML đã kèm sẵn ngắt trang giữa các trang. Hàm THUẦN, không chạm
 	Frappe, nên kiểm thử được không cần site.
+
+	Dùng BẢNG hai cột chứ không CSS Grid hay Flexbox: bản in đi qua
+	wkhtmltopdf (Print Settings của tiệm đang đặt wkhtmltopdf, đã kiểm ngày
+	23/08/2026), engine WebKit đời cũ gần như không hỗ trợ Grid, còn Flexbox
+	thì vỡ chỗ ngắt trang.
 	"""
-	h = frappe.utils.escape_html
 	if not anh:
 		return ""
 	trang = []
 	for i in range(0, len(anh), moi_trang):
 		lo = anh[i:i + moi_trang]
 		# Chieu cao o tinh theo SO HANG THAT cua trang nay, khong dong cung.
-		#
-		# Anh Viet 23/08/2026: *"qua nhieu khoang trong gay phi giay"*. Ban cu
-		# luon lay chieu cao mot o bang 1/2 trang, nen trang cuoi con hai anh
-		# thi mot hang anh nam tren va nua trang duoi bo trong. Trang chi co
-		# mot hang thi cho hang do cao gan het trang - anh to ra, giay khong
-		# phi met nao.
+		# Trang chi co mot hang thi cho hang do cao gan het trang - anh to ra,
+		# giay khong phi met nao.
 		so_hang = (len(lo) + 1) // 2
 		cao_o = CAO_O_1_HANG if so_hang == 1 else CAO_O_ANH
-		o = []
-		for x in lo:
-			o.append(
-				'<td style="width:50%%;height:%s;padding:3mm;vertical-align:middle;'
-				'text-align:center;border:1px solid #e3ded7">'
-				'<div style="height:%s;display:table-cell;vertical-align:middle;'
-				'text-align:center;width:100%%">'
-				'<img src="data:image/%s;base64,%s" '
-				'style="max-width:100%%;max-height:%s;object-fit:contain">'
-				"</div>"
-				'<div style="font-size:9px;color:#555;margin-top:2mm;line-height:1.35">%s</div>'
-				"</td>"
-				% (cao_o, cao_o, x.get("kieu") or "jpeg", x.get("b64") or "",
-				   cao_o, h(x.get("nhan") or ""))
-			)
+		le = len(lo) % 2
+		hang = ""
+		for j in range(0, len(lo) - le, 2):
+			hang += "<tr>" + _o_anh(lo[j], cao_o) + _o_anh(lo[j + 1], cao_o) + "</tr>"
 		# Le mot anh thi cho no chiem CA HANG thay vi de mot o trong ben canh.
 		# O trong ben canh mot to hoa don la mot nua mat giay khong in gi.
-		le = len(o) % 2
-		hang = ""
-		for j in range(0, len(o) - le, 2):
-			hang += "<tr>" + o[j] + o[j + 1] + "</tr>"
 		if le:
-			hang += "<tr>" + o[-1].replace('width:50%', 'width:100%', 1).replace(
-				'<td ', '<td colspan="2" ', 1) + "</tr>"
+			hang += "<tr>" + _o_anh(lo[-1], cao_o, ca_hang=True) + "</tr>"
 		trang.append(
 			'<div style="%s">'
 			'<table style="width:100%%;border-collapse:collapse;table-layout:fixed">'
@@ -3372,6 +3512,84 @@ def thieu_chung_tu(dong, dm=None, nguong=NGUONG_MIEN_CHUNG_TU):
 				"vi_sao": 'loại "%s" bắt buộc có tệp chứng từ nhưng chưa đính' % loai,
 			})
 	return ra
+
+
+# Trang thai coi la HO SO CON SONG, tuc hoa don trong do dang tren duong di
+# lay tien. Chi Tu choi va Huy la chet han, hoa don trong do duoc dung lai.
+TT_CON_SONG = (TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_DA_DUYET, TT_DA_TRA)
+
+
+def ho_so_dang_giu(ds_hoa_don, tru_ho_so=""):
+	"""Hoá đơn nào trong danh sách đã nằm ở một hồ sơ CÒN SỐNG khác.
+
+	Trả về {mã hoá đơn: [(mã hồ sơ, trạng thái), ...]}. Hàm tra cơ sở dữ
+	liệu, ca kiểm gọi qua lớp giả lập.
+
+	`tru_ho_so`: bỏ qua chính hồ sơ đang sửa, nếu không thì sửa lại hồ sơ cũ
+	là tự nó báo trùng với chính nó.
+	"""
+	ds = [str(x or "").strip() for x in (ds_hoa_don or []) if str(x or "").strip()]
+	if not ds:
+		return {}
+	dong = frappe.get_all(
+		"Vagabond Ho So TT Dong",
+		filters={"hoa_don": ["in", ds], "parenttype": "Vagabond Ho So TT"},
+		fields=["hoa_don", "parent"],
+		limit_page_length=0,
+	)
+	if not dong:
+		return {}
+	cha = {d["parent"] for d in dong if d["parent"] != tru_ho_so}
+	if not cha:
+		return {}
+	tt = {
+		r["name"]: r["trang_thai"]
+		for r in frappe.get_all(
+			"Vagabond Ho So TT",
+			filters={"name": ["in", list(cha)], "trang_thai": ["in", list(TT_CON_SONG)]},
+			fields=["name", "trang_thai"],
+			limit_page_length=0,
+		)
+	}
+	ra = {}
+	for d in dong:
+		if d["parent"] == tru_ho_so or d["parent"] not in tt:
+			continue
+		ra.setdefault(d["hoa_don"], []).append((d["parent"], tt[d["parent"]]))
+	return ra
+
+
+def _chan_hoa_don_trung(dong, tru_ho_so=""):
+	"""Ném lỗi nếu một hoá đơn đã nằm trong hồ sơ khác còn sống.
+
+	VÌ SAO CHẶN CỨNG CHỨ KHÔNG CHỈ CẢNH BÁO
+	----------------------------------------
+	Hai hồ sơ cùng chứa một hoá đơn thì cùng đi qua hai cấp duyệt và cùng
+	được chuyển tiền, vì mỗi hồ sơ nhìn riêng ra đều hợp lệ. Không ai đối
+	chiếu chéo giữa các hồ sơ bằng mắt. Sai này chỉ lộ khi nhà cung cấp báo
+	thừa tiền, hoặc không lộ.
+
+	Giao dịch SePay đã có chốt cùng kiểu từ trước (`Giao dịch %s đã nằm
+	trong hồ sơ %s`), hoá đơn thì chưa - đây là chỗ trống, không phải quyết
+	định có chủ đích.
+
+	Hồ sơ Từ chối và Huỷ KHÔNG chặn: hoá đơn trong đó phải dùng lại được,
+	nếu không thì một lần lập nhầm là hoá đơn kẹt vĩnh viễn.
+	"""
+	ds = [str((x or {}).get("hoa_don") or "").strip() for x in (dong or [])]
+	giu = ho_so_dang_giu([x for x in ds if x], tru_ho_so)
+	if not giu:
+		return
+	dong_loi = "\n".join(
+		"  · Hoá đơn %s đã nằm trong hồ sơ %s (%s)"
+		% (hd, o[0][0], NHAN.get(o[0][1], o[0][1]))
+		for hd, o in sorted(giu.items())
+	)
+	frappe.throw(
+		"Không lập được hồ sơ: có hoá đơn đang nằm ở hồ sơ khác.\n\n%s\n\n"
+		"Trả tiền hai lần cho một hoá đơn thì rất khó đòi lại. Gỡ hoá đơn đó "
+		"ra khỏi hồ sơ này, hoặc huỷ hồ sơ kia trước." % dong_loi
+	)
 
 
 def _chan_thieu_chung_tu(dong):

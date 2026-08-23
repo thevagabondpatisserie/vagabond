@@ -716,7 +716,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '283';
+var APPVER = '284';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -757,11 +757,22 @@ async function __boot(){
   clearFresh();
   try {
     var real = await whoAmI();
-    if (real && real !== 'Guest') { adopt(real); reset(scrHome); pwaSauDangNhap(); return; }
+    if (real && real !== 'Guest') {
+      adopt(real); reset(scrHome);
+      /* F5 tai mot dia chi rieng thi mo dung man do, dung vang ve trang chu.
+         Goi SAU reset(scrHome) de scrHome nam duoi cung chong, nut Back tu
+         man do ve duoc trang chu chu khong thoat han khoi app. */
+      try { vgbMoTheoDiaChi(); } catch (e) { }
+      pwaSauDangNhap(); return;
+    }
     if (real === 'Guest') { reset(scrLogin); return; }
     syncUser();
     for (var i = 0; i < 5 && (!S.user || S.user === 'Guest'); i++) { await napAgain(200); syncUser(); }
-    if (S.user && S.user !== 'Guest') { reset(scrHome); pwaSauDangNhap(); return; }
+    if (S.user && S.user !== 'Guest') {
+      reset(scrHome);
+      try { vgbMoTheoDiaChi(); } catch (e) { }
+      pwaSauDangNhap(); return;
+    }
     reset(scrLogin);
   } catch(e) { var el=document.getElementById('vgb'); if(el) el.textContent = 'Loi khoi dong: '+String(e.message||e); }
 }

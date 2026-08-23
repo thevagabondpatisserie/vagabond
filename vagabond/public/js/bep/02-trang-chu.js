@@ -718,8 +718,74 @@ function scrNhom(nh) {
   };
 }
 
+/* ---------- Dia chi that cho tung man (23/08/2026) ----------
+
+   Anh Viet: *"click vao bat ky menu nao URL cung dung im, F5 la bi vang ve
+   trang chu"*.
+
+   App nay KHONG dung Vue nen khong co Vue Router de bat sang History Mode.
+   Cach lam o day la tu tay: doi dia chi khi mo man, va doc dia chi luc khoi
+   dong. Bang duoi PHAI khop tung dong voi DUONG trong vagabond/duong_app.py,
+   ca kiem thu_duong_app.py doi chieu hai ban nay.
+
+   Lech mot dong thi hong LANG LE: may khach doi dia chi sang mot duong ma
+   may chu khong biet, nguoi dung bam thi khong sao, F5 mot cai la 404. */
+var VGB_DUONG = {
+  'don-da-huy': 'DTREO',
+  'ho-so-thanh-toan': 'APPTT',
+  'cong-no-phai-tra': 'CNPT',
+  'hoa-don-mua': 'HDMUA',
+  'hoa-don-ban': 'HDBAN',
+  'doi-chieu-mua': 'DCM',
+  'don-mua-hang': 'PO',
+  'duyet-yeu-cau': 'DUYETYC',
+  'nha-cung-cap': 'NCC',
+  'bang-gia': 'BGIA',
+  'nhap-kho': 'RCV',
+  'kiem-ke': 'KK',
+  'san-xuat': 'MFG',
+  'cong-thuc': 'CTBOM',
+  'ton-kho': 'STOCK',
+  'doanh-so': 'DS',
+  'bao-cao': 'BCHUB',
+  'cong-no': 'CN',
+  'hoan-tien': 'HT',
+  'nop-quy': 'NQ',
+  'khach-hang': 'KH',
+  'van-don': 'VD',
+  'khuyen-mai': 'KM',
+  'hop-dong': 'HDG',
+  'thanh-toan': 'PAY'
+};
+
+function vgbSlugTheoKhoa(k) {
+  for (var s in VGB_DUONG) { if (VGB_DUONG[s] === k) return s; }
+  return '';
+}
+
+/* Doi dia chi tren thanh khi mo mot man co dia chi rieng.
+   replaceState chu khong pushState: chinh vgbGo se goi go() ngay sau do, va
+   go() moi la cho day moc lich su. Day hai moc cho mot lan bam thi nut Back
+   phai bam hai lan moi lui duoc mot man. */
+function vgbDatDuong(k) {
+  var s = vgbSlugTheoKhoa(k);
+  if (!s) return;
+  try { history.replaceState(history.state, '', '/' + s); } catch (e) { }
+}
+
+/* Luc khoi dong: dia chi dang la mot slug thi mo thang man do.
+   Van de scrHome o duoi cung chong, de nut Back tu man do ve duoc trang chu
+   thay vi thoat han khoi app. */
+function vgbMoTheoDiaChi() {
+  var d = String(location.pathname || '').replace(/^\/+|\/+$/g, '');
+  var k = VGB_DUONG[d];
+  if (!k) return false;
+  try { vgbGo(k); return true; } catch (e) { return false; }
+}
+
 /* Mot cho duy nhat dinh tuyen tu o nho sang man hinh. */
 function vgbGo(k) {
+  vgbDatDuong(k);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);
   if (k === 'BTPO') { location.href = '/btp'; return; }

@@ -35,6 +35,10 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 
 # Danh sach cua ngo tung mo dun. Chot ngay 19/08/2026.
 CUA_NGO = {
+	# Them 23/08/2026 cung lan dua Web Page va Mau in ra git. `soi_lech` chi
+	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
+	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
+	"mau_in/__init__.py": ["soi_lech"],
 	"de_nghi_chi.py": [
 		"danh_muc", "danh_sach",
 		# doi_soat va ds_man them 20/08/2026: man Danh sach TTNB co chip

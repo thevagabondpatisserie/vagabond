@@ -2,6 +2,22 @@
 # thang code39_img(...) chu khong phai viet duong dan module dai loong ngoong.
 #
 # Vi sao ma vach phai la HAM chu khong phai font: xem vagabond/ma_vach.py.
+# Dia chi that cho tung man cua app Bep, de F5 dung nguyen man do thay vi
+# vang ve trang chu. Xem vagabond/duong_app.py de biet vi sao liet ke tung
+# duong chu khong bat tat bang <path:...>.
+from vagabond.duong_app import luat_dinh_tuyen
+
+website_route_rules = luat_dinh_tuyen()
+
+# Moi subdomain mot viec: app / erp / order. Xem vagabond/ten_mien.py, doc
+# ba dieu can than o dau tep truoc khi sua.
+def _dinh_tuyen_ten_mien(context=None):
+	from vagabond.ten_mien import ap_luat
+
+	ap_luat()
+	return context
+
+
 jinja = {
 	"methods": [
 		"vagabond.ma_vach.code39_img",
@@ -308,7 +324,16 @@ doc_events = {
 # app.thevagabondpatisserie.com va order.thevagabondpatisserie.com tro chung
 # mot site nen mac dinh dung chung mot anh xem truoc. Hook nay doi bo the og
 # rieng cho ten mien app.*, xem vagabond/lib.py.
-update_website_context = ["vagabond.lib.og_theo_ten_mien"]
+# MOT khai bao duy nhat cho update_website_context. Khai hai lan trong cung
+# mot tep thi lan sau DE lan truoc va hook kia im lang khong chay - Python
+# khong bao gi ca. Da suyt dinh dung bay nay ngay 23/08/2026.
+#
+# Dinh tuyen ten mien dat TRUOC: no co the chuyen huong, chay xong viec khac
+# roi moi chuyen huong la phi cong.
+update_website_context = [
+	"vagabond.hooks._dinh_tuyen_ten_mien",
+	"vagabond.lib.og_theo_ten_mien",
+]
 
 # Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan
 # tri tren may tinh) bang thu chi huong dan mo app dien thoai.
