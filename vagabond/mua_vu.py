@@ -1415,7 +1415,7 @@ def dat_san_luong(mua=None, ngay=None, ma_hang=None, so_luong=0):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
-	doc = _doc_mua(mua)
+	doc = _ban_ghi_mua(mua)
 	ma = str(ma_hang or "").strip()
 	if not ma:
 		frappe.throw("Chưa chọn mã hàng.")
@@ -1701,13 +1701,47 @@ def mua_dang_chay(ngay=None):
 
 
 def _doc_mua(ma_mua):
-	"""Doc dong va dinh muc cua mot mua thanh dict thuan."""
+	"""Doc dong va dinh muc cua mot mua thanh dict thuan.
+
+	TRA VE MOT BO BA `(dong, dinh_muc, doc)`, khong phai mot ban ghi.
+	Cai ten khong noi ra dieu do, va do la mot cai bay that: xem
+	`_ban_ghi_mua` ngay ben duoi.
+	"""
 	doc = frappe.get_doc(DT, ma_mua)
 	return (
 		[d.as_dict() for d in doc.dong],
 		[m.as_dict() for m in doc.get("dinh_muc") or []],
 		doc,
 	)
+
+
+def _ban_ghi_mua(ma_mua):
+	"""Ban ghi mua vu, de sua roi luu. Nem loi ro neu khong co mua nao.
+
+	VI SAO TACH RIENG KHOI `_doc_mua`
+	----------------------------------
+	`_doc_mua` tra ve mot BO BA. Cai ten "doc" o dau ham lam nguoi doc tuong
+	no tra ve mot ban ghi, va bon ham da viet dung nhu vay:
+
+	    doc = _doc_mua(mua)
+	    ... doc.dong ...
+
+	Ket qua: `'tuple' object has no attribute 'dong'`, loi 500. Bon ham
+	`dat_san_luong`, `them_san_luong`, `sua_san_luong`, `xoa_san_luong` them
+	tu v272 va v274, CHUA TUNG chay duoc mot lan nao. Anh Viet go so san
+	xuat tren man Kiem banh theo mua ngay 23/08/2026 moi lo ra.
+
+	Ham nay noi ro no tra cai gi ngay tu ten. Ca kiem trong
+	`thu_mua_vu_ngay.py` chot rang moi cho goi `_doc_mua` phai mo ra ba
+	bien, de cai bay do khong quay lai duoc.
+	"""
+	ma = str(ma_mua or "").strip()
+	if not ma or not frappe.db.exists(DT, ma):
+		frappe.throw(
+			"Chưa chọn mùa vụ, hoặc mùa \"%s\" không còn trên hệ thống. Quay lại "
+			"màn Kiểm bánh theo mùa, chọn lại mùa rồi thử lại giúp em." % (ma or "")
+		)
+	return frappe.get_doc(DT, ma)
 
 
 def kiem_han_muc(cac_dong_ban, ngay=None, bo_qua_hoa_don=None):
@@ -2077,7 +2111,7 @@ def them_san_luong(mua=None, ngay=None, ma_hang=None, so_luong=0, ghi_chu=""):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
-	doc = _doc_mua(mua)
+	doc = _ban_ghi_mua(mua)
 	ma = str(ma_hang or "").strip()
 	ng = getdate(ngay) if ngay else getdate()
 	so = cint(so_luong)
@@ -2118,7 +2152,7 @@ def sua_san_luong(mua=None, ngay=None, ma_hang=None, so_luong=0):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
-	doc = _doc_mua(mua)
+	doc = _ban_ghi_mua(mua)
 	ma = str(ma_hang or "").strip()
 	ng = getdate(ngay) if ngay else getdate()
 	for x in doc.get("san_luong") or []:
@@ -2139,7 +2173,7 @@ def xoa_san_luong(mua=None, ngay=None, ma_hang=None):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
-	doc = _doc_mua(mua)
+	doc = _ban_ghi_mua(mua)
 	ma = str(ma_hang or "").strip()
 	ng = getdate(ngay) if ngay else getdate()
 	con = [

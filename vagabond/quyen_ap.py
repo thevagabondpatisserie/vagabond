@@ -94,6 +94,54 @@ def can_cap():
 	return ra
 
 
+# ==================================================================
+# KHOI PHUC quyen bi bang quyen dong bang lam mat
+# ==================================================================
+#
+# Anh Viet phat hien 23/08/2026: chi Loan Anh khong lap duoc phieu, va khi
+# dao ra thi lo mot chuyen lon hon nhieu.
+#
+# Tren Payment Entry hien co ba dong Custom DocPerm (ba vai AP), tao
+# 23/07/2026. Doc thang ma nguon Frappe version-16,
+# `frappe/model/meta.py`:
+#
+#     def set_custom_permissions(self):
+#         """Reset `permissions` with Custom DocPerm if exists"""
+#         ...
+#         if custom_perms:
+#             self.permissions = [Document(d) for d in custom_perms]
+#
+# He co MOT dong Custom DocPerm la Frappe VUT BO toan bo bang quyen chuan
+# va chi dung may dong tuy bien. Nghia la tu 23/07 den nay, `Accounts User`
+# va `Accounts Manager` TRANG QUYEN tren Phieu thu/chi.
+#
+# Nguoi chiu tran that: khai.lam193@gmail.com giu ca hai vai ke toan nhung
+# khong giu vai AP nao, nen khong mo noi mot phieu thu chi nao. Chi Dung
+# thoat vi tinh co co them vai AP Kiem soat (FIN).
+#
+# Bang duoi day KHONG PHAI la noi quyen. No chep lai DUNG bang quyen chuan
+# cua ERPNext cho hai vai do, tuc dat lai nhung gi bang dong bang da lam
+# mat. Da doi chieu tung o voi bang DocPerm chuan tren site truoc khi viet.
+KHOI_PHUC = (
+	(
+		"Payment Entry",
+		("Accounts Manager", "Accounts User"),
+		("read", "write", "create", "delete", "submit", "cancel", "amend",
+		 "report", "export", "import", "share", "print", "email"),
+	),
+)
+
+
+def can_khoi_phuc():
+	"""Danh sach (doctype, vai, quyen) phai dat lai. Phep thuan."""
+	ra = []
+	for dt, cac_vai, cac_quyen in KHOI_PHUC:
+		for vai in cac_vai:
+			for q in cac_quyen:
+				ra.append((dt, vai, q))
+	return ra
+
+
 def _thieu(dt, vai, q):
 	"""Dong Custom DocPerm cua (dt, vai) o muc 0 co bat quyen `q` chua."""
 	ten = frappe.db.get_value(
@@ -109,7 +157,10 @@ def dung():
 	from frappe.permissions import add_permission, update_permission_property
 
 	them = []
-	for dt, vai, q in can_cap():
+	# Cap moi cho ba vai AP, VA dat lai nhung gi bang dong bang da lam mat.
+	# Cung mot vong vi cung mot phep: di qua hai ham cua Frappe, bo qua dong
+	# da du, chay lai duoc khong gioi han lan.
+	for dt, vai, q in list(can_cap()) + list(can_khoi_phuc()):
 		if not frappe.db.exists("DocType", dt):
 			continue
 		if not frappe.db.exists("Role", vai):
