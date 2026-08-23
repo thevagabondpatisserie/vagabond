@@ -8,7 +8,15 @@ dynamic = ["version"]
 # pywebpush keo theo py_vapid, http_ece va cryptography - du bo de ky VAPID
 # va ma hoa than tin theo dung chuan Web Push. Them tu v243, lop hai cua
 # thong_bao.py.
-dependencies = ["requests>=2.31.0", "pywebpush>=1.14.0"]
+# PyMuPDF de doi tung trang PDF dinh kem thanh anh, xem _pdf_ra_anh trong
+# ho_so_tt.py. Chon PyMuPDF chu khong phai pdf2image vi pdf2image con phai co
+# binary poppler cua he dieu hanh, thuong vang mat tren anh Docker Frappe
+# Cloud. PyMuPDF la banh xe thuan, cai la chay.
+#
+# Code khong bat buoc phai co no: thieu thi _pdf_ra_anh tra ve rong va bo ho
+# so quay ve duong cu la noi ca tep PDF vao cuoi. Khai o day de may co, chu
+# khong phai de code song chet theo no.
+dependencies = ["requests>=2.31.0", "pywebpush>=1.14.0", "PyMuPDF>=1.24.0"]
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]
