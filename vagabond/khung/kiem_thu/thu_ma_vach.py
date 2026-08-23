@@ -330,3 +330,61 @@ def _():
 	nguon = _doc_nguon("ho_so_tt.py")
 	dung("bản in hồ sơ dùng CSS chung", "css_trang()" in nguon)
 	dung("không còn tự khai 12mm", "margin:12mm" not in nguon)
+
+
+@ca("Mô đun nào bộ kiểm tầng khung có import thì đầu tệp KHÔNG được kéo thư viện mạng")
+def _():
+	# Ca chan chung cho ca lop loi nay, khong phai cho rieng mot tep.
+	#
+	# Ngay 20/08/2026 CI do 3 ca: nop_quy keo cong_no, cong_no keo ban_hang,
+	# ban_hang co "import requests" o dau tep.
+	# Ngay 23/08/2026 CI lai do 2 ca: hai ca Khoi 1 duoi day import
+	# vagabond.kiem_banh, tep do cung co "import requests" o dau.
+	# Hai lan cung mot nguyen nhan, nen lan nay dat mot cai chan tu dong.
+	#
+	# May chay CI cua GitHub tay khong, Python 3.11, khong co requests, khong
+	# co Frappe, khong co site. May lam viec thi co san requests nen cong tai
+	# may VAN XANH trong khi CI do - dung cai bay quy tac 5 da ghi.
+	#
+	# Cach go khi ca nay do: chuyen "import requests" xuong TRONG than ham
+	# dung no, giong _mang() trong kiem_banh.py va "import erpnext" o duong
+	# tra truoc. Dung stub requests trong nen.py, lam vay la giau loi di.
+	import io
+	import os
+	import re
+
+	thu_muc = os.path.dirname(os.path.abspath(__file__))
+	goc = os.path.dirname(os.path.dirname(thu_muc))  # .../vagabond
+
+	MANG = ("requests", "urllib3", "httpx")
+
+	# Lot qua moi tep ca kiem, nhat ra ten mo dun nghiep vu ma no import.
+	can = set()
+	for ten in sorted(os.listdir(thu_muc)):
+		if not ten.startswith("thu_") or not ten.endswith(".py"):
+			continue
+		src = io.open(os.path.join(thu_muc, ten), encoding="utf-8").read()
+		for m in re.finditer(r"from vagabond import ([a-z_0-9, ]+)", src):
+			for x in m.group(1).split(","):
+				can.add(x.strip().split(" ")[0])
+		for m in re.finditer(r"import vagabond\.([a-z_0-9]+)", src):
+			can.add(m.group(1))
+	can.discard("")
+	dung("có nhặt ra được mô đun để soi", len(can) > 0)
+
+	hong = []
+	for ten in sorted(can):
+		p = os.path.join(goc, ten + ".py")
+		if not os.path.exists(p):
+			continue
+		src = io.open(p, encoding="utf-8").read()
+		# Chi soi phan TRUOC dinh nghia dau tien, do la vung chay luc import.
+		cat = re.split(r"\n(?:def |class )", src, maxsplit=1)[0]
+		for lib in MANG:
+			if re.search(r"^import %s\b" % lib, cat, re.M) or re.search(
+				r"^from %s\b" % lib, cat, re.M
+			):
+				hong.append("%s.py keo %s o dau tep" % (ten, lib))
+
+	dung("không mô đun nào kéo thư viện mạng ở đầu tệp: " + (", ".join(hong) or "sạch"),
+		not hong)
