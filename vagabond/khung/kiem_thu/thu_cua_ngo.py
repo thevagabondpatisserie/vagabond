@@ -192,7 +192,7 @@ CUA_NGO = {
 	# la cho de mot decorator bam nham.
 	"mua_vu.py": [
 		"bang", "bang_ngay", "canh_bao", "danh_dau_dot_ve", "danh_sach",
-		"dat_san_luong", "doi_tinh_trang", "dong_bo",
+		"dat_san_luong", "dat_ton_dau", "doi_tinh_trang", "dong_bo",
 		"hang_theo_mua", "kiem_truoc_khi_ban", "luu_o", "sua_san_luong", "tao_mua",
 		"them_dinh_muc", "them_dong", "them_dot", "them_san_luong", "tim_san_pham",
 		"xin_dong_bo", "xoa_dinh_muc", "xoa_dong", "xoa_dot", "xoa_san_luong"
