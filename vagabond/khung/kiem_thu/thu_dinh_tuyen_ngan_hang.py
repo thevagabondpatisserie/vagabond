@@ -277,12 +277,13 @@ def _noi_phieu_chi():
 	nen truoc day o nay de trong: ke toan khong co cho dinh uy nhiem chi,
 	Sales cung khong tai duoc gi gui khach.
 	"""
-	s = _doc("don_huy.py")
-	i = s.find("def tao_hoan(")
-	than = s[i:]
-	dung("noi phieu chi", 'db_set("phieu_chi"' in than)
-	dung("noi ca phieu thu", 'db_set("phieu_thu"' in than)
 	ht = _doc("hoan_tien.py")
+	i = ht.find("def _sinh_chung_tu(")
+	than = ht[i:i + 3000]
+	# Tu 23/08/2026 viec noi nay lam o day chu khong o `don_huy.tao_hoan`
+	# nua, vi hai phieu bay gio sinh tai buoc doi soat.
+	dung("noi phieu chi", "ho_so.phieu_chi = chi.name" in than)
+	dung("noi ca phieu thu", "ho_so.phieu_thu = thu.name" in than)
 	dung("co o phieu_thu tren doctype", '"fieldname": "phieu_thu"' in ht)
 
 
@@ -296,3 +297,118 @@ def _khong_doi_doi_soat_thua():
 	# Hoi doi soat truoc thi ke toan cam uy nhiem chi that trong tay van bi
 	# chan, ma chan xong cung khong ai go duoc vi phieu chi thi da co san.
 	dung("hoi phieu chi truoc", 0 < j < k)
+
+
+# ------------------------------ v283: Sales chỉ lập hồ sơ, kế toán sinh phiếu
+
+
+@ca("huy don: Sales KHONG con dung chung tu ke toan trong yeu cau cua minh")
+def _sales_khong_dung_chung_tu():
+	"""Đây là ca chốt cả quyết định 23/08/2026 của anh Việt.
+
+	Trước đó `tao_hoan` dựng luôn hai Payment Entry trong yêu cầu của Sales.
+	Sales không có quyền trên Payment Entry - và đúng là không nên có - nên
+	luồng chưa từng chạy được lần nào kể từ khi dựng 21/08.
+
+	Ai sau này định "cho tiện" mà dựng lại phiếu ngay trong hàm đó thì ca
+	này đỏ, kèm câu giải thích vì sao không được.
+	"""
+	s = _doc("don_huy.py")
+	la("khong con ham dung phieu tien", "def _phieu(" in s, False)
+	i = s.find("def tao_hoan(")
+	than = s[i:]
+	la("tao_hoan khong tao Payment Entry", 'frappe.new_doc("Payment Entry")' in than, False)
+	la("tao_hoan khong goi _phieu", "_phieu(" in than, False)
+	dung("co ghi ro vi sao", "sinh muộn hơn một nhịp" in than or "không sinh phiếu tiền" in than.lower())
+
+
+@ca("huy don: hai phieu sinh o buoc doi soat, ben hoan_tien")
+def _sinh_o_doi_soat():
+	s = _doc("hoan_tien.py")
+	dung("co ham dung cap phieu", "def _lap_cap_phieu_huy_don(" in s)
+	i = s.find("def _sinh_chung_tu(")
+	than = s[i:i + 3000]
+	dung("_sinh_chung_tu co nhanh huy don", "LOAI_HUY_PANCAKE" in than)
+	dung("goi ham dung cap phieu", "_lap_cap_phieu_huy_don(" in than)
+	# Ho so huy don KHONG co hoa don nao, nen nhanh nay phai dung TRUOC dong
+	# doc Sales Invoice, khong thi no o ngay tai do.
+	j = than.find("if loai == LOAI_HUY_PANCAKE:")
+	k = than.find("si = frappe.get_doc(SI, ho_so.hoa_don)")
+	dung("nhanh huy don dung truoc luc doc hoa don", 0 < j < k)
+
+
+@ca("huy don: van du HAI CHAN thu va chi, van de NHAP")
+def _van_hai_chan():
+	s = _doc("hoan_tien.py")
+	i = s.find("def _lap_cap_phieu_huy_don(")
+	than = s[i:i + 5000]
+	dung("co chan thu", '"Receive"' in than)
+	dung("co chan chi", '"Pay"' in than)
+	# Chi lap phieu chi thi TK 131 cua Khach le Online du No, trong nhu khach
+	# con no dung bang so vua tra. Chi Dung chot 21/08 dieu 2.
+	dung("noi ro vi sao hai chan", "131" in than or "giữ hộ" in than)
+	# De NHAP: khong duoc submit ho. Ke toan dinh uy nhiem chi roi moi ghi so.
+	la("khong tu ghi so", ".submit()" in than, False)
+
+
+@ca("huy don: ve chung mot man Phieu hoan tien, KHONG de them man moi")
+def _chung_mot_man():
+	"""Anh Việt 23/08/2026: "Đừng đẻ thêm màn nữa nha"."""
+	s = _doc("hoan_tien.py")
+	i = s.find("def doi_soat(")
+	than = s[i:i + 3000]
+	# Loc cu la `if d.get("hoa_don")`, gat sach ho so huy don ra khoi vong
+	# quet nen chung nam mai o "Cho chi".
+	dung("doi soat do theo ma do", 'd["ma_do"]' in than or "ma_do_soat(" in than)
+	la("khong con loc cung theo hoa don", 'ds = [d for d in ds if d.get("hoa_don")]' in than, False)
+	# Man danh sach phai hien duoc ma don thay cho ma hoa don.
+	j = s.find("def ds(trang_thai")
+	dung("danh sach tra ve ma don", '"ma_don_pancake"' in s[j:j + 2500])
+	js = _js("11-khach-ca-hop-dong.js")
+	dung("the hien ma don tren the", "x.ma_don_pancake" in js)
+	dung("co chip nhan ra loai", "HUỶ ĐƠN" in js)
+
+
+@ca("do sao ke: ho so huy don do theo CA CAU noi dung chuyen khoan")
+def _do_ca_cau():
+	src = _doc("hoan_tien.py")
+	ns = {}
+	m = re.search(r"^def ma_do_soat\(ho_so\):.*?(?=^def |\Z)", src, re.S | re.M)
+	assert m, "khong tach duoc ma_do_soat"
+	ns["LOAI_HUY_PANCAKE"] = "Huy don Pancake"
+	exec(compile(m.group(0), "hoan_tien.py", "exec"), ns)
+	f = ns["ma_do_soat"]
+	la("co hoa don thi do theo hoa don", f({"hoa_don": "HDB-26-08-00553"}), "HDB-26-08-00553")
+	# Ma don Pancake chi co nam chu so. `khop_giao_dich` chi chan chu so o
+	# phia SAU, nen do "92252" tran se dinh nham vao dong chua "192252".
+	la("huy don do theo ca cau",
+		f({"hoa_don": "", "loai_hoan": "Huy don Pancake",
+		   "noi_dung_ck": "THE VAGABOND HOAN TIEN 92252"}),
+		"THE VAGABOND HOAN TIEN 92252")
+	la("khong ro thi tra rong", f({"hoa_don": "", "loai_hoan": "", "noi_dung_ck": "x"}), "")
+
+
+@ca("do sao ke: HAI duong doi soat dung chung mot phep, khong duoc lech")
+def _hai_duong_mot_phep():
+	"""Ngày 16/08/2026 hai đường lệch nhau đã tốn của tiệm một ngày.
+
+	Xem ghi chú dài ở `chon_ma_khop`.
+	"""
+	s = _doc("hoan_tien.py")
+	for ten in ("def doi_soat(", "def sepay_tien_ra("):
+		i = s.find(ten)
+		than = s[i:i + 3000]
+		dung("%s dung ma_do_soat" % ten.strip("def ("), "ma_do_soat(" in than)
+
+
+@ca("bang chung: chep sang phieu chi luc phieu ra doi, van de rieng tu")
+def _bang_chung_theo_sang():
+	s = _doc("hoan_tien.py")
+	dung("co ham chep", "def _chep_bang_chung_sang_phieu(" in s)
+	i = s.find("def _chep_bang_chung_sang_phieu(")
+	than = s[i:i + 1800]
+	dung("dat rieng tu", '"is_private": 1' in than)
+	dung("khong nhan doi tep that", "ignore_if_duplicate=True" in than)
+	# Luc goi ham nay thi tien da ra khoi tai khoan that roi, mot cai anh
+	# khong chep duoc khong duoc lam hong buoc doi soat.
+	dung("khong nem loi", "log_error" in than)
