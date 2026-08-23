@@ -197,6 +197,10 @@ CUA_NGO = {
 		"them_dinh_muc", "them_dong", "them_dot", "them_san_luong", "tim_san_pham",
 		"xin_dong_bo", "xoa_dinh_muc", "xoa_dong", "xoa_dot", "xoa_san_luong"
 	],
+	# Goi y so cho phieu YCSX, them 23/08/2026. Mo dun nay CHI DOC, mot cua
+	# duy nhat. Them cua thu hai vao day thi phai hoi lai: mot man goi y ma
+	# ghi duoc vao he la sai thiet ke.
+	"goi_y_ycsx.py": ["goi_y"],
 }
 
 
