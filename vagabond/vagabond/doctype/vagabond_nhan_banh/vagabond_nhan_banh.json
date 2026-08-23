@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "autoname": "format:NB-{ma_diem}-{ngay}",
+ "creation": "2026-08-23 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ngay",
+  "diem",
+  "ma_diem",
+  "cb1",
+  "tinh_trang",
+  "chot_luc",
+  "chot_boi",
+  "sec_ton",
+  "ton",
+  "sec_dong",
+  "dong",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Ngay",
+   "reqd": 1
+  },
+  {
+   "fieldname": "diem",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Diem nhan",
+   "options": "Warehouse",
+   "reqd": 1
+  },
+  {
+   "description": "Ma ngan cua diem nhan, dung de dat ten ban ghi. Vi du D1.",
+   "fieldname": "ma_diem",
+   "fieldtype": "Data",
+   "label": "Ma diem",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Dang nhan",
+   "fieldname": "tinh_trang",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tinh trang",
+   "options": "Dang nhan\nDa chot"
+  },
+  {
+   "fieldname": "chot_luc",
+   "fieldtype": "Datetime",
+   "label": "Chot luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chot_boi",
+   "fieldtype": "Data",
+   "label": "Chot boi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_ton",
+   "fieldtype": "Section Break",
+   "label": "Ton dau ngay"
+  },
+  {
+   "fieldname": "ton",
+   "fieldtype": "Table",
+   "label": "Ton dau ngay",
+   "options": "Vagabond Nhan Banh Ton"
+  },
+  {
+   "fieldname": "sec_dong",
+   "fieldtype": "Section Break",
+   "label": "Cac lan nhan trong ngay"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Cac lan nhan",
+   "options": "Vagabond Nhan Banh Dong"
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu"
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-23 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Nhan Banh",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1
+  }
+ ],
+ "sort_field": "ngay",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
