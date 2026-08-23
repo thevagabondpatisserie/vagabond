@@ -116,6 +116,34 @@ def execute():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: dong bo mau in")
 
+	# Web Page do ma nguon giu. Xem vagabond/trang/__init__.py.
+	#
+	# Chay lai duoc: chi ghi de khi noi dung trong repo KHAC voi ban dang nam
+	# trong co so du lieu. Khong tu tao trang moi, khong ha so APPVER.
+	#
+	# Nuot loi: dinh tuyen hay noi dung mot trang hong thi cung lam mot trang
+	# sai, con nem loi o day la HONG CA LAN MIGRATE, tuc la truong moi khong
+	# duoc dung va ca tiem ket. Nen ghi nhat ky roi di tiep.
+	try:
+		from vagabond import trang
+
+		kq = trang.dong_bo()
+		for khoa, nhan in (("da_sua", "cap nhat"), ("chua_co", "chua co"),
+				("bo_qua", "BO QUA")):
+			if kq.get(khoa):
+				frappe.logger().info(
+					"dong_bo_cau_truc: trang web %s: %s"
+					% (nhan, "; ".join(kq[khoa]))
+				)
+		if kq.get("bo_qua"):
+			# Bo qua la chuyen phai co nguoi doc, khong duoc chim trong log.
+			frappe.log_error(
+				"\n".join(kq["bo_qua"]),
+				"Web Page bi bo qua khi deploy, doc vagabond/trang/__init__.py",
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: dong bo Web Page")
+
 	# Quyen doc Purchase Order cho ba vai duyet phieu chi (anh Viet 21/08/2026).
 	#
 	# Tu v265 phieu tra truoc neo vao Purchase Order, ma ERPNext doc lai
