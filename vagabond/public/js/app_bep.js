@@ -3026,10 +3026,10 @@ function scrStep1() {
 }
 
 /* ---------- 8. Buoc 2: chon hang hoa ---------- */
-var pick = { group: '', q: '', cache: {}, sel: {}, nm: {}, allow: null, seq: 0 };
+var pick = { group: '', q: '', cache: {}, sel: {}, nm: {}, sl: {}, allow: null, seq: 0 };
 async function scrStep2() {
   var d = S.draft;
-  pick.sel = {}; pick.nm = {};
+  pick.sel = {}; pick.nm = {}; pick.sl = {};
   (d.items || []).forEach(function (it) { pick.sel[it.item_code] = 1; pick.nm[it.item_code] = it.item_name; });
   pick.cache = {}; pick.group = ''; pick.q = '';
   pick.allow = leavesUnder(d.T.roots);
@@ -3192,6 +3192,7 @@ async function drawPick(fetch) {
   var html = '<div class="card"><div class="fld" data-g><div class="fi">🏷️</div><div class="ft">' +
     '<div class="fl">Nhóm hàng hoá</div><div class="fv">' + h(pick.group || 'Tất cả') + '</div></div><div class="fc">&#8250;</div></div></div>' +
     srchBox('pq', 'Tìm theo tên hoặc mã', pick.q, true) + selHtml +
+    (d.type === 'Manufacture' ? '<button class="btn gh" id="p2goi" style="margin-bottom:9px">✨ Gợi ý từ hệ thống</button>' : '') +
     '<button class="btn gh" id="p2tpl" style="margin-bottom:12px">📋 Lấy từ mẫu đã lưu</button>' +
     (rows.length ? '<div class="lst">' + rows.map(function (it) {
       return '<div class="li" data-c="' + h(it.name) + '">' +
@@ -3225,6 +3226,8 @@ async function drawPick(fetch) {
     else if (miss) toast('Không tìm thấy hàng hoá có mã vạch này');
   };
   document.getElementById('p2tpl').onclick = function () { loadTemplate(); };
+  var bgy = document.getElementById('p2goi');
+  if (bgy) bgy.onclick = function () { goiYSheet(); };
   b.onclick = function (e) {
     if (e.target.closest('[data-g]')) {
       var gl = (pick.allow && pick.allow.length) ? pick.allow : S.groups;
@@ -3249,9 +3252,109 @@ async function drawPick(fetch) {
     var codes = Object.keys(pick.sel).filter(function (k) { return pick.sel[k]; });
     busy(1);
     try {
-      d.items = await buildItems(codes.map(function (c) { return { item_code: c }; }), d.items);
+      d.items = await buildItems(codes.map(function (c) { return { item_code: c, qty: pick.sl[c] }; }), d.items);
       go(scrStep3);
     } catch (err) { toast(errMsg(err)); } finally { busy(0); }
+  };
+}
+
+/* ---------- 8b. Goi y so tu he thong (v285) ----------
+
+Anh Viet 23/08/2026: Loan Anh lap phieu YCSX ma khong co goi y so nao tu he.
+Ba nguon so nam san trong he ma khong ai noi chung lai: kiem banh theo ngay,
+kiem banh theo mua, va hop dong da len voi khach.
+
+May chu chot so (may chu la noi duy nhat biet du ba nguon), man hinh chi bay
+ra cho nguoi doc va sua. So goi y luon SUA DUOC: goi y sai mot lan ma khong
+sua duoc thi lan sau khong ai bam nua.
+*/
+function goiYDong(x, i) {
+  var ng = (x.nguon || []).map(function (n) {
+    return '<div style="color:#8a8f9c;font-size:12px;margin-top:3px;line-height:1.45">' +
+      '<b style="color:#5a6070;font-weight:600">' + h(n.nhan || '') + '</b>' +
+      (n.so ? ' &middot; ' + n.so : '') +
+      (n.giai_thich ? '<br>' + h(n.giai_thich) : '') + '</div>';
+  }).join('');
+  return '<div class="shi" style="align-items:flex-start;padding-top:12px;padding-bottom:12px" data-gi="' + i + '">' +
+    '<div class="ck' + (x._on ? ' on' : '') + '" data-gt="' + i + '" style="flex:none;margin-top:2px">&#10003;</div>' +
+    '<span style="flex:1;min-width:0">' + h(x.ten_banh || x.ma_hang) +
+    '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">Mã: ' + h(x.ma_hang) + '</div>' + ng + '</span>' +
+    '<input class="nt" type="number" min="1" inputmode="numeric" data-gq="' + i + '" value="' + (x._sl || x.can) +
+    '" style="height:44px;width:74px;flex:none;text-align:center;padding:0 6px">' +
+    '</div>';
+}
+async function goiYSheet() {
+  var d = S.draft;
+  var kq = null;
+  busy(1);
+  try { kq = await api('vagabond.goi_y_ycsx.goi_y', { ngay: d.schedule_date }); }
+  catch (e) { busy(0); return toast(errMsg(e), 4600); }
+  busy(0);
+  var ds = (kq && kq.dong) || [];
+  var km = (kq && kq.khong_ma) || [];
+  var gc = (kq && kq.ghi_chu) || [];
+  if (!ds.length && !km.length) {
+    return toast('Ngày ' + dmy(d.schedule_date) + ' hệ thống chưa thấy món nào thiếu' +
+      (gc.length ? '. ' + gc[0] : ''), 5200);
+  }
+  ds.forEach(function (x) { x._on = 1; x._sl = x.can; });
+
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Gợi ý cho ngày ' + h(dmy(d.schedule_date)) + '</b><div class="x">&times;</div></div>' +
+    '<div style="padding:0 14px 8px;color:#a0a6b4;font-size:12.5px;line-height:1.5">' +
+    'Số lấy từ đơn đã đặt, đã trừ tồn và phần bếp đã lên. Sửa được trước khi thêm vào phiếu.</div>' +
+    (gc.length ? '<div style="margin:0 14px 10px;padding:11px 13px;border-radius:12px;background:#fff6e5;color:#8a5b00;font-size:12.5px;line-height:1.5">' +
+      gc.map(function (c) { return h(c); }).join('<br>') + '</div>' : '') +
+    '<div class="shl" id="gyl"></div>' +
+    (km.length ? '<div style="padding:4px 14px 0"><div class="selh">Món không có mã hàng (' + km.length + ')</div>' +
+      '<div style="padding:10px 13px;border-radius:12px;background:#f4f5f7;color:#5a6070;font-size:12.5px;line-height:1.6">' +
+      'Phiếu YCSX bắt buộc mỗi dòng một mã hàng, nên mấy món này máy không tự thêm được. ' +
+      'Mở mã hàng cho món rồi thêm, hoặc ghi vào ô Ghi chú của phiếu.<br><br>' +
+      km.map(function (k) {
+        return '&bull; <b>' + h(k.ten_mon) + '</b> &times; ' + h(String(k.so_luong)) + ' ' + h(k.dvt || '') +
+          '<br><span style="color:#a0a6b4">' + h(k.nhan || '') + (k.trang_thai ? ' &middot; ' + h(k.trang_thai) : '') + '</span>';
+      }).join('<br>') + '</div></div>' : '') +
+    '<div style="padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">' +
+    '<button class="btn" id="gyok"' + (ds.length ? '' : ' disabled') + '>Thêm vào phiếu</button></div>';
+  var lst = box.querySelector('#gyl');
+  function ve() {
+    lst.innerHTML = ds.length ? ds.map(goiYDong).join('') :
+      '<div class="emp"><div class="e2">Không có món nào thiếu</div></div>';
+    var b = document.getElementById('gyok');
+    var n = ds.filter(function (x) { return x._on; }).length;
+    if (b) { b.disabled = !n; b.textContent = n ? 'Thêm ' + n + ' món vào phiếu' : 'Chưa chọn món nào'; }
+  }
+  ve();
+  ov.appendChild(box); document.body.appendChild(ov);
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  lst.onclick = function (e) {
+    var t = e.target.closest('[data-gt]'); if (!t) return;
+    var x = ds[+t.dataset.gt]; x._on = x._on ? 0 : 1;
+    t.classList.toggle('on', !!x._on); ve();
+  };
+  lst.oninput = function (e) {
+    var q = e.target.closest('[data-gq]'); if (!q) return;
+    var x = ds[+q.dataset.gq];
+    var v = parseInt(q.value, 10);
+    x._sl = (v > 0) ? v : 0;
+    if (!x._on && x._sl > 0) { x._on = 1; ve(); }
+  };
+  document.getElementById('gyok').onclick = function () {
+    var them = 0;
+    ds.forEach(function (x) {
+      if (!x._on || !(x._sl > 0)) return;
+      pick.sel[x.ma_hang] = 1;
+      pick.sl[x.ma_hang] = x._sl;
+      if (x.ten_banh) pick.nm[x.ma_hang] = x.ten_banh;
+      them++;
+    });
+    dong();
+    if (!them) return toast('Chưa chọn món nào');
+    drawPick(false);
+    toast('Đã thêm ' + them + ' món từ gợi ý, số lượng điền sẵn ở bước sau');
   };
 }
 
@@ -16019,7 +16122,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '286';
+var APPVER = '287';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
