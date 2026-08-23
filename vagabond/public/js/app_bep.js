@@ -817,9 +817,18 @@ function back() {
 function reset(fn) {
   S.stack = [fn];
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
-  render();
+  return render();
 }
-function render() { var f = S.stack[S.stack.length - 1]; if (f) f(); }
+/* TRA VE ket qua cua ham man hinh, dung nuot di.
+
+   Phan lon man hinh la `async`: no ve tam mot cai dong ho cat roi `await`
+   du lieu, xong moi ve that. Nuot promise di thi ai goi render() cung khong
+   biet luc nao man ve xong.
+
+   Ngay 23/08/2026 dinh dung loi do: __boot goi reset(scrHome) roi mo ngay
+   man theo dia chi, nhung scrHome ve THAT muon hon va de len man vua mo,
+   nen F5 tai /don-da-huy van ra trang chu. */
+function render() { var f = S.stack[S.stack.length - 1]; if (f) return f(); }
 
 /* GIU VI TRI CUON, dung chung cho MOI man hinh.
 
@@ -16005,7 +16014,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '284';
+var APPVER = '285';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -16047,7 +16056,8 @@ async function __boot(){
   try {
     var real = await whoAmI();
     if (real && real !== 'Guest') {
-      adopt(real); reset(scrHome);
+      adopt(real);
+      await reset(scrHome);
       /* F5 tai mot dia chi rieng thi mo dung man do, dung vang ve trang chu.
          Goi SAU reset(scrHome) de scrHome nam duoi cung chong, nut Back tu
          man do ve duoc trang chu chu khong thoat han khoi app. */
@@ -16058,7 +16068,7 @@ async function __boot(){
     syncUser();
     for (var i = 0; i < 5 && (!S.user || S.user === 'Guest'); i++) { await napAgain(200); syncUser(); }
     if (S.user && S.user !== 'Guest') {
-      reset(scrHome);
+      await reset(scrHome);
       try { vgbMoTheoDiaChi(); } catch (e) { }
       pwaSauDangNhap(); return;
     }
