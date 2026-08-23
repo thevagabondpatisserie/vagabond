@@ -28,10 +28,23 @@ import re
 from datetime import datetime, timedelta
 
 import frappe
-import requests
 from frappe.utils import add_days, getdate, now_datetime
 
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
+
+
+def _mang():
+	"""Nap requests luc DUNG, khong nap luc import tep.
+
+	Ly do: bo kiem thu tang khung chay tren may CI tay khong, khong co
+	requests. Cac phep THUAN trong tep nay (TIEN_TO_MA, TIEN_TO_THEM_TAY,
+	_dang_ma_dung) phai kiem thu duoc ma khong keo theo thu vien mang.
+	Ngay 23/08/2026 CI do 2 ca vi dung dong "import requests" o dau tep nay.
+	Cung mot le do voi "import erpnext nam TRONG ham" o duong tra truoc.
+	"""
+	import requests
+
+	return requests
 
 BO_QUA_TT = {6, 7}  # da huy, da xoa
 MAX_TRANG = 10
@@ -80,7 +93,7 @@ def _keo_don(c, k, update_status, dau, cuoi):
 	"""Keo het don trong khoang thoi gian, lat qua tung trang."""
 	ra = []
 	for trang in range(1, MAX_TRANG + 1):
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/orders" % (PANCAKE, c.pancake_shop_id),
 			params={
 				"api_key": k,
@@ -149,7 +162,7 @@ def _tra_anh_ten(c, k, ma):
 	co variation nao mang ma nay nen ham tra ve rong, man hinh in ra trong.
 	"""
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
 			params={"api_key": k, "search": ma, "page_size": 5},
 			timeout=TIMEOUT,
@@ -709,7 +722,7 @@ def _mo_ta_san_pham(c, k, sp_id):
 	if not sp_id:
 		return ""
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/%s" % (PANCAKE, c.pancake_shop_id, sp_id),
 			params={"api_key": k},
 			timeout=TIMEOUT,
@@ -744,7 +757,7 @@ def _sp_pancake(c, k, ma):
 			pass
 	ra = {"anhs": [], "mo_ta": "", "khoa_bt": [], "khoa_sp": []}
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
 			params={"api_key": k, "search": ma, "page_size": 5},
 			timeout=TIMEOUT,
@@ -830,7 +843,7 @@ def _soi_pancake(c, k, ma):
 		return ra
 	ra = {}
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
 			params={"api_key": k, "search": ma, "page_size": 5},
 			timeout=TIMEOUT,
@@ -844,7 +857,7 @@ def _soi_pancake(c, k, ma):
 			sp_id = sp.get("id") or v.get("product_id")
 			ra["_sp_id"] = str(sp_id or "")
 			if sp_id:
-				r2 = requests.get(
+				r2 = _mang().get(
 					"%s/shops/%s/products/%s" % (PANCAKE, c.pancake_shop_id, sp_id),
 					params={"api_key": k},
 					timeout=TIMEOUT,
