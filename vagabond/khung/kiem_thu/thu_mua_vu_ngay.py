@@ -419,3 +419,71 @@ def io_doc(duong_dan):
 	import io as _io
 
 	return _io.open(duong_dan, encoding="utf-8").read()
+
+
+# ------------------------------------------------------- cai bay _doc_mua
+
+
+@ca("_doc_mua tra BO BA, moi cho goi phai mo ra ba bien")
+def _bay_doc_mua():
+	"""Ca canh gac cho dung mot cai bay da lam hong bon ham.
+
+	`_doc_mua` tra ve `(dong, dinh_muc, doc)`, nhung cai ten "doc" o dau ham
+	lam nguoi doc tuong no tra ve mot ban ghi. Bon ham `dat_san_luong`,
+	`them_san_luong`, `sua_san_luong`, `xoa_san_luong` da viet:
+
+	    doc = _doc_mua(mua)
+	    ... doc.dong ...
+
+	Ket qua: `'tuple' object has no attribute 'dong'`, loi 500 ngay khi bep
+	go so san xuat. Bon ham do them tu v272 va v274 va CHUA TUNG chay duoc
+	mot lan nao, mai 23/08/2026 anh Viet go so moi lo ra.
+
+	Ca nay soi ma nguon: moi lan goi `_doc_mua` phai la mot phep mo ba bien.
+	Ai lo viet lai kieu mot bien la do ngay, khong doi toi luc co nguoi bam.
+	"""
+	import ast
+	import io
+	import os
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	src = io.open(os.path.join(goc, "mua_vu.py"), encoding="utf-8").read()
+
+	# Doc bang CAY CU PHAP chu khong do chuoi tung dong: do chuoi thi dinh ca
+	# dong vi du nam trong phan ghi chu, va ca nay se do oan.
+	cay = ast.parse(src)
+	hong = []
+	for nut in ast.walk(cay):
+		if not isinstance(nut, ast.Assign):
+			continue
+		gt = nut.value
+		if not (isinstance(gt, ast.Call) and isinstance(gt.func, ast.Name)
+				and gt.func.id == "_doc_mua"):
+			continue
+		for dich in nut.targets:
+			# Mo ba bien thi ve trai la Tuple. Mot bien tran la dinh bay.
+			if not isinstance(dich, ast.Tuple):
+				hong.append("dong %d" % nut.lineno)
+	dung("khong cho nao coi _doc_mua nhu mot ban ghi: " + ("; ".join(hong) or "sach"),
+		not hong)
+
+
+@ca("bon ham san luong dung _ban_ghi_mua, va ham do noi ro no tra gi")
+def _dung_ban_ghi_mua():
+	import io
+	import os
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	src = io.open(os.path.join(goc, "mua_vu.py"), encoding="utf-8").read()
+
+	dung("co ham lay ban ghi", "def _ban_ghi_mua(" in src)
+	for ten in ("dat_san_luong", "them_san_luong", "sua_san_luong", "xoa_san_luong"):
+		i = src.find("def %s(" % ten)
+		dung("co ham %s" % ten, i > 0)
+		than = src[i:i + 1200]
+		dung("%s lay dung ban ghi" % ten, "_ban_ghi_mua(mua)" in than)
+	# Mua rong hay mua da xoa thi phai noi ro, khong de Frappe nem DoesNotExist.
+	j = src.find("def _ban_ghi_mua(")
+	nen = src[j:j + 2000]
+	dung("chan mua rong", "frappe.db.exists(DT, ma)" in nen)
+	dung("cau bao loi chi duong ra", "chọn lại mùa" in nen)
