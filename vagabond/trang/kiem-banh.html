@@ -1,0 +1,92 @@
+<style>
+/* Kiem banh ngay - giao dien SANG dong bo voi app /bep (01/08, anh Viet yeu cau) */
+body{background:#eef1f5}
+#kb{max-width:760px;margin:0 auto;padding:14px 12px 60px;color:#1f2937;font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+#kb .kb-back{display:inline-block;font-size:12px;color:#6b7280;text-decoration:none;margin-bottom:4px}
+#kb .kb-back:hover{color:#0d9488}
+#kb h1{font-size:20px;font-weight:800;color:#111827;margin:4px 0 2px}
+#kb h1 #kb-ngay-to{color:#0d9488}
+#kb .kb-chips{display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap}
+#kb .kb-chip{background:#fff;border:1px solid #d1d5db;color:#374151;padding:8px 14px;font-size:13px;font-weight:600;border-radius:999px}
+#kb .kb-chip.on{background:#0d9488;border-color:#0d9488;color:#fff}
+#kb .kb-phu{font-size:12px;color:#6b7280;margin-bottom:10px}
+#kb .kb-nut{display:flex;gap:8px;margin:10px 0 14px;flex-wrap:wrap}
+#kb .kb-nut button{flex:1;min-width:100px;background:#fff;border:1px solid #d1d5db;color:#0d9488;padding:12px 8px;font-size:13px;font-weight:600;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+#kb .kb-nut button:active{background:#f3f4f6}
+#kb .kb-nut button#kb-chot{color:#dc2626}
+#kb #kb-dachot{display:none;border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:10px;font-size:12px;color:#6b7280;text-align:center;flex:1}
+#kb #kb-bao{min-height:18px;font-size:12px;color:#0d9488;margin-bottom:8px}
+#kb #kb-bao.loi{color:#dc2626}
+#kb .kb-the{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(16,24,40,.08);margin-bottom:10px;overflow:hidden}
+#kb .kb-ten{padding:10px 12px 8px;border-bottom:1px solid #f1f3f5;display:flex;align-items:center;gap:10px}
+#kb .kb-ten img{width:40px;height:40px;object-fit:cover;flex:none;border-radius:8px;border:1px solid #e5e7eb}
+#kb .kb-noimg{width:40px;height:40px;flex:none;border-radius:8px;border:1px dashed #d1d5db;background:#f9fafb}
+#kb .kb-ten b{color:#1d4ed8;font-size:12.5px;letter-spacing:.03em}
+#kb .kb-ten span{font-size:13px;color:#374151}
+#kb .kb-so{display:grid;grid-template-columns:repeat(16,1fr);text-align:center}
+#kb .kb-o{padding:8px 2px 9px;border-right:1px solid #f1f3f5}
+#kb .kb-o:last-child{border-right:0}
+#kb .kb-o label{display:block;font-size:8.5px;color:#6b7280;letter-spacing:.03em;margin-bottom:3px;text-transform:uppercase;font-weight:600}
+#kb .kb-o b{font-size:16px;font-weight:600;color:#111827}
+#kb .kb-o.sua b{color:#0d9488;border-bottom:1px dashed #99d5cf;padding:0 4px;cursor:pointer}
+#kb .kb-o.dang input{width:54px;background:#fff;border:1.5px solid #0d9488;border-radius:6px;color:#111827;font-size:16px;text-align:center;padding:2px 0}
+#kb .kb-ban{background:#f8fafc}
+#kb .kb-ban b{color:#9ca3af}
+#kb .kb-ban.duong b{color:#059669;font-size:18px}
+#kb .kb-ban.am b{color:#dc2626;font-size:18px}
+#kb .kb-trong{background:#fff;border:1px dashed #d1d5db;border-radius:12px;padding:22px 14px;font-size:13px;color:#6b7280;line-height:1.6;text-align:center}
+@media(max-width:520px){
+  #kb .kb-so{grid-template-columns:repeat(4,1fr)}
+  #kb .kb-o{border-bottom:1px solid #f1f3f5}
+}
+#kb .kb-o.khach div{font-size:10px;color:#374151;line-height:1.35;word-break:break-word;padding:0 3px;min-height:14px}
+#kb .kb-o.cho b{color:#9ca3af}
+#kb .kb-o.cho.co b{color:#d97706;font-size:17px}
+#kb .kb-o.khac b{color:#9ca3af}
+#kb .kb-o.khac.co b{color:#7c3aed;font-size:17px}
+/* Dau trang "Trang chu" va chan trang "Cung cap boi ERPNext" la khung
+   mac dinh cua Web Page Frappe, khong thuoc app - an di cho dong bo voi /bep */
+header, .navbar, .web-footer, footer {display:none!important}
+.page_content, .page-content-wrapper {padding-top:0!important}
+#kb .kb-btpn{margin-left:auto;font-size:10.5px;font-weight:600;color:#0d9488;background:#f0fdfa;border:1px solid #99d5cf;border-radius:999px;padding:2px 8px;white-space:nowrap}
+#kb .kb-btpn.het{color:#dc2626;background:#fef2f2;border-color:#fecaca}
+#kb .kb-o.kb-nh2{background:#f8fafc}
+#kb .kb-o.kb-nh2 b{color:#9ca3af}
+#kb .kb-o.kb-nh2.duong b{color:#0d9488;font-size:18px}
+#kb .kb-o.kb-nh2.am b{color:#dc2626;font-size:18px}
+#kb .kb-cg{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#374151;line-height:1.7}
+#kb .kb-cg summary{cursor:pointer;color:#0d9488;font-weight:600;font-size:12.5px}
+#kb .kb-cg b{color:#111827}
+/* Nhom mau cot lien quan (anh Viet 01/08): sales dang gap khong nhin nham */
+#kb .kb-so .kb-o:nth-child(4){background:#fefce8;border-left:2px solid #fde68a}
+#kb .kb-so .kb-o:nth-child(4) label{color:#b45309}
+#kb .kb-so .kb-o:nth-child(n+5):nth-child(-n+11){background:#eff6ff}
+#kb .kb-so .kb-o:nth-child(5){border-left:2px solid #dbeafe}
+#kb .kb-so .kb-o:nth-child(12){background:#fff}
+#kb .kb-so .kb-o:nth-child(12){border-left:2px solid #e5e7eb}
+#kb .kb-so .kb-o:nth-child(13),#kb .kb-so .kb-o:nth-child(14){background:#fefce8}
+#kb .kb-so .kb-o:nth-child(13){border-left:2px solid #fde68a}
+#kb .kb-so .kb-o:nth-child(13) label,#kb .kb-so .kb-o:nth-child(14) label{color:#b45309}
+#kb .kb-so .kb-o:nth-child(15),#kb .kb-so .kb-o:nth-child(16){background:#effbf8}
+#kb .kb-so .kb-o:nth-child(15){border-left:2px solid #99f6e4}
+#kb .kb-so .kb-o:nth-child(15) label,#kb .kb-so .kb-o:nth-child(16) label{color:#0f766e}
+#kb .kb-nhom{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#4b5563;margin:0 0 10px;padding:0 2px}
+#kb .kb-nhom i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+</style>
+<div id="kb">
+  <a class="kb-back" href="/bep">‹ Màn hình nghiệp vụ</a>
+  <h1>Kiểm bánh ngày <span id="kb-ngay-to"></span></h1>
+  <div class="kb-chips" id="kb-chips"></div>
+  <div class="kb-phu"><span id="kb-luc"></span> · <span id="kb-btp-luc"></span></div>
+  <div class="kb-nut">
+    <button id="kb-dongbo">Đồng bộ Pancake</button>
+    <button id="kb-them">Thêm mã</button>
+    <button id="kb-tuvan">Bánh còn bán</button>
+    <button id="kb-chot">Chốt ngày</button>
+    <div id="kb-dachot">Ngày này đã chốt sổ. Số dư đã chuyển sang tồn đầu ngày mai.</div>
+  </div>
+  <details class="kb-cg"><summary>Chú giải các cột và nút</summary><div><b>Tồn (ngày), Tồn cũ hơn</b>: bánh thành phẩm còn lại của các ngày trước chuyển sang - sales kiểm tủ, bấm vào sửa được.<br><b>Bếp làm (kèm ngày, ví dụ "Bếp làm 02/08")</b>: số bánh bếp trang trí hoàn thiện cho đúng NGÀY ghi trên nhãn - bếp gõ, sales gõ hộ được lúc bếp bận.<br><b>Đã đặt</b>: máy đếm từ Pancake - đơn giao ngày này, tạo từ trước.<br><b>Phát sinh</b>: đơn giao ngày này, tạo ngay trong ngày. <b>Khách phát sinh</b>: tên các khách đó.<br><b>Chờ chốt</b>: đơn trạng thái "Mới" - khách đang tư vấn, sales tạo đơn giữ chỗ, máy đã trừ vào Bán được. Khách bỏ thì huỷ đơn, số tự trả. <b>Khách chờ</b>: tên khách đang chờ, để bàn giao ca.<br><b>BÁN ĐƯỢC</b> = tồn + bếp làm - đã đặt - phát sinh - chờ chốt. Số âm đỏ là đang nhận lố.<br><b>BTP sẵn</b>: vỏ bánh đông lạnh chờ trang trí trong tủ - CHỈ BẾP được nhập (bếp chịu trách nhiệm số). Vô khuôn mẻ mới thì cộng thêm, KHÔNG ai trừ tay - máy tự trừ khi chốt ngày.<br><b>Đủ decor</b>: trong số BTP sẵn, bao nhiêu cái đã chuẩn bị đủ đồ decor (bắt mặt, phun, đồ trang trí...) - CHỈ BẾP nhập.<br><b>CÒN NHẬN 3 NGÀY</b> = BTP sẵn - đơn đang giữ của 3 ngày tới. Dùng cho đơn giao từ NGÀY KIA trở đi (bếp còn kịp chuẩn bị decor); đỏ là hết, lái khách sang món còn nhiều. KHÔNG dùng cho đơn giao ngày mai - đơn mai nhìn CÒN NHẬN MAI.<br><b>CÒN NHẬN MAI</b> = Đủ decor - đơn đã nhận giao ngày mai. Đơn GẤP giao NGÀY MAI chỉ nhận khi ô này còn dương, vì sau 12h trưa bếp không kịp chuẩn bị thêm decor cho ngày mai.<br><b>Nút Chốt ngày</b> (chỉ có ở tab hôm nay, bấm 1 lần cuối ngày): khoá sổ hôm nay. Bánh làm ra chưa bán hết tự chuyển thành Tồn của ngày mai, và máy trừ kho BTP sẵn đúng số bánh đã bán trong ngày (đã đặt + phát sinh) - bếp khỏi trừ tay. Quên bấm là tồn ngày mai trống và BTP bị dư ảo, nên cuối ngày BẮT BUỘC chốt.<br><b>Nút Đồng bộ Pancake</b>: máy tự đồng bộ mỗi 5 phút và khi đang mở màn hình; nút chỉ để ép chạy ngay khi cần đối chiếu.<br><b>Nút Thêm mã</b>: thêm dòng cho mã bánh chưa có trong bảng của ngày đang xem.</div></details>
+<div class="kb-nhom"><span><i style="background:#dbeafe"></i>Đơn và khách đang giữ</span><span><i style="background:#fde68a"></i>Bếp nhập (Bếp làm, BTP sẵn, Đủ decor)</span><span><i style="background:#99f6e4"></i>Số để nhận đơn (CÒN NHẬN MAI, CÒN NHẬN 3 NGÀY)</span></div>
+<div id="kb-bao"></div>
+  <div id="kb-luoi"></div>
+</div>

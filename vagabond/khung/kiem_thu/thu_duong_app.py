@@ -1,4 +1,18 @@
-"""Kiểm thử bảng đường dẫn app Bếp và nội dung chuyển khoản (23/08/2026)."""
+"""Kiểm thử danh mục màn hình và bảng đường dẫn app Bếp.
+
+Lịch sử ngắn của tệp này, đọc trước khi sửa:
+
+  v284  dựng bảng đường dẫn, HAI bảng gõ tay, ca kiểm đối chiếu hai bảng.
+  v286  phát hiện ca kiểm đó vô dụng trong trường hợp quan trọng nhất: hai
+        bảng KHỚP nhau tuyệt đối mà cùng SAI. Slug `don-da-huy` trỏ vào khoá
+        `DTREO`, và `DTREO` là màn "Đơn còn treo".
+  v288  bỏ bảng gõ tay bên JavaScript, máy sinh từ danh mục bên Python.
+
+Nên các ca ở đây không còn đối chiếu hai bảng nữa (không còn hai bảng), mà
+canh ba thứ khác: slug đang chạy thật không được đổi, slug không được trùng
+nhau và không được trùng route Web Page, và mọi khoá trong danh mục phải có
+nhánh thật trong `vgbGo` chứ không rơi vào nhánh vét cuối hàm.
+"""
 
 import io
 import os
@@ -9,76 +23,184 @@ from vagabond.khung.kiem_thu.nen import ca, dung, la
 # .../vagabond/khung/kiem_thu/tep -> len BON bac moi toi goc repo.
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(
 	os.path.dirname(os.path.abspath(__file__)))))
+TEP_JS = os.path.join(GOC, "vagabond", "public", "js", "bep", "02-trang-chu.js")
 
 
-def _js_bang_duong():
-	"""Đọc bảng VGB_DUONG trong 02-trang-chu.js ra dict, không cần trình duyệt."""
-	p = os.path.join(GOC, "vagabond", "public", "js", "bep", "02-trang-chu.js")
-	src = io.open(p, encoding="utf-8").read()
-	i = src.index("var VGB_DUONG = {")
-	j = src.index("};", i)
-	ra = {}
-	for m in re.finditer(r"'([a-z0-9\-]+)'\s*:\s*'([A-Z0-9]+)'", src[i:j]):
-		ra[m.group(1)] = m.group(2)
+def _js():
+	return io.open(TEP_JS, encoding="utf-8").read()
+
+
+@ca("slugify: bỏ dấu tiếng Việt, gạch nối, chữ thường")
+def _():
+	from vagabond.duong_app import khong_dau, slugify
+
+	la("bỏ dấu", khong_dau("Kiểm bánh hàng ngày"), "Kiem banh hang ngay")
+	# Chu d gach khong tach duoc bang NFD vi no la mot chu cai khac chu khong
+	# phai o co dau. Quen doi tay chu nay thi slug ra "-on-hang".
+	la("chữ đ hoa và thường", khong_dau("Đơn hàng đủ"), "Don hang du")
+	la("tên thường", slugify("Kiểm bánh hàng ngày"), "kiem-banh-hang-ngay")
+	la("có dấu chấm phẩy", slugify("Hoá đơn, mua vào."), "hoa-don-mua-vao")
+	la("khoảng trắng thừa hai đầu", slugify("  Nhà  cung cấp!!  "), "nha-cung-cap")
+	la("chữ số giữ nguyên", slugify("Kho V2"), "kho-v2")
+	la("toàn ký tự lạ thì ra rỗng", slugify("!!! ???"), "")
+	la("rỗng vào rỗng ra", slugify(""), "")
+	la("None vào rỗng ra", slugify(None), "")
+
+
+@ca("đường app: slug ĐANG CHẠY THẬT không được đổi")
+def _():
+	"""Đổi một slug đang chạy là làm chết đường dẫn nhân viên đã lưu.
+
+	Bảng SLUG_DA_CHAY chốt cứng 26 địa chỉ đã lên site từ v284 đến v287. Đổi
+	tên một màn trong MAN mà vô tình đổi luôn slug thì ca này đỏ, và lúc đó
+	phải ghi đè slug chứ không được để nó trôi.
+	"""
+	from vagabond.duong_app import SLUG_DA_CHAY, bang_duong
+
+	b = bang_duong()
+	for slug, khoa in sorted(SLUG_DA_CHAY.items()):
+		la("/%s vẫn trỏ vào %s" % (slug, khoa), b.get(slug), khoa)
+
+
+@ca("đường app: không hai màn nào dùng chung một slug")
+def _():
+	"""Trùng slug thì màn khai sau lặng lẽ nuốt màn khai trước.
+
+	Phải đếm trên TỪNG CẶP chứ không đếm trên dict, vì nhét vào dict chính là
+	lúc cặp trùng biến mất.
+	"""
+	from vagabond.duong_app import _cap_duong
+
+	dem = {}
+	for slug, khoa in _cap_duong():
+		dem.setdefault(slug, []).append(khoa)
+	trung = ["%s: %s" % (s, ", ".join(k)) for s, k in sorted(dem.items()) if len(k) > 1]
+	dung("không slug nào trùng: " + ("; ".join(trung) or "sạch"), not trung)
+
+
+@ca("đường app: slug không được trùng route của Web Page nào")
+def _():
+	"""Trùng route thì hook website_route_rules cướp trang thật của site.
+
+	Ngày 23/08 màn "Bếp" suýt sinh ra slug `bep`, mà `bep` chính là route của
+	Web Page chứa cả app. App tự nuốt chính mình. Ca này bắt được nên đã đổi
+	tên màn thành "Bảng bếp hôm nay".
+	"""
+	from vagabond.duong_app import ROUTE_DA_CO, bang_duong
+
+	dung_nhau = sorted(set(bang_duong()) & set(ROUTE_DA_CO))
+	dung("không đụng Web Page nào: " + (", ".join(dung_nhau) or "sạch"), not dung_nhau)
+
+
+@ca("đường app: slug chỉ gồm chữ thường, số và gạch nối")
+def _():
+	from vagabond.duong_app import bang_duong
+
+	xau = [s for s in bang_duong() if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", s)]
+	dung("mọi slug đều sạch: " + (", ".join(xau) or "sạch"), not xau)
+
+
+@ca("đường app: bảng bên JavaScript phải ĐÚNG BẰNG bản máy sinh")
+def _():
+	"""Đối chiếu từng byte, y như dung_app_bep.py canh app_bep.js.
+
+	Sửa tay vào bảng bên JavaScript thì ca này đỏ ngay, nên không còn đường
+	nào để hai bên lệch nhau nữa.
+	"""
+	import sys
+
+	if GOC not in sys.path:
+		sys.path.insert(0, GOC)
+	from sinh_duong import doan_dang_co
+	from vagabond.duong_app import sinh_js
+
+	dang_co = doan_dang_co(_js())
+	dung("tìm thấy hai dấu mốc trong 02-trang-chu.js", bool(dang_co))
+	dung("bảng trong tệp khớp từng byte với bản máy sinh (chạy sinh_duong.py nếu đỏ)",
+		dang_co == sinh_js())
+
+
+def _khoa_trong_vgbgo():
+	"""Các khoá có nhánh THẬT trong vgbGo, đọc thẳng từ mã nguồn."""
+	src = _js()
+	i = src.index("function vgbGo(k) {")
+	than = src[i:]
+	ra = set(re.findall(r"k === '([A-Za-z0-9:]+)'", than))
+	# Nhanh tien to cho ca ho danh muc.
+	if "k.indexOf('DM:') === 0" in than:
+		ra.add("DM:*")
 	return ra
 
 
-@ca("duong app: bang ben Python va ben JavaScript phai khop TUNG DONG")
+@ca("đường app: mọi khoá trong danh mục phải có nhánh thật trong vgbGo")
 def _():
-	# Hai ban nay o hai ngon ngu khac nhau nen khong the dung chung mot bien.
-	# Lech mot dong thi hong LANG LE: may khach doi dia chi sang mot duong ma
-	# may chu khong biet, nguoi dung bam thi khong sao, F5 mot cai la 404.
-	# Khong ai kiem thu bang cach F5 tung man, nen phai co ca kiem nay.
-	from vagabond.duong_app import DUONG
+	"""Khoá không có nhánh sẽ rơi xuống nhánh vét cuối hàm và vỡ màn.
 
-	js = _js_bang_duong()
-	dung("đọc được bảng bên JavaScript", len(js) > 0)
-	thieu = sorted(set(DUONG) - set(js))
-	thua = sorted(set(js) - set(DUONG))
-	dung("JavaScript không thiếu đường nào: " + (", ".join(thieu) or "đủ"), not thieu)
-	dung("JavaScript không thừa đường nào: " + (", ".join(thua) or "đủ"), not thua)
-	lech = sorted(s for s in DUONG if js.get(s) != DUONG[s])
-	dung("khoá màn hình khớp nhau: " + (", ".join(lech) or "khớp"), not lech)
+	Nhánh vét là `go(function () { scrMRList(TYPES[k]); })`. Khoá lạ thì
+	TYPES[k] là undefined, màn dựng ra rỗng, và không có lỗi nào hiện lên -
+	đúng kiểu hỏng lặng lẽ mà bảng đường dẫn sinh ra để chặn.
+	"""
+	from vagabond.duong_app import bang_duong
+
+	co = _khoa_trong_vgbgo()
+	dung("đọc được các nhánh trong vgbGo", len(co) > 20)
+	thieu = []
+	for slug, khoa in sorted(bang_duong().items()):
+		if khoa.startswith("DM:"):
+			if "DM:*" not in co:
+				thieu.append("%s (%s)" % (slug, khoa))
+			continue
+		if khoa not in co:
+			thieu.append("%s (%s)" % (slug, khoa))
+	dung("không khoá nào thiếu nhánh: " + (", ".join(thieu) or "đủ"), not thieu)
 
 
-@ca("duong app: khong slug nao trung route cua Web Page dang co")
+@ca("đường app: luật định tuyến sinh đúng và sắp xếp ổn định")
 def _():
-	# Trung route thi Frappe tra ve trang kia chu khong tra ve app, va loi do
-	# chi lo khi co nguoi F5 dung duong do.
-	from vagabond.duong_app import DUONG, ROUTE_DA_CO, TRANG_APP
-
-	trung = sorted(set(DUONG) & set(ROUTE_DA_CO))
-	dung("không trùng: " + (", ".join(trung) or "sạch"), not trung)
-	dung("trang chứa app nằm trong danh sách Web Page đang có", TRANG_APP in ROUTE_DA_CO)
-
-
-@ca("duong app: moi khoa man hinh phai co that trong vgbGo")
-def _():
-	# Khai mot khoa khong co trong vgbGo thi bam vao ra man trang.
-	from vagabond.duong_app import DUONG
-
-	p = os.path.join(GOC, "vagabond", "public", "js", "bep", "02-trang-chu.js")
-	src = io.open(p, encoding="utf-8").read()
-	i = src.index("function vgbGo(k) {")
-	than = src[i:i + 6000]
-	co = set(re.findall(r"k === '([A-Z0-9]+)'", than))
-	thieu = sorted(k for k in DUONG.values() if k not in co)
-	dung("khoá nào cũng có nhánh trong vgbGo: " + (", ".join(thieu) or "đủ"), not thieu)
-
-
-@ca("duong app: luat dinh tuyen tro dung ve trang chua app")
-def _():
-	from vagabond.duong_app import DUONG, TRANG_APP, luat_dinh_tuyen
+	from vagabond.duong_app import TRANG_APP, bang_duong, luat_dinh_tuyen
 
 	luat = luat_dinh_tuyen()
-	la("số luật bằng số đường", len(luat), len(DUONG))
-	dung("mọi luật đều trỏ về trang app", all(r["to_route"] == TRANG_APP for r in luat))
-	dung("mọi luật đều bắt đầu bằng gạch chéo", all(r["from_route"].startswith("/") for r in luat))
-	# KHONG duoc co luat bat tat: bat tat thi moi dia chi la tren site deu
-	# roi vao app Bep, ke ca trang khach. Dung quy tac 6 cua repo.
-	dung("không có luật bắt tất kiểu <path:...>",
-		not any("<" in r["from_route"] for r in luat))
+	la("số luật bằng số màn", len(luat), len(bang_duong()))
+	dung("mọi luật đều trả về trang app",
+		all(x["to_route"] == TRANG_APP for x in luat))
+	dung("mọi luật đều bắt đầu bằng dấu gạch chéo",
+		all(x["from_route"].startswith("/") for x in luat))
+	# Thu tu on dinh thi hai lan chay ra cung mot danh sach, nen doc git diff
+	# khong thay bien dong gia.
+	la("chạy hai lần ra một kết quả", luat, luat_dinh_tuyen())
 
+
+@ca("đường app: HÀNG RÀO có thật sự cắn không")
+def _():
+	"""Tự thử lại các hàng rào ở trên, vì hàng rào không cắn còn tệ hơn không có.
+
+	Ngày 23/08 đã có một ca kiểm so vị trí chuỗi mà không bắt được lỗi thật,
+	nên từ nay hàng rào nào cũng phải tự chứng minh nó đỏ khi lỗi quay lại.
+	"""
+	from vagabond.duong_app import ROUTE_DA_CO, slugify
+
+	# 1. Dat ten man la "Bep" thi slug ra dung route cua Web Page chua app.
+	dung("tên màn 'Bếp' sinh ra slug đụng Web Page", slugify("Bếp") in ROUTE_DA_CO)
+	dung("tên màn 'Bảng bếp hôm nay' thì không đụng",
+		slugify("Bảng bếp hôm nay") not in ROUTE_DA_CO)
+
+	# 2. Hai man cung ten thi ra cung slug. Day la ly do ho DM: phai co tien to.
+	la("hai màn cùng tên ra cùng slug",
+		slugify("Nhà cung cấp"), slugify("Nhà cung cấp"))
+
+	# 3. Ham doc nhanh vgbGo phai that su doc duoc, khong tra ve rong roi
+	#    lam ca kiem o tren xanh gia.
+	co = _khoa_trong_vgbgo()
+	for k in ("DTREO", "DHUY", "PAY", "DM:*"):
+		dung("vgbGo có nhánh %s" % k, k in co)
+	dung("vgbGo không có nhánh cho khoá bịa ra", "KHOA-BIA-RA" not in co)
+
+
+# ---------------------------------------------------------------------------
+# Cac ca duoi day giu nguyen tu v284-v287: noi dung chuyen khoan, ho so thanh
+# toan, va dinh tuyen ten mien. Chung khong lien quan toi bang duong dan
+# nhung van o chung tep tu dau, doi tep khac se lam git diff kho doc.
+# ---------------------------------------------------------------------------
 
 @ca("noi dung chuyen khoan: ma ho so phai dung DAU chuoi")
 def _():

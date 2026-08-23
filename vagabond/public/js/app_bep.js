@@ -1756,39 +1756,98 @@ function scrNhom(nh) {
 
    App nay KHONG dung Vue nen khong co Vue Router de bat sang History Mode.
    Cach lam o day la tu tay: doi dia chi khi mo man, va doc dia chi luc khoi
-   dong. Bang duoi PHAI khop tung dong voi DUONG trong vagabond/duong_app.py,
-   ca kiem thu_duong_app.py doi chieu hai ban nay.
+   dong.
 
-   Lech mot dong thi hong LANG LE: may khach doi dia chi sang mot duong ma
-   may chu khong biet, nguoi dung bam thi khong sao, F5 mot cai la 404. */
+   TU v288 BANG DUOI DO MAY VIET. Nguon that la bang MAN trong
+   vagabond/duong_app.py, va slug do slugify() sinh ra tu chinh TEN man hinh.
+   Sua o day la vo ich: chay lai sinh_duong.py la mat, ma khong chay lai thi
+   ca kiem thu_duong_app.py do.
+
+   Vi sao phai may sinh: ban cu co hai bang go tay va mot ca kiem doi chieu
+   chung. Ca kiem do chi bat duoc luc hai bang LECH, khong bat duoc luc ca
+   hai cung SAI - va ngay 23/08 ca hai cung gan `don-da-huy` cho khoa DTREO
+   la man "Don con treo". Ca kiem xanh, nguoi dung bam ra nham man. */
+/* === BANG DUONG DAN: MAY SINH RA, DUNG SUA TAY === */
+/* Nguon that: vagabond/duong_app.py, bang MAN va DANH_MUC.
+   Sua ben do roi chay: python3 sinh_duong.py
+   Sua tay o day thi ca kiem thu_duong_app.py do ngay. */
 var VGB_DUONG = {
+  'ban-tai-quay': 'POS',
+  'bang-bep-hom-nay': 'KIT',
+  'bang-gia': 'BGIA',
+  'bao-cao': 'BCHUB',
+  'but-toan': 'BT',
+  'cai-dat-cuoi-ngay': 'CDCN',
+  'canh-bao-thanh-toan': 'CBTT',
+  'chi-phi-van-don': 'CPX',
+  'chuyen-phantom': 'PTCH',
+  'cong-no': 'CN',
+  'cong-no-phai-tra': 'CNPT',
+  'cong-thuc': 'CTBOM',
+  'danh-muc-san-pham': 'CDSP',
+  'diem-ban': 'CDDB',
+  'doanh-so': 'DS',
+  'doi-chieu-mua': 'DCM',
+  'doi-soat-cod': 'DSCOD',
+  'don-chung-tu-thu': 'PTDON',
   'don-con-treo': 'DTREO',
   'don-da-huy': 'DHUY',
-  'ho-so-thanh-toan': 'APPTT',
-  'cong-no-phai-tra': 'CNPT',
-  'hoa-don-mua': 'HDMUA',
-  'hoa-don-ban': 'HDBAN',
-  'doi-chieu-mua': 'DCM',
   'don-mua-hang': 'PO',
   'duyet-yeu-cau': 'DUYETYC',
-  'nha-cung-cap': 'NCC',
-  'bang-gia': 'BGIA',
-  'nhap-kho': 'RCV',
-  'kiem-ke': 'KK',
-  'san-xuat': 'MFG',
-  'cong-thuc': 'CTBOM',
-  'ton-kho': 'STOCK',
-  'doanh-so': 'DS',
-  'bao-cao': 'BCHUB',
-  'cong-no': 'CN',
+  'hang-chuyen-ve-kho-toi': 'NHANDC',
+  'hang-khach': 'CDHT',
+  'ho-so-thanh-toan': 'APPTT',
+  'hoa-don-ban': 'HDBAN',
+  'hoa-don-mua': 'HDMUA',
   'hoan-tien': 'HT',
-  'nop-quy': 'NQ',
-  'khach-hang': 'KH',
-  'van-don': 'VD',
-  'khuyen-mai': 'KM',
   'hop-dong': 'HDG',
-  'thanh-toan': 'PAY'
+  'khach-hang': 'KH',
+  'khoa-so': 'CDKS',
+  'khuyen-mai': 'KM',
+  'kiem-banh-theo-mua': 'KBM',
+  'kiem-ke': 'KK',
+  'ma-otp': 'OTP',
+  'may-in': 'CDMI',
+  'nghien-cuu-phat-trien': 'RND',
+  'nguoi-dung': 'QLND',
+  'nha-cung-cap': 'NCC',
+  'nhap-kho': 'RCV',
+  'nhap-sao-ke': 'NHAPSK',
+  'nop-quy': 'NQ',
+  'phan-quyen': 'QLQ',
+  'phuong-thuc-thanh-toan': 'CDPT',
+  'quyen-quay': 'CDQQ',
+  'san-xuat': 'MFG',
+  'sepay': 'CDSE',
+  'tai-khoan-cua-toi': 'ACC',
+  'tai-khoan-ke-toan': 'CDTK',
+  'tai-san': 'TS',
+  'tao-nha-cung-cap': 'NCCTAO',
+  'thanh-toan': 'PAY',
+  'thanh-toan-noi-bo': 'DNC',
+  'thong-bao': 'CDTB',
+  'ton-kho': 'STOCK',
+  'tra-cuu-bang-gia-mua-vao': 'DM:DMGIA',
+  'tra-cuu-cong-thuc-dinh-muc': 'DM:DMBOM',
+  'tra-cuu-danh-muc-khach-hang': 'DM:DMKH',
+  'tra-cuu-danh-muc-ngan-hang': 'DM:DMNH',
+  'tra-cuu-danh-muc-san-pham': 'DM:DMSP',
+  'tra-cuu-don-vi-tinh': 'DM:DMDVT',
+  'tra-cuu-kho-hang': 'DM:DMKHO',
+  'tra-cuu-nha-cung-cap': 'DM:DMNCC',
+  'tra-cuu-nhom-khach-hang': 'DM:DMNKH',
+  'tra-cuu-nhom-nha-cung-cap': 'DM:DMNNCC',
+  'tra-cuu-nhom-san-pham': 'DM:DMNSP',
+  'tra-cuu-phuong-thuc-thanh-toan': 'DM:DMPT',
+  'tra-cuu-quy-doi-don-vi-tinh': 'DM:DMQD',
+  'tra-cuu-tai-khoan-ke-toan': 'DM:DMTK',
+  'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
+  'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
+  'van-don': 'VD',
+  'xuat-dieu-chuyen': 'XKD',
+  'xuat-huy': 'XKH'
 };
+/* === HET BANG DUONG DAN === */
 
 function vgbSlugTheoKhoa(k) {
   for (var s in VGB_DUONG) { if (VGB_DUONG[s] === k) return s; }
@@ -16122,7 +16181,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '287';
+var APPVER = '288';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

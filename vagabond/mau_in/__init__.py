@@ -99,13 +99,15 @@ def dong_bo():
 # ---------------------------------------------------- soi lech bang tay
 #
 # Muc dich: lam cho chuyen "co nguoi sua tay tren Desk" HIEN RA, thay vi am
-# tham. Xem vagabond/mau_in/trang/README.md de biet vi sao chi soi chu khong
-# tu dong day xuong.
-
-TRANG_CHUP = {
-	# route Web Page -> ten tep trong thu muc trang/
-	"bep": "bep",
-}
+# tham.
+#
+# TU v288 Web Page KHONG con chi la anh chup nua: `vagabond/trang/dong_bo()`
+# day chung xuong co so du lieu moi lan Migrate, y het mau in. Nen lech o day
+# khong con nghia la "quen chup lai" ma la "co nguoi vua sua tay tren Desk
+# SAU lan deploy gan nhat, va lan deploy toi se ghi de mat".
+#
+# CHAY HAM NAY TRUOC MOI LAN DEPLOY. Co lech thi keo ban tren site ve git
+# truoc da, dung deploy de len.
 
 
 def _bam(s):
@@ -114,23 +116,13 @@ def _bam(s):
 	return hashlib.sha256((s or "").encode("utf-8")).hexdigest()[:12]
 
 
-def _doc_chup(ten):
-	ra = {}
-	for duoi in ("html", "js"):
-		try:
-			with open(os.path.join(GOC, "trang", "%s.%s" % (ten, duoi)), encoding="utf-8") as f:
-				ra[duoi] = f.read()
-		except OSError:
-			ra[duoi] = None
-	return ra
-
-
 @frappe.whitelist()
 def soi_lech():
-	"""So bản trên site với bản chụp trong repo. Chỉ ĐỌC, không ghi gì.
+	"""So bản trên site với bản trong repo. Chỉ ĐỌC, không ghi gì.
 
 	Trả về danh sách những chỗ lệch. Rỗng nghĩa là site và repo khớp nhau.
 	"""
+	from vagabond import trang
 	from vagabond.mau_in.le_in import LE_MM
 
 	lech = []
@@ -154,27 +146,38 @@ def soi_lech():
 					% (_bam(tren_site.strip()), _bam(goc.strip())),
 			})
 
-	# 2. Web Page: repo chi la ANH CHUP, khong day xuong. Lech o day la loi
-	#    nhac phai chup lai, khong phai loi phai sua site.
-	for route, ten_tep in TRANG_CHUP.items():
+	# 2. Web Page: tu v288 repo la nguon that. Lech o day la CANH BAO SAP MAT
+	#    CODE cua nguoi vua sua tay, khong phai loi nhac chup lai.
+	for route in sorted(trang.TRANG):
 		ten = frappe.db.get_value("Web Page", {"route": route}, "name")
 		if not ten:
-			lech.append({"loai": "Trang web", "ten": route, "vi_sao": "chưa có trên site"})
+			lech.append({"loai": "Trang web", "ten": route,
+				"vi_sao": "chưa có bản ghi trên site"})
+			continue
+		moi = trang.doc_mot(route)
+		if not moi:
+			lech.append({"loai": "Trang web", "ten": route,
+				"vi_sao": "thiếu tệp trong repo"})
 			continue
 		doc = frappe.get_doc("Web Page", ten)
-		chup = _doc_chup(ten_tep)
-		for truong, duoi in (("main_section_html", "html"), ("javascript", "js")):
-			if chup.get(duoi) is None:
-				lech.append({"loai": "Trang web", "ten": route,
-					"vi_sao": "thiếu ảnh chụp %s trong repo" % duoi})
-				continue
-			tren_site = (doc.get(truong) or "").strip()
-			if tren_site != (chup[duoi] or "").strip():
-				lech.append({
-					"loai": "Trang web", "ten": "%s (%s)" % (route, duoi),
-					"vi_sao": "ảnh chụp trong repo đã CŨ, cần chụp lại "
-						"(site %s, repo %s)" % (_bam(tren_site), _bam(chup[duoi])),
-				})
+		for truong in sorted(moi):
+			tren_site = doc.get(truong)
+			trong_repo = moi[truong]
+			if isinstance(trong_repo, str) or isinstance(tren_site, str):
+				a, b = (tren_site or "").strip(), (trong_repo or "").strip()
+				if a == b:
+					continue
+				vi_sao = ("site %s, repo %s. Ai sửa tay trên Desk thì kéo về "
+					"git TRƯỚC khi deploy, không thì deploy ghi đè mất."
+					% (_bam(a), _bam(b)))
+			else:
+				if tren_site == trong_repo:
+					continue
+				vi_sao = "site %r, repo %r" % (tren_site, trong_repo)
+			lech.append({
+				"loai": "Trang web", "ten": "%s (%s)" % (route, truong),
+				"vi_sao": vi_sao,
+			})
 
 	return {"lech": lech, "le_mm": LE_MM, "so_mau_in": len(MAU_IN),
-		"so_trang_chup": len(TRANG_CHUP)}
+		"so_trang": len(trang.TRANG)}

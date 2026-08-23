@@ -602,46 +602,32 @@ def _keo_don(c, k, dau, cuoi):
 
 
 def _ngay_giao(o):
-	"""Ngay giao cua mot don Pancake, dang YYYY-MM-DD. Rong neu khong doc duoc."""
-	for o_ten in ("estimate_delivery_date", "time_delivery_at", "inserted_at"):
-		v = o.get(o_ten)
-		if not v:
-			continue
-		try:
-			return str(getdate(str(v)[:10]))
-		except Exception:
-			continue
-	return ""
+	"""Ngày giao của một đơn Pancake, theo GIỜ VIỆT NAM. Rỗng là không đọc được.
+
+	SỬA 23/08/2026. Hàm này trước đây cắt thẳng `str(v)[:10]` của chuỗi ISO.
+	Pancake trả giờ UTC và không khai múi giờ, nên một đơn giao 00:00 ngày
+	24/08 giờ Việt Nam mang chuỗi `2026-08-23T17:00:00` và bị xếp vào 23/08.
+
+	Anh Việt bắt được sáng 23/08: đơn trung thu đặt cho ngày 24/08 hiện ở tab
+	23/08, ô "Đã đặt" của 23/08 nuốt 37 hộp của ngày hôm sau. Đúng loại lỗi
+	đã làm lệch 75 vận đơn hôm 19/08, chỉ khác tệp.
+
+	Nay cả tiệm dùng chung một hàm đọc ngày. Xem vagabond/ngay_pancake.py.
+	"""
+	from vagabond.ngay_pancake import ngay_giao
+
+	return ngay_giao(o)
 
 
 def _ngay_tao(o):
-	"""Ngay TAO don theo gio Viet Nam, dang YYYY-MM-DD. Rong neu khong doc duoc.
+	"""Ngày TẠO đơn theo giờ Việt Nam. Rỗng là không đọc được.
 
-	Dung de tach "Phat sinh" khoi "Da dat", y het bang kiem banh theo ngay:
-	don giao hom nay ma cung tao trong hom nay la PHAT SINH, tao tu hom truoc
-	la DA DAT.
-
-	Vi sao phai doi mui gio chu khong cat muoi ky tu dau: Pancake tra
-	inserted_at dang ISO gio UTC, nen mot don tao luc 0h30 dem gio Viet Nam se
-	mang ngay UTC cua hom truoc. Cat thang la don phat sinh bi xep nham thanh
-	da dat, va bang bao sai dung vao dip cao diem khi sales chot don ban dem.
+	Dùng để tách "Phát sinh" khỏi "Đã đặt": đơn giao hôm nay mà cũng tạo
+	trong hôm nay là PHÁT SINH, tạo từ hôm trước là ĐÃ ĐẶT.
 	"""
-	from zoneinfo import ZoneInfo
+	from vagabond.ngay_pancake import ngay_tao
 
-	v = str(o.get("inserted_at") or "").strip()
-	if not v:
-		return ""
-	try:
-		t = datetime.fromisoformat(v.replace("Z", "+00:00"))
-		if t.tzinfo is None:
-			t = t.replace(tzinfo=ZoneInfo("UTC"))
-		return str(t.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).date())
-	except Exception:
-		pass
-	try:
-		return str(getdate(v[:10]))
-	except Exception:
-		return ""
+	return ngay_tao(o)
 
 
 def _dem(dons):

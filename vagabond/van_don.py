@@ -18,7 +18,6 @@ import json
 import re
 
 import frappe
-import requests
 from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate
 
 from vagabond import nhat_ky_dong_bo as nhat_ky
@@ -59,7 +58,7 @@ def _don_pancake(pid):
 	if not (k and c.pancake_shop_id and pid):
 		return {}
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/orders/%s" % (PANCAKE, c.pancake_shop_id, pid),
 			params={"api_key": k},
 			timeout=TIMEOUT,
@@ -76,7 +75,7 @@ def _day_trang_thai_pancake(pid, status=3):
 	if not (k and c.pancake_shop_id and pid):
 		return False
 	try:
-		r = requests.put(
+		r = _mang().put(
 			"%s/shops/%s/orders/%s" % (PANCAKE, c.pancake_shop_id, pid),
 			params={"api_key": k},
 			json={"status": status},
@@ -173,90 +172,49 @@ def _gio_tu_iso(s):
 	return ""
 
 
-def _lech_mui(duoi):
-	"""So phut lech mui gio ghi o duoi chuoi ISO. None la KHONG khai. THUAN.
+def _mang():
+	"""Thư viện gọi mạng, nạp KHI CẦN chứ không nạp ở đầu tệp.
 
-	"Z" la 0, "+07:00" la 420, "-05:30" la -330. Chuoi rong tra None, va
-	ben goi phai hieu None la "Pancake khong khai", chu khong phai la 0.
+	Máy chạy CI của GitHub tay không, không có `requests`. Bộ kiểm thử tầng
+	khung có import mô đun này để đối chiếu phép đọc ngày với `mua_vu`, nên
+	đầu tệp mà kéo `requests` là CI đỏ. Đã đỏ ba ca hôm 20/08 vì đúng lý do
+	này ở một tệp khác.
 	"""
-	t = str(duoi or "").strip()
-	if not t:
-		return None
-	if t in ("Z", "z"):
-		return 0
-	dau = t[0]
-	if dau not in ("+", "-"):
-		return None
-	so = t[1:].replace(":", "")
-	if len(so) == 2:
-		so += "00"
-	if len(so) != 4 or not so.isdigit():
-		return None
-	phut = int(so[:2]) * 60 + int(so[2:])
-	return -phut if dau == "-" else phut
+	import requests
+
+	return requests
+
+
+def _lech_mui(duoi):
+	"""Giữ tên cũ, gọi hàm chung. Xem vagabond/ngay_pancake.py."""
+	from vagabond.ngay_pancake import _lech_mui as _f
+
+	return _f(duoi)
 
 
 def _ngay_tu_iso(s):
-	"""Ngay giao THEO GIO VIET NAM, doc tu chuoi Pancake tra ve. THUAN.
+	"""Ngày giao THEO GIỜ VIỆT NAM. Nay do vagabond/ngay_pancake.py lo.
 
-	VI SAO PHAI QUY DOI MUI GIO
-	Ngay 19/08/2026 em deploy ban dau cua ham nay, no cat thang t[:10] cua
-	chuoi ISO. Ba muoi phut sau, 75 van don bi day lui dung mot ngay va 27
-	don cua hom nay bien mat khoi man Van don. Nguyen nhan: Pancake tra
-	estimate_delivery_date theo GIO UTC va KHONG khai mui gio.
+	VÌ SAO DỜI ĐI CHỖ KHÁC (23/08/2026)
+	Hàm này từng nằm ngay đây và đã sửa đúng hôm 19/08, sau khi 75 vận đơn bị
+	đẩy lùi một ngày. Nhưng `mua_vu.py` có một hàm đọc ngày RIÊNG và vẫn cắt
+	thẳng t[:10], nên ngày 23/08 lỗi y hệt lặp lại ở màn Có thể bán: đơn giao
+	24/08 hiện ở tab 23/08.
 
-	Don 92194 giao hom 19/08 duoc Pancake ghi la:
-
-		estimate_delivery_date : 2026-08-18T17:00:00
-		tags                   : ["13h - 15h"]
-
-	17:00 UTC cong 7 tieng la 00:00 ngay 19/08 gio Viet Nam. Cat thang phan
-	ngay thi ra 18/08, lui mot ngay.
-
-	Doc them: phan GIO cua chuoi nay khong phai gio giao. Hai don 92194 va
-	92186 cung mang 17:00 nhung mot don khung 13h-15h con mot don 17h-19h.
-	Gio giao that nam o THE khung gio, con estimate_delivery_date chi cho
-	biet NGAY. Vi vay ham nay chi tra ve ngay.
-
-	Chuoi co khai mui gio (Z hoac +07:00) thi ton trong phan khai do. Chuoi
-	khong khai thi hieu la UTC, dung nhu Pancake dang tra.
-
-	Doc khong duoc thi tra RONG, va ben goi phai coi rong la "khong biet"
-	chu tuyet doi khong duoc coi la hom nay.
+	Sửa tại chỗ lần nữa thì lần thứ ba sẽ lại xảy ra ở tệp thứ ba. Nên phép
+	đọc ngày Pancake nay chỉ còn MỘT bản, và có ca kiểm quét chặn tệp khác tự
+	viết lại. Tên hàm ở đây giữ nguyên để mọi chỗ gọi cũ không phải sửa.
 	"""
-	from datetime import datetime, timedelta, timezone
-	from zoneinfo import ZoneInfo
+	from vagabond.ngay_pancake import ngay_tu_iso
 
-	t = str(s or "").strip()
-	if len(t) < 10 or t[4] != "-" or t[7] != "-":
-		return ""
-	if len(t) < 19:
-		# Chi co phan ngay, khong co gio thi khong quy doi duoc. Tra thang,
-		# vi doan bay gio khong lam ngay dung hon.
-		return _ngay_hop_le(t[:10])
-	try:
-		goc = datetime.strptime(t[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")
-	except ValueError:
-		return ""
-	lech = _lech_mui(t[19:])
-	if lech is None:
-		lech = 0
-	utc = (goc - timedelta(minutes=lech)).replace(tzinfo=timezone.utc)
-	return _ngay_hop_le(utc.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d"))
+	return ngay_tu_iso(s)
 
 
 def _ngay_hop_le(ngay):
-	"""Chuoi yyyy-mm-dd co ra hon khong. Khong hop le thi tra rong. THUAN."""
-	t = str(ngay or "")
-	if len(t) != 10 or t[4] != "-" or t[7] != "-":
-		return ""
-	try:
-		y, m, d = int(t[:4]), int(t[5:7]), int(t[8:10])
-	except ValueError:
-		return ""
-	if 2000 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31:
-		return t
-	return ""
+	"""Giữ tên cũ, gọi hàm chung. Xem vagabond/ngay_pancake.py."""
+	from vagabond.ngay_pancake import ngay_hop_le
+
+	return ngay_hop_le(ngay)
 
 
 # Luat doi ngay giao theo Pancake. Anh Viet duyet 19/08/2026.
@@ -1438,7 +1396,7 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 	}
 	body["path"][0].pop("dia_chi", None)
 	body["path"][0].pop("ten", None)
-	r = requests.post(
+	r = _mang().post(
 		(c.ahamove_base or "").rstrip("/") + "/v3/orders",
 		json=body,
 		headers={"Authorization": "Bearer " + _aha_token(c)},
@@ -1461,7 +1419,7 @@ def _greensm_token(c):
 	if hit:
 		return hit
 	scope = "sandbox.express.trips" if c.get("greensm_sandbox") else "express.trips"
-	r = requests.post(
+	r = _mang().post(
 		(c.greensm_token_url or "").strip(),
 		data={
 			"grant_type": "client_credentials",
@@ -1506,7 +1464,7 @@ def _greensm_dat_don(doc):
 		"cod_amount": flt(doc.tien_thu_ho) or 0,
 		"note": "Đơn %s - %s" % (doc.ma_don or doc.name, doc.gio_giao or ""),
 	}
-	r = requests.post(
+	r = _mang().post(
 		_greensm_base(c) + "/create-order",
 		json=MAP_GSM,
 		headers={"Authorization": "Bearer " + _greensm_token(c)},
@@ -1566,9 +1524,9 @@ def _aha_goi(c, duong_dan, phuong_thuc="GET", body=None):
 	url = (c.ahamove_base or "").rstrip("/") + duong_dan
 	dau = {"Authorization": "Bearer " + _aha_token(c)}
 	if phuong_thuc == "POST":
-		r = requests.post(url, json=body or {}, headers=dau, timeout=TIMEOUT)
+		r = _mang().post(url, json=body or {}, headers=dau, timeout=TIMEOUT)
 	else:
-		r = requests.get(url, headers=dau, timeout=TIMEOUT)
+		r = _mang().get(url, headers=dau, timeout=TIMEOUT)
 	if r.status_code != 200:
 		frappe.log_error(title="Vagabond: Ahamove %s loi" % duong_dan, message=r.text[:1000])
 		frappe.throw("Ahamove trả lỗi: %s" % r.text[:200])
