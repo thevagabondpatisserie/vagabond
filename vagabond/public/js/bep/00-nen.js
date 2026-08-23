@@ -187,6 +187,32 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .kq small{font-size:11.5px;color:#8a8f9c}
 .kwn{margin:10px 14px 0;background:#fff4e0;border:1px solid #f0d4a0;border-radius:12px;padding:11px 13px;font-size:13px;color:#8a5a00;line-height:1.45}
 .rcvh{background:#E4F9FD;border:1px solid #7FE5F6;border-radius:13px;padding:11px 13px;margin-bottom:12px;font-size:13px;color:#0B7C93;line-height:1.5}
+/* So nhan banh dau ngay (v289). Mot dong mot mon: hinh, ten, day o so
+   (ton dau + tung dot), va cot tong dang co ben phai. */
+.nbs{display:flex;gap:9px;margin:0 14px 12px}
+.nbs>div{flex:1;background:#f6f8fc;border:1.5px solid #dfe3ec;border-radius:13px;padding:11px 8px;text-align:center}
+.nbs b{display:block;font-size:21px;font-weight:800;color:#05323C;line-height:1.1}
+.nbs i{display:block;font-style:normal;font-size:11.5px;color:#8a8f9c;margin-top:3px}
+.nbw{margin:0 14px 12px;background:#fff4e0;border:1px solid #f0d4a0;border-radius:12px;padding:11px 13px;font-size:12.5px;color:#8a5a00;line-height:1.5}
+.nbw.ok{background:#E4F9FD;border-color:#7FE5F6;color:#0B7C93}
+.nbb{margin:0 14px}
+.nbr{display:flex;gap:11px;align-items:flex-start;background:#fff;border:1.5px solid #eceff5;border-radius:14px;padding:11px 12px;margin-bottom:9px}
+.nbr img{width:42px;height:42px;object-fit:cover;border-radius:10px;flex:none;border:1px solid #e5e7eb}
+.nbi{width:42px;height:42px;flex:none;border-radius:10px;background:#f6f8fc;display:flex;align-items:center;justify-content:center;font-size:20px}
+.nbt{flex:1;min-width:0}
+.nbt .n1{font-size:14.5px;font-weight:600;color:#05323C;line-height:1.35}
+.nbt .n2{font-size:11.5px;color:#a0a6b4;margin-top:2px}
+.nbl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.nbd{display:inline-flex;flex-direction:column;align-items:center;background:#f6f8fc;border:1.5px solid #dfe3ec;border-radius:10px;padding:5px 9px;cursor:pointer;min-width:52px}
+.nbd.t{background:#E4F9FD;border-color:#7FE5F6}
+.nbd i{font-style:normal;font-size:10.5px;color:#8a8f9c;line-height:1}
+.nbd b{font-size:16px;font-weight:800;color:#05323C;line-height:1.25;margin-top:2px}
+.nbd.t b{color:#0B7C93}
+.nbg{display:inline-flex;align-items:center;font-size:11.5px;color:#a0a6b4;background:#fafbfd;border:1px dashed #dfe3ec;border-radius:10px;padding:0 9px;cursor:pointer}
+.nbc{flex:0 0 auto;text-align:right;min-width:56px;position:relative}
+.nbc b{display:block;font-size:22px;font-weight:800;color:#05323C;line-height:1}
+.nbc i{display:block;font-style:normal;font-size:10.5px;color:#8a8f9c;margin-top:3px}
+.nbx{display:inline-block;margin-top:7px;font-size:13px;color:#c3c8d4;cursor:pointer;padding:2px 6px}
 .uml{flex:0 0 78px;height:50px;border:1.5px solid #dfe3ec;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#4a5061;background:#f6f8fc;text-align:center;line-height:1.15;padding:0 4px;word-break:break-word}
 .kku{margin-bottom:11px}
 .kkuf{font-size:11.5px;color:#8a8f9c;margin-top:4px;padding-left:2px}
