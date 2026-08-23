@@ -1490,7 +1490,13 @@ function htDsVe() {
         (x.loai_hoan === 'Tien nop thua'
           ? '<span style="display:inline-block;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:800;margin-left:6px">TIỀN DƯ</span>'
           : '') +
-        '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) + ' · ' + h(x.hoa_don) + '</div></div>' +
+        /* Huy don Pancake: chua bao gio co hoa don, va khong dung toi doanh
+           thu. Chi Dung phai nhin ra ngay de khong di tim to hoa don goc. */
+        (x.loai_hoan === 'Huy don Pancake'
+          ? '<span style="display:inline-block;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:800;margin-left:6px">HUỶ ĐƠN</span>'
+          : '') +
+        '<div style="font-size:11.5px;color:#98a2b3">' + h(x.name) + ' · ' +
+        h(x.hoa_don || (x.ma_don_pancake ? 'đơn ' + x.ma_don_pancake : '')) + '</div></div>' +
         '<div style="text-align:right"><b style="font-size:15px">' + money(x.so_tien) + ' đ</b>' +
         '<div style="font-size:11px;font-weight:700;color:' + mau + '">' + h(htDsTen(x.trang_thai)) + '</div></div>' +
         '<div style="flex:none;color:#c9cfda;font-size:17px">›</div></div>' +
