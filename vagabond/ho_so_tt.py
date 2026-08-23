@@ -2035,9 +2035,29 @@ def xuat_ho_so(name):
 			frappe.log_error(frappe.get_traceback(), "ho_so_tt: in %s %s" % (dt, dn))
 			return False
 
+	# BAN IN HOA DON CUA ERPNEXT: chi in khi ho so KHONG co ban the hien that.
+	#
+	# Anh Viet 23/08/2026, chi vao trang do: *"da co trang o tren noi dung nay
+	# roi thi khong can trang nay nua, bo di"*. To de nghi o trang mot da liet
+	# ke tung khoan chi, va ban the hien hoa don dinh kem moi la to co gia tri
+	# phap ly - ban in lai cua ERPNext o giua chi noi lai lan ba.
+	#
+	# Vi sao van GIU khi chua co ban the hien: ho so nao chua kip tai ban the
+	# hien ve ma bo luon ca trang nay thi chi tiet hoa don bien mat khoi bo ho
+	# so, ke toan truong khong con gi de doi chieu. Bo mot to thua thi tiet
+	# kiem giay; bo mat to duy nhat co so lieu thi hong ca bo.
+	co_ban_the_hien = set()
+	for x in d["dong"]:
+		if not x.get("hoa_don"):
+			continue
+		for f in (x.get("scan") or []) + (x.get("tep_dong") or []):
+			if str(f.get("ten") or "").lower().endswith(".pdf"):
+				co_ban_the_hien.add(x["hoa_don"])
+				break
+
 	da_po, da_pnk = set(), set()
 	for x in d["dong"]:
-		if x["hoa_don"]:
+		if x["hoa_don"] and x["hoa_don"] not in co_ban_the_hien:
 			_in_html("Purchase Invoice", x["hoa_don"], "Hoá đơn mua")
 		for po in x["po"]:
 			if po not in da_po:
@@ -2053,18 +2073,21 @@ def xuat_ho_so(name):
 	# khoan la ba chuc to giay.
 	anh, bo_qua = _gom_anh_ho_so(d)
 	if anh:
+		# Tieu de nam CHUNG trang voi luoi anh dau tien, khong chiem mot to
+		# rieng. Anh Viet 23/08/2026: *"qua nhieu khoang trong gay phi giay"* -
+		# mot dong tieu de ma an tron mot mat giay A4 la dung cai lang phi do.
 		phan.append(
 			NGAT
-			+ '<div style="font-family:Arial,sans-serif">'
-			+ '<div style="font-size:14px;font-weight:bold;margin-bottom:8px">'
+			+ '<div style="font-family:Arial,sans-serif;margin-bottom:4mm">'
+			+ '<div style="font-size:14px;font-weight:bold">'
 			+ 'CHỨNG TỪ ĐÍNH KÈM'
-			+ '<span style="display:block;font-style:italic;font-weight:normal;'
-			+ 'font-size:11px;color:#666">Supporting documents</span></div>'
-			+ '<div style="font-size:10.5px;color:#666;margin-bottom:6px">'
+			+ '<span style="font-style:italic;font-weight:normal;'
+			+ 'font-size:11px;color:#666"> · Supporting documents</span></div>'
+			+ '<div style="font-size:10.5px;color:#666">'
 			+ '%d ảnh, xếp 4 ảnh một trang. Dòng chữ dưới mỗi ảnh ghi rõ ảnh '
 			'thuộc khoản chi nào.</div></div>' % len(anh)
+			+ luoi_anh(anh)
 		)
-		phan.append(luoi_anh(anh))
 		muc_luc.append("Chứng từ đính kèm: %d ảnh" % len(anh))
 	for f in bo_qua:
 		if (f.get("duoi") or "") == "pdf":
@@ -2087,12 +2110,17 @@ def xuat_ho_so(name):
 	ml += "</div>"
 	phan.append(ml)
 
+	# Le giay lay tu MOT cho duy nhat, xem vagabond/mau_in/le_in.py. Truoc day
+	# cho nay tu khai 12mm con ban ghi Print Format khai 15mm, hai luat cho
+	# cung mot viec (anh Viet 23/08/2026 bao ban in bi tran le).
+	from vagabond.mau_in.le_in import css_trang
+
 	khung = (
-		"<html><head><meta charset='utf-8'><style>"
-		"@page{size:A4 portrait;margin:12mm}"
-		"body{margin:0}"
-		"table{page-break-inside:auto}tr{page-break-inside:avoid}"
-		"</style></head><body>" + "".join(phan) + "</body></html>"
+		"<html><head><meta charset='utf-8'>"
+		+ css_trang()
+		+ '</head><body><div class="vgb-in">'
+		+ "".join(phan)
+		+ "</div></body></html>"
 	)
 
 	from frappe.utils.pdf import get_pdf
@@ -2133,6 +2161,11 @@ def xuat_ho_so(name):
 		"b64": base64.b64encode(noi_dung).decode(),
 		"so_tep": len(muc_luc),
 		"hong": con_thieu,
+		# De doi chieu sau khi deploy: thu vien nao dang dung de doi PDF sang
+		# anh, va bao nhieu anh da vao luoi. Rong nghia la may thieu thu vien
+		# va bo ho so dang quay ve duong noi PDF cu.
+		"raster": _thu_vien_raster(),
+		"so_anh": len(anh),
 	}
 
 
@@ -2900,7 +2933,22 @@ def go_tep_dong(name=None, dong=None, tep=None):
 
 ANH_MOI_TRANG = 4
 CAO_O_ANH = "104mm"   # 4 ô vừa một trang A4 dọc sau khi trừ lề và dòng nhãn
+# Trang chỉ có MỘT hàng thì cho hàng đó cao gần hết trang, đừng để nửa dưới
+# trắng trơn. Vùng in A4 sau lề 15mm là 267mm, trừ dòng nhãn và tiêu đề.
+CAO_O_1_HANG = "215mm"
 DUOI_ANH = ("jpg", "jpeg", "png", "gif", "bmp", "webp")
+
+
+def _noi_tep(ma_tep):
+	"""Đọc nội dung thô một tệp File thành bytes. Rỗng nếu đọc không được."""
+	try:
+		noi = frappe.get_doc("File", ma_tep).get_content()
+		if isinstance(noi, str):
+			noi = noi.encode("utf-8")
+		return noi or b""
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc tep %s" % ma_tep)
+		return b""
 
 
 def _anh_b64(ma_tep):
@@ -2920,6 +2968,114 @@ def _anh_b64(ma_tep):
 		return ""
 
 
+# ---------------------------------------------------------------- PDF -> anh
+#
+# Anh Viet 23/08/2026: *"he thong dang khong in duoc 'Ban the hien hoa don'
+# vi no la dinh dang PDF"*.
+#
+# Vi sao phai rasterize o MAY CHU
+# --------------------------------
+# wkhtmltopdf dung mot tep PDF vao giua mot tep PDF khac thi khong lam duoc:
+# no chi biet dung HTML. Ban truoc vi vay phai NOI cac PDF dinh kem vao cuoi
+# bo ho so bang pypdf, moi to mot trang nguyen kho A4 - mot to hoa don chiem
+# tron mot mat giay du noi dung chi bang mot phan tu.
+#
+# Doi tung trang PDF thanh anh roi tha vao luoi 2x2 thi bon to an mot mat
+# giay, va quan trong hon la ban the hien hoa don CUOI CUNG cung vao duoc bo
+# ho so thay vi bi bo lai.
+#
+# Vi sao thu nhieu thu vien
+# -------------------------
+# PyMuPDF la banh xe thuan, khong can goi he dieu hanh, nen chay duoc tren
+# may Frappe Cloud. pdf2image thi phai co binary poppler cua he dieu hanh,
+# thuong VANG MAT tren anh Docker cua Frappe Cloud - de o day lam duong lui
+# chu khong dat lam duong chinh. Khong co thu vien nao thi tra ve rong va
+# ben goi tu quay ve loi cu la noi ca tep PDF vao cuoi, khong mat to nao.
+
+# Do phan giai khi rasterize. 150 dpi du sac de doc so tien tren hoa don ma
+# tep khong phinh to; 72 dpi thi con dau va chu ky nhoe thanh vet muc.
+DPI_RASTER = 150
+
+# Tran so trang doi tu MOT tep PDF. Mot ban ke ngan hang vai chuc trang lot
+# vao day se lam bo ho so phinh ra va may chu ngoi ve anh ca phut.
+TRANG_TOI_DA_MOI_PDF = 12
+
+
+def _nap_pymupdf():
+	"""Nạp PyMuPDF, thử tên mới trước tên cũ. None nếu máy không có.
+
+	Bản mới của thư viện đổi tên mô đun thành `pymupdf` và đã in cảnh báo
+	"the fitz API is deprecated" cho tên cũ. Thử tên mới trước thì hôm thư
+	viện bỏ hẳn tên cũ, bản in vẫn chạy chứ không im lặng rơi về đường lui.
+	"""
+	try:
+		import pymupdf
+
+		return pymupdf
+	except Exception:
+		pass
+	try:
+		import fitz
+
+		return fitz
+	except Exception:
+		return None
+
+
+def _thu_vien_raster():
+	"""Tên thư viện rasterize đang dùng được, hoặc chuỗi rỗng. Không ném lỗi."""
+	if _nap_pymupdf() is not None:
+		return "pymupdf"
+	try:
+		import pdf2image  # noqa: F401
+
+		return "pdf2image"
+	except Exception:
+		pass
+	return ""
+
+
+def _pdf_ra_anh(noi_dung, toi_da=TRANG_TOI_DA_MOI_PDF, dpi=DPI_RASTER):
+	"""Một tệp PDF -> danh sách ảnh PNG base64, mỗi trang một ảnh.
+
+	Trả về danh sách RỖNG khi môi trường không có thư viện nào, để bên gọi
+	quay về đường cũ. KHÔNG ném lỗi ra ngoài: xuất hồ sơ mà chết giữa chừng
+	vì một tệp đính kèm hỏng thì kế toán mất cả bộ, tệ hơn nhiều so với
+	thiếu một tờ và có dòng ghi rõ là thiếu.
+	"""
+	ten = _thu_vien_raster()
+	if not ten:
+		return []
+	try:
+		if ten == "pymupdf":
+			mu = _nap_pymupdf()
+			ra = []
+			tap = mu.open(stream=noi_dung, filetype="pdf")
+			try:
+				for so, trang in enumerate(tap):
+					if so >= toi_da:
+						break
+					px = trang.get_pixmap(dpi=dpi)
+					ra.append(base64.b64encode(px.tobytes("png")).decode())
+			finally:
+				tap.close()
+			return ra
+
+		from pdf2image import convert_from_bytes
+
+		ra = []
+		for so, hinh in enumerate(convert_from_bytes(noi_dung, dpi=dpi)):
+			if so >= toi_da:
+				break
+			bo = io.BytesIO()
+			hinh.save(bo, format="PNG")
+			ra.append(base64.b64encode(bo.getvalue()).decode())
+		return ra
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: rasterize PDF")
+		return []
+
+
 def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	"""Xếp danh sách ảnh thành các trang lưới 2x2.
 
@@ -2934,6 +3090,15 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	trang = []
 	for i in range(0, len(anh), moi_trang):
 		lo = anh[i:i + moi_trang]
+		# Chieu cao o tinh theo SO HANG THAT cua trang nay, khong dong cung.
+		#
+		# Anh Viet 23/08/2026: *"qua nhieu khoang trong gay phi giay"*. Ban cu
+		# luon lay chieu cao mot o bang 1/2 trang, nen trang cuoi con hai anh
+		# thi mot hang anh nam tren va nua trang duoi bo trong. Trang chi co
+		# mot hang thi cho hang do cao gan het trang - anh to ra, giay khong
+		# phi met nao.
+		so_hang = (len(lo) + 1) // 2
+		cao_o = CAO_O_1_HANG if so_hang == 1 else CAO_O_ANH
 		o = []
 		for x in lo:
 			o.append(
@@ -2946,18 +3111,22 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 				"</div>"
 				'<div style="font-size:9px;color:#555;margin-top:2mm;line-height:1.35">%s</div>'
 				"</td>"
-				% (CAO_O_ANH, CAO_O_ANH, x.get("kieu") or "jpeg", x.get("b64") or "",
-				   CAO_O_ANH, h(x.get("nhan") or ""))
+				% (cao_o, cao_o, x.get("kieu") or "jpeg", x.get("b64") or "",
+				   cao_o, h(x.get("nhan") or ""))
 			)
-		# O trong cho du hang, khong thi bang co mot o thi no keo rong ca trang.
-		while len(o) % 2:
-			o.append('<td style="width:50%;border:none"></td>')
+		# Le mot anh thi cho no chiem CA HANG thay vi de mot o trong ben canh.
+		# O trong ben canh mot to hoa don la mot nua mat giay khong in gi.
+		le = len(o) % 2
 		hang = ""
-		for j in range(0, len(o), 2):
+		for j in range(0, len(o) - le, 2):
 			hang += "<tr>" + o[j] + o[j + 1] + "</tr>"
+		if le:
+			hang += "<tr>" + o[-1].replace('width:50%', 'width:100%', 1).replace(
+				'<td ', '<td colspan="2" ', 1) + "</tr>"
 		trang.append(
-			'<div style="page-break-before:always">'
-			'<table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+			'<div style="%s">'
+			'<table style="width:100%%;border-collapse:collapse;table-layout:fixed">'
+			% ("page-break-before:always" if i else "")
 			+ hang + "</table></div>"
 		)
 	return "".join(trang)
@@ -2985,6 +3154,24 @@ def _gom_anh_ho_so(d):
 		duoi = ten.rsplit(".", 1)[-1].lower() if "." in ten else ""
 		# Giu ca MA File that: khuc ghep PDF o duoi doc noi dung tep bang ma
 		# nay. Chi giu ten hien thi la ghep hong ma khong ai biet vi sao.
+		if duoi == "pdf":
+			# Ban the hien hoa don gan nhu luon la PDF. Doi tung trang thanh
+			# anh de no vao duoc luoi 2x2 nhu moi anh chup khac. Doi khong
+			# duoc (may thieu thu vien, tep hong) thi tra ve bo_qua va ben goi
+			# noi nguyen ca tep vao cuoi bo ho so nhu duong cu - khong bao gio
+			# im lang lam mat mot to.
+			trang = _pdf_ra_anh(_noi_tep(ma))
+			if not trang:
+				bo_qua.append({"file": ma, "ten": ten, "nhan": nhan, "duoi": duoi})
+				return
+			nhieu = len(trang) > 1
+			for so, b64 in enumerate(trang, 1):
+				anh.append({
+					"b64": b64,
+					"kieu": "png",
+					"nhan": "%s · %s%s" % (nhan, ten, (" (trang %d/%d)" % (so, len(trang))) if nhieu else ""),
+				})
+			return
 		if duoi not in DUOI_ANH:
 			bo_qua.append({"file": ma, "ten": ten, "nhan": nhan, "duoi": duoi})
 			return

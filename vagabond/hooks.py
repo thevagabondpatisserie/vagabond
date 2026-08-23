@@ -1,3 +1,14 @@
+# Ham dung duoc trong MOI mau in Jinja cua tiem. Khai o day thi mau in goi
+# thang code39_img(...) chu khong phai viet duong dan module dai loong ngoong.
+#
+# Vi sao ma vach phai la HAM chu khong phai font: xem vagabond/ma_vach.py.
+jinja = {
+	"methods": [
+		"vagabond.ma_vach.code39_img",
+		"vagabond.ma_vach.code39_svg",
+	]
+}
+
 app_name = "vagabond"
 app_title = "Vagabond"
 app_publisher = "Cong ty TNHH Patisserie Vagabond"
