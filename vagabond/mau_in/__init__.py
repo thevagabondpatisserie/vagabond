@@ -76,15 +76,105 @@ def dong_bo():
 
 	# Le giay: dat cho MOI mau in cua tiem, ke ca mau chua keo ve repo. Bon o
 	# nay nam trong ban ghi chu khong trong HTML nen ha CSS xuong khong toi.
-	from vagabond.mau_in.le_in import LE_MM
+	from vagabond.mau_in.le_in import LE_MM, duoc_ap_le_chung
 
-	for ten in frappe.get_all(
-		"Print Format", filters={"standard": "No", "name": ["like", "Vagabond%"]}, pluck="name"
+	for r in frappe.get_all(
+		"Print Format",
+		filters={"standard": "No", "name": ["like", "Vagabond%"]},
+		fields=["name", "doc_type", "html"] + list(LE_BAN_GHI),
 	):
-		hien = frappe.db.get_value("Print Format", ten, LE_BAN_GHI, as_dict=True) or {}
-		if all(int(hien.get(o) or 0) == LE_MM for o in LE_BAN_GHI):
+		# Khong ap le chung cho ban in khac kho A4/A5, dien hinh la tem
+		# 62x45mm. Xem duoc_ap_le_chung() trong le_in.py de biet vi sao.
+		if not duoc_ap_le_chung(r.get("name"), r.get("doc_type"), r.get("html")):
+			ra.setdefault("bo_qua_le", []).append(r.get("name"))
+			continue
+		if all(int(r.get(o) or 0) == LE_MM for o in LE_BAN_GHI):
 			continue
 		for o in LE_BAN_GHI:
-			frappe.db.set_value("Print Format", ten, o, LE_MM, update_modified=False)
-		ra.setdefault("da_dat_le", []).append(ten)
+			frappe.db.set_value("Print Format", r["name"], o, LE_MM, update_modified=False)
+		ra.setdefault("da_dat_le", []).append(r["name"])
 	return ra
+
+
+# ---------------------------------------------------- soi lech bang tay
+#
+# Muc dich: lam cho chuyen "co nguoi sua tay tren Desk" HIEN RA, thay vi am
+# tham. Xem vagabond/mau_in/trang/README.md de biet vi sao chi soi chu khong
+# tu dong day xuong.
+
+TRANG_CHUP = {
+	# route Web Page -> ten tep trong thu muc trang/
+	"bep": "bep",
+}
+
+
+def _bam(s):
+	import hashlib
+
+	return hashlib.sha256((s or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _doc_chup(ten):
+	ra = {}
+	for duoi in ("html", "js"):
+		try:
+			with open(os.path.join(GOC, "trang", "%s.%s" % (ten, duoi)), encoding="utf-8") as f:
+				ra[duoi] = f.read()
+		except OSError:
+			ra[duoi] = None
+	return ra
+
+
+@frappe.whitelist()
+def soi_lech():
+	"""So bản trên site với bản chụp trong repo. Chỉ ĐỌC, không ghi gì.
+
+	Trả về danh sách những chỗ lệch. Rỗng nghĩa là site và repo khớp nhau.
+	"""
+	from vagabond.mau_in.le_in import LE_MM
+
+	lech = []
+
+	# 1. Mau in: repo la nguon that, dong_bo() day xuong moi lan Migrate. Lech
+	#    o day nghia la co nguoi sua tay SAU lan Migrate gan nhat.
+	for ten, (tep, _dt) in MAU_IN.items():
+		if not frappe.db.exists("Print Format", ten):
+			lech.append({"loai": "Mẫu in", "ten": ten, "vi_sao": "chưa có trên site"})
+			continue
+		try:
+			goc = doc_mau(tep)
+		except OSError:
+			lech.append({"loai": "Mẫu in", "ten": ten, "vi_sao": "thiếu tệp trong repo"})
+			continue
+		tren_site = frappe.db.get_value("Print Format", ten, "html") or ""
+		if tren_site.strip() != goc.strip():
+			lech.append({
+				"loai": "Mẫu in", "ten": ten,
+				"vi_sao": "nội dung lệch (site %s, repo %s)"
+					% (_bam(tren_site.strip()), _bam(goc.strip())),
+			})
+
+	# 2. Web Page: repo chi la ANH CHUP, khong day xuong. Lech o day la loi
+	#    nhac phai chup lai, khong phai loi phai sua site.
+	for route, ten_tep in TRANG_CHUP.items():
+		ten = frappe.db.get_value("Web Page", {"route": route}, "name")
+		if not ten:
+			lech.append({"loai": "Trang web", "ten": route, "vi_sao": "chưa có trên site"})
+			continue
+		doc = frappe.get_doc("Web Page", ten)
+		chup = _doc_chup(ten_tep)
+		for truong, duoi in (("main_section_html", "html"), ("javascript", "js")):
+			if chup.get(duoi) is None:
+				lech.append({"loai": "Trang web", "ten": route,
+					"vi_sao": "thiếu ảnh chụp %s trong repo" % duoi})
+				continue
+			tren_site = (doc.get(truong) or "").strip()
+			if tren_site != (chup[duoi] or "").strip():
+				lech.append({
+					"loai": "Trang web", "ten": "%s (%s)" % (route, duoi),
+					"vi_sao": "ảnh chụp trong repo đã CŨ, cần chụp lại "
+						"(site %s, repo %s)" % (_bam(tren_site), _bam(chup[duoi])),
+				})
+
+	return {"lech": lech, "le_mm": LE_MM, "so_mau_in": len(MAU_IN),
+		"so_trang_chup": len(TRANG_CHUP)}
