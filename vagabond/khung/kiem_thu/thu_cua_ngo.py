@@ -80,6 +80,11 @@ CUA_NGO = {
 	# duoc. Chay tren site that nen phai co cua, `nen.py` va cac tep `thu_`
 	# la noi bo, KHONG duoc mo ra ngoai.
 	"khung/kiem_that/cua.py": ["chay"],
+	# Danh muc ngan hang Napas, them 23/08/2026 cung dot QT-31.
+	# `khop_ten` va `chuan_hoa_hoac_bao` la phep noi bo: `khop_ten` thuan nen
+	# vo hai, con `chuan_hoa_hoac_bao` co quyen TAO ban ghi Bank moi nen tuyet
+	# doi khong mo ra ngoai.
+	"ngan_hang.py": ["chuan_hoa", "tep_lo", "tim"],
 	# Don Pancake da huy cho hoan tien, them 21/08/2026. `don_ban_dem`,
 	# `_keo_don_huy`, `_doc_don`, `_phieu` la ham noi bo, KHONG mo ra ngoai:
 	# `_phieu` dung chung tu ke toan, ho ra la ai cung goi duoc.
