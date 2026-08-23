@@ -121,3 +121,38 @@ def _():
 	dung("nêu tên hàm của ERPNext", "get_reference_details" in src)
 	dung("nói rõ phép kiểm chạy lúc lưu", "LUU" in src)
 	dung("giải thích cái giá của Custom DocPerm", "DONG BANG" in src)
+
+
+@ca("khôi phục: đặt lại quyền Phiếu thu/chi cho hai vai kế toán chuẩn")
+def _():
+	"""Bảng quyền đóng băng đã lấy mất sạch quyền của hai vai kế toán.
+
+	Trên Payment Entry có ba dòng Custom DocPerm tạo 23/07/2026. Frappe vứt
+	bỏ toàn bộ bảng quyền chuẩn khi có dòng tuỳ biến, nên từ hôm đó
+	`Accounts User` và `Accounts Manager` trắng quyền. Anh Khải giữ cả hai
+	vai đó mà không mở nổi một phiếu thu chi nào.
+	"""
+	can = quyen_ap.can_khoi_phuc()
+	dt = "Payment Entry"
+	for vai in ("Accounts Manager", "Accounts User"):
+		for q in ("read", "write", "create", "submit", "cancel", "print"):
+			dung("%s có %s" % (vai, q), (dt, vai, q) in can)
+	# Đây là ĐẶT LẠI chứ không phải nới quyền: không được lén thêm vai nào
+	# khác vào bảng khôi phục.
+	vai_co = {v for _d, v, _q in can}
+	la("chỉ đúng hai vai kế toán", sorted(vai_co), ["Accounts Manager", "Accounts User"])
+	dt_co = {d for d, _v, _q in can}
+	la("chỉ đụng Payment Entry", sorted(dt_co), ["Payment Entry"])
+
+
+@ca("khôi phục: dung() phải chạy CẢ hai bảng, không bỏ sót bảng nào")
+def _():
+	import inspect
+
+	src = inspect.getsource(quyen_ap.dung)
+	dung("có gọi can_cap", "can_cap()" in src)
+	dung("có gọi can_khoi_phuc", "can_khoi_phuc()" in src)
+	# Vẫn phải đi qua hai hàm của Frappe. Chèn tay một dòng Custom DocPerm
+	# vào doctype chưa có dòng nào chính là cái đẻ ra sự cố này.
+	dung("đi qua add_permission", "add_permission(" in src)
+	dung("đi qua update_permission_property", "update_permission_property(" in src)
