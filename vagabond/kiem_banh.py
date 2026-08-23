@@ -28,17 +28,53 @@ import re
 from datetime import datetime, timedelta
 
 import frappe
-import requests
 from frappe.utils import add_days, getdate, now_datetime
 
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
+
+
+def _mang():
+	"""Nap requests luc DUNG, khong nap luc import tep.
+
+	Ly do: bo kiem thu tang khung chay tren may CI tay khong, khong co
+	requests. Cac phep THUAN trong tep nay (TIEN_TO_MA, TIEN_TO_THEM_TAY,
+	_dang_ma_dung) phai kiem thu duoc ma khong keo theo thu vien mang.
+	Ngay 23/08/2026 CI do 2 ca vi dung dong "import requests" o dau tep nay.
+	Cung mot le do voi "import erpnext nam TRONG ham" o duong tra truoc.
+	"""
+	import requests
+
+	return requests
 
 BO_QUA_TT = {6, 7}  # da huy, da xoa
 MAX_TRANG = 10
 
 # Theo doi banh o (BAWC) va banh si (BAWS) - anh Viet mo them BAWS 02/08.
 # Phu kien, phi giao, hop nen... khong thuoc bang kiem banh.
+#
+# BANG NAY CHI QUYET DINH "MAY TU DUA VAO BANG".
+# Doi no la doi thu may tu nhat ve tu don Pancake, va bang kiem banh se ngap
+# nhung dong khong ai muon dem. Muon cho bep THEM TAY mot ma thi mo
+# TIEN_TO_THEM_TAY ben duoi, dung dong vao day.
 TIEN_TO_MA = ("BAWC", "BAWS")
+
+# Ma bep duoc TIM va THEM TAY vao bang kiem banh, va bang se GIU lai qua moi
+# lan dong bo.
+#
+# Anh Viet 23/08/2026: *"sua lai logic filter de Bep co the tim va them cac
+# mon banh le, banh man (nhu Patechaud) va cac BTP can kiem dem trong ngay"*.
+#
+#   BAWC  banh o sinh nhat        BAEN  banh lanh (banh le)
+#   BAWS  banh si                 BACF  banh kho (banh le)
+#   BANU  banh nuong - Patechaud nam o day, day la "banh man" anh Viet noi
+#   BASS  hop banh theo mua       BTPB  ban thanh pham banh
+#                                 BTPN  ban thanh pham nuoc
+#
+# CO Y BO RA: BAPK phu kien, BATP topping, BPKG bao bi, DVBH/DVTI dich vu,
+# NU** do uong, NVLT nguyen lieu tho, CCDC cong cu, VVPP van phong pham,
+# KMCB combo khuyen mai, SLOP khoa hoc. Nhung thu do khong ai kiem dem o bang
+# banh, de vao chi lam danh sach tim kiem dai them ma khong dung duoc.
+TIEN_TO_THEM_TAY = TIEN_TO_MA + ("BANU", "BAEN", "BACF", "BASS", "BTPB", "BTPN")
 
 # Man hinh tu goi dong bo lien tuc; chan doi lai Pancake day hon muc nay.
 GIAN_CACH_DONG_BO = 12  # giay
@@ -57,7 +93,7 @@ def _keo_don(c, k, update_status, dau, cuoi):
 	"""Keo het don trong khoang thoi gian, lat qua tung trang."""
 	ra = []
 	for trang in range(1, MAX_TRANG + 1):
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/orders" % (PANCAKE, c.pancake_shop_id),
 			params={
 				"api_key": k,
@@ -77,12 +113,21 @@ def _keo_don(c, k, update_status, dau, cuoi):
 	return ra
 
 
-def _dem_banh(dons):
-	"""Gop so luong theo ma hang, chi lay banh o BAWC.
+def _dem_banh(dons, dang_theo_doi=None):
+	"""Gop so luong theo ma hang.
+
+	dang_theo_doi: tap ma DA CO tren bang kiem banh hom do. Nhung ma nay duoc
+	dem du tien to cua chung khong nam trong TIEN_TO_MA - de bep them tay mot
+	dong Patechaud thi cot "Da dat" cua no cung chay chu khong dung im o 0.
+	Mot dong chi dem duoc ton va bep lam, con don thi khong, la mot dong noi
+	nua su that.
+
+	May van chi TU dua vao bang cac ma thuoc TIEN_TO_MA - xem cho goi ham.
 
 	Tra ve (dem, ten, hinh, khach) - ten, anh va TEN KHACH lay ngay tu don,
 	khoi ton them luot goi nao. Ten khach de sales ban giao ca cho nhau.
 	"""
+	theo_doi = {str(x).upper() for x in (dang_theo_doi or set())}
 	dem, ten, hinh, khach = {}, {}, {}, {}
 	for o in dons:
 		if o.get("status") in BO_QUA_TT:
@@ -91,7 +136,7 @@ def _dem_banh(dons):
 		for it in o.get("items") or []:
 			vi = it.get("variation_info") or {}
 			ma = str(vi.get("display_id") or it.get("variation_id") or "").strip()
-			if not ma.upper().startswith(TIEN_TO_MA):
+			if not ma.upper().startswith(TIEN_TO_MA) and ma.upper() not in theo_doi:
 				continue
 			dem[ma] = dem.get(ma, 0) + int(it.get("quantity") or 0)
 			if vi.get("name"):
@@ -117,7 +162,7 @@ def _tra_anh_ten(c, k, ma):
 	co variation nao mang ma nay nen ham tra ve rong, man hinh in ra trong.
 	"""
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
 			params={"api_key": k, "search": ma, "page_size": 5},
 			timeout=TIMEOUT,
@@ -144,11 +189,18 @@ def _tra_ben_next(ma):
 
 
 def _dang_ma_dung(ma):
-	"""BAWC/BAWS + it nhat 5 chu so. Chan ma cut kieu "BAWC" go nham.
+	"""Mã có dạng dùng được ở bảng kiểm bánh: tiền tố hợp lệ + ít nhất 5 chữ số.
 
-	Van cho hau to size cu (BAWC00114MINI12CM) vi don cu con mang ma do.
+	Chặn mã cụt kiểu "BAWC" gõ nhầm. Vẫn cho hậu tố size cũ
+	(BAWC00114MINI12CM) vì đơn cũ còn mang mã đó.
+
+	Dùng TIEN_TO_THEM_TAY chứ không phải TIEN_TO_MA: hàm này gác cái mà NGƯỜI
+	gõ hoặc chọn vào, còn TIEN_TO_MA gác cái MÁY tự nhặt từ đơn Pancake. Hai
+	việc khác nhau, trộn làm một thì mở cái này là vỡ cái kia.
 	"""
-	return bool(re.match(r"^(BAWC|BAWS)\d{5}", str(ma or "").strip().upper()))
+	return bool(
+		re.match(r"^(%s)\d{5}" % "|".join(TIEN_TO_THEM_TAY), str(ma or "").strip().upper())
+	)
 
 
 def _co_that(c, k, ma):
@@ -205,17 +257,30 @@ def dong_bo(ngay=None):
 	chot_don = [o for o in giao_hom_nay if o.get("status") != 0]
 	ps_don = [o for o in chot_don if o.get("id") in ma_tao_hom_nay]
 	dd_don = [o for o in chot_don if o.get("id") not in ma_tao_hom_nay]
-	dem_dd, ten1, hinh1, _k1 = _dem_banh(dd_don)
-	dem_ps, ten2, hinh2, khach_ps = _dem_banh(ps_don)
-	dem_cho, ten3, hinh3, khach_cho = _dem_banh(moi_don)
+	# Mo so TRUOC khi dem: phep dem can biet bang dang theo doi nhung ma nao,
+	# de dem ca don cua dong bep them tay (Patechaud, banh le, BTP).
+	doc = _lay_hoac_tao(ngay)
+	dang_theo_doi = {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
+
+	dem_dd, ten1, hinh1, _k1 = _dem_banh(dd_don, dang_theo_doi)
+	dem_ps, ten2, hinh2, khach_ps = _dem_banh(ps_don, dang_theo_doi)
+	dem_cho, ten3, hinh3, khach_cho = _dem_banh(moi_don, dang_theo_doi)
 	ten1.update(ten2)
 	ten1.update(ten3)
 	hinh1.update(hinh2)
 	hinh1.update(hinh3)
 
-	doc = _lay_hoac_tao(ngay)
-	# Don dong khong phai banh o (phi giao, phu kien) lot vao tu ban truoc.
-	doc.dong = [d for d in doc.dong if str(d.ma_hang or "").upper().startswith(TIEN_TO_MA)]
+	# Don dong khong phai hang kiem banh (phi giao, phu kien) lot vao tu ban
+	# truoc. Loc theo TIEN_TO_THEM_TAY chu KHONG phai TIEN_TO_MA:
+	#
+	# Bep them tay mot dong Patechaud vao bang, den lan dong bo sau (5 phut
+	# mot lan, chay ngam) dong do bien mat khong dau vet - vi bo loc cu chi
+	# giu BAWC/BAWS. Bep se tuong minh bam hut hoac may nuot mat so vua dem.
+	# Cho bep THEM ma khong cho bang GIU thi tinh nang do khong ton tai.
+	doc.dong = [
+		d for d in doc.dong
+		if str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY)
+	]
 	co = {d.ma_hang: d for d in doc.dong}
 	for ma in set(list(dem_dd) + list(dem_ps) + list(dem_cho)):
 		if ma not in co:
@@ -271,8 +336,11 @@ def dong_bo(ngay=None):
 NGUON_PANCAKE = ("", "pancake")
 
 
-def _dem_don_khac(ngay):
-	"""Dem banh o da ban qua kenh khac Pancake trong ngay, tu hoa don ban ra.
+def _dem_don_khac(ngay, dang_theo_doi=None):
+	"""Dem banh da ban qua kenh khac Pancake trong ngay, tu hoa don ban ra.
+
+	dang_theo_doi: tap ma da co tren bang, de dong bep them tay (Patechaud,
+	banh le, BTP) cung duoc tru khi ban tai quay - giong het ly do o _dem_banh.
 
 	Loan Anh 08/08/2026: khach dat gap qua Grab thi sales bam don tay ben
 	Doanh thu Sales; truoc day phai tao them mot don Pancake gia chi de tru
@@ -305,9 +373,10 @@ def _dem_don_khac(ngay):
 		limit_page_length=0,
 	)
 	dem, mo_ta = {}, {}
+	theo_doi = {str(x).upper() for x in (dang_theo_doi or set())}
 	for r in dong:
 		ma = str(r.item_code or "").strip()
-		if not ma.upper().startswith(TIEN_TO_MA):
+		if not ma.upper().startswith(TIEN_TO_MA) and ma.upper() not in theo_doi:
 			continue
 		sl = int(r.qty or 0)
 		if sl <= 0:
@@ -334,7 +403,9 @@ def _ghi_don_khac(doc, ngay):
 	"""
 	if doc.tinh_trang == "Da chot":
 		return {}
-	dem, mo_ta = _dem_don_khac(ngay)
+	dem, mo_ta = _dem_don_khac(
+		ngay, {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
+	)
 	co = {d.ma_hang: d for d in doc.dong}
 	thieu = [ma for ma in dem if ma not in co]
 	ten_moi = {}
@@ -472,8 +543,10 @@ def them_dong(ngay, ma_hang):
 		frappe.throw("Thieu ma hang")
 	if not _dang_ma_dung(ma_hang):
 		frappe.throw(
-			"Mã %s không đúng dạng. Bảng này chỉ theo dõi bánh ổ và bánh sỉ, "
-			"mã phải là BAWC hoặc BAWS kèm 5 chữ số, ví dụ BAWC00098." % ma_hang
+			"Mã %s không đúng dạng. Bảng này nhận bánh ổ, bánh sỉ, bánh nướng, "
+			"bánh lạnh, bánh khô, hộp bánh theo mùa và bán thành phẩm - mã phải "
+			"bắt đầu bằng %s kèm 5 chữ số, ví dụ BAWC00098 hay BANU00065."
+			% (ma_hang, ", ".join(TIEN_TO_THEM_TAY))
 		)
 	doc = _lay_hoac_tao(ngay)
 	if any(d.ma_hang == ma_hang for d in doc.dong):
@@ -649,7 +722,7 @@ def _mo_ta_san_pham(c, k, sp_id):
 	if not sp_id:
 		return ""
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/%s" % (PANCAKE, c.pancake_shop_id, sp_id),
 			params={"api_key": k},
 			timeout=TIMEOUT,
@@ -684,7 +757,7 @@ def _sp_pancake(c, k, ma):
 			pass
 	ra = {"anhs": [], "mo_ta": "", "khoa_bt": [], "khoa_sp": []}
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
 			params={"api_key": k, "search": ma, "page_size": 5},
 			timeout=TIMEOUT,
@@ -770,7 +843,7 @@ def _soi_pancake(c, k, ma):
 		return ra
 	ra = {}
 	try:
-		r = requests.get(
+		r = _mang().get(
 			"%s/shops/%s/products/variations" % (PANCAKE, c.pancake_shop_id),
 			params={"api_key": k, "search": ma, "page_size": 5},
 			timeout=TIMEOUT,
@@ -784,7 +857,7 @@ def _soi_pancake(c, k, ma):
 			sp_id = sp.get("id") or v.get("product_id")
 			ra["_sp_id"] = str(sp_id or "")
 			if sp_id:
-				r2 = requests.get(
+				r2 = _mang().get(
 					"%s/shops/%s/products/%s" % (PANCAKE, c.pancake_shop_id, sp_id),
 					params={"api_key": k},
 					timeout=TIMEOUT,
@@ -1007,27 +1080,24 @@ def tim_mon(tu_khoa="", ngay=None):
 	bang chon mon luc chot doanh thu.
 	"""
 	q = str(tu_khoa or "").strip()
-	dk = {"disabled": 0, "item_code": ["like", "BAW%"]}
+
+	# Vi sao viet thang SQL o day thay vi frappe.get_all
+	# ---------------------------------------------------
+	# Dieu kien that la:  (tien to nam trong danh sach)  VA  (khop tu khoa).
+	# Phep "like" cua get_all chi nhan MOT gia tri, con or_filters thi chi co
+	# mot nhom OR duy nhat - khong dien duoc mot AND long mot OR. Ghep tay
+	# bang chuoi thi ro rang va di dung mot luot hoi.
+	#
+	# Moi gia tri deu di qua tham so %s, khong noi chuoi vao cau lenh.
+	dieu = " OR ".join(["item_code LIKE %s"] * len(TIEN_TO_THEM_TAY))
+	tham = ["%s%%" % t for t in TIEN_TO_THEM_TAY]
+	cau = """select item_code, item_name, image from `tabItem`
+		where ifnull(disabled, 0) = 0 and (%s)""" % dieu
 	if q:
-		ds = frappe.get_all(
-			"Item",
-			filters=dk,
-			or_filters={
-				"item_code": ["like", "%" + q + "%"],
-				"item_name": ["like", "%" + q + "%"],
-			},
-			fields=["item_code", "item_name", "image"],
-			order_by="item_code",
-			limit_page_length=80,
-		)
-	else:
-		ds = frappe.get_all(
-			"Item",
-			filters=dk,
-			fields=["item_code", "item_name", "image"],
-			order_by="item_code",
-			limit_page_length=80,
-		)
+		cau += " and (item_code like %s or item_name like %s)"
+		tham += ["%" + q + "%", "%" + q + "%"]
+	cau += " order by item_code limit 80"
+	ds = frappe.db.sql(cau, tuple(tham), as_dict=True)
 	da_co = set()
 	if ngay:
 		ten_bang = "KB-%s" % getdate(ngay)

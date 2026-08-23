@@ -34,7 +34,14 @@ import frappe
 # ten ban ghi Print Format  ->  (tep .html, doctype)
 MAU_IN = {
 	"Vagabond - Chứng từ thanh toán": ("chung_tu_thanh_toan.html", "Payment Entry"),
+	# Keo ve repo 23/08/2026 khi sua ma vach. Truoc do mau nay chi song trong
+	# co so du lieu, khong ai doc duoc neu khong mo Desk.
+	"Vagabond - Phiếu nhập kho": ("phieu_nhap_kho.html", "Purchase Receipt"),
 }
+
+# Le giay cua tung ban ghi Print Format. Bon o margin nam trong co so du lieu
+# chu khong trong HTML, nen phai dat rieng - xem le_in.py de biet vi sao 15mm.
+LE_BAN_GHI = ("margin_top", "margin_bottom", "margin_left", "margin_right")
 
 GOC = os.path.dirname(os.path.abspath(__file__))
 
@@ -66,4 +73,18 @@ def dong_bo():
 			continue
 		frappe.db.set_value("Print Format", ten, "html", moi, update_modified=False)
 		ra["da_sua"].append(ten)
+
+	# Le giay: dat cho MOI mau in cua tiem, ke ca mau chua keo ve repo. Bon o
+	# nay nam trong ban ghi chu khong trong HTML nen ha CSS xuong khong toi.
+	from vagabond.mau_in.le_in import LE_MM
+
+	for ten in frappe.get_all(
+		"Print Format", filters={"standard": "No", "name": ["like", "Vagabond%"]}, pluck="name"
+	):
+		hien = frappe.db.get_value("Print Format", ten, LE_BAN_GHI, as_dict=True) or {}
+		if all(int(hien.get(o) or 0) == LE_MM for o in LE_BAN_GHI):
+			continue
+		for o in LE_BAN_GHI:
+			frappe.db.set_value("Print Format", ten, o, LE_MM, update_modified=False)
+		ra.setdefault("da_dat_le", []).append(ten)
 	return ra

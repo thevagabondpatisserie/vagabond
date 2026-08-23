@@ -5858,9 +5858,27 @@ _go47 = _hs47.split("def go_tep(")[1].split("@frappe.whitelist()")[0]
 # QT-20: go la bo lien ket, KHONG xoa tep.
 la("go tep khong xoa tep", "delete_doc" in _go47, False)
 la("go tep chi bo con tro", '"attached_to_doctype": None' in _go47, True)
-la("man ho so co nut tai ban the hien len", "Tải bản thể hiện hoá đơn lên" in _js19_47, True)
-la("chua co tep thi noi ro ke toan truong can gi", "mới duyệt được" in _js19_47, True)
-la("nut tai len goi dung cua dinh_tep", "vagabond.ho_so_tt.dinh_tep" in _js19_47, True)
+# 23/08/2026 anh Viet DAO NGUOC quyet dinh cua chinh minh hom 21/08:
+#
+#   *"do da co nut dinh kem 'Ban the hien hoa don' o tung hoa don roi nen bo
+#    o nay di"*
+#
+# Nut tai len o CHAN man da bo. Dinh theo TUNG DONG hoa don moi la duong dung:
+# tep bam vao dung khoan chi, va ban in ghi duoc nhan "Khoan 3" duoi anh; dinh
+# chung ca ho so thi khong ai biet to do cua khoan nao.
+#
+# Hai ca kiem cu doi o day GIU LAI nhung dao chieu, chu khong xoa - de phien
+# sau doc ra rang day la mot quyet dinh da doi, khong phai mot tinh nang bi
+# rot mat.
+la("man ho so KHONG con nut tai o chan man", "Tải bản thể hiện hoá đơn lên" in _js19_47, False)
+la("khong con cau moi chao tai len o chan man", "mới duyệt được" in _js19_47, False)
+# Cua may chu dinh_tep VAN CON: ho so cu da dinh tep theo duong nay, va man
+# hinh van phai liet ke ra de go duoc. Bo cua la tep cu thanh mo coi.
+la("cua dinh_tep van con ben may chu", "def dinh_tep(" in _hs47, True)
+la("man hinh van liet ke tep cu da dinh", "ho_so_dinh_kem" in _js19_47, True)
+la("van go duoc tep cu", "data-hsgotep" in _js19_47, True)
+# Nut dinh kem theo TUNG DONG hoa don - duong duoc giu lai.
+la("van co nut dinh kem o tung hoa don", "data-hsbth" in _js19_47, True)
 
 # ============================================================ NHOM 48
 print("\n[48] v250: Thu gop nhieu don, email CC nha cung cap, Phantom cap 1")

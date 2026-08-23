@@ -1,0 +1,125 @@
+{#
+   MẪU IN PHIẾU NHẬP KHO - nguồn thật nằm ở repo, xem vagabond/mau_in/__init__.py
+
+   Mã vạch KHÔNG dùng font nữa. Bản cũ khai @font-face trỏ
+   /files/LibreBarcode39.ttf rồi in *{{ doc.name }}* bằng font đó; tệp font có
+   thật trên máy chủ nhưng wkhtmltopdf chạy tiến trình riêng, không nạp được
+   @font-face đường dẫn tương đối, nên bản in ra chỉ còn dòng chữ thường
+   "*PNK-2026-00054*" (anh Việt bắt được 23/08/2026).
+
+   Nay gọi code39_img() sinh thẳng hình vạch dạng data URI - không phụ thuộc
+   font, in ở đâu cũng như nhau, và đã kiểm bằng máy quét thật.
+#}
+<style>
+  /* Lề trang dùng chung cho mọi bản in của tiệm. Xem vagabond/mau_in/le_in.py:
+     bản ghi Print Format cũng khai lề 15mm, nhưng khai cả ở đây để lúc mẫu
+     này được gọi từ frappe.get_print() lồng trong tờ khác thì vẫn thụt lề. */
+  @page { size: A4 portrait; margin: 15mm; }
+  .vgb-in { padding: 0 2mm; }
+</style>
+{% set ncc_ma = frappe.db.get_value("Supplier", doc.supplier, "custom_ma_ipos") %}
+{% set ncc_dc = frappe.db.get_value("Supplier", doc.supplier, "custom_dia_chi_ipos") %}
+{% set nguoi_lap = frappe.db.get_value("User", doc.owner, "full_name") %}
+{% set wh = doc.set_warehouse or (doc.items[0].warehouse if doc.items else "") or "" %}
+{% if "307" in wh %}{% set wh_dc = "307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà, TP.HCM" %}
+{% elif "D1" in wh %}{% set wh_dc = "9 Trần Cao Vân, Phường Sài Gòn, TP.HCM" %}
+{% elif "NVHTN" in wh %}{% set wh_dc = "21 Phạm Ngọc Thạch, Phường Xuân Hoà, TP.HCM" %}
+{% else %}{% set wh_dc = "" %}{% endif %}
+{% set ns = namespace(pos=[], tong_dat=0) %}
+{% for r in doc.items %}{% if r.purchase_order and r.purchase_order not in ns.pos %}{% set ns.pos = ns.pos + [r.purchase_order] %}{% endif %}{% endfor %}
+<div class="vgb-in" style="font-family:'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif; color:#1c1a17; font-size:12px; line-height:1.45; position:relative;">
+  {% if doc.docstatus == 0 %}
+  <div style="position:absolute; top:230px; left:0; width:100%; text-align:center; z-index:0;">
+    <span style="display:inline-block; font-size:110px; font-weight:bold; color:#d8c9b4; letter-spacing:14px; -webkit-transform:rotate(-18deg); transform:rotate(-18deg);">PRINT</span>
+  </div>
+  {% endif %}
+  <table style="width:100%; border:none; border-collapse:collapse; position:relative; z-index:1;"><tr>
+    <td style="border:none; width:45%; vertical-align:middle;">
+      <img src="/files/vagabond_logo_print.png" width="150" height="62" style="width:150px !important; height:62px !important; object-fit:contain;">
+    </td>
+    <td style="border:none; text-align:right; vertical-align:middle; font-size:9.5px; color:#444; line-height:1.5;">
+      <b style="font-size:10.5px; color:#1c1a17;">CÔNG TY TNHH PATISSERIE VAGABOND</b><br>
+      MST: 0318561568<br>
+      9 Trần Cao Vân, Phường Sài Gòn, TP.HCM<br>
+      www.thevagabondpatisserie.com
+    </td>
+  </tr></table>
+  <div style="text-align:center; margin:14px 0 2px; position:relative; z-index:1;">
+    <div style="font-size:19px; font-weight:bold; letter-spacing:1px;">PHIẾU NHẬP KHO</div>
+    <div style="font-size:10px; letter-spacing:4px; color:#6b6257;">GOODS RECEIPT</div>
+    <div style="font-size:10.5px; margin-top:4px;">Số: <b>{{ doc.name }}</b> &nbsp;·&nbsp; Ngày: <b>{{ frappe.utils.formatdate(doc.posting_date, "dd-MM-yyyy") }}</b></div>
+    <div style="margin-top:4px;">{{ code39_img(doc.name, cao_mm=13, don_vi_mm=0.30) }}</div>
+    <div style="font-size:8px; color:#6b6257; letter-spacing:1.5px; margin-top:-1px;">QUÉT MÃ NÀY TRÊN ĐIỆN THOẠI ĐỂ MỞ PHIẾU</div>
+    {% if ns.pos %}<div style="font-size:10.5px; margin-top:2px;">Theo Đơn mua hàng: <b>{{ ns.pos | join(", ") }}</b></div>{% endif %}
+    {% if doc.docstatus == 0 %}
+    <div style="display:inline-block; margin-top:6px; padding:2px 14px; border:1.5px solid #b8860b; color:#b8860b; font-size:10px; font-weight:bold; letter-spacing:2px;">BẢN IN - CHỜ KIỂM ĐẾM &amp; KÝ NHẬN</div>
+    {% endif %}
+  </div>
+  <table style="width:100%; border:none; border-collapse:collapse; margin-top:10px; position:relative; z-index:1;"><tr>
+    <td style="border:none; vertical-align:top; width:50%; padding-right:10px;">
+      <div style="font-size:9.5px; letter-spacing:1.5px; color:#6b6257; margin-bottom:3px;">BÊN GIAO (NHÀ CUNG CẤP)</div>
+      <b>{{ doc.supplier_name or doc.supplier }}</b>{% if ncc_ma %} &nbsp;(Mã: {{ ncc_ma }}){% endif %}<br>
+      {% if ncc_dc %}{{ ncc_dc }}{% endif %}
+    </td>
+    <td style="border:none; vertical-align:top; width:50%;">
+      <div style="font-size:9.5px; letter-spacing:1.5px; color:#6b6257; margin-bottom:3px;">BÊN NHẬN - NHẬP TẠI KHO</div>
+      <b>{{ wh }}</b><br>
+      {% if wh_dc %}{{ wh_dc }}<br>{% endif %}
+      Thủ kho: <b>Đỗ Trung Kiên</b> · 0934 012 995
+    </td>
+  </tr></table>
+  <table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:11px; position:relative; z-index:1;">
+    <tr style="background:#E4F9FD;">
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:24px;">#</th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:120px;">Mã hàng / Mã vạch</th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px;">Tên hàng</th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:38px;">ĐVT</th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:58px;">SL đặt mua</th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:70px;">SL thực nhận<br><span style="font-weight:normal; font-size:9px; color:#6b6257;">(ghi tay)</span></th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:70px;">HSD<br><span style="font-weight:normal; font-size:9px; color:#6b6257;">(ghi tay)</span></th>
+      <th style="border:1px solid #1c1a17; padding:5px 6px; width:64px;">Ghi chú</th>
+    </tr>
+    {% for row in doc.items %}
+    {% set sl_dat = frappe.db.get_value("Purchase Order Item", row.purchase_order_item, "qty") if row.purchase_order_item else row.qty %}
+    {% set ns.tong_dat = ns.tong_dat + (sl_dat or 0) %}
+    <tr>
+      <td style="border:1px solid #1c1a17; padding:6px; text-align:center;">{{ loop.index }}</td>
+      <td style="border:1px solid #1c1a17; padding:6px; text-align:center;">
+        <div style="font-size:10px;">{{ row.item_code }}</div>
+        <div style="margin-top:3px;">{{ code39_img(row.item_code, cao_mm=9, don_vi_mm=0.26, hien_chu=False) }}</div>
+      </td>
+      <td style="border:1px solid #1c1a17; padding:6px;">{{ row.item_name }}</td>
+      <td style="border:1px solid #1c1a17; padding:6px; text-align:center;">{{ row.uom }}</td>
+      <td style="border:1px solid #1c1a17; padding:6px; text-align:right;">{{ "{:,.0f}".format(sl_dat or 0) }}</td>
+      <td style="border:1px solid #1c1a17; padding:6px;">&nbsp;</td>
+      <td style="border:1px solid #1c1a17; padding:6px;">&nbsp;</td>
+      <td style="border:1px solid #1c1a17; padding:6px;">&nbsp;</td>
+    </tr>
+    {% endfor %}
+    <tr style="background:#E4F9FD;">
+      <td colspan="4" style="border:1px solid #1c1a17; padding:5px 6px;"><b>Tổng cộng</b></td>
+      <td style="border:1px solid #1c1a17; padding:5px 6px; text-align:right;"><b>{{ "{:,.0f}".format(ns.tong_dat) }}</b></td>
+      <td style="border:1px solid #1c1a17; padding:5px 6px;">&nbsp;</td>
+      <td style="border:1px solid #1c1a17; padding:5px 6px;">&nbsp;</td>
+      <td style="border:1px solid #1c1a17; padding:5px 6px;">&nbsp;</td>
+    </tr>
+  </table>
+  <div style="font-size:10px; color:#6b6257; margin-top:8px; position:relative; z-index:1;">
+    Lưu ý: SL thực nhận + HSD (nếu trên bao bì khác chuẩn) ghi tay khi kiểm đếm. Quét mã vạch trên phiếu này cho hàng không có barcode nhà sản xuất. Phiếu chỉ nhập máy chính thức sau khi hai bên ký xác nhận.
+  </div>
+  <table style="width:100%; border:none; border-collapse:collapse; margin-top:24px; position:relative; z-index:1;"><tr>
+    <td style="border:none; width:50%; text-align:center; vertical-align:top;">
+      <b>BÊN GIAO HÀNG</b><br>
+      <span style="font-size:10px; color:#6b6257;">(Đại diện / tài xế Nhà cung cấp)</span><br>
+      <span style="font-size:10px; color:#6b6257;">Ký, ghi rõ họ tên</span>
+      <div style="height:75px;"></div>
+    </td>
+    <td style="border:none; width:50%; text-align:center; vertical-align:top;">
+      <b>BÊN NHẬN HÀNG</b><br>
+      <span style="font-size:10px; color:#6b6257;">Thủ kho: Đỗ Trung Kiên</span><br>
+      <span style="font-size:10px; color:#6b6257;">Ký, ghi rõ họ tên</span>
+      <div style="height:75px;"></div>
+    </td>
+  </tr></table>
+  <div style="font-size:9px; color:#999; text-align:right; position:relative; z-index:1;">Người lập phiếu: {{ nguoi_lap }} · In lúc {{ frappe.utils.now_datetime().strftime("%d-%m-%Y %H:%M") }}</div>
+</div>
