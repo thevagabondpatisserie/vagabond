@@ -15933,7 +15933,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '281';
+var APPVER = '282';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -31797,7 +31797,21 @@ async function dhMo(ma) {
     ma: t.ma_don, hien: t.ma_hien_thi, ten: t.ten_khach, sdt: t.sdt,
     tong: t.tong_don, da_nhan: t.da_nhan, tien: t.muc_hoan,
     ly_do: '', dien_giai: '', ten_tk: t.ten_khach || '', so_tk: '',
-    ngan_hang: '', otp: '', noi_dung_ck: t.noi_dung_ck
+    ngan_hang: '', otp: '', noi_dung_ck: t.noi_dung_ck,
+    /* Bảng lý do và câu gợi ý đều lấy từ máy chủ, màn không tự chế. Xem
+       ghi chú ở LY_DO_HUY trong don_huy.py. Có bản dự phòng ở đây phòng
+       khi máy chủ cũ hơn bản app, nhưng bản dự phòng cũng phải có dấu. */
+    ly_do_chon: (t.ly_do_chon && t.ly_do_chon.length) ? t.ly_do_chon : [
+      { k: 'Khach doi y', ten: 'Khách đổi ý' },
+      { k: 'Khach dat nham ngay', ten: 'Khách đặt nhầm ngày' },
+      { k: 'Bep khong kip lam', ten: 'Bếp không kịp làm' },
+      { k: 'Het nguyen lieu', ten: 'Hết nguyên liệu' },
+      { k: 'Trung don', ten: 'Trùng đơn' },
+      { k: 'Khac', ten: 'Khác' }
+    ],
+    goi_y_bc: t.goi_y_bang_chung ||
+      'Chụp hình khung chat với khách, khung chat bếp không làm kịp,...',
+    bang_chung: []   // [{ma, ten, url}]
   };
   dhOv = document.createElement('div');
   dhOv.className = 'sh';
@@ -31840,18 +31854,59 @@ function dhVeForm() {
     'xuất hoá đơn riêng.</div>';
 
   s += rndLbl('Lý do huỷ') + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
-  ['Khach doi y', 'Khach dat nham ngay', 'Bep khong kip lam', 'Het nguyen lieu', 'Trung don', 'Khac']
-    .forEach(function (k) {
-      var on = f.ly_do === k;
-      s += '<button data-dhly="' + h(k) + '" style="border:1.5px solid ' +
-        (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#ccfbf1' : '#fff') +
-        ';color:' + (on ? '#0f766e' : '#374151') + ';border-radius:20px;padding:6px 12px;' +
-        'font-size:12.5px;font-weight:' + (on ? '700' : '500') + '">' + h(k) + '</button>';
-    });
+  f.ly_do_chon.forEach(function (r) {
+    var on = f.ly_do === r.k;
+    s += '<button data-dhly="' + h(r.k) + '" style="border:1.5px solid ' +
+      (on ? '#0f766e' : '#e5e7eb') + ';background:' + (on ? '#ccfbf1' : '#fff') +
+      ';color:' + (on ? '#0f766e' : '#374151') + ';border-radius:20px;padding:6px 12px;' +
+      'font-size:12.5px;font-weight:' + (on ? '700' : '500') + '">' + h(r.ten) + '</button>';
+  });
   s += '</div>';
 
+  /* Tải lên bằng chứng. BẮT BUỘC, và đặt ngay dưới lý do huỷ vì hai thứ này
+     là một cặp: nói lý do thì phải chìa ra cái chứng minh lý do đó. */
+  s += rndLbl('Tải lên bằng chứng') +
+    '<div style="border:1.5px dashed ' + (f.bang_chung.length ? '#0f766e' : '#fca5a5') +
+    ';background:' + (f.bang_chung.length ? '#f0fdfa' : '#fff5f5') +
+    ';border-radius:10px;padding:10px 11px">';
+  if (f.bang_chung.length) {
+    s += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:9px">';
+    f.bang_chung.forEach(function (t, i) {
+      s += '<div style="position:relative;width:74px">' +
+        (dhLaAnh(t.ten)
+          ? '<img src="' + h(t.url) + '" style="width:74px;height:74px;object-fit:cover;' +
+            'border-radius:8px;border:1px solid #d1d5db" loading="lazy">'
+          : '<div style="width:74px;height:74px;border-radius:8px;border:1px solid #d1d5db;' +
+            'display:flex;align-items:center;justify-content:center;font-size:26px;' +
+            'background:#fff">📄</div>') +
+        '<button data-dhgo="' + i + '" style="position:absolute;top:-6px;right:-6px;width:22px;' +
+        'height:22px;border-radius:50%;border:1px solid #fecaca;background:#fff;color:#b3261e;' +
+        'font-size:13px;line-height:1;padding:0">&times;</button>' +
+        '<div style="font-size:10px;color:#98a2b3;margin-top:3px;overflow:hidden;' +
+        'text-overflow:ellipsis;white-space:nowrap">' + h(t.ten) + '</div></div>';
+    });
+    s += '</div>';
+  }
+  s += '<button class="btn gh" data-dhbc style="height:40px">📎 ' +
+    (f.bang_chung.length ? 'Thêm ảnh nữa' : 'Chọn ảnh bằng chứng') + '</button>' +
+    '<div style="font-size:11.5px;color:' + (f.bang_chung.length ? '#0f766e' : '#b3261e') +
+    ';margin-top:7px;line-height:1.5">' + h(f.goi_y_bc) + '</div></div>' +
+    '<div style="height:12px"></div>';
+
+  /* Ô NGÂN HÀNG LÀ Ô CHỌN, KHÔNG PHẢI Ô GÕ. Xem QT-31 trong AGENTS.md.
+     Trước đây đây là <input> gõ tay: quản lý gõ "VietinBank" thì máy chủ ném
+     "Không tìm thấy Ngan hang: VietinBank" và phiếu kẹt lại không gửi duyệt
+     được (22/08/2026).
+
+     Dùng lại nhChon() của tệp 11 chứ không dựng danh sách riêng: 581 ngân
+     hàng chỉ có MỘT nguồn, và nhChon đã lo phần tải một lần rồi giữ lại. */
   s += rndLbl('Tài khoản nhận tiền của khách') +
-    '<input class="nt" id="dhNH" placeholder="Ngân hàng, ví dụ MB, VCB" value="' + h(f.ngan_hang) + '">' +
+    '<button class="nt" data-dhnh style="text-align:left;display:flex;' +
+    'align-items:center;justify-content:space-between;gap:8px;cursor:pointer">' +
+    '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;' +
+    'white-space:nowrap;color:' + (f.ngan_hang ? '#101828' : '#9ca3af') + '">' +
+    h(f.ngan_hang || 'Chọn ngân hàng, gõ vài chữ để tìm') + '</span>' +
+    '<span style="color:#9ca3af;flex:none">▾</span></button>' +
     '<div style="height:8px"></div>' +
     '<input class="nt" id="dhSTK" inputmode="numeric" placeholder="Số tài khoản" value="' + h(f.so_tk) + '">' +
     '<div style="height:8px"></div>' +
@@ -31867,16 +31922,66 @@ function dhVeForm() {
     '<div style="font-size:11.5px;color:#9ca3af;margin:5px 0 12px">Nội dung chuyển khoản sẽ là <b>' +
     h(f.noi_dung_ck) + '</b></div>';
 
-  s += '<button class="btn" data-dhok style="margin-top:4px">Gửi kế toán duyệt</button>' +
-    '<button class="btn gh" data-dhhuy style="margin-top:9px">Đóng</button>';
+  /* Nút mờ khi chưa đủ điều kiện, kèm câu nói RÕ còn thiếu gì. Làm mờ mà
+     không nói thiếu gì thì người ta bấm mãi không hiểu vì sao không được.
+     Máy chủ vẫn chặn lại lần nữa: làm mờ nút chỉ là phép lịch sự với người
+     dùng, không phải hàng rào. */
+  var thieu = dhConThieu(f);
+  s += '<button class="btn" data-dhok' + (thieu ? ' disabled' : '') +
+    ' style="margin-top:4px' + (thieu ? ';opacity:.45' : '') + '">Gửi kế toán duyệt</button>';
+  if (thieu) {
+    s += '<div style="font-size:11.5px;color:#b3261e;text-align:center;margin-top:6px">' +
+      h('Còn thiếu: ' + thieu) + '</div>';
+  }
+  s += '<button class="btn gh" data-dhhuy style="margin-top:9px">Đóng</button>';
   dhOv.querySelector('.shb').innerHTML = s;
+}
+
+function dhLaAnh(ten) {
+  return /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(String(ten || ''));
+}
+
+/* Còn thiếu gì thì trả về câu liệt kê, đủ rồi thì trả về chuỗi rỗng.
+   Một hàm cho cả hai chỗ dùng - vẽ nút và lúc bấm gửi - để hai chỗ không
+   bao giờ nói khác nhau. */
+function dhConThieu(f) {
+  var t = [];
+  if (!f.tien) t.push('số tiền');
+  if (!f.ly_do) t.push('lý do huỷ');
+  if (!f.bang_chung.length) t.push('ảnh bằng chứng');
+  if (!f.ngan_hang) t.push('ngân hàng');
+  if (!f.so_tk) t.push('số tài khoản');
+  if (!f.ten_tk) t.push('tên chủ tài khoản');
+  return t.join(', ');
+}
+
+async function dhThemBangChung() {
+  dhDocO();
+  var tep;
+  /* Dùng lại huChonTep/huUpTep của tệp 19 chứ không dựng đường tải riêng:
+     hai đường tải là hai chỗ phải nhớ đặt is_private, và quên một chỗ là
+     ảnh khung chat của khách nằm công khai. */
+  try { tep = await huChonTep(); } catch (e) { tep = null; }
+  if (!tep) return;
+  if (tep.size > 12 * 1024 * 1024) {
+    return toast('Ảnh nặng quá 12 MB nên máy không nhận. Chụp lại nhỏ hơn giúp em.', 6000);
+  }
+  busy(1);
+  var kq;
+  try { kq = await huUpTep(tep); }
+  catch (e) { busy(0); return toast('Tải ảnh lên không được: ' + ((e && e.message) || ''), 7000); }
+  busy(0);
+  if (!dhF) return;   // người ta đóng form trong lúc chờ mạng
+  dhF.bang_chung.push({ ma: kq.ma, ten: kq.ten, url: kq.url });
+  dhVeForm();
 }
 
 function dhDocO() {
   var f = dhF; if (!f || !dhOv) return;
   var lay = function (id) { var e = dhOv.querySelector('#' + id); return e ? e.value : ''; };
   f.tien = Number(String(lay('dhTien')).replace(/[^0-9]/g, '')) || 0;
-  f.ngan_hang = lay('dhNH').trim();
+  /* f.ngan_hang KHÔNG đọc ở đây: nó không còn là ô gõ nữa mà do nhChon()
+     đặt vào, và đọc một ô không tồn tại sẽ xoá trắng lựa chọn vừa chọn. */
   f.so_tk = lay('dhSTK').replace(/[^0-9]/g, '');
   f.ten_tk = lay('dhTenTK').trim();
   f.dien_giai = lay('dhGhi').trim();
@@ -31890,6 +31995,19 @@ async function dhFBam(ev) {
   if ((el = ev.target.closest('[data-dhly]'))) {
     dhDocO(); dhF.ly_do = el.getAttribute('data-dhly'); return dhVeForm();
   }
+  if (ev.target.closest('[data-dhnh]')) {
+    dhDocO();
+    return nhChon(dhF.ngan_hang, function (ten) {
+      dhF.ngan_hang = ten || '';
+      dhVeForm();
+    });
+  }
+  if (ev.target.closest('[data-dhbc]')) return dhThemBangChung();
+  if ((el = ev.target.closest('[data-dhgo]'))) {
+    dhDocO();
+    dhF.bang_chung.splice(Number(el.getAttribute('data-dhgo')), 1);
+    return dhVeForm();
+  }
   if (ev.target.closest('[data-dhok]')) return dhGui();
 }
 
@@ -31898,15 +32016,16 @@ async function dhGui() {
   var f = dhF;
   if (!f.tien) return toast('Điền số tiền trả lại khách.', 4000);
   if (f.tien > f.da_nhan) return toast('Không hoàn quá số khách đã chuyển (' + money(f.da_nhan) + ' đ).', 5000);
-  if (!f.ly_do) return toast('Chọn lý do huỷ.', 4000);
-  if (!(f.ngan_hang && f.so_tk && f.ten_tk)) return toast('Điền đủ ngân hàng, số tài khoản và tên chủ tài khoản.', 5000);
+  var thieu = dhConThieu(f);
+  if (thieu) return toast('Còn thiếu: ' + thieu, 5000);
   busy(1);
   var kq;
   try {
     kq = await api('vagabond.don_huy.tao_hoan', {
       ma_don: f.ma, so_tien: f.tien, ly_do: f.ly_do, dien_giai: f.dien_giai,
       ten_tk: f.ten_tk, so_tk: f.so_tk, ngan_hang: f.ngan_hang,
-      sdt_khach: f.sdt, otp: f.otp
+      sdt_khach: f.sdt, otp: f.otp,
+      bang_chung: f.bang_chung.map(function (t) { return t.ma; })
     });
   } catch (e) { busy(0); return toast(errMsg(e), 7000); }
   busy(0);
