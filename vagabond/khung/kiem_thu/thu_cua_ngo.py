@@ -86,8 +86,10 @@ CUA_NGO = {
 	# doi khong mo ra ngoai.
 	"ngan_hang.py": ["chuan_hoa", "tep_lo", "tim"],
 	# Don Pancake da huy cho hoan tien, them 21/08/2026. `don_ban_dem`,
-	# `_keo_don_huy`, `_doc_don`, `_phieu` la ham noi bo, KHONG mo ra ngoai:
-	# `_phieu` dung chung tu ke toan, ho ra la ai cung goi duoc.
+	# `_keo_don_huy`, `_doc_don` la ham noi bo, KHONG mo ra ngoai.
+	# `_phieu` da go 23/08/2026: luong nay khong con dung chung tu ke toan
+	# trong yeu cau cua Sales nua, hai phieu sinh o buoc doi soat ben
+	# hoan_tien. Xem `hoan_tien._lap_cap_phieu_huy_don`.
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dong_bo", "ds", "tao_hoan",
 		"xem_hoan", "xuat_excel"],
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate

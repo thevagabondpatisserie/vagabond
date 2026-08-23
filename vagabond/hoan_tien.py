@@ -617,6 +617,35 @@ def khop_giao_dich(mo_ta, ma_hoa_don):
 	return not sau.isdigit()
 
 
+def ma_do_soat(ho_so):
+	"""Chuỗi dùng để dò dòng sao kê cho một hồ sơ hoàn tiền. THUẦN.
+
+	Nhận một dict (hoặc doc) có `hoa_don`, `loai_hoan`, `noi_dung_ck`.
+	Trả chuỗi rỗng nghĩa là hồ sơ này chưa dò được, phải bỏ qua.
+
+	VÌ SAO KHÔNG PHẢI LÚC NÀO CŨNG LÀ MÃ HOÁ ĐƠN
+	----------------------------------------------
+	Phiếu hoàn của luồng trả hàng luôn neo vào một hoá đơn, nên mã hoá đơn
+	vừa là khoá vừa là thứ ghi trong nội dung chuyển khoản.
+
+	Phiếu hoàn của đơn Pancake đã huỷ thì KHÔNG có hoá đơn nào - đó chính là
+	lý do luồng đó tồn tại. Thứ duy nhất đi được vào ô nội dung chuyển khoản
+	là mã đơn.
+
+	Dò theo CẢ CÂU nội dung chuyển khoản chứ không dò theo mã đơn trần. Mã
+	đơn Pancake chỉ có năm chữ số, mà `khop_giao_dich` chỉ chặn chữ số ở
+	phía SAU chứ không chặn phía trước, nên dò "92252" sẽ dính nhầm vào một
+	dòng chứa "192252". Cả câu "THE VAGABOND HOAN TIEN 92252" thì không.
+	"""
+	g = ho_so.get if hasattr(ho_so, "get") else (lambda k, d=None: getattr(ho_so, k, d))
+	hd = str(g("hoa_don") or "").strip()
+	if hd:
+		return hd
+	if str(g("loai_hoan") or "").strip() == LOAI_HUY_PANCAKE:
+		return str(g("noi_dung_ck") or "").strip()
+	return ""
+
+
 def chon_ma_khop(mo_ta, ds_ma):
 	"""Trong danh sach ma dang cho, ma nao khop voi dong sao ke nay. THUAN.
 
@@ -1299,8 +1328,29 @@ def _sinh_chung_tu(ho_so):
 	"""
 	if ho_so.get("hoa_don_tra"):
 		return {"bo_qua": 1, "vi_sao": "Hồ sơ này đã sinh chứng từ rồi."}
-	si = frappe.get_doc(SI, ho_so.hoa_don)
 	loai = (ho_so.get("loai_hoan") or "").strip()
+
+	# HUỶ ĐƠN PANCAKE: không có hoá đơn nào để mở, nên nhánh này phải đứng
+	# TRƯỚC dòng đọc Sales Invoice bên dưới, nếu không là nổ ngay tại đó.
+	#
+	# Cả cụm sinh ở đây chứ không sinh lúc Sales bấm gửi. Lý do đầy đủ nằm ở
+	# đầu `_lap_cap_phieu_huy_don`.
+	if loai == LOAI_HUY_PANCAKE:
+		if ho_so.get("phieu_chi"):
+			return {"bo_qua": 1, "vi_sao": "Hồ sơ này đã sinh chứng từ rồi."}
+		thu, chi = _lap_cap_phieu_huy_don(ho_so)
+		ho_so.phieu_chi = chi.name if chi else None
+		if thu and ho_so.meta.has_field("phieu_thu"):
+			ho_so.phieu_thu = thu.name
+		ho_so.flags.ignore_permissions = True
+		ho_so.save(ignore_permissions=True)
+		return {
+			"bo_qua": 0, "hoa_don_tra": "", "phieu_kho": "",
+			"phieu_chi": ho_so.phieu_chi, "phieu_thu": thu.name if thu else "",
+			"toan_bo": 0, "loai": loai,
+		}
+
+	si = frappe.get_doc(SI, ho_so.hoa_don)
 
 	# HAI LOAI PHIEU KHONG DUNG TOI DOANH THU di chung mot duong: chi mot
 	# phieu chi, khong hoa don tra hang, khong thu hoi diem, khong phieu kho.
@@ -1567,6 +1617,153 @@ def _thu_hoi_diem(si, ma_tra, ly_do):
 		frappe.log_error(frappe.get_traceback(), "hoan_tien: tra lai diem da dung loi")
 
 
+def _lap_cap_phieu_huy_don(ho_so):
+	"""HAI phiếu tiền cho một hồ sơ hoàn của đơn Pancake đã huỷ. Để NHÁP.
+
+	VÌ SAO SINH Ở ĐÂY CHỨ KHÔNG SINH LÚC SALES BẤM GỬI
+	---------------------------------------------------
+	Trước 23/08/2026 hai phiếu này sinh ngay trong yêu cầu của Sales, ở
+	`don_huy.tao_hoan`. Kết quả: luồng chưa từng chạy được một lần nào.
+	Ngày 23/08 chị Loan Anh bấm Gửi kế toán duyệt và nhận:
+
+	    Người dùng ntla.3008@gmail.com không có quyền truy cập doctype qua
+	    quyền vai trò cho tài liệu Phiếu thu/chi
+
+	Sales không có quyền trên Payment Entry, và ĐÚNG là không nên có. Cấp
+	quyền kế toán cho Sales để chữa một màn là mở một cánh cửa rộng hơn
+	nhiều so với chỗ đang vướng.
+
+	`ignore_permissions` trên từng tài liệu KHÔNG cứu được. Đọc thẳng mã
+	nguồn Frappe version-16, `frappe/__init__.py`:
+
+	    def has_permission(doctype=None, ptype="read", doc=None, ...):
+	        out = frappe.permissions.has_permission(doctype, ptype, doc=doc, ...)
+
+	Hàm này không hề nhìn `frappe.flags.ignore_permissions`, cũng không nhìn
+	cờ trên tài liệu. Cờ đó chỉ chặn được `doc.check_permission()` bên trong
+	`Document.insert()`; mọi lời gọi `frappe.has_permission(...)` trần nằm
+	rải trong ERPNext và trong tầng workflow thì nó không với tới.
+
+	Nên anh Việt chốt 23/08/2026: Sales chỉ lập hồ sơ, hai phiếu sinh muộn
+	hơn một nhịp, tại bước đối soát, dưới tay người vốn có quyền. Ý ban đầu
+	của chị Dung giữ nguyên: hai phiếu vẫn ở dạng NHÁP, kế toán vẫn đính
+	giấy báo Có và uỷ nhiệm chi rồi mới ghi sổ.
+
+	Và đây cũng đúng nếp của chính luồng hoàn tiền chính, vốn sinh phiếu chi
+	tại bước đối soát chứ không sinh sẵn từ lúc Sales gửi.
+
+	HAI CHÂN, KHÔNG PHẢI MỘT
+	-------------------------
+	Chị Dung chốt 21/08/2026 điều 2. Chân thu ghi nhận khoản khách đã chuyển
+	vào lúc đặt đơn; chân chi trả lại. Chỉ lập phiếu chi thì TK 131 của mã
+	"Khách lẻ Online" dư Nợ, trông như khách còn nợ đúng bằng số vừa trả.
+
+	Trả về (thu, chi). Cái nào không lập được thì trả None chỗ đó và ghi
+	nhật ký - KHÔNG ném lỗi làm hỏng cả bước đối soát, vì lúc này tiền đã ra
+	khỏi tài khoản thật rồi, dấu đối soát phải giữ được.
+	"""
+	from vagabond.chung_tu_tien import dat_dien_giai
+
+	cong_ty = _cong_ty()
+	tk = tk_chi(cong_ty)
+	if not tk:
+		frappe.log_error("Chua khai tai khoan ngan hang cong ty",
+			"hoan_tien: khong lap duoc cap phieu huy don")
+		return None, None
+	tk_ke_toan = frappe.db.get_value("Bank Account", tk, "account")
+	if not tk_ke_toan:
+		return None, None
+
+	ma_don = str(ho_so.get("ma_don_pancake") or "").strip()
+	# Số khách đã chuyển vào nằm ở bảng đệm đơn huỷ. Không có thì lấy đúng
+	# số đang hoàn, để chân thu và chân chi ít nhất vẫn cân nhau.
+	da_nhan = flt(frappe.db.get_value("Vagabond Don Huy", {"ma_don": ma_don}, "da_nhan")) if ma_don else 0.0
+	if da_nhan <= 0:
+		da_nhan = flt(ho_so.so_tien)
+	noi_dung = str(ho_so.get("noi_dung_ck") or "").strip()
+
+	def _mot(loai, so_tien, dien_giai, tham_chieu):
+		try:
+			pe = frappe.new_doc(PE)
+			pe.payment_type = loai
+			pe.party_type = "Customer"
+			pe.party = ho_so.khach
+			pe.company = cong_ty
+			pe.posting_date = nowdate()
+			if loai == "Receive":
+				pe.paid_to = tk_ke_toan
+			else:
+				pe.paid_from = tk_ke_toan
+			pe.paid_amount = flt(so_tien)
+			pe.received_amount = flt(so_tien)
+			pe.reference_no = tham_chieu
+			pe.reference_date = nowdate()
+			pe.vgb_hoan_tien = ho_so.name
+			dat_dien_giai(pe, dien_giai)
+			pe.flags.ignore_permissions = True
+			pe.insert(ignore_permissions=True)
+			return pe
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+				"hoan_tien: lap phieu %s cho huy don loi" % loai)
+			return None
+
+	mo_ta = "đơn Pancake %s đã huỷ" % (ma_don or ho_so.name)
+	thu = _mot("Receive", da_nhan,
+		"Khách chuyển trước cho %s. Đơn đã huỷ, chưa từng ghi doanh thu nên khoản "
+		"này là tiền công ty giữ hộ, KHÔNG phải doanh thu. Chứng từ gốc: giấy báo "
+		"Có tải từ e-banking." % mo_ta,
+		(ho_so.get("ma_gd") or "").strip() or noi_dung)
+	chi = _mot("Pay", flt(ho_so.so_tien),
+		"Trả lại tiền khách đã chuyển cho %s theo hồ sơ %s. Đơn huỷ trước khi về hệ "
+		"nên KHÔNG có hoá đơn, KHÔNG có hoá đơn trả hàng, KHÔNG có hoá đơn điện tử. "
+		"Nội dung chuyển khoản: %s. Chứng từ gốc: uỷ nhiệm chi tải từ e-banking."
+		% (mo_ta, ho_so.name, noi_dung),
+		noi_dung)
+	if chi:
+		_chep_bang_chung_sang_phieu(ho_so.name, chi.name)
+	return thu, chi
+
+
+def _chep_bang_chung_sang_phieu(ten_ho_so, ten_pe):
+	"""Chép ảnh bằng chứng của hồ sơ sang phiếu chi, để chế độ riêng tư.
+
+	Sales đính ảnh khung chat vào hồ sơ lúc lập. Kế toán thì làm việc trên
+	chứng từ bên ERPNext, nên chép một bản sang đó để mở phiếu ra là thấy
+	ngay căn cứ, không phải lần ngược sang màn khác.
+
+	Là bản NHÂN ĐÔI chứ không phải chuyển chỗ: một tệp trong Frappe chỉ đính
+	vào đúng một chứng từ, mà hồ sơ vẫn phải giữ ảnh cho Sales xem.
+
+	Không ném lỗi: lúc gọi hàm này thì tiền đã ra khỏi tài khoản thật rồi,
+	một cái ảnh không chép được không đáng làm hỏng bước đối soát.
+	"""
+	try:
+		ds = frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": DT, "attached_to_name": ten_ho_so},
+			fields=["name", "file_name", "file_url"],
+			limit_page_length=0,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc bang chung cua ho so")
+		return
+	for f in ds:
+		try:
+			ban = frappe.get_doc({
+				"doctype": "File",
+				"file_name": f.get("file_name"),
+				"file_url": f.get("file_url"),
+				"is_private": 1,
+				"attached_to_doctype": PE,
+				"attached_to_name": ten_pe,
+			})
+			ban.flags.ignore_permissions = True
+			ban.insert(ignore_permissions=True, ignore_if_duplicate=True)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hoan_tien: chep bang chung sang phieu chi")
+
+
 def _lap_phieu_chi_du(si, ho_so):
 	"""Phieu chi cho hai loai KHONG dung toi doanh thu, de o trang thai NHAP.
 
@@ -1786,7 +1983,8 @@ def doi_soat(ho_so=None, so_ngay=30):
 	ds = frappe.get_all(
 		DT,
 		filters=loc,
-		fields=["name", "hoa_don", "hoa_don_tra", "so_tien", "trang_thai"],
+		fields=["name", "hoa_don", "hoa_don_tra", "so_tien", "trang_thai",
+			"loai_hoan", "noi_dung_ck"],
 		limit_page_length=0,
 	)
 	# Do theo MA HOA DON GOC chu khong theo ma to tra hang.
@@ -1795,7 +1993,15 @@ def doi_soat(ho_so=None, so_ngay=30):
 	# nen phieu phai co to tra hang truoc thi moi doi soat duoc. Nay nguoc
 	# lai - to tra hang chi sinh SAU khi tien ra - nen moc de do phai la thu
 	# ton tai ngay tu luc Sales gui yeu cau, tuc ma hoa don goc.
-	ds = [d for d in ds if d.get("hoa_don")]
+	# Giữ lại hồ sơ nào DÒ ĐƯỢC, chứ không riêng hồ sơ có hoá đơn.
+	#
+	# Anh Việt chốt 23/08/2026: phiếu hoàn của đơn Pancake đã huỷ cũng về
+	# chung màn Phiếu hoàn tiền để chị Dung xử lý một chỗ. Những phiếu đó
+	# không có hoá đơn nào, nên nếu vẫn lọc theo `hoa_don` thì chúng bị gạt
+	# ra khỏi vòng quét và mãi mãi nằm ở "Chờ chi".
+	for d in ds:
+		d["ma_do"] = ma_do_soat(d)
+	ds = [d for d in ds if d.get("ma_do")]
 	if not ds:
 		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Không có phiếu nào chờ đối soát."}
 
@@ -1823,7 +2029,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 	for d in ds:
 		for g in gds:
 			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
-			if not khop_giao_dich(mo_ta, d["hoa_don"]):
+			if not khop_giao_dich(mo_ta, d["ma_do"]):
 				continue
 			chu_cu = da_chiem.get(g["name"])
 			if chu_cu and chu_cu != d["name"]:
@@ -1939,9 +2145,14 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	# duong chay theo gio dung, khong de hai duong lech nhau.
 	cho = frappe.get_all(
 		DT, filters={"da_doi_soat": 0, "trang_thai": ["!=", "Da huy"]},
-		fields=["name", "hoa_don", "so_tien", "trang_thai"], limit_page_length=0,
+		fields=["name", "hoa_don", "so_tien", "trang_thai", "loai_hoan", "noi_dung_ck"],
+		limit_page_length=0,
 	)
-	ma = chon_ma_khop(mo_ta, [c["hoa_don"] for c in cho if c.get("hoa_don")])
+	# Dò theo cùng một phép với đường chạy theo giờ. Xem ghi chú ở
+	# `chon_ma_khop` về việc hai đường lệch nhau đã tốn của tiệm một ngày.
+	for c in cho:
+		c["ma_do"] = ma_do_soat(c)
+	ma = chon_ma_khop(mo_ta, [c["ma_do"] for c in cho if c.get("ma_do")])
 	if not ma:
 		doc_duoc = tim_ma_hoa_don(mo_ta)
 		return {
@@ -1953,7 +2164,7 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 				else "Nội dung chuyển khoản không chứa mã hoá đơn nào."
 			),
 		}
-	d = next((c for c in cho if str(c["hoa_don"]).upper() == ma.upper()), None)
+	d = next((c for c in cho if str(c["ma_do"]).upper() == ma.upper()), None)
 	if not d:
 		return {"khop": 0, "ma": ma, "vi_sao": "Không có phiếu hoàn tiền nào đang chờ cho đơn %s." % ma}
 	if flt(so_tien) and abs(flt(so_tien) - flt(d["so_tien"])) > 1:
@@ -2338,6 +2549,9 @@ def ds(trang_thai="", so_dong=100, tim=""):
 		hoac = [
 			["name", "like", "%%%s%%" % tim],
 			["hoa_don", "like", "%%%s%%" % tim],
+			# Phiếu của đơn Pancake đã huỷ không có mã hoá đơn nào, thứ kế
+			# toán gõ vào ô tìm sẽ là mã đơn.
+			["ma_don_pancake", "like", "%%%s%%" % tim],
 			["ten_tk", "like", "%%%s%%" % tim],
 			["so_tk", "like", "%%%s%%" % tim],
 		]
@@ -2351,7 +2565,7 @@ def ds(trang_thai="", so_dong=100, tim=""):
 		filters=loc,
 		or_filters=hoac,
 		fields=[
-			"name", "hoa_don", "hoa_don_tra", "phieu_chi", "khach", "so_tien",
+			"name", "hoa_don", "ma_don_pancake", "hoa_don_tra", "phieu_chi", "khach", "so_tien",
 			"ly_do", "trang_thai", "da_doi_soat", "noi_dung_ck", "creation",
 			"ten_tk", "so_tk", "ngan_hang", "nguoi_duyet", "loai_hoan",
 			# ma_gd la ma giao dich ngan hang da khop. Thieu no thi cot do

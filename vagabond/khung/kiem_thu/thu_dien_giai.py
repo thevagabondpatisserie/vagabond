@@ -33,12 +33,17 @@ from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Nam luong sinh Payment Entry, dung ten tep de sau nay con doi chieu.
+# Cac luong sinh Payment Entry, dung ten tep de sau nay con doi chieu.
+#
+# `don_huy.py` da RA KHOI danh sach nay ngay 23/08/2026. Truoc do luong huy
+# don Pancake tu dung hai Payment Entry ngay trong yeu cau cua Sales, ma
+# Sales khong co quyen tren Payment Entry nen luong chua tung chay duoc lan
+# nao. Nay hai phieu do sinh o buoc doi soat ben `hoan_tien.py`, tuc van nam
+# trong danh sach nay, chi doi cho. Xem `hoan_tien._lap_cap_phieu_huy_don`.
 LUONG_TIEN = (
 	"tra_truoc.py",      # tra truoc nha cung cap theo don mua
 	"ho_so_tt.py",       # thanh toan cong no NCC va hoan ung
-	"hoan_tien.py",      # hoan tien khach
-	"don_huy.py",        # hoan tien don Pancake da huy
+	"hoan_tien.py",      # hoan tien khach, ke ca don Pancake da huy
 	"chung_tu_tien.py",  # noi giu ham dung chung
 )
 

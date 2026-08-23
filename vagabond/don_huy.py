@@ -554,41 +554,6 @@ def _tk_ngan_hang(cong_ty):
 	return tk_ke_toan
 
 
-def _phieu(loai, khach, cong_ty, tk_ke_toan, so_tien, dien_giai, tham_chieu, ho_so):
-	"""Dựng một Payment Entry ở dạng NHÁP. Không ghi sổ, có lý do.
-
-	Chị Dung chốt 16/08/2026 và nhắc lại 21/08/2026 điều 3: chứng từ gốc hai
-	chiều đều phải tải từ e-banking, giấy báo Có cho chiều vào và uỷ nhiệm
-	chi cho chiều ra. Dòng SePay KHÔNG đủ. Nên máy điền sẵn mọi ô, còn nút
-	ghi sổ nằm trong tay kế toán sau khi đính chứng từ.
-	"""
-	from frappe.utils import nowdate
-
-	pe = frappe.new_doc("Payment Entry")
-	pe.payment_type = loai
-	pe.party_type = "Customer"
-	pe.party = khach
-	pe.company = cong_ty
-	pe.posting_date = nowdate()
-	if loai == "Receive":
-		pe.paid_to = tk_ke_toan
-	else:
-		pe.paid_from = tk_ke_toan
-	pe.paid_amount = flt(so_tien)
-	pe.received_amount = flt(so_tien)
-	pe.reference_no = tham_chieu
-	pe.reference_date = nowdate()
-	# Qua chung_tu_tien de ERPNext khong dung lai o Dien giai trong validate.
-	from vagabond.chung_tu_tien import dat_dien_giai
-
-	dat_dien_giai(pe, dien_giai)
-	if ho_so:
-		pe.vgb_hoan_tien = ho_so
-	pe.flags.ignore_permissions = True
-	pe.insert(ignore_permissions=True)
-	return pe
-
-
 @frappe.whitelist()
 def xem_hoan(ma_don):
 	"""Màn hỏi TRƯỚC khi mở form: đơn này hoàn được bao nhiêu, vì sao."""
@@ -775,9 +740,13 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 	# tác thì khỏi nhập mã.
 	cach = _otp_kiem(otp, "hoàn tiền đơn Pancake đã huỷ")
 
-	cong_ty = _cong_ty()
 	khach = _khach_le_online()
-	tk_ke_toan = _tk_ngan_hang(cong_ty)
+	# Kiểm SỚM, dù ở đây không dựng phiếu tiền nữa: tài khoản ngân hàng công
+	# ty chưa khai thì bước đối soát sau này mới hỏng, mà lúc đó người ngồi
+	# trước màn là kế toán chứ không phải người vừa bấm. Nói ngay lúc gửi thì
+	# Sales còn biết đường báo, chứ không phải chờ một phiếu mãi không nhúc
+	# nhích rồi mới đi hỏi.
+	_tk_ngan_hang(_cong_ty())
 	mo_ta = dien_giai_don(d.ma_don, d.ma_hien_thi, d.ten_khach)
 	noi_dung = noi_dung_chuyen_khoan(d.ma_don, d.ma_hien_thi)
 	ghi = ("[Huỷ đơn Pancake] %s. Lý do: %s. %s" % (
@@ -803,41 +772,25 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 	ho_so.flags.ignore_permissions = True
 	ho_so.insert(ignore_permissions=True)
 
-	# CHÂN MỘT: khoản khách đã chuyển vào. Ghi nhận trước, vì nếu chỉ lập
-	# phiếu chi thì TK 131 của mã Khách lẻ Online dư Nợ, trông như khách còn
-	# nợ mình đúng bằng số vừa trả.
-	thu = _phieu("Receive", khach, cong_ty, tk_ke_toan, flt(d.da_nhan),
-		"Khách chuyển trước cho %s. Đơn đã huỷ, chưa từng ghi doanh thu nên "
-		"khoản này là tiền công ty giữ hộ, KHÔNG phải doanh thu. Chứng từ gốc: "
-		"giấy báo Có tải từ e-banking." % mo_ta,
-		(d.ma_gd or "").strip() or noi_dung, ho_so.name)
-
-	# CHÂN HAI: trả lại.
-	chi = _phieu("Pay", khach, cong_ty, tk_ke_toan, tien,
-		"Trả lại tiền khách đã chuyển cho %s theo hồ sơ %s. Đơn huỷ trước khi "
-		"về hệ nên KHÔNG có hoá đơn, KHÔNG có hoá đơn trả hàng, KHÔNG có hoá "
-		"đơn điện tử. Nội dung chuyển khoản: %s. Chứng từ gốc: uỷ nhiệm chi "
-		"tải từ e-banking." % (mo_ta, ho_so.name, noi_dung),
-		noi_dung, ho_so.name)
-
-	# Nối phiếu chi vào hồ sơ. THIẾU DÒNG NÀY LÀ KẸT CẢ ĐUÔI LUỒNG.
+	# KHÔNG sinh phiếu tiền ở đây nữa (anh Việt chốt 23/08/2026).
 	#
-	# `hoan_tien.dinh_unc` và `hoan_tien.tai_unc` đều đọc `phieu_chi` trên hồ
-	# sơ để biết đính uỷ nhiệm chi vào đâu và cho Sales tải từ đâu. Luồng huỷ
-	# đơn sinh Payment Entry thẳng ở đây chứ không qua bước đối soát, nên
-	# trước đây ô này để trống và kế toán không có chỗ đính uỷ nhiệm chi,
-	# Sales cũng không tải được gì gửi khách.
-	try:
-		if chi:
-			ho_so.db_set("phieu_chi", chi.name, update_modified=False)
-		if thu:
-			ho_so.db_set("phieu_thu", thu.name, update_modified=False)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "don_huy: noi phieu vao ho so")
+	# Trước đây chỗ này dựng luôn hai Payment Entry. Người bấm nút là Sales,
+	# mà Sales không có quyền trên Payment Entry - và đúng là không nên có.
+	# Kết quả: luồng chưa từng chạy được một lần nào kể từ khi dựng 21/08.
+	# Ngày 23/08 chị Loan Anh bấm Gửi kế toán duyệt và nhận "không có quyền
+	# truy cập doctype qua quyền vai trò cho tài liệu Phiếu thu/chi".
+	#
+	# Nay hai phiếu sinh muộn hơn một nhịp, tại bước đối soát bên màn Phiếu
+	# hoàn tiền, dưới tay kế toán - người vốn có quyền. Xem đầy đủ ở
+	# `hoan_tien._lap_cap_phieu_huy_don`.
+	#
+	# Ý của chị Dung chốt 21/08 giữ nguyên: vẫn đủ hai chân thu và chi, vẫn
+	# ở dạng nháp, kế toán vẫn đính giấy báo Có và uỷ nhiệm chi rồi mới ghi
+	# sổ. Chỉ khác thời điểm máy dựng ra chúng.
 
-	# Ảnh bằng chứng đi theo hồ sơ, và chép một bản sang phiếu chi để người
-	# mở chứng từ bên ERPNext thấy ngay căn cứ mà không phải lần ngược.
-	_gan_bang_chung(tep_bc, ho_so.name, chi.name if chi else None)
+	# Ảnh bằng chứng đi theo hồ sơ. Phần chép sang phiếu chi để bên ERPNext
+	# nhìn thấy ngay căn cứ thì làm lúc phiếu chi ra đời, không làm ở đây.
+	_gan_bang_chung(tep_bc, ho_so.name)
 
 	d.ho_so_hoan = ho_so.name
 	d.trang_thai = DANG_HOAN
@@ -849,12 +802,11 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 		"ho_so": ho_so.name,
 		"so_tien": tien,
 		"da_nhan": flt(d.da_nhan),
-		"phieu_thu": thu.name if thu else None,
-		"phieu_chi": chi.name if chi else None,
 		"noi_dung_ck": noi_dung,
 		"khach": khach,
 		"ngan_hang": ngan_hang,
 		"so_anh": len(tep_bc),
-		"nhac": ("Hai phiếu đang ở dạng NHÁP. Kế toán đính giấy báo Có và uỷ "
-			"nhiệm chi tải từ e-banking rồi mới ghi sổ."),
+		"nhac": ("Hồ sơ đã nằm ở màn Phiếu hoàn tiền của kế toán. Chị Dung "
+			"chuyển tiền, bấm Đối soát lệnh chi, máy sinh hai phiếu nháp rồi "
+			"chị đính uỷ nhiệm chi và ghi sổ."),
 	}
