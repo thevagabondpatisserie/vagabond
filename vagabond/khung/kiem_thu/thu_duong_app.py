@@ -230,3 +230,41 @@ def _():
 	dung("trạng thái còn sống không gồm Huỷ", t.TT_HUY not in t.TT_CON_SONG)
 	dung("trạng thái còn sống có Đã thanh toán", t.TT_DA_TRA in t.TT_CON_SONG)
 	dung("trạng thái còn sống có Nháp", t.TT_NHAP in t.TT_CON_SONG)
+
+
+@ca("duong app: phai CHO trang chu ve xong roi moi mo man theo dia chi")
+def _():
+	# Loi that, do tren site sau khi deploy v284 ngay 23/08/2026: F5 tai
+	# /don-da-huy van ra trang chu.
+	#
+	# Nguyen nhan: scrHome la ham `async`. No ve tam mot cai dong ho cat, roi
+	# `await` du lieu, xong moi ve that. __boot goi reset(scrHome) roi mo
+	# NGAY man theo dia chi, nhung scrHome ve that MUON hon va de len man vua
+	# mo. Dia chi dung, man hinh sai.
+	#
+	# Cach sua: render() tra ve promise cua ham man hinh thay vi nuot di, va
+	# __boot `await` no truoc khi goi vgbMoTheoDiaChi.
+	#
+	# Bai hoc chung: trong app nay ham man hinh phan lon la async, nen bat cu
+	# cho nao ve hai man lien tiep deu phai cho man truoc ve xong.
+	khung = io.open(os.path.join(GOC, "vagabond", "public", "js", "bep",
+		"01-khung-app.js"), encoding="utf-8").read()
+	vd = io.open(os.path.join(GOC, "vagabond", "public", "js", "bep",
+		"12-van-don.js"), encoding="utf-8").read()
+
+	dung("render trả về promise của hàm màn hình, không nuốt đi",
+		"if (f) return f();" in khung)
+	dung("reset trả lại kết quả của render", "return render();" in khung)
+	# CA HAI nhanh vao man chinh deu phai cho, bo mot nhanh la nguoi dang
+	# nhap kieu do van bi vang ve trang chu.
+	la("số nhánh có await reset(scrHome)", vd.count("await reset(scrHome)"), 2)
+	dung("không còn nhánh nào gọi reset(scrHome) mà không chờ",
+		"adopt(real); reset(scrHome);" not in vd)
+	# vgbMoTheoDiaChi phai nam SAU await, khong nam truoc.
+	i = vd.index("async function __boot()")
+	than = vd[i:vd.index("window.addEventListener('popstate'")]
+	for k in range(than.count("vgbMoTheoDiaChi()")):
+		vi = [m for m in range(len(than)) if than.startswith("vgbMoTheoDiaChi()", m)][k]
+		truoc = than[:vi]
+		dung("lần gọi thứ %d nằm sau một await reset(scrHome)" % (k + 1),
+			"await reset(scrHome)" in truoc)
