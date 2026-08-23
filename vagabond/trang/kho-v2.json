@@ -1,0 +1,12 @@
+{
+	"content_type": "HTML",
+	"dynamic_route": 0,
+	"full_width": 1,
+	"insert_style": 0,
+	"name": "nhap-kho-v2",
+	"published": 1,
+	"route": "kho-v2",
+	"show_title": 0,
+	"text_align": "Left",
+	"title": "Nhap kho v2"
+}

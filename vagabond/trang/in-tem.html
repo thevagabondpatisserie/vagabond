@@ -1,0 +1,91 @@
+<style>
+#vgbtem *{box-sizing:border-box}
+#vgbtem{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;color:#05323C;min-height:100vh;padding:18px 16px 40px;max-width:520px;margin:0 auto}
+#vgbtem h1{font-size:19px;margin:0 0 4px}
+#vgbtem .sub{font-size:13px;color:#0B7C93;margin:0 0 18px}
+#vgbtem .st{font-size:14px;background:#E4F9FD;border-radius:10px;padding:12px 14px;margin-bottom:16px;line-height:1.5}
+#vgbtem .st.err{background:#FDECEC;color:#8A1C1C}
+#vgbtem .btn{display:block;width:100%;text-align:center;border:0;border-radius:12px;padding:16px;font-size:17px;font-weight:600;background:#50DBF2;color:#05323C;text-decoration:none;margin-bottom:12px}
+#vgbtem .btn2{background:#fff;border:2px solid #7FE5F6}
+#vgbtem .prev{border:1px solid #cfe9ef;border-radius:10px;padding:8px;margin-bottom:14px;background:#f7fdff}
+#vgbtem .prev img{width:100%;display:block;background:#fff;margin-bottom:6px;border:1px solid #e3eef1}
+#vgbtem .hint{font-size:12px;color:#0B7C93;line-height:1.6}
+.navbar,.website-navbar,footer.web-footer,.breadcrumb-container,.page-header,#navbar-collapse,.navbar-fixed-top{display:none!important}
+.page_content,.page-content,main.page-content{padding:0!important;margin:0!important;max-width:none!important;width:100%!important}
+body{padding-top:0!important;margin:0!important;background:#fff!important}
+#vgbstage{position:fixed;left:-4000px;top:0;width:300px;height:1400px;border:0}
+</style>
+<div id="vgbtem">
+<h1>Tem s&#7843;n xu&#7845;t</h1>
+<p class="sub" id="vgbsub"></p>
+<div class="st" id="vgbst">&#272;ang chu&#7849;n b&#7883; tem&#8230;</div>
+<a class="btn" id="vgbopen" style="display:none">M&#7903; tem &#273;&#7875; in</a>
+<a class="btn btn2" id="vgbdl" style="display:none">T&#7843;i file tem v&#7873; m&#225;y</a>
+<div class="prev" id="vgbprev" style="display:none"></div>
+<p class="hint">Trang PDF &#273;&#250;ng 62 &#215; 45mm, m&#7895;i tem m&#7897;t trang, m&#225;y in c&#7855;t theo ranh gi&#7899;i trang. M&#7903; xong b&#7845;m n&#250;t chia s&#7867; r&#7891;i ch&#7885;n In, ch&#7885;n m&#225;y Brother. Kh&#244;ng c&#242;n d&#242;ng s&#7889; trang c&#7911;a Safari v&#236; &#273;&#226;y l&#224; file PDF ch&#7913; kh&#244;ng ph&#7843;i trang web.</p>
+</div>
+<iframe id="vgbstage"></iframe>
+<script>
+(function(){
+var W=62,Hh=45,SC=3,GRP=8,CAP=48;
+var q=new URLSearchParams(location.search);
+var dt=q.get('doctype')||'Batch', nm=q.get('name')||'', fmt=q.get('format')||'Vagabond - Tem HACCP nhieu tem';
+var st=document.getElementById('vgbst');
+function say(t,e){st.textContent=t; st.className='st'+(e?' err':'');}
+function ld(u){return new Promise(function(ok,no){var s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=function(){no(new Error('Không tải được thư viện, kiểm tra mạng'))};document.head.appendChild(s);});}
+function mono(c){try{var x=c.getContext('2d');var d=x.getImageData(0,0,c.width,c.height);var p=d.data;for(var i=0;i<p.length;i+=4){var v=(p[i]*0.299+p[i+1]*0.587+p[i+2]*0.114)<150?0:255;p[i]=p[i+1]=p[i+2]=v;p[i+3]=255;}x.putImageData(d,0,0);}catch(e){}return c;}
+function crop(big,y,h){var c=document.createElement('canvas');c.width=big.width;c.height=Math.max(1,Math.round(h));var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(big,0,Math.round(y),big.width,Math.round(h),0,0,big.width,Math.round(h));return c;}
+document.getElementById('vgbsub').textContent=nm+'  ·  '+fmt;
+(async function(){
+ try{
+  if(!nm){say('Thiếu số mẻ trên đường dẫn.',1);return;}
+  say('Đang tải thư viện…');
+  await ld('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  await ld('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  say('Đang lấy nội dung tem…');
+  var r=await fetch('/printview?doctype='+encodeURIComponent(dt)+'&name='+encodeURIComponent(nm)+'&format='+encodeURIComponent(fmt)+'&no_letterhead=1',{credentials:'same-origin'});
+  if(!r.ok) throw new Error('Máy chủ từ chối, mã '+r.status);
+  var html=await r.text();
+  var ifr=document.getElementById('vgbstage');
+  await new Promise(function(ok){ifr.onload=ok; ifr.srcdoc=html;});
+  await new Promise(function(ok){setTimeout(ok,1000)});
+  var d=ifr.contentDocument;
+  var els=[].slice.call(d.querySelectorAll('.tem, .rtem'));
+  if(!els.length) els=[].slice.call(d.querySelectorAll('.print-format'));
+  if(!els.length) throw new Error('Không tìm thấy tem trong mẫu in');
+  var tong=els.length, cut=0;
+  if(tong>CAP){cut=tong-CAP; els=els.slice(0,CAP);}
+  var jsPDF=window.jspdf.jsPDF;
+  var pdf=new jsPDF({unit:'mm',format:[W,Hh],orientation:'landscape',compress:true});
+  var pv=document.getElementById('vgbprev'), done=0;
+  for(var g=0;g<els.length;g+=GRP){
+   var grp=els.slice(g,g+GRP);
+   var wrap=d.createElement('div');
+   wrap.style.cssText='width:62mm;margin:0;padding:0;background:#fff';
+   d.body.appendChild(wrap);
+   for(var k=0;k<grp.length;k++) wrap.appendChild(grp[k]);
+   await new Promise(function(ok){setTimeout(ok,60)});
+   say('Đang dựng tem '+(g+1)+'-'+(g+grp.length)+' / '+els.length+'…');
+   var big=mono(await html2canvas(wrap,{scale:SC,backgroundColor:'#ffffff',logging:false}));
+   var wr=wrap.getBoundingClientRect();
+   for(var k=0;k<grp.length;k++){
+    var br=grp[k].getBoundingClientRect();
+    var cv=crop(big,(br.top-wr.top)*SC,br.height*SC);
+    var ar=cv.height/cv.width, w=W, h=W*ar; if(h>Hh){h=Hh;w=Hh/ar;}
+    if(done>0) pdf.addPage([W,Hh],'landscape');
+    pdf.addImage(cv.toDataURL('image/png'),'PNG',0,0,w,h);
+    if(done<2){var im=new Image(); im.src=cv.toDataURL('image/png'); pv.appendChild(im);}
+    done++;
+   }
+   wrap.remove();
+  }
+  pv.style.display='block';
+  var bl=pdf.output('blob'), url=URL.createObjectURL(bl);
+  var a=document.getElementById('vgbopen'); a.href=url; a.target='_blank'; a.rel='noopener'; a.style.display='block';
+  var b=document.getElementById('vgbdl'); b.href=url; b.setAttribute('download','tem-'+nm+'.pdf'); b.style.display='block';
+  say('Xong. '+done+' tem, khổ 62 × 45mm, file '+(bl.size/1048576).toFixed(2)+' MB.');
+  if(cut) document.querySelector('#vgbtem .hint').insertAdjacentHTML('beforebegin','<div class="st err">Mẻ này khai '+tong+' tem, file chỉ gồm '+done+' tem đầu cho máy đỡ nặng. In xong mở lại trang này để làm tiếp phần còn lại.</div>');
+ }catch(e){ say('Lỗi: '+(e&&e.message?e.message:e),1); }
+})();
+})();
+</script>

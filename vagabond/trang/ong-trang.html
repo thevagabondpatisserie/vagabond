@@ -1,0 +1,169 @@
+<!--
+  ÔNG TRĂNG XUỐNG CHƠI — dán vào ô "Main Section" của Web Page
+  (Frappe: Trang web → Thêm Trang web → Content Type = HTML)
+
+  ⚠ Ba chỗ phải sửa, đã đánh dấu SUA-- ở dưới:
+      1. Đường dẫn logo   (2 chỗ: header và chân trang)
+      2. Số hotline       (2 chỗ)
+      3. Đường dẫn 3 nút chọn vé  → xem file 03-SCRIPT.js
+-->
+
+<div class="otc--wrap">
+
+<div id="otcWarn"></div>
+
+<!-- ============ HEADER ============ -->
+<header>
+ <div class="otc--w otc--hd">
+  <a class="otc--brand" href="/" aria-label="The Vagabond Pâtisserie">
+   <!-- SUA-- đường dẫn logo sau khi tải lên Frappe -->
+   <img class="otc--mark" src="/files/logo.png" alt="The Vagabond Pâtisserie">
+   <span class="otc--sub">Đêm tiệc</span>
+  </a>
+  <div class="otc--hdr">
+   <a class="otc--tel" id="otcTel" href="#">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>
+    <span>Gọi tiệm</span>
+   </a>
+  </div>
+ </div>
+</header>
+
+<main class="otc--w">
+
+ <!-- ============ MỞ ĐẦU ============ -->
+ <section class="otc--intro">
+  <div class="otc--moon" aria-hidden="true"></div>
+  <div class="otc--eyebrow">Đêm tiệc Trung Thu</div>
+  <h1 class="otc--ql">Ông Trăng Xuống Chơi</h1>
+  <p class="otc--lead">
+   Một đêm Trung Thu không có mâm cỗ bày sẵn. Bàn ngọt mở ra, khách tự tay phối lấy ly của mình.
+   Và trước khi ăn, có một người kể cho ta nghe ông trăng từng ở đâu trong đời sống của người Việt xưa.
+  </p>
+  <div class="otc--facts">
+   <div class="otc--fact"><b>Thứ Bảy, 5 tháng 9 năm 2026</b><span>Ngày</span></div>
+   <div class="otc--fact"><b>16:00 – 21:00</b><span>Giờ</span></div>
+   <div class="otc--fact"><b>9 Trần Cao Vân</b><span>Địa điểm</span></div>
+   <div class="otc--fact"><b>40</b><span>Chỗ duy nhất</span></div>
+  </div>
+  <a href="#otcDatVe" class="otc--btn">Chọn vé</a>
+  <div class="otc--conlai" id="otcConLai"></div>
+ </section>
+
+ <!-- ============ KHÁCH MỜI ============ -->
+ <div class="otc--secline"><h2>Khách mời talkshow</h2><em>Diễn giả</em></div>
+ <section class="otc--two">
+  <div>
+   <h3 class="otc--ql">La Quốc Bảo</h3>
+   <div class="otc--role">Nhà nghiên cứu mỹ thuật triều Nguyễn</div>
+   <p class="otc--lead">
+    Sinh năm 1997, tốt nghiệp Kiến trúc và Thiết kế tại Đại học Monash, Úc.
+    Anh là nhà sưu tập cổ vật và nhà nghiên cứu độc lập, với bộ sưu tập gần 300 hiện vật
+    tập trung vào giai đoạn triều Nguyễn 1802 đến 1945, phần lớn là đồ vải và trang phục.
+   </p>
+  </div>
+  <div class="otc--panel">
+   <ul class="otc--bullets">
+    <li>Tác giả dự án <b>Hoa Quan Lệ Phục</b>, tái hiện lễ phục cung đình Nguyễn từ chính hiện vật trong bộ sưu tập riêng.</li>
+    <li>Nhà sáng lập <b>BARO</b>, bộ sưu tập giày vẽ tay <b>Annam Heritage</b> từng góp mặt tại World EXPO 2020 Dubai.</li>
+    <li>Đã hồi hương nhiều cổ vật hiếm, trong đó có áo tấc thêu và áo Công chúa đầu thế kỷ 20.</li>
+    <li>Được mời bảo tồn 4 chiếc áo bào thế kỷ 20 tại đền Bạch Mã.</li>
+    <li>Cố vấn văn hoá cho nhiều dự án thương hiệu và âm nhạc trong nước.</li>
+   </ul>
+  </div>
+ </section>
+
+ <!-- ============ CHƯƠNG TRÌNH ============ -->
+ <div class="otc--secline"><h2>Chương trình</h2><em>16:00 — 21:00</em></div>
+ <section class="otc--two">
+  <div>
+   <h3 class="otc--ql">Chạm,<br>rồi Nghe,<br>rồi Chơi</h3>
+   <p class="otc--lead" style="margin-top:20px">
+    Đêm tiệc đi theo ba trải nghiệm tăng dần độ tương tác, rồi mới tới lúc mở bàn.
+    Bàn ngọt để cuối cùng, vì đó là điểm rơi của cả buổi tối.
+   </p>
+  </div>
+  <div>
+   <ul class="otc--tl">
+    <li><div class="t">16:00</div><div class="n">Đón khách</div><div class="d">Check-in, welcome drink, góc chụp ảnh dưới đèn lồng.</div></li>
+    <li><div class="t">17:00</div><div class="n">Mở đầu</div><div class="d">Lời chào và giới thiệu đêm tiệc.</div></li>
+    <li><div class="t">17:10</div><div class="n">Chạm — Trưng bày hiện vật</div><div class="d">Xem tận mắt hiện vật và hoa văn triều Nguyễn, có người thuyết minh theo nhóm nhỏ.</div></li>
+    <li><div class="t">18:10</div><div class="n">Nghe — Talkshow La Quốc Bảo</div><div class="d">Ông trăng trong mỹ thuật và đời sống Việt xưa, kèm phần hỏi đáp trực tiếp.</div></li>
+    <li><div class="t">19:20</div><div class="n">Chơi — Bày mâm cỗ và rước đèn</div><div class="d">Chia nhóm bày mâm cỗ trông trăng, rước đèn, chụp ảnh tập thể.</div></li>
+    <li><div class="t">19:50</div><div class="n">Bàn Trăng — Khách tự phối ly</div><div class="d">Bếp demo hai công thức gợi ý, sau đó bàn mở cho khách tự do.</div></li>
+    <li class="soft"><div class="t">21:00</div><div class="n">Kết thúc</div><div class="d"></div></li>
+   </ul>
+  </div>
+ </section>
+
+ <!-- ============ BÀN TRĂNG ============ -->
+ <div class="otc--secline"><h2>Bàn Trăng</h2><em>Tám món · ba tầng</em></div>
+ <section class="otc--two">
+  <div>
+   <h3 class="otc--ql">Không ai dọn sẵn ly cho bạn</h3>
+   <p class="otc--lead" style="margin-top:20px">
+    Tám món bày trên bàn, chia ba tầng. Bạn chọn một món tầng quả, một món tầng ấm,
+    rồi phủ lên một món tầng kem. Hoặc bỏ qua hết và tự phối theo khẩu vị của mình.
+   </p>
+   <div class="otc--callout">
+    Mỗi khách còn có thêm <b>một chiếc bánh dẻo trứng muối 50 gram</b>.<br><br>
+    <b>Lưu ý về dị ứng:</b> bàn ngọt có sử dụng rượu rum, dừa, sữa và các loại hạt.
+    Vui lòng khai báo khi đăng ký để bếp chuẩn bị riêng cho bạn.
+   </div>
+  </div>
+  <div class="otc--panel">
+   <div class="otc--mg"><h4>Tầng quả</h4>
+    <ul><li>Hồng da tre</li><li>Bưởi hồng tươi</li><li>Nhãn tươi</li><li>Bình bát compote</li></ul></div>
+   <div class="otc--mg"><h4>Tầng ấm</h4>
+    <ul><li>Chuối đốt rượu rum</li><li>Cốm xào</li></ul></div>
+   <div class="otc--mg"><h4>Tầng kem</h4>
+    <ul><li>Kem dừa sáp vani</li><li>Chantilly hoa nhài</li></ul></div>
+  </div>
+ </section>
+
+ <!-- ============ CHỌN VÉ ============ -->
+ <div class="otc--secline" id="otcDatVe"><h2>Chọn vé</h2><em>Giới hạn 40 chỗ</em></div>
+ <section class="otc--datve">
+  <p class="otc--lead" style="text-align:center;margin:0 auto 6px">
+   Bấm vào gói bạn muốn để điền thông tin đăng ký.
+  </p>
+
+  <!-- Ba nút này do 03-SCRIPT.js dựng ra, để đường dẫn khai ở một chỗ duy nhất -->
+  <div class="otc--goi" id="otcGoi"></div>
+
+  <div class="otc--buoc">
+   <span><b>1</b>Chọn gói</span>
+   <span><b>2</b>Điền thông tin</span>
+   <span><b>3</b>Chuyển khoản</span>
+   <span><b>4</b>Nhận mail xác nhận</span>
+  </div>
+
+  <p class="otc--lead" style="text-align:center;margin:22px auto 0;font-size:12.5px">
+   Không cần tạo tài khoản. Thanh toán bằng chuyển khoản, tiệm xác nhận và gửi vé qua email.
+  </p>
+ </section>
+
+ <!-- ============ FAQ ============ -->
+ <div class="otc--secline"><h2>Câu hỏi thường gặp</h2><em>Trước khi bạn đặt vé</em></div>
+ <section style="max-width:780px;margin:0 auto;padding-top:14px">
+  <details><summary>Tôi có được hoàn vé không?</summary><p>Vé đã thanh toán không hoàn tiền. Khách có thể chuyển nhượng vé cho người khác, vui lòng báo trước ngày diễn ra ít nhất 48 giờ để chúng tôi cập nhật danh sách check-in.</p></details>
+  <details><summary>Thông tin của tôi được dùng vào việc gì?</summary><p>Chúng tôi thu thập họ tên, số điện thoại, email và thông tin dị ứng thực phẩm với mục đích duy nhất là xác nhận vé, liên hệ khi có thay đổi và bảo đảm an toàn thực phẩm cho quý khách trong đêm tiệc. Thông tin không được chia sẻ cho bên thứ ba.</p></details>
+  <details><summary>Tôi bị dị ứng thực phẩm thì sao?</summary><p>Vui lòng ghi rõ ở ô dị ứng khi đăng ký. Bàn ngọt có sử dụng rượu rum, dừa, sữa và các loại hạt. Bếp sẽ chuẩn bị phần riêng cho bạn, nhưng cần biết trước ít nhất 48 giờ.</p></details>
+  <details><summary>Mua combo thì có cần đăng ký từng người không?</summary><p>Không. Một người đăng ký cho cả nhóm, chỉ cần ghi tên những người đi cùng ở ô tương ứng để chúng tôi làm danh sách check-in.</p></details>
+  <details><summary>Thanh toán thế nào?</summary><p>Chuyển khoản ngân hàng. Sau khi đăng ký, bạn sẽ nhận được thông tin chuyển khoản kèm mã đơn. Tiệm xác nhận và gửi mail vé cho bạn trong vòng 24 giờ.</p></details>
+  <details><summary>Tôi đến muộn có được vào không?</summary><p>Được. Cửa mở từ 16:00 và đóng lúc 21:00. Tuy nhiên phần talkshow bắt đầu lúc 18:10, bạn nên có mặt trước đó.</p></details>
+ </section>
+
+</main>
+
+<footer class="otc--ft">
+ <div class="otc--w">
+  <!-- SUA-- đường dẫn logo -->
+  <img src="/files/logo.png" alt="The Vagabond Pâtisserie">
+  <p>The Vagabond Pâtisserie · 9 Trần Cao Vân, Phường Sài Gòn, TP.HCM</p>
+  <p>Hotline <b id="otcHotline">–</b></p>
+  <p><a href="https://thevagabondpatisserie.com">thevagabondpatisserie.com</a></p>
+ </div>
+</footer>
+
+</div>
