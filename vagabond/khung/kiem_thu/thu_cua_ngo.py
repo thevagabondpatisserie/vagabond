@@ -231,6 +231,44 @@ CUA_NGO = {
 		"bang", "chot_ngay", "dat_ton_dau", "diem_nhan", "ghi_nhan",
 		"mon_hay_nhan", "sua_so", "tim_mon", "xoa_mon"
 	],
+	# Ba mo dun duoi day CHUA duoc chot cho toi 24/08/2026, va do la mot
+	# lo hong that: v294 mo bon cua go anh tren chinh chung (go_anh,
+	# go_anh_nhan, go_anh_xuat_huy) ma khong co hang rao nao canh. Chen
+	# mot ham moi vao giua dong @frappe.whitelist() va dong def cua mot
+	# trong cac ham nay se lam ham cu mat quyen goi, Python khong bao,
+	# kiem thu khong bao, cong tra ve 0, chi lo khi co nguoi bam nut.
+	#
+	# van_don.py la mo dun to nhat trong ba: 31 cua, gom ca duong shipper
+	# bam va duong webhook cua Aha goi vao.
+	"van_don.py": [
+		"aha_bao_gia", "aha_dich_vu", "aha_webhook",
+		"bo_loc", "book_xe", "canh_bao_thanh_toan",
+		"chi_phi_danh_sach", "chi_phi_xuat_excel",
+		"chuyen_cua_toi", "chuyen_dang_chay",
+		"danh_sach", "doi_soat_cod", "dong_bo_pancake", "ds_shipper",
+		"duyet_chi_phi", "gan_anh", "gan_shipper", "giao_loi", "giao_xong",
+		# go_anh them 24/08/2026 (v294): nut X tren anh giao va chu ky.
+		# Chu ky chan chat hon anh giao, xem TT_GO_DUOC_ANH trong van_don.
+		"go_anh",
+		"gop_chuyen", "huy_van_don", "khach_khong_ky", "luu_chu_ky",
+		"mon_van_don", "nap_mon_thieu", "nhan_don", "phieu_in",
+		"tao_chi_phi", "tao_van_don", "xac_nhan_cod",
+	],
+	# Nhan hang tu nha cung cap. `go_anh_nhan` them 24/08/2026 (v294): anh
+	# Viet chot chi chan khi phieu da huy, vi anh chup hang thuong phai
+	# chup lai sau khi phat hien chup thieu.
+	"nhan_hang.py": [
+		"chi_tiet", "danh_sach", "dong_con_lai", "go_anh_nhan",
+		"mo_lai", "tao_phieu",
+	],
+	# Xuat kho: dieu chuyen va xuat huy. `go_anh_xuat_huy` them 24/08/2026
+	# (v294), chan khi da ghi so hoac da huy - luc do anh la chung tu.
+	"xuat_kho.py": [
+		"chi_tiet", "dong_cua_yeu_cau", "ds_phieu", "ghi_so_xuat_huy",
+		"go_anh_xuat_huy", "hang_chuyen_ve", "khoi_dong",
+		"luu_dieu_chuyen", "luu_xuat_huy", "tim_hang", "xoa_ban_nhap",
+		"yeu_cau_cho_chuyen",
+	],
 }
 
 

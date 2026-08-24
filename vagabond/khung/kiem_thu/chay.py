@@ -23,10 +23,10 @@ from vagabond.khung.kiem_thu import nen  # noqa: E402
 nen.gia_lap()
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
-	thu_bo_doctype, thu_chi_loi_qz,
+	thu_bo_doctype, thu_card_khong_la_flex, thu_chi_loi_qz,
 	thu_cua_ngo, thu_de_nghi_chi, thu_dien_giai, thu_dinh_kem_go,
 	thu_dinh_tuyen_ngan_hang,
-	thu_doi_soat_sepay, thu_don_du_lieu, thu_don_huy,
+	thu_doi_soat_sepay, thu_don_du_lieu, thu_don_huy, thu_don_rac_tep,
 	thu_duong_app,
 	thu_duyet_ycmh,
 	thu_ds,
@@ -41,6 +41,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_nhan_banh, thu_nha_cung_cap, thu_phantom, thu_phieu_chi_va_cuon, thu_quyen_ap, thu_tien_ca, thu_tim_ncc, thu_tinh,
 	thu_siet_hoan_ung,
 	thu_tra_truoc,
+	thu_vai_cua_hang,
 	thu_trang_web,
 	thu_xung_ho,
 )
