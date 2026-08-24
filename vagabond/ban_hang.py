@@ -1807,8 +1807,7 @@ def kiem_truoc_khi_luu(doc, method=None):
 	nguon = (doc.get("custom_nguon") or "").strip()
 	if not nguon:
 		frappe.throw(
-			"Hoá đơn chưa chọn <b>nguồn đơn</b>. Chọn nguồn rồi lưu lại giúp em, "
-			"không thì cuối ngày máy không biết đối soát với sàn nào.",
+			"Hoá đơn chưa chọn <b>nguồn đơn</b>. Vui lòng chọn nguồn rồi lưu lại, không thì cuối ngày máy không biết đối soát với sàn nào.",
 			title="Thiếu nguồn đơn",
 		)
 
@@ -1828,8 +1827,7 @@ def kiem_truoc_khi_luu(doc, method=None):
 		# Phieu TAM TINH la phieu giu mon, khach chua tra nen chua co phuong
 		# thuc - do la dung. Con lai thieu phuong thuc la chan.
 		frappe.throw(
-			"Hoá đơn chưa chọn <b>phương thức thanh toán</b>. Chọn rồi lưu lại "
-			"giúp em, không thì cuối ngày đơn này không ghi sổ được.",
+			"Hoá đơn chưa chọn <b>phương thức thanh toán</b>. Vui lòng chọn rồi lưu lại, không thì cuối ngày đơn này không ghi sổ được.",
 			title="Thiếu phương thức thanh toán",
 		)
 
@@ -4267,7 +4265,7 @@ def tim_don(tu_khoa="", so_dong=40):
 	_kiem_quyen()
 	tu = chuan_tim(tu_khoa)
 	if len(tu) < 3:
-		return {"ds": [], "vi_sao": "Gõ ít nhất 3 ký tự rồi tìm giúp em."}
+		return {"ds": [], "vi_sao": "Vui lòng gõ ít nhất 3 ký tự rồi tìm."}
 
 	mau = ["%%%s%%" % tu]
 	# So dien thoai: do them ban bo so 0 o dau va ban chi con chu so, vi
@@ -4315,6 +4313,5 @@ def tim_don(tu_khoa="", so_dong=40):
 		d["sdt_tren_don"] = so
 		d["ngay"] = str(d.get("posting_date") or "")
 	return {"ds": ds, "tu_khoa": tu, "vi_sao": "" if ds else (
-		"Không thấy đơn nào khớp \"%s\". Thử gõ mã đơn Pancake, số điện thoại "
-		"khách, hoặc một phần tên khách giúp em." % tu
+		'Không thấy đơn nào khớp "%s". Thử gõ mã đơn Pancake, số điện thoại khách, hoặc một phần tên khách.' % tu
 	)}

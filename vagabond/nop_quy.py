@@ -239,7 +239,7 @@ def ky_giao(ma, chu_ky):
 	if doc.trang_thai != TT_NHAP:
 		frappe.throw("Phiếu đang ở trạng thái %s, không ký giao lại được." % doc.trang_thai)
 	if not la_chu_ky(chu_ky):
-		frappe.throw("Chữ ký không hợp lệ. Ký tay lại trên màn hình giúp em.")
+		frappe.throw("Chữ ký không hợp lệ. Vui lòng ký tay lại trên màn hình.")
 	doc.chu_ky_ben_giao = chu_ky
 	doc.giao_luc = now_datetime()
 	doc.trang_thai = TT_CHO_KY
@@ -260,7 +260,7 @@ def ky_nhan(ma, chu_ky):
 	if doc.trang_thai != TT_CHO_KY:
 		frappe.throw("Phiếu đang ở trạng thái %s, chưa hoặc không còn chờ ký nhận." % doc.trang_thai)
 	if not la_chu_ky(chu_ky):
-		frappe.throw("Chữ ký không hợp lệ. Ký tay lại trên màn hình giúp em.")
+		frappe.throw("Chữ ký không hợp lệ. Vui lòng ký tay lại trên màn hình.")
 	if frappe.session.user == doc.nguoi_giao:
 		frappe.throw("Bên giao và bên nhận không được là cùng một người.")
 	doc.chu_ky_ben_nhan = chu_ky

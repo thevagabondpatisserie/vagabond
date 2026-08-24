@@ -75,7 +75,7 @@ def _sinh_ma_cn():
 		ma = "%s%05d" % (tien_to, so)
 		if not frappe.db.exists("Vagabond Cong No", {"ma_phieu": ma}):
 			return ma
-	frappe.throw("Không sinh được mã phiếu yêu cầu thanh toán, thử lại giúp em.")
+	frappe.throw("Không sinh được mã phiếu yêu cầu thanh toán, vui lòng thử lại.")
 
 
 def _sepay_theo_ma_cn(ds_ma):

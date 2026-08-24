@@ -193,13 +193,13 @@ def _ma_moi(tt):
 	"""
 	tt = str(tt or "").strip().upper()
 	if not tt:
-		frappe.throw("Chưa biết tiền tố mã của nhóm này. Điền giúp em một lần.")
+		frappe.throw("Chưa biết tiền tố mã của nhóm này. Vui lòng điền một lần.")
 	_dong_bo_series(tt)
 	for _ in range(60):
 		ma = "%s%s" % (tt, getseries(tt, SO_CHU_SO))
 		if not frappe.db.exists("Item", ma):
 			return ma
-	frappe.throw("Không cấp được mã mới cho tiền tố %s, thử lại giúp em." % tt)
+	frappe.throw("Không cấp được mã mới cho tiền tố %s, vui lòng thử lại." % tt)
 
 
 def _ten_day_du(loai, ten, quy_cach):
@@ -281,15 +281,12 @@ def xem_truoc(nhom=None, loai=None, ten=None, quy_cach=None):
 	canh_bao = []
 	if nhom and not tt:
 		canh_bao.append(
-			"Nhóm \"%s\" chưa có mã hàng nào theo khuôn nên máy chưa đoán được "
-			"tiền tố. Điền tiền tố giúp em một lần, các món sau tự theo." % nhom
+			'Nhóm "%s" chưa có mã hàng nào theo khuôn nên máy chưa đoán được tiền tố. Vui lòng điền tiền tố một lần, các món sau tự theo.' % nhom
 		)
 	qc = " ".join(str(quy_cach or "").split())
 	if qc and not l["ban"]:
 		canh_bao.append(
-			"Quy cách của hàng mua vào không nên nằm trong tên món: hôm nhà cung "
-			"cấp đổi túi 1 kg thành hai túi 500 gram là tên món thành sai. Em ghi "
-			"quy cách xuống phần mô tả, còn quy đổi đơn vị thì khai ở bảng quy đổi."
+			"Quy cách của hàng mua vào không nên nằm trong tên món: hôm nhà cung cấp đổi túi 1 kg thành hai túi 500 gram là tên món thành sai. Nên ghi quy cách xuống phần mô tả, còn quy đổi đơn vị thì khai ở bảng quy đổi."
 		)
 	return {
 		"tien_to": tt,
@@ -385,14 +382,14 @@ def tao(
 		frappe.throw("Không có nhóm món \"%s\"." % nhom)
 	if cint(frappe.db.get_value("Item Group", nhom, "is_group")):
 		frappe.throw(
-			"\"%s\" là nhóm cha, không gắn món thẳng vào được. Chọn nhóm con giúp em."
+			'"%s" là nhóm cha, không gắn món thẳng vào được. Vui lòng chọn nhóm con.'
 			% nhom
 		)
 
 	l = _loai(loai)
 	ten = " ".join(str(ten or "").split())
 	if len(ten) < 3:
-		frappe.throw("Tên mặt hàng ngắn quá, gõ đủ tên giúp em.")
+		frappe.throw("Tên mặt hàng ngắn quá, vui lòng gõ đủ tên.")
 	qc = " ".join(str(quy_cach or "").split())
 	day_du = _ten_day_du(l, ten, qc)
 
@@ -408,8 +405,7 @@ def tao(
 	tt = str(tien_to or "").strip().upper() or tien_to_nhom(nhom)
 	if not tt:
 		frappe.throw(
-			"Nhóm \"%s\" chưa có tiền tố mã. Điền tiền tố (2 đến 6 chữ in hoa "
-			"không dấu) giúp em một lần." % nhom
+			'Nhóm "%s" chưa có tiền tố mã. Vui lòng điền tiền tố (2 đến 6 chữ in hoa không dấu) một lần.' % nhom
 		)
 	if not re.match(r"^[A-Z]{2,6}$", tt):
 		frappe.throw("Tiền tố mã chỉ gồm 2 đến 6 chữ in hoa không dấu, ví dụ BAWS.")
@@ -419,9 +415,7 @@ def tao(
 	# man hinh thay mot ma, trong kho lai la ma khac.
 	if str(frappe.db.get_default("item_naming_by") or "").strip() == "Naming Series":
 		frappe.throw(
-			"Thiết lập kho đang để \"Đặt tên hàng hoá theo\" = Dãy số, nên "
-			"ERPNext sẽ đè lên mã em vừa cấp. Nhờ anh chị đổi về Mã hàng trong "
-			"Thiết lập kho rồi quay lại giúp em."
+			'Thiết lập kho đang để "Đặt tên hàng hoá theo" = Dãy số, nên ERPNext sẽ đè lên mã hệ thống vừa cấp. Nhờ anh chị đổi về Mã hàng trong Thiết lập kho rồi quay lại.'
 		)
 
 	ma = _ma_moi(tt)
@@ -452,8 +446,7 @@ def tao(
 	if doc.name != ma:
 		# Khong im lang: ma tren man hinh va ma trong kho phai la mot.
 		frappe.msgprint(
-			"ERPNext đặt mã <b>%s</b> chứ không phải %s như em dự kiến. Kiểm tra "
-			"lại Thiết lập kho giúp em." % (doc.name, ma)
+			"ERPNext đặt mã <b>%s</b> chứ không phải %s như hệ thống dự kiến. Vui lòng kiểm tra lại Thiết lập kho." % (doc.name, ma)
 		)
 
 	return {

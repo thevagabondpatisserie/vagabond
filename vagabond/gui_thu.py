@@ -121,9 +121,7 @@ LOI_KHAC = "khac"
 # biết ngồi đợi.
 CAU_CHO_NGUOI_DUNG = {
 	LOI_NGUOI_GUI: (
-		"Hệ thống chưa xác định được hộp thư gửi đi. Đây là lỗi cấu hình của "
-		"hệ thống, không phải lỗi của đơn này, anh chị báo anh Việt giúp em. "
-		"Đơn không cần lập lại, gửi lại được ngay sau khi sửa."
+		"Hệ thống chưa xác định được hộp thư gửi đi. Đây là lỗi cấu hình của hệ thống, không phải lỗi của đơn này, anh chị vui lòng báo anh Việt. Đơn không cần lập lại, gửi lại được ngay sau khi sửa."
 	),
 	LOI_DANG_NHAP: (
 		"Hộp thư gửi đi bị máy chủ từ chối đăng nhập. Báo anh Việt kiểm lại "
@@ -142,8 +140,7 @@ CAU_CHO_NGUOI_DUNG = {
 		"anh Việt nâng hạn mức."
 	),
 	LOI_KHAC: (
-		"Gửi không thành công, chưa xếp được nguyên nhân. Anh chị báo anh "
-		"Việt kèm mã đơn giúp em."
+		"Gửi không thành công, chưa xếp được nguyên nhân. Anh chị vui lòng báo anh Việt kèm mã đơn."
 	),
 }
 
@@ -281,8 +278,7 @@ def cau_bao_dong(so_loi, bang_loai, tu_gio, den_gio):
 	for ma, dem in sorted(bang_loai.items(), key=lambda o: -o[1]):
 		dong.append("- %d loi: %s" % (dem, CAU_CHO_NGUOI_DUNG.get(ma, ma)))
 	dong.append(
-		"Email khong gui duoc thi don mua hang khong toi nha cung cap, ma "
-		"khong ai biet cho toi khi co nguoi hoi. Kiem ngay giup em."
+		"Email khong gui duoc thi don mua hang khong toi nha cung cap, ma khong ai biet cho toi khi co nguoi hoi. Vui lòng kiem ngay."
 	)
 	return "\n".join(dong)
 

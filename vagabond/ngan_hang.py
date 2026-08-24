@@ -286,7 +286,7 @@ def tep_lo(dong=None):
 		try:
 			dong = json.loads(dong)
 		except Exception:
-			frappe.throw("Danh sách lệnh chi không đọc được. Báo em để kiểm tra lại.")
+			frappe.throw("Danh sách lệnh chi không đọc được. Báo bộ phận kỹ thuật để kiểm tra lại.")
 	if not dong:
 		frappe.throw("Chưa có lệnh chi nào để xuất. Chọn ít nhất một phiếu rồi bấm lại.")
 
@@ -435,8 +435,7 @@ def chuan_hoa_hoac_bao(tu_khoa, ten_o="Ngân hàng"):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ngan_hang: bu ban ghi Bank")
 			frappe.throw(
-				"Ngân hàng \"%s\" có trong danh mục nhưng chưa có trong sổ ngân "
-				"hàng của hệ thống. Báo em để nạp lại danh mục giúp." % ten
+				'Ngân hàng "%s" có trong danh mục nhưng chưa có trong sổ ngân hàng của hệ thống. Báo bộ phận kỹ thuật để nạp lại danh mục.' % ten
 			)
 	return ten
 

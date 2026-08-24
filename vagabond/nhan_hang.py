@@ -313,7 +313,7 @@ def _doc_dong(dong):
 		try:
 			dong = json.loads(dong or "[]")
 		except (ValueError, TypeError):
-			frappe.throw("Dữ liệu dòng hàng gửi lên không đọc được, thử lại giúp em.")
+			frappe.throw("Dữ liệu dòng hàng gửi lên không đọc được, vui lòng thử lại.")
 	ra = {}
 	for x in dong or []:
 		khoa = str((x or {}).get("dong") or "").strip()
@@ -366,8 +366,7 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		sl = flt(x.get("sl"))
 		if khoa not in con_lai:
 			frappe.throw(
-				"Dòng hàng gửi lên không thuộc đơn %s. Thoát ra mở lại đơn rồi "
-				"nhập lại giúp em." % don
+				"Dòng hàng gửi lên không thuộc đơn %s. Vui lòng thoát ra mở lại đơn rồi nhập lại." % don
 			)
 		if sl <= EPS:
 			continue
@@ -424,8 +423,7 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		giu.append(r)
 	if not giu:
 		frappe.throw(
-			"Không dựng được dòng nào cho phiếu nhập. Thoát ra mở lại đơn rồi "
-			"thử lại giúp em."
+			"Không dựng được dòng nào cho phiếu nhập. Vui lòng thoát ra mở lại đơn rồi thử lại."
 		)
 	for i, r in enumerate(giu):
 		r.idx = i + 1

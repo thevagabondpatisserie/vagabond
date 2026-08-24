@@ -209,7 +209,7 @@ def kiem(email=None):
 		return {"ok": 1, "nhac": ""}
 	nhac = "Email này sai định dạng nên hệ sẽ bỏ trống."
 	if "@" in e and "." not in e.split("@")[-1]:
-		nhac = "Thiếu phần đuôi sau dấu chấm, ví dụ .com hoặc .vn. Kiểm tra lại giúp em."
+		nhac = "Thiếu phần đuôi sau dấu chấm, ví dụ .com hoặc .vn. Vui lòng kiểm tra lại."
 	elif "@" not in e:
-		nhac = "Thiếu dấu @. Kiểm tra lại giúp em."
+		nhac = "Thiếu dấu @. Vui lòng kiểm tra lại."
 	return {"ok": 0, "nhac": nhac}

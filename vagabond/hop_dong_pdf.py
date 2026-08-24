@@ -304,7 +304,7 @@ def chi_tiet(name):
 	"""Mot hop dong, du thu de man hinh ve va de dung to PDF."""
 	_quyen()
 	if not frappe.db.exists(DT, name):
-		frappe.throw("Không tìm thấy hợp đồng %s. Anh chị mở lại danh sách giúp em." % name)
+		frappe.throw("Không tìm thấy hợp đồng %s. Anh chị vui lòng mở lại danh sách." % name)
 	d = frappe.get_doc(DT, name).as_dict()
 	for k in list(d.keys()):
 		if k.startswith("_"):
@@ -1232,8 +1232,7 @@ def gui_email(name, email=None, loi_nhan=None):
 	nhan, sai = _tach_email(email or d.get("email") or "")
 	if sai:
 		frappe.throw(
-			"Địa chỉ này chưa đúng dạng email: %s. Anh chị sửa lại rồi gửi giúp em. "
-			"Nhiều email thì ngăn nhau bằng dấu phẩy." % ", ".join(sai)
+			"Địa chỉ này chưa đúng dạng email: %s. Anh chị vui lòng sửa lại rồi gửi. Nhiều email thì ngăn nhau bằng dấu phẩy." % ", ".join(sai)
 		)
 	if not nhan:
 		frappe.throw(

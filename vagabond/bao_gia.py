@@ -787,10 +787,7 @@ def _kiem_to_khop(d):
 	if abs(ra - tong) <= 1:
 		return
 	frappe.throw(
-		"Tờ báo giá %s đang có số liệu không khớp nhau nên em chưa in được: "
-		"cộng các dòng lại ra %s đ nhưng ô tổng đang lưu %s đ. Nhờ anh chị mở "
-		"tờ này ra, kiểm lại mức thuế của từng dòng rồi bấm Lưu một lần nữa - "
-		"máy sẽ tính lại toàn bộ và hai con số về khớp. Sau đó in lại được ngay."
+		"Tờ báo giá %s đang có số liệu không khớp nhau nên hệ thống chưa in được: cộng các dòng lại ra %s đ nhưng ô tổng đang lưu %s đ. Nhờ anh chị mở tờ này ra, kiểm lại mức thuế của từng dòng rồi bấm Lưu một lần nữa - máy sẽ tính lại toàn bộ và hai con số về khớp. Sau đó in lại được ngay."
 		% (d.get("name") or "", _tien_vn(ra), _tien_vn(tong))
 	)
 
@@ -1688,7 +1685,7 @@ def tao_khach(name):
 		return {
 			"khach": doc.khach_hang,
 			"moi": 0,
-			"ghi_chu": "Tờ này đã gắn khách %s rồi, em không tạo thêm." % doc.khach_hang,
+			"ghi_chu": "Tờ này đã gắn khách %s rồi, hệ thống không tạo thêm." % doc.khach_hang,
 		}
 	ten = (doc.ten_khach or "").strip()
 	if not ten:
@@ -1705,8 +1702,7 @@ def tao_khach(name):
 		return {
 			"khach": kh,
 			"moi": 0,
-			"ghi_chu": "Mã số thuế %s đã có sẵn hồ sơ khách %s. Em gắn tờ này "
-			"vào hồ sơ đó thay vì tạo thêm một dòng trùng."
+			"ghi_chu": "Mã số thuế %s đã có sẵn hồ sơ khách %s. Hệ thống gắn tờ này vào hồ sơ đó thay vì tạo thêm một dòng trùng."
 			% (doc.ma_so_thue, trung[0].get("customer_name") or kh),
 		}
 
@@ -2480,8 +2476,7 @@ def gui_email(name, email=None, loi_nhan=None):
 	nhan, sai = _tach_email(email or doc.email or "")
 	if sai:
 		frappe.throw(
-			"Địa chỉ này chưa đúng dạng email: %s. Anh chị sửa lại rồi gửi "
-			"giúp em. Nhiều email thì ngăn nhau bằng dấu phẩy."
+			"Địa chỉ này chưa đúng dạng email: %s. Anh chị vui lòng sửa lại rồi gửi. Nhiều email thì ngăn nhau bằng dấu phẩy."
 			% ", ".join(sai)
 		)
 	if not nhan:
@@ -2790,7 +2785,7 @@ def tu_mau(name_mau):
 		ma = str(name_mau)[4:]
 		if ma not in MAU_GOC:
 			frappe.throw(
-				"Không có mẫu %s. Anh chị chọn lại trong danh sách giúp em." % ma
+				"Không có mẫu %s. Anh chị vui lòng chọn lại trong danh sách." % ma
 			)
 		m = MAU_GOC[ma]
 		d = moi()

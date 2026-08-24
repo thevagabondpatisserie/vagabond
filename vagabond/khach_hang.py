@@ -994,8 +994,7 @@ def luu_ho_so(khach=None, dat=None):
 		s = sdt(dat.get("sdt"))
 		if str(dat.get("sdt") or "").strip() and not s:
 			frappe.throw(
-				"Số điện thoại %s không đọc được thành số di động Việt Nam. "
-				"Nhập lại giúp em, không thì khách này không nhận được tin nhắn nào."
+				"Số điện thoại %s không đọc được thành số di động Việt Nam. Vui lòng nhập lại, không thì khách này không nhận được tin nhắn nào."
 				% dat.get("sdt")
 			)
 		# Mot so chi thuoc mot khach: hai ban ghi cho mot nguoi la chi tieu

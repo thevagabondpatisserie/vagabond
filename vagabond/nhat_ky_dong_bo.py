@@ -114,7 +114,7 @@ def danh_da_xem(name=None):
 
 	_kiem_quyen()
 	if not frappe.db.exists(DT, name):
-		frappe.throw("Không có dòng nhật ký %s. Tải lại màn hình giúp em." % name)
+		frappe.throw("Không có dòng nhật ký %s. Vui lòng tải lại màn hình." % name)
 	frappe.db.set_value(DT, name, "da_xem", 1)
 	return {"ok": 1}
 

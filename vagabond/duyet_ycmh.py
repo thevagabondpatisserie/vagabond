@@ -17,7 +17,11 @@ Giu nguyen `qty`. Them `sl_duyet` va `ly_do_duyet` ben canh.
     sl_duyet = 0            TU CHOI, bat buoc co ly do
     0 < sl_duyet < qty      duyet mot phan
     sl_duyet = qty          duyet du
-    sl_duyet > qty          KHONG BAO GIO. Muon mua them thi lap phieu moi.
+    sl_duyet > qty          duyet THEM, tu 24/08/2026 (xem soat_so_duyet)
+
+Luat "khong bao gio duyet qua so xin" da duoc noi long ngay 24/08/2026 theo
+yeu cau cua anh Viet: mua chan thung thi so mua thuc te phai lon hon so xin.
+Phan con giu nguyen la `qty` khong bao gio bi sua de len.
 
 Su co 17/08/2026 va vi sao dau hieu "da duyet" nam o nguoi_duyet_dong
 ---------------------------------------------------------------------
@@ -174,6 +178,69 @@ def _ghi_vet(name, viec):
 		).insert(ignore_permissions=True)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "duyet_ycmh: ghi vet %s" % name)
+
+
+# ------------------------------------------------------ phep thuan soat so
+
+
+# Nguoi duyet duoc phep duyet CAO HON so nhan vien xin, ke tu 24/08/2026.
+# Anh Viet: *"Cho phep nguoi co quyen duyet duoc phep chinh sua so luong
+# duyet CAO HON so luong yeu cau (vi du: Quan ly yeu cau 5, Uyen co quyen
+# sua thanh 6 de mua cho chan thung/don vi dong goi)."*
+#
+# Truoc do luat chan cung, va cai ly cua no van dung mot nua: so goc cua
+# nhan vien phai con nguyen de doi chieu. Cho nen van KHONG sua `qty`, chi
+# cho `sl_duyet` vuot len tren. Hai so nam canh nhau, chenh lech bao nhieu
+# nhin la thay.
+#
+# Doi lai phai co ba lop de con lan ra ai da nang so:
+#   1. man hinh hoi xac nhan truoc khi gui (16-mua-hang.js)
+#   2. dong ghi vet ghi ro "nang tu X len Y" (xem duyet_dong)
+#   3. nhan rieng mau tim tren the dong, khong lan vao mau "Duyet du"
+TU_CHOI = "tu_choi"
+CAT_BOT = "cat_bot"
+DUYET_DU = "duyet_du"
+DUYET_THEM = "duyet_them"
+
+
+def soat_so_duyet(sl, xin, da_dat, ly_do, ten):
+	"""Soat mot dong duyet. THUAN: khong doc co so du lieu, khong cham Frappe.
+
+	Tra ve (danh_sach_loi, loai). Loi rong nghia la duyet duoc.
+
+	Tach ra khoi `duyet_dong` de con kiem thu duoc ma khong can site. Truoc
+	24/08/2026 ca luong duyet nay KHONG co lay mot ca kiem nao, nen moi lan
+	sua luat la mot lan doan mo.
+	"""
+	sl, xin, da_dat = flt(sl), flt(xin), flt(da_dat)
+	ly_do = str(ly_do or "").strip()
+	loi = []
+
+	if sl < -EPS:
+		loi.append("Số lượng duyệt không được âm (%s)." % ten)
+	if sl <= EPS and not ly_do:
+		loi.append(
+			"%s: từ chối thì phải ghi lý do, để nhân viên đặt hàng biết vì "
+			"sao mà lần sau không đặt lại." % ten
+		)
+	# Da len don mua roi thi khong cho cat xuong duoi so da dat: hang da
+	# tren duong ve, cat so tren giay khong lam hang quay dau lai.
+	if sl < da_dat - EPS:
+		loi.append(
+			"%s: đã lên đơn mua %s rồi nên không duyệt xuống %s được. Muốn "
+			"dừng thì huỷ hoặc đóng đơn mua trước." % (ten, _so(da_dat), _so(sl))
+		)
+
+	if sl <= EPS:
+		loai = TU_CHOI
+	elif sl < xin - EPS:
+		loai = CAT_BOT
+	elif sl > xin + EPS:
+		loai = DUYET_THEM
+	else:
+		loai = DUYET_DU
+	return loi, loai
+
 
 
 # --------------------------------------------------------- ba con so nen
@@ -535,7 +602,7 @@ def duyet_dong(name, dong=None):
 		try:
 			dong = json.loads(dong or "[]")
 		except (ValueError, TypeError):
-			frappe.throw("Dữ liệu gửi lên không đọc được, thoát ra mở lại phiếu giúp em.")
+			frappe.throw("Dữ liệu gửi lên không đọc được, vui lòng thoát ra mở lại phiếu.")
 	if not dong:
 		frappe.throw("Chưa có dòng nào để duyệt.")
 
@@ -546,58 +613,44 @@ def duyet_dong(name, dong=None):
 		frappe.throw("Phiếu %s chưa gửi duyệt nên chưa duyệt dòng được." % name)
 
 	theo_ten = {r.name: r for r in d.items}
-	dem = {"duyet_du": 0, "cat_bot": 0, "tu_choi": 0}
+	dem = {DUYET_DU: 0, CAT_BOT: 0, TU_CHOI: 0, DUYET_THEM: 0}
 	vet = []
 	for x in dong:
 		khoa = str((x or {}).get("dong") or "").strip()
 		r = theo_ten.get(khoa)
 		if not r:
 			frappe.throw(
-				"Có dòng không thuộc phiếu %s. Thoát ra mở lại phiếu rồi duyệt "
-				"lại giúp em." % name
+				"Có dòng không thuộc phiếu %s. Vui lòng thoát ra mở lại phiếu rồi duyệt lại." % name
 			)
 		sl = flt((x or {}).get("sl_duyet"))
 		ly = str((x or {}).get("ly_do_duyet") or "").strip()
 
-		if sl < -EPS:
-			frappe.throw("Số lượng duyệt không được âm (%s)." % (r.item_name or r.item_code))
-		if sl > flt(r.qty) + EPS:
-			frappe.throw(
-				"%s: duyệt %s nhưng nhân viên chỉ xin %s. Không duyệt quá số đã "
-				"xin được - cần mua thêm thì lập phiếu yêu cầu mới, để số gốc "
-				"còn đối chiếu."
-				% (r.item_name or r.item_code, _so(sl), _so(r.qty))
-			)
-		if sl <= EPS and not ly:
-			frappe.throw(
-				"%s: từ chối thì phải ghi lý do, để nhân viên đặt hàng biết vì "
-				"sao mà lần sau không đặt lại." % (r.item_name or r.item_code)
-			)
-		# Da len don mua roi thi khong cho cat xuong duoi so da dat: hang da
-		# tren duong ve, cat so tren giay khong lam hang quay dau lai.
-		if sl < flt(r.ordered_qty) - EPS:
-			frappe.throw(
-				"%s: đã lên đơn mua %s rồi nên không duyệt xuống %s được. Muốn "
-				"dừng thì huỷ hoặc đóng đơn mua trước."
-				% (r.item_name or r.item_code, _so(r.ordered_qty), _so(sl))
-			)
+		ten_mon = r.item_name or r.item_code
+		loi, loai = soat_so_duyet(sl, r.qty, r.ordered_qty, ly, ten_mon)
+		if loi:
+			frappe.throw("<br>".join(loi))
 
 		r.sl_duyet = sl
 		r.ly_do_duyet = ly
 		r.nguoi_duyet_dong = frappe.session.user
 		r.duyet_luc = now_datetime()
-		if sl <= EPS:
+		dem[loai] += 1
+		if loai == TU_CHOI:
 			r.trang_thai_cung_ung = TT_TU_CHOI
-			dem["tu_choi"] += 1
-			vet.append("từ chối %s (%s)" % (r.item_name or r.item_code, ly))
-		elif sl < flt(r.qty) - EPS:
-			dem["cat_bot"] += 1
+			vet.append("từ chối %s (%s)" % (ten_mon, ly))
+		elif loai == CAT_BOT:
 			vet.append(
 				"cắt %s từ %s xuống %s%s"
-				% (r.item_name or r.item_code, _so(r.qty), _so(sl), (" (%s)" % ly) if ly else "")
+				% (ten_mon, _so(r.qty), _so(sl), (" (%s)" % ly) if ly else "")
 			)
-		else:
-			dem["duyet_du"] += 1
+		elif loai == DUYET_THEM:
+			# Ghi vet BAT BUOC cho truong hop nang so: day la lan duy nhat
+			# con lan ra ai nang, nang bao nhieu. Ban Version cua Frappe chi
+			# ghi so cu so moi, khong ghi so nhan vien xin.
+			vet.append(
+				"nâng %s từ %s lên %s%s"
+				% (ten_mon, _so(r.qty), _so(sl), (" (%s)" % ly) if ly else "")
+			)
 
 	# save() tren phieu da ghi so: Frappe chi cho doi cac truong allow_on_submit
 	# va tu ghi mot ban Version. Nho vay ghi vet co san, khong phai tu dung

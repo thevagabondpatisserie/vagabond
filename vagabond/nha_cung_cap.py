@@ -248,7 +248,7 @@ def tao(ten=None, nhom=None, mst=None, loai="Company", dia_chi=None, tinh=None,
 	goi = {"ten": ten, "nhom": nhom, "email": email}
 	thieu = thieu_o_nao(goi)
 	if thieu:
-		frappe.throw("Còn thiếu: %s. Điền nốt rồi bấm Lưu lại giúp em." % ", ".join(thieu))
+		frappe.throw("Còn thiếu: %s. Vui lòng điền nốt rồi bấm Lưu lại." % ", ".join(thieu))
 	# Email khong bat buoc, nhung DA GO thi phai dung dang. Bo trong khac
 	# han go sai: bo trong la co y, con go sai la thu bay vao hu khong.
 	email = str(email or "").strip()
@@ -262,13 +262,13 @@ def tao(ten=None, nhom=None, mst=None, loai="Company", dia_chi=None, tinh=None,
 	sai_cc = [e for e in cc if not email_hop_le(e)]
 	if sai_cc:
 		frappe.throw(
-			"Email CC \"%s\" trông chưa đúng. Sửa lại hoặc bỏ trống giúp em."
+			'Email CC "%s" trông chưa đúng. Vui lòng sửa lại hoặc bỏ trống.'
 			% ", ".join(sai_cc)
 		)
 	ten = str(ten).strip()
 	nhom = str(nhom).strip()
 	if not frappe.db.exists("Supplier Group", nhom):
-		frappe.throw("Không có nhóm nhà cung cấp \"%s\". Chọn lại trong danh sách giúp em." % nhom)
+		frappe.throw('Không có nhóm nhà cung cấp "%s". Vui lòng chọn lại trong danh sách.' % nhom)
 	if loai not in LOAI_HOP_LE:
 		loai = "Company"
 	so_thue = chuan_mst(mst)
@@ -343,8 +343,7 @@ def tao(ten=None, nhom=None, mst=None, loai="Company", dia_chi=None, tinh=None,
 	if xong:
 		ghi += " Kèm " + ", ".join(xong) + "."
 	if hong:
-		ghi += (" Riêng %s chưa ghi được, anh chị mở hồ sơ trên Desk bổ sung "
-		        "giúp em." % ", ".join(hong))
+		ghi += (" Riêng %s chưa ghi được, anh chị vui lòng mở hồ sơ trên Desk bổ sung." % ", ".join(hong))
 	return {"ok": 1, "ma": doc.name, "ten": ten, "xong": xong, "hong": hong, "ghi_chu": ghi}
 
 
@@ -353,7 +352,7 @@ def chi_tiet(ma=None):
 	"""Ho so mot nha cung cap, gom du bon bang - de man hinh mo ra sua."""
 	_kiem_quyen()
 	if not ma or not frappe.db.exists("Supplier", ma):
-		frappe.throw("Không tìm thấy nhà cung cấp %s. Quay lại danh sách rồi mở lại giúp em." % ma)
+		frappe.throw("Không tìm thấy nhà cung cấp %s. Vui lòng quay lại danh sách rồi mở lại." % ma)
 	d = frappe.get_doc("Supplier", ma)
 	ra = {
 		"ma": d.name, "ten": d.supplier_name, "nhom": d.supplier_group,

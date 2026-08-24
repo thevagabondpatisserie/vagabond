@@ -605,7 +605,7 @@ def _dong_bo_pancake(ngay=None):
 		ds = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "van_don: dong bo Pancake")
-		frappe.throw("Pancake chưa trả dữ liệu, anh chị thử lại sau ít phút giúp em.")
+		frappe.throw("Pancake chưa trả dữ liệu, anh chị vui lòng thử lại sau ít phút.")
 
 	them, da_co, bo_qua, lam_moi = 0, 0, 0, 0
 	for o in ds:
@@ -1366,7 +1366,7 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 		frappe.throw("Vận đơn chưa có địa chỉ giao.")
 	toa = geocode(c, doc.dia_chi)
 	if not toa or not toa.get("lat"):
-		frappe.throw("Không tìm được toạ độ cho địa chỉ này, sửa lại địa chỉ giúp em.")
+		frappe.throw("Không tìm được toạ độ cho địa chỉ này, vui lòng sửa lại địa chỉ.")
 	dv = (service_id or c.ma_dich_vu or "").strip()
 	if them_reqs is None:
 		reqs = []
@@ -1497,7 +1497,7 @@ def book_xe(name, kenh, service_id=None, requests_them=None):
 	elif kenh == "GreenSM":
 		oid, link, phi = _greensm_dat_don(doc)
 	elif kenh == "BE":
-		frappe.throw("BE Delivery chưa cấp API (anh Việt đang xin). Có key là em nối, khung dùng chung với GreenSM.")
+		frappe.throw("BE Delivery chưa cấp API (anh Việt đang xin). Có key là nối được, khung dùng chung với GreenSM.")
 	else:
 		frappe.throw("Kênh %s không book qua API được." % kenh)
 	doc.kenh = kenh
@@ -1591,7 +1591,7 @@ def aha_bao_gia(name, service_id=None, requests_them=None):
 		frappe.throw("Vận đơn chưa có địa chỉ giao.")
 	toa = geocode(c, doc.dia_chi)
 	if not toa or not toa.get("lat"):
-		frappe.throw("Không tìm được toạ độ cho địa chỉ này, sửa lại địa chỉ giúp em.")
+		frappe.throw("Không tìm được toạ độ cho địa chỉ này, vui lòng sửa lại địa chỉ.")
 	diem = _diem_lay(c)
 	body = {
 		"order_time": 0,
@@ -1976,7 +1976,7 @@ def luu_chu_ky(name=None, anh=None, nguoi_ky=None):
 	if "image/png" not in dau:
 		frappe.throw("Chữ ký phải là ảnh PNG.")
 	if len(phan) > 900000:
-		frappe.throw("Chữ ký nặng quá, ký lại giúp em.")
+		frappe.throw("Chữ ký nặng quá, vui lòng ký lại.")
 
 	tep = frappe.get_doc({
 		"doctype": "File",

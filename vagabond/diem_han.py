@@ -361,12 +361,12 @@ def luu_cai_dat(
 	if tran_pt is not None:
 		v = flt(tran_pt)
 		if v < 0 or v > 100:
-			frappe.throw("Trần dùng điểm phải trong khoảng 0 đến 100%. Nhập lại giúp em.")
+			frappe.throw("Trần dùng điểm phải trong khoảng 0 đến 100%. Vui lòng nhập lại.")
 		dat["diem_tran_pt"] = v
 	if bill_toi_thieu is not None:
 		v = flt(bill_toi_thieu)
 		if v < 0:
-			frappe.throw("Mức bill tối thiểu không được âm. Nhập lại giúp em.")
+			frappe.throw("Mức bill tối thiểu không được âm. Vui lòng nhập lại.")
 		dat["diem_bill_toi_thieu"] = v
 	if otp_giay is not None:
 		v = cint(otp_giay)
@@ -384,14 +384,14 @@ def luu_cai_dat(
 	if han_thang is not None:
 		v = cint(han_thang)
 		if v < 1 or v > 120:
-			frappe.throw("Số tháng điểm sống phải từ 1 đến 120. Nhập lại giúp em.")
+			frappe.throw("Số tháng điểm sống phải từ 1 đến 120. Vui lòng nhập lại.")
 		dat["diem_han_thang"] = v
 	if ngay_chot is not None:
 		v = str(ngay_chot).strip()
 		try:
 			ng, th = [int(x) for x in v.split("-")]
 		except Exception:
-			frappe.throw("Ngày chốt phải viết dạng ngay-thang, ví dụ 31-12. Nhập lại giúp em.")
+			frappe.throw("Ngày chốt phải viết dạng ngay-thang, ví dụ 31-12. Vui lòng nhập lại.")
 		if not (1 <= ng <= 31 and 1 <= th <= 12):
 			frappe.throw("Ngày chốt %s không có thật. Viết dạng ngay-thang, ví dụ 31-12." % v)
 		dat["diem_ngay_chot"] = "%02d-%02d" % (ng, th)

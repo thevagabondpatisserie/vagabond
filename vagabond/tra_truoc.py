@@ -372,8 +372,7 @@ def tao_phieu(don=None, so_tien=None, nguon_tien=None, loai_chung_tu=None,
 	tk_so_cai = frappe.db.get_value("Bank Account", nguon_tien, "account")
 	if not tk_so_cai:
 		frappe.throw(
-			"Tài khoản %s chưa gắn tài khoản sổ cái nên chưa hạch toán được. "
-			"Mở Bank Account bên Desk điền ô Account giúp em." % nguon_tien)
+			"Tài khoản %s chưa gắn tài khoản sổ cái nên chưa hạch toán được. Vui lòng mở Bank Account bên Desk điền ô Account." % nguon_tien)
 
 	# Ho so dinh kem: bat buoc, vi day la khoan tien di ra ma CHUA co hoa
 	# don. Khong co bao gia hay hop dong thi khong co gi chung minh khoan

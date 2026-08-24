@@ -127,8 +127,7 @@ def _cai_dat():
 	token = stg.get_password("api_token", raise_exception=False)
 	if not token:
 		frappe.throw(
-			"Chưa có API Token của M-Invoice. Mở 'MInvoice Settings' trên Desk, "
-			"dán token vào ô API Token rồi chạy lại giúp em."
+			"Chưa có API Token của M-Invoice. Mở 'MInvoice Settings' trên Desk, vui lòng dán token vào ô API Token rồi chạy lại."
 		)
 	return {
 		"token": token,

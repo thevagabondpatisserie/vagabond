@@ -487,8 +487,7 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 		frappe.throw("Hoá đơn %s đã ghi sổ rồi, không nối lại được." % name)
 	if cint(doc.get("update_stock")):
 		frappe.throw(
-			"Hoá đơn %s đang bật \"Cập nhật tồn kho\". Nối vào phiếu nhập nữa là "
-			"hàng vào kho hai lần. Tắt ô đó rồi nối lại giúp em." % name
+			'Hoá đơn %s đang bật "Cập nhật tồn kho". Nối vào phiếu nhập nữa là hàng vào kho hai lần. Vui lòng tắt ô đó rồi nối lại.' % name
 		)
 	for p in phieu:
 		if frappe.db.get_value("Purchase Receipt", p, "supplier") != doc.supplier:

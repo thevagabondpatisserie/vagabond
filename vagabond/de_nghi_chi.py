@@ -412,7 +412,7 @@ def thieu_gi(phieu):
 	# và hoá đơn; các trường cùng tên trên phiếu cha chỉ còn để đọc phiếu cũ.
 	ds = cac_dong(p)
 	if not ds:
-		thieu.append("Bảng kê chưa có khoản chi nào, bấm Thêm khoản chi giúp em")
+		thieu.append("Bảng kê chưa có khoản chi nào, vui lòng bấm Thêm khoản chi")
 	for i, d in enumerate(ds, 1):
 		mo = dm.get((d.get("loai_chung_tu") or "").strip()) or {}
 		thieu.extend(
@@ -477,31 +477,22 @@ def ly_do_chan(phieu):
 	for i, d in enumerate(cac_dong(p), 1):
 		if (d.get("phan_loai") or "").strip() in CHAN_TSCD:
 			return (
-				"Khoản %s là tài sản cố định nên không đi đường đề nghị chi lặt "
-				"vặt được. Tài sản cố định cần đơn mua hàng, cần theo dõi khấu hao "
-				"và cần hồ sơ tài sản, nhét vào một phiếu hoàn tiền là mất cả ba. "
-				"Anh chị tách khoản đó ra và lập Đơn mua hàng giúp em, hoặc nhắn "
-				"Uyên để Uyên lập." % i
+				"Khoản %s là tài sản cố định nên không đi đường đề nghị chi lặt vặt được. Tài sản cố định cần đơn mua hàng, cần theo dõi khấu hao và cần hồ sơ tài sản, nhét vào một phiếu hoàn tiền là mất cả ba. Anh chị vui lòng tách khoản đó ra và lập Đơn mua hàng, hoặc nhắn Uyên để Uyên lập." % i
 			)
 	if la_tam_ung((p.get("loai_nghiep_vu") or "")) and co_hoa_don_vat(p):
 		return (
-			"Tạm ứng thì chưa phát sinh chi phí nên chưa có hoá đơn VAT. Nếu "
-			"đã có hoá đơn rồi thì đây là khoản hoàn ứng chứ không phải tạm "
-			"ứng, anh chị đổi Loại nghiệp vụ giúp em."
+			"Tạm ứng thì chưa phát sinh chi phí nên chưa có hoá đơn VAT. Nếu đã có hoá đơn rồi thì đây là khoản hoàn ứng chứ không phải tạm ứng, anh chị vui lòng đổi Loại nghiệp vụ."
 		)
 	# Hoàn ứng thì phải nói rõ hoàn cho lần tạm ứng nào, nếu không thì bảng
 	# cấn trừ không bao giờ khớp và không ai biết nhân viên còn nợ bao nhiêu.
 	nv = (p.get("loai_nghiep_vu") or "").strip()
 	if nv == NV_HOAN_UNG and not (p.get("thuoc_tam_ung") or "").strip():
 		return (
-			"Phiếu hoàn ứng phải chỉ rõ nó hoàn cho lần tạm ứng nào. Bấm ô "
-			"\"Thuộc mã Tạm ứng\" rồi chọn phiếu tạm ứng của anh chị giúp em. "
-			"Nếu khoản này không phải hoàn ứng thì đổi Loại nghiệp vụ sang Chi phí."
+			'Phiếu hoàn ứng phải chỉ rõ nó hoàn cho lần tạm ứng nào. Vui lòng bấm ô "Thuộc mã Tạm ứng" rồi chọn phiếu tạm ứng của anh chị. Nếu khoản này không phải hoàn ứng thì đổi Loại nghiệp vụ sang Chi phí.'
 		)
 	if nv != NV_HOAN_UNG and (p.get("thuoc_tam_ung") or "").strip():
 		return (
-			"Chỉ phiếu Hoàn ứng mới gắn được vào một mã tạm ứng. Anh chị đổi "
-			"Loại nghiệp vụ sang Hoàn ứng, hoặc bỏ ô Thuộc mã Tạm ứng đi giúp em."
+			"Chỉ phiếu Hoàn ứng mới gắn được vào một mã tạm ứng. Anh chị đổi Loại nghiệp vụ sang Hoàn ứng, hoặc bỏ ô Thuộc mã Tạm ứng đi."
 		)
 	return None
 
@@ -898,15 +889,13 @@ def gui_duyet(ma_phieu):
 	# quầy, cái duy nhất chị có để quyết là tấm ảnh người lập chụp.
 	if not _so_tep(ma_phieu):
 		frappe.throw(
-			"Phải đính kèm ảnh bill, hoá đơn hoặc ảnh hàng hoá trước khi gửi "
-			"duyệt. Bấm nút đính kèm ở góc phải rồi gửi lại giúp em."
+			"Phải đính kèm ảnh bill, hoá đơn hoặc ảnh hàng hoá trước khi gửi duyệt. Vui lòng bấm nút đính kèm ở góc phải rồi gửi lại."
 		)
 
 	trung = trung_hoa_don(doc.as_dict())
 	if trung:
 		frappe.throw(
-			"Có hoá đơn trong bảng kê đã nằm ở %s rồi. Nếu đây là tờ khác thì "
-			"anh chị kiểm lại số hoá đơn và ngày giúp em." % ", ".join(trung)
+			"Có hoá đơn trong bảng kê đã nằm ở %s rồi. Nếu đây là tờ khác thì anh chị kiểm lại số hoá đơn và ngày." % ", ".join(trung)
 		)
 
 	doc.trang_thai = TT_CHO_DUYET
@@ -934,8 +923,7 @@ def duyet(ma_phieu, ghi_chu=None):
 		# giữa hai lần đó phiếu đã đi qua tay người khác.
 		if cint(doc.get("phuong_thuc") == PT_CHUYEN_KHOAN) and _so_tep(ma_phieu) < 2:
 			frappe.throw(
-				"Chuyển sang kế toán thì phải có uỷ nhiệm chi hoặc biên lai "
-				"chuyển khoản đính kèm. Đính thêm rồi bấm lại giúp em."
+				"Chuyển sang kế toán thì phải có uỷ nhiệm chi hoặc biên lai chuyển khoản đính kèm. Vui lòng đính thêm rồi bấm lại."
 			)
 		doc.duyet_boi, doc.duyet_luc = nguoi, luc
 		doc.trang_thai = buoc_ke_tiep(tien_phieu(doc))
@@ -1219,15 +1207,13 @@ def tao(du_lieu=None, gui_luon=0):
 		dong = frappe.parse_json(dong) or []
 	if not isinstance(dong, list) or not dong:
 		frappe.throw(
-			"Bảng kê chưa có khoản chi nào. Bấm \"+ Thêm khoản chi\" rồi ghi ít "
-			"nhất một khoản giúp em."
+			'Bảng kê chưa có khoản chi nào. Vui lòng bấm "+ Thêm khoản chi" rồi ghi ít nhất một khoản.'
 		)
 	# Chặn phiếu khổng lồ ngay tại cổng. 200 dòng là đã quá xa mọi nhu cầu
 	# thật của một buổi đi chợ, mà lại đủ để làm nghẽn cả lần lưu.
 	if len(dong) > 200:
 		frappe.throw(
-			"Một phiếu tối đa 200 khoản, phiếu này có %s. Anh chị tách ra làm "
-			"nhiều phiếu giúp em." % len(dong)
+			"Một phiếu tối đa 200 khoản, phiếu này có %s. Anh chị vui lòng tách ra làm nhiều phiếu." % len(dong)
 		)
 
 	doc = frappe.new_doc(DT)
@@ -1394,8 +1380,7 @@ def chi_tiet(ma_phieu=None):
 	_kiem_quyen()
 	if not frappe.db.exists(DT, ma_phieu):
 		frappe.throw(
-			"Không tìm thấy phiếu %s. Quay lại danh sách rồi mở phiếu khác "
-			"giúp em." % ma_phieu
+			"Không tìm thấy phiếu %s. Vui lòng quay lại danh sách rồi mở phiếu khác." % ma_phieu
 		)
 	doc = frappe.get_doc(DT, ma_phieu)
 	if doc.nguoi_tao != frappe.session.user and not (
