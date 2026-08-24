@@ -854,7 +854,11 @@ var POS_NHOM_NUOC = ['Trà', 'Cà phê', 'Matcha', 'Cacao', 'Ice Cream - Kem'];
    sai. Nay doc tu cau hinh; chua khai thi roi ve dung kho cu, khong doi
    hanh vi cua ai. */
 function inKho(vaiTro) {
-  var b = (CFGBH || {}).kho_in || {};
+  /* Khổ giấy của ĐÚNG điểm bán đang đứng. Bảng chung chỉ còn là lưới đỡ cho
+     màn nào chưa biết mình ở điểm nào (anh Việt 24/08/2026). */
+  var ma = (typeof posQuay !== 'undefined' && posQuay && posQuay.ma) ? posQuay.ma : '';
+  var theoDiem = ((CFGBH || {}).kho_in_diem || {})[ma];
+  var b = theoDiem || (CFGBH || {}).kho_in || {};
   var k = b[vaiTro];
   if (k && k.css) return k;
   return vaiTro === 'tem'
