@@ -555,8 +555,11 @@ function vgbGomNhom() {
     if (!t) return;
     var nh = null;
     for (var i = 0; i < VGB_NHOM.length; i++) if (VGB_NHOM[i].k === t.dataset.nhom) nh = VGB_NHOM[i];
-    if (t.dataset.nhom === 'VCL') return go(scrVclList);
-    if (nh) go(function () { scrNhom(nh); });
+    /* Di qua vgbGo chu khong go() thang: vgbGo la CUA DUY NHAT dat dia
+       chi. Bo qua cua nay dung mot lan la o lon mat dia chi, va do dung la
+       loi anh Viet bao ngay 24/08 voi phan he Ke toan. */
+    if (t.dataset.nhom === 'VCL') return vgbGo('VCL');
+    if (nh) vgbGo('PH:' + nh.k);
   };
 }
 
@@ -708,6 +711,13 @@ function vgbODong(k, icon, t1, t2) {
     '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
 }
 
+/* Tra ve mo ta phan he theo khoa. Mot cho duy nhat do bang VGB_NHOM, de
+   khong cho nao chep lai vong lap tim nhom roi lech nhau. */
+function vgbNhomTheoKhoa(k) {
+  for (var i = 0; i < VGB_NHOM.length; i++) if (VGB_NHOM[i].k === k) return VGB_NHOM[i];
+  return null;
+}
+
 function scrNhom(nh) {
   vgbCss();
   var rows = '';
@@ -788,6 +798,18 @@ var VGB_DUONG = {
   'nhap-kho': 'RCV',
   'nhap-sao-ke': 'NHAPSK',
   'nop-quy': 'NQ',
+  'phan-he-ban-hang': 'PH:BH',
+  'phan-he-bao-cao': 'PH:BC',
+  'phan-he-cai-dat': 'PH:KHAC',
+  'phan-he-danh-muc': 'PH:DM',
+  'phan-he-dat-hang': 'PH:DH',
+  'phan-he-giao-hang': 'PH:GH',
+  'phan-he-ke-toan': 'PH:KT',
+  'phan-he-kiem-ke': 'PH:KK',
+  'phan-he-nhap-kho': 'PH:NK',
+  'phan-he-san-xuat': 'PH:SX',
+  'phan-he-thu-mua': 'PH:TM',
+  'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
@@ -818,6 +840,7 @@ var VGB_DUONG = {
   'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
   'van-don': 'VD',
+  'viec-can-lam': 'VCL',
   'xuat-dieu-chuyen': 'XKD',
   'xuat-huy': 'XKH'
 };
@@ -828,29 +851,76 @@ function vgbSlugTheoKhoa(k) {
   return '';
 }
 
-/* Doi dia chi tren thanh khi mo mot man co dia chi rieng.
-   replaceState chu khong pushState: chinh vgbGo se goi go() ngay sau do, va
-   go() moi la cho day moc lich su. Day hai moc cho mot lan bam thi nut Back
-   phai bam hai lan moi lui duoc mot man. */
-function vgbDatDuong(k) {
-  var s = vgbSlugTheoKhoa(k);
-  if (!s) return;
-  try { history.replaceState(history.state, '', '/' + s); } catch (e) { }
+/* DIA CHI LUC NAP TRANG, chup ngay khi tep duoc doc chu khong doi den luc
+   goi. Tu v292 `reset()` co doi dia chi, va __boot goi reset(scrHome) TRUOC
+   khi goi vgbMoTheoDiaChi - nen neu doc location.pathname luc do thi no da
+   bi ghi de mat roi, va F5 tai /hoa-don-mua se ra trang chu. */
+var VGB_DIA_NAP = String(location.pathname || '');
+
+/* Dia chi cua man chu. Thuong la /bep, tru khi app duoc nap tu mot duong
+   dan la nao do thi giu nguyen duong dan do de khong nem nguoi dung di. */
+var VGB_GOC = '';
+function vgbGocApp() {
+  if (VGB_GOC) return VGB_GOC;
+  var p = String(VGB_DIA_NAP || '').replace(/\/+$/, '');
+  var d = p.replace(/^\/+/, '');
+  VGB_GOC = (!d || VGB_DUONG[d]) ? '/bep' : p;
+  return VGB_GOC;
 }
+
+/* Ap dia chi cua nac dang dung len thanh dia chi. Khung app goi ham nay o
+   MOI cho lam chong doi: go, back, reset, va popstate.
+
+   replaceState chu khong pushState: moc lich su do go() day, o day chi dan
+   dung dia chi vao moc vua day. Day them mot moc nua thi nut Back phai bam
+   hai lan moi lui duoc mot man. */
+function vgbApDiaChi(slug) {
+  var dia = slug ? '/' + slug : vgbGocApp();
+  try {
+    if (location.pathname !== dia) history.replaceState(history.state, '', dia);
+  } catch (e) { }
+}
+window.vgbApDiaChi = vgbApDiaChi;
+
+/* Khoa man sap mo. vgbGo dat truoc khi goi go(), go() doc mot lan roi xoa.
+
+   Vi sao khong truyen thang khoa vao go(): go() duoc goi tu hang tram cho
+   trong app, phan lon la man chi tiet khong co khoa rieng. Them mot doi so
+   la sua hang tram cho goi, va cho nao quen sua thi lang le mat dia chi. */
+var VGB_KHOA_MO = '';
+function vgbSlugSapMo() {
+  var k = VGB_KHOA_MO;
+  VGB_KHOA_MO = '';
+  return k ? vgbSlugTheoKhoa(k) : '';
+}
+window.vgbSlugSapMo = vgbSlugSapMo;
 
 /* Luc khoi dong: dia chi dang la mot slug thi mo thang man do.
    Van de scrHome o duoi cung chong, de nut Back tu man do ve duoc trang chu
    thay vi thoat han khoi app. */
 function vgbMoTheoDiaChi() {
-  var d = String(location.pathname || '').replace(/^\/+|\/+$/g, '');
+  var d = String(VGB_DIA_NAP || '').replace(/^\/+|\/+$/g, '');
   var k = VGB_DUONG[d];
   if (!k) return false;
   try { vgbGo(k); return true; } catch (e) { return false; }
 }
 
-/* Mot cho duy nhat dinh tuyen tu o nho sang man hinh. */
+/* Mot cho duy nhat dinh tuyen tu o nho sang man hinh.
+
+   Boc quanh vgbDinhTuyen de KHOA LUON DUOC XOA. Nhanh nao khong goi go(),
+   vi du nhanh toast bao man chua dung, thi khoa con dinh lai se nhay sang
+   lan go() ke tiep va dat sai dia chi cho mot man khac han. */
 function vgbGo(k) {
-  vgbDatDuong(k);
+  VGB_KHOA_MO = k;
+  try {
+  /* O LON tren trang chu, tuc phan he. Mot nhanh tien to cho ca muoi hai,
+     y het cach ho DM: di chung mot nhanh. */
+  if (k && k.indexOf('PH:') === 0) {
+    var nhx = vgbNhomTheoKhoa(k.slice(3));
+    if (!nhx) return;
+    return go(function () { scrNhom(nhx); });
+  }
+  if (k === 'VCL') return go(scrVclList);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);
   if (k === 'BTPO') { location.href = '/btp'; return; }
@@ -926,5 +996,11 @@ function vgbGo(k) {
   if (k === 'XKH') return go(scrXkHuyList);
   if (k === 'XKD') return go(scrXkCkList);
   go(function () { scrMRList(TYPES[k]); });
+  } finally {
+    /* XOA KHOA DU NHANH NAO CHAY. Nhanh nao khong goi go() - vi du nhanh
+       toast bao man chua dung - thi khoa con nguyen, va lan go() ke tiep,
+       du la cua man nao, cung nhan dung khoa do va dat sai dia chi. */
+    VGB_KHOA_MO = '';
+  }
 }
 

@@ -28,6 +28,42 @@ function syncUser() { var u = curUser(); if (u) { S.user = u; S.me.user = u; } r
    Nho vay nut Back / vuot lui cua trinh duyet lui dung tung man trong app,
    het canh dang o Chi tiet don ma Back lai vang sang trang /kiem-banh. */
 var VGB_LUI_TAY = 0;
+
+/* ---------- DIA CHI DI THEO TUNG NAC CUA CHONG MAN HINH (v292) ----------
+
+Anh Viet 24/08/2026: *"bam vao 'hoa don mua' thi co duoi url hoa-don-mua,
+nhung back ve thi trang van mang duoi hoa-don-mua"*.
+
+VI SAO BAN CU HONG. Truoc v292, `vgbGo` doi dia chi TRUOC roi moi goi `go`:
+
+    vgbDatDuong(k);        // replaceState: doi dia chi cua NAC DANG DUNG
+    go(scrHdMua);          // pushState(location.href): nac moi cung dia chi do
+
+replaceState ghi de dia chi cua chinh moc lich su dang dung, tuc moc cua man
+CHA. Nen sau mot lan bam, ca hai moc cha va con deu mang `/hoa-don-mua`. Nut
+Back lui dung mot man nhung dia chi thi khong co gi de lui ve.
+
+CACH SUA. Dia chi thoi khong con la mot hieu ung phu bam vao luc bam nut nua,
+no thanh MOT THUOC TINH cua tung nac trong chong: `S.duong[i]` la slug cua
+`S.stack[i]`. Moi cho lam chong doi - go, back, reset, va ca popstate - deu
+ap lai dia chi cua nac dang o tren cung. Nac nao khong co slug rieng, vi du
+man chi tiet mo tu mot danh sach, thi thua slug cua nac cha, nen dia chi
+dung im trong suot mot mach xem chi tiet roi tro ve dung cho khi lui.
+
+Nac 0 mang chuoi rong, va chuoi rong nghia la dia chi goc cua app. */
+S.duong = [];
+
+/* Slug cua nac dang dung. */
+function vgbNacDuong() { return S.duong[S.duong.length - 1] || ''; }
+
+/* Ap dia chi cua nac dang dung len thanh dia chi.
+
+   Ham that nam ben 02-trang-chu.js vi o do moi co bang VGB_DUONG. Goi qua
+   window va boc try: tep nay ghep TRUOC tep kia, va mot loi o day thi ca
+   app khong di lai duoc nua - dat hon nhieu so voi mot dia chi sai. */
+function vgbApNac() {
+  try { if (window.vgbApDiaChi) window.vgbApDiaChi(vgbNacDuong()); } catch (e) { }
+}
 function manSoan(f) {
   try { return f === scrStep1 || f === scrStep2 || f === scrStep3 || f === scrStep4; } catch (e) { return false; }
 }
@@ -37,16 +73,29 @@ function roiPhieuDo(dich) {
   return !!(S.draft && (S.draft.items || []).length) && manSoan(S.stack[S.stack.length - 1]) && !manSoan(dich);
 }
 function go(fn, replace) {
+  /* Khoa man sap mo do vgbGo dat, doc mot lan roi xoa. Man nao khong di qua
+     vgbGo, vi du man chi tiet mo tu mot danh sach, thi khong co khoa va se
+     thua dia chi cua nac cha. */
+  var slug = '';
+  try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
   if (!replace) {
     S.stack.push(fn);
+    S.duong.push(slug || vgbNacDuong());
+    /* pushState TRUOC khi doi dia chi: moc moi phai chup lai dia chi CU thi
+       moc cua man cha moi con nguyen dia chi cua no. Doi thu tu hai dong
+       nay chinh la loi anh Viet bao ngay 24/08. */
     try { history.pushState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
-  } else S.stack[S.stack.length - 1] = fn;
+  } else {
+    S.stack[S.stack.length - 1] = fn;
+    if (slug) S.duong[S.duong.length - 1] = slug;
+  }
+  vgbApNac();
   render();
 }
 function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
-    S.stack.pop(); render();
+    S.stack.pop(); S.duong.pop(); vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
@@ -58,8 +107,12 @@ function back() {
   buoc();
 }
 function reset(fn) {
+  var slug = '';
+  try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
   S.stack = [fn];
+  S.duong = [slug];
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
+  vgbApNac();
   return render();
 }
 /* TRA VE ket qua cua ham man hinh, dung nuot di.

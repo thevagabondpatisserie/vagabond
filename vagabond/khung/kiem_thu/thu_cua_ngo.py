@@ -137,6 +137,11 @@ CUA_NGO = {
 		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
 		"gan_gd_vao", "hoan_thanh",
+		# tim_gd_ra va khop_tay them 24/08/2026: khop SePay THU CONG cho
+		# dong tien RA. Khac han gan_gd_vao ngay tren, cai do la tien VAO.
+		# Ke toan go noi dung tay tren MB Biz nen chi can lech mot chu la
+		# phep tu dong khong khop, va phieu nam mai o "Cho chi".
+		"tim_gd_ra", "khop_tay",
 		# tai_unc them 20/08/2026: Sales xem va tai UNC lam bang chung gui
 		# khach. Tep dinh vao Payment Entry ma Sales khong doc duoc doctype
 		# do, nen phai co cua rieng kiem quyen theo phieu hoan tien.

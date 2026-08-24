@@ -176,6 +176,9 @@ MAN = (
 	("QLQ", "Phân quyền", None),
 	("ACC", "Tài khoản của tôi", None),
 	("OTP", "Mã OTP", None),
+
+	# --- Man chung
+	("VCL", "Việc cần làm", None),
 )
 
 # Muoi sau man Danh muc di chung mot nhanh `DM:` trong vgbGo. Ten lay dung
@@ -216,6 +219,53 @@ DANH_MUC = (
 
 # Tien to dat truoc slug cua 16 man Danh muc. Xem chu thich ngay tren.
 TIEN_TO_DANH_MUC = "tra-cuu"
+
+
+# Muoi hai O LON tren trang chu, tuc PHAN HE. Bam vao mot o lon thi ra danh
+# sach o nho cua phan he do.
+#
+# VI SAO CHUNG PHAI CO MAT O DAY (anh Viet 24/08/2026)
+# ----------------------------------------------------
+# Anh Viet: *"anh bam vao phan he ke toan, url khong co ke-toan"*.
+#
+# Truoc v292 chi cac O NHO moi di qua `vgbGo`, con o lon thi man trang chu
+# tu goi thang `go(function () { scrNhom(nh) })`. Khong qua vgbGo nghia la
+# khong qua bang duong dan, nen dia chi dung im. Nay ca hai deu di chung mot
+# cua, va khoa cua o lon mang tien to `PH:`.
+#
+# VI SAO PHAI CO TIEN TO `phan-he` TRONG SLUG
+# --------------------------------------------
+# Bon trong muoi hai ten phan he TRUNG NGUYEN VAN voi ten mot man trong bang
+# MAN, va trung ten thi trung slug, ma trung slug thi mot man lang le nuot
+# mat man kia - dung cai bay da phai dat tien to `tra-cuu` cho ho DM:
+#
+#     "San xuat"   phan he SX  dung voi man MFG
+#     "Nhap kho"   phan he NK  dung voi man RCV
+#     "Kiem ke"    phan he KK  dung voi man KK
+#     "Bao cao"    phan he BC  dung voi man BCHUB
+#
+# Dat tien to cho CA MUOI HAI chu khong rieng bon cai dung: mot bang nua
+# theo nua khong la bang khong ai doc duoc, va them phan he thu muoi ba
+# trung ten thi lai phai nho sua tay. Co tien to thi khong bao gio trung,
+# va do la mot su that may bao dam chu khong phai nguoi phai nho.
+TIEN_TO_PHAN_HE = "phan-he"
+
+# Khoa phan he phai TRUNG KHIT voi truong `k` cua VGB_NHOM ben
+# 02-trang-chu.js. Co ca kiem doi chieu hai ben, doc thang tu ma nguon JS.
+PHAN_HE = (
+	("DH", "Đặt hàng"),
+	("SX", "Sản xuất"),
+	("NK", "Nhập kho"),
+	("XK", "Xuất kho"),
+	("KK", "Kiểm kê"),
+	("BH", "Bán hàng"),
+	("GH", "Giao hàng"),
+	("BC", "Báo cáo"),
+	("TM", "Thu mua"),
+	("KT", "Kế toán"),
+	("DM", "Danh mục"),
+	("KHAC", "Cài đặt"),
+)
 
 # Nhung slug DA CHAY THAT tren site tu v284 den v287. Doi bat ky dong nao o
 # day la lam chet duong dan nhan vien da luu va da gui cho nhau. Ca kiem
@@ -279,6 +329,8 @@ def _cap_duong():
 		yield (ghi_de or slugify(ten)), khoa
 	for ma, ten in DANH_MUC:
 		yield "%s-%s" % (TIEN_TO_DANH_MUC, slugify(ten)), "DM:" + ma
+	for ma, ten in PHAN_HE:
+		yield "%s-%s" % (TIEN_TO_PHAN_HE, slugify(ten)), "PH:" + ma
 
 
 def bang_duong():
