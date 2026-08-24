@@ -811,20 +811,47 @@ def dat_khoa():
 
 
 @frappe.whitelist()
-def tim_gd_vao(so_tien=0, ngay="", tu_khoa="", so_ngay=30):
-	"""Cac giao dich TIEN VAO co the la khoan khach da chuyen cho mot don.
+def tim_gd_vao(so_tien=0, ngay="", tu_khoa="", so_ngay=30, ma_do=""):
+	"""Các giao dịch TIỀN VÀO có thể là khoản khách đã chuyển cho một đơn.
 
-	Vi sao can den ban tay. Cach doi soat tu dong cua he dua HOAN TOAN vao
-	noi dung chuyen khoan: no tim mach S<shop>O<so don>T do Pancake sinh ra
-	trong ma QR. Khach nao tu go noi dung, vi du "TRUONG LINH GIANG chuyen
-	tien", thi khong mach nao de bam, va don do mai mai trong nhu chua nhan
-	dong nao - du tien da nam trong tai khoan cong ty.
+	ĐỔI CÁCH DÒ, v294 ngày 24/08/2026
+	=================================
+	Anh Việt: *"Cái ô Đối chiếu tiền vào thì sao lại phải gợi ý những khoản
+	tiền gần giống với khoản đó? Khoản tiền khách chuyển khoản bên Pancake
+	thì nó luôn có mã đơn hàng của Pancake mà, em chỉ việc dò theo mã đó
+	trong nội dung chuyển khoản thì sẽ ra luôn khoản chính xác."*
 
-	Man hinh khong duoc tu quyet. No chi bay ra cac giao dich gan dung so
-	tien va gan dung ngay, roi de nguoi doc mat nhin va chon.
+	Anh nói đúng, và bản cũ sai theo đúng cái kiểu nguy hiểm nhất: nó dò
+	THUẦN theo số tiền và khoảng ngày.
+
+	    lech = abs(flt(r["deposit"]) - tien)
+	    if tien > 0 and lech > 0.5 and lech > tien * 0.02:
+	            continue
+
+	Dung sai 2 phần trăm nghĩa là đơn 700.000 đ chấp nhận lệch tới 14.000 đ,
+	và cửa sổ ngày rộng cộng trừ 30 ngày. Hai khách cùng chuyển một số tiền
+	trong một tháng là chuyện thường, nên danh sách bày ra toàn dòng giống
+	nhau và người đối chiếu phải đoán.
+
+	Nay ngược lại hẳn:
+
+	  - Có mã thì DÒ THEO MÃ, và dòng khớp mã được xếp lên đầu.
+	  - Số tiền chỉ dùng để XẾP THỨ TỰ, KHÔNG dùng để loại. Loại theo tiền
+	    chính là cái bẫy cũ: ngân hàng trừ phí, hay khách chuyển làm hai lần,
+	    là đúng dòng cần tìm bị cắt mất khỏi danh sách, và người dùng kết
+	    luận "không có dòng nào".
+
+	Phép so mã đi qua `doi_soat_sepay.co_ma`, phép khớp DUY NHẤT của cả hệ,
+	có chặn chữ số cả hai đầu nên mã đơn năm chữ số không dính vào một con số
+	dài hơn.
+
+	`ma_do` để trống thì hàm quay về lối cũ là xếp theo số tiền, dùng cho các
+	màn chưa có mã nào để dò.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
 	from frappe.utils import add_days, nowdate
+
+	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.khop_sao_ke import xep_ung_vien
 
 	_kiem_quyen()
 	tien = flt(so_tien)
@@ -842,15 +869,30 @@ def tim_gd_vao(so_tien=0, ngay="", tu_khoa="", so_ngay=30):
 		order_by="date desc", limit_page_length=400,
 	)
 	tk = str(tu_khoa or "").strip().lower()
-	ra = []
+	ma = str(ma_do or "").strip()
+	tho = []
 	for r in ds:
-		lech = abs(flt(r["deposit"]) - tien)
-		if tien > 0 and lech > 0.5 and lech > tien * 0.02:
+		mo_ta = "%s %s" % (r.get("description") or "", r.get("reference_number") or "")
+		if tk and tk not in mo_ta.lower():
 			continue
-		if tk and tk not in (r.get("description") or "").lower():
-			continue
-		r["lech"] = lech
-		r["cach_ngay"] = abs(frappe.utils.date_diff(r["date"], moc))
+		x = dict(r)
+		x["mo_ta"] = mo_ta
+		x["tien"] = flt(r["deposit"])
+		x["cach_ngay"] = abs(frappe.utils.date_diff(r["date"], moc))
+		tho.append(x)
+
+	xep = xep_ung_vien(tho, ma, tien)
+	# Khong co ma de do thi khong co gi xep dong nao len truoc, luc do ngay
+	# gan moc moi la manh moi duy nhat con lai.
+	if not ma:
+		xep.sort(key=lambda r: (r["lech"], r["cach_ngay"]))
+	ra = []
+	for r in xep[:40]:
+		r["khop_noi_dung"] = r.get("khop_ma", 0)
 		ra.append(r)
-	ra.sort(key=lambda r: (r["lech"], r["cach_ngay"]))
-	return {"rows": ra[:40], "so_tien": tien, "moc": moc}
+	return {
+		"rows": ra, "so_tien": tien, "moc": moc, "ma_do": ma,
+		"nhac": ("" if ma else
+			"Phiếu này chưa có mã đơn nào để dò, nên hệ thống chỉ xếp được theo "
+			"số tiền và ngày. Vui lòng đọc nội dung rồi chọn."),
+	}

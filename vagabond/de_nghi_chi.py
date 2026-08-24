@@ -1410,6 +1410,12 @@ def chi_tiet(ma_phieu=None):
 	)
 	ra["duoc_duyet_buoc_nay"] = 1 if duoc else 0
 	ra["vi_sao_khong_duyet"] = "" if duoc else vi_sao
+	# Khop lenh chi duoc chua (v294). Phieu phai qua het chuoi duyet va chua
+	# co giao dich nao gan vao. Tinh o may chu chu khong de man tu suy, y het
+	# nep cua man Phieu hoan tien.
+	ra["khop_duoc"] = 1 if (
+		doc.trang_thai in (TT_CHO_KE_TOAN, TT_HOAN_TAT) and not (doc.get("ma_gd") or "").strip()
+	) else 0
 	ra["tep"] = [
 		{"url": f["file_url"], "ten": f["file_name"]}
 		for f in frappe.get_all(
@@ -1556,13 +1562,21 @@ def noi_dung_ck(ma_phieu):
 def khop_noi_dung(mo_ta, ma_phieu):
 	"""Nội dung chuyển khoản này có mang mã phiếu kia không. THUẦN.
 
-	Bỏ mọi ký tự không phải chữ và số ở cả hai bên rồi mới so. Ngân hàng hay
-	thay dấu gạch ngang bằng dấu cách, hoặc bỏ hẳn, nên "TTNB-26-08-00001"
-	và "TTNB 26 08 00001" phải là một.
+	Từ v294 uỷ quyền cho `doi_soat_sepay.co_ma`, phép khớp DUY NHẤT của cả hệ.
+
+	Bản cũ ở đây là bản LỎNG NHẤT trong repo: nó chỉ hỏi "chuỗi đã gọt có
+	chứa mã đã gọt không", không chặn chữ số đầu nào. Nên "TTNB2608001" dính
+	vào một dòng chứa "TTNB26080012", tức phiếu số 1 ăn nhầm tiền của phiếu
+	số 12.
+
+	Chỗ này nguy hơn mọi chỗ khác vì đây là đường DUY NHẤT webhook SePay gọi
+	thẳng: `sepay._webhook` gọi `khi_co_giao_dich` ngay khi tiền về, và phiếu
+	tự nhảy sang "Đã chi" mà không ai bấm nút nào. Bản chung chặn chữ số cả
+	hai đầu nên hết cửa ăn nhầm.
 	"""
-	sach = lambda x: "".join(ch for ch in str(x or "").upper() if ch.isalnum())
-	m = sach(ma_phieu)
-	return bool(m) and m in sach(mo_ta)
+	from vagabond.khop_sao_ke import co_ma
+
+	return co_ma(mo_ta, ma_phieu)
 
 
 def _gd_da_chiem_ttnb(tru_phieu=None):
@@ -1596,6 +1610,90 @@ def _phieu_cho_chi():
 		fields=["name", "tong_tien", "so_tien", "trang_thai"],
 		limit_page_length=0,
 	)
+
+
+def _khi_khop_ttnb(doc, ma_gd):
+	"""Việc phải làm sau khi một dòng tiền ra đã khớp vào phiếu TTNB.
+
+	Tầng chung đã ghi `ma_gd` và commit TRƯỚC khi gọi hàm này, nên một lỗi ở
+	đây không xoá mất dấu "tiền đã ra và đã khớp".
+	"""
+	frappe.db.set_value(DT, doc.name, {
+		"trang_thai": TT_DA_CHI,
+		"ngay_da_chi": now_datetime(),
+	})
+	frappe.db.commit()
+	_het_viec(doc.name)
+	return None
+
+
+def _khai_doi_soat():
+	"""Khai luồng thanh toán nội bộ vào sổ đối soát SePay dùng chung.
+
+	VÌ SAO LUỒNG NÀY CẦN NÚT THỦ CÔNG NHẤT TRONG CẢ HỆ (anh Việt 24/08/2026)
+	----------------------------------------------------------------------
+	Đây là đường DUY NHẤT webhook SePay gọi thẳng: tiền về là phiếu tự nhảy
+	sang "Đã chi", không ai bấm nút nào. Mà trước v294 nó KHÔNG có đường lui.
+	Kế toán gõ nội dung thiếu một chữ là phiếu nằm mãi ở "Chờ kế toán", và
+	không có nút nào để người nhìn sao kê rồi chỉ đúng dòng.
+
+	Trạng thái "Bi tra lai" phải nhả giao dịch ra, vì tiền đó hoặc chưa ra,
+	hoặc đã được thu lại bằng một phiếu khác.
+	"""
+	from vagabond import doi_soat_sepay as dss
+
+	dss.khai(
+		loai="ttnb",
+		doctype=DT,
+		chieu=dss.RA,
+		ma_do=lambda d: d.name,
+		so_tien=lambda d: flt(d.get("tong_tien")) or flt(d.get("so_tien")),
+		dang_cho={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
+		khi_khop=_khi_khop_ttnb,
+		ten_man="Thanh toán nội bộ",
+		loc_chiem={"trang_thai": ["!=", TT_TRA_LAI]},
+	)
+
+
+_khai_doi_soat()
+
+
+@frappe.whitelist()
+def tim_gd_ra(phieu=None, so_ngay=45, tu_khoa=""):
+	"""Các dòng tiền RA có thể là lệnh chi của phiếu TTNB này.
+
+	Uỷ quyền cho `doi_soat_sepay.ung_vien`. Mã dò chính là mã phiếu, ví dụ
+	`TTNB-26-08-00001`, và nội dung chuyển khoản do `noi_dung_ck` sinh ra đã
+	mang sẵn mã đó.
+	"""
+	from vagabond.doi_soat_sepay import ung_vien
+
+	return ung_vien("ttnb", phieu, so_ngay=so_ngay, tu_khoa=tu_khoa)
+
+
+@frappe.whitelist()
+def khop_tay(phieu=None, gd=None):
+	"""Gắn tay một dòng tiền ra vào phiếu TTNB, rồi chuyển phiếu sang Đã chi.
+
+	Uỷ quyền cho `doi_soat_sepay.khop_tay`. Doctype này chưa có ô riêng ghi
+	tên người khớp tay, nên tầng chung ghi vào nhật ký tài liệu.
+	"""
+	from vagabond.doi_soat_sepay import khop_tay as chung
+
+	if not frappe.db.exists(DT, phieu):
+		frappe.throw("Không tìm thấy phiếu %s. Vui lòng tải lại danh sách." % phieu)
+	d = frappe.get_doc(DT, phieu)
+	if d.trang_thai == TT_DA_CHI:
+		frappe.throw(
+			"Phiếu %s đã ở trạng thái Đã chi với giao dịch %s rồi. Khớp lại là "
+			"ghi hai lần cho một lần tiền ra." % (phieu, d.get("ma_gd") or "(không rõ)")
+		)
+	if d.trang_thai not in (TT_CHO_KE_TOAN, TT_HOAN_TAT):
+		frappe.throw(
+			"Phiếu %s đang ở trạng thái %s, chưa qua hết chuỗi duyệt nên chưa "
+			"khớp lệnh chi được." % (phieu, d.trang_thai)
+		)
+	return chung("ttnb", phieu, gd)
 
 
 @frappe.whitelist()
