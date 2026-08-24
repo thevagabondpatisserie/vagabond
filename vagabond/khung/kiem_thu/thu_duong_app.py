@@ -126,9 +126,11 @@ def _khoa_trong_vgbgo():
 	i = src.index("function vgbGo(k) {")
 	than = src[i:]
 	ra = set(re.findall(r"k === '([A-Za-z0-9:]+)'", than))
-	# Nhanh tien to cho ca ho danh muc.
+	# Nhanh tien to cho ca ho danh muc va ca muoi hai phan he.
 	if "k.indexOf('DM:') === 0" in than:
 		ra.add("DM:*")
+	if "k.indexOf('PH:') === 0" in than:
+		ra.add("PH:*")
 	return ra
 
 
@@ -148,6 +150,10 @@ def _():
 	for slug, khoa in sorted(bang_duong().items()):
 		if khoa.startswith("DM:"):
 			if "DM:*" not in co:
+				thieu.append("%s (%s)" % (slug, khoa))
+			continue
+		if khoa.startswith("PH:"):
+			if "PH:*" not in co:
 				thieu.append("%s (%s)" % (slug, khoa))
 			continue
 		if khoa not in co:
@@ -191,9 +197,192 @@ def _():
 	# 3. Ham doc nhanh vgbGo phai that su doc duoc, khong tra ve rong roi
 	#    lam ca kiem o tren xanh gia.
 	co = _khoa_trong_vgbgo()
-	for k in ("DTREO", "DHUY", "PAY", "DM:*"):
+	for k in ("DTREO", "DHUY", "PAY", "DM:*", "PH:*", "VCL"):
 		dung("vgbGo có nhánh %s" % k, k in co)
 	dung("vgbGo không có nhánh cho khoá bịa ra", "KHOA-BIA-RA" not in co)
+
+
+# ---------------------------------------------------------------------------
+# PHAN HE va DIA CHI THEO NAC (v292, 24/08/2026)
+#
+# Anh Viet: *"anh bam vao phan he ke toan, url khong co ke-toan. Ma bam vao
+# hoa don mua thi co duoi url hoa-don-mua, nhung back ve thi trang van mang
+# duoi hoa-don-mua. Em ra soat va fix triet de cho tat ca cac man."*
+#
+# Hai hong khac nhau, nen phai co hai bo hang rao khac nhau:
+#   1. O LON khong di qua vgbGo, nen khong qua bang duong dan.
+#   2. Dia chi la mot hieu ung phu bam vao luc bam nut, khong phai thuoc
+#      tinh cua nac trong chong man hinh, nen lui thi khong co gi de lui.
+# ---------------------------------------------------------------------------
+
+
+TEP_KHUNG = os.path.join(GOC, "vagabond", "public", "js", "bep", "01-khung-app.js")
+TEP_VD = os.path.join(GOC, "vagabond", "public", "js", "bep", "12-van-don.js")
+
+
+def _khung():
+	return io.open(TEP_KHUNG, encoding="utf-8").read()
+
+
+def _nhom_trong_js():
+	"""Doc truong `k` cua tung phan he trong VGB_NHOM, thang tu ma nguon JS."""
+	src = _js()
+	i = src.index("var VGB_NHOM = [")
+	than = src[i:src.index("\n];", i)]
+	return [m for m in re.findall(r"\{\s*k:\s*'([A-Za-z0-9_]+)'", than)]
+
+
+@ca("phân hệ: bảng PHAN_HE phải khớp từng khoá với VGB_NHOM bên JavaScript")
+def _():
+	"""Lệch một khoá là ô lớn đó bấm vào không ra gì.
+
+	`vgbGo('PH:KT')` tra khoá `KT` trong VGB_NHOM. Khoá bên Python có mà bên
+	JS không có thì địa chỉ `/phan-he-ke-toan` sinh ra nhưng bấm vào ô lại
+	rơi vào nhánh trả về rỗng, tức một ô lớn chết lặng.
+	"""
+	from vagabond.duong_app import PHAN_HE
+
+	js = _nhom_trong_js()
+	py = [k for k, _ten in PHAN_HE]
+	dung("đọc được VGB_NHOM bên JavaScript", len(js) >= 10)
+	la("hai bên cùng số phân hệ", len(py), len(js))
+	la("hai bên cùng bộ khoá, cùng thứ tự", py, js)
+
+
+@ca("phân hệ: mọi phân hệ đều có slug riêng và không đụng màn nào")
+def _():
+	from vagabond.duong_app import PHAN_HE, TIEN_TO_PHAN_HE, _cap_duong
+
+	cap = list(_cap_duong())
+	slug_ph = [s for s, k in cap if k.startswith("PH:")]
+	la("đủ slug cho mọi phân hệ", len(slug_ph), len(PHAN_HE))
+	dung("mọi slug phân hệ đều mang tiền tố",
+		all(x.startswith(TIEN_TO_PHAN_HE + "-") for x in slug_ph))
+	# Bon ten phan he TRUNG nguyen van voi ten mot man. Khong co tien to thi
+	# bon slug nay nuot mat bon man that.
+	khac = [s for s, k in cap if not k.startswith("PH:")]
+	dung("không slug phân hệ nào đụng slug màn: " +
+		(", ".join(sorted(set(slug_ph) & set(khac))) or "sạch"),
+		not (set(slug_ph) & set(khac)))
+	# Toan bang khong duoc co slug trung, ke ca sau khi them phan he.
+	tat_ca = [s for s, _k in cap]
+	trung = sorted({x for x in tat_ca if tat_ca.count(x) > 1})
+	dung("toàn bảng không có slug trùng: " + (", ".join(trung) or "sạch"), not trung)
+
+
+@ca("phân hệ: HÀNG RÀO tiền tố có thật sự cắn không")
+def _():
+	"""Bỏ tiền tố đi thì bốn phân hệ nuốt mất bốn màn. Tự chứng minh điều đó.
+
+	Hàng rào không cắn còn tệ hơn không có hàng rào, nên ca này dựng lại
+	đúng cái bảng SAI rồi đòi nó phải đụng.
+	"""
+	from vagabond.duong_app import MAN, PHAN_HE, slugify
+
+	ten_man = {slugify(ghi_de or ten) for _k, ten, ghi_de in MAN}
+	dung_do = sorted(slugify(ten) for _k, ten in PHAN_HE if slugify(ten) in ten_man)
+	dung("bỏ tiền tố thì có phân hệ đụng màn: " + ", ".join(dung_do), len(dung_do) >= 4)
+	for x in ("san-xuat", "nhap-kho", "kiem-ke", "bao-cao"):
+		dung("phân hệ '%s' sẽ đụng nếu bỏ tiền tố" % x, x in dung_do)
+
+
+@ca("phân hệ: vgbGo có nhánh tiền tố PH: và ô lớn đi qua vgbGo")
+def _():
+	"""Ô lớn gọi thẳng go() là bỏ qua CỬA DUY NHẤT đặt địa chỉ.
+
+	Đúng lỗi anh Việt báo 24/08: `if (nh) go(function () { scrNhom(nh); })`.
+	"""
+	src = _js()
+	dung("vgbGo có nhánh tiền tố PH:", "k.indexOf('PH:') === 0" in src)
+	dung("vgbGo có nhánh cho Việc cần làm", "k === 'VCL'" in src)
+	dung("ô lớn đi qua vgbGo chứ không go() thẳng", "vgbGo('PH:' + nh.k)" in src)
+	dung("ô Việc cần làm cũng đi qua vgbGo", "vgbGo('VCL')" in src)
+	dung("không còn chỗ nào gọi go(scrNhom) thẳng từ trang chủ",
+		"if (nh) go(function () { scrNhom(nh); });" not in src)
+
+
+@ca("địa chỉ: mỗi nấc trong chồng màn hình giữ slug của chính nó")
+def _():
+	"""Ba chỗ làm chồng đổi đều phải cập nhật S.duong và áp lại địa chỉ.
+
+	Thiếu một chỗ là địa chỉ lệch khỏi màn đang xem, và người dùng F5 sẽ ra
+	một màn khác hẳn.
+	"""
+	k = _khung()
+	dung("khung app khai chồng địa chỉ S.duong", "S.duong = []" in k)
+	dung("go() đẩy slug vào chồng địa chỉ", "S.duong.push(" in k)
+	dung("back() cắt chồng địa chỉ", "S.duong.pop()" in k)
+	dung("reset() dựng lại chồng địa chỉ", "S.duong = [slug]" in k)
+	dung("go/back/reset đều áp lại địa chỉ", k.count("vgbApNac()") >= 3)
+
+	# popstate co HAI duong lui: duong thang, va duong hoi lai khi dang soan
+	# phieu do. Ca hai deu phai cat chong dia chi, nen dem chu khong chi hoi
+	# "co xuat hien khong" - thieu mot duong thi chuoi van con o duong kia va
+	# ca kiem xanh gia. Da thu lai bang tay: bo mot duong ma ca kiem khong do.
+	vd = io.open(TEP_VD, encoding="utf-8").read()
+	la("popstate cắt chồng địa chỉ ở CẢ HAI đường lui",
+		vd.count("S.duong.length = d + 1"), 2)
+	la("cả hai đường lui đều áp lại địa chỉ", vd.count("vgbApNac()"), 2)
+
+
+@ca("địa chỉ: HÀNG RÀO thứ tự pushState có cắn không")
+def _():
+	"""Đây là nguyên nhân THẬT của lỗi Back mang địa chỉ cũ, phải canh riêng.
+
+	Bản cũ đổi địa chỉ TRƯỚC rồi mới pushState:
+
+	    vgbDatDuong(k);   // replaceState: ghi đè địa chỉ của mốc CHA
+	    go(scrHdMua);     // pushState(location.href): mốc con cùng địa chỉ
+
+	replaceState ghi đè địa chỉ của chính mốc đang đứng, tức mốc của màn cha.
+	Nên sau một lần bấm, cả hai mốc đều mang `/hoa-don-mua`.
+
+	Bản mới phải pushState TRƯỚC, rồi mới áp địa chỉ cho mốc vừa đẩy.
+	"""
+	k = _khung()
+	i = k.index("function go(fn, replace) {")
+	than = k[i:k.index("\nfunction back()", i)]
+	vt_push = than.index("history.pushState(")
+	vt_ap = than.index("vgbApNac()")
+	dung("go() đẩy mốc TRƯỚC rồi mới áp địa chỉ", vt_push < vt_ap)
+	# Ham doi dia chi cu khong duoc con ai goi nua.
+	dung("không còn ai gọi vgbDatDuong", "vgbDatDuong(" not in _js())
+
+
+@ca("địa chỉ: khoá màn sắp mở chỉ dùng được MỘT lần")
+def _():
+	"""Khoá dính lại sẽ đặt sai địa chỉ cho một màn hoàn toàn khác.
+
+	Nhánh nào của vgbGo không gọi go() - ví dụ nhánh toast báo màn chưa dựng
+	- thì khoá còn nguyên, và lần go() kế tiếp, dù của màn nào, cũng nhận
+	đúng khoá đó. Nên vgbGo phải xoá khoá trong finally.
+	"""
+	src = _js()
+	i = src.index("function vgbGo(k) {")
+	than = src[i:src.index("\nfunction vgbNhomTheoKhoa(", i)] if "\nfunction vgbNhomTheoKhoa(" in src[i:] else src[i:]
+	than = than[:than.index("\n}\n")] if "\n}\n" in than else than
+	dung("vgbGo đặt khoá", "VGB_KHOA_MO = k" in than)
+	dung("vgbGo xoá khoá trong finally", "finally" in than and "VGB_KHOA_MO = ''" in than)
+	# Ham doc khoa cung phai tu xoa, de mot go() khong an khoa cua go() sau.
+	j = src.index("function vgbSlugSapMo() {")
+	than2 = src[j:src.index("\n}", j)]
+	dung("vgbSlugSapMo xoá khoá ngay khi đọc", "VGB_KHOA_MO = ''" in than2)
+
+
+@ca("địa chỉ: đọc địa chỉ lúc nạp trang, không đọc lại sau khi reset")
+def _():
+	"""reset() nay có đổi địa chỉ, nên đọc location.pathname muộn là đọc trượt.
+
+	__boot gọi reset(scrHome) TRƯỚC vgbMoTheoDiaChi. Nếu vgbMoTheoDiaChi còn
+	đọc location.pathname thì lúc đó địa chỉ đã bị reset ghi đè thành /bep,
+	và F5 tại /hoa-don-mua sẽ ra trang chủ - đúng lỗi đã sửa ở v288.
+	"""
+	src = _js()
+	dung("có chụp địa chỉ lúc nạp trang", "var VGB_DIA_NAP = String(location.pathname" in src)
+	i = src.index("function vgbMoTheoDiaChi() {")
+	than = src[i:src.index("\n}", i)]
+	dung("vgbMoTheoDiaChi đọc bản chụp", "VGB_DIA_NAP" in than)
+	dung("vgbMoTheoDiaChi KHÔNG đọc lại location.pathname", "location.pathname" not in than)
 
 
 # ---------------------------------------------------------------------------
