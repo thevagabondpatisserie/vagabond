@@ -255,27 +255,58 @@ def _dong_hang(o):
 	return rows, thieu
 
 
+def _tong_niem_yet(o):
+	"""Tong don theo GIA NIEM YET, chua tru bat ky khoan giam nao.
+
+	Cong gia niem yet nhan so luong cua tung dong hang, cong phi giao cap
+	don. Bo qua dong khong doc duoc ma - chinh nhung dong do lam `_dong_hang`
+	tra ve `thieu` va nhip dong bo dung lai truoc khi den day.
+	"""
+	tong = 0.0
+	for it in (o or {}).get("items") or []:
+		vi = it.get("variation_info") or {}
+		tong += flt(vi.get("retail_price") or 0) * flt(it.get("quantity") or 0)
+	phi = flt((o or {}).get("shipping_fee") or 0)
+	if phi > 0:
+		tong += phi
+	return tong
+
+
 def _lech_pancake(o, rows, giam_don=0):
-	"""So tien lech giua ban tinh cua minh va tong don ben Pancake.
+	"""Doi chieu tong don theo GIA NIEM YET voi con so Pancake gui ve.
 
-	Tra 0 khi hai ben khop. Khac 0 nghia la co mot loai gia hoac mot loai
-	giam gia ma ma cua tiem chua hieu.
+	Tra 0 khi hai ben khop. Khac 0 nghia la ma cua tiem doc sai gia niem yet,
+	sai so luong, hoac bo sot mot dong hang.
 
-	Vi sao can luoi nay
-	-------------------
-	Ngay 22/08/2026 Pancake gui `discount_each_product = 5` kem co
-	`is_discount_percent = true`, y la giam 5 phan tram. May doc thieu co
-	nen tru 5 dong. Khong co bao loi nao, khong co man hinh nao do, phieu
-	van chot binh thuong - chi lech tien. Bat duoc la nho khach chuyen
-	khoan thieu roi doi soat SePay keu len.
+	Vi sao doi chieu o MUC NIEM YET chu khong o muc da tru giam gia
+	-----------------------------------------------------------------
+	v296 doi chieu o muc da tru giam gia va da keu nham hang loat. Ly do:
+	truong `total_price` ma duong dong bo cua tiem nhan duoc la tong TRUOC
+	khi tru giam gia. Ba so THAT doc duoc tren site ngay 24/08/2026 ngay sau
+	khi deploy v296:
 
-	Luoi nay bat duoc CA nhung loi chua xay ra: mai kia Pancake them mot
-	loai giam gia khac thi con so nay lech ngay tu nhip dong bo dau tien.
+	    don 91853  ban tinh 7.820.000  total_price 8.230.000
+	    don 91391  ban tinh 3.800.000  total_price 3.850.000 (giam cap don 50.000)
+	    don 91511  ban tinh 4.532.500  total_price 4.770.000 (giam cap don 237.500)
 
-	KHONG chan dong bo va KHONG chan ghi so. Chi ghi lai con so de man hinh
-	ve dai bang cho nguoi doc. Chan tu dong o day la mot ngay nao do ca tiem
-	khong chot duoc don nao vi mot truong la ben Pancake, cai gia do dat hon
-	nhieu so voi mot dai bang bi bo qua.
+	Ca ba deu la don DUNG. Lay 8.230.000 tru di hai khoan giam thi ra dung
+	7.820.000. Nghia la con so kia la tong niem yet, va dem ban tinh DA TRU
+	giam ra so voi no la so hai thu khac nhau.
+
+	Cong noi bo pos.pancake.vn tra `total_price` DA TRU giam, nen phep do
+	tren 1.073 don qua trinh duyet hom truoc moi khop tuyet doi. Hai cong
+	cung ten truong ma khac nghia. Bai hoc: phep doi chieu phai chay tren
+	DUNG duong du lieu ma ma nguon dung, khong phai tren mot duong tuong tu.
+
+	Vay luoi nay con bat duoc gi
+	-----------------------------
+	No chot rang gia niem yet va so luong doc ra dung, va khong dong hang
+	nao bi bo sot. Rieng loi giam gia phan tram cua v296 thi da co ca kiem
+	thu chot bang so that cua don 91853, khong can luoi nay canh nua.
+
+	KHONG chan dong bo va KHONG chan ghi so, chi ghi lai con so de man hinh
+	ve dai bang. Chan tu dong o day la mot ngay nao do ca tiem khong chot
+	duoc don nao vi mot truong la ben Pancake.
 
 	Bo qua khi Pancake khong gui `total_price`: khong co gi de doi chieu thi
 	im lang, khong bia ra mot con so lech.
@@ -283,26 +314,14 @@ def _lech_pancake(o, rows, giam_don=0):
 	tong_pk = flt((o or {}).get("total_price") or 0)
 	if tong_pk <= 0:
 		return 0.0
-	tong_minh = 0.0
-	for r in rows or []:
-		tong_minh += flt(r.get("rate") or 0) * flt(r.get("qty") or 0)
-	tong_minh -= flt(giam_don or 0)
-	d = flt(gia_pancake.lech_tong(tong_minh, tong_pk, nguong=1.0))
+	d = flt(gia_pancake.lech_tong(_tong_niem_yet(o), tong_pk, nguong=1.0))
 	if d:
-		# Chay thu tren 1.073 don thang 08/2026 co tong ben Pancake: 1.072 don
-		# khop tuyet doi, dung MOT don lech, la don 91266 co `surcharge` 20.000
-		# dong. Tuc phu thu ben Pancake KHONG duoc dua vao hoa don - khach tra
-		# 1.730.000 ma to hoa don chi ghi 1.710.000. Day la mot phat hien rieng,
-		# da liet ke cho anh Viet chu KHONG tu sua du lieu cu (QT-11).
-		#
-		# Nen ty le keu nham cua luoi nay la 1 tren 1.073, va lan keu do cung
-		# la keu dung.
 		frappe.log_error(
-			"Đơn %s lệch %s đồng. Bản tính của hệ thống %s, tổng bên Pancake %s. "
-			"Phụ thu Pancake %s, giảm cấp đơn %s."
+			"Đơn %s lệch %s đồng. Tổng theo giá niêm yết của hệ thống %s, "
+			"tổng bên Pancake %s. Phụ thu Pancake %s, giảm cấp đơn %s."
 			% (
 				(o or {}).get("display_id") or (o or {}).get("id") or "?",
-				d, tong_minh, tong_pk,
+				d, _tong_niem_yet(o), tong_pk,
 				flt((o or {}).get("surcharge") or 0), flt(giam_don or 0),
 			),
 			"ban_hang: lech tong don Pancake",
