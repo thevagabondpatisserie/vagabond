@@ -365,10 +365,27 @@ def _():
 	ra = mv.cuon_ton_theo_ngay(
 		["2026-09-01"], {"HOPA": 500, "HOPB": 40, "LE1": 90, "LE2": 90}, {}, {}, dm
 	)
+	# CHUA khai nguon cung cho ruot nao: van la truong hop khong rang buoc.
 	o = mv.ghep_theo_ngay(ra["2026-09-01"], dm, {"LE1", "LE2"})
 	la("HOPA đã khai định mức", o["HOPA"]["chua_khai_dinh_muc"], 0)
 	la("nhưng không ruột nào ràng buộc", o["HOPA"]["ruot_khong_rang_buoc"], 1)
 	la("nên chỉ vỏ hộp chặn, bán được 500", o["HOPA"]["con_thuc_te"], 500)
+	la("và đếm được 2 ruột thiếu nguồn", o["HOPA"]["ruot_thieu_nguon"], 2)
+
+	# DA khai nguon cung thi co "khong dat tran" khong con mien nua, va ruot
+	# chan lai dung theo so that (anh Viet 24/08/2026). Hai nua cua ca kiem
+	# nay chinh la hai ve cua luat moi - xem thu_ghep_hop_theo_ruot.py.
+	ra2 = mv.cuon_ton_theo_ngay(
+		["2026-09-01"], {"HOPA": 500, "HOPB": 40, "LE1": 90, "LE2": 90}, {}, {}, dm
+	)
+	co_nguon = mv.ma_co_nguon_cung([
+		{"ma_hang": "LE1", "san_xuat": 90, "nha_in_giao": 0},
+		{"ma_hang": "LE2", "san_xuat": 90, "nha_in_giao": 0},
+	])
+	o2 = mv.ghep_theo_ngay(ra2["2026-09-01"], dm, {"LE1", "LE2"}, co_nguon)
+	la("khai nguồn rồi thì ruột ràng buộc trở lại", o2["HOPA"]["ruot_khong_rang_buoc"], 0)
+	la("ghép được 90", o2["HOPA"]["ghep_duoc"], 90)
+	la("nên bán được 90 chứ không phải 500", o2["HOPA"]["con_thuc_te"], 90)
 
 
 @ca("Hộp CHƯA khai định mức nào thì mới được báo chưa khai")
