@@ -592,14 +592,15 @@ RX_MA_HD = re.compile(r"(?<![0-9A-Za-z])(HDB-[0-9]+(?:-[0-9]+){1,3})(?![0-9A-Za-
 
 
 def _got(chu):
-	"""Bo moi ky tu khong phai chu hoac so, roi viet HOA. THUAN.
+	"""Uỷ quyền cho `doi_soat_sepay.got`. Giữ tên cũ cho chỗ gọi cũ.
 
-	Vi sao can: ngan hang khong tra lai noi dung y nguyen. Cung mot lenh
-	chi, sao ke co the ve thanh "THE VAGABOND HOAN TIEN HDB 26 08 00323"
-	(mat dau gach), hoac dinh them ma tham chieu o hai dau. So hai chuoi
-	tho voi nhau la truot.
+	Trước v294 tệp này giữ một bản chép riêng, và ba mô đun khác giữ ba bản
+	chép nữa với ba cái tên khác (`_chuan_ma`, `_tran`, lambda `sach`). Bốn
+	bản làm y hệt một việc là bốn cơ hội lệch nhau.
 	"""
-	return re.sub(r"[^0-9A-Za-z]+", "", str(chu or "")).upper()
+	from vagabond.khop_sao_ke import got
+
+	return got(chu)
 
 
 def tim_ma_hoa_don(mo_ta):
@@ -613,90 +614,81 @@ def tim_ma_hoa_don(mo_ta):
 
 
 def khop_giao_dich(mo_ta, ma_hoa_don):
-	"""Mot dong sao ke co phai la lenh chi cua don nay khong. THUAN.
+	"""Một dòng sao kê có phải của phiếu mang mã này không. THUẦN.
 
-	Xet HAI duong, trung mot duong la khop:
-	  1. Doc thang ma hoa don trong mo ta, khi dau gach con nguyen.
-	  2. So sau khi got het ky tu ngan cach, bat duoc ca dong bi ngan hang
-	     lam mat dau gach.
+	Từ v294 uỷ quyền cho `doi_soat_sepay.co_ma`, phép khớp DUY NHẤT của cả hệ.
+
+	Khác bản cũ đúng một điểm, nhưng là điểm quyết định: bản cũ chỉ chặn chữ
+	số ở phía SAU mã, bản chung chặn CẢ HAI ĐẦU. Nhờ vậy dò được theo mã đơn
+	Pancake trần mà "92252" không dính vào một dòng chứa "192252".
 	"""
-	ma = str(ma_hoa_don or "").strip()
-	if not ma:
-		return False
-	if tim_ma_hoa_don(mo_ta).upper() == ma.upper():
-		return True
-	g_ma, g_mo = _got(ma), _got(mo_ta)
-	if not g_ma or g_ma not in g_mo:
-		return False
-	# Chan hai dau tren ban da got: ma ngan khong duoc an nham ma dai.
-	vt = g_mo.find(g_ma)
-	sau = g_mo[vt + len(g_ma):vt + len(g_ma) + 1]
-	return not sau.isdigit()
+	from vagabond.khop_sao_ke import co_ma
+
+	return co_ma(mo_ta, ma_hoa_don)
 
 
 def ma_do_soat(ho_so):
-	"""Chuỗi dùng để dò dòng sao kê cho một hồ sơ hoàn tiền. THUẦN.
+	"""Mã dùng để dò dòng sao kê cho một hồ sơ hoàn tiền. THUẦN.
 
-	Nhận một dict (hoặc doc) có `hoa_don`, `loai_hoan`, `noi_dung_ck`.
+	Nhận một dict hoặc doc có `hoa_don`, `loai_hoan`, `ma_don_pancake`.
 	Trả chuỗi rỗng nghĩa là hồ sơ này chưa dò được, phải bỏ qua.
 
-	VÌ SAO KHÔNG PHẢI LÚC NÀO CŨNG LÀ MÃ HOÁ ĐƠN
-	----------------------------------------------
 	Phiếu hoàn của luồng trả hàng luôn neo vào một hoá đơn, nên mã hoá đơn
 	vừa là khoá vừa là thứ ghi trong nội dung chuyển khoản.
 
 	Phiếu hoàn của đơn Pancake đã huỷ thì KHÔNG có hoá đơn nào - đó chính là
-	lý do luồng đó tồn tại. Thứ duy nhất đi được vào ô nội dung chuyển khoản
-	là mã đơn.
+	lý do luồng đó tồn tại - nên khoá là MÃ ĐƠN.
 
-	Dò theo CẢ CÂU nội dung chuyển khoản chứ không dò theo mã đơn trần. Mã
-	đơn Pancake chỉ có năm chữ số, mà `khop_giao_dich` chỉ chặn chữ số ở
-	phía SAU chứ không chặn phía trước, nên dò "92252" sẽ dính nhầm vào một
-	dòng chứa "192252". Cả câu "THE VAGABOND HOAN TIEN 92252" thì không.
+	ĐỔI TỪ CẢ CÂU SANG MÃ TRẦN, v294 ngày 24/08/2026
+	------------------------------------------------
+	Bản v292 trả về cả câu nội dung chuyển khoản, vì `khop_giao_dich` lúc đó
+	chỉ chặn chữ số phía sau nên dò "92252" sẽ dính vào một dòng chứa
+	"192252". Cả câu thì không dính.
+
+	Nhưng cả câu lại hỏng nặng hơn, và dữ liệu thật ngày 24/08 chứng minh:
+
+	    app bao go : THE VAGABOND HOAN TIEN 92245
+	    sao ke that: MBCT VAGABOND HOAN TIEN DON HANG 92245 D237BVMB/870581
+
+	Chị Dung bỏ chữ THE, thêm hai chữ DON HANG, ngân hàng chèn MBCT ở đầu.
+	Cả câu trượt, máy không khớp, và chị phải bấm nút thủ công lúc 14:31.
+
+	Nay `doi_soat_sepay.co_ma` chặn chữ số CẢ HAI ĐẦU, nên dò mã trần vừa an
+	toàn vừa bắt được mọi cách gõ. Đó là thứ DUY NHẤT ổn định trong sao kê.
+
+	Trả về rỗng khi phiếu Pancake không có mã đơn. THÀ KHÔNG KHỚP CÒN HƠN
+	KHỚP NHẦM một lần tiền ra: bản v292 trả về `noi_dung_ck`, mà phiếu bị lỗi
+	cũ xoá mã thì chuỗi đó còn trơ lại "THE VAGABOND HOAN TIEN" - một chuỗi
+	là con của MỌI dòng hoàn tiền, khớp bừa vào bất kỳ dòng nào.
 	"""
 	g = ho_so.get if hasattr(ho_so, "get") else (lambda k, d=None: getattr(ho_so, k, d))
 	hd = str(g("hoa_don") or "").strip()
 	if hd:
 		return hd
 	if str(g("loai_hoan") or "").strip() == LOAI_HUY_PANCAKE:
-		return str(g("noi_dung_ck") or "").strip()
+		return str(g("ma_don_pancake") or "").strip()
 	return ""
 
 
 def chon_ma_khop(mo_ta, ds_ma):
-	"""Trong danh sach ma dang cho, ma nao khop voi dong sao ke nay. THUAN.
+	"""Trong danh sách mã đang chờ, mã nào khớp dòng sao kê này. THUẦN.
 
-	Tra chuoi rong neu khong ma nao khop.
+	Từ v294 uỷ quyền cho `doi_soat_sepay.tim_ma`.
 
-	Vi sao co ham nay, va day la lan thu BA trong ngay 16/08/2026
-	------------------------------------------------------------
-	Sang nay mat mot ban va vi hai cho dinh tuyen chep gan giong nhau roi
-	lech nhau. Chieu nay lai suyt chep regex vao bo kiem. Va toi nay, khi
-	chay thu tren he ngay sau khi deploy v192, phat hien dung cai do lan
-	nua: hai duong doi soat cung mot viec nhung dung hai phep khac nhau.
+	Vì sao hàm này ra đời, ghi lại để không ai gỡ nó đi
+	--------------------------------------------------
+	Ngày 16/08/2026, phát hiện hai đường đối soát trong CÙNG mô đun này dùng
+	hai phép khác nhau: `doi_soat()` đi qua `khop_giao_dich` có đường gọt nên
+	bắt được dòng bị ngân hàng làm mất dấu gạch, còn `sepay_tien_ra()` đi qua
+	`tim_ma_hoa_don` thì không. Cùng một dòng tiền, vào đường này thì khớp,
+	vào đường kia thành mồ côi.
 
-	    doi_soat()       chay theo gio, doc Bank Transaction -> khop_giao_dich
-	    sepay_tien_ra()  SePay goi thang                     -> tim_ma_hoa_don
-
-	khop_giao_dich co duong got nen bat duoc dong bi ngan hang lam mat dau
-	gach. tim_ma_hoa_don thi khong. Nen cung mot dong tien, vao duong nay
-	thi khop, vao duong kia thi thanh mo coi.
-
-	Nay ca hai duong deu di qua ham nay. Mot phep, mot cho.
+	Ngày 24/08/2026 mới thấy bài học đó chưa được mang sang sáu mô đun còn
+	lại, và bảy phép khớp đang tồn tại song song. Nay cả bảy về một chỗ.
 	"""
-	mo = str(mo_ta or "")
-	if not mo:
-		return ""
-	# Uu tien doc thang ma trong mo ta: nhanh, va chac chan dung khi dau
-	# gach con nguyen.
-	ma = tim_ma_hoa_don(mo)
-	if ma and ma in {str(x or "").upper() for x in (ds_ma or [])}:
-		return ma
-	# Khong doc duoc thi doi chieu tung ma dang cho, qua duong got.
-	for x in ds_ma or []:
-		if khop_giao_dich(mo, x):
-			return str(x)
-	return ""
+	from vagabond.khop_sao_ke import tim_ma
+
+	return tim_ma(mo_ta, ds_ma)
 
 
 def ty_le_hop_le(so_tien_hoan, tong_don):
@@ -2001,7 +1993,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 		DT,
 		filters=loc,
 		fields=["name", "hoa_don", "hoa_don_tra", "so_tien", "trang_thai",
-			"loai_hoan", "noi_dung_ck"],
+			"loai_hoan", "noi_dung_ck", "ma_don_pancake"],
 		limit_page_length=0,
 	)
 	# Do theo MA HOA DON GOC chu khong theo ma to tra hang.
@@ -2162,7 +2154,8 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	# duong chay theo gio dung, khong de hai duong lech nhau.
 	cho = frappe.get_all(
 		DT, filters={"da_doi_soat": 0, "trang_thai": ["!=", "Da huy"]},
-		fields=["name", "hoa_don", "so_tien", "trang_thai", "loai_hoan", "noi_dung_ck"],
+		fields=["name", "hoa_don", "so_tien", "trang_thai", "loai_hoan",
+			"noi_dung_ck", "ma_don_pancake"],
 		limit_page_length=0,
 	)
 	# Dò theo cùng một phép với đường chạy theo giờ. Xem ghi chú ở
@@ -3077,104 +3070,99 @@ def gan_gd_vao(ho_so=None, gd=None):
 	return {"ok": 1, "gd": gd, "so_tien": flt(g["deposit"]), "ngay": str(g["date"] or "")}
 
 
+def _khi_khop_hoan_tien(doc, ma_gd):
+	"""Việc phải làm sau khi một dòng tiền ra đã khớp vào phiếu hoàn tiền.
+
+	Tầng chung đã ghi `ma_gd` và đã commit TRƯỚC khi gọi hàm này. Bài học của
+	phiếu HT-2026-00899 ngày 19/08/2026: "tiền đã ra và đã khớp" với "chứng
+	từ sinh được chưa" là hai sự thật khác hẳn nhau, gộp vào một giao dịch cơ
+	sở dữ liệu thì một lỗi ở vế sau rollback xoá luôn vế trước.
+	"""
+	frappe.db.set_value(DT, doc.name, {
+		"da_doi_soat": 1,
+		"ngay_doi_soat": now_datetime(),
+		"trang_thai": "Da doi soat",
+		"loi_sinh_ct": "",
+	})
+	frappe.db.commit()
+	ho = frappe.get_doc(DT, doc.name)
+	kq = _sinh_chung_tu(ho)
+	return None if kq.get("bo_qua") else kq
+
+
+def _khai_doi_soat():
+	"""Khai luồng hoàn tiền vào sổ đối soát SePay dùng chung."""
+	from vagabond import doi_soat_sepay as dss
+
+	dss.khai(
+		loai="hoan_tien",
+		doctype=DT,
+		chieu=dss.RA,
+		ma_do=ma_do_soat,
+		so_tien=lambda d: flt(d.so_tien),
+		dang_cho={"da_doi_soat": 0, "trang_thai": ["!=", "Da huy"]},
+		khi_khop=_khi_khop_hoan_tien,
+		ten_man="Phiếu hoàn tiền",
+		loc_chiem={"trang_thai": ["!=", "Da huy"]},
+		truong_nguoi="nguoi_khop_tay",
+		truong_luc="ngay_khop_tay",
+	)
+
+
+_khai_doi_soat()
+
+
 @frappe.whitelist()
 def tim_gd_ra(ho_so=None, so_ngay=45, tu_khoa=""):
-	"""Cac dong tien RA tren sao ke co the la lenh chi cua phieu nay.
+	"""Các dòng tiền RA có thể là lệnh chi của phiếu này.
 
-	Anh Viet 24/08/2026: *"thieu nut Khop Sepay thu cong (de tu chon giao
-	dich tien ra)"*.
+	Từ v294 uỷ quyền cho `doi_soat_sepay.ung_vien`, cửa ngõ dùng chung cho
+	mọi màn. Giữ nguyên tên và hình dạng kết quả để màn hình không phải sửa.
 
-	VI SAO CAN BAN TAY, du da co doi soat tu dong. Phep tu dong do CHUOI noi
-	dung chuyen khoan. Ke toan chuyen tien tren MB Biz va go noi dung tay,
-	nen chi can go thieu mot chu, go dau tieng Viet, hay ngan hang cat bot
-	do dai la chuoi khong con khop, va phieu nam mai o "Cho chi" du tien da
-	ra that. Man nay khong tu quyet: no chi bay ra cac dong gan dung so tien
-	roi de nguoi nhin va chon.
-
-	Ba thu bi loai ngay tai day, de nguoi bam khong phai nho:
-	  - dong da bi mot phieu khac chiem
-	  - dong da huy (docstatus 2)
-	  - dong tien VAO, vi lenh chi thi phai o cot tien ra
+	Vì sao cần bàn tay dù đã có đối soát tự động: phép tự động dò MÃ trong
+	nội dung chuyển khoản. Kế toán chuyển tiền trên MB Biz và gõ nội dung
+	tay, ngân hàng lại chèn thêm mã tham chiếu, nên vẫn có dòng máy không
+	đọc ra. Ngày 24/08/2026 chị Dung đã phải dùng đúng đường này cho phiếu
+	HT-2026-01211.
 	"""
-	from frappe.utils import add_days, nowdate
+	from vagabond.doi_soat_sepay import ung_vien
 
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
-	if not _duoc_tu_choi():
-		frappe.throw("Chỉ kế toán hoặc giám đốc mới khớp lệnh chi được.")
-	d = frappe.get_doc(DT, ho_so)
-	tien = flt(d.so_tien)
-	n = max(1, min(cint(so_ngay) or 45, 180))
-	moc = nowdate()
-	ds = frappe.get_all(
-		"Bank Transaction",
-		filters=[
-			["date", "between", [add_days(moc, -n), add_days(moc, 1)]],
-			["withdrawal", ">", 0],
-			["docstatus", "<", 2],
-		],
-		fields=["name", "date", "withdrawal", "description", "reference_number",
-			"bank_account"],
-		order_by="date desc", limit_page_length=400,
-	)
-	# Giu lai chinh giao dich cua phieu nay, de ke toan mo ra con thay minh
-	# dang tro vao dong nao va doi sang dong khac duoc.
-	da_chiem = _gd_da_chiem(tru_ho_so=d.name)
-	tk = str(tu_khoa or "").strip().lower()
-	ra = []
-	for r in ds:
-		if da_chiem.get(r["name"]):
-			continue
-		mo_ta = "%s %s" % (r.get("description") or "", r.get("reference_number") or "")
-		if tk and tk not in mo_ta.lower():
-			continue
-		lech = abs(flt(r["withdrawal"]) - tien)
-		r["lech"] = lech
-		r["khop_noi_dung"] = 1 if khop_giao_dich(mo_ta, ma_do_soat(d)) else 0
-		r["dung_tien"] = 1 if lech <= 1 else 0
-		ra.append(r)
-	# Xep theo: khop noi dung truoc, roi dung so tien, roi lech it nhat.
-	ra.sort(key=lambda r: (-r["khop_noi_dung"], -r["dung_tien"], r["lech"]))
+	kq = ung_vien("hoan_tien", ho_so, so_ngay=so_ngay, tu_khoa=tu_khoa)
+	# Doi ten cot cho khop voi man hinh dang chay, khoi phai sua JS.
+	rows = []
+	for r in kq.get("rows") or []:
+		x = dict(r)
+		x["withdrawal"] = r.get("tien")
+		x["description"] = r.get("mo_ta")
+		x["khop_noi_dung"] = r.get("khop_ma")
+		rows.append(x)
 	return {
-		"rows": ra[:60],
-		"so_tien": tien,
-		"ma_do": ma_do_soat(d),
-		"noi_dung_ck": _noi_dung_dung(d),
-		"ma_gd_dang_gan": d.ma_gd or "",
+		"rows": rows,
+		"so_tien": kq.get("so_tien"),
+		"ma_do": kq.get("ma_do"),
+		"noi_dung_ck": _noi_dung_dung(frappe.get_doc(DT, ho_so)),
+		"ma_gd_dang_gan": kq.get("ma_gd_dang_gan"),
+		"nhac": kq.get("nhac"),
 	}
 
 
 @frappe.whitelist()
 def khop_tay(ho_so=None, gd=None):
-	"""Khop TAY mot dong tien ra vao phieu hoan tien, roi sinh chung tu.
+	"""Khớp TAY một dòng tiền ra vào phiếu hoàn tiền, rồi sinh chứng từ.
 
-	Duong nay di den DUNG cai dich cua doi soat tu dong, chi khac cho chon
-	dong: o kia may doc noi dung chuyen khoan, o day nguoi nhin sao ke va
-	chi. Nen no phai lam DU nhung viec kia lam, khong duoc lam thieu:
+	Từ v294 uỷ quyền cho `doi_soat_sepay.khop_tay`, cửa ngõ dùng chung. Giữ
+	nguyên tên và hình dạng kết quả để màn hình không phải sửa.
 
-	  1. danh dau da doi soat va ghi ma giao dich
-	  2. GHI XUONG NGAY truoc khi sinh chung tu
-	  3. sinh chung tu, hong thi ghi loi len chinh phieu chu khong rollback
-	     mat cai dau vua ghi
-
-	Diem 2 va 3 la bai hoc cua phieu HT-2026-00899 ngay 19/08/2026: gop hai
-	viec vao mot giao dich co so du lieu thi mot loi o buoc sinh chung tu se
-	rollback xoa luon dau "da doi soat", va phieu nam mai o "Cho chi" du tien
-	da ra khoi tai khoan.
-
-	Ghi ten nguoi bam. Day la mot chu ky cua nguoi chu khong phai mot phep
-	may, va ba thang sau ke toan phai tra loi duoc "ai bao dong nay la cua
-	phieu nay".
+	Hai phép kiểm riêng của luồng này vẫn giữ ở đây, vì tầng chung không biết
+	đến chúng: phiếu đã bị từ chối, và phiếu đã đối soát rồi.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.doi_soat_sepay import khop_tay as chung
 
-	_kiem_quyen()
-	if not _duoc_tu_choi():
-		frappe.throw("Chỉ kế toán hoặc giám đốc mới khớp lệnh chi được.")
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	d = frappe.get_doc(DT, ho_so)
+	if not _duoc_tu_choi():
+		frappe.throw("Chỉ kế toán hoặc giám đốc mới khớp lệnh chi được.")
 	if d.trang_thai == "Da huy":
 		frappe.throw("Phiếu %s đã bị từ chối nên không khớp lệnh chi được." % ho_so)
 	if cint(d.da_doi_soat):
@@ -3183,78 +3171,13 @@ def khop_tay(ho_so=None, gd=None):
 			"cho một lần tiền ra." % (ho_so, d.ma_gd or "(không rõ)")
 		)
 
-	gd = str(gd or "").strip()
-	if not gd:
-		frappe.throw("Chưa chọn dòng tiền ra nào.")
-	g = frappe.db.get_value(
-		"Bank Transaction", gd,
-		["name", "date", "withdrawal", "docstatus", "description", "reference_number"],
-		as_dict=True,
-	)
-	if not g:
-		frappe.throw("Không có giao dịch ngân hàng %s. Vui lòng tìm lại." % gd)
-	if cint(g["docstatus"]) >= 2:
-		frappe.throw("Giao dịch %s đã bị huỷ nên không dùng làm căn cứ được." % gd)
-	if flt(g["withdrawal"]) <= 0:
-		frappe.throw(
-			"Giao dịch %s là tiền VÀO tài khoản, không phải lệnh chi. Lệnh chi phải nằm ở cột tiền ra. Vui lòng chọn lại." % gd
-		)
-	chu_cu = _gd_da_chiem(tru_ho_so=d.name).get(gd)
-	if chu_cu:
-		frappe.throw(
-			"Giao dịch %s đã được phiếu %s dùng rồi. Một lần tiền ra chỉ ứng "
-			"với một phiếu hoàn." % (gd, chu_cu)
-		)
-
-	# Lech tien thi CANH BAO chu khong chan: ngan hang co the tru phi, hoac
-	# ke toan chuyen lam hai lan. Nhung con so phai duoc noi ra thanh loi,
-	# khong de nguoi bam xong roi moi thac mac.
-	lech = flt(g["withdrawal"]) - flt(d.so_tien)
-
-	frappe.db.set_value(DT, d.name, {
-		"da_doi_soat": 1,
-		"ma_gd": gd,
-		"ngay_doi_soat": now_datetime(),
-		"trang_thai": "Da doi soat",
-		"loi_sinh_ct": "",
-		"nguoi_khop_tay": frappe.session.user,
-		"ngay_khop_tay": now_datetime(),
-	})
-	frappe.db.commit()
-
-	sinh, loi = None, ""
-	try:
-		ho = frappe.get_doc(DT, d.name)
-		kq = _sinh_chung_tu(ho)
-		if not kq.get("bo_qua"):
-			sinh = kq
-		frappe.db.commit()
-	except Exception:
-		frappe.db.rollback()
-		frappe.log_error(frappe.get_traceback(), "hoan_tien: khop tay sinh chung tu loi %s" % d.name)
-		loi = (
-			"Tiền đã ra và đã khớp, nhưng máy chưa sinh được chứng từ: %s. "
-			"Nhờ kế toán bấm lại nút Đối soát lệnh chi, còn không được thì báo "
-			"anh Việt." % str(frappe.get_traceback()).strip().splitlines()[-1][:200]
-		)
-		try:
-			frappe.db.set_value(DT, d.name, "loi_sinh_ct", loi)
-			frappe.db.commit()
-		except Exception:
-			pass
-
+	kq = chung("hoan_tien", ho_so, gd)
 	return {
-		"ok": 1,
-		"gd": gd,
-		"so_tien_chuyen": flt(g["withdrawal"]),
-		"so_tien_phieu": flt(d.so_tien),
-		"lech": lech,
-		"da_sinh": sinh,
-		"loi": loi,
-		"nhac": (
-			("Đã khớp. Số tiền trên sao kê lệch %s đ so với phiếu, anh chị vui lòng xem lại." % "{:,.0f}".format(abs(lech)).replace(",", "."))
-			if abs(lech) > 1 else "Đã khớp lệnh chi và sinh chứng từ."
-		),
+		"ok": 1, "gd": kq.get("gd"),
+		"so_tien_chuyen": kq.get("so_tien_dong"),
+		"so_tien_phieu": kq.get("so_tien_phieu"),
+		"lech": kq.get("lech"), "loi": kq.get("loi"),
+		"nhac": kq.get("nhac"),
 	}
 
 
