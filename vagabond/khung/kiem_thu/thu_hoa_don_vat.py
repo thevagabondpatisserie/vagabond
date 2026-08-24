@@ -82,16 +82,43 @@ def _():
 		100000, {"discount_each_product": 999, "is_discount_percent": True}), 0.0)
 
 
-@ca("lưới đối chiếu tổng đơn bắt đúng khoản lệch của đơn 91853")
+@ca("phép so lệch tổng: im khi khớp, kêu khi lệch, không bịa khi thiếu số")
 def _():
-	# Ban tinh SAI cua ma cu: 2 x 2.199.995 + 4 x 949.995 + 30.000
-	sai = 2199995.0 * 2 + 949995.0 * 4 + 30000.0
-	la("bản tính sai ra đúng con số đã ghi vào phiếu", sai, 8229970.0)
-	la("lưới bắt được", gia_pancake.lech_tong(sai, 7820000.0), 409970.0)
-	la("bản tính đúng thì lưới im", gia_pancake.lech_tong(7820000.0, 7820000.0), 0.0)
+	la("khớp thì im", gia_pancake.lech_tong(8230000.0, 8230000.0), 0.0)
+	la("lệch thì kêu đúng con số", gia_pancake.lech_tong(8230000.0, 7820000.0), 410000.0)
 	# Sai so lam tron cua so thuc khong duoc keu len.
 	la("lệch nửa đồng bỏ qua", gia_pancake.lech_tong(7820000.5, 7820000.0), 0.0)
 	la("thiếu tổng bên Pancake thì không bịa", gia_pancake.lech_tong(7820000.0, 0), 0.0)
+
+
+@ca("lưới đối chiếu chạy ở mức GIÁ NIÊM YẾT, không phải mức đã trừ giảm")
+def _():
+	# v296 doi chieu o muc da tru giam gia va keu nham hang loat ngay trong
+	# ngay. Ba so THAT doc duoc tren site sau khi deploy v296:
+	#
+	#   don 91853  ban tinh 7.820.000  total_price 8.230.000
+	#   don 91391  ban tinh 3.800.000  total_price 3.850.000
+	#   don 91511  ban tinh 4.532.500  total_price 4.770.000
+	#
+	# Ca ba deu la don DUNG. Truong `total_price` ma duong dong bo cua tiem
+	# nhan duoc la tong TRUOC khi tru giam gia.
+	niem_yet = 2200000.0 * 2 + 950000.0 * 4 + 30000.0
+	la("tổng niêm yết của đơn 91853", niem_yet, 8230000.0)
+	la("so với total_price thì khớp", gia_pancake.lech_tong(niem_yet, 8230000.0), 0.0)
+	# Con so da tru giam thi KHONG duoc dem so voi total_price nua.
+	da_tru = 2090000.0 * 2 + 902500.0 * 4 + 30000.0
+	la("bản tính đã trừ giảm", da_tru, 7820000.0)
+	dung("đem con số đã trừ đi so là kêu nhầm",
+		gia_pancake.lech_tong(da_tru, 8230000.0) != 0)
+
+
+@ca("bản tính sai của mã cũ ra đúng con số đã ghi vào phiếu 91853")
+def _():
+	# Giu lai day de doi sau con doi chieu duoc: 2 x 2.199.995 + 4 x 949.995
+	# + 30.000 chinh la 8.229.970, dung con so nam trong phieu ngay 22/08.
+	sai = 2199995.0 * 2 + 949995.0 * 4 + 30000.0
+	la("bản tính sai", sai, 8229970.0)
+	la("khách chuyển ít hơn đúng khoản này", sai - 7820000.0, 409970.0)
 
 
 # ------------------------------------------------------ ten phap nhan cut
@@ -302,3 +329,11 @@ def _():
 	dung("máy chủ có khai trường", '"fieldname": "vgb_lech_pancake"' in bh)
 	dung("nhịp đồng bộ có ghi", '"vgb_lech_pancake": lech_pk' in bh)
 	dung("lưới KHÔNG chặn đồng bộ", "def _lech_pancake(" in bh)
+	# Chot cho de tuot nhat cua v297: luoi phai chay o muc GIA NIEM YET.
+	# Doi ve muc da tru giam gia la keu nham hang loat, va cong kiem khong
+	# co cach nao khac de biet.
+	khuc = bh.split("def _lech_pancake(")[1].split("\n\n\n")[0]
+	dung("đối chiếu ở mức giá niêm yết", "_tong_niem_yet(o)" in khuc)
+	dung("không trừ giảm cấp đơn vào bản tính đem so",
+		"tong_minh -= flt(giam_don" not in khuc)
+	dung("có hàm tổng niêm yết", "def _tong_niem_yet(" in bh)
