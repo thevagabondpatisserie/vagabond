@@ -7948,6 +7948,9 @@ function dsChips(r) {
   else if (r.sepay_nhan) out += dsChip('SePay thiếu ' + money(Number(r.grand_total || 0) - Number(r.sepay_nhan || 0)) + ' đ', '#ffedd5', '#9a3412');
   if (r.vgb_ma_tham_chieu) out += dsChip('Mã ' + h(r.vgb_ma_tham_chieu), '#ede9fe', '#5b21b6');
   if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty / HKD', '#fef9c3', '#854d0e');
+  /* Đơn có giảm giá cho khách thì phải nhìn ra ngay trên danh sách, khỏi mở
+     từng đơn (anh Việt 24/08/2026). */
+  if (r.giam_dong) out += dsChip('🏷️ Giảm ' + money(r.giam_dong) + ' đ', '#fef2f2', '#b3261e');
   if (r.trung) out += dsChip('⚠ Trùng phiếu', '#fee2e2', '#991b1b');
   return out;
 }
@@ -8347,12 +8350,36 @@ async function scrDsView(name, can) {
       '<button class="btn" id="dsvDoiNgay" style="margin-top:10px">📅 Chuyển đơn sang hôm nay (' + posNgayVn(today()) + ')</button></div>';
   }
   html += '<div class="sec">Món trong đơn</div><div class="card" style="padding:6px 14px">';
+  /* Dòng nào có giảm giá thì phải NHÌN RA là có giảm giá.
+
+     Anh Việt 24/08/2026: *"đồng bộ như vậy về phần giá của pancake thì nó
+     thiếu bản chất, tức là mình không thấy được đơn này là đơn giảm giá cho
+     khách"*. Trước đây màn này chỉ hiện một con giá đã trừ giảm, nhìn vào
+     không biết hộp bánh 2.090.000 là hộp 2.200.000 giảm 5 phần trăm hay là
+     một hộp khác vốn đã 2.090.000. */
+  var tongGiamDong = 0;
   (d.items || []).forEach(function (r) {
+    var goc = Number(r.price_list_rate || 0);
+    var ban = Number(r.rate || 0);
+    var giamDv = goc > ban ? goc - ban : 0;
+    tongGiamDong += giamDv * Number(r.qty || 0);
+    var pt = Number(r.discount_percentage || 0);
     html += '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
-      '<div style="flex:1;min-width:0">' + h(r.item_name) + '<div style="color:#a0a6b4;font-size:12px">' + money(r.qty) + ' x ' + money(r.rate) + ' đ</div></div>' +
+      '<div style="flex:1;min-width:0">' + h(r.item_name) +
+      '<div style="color:#a0a6b4;font-size:12px">' + money(r.qty) + ' x ' +
+      (giamDv
+        ? '<span style="text-decoration:line-through;color:#c3c8d4">' + money(goc) + '</span> <b style="color:#b3261e">' + money(ban) + '</b> đ'
+        : money(ban) + ' đ') + '</div>' +
+      (giamDv
+        ? '<div style="margin-top:3px"><span style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;color:#b3261e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">🏷️ Giảm ' +
+          (pt ? num(pt) + '%' : money(giamDv) + ' đ') + ' mỗi ' + h(r.uom || 'món') +
+          ' · tổng −' + money(giamDv * Number(r.qty || 0)) + ' đ</span></div>'
+        : '') +
+      '</div>' +
       '<b style="white-space:nowrap">' + money(r.amount) + '</b></div>';
   });
-  if (d.discount_amount) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;color:#b3261e"><span>Giảm giá</span><b>-' + money(d.discount_amount) + '</b></div>';
+  if (tongGiamDong) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;color:#b3261e"><span>Giảm giá trên dòng hàng</span><b>-' + money(tongGiamDong) + '</b></div>';
+  if (d.discount_amount) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;color:#b3261e"><span>Giảm giá cả đơn</span><b>-' + money(d.discount_amount) + '</b></div>';
   html += '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:16px"><b>Tổng tiền</b><b>' + money(d.grand_total) + ' đ</b></div></div>';
   await cfgBanHang();
   var PTDS = ptTheoNguon(d.custom_nguon || 'Pancake');
@@ -9642,7 +9669,12 @@ function posMaBill() {
 }
 function posMoi() {
   posSepayNhan = 0;
-  return { che_do: 'Tại chỗ', ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', ghi_chu: '', km: null, so_ban: '', khach_no: null, xhd_mo: false, xh: { mst: '', ten: '', dc: '', email: '' }, mon: [], ctkm: [], combo: [], maVc: '', otpKm: '', kmKq: null, khach_ma: '', khach_hang: '', diemThe: null, diemTt: null, diemNhap: '', diemPhien: null, diemHan: 0, diemVe: null };
+  /* Chế độ mặc định phải là chế độ CÓ THẬT của điểm bán này. Điểm Sales
+     Online không bán tại chỗ, để nguyên 'Tại chỗ' là máy chủ từ chối đơn với
+     câu "Nguồn đơn (trống) không có trong danh mục". */
+  var ds0 = posDsCheDo();
+  var mac = (ds0[0] && ds0[0].v) || 'Tại chỗ';
+  return { che_do: mac, ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', ghi_chu: '', km: null, so_ban: '', khach_no: null, xhd_mo: false, xh: { mst: '', ten: '', dc: '', email: '' }, mon: [], ctkm: [], combo: [], maVc: '', otpKm: '', kmKq: null, khach_ma: '', khach_hang: '', diemThe: null, diemTt: null, diemNhap: '', diemPhien: null, diemHan: 0, diemVe: null };
 }
 function posKmGiam(km, tong) {
   if (!km) return 0;
@@ -9670,11 +9702,34 @@ function posPollBat(ma, tien) {
 }
 function flt0(v) { return parseFloat(v) || 0; }
 function posSoTien(v) { return parseFloat(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
+/* Các chế độ bán của ĐÚNG điểm bán đang đứng.
+
+   Anh Việt 24/08/2026: *"cơ bản chỉ là khác điểm bán thôi chứ còn các nghiệp
+   vụ bên trong đều phải đầy đủ hết"*. Điểm có quầy tiền mặt thì bán Tại chỗ
+   và Mang về; điểm Sales Online thì không có quầy nên chế độ của nó chính là
+   các nguồn đơn nó nhận (GrabFood, ShopeeFood, BeFood, GreenSM).
+
+   Pancake bị loại ở cả hai: đơn Pancake tự đồng bộ về màn Doanh số, gõ tay
+   lại là tạo đơn trùng. */
 function posDsCheDo() {
-  var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
-    return n.v.indexOf('Tại chỗ') !== 0 && n.v.indexOf('Mang về') !== 0 && n.v !== 'Khách sỉ' && n.v !== 'Pancake';
-  });
-  return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
+  var ic = {};
+  (((CFGBH || {}).nguon) || []).forEach(function (n) { ic[n.v] = n; });
+  function bay(v) { var n = ic[v] || {}; return { v: v, ic: n.ic || '', lg: n.lg || '' }; }
+  var d = posQuay || {};
+  var nguon = (d.nguon || []).filter(function (v) { return v !== 'Pancake'; });
+  if (posCoQuay()) {
+    var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
+      return n.v.indexOf('Tại chỗ') !== 0 && n.v.indexOf('Mang về') !== 0 && n.v !== 'Khách sỉ' && n.v !== 'Pancake';
+    });
+    return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
+  }
+  /* Điểm không có quầy: chế độ chính là nguồn đơn của nó. */
+  return nguon.map(bay);
+}
+/* Điểm bán đang đứng có quầy tiền mặt không. Không có quầy thì không có ca
+   làm việc, không có tiền thối, và bill của nó nằm ở nhóm đơn online. */
+function posCoQuay() {
+  return !!(posQuay && posQuay.quay);
 }
 /* Hai nut in tren man bao thanh cong, dung chung cho ca luong tien mat lan
    luong chuyen khoan.
@@ -9700,6 +9755,9 @@ function posNutIn(d) {
 
 function posNguonThuc() {
   if (!posQuay || !posDon) return '';
+  /* Điểm không có quầy: chế độ đã CHÍNH LÀ nguồn đơn, không phải ánh xạ qua
+     hai nhãn Tại chỗ / Mang về. */
+  if (!posCoQuay()) return posDon.che_do;
   if (posDon.che_do === 'Tại chỗ') return posQuay.tai_cho;
   if (posDon.che_do === 'Mang về') return posQuay.mang_ve;
   return posDon.che_do;
@@ -9725,21 +9783,21 @@ function posDoc() {
 /* Buoc chon quay: vao card la hoi, khong nho lua chon cu (anh Viet 08/08). */
 async function scrPosChonQuay() {
   await cfgBanHang();
-  var dsQ = ((CFGBH || {}).quay) || [];
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
      ngay minh dang chon quay nao. Anh nam trong repo, thieu thi lui ve
      bieu tuong cu. */
-  /* Sales Online la diem ban thu ba, nam duoi hai quay (anh Viet
-     10/08/2026). Khong phai quay tinh tien nen bam vao di thang sang man
-     Doanh thu Sales, khong qua man tinh tien. */
-  var CARD_SALES = {
-    ma: 'SALES',
-    ten: 'Sales Online 307/1 Nguyễn Văn Trỗi',
-    phu: 'Đơn online: Pancake, GrabFood, ShopeeFood, BeFood, GreenSM',
-    anh: (CFGBH || {}).anh_sales || '',
-    sales: 1
-  };
-  var dsAll = dsQ.concat([CARD_SALES]);
+  /* MỘT NGUỒN DUY NHẤT cho danh sách điểm bán (anh Việt 24/08/2026).
+
+     Trước đây danh sách này là hai quầy đọc từ cấu hình, cộng thêm một thẻ
+     Sales Online GÕ CỨNG ngay trong màn hình. Thẻ gõ cứng đó bấm vào thì
+     nhảy thẳng sang màn Doanh số, nên điểm Sales chưa bao giờ có màn tính
+     tiền: không mã voucher, không chương trình khuyến mãi, không combo,
+     không tích điểm. Trong khi nghiệp vụ bên trong của ba điểm là như nhau,
+     chỉ khác chỗ đứng.
+
+     Nay cả ba đọc chung từ `diem`, tức từ đúng bảng Điểm bán mà màn Cài đặt
+     sửa. Mở điểm thứ tư là khai trong Cài đặt, không phải sửa mã rồi deploy. */
+  var dsAll = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
   var suaAnh = typeof isSales === 'function' ? isSales() : false;
   var html = '<div class="sec">Chọn điểm bán</div>';
   dsAll.forEach(function (q, i) {
@@ -9765,7 +9823,10 @@ async function scrPosChonQuay() {
     var r = e.target.closest('[data-q]');
     if (!r) return;
     var q = dsAll[+r.getAttribute('data-q')];
-    if (q && q.sales) { posQuay = null; return go(scrDoanhSo); }
+    if (!q) return;
+    /* Đổi điểm là đổi bộ máy in và đổi khổ giấy, nên bỏ luôn đơn đang gõ dở
+       để không mang giá và nguồn của điểm cũ sang điểm mới. */
+    if (posQuay && posQuay.ma !== q.ma) posDon = null;
     posQuay = q;
     posHomNayTxt = null;
     go(scrPosQuay);
@@ -9847,6 +9908,7 @@ function posNutPt(ds, chon) {
 var caPos = null;
 
 async function posCaVe() {
+  if (!posCoQuay()) return;
   var tt = document.getElementById('posCaTt'), nut = document.getElementById('posCaNut');
   if (!tt || !nut) return;
   try { caPos = await api('vagabond.ca_quay.tinh_trang', { quay: posQuay.ma }); }
@@ -9970,8 +10032,11 @@ async function scrPosQuay() {
   /* Do QZ Tray NGAY luc mo man quay, khong doi toi luc bam In. Do luc bam
      la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
      27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
-  inNgamDo();
   if (!posQuay) return go(scrPosChonQuay, true);
+  /* Dò máy in SAU khi đã biết đứng ở điểm bán nào, và dò lại khi đổi điểm.
+     Trước đây dò ngay dòng đầu, tức là trước cả bước chọn quầy, nên mọi máy
+     đều nhận về hộp chung mảnh tên máy in của cả ba điểm. */
+  inNgamDo(0, posQuay.ma);
   if (!posDon) posDon = posMoi();
   var laApp = posDon.che_do !== 'Tại chỗ' && posDon.che_do !== 'Mang về';
   var nguonThuc = posNguonThuc();
@@ -10007,8 +10072,13 @@ async function scrPosQuay() {
     '<div id="posHomNay" style="font-size:12.5px;color:#0b7c93;margin-top:2px">' + h(posHomNayTxt || 'Đang đếm hoá đơn hôm nay...') + '</div></div>' +
     '<span style="color:#0b7c93;font-size:22px">&#8250;</span></div></div>';
   /* Ca lam viec: mo ca khai tien le, chot ca dem mu. Trang thai doc SAU
-     khi man da ve (posCaVe) de khong bat khach cho mot vong API nua. */
-  html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
+     khi man da ve (posCaVe) de khong bat khach cho mot vong API nua.
+
+     Chỉ điểm CÓ quầy tiền mặt mới có ca. Điểm Sales Online không giữ két
+     nên không có tiền lẻ đầu ca và không có gì để đếm mù cuối ca; vẽ khối
+     này ra là bắt người bán chốt một cái ca không tồn tại, và bản đối soát
+     sẽ báo toàn bộ doanh thu là tiền thừa không giải trình được. */
+  if (posCoQuay()) html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
     '<span style="font-size:20px">🕐</span>' +
     '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">Ca làm việc</div>' +
@@ -12029,7 +12099,11 @@ var POS_NHOM_NUOC = ['Trà', 'Cà phê', 'Matcha', 'Cacao', 'Ice Cream - Kem'];
    sai. Nay doc tu cau hinh; chua khai thi roi ve dung kho cu, khong doi
    hanh vi cua ai. */
 function inKho(vaiTro) {
-  var b = (CFGBH || {}).kho_in || {};
+  /* Khổ giấy của ĐÚNG điểm bán đang đứng. Bảng chung chỉ còn là lưới đỡ cho
+     màn nào chưa biết mình ở điểm nào (anh Việt 24/08/2026). */
+  var ma = (typeof posQuay !== 'undefined' && posQuay && posQuay.ma) ? posQuay.ma : '';
+  var theoDiem = ((CFGBH || {}).kho_in_diem || {})[ma];
+  var b = theoDiem || (CFGBH || {}).kho_in || {};
   var k = b[vaiTro];
   if (k && k.css) return k;
   return vaiTro === 'tem'
@@ -17239,7 +17313,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '298';
+var APPVER = '299';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -25098,20 +25172,54 @@ function miVe() {
     (miSuaDuoc ? '<button class="btn" id="ctLuu" style="margin:8px 0 0;width:100%">💾 Lưu căn tem</button>' : '') +
     '</div>';
 
-  html += '<div class="sec">Danh sách máy in</div>';
+  /* Danh sách NHÓM THEO ĐIỂM BÁN (anh Việt 24/08/2026): mỗi điểm bán có bộ
+     máy in riêng của nó, nên nhìn vào phải thấy ngay điểm nào đủ máy, điểm
+     nào còn thiếu loại phiếu gì. Trước đây là một danh sách phẳng, tên điểm
+     nằm lẫn trong dòng chữ nhỏ. */
+  html += '<div class="sec">Máy in theo điểm bán</div>';
   if (!miDs.length) {
     html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280">Chưa khai máy in nào.</div>';
   } else {
-    html += '<div class="card">' + miDs.map(function (d, i) {
-      var vt = (d.vai_tro || []).map(function (k) { return miIconVaiTro(k) + ' ' + miTenVaiTro(k); }).join(' · ');
-      return '<div data-mimo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
-        '<div style="width:34px;height:34px;flex:none;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:17px">🖨</div>' +
-        '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
-        '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h((d.hang ? d.hang + ' ' : '') + (d.model || '')) + ' · ' + h(miTenDiem(d.diem)) + ' · ' + h(miTenKho(d.kho)) + '</div>' +
-        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + (vt ? h(vt) : '<span style="color:#b45309">chưa chọn loại phiếu</span>') + '</div></div>' +
-        '<span style="font-size:12px;font-weight:700;color:' + (d.bat ? '#0f766e' : '#a0a6b4') + '">' + (d.bat ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
-        '<span style="color:#c8ccd4">›</span></div>';
-    }).join('') + '</div>';
+    var nhom = [];
+    (miData.diem || []).forEach(function (x) { nhom.push({ ma: x.ma, ten: x.ten, may: [] }); });
+    nhom.push({ ma: '', ten: 'Chưa gán điểm bán', chung: 1, may: [] });
+    miDs.forEach(function (d, i) {
+      var t = null;
+      for (var j = 0; j < nhom.length; j++) if (nhom[j].ma === (d.diem || '')) { t = nhom[j]; break; }
+      if (!t) { t = { ma: d.diem || '', ten: miTenDiem(d.diem), may: [] }; nhom.push(t); }
+      t.may.push({ d: d, i: i });
+    });
+    nhom.forEach(function (g) {
+      if (!g.may.length && !g.chung) {
+        html += '<div class="card" style="padding:12px 14px;margin-bottom:10px">' +
+          '<b style="font-size:14.5px">' + h(g.ten) + '</b>' +
+          '<div style="font-size:12px;color:#b45309;margin-top:4px">Chưa có máy in nào cho điểm này. ' +
+          'Máy chưa gán điểm bán vẫn dùng được cho mọi điểm.</div></div>';
+        return;
+      }
+      if (!g.may.length) return;
+      var thieu = [];
+      ((miData && miData.vai_tro) || []).forEach(function (v) {
+        var co = g.may.some(function (x) { return x.d.bat && (x.d.vai_tro || []).indexOf(v.k) >= 0 && (x.d.qz || '').trim(); });
+        if (!co) thieu.push(miTenVaiTro(v.k));
+      });
+      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;padding:2px 4px 6px">' +
+        '<b style="font-size:14px;color:#0b7c93">' + h(g.ten) + '</b>' +
+        '<span style="font-size:11.5px;color:' + (thieu.length ? '#b45309' : '#0f766e') + '">' +
+        (thieu.length ? 'chưa có máy cho: ' + h(thieu.join(', ')) : 'đủ cả bốn loại phiếu') + '</span></div>';
+      html += '<div class="card" style="margin-bottom:12px">' + g.may.map(function (x) {
+        var d = x.d;
+        var vt = (d.vai_tro || []).map(function (k) { return miIconVaiTro(k) + ' ' + miTenVaiTro(k); }).join(' · ');
+        return '<div data-mimo="' + x.i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+          '<div style="width:34px;height:34px;flex:none;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:17px">🖨</div>' +
+          '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
+          '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h((d.hang ? d.hang + ' ' : '') + (d.model || '')) + ' · ' + h(miTenKho(d.kho)) +
+          ((d.qz || '').trim() ? '' : ' · <span style="color:#b45309">chưa gán tên máy QZ</span>') + '</div>' +
+          '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + (vt ? h(vt) : '<span style="color:#b45309">chưa chọn loại phiếu</span>') + '</div></div>' +
+          '<span style="font-size:12px;font-weight:700;color:' + (d.bat ? '#0f766e' : '#a0a6b4') + '">' + (d.bat ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
+          '<span style="color:#c8ccd4">›</span></div>';
+      }).join('') + '</div>';
+    });
   }
 
   var b = frame('Máy in', html, miSuaDuoc ? {
@@ -25370,7 +25478,11 @@ function scrMayInSua() {
     var ok = await confirmSheet('Bỏ máy in ' + (d.ten || 'mới') + '?',
       'Thông số máy này sẽ mất khỏi danh sách. Muốn giữ lại để tra sau thì tắt nó đi thay vì bỏ.', 'Bỏ máy này', true);
     if (!ok) return;
-    miDs.splice(miMo, 1);
+    /* Đánh dấu XOÁ thay vì cắt khỏi mảng: máy chủ nay trộn theo mã máy nên
+       một máy chỉ biến mất khi có cờ này, còn máy không gửi lên thì được giữ
+       nguyên. Nhờ vậy hai người cùng sửa hai máy khác nhau không xoá của
+       nhau (anh Việt 24/08/2026). */
+    miDs[miMo].xoa = 1;
     miLuu(1);
   };
 }
@@ -32607,6 +32719,7 @@ var IN_QZ = {
   may: [],          // ten cac may in tim thay
   tuyen: null,      // manh ten may in hoa don / tem, lay tu may chu
   loi: '',          // ly do khong dung duoc, de hien khi can
+  diem: '',         // diem ban da do lan gan nhat, doi diem la phai do lai
   dang_do: null     // Promise cua lan do dang chay, tranh do hai lan
 };
 
@@ -32662,13 +32775,27 @@ async function inNoiQz() {
 }
 
 /* Do mot lan luc vao man quay hoac man bep. Goi lai nhieu lan cung chi do
-   mot lan, tru khi ep do lai. */
-function inNgamDo(ep) {
+   mot lan, tru khi ep do lai HOAC khi doi diem ban.
+
+   Vi sao phai mang theo diem ban (anh Viet 24/08/2026): *"phan may in nay em
+   phai cho set up theo diem ban, click vao diem ban nao thi se do QZ Tray cua
+   may diem ban do va co danh sach may in rieng cua tung diem ban, chu khong
+   he dung chung"*.
+
+   May chu von da loc duoc theo diem (may_in.tuyen_qz), nhung man hinh chua
+   bao gio noi minh dang dung o diem nao, nen moi may nhan ve HOP CHUNG manh
+   ten may in cua ca ba diem. Quay Tran Cao Van co the bat trung manh ten cua
+   may ben NVHTN va in nham sang do. */
+function inNgamDo(ep, diem) {
+  diem = String(diem || IN_QZ.diem || '').trim().toUpperCase();
+  /* Doi diem la phai do lai: danh sach may in cua diem cu khong con dung. */
+  if (IN_QZ.do_roi && diem !== String(IN_QZ.diem || '')) ep = 1;
   if (IN_QZ.dang_do) return IN_QZ.dang_do;
   if (IN_QZ.do_roi && !ep) return Promise.resolve(IN_QZ.co);
+  IN_QZ.diem = diem;
   IN_QZ.dang_do = (async function () {
     try {
-      var t = await api('vagabond.in_ngam.dinh_tuyen', {});
+      var t = await api('vagabond.in_ngam.dinh_tuyen', { diem: diem });
       IN_QZ.tuyen = t;
       if (!t || !t.da_bat) {
         IN_QZ.co = 0; IN_QZ.loi = 'Chưa bật in ngầm (chưa dán chứng thư QZ Tray)';
@@ -32952,8 +33079,8 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
 
 /* Man Cai dat co nut nay: bao ro dang in bang duong nao va thay may in
    nao, de khoi phai doan khi quay keu "may khong ra giay". */
-async function inNgamTinhTrang() {
-  await inNgamDo(1);
+async function inNgamTinhTrang(diem) {
+  await inNgamDo(1, diem);
   /* Bay ca BON loai phieu chu khong chi hai: tu khi so may in gan duoc ten
      rieng cho tung loai, "phieu mon" va "chot ca" cung co duong di rieng,
      ma neu khong hien ra thi khong ai biet no dang di dau. */
