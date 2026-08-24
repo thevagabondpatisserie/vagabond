@@ -893,6 +893,10 @@ dung im trong suot mot mach xem chi tiet roi tro ve dung cho khi lui.
 Nac 0 mang chuoi rong, va chuoi rong nghia la dia chi goc cua app. */
 S.duong = [];
 
+/* Cau hoi phai hoi truoc khi roi man dang giu thay doi chua luu. Rong la
+   khong co gi de mat. Xem chu thich o `roiChuaLuu` ben duoi. */
+S.chuaLuu = '';
+
 /* Slug cua nac dang dung. */
 function vgbNacDuong() { return S.duong[S.duong.length - 1] || ''; }
 
@@ -907,6 +911,19 @@ function vgbApNac() {
 function manSoan(f) {
   try { return f === scrStep1 || f === scrStep2 || f === scrStep3 || f === scrStep4; } catch (e) { return false; }
 }
+/* ---------- Thay doi chua luu (v294) ----------
+
+   Man nao dang giu thay doi chi nam trong bo nho trinh duyet thi dat
+   `S.chuaLuu` bang mot cau hoi, va xoa no ngay khi luu xong.
+
+   Vi sao can: man Cai dat may in cho cham chon tung chip roi moi bam Luu.
+   Cham xong ma roi man la mat sach, khong mot loi canh bao - ban De o quay
+   dinh dung ca nay ngay 24/08/2026. Dat o tang khung chu khong o rieng man
+   do, vi con vai man nua cung nep "sua roi moi luu". */
+function roiChuaLuu() {
+  return String(S.chuaLuu || '');
+}
+
 function roiPhieuDo(dich) {
   /* Dang dung o man soan phieu, co it nhat mot mon, va dich den KHONG con
      trong luong soan -> roi di la mat ban nhap, phai hoi mot cau. */
@@ -935,10 +952,17 @@ function go(fn, replace) {
 function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
+    S.chuaLuu = '';
     S.stack.pop(); S.duong.pop(); vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
+  var cau = roiChuaLuu();
+  if (cau) {
+    confirmSheet('Chưa lưu', cau, 'Rời đi, bỏ thay đổi', true)
+      .then(function (ok) { if (ok) buoc(); });
+    return;
+  }
   if (roiPhieuDo(S.stack[S.stack.length - 2])) {
     confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
       .then(function (ok) { if (ok) { S.draft = null; buoc(); } });
@@ -949,6 +973,7 @@ function back() {
 function reset(fn) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
+  S.chuaLuu = '';
   S.stack = [fn];
   S.duong = [slug];
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
@@ -11696,9 +11721,14 @@ function posMonNuoc(mon) { return (mon || []).filter(posLaNuoc); }
 async function posInPhieuMon(d) {
   var nuoc = posMonNuoc(d.mon || []);
   if (!nuoc.length) return toast('Hoá đơn không có món nước nào.');
-  /* Phieu lam mon di ra may in HOA DON: no la giay cuon 80mm nhu bill,
-     khong phai tem dan ly. */
-  var inW = inMoCuaSoNeuCan('hoa_don');
+  /* Phieu lam mon di dung vai CUA NO (v294).
+
+     Ban cu goi thang 'hoa_don' voi ly do "no la giay cuon 80mm nhu bill".
+     Ly do do noi ve KHO GIAY, ma kho giay von da doc rieng qua
+     inKho('phieu_mon') o duoi. Hau qua: o "May in phieu quay bar" tren man
+     Cai dat chua bao gio duoc dung toi, quay bar khong nhan duoc phieu nao.
+     Tiem nao chua khai may rieng thi inManhCho tu ro ve may hoa don. */
+  var inW = inMoCuaSoNeuCan('phieu_mon');
   if (inW === 'chan') return;
   var gio = new Date();
   var hs = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -11728,7 +11758,7 @@ async function posInPhieuMon(d) {
     '<hr>' + rows +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
     '</body></html>');
-  await inTo('hoa_don', 'Phiếu làm món', inToPhieu, inKho('phieu_mon').rong, 900, inW);
+  await inTo('phieu_mon', 'Phiếu làm món', inToPhieu, inKho('phieu_mon').rong, 900, inW);
 }
 
 /* Ma don cua san food app doc ra tu mot hoa don da luu: uu tien ma tham
@@ -14220,17 +14250,27 @@ function htCtSepayTrong(d) {
 
 /* ---------- Đối chiếu tay khoản tiền vào ----------
 
-Máy chỉ lọc ra ứng viên gần đúng số tiền và gần đúng ngày. Chọn dòng nào là
-việc của người, và tên người đó được ghi lại ngay cạnh giao dịch. Không để
-máy tự chọn: một khoản 650.000 đ ngày 13/08 có thể là của bất kỳ đơn nào
-cùng số tiền. */
+Máy dò theo MÃ ĐƠN trước, rồi mới xếp phần còn lại theo số tiền. Chọn dòng
+nào vẫn là việc của người, và tên người đó được ghi lại ngay cạnh giao dịch.
+
+Anh Việt 24/08/2026: *"Khoản tiền mà khách chuyển khoản bên Pancake thì nó
+luôn có mã đơn hàng của Pancake mà, em chỉ việc dò theo mã đó trong nội dung
+chuyển khoản thì sẽ ra luôn khoản chính xác."* Trước v294 màn này KHÔNG truyền
+mã đơn, nên máy chủ chỉ còn số tiền để bám, và bày ra một danh sách toàn dòng
+giống nhau. */
 async function htFormGdVao(d) {
   var soTien = Number((d.don && d.don.tong) || d.so_tien || 0);
-  var ngay = (d.don && d.don.ngay) || '';
+  var ngay = (d.don && d.don.ngay) || (d.don_huy && String(d.don_huy.ngay_dat || '').slice(0, 10)) || '';
+  /* Mã đơn Pancake nằm ở hai chỗ tuỳ loại phiếu: đơn thường thì ở hoá đơn
+     gốc, đơn đã huỷ thì ở chính phiếu hoàn. Không có mã thì rơi về mã hoá
+     đơn, còn không nữa thì để máy chủ tự nói là chưa dò được. */
+  var maDo = (d.don && d.don.ma_pancake) || d.ma_don_pancake || d.hoa_don || '';
   frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
   var kq;
   try {
-    kq = await api('vagabond.sepay.tim_gd_vao', { so_tien: soTien, ngay: ngay, so_ngay: 30 });
+    kq = await api('vagabond.sepay.tim_gd_vao', {
+      so_tien: soTien, ngay: ngay, so_ngay: 30, ma_do: maDo
+    });
   } catch (e) {
     frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
@@ -14240,23 +14280,34 @@ async function htFormGdVao(d) {
   var than =
     '<div style="font-size:12.5px;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;' +
     'border-radius:9px;padding:10px 12px;margin-bottom:11px;line-height:1.6">' +
-    'Đang tìm khoản tiền vào quanh <b>' + money(soTien) + ' đ</b>' +
-    (ngay ? ' và quanh ngày <b>' + h(ngay) + '</b>' : '') + '. ' +
+    (kq && kq.ma_do
+      ? 'Máy dò theo mã <b>' + h(kq.ma_do) + '</b> trong nội dung chuyển khoản, ' +
+        'dòng nào mang mã đó được xếp lên đầu.'
+      : h((kq && kq.nhac) || 'Máy chỉ xếp được theo số tiền và ngày.')) +
+    ' Số tiền phiếu là <b>' + money(soTien) + ' đ</b>. ' +
     'Chọn đúng dòng khách đã chuyển. Tên anh chị được ghi lại cạnh giao dịch này.</div>';
   if (!rows.length) {
     than += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
       'border-radius:9px;padding:10px 12px;line-height:1.6">Không có giao dịch tiền vào nào ' +
-      'gần số tiền và ngày này trong sao kê đang có. Nếu tiền chắc chắn đã về thì sao kê ' +
+      'trong sao kê đang có ở khoảng ngày này. Nếu tiền chắc chắn đã về thì sao kê ' +
       'còn thiếu, báo anh Việt nạp bù giúp.</div>';
   } else {
     than += rows.map(function (r) {
+      /* Phân biệt bằng CẢ màu lẫn CHỮ, không chỉ bằng màu: có bạn không phân
+         biệt được màu, và màn này còn được in ra giấy đen trắng. */
+      var vien = r.khop_noi_dung ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
+      var nen = r.khop_noi_dung ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
       return '<button class="htgdv" data-gd="' + h(r.name) + '" style="display:block;width:100%;text-align:left;' +
-        'border:1.5px solid #e5e7eb;background:#fff;border-radius:11px;padding:10px 12px;margin-bottom:8px">' +
+        'border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;padding:10px 12px;margin-bottom:8px">' +
         '<div style="display:flex;gap:8px;align-items:baseline">' +
         '<div style="flex:1;font-weight:800;font-size:14px;color:#0a8a4a">+' + money(r.deposit) + ' đ</div>' +
         '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '')) + '</div></div>' +
         '<div style="font-size:11.5px;color:#6b7280;margin-top:3px;word-break:break-all">' +
-        h(String(r.description || '').slice(0, 140)) + '</div></button>';
+        h(String(r.description || '').slice(0, 140)) + '</div>' +
+        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
+        (r.khop_noi_dung ? '✅ khớp mã · ' : '') +
+        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
+        '</div></button>';
     }).join('');
   }
   if (d.gd_vao_ct) {
@@ -16862,7 +16913,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '294';
+var APPVER = '295';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -21673,6 +21724,116 @@ function ttnbVe(kq) {
 }
 
 /* Chi tiết một phiếu TTNB, kèm nút duyệt cho đúng người ở đúng bước. */
+/* ---------- Khớp SePay cho phiếu thanh toán nội bộ (v294) ----------
+
+Anh Việt 24/08/2026: mọi màn cần đối soát SePay đều phải có đối soát tự động
+và nút thủ công ở kế bên.
+
+Màn này là màn CẦN nút thủ công nhất trong cả hệ, mà trước v294 lại không có.
+Đây là đường DUY NHẤT webhook SePay gọi thẳng: tiền về là phiếu tự nhảy sang
+"Đã chi" mà không ai bấm nút nào. Nên khi kế toán gõ nội dung thiếu một chữ,
+phiếu nằm mãi ở "Chờ kế toán" và không có đường nào để người nhìn sao kê rồi
+chỉ đúng dòng.
+
+Hai nút này gọi thẳng tầng chung `vagabond.doi_soat_sepay`, cùng một cửa với
+màn Phiếu hoàn tiền. */
+function ttnbKhopSepay(d) {
+  if (!d.khop_duoc) {
+    if (d.ma_gd) {
+      return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;border:1px solid #a7f3d0;' +
+        'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
+        'Lệnh chi đã khớp sao kê, giao dịch <b>' + h(d.ma_gd) + '</b>.</div>';
+    }
+    return '';
+  }
+  return '<button class="btn gh" id="ttnbKsAuto" style="margin:9px 0 0;width:100%">🔄 Khớp SePay</button>' +
+    '<button class="btn gh" id="ttnbKsTay" style="margin:8px 0 0;width:100%">🔎 Khớp SePay thủ công</button>';
+}
+
+async function ttnbKhopAuto(d) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.doi_soat_sepay.tu_dong', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa quét được sao kê.', 'Lỗi'); }
+  busy(false);
+  if (kq && kq.da_khop) {
+    toast('Đã khớp lệnh chi, phiếu chuyển sang Đã chi.', 4500);
+    return ttnbCt(d.name);
+  }
+  var xx = (kq && kq.xem_lai) || [];
+  if (xx.length) {
+    return baoTin(h(xx[0].vi_sao || '') + ' Anh chị xem lại rồi dùng nút Khớp SePay thủ công.',
+      'Cần người xem');
+  }
+  baoTin('Chưa thấy dòng tiền ra nào mang mã "' + h(d.name) + '". Nếu tiền đã chuyển rồi ' +
+    'thì bấm Khớp SePay thủ công để chọn đúng dòng.', 'Chưa khớp được');
+}
+
+async function ttnbFormGdRa(d) {
+  frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
+  var kq;
+  try { kq = await api('vagabond.doi_soat_sepay.ung_vien', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45 }); }
+  catch (e) {
+    frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
+    return;
+  }
+  var rows = (kq && kq.rows) || [];
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.tien) + ' đ</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
+    'Máy dò theo mã <b>' + h(kq.ma_do || d.name) + '</b> trong nội dung chuyển khoản.</div></div>';
+  if (!rows.length) {
+    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
+      'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
+      'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +
+      'vì một lần tiền ra chỉ ứng với một phiếu.</div></div>';
+  } else {
+    html += '<div style="font-size:11.5px;color:#6b7280;padding:9px 14px 4px;line-height:1.55">' +
+      'Xếp dòng khớp mã lên trước, rồi đến dòng đúng số tiền. Bấm để chọn.</div>';
+    html += rows.map(function (r) {
+      var vien = r.khop_ma ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
+      var nen = r.khop_ma ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
+      return '<div class="ttnbgd" data-gd="' + h(r.name) + '" data-tien="' + h(String(r.tien)) + '" ' +
+        'style="border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;' +
+        'padding:10px 12px;margin:8px 12px;cursor:pointer">' +
+        '<div style="display:flex;gap:8px;align-items:baseline">' +
+        '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.tien) + ' đ</div>' +
+        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
+        '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
+        h(r.mo_ta || '(không có nội dung)') + '</div>' +
+        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
+        (r.khop_ma ? '✅ khớp mã · ' : '') +
+        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
+        '</div></div>';
+    }).join('');
+  }
+  var b = frame('Khớp SePay thủ công', html);
+  b.querySelectorAll('.ttnbgd').forEach(function (n) {
+    n.onclick = function () { ttnbKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
+  });
+}
+
+async function ttnbKhopTay(d, gd, tien) {
+  var lech = Math.abs(Number(tien || 0) - Number(d.tien || 0));
+  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+    (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
+    ' Máy sẽ chuyển phiếu sang Đã chi.';
+  var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);
+  if (!ok) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.de_nghi_chi.khop_tay', { phieu: d.name, gd: gd });
+    busy(false);
+    toast((kq && kq.nhac) || 'Đã khớp.', 5000);
+    if (kq && kq.loi) baoTin(kq.loi, 'Bước sau chưa chạy xong');
+  } catch (e) {
+    busy(false);
+    return baoTin((e && e.message) || 'Chưa khớp được.', 'Lỗi');
+  }
+  ttnbCt(d.name);
+}
+
 async function ttnbCt(ma) {
   frame('Phiếu thanh toán nội bộ', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
   var d;
@@ -21720,8 +21881,9 @@ async function ttnbCt(ma) {
     (d.ngay_da_chi ? dong('Tiền ra lúc', String(d.ngay_da_chi).slice(0, 16)) : '') +
     '<button class="btn gh" id="ttnbChep" style="margin:9px 0 0;width:100%">📋 Chép nội dung chuyển khoản</button>' +
     '<div style="font-size:11.5px;color:#6b7280;margin-top:7px;line-height:1.6">' +
-    'Chuyển tiền phải dán ĐÚNG nội dung này thì máy mới tự đổi phiếu sang ' +
-    '<b>Đã chi</b> khi ngân hàng báo có. Gõ khác đi thì phải bấm Đối soát tay.</div></div>';
+    'Chuyển tiền nên dán ĐÚNG nội dung này thì máy tự đổi phiếu sang ' +
+    '<b>Đã chi</b> khi ngân hàng báo có. Gõ khác đi thì bấm hai nút dưới.</div>' +
+    ttnbKhopSepay(d) + '</div>';
 
   if (d.can_tru) {
     var c = d.can_tru;
@@ -21738,6 +21900,11 @@ async function ttnbCt(ma) {
       '<button class="btn" id="ttnbTra" style="margin:0;flex:1;background:#b3261e;border-color:#b3261e">Trả lại</button>';
   }
   var b = frame('Phiếu thanh toán nội bộ', html, chan ? { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' } : undefined);
+
+  var nKa = document.getElementById('ttnbKsAuto');
+  if (nKa) nKa.onclick = function () { ttnbKhopAuto(d); };
+  var nKt = document.getElementById('ttnbKsTay');
+  if (nKt) nKt.onclick = function () { ttnbFormGdRa(d); };
 
   var nC = document.getElementById('ttnbChep');
   if (nC) nC.onclick = function () {
@@ -24356,6 +24523,8 @@ async function scrMayIn() {
     frame('Máy in', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
+  /* Vua doc lai tu may chu nen khong con gi chua luu. */
+  S.chuaLuu = '';
   miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
   miVe();
   miVeQz();
@@ -24635,6 +24804,16 @@ function miVe() {
     var t = e.target.closest('[data-mimo]');
     if (t) { miMo = +t.getAttribute('data-mimo'); miMoi = 0; go(scrMayInSua); }
   };
+  /* Noi thang ngay o man danh sach, dung de nguoi dung mo tung may ra roi
+     moi phat hien khong luu duoc. */
+  if (!miSuaDuoc) {
+    var nB = document.createElement('div');
+    nB.style.cssText = 'font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+      'border-radius:9px;padding:10px 12px;margin:10px 12px;line-height:1.6';
+    nB.innerHTML = 'Tài khoản của anh chị <b>chỉ xem</b> được cấu hình máy in. ' +
+      'Nhờ quản lý, kế toán hoặc anh Việt gán giúp một lần, gán xong thì cả tiệm dùng chung.';
+    b.insertBefore(nB, b.firstChild);
+  }
   var nThu = document.getElementById('ctThu');
   /* In thu bang DUNG thong so dang go tren man, chua luu cung in thu duoc.
      Bat luu truoc moi duoc thu la bat nguoi dung luu mot con so ho chua
@@ -24810,6 +24989,24 @@ function scrMayInSua() {
   } : null);
 
   b.onclick = function (e) {
+    /* KHOA HAN phan cham chon khi khong du vai (v294, anh Viet 24/08/2026).
+
+       Bay giao dien cua ban cu: doan gan su kien nay nam TRUOC dong
+       `if (!miSuaDuoc) return;` o duoi, nen nguoi khong du vai van cham chon
+       duoc moi chip, man van doi mau y nhu da cau hinh xong, ma chan man
+       khong co bat ky nut Luu nao. Cham xong roi roi man la mat sach,
+       khong mot loi canh bao.
+
+       Ban De o quay dinh dung ca nay ngay 24/08: bao "khong co nut gi de
+       luu setting ca". Nay cham vao la duoc noi thang ai gan giup duoc. */
+    if (!miSuaDuoc) {
+      return baoTin('Tài khoản của anh chị chỉ xem được cấu hình máy in, ' +
+        'chưa sửa được. Nhờ quản lý, kế toán hoặc anh Việt mở màn này gán ' +
+        'giúp một lần, gán xong thì cả tiệm dùng chung.', 'Chưa sửa được');
+    }
+    /* Cham mot chip la co thay doi chi nam trong bo nho, chua xuong may
+       chu. Dat cau hoi de nut lui phai hoi truoc khi bo di. */
+    S.chuaLuu = 'Cấu hình máy in đang sửa dở, chưa bấm Lưu. Rời màn này là mất.';
     var t = e.target.closest('[data-midiem]');
     if (t) { miDoc(); d.diem = t.getAttribute('data-midiem'); return go(scrMayInSua, true); }
     t = e.target.closest('[data-mivt]');
@@ -24875,6 +25072,7 @@ async function miLuu(veDanhSach) {
   try {
     miData = await api('vagabond.may_in.luu', { may: JSON.stringify(miDs) });
     miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
+    S.chuaLuu = '';
     /* Doi kho giay xong thi cau hinh ban hang cu van con trong bo nho, ban
        in tiep theo se ra kho cu. Xoa di de lan in sau doc lai. */
     CFGBH = null;
@@ -32178,6 +32376,20 @@ function inManhCho(vaiTro) {
   var tu_so = (t.tuyen && t.tuyen[vaiTro]) || [];
   for (var i = 0; i < tu_so.length; i++) {
     if (tu_so[i] && ra.indexOf(tu_so[i]) < 0) ra.push(tu_so[i]);
+  }
+  /* Phieu lam mon chua gan may rieng thi RO VE may hoa don (v294).
+
+     Truoc v294 man bill goi in phieu lam mon voi vai 'hoa_don' thang, ly do
+     ghi trong chu thich la "no la giay cuon 80mm nhu bill". Nhung kho giay
+     von da doc rieng qua inKho('phieu_mon'), nen viec do chi lam mot chuyen:
+     o "May in phieu quay bar" tren man Cai dat khong bao gio duoc dung toi.
+     Nay phieu lam mon di dung vai cua no, va tiem nao chua khai may rieng
+     thi van ra may hoa don y nhu cu. */
+  if (vaiTro === 'phieu_mon') {
+    var tu_hd = (t.tuyen && t.tuyen.hoa_don) || [];
+    for (var j = 0; j < tu_hd.length; j++) {
+      if (tu_hd[j] && ra.indexOf(tu_hd[j]) < 0) ra.push(tu_hd[j]);
+    }
   }
   var cu = vaiTro === 'tem' ? t.tem : t.hoa_don;
   if (cu && ra.indexOf(cu) < 0) ra.push(cu);
