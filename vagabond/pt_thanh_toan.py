@@ -29,7 +29,9 @@ TIEN_NGAY = "ngay"      # tien vao ngay: tien mat, the, chuyen khoan
 TIEN_VE_SAU = "sau"     # ben thu ba giu roi tra sau: Grab Dine-Out
 TIEN_CONG_NO = "cong_no"  # khach no, phai di doi
 
-QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager"}
+from vagabond.vai_cua_hang import VAI_QLCH
+
+QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 
 # Ma hinh thuc thanh toan m-invoice nhan. Go bay mot ma la ca lo hoa don
 # dien tu bi tra ve, ma loi thi hien ra tan ben co quan thue chu khong hien

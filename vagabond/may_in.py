@@ -48,7 +48,9 @@ TRUONG = "vgb_may_in"
 TRUONG_CAN = "vgb_can_tem"
 CAN_MAC_DINH = {"ngang": 0.0, "doc": 0.0, "rong": 0.0, "cao": 0.0, "xoay": 0}
 
-QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager"}
+from vagabond.vai_cua_hang import VAI_QLCH
+
+QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 
 # Bon loai phieu app dang in. Them loai moi thi them mot dong o day, man
 # Cai dat tu co them mot dong de chon kho.

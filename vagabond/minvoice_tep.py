@@ -72,6 +72,60 @@ def boc_b64_trong_json(du):
 	return ""
 
 
+
+# Hai cho DUY NHAT mo dun nay dinh tep vao. Nhip don dep chi duoc dung
+# toi tep nam trong hai cho nay, khong duoc dung toi tep cua ai khac.
+NOI_DINH = ("MInvoice Invoice", "Vagabond Ho So TT")
+
+
+def don_duoc_nhom_tep(goc, anh_em, noi_dinh=None):
+	"""Mot nhom File dung chung file_url co duoc xoa khong. THUAN.
+
+	BAI HOC 24/08/2026 tu `van_don.don_dep_anh_giao`
+	------------------------------------------------
+	Nhip do loc File theo "thuoc phieu nao" ma quen loc theo "nam o o nao",
+	nen no om ca chu ky khach vao dien don dep. May man va som 14 ngay nen
+	chua mat cai nao. Nhip o day co dung cai bay do khong: co, o mot cho
+	khac va kin hon.
+
+	Ham cu xoa MOI dong File tro cung `file_url` roi moi xoa dong goc. Y
+	dinh la don ban sao dinh vao ho so. Nhung phep quet do khong hoi dong
+	kia THUOC AI: mot to PDF hoa don ma ke toan dinh them vao Payment Entry
+	lam chung tu goc cung tro dung file_url ay, va se bi xoa cung. Ma
+	`chung_tu_tien.chan_thieu_dinh_kem` DEM tep tren Payment Entry - phieu
+	da ghi so se lang le mat can cu.
+
+	Hai hang rao, va ca hai deu la dieu kien DUNG:
+
+	1. Moi dong trong nhom phai nam trong `noi_dinh`. Chi mot dong la khach
+	   thi ca nhom khong duoc dung toi. KHONG xoa rieng phan cua minh: noi
+	   dung tren dia chi bien khi dong CUOI CUNG bi xoa, nen xoa bot van
+	   con an toan, nhung giu nguyen ca nhom thi khong phai suy nghi.
+	2. Khong dong nao duoc mang `attached_to_field`. Tep mang ten o la GIA
+	   TRI cua o do tren mot chung tu; xoa no la de lai mot o tro vao hu
+	   khong. Mo dun nay khong bao gio dat `attached_to_field`, nen dong
+	   nao co mang thi chac chan khong phai cua minh.
+
+	Tra ve `(duoc_xoa, ly_do, ds_ten)`:
+	  duoc_xoa  True thi ds_ten la danh sach File.name duoc phep xoa
+	  ly_do     chuoi ngan noi vi sao tu choi, rong khi cho phep
+	  ds_ten    ban sao truoc, dong goc sau
+	"""
+	noi_dinh = tuple(noi_dinh or NOI_DINH)
+	goc = goc or {}
+	nhom = [goc] + list(anh_em or [])
+	for d in nhom:
+		d = d or {}
+		dt = str(d.get("attached_to_doctype") or "").strip()
+		if dt not in noi_dinh:
+			return (False, "co tep thuoc %s, khong phai cho cua minh" % (dt or "khong ro"), [])
+		if str(d.get("attached_to_field") or "").strip():
+			return (False, "co tep mang ten o %s" % d.get("attached_to_field"), [])
+	ten = [str(d.get("name")) for d in (anh_em or []) if (d or {}).get("name")]
+	ten.append(str(goc.get("name")))
+	return (True, "", ten)
+
+
 # ------------------------------------------------------- phan can Frappe
 
 import json
@@ -390,6 +444,17 @@ def don_dep_pdf():
 
 	Xoa ca cac dong File tro cung file_url (ban dinh vao ho so) TRUOC roi
 	moi xoa dong goc, de noi dung tren dia di theo dong cuoi cung.
+
+	SIET NGAY 24/08/2026 - chi don tep cua CHINH MINH
+	--------------------------------------------------
+	Phep quet "moi dong tro cung file_url" truoc day khong hoi dong kia
+	thuoc ai. Ke toan dinh to PDF ay vao Payment Entry lam chung tu goc
+	thi no cung bi xoa, ma `chung_tu_tien.chan_thieu_dinh_kem` dem tep
+	tren Payment Entry - phieu da ghi so lang le mat can cu.
+
+	Nay `don_duoc_nhom_tep` gac cua: ca nhom phai nam trong `NOI_DINH` va
+	khong dong nao duoc mang `attached_to_field`. Chi mot dong la khach
+	thi giu nguyen ca nhom, ghi mot dong vao Error Log de con nguoi doc.
 	"""
 	try:
 		ngay_giu = cint(_cai_dat_chung().get("minvoice_pdf_ngay_giu")) or 60
@@ -401,27 +466,43 @@ def don_dep_pdf():
 				"file_name": ["like", TEN_TIEN_TO + "%"],
 				"creation": ["<", moc],
 			},
-			fields=["name", "file_url"],
+			fields=["name", "file_url", "attached_to_doctype", "attached_to_field"],
 			limit_page_length=200,
 		)
-		da_xoa = 0
+		da_xoa, bo_qua_la = 0, 0
 		for g in goc:
 			try:
+				anh_em = []
 				if g.file_url:
-					for ban in frappe.get_all(
+					anh_em = frappe.get_all(
 						"File",
 						filters={"file_url": g.file_url, "name": ["!=", g.name]},
-						pluck="name",
-					):
-						frappe.delete_doc("File", ban, ignore_permissions=True)
-						da_xoa += 1
-				frappe.delete_doc("File", g.name, ignore_permissions=True)
-				da_xoa += 1
+						fields=["name", "attached_to_doctype", "attached_to_field"],
+						limit_page_length=0,
+					)
+				duoc, ly_do, ds = don_duoc_nhom_tep(g, anh_em)
+				if not duoc:
+					# KHONG xoa gi ca. Tep nay dang duoc mot cho khac dung
+					# lam chung tu; don cache khong duoc pha chung tu.
+					bo_qua_la += 1
+					frappe.log_error(
+						message="File %s (%s): %s" % (g.name, g.file_url, ly_do),
+						title="minvoice_tep: bo qua tep co nguoi khac dung",
+					)
+					continue
+				for ten in ds:
+					frappe.delete_doc("File", ten, ignore_permissions=True)
+					da_xoa += 1
 				frappe.db.commit()
 			except Exception:
 				frappe.log_error(
 					frappe.get_traceback(), "minvoice_tep: don tep %s" % g.name
 				)
+		if bo_qua_la:
+			frappe.log_error(
+				message="Bo qua %d to vi co cho khac dinh cung tep." % bo_qua_la,
+				title="minvoice_tep: nhip don PDF co to bi giu lai",
+			)
 		return da_xoa
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "minvoice_tep: nhip don PDF vo loi")

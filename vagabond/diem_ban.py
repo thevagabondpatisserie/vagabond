@@ -75,7 +75,9 @@ MAC_DINH = [
 	},
 ]
 
-QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager"}
+from vagabond.vai_cua_hang import VAI_QLCH
+
+QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 
 
 def _chuan(d, i=0):

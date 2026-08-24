@@ -25,7 +25,9 @@ from vagabond.lib import cfg
 TRUONG = "vgb_quyen_bo_mon"
 MAC_DINH = "duyet"
 
-QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager"}
+from vagabond.vai_cua_hang import VAI_QLCH
+
+QUYEN_SUA = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 
 MUC = [
 	{

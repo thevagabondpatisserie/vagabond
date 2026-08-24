@@ -39,7 +39,9 @@ VAI_KE_TOAN = {"AP Kiểm soát (FIN)", "Accounts Manager", "Accounts User"}
 VAI_THU_MUA = {"AP Officer", "Purchase User", "Purchase Manager", "Bộ phận đặt hàng"}
 VAI_KHO = {"Stock User", "Stock Manager", "Kiểm kê viên", "Nhan hang dieu chuyen"}
 VAI_GIAM_DOC = {"AP Giám đốc", "System Manager"}
-VAI_QUAN_LY = {"Sales Manager"}
+from vagabond.vai_cua_hang import VAI_QLCH
+
+VAI_QUAN_LY = {"Sales Manager", VAI_QLCH}
 
 # Loại phiếu. Khoá dùng cho chip, nhãn dùng để hiện.
 #
