@@ -811,6 +811,42 @@ function syncUser() { var u = curUser(); if (u) { S.user = u; S.me.user = u; } r
    Nho vay nut Back / vuot lui cua trinh duyet lui dung tung man trong app,
    het canh dang o Chi tiet don ma Back lai vang sang trang /kiem-banh. */
 var VGB_LUI_TAY = 0;
+
+/* ---------- DIA CHI DI THEO TUNG NAC CUA CHONG MAN HINH (v292) ----------
+
+Anh Viet 24/08/2026: *"bam vao 'hoa don mua' thi co duoi url hoa-don-mua,
+nhung back ve thi trang van mang duoi hoa-don-mua"*.
+
+VI SAO BAN CU HONG. Truoc v292, `vgbGo` doi dia chi TRUOC roi moi goi `go`:
+
+    vgbDatDuong(k);        // replaceState: doi dia chi cua NAC DANG DUNG
+    go(scrHdMua);          // pushState(location.href): nac moi cung dia chi do
+
+replaceState ghi de dia chi cua chinh moc lich su dang dung, tuc moc cua man
+CHA. Nen sau mot lan bam, ca hai moc cha va con deu mang `/hoa-don-mua`. Nut
+Back lui dung mot man nhung dia chi thi khong co gi de lui ve.
+
+CACH SUA. Dia chi thoi khong con la mot hieu ung phu bam vao luc bam nut nua,
+no thanh MOT THUOC TINH cua tung nac trong chong: `S.duong[i]` la slug cua
+`S.stack[i]`. Moi cho lam chong doi - go, back, reset, va ca popstate - deu
+ap lai dia chi cua nac dang o tren cung. Nac nao khong co slug rieng, vi du
+man chi tiet mo tu mot danh sach, thi thua slug cua nac cha, nen dia chi
+dung im trong suot mot mach xem chi tiet roi tro ve dung cho khi lui.
+
+Nac 0 mang chuoi rong, va chuoi rong nghia la dia chi goc cua app. */
+S.duong = [];
+
+/* Slug cua nac dang dung. */
+function vgbNacDuong() { return S.duong[S.duong.length - 1] || ''; }
+
+/* Ap dia chi cua nac dang dung len thanh dia chi.
+
+   Ham that nam ben 02-trang-chu.js vi o do moi co bang VGB_DUONG. Goi qua
+   window va boc try: tep nay ghep TRUOC tep kia, va mot loi o day thi ca
+   app khong di lai duoc nua - dat hon nhieu so voi mot dia chi sai. */
+function vgbApNac() {
+  try { if (window.vgbApDiaChi) window.vgbApDiaChi(vgbNacDuong()); } catch (e) { }
+}
 function manSoan(f) {
   try { return f === scrStep1 || f === scrStep2 || f === scrStep3 || f === scrStep4; } catch (e) { return false; }
 }
@@ -820,16 +856,29 @@ function roiPhieuDo(dich) {
   return !!(S.draft && (S.draft.items || []).length) && manSoan(S.stack[S.stack.length - 1]) && !manSoan(dich);
 }
 function go(fn, replace) {
+  /* Khoa man sap mo do vgbGo dat, doc mot lan roi xoa. Man nao khong di qua
+     vgbGo, vi du man chi tiet mo tu mot danh sach, thi khong co khoa va se
+     thua dia chi cua nac cha. */
+  var slug = '';
+  try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
   if (!replace) {
     S.stack.push(fn);
+    S.duong.push(slug || vgbNacDuong());
+    /* pushState TRUOC khi doi dia chi: moc moi phai chup lai dia chi CU thi
+       moc cua man cha moi con nguyen dia chi cua no. Doi thu tu hai dong
+       nay chinh la loi anh Viet bao ngay 24/08. */
     try { history.pushState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
-  } else S.stack[S.stack.length - 1] = fn;
+  } else {
+    S.stack[S.stack.length - 1] = fn;
+    if (slug) S.duong[S.duong.length - 1] = slug;
+  }
+  vgbApNac();
   render();
 }
 function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
-    S.stack.pop(); render();
+    S.stack.pop(); S.duong.pop(); vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
@@ -841,8 +890,12 @@ function back() {
   buoc();
 }
 function reset(fn) {
+  var slug = '';
+  try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
   S.stack = [fn];
+  S.duong = [slug];
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
+  vgbApNac();
   return render();
 }
 /* TRA VE ket qua cua ham man hinh, dung nuot di.
@@ -1612,8 +1665,11 @@ function vgbGomNhom() {
     if (!t) return;
     var nh = null;
     for (var i = 0; i < VGB_NHOM.length; i++) if (VGB_NHOM[i].k === t.dataset.nhom) nh = VGB_NHOM[i];
-    if (t.dataset.nhom === 'VCL') return go(scrVclList);
-    if (nh) go(function () { scrNhom(nh); });
+    /* Di qua vgbGo chu khong go() thang: vgbGo la CUA DUY NHAT dat dia
+       chi. Bo qua cua nay dung mot lan la o lon mat dia chi, va do dung la
+       loi anh Viet bao ngay 24/08 voi phan he Ke toan. */
+    if (t.dataset.nhom === 'VCL') return vgbGo('VCL');
+    if (nh) vgbGo('PH:' + nh.k);
   };
 }
 
@@ -1765,6 +1821,13 @@ function vgbODong(k, icon, t1, t2) {
     '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
 }
 
+/* Tra ve mo ta phan he theo khoa. Mot cho duy nhat do bang VGB_NHOM, de
+   khong cho nao chep lai vong lap tim nhom roi lech nhau. */
+function vgbNhomTheoKhoa(k) {
+  for (var i = 0; i < VGB_NHOM.length; i++) if (VGB_NHOM[i].k === k) return VGB_NHOM[i];
+  return null;
+}
+
 function scrNhom(nh) {
   vgbCss();
   var rows = '';
@@ -1845,6 +1908,18 @@ var VGB_DUONG = {
   'nhap-kho': 'RCV',
   'nhap-sao-ke': 'NHAPSK',
   'nop-quy': 'NQ',
+  'phan-he-ban-hang': 'PH:BH',
+  'phan-he-bao-cao': 'PH:BC',
+  'phan-he-cai-dat': 'PH:KHAC',
+  'phan-he-danh-muc': 'PH:DM',
+  'phan-he-dat-hang': 'PH:DH',
+  'phan-he-giao-hang': 'PH:GH',
+  'phan-he-ke-toan': 'PH:KT',
+  'phan-he-kiem-ke': 'PH:KK',
+  'phan-he-nhap-kho': 'PH:NK',
+  'phan-he-san-xuat': 'PH:SX',
+  'phan-he-thu-mua': 'PH:TM',
+  'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
@@ -1875,6 +1950,7 @@ var VGB_DUONG = {
   'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
   'van-don': 'VD',
+  'viec-can-lam': 'VCL',
   'xuat-dieu-chuyen': 'XKD',
   'xuat-huy': 'XKH'
 };
@@ -1885,29 +1961,76 @@ function vgbSlugTheoKhoa(k) {
   return '';
 }
 
-/* Doi dia chi tren thanh khi mo mot man co dia chi rieng.
-   replaceState chu khong pushState: chinh vgbGo se goi go() ngay sau do, va
-   go() moi la cho day moc lich su. Day hai moc cho mot lan bam thi nut Back
-   phai bam hai lan moi lui duoc mot man. */
-function vgbDatDuong(k) {
-  var s = vgbSlugTheoKhoa(k);
-  if (!s) return;
-  try { history.replaceState(history.state, '', '/' + s); } catch (e) { }
+/* DIA CHI LUC NAP TRANG, chup ngay khi tep duoc doc chu khong doi den luc
+   goi. Tu v292 `reset()` co doi dia chi, va __boot goi reset(scrHome) TRUOC
+   khi goi vgbMoTheoDiaChi - nen neu doc location.pathname luc do thi no da
+   bi ghi de mat roi, va F5 tai /hoa-don-mua se ra trang chu. */
+var VGB_DIA_NAP = String(location.pathname || '');
+
+/* Dia chi cua man chu. Thuong la /bep, tru khi app duoc nap tu mot duong
+   dan la nao do thi giu nguyen duong dan do de khong nem nguoi dung di. */
+var VGB_GOC = '';
+function vgbGocApp() {
+  if (VGB_GOC) return VGB_GOC;
+  var p = String(VGB_DIA_NAP || '').replace(/\/+$/, '');
+  var d = p.replace(/^\/+/, '');
+  VGB_GOC = (!d || VGB_DUONG[d]) ? '/bep' : p;
+  return VGB_GOC;
 }
+
+/* Ap dia chi cua nac dang dung len thanh dia chi. Khung app goi ham nay o
+   MOI cho lam chong doi: go, back, reset, va popstate.
+
+   replaceState chu khong pushState: moc lich su do go() day, o day chi dan
+   dung dia chi vao moc vua day. Day them mot moc nua thi nut Back phai bam
+   hai lan moi lui duoc mot man. */
+function vgbApDiaChi(slug) {
+  var dia = slug ? '/' + slug : vgbGocApp();
+  try {
+    if (location.pathname !== dia) history.replaceState(history.state, '', dia);
+  } catch (e) { }
+}
+window.vgbApDiaChi = vgbApDiaChi;
+
+/* Khoa man sap mo. vgbGo dat truoc khi goi go(), go() doc mot lan roi xoa.
+
+   Vi sao khong truyen thang khoa vao go(): go() duoc goi tu hang tram cho
+   trong app, phan lon la man chi tiet khong co khoa rieng. Them mot doi so
+   la sua hang tram cho goi, va cho nao quen sua thi lang le mat dia chi. */
+var VGB_KHOA_MO = '';
+function vgbSlugSapMo() {
+  var k = VGB_KHOA_MO;
+  VGB_KHOA_MO = '';
+  return k ? vgbSlugTheoKhoa(k) : '';
+}
+window.vgbSlugSapMo = vgbSlugSapMo;
 
 /* Luc khoi dong: dia chi dang la mot slug thi mo thang man do.
    Van de scrHome o duoi cung chong, de nut Back tu man do ve duoc trang chu
    thay vi thoat han khoi app. */
 function vgbMoTheoDiaChi() {
-  var d = String(location.pathname || '').replace(/^\/+|\/+$/g, '');
+  var d = String(VGB_DIA_NAP || '').replace(/^\/+|\/+$/g, '');
   var k = VGB_DUONG[d];
   if (!k) return false;
   try { vgbGo(k); return true; } catch (e) { return false; }
 }
 
-/* Mot cho duy nhat dinh tuyen tu o nho sang man hinh. */
+/* Mot cho duy nhat dinh tuyen tu o nho sang man hinh.
+
+   Boc quanh vgbDinhTuyen de KHOA LUON DUOC XOA. Nhanh nao khong goi go(),
+   vi du nhanh toast bao man chua dung, thi khoa con dinh lai se nhay sang
+   lan go() ke tiep va dat sai dia chi cho mot man khac han. */
 function vgbGo(k) {
-  vgbDatDuong(k);
+  VGB_KHOA_MO = k;
+  try {
+  /* O LON tren trang chu, tuc phan he. Mot nhanh tien to cho ca muoi hai,
+     y het cach ho DM: di chung mot nhanh. */
+  if (k && k.indexOf('PH:') === 0) {
+    var nhx = vgbNhomTheoKhoa(k.slice(3));
+    if (!nhx) return;
+    return go(function () { scrNhom(nhx); });
+  }
+  if (k === 'VCL') return go(scrVclList);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);
   if (k === 'BTPO') { location.href = '/btp'; return; }
@@ -1983,6 +2106,12 @@ function vgbGo(k) {
   if (k === 'XKH') return go(scrXkHuyList);
   if (k === 'XKD') return go(scrXkCkList);
   go(function () { scrMRList(TYPES[k]); });
+  } finally {
+    /* XOA KHOA DU NHANH NAO CHAY. Nhanh nao khong goi go() - vi du nhanh
+       toast bao man chua dung - thi khoa con nguyen, va lan go() ke tiep,
+       du la cua man nao, cung nhan dung khoa do va dat sai dia chi. */
+    VGB_KHOA_MO = '';
+  }
 }
 
 /* ---------- 5c. Xuat kho: xuat huy va xuat dieu chuyen noi bo ----------
@@ -13326,6 +13455,8 @@ function htCtVe() {
       }).join('') + '</div></div>';
   }
 
+  html += htCtDonHuy(d);
+
   /* Tien da ra ma chung tu chua sinh duoc: noi ngay dau man, truoc ca khoi
      chung tu, vi day la viec phai lam chu khong phai mot dong ghi chu. */
   if (d.loi_sinh_ct) {
@@ -13334,12 +13465,14 @@ function htCtVe() {
       '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-top:4px">' + h(d.loi_sinh_ct) + '</div></div>';
   }
 
-  html += '<div class="sec">Chứng từ hệ sinh ra</div><div class="card" style="padding:2px 14px 8px">' +
+  html += '<div class="sec">Đối soát lệnh chi và chứng từ</div><div class="card" style="padding:2px 14px 12px">' +
     htCtDong('Hoá đơn trả hàng', d.hoa_don_tra || '') +
     htCtDong('Phiếu chi', d.phieu_chi ? (d.phieu_chi + (d.phieu_chi_trang_thai ? ' · ' + d.phieu_chi_trang_thai : '')) : '') +
     htCtDong('Đã đối soát SePay', d.da_doi_soat ? 'Rồi' : 'Chưa') +
     htCtDong('Mã giao dịch ngân hàng', d.ma_gd || '') +
+    (d.nguoi_khop_tay ? htCtDong('Người khớp thủ công', d.nguoi_khop_tay) : '') +
     htCtDong('Kho nhận hàng trả', d.kho_huy || '') +
+    htCtKhopSepay(d) +
     '</div>';
 
   /* Doi chieu TAY khoan tien vao. Chi hien cho nguoi duoc quyen, va noi ro
@@ -13383,6 +13516,10 @@ function htCtVe() {
   if (nTc) nTc.onclick = function () { htFormTuChoi(d.name); };
   var nGd = document.getElementById('htCtGd');
   if (nGd) nGd.onclick = function () { htFormGdVao(d); };
+  var nKs = document.getElementById('htCtKsAuto');
+  if (nKs) nKs.onclick = function () { htKhopSepayTuDong(d); };
+  var nKt2 = document.getElementById('htCtKsTay');
+  if (nKt2) nKt2.onclick = function () { htFormGdRa(d); };
 
   var nUncN = document.getElementById('htUncNut');
   var nUncT = document.getElementById('htUncTep');
@@ -13409,6 +13546,166 @@ function htCtVe() {
   if (nTtL) nTtL.onclick = function () { htTtLuu(d); };
   var nTtG = document.getElementById('htTtGo');
   if (nTtG) nTtG.onclick = function () { htTtGo(d); };
+}
+
+
+/* ---------- Đơn Pancake đã huỷ ----------
+
+Anh Việt 24/08/2026: *"bên ngoài có mã, mà bên trong thì không có mã"*.
+
+Phiếu hoàn của đơn Pancake đã huỷ KHÔNG có hoá đơn nào - đó chính là lý do
+luồng ấy tồn tại - nên khối "Đơn gốc" ở trên luôn rỗng và màn chi tiết trước
+v292 không hề nói phiếu thuộc đơn nào. Danh sách thì có chip "đơn 92156" vì
+chip đó đọc ở ô `ma_don_pancake`, một ô khác hẳn.
+
+Mã đơn ở đây không phải một dòng trang trí: chính chuỗi nội dung chuyển khoản
+mang mã này là thứ DUY NHẤT phép đối soát tự động đem dò trên sao kê. */
+function htCtDonHuy(d) {
+  var v = d.don_huy;
+  if (!v) return '';
+  var ma = v.ma_hien_thi || v.ma_don || '';
+  return '<div class="sec">Đơn Pancake đã huỷ</div>' +
+    '<div class="card" style="padding:2px 14px 10px">' +
+    htCtDong('Mã đơn Pancake', ma, 1) +
+    (v.ma_don && v.ma_hien_thi && v.ma_don !== v.ma_hien_thi
+      ? htCtDong('Mã hệ thống', v.ma_don) : '') +
+    htCtDong('Khách', v.ten_khach || '') +
+    htCtDong('Điện thoại', v.sdt || '') +
+    htCtDong('Tổng đơn', money(v.tong_don) + ' đ', 1) +
+    htCtDong('Khách đã chuyển', money(v.da_nhan) + ' đ', 1) +
+    (v.ngay_giao ? htCtDong('Ngày giao', String(v.ngay_giao).slice(0, 10)) : '') +
+    (v.huy_luc ? htCtDong('Huỷ lúc', String(v.huy_luc).slice(0, 16)) : '') +
+    '<div style="font-size:11.5px;color:#6b7280;padding:8px 0 0;line-height:1.55">' +
+    'Đơn này chưa từng có hoá đơn trong hệ, nên nội dung chuyển khoản mang mã ' +
+    'đơn thay cho mã hoá đơn. Kế toán gõ đúng chuỗi đó thì máy tự khớp được ' +
+    'dòng tiền ra.</div></div>';
+}
+
+/* ---------- Khớp SePay cho lệnh chi ----------
+
+Anh Việt 24/08/2026: *"trong màn Phiếu hoàn tiền thiếu nút Khớp Sepay và nút
+Khớp Sepay thủ công (để tự chọn giao dịch tiền ra)"*.
+
+Trước v292 nút Đối soát chỉ có ở màn DANH SÁCH và quét cả mẻ. Mở một phiếu
+đang kẹt ra thì không có gì để bấm, và cũng không có dòng nào nói vì sao nó
+kẹt. Nay mỗi phiếu tự quét được chính nó, và khi phép tự động không ăn thì có
+đường thứ hai bằng mắt người.
+
+Vì sao nút Đính uỷ nhiệm chi chưa hiện thì phải NÓI RA chứ không lặng lẽ ẩn:
+nó phụ thuộc đúng vào bước này, và một cái nút biến mất không giải thích được
+là thứ khiến người dùng đi hỏi vòng quanh. */
+function htCtKhopSepay(d) {
+  if (!d.duoc_doi_chieu || d.trang_thai === 'Da huy') return '';
+  if (d.da_doi_soat) {
+    return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;' +
+      'border:1px solid #a7f3d0;border-radius:9px;padding:9px 11px;margin-top:9px;' +
+      'line-height:1.6">Lệnh chi đã khớp sao kê' +
+      (d.nguoi_khop_tay ? ' (do <b>' + h(d.nguoi_khop_tay) + '</b> chọn tay)' : ' tự động') +
+      '. Bước còn lại là đính uỷ nhiệm chi rồi ghi sổ.</div>';
+  }
+  return '<div style="margin-top:10px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin-bottom:8px">' +
+    'Phiếu chưa khớp dòng tiền ra nào. Máy dò trên sao kê theo chuỗi ' +
+    '<b>' + h(d.noi_dung_ck || '(chưa có)') + '</b>. Kế toán gõ nội dung khác ' +
+    'chuỗi này thì phải chọn tay.</div>' +
+    '<button class="btn gh" id="htCtKsAuto" style="margin:0;width:100%">🔄 Khớp SePay</button>' +
+    '<button class="btn gh" id="htCtKsTay" style="margin:8px 0 0;width:100%">🔎 Khớp SePay thủ công</button>' +
+    '<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+    'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
+    'Nút <b>Đính uỷ nhiệm chi</b> ở cuối màn chỉ hiện sau bước này, vì phiếu chi ' +
+    'chỉ ra đời khi tiền đã thật sự rời tài khoản. Khớp xong là nút tự hiện.</div>' +
+    '</div>';
+}
+
+async function htKhopSepayTuDong(d) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hoan_tien.doi_soat', { ho_so: d.name, so_ngay: 45 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa quét được sao kê.', 'Lỗi'); }
+  busy(false);
+  if (kq && kq.da_khop) {
+    toast('Đã khớp lệnh chi và sinh chứng từ.', 4500);
+    return htChiTiet(d.name);
+  }
+  var xx = (kq && kq.xem_xet) || [];
+  if (xx.length) {
+    /* Co dong gan dung nhung khong danh dau duoc: noi ro con so lech, roi
+       day thang sang duong chon tay. Bao "khong tim thay" o day la noi sai. */
+    return baoTin('Máy tìm được dòng tiền ra khớp nội dung nhưng số tiền lệch: ' +
+      'sao kê ' + money(xx[0].tien_chuyen) + ' đ, phiếu ' + money(xx[0].tien_phieu) + ' đ. ' +
+      'Anh chị xem lại rồi dùng nút Khớp SePay thủ công.', 'Cần người xem');
+  }
+  baoTin('Chưa thấy dòng tiền ra nào mang nội dung "' + (d.noi_dung_ck || '') + '". ' +
+    'Nếu tiền đã chuyển rồi thì bấm Khớp SePay thủ công để chọn đúng dòng.',
+    'Chưa khớp được');
+}
+
+/* Chon TAY dong tien ra. Man nay khong tu quyet gi ca: may loc ra ung vien,
+   nguoi nhin va chi, va ten nguoi chi duoc ghi lai ngay tren phieu. */
+async function htFormGdRa(d) {
+  frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
+  var kq;
+  try { kq = await api('vagabond.hoan_tien.tim_gd_ra', { ho_so: d.name, so_ngay: 45 }); }
+  catch (e) {
+    frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
+    return;
+  }
+  var rows = (kq && kq.rows) || [];
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.so_tien) + ' đ</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
+    'Nội dung máy dò: <b>' + h(kq.noi_dung_ck || '(chưa có)') + '</b></div></div>';
+
+  if (!rows.length) {
+    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
+      'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
+      'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +
+      'vì một lần tiền ra chỉ ứng với một phiếu hoàn.</div></div>';
+  } else {
+    html += '<div style="font-size:11.5px;color:#6b7280;padding:9px 14px 4px;line-height:1.55">' +
+      'Xếp dòng khớp nội dung lên trước, rồi đến dòng đúng số tiền. Bấm để chọn.</div>';
+    html += rows.map(function (r) {
+      var vien = r.khop_noi_dung ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
+      var nen = r.khop_noi_dung ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
+      return '<div class="htgdra" data-gd="' + h(r.name) + '" data-tien="' + h(String(r.withdrawal)) + '" ' +
+        'style="border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;' +
+        'padding:10px 12px;margin:8px 12px;cursor:pointer">' +
+        '<div style="display:flex;gap:8px;align-items:baseline">' +
+        '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.withdrawal) + ' đ</div>' +
+        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
+        '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
+        h(r.description || '(không có nội dung)') + '</div>' +
+        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
+        (r.khop_noi_dung ? '✅ khớp nội dung · ' : '') +
+        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
+        '</div></div>';
+    }).join('');
+  }
+  var b = frame('Khớp SePay thủ công', html);
+  b.querySelectorAll('.htgdra').forEach(function (n) {
+    n.onclick = function () { htKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
+  });
+}
+
+async function htKhopTay(d, gd, tien) {
+  var lech = Math.abs(Number(tien || 0) - Number(d.so_tien || 0));
+  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+    (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
+    ' Máy sẽ đánh dấu đã đối soát và sinh chứng từ.';
+  var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);
+  if (!ok) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.hoan_tien.khop_tay', { ho_so: d.name, gd: gd });
+    busy(false);
+    toast((kq && kq.nhac) || 'Đã khớp.', 5000);
+    if (kq && kq.loi) baoTin(kq.loi, 'Chứng từ chưa sinh được');
+  } catch (e) {
+    busy(false);
+    return baoTin((e && e.message) || 'Chưa khớp được.', 'Lỗi');
+  }
+  htChiTiet(d.name);
 }
 
 
@@ -16309,7 +16606,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '291';
+var APPVER = '292';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -16381,12 +16678,15 @@ window.addEventListener('popstate', function (ev) {
       var giu = S.stack.length - 1;
       confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
         .then(function (ok) {
-          if (ok) { S.draft = null; S.stack.length = d + 1; render(); }
+          if (ok) { S.draft = null; S.stack.length = d + 1; S.duong.length = d + 1; vgbApNac(); render(); }
           else { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } }
         });
       return;
     }
-    S.stack.length = d + 1; render(); return;
+    /* Lui bang nut Back cua trinh duyet: cat chong man hinh VA cat luon
+       chong dia chi, roi ap lai dia chi cua nac con lai. Thieu hai viec sau
+       thi man da lui ma thanh dia chi van mang duoi cua man vua roi. */
+    S.stack.length = d + 1; S.duong.length = d + 1; vgbApNac(); render(); return;
   }
   if (d + 1 > S.stack.length) {
     /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
