@@ -1547,6 +1547,116 @@ function ttnbVe(kq) {
 }
 
 /* Chi tiết một phiếu TTNB, kèm nút duyệt cho đúng người ở đúng bước. */
+/* ---------- Khớp SePay cho phiếu thanh toán nội bộ (v294) ----------
+
+Anh Việt 24/08/2026: mọi màn cần đối soát SePay đều phải có đối soát tự động
+và nút thủ công ở kế bên.
+
+Màn này là màn CẦN nút thủ công nhất trong cả hệ, mà trước v294 lại không có.
+Đây là đường DUY NHẤT webhook SePay gọi thẳng: tiền về là phiếu tự nhảy sang
+"Đã chi" mà không ai bấm nút nào. Nên khi kế toán gõ nội dung thiếu một chữ,
+phiếu nằm mãi ở "Chờ kế toán" và không có đường nào để người nhìn sao kê rồi
+chỉ đúng dòng.
+
+Hai nút này gọi thẳng tầng chung `vagabond.doi_soat_sepay`, cùng một cửa với
+màn Phiếu hoàn tiền. */
+function ttnbKhopSepay(d) {
+  if (!d.khop_duoc) {
+    if (d.ma_gd) {
+      return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;border:1px solid #a7f3d0;' +
+        'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
+        'Lệnh chi đã khớp sao kê, giao dịch <b>' + h(d.ma_gd) + '</b>.</div>';
+    }
+    return '';
+  }
+  return '<button class="btn gh" id="ttnbKsAuto" style="margin:9px 0 0;width:100%">🔄 Khớp SePay</button>' +
+    '<button class="btn gh" id="ttnbKsTay" style="margin:8px 0 0;width:100%">🔎 Khớp SePay thủ công</button>';
+}
+
+async function ttnbKhopAuto(d) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.doi_soat_sepay.tu_dong', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa quét được sao kê.', 'Lỗi'); }
+  busy(false);
+  if (kq && kq.da_khop) {
+    toast('Đã khớp lệnh chi, phiếu chuyển sang Đã chi.', 4500);
+    return ttnbCt(d.name);
+  }
+  var xx = (kq && kq.xem_lai) || [];
+  if (xx.length) {
+    return baoTin(h(xx[0].vi_sao || '') + ' Anh chị xem lại rồi dùng nút Khớp SePay thủ công.',
+      'Cần người xem');
+  }
+  baoTin('Chưa thấy dòng tiền ra nào mang mã "' + h(d.name) + '". Nếu tiền đã chuyển rồi ' +
+    'thì bấm Khớp SePay thủ công để chọn đúng dòng.', 'Chưa khớp được');
+}
+
+async function ttnbFormGdRa(d) {
+  frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
+  var kq;
+  try { kq = await api('vagabond.doi_soat_sepay.ung_vien', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45 }); }
+  catch (e) {
+    frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
+    return;
+  }
+  var rows = (kq && kq.rows) || [];
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.tien) + ' đ</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
+    'Máy dò theo mã <b>' + h(kq.ma_do || d.name) + '</b> trong nội dung chuyển khoản.</div></div>';
+  if (!rows.length) {
+    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
+      'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
+      'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +
+      'vì một lần tiền ra chỉ ứng với một phiếu.</div></div>';
+  } else {
+    html += '<div style="font-size:11.5px;color:#6b7280;padding:9px 14px 4px;line-height:1.55">' +
+      'Xếp dòng khớp mã lên trước, rồi đến dòng đúng số tiền. Bấm để chọn.</div>';
+    html += rows.map(function (r) {
+      var vien = r.khop_ma ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
+      var nen = r.khop_ma ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
+      return '<div class="ttnbgd" data-gd="' + h(r.name) + '" data-tien="' + h(String(r.tien)) + '" ' +
+        'style="border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;' +
+        'padding:10px 12px;margin:8px 12px;cursor:pointer">' +
+        '<div style="display:flex;gap:8px;align-items:baseline">' +
+        '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.tien) + ' đ</div>' +
+        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
+        '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
+        h(r.mo_ta || '(không có nội dung)') + '</div>' +
+        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
+        (r.khop_ma ? '✅ khớp mã · ' : '') +
+        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
+        '</div></div>';
+    }).join('');
+  }
+  var b = frame('Khớp SePay thủ công', html);
+  b.querySelectorAll('.ttnbgd').forEach(function (n) {
+    n.onclick = function () { ttnbKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
+  });
+}
+
+async function ttnbKhopTay(d, gd, tien) {
+  var lech = Math.abs(Number(tien || 0) - Number(d.tien || 0));
+  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+    (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
+    ' Máy sẽ chuyển phiếu sang Đã chi.';
+  var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);
+  if (!ok) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.de_nghi_chi.khop_tay', { phieu: d.name, gd: gd });
+    busy(false);
+    toast((kq && kq.nhac) || 'Đã khớp.', 5000);
+    if (kq && kq.loi) baoTin(kq.loi, 'Bước sau chưa chạy xong');
+  } catch (e) {
+    busy(false);
+    return baoTin((e && e.message) || 'Chưa khớp được.', 'Lỗi');
+  }
+  ttnbCt(d.name);
+}
+
 async function ttnbCt(ma) {
   frame('Phiếu thanh toán nội bộ', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
   var d;
@@ -1594,8 +1704,9 @@ async function ttnbCt(ma) {
     (d.ngay_da_chi ? dong('Tiền ra lúc', String(d.ngay_da_chi).slice(0, 16)) : '') +
     '<button class="btn gh" id="ttnbChep" style="margin:9px 0 0;width:100%">📋 Chép nội dung chuyển khoản</button>' +
     '<div style="font-size:11.5px;color:#6b7280;margin-top:7px;line-height:1.6">' +
-    'Chuyển tiền phải dán ĐÚNG nội dung này thì máy mới tự đổi phiếu sang ' +
-    '<b>Đã chi</b> khi ngân hàng báo có. Gõ khác đi thì phải bấm Đối soát tay.</div></div>';
+    'Chuyển tiền nên dán ĐÚNG nội dung này thì máy tự đổi phiếu sang ' +
+    '<b>Đã chi</b> khi ngân hàng báo có. Gõ khác đi thì bấm hai nút dưới.</div>' +
+    ttnbKhopSepay(d) + '</div>';
 
   if (d.can_tru) {
     var c = d.can_tru;
@@ -1612,6 +1723,11 @@ async function ttnbCt(ma) {
       '<button class="btn" id="ttnbTra" style="margin:0;flex:1;background:#b3261e;border-color:#b3261e">Trả lại</button>';
   }
   var b = frame('Phiếu thanh toán nội bộ', html, chan ? { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' } : undefined);
+
+  var nKa = document.getElementById('ttnbKsAuto');
+  if (nKa) nKa.onclick = function () { ttnbKhopAuto(d); };
+  var nKt = document.getElementById('ttnbKsTay');
+  if (nKt) nKt.onclick = function () { ttnbFormGdRa(d); };
 
   var nC = document.getElementById('ttnbChep');
   if (nC) nC.onclick = function () {
