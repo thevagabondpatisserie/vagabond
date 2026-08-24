@@ -2344,17 +2344,27 @@ function htCtSepayTrong(d) {
 
 /* ---------- Đối chiếu tay khoản tiền vào ----------
 
-Máy chỉ lọc ra ứng viên gần đúng số tiền và gần đúng ngày. Chọn dòng nào là
-việc của người, và tên người đó được ghi lại ngay cạnh giao dịch. Không để
-máy tự chọn: một khoản 650.000 đ ngày 13/08 có thể là của bất kỳ đơn nào
-cùng số tiền. */
+Máy dò theo MÃ ĐƠN trước, rồi mới xếp phần còn lại theo số tiền. Chọn dòng
+nào vẫn là việc của người, và tên người đó được ghi lại ngay cạnh giao dịch.
+
+Anh Việt 24/08/2026: *"Khoản tiền mà khách chuyển khoản bên Pancake thì nó
+luôn có mã đơn hàng của Pancake mà, em chỉ việc dò theo mã đó trong nội dung
+chuyển khoản thì sẽ ra luôn khoản chính xác."* Trước v294 màn này KHÔNG truyền
+mã đơn, nên máy chủ chỉ còn số tiền để bám, và bày ra một danh sách toàn dòng
+giống nhau. */
 async function htFormGdVao(d) {
   var soTien = Number((d.don && d.don.tong) || d.so_tien || 0);
-  var ngay = (d.don && d.don.ngay) || '';
+  var ngay = (d.don && d.don.ngay) || (d.don_huy && String(d.don_huy.ngay_dat || '').slice(0, 10)) || '';
+  /* Mã đơn Pancake nằm ở hai chỗ tuỳ loại phiếu: đơn thường thì ở hoá đơn
+     gốc, đơn đã huỷ thì ở chính phiếu hoàn. Không có mã thì rơi về mã hoá
+     đơn, còn không nữa thì để máy chủ tự nói là chưa dò được. */
+  var maDo = (d.don && d.don.ma_pancake) || d.ma_don_pancake || d.hoa_don || '';
   frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
   var kq;
   try {
-    kq = await api('vagabond.sepay.tim_gd_vao', { so_tien: soTien, ngay: ngay, so_ngay: 30 });
+    kq = await api('vagabond.sepay.tim_gd_vao', {
+      so_tien: soTien, ngay: ngay, so_ngay: 30, ma_do: maDo
+    });
   } catch (e) {
     frame('Đối chiếu tiền vào', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
@@ -2364,23 +2374,34 @@ async function htFormGdVao(d) {
   var than =
     '<div style="font-size:12.5px;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;' +
     'border-radius:9px;padding:10px 12px;margin-bottom:11px;line-height:1.6">' +
-    'Đang tìm khoản tiền vào quanh <b>' + money(soTien) + ' đ</b>' +
-    (ngay ? ' và quanh ngày <b>' + h(ngay) + '</b>' : '') + '. ' +
+    (kq && kq.ma_do
+      ? 'Máy dò theo mã <b>' + h(kq.ma_do) + '</b> trong nội dung chuyển khoản, ' +
+        'dòng nào mang mã đó được xếp lên đầu.'
+      : h((kq && kq.nhac) || 'Máy chỉ xếp được theo số tiền và ngày.')) +
+    ' Số tiền phiếu là <b>' + money(soTien) + ' đ</b>. ' +
     'Chọn đúng dòng khách đã chuyển. Tên anh chị được ghi lại cạnh giao dịch này.</div>';
   if (!rows.length) {
     than += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
       'border-radius:9px;padding:10px 12px;line-height:1.6">Không có giao dịch tiền vào nào ' +
-      'gần số tiền và ngày này trong sao kê đang có. Nếu tiền chắc chắn đã về thì sao kê ' +
+      'trong sao kê đang có ở khoảng ngày này. Nếu tiền chắc chắn đã về thì sao kê ' +
       'còn thiếu, báo anh Việt nạp bù giúp.</div>';
   } else {
     than += rows.map(function (r) {
+      /* Phân biệt bằng CẢ màu lẫn CHỮ, không chỉ bằng màu: có bạn không phân
+         biệt được màu, và màn này còn được in ra giấy đen trắng. */
+      var vien = r.khop_noi_dung ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
+      var nen = r.khop_noi_dung ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
       return '<button class="htgdv" data-gd="' + h(r.name) + '" style="display:block;width:100%;text-align:left;' +
-        'border:1.5px solid #e5e7eb;background:#fff;border-radius:11px;padding:10px 12px;margin-bottom:8px">' +
+        'border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;padding:10px 12px;margin-bottom:8px">' +
         '<div style="display:flex;gap:8px;align-items:baseline">' +
         '<div style="flex:1;font-weight:800;font-size:14px;color:#0a8a4a">+' + money(r.deposit) + ' đ</div>' +
         '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '')) + '</div></div>' +
         '<div style="font-size:11.5px;color:#6b7280;margin-top:3px;word-break:break-all">' +
-        h(String(r.description || '').slice(0, 140)) + '</div></button>';
+        h(String(r.description || '').slice(0, 140)) + '</div>' +
+        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
+        (r.khop_noi_dung ? '✅ khớp mã · ' : '') +
+        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
+        '</div></button>';
     }).join('');
   }
   if (d.gd_vao_ct) {

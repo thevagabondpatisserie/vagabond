@@ -53,6 +53,10 @@ dung im trong suot mot mach xem chi tiet roi tro ve dung cho khi lui.
 Nac 0 mang chuoi rong, va chuoi rong nghia la dia chi goc cua app. */
 S.duong = [];
 
+/* Cau hoi phai hoi truoc khi roi man dang giu thay doi chua luu. Rong la
+   khong co gi de mat. Xem chu thich o `roiChuaLuu` ben duoi. */
+S.chuaLuu = '';
+
 /* Slug cua nac dang dung. */
 function vgbNacDuong() { return S.duong[S.duong.length - 1] || ''; }
 
@@ -67,6 +71,19 @@ function vgbApNac() {
 function manSoan(f) {
   try { return f === scrStep1 || f === scrStep2 || f === scrStep3 || f === scrStep4; } catch (e) { return false; }
 }
+/* ---------- Thay doi chua luu (v294) ----------
+
+   Man nao dang giu thay doi chi nam trong bo nho trinh duyet thi dat
+   `S.chuaLuu` bang mot cau hoi, va xoa no ngay khi luu xong.
+
+   Vi sao can: man Cai dat may in cho cham chon tung chip roi moi bam Luu.
+   Cham xong ma roi man la mat sach, khong mot loi canh bao - ban De o quay
+   dinh dung ca nay ngay 24/08/2026. Dat o tang khung chu khong o rieng man
+   do, vi con vai man nua cung nep "sua roi moi luu". */
+function roiChuaLuu() {
+  return String(S.chuaLuu || '');
+}
+
 function roiPhieuDo(dich) {
   /* Dang dung o man soan phieu, co it nhat mot mon, va dich den KHONG con
      trong luong soan -> roi di la mat ban nhap, phai hoi mot cau. */
@@ -95,10 +112,17 @@ function go(fn, replace) {
 function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
+    S.chuaLuu = '';
     S.stack.pop(); S.duong.pop(); vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
+  var cau = roiChuaLuu();
+  if (cau) {
+    confirmSheet('Chưa lưu', cau, 'Rời đi, bỏ thay đổi', true)
+      .then(function (ok) { if (ok) buoc(); });
+    return;
+  }
   if (roiPhieuDo(S.stack[S.stack.length - 2])) {
     confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
       .then(function (ok) { if (ok) { S.draft = null; buoc(); } });
@@ -109,6 +133,7 @@ function back() {
 function reset(fn) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
+  S.chuaLuu = '';
   S.stack = [fn];
   S.duong = [slug];
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
