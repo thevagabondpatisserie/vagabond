@@ -50,7 +50,9 @@ COT = [
 	"da_tieu", "so_lan", "ngay_chua_ve",
 ]
 
-QUYEN = {"System Manager", "Accounts Manager", "Sales Manager"}
+from vagabond.vai_cua_hang import VAI_QLCH
+
+QUYEN = {"System Manager", "Accounts Manager", "Sales Manager", VAI_QLCH}
 
 
 def _kiem_quyen():

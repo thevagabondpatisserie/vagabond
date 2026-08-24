@@ -19,6 +19,13 @@ import frappe
 
 def dung():
 	"""Dung moi truong tu them do ma nguon khai. Goi tu after_migrate."""
+	# Vai "Quan ly cua hang" dung TRUOC moi thu khac: cac bo QUYEN_* ben
+	# duoi tham chieu toi no, ma vai chua ton tai thi phep kiem im lang
+	# cho khong ai vao duoc.
+	from vagabond import vai_cua_hang
+
+	vai_cua_hang.dung()
+
 	from vagabond import (
 		ban_hang, bao_gia, chung_tu_tien, diem_otp, duyet_ycmh, hoan_tien,
 		mua_dich_vu, noi_bo, sepay,

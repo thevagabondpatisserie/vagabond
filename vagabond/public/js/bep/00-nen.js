@@ -56,7 +56,25 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .btn.dg{background:#e04b4b}
 .btn.gr{background:#12a150}
 .row2{display:flex;gap:10px}.row2>*{flex:1}
-.card{background:#fff;border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07)}
+/* display:block la CO Y, dung xoa. Bootstrap cua Frappe dat
+   .card{display:flex;flex-direction:column} tren TOAN BO trang. Hau qua:
+   moi the inline nam truc tiep trong .card (<b>, <i>, <span>) bi trinh
+   duyet BLOCKIFY thanh flex item, tuc chiem tron mot dong.
+
+   Do la ly do that cua loi "chu dam bi xuong dong" anh Viet bao ngay
+   24/08/2026. Bon quy tac .kq b / .nbs b / .nbc b / .vxr .t b deu KHONG
+   dinh gi toi cac man do - di tim o day la di lac.
+
+   Va vi sao khong sua bang ".card > b{display:inline}": khong an. Blockify
+   doi gia tri TINH TOAN cua display tren flex item, ghi de moi thu minh
+   khai. Phai chan tu goc, tuc dung de .card la flex container nua.
+
+   An toan: ung dung chua bao gio dua vao .card la flex. 17 cho that su
+   can flex hay grid deu khai bang inline style, ma inline style thang
+   quy tac lop, nen chung khong he suy suyen. Xem them ham kmHangChip trong
+   13-khuyen-mai.js: hai phien truoc da gap dung cai bay nay va tung
+   nguoi tu boc mot lop div rieng de tranh. Nay chan mot lan cho tat ca. */
+.card{display:block;background:#fff;border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07)}
 .fld{display:flex;align-items:center;gap:12px;padding:14px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer;background:#fff}
 .fld:last-child{border-bottom:0}
 .fld:active{background:#f6f8fc}
