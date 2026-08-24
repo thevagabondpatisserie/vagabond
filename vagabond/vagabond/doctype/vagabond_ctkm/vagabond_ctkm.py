@@ -27,7 +27,7 @@ def sinh_ma_ctkm():
 		ma = "KM" + "".join(chu[int(c, 16) % len(chu)] for c in frappe.generate_hash(length=6))
 		if not frappe.db.exists("Vagabond CTKM", ma):
 			return ma
-	frappe.throw("Không sinh được mã chương trình, thử lại giúp em.")
+	frappe.throw("Không sinh được mã chương trình, vui lòng thử lại.")
 
 
 class VagabondCTKM(Document):
@@ -50,7 +50,7 @@ class VagabondCTKM(Document):
 		elif self.cach_thuc == "Tang mon":
 			pass  # muc uu dai nam o dong mon
 		elif flt(self.gia_tri) <= 0 and self.cach_thuc != "Mua X tang Y":
-			frappe.throw("Chương trình chưa có mức giảm. Điền giá trị giảm giúp em.")
+			frappe.throw("Chương trình chưa có mức giảm. Vui lòng điền giá trị giảm.")
 
 		if self.kieu_giam == "Phan tram" and flt(self.gia_tri) > 100:
 			frappe.throw("Giảm theo phần trăm mà điền %s là quá 100%%." % flt(self.gia_tri))

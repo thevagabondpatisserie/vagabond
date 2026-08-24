@@ -693,7 +693,7 @@ async function scrHdView(name) {
     if (!t) return;
     if (t.size > 12 * 1024 * 1024) {
       oScan.value = '';
-      return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại giúp em.', 'Tệp quá nặng');
+      return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Vui lòng chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại.', 'Tệp quá nặng');
     }
     busy(true);
     try { await bgTaiPhuLuc(name, t); }
@@ -916,7 +916,7 @@ async function nhChon(dangChon, xong) {
     }
     busy(false);
   }
-  if (!NH_DS.length) return baoTin('Danh mục ngân hàng đang trống. Báo em để nạp lại.', 'Chưa có dữ liệu');
+  if (!NH_DS.length) return baoTin('Danh mục ngân hàng đang trống. Báo bộ phận kỹ thuật để nạp lại.', 'Chưa có dữ liệu');
   sheet('Chọn ngân hàng · ' + NH_DS.length + ' ngân hàng',
     NH_DS.map(function (x) {
       return { value: x.k, label: x.ten, phu: x.hinh_thuc || '', tim: x.tim || '' };
@@ -1087,13 +1087,13 @@ function hoanVeForm() {
     '">' + h(f.dien_giai) + '</textarea>' +
 
     '<div style="height:14px"></div>' + rndLbl('Khách hàng') +
-    (f.nguon_khach ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn từ ' + h(f.nguon_khach) + ', kiểm lại giúp em.</div>' : '') +
+    (f.nguon_khach ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn từ ' + h(f.nguon_khach) + ', vui lòng kiểm lại.</div>' : '') +
     '<input class="nt" id="htFKhach" placeholder="Tên khách" value="' + h(f.ten_khach) + '">' +
     '<div style="height:7px"></div>' +
     '<input class="nt" id="htFSdt" inputmode="tel" placeholder="Số điện thoại khách (không bắt buộc)" value="' + h(f.sdt) + '">' +
 
     '<div style="height:14px"></div>' + rndLbl('Tài khoản nhận tiền của khách') +
-    (f.goi_y && f.goi_y.so_tk ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn tài khoản khách dùng lần trước, kiểm lại giúp em.</div>' : '') +
+    (f.goi_y && f.goi_y.so_tk ? '<div style="font-size:11.5px;color:#0f766e;margin-bottom:6px">Đã điền sẵn tài khoản khách dùng lần trước, vui lòng kiểm lại.</div>' : '') +
     /* Ô ngân hàng là NÚT CHỌN chứ không gõ tay: gõ "MB" thì máy không tìm
        ra "MB - Ngân hàng TMCP Quân đội", và một cái tên sai ở đây là tiền
        đi vào một ngân hàng không tồn tại. */
@@ -1217,8 +1217,8 @@ async function htFGui() {
   var du = !!f.du;
   var huy = !!f.huy;
   var tranF = (du || huy) ? Number(f.tran || 0) : Number(f.tong || 0);
-  if (!f.ly_do) return toast(du ? 'Chọn lý do dư tiền giúp em.'
-    : huy ? 'Chọn lý do huỷ đơn giúp em.' : 'Chọn lý do hoàn giúp em.', 3500);
+  if (!f.ly_do) return toast(du ? 'Vui lòng chọn lý do dư tiền.'
+    : huy ? 'Vui lòng chọn lý do huỷ đơn.' : 'Vui lòng chọn lý do hoàn.', 3500);
   if (f.ly_do === 'Khac' && !(f.dien_giai || '').trim())
     return toast('Lý do "Khác" thì phải ghi rõ vì sao ' + (du ? 'dư' : huy ? 'huỷ' : 'hoàn') + '.', 4000);
   if (!f.tien || f.tien <= 0) return toast('Nhập số tiền lớn hơn 0.', 3500);
@@ -1364,7 +1364,7 @@ async function hdGuiMail(hd) {
   try { ng = await api('vagabond.hop_dong_pdf.xem_nguoi_nhan', { name: hd.name, email: em }); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Không kiểm được danh sách người nhận'); }
   busy(false);
-  if (ng.sai && ng.sai.length) return baoTin('Địa chỉ này chưa đúng dạng email: ' + ng.sai.join(', ') + '. Anh chị sửa lại giúp em.');
+  if (ng.sai && ng.sai.length) return baoTin('Địa chỉ này chưa đúng dạng email: ' + ng.sai.join(', ') + '. Anh chị vui lòng sửa lại.');
   if (!ng.nhan.length) return baoTin('Chưa có địa chỉ nào hợp lệ để gửi.');
 
   var mo = 'Hợp đồng ' + (hd.so_hop_dong || hd.name) + ' · ' + money(hd.gia_tri) + ' đ\n\n' +
@@ -1794,6 +1794,12 @@ function htCtVe() {
   b.querySelectorAll('.htunctep').forEach(function (n) {
     n.onclick = function () { htUncTaiTep(d.name, n.getAttribute('data-tep'), n.getAttribute('data-ten')); };
   });
+  b.querySelectorAll('[data-htgounc]').forEach(function (n) {
+    n.onclick = function (e) {
+      e.stopPropagation();
+      htUncGo(d, n.getAttribute('data-htgounc'), n.getAttribute('data-ten'));
+    };
+  });
   htUncNapAnh(b, d.name);
   var nKt = document.getElementById('htUncXong');
   if (nKt) nKt.onclick = function () { htUncKetThuc(d); };
@@ -1998,8 +2004,8 @@ function htCtHddt(d) {
       '<div style="font-size:11.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
       'border-radius:9px;padding:9px 11px;margin-top:8px;line-height:1.6">' +
       'Nút trên đang mở trang chủ M-Invoice chứ chưa nhảy thẳng tới tờ hoá đơn, ' +
-      'vì em chưa biết đường dẫn sâu của họ. Chị Dung mở một tờ bất kỳ bên đó, ' +
-      'chép đường dẫn trên thanh địa chỉ gửi anh Việt, em khai vào Cài đặt một ' +
+      'vì hệ thống chưa biết đường dẫn sâu của họ. Chị Dung mở một tờ bất kỳ bên đó, ' +
+      'chép đường dẫn trên thanh địa chỉ gửi anh Việt, khai vào Cài đặt một ' +
       'lần là từ đó bấm một phát ra đúng tờ.</div>';
   }
   h_ += htCtThayThe(d, v);
@@ -2086,7 +2092,7 @@ function htHddtMo(d) {
   var v = d.hddt || {};
   var u = v.lien_ket || v.host;
   if (!u) {
-    return baoTin('Chưa khai host M-Invoice trong Cài đặt nên em chưa biết mở đi đâu.', 'Thiếu cấu hình');
+    return baoTin('Chưa khai host M-Invoice trong Cài đặt nên hệ thống chưa biết mở đi đâu.', 'Thiếu cấu hình');
   }
   window.open(u, '_blank', 'noopener');
 }
@@ -2099,7 +2105,7 @@ function htHddtChep(d) {
     navigator.clipboard.writeText(t);
     toast('Đã chép mã tra cứu ' + t + '. Dán vào ô tra cứu bên M-Invoice.', 5000);
   } catch (e) {
-    baoTin('Mã tra cứu: ' + t, 'Chép tay giúp em');
+    baoTin('Mã tra cứu: ' + t, 'Vui lòng chép tay');
   }
 }
 
@@ -2131,28 +2137,44 @@ function htCtUnc(d) {
        tho la Sales bam vao chi nhan 403. */
     var anhUnc = tep.filter(function (t) { return t.la_anh && t.tep; });
     var tepKhac = tep.filter(function (t) { return !(t.la_anh && t.tep); });
+    /* Nut X o goc tung o (anh Viet 24/08/2026). Chi bay ra khi phieu CHUA
+       ket thuc: ghi so roi thi to UNC la chung tu cua but toan da nam
+       trong so, go ra la lam thung ho so giai trinh thue. Backend chan
+       lan nua, khong tin mot minh man hinh. */
+    var goDuocUnc = !!d.dinh_duoc_unc;
     if (anhUnc.length) {
-      h_ += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:7px">' +
+      h_ += '<div style="display:flex;gap:13px 10px;flex-wrap:wrap;margin:7px 0">' +
         anhUnc.map(function (t) {
-          return '<div class="htuncanh" data-tep="' + h(t.tep) + '" data-ten="' + h(t.ten) + '" ' +
-            'style="width:86px;height:86px;border-radius:10px;border:1.5px solid #d1fae5;' +
-            'background:#f0fdf4;display:flex;align-items:center;justify-content:center;' +
-            'overflow:hidden;font-size:20px;color:#a7c4b5">⏳</div>';
+          return oTep({
+            cho: 1, ten: t.ten, co: 86,
+            lop: 'htuncanh',
+            mo: 'data-tep="' + h(t.tep) + '" data-ten="' + h(t.ten) + '"',
+            go: goDuocUnc ? 'data-htgounc="' + h(t.tep) + '" data-ten="' + h(t.ten) + '"' : ''
+          });
         }).join('') + '</div>' +
         '<div style="font-size:11.5px;color:#4b7a63;margin-bottom:7px">Bấm vào ảnh để ' +
-        'phóng to, trong ảnh phóng to có nút tải về gửi khách.</div>';
+        'phóng to, trong ảnh phóng to có nút tải về gửi khách.' +
+        (goDuocUnc ? ' Đính nhầm thì bấm dấu ✕ ở góc để gỡ.' : '') + '</div>';
     }
     h_ += tepKhac.map(function (t) {
-      return '<div class="htunctep" data-tep="' + h(t.tep || '') + '" data-ten="' + h(t.ten) + '" ' +
-        'style="display:flex;gap:9px;align-items:center;cursor:pointer;' +
+      return '<div style="display:flex;gap:9px;align-items:center;' +
         'border:1.5px solid #d1fae5;background:#f0fdf4;border-radius:10px;' +
         'padding:9px 11px;margin-bottom:7px">' +
+        '<div class="htunctep" data-tep="' + h(t.tep || '') + '" data-ten="' + h(t.ten) + '" ' +
+        'style="display:flex;gap:9px;align-items:center;cursor:pointer;flex:1;min-width:0">' +
         '<div style="flex:none;font-size:17px">📄</div>' +
         '<div style="flex:1;min-width:0">' +
         '<div style="font-size:13px;font-weight:700;color:#065f46;word-break:break-all">' +
         h(t.ten) + '</div>' +
         '<div style="font-size:11.5px;color:#4b7a63">Đính lúc ' +
-        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></div>';
+        h(String(t.luc || '').slice(0, 16)) + ' · bấm để tải về gửi khách</div></div></div>' +
+        (goDuocUnc
+          ? '<span data-htgounc="' + h(t.tep || '') + '" data-ten="' + h(t.ten) + '" ' +
+            'title="Gỡ tệp này" style="flex:none;display:inline-flex;width:28px;height:28px;' +
+            'align-items:center;justify-content:center;border-radius:50%;background:#c0392b;' +
+            'color:#fff;cursor:pointer;font-size:14px;font-weight:700">✕</span>'
+          : '') +
+        '</div>';
     }).join('');
   } else {
     h_ += '<div style="font-size:12.5px;color:#6b7280;line-height:1.6;padding-bottom:4px">' +
@@ -2179,6 +2201,25 @@ function htCtUnc(d) {
   return h_ + '</div>';
 }
 
+/* Go mot uy nhiem chi dinh nham. Hoi lai truoc khi go: to nay la bang
+   chung chi tien cho khach, go nham mot to la Sales gui thieu cho khach. */
+async function htUncGo(d, tep, ten) {
+  if (!tep) return;
+  var ok = await xacNhan(
+    'Gỡ "' + (ten || tep) + '" khỏi phiếu chi ' + (d.phieu_chi || '') + '?\n\n' +
+    'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Gỡ xong nhớ đính lại tờ đúng, ' +
+    'không thì phiếu không kết thúc được.',
+    'Gỡ uỷ nhiệm chi', 'Gỡ');
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.hoan_tien.go_unc', { ho_so: d.name, tep: tep });
+    busy(false);
+    toast('Đã gỡ ' + (ten || tep), 3000);
+    htChiTiet(d.name);
+  } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được tệp', 'Lỗi'); }
+}
+
 /* Nap hinh nho cua tung anh UNC sau khi man da ve. Goi mot luot, moi anh
    mot yeu cau rieng de anh nao hong khong keo do anh khac. */
 async function htUncNapAnh(b, hoSo) {
@@ -2189,9 +2230,21 @@ async function htUncNapAnh(b, hoSo) {
       var r = await api('vagabond.hoan_tien.tai_unc', {
         ho_so: hoSo, tep: n.getAttribute('data-tep'), co: 'nho'
       });
-      n.innerHTML = '<img src="data:' + r.mime + ';base64,' + r.b64 + '" alt="" ' +
-        'style="width:100%;height:100%;object-fit:cover;display:block">';
-    } catch (e) { n.textContent = '🚫'; n.title = (e && e.message) || ''; }
+      /* Chi thay o CHO ben trong, KHONG dung n.innerHTML: nut X la con
+         cua chinh o nay, ghi de ca ruot la nut X bien mat. */
+      var oCho = n.querySelector('.tt');
+      if (oCho) {
+        var anh = document.createElement('img');
+        anh.src = 'data:' + r.mime + ';base64,' + r.b64;
+        anh.alt = '';
+        anh.style.cssText = oCho.style.cssText.replace(/font-size:[^;]*;?/, '') +
+          ';object-fit:cover;display:block;border-radius:10px;border:1.5px solid #d1fae5';
+        oCho.replaceWith(anh);
+      }
+    } catch (e) {
+      var oLoi = n.querySelector('.tt');
+      if (oLoi) { oLoi.textContent = '🚫'; oLoi.title = (e && e.message) || ''; }
+    }
   }
 }
 
@@ -2236,7 +2289,7 @@ function htUncGui(d, file) {
      trình thuế, chỉnh một pixel cũng là chỉnh chứng từ. Chỉ chặn tệp quá
      nặng ngay tại đây để người bấm biết liền, máy chủ vẫn chặn lần nữa. */
   if (file.size > 12 * 1024 * 1024) {
-    return toast('Tệp nặng quá 12 MB nên máy không nhận. Xuất lại bản PDF nhỏ hơn giúp em.', 4500);
+    return toast('Tệp nặng quá 12 MB nên máy không nhận. Vui lòng xuất lại bản PDF nhỏ hơn.', 4500);
   }
   var fr = new FileReader();
   fr.onload = async function () {
@@ -2538,7 +2591,7 @@ function mvNgay(s) {
 async function mvLapMua() {
   var ten = await hoiNhap('Tên mùa vụ, ví dụ "Trung thu 2026"', '');
   if (ten === null) return;
-  if (!(ten || '').trim()) return toast('Đặt tên cho mùa vụ giúp em.', 3500);
+  if (!(ten || '').trim()) return toast('Vui lòng đặt tên cho mùa vụ.', 3500);
   var t1 = await hoiNhap('Bán từ ngày (YYYY-MM-DD)', String(new Date().toISOString().slice(0, 10)));
   if (t1 === null) return;
   var t2 = await hoiNhap('Bán đến ngày (YYYY-MM-DD)', '');
@@ -3038,7 +3091,7 @@ async function mvSuaSx(ma) {
     var v = await hoiNhap(nhan, String(it.value === 'san_xuat' ? (x.san_xuat || 0) : (x.tran_ngay || 0)));
     if (v === null) return;
     var so = Number(String(v).replace(/[^0-9]/g, ''));
-    if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+    if (isNaN(so)) return toast('Vui lòng nhập một con số.', 3500);
     mvLuuO(ma, it.value, so);
   });
 }
@@ -3347,7 +3400,7 @@ async function mvSuaTonDau(ma) {
     String(x.ton_dau || 0), 'Chốt tồn đầu ngày');
   if (v === null) return;
   var so = Number(String(v).replace(/[^0-9]/g, ''));
-  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+  if (isNaN(so)) return toast('Vui lòng nhập một con số.', 3500);
   return mvGhiTonDau(ma, so, 0, ten, ngay);
 }
 
@@ -3383,7 +3436,7 @@ async function mvSuaBepLam(ma) {
   );
   if (v === null) return;
   var so = Number(String(v).replace(/[^0-9]/g, ''));
-  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+  if (isNaN(so)) return toast('Vui lòng nhập một con số.', 3500);
   busy(true);
   try {
     MV.cbData = await api('vagabond.mua_vu.dat_san_luong',
@@ -3453,7 +3506,7 @@ async function mvSuaNhaIn(ma) {
     String(x.nha_in_giao || 0));
   if (v === null) return;
   var so = Number(String(v).replace(/[^0-9]/g, ''));
-  if (isNaN(so)) return toast('Nhập một con số giúp em.', 3500);
+  if (isNaN(so)) return toast('Vui lòng nhập một con số.', 3500);
   mvLuuO(ma, 'nha_in_giao', so);
 }
 
@@ -3695,7 +3748,7 @@ async function mvKhaiDot() {
       var sl = await hoiNhap('Số lượng đợt này của "' + String(it.label).slice(0, 34) + '"', '');
       if (sl === null) return;
       var so = Number(String(sl).replace(/[^0-9]/g, ''));
-      if (!so) return toast('Nhập số lượng lớn hơn 0 giúp em.', 3500);
+      if (!so) return toast('Vui lòng nhập số lượng lớn hơn 0.', 3500);
       var ng = await hoiNhap('Ngày dự kiến hàng về (YYYY-MM-DD), để trống nếu chưa rõ', '');
       if (ng === null) return;
       var gc = await hoiNhap('Ghi chú (không bắt buộc)', '');
@@ -3778,7 +3831,7 @@ async function mvKhaiDinhMuc() {
           String(banh.label).slice(0, 26) + '"', '');
         if (sl === null) return;
         var so = Number(String(sl).replace(/[^0-9]/g, ''));
-        if (!so) return toast('Nhập số lớn hơn 0 giúp em.', 3500);
+        if (!so) return toast('Vui lòng nhập số lớn hơn 0.', 3500);
         busy(true);
         try {
           MV.data = await api('vagabond.mua_vu.them_dinh_muc',
@@ -4021,7 +4074,7 @@ function hdTaiBanChot(name, file) {
   }
   if (file.size > 20 * 1024 * 1024) {
     return baoTin('Tệp nặng ' + Math.round(file.size / 1048576) + ' MB, quá 20 MB. ' +
-      'Xuất lại bản PDF nhẹ hơn giúp em.', 'Tệp quá nặng');
+      'Vui lòng xuất lại bản PDF nhẹ hơn.', 'Tệp quá nặng');
   }
   var fr = new FileReader();
   fr.onload = async function () {

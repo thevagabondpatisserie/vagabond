@@ -354,7 +354,7 @@ async function scrRecvDoc(name) {
         d.remarks = (d.remarks || '') + (chuaGia.length
           ? ' | Nhap kho khi chua co gia: ' + chuaGia.join(', ') + ' - ke toan bo sung gia sau.'
           : ' | May tu lay gia mua gan nhat cho ' + zeroRows.length + ' dong chua co gia tren don.');
-        if (chuaGia.length) setTimeout(function () { toast('Có ' + chuaGia.length + ' món nhập kho khi chưa có giá. Báo kế toán bổ sung giá giúp em.', 7000); }, 1400);
+        if (chuaGia.length) setTimeout(function () { toast('Có ' + chuaGia.length + ' món nhập kho khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
       }
 
       await api('frappe.client.submit', { doc: d });
@@ -556,7 +556,7 @@ async function scrNhpDon(don) {
       });
       busy(0);
       if (r.thieu_gia && r.thieu_gia.length) {
-        setTimeout(function () { toast('Có ' + r.thieu_gia.length + ' món nhập khi chưa có giá. Báo kế toán bổ sung giá giúp em.', 7000); }, 1400);
+        setTimeout(function () { toast('Có ' + r.thieu_gia.length + ' món nhập khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
       }
       toast('✓ Đã nhận hàng đợt ' + r.dot + ', phiếu ' + r.phieu + '.' +
         (r.con_lai > 0.0001 ? ' Đơn còn nợ ' + num(r.con_lai) + ' đơn vị của ' + r.so_mon_con + ' món.' : ' Đơn đã nhận đủ.'), 6000);
@@ -1453,7 +1453,7 @@ async function kkScanOne() {
   var ic = null;
   try { ic = await itemByBarcode(String(code).trim().replace(/^\*+|\*+$/g, '')); } catch (e) { }
   busy(0);
-  if (!ic) return toast('Chưa nhận ra mã ' + code + '. Tìm bằng tên món giúp em.');
+  if (!ic) return toast('Chưa nhận ra mã ' + code + '. Vui lòng tìm bằng tên món.');
   if (kk.tab === 'chua' && kkIdx(ic) < 0) return kkAddAsk(ic);
   kk.q = ic; kk.tab = 'da'; kkDraw();
 }
@@ -1729,7 +1729,7 @@ async function kkpSubmit() {
   var rows = kkp.rows.filter(function (r) { return kkNum(r.so_luong) > 0 || kkNum(r.ton_he_thong) > 0; });
   if (!rows.length) return toast('Phiếu không có món nào để ghi sổ');
   var bad = rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
-  if (bad.length) return toast('Còn ' + bad.length + ' món chưa có giá vốn, điền giúp em rồi ghi sổ lại');
+  if (bad.length) return toast('Còn ' + bad.length + ' món chưa có giá vốn, vui lòng điền rồi ghi sổ lại');
   if (!kkp.acc) return toast('Chọn tài khoản đối ứng chênh lệch trước đã');
 
   var ok = await confirmSheet('Ghi sổ ' + rows.length + ' món?',

@@ -230,7 +230,7 @@ def _quyen():
 
 def _doc(name):
 	if not frappe.db.exists(DT, name):
-		frappe.throw("Không tìm thấy hợp đồng %s. Tải lại danh sách giúp em." % name)
+		frappe.throw("Không tìm thấy hợp đồng %s. Vui lòng tải lại danh sách." % name)
 	return frappe.get_doc(DT, name)
 
 
@@ -372,7 +372,7 @@ def cap_nhat_so_lieu(name, gt=None):
 		else:
 			dat[k] = (str(v or "")).strip()
 	if "gia_tri" in dat and dat["gia_tri"] < 0:
-		frappe.throw("Giá trị hợp đồng không âm được. Kiểm lại con số vừa gõ giúp em.")
+		frappe.throw("Giá trị hợp đồng không âm được. Vui lòng kiểm lại con số vừa gõ.")
 	if "dat_coc_pt" in dat and not (0 <= dat["dat_coc_pt"] <= 100):
 		frappe.throw("Phần trăm đợt 1 phải nằm trong khoảng 0 đến 100.")
 	# Chup lai TEN O TRUOC khi goi set_value: Frappe nhet them `modified` va
@@ -555,7 +555,7 @@ def tai_ban_chot(name, ten=None, noi_dung=None, ghi_chu=None):
 		)
 	noi = (str(noi_dung or "")).strip()
 	if not noi:
-		frappe.throw("Chưa chọn tệp. Bấm Chọn tệp rồi thử lại giúp em.")
+		frappe.throw("Chưa chọn tệp. Vui lòng bấm Chọn tệp rồi thử lại.")
 	if "," in noi and noi[:5].lower() == "data:":
 		noi = noi.split(",", 1)[1]
 	import base64
@@ -563,12 +563,12 @@ def tai_ban_chot(name, ten=None, noi_dung=None, ghi_chu=None):
 	try:
 		so_byte = len(base64.b64decode(noi))
 	except Exception:
-		frappe.throw("Tệp gửi lên hỏng giữa đường nên máy không nhận được. Chọn lại tệp giúp em.")
+		frappe.throw("Tệp gửi lên hỏng giữa đường nên máy không nhận được. Vui lòng chọn lại tệp.")
 	if so_byte <= 0:
-		frappe.throw("Tệp rỗng. Kiểm lại tệp trên máy giúp em.")
+		frappe.throw("Tệp rỗng. Vui lòng kiểm lại tệp trên máy.")
 	if so_byte > TRAN_TEP:
 		frappe.throw(
-			"Tệp nặng %s MB, quá 20 MB. Xuất lại bản PDF nhẹ hơn giúp em."
+			"Tệp nặng %s MB, quá 20 MB. Vui lòng xuất lại bản PDF nhẹ hơn."
 			% ("{:.1f}".format(so_byte / 1024.0 / 1024.0))
 		)
 
@@ -591,9 +591,7 @@ def tai_ban_chot(name, ten=None, noi_dung=None, ghi_chu=None):
 		if "Pdf" in type(e).__name__ or "pdf" in str(e).lower():
 			frappe.log_error(frappe.get_traceback(), "hop_dong_dieu_chinh: tep PDF hong")
 			frappe.throw(
-				"Tệp PDF này máy đọc không ra, nhiều khả năng nó hỏng hoặc bị "
-				"khoá mật khẩu. Mở lại bằng máy tính, bấm In rồi chọn Lưu thành "
-				"PDF để xuất một bản mới, xong tải lên lại giúp em."
+				"Tệp PDF này máy đọc không ra, nhiều khả năng nó hỏng hoặc bị khoá mật khẩu. Mở lại bằng máy tính, bấm In rồi chọn Lưu thành PDF để xuất một bản mới, vui lòng xong tải lên lại."
 			)
 		raise
 

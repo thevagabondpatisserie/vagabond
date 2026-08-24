@@ -680,7 +680,7 @@ async function scrPosBill(name) {
         if (kq.ten) document.getElementById('pbXTen').value = kq.ten;
         if (kq.dia_chi) document.getElementById('pbXDc').value = kq.dia_chi;
         toast('Tra được: ' + (kq.ten || ''));
-      } else toast('Không tra được mã này, điền tay giúp em.', 4000);
+      } else toast('Không tra được mã này, vui lòng điền tay.', 4000);
     } catch (er) { busy(false); toast((er && er.message) || 'Không tra được mã số thuế', 4000); }
   };
 

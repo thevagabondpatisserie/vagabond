@@ -269,8 +269,7 @@ def _doc_tep(file_url):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "nhap_sao_ke: doc xlsx loi")
 			return [], (
-				"Tệp Excel này máy chưa đọc được. Mở bằng Excel rồi lưu lại dạng "
-				"CSV UTF-8, tải lên lại giúp em."
+				"Tệp Excel này máy chưa đọc được. Mở bằng Excel rồi lưu lại dạng CSV UTF-8, vui lòng tải lên lại."
 			)
 	if ten.endswith(".csv"):
 		import csv
@@ -284,7 +283,7 @@ def _doc_tep(file_url):
 				except UnicodeDecodeError:
 					continue
 		if isinstance(noi_dung, bytes):
-			return [], "Tệp CSV dùng bảng mã máy không đọc được. Lưu lại dạng CSV UTF-8 giúp em."
+			return [], "Tệp CSV dùng bảng mã máy không đọc được. Vui lòng lưu lại dạng CSV UTF-8."
 		dau = noi_dung[:4000]
 		nc = ";" if dau.count(";") > dau.count(",") else ","
 		return [list(r) for r in csv.reader(_io.StringIO(noi_dung), delimiter=nc)], ""
@@ -410,12 +409,11 @@ def tai_len(ten=None, noi_dung=None):
 	ten = (ten or "").strip() or "sao-ke.xlsx"
 	if not ten.lower().endswith((".xlsx", ".xlsm", ".csv")):
 		frappe.throw(
-			"Chỉ nhận tệp .xlsx hoặc .csv. Mở tệp ngân hàng gửi bằng Excel rồi "
-			"bấm Lưu thành .xlsx hoặc CSV, xong tải lên lại giúp em."
+			"Chỉ nhận tệp .xlsx hoặc .csv. Mở tệp ngân hàng gửi bằng Excel rồi bấm Lưu thành .xlsx hoặc CSV, vui lòng xong tải lên lại."
 		)
 	noi = (noi_dung or "").strip()
 	if not noi:
-		frappe.throw("Chưa chọn tệp sao kê. Bấm Chọn tệp rồi thử lại giúp em.")
+		frappe.throw("Chưa chọn tệp sao kê. Vui lòng bấm Chọn tệp rồi thử lại.")
 	if "," in noi and noi[:5].lower() == "data:":
 		noi = noi.split(",", 1)[1]
 	import base64
@@ -423,9 +421,9 @@ def tai_len(ten=None, noi_dung=None):
 	try:
 		so_byte = len(base64.b64decode(noi))
 	except Exception:
-		frappe.throw("Tệp gửi lên hỏng giữa đường nên máy không đọc được. Chọn lại tệp giúp em.")
+		frappe.throw("Tệp gửi lên hỏng giữa đường nên máy không đọc được. Vui lòng chọn lại tệp.")
 	if so_byte <= 0:
-		frappe.throw("Tệp sao kê rỗng. Kiểm lại tệp ngân hàng gửi giúp em.")
+		frappe.throw("Tệp sao kê rỗng. Vui lòng kiểm lại tệp ngân hàng gửi.")
 	if so_byte > 20 * 1024 * 1024:
 		frappe.throw(
 			"Tệp nặng %s MB, quá 20 MB. Cắt sao kê theo tháng rồi tải từng tệp."

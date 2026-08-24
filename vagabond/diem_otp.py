@@ -179,11 +179,11 @@ def kiem_so_diem(xin, tong_bill, so_du, quy_doi=MD_QUY_DOI, tran_pt=MD_TRAN_PT, 
 	try:
 		d = int(flt(xin))
 	except (TypeError, ValueError):
-		return 0, "Số điểm phải là số nguyên. Nhập lại giúp em."
+		return 0, "Số điểm phải là số nguyên. Vui lòng nhập lại."
 	if d <= 0:
-		return 0, "Số điểm phải lớn hơn 0. Nhập lại giúp em."
+		return 0, "Số điểm phải lớn hơn 0. Vui lòng nhập lại."
 	if flt(xin) != d:
-		return 0, "Số điểm phải là số nguyên, không có phần lẻ. Nhập lại giúp em."
+		return 0, "Số điểm phải là số nguyên, không có phần lẻ. Vui lòng nhập lại."
 	if d > flt(so_du):
 		return 0, "Khách chỉ còn %s điểm nên không dùng %s điểm được. Nhập lại số nhỏ hơn." % (
 			_so(so_du),
@@ -343,7 +343,7 @@ def _kiem_don_con_tru_duoc(si):
 			"kế toán huỷ hoá đơn rồi lập lại." % si["name"]
 		)
 	if cint(si.get("vgb_huy")):
-		frappe.throw("Hoá đơn %s đã huỷ nên không trừ điểm được. Lập bill mới giúp em." % si["name"])
+		frappe.throw("Hoá đơn %s đã huỷ nên không trừ điểm được. Vui lòng lập bill mới." % si["name"])
 	if (si.get("custom_hddt_so") or "").strip():
 		frappe.throw(
 			"Hoá đơn %s đã xuất hoá đơn điện tử số %s nên không đổi được số tiền. "
@@ -356,8 +356,7 @@ def _kiem_khach_tieu_duoc(khach):
 	hang = (frappe.db.get_value("Customer", khach, "vgb_hang") or "").strip()
 	if hang.upper() in HANG_CAM_TIEU:
 		frappe.throw(
-			"Hạng %s nhận ưu đãi giảm giá thẳng trên bill nên không dùng điểm được. "
-			"Áp mức giảm của hạng cho khách giúp em." % hang
+			"Hạng %s nhận ưu đãi giảm giá thẳng trên bill nên không dùng điểm được. Vui lòng áp mức giảm của hạng cho khách." % hang
 		)
 	return hang
 
@@ -489,7 +488,7 @@ def xac_nhan(si_name=None, ma=None):
 
 	ma = re.sub(r"\D", "", str(ma or ""))
 	if len(ma) != 6:
-		frappe.throw("Mã xác nhận gồm 6 chữ số. Nhập lại giúp em.")
+		frappe.throw("Mã xác nhận gồm 6 chữ số. Vui lòng nhập lại.")
 
 	ds = frappe.get_all(
 		DT_OTP,
@@ -516,8 +515,8 @@ def xac_nhan(si_name=None, ma=None):
 		frappe.db.set_value(DT_OTP, o["name"], "so_lan_sai", cint(o.get("so_lan_sai")) + 1)
 		frappe.db.commit()
 		if con <= 0:
-			frappe.throw("Mã không đúng. Mã này đã hết lượt nhập, bấm Gửi lại mã giúp em.")
-		frappe.throw("Mã không đúng. Còn %d lần nhập, kiểm tra lại rồi gõ lại giúp em." % con)
+			frappe.throw("Mã không đúng. Mã này đã hết lượt nhập, vui lòng bấm Gửi lại mã.")
+		frappe.throw("Mã không đúng. Còn %d lần nhập, vui lòng kiểm tra lại rồi gõ lại." % con)
 
 	# Ma dung. Tu day tro xuong la ghi so, nen khoa dong khach lai truoc:
 	# hai thu ngan bam cung luc tren hai may thi khong duoc phep ca hai
@@ -532,7 +531,7 @@ def xac_nhan(si_name=None, ma=None):
 	if loi:
 		frappe.throw(loi)
 	if _diem_da_tru(si["name"]) > 0:
-		frappe.throw("Đơn này vừa được trừ điểm ở máy khác. Tải lại màn hình giúp em.")
+		frappe.throw("Đơn này vừa được trừ điểm ở máy khác. Vui lòng tải lại màn hình.")
 
 	frappe.db.set_value(DT_OTP, o["name"], "da_dung", 1, update_modified=False)
 	tien = _ghi_tru_diem(khach, duyet, si["name"], c["quy_doi"])
@@ -593,8 +592,7 @@ def _tran_cung(si, giam_moi):
 	truoc_giam = flt(si.get("grand_total")) + flt(si.get("discount_amount"))
 	if flt(giam_moi) > truoc_giam + 0.5:
 		frappe.throw(
-			"Tổng giảm giá %s đ đang vượt giá trị đơn %s đ nên đơn sẽ thành số âm. "
-			"Bớt số điểm dùng hoặc bỏ bớt khuyến mãi rồi làm lại giúp em."
+			"Tổng giảm giá %s đ đang vượt giá trị đơn %s đ nên đơn sẽ thành số âm. Vui lòng bớt số điểm dùng hoặc bỏ bớt khuyến mãi rồi làm lại."
 			% (_so(giam_moi), _so(truoc_giam))
 		)
 	return truoc_giam
@@ -896,21 +894,21 @@ def _ve_con_dung_duoc(ve, khach=None):
 	Tra ve ban ghi OTP.
 	"""
 	if not ve:
-		frappe.throw("Chưa có vé trừ điểm. Bấm Trừ điểm rồi xác nhận mã trước giúp em.")
+		frappe.throw("Chưa có vé trừ điểm. Vui lòng bấm Trừ điểm rồi xác nhận mã trước.")
 	o = frappe.db.get_value(
 		DT_OTP, ve,
 		["name", "khach", "so_diem", "da_dung", "da_xac_thuc", "han_dung", "muc_dich", "hoa_don"],
 		as_dict=True,
 	)
 	if not o or o.get("muc_dich") != MUC_DICH:
-		frappe.throw("Không tìm thấy vé trừ điểm này. Bấm Trừ điểm lại từ đầu giúp em.")
+		frappe.throw("Không tìm thấy vé trừ điểm này. Vui lòng bấm Trừ điểm lại từ đầu.")
 	if cint(o.get("da_dung")):
 		frappe.throw(
 			"Vé trừ điểm này đã dùng cho hoá đơn %s rồi. Muốn trừ tiếp thì xin mã mới."
 			% (o.get("hoa_don") or "khác")
 		)
 	if not cint(o.get("da_xac_thuc")):
-		frappe.throw("Khách chưa xác nhận mã cho lượt trừ điểm này. Nhập mã rồi bấm lại giúp em.")
+		frappe.throw("Khách chưa xác nhận mã cho lượt trừ điểm này. Vui lòng nhập mã rồi bấm lại.")
 	if o.get("han_dung") and now_datetime() > o["han_dung"]:
 		frappe.throw(
 			"Vé trừ điểm đã quá %d phút nên hết hiệu lực. Bấm Trừ điểm lại để xin mã mới."
@@ -918,8 +916,7 @@ def _ve_con_dung_duoc(ve, khach=None):
 		)
 	if khach and (o.get("khach") or "") != khach:
 		frappe.throw(
-			"Vé trừ điểm này của khách %s, không dùng cho khách %s được. "
-			"Bấm Trừ điểm lại cho đúng khách giúp em." % (o.get("khach"), khach)
+			"Vé trừ điểm này của khách %s, không dùng cho khách %s được. Vui lòng bấm Trừ điểm lại cho đúng khách." % (o.get("khach"), khach)
 		)
 	return o
 
@@ -938,11 +935,10 @@ def xin_ma_quay(khach=None, so_diem=None, items=None, giam_gia=0, phi_ship=0,
 	khach = (khach or "").strip()
 	if not khach:
 		frappe.throw(
-			"Chưa chọn khách hàng thân thiết nên chưa trừ điểm được. "
-			"Chọn khách ở ô Khách rồi bấm lại giúp em."
+			"Chưa chọn khách hàng thân thiết nên chưa trừ điểm được. Vui lòng chọn khách ở ô Khách rồi bấm lại."
 		)
 	if not frappe.db.exists("Customer", khach):
-		frappe.throw("Không có khách %s trong hệ thống. Chọn lại giúp em." % khach)
+		frappe.throw("Không có khách %s trong hệ thống. Vui lòng chọn lại." % khach)
 	_kiem_khach_tieu_duoc(khach)
 
 	con_khoa = _dang_bi_khoa(khach)
@@ -970,8 +966,7 @@ def xin_ma_quay(khach=None, so_diem=None, items=None, giam_gia=0, phi_ship=0,
 	tong = _tong_tam_tinh(items, giam_gia, phi_ship, km_giam)
 	if tong <= 0:
 		frappe.throw(
-			"Giỏ hàng đang trống hoặc bằng 0 đ nên chưa trừ điểm được. "
-			"Chọn món cho khách rồi bấm lại giúp em."
+			"Giỏ hàng đang trống hoặc bằng 0 đ nên chưa trừ điểm được. Vui lòng chọn món cho khách rồi bấm lại."
 		)
 
 	c = _cd()
@@ -1024,7 +1019,7 @@ def xac_nhan_quay(phien=None, ma=None):
 	_kiem_quyen()
 	ma = re.sub(r"\D", "", str(ma or ""))
 	if len(ma) != 6:
-		frappe.throw("Mã xác nhận gồm 6 chữ số. Nhập lại giúp em.")
+		frappe.throw("Mã xác nhận gồm 6 chữ số. Vui lòng nhập lại.")
 
 	o = frappe.db.get_value(
 		DT_OTP, phien,
@@ -1033,7 +1028,7 @@ def xac_nhan_quay(phien=None, ma=None):
 		as_dict=True,
 	)
 	if not o or o.get("muc_dich") != MUC_DICH:
-		frappe.throw("Không tìm thấy lượt xin mã này. Bấm Trừ điểm lại từ đầu giúp em.")
+		frappe.throw("Không tìm thấy lượt xin mã này. Vui lòng bấm Trừ điểm lại từ đầu.")
 	if cint(o.get("da_dung")):
 		frappe.throw("Lượt này đã dùng rồi. Bấm Trừ điểm lại nếu cần trừ thêm.")
 	if cint(o.get("da_xac_thuc")):
@@ -1051,8 +1046,8 @@ def xac_nhan_quay(phien=None, ma=None):
 		frappe.db.set_value(DT_OTP, o["name"], "so_lan_sai", cint(o.get("so_lan_sai")) + 1)
 		frappe.db.commit()
 		if con <= 0:
-			frappe.throw("Mã không đúng. Mã này đã hết lượt nhập, bấm Gửi lại mã giúp em.")
-		frappe.throw("Mã không đúng. Còn %d lần nhập, kiểm tra lại rồi gõ lại giúp em." % con)
+			frappe.throw("Mã không đúng. Mã này đã hết lượt nhập, vui lòng bấm Gửi lại mã.")
+		frappe.throw("Mã không đúng. Còn %d lần nhập, vui lòng kiểm tra lại rồi gõ lại." % con)
 
 	frappe.db.set_value(
 		DT_OTP, o["name"],
@@ -1081,8 +1076,7 @@ def dung_ve(ve, si_name):
 	khach = _khach_cua_don(si)
 	if not khach:
 		frappe.throw(
-			"Hoá đơn %s chưa gắn khách hàng thân thiết nên không trừ điểm được. "
-			"Chọn khách rồi lập lại bill giúp em." % si_name
+			"Hoá đơn %s chưa gắn khách hàng thân thiết nên không trừ điểm được. Vui lòng chọn khách rồi lập lại bill." % si_name
 		)
 
 	# Khoa dong khach truoc khi ghi: hai may cung tru mot luc thi khong duoc
@@ -1091,7 +1085,7 @@ def dung_ve(ve, si_name):
 
 	o = _ve_con_dung_duoc(ve, khach)
 	if _diem_da_tru(si_name) > 0:
-		frappe.throw("Hoá đơn %s đã được trừ điểm rồi. Tải lại màn hình giúp em." % si_name)
+		frappe.throw("Hoá đơn %s đã được trừ điểm rồi. Vui lòng tải lại màn hình." % si_name)
 
 	# Kiem LAI tran tren grand_total THAT. Giua luc khach doc ma va luc bam
 	# Thu tien, gio hang co the da doi.
@@ -1103,8 +1097,7 @@ def dung_ve(ve, si_name):
 	if loi:
 		# QT-24: noi ro phai lam gi tiep, va noi ro diem CHUA bi tru.
 		frappe.throw(
-			"%s Bill đã lưu là %s nhưng em CHƯA trừ điểm của khách. Mở bill đó ra "
-			"trừ điểm lại giúp em." % (loi, si_name)
+			"%s Bill đã lưu là %s nhưng hệ thống CHƯA trừ điểm của khách. Vui lòng mở bill đó ra trừ điểm lại." % (loi, si_name)
 		)
 
 	frappe.db.set_value(

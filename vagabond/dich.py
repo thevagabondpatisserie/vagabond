@@ -92,9 +92,7 @@ def _cau_loi(ma):
 	"""
 	if ma == 404:
 		return (
-			"Google đã đổi tên các máy dịch nên bản cũ không còn dùng được. "
-			"Anh chị gõ tay phần tiếng Anh giúp em lần này, và báo kỹ thuật "
-			"để cập nhật lại."
+			"Google đã đổi tên các máy dịch nên bản cũ không còn dùng được. Anh chị vui lòng gõ tay phần tiếng Anh lần này, và báo kỹ thuật để cập nhật lại."
 		)
 	if ma in (401, 403):
 		return (
@@ -108,17 +106,14 @@ def _cau_loi(ma):
 		)
 	if ma == 503:
 		return (
-			"Máy dịch của Google đang quá tải. Anh chị bấm dịch lại sau một "
-			"hai phút giúp em, tờ báo giá vẫn lưu bình thường."
+			"Máy dịch của Google đang quá tải. Anh chị vui lòng bấm dịch lại sau một hai phút, tờ báo giá vẫn lưu bình thường."
 		)
 	if 500 <= int(ma or 0) < 600:
 		return (
-			"Máy dịch của Google đang lỗi. Anh chị bấm dịch lại sau vài phút "
-			"giúp em, tờ báo giá vẫn lưu bình thường."
+			"Máy dịch của Google đang lỗi. Anh chị vui lòng bấm dịch lại sau vài phút, tờ báo giá vẫn lưu bình thường."
 		)
 	return (
-		"Chưa dịch được, máy dịch trả lỗi %s. Anh chị gõ tay phần tiếng Anh "
-		"giúp em rồi báo kỹ thuật." % ma
+		"Chưa dịch được, máy dịch trả lỗi %s. Anh chị vui lòng gõ tay phần tiếng Anh rồi báo kỹ thuật." % ma
 	)
 
 
@@ -199,9 +194,7 @@ def dich(chuoi=None):
 				"ok": 0,
 				"ly_do": "khong_goi_duoc_dich_vu_dich",
 				"loi": (
-					"Không gọi được dịch vụ dịch. Mạng của máy chủ đang trục "
-					"trặc, anh chị thử lại sau ít phút; nếu vẫn vậy thì gõ tay "
-					"phần tiếng Anh rồi báo kỹ thuật giúp em."
+					"Không gọi được dịch vụ dịch. Mạng của máy chủ đang trục trặc, anh chị thử lại sau ít phút; nếu vẫn vậy thì gõ tay phần tiếng Anh rồi báo kỹ thuật."
 				),
 				"ra": ds,
 			}

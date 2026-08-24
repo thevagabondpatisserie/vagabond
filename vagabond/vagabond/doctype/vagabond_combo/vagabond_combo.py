@@ -19,7 +19,7 @@ def sinh_ma_combo():
 		ma = "CB" + "".join(chu[int(c, 16) % len(chu)] for c in frappe.generate_hash(length=4))
 		if not frappe.db.exists("Vagabond Combo", ma):
 			return ma
-	frappe.throw("Không sinh được mã combo, thử lại giúp em.")
+	frappe.throw("Không sinh được mã combo, vui lòng thử lại.")
 
 
 def gia_ban_mon(item_code):
@@ -52,8 +52,7 @@ class VagabondCombo(Document):
 				d.gia_goc = gia_ban_mon(d.item_code)
 			if not flt(d.gia_goc):
 				frappe.throw(
-					"Món %s chưa có giá bán trong bảng giá. Điền giá gốc vào dòng "
-					"đó giúp em, không thì máy không biết combo tiết kiệm bao nhiêu."
+					"Món %s chưa có giá bán trong bảng giá. Vui lòng điền giá gốc vào dòng đó, không thì máy không biết combo tiết kiệm bao nhiêu."
 					% d.item_code
 				)
 			d.thanh_tien = flt(d.gia_goc) * flt(d.so_luong)
@@ -133,8 +132,7 @@ class VagabondCombo(Document):
 				toi_thieu = 0
 			if toi_thieu > toi_da:
 				frappe.throw(
-					"Nhóm \"%s\" đang bắt chọn tối thiểu %d món mà tối đa chỉ "
-					"%d. Sửa lại giúp em." % (g.ten, toi_thieu, toi_da)
+					'Nhóm "%s" đang bắt chọn tối thiểu %d món mà tối đa chỉ %d. Vui lòng sửa lại.' % (g.ten, toi_thieu, toi_da)
 				)
 			if toi_da > len(ds):
 				frappe.throw(

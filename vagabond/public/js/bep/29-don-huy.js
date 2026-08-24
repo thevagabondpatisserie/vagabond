@@ -255,20 +255,15 @@ function dhVeForm() {
     ';background:' + (f.bang_chung.length ? '#f0fdfa' : '#fff5f5') +
     ';border-radius:10px;padding:10px 11px">';
   if (f.bang_chung.length) {
-    s += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:9px">';
+    /* Man nay von da co dau nhan de go, nay doi sang o dung chung `oTep`
+       de moi man dinh kem trong app trong giong nhau: cung kich thuoc, cung
+       vi tri nut X, cung mau. Truoc do moi man mot kieu. */
+    s += '<div style="display:flex;flex-wrap:wrap;gap:14px 10px;margin:6px 0 11px">';
     f.bang_chung.forEach(function (t, i) {
-      s += '<div style="position:relative;width:74px">' +
-        (dhLaAnh(t.ten)
-          ? '<img src="' + h(t.url) + '" style="width:74px;height:74px;object-fit:cover;' +
-            'border-radius:8px;border:1px solid #d1d5db" loading="lazy">'
-          : '<div style="width:74px;height:74px;border-radius:8px;border:1px solid #d1d5db;' +
-            'display:flex;align-items:center;justify-content:center;font-size:26px;' +
-            'background:#fff">📄</div>') +
-        '<button data-dhgo="' + i + '" style="position:absolute;top:-6px;right:-6px;width:22px;' +
-        'height:22px;border-radius:50%;border:1px solid #fecaca;background:#fff;color:#b3261e;' +
-        'font-size:13px;line-height:1;padding:0">&times;</button>' +
-        '<div style="font-size:10px;color:#98a2b3;margin-top:3px;overflow:hidden;' +
-        'text-overflow:ellipsis;white-space:nowrap">' + h(t.ten) + '</div></div>';
+      s += oTep({
+        url: t.url, ten: t.ten, anh: dhLaAnh(t.ten) ? 1 : 0, co: 74, nhan: 1,
+        go: 'data-dhgo="' + i + '"'
+      });
     });
     s += '</div>';
   }
@@ -349,7 +344,7 @@ async function dhThemBangChung() {
   try { tep = await huChonTep(); } catch (e) { tep = null; }
   if (!tep) return;
   if (tep.size > 12 * 1024 * 1024) {
-    return toast('Ảnh nặng quá 12 MB nên máy không nhận. Chụp lại nhỏ hơn giúp em.', 6000);
+    return toast('Ảnh nặng quá 12 MB nên máy không nhận. Vui lòng chụp lại nhỏ hơn.', 6000);
   }
   busy(1);
   var kq;

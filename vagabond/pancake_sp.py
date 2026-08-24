@@ -85,5 +85,5 @@ def tao_tren_pancake(item_code):
 		frappe.throw("Pancake tu choi, thu lai sau. Chi tiet da ghi vao nhat ky loi.")
 
 	phan_duoi = " với giá %s đ." % "{:,}".format(gia).replace(",", ".") if gia else \
-		". Item chưa có Giá bán tiêu chuẩn nên bên Pancake đang để 0 đ - điền giá giúp em."
+		". Vui lòng item chưa có Giá bán tiêu chuẩn nên bên Pancake đang để 0 đ - điền giá."
 	return {"ok": 1, "thong_bao": "Đã tạo %s trên Pancake%s" % (ma, phan_duoi)}

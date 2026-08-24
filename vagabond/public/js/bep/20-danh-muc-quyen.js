@@ -598,7 +598,7 @@ function scrQuyenXem(g) {
       return '<span class="vxtag ' + (thieu ? 'x' : 'c2') + '" style="margin:0 6px 6px 0">' + h(x) + (thieu ? ' (chưa tạo)' : '') + '</span>';
     }).join('') +
     ((g.vai_thieu || []).length
-      ? '<div style="font-size:12.5px;color:#b3261e;line-height:1.6;margin-top:8px">Quyền đánh dấu đỏ chưa được tạo trên hệ thống, gán gói này sẽ bỏ qua chúng. Báo em để em tạo.</div>'
+      ? '<div style="font-size:12.5px;color:#b3261e;line-height:1.6;margin-top:8px">Quyền đánh dấu đỏ chưa được tạo trên hệ thống, gán gói này sẽ bỏ qua chúng. Báo bộ phận kỹ thuật để được tạo.</div>'
       : '') +
     '</div>';
 

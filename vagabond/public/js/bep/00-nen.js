@@ -145,6 +145,16 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .att{display:flex;gap:10px;flex-wrap:wrap;padding:12px 14px}
 .att .ph,.att img{width:76px;height:76px;border-radius:12px;object-fit:cover}
 .att .ph{border:2px dashed #cfd6e4;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8a8f9c;font-size:11px;gap:2px;cursor:pointer;background:#fafbfe}
+/* O tep dinh kem dung chung. Anh Viet 24/08/2026: *"moi thumbnail cua file
+   dinh kem bat buoc phai co mot nut 'X' o goc"*. Truoc do co man phai cham
+   vao chinh o anh moi go duoc, khong ai doan ra; co man khong go duoc gi ca
+   nen dinh nham mot to la phai huy ca phieu lam lai. */
+.otp{position:relative;display:inline-block;flex:0 0 auto}
+.otp img,.otp .tt{display:block;border-radius:10px;object-fit:cover;border:1.5px solid #d1d5db;background:#f9fafb}
+.otp .tt{display:flex;align-items:center;justify-content:center;color:#6b7280}
+.otp .xo{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#c0392b;color:#fff;border:2px solid #fff;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.28);z-index:2;font-weight:700}
+.otp .xo:active{background:#8f2a20}
+.otp .nh{margin-top:3px;font-size:10.5px;color:#6b7280;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 .amt{font-size:19px;font-weight:700;color:#16181d}
 .st{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;display:inline-block}
 .st.w{background:#fff4e0;color:#c07800}.st.b{background:#E4F9FD;color:#0B7C93}
@@ -375,6 +385,53 @@ function dmy(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split(
 function hm(t) { var m = String(t == null ? '' : t).match(/^(\d{1,2}):(\d{2})/); return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : ''; }
 function shortWh(w) { return String(w || '').replace(/ - TVD?$/, ''); }
 
+/* ---------- O tep dinh kem dung chung cho MOI man ----------
+
+   Anh Viet 24/08/2026: *"moi thumbnail cua file dinh kem bat buoc phai co
+   mot nut 'X' o goc. Khi user click vao, he thong se go bo file do khoi
+   phieu (ho tro cho truong hop dinh kem nham)"*.
+
+   Vi sao gom vao mot cho: truoc do moi man tu ve lay mot kieu. Man Hoan
+   ung phai cham vao chinh o anh moi go duoc, khong ai doan ra. Man Phieu
+   hoan tien va man ban the hien khong go duoc gi ca, dinh nham mot to la
+   phai huy ca phieu lam lai. Man Chi tu TK cong ty thi chi hien ten tep
+   dang chu, nhin khong biet la to nao.
+
+   o = {
+     url    duong dan anh, de trong thi ve o giay
+     ten    ten tep, hien duoi o neu nhan = 1
+     anh    1 la anh, 0 la tep khac (pdf, doc)
+     co     canh o vuong tinh bang px, mac dinh 76
+     cho    1 = chua co byte anh, ve o cho
+     mo     chuoi thuoc tinh gan vao o de bat su kien bam xem
+     go     chuoi thuoc tinh gan vao nut X. DE TRONG THI KHONG CO NUT X,
+            dung cho phieu da chot - chi xem chu khong sua duoc.
+     nhan   1 = hien ten tep duoi o
+     lop    ten lop CSS them vao o, cho man nao can tu tim lai o de nap anh
+   }
+
+   Ham chi sinh chuoi HTML, khong tu gan su kien: moi man co cach ve lai
+   rieng, ep chung mot co che bat su kien se pha cach lam cua man khac. */
+function oTep(o) {
+  o = o || {};
+  var co = o.co || 76;
+  var vien = 'width:' + co + 'px;height:' + co + 'px';
+  var ruot;
+  if (o.cho) {
+    ruot = '<span class="tt" style="' + vien + ';font-size:' + Math.round(co / 4) + 'px">⏳</span>';
+  } else if (o.anh && o.url) {
+    ruot = '<img src="' + h(o.url) + '" style="' + vien + '">';
+  } else {
+    ruot = '<span class="tt" style="' + vien + ';font-size:' + Math.round(co / 3.4) + 'px">📄</span>';
+  }
+  return '<span class="otp' + (o.lop ? ' ' + h(o.lop) : '') + '" style="max-width:' + co + 'px"' +
+    (o.mo ? ' ' + o.mo : '') + ' title="' + h(o.ten || '') + '">' +
+    ruot +
+    (o.go ? '<span class="xo" ' + o.go + ' title="Gỡ tệp này">✕</span>' : '') +
+    (o.nhan && o.ten ? '<span class="nh">' + h(o.ten) + '</span>' : '') +
+    '</span>';
+}
+
 var loadEl = null;
 function busy(on) {
   if (on) { if (!loadEl) { loadEl = document.createElement('div'); loadEl.className = 'ld'; loadEl.innerHTML = '<i></i>'; document.body.appendChild(loadEl); } }
@@ -464,7 +521,7 @@ async function rawCall(method, args) {
   } catch (ne) {
     if (ctl && ctl.signal.aborted) {
       throw new Error('Máy chủ chưa trả lời sau ' + Math.round(API_HAN_GIO / 1000) +
-        ' giây. Kiểm tra mạng rồi bấm lại; vẫn vậy thì báo em kiểm tra máy chủ.');
+        ' giây. Kiểm tra mạng rồi bấm lại; vẫn vậy thì báo bộ phận kỹ thuật kiểm tra máy chủ.');
     }
     throw new Error('Mất kết nối mạng, kiểm tra rồi thử lại');
   } finally {

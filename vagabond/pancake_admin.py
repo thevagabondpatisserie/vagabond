@@ -278,7 +278,7 @@ def bo_hau_to(ma, ma_sach=None):
 		)
 	ma_sach = str(ma_sach or "").strip().upper() or str(sp.get("custom_id") or "").strip().upper()
 	if not ma_sach:
-		frappe.throw("Không đoán được mã sạch cho %s, truyền ma_sach vào giúp em." % ma)
+		frappe.throw("Không đoán được mã sạch cho %s, vui lòng truyền ma_sach vào." % ma)
 	_put_san_pham(
 		c,
 		k,
@@ -643,8 +643,7 @@ def xem_don_tho(ma_don=None, ngay=None, so_don=3):
 		]
 		if not dons:
 			frappe.throw(
-				"Không thấy đơn %s trong ngày %s. Đơn Pancake tra theo NGÀY GIAO, "
-				"nên nếu đơn giao hôm khác thì truyền thêm ngày giúp em."
+				"Không thấy đơn %s trong ngày %s. Đơn Pancake tra theo NGÀY GIAO, nên nếu đơn giao hôm khác thì truyền thêm ngày."
 				% (ma_don, ngay or nowdate())
 			)
 	return {"ngay": str(ngay or nowdate()), "so_don": len(dons), "don": dons[: int(so_don or 3)]}

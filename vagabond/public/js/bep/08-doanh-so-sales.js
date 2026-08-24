@@ -54,7 +54,7 @@ async function scrDoanhSo() {
   if (d.so_don_trung) {
     html += '<div class="sec">Đơn bị trùng phiếu</div><div class="card" style="padding:12px 14px;border:1.5px solid #fecaca;background:#fff1f2;color:#991b1b;font-size:13px;line-height:1.6">' +
       '<b>' + d.so_don_trung + ' đơn đang có hai mã phiếu</b><br>' +
-      'Một đơn Pancake mà thành hai phiếu thì ghi sổ xong doanh thu bị tính đôi. Bấm nút dưới, em giữ lại một phiếu và gỡ phiếu thừa (chỉ gỡ phiếu còn nháp, phiếu đã ghi sổ hay đã có hoá đơn điện tử thì em không đụng vào).' +
+      'Một đơn Pancake mà thành hai phiếu thì ghi sổ xong doanh thu bị tính đôi. Bấm nút dưới, hệ thống giữ lại một phiếu và gỡ phiếu thừa (chỉ gỡ phiếu còn nháp, phiếu đã ghi sổ hay đã có hoá đơn điện tử thì hệ thống không đụng vào).' +
       '<div style="margin-top:10px"><button class="btn gh" data-ds="gotrung" style="width:100%">🧹 Rà và gỡ phiếu trùng</button></div></div>';
   }
   if ((d.loi || []).length) {
@@ -193,7 +193,7 @@ async function dsHanh(k) {
     var mo = nhom.map(function (n) {
       return '#' + n.don + ': giữ ' + n.giu + (n.go.length ? ', gỡ ' + n.go.join(', ') : '') + (n.ket.length ? '\n   ' + n.ket.join('\n   ') : '');
     }).join('\n');
-    if (!await xacNhan('Em sẽ xử lý như sau:\n\n' + mo + '\n\nĐồng ý gỡ chứ?')) return;
+    if (!await xacNhan('Hệ thống sẽ xử lý như sau: ' + mo + '\n\nĐồng ý gỡ chứ?')) return;
     busy(true);
     try { var kq3 = await api('vagabond.ban_hang.go_don_trung', { ngay: dsNgay }); busy(false); toast('Đã gỡ ' + (kq3.da_go || []).length + ' phiếu thừa' + ((kq3.ket || []).length ? ', ' + kq3.ket.length + ' phiếu phải xử lý tay' : ''), 3500); if ((kq3.ket || []).length) baoTin(kq3.ket.join('\n')); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Gỡ lỗi'); }
@@ -318,7 +318,7 @@ function timDonGan() {
 
 async function timDonChay(tu) {
   tu = String(tu || '').trim();
-  if (tu.length < 3) return toast('Gõ ít nhất 3 ký tự rồi tìm giúp em.', 3500);
+  if (tu.length < 3) return toast('Vui lòng gõ ít nhất 3 ký tự rồi tìm.', 3500);
   busy(true);
   var kq;
   try { kq = await api('vagabond.ban_hang.tim_don', { tu_khoa: tu }); }
@@ -1045,8 +1045,8 @@ async function scrDsView(name, can) {
         if (t && !t.value.trim()) t.value = kq.ten || '';
         if (dc && !dc.value.trim()) dc.value = kq.dia_chi || '';
         if (bao) bao.textContent = 'Tra được: ' + (kq.ten || '');
-      } else if (bao) bao.textContent = 'Không tra được mã này, điền tay giúp em.';
-    } catch (e) { if (bao) bao.textContent = 'Không tra được mã này, điền tay giúp em.'; }
+      } else if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.';
+    } catch (e) { if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.'; }
   };
   async function luuXhd(ten_si) {
     if (d.custom_hddt_so) return;

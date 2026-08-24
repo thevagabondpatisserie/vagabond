@@ -238,7 +238,7 @@ function rndGanAnh(root, tag, layDs, cb) {
         try { ds.push(await vxUpAnh(fs[i])); } catch (err) { loi++; }
       }
       busy(0); self.remove();
-      if (loi) toast('Có ' + loi + ' ảnh không tải lên được, thử lại giúp em', 4200);
+      if (loi) toast('Có ' + loi + ' ảnh không tải lên được, vui lòng thử lại', 4200);
       cb(ds);
     };
     document.body.appendChild(inp); inp.click();
@@ -567,7 +567,7 @@ async function scrRndDoc(name) {
         (doc.phieu_chi_phi ? '<br>Đã lập phiếu ghi chi phí: <b>' + h(doc.phieu_chi_phi) + '</b>' : '') +
         '</div>';
       if (!doc.phieu_chi_phi && td.ocb > 0 && rndLaThuMua()) {
-        body += '<div class="kwn">Bấm nút dưới để em dựng sẵn một hoá đơn mua hàng ở dạng nháp, ghi là đã trả từ quỹ OCB. Kế toán xem lại rồi mới ghi sổ.</div>' +
+        body += '<div class="kwn">Bấm nút dưới để hệ thống dựng sẵn một hoá đơn mua hàng ở dạng nháp, ghi là đã trả từ quỹ OCB. Kế toán xem lại rồi mới ghi sổ.</div>' +
           '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndChiPhi">Lập phiếu ghi chi phí (nháp)</button></div>';
       }
     }
@@ -620,7 +620,7 @@ async function scrRndDoc(name) {
       var tongDs = ds.reduce(function (a, x) { return a + (Number(x.gia) || 0); }, 0);
       var coVat = ds.filter(function (x) { return x.can_hoa_don; }).length;
       var ok = await confirmSheet('Lập phiếu ghi chi phí?',
-        'Em tạo một hoá đơn mua hàng ở dạng NHÁP gồm ' + ds.length + ' khoản, tổng ' + rndMoney(tongDs) + 'đ, ghi là đã trả từ quỹ OCB.\n\n' +
+        'Hệ thống tạo một hoá đơn mua hàng ở dạng NHÁP gồm ' + ds.length + ' khoản, tổng ' + rndMoney(tongDs) + 'đ, ghi là đã trả từ quỹ OCB.\n\n' +
         (coVat ? 'Trong đó ' + coVat + ' khoản có hoá đơn VAT, kế toán sẽ nhập phần thuế và đổi sang đúng nhà cung cấp.\n\n' : '') +
         'Phiếu chỉ ở dạng nháp, kế toán xem lại rồi mới ghi sổ.', 'Lập phiếu nháp');
       if (!ok) return;
@@ -649,7 +649,7 @@ async function scrRndDoc(name) {
         catch (e2) { busy(0); return toast(errMsg(e2), 6000); }
       }
       busy(0);
-      if (!pi || !pi.name) return toast('Không lập được phiếu, thử lại giúp em');
+      if (!pi || !pi.name) return toast('Không lập được phiếu, vui lòng thử lại');
       doc.phieu_chi_phi = pi.name;
       await save('Đã lập phiếu nháp ' + pi.name);
     };

@@ -113,7 +113,7 @@ def _doc_csv(noi_dung):
 	chu = noi_dung.decode("utf-8-sig", errors="replace")
 	doc = list(csv.reader(io.StringIO(chu)))
 	if not doc:
-		frappe.throw("Tệp CSV không có dòng nào. Kiểm tra lại tệp giúp em.")
+		frappe.throw("Tệp CSV không có dòng nào. Vui lòng kiểm tra lại tệp.")
 	for i, r in enumerate(doc[:15]):
 		if _tim_cot(r, COT_DIEM) >= 0:
 			return r, doc[i + 1 :]
@@ -125,7 +125,7 @@ def _doc_excel(noi_dung):
 	try:
 		from openpyxl import load_workbook
 	except ImportError:
-		frappe.throw("Máy chủ chưa có thư viện đọc Excel. Báo em để cài openpyxl.")
+		frappe.throw("Máy chủ chưa có thư viện đọc Excel. Báo bộ phận kỹ thuật để cài openpyxl.")
 
 	wb = load_workbook(io.BytesIO(noi_dung), read_only=True, data_only=True)
 	ws = wb[wb.sheetnames[0]]
@@ -134,7 +134,7 @@ def _doc_excel(noi_dung):
 		dong.append(list(r))
 	wb.close()
 	if not dong:
-		frappe.throw("Tệp Excel không có dòng nào. Kiểm tra lại tệp giúp em.")
+		frappe.throw("Tệp Excel không có dòng nào. Vui lòng kiểm tra lại tệp.")
 
 	# Dau bang co the khong nam o dong 1: nhieu tep co dong tieu de, dong
 	# trong, roi moi toi ten cot. Tim dong dau tien co tu "diem" trong do.
@@ -199,8 +199,7 @@ def nap_dau_ky(file_url=None, chay_that=0, ngay=None):
 	_chi_quan_ly()
 	if not (file_url or "").strip():
 		frappe.throw(
-			"Chưa có tệp. Tải \"Khách hàng tổng hợp.xlsx\" lên Trình quản lý tệp "
-			"rồi truyền đường dẫn tệp vào giúp em."
+			'Chưa có tệp. Vui lòng tải "Khách hàng tổng hợp.xlsx" lên Trình quản lý tệp rồi truyền đường dẫn tệp vào.'
 		)
 	noi_dung = _doc_tep(file_url)
 	dau, dong = _doc_bang(noi_dung, file_url)
@@ -211,13 +210,11 @@ def nap_dau_ky(file_url=None, chay_that=0, ngay=None):
 	i_ten = _tim_cot(dau, COT_TEN)
 	if i_diem < 0:
 		frappe.throw(
-			"Không thấy cột điểm trong tệp. Các cột đọc được: %s. Đổi tên cột "
-			"thành \"Tích điểm\" rồi tải lại giúp em." % ", ".join(str(x) for x in dau if x)
+			'Không thấy cột điểm trong tệp. Các cột đọc được: %s. Vui lòng đổi tên cột thành "Tích điểm" rồi tải lại.' % ", ".join(str(x) for x in dau if x)
 		)
 	if i_ma < 0 and i_sdt < 0:
 		frappe.throw(
-			"Tệp phải có cột mã khách hoặc cột số điện thoại thì em mới biết "
-			"cộng điểm cho ai. Các cột đọc được: %s." % ", ".join(str(x) for x in dau if x)
+			"Tệp phải có cột mã khách hoặc cột số điện thoại thì hệ thống mới biết cộng điểm cho ai. Các cột đọc được: %s." % ", ".join(str(x) for x in dau if x)
 		)
 
 	theo_sdt = _ban_do_sdt() if i_sdt >= 0 else {}
@@ -332,7 +329,7 @@ def nap_dau_ky(file_url=None, chay_that=0, ngay=None):
 def _doc_tep(file_url):
 	ten = frappe.db.get_value("File", {"file_url": file_url}, "name")
 	if not ten:
-		frappe.throw("Không tìm thấy tệp %s trên hệ. Tải lại tệp rồi thử lại giúp em." % file_url)
+		frappe.throw("Không tìm thấy tệp %s trên hệ. Vui lòng tải lại tệp rồi thử lại." % file_url)
 	return frappe.get_doc("File", ten).get_content()
 
 

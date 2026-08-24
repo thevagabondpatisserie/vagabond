@@ -404,7 +404,7 @@ def ghi_nhan(ngay=None, diem=None, dot=0, cac_dong=None, ghi_chu=""):
 		cac_dong = json.loads(cac_dong or "[]")
 	cac_dong = [d for d in (cac_dong or []) if cint((d or {}).get("so_luong")) > 0]
 	if not cac_dong:
-		frappe.throw("Chưa nhập số lượng nào. Điền số cho ít nhất một món giúp em.")
+		frappe.throw("Chưa nhập số lượng nào. Vui lòng điền số cho ít nhất một món.")
 
 	doc = _ban_ghi(ngay, diem, tao_neu_thieu=1)
 	_chan_da_chot(doc)

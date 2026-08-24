@@ -727,9 +727,7 @@ def dat_hmac(khoa=None, khe=1):
 		return {"ok": 1, "co_hmac": 0, "khe": cint(khe) or 1}
 	if len(k) < 12:
 		frappe.throw(
-			"Chuỗi này ngắn quá, không giống Secret Key của SePay. Khoá thật "
-			"bắt đầu bằng whsec_ và dài vài chục ký tự. Anh chị copy lại từ tab "
-			"Bảo mật bên SePay giúp em."
+			"Chuỗi này ngắn quá, không giống Secret Key của SePay. Khoá thật bắt đầu bằng whsec_ và dài vài chục ký tự. Anh chị vui lòng copy lại từ tab Bảo mật bên SePay."
 		)
 	frappe.db.set_single_value("Vagabond Settings", o, k)
 	frappe.db.set_single_value("Vagabond Settings", "sepay_bat", 1)
@@ -758,8 +756,7 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 	so_tk = "".join(ch for ch in str(so_tk or "") if ch.isdigit())
 	if not so_tk or len(so_tk) < 6:
 		frappe.throw(
-			"Số tài khoản trông chưa đúng (%s). Gõ đúng dãy số tài khoản như "
-			"bên SePay hiển thị giúp em." % (so_tk or "trống")
+			"Số tài khoản trông chưa đúng (%s). Vui lòng gõ đúng dãy số tài khoản như bên SePay hiển thị." % (so_tk or "trống")
 		)
 	tk = str(tai_khoan or "").strip()
 	if not tk or not frappe.db.exists("Bank Account", tk):

@@ -804,18 +804,17 @@ def tao_mua(ten_mua=None, tu_ngay=None, den_ngay=None):
 	_kiem_quyen()
 	ten = (ten_mua or "").strip()
 	if not ten:
-		frappe.throw("Đặt tên cho mùa vụ giúp em, ví dụ \"Trung thu 2026\".")
+		frappe.throw('Vui lòng đặt tên cho mùa vụ, ví dụ "Trung thu 2026".')
 	if frappe.db.exists(DT, ten):
 		frappe.throw(
 			"Đã có mùa vụ tên \"%s\" rồi. Mở mùa đó ra dùng tiếp, hoặc đặt tên khác." % ten
 		)
 	a, b = getdate(tu_ngay), getdate(den_ngay)
 	if b < a:
-		frappe.throw("Ngày kết thúc đang trước ngày bắt đầu. Chọn lại hai mốc ngày giúp em.")
+		frappe.throw("Ngày kết thúc đang trước ngày bắt đầu. Vui lòng chọn lại hai mốc ngày.")
 	if (b - a).days > SO_NGAY_TOI_DA:
 		frappe.throw(
-			"Mùa vụ dài %d ngày, quá %d ngày nên nhiều khả năng gõ nhầm năm. Chọn lại "
-			"ngày kết thúc giúp em." % ((b - a).days, SO_NGAY_TOI_DA)
+			"Mùa vụ dài %d ngày, quá %d ngày nên nhiều khả năng gõ nhầm năm. Vui lòng chọn lại ngày kết thúc." % ((b - a).days, SO_NGAY_TOI_DA)
 		)
 	doc = frappe.get_doc(
 		{"doctype": DT, "ten_mua": ten, "tu_ngay": a, "den_ngay": b, "tinh_trang": "Dang ban"}
@@ -943,7 +942,7 @@ def _keo_ve(mua=None):
 	c = cfg()
 	k = key(c, "pancake_api_key")
 	if not k or not c.pancake_shop_id:
-		frappe.throw("Chưa điền khoá Pancake trong Cài đặt. Báo em để kiểm tra lại.")
+		frappe.throw("Chưa điền khoá Pancake trong Cài đặt. Báo bộ phận kỹ thuật để kiểm tra lại.")
 
 	if not _gianh_khoa(mua):
 		# Da co luot keo khac dang chay. Doi no thi cho lau ma khong duoc
@@ -1639,7 +1638,7 @@ def them_dong(mua=None, ma_hang=None):
 	_kiem_quyen()
 	ma = str(ma_hang or "").strip().upper()
 	if not ma:
-		frappe.throw("Chọn sản phẩm rồi bấm thêm giúp em.")
+		frappe.throw("Vui lòng chọn sản phẩm rồi bấm thêm.")
 	doc = frappe.get_doc(DT, mua)
 	if any(d.ma_hang == ma for d in doc.dong):
 		frappe.throw("Sản phẩm %s đã có trong mùa này rồi." % ma)
@@ -1862,8 +1861,7 @@ def _ban_ghi_mua(ma_mua):
 	ma = str(ma_mua or "").strip()
 	if not ma or not frappe.db.exists(DT, ma):
 		frappe.throw(
-			"Chưa chọn mùa vụ, hoặc mùa \"%s\" không còn trên hệ thống. Quay lại "
-			"màn Kiểm bánh theo mùa, chọn lại mùa rồi thử lại giúp em." % (ma or "")
+			'Chưa chọn mùa vụ, hoặc mùa "%s" không còn trên hệ thống. Quay lại màn Kiểm bánh theo mùa, vui lòng chọn lại mùa rồi thử lại.' % (ma or "")
 		)
 	return frappe.get_doc(DT, ma)
 
@@ -2071,10 +2069,10 @@ def them_dot(mua=None, ma_hang=None, so_luong=0, ngay_du_kien=None, ghi_chu=""):
 	_kiem_quyen()
 	ma = str(ma_hang or "").strip().upper()
 	if not ma:
-		frappe.throw("Chọn sản phẩm cho đợt này giúp em.")
+		frappe.throw("Vui lòng chọn sản phẩm cho đợt này.")
 	sl = cint(so_luong)
 	if sl <= 0:
-		frappe.throw("Số lượng đợt phải lớn hơn 0. Nhập lại giúp em.")
+		frappe.throw("Số lượng đợt phải lớn hơn 0. Vui lòng nhập lại.")
 	doc = frappe.get_doc(DT, mua)
 	if doc.tinh_trang != TT_DANG_BAN:
 		frappe.throw("Mùa vụ này đã đóng nên không thêm đợt nữa. Mở lại mùa rồi thêm.")
@@ -2157,11 +2155,11 @@ def them_dinh_muc(mua=None, ma_hop=None, ma_banh=None, so_luong=0):
 	banh = str(ma_banh or "").strip().upper()
 	sl = cint(so_luong)
 	if not hop or not banh:
-		frappe.throw("Chọn cả hộp và bánh lẻ giúp em.")
+		frappe.throw("Vui lòng chọn cả hộp và bánh lẻ.")
 	if hop == banh:
 		frappe.throw("Hộp và bánh lẻ không thể là cùng một mã.")
 	if sl <= 0:
-		frappe.throw("Số bánh trong một hộp phải lớn hơn 0. Nhập lại giúp em.")
+		frappe.throw("Số bánh trong một hộp phải lớn hơn 0. Vui lòng nhập lại.")
 	doc = frappe.get_doc(DT, mua)
 	co = {d.ma_hang for d in doc.dong}
 	thieu = [x for x in (hop, banh) if x not in co]

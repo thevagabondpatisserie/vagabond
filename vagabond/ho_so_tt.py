@@ -155,7 +155,7 @@ def _sinh_ma(ngay=None):
 		ma = tien_to + "%03d" % i
 		if not frappe.db.exists("Vagabond Ho So TT", ma):
 			return ma
-	frappe.throw("Không sinh được mã hồ sơ, thử lại giúp em.")
+	frappe.throw("Không sinh được mã hồ sơ, vui lòng thử lại.")
 
 
 def _tien(v):
@@ -443,8 +443,7 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		ma_ung = (nguoi_ung or "").strip()
 		if not ma_ung:
 			frappe.throw(
-				"Chưa chọn người được hoàn ứng. Đây là người đã ứng tiền mua hộ "
-				"và sẽ nhận lại tiền, chọn ở hàng chip trên cùng màn hình giúp em."
+				"Chưa chọn người được hoàn ứng. Đây là người đã ứng tiền mua hộ và sẽ nhận lại tiền, vui lòng chọn ở hàng chip trên cùng màn hình."
 			)
 		if not frappe.db.exists("Supplier", ma_ung):
 			frappe.throw(
@@ -536,11 +535,9 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 		ma_ncc = _ncc_cua_tk_hoan(tk_hoan)
 	if not ma_ncc:
 		frappe.throw(
-			"Tài khoản %s chưa gắn với mã nhà cung cấp nào nên máy không treo "
-			"công nợ được. Mở Bank Account đó bên Next, điền ô Party là mã "
-			"người ứng, rồi lập lại giúp em." % tk_hoan
+			"Tài khoản %s chưa gắn với mã nhà cung cấp nào nên máy không treo công nợ được. Mở Bank Account đó bên Next, điền ô Party là mã người ứng, rồi lập lại." % tk_hoan
 			if tk_hoan else
-			"Chưa chọn tài khoản nhận tiền hoàn ứng. Chọn ACB hay OCB giúp em."
+			"Chưa chọn tài khoản nhận tiền hoàn ứng. Vui lòng chọn ACB hay OCB."
 		)
 	if not frappe.db.exists("Supplier", ma_ncc):
 		frappe.throw(
@@ -644,6 +641,13 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 
 	loai_cp_thue bắt buộc, để cuối năm lọc ra các khoản không được trừ khi
 	quyết toán thuế TNDN mà không phải mở lại từng chứng từ.
+
+	Chứng từ đính kèm nằm ở TỪNG DÒNG, không phải ở hồ sơ (anh Việt
+	24/08/2026). Trước đó cả hồ sơ dùng chung một ô đính kèm và một loại
+	chứng từ, nên một phiếu chi tiền điện, tiền nước và phí bảo trì chỉ khai
+	được một loại, còn ba tệp thì nằm chung một rổ không biết tờ nào của
+	khoản nào. Hai tham số `loai_chung_tu` và `tep` ở đây giữ lại cho những
+	màn cũ còn gọi kiểu cũ: chúng chỉ được dùng khi dòng KHÔNG tự mang tệp.
 	"""
 	_kiem(VAI_LAP | VAI_FIN, "lập hồ sơ chi từ tài khoản công ty")
 	if isinstance(dong, str):
@@ -661,8 +665,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	tk_so_cai = frappe.db.get_value("Bank Account", tk_chi, "account")
 	if not tk_so_cai:
 		frappe.throw(
-			"Tài khoản ngân hàng %s chưa gắn tài khoản sổ cái, chưa hạch toán được. "
-			"Mở Bank Account bên Next điền ô Account giúp em." % tk_chi
+			"Tài khoản ngân hàng %s chưa gắn tài khoản sổ cái, chưa hạch toán được. Vui lòng mở Bank Account bên Next điền ô Account." % tk_chi
 		)
 
 	if isinstance(tep, str):
@@ -670,17 +673,6 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	tep = tep or []
 	loai_cp_thue = (loai_cp_thue or "").strip()
 	loai_chung_tu = (loai_chung_tu or "").strip()
-	if loai_cp_thue == CP_KHONG_HOP_LE:
-		# Khong co hoa don he thong thi ho so chi con dua vao chung tu roi.
-		# Bat o day chu khong doi den luc duyet: de trong ma van luu duoc thi
-		# ho so nam do khong ai nho quay lai dinh kem.
-		if not loai_chung_tu:
-			frappe.throw("Chưa chọn loại chứng từ đính kèm.")
-		if not tep:
-			frappe.throw(
-				"Chưa đính kèm chứng từ nào. Đã chọn loại chứng từ là \"%s\" thì phải "
-				"tải đúng file đó lên mới lập được hồ sơ." % loai_chung_tu
-			)
 	if loai_cp_thue not in (CP_HOP_LE, CP_KHONG_HOP_LE):
 		frappe.throw(
 			"Chưa chọn loại chi phí thuế. Có hoá đơn GTGT mang tên Vagabond thì chọn "
@@ -706,6 +698,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 		tk_co = (x.get("tk_co") or "").strip()
 		if tk_co and not frappe.db.exists("Account", tk_co):
 			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_co)
+		ma_tep = _tep_hop_le(x.get("tep"))
 		sach.append({
 			"ngay_hd": x.get("ngay_hd") or nowdate(),
 			"so_hd_ncc": (x.get("so_hd_ncc") or "").strip(),
@@ -718,10 +711,37 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			"so_tien": tien,
 			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
+			"loai_chung_tu": (x.get("loai_chung_tu") or "").strip() or None,
+			"tep": "\n".join(ma_tep),
 		})
 
 	# Luong chi tu TK cong ty cung phai chan: dong o day co the mang hoa don.
 	_chan_hoa_don_trung(sach)
+
+	# Chung tu: xet TUNG DONG. Doi cu la mot o dinh kem chung cho ca ho so,
+	# nay moi khoan tu mang giay to cua no. Van nhan duong cu (`loai_chung_tu`
+	# va `tep` o muc ho so) cho dong nao khong tu mang gi, de ban app cu tren
+	# may nguoi ta chua tai lai van lap duoc phieu.
+	if loai_cp_thue == CP_KHONG_HOP_LE:
+		# Khong co hoa don he thong thi ho so chi con dua vao chung tu roi.
+		# Bat o day chu khong doi den luc duyet: de trong ma van luu duoc thi
+		# ho so nam do khong ai nho quay lai dinh kem.
+		chung = _tep_hop_le(tep)
+		thieu = []
+		for i, d in enumerate(sach):
+			if not d["tep"] and chung:
+				d["loai_chung_tu"] = d["loai_chung_tu"] or loai_chung_tu or None
+				d["tep"] = "\n".join(chung)
+			if not d["tep"]:
+				thieu.append("  · Khoản %d - %s: chưa đính kèm chứng từ" % (i + 1, d["noi_dung"]))
+			elif not d["loai_chung_tu"]:
+				thieu.append("  · Khoản %d - %s: chưa chọn loại chứng từ" % (i + 1, d["noi_dung"]))
+		if thieu:
+			frappe.throw(
+				"Chi không hoá đơn thì mỗi khoản phải tự mang chứng từ của nó:\n\n%s\n\n"
+				"Bấm vào ô đính kèm ngay trên dòng đó để tải giấy tờ lên."
+				% "\n".join(thieu)
+			)
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
@@ -729,7 +749,11 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	doc.ngay = nowdate()
 	doc.tk_chi = tk_chi
 	doc.loai_cp_thue = loai_cp_thue
-	doc.loai_chung_tu = loai_chung_tu
+	# O muc ho so chi con la NHAN cho de nhin tren danh sach: loai that
+	# nam o tung dong. De trong het thi lay loai cua khoan dau tien.
+	doc.loai_chung_tu = loai_chung_tu or next(
+		(d["loai_chung_tu"] for d in sach if d.get("loai_chung_tu")), None
+	)
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
@@ -746,25 +770,16 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	doc.insert(ignore_permissions=True)
 
 	# File da duoc tai len truoc khi ho so ton tai (khong the lam nguoc lai),
-	# gio moi gan vao ho so. Dung db.set_value chu khong save: File co
-	# validate rieng, ma o day chi can doi con tro.
-	da_gan = 0
-	for t in tep:
-		ma_tep = t.get("ma") if isinstance(t, dict) else t
-		if not ma_tep or not frappe.db.exists("File", ma_tep):
-			continue
-		frappe.db.set_value("File", ma_tep, {
-			"attached_to_doctype": "Vagabond Ho So TT",
-			"attached_to_name": doc.name,
-		}, update_modified=False)
-		da_gan = da_gan + 1
+	# gio moi tro ve ho so. Dung db.set_value chu khong save: File co validate
+	# rieng, ma o day chi can doi con tro.
+	_gan_tep_ve_ho_so(doc.name, sach)
+	da_gan = sum(len(_tep_cua_dong(d.get("tep"))) for d in sach)
 	if loai_cp_thue == CP_KHONG_HOP_LE and not da_gan:
-		frappe.throw("Không gắn được chứng từ nào vào hồ sơ, thử tải lại file giúp em.")
+		frappe.throw("Không gắn được chứng từ nào vào hồ sơ, vui lòng thử tải lại file.")
 
 	frappe.db.commit()
-	_ghi_vet(doc.name, "Lập hồ sơ chi từ TK công ty %s đ%s" % (
-		_tien(doc.tong_tien),
-		(" · %s, %d chứng từ" % (loai_chung_tu, da_gan)) if loai_chung_tu else "",
+	_ghi_vet(doc.name, "Lập hồ sơ chi từ TK công ty %s đ · %d chứng từ trên %d khoản" % (
+		_tien(doc.tong_tien), da_gan, len(sach),
 	))
 	return {"ok": 1, "ma": doc.name, "trang_thai": doc.trang_thai}
 
@@ -1037,8 +1052,7 @@ def _sinh_hoa_don_hoan_ung(doc):
 	for mon in (MON_CO_VAT, MON_KHONG_VAT):
 		if not frappe.db.exists("Item", mon):
 			frappe.throw(
-				"Chưa có mã món <b>%s</b> trong hệ. Đây là mã dùng cho hàng mua "
-				"lẻ không nhập kho; nhờ chị Dung tạo trước rồi duyệt lại giúp em." % mon
+				"Chưa có mã món <b>%s</b> trong hệ. Đây là mã dùng cho hàng mua lẻ không nhập kho; nhờ chị Dung tạo trước rồi duyệt lại." % mon
 			)
 
 	cong_ty = frappe.db.get_single_value("Global Defaults", "default_company")
@@ -1453,7 +1467,7 @@ def dinh_tep(name=None, tep=None):
 	"""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "đính tệp vào hồ sơ")
 	if not frappe.db.exists("Vagabond Ho So TT", name):
-		frappe.throw("Không tìm thấy hồ sơ %s. Quay lại danh sách rồi mở lại giúp em." % name)
+		frappe.throw("Không tìm thấy hồ sơ %s. Vui lòng quay lại danh sách rồi mở lại." % name)
 	tt = frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai")
 	if tt in (TT_HUY, TT_TU_CHOI):
 		frappe.throw(
@@ -1468,7 +1482,7 @@ def dinh_tep(name=None, tep=None):
 	if isinstance(tep, dict):
 		tep = [tep]
 	if not tep:
-		frappe.throw("Chưa chọn tệp nào. Bấm nút chọn tệp rồi thử lại giúp em.")
+		frappe.throw("Chưa chọn tệp nào. Vui lòng bấm nút chọn tệp rồi thử lại.")
 	da_gan = 0
 	for t in tep:
 		ma_tep = t.get("ma") if isinstance(t, dict) else t
@@ -1482,7 +1496,7 @@ def dinh_tep(name=None, tep=None):
 		da_gan += 1
 	if not da_gan:
 		frappe.throw(
-			"Tệp gửi lên không còn trên máy chủ. Chọn tệp rồi bấm đính lại giúp em."
+			"Tệp gửi lên không còn trên máy chủ. Vui lòng chọn tệp rồi bấm đính lại."
 		)
 	try:
 		frappe.get_doc("Vagabond Ho So TT", name).add_comment(
@@ -1509,7 +1523,7 @@ def go_tep(name=None, tep=None):
 		["name", "file_name"], as_dict=True,
 	)
 	if not f:
-		frappe.throw("Tệp này không nằm trên hồ sơ %s. Tải lại trang giúp em." % name)
+		frappe.throw("Tệp này không nằm trên hồ sơ %s. Vui lòng tải lại trang." % name)
 	frappe.db.set_value("File", f.name, {
 		"attached_to_doctype": None, "attached_to_name": None,
 	}, update_modified=False)
@@ -2966,7 +2980,7 @@ def dinh_tep_dong(name=None, dong=None, tep=None):
 		frappe.throw("Hồ sơ %s không có khoản số %s." % (name, dong))
 	ma_moi = _tep_hop_le(tep)
 	if not ma_moi:
-		frappe.throw("Tệp gửi lên không còn trên máy chủ. Chọn tệp rồi đính lại giúp em.")
+		frappe.throw("Tệp gửi lên không còn trên máy chủ. Vui lòng chọn tệp rồi đính lại.")
 	d = doc.dong[i - 1]
 	da_co = _tep_cua_dong(d.tep)
 	d.tep = "\n".join(da_co + [m for m in ma_moi if m not in da_co])
@@ -3768,7 +3782,7 @@ def dinh_tep_hoa_don(hoa_don=None, tep=None):
 		frappe.throw("Không tìm thấy hoá đơn mua %s." % (hoa_don or "(trống)"))
 	ma_moi = _tep_hop_le(tep)
 	if not ma_moi:
-		frappe.throw("Tệp gửi lên không còn trên máy chủ. Chọn tệp rồi đính lại giúp em.")
+		frappe.throw("Tệp gửi lên không còn trên máy chủ. Vui lòng chọn tệp rồi đính lại.")
 	for ma in ma_moi:
 		try:
 			frappe.db.set_value("File", ma, {
@@ -3787,6 +3801,62 @@ def dinh_tep_hoa_don(hoa_don=None, tep=None):
 	frappe.db.commit()
 	return {"ok": 1, "hoa_don": hoa_don, "tep": _dinh_kem([("Purchase Invoice", hoa_don)])}
 
+
+
+# Truoc buoc nao thi con go duoc ban the hien ra. Da thanh toan roi thi bo
+# ho so la giay to giai trinh cua mot lan chuyen tien that: go mot to ra la
+# lam thung bo do (QT-20, va luat khong dung vao du lieu qua khu anh Viet
+# chot 13/08/2026).
+TT_GO_DUOC_TEP = (TT_NHAP, TT_TU_CHOI, TT_CHO_FIN, TT_CHO_GD)
+
+
+@frappe.whitelist()
+def go_tep_hoa_don(name=None, hoa_don=None, tep=None):
+	"""Go mot ban the hien dinh nham khoi hoa don mua. KHONG xoa tep.
+
+	Anh Viet 24/08/2026: moi hinh thu nho phai co nut X. Truoc do man nay
+	chi dinh vao duoc chu khong go ra duoc, nen dinh nham to cua hoa don
+	khac la no nam do va di theo ca bo ho so PDF.
+
+	Nhan ca `name` (ho so) de kiem trang thai: ho so da thanh toan thi
+	khong con go duoc nua.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "gỡ bản thể hiện hoá đơn")
+	hoa_don = (hoa_don or "").strip()
+	if not hoa_don or not frappe.db.exists("Purchase Invoice", hoa_don):
+		frappe.throw("Không tìm thấy hoá đơn mua %s." % (hoa_don or "(trống)"))
+
+	if name:
+		tt = frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai")
+		if tt and tt not in TT_GO_DUOC_TEP:
+			frappe.throw(
+				"Hồ sơ %s đang ở %s nên không gỡ bản thể hiện ra được nữa. Bộ hồ sơ "
+				"này là giấy tờ giải trình của một lần chuyển tiền thật. Đính nhầm thì "
+				"đính thêm tờ đúng vào, và báo bộ phận kỹ thuật."
+				% (name, NHAN.get(tt, tt))
+			)
+
+	f = frappe.db.get_value(
+		"File",
+		{"name": tep, "attached_to_doctype": "Purchase Invoice", "attached_to_name": hoa_don},
+		["name", "file_name"],
+		as_dict=True,
+	)
+	if not f:
+		frappe.throw(
+			"Tệp này không nằm trên hoá đơn %s. Vui lòng tải lại trang rồi bấm lại." % hoa_don
+		)
+	frappe.db.set_value("File", f.name, {
+		"attached_to_doctype": None, "attached_to_name": None,
+	}, update_modified=False)
+	try:
+		frappe.get_doc("Purchase Invoice", hoa_don).add_comment(
+			"Comment", "Gỡ bản thể hiện %s khỏi hoá đơn." % (f.file_name or f.name)
+		)
+	except Exception:
+		pass
+	frappe.db.commit()
+	return {"ok": 1, "hoa_don": hoa_don, "tep": _dinh_kem([("Purchase Invoice", hoa_don)])}
 
 @frappe.whitelist()
 def dem_tep_hoa_don(hoa_don=None):

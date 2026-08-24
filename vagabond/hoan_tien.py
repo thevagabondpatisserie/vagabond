@@ -709,7 +709,7 @@ def ty_le_hop_le(so_tien_hoan, tong_don):
 	if tong <= 0:
 		return False, "Đơn này tổng tiền bằng 0 nên không có gì để hoàn."
 	if tien <= 0:
-		return False, "Số tiền hoàn phải lớn hơn 0. Nhập lại giúp em."
+		return False, "Số tiền hoàn phải lớn hơn 0. Vui lòng nhập lại."
 	if tien > tong + 0.5:
 		return False, (
 			"Số tiền hoàn %s đ lớn hơn tổng đơn %s đ. Sửa lại số tiền cho nhỏ hơn "
@@ -769,7 +769,7 @@ def tao(
 	if ly_do not in LY_DO:
 		frappe.throw("Phải chọn lý do hoàn. Chọn một trong: %s." % ", ".join(LY_DO))
 	if ly_do == "Khac" and not (dien_giai or "").strip():
-		frappe.throw("Lý do \"Khác\" thì phải ghi rõ vì sao hoàn. Gõ vào ô Diễn giải giúp em.")
+		frappe.throw('Lý do "Khác" thì phải ghi rõ vì sao hoàn. Vui lòng gõ vào ô Diễn giải.')
 
 	# TRAN SO TIEN TINH LAI O MAY CHU (QT-19). Man co chan roi, nhung con so
 	# di qua duong mang thi khong tin duoc.
@@ -905,7 +905,7 @@ def tao_tien_du(
 	if ly_do not in LY_DO_DU:
 		frappe.throw("Phải chọn lý do. Chọn một trong: %s." % ", ".join(LY_DO_DU))
 	if ly_do == "Khac" and not (dien_giai or "").strip():
-		frappe.throw("Lý do \"Khác\" thì phải ghi rõ vì sao dư. Gõ vào ô Diễn giải giúp em.")
+		frappe.throw('Lý do "Khác" thì phải ghi rõ vì sao dư. Vui lòng gõ vào ô Diễn giải.')
 
 	# TRAN TINH LAI O MAY CHU (QT-19), khong tin con so man hinh gui len.
 	nhan = _tien_da_nhan(si)
@@ -1244,7 +1244,7 @@ def tao_huy_nhap(
 	if ly_do not in LY_DO_HUY:
 		frappe.throw("Phải chọn lý do huỷ. Chọn một trong: %s." % ", ".join(LY_DO_HUY))
 	if ly_do == "Khac" and not (dien_giai or "").strip():
-		frappe.throw("Lý do \"Khác\" thì phải ghi rõ vì sao huỷ. Gõ vào ô Diễn giải giúp em.")
+		frappe.throw('Lý do "Khác" thì phải ghi rõ vì sao huỷ. Vui lòng gõ vào ô Diễn giải.')
 
 	# TRAN TINH LAI O MAY CHU (QT-19), khong tin con so man hinh gui len.
 	nhan = _tien_da_nhan(si)
@@ -2884,8 +2884,7 @@ def chi_tiet(ho_so):
 	_kiem_quyen()
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw(
-			"Không tìm thấy phiếu hoàn tiền %s. Có thể phiếu đã bị xoá trên "
-			"Desk; anh chị quay lại danh sách rồi mở phiếu khác giúp em." % ho_so
+			"Không tìm thấy phiếu hoàn tiền %s. Có thể phiếu đã bị xoá trên Desk; anh chị vui lòng quay lại danh sách rồi mở phiếu khác." % ho_so
 		)
 	d = frappe.get_doc(DT, ho_so)
 	ra = d.as_dict()
@@ -3026,7 +3025,7 @@ def gan_gd_vao(ho_so=None, gd=None):
 	if not _duoc_tu_choi():
 		frappe.throw("Chỉ kế toán hoặc giám đốc mới đối chiếu giao dịch tiền vào được.")
 	if not frappe.db.exists(DT, ho_so):
-		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	d = frappe.get_doc(DT, ho_so)
 	if d.trang_thai == "Da huy":
 		frappe.throw("Phiếu %s đã huỷ nên không đối chiếu thêm được." % ho_so)
@@ -3047,13 +3046,12 @@ def gan_gd_vao(ho_so=None, gd=None):
 		["name", "date", "deposit", "withdrawal", "docstatus", "description"], as_dict=True,
 	)
 	if not g:
-		frappe.throw("Không có giao dịch ngân hàng %s. Tìm lại giúp em." % gd)
+		frappe.throw("Không có giao dịch ngân hàng %s. Vui lòng tìm lại." % gd)
 	if cint(g["docstatus"]) >= 2:
 		frappe.throw("Giao dịch %s đã bị huỷ nên không dùng làm căn cứ được." % gd)
 	if flt(g["deposit"]) <= 0:
 		frappe.throw(
-			"Giao dịch %s là tiền RA khỏi tài khoản, không phải tiền khách nộp "
-			"vào. Chọn lại một dòng có cột tiền vào giúp em." % gd
+			"Giao dịch %s là tiền RA khỏi tài khoản, không phải tiền khách nộp vào. Vui lòng chọn lại một dòng có cột tiền vào." % gd
 		)
 
 	# Mot giao dich chi lam can cu cho MOT phieu. Cho hai phieu cung tro vao
@@ -3172,7 +3170,7 @@ def khop_tay(ho_so=None, gd=None):
 	if not _duoc_tu_choi():
 		frappe.throw("Chỉ kế toán hoặc giám đốc mới khớp lệnh chi được.")
 	if not frappe.db.exists(DT, ho_so):
-		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	d = frappe.get_doc(DT, ho_so)
 	if d.trang_thai == "Da huy":
 		frappe.throw("Phiếu %s đã bị từ chối nên không khớp lệnh chi được." % ho_so)
@@ -3191,13 +3189,12 @@ def khop_tay(ho_so=None, gd=None):
 		as_dict=True,
 	)
 	if not g:
-		frappe.throw("Không có giao dịch ngân hàng %s. Tìm lại giúp em." % gd)
+		frappe.throw("Không có giao dịch ngân hàng %s. Vui lòng tìm lại." % gd)
 	if cint(g["docstatus"]) >= 2:
 		frappe.throw("Giao dịch %s đã bị huỷ nên không dùng làm căn cứ được." % gd)
 	if flt(g["withdrawal"]) <= 0:
 		frappe.throw(
-			"Giao dịch %s là tiền VÀO tài khoản, không phải lệnh chi. Lệnh chi "
-			"phải nằm ở cột tiền ra. Chọn lại giúp em." % gd
+			"Giao dịch %s là tiền VÀO tài khoản, không phải lệnh chi. Lệnh chi phải nằm ở cột tiền ra. Vui lòng chọn lại." % gd
 		)
 	chu_cu = _gd_da_chiem(tru_ho_so=d.name).get(gd)
 	if chu_cu:
@@ -3252,8 +3249,7 @@ def khop_tay(ho_so=None, gd=None):
 		"da_sinh": sinh,
 		"loi": loi,
 		"nhac": (
-			("Đã khớp. Số tiền trên sao kê lệch %s đ so với phiếu, anh chị xem lại "
-			 "giúp em." % "{:,.0f}".format(abs(lech)).replace(",", "."))
+			("Đã khớp. Số tiền trên sao kê lệch %s đ so với phiếu, anh chị vui lòng xem lại." % "{:,.0f}".format(abs(lech)).replace(",", "."))
 			if abs(lech) > 1 else "Đã khớp lệnh chi và sinh chứng từ."
 		),
 	}
@@ -3277,19 +3273,15 @@ def tu_choi(ho_so, ly_do=None):
 	_kiem_quyen()
 	if not _duoc_tu_choi():
 		frappe.throw(
-			"Từ chối hoàn tiền là quyền của Kế toán và Giám đốc. Anh chị nhờ "
-			"chị Dung hoặc anh Việt bấm giúp, hoặc báo em cấp thêm chức vụ "
-			"trong màn Quản lý người dùng."
+			"Từ chối hoàn tiền là quyền của Kế toán và Giám đốc. Anh chị nhờ chị Dung hoặc anh Việt bấm giúp, hoặc báo bộ phận kỹ thuật cấp thêm chức vụ trong màn Quản lý người dùng."
 		)
 	ly_do = (ly_do or "").strip()
 	if len(ly_do) < 5:
 		frappe.throw(
-			"Phải ghi rõ lý do từ chối, ít nhất 5 ký tự. Câu này sẽ nằm lại "
-			"trong hồ sơ và là thứ duy nhất giải thích được vì sao khách "
-			"không nhận được tiền, nên anh chị viết đủ ý giúp em."
+			"Phải ghi rõ lý do từ chối, ít nhất 5 ký tự. Câu này sẽ nằm lại trong hồ sơ và là thứ duy nhất giải thích được vì sao khách không nhận được tiền, nên anh chị viết đủ ý."
 		)
 	if not frappe.db.exists(DT, ho_so):
-		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Anh chị mở lại danh sách giúp em." % ho_so)
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Anh chị vui lòng mở lại danh sách." % ho_so)
 	d = frappe.get_doc(DT, ho_so)
 	if d.trang_thai == "Da huy":
 		frappe.throw(
@@ -3376,14 +3368,11 @@ def _pe_cua(ho_so):
 				"hoặc gắn tay giao dịch tiền ra, rồi quay lại đây." % ho_so
 			)
 		frappe.throw(
-			"Phiếu %s đã đối soát nhưng máy chưa sinh được phiếu chi. Xem dòng "
-			"\"Lỗi khi sinh chứng từ\" ngay trên màn này để biết vướng ở đâu, "
-			"báo em rồi hãy đính uỷ nhiệm chi." % ho_so
+			'Phiếu %s đã đối soát nhưng máy chưa sinh được phiếu chi. Xem dòng "Lỗi khi sinh chứng từ" ngay trên màn này để biết vướng ở đâu, báo bộ phận kỹ thuật rồi hãy đính uỷ nhiệm chi.' % ho_so
 		)
 	if not frappe.db.exists(PE, d.phieu_chi):
 		frappe.throw(
-			"Phiếu chi %s ghi trên hồ sơ nhưng không còn trên hệ thống. Dừng lại "
-			"ở đây và báo em, đừng lập phiếu chi mới đè lên." % d.phieu_chi
+			"Phiếu chi %s ghi trên hồ sơ nhưng không còn trên hệ thống. Dừng lại ở đây và báo bộ phận kỹ thuật, đừng lập phiếu chi mới đè lên." % d.phieu_chi
 		)
 	return d, cint(frappe.db.get_value(PE, d.phieu_chi, "docstatus"))
 
@@ -3461,7 +3450,7 @@ def tai_unc(ho_so=None, tep=None, co="lon"):
 
 	_kiem_quyen()
 	if not ho_so or not frappe.db.exists(DT, ho_so):
-		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	ma_pe = frappe.db.get_value(DT, ho_so, "phieu_chi")
 	if not ma_pe:
 		frappe.throw("Phiếu này chưa có phiếu chi nên chưa có uỷ nhiệm chi nào.")
@@ -3471,8 +3460,7 @@ def tai_unc(ho_so=None, tep=None, co="lon"):
 	)
 	if not f:
 		frappe.throw(
-			"Tệp này không nằm trên phiếu chi của phiếu hoàn tiền %s. Tải lại "
-			"trang rồi bấm lại giúp em." % ho_so
+			"Tệp này không nằm trên phiếu chi của phiếu hoàn tiền %s. Vui lòng tải lại trang rồi bấm lại." % ho_so
 		)
 	doc_tep = frappe.get_doc("File", f.name)
 	try:
@@ -3540,21 +3528,19 @@ def dinh_unc(ho_so=None, ten=None, noi_dung=None):
 			"đính giúp rồi anh chị tải về gửi khách."
 		)
 	if not frappe.db.exists(DT, ho_so):
-		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 
 	d, ds_pe = _pe_cua(ho_so)
 	if ds_pe >= 2:
 		frappe.throw(
-			"Phiếu chi %s đã bị huỷ nên đính thêm giấy tờ vào đó không còn ý "
-			"nghĩa. Báo em để dựng lại chứng từ." % d.phieu_chi
+			"Phiếu chi %s đã bị huỷ nên đính thêm giấy tờ vào đó không còn ý nghĩa. Báo bộ phận kỹ thuật để dựng lại chứng từ." % d.phieu_chi
 		)
 
 	ten = (ten or "").strip() or "uy-nhiem-chi.pdf"
 	noi = (noi_dung or "").strip()
 	if not noi:
 		frappe.throw(
-			"Chưa chọn tệp uỷ nhiệm chi. Tải UNC từ e-banking về máy rồi bấm "
-			"Chọn tệp lại giúp em."
+			"Chưa chọn tệp uỷ nhiệm chi. Vui lòng tải UNC từ e-banking về máy rồi bấm Chọn tệp lại."
 		)
 	if "," in noi and noi[:5].lower() == "data:":
 		noi = noi.split(",", 1)[1]
@@ -3564,15 +3550,13 @@ def dinh_unc(ho_so=None, ten=None, noi_dung=None):
 		so_byte = len(base64.b64decode(noi))
 	except Exception:
 		frappe.throw(
-			"Tệp gửi lên bị hỏng giữa đường nên máy không đọc được. Chọn lại "
-			"tệp và thử lần nữa giúp em."
+			"Tệp gửi lên bị hỏng giữa đường nên máy không đọc được. Vui lòng chọn lại tệp và thử lần nữa."
 		)
 	if so_byte <= 0:
-		frappe.throw("Tệp uỷ nhiệm chi rỗng. Kiểm lại tệp tải từ e-banking giúp em.")
+		frappe.throw("Tệp uỷ nhiệm chi rỗng. Vui lòng kiểm lại tệp tải từ e-banking.")
 	if so_byte > 12 * 1024 * 1024:
 		frappe.throw(
-			"Tệp uỷ nhiệm chi nặng %s MB, quá 12 MB nên máy không nhận. Xuất "
-			"lại bản PDF hoặc chụp nhỏ hơn giúp em."
+			"Tệp uỷ nhiệm chi nặng %s MB, quá 12 MB nên máy không nhận. Vui lòng xuất lại bản PDF hoặc chụp nhỏ hơn."
 			% ("{:.1f}".format(so_byte / 1024.0 / 1024.0))
 		)
 
@@ -3609,6 +3593,62 @@ def dinh_unc(ho_so=None, ten=None, noi_dung=None):
 	}
 
 
+
+@frappe.whitelist()
+def go_unc(ho_so=None, tep=None):
+	"""Go mot uy nhiem chi dinh nham khoi phieu chi. KHONG xoa tep.
+
+	Anh Viet 24/08/2026 yeu cau moi hinh thu nho phai co nut X. Truoc do
+	man nay khong go duoc gi: dinh nham mot to la nam do vinh vien, va
+	Sales van tai dung to nham do gui khach.
+
+	Hai rang buoc, ca hai deu bat o day chu khong tin man hinh:
+	  - Chi ke toan hoac giam doc, dung nguoi da dinh vao.
+	  - Chi go duoc khi phieu CHUA ket thuc. Phieu da ghi so roi thi to UNC
+	    la chung tu cua mot but toan da nam trong so, go ra la lam thung ho
+	    so giai trinh thue (QT-20: khong xoa chung tu, va khong dung vao
+	    du lieu qua khu).
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _duoc_tu_choi():
+		frappe.throw(
+			"Chỉ kế toán hoặc giám đốc mới gỡ được uỷ nhiệm chi. Nhờ chị Dung gỡ giúp."
+		)
+	if not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
+
+	d, _ds_pe = _pe_cua(ho_so)
+	if (d.trang_thai or "") == "Hoan thanh":
+		frappe.throw(
+			"Phiếu %s đã kết thúc và phiếu chi đã ghi sổ, nên không gỡ uỷ nhiệm chi "
+			"ra được nữa. Tờ này là chứng từ của bút toán đã nằm trong sổ. Đính nhầm "
+			"thì đính thêm tờ đúng vào, và báo bộ phận kỹ thuật." % ho_so
+		)
+
+	f = frappe.db.get_value(
+		"File",
+		{"name": tep, "attached_to_doctype": PE, "attached_to_name": d.phieu_chi},
+		["name", "file_name"],
+		as_dict=True,
+	)
+	if not f:
+		frappe.throw(
+			"Tệp này không nằm trên phiếu chi của phiếu hoàn tiền %s. Vui lòng tải lại trang rồi bấm lại." % ho_so
+		)
+	frappe.db.set_value("File", f.name, {
+		"attached_to_doctype": None, "attached_to_name": None,
+	}, update_modified=False)
+	try:
+		frappe.get_doc(DT, ho_so).add_comment(
+			"Comment", "Gỡ uỷ nhiệm chi %s khỏi phiếu chi %s." % (f.file_name or f.name, d.phieu_chi)
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet go UNC")
+	frappe.db.commit()
+	return {"ok": 1, "ho_so": ho_so, "unc": _ds_unc(d.phieu_chi)}
+
 @frappe.whitelist()
 def hoan_thanh(ho_so=None):
 	"""Ket thuc phieu: ghi so phieu chi va dong ho so.
@@ -3627,13 +3667,12 @@ def hoan_thanh(ho_so=None):
 	if not _duoc_tu_choi():
 		frappe.throw("Chỉ kế toán hoặc giám đốc mới kết thúc phiếu hoàn tiền được.")
 	if not frappe.db.exists(DT, ho_so):
-		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Tải lại danh sách giúp em." % ho_so)
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 
 	d, ds_pe = _pe_cua(ho_so)
 	if ds_pe >= 2:
 		frappe.throw(
-			"Phiếu chi %s đã bị huỷ nên không ghi sổ được. Báo em để dựng lại "
-			"chứng từ trước khi kết thúc phiếu." % d.phieu_chi
+			"Phiếu chi %s đã bị huỷ nên không ghi sổ được. Báo bộ phận kỹ thuật để dựng lại chứng từ trước khi kết thúc phiếu." % d.phieu_chi
 		)
 
 	if not _dem_unc(d.phieu_chi):
@@ -3673,7 +3712,7 @@ def hoan_thanh(ho_so=None):
 		"phieu_chi": d.phieu_chi,
 		"da_ghi_san": 1 if da_ghi_san else 0,
 		"ghi_chu": (
-			"Phiếu chi %s đã ghi sổ từ trước, em chỉ đóng hồ sơ lại." % d.phieu_chi
+			"Phiếu chi %s đã ghi sổ từ trước, hệ thống chỉ đóng hồ sơ lại." % d.phieu_chi
 			if da_ghi_san
 			else "Đã ghi sổ phiếu chi %s và đóng phiếu hoàn tiền %s."
 			% (d.phieu_chi, ho_so)

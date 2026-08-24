@@ -870,7 +870,7 @@ def tra_ma(ma, quay=None, nguon=None):
 		}
 	# 2. Ma dung mot lan
 	if not frappe.db.exists("Vagabond Voucher", ma):
-		frappe.throw("Không có mã %s trong hệ thống. Kiểm tra lại giúp em." % ma)
+		frappe.throw("Không có mã %s trong hệ thống. Vui lòng kiểm tra lại." % ma)
 	v = frappe.db.get_value(
 		"Vagabond Voucher",
 		ma,
@@ -1003,8 +1003,7 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 	khong_cong_don = [k for k in ds_km if not cint(k.get("cong_don"))]
 	if khong_cong_don and len(ds_km) > 1:
 		frappe.throw(
-			"Chương trình \"%s\" không cộng dồn được với chương trình khác. "
-			"Bỏ bớt rồi bấm lại giúp em." % khong_cong_don[0].get("ten")
+			'Chương trình "%s" không cộng dồn được với chương trình khác. Vui lòng bỏ bớt rồi bấm lại.' % khong_cong_don[0].get("ten")
 		)
 
 	for km in ds_km:
@@ -1167,7 +1166,7 @@ def _sinh_ma_moi(so_luong):
 	while len(ra) < so_luong:
 		vong += 1
 		if vong > so_luong * 50 + 1000:
-			frappe.throw("Không sinh đủ mã, thử lại với số lượng nhỏ hơn giúp em.")
+			frappe.throw("Không sinh đủ mã, vui lòng thử lại với số lượng nhỏ hơn.")
 		ma = "".join(
 			CHU_MA[int(c, 16) % len(CHU_MA)] for c in frappe.generate_hash(length=DAI_MA)
 		)
@@ -1199,8 +1198,7 @@ def xuat_lo(ctkm, so_luong, email, gui_cho=None, han_dung=None, ghi_chu=None, gu
 	km = frappe.db.get_value("Vagabond CTKM", ctkm, ["ten", "cach_ma", "han_ma"], as_dict=True)
 	if km.cach_ma != "Ma dung mot lan":
 		frappe.throw(
-			"Chương trình \"%s\" đang để cách phát mã là \"%s\". Đổi sang "
-			"\"Mã dùng một lần\" rồi xuất lô giúp em." % (km.ten, km.cach_ma)
+			'Chương trình "%s" đang để cách phát mã là "%s". Vui lòng đổi sang "Mã dùng một lần" rồi xuất lô.' % (km.ten, km.cach_ma)
 		)
 	han = han_dung or km.han_ma
 
