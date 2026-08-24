@@ -135,36 +135,53 @@ def _():
 		"MOT CHUOI NAO DO")
 
 
-@ca("hoàn tiền: mã dò của phiếu Pancake là CẢ CÂU, không phải mã đơn trần")
+@ca("hoàn tiền: mã dò của phiếu Pancake là MÃ ĐƠN TRẦN từ v294")
 def _():
-	"""Mã đơn Pancake chỉ năm chữ số nên dò trần là dính nhầm.
+	"""ĐỔI THIẾT KẾ, và lý do nằm ở dữ liệu thật ngày 24/08/2026.
 
-	`khop_giao_dich` chặn chữ số ở phía SAU chứ không chặn phía trước, nên dò
-	"92252" sẽ ăn vào một dòng chứa "192252".
+	Bản v292 dò CẢ CÂU nội dung chuyển khoản, vì `khop_giao_dich` lúc đó chỉ
+	chặn chữ số phía SAU nên dò "92252" trần sẽ dính vào một dòng chứa
+	"192252". Ca kiểm cũ ở đây chốt đúng thiết kế ấy.
+
+	Rồi sao kê thật cho thấy cả câu mới là thứ hỏng nặng hơn:
+
+	    app bao go : THE VAGABOND HOAN TIEN 92245
+	    sao ke that: MBCT VAGABOND HOAN TIEN DON HANG 92245 D237BVMB/870581
+
+	Chị Dung bỏ chữ THE, thêm hai chữ DON HANG, ngân hàng chèn MBCT ở đầu.
+	Cả câu trượt, và chị phải bấm nút thủ công lúc 14:31 cùng ngày.
+
+	v294 chặn chữ số CẢ HAI ĐẦU trong `doi_soat_sepay.co_ma`, nên mã trần vừa
+	an toàn vừa bắt được mọi cách gõ. Cái bẫy "192252" nay do phép khớp chặn,
+	không còn phải né bằng cách dò cả câu.
 	"""
 	ho_so = {"hoa_don": "", "loai_hoan": ht.LOAI_HUY_PANCAKE,
+		"ma_don_pancake": "92252",
 		"noi_dung_ck": "THE VAGABOND HOAN TIEN 92252"}
-	la("dò theo cả câu", ht.ma_do_soat(ho_so), "THE VAGABOND HOAN TIEN 92252")
-	dung("cả câu KHÔNG dính vào dòng chứa 192252",
+	la("dò theo mã đơn trần", ht.ma_do_soat(ho_so), "92252")
+	dung("mã trần KHÔNG còn dính vào dòng chứa 192252",
 		not ht.khop_giao_dich("CHUYEN KHOAN 192252 ABC", ht.ma_do_soat(ho_so)))
-	# Chung minh cai bay la that chu khong phai lo lang suong: ma tran DINH
-	# vao dong 192252. Bo dong nay di thi khong ai biet vi sao phai do ca cau.
-	dung("mã trần thì DÍNH nhầm vào 192252 - đây là lý do phải dò cả câu",
-		ht.khop_giao_dich("CHUYEN KHOAN 192252 ABC", "92252"))
 	dung("dòng đúng thì vẫn khớp",
 		ht.khop_giao_dich("MB THE VAGABOND HOAN TIEN 92252 REF9", ht.ma_do_soat(ho_so)))
+	# Ba dong sao ke THAT deu phai khop, ke ca dong da lam ban cu truot.
+	dung("khớp được dòng ngân hàng chèn DH",
+		ht.khop_giao_dich("MBCT THE VAGABOND HOAN TIEN DH 92156 D2HLVNHF/428417", "92156"))
+	dung("khớp được dòng kế toán gõ DON HANG",
+		ht.khop_giao_dich("MBCT VAGABOND HOAN TIEN DON HANG 92245 D237BVMB/870581", "92245"))
 
 
-@ca("hoàn tiền: phiếu Pancake mất nội dung thì KHÔNG dò được, phải bỏ qua")
+@ca("hoàn tiền: phiếu Pancake mất mã đơn thì KHÔNG dò được, phải bỏ qua")
 def _():
-	"""Đây là hậu quả thật của lỗi cũ, ghi lại để không ai coi nhẹ nó.
+	"""Thà không khớp còn hơn khớp nhầm một lần tiền ra.
 
-	`doi_soat` lọc bỏ mọi hồ sơ không dò được. Phiếu bị xoá mã rơi vào đúng
-	nhóm đó, nên nó nằm mãi ở "Chờ chi" mà không dòng nhật ký nào giải thích.
+	`doi_soat` lọc bỏ mọi hồ sơ không dò được, nên phiếu bị lỗi cũ xoá mã sẽ
+	nằm ở "Chờ chi" cho tới khi người bấm nút Khớp SePay thủ công. Đó là chủ
+	ý: bản v292 lấy `noi_dung_ck` làm mã dò, mà chuỗi cụt "THE VAGABOND HOAN
+	TIEN" là con của MỌI dòng hoàn tiền nên khớp bừa vào bất kỳ dòng nào.
 	"""
 	mat_ma = {"hoa_don": "", "loai_hoan": ht.LOAI_HUY_PANCAKE,
-		"noi_dung_ck": ""}
+		"ma_don_pancake": "", "noi_dung_ck": "THE VAGABOND HOAN TIEN "}
 	la("không dò được", ht.ma_do_soat(mat_ma), "")
 	con_ma = {"hoa_don": "", "loai_hoan": ht.LOAI_HUY_PANCAKE,
-		"noi_dung_ck": ND_PANCAKE}
-	la("còn mã thì dò được", ht.ma_do_soat(con_ma), ND_PANCAKE)
+		"ma_don_pancake": "92156", "noi_dung_ck": ND_PANCAKE}
+	la("còn mã thì dò được", ht.ma_do_soat(con_ma), "92156")
