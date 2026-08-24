@@ -2714,11 +2714,11 @@ def ds(trang_thai="", so_dong=100, tim=""):
 		for f in frappe.get_all(
 			"File",
 			filters={"attached_to_doctype": DT, "attached_to_name": ["in", [d["name"] for d in ds_]]},
-			fields=["attached_to_name", "file_url", "file_name"],
+			fields=["name", "attached_to_name", "file_url", "file_name"],
 			limit_page_length=0,
 		):
 			anh.setdefault(f["attached_to_name"], []).append(
-				{"url": f["file_url"], "ten": f["file_name"]}
+				{"url": f["file_url"], "ten": f["file_name"], "tep": f["name"]}
 			)
 	# So hoa don dien tu cua don goc: doc mot luot cho ca trang roi va lai o
 	# nao con trong. Mot cau truy van cho ca danh sach, khong phai moi dong
@@ -2902,12 +2902,15 @@ def chi_tiet(ho_so):
 	# So hoa don dien tu cua don goc, doc lai tu don chu khong tin o dang
 	# luu: hoa don thuong duoc phat hanh SAU luc lap phieu hoan tien.
 	ra["so_hddt"] = dong_bo_so_hddt(d.name, d.hoa_don, d.get("so_hddt"))
+	# Tra kem ma File (o "tep") de man hinh co khoa ma go dung tam anh. Duong
+	# dan khong dung lam khoa duoc: hai tam cung ten tai len hai lan co the
+	# tro ve cung mot duong.
 	ra["anh"] = [
-		{"url": f["file_url"], "ten": f["file_name"]}
+		{"url": f["file_url"], "ten": f["file_name"], "tep": f["name"]}
 		for f in frappe.get_all(
 			"File",
 			filters={"attached_to_doctype": DT, "attached_to_name": ho_so},
-			fields=["file_url", "file_name"],
+			fields=["name", "file_url", "file_name"],
 			limit_page_length=0,
 		)
 	]
@@ -3648,6 +3651,59 @@ def go_unc(ho_so=None, tep=None):
 		frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet go UNC")
 	frappe.db.commit()
 	return {"ok": 1, "ho_so": ho_so, "unc": _ds_unc(d.phieu_chi)}
+
+
+# Anh bang chung la can cu ke toan dung de QUYET CHI. Con o buoc cho chi thi
+# go duoc; da chi roi thi tien da ra that va tam anh la can cu cua lan chi
+# do, go ra la rut mat can cu cua mot viec da xay ra (QT-20, va luat khong
+# dung vao du lieu qua khu anh Viet chot 13/08/2026).
+TT_GO_DUOC_ANH = ("Cho chi",)
+
+
+@frappe.whitelist()
+def go_anh_bang_chung(ho_so=None, tep=None):
+	"""Go mot anh bang chung dinh nham khoi phieu hoan tien. KHONG xoa tep.
+
+	Anh Viet 24/08/2026 yeu cau moi hinh thu nho phai co nut X. Truoc do
+	man nay chi dinh vao duoc chu khong go ra: Sales chup nham mot tam la
+	no nam do va di theo ca ho so len ban ke toan.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
+
+	tt = frappe.db.get_value(DT, ho_so, "trang_thai") or ""
+	if tt not in TT_GO_DUOC_ANH:
+		frappe.throw(
+			"Phiếu %s đang ở \"%s\" nên không gỡ ảnh bằng chứng ra được nữa. Tấm này "
+			"là căn cứ kế toán đã dùng để quyết chi. Đính nhầm thì đính thêm tấm đúng "
+			"vào, và ghi rõ trong ô diễn giải." % (ho_so, tt)
+		)
+
+	f = frappe.db.get_value(
+		"File",
+		{"name": tep, "attached_to_doctype": DT, "attached_to_name": ho_so},
+		["name", "file_name"],
+		as_dict=True,
+	)
+	if not f:
+		frappe.throw(
+			"Tệp này không nằm trên phiếu hoàn tiền %s. Vui lòng tải lại trang rồi bấm lại." % ho_so
+		)
+	frappe.db.set_value("File", f.name, {
+		"attached_to_doctype": None, "attached_to_name": None,
+	}, update_modified=False)
+	try:
+		frappe.get_doc(DT, ho_so).add_comment(
+			"Comment", "Gỡ ảnh bằng chứng %s khỏi phiếu." % (f.file_name or f.name)
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: ghi vet go anh bang chung")
+	frappe.db.commit()
+	return {"ok": 1, "ho_so": ho_so}
+
 
 @frappe.whitelist()
 def hoan_thanh(ho_so=None):

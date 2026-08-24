@@ -513,12 +513,34 @@ async function scrXkView(name) {
       h(d.ly_do) + '</b></div></div>' : '') +
     (d.ghi_chu ? '<div class="vxl">Ghi chú</div><div class="vxr"><div class="t"><b>' +
       h(d.ghi_chu) + '</b></div></div>' : '') +
-    (d.anh ? '<div class="vxl">Ảnh chứng minh</div><img src="' + h(d.anh) +
-      '" style="width:100%;border-radius:12px">' : '') +
+    /* Nút X ở góc ảnh (anh Việt 24/08/2026). Chỉ bày khi phiếu CHƯA ghi sổ
+       và chưa bị bỏ: ghi sổ rồi thì tồn kho đã trừ thật và tấm ảnh là căn cứ
+       của lần trừ đó. Máy chủ chặn lại lần nữa. */
+    (d.anh ? '<div class="vxl">Ảnh chứng minh</div>' +
+      '<div style="position:relative;padding-top:6px">' +
+      '<img src="' + h(d.anh) + '" style="width:100%;border-radius:12px;display:block">' +
+      (d.docstatus === 0 && !d.vgb_huy
+        ? '<span class="xo" id="vxGoAnh" title="Gỡ ảnh này" ' +
+          'style="position:absolute;top:-1px;right:-7px">✕</span>' : '') +
+      '</div>' : '') +
     '<div class="vxl">Hàng trong phiếu (' + d.dong.length + ' món)</div>' + rows +
     (d.tong_tien ? '<div style="text-align:right;font-weight:700;margin-top:8px">Giá trị: ' +
       vxSo(d.tong_tien) + 'đ</div>' : '') +
     nut + '</div>');
+
+  var ga = body.querySelector('#vxGoAnh');
+  if (ga) ga.onclick = async function () {
+    if (!await xacNhan('Gỡ ảnh chứng minh khỏi phiếu ' + d.name + '?\n\n' +
+      'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Chụp lại rồi đính vào ' +
+      'trước khi ghi sổ.', 'Gỡ ảnh', 'Gỡ')) return;
+    busy(true);
+    try {
+      await api('vagabond.xuat_kho.go_anh_xuat_huy', { name: d.name });
+      busy(false);
+      toast('Đã gỡ ảnh', 2800);
+      go(function () { scrXkView(d.name); }, true);
+    } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được ảnh'); }
+  };
 
   var hu = body.querySelector('#vxHuyTiep');
   if (hu) hu.onclick = function () {

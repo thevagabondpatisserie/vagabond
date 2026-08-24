@@ -141,6 +141,10 @@ CUA_NGO = {
 		# phieu CHUA ket thuc - ghi so roi thi to do la chung tu cua but
 		# toan da nam trong so.
 		"go_unc",
+		# go_anh_bang_chung them 24/08/2026: nut X tren anh Sales chup. Chi
+		# go duoc khi phieu con o "Cho chi" - da chi roi thi tam anh la can
+		# cu cua mot lan chi tien that.
+		"go_anh_bang_chung",
 		# tim_gd_ra va khop_tay them 24/08/2026: khop SePay THU CONG cho
 		# dong tien RA. Khac han gan_gd_vao ngay tren, cai do la tien VAO.
 		# Ke toan go noi dung tay tren MB Biz nen chi can lech mot chu la

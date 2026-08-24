@@ -213,27 +213,94 @@ def them_ma_loai_tru(chuoi, ma):
 	return "\n".join(cu)
 
 
-def ghep_duoc_tu_ruot(dinh_muc, con_cua_banh, khong_tran=None):
+def ma_co_nguon_cung(dong):
+	"""Tap ma hang DA duoc khai nguon cung. THUAN.
+
+	dong: list dict co ma_hang, san_xuat, nha_in_giao.
+
+	"Da khai" nghia la co nguoi go mot con so lon hon 0 vao mot trong hai o
+	nguon cung. Khac han "con lai bang 0": con 0 la biet ro khong con cai
+	nao, chua khai la KHONG BIET. Hai chuyen do phai xu ly nguoc nhau, xem
+	ghep_duoc_tu_ruot.
+	"""
+	ra = set()
+	for d in dong or []:
+		d = d or {}
+		ma = str(d.get("ma_hang") or "").strip()
+		if ma and nguon_cung(d.get("san_xuat"), d.get("nha_in_giao")) > 0:
+			ra.add(ma)
+	return ra
+
+
+def ruot_thieu_nguon(dinh_muc, khong_tran=None, co_nguon=None):
+	"""Moi hop con bao nhieu ruot chua khai nguon cung. THUAN.
+
+	Tra {ma_hop: so ruot bi bo qua}. Chi cac hop co ruot bi bo qua moi co mat.
+
+	Man hinh PHAI hien con so nay khi no lon hon 0: luc do phep ghep dang
+	tinh thieu mot thanh phan, nen so hop ghep duoc la so LAC QUAN chu chua
+	chac dung. Im lang o day la dung cai bay ma ca muc nay sinh ra de chan.
+	"""
+	khong_tran = khong_tran or set()
+	co_nguon = co_nguon or set()
+	ra = {}
+	for m in dinh_muc or []:
+		m = m or {}
+		hop = str(m.get("ma_hop") or "").strip()
+		banh = str(m.get("ma_banh") or "").strip()
+		if not hop or not banh or cint(m.get("so_luong")) <= 0:
+			continue
+		if banh in khong_tran and banh not in co_nguon:
+			ra[hop] = ra.get(hop, 0) + 1
+	return ra
+
+
+def ghep_duoc_tu_ruot(dinh_muc, con_cua_banh, khong_tran=None, co_nguon=None):
 	"""Ruot con lai ghep duoc THEM bao nhieu hop nua, theo tung ma hop. THUAN.
 
 	dinh_muc      : list dict co ma_hop, ma_banh, so_luong
 	con_cua_banh  : dict {ma_banh: so con ban duoc cua banh le do}
 	khong_tran    : tap ma banh mang co "khong dat tran"
+	co_nguon      : tap ma banh DA khai nguon cung (xem ma_co_nguon_cung)
 
 	Tra dict {ma_hop: so hop}. Ma hop nao KHONG co rang buoc ruot nao thi
 	KHONG co mat trong dict - de ben goi phan biet duoc "ghep duoc 0 hop" voi
 	"khong biet, khong rang buoc".
 
-	Vi sao phai bo qua banh mang co khong_tran (bay lon nhat cua phep nay):
-	banh 80g trong MOONGARDEN va MOONLAPIS khong co lo rieng, chi lam theo
-	hop, nen han muc cua chung bang 0. De chung vao phep lay nho nhat thi moi
-	hop deu ra 0 va ca mua bi chan - chan sai chu khong phai chan dung. Co
-	khong_tran sinh ra dung de chan chuyen nay, xem con_sau_khi_them.
+	LUAT BO QUA, sua ngay 24/08/2026
+	--------------------------------
+	Anh Viet: *"so ban duoc ma de la 1557 la sai ban chat roi, so ban duoc
+	xem o tab Co the ban la so hop con du co the ban duoc trong ngay hom do
+	ma thoi, tinh tu may cai banh san xuat ben duoi, ghep duoc tong bao
+	nhieu hop, roi tru di cac so da dat."*
+
+	Ban truoc bo qua MOI ruot mang co khong_tran. Ly do luc do la that: banh
+	80g trong MOONGARDEN va MOONLAPIS chua co lo rieng nen nguon cung cua
+	chung bang 0, de vao phep lay nho nhat thi moi hop deu ra 0 - chan sai
+	chu khong phai chan dung.
+
+	Nhung tu khi bep nhap san luong theo tung ngay thi nhung banh do CO so
+	that. Bo qua chung nua la bo qua dung cai rang buoc chat nhat: ngay
+	24/08/2026 vo hop con 1.557 ma ruot chi ghep duoc 15, man hinh bay 1.557
+	cho sales up sale - lech 1.542 hop.
+
+	Luat moi tach dung hai chuyen ma ban cu gop lam mot:
+
+	    chua khai nguon cung  -> KHONG BIET  -> bo qua, va dem vao
+	                                            ruot_thieu_nguon de man hinh
+	                                            noi ro la so dang lac quan
+	    da khai nguon cung    -> BIET ro     -> chan, du con 0 hay am
+
+	Co khong_tran van giu nguyen viec cu cua no o cho khac: khong cho mot
+	banh chi lam theo hop lam hong phep chan ban lo (con_sau_khi_them) va
+	phep canh bao sap het. Hai viec do khac han viec dem xem ghep duoc may
+	hop, va gop chung lai chinh la loi cua ban cu.
 
 	Khong tru hai lan: con_cua_banh da tru phan nam trong hop da ban roi
 	(cot trong_hop), nen day dung la so banh le CON TU DO.
 	"""
 	khong_tran = khong_tran or set()
+	co_nguon = co_nguon or set()
 	ra = {}
 	for m in dinh_muc or []:
 		m = m or {}
@@ -242,7 +309,7 @@ def ghep_duoc_tu_ruot(dinh_muc, con_cua_banh, khong_tran=None):
 		sl = cint(m.get("so_luong"))
 		if not hop or not banh or sl <= 0:
 			continue
-		if banh in khong_tran:
+		if banh in khong_tran and banh not in co_nguon:
 			continue
 		co = cint((con_cua_banh or {}).get(banh))
 		duoc = co // sl if co > 0 else 0
@@ -446,7 +513,7 @@ def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc,
 	return ra
 
 
-def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None):
+def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None, co_nguon=None):
 	"""Them hai cot ghep_duoc va con_thuc_te cho cac dong HOP cua mot ngay. THUAN.
 
 	o_ngay: mot ngay lay ra tu cuon_ton_theo_ngay. Sua tai cho roi tra ve chinh
@@ -460,7 +527,8 @@ def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None):
 	con_banh = {
 		ma: cint(o.get("co_the_ban")) for ma, o in (o_ngay or {}).items() if ma not in hop
 	}
-	ghep = ghep_duoc_tu_ruot(dinh_muc, con_banh, khong_tran or set())
+	ghep = ghep_duoc_tu_ruot(dinh_muc, con_banh, khong_tran or set(), co_nguon or set())
+	thieu = ruot_thieu_nguon(dinh_muc, khong_tran or set(), co_nguon or set())
 
 	# Hop nao CO khai dinh muc, du ruot cua no co dat tran hay khong. Phai tach
 	# ra khoi co "ruot_khong_rang_buoc", vi hai chuyen nay khac han nhau ma ban
@@ -470,9 +538,11 @@ def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None):
 	#   khai roi, ruot khong dat tran -> binh thuong, banh 80g chi lam theo hop
 	#                                    nen chi so vo hop chan duoc
 	#
-	# MOONGARDEN khai du 5 ruot, ca 5 deu mang co khong_tran, nen ghep_duoc_tu_ruot
-	# bo qua het va tra ve None. Man hinh doc None thanh "chua khai dinh muc" la
-	# noi oan cho nguoi da khai.
+	# MOONGARDEN khai du 5 ruot, ca 5 deu mang co khong_tran. Ban truoc 24/08/2026
+	# thi ghep_duoc_tu_ruot bo qua het va tra ve None, man hinh doc None thanh
+	# "chua khai dinh muc" - noi oan cho nguoi da khai. Tu 24/08 thi nam ruot do
+	# deu da co san luong bep nhap nen chung chan binh thuong, va None chi con
+	# nghia la that su khong co rang buoc nao.
 	co_dinh_muc = set()
 	for m in dinh_muc or []:
 		h = str((m or {}).get("ma_hop") or "").strip()
@@ -487,12 +557,16 @@ def ghep_theo_ngay(o_ngay, dinh_muc, khong_tran=None):
 			o["con_thuc_te"] = con_hop_thuc_te(o.get("co_the_ban"), g)
 			o["ruot_khong_rang_buoc"] = 1 if g is None else 0
 			o["chua_khai_dinh_muc"] = 0 if ma in co_dinh_muc else 1
+			# So ruot bi bo qua vi chua ai khai nguon cung. Lon hon 0 nghia la
+			# so ghep duoc dang LAC QUAN, con thieu mot thanh phan chua biet.
+			o["ruot_thieu_nguon"] = cint(thieu.get(ma))
 		else:
 			o["la_hop"] = 0
 			o["ghep_duoc"] = 0
 			o["con_thuc_te"] = cint(o.get("co_the_ban"))
 			o["ruot_khong_rang_buoc"] = 0
 			o["chua_khai_dinh_muc"] = 0
+			o["ruot_thieu_nguon"] = 0
 	return o_ngay
 
 
@@ -1122,6 +1196,13 @@ def bang(mua=None):
 	# Ma nao la hop, va hop nao da khai dinh muc. Tinh o may chu chu khong o
 	# man hinh (QT-19): man tu suy la hai noi cung giu mot luat.
 	_la_hop = ma_la_hop([m.as_dict() for m in doc.get("dinh_muc") or []])
+	# Hop nao con ruot chua ai khai nguon cung. Lon hon 0 nghia la so
+	# "ruot ghep duoc" dang lac quan vi thieu mot thanh phan chua biet.
+	_thieu_nguon = ruot_thieu_nguon(
+		[m.as_dict() for m in doc.get("dinh_muc") or []],
+		{d.ma_hang for d in doc.dong if cint(d.khong_tran)},
+		ma_co_nguon_cung([d.as_dict() for d in doc.dong]),
+	)
 
 	# San luong bep theo ngay, gom lai cho man hinh ve tab moi.
 	sl_theo_ngay = {}
@@ -1169,6 +1250,10 @@ def bang(mua=None):
 				"con_thuc_te": d.con_thuc_te or 0,
 				"la_hop": 1 if d.ma_hang in _la_hop else 0,
 				"ruot_khong_rang_buoc": cint(d.ruot_khong_rang_buoc),
+				# Tinh tai cho chu khong luu them mot truong nua: con so nay
+				# suy ra duoc tu dinh muc va hai o nguon cung, ma them mot
+				# truong la them mot cho co the venh voi phep tinh.
+				"ruot_thieu_nguon": cint(_thieu_nguon.get(d.ma_hang)),
 				"ten_khach_cho": d.ten_khach_cho or "",
 				"ghi_chu": d.ghi_chu or "",
 			}
@@ -1367,10 +1452,13 @@ def bang_ngay(mua=None, ngay=None):
 
 	dm = [m.as_dict() for m in doc.get("dinh_muc") or []]
 	khong_tran = {d.ma_hang for d in doc.dong if cint(d.khong_tran)}
+	# Ruot da khai nguon cung thi van chan duoc so hop, du mang co khong_tran
+	# (anh Viet 24/08/2026). Xem ghep_duoc_tu_ruot.
+	co_nguon = ma_co_nguon_cung([d.as_dict() for d in doc.dong])
 	chot = _chot_ton_tu_doc(doc, trong_khoang)
 	ai = _ai_chot(doc, trong_khoang)
 	cuon = cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam, dm, chot)
-	o_ngay = ghep_theo_ngay(cuon.get(str(ng)) or {}, dm, khong_tran)
+	o_ngay = ghep_theo_ngay(cuon.get(str(ng)) or {}, dm, khong_tran, co_nguon)
 
 	# Anh va ten lay tu bang san pham, de man nay khong phai hoi them lan nao.
 	thong_tin = {
@@ -1425,6 +1513,7 @@ def bang_ngay(mua=None, ngay=None):
 				"con_thuc_te": o["con_thuc_te"],
 				"ruot_khong_rang_buoc": o["ruot_khong_rang_buoc"],
 				"chua_khai_dinh_muc": o["chua_khai_dinh_muc"],
+				"ruot_thieu_nguon": o.get("ruot_thieu_nguon") or 0,
 				"ten_khach_ps": c.get("khach_ps") or "",
 				"ten_khach_cho": c.get("khach") or "",
 				"ten_khach_khac": c.get("khach_khac") or "",

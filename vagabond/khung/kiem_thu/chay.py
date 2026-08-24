@@ -30,6 +30,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_duong_app,
 	thu_duyet_ycmh,
 	thu_ds,
+	thu_ghep_hop_theo_ruot,
 	thu_goi_y_ycsx,
 	thu_gui_thu,
 	thu_hoa_don_am, thu_hoan_tien_noi_dung, thu_hoan_ung_v279, thu_hop_dong, thu_hop_qua,

@@ -33,6 +33,7 @@ class VagabondMuaVu(Document):
 			con_hop_thuc_te,
 			ghep_duoc_tu_ruot,
 			han_muc_tu_dot,
+			ma_co_nguon_cung,
 			ma_la_hop,
 			nguon_cung,
 			nhan_tu_ten,
@@ -105,8 +106,16 @@ class VagabondMuaVu(Document):
 		# hien nut Het hang, chu khong phai them mot lop chan thu hai.
 		con_banh = {d.ma_hang: cint(d.co_the_ban) for d in self.dong}
 		khong_tran = {d.ma_hang for d in self.dong if cint(d.khong_tran)}
+		# Ruot DA khai nguon cung thi van chan duoc so hop, du no mang co
+		# khong_tran (anh Viet 24/08/2026). Chi ruot CHUA khai gi ca moi bi bo
+		# qua, vi luc do la khong biet chu khong phai bang 0. Xem
+		# ghep_duoc_tu_ruot de biet vi sao gop hai chuyen do lam mot la sai.
+		co_nguon = ma_co_nguon_cung([d.as_dict() for d in self.dong])
 		ghep = ghep_duoc_tu_ruot(
-			[m.as_dict() for m in self.get("dinh_muc") or []], con_banh, khong_tran
+			[m.as_dict() for m in self.get("dinh_muc") or []],
+			con_banh,
+			khong_tran,
+			co_nguon,
 		)
 		for d in self.dong:
 			if d.ma_hang in la_hop:

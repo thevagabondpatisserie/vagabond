@@ -1723,6 +1723,94 @@ def gan_anh(doctype, name, fieldname, file_url):
 	return name
 
 
+# ------------------------------------------------- go tep dinh nham
+
+
+# Truoc buoc nao thi con go duoc anh ra. Da doi soat COD roi thi to anh giao
+# la can cu cua mot lan doi tien that, va chu ky la bang chung khach da nhan
+# hang - go ra la lam thung ho so (QT-20, va luat khong dung vao du lieu qua
+# khu anh Viet chot 13/08/2026).
+TT_GO_DUOC_ANH = ("Chờ giao", "Đang giao")
+
+
+@frappe.whitelist()
+def go_anh(name=None, truong=None, tep=None):
+	"""Go anh giao hang hoac chu ky dinh nham khoi van don. KHONG xoa tep.
+
+	Anh Viet 24/08/2026 yeu cau moi hinh thu nho phai co nut X. Man nay
+	truoc do khong go duoc gi: shipper chup nham don khac la tam anh do nam
+	lai vinh vien, va sales van tai dung tam do gui khach.
+
+	`truong` chi nhan hai o that: anh_giao va chu_ky. Nhan rong hon la mo
+	duong cho mot cai bam nham xoa mat o khac tren cung van don.
+	"""
+	_kiem_quyen_xem()
+	truong = str(truong or "").strip()
+	if truong not in ("anh_giao", "chu_ky"):
+		frappe.throw("Chỉ gỡ được ảnh giao hàng hoặc chữ ký.")
+	if not frappe.db.exists("Van Don", name):
+		frappe.throw("Không tìm thấy vận đơn %s. Vui lòng tải lại danh sách." % name)
+
+	d = frappe.db.get_value(
+		"Van Don", name, ["trang_thai", "da_doi_soat", "anh_giao", "chu_ky"], as_dict=True
+	)
+	if cint(d.get("da_doi_soat")):
+		frappe.throw(
+			"Vận đơn %s đã đối soát COD nên không gỡ ảnh ra được nữa. Tấm này là "
+			"căn cứ của một lần đối tiền thật." % name
+		)
+	if truong == "chu_ky" and (d.get("trang_thai") or "") not in TT_GO_DUOC_ANH:
+		frappe.throw(
+			"Vận đơn %s đang ở \"%s\" nên không gỡ chữ ký ra được. Chữ ký là bằng "
+			"chứng khách đã nhận hàng. Ký nhầm thì mời khách ký lại, bản mới đè lên "
+			"bản cũ." % (name, d.get("trang_thai") or "")
+		)
+
+	# Man hinh chi giu duong dan chu khong giu ma File, nen cho phep tim theo
+	# duong dan dang nam trong chinh o do. Van khoa theo dung van don nay, nen
+	# khong mo duong doc chui sang don khac.
+	loc = {"attached_to_doctype": "Van Don", "attached_to_name": name}
+	if tep:
+		loc["name"] = tep
+	else:
+		if not (d.get(truong) or "").strip():
+			frappe.throw("Vận đơn %s chưa có %s nào để gỡ." % (name, truong))
+		loc["file_url"] = d.get(truong)
+	f = frappe.db.get_value("File", loc, ["name", "file_name", "file_url"], as_dict=True)
+	if not f:
+		# Tep cu tai len truoc khi co o attached_to co the khong con ban ghi
+		# File nao. Van phai xoa duong dan trong o, khong thi man hinh ve mai
+		# mot tam anh khong ai go duoc.
+		if (d.get(truong) or "").strip():
+			dat = {truong: None}
+			if truong == "chu_ky":
+				dat["ky_luc"] = None
+			frappe.db.set_value("Van Don", name, dat, update_modified=False)
+			frappe.db.commit()
+			return {"ok": 1, "name": name, "truong": truong, "khong_thay_tep": 1}
+		frappe.throw(
+			"Tệp này không nằm trên vận đơn %s. Vui lòng tải lại trang rồi bấm lại." % name
+		)
+	frappe.db.set_value("File", f.name, {
+		"attached_to_doctype": None, "attached_to_name": None,
+	}, update_modified=False)
+	# O tren van don tro toi tep vua go thi phai xoa theo, khong thi man hinh
+	# van ve mot duong dan khong con ai giu.
+	if (d.get(truong) or "") == (f.get("file_url") or ""):
+		dat = {truong: None}
+		if truong == "chu_ky":
+			dat["ky_luc"] = None
+		frappe.db.set_value("Van Don", name, dat, update_modified=False)
+	try:
+		frappe.get_doc("Van Don", name).add_comment(
+			"Comment", "Gỡ %s (%s) khỏi vận đơn." % (truong, f.file_name or f.name)
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "van_don: ghi vet go anh")
+	frappe.db.commit()
+	return {"ok": 1, "name": name, "truong": truong}
+
+
 CP_TRUONG = [
 	"name", "shipper", "ngay", "loai", "so_tien", "so_hoa_don", "nha_cung_cap",
 	"anh_hoa_don", "ghi_chu", "trang_thai", "ghi_chu_duyet", "ngay_hoan_ung",
@@ -1874,12 +1962,30 @@ def duyet_chi_phi(name, hanh_dong, ghi_chu=None):
 
 def don_dep_anh_giao():
 	"""Cron chay hang ngay: xoa anh giao hang cua van don qua 30 ngay.
-	Chi dong vao anh_giao cua Van Don; anh hoa don chi phi giu nguyen."""
+
+	CHI dong vao o `anh_giao`. Anh hoa don chi phi nam o doctype khac nen
+	khong lien quan.
+
+	SUA NGAY 24/08/2026 - nhip nay dang xoa ca CHU KY
+	-------------------------------------------------
+	Bo loc cu chi co `attached_to_doctype = "Van Don"`, khong loc theo o. Ma
+	chu ky khach ky tay cung la mot tep dinh vao Van Don (xem luu_chu_ky),
+	nen moi chu ky qua 30 ngay deu bi `delete_doc(force=True)` xoa VAT LY.
+
+	Chinh docstring cua luu_chu_ky viet "Chu ky la chung tu giao nhan nen
+	KHONG nam trong dien don dep anh sau 30 ngay" - loi hua do da bi chinh
+	ham nay pha, im lang, suot tu luc dat nhip.
+
+	Chu ky la chung tu giao nhan: mat no la mat bang chung khach da nhan
+	hang, dung dieu QT-20 cam. Nay loc theo dung o `anh_giao`, va con mot
+	lop chan thu hai o vong lap phong khi tep cu chua kip mang ten o.
+	"""
 	moc = add_days(nowdate(), -30)
 	files = frappe.get_all(
 		"File",
 		filters={
 			"attached_to_doctype": "Van Don",
+			"attached_to_field": "anh_giao",
 			"creation": ["<", moc],
 		},
 		fields=["name", "attached_to_name", "file_url"],
@@ -1887,7 +1993,13 @@ def don_dep_anh_giao():
 	)
 	for f in files:
 		try:
-			vd = frappe.db.get_value("Van Don", f.attached_to_name, "anh_giao")
+			vd, ky = frappe.db.get_value(
+				"Van Don", f.attached_to_name, ["anh_giao", "chu_ky"]
+			) or (None, None)
+			# Lop chan thu hai: tep dang la chu ky cua don thi khong dung toi,
+			# du bo loc tren da le ra loai no ra roi.
+			if ky and ky == f.file_url:
+				continue
 			frappe.delete_doc("File", f.name, ignore_permissions=True, force=True)
 			if vd and vd == f.file_url:
 				frappe.db.set_value("Van Don", f.attached_to_name, "anh_giao", None)

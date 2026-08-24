@@ -2686,12 +2686,34 @@ async function scrXkView(name) {
       h(d.ly_do) + '</b></div></div>' : '') +
     (d.ghi_chu ? '<div class="vxl">Ghi chú</div><div class="vxr"><div class="t"><b>' +
       h(d.ghi_chu) + '</b></div></div>' : '') +
-    (d.anh ? '<div class="vxl">Ảnh chứng minh</div><img src="' + h(d.anh) +
-      '" style="width:100%;border-radius:12px">' : '') +
+    /* Nút X ở góc ảnh (anh Việt 24/08/2026). Chỉ bày khi phiếu CHƯA ghi sổ
+       và chưa bị bỏ: ghi sổ rồi thì tồn kho đã trừ thật và tấm ảnh là căn cứ
+       của lần trừ đó. Máy chủ chặn lại lần nữa. */
+    (d.anh ? '<div class="vxl">Ảnh chứng minh</div>' +
+      '<div style="position:relative;padding-top:6px">' +
+      '<img src="' + h(d.anh) + '" style="width:100%;border-radius:12px;display:block">' +
+      (d.docstatus === 0 && !d.vgb_huy
+        ? '<span class="xo" id="vxGoAnh" title="Gỡ ảnh này" ' +
+          'style="position:absolute;top:-1px;right:-7px">✕</span>' : '') +
+      '</div>' : '') +
     '<div class="vxl">Hàng trong phiếu (' + d.dong.length + ' món)</div>' + rows +
     (d.tong_tien ? '<div style="text-align:right;font-weight:700;margin-top:8px">Giá trị: ' +
       vxSo(d.tong_tien) + 'đ</div>' : '') +
     nut + '</div>');
+
+  var ga = body.querySelector('#vxGoAnh');
+  if (ga) ga.onclick = async function () {
+    if (!await xacNhan('Gỡ ảnh chứng minh khỏi phiếu ' + d.name + '?\n\n' +
+      'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Chụp lại rồi đính vào ' +
+      'trước khi ghi sổ.', 'Gỡ ảnh', 'Gỡ')) return;
+    busy(true);
+    try {
+      await api('vagabond.xuat_kho.go_anh_xuat_huy', { name: d.name });
+      busy(false);
+      toast('Đã gỡ ảnh', 2800);
+      go(function () { scrXkView(d.name); }, true);
+    } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được ảnh'); }
+  };
 
   var hu = body.querySelector('#vxHuyTiep');
   if (hu) hu.onclick = function () {
@@ -5480,16 +5502,25 @@ async function scrRecvList() {
 }
 
 /* Khu chung tu giao nhan: 2 anh hang + ban scan bien ban NCC */
+/* Nút X ở góc từng tấm (anh Việt 24/08/2026). Phiếu nhập được ghi sổ ngay
+   lúc lập nên không có nấc "chưa ghi sổ" để chặn; anh Việt chốt chỉ chặn khi
+   phiếu đã huỷ. Đổi lại mỗi lần gỡ đều ghi vết ai gỡ, gỡ tấm nào. */
 function rcvAnhHtml(doc) {
-  function o(url, ten) {
+  var goDuoc = Number(doc.docstatus) !== 2;
+  function o(url, ten, truong) {
     if (!url) return '';
     var laPdf = String(url).toLowerCase().indexOf('.pdf') >= 0;
     var trong = laPdf ? '<div class="rcvthf">📄</div>' : '<img class="rcvthi" src="' + h(url) + '" loading="lazy">';
-    return '<a class="rcvth" href="' + h(url) + '" target="_blank">' + trong + '<span>' + ten + '</span></a>';
+    return '<span style="position:relative;display:inline-block">' +
+      '<a class="rcvth" href="' + h(url) + '" target="_blank">' + trong + '<span>' + ten + '</span></a>' +
+      (goDuoc
+        ? '<span class="xo" data-rcvgo="' + h(truong) + '" data-ten="' + h(ten) + '" ' +
+          'title="Gỡ tấm này" style="position:absolute;top:-6px;right:-6px">✕</span>' : '') +
+      '</span>';
   }
-  var s = o(doc.custom_hinh_nhan_hang_1, 'Ảnh hàng (1)') +
-    o(doc.custom_hinh_nhan_hang_2, 'Ảnh hàng (2)') +
-    o(doc.custom_scan_bien_ban, 'Biên bản NCC');
+  var s = o(doc.custom_hinh_nhan_hang_1, 'Ảnh hàng (1)', 'custom_hinh_nhan_hang_1') +
+    o(doc.custom_hinh_nhan_hang_2, 'Ảnh hàng (2)', 'custom_hinh_nhan_hang_2') +
+    o(doc.custom_scan_bien_ban, 'Biên bản NCC', 'custom_scan_bien_ban');
   if (!s) s = '<div style="color:#98a2b3;font-size:13px;padding:2px 14px 8px">Chưa đính kèm ảnh hay biên bản lúc nhận.</div>';
   return '<div class="sec">Chứng từ giao nhận</div><div class="rcvths">' + s + '</div>';
 }
@@ -5513,7 +5544,24 @@ async function rcvXemXong(name) {
         '<div class="l2">' + h(r.item_code) + ' · ' + h(shortWh(r.warehouse) || '') + '</div></div>' +
         '<span class="st b">' + num(r.qty) + ' ' + h(r.uom || '') + '</span></div>';
     }).join('') + '</div>' + rcvAnhHtml(doc);
-  frame('Phiếu ' + name, s);
+  var b = frame('Phiếu ' + name, s);
+  b.addEventListener('click', async function (e) {
+    var n = e.target.closest('[data-rcvgo]');
+    if (!n) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var tr = n.getAttribute('data-rcvgo'), ten = n.getAttribute('data-ten');
+    if (!await xacNhan('Gỡ "' + ten + '" khỏi phiếu ' + name + '?\n\n' +
+      'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Việc gỡ được ghi vết.',
+      'Gỡ chứng từ giao nhận', 'Gỡ')) return;
+    busy(1);
+    try {
+      await api('vagabond.nhan_hang.go_anh_nhan', { name: name, truong: tr });
+      busy(0);
+      toast('Đã gỡ ' + ten, 2800);
+      go(function () { rcvXemXong(name); }, true);
+    } catch (e2) { busy(0); baoTin(errMsg(e2) || 'Không gỡ được'); }
+  });
 }
 
 
@@ -13470,13 +13518,20 @@ function htCtVe() {
 
   html += '<div class="sec">Ảnh bằng chứng</div>';
   if ((d.anh || []).length) {
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:2px">' +
+    /* Nút X ở góc từng tấm (anh Việt 24/08/2026). Chỉ bày khi phiếu còn ở
+       "Chờ chi": chi rồi thì tấm ảnh là căn cứ của một lần chi tiền thật,
+       gỡ ra là rút mất căn cứ của việc đã xảy ra. Máy chủ chặn lần nữa. */
+    var goDuocAnh = (d.trang_thai || '') === 'Cho chi';
+    html += '<div style="display:flex;gap:14px 11px;flex-wrap:wrap;padding:6px 2px">' +
       d.anh.map(function (a) {
-        return '<div class="htcanh" data-url="' + h(a.url) + '" style="width:92px;height:92px;border-radius:10px;' +
-          'background-image:url(' + a.url + ');background-size:cover;background-position:center;' +
-          'border:1px solid #e3e6ec;cursor:pointer"></div>';
+        return oTep({
+          url: a.url, ten: a.ten, anh: 1, co: 92,
+          lop: 'htcanh', mo: 'data-url="' + h(a.url) + '"',
+          go: (goDuocAnh && a.tep) ? 'data-htgoanh="' + h(a.tep) + '" data-ten="' + h(a.ten || '') + '"' : ''
+        });
       }).join('') + '</div>' +
-      '<div style="font-size:11px;color:#9ca3af;padding:7px 2px 0">Bấm vào ảnh để xem to.</div>';
+      '<div style="font-size:11px;color:#9ca3af;padding:7px 2px 0">Bấm vào ảnh để xem to.' +
+      (goDuocAnh ? ' Chụp nhầm thì bấm dấu ✕ ở góc để gỡ.' : '') + '</div>';
   } else {
     html += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
       'border-radius:10px;padding:10px 12px;line-height:1.6">Phiếu này chưa có ảnh bằng chứng. ' +
@@ -13564,6 +13619,12 @@ function htCtVe() {
   }
   var b = frame('Phiếu hoàn tiền', html, chan ? { footer: chan } : undefined);
 
+  b.querySelectorAll('[data-htgoanh]').forEach(function (n) {
+    n.onclick = function (e) {
+      e.stopPropagation();
+      htGoAnhBangChung(d, n.getAttribute('data-htgoanh'), n.getAttribute('data-ten'));
+    };
+  });
   b.querySelectorAll('.htcanh').forEach(function (n) {
     n.onclick = function () { rndXemAnh(n.getAttribute('data-url')); };
   });
@@ -13995,6 +14056,25 @@ function htCtUnc(d) {
       (d.ngay_hoan_thanh ? ' lúc ' + h(String(d.ngay_hoan_thanh).slice(0, 16)) : '') + '.</div>';
   }
   return h_ + '</div>';
+}
+
+/* Go mot anh bang chung dinh nham. Hoi lai truoc khi go: tam nay la thu ke
+   toan ngoi xa quay dung de quyet chi, go nham la bo mat can cu cua ho. */
+async function htGoAnhBangChung(d, tep, ten) {
+  if (!tep) return;
+  var ok = await xacNhan(
+    'Gỡ ảnh "' + (ten || tep) + '" khỏi phiếu ' + d.name + '?\n\n' +
+    'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Phiếu không còn ảnh nào thì ' +
+    'kế toán sẽ không có căn cứ để quyết chi.',
+    'Gỡ ảnh bằng chứng', 'Gỡ');
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.hoan_tien.go_anh_bang_chung', { ho_so: d.name, tep: tep });
+    busy(false);
+    toast('Đã gỡ ' + (ten || tep), 3000);
+    htChiTiet(d.name);
+  } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được ảnh', 'Lỗi'); }
 }
 
 /* Go mot uy nhiem chi dinh nham. Hoi lai truoc khi go: to nay la bang
@@ -14767,12 +14847,18 @@ function mvDsSpHtml(ds) {
           money(x.ghep_duoc || 0) + '</b> → bán được <b>' + money(con) + '</b>' +
           ((x.co_the_ban || 0) > con
             ? ' <span style="color:#b45309">· nghẽn ở ruột, bếp cần làm thêm</span>' : '') +
-          (x.ruot_khong_rang_buoc
-            /* Câu cũ nói "chưa khai định mức ruột" là nói sai: hộp có khai
-               đủ ruột, chỉ là mọi ruột đều mang cờ "không đặt trần" nên phép
-               ghép ngược bỏ qua hết (anh Việt bắt được 22/08/2026). */
-            ? '<div style="color:#b45309;margin-top:4px">⚠️ Ruột của hộp này không ruột nào ' +
-              'đặt trần, nên máy chỉ chặn được theo số vỏ hộp.</div>' : '') +
+          /* Ba câu, ba tình huống khác nhau. Câu "không ruột nào đặt trần"
+             của bản trước 24/08/2026 nói SAI với MOONGARDEN: cả 5 ruột đều
+             có bếp nhập sản lượng, chỉ là phép ghép cũ bỏ qua chúng vì cờ
+             "không đặt trần". Nay ruột đã khai nguồn cung thì chặn bình
+             thường, và chỉ ruột CHƯA khai gì mới bị bỏ qua. */
+          (x.ruot_thieu_nguon
+            ? '<div style="color:#b45309;margin-top:4px">⚠️ Còn <b>' + money(x.ruot_thieu_nguon) +
+              '</b> ruột chưa ai khai nguồn cung, nên số ghép được ở trên là số ' +
+              '<b>lạc quan</b>. Vào tab Sản phẩm nhập số bếp làm cho những ruột đó.</div>'
+            : x.ruot_khong_rang_buoc
+            ? '<div style="color:#b45309;margin-top:4px">⚠️ Chưa ruột nào của hộp này có ' +
+              'nguồn cung, nên máy chỉ chặn được theo số vỏ hộp.</div>' : '') +
           '</div>' : '') +
       '<div style="display:flex;gap:6px;margin-top:8px;font-size:11.5px;flex-wrap:wrap;align-items:center">' +
       mvChip('Bán lẻ', banLe, '#0f766e') +
@@ -15059,12 +15145,21 @@ function mvTheCoTheBan(x) {
        "chưa khai định mức ruột" và nói SAI với MOONGARDEN: hộp đó khai đủ 5
        ruột, chỉ là cả 5 đều mang cờ "không đặt trần" nên phép ghép ngược bỏ
        qua hết (anh Việt bắt được 22/08/2026). */
+    /* Ô này là cái quyết định số BÁN ĐƯỢC của hộp, nên phải nói thật đang
+       biết bao nhiêu. Ngày 24/08/2026 nó im lặng trả 0 rồi màn hình rơi về
+       số vỏ hộp 1.557 trong khi ruột chỉ ghép được 15 - anh Việt bắt được. */
     o += x.chua_khai_dinh_muc
       ? mvOChu('Ruột ghép được', 'chưa khai định mức ruột cho hộp này')
       : x.ruot_khong_rang_buoc
-      ? mvOChu('Ruột ghép được', 'ruột chỉ làm theo hộp, không đặt trần riêng, ' +
+      ? mvOChu('Ruột ghép được', 'chưa ruột nào có nguồn cung, ' +
         'nên chỉ số vỏ hộp chặn được')
+      : x.ruot_thieu_nguon
+      ? mvOCb('Ruột ghép được ⚠️', x.ghep_duoc, '#b45309')
       : mvOCb('Ruột ghép được', x.ghep_duoc, '#374151');
+    if (x.ruot_thieu_nguon) {
+      o += mvOChu('Lưu ý', 'còn ' + money(x.ruot_thieu_nguon) +
+        ' ruột chưa khai nguồn cung, số ghép được là số lạc quan');
+    }
   }
 
   return '<div class="card" style="padding:11px 12px;margin-bottom:9px">' +
@@ -16039,6 +16134,34 @@ async function vdUpload(blob, doctype, docname, fieldname) {
   if (!r.ok || !j.message) throw new Error('Upload ảnh lỗi');
   return j.message.file_url;
 }
+/* Còn gỡ được ảnh giao hay chữ ký ra hay không.
+
+   Đối soát COD rồi thì ảnh giao là căn cứ của một lần đối tiền thật. Chữ ký
+   chặt hơn một nấc: đó là bằng chứng khách đã nhận hàng, nên chỉ gỡ được
+   khi đơn còn chưa giao xong. Ký nhầm sau khi đã giao thì đường đúng là mời
+   khách ký lại, bản mới đè lên bản cũ. Máy chủ chặn lại lần nữa. */
+function vdGoDuocAnh(d) { return !d.da_doi_soat; }
+function vdGoDuocKy(d) {
+  return !d.da_doi_soat && (d.trang_thai === 'Chờ giao' || d.trang_thai === 'Đang giao');
+}
+
+async function vdGoAnh(d, truong) {
+  var ten = truong === 'chu_ky' ? 'chữ ký của khách' : 'ảnh giao hàng';
+  var ok = await xacNhan(
+    'Gỡ ' + ten + ' khỏi vận đơn ' + d.name + '?\n\n' +
+    'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi đơn này.' +
+    (truong === 'chu_ky' ? '\n\nGỡ xong nhớ mời khách ký lại.' : ''),
+    'Gỡ ' + ten, 'Gỡ');
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.van_don.go_anh', { name: d.name, truong: truong });
+    busy(false);
+    toast('Đã gỡ ' + ten, 3000);
+    go(function () { scrVdView(d.name); }, true);
+  } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được', 'Lỗi'); }
+}
+
 function vdLaShipper() { return hasRole('Shipper'); }
 function vdLaKeToan() { return hasRole('Accounts User') || hasRole('Purchase User') || hasRole('System Manager'); }
 
@@ -16323,17 +16446,33 @@ async function scrVdView(name) {
     (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b>' + (d.da_doi_soat ? ' <span style="color:#15803d;font-size:13px">đã đối soát ✅</span>' : '') + '</div>' : '') +
     (d.booking_id ? '<div style="font-size:13px">Mã app ngoài: ' + h(d.booking_id) + (d.tracking_url ? ' · <a href="' + h(d.tracking_url) + '" target="_blank">theo dõi</a>' : '') + '</div>' : '') +
     (d.hoa_don ? '<div style="color:#6b7280;font-size:13px">Hoá đơn: ' + h(d.hoa_don) + '</div>' : '') +
+    /* Nút X ở góc ảnh giao và chữ ký (anh Việt 24/08/2026). Shipper chụp
+       nhầm đơn khác thì trước đây tấm ảnh nằm lại vĩnh viễn, mà sales vẫn
+       tải đúng tấm đó gửi khách.
+
+       Hai mốc chặn khác nhau, vì hai thứ này khác nhau: ảnh giao chặn khi
+       đã đối soát COD (tấm đó là căn cứ của một lần đối tiền thật); chữ ký
+       chặt hơn, chỉ gỡ được khi đơn còn Chờ giao hoặc Đang giao, vì đó là
+       bằng chứng khách đã nhận hàng. Máy chủ chặn lại lần nữa. */
     (d.anh_giao ? '<div style="margin-top:10px">' +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:5px">Ảnh giao thành công' + (d.da_bao_pancake ? ' · đã báo Pancake ✅' : '') + '</div>' +
-      '<a href="' + h(d.anh_giao) + '" target="_blank" rel="noopener" style="display:inline-block">' +
-      '<img src="' + h(d.anh_giao) + '" alt="Ảnh giao" style="width:118px;height:118px;object-fit:cover;border-radius:10px;border:1px solid #d7e6ea;display:block">' +
-      '</a></div>' : '') +
+      '<div style="display:flex;padding-top:6px">' +
+      oTep({
+        url: d.anh_giao, ten: 'Ảnh giao', anh: 1, co: 118,
+        mo: 'data-vdxem="' + h(d.anh_giao) + '"',
+        go: vdGoDuocAnh(d) ? 'data-vdgo="anh_giao"' : ''
+      }) + '</div></div>' : '') +
     (d.chu_ky ? '<div style="margin-top:10px">' +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:5px">✍️ Khách ký nhận' +
       (d.nguoi_ky ? ' · ' + h(d.nguoi_ky) : '') + (d.ky_luc ? ' · ' + h(vdGioNgan(d.ky_luc)) : '') + '</div>' +
+      '<div style="position:relative;display:inline-block;padding-top:6px">' +
       '<a href="' + h(d.chu_ky) + '" target="_blank" rel="noopener" style="display:inline-block">' +
       '<img src="' + h(d.chu_ky) + '" alt="Chữ ký khách" style="width:230px;max-width:100%;background:#fff;border:1px solid #d7e6ea;border-radius:10px;display:block">' +
-      '</a></div>'
+      '</a>' +
+      (vdGoDuocKy(d)
+        ? '<span class="xo" data-vdgo="chu_ky" title="Gỡ chữ ký này" ' +
+          'style="position:absolute;top:-1px;right:-7px">✕</span>' : '') +
+      '</div></div>'
       : (d.khong_ky ? '<div style="color:#b45309;font-size:13px;margin-top:8px">✍️ Khách không ký: ' + h(d.khong_ky) + '</div>' : '')) +
     (d.ly_do_loi ? '<div style="color:#b3261e;font-size:13px">Không giao được: ' + h(d.ly_do_loi) + '</div>' : '') +
     (d.ghi_chu ? '<div style="color:#6b7280;font-size:13px;white-space:pre-wrap">' + h(d.ghi_chu) + '</div>' : '') + vdKhoiNhan(d) + '</div>' + vdNutPhanCong(d);
@@ -16356,6 +16495,13 @@ async function scrVdView(name) {
   }
   var b = frame('Chi tiết vận đơn', html);
   b.addEventListener('click', async function (e) {
+    var xem = e.target.closest('[data-vdxem]');
+    if (xem && !e.target.closest('[data-vdgo]')) {
+      window.open(xem.getAttribute('data-vdxem'), '_blank');
+      return;
+    }
+    var go2 = e.target.closest('[data-vdgo]');
+    if (go2) { e.stopPropagation(); return vdGoAnh(d, go2.getAttribute('data-vdgo')); }
     var el = e.target.closest('[data-va]'); if (!el) return;
     var k = el.getAttribute('data-va');
     if (k === 'chiduong') { vdMoDuong(vdDich(d)); return; }
@@ -16716,7 +16862,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '293';
+var APPVER = '294';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

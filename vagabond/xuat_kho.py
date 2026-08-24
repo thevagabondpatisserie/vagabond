@@ -248,6 +248,45 @@ def luu_xuat_huy(kho=None, ly_do=None, ghi_chu=None, dong=None, anh=None):
 
 
 @frappe.whitelist()
+def go_anh_xuat_huy(name=None):
+	"""Go anh dinh nham khoi phieu xuat huy con ban nhap. KHONG xoa tep.
+
+	Anh Viet 24/08/2026 yeu cau moi hinh thu nho phai co nut X. Man nay
+	truoc do khong go duoc: chup nham mot tam la phai bo ca phieu lam lai.
+
+	Khac hai cua go ben ho so thanh toan mot cho: anh o day khong phai tep
+	dinh kem ma la mot duong dan nam trong o `vgb_anh_xuat`. Nen "go" o day
+	la xoa duong dan trong o, con tep van nam nguyen trong Trinh quan ly tep
+	- van dung tinh than khong xoa chung tu (QT-20).
+
+	Chi go duoc khi phieu CHUA ghi so. Ghi so roi thi ton kho da tru that va
+	tam anh la can cu cua lan tru do.
+	"""
+	_duoc_xuat()
+	if not name or not frappe.db.exists("Stock Entry", name):
+		frappe.throw("Không tìm thấy phiếu %s." % (name or "(trống)"))
+	d = frappe.db.get_value(
+		"Stock Entry", name, ["docstatus", "vgb_huy", "vgb_anh_xuat"], as_dict=True
+	)
+	if cint(d.get("docstatus")) != 0:
+		frappe.throw(
+			"Phiếu %s đã ghi sổ nên không gỡ ảnh ra được nữa. Tồn kho đã trừ thật, "
+			"và tấm ảnh là căn cứ của lần trừ đó." % name
+		)
+	if cint(d.get("vgb_huy")):
+		frappe.throw("Phiếu %s đã bị bỏ, không sửa được nữa." % name)
+	if not (d.get("vgb_anh_xuat") or "").strip():
+		frappe.throw("Phiếu %s chưa có ảnh nào để gỡ." % name)
+	frappe.db.set_value("Stock Entry", name, "vgb_anh_xuat", None, update_modified=False)
+	try:
+		frappe.get_doc("Stock Entry", name).add_comment("Comment", "Gỡ ảnh xuất huỷ khỏi phiếu.")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "xuat_kho: ghi vet go anh")
+	frappe.db.commit()
+	return {"ok": 1, "name": name}
+
+
+@frappe.whitelist()
 def ghi_so_xuat_huy(name=None):
 	"""Quan ly kho ghi so phieu huy - toi day ton moi thuc su tru."""
 	if not duoc_duyet():

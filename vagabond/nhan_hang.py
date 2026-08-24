@@ -133,6 +133,47 @@ def _tre_ngay(hen, hom_nay=None):
 # ------------------------------------------------------- man cua thu kho
 
 
+
+# Ba o anh giao nhan tren phieu nhap. Nhan dung ba ten nay, khong nhan rong
+# hon: mo rong ra la mo duong cho mot cai bam nham xoa mat o khac.
+O_ANH_NHAN = ("custom_hinh_nhan_hang_1", "custom_hinh_nhan_hang_2", "custom_scan_bien_ban")
+
+
+@frappe.whitelist()
+def go_anh_nhan(name=None, truong=None):
+	"""Go mot anh giao nhan dinh nham khoi phieu nhap kho.
+
+	Anh Viet chot 24/08/2026: *"chi chan khi phieu da huy"*. Khac hai cua go
+	ben ho so thanh toan, o day KHONG chan theo "da ghi so", vi phieu nhap
+	duoc insert va submit lien tay ngay luc lap (xem tao_phieu) nen khong co
+	nac nao truoc do de chan. Va ba tam anh nay la giay to giao nhan chu
+	khong phai can cu cua mot but toan: kho chup nham la phai sua duoc ngay.
+	Doi lai moi lan go deu ghi vet ai go, go tam nao.
+
+	Anh o day khong phai tep dinh kem ma la duong dan nam trong mot o Attach,
+	nen "go" la xoa duong dan trong o. Tep van nam nguyen trong Trinh quan ly
+	tep, dung tinh than khong xoa chung tu (QT-20).
+	"""
+	_kiem_quyen()
+	truong = str(truong or "").strip()
+	if truong not in O_ANH_NHAN:
+		frappe.throw("Chỉ gỡ được ảnh hàng hoặc biên bản trên phiếu nhận.")
+	if not name or not frappe.db.exists("Purchase Receipt", name):
+		frappe.throw("Không tìm thấy phiếu nhập %s." % (name or "(trống)"))
+	d = frappe.db.get_value("Purchase Receipt", name, ["docstatus", truong], as_dict=True)
+	if cint(d.get("docstatus")) == 2:
+		frappe.throw(
+			"Phiếu nhập %s đã huỷ nên không sửa gì trên đó được nữa. Cần giấy tờ "
+			"khác thì lập phiếu mới." % name
+		)
+	if not str(d.get(truong) or "").strip():
+		frappe.throw("Ô này chưa có ảnh nào để gỡ.")
+	frappe.db.set_value("Purchase Receipt", name, truong, None, update_modified=False)
+	_ghi_vet("Purchase Receipt", name, "Gỡ %s khỏi phiếu nhận." % truong)
+	frappe.db.commit()
+	return {"ok": 1, "name": name, "truong": truong}
+
+
 @frappe.whitelist()
 def danh_sach(so_ngay=90, tu_khoa=""):
 	"""Cac don mua CON PHAI NHAN, xep don tre hen len dau.
