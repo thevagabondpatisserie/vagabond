@@ -10,6 +10,7 @@ import frappe
 import requests
 from frappe.rate_limiter import rate_limit
 
+from vagabond import hoa_don_vat
 from vagabond.lib import PANCAKE, TIMEOUT, VIETQR, cache_get, cache_set, cfg, key
 
 
@@ -101,12 +102,33 @@ def tra_mst(mst=None):
 		return {"ok": 0, "ly_do": "khong_tim_thay"}
 
 	d = j["data"]
+	ten = d.get("name")
 	out = {
 		"ok": 1,
 		"ma_so_thue": mst,
-		"ten": d.get("name"),
+		"ten": ten,
 		"ten_ngan": d.get("shortName"),
 		"dia_chi": d.get("address"),
 	}
+
+	# CHOT CHAN TEN CUT (them 24/08/2026 sau su co don 92409).
+	#
+	# Ngay 22/08/2026 cong thong tin tra ve dung ba chu "CÔNG TY CỔ PHẦN"
+	# cho ma 0108903529. May luu y nguyen, ke toan xuat hoa don so 10901,
+	# khach khieu nai, phai lap bien ban va xuat to thay the. Goi lai chinh
+	# ma do ngay 24/08 thi no tra ve du ten - tuc ban ghi ben Cuc Thue da
+	# doi giua hai ngay, khong phai ma cua tiem cat chuoi.
+	#
+	# Minh khong sua duoc nguon. Cai minh lam duoc la KHONG IM LANG nhan mot
+	# cai ten chi co loai hinh phap ly. Van tra ve chuoi do de nguoi nhap
+	# nhin thay va sua tay, nhung kem co bao dong.
+	#
+	# Va KHONG NHO ket qua nghi ngo. Nho lai la giu cai sai them bay ngay,
+	# trong khi nguon co the da sua xong sau vai gio.
+	if hoa_don_vat.thieu_ten_rieng(ten):
+		out["nghi_thieu"] = 1
+		out["canh_bao"] = hoa_don_vat.CANH_BAO_TEN_CUT
+		return out
+
 	cache_set(ck, json.dumps(out), 604800)
 	return out

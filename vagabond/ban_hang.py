@@ -19,6 +19,7 @@ Chong trung: SI mang custom_pancake_id (id noi bo cua Pancake). Dong bo
 chay lai bao nhieu lan cung chi co mot hoa don cho mot don.
 """
 
+import base64
 import hmac
 import json
 import re
@@ -28,6 +29,8 @@ import unicodedata
 import frappe
 import requests
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
+
+from vagabond import gia_pancake, hoa_don_vat
 
 # Khoa dung chung giua dong bo Pancake va chuoi cuoi ngay. Nhap phong thu:
 # ten module nay tung doi giua cac ban Frappe, ma neu import hong thi CA
@@ -228,7 +231,11 @@ def _dong_hang(o):
 				thieu.append("%s (%s)" % (ma or "(trống)", ten or "?"))
 				continue
 		gia = flt(vi.get("retail_price") or 0)
-		giam = flt(it.get("discount_each_product") or 0)
+		# Gia mot don vi SAU khi tru phan giam. Phai di qua gia_pancake vi
+		# Pancake gui kem co `is_discount_percent`: con so 5 co the la 5 dong
+		# ma cung co the la 5 PHAN TRAM. Doc thieu co la don 91853 (22/08/2026)
+		# ghi 8.229.970 trong khi khach chuyen dung 7.820.000. Xem gia_pancake.py.
+		gia_ban = gia_pancake.gia_mot_don_vi(gia, it)
 		# Anh xa ma si ve ma banh goc (anh Viet chot huong B 03/08/2026): moi
 		# khach si co ma rieng tren Pancake nhung ve Next thi gop lai mot ma
 		# banh that de ton kho va gia von khong bi chia vun. GIA giu nguyen
@@ -239,13 +246,68 @@ def _dong_hang(o):
 			{
 				"item_code": ma,
 				"qty": sl,
-				"rate": max(gia - giam, 0),
+				"rate": gia_ban,
 			}
 		)
 	phi_giao = flt(o.get("shipping_fee") or 0)
 	if phi_giao > 0:
 		rows.append({"item_code": _item_phi_giao(), "qty": 1, "rate": phi_giao})
 	return rows, thieu
+
+
+def _lech_pancake(o, rows, giam_don=0):
+	"""So tien lech giua ban tinh cua minh va tong don ben Pancake.
+
+	Tra 0 khi hai ben khop. Khac 0 nghia la co mot loai gia hoac mot loai
+	giam gia ma ma cua tiem chua hieu.
+
+	Vi sao can luoi nay
+	-------------------
+	Ngay 22/08/2026 Pancake gui `discount_each_product = 5` kem co
+	`is_discount_percent = true`, y la giam 5 phan tram. May doc thieu co
+	nen tru 5 dong. Khong co bao loi nao, khong co man hinh nao do, phieu
+	van chot binh thuong - chi lech tien. Bat duoc la nho khach chuyen
+	khoan thieu roi doi soat SePay keu len.
+
+	Luoi nay bat duoc CA nhung loi chua xay ra: mai kia Pancake them mot
+	loai giam gia khac thi con so nay lech ngay tu nhip dong bo dau tien.
+
+	KHONG chan dong bo va KHONG chan ghi so. Chi ghi lai con so de man hinh
+	ve dai bang cho nguoi doc. Chan tu dong o day la mot ngay nao do ca tiem
+	khong chot duoc don nao vi mot truong la ben Pancake, cai gia do dat hon
+	nhieu so voi mot dai bang bi bo qua.
+
+	Bo qua khi Pancake khong gui `total_price`: khong co gi de doi chieu thi
+	im lang, khong bia ra mot con so lech.
+	"""
+	tong_pk = flt((o or {}).get("total_price") or 0)
+	if tong_pk <= 0:
+		return 0.0
+	tong_minh = 0.0
+	for r in rows or []:
+		tong_minh += flt(r.get("rate") or 0) * flt(r.get("qty") or 0)
+	tong_minh -= flt(giam_don or 0)
+	d = flt(gia_pancake.lech_tong(tong_minh, tong_pk, nguong=1.0))
+	if d:
+		# Chay thu tren 1.073 don thang 08/2026 co tong ben Pancake: 1.072 don
+		# khop tuyet doi, dung MOT don lech, la don 91266 co `surcharge` 20.000
+		# dong. Tuc phu thu ben Pancake KHONG duoc dua vao hoa don - khach tra
+		# 1.730.000 ma to hoa don chi ghi 1.710.000. Day la mot phat hien rieng,
+		# da liet ke cho anh Viet chu KHONG tu sua du lieu cu (QT-11).
+		#
+		# Nen ty le keu nham cua luoi nay la 1 tren 1.073, va lan keu do cung
+		# la keu dung.
+		frappe.log_error(
+			"Đơn %s lệch %s đồng. Bản tính của hệ thống %s, tổng bên Pancake %s. "
+			"Phụ thu Pancake %s, giảm cấp đơn %s."
+			% (
+				(o or {}).get("display_id") or (o or {}).get("id") or "?",
+				d, tong_minh, tong_pk,
+				flt((o or {}).get("surcharge") or 0), flt(giam_don or 0),
+			),
+			"ban_hang: lech tong don Pancake",
+		)
+	return d
 
 
 # Bill ca the: Payoo va ShinhanBank deu in "So tham chieu" (12 chu so) va
@@ -722,6 +784,39 @@ TRUONG_MOI = {
 				"nào. Máy chỉ gắn cờ để sales rà lại, KHÔNG tự ghi là công nợ."
 			),
 		},
+		{
+			"fieldname": "vgb_lech_pancake",
+			"label": "Lệch so với tổng đơn Pancake",
+			"fieldtype": "Currency",
+			"insert_after": "vgb_nghi_cong_no",
+			"read_only": 1,
+			"description": (
+				"Bằng 0 là bản tính của hệ thống khớp tổng đơn bên Pancake. "
+				"Khác 0 là có một loại giá hoặc giảm giá chưa đọc đúng, cần "
+				"báo bộ phận kỹ thuật trước khi ghi sổ."
+			),
+		},
+		{
+			"fieldname": "custom_hddt_sai_sot",
+			"label": "Hoá đơn bị sai sót, cần thay thế",
+			"fieldtype": "Check",
+			"insert_after": "custom_hddt_so",
+			"description": (
+				"Kế toán bật cờ này khi hoá đơn điện tử đã phát hành bị sai "
+				"thông tin. Bật xong thì điền số hoá đơn thay thế và đính "
+				"biên bản thay thế vào ngay bên dưới."
+			),
+		},
+		{
+			"fieldname": "custom_hddt_ly_do_thay_the",
+			"label": "Lý do phải thay thế",
+			"fieldtype": "Small Text",
+			"insert_after": "custom_hddt_sai_sot",
+			"description": (
+				"Ghi rõ sai ở chỗ nào, ví dụ tên người mua bị thiếu. Đây là "
+				"phần giải trình khi cơ quan thuế hỏi lại."
+			),
+		},
 	]
 }
 
@@ -996,6 +1091,18 @@ def _thong_tin_xhd(o, did):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "ban_hang: tra MST %s" % mst)
 		if tt.get("ok") and tt.get("ten"):
+			# Ten chi co loai hinh phap ly ma khong co ten rieng thi COI NHU
+			# KHONG TRA RA. Bo trong de sales buoc phai dien tay, con hon dien
+			# san mot cai ten cut roi cuoi ngay may tu xuat hoa don mang cai
+			# ten do. Day dung la duong da di cua don 92409 ngay 22/08/2026:
+			# to 10901 ra doi voi ten nguoi mua la "CÔNG TY CỔ PHẦN".
+			if hoa_don_vat.thieu_ten_rieng(tt.get("ten")):
+				frappe.log_error(
+					"MST %s tra ve ten cut: %r. Da bo trong de sales dien tay."
+					% (mst, tt.get("ten")),
+					"ban_hang: ten phap nhan cut",
+				)
+				continue
 			return {
 				"vgb_xhd_ten": tt.get("ten"),
 				"vgb_xhd_mst": mst,
@@ -1060,6 +1167,7 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	ten_khach = (o.get("bill_full_name") or "").strip()
 	sdt = (o.get("bill_phone_number") or "").strip()
 	giam_don = flt(o.get("total_discount") or o.get("discount") or 0)
+	lech_pk = _lech_pancake(o, rows, giam_don)
 
 	if cu:
 		si = frappe.get_doc("Sales Invoice", cu.name)
@@ -1151,6 +1259,10 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			# Cung mot luat voi phuong thuc thanh toan va ban dich Gemini:
 			# may khong de len chu nguoi that (anh Viet chot 15/08/2026).
 			"discount_amount": giam_don + _giam_tu_diem(si),
+			# Chenh lech giua ban tinh cua minh va tong don ben Pancake. Bang
+			# 0 la khop. Khac 0 la co mot loai gia hoac giam gia ma minh chua
+			# hieu - man Doanh so ve dai bang do de ke toan dung ghi so.
+			"vgb_lech_pancake": lech_pk,
 			"remarks": "Pancake #%s - %s%s" % (did, ten_khach or "Khách lẻ", " - " + sdt if sdt else ""),
 		}
 	)
@@ -2038,6 +2150,8 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	ten = (ten or "").strip()
 	if so_mst and not ten:
 		frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
+	if so_mst and hoa_don_vat.thieu_ten_rieng(ten):
+		frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 	gt = {
 		"vgb_xhd_ten": ten or XHD_MAC_DINH,
 		"vgb_xhd_mst": so_mst,
@@ -3148,6 +3262,8 @@ def tao_don_tay(
 	if so_mst:
 		if not (xhd_ten or "").strip():
 			frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
+		if hoa_don_vat.thieu_ten_rieng(xhd_ten):
+			frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 		si.vgb_xhd_ten = (xhd_ten or "").strip()
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
@@ -3396,10 +3512,44 @@ def xuat_hoa_don_dien_tu(si_name):
 			"điền khối Hoá đơn điện tử rồi xuất lại." % si_name
 		)
 	la_phap_nhan = bool(mst_mua)
+	# CUA CUOI CUNG TRUOC KHI TO HOA DON RA KHOI HE THONG.
+	#
+	# Ba cua tren (dong bo Pancake, luu_xhd, xhd_khach_luu) deu da chan, cua
+	# nay chan lan nua vi duong tu dong `tu_xuat_hddt` chay luc 23h30 khong
+	# di qua ba cua kia: no doc thang truong da luu tu truoc. Don 92409 vao
+	# he ngay 22/08 luc 19h32, den 23h01 moi ky - neu chi chan luc nhap thi
+	# nhung to da nam san trong co so du lieu van ra duoc.
+	#
+	# Hoa don da gui co quan thue rat kho go lai, nen tha dung lai o day va
+	# bat nguoi sua ten, con hon de mot to sai bay sang co quan thue.
+	if la_phap_nhan and hoa_don_vat.thieu_ten_rieng(ten_mua):
+		frappe.throw(
+			"Đơn %s có mã số thuế %s nhưng tên người mua đang là %r, chuỗi này "
+			"chỉ có loại hình doanh nghiệp chứ không có tên riêng. %s"
+			% (si_name, mst_mua, ten_mua, hoa_don_vat.LOI_TEN_CUT)
+		)
 
 	c = cfg()
 	ts = flt(c.minvoice_ma_thue or 8)
 	host, token = _minvoice_login(c)
+
+	# DIEN GIAI BAT BUOC TREN TO THAY THE (Khoi 3, anh Viet 24/08/2026).
+	#
+	# Nghi dinh 123/2020 buoc to thay the phai ghi ro no thay cho to nao.
+	# Hom nay ke toan van xuat to thay the bang tay ben M-Invoice, va duong
+	# nay dung lai truoc do vi `chan_hoa_don_dien_tu` khong cho xuat lai mot
+	# don da co so hoa don. Nhung khi nao noi API xuat thay the thang tu ERP
+	# thi cau nay phai co san, khong phai nho ra vao dung hom do.
+	#
+	# Khong can them truong nao: to thay the xuat tu CHINH don nay, nen to cu
+	# la so hoa don dang nam tren don, va co `custom_hddt_sai_sot` la dau
+	# hieu ke toan da xac nhan to cu sai.
+	cau_thay_the = ""
+	if cint(si.get("custom_hddt_sai_sot") or 0):
+		_mau_cu, _kh_cu = hoa_don_vat.mau_va_ky_hieu(si.get("custom_hddt_ky_hieu"))
+		cau_thay_the = hoa_don_vat.dien_giai_thay_the(
+			si.get("custom_hddt_so"), _kh_cu, si.posting_date, _mau_cu
+		)
 
 	dong, t_chua, t_thue = [], 0, 0
 	for i, r in enumerate(si.items, 1):
@@ -3412,7 +3562,11 @@ def xuat_hoa_don_dien_tu(si_name):
 				"tchat": 1,
 				"stt_rec0": i,
 				"inv_itemCode": r.item_code,
-				"inv_itemName": r.item_name,
+				"inv_itemName": (
+					hoa_don_vat.chen_dien_giai(r.item_name, si.get("custom_hddt_so"),
+						_kh_cu, si.posting_date, _mau_cu)
+					if (cau_thay_the and i == 1) else r.item_name
+				),
 				"inv_unitCode": r.uom or "Cái",
 				"inv_quantity": flt(r.qty),
 				"inv_unitPrice": round(chua / flt(r.qty)) if r.qty else chua,
@@ -3856,6 +4010,8 @@ def pos_sua_don(
 				"nhân, chính là số căn cước của chủ hộ), hoặc 13 số dạng 10 số - 3 "
 				"số cho chi nhánh (ví dụ 0311638525-027)."
 			)
+		if so_mst and hoa_don_vat.thieu_ten_rieng(xhd_ten):
+			frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
 		if xhd_dia_chi is not None:
@@ -4144,6 +4300,8 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	ten = (ten or "").strip()
 	if not ten:
 		frappe.throw("Thiếu tên pháp nhân trên hoá đơn.")
+	if hoa_don_vat.thieu_ten_rieng(ten):
+		frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 	# Hoa don dien tu gui qua email, khong co email thi khach khong nhan
 	# duoc gi ca -> bat buoc dien (anh Viet 09/08/2026).
 	email = (email or "").strip()
@@ -4213,6 +4371,349 @@ def xhd_khach_tra_mst(mst=None):
 	"""Trang khach tra MST ra ten + dia chi, dung chung nguon VietQR."""
 	from vagabond.api import tra_mst
 	return tra_mst(mst)
+
+
+# ------------------------------------------------- Hoa don thay the (v296)
+#
+# Vi sao co khoi nay
+# ------------------
+# Ngay 22/08/2026 to hoa don so 10901 cua don 92409 ra doi voi ten nguoi mua
+# la "CÔNG TY CỔ PHẦN", thieu han phan ten rieng. To da ky, da gui co quan
+# thue. Ke toan phai lap Bien ban thoa thuan huy bo hoa don va xuat to thay
+# the ben M-Invoice. Xong roi thi khong co cho nao trong ERP de ghi lai
+# viec do: don hang van hien "Đã xuất HĐĐT số 10901", nhin vao khong biet
+# to do da bi thay.
+#
+# Da co san mot luong ghi nhan hoa don thay the, nhung no bam vao PHIEU HOAN
+# TIEN (`hoan_tien.ghi_hddt_thay_the`). Ca nay khong hoan tien dong nao, chi
+# sai ten, nen khong lap phieu hoan tien duoc. Khoi nay dua dung luong do ve
+# thang DON HANG, dung chung ba truong `custom_hddt_thay_the*` da co.
+#
+# Ba nguyen tac giu nguyen tu luong cu:
+#   - Ke toan go tay so hoa don moi. He thong chua doc nguoc duoc thay doi
+#     lam thang tren cong M-Invoice, nen doan bua la sai.
+#   - QT-20: khong xoa gi. Go ra thi o trong lai nhung nhat ky tren don van
+#     giu ca so cu lan ly do go.
+#   - Khong dung vao du lieu qua khu cua to hoa don cu. To 10901 van la to
+#     10901, chi ghi them ben canh no la da co to thay the.
+
+QUYEN_HDDT_THAY_THE = {"System Manager", "Accounts Manager", "Accounts User"}
+
+# Tien to ten tep cua bien ban thay the. Moi tep dinh vao don hang deu nam
+# chung mot cho, nen phai co dau de biet to nao la bien ban thay the. Duong
+# ghi la duong duy nhat trong ma nguon dat ten tep nay, nen dau nay chac.
+DAU_BBTT = "BBTT-"
+
+
+def _quyen_hddt_thay_the():
+	return bool(QUYEN_HDDT_THAY_THE & set(frappe.get_roles()))
+
+
+def _chan_khong_phai_ke_toan():
+	_kiem_quyen()
+	if not _quyen_hddt_thay_the():
+		frappe.throw(
+			"Chỉ kế toán hoặc quản trị mới ghi nhận được hoá đơn thay thế. "
+			"Vui lòng nhờ bộ phận kế toán ghi giúp."
+		)
+
+
+def _don_da_xuat(si_name):
+	"""Doc mot don DA co hoa don dien tu. Chua xuat thi khong co gi de thay."""
+	d = frappe.db.get_value(
+		"Sales Invoice", si_name,
+		["name", "custom_hddt_so", "custom_hddt_ky_hieu", "posting_date",
+		 "custom_hddt_thay_the", "custom_hddt_sai_sot"],
+		as_dict=True,
+	)
+	if not d:
+		frappe.throw("Không có đơn %s." % si_name)
+	if not (d.custom_hddt_so or "").strip():
+		frappe.throw(
+			"Đơn %s chưa xuất hoá đơn điện tử nên chưa có tờ nào để thay thế. "
+			"Sai thông tin thì sửa thẳng trong đơn rồi xuất, không cần biên bản."
+			% si_name
+		)
+	return d
+
+
+@frappe.whitelist()
+def ghi_hoa_don_thay_the(si_name=None, so=None, ky_hieu=None, ly_do=None):
+	"""Ghi nhan to hoa don thay the ma ke toan da xuat ben M-Invoice."""
+	_chan_khong_phai_ke_toan()
+	d = _don_da_xuat(si_name)
+	so_moi = str(so or "").strip()
+	if not so_moi:
+		frappe.throw(
+			"Chưa nhập số hoá đơn thay thế. Mở tờ hoá đơn mới bên M-Invoice, "
+			"chép số hoá đơn rồi dán vào ô này."
+		)
+	if len(so_moi) > 30:
+		frappe.throw(
+			"Số hoá đơn dài bất thường (%d ký tự). Kiểm lại xem có dán nhầm cả "
+			"dòng không." % len(so_moi)
+		)
+	cu = (d.custom_hddt_so or "").strip()
+	if so_moi == cu:
+		frappe.throw(
+			"Số vừa nhập trùng đúng số hoá đơn cũ (%s). Tờ thay thế phải mang "
+			"số khác. Kiểm lại bên M-Invoice xem đã chép đúng tờ mới chưa." % cu
+		)
+	kh = str(ky_hieu or "").strip()
+	ly = str(ly_do or "").strip()
+	if not ly:
+		frappe.throw(
+			"Phải ghi lý do phải thay thế. Đây là phần giải trình khi cơ quan "
+			"thuế hỏi lại, để trống thì người sau không hiểu vì sao có hai tờ."
+		)
+
+	luc = now_datetime()
+	frappe.db.set_value("Sales Invoice", d.name, {
+		"custom_hddt_sai_sot": 1,
+		"custom_hddt_ly_do_thay_the": ly,
+		"custom_hddt_thay_the": ("%s %s" % (kh, so_moi)).strip(),
+		"custom_hddt_thay_the_luc": luc,
+	}, update_modified=False)
+	_vet_don(d.name, (
+		"Ghi nhận hoá đơn thay thế %s%s cho tờ cũ %s. Lý do: %s"
+		% (so_moi, (" (ký hiệu %s)" % kh) if kh else "", cu, ly)
+	))
+	frappe.db.commit()
+	return {
+		"ok": 1, "so": so_moi, "ky_hieu": kh, "so_cu": cu,
+		"loi_nhan": "Đã ghi nhận tờ thay thế %s cho đơn %s." % (so_moi, d.name),
+	}
+
+
+@frappe.whitelist()
+def go_hoa_don_thay_the(si_name=None, ly_do=None):
+	"""Go so hoa don thay the ghi nham. Bat buoc ghi ly do, khong xoa nhat ky."""
+	_chan_khong_phai_ke_toan()
+	d = _don_da_xuat(si_name)
+	ly = str(ly_do or "").strip()
+	if not ly:
+		frappe.throw("Phải ghi lý do gỡ thì người sau mới hiểu vì sao ô này trống lại.")
+	cu = (d.custom_hddt_thay_the or "").strip()
+	if not cu:
+		frappe.throw("Đơn này chưa ghi hoá đơn thay thế nào, không có gì để gỡ.")
+	frappe.db.set_value("Sales Invoice", d.name, {
+		"custom_hddt_thay_the": "",
+	}, update_modified=False)
+	_vet_don(d.name, "Gỡ hoá đơn thay thế %s. Lý do: %s" % (cu, ly))
+	frappe.db.commit()
+	return {"ok": 1, "loi_nhan": "Đã gỡ %s. Nhật ký trên đơn vẫn giữ lại vết." % cu}
+
+
+def _vet_don(si_name, noi_dung):
+	"""Mot dong nhat ky tren don hang. Hong cho nay khong duoc keo do viec chinh."""
+	try:
+		frappe.get_doc({
+			"doctype": "Comment", "comment_type": "Info",
+			"reference_doctype": "Sales Invoice", "reference_name": si_name,
+			"content": noi_dung,
+		}).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: ghi vet hoa don thay the")
+
+
+def _ds_bbtt(si_name):
+	"""Cac to bien ban thay the dang dinh tren mot don."""
+	ra = []
+	for f in frappe.get_all(
+		"File",
+		filters={"attached_to_doctype": "Sales Invoice", "attached_to_name": si_name},
+		fields=["name", "file_name", "file_url", "creation"],
+		order_by="creation asc",
+	):
+		ten = str(f.file_name or "")
+		if not ten.startswith(DAU_BBTT):
+			continue
+		thap = ten.lower()
+		ra.append({
+			"tep": f.name,
+			"ten": ten[len(DAU_BBTT):] or ten,
+			"anh": 1 if thap.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic")) else 0,
+			"luc": str(f.creation or "")[:16],
+		})
+	return ra
+
+
+@frappe.whitelist()
+def bien_ban_thay_the(si_name=None):
+	"""Khoi hoa don thay the cua mot don, cho man Chi tiet don ve lai."""
+	_kiem_quyen()
+	d = frappe.db.get_value(
+		"Sales Invoice", si_name,
+		["name", "custom_hddt_so", "custom_hddt_ky_hieu", "posting_date",
+		 "custom_hddt_sai_sot", "custom_hddt_ly_do_thay_the",
+		 "custom_hddt_thay_the", "custom_hddt_thay_the_luc"],
+		as_dict=True,
+	)
+	if not d:
+		frappe.throw("Không có đơn %s." % si_name)
+	so_cu = (d.custom_hddt_so or "").strip()
+	mau, kh = hoa_don_vat.mau_va_ky_hieu(d.custom_hddt_ky_hieu)
+	return {
+		"da_xuat": 1 if so_cu else 0,
+		"so_cu": so_cu,
+		"mau_cu": mau,
+		"ky_hieu_cu": kh,
+		"ngay_cu": str(d.posting_date or ""),
+		"sai_sot": cint(d.custom_hddt_sai_sot or 0),
+		"ly_do": (d.custom_hddt_ly_do_thay_the or "").strip(),
+		"thay_the": (d.custom_hddt_thay_the or "").strip(),
+		"thay_the_luc": str(d.custom_hddt_thay_the_luc or "")[:16],
+		"sua_duoc": 1 if _quyen_hddt_thay_the() else 0,
+		"tep": _ds_bbtt(si_name),
+		# Cau bat buoc phai nam tren to thay the theo Nghi dinh 123/2020.
+		# Hien san tren man de ke toan chep sang M-Invoice, khoi go tay.
+		"dien_giai": hoa_don_vat.dien_giai_thay_the(so_cu, kh, d.posting_date, mau),
+	}
+
+
+@frappe.whitelist()
+def dinh_bien_ban_thay_the(si_name=None, ten=None, noi_dung=None):
+	"""Dinh to bien ban thay the vao don hang. Khong nen, khong doi dinh dang."""
+	_chan_khong_phai_ke_toan()
+	d = _don_da_xuat(si_name)
+	ten = str(ten or "").strip() or "bien-ban-thay-the.pdf"
+	noi = str(noi_dung or "").strip()
+	if not noi:
+		frappe.throw("Chưa chọn tệp biên bản. Vui lòng bấm Chọn tệp rồi thử lại.")
+	if "," in noi and noi[:5].lower() == "data:":
+		noi = noi.split(",", 1)[1]
+	try:
+		so_byte = len(base64.b64decode(noi))
+	except Exception:
+		frappe.throw(
+			"Tệp gửi lên bị hỏng giữa đường nên máy không đọc được. Vui lòng "
+			"chọn lại tệp và thử lần nữa."
+		)
+	if so_byte <= 0:
+		frappe.throw("Tệp biên bản rỗng. Vui lòng kiểm lại tệp trên máy.")
+	if so_byte > 12 * 1024 * 1024:
+		frappe.throw(
+			"Tệp biên bản nặng %s MB, quá 12 MB nên máy không nhận. Vui lòng "
+			"xuất lại bản PDF hoặc chụp nhỏ hơn."
+			% ("{:.1f}".format(so_byte / 1024.0 / 1024.0))
+		)
+	f = frappe.get_doc({
+		"doctype": "File",
+		"file_name": DAU_BBTT + ten,
+		"attached_to_doctype": "Sales Invoice",
+		"attached_to_name": d.name,
+		"content": noi,
+		"decode": True,
+		"is_private": 1,
+	})
+	f.flags.ignore_permissions = True
+	f.insert()
+	frappe.db.set_value("Sales Invoice", d.name, {"custom_hddt_sai_sot": 1},
+		update_modified=False)
+	_vet_don(d.name, "Đính biên bản thay thế: %s" % ten)
+	frappe.db.commit()
+	return {"ok": 1, "tep": f.name, "ghi_chu": "Đã đính biên bản %s." % ten}
+
+
+@frappe.whitelist()
+def go_bien_ban_thay_the(si_name=None, tep=None):
+	"""Go mot to bien ban dinh nham. CHI BO LIEN KET, khong xoa tep.
+
+	Chan theo trang thai: don DA GHI SO va DA co so hoa don thay the nghia
+	la ho so thay the da khep lai, to bien ban trong do la can cu giai trinh
+	voi co quan thue. Go ra la lam thung ho so (QT-20).
+	"""
+	_chan_khong_phai_ke_toan()
+	d = frappe.db.get_value(
+		"Sales Invoice", si_name,
+		["name", "docstatus", "custom_hddt_thay_the"], as_dict=True,
+	)
+	if not d:
+		frappe.throw("Không có đơn %s." % si_name)
+	if (d.custom_hddt_thay_the or "").strip():
+		frappe.throw(
+			"Đơn %s đã ghi nhận tờ thay thế %s nên hồ sơ đã khép lại, không gỡ "
+			"biên bản ra được nữa. Đính nhầm thì đính thêm tờ đúng vào, và báo "
+			"bộ phận kỹ thuật." % (d.name, (d.custom_hddt_thay_the or "").strip())
+		)
+	f = frappe.db.get_value(
+		"File",
+		{"name": tep, "attached_to_doctype": "Sales Invoice", "attached_to_name": d.name},
+		["name", "file_name"], as_dict=True,
+	)
+	if not f or not str(f.file_name or "").startswith(DAU_BBTT):
+		frappe.throw(
+			"Tệp này không phải biên bản thay thế của đơn %s. Vui lòng tải lại "
+			"trang rồi bấm lại." % d.name
+		)
+	frappe.db.set_value("File", f.name, {
+		"attached_to_doctype": None, "attached_to_name": None,
+	}, update_modified=False)
+	_vet_don(d.name, "Gỡ biên bản thay thế: %s" % str(f.file_name)[len(DAU_BBTT):])
+	frappe.db.commit()
+	return {"ok": 1, "loi_nhan": "Đã gỡ biên bản khỏi đơn %s." % d.name}
+
+
+@frappe.whitelist()
+def tai_bien_ban_thay_the(si_name=None, tep=None, co="lon"):
+	"""Ruot mot to bien ban, tra base64 de man hinh ve hinh thu nho va tai ve.
+
+	Chong doc chui: tep phai dang dinh vao DUNG don nay va phai mang dau
+	BBTT-. Dua ma File cua don khac la bi tu choi, du ma do co that.
+	"""
+	_kiem_quyen()
+	f = frappe.db.get_value(
+		"File",
+		{"name": tep, "attached_to_doctype": "Sales Invoice", "attached_to_name": si_name},
+		["name", "file_name", "file_url"], as_dict=True,
+	)
+	if not f or not str(f.file_name or "").startswith(DAU_BBTT):
+		frappe.throw(
+			"Tệp này không phải biên bản thay thế của đơn %s. Vui lòng tải lại "
+			"trang rồi bấm lại." % si_name
+		)
+	doc_tep = frappe.get_doc("File", f.name)
+	try:
+		ruot = doc_tep.get_content()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc bien ban thay the")
+		frappe.throw(
+			"Tệp %s có trong sổ nhưng máy đọc không ra nội dung. Có thể tệp đã "
+			"bị gỡ trên Desk; vui lòng đính lại." % (f.file_name or tep)
+		)
+	if isinstance(ruot, str):
+		ruot = ruot.encode("utf-8")
+	thap = str(f.file_name or f.file_url or "").lower()
+	mime = "application/octet-stream"
+	if thap.endswith((".jpg", ".jpeg")):
+		mime = "image/jpeg"
+	elif thap.endswith((".png", ".webp", ".gif")):
+		mime = "image/" + thap.rsplit(".", 1)[-1]
+	elif thap.endswith(".pdf"):
+		mime = "application/pdf"
+
+	if (co or "") == "nho" and mime.startswith("image/"):
+		try:
+			from io import BytesIO
+
+			from PIL import Image
+
+			im = Image.open(BytesIO(ruot))
+			im.thumbnail((360, 360))
+			if im.mode not in ("RGB", "L"):
+				im = im.convert("RGB")
+			ra = BytesIO()
+			im.save(ra, format="JPEG", quality=80)
+			ruot = ra.getvalue()
+			mime = "image/jpeg"
+		except Exception:
+			pass
+	return {
+		"ok": 1,
+		"ten": str(f.file_name or "bien-ban-thay-the")[len(DAU_BBTT):] or "bien-ban-thay-the",
+		"mime": mime,
+		"b64": base64.b64encode(ruot).decode("ascii"),
+	}
 
 
 # ---------------------------------------------------------- tim mot don

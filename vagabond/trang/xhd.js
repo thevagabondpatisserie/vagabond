@@ -49,7 +49,15 @@
         if (kq && kq.ok) {
           if (!oT.value.trim()) oT.value = kq.ten || '';
           if (!oD.value.trim()) oD.value = kq.dia_chi || '';
-          oB.textContent = 'Tra được: ' + (kq.ten || '');
+          /* Cong thong tin thue co luc tra ve ten chi co loai hinh phap ly.
+             Da xay ra that 22/08/2026. May chu chan lai luc luu, nhung bao
+             ngay o day thi khach sua duoc lien. */
+          if (kq.nghi_thieu) {
+            oB.innerHTML = '<b style="color:#ffb020">Tên công ty tra về bị thiếu.</b> '
+              + 'Cổng thuế chỉ trả về "' + h(kq.ten || '') + '". Anh chị xem giấy phép kinh doanh '
+              + 'rồi gõ đủ tên vào ô bên dưới giúp tiệm.';
+            oT.focus();
+          } else oB.textContent = 'Tra được: ' + (kq.ten || '');
         } else oB.textContent = 'Không tra được mã này, anh chị điền tay giúp tiệm.';
       }).catch(function () { oB.textContent = 'Không tra được mã này, anh chị điền tay giúp tiệm.'; });
     };
