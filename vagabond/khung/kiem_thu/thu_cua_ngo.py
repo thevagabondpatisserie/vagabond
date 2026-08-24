@@ -52,6 +52,10 @@ CUA_NGO = {
 		# tao them ngay 19/08/2026: cong lap phieu tu APP cho moi nhan vien,
 		# truoc do phieu chi lap duoc tren Desk.
 		"tam_ung_cua_toi", "tao", "tra_lai",
+		# tim_gd_ra va khop_tay them 24/08/2026: man nay la duong DUY NHAT
+		# webhook SePay goi thang, phieu tu nhay sang "Da chi" khong ai bam
+		# nut nao, ma truoc do KHONG co duong lui khi noi dung go sai.
+		"tim_gd_ra", "khop_tay",
 	],
 	# Duong thu di, them 21/08/2026 sau su co ca tiem khong gui duoc email.
 	# `bu_nguoi_gui` va `canh_bao_email_loi` KHONG duoc co mat o day: mot cai
@@ -127,6 +131,10 @@ CUA_NGO = {
 	# nhap. Khong cua nao ghi so, khong cua nao chuyen tien.
 	"tra_truoc.py": ["chi_tiet_don", "ds_don_mua", "ds_nguon_tien", "tao_phieu"],
 	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
+	# Tang doi soat SePay dung chung, them 24/08/2026. Ba cua ngo nay phuc vu
+	# MOI man co doi soat, nen thieu mot ten la mot man mat nut.
+	"doi_soat_sepay.py": ["tu_dong", "ung_vien", "khop_tay"],
+
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",
 		# dinh_unc va hoan_thanh them ngay 19/08/2026: luong KET THUC phieu

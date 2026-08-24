@@ -235,6 +235,8 @@ async function scrMayIn() {
     frame('Máy in', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
   }
+  /* Vua doc lai tu may chu nen khong con gi chua luu. */
+  S.chuaLuu = '';
   miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
   miVe();
   miVeQz();
@@ -514,6 +516,16 @@ function miVe() {
     var t = e.target.closest('[data-mimo]');
     if (t) { miMo = +t.getAttribute('data-mimo'); miMoi = 0; go(scrMayInSua); }
   };
+  /* Noi thang ngay o man danh sach, dung de nguoi dung mo tung may ra roi
+     moi phat hien khong luu duoc. */
+  if (!miSuaDuoc) {
+    var nB = document.createElement('div');
+    nB.style.cssText = 'font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;' +
+      'border-radius:9px;padding:10px 12px;margin:10px 12px;line-height:1.6';
+    nB.innerHTML = 'Tài khoản của anh chị <b>chỉ xem</b> được cấu hình máy in. ' +
+      'Nhờ quản lý, kế toán hoặc anh Việt gán giúp một lần, gán xong thì cả tiệm dùng chung.';
+    b.insertBefore(nB, b.firstChild);
+  }
   var nThu = document.getElementById('ctThu');
   /* In thu bang DUNG thong so dang go tren man, chua luu cung in thu duoc.
      Bat luu truoc moi duoc thu la bat nguoi dung luu mot con so ho chua
@@ -689,6 +701,24 @@ function scrMayInSua() {
   } : null);
 
   b.onclick = function (e) {
+    /* KHOA HAN phan cham chon khi khong du vai (v294, anh Viet 24/08/2026).
+
+       Bay giao dien cua ban cu: doan gan su kien nay nam TRUOC dong
+       `if (!miSuaDuoc) return;` o duoi, nen nguoi khong du vai van cham chon
+       duoc moi chip, man van doi mau y nhu da cau hinh xong, ma chan man
+       khong co bat ky nut Luu nao. Cham xong roi roi man la mat sach,
+       khong mot loi canh bao.
+
+       Ban De o quay dinh dung ca nay ngay 24/08: bao "khong co nut gi de
+       luu setting ca". Nay cham vao la duoc noi thang ai gan giup duoc. */
+    if (!miSuaDuoc) {
+      return baoTin('Tài khoản của anh chị chỉ xem được cấu hình máy in, ' +
+        'chưa sửa được. Nhờ quản lý, kế toán hoặc anh Việt mở màn này gán ' +
+        'giúp một lần, gán xong thì cả tiệm dùng chung.', 'Chưa sửa được');
+    }
+    /* Cham mot chip la co thay doi chi nam trong bo nho, chua xuong may
+       chu. Dat cau hoi de nut lui phai hoi truoc khi bo di. */
+    S.chuaLuu = 'Cấu hình máy in đang sửa dở, chưa bấm Lưu. Rời màn này là mất.';
     var t = e.target.closest('[data-midiem]');
     if (t) { miDoc(); d.diem = t.getAttribute('data-midiem'); return go(scrMayInSua, true); }
     t = e.target.closest('[data-mivt]');
@@ -754,6 +784,7 @@ async function miLuu(veDanhSach) {
   try {
     miData = await api('vagabond.may_in.luu', { may: JSON.stringify(miDs) });
     miDs = miData.may || []; miSuaDuoc = miData.sua_duoc ? 1 : 0;
+    S.chuaLuu = '';
     /* Doi kho giay xong thi cau hinh ban hang cu van con trong bo nho, ban
        in tiep theo se ra kho cu. Xoa di de lan in sau doc lai. */
     CFGBH = null;

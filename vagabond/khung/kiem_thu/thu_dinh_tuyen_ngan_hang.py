@@ -369,8 +369,25 @@ def _chung_mot_man():
 	dung("co chip nhan ra loai", "HUỶ ĐƠN" in js)
 
 
-@ca("do sao ke: ho so huy don do theo CA CAU noi dung chuyen khoan")
-def _do_ca_cau():
+@ca("do sao ke: ho so huy don do theo MA DON, khong con do ca cau")
+def _do_ma_don():
+	"""DOI TU CA CAU SANG MA TRAN, v294 ngay 24/08/2026.
+
+	Ban v292 do ca cau noi dung chuyen khoan, vi `khop_giao_dich` luc do chi
+	chan chu so o phia SAU nen do "92252" tran se dinh vao mot dong chua
+	"192252".
+
+	Nhung ca cau hong nang hon, va du lieu that ngay 24/08 da chung minh:
+
+	    app bao go : THE VAGABOND HOAN TIEN 92245
+	    sao ke that: MBCT VAGABOND HOAN TIEN DON HANG 92245 D237BVMB/870581
+
+	Chi Dung bo chu THE, them hai chu DON HANG, ngan hang chen MBCT o dau.
+	Ca cau truot, may khong khop, va chi phai bam nut thu cong luc 14:31.
+
+	Nay `doi_soat_sepay.co_ma` chan chu so CA HAI DAU nen do ma tran vua an
+	toan vua bat duoc moi cach go. Xem `thu_doi_soat_sepay.py`.
+	"""
 	src = _doc("hoan_tien.py")
 	ns = {}
 	m = re.search(r"^def ma_do_soat\(ho_so\):.*?(?=^def |\Z)", src, re.S | re.M)
@@ -379,12 +396,18 @@ def _do_ca_cau():
 	exec(compile(m.group(0), "hoan_tien.py", "exec"), ns)
 	f = ns["ma_do_soat"]
 	la("co hoa don thi do theo hoa don", f({"hoa_don": "HDB-26-08-00553"}), "HDB-26-08-00553")
-	# Ma don Pancake chi co nam chu so. `khop_giao_dich` chi chan chu so o
-	# phia SAU, nen do "92252" tran se dinh nham vao dong chua "192252".
-	la("huy don do theo ca cau",
+	la("huy don do theo MA DON tran",
 		f({"hoa_don": "", "loai_hoan": "Huy don Pancake",
+		   "ma_don_pancake": "92252",
 		   "noi_dung_ck": "THE VAGABOND HOAN TIEN 92252"}),
-		"THE VAGABOND HOAN TIEN 92252")
+		"92252")
+	# THA KHONG KHOP CON HON KHOP NHAM mot lan tien ra: phieu bi loi cu xoa
+	# mat ma thi `noi_dung_ck` con tro lai mot chuoi la con cua MOI dong hoan
+	# tien, khop bua vao bat ky dong nao.
+	la("mat ma don thi tra rong, khong lay chuoi cut lam ma do",
+		f({"hoa_don": "", "loai_hoan": "Huy don Pancake",
+		   "ma_don_pancake": "", "noi_dung_ck": "THE VAGABOND HOAN TIEN "}),
+		"")
 	la("khong ro thi tra rong", f({"hoa_don": "", "loai_hoan": "", "noi_dung_ck": "x"}), "")
 
 
