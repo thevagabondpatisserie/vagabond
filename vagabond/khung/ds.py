@@ -379,7 +379,7 @@ def tao_moi(ma, gt=None):
 		if c.get("bat_buoc") and not str(sach.get(c["k"]) or "").strip()
 	]
 	if thieu:
-		frappe.throw("Chưa điền: %s. Điền đủ rồi bấm Lưu lại giúp em." % ", ".join(thieu))
+		frappe.throw("Chưa điền: %s. Vui lòng điền đủ rồi bấm Lưu lại." % ", ".join(thieu))
 
 	if t.get("truoc_khi_ghi"):
 		sach = t["truoc_khi_ghi"](sach) or sach
