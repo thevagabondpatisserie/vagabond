@@ -234,15 +234,29 @@ def luu_can_tem(ngang=0, doc=0, rong=0, cao=0, xoay=0):
 	return danh_sach()
 
 
-def kho_theo_vai_tro():
+def kho_theo_vai_tro(diem=""):
 	"""Bang tra loai phieu -> kho giay, gui cho app cung cau hinh ban hang.
 
-	May nao dang bat va nhan loai phieu do thi lay kho cua may do. Nhieu may
-	cung nhan mot loai thi lay may dau tien - do la truong hop hai chi nhanh
-	moi noi mot may, kho giay giong nhau nen khong sinh chuyen.
+	May nao dang bat va nhan loai phieu do thi lay kho cua may do.
+
+	LOC THEO DIEM BAN (them 24/08/2026). Truoc day ham nay khong nhan tham so
+	nao ca: no lay may DAU TIEN trong ca danh sach, bat ke may do dung o
+	diem nao. Chu thich cu bao chua sinh chuyen vi "hai chi nhanh moi noi mot
+	may, kho giay giong nhau" - dung cho toi ngay hai diem dung hai kho tem
+	khac nhau, luc do mot diem se in tem theo kho cua diem kia ma khong ai
+	hieu vi sao.
+
+	May chua gan diem van nhan moi diem, giong `tuyen_qz`: do la may cu chua
+	kip khai, khong phai may cua diem khac.
+
+	Trong mot diem ma van co nhieu may cung nhan mot loai thi lay may dau
+	tien - do that su la hai may giong nhau dung canh nhau.
 	"""
+	diem = str(diem or "").strip().upper()
 	bang = {}
 	for m in ds(chi_bat=True):
+		if diem and m.get("diem") and m["diem"] != diem:
+			continue
 		for v in m["vai_tro"]:
 			if v not in bang:
 				bang[v] = m["kho"]
@@ -297,6 +311,37 @@ def tuyen_qz(diem=""):
 		for v in m["vai_tro"]:
 			if v in ra and manh not in ra[v]:
 				ra[v].append(manh)
+	return ra
+
+
+def _tron(may):
+	"""Tron danh sach vua gui len VOI ban dang co, khop theo ma may.
+
+	Vi sao khong de nguyen ca mang gui len
+	--------------------------------------
+	Man hinh gui len TOAN BO danh sach, va truoc day may chu ghi de thang.
+	Hai nguoi cung mo man Cai dat, moi nguoi sua mot may khac nhau roi bam
+	Luu: nguoi bam sau xoa sach viec cua nguoi bam truoc, khong bao gi ca.
+	Cung mot kieu hong da lam mat code giua cac phien lam viec.
+
+	Nay khop theo `ma`: may nao co trong ban gui len thi lay ban moi, may nao
+	KHONG co thi giu nguyen ban dang co. Xoa mot may that su thi phai bam nut
+	Bo tren man sua, va nut do gui len danh sach co dat co `xoa`.
+
+	Thu tu lay theo ban gui len, roi noi them nhung may cu con lai o cuoi.
+	"""
+	cu = {m["ma"]: m for m in ds()}
+	ra, da = [], set()
+	for i, d in enumerate(may or []):
+		m = _chuan(d, i)
+		if cint((d or {}).get("xoa")):
+			da.add(m["ma"])
+			continue
+		ra.append(m)
+		da.add(m["ma"])
+	for ma, m in cu.items():
+		if ma not in da:
+			ra.append(m)
 	return ra
 
 
@@ -376,7 +421,7 @@ def luu(may=None):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới sửa được danh sách máy in.")
 	if isinstance(may, str):
 		may = frappe.parse_json(may or "[]")
-	ra = [_chuan(d, i) for i, d in enumerate(may or [])]
+	ra = _tron(may)
 	_kiem(ra)
 	frappe.db.set_single_value(
 		"Vagabond Settings", TRUONG, json.dumps(ra, ensure_ascii=False, indent=1)
