@@ -142,16 +142,25 @@ async function scrRecvList() {
 }
 
 /* Khu chung tu giao nhan: 2 anh hang + ban scan bien ban NCC */
+/* Nút X ở góc từng tấm (anh Việt 24/08/2026). Phiếu nhập được ghi sổ ngay
+   lúc lập nên không có nấc "chưa ghi sổ" để chặn; anh Việt chốt chỉ chặn khi
+   phiếu đã huỷ. Đổi lại mỗi lần gỡ đều ghi vết ai gỡ, gỡ tấm nào. */
 function rcvAnhHtml(doc) {
-  function o(url, ten) {
+  var goDuoc = Number(doc.docstatus) !== 2;
+  function o(url, ten, truong) {
     if (!url) return '';
     var laPdf = String(url).toLowerCase().indexOf('.pdf') >= 0;
     var trong = laPdf ? '<div class="rcvthf">📄</div>' : '<img class="rcvthi" src="' + h(url) + '" loading="lazy">';
-    return '<a class="rcvth" href="' + h(url) + '" target="_blank">' + trong + '<span>' + ten + '</span></a>';
+    return '<span style="position:relative;display:inline-block">' +
+      '<a class="rcvth" href="' + h(url) + '" target="_blank">' + trong + '<span>' + ten + '</span></a>' +
+      (goDuoc
+        ? '<span class="xo" data-rcvgo="' + h(truong) + '" data-ten="' + h(ten) + '" ' +
+          'title="Gỡ tấm này" style="position:absolute;top:-6px;right:-6px">✕</span>' : '') +
+      '</span>';
   }
-  var s = o(doc.custom_hinh_nhan_hang_1, 'Ảnh hàng (1)') +
-    o(doc.custom_hinh_nhan_hang_2, 'Ảnh hàng (2)') +
-    o(doc.custom_scan_bien_ban, 'Biên bản NCC');
+  var s = o(doc.custom_hinh_nhan_hang_1, 'Ảnh hàng (1)', 'custom_hinh_nhan_hang_1') +
+    o(doc.custom_hinh_nhan_hang_2, 'Ảnh hàng (2)', 'custom_hinh_nhan_hang_2') +
+    o(doc.custom_scan_bien_ban, 'Biên bản NCC', 'custom_scan_bien_ban');
   if (!s) s = '<div style="color:#98a2b3;font-size:13px;padding:2px 14px 8px">Chưa đính kèm ảnh hay biên bản lúc nhận.</div>';
   return '<div class="sec">Chứng từ giao nhận</div><div class="rcvths">' + s + '</div>';
 }
@@ -175,7 +184,24 @@ async function rcvXemXong(name) {
         '<div class="l2">' + h(r.item_code) + ' · ' + h(shortWh(r.warehouse) || '') + '</div></div>' +
         '<span class="st b">' + num(r.qty) + ' ' + h(r.uom || '') + '</span></div>';
     }).join('') + '</div>' + rcvAnhHtml(doc);
-  frame('Phiếu ' + name, s);
+  var b = frame('Phiếu ' + name, s);
+  b.addEventListener('click', async function (e) {
+    var n = e.target.closest('[data-rcvgo]');
+    if (!n) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var tr = n.getAttribute('data-rcvgo'), ten = n.getAttribute('data-ten');
+    if (!await xacNhan('Gỡ "' + ten + '" khỏi phiếu ' + name + '?\n\n' +
+      'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Việc gỡ được ghi vết.',
+      'Gỡ chứng từ giao nhận', 'Gỡ')) return;
+    busy(1);
+    try {
+      await api('vagabond.nhan_hang.go_anh_nhan', { name: name, truong: tr });
+      busy(0);
+      toast('Đã gỡ ' + ten, 2800);
+      go(function () { rcvXemXong(name); }, true);
+    } catch (e2) { busy(0); baoTin(errMsg(e2) || 'Không gỡ được'); }
+  });
 }
 
 

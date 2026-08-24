@@ -1674,13 +1674,20 @@ function htCtVe() {
 
   html += '<div class="sec">Ảnh bằng chứng</div>';
   if ((d.anh || []).length) {
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:2px">' +
+    /* Nút X ở góc từng tấm (anh Việt 24/08/2026). Chỉ bày khi phiếu còn ở
+       "Chờ chi": chi rồi thì tấm ảnh là căn cứ của một lần chi tiền thật,
+       gỡ ra là rút mất căn cứ của việc đã xảy ra. Máy chủ chặn lần nữa. */
+    var goDuocAnh = (d.trang_thai || '') === 'Cho chi';
+    html += '<div style="display:flex;gap:14px 11px;flex-wrap:wrap;padding:6px 2px">' +
       d.anh.map(function (a) {
-        return '<div class="htcanh" data-url="' + h(a.url) + '" style="width:92px;height:92px;border-radius:10px;' +
-          'background-image:url(' + a.url + ');background-size:cover;background-position:center;' +
-          'border:1px solid #e3e6ec;cursor:pointer"></div>';
+        return oTep({
+          url: a.url, ten: a.ten, anh: 1, co: 92,
+          lop: 'htcanh', mo: 'data-url="' + h(a.url) + '"',
+          go: (goDuocAnh && a.tep) ? 'data-htgoanh="' + h(a.tep) + '" data-ten="' + h(a.ten || '') + '"' : ''
+        });
       }).join('') + '</div>' +
-      '<div style="font-size:11px;color:#9ca3af;padding:7px 2px 0">Bấm vào ảnh để xem to.</div>';
+      '<div style="font-size:11px;color:#9ca3af;padding:7px 2px 0">Bấm vào ảnh để xem to.' +
+      (goDuocAnh ? ' Chụp nhầm thì bấm dấu ✕ ở góc để gỡ.' : '') + '</div>';
   } else {
     html += '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
       'border-radius:10px;padding:10px 12px;line-height:1.6">Phiếu này chưa có ảnh bằng chứng. ' +
@@ -1768,6 +1775,12 @@ function htCtVe() {
   }
   var b = frame('Phiếu hoàn tiền', html, chan ? { footer: chan } : undefined);
 
+  b.querySelectorAll('[data-htgoanh]').forEach(function (n) {
+    n.onclick = function (e) {
+      e.stopPropagation();
+      htGoAnhBangChung(d, n.getAttribute('data-htgoanh'), n.getAttribute('data-ten'));
+    };
+  });
   b.querySelectorAll('.htcanh').forEach(function (n) {
     n.onclick = function () { rndXemAnh(n.getAttribute('data-url')); };
   });
@@ -2199,6 +2212,25 @@ function htCtUnc(d) {
       (d.ngay_hoan_thanh ? ' lúc ' + h(String(d.ngay_hoan_thanh).slice(0, 16)) : '') + '.</div>';
   }
   return h_ + '</div>';
+}
+
+/* Go mot anh bang chung dinh nham. Hoi lai truoc khi go: tam nay la thu ke
+   toan ngoi xa quay dung de quyet chi, go nham la bo mat can cu cua ho. */
+async function htGoAnhBangChung(d, tep, ten) {
+  if (!tep) return;
+  var ok = await xacNhan(
+    'Gỡ ảnh "' + (ten || tep) + '" khỏi phiếu ' + d.name + '?\n\n' +
+    'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi phiếu này. Phiếu không còn ảnh nào thì ' +
+    'kế toán sẽ không có căn cứ để quyết chi.',
+    'Gỡ ảnh bằng chứng', 'Gỡ');
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.hoan_tien.go_anh_bang_chung', { ho_so: d.name, tep: tep });
+    busy(false);
+    toast('Đã gỡ ' + (ten || tep), 3000);
+    htChiTiet(d.name);
+  } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được ảnh', 'Lỗi'); }
 }
 
 /* Go mot uy nhiem chi dinh nham. Hoi lai truoc khi go: to nay la bang
@@ -2971,12 +3003,18 @@ function mvDsSpHtml(ds) {
           money(x.ghep_duoc || 0) + '</b> → bán được <b>' + money(con) + '</b>' +
           ((x.co_the_ban || 0) > con
             ? ' <span style="color:#b45309">· nghẽn ở ruột, bếp cần làm thêm</span>' : '') +
-          (x.ruot_khong_rang_buoc
-            /* Câu cũ nói "chưa khai định mức ruột" là nói sai: hộp có khai
-               đủ ruột, chỉ là mọi ruột đều mang cờ "không đặt trần" nên phép
-               ghép ngược bỏ qua hết (anh Việt bắt được 22/08/2026). */
-            ? '<div style="color:#b45309;margin-top:4px">⚠️ Ruột của hộp này không ruột nào ' +
-              'đặt trần, nên máy chỉ chặn được theo số vỏ hộp.</div>' : '') +
+          /* Ba câu, ba tình huống khác nhau. Câu "không ruột nào đặt trần"
+             của bản trước 24/08/2026 nói SAI với MOONGARDEN: cả 5 ruột đều
+             có bếp nhập sản lượng, chỉ là phép ghép cũ bỏ qua chúng vì cờ
+             "không đặt trần". Nay ruột đã khai nguồn cung thì chặn bình
+             thường, và chỉ ruột CHƯA khai gì mới bị bỏ qua. */
+          (x.ruot_thieu_nguon
+            ? '<div style="color:#b45309;margin-top:4px">⚠️ Còn <b>' + money(x.ruot_thieu_nguon) +
+              '</b> ruột chưa ai khai nguồn cung, nên số ghép được ở trên là số ' +
+              '<b>lạc quan</b>. Vào tab Sản phẩm nhập số bếp làm cho những ruột đó.</div>'
+            : x.ruot_khong_rang_buoc
+            ? '<div style="color:#b45309;margin-top:4px">⚠️ Chưa ruột nào của hộp này có ' +
+              'nguồn cung, nên máy chỉ chặn được theo số vỏ hộp.</div>' : '') +
           '</div>' : '') +
       '<div style="display:flex;gap:6px;margin-top:8px;font-size:11.5px;flex-wrap:wrap;align-items:center">' +
       mvChip('Bán lẻ', banLe, '#0f766e') +
@@ -3263,12 +3301,21 @@ function mvTheCoTheBan(x) {
        "chưa khai định mức ruột" và nói SAI với MOONGARDEN: hộp đó khai đủ 5
        ruột, chỉ là cả 5 đều mang cờ "không đặt trần" nên phép ghép ngược bỏ
        qua hết (anh Việt bắt được 22/08/2026). */
+    /* Ô này là cái quyết định số BÁN ĐƯỢC của hộp, nên phải nói thật đang
+       biết bao nhiêu. Ngày 24/08/2026 nó im lặng trả 0 rồi màn hình rơi về
+       số vỏ hộp 1.557 trong khi ruột chỉ ghép được 15 - anh Việt bắt được. */
     o += x.chua_khai_dinh_muc
       ? mvOChu('Ruột ghép được', 'chưa khai định mức ruột cho hộp này')
       : x.ruot_khong_rang_buoc
-      ? mvOChu('Ruột ghép được', 'ruột chỉ làm theo hộp, không đặt trần riêng, ' +
+      ? mvOChu('Ruột ghép được', 'chưa ruột nào có nguồn cung, ' +
         'nên chỉ số vỏ hộp chặn được')
+      : x.ruot_thieu_nguon
+      ? mvOCb('Ruột ghép được ⚠️', x.ghep_duoc, '#b45309')
       : mvOCb('Ruột ghép được', x.ghep_duoc, '#374151');
+    if (x.ruot_thieu_nguon) {
+      o += mvOChu('Lưu ý', 'còn ' + money(x.ruot_thieu_nguon) +
+        ' ruột chưa khai nguồn cung, số ghép được là số lạc quan');
+    }
   }
 
   return '<div class="card" style="padding:11px 12px;margin-bottom:9px">' +

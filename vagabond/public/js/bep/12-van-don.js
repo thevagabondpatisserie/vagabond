@@ -39,6 +39,34 @@ async function vdUpload(blob, doctype, docname, fieldname) {
   if (!r.ok || !j.message) throw new Error('Upload ảnh lỗi');
   return j.message.file_url;
 }
+/* Còn gỡ được ảnh giao hay chữ ký ra hay không.
+
+   Đối soát COD rồi thì ảnh giao là căn cứ của một lần đối tiền thật. Chữ ký
+   chặt hơn một nấc: đó là bằng chứng khách đã nhận hàng, nên chỉ gỡ được
+   khi đơn còn chưa giao xong. Ký nhầm sau khi đã giao thì đường đúng là mời
+   khách ký lại, bản mới đè lên bản cũ. Máy chủ chặn lại lần nữa. */
+function vdGoDuocAnh(d) { return !d.da_doi_soat; }
+function vdGoDuocKy(d) {
+  return !d.da_doi_soat && (d.trang_thai === 'Chờ giao' || d.trang_thai === 'Đang giao');
+}
+
+async function vdGoAnh(d, truong) {
+  var ten = truong === 'chu_ky' ? 'chữ ký của khách' : 'ảnh giao hàng';
+  var ok = await xacNhan(
+    'Gỡ ' + ten + ' khỏi vận đơn ' + d.name + '?\n\n' +
+    'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi đơn này.' +
+    (truong === 'chu_ky' ? '\n\nGỡ xong nhớ mời khách ký lại.' : ''),
+    'Gỡ ' + ten, 'Gỡ');
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.van_don.go_anh', { name: d.name, truong: truong });
+    busy(false);
+    toast('Đã gỡ ' + ten, 3000);
+    go(function () { scrVdView(d.name); }, true);
+  } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được', 'Lỗi'); }
+}
+
 function vdLaShipper() { return hasRole('Shipper'); }
 function vdLaKeToan() { return hasRole('Accounts User') || hasRole('Purchase User') || hasRole('System Manager'); }
 
@@ -323,17 +351,33 @@ async function scrVdView(name) {
     (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b>' + (d.da_doi_soat ? ' <span style="color:#15803d;font-size:13px">đã đối soát ✅</span>' : '') + '</div>' : '') +
     (d.booking_id ? '<div style="font-size:13px">Mã app ngoài: ' + h(d.booking_id) + (d.tracking_url ? ' · <a href="' + h(d.tracking_url) + '" target="_blank">theo dõi</a>' : '') + '</div>' : '') +
     (d.hoa_don ? '<div style="color:#6b7280;font-size:13px">Hoá đơn: ' + h(d.hoa_don) + '</div>' : '') +
+    /* Nút X ở góc ảnh giao và chữ ký (anh Việt 24/08/2026). Shipper chụp
+       nhầm đơn khác thì trước đây tấm ảnh nằm lại vĩnh viễn, mà sales vẫn
+       tải đúng tấm đó gửi khách.
+
+       Hai mốc chặn khác nhau, vì hai thứ này khác nhau: ảnh giao chặn khi
+       đã đối soát COD (tấm đó là căn cứ của một lần đối tiền thật); chữ ký
+       chặt hơn, chỉ gỡ được khi đơn còn Chờ giao hoặc Đang giao, vì đó là
+       bằng chứng khách đã nhận hàng. Máy chủ chặn lại lần nữa. */
     (d.anh_giao ? '<div style="margin-top:10px">' +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:5px">Ảnh giao thành công' + (d.da_bao_pancake ? ' · đã báo Pancake ✅' : '') + '</div>' +
-      '<a href="' + h(d.anh_giao) + '" target="_blank" rel="noopener" style="display:inline-block">' +
-      '<img src="' + h(d.anh_giao) + '" alt="Ảnh giao" style="width:118px;height:118px;object-fit:cover;border-radius:10px;border:1px solid #d7e6ea;display:block">' +
-      '</a></div>' : '') +
+      '<div style="display:flex;padding-top:6px">' +
+      oTep({
+        url: d.anh_giao, ten: 'Ảnh giao', anh: 1, co: 118,
+        mo: 'data-vdxem="' + h(d.anh_giao) + '"',
+        go: vdGoDuocAnh(d) ? 'data-vdgo="anh_giao"' : ''
+      }) + '</div></div>' : '') +
     (d.chu_ky ? '<div style="margin-top:10px">' +
       '<div style="font-size:12px;color:#6b7280;margin-bottom:5px">✍️ Khách ký nhận' +
       (d.nguoi_ky ? ' · ' + h(d.nguoi_ky) : '') + (d.ky_luc ? ' · ' + h(vdGioNgan(d.ky_luc)) : '') + '</div>' +
+      '<div style="position:relative;display:inline-block;padding-top:6px">' +
       '<a href="' + h(d.chu_ky) + '" target="_blank" rel="noopener" style="display:inline-block">' +
       '<img src="' + h(d.chu_ky) + '" alt="Chữ ký khách" style="width:230px;max-width:100%;background:#fff;border:1px solid #d7e6ea;border-radius:10px;display:block">' +
-      '</a></div>'
+      '</a>' +
+      (vdGoDuocKy(d)
+        ? '<span class="xo" data-vdgo="chu_ky" title="Gỡ chữ ký này" ' +
+          'style="position:absolute;top:-1px;right:-7px">✕</span>' : '') +
+      '</div></div>'
       : (d.khong_ky ? '<div style="color:#b45309;font-size:13px;margin-top:8px">✍️ Khách không ký: ' + h(d.khong_ky) + '</div>' : '')) +
     (d.ly_do_loi ? '<div style="color:#b3261e;font-size:13px">Không giao được: ' + h(d.ly_do_loi) + '</div>' : '') +
     (d.ghi_chu ? '<div style="color:#6b7280;font-size:13px;white-space:pre-wrap">' + h(d.ghi_chu) + '</div>' : '') + vdKhoiNhan(d) + '</div>' + vdNutPhanCong(d);
@@ -356,6 +400,13 @@ async function scrVdView(name) {
   }
   var b = frame('Chi tiết vận đơn', html);
   b.addEventListener('click', async function (e) {
+    var xem = e.target.closest('[data-vdxem]');
+    if (xem && !e.target.closest('[data-vdgo]')) {
+      window.open(xem.getAttribute('data-vdxem'), '_blank');
+      return;
+    }
+    var go2 = e.target.closest('[data-vdgo]');
+    if (go2) { e.stopPropagation(); return vdGoAnh(d, go2.getAttribute('data-vdgo')); }
     var el = e.target.closest('[data-va]'); if (!el) return;
     var k = el.getAttribute('data-va');
     if (k === 'chiduong') { vdMoDuong(vdDich(d)); return; }
@@ -716,7 +767,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '293';
+var APPVER = '294';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
