@@ -633,7 +633,16 @@ async function scrPosQuay() {
       if (kq && kq.ok) {
         if (t && !t.value.trim()) t.value = kq.ten || '';
         if (dc && !dc.value.trim()) dc.value = kq.dia_chi || '';
-        if (bao) bao.textContent = 'Tra được: ' + (kq.ten || '');
+        /* Cổng tra cứu trả về tên chỉ có loại hình pháp lý. Đã xảy ra thật
+           ngày 22/08/2026, tờ hoá đơn 10901 mang tên "CÔNG TY CỔ PHẦN". */
+        if (kq.nghi_thieu) {
+          if (bao) { bao.textContent = '⚠️ ' + (kq.canh_bao || 'Hệ thống nghi ngờ tên công ty bị thiếu. Vui lòng kiểm tra lại thông tin!'); bao.style.color = '#b45309'; bao.style.fontWeight = '700'; }
+          if (t) { t.style.borderColor = '#f59e0b'; t.focus(); }
+          toast('Tên công ty tra về bị thiếu, vui lòng kiểm tra lại!', 6000);
+        } else {
+          if (t) t.style.borderColor = '';
+          if (bao) { bao.textContent = 'Tra được: ' + (kq.ten || ''); bao.style.color = ''; bao.style.fontWeight = ''; }
+        }
       } else if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.';
     } catch (e) { if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.'; }
   };

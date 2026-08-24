@@ -457,6 +457,21 @@ async function scrDsView(name, can) {
      91513 cua OSHIMA ghi cong no ma khong gan duoc khach nen man Cong no
      phai thu khong thay ten). */
   html += '<div id="dsvKhachBox" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px"></div>';
+  /* Bản tính của hệ thống lệch tổng đơn bên Pancake.
+
+     Ngày 22/08/2026 Pancake gửi `discount_each_product = 5` kèm cờ
+     `is_discount_percent`, ý là giảm 5 phần trăm; máy đọc thiếu cờ nên trừ
+     5 đồng. Đơn 91853 thành 8.229.970 trong khi khách chuyển 7.820.000. Cả
+     luồng chạy êm, không có màn nào báo. Dải băng này là chỗ báo. */
+  if (Math.abs(Number(d.vgb_lech_pancake || 0)) >= 1) {
+    var lechPk = Number(d.vgb_lech_pancake || 0);
+    html += '<div style="border:1.5px solid #fca5a5;background:#fef2f2;border-radius:10px;'
+      + 'padding:10px 12px;margin-top:10px;font-size:13px;color:#991b1b;line-height:1.55">'
+      + '<b>⚠️ Tổng đơn lệch so với Pancake ' + Math.abs(lechPk).toLocaleString('vi-VN') + ' đ</b><br>'
+      + 'Phiếu này đang tính ' + (lechPk > 0 ? 'CAO hơn' : 'THẤP hơn') + ' bên Pancake. '
+      + 'Vui lòng báo bộ phận kỹ thuật trước khi ghi sổ và trước khi xuất hoá đơn điện tử.'
+      + '</div>';
+  }
   var XHD_MD = 'Bán cho người tiêu dùng';
   function xesc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   var xhdCty = (d.vgb_xhd_ten && d.vgb_xhd_ten !== XHD_MD) ? d.vgb_xhd_ten : '';
@@ -477,7 +492,11 @@ async function scrDsView(name, can) {
     + '</div>'
     + (d.custom_hddt_so ? '<div style="font-size:12px;color:#0f766e">Đã xuất HĐĐT số ' + xesc(d.custom_hddt_so) + ' nên không sửa được nữa.</div>' : '<button class="btn" id="xhdLuu" style="margin-top:8px">Lưu thông tin đơn</button>')
     + '<div style="font-size:11px;color:#9ca3af;margin-top:8px">Luật kế toán hiện hành: mỗi đơn hàng là một hoá đơn VAT riêng, không được gộp đơn.</div>'
-    + '</div>';
+    + '</div>'
+    /* Khoi Hoa don thay the. Chi ve khi don DA co so hoa don dien tu; noi
+       dung nap sau bang dsvVeThayThe de man hinh hien ra ngay chu khong
+       dung cho mang. */
+    + (d.custom_hddt_so ? '<div id="dsvTT" style="margin-top:10px"></div>' : '');
   var foot = '';
   /* Nut Huy cho don CHUA GHI SO ben Sales. Truoc 15/08/2026 chi bill quay
      moi huy duoc tren app, don Sales bam nham la ket - phai nho ke toan
@@ -1006,6 +1025,7 @@ async function scrDsView(name, can) {
   veKhachNo();
   dsvTaiThe().then(veKhachNo);
   dsvTaiHt().then(veKhachNo);
+  if (d.custom_hddt_so) dsvVeThayThe(d.name);
   function mtcGiaTri() { var o = document.getElementById('dsvMtc'); return o ? o.value : ''; }
   function xhdVe() {
     var ch = document.getElementById('xhdChon');
@@ -1044,7 +1064,25 @@ async function scrDsView(name, can) {
       if (kq && kq.ok) {
         if (t && !t.value.trim()) t.value = kq.ten || '';
         if (dc && !dc.value.trim()) dc.value = kq.dia_chi || '';
-        if (bao) bao.textContent = 'Tra được: ' + (kq.ten || '');
+        /* Cong thong tin thue tra ve ten chi co loai hinh phap ly, khong co
+           ten rieng. Da xay ra that ngay 22/08/2026 voi ma 0108903529: to
+           hoa don 10901 mang ten "CÔNG TY CỔ PHẦN", khach khieu nai, ke toan
+           phai lap bien ban va xuat to thay the. O ten van sua tay duoc,
+           nen bao dong that to roi de nguoi doc quyet. */
+        if (kq.nghi_thieu) {
+          if (bao) {
+            bao.innerHTML = '<span style="display:block;background:#fef3c7;border:1px solid #fcd34d;'
+              + 'border-radius:8px;padding:8px 10px;color:#92400e;font-weight:700;line-height:1.5">⚠️ '
+              + xesc(kq.canh_bao || 'Hệ thống nghi ngờ tên công ty bị thiếu. Vui lòng kiểm tra lại thông tin!')
+              + '<br><span style="font-weight:400">Cổng tra cứu chỉ trả về "' + xesc(kq.ten || '')
+              + '". Vui lòng xem giấy phép kinh doanh của khách rồi gõ đủ tên vào ô bên trên.</span></span>';
+          }
+          if (t) { t.style.borderColor = '#f59e0b'; t.focus(); }
+          toast('Tên công ty tra về bị thiếu, vui lòng kiểm tra lại!', 6000);
+        } else {
+          if (t) t.style.borderColor = '#e5e7eb';
+          if (bao) bao.textContent = 'Tra được: ' + (kq.ten || '');
+        }
       } else if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.';
     } catch (e) { if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.'; }
   };
@@ -1407,4 +1445,256 @@ async function dsTayLuu() {
   go(scrDoanhSo, true);
 }
 
+/* ============================ HOÁ ĐƠN THAY THẾ ============================
 
+   Anh Việt 24/08/2026, sau sự cố hoá đơn 10901 của đơn 92409: tờ đã ký, đã
+   gửi cơ quan thuế, mang tên người mua thiếu hẳn phần tên riêng. Kế toán
+   lập biên bản rồi xuất tờ thay thế bên M-Invoice, nhưng trong ERP không có
+   chỗ nào ghi lại việc đó: đơn hàng vẫn hiện "Đã xuất HĐĐT số 10901".
+
+   Khối này là chỗ ghi. Ba việc:
+     1. Bật cờ "Hoá đơn bị sai sót, cần thay thế" và ghi lý do.
+     2. Gõ tay số hoá đơn thay thế. Hệ thống chưa đọc ngược được thay đổi
+        làm thẳng trên cổng M-Invoice nên đoán bừa là sai.
+     3. Đính biên bản thay thế, thumbnail có nút X đúng luật v289.
+
+   Câu diễn giải bắt buộc theo Nghị định 123/2020 hiện sẵn để kế toán chép
+   sang M-Invoice, khỏi gõ tay và khỏi nhớ đúng thứ tự các phần. */
+
+var DSVTT = {};
+/* Kế toán vừa tích ô nhưng chưa gõ lý do: cờ ở máy chủ chưa được bật, chỉ
+   mở phần nhập ở màn hình. Cờ chỉ ghi thật khi bấm Ghi nhận hoặc khi đính
+   biên bản, vì cả hai đường đó mới có đủ căn cứ để ghi. */
+var DSVTT_MO = {};
+
+async function dsvVeThayThe(siName) {
+  var o = document.getElementById('dsvTT');
+  if (!o) return;
+  var r;
+  try { r = await api('vagabond.ban_hang.bien_ban_thay_the', { si_name: siName }); }
+  catch (e) { o.innerHTML = ''; return; }
+  if (!r || !r.da_xuat) { o.innerHTML = ''; return; }
+  DSVTT[siName] = r;
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var xin = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit';
+
+  var mo = r.sai_sot || DSVTT_MO[siName];
+  var h_ = '<div style="border:1.5px solid ' + (mo ? '#fcd34d' : '#e5e7eb') + ';border-radius:10px;padding:10px;'
+    + (mo ? 'background:#fffbeb;' : '') + '">'
+    + '<label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;font-weight:700;color:#92400e">'
+    + '<input type="checkbox" id="ttCo" ' + (mo ? 'checked' : '') + (r.sua_duoc ? '' : ' disabled')
+    + ' style="width:18px;height:18px;flex:none">Hoá đơn bị sai sót / cần thay thế</label>';
+
+  if (!r.sai_sot && !DSVTT_MO[siName]) {
+    h_ += '<div style="font-size:11.5px;color:#9ca3af;margin-top:7px;line-height:1.55">'
+      + 'Tích ô này khi tờ hoá đơn số ' + esc(r.so_cu) + ' đã phát hành bị sai thông tin. '
+      + 'Kế toán xuất tờ thay thế bên M-Invoice rồi quay lại đây ghi số tờ mới và đính biên bản.'
+      + '</div></div>';
+    o.innerHTML = h_;
+    var c0 = document.getElementById('ttCo');
+    if (c0) c0.onchange = function () {
+      if (!c0.checked) return;
+      DSVTT_MO[siName] = 1;
+      dsvVeThayThe(siName);
+    };
+    return;
+  }
+
+  h_ += '<div style="font-size:11.5px;color:#92400e;background:#fef3c7;border-radius:8px;padding:8px 10px;margin-top:9px;line-height:1.6">'
+    + '<b>Câu bắt buộc trên tờ thay thế</b> (Nghị định 123/2020), chép nguyên câu này sang M-Invoice:<br>'
+    + '<span id="ttCau" style="display:block;margin-top:5px;font-weight:700;color:#78350f">' + esc(r.dien_giai || '') + '</span>'
+    + '<button id="ttChep" style="margin-top:7px;border:1px solid #d97706;background:#fff;color:#92400e;'
+    + 'border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer">Chép câu này</button>'
+    + '</div>';
+
+  if (r.thay_the) {
+    h_ += '<div style="font-size:13px;color:#065f46;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;'
+      + 'padding:9px 11px;margin-top:9px;line-height:1.6">Đã ghi nhận tờ thay thế <b>' + esc(r.thay_the) + '</b>'
+      + (r.thay_the_luc ? ' lúc ' + esc(r.thay_the_luc) : '') + '.'
+      + (r.sua_duoc ? '<br><span id="ttGo" style="color:#b91c1c;text-decoration:underline;cursor:pointer">Ghi nhầm, gỡ số này</span>' : '')
+      + '</div>';
+  } else if (r.sua_duoc) {
+    h_ += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:9px">'
+      + '<input id="ttSo" placeholder="Số HĐĐT thay thế, chép từ M-Invoice" style="' + xin + '">'
+      + '<input id="ttKh" placeholder="Ký hiệu tờ mới, ví dụ 1C26MPV (để trống cũng được)" style="' + xin + '">'
+      + '<textarea id="ttLy" rows="2" placeholder="Lý do phải thay thế, ví dụ: tên người mua bị thiếu" style="' + xin + '">' + esc(r.ly_do || '') + '</textarea>'
+      + '<button class="btn" id="ttLuu">Ghi nhận hoá đơn thay thế</button></div>';
+  } else {
+    h_ += '<div style="font-size:12px;color:#6b7280;margin-top:9px">Chưa ghi số tờ thay thế. Vui lòng nhờ bộ phận kế toán ghi giúp.</div>';
+  }
+
+  /* Biên bản thay thế. Thumbnail đi qua ô dùng chung oTep nên luôn có nút X
+     ở góc, đúng luật v289. Gỡ được chừng nào chưa ghi số tờ thay thế: ghi
+     rồi là hồ sơ đã khép, tờ biên bản trong đó là căn cứ giải trình. */
+  var goDuoc = r.sua_duoc && !r.thay_the;
+  var oAnh = (r.tep || []).map(function (t) {
+    return oTep({
+      url: '', ten: t.ten, anh: t.anh, cho: 1, nhan: 1, lop: 'ttanh',
+      mo: 'data-tep="' + esc(t.tep) + '" data-ten="' + esc(t.ten) + '" data-anh="' + (t.anh ? 1 : 0) + '" style="cursor:pointer"',
+      go: goDuoc ? ('data-go="' + esc(t.tep) + '" data-ten="' + esc(t.ten) + '"') : ''
+    });
+  }).join('');
+  h_ += '<div style="margin-top:10px"><div style="font-size:12px;color:#6b7280;margin-bottom:6px"><b>Biên bản thay thế</b></div>'
+    + '<div id="ttAnh" style="display:flex;gap:10px;flex-wrap:wrap">' + (oAnh || '<span style="font-size:12px;color:#9ca3af">Chưa đính tờ nào.</span>') + '</div>';
+  if (r.sua_duoc) {
+    h_ += '<button class="btn" id="ttDinh" style="margin-top:8px;width:100%">📎 '
+      + ((r.tep || []).length ? 'Đính thêm biên bản' : 'Đính biên bản thay thế') + '</button>'
+      + '<input type="file" id="ttTep" accept="image/*,application/pdf" style="display:none">';
+  }
+  h_ += '</div></div>';
+  o.innerHTML = h_;
+  dsvTTGan(siName, r);
+}
+
+function dsvTTGan(siName, r) {
+  var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var cCo = document.getElementById('ttCo');
+  if (cCo) cCo.onchange = function () {
+    if (cCo.checked) return;
+    /* Chưa ghi gì lên máy chủ thì bỏ tích là đóng khối lại, không sao. Đã
+       ghi số tờ thay thế hoặc đã đính biên bản rồi thì cờ này là một sự
+       thật đã xảy ra, bỏ đi là xoá dấu vết (QT-20). */
+    if (r.thay_the || (r.tep || []).length) {
+      cCo.checked = true;
+      return toast('Đơn này đã ghi nhận hồ sơ thay thế nên không bỏ cờ được. Ghi nhầm thì gỡ số tờ thay thế.', 5500);
+    }
+    DSVTT_MO[siName] = 0;
+    dsvVeThayThe(siName);
+  };
+  var cChep = document.getElementById('ttChep');
+  if (cChep) cChep.onclick = function () {
+    var t = (document.getElementById('ttCau') || {}).textContent || '';
+    try { navigator.clipboard.writeText(t); toast('Đã chép câu diễn giải.', 2500); }
+    catch (e) { toast('Máy không chép được, anh chị bôi đen câu trên rồi chép tay giúp.', 4500); }
+  };
+  var cLuu = document.getElementById('ttLuu');
+  if (cLuu) cLuu.onclick = async function () {
+    var so = ((document.getElementById('ttSo') || {}).value || '').trim();
+    var kh = ((document.getElementById('ttKh') || {}).value || '').trim();
+    var ly = ((document.getElementById('ttLy') || {}).value || '').trim();
+    if (!so) return toast('Chưa nhập số hoá đơn thay thế.', 4000);
+    if (!ly) return toast('Chưa ghi lý do phải thay thế.', 4000);
+    busy(true);
+    try {
+      var kq = await api('vagabond.ban_hang.ghi_hoa_don_thay_the', { si_name: siName, so: so, ky_hieu: kh, ly_do: ly });
+      busy(false);
+      toast((kq && kq.loi_nhan) || 'Đã ghi nhận.', 4500);
+      dsvVeThayThe(siName);
+    } catch (e) { busy(false); baoTin(errMsg(e) || 'Không ghi nhận được', 'Lỗi'); }
+  };
+  var cGo = document.getElementById('ttGo');
+  if (cGo) cGo.onclick = async function () {
+    var ly = await promptSheet('Gỡ số hoá đơn thay thế', 'Ghi rõ vì sao gỡ, nhật ký trên đơn vẫn giữ lại số cũ');
+    if (ly === null) return;
+    if (!String(ly || '').trim()) return toast('Phải ghi lý do gỡ.', 4000);
+    busy(true);
+    try {
+      var kq = await api('vagabond.ban_hang.go_hoa_don_thay_the', { si_name: siName, ly_do: ly });
+      busy(false);
+      toast((kq && kq.loi_nhan) || 'Đã gỡ.', 4500);
+      dsvVeThayThe(siName);
+    } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được', 'Lỗi'); }
+  };
+  var cDinh = document.getElementById('ttDinh'), cTep = document.getElementById('ttTep');
+  if (cDinh && cTep) {
+    cDinh.onclick = function () { cTep.value = ''; cTep.click(); };
+    cTep.onchange = function () { dsvTTGui(siName, cTep.files && cTep.files[0]); };
+  }
+  var oAnh = document.getElementById('ttAnh');
+  if (oAnh) {
+    oAnh.querySelectorAll('.xo').forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        dsvTTGo(siName, b.getAttribute('data-go'), b.getAttribute('data-ten'));
+      };
+    });
+    oAnh.querySelectorAll('.ttanh').forEach(function (n) {
+      n.onclick = function () { dsvTTMo(siName, n.getAttribute('data-tep'), n.getAttribute('data-ten')); };
+    });
+  }
+  dsvTTNapAnh(siName);
+}
+
+/* Nạp hình nhỏ sau khi màn đã vẽ. Mỗi tờ một yêu cầu riêng để tờ nào hỏng
+   không kéo đổ tờ khác. Chỉ thay ruột ô CHỜ, không ghi đè cả ô: nút X là
+   con của chính ô này. */
+async function dsvTTNapAnh(siName) {
+  var o = document.getElementById('ttAnh');
+  if (!o) return;
+  var ds = o.querySelectorAll('.ttanh');
+  for (var i = 0; i < ds.length; i++) {
+    var n = ds[i];
+    var oCho = n.querySelector('.tt');
+    if (!oCho) continue;
+    if (n.getAttribute('data-anh') !== '1') { oCho.textContent = '📄'; continue; }
+    try {
+      var r = await api('vagabond.ban_hang.tai_bien_ban_thay_the', { si_name: siName, tep: n.getAttribute('data-tep'), co: 'nho' });
+      var anh = document.createElement('img');
+      anh.src = 'data:' + r.mime + ';base64,' + r.b64;
+      anh.alt = '';
+      anh.style.cssText = oCho.style.cssText.replace(/font-size:[^;]*;?/, '')
+        + ';object-fit:cover;display:block;border-radius:10px;border:1.5px solid #fcd34d';
+      oCho.replaceWith(anh);
+    } catch (e) {
+      oCho.textContent = '🚫';
+    }
+  }
+}
+
+async function dsvTTMo(siName, tep, ten) {
+  toast('Đang tải biên bản...', 2000);
+  var r;
+  try { r = await api('vagabond.ban_hang.tai_bien_ban_thay_the', { si_name: siName, tep: tep, co: 'lon' }); }
+  catch (e) { return toast(errMsg(e) || 'Không tải được tệp', 5000); }
+  var url = 'data:' + r.mime + ';base64,' + r.b64;
+  if (!String(r.mime || '').indexOf('image/')) {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:88%;border-radius:8px">'
+      + '<div style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:18px;color:#fff;font-size:32px;line-height:1">&times;</div>';
+    ov.onclick = function () { ov.remove(); };
+    document.body.appendChild(ov);
+    return;
+  }
+  var a = document.createElement('a');
+  a.href = url; a.download = ten || r.ten || 'bien-ban-thay-the';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+async function dsvTTGo(siName, tep, ten) {
+  if (!tep) return;
+  var ok = await xacNhan(
+    'Gỡ "' + (ten || tep) + '" khỏi đơn ' + siName + '?\n\n'
+    + 'Tệp vẫn còn trên máy chủ, chỉ bỏ khỏi đơn này. Gỡ xong nhớ đính lại tờ đúng, '
+    + 'không thì hồ sơ thay thế thiếu căn cứ.',
+    'Gỡ biên bản thay thế', 'Gỡ');
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.ban_hang.go_bien_ban_thay_the', { si_name: siName, tep: tep });
+    busy(false);
+    toast('Đã gỡ ' + (ten || tep), 3000);
+    dsvVeThayThe(siName);
+  } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được tệp', 'Lỗi'); }
+}
+
+function dsvTTGui(siName, file) {
+  if (!file) return;
+  /* Không nén, không đổi định dạng: biên bản thay thế là chứng từ gốc để
+     giải trình thuế, chỉnh một pixel cũng là chỉnh chứng từ. */
+  if (file.size > 12 * 1024 * 1024) {
+    return toast('Tệp nặng quá 12 MB nên máy không nhận. Vui lòng xuất lại bản PDF nhỏ hơn.', 4500);
+  }
+  var fr = new FileReader();
+  fr.onload = async function () {
+    toast('Đang tải biên bản lên...', 2500);
+    try {
+      var kq = await api('vagabond.ban_hang.dinh_bien_ban_thay_the', {
+        si_name: siName, ten: file.name || 'bien-ban-thay-the.pdf', noi_dung: String(fr.result || '')
+      });
+      toast((kq && kq.ghi_chu) || 'Đã đính biên bản.', 4500);
+      dsvVeThayThe(siName);
+    } catch (e) { baoTin(errMsg(e) || 'Không đính được biên bản', 'Lỗi'); }
+  };
+  fr.readAsDataURL(file);
+}

@@ -679,7 +679,16 @@ async function scrPosBill(name) {
       if (kq && kq.ok) {
         if (kq.ten) document.getElementById('pbXTen').value = kq.ten;
         if (kq.dia_chi) document.getElementById('pbXDc').value = kq.dia_chi;
-        toast('Tra được: ' + (kq.ten || ''));
+        /* Xem ghi chú cùng đợt ở màn Doanh số: cổng tra cứu có lúc trả về
+           tên chỉ có loại hình pháp lý, và máy chủ chặn lúc lưu. Báo ngay
+           tại đây để người gõ sửa liền chứ không đợi tới lúc bấm Lưu. */
+        if (kq.nghi_thieu) {
+          var oT = document.getElementById('pbXTen');
+          if (oT) { oT.style.borderColor = '#f59e0b'; oT.focus(); }
+          baoTin((kq.canh_bao || 'Hệ thống nghi ngờ tên công ty bị thiếu. Vui lòng kiểm tra lại thông tin!')
+            + '\n\nCổng tra cứu chỉ trả về "' + (kq.ten || '')
+            + '". Vui lòng xem giấy phép kinh doanh của khách rồi gõ đủ tên.', 'Tên công ty bị thiếu');
+        } else toast('Tra được: ' + (kq.ten || ''));
       } else toast('Không tra được mã này, vui lòng điền tay.', 4000);
     } catch (er) { busy(false); toast((er && er.message) || 'Không tra được mã số thuế', 4000); }
   };
