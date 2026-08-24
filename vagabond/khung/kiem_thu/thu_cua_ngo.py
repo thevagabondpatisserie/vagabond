@@ -137,6 +137,10 @@ CUA_NGO = {
 		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
 		"gan_gd_vao", "hoan_thanh",
+		# go_unc them 24/08/2026: nut X tren tung hinh UNC. Chi go duoc khi
+		# phieu CHUA ket thuc - ghi so roi thi to do la chung tu cua but
+		# toan da nam trong so.
+		"go_unc",
 		# tim_gd_ra va khop_tay them 24/08/2026: khop SePay THU CONG cho
 		# dong tien RA. Khac han gan_gd_vao ngay tren, cai do la tien VAO.
 		# Ke toan go noi dung tay tren MB Biz nen chi can lech mot chu la
