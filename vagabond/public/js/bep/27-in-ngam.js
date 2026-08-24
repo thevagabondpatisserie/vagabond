@@ -126,6 +126,20 @@ function inManhCho(vaiTro) {
   for (var i = 0; i < tu_so.length; i++) {
     if (tu_so[i] && ra.indexOf(tu_so[i]) < 0) ra.push(tu_so[i]);
   }
+  /* Phieu lam mon chua gan may rieng thi RO VE may hoa don (v294).
+
+     Truoc v294 man bill goi in phieu lam mon voi vai 'hoa_don' thang, ly do
+     ghi trong chu thich la "no la giay cuon 80mm nhu bill". Nhung kho giay
+     von da doc rieng qua inKho('phieu_mon'), nen viec do chi lam mot chuyen:
+     o "May in phieu quay bar" tren man Cai dat khong bao gio duoc dung toi.
+     Nay phieu lam mon di dung vai cua no, va tiem nao chua khai may rieng
+     thi van ra may hoa don y nhu cu. */
+  if (vaiTro === 'phieu_mon') {
+    var tu_hd = (t.tuyen && t.tuyen.hoa_don) || [];
+    for (var j = 0; j < tu_hd.length; j++) {
+      if (tu_hd[j] && ra.indexOf(tu_hd[j]) < 0) ra.push(tu_hd[j]);
+    }
+  }
   var cu = vaiTro === 'tem' ? t.tem : t.hoa_don;
   if (cu && ra.indexOf(cu) < 0) ra.push(cu);
   return ra;

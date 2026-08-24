@@ -863,9 +863,14 @@ function posMonNuoc(mon) { return (mon || []).filter(posLaNuoc); }
 async function posInPhieuMon(d) {
   var nuoc = posMonNuoc(d.mon || []);
   if (!nuoc.length) return toast('Hoá đơn không có món nước nào.');
-  /* Phieu lam mon di ra may in HOA DON: no la giay cuon 80mm nhu bill,
-     khong phai tem dan ly. */
-  var inW = inMoCuaSoNeuCan('hoa_don');
+  /* Phieu lam mon di dung vai CUA NO (v294).
+
+     Ban cu goi thang 'hoa_don' voi ly do "no la giay cuon 80mm nhu bill".
+     Ly do do noi ve KHO GIAY, ma kho giay von da doc rieng qua
+     inKho('phieu_mon') o duoi. Hau qua: o "May in phieu quay bar" tren man
+     Cai dat chua bao gio duoc dung toi, quay bar khong nhan duoc phieu nao.
+     Tiem nao chua khai may rieng thi inManhCho tu ro ve may hoa don. */
+  var inW = inMoCuaSoNeuCan('phieu_mon');
   if (inW === 'chan') return;
   var gio = new Date();
   var hs = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -895,7 +900,7 @@ async function posInPhieuMon(d) {
     '<hr>' + rows +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
     '</body></html>');
-  await inTo('hoa_don', 'Phiếu làm món', inToPhieu, inKho('phieu_mon').rong, 900, inW);
+  await inTo('phieu_mon', 'Phiếu làm món', inToPhieu, inKho('phieu_mon').rong, 900, inW);
 }
 
 /* Ma don cua san food app doc ra tu mot hoa don da luu: uu tien ma tham
