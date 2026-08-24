@@ -4326,7 +4326,15 @@ def _nap_ham_dnc42():
 def _nap_ham_vcl43():
 	"""Doc THAN HAM THAT cua phep THUAN trong viec_can_lam.py."""
 	src = open("vagabond/viec_can_lam.py", encoding="utf-8").read()
+	# v297: cac bo vai trong viec_can_lam.py tham chieu VAI_QLCH, lay tu
+	# vai_cua_hang.py chu khong chep chuoi. Cach boc nay exec tung khoi
+	# trong mot khong gian rong, nen phai nap hang so do vao truoc. Doc
+	# THANG tu ma nguon, khong go lai chuoi o day - go lai la lech chinh
+	# ta ma khong ai thay.
+	_vch = open("vagabond/vai_cua_hang.py", encoding="utf-8").read()
 	mt = {}
+	exec(compile(re.search(r"^VAI_QLCH = .*$", _vch, re.M).group(0),
+				 "vai_cua_hang:VAI_QLCH", "exec"), mt, mt)
 	for ten in ("VAI_KE_TOAN", "VAI_THU_MUA", "VAI_KHO", "VAI_GIAM_DOC", "VAI_QUAN_LY"):
 		m = re.search(r"^%s = \{.*?\}" % re.escape(ten), src, re.S | re.M)
 		exec(compile(m.group(0), "viec_can_lam:%s" % ten, "exec"), mt, mt)
@@ -5669,9 +5677,22 @@ la("dinh vao ho so nuot loi, khong throw", "frappe.throw" in _dinh46, False)
 la("dinh vao ho so co luoi do cuoi cung", _dinh46.count("except Exception:") >= 2, True)
 la("tao ho so co goi duong dinh PDF", "minvoice_tep.dinh_vao_ho_so(doc)" in _hs46, True)
 # Don 60 ngay la don CACHE: xoa ban sao tro cung file_url truoc, roi ban goc.
+# v297: thu tu do chuyen han vao phep THUAN `don_duoc_nhom_tep`, cron chi lap
+# theo danh sach ma phep thuan tra ve. Chot lai o dung cho no o bay gio.
 _don46 = _mtep46.split("def don_dep_pdf(")[1]
+_nhom46 = _mtep46.split("def don_duoc_nhom_tep(")[1].split("\ndef ")[0]
 la("don dep xoa ban sao truoc ban goc",
-   _don46.find('"name": ["!=", g.name]') < _don46.find('frappe.delete_doc("File", g.name'), True)
+   _nhom46.find('for d in (anh_em or [])') < _nhom46.find('ten.append(str(goc.get("name")))'), True)
+la("cron di theo danh sach phep thuan tra ve, khong tu quet lay",
+   "don_duoc_nhom_tep(" in _don46 and "for ten in ds:" in _don46, True)
+# v297: hai hang rao chong xoa nham tep cua nguoi khac. Bai hoc tu
+# van_don.don_dep_anh_giao om ca chu ky khach vao dien don dep.
+la("chi don tep nam trong hai noi minh dinh",
+   "if dt not in noi_dinh:" in _nhom46, True)
+la("tep mang ten o thi khong duoc dung toi",
+   'd.get("attached_to_field")' in _nhom46, True)
+la("tu choi thi khong xoa gi ca, ke ca phan cua minh",
+   _nhom46.count("return (False,") >= 2, True)
 la("so ngay giu doc tu cai dat, mac dinh 60",
    'cint(_cai_dat_chung().get("minvoice_pdf_ngay_giu")) or 60' in _don46, True)
 # Hoa don keo loi lien tuc thi thoi, khong dot het luot goi cua to khac.
