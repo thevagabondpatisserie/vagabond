@@ -136,7 +136,11 @@ for ten, ca in (
 	("bill nho", (100, 8000, 90000)),
 ):
 	loi = kiem_so_diem(ca[0], ca[1], ca[2], 1, 50, 10000)[1]
-	la("%s: co cau chi duong" % ten, bool(re.search(r"(Nhập lại|mới trừ|nhỏ hơn)", loi)), True)
+	# Sau khi chuan hoa xung ho (v293) cau tro thanh "Vui long nhap lai",
+	# chu "nhap" khong con viet hoa. Doi sang khong phan biet hoa thuong,
+	# van chot dung dieu can chot: cau bao loi phai noi lam gi tiep.
+	la("%s: co cau chi duong" % ten,
+	   bool(re.search(r"(nhập lại|mới trừ|nhỏ hơn)", loi, re.IGNORECASE)), True)
 	la("%s: khong dung dau gach dai" % ten, ("—" in loi or "–" in loi), False)
 
 # --------------------------------------------------- so tien va so diem khop
@@ -357,7 +361,7 @@ la("don tong 0 thi khong hoan duoc", tyle(1000, 0)[0], False)
 la("le 0,5 dong van cho qua", tyle(100000.4, 100000)[0], True)
 # QT-24: cau bao loi phai noi nguoi dung lam gi tiep
 la("cau chan vuot tran co huong dan", "Sửa lại" in tyle(120000, 100000)[1], True)
-la("cau chan so 0 co huong dan", "Nhập lại" in tyle(0, 100000)[1], True)
+la("cau chan so 0 co huong dan", "nhập lại" in tyle(0, 100000)[1].lower(), True)
 
 
 # =====================================================================
@@ -5719,7 +5723,11 @@ for _p46 in _sales46:
 	   tuple(int(_p46.get(k) or 0) for k in ("read", "write", "create", "delete")),
 	   (1, 0, 0, 0))
 # Man hinh: anh ve bang the img qua duong tai_unc, khong con link tho.
-la("anh UNC ve bang the img", "class=\"htuncanh\"" in _js11_46.replace("'", "\""), True)
+# Tu v293 o anh dung ham dung chung oTep, nen lop CSS truyen qua tham so
+# `lop` chu khong con viet thang class="htuncanh" trong chuoi HTML. Dieu
+# can chot khong doi: co moc htuncanh de nap anh, va anh la the img that.
+la("anh UNC co moc de nap anh", "htuncanh" in _js11_46, True)
+la("anh UNC ve bang the img", "createElement('img')" in _js11_46, True)
 la("hinh nho goi tai_unc co=nho", "co: 'nho'" in _js11_46, True)
 la("phong to goi tai_unc co=lon", "co: 'lon'" in _js11_46, True)
 la("anh phong to co nut tai ve", "Tải về gửi khách" in _js11_46, True)
@@ -5863,7 +5871,7 @@ _mst47 = _mh47.split("mo.onblur = async function ()")[1].split("var lb = documen
 la("tra cuu chi dien vao o dang trong", "!(oTen.value || '').trim()" in _mst47, True)
 la("tra cuu khong ghi thang xuong co so du lieu",
    any(x in _mst47 for x in ("nha_cung_cap.tao", "frappe.client.set_value", "set_value")), False)
-la("khong tra ra thi noi ro go tay", "gõ tên tay giúp em" in _mst47, True)
+la("khong tra ra thi noi ro go tay", "gõ tên tay" in _mst47, True)
 
 # ---------- 47.3 Ban the hien hoa don: tai tay thay vi keo API ----------
 la("co cua dinh tep vao ho so", "def dinh_tep(" in _hs47, True)
