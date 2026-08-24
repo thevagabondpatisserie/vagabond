@@ -93,7 +93,7 @@ function vgbTaiAnh() {
             .then(function (r) { return r.json().then(function (j) { return { r: r, j: j }; }); })
             .then(function (x) {
               busy(false);
-              if (!x.r.ok || !x.j.message || !x.j.message.file_url) { baoTin('Tải hình lên lỗi, thử lại giúp em.'); return xong(''); }
+              if (!x.r.ok || !x.j.message || !x.j.message.file_url) { baoTin('Tải hình lên lỗi, vui lòng thử lại.'); return xong(''); }
               xong(x.j.message.file_url);
             })
             .catch(function (e) { busy(false); baoTin('Tải hình lên lỗi: ' + ((e && e.message) || '')); xong(''); });
@@ -123,7 +123,7 @@ async function vgbDich(ds) {
        kip gui cau chu len. */
     throw new Error((kq && kq.loi) ||
       ('Chưa dịch được (' + ((kq && kq.ly_do) || 'không rõ') +
-       '). Anh chị gõ tay phần tiếng Anh giúp em rồi báo kỹ thuật.'));
+       '). Anh chị vui lòng gõ tay phần tiếng Anh rồi báo kỹ thuật.'));
   }
   return kq.ra || [];
 }
@@ -720,7 +720,7 @@ async function bgGuiMail(d) {
   try { ng = await api('vagabond.bao_gia.xem_nguoi_nhan', { name: d.name, email: em }); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Không kiểm được danh sách người nhận'); }
   busy(false);
-  if (ng.sai && ng.sai.length) return baoTin('Địa chỉ này chưa đúng dạng email: ' + ng.sai.join(', ') + '. Anh chị sửa lại giúp em.');
+  if (ng.sai && ng.sai.length) return baoTin('Địa chỉ này chưa đúng dạng email: ' + ng.sai.join(', ') + '. Anh chị vui lòng sửa lại.');
   if (!ng.nhan.length) return baoTin('Chưa có địa chỉ nào hợp lệ để gửi.');
 
   /* hoiCo() tu thoat ky tu va giu xuong dong (white-space:pre-wrap), nen
@@ -799,7 +799,7 @@ async function bgTaoKhach(name, dangSoan) {
     canh = '<div style="background:#e8f6ee;border:1px solid #a7e0c0;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12.5px;line-height:1.65;color:#0a6b3a">' +
       '<b>Mã số thuế này đã có hồ sơ khách rồi.</b><br>' +
       xt.trung_mst.map(function (k) { return '• ' + h(k.customer_name || k.name) + ' (' + h(k.name) + ')'; }).join('<br>') +
-      '<br>Em sẽ gắn tờ này vào hồ sơ đó thay vì tạo thêm một dòng trùng.</div>';
+      '<br>Hệ thống sẽ gắn tờ này vào hồ sơ đó thay vì tạo thêm một dòng trùng.</div>';
   } else if ((xt.gan_giong || []).length) {
     canh = '<div style="background:#fff8ec;border:1px solid #f5d9a0;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12.5px;line-height:1.65;color:#8a5a08">' +
       '<b>Có khách tên gần giống, anh chị xem giúp có phải cùng một công ty không:</b><br>' +
@@ -957,7 +957,7 @@ function bgFormHopDong(g) {
       if (!t) return;
       if (t.size > 12 * 1024 * 1024) {
         oTep.value = '';
-        return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại giúp em.', 'Tệp quá nặng');
+        return baoTin('Tệp nặng ' + Math.round(t.size / 1048576) + ' MB, quá 12 MB nên máy không nhận. Vui lòng chụp lại ở chế độ thường hoặc nén bớt rồi chọn lại.', 'Tệp quá nặng');
       }
       f.tep = t;
       lTep.textContent = 'Đã chọn: ' + t.name + ' (' + Math.max(1, Math.round(t.size / 1024)) + ' KB). Bản này sẽ được ghép vào cuối PDF hợp đồng làm Phụ lục 01.';
@@ -1012,7 +1012,7 @@ async function bgChotHopDong(d) {
     }
     if (!await hoiCo('Chưa có hồ sơ khách',
       'Hợp đồng phải gắn với một khách hàng có trong hệ thống, vì còn gắn hoá đơn và theo dõi công nợ.\n\n' +
-      'Tờ này đang ghi khách là "' + (d.ten_khach || '') + '". Em tạo hồ sơ khách từ chính thông tin trên tờ nhé?',
+      'Tờ này đang ghi khách là "' + (d.ten_khach || '') + '". Hệ thống tạo hồ sơ khách từ chính thông tin trên tờ nhé?',
       'Tạo hồ sơ khách')) return;
     return bgTaoKhach(d.name, false);
   }
@@ -1931,7 +1931,7 @@ async function bgTraMst(name, tuNut) {
   var mst = String(bgTay.ma_so_thue || '').trim();
   var so = mst.replace(/\D/g, '');
   if (so.length !== 10 && so.length !== 12 && so.length !== 13) {
-    if (tuNut) baoTin('Mã số thuế phải 10, 12 hoặc 13 số. Anh chị kiểm lại giúp em.');
+    if (tuNut) baoTin('Mã số thuế phải 10, 12 hoặc 13 số. Anh chị vui lòng kiểm lại.');
     return;
   }
   if (bgTay._mst_da_tra === mst && !tuNut) return;
@@ -1939,12 +1939,12 @@ async function bgTraMst(name, tuNut) {
   busy(true);
   var kq;
   try { kq = await api('vagabond.api.tra_mst', { mst: mst }); }
-  catch (e) { busy(false); if (tuNut) baoTin('Không gọi được Cổng thông tin doanh nghiệp. Anh chị điền tay giúp em.'); return; }
+  catch (e) { busy(false); if (tuNut) baoTin('Không gọi được Cổng thông tin doanh nghiệp. Anh chị vui lòng điền tay.'); return; }
   busy(false);
   if (!kq || !kq.ok) {
     /* KHONG chan viec nhap: ho kinh doanh thuong khong co tren cong, ma
        chan o day thi nguoi nhap tuong minh go sai so. */
-    bgTay._mst_bao = 'Không tra được mã số thuế này. Anh chị điền tay giúp em.';
+    bgTay._mst_bao = 'Không tra được mã số thuế này. Anh chị vui lòng điền tay.';
     return go(function () { scrBgSua(name); }, true);
   }
   var ten = kq.ten || '';

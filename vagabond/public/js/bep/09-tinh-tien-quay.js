@@ -165,7 +165,7 @@ async function posDoiAnhQuay(ma) {
   inp.onchange = async function () {
     var f = inp.files && inp.files[0];
     if (!f) return;
-    if (f.size > 8 * 1024 * 1024) return toast('Ảnh nặng quá 8MB, chụp lại hoặc giảm kích thước giúp em.', 4000);
+    if (f.size > 8 * 1024 * 1024) return toast('Ảnh nặng quá 8MB, vui lòng chụp lại hoặc giảm kích thước.', 4000);
     busy(true);
     try {
       var fd = new FormData();
@@ -634,8 +634,8 @@ async function scrPosQuay() {
         if (t && !t.value.trim()) t.value = kq.ten || '';
         if (dc && !dc.value.trim()) dc.value = kq.dia_chi || '';
         if (bao) bao.textContent = 'Tra được: ' + (kq.ten || '');
-      } else if (bao) bao.textContent = 'Không tra được mã này, điền tay giúp em.';
-    } catch (e) { if (bao) bao.textContent = 'Không tra được mã này, điền tay giúp em.'; }
+      } else if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.';
+    } catch (e) { if (bao) bao.textContent = 'Không tra được mã này, vui lòng điền tay.'; }
   };
   ['posGhiChu'].forEach(function (id) {
     var o = document.getElementById(id);

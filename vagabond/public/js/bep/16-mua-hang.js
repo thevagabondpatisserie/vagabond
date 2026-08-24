@@ -139,7 +139,7 @@ async function scrDonMuaXem() {
       (loi ? '#fff1f0;border:1.5px solid #fecdca;color:#7a271a' : '#f2f7f8;border:1.5px solid #d6e6ea;color:#33505a') +
       ';border-radius:9px;padding:10px 12px;font-size:13px;line-height:1.65">' +
       h(gt.nhac || '') +
-      (loi ? '<div style="margin-top:7px;font-size:12.5px">Báo giúp em kèm mã đơn <b>' + h(d.name) + '</b>.</div>' : '') +
+      (loi ? '<div style="margin-top:7px;font-size:12.5px">Báo bộ phận kỹ thuật kèm mã đơn <b>' + h(d.name) + '</b>.</div>' : '') +
       '</div></div>';
   }
 
@@ -300,6 +300,19 @@ async function scrDuyetYcXem(name, giuMan) {
     x.duyet = null; x.ly_do = ''; x.moi = 0;
   }
 
+  /* Dong nay dang duyet CAO HON so nhan vien xin.
+
+     Anh Viet 24/08/2026: *"Cho phep nguoi co quyen duyet duoc phep chinh
+     sua so luong duyet CAO HON so luong yeu cau (vi du: Quan ly yeu cau 5,
+     Uyen co quyen sua thanh 6 de mua cho chan thung/don vi dong goi)."*
+
+     Truoc do man nay chan cung tai cho go so. Bo chan roi thi phai to no
+     ra cho de thay, khong thi mot cai go nham 55 thay vi 5 se lot qua ma
+     khong ai biet: nhan doi mau tim, va hoi lai mot lan truoc khi luu. */
+  function dyVuot(x) {
+    return !chuaDuyet(x) && x.duyet > x.xin + 0.0001;
+  }
+
   /* Nhan tren nut Luu phai noi ro dang giu bao nhieu dong chua luu. Uyen go
      xong nhin xuong day la biet may co nghe hay khong, khong phai doan. */
   function dyNhanLuu() {
@@ -320,12 +333,25 @@ async function scrDuyetYcXem(name, giuMan) {
     var tc = gui.filter(function (x) { return (x.duyet || 0) <= 0.0001; });
     var thieuLy = tc.filter(function (x) { return !(x.ly_do || '').trim(); });
     if (thieuLy.length) return toast('Còn ' + thieuLy.length + ' dòng từ chối chưa ghi lý do. Bấm nút Từ chối ở dòng đó để ghi lý do.', 6000);
+    var vuot = gui.filter(dyVuot);
     var msg = 'Duyệt ' + gui.length + ' dòng.';
     if (tc.length) msg += ' Trong đó ' + tc.length + ' dòng bị từ chối.';
     var conLai = L.length - gui.length;
     if (conLai > 0) msg += ' ' + conLai + ' dòng chưa đụng tới vẫn nằm chờ, lưu lần này không đóng phiếu.';
     msg += ' Số lượng nhân viên đã xin vẫn giữ nguyên, không sửa và không xoá dòng nào.';
-    if (!await confirmSheet('Lưu quyết định duyệt?', msg, 'Lưu')) return;
+    /* Duyet vuot thi doi mot nhip xac nhan rieng, ke ro tung dong. Mot con
+       so go nham (55 thay vi 5) chi lo ra o day, vi sau khi luu thi don mua
+       se lay theo so duyet chu khong lay so nhan vien xin. */
+    if (vuot.length) {
+      msg += '\n\nDuyệt VƯỢT số nhân viên xin ở ' + vuot.length + ' dòng:\n' +
+        vuot.map(function (x) {
+          return '· ' + x.ten + ': xin ' + num(x.xin) + ', duyệt ' + num(x.duyet) +
+            ' (+' + num(x.duyet - x.xin) + ' ' + x.dvt + ')';
+        }).join('\n') +
+        '\n\nPhần vượt sẽ được ghi vết kèm tên người duyệt.';
+    }
+    if (!await confirmSheet(vuot.length ? 'Lưu và duyệt vượt?' : 'Lưu quyết định duyệt?',
+      msg, vuot.length ? 'Duyệt vượt và lưu' : 'Lưu')) return;
     busy(1);
     try {
       var r = await api('vagabond.duyet_ycmh.duyet_dong', {
@@ -335,7 +361,8 @@ async function scrDuyetYcXem(name, giuMan) {
         }))
       });
       busy(0);
-      toast('Đã lưu: ' + r.duyet_du + ' duyệt đủ, ' + r.cat_bot + ' cắt bớt, ' + r.tu_choi + ' từ chối.', 5000);
+      toast('Đã lưu: ' + r.duyet_du + ' duyệt đủ, ' + r.cat_bot + ' cắt bớt, ' + r.tu_choi + ' từ chối' +
+        (r.duyet_them ? ', ' + r.duyet_them + ' duyệt vượt' : '') + '.', 5000);
       return veLai(1);
     } catch (e) { busy(0); toast(errMsg(e), 7000); }
   }
@@ -386,8 +413,10 @@ async function scrDuyetYcXem(name, giuMan) {
       '<div class="ig">' + h(x.ma) + (x.da_len_don > 0.0001 ? ' · đã lên đơn ' + num(x.da_len_don) : '') + '</div>' +
       (conHang ? '<div style="margin-top:5px;display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:700;color:#0f7a44;background:#d5f2e3">🟢 Kho tổng còn ' + num(x.ton) + ' ' + h(x.dvt) + '</div>' : '') +
       (chua ? '' : '<div style="margin-top:5px;display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:600;color:#fff;background:' +
-        (tuChoi ? '#c0392b' : (x.duyet < x.xin - 0.0001 ? '#c77700' : '#1f9254')) + '">' +
-        (tuChoi ? 'Từ chối' : (x.duyet < x.xin - 0.0001 ? 'Duyệt ' + num(x.duyet) + '/' + num(x.xin) : 'Duyệt đủ')) +
+        (tuChoi ? '#c0392b' : dyVuot(x) ? '#6d28d9' : (x.duyet < x.xin - 0.0001 ? '#c77700' : '#1f9254')) + '">' +
+        (tuChoi ? 'Từ chối'
+          : dyVuot(x) ? 'Duyệt vượt ' + num(x.duyet) + '/' + num(x.xin)
+          : (x.duyet < x.xin - 0.0001 ? 'Duyệt ' + num(x.duyet) + '/' + num(x.xin) : 'Duyệt đủ')) +
         (x.moi ? ' · chưa lưu' : '') +
         '</div>') +
       '</div></div>' +
@@ -430,7 +459,6 @@ async function scrDuyetYcXem(name, giuMan) {
     if ((t = e.target.closest('[data-da2]'))) {
       i = +t.dataset.da2;
       var v = dySo((L[i].duyet || 0) + 1);
-      if (v > L[i].xin + 0.0001) { v = L[i].xin; toast('Không duyệt quá số nhân viên đã xin. Cần mua thêm thì lập phiếu yêu cầu mới, để số gốc còn đối chiếu.', 6000); }
       dyDat(i, v); return veLai();
     }
     if ((t = e.target.closest('[data-dgo]'))) {
@@ -471,10 +499,13 @@ async function scrDuyetYcXem(name, giuMan) {
       var i = +el.dataset.dq;
       if (el.value === '') { dyBoSua(i); toO(0); return dyCapNhatNutLuu(); }
       var v = Math.max(0, dySo(parseFloat(el.value) || 0));
+      /* Cho vuot, nhung nhac ngay tai cho. KHONG mo hop thoai o day: tren
+         dien thoai, cham vao nut Luu lam o nhap mat tieu diem truoc,
+         onchange chay truoc, va hop thoai cuop mat cu cham - dung canh
+         Uyen gap ngay 21/08/2026. Hoi xac nhan de o buoc Luu. */
       if (v > L[i].xin + 0.0001) {
-        v = L[i].xin;
-        el.value = v;
-        toast('Không duyệt quá số nhân viên đã xin (' + num(L[i].xin) + ' ' + L[i].dvt + '). Em đã để lại đúng số xin.', 5500);
+        toast('Đang duyệt vượt: nhân viên xin ' + num(L[i].xin) + ' ' + L[i].dvt +
+          ', đang để ' + num(v) + '. Kiểm lại trước khi lưu.', 5500);
       }
       dyDat(i, v); toO(1); dyCapNhatNutLuu();
     };
@@ -492,7 +523,7 @@ async function scrDuyetYcXem(name, giuMan) {
     var sua = dangSua();
     if (sua.length) {
       var thieu = sua.filter(function (x) { return (x.duyet || 0) <= 0.0001 && !(x.ly_do || '').trim(); });
-      if (thieu.length) return toast('Còn ' + thieu.length + ' dòng từ chối chưa ghi lý do. Ghi lý do rồi bấm lại giúp em.', 6000);
+      if (thieu.length) return toast('Còn ' + thieu.length + ' dòng từ chối chưa ghi lý do. Vui lòng ghi lý do rồi bấm lại.', 6000);
       if (!await confirmSheet('Lưu ' + sua.length + ' dòng đang sửa trước?',
         'Máy sẽ lưu ' + sua.length + ' dòng anh chị vừa điền, rồi mới duyệt đủ các món chưa ai đụng tới.', 'Lưu rồi duyệt hết')) return;
       busy(1);
@@ -703,7 +734,7 @@ function nccMoO(cac) {
     nccDoc();
     if (!r || !r.ok) {
       if (kq) kq.innerHTML = '<span style="color:#b45309">Không tra ra mã số thuế này. ' +
-        'Hộ kinh doanh và cá nhân thường không có trên cổng, anh chị gõ tên tay giúp em.</span>';
+        'Hộ kinh doanh và cá nhân thường không có trên cổng, anh chị vui lòng gõ tên tay.</span>';
       return;
     }
     var oTen = document.getElementById('nccTen');
@@ -1231,7 +1262,7 @@ function dncVe(lichSu) {
   if (nThem) nThem.onclick = function () {
     dncDoc();
     if ((dncForm.cac_khoan || []).length >= 200) {
-      return baoTin('Một phiếu tối đa 200 khoản. Anh chị tách ra làm nhiều phiếu giúp em.');
+      return baoTin('Một phiếu tối đa 200 khoản. Anh chị vui lòng tách ra làm nhiều phiếu.');
     }
     dncForm.cac_khoan.push(dncKhoanMoi());
     dncVe(lichSu);
@@ -1296,7 +1327,7 @@ function dncVe(lichSu) {
     busy(false);
     if (!dncTamUng.length) {
       return baoTin('Anh chị chưa có phiếu tạm ứng nào đã hoàn tất, nên chưa có gì để hoàn ứng. ' +
-        'Nếu khoản này không phải hoàn ứng thì đổi Loại nghiệp vụ sang Chi phí giúp em.', 'Chưa có tạm ứng');
+        'Nếu khoản này không phải hoàn ứng thì đổi Loại nghiệp vụ sang Chi phí.', 'Chưa có tạm ứng');
     }
     sheet('Chọn phiếu tạm ứng',
       dncTamUng.map(function (x) {
@@ -1358,7 +1389,7 @@ async function dncTraMst(kid, mst) {
   var nhac = document.getElementById('dncMstNhac_' + kid);
   var so = k.mst.replace(/[^0-9]/g, '');
   if (so.length < 10) {
-    if (nhac && so.length) nhac.innerHTML = 'Mã số thuế phải 10, 12 hoặc 13 số. Anh chị kiểm lại giúp em.';
+    if (nhac && so.length) nhac.innerHTML = 'Mã số thuế phải 10, 12 hoặc 13 số. Anh chị vui lòng kiểm lại.';
     return;
   }
   if (nhac) nhac.innerHTML = 'Đang tra cổng thông tin...';
@@ -1376,7 +1407,7 @@ async function dncTraMst(kid, mst) {
     nhac.innerHTML = (r && r.ly_do === 'khong_tim_thay')
       ? 'Không tìm thấy mã số thuế này trên cổng thông tin. Hộ kinh doanh thường không có ở đó, ' +
         'anh chị gõ tay tên và địa chỉ bên dưới, phiếu vẫn lưu được bình thường.'
-      : 'Chưa tra được (mạng hoặc cổng thông tin đang bận). Anh chị gõ tay giúp em, phiếu vẫn lưu được.';
+      : 'Chưa tra được (mạng hoặc cổng thông tin đang bận). Anh chị vui lòng gõ tay, phiếu vẫn lưu được.';
   }
 }
 
@@ -1586,7 +1617,7 @@ async function ttnbCt(ma) {
   if (nC) nC.onclick = function () {
     var t = d.noi_dung_ck || '';
     try { navigator.clipboard.writeText(t); toast('Đã chép: ' + t, 4000); }
-    catch (e) { baoTin(t, 'Chép tay giúp em'); }
+    catch (e) { baoTin(t, 'Vui lòng chép tay'); }
   };
   var nD = document.getElementById('ttnbDuyet');
   if (nD) nD.onclick = async function () {

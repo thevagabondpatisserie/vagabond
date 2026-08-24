@@ -146,7 +146,7 @@ async function scrDcmXem(name) {
 
   if (cint0(d.update_stock)) {
     html += '<div class="card" style="padding:14px;background:#fef2f2;border:1.5px solid #fecaca;font-size:13.5px;color:#991b1b;line-height:1.6">' +
-      'Hoá đơn này đang bật <b>Cập nhật tồn kho</b>. Nối thêm vào phiếu nhập nữa là hàng vào kho hai lần, nên em chưa nối được. Nhờ anh chị tắt ô đó bên Desk rồi quay lại.</div>';
+      'Hoá đơn này đang bật <b>Cập nhật tồn kho</b>. Nối thêm vào phiếu nhập nữa là hàng vào kho hai lần, nên hệ thống chưa nối được. Nhờ anh chị tắt ô đó bên Desk rồi quay lại.</div>';
     frame('Đối chiếu ' + name, html);
     return;
   }
@@ -319,7 +319,7 @@ function miGoY(t) {
     '<b>2.</b> Mở tab mới, gõ <b>https://localhost:8181</b>. Báo "không kết nối được" ' +
     'tức là QZ chưa chạy, quay lại bước 1. Báo cảnh báo bảo mật thì bấm Nâng cao, ' +
     'Tiếp tục truy cập, rồi quay lại đây bấm kiểm tra.<br>' +
-    '<b>3.</b> Vẫn hỏng thì bấm nút kiểm tra bên dưới rồi chụp màn gửi em.';
+    '<b>3.</b> Vẫn hỏng thì bấm nút kiểm tra bên dưới rồi chụp màn gửi bộ phận kỹ thuật.';
 }
 
 /* ---------- Do thang tung cua, chi dich danh cua nao hong ----------
@@ -369,7 +369,7 @@ async function miDoQzChay() {
   if (a || b) {
     if (a && b) {
       ket = '<b>QZ Tray đang chạy và nối được cả hai cửa.</b> Lỗi nằm ở bước sau, ' +
-        'nhiều khả năng là chứng thư hoặc chữ ký. Chụp màn này gửi em.';
+        'nhiều khả năng là chứng thư hoặc chữ ký. Chụp màn này gửi bộ phận kỹ thuật.';
     } else if (b) {
       ket = '<b>QZ Tray đang chạy.</b> Trình duyệt chưa chịu chứng thư của cửa ' +
         'localhost. Mở tab mới vào <b>https://localhost:8181</b>, bấm Nâng cao rồi ' +
@@ -1166,7 +1166,7 @@ async function dtHuyLoat() {
     mo + (xem.so_don > 10 ? '\n... và ' + (xem.so_don - 10) + ' tờ nữa' : '') +
     '\n\nViệc này KHÔNG LUI LẠI ĐƯỢC. Tiếp tục?')) return;
   var ly = await hoiNhap('Lý do huỷ? (bắt buộc, sau này còn biết vì sao)', '');
-  if (!ly || !ly.trim()) return toast('Chưa ghi lý do nên em chưa huỷ.');
+  if (!ly || !ly.trim()) return toast('Chưa ghi lý do nên hệ thống chưa huỷ.');
   ts.ly_do = ly.trim();
   busy(true);
   var kq;

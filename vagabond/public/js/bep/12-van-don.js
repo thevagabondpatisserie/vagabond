@@ -20,7 +20,7 @@ function vdChupAnh(cb, nguon) {
       cv.getContext('2d').drawImage(img, 0, 0, w, h2);
       cv.toBlob(function (b) { URL.revokeObjectURL(url); cb(b); }, 'image/jpeg', 0.72);
     };
-    img.onerror = function () { busy(false); baoTin('Không đọc được ảnh, chụp lại giúp em.'); };
+    img.onerror = function () { busy(false); baoTin('Không đọc được ảnh, vui lòng chụp lại.'); };
     img.src = url;
   };
   inp.style.display = 'none'; document.body.appendChild(inp); inp.click();
@@ -289,7 +289,7 @@ function scrVdKy(name, d) {
     if (bx) bx.onclick = function () { xoa(); daVe = false; };
     var bl = document.getElementById('vdkLuu');
     if (bl) bl.onclick = async function () {
-      if (!daVe) return baoTin('Chưa có nét ký nào, mời khách ký giúp em.');
+      if (!daVe) return baoTin('Chưa có nét ký nào, vui lòng mời khách ký.');
       var ten = (document.getElementById('vdkTen') || {}).value || '';
       busy(true);
       try {
@@ -716,7 +716,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '292';
+var APPVER = '293';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -1139,7 +1139,7 @@ async function vdInPhieu(names) {
     + '<script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>'
     + '</body></html>';
   var w = window.open('', '_blank');
-  if (!w) { baoTin('Trình duyệt chặn cửa sổ in. Anh chị cho phép mở cửa sổ mới rồi bấm In đơn lại giúp em.'); return; }
+  if (!w) { baoTin('Trình duyệt chặn cửa sổ in. Anh chị vui lòng cho phép mở cửa sổ mới rồi bấm In đơn lại.'); return; }
   w.document.open(); w.document.write(doc); w.document.close();
 }
 

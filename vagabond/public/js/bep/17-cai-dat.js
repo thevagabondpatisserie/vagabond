@@ -1795,7 +1795,7 @@ async function dmTao(boQuaTrung) {
   dmDoc();
   var s = dmVe;
   if (!s.nhom) return toast('Chọn nhóm món trước đã.');
-  if (String(s.ten || '').trim().length < 3) return toast('Gõ tên mặt hàng giúp em.');
+  if (String(s.ten || '').trim().length < 3) return toast('Vui lòng gõ tên mặt hàng.');
   busy(true);
   var r;
   try {
@@ -2160,7 +2160,7 @@ async function scrNhapSaoKe() {
 function skTaiLen(file) {
   if (!file) return;
   if (file.size > 20 * 1024 * 1024) {
-    return baoTin('Tệp nặng quá 20 MB. Cắt sao kê theo tháng rồi tải từng tệp giúp em.', 'Tệp quá nặng');
+    return baoTin('Tệp nặng quá 20 MB. Vui lòng cắt sao kê theo tháng rồi tải từng tệp.', 'Tệp quá nặng');
   }
   var fr = new FileReader();
   fr.onload = async function () {
@@ -2331,7 +2331,7 @@ async function scrThongBao() {
       khong_ho_tro: 'Trình duyệt này không có Web Push.',
       chua_khai_khoa: 'Máy chủ chưa sinh được khoá. Báo anh Việt xem nhật ký lỗi.',
       loi: 'Có lỗi lúc đăng ký. Thử lại một lần nữa; vẫn lỗi thì báo anh Việt.'
-    }[r] || 'Chưa rõ kết quả, thử lại giúp em.';
+    }[r] || 'Chưa rõ kết quả, vui lòng thử lại.';
     baoTin(noi, r === 'xong' ? 'Đã bật thông báo' : 'Chưa bật được');
     if (r === 'xong') go(scrThongBao, true);
   };

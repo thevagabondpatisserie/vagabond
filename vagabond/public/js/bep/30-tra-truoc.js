@@ -126,15 +126,24 @@ async function scrTraTruocTao() {
         return posChipNut('data-ttc="' + h(x) + '"', h(x), ttLoaiCt === x);
       }).join(''));
     if (!ttLoaiCt) {
-      html += '<div style="font-size:12.5px;color:#b45309;margin-top:8px">Chọn loại chứng từ trước, em mới bày nút đính kèm.</div>';
+      html += '<div style="font-size:12.5px;color:#b45309;margin-top:8px">Chọn loại chứng từ trước, hệ thống mới bày nút đính kèm.</div>';
     } else {
+      /* Hinh thu nho co nut X thay cho danh sach ten tep dang chu (anh Viet
+         24/08/2026: *"tuyet doi khong chi hien ten file text kho khan"*).
+         Doc "IMG_4821.jpg" thi khong ai biet to nao vao to nao. */
       html += '<div style="margin-top:9px">';
-      ttTep.forEach(function (t, i) {
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f1f5f9">' +
-          '<span style="flex:1 1 auto;min-width:0;font-size:12.5px;color:#0f766e;overflow-wrap:anywhere">📎 ' + h(t.ten) + '</span>' +
-          '<button class="btn gh" data-ttx="' + i + '" style="flex:0 0 auto;width:auto;margin:0;padding:4px 9px;font-size:12px">Bỏ</button></div>';
-      });
-      html += '<button class="btn gh" id="ttGanTep" style="margin-top:9px">➕ Đính kèm ' + h(ttLoaiCt) + '</button></div>';
+      if (ttTep.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:14px 11px;margin-bottom:10px">' +
+          ttTep.map(function (t, i) {
+            var laAnh = /\.(jpe?g|png|gif|bmp|webp)$/i.test(t.ten || '');
+            return oTep({
+              url: t.url, ten: t.ten, anh: laAnh ? 1 : 0, co: 72, nhan: 1,
+              mo: laAnh ? '' : 'data-ttmo="' + h(t.url || '') + '"',
+              go: 'data-ttx="' + i + '"'
+            });
+          }).join('') + '</div>';
+      }
+      html += '<button class="btn gh" id="ttGanTep">➕ Đính kèm ' + h(ttLoaiCt) + '</button></div>';
     }
     html += '<div style="font-size:12px;color:#6b7280;margin-top:8px;line-height:1.5">Khoản này chưa có hoá đơn, nên báo giá hoặc hợp đồng chính là căn cứ duy nhất. Không có tệp thì không lập được phiếu.</div></div>';
 
@@ -184,6 +193,8 @@ async function scrTraTruocTao() {
     if (rn) { ttNguon = rn.getAttribute('data-ttn'); return go(scrTraTruocTao, true); }
     var rc = e.target.closest('[data-ttc]');
     if (rc) { ttLoaiCt = rc.getAttribute('data-ttc'); return go(scrTraTruocTao, true); }
+    var rm = e.target.closest('[data-ttmo]');
+    if (rm) { window.open(rm.getAttribute('data-ttmo'), '_blank'); return; }
     var rx = e.target.closest('[data-ttx]');
     if (rx) { ttTep.splice(+rx.getAttribute('data-ttx'), 1); return go(scrTraTruocTao, true); }
   });

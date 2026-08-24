@@ -480,7 +480,7 @@ async function kgGhi(f) {
   });
   if (thieu.length) {
     return baoTin('Chưa điền: ' + thieu.map(function (c) { return c.nhan; }).join(', ') +
-      '. Điền đủ rồi bấm Lưu lại giúp em.', 'Thiếu thông tin');
+      '. Vui lòng điền đủ rồi bấm Lưu lại.', 'Thiếu thông tin');
   }
   busy(true);
   try {

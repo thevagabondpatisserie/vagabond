@@ -1620,7 +1620,7 @@ function posGanTruDiem(goiLai) {
         ngay: today()
       });
       busy(false);
-      if (!kq || !kq.ok) return toast('Không gửi được mã cho khách: ' + ((kq && kq.chi_tiet) || 'thử lại giúp em'), 5000);
+      if (!kq || !kq.ok) return toast('Không gửi được mã cho khách: ' + ((kq && kq.chi_tiet) || 'Vui lòng thử lại'), 5000);
       posDon.diemPhien = kq;
       posDon.diemHan = Date.now() + (kq.song_giay || 180) * 1000;
       goiLai();

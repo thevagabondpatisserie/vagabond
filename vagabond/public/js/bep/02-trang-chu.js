@@ -956,8 +956,8 @@ function vgbGo(k) {
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
   if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }
-  if (k && k.indexOf('BC') === 0) return toast('Báo cáo này chưa dựng. Anh Việt chốt nội dung rồi em điền vào.', 4200);
-  if (k && k.indexOf('KT') === 0) return toast('Mục kế toán này chưa dựng. Anh Việt chốt nội dung rồi em điền vào.', 4200);
+  if (k && k.indexOf('BC') === 0) return toast('Báo cáo này chưa dựng. Anh Việt chốt nội dung rồi hệ thống điền vào.', 4200);
+  if (k && k.indexOf('KT') === 0) return toast('Mục kế toán này chưa dựng. Anh Việt chốt nội dung rồi hệ thống điền vào.', 4200);
   if (k === 'OTP') return go(scrOtp);
   if (k === 'KM') return go(scrKhuyenMai);
   if (k === 'CN') return go(scrCongNo);
