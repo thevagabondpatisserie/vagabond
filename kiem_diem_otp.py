@@ -2430,6 +2430,13 @@ def _nap_bao_gia():
 	_hdp.khung_style = lambda phong=None: "*{font-family:%s}" % (phong or "Arial")
 	_hdp.don_dau_dai = lambda x: str(x or "").replace("\u2013", "-").replace("\u2014", "-")
 	_vgb = _sys.modules.get("vagabond") or types.ModuleType("vagabond")
+	# Cho mo dun gia MOT duong dan that (v294). Khong co no thi moi lenh
+	# "from vagabond.<x> import ..." nam trong than mot ham duoc boc ra chay
+	# tay se nem "'vagabond' is not a package", va cong do o mot cho khong
+	# lien quan gi den viec dang kiem. Cac mo dun THUAN nhu `khop_sao_ke` chi
+	# nhap `re` nen nap that duoc, khong keo theo Frappe.
+	if not getattr(_vgb, "__path__", None):
+		_vgb.__path__ = [os.path.join(os.path.dirname(os.path.abspath(__file__)), "vagabond")]
 	_sys.modules["vagabond"] = _vgb
 	_sys.modules["vagabond.hop_dong_pdf"] = _hdp
 	_dm = types.ModuleType("vagabond.danh_muc")
