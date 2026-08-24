@@ -484,20 +484,54 @@ function miVe() {
     (miSuaDuoc ? '<button class="btn" id="ctLuu" style="margin:8px 0 0;width:100%">💾 Lưu căn tem</button>' : '') +
     '</div>';
 
-  html += '<div class="sec">Danh sách máy in</div>';
+  /* Danh sách NHÓM THEO ĐIỂM BÁN (anh Việt 24/08/2026): mỗi điểm bán có bộ
+     máy in riêng của nó, nên nhìn vào phải thấy ngay điểm nào đủ máy, điểm
+     nào còn thiếu loại phiếu gì. Trước đây là một danh sách phẳng, tên điểm
+     nằm lẫn trong dòng chữ nhỏ. */
+  html += '<div class="sec">Máy in theo điểm bán</div>';
   if (!miDs.length) {
     html += '<div class="card" style="padding:14px;font-size:13.5px;color:#6b7280">Chưa khai máy in nào.</div>';
   } else {
-    html += '<div class="card">' + miDs.map(function (d, i) {
-      var vt = (d.vai_tro || []).map(function (k) { return miIconVaiTro(k) + ' ' + miTenVaiTro(k); }).join(' · ');
-      return '<div data-mimo="' + i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
-        '<div style="width:34px;height:34px;flex:none;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:17px">🖨</div>' +
-        '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
-        '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h((d.hang ? d.hang + ' ' : '') + (d.model || '')) + ' · ' + h(miTenDiem(d.diem)) + ' · ' + h(miTenKho(d.kho)) + '</div>' +
-        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + (vt ? h(vt) : '<span style="color:#b45309">chưa chọn loại phiếu</span>') + '</div></div>' +
-        '<span style="font-size:12px;font-weight:700;color:' + (d.bat ? '#0f766e' : '#a0a6b4') + '">' + (d.bat ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
-        '<span style="color:#c8ccd4">›</span></div>';
-    }).join('') + '</div>';
+    var nhom = [];
+    (miData.diem || []).forEach(function (x) { nhom.push({ ma: x.ma, ten: x.ten, may: [] }); });
+    nhom.push({ ma: '', ten: 'Chưa gán điểm bán', chung: 1, may: [] });
+    miDs.forEach(function (d, i) {
+      var t = null;
+      for (var j = 0; j < nhom.length; j++) if (nhom[j].ma === (d.diem || '')) { t = nhom[j]; break; }
+      if (!t) { t = { ma: d.diem || '', ten: miTenDiem(d.diem), may: [] }; nhom.push(t); }
+      t.may.push({ d: d, i: i });
+    });
+    nhom.forEach(function (g) {
+      if (!g.may.length && !g.chung) {
+        html += '<div class="card" style="padding:12px 14px;margin-bottom:10px">' +
+          '<b style="font-size:14.5px">' + h(g.ten) + '</b>' +
+          '<div style="font-size:12px;color:#b45309;margin-top:4px">Chưa có máy in nào cho điểm này. ' +
+          'Máy chưa gán điểm bán vẫn dùng được cho mọi điểm.</div></div>';
+        return;
+      }
+      if (!g.may.length) return;
+      var thieu = [];
+      ((miData && miData.vai_tro) || []).forEach(function (v) {
+        var co = g.may.some(function (x) { return x.d.bat && (x.d.vai_tro || []).indexOf(v.k) >= 0 && (x.d.qz || '').trim(); });
+        if (!co) thieu.push(miTenVaiTro(v.k));
+      });
+      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;padding:2px 4px 6px">' +
+        '<b style="font-size:14px;color:#0b7c93">' + h(g.ten) + '</b>' +
+        '<span style="font-size:11.5px;color:' + (thieu.length ? '#b45309' : '#0f766e') + '">' +
+        (thieu.length ? 'chưa có máy cho: ' + h(thieu.join(', ')) : 'đủ cả bốn loại phiếu') + '</span></div>';
+      html += '<div class="card" style="margin-bottom:12px">' + g.may.map(function (x) {
+        var d = x.d;
+        var vt = (d.vai_tro || []).map(function (k) { return miIconVaiTro(k) + ' ' + miTenVaiTro(k); }).join(' · ');
+        return '<div data-mimo="' + x.i + '" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+          '<div style="width:34px;height:34px;flex:none;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:17px">🖨</div>' +
+          '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(d.ten) + '</b>' +
+          '<div style="font-size:11.5px;color:#6b7280;margin-top:2px">' + h((d.hang ? d.hang + ' ' : '') + (d.model || '')) + ' · ' + h(miTenKho(d.kho)) +
+          ((d.qz || '').trim() ? '' : ' · <span style="color:#b45309">chưa gán tên máy QZ</span>') + '</div>' +
+          '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + (vt ? h(vt) : '<span style="color:#b45309">chưa chọn loại phiếu</span>') + '</div></div>' +
+          '<span style="font-size:12px;font-weight:700;color:' + (d.bat ? '#0f766e' : '#a0a6b4') + '">' + (d.bat ? 'ĐANG DÙNG' : 'ĐÃ TẮT') + '</span>' +
+          '<span style="color:#c8ccd4">›</span></div>';
+      }).join('') + '</div>';
+    });
   }
 
   var b = frame('Máy in', html, miSuaDuoc ? {
@@ -756,7 +790,11 @@ function scrMayInSua() {
     var ok = await confirmSheet('Bỏ máy in ' + (d.ten || 'mới') + '?',
       'Thông số máy này sẽ mất khỏi danh sách. Muốn giữ lại để tra sau thì tắt nó đi thay vì bỏ.', 'Bỏ máy này', true);
     if (!ok) return;
-    miDs.splice(miMo, 1);
+    /* Đánh dấu XOÁ thay vì cắt khỏi mảng: máy chủ nay trộn theo mã máy nên
+       một máy chỉ biến mất khi có cờ này, còn máy không gửi lên thì được giữ
+       nguyên. Nhờ vậy hai người cùng sửa hai máy khác nhau không xoá của
+       nhau (anh Việt 24/08/2026). */
+    miDs[miMo].xoa = 1;
     miLuu(1);
   };
 }

@@ -31,6 +31,9 @@ function dsChips(r) {
   else if (r.sepay_nhan) out += dsChip('SePay thiếu ' + money(Number(r.grand_total || 0) - Number(r.sepay_nhan || 0)) + ' đ', '#ffedd5', '#9a3412');
   if (r.vgb_ma_tham_chieu) out += dsChip('Mã ' + h(r.vgb_ma_tham_chieu), '#ede9fe', '#5b21b6');
   if (r.vgb_xhd_mst) out += dsChip('Xuất cho công ty / HKD', '#fef9c3', '#854d0e');
+  /* Đơn có giảm giá cho khách thì phải nhìn ra ngay trên danh sách, khỏi mở
+     từng đơn (anh Việt 24/08/2026). */
+  if (r.giam_dong) out += dsChip('🏷️ Giảm ' + money(r.giam_dong) + ' đ', '#fef2f2', '#b3261e');
   if (r.trung) out += dsChip('⚠ Trùng phiếu', '#fee2e2', '#991b1b');
   return out;
 }
@@ -430,12 +433,36 @@ async function scrDsView(name, can) {
       '<button class="btn" id="dsvDoiNgay" style="margin-top:10px">📅 Chuyển đơn sang hôm nay (' + posNgayVn(today()) + ')</button></div>';
   }
   html += '<div class="sec">Món trong đơn</div><div class="card" style="padding:6px 14px">';
+  /* Dòng nào có giảm giá thì phải NHÌN RA là có giảm giá.
+
+     Anh Việt 24/08/2026: *"đồng bộ như vậy về phần giá của pancake thì nó
+     thiếu bản chất, tức là mình không thấy được đơn này là đơn giảm giá cho
+     khách"*. Trước đây màn này chỉ hiện một con giá đã trừ giảm, nhìn vào
+     không biết hộp bánh 2.090.000 là hộp 2.200.000 giảm 5 phần trăm hay là
+     một hộp khác vốn đã 2.090.000. */
+  var tongGiamDong = 0;
   (d.items || []).forEach(function (r) {
+    var goc = Number(r.price_list_rate || 0);
+    var ban = Number(r.rate || 0);
+    var giamDv = goc > ban ? goc - ban : 0;
+    tongGiamDong += giamDv * Number(r.qty || 0);
+    var pt = Number(r.discount_percentage || 0);
     html += '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f6">' +
-      '<div style="flex:1;min-width:0">' + h(r.item_name) + '<div style="color:#a0a6b4;font-size:12px">' + money(r.qty) + ' x ' + money(r.rate) + ' đ</div></div>' +
+      '<div style="flex:1;min-width:0">' + h(r.item_name) +
+      '<div style="color:#a0a6b4;font-size:12px">' + money(r.qty) + ' x ' +
+      (giamDv
+        ? '<span style="text-decoration:line-through;color:#c3c8d4">' + money(goc) + '</span> <b style="color:#b3261e">' + money(ban) + '</b> đ'
+        : money(ban) + ' đ') + '</div>' +
+      (giamDv
+        ? '<div style="margin-top:3px"><span style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;color:#b3261e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">🏷️ Giảm ' +
+          (pt ? num(pt) + '%' : money(giamDv) + ' đ') + ' mỗi ' + h(r.uom || 'món') +
+          ' · tổng −' + money(giamDv * Number(r.qty || 0)) + ' đ</span></div>'
+        : '') +
+      '</div>' +
       '<b style="white-space:nowrap">' + money(r.amount) + '</b></div>';
   });
-  if (d.discount_amount) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;color:#b3261e"><span>Giảm giá</span><b>-' + money(d.discount_amount) + '</b></div>';
+  if (tongGiamDong) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;color:#b3261e"><span>Giảm giá trên dòng hàng</span><b>-' + money(tongGiamDong) + '</b></div>';
+  if (d.discount_amount) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;color:#b3261e"><span>Giảm giá cả đơn</span><b>-' + money(d.discount_amount) + '</b></div>';
   html += '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:16px"><b>Tổng tiền</b><b>' + money(d.grand_total) + ' đ</b></div></div>';
   await cfgBanHang();
   var PTDS = ptTheoNguon(d.custom_nguon || 'Pancake');

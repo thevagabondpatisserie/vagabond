@@ -96,11 +96,59 @@ def gia_mot_don_vi(gia, dong):
 
 	dong la dict cua mot dong hang Pancake. Tra ve so khong am.
 	"""
+	return dong_gia(gia, dong)["gia_ban"]
+
+
+def dong_gia(gia, dong):
+	"""Bo ba so cua mot dong hang: gia goc, phan giam, gia ban.
+
+	Vi sao can ca ba chu khong chi mot con gia ban
+	----------------------------------------------
+	Anh Viet 24/08/2026: *"dong bo nhu vay ve phan gia cua pancake thi no
+	thieu ban chat, tuc la minh khong thay duoc don nay la don giam gia cho
+	khach"*.
+
+	Truoc day ma cua tiem tru thang phan giam vao gia ban roi mang mot con
+	so duy nhat sang hoa don. To hoa don ghi 2.090.000 va khong noi gi them,
+	nhin vao khong biet day la hop banh 2.200.000 duoc giam 5 phan tram, hay
+	la mot hop banh khac gia 2.090.000. Mat han y nghia thuong mai cua don.
+
+	Ba so tra ve o day:
+	  gia_goc   gia niem yet mot don vi, dung de ghi vao cot Gia bang gia
+	  giam_pt   phan tram giam, 0 khi khach giam theo so tien
+	  giam_tien so tien giam MOT DON VI
+	  gia_ban   gia goc tru phan giam, dung de ghi vao cot Gia ban
+
+	Giu ca hai duong giam: Pancake cho phep giam theo phan tram hoac theo so
+	tien, va hai kieu do phai hien ra khac nhau tren hoa don. Ghi "giam 5%"
+	trong khi khach duoc giam 110.000 dong chan cung la ghi sai.
+	"""
 	gia = _so(gia)
-	giam_raw = dong.get("discount_each_product") if isinstance(dong, dict) else getattr(dong, "discount_each_product", 0)
-	giam = giam_moi_don_vi(gia, giam_raw, la_phan_tram(dong))
+	if isinstance(dong, dict):
+		raw = dong.get("discount_each_product")
+	else:
+		raw = getattr(dong, "discount_each_product", 0)
+	pt = la_phan_tram(dong)
+	giam = giam_moi_don_vi(gia, raw, pt)
 	con = gia - giam
-	return con if con > 0 else 0.0
+	if con < 0:
+		con = 0.0
+	# Phan tram chi ghi khi Pancake THAT SU noi la phan tram. Tu suy nguoc
+	# ra phan tram tu so tien la bia: giam 110.000 tren 2.200.000 co the la
+	# "giam 5%" ma cung co the la "giam 110.000 dong", hai cach ghi khac
+	# nhau tren to hoa don VAT.
+	so_pt = 0.0
+	if pt and gia > 0 and giam > 0:
+		so_pt = _so(raw)
+		if so_pt > 100:
+			so_pt = 100.0
+	return {
+		"gia_goc": gia,
+		"giam_pt": so_pt,
+		"giam_tien": giam,
+		"gia_ban": con,
+		"co_giam": 1 if giam > 0 else 0,
+	}
 
 
 def lech_tong(tong_minh, tong_pancake, nguong=1.0):

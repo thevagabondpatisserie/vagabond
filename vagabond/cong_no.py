@@ -20,7 +20,7 @@ import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
 
 from vagabond.ban_hang import _kiem_quyen
-from vagabond import tai_khoan
+from vagabond import chiem_sao_ke, tai_khoan
 
 # Ma phieu yeu cau thanh toan.
 #
@@ -101,27 +101,139 @@ def _sepay_theo_ma_cn(ds_ma):
 	)
 	try:
 		gds = frappe.db.sql(
-			"""select description, deposit, withdrawal
+			"""select name, description, reference_number, deposit, withdrawal
 			from `tabBank Transaction`
-			where docstatus < 2 and upper(description) regexp %s""",
-			mau,
+			where docstatus < 2
+			and (upper(description) regexp %s or upper(reference_number) regexp %s)""",
+			(mau, mau),
 			as_dict=True,
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "cong_no: doc SePay theo ma phieu")
-		return {}
-	ra = {}
+		return {}, []
+	ra, bo_qua = {}, []
 	for g in gds:
-		mo_ta = _chuan_ma(g.get("description"))
+		mo_ta = _chuan_ma("%s %s" % (g.get("description") or "", g.get("reference_number") or ""))
 		thay = set(RE_MA_CN.findall(mo_ta)) | set(RE_MA_DNTT.findall(mo_ta))
-		for m in thay:
-			goc = theo_chuan.get(m)
-			if not goc:
-				continue
-			o = ra.setdefault(goc, {"nhan": 0.0, "so_gd": 0})
-			o["nhan"] += flt(g.get("deposit")) - flt(g.get("withdrawal"))
-			o["so_gd"] += 1
-	return ra
+		# CHI GIU MA CUA CHINH DOT NAY. Mot dong sao ke nhac hai ma phieu
+		# khac nhau thi may khong biet chia tien cho ai; cong du cho ca hai
+		# la nhan doi tien. De nguyen cho nguoi khop tay.
+		thay = sorted(m for m in thay if theo_chuan.get(m))
+		if not thay:
+			continue
+		if chiem_sao_ke.dong_nhap_nhang(thay):
+			bo_qua.append({
+				"ten": g.get("name"),
+				"ma": [theo_chuan[m] for m in thay],
+				"tien": flt(g.get("deposit")) - flt(g.get("withdrawal")),
+			})
+			continue
+		goc = theo_chuan[thay[0]]
+		o = ra.setdefault(goc, {"nhan": 0.0, "so_gd": 0, "gd": []})
+		o["nhan"] += flt(g.get("deposit")) - flt(g.get("withdrawal"))
+		o["so_gd"] += 1
+		if g.get("name") and g["name"] not in o["gd"]:
+			o["gd"].append(g["name"])
+	return ra, bo_qua
+
+
+def _sepay_cn(ma):
+	"""Bang ket qua cua MOT ma phieu."""
+	theo_ma, _bo = _sepay_theo_ma_cn([ma])
+	return theo_ma.get(str(ma or "").strip().upper()) or {}
+
+
+def _giu_gd(doc, ds_gd):
+	"""Cac dong sao ke phieu nay dang giu, sau khi chac chan khong dong nao
+	da thuoc ve chung tu khac. Tra ve chuoi de ghi vao `ma_gd`.
+
+	Nem loi kem TEN chung tu dang giu, de nguoi doc biet phai di doi chieu o
+	dau chu khong phai doan.
+	"""
+	ds_gd = chiem_sao_ke.tach_gd("\n".join(str(x or "") for x in (ds_gd or [])))
+	if not ds_gd:
+		return str(doc.get("ma_gd") or "").strip()
+	from vagabond import doi_soat_sepay as dss
+
+	chu = dss.chu_cua_giao_dich(ds_gd, bo_qua_loai="cong_no", bo_qua_phieu=doc.name)
+	dung_hai = chiem_sao_ke.gd_dung_hai_lan(ds_gd, chu)
+	if dung_hai:
+		frappe.throw(
+			"Không ghi nhận được cho phiếu %s: %s. Một lần chuyển khoản chỉ được "
+			"tính cho một chứng từ. Vui lòng kiểm lại nội dung chuyển khoản, hoặc "
+			"báo bộ phận kế toán đối soát tay."
+			% (doc.ma_phieu, "; ".join(
+				"giao dịch %s đã gạch cho %s" % (m, c) for m, c in dung_hai))
+		)
+	return chiem_sao_ke.gom_gd(ds_gd)
+
+
+TRUONG_MOI = {
+	"Vagabond Cong No": [
+		{
+			"fieldname": "ma_gd",
+			"label": "Dòng sao kê đã gạch cho phiếu này",
+			"fieldtype": "Small Text",
+			"insert_after": "da_thu",
+			"read_only": 1,
+			"description": (
+				"Mã các dòng sao kê ngân hàng đã được tính là tiền của phiếu này. "
+				"Một dòng sao kê chỉ được gạch cho một chứng từ."
+			),
+		},
+		{
+			"fieldname": "nguoi_khop_tay",
+			"label": "Người khớp tay",
+			"fieldtype": "Data",
+			"insert_after": "ma_gd",
+			"read_only": 1,
+		},
+		{
+			"fieldname": "ngay_khop_tay",
+			"label": "Lúc khớp tay",
+			"fieldtype": "Datetime",
+			"insert_after": "nguoi_khop_tay",
+			"read_only": 1,
+		},
+	]
+}
+
+
+def _ma_do_cong_no(ho_so):
+	g = ho_so.get if hasattr(ho_so, "get") else (lambda k: getattr(ho_so, k, None))
+	return str(g("ma_phieu") or "").strip()
+
+
+def _tien_cong_no(ho_so):
+	g = ho_so.get if hasattr(ho_so, "get") else (lambda k: getattr(ho_so, k, None))
+	return flt(g("tong_tien") or 0)
+
+
+def _khai_doi_soat():
+	"""Dang ky luong cong no vao so doi soat dung chung (dot 2, v299).
+
+	Day la luong tien VAO dau tien vao so. Hai luong da co deu la tien RA.
+	"""
+	from vagabond import doi_soat_sepay as dss
+
+	dss.khai(
+		loai="cong_no",
+		doctype="Vagabond Cong No",
+		chieu=dss.VAO,
+		ma_do=_ma_do_cong_no,
+		so_tien=_tien_cong_no,
+		dang_cho={"trang_thai": ["in", ["Cho thu", "Thu thieu"]]},
+		ten_man="phiếu công nợ",
+		truong_gd="ma_gd",
+		# Phieu da huy thi NHA dong sao ke ra: tien do hoac chua ve, hoac da
+		# duoc thu bang mot phieu khac.
+		loc_chiem={"trang_thai": ["!=", "Huy"]},
+		truong_nguoi="nguoi_khop_tay",
+		truong_luc="ngay_khop_tay",
+	)
+
+
+_khai_doi_soat()
 
 
 def _hd_da_gom():
@@ -282,7 +394,7 @@ def ds_phieu(trang_thai=None):
 		order_by="creation desc",
 		limit_page_length=200,
 	)
-	sepay = _sepay_theo_ma_cn([r.ma_phieu for r in ds])
+	sepay, _bo_qua = _sepay_theo_ma_cn([r.ma_phieu for r in ds])
 	hom_nay = getdate(nowdate())
 	for r in ds:
 		g = sepay.get(str(r.ma_phieu or "").upper()) or {}
@@ -298,7 +410,7 @@ def xem_phieu(name):
 	"""Chi tiet mot phieu doi no kem duong dan ma QR."""
 	_kiem_quyen()
 	doc = frappe.get_doc("Vagabond Cong No", name)
-	sepay = _sepay_theo_ma_cn([doc.ma_phieu]).get(str(doc.ma_phieu).upper()) or {}
+	sepay = _sepay_cn(doc.ma_phieu)
 	nhan = flt(sepay.get("nhan"))
 	return {
 		"name": doc.name,
@@ -337,7 +449,14 @@ def kiem_sepay(name):
 	_kiem_quyen()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	truoc = doc.trang_thai
-	sepay = _sepay_theo_ma_cn([doc.ma_phieu]).get(str(doc.ma_phieu).upper()) or {}
+	sepay = _sepay_cn(doc.ma_phieu)
+	# MOT DONG SAO KE CHI DUOC GACH CHO MOT CHUNG TU.
+	#
+	# Truoc day phieu cong no khong ghi lai dong sao ke nao da tinh cho no,
+	# nen khong the co phep chan nao ca: mot lan khach chuyen tien co the
+	# vua lam sach mot phieu cong no vua duoc tinh la tien cua mot bill quay.
+	# Nay ghi ro, va hoi ca cac luong khac truoc khi nhan.
+	gd = _giu_gd(doc, sepay.get("gd") or [])
 	nhan = flt(sepay.get("nhan"))
 	doc.da_thu = nhan
 	# Lech duoi 1 dong coi nhu du - ngan hang lam tron.
@@ -345,6 +464,7 @@ def kiem_sepay(name):
 		doc.trang_thai = "Da thu du"
 	elif nhan > 0:
 		doc.trang_thai = "Thu thieu"
+	doc.ma_gd = gd
 	da_du_truoc = truoc == "Da thu du"
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
@@ -1024,8 +1144,16 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 			% (_tien_vn(doc.tong_tien), _tien_vn(so_tien))
 		)
 	truoc = doc.trang_thai
+	# Ma giao dich go tay cung phai qua cua chiem dung. Truoc day no chi di
+	# vao mot dong nhat ky, nen hai ke toan go cung mot ma len hai phieu thi
+	# khong ai bao gi, va khong cau truy van nao tim ra duoc.
+	gd = _giu_gd(doc, [ma_giao_dich] if str(ma_giao_dich or "").strip() else [])
 	doc.da_thu = so_tien
 	doc.trang_thai = "Da thu du" if so_tien >= flt(doc.tong_tien) - 1 else "Thu thieu"
+	if gd:
+		doc.ma_gd = gd
+		doc.nguoi_khop_tay = frappe.session.user
+		doc.ngay_khop_tay = frappe.utils.now_datetime()
 	doc.save(ignore_permissions=True)
 	doc.add_comment(
 		"Comment",

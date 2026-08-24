@@ -46,6 +46,11 @@ def dung():
 	from vagabond import minvoice_tep
 
 	_dung_nhom(minvoice_tep.TRUONG_MOI, "minvoice_tep")
+	# Cong no: o ghi dong sao ke da gach cho phieu, va vet nguoi khop tay
+	# (them 24/08/2026, dot 2 cua tang doi soat dung chung).
+	from vagabond import cong_no
+
+	_dung_nhom(cong_no.TRUONG_MOI, "cong_no")
 	# Nha cung cap: o "Email phu can CC" (them 21/08/2026).
 	from vagabond import nha_cung_cap
 

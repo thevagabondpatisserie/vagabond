@@ -25,7 +25,12 @@ function posMaBill() {
 }
 function posMoi() {
   posSepayNhan = 0;
-  return { che_do: 'Tại chỗ', ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', ghi_chu: '', km: null, so_ban: '', khach_no: null, xhd_mo: false, xh: { mst: '', ten: '', dc: '', email: '' }, mon: [], ctkm: [], combo: [], maVc: '', otpKm: '', kmKq: null, khach_ma: '', khach_hang: '', diemThe: null, diemTt: null, diemNhap: '', diemPhien: null, diemHan: 0, diemVe: null };
+  /* Chế độ mặc định phải là chế độ CÓ THẬT của điểm bán này. Điểm Sales
+     Online không bán tại chỗ, để nguyên 'Tại chỗ' là máy chủ từ chối đơn với
+     câu "Nguồn đơn (trống) không có trong danh mục". */
+  var ds0 = posDsCheDo();
+  var mac = (ds0[0] && ds0[0].v) || 'Tại chỗ';
+  return { che_do: mac, ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', ghi_chu: '', km: null, so_ban: '', khach_no: null, xhd_mo: false, xh: { mst: '', ten: '', dc: '', email: '' }, mon: [], ctkm: [], combo: [], maVc: '', otpKm: '', kmKq: null, khach_ma: '', khach_hang: '', diemThe: null, diemTt: null, diemNhap: '', diemPhien: null, diemHan: 0, diemVe: null };
 }
 function posKmGiam(km, tong) {
   if (!km) return 0;
@@ -53,11 +58,34 @@ function posPollBat(ma, tien) {
 }
 function flt0(v) { return parseFloat(v) || 0; }
 function posSoTien(v) { return parseFloat(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
+/* Các chế độ bán của ĐÚNG điểm bán đang đứng.
+
+   Anh Việt 24/08/2026: *"cơ bản chỉ là khác điểm bán thôi chứ còn các nghiệp
+   vụ bên trong đều phải đầy đủ hết"*. Điểm có quầy tiền mặt thì bán Tại chỗ
+   và Mang về; điểm Sales Online thì không có quầy nên chế độ của nó chính là
+   các nguồn đơn nó nhận (GrabFood, ShopeeFood, BeFood, GreenSM).
+
+   Pancake bị loại ở cả hai: đơn Pancake tự đồng bộ về màn Doanh số, gõ tay
+   lại là tạo đơn trùng. */
 function posDsCheDo() {
-  var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
-    return n.v.indexOf('Tại chỗ') !== 0 && n.v.indexOf('Mang về') !== 0 && n.v !== 'Khách sỉ' && n.v !== 'Pancake';
-  });
-  return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
+  var ic = {};
+  (((CFGBH || {}).nguon) || []).forEach(function (n) { ic[n.v] = n; });
+  function bay(v) { var n = ic[v] || {}; return { v: v, ic: n.ic || '', lg: n.lg || '' }; }
+  var d = posQuay || {};
+  var nguon = (d.nguon || []).filter(function (v) { return v !== 'Pancake'; });
+  if (posCoQuay()) {
+    var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
+      return n.v.indexOf('Tại chỗ') !== 0 && n.v.indexOf('Mang về') !== 0 && n.v !== 'Khách sỉ' && n.v !== 'Pancake';
+    });
+    return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
+  }
+  /* Điểm không có quầy: chế độ chính là nguồn đơn của nó. */
+  return nguon.map(bay);
+}
+/* Điểm bán đang đứng có quầy tiền mặt không. Không có quầy thì không có ca
+   làm việc, không có tiền thối, và bill của nó nằm ở nhóm đơn online. */
+function posCoQuay() {
+  return !!(posQuay && posQuay.quay);
 }
 /* Hai nut in tren man bao thanh cong, dung chung cho ca luong tien mat lan
    luong chuyen khoan.
@@ -83,6 +111,9 @@ function posNutIn(d) {
 
 function posNguonThuc() {
   if (!posQuay || !posDon) return '';
+  /* Điểm không có quầy: chế độ đã CHÍNH LÀ nguồn đơn, không phải ánh xạ qua
+     hai nhãn Tại chỗ / Mang về. */
+  if (!posCoQuay()) return posDon.che_do;
   if (posDon.che_do === 'Tại chỗ') return posQuay.tai_cho;
   if (posDon.che_do === 'Mang về') return posQuay.mang_ve;
   return posDon.che_do;
@@ -108,21 +139,21 @@ function posDoc() {
 /* Buoc chon quay: vao card la hoi, khong nho lua chon cu (anh Viet 08/08). */
 async function scrPosChonQuay() {
   await cfgBanHang();
-  var dsQ = ((CFGBH || {}).quay) || [];
   /* Thumbnail la anh cua hang that (anh Viet gui 09/08), nhin phat biet
      ngay minh dang chon quay nao. Anh nam trong repo, thieu thi lui ve
      bieu tuong cu. */
-  /* Sales Online la diem ban thu ba, nam duoi hai quay (anh Viet
-     10/08/2026). Khong phai quay tinh tien nen bam vao di thang sang man
-     Doanh thu Sales, khong qua man tinh tien. */
-  var CARD_SALES = {
-    ma: 'SALES',
-    ten: 'Sales Online 307/1 Nguyễn Văn Trỗi',
-    phu: 'Đơn online: Pancake, GrabFood, ShopeeFood, BeFood, GreenSM',
-    anh: (CFGBH || {}).anh_sales || '',
-    sales: 1
-  };
-  var dsAll = dsQ.concat([CARD_SALES]);
+  /* MỘT NGUỒN DUY NHẤT cho danh sách điểm bán (anh Việt 24/08/2026).
+
+     Trước đây danh sách này là hai quầy đọc từ cấu hình, cộng thêm một thẻ
+     Sales Online GÕ CỨNG ngay trong màn hình. Thẻ gõ cứng đó bấm vào thì
+     nhảy thẳng sang màn Doanh số, nên điểm Sales chưa bao giờ có màn tính
+     tiền: không mã voucher, không chương trình khuyến mãi, không combo,
+     không tích điểm. Trong khi nghiệp vụ bên trong của ba điểm là như nhau,
+     chỉ khác chỗ đứng.
+
+     Nay cả ba đọc chung từ `diem`, tức từ đúng bảng Điểm bán mà màn Cài đặt
+     sửa. Mở điểm thứ tư là khai trong Cài đặt, không phải sửa mã rồi deploy. */
+  var dsAll = ((CFGBH || {}).diem) || ((CFGBH || {}).quay) || [];
   var suaAnh = typeof isSales === 'function' ? isSales() : false;
   var html = '<div class="sec">Chọn điểm bán</div>';
   dsAll.forEach(function (q, i) {
@@ -148,7 +179,10 @@ async function scrPosChonQuay() {
     var r = e.target.closest('[data-q]');
     if (!r) return;
     var q = dsAll[+r.getAttribute('data-q')];
-    if (q && q.sales) { posQuay = null; return go(scrDoanhSo); }
+    if (!q) return;
+    /* Đổi điểm là đổi bộ máy in và đổi khổ giấy, nên bỏ luôn đơn đang gõ dở
+       để không mang giá và nguồn của điểm cũ sang điểm mới. */
+    if (posQuay && posQuay.ma !== q.ma) posDon = null;
     posQuay = q;
     posHomNayTxt = null;
     go(scrPosQuay);
@@ -230,6 +264,7 @@ function posNutPt(ds, chon) {
 var caPos = null;
 
 async function posCaVe() {
+  if (!posCoQuay()) return;
   var tt = document.getElementById('posCaTt'), nut = document.getElementById('posCaNut');
   if (!tt || !nut) return;
   try { caPos = await api('vagabond.ca_quay.tinh_trang', { quay: posQuay.ma }); }
@@ -353,8 +388,11 @@ async function scrPosQuay() {
   /* Do QZ Tray NGAY luc mo man quay, khong doi toi luc bam In. Do luc bam
      la mat nhip user gesture va bi chan popup - xem ghi chu hai nhip o
      27-in-ngam.js. Khong await: do xong hay chua thi man van ve. */
-  inNgamDo();
   if (!posQuay) return go(scrPosChonQuay, true);
+  /* Dò máy in SAU khi đã biết đứng ở điểm bán nào, và dò lại khi đổi điểm.
+     Trước đây dò ngay dòng đầu, tức là trước cả bước chọn quầy, nên mọi máy
+     đều nhận về hộp chung mảnh tên máy in của cả ba điểm. */
+  inNgamDo(0, posQuay.ma);
   if (!posDon) posDon = posMoi();
   var laApp = posDon.che_do !== 'Tại chỗ' && posDon.che_do !== 'Mang về';
   var nguonThuc = posNguonThuc();
@@ -390,8 +428,13 @@ async function scrPosQuay() {
     '<div id="posHomNay" style="font-size:12.5px;color:#0b7c93;margin-top:2px">' + h(posHomNayTxt || 'Đang đếm hoá đơn hôm nay...') + '</div></div>' +
     '<span style="color:#0b7c93;font-size:22px">&#8250;</span></div></div>';
   /* Ca lam viec: mo ca khai tien le, chot ca dem mu. Trang thai doc SAU
-     khi man da ve (posCaVe) de khong bat khach cho mot vong API nua. */
-  html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
+     khi man da ve (posCaVe) de khong bat khach cho mot vong API nua.
+
+     Chỉ điểm CÓ quầy tiền mặt mới có ca. Điểm Sales Online không giữ két
+     nên không có tiền lẻ đầu ca và không có gì để đếm mù cuối ca; vẽ khối
+     này ra là bắt người bán chốt một cái ca không tồn tại, và bản đối soát
+     sẽ báo toàn bộ doanh thu là tiền thừa không giải trình được. */
+  if (posCoQuay()) html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
     '<span style="font-size:20px">🕐</span>' +
     '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">Ca làm việc</div>' +

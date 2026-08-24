@@ -239,9 +239,15 @@ def _():
 	# la, sua ve `max(gia - giam, 0)` cho "gon" la loi quay lai nguyen ven,
 	# va khong ca kiem nao o tren bat duoc vi chung goi thang gia_pancake.
 	bh = _doc("ban_hang.py")
-	dung("có gọi gia_pancake.gia_mot_don_vi", "gia_pancake.gia_mot_don_vi(" in bh)
+	dung("có gọi gia_pancake.dong_gia", "gia_pancake.dong_gia(" in bh)
 	dung("không còn phép trừ tay cũ", "max(gia - giam, 0)" not in bh)
-	dung("có nhập gia_pancake", "from vagabond import gia_pancake" in bh)
+	dung("có nhập gia_pancake", "import chiem_sao_ke, gia_pancake, hoa_don_vat" in bh)
+	# v299: dong hang phai GIU phan giam gia chu khong nuot vao gia ban.
+	dung("dòng hàng đi qua ô giữ giảm giá", "_dong_co_giam(ma, sl, bo_gia)" in bh)
+	khuc = bh.split("def _dong_co_giam(")[1].split("\n\n\n")[0]
+	dung("có khai giá gốc", '"price_list_rate"' in khuc)
+	dung("có khai phần trăm giảm", '"discount_percentage"' in khuc)
+	dung("có khai số tiền giảm", '"discount_amount"' in khuc)
 
 
 @ca("bốn cửa ghi tên người mua đều gọi chốt chặn tên cụt")

@@ -30,6 +30,7 @@ var IN_QZ = {
   may: [],          // ten cac may in tim thay
   tuyen: null,      // manh ten may in hoa don / tem, lay tu may chu
   loi: '',          // ly do khong dung duoc, de hien khi can
+  diem: '',         // diem ban da do lan gan nhat, doi diem la phai do lai
   dang_do: null     // Promise cua lan do dang chay, tranh do hai lan
 };
 
@@ -85,13 +86,27 @@ async function inNoiQz() {
 }
 
 /* Do mot lan luc vao man quay hoac man bep. Goi lai nhieu lan cung chi do
-   mot lan, tru khi ep do lai. */
-function inNgamDo(ep) {
+   mot lan, tru khi ep do lai HOAC khi doi diem ban.
+
+   Vi sao phai mang theo diem ban (anh Viet 24/08/2026): *"phan may in nay em
+   phai cho set up theo diem ban, click vao diem ban nao thi se do QZ Tray cua
+   may diem ban do va co danh sach may in rieng cua tung diem ban, chu khong
+   he dung chung"*.
+
+   May chu von da loc duoc theo diem (may_in.tuyen_qz), nhung man hinh chua
+   bao gio noi minh dang dung o diem nao, nen moi may nhan ve HOP CHUNG manh
+   ten may in cua ca ba diem. Quay Tran Cao Van co the bat trung manh ten cua
+   may ben NVHTN va in nham sang do. */
+function inNgamDo(ep, diem) {
+  diem = String(diem || IN_QZ.diem || '').trim().toUpperCase();
+  /* Doi diem la phai do lai: danh sach may in cua diem cu khong con dung. */
+  if (IN_QZ.do_roi && diem !== String(IN_QZ.diem || '')) ep = 1;
   if (IN_QZ.dang_do) return IN_QZ.dang_do;
   if (IN_QZ.do_roi && !ep) return Promise.resolve(IN_QZ.co);
+  IN_QZ.diem = diem;
   IN_QZ.dang_do = (async function () {
     try {
-      var t = await api('vagabond.in_ngam.dinh_tuyen', {});
+      var t = await api('vagabond.in_ngam.dinh_tuyen', { diem: diem });
       IN_QZ.tuyen = t;
       if (!t || !t.da_bat) {
         IN_QZ.co = 0; IN_QZ.loi = 'Chưa bật in ngầm (chưa dán chứng thư QZ Tray)';
@@ -375,8 +390,8 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
 
 /* Man Cai dat co nut nay: bao ro dang in bang duong nao va thay may in
    nao, de khoi phai doan khi quay keu "may khong ra giay". */
-async function inNgamTinhTrang() {
-  await inNgamDo(1);
+async function inNgamTinhTrang(diem) {
+  await inNgamDo(1, diem);
   /* Bay ca BON loai phieu chu khong chi hai: tu khi so may in gan duoc ten
      rieng cho tung loai, "phieu mon" va "chot ca" cung co duong di rieng,
      ma neu khong hien ra thi khong ai biet no dang di dau. */

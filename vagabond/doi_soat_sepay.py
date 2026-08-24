@@ -145,6 +145,7 @@ def nap_so():
 	"""Nạp mọi bản mô tả. Gọi lười, vì mỗi mô đun lại nhập ngược tệp này."""
 	if _SO:
 		return
+	from vagabond import cong_no  # noqa: F401
 	from vagabond import de_nghi_chi  # noqa: F401
 	from vagabond import hoan_tien  # noqa: F401
 
@@ -175,6 +176,68 @@ def da_chiem(loai, tru_phieu=None):
 		ma = str(r.get(b["truong_gd"]) or "").strip()
 		if ma:
 			ra.setdefault(ma, r["name"])
+	return ra
+
+
+# Hoa don ban giu NHIEU dong sao ke tren mot o van ban, khong phai mot ma
+# duy nhat nhu cac luong khac, nen no khong vao duoc so dang ky o tren. Khai
+# rieng o day de phep hoi "dong nay da co chu chua" van phu duoc no.
+HD_BAN = {"doctype": "Sales Invoice", "truong": "vgb_gd_sepay", "ten_man": "hoá đơn bán"}
+
+
+def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None):
+	"""Mỗi mã giao dịch trong `ds_gd` hiện đang thuộc về chứng từ nào.
+
+	Trả về {mã giao dịch: "tên màn PHIEU-XXX"}. Không có chủ thì không có
+	khoá.
+
+	Vì sao phải hỏi TOÀN HỆ chứ không chỉ trong luồng của mình
+	----------------------------------------------------------
+	`da_chiem` chỉ soi trong CÙNG một luồng: phiếu hoàn tiền không nhìn thấy
+	phiếu thanh toán nội bộ, và không luồng nào nhìn thấy bill quầy. Một dòng
+	sao kê là một lần tiền chuyển thật, nên nó chỉ được gạch một lần cho toàn
+	hệ, không phải một lần cho mỗi màn hình.
+	"""
+	muon = {str(m or "").strip() for m in (ds_gd or []) if str(m or "").strip()}
+	if not muon:
+		return {}
+	ra = {}
+	try:
+		nap_so()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: nap so de hoi chu")
+	for loai, b in _SO.items():
+		if bo_qua_loai and loai == bo_qua_loai:
+			continue
+		loc = {b["truong_gd"]: ["in", sorted(muon)]}
+		loc.update(b.get("loc_chiem") or {})
+		if bo_qua_phieu:
+			loc["name"] = ["!=", bo_qua_phieu]
+		try:
+			ds = frappe.get_all(b["doctype"], filters=loc,
+				fields=["name", b["truong_gd"]], limit_page_length=0)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu luong %s" % loai)
+			continue
+		for r in ds:
+			ma = str(r.get(b["truong_gd"]) or "").strip()
+			if ma and ma not in ra:
+				ra[ma] = "%s %s" % (b["ten_man"], r["name"])
+	# Hoa don ban: o van ban nhieu dong nen phai doc roi tach, khong loc
+	# thang bang "in" duoc.
+	try:
+		from vagabond import chiem_sao_ke
+
+		loc_hd = [[HD_BAN["truong"], "!=", ""], ["docstatus", "<", 2]]
+		if bo_qua_hoa_don:
+			loc_hd.append(["name", "!=", bo_qua_hoa_don])
+		for r in frappe.get_all(HD_BAN["doctype"], filters=loc_hd,
+				fields=["name", HD_BAN["truong"]], limit_page_length=0):
+			for ma in chiem_sao_ke.tach_gd(r.get(HD_BAN["truong"])):
+				if ma in muon and ma not in ra:
+					ra[ma] = "%s %s" % (HD_BAN["ten_man"], r["name"])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu hoa don ban")
 	return ra
 
 
