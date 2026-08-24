@@ -716,7 +716,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '291';
+var APPVER = '292';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -788,12 +788,15 @@ window.addEventListener('popstate', function (ev) {
       var giu = S.stack.length - 1;
       confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
         .then(function (ok) {
-          if (ok) { S.draft = null; S.stack.length = d + 1; render(); }
+          if (ok) { S.draft = null; S.stack.length = d + 1; S.duong.length = d + 1; vgbApNac(); render(); }
           else { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } }
         });
       return;
     }
-    S.stack.length = d + 1; render(); return;
+    /* Lui bang nut Back cua trinh duyet: cat chong man hinh VA cat luon
+       chong dia chi, roi ap lai dia chi cua nac con lai. Thieu hai viec sau
+       thi man da lui ma thanh dia chi van mang duoi cua man vua roi. */
+    S.stack.length = d + 1; S.duong.length = d + 1; vgbApNac(); render(); return;
   }
   if (d + 1 > S.stack.length) {
     /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
