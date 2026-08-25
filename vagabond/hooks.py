@@ -40,6 +40,14 @@ app_license = "MIT"
 # nguoi dung nhin thay.
 app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 
+# Danh sach Cong thuc tren Desk: chip trang thai co kem SO PHIEN BAN, vi
+# cot ten dang bi cat mat duoi so (ban Khai xin 25/08/2026). Doc ly do
+# day du o dau tep bom_list.js.
+#
+# `doctype_list_js` chi nap dung mot man danh sach do, khong phai hook
+# rong tren "*". Dat hep nhu the la co y: quy tac 6 cua repo.
+doctype_list_js = {"BOM": "public/js/bom_list.js"}
+
 # Kiem banh ngay: 5 phut keo don Pancake mot lan de cot "da dat" va
 # "phat sinh" tu chay, sales khoi dem tay.
 scheduler_events = {

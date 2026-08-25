@@ -70,6 +70,24 @@ def phan_tab(nhom_nuoc, bep_phu_trach, ten):
 	return "khac"
 
 
+def duoi_phien_ban(ten_bom):
+	"""Duoi so phien ban cua mot ma BOM. THUAN.
+
+	ERPNext dat ten BOM kieu `BOM-BTPB00007-002`, duoi la so phien ban. Ban
+	Khai 25/08/2026: *"Anh chinh keo rong cai nay giup em de em xem cai
+	phien ban BOM"*. Danh sach tren Desk cat mat duoi do vi cot hep.
+
+	Rut rieng ra thanh mot chuoi ngan de gan vao CHIP trang thai, cho ma
+	chip thi khong bao gio bi cat. Rong khi ten khong co duoi so - luc do
+	man hinh khong hien gi ca chu khong hien so 0 gia.
+	"""
+	t = str(ten_bom or "").strip()
+	if "-" not in t:
+		return ""
+	duoi = t.rsplit("-", 1)[-1]
+	return duoi if (duoi.isdigit() and duoi) else ""
+
+
 def khop_tim(tim, ma, ten):
 	"""Dòng có khớp ô tìm kiếm không. THUẦN, không phân biệt hoa thường."""
 	t = (tim or "").strip().lower()
@@ -84,13 +102,37 @@ import frappe
 from frappe.utils import cint, flt
 
 # Ô mới trên BOM: trỏ về bản trước trong chuỗi phiên bản.
-TRUONG_MOI = {"BOM": [{
-	"fieldname": "custom_ban_truoc", "label": "Bản trước",
-	"fieldtype": "Link", "options": "BOM", "read_only": 1,
-	"insert_after": "item_name", "description":
-		"Bản công thức mà bản này điều chỉnh từ đó. Lần ngược ô này là ra "
-		"trọn lịch sử phiên bản.",
-}]}
+#
+# Ô "Note" trên DÒNG nguyên liệu thêm 25/08/2026. Bạn Khải xin: *"Trong BOM
+# customize thêm 1 cột giúp em, tiêu đề Note: để ghi chú ạ"*. Chỗ dùng thật
+# là ghi tính chất nguyên liệu mà con số không nói được, ví dụ dòng trứng
+# ghi "Nguyên quả" để phân biệt với công thức chỉ lấy lòng trắng.
+#
+# `in_list_view` để ô hiện thẳng trong lưới, không phải mở từng dòng ra mới
+# thấy. `columns` là bề rộng trong lưới, tính theo thang 10 của Frappe: bốn
+# cột sẵn có của BOM Item đang chiếm 8, nên lấy 2 là vừa khít, lấy hơn thì
+# Frappe đẩy cột cuối rơi xuống dòng dưới.
+#
+# Small Text chứ không phải Data: ghi chú chế biến hay dài hơn một dòng, mà
+# Data thì cắt ở 140 ký tự không báo gì.
+TRUONG_MOI = {
+	"BOM": [{
+		"fieldname": "custom_ban_truoc", "label": "Bản trước",
+		"fieldtype": "Link", "options": "BOM", "read_only": 1,
+		"insert_after": "item_name", "description":
+			"Bản công thức mà bản này điều chỉnh từ đó. Lần ngược ô này là ra "
+			"trọn lịch sử phiên bản.",
+	}],
+	"BOM Item": [{
+		"fieldname": "custom_note", "label": "Note",
+		"fieldtype": "Small Text", "insert_after": "uom",
+		"in_list_view": 1, "columns": 2, "translatable": 0,
+		"description":
+			"Ghi chú tính chất của nguyên liệu ở dòng này, ví dụ nguyên quả, "
+			"chỉ lấy lòng trắng, để lạnh, rây mịn. Chữ ở đây chảy sang màn "
+			"Danh mục công thức và bản in Hướng dẫn chế biến.",
+	}],
+}
 
 
 def _kiem_xem():
@@ -138,7 +180,7 @@ def _nhom_nuoc():
 
 
 @frappe.whitelist()
-def danh_sach(tab=None, trang_thai=None, tim=None):
+def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None):
 	"""Toàn bộ công thức, gắn tab và trạng thái, lọc tại máy chủ."""
 	_kiem_xem()
 	boms = frappe.get_all(
@@ -172,8 +214,50 @@ def danh_sach(tab=None, trang_thai=None, tim=None):
 		ra.append({"bom": b.name, "ma": b.item, "ten": ten, "tab": t,
 			"trang_thai": tt, "so_luong": b.quantity, "dvt": b.uom,
 			"chang": b.custom_chang or "", "ban_truoc": b.custom_ban_truoc or "",
+			"phien_ban": duoi_phien_ban(b.name),
 			"sua_luc": str(b.modified)[:16]})
+	# Gan tinh trang huong dan che bien len tung the. Mot truy van cho ca
+	# danh sach chu khong hoi tung mon: 378 cong thuc thi hoi tung mon la
+	# 378 lan chay vong xuong co so du lieu.
+	_gan_huong_dan(ra)
+	if huong_dan == "lech":
+		# "Cong thuc da doi" khong phai mot tinh trang thu tu, no la mot CO
+		# gan them: mon van co huong dan, nhung huong dan do soan theo mot
+		# ban cong thuc khac ban dang dung. Nen loc rieng chu khong so bang.
+		ra = [x for x in ra if x.get("hd_lech")]
+	elif huong_dan:
+		ra = [x for x in ra if x.get("huong_dan") == huong_dan]
 	return {"ds": ra[:400], "tong": len(ra)}
+
+
+def _gan_huong_dan(ra):
+	"""Moi the biet mon cua no da co huong dan che bien chua.
+
+	Ba tinh trang: `chua` chua soan, `nhap` co ban nhap, `xong` dang dung.
+	Them `lech` khi huong dan soan theo mot cong thuc khac ban mac dinh
+	hien nay - do la luc bep dang lam theo giay cu.
+	"""
+	cac_ma = sorted({x["ma"] for x in ra})
+	if not cac_ma:
+		return
+	co = {}
+	for i in range(0, len(cac_ma), 300):
+		for d in frappe.get_all(
+				"Vagabond Huong Dan Che Bien",
+				filters={"ma_mon": ["in", cac_ma[i:i + 300]]},
+				fields=["name", "ma_mon", "trang_thai", "cong_thuc_da_doi"],
+				limit_page_length=0):
+			co[d.ma_mon] = d
+	for x in ra:
+		d = co.get(x["ma"])
+		if not d:
+			x["huong_dan"] = "chua"
+			x["hd_name"] = ""
+			x["hd_lech"] = 0
+			continue
+		x["huong_dan"] = "xong" if str(d.trang_thai) == "Đang dùng" else "nhap"
+		x["hd_name"] = d.name
+		x["hd_lech"] = 1 if d.cong_thuc_da_doi else 0
 
 
 @frappe.whitelist()
@@ -182,7 +266,8 @@ def chi_tiet(name):
 	_kiem_xem()
 	b = frappe.get_doc("BOM", name)
 	dong = [{"ma": d.item_code, "ten": d.item_name, "sl": d.qty,
-		"dvt": d.uom} for d in (b.items or [])]
+		"dvt": d.uom, "note": d.get("custom_note") or ""}
+		for d in (b.items or [])]
 	# Chuoi phien ban: lan nguoc ban_truoc, va tim ban sau tro ve minh.
 	chuoi, x = [], b.get("custom_ban_truoc")
 	for _ in range(10):
@@ -198,6 +283,7 @@ def chi_tiet(name):
 		"trang_thai": trang_thai_bom(b.docstatus, b.is_active, b.is_default),
 		"so_luong": b.quantity, "dvt": b.uom, "chang": b.get("custom_chang") or "",
 		"dong": dong, "ban_truoc": chuoi, "ban_sau": ban_sau,
+		"phien_ban": duoi_phien_ban(b.name),
 	}
 
 
