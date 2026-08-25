@@ -56,6 +56,22 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .btn.dg{background:#e04b4b}
 .btn.gr{background:#12a150}
 .row2{display:flex;gap:10px}.row2>*{flex:1}
+/* Trinh soan Huong dan che bien (v302). O nhap co NHAN nam tren, vi bep
+   truong go tren dien thoai va placeholder bien mat ngay khi go chu dau
+   tien, luc do khong con biet o do la o gi nua. */
+.hd-form{padding:12px 14px}
+.hd-o{display:block;margin-bottom:10px}
+.hd-o>span{display:block;font-size:12px;color:#8a8f9c;margin-bottom:4px;font-weight:600}
+.hd-o .tin{width:100%;text-align:left;font-size:15px;padding:0 12px}
+.hd-o .nt{width:100%;font-size:15px}
+.hd-dong{padding:12px 14px;margin-bottom:9px}
+.hd-so{font-size:12.5px;font-weight:700;color:#0b6bcb;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
+.hd-xoa{border:0;background:#fdeaea;color:#b3261e;border-radius:7px;width:28px;height:28px;font-size:15px;cursor:pointer;line-height:1}
+.hd-bang{margin-bottom:0}
+/* Nut mo Huong dan che bien tren the cong thuc. Doc them o 26-cong-thuc.js */
+.ct-hd{border:0;background:#eef7ff;color:#0b6bcb;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;line-height:1}
+.ct-hd.chua{background:#fff4e5;color:#8a5a00}
+.ct-hd.lech{background:#fdeaea;color:#b3261e}
 /* display:block la CO Y, dung xoa. Bootstrap cua Frappe dat
    .card{display:flex;flex-direction:column} tren TOAN BO trang. Hau qua:
    moi the inline nam truc tiep trong .card (<b>, <i>, <span>) bi trinh
