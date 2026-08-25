@@ -1,0 +1,34 @@
+{
+ "actions": [],
+ "autoname": "field:ten_nhom",
+ "creation": "2026-08-25 06:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["ten_nhom", "xung_ho", "cb0", "xung_ho_phu", "uu_tien", "con_dung", "sb_gc", "mo_ta"],
+ "fields": [
+  {"fieldname": "ten_nhom", "fieldtype": "Data", "label": "Ten nhom", "reqd": 1, "unique": 1, "in_list_view": 1, "description": "Nghe si, Nhom Hoa Hau, Influencer, Cigar & Bar..."},
+  {"fieldname": "xung_ho", "fieldtype": "Data", "label": "Xung ho trong loi chuc", "reqd": 1, "in_list_view": 1, "default": "Anh/Chi", "description": "Chu thay cho Anh/Chi trong mau loi chuc. Vi du: Nghe sy, Hoa Hau."},
+  {"fieldname": "cb0", "fieldtype": "Column Break"},
+  {"fieldname": "xung_ho_phu", "fieldtype": "Data", "label": "Xung ho phu", "description": "Cach xung khac cua cung nhom. Vi du nhom hoa hau con co A Hau, Nam Vuong."},
+  {"fieldname": "uu_tien", "fieldtype": "Int", "label": "Uu tien hien", "default": "10"},
+  {"fieldname": "con_dung", "fieldtype": "Check", "label": "Con dung", "default": "1", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "sb_gc", "fieldtype": "Section Break"},
+  {"fieldname": "mo_ta", "fieldtype": "Small Text", "label": "Mo ta"}
+ ],
+ "links": [],
+ "modified": "2026-08-25 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Nhom Khach VIP",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Sales Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Marketing", "read": 1, "write": 1, "create": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Sales User", "read": 1, "write": 1, "create": 1, "report": 1, "print": 1}
+ ],
+ "sort_field": "uu_tien",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

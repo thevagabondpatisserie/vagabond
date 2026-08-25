@@ -1,0 +1,45 @@
+{
+ "actions": [],
+ "autoname": "field:ma_dot",
+ "creation": "2026-08-25 06:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_dot", "ten_dot", "cb0", "dip", "nam", "trang_thai_dot",
+  "sb_tg", "tu_ngay", "den_ngay", "cbt", "mau_loi_chuc_md", "ngan_sach",
+  "sb_gc", "ghi_chu", "nguoi_tao"
+ ],
+ "fields": [
+  {"fieldname": "ma_dot", "fieldtype": "Data", "label": "Ma dot", "reqd": 1, "unique": 1, "in_list_view": 1, "description": "Vi du TQ-2026-TET"},
+  {"fieldname": "ten_dot", "fieldtype": "Data", "label": "Ten dot", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "cb0", "fieldtype": "Column Break"},
+  {"fieldname": "dip", "fieldtype": "Select", "label": "Dip", "options": "Tet\nTrung thu\nGiang sinh\nSinh nhat\nTri an\nKhac", "default": "Khac", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "nam", "fieldtype": "Int", "label": "Nam"},
+  {"fieldname": "trang_thai_dot", "fieldtype": "Select", "label": "Trang thai dot", "options": "Nhap\nDang chay\nDa dong", "default": "Nhap", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "sb_tg", "fieldtype": "Section Break", "label": "Khung thoi gian va muc chung"},
+  {"fieldname": "tu_ngay", "fieldtype": "Date", "label": "Tu ngay"},
+  {"fieldname": "den_ngay", "fieldtype": "Date", "label": "Den ngay"},
+  {"fieldname": "cbt", "fieldtype": "Column Break"},
+  {"fieldname": "mau_loi_chuc_md", "fieldtype": "Link", "options": "Vagabond Mau Loi Chuc", "label": "Mau loi chuc mac dinh"},
+  {"fieldname": "ngan_sach", "fieldtype": "Currency", "label": "Ngan sach dot", "description": "De 0 la khong dat tran"},
+  {"fieldname": "sb_gc", "fieldtype": "Section Break"},
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"},
+  {"fieldname": "nguoi_tao", "fieldtype": "Link", "options": "User", "label": "Nguoi tao", "read_only": 1}
+ ],
+ "links": [],
+ "modified": "2026-08-25 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Dot Tang Qua",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Sales Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Marketing", "read": 1, "write": 1, "create": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Sales User", "read": 1, "write": 1, "create": 1, "report": 1, "print": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

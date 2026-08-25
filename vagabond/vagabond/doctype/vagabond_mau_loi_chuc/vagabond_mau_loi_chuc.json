@@ -1,0 +1,35 @@
+{
+ "actions": [],
+ "autoname": "field:ma_mau",
+ "creation": "2026-08-25 06:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["ma_mau", "ten_mau", "cb0", "dip", "con_dung", "sb_nd", "noi_dung", "sb_hd", "huong_dan"],
+ "fields": [
+  {"fieldname": "ma_mau", "fieldtype": "Data", "label": "Ma mau", "reqd": 1, "unique": 1, "in_list_view": 1, "description": "Vi du LC-TET-2026"},
+  {"fieldname": "ten_mau", "fieldtype": "Data", "label": "Ten mau", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "cb0", "fieldtype": "Column Break"},
+  {"fieldname": "dip", "fieldtype": "Select", "label": "Dip", "options": "Tet\nTrung thu\nGiang sinh\nSinh nhat\nTri an\nKhac", "default": "Khac", "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "con_dung", "fieldtype": "Check", "label": "Con dung", "default": "1", "in_standard_filter": 1},
+  {"fieldname": "sb_nd", "fieldtype": "Section Break", "label": "Noi dung"},
+  {"fieldname": "noi_dung", "fieldtype": "Text", "label": "Noi dung mau", "reqd": 1, "description": "Bon bien duoc dung: {xung_ho} {ten_khach} {don_vi} {nam}. Go ten khach thang vao day thi mau khong dung lai duoc."},
+  {"fieldname": "sb_hd", "fieldtype": "Section Break"},
+  {"fieldname": "huong_dan", "fieldtype": "Small Text", "label": "Ghi chu cho nguoi soan", "read_only": 1, "default": "{xung_ho} lay theo Title rieng cua phieu, khong co thi lay theo nhom khach, van khong co thi ra Anh/Chi. {don_vi} trong thi ca cau chua no bi bo di."}
+ ],
+ "links": [],
+ "modified": "2026-08-25 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Mau Loi Chuc",
+ "owner": "Administrator",
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Sales Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Marketing", "read": 1, "write": 1, "create": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Sales User", "read": 1, "write": 1, "create": 1, "report": 1, "print": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

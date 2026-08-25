@@ -73,6 +73,16 @@ scheduler_events = {
 			"vagabond.trang_thai_thu.soat_tu_dong",
 		],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
+		# 6 gio sang: ra phieu tang qua khach VIP chua ai lien he ma ngay
+		# giao da can, roi nhac nguoi phu trach.
+		#
+		# 6 gio chu KHONG phai nua dem: day la viec nhac NGUOI DI LAM. Nhac
+		# luc 2 gio sang thi toi 8 gio thong bao da troi mat trong danh
+		# sach, va nguoi can nhac thi khong bao gio thay.
+		#
+		# Ham co hai tran: tran mem 200 van chay nhung ghi nhat ky, tran
+		# cung 3000 thi DUNG HAN va gui thu. Xem tang_qua.quet_dem.
+		"0 6 * * *": ["vagabond.tang_qua.quet_dem_tu_dong"],
 		# Keo hoa don M-Invoice, ban trong ma nguon (truoc 20/08/2026 nam
 		# trong Server Script tren site va da sot hoa don dau vao tu 14/08,
 		# xem dau tep minvoice_dong_bo.py). Cung nhip 15 phut voi kich ban
@@ -232,6 +242,16 @@ doc_events = {
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},
 	"Phieu Kiem Ke": {
+		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
+	},
+	# Tang qua khach VIP (25/08/2026). Doctype nay khong ghi so nen khong co
+	# on_submit; viec sinh ra va tat di deu qua on_update.
+	#
+	# `khi_sinh_phieu` tu doc `_ai_phai_lam` va tra ve rong khi phieu da
+	# lien he xong hoac da huy, nen mot lan goi lo hai chieu: chua goi thi
+	# giao viec, goi roi thi go viec ra khoi hop cua Sales.
+	"Vagabond Tang Qua VIP": {
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
 	},

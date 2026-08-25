@@ -107,6 +107,12 @@ CUA_NGO = {
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
 	"email_sach.py": ["kiem"],
+	# Phan he CRM, luong Tang qua khach VIP, them 25/08/2026.
+	# `truoc_khi_luu` va `_kiem_mau` la hook validate, `quet_dem` va
+	# `quet_dem_tu_dong` la nhip lap lich - ca bon deu chay tu ben trong nen
+	# TUYET DOI khong mo ra ngoai. Rieng `quet_dem` mac dinh chay thu.
+	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_sach", "doi_trang_thai",
+		"ds_dot", "thu_boc_sdt", "xem_truoc_loi_chuc"],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach"],
