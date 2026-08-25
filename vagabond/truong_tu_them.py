@@ -32,6 +32,16 @@ def dung():
 
 	huong_dan_che_bien.dung_mau_in()
 
+	# Danh muc phan he CRM. O Phan loai khach la o BAT BUOC tren phieu tang
+	# qua, nen danh muc rong nghia la Sales mo form ra khong luu duoc mot
+	# dong nao. Nap CHI THEM, khong bao gio sua va khong bao gio xoa.
+	from vagabond import tang_qua
+
+	try:
+		tang_qua.nap_danh_muc()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: nap danh muc CRM")
+
 	from vagabond import (
 		ban_hang, bao_gia, chung_tu_tien, diem_otp, duyet_ycmh, hoan_tien,
 		mua_dich_vu, noi_bo, sepay,
