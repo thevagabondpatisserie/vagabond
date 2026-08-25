@@ -57,6 +57,10 @@ def dung():
 	from vagabond import cong_no
 
 	_dung_nhom(cong_no.TRUONG_MOI, "cong_no")
+	# Tiec va B2B: neo but toan gia von ve hop dong (them 25/08/2026).
+	from vagabond import tiec
+
+	_dung_nhom(tiec.TRUONG_MOI, "tiec")
 	# Nha cung cap: o "Email phu can CC" (them 21/08/2026).
 	from vagabond import nha_cung_cap
 
