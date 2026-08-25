@@ -299,12 +299,11 @@
   },
   {
    "depends_on": "eval:doc.loai=='TK cong ty' && doc.loai_cp_thue=='Chi phi khong hop le'",
-   "description": "Khoan chi khong co hoa don he thong thi phai co chung tu khac chung minh. Chon loai roi dinh kem file that.",
+   "description": "Nhãn gọn cho dễ nhìn trên danh sách. Loại thật nằm ở từng dòng chi, lấy từ danh mục loại chứng từ dùng chung. Ô này tự điền theo dòng đầu tiên có khai loại.",
    "fieldname": "loai_chung_tu",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "label": "Loai chung tu dinh kem",
-   "mandatory_depends_on": "eval:doc.loai=='TK cong ty' && doc.loai_cp_thue=='Chi phi khong hop le'",
-   "options": "\nBảng báo giá\nHợp đồng mua bán hàng hóa giữa hai bên\nHóa đơn giá trị gia tăng đầu vào\nChứng từ thanh toán cho người bán\nPhiếu chi\nỦy nhiệm chi đã chi tiền\nPhiếu nhập kho vật liệu, hàng hóa\nPhiếu xuất kho của bên bán hàng\nBiên bản bàn giao hàng hóa\nBiên bản thanh lý hợp đồng\nBiên bản nghiệm thu"
+   "read_only": 1
   }
  ],
  "links": [],
