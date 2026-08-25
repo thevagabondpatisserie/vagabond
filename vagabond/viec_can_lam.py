@@ -43,6 +43,21 @@ from vagabond.vai_cua_hang import VAI_QLCH
 
 VAI_QUAN_LY = {"Sales Manager", VAI_QLCH}
 
+# Hai tập vai thêm 25/08/2026 cho luồng Tặng quà khách VIP.
+#
+# `VAI_SALES` lấy đúng bộ đã dùng nhất quán khắp repo (ban_hang.QUYEN_BAN_HANG,
+# van_don.QUYEN_SALES, khuyen_mai.QUYEN_KM), không tự chế bộ mới: hai danh
+# sách cho cùng một việc thì sớm muộn cũng lệch nhau, và người chịu là Sales.
+VAI_SALES = {"Sales User", "Sales Manager", "Bộ phận đặt hàng"}
+
+# Vai Marketing do MÃ NGUỒN dựng, xem vai_cua_hang.BANG_VAI. Trước 25/08/2026
+# cả hệ KHÔNG có vai nào mang nghĩa Marketing, mà cột "Phụ trách" trong bảng
+# tặng quà thì chỉ nhận đúng hai giá trị Sales và Marketing. Không có vai thì
+# cả nhóm Marketing mở màn này ra sẽ thấy trống trơn mà không ai hiểu vì sao.
+from vagabond.vai_cua_hang import VAI_MARKETING
+
+VAI_MKT = {VAI_MARKETING}
+
 # Loại phiếu. Khoá dùng cho chip, nhãn dùng để hiện.
 #
 # Thứ tự ở đây CHÍNH LÀ thứ tự chip trên màn: việc gấp và việc tiền đứng
@@ -53,6 +68,7 @@ LOAI_PHIEU = (
 	("nhap_kho", "Nhập kho", "📥"),
 	("xuat_kho", "Xuất kho", "📤"),
 	("kiem_ke", "Kiểm kê", "🧮"),
+	("tang_qua", "Tặng quà khách VIP", "🎁"),
 	("ycmh", "Yêu cầu mua hàng", "🛒"),
 	("de_nghi_chi", "Đề nghị chi", "🧾"),
 	("hoan_tien", "Hoàn tiền", "💸"),
@@ -76,6 +92,9 @@ MA_TRAN = {
 	# ngoại lệ DUY NHẤT cho phép kế toán thấy phiếu kho, đúng như anh Việt
 	# dặn: "trừ khi có bước chờ Kế toán duyệt giá trị".
 	"kiem_ke": VAI_KHO | VAI_KE_TOAN | VAI_GIAM_DOC,
+	# CRM. Tặng quà khách VIP là việc của Sales và Marketing, kho và bếp
+	# KHÔNG thấy: danh sách này có số điện thoại riêng của khách VIP.
+	"tang_qua": VAI_SALES | VAI_MKT | VAI_QUAN_LY | VAI_GIAM_DOC,
 	# Thu mua.
 	"ycmh": VAI_THU_MUA | VAI_GIAM_DOC,
 	"don_mua": VAI_THU_MUA | VAI_GIAM_DOC,
@@ -341,15 +360,82 @@ def _viec_don_mua(vai):
 	return ra
 
 
+def _viec_tang_qua(vai, nguoi):
+	"""Phiếu tặng quà khách VIP đang chờ người này.
+
+	Gom theo ĐÚNG hai trục trạng thái, thành hai nhóm việc riêng: chưa ai
+	gọi, và đã gọi rồi mà quà chưa đi. Hai trục chạy độc lập nên KHÔNG có
+	luật "phải liên hệ xong mới được tặng" - dữ liệu thật đã có dòng tặng
+	rồi mà chưa từng liên hệ, và ngược lại.
+
+	Chỉ lấy phiếu của đợt ĐANG CHẠY. Đợt đã đóng mà còn hiện lên là mỗi mùa
+	sau lại đội thêm một lớp việc chết không ai dọn.
+	"""
+	from vagabond.tang_qua import DT, DT_DOT
+
+	dang_chay = frappe.get_all(
+		DT_DOT, filters={"trang_thai_dot": "Dang chay"},
+		fields=["name", "ten_dot", "den_ngay"], limit_page_length=0)
+	if not dang_chay:
+		return []
+	ten_dot = {d["name"]: d["ten_dot"] for d in dang_chay}
+	han_dot = {d["name"]: d["den_ngay"] for d in dang_chay}
+
+	# Ai thấy được gì. Theo quyết định anh Việt chốt 25/08/2026 cho câu hỏi
+	# khách lẻ không gán người phụ trách: phiếu VÔ CHỦ dồn về Sales Manager
+	# chứ không rơi vào khoảng không.
+	rong_tam_mat = bool(vai & (VAI_QUAN_LY | VAI_GIAM_DOC))
+
+	ra = []
+	for x in frappe.get_all(
+		DT,
+		filters={"dot": ["in", list(ten_dot)], "huy": 0},
+		fields=["name", "dot", "ten_khach", "don_vi", "phan_loai",
+			"khach_cua", "nguoi_lam", "bo_phan_lam",
+			"tt_tang", "tt_lien_he", "canh_bao_sdt"],
+		order_by="modified asc", limit_page_length=200,
+	):
+		cua_minh = nguoi in (x.get("khach_cua"), x.get("nguoi_lam"))
+		vo_chu = not (x.get("khach_cua") or x.get("nguoi_lam"))
+		if not rong_tam_mat and not cua_minh:
+			# Người thường chỉ thấy phiếu của mình. Phiếu vô chủ chỉ hiện
+			# với quản lý, đúng như quyết định ở trên.
+			continue
+
+		if x["tt_lien_he"] != "Da lien he":
+			tt = "tre_hen" if _tre(han_dot.get(x["dot"])) else "chua_lien_he"
+			nhom = "Khách VIP chưa ai liên hệ"
+		elif x["tt_tang"] != "Da tang":
+			tt = "tre_hen" if _tre(han_dot.get(x["dot"])) else "chua_tang"
+			nhom = "Đã liên hệ, quà chưa đi"
+		else:
+			continue
+
+		phu = " - ".join(p for p in (x.get("don_vi"), x.get("phan_loai")) if p)
+		if vo_chu and rong_tam_mat:
+			phu = (phu + " - chưa gán người phụ trách").strip(" -")
+		ra.append({
+			"loai": "tang_qua", "ma": x["name"],
+			"nhom": "%s (%s)" % (nhom, ten_dot.get(x["dot"], x["dot"])),
+			"phu": "%s%s" % (x.get("ten_khach") or "",
+				(" - " + phu) if phu else ""),
+			"ngay": str(han_dot.get(x["dot"]) or ""),
+			"tt": tt,
+		})
+	return ra
+
+
 NHAN_TT = {
 	"cho_nhan": "chờ nhận", "cho_soan": "chờ soạn", "tre_hen": "trễ hẹn",
 	"cho_lam": "chờ làm", "ban_nhap": "bản nháp", "cho_duyet": "chờ duyệt",
 	"cho_chi": "chờ chi", "cho_ket_thuc": "chờ kết thúc", "qua_han": "quá hẹn",
+	"chua_lien_he": "chưa liên hệ", "chua_tang": "chưa tặng",
 }
 MAU_TT = {
 	"tre_hen": "#c0392b", "qua_han": "#c0392b", "cho_soan": "#c77700",
 	"cho_duyet": "#c77700", "cho_nhan": "#0a8f9e", "cho_lam": "#7a4bbf",
 	"ban_nhap": "#8a8f98", "cho_chi": "#b3261e", "cho_ket_thuc": "#0a8a4a",
+	"chua_lien_he": "#c77700", "chua_tang": "#7a4bbf",
 }
 
 
@@ -373,6 +459,7 @@ def danh_sach(loai="", trang_thai=""):
 		("de_nghi_chi", lambda: _viec_de_nghi_chi(vai)),
 		("hoan_tien", lambda: _viec_hoan_tien(vai)),
 		("don_mua", lambda: _viec_don_mua(vai)),
+		("tang_qua", lambda: _viec_tang_qua(vai, nguoi)),
 	]
 
 	tat_ca = []

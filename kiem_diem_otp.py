@@ -4331,11 +4331,16 @@ def _nap_ham_vcl43():
 	# trong mot khong gian rong, nen phai nap hang so do vao truoc. Doc
 	# THANG tu ma nguon, khong go lai chuoi o day - go lai la lech chinh
 	# ta ma khong ai thay.
+	#
+	# v304: them VAI_MARKETING, cung mot ly do va cung mot cach boc. Vai
+	# Marketing do ma nguon dung, xem vai_cua_hang.BANG_VAI.
 	_vch = open("vagabond/vai_cua_hang.py", encoding="utf-8").read()
 	mt = {}
-	exec(compile(re.search(r"^VAI_QLCH = .*$", _vch, re.M).group(0),
-				 "vai_cua_hang:VAI_QLCH", "exec"), mt, mt)
-	for ten in ("VAI_KE_TOAN", "VAI_THU_MUA", "VAI_KHO", "VAI_GIAM_DOC", "VAI_QUAN_LY"):
+	for _hs in ("VAI_QLCH", "VAI_MARKETING"):
+		exec(compile(re.search(r"^%s = .*$" % _hs, _vch, re.M).group(0),
+					 "vai_cua_hang:%s" % _hs, "exec"), mt, mt)
+	for ten in ("VAI_KE_TOAN", "VAI_THU_MUA", "VAI_KHO", "VAI_GIAM_DOC",
+			"VAI_QUAN_LY", "VAI_SALES", "VAI_MKT"):
 		m = re.search(r"^%s = \{.*?\}" % re.escape(ten), src, re.S | re.M)
 		exec(compile(m.group(0), "viec_can_lam:%s" % ten, "exec"), mt, mt)
 	m = re.search(r"^MA_TRAN = \{.*?^\}", src, re.S | re.M)

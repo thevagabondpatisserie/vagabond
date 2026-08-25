@@ -62,13 +62,27 @@ VAI_THEM_SAN = ("Stock Manager", "Kiểm kê viên")
 # hoach san xuat, rong hon nhieu so voi viec can lam.
 VAI_QLCT = "VGB - Quản lý công thức"
 
+# Vai thu ba, them 25/08/2026 cung dot dung phan he CRM.
+#
+# Anh Viet chot: he thong chua he co vai nao mang nghia Marketing, ma luong
+# Tang qua khach VIP thi co cot "Phu trach" chi nhan dung hai gia tri Sales
+# va Marketing. Khong co vai thi ca nhom Marketing mo man Viec can lam ra
+# se thay trong tron, va khong ai hieu vi sao.
+#
+# Dat ten tran la "Marketing" chu khong "VGB - Marketing" theo dung loi anh
+# Viet dan. Hai vai VGB o tren mang tien to vi chung la HO SO vai gop nhieu
+# quyen; cai nay la mot vai bo phan don le.
+VAI_MARKETING = "Marketing"
+
 # Bang vai do MA NGUON dung. Them mot vai moi la them mot dong o day.
 #   vai      ten vai se dung
-#   ho_so    ho so vai duoc nhan no
+#   ho_so    ho so vai duoc nhan no. De rong thi CHI dung vai, khong gan
+#            vao ho so nao - dung cho vai bo phan don le.
 #   them_san cac vai co san cua ERPNext can them kem
 BANG_VAI = (
 	{"vai": VAI_QLCH, "ho_so": HO_SO_NHAN, "them_san": VAI_THEM_SAN},
 	{"vai": VAI_QLCT, "ho_so": "VGB - Kế toán giá thành", "them_san": ()},
+	{"vai": VAI_MARKETING, "ho_so": "", "them_san": ()},
 )
 
 
@@ -94,6 +108,11 @@ def dung():
 	for muc in BANG_VAI:
 		try:
 			_dung_vai(muc["vai"])
+			# Vai bo phan don le thi khong co ho so nao de gan. Goi
+			# `_gan_vao_ho_so` voi ho so rong chi de lai mot dong bao loi
+			# "thieu ho so" trong nhat ky moi lan migrate, khong sua duoc gi.
+			if not muc.get("ho_so"):
+				continue
 			them = _gan_vao_ho_so(muc)
 			if them:
 				_luu_lai_nguoi_dung(muc["ho_so"])

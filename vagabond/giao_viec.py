@@ -35,6 +35,7 @@ vì một cái nhãn. Nên tất cả đều nuốt lỗi và chỉ ghi log.
 """
 
 import frappe
+from frappe.utils import cint
 
 # Trần người nhận cho một phiếu. Một vai có 20 người mà giao hết thì hộp
 # việc của ai cũng đầy rác và không ai coi là việc của mình nữa.
@@ -324,6 +325,12 @@ def _het_viec_chua(doc):
 		return (doc.get("status") or "") in XONG_MR
 	if dt == "Purchase Receipt":
 		return int(doc.get("docstatus") or 0) == 1
+	if dt == "Vagabond Tang Qua VIP":
+		# Việc ở đây là LIÊN HỆ trước khi tặng. Đã gọi rồi thì hết việc, dù
+		# quà chưa đi: bước giao quà bám theo vận đơn chứ không bám ở đây.
+		return bool(cint(doc.get("huy"))
+			or (doc.get("tt_lien_he") or "") == "Da lien he")
+
 	if dt == "Phieu Kiem Ke":
 		return (doc.get("trang_thai") or "") != "Chờ duyệt"
 	return False
@@ -372,6 +379,28 @@ def _ai_phai_lam(doc):
 		return (
 			nguoi,
 			"%s: phiếu nhập kho chờ đếm hàng (%s)" % (doc.name, doc.get("supplier_name") or ""),
+		)
+
+	if dt == "Vagabond Tang Qua VIP":
+		# Đã gọi rồi hoặc đã huỷ thì hết việc. `_het_viec_chua` cũng nói
+		# đúng câu này; giữ cả hai chỗ vì `khi_sinh_phieu` chạy `_het_viec`
+		# trước để GỠ, còn nhánh này quyết định giao cho AI.
+		if cint(doc.get("huy")) or (doc.get("tt_lien_he") or "") == "Da lien he":
+			return ([], "")
+		# Có tên người cụ thể thì giao đích danh. Không thì giao cả bộ phận,
+		# đúng luật đã ghi ở đầu tệp: viết cứng một cái tên thì ai nghỉ phép
+		# là cả chuỗi tắc.
+		if doc.get("nguoi_lam"):
+			nguoi = [doc.nguoi_lam]
+		else:
+			from vagabond.viec_can_lam import VAI_MKT, VAI_SALES
+
+			bp = (doc.get("bo_phan_lam") or "").strip()
+			nguoi = _nguoi_theo_vai(VAI_MKT if bp == "Marketing" else VAI_SALES)
+		return (
+			nguoi,
+			"%s: %s chờ liên hệ trước khi tặng quà"
+			% (doc.name, doc.get("ten_khach") or ""),
 		)
 
 	if dt == "Phieu Kiem Ke":
