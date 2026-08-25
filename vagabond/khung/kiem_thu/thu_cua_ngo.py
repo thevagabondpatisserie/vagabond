@@ -276,6 +276,12 @@ CUA_NGO = {
 	"huong_dan_che_bien.py": [
 		"chi_tiet", "danh_sach", "luu", "soat_cong_thuc_da_doi",
 	],
+	# Mang B2B va Tiec, lam theo don khong dinh muc (them 25/08/2026).
+	# `xuat_nvl` va `huy_xuat_nvl` GHI THANG vao so kho va so cai, nen
+	# danh sach nay chot ky: khong cua nao khac duoc lo ra ngoai.
+	"tiec.py": [
+		"chi_tiet_tiec", "don_tiec", "huy_xuat_nvl", "lai_lo", "xuat_nvl",
+	],
 }
 
 
