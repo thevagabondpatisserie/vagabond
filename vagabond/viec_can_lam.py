@@ -425,6 +425,109 @@ def _viec_tang_qua(vai, nguoi):
 	return ra
 
 
+def _viec_ycmh(vai):
+	"""Phiếu yêu cầu mua hàng còn dòng chưa ai duyệt.
+
+	TRẢ NỢ. Loại `ycmh` đã khai trong LOAI_PHIEU và MA_TRAN từ 20/08/2026
+	nhưng KHÔNG có hàm nguồn nào trong danh sách `nguon`, nên chip này
+	vĩnh viễn đếm 0 và không bao giờ hiện ra. Uyên vẫn phải nhớ tự mở màn
+	Duyệt yêu cầu mua để xem còn gì.
+
+	Dấu hiệu "chưa ai duyệt" phải đọc `nguoi_duyet_dong` chứ KHÔNG đọc
+	`sl_duyet is None`. Lý do chép từ duyet_ycmh.py: `sl_duyet` kiểu Float,
+	mà Float trong Frappe không giữ được giá trị trống, luôn về 0, nên mọi
+	dòng chưa ai chạm tới đều đọc ra 0 tức là "từ chối". Sự cố 15 tới
+	17/08/2026: 1.321 dòng bị coi là đã từ chối, hai ngày không ra được một
+	đơn mua nào.
+	"""
+	from vagabond import duyet_ycmh as dy
+
+	phieu = frappe.get_all(
+		"Material Request",
+		filters={
+			"material_request_type": dy.LOAI, "docstatus": 1,
+			"status": ["in", ["Pending", "Partially Ordered"]],
+		},
+		fields=["name", "schedule_date", "bo_phan_yeu_cau", "nguoi_lap_ten"],
+		order_by="schedule_date asc", limit_page_length=60,
+	)
+	if not phieu:
+		return []
+	# Một câu hỏi cho CẢ TẬP, không phải một câu cho mỗi phiếu.
+	con_cho = {}
+	for r in frappe.db.sql(
+		"""select mri.parent as parent, count(*) as cho
+		from `tabMaterial Request Item` mri
+		where mri.parent in %(ds)s and mri.docstatus = 1
+			and """ + dy.SQL_CHUA_DUYET + """
+		group by mri.parent""",
+		{"ds": [p["name"] for p in phieu]},
+		as_dict=True,
+	):
+		con_cho[r["parent"]] = cint(r["cho"])
+
+	ra = []
+	for p in phieu:
+		n = con_cho.get(p["name"]) or 0
+		if not n:
+			continue
+		ra.append({
+			"loai": "ycmh", "ma": p["name"],
+			"nhom": "Yêu cầu mua còn dòng chưa duyệt",
+			"phu": "%s · còn %d món chờ duyệt"
+				% (p.get("bo_phan_yeu_cau") or p.get("nguoi_lap_ten") or "", n),
+			"ngay": str(p.get("schedule_date") or ""),
+			"tt": "tre_hen" if _tre(p.get("schedule_date")) else "cho_duyet",
+		})
+	return ra
+
+
+def _viec_ho_so_tt(vai):
+	"""Hồ sơ thanh toán, CHỈ những bước đúng vai người đang xem.
+
+	TRẢ NỢ, cùng lần với `ycmh`. Cách chia bước chép nguyên nếp
+	`_viec_de_nghi_chi`: thu mua thấy bản nháp mình còn treo, kế toán thấy
+	bước chờ kế toán và bước đã duyệt chờ chuyển tiền, giám đốc thấy bước
+	chờ giám đốc. Không ai phải lội qua bước của người khác.
+	"""
+	from vagabond import ho_so_tt as hs
+
+	buoc = []
+	if vai & VAI_THU_MUA or vai & VAI_GIAM_DOC:
+		buoc.append(hs.TT_NHAP)
+	if vai & VAI_KE_TOAN or vai & VAI_GIAM_DOC:
+		buoc.append(hs.TT_CHO_FIN)
+		buoc.append(hs.TT_DA_DUYET)
+	if vai & VAI_GIAM_DOC:
+		buoc.append(hs.TT_CHO_GD)
+	if not buoc:
+		return []
+
+	ra = []
+	for x in frappe.get_all(
+		"Vagabond Ho So TT",
+		filters={"trang_thai": ["in", buoc]},
+		fields=[
+			"name", "trang_thai", "ten_ncc", "ten_nguoi_ung",
+			"tong_tien", "con_lai", "han_tra_som_nhat",
+		],
+		order_by="han_tra_som_nhat asc", limit_page_length=60,
+	):
+		ra.append({
+			"loai": "ho_so_tt", "ma": x["name"],
+			"nhom": hs.NHAN.get(x["trang_thai"]) or x["trang_thai"],
+			"phu": x.get("ten_ncc") or x.get("ten_nguoi_ung") or "",
+			"tien": float(x.get("con_lai") or x.get("tong_tien") or 0),
+			"ngay": str(x.get("han_tra_som_nhat") or ""),
+			"tt": (
+				"tre_hen" if _tre(x.get("han_tra_som_nhat"))
+				else ("cho_chi" if x["trang_thai"] == hs.TT_DA_DUYET
+					else ("ban_nhap" if x["trang_thai"] == hs.TT_NHAP else "cho_duyet"))
+			),
+		})
+	return ra
+
+
 NHAN_TT = {
 	"cho_nhan": "chờ nhận", "cho_soan": "chờ soạn", "tre_hen": "trễ hẹn",
 	"cho_lam": "chờ làm", "ban_nhap": "bản nháp", "cho_duyet": "chờ duyệt",
@@ -460,6 +563,8 @@ def danh_sach(loai="", trang_thai=""):
 		("hoan_tien", lambda: _viec_hoan_tien(vai)),
 		("don_mua", lambda: _viec_don_mua(vai)),
 		("tang_qua", lambda: _viec_tang_qua(vai, nguoi)),
+		("ycmh", lambda: _viec_ycmh(vai)),
+		("ho_so_tt", lambda: _viec_ho_so_tt(vai)),
 	]
 
 	tat_ca = []
