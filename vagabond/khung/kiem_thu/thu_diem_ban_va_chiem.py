@@ -142,7 +142,7 @@ def _():
 	# Phep hoi phai la phep hoi TOAN HE, khong chi trong luong cua minh.
 	dung("có phép hỏi toàn hệ", "def chu_cua_giao_dich(" in dss)
 	dung("phép hỏi có soi cả hoá đơn bán", 'HD_BAN = {"doctype": "Sales Invoice"' in dss)
-	dung("sổ chung có nạp công nợ", "from vagabond import cong_no" in dss)
+	dung("sổ chung có kê tên luồng công nợ", '"cong_no", "de_nghi_chi", "hoan_tien"' in dss)
 
 
 @ca("phép cộng tiền theo mã bill không còn tự cộng tay nữa")
@@ -267,3 +267,106 @@ def _():
 	# Hai man danh sach phai loc theo diem chu khong theo ma quay, khong thi
 	# diem Sales mo ra thay rong va cai chan trung bill khong bao gio no.
 	la("hai màn danh sách đều lọc theo điểm", bh.count("loc = _loc_diem_ban(quay)"), 2)
+
+
+# ------------------------------------------- 5. so doi soat phai nap DU luong
+
+@ca("sổ đối soát KHÔNG bỏ sót luồng khi sổ đã có sẵn một luồng")
+def _():
+	# Ca nay CHAY THAT chu khong soi ma nguon, vi day dung la cho bo kiem cu
+	# lot luoi: ma nguon co du ba dong nhap, chay len thi thieu.
+	#
+	# Ban v295 thoat som khi so da co phan tu. Frappe nap mo dun theo hooks,
+	# nen mo dun nao duoc nap truoc la tu khai luong cua no, so thanh khac
+	# rong, roi moi lan goi sau do deu thoat ngay o dong dau va cac luong con
+	# lai KHONG BAO GIO duoc nhap.
+	#
+	# Doc duoc tren site that ngay 25/08/2026 ngay sau khi deploy v299: so chi
+	# co `hoan_tien`, thieu `cong_no`. Phep hoi mot dong sao ke da co chu vi
+	# the mu mot phan, va mot lan khach chuyen tien co the duoc gach cho hai
+	# chung tu o hai luong khac nhau ma khong ai chan.
+	#
+	# Ca nay chi dung `de_nghi_chi` va `hoan_tien` de dung lai canh do. KHONG
+	# dung `cong_no`: mo dun do keo theo thu vien mang, ma may chay CI thi tay
+	# khong. Ca kiem nao keo theo thu vien mang la ca kiem dat sai cho.
+	import sys
+
+	import vagabond as goi
+	from vagabond import doi_soat_sepay as dss
+
+	dss.nap_so()
+	giu_so = dict(dss._SO)
+	ten_mo = ("de_nghi_chi", "hoan_tien")
+	giu_mo = {t: sys.modules["vagabond." + t] for t in ten_mo
+		if "vagabond." + t in sys.modules}
+	dung("dựng lại được cảnh thật", len(giu_mo) == 2)
+	try:
+		# So KHAC RONG san, dung canh tren site that.
+		dss._SO.clear()
+		dss._SO["mot_luong_da_khai"] = {"chieu": dss.RA, "truong_gd": "ma_gd"}
+		# Phai go CA hai cho: `sys.modules` VA thuoc tinh tren goi. Chi go
+		# `sys.modules` thi phep nhap van doc duoc thuoc tinh cu, khong nhap
+		# lai, va phep dung lai sai canh.
+		for t in ten_mo:
+			sys.modules.pop("vagabond." + t, None)
+			if hasattr(goi, t):
+				delattr(goi, t)
+		dss.nap_so()
+		dung("sổ đã có luồng vẫn nạp tiếp luồng thanh toán nội bộ", "ttnb" in dss._SO)
+		dung("sổ đã có luồng vẫn nạp tiếp luồng hoàn tiền", "hoan_tien" in dss._SO)
+	finally:
+		for t, m in giu_mo.items():
+			sys.modules["vagabond." + t] = m
+			setattr(goi, t, m)
+		dss._SO.clear()
+		dss._SO.update(giu_so)
+
+
+@ca("một luồng hỏng không được kéo sập cả sổ đối soát")
+def _():
+	# Ngay 25/08/2026 may CI tay khong khong nhap noi `cong_no` vi mo dun do
+	# keo theo thu vien mang. Neu gom ca ba phep nhap vao MOT khoi thi mot mo
+	# dun hong la hai luong con lai bien mat lang le.
+	import sys
+
+	import vagabond as goi
+	from vagabond import doi_soat_sepay as dss
+
+	la("sổ khai đủ ba mô đun", sorted(dss.MO_DUN_KHAI),
+		["cong_no", "de_nghi_chi", "hoan_tien"])
+
+	dss.nap_so()
+	giu_so = dict(dss._SO)
+	giu_mo = {t: sys.modules["vagabond." + t] for t in dss.MO_DUN_KHAI
+		if "vagabond." + t in sys.modules}
+	hong = "vagabond.de_nghi_chi"
+	try:
+		dss._SO.clear()
+		for t in dss.MO_DUN_KHAI:
+			sys.modules.pop("vagabond." + t, None)
+			if hasattr(goi, t):
+				delattr(goi, t)
+		# Dung mot mo dun HONG: nhap la no no.
+		class _No(object):
+			def __getattr__(self, _):
+				raise ImportError("dựng lại mô đun hỏng")
+		sys.modules[hong] = _No()
+		dss.nap_so()
+		dung("luồng hoàn tiền vẫn vào sổ dù một mô đun hỏng", "hoan_tien" in dss._SO)
+	finally:
+		sys.modules.pop(hong, None)
+		for t, m in giu_mo.items():
+			sys.modules["vagabond." + t] = m
+			setattr(goi, t, m)
+		dss._SO.clear()
+		dss._SO.update(giu_so)
+
+
+@ca("cửa hỏi chủ của một dòng sao kê soi ĐỦ mọi luồng đang có")
+def _():
+	from vagabond import doi_soat_sepay as dss
+
+	dss.nap_so()
+	dung("sổ có luồng hoàn tiền", "hoan_tien" in dss._SO)
+	dung("sổ có luồng thanh toán nội bộ", "ttnb" in dss._SO)
+	dung("cửa hỏi có soi riêng hoá đơn bán", dss.HD_BAN["doctype"] == "Sales Invoice")
