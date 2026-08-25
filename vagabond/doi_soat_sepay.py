@@ -62,6 +62,7 @@ theo số tiền với dung sai 2 phần trăm - đơn 700.000 đ chấp nhận 
 viên cho người nhìn. Không có mã thì máy trả về "không", không đoán.
 """
 
+import importlib
 import re
 
 import frappe
@@ -110,6 +111,14 @@ VAO = "vao"
 
 _SO = {}
 
+# Co chan de quy: mot mo dun nghiep vu nhap nguoc tep nay ngay luc no dang
+# duoc nap, roi goi nap_so, roi nap_so nhap lai chinh no. Co nay chan vong do.
+# KHONG duoc thay bang phep do "_SO co rong khong": xem ghi chu o nap_so.
+_DANG_NAP = False
+
+# Cac mo dun nghiep vu tu khai luong cua minh ngay luc duoc nap.
+MO_DUN_KHAI = ("cong_no", "de_nghi_chi", "hoan_tien")
+
 
 def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		ten_man="", truong_gd="ma_gd", loc_chiem=None,
@@ -142,12 +151,41 @@ def _ban(loai):
 
 
 def nap_so():
-	"""Nạp mọi bản mô tả. Gọi lười, vì mỗi mô đun lại nhập ngược tệp này."""
-	if _SO:
+	"""Nạp mọi bản mô tả. Gọi lười, vì mỗi mô đun lại nhập ngược tệp này.
+
+	KHÔNG được thoát sớm vì `_SO` đã có phần tử. Bản v295 làm đúng như vậy và
+	nó im lặng bỏ sót luồng: một mô đun nghiệp vụ bất kỳ được Frappe nạp trước
+	(qua hooks) là tự khai luồng của nó, `_SO` thành khác rỗng, rồi mọi lần
+	gọi `nap_so` sau đó đều thoát ngay ở dòng đầu và HAI luồng còn lại không
+	bao giờ được nhập.
+
+	Hậu quả đúng vào chỗ đau nhất: `chu_cua_giao_dich` duyệt `_SO` để hỏi một
+	dòng sao kê đã có chủ chưa. Sổ thiếu luồng nghĩa là phép hỏi mù một phần,
+	và một lần khách chuyển tiền có thể được gạch cho hai chứng từ ở hai luồng
+	khác nhau mà không ai chặn. Đọc được trên site thật ngày 25/08/2026: sổ chỉ
+	có `hoan_tien`, thiếu cả `de_nghi_chi` lẫn `cong_no`.
+
+	Nay lần nào cũng nhập đủ ba. Nhập lại một mô đun đã nạp là việc rẻ, Python
+	giữ sẵn trong bộ nhớ. Chỉ chặn ĐÚNG cái cần chặn là vòng đệ quy, bằng cờ
+	riêng chứ không bằng phép đo `_SO`.
+	"""
+	global _DANG_NAP
+	if _DANG_NAP:
 		return
-	from vagabond import cong_no  # noqa: F401
-	from vagabond import de_nghi_chi  # noqa: F401
-	from vagabond import hoan_tien  # noqa: F401
+	_DANG_NAP = True
+	try:
+		for ten in MO_DUN_KHAI:
+			try:
+				importlib.import_module("vagabond." + ten)
+			except Exception:
+				# Nhap RIENG tung mo dun. Gom ca ba vao mot khoi thi mot mo
+				# dun hong keo sap ca so va cac luong con lai bien mat lang
+				# le, dung cai kieu hong ma cong kiem tang khung khong thay
+				# vi no chay tren mot moi truong day du hon may CI.
+				frappe.log_error(frappe.get_traceback(),
+					"doi_soat_sepay: khong nap duoc luong %s" % ten)
+	finally:
+		_DANG_NAP = False
 
 	if not _SO:
 		frappe.throw("Sổ đối soát SePay rỗng: chưa mô đun nào khai luồng của mình.")
