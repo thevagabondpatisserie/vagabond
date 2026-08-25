@@ -72,6 +72,9 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ct-hd{border:0;background:#eef7ff;color:#0b6bcb;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;line-height:1}
 .ct-hd.chua{background:#fff4e5;color:#8a5a00}
 .ct-hd.lech{background:#fdeaea;color:#b3261e}
+/* Nut huy mot phieu xuat NVL cua tiec (v303). Do vi no dao nguoc but
+   toan da vao so cai, khong phai mot thao tac nhe. */
+.tc-huy{border:0;background:#fdeaea;color:#b3261e;border-radius:7px;padding:5px 9px;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;line-height:1}
 /* display:block la CO Y, dung xoa. Bootstrap cua Frappe dat
    .card{display:flex;flex-direction:column} tren TOAN BO trang. Hau qua:
    moi the inline nam truc tiep trong .card (<b>, <i>, <span>) bi trinh
