@@ -39,6 +39,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_hoa_don_am, thu_hoa_don_vat, thu_hoan_tien_noi_dung, thu_hoan_ung_v279, thu_hop_dong, thu_hop_qua,
 	thu_huy_don_nhap, thu_ke_toan_mua,
 	thu_kho_san_xuat, thu_may_in_qz, thu_kiem_that, thu_lo_hang, thu_luat, thu_ma_vach, thu_mau_in,
+	thu_loai_chung_tu_dung_chung,
 	thu_mua_dich_vu, thu_mua_vu_ngay,
 	thu_ngay_pancake,
 	thu_nhan_banh, thu_nha_cung_cap, thu_phantom, thu_phieu_chi_va_cuon, thu_quyen_ap, thu_tien_ca, thu_tim_ncc, thu_tinh,
