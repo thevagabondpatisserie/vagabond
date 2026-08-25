@@ -109,6 +109,32 @@ def doi_mot_dong(qty, he_so, rate, stock_qty=None):
 	return (moi, 1.0, rate / he_so)
 
 
+def sua_mot_dong(qty, he_so, rate):
+	"""Số quả lỡ gõ vào ô gram thì nhân ngược lại ra gram. THUẦN.
+
+	Người nhập tính "1.000 gram chia 60 bằng 16,67 quả" rồi gõ 16,67 vào ô
+	đang để đơn vị Gram. Nên con số đang nằm đó chính là SỐ QUẢ, tức là số
+	theo đơn vị KHO. Muốn về gram thì chia cho hệ số quy đổi:
+
+	    gram = số quả / (1/60) = số quả * 60
+
+	Trả về (qty_moi, stock_qty_moi, amount_moi).
+
+	`stock_qty_moi` bằng đúng `qty` cũ, và đó không phải trùng hợp: con số
+	người ta gõ vốn đã là số theo đơn vị kho ngay từ đầu, chỉ có cái nhãn
+	đơn vị bên cạnh là sai. Phép sửa này chỉ trả cái nhãn về đúng chỗ.
+
+	Không đụng tới `rate`: đơn giá mỗi gram không đổi, chỉ số gram đổi.
+	"""
+	qty = float(qty or 0)
+	he_so = float(he_so or 1)
+	rate = float(rate or 0)
+	if he_so <= 0:
+		return (qty, qty, qty * rate)
+	qty_moi = qty / he_so
+	return (qty_moi, qty, qty_moi * rate)
+
+
 def can_doi(uom, stock_uom):
 	"""Dong nay co can doi khong. THUAN.
 
@@ -220,6 +246,8 @@ def soi_ghi_nham(ma_trung=None):
 				"dang_ghi": flt(t.qty), "tong_dong_khac": round(khac, 2),
 				"gram_dang_thieu": round(thieu, 2), "neu_hieu_la_qua": round(nhu_qua, 2),
 				"dang_dung_may_qua": flt(t.stock_qty),
+				"dong": t.name, "he_so": flt(t.conversion_factor),
+				"rate": flt(t.rate), "amount": flt(t.amount),
 			})
 	return {"so_cong_thuc_nghi": len(ra), "danh_sach": ra}
 
@@ -329,3 +357,102 @@ def _dam_bao_quy_doi(ma_trung=None):
 		doc.append("uoms", {"uom": DVT_DICH, "conversion_factor": 1.0})
 		doc.flags.ignore_permissions = True
 		doc.save(ignore_permissions=True)
+
+
+@frappe.whitelist()
+def sua_ghi_nham(chay_that=0, ma_trung=None):
+	"""Sửa các dòng trứng lỡ ghi SỐ QUẢ vào ô gram, đưa về đúng gram.
+
+	Anh Việt giao 25/08/2026, sau khi Khải đã sửa ba trong bảy công thức
+	và bốn công thức còn lại nằm đó nhiều ngày:
+	*"Cái 4 công thức trứng em tự sửa dùm anh luôn rồi chạy hàng loạt."*
+
+	MẶC ĐỊNH KHÔNG GHI GÌ. Phải truyền `chay_that=1` mới ghi.
+
+	VÌ SAO SỬA ĐƯỢC MÀ KHÔNG PHẢI ĐOÁN
+	----------------------------------
+	Con số đang nằm trong ô gram chia đúng cho hệ số quy đổi ra một số gram
+	tròn trịa, và số gram đó lấp đúng chỗ thiếu của mẻ. Ba trên bốn công
+	thức khớp tuyệt đối cả hai phép: nhân 60 ra đúng số tròn, và cộng vào
+	các dòng khác ra đúng khối lượng mẻ. Không phải suy diễn.
+
+	Công thức thứ tư là BTP Sable: nhân 60 ra đúng 50 gram tròn, nhưng cộng
+	lại thì mẻ hụt 13 gram trên 544, tức 2,4 phần trăm. Phép nhân 60 vẫn là
+	cách đọc đúng, còn 13 gram kia là chỗ mẻ ghi lỏng từ trước. Hàm này ghi
+	rõ chỗ lệch đó ra để bếp trưởng nhìn thấy chứ không im lặng làm tròn.
+
+	VÌ SAO GHI THẲNG BẰNG db.set_value
+	----------------------------------
+	Cùng lý do đã ghi ở `doi_het`: công thức đã ghi sổ, ERPNext không cho
+	sửa, mà huỷ rồi dựng bản mới thì đứt liên kết với lệnh sản xuất cũ.
+	Khác `doi_het` một điểm quan trọng: phép này CÓ làm đổi `stock_qty` và
+	`amount`, vì bản chất nó sửa một con số sai chứ không phải đổi cách
+	viết. Nên nó cộng lại giá vốn của công thức cha ngay tại chỗ.
+
+	KHÔNG ĐỤNG DỮ LIỆU ĐÃ GHI SỔ
+	----------------------------
+	Chỉ sửa định mức trong công thức. Không đụng một phiếu nhập xuất kho
+	nào, không đụng một bút toán nào, không đụng hoá đơn. Các lệnh sản xuất
+	đã chạy giữ nguyên số liệu của chúng.
+
+	Lặp lại được: sửa xong thì `soi_ghi_nham` không còn nghi dòng đó nữa
+	nên gọi lại lần hai không đổi gì thêm.
+	"""
+	_vai()
+	chay_that = int(chay_that or 0)
+	nghi = soi_ghi_nham(ma_trung)
+	ke, da = [], 0
+	for n in nghi["danh_sach"]:
+		qty_moi, sq_moi, amt_moi = sua_mot_dong(
+			n["dang_ghi"], n["he_so"], n["rate"])
+		lech_me = round(
+			flt(n["me"]) - flt(n["tong_dong_khac"]) - qty_moi, 2)
+		ke.append({
+			"bom": n["bom"], "mon": n["mon"], "dong": n["dong"],
+			"truoc": {"qty": n["dang_ghi"], "stock_qty": n["dang_dung_may_qua"],
+					  "amount": n["amount"]},
+			"sau": {"qty": round(qty_moi, 6), "stock_qty": round(sq_moi, 6),
+					"amount": round(amt_moi, 2)},
+			"gia_von_tang": round(amt_moi - flt(n["amount"]), 2),
+			"me_con_lech_gram": lech_me,
+		})
+	if not chay_that:
+		return {"so_dong": len(ke), "da_ghi": 0, "ke_hoach": ke,
+			"ghi_chu": "Chạy thử, chưa ghi gì. Gọi lại với chay_that=1 để ghi thật."}
+
+	for k in ke:
+		try:
+			frappe.db.set_value("BOM Item", k["dong"], {
+				"qty": k["sau"]["qty"],
+				"stock_qty": k["sau"]["stock_qty"],
+				"amount": k["sau"]["amount"],
+				"base_amount": k["sau"]["amount"],
+			}, update_modified=False)
+			_cong_lai_gia_von(k["bom"], k["gia_von_tang"])
+			da += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+				"doi_dvt_bom: sua ghi nham %s" % k["bom"])
+	frappe.db.commit()
+	return {"so_dong": len(ke), "da_ghi": da, "ke_hoach": ke,
+		"ghi_chu": "Đã ghi. Chạy lại soi_ghi_nham để xác nhận không còn dòng nghi."}
+
+
+def _cong_lai_gia_von(bom, them):
+	"""Cộng phần chênh vào giá vốn nguyên vật liệu của công thức cha.
+
+	Cộng chênh lệch chứ không tính lại từ đầu: tính lại là đụng vào giá của
+	mọi dòng khác, mà những dòng đó không sai, không có lý do gì để thay.
+	"""
+	them = flt(them)
+	if not them:
+		return
+	cu = frappe.db.get_value("BOM", bom,
+		["raw_material_cost", "total_cost", "base_raw_material_cost",
+		 "base_total_cost"], as_dict=True) or {}
+	frappe.db.set_value("BOM", bom, {
+		"raw_material_cost": flt(cu.get("raw_material_cost")) + them,
+		"total_cost": flt(cu.get("total_cost")) + them,
+		"base_raw_material_cost": flt(cu.get("base_raw_material_cost")) + them,
+		"base_total_cost": flt(cu.get("base_total_cost")) + them,
+	}, update_modified=False)
