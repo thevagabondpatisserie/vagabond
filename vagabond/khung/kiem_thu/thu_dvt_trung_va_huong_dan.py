@@ -354,3 +354,71 @@ def _():
 	dung("màn công thức nhận vai mới", "VAI_QLCT" in ct)
 	dung("import chứ không chép chuỗi", "from vagabond.vai_cua_hang import VAI_QLCT" in ct)
 	dung("không chép chuỗi tên vai", '"VGB - Quản lý công thức"' not in ct)
+
+
+# ---------------------------------------------------------------------------
+# Sửa dòng trứng lỡ ghi SỐ QUẢ vào ô gram - anh Việt giao 25/08/2026.
+#
+# Người nhập tính "1.000 gram chia 60 bằng 16,67 quả" rồi gõ 16,67 vào ô đang
+# để đơn vị Gram. Con số đó vốn đã là số theo đơn vị KHO, chỉ cái nhãn đơn vị
+# bên cạnh là sai. Phép sửa chia lại cho hệ số để trả về gram.
+# ---------------------------------------------------------------------------
+
+
+@ca("sua ghi nham: so qua go vao o gram thi nhan lai ra dung so gram")
+def _sua_ra_gram():
+	# Ca thật BTP Flan earlgrey: mẻ 5.600 gram, các dòng khác cộng 4.600,
+	# nên phần trứng đúng 1.000 gram. Ô đang ghi 16,666667.
+	q, sq, amt = D["sua_mot_dong"](16.666667, 0.016666667, 36.399580854)
+	la("ra dung 1000 gram", round(q, 2), 1000.0)
+	# Số quả KHÔNG đổi: 16,67 quả vẫn là 16,67 quả, chỉ cái nhãn đơn vị đổi.
+	la("so qua giu nguyen", round(sq, 6), 16.666667)
+	la("thanh tien tinh lai theo gram", round(amt, 2), 36399.58)
+
+
+@ca("sua ghi nham: ba con so con lai cua bon cong thuc that")
+def _ba_ca_that():
+	# BTP Sable, ô ghi 0,83333335 -> 50 gram tròn.
+	q, sq, _ = D["sua_mot_dong"](0.83333335, 0.016666667, 36.399580854)
+	la("sable ra 50 gram", round(q, 2), 50.0)
+	la("sable giu 0,833 qua", round(sq, 6), 0.833333)
+	# BTP Almond cream, ô ghi 1 -> 60 gram, đúng bằng một quả.
+	q2, _, _ = D["sua_mot_dong"](1.00000002, 0.016666667, 36.399580854)
+	la("almond cream ra 60 gram", round(q2, 2), 60.0)
+	# BTP Corn almond biscuit, ô ghi 10 -> 600 gram.
+	q3, _, _ = D["sua_mot_dong"](10.0000002, 0.016666667, 36.399580854)
+	la("corn almond ra 600 gram", round(q3, 2), 600.0)
+
+
+@ca("sua ghi nham: sua xong thi phep soi khong con nghi dong do nua")
+def _sua_xong_het_nghi():
+	# Đây là cái chốt của cả việc: sửa xong thì `soi_ghi_nham` tự trả rỗng,
+	# và cái chặn của `doi_het` tự mở. Không ai phải gỡ chặn bằng tay.
+	me, khac = 5600.0, 4600.0
+	co_nghi_truoc, _, _ = D["nghi_ghi_nham"](me, khac, 16.666667)
+	dung("truoc khi sua thi may van nghi", co_nghi_truoc)
+	q, _, _ = D["sua_mot_dong"](16.666667, 0.016666667, 36.399580854)
+	co_nghi_sau, thieu_sau, _ = D["nghi_ghi_nham"](me, khac, q)
+	dung("sua xong thi het nghi", not co_nghi_sau)
+	la("me khop tuyet doi", round(thieu_sau, 2), 0.0)
+
+
+@ca("sua ghi nham: he so hong thi tra lai nguyen so, khong chia cho 0")
+def _he_so_hong():
+	q, sq, amt = D["sua_mot_dong"](5.0, 0, 10.0)
+	la("giu nguyen qty", q, 5.0)
+	la("giu nguyen stock qty", sq, 5.0)
+	la("thanh tien theo so cu", amt, 50.0)
+	q2, _, _ = D["sua_mot_dong"](5.0, -1, 10.0)
+	la("he so am cung giu nguyen", q2, 5.0)
+
+
+@ca("sua ghi nham: dong da dung don vi kho thi phep sua khong lam gi sai")
+def _khong_pha_dong_dung():
+	# Dòng đã ghi bằng Quả với hệ số 1 thì chia cho 1 ra chính nó. Phép sửa
+	# vô hại với dòng đúng, nhưng nó không chạy tới đó vì `soi_ghi_nham` chỉ
+	# nhặt dòng còn để đơn vị Gram.
+	q, sq, amt = D["sua_mot_dong"](16.666667, 1.0, 2184.0)
+	la("khong doi qty", round(q, 6), 16.666667)
+	la("khong doi stock qty", round(sq, 6), 16.666667)
+	la("khong doi thanh tien", round(amt, 2), 36400.0)
