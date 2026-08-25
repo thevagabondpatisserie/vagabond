@@ -104,6 +104,10 @@ def _ho_so_thu(khach):
 	hs.khach = khach
 	hs.so_tien = 705000.0
 	hs.ly_do = "Khac"
+	# Ly do "Khac" thi doctype BAT phai ghi ro vi sao, chinh no chan o
+	# validate(). Dien vao day chu khong doi luat: luat do dung, va ca kiem
+	# phai chay qua dung con duong ma nguoi that di.
+	hs.dien_giai = "Ca kiem tich hop, khong phai ho so that."
 	hs.trang_thai = "Cho chi"
 	hs.ma_don_pancake = "92252"
 	hs.noi_dung_ck = don_huy.noi_dung_chuyen_khoan("92252", "MD92252")
