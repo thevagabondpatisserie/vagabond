@@ -118,3 +118,83 @@ def _307_khong_lam_cha():
 	# nen ERPNext tu choi doi no thanh kho nhom. Ly do day du o dau tep.
 	for x in ks.khai_cay_kho():
 		dung("cha khong phai 307", x["cha"] != ks.KHO_GOC)
+
+
+# ---------------------------------------------------------------------------
+# Luat "Cap 1 = kho so cap, Cap 2 = kho san sang" - anh Viet chot 25/08/2026.
+#
+# 64 ma banh o nhom NBTP mang san chu cap trong ten. Truoc do may chi suy tu
+# cau truc cong thuc, ma cach suy do doc duoc cau truc chu khong doc duoc y
+# nguoi dat ten. Ket qua: mot "BTP Cap 1 Banh O Roman size 12" ma cong thuc
+# lo an them mot BTP khac la may xep nham sang san sang, tru nham kho.
+# ---------------------------------------------------------------------------
+
+
+@ca("kho san xuat: chu cap trong ten doc ra dung chang")
+def _chu_cap():
+	la("cap 1", ks.chang_theo_ten("BTP Cấp 1 Bánh Ổ Roman size 12"),
+		ks.BTP_SO_CAP)
+	la("cap 2", ks.chang_theo_ten("BTP Cấp 2 Bánh Ổ Meraki size 18cm"),
+		ks.BTP_SAN_SANG)
+	la("khong hoa chu", ks.chang_theo_ten("btp cấp 2 bánh ổ epi"),
+		ks.BTP_SAN_SANG)
+	la("khong co chu cap", ks.chang_theo_ten("BTP Neutral glaze"), None)
+	la("ten rong", ks.chang_theo_ten(""), None)
+	la("ten None", ks.chang_theo_ten(None), None)
+
+
+@ca("kho san xuat: ten noi cap 1 thi THANG cach suy tu cong thuc")
+def _ten_thang_cong_thuc():
+	# Day chinh la ca that: cong thuc co BTP con (co_btp_con=True) nen cach
+	# suy cu se tra SAN SANG, nhung ten ghi ro Cap 1 nen phai la SO CAP.
+	la("ten thang", ks.chang_cua_mon("NBTP00001", True, None,
+		"BTP Cấp 1 Bánh Ổ Roman size 12"), ks.BTP_SO_CAP)
+	# Va chieu nguoc lai: cong thuc chi co nguyen lieu tho nhung ten ghi
+	# Cap 2 thi van la SAN SANG.
+	la("chieu nguoc", ks.chang_cua_mon("NBTP00005", False, None,
+		"BTP Cấp 2 Bánh Ổ Roman size 12"), ks.BTP_SAN_SANG)
+
+
+@ca("kho san xuat: khai tay THANG ca chu cap trong ten")
+def _khai_tay_thang():
+	# Nguoi khai tay la nguoi da nhin thay mon that. Khai roi thi may im.
+	la("khai tay thang ten", ks.chang_cua_mon("NBTP00001", True,
+		ks.BTP_SAN_SANG, "BTP Cấp 1 Bánh Ổ Roman size 12"), ks.BTP_SAN_SANG)
+	# Khai bay ba mot chuoi khong thuoc hai chang thi bo qua, khong nhan bua.
+	la("khai bay bo qua", ks.chang_cua_mon("NBTP00001", True, "lung tung",
+		"BTP Cấp 1 Bánh Ổ Roman size 12"), ks.BTP_SO_CAP)
+	la("khai rong bo qua", ks.chang_cua_mon("NBTP00001", True, "",
+		"BTP Cấp 1 Bánh Ổ Roman size 12"), ks.BTP_SO_CAP)
+
+
+@ca("kho san xuat: chu cap KHONG chen vao nguyen lieu hay thanh pham")
+def _chu_cap_khong_lan():
+	# Tien to van thang chu cap. Mot NVL lo mang chu "cap 1" trong ten thi
+	# van la nguyen lieu, khong duoc keo sang chang BTP.
+	la("nvl van la nvl", ks.chang_cua_mon("NVLT00231", False, None,
+		"Bột mì cấp 1"), ks.NGUYEN_LIEU)
+	la("thanh pham van la tp", ks.chang_cua_mon("BAWC00066", False, None,
+		"Bánh Ổ Roman cấp 2"), ks.THANH_PHAM)
+
+
+@ca("kho san xuat: khong khai gi thi giu nguyen cach suy cu")
+def _giu_nep_cu():
+	# Ca kiem chan tai dien: them nac moi khong duoc lam doi ket qua cua cac
+	# mon khong co chu cap trong ten.
+	la("so cap nhu cu", ks.chang_cua_mon("BTPB00100", False, None,
+		"BTP Pastry cream"), ks.BTP_SO_CAP)
+	la("san sang nhu cu", ks.chang_cua_mon("BTPB00100", True, None,
+		"BTP Pastry cream"), ks.BTP_SAN_SANG)
+	la("khong truyen ten", ks.chang_cua_mon("BTPB00100", True), ks.BTP_SAN_SANG)
+
+
+@ca("kho san xuat: o khai tay duoc khai dung mot lan tren ho so mon")
+def _o_khai_tay():
+	o = [x for x in ks.TRUONG_MOI.get("Item", [])
+		if x["fieldname"] == "custom_chang_btp"]
+	la("co dung mot o", len(o), 1)
+	la("la o chon", o[0]["fieldtype"], "Select")
+	# Hai gia tri phai TRUNG ten hai chang, lech mot dau la khai tay vo tac
+	# dung ma khong ai bao.
+	dung("o chon co du hai chang", ks.BTP_SO_CAP in o[0]["options"]
+		and ks.BTP_SAN_SANG in o[0]["options"])
