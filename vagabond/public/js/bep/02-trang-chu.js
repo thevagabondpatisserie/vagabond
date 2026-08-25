@@ -693,7 +693,7 @@ function vclIcon(l) {
   return {
     chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
     kiem_ke: '🧮', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
-    ho_so_tt: '🏦', don_mua: '⚠️'
+    ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁'
   }[l] || '';
 }
 
@@ -708,6 +708,15 @@ function vclMo(x) {
   if (l === 'kiem_ke') return go(scrKkList);
   if (l === 'de_nghi_chi') return ttnbCt(x.ma);
   if (l === 'hoan_tien') return htChiTiet(x.ma);
+  /* Ba nhanh them 25/08/2026, deu la viec DA CO man tren app ma man Viec
+     can lam van day nguoi ta sang may tinh:
+       tang_qua   may chu da sinh viec tu v305 nhung chua co duong mo
+       ycmh       da co scrDuyetYcXem tu lau
+       ho_so_tt   da co scrHoSoTTView tu lau
+     Mo phieu tang qua theo dung cach man CRM tu mo: dat tq.form roi go. */
+  if (l === 'tang_qua') return go(function () { tq.form = { ma: x.ma }; return scrTqSua(); });
+  if (l === 'ycmh') return go(function () { scrDuyetYcXem(x.ma); });
+  if (l === 'ho_so_tt') return go(function () { scrHoSoTTView(x.ma); });
   toast('Phiếu ' + x.ma + ' cần xử lý trên máy tính.', 4200);
 }
 
