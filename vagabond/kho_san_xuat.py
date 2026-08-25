@@ -95,7 +95,21 @@ TIEN_TO_THANH_PHAM = ("BAWC", "BANU", "BAEN", "BACF", "BAWS", "BASS")
 
 QUYEN = ("System Manager", "Manufacturing Manager", "Giám đốc", "AP Giám đốc")
 
-TRUONG_MOI = {"Warehouse": [
+# Chu trong ten mon de khai thang chang. Anh Viet chot 25/08/2026:
+# "Cap 1 = kho so cap, Cap 2 = kho san sang".
+CHU_CAP = ((BTP_SO_CAP, "cấp 1"), (BTP_SAN_SANG, "cấp 2"))
+
+TRUONG_MOI = {"Item": [
+	{
+		"fieldname": "custom_chang_btp", "label": "Chặng bán thành phẩm",
+		"fieldtype": "Select",
+		"options": "\nbtp_so_cap\nbtp_san_sang",
+		"insert_after": "item_group",
+		"description": "Món này nhập vào kho BTP sơ cấp hay kho BTP sẵn sàng. "
+			"Khai ở đây thì máy nghe theo, không suy từ công thức nữa. "
+			"Để trống thì máy vẫn suy như cũ.",
+	},
+], "Warehouse": [
 	{
 		"fieldname": "custom_nguoi_phu_trach", "label": "Người phụ trách kho",
 		"fieldtype": "Link", "options": "User", "insert_after": "warehouse_name",
@@ -145,21 +159,49 @@ def chang_theo_tien_to(ma):
 	return None
 
 
-def chang_cua_mon(ma, co_btp_con):
-	"""Chặng của một món.
+def chang_theo_ten(ten):
+	"""Chặng đọc thẳng từ tên món, khi tên có ghi rõ cấp.
 
-	`co_btp_con` là True khi công thức của món có ít nhất một dòng là bán
-	thành phẩm. Đây là suy ra từ CẤU TRÚC công thức, không phải đoán tỷ lệ:
-	món nào chỉ ghép từ nguyên liệu thô là sơ cấp, món nào ăn thêm bán thành
-	phẩm khác là đã ở chặng sẵn sàng.
+	64 mã bánh ổ mang sẵn chữ "Cấp 1" hoặc "Cấp 2" trong tên. Anh Việt chốt
+	25/08/2026: cấp 1 vào kho sơ cấp, cấp 2 vào kho sẵn sàng. Tên nói rõ thì
+	không việc gì phải suy từ công thức.
 	"""
+	t = (ten or "").strip().lower()
+	if not t:
+		return None
+	for chang, chu in CHU_CAP:
+		if chu in t:
+			return chang
+	return None
+
+
+def chang_cua_mon(ma, co_btp_con, khai_tay=None, ten=None):
+	"""Chặng của một món. Bốn nấc, nấc trên thắng nấc dưới.
+
+	1. `khai_tay` - ô "Chặng bán thành phẩm" người khai trên hồ sơ món.
+	   Người biết món đó đi kho nào rõ hơn máy, nên khai rồi thì máy im.
+	2. Tiền tố mã - nguyên vật liệu và thành phẩm thì tiền tố đã nói hết.
+	3. Chữ cấp trong `ten` - 64 mã bánh ổ mang sẵn "Cấp 1" hoặc "Cấp 2".
+	   Anh Việt chốt 25/08/2026: cấp 1 vào kho sơ cấp, cấp 2 vào kho sẵn
+	   sàng. Tên đã nói rõ thì không việc gì phải suy.
+	4. Cấu trúc công thức - `co_btp_con` là True khi công thức có ít nhất
+	   một dòng là bán thành phẩm. Món chỉ ghép từ nguyên liệu thô là sơ
+	   cấp, món ăn thêm bán thành phẩm khác là đã ở chặng sẵn sàng.
+
+	Đặt nấc 3 TRÊN nấc 4 là có chủ ý. Suy từ công thức đọc được cấu trúc
+	nhưng không đọc được ý người đặt tên, mà tên là thứ bếp nhìn vào.
+	"""
+	kt = (khai_tay or "").strip()
+	if kt in (BTP_SO_CAP, BTP_SAN_SANG):
+		return kt
 	c = chang_theo_tien_to(ma)
 	if c:
 		return c
 	ma = (ma or "").strip().upper()
 	for t in TIEN_TO_BTP:
 		if ma.startswith(t):
-			return BTP_SAN_SANG if co_btp_con else BTP_SO_CAP
+			return chang_theo_ten(ten) or (
+				BTP_SAN_SANG if co_btp_con else BTP_SO_CAP)
 	return None
 
 
@@ -250,6 +292,16 @@ def _co_btp_con(ma):
 				TIEN_TO_BTP):
 			return True
 	return False
+
+
+def _ho_so_mon(ma):
+	"""Ô khai tay và tên món, đọc một lần. Món lạ thì trả hai chuỗi rỗng."""
+	try:
+		r = frappe.db.get_value("Item", ma,
+			["custom_chang_btp", "item_name"], as_dict=True) or {}
+		return (r.get("custom_chang_btp") or ""), (r.get("item_name") or "")
+	except Exception:
+		return "", ""
 
 
 def _bep_cua_mon(ma):
@@ -368,6 +420,57 @@ def gan_nguoi_phu_trach(bang=None, chay_that=0):
 
 
 @frappe.whitelist()
+def gan_chang_theo_ten(chay_that=0, gioi_han=1000):
+	"""Cửa cho người gọi. Xem `_gan_chang_theo_ten`."""
+	_chan()
+	return _gan_chang_theo_ten(chay_that, gioi_han)
+
+
+def _gan_chang_theo_ten(chay_that=0, gioi_han=1000):
+	"""Khai chặng cho các món có ghi rõ cấp ngay trong tên.
+
+	Anh Việt chốt 25/08/2026: cấp 1 vào kho sơ cấp, cấp 2 vào kho sẵn sàng.
+	64 mã bánh ổ đã mang sẵn chữ đó trong tên nên khai được ngay, không phải
+	chờ Khải duyệt. Các món không có chữ cấp trong tên thì tệp này KHÔNG
+	đụng tới: chờ bảng duyệt của Khải.
+
+	Gọi trống là chạy thử, chỉ trả kế hoạch. Lặp lại được. Món đã khai tay
+	rồi thì giữ nguyên, không ghi đè lên quyết định của người.
+	"""
+	chay_that = cint(chay_that)
+	gioi_han = cint(gioi_han) or 1000
+	ds = frappe.get_all("Item", filters={"disabled": 0}, or_filters=[
+		["item_code", "like", t + "%"] for t in TIEN_TO_BTP
+	], fields=["name", "item_name", "custom_chang_btp"], limit=gioi_han,
+		order_by="name asc")
+	ra = {"chay_that": chay_that, "se_khai": [], "da_khai": [],
+		"khong_co_chu_cap": 0}
+	for it in ds:
+		c = chang_theo_ten(it.item_name)
+		if not c:
+			ra["khong_co_chu_cap"] += 1
+			continue
+		cu = (it.get("custom_chang_btp") or "").strip()
+		if cu:
+			ra["da_khai"].append({"ma": it.name, "chang": cu})
+			continue
+		ra["se_khai"].append({"ma": it.name, "ten": it.item_name,
+			"chang": TEN_CHANG[c]})
+		if chay_that:
+			frappe.db.set_value("Item", it.name, "custom_chang_btp", c,
+				update_modified=False)
+			frappe.clear_document_cache("Item", it.name)
+	if chay_that:
+		frappe.db.commit()
+	ra["ghi_chu"] = (
+		"%s. Khai %d món theo chữ cấp trong tên, %d món đã khai từ trước, "
+		"%d món không có chữ cấp nên để nguyên chờ bảng duyệt của Khải."
+		% ("Đã ghi" if chay_that else "Chạy thử, chưa ghi gì",
+			len(ra["se_khai"]), len(ra["da_khai"]), ra["khong_co_chu_cap"]))
+	return ra
+
+
+@frappe.whitelist()
 def soat_chang(gioi_han=400):
 	"""Xếp mọi bán thành phẩm vào chặng sơ cấp hay sẵn sàng, KHÔNG ghi gì.
 
@@ -378,17 +481,20 @@ def soat_chang(gioi_han=400):
 	"""
 	_chan()
 	gioi_han = cint(gioi_han) or 400
-	ds = frappe.get_all("Item", filters={
-		"disabled": 0, "item_code": ["like", "BTP%"],
-	}, fields=["name", "item_name", "custom_bep_phu_trach"], limit=gioi_han,
-		order_by="name asc")
+	# Loc theo CA BA tien to ban thanh pham. Bo loc cu la "BTP%" nen bo sot
+	# sach nhom NBTP - dung 64 ma banh o co chu Cap 1 va Cap 2 trong ten.
+	ds = frappe.get_all("Item", filters={"disabled": 0}, or_filters=[
+		["item_code", "like", t + "%"] for t in TIEN_TO_BTP
+	], fields=["name", "item_name", "custom_bep_phu_trach",
+		"custom_chang_btp"], limit=gioi_han, order_by="name asc")
 	ra = {"so_cap": [], "san_sang": [], "chua_co_cong_thuc": []}
 	for it in ds:
 		bom = frappe.db.get_value("BOM", {"item": it.name, "docstatus": 1}, "name")
 		if not bom:
 			ra["chua_co_cong_thuc"].append({"ma": it.name, "ten": it.item_name})
 			continue
-		c = chang_cua_mon(it.name, _co_btp_con(it.name))
+		c = chang_cua_mon(it.name, _co_btp_con(it.name),
+			it.get("custom_chang_btp"), it.item_name)
 		muc = "san_sang" if c == BTP_SAN_SANG else "so_cap"
 		ra[muc].append({"ma": it.name, "ten": it.item_name,
 			"bep": it.custom_bep_phu_trach or ""})
@@ -414,11 +520,15 @@ def gan_kho_nguon(doc, method=None):
 			bep = bep_cua_kho(doc.get("fg_warehouse") or "")
 		if not bep:
 			return
-		chang_ra = chang_cua_mon(doc.production_item, _co_btp_con(doc.production_item))
+		kt_ra, ten_ra = _ho_so_mon(doc.production_item)
+		chang_ra = chang_cua_mon(doc.production_item,
+			_co_btp_con(doc.production_item), kt_ra, ten_ra)
 		if not chang_ra:
 			return
 		for d in doc.required_items:
-			chang_nl = chang_cua_mon(d.item_code, _co_btp_con(d.item_code))
+			kt_nl, ten_nl = _ho_so_mon(d.item_code)
+			chang_nl = chang_cua_mon(d.item_code, _co_btp_con(d.item_code),
+				kt_nl, ten_nl)
 			kho = chon_kho_nguon(chang_ra, chang_nl, bep)
 			if kho and frappe.db.exists("Warehouse", kho):
 				d.source_warehouse = kho
