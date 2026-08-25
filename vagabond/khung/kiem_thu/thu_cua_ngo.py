@@ -102,7 +102,8 @@ CUA_NGO = {
 		"xem_hoan", "xuat_excel"],
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate
 	# cua Work Order nen KHONG whitelist.
-	"kho_san_xuat.py": ["dung_cay_kho", "gan_nguoi_phu_trach", "soat_chang"],
+	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
+		"gan_nguoi_phu_trach", "soat_chang"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
