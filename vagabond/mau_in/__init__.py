@@ -37,6 +37,11 @@ MAU_IN = {
 	# Keo ve repo 23/08/2026 khi sua ma vach. Truoc do mau nay chi song trong
 	# co so du lieu, khong ai doc duoc neu khong mo Desk.
 	"Vagabond - Phiếu nhập kho": ("phieu_nhap_kho.html", "Purchase Receipt"),
+	# Ban in A4 dan tuong bep, them 25/08/2026. Ban ghi Print Format duoc
+	# tao lan dau boi `huong_dan_che_bien.dung_mau_in()`, con noi dung HTML
+	# thi nhip nay giu dong bo nhu moi mau in khac.
+	"Vagabond - Hướng dẫn chế biến": ("huong_dan_che_bien.html",
+		"Vagabond Huong Dan Che Bien"),
 }
 
 # Le giay cua tung ban ghi Print Format. Bon o margin nam trong co so du lieu
