@@ -100,6 +100,27 @@ def _zalo_ton_trong_co():
 	dung("zalo.gui_tin đọc cờ kiểm thật", "vagabond_kiem_that" in than)
 
 
+@ca("kiem that: duong gui tin WhatsApp cung phai ton trong co cam gui ra ngoai")
+def _whatsapp_ton_trong_co():
+	# Sinh ra 25/08/2026, cùng lần soi ra lỗ hổng Zalo. Bịt Zalo mà bỏ
+	# WhatsApp là bịt một nửa: `thanh_toan.py` gọi CẢ HAI đường cho cùng một
+	# tin yêu cầu khách chuyển tiền, nên chạy bộ kiểm thử tích hợp vẫn có
+	# một tin bay ra điện thoại khách thật, chỉ là qua cửa khác.
+	#
+	# Đọc thân hàm bằng AST y như ca Zalo ở trên, vì cùng một lý do: chặn
+	# kiểu "có chuỗi ấy đâu đó trong tệp" thì một dòng chú thích nhắc tên cờ
+	# cũng làm ca kiểm xanh giả.
+	tep = os.path.join(GOC, "vagabond", "whatsapp.py")
+	with open(tep, encoding="utf-8") as f:
+		nguon = f.read()
+	than = ""
+	for nut in ast.walk(ast.parse(nguon)):
+		if isinstance(nut, ast.FunctionDef) and nut.name == "gui_mau":
+			than = ast.dump(nut)
+	dung("whatsapp.py còn hàm gui_mau", bool(than))
+	dung("whatsapp.gui_mau đọc cờ kiểm thật", "vagabond_kiem_that" in than)
+
+
 @ca("kiem that: bo ca kiem phai duoc nap trong cua, khong bo quen bo nao")
 def _nap_du_bo():
 	nguon = _doc("cua.py")
