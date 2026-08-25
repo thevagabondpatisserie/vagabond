@@ -155,6 +155,9 @@ MAN = (
 	("KIT", "Bảng bếp hôm nay", None),
 	("MFG", "Sản xuất", None),
 	("CTBOM", "Công thức", None),
+	# Don tiec va B2B (them 25/08/2026). Lam theo don, khong dinh muc,
+	# nen khong nam trong luong Lenh san xuat.
+	("TIEC", "Đơn tiệc", None),
 	# Huong dan che bien di kem moi cong thuc (them 25/08/2026). Mo tu
 	# nut tren tung the o man Danh muc cong thuc, va co dia chi rieng de
 	# bep truong luu dau trang tren dien thoai.
