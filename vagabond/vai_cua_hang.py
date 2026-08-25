@@ -49,6 +49,28 @@ HO_SO_NHAN = "VGB - Quản lý cửa hàng"
 # nho anh Kien mo phieu ho.
 VAI_THEM_SAN = ("Stock Manager", "Kiểm kê viên")
 
+# Vai thu hai, them 25/08/2026. Cung mot cau chuyen voi vai tren.
+#
+# Ban Lam Quang Khai la ke toan gia thanh, nguoi thuc su nam cong thuc va
+# gia von. Ban ay MO DUOC man Danh muc cong thuc nhung khong sua duoc, vi
+# `cong_thuc._kiem_sua` doi vai bep truong (Manufacturing Manager).
+#
+# Luu y: tren Desk ban ay SUA DUOC tu truoc, vi vai `Manufacturing User`
+# von da co quyen ghi tren doctype BOM. Cho ket la man trong app, khong
+# phai quyen goc. Nen sua o `cong_thuc.py` la du, khong can nang ban ay
+# len Manufacturing Manager - vai do keo theo ca Lenh san xuat va Ke
+# hoach san xuat, rong hon nhieu so voi viec can lam.
+VAI_QLCT = "VGB - Quản lý công thức"
+
+# Bang vai do MA NGUON dung. Them mot vai moi la them mot dong o day.
+#   vai      ten vai se dung
+#   ho_so    ho so vai duoc nhan no
+#   them_san cac vai co san cua ERPNext can them kem
+BANG_VAI = (
+	{"vai": VAI_QLCH, "ho_so": HO_SO_NHAN, "them_san": VAI_THEM_SAN},
+	{"vai": VAI_QLCT, "ho_so": "VGB - Kế toán giá thành", "them_san": ()},
+)
+
 
 def vai_can_co(dang_co, vai_moi=None, vai_san=None):
 	"""Nhung vai con THIEU cua mot ho so. THUAN.
@@ -67,26 +89,32 @@ import frappe
 
 
 def dung():
-	"""Dung vai va gan vao ho so. Goi tu after_migrate, lam lai duoc."""
-	try:
-		_dung_vai()
-		them = _gan_vao_ho_so()
-		if them:
-			_luu_lai_nguoi_dung()
-		return them
-	except Exception:
-		# Khong bao gio duoc lam hong after_migrate: hong o day la ca lan
-		# deploy do, ma phan quyen thi sua tay tren Desk van duoc.
-		frappe.log_error(frappe.get_traceback(), "vai_cua_hang: dung vai loi")
-		return []
+	"""Dung moi vai trong BANG_VAI va gan vao ho so. Goi tu after_migrate."""
+	da_them = {}
+	for muc in BANG_VAI:
+		try:
+			_dung_vai(muc["vai"])
+			them = _gan_vao_ho_so(muc)
+			if them:
+				_luu_lai_nguoi_dung(muc["ho_so"])
+				da_them[muc["ho_so"]] = them
+		except Exception:
+			# Khong bao gio duoc lam hong after_migrate: hong o day la ca
+			# lan deploy do, ma phan quyen thi sua tay tren Desk van duoc.
+			# Mot muc hong thi cac muc con lai van chay.
+			frappe.log_error(
+				frappe.get_traceback(),
+				"vai_cua_hang: dung vai %s loi" % muc.get("vai"),
+			)
+	return da_them
 
 
-def _dung_vai():
-	if frappe.db.exists("Role", VAI_QLCH):
+def _dung_vai(ten):
+	if frappe.db.exists("Role", ten):
 		return
 	doc = frappe.get_doc({
 		"doctype": "Role",
-		"role_name": VAI_QLCH,
+		"role_name": ten,
 		"desk_access": 1,
 		# Khong phai vai he thong: de nguoi dung gan va go binh thuong.
 		"is_custom": 1,
@@ -95,17 +123,18 @@ def _dung_vai():
 	doc.insert(ignore_permissions=True)
 
 
-def _gan_vao_ho_so():
-	"""Them vai con thieu vao ho so. Tra ve danh sach vai vua them."""
-	if not frappe.db.exists("Role Profile", HO_SO_NHAN):
+def _gan_vao_ho_so(muc):
+	"""Them vai con thieu vao mot ho so. Tra ve danh sach vai vua them."""
+	ten_ho_so = muc["ho_so"]
+	if not frappe.db.exists("Role Profile", ten_ho_so):
 		frappe.log_error(
-			message="Khong thay ho so vai %s, bo qua." % HO_SO_NHAN,
+			message="Khong thay ho so vai %s, bo qua." % ten_ho_so,
 			title="vai_cua_hang: thieu ho so",
 		)
 		return []
-	ho_so = frappe.get_doc("Role Profile", HO_SO_NHAN)
+	ho_so = frappe.get_doc("Role Profile", ten_ho_so)
 	dang_co = [r.role for r in (ho_so.get("roles") or [])]
-	thieu = vai_can_co(dang_co)
+	thieu = vai_can_co(dang_co, muc["vai"], muc["them_san"])
 	# Vai chua ton tai trong he thi bo qua, dung de no lam hong ban ghi.
 	thieu = [v for v in thieu if frappe.db.exists("Role", v)]
 	if not thieu:
@@ -117,7 +146,7 @@ def _gan_vao_ho_so():
 	return thieu
 
 
-def _luu_lai_nguoi_dung():
+def _luu_lai_nguoi_dung(ten_ho_so=None):
 	"""Luu lai cac User dung ho so nay de vai moi vao phien lam viec.
 
 	Bang roles cua User duoc validate() dung lai TU HO SO, nen chi can
@@ -125,7 +154,7 @@ def _luu_lai_nguoi_dung():
 	"""
 	ds = frappe.get_all(
 		"User",
-		filters={"role_profile_name": HO_SO_NHAN, "enabled": 1},
+		filters={"role_profile_name": ten_ho_so or HO_SO_NHAN, "enabled": 1},
 		pluck="name",
 	)
 	for ten in ds:

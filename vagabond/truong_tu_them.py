@@ -26,6 +26,12 @@ def dung():
 
 	vai_cua_hang.dung()
 
+	# Ban in Huong dan che bien: tao ban ghi Print Format lan dau neu chua
+	# co. Dat sau vai vi ban ghi do co khai quyen theo vai.
+	from vagabond import huong_dan_che_bien
+
+	huong_dan_che_bien.dung_mau_in()
+
 	from vagabond import (
 		ban_hang, bao_gia, chung_tu_tien, diem_otp, duyet_ycmh, hoan_tien,
 		mua_dich_vu, noi_bo, sepay,
