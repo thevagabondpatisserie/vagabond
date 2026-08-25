@@ -278,7 +278,7 @@ CUA_NGO = {
 	],
 	# Doi don vi tinh TRUNG trong BOM sang Qua (them 25/08/2026, v301).
 	# `doi_het` GHI VAO BOM that nen chot ky: chi ba cua, khong hon.
-	"doi_dvt_bom.py": ["doi_het", "soi_ghi_nham", "xem_truoc"],
+	"doi_dvt_bom.py": ["doi_het", "soi_ghi_nham", "sua_ghi_nham", "xem_truoc"],
 	# Huong dan che bien di kem moi BOM (them 25/08/2026, v301).
 	"huong_dan_che_bien.py": [
 		"chi_tiet", "danh_sach", "luu", "soat_cong_thuc_da_doi",
