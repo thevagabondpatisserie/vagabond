@@ -785,6 +785,7 @@ var VGB_DUONG = {
   'hoa-don-mua': 'HDMUA',
   'hoan-tien': 'HT',
   'hop-dong': 'HDG',
+  'huong-dan-che-bien': 'HDCB',
   'khach-hang': 'KH',
   'khoa-so': 'CDKS',
   'khuyen-mai': 'KM',
@@ -932,6 +933,7 @@ function vgbGo(k) {
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
   if (k === 'CTBOM') return go(scrCongThuc);
+  if (k === 'HDCB') return go(scrHuongDan);
   if (k === 'RCV') return go(scrRecvList);
   if (k === 'NBANH') return go(scrNhanBanh);
   if (k === 'KK') return go(scrKkList);

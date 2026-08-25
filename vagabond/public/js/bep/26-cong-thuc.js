@@ -9,7 +9,7 @@
 
    Tien to ct = cong thuc. Da kiem va cham ten truoc khi dat (QT-28). */
 
-var ctD = { tab: 'pastry', tt: '', tim: '', ds: null, tong: 0 };
+var ctD = { tab: 'pastry', tt: '', hd: '', tim: '', ds: null, tong: 0 };
 var ctE = null;
 
 var CT_TAB = [['pastry', '🎂 Pastry'], ['baker', '🥐 Baker'], ['bar', '🍵 Quầy Bar'], ['khac', '❓ Chưa phân']];
@@ -17,14 +17,47 @@ var CT_TT = [['', 'Tất cả'], ['dang_dung', 'Đang dùng'], ['nhap', 'Nháp']
 var CT_TEN_TT = { nhap: 'Nháp', dang_dung: 'Đang dùng', ban_cu: 'Bản cũ', da_huy: 'Đã huỷ' };
 var CT_MAU_TT = { nhap: 'w', dang_dung: 'g', ban_cu: 'n', da_huy: 'n' };
 
+/* Chip loc theo TINH TRANG HUONG DAN, them 25/08/2026.
+
+   Anh Viet xin chip loc "hop ly nhat de Khai tien theo doi nhat, han che
+   lam sai". Cau hoi that su hay phai tra loi khong phai "mon nay co huong
+   dan chua" ma la HAI cau nay:
+     - mon nao con thieu huong dan, tuc bep dang lam theo tri nho
+     - mon nao co huong dan nhung CONG THUC DA DOI sau do, tuc bep dang lam
+       theo to giay khong con dung nua. Cai nay nguy hon cai tren, vi nhin
+       vao thi thay du, khong ai nghi la thieu. */
+var CT_HD = [['', 'Hướng dẫn: tất cả'], ['chua', '📋 Chưa soạn'], ['nhap', '✏️ Đang nháp'], ['xong', '✅ Đã có'], ['lech', '⚠️ Công thức đã đổi']];
+var CT_HD_NHAN = { chua: 'Soạn hướng dẫn', nhap: 'HD nháp', xong: 'Hướng dẫn' };
+
 function ctQuanLy() {
   return hasRole('Manufacturing Manager') || hasRole('System Manager') ||
     hasRole('Giám đốc') || hasRole('AP Giám đốc');
 }
 
+/* Nut mo Huong dan che bien tren mot the cong thuc.
+
+   Anh Viet ve mot o vuong ngay canh ten mon va hoi dat nut o do co hop ly
+   khong. Co: bep truong dang nhin mon nao thi mo huong dan cua dung mon
+   ay, khong phai tim lai trong mot danh sach thu hai.
+
+   Mau nut noi luon tinh trang, khong phai bam vao moi biet:
+     cam   chua soan, bep dang lam theo tri nho
+     do    co soan nhung cong thuc da doi sau do, to giay dang sai
+     xanh  da co va con dung
+   Ban da huy thi khong hien nut: soan huong dan cho mot cong thuc da huy
+   la dan nguoi ta lam theo ban sai. */
+function ctNutHd(x) {
+  if (x.trang_thai === 'da_huy') return '';
+  var tt = x.huong_dan || 'chua';
+  var lop = tt === 'chua' ? ' chua' : (x.hd_lech ? ' lech' : '');
+  var nhan = x.hd_lech ? '⚠️ Soát lại HD' : ('📖 ' + (CT_HD_NHAN[tt] || 'Hướng dẫn'));
+  return '<button class="ct-hd' + lop + '" data-hdm="' + h(x.ma) +
+    '" data-hdt="' + h(x.ten) + '" style="margin-top:7px">' + nhan + '</button>';
+}
+
 async function ctTai() {
   var r = await api('vagabond.cong_thuc.danh_sach',
-    { tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null });
+    { tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null, huong_dan: ctD.hd || null });
   ctD.ds = (r && r.ds) || [];
   ctD.tong = (r && r.tong) || 0;
 }
@@ -46,16 +79,22 @@ async function scrCongThuc() {
     var tts = CT_TT.map(function (c) {
       return '<div class="chip' + (ctD.tt === c[0] ? ' on' : '') + '" data-tt="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
+    var hds = CT_HD.map(function (c) {
+      return '<div class="chip' + (ctD.hd === c[0] ? ' on' : '') + '" data-hd="' + c[0] + '">' + c[1] + '</div>';
+    }).join('');
     var body = '<div class="chips">' + tabs + '</div>' +
       '<input class="tin" id="ctTim" placeholder="Tìm theo tên hoặc mã món" value="' + h(ctD.tim) + '" ' +
       'style="text-align:left;font-size:14.5px;padding:0 13px;margin-bottom:9px;width:100%">' +
       '<div class="chips">' + tts + '</div>' +
+      '<div class="chips">' + hds + '</div>' +
       (ctD.ds.length ? '<div class="lst">' + ctD.ds.map(function (x) {
-        return '<div class="li" data-n="' + h(x.bom) + '"><div class="lt">' +
+        return '<div class="li"><div class="lt" data-n="' + h(x.bom) + '">' +
           '<div class="l1">' + h(x.ten) + '</div>' +
           '<div class="l2">' + h(x.ma) + ' · mẻ ' + num(x.so_luong) + ' ' + h(x.dvt || '') +
-          (x.ban_truoc ? ' · có bản trước' : '') + '</div></div>' +
-          '<div style="text-align:right"><div class="st ' + (CT_MAU_TT[x.trang_thai] || 'n') + '">' +
+          (x.phien_ban ? ' · bản ' + h(x.phien_ban) : '') +
+          (x.ban_truoc ? ' · có bản trước' : '') + '</div>' +
+          ctNutHd(x) + '</div>' +
+          '<div style="text-align:right" data-n="' + h(x.bom) + '"><div class="st ' + (CT_MAU_TT[x.trang_thai] || 'n') + '">' +
           h(CT_TEN_TT[x.trang_thai] || x.trang_thai) + '</div>' +
           '<div class="l2" style="margin-top:4px">' + h(x.sua_luc.slice(0, 10)) + '</div></div></div>';
       }).join('') + '</div>' +
@@ -69,6 +108,16 @@ async function scrCongThuc() {
       if (t) { ctD.tab = t.dataset.tab; ctD.ds = null; return scrCongThuc(); }
       var t2 = e.target.closest('[data-tt]');
       if (t2) { ctD.tt = t2.dataset.tt; ctD.ds = null; return scrCongThuc(); }
+      var t3 = e.target.closest('[data-hd]');
+      if (t3) { ctD.hd = t3.dataset.hd; ctD.ds = null; return scrCongThuc(); }
+      /* Nut huong dan phai xet TRUOC the cong thuc: no nam LONG trong the,
+         nen bam vao no cung la bam vao the. Xet the truoc thi khong bao gio
+         toi luot nut. */
+      var g = e.target.closest('[data-hdm]');
+      if (g) {
+        var mm = g.dataset.hdm, mt = g.dataset.hdt || mm;
+        return go(function () { scrHuongDanSoan(mm, mt); });
+      }
       var r = e.target.closest('[data-n]');
       if (r) { var nm = r.dataset.n; return go(function () { scrCongThucXem(nm); }); }
     };
@@ -127,7 +176,8 @@ async function scrCongThucXem(name) {
 
   html += '<div class="sec">Nguyên liệu</div><div class="lst">' + d.dong.map(function (m) {
     return '<div class="li"><div class="lt"><div class="l1">' + h(m.ten || m.ma) + '</div>' +
-      '<div class="l2">' + h(m.ma) + '</div></div>' +
+      '<div class="l2">' + h(m.ma) +
+      (m.note ? ' · <b style="color:#0b6bcb">' + h(m.note) + '</b>' : '') + '</div></div>' +
       '<div style="text-align:right"><div class="amt">' + num(m.sl) + '</div>' +
       '<div class="l2">' + h(m.dvt || '') + '</div></div></div>';
   }).join('') + '</div>';
@@ -141,13 +191,16 @@ async function scrCongThucXem(name) {
   }
 
   var nut = '';
+  if (d.trang_thai !== 'da_huy') {
+    nut = '<button class="btn gh" id="ctHd" style="margin-bottom:9px">📖 Hướng dẫn chế biến</button>';
+  }
   if (ctQuanLy()) {
     if (d.trang_thai === 'nhap') {
-      nut = '<div class="row2"><button class="btn gh" id="ctSua">✏️ Sửa nháp</button>' +
+      nut += '<div class="row2"><button class="btn gh" id="ctSua">✏️ Sửa nháp</button>' +
         '<button class="btn gr" id="ctGhiSo">✅ Ghi sổ</button></div>' +
         '<button class="btn gh" id="ctBo" style="margin-top:9px;color:#b3261e">Bỏ bản nháp này</button>';
     } else if (d.trang_thai !== 'da_huy') {
-      nut = '<button class="btn" id="ctDc">🔁 Điều chỉnh (ra phiên bản mới)</button>';
+      nut += '<button class="btn" id="ctDc">🔁 Điều chỉnh (ra phiên bản mới)</button>';
     }
   }
   var b = frame('Công thức', html, nut ? { footer: nut } : {});
@@ -155,6 +208,8 @@ async function scrCongThucXem(name) {
     var v = e.target.closest('[data-v]');
     if (v) return go(function () { scrCongThucXem(v.dataset.v); });
   };
+  var nhd = document.getElementById('ctHd');
+  if (nhd) nhd.onclick = function () { go(function () { scrHuongDanSoan(d.ma, d.ten); }); };
   var sua = document.getElementById('ctSua');
   if (sua) sua.onclick = function () { ctNapSua(d); };
   var gs = document.getElementById('ctGhiSo');
