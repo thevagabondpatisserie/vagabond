@@ -1,0 +1,240 @@
+{#
+   MẪU IN HƯỚNG DẪN CHẾ BIẾN - nguồn thật nằm ở repo, xem vagabond/mau_in/__init__.py
+
+   Anh Việt chốt 25/08/2026: *"In ra giấy dán bếp: CÓ LÀM. Dàn layout chữ to,
+   rõ ràng, hiển thị đủ Định lượng và Các bước làm để bếp in ra dán tường."*
+
+   BA ĐIỀU CHI PHỐI CÁCH DÀN TRANG NÀY
+
+   1. Tờ này DÁN TƯỜNG, không cầm đọc. Người đứng cách một mét vẫn phải đọc
+      được. Nên cỡ chữ nền là 13pt chứ không phải 9pt như chứng từ, và số
+      lượng trong bảng định lượng để 17pt đậm - đó là con số người ta liếc
+      nhìn nhiều nhất trong ca.
+
+   2. Tay bếp dính bột, không lật trang. Cố gói trong một tờ A4. Nếu công
+      thức dài quá thì để tràn sang tờ hai theo mạch tự nhiên, nhưng ĐỪNG
+      cắt một bước làm ra làm đôi giữa hai trang - dùng page-break-inside.
+
+   3. Bản in đen trắng. Bếp in máy laser văn phòng, không in màu. Nên điểm
+      tới hạn đánh dấu bằng KHUNG ĐẬM và chữ, không dựa vào màu đỏ. In màu
+      thì đẹp hơn, in đen trắng vẫn đọc đúng.
+#}
+<style>
+  /* Lề trang dùng chung cho mọi bản in của tiệm. Xem vagabond/mau_in/le_in.py */
+  @page { size: A4 portrait; margin: 15mm; }
+
+  .hd { padding: 0 2mm; font-size: 13pt; line-height: 1.45; color: #111; }
+  .hd * { box-sizing: border-box; }
+
+  /* Đầu tờ */
+  .hd-dau { border-bottom: 2.5pt solid #111; padding-bottom: 6pt; margin-bottom: 10pt; }
+  .hd-ten { font-size: 26pt; font-weight: 800; line-height: 1.1; margin: 0; }
+  .hd-ma { font-size: 11pt; color: #555; margin-top: 3pt; }
+  .hd-tt { float: right; border: 1.5pt solid #111; padding: 3pt 9pt;
+           font-size: 11pt; font-weight: 700; text-transform: uppercase; }
+
+  /* Dải thông số trên cùng */
+  .hd-so { width: 100%; border-collapse: collapse; margin-bottom: 12pt; }
+  .hd-so td { border: 1pt solid #999; padding: 6pt 8pt; vertical-align: top; width: 25%; }
+  .hd-so .n { font-size: 9.5pt; color: #555; text-transform: uppercase;
+              letter-spacing: .6pt; display: block; margin-bottom: 2pt; }
+  .hd-so .v { font-size: 15pt; font-weight: 700; }
+
+  /* Tiêu đề khối */
+  .hd-kh { font-size: 14pt; font-weight: 800; text-transform: uppercase;
+           letter-spacing: 1pt; border-bottom: 1.5pt solid #111;
+           padding-bottom: 3pt; margin: 14pt 0 8pt; }
+
+  /* Bảng định lượng */
+  .hd-dl { width: 100%; border-collapse: collapse; }
+  .hd-dl th { background: #f0f0f0; border: 1pt solid #999; padding: 5pt 8pt;
+              font-size: 10pt; text-transform: uppercase; letter-spacing: .5pt;
+              text-align: left; }
+  .hd-dl td { border: 1pt solid #999; padding: 7pt 8pt; }
+  .hd-dl .sl { font-size: 17pt; font-weight: 800; text-align: right;
+               white-space: nowrap; }
+  .hd-dl .dv { font-size: 12pt; }
+  .hd-dl .tach { font-size: 10.5pt; color: #444; font-style: italic; }
+
+  /* Các bước */
+  .hd-b { border: 1pt solid #999; border-left: 4pt solid #111;
+          padding: 8pt 10pt; margin-bottom: 7pt;
+          page-break-inside: avoid; }
+  .hd-b.th { border-left-width: 9pt; background: #f4f4f4; }
+  .hd-b-dau { margin-bottom: 4pt; }
+  .hd-b-stt { display: inline-block; width: 26pt; height: 26pt; line-height: 26pt;
+              text-align: center; border: 1.5pt solid #111; border-radius: 50%;
+              font-weight: 800; font-size: 13pt; margin-right: 8pt;
+              vertical-align: middle; }
+  .hd-b-ten { font-size: 15pt; font-weight: 800; vertical-align: middle; }
+  .hd-b-th { border: 1.5pt solid #111; padding: 1pt 7pt; font-size: 10pt;
+             font-weight: 800; margin-left: 8pt; vertical-align: middle;
+             letter-spacing: .5pt; }
+  .hd-b-mt { white-space: pre-wrap; }
+  .hd-b-ts { margin-top: 4pt; font-size: 12pt; }
+  .hd-b-ts b { font-weight: 800; }
+  .hd-b-bm { margin-top: 4pt; font-size: 11pt; border-top: 1pt dashed #999;
+             padding-top: 3pt; }
+
+  /* Đạt và không đạt */
+  .hd-qc { width: 100%; border-collapse: collapse; }
+  .hd-qc th { background: #f0f0f0; border: 1pt solid #999; padding: 5pt 8pt;
+              font-size: 10pt; text-transform: uppercase; text-align: left; }
+  .hd-qc td { border: 1pt solid #999; padding: 6pt 8pt; vertical-align: top; }
+
+  /* An toàn thực phẩm: khối phải nổi nhất tờ giấy sau phần định lượng */
+  .hd-at { border: 2.5pt solid #111; padding: 9pt 11pt; margin-top: 12pt;
+           page-break-inside: avoid; }
+  .hd-at .du { font-size: 15pt; font-weight: 800; }
+
+  .hd-chan { margin-top: 14pt; padding-top: 5pt; border-top: 1pt solid #999;
+             font-size: 9.5pt; color: #555; }
+  .hd-canh { border: 2pt solid #111; padding: 6pt 10pt; margin-bottom: 10pt;
+             font-size: 12pt; font-weight: 700; }
+</style>
+
+{% set ten_mon = doc.ten_mon or doc.ma_mon %}
+{% set tong_phut = (doc.tg_chuan_bi or 0) + (doc.tg_lam or 0) + (doc.tg_nghi or 0) %}
+
+<div class="hd">
+
+  <div class="hd-dau">
+    <div class="hd-tt">{{ doc.trang_thai or "Nháp" }}</div>
+    <div class="hd-ten">{{ ten_mon }}</div>
+    <div class="hd-ma">
+      {{ doc.ma_mon }}{% if doc.nhom_mon %} · {{ doc.nhom_mon }}{% endif %}
+      · Hướng dẫn chế biến, bản {{ doc.phien_ban or 1 }}
+    </div>
+  </div>
+
+  {% if doc.cong_thuc_da_doi %}
+  <div class="hd-canh">
+    CÔNG THỨC ĐÃ ĐỔI SANG BẢN MỚI, TỜ NÀY CÓ THỂ ĐÃ CŨ. Hỏi bếp trưởng trước khi làm theo.
+  </div>
+  {% endif %}
+
+  <table class="hd-so">
+    <tr>
+      <td>
+        <span class="n">Mẻ chuẩn</span>
+        <span class="v">{{ frappe.utils.fmt_money(doc.me_chuan or 0, 0) }} {{ doc.dvt_me or "" }}</span>
+      </td>
+      <td>
+        <span class="n">Ra được</span>
+        <span class="v">{{ doc.nang_suat or "-" }}</span>
+      </td>
+      <td>
+        <span class="n">Tổng thời gian</span>
+        <span class="v">{% if tong_phut %}{{ (tong_phut // 60) }}g{{ "%02d"|format(tong_phut % 60) }}{% else %}-{% endif %}</span>
+      </td>
+      <td>
+        <span class="n">Hao hụt cho phép</span>
+        <span class="v">{% if doc.hao_hut_cho_phep %}{{ doc.hao_hut_cho_phep }}%{% else %}-{% endif %}</span>
+      </td>
+    </tr>
+    <tr>
+      <td><span class="n">Chuẩn bị</span><span class="v">{{ doc.tg_chuan_bi or 0 }} phút</span></td>
+      <td><span class="n">Làm</span><span class="v">{{ doc.tg_lam or 0 }} phút</span></td>
+      <td><span class="n">Nghỉ, ủ, đông</span><span class="v">{{ doc.tg_nghi or 0 }} phút</span></td>
+      <td><span class="n">Hạn sử dụng</span><span class="v">{{ doc.han_su_dung or "-" }}</span></td>
+    </tr>
+  </table>
+
+  {% if doc.dung_cu %}
+  <div style="margin-bottom:10pt"><b>Dụng cụ cần:</b> {{ doc.dung_cu }}</div>
+  {% endif %}
+
+  {% if doc.dinh_luong %}
+  <div class="hd-kh">Định lượng</div>
+  <table class="hd-dl">
+    <thead>
+      <tr>
+        <th style="width:48%">Nguyên liệu</th>
+        <th style="width:18%;text-align:right">Số lượng</th>
+        <th style="width:12%">Đơn vị</th>
+        <th style="width:22%">Ghi chú</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in doc.dinh_luong %}
+      <tr>
+        <td>
+          {{ d.ten or d.ma_hang or "" }}
+          {%- if d.tach_tu %}<div class="tach">tách từ {{ d.tach_tu }}</div>{% endif %}
+        </td>
+        <td class="sl">{{ frappe.utils.fmt_money(d.so_luong or 0, 3)|replace(".000", "") }}</td>
+        <td class="dv">{{ d.dvt or "" }}</td>
+        <td>{{ d.ghi_chu or "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if doc.buoc %}
+  <div class="hd-kh">Các bước làm</div>
+  {% for b in doc.buoc %}
+  <div class="hd-b{% if b.diem_toi_han %} th{% endif %}">
+    <div class="hd-b-dau">
+      <span class="hd-b-stt">{{ loop.index }}</span>
+      <span class="hd-b-ten">{{ b.cong_doan or "" }}</span>
+      {%- if b.diem_toi_han %}<span class="hd-b-th">{{ b.diem_toi_han }} - ĐIỂM TỚI HẠN</span>{% endif %}
+    </div>
+    {% if b.mo_ta %}<div class="hd-b-mt">{{ b.mo_ta }}</div>{% endif %}
+    {% if b.thong_so or b.thoi_gian_phut or b.nhiet_do %}
+    <div class="hd-b-ts">
+      {%- if b.thong_so %}<b>Thông số:</b> {{ b.thong_so }}{% endif %}
+      {%- if b.thoi_gian_phut %} &nbsp;·&nbsp; <b>{{ b.thoi_gian_phut|int }} phút</b>{% endif %}
+      {%- if b.nhiet_do %} &nbsp;·&nbsp; <b>{{ b.nhiet_do }}</b>{% endif %}
+    </div>
+    {% endif %}
+    {% if b.bieu_mau %}
+    <div class="hd-b-bm">Phải ghi vào biểu mẫu: <b>{{ b.bieu_mau }}</b></div>
+    {% endif %}
+    {% if b.ghi_chu %}<div class="hd-b-bm">{{ b.ghi_chu }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if doc.tieu_chi %}
+  <div class="hd-kh">Thế nào là đạt</div>
+  <table class="hd-qc">
+    <thead>
+      <tr>
+        <th style="width:22%">Tiêu chí</th>
+        <th style="width:32%">Đạt khi</th>
+        <th style="width:26%">Không đạt khi</th>
+        <th style="width:20%">Không đạt thì làm gì</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in doc.tieu_chi %}
+      <tr>
+        <td><b>{{ t.tieu_chi or "" }}</b></td>
+        <td>{{ t.dat_khi or "" }}</td>
+        <td>{{ t.khong_dat_khi or "" }}</td>
+        <td>{{ t.xu_ly or "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <div class="hd-at">
+    <div class="du">DỊ ỨNG: {{ doc.di_ung or "chưa khai" }}</div>
+    {% if doc.bao_quan %}<div style="margin-top:4pt">Bảo quản: {{ doc.bao_quan }}</div>{% endif %}
+  </div>
+
+  {% if doc.ghi_chu %}
+  <div style="margin-top:10pt"><b>Ghi chú:</b> {{ doc.ghi_chu }}</div>
+  {% endif %}
+
+  <div class="hd-chan">
+    {% if doc.bom_soan_theo %}Soạn theo công thức {{ doc.bom_soan_theo }}. {% endif %}
+    {% if doc.nguoi_soan %}Người soạn {{ frappe.db.get_value("User", doc.nguoi_soan, "full_name") or doc.nguoi_soan }}. {% endif %}
+    {% if doc.nguoi_duyet %}Người duyệt {{ frappe.db.get_value("User", doc.nguoi_duyet, "full_name") or doc.nguoi_duyet }}. {% endif %}
+    In lúc {{ frappe.utils.now_datetime().strftime("%H:%M %d/%m/%Y") }}.
+    Bản in chỉ để tham khảo tại chỗ, bản đúng nhất luôn nằm trên app.
+  </div>
+
+</div>

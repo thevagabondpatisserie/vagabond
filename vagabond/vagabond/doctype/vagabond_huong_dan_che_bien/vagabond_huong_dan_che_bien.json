@@ -1,0 +1,358 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-08-25 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "autoname": "format:HDCB-{ma_mon}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "sec_mon",
+  "ma_mon",
+  "ten_mon",
+  "nhom_mon",
+  "cb_mon",
+  "trang_thai",
+  "phien_ban",
+  "bom_soan_theo",
+  "cong_thuc_da_doi",
+  "sec_me",
+  "me_chuan",
+  "dvt_me",
+  "nang_suat",
+  "hao_hut_cho_phep",
+  "cb_me",
+  "tg_chuan_bi",
+  "tg_lam",
+  "tg_nghi",
+  "dung_cu",
+  "sec_dl",
+  "dinh_luong",
+  "sec_buoc",
+  "buoc",
+  "sec_qc",
+  "anh_dat_chinh",
+  "tieu_chi",
+  "sec_at",
+  "di_ung",
+  "han_su_dung",
+  "cb_at",
+  "bao_quan",
+  "sec_vet",
+  "nguoi_soan",
+  "ngay_soan",
+  "cb_vet",
+  "nguoi_duyet",
+  "ngay_duyet",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_mon",
+   "fieldtype": "Section Break",
+   "label": "Món"
+  },
+  {
+   "fieldname": "ma_mon",
+   "fieldtype": "Link",
+   "options": "Item",
+   "label": "Món",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "description": "Gắn vào MÓN chứ không gắn vào công thức. Công thức có phiên bản, gắn vào công thức thì mỗi lần đổi công thức là mất hướng dẫn."
+  },
+  {
+   "fieldname": "ten_mon",
+   "fieldtype": "Data",
+   "label": "Tên món",
+   "fetch_from": "ma_mon.item_name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhom_mon",
+   "fieldtype": "Data",
+   "label": "Nhóm",
+   "fetch_from": "ma_mon.item_group",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_mon",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Nháp\nĐang dùng\nNgừng dùng",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "phien_ban",
+   "fieldtype": "Int",
+   "label": "Phiên bản",
+   "default": "1",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bom_soan_theo",
+   "fieldtype": "Link",
+   "options": "BOM",
+   "label": "Soạn theo công thức",
+   "description": "Bản công thức lúc soạn hướng dẫn này. Công thức mặc định đổi sang bản khác thì màn sẽ báo hướng dẫn đã cũ."
+  },
+  {
+   "fieldname": "cong_thuc_da_doi",
+   "fieldtype": "Check",
+   "label": "Công thức đã đổi, cần soát lại",
+   "read_only": 1,
+   "description": "Máy tự bật khi công thức mặc định của món không còn là bản đã soạn theo."
+  },
+  {
+   "fieldname": "sec_me",
+   "fieldtype": "Section Break",
+   "label": "Mẻ chuẩn và thời gian"
+  },
+  {
+   "fieldname": "me_chuan",
+   "fieldtype": "Float",
+   "label": "Mẻ chuẩn",
+   "precision": "3"
+  },
+  {
+   "fieldname": "dvt_me",
+   "fieldtype": "Link",
+   "options": "UOM",
+   "label": "Đơn vị mẻ"
+  },
+  {
+   "fieldname": "nang_suat",
+   "fieldtype": "Data",
+   "label": "Ra bao nhiêu thành phẩm",
+   "description": "Ví dụ: 1050 gram bột ra 3 khay 40x60."
+  },
+  {
+   "fieldname": "hao_hut_cho_phep",
+   "fieldtype": "Percent",
+   "label": "Hao hụt cho phép"
+  },
+  {
+   "fieldname": "cb_me",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tg_chuan_bi",
+   "fieldtype": "Int",
+   "label": "Chuẩn bị (phút)"
+  },
+  {
+   "fieldname": "tg_lam",
+   "fieldtype": "Int",
+   "label": "Làm (phút)"
+  },
+  {
+   "fieldname": "tg_nghi",
+   "fieldtype": "Int",
+   "label": "Nghỉ, ủ, đông (phút)"
+  },
+  {
+   "fieldname": "dung_cu",
+   "fieldtype": "Small Text",
+   "label": "Dụng cụ và thiết bị cần"
+  },
+  {
+   "fieldname": "sec_dl",
+   "fieldtype": "Section Break",
+   "label": "Định lượng thật",
+   "description": "Công thức trên hệ ghi TRỨNG theo QUẢ để đặt hàng và tính giá. Bảng này ghi số gram thật, tách rõ lòng trắng lòng đỏ, cho người đứng bếp."
+  },
+  {
+   "fieldname": "dinh_luong",
+   "fieldtype": "Table",
+   "options": "Vagabond HDCB Dinh Luong",
+   "label": "Định lượng"
+  },
+  {
+   "fieldname": "sec_buoc",
+   "fieldtype": "Section Break",
+   "label": "Các bước làm"
+  },
+  {
+   "fieldname": "buoc",
+   "fieldtype": "Table",
+   "options": "Vagabond HDCB Buoc",
+   "label": "Các bước"
+  },
+  {
+   "fieldname": "sec_qc",
+   "fieldtype": "Section Break",
+   "label": "Thế nào là đạt"
+  },
+  {
+   "fieldname": "anh_dat_chinh",
+   "fieldtype": "Attach Image",
+   "label": "Ảnh món đạt"
+  },
+  {
+   "fieldname": "tieu_chi",
+   "fieldtype": "Table",
+   "options": "Vagabond HDCB QC",
+   "label": "Tiêu chí"
+  },
+  {
+   "fieldname": "sec_at",
+   "fieldtype": "Section Break",
+   "label": "An toàn thực phẩm"
+  },
+  {
+   "fieldname": "di_ung",
+   "fieldtype": "Small Text",
+   "label": "Cảnh báo dị ứng",
+   "description": "Trứng, sữa, gluten, hạt cây, đậu phộng, đậu nành. Khách B2B và khách đặt tiệc hay hỏi, và đây là thứ phải trả lời đúng."
+  },
+  {
+   "fieldname": "han_su_dung",
+   "fieldtype": "Data",
+   "label": "Hạn sử dụng"
+  },
+  {
+   "fieldname": "cb_at",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bao_quan",
+   "fieldtype": "Small Text",
+   "label": "Điều kiện bảo quản"
+  },
+  {
+   "fieldname": "sec_vet",
+   "fieldtype": "Section Break",
+   "label": "Soạn và duyệt",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "nguoi_soan",
+   "fieldtype": "Data",
+   "label": "Người soạn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ngay_soan",
+   "fieldtype": "Datetime",
+   "label": "Ngày soạn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_vet",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguoi_duyet",
+   "fieldtype": "Data",
+   "label": "Người duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ngay_duyet",
+   "fieldtype": "Datetime",
+   "label": "Ngày duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-25 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Huong Dan Che Bien",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1
+  },
+  {
+   "role": "Manufacturing Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1
+  },
+  {
+   "role": "VGB - Quản lý công thức",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1
+  },
+  {
+   "role": "Bếp phó",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1,
+   "print": 1,
+   "email": 1
+  },
+  {
+   "role": "Manufacturing User",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "export": 1
+  },
+  {
+   "role": "Stock User",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "export": 1
+  },
+  {
+   "role": "Bộ phận đặt hàng",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "export": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "title_field": "ten_mon"
+}

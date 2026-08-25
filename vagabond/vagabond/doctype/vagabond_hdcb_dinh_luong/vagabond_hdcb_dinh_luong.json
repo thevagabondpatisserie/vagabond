@@ -1,0 +1,81 @@
+{
+ "actions": [],
+ "creation": "2026-08-25 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ma_hang",
+  "ten",
+  "so_luong",
+  "dvt",
+  "cb",
+  "tach_tu",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_hang",
+   "fieldtype": "Link",
+   "options": "Item",
+   "label": "Mã hàng",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Để trống được: lòng trắng và lòng đỏ không có mã riêng, gõ tay vào ô Tên."
+  },
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tên nguyên liệu",
+   "in_list_view": 1,
+   "columns": 3,
+   "reqd": 1
+  },
+  {
+   "fieldname": "so_luong",
+   "fieldtype": "Float",
+   "label": "Số lượng",
+   "in_list_view": 1,
+   "columns": 1,
+   "reqd": 1,
+   "precision": "3"
+  },
+  {
+   "fieldname": "dvt",
+   "fieldtype": "Link",
+   "options": "UOM",
+   "label": "Đơn vị",
+   "in_list_view": 1,
+   "columns": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tach_tu",
+   "fieldtype": "Data",
+   "label": "Tách từ",
+   "description": "Ví dụ: 8,333 quả trứng. Đây chính là chỗ trả lời câu hỏi công thức dùng lòng trắng thì biết ở đâu."
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú",
+   "in_list_view": 1,
+   "columns": 3
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-25 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond HDCB Dinh Luong",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

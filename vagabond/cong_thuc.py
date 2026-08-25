@@ -101,7 +101,14 @@ def _kiem_xem():
 
 
 def _kiem_sua():
-	quyen = {"Manufacturing Manager", "System Manager", "Giám đốc", "AP Giám đốc"}
+	# VAI_QLCT them 25/08/2026. Ban Khai la ke toan gia thanh, nguoi nam
+	# cong thuc va gia von, nhung chi co `Manufacturing User` nen mo duoc
+	# man ma khong sua duoc. Tren Desk ban ay von SUA DUOC tu truoc (vai
+	# do da co quyen ghi tren doctype BOM), cho ket chi la man nay.
+	from vagabond.vai_cua_hang import VAI_QLCT
+
+	quyen = {"Manufacturing Manager", "System Manager", "Giám đốc",
+		"AP Giám đốc", VAI_QLCT}
 	if not quyen & set(frappe.get_roles()):
 		frappe.throw(
 			"Chỉ bếp trưởng (Manufacturing Manager) hoặc giám đốc mới tạo và "

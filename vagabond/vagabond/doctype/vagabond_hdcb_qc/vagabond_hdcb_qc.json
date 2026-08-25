@@ -1,0 +1,71 @@
+{
+ "actions": [],
+ "creation": "2026-08-25 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "tieu_chi",
+  "dat_khi",
+  "khong_dat_khi",
+  "cb",
+  "anh_dat",
+  "anh_khong_dat",
+  "xu_ly"
+ ],
+ "fields": [
+  {
+   "fieldname": "tieu_chi",
+   "fieldtype": "Data",
+   "label": "Tiêu chí",
+   "in_list_view": 1,
+   "columns": 2,
+   "reqd": 1
+  },
+  {
+   "fieldname": "dat_khi",
+   "fieldtype": "Small Text",
+   "label": "Đạt khi",
+   "in_list_view": 1,
+   "columns": 4,
+   "reqd": 1
+  },
+  {
+   "fieldname": "khong_dat_khi",
+   "fieldtype": "Small Text",
+   "label": "Không đạt khi",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "cb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "anh_dat",
+   "fieldtype": "Attach Image",
+   "label": "Ảnh mẫu ĐẠT"
+  },
+  {
+   "fieldname": "anh_khong_dat",
+   "fieldtype": "Attach Image",
+   "label": "Ảnh mẫu KHÔNG đạt"
+  },
+  {
+   "fieldname": "xu_ly",
+   "fieldtype": "Small Text",
+   "label": "Không đạt thì làm gì"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-25 08:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond HDCB QC",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
