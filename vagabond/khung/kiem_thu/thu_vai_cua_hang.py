@@ -174,7 +174,7 @@ def _():
 @ca("hàm dựng vai chạy lại được nhiều lần mà không đổi gì thêm")
 def _():
 	ma = _doc("vai_cua_hang.py")
-	dung("có kiểm tồn tại trước khi tạo vai", 'exists("Role", VAI_QLCH)' in ma)
+	dung("có kiểm tồn tại trước khi tạo vai", 'if frappe.db.exists("Role", ten):' in ma)
 	dung("thiếu rỗng thì thoát sớm", "if not thieu:" in ma)
 
 
@@ -185,7 +185,7 @@ def _():
 	# van chua co vai moi.
 	ma = _doc("vai_cua_hang.py")
 	dung("có hàm lưu lại người dùng", "def _luu_lai_nguoi_dung(" in ma)
-	dung("lọc đúng người theo hồ sơ", '"role_profile_name": HO_SO_NHAN' in ma)
+	dung("lọc đúng người theo hồ sơ", '"role_profile_name": ten_ho_so or HO_SO_NHAN' in ma)
 	dung("chỉ gọi khi thật sự có thêm vai", "if them:" in ma)
 
 
