@@ -82,6 +82,22 @@ def gui_tin(c, sdt84, template_id, du_lieu, dau_vet=None):
 	KHONG nem loi ra ngoai khi Zalo tu choi - cho ben goi tu quyet dinh, vi co
 	cho chi can bao "khong gui duoc" chu khong duoc lam hong ca nghiep vu.
 	"""
+	# Bộ kiểm thử tích hợp đang chạy thì TUYỆT ĐỐI không bắn tin ra ngoài.
+	#
+	# Vì sao cửa này đặt ở ĐÂY chứ không đặt ở từng nơi gọi: có ba đường đang
+	# gọi hàm này (dang_nhap.py mã đăng nhập, diem_otp.py mã duyệt sửa hoá
+	# đơn, thanh_toan.py tin yêu cầu khách chuyển tiền). Chặn ở một chỗ thì
+	# che cả ba, và che sẵn cho đường thứ tư mai mốt ai đó viết thêm. Chặn ở
+	# từng nơi gọi thì hôm nào thêm đường mới là lại quên.
+	#
+	# Vì sao nghiêm trọng: điểm lưu của cơ sở dữ liệu lùi lại được một chứng
+	# từ ảo, nhưng KHÔNG lùi lại được một tin nhắn đã nằm trong máy khách
+	# thật. Riêng đường thanh_toan.py gửi tin đòi tiền, nên một lần chạy kiểm
+	# thử là một lần khách thật bị đòi tiền cho một đơn không có thật.
+	#
+	# Cùng cách làm với thong_bao.gui. Xem vagabond/khung/kiem_that/nen.py.
+	if frappe.flags.get("vagabond_kiem_that"):
+		return False, "đang chạy kiểm thử tích hợp, không gửi tin ra ngoài"
 	if not template_id:
 		return False, "Chưa khai mã mẫu ZNS trong Vagabond Settings"
 	try:

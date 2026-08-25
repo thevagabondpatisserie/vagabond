@@ -75,6 +75,31 @@ def _thong_bao_ton_trong_co():
 		'frappe.flags.get("vagabond_kiem_that")' in nguon)
 
 
+@ca("kiem that: duong gui tin Zalo phai ton trong co cam gui ra ngoai")
+def _zalo_ton_trong_co():
+	# Sinh ra 25/08/2026. Soi lại thì `thong_bao.py` có cửa này còn `zalo.py`
+	# thì KHÔNG, suốt từ 06/08/2026. Nghĩa là chạy bộ kiểm thử tích hợp trên
+	# site thật thì chuông đẩy bị chặn, còn tin ZNS vẫn bay ra ngoài.
+	#
+	# Ba đường đang gọi zalo.gui_tin: dang_nhap.py, diem_otp.py và
+	# thanh_toan.py. Đường thứ ba gửi tin yêu cầu khách chuyển tiền. Một lần
+	# chạy kiểm thử là một lần khách thật nhận tin đòi tiền cho một đơn không
+	# có thật.
+	#
+	# Cửa phải nằm trong CHÍNH `gui_tin` chứ không nằm ở từng nơi gọi, nên ca
+	# kiểm đọc luôn thân hàm đó bằng AST: chặn kiểu "có chuỗi ấy đâu đó trong
+	# tệp" thì một dòng chú thích nhắc tên cờ cũng làm ca kiểm xanh giả.
+	tep = os.path.join(GOC, "vagabond", "zalo.py")
+	with open(tep, encoding="utf-8") as f:
+		nguon = f.read()
+	than = ""
+	for nut in ast.walk(ast.parse(nguon)):
+		if isinstance(nut, ast.FunctionDef) and nut.name == "gui_tin":
+			than = ast.dump(nut)
+	dung("zalo.py còn hàm gui_tin", bool(than))
+	dung("zalo.gui_tin đọc cờ kiểm thật", "vagabond_kiem_that" in than)
+
+
 @ca("kiem that: bo ca kiem phai duoc nap trong cua, khong bo quen bo nao")
 def _nap_du_bo():
 	nguon = _doc("cua.py")
