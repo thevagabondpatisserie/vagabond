@@ -34,6 +34,14 @@ def gui_mau(c, sdt84, ten_mau, tham_so, ngon_ngu=None):
 	sdt84 dang 84xxxxxxxxx, khong dau cong - Meta nhan ca hai nhung de mot
 	kieu cho khoi lech khi doi chieu.
 	"""
+	# Cung cai chan nhu ben Zalo, them 25/08/2026. `thanh_toan.py` goi CA HAI
+	# duong cho mot tin yeu cau thanh toan, nen chan mot ben ma bo ben kia
+	# thi ca kiem tich hop van ban tin that ra dien thoai khach that.
+	#
+	# Diem luu cua co so du lieu lui lai duoc mot chung tu ao. No khong lui
+	# lai duoc mot tin nhan da toi tay nguoi ta.
+	if frappe.flags.get("vagabond_kiem_that"):
+		return False, "Dang chay kiem thu tich hop nen khong gui WhatsApp"
 	phone_id = (c.get("wa_phone_id") or "").strip()
 	tok = key(c, "wa_token")
 	if not (phone_id and tok):
