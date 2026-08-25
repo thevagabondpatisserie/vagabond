@@ -733,3 +733,65 @@ def quet_dem_tu_dong():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tang_qua: quet dem tu dong loi")
 		return {"loi": 1}
+
+
+# Trường mà màn hình ĐƯỢC PHÉP ghi. Danh sách trắng, không phải danh sách đen.
+#
+# Vì sao trắng chứ không đen: các ô `sdt_khach`, `chinh_chu`, `loi_chuc`,
+# `zns_da_gui` đều do máy chủ tự tính. Nhận bừa cả gói người ta gửi lên là
+# mở đúng cái cửa cho một màn hình sửa tay đặt cờ chính chủ bằng 1 rồi bắn
+# tin vào máy trợ lý. Thêm một ô mới thì thêm tên vào đây, quên thì ô đó
+# lặng lẽ không lưu chứ không lặng lẽ ghi sai.
+TRUONG_MAN_GHI = (
+	"dot", "khach", "ten_khach", "phan_loai", "title_rieng", "don_vi",
+	"khach_cua", "bo_phan_lam", "nguoi_lam",
+	"sdt_khach_tho", "sdt_nhan_tho",
+	"dia_chi", "gio_giao", "ghi_chu_van_chuyen",
+	"mau_loi_chuc", "sua_tay", "loi_chuc_sua_tay",
+	"tt_tang", "ngay_tang", "tt_lien_he",
+	"huy", "ly_do_huy", "ghi_chu",
+)
+
+
+@frappe.whitelist()
+def luu(ma=None, du_lieu=None):
+	"""Lưu một phiếu tặng quà từ app. Máy chủ chốt, màn hình chỉ gửi chữ.
+
+	Không cho app gọi thẳng `frappe.client.insert`: bóc lại số điện thoại,
+	ráp lại lời chúc và chặn quyền đều phải chạy ở đây. Đi đường chung thì
+	ba việc đó vẫn chạy (chúng nằm trong validate), nhưng app sẽ ghi được
+	cả những ô máy chủ tự tính, và đó là cửa mở cho sai số lặng lẽ.
+	"""
+	import json
+
+	_kiem_quyen("lập hoặc sửa phiếu tặng quà")
+	d = du_lieu
+	if isinstance(d, str):
+		d = json.loads(d or "{}")
+	d = d or {}
+
+	doc = frappe.get_doc(DT, ma) if ma else frappe.new_doc(DT)
+	for truong in TRUONG_MAN_GHI:
+		if truong in d:
+			setattr(doc, truong, d.get(truong))
+
+	if "mon" in d:
+		doc.set("mon", [])
+		for m in (d.get("mon") or []):
+			if not (m or {}).get("mon"):
+				continue
+			doc.append("mon", {
+				"mon": m["mon"],
+				"so_luong": cint(m.get("so_luong")) or 1,
+				"ghi_chu_mon": m.get("ghi_chu_mon") or "",
+			})
+
+	if not (doc.get("mon") or []):
+		frappe.throw(
+			"Phiếu tặng quà nào cũng phải có ít nhất một món. Nhờ anh chị "
+			"bấm Thêm món rồi lưu lại."
+		)
+
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ma": doc.name, "ten_khach": doc.ten_khach}

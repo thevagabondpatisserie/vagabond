@@ -183,6 +183,7 @@ MAN = (
 	("QLQ", "Phân quyền", None),
 	("ACC", "Tài khoản của tôi", None),
 	("OTP", "Mã OTP", None),
+	("TQV", "Tặng quà khách VIP", None),
 
 	# --- Man chung
 	("VCL", "Việc cần làm", None),

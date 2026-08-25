@@ -114,6 +114,9 @@ async function scrHome() {
          Sales Online (anh Viet 10/08/2026). Truoc day Sales dung rieng mot
          nut o ngoai nen nhan vien hay vao nham. */
       card('🧾', 'Tính tiền - hoá đơn bán hàng', 'Chọn điểm bán: District 1, NVHTN, Sales Online', dsn, 'POS') +
+      /* CRM dat ngay DUOI nut Tinh tien (anh Viet chot 25/08/2026). Man
+         nay thay bang tinh tang qua khach VIP cua chi Loan Anh. */
+      card('💝', 'CRM - chăm sóc khách hàng', 'Tặng quà khách VIP: lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') +
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
@@ -371,7 +374,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
@@ -823,6 +826,7 @@ var VGB_DUONG = {
   'tai-khoan-cua-toi': 'ACC',
   'tai-khoan-ke-toan': 'CDTK',
   'tai-san': 'TS',
+  'tang-qua-khach-vip': 'TQV',
   'tao-nha-cung-cap': 'NCCTAO',
   'thanh-toan': 'PAY',
   'thanh-toan-noi-bo': 'DNC',
@@ -949,6 +953,7 @@ function vgbGo(k) {
      chu thi giu nguyen nhu cu, khong them the moi. */
   if (k === 'DHUY') return go(scrDonHuy);
   if (k === 'POS') return go(scrPosChonQuay);
+  if (k === 'TQV') return go(scrTqDot);
   if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
