@@ -9,7 +9,7 @@ Mọi ca ở đây dựng chứng từ thật rồi lùi về điểm lưu, xem 
 
 import frappe
 
-from vagabond import don_huy
+from vagabond import don_huy, hoan_tien
 from vagabond.khung.kiem_that.nen import (
 	ca, cong_ty, dung, khong_nem, la,
 )
@@ -31,44 +31,63 @@ def _du_du_lieu_nen():
 
 @ca("don huy: ERPNext CHAP THUAN cap phieu thu va phieu chi khong gan hoa don")
 def _cap_phieu_ghi_so_duoc():
-	# Đây là ca quan trọng nhất của tệp này. Khoản tiền của đơn đã huỷ không
-	# gắn với hoá đơn nào, nên hai phiếu này không có dòng tham chiếu. Nếu
-	# ERPNext từ chối thì cả luồng hoàn tiền vô nghĩa, và phải biết điều đó
-	# ở đây chứ không phải lúc Sales bấm nút.
+	# Day la ca quan trong nhat cua tep nay. Khoan tien cua don da huy khong
+	# gan voi hoa don nao, nen hai phieu nay khong co dong tham chieu. Neu
+	# ERPNext tu choi thi ca luong hoan tien vo nghia, va phai biet dieu do
+	# o day chu khong phai luc Sales bam nut.
+	#
+	# SUA 25/08/2026: ca nay HONG suot tu 23/08 voi loi "module
+	# 'vagabond.don_huy' has no attribute '_phieu'". Ngay 23/08 hai phieu
+	# duoc doi cho sinh: tu `don_huy._phieu` sang
+	# `hoan_tien._lap_cap_phieu_huy_don`, vi Sales khong co quyen tren
+	# Payment Entry. Ca kiem thi khong ai doi theo.
+	#
+	# Mot ca kiem tich hop do lien tuc con nguy hon khong co ca kiem nao:
+	# nguoi chay quen dan mau do do va thoi doc ket qua.
 	cty = cong_ty()
 	khach = don_huy._khach_le_online()
-	tk = don_huy._tk_ngan_hang(cty)
-	tien = 705000.0
-	mo_ta = don_huy.dien_giai_don("92252", "MD92252", "Ms.Nhu Duyen")
-
-	thu = khong_nem("lập phiếu thu", lambda: don_huy._phieu(
-		"Receive", khach, cty, tk, tien, "Ca kiem tich hop: " + mo_ta,
-		don_huy.noi_dung_chuyen_khoan("92252", "MD92252"), None))
-	if not thu:
+	if not khach:
+		dung("có mã Khách lẻ Online để chạy ca này", False)
 		return
+
+	# Ham that doi mot HO SO co that, vi no dat `pe.vgb_hoan_tien = ho_so.name`
+	# va Frappe kiem lien ket do. Dung ho so nhap ngay tai day; diem luu cua
+	# `nen.py` se lui het lai khi ca kiem xong.
+	ho_so = khong_nem("lập hồ sơ hoàn tiền thử", lambda: _ho_so_thu(khach))
+	if not ho_so:
+		return
+
+	cap = khong_nem("lập cặp phiếu thu và phiếu chi",
+		lambda: hoan_tien._lap_cap_phieu_huy_don(ho_so))
+	if not cap:
+		return
+	thu, chi = cap
+	dung("lập được phiếu thu", bool(thu))
+	dung("lập được phiếu chi", bool(chi))
+	if not (thu and chi):
+		return
+
 	la("phiếu thu để NHÁP", int(thu.docstatus), 0)
-	la("phiếu thu đúng khách", thu.party, khach)
-	# Không gán vào hoá đơn nào: khoản này chưa từng là doanh thu.
-	la("phiếu thu không có dòng tham chiếu", len(thu.get("references") or []), 0)
-
-	chi = khong_nem("lập phiếu chi", lambda: don_huy._phieu(
-		"Pay", khach, cty, tk, tien, "Ca kiem tich hop tra lai: " + mo_ta,
-		don_huy.noi_dung_chuyen_khoan("92252", "MD92252"), None))
-	if not chi:
-		return
 	la("phiếu chi để NHÁP", int(chi.docstatus), 0)
+	la("phiếu thu đúng khách", thu.party, khach)
+	# Khong gan vao hoa don nao: khoan nay chua tung la doanh thu.
+	la("phiếu thu không có dòng tham chiếu", len(thu.get("references") or []), 0)
+	la("phiếu chi không có dòng tham chiếu", len(chi.get("references") or []), 0)
 	la("hai phiếu cùng số tiền", float(chi.paid_amount), float(thu.paid_amount))
+	la("cả hai trỏ về đúng hồ sơ", 
+		[thu.get("vgb_hoan_tien"), chi.get("vgb_hoan_tien")],
+		[ho_so.name, ho_so.name])
 
-	# Ghi sổ THẬT cả hai để ERPNext chạy trọn chuỗi validation. Đây là chỗ
-	# vụ 3311 đáng lẽ phải bị bắt: chỉ dựng doc trong bộ nhớ thì không bao
-	# giờ biết hệ lõi có nhận hay không.
+	# Ghi so THAT ca hai de ERPNext chay tron chuoi validation. Day la cho
+	# vu 3311 dang le phai bi bat: chi dung doc trong bo nho thi khong bao
+	# gio biet he loi co nhan hay khong.
 	khong_nem("ghi sổ phiếu thu", thu.submit)
 	khong_nem("ghi sổ phiếu chi", chi.submit)
 	la("phiếu thu đã ghi sổ", int(thu.docstatus), 1)
 	la("phiếu chi đã ghi sổ", int(chi.docstatus), 1)
 
-	# Hai chân cân nhau thì số dư của khách không đổi. Đó là điều chị Dung
-	# cần: trả lại một khoản giữ hộ, không đẻ ra công nợ.
+	# Hai chan can nhau thi so du cua khach khong doi. Do la dieu chi Dung
+	# can: tra lai mot khoan giu ho, khong de ra cong no.
 	gl = frappe.get_all("GL Entry", filters={
 		"voucher_no": ["in", [thu.name, chi.name]], "is_cancelled": 0,
 	}, fields=["account", "party", "debit", "credit"])
@@ -77,3 +96,17 @@ def _cap_phieu_ghi_so_duoc():
 	dung("dòng công nợ có đối tác", len(tk_131) >= 2)
 	lech = sum(float(g.credit or 0) - float(g.debit or 0) for g in tk_131)
 	la("hai chân cân nhau, số dư khách không đổi", round(lech, 2), 0.0)
+
+
+def _ho_so_thu(khach):
+	"""Mot ho so hoan tien de NHAP, chi dung trong ca kiem nay."""
+	hs = frappe.new_doc("Vagabond Hoan Tien")
+	hs.khach = khach
+	hs.so_tien = 705000.0
+	hs.ly_do = "Khac"
+	hs.trang_thai = "Cho chi"
+	hs.ma_don_pancake = "92252"
+	hs.noi_dung_ck = don_huy.noi_dung_chuyen_khoan("92252", "MD92252")
+	hs.flags.ignore_permissions = True
+	hs.insert(ignore_permissions=True)
+	return hs
