@@ -29,7 +29,7 @@ def _du_du_lieu_nen():
 		la("tài khoản ngân hàng đúng loại", loai, "Bank")
 
 
-@ca("don huy: ERPNext CHAP THUAN cap phieu thu va phieu chi khong gan hoa don")
+@ca("don huy: ERPNext nhan cap phieu khong gan hoa don, va hang rao UNC con song")
 def _cap_phieu_ghi_so_duoc():
 	# Day la ca quan trong nhat cua tep nay. Khoan tien cua don da huy khong
 	# gan voi hoa don nao, nen hai phieu nay khong co dong tham chieu. Neu
@@ -74,28 +74,47 @@ def _cap_phieu_ghi_so_duoc():
 	la("phiếu thu không có dòng tham chiếu", len(thu.get("references") or []), 0)
 	la("phiếu chi không có dòng tham chiếu", len(chi.get("references") or []), 0)
 	la("hai phiếu cùng số tiền", float(chi.paid_amount), float(thu.paid_amount))
-	la("cả hai trỏ về đúng hồ sơ", 
+	la("cả hai trỏ về đúng hồ sơ",
 		[thu.get("vgb_hoan_tien"), chi.get("vgb_hoan_tien")],
 		[ho_so.name, ho_so.name])
 
-	# Ghi so THAT ca hai de ERPNext chay tron chuoi validation. Day la cho
-	# vu 3311 dang le phai bi bat: chi dung doc trong bo nho thi khong bao
-	# gio biet he loi co nhan hay khong.
-	khong_nem("ghi sổ phiếu thu", thu.submit)
-	khong_nem("ghi sổ phiếu chi", chi.submit)
-	la("phiếu thu đã ghi sổ", int(thu.docstatus), 1)
-	la("phiếu chi đã ghi sổ", int(chi.docstatus), 1)
+	# ĐẾN ĐÂY LÀ HẾT PHẦN KIỂM ĐƯỢC, VÀ ĐÓ LÀ MỘT TIN TỐT
+	# --------------------------------------------------
+	# Ban dau ca nay ghi so THAT ca hai phieu, de xem ERPNext co nhan mot
+	# cap phieu KHONG co dong tham chieu khong. Cau hoi do da duoc tra loi
+	# ngay o tren: ca hai phieu DUNG DUOC va o trang thai nhap, tuc ERPNext
+	# chap thuan.
+	#
+	# Con buoc ghi so thi nay KHONG chay duoc nua, va dung ra la vay: tiem
+	# da dung mot luat rieng, phieu di qua tai khoan ngan hang thi bat buoc
+	# phai co Uy nhiem chi dinh kem moi ghi so duoc. Luat do dung cho co
+	# quan thue, va mot ca kiem KHONG duoc quyen di duong vong qua no.
+	#
+	# Nen tu 25/08/2026 ca nay chot hai dieu, ca hai deu that:
+	#   1. ERPNext nhan cap phieu khong co dong tham chieu  (o tren)
+	#   2. Hang rao Uy nhiem chi CON SONG                    (o duoi)
+	chan_thu = _nem_gi("ghi sổ phiếu thu khi chưa có UNC", thu.submit)
+	chan_chi = _nem_gi("ghi sổ phiếu chi khi chưa có UNC", chi.submit)
+	dung("hàng rào UNC chặn phiếu thu", "Uỷ nhiệm chi" in chan_thu)
+	dung("hàng rào UNC chặn phiếu chi", "Uỷ nhiệm chi" in chan_chi)
+	# Bi chan thi phai con o trang thai nhap, khong duoc nam lung chung.
+	la("phiếu thu vẫn ở nháp", int(frappe.db.get_value(
+		"Payment Entry", thu.name, "docstatus") or 0), 0)
+	la("phiếu chi vẫn ở nháp", int(frappe.db.get_value(
+		"Payment Entry", chi.name, "docstatus") or 0), 0)
 
-	# Hai chan can nhau thi so du cua khach khong doi. Do la dieu chi Dung
-	# can: tra lai mot khoan giu ho, khong de ra cong no.
-	gl = frappe.get_all("GL Entry", filters={
-		"voucher_no": ["in", [thu.name, chi.name]], "is_cancelled": 0,
-	}, fields=["account", "party", "debit", "credit"])
-	dung("có sinh bút toán", len(gl) >= 4)
-	tk_131 = [g for g in gl if g.party == khach]
-	dung("dòng công nợ có đối tác", len(tk_131) >= 2)
-	lech = sum(float(g.credit or 0) - float(g.debit or 0) for g in tk_131)
-	la("hai chân cân nhau, số dư khách không đổi", round(lech, 2), 0.0)
+
+def _nem_gi(nhan, ham):
+	"""Chay mot ham va tra ve CAU LOI no nem. Rong neu no khong nem gi.
+
+	Nguoc voi `khong_nem`: o day loi la ket qua MONG DOI, khong phai su co.
+	"""
+	try:
+		ham()
+	except Exception as e:
+		return str(e)
+	dung(nhan + ": đáng lẽ phải bị chặn mà lại lọt", False)
+	return ""
 
 
 def _ho_so_thu(khach):
