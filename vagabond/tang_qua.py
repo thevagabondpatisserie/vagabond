@@ -795,3 +795,98 @@ def luu(ma=None, du_lieu=None):
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ma": doc.name, "ten_khach": doc.ten_khach}
+
+
+# ------------------------------------------------------- nạp danh mục lần đầu
+#
+# Phân loại khách là ô BẮT BUỘC trên phiếu. Danh mục rỗng thì Sales mở form
+# ra không lưu được một dòng nào, tức là tính năng deploy xong vẫn không
+# dùng được. Nên nạp sẵn đúng những nhóm ĐÃ CÓ THẬT trong bảng tính.
+#
+# Xưng hô lấy nguyên văn ghi chú của chị Loan Anh: "Nhóm nghệ sỹ cú pháp ghi
+# thay chữ Anh/Chị bằng chữ Nghệ sỹ. Nhóm hoa hậu thay bằng Hoa Hậu/Á Hậu/
+# Nam Vương. Các nhóm khác tuỳ theo title."
+#
+#   (tên nhóm, xưng hô, xưng hô phụ, thứ tự)
+NHOM_NAP_SAN = (
+	("Nghệ sĩ", "Nghệ sỹ", "", 10),
+	("Nhóm Hoa Hậu", "Hoa Hậu", "Á Hậu/Nam Vương", 20),
+	("Influencer", "Anh/Chị", "", 30),
+	("Nhóm Kinh Doanh", "Anh/Chị", "Doanh nhân", 40),
+	("Cigar & Bar", "Anh/Chị", "", 50),
+	("Khách sỉ", "Anh/Chị", "", 60),
+	("Khách VIP mua nhiều", "Anh/Chị", "", 70),
+	("Báo chí - Tạp chí", "Anh/Chị", "", 80),
+)
+
+# Mẫu Tết chép NGUYÊN VĂN từ ô merge trong sheet Tết Bính Ngọ 2026.
+MAU_NAP_SAN = (
+	{
+		"ma_mau": "LC-TET-CHUAN", "ten_mau": "Tết - mẫu chuẩn", "dip": "Tet",
+		"noi_dung": (
+			"CUNG CHÚC TÂN XUÂN\n\n"
+			"Mến gửi {xung_ho} {ten_khach},\n\n"
+			"Chút phong vị ngọt lành cho ngày khởi xuân {nam}.\n"
+			"Cầu chúc {xung_ho} cùng gia đình một năm mới "
+			"An Nhiên - Tự Tại - Cát Tường.\n"
+			"Mong những khoảnh khắc sum vầy thêm phần thi vị!\n\n"
+			"Tâm ý,\nThe Vagabond Patisserie"
+		),
+	},
+	{
+		"ma_mau": "LC-TRUNGTHU-CHUAN", "ten_mau": "Trung thu - mẫu chuẩn",
+		"dip": "Trung thu",
+		"noi_dung": (
+			"The Vagabond kính chúc {xung_ho} {ten_khach} và gia đình một mùa "
+			"trăng đoàn viên thật an lành, và gởi lời tri ân {xung_ho} đã luôn "
+			"ủng hộ tiệm bánh.\n\n"
+			"Từ đội ngũ của The Vagabond."
+		),
+	},
+	{
+		"ma_mau": "LC-GIANGSINH-CHUAN", "ten_mau": "Giáng sinh - mẫu chuẩn",
+		"dip": "Giang sinh",
+		"noi_dung": (
+			"Wishing you a Christmas season overflowing with Love and Laughter\n"
+			"- from The Vagabond with love -"
+		),
+	},
+)
+
+
+def nap_danh_muc():
+	"""Nạp danh mục lần đầu. Gọi từ after_migrate. LẶP LẠI ĐƯỢC.
+
+	CHỈ THÊM, không bao giờ sửa và không bao giờ xoá. Marketing đổi xưng hô
+	của một nhóm trên app rồi mà lần deploy sau máy ghi đè lại thì đó là
+	một tấm thiệp in sai gửi khách VIP, và không ai hiểu vì sao nó quay về
+	giá trị cũ.
+	"""
+	them = {"nhom": 0, "mau": 0}
+	for ten, xh, xh_phu, uu_tien in NHOM_NAP_SAN:
+		if frappe.db.exists(DT_NHOM, ten):
+			continue
+		try:
+			d = frappe.get_doc({
+				"doctype": DT_NHOM, "ten_nhom": ten, "xung_ho": xh,
+				"xung_ho_phu": xh_phu, "uu_tien": uu_tien, "con_dung": 1,
+			})
+			d.flags.ignore_permissions = True
+			d.insert(ignore_permissions=True)
+			them["nhom"] += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+				"tang_qua: nap nhom %s loi" % ten)
+
+	for m in MAU_NAP_SAN:
+		if frappe.db.exists(DT_MAU, m["ma_mau"]):
+			continue
+		try:
+			d = frappe.get_doc(dict(doctype=DT_MAU, con_dung=1, **m))
+			d.flags.ignore_permissions = True
+			d.insert(ignore_permissions=True)
+			them["mau"] += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+				"tang_qua: nap mau %s loi" % m["ma_mau"])
+	return them

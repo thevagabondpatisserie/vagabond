@@ -12,8 +12,8 @@ Ba thu duoc chot cung o day, moi thu la mot lan suyt hong:
 
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 from vagabond.tang_qua import (
-	BIEN_MAU, bien_con_thieu, cau_chan_zns, duoc_gui_zns, rap_loi_chuc,
-	xung_ho_cua,
+	BIEN_MAU, MAU_NAP_SAN, NHOM_NAP_SAN, bien_con_thieu, cau_chan_zns,
+	duoc_gui_zns, rap_loi_chuc, xung_ho_cua,
 )
 
 # Chep nguyen van tu o merge trong sheet Tet Binh Ngo 2026.
@@ -134,3 +134,46 @@ def _hai_truc():
 		list(TT_TANG), ["Chua tang", "Dang xu ly", "Da tang"])
 	la("trục liên hệ đúng hai giá trị",
 		list(TT_LIEN_HE), ["Chua lien he", "Da lien he"])
+
+
+@ca("tang qua: danh muc nap san phai dung duoc ngay, khong cho ai go them")
+def _nap_san():
+	# O Phan loai khach la o BAT BUOC tren phieu. Danh muc rong nghia la
+	# Sales mo form ra khong luu duoc mot dong nao, tuc la tinh nang deploy
+	# xong van khong dung duoc. Ca kiem nay chot lai chuyen do.
+	ten = [x[0] for x in NHOM_NAP_SAN]
+	for phai_co in ("Nghệ sĩ", "Nhóm Hoa Hậu", "Influencer",
+			"Nhóm Kinh Doanh", "Cigar & Bar"):
+		# Nam nhom nay co THAT trong bang tinh cua chi Loan Anh.
+		dung("có sẵn nhóm %s" % phai_co, phai_co in ten)
+	la("tên nhóm không trùng nhau", len(set(ten)), len(ten))
+	for x in NHOM_NAP_SAN:
+		dung("nhóm %s có xưng hô" % x[0], bool((x[1] or "").strip()))
+
+	# Xung ho lay nguyen van ghi chu cua chi Loan Anh.
+	xh = dict((x[0], x[1]) for x in NHOM_NAP_SAN)
+	la("nhóm nghệ sĩ xưng Nghệ sỹ", xh["Nghệ sĩ"], "Nghệ sỹ")
+	la("nhóm hoa hậu xưng Hoa Hậu", xh["Nhóm Hoa Hậu"], "Hoa Hậu")
+
+
+@ca("tang qua: mau nap san phai rap ra cau that, khong con dau ngoac nhon")
+def _mau_nap_san():
+	ma = [m["ma_mau"] for m in MAU_NAP_SAN]
+	la("mã mẫu không trùng nhau", len(set(ma)), len(ma))
+	for m in MAU_NAP_SAN:
+		# Bien la trong mau nap san la thiep in ra con nguyen dau ngoac nhon,
+		# ma thiep thi da gui khach roi.
+		la("mẫu %s không có biến lạ" % m["ma_mau"],
+			bien_con_thieu(m["noi_dung"]), [])
+		ra = rap_loi_chuc(m["noi_dung"], xung_ho="Nghệ sỹ",
+			ten_khach="Nguyễn Văn Chung", nam="2026")
+		dung("mẫu %s ráp ra câu thật" % m["ma_mau"], len(ra) > 20)
+		dung("mẫu %s không sót dấu ngoặc nhọn" % m["ma_mau"],
+			"{" not in ra and "}" not in ra)
+
+	# Mau Giang sinh khong dung bien nao: rap ra phai giu NGUYEN VAN, khong
+	# bi cat dong nao. Chep tu bang tinh: "Wishing you a Christmas season..."
+	gs = [m for m in MAU_NAP_SAN if m["dip"] == "Giang sinh"][0]
+	ra = rap_loi_chuc(gs["noi_dung"], ten_khach="", don_vi="")
+	dung("mẫu không có biến thì giữ nguyên cả hai dòng",
+		"Christmas season" in ra and "The Vagabond with love" in ra)
