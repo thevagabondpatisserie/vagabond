@@ -186,3 +186,77 @@ def _xep_theo_do_phu():
 	ra = T["chon_muc"]("doanh số", so_tay)
 	dung("co ket qua", bool(ra))
 	dung("muc phu tron ven dung dau", "doanh số" in (ra[0].get("chi_tiet") or ""))
+
+
+# ------------------------------------------- cau bao loi khi goi mo hinh hong
+#
+# Ngay 26/08/2026 tro ly im tieng suot mot buoi. Khoa API dung, quyen dung,
+# ma hinh chi bao "Tro ly dang khong goi duoc, vui long thu lai sau it phut".
+# Benh that la tai khoan Anthropic het so du. Cau bao loi chung chung do khien
+# nguoi ta di do khoa, do mang, do quyen, khong ai nghi toi tien.
+#
+# `tro_ly_loi` la tep THUAN, khong nap frappe cung khong nap requests, nen nap
+# thang vao day duoc, khong can tro thuat cat phan thuan nhu tren.
+
+from vagabond import tro_ly_loi  # noqa: E402
+
+
+def _than(kieu, loi):
+	return {"type": "error", "error": {"type": kieu, "message": loi}}
+
+
+@ca("tro ly: het so du thi noi thang la het tien, va noi ro Pro khong dung chung")
+def _het_so_du():
+	# Day la ca that ngay 26/08/2026, chep nguyen loi cua nha cung cap.
+	cau = tro_ly_loi.loi_mo_hinh(400, _than("invalid_request_error",
+		"Your credit balance is too low to access the Anthropic API. "
+		"Please go to Plans & Billing to upgrade or purchase credits."))
+	dung("noi la het so du", "hết số dư" in cau)
+	dung("chi cho cho nap tien", "console.anthropic.com" in cau)
+	dung("canh bao goi Pro khong dung chung so du", "Pro" in cau)
+	dung("khong con cau chung chung", cau != tro_ly_loi.CHUNG)
+
+
+@ca("tro ly: khoa sai thi bao dan lai khoa, khong bao thu lai sau")
+def _khoa_sai():
+	cau = tro_ly_loi.loi_mo_hinh(401, _than("authentication_error",
+		"invalid x-api-key"))
+	dung("chi toi man Cai dat", "Cài đặt" in cau)
+	dung("bao la khoa", "khoá" in cau.lower())
+	dung("khong xui cho doi", "thử lại sau" not in cau)
+
+
+@ca("tro ly: sai ten mo hinh thi doc ra dung cai ten sai")
+def _sai_mo_hinh():
+	cau = tro_ly_loi.loi_mo_hinh(404, _than("not_found_error",
+		"model: claude-bay-bong"), "claude-bay-bong")
+	dung("doc ra ten sai", "claude-bay-bong" in cau)
+	dung("chi cho o Mo hinh", "Mô hình" in cau)
+
+
+@ca("tro ly: qua nhanh va qua tai la hai viec khac nhau")
+def _nhanh_va_qua_tai():
+	nhanh = tro_ly_loi.loi_mo_hinh(429, _than("rate_limit_error", "too many"))
+	dung("bao cho mot phut", "một phút" in nhanh)
+	tai = tro_ly_loi.loi_mo_hinh(529, _than("overloaded_error", "overloaded"))
+	dung("bao qua tai", "quá tải" in tai)
+	dung("hai cau khac nhau", nhanh != tai)
+
+
+@ca("tro ly: than tra ve khong phai tu dien thi van khong duoc no")
+def _than_khong_phai_tu_dien():
+	# Luc hong nang thi may chu vong ngoai tra ve HTML chu khong tra ve JSON.
+	cau = tro_ly_loi.loi_mo_hinh(502, "<html>Bad Gateway</html>")
+	dung("van ra mot cau tieng Viet", "Thử lại sau" in cau or "lỗi" in cau)
+	la("than rong, ma la khong doc duoc",
+		tro_ly_loi.loi_mo_hinh("khong-phai-so", {}), tro_ly_loi.CHUNG)
+
+
+@ca("tro ly: KHONG BAO GIO doc khoa API ra cau bao loi")
+def _khong_lo_khoa():
+	# Cai bay that: nha cung cap doi khi vong lai mot phan khoa trong loi.
+	# Cau bao loi hien len man hinh cho ca nhan vien thay.
+	cau = tro_ly_loi.loi_mo_hinh(401, _than("authentication_error",
+		"invalid x-api-key: sk-ant-api03-BIMAT"))
+	dung("khong lo khoa", "sk-ant" not in cau)
+	dung("khong lo doan bi mat", "BIMAT" not in cau)
