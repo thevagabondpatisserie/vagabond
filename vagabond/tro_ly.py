@@ -242,3 +242,77 @@ def bao_loi(nhat_ky=None, ly_do=None):
 	})
 	frappe.db.commit()
 	return {"ok": 1}
+
+
+# --------------------------------------------------------------- man Cai dat
+#
+# Anh Viet 26/08/2026: "Anh khong thay cho anthropic key de nhap vao?"
+#
+# Dung vay. Ban v313 chi them cac o do vao Vagabond Settings ben Desk, con
+# man Cai dat TRONG APP thi khong co muc nao. Nguoi dung app khong co duong
+# nao toi do. Cai gi bat nguoi ta ra khoi app moi lam duoc thi coi nhu chua
+# lam xong.
+
+VAI_SUA_TRO_LY = {"System Manager", "Giám đốc"}
+
+
+def _quyen_sua():
+	if not VAI_SUA_TRO_LY & set(frappe.get_roles()):
+		frappe.throw("Chỉ giám đốc và quản lý hệ thống mới sửa cấu hình trợ lý được.")
+
+
+@frappe.whitelist()
+def cai_dat():
+	"""Cau hinh tro ly cho man Cai dat. KHONG BAO GIO tra khoa ra ngoai.
+
+	Chi tra ra la CO khoa hay chua. Khoa da khai roi thi khong ai doc lai
+	duoc tu app, ke ca giam doc - muon doi thi go khoa moi de len.
+	"""
+	_quyen_sua()
+	c = cfg()
+	ngay, thang = _han_muc(c)
+	hom_nay = nowdate()
+	return {
+		"bat": 1 if cint(c.get("tro_ly_bat")) else 0,
+		"co_khoa": 1 if key(c, "tro_ly_khoa") else 0,
+		"mo_hinh": (c.get("tro_ly_mo_hinh") or "").strip(),
+		"mo_hinh_mac_dinh": MO_HINH_MAC_DINH,
+		"luot_ngay": ngay,
+		"luot_thang": thang,
+		"da_hoi_hom_nay": _dem({"ngay": hom_nay}),
+		"da_hoi_thang_nay": _dem({"ngay": [">=", hom_nay[:8] + "01"]}),
+		"bao_loi_thang_nay": _dem({"ngay": [">=", hom_nay[:8] + "01"], "bao_loi": 1}),
+		"vai_duoc_hoi": sorted(QUYEN_HOI),
+	}
+
+
+@frappe.whitelist()
+def luu_cai_dat(bat=None, khoa=None, mo_hinh=None, luot_ngay=None, luot_thang=None):
+	"""Luu cau hinh tro ly.
+
+	O khoa: de TRONG nghia la GIU NGUYEN khoa cu, khong phai xoa. Day dung
+	la cai bay da lam mat du lieu ba lan trong repo nay - man hinh khong gui
+	o nao len thi backend hieu la "xoa o do di". Muon go khoa that thi go
+	chu xoa, khong phai de trong.
+	"""
+	_quyen_sua()
+	d = frappe.get_single("Vagabond Settings")
+	d.tro_ly_bat = 1 if cint(bat) else 0
+	k = str(khoa or "").strip()
+	if k.lower() in ("xoa", "xoá"):
+		d.tro_ly_khoa = ""
+	elif k:
+		d.tro_ly_khoa = k
+	m = str(mo_hinh or "").strip()
+	if m:
+		d.tro_ly_mo_hinh = m
+	n = cint(luot_ngay)
+	if n > 0:
+		d.tro_ly_luot_ngay = n
+	t = cint(luot_thang)
+	if t > 0:
+		d.tro_ly_luot_thang = t
+	d.flags.ignore_permissions = True
+	d.save()
+	frappe.db.commit()
+	return cai_dat()

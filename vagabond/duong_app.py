@@ -177,6 +177,7 @@ MAN = (
 	("CDQQ", "Quyền quầy", None),
 	("CDHT", "Hạng khách", None),
 	("CDCN", "Cài đặt cuối ngày", None),
+	("CDTL", "Trợ lý", None),
 	("CDSE", "SePay", None),
 	("CDTB", "Thông báo", None),
 	("QLND", "Người dùng", None),
