@@ -109,6 +109,22 @@ def _():
 	la("không khớp", ct.khop_tim("mead", "BANU00015", "Bánh Plain Croissant"), False)
 
 
+@ca("danh mục công thức: gõ ô tìm là tìm CẢ TIỆM, không kẹt trong một khu")
+def _():
+	# Ca that 26/08/2026: anh Viet dung o tab Pastry go "Sable", man bao
+	# khong co cong thuc nao khop bo loc. Cong thuc Sable van con nguyen,
+	# nhung no nam o tab "Chua phan" vi mon chua khai o Bep phu trach va
+	# cai ten khong chua tu khoa nao de doan ra. Nguoi dung khong co cach
+	# nao biet dieu do.
+	la("có gõ tìm thì bỏ lọc khu", ct.tab_dang_loc("pastry", "Sable"), "")
+	la("khoảng trắng không tính là gõ", ct.tab_dang_loc("pastry", "   "), "pastry")
+	la("không gõ gì thì giữ khu", ct.tab_dang_loc("pastry", ""), "pastry")
+	la("không gõ và không chọn khu", ct.tab_dang_loc("", None), "")
+	# Chinh mon Sable that: khong khai bep phu trach, ten khong co tu khoa.
+	la("Sable rơi vào Chưa phân", ct.phan_tab(False, "", "BTP Sable"), "khac")
+	la("vẫn tìm ra bằng ô tìm", ct.khop_tim("sable", "BTPB00067", "BTP Sable"), True)
+
+
 @ca("phiên bản BOM: điều chỉnh tạo NHÁP trỏ về bản cũ, KHÔNG cancel bản cũ")
 def _():
 	import inspect

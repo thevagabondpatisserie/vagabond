@@ -96,6 +96,22 @@ def khop_tim(tim, ma, ten):
 	return t in (ma or "").lower() or t in (ten or "").lower()
 
 
+def tab_dang_loc(tab, tim):
+	"""Tab thực sự đang lọc, sau khi cân nhắc ô tìm. THUẦN.
+
+	Gõ chữ vào ô tìm là muốn tìm CẢ TIỆM, không phải tìm trong một tab.
+
+	Ca thật 26/08/2026: anh Việt đứng ở tab Pastry gõ "Sable", màn báo
+	"không có công thức nào khớp bộ lọc". Công thức Sable vẫn còn nguyên,
+	nhưng nó nằm ở tab "Chưa phân" vì món chưa khai ô Bếp phụ trách và cái
+	tên không chứa từ khoá nào để đoán ra. Người dùng không có cách nào biết
+	điều đó, và kết luận là công thức đã mất.
+
+	95 trên 382 công thức đang nằm ở "Chưa phân", nên đây không phải ca hiếm.
+	"""
+	return "" if (tim or "").strip() else (tab or "")
+
+
 # ------------------------------------------------------- phần cần Frappe
 
 import frappe
@@ -198,6 +214,9 @@ def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None):
 					"custom_bep_phu_trach"], limit_page_length=0):
 			meta[it.name] = it
 	nuoc = _nhom_nuoc()
+	# Go chu vao o tim thi bo loc tab - xem tab_dang_loc.
+	tab_loc = tab_dang_loc(tab, tim)
+	theo_tab = {}
 	ra = []
 	for b in boms:
 		it = meta.get(b.item) or {}
@@ -205,12 +224,13 @@ def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None):
 		t = phan_tab(it.get("item_group") in nuoc,
 			it.get("custom_bep_phu_trach"), ten)
 		tt = trang_thai_bom(b.docstatus, b.is_active, b.is_default)
-		if tab and t != tab:
+		if tab_loc and t != tab_loc:
 			continue
 		if trang_thai and tt != trang_thai:
 			continue
 		if not khop_tim(tim, b.item, ten):
 			continue
+		theo_tab[t] = theo_tab.get(t, 0) + 1
 		ra.append({"bom": b.name, "ma": b.item, "ten": ten, "tab": t,
 			"trang_thai": tt, "so_luong": b.quantity, "dvt": b.uom,
 			"chang": b.custom_chang or "", "ban_truoc": b.custom_ban_truoc or "",
@@ -227,7 +247,14 @@ def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None):
 		ra = [x for x in ra if x.get("hd_lech")]
 	elif huong_dan:
 		ra = [x for x in ra if x.get("huong_dan") == huong_dan]
-	return {"ds": ra[:400], "tong": len(ra)}
+	if huong_dan:
+		# Hai bo loc tren da cat bot danh sach nen bang dem phai dem lai,
+		# khong thi con so hien ra to hon danh sach that.
+		theo_tab = {}
+		for x in ra:
+			theo_tab[x["tab"]] = theo_tab.get(x["tab"], 0) + 1
+	return {"ds": ra[:400], "tong": len(ra), "theo_tab": theo_tab,
+		"bo_loc_tab": 1 if (tab and not tab_loc) else 0}
 
 
 def _gan_huong_dan(ra):
