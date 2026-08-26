@@ -31,7 +31,9 @@ var IN_QZ = {
   tuyen: null,      // manh ten may in hoa don / tem, lay tu may chu
   loi: '',          // ly do khong dung duoc, de hien khi can
   diem: '',         // diem ban da do lan gan nhat, doi diem la phai do lai
-  dang_do: null     // Promise cua lan do dang chay, tranh do hai lan
+  dang_do: null,    // Promise cua lan do dang chay, tranh do hai lan
+  ky: 'SHA512',     // thuat toan dang ky THAT, chot sau khi noi duoc
+  ban: ''           // phien ban QZ Tray tren may nay, de con biet ma nang cap
 };
 
 var IN_VENDOR = {
@@ -72,16 +74,56 @@ async function inNoiQz() {
       })
       .catch(hong);
   });
-  qz.security.setSignatureAlgorithm('SHA512');
+  /* KHONG duoc ky rong. Ban cu viet `ok((r && r.chu_ky) || '')`: may chu
+     tra ve mot the khong co chu ky - phien dang nhap vua roi, may chu tra
+     200 kem trang dang nhap - thi minh day xuong QZ mot chu ky RONG. QZ
+     doc chu ky rong la coi lenh in KHONG duoc ky, va bung dung cai hop
+     "Cannot verify trust - Invalid Signature" ngay truoc mat thu ngan.
+
+     Bao hong thang thi qz.print vut loi, inGiay bat duoc, va app roi ve
+     hop thoai in cua trinh duyet - dung cai luoi an toan da dung san. */
   qz.security.setSignaturePromise(function (chuoi) {
     return function (ok, hong) {
-      api('vagabond.in_ngam.ky', { chuoi: chuoi, thuat_toan: 'SHA512' })
-        .then(function (r) { ok((r && r.chu_ky) || ''); })
+      /* Doc IN_QZ.ky NGAY LUC KY chu khong chot cung 'SHA512' o day: neu
+         may nay chay QZ Tray doi 2.0 thi thuat toan da bi ha xuong SHA1 o
+         duoi, ma may chu van ky SHA512 la chu ky khong bao gio khop. */
+      api('vagabond.in_ngam.ky', { chuoi: chuoi, thuat_toan: IN_QZ.ky })
+        .then(function (r) {
+          var ck = (r && r.chu_ky) || '';
+          if (!ck) return hong(new Error('Máy chủ không ký được lệnh in'));
+          ok(ck);
+        })
         .catch(hong);
     };
   });
 
   await qz.websocket.connect({ retries: 1, delay: 1 });
+
+  /* CHOT THUAT TOAN KY SAU KHI NOI DUOC, khong duoc chot truoc (De 25/08/2026:
+     may in tem GODEX bao "Invalid Signature" trong khi may EPSON in ngam
+     binh thuong).
+
+     QZ Tray chi biet doc o `signAlgorithm` tu ban 2.1. Ban 2.0 khong doc o
+     do, no luon doi chieu chu ky bang SHA1. Thu vien qz-tray.js co san
+     hang rao cho chuyen nay, nhung hang rao chi do duoc SAU KHI da noi:
+     goi setSignatureAlgorithm('SHA512') truoc luc noi thi no cu nhan, roi
+     luc noi xong no chi ghi mot dong canh bao trong console va VAN ky
+     SHA512. Ket qua la moi lenh in tren may do deu bi QZ do la chu ky sai.
+
+     Vi sao chuyen nay lai lo ra o dung may in tem: hop "Invalid Signature"
+     von la benh chung cua ca may - de y la no ghi "wants to access connected
+     printers", tuc la no bung ngay tu buoc DEM MAY IN (qz.printers.find),
+     truoc khi in bat cu thu gi. May EPSON in ngam duoc chi vi da co nguoi
+     tich "Remember this decision" mot lan; QZ nho chung thu do roi cho qua
+     TRUOC khi no kip xet chu ky. Cho nao chua ai tich thi hop lai hien ra.
+
+     Nen goi lai o day, luc thu vien da biet phien ban that. Ban 2.1 tro len
+     thi van la SHA512; ban 2.0 thi loi goi nay bi tu choi va thuat toan o
+     nguyen SHA1, minh doc lai bang getSignatureAlgorithm roi bao may chu ky
+     dung cai do. */
+  qz.security.setSignatureAlgorithm('SHA512');
+  IN_QZ.ky = (qz.security.getSignatureAlgorithm && qz.security.getSignatureAlgorithm()) || 'SHA512';
+  try { IN_QZ.ban = String(await qz.api.getVersion() || ''); } catch (e) { IN_QZ.ban = ''; }
   return 1;
 }
 
@@ -332,7 +374,18 @@ async function inGiay(vaiTro, tieuDe, tepHtml, rongMm, chamMs) {
     var anh = await inChupRaster(tepHtml, rongMm, dpi);
     var cfg = qz.configs.create(may, {
       colorType: 'blackwhite',
-      density: dpi,
+      /* MAT DO PHAI DOI THEO DON VI (anh Viet 26/08/2026: bill in ra be
+         bang mot soi giay, tem thi ra dai dai trang tron).
+
+         QZ quy dinh don vi cua `density` bam theo `units`: units la 'in'
+         thi density la DPI, units la 'mm' thi density la diem tren mot MI
+         LI MET. Khai thang 203 trong khi units la 'mm' nghia la bao QZ
+         rang anh nay co 203 diem moi mi li met, tuc anh bill rong 575 diem
+         chi be co 2,8mm - dung ra mot soi. Tem con nho hon mot mi li met
+         nen in ra gan nhu trang, ma QZ van day het chieu dai trang giay.
+
+         203 DPI = 203 / 25.4 = 7,99 diem tren mot mi li met. */
+      density: dpi / 25.4,
       units: 'mm',
       margins: 0,
       size: { width: rongMm, height: null },
@@ -374,7 +427,8 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
     var u = duongDan.replace(/[?&]trigger_print=1/, '');
     var anh = await inChupRaster(null, rongMm, dpi, u);
     var cfg = qz.configs.create(may, {
-      colorType: 'blackwhite', density: dpi, units: 'mm', margins: 0,
+      /* Doi don vi giong inGiay, xem chu thich day du o tren. */
+      colorType: 'blackwhite', density: dpi / 25.4, units: 'mm', margins: 0,
       size: { width: rongMm, height: null }, scaleContent: false, rasterize: true
     });
     await qz.print(cfg, [{ type: 'pixel', format: 'image', flavor: 'base64', data: anh }]);
@@ -392,6 +446,14 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
    nao, de khoi phai doan khi quay keu "may khong ra giay". */
 async function inNgamTinhTrang(diem) {
   await inNgamDo(1, diem);
+  /* Doi chieu chung thu voi khoa rieng ngay tren may chu. Day la nguyen
+     nhan hay gap nhat cua hop "Invalid Signature" ma nhin tu may quay thi
+     khong the doan ra: sinh lai khoa ma quen dan lai chung thu (hoac nguoc
+     lai) thi hai thu khong con la mot cap, may chu van ky binh thuong va
+     QZ van tu choi moi chu ky, mai mai. Chi hoi o man Cai dat, khong hoi
+     tren duong in - duong in phai nhe. */
+  var cap = null;
+  try { cap = await api('vagabond.in_ngam.tu_kiem', {}); } catch (e) { cap = null; }
   /* Bay ca BON loai phieu chu khong chi hai: tu khi so may in gan duoc ten
      rieng cho tung loai, "phieu mon" va "chot ca" cung co duong di rieng,
      ma neu khong hien ra thi khong ai biet no dang di dau. */
@@ -406,6 +468,9 @@ async function inNgamTinhTrang(diem) {
     may_hoa_don: inChonMay('hoa_don'),
     may_tem: inChonMay('tem'),
     theo_vai: theo_vai,
-    tuyen: IN_QZ.tuyen
+    tuyen: IN_QZ.tuyen,
+    ky: IN_QZ.ky,
+    ban: IN_QZ.ban,
+    cap_khoa: cap
   };
 }

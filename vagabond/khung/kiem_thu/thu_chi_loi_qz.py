@@ -68,13 +68,25 @@ def _do_tung_cua():
 	dung("thu cua localhost.qz.io", "wss://localhost.qz.io:8181" in than)
 
 
-@ca("do QZ: ca hai cua im lang thi ket luan QZ KHONG chay")
-def _im_lang_la_khong_chay():
+@ca("do QZ: hai cua im lang thi KHONG duoc ket luan la QZ da tat")
+def _im_lang_khong_duoc_ket_luan():
+	"""De 25/08/2026: may quay bao "QZ Tray dang KHONG chay" trong khi tab
+	ben canh dang mo trang "Loi bao mat" cua chinh https://localhost:8181,
+	tuc la co thu dang tra loi o cong 8181.
+
+	Phep do khong tach duoc hai benh: wss:// gap chung thu chua duoc chiu
+	thi hong y het gap cong dong, va cua localhost.qz.io thi mang tiem chan
+	DNS la cung im. Nen man hinh phai bay ca hai kha nang chu khong duoc
+	chot mot cai."""
 	s = _doc("18-doi-chieu-may-in.js")
 	i = s.find("async function miDoQzChay()")
-	than = s[i:i + 2200]
-	dung("ket luan QZ khong chay", "đang KHÔNG chạy" in than)
-	dung("chi cach mo len", "Start menu" in than)
+	than = s[i:i + 2600]
+	dung("khong con chot QZ da tat", "đang KHÔNG chạy" not in than)
+	dung("bay ca hai kha nang", "Hai khả năng" in than)
+	# Trang "Loi bao mat" la bang chung QZ CO chay - phai day len truoc.
+	dung("day duong chung thu len truoc", "Lỗi bảo mật" in than)
+	dung("van chi cach mo QZ len", "Start menu" in than)
+	dung("noi ro dau hieu QZ chua chay", "không kết nối được" in than)
 
 
 @ca("do QZ: chi cua localhost hong thi la trinh duyet chua chiu chung thu cua no")

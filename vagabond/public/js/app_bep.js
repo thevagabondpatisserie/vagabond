@@ -17360,7 +17360,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '316';
+var APPVER = '317';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -24841,55 +24841,18 @@ async function scrDcmXem(name) {
       '</div>';
 
     html += '<div class="sec">Từng món</div><div class="card">';
-    /* Tu v315 moi con so deu kem DON VI, va lech don vi duoc noi rieng ra.
-       Truoc do man nay in "Hoa don 4 x 280.000" canh "Phieu nhap 4 x 161.000"
-       roi ket luan chi lech gia, trong khi mot ben la 4 gram con ben kia la
-       4 tui tuc 4.000 gram. Cai sai nguy hiem nhat lai la cai khong ai thay. */
     (s.dong || []).forEach(function (r) {
-      var lechDvt = !!r.lech_dvt;
-      var lech = lechDvt || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
+      var lech = Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.5 || !r.co_phieu;
       html += '<div style="padding:10px 14px;border-bottom:1px solid #f2f4f7;background:' + (lech ? '#fef2f2' : '#fff') + '">' +
         '<div style="font-size:13.5px;font-weight:600">' + h(r.item_name || r.item_code) + '</div>' +
         '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b7280;margin-top:3px">' +
-        '<span>Hoá đơn ' + num(r.sl_hd) + ' ' + h(r.dvt_hd || '') + ' × ' + money(r.gia_hd) + '</span>' +
-        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' ' + h(r.dvt_pnk || '') + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
-        (lechDvt
-          ? '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55"><b>Hai bên khác đơn vị.</b> Quy về ' + h(r.dvt_kho || '') +
-            ' thì hoá đơn là ' + num(r.ton_hd) + ' còn phiếu nhập là ' + num(r.ton_pnk) + '.' +
-            (r.dvt_ncc ? ' Nhà cung cấp ghi đơn vị "' + h(r.dvt_ncc) + '" trên hoá đơn điện tử, hệ chưa biết đó là đơn vị nào của mình.' : '') +
-            '</div>' +
-            (kq.lam_duoc && r.dvt_pnk && !r.da_noi
-              ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
-                '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
-              : '')
-          : (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
-            (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '')) +
+        '<span>Hoá đơn ' + num(r.sl_hd) + ' × ' + money(r.gia_hd) + '</span>' +
+        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
+        (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + '</div>' : '') +
+        (r.co_phieu && Math.abs(r.lech_gia) > 0.5 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ</div>' : '') +
         '</div>';
     });
     html += '</div>';
-
-    /* Lech gia ma nguoi dang dung khong co quyen vuot: noi truoc o day chu
-       dung de ho bam Ghi so roi moi an mot cau chan. Anh Viet 26/08/2026. */
-    var lechGia = (s.dong || []).filter(function (r) { return r.co_phieu && !r.lech_dvt && Math.abs(r.lech_gia) > 0.005; }).length;
-    if (lechGia && !s.vuot_lech_gia_duoc) {
-      html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d">' +
-        '<b style="font-size:13.5px;color:#92400e">Giá trên hoá đơn khác giá phiếu nhập</b>' +
-        '<div style="font-size:12.5px;color:#7c2d12;line-height:1.65;margin-top:3px">' +
-        'Hay gặp khi đặt hàng lúc còn khuyến mãi mà nhà cung cấp xuất hoá đơn sau khi hết chương trình. ' +
-        'Hàng đã về kho nên tờ này vẫn ghi sổ được, nhưng phải là kế toán ghi. ' +
-        'Nhờ kế toán mở màn này ghi sổ giúp, hoặc đề nghị nhà cung cấp phát hành lại hoá đơn theo giá đã đặt.' +
-        '</div></div>';
-    }
-
-    if (s.so_lech_dvt) {
-      html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
-        '<b style="font-size:13.5px;color:#b3261e">Chưa nối được vì lệch đơn vị</b>' +
-        '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.65;margin-top:3px">' +
-        'Hoá đơn điện tử của nhà cung cấp ghi đơn vị mà hệ chưa biết, nên máy hạ về đơn vị kho. ' +
-        'Tiền vẫn đúng nhưng số lượng sai, nối vào là hỏng giá vốn và tồn kho. ' +
-        'Khai đơn vị đó vào bảng quy đổi của món rồi tải lại hoá đơn, hoặc sửa đơn vị dòng hoá đơn cho đúng.' +
-        '</div></div>';
-    }
 
     if ((s.thua || []).length) {
       html += '<div class="sec">Có trong phiếu nhập mà hoá đơn không nhắc tới</div>' +
@@ -24950,11 +24913,6 @@ async function scrDcmXem(name) {
   }
   var b = frame('Đối chiếu ' + name, html, foot ? { footer: foot } : {});
   b.onclick = function (e) {
-    /* Nut doi don vi: sua o `uom` cua dong hoa don con nhap, GIU NGUYEN so
-       luong va don gia nen thanh tien khong doi mot dong. Chi so luong quy
-       ve don vi kho la duoc nan lai. Anh Viet 26/08/2026. */
-    var u = e.target.closest('[data-dcmdvt]');
-    if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
     var t = e.target.closest('[data-dcmp]');
     if (!t) return;
     var ma = t.getAttribute('data-dcmp');
@@ -25019,6 +24977,70 @@ async function scrMayIn() {
   miVeQz();
 }
 
+/* Canh bao chu ky, hien NGAY CA KHI QZ da noi duoc (De 25/08/2026).
+
+   Hop xanh cu chi can `t.co` la bao "dang in ngam qua QZ Tray", ma `t.co`
+   chi noi len mot chuyen: dem duoc may in. No khong noi gi ve chu ky. Hai
+   trang thai duoi day deu cho ra `t.co = 1` trong khi QZ VAN bung hop
+   "Cannot verify trust - Invalid Signature" truoc mat thu ngan:
+
+     - Chung thu va khoa rieng khong cung mot cap. May chu ky binh thuong,
+       QZ tu choi moi chu ky. Chi may chu doi chieu duoc, xem in_ngam.tu_kiem.
+     - May quay chay QZ Tray doi 2.0. Ban do chi doc duoc chu ky SHA1, app
+       da tu ha thuat toan cho khop, nhung van nen noi ra de con nang cap.
+
+   Vi sao truoc day khong ai thay: chi can MOT lan co nguoi tich "Remember
+   this decision" la QZ nho chung thu do va cho qua truoc khi kip xet chu
+   ky, nen may EPSON o quay in ngam ngon lanh trong khi benh van con nguyen.
+   Cho nao chua ai tich - may in tem GODEX - thi hop hien ra. */
+function miChuKy(t) {
+  var ra = '';
+  var c = t && t.cap_khoa;
+  if (c && !c.hop) {
+    ra += '<div style="margin-top:9px;padding:9px 11px;border-radius:9px;font-size:12.5px;' +
+      'line-height:1.6;background:#fef2f2;border:1px solid #fecaca;color:#b3261e">' +
+      '<b>Chữ ký in đang hỏng.</b> QZ Tray sẽ hiện hộp "Cannot verify trust - ' +
+      'Invalid Signature" mỗi lần in.<br>' + h(c.loi || '') + '</div>';
+  }
+  /* Nua con lai cua dieu kien, phai noi ra o day (anh Viet 26/08/2026).
+
+     QZ Tray chi thoi hoi khi CA HAI cung dat:
+
+         isVerified() = certificate.isTrusted() && validity == TRUSTED
+
+     Ve dung mot nua thi hop van hien, chi doi dong do tu "Invalid Signature"
+     sang "Untrusted website" - va nguoi sua se tuong minh chua chua duoc gi.
+
+     Va KHONG co duong tat: tich "Remember this decision" thi QZ tu tat nut
+     Allow di, dung mot dong trong GatewayDialog.java:
+
+         allowButton.setEnabled(!rememberCheckbox.isSelected() || request.isVerified())
+
+     Tuc la chi nho vinh vien duoc mot yeu cau da xac thuc duoc - dung luc
+     khong con can nho nua. Nen bam nut khong bao gio la cach chua. */
+  ra += '<div style="margin-top:9px;padding:9px 11px;border-radius:9px;font-size:12.5px;' +
+    'line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;color:#475569">' +
+    '<b>Hết hẳn hộp hỏi thì cần đủ hai việc.</b> Một là chữ ký khớp, tức ô trên ' +
+    'không còn đỏ. Hai là chứng thư được cài vào chính QZ Tray của từng máy: chép ' +
+    'tệp chứng thư thành <b>override.crt</b> vào thư mục cài QZ Tray (thường là ' +
+    'C:\\Program Files\\QZ Tray) rồi khởi động lại QZ. Thiếu việc hai thì hộp vẫn ' +
+    'hiện, chỉ đổi dòng đỏ thành "Untrusted website".<br>' +
+    'Tích ô "Remember this decision" mà nút Allow bị mờ đi là <b>đúng thiết kế của ' +
+    'QZ</b>, không phải máy hỏng: QZ chỉ cho nhớ vĩnh viễn một yêu cầu đã xác thực ' +
+    'được. Bấm nút không bao giờ là cách chữa.</div>';
+  var phu = [];
+  if (t && t.ban) phu.push('QZ Tray ' + h(t.ban));
+  if (t && t.ky) phu.push('ký ' + h(t.ky));
+  if (t && t.ky === 'SHA1') {
+    phu.push('bản QZ Tray này chỉ đọc được SHA1, nên nâng cấp lên 2.1 trở lên');
+  }
+  if (phu.length) {
+    ra += '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.55">' +
+      phu.join(' · ') + '</div>';
+  }
+  return ra;
+}
+
 /* Do QZ Tray roi thay ruot khoi tinh trang. Tach ra khoi miVe vi miVe
    duoc goi lai moi lan sua mot o, con do QZ thi cham va khong can lam
    lai theo tung nhip go. */
@@ -25049,7 +25071,8 @@ async function miVeQz() {
       '<div style="font-size:12.5px;color:#05603a;margin-top:8px">' + dong + '</div>' +
       '<div style="font-size:11.5px;color:#3b7c60;margin-top:8px;line-height:1.55">' +
       'Máy in QZ thấy được: ' + h((t.may || []).join(', ') || 'không có') + '<br>' +
-      'Dòng nào nói chưa khớp thì mở máy in đó ở danh sách dưới và chạm chọn tên.</div>';
+      'Dòng nào nói chưa khớp thì mở máy in đó ở danh sách dưới và chạm chọn tên.</div>' +
+      miChuKy(t);
     return;
   }
   o.setAttribute('style', 'padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d');
@@ -25059,7 +25082,7 @@ async function miVeQz() {
     'In vẫn chạy bình thường, chỉ là thu ngân phải bấm thêm một nhịp và phải đặt sẵn ' +
     'máy in mặc định trên máy tính.</div>' +
     '<div style="font-size:12.5px;color:#7c4a03;margin-top:8px;line-height:1.6">' +
-    miGoY(t) + '</div>' +
+    miGoY(t) + '</div>' + miChuKy(t) +
     '<button class="btn gh" id="miDoQz" style="margin-top:10px">🔎 Kiểm tra QZ trên máy này</button>' +
     '<div id="miDoKq" style="font-size:12px;color:#7c4a03;margin-top:8px;line-height:1.6"></div>';
   var nut = document.getElementById('miDoQz');
@@ -25085,6 +25108,11 @@ phai chay toi tan noi. */
 function miGoY(t) {
   var loi = String((t && t.loi) || '');
   var noi_duoc = /connection|connect|websocket|refus|timeout|unable/i.test(loi);
+  if (!noi_duoc && /ký|chữ ký|signature/i.test(loi)) {
+    return '<b>Việc cần làm:</b> mở Vagabond Settings và dán lại CẢ HAI ô ' +
+      'chứng thư và khoá riêng, hai cái phải sinh cùng một lần bằng openssl. ' +
+      'Dán lệch cặp thì QZ Tray từ chối mọi chữ ký.';
+  }
   if (!noi_duoc && /chứng thư|chung thu/i.test(loi)) {
     return '<b>Việc cần làm:</b> dán chứng thư QZ Tray vào Vagabond Settings. ' +
       'Làm một lần cho cả tiệm, xem hướng dẫn ở project doc v256.';
@@ -25108,10 +25136,22 @@ chi tra ve dung mot cau "Unable to establish connection with QZ", khong noi
 hong o dau. Ham nay thu RIENG tung cua va bao ket qua tung cai, vi hai ket
 qua khac nhau chi ra hai benh khac han:
 
-  - Ca hai deu khong noi duoc  -> QZ Tray khong chay, hoac bi tuong lua chan.
   - localhost.qz.io noi duoc, localhost thi khong -> QZ co chay, chi la
     trinh duyet chua chiu chung thu localhost. Vao https://localhost:8181
     bam chap nhan mot lan la xong.
+  - Ca hai deu im lang -> KHONG ket luan duoc QZ da tat.
+
+CHO CUOI CUNG DO PHAI NOI RO (De 25/08/2026). Ban cu ket luan thang thung
+"QZ Tray dang KHONG chay tren may nay", va no da chi sai duong: may quay
+o TCV bao dung cau do trong khi tab ben canh dang mo trang "Loi bao mat"
+cua chinh https://localhost:8181 - tuc la CO thu dang tra loi o cong 8181,
+QZ dang chay han hoi.
+
+Ly do phep do khong phan biet duoc: mot cai wss:// gap chung thu trinh
+duyet chua chiu thi hong Y HET nhu gap cong dong - trinh duyet khong tra
+ve cho JavaScript mot manh chi tiet nao. Con cua localhost.qz.io thi mang
+tiem chan DNS la cung im not. Nen hai cua cung im chi noi duoc "khong voi
+toi duoc", khong noi duoc "khong chay".
 
 Dung WebSocket tho chu khong qua thu vien QZ, vi thu vien nuot mat ket qua
 tung cua. */
@@ -25158,10 +25198,17 @@ async function miDoQzChay() {
         'là mạng tiệm chặn. Không sao, cửa localhost đủ dùng. Tải lại trang thử in.';
     }
   } else {
-    ket = '<b>Không cửa nào trả lời, nên QZ Tray đang KHÔNG chạy trên máy này.</b> ' +
-      'Mở QZ Tray lên (tìm trong Start menu), chờ biểu tượng hiện ở khay đồng hồ ' +
-      'góc phải, rồi tải lại trang này. Nếu máy chưa cài thì cài QZ Tray trước, ' +
-      'hướng dẫn ở project doc v256.';
+    /* Hai kha nang, va phep do KHONG tach duoc chung. Nen bay ca hai theo
+       thu tu, dat cai re tien de kiem len truoc. */
+    ket = '<b>Không cửa nào trả lời.</b> Hai khả năng, kiểm theo đúng thứ tự này:' +
+      '<br><b>1.</b> Trình duyệt chưa chịu chứng thư của QZ. Mở tab mới, gõ ' +
+      '<b>https://localhost:8181</b>. Ra trang <b>"Lỗi bảo mật"</b> tức là QZ Tray ' +
+      'CÓ chạy, chỉ là trình duyệt chưa cho vào: bấm Nâng cao, rồi Tiếp tục truy cập, ' +
+      'xong quay lại đây bấm kiểm tra lại.' +
+      '<br><b>2.</b> Trang đó báo "không kết nối được" thì QZ Tray mới thật sự chưa ' +
+      'chạy. Mở QZ Tray lên (tìm trong Start menu), chờ biểu tượng hiện ở khay đồng hồ ' +
+      'góc phải, rồi tải lại trang này. Máy chưa cài thì cài QZ Tray trước, hướng dẫn ' +
+      'ở project doc v256.';
   }
   if (o) {
     o.innerHTML = 'wss://localhost:8181 &rarr; ' + (a ? 'nối được' : 'không nối được') + '<br>' +
@@ -26051,25 +26098,6 @@ async function dtKeo() {
 }
 
 
-
-/* Doi don vi mot dong hoa don mua con nhap.
-   Chi doi don vi, khong dong den so luong hay don gia, nen tien tren to
-   hoa don khong xe dich. Cai duoc nan lai la so luong quy ve don vi kho. */
-async function dcmDoiDonVi(name, idx, dvt) {
-  if (!dvt) return;
-  var ok = await confirmSheet('Đổi đơn vị dòng ' + idx + ' thành ' + dvt,
-    'Số lượng và đơn giá giữ nguyên nên thành tiền của hoá đơn không đổi.\n\n' +
-    'Cái được sửa là số lượng quy về đơn vị kho, để khớp với phiếu nhập.',
-    'Đổi đơn vị', false);
-  if (!ok) return;
-  busy(true);
-  try {
-    await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt });
-    busy(false);
-    toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
-    go(function () { scrDcmXem(name); }, true);
-  } catch (e) { busy(false); baoTin((e && e.message) || 'Không đổi được đơn vị'); }
-}
 /* ============ HO SO THANH TOAN NHA CUNG CAP (APP) ============================
    Anh Viet 13/08/2026: "anh thay thao tac tren desktop bi roi qua nen minh
    lam tren app". Ba man: danh sach co chip, lap ho so bang cach tick hoa don,
@@ -32894,7 +32922,9 @@ var IN_QZ = {
   tuyen: null,      // manh ten may in hoa don / tem, lay tu may chu
   loi: '',          // ly do khong dung duoc, de hien khi can
   diem: '',         // diem ban da do lan gan nhat, doi diem la phai do lai
-  dang_do: null     // Promise cua lan do dang chay, tranh do hai lan
+  dang_do: null,    // Promise cua lan do dang chay, tranh do hai lan
+  ky: 'SHA512',     // thuat toan dang ky THAT, chot sau khi noi duoc
+  ban: ''           // phien ban QZ Tray tren may nay, de con biet ma nang cap
 };
 
 var IN_VENDOR = {
@@ -32935,16 +32965,56 @@ async function inNoiQz() {
       })
       .catch(hong);
   });
-  qz.security.setSignatureAlgorithm('SHA512');
+  /* KHONG duoc ky rong. Ban cu viet `ok((r && r.chu_ky) || '')`: may chu
+     tra ve mot the khong co chu ky - phien dang nhap vua roi, may chu tra
+     200 kem trang dang nhap - thi minh day xuong QZ mot chu ky RONG. QZ
+     doc chu ky rong la coi lenh in KHONG duoc ky, va bung dung cai hop
+     "Cannot verify trust - Invalid Signature" ngay truoc mat thu ngan.
+
+     Bao hong thang thi qz.print vut loi, inGiay bat duoc, va app roi ve
+     hop thoai in cua trinh duyet - dung cai luoi an toan da dung san. */
   qz.security.setSignaturePromise(function (chuoi) {
     return function (ok, hong) {
-      api('vagabond.in_ngam.ky', { chuoi: chuoi, thuat_toan: 'SHA512' })
-        .then(function (r) { ok((r && r.chu_ky) || ''); })
+      /* Doc IN_QZ.ky NGAY LUC KY chu khong chot cung 'SHA512' o day: neu
+         may nay chay QZ Tray doi 2.0 thi thuat toan da bi ha xuong SHA1 o
+         duoi, ma may chu van ky SHA512 la chu ky khong bao gio khop. */
+      api('vagabond.in_ngam.ky', { chuoi: chuoi, thuat_toan: IN_QZ.ky })
+        .then(function (r) {
+          var ck = (r && r.chu_ky) || '';
+          if (!ck) return hong(new Error('Máy chủ không ký được lệnh in'));
+          ok(ck);
+        })
         .catch(hong);
     };
   });
 
   await qz.websocket.connect({ retries: 1, delay: 1 });
+
+  /* CHOT THUAT TOAN KY SAU KHI NOI DUOC, khong duoc chot truoc (De 25/08/2026:
+     may in tem GODEX bao "Invalid Signature" trong khi may EPSON in ngam
+     binh thuong).
+
+     QZ Tray chi biet doc o `signAlgorithm` tu ban 2.1. Ban 2.0 khong doc o
+     do, no luon doi chieu chu ky bang SHA1. Thu vien qz-tray.js co san
+     hang rao cho chuyen nay, nhung hang rao chi do duoc SAU KHI da noi:
+     goi setSignatureAlgorithm('SHA512') truoc luc noi thi no cu nhan, roi
+     luc noi xong no chi ghi mot dong canh bao trong console va VAN ky
+     SHA512. Ket qua la moi lenh in tren may do deu bi QZ do la chu ky sai.
+
+     Vi sao chuyen nay lai lo ra o dung may in tem: hop "Invalid Signature"
+     von la benh chung cua ca may - de y la no ghi "wants to access connected
+     printers", tuc la no bung ngay tu buoc DEM MAY IN (qz.printers.find),
+     truoc khi in bat cu thu gi. May EPSON in ngam duoc chi vi da co nguoi
+     tich "Remember this decision" mot lan; QZ nho chung thu do roi cho qua
+     TRUOC khi no kip xet chu ky. Cho nao chua ai tich thi hop lai hien ra.
+
+     Nen goi lai o day, luc thu vien da biet phien ban that. Ban 2.1 tro len
+     thi van la SHA512; ban 2.0 thi loi goi nay bi tu choi va thuat toan o
+     nguyen SHA1, minh doc lai bang getSignatureAlgorithm roi bao may chu ky
+     dung cai do. */
+  qz.security.setSignatureAlgorithm('SHA512');
+  IN_QZ.ky = (qz.security.getSignatureAlgorithm && qz.security.getSignatureAlgorithm()) || 'SHA512';
+  try { IN_QZ.ban = String(await qz.api.getVersion() || ''); } catch (e) { IN_QZ.ban = ''; }
   return 1;
 }
 
@@ -33195,7 +33265,18 @@ async function inGiay(vaiTro, tieuDe, tepHtml, rongMm, chamMs) {
     var anh = await inChupRaster(tepHtml, rongMm, dpi);
     var cfg = qz.configs.create(may, {
       colorType: 'blackwhite',
-      density: dpi,
+      /* MAT DO PHAI DOI THEO DON VI (anh Viet 26/08/2026: bill in ra be
+         bang mot soi giay, tem thi ra dai dai trang tron).
+
+         QZ quy dinh don vi cua `density` bam theo `units`: units la 'in'
+         thi density la DPI, units la 'mm' thi density la diem tren mot MI
+         LI MET. Khai thang 203 trong khi units la 'mm' nghia la bao QZ
+         rang anh nay co 203 diem moi mi li met, tuc anh bill rong 575 diem
+         chi be co 2,8mm - dung ra mot soi. Tem con nho hon mot mi li met
+         nen in ra gan nhu trang, ma QZ van day het chieu dai trang giay.
+
+         203 DPI = 203 / 25.4 = 7,99 diem tren mot mi li met. */
+      density: dpi / 25.4,
       units: 'mm',
       margins: 0,
       size: { width: rongMm, height: null },
@@ -33237,7 +33318,8 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
     var u = duongDan.replace(/[?&]trigger_print=1/, '');
     var anh = await inChupRaster(null, rongMm, dpi, u);
     var cfg = qz.configs.create(may, {
-      colorType: 'blackwhite', density: dpi, units: 'mm', margins: 0,
+      /* Doi don vi giong inGiay, xem chu thich day du o tren. */
+      colorType: 'blackwhite', density: dpi / 25.4, units: 'mm', margins: 0,
       size: { width: rongMm, height: null }, scaleContent: false, rasterize: true
     });
     await qz.print(cfg, [{ type: 'pixel', format: 'image', flavor: 'base64', data: anh }]);
@@ -33255,6 +33337,14 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
    nao, de khoi phai doan khi quay keu "may khong ra giay". */
 async function inNgamTinhTrang(diem) {
   await inNgamDo(1, diem);
+  /* Doi chieu chung thu voi khoa rieng ngay tren may chu. Day la nguyen
+     nhan hay gap nhat cua hop "Invalid Signature" ma nhin tu may quay thi
+     khong the doan ra: sinh lai khoa ma quen dan lai chung thu (hoac nguoc
+     lai) thi hai thu khong con la mot cap, may chu van ky binh thuong va
+     QZ van tu choi moi chu ky, mai mai. Chi hoi o man Cai dat, khong hoi
+     tren duong in - duong in phai nhe. */
+  var cap = null;
+  try { cap = await api('vagabond.in_ngam.tu_kiem', {}); } catch (e) { cap = null; }
   /* Bay ca BON loai phieu chu khong chi hai: tu khi so may in gan duoc ten
      rieng cho tung loai, "phieu mon" va "chot ca" cung co duong di rieng,
      ma neu khong hien ra thi khong ai biet no dang di dau. */
@@ -33269,7 +33359,10 @@ async function inNgamTinhTrang(diem) {
     may_hoa_don: inChonMay('hoa_don'),
     may_tem: inChonMay('tem'),
     theo_vai: theo_vai,
-    tuyen: IN_QZ.tuyen
+    tuyen: IN_QZ.tuyen,
+    ky: IN_QZ.ky,
+    ban: IN_QZ.ban,
+    cap_khoa: cap
   };
 }
 /* ---------------- Tuy bien ruot hop qua (Sales, 21/08/2026)

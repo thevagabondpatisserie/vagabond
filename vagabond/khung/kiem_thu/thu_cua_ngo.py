@@ -114,6 +114,11 @@ CUA_NGO = {
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
 	"email_sach.py": ["kiem"],
+	# Them 26/08/2026 cung lan chua chu ky in ngam. `tu_kiem` chi DOC hai o
+	# chung thu / khoa rieng roi ky thu trong bo nho de bao lech cap, khong
+	# tra ve khoa, khong ghi gi - nen mo ra ngoai duoc. `_chan` chan theo vai
+	# nhu ba cua kia.
+	"in_ngam.py": ["chung_thu", "dinh_tuyen", "ky", "tu_kiem"],
 	# Phan he CRM, luong Tang qua khach VIP, them 25/08/2026.
 	# `truoc_khi_luu` va `_kiem_mau` la hook validate, `quet_dem` va
 	# `quet_dem_tu_dong` la nhip lap lich - ca bon deu chay tu ben trong nen
