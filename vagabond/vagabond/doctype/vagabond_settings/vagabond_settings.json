@@ -114,7 +114,14 @@
   "cb_qz",
   "qz_may_in_hoa_don",
   "qz_may_in_tem",
-  "qz_dpi"
+  "qz_dpi",
+  "sec_tro_ly",
+  "tro_ly_bat",
+  "tro_ly_khoa",
+  "tro_ly_mo_hinh",
+  "cb_tro_ly",
+  "tro_ly_luot_ngay",
+  "tro_ly_luot_thang"
  ],
  "fields": [
   {
@@ -729,6 +736,45 @@
    "label": "Do phan giai may in nhiet (DPI)",
    "default": "203",
    "description": "May in nhiet 80mm va may dan tem thong dung deu la 203 DPI. Doi so nay la doi kich thuoc anh raster app dung xuong QZ."
+  },
+  {
+   "fieldname": "sec_tro_ly",
+   "fieldtype": "Section Break",
+   "label": "Tro ly huong dan dung app"
+  },
+  {
+   "fieldname": "tro_ly_bat",
+   "fieldtype": "Check",
+   "label": "Bat tro ly",
+   "description": "Tat o day la nut noi trong app bien mat va khong con goi API."
+  },
+  {
+   "fieldname": "tro_ly_khoa",
+   "fieldtype": "Password",
+   "label": "Khoa API cua mo hinh ngon ngu",
+   "description": "Dan khoa vao day, he thong tu ma hoa. Khong ai doc lai duoc dang chu."
+  },
+  {
+   "fieldname": "tro_ly_mo_hinh",
+   "fieldtype": "Data",
+   "label": "Ten mo hinh",
+   "description": "De trong thi dung mo hinh mac dinh."
+  },
+  {
+   "fieldname": "cb_tro_ly",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tro_ly_luot_ngay",
+   "fieldtype": "Int",
+   "label": "Han muc luot moi nguoi moi ngay",
+   "description": "De trong hoac 0 thi lay mac dinh 30 luot."
+  },
+  {
+   "fieldname": "tro_ly_luot_thang",
+   "fieldtype": "Int",
+   "label": "Han muc luot ca tiem moi thang",
+   "description": "Chan hoa don API bat ngo. De trong hoac 0 thi lay mac dinh 1500 luot."
   }
  ],
  "issingle": 1,
