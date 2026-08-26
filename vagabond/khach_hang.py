@@ -379,6 +379,11 @@ def cong_diem_hoa_don(doc, method=None):
 	try:
 		if cint(doc.get("vgb_huy")):
 			return
+		# Hoa don hang bieu tang KHONG tich diem: khach duoc tang qua ma lai
+		# duoc cong diem nhu vua mua that la cong hai lan mot mon qua, va so
+		# diem do quy doi ra tien mat cua tiem (them 26/08/2026).
+		if cint(doc.get("vgb_qua_tang")) or (doc.get("vgb_phieu_qua") or "").strip():
+			return
 		kh = _khach_that(doc)
 		if not kh:
 			return

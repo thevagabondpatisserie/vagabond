@@ -269,7 +269,18 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 				# Ghi xuong TUNG TRANG: trang sau co loi thi trang nay van con,
 				# va nho vay GET hay POST goi vao cung ghi that nhu nhau.
 				frappe.db.commit()
-				if trang >= (resp.get("totalPage") or 1):
+				# DUNG khi nao. Doc totalPage neu M-Invoice co tra, con khong
+				# thi soi so to vua nhan: day mot trang (100 to) nghia la con
+				# trang sau, day chinh la cho de nuot hoa don nhat.
+				#
+				# Ban truoc chi doc `resp.get("totalPage") or 1`, tuc la ho
+				# quen tra o do mot lan la minh dung sau trang dau va mat sach
+				# phan con lai, ma khong co gi keu len ca (them 26/08/2026).
+				tong_trang = cint(resp.get("totalPage"))
+				if tong_trang:
+					if trang >= tong_trang:
+						break
+				elif len(lo) < 100:
 					break
 				trang += 1
 		except Exception:

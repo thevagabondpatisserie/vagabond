@@ -87,6 +87,18 @@ def dung():
 	from vagabond import hop_qua
 
 	_dung_nhom(hop_qua.TRUONG_MOI, "hop_qua")
+	# Hoa don hang bieu tang khach VIP (them 26/08/2026): o gan phieu qua tren
+	# Sales Invoice, o hoa don tren phieu qua, va o tai khoan chi phi bieu
+	# tang trong Cai dat.
+	from vagabond import qua_tang_hoa_don
+
+	_dung_nhom(qua_tang_hoa_don.TRUONG_MOI, "qua_tang_hoa_don")
+	# O dem so lan da thu dung chung tu tu hoa don dien tu (them 26/08/2026).
+	# Khong co o nay thi to hong hoac chiem cho mai trong hang doi, hoac bi
+	# dong dau "xong roi" nhu ban cu - ca hai deu la mat hoa don.
+	from vagabond import minvoice_chung_tu
+
+	_dung_nhom(minvoice_chung_tu.TRUONG_MOI, "minvoice_chung_tu")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()

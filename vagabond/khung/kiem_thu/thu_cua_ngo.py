@@ -112,8 +112,29 @@ CUA_NGO = {
 	# `truoc_khi_luu` va `_kiem_mau` la hook validate, `quet_dem` va
 	# `quet_dem_tu_dong` la nhip lap lich - ca bon deu chay tu ben trong nen
 	# TUYET DOI khong mo ra ngoai. Rieng `quet_dem` mac dinh chay thu.
-	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_sach", "doi_trang_thai",
-		"ds_dot", "luu", "thu_boc_sdt", "xem_truoc_loi_chuc"],
+	#
+	# Ba cua them 26/08/2026 cho Chien dich qua tang: `nhan_ban_dot` chep mot
+	# dot sang mua sau, `khach_co_hang` doc danh sach khach da xep hang de
+	# tick, `them_hang_loat` them nhieu khach vao dot mot lan bam.
+	#
+	# Bon cua nua them 26/08/2026, cung lan dua viec lap dot len app:
+	# `danh_muc_dot` va `luu_dot` cho man lap dot, `xem_truoc_dan` va
+	# `nap_dan` cho man dan danh sach tu bang tinh.
+	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_muc_dot", "danh_sach",
+		"doi_trang_thai", "ds_dot", "khach_co_hang", "luu", "luu_dot",
+		"nap_dan", "nhan_ban_dot", "them_hang_loat", "thu_boc_sdt",
+		"xem_truoc_dan", "xem_truoc_loi_chuc"],
+	# Hoa don hang bieu tang, them 26/08/2026. Chi HAI cua mo ra ngoai:
+	# `kiem_phieu` chi doc, `xuat_hoa_don` lap to nhap. Bon ham hook
+	# (truoc_khi_luu, truoc_khi_ghi_so, sau_khi_ghi_so, khi_huy) chay tu ben
+	# trong Frappe nen TUYET DOI khong duoc whitelist: mo ra la ai cung goi
+	# duoc ham dong dau "Da tang" len phieu ma khong can hoa don nao.
+	"qua_tang_hoa_don.py": ["kiem_phieu", "xuat_hoa_don"],
+	# Hoa don dien tu thanh chung tu, them 26/08/2026 sau khi phat hien 125
+	# to bi nuot. `con_sot` chi DOC, `mo_lai` chi doi co, `chay_bu` dung
+	# chung tu that. `chay_tu_dong` la nhip lap lich, `_chay`, `_mot_to`,
+	# `dung_hoa_don_mua` chay tu ben trong nen KHONG duoc whitelist.
+	"minvoice_chung_tu.py": ["chay_bu", "con_sot", "lanh_vo_ruot", "mo_lai"],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach"],

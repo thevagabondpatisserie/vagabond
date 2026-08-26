@@ -382,26 +382,20 @@ def _ai_phai_lam(doc):
 		)
 
 	if dt == "Vagabond Tang Qua VIP":
-		# Đã gọi rồi hoặc đã huỷ thì hết việc. `_het_viec_chua` cũng nói
-		# đúng câu này; giữ cả hai chỗ vì `khi_sinh_phieu` chạy `_het_viec`
-		# trước để GỠ, còn nhánh này quyết định giao cho AI.
-		if cint(doc.get("huy")) or (doc.get("tt_lien_he") or "") == "Da lien he":
-			return ([], "")
-		# Có tên người cụ thể thì giao đích danh. Không thì giao cả bộ phận,
-		# đúng luật đã ghi ở đầu tệp: viết cứng một cái tên thì ai nghỉ phép
-		# là cả chuỗi tắc.
-		if doc.get("nguoi_lam"):
-			nguoi = [doc.nguoi_lam]
-		else:
-			from vagabond.viec_can_lam import VAI_MKT, VAI_SALES
-
-			bp = (doc.get("bo_phan_lam") or "").strip()
-			nguoi = _nguoi_theo_vai(VAI_MKT if bp == "Marketing" else VAI_SALES)
-		return (
-			nguoi,
-			"%s: %s chờ liên hệ trước khi tặng quà"
-			% (doc.name, doc.get("ten_khach") or ""),
-		)
+		# KHÔNG GIAO VIỆC TỰ ĐỘNG cho phiếu tặng quà. Anh Việt chốt
+		# 26/08/2026.
+		#
+		# Nhánh này trước đây giao cho MỌI người giữ một trong ba vai Sales
+		# User, Sales Manager, Bộ phận đặt hàng khi ô Người làm để trống. Ba
+		# vai đó phủ rất rộng, chạm cả kế toán và bếp. Nhập một lô 34 phiếu
+		# là bắn ra hàng trăm phân công cùng một lúc, và chị Dung nhận được
+		# phiếu tặng quà không liên quan gì tới chị.
+		#
+		# Trả rỗng chứ không xoá hẳn nhánh: hàm này còn được gọi từ vài chỗ
+		# khác, và trả rỗng ở đây là hàng rào cuối cùng, chặn kể cả khi có
+		# người vô tình mắc lại hook. Phân công tay trên Desk KHÔNG đi qua
+		# hàm này nên vẫn dùng bình thường.
+		return ([], "")
 
 	if dt == "Phieu Kiem Ke":
 		if (doc.get("trang_thai") or "") != "Chờ duyệt":
