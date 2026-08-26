@@ -51,6 +51,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond import chung_tu, diem_ban, may_in, noi_bo, pt_thanh_toan, quyen_quay, tai_khoan
+from vagabond import luat_thanh_toan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
@@ -471,6 +472,11 @@ def _nguon_don():
 					nhan |= set(pt_thanh_toan.ten_online())
 				# Giu dung thu tu da khai o man Cai dat phuong thuc.
 				m["pt"] = [t for t in con_dung_thu_tu if t in nhan]
+			# Nguon co danh sach phuong thuc RIENG cua no (GrabFood,
+			# ShopeeFood...) thi may tu chon duoc khi danh sach con dung mot
+			# cai. Nguon dung danh sach chung cua quay thi khong, du danh
+			# sach chung co rut xuong con mot vi ai do tat bot o Cai dat.
+			m["rieng"] = 1 if co_pt_rieng else 0
 			m["v"] = n
 			# Ma diem ban cua nguon nay. App can de dat noi dung chuyen khoan
 			# (ma diem + so phieu) o nhung man khong biet minh dang o quay nao,
@@ -596,13 +602,22 @@ def _quay_cua_nguon(nguon, quay):
 
 def _pt_cho_nguon(nguon):
 	"""Danh sach phuong thuc thanh toan hop le cua mot nguon don."""
+	return _pt_cho_nguon_kem_co(nguon)[0]
+
+
+def _pt_cho_nguon_kem_co(nguon):
+	"""Nhu tren, kem co bao nguon nay co danh sach phuong thuc RIENG khong.
+
+	Tra (danh_sach, co_pt_rieng). Cai co do la thu quyet dinh may co duoc
+	tu chon phuong thuc hay khong - xem `luat_thanh_toan.pt_theo_nguon`.
+	"""
 	nguon = NGUON_CU.get((nguon or "").strip(), (nguon or "").strip())
 	if not nguon or nguon == "Pancake":
-		return pt_thanh_toan.ten_online()
+		return (pt_thanh_toan.ten_online(), False)
 	for n in _nguon_don():
 		if n["v"] == nguon:
-			return list(n["pt"])
-	return pt_thanh_toan.ten_quay()
+			return (list(n["pt"]), bool(n.get("rieng")))
+	return (pt_thanh_toan.ten_quay(), False)
 
 
 def _chuan_ma_tham_chieu(pt, ma, bat_buoc=True):
@@ -658,12 +673,18 @@ def _ma_trung_trong_ngay(ngay, ds_ma):
 
 
 def _kiem_pt(pt, nguon):
-	pt = (pt or "").strip()
+	"""Phuong thuc thanh toan hop le cua mot don. MOI man tinh tien deu qua day.
+
+	Cua duy nhat: man Sales, quay D1, quay NVHTN va moi quay mo sau nay deu
+	goi ham nay, nen luat tu chon theo nguon don chi phai viet mot lan o day
+	chu khong phai chep sang tung man (anh Viet chot 26/08/2026).
+	"""
+	hop_le, rieng = _pt_cho_nguon_kem_co(nguon)
+	pt = luat_thanh_toan.pt_theo_nguon(pt, hop_le, rieng)
 	if not pt:
 		return ""
 	if not pt_thanh_toan.theo_ten(pt):
 		frappe.throw("Không có phương thức thanh toán %s." % pt)
-	hop_le = _pt_cho_nguon(nguon)
 	if pt not in hop_le:
 		frappe.throw(
 			"Đơn nguồn %s không dùng phương thức %s. Chọn trong: %s."
@@ -671,6 +692,23 @@ def _kiem_pt(pt, nguon):
 		)
 	if not frappe.db.exists("Mode of Payment", pt):
 		frappe.throw("Chưa khai phương thức thanh toán %s bên Next." % pt)
+	return pt
+
+
+def _nan_pt_theo_nguon(si):
+	"""Nan phuong thuc ve dung nguon don, va GHI LAI viec da nan.
+
+	Nan am tham thi ke toan cuoi thang thay con so la ma khong biet vi sao,
+	nen moi lan nan deu de lai mot dong trong ghi chu doi soat.
+	"""
+	cu = (si.get("vgb_pt_thanh_toan") or "").strip()
+	pt = _kiem_pt(cu, si.custom_nguon)
+	if luat_thanh_toan.may_da_nan(cu, pt):
+		dong = "Nguồn %s chỉ đi phương thức %s, máy đổi từ %s." % (
+			si.custom_nguon or "Pancake", pt, cu)
+		co = (si.get("vgb_ghi_chu_doi_soat") or "").strip()
+		if dong not in co:
+			si.vgb_ghi_chu_doi_soat = (co + " | " + dong) if co else dong
 	return pt
 
 
@@ -2108,11 +2146,17 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
 	_kiem_quyen()
 	si = frappe.db.get_value(
-		"Sales Invoice", si_name, ["name", "custom_nguon", "docstatus"], as_dict=True
+		"Sales Invoice", si_name,
+		["name", "custom_nguon", "docstatus", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu"],
+		as_dict=True,
 	)
 	if not si:
 		frappe.throw("Không có hoá đơn %s." % si_name)
 	pt = _kiem_pt(pt, si.custom_nguon)
+	# Man hinh khong gui ma thi GIU ma cu, khong xoa trang - xem
+	# luat_thanh_toan.ma_can_ghi.
+	ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
+		ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 	# Luu nhap thi chua bat buoc, den luc ghi so moi bat.
 	ma = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 	frappe.db.set_value(
@@ -2162,7 +2206,7 @@ def _soat_sepay(si, sepay=None):
 
 def _chuan_bi_ghi_so(si, sepay=None):
 	"""Kiem cac dieu kien bat buoc truoc khi submit mot hoa don sales."""
-	pt = _kiem_pt(si.vgb_pt_thanh_toan, si.custom_nguon)
+	pt = _nan_pt_theo_nguon(si)
 	if not pt:
 		frappe.throw(
 			"Đơn %s chưa chọn phương thức thanh toán."
@@ -2222,10 +2266,11 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 		frappe.throw("Phiếu này không phải doanh thu sales.")
 	if si.docstatus != 0:
 		frappe.throw("Đơn này đã chốt rồi.")
+	if ma_tham_chieu is not None:
+		si.vgb_ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
+			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 	if pt:
 		si.vgb_pt_thanh_toan = pt
-	if ma_tham_chieu is not None:
-		si.vgb_ma_tham_chieu = ma_tham_chieu
 	ma_kh = (khach or "").strip()
 	if ma_kh:
 		if not frappe.db.exists("Customer", ma_kh):
@@ -4038,6 +4083,8 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		_otp_kiem(otp, "thêm giảm giá khi chốt bill")
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
+		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
+			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		si.vgb_pt_thanh_toan = pt
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
@@ -4193,6 +4240,8 @@ def pos_sua_don(
 		doi.append("giảm giá")
 	if pt:
 		pt = _kiem_pt(pt, si.custom_nguon)
+		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
+			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		si.vgb_pt_thanh_toan = pt
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
@@ -4275,9 +4324,10 @@ def pos_ghi_so(name):
 		)
 	if frappe.utils.cint(si.get("vgb_tam_tinh")):
 		frappe.throw("Bill còn tạm tính. Khách thanh toán xong thì bấm Chốt trước, rồi mới ghi sổ.")
-	pt = _kiem_pt(si.vgb_pt_thanh_toan, si.custom_nguon)
+	pt = _nan_pt_theo_nguon(si)
 	if not pt:
 		frappe.throw("Bill chưa chọn phương thức thanh toán.")
+	si.vgb_pt_thanh_toan = pt
 	if pt == "Chuyển khoản":
 		ma = str(si.vgb_ma_tham_chieu or "").strip().upper()
 		g = _sepay_bill(ma)
