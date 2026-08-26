@@ -608,131 +608,28 @@ def chi_tiet(ma):
 	return d
 
 
-# ------------------------------------------------------ van an toàn quét đêm
+# --------------------------------------------- KHÔNG CÒN NHỊP QUÉT ĐÊM
 #
-# Anh Việt chốt 25/08/2026: trần mềm 200 bắn cảnh báo, trần cứng 3000 ngắt
-# hẳn tác vụ.
-
-# Trần cứng dùng chung hằng số của `diem_han` để chỉ có MỘT chỗ chỉnh.
+# Trước 26/08/2026 chỗ này có `quet_dem` và `quet_dem_tu_dong`: mỗi sáng 6
+# giờ rà phiếu chưa liên hệ rồi nhắc người phụ trách, kèm hai trần an toàn
+# 200 và 3000.
 #
-# Với luồng này 3000 là trần chống thảm hoạ chứ không phải trần vận hành:
-# cả tiệm tặng nhiều nhất chừng trăm hộp một mùa. Chạm tới ba nghìn nghĩa
-# là bộ lọc đã hỏng chứ không phải tự nhiên đông khách.
-from vagabond.diem_han import GIOI_HAN_MOT_DEM as TRAN_CUNG
-
-# Trần mềm: vẫn chạy nhưng ghi nhật ký để có người nhìn sớm.
-TRAN_MEM = 200
-
-# Nhắc trước bao nhiêu ngày so với ngày kết thúc đợt.
-NGAY_NHAC_TRUOC = 3
-
-
-def _phieu_chua_lien_he():
-	"""Phiếu chưa ai gọi, thuộc đợt ĐANG CHẠY, và ngày giao đã cận.
-
-	Chỉ lấy đợt đang chạy. Đợt đã đóng mà còn hiện lên là mỗi mùa sau lại
-	đội thêm một lớp việc chết không ai dọn.
-	"""
-	from frappe.utils import add_days
-
-	dot = frappe.get_all(
-		DT_DOT, filters={"trang_thai_dot": "Dang chay"},
-		fields=["name", "den_ngay"], limit_page_length=0)
-	moc = add_days(nowdate(), NGAY_NHAC_TRUOC)
-	gan = [d["name"] for d in dot
-		if not d["den_ngay"] or str(d["den_ngay"]) <= str(moc)]
-	if not gan:
-		return []
-	return frappe.get_all(
-		DT,
-		filters={"dot": ["in", gan], "huy": 0, "tt_lien_he": "Chua lien he"},
-		fields=["name", "dot", "ten_khach", "bo_phan_lam", "nguoi_lam",
-			"khach_cua"],
-		limit_page_length=0,
-	)
-
-
-def quet_dem(chay_that=0):
-	"""Rà phiếu tặng quà chưa liên hệ rồi nhắc người phụ trách.
-
-	MẶC ĐỊNH CHẠY THỬ. Phải truyền chay_that=1 mới thật sự nhắc.
-
-	Cùng khuôn với `diem_han.het_han`, và cùng lý do: một đêm chạy nhầm thì
-	không lùi lại được những cái chuông đã kêu trên điện thoại người thật.
-	"""
-	ds = _phieu_chua_lien_he()
-
-	if len(ds) > TRAN_CUNG:
-		# DỪNG LẠI, không chạy tiếp. Âm thầm chạy tiếp là ba nghìn cái chuông.
-		frappe.log_error(
-			message=(
-				"Nhịp quét tặng quà đêm nay gặp %d phiếu chưa liên hệ, vượt "
-				"trần cứng %d nên đã dừng, KHÔNG nhắc ai cả.\n\n"
-				"Cả tiệm tặng nhiều nhất chừng trăm hộp một mùa, nên con số "
-				"này gần như chắc chắn là bộ lọc hỏng hoặc một đợt cũ bị bật "
-				"lại trạng thái Đang chạy. Nhờ anh chị kiểm màn Đợt tặng quà "
-				"trước khi bật lại nhịp." % (len(ds), TRAN_CUNG)
-			),
-			title="tang_qua: quet dem vuot tran cung, da dung",
-		)
-		return {"dung": 1, "so_dong": len(ds), "vi_sao": "vượt trần cứng"}
-
-	if len(ds) > TRAN_MEM:
-		# Trần mềm: vẫn chạy, nhưng để lại vết cho người nhìn.
-		frappe.log_error(
-			message=(
-				"Nhịp quét tặng quà đêm nay gặp %d phiếu chưa liên hệ, vượt "
-				"trần mềm %d. Vẫn chạy, nhưng con số này cao hơn hẳn một mùa "
-				"quà bình thường nên nhờ anh chị ngó qua." % (len(ds), TRAN_MEM)
-			),
-			title="tang_qua: quet dem vuot tran mem",
-		)
-
-	if not chay_that:
-		return {"chay_thu": 1, "se_nhac": len(ds), "tran_mem": TRAN_MEM,
-			"tran_cung": TRAN_CUNG}
-
-	from vagabond import giao_viec
-
-	nhac, da_co_roi = 0, 0
-	for p in ds:
-		try:
-			nguoi, mo_ta = giao_viec._ai_phai_lam(frappe.get_doc(DT, p["name"]))
-			if not nguoi:
-				continue
-			# MỘT PHIẾU MỘT ĐÊM MỘT LẦN NHẮC, và không nhắc lại đêm sau.
-			#
-			# `giao_viec.giao` bỏ qua người đã có việc mở nên KHÔNG đẻ thêm
-			# ToDo, nhưng nó vẫn bắn chuông ở mọi lần gọi. Nhịp này chạy hằng
-			# đêm, nên để nguyên là mỗi sáng Sales lại nhận đúng cái chuông của
-			# hôm qua, và tới ngày thứ ba thì không ai đọc chuông nữa.
-			#
-			# Nên chỉ bắn chuông khi thật sự có người MỚI được giao. Việc vẫn
-			# được gắn lại để ô Assigned To bên Desk không rơi.
-			da_co = giao_viec._dang_giao(DT, p["name"])
-			moi_that = [u for u in nguoi if u not in da_co]
-			giao_viec.giao(DT, p["name"], nguoi, mo_ta, bao=1 if moi_that else 0)
-			if moi_that:
-				nhac += 1
-			else:
-				da_co_roi += 1
-		except Exception:
-			frappe.log_error(frappe.get_traceback(),
-				"tang_qua: nhac phieu %s loi" % p["name"])
-	return {"da_nhac": nhac, "da_giao_tu_truoc": da_co_roi, "so_dong": len(ds)}
-
-
-def quet_dem_tu_dong():
-	"""Điểm gọi của bộ lập lịch. Chạy THẬT.
-
-	Đặt 6 giờ sáng chứ không nửa đêm: đây là việc nhắc người đi làm, nhắc
-	lúc 2 giờ sáng thì tới 8 giờ thông báo đã trôi mất trong danh sách.
-	"""
-	try:
-		return quet_dem(chay_that=1)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "tang_qua: quet dem tu dong loi")
-		return {"loi": 1}
+# Anh Việt chốt 26/08/2026 GỠ HẲN, cùng lần tắt giao việc tự động. Lý do:
+# nhịp đó nhắc bằng cách gọi `giao_viec.giao`, tức là nó cũng đẻ ra phân
+# công cho cả bộ phận chứ không chỉ bắn một cái chuông. Mà ba vai được coi
+# là Sales gồm Sales User, Sales Manager và Bộ phận đặt hàng thì phủ rộng
+# tới cả kế toán, nên sáng nào cũng có người nhận việc không phải của mình.
+#
+# Hai trần an toàn cũng đi theo, và không tiếc: chúng chỉ tồn tại để đỡ cho
+# chính nhịp này.
+#
+# Muốn biết phiếu nào chưa ai gọi thì mở màn Tặng quà khách VIP, bấm chip
+# "Chưa liên hệ". Con số ở đó máy chủ đếm lại mỗi lần mở, luôn đúng, và
+# không làm phiền ai.
+#
+# ĐỪNG dựng lại nhịp này rồi mới hỏi. Nếu sau này thật sự cần nhắc, thì
+# nhắc ĐÍCH DANH người trong ô Người làm, và chỉ bắn thông báo chứ không
+# giao việc.
 
 
 # Trường mà màn hình ĐƯỢC PHÉP ghi. Danh sách trắng, không phải danh sách đen.
@@ -890,3 +787,547 @@ def nap_danh_muc():
 			frappe.log_error(frappe.get_traceback(),
 				"tang_qua: nap mau %s loi" % m["ma_mau"])
 	return them
+
+
+# =========================================================================
+# Nhân bản đợt và thêm khách hàng loạt (anh Việt đặt bài 26/08/2026)
+# =========================================================================
+
+
+def ma_dot_moi(ma_cu, nam_moi):
+	"""Sinh mã đợt cho mùa sau từ mã đợt cũ. THUẦN.
+
+	Mã đợt trong hệ có dạng "TET-2026" hay "TRUNGTHU-2025". Đổi đúng cụm số
+	năm ở CUỐI mã, không đụng tới phần chữ. Mã không có đuôi năm thì nối
+	thêm năm vào, chứ không đoán bừa.
+	"""
+	goc = str(ma_cu or "").strip()
+	nam = str(nam_moi or "").strip()
+	if not goc:
+		return nam
+	if not nam:
+		return goc
+	phan = goc.rsplit("-", 1)
+	if len(phan) == 2 and phan[1].isdigit() and len(phan[1]) == 4:
+		return phan[0] + "-" + nam
+	return goc + "-" + nam
+
+
+def ten_dot_moi(ten_cu, nam_cu, nam_moi):
+	"""Tên đợt cho mùa sau. THUẦN. Thay số năm cũ trong tên nếu có."""
+	ten = str(ten_cu or "").strip()
+	nam_cu = str(nam_cu or "").strip()
+	nam_moi = str(nam_moi or "").strip()
+	if ten and nam_cu and nam_moi and nam_cu in ten:
+		return ten.replace(nam_cu, nam_moi)
+	if ten and nam_moi:
+		return "%s (%s)" % (ten, nam_moi)
+	return ten
+
+
+# Những ô KHÔNG được chép sang đợt mới. Chép sang là mùa mới mở ra đã thấy
+# khách nào cũng "Đã tặng", và không ai biết con số đó là của năm nào.
+O_KHONG_CHEP = (
+	"tt_tang", "ngay_tang", "tt_lien_he", "ngay_lien_he",
+	"huy", "ly_do_huy", "hoa_don",
+	"zns_da_gui", "zns_ma_theo_doi", "nguoi_gui_zns",
+	"loi_chuc",
+)
+
+# Những ô CÓ chép. Liệt kê thẳng chứ không chép cả bản ghi: chép cả bản ghi
+# là một ngày nào đó phiên khác thêm một ô trạng thái mới và nó lặng lẽ
+# theo sang mùa sau.
+O_CHEP = (
+	"khach", "ten_khach", "phan_loai", "title_rieng", "don_vi", "hang_khach",
+	"khach_cua", "bo_phan_lam", "nguoi_lam",
+	"sdt_khach_tho", "sdt_nhan_tho",
+	"dia_chi", "gio_giao", "ghi_chu_van_chuyen",
+	"ghi_chu",
+)
+
+
+@frappe.whitelist()
+def nhan_ban_dot(ma_dot=None, nam_moi=None, ten_moi=None, chep_qua=0):
+	"""Nhân bản một đợt tặng quà sang mùa sau, kèm cả danh sách khách.
+
+	Nút Duplicate mặc định của Frappe chỉ chép được BẢN GHI ĐỢT, vì danh
+	sách khách ở đây là chứng từ riêng chứ không phải bảng con (lý do nằm ở
+	đầu tệp này). Nên phải có hàm riêng, không thì mùa nào cũng gõ lại 347
+	dòng.
+
+	Mặc định KHÔNG chép món quà: quà Trung thu khác quà Tết, chép sang là
+	Marketing phải xoá từng dòng. Muốn chép thì truyền `chep_qua=1`.
+	"""
+	_kiem_quyen("nhân bản đợt tặng quà")
+	ma_dot = (ma_dot or "").strip()
+	if not ma_dot or not frappe.db.exists(DT_DOT, ma_dot):
+		frappe.throw("Không tìm thấy đợt tặng quà %s." % (ma_dot or ""))
+
+	cu = frappe.get_doc(DT_DOT, ma_dot)
+	nam = cint(nam_moi) or (cint(cu.get("nam")) + 1)
+	ma_moi = ma_dot_moi(ma_dot, nam)
+	if frappe.db.exists(DT_DOT, ma_moi):
+		frappe.throw(
+			"Đã có đợt mang mã %s rồi. Mở đợt đó ra dùng tiếp, hoặc đặt năm "
+			"khác." % ma_moi
+		)
+
+	moi = frappe.new_doc(DT_DOT)
+	moi.ma_dot = ma_moi
+	moi.ten_dot = (ten_moi or "").strip() or ten_dot_moi(
+		cu.get("ten_dot"), cu.get("nam"), nam)
+	moi.dip = cu.get("dip")
+	moi.nam = nam
+	# Mở ra ở dạng Nhập, KHÔNG phải Đang chạy. Đợt Đang chạy là đợt được
+	# phép xuất hoá đơn quà, mà đợt vừa nhân bản thì chưa ai soát dòng nào.
+	moi.trang_thai_dot = "Nhap"
+	moi.mau_loi_chuc_md = cu.get("mau_loi_chuc_md")
+	moi.ngan_sach = cu.get("ngan_sach")
+	moi.ghi_chu = "Nhân bản từ đợt %s." % ma_dot
+	moi.nguoi_tao = frappe.session.user
+	moi.flags.ignore_permissions = True
+	moi.insert(ignore_permissions=True)
+
+	ds = frappe.get_all(
+		DT, filters={"dot": ma_dot}, fields=["name"],
+		order_by="creation asc", limit_page_length=0,
+	)
+	so_chep = 0
+	for r in ds:
+		try:
+			p = frappe.get_doc(DT, r["name"])
+			if cint(p.get("huy")):
+				continue
+			n = frappe.new_doc(DT)
+			n.dot = ma_moi
+			for o in O_CHEP:
+				n.set(o, p.get(o))
+			n.tt_tang = TT_TANG[0]
+			n.tt_lien_he = TT_LIEN_HE[0]
+			n.mau_loi_chuc = cu.get("mau_loi_chuc_md") or p.get("mau_loi_chuc")
+			if cint(chep_qua):
+				for m in (p.get("mon") or []):
+					n.append("mon", {
+						"mon": m.get("mon"),
+						"so_luong": cint(m.get("so_luong")) or 1,
+						"ghi_chu_mon": m.get("ghi_chu_mon") or "",
+					})
+			n.flags.ignore_permissions = True
+			n.insert(ignore_permissions=True)
+			so_chep += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+				"tang_qua: nhan ban phieu %s" % r["name"])
+
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"ma": ma_moi,
+		"so_chep": so_chep,
+		"loi_nhan": (
+			"Đã dựng đợt %s và chép sang %s khách. Đợt mới đang ở trạng thái "
+			"Nhập, soát xong thì chuyển sang Đang chạy.%s"
+			% (ma_moi, so_chep,
+			   "" if cint(chep_qua) else " Món quà chưa chép, mỗi mùa một loại quà.")
+		),
+	}
+
+
+@frappe.whitelist()
+def khach_co_hang(tu_khoa="", hang="", dot="", so_dong=200):
+	"""Khách CÓ HẠNG thành viên, để quản lý tick hàng loạt vào đợt.
+
+	Anh Việt chốt 26/08/2026: danh mục khách thân thiết của tiệm chính là
+	bảng hạng thành viên, không phải một nhóm khách riêng bên ERPNext.
+
+	Đánh dấu sẵn người ĐÃ có trong đợt để màn hình không cho tick lại, chứ
+	không lọc họ ra: người dùng cần thấy là họ đã có rồi.
+	"""
+	_kiem_quyen("chọn khách vào đợt tặng quà")
+	loc = {"disabled": 0, "vgb_hang": ["is", "set"]}
+	if (hang or "").strip():
+		loc["vgb_hang"] = (hang or "").strip()
+	tu = (tu_khoa or "").strip()
+	ds = frappe.get_all(
+		"Customer",
+		filters=loc,
+		or_filters=(
+			{"name": ["like", "%" + tu + "%"], "customer_name": ["like", "%" + tu + "%"]}
+			if tu else None
+		),
+		fields=["name", "customer_name", "customer_group", "vgb_hang"],
+		order_by="customer_name asc",
+		limit_page_length=cint(so_dong) or 200,
+	)
+
+	da_co = set()
+	if (dot or "").strip():
+		for r in frappe.get_all(
+			DT, filters={"dot": (dot or "").strip()},
+			fields=["khach"], limit_page_length=0,
+		):
+			if r.get("khach"):
+				da_co.add(r["khach"])
+
+	return {
+		"ds": [{
+			"ma": r["name"],
+			"ten": r.get("customer_name") or r["name"],
+			"nhom": r.get("customer_group") or "",
+			"hang": r.get("vgb_hang") or "",
+			"da_co": 1 if r["name"] in da_co else 0,
+		} for r in ds],
+		"hang": [h["name"] for h in frappe.get_all(
+			"Vagabond Hang Khach", filters={"bat": 1},
+			fields=["name"], limit_page_length=0)],
+	}
+
+
+@frappe.whitelist()
+def them_hang_loat(dot=None, khach=None, mon=None, phan_loai=None,
+		bo_phan_lam=None, khach_cua=None):
+	"""Thêm nhiều khách vào một đợt trong một lần bấm.
+
+	Bỏ qua người đã có trong đợt thay vì ném lỗi: quản lý tick lại một người
+	đã có là chuyện thường, và ném lỗi giữa chừng thì nửa danh sách vào được
+	nửa kia không, mà người bấm không biết nửa nào.
+	"""
+	import json as _json
+
+	_kiem_quyen("thêm khách vào đợt tặng quà")
+	ma_dot = (dot or "").strip()
+	if not ma_dot or not frappe.db.exists(DT_DOT, ma_dot):
+		frappe.throw("Không tìm thấy đợt tặng quà %s." % (ma_dot or ""))
+
+	if isinstance(khach, str):
+		khach = _json.loads(khach or "[]")
+	khach = [str(k).strip() for k in (khach or []) if str(k or "").strip()]
+	if not khach:
+		frappe.throw("Chưa tick khách nào.")
+
+	if isinstance(mon, str):
+		mon = _json.loads(mon or "[]")
+	mon = [m for m in (mon or []) if (m or {}).get("mon")]
+
+	da_co = set()
+	for r in frappe.get_all(DT, filters={"dot": ma_dot}, fields=["khach"],
+			limit_page_length=0):
+		if r.get("khach"):
+			da_co.add(r["khach"])
+
+	dot_doc = frappe.get_doc(DT_DOT, ma_dot)
+	them, bo_qua, hong = 0, 0, []
+	for k in khach:
+		if k in da_co:
+			bo_qua += 1
+			continue
+		try:
+			kh = frappe.db.get_value(
+				"Customer", k, ["customer_name", "vgb_hang"], as_dict=True) or {}
+			n = frappe.new_doc(DT)
+			n.dot = ma_dot
+			n.khach = k
+			n.ten_khach = kh.get("customer_name") or k
+			n.hang_khach = kh.get("vgb_hang") or ""
+			n.phan_loai = (phan_loai or "").strip() or None
+			n.bo_phan_lam = (bo_phan_lam or "").strip() or None
+			n.khach_cua = (khach_cua or "").strip() or None
+			n.mau_loi_chuc = dot_doc.get("mau_loi_chuc_md")
+			n.tt_tang = TT_TANG[0]
+			n.tt_lien_he = TT_LIEN_HE[0]
+			for m in mon:
+				n.append("mon", {
+					"mon": m["mon"],
+					"so_luong": cint(m.get("so_luong")) or 1,
+					"ghi_chu_mon": m.get("ghi_chu_mon") or "",
+				})
+			n.flags.ignore_permissions = True
+			n.insert(ignore_permissions=True)
+			them += 1
+			da_co.add(k)
+		except Exception as e:
+			hong.append("%s: %s" % (k, str(e)[:120]))
+			frappe.log_error(frappe.get_traceback(),
+				"tang_qua: them hang loat %s" % k)
+
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"them": them,
+		"bo_qua": bo_qua,
+		"hong": hong,
+		"loi_nhan": "Đã thêm %s khách vào đợt %s.%s%s" % (
+			them, ma_dot,
+			" Bỏ qua %s người đã có sẵn." % bo_qua if bo_qua else "",
+			" %s dòng lỗi, xem nhật ký." % len(hong) if hong else "",
+		),
+	}
+
+
+# =========================================================================
+# Tự lập đợt và nhập danh sách NGAY TRÊN APP (anh Việt 26/08/2026)
+#
+# Trước bản này màn Đợt tặng quà rỗng thì chỉ có một câu "Mở Desk tạo một
+# đợt". Desk là màn quản trị, Sales và Marketing không vào, mà cũng không
+# nên vào. Nên mùa quà nào cũng phải nhờ người khác mở hộ một bản ghi rồi
+# mới làm được việc của mình.
+# =========================================================================
+
+# Mã đợt sinh từ dịp, để mọi mùa cùng dịp xếp cạnh nhau trong danh sách.
+TIEN_TO_DIP = {
+	"Tet": "TET",
+	"Trung thu": "TRUNGTHU",
+	"Giang sinh": "GIANGSINH",
+	"Sinh nhat": "SINHNHAT",
+	"Tri an": "TRIAN",
+	"Khac": "DOT",
+}
+
+DIP = tuple(TIEN_TO_DIP.keys())
+TT_DOT = ("Nhap", "Dang chay", "Da dong")
+
+
+def ma_dot_tu_dip(dip, nam):
+	"""Mã đợt sinh từ dịp và năm. THUẦN.
+
+	Sinh ở MỘT chỗ duy nhất, và cùng khuôn với `ma_dot_moi` dùng khi nhân
+	bản. Hai chỗ tự ghép chuỗi thì sớm muộn một chỗ ghép khác, và nút nhân
+	bản sẽ không nhận ra đuôi năm để thay.
+	"""
+	tien_to = TIEN_TO_DIP.get(str(dip or "").strip()) or TIEN_TO_DIP["Khac"]
+	n = str(cint(nam) or "").strip()
+	return (tien_to + "-" + n) if n else tien_to
+
+
+def ten_dot_goi_y(dip, nam):
+	"""Tên đợt gợi ý sẵn cho người lập, vẫn sửa được. THUẦN."""
+	d = str(dip or "").strip()
+	ten = {
+		"Tet": "Tết", "Trung thu": "Trung thu", "Giang sinh": "Giáng sinh",
+		"Sinh nhat": "Sinh nhật", "Tri an": "Tri ân",
+	}.get(d, "Đợt tặng quà")
+	n = cint(nam)
+	return ("%s %s" % (ten, n)) if n else ten
+
+
+@frappe.whitelist()
+def luu_dot(ma=None, du_lieu=None):
+	"""Lập hoặc sửa một đợt tặng quà từ app.
+
+	Mã đợt do MÁY CHỦ sinh từ dịp và năm, app không gửi lên. Cho app tự đặt
+	mã thì hai người mở hai đợt Trung thu 2026 với hai mã khác nhau, và từ
+	đó trở đi không ai gộp lại được nữa.
+
+	Sửa đợt thì KHÔNG đổi mã, dù người dùng có đổi dịp hay năm: mã là thứ 34
+	phiếu con đang trỏ vào.
+	"""
+	import json as _json
+
+	_kiem_quyen("lập hoặc sửa đợt tặng quà")
+	d = du_lieu
+	if isinstance(d, str):
+		d = _json.loads(d or "{}")
+	d = d or {}
+
+	dip = str(d.get("dip") or "").strip()
+	if dip and dip not in DIP:
+		frappe.throw("Dịp %s không có trong danh mục." % dip)
+	nam = cint(d.get("nam")) or cint(nowdate()[:4])
+	tt = str(d.get("trang_thai_dot") or "").strip() or "Nhap"
+	if tt not in TT_DOT:
+		frappe.throw("Trạng thái đợt %s không hợp lệ." % tt)
+
+	ma = (ma or "").strip()
+	if ma:
+		doc = frappe.get_doc(DT_DOT, ma)
+	else:
+		doc = frappe.new_doc(DT_DOT)
+		doc.ma_dot = ma_dot_tu_dip(dip or "Khac", nam)
+		if frappe.db.exists(DT_DOT, doc.ma_dot):
+			frappe.throw(
+				"Đã có đợt %s rồi. Mở đợt đó ra dùng tiếp, hoặc đổi năm."
+				% doc.ma_dot
+			)
+		doc.nguoi_tao = frappe.session.user
+
+	doc.ten_dot = str(d.get("ten_dot") or "").strip() or ten_dot_goi_y(dip, nam)
+	doc.dip = dip or None
+	doc.nam = nam
+	doc.trang_thai_dot = tt
+	doc.tu_ngay = d.get("tu_ngay") or None
+	doc.den_ngay = d.get("den_ngay") or None
+	doc.mau_loi_chuc_md = d.get("mau_loi_chuc_md") or None
+	doc.ngan_sach = flt(d.get("ngan_sach"))
+	doc.ghi_chu = str(d.get("ghi_chu") or "").strip()
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ok": 1, "ma": doc.name, "ten_dot": doc.ten_dot,
+		"trang_thai_dot": doc.trang_thai_dot}
+
+
+@frappe.whitelist()
+def danh_muc_dot():
+	"""Danh mục cho form lập đợt: dịp, trạng thái, mẫu lời chúc."""
+	_kiem_quyen()
+	try:
+		mau = frappe.get_all(
+			DT_MAU, filters={"con_dung": 1},
+			fields=["name", "ten_mau", "dip"],
+			order_by="dip asc, name asc", limit_page_length=0)
+	except Exception:
+		mau = []
+	return {
+		"dip": [{"k": x, "ten": ten_dot_goi_y(x, 0)} for x in DIP],
+		"trang_thai": [
+			{"k": "Nhap", "ten": "Nháp, chưa cho xuất quà"},
+			{"k": "Dang chay", "ten": "Đang chạy"},
+			{"k": "Da dong", "ten": "Đã đóng"},
+		],
+		"mau": mau,
+		"nam": cint(nowdate()[:4]),
+	}
+
+
+# ------------------------------------------------- nhập danh sách bằng cách dán
+#
+# Chị Loan Anh giữ danh sách trên bảng tính. Bắt gõ lại 34 dòng vào app là
+# cách chắc chắn nhất để không ai dùng app. Nên mở đường dán thẳng.
+
+# Thứ tự cột, chốt cứng và in ra ngay trên màn hình cho người dán nhìn thấy.
+COT_DAN = ("ten_khach", "so_luong", "dia_chi", "sdt_nhan_tho",
+	"ghi_chu_van_chuyen", "ghi_chu")
+
+COT_DAN_NHAN = ("Tên khách", "Số lượng", "Địa chỉ",
+	"SĐT hoặc người nhận", "Ghi chú giao hàng", "Ghi chú")
+
+
+def tach_dan(van_ban):
+	"""Tách chữ dán từ bảng tính thành từng dòng, từng ô. THUẦN.
+
+	Nhận cả TAB lẫn dấu chấm phẩy làm dấu ngăn cột. KHÔNG nhận dấu phẩy:
+	địa chỉ ở đây gần như dòng nào cũng có dấu phẩy, lấy phẩy làm dấu ngăn
+	là vỡ hết địa chỉ mà người dán không hiểu vì sao.
+
+	Bỏ dòng trống và bỏ dòng tiêu đề (dòng đầu có chữ "tên khách").
+	"""
+	ra = []
+	for dong in str(van_ban or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+		if not dong.strip():
+			continue
+		o = dong.split("\t") if "\t" in dong else dong.split(";")
+		o = [x.strip() for x in o]
+		if not any(o):
+			continue
+		if not ra and "tên khách" in o[0].lower().replace("  ", " "):
+			continue
+		ra.append(o)
+	return ra
+
+
+def doc_dong_dan(o):
+	"""Một dòng đã tách thành tự điển đúng tên ô. THUẦN.
+
+	Thiếu cột thì để trống chứ không nổ: người dán hay quét thiếu cột cuối,
+	và bắt họ dán lại cả bảng vì thiếu ô Ghi chú là vô ích.
+	"""
+	d = {}
+	for i, ten in enumerate(COT_DAN):
+		d[ten] = (o[i] if i < len(o) else "").strip()
+	sl = "".join(c for c in d.get("so_luong", "") if c.isdigit())
+	d["so_luong"] = int(sl) if sl else 1
+	return d
+
+
+@frappe.whitelist()
+def xem_truoc_dan(van_ban=None):
+	"""CHỈ ĐỌC: dán vào trông sẽ ra những dòng nào.
+
+	Bắt buộc xem trước rồi mới cho nạp. Dán nhầm cột là ba mươi tư cái tên
+	khách nằm trong ô địa chỉ, mà lúc đó gỡ ra tốn hơn nhập tay từ đầu.
+	"""
+	_kiem_quyen("nhập danh sách tặng quà")
+	dong = [doc_dong_dan(o) for o in tach_dan(van_ban)]
+	return {
+		"cot": list(COT_DAN_NHAN),
+		"so_dong": len(dong),
+		"tong_qua": sum(x["so_luong"] for x in dong),
+		"thieu_ten": [i + 1 for i, x in enumerate(dong) if not x["ten_khach"]],
+		"ds": dong[:200],
+	}
+
+
+@frappe.whitelist()
+def nap_dan(dot=None, van_ban=None, mon=None, phan_loai=None,
+		bo_phan_lam=None, khach_cua=None):
+	"""Nạp danh sách đã dán vào một đợt.
+
+	Bỏ qua dòng không có tên khách thay vì ném lỗi giữa chừng: ném giữa
+	chừng thì nửa danh sách vào được nửa kia không, mà người bấm không biết
+	nửa nào.
+	"""
+	import json as _json
+
+	_kiem_quyen("nhập danh sách tặng quà")
+	ma_dot = (dot or "").strip()
+	if not ma_dot or not frappe.db.exists(DT_DOT, ma_dot):
+		frappe.throw("Không tìm thấy đợt tặng quà %s." % (ma_dot or ""))
+
+	dong = [doc_dong_dan(o) for o in tach_dan(van_ban)]
+	if not dong:
+		frappe.throw("Chưa dán dòng nào.")
+
+	if isinstance(mon, str):
+		mon = _json.loads(mon or "[]")
+	mon = [m for m in (mon or []) if (m or {}).get("mon")]
+	if not mon:
+		frappe.throw(
+			"Chưa chọn món quà. Mỗi phiếu tặng quà phải có ít nhất một món, "
+			"nên nhập danh sách cũng phải chọn món chung trước."
+		)
+
+	dot_doc = frappe.get_doc(DT_DOT, ma_dot)
+	them, bo_qua, hong = 0, 0, []
+	for i, x in enumerate(dong):
+		if not x["ten_khach"]:
+			bo_qua += 1
+			continue
+		try:
+			n = frappe.new_doc(DT)
+			n.dot = ma_dot
+			n.ten_khach = x["ten_khach"]
+			n.phan_loai = (phan_loai or "").strip() or None
+			n.bo_phan_lam = (bo_phan_lam or "").strip() or "Sales"
+			n.khach_cua = (khach_cua or "").strip() or None
+			n.dia_chi = x["dia_chi"]
+			# Số dán vào là số SHIPPER GỌI, nên vào ô người nhận chứ không
+			# vào ô số riêng của khách. Ô số riêng là ô duy nhất được phép
+			# gửi tin Zalo, nhét nhầm vào đó là tin chúc bay vào máy trợ lý.
+			n.sdt_nhan_tho = x["sdt_nhan_tho"]
+			n.ghi_chu_van_chuyen = x["ghi_chu_van_chuyen"]
+			n.ghi_chu = x["ghi_chu"]
+			n.mau_loi_chuc = dot_doc.get("mau_loi_chuc_md")
+			n.tt_tang = TT_TANG[0]
+			n.tt_lien_he = TT_LIEN_HE[0]
+			for m in mon:
+				n.append("mon", {
+					"mon": m["mon"],
+					"so_luong": cint(x["so_luong"]) or cint(m.get("so_luong")) or 1,
+					"ghi_chu_mon": m.get("ghi_chu_mon") or "",
+				})
+			n.flags.ignore_permissions = True
+			n.insert(ignore_permissions=True)
+			them += 1
+		except Exception as e:
+			hong.append("dòng %s (%s): %s" % (i + 1, x["ten_khach"], str(e)[:120]))
+			frappe.log_error(frappe.get_traceback(),
+				"tang_qua: nap dan dong %s" % (i + 1))
+
+	frappe.db.commit()
+	return {
+		"ok": 1, "them": them, "bo_qua": bo_qua, "hong": hong,
+		"loi_nhan": "Đã thêm %s khách vào đợt %s.%s%s" % (
+			them, ma_dot,
+			" Bỏ qua %s dòng không có tên khách." % bo_qua if bo_qua else "",
+			" %s dòng lỗi." % len(hong) if hong else ""),
+	}

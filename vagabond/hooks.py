@@ -73,16 +73,14 @@ scheduler_events = {
 			"vagabond.trang_thai_thu.soat_tu_dong",
 		],
 		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
-		# 6 gio sang: ra phieu tang qua khach VIP chua ai lien he ma ngay
-		# giao da can, roi nhac nguoi phu trach.
+		# KHONG CON NHIP 06:00 CHO TANG QUA VIP.
 		#
-		# 6 gio chu KHONG phai nua dem: day la viec nhac NGUOI DI LAM. Nhac
-		# luc 2 gio sang thi toi 8 gio thong bao da troi mat trong danh
-		# sach, va nguoi can nhac thi khong bao gio thay.
-		#
-		# Ham co hai tran: tran mem 200 van chay nhung ghi nhat ky, tran
-		# cung 3000 thi DUNG HAN va gui thu. Xem tang_qua.quet_dem.
-		"0 6 * * *": ["vagabond.tang_qua.quet_dem_tu_dong"],
+		# Truoc 26/08/2026 o day chay `tang_qua.quet_dem_tu_dong`: moi sang
+		# ra phieu chua ai lien he roi nhac nguoi phu trach. Go bo cung lan
+		# tat giao viec tu dong, vi nhip do nhac bang cach goi
+		# `giao_viec.giao`, tuc la no khong chi ban mot cai chuong ma con de
+		# ra phan cong cho ca bo phan. Xem ghi chu o muc doc_events cua
+		# "Vagabond Tang Qua VIP".
 		# Keo hoa don M-Invoice, ban trong ma nguon (truoc 20/08/2026 nam
 		# trong Server Script tren site va da sot hoa don dau vao tu 14/08,
 		# xem dau tep minvoice_dong_bo.py). Cung nhip 15 phut voi kich ban
@@ -245,16 +243,17 @@ doc_events = {
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
 	},
-	# Tang qua khach VIP (25/08/2026). Doctype nay khong ghi so nen khong co
-	# on_submit; viec sinh ra va tat di deu qua on_update.
+	# Tang qua khach VIP: KHONG CON HOOK GIAO VIEC TU DONG.
 	#
-	# `khi_sinh_phieu` tu doc `_ai_phai_lam` va tra ve rong khi phieu da
-	# lien he xong hoac da huy, nen mot lan goi lo hai chieu: chua goi thi
-	# giao viec, goi roi thi go viec ra khoi hop cua Sales.
-	"Vagabond Tang Qua VIP": {
-		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
-		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
-	},
+	# Anh Viet chot 26/08/2026 sau khi chi Dung nhan duoc phan cong mot phieu
+	# tang qua khong lien quan gi toi chi. Nguyen nhan: `_ai_phai_lam` giao
+	# cho MOI nguoi giu mot trong ba vai Sales User, Sales Manager, Bo phan
+	# dat hang - ma ba vai do phu rat rong, cham ca ke toan va bep. Nhap mot
+	# lo 34 phieu la ban ra hang tram phan cong cung mot luc.
+	#
+	# Nay chi con phan cong TAY: ai can thi bam nut Phan cong tren Desk.
+	# Dung them lai hook o day. Bo phan lam la Sales hay Marketing van la mot
+	# o de LOC va de biet ai lo, khong phai lenh giao viec cho ca bo phan.
 	# Cay kho bon chang cua bep (Khai chot 21/08/2026): moi dong nguyen lieu
 	# cua lenh san xuat lay dung kho cua chang no.
 	#
@@ -320,17 +319,42 @@ doc_events = {
 		# toan, hay phuong thuc khong dung duoc cho nguon do (anh Viet
 		# 13/08/2026). Nhip dong bo Pancake duoc mien - xem ghi chu trong
 		# vagabond.ban_hang.kiem_truoc_khi_luu.
-		"validate": "vagabond.ban_hang.kiem_truoc_khi_luu",
+		# Hai viec o validate, chay theo thu tu:
+		#   1. Luat ban hang cu: nguon don, phuong thuc thanh toan.
+		#   2. Hang rao qua tang VIP: to co gan phieu qua thi phieu phai co
+		#      that, dot phai Dang chay, dung khach, chua tang lan nao, va moi
+		#      dong hang phai nam trong danh sach qua da duyet.
+		#
+		# Dat o validate chu khong o before_submit vi anh Viet yeu cau "vang
+		# loi chan cung khong cho xuat" - chan ngay luc luu thi nhan vien biet
+		# sai trong luc con dang go.
+		"validate": [
+			"vagabond.ban_hang.kiem_truoc_khi_luu",
+			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
+		],
 		# Chan ban lo han muc mua vu (anh Viet chot 18/08/2026: "tuyet doi
 		# khong cho phep ban lo").
 		#
 		# Dat o before_submit chu khong o validate: bill con nhap la sales
 		# dang go, chan giua luc go la lam ho ket khong luu duoc gi. Ghi so
 		# moi la luc so that su vao sach.
-		"before_submit": "vagabond.mua_vu.chan_ban_lo",
+		# Hai viec o before_submit:
+		#   1. Chan ban le han muc mua vu.
+		#   2. Noi ghi chu "(Hang tang khong thu tien)" vao dien giai tung
+		#      dong cua hoa don qua, va kiem tai khoan chi phi bieu tang da
+		#      khai chua TRUOC khi to vao so.
+		"before_submit": [
+			"vagabond.mua_vu.chan_ban_lo",
+			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
+		],
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
-		"on_submit": "vagabond.khach_hang.cong_diem_hoa_don",
+		"on_submit": [
+			"vagabond.khach_hang.cong_diem_hoa_don",
+			# Hoa don qua: dong dau Da tang len phieu (chong nhan hai lan) va
+			# gat cong no sang chi phi bieu tang de khach tra 0 dong.
+			"vagabond.qua_tang_hoa_don.sau_khi_ghi_so",
+		],
 		# Huy hoa don kenh khac thi tra so lai cho bang kiem banh. Truoc day
 		# co ca after_delete o day, nay bo di: khong ai xoa duoc hoa don nua
 		# nen no la ma chet, de lai chi lam nguoi doc tuong con duong xoa.
@@ -345,6 +369,10 @@ doc_events = {
 			# MOT trong ba duong mot don co the chet - duong huy mem vgb_huy
 			# KHONG di qua day, xem chung_tu.danh_dau_huy.
 			"vagabond.diem_otp.hoan_khi_huy_hoa_don",
+			# Huy hoa don qua thi tra phieu ve Chua tang va HUY (khong xoa)
+			# but toan gat cong no. Khong tra lai thi phieu ket vinh vien o
+			# Da tang ma khach chua he nhan duoc gi.
+			"vagabond.qua_tang_hoa_don.khi_huy",
 		],
 	},
 }
