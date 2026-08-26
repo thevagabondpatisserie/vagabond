@@ -43,9 +43,10 @@ CUA_NGO = {
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
 	# Them 26/08/2026: dung lai hoa don mua theo ban hoa don dien tu goc.
-	# `canh_bao_lech` la HOOK, chay tren duong luu cua moi hoa don mua, tuyet
-	# doi khong duoc mo ra ngoai.
-	"dung_lai_hddt.py": ["dung_lai", "soat"],
+	# `dong_bo_luc_luu` va `tk_theo_mon` la HOOK, chay tren duong luu cua moi
+	# hoa don mua, tuyet doi khong duoc mo ra ngoai. Hai ham hang loat va sua
+	# to da ghi so chi cho ke toan truong, kiem quyen ben trong.
+	"dung_lai_hddt.py": ["dung_lai", "dung_lai_tat_ca", "soat", "sua_to_da_ghi_so"],
 	"doi_chieu_mua.py": [
 		"danh_sach", "don_vi_cua_mon", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],

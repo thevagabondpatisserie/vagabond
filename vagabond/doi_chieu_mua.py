@@ -84,7 +84,22 @@ def _vai_vuot_lech_gia():
 
 
 def _vuot_lech_gia_duoc():
-	"""Nguoi dang dung co duoc ghi so to hoa don lech gia khong."""
+	"""Nguoi dang dung co duoc noi mot dong lech gia vao phieu nhap khong.
+
+	Doc dung hai o thiet lap ma ERPNext doc, de nut ben app va nut ben man
+	quan tri KHONG BAO GIO xu khac nhau (anh Viet 26/08/2026, lenh dong bo
+	hai man). Tu v318 thiet lap chuyen tu "Stop" sang "Warn": ERPNext chi
+	nhac chu khong chan nua, thi ben app cung vay - van ghi vet ai duyet
+	vao to hoa don, nhung khong chan.
+	"""
+	try:
+		if (
+			frappe.db.get_single_value("Buying Settings", "maintain_same_rate_action")
+			or "Stop"
+		).strip() != "Stop":
+			return True
+	except Exception:
+		pass
 	vai = _vai_vuot_lech_gia()
 	if not vai:
 		return False
