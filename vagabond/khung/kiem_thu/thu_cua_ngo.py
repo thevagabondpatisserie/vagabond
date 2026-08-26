@@ -280,6 +280,11 @@ CUA_NGO = {
 	# `doi_het` GHI VAO BOM that nen chot ky: chi ba cua, khong hon.
 	"doi_dvt_bom.py": ["doi_het", "soi_ghi_nham", "sua_ghi_nham", "xem_truoc"],
 	"ten_mon.py": ["doi_ten", "xem_truoc"],
+	# Tro ly huong dan dung app (26/08/2026). Chi hai cua, va ca hai deu
+	# KHONG cham du lieu nghiep vu: `hoi` doc so tay sinh ra tu ma nguon,
+	# `bao_loi` chi cam co vao dong nhat ky cua chinh cau tra loi do.
+	# `tro_ly_so_tay.py` co y KHONG mo cua nao: no la thu vien noi bo.
+	"tro_ly.py": ["bao_loi", "hoi"],
 	# Huong dan che bien di kem moi BOM (them 25/08/2026, v301).
 	"huong_dan_che_bien.py": [
 		"chi_tiet", "danh_sach", "luu", "soat_cong_thuc_da_doi",
