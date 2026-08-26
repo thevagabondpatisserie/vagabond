@@ -131,12 +131,62 @@ def diem_khop(tu_hoi, muc):
 	return d
 
 
-def chon_muc(cau_hoi, so_tay, so_muc=6):
+# Muc sat nhat phai phu duoc bao nhieu PHAN cua cau hoi thi moi coi la so
+# tay co tai lieu. Do tren so tay that ngay 26/08/2026, 177 muc.
+#
+# VI SAO PHAI CO NGUONG NAY, va vi sao "co chu nao trung la duoc" KHONG DU.
+#
+# Ban dau phep chon chi doi diem lon hon 0, tuc chi can mot chu trung la
+# nhan. Do tren so tay that thi luat do gan nhu khong bao gio tu choi: hoi
+# "hom nay troi dep khong" van ra sau muc, vi trong hon mot tram doan mo ta
+# cua mot tiem banh thi chu nao cung tung xuat hien o dau do. Rieng chu
+# "banh" thi co mat khap noi.
+#
+# Nhu vay cai chan quan trong nhat, khong co tu lieu thi khong goi mo hinh,
+# xem nhu khong ton tai: cau nao cung duoc dua sang mo hinh kem mot mo tu
+# lieu khong lien quan. Vua ton tien vua moi mo hinh bia.
+#
+# Do tren mot bo cau that: tam cau hoi ve app deu phu tu 0,75 tro len, con
+# nam cau ngoai le nhu "cach nuong banh mi sourdough tai nha", "gia vang hom
+# nay bao nhieu", "thu do nuoc Phap la gi" thi phu quanh 0,57 den 0,67. Dat
+# nguong 0,75 thi tam cau that van qua het, con bon trong nam cau ngoai le
+# bi chan.
+#
+# Cau ngoai le con lot duoc thi con hai lop chan phia sau: luat cam bia
+# trong `tro_ly.py` va nhiet do 0. Nguong nay khong phai lop duy nhat, no
+# chi khong duoc phep vo dung nhu truoc.
+TI_LE_PHU = 0.75
+
+
+def phu_tu_khoa(tu_hoi, muc):
+	"""Mục này phủ được bao nhiêu từ khoá của câu hỏi. THUẦN."""
+	if not tu_hoi:
+		return 0
+	co = tu_khoa(muc.get("ten")) | tu_khoa(muc.get("mo_ta")) | tu_khoa(muc.get("chi_tiet"))
+	return len(tu_hoi & co)
+
+
+def du_lien_quan(tu_hoi, muc, ti_le=TI_LE_PHU):
+	"""Mục này có đủ liên quan tới câu hỏi không. THUẦN."""
+	if not tu_hoi:
+		return False
+	can = int(len(tu_hoi) * float(ti_le))
+	if can < len(tu_hoi) * float(ti_le):
+		can += 1
+	return phu_tu_khoa(tu_hoi, muc) >= max(1, can)
+
+
+def chon_muc(cau_hoi, so_tay, so_muc=6, ti_le=TI_LE_PHU):
 	"""Vài mục sổ tay sát câu hỏi nhất. THUẦN.
 
-	Trả về danh sách đã xếp theo điểm giảm dần. Không mục nào khớp thì trả
-	về danh sách RỖNG, và nơi gọi phải hiểu đó là "chưa biết" chứ không
-	được lấy bừa mấy mục đầu bảng.
+	Trả về danh sách đã xếp theo điểm giảm dần. Không mục nào ĐỦ liên quan
+	thì trả về danh sách RỖNG, và nơi gọi phải hiểu đó là "chưa biết" chứ
+	không được lấy bừa mấy mục đầu bảng.
+
+	Ngưỡng liên quan xem `TI_LE_PHU`. Mục sát nhất phải qua ngưỡng thì cả
+	danh sách mới được nhận: qua rồi thì các mục sau xếp theo điểm để mô
+	hình có thêm ngữ cảnh, nhưng chính mục sát nhất mới quyết định sổ tay có
+	tài liệu hay không.
 	"""
 	tu = tu_khoa(cau_hoi)
 	if not tu:
@@ -145,9 +195,17 @@ def chon_muc(cau_hoi, so_tay, so_muc=6):
 	for m in so_tay or []:
 		d = diem_khop(tu, m)
 		if d > 0:
-			cham.append((d, m))
-	cham.sort(key=lambda x: (-x[0], str(x[1].get("ten") or "")))
-	return [m for _d, m in cham[: max(1, int(so_muc or 6))]]
+			cham.append((phu_tu_khoa(tu, m), d, m))
+	if not cham:
+		return []
+	# Xep theo DO PHU truoc, roi moi toi diem. Do phu tra loi cau "muc nay
+	# co dinh toi cau hoi khong", con diem tra loi cau "dinh toi muc nao
+	# manh hon". Xep nham thu tu thi muc phu tron ven cau hoi co the bi mot
+	# muc dai lem nhem day xuong duoi, va cai chan ben duoi soi nham nguoi.
+	cham.sort(key=lambda x: (-x[0], -x[1], str(x[2].get("ten") or "")))
+	if not du_lien_quan(tu, cham[0][2], ti_le):
+		return []
+	return [m for _p, _d, m in cham[: max(1, int(so_muc or 6))]]
 
 
 def gon_tu_lieu(cac_muc, tran=9000):
