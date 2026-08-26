@@ -49,8 +49,37 @@ TEN_KHOA = {
 # so lan "Ma chuan chi" chu va so, sales go cai nao ngan hon cung duoc.
 MAU_BILL = r"^[A-Z0-9]{4,20}$"
 LOI_BILL = (
-	"Nhập Số tham chiếu (chỉ chữ số, ví dụ 621416783893) hoặc Mã chuẩn chi "
+	"Nhập Số tham chiếu (chỉ chữ số, ví dụ 249853) hoặc Mã chuẩn chi "
 	"(chữ và số, ví dụ F62221) in trên bill cà thẻ."
+)
+
+# MA CHUAN CHI SHINHAN: DUNG SAU KY TU, KHONG HON KHONG KEM.
+#
+# Anh Viet 26/08/2026: *"cot ma chuan chi em nhin kia de cau hinh lai cho dung
+# ben man tinh tien de goi y cac ban nhap cho dung. No la day ngan chu khong
+# phai day dai."*
+#
+# Do tren du lieu that, khong doan: 211 ma trong sao ke Shinhan cua chi Dung
+# (161 dong trong bang Chi tiet GD cong 50 dong doc tu anh chup ngay 26/08).
+# CA 211 MA deu dai dung sau ky tu, chi gom chu HOA va so. 28 ma bat dau bang
+# so 0, 14 ma co chua chu cai. Vi du that: 046327, 073684, 00860I, F72162,
+# R9CQYH, 9NV4TK, 06783G.
+#
+# Vi sao phai siet lai. Mau cu nhan tu 4 den 20 ky tu, nen no nhan luon "So
+# tham chieu" dai 12 chu so in cung tren to bill. So tham chieu KHONG co
+# trong sao ke Shinhan, go no vao thi doi soat khong bao gio khop. Tren site
+# that dang co dung mot ca nhu vay: mot don ghi 710632159044.
+#
+# CAI BAY SO 0 DUNG DAU. 28 tren 211 ma bat dau bang so 0. Ai chep ma qua
+# Excel hay Google Sheet ma khong de dinh dang chu thi 046327 thanh 46327,
+# mat so 0 dau va vinh vien khong khop lai duoc. Cau bao loi phai nhac dieu
+# nay, vi day la loi im lang nhat trong ca phan doi soat the.
+MAU_SHINHAN = r"^[A-Z0-9]{6}$"
+LOI_SHINHAN = (
+	"Mã chuẩn chi ShinhanBank luôn dài đúng 6 ký tự, gồm chữ in hoa và số. "
+	"Ví dụ 046327, F72162, 9NV4TK. Giữ nguyên số 0 đứng đầu nếu có. "
+	"Đừng nhập Số tham chiếu dài 12 chữ số, số đó không có trong sao kê nên "
+	"cuối tháng sẽ không đối soát được."
 )
 
 # Sau danh sach cu gom lai. Thu tu o day chinh la thu tu hien tren man
@@ -74,8 +103,8 @@ MAC_DINH = [
 	{
 		"ten": "Thẻ - ShinhanBank", "lg": "/files/pt-shinhan5.png",
 		"quay": 1, "online": 1, "tien_ve": TIEN_NGAY, "minvoice": "CK",
-		"bat": 1, "nhan": "Số tham chiếu hoặc mã chuẩn chi trên bill ShinhanBank",
-		"vd": "621416783893 hoặc F62221", "mau": MAU_BILL, "loi": LOI_BILL,
+		"bat": 1, "nhan": "Mã chuẩn chi 6 ký tự trên bill ShinhanBank",
+		"vd": "046327 hoặc F72162", "mau": MAU_SHINHAN, "loi": LOI_SHINHAN,
 	},
 	{
 		"ten": "OnePay", "lg": "/files/pt-onepay.png",

@@ -101,3 +101,58 @@ def _danh_sach_rong():
 	la("rong", L.pt_theo_nguon("Tiền mặt", [], True), "Tiền mặt")
 	dung("khong tu chon", not L.nguon_tu_chon_duoc(True, []))
 	dung("chuoi trang khong tinh la mot lua chon", not L.nguon_tu_chon_duoc(True, ["  "]))
+
+
+# --------------------------------------- ma chuan chi Shinhan dung sau ky tu
+
+@ca("ma chuan chi Shinhan: dung sau ky tu, giu nguyen so 0 dung dau")
+def _mau_shinhan():
+	import re
+
+	from vagabond import pt_thanh_toan as P
+
+	# 24 ma THAT lay tu sao ke Shinhan cua chi Dung ngay 26/08/2026. Trong
+	# tong 211 ma doc duoc hom do, ca 211 deu dai dung sau ky tu.
+	that = [
+		"046327", "073684", "00860I", "F72162", "R9CQYH", "9NV4TK",
+		"06783G", "511422", "198901", "418786", "304851", "132673",
+		"166722", "536551", "676473", "650447", "250638", "035415",
+		"155958", "I1EVN1", "RH9AS4", "F87124", "F85560", "002252",
+	]
+	for m in that:
+		la("ma that %s phai qua" % m, bool(re.match(P.MAU_SHINHAN, m)), True)
+
+	# Chan So tham chieu dai 12 chu so in cung tren to bill. So do khong nam
+	# trong sao ke nen go vao la doi soat khong bao gio khop. Tren site that
+	# dang co dung mot ca nhu vay.
+	la("so tham chieu 12 so bi chan",
+		bool(re.match(P.MAU_SHINHAN, "710632159044")), False)
+	la("go bua 4 so bi chan", bool(re.match(P.MAU_SHINHAN, "1234")), False)
+	la("thieu mot ky tu bi chan", bool(re.match(P.MAU_SHINHAN, "28163")), False)
+	la("chu thuong bi chan", bool(re.match(P.MAU_SHINHAN, "f72162")), False)
+	la("co gach ngang bi chan", bool(re.match(P.MAU_SHINHAN, "04-632")), False)
+
+
+@ca("ma chuan chi Shinhan: nhan va vi du phai noi dung do dai")
+def _nhan_shinhan():
+	from vagabond import pt_thanh_toan as P
+
+	d = {x["ten"]: x for x in P.MAC_DINH}["Thẻ - ShinhanBank"]
+	la("mau rieng cua Shinhan", d["mau"], P.MAU_SHINHAN)
+	dung("nhan noi ro sau ky tu", "6 ký tự" in d["nhan"])
+	# Vi du cu la "621416783893 hoac F62221". Con so 12 chu so do la So tham
+	# chieu, khong bao gio khop sao ke, ma man hinh lai dua no ra lam mau.
+	dung("khong con goi y so 12 chu so", "621416783893" not in d["vd"])
+	dung("vi du la ma that", "046327" in d["vd"])
+	dung("cau bao loi nhac so 0 dung dau", "0 đứng đầu" in d["loi"])
+
+
+@ca("ma chuan chi: Payoo van giu mau cu, khong siet theo Shinhan")
+def _payoo_giu_nguyen():
+	from vagabond import pt_thanh_toan as P
+
+	d = {x["ten"]: x for x in P.MAC_DINH}["Thẻ - Payoo"]
+	# Tren site that chi co dung mot ma Payoo la PAYOO379310, dai 11 ky tu.
+	# Mot mau duy nhat thi chua du de siet, siet bua la thu ngan Payoo khong
+	# nhap duoc don nao.
+	la("Payoo van dung mau chung", d["mau"], P.MAU_BILL)
