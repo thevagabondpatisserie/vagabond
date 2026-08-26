@@ -309,7 +309,20 @@ def bo_mau_thue_mat_hang(doc):
 	"""
 	for d in doc.get("items") or []:
 		try:
-			d.item_tax_template = None
+			# CHUỖI RỖNG, KHÔNG PHẢI None. Đây là chỗ bản đầu sai và tưởng đã
+			# xong: deploy v315 xong chạy thử vẫn hỏng nguyên si.
+			#
+			# `accounts_controller.set_missing_item_details` chép giá trị từ
+			# danh mục Món vào ô nào đang là None:
+			#
+			#     if item.get(fieldname) is None or fieldname in force_item_fields:
+			#         item.set(fieldname, value)
+			#
+			# `item_tax_template` KHÔNG nằm trong `force_item_fields`, nên đặt
+			# chuỗi rỗng là ERPNext để yên, còn đặt None là nó điền lại mẫu
+			# thuế của mã hàng ngay trong lúc validate, và mọi công xoá ở đây
+			# thành công cốc.
+			d.item_tax_template = ""
 			d.item_tax_rate = "{}"
 		except Exception:
 			continue
