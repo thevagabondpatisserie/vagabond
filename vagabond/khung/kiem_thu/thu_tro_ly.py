@@ -1,0 +1,142 @@
+# -*- coding: utf-8 -*-
+"""Ca kiểm cho sổ tay tri thức của trợ lý.
+
+Toàn phép thuần, chạy được không cần Frappe, không cần requests, không cần
+site. `tro_ly.py` có gọi mạng nên KHÔNG được nạp vào đây: một ca kiểm kéo
+theo thư viện mạng là ca kiểm đặt sai chỗ, và máy chạy CI thì tay không.
+
+Vài ca đọc thẳng tệp thật trên đĩa để nếu ai sửa cấu trúc thẻ trang chủ hay
+đoạn mô tả đầu tệp thì cổng đỏ ngay, chứ không đợi tới lúc trợ lý trả lời
+rỗng trên máy nhân viên.
+"""
+
+import io
+import os
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la
+
+GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _thuan(tep, ten_hien):
+	ma = io.open(os.path.join(GOI, tep), encoding="utf-8").read()
+	moc = "# ------------------------------------------------------- phan can Frappe"
+	assert moc in ma, "%s doi cau truc, khong tim thay moc phan thuan" % ten_hien
+	ns = {}
+	exec(compile(ma.split(moc)[0], ten_hien, "exec"), ns)
+	return ns
+
+
+T = _thuan("tro_ly_so_tay.py", "tro_ly_so_tay_thuan")
+
+
+@ca("so tay: rut duoc the chuc nang tren trang chu")
+def _doc_the():
+	js = ("card('\U0001f9fe', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về "
+		"tới đâu', 0, 'PO') + card('\U0001f4b8', 'Công nợ phải trả', 'Còn nợ nhà "
+		"cung cấp nào, khoản nào quá hạn', 0, 'CNPT')")
+	the = T["doc_the_trang_chu"](js)
+	la("so the", len(the), 2)
+	la("mo ta PO", the["PO"], "Đơn đã gửi nhà cung cấp, hàng về tới đâu")
+	la("mo ta CNPT", the["CNPT"], "Còn nợ nhà cung cấp nào, khoản nào quá hạn")
+
+
+@ca("so tay: the lay ten tu bien thi BO QUA chu khong doan bua")
+def _the_dung_bien():
+	# Vai the khai `TYPES.Purchase.title` thay vi mot chuoi. Doan gia tri cua
+	# mot bien JavaScript bang bieu thuc chinh quy la cach chac chan sinh ra
+	# mo ta sai, nen phep rut co y de rot.
+	js = "card(TYPES.Purchase.icon, TYPES.Purchase.title, TYPES.Purchase.sub, n[0], 'Purchase')"
+	la("khong bat the dung bien", len(T["doc_the_trang_chu"](js)), 0)
+
+
+@ca("so tay: the that tren trang chu van doc duoc")
+def _the_that():
+	nguon = io.open(os.path.join(GOI, "public", "js", "bep", "02-trang-chu.js"),
+		encoding="utf-8").read()
+	the = T["doc_the_trang_chu"](nguon)
+	# Ngay 26/08/2026 doc duoc 59 khoa. Chot san mot con so toi thieu: tut
+	# xuong duoi nghia la ai do doi cach viet the, va so tay se rong dan ma
+	# khong ai hay.
+	dung("doc duoc it nhat 50 the that", len(the) >= 50)
+	dung("co man doanh so", "DS" in the or "POS" in the)
+	for khoa, mo_ta in the.items():
+		dung("mo ta %s khong rong" % khoa, len(mo_ta) > 5)
+
+
+@ca("so tay: rut duoc doan mo ta dau tep Python")
+def _doan_dau():
+	nguon = '# -*- coding: utf-8 -*-\n"""Dòng đầu.\n\nĐoạn sau.\n"""\n\nimport os\n'
+	d = T["doan_dau_tep"](nguon)
+	la("dong dau", d.split("\n")[0], "Dòng đầu.")
+	dung("giu ca doan sau", "Đoạn sau." in d)
+	la("tep khong co doan mo ta", T["doan_dau_tep"]("import os\n"), "")
+	la("tep rong", T["doan_dau_tep"](""), "")
+
+
+@ca("so tay: doan mo ta bi cat theo tran do dai")
+def _doan_bi_cat():
+	nguon = '"""' + ("x" * 5000) + '"""'
+	la("cat dung tran", len(T["doan_dau_tep"](nguon, dai=100)), 100)
+
+
+@ca("so tay: tu khoa bo dau va bo tu qua pho bien")
+def _tu_khoa():
+	tu = T["tu_khoa"]("Làm sao để xem Công nợ phải trả?")
+	dung("giu tu co nghia", "cong" in tu and "no" in tu and "tra" in tu)
+	dung("bo tu qua pho bien", "lam" not in tu and "sao" not in tu and "de" not in tu)
+	la("cau rong", T["tu_khoa"](""), set())
+
+
+@ca("so tay: ten man nang hon mo ta, mo ta nang hon phan chi tiet")
+def _diem_khop():
+	tu = T["tu_khoa"]("doanh số")
+	o_ten = {"ten": "Doanh số", "mo_ta": "", "chi_tiet": ""}
+	o_mo_ta = {"ten": "", "mo_ta": "Doanh số", "chi_tiet": ""}
+	o_chi_tiet = {"ten": "", "mo_ta": "", "chi_tiet": "Doanh số"}
+	d1 = T["diem_khop"](tu, o_ten)
+	d2 = T["diem_khop"](tu, o_mo_ta)
+	d3 = T["diem_khop"](tu, o_chi_tiet)
+	dung("ten thang mo ta", d1 > d2)
+	dung("mo ta thang chi tiet", d2 > d3)
+	la("cau hoi rong thi khong diem", T["diem_khop"](set(), o_ten), 0)
+
+
+@ca("so tay: khong muc nao khop thi tra RONG, khong lay bua")
+def _khong_khop_thi_rong():
+	# Day la cho chan bia quan trong nhat. Tra ve rong thi tro_ly.py tra loi
+	# thang la chua co tai lieu va KHONG goi mo hinh. Neu doi thanh "lay dai
+	# ba muc dau bang" thi mo hinh se duoc moi bia tren tu lieu khong lien
+	# quan, ma bia ve phan mem noi bo thi nghe rat that.
+	so_tay = [
+		{"ten": "Doanh số", "mo_ta": "Đơn bán trong ngày", "chi_tiet": ""},
+		{"ten": "Công nợ", "mo_ta": "Khách còn nợ bao nhiêu", "chi_tiet": ""},
+	]
+	la("hoi chuyen khong lien quan",
+		T["chon_muc"]("cách nướng bánh mì sourdough", so_tay), [])
+	la("cau hoi rong", T["chon_muc"]("", so_tay), [])
+	la("cau hoi toan tu pho bien", T["chon_muc"]("làm sao để", so_tay), [])
+
+
+@ca("so tay: chon dung muc sat nhat va gioi han so muc")
+def _chon_muc():
+	so_tay = [
+		{"ten": "Doanh số", "mo_ta": "Đơn bán trong ngày", "chi_tiet": ""},
+		{"ten": "Công nợ", "mo_ta": "Khách còn nợ bao nhiêu", "chi_tiet": ""},
+		{"ten": "Công nợ phải trả", "mo_ta": "Còn nợ nhà cung cấp nào", "chi_tiet": ""},
+	]
+	ra = T["chon_muc"]("công nợ", so_tay)
+	dung("co ket qua", len(ra) >= 2)
+	dung("khong lot man khong lien quan",
+		all(x["ten"] != "Doanh số" for x in ra))
+	la("gioi han so muc", len(T["chon_muc"]("công nợ", so_tay, so_muc=1)), 1)
+
+
+@ca("so tay: tu lieu gui kem co tran do dai")
+def _gon_tu_lieu():
+	muc = [{"ten": "M%d" % i, "duong": "/m%d" % i, "mo_ta": "x" * 500,
+		"chi_tiet": "y" * 500} for i in range(20)]
+	t = T["gon_tu_lieu"](muc, tran=2000)
+	dung("khong vuot tran", len(t) <= 2200)
+	dung("co dia chi mo man", "/m0" in t)
+	la("khong muc nao", T["gon_tu_lieu"]([]), "")
