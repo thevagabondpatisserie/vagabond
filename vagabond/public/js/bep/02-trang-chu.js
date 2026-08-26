@@ -200,6 +200,7 @@ async function scrHome() {
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
+        card('💬', 'Trợ lý hướng dẫn dùng app', 'Khoá API, hạn mức lượt hỏi và ai được dùng', 0, 'CDTL') +
         card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE') +
         /* Nhập tệp sao kê: bù những khoản SePay không đẩy về. OCB không có
            một khoản nào dưới 100k trong khi MB có sáu - chỗ mất nằm giữa
@@ -390,7 +391,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -857,6 +858,7 @@ var VGB_DUONG = {
   'tra-cuu-tai-khoan-ke-toan': 'DM:DMTK',
   'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
+  'tro-ly': 'CDTL',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
   'xuat-dieu-chuyen': 'XKD',
@@ -1005,6 +1007,7 @@ function vgbGo(k) {
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'CDSE') return go(scrSePay);
+  if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);

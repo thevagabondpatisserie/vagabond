@@ -106,18 +106,55 @@ async function scrDcmXem(name) {
       '</div>';
 
     html += '<div class="sec">Từng món</div><div class="card">';
+    /* Tu v315 moi con so deu kem DON VI, va lech don vi duoc noi rieng ra.
+       Truoc do man nay in "Hoa don 4 x 280.000" canh "Phieu nhap 4 x 161.000"
+       roi ket luan chi lech gia, trong khi mot ben la 4 gram con ben kia la
+       4 tui tuc 4.000 gram. Cai sai nguy hiem nhat lai la cai khong ai thay. */
     (s.dong || []).forEach(function (r) {
-      var lech = Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.5 || !r.co_phieu;
+      var lechDvt = !!r.lech_dvt;
+      var lech = lechDvt || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
       html += '<div style="padding:10px 14px;border-bottom:1px solid #f2f4f7;background:' + (lech ? '#fef2f2' : '#fff') + '">' +
         '<div style="font-size:13.5px;font-weight:600">' + h(r.item_name || r.item_code) + '</div>' +
         '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b7280;margin-top:3px">' +
-        '<span>Hoá đơn ' + num(r.sl_hd) + ' × ' + money(r.gia_hd) + '</span>' +
-        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
-        (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + '</div>' : '') +
-        (r.co_phieu && Math.abs(r.lech_gia) > 0.5 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ</div>' : '') +
+        '<span>Hoá đơn ' + num(r.sl_hd) + ' ' + h(r.dvt_hd || '') + ' × ' + money(r.gia_hd) + '</span>' +
+        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' ' + h(r.dvt_pnk || '') + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
+        (lechDvt
+          ? '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55"><b>Hai bên khác đơn vị.</b> Quy về ' + h(r.dvt_kho || '') +
+            ' thì hoá đơn là ' + num(r.ton_hd) + ' còn phiếu nhập là ' + num(r.ton_pnk) + '.' +
+            (r.dvt_ncc ? ' Nhà cung cấp ghi đơn vị "' + h(r.dvt_ncc) + '" trên hoá đơn điện tử, hệ chưa biết đó là đơn vị nào của mình.' : '') +
+            '</div>' +
+            (kq.lam_duoc && r.dvt_pnk && !r.da_noi
+              ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
+                '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
+              : '')
+          : (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
+            (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '')) +
         '</div>';
     });
     html += '</div>';
+
+    /* Lech gia ma nguoi dang dung khong co quyen vuot: noi truoc o day chu
+       dung de ho bam Ghi so roi moi an mot cau chan. Anh Viet 26/08/2026. */
+    var lechGia = (s.dong || []).filter(function (r) { return r.co_phieu && !r.lech_dvt && Math.abs(r.lech_gia) > 0.005; }).length;
+    if (lechGia && !s.vuot_lech_gia_duoc) {
+      html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d">' +
+        '<b style="font-size:13.5px;color:#92400e">Giá trên hoá đơn khác giá phiếu nhập</b>' +
+        '<div style="font-size:12.5px;color:#7c2d12;line-height:1.65;margin-top:3px">' +
+        'Hay gặp khi đặt hàng lúc còn khuyến mãi mà nhà cung cấp xuất hoá đơn sau khi hết chương trình. ' +
+        'Hàng đã về kho nên tờ này vẫn ghi sổ được, nhưng phải là kế toán ghi. ' +
+        'Nhờ kế toán mở màn này ghi sổ giúp, hoặc đề nghị nhà cung cấp phát hành lại hoá đơn theo giá đã đặt.' +
+        '</div></div>';
+    }
+
+    if (s.so_lech_dvt) {
+      html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
+        '<b style="font-size:13.5px;color:#b3261e">Chưa nối được vì lệch đơn vị</b>' +
+        '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.65;margin-top:3px">' +
+        'Hoá đơn điện tử của nhà cung cấp ghi đơn vị mà hệ chưa biết, nên máy hạ về đơn vị kho. ' +
+        'Tiền vẫn đúng nhưng số lượng sai, nối vào là hỏng giá vốn và tồn kho. ' +
+        'Khai đơn vị đó vào bảng quy đổi của món rồi tải lại hoá đơn, hoặc sửa đơn vị dòng hoá đơn cho đúng.' +
+        '</div></div>';
+    }
 
     if ((s.thua || []).length) {
       html += '<div class="sec">Có trong phiếu nhập mà hoá đơn không nhắc tới</div>' +
@@ -178,6 +215,11 @@ async function scrDcmXem(name) {
   }
   var b = frame('Đối chiếu ' + name, html, foot ? { footer: foot } : {});
   b.onclick = function (e) {
+    /* Nut doi don vi: sua o `uom` cua dong hoa don con nhap, GIU NGUYEN so
+       luong va don gia nen thanh tien khong doi mot dong. Chi so luong quy
+       ve don vi kho la duoc nan lai. Anh Viet 26/08/2026. */
+    var u = e.target.closest('[data-dcmdvt]');
+    if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
     var t = e.target.closest('[data-dcmp]');
     if (!t) return;
     var ma = t.getAttribute('data-dcmp');
@@ -1274,3 +1316,22 @@ async function dtKeo() {
 }
 
 
+
+/* Doi don vi mot dong hoa don mua con nhap.
+   Chi doi don vi, khong dong den so luong hay don gia, nen tien tren to
+   hoa don khong xe dich. Cai duoc nan lai la so luong quy ve don vi kho. */
+async function dcmDoiDonVi(name, idx, dvt) {
+  if (!dvt) return;
+  var ok = await confirmSheet('Đổi đơn vị dòng ' + idx + ' thành ' + dvt,
+    'Số lượng và đơn giá giữ nguyên nên thành tiền của hoá đơn không đổi.\n\n' +
+    'Cái được sửa là số lượng quy về đơn vị kho, để khớp với phiếu nhập.',
+    'Đổi đơn vị', false);
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt });
+    busy(false);
+    toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
+    go(function () { scrDcmXem(name); }, true);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không đổi được đơn vị'); }
+}
