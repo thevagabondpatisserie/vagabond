@@ -39,6 +39,12 @@ CUA_NGO = {
 	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
 	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
 	"mau_in/__init__.py": ["soi_lech"],
+	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
+	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
+	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
+	"doi_chieu_mua.py": [
+		"danh_sach", "don_vi_cua_mon", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
+	],
 	"de_nghi_chi.py": [
 		"danh_muc", "danh_sach",
 		# doi_soat va ds_man them 20/08/2026: man Danh sach TTNB co chip
@@ -305,7 +311,7 @@ CUA_NGO = {
 	# KHONG cham du lieu nghiep vu: `hoi` doc so tay sinh ra tu ma nguon,
 	# `bao_loi` chi cam co vao dong nhat ky cua chinh cau tra loi do.
 	# `tro_ly_so_tay.py` co y KHONG mo cua nao: no la thu vien noi bo.
-	"tro_ly.py": ["bao_loi", "hoi"],
+	"tro_ly.py": ["bao_loi", "cai_dat", "hoi", "luu_cai_dat"],
 	# Huong dan che bien di kem moi BOM (them 25/08/2026, v301).
 	"huong_dan_che_bien.py": [
 		"chi_tiet", "danh_sach", "luu", "soat_cong_thuc_da_doi",
