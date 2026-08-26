@@ -140,3 +140,49 @@ def _gon_tu_lieu():
 	dung("khong vuot tran", len(t) <= 2200)
 	dung("co dia chi mo man", "/m0" in t)
 	la("khong muc nao", T["gon_tu_lieu"]([]), "")
+
+
+@ca("so tay: nguong do phu chan cau hoi ngoai le, van cho cau ve app qua")
+def _nguong_do_phu():
+	# Ban dau phep chon chi doi "co chu nao trung la duoc". Do tren so tay
+	# THAT ngay 26/08/2026 (177 muc) thi luat do gan nhu khong bao gio tu
+	# choi: hoi "hom nay troi dep khong" van ra sau muc, vi trong hon mot
+	# tram doan mo ta cua mot tiem banh thi chu nao cung tung xuat hien o
+	# dau do. Nhu vay cai chan quan trong nhat xem nhu khong ton tai.
+	so_tay = [
+		{"ten": "Doanh số", "mo_ta": "Đơn bán trong ngày, xem vào đâu",
+			"chi_tiet": ""},
+		{"ten": "Nhận bánh", "mo_ta": "Sổ nhận bánh của cửa hàng",
+			"chi_tiet": "Bếp giao bánh cho cửa hàng, đếm tại nhà kho"},
+	]
+	dung("cau ve app van qua", bool(T["chon_muc"]("xem doanh số vào đâu", so_tay)))
+	la("cau ngoai le bi chan",
+		T["chon_muc"]("cách nướng bánh mì sourdough tại nhà", so_tay), [])
+
+
+@ca("so tay: do phu dem tren ca ten, mo ta va phan chi tiet")
+def _do_phu():
+	tu = T["tu_khoa"]("công nợ nhà cung cấp")
+	m = {"ten": "Công nợ", "mo_ta": "phải trả", "chi_tiet": "nhà cung cấp nào còn nợ"}
+	la("phu du nam chu", T["phu_tu_khoa"](tu, m), 5)
+	dung("du lien quan", T["du_lien_quan"](tu, m))
+	xa = {"ten": "Tồn kho", "mo_ta": "", "chi_tiet": "đếm hàng trong kho"}
+	dung("khong du lien quan", not T["du_lien_quan"](tu, xa))
+	la("cau hoi rong thi khong phu", T["phu_tu_khoa"](set(), m), 0)
+	dung("cau hoi rong khong bao gio du", not T["du_lien_quan"](set(), m))
+
+
+@ca("so tay: xep theo DO PHU truoc roi moi toi diem")
+def _xep_theo_do_phu():
+	# Cai bay that gap luc dung: neu xep theo diem truoc thi mot muc dai
+	# lem nhem co the day muc phu tron ven cau hoi xuong duoi, va phep xet
+	# nguong o tren soi nham nguoi roi tra ve rong.
+	so_tay = [
+		# Phu ca hai chu nhung chi nam o phan chi tiet nen diem thap.
+		{"ten": "", "mo_ta": "", "chi_tiet": "màn doanh số nằm ở trang chủ"},
+		# Diem cao vi trung ten, nhung chi phu mot chu.
+		{"ten": "Doanh thu", "mo_ta": "", "chi_tiet": ""},
+	]
+	ra = T["chon_muc"]("doanh số", so_tay)
+	dung("co ket qua", bool(ra))
+	dung("muc phu tron ven dung dau", "doanh số" in (ra[0].get("chi_tiet") or ""))
