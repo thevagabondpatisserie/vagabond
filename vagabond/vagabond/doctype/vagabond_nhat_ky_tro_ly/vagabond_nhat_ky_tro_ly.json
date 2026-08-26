@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-26 12:00:00.000000",
+ "description": "Nhat ky tro ly huong dan dung app. Moi cau hoi va cau tra loi deu ghi lai de anh Viet xem lai. Cot Bao loi do nguoi dung cam co tu nut duoi cau tra loi.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "ngay",
+  "man",
+  "mo_hinh",
+  "cb1",
+  "bao_loi",
+  "ly_do_bao_loi",
+  "sec_hoi",
+  "cau_hoi",
+  "tra_loi",
+  "sec_nguon",
+  "nguon"
+ ],
+ "fields": [
+  {
+   "fieldname": "ngay",
+   "fieldtype": "Date",
+   "label": "Ngay hoi",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "man",
+   "fieldtype": "Data",
+   "label": "Man hinh dang mo",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mo_hinh",
+   "fieldtype": "Data",
+   "label": "Mo hinh da goi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bao_loi",
+   "fieldtype": "Check",
+   "label": "Bao khong huu ich",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Nguoi dung bam nut bao duoi cau tra loi. Loc theo cot nay de xem tro ly dang tra loi sai o dau."
+  },
+  {
+   "fieldname": "ly_do_bao_loi",
+   "fieldtype": "Small Text",
+   "label": "Ly do bao",
+   "depends_on": "bao_loi"
+  },
+  {
+   "fieldname": "sec_hoi",
+   "fieldtype": "Section Break",
+   "label": "Noi dung"
+  },
+  {
+   "fieldname": "cau_hoi",
+   "fieldtype": "Small Text",
+   "label": "Cau hoi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_loi",
+   "fieldtype": "Text",
+   "label": "Cau tra loi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_nguon",
+   "fieldtype": "Section Break",
+   "label": "Tu lieu da dung"
+  },
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Small Text",
+   "label": "Muc so tay da dua vao",
+   "read_only": 1,
+   "description": "Tro ly chi duoc dua vao may muc nay. Cau tra loi sai ma cot nay trong nghia la so tay thieu, khong phai mo hinh bia."
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Nhat Ky Tro Ly",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Sales User"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
