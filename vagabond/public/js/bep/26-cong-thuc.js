@@ -13,6 +13,11 @@ var ctD = { tab: 'pastry', tt: '', hd: '', tim: '', ds: null, tong: 0 };
 var ctE = null;
 
 var CT_TAB = [['pastry', '🎂 Pastry'], ['baker', '🥐 Baker'], ['bar', '🍵 Quầy Bar'], ['khac', '❓ Chưa phân']];
+/* Ten khu de gan len tung the khi dang tim ca tiem. Go chu vao o tim thi
+   may bo loc khu, nen phai noi ro mon tim duoc dang nam o khu nao - khong
+   thi bep truong sua xong lai thac mac vi sao no khong nam trong khu minh
+   dang xem. */
+var CT_TEN_TAB = { pastry: '🎂 Pastry', baker: '🥐 Baker', bar: '🍵 Quầy Bar', khac: '❓ Chưa phân' };
 var CT_TT = [['', 'Tất cả'], ['dang_dung', 'Đang dùng'], ['nhap', 'Nháp'], ['ban_cu', 'Bản cũ'], ['da_huy', 'Đã huỷ']];
 var CT_TEN_TT = { nhap: 'Nháp', dang_dung: 'Đang dùng', ban_cu: 'Bản cũ', da_huy: 'Đã huỷ' };
 var CT_MAU_TT = { nhap: 'w', dang_dung: 'g', ban_cu: 'n', da_huy: 'n' };
@@ -60,6 +65,8 @@ async function ctTai() {
     { tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null, huong_dan: ctD.hd || null });
   ctD.ds = (r && r.ds) || [];
   ctD.tong = (r && r.tong) || 0;
+  ctD.boLocTab = (r && r.bo_loc_tab) ? 1 : 0;
+  ctD.theoTab = (r && r.theo_tab) || {};
 }
 
 async function scrCongThuc() {
@@ -87,10 +94,14 @@ async function scrCongThuc() {
       'style="text-align:left;font-size:14.5px;padding:0 13px;margin-bottom:9px;width:100%">' +
       '<div class="chips">' + tts + '</div>' +
       '<div class="chips">' + hds + '</div>' +
+      (ctD.boLocTab ? '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;margin-bottom:9px;line-height:1.5">🔎 Đang tìm cả tiệm, tạm bỏ lọc khu. ' +
+        (Object.keys(ctD.theoTab || {}).map(function (k) { return (CT_TEN_TAB[k] || k) + ' ' + ctD.theoTab[k]; }).join(' · ') || 'không có kết quả') +
+        '</div>' : '') +
       (ctD.ds.length ? '<div class="lst">' + ctD.ds.map(function (x) {
         return '<div class="li"><div class="lt" data-n="' + h(x.bom) + '">' +
           '<div class="l1">' + h(x.ten) + '</div>' +
-          '<div class="l2">' + h(x.ma) + ' · mẻ ' + num(x.so_luong) + ' ' + h(x.dvt || '') +
+          '<div class="l2">' + (ctD.boLocTab ? h(CT_TEN_TAB[x.tab] || x.tab) + ' · ' : '') +
+          h(x.ma) + ' · mẻ ' + num(x.so_luong) + ' ' + h(x.dvt || '') +
           (x.phien_ban ? ' · bản ' + h(x.phien_ban) : '') +
           (x.ban_truoc ? ' · có bản trước' : '') + '</div>' +
           ctNutHd(x) + '</div>' +
