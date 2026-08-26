@@ -38,6 +38,7 @@ gi.
 """
 
 import frappe
+from frappe.utils import cint
 
 
 def execute():
@@ -196,3 +197,36 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: mo so san luong ngay mua vu")
+
+	# Vai duoc phep ghi so hoa don mua co don gia khac phieu nhap
+	# (anh Viet 26/08/2026).
+	#
+	# Ca that: Uyen dat hat de luc nha cung cap con khuyen mai 161.000 mot
+	# tui, den luc ho xuat hoa don thi het chuong trinh nen ghi 280.000.
+	# Hang da ve kho, hoa don la that, ma ERPNext chan cung khong cho ghi so
+	# vi Buying Settings dang bat "maintain_same_rate" muc "Stop".
+	#
+	# Khong tat cai chan do: no van dang giu cho nhung ca go nham gia. Chi
+	# khai VAI DUOC VUOT, dung co ma ERPNext thiet ke san. Ke toan vuot
+	# duoc, thu mua thi khong - nguoi nhap gia khong tu duyet gia cua chinh
+	# minh.
+	#
+	# Chay lai duoc: chi dat khi o do con trong, khong de len lua chon sau
+	# nay cua anh Viet.
+	try:
+		if cint(frappe.db.get_single_value("Buying Settings", "maintain_same_rate")):
+			dang = (
+				frappe.db.get_single_value("Buying Settings", "role_to_override_stop_action") or ""
+			).strip()
+			if not dang:
+				from vagabond import doi_chieu_mua
+
+				vai = doi_chieu_mua.VAI_VUOT_GIA_MAC_DINH
+				if frappe.db.exists("Role", vai):
+					frappe.db.set_single_value("Buying Settings", "role_to_override_stop_action", vai)
+					frappe.clear_cache(doctype="Buying Settings")
+					frappe.logger().info(
+						"dong_bo_cau_truc: khai vai vuot lech gia mua = %s" % vai
+					)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: vai vuot lech gia mua")

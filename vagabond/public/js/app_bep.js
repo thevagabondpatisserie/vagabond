@@ -1433,6 +1433,7 @@ async function scrHome() {
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
+        card('💬', 'Trợ lý hướng dẫn dùng app', 'Khoá API, hạn mức lượt hỏi và ai được dùng', 0, 'CDTL') +
         card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE') +
         /* Nhập tệp sao kê: bù những khoản SePay không đẩy về. OCB không có
            một khoản nào dưới 100k trong khi MB có sáu - chỗ mất nằm giữa
@@ -1623,7 +1624,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -2090,6 +2091,7 @@ var VGB_DUONG = {
   'tra-cuu-tai-khoan-ke-toan': 'DM:DMTK',
   'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
+  'tro-ly': 'CDTL',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
   'xuat-dieu-chuyen': 'XKD',
@@ -2238,6 +2240,7 @@ function vgbGo(k) {
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
   if (k === 'CDSE') return go(scrSePay);
+  if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);
@@ -17357,7 +17360,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '315';
+var APPVER = '316';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -24838,18 +24841,55 @@ async function scrDcmXem(name) {
       '</div>';
 
     html += '<div class="sec">Từng món</div><div class="card">';
+    /* Tu v315 moi con so deu kem DON VI, va lech don vi duoc noi rieng ra.
+       Truoc do man nay in "Hoa don 4 x 280.000" canh "Phieu nhap 4 x 161.000"
+       roi ket luan chi lech gia, trong khi mot ben la 4 gram con ben kia la
+       4 tui tuc 4.000 gram. Cai sai nguy hiem nhat lai la cai khong ai thay. */
     (s.dong || []).forEach(function (r) {
-      var lech = Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.5 || !r.co_phieu;
+      var lechDvt = !!r.lech_dvt;
+      var lech = lechDvt || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
       html += '<div style="padding:10px 14px;border-bottom:1px solid #f2f4f7;background:' + (lech ? '#fef2f2' : '#fff') + '">' +
         '<div style="font-size:13.5px;font-weight:600">' + h(r.item_name || r.item_code) + '</div>' +
         '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b7280;margin-top:3px">' +
-        '<span>Hoá đơn ' + num(r.sl_hd) + ' × ' + money(r.gia_hd) + '</span>' +
-        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
-        (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + '</div>' : '') +
-        (r.co_phieu && Math.abs(r.lech_gia) > 0.5 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ</div>' : '') +
+        '<span>Hoá đơn ' + num(r.sl_hd) + ' ' + h(r.dvt_hd || '') + ' × ' + money(r.gia_hd) + '</span>' +
+        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' ' + h(r.dvt_pnk || '') + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
+        (lechDvt
+          ? '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55"><b>Hai bên khác đơn vị.</b> Quy về ' + h(r.dvt_kho || '') +
+            ' thì hoá đơn là ' + num(r.ton_hd) + ' còn phiếu nhập là ' + num(r.ton_pnk) + '.' +
+            (r.dvt_ncc ? ' Nhà cung cấp ghi đơn vị "' + h(r.dvt_ncc) + '" trên hoá đơn điện tử, hệ chưa biết đó là đơn vị nào của mình.' : '') +
+            '</div>' +
+            (kq.lam_duoc && r.dvt_pnk && !r.da_noi
+              ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
+                '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
+              : '')
+          : (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
+            (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '')) +
         '</div>';
     });
     html += '</div>';
+
+    /* Lech gia ma nguoi dang dung khong co quyen vuot: noi truoc o day chu
+       dung de ho bam Ghi so roi moi an mot cau chan. Anh Viet 26/08/2026. */
+    var lechGia = (s.dong || []).filter(function (r) { return r.co_phieu && !r.lech_dvt && Math.abs(r.lech_gia) > 0.005; }).length;
+    if (lechGia && !s.vuot_lech_gia_duoc) {
+      html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d">' +
+        '<b style="font-size:13.5px;color:#92400e">Giá trên hoá đơn khác giá phiếu nhập</b>' +
+        '<div style="font-size:12.5px;color:#7c2d12;line-height:1.65;margin-top:3px">' +
+        'Hay gặp khi đặt hàng lúc còn khuyến mãi mà nhà cung cấp xuất hoá đơn sau khi hết chương trình. ' +
+        'Hàng đã về kho nên tờ này vẫn ghi sổ được, nhưng phải là kế toán ghi. ' +
+        'Nhờ kế toán mở màn này ghi sổ giúp, hoặc đề nghị nhà cung cấp phát hành lại hoá đơn theo giá đã đặt.' +
+        '</div></div>';
+    }
+
+    if (s.so_lech_dvt) {
+      html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
+        '<b style="font-size:13.5px;color:#b3261e">Chưa nối được vì lệch đơn vị</b>' +
+        '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.65;margin-top:3px">' +
+        'Hoá đơn điện tử của nhà cung cấp ghi đơn vị mà hệ chưa biết, nên máy hạ về đơn vị kho. ' +
+        'Tiền vẫn đúng nhưng số lượng sai, nối vào là hỏng giá vốn và tồn kho. ' +
+        'Khai đơn vị đó vào bảng quy đổi của món rồi tải lại hoá đơn, hoặc sửa đơn vị dòng hoá đơn cho đúng.' +
+        '</div></div>';
+    }
 
     if ((s.thua || []).length) {
       html += '<div class="sec">Có trong phiếu nhập mà hoá đơn không nhắc tới</div>' +
@@ -24910,6 +24950,11 @@ async function scrDcmXem(name) {
   }
   var b = frame('Đối chiếu ' + name, html, foot ? { footer: foot } : {});
   b.onclick = function (e) {
+    /* Nut doi don vi: sua o `uom` cua dong hoa don con nhap, GIU NGUYEN so
+       luong va don gia nen thanh tien khong doi mot dong. Chi so luong quy
+       ve don vi kho la duoc nan lai. Anh Viet 26/08/2026. */
+    var u = e.target.closest('[data-dcmdvt]');
+    if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
     var t = e.target.closest('[data-dcmp]');
     if (!t) return;
     var ma = t.getAttribute('data-dcmp');
@@ -26006,6 +26051,25 @@ async function dtKeo() {
 }
 
 
+
+/* Doi don vi mot dong hoa don mua con nhap.
+   Chi doi don vi, khong dong den so luong hay don gia, nen tien tren to
+   hoa don khong xe dich. Cai duoc nan lai la so luong quy ve don vi kho. */
+async function dcmDoiDonVi(name, idx, dvt) {
+  if (!dvt) return;
+  var ok = await confirmSheet('Đổi đơn vị dòng ' + idx + ' thành ' + dvt,
+    'Số lượng và đơn giá giữ nguyên nên thành tiền của hoá đơn không đổi.\n\n' +
+    'Cái được sửa là số lượng quy về đơn vị kho, để khớp với phiếu nhập.',
+    'Đổi đơn vị', false);
+  if (!ok) return;
+  busy(true);
+  try {
+    await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt });
+    busy(false);
+    toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
+    go(function () { scrDcmXem(name); }, true);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không đổi được đơn vị'); }
+}
 /* ============ HO SO THANH TOAN NHA CUNG CAP (APP) ============================
    Anh Viet 13/08/2026: "anh thay thao tac tren desktop bi roi qua nen minh
    lam tren app". Ba man: danh sach co chip, lap ho so bang cach tick hoa don,
@@ -36503,6 +36567,104 @@ function tlGan() {
   document.getElementById('tlO').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); tlGui(); }
   });
+}
+
+/* ===== Man Cai dat > Tro ly ==========================================
+   Anh Viet 26/08/2026: "Anh khong thay cho anthropic key de nhap vao?"
+   Dung, ban truoc chi them o do vao Cai dat ben Desk chu khong co duong
+   nao trong app. Man nay la duong do.
+
+   O khoa KHONG BAO GIO hien lai gia tri da luu, ke ca voi giam doc. De
+   trong la giu nguyen khoa cu; muon go han thi go chu xoa. */
+
+var tlcD = null;
+
+async function scrTroLyCaiDat() {
+  frame('Trợ lý', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { tlcD = await api('vagabond.tro_ly.cai_dat', {}); }
+  catch (e) {
+    frame('Trợ lý', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  tlcVe();
+}
+
+function tlcVe() {
+  var d = tlcD;
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">TRỢ LÝ HƯỚNG DẪN DÙNG APP</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Nút tròn góc dưới bên trái màn hình. Trợ lý chỉ giải thích <b>cách dùng app</b> ' +
+    'dựa trên tài liệu của chính phần mềm, <b>chưa đọc dữ liệu thật</b> của tiệm và ' +
+    'không thay ai quyết việc. Câu hỏi nào sổ tay không có thì trợ lý nói thẳng là ' +
+    'chưa có tài liệu, không đoán.</div></div>';
+
+  html += '<div class="card" style="padding:11px 12px">' + kmHangChip(
+    posChipNut('data-tlcbat="1"', d.bat ? '● Đang bật' : '○ Đang tắt', !!d.bat)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Tắt thì nút trợ lý vẫn hiện nhưng không trả lời.</div></div>';
+
+  html += '<div class="sec">Khoá API</div><div class="card" style="padding:12px 14px">' +
+    (d.co_khoa
+      ? '<div style="font-size:13px;color:#15803d;font-weight:600">✅ Đã khai khoá</div>' +
+        '<div style="font-size:12px;color:#6b7280;line-height:1.6;margin-top:3px">' +
+        'Khoá đã lưu thì không xem lại được từ đây, kể cả giám đốc. Muốn thay thì gõ khoá mới vào ô dưới. ' +
+        'Gõ chữ <b>xoá</b> rồi lưu là gỡ hẳn khoá.</div>'
+      : '<div style="font-size:13px;color:#b3261e;font-weight:600">⚠️ Chưa có khoá, trợ lý chưa trả lời được</div>' +
+        '<div style="font-size:12px;color:#6b7280;line-height:1.6;margin-top:3px">' +
+        'Lấy khoá trong trang quản trị tài khoản Anthropic rồi dán vào ô dưới.</div>') +
+    '<input class="tin" id="tlcKhoa" type="password" autocomplete="new-password" ' +
+    'placeholder="' + (d.co_khoa ? 'Để trống là giữ nguyên khoá cũ' : 'Dán khoá API vào đây') + '" ' +
+    'style="width:100%;margin-top:9px"></div>';
+
+  html += '<div class="sec">Hạn mức dùng</div><div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;gap:10px;align-items:center">' +
+    '<span style="font-size:13px;color:#374151;flex:1">Mỗi người một ngày</span>' +
+    '<input class="tin" id="tlcNgay" type="number" min="1" value="' + h(String(d.luot_ngay)) + '" style="width:110px"></div>' +
+    '<div style="display:flex;gap:10px;align-items:center;margin-top:9px">' +
+    '<span style="font-size:13px;color:#374151;flex:1">Cả tiệm một tháng</span>' +
+    '<input class="tin" id="tlcThang" type="number" min="1" value="' + h(String(d.luot_thang)) + '" style="width:110px"></div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:9px;line-height:1.6">' +
+    'Hết hạn mức thì máy chặn trước khi gọi, nên không phát sinh thêm chi phí. ' +
+    'Tháng này đã hỏi ' + num(d.da_hoi_thang_nay) + ' lượt, hôm nay ' + num(d.da_hoi_hom_nay) + ' lượt.' +
+    (d.bao_loi_thang_nay ? ' Có ' + num(d.bao_loi_thang_nay) + ' câu bị báo là chưa hữu ích.' : '') +
+    '</div></div>';
+
+  html += '<div class="sec">Mô hình</div><div class="card" style="padding:12px 14px">' +
+    '<input class="tin" id="tlcMoHinh" value="' + h(d.mo_hinh || '') + '" placeholder="' + h(d.mo_hinh_mac_dinh) + '" style="width:100%">' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Để trống thì dùng ' + h(d.mo_hinh_mac_dinh) + '. Chỉ đổi khi bộ phận kỹ thuật dặn.</div></div>';
+
+  html += '<div class="sec">Ai được hỏi</div>' +
+    '<div class="card" style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.7">' +
+    (d.vai_duoc_hoi || []).map(function (v) { return '· ' + h(v); }).join('<br>') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Đang mở cho cấp quản lý dùng thử. Mở rộng thì báo bộ phận kỹ thuật.</div></div>';
+
+  var b = frame('Trợ lý', html, {
+    footer: '<button class="btn" id="tlcLuu" style="margin:0;width:100%">Lưu cấu hình</button>'
+  });
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-tlcbat]');
+    if (t) { tlcD.bat = tlcD.bat ? 0 : 1; return tlcVe(); }
+  };
+  document.getElementById('tlcLuu').onclick = tlcLuu;
+}
+
+async function tlcLuu() {
+  var khoa = (document.getElementById('tlcKhoa') || {}).value || '';
+  busy(true);
+  try {
+    tlcD = await api('vagabond.tro_ly.luu_cai_dat', {
+      bat: tlcD.bat ? 1 : 0,
+      khoa: khoa,
+      mo_hinh: (document.getElementById('tlcMoHinh') || {}).value || '',
+      luot_ngay: (document.getElementById('tlcNgay') || {}).value || 0,
+      luot_thang: (document.getElementById('tlcThang') || {}).value || 0
+    });
+    busy(false);
+    toast(tlcD.co_khoa ? 'Đã lưu. Trợ lý sẵn sàng trả lời.' : 'Đã lưu. Vẫn chưa có khoá API.', 3500);
+    tlcVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không lưu được'); }
 }
 })();
 

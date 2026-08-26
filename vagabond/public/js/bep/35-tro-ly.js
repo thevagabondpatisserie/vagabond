@@ -185,3 +185,101 @@ function tlGan() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); tlGui(); }
   });
 }
+
+/* ===== Man Cai dat > Tro ly ==========================================
+   Anh Viet 26/08/2026: "Anh khong thay cho anthropic key de nhap vao?"
+   Dung, ban truoc chi them o do vao Cai dat ben Desk chu khong co duong
+   nao trong app. Man nay la duong do.
+
+   O khoa KHONG BAO GIO hien lai gia tri da luu, ke ca voi giam doc. De
+   trong la giu nguyen khoa cu; muon go han thi go chu xoa. */
+
+var tlcD = null;
+
+async function scrTroLyCaiDat() {
+  frame('Trợ lý', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { tlcD = await api('vagabond.tro_ly.cai_dat', {}); }
+  catch (e) {
+    frame('Trợ lý', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  tlcVe();
+}
+
+function tlcVe() {
+  var d = tlcD;
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">TRỢ LÝ HƯỚNG DẪN DÙNG APP</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Nút tròn góc dưới bên trái màn hình. Trợ lý chỉ giải thích <b>cách dùng app</b> ' +
+    'dựa trên tài liệu của chính phần mềm, <b>chưa đọc dữ liệu thật</b> của tiệm và ' +
+    'không thay ai quyết việc. Câu hỏi nào sổ tay không có thì trợ lý nói thẳng là ' +
+    'chưa có tài liệu, không đoán.</div></div>';
+
+  html += '<div class="card" style="padding:11px 12px">' + kmHangChip(
+    posChipNut('data-tlcbat="1"', d.bat ? '● Đang bật' : '○ Đang tắt', !!d.bat)) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Tắt thì nút trợ lý vẫn hiện nhưng không trả lời.</div></div>';
+
+  html += '<div class="sec">Khoá API</div><div class="card" style="padding:12px 14px">' +
+    (d.co_khoa
+      ? '<div style="font-size:13px;color:#15803d;font-weight:600">✅ Đã khai khoá</div>' +
+        '<div style="font-size:12px;color:#6b7280;line-height:1.6;margin-top:3px">' +
+        'Khoá đã lưu thì không xem lại được từ đây, kể cả giám đốc. Muốn thay thì gõ khoá mới vào ô dưới. ' +
+        'Gõ chữ <b>xoá</b> rồi lưu là gỡ hẳn khoá.</div>'
+      : '<div style="font-size:13px;color:#b3261e;font-weight:600">⚠️ Chưa có khoá, trợ lý chưa trả lời được</div>' +
+        '<div style="font-size:12px;color:#6b7280;line-height:1.6;margin-top:3px">' +
+        'Lấy khoá trong trang quản trị tài khoản Anthropic rồi dán vào ô dưới.</div>') +
+    '<input class="tin" id="tlcKhoa" type="password" autocomplete="new-password" ' +
+    'placeholder="' + (d.co_khoa ? 'Để trống là giữ nguyên khoá cũ' : 'Dán khoá API vào đây') + '" ' +
+    'style="width:100%;margin-top:9px"></div>';
+
+  html += '<div class="sec">Hạn mức dùng</div><div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;gap:10px;align-items:center">' +
+    '<span style="font-size:13px;color:#374151;flex:1">Mỗi người một ngày</span>' +
+    '<input class="tin" id="tlcNgay" type="number" min="1" value="' + h(String(d.luot_ngay)) + '" style="width:110px"></div>' +
+    '<div style="display:flex;gap:10px;align-items:center;margin-top:9px">' +
+    '<span style="font-size:13px;color:#374151;flex:1">Cả tiệm một tháng</span>' +
+    '<input class="tin" id="tlcThang" type="number" min="1" value="' + h(String(d.luot_thang)) + '" style="width:110px"></div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:9px;line-height:1.6">' +
+    'Hết hạn mức thì máy chặn trước khi gọi, nên không phát sinh thêm chi phí. ' +
+    'Tháng này đã hỏi ' + num(d.da_hoi_thang_nay) + ' lượt, hôm nay ' + num(d.da_hoi_hom_nay) + ' lượt.' +
+    (d.bao_loi_thang_nay ? ' Có ' + num(d.bao_loi_thang_nay) + ' câu bị báo là chưa hữu ích.' : '') +
+    '</div></div>';
+
+  html += '<div class="sec">Mô hình</div><div class="card" style="padding:12px 14px">' +
+    '<input class="tin" id="tlcMoHinh" value="' + h(d.mo_hinh || '') + '" placeholder="' + h(d.mo_hinh_mac_dinh) + '" style="width:100%">' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+    'Để trống thì dùng ' + h(d.mo_hinh_mac_dinh) + '. Chỉ đổi khi bộ phận kỹ thuật dặn.</div></div>';
+
+  html += '<div class="sec">Ai được hỏi</div>' +
+    '<div class="card" style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.7">' +
+    (d.vai_duoc_hoi || []).map(function (v) { return '· ' + h(v); }).join('<br>') +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Đang mở cho cấp quản lý dùng thử. Mở rộng thì báo bộ phận kỹ thuật.</div></div>';
+
+  var b = frame('Trợ lý', html, {
+    footer: '<button class="btn" id="tlcLuu" style="margin:0;width:100%">Lưu cấu hình</button>'
+  });
+
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-tlcbat]');
+    if (t) { tlcD.bat = tlcD.bat ? 0 : 1; return tlcVe(); }
+  };
+  document.getElementById('tlcLuu').onclick = tlcLuu;
+}
+
+async function tlcLuu() {
+  var khoa = (document.getElementById('tlcKhoa') || {}).value || '';
+  busy(true);
+  try {
+    tlcD = await api('vagabond.tro_ly.luu_cai_dat', {
+      bat: tlcD.bat ? 1 : 0,
+      khoa: khoa,
+      mo_hinh: (document.getElementById('tlcMoHinh') || {}).value || '',
+      luot_ngay: (document.getElementById('tlcNgay') || {}).value || 0,
+      luot_thang: (document.getElementById('tlcThang') || {}).value || 0
+    });
+    busy(false);
+    toast(tlcD.co_khoa ? 'Đã lưu. Trợ lý sẵn sàng trả lời.' : 'Đã lưu. Vẫn chưa có khoá API.', 3500);
+    tlcVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không lưu được'); }
+}

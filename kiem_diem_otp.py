@@ -3522,7 +3522,22 @@ _js33b = open("vagabond/public/js/bep/17-cai-dat.js", encoding="utf-8").read()
 _js33c = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
 la("co man Cai dat SePay", "async function scrSePay()" in _js33b, True)
 la("man SePay duoc noi vao menu", "if (k === 'CDSE') return go(scrSePay);" in _js33c, True)
-la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDSE'," in _js33c, True)
+# v316 chen the "Tro ly" vao giua CDCN va CDSE, nen chuoi ke nhau doi theo.
+# Van giu nguyen do chat: doi dung thu tu chu khong chi doi "co mat".
+la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDTL', 'CDSE'," in _js33c, True)
+
+# --- Man Cai dat Tro ly (anh Viet 26/08/2026) ---
+# Ban v313 chi them cac o vao Vagabond Settings ben Desk, khong co duong nao
+# trong app, nen anh Viet khong tim thay cho nhap khoa API. Ba dong duoi chot
+# lai ca ba manh: man co that, duoc noi vao menu, va nam trong nhom Cai dat.
+_js33d = open("vagabond/public/js/bep/35-tro-ly.js", encoding="utf-8").read()
+la("co man Cai dat Tro ly", "async function scrTroLyCaiDat()" in _js33d, True)
+la("man Tro ly duoc noi vao menu",
+   "if (k === 'CDTL') return go(scrTroLyCaiDat);" in _js33c, True)
+la("the Tro ly nam trong nhom Cai dat", "0, 'CDTL')" in _js33c, True)
+# O khoa la kieu mat khau va KHONG BAO GIO in lai gia tri da luu ra man hinh.
+la("o khoa API la kieu mat khau", 'id="tlcKhoa" type="password"' in _js33d, True)
+la("khong in lai khoa da luu", "d.khoa" not in _js33d, True)
 # Nghiem thu that ngay 19/08/2026: goi tin mang header "Authorization" bi
 # CHINH FRAPPE tra 401 truoc khi vao toi diem nhan, vi Frappe doc header do
 # de tim khoa API cua no. Chi "X-Api-Key" moi vao duoc. Huong dan tren man

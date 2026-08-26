@@ -1,0 +1,107 @@
+# -*- coding: utf-8 -*-
+"""Ca kiểm cho phép so đơn vị giữa hoá đơn mua và phiếu nhập kho.
+
+Toàn phép thuần. `dvt_mua.py` để phần chạm Frappe xuống dưới vạch phân
+cách nên bộ kiểm này chạy được trên máy CI tay không, không cần requests,
+không cần site.
+
+Số liệu lấy nguyên từ sự cố thật ngày 26/08/2026: hoá đơn HDM-26-08-00104
+và phiếu nhập PNK-2026-00162 của Thực phẩm Ngon Cổ Điển, món hạt dẻ đông
+lạnh NVLT00227.
+"""
+
+from vagabond import dvt_mua as D
+from vagabond.khung.kiem_thu.nen import ca, dung, la
+
+
+@ca("bo dau: ten don vi tieng Viet so duoc voi nhau")
+def _bo_dau():
+	la("Tui", D.bo_dau("Túi"), "tui")
+	la("Lit", D.bo_dau("Lít"), "lit")
+	la("Hu", D.bo_dau("Hũ"), "hu")
+	la("chuan bo khoang trang", D.chuan("  Tú i "), "tui")
+
+
+@ca("cung don vi: ten viet khac nhau van la mot")
+def _cung_don_vi():
+	dung("Tui vs tui", D.cung_don_vi("Túi", "tui"))
+	dung("Tui vs TUI", D.cung_don_vi("Túi", "TÚI"))
+	dung("Tui khac Gram", not D.cung_don_vi("Túi", "Gram"))
+	dung("rong khong bao gio bang", not D.cung_don_vi("", ""))
+
+
+@ca("goi y don vi: BAG cua nha cung cap la Tui cua minh")
+def _goi_y():
+	# Hoa don dien tu so 55445 ghi dvtinh la "BAG". Bang quy doi cua mon chi
+	# co Tui va Kg nen may khong tra ra duoc, phai lui ve don vi kho.
+	la("BAG", D.goi_y_don_vi("BAG"), "Túi")
+	la("bag thuong", D.goi_y_don_vi("bag"), "Túi")
+	la("PCS", D.goi_y_don_vi("PCS"), "Cái")
+	la("CTN", D.goi_y_don_vi("CTN"), "Thùng")
+	la("khong biet thi chiu, khong doan", D.goi_y_don_vi("ZZZ"), "")
+	la("rong", D.goi_y_don_vi(""), "")
+
+
+@ca("he so: thieu hoac phi ly deu ve 1")
+def _he_so():
+	la("binh thuong", D.he_so(1000), 1000.0)
+	la("None", D.he_so(None), 1.0)
+	la("khong", D.he_so(0), 1.0)
+	la("am", D.he_so(-5), 1.0)
+	la("chu", D.he_so("abc"), 1.0)
+
+
+@ca("quy ve don vi kho: 4 Tui la 4.000 Gram chu khong phai 4")
+def _quy_ve_kho():
+	la("4 Tui", D.ton(4, 1000), 4000.0)
+	la("4 Gram", D.ton(4, 1), 4.0)
+	la("rong", D.ton(None, 1000), 0.0)
+
+
+@ca("don gia quy ve don vi kho moi tru nhau duoc")
+def _gia_theo_kho():
+	# 280.000 mot Gram va 161.000 mot Tui la hai con so khong cung ho. Quy
+	# ca hai ve mot gram thi thay ro: 280.000 doi dien 161.
+	la("hoa don 280.000/Gram", D.gia_moi_don_vi_kho(280000, 1), 280000.0)
+	la("phieu nhap 161.000/Tui", D.gia_moi_don_vi_kho(161000, 1000), 161.0)
+	la("chia cho he so 0 khong no", D.gia_moi_don_vi_kho(1000, 0), 1000.0)
+
+
+@ca("lech don vi: Gram doi dien Tui la lech, Kg doi dien Ky thi khong")
+def _lech_dvt():
+	dung("Gram vs Tui", D.lech_don_vi("Gram", 1, "Túi", 1000))
+	dung("Tui vs Tui", not D.lech_don_vi("Túi", 1000, "Túi", 1000))
+	# Hai ten khac nhau ma cung he so thi so luong ghi ra nhu nhau, khong
+	# viec gi phai chan nguoi ta lai.
+	dung("Kg vs Ky cung 1000", not D.lech_don_vi("Kg", 1000, "Ký", 1000))
+
+
+@ca("so luong: phai quy ve don vi kho truoc khi so, day la loi cua v314")
+def _so_ton():
+	# Truoc v315 cho nay so "4" voi "4" roi ket luan khop so luong. Ca that
+	# lech gap mot nghin lan ma man hinh chi bao lech gia.
+	dung("4 Gram KHONG khop 4 Tui", not D.so_ton_khop(4, 1, 4, 1000))
+	dung("4.000 Gram khop 4 Tui", D.so_ton_khop(4000, 1, 4, 1000))
+	dung("4 Tui khop 4 Tui", D.so_ton_khop(4, 1000, 4, 1000))
+
+
+@ca("cau bao lech don vi: noi du so va noi viec can lam")
+def _cau_bao():
+	c = D.loi_lech_don_vi(1, "Hạt dẻ", 4, "Gram", 1, 4, "Túi", 1000, "Gram", "BAG")
+	dung("co so dong", "Dòng 1" in c)
+	dung("co ten mon", "Hạt dẻ" in c)
+	dung("co so quy doi cua phieu nhap", "4000" in c)
+	dung("co don vi goc cua nha cung cap", "BAG" in c)
+	dung("co goi y", "Túi" in c)
+	dung("co viec can lam", "bảng quy đổi" in c)
+	# Khong doc duoc don vi goc thi van phai ra cau tu te, khong duoc bia.
+	c2 = D.loi_lech_don_vi(2, "Bơ", 1, "Gram", 1, 1, "Thùng", 5000, "Gram", "")
+	dung("khong bia don vi ncc", "BAG" not in c2 and "hoá đơn điện tử" not in c2)
+	dung("van co so dong", "Dòng 2" in c2)
+
+
+@ca("quy uoc trinh bay: khong dau gach dai trong cau bao nguoi dung doc")
+def _khong_gach_dai():
+	c = D.loi_lech_don_vi(1, "Hạt dẻ", 4, "Gram", 1, 4, "Túi", 1000, "Gram", "BAG")
+	dung("khong em dash", "—" not in c)
+	dung("khong en dash", "–" not in c)
