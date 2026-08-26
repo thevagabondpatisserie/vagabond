@@ -283,14 +283,25 @@ doc_events = {
 	# do vua dien. Frappe chay phuong thuc cua lop truoc roi moi toi cac hook
 	# cung ten, nen "validate" la dung nhip. Dat truoc la bi ghi de lai ngay.
 	"Purchase Invoice": {
-		"before_validate": "vagabond.mua_dich_vu.truoc_khi_luu",
+		"before_validate": [
+			"vagabond.mua_dich_vu.truoc_khi_luu",
+			# DONG BO HAI MAN VE MOT BAN CHAT (anh Viet 26/08/2026): to sinh
+			# tu hoa don dien tu ma dong hang bi de lech di - du do nut "Noi
+			# phieu nhap kho" ben Desk, nut "Lay mat hang tu", hay tay go -
+			# thi may dung lai dung ban goc NGAY TRONG LAN LUU va giu lien
+			# ket phieu nhap. Ban v318 chi canh bao roi dan mieng "dung bam
+			# nut ben Desk", anh Viet bac: va bang loi dan khong phai va he
+			# thong. Dat o before_validate vi ERPNext tinh lai tong tien SAU
+			# buoc nay - cung ly do voi hook ngay tren.
+			"vagabond.dung_lai_hddt.dong_bo_luc_luu",
+		],
 		"validate": [
 			"vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
-			# Noi NGAY LUC LUU khi tong tien lech ban hoa don dien tu goc.
-			# Truoc day chi biet luc bam Ghi so, tuc la go xong xuoi moi bao.
-			# Day la NHAC chu khong chan: 323 to nhap dang lech san, chan o
-			# day la nhot luon, khong ai mo ra sua duoc nua.
-			"vagabond.dung_lai_hddt.canh_bao_lech",
+			# To may dung thi tai khoan chi phi cua dong DICH VU di theo khai
+			# bao cua danh muc Mon (tiep khach di 64183, chi Dung chot
+			# 26/08/2026). Chi cham dong khong quan kho va chua noi phieu
+			# nhap, de khong dam len luat tai khoan cho 3311 cua hang kho.
+			"vagabond.dung_lai_hddt.tk_theo_mon",
 		],
 		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
 	},
