@@ -118,6 +118,34 @@ def doc_chi_tiet(chi_tiet):
 	return ds if isinstance(ds, list) else []
 
 
+def dong_chi_co_thanh_tien(x, thtien):
+	"""Dòng hoá đơn ghi đơn giá 0 nhưng THÀNH TIỀN có thật. THUẦN.
+
+	Ca thật 26/08/2026, hoá đơn Avanti số 5019: dòng "Phí phục vụ" ghi số
+	lượng 0, đơn giá 0, thành tiền 1.283.500. Bản dựng bê nguyên đơn giá 0
+	vào phiếu, mà dòng 0 đồng có GẮN MÃ HÀNG thì ERPNext coi là "chưa có
+	giá" và tự điền giá mua cũ của mã đó vào - tờ 29,4 triệu phồng thành
+	33,9 triệu mà không ai gõ số nào.
+
+	Chữa từ gốc: đơn giá 0 mà thành tiền có thật thì coi là MỘT lần nhân
+	đúng thành tiền. Đơn giá 0 và thành tiền cũng 0 (hàng tặng thật) thì
+	giữ nguyên, chỗ gọi sẽ không gắn mã hàng cho dòng đó để ERPNext khỏi
+	tự điền giá.
+	"""
+	try:
+		gia = float(x.get("gia") or 0)
+		tien = float(thtien or 0)
+	except (TypeError, ValueError):
+		return x
+	if gia or not tien:
+		return x
+	moi = dict(x)
+	moi["sl"] = 1
+	moi["gia"] = tien
+	moi["tien"] = tien
+	return moi
+
+
 # ------------------------------------------------------- phan can Frappe
 
 
@@ -173,7 +201,13 @@ def _dung_dong_tai_cho(doc, g):
 	moi = []
 	for it in dong_goc:
 		x = mc.dong_tu_hoa_don(it)
+		x = dong_chi_co_thanh_tien(x, it.get("thtien") if isinstance(it, dict) else None)
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
+		if not flt(x.get("gia")):
+			# Dong 0 dong that su (hang tang): KHONG gan ma hang. Gan ma cho
+			# dong gia 0 la moi ERPNext tu dien gia mua cu cua ma do vao,
+			# dung ca that Avanti o docstring `dong_chi_co_thanh_tien`.
+			ma, he_so = None, 1
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
 	tong_dong = sum(flt(d.get("qty")) * flt(d.get("rate")) for d in moi)
 	viec, so_tien = mc.can_theo_truoc_thue(tong_dong, g.get("tien_truoc_thue"))

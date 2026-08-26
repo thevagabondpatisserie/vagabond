@@ -182,3 +182,24 @@ def _hook_dong_bo():
 	truoc, sau = hooks.split("vagabond.dung_lai_hddt.dong_bo_luc_luu", 1)
 	dung("nam trong khoi before_validate",
 		truoc.rfind("before_validate") > truoc.rfind('"validate"'))
+
+
+@ca("dong chi co thanh tien: Phi phuc vu Avanti thanh 1 lan nhan dung tien")
+def _phi_phuc_vu():
+	# Nguyen van dong 11 cua hoa don Avanti so 5019 ngay 23/08/2026: so luong
+	# 0, don gia 0, thanh tien 1.283.500. Ban dung cu be nguyen don gia 0 vao
+	# phieu va ERPNext tu dien gia mua cu cua ma hang - to 29,4 trieu phong
+	# thanh 33,9 trieu.
+	x = D.dong_chi_co_thanh_tien({"sl": 1, "gia": 0, "tien": 0}, 1283500)
+	la("mot lan nhan", x["sl"], 1)
+	la("dung thanh tien", x["gia"], 1283500.0)
+	la("tien khop", x["tien"], 1283500.0)
+	# Dong co gia that thi khong duoc dung vao.
+	y = D.dong_chi_co_thanh_tien({"sl": 4, "gia": 150000, "tien": 600000}, 600000)
+	la("giu nguyen so luong", y["sl"], 4)
+	la("giu nguyen don gia", y["gia"], 150000)
+	# Hang tang 0 dong that su: giu nguyen, cho goi se khong gan ma hang.
+	z = D.dong_chi_co_thanh_tien({"sl": 1, "gia": 0, "tien": 0}, 0)
+	la("hang tang giu 0 dong", z["gia"], 0)
+	# Du lieu hong khong duoc lam no.
+	la("chuoi rac tra nguyen", D.dong_chi_co_thanh_tien({"gia": "x"}, "y").get("gia"), "x")
