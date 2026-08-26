@@ -158,3 +158,27 @@ def _dong_that():
 	la("thanh tien", round(x["tien"]), 3285720)
 	# Va tong dong phai khop dung tien truoc thue cua to hoa don.
 	la("khop tien truoc thue", mc.can_theo_truoc_thue(x["tien"], 3285720), ("khop", 0))
+
+
+# ------------------------- v319: hai man phai chung mot ban chat o tang luu
+
+@ca("dong bo hai man: hook dung lai phai nam tren duong luu cua hoa don mua")
+def _hook_dong_bo():
+	# Anh Viet 26/08/2026: "phai dong bo giua ca app va ca desktop ve tat ca
+	# cac nut tinh nang". Ban v318 chi canh bao roi dan mieng, anh bac. Ca
+	# nay chot bang van ban: hook dung lai phai duoc dang ky that trong
+	# hooks.py, va ban canh-bao-suong cu phai bien mat han - con no la con
+	# duong luu KHONG dung lai, tuc lai hai ban chat.
+	import io
+	import os
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	hooks = io.open(os.path.join(goc, "hooks.py"), encoding="utf-8").read()
+	dung("hook dung lai co that", "vagabond.dung_lai_hddt.dong_bo_luc_luu" in hooks)
+	dung("hook tai khoan theo mon co that", "vagabond.dung_lai_hddt.tk_theo_mon" in hooks)
+	dung("ban canh bao suong cu phai bien mat", "canh_bao_lech" not in hooks)
+	# Phai nam o before_validate: ERPNext tinh lai tong tien SAU buoc nay,
+	# dat o validate la doi dong xong tong khong duoc tinh lai.
+	truoc, sau = hooks.split("vagabond.dung_lai_hddt.dong_bo_luc_luu", 1)
+	dung("nam trong khoi before_validate",
+		truoc.rfind("before_validate") > truoc.rfind('"validate"'))
