@@ -290,6 +290,10 @@ async function loadMasters() {
     var dp = await getList('Department', { fields: ['name'], filters: { is_group: 0, disabled: 0 }, limit_page_length: 0 });
     if (dp && dp.length) DEPTS = dp.map(function (x) { return x.name; }).sort(function (a, b2) { return (deptRank(a) - deptRank(b2)) || (a < b2 ? -1 : 1); });
   } catch (e) { }
+  /* Nut noi cua tro ly: gan SAU khi da biet vai cua nguoi dang dung, vi
+     giai doan dau chi cap quan ly duoc thay nut. Boc try de mot loi o day
+     khong lam chet ca buoc khoi dong. */
+  try { tlGan(); } catch (e) { }
 }
 
 /* tat ca nhom la nam duoi cac nhom goc */
