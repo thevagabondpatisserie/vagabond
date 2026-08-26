@@ -236,6 +236,10 @@ doc_events = {
 	},
 	"Purchase Receipt": {
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		# Ghi lai gia va so luong da doi so voi don mua hang. CHI GHI CHU,
+		# khong chan ai - doc `vagabond/gia_khi_nhan.py` de biet vi sao noi
+		# hai cai chan cua ERPNext ra ma van con kiem soat.
+		"validate": "vagabond.gia_khi_nhan.ghi_vet",
 		"on_submit": "vagabond.giao_viec.khi_xong",
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},
@@ -280,7 +284,14 @@ doc_events = {
 	# cung ten, nen "validate" la dung nhip. Dat truoc la bi ghi de lai ngay.
 	"Purchase Invoice": {
 		"before_validate": "vagabond.mua_dich_vu.truoc_khi_luu",
-		"validate": "vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
+		"validate": [
+			"vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
+			# Noi NGAY LUC LUU khi tong tien lech ban hoa don dien tu goc.
+			# Truoc day chi biet luc bam Ghi so, tuc la go xong xuoi moi bao.
+			# Day la NHAC chu khong chan: 323 to nhap dang lech san, chan o
+			# day la nhot luon, khong ai mo ra sua duoc nua.
+			"vagabond.dung_lai_hddt.canh_bao_lech",
+		],
 		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
 	},
 	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,

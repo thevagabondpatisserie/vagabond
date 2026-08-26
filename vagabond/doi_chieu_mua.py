@@ -346,7 +346,7 @@ def xem(name):
 		[
 			"name", "posting_date", "supplier", "supplier_name", "grand_total",
 			"total", "docstatus", "bill_no", "bill_date", "update_stock",
-			"outstanding_amount", "vgb_huy", "due_date",
+			"outstanding_amount", "vgb_huy", "due_date", "custom_minvoice_id",
 		],
 		as_dict=True,
 	)
@@ -378,8 +378,29 @@ def xem(name):
 			"so_mon_trung": len(dp),
 			"dong": dp,
 		})
+	# To nay sinh tu hoa don dien tu thi so tong voi ban goc. Lech la co
+	# nguoi da chep de len dong hang, thuong la nut "Noi phieu nhap kho" ben
+	# man quan tri. Doc `vagabond/dung_lai_hddt.py`.
+	hddt = None
+	try:
+		from vagabond import dung_lai_hddt
+
+		g = dung_lai_hddt._goc(hd.get("custom_minvoice_id"))
+		if g and flt(g.get("tong_tien")):
+			viec, so = dung_lai_hddt.huong_lech(hd.get("grand_total"), g.get("tong_tien"))
+			hddt = {
+				"so": "%s/%s" % (g.get("ky_hieu") or "", g.get("so_hd") or ""),
+				"tong": flt(g.get("tong_tien")),
+				"viec": viec,
+				"lech": so,
+				"dung_lai_duoc": 1 if (viec != "khop" and hd.get("docstatus") == 0) else 0,
+			}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: soi hoa don dien tu")
+
 	return {
 		"hd": hd,
+		"hddt": hddt,
 		"dong": dong,
 		"da_noi": _da_noi(dong),
 		"phieu_da_noi": da_noi_ds,

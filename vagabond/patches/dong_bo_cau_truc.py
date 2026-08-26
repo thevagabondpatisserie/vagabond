@@ -38,7 +38,7 @@ gi.
 """
 
 import frappe
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 
 def execute():
@@ -230,3 +230,43 @@ def execute():
 					)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: vai vuot lech gia mua")
+
+	# Mo duong cho thu mua va thu kho o buoc nhap kho (anh Viet 26/08/2026).
+	#
+	# Uyen de xuat, anh Viet duyet: dat hang theo bang gia, giao toi moi biet
+	# ben ban dang khuyen mai hoac co hang tang kem, nen gia thuc nhan khac
+	# gia dat. Mua thit heo 3 kg thi ho giao 3,02 kg. ERPNext dang chan ca
+	# hai, ma ngay nao cung gap.
+	#
+	# Doi "Stop" thanh "Warn" chu khong tat han: van hien canh bao de nguoi
+	# ta biet minh vua doi gia. Con hang rao THAT nam o cho khac va manh hon
+	# nhieu - `mua_dich_vu.chan_lech_tong` khong cho ghi so khi tong tien
+	# phieu lech voi ban hoa don dien tu da gui co quan thue. Doc dau tep
+	# `vagabond/gia_khi_nhan.py`.
+	#
+	# Chay lai duoc: chi doi khi o do dang o dung gia tri chan cu, khong de
+	# len lua chon sau nay cua anh Viet.
+	try:
+		if (frappe.db.get_single_value("Buying Settings", "maintain_same_rate_action") or "") == "Stop":
+			frappe.db.set_single_value("Buying Settings", "maintain_same_rate_action", "Warn")
+			frappe.clear_cache(doctype="Buying Settings")
+			frappe.logger().info("dong_bo_cau_truc: lech gia mua chuyen tu Stop sang Warn")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: noi chan lech gia mua")
+
+	# Nhan du toi 10 phan tram khong bi chan. Du cho can dong (3 kg thanh
+	# 3,02 kg la 0,7 phan tram) va cho khuyen mai mua muoi tang mot. Qua muoi
+	# phan tram van chan, vi luc do nhieu kha nang la go nham so.
+	try:
+		from vagabond import gia_khi_nhan
+
+		if not flt(frappe.db.get_single_value("Stock Settings", "over_delivery_receipt_allowance")):
+			frappe.db.set_single_value(
+				"Stock Settings", "over_delivery_receipt_allowance", gia_khi_nhan.NGUONG_NHAN_DU
+			)
+			frappe.clear_cache(doctype="Stock Settings")
+			frappe.logger().info(
+				"dong_bo_cau_truc: mo nguong nhan du %s phan tram" % gia_khi_nhan.NGUONG_NHAN_DU
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: nguong nhan du")

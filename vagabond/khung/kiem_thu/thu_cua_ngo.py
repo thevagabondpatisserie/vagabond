@@ -42,6 +42,10 @@ CUA_NGO = {
 	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
+	# Them 26/08/2026: dung lai hoa don mua theo ban hoa don dien tu goc.
+	# `canh_bao_lech` la HOOK, chay tren duong luu cua moi hoa don mua, tuyet
+	# doi khong duoc mo ra ngoai.
+	"dung_lai_hddt.py": ["dung_lai", "soat"],
 	"doi_chieu_mua.py": [
 		"danh_sach", "don_vi_cua_mon", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],
