@@ -174,10 +174,33 @@ async function scrDcmXem(name) {
     '<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:#374151">Tổng hoá đơn</span><b style="font-size:16px">' + money(d.grand_total) + ' đ</b></div>' +
     '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, so_phieu_goi_y: gy.length }) + '</div></div>';
 
+  /* To sinh tu hoa don dien tu ma tong tien lech ban goc: noi ngay o day,
+     truoc khi nguoi ta ngoi doi chieu tung mon. Anh Viet 26/08/2026. */
+  if (kq.hddt && kq.hddt.viec !== 'khop') {
+    html += '<div class="card" style="padding:13px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
+      '<b style="font-size:13.5px;color:#b3261e">Lệch so với hoá đơn điện tử của nhà cung cấp</b>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px;color:#374151">' +
+      '<span>Tổng trên hoá đơn điện tử ' + h(kq.hddt.so) + '</span><b>' + money(kq.hddt.tong) + ' đ</b></div>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:13px;color:#374151">' +
+      '<span>Tổng trên phiếu này</span><b>' + money(d.grand_total) + ' đ</b></div>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08)">' +
+      '<b style="color:#b3261e">Phiếu đang ' + (kq.hddt.viec === 'thieu' ? 'thiếu' : 'thừa') + '</b>' +
+      '<b style="color:#b3261e">' + money(kq.hddt.lech) + ' đ</b></div>' +
+      '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.65;margin-top:7px">' +
+      'Số trên hoá đơn điện tử là số nhà cung cấp đã gửi cơ quan thuế, còn lệch thì không ghi sổ được. ' +
+      'Nguyên nhân hay gặp: có người bấm nút <b>Nối phiếu nhập kho</b> bên màn quản trị, nút đó chép đè ' +
+      'giá của phiếu nhập lên hoá đơn. Màn này thì không đụng tới giá.</div>' +
+      (kq.hddt.dung_lai_duoc && kq.lam_duoc
+        ? '<button class="btn" id="dcmDungLai" style="margin:9px 0 0;width:100%">Dựng lại theo hoá đơn điện tử</button>'
+        : '') +
+      '</div>';
+  }
+
   if (d.docstatus === 1) {
     html += '<div class="card" style="padding:14px;background:#f0fdf4;border:1.5px solid #86efac;font-size:13.5px;color:#15803d;line-height:1.6">' +
       '✅ Hoá đơn này đã ghi sổ xong. Công nợ còn ' + money(d.outstanding_amount) + ' đ.</div>';
     frame('Đối chiếu ' + name, html);
+    dcmGanDungLai(name);
     return;
   }
 
@@ -185,6 +208,7 @@ async function scrDcmXem(name) {
     html += '<div class="card" style="padding:14px;background:#fef2f2;border:1.5px solid #fecaca;font-size:13.5px;color:#991b1b;line-height:1.6">' +
       'Hoá đơn này đang bật <b>Cập nhật tồn kho</b>. Nối thêm vào phiếu nhập nữa là hàng vào kho hai lần, nên hệ thống chưa nối được. Nhờ anh chị tắt ô đó bên Desk rồi quay lại.</div>';
     frame('Đối chiếu ' + name, html);
+    dcmGanDungLai(name);
     return;
   }
 
@@ -227,6 +251,7 @@ async function scrDcmXem(name) {
     if (i >= 0) dcmPhieu.splice(i, 1); else dcmPhieu.push(ma);
     go(function () { scrDcmXem(name); }, true);
   };
+  dcmGanDungLai(name);
   veSoSanh();
 
   async function chay(ghiSo) {
@@ -1334,4 +1359,26 @@ async function dcmDoiDonVi(name, idx, dvt) {
     toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
     go(function () { scrDcmXem(name); }, true);
   } catch (e) { busy(false); baoTin((e && e.message) || 'Không đổi được đơn vị'); }
+}
+
+/* Dung lai dong hang cua mot hoa don NHAP theo ban hoa don dien tu goc.
+   Chi dung lai bang dong hang; nha cung cap, ngay, so hoa don, dong thue
+   deu giu nguyen vi chung von lay tu hoa don dien tu ma ra. */
+function dcmGanDungLai(name) {
+  var n = document.getElementById('dcmDungLai');
+  if (!n) return;
+  n.onclick = async function () {
+    var ok = await confirmSheet('Dựng lại theo hoá đơn điện tử',
+      'Toàn bộ dòng hàng của phiếu này sẽ được dựng lại đúng như bản hoá đơn ' +
+      'nhà cung cấp đã gửi cơ quan thuế.\n\nNhững gì đã sửa tay trên dòng hàng sẽ mất.',
+      'Dựng lại', true);
+    if (!ok) return;
+    busy(true);
+    try {
+      var kq = await api('vagabond.dung_lai_hddt.dung_lai', { name: name });
+      busy(false);
+      toast((kq && kq.loi_nhan) || 'Đã dựng lại.', 4500);
+      go(function () { scrDcmXem(name); }, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không dựng lại được'); }
+  };
 }
