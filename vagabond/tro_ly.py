@@ -59,7 +59,7 @@ import frappe
 import requests
 from frappe.utils import cint, nowdate
 
-from vagabond import tro_ly_so_tay
+from vagabond import tro_ly_so_tay, tro_ly_loi
 from vagabond.lib import TIMEOUT, cfg, key
 from vagabond.vai_cua_hang import VAI_QLCH
 
@@ -197,7 +197,17 @@ def _goi_mo_hinh(c, cau_hoi, tu_lieu, man):
 	)
 	if r.status_code >= 400:
 		frappe.log_error(r.text[:2000], "tro_ly: goi mo hinh hong")
-		frappe.throw("Trợ lý đang không gọi được. Vui lòng thử lại sau ít phút.")
+		# Noi ro BENH, dung noi chung chung. Ngay 26/08/2026 tro ly im tieng
+		# vi tai khoan Anthropic het so du, ma man hinh chi bao "khong goi
+		# duoc", nen anh Viet di do khoa API mat mot buoi. Moi loai loi o day
+		# dan toi mot viec khac han: nap tien, dan lai khoa, sua ten mo hinh,
+		# hay chi la cho.
+		try:
+			than = r.json()
+		except Exception:
+			than = r.text[:2000]
+		frappe.throw(tro_ly_loi.loi_mo_hinh(r.status_code, than, mo_hinh),
+			title="Trợ lý không gọi được mô hình")
 	goi = r.json()
 	cac_doan = [x.get("text") or "" for x in (goi.get("content") or [])
 		if x.get("type") == "text"]
