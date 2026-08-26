@@ -175,7 +175,14 @@ def _():
 def _():
 	# Day la phep sua chinh. Con so thue cua hoa don dien tu la con so da
 	# gui co quan thue; mau thue tren danh muc Mon chi la du doan.
-	dung("có xoá mẫu thuế mặt hàng", co_cum("item_tax_template", "=", "None"))
+	dung("có xoá mẫu thuế mặt hàng", co_cum("item_tax_template", "=", '""'))
+	# CHUOI RONG chu KHONG phai None. Ban v315 dat None va hong nguyen si:
+	# `accounts_controller.set_missing_item_details` chi chep gia tri tu danh
+	# muc Mon vao o nao dang la None, ma `item_tax_template` khong nam trong
+	# `force_item_fields`. Dat None la ERPNext dien lai mau thue ngay trong
+	# luc validate, dat chuoi rong thi no de yen.
+	dung("KHÔNG đặt None, vì None là dấu hiệu cho ERPNext điền lại",
+		not co_cum("item_tax_template", "=", "None"))
 	dung("có xoá luôn thuế suất từng dòng",
 		"item_tax_rate" in MA_CODE)
 	dung("gọi trước khi ghi vào hệ",
