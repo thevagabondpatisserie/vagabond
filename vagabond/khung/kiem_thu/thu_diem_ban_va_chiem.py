@@ -370,3 +370,105 @@ def _():
 	dung("sổ có luồng hoàn tiền", "hoan_tien" in dss._SO)
 	dung("sổ có luồng thanh toán nội bộ", "ttnb" in dss._SO)
 	dung("cửa hỏi có soi riêng hoá đơn bán", dss.HD_BAN["doctype"] == "Sales Invoice")
+
+
+# ================================ bill Pancake tra qua tai khoan ao MB
+#
+# Anh Viet 27/08/2026: bill HDB-26-08-03877 cua don Pancake 92564 bao
+# "ngan hang moi nhan 0 d tren tong 945.000 d". Tien ve THAT tu 25/08 luc
+# 14:47, dong sao ke ACC-BTN-2026-03358, noi dung nguyen van:
+#
+#   Qalmio7806  PANCAKE2278 4 S67355O92564T2506240563 92564 0776996585-
+#   Ma GD ACSP/ p8313704
+#
+# Mach S67355O92564T nam ro rang trong do. Nhung o Ma tham chieu cua bill
+# giu "VQRQALMIO7806", tuc SO TAI KHOAN AO do Pancake xin MB cap rieng cho
+# don, chu khong phai ma bill quay VGBxxxxx. Man quay chi biet hoi mot duong
+# la ma bill, nen doc ra 0 va bill dung mai o "Cho tien ve".
+
+DONG_PANCAKE_92564 = (
+	"Qalmio7806  PANCAKE2278 4 S67355O92564T2506240563 92564 0776996585- "
+	"Ma GD ACSP/ p8313704"
+)
+
+
+@ca("bill Pancake: ma tai khoan ao KHONG phai ma bill quay")
+def _vqr_khong_phai_ma_bill():
+	import re
+
+	re_ma_bill = re.compile(r"VGB[A-Z0-9]{5}")
+	dung("VQRQALMIO7806 không khớp mẫu mã bill quay",
+		not re_ma_bill.fullmatch("VQRQALMIO7806"))
+	dung("mã bill quay thật thì khớp", bool(re_ma_bill.fullmatch("VGBAB123")))
+	# Day chinh la ly do doc ra 0: danh sach ma rong thi truy van khong chay.
+	dung("nội dung chuyển khoản KHÔNG chứa mã tài khoản ảo viết hoa",
+		"VQRQALMIO7806" not in DONG_PANCAKE_92564.upper())
+
+
+@ca("bill Pancake: mach S<shop>O<don>T van nam trong noi dung sao ke")
+def _mach_pancake_con_do():
+	import re
+
+	rx = re.compile(r"S%sO(\d+)T" % re.escape("67355"), re.IGNORECASE)
+	m = rx.search(DONG_PANCAKE_92564)
+	dung("tìm thấy mạch Pancake", m is not None)
+	la("đọc ra đúng số đơn", m.group(1) if m else "", "92564")
+
+
+@ca("chon duong khop: du tien thi lay duong it dong sao ke nhat")
+def _chon_duong_it_dong():
+	ra = chiem_sao_ke.chon_duong_khop([
+		("ma_bill", {}),
+		("so_don_pancake", {"nhan": 945000, "gd": ["ACC-BTN-2026-03358"]}),
+		("tham_chieu_ngan_hang", {"nhan": 1200000, "gd": ["A", "B", "C"]}),
+	], 945000)
+	la("chọn đường Pancake", ra[0], "so_don_pancake")
+	# Nhieu tien hon KHONG phai la tot hon: gach ba dong de tra mot bill la
+	# keo hai dong cua nguoi khac vao, va nhung dong do se thieu khi bill kia
+	# can den.
+	la("chỉ gạch một dòng", len(ra[1]["gd"]), 1)
+
+
+@ca("chon duong khop: khong duong nao du thi noi con THIEU bao nhieu")
+def _chon_duong_thieu():
+	ten, kq = chiem_sao_ke.chon_duong_khop([
+		("ma_bill", {"nhan": 0, "gd": []}),
+		("so_don_pancake", {"nhan": 500000, "gd": ["X"]}),
+	], 945000)
+	la("lấy đường nhiều tiền nhất", ten, "so_don_pancake")
+	la("nói đúng số đã nhận", kq["nhan"], 500000)
+	# Cau bao loi cu luon noi 0 d, khien nguoi doc tuong ngan hang chua nhan
+	# gi ca, trong khi that ra thieu mot phan.
+
+
+@ca("chon duong khop: khong co duong nao thi tra rong, khong no")
+def _chon_duong_rong():
+	la("danh sách rỗng", chiem_sao_ke.chon_duong_khop([], 100), ("", {}))
+	la("mọi đường đều 0", chiem_sao_ke.chon_duong_khop(
+		[("a", {}), ("b", {"nhan": 0})], 100), ("", {}))
+
+
+@ca("man quay: ghi so va chip deu phai hoi DU ba duong")
+def _man_quay_hoi_du_ba_duong():
+	ma = io.open(os.path.join(GOI, "ban_hang.py"), encoding="utf-8").read()
+	# Buoc ghi so.
+	i = ma.find("def pos_ghi_so")
+	dung("tìm thấy pos_ghi_so", i > 0)
+	than = ma[i:i + 3000]
+	dung("ghi sổ hỏi qua đường gộp", "_sepay_cho_bill(si)" in than)
+	dung("không còn hỏi mỗi mã bill", "_sepay_bill(ma)" not in than)
+	# Chip tren danh sach.
+	j = ma.find("def pos_ds_bill")
+	dung("tìm thấy pos_ds_bill", j > 0)
+	than2 = ma[j:j + 4000]
+	dung("chip có hỏi mạch Pancake", "_sepay_theo_don" in than2)
+
+
+@ca("duong Pancake phai tra ve TEN dong sao ke, khong thi chan trung bang gi")
+def _pancake_tra_ten_dong():
+	ma = io.open(os.path.join(GOI, "ban_hang.py"), encoding="utf-8").read()
+	i = ma.find("def _sepay_theo_don")
+	dung("tìm thấy _sepay_theo_don", i > 0)
+	than = ma[i:i + 2600]
+	dung("câu truy vấn có lấy cột name", "select name, description" in than)
+	dung("kết quả có mang khoá gd", '"gd": []' in than)
