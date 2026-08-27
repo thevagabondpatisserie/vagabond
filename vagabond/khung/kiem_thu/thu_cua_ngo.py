@@ -39,6 +39,14 @@ CUA_NGO = {
 	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
 	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
 	"mau_in/__init__.py": ["soi_lech"],
+	# Them 26/08/2026 cung lan dua phan he Cau hinh mau in an ra man Cai dat.
+	# Ba ham deu la cua man hinh. `het`, `theo_diem` va nhom ham thuan
+	# `chuan_*` la ham noi bo, khong duoc mo ra ngoai.
+	"mau_in_quay.py": ["danh_sach", "luu", "tra_mac_dinh"],
+	# Them 27/08/2026: cong tac tam ngung ban mot ma tren web dat banh. Chi
+	# `dat` duoc mo ra ngoai; `bang` va `dang_tat` la ham noi bo, hai man kiem
+	# banh goi qua cua rieng cua chung.
+	"tat_ban_web.py": ["dat"],
 	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
