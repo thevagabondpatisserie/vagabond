@@ -139,6 +139,30 @@ def _goc(ma_minvoice):
 	)
 
 
+def muc_tieu_truoc_thue(g):
+	"""Tiền hàng trước thuế mà tờ chứng từ PHẢI ra bằng. THUẦN.
+
+	VÌ SAO KHÔNG DÙNG THẲNG Ô `tien_truoc_thue` - sự cố 27/08/2026
+	--------------------------------------------------------------------
+	Bản v319 neo vào ô đó và làm hỏng 5 tờ thật ngay trong lượt chạy đầu:
+
+	  * HDM-26-08-00096 Nhà Sen: bản gốc ghi tổng 3.650.000 nhưng ô
+	    `tien_truoc_thue` để 0 (nhà cung cấp không khai tách). Máy hiểu là
+	    dòng hàng THỪA 3.650.000 nên đặt giảm giá đúng bằng cả tờ, tổng về
+	    0 đồng. Bốn tờ bị về 0 đều đúng kiểu này.
+	  * HDM-26-08-00124 Avanti: ô đó ghi 26.953.500 nhưng dòng hàng dựng ra
+	    tổng 31.453.500, lệch 4.500.000, thành ra tờ phình lên.
+
+	Con số ĐÁNG TIN duy nhất là `tong_tien`: đó là số nhà cung cấp đã gửi cơ
+	quan thuế, và cũng chính là số mà cửa chặn ghi sổ soi. Nên lấy tổng trừ
+	thuế ra tiền hàng, chỉ khi tổng không có mới đành quay về ô cũ.
+	"""
+	tong = flt(g.get("tong_tien"))
+	if tong:
+		return tong - flt(g.get("tien_thue"))
+	return flt(g.get("tien_truoc_thue"))
+
+
 def _quyen_manh():
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Việc này chỉ dành cho kế toán trưởng và quản lý hệ thống.")
@@ -155,6 +179,10 @@ def _dung_dong_tai_cho(doc, g):
 
 	Dựng đủ danh sách dòng mới TRƯỚC rồi mới thay vào doc, để lỡ giữa chừng
 	có lỗi thì doc còn nguyên, không bao giờ lưu một tờ cụt dòng.
+
+	NEO VÀO ĐÂU: xem `muc_tieu_truoc_thue`. Bản v319 neo vào ô
+	`tien_truoc_thue` và việc đó đã làm hỏng 5 tờ thật, đọc mục đó trước khi
+	định đổi lại.
 	"""
 	dong_goc = doc_chi_tiet(g.get("chi_tiet"))
 	if not dong_goc:
@@ -176,7 +204,7 @@ def _dung_dong_tai_cho(doc, g):
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
 	tong_dong = sum(flt(d.get("qty")) * flt(d.get("rate")) for d in moi)
-	viec, so_tien = mc.can_theo_truoc_thue(tong_dong, g.get("tien_truoc_thue"))
+	viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
 	if viec == "phi":
 		moi.append(mc._dong_pi({
 			"ma": "", "ten": "Phí khác theo hoá đơn", "dvt": None,
@@ -192,6 +220,56 @@ def _dung_dong_tai_cho(doc, g):
 	doc.discount_amount = so_tien if viec == "giam" else 0
 	mc.bo_mau_thue_mat_hang(doc)
 	return len(doc.get("items"))
+
+
+def _tong_thue_tren_phieu(doc):
+	return sum(flt(t.get("tax_amount")) for t in doc.get("taxes") or [])
+
+
+def du_kien_tong(doc, g):
+	"""Tổng tiền tờ này SẼ thành bao nhiêu nếu dựng lại. Không đụng doc.
+
+	Tính trước rồi mới quyết có dựng hay không. Nhờ vậy không bao giờ có
+	chuyện dựng dở rồi lưu ra một tờ tệ hơn lúc chưa dựng.
+	"""
+	dong_goc = doc_chi_tiet(g.get("chi_tiet"))
+	if not dong_goc:
+		return None
+	try:
+		from vagabond import minvoice_chung_tu as mc
+
+		goc_mst = (g.get("mst_doi_tac") or "").split("-")[0]
+		tong_dong = 0.0
+		for it in dong_goc:
+			x = mc.dong_tu_hoa_don(it)
+			tong_dong += flt(x.get("sl")) * flt(x.get("gia"))
+		viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
+		net = tong_dong + (so_tien if viec == "phi" else 0) - (so_tien if viec == "giam" else 0)
+		return net + _tong_thue_tren_phieu(doc)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "dung_lai_hddt: du kien tong")
+		return None
+
+
+def dung_lai_co_loi_khong(doc, g):
+	"""Dựng lại tờ này có làm nó ĐÚNG HƠN không. Trả (nen_dung, ly_do).
+
+	Đây là chốt chặn quan trọng nhất của tệp, thêm sau sự cố 27/08/2026 do
+	chính bản v319 gây ra: đừng bao giờ ghi đè một tờ bằng thứ mình chưa
+	kiểm là đúng.
+	"""
+	goc = flt(g.get("tong_tien"))
+	if not goc:
+		return False, "bản hoá đơn điện tử không ghi tổng tiền"
+	du_kien = du_kien_tong(doc, g)
+	if du_kien is None:
+		return False, "không dựng thử được dòng hàng từ bản gốc"
+	if mua_dich_vu.lech_qua_nguong(du_kien, goc, NGUONG):
+		return False, (
+			"dựng lại sẽ ra %s đồng, vẫn chưa khớp bản gốc %s đồng"
+			% (_so(du_kien), _so(goc))
+		)
+	return True, ""
 
 
 def _phieu_da_noi(doc):
@@ -247,17 +325,23 @@ def dong_bo_luc_luu(doc, method=None):
 		if cint(doc.get("docstatus")) != 0:
 			return
 		g = _goc(doc.get("custom_minvoice_id"))
-		if not g or not flt(g.get("tien_truoc_thue")):
+		if not g:
 			return
-		if not mua_dich_vu.lech_qua_nguong(
-			_tong_dong_hien_tai(doc), g.get("tien_truoc_thue"), NGUONG
-		):
+		muc_tieu = muc_tieu_truoc_thue(g)
+		if not muc_tieu:
 			return
-		if not doc_chi_tiet(g.get("chi_tiet")):
+		if not mua_dich_vu.lech_qua_nguong(_tong_dong_hien_tai(doc), muc_tieu, NGUONG):
+			return
+		nen, vi_sao = dung_lai_co_loi_khong(doc, g)
+		if not nen:
+			# KHÔNG ĐỤNG VÀO TỜ. Bài học 27/08/2026: bản v319 cứ dựng bừa rồi
+			# lưu, làm bốn tờ về 0 đồng và một tờ phình thêm 4,5 triệu. Chưa
+			# chắc đúng thì để yên và nói cho người ta biết.
 			frappe.msgprint(
-				"Tờ này đang lệch với hoá đơn điện tử %s mà bản gốc không còn "
-				"dòng hàng để dựng lại. Nhờ kế toán đối chiếu tay, đừng ghi sổ."
-				% (g.get("so_hd") or ""),
+				"Tờ này đang lệch với hoá đơn điện tử %s/%s và hệ thống chưa dựng "
+				"lại được: %s. Hệ thống giữ nguyên tờ như đang có, nhờ kế toán đối "
+				"chiếu tay và đừng ghi sổ khi còn lệch."
+				% (g.get("ky_hieu") or "", g.get("so_hd") or "", vi_sao),
 				title="Lệch so với hoá đơn điện tử", indicator="red",
 			)
 			return
@@ -395,6 +479,13 @@ def dung_lai(name):
 			"Hoá đơn %s không phải sinh từ hoá đơn điện tử nên không có bản gốc "
 			"để dựng lại." % name
 		)
+	nen, vi_sao = dung_lai_co_loi_khong(doc, g)
+	if not nen:
+		frappe.throw(
+			"Chưa dựng lại được tờ %s: %s. Hệ thống không ghi đè khi chưa chắc "
+			"ra đúng số. Nhờ kế toán đối chiếu tay với bản hoá đơn điện tử."
+			% (name, vi_sao)
+		)
 	phieu = _phieu_da_noi(doc)
 	truoc = flt(doc.base_grand_total)
 	_dung_dong_tai_cho(doc, g)
@@ -436,7 +527,7 @@ def dung_lai_tat_ca(gioi_han=40):
 	_quyen_manh()
 	kq = soat(gioi_han=100000)
 	ds = kq["nhap"][: max(1, cint(gioi_han) or 40)]
-	khop, van_lech, hong = [], [], []
+	khop, bo_qua, hong = [], [], []
 	for r in ds:
 		try:
 			doc = frappe.get_doc(PI, r["name"])
@@ -444,25 +535,37 @@ def dung_lai_tat_ca(gioi_han=40):
 			if not g:
 				hong.append({"name": r["name"], "vi_sao": "mất bản hoá đơn điện tử gốc"})
 				continue
+			# Dựng thử TRƯỚC. Không chắc ra đúng thì bỏ qua, tuyệt đối không
+			# ghi đè - đây là chốt thêm sau sự cố 27/08/2026 do bản v319 gây.
+			nen, vi_sao = dung_lai_co_loi_khong(doc, g)
+			if not nen:
+				bo_qua.append({"name": r["name"], "vi_sao": vi_sao})
+				continue
 			phieu = _phieu_da_noi(doc)
 			_dung_dong_tai_cho(doc, g)
 			_noi_lai(doc, phieu)
 			doc.flags.ignore_permissions = True
 			doc.save()
-			frappe.db.commit()
 			viec, _lech = huong_lech(doc.base_grand_total, g.get("tong_tien"))
-			(khop if viec == "khop" else van_lech).append(doc.name)
+			if viec != "khop":
+				# Lưu xong mà vẫn lệch thì trả tờ về nguyên trạng.
+				frappe.db.rollback()
+				bo_qua.append({"name": r["name"], "vi_sao": "lưu xong vẫn lệch, đã trả về nguyên trạng"})
+				continue
+			frappe.db.commit()
+			khop.append(doc.name)
 		except Exception as e:
 			frappe.db.rollback()
 			hong.append({"name": r["name"], "vi_sao": str(e)[:160]})
 	con_lai = max(0, kq["so_nhap"] - len(ds))
 	return {
 		"khop": len(khop),
-		"van_lech": van_lech,
+		"bo_qua": bo_qua,
 		"hong": hong,
 		"con_lai": con_lai,
-		"loi_nhan": "Dựng lại %d tờ khớp bản gốc, %d tờ vẫn lệch, %d tờ lỗi, còn %d tờ chưa chạy."
-			% (len(khop), len(van_lech), len(hong), con_lai),
+		"loi_nhan": "Dựng lại %d tờ khớp bản gốc, %d tờ để nguyên vì chưa chắc đúng, "
+			"%d tờ lỗi, còn %d tờ chưa chạy."
+			% (len(khop), len(bo_qua), len(hong), con_lai),
 	}
 
 
@@ -497,6 +600,12 @@ def sua_to_da_ghi_so(name):
 			"Tờ %s đã có phiếu chi %s trỏ vào. Phải gỡ phiếu chi trước rồi mới "
 			"sửa được, việc đó để kế toán quyết."
 			% (name, ", ".join(sorted({t["parent"] for t in tien})))
+		)
+	nen, vi_sao = dung_lai_co_loi_khong(doc, g)
+	if not nen:
+		frappe.throw(
+			"Chưa sửa được tờ %s: %s. Không huỷ một tờ đã ghi sổ khi chưa chắc "
+			"dựng lại ra đúng số." % (name, vi_sao)
 		)
 	truoc = flt(doc.base_grand_total)
 	doc.flags.ignore_permissions = True
