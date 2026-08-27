@@ -55,7 +55,12 @@ CUA_NGO = {
 	# hoa don mua, tuyet doi khong duoc mo ra ngoai. Hai ham hang loat va sua
 	# to da ghi so chi cho ke toan truong, kiem quyen ben trong.
 	"dung_lai_hddt.py": [
-		"dung_lai", "dung_lai_tat_ca", "soat", "soat_don_vi", "sua_to_da_ghi_so",
+		"dung_lai", "dung_lai_tat_ca",
+		# dung_lai_lech_don_vi va soat_do_tam them 27/08/2026: nhom to lech
+		# DON VI ma tien van dung khong nam trong danh sach cua `soat`, nen
+		# `dung_lai_tat_ca` khong bao gio cham toi. Phai co duong rieng.
+		"dung_lai_lech_don_vi", "soat", "soat_do_tam", "soat_don_vi",
+		"sua_to_da_ghi_so",
 	],
 	"doi_chieu_mua.py": [
 		"danh_sach", "don_vi_cua_mon", "noi_phieu", "so_sanh", "sua_don_vi", "xem",

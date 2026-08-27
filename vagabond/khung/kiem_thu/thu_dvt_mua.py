@@ -178,3 +178,71 @@ def _quyen_chot_gia():
 	dung("ke toan van chot duoc", "Accounts Manager" in C.VAI_CHOT_GIA_KHAC)
 	# Bep khong duoc chot gia.
 	dung("bep khong nam trong day", "Bộ phận đặt hàng" not in C.VAI_CHOT_GIA_KHAC)
+
+
+@ca("dong dich vu: dong khong co ma hang khong tinh la lech don vi")
+def _dong_dich_vu():
+    dung("khong ma hang la dong dich vu", D.dong_dich_vu(None))
+    dung("chuoi rong cung vay", D.dong_dich_vu(""))
+    dung("chuoi toan khoang trang cung vay", D.dong_dich_vu("   "))
+    dung("co ma hang thi KHONG phai", not D.dong_dich_vu("NVLT00242"))
+
+
+@ca("do tam: mon nhan qua nhieu ten NCC la dau hieu bi dung lam cho do")
+def _do_tam():
+    # So lieu that 27/08/2026.
+    dung("NVLT00231 nhan 18 ten, bi keu", D.dang_do_tam("NVLT00231", 18))
+    dung("mon dong thu ba chi 7 ten, khong keu", not D.dang_do_tam("NVLT00204", 7))
+    dung("dung nguong 8 thi 8 ten la keu", D.mon_bi_do_tam(8))
+    dung("7 ten thi chua keu", not D.mon_bi_do_tam(7))
+    # Chi phi tiep khach VON DI la mon gom, keu no la keu oan.
+    dung("mon gom co chu y khong bi keu", not D.dang_do_tam("DVTI00017", 11))
+    dung("nhung phep thuan tran thi van dem", D.mon_bi_do_tam(11))
+    dung("khai san trong danh sach mon gom", "DVTI00017" in D.MON_GOM_CO_Y)
+
+
+@ca("con so canh bao lech don vi phai TRU dong dich vu ra")
+def _con_so_sach():
+    import inspect
+
+    from vagabond import dung_lai_hddt as H
+
+    ma = inspect.getsource(H.soat_don_vi)
+    dung("co loc dong dich vu", "dong_dich_vu" in ma)
+    dung("so_to dem tu danh sach da loc", '"so_to": len({x["name"] for x in that})' in ma)
+    dung("van dem rieng phan dich vu", '"so_to_dich_vu"' in ma)
+    # Ngay 27/08/2026 con so dua ra man hinh la 1.185 to trong khi lech that
+    # chi 505 to. Dem ca hai vao mot con so la thoi phong gap doi.
+    dung("KHONG cong hai loai lam mot", "that + dich_vu" not in ma)
+
+
+@ca("dung lai to lech don vi: co duong rieng, khong di nho duong lech tien")
+def _duong_rieng():
+    import inspect
+
+    from vagabond import dung_lai_hddt as H
+
+    dung("co ham rieng", hasattr(H, "dung_lai_lech_don_vi"))
+    ma = inspect.getsource(H.dung_lai_lech_don_vi)
+    # Nhom nay TIEN DUNG nen `soat` khong bao gio nhac toi. Lay danh sach tu
+    # `soat` la chay khong, khong to nao duoc dung lai.
+    dung("lay danh sach tu phep soi don vi", "soat_don_vi(" in ma)
+    dung("KHONG lay tu phep soi tien", "soat(gioi_han" not in ma)
+    dung("bo qua to da ghi so", 'da_ghi_so' in ma)
+    dung("van dung thu truoc khi ghi de", "dung_lai_co_loi_khong" in ma)
+    dung("luu xong lech thi tra ve nguyen trang", "rollback" in ma)
+    dung("khong sua tay so luong", ".qty =" not in ma)
+
+
+@ca("soat do tam: chi liet ke, khong tu go anh xa")
+def _soat_do_tam_chi_doc():
+    import inspect
+
+    from vagabond import dung_lai_hddt as H
+
+    dung("co ham", hasattr(H, "soat_do_tam"))
+    ma = inspect.getsource(H.soat_do_tam)
+    dung("dem theo TEN nha cung cap khac nhau", "ten_ncc" in ma)
+    dung("dung phep thuan chung", "dang_do_tam" in ma)
+    for cam in (".delete(", "frappe.delete_doc", "db_set", ".save(", "set_value"):
+        dung("khong %s" % cam, cam not in ma)
