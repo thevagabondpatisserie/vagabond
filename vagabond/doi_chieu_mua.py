@@ -39,6 +39,24 @@ QUYEN = {
 # hoac phi van chuyen, khong dang chan nguoi ta lai.
 NGUONG_LECH = 1000.0
 
+# Ai duoc chot mot to hoa don co don gia khac gia dat hang.
+#
+# Anh Viet chot 27/08/2026: mo cho Uyen. Uyen giu vai Purchase Manager va
+# AP Officer nen hai vai do nam trong day.
+#
+# Vi sao viet vao ma nguon chu khong dua vao o thiet lap cua ERPNext: o
+# "role_to_override_stop_action" chi chua DUNG MOT vai, va no chi co tac
+# dung khi o kia dang de muc "Stop". Hom nay o kia dang de "Warn" nen ai
+# vao duoc man nay cung chot duoc - nhung ai do lo tay doi lai thanh "Stop"
+# la Uyen mat quyen ma khong ai hay. Viet ra day thi quyet dinh cua anh Viet
+# song sot qua moi lan doi thiet lap.
+VAI_CHOT_GIA_KHAC = {
+	"System Manager",
+	"Accounts Manager",
+	"Purchase Manager",
+	"AP Officer",
+}
+
 TRAN_DONG = 300
 
 NHOM = [
@@ -100,10 +118,13 @@ def _vuot_lech_gia_duoc():
 			return True
 	except Exception:
 		pass
+	cua_toi = set(frappe.get_roles())
+	if VAI_CHOT_GIA_KHAC & cua_toi:
+		return True
 	vai = _vai_vuot_lech_gia()
 	if not vai:
 		return False
-	return vai in set(frappe.get_roles())
+	return vai in cua_toi
 
 
 def _ghi_chu_lech_gia(doc, dong, phieu):
@@ -464,11 +485,15 @@ def so_sanh(name, phieu=None):
 		ton_pnk = sum(dvt_mua.ton(x.get("qty"), x.get("conversion_factor")) for x in ds)
 		gia_kho_hd = dvt_mua.gia_moi_don_vi_kho(r.get("rate"), hs_hd)
 		gia_kho_pnk = dvt_mua.gia_moi_don_vi_kho(ds[0].get("rate"), hs_pnk) if ds else 0.0
-		lech_dvt = (
-			1
-			if ds and dvt_mua.lech_don_vi(r.get("uom"), hs_hd, ds[0].get("uom"), hs_pnk)
-			else 0
+		# MOT phep xet dung chung voi phep noi. Truoc 27/08/2026 hai cho xet
+		# khac nhau nen man hinh bao khop ma nut noi lai tu choi.
+		xet = (
+			dvt_mua.xet_don_vi(r.get("uom"), hs_hd, ds[0].get("uom"), hs_pnk)
+			if ds
+			else dvt_mua.DVT_KHOP
 		)
+		lech_dvt = 1 if xet == dvt_mua.DVT_LECH else 0
+		khac_ten_dvt = 1 if xet == dvt_mua.DVT_KHAC_TEN else 0
 		ra.append(
 			{
 				"idx": r["idx"],
@@ -488,6 +513,9 @@ def so_sanh(name, phieu=None):
 				"gia_kho_hd": gia_kho_hd,
 				"gia_kho_pnk": gia_kho_pnk,
 				"lech_dvt": lech_dvt,
+				# Cung so luong, chi khac cai ten. Khong phai loi, phep noi tu
+				# doi ten cho khop. Van tra ra de man hinh noi cho nguoi ta biet.
+				"khac_ten_dvt": khac_ten_dvt,
 				"co_phieu": 1 if ds else 0,
 				"lech_sl": ton_hd - ton_pnk,
 				"lech_gia": (gia_kho_hd - gia_kho_pnk) if ds else 0.0,
@@ -512,6 +540,7 @@ def so_sanh(name, phieu=None):
 		)
 
 	so_lech_dvt = len([r for r in ra if r.get("lech_dvt")])
+	so_khac_ten_dvt = len([r for r in ra if r.get("khac_ten_dvt")])
 	return {
 		"dong": ra,
 		"thua": thua,
@@ -525,9 +554,39 @@ def so_sanh(name, phieu=None):
 		if abs(flt(hd["total"]) - tien_pnk) <= NGUONG_LECH and not thua and not so_lech_dvt
 		else 0,
 		"so_lech_dvt": so_lech_dvt,
+		"so_khac_ten_dvt": so_khac_ten_dvt,
 		"vuot_lech_gia_duoc": 1 if _vuot_lech_gia_duoc() else 0,
 		"nguong_lech": NGUONG_LECH,
 	}
+
+
+def _doi_ten_don_vi(dong, phieu):
+	"""Doi ten don vi cua dong hoa don theo dong phieu nhap. True neu doi duoc.
+
+	CHI goi khi da xac dinh hai ben cung so luong quy ve kho, tuc la he so
+	bang nhau. Khi do doi ten khong lam so luong that xe dich mot ly nao:
+	`stock_qty` van bang `qty` nhan he so, ma he so giu nguyen.
+
+	Van kiem danh muc Mon co khai don vi do khong. Dat mot don vi ma Mon
+	chua khai la ERPNext tu tinh lai he so theo cach cua no, va cai gia phai
+	tra la sai so luong ton kho - dung cai minh dang tranh.
+	"""
+	dvt = (phieu.get("uom") or "").strip()
+	if not dvt:
+		return False
+	ma = (dong.get("item_code") or "").strip()
+	if not ma:
+		return False
+	hs = frappe.db.get_value(
+		"UOM Conversion Detail", {"parent": ma, "uom": dvt}, "conversion_factor"
+	)
+	if not hs:
+		return False
+	if abs(dvt_mua.he_so(hs) - dvt_mua.he_so(phieu.get("hs"))) > 1e-9:
+		return False
+	dong.uom = dvt
+	dong.conversion_factor = flt(hs)
+	return True
 
 
 def _noi(doc, phieu):
@@ -598,12 +657,19 @@ def _noi(doc, phieu):
 					% (d.idx, d.item_name or d.item_code, can, dvt_kho, co, dvt_kho)
 				)
 			continue
-		# Don vi khop so luong nhung ten khac nhau van phai chan: ERPNext doi
-		# o "uom" cua hai ben bang nhau, no se nem mot cau tieng Anh o buoc
-		# ghi so. Bao truoc, bang tieng Viet.
-		if dvt_mua.lech_don_vi(d.get("uom"), hs_hd, chon.get("uom"), chon["hs"]) or not dvt_mua.cung_don_vi(
-			d.get("uom"), chon.get("uom")
-		):
+		# ERPNext doi o "uom" cua hai ben bang nhau TUNG CHU, da do ma nguon
+		# v16: compare_fields cua Purchase Receipt Item la
+		# [["project","="], ["item_code","="], ["uom","="]]. Don gia KHONG
+		# nam trong danh sach do.
+		#
+		# Nen o day tach lam hai:
+		#   * He so khac nhau  -> so luong that lech, KHONG noi, bao ro.
+		#   * Cung so luong ma khac ten -> TU DOI ten dong hoa don theo phieu
+		#     nhap roi di tiep. An toan vi so luong quy ve kho khong doi mot
+		#     ly nao. Truoc 27/08/2026 cho nay bat nguoi ta bam them mot nut,
+		#     ma nut do lai khong hien vi man hinh coi la khop - ket cung.
+		xet = dvt_mua.xet_don_vi(d.get("uom"), hs_hd, chon.get("uom"), chon["hs"])
+		if xet == dvt_mua.DVT_LECH:
 			loi.append(
 				dvt_mua.loi_lech_don_vi(
 					d.idx,
@@ -616,6 +682,20 @@ def _noi(doc, phieu):
 					chon["hs"],
 					dvt_kho,
 					dvt_mua.dvt_tren_hoa_don(d.get("description")),
+				)
+			)
+			continue
+		if xet == dvt_mua.DVT_KHAC_TEN and not _doi_ten_don_vi(d, chon):
+			loi.append(
+				"Dòng %d: món %s ghi đơn vị %s còn phiếu nhập ghi %s. Hai bên "
+				"cùng số lượng nhưng danh mục Món chưa khai %s nên chưa đổi tên "
+				"được. Khai đơn vị đó vào bảng quy đổi của món rồi nối lại."
+				% (
+					d.idx,
+					d.item_name or d.item_code,
+					d.get("uom") or "",
+					chon.get("uom") or "",
+					chon.get("uom") or "",
 				)
 			)
 			continue
