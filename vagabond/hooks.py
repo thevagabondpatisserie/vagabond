@@ -222,7 +222,20 @@ doc_events = {
 	# `dong_bo_don_mua_theo_duyet` de biet ca that ngay 27/08/2026.
 	"Purchase Order": {
 		"before_validate": "vagabond.duyet_ycmh.dong_bo_don_mua_theo_duyet",
-		"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet",
+		"validate": [
+			"vagabond.duyet_ycmh.chan_don_mua_trai_duyet",
+			# HANG RAO DON VI, them 27/08/2026 sau khi ra 43 mau lenh Desk.
+			# Mau "Goi y gia mua" ghi thang don vi vao dong don mua, ke ca
+			# don vi ma danh muc Mon chua khai. Da co that: DMH-2026-00127
+			# ghi 1 "Box" he so 1 trong khi mon chi khai Gram/Kg/Lon, tuc
+			# mot thung hang vao kho thanh mot gram.
+			#
+			# Chan o tang duoi chu khong di sua mau lenh: mau lenh nam trong
+			# co so du lieu, git khong quan, khong ca kiem nao soi. Chan o
+			# day thi ca nut ben app lan nut ben Desk deu chiu chung mot luat,
+			# va nhung duong minh chua biet cung bi chan luon.
+			"vagabond.gac_don_vi.chan_don_vi_la",
+		],
 	},
 	# Tu chon lo cho nguyen lieu bi tru. Xem dau tep lo_hang.py: bep khong
 	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
@@ -246,6 +259,9 @@ doc_events = {
 	},
 	"Purchase Receipt": {
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		# Cung hang rao don vi nhu ben don mua. Phieu nhap la cho hang THAT
+		# vao kho, sai don vi o day la sai ton kho va sai gia von ngay lap tuc.
+		"before_validate": "vagabond.gac_don_vi.chan_don_vi_la",
 		# Ghi lai gia va so luong da doi so voi don mua hang. CHI GHI CHU,
 		# khong chan ai - doc `vagabond/gia_khi_nhan.py` de biet vi sao noi
 		# hai cai chan cua ERPNext ra ma van con kiem soat.
