@@ -218,12 +218,58 @@ def _dung_dong_tai_cho(doc, g):
 		doc.append("items", d)
 	doc.apply_discount_on = "Net Total"
 	doc.discount_amount = so_tien if viec == "giam" else 0
+	_dung_thue_tai_cho(doc, g)
 	mc.bo_mau_thue_mat_hang(doc)
 	return len(doc.get("items"))
 
 
 def _tong_thue_tren_phieu(doc):
 	return sum(flt(t.get("tax_amount")) for t in doc.get("taxes") or [])
+
+
+def _tk_thue_vao(doc):
+	"""Tài khoản thuế GTGT được khấu trừ của công ty. None nếu không có."""
+	for t in doc.get("taxes") or []:
+		tk = (t.get("account_head") or "").strip()
+		if tk.startswith("1331"):
+			return tk
+	try:
+		return frappe.db.get_value(
+			"Account", {"company": doc.get("company"), "name": ["like", "1331 -%"]}, "name"
+		)
+	except Exception:
+		return None
+
+
+def _dung_thue_tai_cho(doc, g):
+	"""Dựng lại bảng thuế theo đúng bản hoá đơn điện tử. Không lưu.
+
+	VÌ SAO PHẢI DỰNG CẢ THUẾ - ca thật 27/08/2026
+	--------------------------------------------------------------------
+	Nhóm hoá đơn LARAFARM đều lệch đúng 51.200 đồng. Bản gốc ghi thuế 0,
+	dòng hàng dựng ra đúng 790.000, nhưng trên chứng từ còn sót hai dòng
+	thuế "On Net Total" 1331 và 33311, mỗi dòng 25.600, do mẫu thuế của
+	danh mục Món áp vào lúc tờ được sinh ra trước bản v315. Dựng lại mỗi
+	dòng hàng thì tổng vẫn lệch, vì phần lệch nằm ở bảng thuế.
+
+	Số thuế trên hoá đơn điện tử là số nhà cung cấp đã gửi cơ quan thuế.
+	Dựng lại theo hoá đơn điện tử thì phải dựng cả phần đó, nếu không thì
+	chỉ dựng được một nửa tờ.
+	"""
+	tien_thue = flt(g.get("tien_thue"))
+	tk = _tk_thue_vao(doc)
+	tt = doc.get("cost_center")
+	doc.set("taxes", [])
+	if tk and tien_thue:
+		doc.append("taxes", {
+			"charge_type": "Actual", "account_head": tk,
+			"description": "Thuế GTGT được khấu trừ",
+			"tax_amount": tien_thue,
+			"category": "Total", "add_deduct_tax": "Add",
+			"cost_center": tt,
+		})
+	doc.taxes_and_charges = None
+	return tien_thue
 
 
 def du_kien_tong(doc, g):
@@ -245,7 +291,9 @@ def du_kien_tong(doc, g):
 			tong_dong += flt(x.get("sl")) * flt(x.get("gia"))
 		viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
 		net = tong_dong + (so_tien if viec == "phi" else 0) - (so_tien if viec == "giam" else 0)
-		return net + _tong_thue_tren_phieu(doc)
+		# Thuế lấy theo BẢN GỐC, không lấy theo bảng thuế đang có trên phiếu:
+		# `_dung_thue_tai_cho` sẽ dựng lại bảng đó theo đúng bản gốc.
+		return net + flt(g.get("tien_thue"))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "dung_lai_hddt: du kien tong")
 		return None

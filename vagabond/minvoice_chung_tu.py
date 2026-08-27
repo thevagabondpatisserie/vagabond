@@ -123,13 +123,27 @@ def dong_tu_hoa_don(it):
 	Bản cũ giữ nguyên số lượng rồi vẫn lấy thành tiền làm đơn giá, nên
 	thành tiền bị nhân lên bằng số lượng lần. Một hoá đơn điện 53 triệu
 	từng thành 814 tỷ vì lỗi này.
+
+	Ô đơn giá ghi SỐ KHÔNG cũng phải xử như trống - ca thật 27/08/2026
+	--------------------------------------------------------------------
+	Hoá đơn tiếp khách Avanti C26TAV/5019 có dòng "Phí phục vụ" ghi
+	sluong 0, dgia 0, thtien 1.283.500. Bản cũ chỉ bắt trường hợp dgia là
+	None nên dòng đó vào chứng từ với đơn giá 0. Mà đơn giá 0 thì ERPNext
+	tự điền lại theo Bảng giá nhập của mặt hàng, ở đây là 4.500.000, làm tờ
+	hoá đơn phình thêm đúng 4,5 triệu.
+
+	Nên: đơn giá trống HOẶC bằng không, mà có thành tiền, thì lấy thành
+	tiền làm đơn giá và đặt số lượng về 1. Không bao giờ để một dòng đi vào
+	chứng từ với đơn giá 0 trong khi hoá đơn có tiền.
 	"""
 	d = it or {}
 	sl = d.get("sluong") or 1
 	gia = d.get("dgia")
-	if gia is None:
-		gia = d.get("thtien") or 0
+	if not gia and d.get("thtien"):
+		gia = d.get("thtien")
 		sl = 1
+	elif gia is None:
+		gia = 0
 	return {
 		"ma": str(d.get("mhhdvu") or "").strip(),
 		"ten": str(d.get("ten") or "").strip(),
@@ -330,10 +344,21 @@ def bo_mau_thue_mat_hang(doc):
 
 
 def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
-	"""Một dòng Hoá đơn mua hàng từ một dòng hoá đơn điện tử."""
+	"""Một dòng Hoá đơn mua hàng từ một dòng hoá đơn điện tử.
+
+	Ghim luôn `price_list_rate` bằng đúng đơn giá trên hoá đơn. Bảng giá
+	nhập trong máy chỉ là giá tham khảo của mình, còn đơn giá trên hoá đơn
+	điện tử là số nhà cung cấp đã gửi cơ quan thuế. Không ghim thì ERPNext
+	lấy giá bảng điền vào những dòng đơn giá 0, và ngày 27/08/2026 việc đó
+	đã làm tờ tiếp khách Avanti phình thêm 4,5 triệu.
+	"""
 	dong = {
 		"qty": x["sl"],
 		"rate": x["gia"],
+		"price_list_rate": x["gia"],
+		"discount_percentage": 0,
+		"discount_amount": 0,
+		"margin_rate_or_amount": 0,
 		"conversion_factor": he_so or 1,
 		"description": x["ten"] + ((" (%s)" % x["dvt"]) if x["dvt"] else ""),
 	}
