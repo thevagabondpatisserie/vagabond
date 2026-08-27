@@ -182,3 +182,43 @@ def _hook_dong_bo():
 	truoc, sau = hooks.split("vagabond.dung_lai_hddt.dong_bo_luc_luu", 1)
 	dung("nam trong khoi before_validate",
 		truoc.rfind("before_validate") > truoc.rfind('"validate"'))
+
+
+# --------- v321: neo vao tong tien, va khong ghi de khi chua chac dung
+
+@ca("neo so: lay tong tien tru thue, KHONG lay thang o tien truoc thue")
+def _neo_so():
+	from vagabond import dung_lai_hddt as D
+
+	# Ca that HDM-26-08-00096 Nha Sen: ban goc ghi tong 3.650.000 nhung o
+	# tien_truoc_thue de 0. Ban v319 neo vao o do nen hieu la dong hang thua
+	# ca to, dat giam gia bang ca to, tong ve 0 dong. Bon to bi ve 0 deu the.
+	la("khong khai truoc thue thi lay tong tru thue",
+		D.muc_tieu_truoc_thue({"tong_tien": 3650000, "tien_thue": 0, "tien_truoc_thue": 0}),
+		3650000.0)
+	# Ca that HDM-26-08-00124 Avanti.
+	la("co thue thi tru thue ra",
+		D.muc_tieu_truoc_thue({"tong_tien": 29369580, "tien_thue": 2416080,
+			"tien_truoc_thue": 26953500}),
+		26953500.0)
+	# Ban goc khong ghi tong thi moi danh quay ve o cu.
+	la("khong co tong thi dung o cu",
+		D.muc_tieu_truoc_thue({"tong_tien": 0, "tien_thue": 0, "tien_truoc_thue": 111000}),
+		111000.0)
+
+
+@ca("ca that: bon to bi ve 0 dong phai duoc neo lai dung")
+def _khong_con_ve_0():
+	from vagabond import minvoice_chung_tu as mc
+	from vagabond import dung_lai_hddt as D
+
+	g = {"tong_tien": 3650000, "tien_thue": 0, "tien_truoc_thue": 0}
+	muc_tieu = D.muc_tieu_truoc_thue(g)
+	# Dong hang dung ra dung 3.650.000 (500 tui x 7.300).
+	viec, so_tien = mc.can_theo_truoc_thue(3650000, muc_tieu)
+	la("khong con coi la thua", viec, "khop")
+	la("khong dat giam gia nao", so_tien, 0)
+	# Con neu neo kieu cu thi no ra "giam" dung bang ca to - chinh la loi.
+	viec_cu, so_cu = mc.can_theo_truoc_thue(3650000, g["tien_truoc_thue"])
+	la("neo kieu cu ra giam", viec_cu, "giam")
+	la("giam dung bang ca to", so_cu, 3650000)
