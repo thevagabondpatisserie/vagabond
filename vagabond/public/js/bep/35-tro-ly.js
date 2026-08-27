@@ -32,10 +32,22 @@ function tlCss() {
   var s = document.createElement('style');
   s.id = 'tlCss';
   s.textContent =
+    /* Nut noi: KEO DI DUOC (anh Viet 27/08/2026).
+
+       Ban cu dinh cung o goc duoi ben trai, va no che mat cac nut nam o goc
+       do - man Lap phieu xuat huy la mot vi du, nut o duoi bi khuat han.
+       Mot nut tro giup ma che mat nut lam viec that thi no dang can tro chu
+       khong con tro giup.
+
+       `touch-action:none` la BAT BUOC, khong phai cho dep: thieu no thi
+       trinh duyet dien thoai hieu cu keo la cuon trang, va nut khong nhuc
+       nhich mot mi li met nao. */
     '#tlNut{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);' +
     'width:52px;height:52px;border-radius:26px;background:#05323C;color:#fff;border:0;' +
-    'font-size:24px;line-height:1;box-shadow:0 6px 18px rgba(5,50,60,.42);cursor:pointer;' +
-    'display:flex;align-items:center;justify-content:center;z-index:12}' +
+    'font-size:24px;line-height:1;box-shadow:0 6px 18px rgba(5,50,60,.42);cursor:grab;' +
+    'display:flex;align-items:center;justify-content:center;z-index:12;' +
+    'touch-action:none;user-select:none;-webkit-user-select:none}' +
+    '#tlNut.keo{cursor:grabbing;opacity:.85;transform:scale(1.08)}' +
     '#tlNen{position:fixed;inset:0;background:rgba(5,50,60,.42);z-index:13;display:none}' +
     '#tlKhung{position:fixed;left:0;right:0;bottom:0;max-height:82vh;background:#fff;' +
     'border-radius:18px 18px 0 0;z-index:14;display:none;flex-direction:column;' +
@@ -149,6 +161,103 @@ function tlBat() {
   if (o) o.focus();
 }
 
+/* ---------- Keo nut tro ly di cho khac ----------
+
+   BA DIEU PHAI DUNG, thieu mot la nut thanh vo dung:
+
+   1. KEO XONG KHONG DUOC MO HOP THOAI. Cham va keo tren dien thoai deu la
+      mot chuoi pointerdown roi pointerup, nen neu khong phan biet thi moi
+      lan keo xong hop thoai tro ly bat len. Phan biet bang QUANG DUONG da
+      di: duoi 6 diem thi coi la cham, tu 6 diem tro len la keo.
+   2. KHONG DUOC RA NGOAI MAN HINH. Keo qua tay mot cai la nut bien mat va
+      khong co cach nao lay lai. Kep lai trong mep man hinh, chua 4 diem.
+   3. PHAI NHO CHO. Nguoi dung keo mot lan roi doi man, hay dong app mo lai,
+      ma nut nhay ve cho cu thi ho phai keo lai mai. Nho trong bo nho trinh
+      duyet cua may do - moi may mot cho, khong dinh sang may khac.
+
+   Nho theo hai o `left` va `top` thay vi `bottom`: doi man hinh xoay ngang
+   hay ban phim bung len thi `bottom` nhay lung tung. */
+var TL_CHO = 'vgbTroLyCho';
+
+function tlDocCho() {
+  try {
+    var t = JSON.parse(localStorage.getItem(TL_CHO) || 'null');
+    if (t && typeof t.x === 'number' && typeof t.y === 'number') return t;
+  } catch (e) { }
+  return null;
+}
+
+function tlKep(nut, x, y) {
+  var m = 4;
+  var w = nut.offsetWidth || 52, h = nut.offsetHeight || 52;
+  var mx = Math.max(m, Math.min(x, window.innerWidth - w - m));
+  var my = Math.max(m, Math.min(y, window.innerHeight - h - m));
+  return { x: mx, y: my };
+}
+
+function tlDatCho(nut, x, y) {
+  var v = tlKep(nut, x, y);
+  nut.style.left = v.x + 'px';
+  nut.style.top = v.y + 'px';
+  nut.style.bottom = 'auto';
+  nut.style.right = 'auto';
+  return v;
+}
+
+function tlChoKeo(nut) {
+  /* Cho da nho tu lan truoc. Doi ngay luc gan, truoc khi ai kip nhin thay
+     no o cho cu. */
+  var cu = tlDocCho();
+  if (cu) tlDatCho(nut, cu.x, cu.y);
+
+  var dangKeo = 0, daDi = 0, lechX = 0, lechY = 0, maCham = null;
+
+  nut.addEventListener('pointerdown', function (e) {
+    dangKeo = 1; daDi = 0; maCham = e.pointerId;
+    var o = nut.getBoundingClientRect();
+    lechX = e.clientX - o.left;
+    lechY = e.clientY - o.top;
+    try { nut.setPointerCapture(e.pointerId); } catch (e2) { }
+  });
+
+  nut.addEventListener('pointermove', function (e) {
+    if (!dangKeo || e.pointerId !== maCham) return;
+    var x = e.clientX - lechX, y = e.clientY - lechY;
+    var o = nut.getBoundingClientRect();
+    daDi += Math.abs(x - o.left) + Math.abs(y - o.top);
+    if (daDi >= 6) nut.classList.add('keo');
+    tlDatCho(nut, x, y);
+  });
+
+  function xong(e) {
+    if (!dangKeo || (e && e.pointerId !== maCham)) return;
+    dangKeo = 0;
+    nut.classList.remove('keo');
+    try { nut.releasePointerCapture(maCham); } catch (e2) { }
+    if (daDi < 6) return;   /* cham nhe, de onclick lo viec mo hop thoai */
+    var o = nut.getBoundingClientRect();
+    var v = tlKep(nut, o.left, o.top);
+    tlDatCho(nut, v.x, v.y);
+    try { localStorage.setItem(TL_CHO, JSON.stringify(v)); } catch (e3) { }
+  }
+  nut.addEventListener('pointerup', xong);
+  nut.addEventListener('pointercancel', xong);
+
+  /* Vua keo xong thi CHAN cu bam do lai, khong thi hop thoai bat len ngay
+     sau moi lan keo. Dung capture de chan truoc khi onclick chay. */
+  nut.addEventListener('click', function (e) {
+    if (daDi >= 6) { e.stopPropagation(); e.preventDefault(); daDi = 0; }
+  }, true);
+
+  /* Xoay man hinh hay ban phim bung len lam man hep lai: keo nut ve trong
+     mep, khong de no nam ngoai roi mat hut. */
+  window.addEventListener('resize', function () {
+    var o = nut.getBoundingClientRect();
+    if (!o.width) return;
+    tlDatCho(nut, o.left, o.top);
+  });
+}
+
 function tlGan() {
   if (document.getElementById('tlNut') || !tlDuocDung()) return;
   tlCss();
@@ -159,6 +268,7 @@ function tlGan() {
   nut.innerHTML = '&#128172;';
   nut.onclick = function () { tlMo ? tlDong() : tlBat(); };
   document.body.appendChild(nut);
+  tlChoKeo(nut);
 
   var nen = document.createElement('div');
   nen.id = 'tlNen';

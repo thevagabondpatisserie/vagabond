@@ -424,6 +424,49 @@ function vgbCss() {
     '.vxb.o{background:#fff;color:#101828;border:1px solid #d0d5dd;margin-top:8px}' +
     '.vxb.r{background:#d92d20;color:#fff}' +
     '.vxb[disabled]{opacity:.45}' +
+    /* KHUNG NHAP KIEU THE (anh Viet 27/08/2026: *"visual dang bi xau...
+       nhin no bi tho so"*).
+
+       Man Lap phieu xuat huy truoc day la mot cot nhan xam va o nhap tran,
+       khong co the, khong co vien, khong co biểu tuong - nhin nhu mot to
+       khai chua lam xong, trong khi moi man khac trong app deu la the trang
+       bo goc co do do. Chenh lech do lam nguoi dung tuong man nay chua
+       xong, va hoi lai.
+
+       Cac lop duoi day dung chung cho MOI man co bieu mau, khong rieng
+       xuat huy - dat ten `vf` (vagabond form) chu khong dat ten theo mot
+       man cu the. */
+    '.vf{background:#fff;border-radius:14px;padding:2px 14px 14px;margin-bottom:12px;' +
+    'box-shadow:0 1px 2px rgba(16,24,40,.06)}' +
+    '.vf .vfh{display:flex;align-items:center;gap:9px;padding:13px 0 3px}' +
+    '.vf .vfh .ic{font-size:17px;line-height:1;flex:none}' +
+    '.vf .vfh b{font-size:14px;color:#101828;font-weight:700;flex:1}' +
+    '.vf .vfh .bat{font-size:11px;font-weight:700;color:#b42318;background:#fef3f2;' +
+    'border-radius:999px;padding:2px 8px;flex:none}' +
+    '.vf .vfm{font-size:12px;color:#98a2b3;line-height:1.5;margin:0 0 8px}' +
+    /* O chon: bo mui ten mac dinh cua trinh duyet roi tu ve mot cai, de ba
+       he dieu hanh nhin giong nhau. */
+    '.vfs{width:100%;box-sizing:border-box;border:1.5px solid #d0d5dd;border-radius:11px;' +
+    'padding:13px 40px 13px 13px;font-size:16px;background:#fff;color:#101828;' +
+    'appearance:none;-webkit-appearance:none;cursor:pointer;' +
+    "background-image:url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E\");" +
+    'background-repeat:no-repeat;background-position:right 12px center}' +
+    '.vfi{width:100%;box-sizing:border-box;border:1.5px solid #d0d5dd;border-radius:11px;' +
+    'padding:13px;font-size:16px;background:#fff;color:#101828}' +
+    '.vfs:focus,.vfi:focus{outline:0;border-color:#50DBF2;box-shadow:0 0 0 3px rgba(80,219,242,.25)}' +
+    '.vfs.thieu,.vfi.thieu{border-color:#fda29b;background:#fffbfa}' +
+    /* O tai anh: giau input that di, ve mot vung bam de nhin ra la cho tai
+       anh. Input that van nam do va van bam duoc, chi la trong suot. */
+    '.vfa{position:relative;border:1.5px dashed #d0d5dd;border-radius:11px;background:#fcfcfd;' +
+    'padding:16px 13px;text-align:center;cursor:pointer}' +
+    '.vfa.thieu{border-color:#fda29b;background:#fffbfa}' +
+    '.vfa.xong{border-style:solid;border-color:#a6f4c5;background:#f6fef9}' +
+    '.vfa input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}' +
+    '.vfa .i{font-size:24px;line-height:1}' +
+    '.vfa .t{font-size:14px;font-weight:600;color:#344054;margin-top:5px}' +
+    '.vfa .p{font-size:12px;color:#98a2b3;margin-top:2px}' +
+    '.vfa.xong .t{color:#027a48}' +
+    '.vfanh{max-width:100%;border-radius:9px;margin-top:9px;display:block}' +
     '.vxr{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;' +
     'padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(16,24,40,.06)}' +
     '.vxr .t{flex:1;min-width:0}' +
