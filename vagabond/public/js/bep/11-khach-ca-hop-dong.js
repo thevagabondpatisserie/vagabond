@@ -2836,6 +2836,11 @@ function mvVe() {
   b.querySelectorAll('[data-cbsua]').forEach(function (n) {
     n.onclick = function () { mvSuaBepLam(n.getAttribute('data-cbsua')); };
   });
+  b.querySelectorAll('[data-cbweb]').forEach(function (n) {
+    n.onclick = function () {
+      mvBamNutWeb(n.getAttribute('data-cbweb'), n.getAttribute('data-tat') === '1');
+    };
+  });
   var nD = document.getElementById('mvThemDot');
   if (nD) nD.onclick = mvKhaiDot;
   var nM = document.getElementById('mvThemDm');
@@ -3348,13 +3353,56 @@ function mvTheCoTheBan(x) {
     '<div style="font-size:13px;font-weight:800;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
     h(x.ten_banh || x.ma_hang) + '</div>' +
     '<div style="font-size:11px;color:#9ca3af">' + h(x.ma_hang) +
-    (x.la_hop ? ' · hộp' : (theoHop ? ' · chỉ làm theo hộp' : '')) + '</div></div>' +
+    (x.la_hop ? ' · hộp' : (theoHop ? ' · chỉ làm theo hộp' : '')) + '</div>' +
+    mvNutWeb(x) + '</div>' +
     '<div style="flex:0 0 auto;text-align:right;background:' + nenBan +
     ';border-radius:9px;padding:5px 11px">' +
     '<div style="font-size:10px;color:#9ca3af;font-weight:700">' +
     (theoHop ? 'THEO HỘP' : 'BÁN ĐƯỢC') + '</div>' +
     '<b style="font-size:19px;color:' + mauBan + '">' + money(ban) + '</b></div></div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px">' + o + '</div></div>';
+}
+
+/* Công tắc tạm ngừng bán một mã trên web đặt bánh.
+
+   Anh Việt 27/08/2026: *"có vài trường hợp bất khả kháng, còn tồn nhưng phải
+   tắt, không bán được hôm đó"*. Cùng một công tắc với màn Kiểm bánh hằng
+   ngày - phép thật nằm ở vagabond/tat_ban_web.py, không có bản thứ hai.
+
+   Nút nói rõ NGÀY BÁN LẠI chứ không chỉ nói đang tắt. Một ô có / không thì
+   tắt xong tắt mãi, hôm sau bếp làm được mà web vẫn không hiện, và không ai
+   nhớ ra là hôm kia có người bấm tắt. */
+function mvNutWeb(x) {
+  var tat = !!x.tat_web;
+  return '<button class="btn gh" data-cbweb="' + h(x.ma_hang) + '" data-tat="' + (tat ? 1 : 0) + '"' +
+    ' style="margin:4px 0 0;width:auto;padding:4px 10px;font-size:11px;font-weight:700;' +
+    'border-radius:999px' +
+    (tat ? ';background:#fef2f2;color:#b91c1c;border-color:#fca5a5' : '') + '">' +
+    (tat ? '● Tắt bán web' : '○ Đang bán web') + '</button>';
+}
+
+async function mvBamNutWeb(ma, dangTat) {
+  if (!dangTat) {
+    var ok = await xacNhan(
+      'Tạm ngừng bán ' + ma + ' trên web đến hết ngày ' + posNgayVn(MV.cbNgay) + '?\n\n' +
+      'Kho vẫn giữ nguyên số tồn, chỉ web đặt bánh không hiện mã này. ' +
+      'Sang ngày hôm sau tự bán lại.', 'Tạm ngừng bán trên web', 'Tạm ngừng');
+    if (!ok) return;
+  }
+  busy(true);
+  try {
+    var r = await api('vagabond.tat_ban_web.dat',
+      { ma_hang: ma, tat: dangTat ? 0 : 1, den_ngay: MV.cbNgay });
+    busy(false);
+    toast(r && r.tat
+      ? 'Đã tạm ngừng bán ' + ma + ' trên web đến hết ' + posNgayVn(r.den_ngay)
+      : 'Đã cho bán lại ' + ma + ' trên web');
+    MV.cbData = null;
+    mvVe();
+  } catch (e) {
+    busy(false);
+    baoTin((e && e.message) || 'Không đổi được');
+  }
 }
 
 /* Ô số. Truyền ma_hang vào là ô đó gõ được, và chỉ ô "Bếp làm" mới được truyền

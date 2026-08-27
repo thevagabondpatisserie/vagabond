@@ -30,7 +30,12 @@ async function posInBill(d) {
     } catch (e1) { d.diem = null; }
   }
   var q = (CFGBH || {}).qr_quay || {};
+  var M = inMau('hoa_don');
+  /* Ba buoc theo dung thu tu: bo mon 0 dong TRUOC roi moi gop, vi gop
+     xong thi khong con biet dong nao von la mon tang. */
   var mon = d.mon || [];
+  if (M.an_mon_0d) mon = mon.filter(function (m) { return (Number(m.rate) || 0) > 0; });
+  if (M.gop_mon) mon = posGopDongMon(mon);
   var gio = new Date();
   var hs = function (n) { return (n < 10 ? '0' : '') + n; };
   var lucIn = hs(gio.getHours()) + ':' + hs(gio.getMinutes()) + ' ' + hs(gio.getDate()) + '/' + hs(gio.getMonth() + 1) + '/' + gio.getFullYear();
@@ -40,7 +45,7 @@ async function posInBill(d) {
          biet minh dang mua bo combo, nguoi di lay mon biet gom du bo (anh
          Viet 11/08/2026). Ma combo KHONG in, chi in ten. */
       (m.combo ? '<tr><td style="font-size:10px">&nbsp;&nbsp;&#9733; ' + h(m.combo) + '</td></tr>' : '') +
-      ((m.tc || []).length ? '<tr><td style="font-size:10px">&nbsp;&nbsp;[' + h(m.tc.join(', ')) + ']</td></tr>' : '') +
+      ((M.hien_tuy_chon && (m.tc || []).length) ? '<tr><td style="font-size:10px">&nbsp;&nbsp;[' + h(m.tc.join(', ')) + ']</td></tr>' : '') +
       '<tr><td class="s">' + money(m.qty) + ' x ' + money(m.rate) + '<span class="r">' + money(m.qty * m.rate) + '</span></td></tr>';
   }).join('');
   var qrKhoi = '';
@@ -50,7 +55,7 @@ async function posInBill(d) {
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
     var uq = posQrUrl(ndq, d.thu, d.nguon || '', d.quay);
     if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(ndq) + '</b></div></div>';
-  } else if (d.xhd_url) {
+  } else if (d.xhd_url && M.qr_xhd) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
        tu dien thong tin, ERP map vao don, cuoi ngay tu day m-invoice. */
     var ulink = location.origin + d.xhd_url;
@@ -65,7 +70,7 @@ async function posInBill(d) {
   var inToBill = ('<html><head><meta charset="utf-8"><title>' + inTieuDe + '</title><style>' +
     '@page{size:' + inKho('hoa_don').css + ';margin:0}' +
     '*{margin:0;padding:0;box-sizing:border-box}' +
-    'body{width:' + inKho('hoa_don').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:11.5px;color:#000;padding:4mm 0 6mm}' +
+    'body{width:' + inKho('hoa_don').rong + 'mm;margin:0 auto;font-family:Arial,sans-serif;font-size:' + M.co_chu + 'px;color:#000;padding:4mm 0 6mm}' +
     '.lg{display:block;width:44mm;margin:0 auto 2mm}' +
     'h1{font-size:13px;text-align:center;letter-spacing:.06em}' +
     '.ph{text-align:center;font-size:10px;line-height:1.45}' +
@@ -82,9 +87,15 @@ async function posInBill(d) {
     '.qr img{width:34mm;height:34mm;display:block;margin:0 auto 1mm}' +
     '.ft{text-align:center;font-size:10px;margin-top:3mm;line-height:1.5}' +
     '</style></head><body>' +
-    '<img class="lg" src="' + location.origin + '/files/logo-in.png" onerror="this.style.display=\'none\';document.getElementById(\'lgt\').style.display=\'block\'">' +
-    '<h1 id="lgt" style="display:none">THE VAGABOND P&Acirc;TISSERIE</h1>' +
-    '<div class="ph">' + h((posQuay && posQuay.ten) || '') + '<br>' + h((posQuay && posQuay.phu) || '') + '</div>' +
+    /* Tat logo thi in thang ten tiem bang chu: to giay ngan lai vai mi
+       li met, va may in nhiet khong phai ve mot manh anh. */
+    (M.logo
+      ? '<img class="lg" src="' + location.origin + '/files/logo-in.png" onerror="this.style.display=\'none\';document.getElementById(\'lgt\').style.display=\'block\'">' +
+        '<h1 id="lgt" style="display:none">THE VAGABOND P&Acirc;TISSERIE</h1>'
+      : '<h1>THE VAGABOND P&Acirc;TISSERIE</h1>') +
+    (M.dia_chi
+      ? '<div class="ph">' + h((posQuay && posQuay.ten) || '') + '<br>' + h((posQuay && posQuay.phu) || '') + '</div>'
+      : '') +
     '<div class="tt">' + (d.huy ? 'BILL ĐÃ HUỶ' : (d.tam_tinh ? 'PHIẾU TẠM TÍNH' : 'HOÁ ĐƠN BÁN HÀNG')) + '</div>' +
     /* Bill da huy in ra phai nhin la biet ngay: khong dong dau thi to giay
        giong het bill that, khach cam nham va thu ngan doi soat cung nham. */
@@ -115,7 +126,7 @@ async function posInBill(d) {
        ngay don nay duoc bao nhieu diem va tong con bao nhieu, khong phai
        ra quay hoi. Chi in tren bill THAT - phieu tam tinh chua thanh
        toan nen chua co diem, in vao la hua nham voi khach. */
-    (d.diem && !d.tam_tinh && !d.huy
+    (d.diem && M.khoi_diem && !d.tam_tinh && !d.huy
       ? '<hr><div class="d"><span style="font-weight:bold">THẺ THÀNH VIÊN</span><b>' + h(d.diem.hang || '') + '</b></div>' +
         '<div class="d"><span>' + h(d.diem.ten || '') + '</span></div>' +
         (d.diem.dung
@@ -128,7 +139,8 @@ async function posInBill(d) {
       : '') +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
     qrKhoi +
-    '<div class="ft">' + (d.tam_tinh ? 'Phiếu giữ món, chưa phải hoá đơn thanh toán.' : 'Cảm ơn quý khách!') + '<br>thevagabondpatisserie.com</div>' +
+    '<div class="ft">' + (d.tam_tinh ? 'Phiếu giữ món, chưa phải hoá đơn thanh toán.' : h(M.chan_trang || '')) +
+    (M.web ? '<br>' + h(M.web) : '') + '</div>' +
     lien2 +
     '</body></html>');
   await inTo('hoa_don', inTieuDe, inToBill, inKho('hoa_don').rong, 1100, inW);
@@ -232,8 +244,26 @@ async function scrPosDs() {
     ptTong[p] = (ptTong[p] || 0) + (r.grand_total || 0);
   });
   var ptTxt = Object.keys(ptTong).map(function (p) { return h(p) + ' ' + money(ptTong[p]) + ' đ'; }).join(' · ');
+  /* DON PANCAKE CHUA VE THI PHAI NOI RA, khong de danh sach it di mot cach
+     im lang (anh Viet 27/08/2026).
+
+     Ngay 26 va 27/08 Pancake tra 403 suot hai ngay. Do tren du lieu that:
+     hoa don sinh tu don Pancake tut tu 45 don ngay 25 xuong 12 don ngay 26
+     roi 1 don ngay 27. Khong ban ghi nao bi xoa, khong hoa don nao bi huy -
+     don chi don gian la khong ve. Vay ma khong man hinh nao noi mot cau nao,
+     nen anh Viet tuong du lieu bi mat.
+
+     Khoi nay dan ngay tren dau bang, mau vang, va noi ro so ben duoi la cua
+     lan keo duoc gan nhat luc may gio. */
+  var html = '';
+  var pk = (kq && kq.pancake) || {};
+  if (pk.cau_bao) {
+    html += '<div class="card" style="padding:11px 13px;background:#fffbeb;' +
+      'border:1px solid #fde68a;color:#92400e;font-size:12.5px;line-height:1.55">' +
+      '⚠ ' + h(pk.cau_bao) + '</div>';
+  }
   /* Lich chon ngay: xem lai bill ngay qua khu (anh Viet 09/08). */
-  var html = '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
+  html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
     '<div style="font-weight:600;white-space:nowrap">' + posNgayVn(posDsNgay) + '</div>' +
     '<input type="date" class="hin" id="posDsDate" value="' + posDsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
     chipNgay('data-pdbuoc') + '</div>';
@@ -866,6 +896,61 @@ function inKho(vaiTro) {
     : { k: '80mm', css: '80mm auto', rong: 72, cuon: 1 };
 }
 
+/* Mau in cua DUNG diem ban dang dung, giong het cach inKho lam.
+
+   Hai ham nay tra loi hai cau khac nhau: inKho la "to giay to bao nhieu",
+   inMau la "tren to giay do in nhung gi". Chua khai gi thi ve mac dinh
+   BANG DUNG hanh vi cu, khong man hinh nao doi kieu sau khi len ban moi.
+   Ban goc cua tung o nam trong vagabond/mau_in_quay.py. */
+var IN_MAU_MD = {
+  hoa_don: {
+    logo: 1, dia_chi: 1, co_chu: 11.5, gop_mon: 0, an_mon_0d: 0,
+    hien_tuy_chon: 1, qr_xhd: 1, khoi_diem: 1,
+    chan_trang: 'Cảm ơn quý khách!', web: 'thevagabondpatisserie.com'
+  },
+  phieu_mon: { co_chu: 14, hien_ban: 1, hien_tuy_chon: 1, hien_gio: 1 },
+  tem: { co_chu: 11, hien_dau: 1, hien_tuy_chon: 1, hien_ghi_chu: 1, hien_chan: 1 }
+};
+
+function inMau(vaiTro) {
+  var md = IN_MAU_MD[vaiTro] || {};
+  var ma = (typeof posQuay !== 'undefined' && posQuay && posQuay.ma) ? posQuay.ma : '';
+  var theoDiem = ((CFGBH || {}).mau_in_diem || {})[ma];
+  var b = (theoDiem || (CFGBH || {}).mau_in || {})[vaiTro] || {};
+  var ra = {};
+  for (var k in md) {
+    if (!Object.prototype.hasOwnProperty.call(md, k)) continue;
+    ra[k] = (b[k] === undefined || b[k] === null) ? md[k] : b[k];
+  }
+  return ra;
+}
+
+/* Gop cac dong cung mot mon lai lam mot.
+
+   Chi gop khi MOI THU deu giong nhau: ten mon, don gia, combo, tuy chon
+   pha che va ghi chu rieng. Hai ly tra cung ten ma mot ly it da mot ly
+   binh thuong la HAI dong khac nhau - gop lai thi quay bar lam sai.
+
+   Ham THUAN: vao la mang, ra la mang moi, khong cham DOM. */
+function posGopDongMon(mon) {
+  var ra = [], bang = {};
+  (mon || []).forEach(function (m) {
+    var khoa = [
+      String(m.ten || ''), String(m.rate || 0), String(m.combo || ''),
+      ((m.tc || []).join('|')), String(m.gc || '')
+    ].join('\u0001');
+    if (bang[khoa] === undefined) {
+      var c = {};
+      for (var k in m) if (Object.prototype.hasOwnProperty.call(m, k)) c[k] = m[k];
+      bang[khoa] = ra.length;
+      ra.push(c);
+      return;
+    }
+    ra[bang[khoa]].qty = (Number(ra[bang[khoa]].qty) || 0) + (Number(m.qty) || 0);
+  });
+  return ra;
+}
+
 function posLaNuoc(m) {
   if (String((m && m.item_code) || '').toUpperCase().indexOf('NU') === 0) return true;
   return POS_NHOM_NUOC.indexOf((m && m.nhom) || '') >= 0;
@@ -885,12 +970,15 @@ async function posInPhieuMon(d) {
      Tiem nao chua khai may rieng thi inManhCho tu ro ve may hoa don. */
   var inW = inMoCuaSoNeuCan('phieu_mon');
   if (inW === 'chan') return;
+  var M = inMau('phieu_mon');
   var gio = new Date();
   var hs = function (n) { return (n < 10 ? '0' : '') + n; };
   var rows = nuoc.map(function (m) {
     return '<div class="m"><span class="q">' + money(m.qty) + 'x</span> <b>' + h(m.ten) + '</b>' +
       (m.combo ? '<div class="tc" style="font-weight:bold">&#9733; ' + h(m.combo) + '</div>' : '') +
-      ((m.tc || []).length ? '<div class="tc">&#8594; ' + h(m.tc.join(', ')) + '</div>' : '<div class="tc">&#8594; 100% đường · 100% đá</div>') +
+      (M.hien_tuy_chon
+        ? ((m.tc || []).length ? '<div class="tc">&#8594; ' + h(m.tc.join(', ')) + '</div>' : '<div class="tc">&#8594; 100% đường · 100% đá</div>')
+        : '') +
       /* Ghi chu rieng cua mon: quay pha che doc ngay tren phieu, khong
          phai hoi lai thu ngan (anh Viet 10/08/2026). */
       (m.gc ? '<div class="tc" style="font-weight:bold">&#9755; ' + h(m.gc) + '</div>' : '') +
@@ -902,14 +990,15 @@ async function posInPhieuMon(d) {
     'h1{font-size:15px;text-align:center;letter-spacing:.1em}' +
     '.ph{text-align:center;font-size:11px;margin:1mm 0 2mm}' +
     'hr{border:0;border-top:1px dashed #000;margin:1.5mm 0}' +
-    '.m{font-size:14px;padding:1.5mm 0;border-bottom:1px dashed #999}' +
-    '.m .q{font-size:15px;font-weight:bold}' +
+    '.m{font-size:' + M.co_chu + 'px;padding:1.5mm 0;border-bottom:1px dashed #999}' +
+    '.m .q{font-size:' + (Number(M.co_chu) + 1) + 'px;font-weight:bold}' +
     '.tc{font-size:12px;padding-left:6mm}' +
     '.gc{font-size:12px;border:1px solid #000;padding:1.5mm;margin-top:2mm}' +
     '</style></head><body>' +
     '<h1>PHIẾU LÀM MÓN</h1>' +
-    '<div class="ph">' + h((posQuay && posQuay.ten) || '') + ' · hoá đơn <b>' + h(d.bill || d.name || '') + '</b> · ' + hs(gio.getHours()) + ':' + hs(gio.getMinutes()) + '</div>' +
-    (d.so_ban ? '<div style="text-align:center;font-size:17px;font-weight:bold;margin:1mm 0">BÀN ' + h(d.so_ban) + '</div>' : '') +
+    '<div class="ph">' + h((posQuay && posQuay.ten) || '') + ' · hoá đơn <b>' + h(d.bill || d.name || '') + '</b>' +
+    (M.hien_gio ? ' · ' + hs(gio.getHours()) + ':' + hs(gio.getMinutes()) : '') + '</div>' +
+    ((d.so_ban && M.hien_ban) ? '<div style="text-align:center;font-size:17px;font-weight:bold;margin:1mm 0">BÀN ' + h(d.so_ban) + '</div>' : '') +
     '<hr>' + rows +
     (d.ghi_chu ? '<div class="gc">Ghi chú: ' + h(d.ghi_chu) + '</div>' : '') +
     '</body></html>');
@@ -940,6 +1029,7 @@ async function posInTemLy(d) {
   });
   var inW = inMoCuaSoNeuCan('tem');
   if (inW === 'chan') return;
+  var M = inMau('tem');
   var maApp = posMaAppCuaBill(d);
   var tem = ly.map(function (m, i) {
     /* Dong giua: tuy chon pha che voi mon nuoc, ghi chu rieng voi moi mon,
@@ -952,17 +1042,29 @@ async function posInTemLy(d) {
        khong co cho nao tren tem, nen ban dong goi khong bao gio thay. */
     var giua = [];
     if (m.combo) giua.push('★ ' + m.combo);
-    if ((m.tc || []).length) giua.push(m.tc.join(', '));
-    else if (posLaNuoc(m)) giua.push('100% đường · 100% đá');
-    if (m.gc) giua.push(m.gc);
-    if (d.ghi_chu) giua.push(d.ghi_chu);
+    if (M.hien_tuy_chon) {
+      if ((m.tc || []).length) giua.push(m.tc.join(', '));
+      else if (posLaNuoc(m)) giua.push('100% đường · 100% đá');
+    }
+    if (M.hien_ghi_chu) {
+      if (m.gc) giua.push(m.gc);
+      if (d.ghi_chu) giua.push(d.ghi_chu);
+    }
+    /* MA DON SAN GIAO HANG KHONG BAO GIO BI TAT.
+
+       O "In dong dau tem" chi doi giua tem cua don tai quay va tem tran.
+       Con don GrabFood, ShopeeFood thi dong do la thu duy nhat de shipper
+       nhan dung tui - tat no di la ban dong goi giao nham hang. Nen o day
+       maApp di truoc phep tat, khong di sau. */
     return '<div class="tem">' +
       (maApp
         ? '<div class="app">' + h(maApp) + '</div>'
-        : '<div class="h">THE VAGABOND P&Acirc;TISSERIE</div>') +
+        : (M.hien_dau ? '<div class="h">THE VAGABOND P&Acirc;TISSERIE</div>' : '')) +
       '<div class="t">' + h(m.ten) + '</div>' +
       '<div class="c">' + h(giua.join(' · ')) + '</div>' +
-      '<div class="f"><span>' + h(d.bill || d.name || '') + (d.so_ban ? ' · Bàn ' + h(d.so_ban) : '') + '</span><span>' + (i + 1) + '/' + ly.length + '</span></div>' +
+      (M.hien_chan
+        ? '<div class="f"><span>' + h(d.bill || d.name || '') + (d.so_ban ? ' · Bàn ' + h(d.so_ban) : '') + '</span><span>' + (i + 1) + '/' + ly.length + '</span></div>'
+        : '') +
       '</div>';
   }).join('');
   /* Tem di ra may in TEM, khong duoc lan sang may in bill. Moi tem la mot
@@ -999,7 +1101,7 @@ function temKhung(tieuDe, than, vien) {
     (xoay ? ';transform:rotate(90deg);transform-origin:' + (cao / 2) + 'mm ' + (cao / 2) + 'mm' : '') + '}' +
     '.h{font-size:6.5px;text-align:center;letter-spacing:.06em}' +
     '.app{font-size:10px;font-weight:bold;text-align:center;background:#000;color:#fff;padding:.6mm 0;line-height:1.1}' +
-    '.t{font-size:11px;font-weight:bold;text-align:center;line-height:1.15;margin-top:.5mm;flex:1;display:flex;align-items:center;justify-content:center}' +
+    '.t{font-size:' + (Number(inMau('tem').co_chu) || 11) + 'px;font-weight:bold;text-align:center;line-height:1.15;margin-top:.5mm;flex:1;display:flex;align-items:center;justify-content:center}' +
     '.c{font-size:8px;text-align:center;line-height:1.2}' +
     '.f{display:flex;justify-content:space-between;font-size:7.5px;margin-top:.5mm;font-weight:bold}' +
     '</style></head><body>' + than +
