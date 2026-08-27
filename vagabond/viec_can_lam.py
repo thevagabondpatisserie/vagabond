@@ -657,3 +657,34 @@ def _ten_vai(vai):
 	if vai & VAI_QUAN_LY:
 		return "Quản lý cửa hàng"
 	return "Nhân viên"
+
+
+# ------------------------------------------------------------- con so cho o
+#
+# Anh Viet 27/08/2026: ke toan gui ba ho so len cho giam doc duyet, tren app
+# cua anh "chang co gi de duyet ca".
+#
+# Khong phai loi dong bo, cung khong phai loi quyen. Ba ho so nam dung o buoc
+# "Cho giam doc", va man Viec can lam CO tra ve du cho tai khoan cua anh. Cai
+# sai la o TRANG CHU: o "Viec can lam" la o DUY NHAT khong deo con so, moi o
+# khac deu co. Nhin vao mot o trong tron thi khong ai bam, va nguoi ta di
+# sang man "Duyet phieu chi" - man do doc Payment Entry, mot loai chung tu
+# khac han, nen no rong that.
+#
+# Mot o khong deo so la mot o noi doi bang cach im lang. Duong nay sinh ra de
+# o do deo duoc con so that.
+
+
+@frappe.whitelist()
+def dem():
+	"""CHI DOC: bao nhieu viec dang cho nguoi dang dang nhap.
+
+	Tra ve dung hai con so nen man trang chu goi duoc ma khong phai keo ve
+	ca danh sach.
+	"""
+	kq = danh_sach()
+	return {
+		"tong": kq.get("tong") or 0,
+		"dich_danh": kq.get("so_dich_danh") or 0,
+		"vai_chinh": kq.get("vai_chinh") or "",
+	}

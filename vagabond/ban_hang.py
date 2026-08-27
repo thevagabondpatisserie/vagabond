@@ -1591,7 +1591,7 @@ def _sepay_theo_don(shop_id, ma_dons):
 	mau = "(%s)" % "|".join(ve)
 	try:
 		gds = frappe.db.sql(
-			"""select description, deposit, withdrawal, reference_number
+			"""select name, description, deposit, withdrawal, reference_number
 			from `tabBank Transaction`
 			where docstatus < 2 and description regexp %s""",
 			mau,
@@ -1608,9 +1608,16 @@ def _sepay_theo_don(shop_id, ma_dons):
 	ra = {}
 
 	def _cong(khoa, g):
-		o = ra.setdefault(khoa, {"nhan": 0.0, "ma": "", "so_gd": 0})
+		# `gd` la TEN dong sao ke. Thieu no thi khong cho nao trong he biet
+		# dong nao da gach cho don nao, va phep chan mot giao dich tra hai
+		# chung tu khong co gi de dua vao. Ben ma bill VGB da giu tu 24/08,
+		# ben Pancake thi chua, nen mot lan chuyen khoan Pancake van co the
+		# duoc tinh cho hai bill khac nhau.
+		o = ra.setdefault(khoa, {"nhan": 0.0, "ma": "", "so_gd": 0, "gd": []})
 		o["nhan"] += flt(g.get("deposit")) - flt(g.get("withdrawal"))
 		o["so_gd"] += 1
+		if g.get("name"):
+			o["gd"].append(g["name"])
 		if not o["ma"]:
 			o["ma"] = (g.get("reference_number") or "").strip()
 
@@ -3994,6 +4001,107 @@ def _sepay_bill(ma):
 	return theo_ma.get(str(ma or "").strip().upper()) or {}
 
 
+# =========================================================== BA DUONG KHOP TIEN
+#
+# Anh Viet 27/08/2026, bill HDB-26-08-03877 cua don Pancake 92564:
+#
+#   "Bill HDB-26-08-03877 ghi Chuyen khoan nhung ngan hang moi nhan 0 d
+#    tren tong 945.000 d."
+#
+# Tien ve THAT, tu 25/08 luc 14:47. Dong sao ke ACC-BTN-2026-03358, 945.000 d,
+# noi dung "Qalmio7806 PANCAKE2278 4 S67355O92564T2506240563 92564 0776996585".
+# Mach S67355O92564T nam ro rang trong do.
+#
+# VI SAO MAN QUAY DOC RA 0
+# ========================
+# `pos_ghi_so` hoi tien qua `_sepay_bill(ma_tham_chieu)`, ma duong do chi biet
+# MOT kieu ma: ma bill quay dang VGBxxxxx in tren ma QR cua tiem. O ma tham
+# chieu cua bill nay dang giu "VQRQALMIO7806" - so TAI KHOAN AO do Pancake xin
+# MB cap rieng cho don. No khong khop `RE_MA_BILL`, nen danh sach ma rong,
+# truy van khong chay, ket qua ve 0. KHONG PHAI ngan hang chua nhan, ma la man
+# hinh hoi sai cau hoi.
+#
+# Don Pancake xua nay khop bang mach S<shop>O<don>T qua `_sepay_theo_don`, va
+# duong do van chay dung o man Sales. Nhung man bill quay khong bao gio goi
+# toi no, ke ca khi bill mang san `custom_pancake_display_id`.
+#
+# CAU BAO LOI CON CHI MOT DUONG THOAT KHONG TON TAI
+# ================================================
+# No bao "tim ma giao dich trong sao ke go vao o Ma tham chieu". Go
+# "FT26237024746528" vao do cung ra 0 not, vi van chinh duong `_sepay_bill`
+# ay soi bang `RE_MA_BILL`. Ben Sales co loi ra that (`_soat_sepay` cho qua
+# khi da co ma tham chieu), ben quay thi khong. Bay mot canh cua roi khoa lai
+# con te hon la khong bay.
+#
+# NAY HOI DU BA DUONG
+# ===================
+#   1. Ma bill quay VGBxxxxx, cho bill ban tai quay.
+#   2. Mach S<shop>O<don>T theo so don Pancake, cho bill tu Pancake.
+#   3. So tham chieu ngan hang go tay, cho truong hop khach chuyen sai noi
+#      dung - dung cai canh cua ma cau bao loi da hua.
+#
+# Duong nao ra nhieu tien nhat thi lay, va LUON mang theo ten dong sao ke de
+# `_chiem_gd_bill` van chan duoc mot giao dich tra hai bill.
+
+
+RE_MA_NGAN_HANG = re.compile(r"[A-Z0-9]{6,40}")
+
+
+def _sepay_theo_tham_chieu(ma, so_ngay=45):
+	"""Tien theo SO THAM CHIEU ngan hang go tay vao o Ma tham chieu.
+
+	Khop DUNG BANG o `reference_number`, khong dung regexp long: so tham
+	chieu la ma dinh danh mot giao dich, gan dung khong phai la dung.
+	"""
+	ma = re.sub(r"\s+", "", str(ma or "")).upper()
+	if not RE_MA_NGAN_HANG.fullmatch(ma):
+		return {}
+	from frappe.utils import add_days
+
+	n = max(1, min(cint(so_ngay) or 45, 180))
+	try:
+		gds = frappe.db.sql(
+			"""select name, deposit, withdrawal, reference_number
+			from `tabBank Transaction`
+			where docstatus < 2 and date >= %s and upper(trim(reference_number)) = %s""",
+			(add_days(nowdate(), -n), ma), as_dict=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc SePay theo tham chieu")
+		return {}
+	if not gds:
+		return {}
+	return {
+		"nhan": sum(flt(g.get("deposit")) - flt(g.get("withdrawal")) for g in gds),
+		"ma": ma,
+		"so_gd": len(gds),
+		"gd": [g["name"] for g in gds if g.get("name")],
+	}
+
+
+def _sepay_cho_bill(si):
+	"""Tien ngan hang da nhan cho MOT bill, hoi du ba duong.
+
+	Tra ve ket qua kem khoa `duong` de man hinh va nhat ky noi duoc no khop
+	bang duong nao.
+	"""
+	ma = str(si.get("vgb_ma_tham_chieu") or "").strip().upper()
+	don = str(si.get("custom_pancake_display_id") or "").strip()
+	cac = [("ma_bill", _sepay_bill(ma) if ma else {})]
+	if don:
+		try:
+			theo_don = _sepay_theo_don(cfg().pancake_shop_id, [don]) or {}
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang: doc SePay theo don cho bill")
+			theo_don = {}
+		cac.append(("so_don_pancake", theo_don.get(don) or {}))
+	if ma and not RE_MA_BILL.fullmatch(ma):
+		cac.append(("tham_chieu_ngan_hang", _sepay_theo_tham_chieu(ma)))
+	ten, kq = chiem_sao_ke.chon_duong_khop(cac, flt(si.get("grand_total")))
+	kq = dict(kq or {})
+	kq["duong"] = ten
+	return kq
+
+
 @frappe.whitelist()
 def pos_kiem_sepay(noi_dung=None, tien=0):
 	"""Man tinh tien goi vai giay mot lan khi dang chia QR chuyen khoan:
@@ -4036,10 +4144,26 @@ def pos_ds_bill(quay=None, ngay=None):
 	sepay, _bo_qua = _sepay_theo_ma_bill(
 		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
 	)
+	# Don Pancake khop bang mach S<shop>O<don>T chu khong bang ma bill VGB.
+	# Doc mot lan cho ca ngay, dung hoi tung dong.
+	don_ck = [
+		str(r.custom_pancake_display_id or "").strip() for r in ds
+		if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"
+		and str(r.custom_pancake_display_id or "").strip()
+	]
+	theo_don = {}
+	if don_ck:
+		try:
+			theo_don = _sepay_theo_don(cfg().pancake_shop_id, don_ck) or {}
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ban_hang: doc SePay theo don cho danh sach bill")
 	ma_trung = _ma_trung_trong_ngay(ngay, [r.vgb_ma_tham_chieu for r in ds])
 	for r in ds:
+		# Chip "Cho tien ve" tung sang do suot tren bill Pancake da tra du
+		# tien, vi no chi ngo mot duong. Nay lay duong nao ra nhieu nhat.
 		g = sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
-		r["sepay_nhan"] = flt(g.get("nhan"))
+		gd = theo_don.get(str(r.custom_pancake_display_id or "").strip()) or {}
+		r["sepay_nhan"] = max(flt(g.get("nhan")), flt(gd.get("nhan")))
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
 	# Tinh trang keo don Pancake. Man hinh dan cau nay len dau bang khi don
@@ -4381,8 +4505,10 @@ def pos_ghi_so(name):
 		frappe.throw("Bill chưa chọn phương thức thanh toán.")
 	si.vgb_pt_thanh_toan = pt
 	if pt == "Chuyển khoản":
-		ma = str(si.vgb_ma_tham_chieu or "").strip().upper()
-		g = _sepay_bill(ma)
+		# Hoi CA BA duong khop, xem doan mo ta cua `_sepay_cho_bill`. Truoc
+		# 27/08/2026 cho nay chi hoi ma bill VGB, nen bill cua don Pancake
+		# tra qua tai khoan ao MB vinh vien doc ra 0 du tien da ve.
+		g = _sepay_cho_bill(si)
 		nhan = flt(g.get("nhan"))
 		if nhan < flt(si.grand_total) - 1:
 			frappe.throw(
