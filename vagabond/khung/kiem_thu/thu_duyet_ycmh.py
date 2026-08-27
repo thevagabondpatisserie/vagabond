@@ -98,3 +98,35 @@ def _():
 def _():
 	loi, loai = _soat(5.5, 5)
 	la("nửa ký cũng là vượt", [loi, loai], [[], DUYET_THEM])
+
+
+# --------- v327: don mua PHAI theo so thu mua duyet, bam tu dau cung vay
+
+@ca("don mua: luat nam o hook chu khong nam trong tung cai nut")
+def _luat_o_hook():
+	import inspect
+
+	from vagabond import duyet_ycmh as D
+
+	dung("co ham dong bo don mua", hasattr(D, "dong_bo_don_mua_theo_duyet"))
+	ma = inspect.getsource(D.dong_bo_don_mua_theo_duyet)
+	dung("bo dong bi tu choi", "cho <= EPS" in ma)
+	dung("ha so ve dung so duyet", "r.qty = cho" in ma)
+	dung("khong tu nang so len", "r.qty = cho" in ma and "r.qty = flt(m" not in ma)
+	dung("co ke ra cho nguoi bam nhin thay", "msgprint" in ma)
+	dung("co ghi vao chinh to don", "doc.remarks" in ma)
+	dung("don rong thi nem loi chu khong luu", "Đơn mua rỗng" in ma)
+	dung("chua duyet thi de hang rao duoi bao", "_da_duyet(m)" in ma)
+
+
+@ca("don mua: hook dat o before_validate cua Purchase Order")
+def _hook_dat_dung_cho():
+	import os
+
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	hooks = open(os.path.join(goc, "hooks.py"), encoding="utf-8").read()
+	doan = hooks.split('"Purchase Order": {', 1)[1].split("}", 1)[0]
+	dung("before_validate goi ham dong bo",
+		"dong_bo_don_mua_theo_duyet" in doan and "before_validate" in doan)
+	dung("validate van giu hang rao cu",
+		"chan_don_mua_trai_duyet" in doan and '"validate"' in doan)

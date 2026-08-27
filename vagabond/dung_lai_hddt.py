@@ -538,12 +538,101 @@ def soat(gioi_han=300):
 		(xong if cint(r["docstatus"]) == 1 else nhap).append(mot)
 	nhap.sort(key=lambda x: -x["lech"])
 	xong.sort(key=lambda x: -x["lech"])
+	# Dem luon so to sai DON VI. Tien dung ma don vi sai van la sai, va
+	# nguoi mo man ra phai thay ca hai con so cung mot luc chu khong phai
+	# tim o hai cho (27/08/2026).
+	try:
+		dv = soat_don_vi(gioi_han=1)
+		so_lech_dvt, so_dong_lech_dvt = dv.get("so_to", 0), dv.get("so_dong", 0)
+	except Exception:
+		so_lech_dvt, so_dong_lech_dvt = 0, 0
 	return {
 		"nhap": nhap[: max(1, cint(gioi_han) or 300)],
 		"da_ghi_so": xong,
 		"so_nhap": len(nhap),
 		"so_da_ghi_so": len(xong),
+		"so_lech_don_vi": so_lech_dvt,
+		"so_dong_lech_don_vi": so_dong_lech_dvt,
 		"nguong": NGUONG,
+	}
+
+
+@frappe.whitelist()
+def soat_don_vi(gioi_han=300):
+	"""CHI DOC: to nao TIEN DUNG ma DON VI sai, nhip ra cu khong thay.
+
+	VI SAO PHAI CO, ca that 27/08/2026
+	--------------------------------------------------------------------
+	HDM-26-08-00115: nha cung cap ghi "Gói", Mon chua khai nen may lang le
+	ha ve Gram he so 1. Tong to van dung 1.575.000 nen `soat` phia tren -
+	no chi so TIEN - bao la khop va bo qua. Nhung so luong la 4,5 gram
+	trong khi hang ve kho la 4.500 gram. Noi vao la hong gia von.
+
+	Nghia la mot to co the "khop tien" ma van sai mot nghin lan. Tien khong
+	phai la toan bo su that, don vi cung phai soi.
+
+	Doc dau van tay ngay tren dong chung tu chu khong mo lai tung ban hoa
+	don goc: `_dong_pi` da ghi don vi cua nha cung cap vao phan mo ta, va
+	`dvt_mua.dvt_tren_hoa_don` doc lai duoc. Nho vay quet 3.000 to van nhe.
+	"""
+	_kiem_quyen()
+	from vagabond import dvt_mua
+	from vagabond import minvoice_chung_tu as mc
+
+	dong = frappe.get_all(
+		PI + " Item",
+		filters={"docstatus": ["<", 2]},
+		fields=["parent", "idx", "item_code", "item_name", "qty", "uom",
+			"conversion_factor", "stock_uom", "description"],
+		order_by="parent desc",
+		limit_page_length=0,
+		parent=PI,
+	)
+	if not dong:
+		return {"dong": [], "so_dong": 0, "so_to": 0}
+	nghi = []
+	for d in dong:
+		dvt_ncc = dvt_mua.dvt_tren_hoa_don(d.get("description"))
+		if not mc.don_vi_chua_khai(dvt_ncc, d.get("uom"), d.get("conversion_factor")):
+			continue
+		nghi.append(d)
+	if not nghi:
+		return {"dong": [], "so_dong": 0, "so_to": 0}
+
+	ten_to = sorted({d["parent"] for d in nghi})
+	to = {
+		r["name"]: r
+		for r in frappe.get_all(
+			PI,
+			filters={"name": ["in", ten_to], "custom_minvoice_id": ["is", "set"]},
+			fields=["name", "supplier_name", "posting_date", "bill_no", "docstatus"],
+			limit_page_length=0,
+		)
+	}
+	ra = []
+	for d in nghi:
+		t = to.get(d["parent"])
+		if not t:
+			continue
+		ra.append({
+			"name": d["parent"],
+			"ncc": t["supplier_name"],
+			"ngay": str(t["posting_date"] or ""),
+			"so_hd": t["bill_no"],
+			"da_ghi_so": cint(t["docstatus"]) == 1,
+			"idx": d["idx"],
+			"item_code": d["item_code"],
+			"item_name": d["item_name"],
+			"sl": flt(d["qty"]),
+			"dvt_dang_dung": d.get("uom") or "",
+			"dvt_ncc": dvt_mua.dvt_tren_hoa_don(d.get("description")),
+			"dvt_kho": d.get("stock_uom") or "",
+		})
+	ra.sort(key=lambda x: (0 if not x["da_ghi_so"] else 1, x["name"]))
+	return {
+		"dong": ra[: max(1, cint(gioi_han) or 300)],
+		"so_dong": len(ra),
+		"so_to": len({x["name"] for x in ra}),
 	}
 
 

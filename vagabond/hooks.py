@@ -213,7 +213,17 @@ doc_events = {
 	# ERPNext tren Desk thi co, va no doc `qty` chu khong biet gi ve
 	# `sl_duyet`. Khong chan o day thi mot dong da tu choi van len duoc don,
 	# va ca man Duyet yeu cau mua thanh vo nghia.
-	"Purchase Order": {"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet"},
+	# Don mua hang: PHAI theo so thu mua da duyet, bam tu dau cung vay.
+	#
+	# before_validate ha so va bo dong bi tu choi roi KE RA cho nguoi bam
+	# nhin thay; validate la hang rao cuoi, con lech thi nem loi. Hai lop
+	# chu khong mot: lop tren lo cho nguoi dung khoi phai tu sua tay, lop
+	# duoi lo cho khong duong nao lot qua. Doc dau ham
+	# `dong_bo_don_mua_theo_duyet` de biet ca that ngay 27/08/2026.
+	"Purchase Order": {
+		"before_validate": "vagabond.duyet_ycmh.dong_bo_don_mua_theo_duyet",
+		"validate": "vagabond.duyet_ycmh.chan_don_mua_trai_duyet",
+	},
 	# Tu chon lo cho nguyen lieu bi tru. Xem dau tep lo_hang.py: bep khong
 	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
 	# ra phieu san xuat nen phai va o mot cho duy nhat.

@@ -165,6 +165,35 @@ def lech_don_vi(dvt_hd, hs_hd, dvt_pnk, hs_pnk):
 	return abs(he_so(hs_hd) - he_so(hs_pnk)) > 1e-9
 
 
+# Ba ket qua cua phep xet don vi giua mot dong hoa don va mot dong phieu nhap.
+DVT_KHOP = "khop"        # cung ten, so luong nhu nhau
+DVT_KHAC_TEN = "khac_ten"  # so luong quy ve kho nhu nhau, chi khac cai ten
+DVT_LECH = "lech"        # he so khac nhau, so luong that lech
+
+
+def xet_don_vi(dvt_hd, hs_hd, dvt_pnk, hs_pnk):
+	"""Hai dong nay khop don vi tới mức nào. THUẦN. Trả một trong ba hằng trên.
+
+	VÌ SAO PHẢI CÓ HÀM NÀY, ca thật 27/08/2026
+	--------------------------------------------------------------------
+	Trước đó màn Đối chiếu và phép nối xét khác nhau. Màn hình gọi
+	`lech_don_vi`, hàm đó coi hai đơn vị là một khi hệ số bằng nhau, nên
+	"Gói" 1.000 và "Kg" 1.000 được báo là KHỚP, hiện nút xanh Khớp và ghi
+	sổ. Còn phép nối thì đòi thêm tên phải trùng, nên bấm vào lại bị từ
+	chối. Màn hình bảo được, nút bảo không.
+
+	Nay cả hai gọi chung hàm này. Trường hợp giữa - cùng số lượng nhưng
+	khác tên - có tên riêng để mỗi bên xử đúng phần của mình: màn hình
+	không coi là lệch, còn phép nối thì tự đổi tên cho khớp rồi đi tiếp,
+	vì ERPNext đòi ô đơn vị của hai bên bằng nhau từng chữ.
+	"""
+	if cung_don_vi(dvt_hd, dvt_pnk):
+		return DVT_KHOP
+	if abs(he_so(hs_hd) - he_so(hs_pnk)) > 1e-9:
+		return DVT_LECH
+	return DVT_KHAC_TEN
+
+
 def so_ton_khop(sl_hd, hs_hd, sl_pnk, hs_pnk, sai_so=0.0001):
 	"""Hai ben co cung so luong khi da quy ve don vi kho khong."""
 	return abs(ton(sl_hd, hs_hd) - ton(sl_pnk, hs_pnk)) <= sai_so

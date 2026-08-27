@@ -760,6 +760,109 @@ def bo_duyet(name, dong_ten, ly_do=None):
 # ------------------------------------------------- hang rao cho ha nguon
 
 
+def dong_bo_don_mua_theo_duyet(doc, method=None):
+	"""Hook before_validate cua Don mua hang: don PHAI theo so thu mua duyet.
+
+	VI SAO PHAI CO, ca that 27/08/2026
+	--------------------------------------------------------------------
+	Uyen duyet tren app: Cherry bep xin 20 duyet 18, Bot nep xin 3 tu choi,
+	Dau hat nho xin 3 tu choi vi doi dau bap, Dau huong duong xin 3 duyet 5.
+	Roi bam nut "Tach don theo NCC" ben man quan tri. Nut do KHONG nam trong
+	ma nguon app - no la mot manh lenh nam trong co so du lieu, chi Desk co,
+	va no dung so BEP XIN chu khong dung so THU MUA DUYET. Ket qua: 5 don
+	tao duoc, 3 nha cung cap loi vi hang rao ben duoi chan lai.
+
+	Vay nen luat khong the nam trong tung cai nut. No nam o day, tang duoi
+	cung cua viec luu don mua, chay cho MOI duong: nut tren Desk, nut
+	"Create > Purchase Order" cua ERPNext, va app. Cung nguyen tac anh Viet
+	chot 26/08/2026 cho nut noi phieu nhap kho.
+
+	LAM GI VA KHONG LAM GI
+	  * Dong bi tu choi (duyet 0): BO khoi don.
+	  * Dong dat NHIEU hon so duyet: ha ve dung so duyet.
+	  * Dong dat IT hon so duyet: DE NGUYEN. Dat lam nhieu dot la chuyen
+	    binh thuong, tu nang so len la tu bia ra don hang.
+	  * Moi thay doi deu KE RA cho nguoi dang bam nhin thay, va ghi vao
+	    chinh to don. Cat lang le thi nguoi dat hang khong hieu vi sao so bi
+	    doi, dung dieu QT-24.
+	  * Con thua so da duyet ma chua dat het thi NOI RO con bao nhieu, de
+	    phan duyet them cua thu mua khong roi mat khong ai hay.
+
+	Chua duyet thi khong dung o day, de `chan_don_mua_trai_duyet` o buoc
+	validate bao dung cau "chua duyet" cua no.
+	"""
+	try:
+		if cint(doc.get("docstatus")) != 0:
+			return
+		khoa = [
+			r.material_request_item
+			for r in (doc.get("items") or [])
+			if r.get("material_request_item")
+		]
+		if not khoa:
+			return
+		duyet = {
+			r["name"]: r
+			for r in frappe.get_all(
+				"Material Request Item",
+				filters={"name": ["in", khoa]},
+				fields=["name", "item_name", "item_code", "qty", "sl_duyet",
+					"ly_do_duyet", "nguoi_duyet_dong"],
+				limit_page_length=0,
+			)
+		}
+		giu, vet = [], []
+		for r in doc.get("items") or []:
+			m = duyet.get(r.get("material_request_item"))
+			if not m or not _da_duyet(m):
+				giu.append(r)
+				continue
+			ten = m.get("item_name") or m.get("item_code")
+			cho = flt(m["sl_duyet"])
+			if cho <= EPS:
+				vet.append(
+					"Bỏ %s: thu mua từ chối%s"
+					% (ten, (", %s" % m["ly_do_duyet"]) if m.get("ly_do_duyet") else "")
+				)
+				continue
+			if flt(r.qty) > cho + EPS:
+				vet.append(
+					"Hạ %s từ %s xuống %s theo số thu mua duyệt"
+					% (ten, _so(r.qty), _so(cho))
+				)
+				r.qty = cho
+			elif flt(r.qty) < cho - EPS:
+				vet.append(
+					"%s: thu mua duyệt %s, đơn này mới đặt %s, còn %s chưa đặt"
+					% (ten, _so(cho), _so(r.qty), _so(cho - flt(r.qty)))
+				)
+			giu.append(r)
+		if not vet:
+			return
+		if not giu:
+			frappe.throw(
+				"Không còn dòng nào để đặt: mọi món trên đơn đều đã bị thu mua từ "
+				"chối.<br>%s" % "<br>".join(vet),
+				title="Đơn mua rỗng sau khi soi phần đã duyệt",
+			)
+		if len(giu) != len(doc.get("items") or []):
+			doc.set("items", [])
+			for r in giu:
+				doc.append("items", r)
+		cau = "Đơn đã được chỉnh theo phần thu mua đã duyệt:\n- " + "\n- ".join(vet)
+		doc.remarks = ((doc.get("remarks") or "").strip() + "\n" + cau).strip()
+		frappe.msgprint(
+			"Đơn đã được chỉnh theo phần thu mua đã duyệt trên phiếu yêu cầu:"
+			"<br>%s" % "<br>".join(vet),
+			title="Theo đúng số đã duyệt",
+			indicator="orange",
+		)
+	except frappe.ValidationError:
+		raise
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "duyet_ycmh: dong bo don mua")
+
+
 def chan_don_mua_trai_duyet(doc, method=None):
 	"""Chan don mua hang dat qua so thu mua da duyet.
 

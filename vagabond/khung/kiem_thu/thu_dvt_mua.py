@@ -105,3 +105,76 @@ def _khong_gach_dai():
 	c = D.loi_lech_don_vi(1, "Hạt dẻ", 4, "Gram", 1, 4, "Túi", 1000, "Gram", "BAG")
 	dung("khong em dash", "—" not in c)
 	dung("khong en dash", "–" not in c)
+
+
+# --------- v327: MOT phep xet don vi dung chung cho ca hai cho
+
+@ca("xet don vi: cung ten thi khop")
+def _xet_khop():
+	la("Tui vs tui", D.xet_don_vi("Túi", 1000, "tui", 1000), D.DVT_KHOP)
+
+
+@ca("xet don vi: he so khac nhau la LECH THAT")
+def _xet_lech():
+	# 4 Gram doi dien 4 Tui: lech mot nghin lan, khong duoc noi.
+	la("Gram vs Tui", D.xet_don_vi("Gram", 1, "Túi", 1000), D.DVT_LECH)
+
+
+@ca("xet don vi: cung he so ma khac ten thi chi la KHAC TEN")
+def _xet_khac_ten():
+	# Ca that 27/08/2026, HDM-26-08-00115: hoa don ghi Gói he so 1.000,
+	# phieu nhap ghi Kg he so 1.000. Cung 4.500 gram, chi khac cai ten.
+	# Truoc do man hinh coi la khop con phep noi lai tu choi.
+	la("Goi vs Kg cung 1000", D.xet_don_vi("Gói", 1000, "Kg", 1000), D.DVT_KHAC_TEN)
+	la("Kg vs Ky cung 1000", D.xet_don_vi("Kg", 1000, "Ký", 1000), D.DVT_KHAC_TEN)
+
+
+@ca("xet don vi: ba nhan khac nhau, khong cai nao trung cai nao")
+def _xet_ba_nhan():
+	dung("ba hang khac nhau", len({D.DVT_KHOP, D.DVT_KHAC_TEN, D.DVT_LECH}) == 3)
+
+
+# --------- v327: man Doi chieu va phep noi phai noi cung mot cau
+
+@ca("doi chieu: man hinh va phep noi dung CHUNG mot phep xet")
+def _hai_cho_cung_phep():
+	import inspect
+
+	from vagabond import doi_chieu_mua as C
+
+	so_sanh = inspect.getsource(C.so_sanh)
+	noi = inspect.getsource(C._noi)
+	dung("man hinh goi xet_don_vi", "xet_don_vi(" in so_sanh)
+	dung("phep noi goi xet_don_vi", "xet_don_vi(" in noi)
+	dung("man hinh khong con tu goi lech_don_vi", "lech_don_vi(" not in so_sanh)
+	dung("phep noi khong con tu ghep hai dieu kien",
+		"or not dvt_mua.cung_don_vi(" not in noi)
+
+
+@ca("doi chieu: cung so luong khac ten thi TU doi ten roi di tiep")
+def _tu_doi_ten():
+	import inspect
+
+	from vagabond import doi_chieu_mua as C
+
+	dung("co ham doi ten don vi", hasattr(C, "_doi_ten_don_vi"))
+	ma = inspect.getsource(C._doi_ten_don_vi)
+	dung("co kiem Mon da khai don vi do chua", "UOM Conversion Detail" in ma)
+	dung("co kiem he so bang nhau moi doi", "he_so" in ma)
+	dung("doi ca o don vi lan he so", "dong.uom = dvt" in ma and "dong.conversion_factor" in ma)
+
+	noi = inspect.getsource(C._noi)
+	dung("phep noi co goi ham do", "_doi_ten_don_vi(d, chon)" in noi)
+	dung("khac ten ma khong doi duoc thi bao ro", "chưa khai" in noi)
+
+
+@ca("quyen chot gia khac: ghi trong ma nguon chu khong phu thuoc o thiet lap")
+def _quyen_chot_gia():
+	from vagabond import doi_chieu_mua as C
+
+	dung("co danh sach vai", hasattr(C, "VAI_CHOT_GIA_KHAC"))
+	# Anh Viet chot 27/08/2026: mo cho Uyen, Uyen giu Purchase Manager.
+	dung("thu mua chot duoc", "Purchase Manager" in C.VAI_CHOT_GIA_KHAC)
+	dung("ke toan van chot duoc", "Accounts Manager" in C.VAI_CHOT_GIA_KHAC)
+	# Bep khong duoc chot gia.
+	dung("bep khong nam trong day", "Bộ phận đặt hàng" not in C.VAI_CHOT_GIA_KHAC)

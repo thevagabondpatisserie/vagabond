@@ -327,3 +327,49 @@ def _hai_duong_cung_can():
 			"tien_dong_may_ghi(" in ma)
 		dung("%s co hoi do chinh xac cua may" % ham.__name__,
 			"_do_chinh_xac()" in ma)
+
+
+# --------- v327: don vi cua nha cung cap chua khai thi khong duoc im lang
+
+@ca("don vi chua khai: bat dung dau van tay cua duong ha ngam")
+def _don_vi_chua_khai():
+	from vagabond import minvoice_chung_tu as mc
+
+	# Ca that HDM-26-08-00115: nha cung cap ghi "Gói", may ha ve "Gram" he
+	# so 1. Tien van dung nhung so luong lech mot nghin lan.
+	dung("Goi ma dang dung Gram he so 1",
+		mc.don_vi_chua_khai("Gói", "Gram", 1))
+	# Tra ra bang quy doi that thi he so khac 1, khong tinh la bia.
+	dung("Goi va dang dung Goi he so 1000",
+		not mc.don_vi_chua_khai("Gói", "Gói", 1000))
+	dung("Kg ma dang dung Kg", not mc.don_vi_chua_khai("Kg", "Kg", 1000))
+	# Cung mot don vi viet khac kieu thi khong phai loi.
+	dung("tui va Tui la mot", not mc.don_vi_chua_khai("tui", "Túi", 1))
+	# Nha cung cap khong ghi gi thi khong doan gia.
+	dung("khong ghi don vi thi thoi", not mc.don_vi_chua_khai("", "Gram", 1))
+
+
+@ca("nhip ra: soi ca DON VI chu khong chi soi tien")
+def _nhip_ra_soi_don_vi():
+	import inspect
+
+	from vagabond import dung_lai_hddt as D
+
+	dung("co cua soat don vi", hasattr(D, "soat_don_vi"))
+	ma = inspect.getsource(D.soat_don_vi)
+	dung("doc dau vet tu phan mo ta dong", "dvt_tren_hoa_don" in ma)
+	dung("dung chung phep xet voi luc kéo hoá đơn", "don_vi_chua_khai" in ma)
+	dung("tach rieng to da ghi so", "da_ghi_so" in ma)
+
+	ra = inspect.getsource(D.soat)
+	dung("nhip ra tra ve luon so to sai don vi", "so_lech_don_vi" in ra)
+
+
+@ca("cua ngo: soat_don_vi da khai trong danh sach mo ra ngoai")
+def _cua_ngo_soat_don_vi():
+	import os
+
+	goc = os.path.dirname(os.path.abspath(__file__))
+	ma = open(os.path.join(goc, "thu_cua_ngo.py"), encoding="utf-8").read()
+	doan = ma.split('"dung_lai_hddt.py"', 1)[1][:200]
+	dung("co ten soat_don_vi", '"soat_don_vi"' in doan)

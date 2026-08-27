@@ -112,6 +112,10 @@ async function scrDcmXem(name) {
        4 tui tuc 4.000 gram. Cai sai nguy hiem nhat lai la cai khong ai thay. */
     (s.dong || []).forEach(function (r) {
       var lechDvt = !!r.lech_dvt;
+      /* Cung so luong ma khac cai ten don vi thi KHONG phai loi: luc noi may
+         tu doi ten dong hoa don theo phieu nhap. Van noi cho nguoi ta biet,
+         vi nhin hai cot thay "Goi" canh "Kg" la de tuong minh go nham. */
+      var khacTen = !!r.khac_ten_dvt;
       var lech = lechDvt || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
       html += '<div style="padding:10px 14px;border-bottom:1px solid #f2f4f7;background:' + (lech ? '#fef2f2' : '#fff') + '">' +
         '<div style="font-size:13.5px;font-weight:600">' + h(r.item_name || r.item_code) + '</div>' +
@@ -127,7 +131,8 @@ async function scrDcmXem(name) {
               ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
                 '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
               : '')
-          : (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
+          : (khacTen ? '<div style="font-size:12px;color:#166534;margin-top:3px;line-height:1.55">Hoá đơn ghi <b>' + h(r.dvt_hd || '') + '</b>, phiếu nhập ghi <b>' + h(r.dvt_pnk || '') + '</b>, hai bên cùng ' + num(r.ton_hd) + ' ' + h(r.dvt_kho || '') + ' nên không sao. Lúc nối máy tự đổi tên đơn vị dòng hoá đơn cho khớp phiếu nhập.</div>' : '') +
+            (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
             (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '')) +
         '</div>';
     });

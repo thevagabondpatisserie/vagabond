@@ -579,7 +579,47 @@ def _tra_ma_hang(x, goc_mst, ncc):
 			{"parent": mapped, "uom": uom}, "conversion_factor")
 		if cf:
 			dung_uom, he_so = uom, cf
+		else:
+			# TRA KHONG RA HE SO. Van dung don vi kho voi he so 1 de to hoa
+			# don con dung so tien, nhung KHONG IM LANG nua.
+			#
+			# Ca that 27/08/2026, HDM-26-08-00115: nha cung cap ghi "Gói",
+			# Mon chua khai Gói nen may lang le ha ve Gram he so 1. Hoa don
+			# thanh 4,5 Gram trong khi phieu nhap la 4,5 Kg tuc 4.500 Gram.
+			# Tien van dung 1.575.000 nen nhin qua khong thay gi, nhung so
+			# luong lech mot nghin lan. Noi vao la hong gia von va ton kho.
+			#
+			# Dau vet nam o ngay o phan mo ta dong (`_dong_pi` ghi ten kem
+			# "(don vi cua nha cung cap)"), va `don_vi_chua_khai` doc lai
+			# duoc tu do de man ra hoa don loi ra.
+			frappe.log_error(
+				"Món %s: nhà cung cấp ghi đơn vị %r, danh mục Món chưa khai "
+				"đơn vị đó nên tạm dùng %s hệ số 1. Số tiền đúng nhưng số "
+				"lượng có thể lệch. Khai đơn vị vào bảng quy đổi của món rồi "
+				"dựng lại tờ hoá đơn."
+				% (mapped, uom, dvt_kho),
+				"minvoice: don vi chua khai",
+			)
 	return mapped, dung_uom, he_so
+
+
+def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
+	"""Dong nay co dang mang don vi bia ra khong. THUAN.
+
+	True khi nha cung cap co ghi don vi, ma don vi minh dang dung tren dong
+	lai khac ten VA he so dang la 1. Do dung la dau van tay cua duong ha
+	ngam: tra khong ra he so nen tam lay don vi kho voi he so 1.
+
+	He so khac 1 thi khong tinh, vi luc do da tra ra bang quy doi that.
+	"""
+	from vagabond import dvt_mua
+
+	ncc = (dvt_ncc or "").strip()
+	if not ncc:
+		return False
+	if dvt_mua.cung_don_vi(ncc, dvt_dang_dung):
+		return False
+	return abs(dvt_mua.he_so(he_so_dang_dung) - 1.0) < 1e-9
 
 
 def dung_hoa_don_mua(r):
