@@ -373,3 +373,18 @@ def _cua_ngo_soat_don_vi():
 	ma = open(os.path.join(goc, "thu_cua_ngo.py"), encoding="utf-8").read()
 	doan = ma.split('"dung_lai_hddt.py"', 1)[1][:200]
 	dung("co ten soat_don_vi", '"soat_don_vi"' in doan)
+
+
+# --------- v329: doc bang con thi dung frappe.db.get_all
+
+@ca("soat don vi: doc bang con khong duoc dung tham so parent")
+def _doc_bang_con():
+	import inspect
+
+	from vagabond import dung_lai_hddt as D
+
+	ma = inspect.getsource(D.soat_don_vi)
+	# v328 viet `parent=PI` nen nem TypeError ngay lan goi dau tren site that:
+	# tham so do chi co o tang API, khong co trong DatabaseQuery.
+	dung("khong con tham so parent", "parent=PI" not in ma)
+	dung("doc bang frappe.db.get_all", "frappe.db.get_all(" in ma)
