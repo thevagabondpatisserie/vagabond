@@ -222,3 +222,59 @@ def _khong_con_ve_0():
 	viec_cu, so_cu = mc.can_theo_truoc_thue(3650000, g["tien_truoc_thue"])
 	la("neo kieu cu ra giam", viec_cu, "giam")
 	la("giam dung bang ca to", so_cu, 3650000)
+
+
+# --------- v322: dung lai ca bang thue, va khong de don gia 0 bi dien lai
+
+@ca("dung lai: co dung lai CA BANG THUE theo ban goc")
+def _dung_ca_thue():
+	import inspect
+
+	from vagabond import dung_lai_hddt as D
+
+	# Ca that 27/08/2026, nhom hoa don LARAFARM lech dung 51.200 dong: ban
+	# goc ghi thue 0, dong hang dung ra dung 790.000, nhung tren chung tu
+	# con sot hai dong thue "On Net Total" 1331 va 33311 moi dong 25.600 do
+	# mau thue cua danh muc Mon ap vao luc to duoc sinh ra. Dung lai moi
+	# dong hang thi tong van lech, vi phan lech nam o bang thue.
+	dung("co ham dung lai bang thue", hasattr(D, "_dung_thue_tai_cho"))
+	ma = inspect.getsource(D._dung_thue_tai_cho)
+	dung("co xoa sach bang thue cu", 'doc.set("taxes", [])' in ma)
+	dung("chi dung lai theo tien_thue cua ban goc", 'g.get("tien_thue")' in ma)
+	dung("dat dong Actual chu khong phai On Net Total", '"Actual"' in ma)
+	dung("co bo mau thue cua chung tu", "taxes_and_charges" in ma)
+
+	goi = inspect.getsource(D._dung_dong_tai_cho)
+	dung("duong dung duy nhat co goi no", "_dung_thue_tai_cho(doc, g)" in goi)
+
+
+@ca("dung thu: uoc tong lay thue theo BAN GOC, khong lay thue dang co")
+def _uoc_tong_lay_thue_goc():
+	import inspect
+
+	from vagabond import dung_lai_hddt as D
+
+	ma = inspect.getsource(D.du_kien_tong)
+	dung("lay thue tu ban goc", 'flt(g.get("tien_thue"))' in ma)
+	dung("khong con lay thue dang co tren phieu",
+		"_tong_thue_tren_phieu(doc)" not in ma)
+
+
+@ca("dong hoa don: don gia 0 ma co thanh tien thi lay thanh tien")
+def _don_gia_khong():
+	import inspect
+
+	from vagabond import minvoice_chung_tu as mc
+
+	# Ca that 27/08/2026, hoa don tiep khach Avanti C26TAV/5019: dong "Phi
+	# phuc vu" ghi sluong 0, dgia 0, thtien 1.283.500. De don gia 0 di vao
+	# chung tu thi ERPNext dien lai theo Bang gia nhap cua mat hang
+	# (4.500.000) va to hoa don phinh them dung 4,5 trieu.
+	x = mc.dong_tu_hoa_don({"ten": "Phí phục vụ", "sluong": 0, "dgia": 0,
+		"thtien": 1283500})
+	la("so luong ve 1", x["sl"], 1)
+	la("don gia la thanh tien", x["gia"], 1283500)
+
+	ma = inspect.getsource(mc._dong_pi)
+	dung("co ghim price_list_rate theo don gia hoa don",
+		'"price_list_rate": x["gia"]' in ma)
