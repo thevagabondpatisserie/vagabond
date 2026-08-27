@@ -632,10 +632,43 @@ async function scrDsView(name, can) {
      biet. Nguon rieng cua mot diem thi van suy nguoc duoc. */
   var dsvDiem = d.vgb_quay || (nguonBH(d.custom_nguon) || {}).diem || '';
   var dsvNoiDung = posNoiDungCk(d.name, dsvDiem, d.custom_nguon || '');
+  /* DON DONG BO TU PANCAKE VE THI KHONG SINH MA QR NUA.
+
+     Anh Viet 28/08/2026, sau khi chi Loan Anh bao don chuyen khoan hom nay
+     dong bo ve da thay SePay khop du tien.
+
+     Don Pancake da co ma QR RIENG cua no: Pancake xin MB cap cho moi don mot
+     SO TAI KHOAN AO khac nhau, khach quet ma do de tra, va chinh nho vay ma
+     ngan hang bao co la doi soat duoc dung don. Man nay ma ve them mot ma QR
+     nua thi ra mot so tai khoan KHAC va mot noi dung chuyen khoan KHAC.
+
+     Hai cai hai:
+       - Nhin thay QR, sales tuong khach chua tra, di doi tien lan hai.
+       - Khach lo quet ma nay thi tien vao tai khoan chung voi noi dung khong
+         mang mach S<shop>O<don>T, mat luon duong doi soat tu dong cua don do.
+
+     Nen o day thay QR bang mot cau noi ro tien di duong nao. Cac nguon KHAC
+     (Tai cho, Mang ve, don nhap tay) van ve QR nhu cu, vi nhung don do khong
+     co tai khoan ao rieng, khong ve thi thu ngan phai mo app ngan hang go tay. */
+  function dsvTuPancake() {
+    return String(d.custom_nguon || '') === 'Pancake'
+      && String(d.custom_pancake_display_id || '').trim() !== '';
+  }
   function dsvVeQr() {
     var o = document.getElementById('dsvQr');
     if (!o) return;
     if (DSV_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (dsvTuPancake()) {
+      o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
+        'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
+        '<b>Đơn Pancake không cần mã QR của app</b><br>' +
+        'Pancake đã cấp riêng cho đơn ' + h(String(d.custom_pancake_display_id || '')) +
+        ' một số tài khoản nhận tiền, khách quét mã bên đó. ' +
+        'Máy đối soát theo số đơn nên tiền về là tự khớp.' +
+        '<br><span style="color:#0369a1">Đừng gửi thêm mã QR nào khác cho khách: tiền sẽ vào tài khoản chung ' +
+        'và mất đường đối soát tự động của đơn này.</span></div>';
+      return;
+    }
     var tien = d.grand_total || 0;
     var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem);
     if (!url) {
