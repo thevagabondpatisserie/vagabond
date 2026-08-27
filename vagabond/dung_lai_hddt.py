@@ -579,14 +579,18 @@ def soat_don_vi(gioi_han=300):
 	from vagabond import dvt_mua
 	from vagabond import minvoice_chung_tu as mc
 
-	dong = frappe.get_all(
+	# frappe.db.get_all chu khong frappe.get_all: doc thang bang con thi lop
+	# kiem quyen cua get_all doi them tham so `parent`, ma tham so do chi co
+	# o tang API chu khong co trong DatabaseQuery. Ban v328 truyen tham so do
+	# vao nen nem TypeError ngay lan goi dau tren site that (27/08/2026).
+	# Quyen da kiem o `_kiem_quyen` phia tren roi.
+	dong = frappe.db.get_all(
 		PI + " Item",
 		filters={"docstatus": ["<", 2]},
 		fields=["parent", "idx", "item_code", "item_name", "qty", "uom",
 			"conversion_factor", "stock_uom", "description"],
 		order_by="parent desc",
 		limit_page_length=0,
-		parent=PI,
 	)
 	if not dong:
 		return {"dong": [], "so_dong": 0, "so_to": 0}
