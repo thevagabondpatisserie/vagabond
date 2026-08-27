@@ -1657,6 +1657,49 @@ function vgbCss() {
     '.vxb.o{background:#fff;color:#101828;border:1px solid #d0d5dd;margin-top:8px}' +
     '.vxb.r{background:#d92d20;color:#fff}' +
     '.vxb[disabled]{opacity:.45}' +
+    /* KHUNG NHAP KIEU THE (anh Viet 27/08/2026: *"visual dang bi xau...
+       nhin no bi tho so"*).
+
+       Man Lap phieu xuat huy truoc day la mot cot nhan xam va o nhap tran,
+       khong co the, khong co vien, khong co biểu tuong - nhin nhu mot to
+       khai chua lam xong, trong khi moi man khac trong app deu la the trang
+       bo goc co do do. Chenh lech do lam nguoi dung tuong man nay chua
+       xong, va hoi lai.
+
+       Cac lop duoi day dung chung cho MOI man co bieu mau, khong rieng
+       xuat huy - dat ten `vf` (vagabond form) chu khong dat ten theo mot
+       man cu the. */
+    '.vf{background:#fff;border-radius:14px;padding:2px 14px 14px;margin-bottom:12px;' +
+    'box-shadow:0 1px 2px rgba(16,24,40,.06)}' +
+    '.vf .vfh{display:flex;align-items:center;gap:9px;padding:13px 0 3px}' +
+    '.vf .vfh .ic{font-size:17px;line-height:1;flex:none}' +
+    '.vf .vfh b{font-size:14px;color:#101828;font-weight:700;flex:1}' +
+    '.vf .vfh .bat{font-size:11px;font-weight:700;color:#b42318;background:#fef3f2;' +
+    'border-radius:999px;padding:2px 8px;flex:none}' +
+    '.vf .vfm{font-size:12px;color:#98a2b3;line-height:1.5;margin:0 0 8px}' +
+    /* O chon: bo mui ten mac dinh cua trinh duyet roi tu ve mot cai, de ba
+       he dieu hanh nhin giong nhau. */
+    '.vfs{width:100%;box-sizing:border-box;border:1.5px solid #d0d5dd;border-radius:11px;' +
+    'padding:13px 40px 13px 13px;font-size:16px;background:#fff;color:#101828;' +
+    'appearance:none;-webkit-appearance:none;cursor:pointer;' +
+    "background-image:url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E\");" +
+    'background-repeat:no-repeat;background-position:right 12px center}' +
+    '.vfi{width:100%;box-sizing:border-box;border:1.5px solid #d0d5dd;border-radius:11px;' +
+    'padding:13px;font-size:16px;background:#fff;color:#101828}' +
+    '.vfs:focus,.vfi:focus{outline:0;border-color:#50DBF2;box-shadow:0 0 0 3px rgba(80,219,242,.25)}' +
+    '.vfs.thieu,.vfi.thieu{border-color:#fda29b;background:#fffbfa}' +
+    /* O tai anh: giau input that di, ve mot vung bam de nhin ra la cho tai
+       anh. Input that van nam do va van bam duoc, chi la trong suot. */
+    '.vfa{position:relative;border:1.5px dashed #d0d5dd;border-radius:11px;background:#fcfcfd;' +
+    'padding:16px 13px;text-align:center;cursor:pointer}' +
+    '.vfa.thieu{border-color:#fda29b;background:#fffbfa}' +
+    '.vfa.xong{border-style:solid;border-color:#a6f4c5;background:#f6fef9}' +
+    '.vfa input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}' +
+    '.vfa .i{font-size:24px;line-height:1}' +
+    '.vfa .t{font-size:14px;font-weight:600;color:#344054;margin-top:5px}' +
+    '.vfa .p{font-size:12px;color:#98a2b3;margin-top:2px}' +
+    '.vfa.xong .t{color:#027a48}' +
+    '.vfanh{max-width:100%;border-radius:9px;margin-top:9px;display:block}' +
     '.vxr{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;' +
     'padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(16,24,40,.06)}' +
     '.vxr .t{flex:1;min-width:0}' +
@@ -2561,17 +2604,58 @@ async function scrXkHuyNew() {
     ly += '<option value="' + h(b.ly_do[i]) + '"' + (b.ly_do[i] === XK.lyDo ? ' selected' : '') +
       '>' + h(b.ly_do[i]) + '</option>';
   }
+  /* ANH CHUNG MINH NAY LA BAT BUOC (anh Viet 27/08/2026).
+
+     Truoc day o nay ghi "khong bat buoc". Xuat huy la hang roi khoi cong ty
+     va gia tri mat that, nen tam anh la thu duy nhat con lai de doi chieu
+     khi co ai hoi lai sau ba thang. Khong co anh thi phieu chi con la mot
+     dong chu.
+
+     May chu CHUA chan o nay - phep chan nam ben xuat_kho.luu_xuat_huy va
+     doi mot dong o do la doi luat cho ca cac duong goi khac. Man hinh chan
+     truoc, va noi ro la bat buoc, con viec siet o may chu de mot ban rieng
+     sau khi anh Viet duyet. */
   var body = frame('Lập phiếu xuất huỷ',
     '<div class="vxf">' +
-    '<div class="vxl">Kho xuất</div><select class="vxs" id="vxKho">' + vxKhoXuatOpt(b.kho, XK.kho) + '</select>' +
-    '<div class="vxl">Lý do huỷ</div><select class="vxs" id="vxLy">' + ly + '</select>' +
-    '<div class="vxl">Ảnh chứng minh (không bắt buộc)</div>' +
-    '<input class="vxi" type="file" accept="image/*" id="vxAnh">' +
-    '<div id="vxAnhOk" style="font-size:13px;color:#027a48;margin-top:6px"></div>' +
-    '<div class="vxl">Danh sách hàng huỷ</div><div id="vxDong">' + vxDongHtml() + '</div>' +
-    '<button class="vxb o" id="vxThem">+ Thêm hàng</button>' +
-    '<div class="vxl">Ghi chú</div>' +
-    '<input class="vxi" id="vxGc" placeholder="Ví dụ: bánh trưng bày hết ngày 03/08" value="' + h(XK.ghiChu) + '">' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">🏬</span><b>Kho xuất</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<select class="vfs" id="vxKho">' + vxKhoXuatOpt(b.kho, XK.kho) + '</select>' +
+    '<div class="vfm">Hàng sẽ trừ khỏi kho này sau khi quản lý ghi sổ.</div>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">❓</span><b>Lý do huỷ</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<select class="vfs" id="vxLy">' + ly + '</select>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">📷</span><b>Ảnh chứng minh</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<label class="vfa" id="vxAnhO">' +
+    '<input type="file" accept="image/*" id="vxAnh">' +
+    '<div class="i">📷</div>' +
+    '<div class="t" id="vxAnhT">Chụp hoặc chọn ảnh hàng huỷ</div>' +
+    '<div class="p" id="vxAnhP">Chạm vào đây để mở máy ảnh</div>' +
+    '</label>' +
+    '<div id="vxAnhOk"></div>' +
+    '<div class="vfm">Ảnh là thứ duy nhất còn lại để đối chiếu khi có người hỏi lại sau này.</div>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">🗑</span><b>Danh sách hàng huỷ</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<div id="vxDong">' + vxDongHtml() + '</div>' +
+    '<button class="vxb o" id="vxThem" style="margin-top:8px">+ Thêm hàng</button>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">📝</span><b>Ghi chú</b></div>' +
+    '<input class="vfi" id="vxGc" placeholder="Ví dụ: bánh trưng bày hết ngày 03/08" value="' + h(XK.ghiChu) + '">' +
+    '</div>' +
+
     '<button class="vxb" id="vxLuu">Lưu phiếu, chờ quản lý ghi sổ</button>' +
     '<div style="font-size:12px;color:#98a2b3;text-align:center;margin-top:10px">' +
     'Tồn kho chỉ trừ sau khi quản lý kho bấm Ghi sổ.</div></div>');
@@ -2586,12 +2670,13 @@ async function scrXkHuyNew() {
       toast('Đổi kho nên phải chọn lại hàng.');
     }
     XK.kho = this.value;
+    this.classList.remove('thieu');
     try { localStorage.setItem('vgbKhoXuat', XK.kho); } catch (e) { }
     var seYc = body.querySelector('#vxYc');
     if (seYc && XK.yc) { XK.yc = ''; seYc.value = ''; toast('Đổi kho xuất nên đã bỏ liên kết phiếu yêu cầu.'); }
     vxNoiDong(body);
   };
-  eLy.onchange = function () { XK.lyDo = this.value; };
+  eLy.onchange = function () { XK.lyDo = this.value; this.classList.remove('thieu'); };
   eGc.onchange = function () { XK.ghiChu = this.value; };
   vxNoiSuKien(body);
 
@@ -2607,21 +2692,51 @@ async function scrXkHuyNew() {
   body.querySelector('#vxAnh').onchange = async function () {
     var f = this.files && this.files[0];
     if (!f) return;
+    var o = body.querySelector('#vxAnhO');
+    var t = body.querySelector('#vxAnhT');
+    var pp = body.querySelector('#vxAnhP');
     var ok = body.querySelector('#vxAnhOk');
-    ok.textContent = 'Đang tải ảnh lên...';
+    o.classList.remove('thieu');
+    t.textContent = 'Đang tải ảnh lên...';
+    pp.textContent = f.name || '';
+    ok.textContent = '';
     try {
       XK.anh = await vxUpAnh(f);
-      ok.textContent = 'Đã tải ảnh lên.';
+      o.classList.add('xong');
+      t.textContent = 'Đã có ảnh chứng minh';
+      pp.textContent = 'Chạm để đổi ảnh khác';
+      /* Cho nhin thay ANH THAT vua chon. Ban cu chi hien mot dong chu, nen
+         chon nham anh trong thu vien thi khong ai biet cho den luc quan ly
+         mo phieu ra xem. */
+      ok.innerHTML = '<img class="vfanh" alt="Ảnh chứng minh" src="' + h(XK.anh) + '">';
     } catch (e) {
-      ok.style.color = '#d92d20';
-      ok.textContent = 'Không tải được ảnh: ' + (e.message || e);
+      o.classList.add('thieu');
+      t.textContent = 'Không tải được ảnh';
+      pp.textContent = (e && e.message) || String(e);
     }
   };
 
   body.querySelector('#vxLuu').onclick = async function () {
     XK.kho = eKho.value; XK.lyDo = eLy.value; XK.ghiChu = eGc.value;
-    if (!XK.kho) { toast('Chưa chọn kho xuất.'); return; }
-    if (!XK.lyDo) { toast('Chưa chọn lý do huỷ.'); return; }
+    /* To do o nao con thieu roi keo no vao giua man. Ban cu chi bung mot
+       cau toast roi tat sau vai giay, nguoi dung doc xong van khong biet
+       phai go vao dau - nhat la khi bieu mau dai hon mot man hinh. */
+    var thieu = null;
+    var to = function (el, co) {
+      if (!el) return;
+      el.classList.toggle('thieu', !!co);
+      if (co && !thieu) thieu = el;
+    };
+    to(eKho, !XK.kho);
+    to(eLy, !XK.lyDo);
+    to(body.querySelector('#vxAnhO'), !XK.anh);
+    if (thieu) {
+      try { thieu.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { }
+      if (!XK.kho) toast('Chưa chọn kho xuất.');
+      else if (!XK.lyDo) toast('Chưa chọn lý do huỷ.');
+      else toast('Phiếu xuất huỷ bắt buộc có ảnh chứng minh.', 4000);
+      return;
+    }
     if (!XK.gio.length) { toast('Chưa có món nào.'); return; }
     this.disabled = true;
     try {
@@ -2731,6 +2846,7 @@ async function scrXkCkNew() {
       toast('Đổi kho nên phải chọn lại hàng.');
     }
     XK.kho = this.value;
+    this.classList.remove('thieu');
     try { localStorage.setItem('vgbKhoXuat', XK.kho); } catch (e) { }
     var seYc = body.querySelector('#vxYc');
     if (seYc && XK.yc) { XK.yc = ''; seYc.value = ''; toast('Đổi kho xuất nên đã bỏ liên kết phiếu yêu cầu.'); }
@@ -17560,7 +17676,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '326';
+var APPVER = '327';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -36755,10 +36871,22 @@ function tlCss() {
   var s = document.createElement('style');
   s.id = 'tlCss';
   s.textContent =
+    /* Nut noi: KEO DI DUOC (anh Viet 27/08/2026).
+
+       Ban cu dinh cung o goc duoi ben trai, va no che mat cac nut nam o goc
+       do - man Lap phieu xuat huy la mot vi du, nut o duoi bi khuat han.
+       Mot nut tro giup ma che mat nut lam viec that thi no dang can tro chu
+       khong con tro giup.
+
+       `touch-action:none` la BAT BUOC, khong phai cho dep: thieu no thi
+       trinh duyet dien thoai hieu cu keo la cuon trang, va nut khong nhuc
+       nhich mot mi li met nao. */
     '#tlNut{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);' +
     'width:52px;height:52px;border-radius:26px;background:#05323C;color:#fff;border:0;' +
-    'font-size:24px;line-height:1;box-shadow:0 6px 18px rgba(5,50,60,.42);cursor:pointer;' +
-    'display:flex;align-items:center;justify-content:center;z-index:12}' +
+    'font-size:24px;line-height:1;box-shadow:0 6px 18px rgba(5,50,60,.42);cursor:grab;' +
+    'display:flex;align-items:center;justify-content:center;z-index:12;' +
+    'touch-action:none;user-select:none;-webkit-user-select:none}' +
+    '#tlNut.keo{cursor:grabbing;opacity:.85;transform:scale(1.08)}' +
     '#tlNen{position:fixed;inset:0;background:rgba(5,50,60,.42);z-index:13;display:none}' +
     '#tlKhung{position:fixed;left:0;right:0;bottom:0;max-height:82vh;background:#fff;' +
     'border-radius:18px 18px 0 0;z-index:14;display:none;flex-direction:column;' +
@@ -36872,6 +37000,103 @@ function tlBat() {
   if (o) o.focus();
 }
 
+/* ---------- Keo nut tro ly di cho khac ----------
+
+   BA DIEU PHAI DUNG, thieu mot la nut thanh vo dung:
+
+   1. KEO XONG KHONG DUOC MO HOP THOAI. Cham va keo tren dien thoai deu la
+      mot chuoi pointerdown roi pointerup, nen neu khong phan biet thi moi
+      lan keo xong hop thoai tro ly bat len. Phan biet bang QUANG DUONG da
+      di: duoi 6 diem thi coi la cham, tu 6 diem tro len la keo.
+   2. KHONG DUOC RA NGOAI MAN HINH. Keo qua tay mot cai la nut bien mat va
+      khong co cach nao lay lai. Kep lai trong mep man hinh, chua 4 diem.
+   3. PHAI NHO CHO. Nguoi dung keo mot lan roi doi man, hay dong app mo lai,
+      ma nut nhay ve cho cu thi ho phai keo lai mai. Nho trong bo nho trinh
+      duyet cua may do - moi may mot cho, khong dinh sang may khac.
+
+   Nho theo hai o `left` va `top` thay vi `bottom`: doi man hinh xoay ngang
+   hay ban phim bung len thi `bottom` nhay lung tung. */
+var TL_CHO = 'vgbTroLyCho';
+
+function tlDocCho() {
+  try {
+    var t = JSON.parse(localStorage.getItem(TL_CHO) || 'null');
+    if (t && typeof t.x === 'number' && typeof t.y === 'number') return t;
+  } catch (e) { }
+  return null;
+}
+
+function tlKep(nut, x, y) {
+  var m = 4;
+  var w = nut.offsetWidth || 52, h = nut.offsetHeight || 52;
+  var mx = Math.max(m, Math.min(x, window.innerWidth - w - m));
+  var my = Math.max(m, Math.min(y, window.innerHeight - h - m));
+  return { x: mx, y: my };
+}
+
+function tlDatCho(nut, x, y) {
+  var v = tlKep(nut, x, y);
+  nut.style.left = v.x + 'px';
+  nut.style.top = v.y + 'px';
+  nut.style.bottom = 'auto';
+  nut.style.right = 'auto';
+  return v;
+}
+
+function tlChoKeo(nut) {
+  /* Cho da nho tu lan truoc. Doi ngay luc gan, truoc khi ai kip nhin thay
+     no o cho cu. */
+  var cu = tlDocCho();
+  if (cu) tlDatCho(nut, cu.x, cu.y);
+
+  var dangKeo = 0, daDi = 0, lechX = 0, lechY = 0, maCham = null;
+
+  nut.addEventListener('pointerdown', function (e) {
+    dangKeo = 1; daDi = 0; maCham = e.pointerId;
+    var o = nut.getBoundingClientRect();
+    lechX = e.clientX - o.left;
+    lechY = e.clientY - o.top;
+    try { nut.setPointerCapture(e.pointerId); } catch (e2) { }
+  });
+
+  nut.addEventListener('pointermove', function (e) {
+    if (!dangKeo || e.pointerId !== maCham) return;
+    var x = e.clientX - lechX, y = e.clientY - lechY;
+    var o = nut.getBoundingClientRect();
+    daDi += Math.abs(x - o.left) + Math.abs(y - o.top);
+    if (daDi >= 6) nut.classList.add('keo');
+    tlDatCho(nut, x, y);
+  });
+
+  function xong(e) {
+    if (!dangKeo || (e && e.pointerId !== maCham)) return;
+    dangKeo = 0;
+    nut.classList.remove('keo');
+    try { nut.releasePointerCapture(maCham); } catch (e2) { }
+    if (daDi < 6) return;   /* cham nhe, de onclick lo viec mo hop thoai */
+    var o = nut.getBoundingClientRect();
+    var v = tlKep(nut, o.left, o.top);
+    tlDatCho(nut, v.x, v.y);
+    try { localStorage.setItem(TL_CHO, JSON.stringify(v)); } catch (e3) { }
+  }
+  nut.addEventListener('pointerup', xong);
+  nut.addEventListener('pointercancel', xong);
+
+  /* Vua keo xong thi CHAN cu bam do lai, khong thi hop thoai bat len ngay
+     sau moi lan keo. Dung capture de chan truoc khi onclick chay. */
+  nut.addEventListener('click', function (e) {
+    if (daDi >= 6) { e.stopPropagation(); e.preventDefault(); daDi = 0; }
+  }, true);
+
+  /* Xoay man hinh hay ban phim bung len lam man hep lai: keo nut ve trong
+     mep, khong de no nam ngoai roi mat hut. */
+  window.addEventListener('resize', function () {
+    var o = nut.getBoundingClientRect();
+    if (!o.width) return;
+    tlDatCho(nut, o.left, o.top);
+  });
+}
+
 function tlGan() {
   if (document.getElementById('tlNut') || !tlDuocDung()) return;
   tlCss();
@@ -36882,6 +37107,7 @@ function tlGan() {
   nut.innerHTML = '&#128172;';
   nut.onclick = function () { tlMo ? tlDong() : tlBat(); };
   document.body.appendChild(nut);
+  tlChoKeo(nut);
 
   var nen = document.createElement('div');
   nen.id = 'tlNen';
