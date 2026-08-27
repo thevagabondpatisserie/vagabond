@@ -118,7 +118,7 @@ def doc_chi_tiet(chi_tiet):
 	return ds if isinstance(ds, list) else []
 
 
-def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien):
+def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien, dp_sl=None):
 	"""Số tiền một dòng SAU KHI máy làm tròn. THUẦN.
 
 	VÌ SAO PHẢI TÍNH TRƯỚC PHẦN LÀM TRÒN - ca thật 27/08/2026
@@ -132,8 +132,12 @@ def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien):
 	Nên phải cân theo con số máy SẼ ghi, chứ không theo con số hoá đơn đọc
 	lên. Một đồng cũng phải đúng: cửa chặn ghi sổ lấy ngưỡng một đồng, hụt
 	một đồng là tờ đó nằm lại mãi.
+
+	Ô SỐ LƯỢNG cũng bị cắt y như ô đơn giá. Ca thật HDM-2026-00398: hoá đơn
+	ghi 2,762431 đơn vị, máy chỉ giữ ba số lẻ nên ghi 2,762, hụt 9,36 đồng.
+	Bản đầu của hàm này chỉ cắt đơn giá nên còn sót đúng loại đó.
 	"""
-	return flt(flt(sl) * flt(gia, dp_gia), dp_tien)
+	return flt(flt(sl, dp_sl) * flt(gia, dp_gia), dp_tien)
 
 
 def ten_dong_bu(so_tien):
@@ -230,9 +234,10 @@ def _dung_dong_tai_cho(doc, g):
 		x = mc.dong_tu_hoa_don(it)
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
-	dp_gia, dp_tien = _do_chinh_xac()
+	dp_gia, dp_tien, dp_sl = _do_chinh_xac()
 	tong_dong = sum(
-		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien) for d in moi
+		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
+		for d in moi
 	)
 	viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
 	if viec == "phi":
@@ -258,13 +263,14 @@ def _tong_thue_tren_phieu(doc):
 
 
 def _do_chinh_xac():
-	"""(số lẻ ô đơn giá, số lẻ ô thành tiền) mà máy đang dùng."""
+	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng."""
 	try:
 		gia = cint(frappe.get_precision(PI + " Item", "rate"))
 		tien = cint(frappe.get_precision(PI + " Item", "amount"))
+		sl = cint(frappe.get_precision(PI + " Item", "qty"))
 	except Exception:
-		gia, tien = 0, 0
-	return (gia or 2), (tien or 2)
+		gia, tien, sl = 0, 0, 0
+	return (gia or 2), (tien or 2), (sl or 3)
 
 
 def _tk_thue_vao(doc):
@@ -325,11 +331,12 @@ def du_kien_tong(doc, g):
 		from vagabond import minvoice_chung_tu as mc
 
 		goc_mst = (g.get("mst_doi_tac") or "").split("-")[0]
-		dp_gia, dp_tien = _do_chinh_xac()
+		dp_gia, dp_tien, dp_sl = _do_chinh_xac()
 		tong_dong = 0.0
 		for it in dong_goc:
 			x = mc.dong_tu_hoa_don(it)
-			tong_dong += tien_dong_may_ghi(x.get("sl"), x.get("gia"), dp_gia, dp_tien)
+			tong_dong += tien_dong_may_ghi(
+				x.get("sl"), x.get("gia"), dp_gia, dp_tien, dp_sl)
 		viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
 		net = tong_dong + (so_tien if viec == "phi" else 0) - (so_tien if viec == "giam" else 0)
 		# Thuế lấy theo BẢN GỐC, không lấy theo bảng thuế đang có trên phiếu:
