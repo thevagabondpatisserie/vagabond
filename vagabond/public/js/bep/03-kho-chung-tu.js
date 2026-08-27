@@ -293,17 +293,58 @@ async function scrXkHuyNew() {
     ly += '<option value="' + h(b.ly_do[i]) + '"' + (b.ly_do[i] === XK.lyDo ? ' selected' : '') +
       '>' + h(b.ly_do[i]) + '</option>';
   }
+  /* ANH CHUNG MINH NAY LA BAT BUOC (anh Viet 27/08/2026).
+
+     Truoc day o nay ghi "khong bat buoc". Xuat huy la hang roi khoi cong ty
+     va gia tri mat that, nen tam anh la thu duy nhat con lai de doi chieu
+     khi co ai hoi lai sau ba thang. Khong co anh thi phieu chi con la mot
+     dong chu.
+
+     May chu CHUA chan o nay - phep chan nam ben xuat_kho.luu_xuat_huy va
+     doi mot dong o do la doi luat cho ca cac duong goi khac. Man hinh chan
+     truoc, va noi ro la bat buoc, con viec siet o may chu de mot ban rieng
+     sau khi anh Viet duyet. */
   var body = frame('Lập phiếu xuất huỷ',
     '<div class="vxf">' +
-    '<div class="vxl">Kho xuất</div><select class="vxs" id="vxKho">' + vxKhoXuatOpt(b.kho, XK.kho) + '</select>' +
-    '<div class="vxl">Lý do huỷ</div><select class="vxs" id="vxLy">' + ly + '</select>' +
-    '<div class="vxl">Ảnh chứng minh (không bắt buộc)</div>' +
-    '<input class="vxi" type="file" accept="image/*" id="vxAnh">' +
-    '<div id="vxAnhOk" style="font-size:13px;color:#027a48;margin-top:6px"></div>' +
-    '<div class="vxl">Danh sách hàng huỷ</div><div id="vxDong">' + vxDongHtml() + '</div>' +
-    '<button class="vxb o" id="vxThem">+ Thêm hàng</button>' +
-    '<div class="vxl">Ghi chú</div>' +
-    '<input class="vxi" id="vxGc" placeholder="Ví dụ: bánh trưng bày hết ngày 03/08" value="' + h(XK.ghiChu) + '">' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">🏬</span><b>Kho xuất</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<select class="vfs" id="vxKho">' + vxKhoXuatOpt(b.kho, XK.kho) + '</select>' +
+    '<div class="vfm">Hàng sẽ trừ khỏi kho này sau khi quản lý ghi sổ.</div>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">❓</span><b>Lý do huỷ</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<select class="vfs" id="vxLy">' + ly + '</select>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">📷</span><b>Ảnh chứng minh</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<label class="vfa" id="vxAnhO">' +
+    '<input type="file" accept="image/*" id="vxAnh">' +
+    '<div class="i">📷</div>' +
+    '<div class="t" id="vxAnhT">Chụp hoặc chọn ảnh hàng huỷ</div>' +
+    '<div class="p" id="vxAnhP">Chạm vào đây để mở máy ảnh</div>' +
+    '</label>' +
+    '<div id="vxAnhOk"></div>' +
+    '<div class="vfm">Ảnh là thứ duy nhất còn lại để đối chiếu khi có người hỏi lại sau này.</div>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">🗑</span><b>Danh sách hàng huỷ</b>' +
+    '<span class="bat">Bắt buộc</span></div>' +
+    '<div id="vxDong">' + vxDongHtml() + '</div>' +
+    '<button class="vxb o" id="vxThem" style="margin-top:8px">+ Thêm hàng</button>' +
+    '</div>' +
+
+    '<div class="vf">' +
+    '<div class="vfh"><span class="ic">📝</span><b>Ghi chú</b></div>' +
+    '<input class="vfi" id="vxGc" placeholder="Ví dụ: bánh trưng bày hết ngày 03/08" value="' + h(XK.ghiChu) + '">' +
+    '</div>' +
+
     '<button class="vxb" id="vxLuu">Lưu phiếu, chờ quản lý ghi sổ</button>' +
     '<div style="font-size:12px;color:#98a2b3;text-align:center;margin-top:10px">' +
     'Tồn kho chỉ trừ sau khi quản lý kho bấm Ghi sổ.</div></div>');
@@ -318,12 +359,13 @@ async function scrXkHuyNew() {
       toast('Đổi kho nên phải chọn lại hàng.');
     }
     XK.kho = this.value;
+    this.classList.remove('thieu');
     try { localStorage.setItem('vgbKhoXuat', XK.kho); } catch (e) { }
     var seYc = body.querySelector('#vxYc');
     if (seYc && XK.yc) { XK.yc = ''; seYc.value = ''; toast('Đổi kho xuất nên đã bỏ liên kết phiếu yêu cầu.'); }
     vxNoiDong(body);
   };
-  eLy.onchange = function () { XK.lyDo = this.value; };
+  eLy.onchange = function () { XK.lyDo = this.value; this.classList.remove('thieu'); };
   eGc.onchange = function () { XK.ghiChu = this.value; };
   vxNoiSuKien(body);
 
@@ -339,21 +381,51 @@ async function scrXkHuyNew() {
   body.querySelector('#vxAnh').onchange = async function () {
     var f = this.files && this.files[0];
     if (!f) return;
+    var o = body.querySelector('#vxAnhO');
+    var t = body.querySelector('#vxAnhT');
+    var pp = body.querySelector('#vxAnhP');
     var ok = body.querySelector('#vxAnhOk');
-    ok.textContent = 'Đang tải ảnh lên...';
+    o.classList.remove('thieu');
+    t.textContent = 'Đang tải ảnh lên...';
+    pp.textContent = f.name || '';
+    ok.textContent = '';
     try {
       XK.anh = await vxUpAnh(f);
-      ok.textContent = 'Đã tải ảnh lên.';
+      o.classList.add('xong');
+      t.textContent = 'Đã có ảnh chứng minh';
+      pp.textContent = 'Chạm để đổi ảnh khác';
+      /* Cho nhin thay ANH THAT vua chon. Ban cu chi hien mot dong chu, nen
+         chon nham anh trong thu vien thi khong ai biet cho den luc quan ly
+         mo phieu ra xem. */
+      ok.innerHTML = '<img class="vfanh" alt="Ảnh chứng minh" src="' + h(XK.anh) + '">';
     } catch (e) {
-      ok.style.color = '#d92d20';
-      ok.textContent = 'Không tải được ảnh: ' + (e.message || e);
+      o.classList.add('thieu');
+      t.textContent = 'Không tải được ảnh';
+      pp.textContent = (e && e.message) || String(e);
     }
   };
 
   body.querySelector('#vxLuu').onclick = async function () {
     XK.kho = eKho.value; XK.lyDo = eLy.value; XK.ghiChu = eGc.value;
-    if (!XK.kho) { toast('Chưa chọn kho xuất.'); return; }
-    if (!XK.lyDo) { toast('Chưa chọn lý do huỷ.'); return; }
+    /* To do o nao con thieu roi keo no vao giua man. Ban cu chi bung mot
+       cau toast roi tat sau vai giay, nguoi dung doc xong van khong biet
+       phai go vao dau - nhat la khi bieu mau dai hon mot man hinh. */
+    var thieu = null;
+    var to = function (el, co) {
+      if (!el) return;
+      el.classList.toggle('thieu', !!co);
+      if (co && !thieu) thieu = el;
+    };
+    to(eKho, !XK.kho);
+    to(eLy, !XK.lyDo);
+    to(body.querySelector('#vxAnhO'), !XK.anh);
+    if (thieu) {
+      try { thieu.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { }
+      if (!XK.kho) toast('Chưa chọn kho xuất.');
+      else if (!XK.lyDo) toast('Chưa chọn lý do huỷ.');
+      else toast('Phiếu xuất huỷ bắt buộc có ảnh chứng minh.', 4000);
+      return;
+    }
     if (!XK.gio.length) { toast('Chưa có món nào.'); return; }
     this.disabled = true;
     try {
@@ -463,6 +535,7 @@ async function scrXkCkNew() {
       toast('Đổi kho nên phải chọn lại hàng.');
     }
     XK.kho = this.value;
+    this.classList.remove('thieu');
     try { localStorage.setItem('vgbKhoXuat', XK.kho); } catch (e) { }
     var seYc = body.querySelector('#vxYc');
     if (seYc && XK.yc) { XK.yc = ''; seYc.value = ''; toast('Đổi kho xuất nên đã bỏ liên kết phiếu yêu cầu.'); }
