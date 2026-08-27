@@ -51,7 +51,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, tai_khoan
-from vagabond import luat_thanh_toan
+from vagabond import ghi_so_dieu_kien, luat_thanh_toan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
@@ -1782,6 +1782,9 @@ def bang_doanh_so(ngay=None):
 	# Tong phan giam TREN DONG HANG cua tung don. Doc mot luot cho ca ngay
 	# thay vi mo tung don: mot cau truy van thay vi vai chuc.
 	_gan_giam_dong(sis)
+	# Cung mot phep voi man tinh tien cua cac diem ban: chip "Khong ghi so
+	# duoc" phai noi CUNG MOT CAU o moi man (anh Viet 27/08/2026).
+	_gan_ly_do_treo(sis)
 
 	return {
 		"ngay": str(ngay),
@@ -1791,6 +1794,7 @@ def bang_doanh_so(ngay=None):
 		"tong_nhap": sum(s.grand_total for s in sis if s.docstatus == 0),
 		"tong_chot": sum(s.grand_total for s in sis if s.docstatus == 1),
 		"so_don_trung": len([1 for v in dem.values() if v > 1]),
+		"ly_do_treo": dict(ghi_so_dieu_kien.LY_DO),
 	}
 
 
@@ -2749,12 +2753,12 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 # Ba viec o day: don_treo() liet ke ra kem LY DO tung don; canh_bao_don_treo()
 # gui thu moi dem khi con don treo; keo_va_ghi_so() xu ly ca loat.
 
-LY_DO_TREO = {
-	"chua_pt": "Chưa chọn phương thức thanh toán",
-	"pt_sai_nguon": "Phương thức không dùng được cho nguồn đơn này",
-	"chua_ve_tien": "Chuyển khoản nhưng ngân hàng chưa nhận đủ tiền",
-	"san_sang": "Đã đủ điều kiện, chỉ chờ ghi sổ",
-}
+# Cau chu lay tu `ghi_so_dieu_kien` chu KHONG chep lai o day: man "Don con
+# treo" va chip "Khong ghi so duoc" tren cac man tinh tien phai noi y het
+# nhau ve cung mot don. Hai bang chu song song thi mot ngay nao do sua mot
+# ben quen ben kia, va hai man noi hai cau khac nhau (anh Viet 27/08/2026).
+LY_DO_TREO = dict(ghi_so_dieu_kien.LY_DO)
+LY_DO_TREO["san_sang"] = "Đã đủ điều kiện, chỉ chờ ghi sổ"
 
 
 def _ly_do_treo(r, sepay):
@@ -4137,6 +4141,8 @@ def pos_ds_bill(quay=None, ngay=None):
 			"vgb_xhd_ten", "vgb_xhd_mst", "vgb_so_ban",
 			"vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi", "vgb_lan_sua",
 			"custom_hddt_so", "custom_hddt_trang_thai",
+			# Ba o duoi day chi phuc vu phep "ghi so duoc chua" ben duoi.
+			"customer", "custom_pancake_id", "vgb_quay",
 		],
 		order_by="creation desc",
 		limit_page_length=0,
@@ -4166,10 +4172,87 @@ def pos_ds_bill(quay=None, ngay=None):
 		r["sepay_nhan"] = max(flt(g.get("nhan")), flt(gd.get("nhan")))
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
+	_gan_ly_do_treo(ds)
 	# Tinh trang keo don Pancake. Man hinh dan cau nay len dau bang khi don
 	# chua ve, thay vi de Sales nhin danh sach it hon roi tu doan (bai hoc
 	# 26-27/08/2026: hai ngay don khong ve ma khong man nao noi mot cau).
-	return {"ngay": str(ngay), "bill": ds, "pancake": pancake_nhip.tinh_trang()}
+	return {
+		"ngay": str(ngay),
+		"bill": ds,
+		"pancake": pancake_nhip.tinh_trang(),
+		"ly_do_treo": dict(ghi_so_dieu_kien.LY_DO),
+	}
+
+
+def _quay_tu_ghi_so():
+	"""Tap ma quay duoc chuoi cuoi ngay ghi so, doc tu Cai dat.
+
+	Doc y het cach chuoi cuoi ngay doc (xem `tu_ghi_so` phia tren): cung mot
+	o cau hinh, cung phep tach dong va viet hoa. Doc khac di mot chut la man
+	hinh noi mot dang ma may lam mot dang.
+	"""
+	try:
+		tho = str(cfg().get("tu_ghi_so_quay") or "")
+	except Exception:
+		return set()
+	return set(
+		q.strip().upper()
+		for q in tho.replace(",", "\n").splitlines()
+		if q.strip()
+	)
+
+
+def _gan_ly_do_treo(ds):
+	"""Gan `ly_do_treo` va `ly_do_treo_chu` cho tung dong bill.
+
+	Anh Viet 27/08/2026: moi man tinh tien phai co chip loc "Khong ghi so
+	duoc" de cac ban dien bo sung TRUOC 23h, thay vi den 23h may lang le bo
+	qua roi sang hom sau khong ai biet don do o dau.
+
+	Phep quyet dinh nam ben `ghi_so_dieu_kien`, la phep THUAN nen kiem thu
+	duoc khong can site. O day chi lam viec doc du kien: phuong thuc hop le
+	cua tung nguon, phuong thuc nao bat buoc co ma, va quay nao nam trong
+	chuoi tu ghi so.
+	"""
+	if not ds:
+		return
+	try:
+		can_ma = set(d["ten"] for d in pt_thanh_toan.ds(chi_dung=True) if d.get("bat"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc phuong thuc bat buoc ma")
+		can_ma = set()
+	quay_bat = _quay_tu_ghi_so()
+	try:
+		khach_le = _khach_le()
+	except Exception:
+		khach_le = ""
+	theo_nguon = {}
+	for r in ds:
+		nguon = str(r.get("custom_nguon") or "")
+		if nguon not in theo_nguon:
+			try:
+				theo_nguon[nguon] = set(_pt_cho_nguon(nguon))
+			except Exception:
+				# Doc khong duoc thi de None: `ly_do` se BO QUA phep kiem
+				# nguon thay vi bao sai la "phuong thuc sai nguon".
+				theo_nguon[nguon] = None
+		q = str(r.get("vgb_quay") or "").strip().upper()
+		if q:
+			trong_chuoi = q in quay_bat
+		else:
+			# Diem khong co quay: chuoi cuoi ngay chi nhat don CO ma Pancake
+			# (xem `loc_sales`). Don Sales nhap tay khong co ma do nen may
+			# khong bao gio nhat, phai ghi so tay.
+			trong_chuoi = bool(str(r.get("custom_pancake_id") or "").strip())
+		ma = ghi_so_dieu_kien.ly_do(
+			r,
+			pt_hop_le=theo_nguon[nguon],
+			pt_can_ma=can_ma,
+			trong_chuoi=trong_chuoi,
+			khach_le=khach_le,
+		)
+		r["ly_do_treo"] = ma
+		r["ly_do_treo_chu"] = ghi_so_dieu_kien.chu(ma)
 
 
 def _loc_diem_ban(ma):
