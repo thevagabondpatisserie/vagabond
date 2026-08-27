@@ -535,10 +535,20 @@ function vgbGomNhom() {
     if (!daXep[kk] && khac.keys.indexOf(kk) < 0) khac.keys.push(kk);
   }
 
-  var tongViec = 0;
-  for (var vk in VGB_HUB) if (VGB_HUB[vk].cnt) tongViec += VGB_HUB[vk].cnt;
+  /* O "Viec can lam" PHAI deo con so, y het moi o khac.
+
+     Anh Viet 27/08/2026: ke toan gui ba ho so thanh toan len cho giam doc
+     duyet, tren app cua anh "chang co gi de duyet ca". Ba ho so nam dung
+     buoc, quyen dung, may chu tra ve du. Nhung o nay la o DUY NHAT tren
+     trang chu khong co con so, nen nhin vao tuong la khong co viec, va
+     nguoi ta di sang man "Duyet phieu chi" - man do doc mot loai chung tu
+     khac han nen no rong that.
+
+     Con so lay tu may chu, GOM SAU khi ve xong luoi, de trang chu khong
+     phai cho. Chua ve xong thi o van bam duoc nhu cu. */
   var g = '<div class="gwrap">' +
     '<div class="gt vcl" data-nhom="VCL">' +
+    '<span class="gb" id="vgbSoVCL" style="display:none"></span>' +
     '<div class="gi">📌</div>' +
     '<div><div class="gn">Việc cần làm</div>' +
     '<div class="gs">' + 'Danh sách phiếu đang chờ bạn xử lý' + '</div></div></div>';
@@ -568,6 +578,23 @@ function vgbGomNhom() {
     if (t.dataset.nhom === 'VCL') return vgbGo('VCL');
     if (nh) vgbGo('PH:' + nh.k);
   };
+  vgbDemVCL();
+}
+
+/* Hoi may chu xem nguoi nay con bao nhieu viec, roi deo len o.
+
+   Hong thi IM LANG. O khong deo so van dung nhu truoc, con hien mot loi do
+   giua trang chu vi mot con so phu thi lam ca man xau di. */
+async function vgbDemVCL() {
+  var o = document.getElementById('vgbSoVCL');
+  if (!o) return;
+  try {
+    var kq = await api('vagabond.viec_can_lam.dem', {});
+    var n = (kq && kq.tong) || 0;
+    if (!n) return;
+    o.textContent = n > 99 ? '99+' : String(n);
+    o.style.display = '';
+  } catch (e) { }
 }
 
 /* ---------- Việc cần làm ----------
