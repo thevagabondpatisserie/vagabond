@@ -700,14 +700,53 @@ async function scrPayList() {
         '<div class="l2">' + h(d.name) + ' &middot; ' + dmy(d.posting_date) + (d.custom_loai_chi ? '<br>' + h(d.custom_loai_chi) : '') + '</div></div>' +
         '<div style="text-align:right"><div class="amt">' + money(d.paid_amount) + '</div>' +
         '<span class="st ' + cls + '" style="margin-top:4px">' + h(d.workflow_state) + '</span></div></div>';
-    }).join('') + '</div>' : '<div class="emp"><div class="e1">✅</div><div class="e2">Không có phiếu nào cần xử lý</div></div>';
+    }).join('') + '</div>' : payRong();
     var b = frame('Duyệt phiếu chi', '<div class="chips">' + chips + '</div>' + lst);
     b.onclick = function (e) {
       var c = e.target.closest('[data-s]'); if (c) { payTab = c.dataset.s; return draw(); }
+      if (e.target.closest('[data-hstt]')) return vgbGo('APPTT');
       var r = e.target.closest('[data-n]'); if (r) go(function () { scrPayView(r.dataset.n); });
     };
   }
   draw();
+  payDoHoSo(draw);
+}
+
+/* So ho so thanh toan dang cho CHINH nguoi nay, doc mot lan moi lan mo man. */
+var paySoHoSo = 0;
+
+async function payDoHoSo(ve) {
+  paySoHoSo = 0;
+  try {
+    var kq = await api('vagabond.viec_can_lam.danh_sach', { loai: 'ho_so_tt' });
+    var ds = (kq && kq.ds) || [];
+    paySoHoSo = ds.filter(function (x) { return x.tt === 'cho_duyet'; }).length;
+  } catch (e) { return; }
+  if (paySoHoSo && ve) ve();
+}
+
+/* O RONG cua man Duyet phieu chi.
+
+   Anh Viet 27/08/2026: ke toan gui ba ho so thanh toan len cho giam doc
+   duyet, anh mo man nay va thay trong tron, tuong he thong khong dong bo.
+
+   That ra co HAI hang doi tien khac nhau. Man nay doc Payment Entry, tuc
+   tung phieu chi le. Con ho so thanh toan APP la mot loai chung tu khac,
+   gom nhieu hoa don cua mot nha cung cap vao mot bo, va no nam ben man Ho
+   so thanh toan. Hai hang doi, ma chi mot cai mang ten "Duyet phieu chi".
+
+   Nen o rong khong duoc noi trong khong. No phai noi ro hang doi kia con
+   bao nhieu bo, va bay san duong sang do. */
+function payRong() {
+  if (paySoHoSo) {
+    return '<div class="emp"><div class="e1">🏦</div>' +
+      '<div class="e2">Không có phiếu chi lẻ nào ở bước này</div>' +
+      '<div style="font-size:13px;color:#8a90a0;margin-top:10px;line-height:1.6;padding:0 18px">' +
+      'Nhưng còn <b style="color:#c0392b">' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn duyệt. ' +
+      'Hồ sơ thanh toán gom nhiều hoá đơn của một nhà cung cấp vào một bộ, nằm ở màn riêng.</div>' +
+      '<button class="btn" data-hstt="1" style="margin:14px 18px 0">Mở Hồ sơ thanh toán</button></div>';
+  }
+  return '<div class="emp"><div class="e1">✅</div><div class="e2">Không có phiếu nào cần xử lý</div></div>';
 }
 
 async function scrPayView(name) {

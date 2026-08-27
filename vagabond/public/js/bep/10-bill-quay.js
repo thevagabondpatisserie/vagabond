@@ -49,7 +49,13 @@ async function posInBill(d) {
       '<tr><td class="s">' + money(m.qty) + ' x ' + money(m.rate) + '<span class="r">' + money(m.qty * m.rate) + '</span></td></tr>';
   }).join('');
   var qrKhoi = '';
-  if (d.tam_tinh) {
+  /* Don Pancake KHONG in QR thanh toan len phieu: no da co tai khoan ao
+     rieng ben Pancake, in them ma cua tiem la mo mot duong tra tien thu hai
+     vao tai khoan chung, mat duong doi soat theo so don. */
+  /* Duong in chi mang `nguon`, khong mang so don Pancake, nen soi bang
+     nguon la du: nguon Pancake thi don nao cung co tai khoan ao rieng. */
+  var pkIn = String(d.nguon || '') === 'Pancake';
+  if (d.tam_tinh && !pkIn) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
@@ -528,10 +534,28 @@ async function scrPosBill(name) {
   }
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
 
+  /* Don Pancake da co tai khoan ao rieng cua no, xem doan mo ta ben
+     `dsvVeQr` trong 08-doanh-so-sales.js. Ve them mot ma QR nua o day la
+     bay ra mot so tai khoan khac va mot noi dung khac: sales tuong khach
+     chua tra, con khach lo quet thi mat duong doi soat tu dong cua don. */
+  function pbTuPancake() {
+    return String(d.custom_nguon || '') === 'Pancake'
+      && String(d.custom_pancake_display_id || '').trim() !== '';
+  }
   function veQr() {
     var o = document.getElementById('pbQr');
     if (!o) return;
-    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay) : '';
+    if (PB_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (pbTuPancake()) {
+      o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
+        'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
+        '<b>Đơn Pancake không cần mã QR của app</b><br>' +
+        'Pancake đã cấp riêng cho đơn ' + h(String(d.custom_pancake_display_id || '')) +
+        ' một số tài khoản nhận tiền. Máy đối soát theo số đơn nên tiền về là tự khớp.' +
+        '</div>';
+      return;
+    }
+    o.innerHTML = posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay);
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
