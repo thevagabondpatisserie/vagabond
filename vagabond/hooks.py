@@ -246,6 +246,11 @@ doc_events = {
 	},
 	"Purchase Receipt": {
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		# Cau bao tieng Viet khi ngay don mua muon hon ngay phieu nhap. Dat o
+		# before_validate vi `validate_posting_date_with_po` cua ERPNext nam
+		# ngay dong dau `validate()`, nen minh phai noi truoc no. KHONG noi
+		# chot nao, chi doi cau chu. Xem dau tep ngay_don_mua.py.
+		"before_validate": "vagabond.ngay_don_mua.bao_ngay_don_mua",
 		# Ghi lai gia va so luong da doi so voi don mua hang. CHI GHI CHU,
 		# khong chan ai - doc `vagabond/gia_khi_nhan.py` de biet vi sao noi
 		# hai cai chan cua ERPNext ra ma van con kiem soat.
@@ -304,6 +309,9 @@ doc_events = {
 			# thong. Dat o before_validate vi ERPNext tinh lai tong tien SAU
 			# buoc nay - cung ly do voi hook ngay tren.
 			"vagabond.dung_lai_hddt.dong_bo_luc_luu",
+			# Cau bao tieng Viet khi ngay don mua muon hon ngay hoa don. Xem
+			# ghi chu cung ten o khoi Purchase Receipt phia tren.
+			"vagabond.ngay_don_mua.bao_ngay_don_mua",
 		],
 		"validate": [
 			"vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
