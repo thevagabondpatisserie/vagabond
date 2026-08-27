@@ -544,8 +544,9 @@ def soat(gioi_han=300):
 	try:
 		dv = soat_don_vi(gioi_han=1)
 		so_lech_dvt, so_dong_lech_dvt = dv.get("so_to", 0), dv.get("so_dong", 0)
+		so_to_dv = dv.get("so_to_dich_vu", 0)
 	except Exception:
-		so_lech_dvt, so_dong_lech_dvt = 0, 0
+		so_lech_dvt, so_dong_lech_dvt, so_to_dv = 0, 0, 0
 	return {
 		"nhap": nhap[: max(1, cint(gioi_han) or 300)],
 		"da_ghi_so": xong,
@@ -553,6 +554,9 @@ def soat(gioi_han=300):
 		"so_da_ghi_so": len(xong),
 		"so_lech_don_vi": so_lech_dvt,
 		"so_dong_lech_don_vi": so_dong_lech_dvt,
+		# Dem rieng, KHONG cong vao con so canh bao phia tren: day la dong
+		# dich vu chua anh xa vao Mon, khong phai lech don vi.
+		"so_to_dich_vu_chua_anh_xa": so_to_dv,
 		"nguong": NGUONG,
 	}
 
@@ -593,7 +597,7 @@ def soat_don_vi(gioi_han=300):
 		limit_page_length=0,
 	)
 	if not dong:
-		return {"dong": [], "so_dong": 0, "so_to": 0}
+		return {"dong": [], "so_dong": 0, "so_to": 0, "so_dong_dich_vu": 0, "so_to_dich_vu": 0, "dong_dich_vu": []}
 	nghi = []
 	for d in dong:
 		dvt_ncc = dvt_mua.dvt_tren_hoa_don(d.get("description"))
@@ -601,7 +605,7 @@ def soat_don_vi(gioi_han=300):
 			continue
 		nghi.append(d)
 	if not nghi:
-		return {"dong": [], "so_dong": 0, "so_to": 0}
+		return {"dong": [], "so_dong": 0, "so_to": 0, "so_dong_dich_vu": 0, "so_to_dich_vu": 0, "dong_dich_vu": []}
 
 	ten_to = sorted({d["parent"] for d in nghi})
 	to = {
@@ -633,10 +637,24 @@ def soat_don_vi(gioi_han=300):
 			"dvt_kho": d.get("stock_uom") or "",
 		})
 	ra.sort(key=lambda x: (0 if not x["da_ghi_so"] else 1, x["name"]))
+
+	# TACH HAI LOAI. Dong khong tra ra ma hang la dong dich vu ("Chuyen",
+	# "Phieu", "Dich vu chiu thue"...). Chung khong co don vi kho de doi
+	# chieu nen khong phai lech that, dem chung vao la thoi phong con so.
+	#
+	# Ngay 27/08/2026 con so dua ra man hinh la 1.185 to trong khi lech
+	# that chi 505 to. Anh Viet noi dung: canh bao nhieu nhu vay thi vai
+	# hom la khong ai nhin nua. Nen `so_to` va `so_dong` tu day CHI dem
+	# dong co ma hang. Phan dich vu van tra ve nhung dem rieng.
+	that = [x for x in ra if not dvt_mua.dong_dich_vu(x.get("item_code"))]
+	dich_vu = [x for x in ra if dvt_mua.dong_dich_vu(x.get("item_code"))]
 	return {
-		"dong": ra[: max(1, cint(gioi_han) or 300)],
-		"so_dong": len(ra),
-		"so_to": len({x["name"] for x in ra}),
+		"dong": that[: max(1, cint(gioi_han) or 300)],
+		"so_dong": len(that),
+		"so_to": len({x["name"] for x in that}),
+		"so_dong_dich_vu": len(dich_vu),
+		"so_to_dich_vu": len({x["name"] for x in dich_vu}),
+		"dong_dich_vu": dich_vu[: max(1, cint(gioi_han) or 300)],
 	}
 
 
@@ -756,6 +774,164 @@ def dung_lai_tat_ca(gioi_han=40):
 			"%d tờ lỗi, còn %d tờ chưa chạy."
 			% (len(khop), len(bo_qua), len(hong), con_lai),
 	}
+
+
+@frappe.whitelist()
+def dung_lai_lech_don_vi(gioi_han=40):
+	"""Dung lai HANG LOAT cac to NHAP dang lech DON VI (tien van dung).
+
+	Khac `dung_lai_tat_ca`: ham kia lay danh sach tu `soat` - tuc la nhung
+	to lech TIEN. Nhom 505 to nay tien dung tuyet doi nen ham kia khong
+	bao gio dung toi. Phai co duong rieng.
+
+	Anh Viet cho phep 27/08/2026: toan bo la to nhap, khong cham so sach,
+	khong cham hoa don da gui co quan thue.
+
+	KHONG SUA TAY SO LUONG. Chi dung lai dong hang tu ban hoa don dien tu
+	goc. Neu Mon da khai don vi cua nha cung cap thi lan dung lai nay tra
+	ra dung don vi va dung he so; neu Mon chua khai thi ket qua khong doi
+	gi ca - to do van nam lai trong danh sach cho Uyen khai don vi. Chay
+	lai bao nhieu lan cung ra mot ket qua.
+
+	Hang rao giu nguyen nhu ham anh em: dung thu truoc, luu xong ma tong
+	lech la tra to ve nguyen trang.
+	"""
+	_quyen_manh()
+	dv = soat_don_vi(gioi_han=100000)
+	ten_to = []
+	for d in dv.get("dong") or []:
+		if d.get("da_ghi_so"):
+			continue
+		if d["name"] not in ten_to:
+			ten_to.append(d["name"])
+	ds = ten_to[: max(1, cint(gioi_han) or 40)]
+
+	sua, khong_doi, bo_qua, hong = [], [], [], []
+	for ten in ds:
+		try:
+			doc = frappe.get_doc(PI, ten)
+			if cint(doc.docstatus) != 0:
+				bo_qua.append({"name": ten, "vi_sao": "đã ghi sổ"})
+				continue
+			g = _goc(doc.get("custom_minvoice_id"))
+			if not g:
+				hong.append({"name": ten, "vi_sao": "mất bản hoá đơn điện tử gốc"})
+				continue
+			nen, vi_sao = dung_lai_co_loi_khong(doc, g)
+			if not nen:
+				bo_qua.append({"name": ten, "vi_sao": vi_sao})
+				continue
+			truoc = _van_tay_don_vi(doc)
+			tong_truoc = flt(doc.base_grand_total)
+			phieu = _phieu_da_noi(doc)
+			_dung_dong_tai_cho(doc, g)
+			_noi_lai(doc, phieu)
+			doc.flags.ignore_permissions = True
+			doc.save()
+			viec, _l = huong_lech(doc.base_grand_total, g.get("tong_tien"))
+			if viec != "khop":
+				frappe.db.rollback()
+				bo_qua.append({
+					"name": ten,
+					"vi_sao": "dựng lại xong tổng lại lệch, đã trả về nguyên trạng",
+				})
+				continue
+			sau = _van_tay_don_vi(doc)
+			frappe.db.commit()
+			mot = {
+				"name": ten,
+				"ncc": doc.get("supplier_name") or doc.get("supplier"),
+				"ngay": str(doc.get("posting_date") or ""),
+				"so_hd": doc.get("bill_no") or "",
+				"tong": tong_truoc,
+				"truoc": truoc,
+				"sau": sau,
+			}
+			(sua if sau != truoc else khong_doi).append(mot)
+		except Exception as e:
+			frappe.db.rollback()
+			hong.append({"name": ten, "vi_sao": str(e)[:160]})
+
+	con_lai = max(0, len(ten_to) - len(ds))
+	return {
+		"so_sua": len(sua),
+		"so_khong_doi": len(khong_doi),
+		"sua": sua,
+		"khong_doi": khong_doi,
+		"bo_qua": bo_qua,
+		"hong": hong,
+		"con_lai": con_lai,
+		"loi_nhan": "Dựng lại %d tờ đổi được đơn vị, %d tờ dựng lại nhưng chưa đổi "
+			"được vì món chưa khai đơn vị, %d tờ để nguyên, %d tờ lỗi, còn %d tờ "
+			"chưa chạy."
+			% (len(sua), len(khong_doi), len(bo_qua), len(hong), con_lai),
+	}
+
+
+def _van_tay_don_vi(doc):
+	"""Dau van tay don vi cua ca to, de so truoc va sau khi dung lai."""
+	return " | ".join(
+		"%s:%g%s*%g" % (
+			r.get("item_code") or "",
+			flt(r.get("qty")),
+			r.get("uom") or "",
+			flt(r.get("conversion_factor")) or 1,
+		)
+		for r in (doc.get("items") or [])
+	)
+
+
+@frappe.whitelist()
+def soat_do_tam(nguong=None):
+	"""CHI DOC: mon nao dang bi dung lam cho do tam cho nhieu thu khac nhau.
+
+	Ca that 27/08/2026 (anh Viet xac nhan): mon NVLT00231 "Nuoc, ml" von la
+	nuoc may de san xuat, khong theo doi ton kho, chi co don vi ml. Vay ma
+	bang anh xa dang tro 18 ten hang cua nha cung cap vao no: nuoc da bao,
+	nuoc suoi chai, nuoc sparkling, nuoc mam chay, ca "Che troi nuoc" va
+	"nuoc tra bi dao" tren hoa don nha hang. Khop chi vi cung co chu "nuoc".
+
+	Hau qua kep: gia von mon nuoc thanh vo nghia, va cac khoan tiep khach
+	bi nhet vao nguyen vat lieu.
+
+	Chi LIET KE, khong tu go anh xa nao - do la quyet dinh phan loai ke
+	toan, dieu 11 khong cho tu sua du lieu cu.
+	"""
+	_kiem_quyen()
+	from vagabond import dvt_mua
+
+	ds = frappe.get_all(
+		"MInvoice NCC Map",
+		filters={"item_code": ["is", "set"]},
+		fields=["name", "supplier_mst", "ma_ncc", "ten_ncc", "item_code"],
+		limit_page_length=0,
+	)
+	theo_mon = {}
+	for r in ds:
+		theo_mon.setdefault(r["item_code"], []).append(r)
+
+	nguong = cint(nguong) or dvt_mua.NGUONG_DO_TAM
+	ra = []
+	for ma, rows in theo_mon.items():
+		ten_khac_nhau = {str(r.get("ten_ncc") or "").strip().lower() for r in rows}
+		ten_khac_nhau.discard("")
+		if not dvt_mua.dang_do_tam(ma, len(ten_khac_nhau), nguong):
+			continue
+		mon = frappe.db.get_value(
+			"Item", ma, ["item_name", "stock_uom", "is_stock_item"], as_dict=True
+		) or {}
+		ra.append({
+			"item_code": ma,
+			"item_name": mon.get("item_name") or "",
+			"dvt_kho": mon.get("stock_uom") or "",
+			"theo_doi_ton": cint(mon.get("is_stock_item")) == 1,
+			"so_ten_ncc": len(ten_khac_nhau),
+			"ten_ncc": sorted(
+				{str(r.get("ten_ncc") or "").strip() for r in rows if r.get("ten_ncc")}
+			),
+		})
+	ra.sort(key=lambda x: -x["so_ten_ncc"])
+	return {"mon": ra, "so_mon": len(ra), "nguong": nguong}
 
 
 @frappe.whitelist()

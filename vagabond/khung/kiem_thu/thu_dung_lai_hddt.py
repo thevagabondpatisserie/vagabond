@@ -371,8 +371,14 @@ def _cua_ngo_soat_don_vi():
 
 	goc = os.path.dirname(os.path.abspath(__file__))
 	ma = open(os.path.join(goc, "thu_cua_ngo.py"), encoding="utf-8").read()
-	doan = ma.split('"dung_lai_hddt.py"', 1)[1][:200]
-	dung("co ten soat_don_vi", '"soat_don_vi"' in doan)
+	# Cat den dau ngoac vuong DONG chu khong cat theo so ky tu. Ban cu cat
+	# 200 ky tu, den 27/08/2026 them mot dong ghi chu vao danh sach la ca
+	# kiem do ngay trong khi ma nguon hoan toan dung. Ca kiem noi doi thi
+	# con te hon khong co ca kiem.
+	doan = ma.split('"dung_lai_hddt.py"', 1)[1]
+	doan = doan[: doan.index("]") + 1]
+	for ten in ("soat_don_vi", "dung_lai_lech_don_vi", "soat_do_tam"):
+		dung("co ten %s" % ten, ('"%s"' % ten) in doan)
 
 
 # --------- v329: doc bang con thi dung frappe.db.get_all
