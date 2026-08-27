@@ -89,11 +89,15 @@ function vxNoiSuKien(body) {
 function scrXkChonHang(kho, quayVe) {
   vgbCss();
   var body = frame('Thêm hàng', '<div class="vxf">' +
-    srchBox('vxQ', 'Gõ tên hoặc mã hàng rồi Enter', '', true) +
+    srchBox('vxQ', 'Gõ tên hoặc mã hàng, ví dụ banh o', '', true) +
     '<div id="vxKq" style="margin-top:12px"></div></div>');
   var q = body.querySelector('#vxQ');
   var kq = body.querySelector('#vxKq');
   var ds = [];
+  /* Tran may chu dang tra ve. Bang dung con so ben xuat_kho.tim_hang, de
+     man hinh biet luc nao danh sach BI CAT chu khong phai het hang. */
+  var XK_TRAN = 200;
+  var choTim = null;
 
   function themMon(x) {
     for (var m = 0; m < XK.gio.length; m++) {
@@ -105,11 +109,18 @@ function scrXkChonHang(kho, quayVe) {
   }
 
   async function tim() {
+    var dang = (q.value || '');
     kq.innerHTML = '<div style="text-align:center;color:#98a2b3;padding:18px">Đang tìm...</div>';
-    ds = (await api('vagabond.xuat_kho.tim_hang', { kho: kho, tu_khoa: q.value || '' })) || [];
+    ds = (await api('vagabond.xuat_kho.tim_hang',
+      { kho: kho, tu_khoa: dang, gioi_han: XK_TRAN })) || [];
+    /* Go tiep trong luc dang hoi thi bo ket qua cu di, khong ve de len ket
+       qua moi hon. */
+    if ((q.value || '') !== dang) return;
     if (!ds.length) {
       kq.innerHTML = '<div style="text-align:center;color:#98a2b3;padding:18px;font-size:14px">' +
-        'Kho này không còn tồn mã nào khớp.</div>';
+        (dang
+          ? 'Không có mã nào còn tồn khớp với <b>' + h(dang) + '</b> trong kho này.'
+          : 'Kho này không còn tồn mã nào.') + '</div>';
       return;
     }
     var anh = {};
@@ -129,7 +140,23 @@ function scrXkChonHang(kho, quayVe) {
         '<div class="vxgm">' + h(x.ma) + '</div>' +
         '<div class="vxgt' + (x.ton > 0 ? '' : ' r') + '">Tồn ' + vxSo(x.ton) + ' ' + h(x.dvt || '') + '</div></div>';
     }
-    kq.innerHTML = s + '</div>';
+    /* NOI RO KHI DANH SACH BI CAT.
+
+       Ngay 26/08/2026 Sales bao "ben xuat huy dang bi thieu ma cac san pham
+       nhu banh o, banh nuong". Khong ma nao thieu ca: tran cu la 60 dong xep
+       theo van chu cai, ma ten banh nao cung bat dau bang chu "Banh", nen 60
+       dong dau la het sach Croissant va Banh O nam qua khoi vach cat.
+
+       Cat thi van phai cat, nhung cat ma im lang thi nguoi dung doc thanh
+       "he thong thieu ma". Nen no phai tu noi ra. */
+    s += '</div>';
+    if (ds.length >= XK_TRAN) {
+      s += '<div style="font-size:12.5px;color:#b45309;background:#fffbeb;' +
+        'border:1px solid #fde68a;border-radius:9px;padding:9px 11px;margin-top:10px;line-height:1.55">' +
+        'Kho này còn nhiều hơn ' + XK_TRAN + ' mã, đây mới là ' + XK_TRAN + ' mã đầu. ' +
+        'Gõ tên hoặc mã vào ô tìm ở trên để lọc, ví dụ <b>banh o</b> hoặc <b>BAWC</b>.</div>';
+    }
+    kq.innerHTML = s;
     var rs = kq.querySelectorAll('[data-th]');
     for (var j = 0; j < rs.length; j++) {
       rs[j].onclick = function () { themMon(ds[+this.dataset.th]); };
@@ -142,12 +169,30 @@ function scrXkChonHang(kho, quayVe) {
     var ic = await itemByBarcode(String(code).trim());
     if (!ic) { toast('Chưa nhận ra mã ' + code); return; }
     for (var i = 0; i < ds.length; i++) if (ds[i].ma === ic) return themMon(ds[i]);
-    var them = (await api('vagabond.xuat_kho.tim_hang', { kho: kho, tu_khoa: ic })) || [];
+    var them = (await api('vagabond.xuat_kho.tim_hang',
+      { kho: kho, tu_khoa: ic, gioi_han: XK_TRAN })) || [];
     for (var j = 0; j < them.length; j++) if (them[j].ma === ic) return themMon(them[j]);
     toast(ic + ' không còn tồn trong kho này');
   }
 
-  q.onkeydown = function (e) { if (e.key === 'Enter') tim(); };
+  /* TIM NGAY KHI GO, khong bat cho bam Enter.
+
+     Ban cu chi tim khi bam Enter. Tren may tinh o quay va tren dien thoai,
+     Sales go xong nhin thay danh sach mac dinh van y nguyen va ket luan la
+     "khong co ma do". Anh chup man hinh 26/08 thay ro: o tim dang co chu
+     ma luoi ben duoi van la danh sach chua loc.
+
+     Cho 320 mi li giay roi moi hoi, de go mot tu khong thanh nam luot hoi.
+     Man Don tiec da lam dung kieu nay tu truoc, nay hai man giong nhau. */
+  q.oninput = function () {
+    if (choTim) clearTimeout(choTim);
+    choTim = setTimeout(tim, 320);
+  };
+  q.onkeydown = function (e) {
+    if (e.key !== 'Enter') return;
+    if (choTim) clearTimeout(choTim);
+    tim();
+  };
   var sb = body.querySelector('#vxQscan');
   if (sb) sb.onclick = quet;
   tim();

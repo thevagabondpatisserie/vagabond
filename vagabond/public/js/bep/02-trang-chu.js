@@ -197,6 +197,9 @@ async function scrHome() {
         card('🏦', 'Tài khoản nhận tiền', 'Số tài khoản sinh mã QR, khai riêng được cho từng nguồn đơn', 0, 'CDTK') +
         card('🎂', 'Danh mục sản phẩm', 'Mở mã hàng mới trong bảy ô, máy tự đặt mã và cảnh báo trùng tên', 0, 'CDSP') +
         card('🖨', 'Máy in', 'Sổ máy in từng điểm bán và khổ giấy cho mỗi loại phiếu', 0, 'CDMI') +
+        /* Mau in nam ngay duoi May in vi hai man hay bi lan: May in la
+           "in o dau, to bao nhieu", Mau in la "tren to do in nhung gi". */
+        card('🧾', 'Mẫu in ấn', 'Trên tờ hoá đơn và tem in những gì, chữ to hay nhỏ, in thử ngay tại quầy', 0, 'CDMU') +
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
@@ -391,7 +394,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
 ];
 
 var VGB_HUB = {};
@@ -809,6 +812,7 @@ var VGB_DUONG = {
   'kiem-banh-theo-mua': 'KBM',
   'kiem-ke': 'KK',
   'ma-otp': 'OTP',
+  'mau-in': 'CDMU',
   'may-in': 'CDMI',
   'nghien-cuu-phat-trien': 'RND',
   'nguoi-dung': 'QLND',
@@ -1003,6 +1007,7 @@ function vgbGo(k) {
   if (k === 'CDTK') return go(scrTaiKhoan);
   if (k === 'CDSP') return go(scrDanhMuc);
   if (k === 'CDMI') return go(scrMayIn);
+  if (k === 'CDMU') return go(scrMauIn);
   if (k === 'CDQQ') return go(scrQuyenQuay);
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);

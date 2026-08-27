@@ -215,9 +215,13 @@ function cfdVeChip() {
   var o = document.getElementById('cfdChip');
   if (!o) return;
   var song = cfdSongLuc && (Date.now() - cfdSongLuc) < CFD_SONG_HAN;
+  /* Chua mo thi noi luon PHAI LAM GI. Man hinh phu o quay Tran Cao Van
+     dang duoc dat che do Duplicate nen no chi soi lai man cua thu ngan;
+     ba cau nay la ba viec can lam de no thanh man hinh rieng. */
   o.textContent = song
     ? 'Đang bật, khách nhìn thấy giỏ hàng và mã QR.'
-    : 'Chưa mở màn hình khách.';
+    : 'Chưa mở. Bấm Mở, kéo cửa sổ sang màn hình phụ rồi bấm Toàn màn hình. '
+    + 'Windows phải để màn hình phụ ở chế độ Extend, không phải Duplicate.';
   o.style.color = song ? '#0f766e' : '#98a2b3';
 }
 

@@ -196,7 +196,7 @@ function inSoDiem(rongMm, dpi) {
    CSS. Bill 72mm rong 272 diem CSS. May in 203 DPI can 575 diem. Nen giu
    iframe dung be ngang that roi chup o scale 203/96: chu nho ra sac net
    dung nhu may in ve duoc, khong phong to mot anh mo. */
-async function inChupRaster(tepHtml, rongMm, dpi, duongDan) {
+async function inChupRaster(tepHtml, rongMm, dpi, duongDan, catTheo) {
   await inNapJs(IN_VENDOR.h2c);
   if (typeof html2canvas === 'undefined') throw new Error('html2canvas không nạp được');
   var rongCss = Math.ceil((rongMm || 72) * (96 / 25.4));
@@ -233,10 +233,97 @@ async function inChupRaster(tepHtml, rongMm, dpi, duongDan) {
       logging: false,
       useCORS: true
     });
-    return canvas.toDataURL('image/png').split(',')[1];
+    if (!catTheo) return canvas.toDataURL('image/png').split(',')[1];
+    return inCatTrang(canvas, tl, catTheo, (dpi || 203) / 96);
   } finally {
     document.body.removeChild(khung);
   }
+}
+
+/* Cat mot anh dai thanh nhieu trang, moi the khop `catTheo` mot trang.
+
+   VI SAO PHAI CAT (anh Viet 26/08/2026, hai tam anh tem trang)
+   ------------------------------------------------------------
+   Mot lenh in pixel cua QZ la MOT trang. Truoc day ca xap tem duoc chup
+   thanh mot anh cao 40 x 180mm roi day xuong mot lan, va may in tem tu ke
+   theo khe cat cua giay die-cut - nghia la anh chay lech dan qua tung khe,
+   tem thu ba tro di in de len mep. Nay moi tem la mot anh rieng, may in
+   nhan sau lenh cho sau tem, moi lenh vua dung mot con tem.
+
+   Do bang offsetTop / offsetHeight chu khong bang getBoundingClientRect:
+   hai o do la HOP BO CUC, khong doi khi the bi xoay. Nhung neu the that su
+   co xoay thi cho ve va cho bo cuc lech nhau, nen ben goi phai tu tranh
+   truong hop do - xem cho goi trong inGiay. */
+function inCatTrang(canvas, tailieu, catTheo, ti_le) {
+  var the = tailieu.querySelectorAll(catTheo);
+  if (!the || the.length < 2) return [canvas.toDataURL('image/png').split(',')[1]];
+  var ra = [];
+  for (var i = 0; i < the.length; i++) {
+    var tren = Math.round(the[i].offsetTop * ti_le);
+    var cao = Math.round(the[i].offsetHeight * ti_le);
+    if (cao < 1) continue;
+    if (tren + cao > canvas.height) cao = canvas.height - tren;
+    if (cao < 1) continue;
+    var o = document.createElement('canvas');
+    o.width = canvas.width;
+    o.height = cao;
+    var v = o.getContext('2d');
+    v.fillStyle = '#ffffff';
+    v.fillRect(0, 0, o.width, o.height);
+    v.drawImage(canvas, 0, tren, canvas.width, cao, 0, 0, canvas.width, cao);
+    ra.push(o.toDataURL('image/png').split(',')[1]);
+  }
+  return ra.length ? ra : [canvas.toDataURL('image/png').split(',')[1]];
+}
+
+/* ---------- Kho giay va mat do diem, khai dung don vi ----------
+
+   LOI DA LAM RA "MAU GIAY MINI" VA "TEM TRANG" (anh Viet 26/08/2026)
+   ------------------------------------------------------------------
+   Ban cu khai don vi trang bang MI LI MET kem `density: 203`. Doc mot minh
+   thi hai o do
+   deu dung, ghep lai thi sai: trong QZ, mat do diem tinh THEO CHINH DON VI
+   dang khai. Xem chu thich trong thu vien da nap san,
+   vagabond/public/js/vendor/qz-tray.js:
+
+       @param {number} [options.density=0] Pixel density (DPI, DPMM, or
+              DPCM depending on [options.units]).
+       @param {string} [options.units='in'] Page units, applies to paper
+              size, margins, and density.
+
+   Nen `units:'mm'` + `density:203` nghia la 203 diem MOI MI LI MET, gap
+   25,4 lan y dinh. Ca to bill 80mm bi nen con hon 3mm - dung cai mau giay
+   con con anh Viet chup - va con tem 40 x 30mm bi nen con 1,6 x 1,2mm,
+   nhin bang mat thuong la tem trang.
+
+   Nay khai het bang INCH: `density` la DPI dung nghia, con kho giay thi
+   doi tu mi li met sang inch ngay tai day. Kho giay ben app van khai bang
+   mi li met nhu cu, khong man hinh nao phai doi. */
+function inMmSangInch(mm) {
+  return (Number(mm) || 0) / 25.4;
+}
+
+function inCauHinh(may, rongMm, caoMm, dpi) {
+  var d = Number(dpi) || 203;
+  return qz.configs.create(may, {
+    colorType: 'blackwhite',
+    units: 'in',
+    density: d,
+    margins: 0,
+    size: {
+      width: inMmSangInch(rongMm),
+      /* Giay cuon khong co chieu cao co dinh: de trong cho may tu cat theo
+         chieu dai that cua anh. Tem thi phai khai, khong khai thi mot con
+         tem cung bi keo dai ra het ca cuon. */
+      height: (Number(caoMm) > 0) ? inMmSangInch(caoMm) : null
+    },
+    scaleContent: false,
+    rasterize: true,
+    /* Anh da duoc dung o dung so diem cua may in nen khong co phep phong
+       to thu nho nao xay ra. Chon nearest-neighbor de neu co lech mot diem
+       thi chu van den tuyen, khong bi vien xam. */
+    interpolation: 'nearest-neighbor'
+  });
 }
 
 /* ---------- Tang 3: cua chinh, va luoi an toan ---------- */
@@ -329,19 +416,22 @@ async function inGiay(vaiTro, tieuDe, tepHtml, rongMm, chamMs) {
   }
   try {
     var dpi = (IN_QZ.tuyen && IN_QZ.tuyen.dpi) || 203;
-    var anh = await inChupRaster(tepHtml, rongMm, dpi);
-    var cfg = qz.configs.create(may, {
-      colorType: 'blackwhite',
-      density: dpi,
-      units: 'mm',
-      margins: 0,
-      size: { width: rongMm, height: null },
-      scaleContent: false,
-      rasterize: true
+    /* Kho giay that cua vai tro nay. Tem co chieu cao co dinh nen moi con
+       tem la mot trang; giay cuon thi khong. Xem inCatTrang o tren.
+
+       Tem da XOAY 90 do thi khong cat: luc do cho VE va cho BO CUC cua the
+       khong con trung nhau, cat theo bo cuc se cat trung vao giua chu. Kho
+       xoay la truong hop hiem, cu in mot dai nhu cu, khong lam hong them. */
+    var k = (typeof inKho === 'function') ? inKho(vaiTro) : null;
+    var caoMm = (k && !k.cuon && Number(k.cao) > 0) ? Number(k.cao) : 0;
+    var xoay = !!(k && Number(k.xoay) === 90);
+    var catTheo = (vaiTro === 'tem' && caoMm > 0 && !xoay) ? '.tem' : '';
+    var anh = await inChupRaster(tepHtml, rongMm, dpi, null, catTheo);
+    var cfg = inCauHinh(may, rongMm, catTheo ? caoMm : 0, dpi);
+    var xap = (catTheo ? anh : [anh]).map(function (a) {
+      return { type: 'pixel', format: 'image', flavor: 'base64', data: a };
     });
-    await qz.print(cfg, [{
-      type: 'pixel', format: 'image', flavor: 'base64', data: anh
-    }]);
+    await qz.print(cfg, xap);
     return 'qz';
   } catch (e) {
     /* Hong giua chung: may in rut day, QZ vua tat, chung thu het han.
@@ -373,10 +463,9 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
        thoai in cua trinh duyet ngay giua luc in ngam. */
     var u = duongDan.replace(/[?&]trigger_print=1/, '');
     var anh = await inChupRaster(null, rongMm, dpi, u);
-    var cfg = qz.configs.create(may, {
-      colorType: 'blackwhite', density: dpi, units: 'mm', margins: 0,
-      size: { width: rongMm, height: null }, scaleContent: false, rasterize: true
-    });
+    /* Ban in do may chu dung: khong biet no chia trang bang the gi nen
+       khong cat, chi sua lai don vi mat do diem cho dung. */
+    var cfg = inCauHinh(may, rongMm, 0, dpi);
     await qz.print(cfg, [{ type: 'pixel', format: 'image', flavor: 'base64', data: anh }]);
     return 'qz';
   } catch (e) {

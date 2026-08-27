@@ -4,6 +4,7 @@
    Boot trong window load - bai hoc CSRF tu app /bep. */
 (function () {
 	var DL = null, DANG_SUA = null, VE_TRUOC = null, NGAY_CHON = null;
+	var NGHI_DEN = 0;   // moc thoi gian duoc phep goi dong bo lai
 	var BTP = {}; // ma -> {so_btp, con_nhan} tu bang BTP cua bep
 	var BTP_SUA = false; // chi bep duoc sua (server quyet qua quyen_btp)
 	var SO_NGAY = 4; // hom nay + 3 ngay ke
@@ -37,10 +38,44 @@
 		});
 	}
 
+	/* Luoi chan cuoi cung: khong bao gio de mot khoa API di ra man hinh.
+	   May chu da giau roi (vagabond/lib.giau_khoa), day la lop thu hai,
+	   phong khi loi den tu mot duong khac chua qua cho do.
+	   Ngay 26/08/2026 Sales chup duoc mot man hinh co ca khoa Pancake. */
+	function sach(t) {
+		return String(t == null ? "" : t)
+			.replace(/(api_key|access_token|token|key)=[^&\s"']+/gi, "$1=***");
+	}
+
+	/* Loi cua thu vien mang dai loang ngoang va khong noi ai phai lam gi.
+	   Bat lay may dang hay gap, doi thanh mot cau nguoi doc hieu duoc. */
+	function loiNguoiDoc(t) {
+		var x = sach(t);
+		if (/403|Forbidden/i.test(x)) {
+			return "Pancake đang từ chối lượt gọi. Thường do nhiều máy cùng mở màn "
+				+ "kiểm bánh, đợi vài phút là hết. Số dưới đây là của lần đồng bộ trước.";
+		}
+		if (/401|Unauthorized/i.test(x)) return "Pancake không nhận khoá API. Báo anh Việt dán lại khoá.";
+		if (/50\d|Server Error/i.test(x)) return "Máy chủ Pancake đang trục trặc. Lát nữa thử lại.";
+		if (/Timeout|timed out|Connection/i.test(x)) return "Không nối được Pancake. Kiểm tra mạng rồi thử lại.";
+		return x.length > 160 ? "Chưa kéo được đơn từ Pancake. Lát nữa thử lại." : x;
+	}
+
 	function bao(t, xau) {
 		var el = document.getElementById("kb-bao");
-		el.textContent = t; el.className = xau ? "loi" : "";
-		if (t) setTimeout(function () { if (el.textContent === t) el.textContent = ""; }, 4000);
+		el.textContent = sach(t); el.className = xau ? "loi" : "";
+		if (t) setTimeout(function () { if (el.textContent === sach(t)) el.textContent = ""; }, 4000);
+	}
+
+	/* Dong canh bao NAM LAI tren man, khong tu tat sau bon giay nhu bao().
+	   So dang bay la so cu thi phai noi ro chung nao no con cu, chu khong
+	   nhap nhay mot cai roi bien mat. */
+	function baoDai(t) {
+		var el = document.getElementById("kb-canh");
+		if (!el) return;
+		if (!t) { el.textContent = ""; el.style.display = "none"; return; }
+		el.textContent = sach(t);
+		el.style.display = "";
 	}
 
 	function veChips() {
@@ -71,6 +106,15 @@
 		// Chong dua nhau: nguoi dung vua doi tab ngay thi bo qua ket qua cu.
 		if (!m || m.ngay !== NGAY_CHON) return;
 		DL = m;
+		/* May chu bao chua keo duoc don: bay canh bao va NGHI dung bang do,
+		   khong dap cua Pancake ba muoi giay mot lan vao cai cua dang dong. */
+		if (m.loi) {
+			baoDai("⚠ " + m.loi);
+			NGHI_DEN = Date.now() + Math.max(Number(m.cho_giay) || 0, 60) * 1000;
+		} else {
+			baoDai("");
+			NGHI_DEN = 0;
+		}
 		document.getElementById("kb-luc").textContent =
 			m.dong_bo_luc ? "Đồng bộ Pancake lúc " + m.dong_bo_luc.slice(11, 16) : "Chưa đồng bộ";
 		var chot = m.tinh_trang === "Da chot";
@@ -79,7 +123,10 @@
 		ve();
 	}
 
-	function taiLai() { return API("bang", { ngay: NGAY_CHON }).then(nhan).catch(function (e) { bao(e.message, true); }); }
+	function taiLai() {
+		return API("bang", { ngay: NGAY_CHON }).then(nhan)
+			.catch(function (e) { bao(loiNguoiDoc(e.message), true); });
+	}
 
 	function nsxLui(n) {
 		var d = new Date(NGAY_CHON + "T00:00:00");
@@ -107,7 +154,7 @@
 				h += '<div class="kb-the">'
 					+ '<div class="kb-ten">'
 					+ (d.hinh ? '<img src="' + d.hinh + '" loading="lazy" alt="">' : '<i class="kb-noimg"></i>')
-					+ '<b>' + d.ma_hang + '</b><span>' + (d.ten_banh || "") + "</span>" + nutXoa(d) + "</div>"
+					+ '<b>' + d.ma_hang + '</b><span>' + (d.ten_banh || "") + "</span>" + nutWeb(d) + nutXoa(d) + "</div>"
 					+ '<div class="kb-so">'
 					+ o(d, "ton_d1", "Tồn " + (fmtNSX(d.nsx_d1) || nsxLui(1)), d.ton_d1, true)
 					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true)
@@ -130,6 +177,7 @@
 		g.innerHTML = h;
 		ganInput();
 		ganXoa(g);
+		ganWeb(g);
 	}
 
 	/* Dau x go mot dong go nham. Chi hien khi ca dong chua co so nao, nen
@@ -144,6 +192,59 @@
 		return '<button type="button" data-xoa="' + d.ma_hang + '" title="Xoa ma go nham"'
 			+ ' style="margin-left:auto;border:0;background:transparent;color:#b23;'
 			+ 'font-size:18px;line-height:1;padding:2px 8px;cursor:pointer">&#10005;</button>';
+	}
+
+	/* Cong tac tam ngung ban mot ma tren web dat banh.
+
+	   Anh Viet 27/08/2026: *"co vai truong hop bat kha khang, con ton nhung
+	   phai tat, khong ban duoc hom do"*.
+
+	   Nut noi ro NGAY BAN LAI chu khong chi noi "dang tat". Ban truoc luu mot
+	   o co / khong thi tat xong tat mai: hom sau bep lam duoc, so ton len, ma
+	   web van khong hien, va khong ai nho ra la hom kia co nguoi bam tat.
+	   Ban nay tat den het ngay dang xem, sang hom sau tu ban lai. */
+	function nutWeb(d) {
+		var tat = !!d.tat_web;
+		var den = d.tat_web_den || "";
+		var nhan = tat ? "Tắt bán web" : "Đang bán web";
+		var tip = tat
+			? ("Không hiện trên web đặt bánh đến hết " + (den ? fmtVN(den) : "hôm nay")
+				+ ". Bấm để cho bán lại ngay.")
+			: "Đang hiện trên web đặt bánh theo số bán được. Bấm để tạm ngừng bán hết ngày "
+				+ fmtVN(NGAY_CHON) + ".";
+		return '<button type="button" class="kb-web' + (tat ? " tat" : "") + '"'
+			+ ' data-web="' + d.ma_hang + '" data-tat="' + (tat ? 1 : 0) + '"'
+			+ ' title="' + tip.replace(/"/g, "&quot;") + '">'
+			+ (tat ? "&#9679; " : "&#9675; ") + nhan + "</button>";
+	}
+
+	function ganWeb(g) {
+		if (g.__daGanWeb) return;
+		g.__daGanWeb = 1;
+		g.addEventListener("click", function (e) {
+			var n = e.target && e.target.closest ? e.target.closest("[data-web]") : null;
+			if (!n) return;
+			e.preventDefault();
+			e.stopPropagation();
+			var ma = n.getAttribute("data-web");
+			var dangTat = n.getAttribute("data-tat") === "1";
+			/* Tat la mot quyet dinh co hau qua tien bac: khach dang xem web se
+			   khong dat duoc ma do nua. Hoi mot cau, va noi ro bao gio ban lai. */
+			if (!dangTat && !window.confirm(
+				"Tạm ngừng bán " + ma + " trên web đến hết ngày " + fmtVN(NGAY_CHON)
+				+ "?\n\nKho vẫn giữ nguyên số tồn, chỉ web không hiện mã này. "
+				+ "Sang ngày hôm sau tự bán lại.")) return;
+			n.disabled = true;
+			API("tat_ban_web_dat", { ma_hang: ma, tat: dangTat ? 0 : 1, den_ngay: NGAY_CHON })
+				.then(function (r) {
+					VE_TRUOC = null;
+					taiLai();
+					bao(r && r.tat
+						? ("Đã tạm ngừng bán " + ma + " trên web đến hết " + fmtVN(r.den_ngay))
+						: ("Đã cho bán lại " + ma + " trên web"));
+				})
+				.catch(function (e2) { n.disabled = false; bao(loiNguoiDoc(e2.message), true); });
+		});
 	}
 
 	function ganXoa(g) {
@@ -223,7 +324,7 @@
 		if (truong === "so_btp" || truong === "so_decor") { luuBTP(ma, gt, truong); return; }
 		API("luu_o", { ngay: NGAY_CHON, ma_hang: ma, truong: truong, gia_tri: gt })
 			.then(function () { return taiLai(); })
-			.catch(function (e) { bao(e.message, true); taiLai(); });
+			.catch(function (e) { bao(loiNguoiDoc(e.message), true); taiLai(); });
 	}
 
 	function ganSuKien() {
@@ -243,8 +344,12 @@
 		});
 		document.getElementById("kb-dongbo").onclick = function () {
 			bao("Đang kéo đơn từ Pancake...");
-			API("dong_bo", { ngay: NGAY_CHON }).then(function (m) { nhan(m); bao("Đã đồng bộ xong"); })
-				.catch(function (e) { bao(e.message, true); });
+			/* Bam tay thi BO ky nghi: nguoi dung dang dung truoc man hinh va
+			   co chu dinh, khac han vong tu dong chay ngam. */
+			NGHI_DEN = 0;
+			API("dong_bo", { ngay: NGAY_CHON })
+				.then(function (m) { nhan(m); if (!m || !m.loi) bao("Đã đồng bộ xong"); })
+				.catch(function (e) { baoDai("⚠ " + loiNguoiDoc(e.message)); });
 		};
 		document.getElementById("kb-them").onclick = kbChonMon;
 		var nTuVan = document.getElementById("kb-tuvan");
@@ -253,7 +358,7 @@
 			if (!window.confirm("Chốt sổ hôm nay? Số còn lại sẽ chuyển thành tồn đầu ngày mai và bảng hôm nay bị khoá.")) return;
 			bao("Đang chốt ngày...");
 			API("chot_ngay", { ngay: NGAY_CHON }).then(function () { taiLai(); bao("Đã chốt. Tồn đã chuyển sang ngày mai."); })
-				.catch(function (e) { bao(e.message, true); });
+				.catch(function (e) { bao(loiNguoiDoc(e.message), true); });
 		};
 	}
 
@@ -350,7 +455,7 @@
 			bao("Đang thêm " + ma + "...");
 			API("them_dong", { ngay: NGAY_CHON, ma_hang: ma })
 				.then(function () { taiLai(); bao("Đã thêm " + ma); })
-				.catch(function (e) { bao(e.message, true); });
+				.catch(function (e) { bao(loiNguoiDoc(e.message), true); });
 		};
 		var inp = oTim.firstChild;
 		inp.oninput = function () {
@@ -506,7 +611,7 @@
 			body: JSON.stringify(truong === "so_decor" ? { ma_hang: ma, so_decor: gt } : { ma_hang: ma, so_btp: gt }) })
 			.then(function (r) { if (!r.ok) { return r.text().then(function (t) { throw new Error(loiMayChu(t)); }); } return r.json(); })
 			.then(function () { taiBTP(); })
-			.catch(function (e) { bao(e.message, true); taiBTP(); });
+			.catch(function (e) { bao(loiNguoiDoc(e.message), true); taiBTP(); });
 	}
 
 	function taiBTP() {
@@ -552,10 +657,21 @@
 		   ve lai luoi va xoa mat o input bep dang go do - mat so vua nhap. */
 		setInterval(function () { if (DANG_SUA === null) taiBTP(); }, 30000);
 		setInterval(function () { if (DANG_SUA === null) taiLai(); }, 10000);
+		/* NANG TU 30 LEN 120 GIAY (26/08/2026).
+
+		   Moi lan dong bo la HAI luot keo don, moi luot den muoi trang. Ba
+		   may sales mo cung luc, ba muoi giay mot lan, ca ngay - Pancake tra
+		   403 la phai, va do dung la loi Sales bao hom nay. Hai phut van tuoi
+		   chan chan cho mot bang kiem banh, va bang van tu tai lai moi muoi
+		   giay tu co so du lieu nen so bep vua go van len ngay.
+
+		   Them ky nghi: may chu vua bao bi tu choi thi khong goi nua cho het
+		   nghi, khong dap cua deu tay vao cai cua dang dong. */
 		setInterval(function () {
 			if (DANG_SUA !== null) return;
+			if (NGHI_DEN && Date.now() < NGHI_DEN) return;
 			API("dong_bo", { ngay: NGAY_CHON }).then(nhan).catch(function () {});
-		}, 30000);
+		}, 120000);
 	}
 	if (document.readyState === "complete") boot();
 	else window.addEventListener("load", boot);

@@ -50,11 +50,11 @@ except Exception:  # pragma: no cover
 	def filelock(ten, timeout=30, **kw):
 		yield
 
-from vagabond import chung_tu, diem_ban, may_in, noi_bo, pt_thanh_toan, quyen_quay, tai_khoan
+from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, tai_khoan
 from vagabond import luat_thanh_toan
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
-from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
+from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
 
 # Trang thai Pancake tinh vao doanh so: 3 da nhan, 16 da thu tien.
 TT_DOANH_SO = {3, 16}
@@ -814,6 +814,14 @@ def cau_hinh_ban_hang():
 		# 24/08/2026). `kho_in` o tren giu lai lam luoi do cho man nao chua
 		# biet minh dang o diem nao.
 		"kho_in_diem": {d["ma"]: may_in.kho_theo_vai_tro(d["ma"]) for d in diem_ban.ds(chi_bat=True)},
+		# Mau in tai quay: tren to giay do in nhung gi. Cung mot kieu chia
+		# theo diem ban nhu kho giay o tren - hai quay khong bat buoc in
+		# giong nhau (anh Viet 26/08/2026). `mau_in` la ban chung, dung cho
+		# man nao chua biet minh dang o diem nao.
+		"mau_in": mau_in_quay.theo_diem(),
+		"mau_in_diem": {
+			d["ma"]: mau_in_quay.theo_diem(d["ma"]) for d in diem_ban.ds(chi_bat=True)
+		},
 		"pt_chua_ve_tien": pt_thanh_toan.chua_ve_tien(),
 		"pt_ve_sau": pt_thanh_toan.ve_sau(),
 		# De app biet luc nao phai hoi ma OTP. May chu van kiem lai het, day
@@ -1445,6 +1453,30 @@ def dong_bo_doanh_so(ngay=None):
 	"""Keo don Pancake giao thanh cong cua mot ngay ve thanh SI nhap."""
 	_kiem_quyen()
 	return _dong_bo_doanh_so(ngay)
+
+
+def _loi_pancake_nguoi_doc(e):
+	"""Doi mot ngoai le cua thu vien mang thanh mot cau Sales doc duoc.
+
+	Va GIAU KHOA. Thong diep goc cua thu vien mang cong nguyen ca duong dan,
+	trong do co khoa API - ngay 26/08/2026 Sales chup duoc mot man hinh co
+	khoa cua tiem hien chu to o giua.
+	"""
+	chuoi = giau_khoa(e)
+	if "403" in chuoi or "Forbidden" in chuoi:
+		return (
+			"Pancake đang từ chối lượt gọi (mã 403). Thường là do gọi quá dày, "
+			"đợi vài phút là hết. Nếu vài tiếng vẫn vậy thì khoá API Pancake "
+			"trong Cài đặt đã hết hạn."
+		)
+	if "401" in chuoi or "Unauthorized" in chuoi:
+		return "Pancake không nhận khoá API. Vào Cài đặt dán lại khoá Pancake."
+	if "429" in chuoi:
+		return "Pancake chặn vì gọi quá dày (mã 429). Đợi vài phút rồi thử lại."
+	for m in ("500", "502", "503", "504"):
+		if m in chuoi:
+			return "Máy chủ Pancake đang trục trặc (mã %s). Lát nữa thử lại." % m
+	return "Chưa kéo được đơn từ Pancake: %s" % chuoi[:120]
 
 
 def _dong_bo_doanh_so(ngay=None, im_lang=False):
@@ -2136,9 +2168,20 @@ def dong_bo_doanh_so_tu_dong():
 	"""
 	try:
 		frappe.set_user("Administrator")
+		# Ca he dang nghi vi Pancake vua tu choi thi bo qua nhip nay. Goi vao
+		# dung cai cua dang dong chi lam no dong lau hon.
+		if pancake_nhip.con_nghi():
+			return
 		_dong_bo_doanh_so(nowdate(), im_lang=True)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ban_hang cron")
+		pancake_nhip.ghi_ok()
+	except Exception as e:
+		# KHONG NUOT NUA. Truoc 27/08/2026 cho nay chi ghi nhat ky, va suot
+		# hai ngay 26-27/08 khong man hinh nao noi mot cau nao trong khi don
+		# Pancake khong ve: 45 don ngay 25, 12 don ngay 26, 1 don ngay 27.
+		# Anh Viet tuong du lieu bi mat. Nay ghi vao mot cho ma MOI MAN deu
+		# doc duoc, xem vagabond/pancake_nhip.py.
+		pancake_nhip.ghi_hong(_loi_pancake_nguoi_doc(e))
+		frappe.log_error(giau_khoa(frappe.get_traceback()), "ban_hang cron")
 
 
 @frappe.whitelist()
@@ -2536,11 +2579,17 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 	if not da_du_chuoi or chay_tay:
 		try:
 			_dong_bo_doanh_so(ngay)
-		except Exception:
+			pancake_nhip.ghi_ok()
+		except Exception as e_kd:
 			# Pancake hong hay thieu khoa API thi van ghi so nhung don da ve.
+			# Nhung PHAI GHI LAI la da hong, khong duoc lang le chay tiep: mot
+			# cai hong khong noi ra thi khong ai chua (bai hoc 26-27/08/2026).
 			frappe.db.rollback()
 			frappe.local.message_log = []
-			frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: keo don lan cuoi")
+			pancake_nhip.ghi_hong(_loi_pancake_nguoi_doc(e_kd))
+			frappe.log_error(
+				giau_khoa(frappe.get_traceback()), "ban_hang cuoi ngay: keo don lan cuoi"
+			)
 
 	# Bam tay thi phai bao ro khi may dang ban: truoc day im lang tra ve,
 	# nguoi bam nhin man hinh khong doi gi ma tuong da chay xong.
@@ -3993,7 +4042,10 @@ def pos_ds_bill(quay=None, ngay=None):
 		r["sepay_nhan"] = flt(g.get("nhan"))
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
-	return {"ngay": str(ngay), "bill": ds}
+	# Tinh trang keo don Pancake. Man hinh dan cau nay len dau bang khi don
+	# chua ve, thay vi de Sales nhin danh sach it hon roi tu doan (bai hoc
+	# 26-27/08/2026: hai ngay don khong ve ma khong man nao noi mot cau).
+	return {"ngay": str(ngay), "bill": ds, "pancake": pancake_nhip.tinh_trang()}
 
 
 def _loc_diem_ban(ma):

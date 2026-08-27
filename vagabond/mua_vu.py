@@ -42,12 +42,15 @@ banh trung thu, va do chinh la cho trong ma bang nay lap vao.
 """
 
 import json
+import time
 from datetime import datetime, timedelta
 
 import frappe
+
+from vagabond import pancake_nhip, tat_ban_web
 from frappe.utils import cint, getdate, now_datetime
 
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
+from vagabond.lib import PANCAKE, TIMEOUT, cfg, giau_khoa, key
 
 DT = "Vagabond Mua Vu"
 SI = "Sales Invoice"
@@ -977,6 +980,12 @@ def dong_bo_mot_mua(mua=None):
 		)
 
 
+# Nhip THAT SU di ra Pancake, tinh bang giay. Bo lap lich van goi ham nay
+# moi phut, nhung ham tu bo qua neu chua toi nhip - de khi Pancake vua mo
+# lai thi lan keo dau tien den som chu khong phai doi het mot chu ky dai.
+NHIP_TU_DONG = 300  # 5 phut
+
+
 def dong_bo_tu_dong():
 	"""Cho scheduler goi moi phut: quet moi mua DANG BAN.
 
@@ -984,14 +993,70 @@ def dong_bo_tu_dong():
 	de kip thoi bat don moi (va nhung don bi chinh sua, them san pham...)".
 	Keo lai ca mua moi lan chu khong keo them, nen don sua o Pancake cung
 	ve dung so - khong co duong nao lech.
+
+	PHAI NOI RO: NHIP THAT DA NOI TU 1 PHUT LEN 5 PHUT (27/08/2026), tuc la
+	di nguoc mot phan dieu anh Viet chot 18/08. Ly do la con so, khong phai
+	y thich.
+
+	Mot lan keo la keo CA MUA - Trung thu 2026 chay tu 01/08 den 27/09 - va
+	moi lan keo la nhieu luot goi Pancake, moi luot mot trang 100 don, tran
+	dat o 30 trang. Chay moi phut nghia la:
+
+	    60 luot keo moi gio  x  nhieu trang moi luot
+	    = hang nghin luot goi Pancake moi gio, hang chuc nghin moi ngay
+
+	chi rieng nhip nay, chua tinh kiem banh, van don, doanh so va tung man
+	hinh dang mo. Ngay 26/08 Pancake bat dau tra 403 va chan suot hai ngay:
+	don khong ve, hoa don Sales trong, bang kiem banh dung im, va anh Viet
+	tuong du lieu bi mat. Do la cai gia that cua nhip mot phut.
+
+	Nam phut van du sat cho viec anh Viet can - bat don moi de khong hua nham
+	voi khach - ma nhe hon nam lan. Va khi Pancake dang tu choi thi ham nay
+	NGHI HAN cung ca he, khong dap cua deu tay vao cai cua dang dong.
 	"""
+	# Ca he dang nghi vi Pancake vua tu choi: bo qua nhip nay.
+	if pancake_nhip.con_nghi():
+		return
+	# Chua toi nhip that thi thoi. Moc giu trong bo nho dem, mat thi cung
+	# lam la keo som mot lan, khong hai gi.
+	try:
+		moc = float(frappe.cache().get_value("vgb_mua_vu_keo_luc") or 0)
+		if time.time() - moc < NHIP_TU_DONG:
+			return
+		frappe.cache().set_value("vgb_mua_vu_keo_luc", time.time())
+	except Exception:
+		pass
 	try:
 		for ma in mua_dang_chay():
 			dong_bo_mot_mua(ma)
-	except Exception:
+		pancake_nhip.ghi_ok()
+	except Exception as e:
+		# KHONG NUOT. Mot cai hong khong noi ra thi khong ai chua - bai hoc
+		# hai ngay 26 va 27/08/2026.
+		pancake_nhip.ghi_hong(_loi_pancake(e))
 		frappe.log_error(
-			title="Vagabond: nhip dong bo mua vu loi", message=frappe.get_traceback()
+			title="Vagabond: nhip dong bo mua vu loi",
+			message=giau_khoa(frappe.get_traceback()),
 		)
+
+
+def _loi_pancake(e):
+	"""Doi mot ngoai le cua thu vien mang thanh cau nguoi doc, va GIAU KHOA.
+
+	Thong diep goc cong nguyen ca duong dan, trong do co khoa API - ngay
+	26/08/2026 Sales chup duoc mot man hinh co khoa cua tiem hien chu to.
+	"""
+	chuoi = giau_khoa(e)
+	if "403" in chuoi or "Forbidden" in chuoi:
+		return (
+			"Pancake đang từ chối lượt gọi (mã 403), thường là do gọi quá dày. "
+			"Số của mùa vụ đang là số của lần kéo được gần nhất."
+		)
+	if "401" in chuoi or "Unauthorized" in chuoi:
+		return "Pancake không nhận khoá API. Vào Cài đặt dán lại khoá Pancake."
+	if "429" in chuoi:
+		return "Pancake chặn vì gọi quá dày (mã 429). Đợi vài phút rồi thử lại."
+	return "Chưa kéo được đơn mùa vụ từ Pancake: %s" % chuoi[:120]
 
 
 @frappe.whitelist()
@@ -1521,6 +1586,15 @@ def bang_ngay(mua=None, ngay=None):
 		)
 	# Hop len truoc, roi den banh le, trong moi nhom xep theo ten cho de doc.
 	dong.sort(key=lambda x: (0 if x["la_hop"] else 1, x["ten_banh"]))
+	# Cong tac tam ngung ban tren web, dung chung voi man Kiem banh hang ngay
+	# (anh Viet 27/08/2026). Chi BAY trang thai len man, khong dung vao phep
+	# dem: bang mua vu van phai hien du so that cho bep va sales, chi rieng
+	# web dat banh la khong bay ma dang tat.
+	tat = tat_ban_web.bang([x["ma_hang"] for x in dong], ngay)
+	for x in dong:
+		g = tat.get(x["ma_hang"]) or {}
+		x["tat_web"] = g.get("tat", 0)
+		x["tat_web_den"] = g.get("den_ngay", "")
 
 	return {
 		"co_so": 1,
