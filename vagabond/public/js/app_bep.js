@@ -8165,6 +8165,13 @@ function dsChips(r) {
      từng đơn (anh Việt 24/08/2026). */
   if (r.giam_dong) out += dsChip('🏷️ Giảm ' + money(r.giam_dong) + ' đ', '#fef2f2', '#b3261e');
   if (r.trung) out += dsChip('⚠ Trùng phiếu', '#fee2e2', '#991b1b');
+  /* Vi sao don nay chua ghi so duoc. Cau chu do may chu quyet dinh
+     (ghi_so_dieu_kien.py) nen moi man noi giong het nhau. Bo don da chon
+     phuong thuc roi ma van thieu thu khac: chip "Chua chon thanh toan" o
+     tren da noi ro roi, them mot chip nua chi lam dai dong. */
+  if (r.ly_do_treo && r.ly_do_treo !== 'tam_tinh' && r.ly_do_treo !== 'chua_pt') {
+    out += dsChip('🚧 ' + h(r.ly_do_treo_chu || 'Chưa ghi sổ được'), '#fef2f2', '#b91c1c');
+  }
   return out;
 }
 async function scrDoanhSo() {
@@ -8200,6 +8207,9 @@ async function scrDoanhSo() {
     { k: 'tat_ca', nhan: 'Tất cả', loc: function () { return true; } },
     { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0; } },
     { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
+    /* Cung mot chip, cung mot cau voi man tinh tien cua cac diem ban
+       (anh Viet 27/08/2026). May chu tinh `ly_do_treo`, man hinh chi doc. */
+    { k: 'ket', nhan: '🚧 Không ghi sổ được', loc: function (r) { return !!r.ly_do_treo && r.ly_do_treo !== 'tam_tinh'; } },
     { k: 'chua_pt', nhan: '❓ Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
     /* Đơn đã giao xong mà Pancake không ghi nhận khoản nào. Máy CHỈ gắn cờ
        để sales rà lại, không bao giờ tự ghi là Công nợ - anh Việt chốt
@@ -11675,6 +11685,12 @@ function posChipBill(r) {
   else if (r.vgb_xhd_mst) c.push(the('#fef9c3', '#854d0e', '🧾 Chờ xuất HĐ công ty'));
   if (r.discount_amount) c.push(the('#ffedd5', '#9a3412', '🎟 Giảm ' + money(r.discount_amount) + ' đ'));
   if (r.trung_ma) c.push(the('#fee2e2', '#991b1b', '⚠ Trùng mã trong ngày'));
+  /* Vi sao don nay chua ghi so duoc. May chu tinh san (ghi_so_dieu_kien.py)
+     chu khong de man hinh tu doan: doan o day thi moi man doan mot kieu, va
+     23h may lai xu theo kieu thu ba (anh Viet 27/08/2026). */
+  if (r.ly_do_treo && r.ly_do_treo !== 'tam_tinh') {
+    c.push(the('#fef2f2', '#b91c1c', '🚧 ' + h(r.ly_do_treo_chu || 'Chưa ghi sổ được')));
+  }
   if (r.vgb_ghi_chu) c.push(the('#e0f7fa', '#0369a1', '📝 ' + h(String(r.vgb_ghi_chu).slice(0, 30))));
   return c.join('');
 }
@@ -11739,6 +11755,12 @@ async function scrPosDs() {
     { k: 'tat_ca', nhan: 'Tất cả', loc: function () { return true; } },
     { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0 && !r.vgb_tam_tinh && !r.vgb_huy; } },
     { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
+    /* Chip nay phai co o MOI man tinh tien cua moi diem ban (anh Viet
+       27/08/2026): cac ban dien bo sung truoc 23h, thay vi de may lang le
+       bo qua roi hom sau khong ai biet don do di dau. Phep quyet dinh nam
+       ben may chu, man hinh chi doc co `ly_do_treo`. Bo `tam_tinh` ra: phieu
+       tam tinh la nghiep vu binh thuong, chua den luc ghi so. */
+    { k: 'ket', nhan: '🚧 Không ghi sổ được', loc: function (r) { return !!r.ly_do_treo && r.ly_do_treo !== 'tam_tinh'; } },
     { k: 'tam_tinh', nhan: '🕐 Tạm tính', loc: function (r) { return !!r.vgb_tam_tinh && !r.vgb_huy; } },
     { k: 'da_huy', nhan: '🚫 Đã huỷ', loc: function (r) { return !!r.vgb_huy; } },
     { k: 'da_sua', nhan: '✏️ Đã sửa', loc: function (r) { return !!r.vgb_lan_sua; } },
