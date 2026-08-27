@@ -278,3 +278,45 @@ def _don_gia_khong():
 	ma = inspect.getsource(mc._dong_pi)
 	dung("co ghim price_list_rate theo don gia hoa don",
 		'"price_list_rate": x["gia"]' in ma)
+
+
+# --------- v323: can theo con so may SE ghi, khong theo con so hoa don doc len
+
+@ca("lam tron: tinh tien dong theo do chinh xac cua may")
+def _tien_dong_may_ghi():
+	from vagabond import dung_lai_hddt as D
+
+	# Ca that ACC-PINV-2026-01427: hoa don ghi 420 don vi, don gia 5.136,683,
+	# thanh tien 2.157.407. ERPNext chi giu don gia toi hai so le nen ghi
+	# 5.136,68 va nhan ra 2.157.405,6, hut 1,4 dong. To do nam lai mai vi
+	# cua chan ghi so lay nguong mot dong.
+	la("theo con so may ghi",
+		D.tien_dong_may_ghi(420, 5136.683, 2, 2), 2157405.6)
+	la("con theo con so hoa don thi ra khac",
+		round(420 * 5136.683, 2), 2157406.86)
+	la("khong co so le thi khong doi",
+		D.tien_dong_may_ghi(3, 25000, 2, 2), 75000.0)
+
+
+@ca("lam tron: phan chenh vai dong duoc goi dung ten")
+def _ten_dong_bu():
+	from vagabond import dung_lai_hddt as D
+
+	la("chenh nho la lam tron", D.ten_dong_bu(1.4),
+		"Chênh lệch làm tròn theo hoá đơn điện tử")
+	la("chenh lon van la phi", D.ten_dong_bu(1283500),
+		"Phí khác theo hoá đơn")
+
+
+@ca("lam tron: ca hai duong dung deu can theo con so may ghi")
+def _hai_duong_cung_can():
+	import inspect
+
+	from vagabond import dung_lai_hddt as D
+
+	for ham in (D._dung_dong_tai_cho, D.du_kien_tong):
+		ma = inspect.getsource(ham)
+		dung("%s can theo con so may ghi" % ham.__name__,
+			"tien_dong_may_ghi(" in ma)
+		dung("%s co hoi do chinh xac cua may" % ham.__name__,
+			"_do_chinh_xac()" in ma)

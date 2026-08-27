@@ -112,10 +112,18 @@ def _getdate(v=None):
 
 
 def _flt(v, p=None):
+	# Co ton trong so le nhu frappe.utils.flt that. Ban cu bo qua tham so p,
+	# nen ca kiem nao dua vao phep lam tron deu do mau xanh gia (27/08/2026).
 	try:
-		return float(v or 0)
+		x = float(v or 0)
 	except (TypeError, ValueError):
 		return 0.0
+	if p is None:
+		return x
+	try:
+		return round(x, int(p))
+	except (TypeError, ValueError):
+		return x
 
 
 def _cint(v):
