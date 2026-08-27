@@ -1814,10 +1814,20 @@ function vgbGomNhom() {
     if (!daXep[kk] && khac.keys.indexOf(kk) < 0) khac.keys.push(kk);
   }
 
-  var tongViec = 0;
-  for (var vk in VGB_HUB) if (VGB_HUB[vk].cnt) tongViec += VGB_HUB[vk].cnt;
+  /* O "Viec can lam" PHAI deo con so, y het moi o khac.
+
+     Anh Viet 27/08/2026: ke toan gui ba ho so thanh toan len cho giam doc
+     duyet, tren app cua anh "chang co gi de duyet ca". Ba ho so nam dung
+     buoc, quyen dung, may chu tra ve du. Nhung o nay la o DUY NHAT tren
+     trang chu khong co con so, nen nhin vao tuong la khong co viec, va
+     nguoi ta di sang man "Duyet phieu chi" - man do doc mot loai chung tu
+     khac han nen no rong that.
+
+     Con so lay tu may chu, GOM SAU khi ve xong luoi, de trang chu khong
+     phai cho. Chua ve xong thi o van bam duoc nhu cu. */
   var g = '<div class="gwrap">' +
     '<div class="gt vcl" data-nhom="VCL">' +
+    '<span class="gb" id="vgbSoVCL" style="display:none"></span>' +
     '<div class="gi">📌</div>' +
     '<div><div class="gn">Việc cần làm</div>' +
     '<div class="gs">' + 'Danh sách phiếu đang chờ bạn xử lý' + '</div></div></div>';
@@ -1847,6 +1857,23 @@ function vgbGomNhom() {
     if (t.dataset.nhom === 'VCL') return vgbGo('VCL');
     if (nh) vgbGo('PH:' + nh.k);
   };
+  vgbDemVCL();
+}
+
+/* Hoi may chu xem nguoi nay con bao nhieu viec, roi deo len o.
+
+   Hong thi IM LANG. O khong deo so van dung nhu truoc, con hien mot loi do
+   giua trang chu vi mot con so phu thi lam ca man xau di. */
+async function vgbDemVCL() {
+  var o = document.getElementById('vgbSoVCL');
+  if (!o) return;
+  try {
+    var kq = await api('vagabond.viec_can_lam.dem', {});
+    var n = (kq && kq.tong) || 0;
+    if (!n) return;
+    o.textContent = n > 99 ? '99+' : String(n);
+    o.style.display = '';
+  } catch (e) { }
 }
 
 /* ---------- Việc cần làm ----------
@@ -4195,14 +4222,53 @@ async function scrPayList() {
         '<div class="l2">' + h(d.name) + ' &middot; ' + dmy(d.posting_date) + (d.custom_loai_chi ? '<br>' + h(d.custom_loai_chi) : '') + '</div></div>' +
         '<div style="text-align:right"><div class="amt">' + money(d.paid_amount) + '</div>' +
         '<span class="st ' + cls + '" style="margin-top:4px">' + h(d.workflow_state) + '</span></div></div>';
-    }).join('') + '</div>' : '<div class="emp"><div class="e1">✅</div><div class="e2">Không có phiếu nào cần xử lý</div></div>';
+    }).join('') + '</div>' : payRong();
     var b = frame('Duyệt phiếu chi', '<div class="chips">' + chips + '</div>' + lst);
     b.onclick = function (e) {
       var c = e.target.closest('[data-s]'); if (c) { payTab = c.dataset.s; return draw(); }
+      if (e.target.closest('[data-hstt]')) return vgbGo('APPTT');
       var r = e.target.closest('[data-n]'); if (r) go(function () { scrPayView(r.dataset.n); });
     };
   }
   draw();
+  payDoHoSo(draw);
+}
+
+/* So ho so thanh toan dang cho CHINH nguoi nay, doc mot lan moi lan mo man. */
+var paySoHoSo = 0;
+
+async function payDoHoSo(ve) {
+  paySoHoSo = 0;
+  try {
+    var kq = await api('vagabond.viec_can_lam.danh_sach', { loai: 'ho_so_tt' });
+    var ds = (kq && kq.ds) || [];
+    paySoHoSo = ds.filter(function (x) { return x.tt === 'cho_duyet'; }).length;
+  } catch (e) { return; }
+  if (paySoHoSo && ve) ve();
+}
+
+/* O RONG cua man Duyet phieu chi.
+
+   Anh Viet 27/08/2026: ke toan gui ba ho so thanh toan len cho giam doc
+   duyet, anh mo man nay va thay trong tron, tuong he thong khong dong bo.
+
+   That ra co HAI hang doi tien khac nhau. Man nay doc Payment Entry, tuc
+   tung phieu chi le. Con ho so thanh toan APP la mot loai chung tu khac,
+   gom nhieu hoa don cua mot nha cung cap vao mot bo, va no nam ben man Ho
+   so thanh toan. Hai hang doi, ma chi mot cai mang ten "Duyet phieu chi".
+
+   Nen o rong khong duoc noi trong khong. No phai noi ro hang doi kia con
+   bao nhieu bo, va bay san duong sang do. */
+function payRong() {
+  if (paySoHoSo) {
+    return '<div class="emp"><div class="e1">🏦</div>' +
+      '<div class="e2">Không có phiếu chi lẻ nào ở bước này</div>' +
+      '<div style="font-size:13px;color:#8a90a0;margin-top:10px;line-height:1.6;padding:0 18px">' +
+      'Nhưng còn <b style="color:#c0392b">' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn duyệt. ' +
+      'Hồ sơ thanh toán gom nhiều hoá đơn của một nhà cung cấp vào một bộ, nằm ở màn riêng.</div>' +
+      '<button class="btn" data-hstt="1" style="margin:14px 18px 0">Mở Hồ sơ thanh toán</button></div>';
+  }
+  return '<div class="emp"><div class="e1">✅</div><div class="e2">Không có phiếu nào cần xử lý</div></div>';
 }
 
 async function scrPayView(name) {
@@ -8762,10 +8828,43 @@ async function scrDsView(name, can) {
      biet. Nguon rieng cua mot diem thi van suy nguoc duoc. */
   var dsvDiem = d.vgb_quay || (nguonBH(d.custom_nguon) || {}).diem || '';
   var dsvNoiDung = posNoiDungCk(d.name, dsvDiem, d.custom_nguon || '');
+  /* DON DONG BO TU PANCAKE VE THI KHONG SINH MA QR NUA.
+
+     Anh Viet 28/08/2026, sau khi chi Loan Anh bao don chuyen khoan hom nay
+     dong bo ve da thay SePay khop du tien.
+
+     Don Pancake da co ma QR RIENG cua no: Pancake xin MB cap cho moi don mot
+     SO TAI KHOAN AO khac nhau, khach quet ma do de tra, va chinh nho vay ma
+     ngan hang bao co la doi soat duoc dung don. Man nay ma ve them mot ma QR
+     nua thi ra mot so tai khoan KHAC va mot noi dung chuyen khoan KHAC.
+
+     Hai cai hai:
+       - Nhin thay QR, sales tuong khach chua tra, di doi tien lan hai.
+       - Khach lo quet ma nay thi tien vao tai khoan chung voi noi dung khong
+         mang mach S<shop>O<don>T, mat luon duong doi soat tu dong cua don do.
+
+     Nen o day thay QR bang mot cau noi ro tien di duong nao. Cac nguon KHAC
+     (Tai cho, Mang ve, don nhap tay) van ve QR nhu cu, vi nhung don do khong
+     co tai khoan ao rieng, khong ve thi thu ngan phai mo app ngan hang go tay. */
+  function dsvTuPancake() {
+    return String(d.custom_nguon || '') === 'Pancake'
+      && String(d.custom_pancake_display_id || '').trim() !== '';
+  }
   function dsvVeQr() {
     var o = document.getElementById('dsvQr');
     if (!o) return;
     if (DSV_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (dsvTuPancake()) {
+      o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
+        'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
+        '<b>Đơn Pancake không cần mã QR của app</b><br>' +
+        'Pancake đã cấp riêng cho đơn ' + h(String(d.custom_pancake_display_id || '')) +
+        ' một số tài khoản nhận tiền, khách quét mã bên đó. ' +
+        'Máy đối soát theo số đơn nên tiền về là tự khớp.' +
+        '<br><span style="color:#0369a1">Đừng gửi thêm mã QR nào khác cho khách: tiền sẽ vào tài khoản chung ' +
+        'và mất đường đối soát tự động của đơn này.</span></div>';
+      return;
+    }
     var tien = d.grand_total || 0;
     var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem);
     if (!url) {
@@ -11507,7 +11606,13 @@ async function posInBill(d) {
       '<tr><td class="s">' + money(m.qty) + ' x ' + money(m.rate) + '<span class="r">' + money(m.qty * m.rate) + '</span></td></tr>';
   }).join('');
   var qrKhoi = '';
-  if (d.tam_tinh) {
+  /* Don Pancake KHONG in QR thanh toan len phieu: no da co tai khoan ao
+     rieng ben Pancake, in them ma cua tiem la mo mot duong tra tien thu hai
+     vao tai khoan chung, mat duong doi soat theo so don. */
+  /* Duong in chi mang `nguon`, khong mang so don Pancake, nen soi bang
+     nguon la du: nguon Pancake thi don nao cung co tai khoan ao rieng. */
+  var pkIn = String(d.nguon || '') === 'Pancake';
+  if (d.tam_tinh && !pkIn) {
     /* Phieu tam tinh in kem QR THANH TOAN: khach xac nhan mon xong quet
        chuyen luon cung duoc, SePay khop theo ma bill. */
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
@@ -11986,10 +12091,28 @@ async function scrPosBill(name) {
   }
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
 
+  /* Don Pancake da co tai khoan ao rieng cua no, xem doan mo ta ben
+     `dsvVeQr` trong 08-doanh-so-sales.js. Ve them mot ma QR nua o day la
+     bay ra mot so tai khoan khac va mot noi dung khac: sales tuong khach
+     chua tra, con khach lo quet thi mat duong doi soat tu dong cua don. */
+  function pbTuPancake() {
+    return String(d.custom_nguon || '') === 'Pancake'
+      && String(d.custom_pancake_display_id || '').trim() !== '';
+  }
   function veQr() {
     var o = document.getElementById('pbQr');
     if (!o) return;
-    o.innerHTML = PB_PT === 'Chuyển khoản' ? posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay) : '';
+    if (PB_PT !== 'Chuyển khoản') { o.innerHTML = ''; return; }
+    if (pbTuPancake()) {
+      o.innerHTML = '<div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;' +
+        'padding:12px 13px;font-size:13px;color:#075985;line-height:1.6">' +
+        '<b>Đơn Pancake không cần mã QR của app</b><br>' +
+        'Pancake đã cấp riêng cho đơn ' + h(String(d.custom_pancake_display_id || '')) +
+        ' một số tài khoản nhận tiền. Máy đối soát theo số đơn nên tiền về là tự khớp.' +
+        '</div>';
+      return;
+    }
+    o.innerHTML = posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay);
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -17676,7 +17799,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '332';
+var APPVER = '333';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
