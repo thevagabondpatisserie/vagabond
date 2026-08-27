@@ -118,6 +118,33 @@ def doc_chi_tiet(chi_tiet):
 	return ds if isinstance(ds, list) else []
 
 
+def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien):
+	"""Số tiền một dòng SAU KHI máy làm tròn. THUẦN.
+
+	VÌ SAO PHẢI TÍNH TRƯỚC PHẦN LÀM TRÒN - ca thật 27/08/2026
+	--------------------------------------------------------------------
+	Sau v322 còn 11 tờ lệch từ 1 tới 10 đồng. Ví dụ ACC-PINV-2026-01427:
+	hoá đơn ghi 420 đơn vị, đơn giá 5.136,683, thành tiền 2.157.407. ERPNext
+	chỉ giữ đơn giá tới hai số lẻ nên ghi 5.136,68, nhân ra 2.157.405,6, hụt
+	1,4 đồng. Phép nắn cũ tính trên đơn giá GỐC nên thấy khớp và không nắn
+	gì, phần hụt chỉ sinh ra sau khi máy lưu.
+
+	Nên phải cân theo con số máy SẼ ghi, chứ không theo con số hoá đơn đọc
+	lên. Một đồng cũng phải đúng: cửa chặn ghi sổ lấy ngưỡng một đồng, hụt
+	một đồng là tờ đó nằm lại mãi.
+	"""
+	return flt(flt(sl) * flt(gia, dp_gia), dp_tien)
+
+
+def ten_dong_bu(so_tien):
+	"""Tên dòng bù cho phần chênh. THUẦN.
+
+	Chênh vài đồng là do làm tròn, gọi đúng tên để kế toán khỏi đi tìm.
+	"""
+	return ("Chênh lệch làm tròn theo hoá đơn điện tử"
+		if abs(flt(so_tien)) < 100 else "Phí khác theo hoá đơn")
+
+
 # ------------------------------------------------------- phan can Frappe
 
 
@@ -203,11 +230,14 @@ def _dung_dong_tai_cho(doc, g):
 		x = mc.dong_tu_hoa_don(it)
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
-	tong_dong = sum(flt(d.get("qty")) * flt(d.get("rate")) for d in moi)
+	dp_gia, dp_tien = _do_chinh_xac()
+	tong_dong = sum(
+		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien) for d in moi
+	)
 	viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
 	if viec == "phi":
 		moi.append(mc._dong_pi({
-			"ma": "", "ten": "Phí khác theo hoá đơn", "dvt": None,
+			"ma": "", "ten": ten_dong_bu(so_tien), "dvt": None,
 			"sl": 1, "gia": so_tien, "tien": so_tien,
 		}, tk))
 	doc.set("items", [])
@@ -225,6 +255,16 @@ def _dung_dong_tai_cho(doc, g):
 
 def _tong_thue_tren_phieu(doc):
 	return sum(flt(t.get("tax_amount")) for t in doc.get("taxes") or [])
+
+
+def _do_chinh_xac():
+	"""(số lẻ ô đơn giá, số lẻ ô thành tiền) mà máy đang dùng."""
+	try:
+		gia = cint(frappe.get_precision(PI + " Item", "rate"))
+		tien = cint(frappe.get_precision(PI + " Item", "amount"))
+	except Exception:
+		gia, tien = 0, 0
+	return (gia or 2), (tien or 2)
 
 
 def _tk_thue_vao(doc):
@@ -285,10 +325,11 @@ def du_kien_tong(doc, g):
 		from vagabond import minvoice_chung_tu as mc
 
 		goc_mst = (g.get("mst_doi_tac") or "").split("-")[0]
+		dp_gia, dp_tien = _do_chinh_xac()
 		tong_dong = 0.0
 		for it in dong_goc:
 			x = mc.dong_tu_hoa_don(it)
-			tong_dong += flt(x.get("sl")) * flt(x.get("gia"))
+			tong_dong += tien_dong_may_ghi(x.get("sl"), x.get("gia"), dp_gia, dp_tien)
 		viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
 		net = tong_dong + (so_tien if viec == "phi" else 0) - (so_tien if viec == "giam" else 0)
 		# Thuế lấy theo BẢN GỐC, không lấy theo bảng thuế đang có trên phiếu:
