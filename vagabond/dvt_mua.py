@@ -229,6 +229,58 @@ def loi_lech_don_vi(idx, ten_mon, sl_hd, dvt_hd, hs_hd, sl_pnk, dvt_pnk, hs_pnk,
 	return cau
 
 
+def dong_dich_vu(item_code):
+	"""Dong nay co phai dong dich vu chua anh xa vao Mon khong. THUAN.
+
+	Hoa don dien tu hay co dong kieu "Chuyen", "Phieu", "Dich vu chiu thue"
+	khong tra ra ma hang nao ca. Nhung dong do KHONG co don vi kho de doi
+	chieu, nen dem chung vao con so lech don vi la dem nham.
+
+	Ngay 27/08/2026 nhip ra keu 1.185 to lech don vi trong khi lech that
+	chi 505 to. 3.798 tren 4.443 dong bi keu la dong dich vu kieu nay. Con
+	so nhieu nhu vay thi vai hom la khong ai nhin nua, canh bao coi nhu
+	chet. Nen tach hai loai ra, dem rieng, va con so dua ra man hinh chi
+	dem dong co ma hang that.
+	"""
+	return not str(item_code or "").strip()
+
+
+NGUONG_DO_TAM = 8
+
+
+def mon_bi_do_tam(so_ten_ncc, nguong=NGUONG_DO_TAM):
+	"""Mon nay co dang bi dung lam cho do tam khong. THUAN.
+
+	Mot mon kho nhan qua nhieu TEN HANG khac nhau cua nha cung cap la dau
+	hieu xau: nguoi ta khong tim ra mon dung nen tien tay gan dai vao mon
+	nao ten na na.
+
+	Ca that 27/08/2026: mon NVLT00231 "Nuoc, ml" - von la nuoc may de san
+	xuat, khong theo doi ton, chi co don vi ml - dang nhan 18 ten hang khac
+	nhau: nuoc da bao, nuoc suoi chai, nuoc sparkling, nuoc mam chay, va ca
+	"Che troi nuoc" voi "nuoc tra bi dao" cua hoa don nha hang. Khop vi cung
+	co chu "nuoc" trong ten, chu khong phai vi cung mot thu.
+
+	Nguong 8 dat theo so lieu that: sau NVLT00231 (18 ten) va DVTI00017
+	"Chi phi tiep khach" (11 ten, von la mon gom co chu y), mon dong thu ba
+	chi co 7 ten. Nen 8 tach dung hai ca ngoai le ra khoi phan con lai.
+
+	Mon gom co chu y thi khai vao `MON_GOM_CO_Y` de khoi bi keu mai.
+	"""
+	return int(so_ten_ncc or 0) >= int(nguong or NGUONG_DO_TAM)
+
+
+# Nhung mon VON DI la cho gom nhieu thu, bi keu la keu oan.
+MON_GOM_CO_Y = {"DVTI00017"}
+
+
+def dang_do_tam(item_code, so_ten_ncc, nguong=NGUONG_DO_TAM):
+	"""Nhu tren nhung tru san cac mon gom co chu y. THUAN."""
+	if str(item_code or "").strip() in MON_GOM_CO_Y:
+		return False
+	return mon_bi_do_tam(so_ten_ncc, nguong)
+
+
 # ------------------------------------------------------- phan can Frappe
 
 import frappe
