@@ -93,6 +93,37 @@ def _():
 	la("tổng đúng bằng thành tiền", x["tien"], 53_000_000)
 
 
+@ca("hoa don dien tu: dong don gia bang KHONG ma co thanh tien")
+def _():
+	# Ca that 27/08/2026, hoa don tiep khach Avanti C26TAV/5019: dong
+	# "Phi phuc vu" ghi sluong 0, dgia 0, thtien 1.283.500. Ban cu chi bat
+	# truong hop dgia la None nen dong do vao chung tu voi don gia 0, roi
+	# ERPNext tu dien lai theo Bang gia nhap cua mat hang (4.500.000), lam
+	# to hoa don phinh them dung 4,5 trieu.
+	x = dong_tu_hoa_don({"ten": "Phí phục vụ", "sluong": 0, "dgia": 0,
+		"thtien": 1_283_500})
+	la("số lượng về 1", x["sl"], 1)
+	la("đơn giá là thành tiền", x["gia"], 1_283_500)
+	la("tổng đúng bằng thành tiền", x["tien"], 1_283_500)
+
+
+@ca("hoa don dien tu: dong 0 dong that su thi van la 0, khong bia ra gia")
+def _():
+	# Hang tang kem, khuyen mai 0 dong. Khong duoc tu nhien co gia.
+	x = dong_tu_hoa_don({"ten": "Hàng tặng kèm", "sluong": 2, "dgia": 0,
+		"thtien": 0})
+	la("đơn giá vẫn 0", x["gia"], 0)
+	la("thành tiền vẫn 0", x["tien"], 0)
+
+
+@ca("dong chung tu: ghim gia bang dung don gia tren hoa don")
+def _():
+	# Khong ghim thi ERPNext lay Bang gia nhap dien vao dong don gia 0.
+	doan = MA.split("def _dong_pi")[1].split("\ndef ")[0]
+	dung('có ghim price_list_rate', '"price_list_rate": x["gia"]' in doan)
+	dung('có dập chiết khấu về 0', '"discount_percentage": 0' in doan)
+
+
 @ca("hoa don dien tu: dong rong khong lam no")
 def _():
 	x = dong_tu_hoa_don(None)
