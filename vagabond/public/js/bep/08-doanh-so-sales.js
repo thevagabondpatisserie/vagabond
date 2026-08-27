@@ -35,6 +35,13 @@ function dsChips(r) {
      từng đơn (anh Việt 24/08/2026). */
   if (r.giam_dong) out += dsChip('🏷️ Giảm ' + money(r.giam_dong) + ' đ', '#fef2f2', '#b3261e');
   if (r.trung) out += dsChip('⚠ Trùng phiếu', '#fee2e2', '#991b1b');
+  /* Vi sao don nay chua ghi so duoc. Cau chu do may chu quyet dinh
+     (ghi_so_dieu_kien.py) nen moi man noi giong het nhau. Bo don da chon
+     phuong thuc roi ma van thieu thu khac: chip "Chua chon thanh toan" o
+     tren da noi ro roi, them mot chip nua chi lam dai dong. */
+  if (r.ly_do_treo && r.ly_do_treo !== 'tam_tinh' && r.ly_do_treo !== 'chua_pt') {
+    out += dsChip('🚧 ' + h(r.ly_do_treo_chu || 'Chưa ghi sổ được'), '#fef2f2', '#b91c1c');
+  }
   return out;
 }
 async function scrDoanhSo() {
@@ -70,6 +77,9 @@ async function scrDoanhSo() {
     { k: 'tat_ca', nhan: 'Tất cả', loc: function () { return true; } },
     { k: 'chua_ghi', nhan: '📄 Chưa ghi sổ', loc: function (r) { return r.docstatus === 0; } },
     { k: 'da_ghi', nhan: '✅ Đã ghi sổ', loc: function (r) { return r.docstatus === 1; } },
+    /* Cung mot chip, cung mot cau voi man tinh tien cua cac diem ban
+       (anh Viet 27/08/2026). May chu tinh `ly_do_treo`, man hinh chi doc. */
+    { k: 'ket', nhan: '🚧 Không ghi sổ được', loc: function (r) { return !!r.ly_do_treo && r.ly_do_treo !== 'tam_tinh'; } },
     { k: 'chua_pt', nhan: '❓ Chưa chọn thanh toán', loc: function (r) { return r.docstatus === 0 && !r.vgb_pt_thanh_toan; } },
     /* Đơn đã giao xong mà Pancake không ghi nhận khoản nào. Máy CHỈ gắn cờ
        để sales rà lại, không bao giờ tự ghi là Công nợ - anh Việt chốt
