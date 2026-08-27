@@ -131,3 +131,43 @@ def cong_tien(dong, ds_ma_muon, mau):
 		if g.get("ten") and g["ten"] not in o["gd"]:
 			o["gd"].append(g["ten"])
 	return theo_ma, bo_qua
+
+
+# ------------------------------------------------- chon duong khop cho mot bill
+#
+# Anh Viet 27/08/2026, bill HDB-26-08-03877 cua don Pancake 92564: man hinh
+# bao "ngan hang moi nhan 0 d tren tong 945.000 d" trong khi tien da ve tu
+# 25/08. Man quay chi biet hoi MOT duong la ma bill quay VGBxxxxx, con bill
+# do tra qua tai khoan ao MB do Pancake cap, khop bang mach S<shop>O<don>T.
+#
+# Nay hoi nhieu duong roi chon. Phep chon nam o day vi no THUAN, va vi cai
+# can canh khong phai la cach doc co so du lieu ma la LUAT chon: du tien thi
+# lay duong gach IT DONG SAO KE NHAT.
+#
+# Vi sao it dong nhat chu khong phai nhieu tien nhat: gach dung mot dong
+# 945.000 cho bill 945.000 la sach. Gach ba dong cong lai thanh 1.200.000 de
+# tra bill 945.000 la keo them hai dong cua nguoi khac vao, va nhung dong do
+# se thieu khi bill kia can den.
+
+
+def chon_duong_khop(cac_duong, can):
+	"""THUAN: trong cac duong khop, chon duong DU TIEN va it dong nhat.
+
+	`cac_duong` la danh sach cap (ten_duong, ket_qua), moi ket qua co khoa
+	`nhan` va `gd`. Khong duong nao du thi tra duong NHIEU TIEN NHAT, de cau
+	bao loi noi dung con thieu bao nhieu chu khong noi bang 0.
+	"""
+	def _so(x):
+		try:
+			return float(x or 0)
+		except (TypeError, ValueError):
+			return 0.0
+
+	co = [(t, k) for t, k in (cac_duong or []) if k and _so(k.get("nhan"))]
+	if not co:
+		return "", {}
+	nguong = _so(can) - 1
+	du = [(t, k) for t, k in co if _so(k.get("nhan")) >= nguong]
+	if du:
+		return min(du, key=lambda x: (len(x[1].get("gd") or []), -_so(x[1].get("nhan"))))
+	return max(co, key=lambda x: _so(x[1].get("nhan")))
