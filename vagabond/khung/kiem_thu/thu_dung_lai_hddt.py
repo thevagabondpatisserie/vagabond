@@ -297,6 +297,13 @@ def _tien_dong_may_ghi():
 	la("khong co so le thi khong doi",
 		D.tien_dong_may_ghi(3, 25000, 2, 2), 75000.0)
 
+	# Ca that HDM-2026-00398: hoa don ghi 2,762431 don vi, may chi giu ba so
+	# le nen ghi 2,762, hut 9,36 dong. O SO LUONG cung bi cat y nhu o don gia.
+	la("so luong cung bi cat theo do chinh xac cua may",
+		D.tien_dong_may_ghi(2.762431, 21720, 2, 2, 3), 59990.64)
+	la("khong cat so luong thi ra khac",
+		round(2.762431 * 21720, 2), 60000.0)
+
 
 @ca("lam tron: phan chenh vai dong duoc goi dung ten")
 def _ten_dong_bu():
