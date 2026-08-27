@@ -1,5 +1,7 @@
 """Tien ich dung chung: doc cau hinh, doc khoa, nho ket qua."""
 
+import re
+
 import frappe
 
 GOONG = "https://rsapi.goong.io"
@@ -16,6 +18,21 @@ def key(doc, field):
 	"""Doc truong Password ra dang chu."""
 	val = doc.get_password(field, raise_exception=False)
 	return (val or "").strip()
+
+
+# Khoa API cua Pancake, Goong, SePay deu di trong DUONG DAN chu khong phai
+# trong dau thu. Nen moi thong diep loi cua thu vien mang deu cong nguyen ca
+# duong dan, ke ca khoa.
+#
+# Ngay 26/08/2026 Sales chup man hinh Kiem banh gui len: khoa API Pancake
+# cua tiem nam chan giua man hinh, chu do, ai dung canh cung doc duoc. Ham
+# nay quet moi chuoi TRUOC khi no co co hoi di ra man hinh hay vao nhat ky.
+_MAU_KHOA = re.compile(r"(?i)(api_key|access_token|token|key)=[^&\s\"']+")
+
+
+def giau_khoa(chuoi):
+	"""Bo khoa API ra khoi mot thong diep truoc khi cho ai do doc no."""
+	return _MAU_KHOA.sub(r"\1=***", str(chuoi or ""))
 
 
 # ---------------------------------------------------------------------------

@@ -99,6 +99,12 @@ def dung():
 	from vagabond import minvoice_chung_tu
 
 	_dung_nhom(minvoice_chung_tu.TRUONG_MOI, "minvoice_chung_tu")
+	# Cong tac tam ngung ban mot ma tren web dat banh (them 27/08/2026).
+	# Luu NGAY tat den het chu khong phai o co / khong - xem ly do trong
+	# vagabond/tat_ban_web.py.
+	from vagabond import tat_ban_web
+
+	_dung_nhom(tat_ban_web.TRUONG_MOI, "tat_ban_web")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()

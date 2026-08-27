@@ -17,6 +17,8 @@ va so ke toan cua ERPNext van dung nguyen.
 """
 
 import json
+import re
+import unicodedata
 
 import frappe
 from frappe.utils import add_days, cint, flt, nowdate
@@ -100,23 +102,105 @@ def khoi_dong():
 	}
 
 
+# Bao nhieu ma keo ve mot luot truoc khi loc trong Python. Kho cua tiem
+# khong bao gio co toi ngan nay ma con ton, nen day la luoi chan cho truong
+# hop bat thuong chu khong phai muc cat binh thuong.
+TRAN_KEO = 4000
+
+
+def _bo_dau(t):
+	"""Bo dau tieng Viet va ha thuong. Ham THUAN, kiem thu duoc khong can site."""
+	t = unicodedata.normalize("NFD", str(t or ""))
+	t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+	return t.replace("\u0111", "d").replace("\u0110", "d").lower()
+
+
+def _khop(hang, tu):
+	"""Mot dong co khop het cac tu da go khong.
+
+	Moi TU phai co mat, o ma hoac o ten, khong can dung thu tu. Nho vay
+	"o roman" tim ra "Banh O Roman De La Rose", ma "roman o" cung ra.
+
+	So bang ban DA BO DAU ca hai phia. Ly do that: kho hang go tren may tinh
+	o quay thuong go khong dau, ma phep `like` cua co so du lieu thi "banh o"
+	KHONG khop "Bánh Ổ" - hai chuoi do khac nhau tung ky tu. Sales go "banh
+	o" ra rong, nhin danh sach mac dinh khong thay banh o dau, va ket luan
+	la he thong thieu ma.
+	"""
+	kho_chu = _bo_dau(hang.get("ma")) + " " + _bo_dau(hang.get("ten"))
+	return all(_co_tu(kho_chu, t) for t in tu)
+
+
+def _co_tu(kho_chu, t):
+	"""Mot tu da go co nam trong chuoi khong.
+
+	TU NGAN PHAI DUNG DAU MOT TIENG, khong duoc nam giua long tu khac. Neu
+	khong thi go "banh o" se ra ca "Banh Croissant Avocado" - chu "o" nam
+	trong "croissant" - va danh sach loc ra y het danh sach chua loc, tuc la
+	o tim khong lam gi ca. Da vap dung cai nay khi viet ham nay.
+
+	Tu tu ba ky tu tro len thi cho khop o bat ky dau, de con go duoc mot
+	manh giua ma hang nhu "wc000".
+	"""
+	if len(t) >= 3:
+		return t in kho_chu
+	return re.search(r"(?<![a-z0-9])" + re.escape(t), kho_chu) is not None
+
+
+def _diem_khop(hang, tu_khoa_sach):
+	"""Do gan: khop cang sat cang dung truoc. So NHO la dung truoc.
+
+	Vi sao phai xep hang thay vi cu theo van chu cai: danh sach bi cat bot o
+	`gioi_han`, nen thu tu quyet dinh cai gi bi cat. Xep theo van chu cai ma
+	cat thi ma go dung y het van co the bi cat mat, con mot ma chi trung mot
+	chu lai duoc giu.
+	"""
+	ma = _bo_dau(hang.get("ma"))
+	ten = _bo_dau(hang.get("ten"))
+	if not tu_khoa_sach:
+		return 9
+	if ma == tu_khoa_sach or ten == tu_khoa_sach:
+		return 0
+	if ma.startswith(tu_khoa_sach):
+		return 1
+	if ten.startswith(tu_khoa_sach):
+		return 2
+	if tu_khoa_sach in ma:
+		return 3
+	return 4
+
+
 @frappe.whitelist()
-def tim_hang(kho=None, tu_khoa=None, gioi_han=60):
+def tim_hang(kho=None, tu_khoa=None, gioi_han=200):
 	"""Cac ma dang CON TON trong kho do, loc theo tu khoa.
 
 	Chi liet ke ma con ton that: xuat mon khong co ton la chac chan sai, chan
 	tu day cho nhan vien khoi mat cong dien roi bi bao loi luc ghi so.
+
+	BA CHO DA SUA NGAY 26/08/2026, sau khi Sales bao *"ben xuat huy dang bi
+	thieu ma cac san pham nhu banh o, banh nuong"*:
+
+	  1. TRAN CU LA 60 DONG, XEP THEO VAN CHU CAI. Kho banh cua tiem co hon
+	     sau chuc ma con ton, va ten ma nao cung bat dau bang chu "Banh".
+	     Sau chuc dong dau tien la het sach Croissant, con Banh O va Banh
+	     Nuong nam qua khoi vach cat nen khong bao gio hien ra. Khong phai
+	     thieu ma, ma la bi cat. Nay tran la 200 va man hinh noi ro khi
+	     danh sach bi cat.
+	  2. TIM CO PHAN BIET DAU. Phep `like` cua co so du lieu coi "banh o" va
+	     "Bánh Ổ" la hai chuoi khac nhau. Nay so bang ban da bo dau ca hai
+	     phia, va tach tung tu nen khong can go dung thu tu.
+	  3. XEP HANG. Danh sach bi cat thi thu tu quyet dinh cai gi bi cat, nen
+	     ma khop sat nhat phai dung truoc.
+
+	Loc trong Python chu khong trong cau lenh SQL vi phep bo dau tieng Viet
+	khong co san trong co so du lieu, va vi so ma con ton trong mot kho la
+	con so nho - vai tram - nen keo ve roi loc la re.
 	"""
 	_duoc_xuat()
 	if not kho:
 		return []
 	tu_khoa = (tu_khoa or "").strip()
-	dieu_kien = ""
-	tham_so = {"kho": kho, "gh": int(gioi_han or 60)}
-	if tu_khoa:
-		dieu_kien = " and (b.item_code like %(q)s or i.item_name like %(q)s)"
-		tham_so["q"] = "%" + tu_khoa + "%"
-	return frappe.db.sql(
+	tho = frappe.db.sql(
 		"""
 		select b.item_code as ma, i.item_name as ten, i.item_group as nhom,
 		       i.stock_uom as dvt, b.actual_qty as ton,
@@ -124,15 +208,27 @@ def tim_hang(kho=None, tu_khoa=None, gioi_han=60):
 		from `tabBin` b
 		join `tabItem` i on i.name = b.item_code
 		where b.warehouse = %(kho)s and b.actual_qty > 0 and i.disabled = 0
-		"""
-		+ dieu_kien
-		+ """
 		order by i.item_name
-		limit %(gh)s
+		limit %(tran)s
 		""",
-		tham_so,
+		{"kho": kho, "tran": TRAN_KEO},
 		as_dict=True,
 	)
+	return loc_va_xep(tho, tu_khoa, gioi_han)
+
+
+def loc_va_xep(tho, tu_khoa, gioi_han=200):
+	"""Phep THUAN: vao la danh sach dong, ra la danh sach da loc va xep.
+
+	Tach rieng khoi `tim_hang` de bo kiem thu tang khung do duoc ma khong
+	can co so du lieu - dung cach ca repo nay van lam.
+	"""
+	sach = _bo_dau(tu_khoa)
+	tu = [t for t in sach.split() if t]
+	ra = [d for d in tho if not tu or _khop(d, tu)]
+	ra.sort(key=lambda d: (_diem_khop(d, sach), str(d.get("ten") or "")))
+	gh = int(gioi_han or 200)
+	return ra[:gh] if gh > 0 else ra
 
 
 def _doc_dong(dong):

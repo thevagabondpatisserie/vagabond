@@ -174,6 +174,7 @@ MAN = (
 	("CDTK", "Tài khoản kế toán", None),
 	("CDSP", "Danh mục sản phẩm", None),
 	("CDMI", "Máy in", None),
+	("CDMU", "Mẫu in ấn", "mau-in"),
 	("CDQQ", "Quyền quầy", None),
 	("CDHT", "Hạng khách", None),
 	("CDCN", "Cài đặt cuối ngày", None),

@@ -30,7 +30,8 @@ from datetime import datetime, timedelta
 import frappe
 from frappe.utils import add_days, getdate, now_datetime
 
-from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
+from vagabond import pancake_nhip, tat_ban_web
+from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
 
 
 def _mang():
@@ -77,7 +78,25 @@ TIEN_TO_MA = ("BAWC", "BAWS")
 TIEN_TO_THEM_TAY = TIEN_TO_MA + ("BANU", "BAEN", "BACF", "BASS", "BTPB", "BTPN")
 
 # Man hinh tu goi dong bo lien tuc; chan doi lai Pancake day hon muc nay.
-GIAN_CACH_DONG_BO = 12  # giay
+#
+# NANG TU 12 LEN 45 GIAY (26/08/2026). Ly do: moi man hinh dang mo tu goi
+# dong_bo 30 giay mot lan, va MOI lan dong bo la hai luot keo don, moi luot
+# den muoi trang. Ba may sales mo cung luc la Pancake nhan hon hai chuc luot
+# hoi mot phut, ca ngay, chua ke man mua vu va man van don cung goi. Pancake
+# tra ve 403 la phai. Bon muoi lam giay van du tuoi cho mot bang kiem banh.
+GIAN_CACH_DONG_BO = 45  # giay
+
+# Pancake tu choi thi NGHI HAN, khong thu lai ngay.
+#
+# Vi sao phai co: khi bi tu choi vi goi qua day, cach lam sai nhat la goi
+# lai ngay - no keo dai dung cai tinh trang minh dang muon thoat ra. Nghi
+# ba phut roi hay thu, va trong ba phut do man hinh van bay so cua lan dong
+# bo gan nhat, co ghi ro la so cu.
+NGHI_SAU_TU_CHOI = 180  # giay
+# So lan thu lai mot luot keo don truoc khi chiu thua, va gian cach giua cac
+# lan. Tang dan chu khong deu nhau: bi chan ma dap cua deu tay thi khong bao
+# gio duoc mo.
+THU_LAI = (2, 5)  # giay
 
 
 def _khoang_unix(ngay):
@@ -89,28 +108,96 @@ def _khoang_unix(ngay):
 	return int(dau.timestamp()), int((dau + timedelta(days=1)).timestamp()) - 1
 
 
+class LoiPancake(Exception):
+	"""Pancake khong tra loi duoc. Mang theo ma HTTP de ben goi xu ly khac nhau."""
+
+	def __init__(self, ma, loi_nguoi_doc):
+		self.ma = ma
+		self.loi_nguoi_doc = loi_nguoi_doc
+		super().__init__(loi_nguoi_doc)
+
+
+# Giau khoa API truoc khi bat ky chuoi nao di ra man hinh. Ban goc va ly do
+# nam trong vagabond/lib.py - dat o do vi Pancake khong phai mo dun duy nhat
+# gui khoa di trong duong dan.
+_giau_khoa = giau_khoa
+
+
 def _keo_don(c, k, update_status, dau, cuoi):
-	"""Keo het don trong khoang thoi gian, lat qua tung trang."""
+	"""Keo het don trong khoang thoi gian, lat qua tung trang.
+
+	Ba dieu tep cu khong lam, va ca ba deu da can tro Sales that:
+
+	  1. Ban cu nem thang loi cua thu vien mang len man hinh,
+	     KEM CA KHOA API. Nay doi thanh mot cau tieng Viet, va khoa bi giau
+	     o `_giau_khoa` truoc khi bat ky ai doc duoc.
+	  2. Bi tu choi mot cai la chiu thua ngay. Nay thu lai hai lan, gian
+	     cach tang dan.
+	  3. Het muoi trang thi lang le dung, bo phan con lai. Ngay dong don thi
+	     dung la "banh da ban ma cot Da dat khong nhuc nhich" - dung cai loi
+	     Sales bao 26/08. Nay noi ra bang mot ngoai le, khong nuot.
+	"""
+	import time
+
 	ra = []
 	for trang in range(1, MAX_TRANG + 1):
-		r = _mang().get(
-			"%s/shops/%s/orders" % (PANCAKE, c.pancake_shop_id),
-			params={
-				"api_key": k,
-				"updateStatus": update_status,
-				"startDateTime": dau,
-				"endDateTime": cuoi,
-				"page_size": 100,
-				"page_number": trang,
-			},
-			timeout=TIMEOUT,
+		ds = None
+		for lan in range(len(THU_LAI) + 1):
+			try:
+				r = _mang().get(
+					"%s/shops/%s/orders" % (PANCAKE, c.pancake_shop_id),
+					params={
+						"api_key": k,
+						"updateStatus": update_status,
+						"startDateTime": dau,
+						"endDateTime": cuoi,
+						"page_size": 100,
+						"page_number": trang,
+					},
+					timeout=TIMEOUT,
+				)
+			except Exception as e:
+				if lan < len(THU_LAI):
+					time.sleep(THU_LAI[lan])
+					continue
+				raise LoiPancake(0, "Không nối được Pancake: %s" % _giau_khoa(e))
+			if r.status_code == 200:
+				ds = (r.json() or {}).get("data") or []
+				break
+			# 403 va 429 la "goi qua day" hoac "khoa sai"; 5xx la ben ho tro
+			# tro. Ca ba deu dang thu lai. 4xx con lai thi thu lai vo ich.
+			if r.status_code not in (403, 408, 429, 500, 502, 503, 504):
+				raise LoiPancake(r.status_code, _loi_theo_ma(r.status_code))
+			if lan < len(THU_LAI):
+				time.sleep(THU_LAI[lan])
+				continue
+			raise LoiPancake(r.status_code, _loi_theo_ma(r.status_code))
+		ra.extend(ds or [])
+		if len(ds or []) < 100:
+			return ra
+	# Ra khoi vong for nghia la trang thu MAX_TRANG van con day 100 don.
+	raise LoiPancake(
+		0,
+		"Ngày này có hơn %d đơn, nhiều hơn mức máy kéo về một lượt. "
+		"Số trên bảng sẽ thiếu. Báo anh Việt để nới mức kéo."
+		% (MAX_TRANG * 100),
+	)
+
+
+def _loi_theo_ma(ma):
+	"""Cau tieng Viet cho tung ma HTTP, viet cho Sales doc chu khong cho lap trinh."""
+	if ma in (403, 429):
+		return (
+			"Pancake đang từ chối lượt gọi (mã %s). Thường là do nhiều máy cùng "
+			"mở màn kiểm bánh nên gọi quá dày, đợi vài phút là hết. Nếu vài "
+			"tiếng vẫn vậy thì khoá API Pancake trong Cài đặt đã hết hạn."
+			% ma
 		)
-		r.raise_for_status()
-		ds = (r.json() or {}).get("data") or []
-		ra.extend(ds)
-		if len(ds) < 100:
-			break
-	return ra
+	if ma == 401:
+		return "Pancake không nhận khoá API. Vào Cài đặt dán lại khoá Pancake."
+	if ma >= 500:
+		return "Máy chủ Pancake đang trục trặc (mã %s). Lát nữa thử lại." % ma
+	return "Pancake trả về mã %s, chưa kéo được đơn." % ma
 
 
 def _dem_banh(dons, dang_theo_doi=None):
@@ -221,6 +308,34 @@ def _lay_hoac_tao(ngay):
 	return doc
 
 
+def _bat_dau_nghi(ngay):
+	"""Bao ca he nghi goi Pancake mot lat.
+
+	Nghi CHUNG chu khong phai rieng man kiem banh: chinh cai canh moi mo dun
+	tu dem gio rieng roi thay nhau dap cua la thu da nuoi cai loi 403 hai ngay
+	26 va 27/08. Xem vagabond/pancake_nhip.py.
+	"""
+	pancake_nhip.bat_dau_nghi()
+
+
+def _con_nghi(ngay):
+	"""Con bao nhieu giay nua ca he moi duoc goi Pancake. 0 la goi duoc ngay."""
+	return pancake_nhip.con_nghi()
+
+
+def _bang_kem_loi(ngay, loi, cho_giay=0):
+	"""Bang cua lan dong bo gan nhat, kem mot cau noi ro vi sao chua moi.
+
+	Man hinh doc `loi` de bay mot dong canh bao, va doc `cho_giay` de biet
+	bao lau nua hay goi lai - khong thi no cu goi ba muoi giay mot lan vao
+	dung cai cua dang dong.
+	"""
+	ra = bang(ngay)
+	ra["loi"] = loi
+	ra["cho_giay"] = int(cho_giay or 0)
+	return ra
+
+
 @frappe.whitelist()
 def dong_bo(ngay=None):
 	"""Dem lai "da dat" va "phat sinh" cua mot ngay tu Pancake.
@@ -243,10 +358,35 @@ def dong_bo(ngay=None):
 		if luc and (now_datetime() - luc).total_seconds() < GIAN_CACH_DONG_BO:
 			return bang(ngay)
 
+	# Dang trong ky nghi sau khi bi Pancake tu choi: tra bang cu kem loi.
+	con = _con_nghi(ngay)
+	if con:
+		return _bang_kem_loi(
+			ngay,
+			"Pancake vừa từ chối nên máy đang nghỉ %d giây rồi thử lại. "
+			"Số dưới đây là của lần đồng bộ gần nhất." % con,
+			con,
+		)
+
 	dau, cuoi = _khoang_unix(ngay)
 
-	giao_hom_nay = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
-	tao_hom_nay = _keo_don(c, k, "inserted_at", dau, cuoi)
+	# Keo don. Pancake tu choi thi KHONG lam do ca man hinh: ghi nho de nghi
+	# mot lat, roi tra ve bang cua lan dong bo gan nhat kem mot cau noi ro so
+	# do la so cu. Sales van lam viec duoc, va van biet minh dang nhin so cu.
+	#
+	# Truoc 26/08/2026 cho nay nem thang ngoai le cua thu vien mang len man,
+	# nen Sales doc duoc mot dong do dai loang ngoang co ca khoa API trong
+	# do, va khong biet phai lam gi.
+	try:
+		giao_hom_nay = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
+		tao_hom_nay = _keo_don(c, k, "inserted_at", dau, cuoi)
+	except LoiPancake as e:
+		pancake_nhip.ghi_hong(
+			e.loi_nguoi_doc, nghi=(e.ma in (403, 408, 429) or e.ma >= 500)
+		)
+		frappe.log_error(_giau_khoa(frappe.get_traceback()), "kiem_banh: keo don Pancake")
+		return _bang_kem_loi(ngay, e.loi_nguoi_doc, _con_nghi(ngay))
+	pancake_nhip.ghi_ok()
 	ma_tao_hom_nay = {o.get("id") for o in tao_hom_nay}
 
 	# Chia ba ro (y Loan Anh 01/08):
@@ -486,6 +626,7 @@ def bang(ngay=None):
 	if not frappe.db.exists("Kiem Banh Ngay", ma):
 		return {"ngay": str(ngay), "co_so": 0, "dong": []}
 	doc = frappe.get_doc("Kiem Banh Ngay", ma)
+	tat = tat_ban_web.bang([d.ma_hang for d in doc.dong], ngay)
 	return {
 		"ngay": str(ngay),
 		"co_so": 1,
@@ -503,6 +644,10 @@ def bang(ngay=None):
 				"cho_chot": d.cho_chot or 0, "ten_khach_cho": d.ten_khach_cho or "",
 				"don_khac": d.don_khac or 0, "ten_khach_khac": d.ten_khach_khac or "",
 				"co_the_ban": d.co_the_ban or 0,
+				# Cong tac tam ngung ban tren web. Bay len man de nguoi bam
+				# nhin thay ngay minh vua tat cai gi, va den bao gio ban lai.
+				"tat_web": (tat.get(d.ma_hang) or {}).get("tat", 0),
+				"tat_web_den": (tat.get(d.ma_hang) or {}).get("den_ngay", ""),
 			}
 			for d in doc.dong
 		],
@@ -588,6 +733,17 @@ def xoa_dong(ngay, ma_hang):
 		frappe.db.commit()
 		return {"ok": 1}
 	frappe.throw("Khong thay ma hang %s" % ma_hang)
+
+
+@frappe.whitelist()
+def tat_ban_web_dat(ma_hang=None, tat=1, den_ngay=None):
+	"""Bat hoac tat ban mot ma tren web, bam tu man Kiem banh.
+
+	Chi la mot cua vao: phep that nam trong vagabond/tat_ban_web.py, dung
+	chung voi man Kiem mua vu. Co cua rieng o day vi trang /kiem-banh goi API
+	bang tien to `vagabond.kiem_banh.`, khong goi thang mo dun khac duoc.
+	"""
+	return tat_ban_web.dat(ma_hang=ma_hang, tat=tat, den_ngay=den_ngay)
 
 
 @frappe.whitelist()
@@ -869,7 +1025,8 @@ def _soi_pancake(c, k, ma):
 				ra["_khoa_ep"] = ", ".join(sorted(list((d2 or {}).keys())))
 			break
 	except Exception:
-		ra["_loi"] = frappe.get_traceback()[-400:]
+		# Giau khoa: o chan doan nay in thang ra man hinh cho nguoi dung xem.
+		ra["_loi"] = _giau_khoa(frappe.get_traceback()[-400:])
 	return ra
 
 
@@ -899,6 +1056,12 @@ def co_the_ban_hom_nay():
 		if (d.co_the_ban or 0) > 0
 		and not str(d.ma_hang or "").upper().startswith("BAWS")
 	]
+	# Cong tac tay: con ton ma van phai tat, vi mot ly do bat kha khang nao do
+	# ma may khong biet duoc (anh Viet 27/08/2026). Loc SAU phep dem chu khong
+	# truoc: bang kiem banh van phai hien du so that cho bep va sales, chi rieng
+	# WEB la khong bay ma do.
+	tat = tat_ban_web.bang([d.ma_hang for d in dong], ngay)
+	dong = [d for d in dong if not (tat.get(d.ma_hang) or {}).get("tat")]
 	if not dong:
 		return rong
 
