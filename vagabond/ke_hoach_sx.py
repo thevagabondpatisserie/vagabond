@@ -275,13 +275,46 @@ def _phieu_cua_ngay(ngay):
 
 
 def _dung_phieu(ngay, ds_ycsx, cong_ty):
-	"""Dựng đối tượng Production Plan và để ERPNext nổ. KHÔNG lưu."""
+	"""Dựng đối tượng Production Plan và để ERPNext nổ. KHÔNG lưu.
+
+	VÌ SAO `combine_items` PHẢI TẮT KHI NGUỒN LÀ PHIẾU YÊU CẦU SẢN XUẤT
+	------------------------------------------------------------------
+	Ô "Gộp món" của ERPNext chỉ chạy đúng khi nguồn là Đơn bán. Bật nó với
+	nguồn là Phiếu yêu cầu sản xuất thì hỏng hai chỗ, đọc trong
+	`production_plan.add_items`:
+
+	1. Nó nhét TÊN PHIẾU YÊU CẦU vào ô `sales_order` của bảng tham chiếu,
+	   mà ô đó là ô Link trỏ sang doctype Đơn bán. Lưu phiếu là Frappe từ
+	   chối ngay: "Không tìm thấy Dòng #1: Tham chiếu đơn bán:
+	   YCSX-2026-00150". Anh Việt gặp đúng câu này khi bấm Lập kế hoạch
+	   ngày 28/08/2026.
+
+	2. Nguy hơn cái trên và không ai thấy: đoạn cuối `add_items` gán số
+	   lượng ĐÃ GỘP cho TỪNG dòng, chứ không xoá bớt dòng:
+
+	       for po_item in self.po_items:
+	           po_item.planned_qty = refs[po_item.bom_no]["qty"]
+
+	   Ba điểm bán cùng đặt 10 cái bánh X thì ra ba dòng, mỗi dòng 30, tổng
+	   90. Bếp làm gấp ba. Với nguồn Đơn bán thì màn Desk gọi tiếp
+	   `combine_so_items()` để dồn ba dòng thành một, còn nguồn Phiếu yêu
+	   cầu KHÔNG có bước đó.
+
+	Nên ở đây tắt hẳn. Mỗi dòng phiếu yêu cầu thành một dòng riêng, số lượng
+	đúng của điểm bán đó, và mỗi dòng giữ được tên phiếu yêu cầu gốc - bếp
+	nhìn ra ngay món này của bên nào đặt.
+
+	Phần GỘP thật sự cần thì vẫn còn: `combine_sub_items` gộp bán thành phẩm
+	và nguyên liệu của cả phiếu lại, mà đó mới là con số bếp đi lấy hàng.
+	"""
 	doc = frappe.new_doc("Production Plan")
 	doc.company = cong_ty
 	doc.posting_date = nowdate()
 	doc.vgb_ngay_bep = getdate(ngay)
 	doc.get_items_from = "Material Request"
-	doc.combine_items = 1
+	# combine_items PHAI TAT khi nguon la Material Request. Xem ghi chu dai
+	# ngay duoi day.
+	doc.combine_items = 0
 	doc.combine_sub_items = 1
 	# KHÔNG bật skip_available_sub_assembly_item, xem lý do ở đầu tệp.
 	doc.skip_available_sub_assembly_item = 0
@@ -305,6 +338,10 @@ def _dung_phieu(ngay, ds_ycsx, cong_ty):
 		d.planned_start_date = getdate(ngay)
 	if doc.po_items:
 		doc.get_sub_assembly_items()
+	# Hang rao thu hai cho loi 1 o tren. `combine_items` dang tat nen bang
+	# nay le ra phai rong; don lai phong khi ban ERPNext sau doi cach lam.
+	# Mot dong thua o day la ca phieu khong luu duoc.
+	doc.set("prod_plan_references", [])
 	return doc
 
 
