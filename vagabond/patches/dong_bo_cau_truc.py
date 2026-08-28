@@ -270,3 +270,68 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: nguong nhan du")
+
+	# NGUONG VUOT HOA DON, day moi la nut that that su cua Uyen
+	# (anh Viet 28/08/2026).
+	#
+	# Uyen bao: "khi gia hoa don thuc te khac gia tren PO/PNK, ke toan
+	# khong the noi PNK vao Hoa don de hach toan", phai sua PO roi huy PNK
+	# roi tao PNK moi.
+	#
+	# Da soi ky: KHONG PHAI do `maintain_same_rate`, o do dang de "Warn"
+	# tu v318 nen chi nhac chu khong chan. Cai chan that la
+	# `Accounts Settings.over_billing_allowance` dang bang 0 va
+	# `role_allowed_to_over_bill` con trong. Voi hai o do, ERPNext chan
+	# MOI to hoa don co so tien nhinh hon phieu nhap du chi mot dong:
+	#
+	#     Cannot overbill for Item ... more than ...
+	#
+	# Vi the ke toan thay "sua gia thi khong luu duoc" ma khong hieu vi
+	# sao, boi cau bao nhac toi so tien chu khong nhac toi gia.
+	#
+	# Hai lop, co y de nhu vay:
+	#   - Nguong 10 phan tram: cho moi nguoi, du cho lech gia thuong ngay
+	#     (khuyen mai het han, can dong, phi giao hang gop vao).
+	#   - Vai vuot: ke toan vuot duoc moi muc, vi to hoa don la giay to
+	#     that da gui co quan thue, khong the bat no khop voi don dat hang.
+	#
+	# Van con hang rao: qua 10 phan tram thi thu mua bi chan, luc do nhieu
+	# kha nang la go nham so chu khong phai gia doi that.
+	#
+	# Chay lai duoc: chi dat khi o do con trong hoac bang 0.
+	try:
+		if not flt(frappe.db.get_single_value("Accounts Settings", "over_billing_allowance")):
+			frappe.db.set_single_value("Accounts Settings", "over_billing_allowance", 10)
+			frappe.clear_cache(doctype="Accounts Settings")
+			frappe.logger().info("dong_bo_cau_truc: mo nguong vuot hoa don 10 phan tram")
+		if not (frappe.db.get_single_value("Accounts Settings", "role_allowed_to_over_bill") or "").strip():
+			if frappe.db.exists("Role", "Accounts Manager"):
+				frappe.db.set_single_value(
+					"Accounts Settings", "role_allowed_to_over_bill", "Accounts Manager"
+				)
+				frappe.clear_cache(doctype="Accounts Settings")
+				frappe.logger().info("dong_bo_cau_truc: khai vai vuot hoa don = Accounts Manager")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: nguong vuot hoa don")
+
+	# Chenh lech gia giua phieu nhap va hoa don phai chay vao GIA TRI TON
+	# KHO, khong duoc bo lo (anh Viet 28/08/2026, Khoi 1 muc 4).
+	#
+	# ERPNext co san o "Set Landed Cost Based on Purchase Invoice Rate".
+	# Bat len thi khi hoa don ghi gia khac phieu nhap, may tu dieu chinh
+	# gia tri ton kho theo gia hoa don, phan da xuat dung thi day sang tai
+	# khoan dieu chinh cua cong ty. Tat thi ton kho giu mai gia tam tinh
+	# cua don dat hang, va gia von thang sau sai theo.
+	#
+	# Chay lai duoc: chi bat khi dang tat.
+	try:
+		if not cint(frappe.db.get_single_value(
+			"Buying Settings", "set_landed_cost_based_on_purchase_invoice_rate"
+		)):
+			frappe.db.set_single_value(
+				"Buying Settings", "set_landed_cost_based_on_purchase_invoice_rate", 1
+			)
+			frappe.clear_cache(doctype="Buying Settings")
+			frappe.logger().info("dong_bo_cau_truc: bat dieu chinh gia tri ton kho theo gia hoa don")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: gia tri ton kho theo hoa don")
