@@ -17841,7 +17841,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '339';
+var APPVER = '340';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -26722,6 +26722,11 @@ async function scrHoSoTT() {
       (r.loai === 'Hoan ung' || r.loai === 'Hoan ung HD' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' + (r.loai === 'Hoan ung HD' ? '🧾 hoàn ứng có HĐ' : '🧮 hoàn ứng không HĐ') + '</span>' : '') +
       (r.tre_ngay > 0 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">quá hạn ' + r.tre_ngay + ' ngày</span>' : '') +
       (r.email_da_gui ? '<span style="margin-left:7px;font-size:11.5px;color:#0e7490">✉️ đã báo NCC</span>' : '') +
+      /* Ho so da duyet ma chua co uy nhiem chi thi khong ghi nhan thanh toan
+         duoc. Bay ngay tren danh sach de chi Dung tai UNC ve mot lot, khoi
+         mo tung to ra moi biet to nao con thieu. */
+      (r.trang_thai === 'Da duyet' && !r.co_unc
+        ? '<span style="margin-left:7px;font-size:11.5px;color:#b45309;font-weight:700">📎 chưa có UNC</span>' : '') +
       '</div></div>' +
       '<b style="white-space:nowrap">' + money(r.tong_tien) + ' đ</b></div>';
   });
@@ -27804,14 +27809,24 @@ async function scrHoSoTTView(name) {
   /* Thu bao chi danh cho ho so cong no nha cung cap. Ho so hoan ung thi
      nha cung cap da duoc tra tien tu luc mua, gui thu "chung toi da thanh
      toan" cho ho la bao mot viec khong xay ra. May chu cung chan. */
-  if (hs.trang_thai === 'Da thanh toan' && !laHU) {
+  /* Khoi thu bao hien o MOI trang thai cua ho so nha cung cap, khong chi
+     khi da tra. Ly do: nut Gui thu de xem mat la thu phai dung duoc TRUOC
+     khi tra tien, khong thi khong ai kiem lai duoc noi dung truoc luc no
+     den tay nha cung cap. Rieng nut gui that thi van doi da thanh toan. */
+  if (!laHU) {
+    var daTra = hs.trang_thai === 'Da thanh toan';
     html += '<div class="sec">Thư báo nhà cung cấp</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
       (hs.email_da_gui
         ? '✉️ Đã gửi tới <b>' + h(hs.email_gui_toi) + '</b>' + (hs.email_gui_luc ? ' lúc ' + h(hs.email_gui_luc) : '') + '.<br>Gửi lại được nếu nhà cung cấp báo chưa nhận.'
-        : 'Chưa gửi thư báo. Email đang lưu trên hồ sơ nhà cung cấp: <b>' + h(hs.email_ncc || '(chưa có)') + '</b>') +
+        : (daTra ? 'Chưa gửi thư báo. ' : 'Thư tự gửi ngay khi ghi nhận thanh toán. ') +
+          'Email đang lưu trên hồ sơ nhà cung cấp: <b>' + h(hs.email_ncc || '(chưa có)') + '</b>') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
-      '<button class="btn gh" data-hsv="xemthu" style="flex:1;margin:0">👁 Xem trước thư</button>' +
-      '<button class="btn" data-hsv="guithu" style="flex:1;margin:0">✉️ ' + (hs.email_da_gui ? 'Gửi lại' : 'Gửi thư báo') + '</button></div></div>';
+      '<button class="btn gh" data-hsv="xemthu" style="flex:1;margin:0">👁 Xem trước</button>' +
+      '<button class="btn gh" data-hsv="guithuthu" style="flex:1;margin:0">🧪 Gửi thử</button>' +
+      (daTra ? '<button class="btn" data-hsv="guithu" style="flex:1;margin:0">✉️ ' + (hs.email_da_gui ? 'Gửi lại' : 'Gửi thư báo') + '</button>' : '') +
+      '</div>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
+      'Gửi thử đi đúng một địa chỉ anh chị gõ vào, tiêu đề có chữ GỬI THỬ, không gửi bản sao cho ai.</div></div>';
   }
 
   var nut = [];
@@ -28030,6 +28045,17 @@ async function hsHanh(k, hs) {
     var w = window.open('', '_blank');
     if (w) { w.document.write(t.html); w.document.close(); }
     else baoTin('Trình duyệt chặn cửa sổ mới. Vui lòng cho phép rồi bấm lại.');
+    return;
+  }
+  if (k === 'guithuthu') {
+    var toiThu = await hoiNhap('Gửi thử lá thư này tới email nào?', ((S && S.me && S.me.user) || ''));
+    if (!toiThu) return;
+    busy(true);
+    try {
+      await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toiThu, gui_that: 1, thu_nghiem: 1 });
+      busy(false);
+      toast('Đã gửi thử tới ' + toiThu + '. Thư có chữ GỬI THỬ ở tiêu đề.', 5200);
+    } catch (e) { busy(false); return baoTin(errMsg(e) || 'Không gửi thử được'); }
     return;
   }
   if (k === 'guithu') {

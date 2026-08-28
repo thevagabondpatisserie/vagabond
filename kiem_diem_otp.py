@@ -3892,8 +3892,16 @@ la("dem so nha cung cap dang chon", "var soNha = Object.keys(nhaChon).length;" i
 la("man hinh chan luu khi chua chon nguoi duoc hoan ung",
    "if (laHU && !hsTaoNguoiUng) return baoTin" in _js35, True)
 la("ho so hoan ung khong gui bo loc ncc len may chu", "ncc: laHU ? '' : hsTaoNcc," in _js35, True)
+# Doi 28/08/2026 cung dot them nut Gui thu (v340). Truoc do khoi thu bao chi
+# hien khi ho so DA THANH TOAN, nen ca kiem nay chot nguyen ca dieu kien do.
+# Nay khoi hien o moi trang thai cua ho so nha cung cap, vi nut Gui thu phai
+# dung duoc TRUOC luc tra tien thi moi kiem lai duoc noi dung la thu. Dieu
+# can canh van y nguyen va khong duoc noi long: ho so HOAN UNG thi khong bao
+# gio thay khoi nay, vi nha cung cap da duoc tra tien tu luc mua.
 la("man chi tiet an the thu bao NCC voi ho so hoan ung",
-   "if (hs.trang_thai === 'Da thanh toan' && !laHU) {" in _js35, True)
+   "if (!laHU) {\n    var daTra = hs.trang_thai === 'Da thanh toan';" in _js35, True)
+la("nut gui THAT van doi ho so da thanh toan",
+   "daTra ? '<button class=\"btn\" data-hsv=\"guithu\"" in _js35, True)
 
 # --- Doctype ---
 _dt35 = json.load(open("vagabond/vagabond/doctype/vagabond_ho_so_tt/vagabond_ho_so_tt.json", encoding="utf-8"))
