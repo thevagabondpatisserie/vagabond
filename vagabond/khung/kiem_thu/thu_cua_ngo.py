@@ -48,6 +48,11 @@ CUA_NGO = {
 	# banh goi qua cua rieng cua chung.
 	"tat_ban_web.py": ["dat"],
 	"nvl_thay_the.py": ["tinh_lai"],
+	# Them 28/08/2026 cung lan dat hang rao tai khoan kho. Chi `soat_kho` la
+	# cua man hinh; `chan_nhap_vao_thanh_pham` la HOOK, chay tren duong ghi
+	# so cua Frappe chu khong ai goi tu ngoai, nen KHONG mo ra ngoai. Ba ham
+	# thuan `so_hieu`, `la_tk_thanh_pham`, `soi_dong` cung vay.
+	"gac_tk_kho.py": ["soat_kho"],
 	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
