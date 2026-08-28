@@ -618,18 +618,67 @@ def xem(ngay=None, ten=None):
 			d.update(them)
 		return d
 
-	ra_tp = [_dong(x.get("item_code"), x.get("item_name") or x.get("description"),
-		x.get("stock_uom"), x.get("planned_qty"), x.get("ordered_qty"),
-		x.get("warehouse"), x.get("name"),
-		{"bom": x.get("bom_no") or "", "ycsx": x.get("material_request") or "",
-			"da_lam": flt(x.get("produced_qty"))})
-		for x in tp]
+	# GOM THANH PHAM THEO MA.
+	#
+	# ERPNext de moi dong phieu yeu cau thanh mot dong rieng, nen mot ma
+	# banh sau diem ban dat la sau dong. Do tren site 28/08/2026: 110 dong
+	# cho 38 ma. Bep mo ra thay BANU00021 sau lan thi khong biet phai lam
+	# bao nhieu.
+	#
+	# Gom lai mot dong mot ma, va GIU DANH SACH NGUON ben trong de bep con
+	# truy duoc so do cua diem ban nao. Gom ma danh mat nguon thi luc con so
+	# trong la khong ai truy lai duoc.
+	gom_tp = {}
+	for x in tp:
+		ma = x.get("item_code")
+		o = gom_tp.get(ma)
+		if not o:
+			o = gom_tp[ma] = {
+				"ma": ma, "ten_mon": x.get("item_name") or x.get("description"),
+				"dvt": x.get("stock_uom"), "can": 0.0, "da_lenh": 0.0,
+				"da_lam": 0.0, "kho": x.get("warehouse"),
+				"bom": x.get("bom_no") or "", "khoa": [], "nguon": [],
+			}
+		o["can"] += flt(x.get("planned_qty"))
+		o["da_lenh"] += flt(x.get("ordered_qty"))
+		o["da_lam"] += flt(x.get("produced_qty"))
+		o["khoa"].append(x.get("name"))
+		o["nguon"].append({
+			"ycsx": x.get("material_request") or "",
+			"kho": x.get("warehouse") or "",
+			"sl": flt(x.get("planned_qty")),
+		})
 
-	# Nguyên liệu xổ ra dưới từng bán thành phẩm. ERPNext neo bằng ô
-	# `sub_assembly_item_reference`, chính là tên dòng bán thành phẩm.
+	ra_tp = []
+	for o in sorted(gom_tp.values(), key=lambda z: z["ma"]):
+		# Khoa la danh sach ten dong, noi bang dau phay. Nut tao lenh se ra
+		# lenh cho TUNG dong, de moi lenh noi ve dung phieu yeu cau cua no -
+		# do la cach phieu yeu cau duoc dong lai.
+		d = _dong(o["ma"], o["ten_mon"], o["dvt"], o["can"], o["da_lenh"],
+			o["kho"], ",".join(o["khoa"]),
+			{"bom": o["bom"], "da_lam": o["da_lam"], "nguon": o["nguon"],
+				"so_nguon": len(o["nguon"])})
+		ra_tp.append(d)
+
+	# Nguyên liệu xổ ra dưới từng bán thành phẩm.
+	#
+	# ERPNext có ô `sub_assembly_item_reference` để neo, NHƯNG nó chỉ điền ô
+	# đó trong `on_submit`. Phiếu của bếp nằm ở dạng NHÁP cho tới khi bấm
+	# Chốt, nên đọc ô đó trên phiếu nháp thì luôn rỗng và bếp không xổ ra
+	# được gì. Đo trên site 28/08/2026: 47 dòng nguyên liệu, 0 dòng có neo.
+	#
+	# Nên ở đây TỰ ĐỐI CHIẾU, đúng luật ERPNext dùng trong
+	# `add_reference_to_raw_materials`: một dòng nguyên liệu thuộc về dòng
+	# bán thành phẩm nào có cùng món và cùng công thức. Chỉ đọc, không ghi
+	# gì xuống phiếu, nên chạy được cả trên phiếu nháp lẫn phiếu đã chốt.
 	nvl_theo_btp = {}
+	neo_cua = {}
+	for x in btp:
+		neo_cua[(x.get("production_item"), x.get("bom_no"))] = x.get("name")
 	for x in nvl:
 		neo = (x.get("sub_assembly_item_reference") or "").strip()
+		if not neo:
+			neo = neo_cua.get((x.get("main_item_code"), x.get("from_bom"))) or ""
 		if neo:
 			nvl_theo_btp.setdefault(neo, []).append(x)
 
@@ -692,6 +741,33 @@ def chot(ten):
 
 @frappe.whitelist()
 def tao_lenh(ten, khoa, loai="btp"):
+	"""Tạo lệnh sản xuất cho một dòng, hoặc một nhóm dòng cùng mã.
+
+	`khoa` nhận nhiều tên dòng nối bằng dấu phẩy. Màn hình gom thành phẩm
+	theo mã nên một thẻ trên màn ứng với nhiều dòng phiếu, mỗi dòng của một
+	phiếu yêu cầu khác nhau. Ra lệnh cho TỪNG dòng chứ không gộp thành một
+	lệnh to: có vậy mỗi lệnh mới neo về đúng phiếu yêu cầu của nó, và phiếu
+	yêu cầu mới tự đóng lại khi làm xong. Gộp thành một lệnh thì năm phiếu
+	yêu cầu treo mãi ở trạng thái Pending, đúng cái đống 233 phiếu tồn đọng
+	đang có trên hệ.
+	"""
+	ra, hong = [], []
+	for k in [x.strip() for x in str(khoa or "").split(",") if x.strip()]:
+		r = _tao_mot_lenh(ten, k, loai)
+		if r.get("ok"):
+			ra.append(r.get("lenh"))
+		else:
+			hong.append(r.get("ghi_chu"))
+	if not ra:
+		return {"ok": 0, "ghi_chu": hong[0] if hong else
+			"Không có dòng nào để tạo lệnh."}
+	return {"ok": 1, "lenh": ra,
+		"ghi_chu": "Đã tạo %d lệnh sản xuất: %s.%s"
+			% (len(ra), ", ".join(ra),
+				" Có %d dòng bỏ qua." % len(hong) if hong else "")}
+
+
+def _tao_mot_lenh(ten, khoa, loai="btp"):
 	"""Tạo lệnh sản xuất cho ĐÚNG MỘT dòng của phiếu.
 
 	ERPNext có sẵn nút tạo lệnh cho cả phiếu một lượt. Bếp cần ngược lại:

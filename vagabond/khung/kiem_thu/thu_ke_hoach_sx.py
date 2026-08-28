@@ -477,3 +477,68 @@ def _():
 	doan = m.split("def _dung_phieu")[1].split('"""')[1]
 	dung("nói lỗi không lưu được", "Không tìm thấy Dòng #1" in doan)
 	dung("nói lỗi số gấp ba", "Bếp làm gấp ba" in doan)
+
+
+# ---------- hai cho chua dat, thay khi doc phieu that MFG-PP-2026-00001
+
+
+@ca("thành phẩm gom theo mã, một mã một thẻ")
+def _():
+	# ERPNext de moi dong phieu yeu cau thanh mot dong rieng. Do tren phieu
+	# that ngay 29/08/2026: 110 dong cho 38 ma, mot ma banh hien sau lan.
+	# Bep mo ra khong biet phai lam bao nhieu.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xem(")[1].split("\n@frappe")[0]
+	dung("phải gom theo mã", "gom_tp" in doan)
+	dung("cộng dồn số cần", 'o["can"] += flt(x.get("planned_qty"))' in doan)
+
+
+@ca("gom xong vẫn giữ danh sách phiếu yêu cầu nguồn")
+def _():
+	# Gom ma danh mat nguon thi luc con so trong la khong ai truy lai duoc.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xem(")[1].split("\n@frappe")[0]
+	dung("phải giữ nguồn", '"nguon": []' in doan)
+	dung("mỗi nguồn có tên phiếu", '"ycsx": x.get("material_request")' in doan)
+	dung("mỗi nguồn có số lượng riêng", '"sl": flt(x.get("planned_qty"))' in doan)
+
+
+@ca("một thẻ gom ra NHIỀU lệnh, mỗi lệnh neo về đúng phiếu yêu cầu của nó")
+def _():
+	# Gop thanh mot lenh to thi cac phieu yeu cau treo mai o Pending, dung
+	# cai dong 233 phieu ton dong dang co tren he.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def tao_lenh(")[1].split("def _tao_mot_lenh")[0]
+	dung("phải tách khoá theo dấu phẩy", 'split(",")' in doan)
+	dung("phải gọi từng dòng", "_tao_mot_lenh(ten, k, loai)" in doan)
+	dung("nói rõ vì sao không gộp", "neo về đúng phiếu yêu cầu" in doan)
+
+
+@ca("neo nguyên liệu về bán thành phẩm TỰ ĐỐI CHIẾU, không đợi phiếu ghi sổ")
+def _():
+	# ERPNext chi dien o sub_assembly_item_reference trong on_submit. Phieu
+	# cua bep nam o dang NHAP cho toi khi bam Chot, nen doc o do luon rong.
+	# Do tren phieu that: 47 dong nguyen lieu, 0 dong co neo.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xem(")[1].split("\n@frappe")[0]
+	dung("phải tự dựng bảng neo", "neo_cua" in doan)
+	dung("khớp theo món và công thức",
+		'neo_cua[(x.get("production_item"), x.get("bom_no"))]' in doan)
+	# Van uu tien o cua ERPNext khi no da co, de phieu da chot khong lech.
+	dung("vẫn đọc ô của ERPNext trước", "sub_assembly_item_reference" in doan)
+
+
+@ca("phép neo nguyên liệu CHỈ ĐỌC, không ghi gì xuống phiếu")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xem(")[1].split("\n@frappe")[0]
+	la("không db_set", "db_set" in doan, False)
+	la("không commit", "db.commit" in doan, False)
+
+
+@ca("thẻ thành phẩm xổ ra được danh sách phiếu yêu cầu nguồn")
+def _():
+	m = _js("38-ke-hoach-sx.js")
+	dung("có nhánh xổ nguồn", "x.nguon || []" in m)
+	dung("hiện tên phiếu", "n.ycsx" in m)
+	dung("nói rõ gom mấy phiếu", "x.so_nguon > 1" in m)
