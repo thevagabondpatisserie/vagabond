@@ -28,10 +28,12 @@ class VagabondMuaVu(Document):
 		de ban cho nguoi khac. Khach huy thi don huy, so tu tra lai.
 		"""
 		from vagabond.mua_vu import (
+			ap_doi_ruot,
 			banh_le_trong_hop,
 			con_ban_duoc,
 			con_hop_thuc_te,
 			ghep_duoc_tu_ruot,
+			gom_doi_ruot,
 			han_muc_tu_dot,
 			ma_co_nguon_cung,
 			ma_la_hop,
@@ -47,8 +49,16 @@ class VagabondMuaVu(Document):
 			d.ma_hang: (d.da_dat or 0) + (d.cho_chot or 0) + (d.don_khac or 0)
 			for d in self.dong
 		}
-		trong_hop = banh_le_trong_hop(
-			[m.as_dict() for m in self.get("dinh_muc") or []], ban_hop
+		# DOI RUOT (anh Viet chot 28/08/2026). Dinh muc chuan chi dung cho
+		# hop ban nguyen ruot. Don nao khach xin doi banh ben trong thi
+		# bang Doi ruot cong tru lai: cong lai so banh bi tru oan, tru di
+		# so banh bep that su da bo vao hop. Khong co no thi ban 25 hop
+		# doi ruot la sai hai chieu cung luc ma khong ai nhin ra.
+		trong_hop = ap_doi_ruot(
+			banh_le_trong_hop(
+				[m.as_dict() for m in self.get("dinh_muc") or []], ban_hop
+			),
+			gom_doi_ruot([x.as_dict() for x in self.get("doi_ruot") or []]),
 		)
 		# Nhan ngan cho o lich thang. Nguoi go de trong thi may tu dat, va
 		# nhan da co thi giu nguyen - doi nhan cua mot dong dang dung se lam
