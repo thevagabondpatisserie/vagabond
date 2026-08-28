@@ -309,13 +309,23 @@ def _tk_cong_ty_tru_ca_nhom():
 	dung("tru ca nhom", "TK_NHOM_TAM_UNG" in than)
 
 
-@ca("tam ung: tai khoan MAC DINH van chot 1411 cho khoi doc so lieu so hai")
+@ca("tam ung: tai khoan MAC DINH tra ve DUNG MOT cai, khong doc so lieu so hai")
 def _mac_dinh_van_1411():
+	"""Luat nay doi ngay 28/08/2026, ghi lai vi sao.
+
+	Ban cu chot cung 1411 va CAM hoi ca nhom 141, ly do: hoi ca nhom thi ham
+	luc tra ACB luc tra OCB tuy thu tu ban ghi, sao ke doc ra so hai.
+
+	Anh Viet bo tai khoan OCB ngay 28/08/2026. Giu nguyen luat cu thi man
+	hinh doi mai mot sao ke khong bao gio ve nua, vi 1411 la chinh cai vua
+	tat. Nay cho hoi ca nhom 141 NHUNG chi lay tai khoan CON BAT - do la
+	cach moi de bao dam van chi co mot cai, dung cai lo ma luat cu lo.
+	"""
 	s = _doc("ho_so_tt.py")
 	i = s.find("def _bank_account_quy(")
-	than = s[i:i + 900]
-	# Ham nay tra ve DUNG MOT tai khoan. Noi ra ca nhom 141 thi no luc tra
-	# ACB luc tra OCB tuy thu tu ban ghi, sao ke doc ra se so hai.
-	dung("van hoi 1411", "TK_QUY_TAM_UNG" in than)
-	la("khong hoi ca nhom", "TK_NHOM_TAM_UNG" in than, False)
+	than = s[i:i + 1400]
+	dung("van uu tien 1411 khi no con bat", "TK_QUY_TAM_UNG" in than)
+	dung("hoi ca nhom 141", "TK_NHOM_TAM_UNG" in than)
+	# Day moi la cai chan viec doc ra so hai: tai khoan da tat khong duoc tra.
+	dung("chi lay tai khoan con bat", '"disabled": 0' in than)
 	dung("co chot thu tu", "order_by" in than)

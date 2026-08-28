@@ -286,6 +286,12 @@ doc_events = {
 		# khong chan ai - doc `vagabond/gia_khi_nhan.py` de biet vi sao noi
 		# hai cai chan cua ERPNext ra ma van con kiem soat.
 		"validate": "vagabond.gia_khi_nhan.ghi_vet",
+		# Chan ghi so khi kho nhan hang tro vao tai khoan thanh pham 155x.
+		# Chi Dung 28/08/2026: "phieu nhap kho phai vao 152 chu khong phai
+		# vao 155, 155 la thanh pham khi minh xuat ban thoi". Dat o
+		# before_submit chu khong phai validate: luu nhap thi cu cho luu,
+		# chi chan dung luc con so sap cham so cai. Doc dau tep gac_tk_kho.py.
+		"before_submit": "vagabond.gac_tk_kho.chan_nhap_vao_thanh_pham",
 		"on_submit": "vagabond.giao_viec.khi_xong",
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},

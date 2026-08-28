@@ -858,20 +858,34 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 
 
 def _bank_account_quy():
-	"""Bank Account tro vao tai khoan 1411 - quy tam ung OCB.
+	"""Bank Account cua quy tam ung dang dung, de lay sao ke mac dinh.
 
-	Co tinh giu nguyen 1411 chu khong noi ra ca nhom 141: day la tai khoan
-	MAC DINH khi man hinh khong noi ro lay sao ke ngan hang nao. Noi ra ca
-	nhom thi ham nay se luc tra ACB luc tra OCB, doc so lieu ra so hai.
+	Truoc 28/08/2026 ham nay go cung 1411, tuc quy OCB. Anh Viet bo tai
+	khoan OCB ngay 28/08/2026, nen go cung nhu vay la man hinh doi mai mot
+	sao ke khong bao gio ve nua.
+
+	Nay hoi ca nhom 141 nhung CHI LAY TAI KHOAN CON BAT. Tat mot tai khoan
+	ben Next la ham nay tu chuyen sang cai con lai, khong phai sua ma nguon.
+	Uu tien 1411 neu no van con bat, de nhung ky so lieu cu doc ra khong
+	doi cho.
 	"""
-	r = frappe.get_all(
+	dang = frappe.get_all(
 		"Bank Account",
-		filters={"is_company_account": 1, "account": ["like", TK_QUY_TAM_UNG + "%"]},
-		pluck="name",
+		filters={
+			"is_company_account": 1,
+			"disabled": 0,
+			"account": ["like", TK_NHOM_TAM_UNG + "%"],
+		},
+		fields=["name", "account"],
 		order_by="name asc",
-		limit_page_length=1,
+		limit_page_length=0,
 	)
-	return r[0] if r else None
+	if not dang:
+		return None
+	for b in dang:
+		if str(b.get("account") or "").strip().startswith(TK_QUY_TAM_UNG):
+			return b["name"]
+	return dang[0]["name"]
 
 
 def _gd_da_gom():
@@ -3768,6 +3782,15 @@ def _dat_tk_nhan(doc, tk_hoan, ma_nguoi=""):
 	if not frappe.db.exists("Bank Account", ten):
 		frappe.throw("Không có tài khoản ngân hàng %s. Vui lòng chọn lại." % ten)
 	ma_nguoi = (ma_nguoi or "").strip()
+	# Quy tam ung cua CONG TY khong thuoc rieng nguoi nao: do la tui tien
+	# chung ma nguoi di mua rut ra, ai duoc hoan ung cung nhan tu do. Chan
+	# o day la chan nham. Chi soi nhung tai khoan RIENG cua mot nha cung
+	# cap, vi do moi la cho tien chay nham tui nguoi khac duoc.
+	if cint(frappe.db.get_value("Bank Account", ten, "is_company_account")):
+		for k, v in (_tk_tu_bank_account(ten) or {}).items():
+			if v:
+				doc.set(k, v)
+		return ten
 	chu = _ncc_cua_tk_hoan(ten)
 	if ma_nguoi and chu and chu != ma_nguoi:
 		frappe.throw(
@@ -3779,6 +3802,33 @@ def _dat_tk_nhan(doc, tk_hoan, ma_nguoi=""):
 		if v:
 			doc.set(k, v)
 	return ten
+
+
+@frappe.whitelist()
+def tk_quy_tam_ung():
+	"""Tài khoản sổ cái của quỹ tạm ứng đang dùng, cho màn hình gọi.
+
+	Anh Việt bỏ tài khoản OCB ngày 28/08/2026. Màn phiếu mua hàng test
+	trước đây gõ cứng `1411 - Tạm ứng - Nguyễn Hoàng Việt (OCB)` vào ô tài
+	khoản chi, nên bỏ OCB rồi mà không sửa thì phiếu vẫn chi từ một quỹ
+	không còn dùng.
+
+	Trả về rỗng khi chưa khai tài khoản nào: màn hình sẽ lập phiếu KHÔNG
+	đánh dấu đã trả, hơn là lập một phiếu chi sai quỹ.
+	"""
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem quỹ tạm ứng")
+	ten = _bank_account_quy()
+	if not ten:
+		return {"bank_account": "", "tai_khoan": "", "nhan": ""}
+	o = frappe.db.get_value(
+		"Bank Account", ten, ["account", "bank", "bank_account_no"], as_dict=True
+	) or {}
+	nh = (o.get("bank") or "").split("-")[0].strip()
+	return {
+		"bank_account": ten,
+		"tai_khoan": o.get("account") or "",
+		"nhan": (nh or ten) + ((" · " + o["bank_account_no"]) if o.get("bank_account_no") else ""),
+	}
 
 
 @frappe.whitelist()
