@@ -196,3 +196,89 @@ def _man_hinh_biet_truoc():
 	dung("man hinh doc co", "kq.ghi_so_duoc" in j)
 	dung("khong du quyen thi doi nhan nut", "Nối phiếu, chuyển kế toán ghi sổ" in j)
 	dung("noi ro to hoa don di dau", "Chờ ghi sổ" in j)
+
+
+# ------------------------------- 4. Bỏ tài khoản OCB, quỹ tạm ứng đi theo
+
+
+@ca("bo OCB: quy tam ung bam theo tai khoan CON BAT, khong go cung 1411")
+def _quy_bam_theo_tk_con_bat():
+	s = _doc("ho_so_tt.py")
+	t = _than(s, "def _bank_account_quy(", "\ndef ")
+	# Go cung 1411 thi bo OCB la man hinh doi mai mot sao ke khong ve nua.
+	dung("hoi ca nhom 141", "TK_NHOM_TAM_UNG" in t)
+	dung("chi lay tai khoan con bat", '"disabled": 0' in t)
+	dung("uu tien 1411 neu con bat", "TK_QUY_TAM_UNG" in t)
+
+
+@ca("bo OCB: co cua tra ve quy tam ung dang dung cho man hinh")
+def _co_cua_tra_quy():
+	s = _doc("ho_so_tt.py")
+	t = _than(s, "def tk_quy_tam_ung(", "\n@frappe.whitelist()")
+	dung("doc tu ham chung", "_bank_account_quy()" in t)
+	dung("tra ve tai khoan so cai", '"tai_khoan"' in t)
+	# Chua khai quy nao thi tra rong, de man hinh biet duong ma khong lap
+	# phieu chi sai quy.
+	dung("chua khai thi tra rong", 'return {"bank_account": "", "tai_khoan": "", "nhan": ""}' in t)
+
+
+@ca("bo OCB: man phieu mua hang test khong con go cung tai khoan OCB")
+def _phieu_mua_test_khong_go_cung():
+	j = _js("07-hop-thoai.js")
+	dung("bo hang so tai khoan OCB", "RND_OCB_TK" not in j)
+	dung("hoi he lay tai khoan quy", "vagabond.ho_so_tt.tk_quy_tam_ung" in j)
+	# Chua khai quy nao thi KHONG danh dau da tra, hon la chi tu quy khong con.
+	dung("chua co quy thi khong danh dau da tra", "if (coTra && quyTk)" in j)
+
+
+@ca("bo OCB: chip Tra bang khong con mang ten ngan hang")
+def _chip_tra_bang_khong_ten_ngan_hang():
+	j = _js("07-hop-thoai.js")
+	dung("chip da doi ten", "['Quỹ tạm ứng', 'Tiền công ty', 'Khác']" in j)
+	dung("khong con chip Quy OCB", "'Quỹ OCB', 'Tiền công ty'" not in j)
+	dung("dong trong mang ten moi", "tra_bang: 'Quỹ tạm ứng'," in j)
+
+
+@ca("bo OCB: phieu CU mang chu 'Quy OCB' van doc dung, khong tut ve o Khac")
+def _phieu_cu_van_doc_dung():
+	j = _js("07-hop-thoai.js")
+	t = _than(j, "function rndQuyCu(", "\nfunction ")
+	dung("co ham doc chu cu", "function rndQuyCu(" in j)
+	dung("chu cu quy ve chu moi", "=== 'Quỹ OCB'" in t and "'Quỹ tạm ứng'" in t)
+	# Ba cho dung chu cu deu phai di qua ham nay.
+	la("dung o ca ba cho", j.count("rndQuyCu("), 4)
+
+
+@ca("bo OCB: khong con chu OCB nao nguoi dung doc thay")
+def _khong_con_chu_ocb_tren_man():
+	for tep in ("19-ho-so-tt.js", "07-hop-thoai.js"):
+		j = _js(tep)
+		trong_khoi = False
+		for dong in j.split("\n"):
+			d = dong.strip()
+			# Bam theo khoi /* ... */ that su, khong doan theo ky tu dau dong:
+			# dong giua mot khoi chu thich dai KHONG bat dau bang dau sao.
+			mo = d.count("/*")
+			dong_chu_thich = trong_khoi or mo > 0 or d.startswith("//")
+			if mo:
+				trong_khoi = True
+			if trong_khoi and d.count("*/"):
+				trong_khoi = False
+			if "OCB" not in d or dong_chu_thich:
+				continue
+			# Ham doc phieu cu bat buoc phai con chu 'Quy OCB'.
+			la_doc_cu = "rndQuyCu" in d or "=== 'Quỹ OCB'" in d
+			dung("%s: '%s' phai la chu thich" % (tep, d[:60]), la_doc_cu)
+
+
+@ca("bo OCB: quy tam ung cua CONG TY khong bi chan vi khong thuoc rieng ai")
+def _quy_cong_ty_khong_bi_chan():
+	s = _doc("ho_so_tt.py")
+	t = _than(s, "def _dat_tk_nhan(", "\ndef ")
+	dung("nhan ra tai khoan cong ty", 'is_company_account' in t)
+	# Chan o day la chan nham: quy tam ung la tui chung, ai duoc hoan ung
+	# cung nhan tu do.
+	i = t.find("is_company_account")
+	j2 = t.find("chu != ma_nguoi")
+	dung("soi truoc khi chan chu tai khoan", 0 <= i < j2)
+	dung("van con chan tai khoan rieng cua nguoi khac", "chu != ma_nguoi" in t)
