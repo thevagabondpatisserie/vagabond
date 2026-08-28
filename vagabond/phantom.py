@@ -332,6 +332,93 @@ def _ke_hoach():
 	}
 
 
+# ------------------------------------ hàng rào cờ "Làm tươi" đúng chặng
+
+
+def chang_duoc_lam_tuoi(chang):
+	"""Chặng này có được mang cờ Làm tươi không. THUẦN.
+
+	Chỉ BTP thành phần. C1 và C2 phải giữ tồn - bánh khuôn nướng hôm nay
+	để mai ráp là chuyện thường ngày ở đây, bỏ tồn hai cấp đó là mất dấu
+	hàng thật đang nằm trong tủ.
+	"""
+	return (chang or "").strip() == CHANG_BTP
+
+
+def _chang_cua_ma(ma):
+	"""Chặng đọc từ BOM đang hoạt động của mã. Rỗng khi mã chưa có BOM."""
+	return frappe.db.get_value(
+		"BOM", {"item": ma, "docstatus": 1, "is_active": 1}, "custom_chang") or ""
+
+
+def chan_lam_tuoi_sai_chang(doc, method=None):
+	"""Hook validate Item: không cho bật cờ Làm tươi ngoài chặng BTP thành phần.
+
+	Ngày 28/08/2026 đo được 23 trên 23 mã Bánh khuôn (C2) đang mang cờ này,
+	tức không phải ai đó lỡ tay một lần mà là cả lô bị bật. Gỡ xong mà
+	không dựng hàng rào thì lần nhân bản mã tiếp theo lại bật lại y như cũ,
+	vì người ta hay tạo mã mới bằng nút Nhân bản từ một mã BTP.
+
+	Chặn ở đây thay vì chỉ sửa dữ liệu, vì cùng một lý do đã ghi trong
+	`kho_san_xuat`: mã sinh ra từ nhiều đường, vá một đường là ba đường kia
+	vẫn lọt.
+
+	Món chưa có công thức thì KHÔNG chặn: lúc đó chưa biết nó thuộc chặng
+	nào, chặn là cản người ta khai món mới.
+	"""
+	try:
+		if not cint(doc.get("custom_lam_tuoi")):
+			return
+		if doc.get("__islocal") and not doc.get("name"):
+			return
+		chang = _chang_cua_ma(doc.name)
+		if not chang or chang_duoc_lam_tuoi(chang):
+			return
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "phantom: hang rao lam tuoi")
+		return
+	frappe.throw(
+		"<p>Món <b>%s</b> thuộc chặng <b>%s</b>, không đánh dấu "
+		"<b>Làm tươi, không giữ tồn kho</b> được.</p>"
+		"<p>Cờ này chỉ dành cho chặng <b>%s</b> - loại trộn xong dùng ngay "
+		"trong ca, không nhập kho. Còn %s là hàng có giữ tồn: nướng hôm nay "
+		"để mai ráp là chuyện thường ngày, bỏ tồn đi là mất dấu hàng thật "
+		"đang nằm trong tủ.</p>"
+		"<p><b>Cách sửa:</b> bỏ tích ô Làm tươi rồi lưu lại.</p>"
+		% (doc.name, chang, CHANG_BTP, chang),
+		title="Cờ Làm tươi đặt sai chặng",
+	)
+
+
+@frappe.whitelist()
+def soat_lam_tuoi(chay_that=0):
+	"""Liệt kê, và nếu được lệnh thì gỡ, các cờ Làm tươi đặt sai chặng.
+
+	Chạy thử là mặc định. Gỡ cờ KHÔNG động tới sổ kho: cả 23 mã C2 vẫn
+	đang `is_stock_item = 1`, cờ này mới chỉ là nhãn cho app đọc.
+	"""
+	_chan()
+	chay_that = cint(chay_that)
+	sai, da_go = [], []
+	for it in frappe.get_all(
+		"Item", filters={"custom_lam_tuoi": 1},
+		fields=["name", "item_name", "is_stock_item"], limit_page_length=0,
+	):
+		chang = _chang_cua_ma(it.name)
+		if not chang or chang_duoc_lam_tuoi(chang):
+			continue
+		sai.append({"ma": it.name, "ten": it.item_name, "chang": chang,
+			"con_theo_ton": cint(it.is_stock_item)})
+		if chay_that:
+			frappe.db.set_value("Item", it.name, "custom_lam_tuoi", 0,
+				update_modified=False)
+			da_go.append(it.name)
+	if chay_that:
+		frappe.db.commit()
+	return {"chay_that": chay_that, "so_sai": len(sai),
+		"da_go": da_go, "ds": sorted(sai, key=lambda x: x["ma"])}
+
+
 @frappe.whitelist()
 def xem_truoc():
 	"""Chỉ đọc: kế hoạch chuyển Phantom sẽ đổi những gì."""

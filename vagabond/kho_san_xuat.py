@@ -38,7 +38,7 @@ tới lúc kiểm kê.
 """
 
 import frappe
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 # Bốn chặng, theo đúng thứ tự đi lên.
 NGUYEN_LIEU = "nguyen_lieu"
@@ -58,11 +58,48 @@ TEN_CHANG = {
 # giá trị là danh sách chặng được phép lấy nguyên liệu, xếp theo thứ tự ưu
 # tiên. Đọc ngược lại bảng của Khải: dòng "Thành phẩm" ghi "blf từ BTP sẵn
 # sàng + Nguyên liệu" thành ra [BTP_SAN_SANG, NGUYEN_LIEU].
+#
+# ĐỔI LUẬT 28/08/2026: RÚT TUỘT TỪ KHO NGUYÊN LIỆU
+# ------------------------------------------------
+# Khải đề nghị tắt hẳn hai kho logic BTP sơ cấp và BTP sẵn sàng ở cả hai
+# bếp, anh Việt chốt. Từ nay mọi lệnh lấy nguyên liệu từ MỘT kho duy nhất
+# là kho Nguyên liệu của bếp, và cũng nhập trả về đó, trừ thành phẩm thì
+# nhập kho Thành phẩm.
+#
+# Vì sao đổi, đo trên site ngày 28/08:
+#
+# * Bốn kho trung gian (hai bếp nhân hai chặng) có 23 bản ghi tồn kho mà
+#   tồn đều bằng 0, và KHÔNG MỘT BÚT TOÁN KHO NÀO từng đi qua chúng. Dựng
+#   ra từ 21/08 tới giờ chưa hàng nào ghé.
+# * Sáu lệnh sản xuất từng trỏ vào chúng thì cả sáu đã bị huỷ. Đó chính là
+#   những lệnh Khải thử rồi gặp "thiếu nguyên liệu" - luật cũ bảo lấy hàng
+#   từ kho sơ cấp, mà kho đó rỗng nên ERPNext báo thiếu, hoàn toàn đúng.
+# * Hàng thật nằm ở kho Nguyên liệu: Pastry 132 mã có tồn, Baker 84 mã.
+#
+# Nói cách khác bếp KHÔNG chuyển hàng qua kho trung gian trên thực tế. Giữ
+# một luật đòi hàng ở nơi không có hàng thì luật đó chỉ làm bếp đứng.
+#
+# BẢN CŨ GIỮ LẠI Ở ĐÂY, không xoá. Ngày nào bếp chạy đủ bốn chặng thật thì
+# đổi hai dòng là quay về:
+#     BTP_SO_CAP:   [NGUYEN_LIEU]
+#     BTP_SAN_SANG: [BTP_SO_CAP, NGUYEN_LIEU]
+#     THANH_PHAM:   [BTP_SAN_SANG, BTP_SO_CAP, NGUYEN_LIEU]
 LUAT_NGUON = {
 	BTP_SO_CAP: [NGUYEN_LIEU],
-	BTP_SAN_SANG: [BTP_SO_CAP, NGUYEN_LIEU],
-	THANH_PHAM: [BTP_SAN_SANG, BTP_SO_CAP, NGUYEN_LIEU],
+	BTP_SAN_SANG: [NGUYEN_LIEU],
+	THANH_PHAM: [NGUYEN_LIEU],
 }
+
+# Chặng nào nhập hàng về kho nào. Chỉ thành phẩm mới rời kho Nguyên liệu.
+LUAT_KHO_DICH = {
+	BTP_SO_CAP: NGUYEN_LIEU,
+	BTP_SAN_SANG: NGUYEN_LIEU,
+	THANH_PHAM: THANH_PHAM,
+}
+
+# Hai chặng kho bị tắt. Giữ tên ở đây để hàm tắt kho và ca kiểm cùng đọc
+# một chỗ, và để lần sau bật lại thì biết đúng bốn kho nào.
+CHANG_TAT = (BTP_SO_CAP, BTP_SAN_SANG)
 
 # Hai bếp, kèm tiền tố tên kho và người giữ kho.
 BEP = {
@@ -247,6 +284,26 @@ def chon_kho_nguon(chang_mon_lam, chang_nguyen_lieu, bep, ton_theo_kho=None):
 			if k2 and ton_theo_kho.get(k2):
 				return k2
 	return kho
+
+
+def kho_cua_lenh(chang_mon, bep, hau_to=" - TV"):
+	"""Ba kho của một lệnh sản xuất. THUẦN.
+
+	Trả (kho nguyên liệu, kho dở dang, kho đích). Thiếu dữ kiện thì trả ba
+	giá trị None để người gọi giữ nguyên thứ người tạo lệnh đã chọn.
+
+	Khải chốt 28/08/2026: kho dở dang đi CHUNG với kho nguyên liệu. Bếp
+	không có khu vực dở dang riêng, bột trộn xong nằm ngay tại bàn cạnh
+	kho nguyên liệu chứ không chuyển đi đâu. Tách ra một kho dở dang riêng
+	chỉ đẻ thêm hai bút toán chuyển kho cho mỗi mẻ, không ai đọc.
+	"""
+	if not chang_mon or chang_mon not in LUAT_KHO_DICH:
+		return (None, None, None)
+	nguon = ten_kho_cua(bep, NGUYEN_LIEU, hau_to)
+	dich = ten_kho_cua(bep, LUAT_KHO_DICH[chang_mon], hau_to)
+	if not nguon or not dich:
+		return (None, None, None)
+	return (nguon, nguon, dich)
 
 
 def khai_cay_kho():
@@ -502,6 +559,109 @@ def soat_chang(gioi_han=400):
 		"Suy từ cấu trúc công thức, chưa ghi vào đâu cả. Bếp trưởng đọc rồi "
 		"chốt, sai chỗ nào báo lại chỗ đó.")
 	return ra
+
+
+@frappe.whitelist()
+def tat_kho_trung_gian(chay_that=0):
+	"""Tắt bốn kho trung gian của hai bếp. Chạy thử là mặc định.
+
+	Khải đề nghị 28/08/2026, anh Việt chốt. An toàn vì đo trên site cùng
+	ngày: bốn kho này có 23 bản ghi tồn nhưng tồn đều 0, KHÔNG bút toán kho
+	nào từng đi qua, không lệnh sản xuất còn hiệu lực nào trỏ vào, không hồ
+	sơ món nào lấy chúng làm kho mặc định.
+
+	Hàm TỰ KIỂM lại ba điều đó trước khi ghi chứ không tin vào lần đo hôm
+	nay. Còn tồn hay còn bút toán là DỪNG: tắt một kho đang giữ hàng thật
+	là làm hàng đó biến khỏi mọi màn hình mà sổ vẫn còn.
+
+	Tắt chứ KHÔNG xoá. Xoá là mất đường tra lại, mà bốn kho này có thể được
+	bật lại ngày bếp chạy đủ bốn chặng thật.
+	"""
+	_chan()
+	chay_that = cint(chay_that)
+	ke, can_dung = [], []
+	for k in khai_cay_kho():
+		if k["chang"] not in CHANG_TAT:
+			continue
+		ten = k["ten"]
+		if not frappe.db.exists("Warehouse", ten):
+			continue
+		ton = sum(flt(b.actual_qty) for b in frappe.get_all(
+			"Bin", filters={"warehouse": ten}, fields=["actual_qty"]))
+		so_but_toan = frappe.db.count(
+			"Stock Ledger Entry", {"warehouse": ten, "is_cancelled": 0})
+		so_lenh = frappe.db.count(
+			"Work Order", {"wip_warehouse": ten, "docstatus": ["<", 2]}) + frappe.db.count(
+			"Work Order", {"fg_warehouse": ten, "docstatus": ["<", 2]}) + frappe.db.count(
+			"Work Order", {"source_warehouse": ten, "docstatus": ["<", 2]})
+		so_ho_so = frappe.db.count("Item Default", {"default_warehouse": ten})
+		da_tat = cint(frappe.db.get_value("Warehouse", ten, "disabled"))
+		vuong = []
+		if abs(ton) > 0.0001:
+			vuong.append("còn tồn %s" % ton)
+		if so_but_toan:
+			vuong.append("có %d bút toán kho" % so_but_toan)
+		if so_lenh:
+			vuong.append("có %d lệnh sản xuất đang trỏ vào" % so_lenh)
+		if so_ho_so:
+			vuong.append("có %d hồ sơ món lấy làm kho mặc định" % so_ho_so)
+		dong = {"kho": ten, "da_tat": da_tat, "ton": ton,
+			"but_toan": so_but_toan, "lenh": so_lenh, "ho_so": so_ho_so,
+			"vuong": vuong}
+		ke.append(dong)
+		if vuong:
+			can_dung.append(dong)
+	if can_dung:
+		return {"chay_that": chay_that, "da_tat": [], "ds": ke,
+			"dung_vi": "Có kho còn vướng, không tắt kho nào cả.",
+			"can_xem": can_dung}
+	da = []
+	if chay_that:
+		for d in ke:
+			if d["da_tat"]:
+				continue
+			frappe.db.set_value("Warehouse", d["kho"], "disabled", 1)
+			da.append(d["kho"])
+		frappe.db.commit()
+	return {"chay_that": chay_that, "so_kho": len(ke),
+		"da_tat": da, "se_tat": [d["kho"] for d in ke if not d["da_tat"]],
+		"ds": ke}
+
+
+def gan_kho_lenh(doc, method=None):
+	"""Hook before_validate Work Order: điền sẵn ba ô kho theo món.
+
+	Khải hỏi 28/08/2026: ba ô kho cứ phải chọn lại mỗi lần lập lệnh, gán
+	chết theo mã món được không.
+
+	Gán ở đây chứ không gán vào hồ sơ món, vì kho đúng phụ thuộc hai thứ:
+	món thuộc chặng nào, và món của bếp nào. Ghi cứng một kho vào hồ sơ
+	món thì mã nào dùng chung hai bếp là sai ngay, mà đổi luật kho sau này
+	phải sửa lại từng mã một.
+
+	CHỈ ĐIỀN Ô ĐANG TRỐNG. Người tạo lệnh đã chọn tay thì máy không đè -
+	cùng một luật với hook giá và hook mã tham chiếu: máy không đè lên chữ
+	người thật.
+	"""
+	try:
+		if not doc.get("production_item"):
+			return
+		bep = _bep_cua_mon(doc.production_item) or bep_cua_kho(
+			doc.get("fg_warehouse") or "")
+		if not bep:
+			return
+		kt, ten = _ho_so_mon(doc.production_item)
+		chang = chang_cua_mon(doc.production_item,
+			_co_btp_con(doc.production_item), kt, ten)
+		nguon, dd, dich = kho_cua_lenh(chang, bep)
+		for o, gia_tri in (("source_warehouse", nguon),
+				("wip_warehouse", dd), ("fg_warehouse", dich)):
+			if gia_tri and not (doc.get(o) or "").strip():
+				if frappe.db.exists("Warehouse", gia_tri):
+					doc.set(o, gia_tri)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(),
+			"vagabond: gan ba kho cho lenh san xuat")
 
 
 def gan_kho_nguon(doc, method=None):
