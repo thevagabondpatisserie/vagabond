@@ -35,6 +35,7 @@ from vagabond.lib import cfg
 # Truoc buoc nao thi con go uy nhiem chi ra duoc. Lay tu tra_tien_app de hai
 # ben khong bao gio lech nhau.
 from vagabond.tra_tien_app import TT_GO_DUOC_UNC as TT_GO_DUOC_UNC_MAN
+from vagabond.tra_tien_app import tach_ma as tach_ma_unc
 
 # Bốn vai được đụng tới hồ sơ. Thu mua lập, kế toán duyệt cấp một, giám đốc
 # duyệt cấp hai. System Manager có hết vì đó là anh Việt.
@@ -1201,7 +1202,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			"han_tra_som_nhat", "nguoi_tao",
 			"fin_boi", "gd_boi", "ngay_thanh_toan", "ma_giao_dich",
 			"email_da_gui", "ly_do_tu_choi", "ghi_chu",
-			"loai_cp_thue", "tk_chi",
+			"loai_cp_thue", "tk_chi", "unc_tep",
 		],
 		order_by="ngay desc, creation desc",
 		limit_page_length=0,
@@ -1228,6 +1229,9 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		o["nhan"] = NHAN.get(r.trang_thai, r.trang_thai)
 		o["loai"] = r.loai or "NCC"
 		o["nhan_cp_thue"] = NHAN_CP_THUE.get(r.loai_cp_thue, "")
+		# Ho so nao con thieu uy nhiem chi. De chi Dung nhin mot cai la biet
+		# to nao can tai UNC ve truoc, khoi mo tung ho so ra do.
+		o["co_unc"] = 1 if tach_ma_unc(r.get("unc_tep")) else 0
 		o["nguoi_tao_ten"] = _ten_nguoi(r.nguoi_tao)
 		o["fin_ten"] = _ten_nguoi(r.fin_boi)
 		o["gd_ten"] = _ten_nguoi(r.gd_boi)
@@ -2001,10 +2005,13 @@ def gui_email_ncc(name, email=None, gui_that=1, thu_nghiem=0):
 			"toán chỉ dùng cho hồ sơ công nợ nhà cung cấp."
 			% (doc.name, doc.ten_ncc or doc.nha_cung_cap)
 		)
-	if doc.trang_thai != TT_DA_TRA and cint(gui_that):
+	# Gui THU thi khong doi ho so da tra: ca muc dich cua no la xem mat la
+	# thu truoc khi no den tay nha cung cap. Thu di dung mot dia chi nguoi
+	# bam tu go, khong cc ai, va tieu de mang san chu GUI THU.
+	if doc.trang_thai != TT_DA_TRA and cint(gui_that) and not cint(thu_nghiem):
 		frappe.throw(
 			"Hồ sơ chưa ở trạng thái Đã thanh toán, gửi thư báo lúc này là "
-			"báo nhầm cho nhà cung cấp."
+			"báo nhầm cho nhà cung cấp. Muốn xem mặt lá thư thì bấm Gửi thử."
 		)
 	noi_dung = _thu_html(doc)
 	if not cint(gui_that):
