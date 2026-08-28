@@ -142,6 +142,10 @@ CUA_NGO = {
 	# cua Work Order nen KHONG whitelist.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
 		"gan_nguoi_phu_trach", "soat_chang", "tat_kho_trung_gian"],
+	# Gom nam nhan chang ve hai ten, va man Ton kho theo chang, 28/08/2026.
+	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
+	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
+	"ton_chang.py": ["gom_chang", "ton_theo_chang"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.

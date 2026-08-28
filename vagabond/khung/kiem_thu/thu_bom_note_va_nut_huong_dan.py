@@ -240,7 +240,12 @@ def _():
 
 @ca("cửa danh sách công thức lọc được theo tình trạng hướng dẫn")
 def _():
-	dung("có tham số lọc", "def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None)" in MA_CT)
+	# 28/08/2026 them tham so `chang` phia sau. Kiem tung tham so chu khong
+	# kiem ca dong chu ky: kiem ca dong thi lan sau them mot bo loc nua la
+	# ca kiem nay do, ma no dau co lien quan gi toi huong dan che bien.
+	ky = MA_CT.split("def danh_sach(")[1].split(")")[0]
+	for t in ("tab=None", "trang_thai=None", "tim=None", "huong_dan=None"):
+		dung("có tham số %s" % t, t in ky)
 	dung("lệch lọc riêng chứ không so bằng", 'if huong_dan == "lech":' in MA_CT)
 	dung("lọc theo cờ lệch", 'x.get("hd_lech")' in MA_CT)
 
