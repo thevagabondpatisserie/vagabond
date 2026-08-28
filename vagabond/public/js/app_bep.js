@@ -17821,7 +17821,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '335';
+var APPVER = '336';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -26743,6 +26743,11 @@ var hsTaoNcc = '', hsTaoChon = {}, hsTaoGhiChu = '', hsTaoLoai = 'NCC';
 /* Nguoi da ung tien mua ho, tuc nguoi NHAN lai tien. Chi dung cho luong
    hoan ung co hoa don. */
 var hsTaoNguoiUng = '', hsTaoDsUng = null, hsUngTim = '';
+/* Tai khoan nhan tien cua man hoan ung CO hoa don. Anh Viet 28/08/2026:
+   man nay truoc khong co o chon nen may lay dai tai khoan mac dinh cua
+   nguoi ung; anh Viet co ca ACB lan OCB nen doan sai la chuyen nham
+   ngan hang. `hsTkDs` cache theo tung nguoi, doi nguoi thi nap lai. */
+var hsTkHoan = '', hsTkDs = null, hsTkCua = '';
 
 /* Danh so cac khoi tren form nhap lieu.
 
@@ -26776,6 +26781,20 @@ async function scrHoSoTTTao() {
   if (laHU && !hsTaoDsUng) {
     try { hsTaoDsUng = await api('vagabond.ho_so_tt.ds_nguoi_ung', {}); } catch (e3) { hsTaoDsUng = { ncc: [] }; }
   }
+  /* Danh sach tai khoan nhan tien phai di THEO nguoi ung dang chon. Doi
+     nguoi ma van bay tai khoan cua nguoi cu chinh la duong chuyen nham
+     tien, nen cache neo vao `hsTkCua` va doi nguoi la nap lai. */
+  if (laHU && hsTaoNguoiUng && hsTkCua !== hsTaoNguoiUng) {
+    hsTkCua = hsTaoNguoiUng; hsTkHoan = '';
+    try { hsTkDs = await api('vagabond.ho_so_tt.ds_tk_hoan_ung', { nguoi: hsTaoNguoiUng }); }
+    catch (e4) { hsTkDs = { tk: [], doan: 0 }; }
+    /* Chi co dung MOT tai khoan thi chon san cho do mot nhip bam. Co tu HAI
+       tro len thi de trong va bat chon tay: ACB voi OCB nhin luot rat giong
+       nhau, may chon ho la may chon sai ma khong ai hay. */
+    var dtk = (hsTkDs && hsTkDs.tk) || [];
+    if (dtk.length === 1) hsTkHoan = dtk[0].ma;
+  }
+  if (laHU && !hsTaoNguoiUng) { hsTkDs = null; hsTkCua = ''; hsTkHoan = ''; }
 
   var hd = { rows: [], tong: 0, qua_han: 0 };
   if (hsTaoNcc || laHU) {
@@ -26794,6 +26813,7 @@ async function scrHoSoTTTao() {
      day nhu truoc la mo duong chuyen nham tien cho ho. */
   if (laHU) {
     var dsu = (hsTaoDsUng && hsTaoDsUng.ncc) || [];
+    var hsTk = (hsTkDs && hsTkDs.tk) || [];
     var q = hsUngTim.trim().toLowerCase();
     if (q) dsu = dsu.filter(function (x) { return String(x.ten || x.ncc).toLowerCase().indexOf(q) >= 0; });
     var hay = dsu.filter(function (x) { return x.hay_dung; }).slice(0, 8);
@@ -26809,6 +26829,35 @@ async function scrHoSoTTTao() {
         'không phải nhà cung cấp trên hoá đơn.</div>') +
       hsKhungTimNcc('hsUngTim', hsUngTim, hay.length,
         'Người mới ứng tiền lần đầu thì chưa có hồ sơ. Tạo ở đây rồi chọn luôn.') + '</div>';
+
+    /* HOAN UNG VAO TAI KHOAN NAO
+       ----------------------------------------------------------------
+       Anh Viet 28/08/2026: "2 cai nay deu la gop hoa don cua cac NCC roi
+       can chuyen la chuyen den tai khoan cua Nguyen Hoang Viet ngan hang
+       ACB". Man hoan ung KHONG hoa don da co khoi nay tu 22/08, con man CO
+       hoa don thi chua - no lang le lay tai khoan mac dinh cua nguoi ung.
+       Hai man cung mot viec ma cu xu khac nhau la cho de sinh loi.
+
+       Chi hien sau khi da chon nguoi ung, vi danh sach tai khoan la cua
+       CHINH nguoi do. Chua chon nguoi thi chua biet bay tai khoan cua ai. */
+    html += hsoKhoi('Hoàn ứng vào tài khoản nào · bắt buộc') +
+      '<div class="card" style="padding:10px 12px">' +
+      (!hsTaoNguoiUng
+        ? '<div style="font-size:12.5px;color:#98a2b3;line-height:1.6">Chọn người được hoàn ứng ở trên trước, máy sẽ bày đúng các tài khoản của người đó.</div>'
+        : (hsTk.length
+            ? kmHangChip(hsTk.map(function (x) {
+                return posChipNut('data-hstk="' + h(x.ma) + '"', h(x.nhan), hsTkHoan === x.ma);
+              }).join('')) +
+              '<div style="font-size:11.5px;color:' + (hsTkHoan ? '#98a2b3' : '#b3261e') + ';margin-top:8px;line-height:1.6">' +
+              (hsTkHoan
+                ? ((hsTkDs && hsTkDs.doan)
+                    ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên máy bày tạm mọi tài khoản. Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 bên Next.'
+                    : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì ACB và OCB nhìn lướt rất giống nhau.')
+                : 'Chưa chọn tài khoản nhận tiền. Người này có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.') +
+              '</div>'
+            : '<div style="font-size:13px;color:#b45309;line-height:1.6">Người này chưa khai tài khoản ngân hàng nào. ' +
+              'Nhờ chị Dung tạo Bank Account cho họ bên Next rồi quay lại chọn.</div>')) +
+      '</div>';
   }
 
   html += hsoKhoi('Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ') +
@@ -26897,6 +26946,9 @@ async function scrHoSoTTTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsu]'), function (el) {
     el.onclick = function () { hsTaoNguoiUng = el.getAttribute('data-hsu'); go(scrHoSoTTTao, true); };
   });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hstk]'), function (el) {
+    el.onclick = function () { hsTkHoan = el.getAttribute('data-hstk'); go(scrHoSoTTTao, true); };
+  });
   var oUt = document.getElementById('hsUngTim');
   if (oUt) oUt.onchange = function () { hsUngTim = oUt.value.trim(); go(scrHoSoTTTao, true); };
   hsNoiNutTaoNcc(hsUngTim, function (ma) {
@@ -26929,6 +26981,10 @@ async function scrHoSoTTTao() {
     var ds = Object.keys(hsTaoChon);
     if (!ds.length) return baoTin('Chưa chọn hoá đơn nào.');
     if (laHU && !hsTaoNguoiUng) return baoTin('Chưa chọn người được hoàn ứng. Đây là người sẽ nhận lại tiền.');
+    /* Chan CA hai nut, ke ca luu nhap. Ho so nhap thieu tai khoan roi de
+       do vai ngay thi den luc chuyen tien khong ai nho phai chuyen di dau,
+       ma o "hoan thanh ho so" thi khong ai mo lai. */
+    if (laHU && !hsTkHoan) return baoTin('Chưa chọn tài khoản nhận tiền hoàn ứng. Chọn đúng ngân hàng thì uỷ nhiệm chi mới đi được.');
     busy(true);
     try {
       var kq = await api('vagabond.ho_so_tt.tao', {
@@ -26936,11 +26992,13 @@ async function scrHoSoTTTao() {
            may tu doc ra tu hoa don, con o nay chi la bo loc cua man hinh. */
         ncc: laHU ? '' : hsTaoNcc,
         nguoi_ung: laHU ? hsTaoNguoiUng : '',
+        tk_hoan: laHU ? hsTkHoan : '',
         hoa_don: JSON.stringify(ds), ghi_chu: hsTaoGhiChu,
         gui_luon: guiLuon ? 1 : 0, loai: hsTaoLoai
       });
       busy(false);
       hsTaoChon = {}; hsTaoGhiChu = ''; hsTaoNguoiUng = '';
+      hsTkHoan = ''; hsTkDs = null; hsTkCua = '';
       toast('Đã lập hồ sơ ' + kq.ma + ' · ' + money(kq.tong_tien) + ' đ', 3500);
       go(function () { scrHoSoTTView(kq.ma); }, true);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Lập hồ sơ lỗi'); }
@@ -27020,7 +27078,7 @@ async function hsChonLoaiMoi() {
   if (c === 'tt') { ttReset(); return go(scrTraTruocTao); }
   if (c === 'tkct') { huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huChonHd = {}; huSuaO = -1; return go(scrChiCongTyTao); }
   if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; huSuaO = -1; return go(scrHoanUngTao); }
-  if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
+  if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTkHoan = ''; hsTkDs = null; hsTkCua = ''; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
   hsTaoNcc = ''; hsTaoChon = {}; hsTaoLoai = 'NCC';
   go(scrHoSoTTTao);
 }
@@ -27035,7 +27093,11 @@ async function scrHoanUngTao() {
   try { dstk = await api('vagabond.ho_so_tt.ds_tk_hoan_ung', {}); }
   catch (e) { frame('Lập hồ sơ hoàn ứng', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
   var tkHu = (dstk && dstk.tk) || [];
-  if (!huTkHoan && tkHu.length) huTkHoan = tkHu[0].ma;
+  /* Chi tu chon khi CHI CO MOT tai khoan. Truoc 28/08/2026 dong nay lay
+     `tkHu[0]` tuc la cai dau bang chu cai, ma ACB dung truoc OCB - nghia la
+     ho so nao nguoi lap khong de y la mac dinh chay vao ACB. Co hai tai
+     khoan tro len thi de trong va bat chon tay. */
+  if (!huTkHoan && tkHu.length === 1) huTkHoan = tkHu[0].ma;
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
     'Gõ từng khoản đã chi hộ bằng tiền tạm ứng: hàng test không nhập kho, hàng phát sinh, chi phí bảo trì... ' +
@@ -27054,8 +27116,10 @@ async function scrHoanUngTao() {
       ? kmHangChip(tkHu.map(function (x) {
           return posChipNut('data-hutk="' + h(x.ma) + '"', h(x.nhan), huTkHoan === x.ma);
         }).join('')) +
-        '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
-        (dstk.doan
+        '<div style="font-size:11.5px;color:' + (huTkHoan ? '#98a2b3' : '#b3261e') + ';margin-top:8px;line-height:1.6">' +
+        (!huTkHoan
+          ? 'Chưa chọn tài khoản nhận tiền. Có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.'
+          : dstk.doan
           ? '⚠️ Chưa có tài khoản nào gắn vào quỹ tạm ứng ' + '1411' + ', nên hệ thống bày tạm mọi tài khoản công ty. ' +
             'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn ACB và OCB.'
           : 'Tiền hoàn ứng luôn trả về tài khoản đã ứng ra. Chọn đúng tài khoản thì số dư quỹ tạm ứng mới khớp.') +
@@ -27567,7 +27631,8 @@ async function scrHoSoTTView(name) {
     (hs.noi_dung_ck ? '<div style="margin-top:4px">Nội dung: <b>' + h(hs.noi_dung_ck) + '</b></div>' : '') +
     '<div style="display:flex;gap:8px;margin-top:10px">' +
     '<button class="btn gh" data-hsv="noidungck" style="flex:2;margin:0">🏦 Tạo nội dung chuyển khoản</button>' +
-    ((Q.lap || Q.fin) && hs.trang_thai !== 'Da thanh toan' ? '<button class="btn gh" data-hsv="suatk" style="flex:1;margin:0">✏️ Sửa TK</button>' : '') +
+    ((Q.lap || Q.fin) && hs.trang_thai !== 'Da thanh toan' ? '<button class="btn gh" data-hsv="chontk" style="flex:1;margin:0">🏦 Chọn TK nhận</button>' : '') +
+    ((Q.lap || Q.fin) && hs.trang_thai !== 'Da thanh toan' ? '<button class="btn gh" data-hsv="suatk" style="flex:1;margin:0">✏️ Gõ tay</button>' : '') +
     '</div></div>';
 
   html += '<div class="sec">' + d.dong.length + (laHU ? ' khoản chi' : ' hoá đơn') + ' trong hồ sơ · bấm để xem chứng từ</div><div class="card">';
@@ -27759,6 +27824,27 @@ async function hsHanh(k, hs) {
     catch (e) { busy(false); return baoTin((e && e.message) || 'Không dựng được nội dung'); }
     busy(false);
     return go(function () { scrNoiDungCK(hs, ck); });
+  }
+  /* CHON TAI KHOAN TREN HO SO DA LAP
+     ------------------------------------------------------------------
+     QT-31: o ngan hang phai la o CHON. Duong go tay ba o van con o duoi,
+     nhung chi dung khi that su chua co Bank Account nao - go tay sai mot
+     chu trong ten ngan hang la uy nhiem chi bi tra ve. */
+  if (k === 'chontk') {
+    busy(true);
+    var dtk;
+    try { dtk = await api('vagabond.ho_so_tt.ds_tk_hoan_ung', { nguoi: hs.nguoi_ung || hs.nha_cung_cap || '' }); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được danh sách tài khoản'); }
+    busy(false);
+    var ds = (dtk && dtk.tk) || [];
+    if (!ds.length) return baoTin('Chưa khai tài khoản ngân hàng nào cho người này. Nhờ chị Dung tạo Bank Account bên Next, hoặc dùng nút Gõ tay.');
+    var c = await hoiChon('Hoàn ứng vào tài khoản nào', 'Chọn tài khoản thì tên, số tài khoản và ngân hàng lấy nguyên từ hồ sơ ngân hàng, không lệch một chữ.',
+      ds.map(function (x) { return { k: x.ma, icon: '🏦', nhan: x.nhan, mo_ta: x.ten || '' }; }));
+    if (!c) return;
+    busy(true);
+    try { await api('vagabond.ho_so_tt.doi_tk_nhan', { name: hs.ma, tk_hoan: c }); busy(false); toast('Đã chọn tài khoản nhận'); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu lỗi'); }
+    return go(function () { scrHoSoTTView(hs.ma); }, true);
   }
   if (k === 'suatk') {
     var t1 = await hoiNhap('Tên người thụ hưởng (đúng như trên tài khoản ngân hàng):', hs.ten_nhan || hs.ten_ncc || '');
