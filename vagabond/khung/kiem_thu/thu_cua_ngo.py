@@ -150,7 +150,7 @@ CUA_NGO = {
 	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
 	# KHONG mo ra ngoai. Cac phep thuan cung khong.
 	"ke_hoach_sx.py": ["chot", "ds_phieu", "lap", "tao_lenh",
-		"tinh_hinh_giu_cho", "xem", "xin_chuyen_nvl"],
+		"tinh_hinh_giu_cho", "ton_dong", "xem", "xin_chuyen_nvl"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.

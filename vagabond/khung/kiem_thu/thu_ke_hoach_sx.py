@@ -382,3 +382,59 @@ def _():
 	m = _py("mau_in/__init__.py")
 	dung("đã đăng ký mẫu", '"Vagabond - Kế hoạch sản xuất"' in m)
 	dung("gắn lên Production Plan", '("ke_hoach_san_xuat.html", "Production Plan")' in m)
+
+
+# ------------------- hai loi bat duoc khi chay thu tren site that 28/08
+
+
+@ca("bảng nguyên liệu truyền LIST CÁC DICT, không phải list chuỗi")
+def _():
+	# get_warehouse_list cua ERPNext goi row.get("warehouse") tren tung phan
+	# tu. Truyen chuoi thi no nem AttributeError, va vi _nap_nvl bot loi nen
+	# bang nguyen lieu rong tron ma khong ai biet. Chay thu ngay 28/08 tra ve
+	# 58 thanh pham, 79 ban thanh pham, 0 nguyen lieu - dung cai bay nay.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def _nap_nvl")[1].split("\n@frappe")[0]
+	dung("phải bọc thành dict", '{"warehouse": k["kho"]}' in doan)
+	la("không truyền chuỗi trần", 'kho = [k["kho"] for k' in doan, False)
+
+
+@ca("đơn quá hạn chỉ gom trong CỬA SỔ, không quét cả tháng")
+def _():
+	# Do tren site 28/08: 233 phieu YCSX deu Pending, phieu cu nhat tu 28/07.
+	# Gom het thi ke hoach ngay mai co 230 phieu trong khi thuc te chi con
+	# vai phieu chua lam.
+	m = _py("ke_hoach_sx.py")
+	dung("có hằng cửa sổ", "SO_NGAY_QUA_HAN" in m)
+	la("cửa sổ phải nhỏ", kh.SO_NGAY_QUA_HAN <= 7, True)
+	doan = m.split("def ycsx_can_lam")[1].split("\ndef ")[0]
+	dung("phải có chặn dưới", "mri.schedule_date >= %(som_nhat)s" in doan)
+	dung("vẫn có chặn trên", "mri.schedule_date <= %(ngay)s" in doan)
+
+
+@ca("không gom quá hạn thì chỉ lấy đúng ngày đó")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def ycsx_can_lam")[1].split("\ndef ")[0]
+	dung("tắt gom thì mốc sớm nhất bằng chính ngày",
+		"som_nhat = add_days(ngay, -so_ngay) if cint(gom_qua_han) else ngay" in doan)
+
+
+@ca("phần tồn đọng ngoài cửa sổ được liệt kê ra, không giấu đi")
+def _():
+	m = _py("ke_hoach_sx.py")
+	dung("có hàm liệt kê", "def ton_dong(" in m)
+	doan = m.split("def ton_dong")[1].split("\n@frappe")[0]
+	dung("phải nói rõ vì sao tồn đọng", "không ra lệnh sản xuất nối về phiếu" in doan)
+
+
+@ca("hàm liệt kê tồn đọng CHỈ ĐỌC, không tự đóng phiếu quá khứ")
+def _():
+	# Quy tac cua tiem: phat hien sai sot trong du lieu cu thi liet ke cho
+	# anh Viet, khong tu sua.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def ton_dong")[1].split("\n@frappe")[0]
+	la("không ghi", "set_value" in doan, False)
+	la("không commit", "db.commit" in doan, False)
+	la("không đóng phiếu", "update_status" in doan, False)
+	dung("nói rõ là không tự đóng", "tự đóng phiếu nào" in doan)

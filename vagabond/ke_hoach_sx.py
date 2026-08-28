@@ -61,6 +61,23 @@ danh sách YCSX ở đây tự chọn theo `schedule_date` rồi đổ thẳng v
 
 TRANG_THAI_BO = ("Stopped", "Cancelled")
 
+# Don qua han duoc keo sang ke hoach hom sau, nhung chi trong CUA SO nay.
+#
+# Anh Viet chot 28/08/2026 la gom don qua han, va do van la luat. Nhung do
+# tren site that cung ngay: 233 phieu YCSX deu dang o trang thai Pending,
+# phieu cu nhat tu 28/07, tuc mot thang khong phieu nao duoc dong. Ly do la
+# bep lam banh xong nhung khong ra lenh san xuat noi nguoc ve phieu, nen
+# ERPNext khong bao gio biet phieu da xong.
+#
+# Gom het mot thang do vao ke hoach ngay mai thi ke hoach dau tien da sai:
+# bep se thay 230 phieu trong khi thuc te chi con vai phieu chua lam. Nen
+# cua so mac dinh la HAI ngay - hom qua va hom kia, du de vot mot ngay bep
+# nghi ma khong keo theo no cu ca thang.
+#
+# Phan cu hon cua so KHONG bi giau di: `ton_dong()` liet ke ra cho anh Viet
+# doc. Sua du lieu cu la viec cua anh Viet, khong phai cua man hinh nay.
+SO_NGAY_QUA_HAN = 2
+
 # Chip trạng thái của một dòng cần làm.
 MUC_DU = "du"
 MUC_THIEU = "thieu"
@@ -218,7 +235,7 @@ def ngay_mai(hom_nay=None):
 # ---------------------------------------------------- chọn YCSX cho phiếu
 
 
-def ycsx_can_lam(ngay, gom_qua_han=1, cong_ty=None):
+def ycsx_can_lam(ngay, gom_qua_han=1, cong_ty=None, so_ngay=None):
 	"""Các phiếu YCSX phải nằm trong kế hoạch của ngày này.
 
 	Lọc theo `schedule_date` chứ không phải `transaction_date`, xem lý do ở
@@ -227,14 +244,12 @@ def ycsx_can_lam(ngay, gom_qua_han=1, cong_ty=None):
 	"""
 	ngay = getdate(ngay)
 	cong_ty = cong_ty or _cong_ty()
-	moc = ngay if gom_qua_han else None
+	so_ngay = cint(so_ngay) if so_ngay is not None else SO_NGAY_QUA_HAN
+	som_nhat = add_days(ngay, -so_ngay) if cint(gom_qua_han) else ngay
 	dieu = ["mr.material_request_type = 'Manufacture'", "mr.docstatus = 1",
 		"mr.status not in ('Stopped', 'Cancelled')", "mr.company = %(cong_ty)s",
-		"mri.qty > ifnull(mri.ordered_qty, 0)"]
-	if moc:
-		dieu.append("mri.schedule_date <= %(ngay)s")
-	else:
-		dieu.append("mri.schedule_date = %(ngay)s")
+		"mri.qty > ifnull(mri.ordered_qty, 0)",
+		"mri.schedule_date <= %(ngay)s", "mri.schedule_date >= %(som_nhat)s"]
 	ds = frappe.db.sql("""
 		select mr.name, mr.transaction_date, mri.schedule_date, mri.item_code,
 			mri.item_name, mri.qty - ifnull(mri.ordered_qty, 0) as con_lai,
@@ -243,7 +258,8 @@ def ycsx_can_lam(ngay, gom_qua_han=1, cong_ty=None):
 		join `tabMaterial Request` mr on mr.name = mri.parent
 		where %s
 		order by mri.schedule_date asc, mr.name asc
-	""" % " and ".join(dieu), {"ngay": ngay, "cong_ty": cong_ty}, as_dict=True)
+	""" % " and ".join(dieu),
+		{"ngay": ngay, "som_nhat": som_nhat, "cong_ty": cong_ty}, as_dict=True)
 	for d in ds:
 		d["qua_han"] = 1 if getdate(d.schedule_date) < ngay else 0
 	return ds
@@ -304,7 +320,11 @@ def _nap_nvl(doc):
 	)
 
 	try:
-		kho = [k["kho"] for k in tc.kho_cua_bep(None)
+		# get_warehouse_list cua ERPNext goi row.get("warehouse") tren tung
+		# phan tu, nen phai truyen LIST CAC DICT chu khong phai list chuoi.
+		# Truyen chuoi thi no nem AttributeError va bang nguyen lieu rong
+		# tron - dung loi da gap khi chay thu tren site that 28/08/2026.
+		kho = [{"warehouse": k["kho"]} for k in tc.kho_cua_bep(None)
 			if k["chang"] == ksx.NGUYEN_LIEU]
 		du_lieu = doc.as_dict()
 		ra = get_items_for_material_requests(du_lieu, warehouses=kho) or []
@@ -758,6 +778,51 @@ def tinh_hinh_giu_cho():
 			"ERPNext bật ô Enable Stock Reservation. Lưu ý đây là công tắc "
 			"chung: bật lên thì đơn bán cũng bắt đầu giữ chỗ theo, không "
 			"riêng phần sản xuất."),
+	}
+
+
+@frappe.whitelist()
+def ton_dong(truoc_ngay=None, gioi_han=200):
+	"""Các YCSX quá hạn NGOÀI cửa sổ, tức nằm ngoài kế hoạch hằng ngày.
+
+	Đo trên site 28/08/2026: 233 phiếu YCSX đều đang ở trạng thái Pending,
+	phiếu cũ nhất từ 28/07. Không phải bếp nợ một tháng hàng: bếp làm xong
+	rồi nhưng không ra lệnh sản xuất nối ngược về phiếu, nên ERPNext không
+	bao giờ biết phiếu đã xong.
+
+	Hàm này CHỈ ĐỌC và liệt kê ra. KHÔNG tự đóng phiếu nào: đó là dữ liệu
+	quá khứ, và quy tắc của tiệm là liệt kê cho anh Việt chứ không tự sửa.
+	"""
+	_chan()
+	truoc = getdate(truoc_ngay) if truoc_ngay else add_days(
+		getdate(nowdate()), -SO_NGAY_QUA_HAN)
+	gioi_han = cint(gioi_han) or 200
+	ds = frappe.db.sql("""
+		select mr.name, mri.schedule_date, mri.item_code, mri.item_name,
+			mri.qty - ifnull(mri.ordered_qty, 0) as con_lai, mri.uom,
+			mri.warehouse, mr.owner
+		from `tabMaterial Request Item` mri
+		join `tabMaterial Request` mr on mr.name = mri.parent
+		where mr.material_request_type = 'Manufacture' and mr.docstatus = 1
+			and mr.status not in ('Stopped', 'Cancelled')
+			and mri.qty > ifnull(mri.ordered_qty, 0)
+			and mri.schedule_date < %(truoc)s
+		order by mri.schedule_date asc
+		limit %(gioi_han)s
+	""", {"truoc": truoc, "gioi_han": gioi_han}, as_dict=True)
+	phieu = sorted({d.name for d in ds})
+	som = str(ds[0].schedule_date) if ds else ""
+	return {
+		"truoc_ngay": str(truoc), "so_phieu": len(phieu), "so_dong": len(ds),
+		"som_nhat": som, "ds": [dict(d) for d in ds],
+		"ghi_chu": ("Có %d phiếu yêu cầu sản xuất hẹn trước ngày %s mà hệ vẫn "
+			"coi là chưa làm, phiếu cũ nhất hẹn %s. Phần lớn là do bếp làm "
+			"xong nhưng không ra lệnh sản xuất nối về phiếu, chứ không phải "
+			"nợ hàng thật. Anh Việt xem rồi quyết đóng hay để, màn này không "
+			"tự đóng phiếu nào."
+			% (len(phieu), truoc.strftime("%d/%m/%Y"),
+				getdate(som).strftime("%d/%m/%Y") if som else "-"))
+			if ds else "Không có phiếu yêu cầu nào tồn đọng ngoài cửa sổ.",
 	}
 
 
