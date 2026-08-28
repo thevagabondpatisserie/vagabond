@@ -239,8 +239,18 @@ async function scrDcmXem(name) {
   var foot = '';
   if (kq.lam_duoc && gy.length) {
     foot = '<div style="display:flex;gap:8px">' +
-      '<button class="btn gh" id="dcmNoi" style="margin:0;flex:0 0 38%">🔗 Chỉ nối phiếu</button>' +
-      '<button class="btn" id="dcmXong" style="margin:0;flex:1">✅ Khớp và ghi sổ</button></div>';
+      /* Ghi so la viec cua ke toan. Thu mua chi thay nut noi phieu, kem
+         mot cau noi ro to hoa don di dau tiep - khong thi Uyen tuong minh
+         lam thieu buoc. Chi Dung 28/08/2026 bao may tu ghi so luon khi
+         Uyen noi phieu, anh Viet chot tach hai buoc. */
+      (kq.ghi_so_duoc
+        ? '<button class="btn gh" id="dcmNoi" style="margin:0;flex:0 0 38%">🔗 Chỉ nối phiếu</button>' +
+          '<button class="btn" id="dcmXong" style="margin:0;flex:1">✅ Khớp và ghi sổ</button>'
+        : '<button class="btn" id="dcmNoi" style="margin:0;flex:1">🔗 Nối phiếu, chuyển kế toán ghi sổ</button>') +
+      '</div>' +
+      (kq.ghi_so_duoc ? '' :
+        '<div style="font-size:11.5px;color:#98a2b3;margin:-4px 0 10px;line-height:1.6">' +
+        'Nối xong, tờ hoá đơn nằm ở dạng nháp trong nhóm <b>Chờ ghi sổ</b> để kế toán ghi vào sổ cái.</div>');
   }
   var b = frame('Đối chiếu ' + name, html, foot ? { footer: foot } : {});
   b.onclick = function (e) {
@@ -272,7 +282,11 @@ async function scrDcmXem(name) {
     try { r = await api('vagabond.doi_chieu_mua.noi_phieu', { name: name, phieu: JSON.stringify(dcmPhieu), ghi_so: ghiSo ? 1 : 0 }); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được'); return; }
     busy(false);
-    toast(r.da_ghi_so ? 'Đã nối phiếu và ghi sổ ' + name : 'Đã nối phiếu. Bấm "Khớp và ghi sổ" khi muốn ghi sổ.', 4000);
+    toast(r.da_ghi_so
+      ? 'Đã nối phiếu và ghi sổ ' + name
+      : (kq.ghi_so_duoc
+          ? 'Đã nối phiếu. Bấm "Khớp và ghi sổ" khi muốn ghi sổ.'
+          : 'Đã nối phiếu ' + name + '. Tờ này đang chờ kế toán ghi sổ.'), 4500);
     if (r.da_ghi_so) { dcmPhieu = []; dcmSs = null; return go(scrDoiChieuMua, true); }
     go(function () { scrDcmXem(name); }, true);
   }
