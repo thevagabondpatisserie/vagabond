@@ -164,6 +164,59 @@ def gom_theo_ma(dong):
 	return sorted(ra.values(), key=lambda x: x["ma"])
 
 
+def neo_nvl_theo_btp(nvl, btp, ma_cua_bom):
+	"""Xổ nguyên liệu ra dưới đúng bán thành phẩm. PHÉP THUẦN.
+
+	Trả về dict: tên dòng BTP -> danh sách dòng NVL.
+
+	ERPNext có ô `sub_assembly_item_reference` để neo, NHƯNG nó chỉ điền ô
+	đó trong `on_submit`. Phiếu của bếp nằm ở dạng NHÁP cho tới khi bấm
+	Chốt, nên đọc ô đó trên phiếu nháp thì luôn rỗng. Đo trên site
+	28/08/2026: 47 dòng nguyên liệu, 0 dòng có neo.
+
+	Nên ở đây TỰ ĐỐI CHIẾU, theo hai bước:
+	  1. Dòng nguyên liệu ghi nó thuộc MÓN nào ở ô `main_item_code`. Đó là
+	     mã thành phẩm, KHÔNG phải mã bán thành phẩm. Lấy các dòng BTP có
+	     `parent_item_code` bằng đúng món đó.
+	  2. Trong số đó, chọn dòng BTP nào có công thức (`bom_no`) thật sự
+	     chứa mã nguyên liệu này.
+
+	`ma_cua_bom` là dict: tên công thức -> tập mã nguyên liệu trong đó.
+
+	ĐỪNG neo bằng cặp (`main_item_code`, `from_bom`) như bản v346. Hai ô đó
+	đều nói về THÀNH PHẨM: `from_bom` là công thức của thành phẩm, không
+	bao giờ trùng `bom_no` của bán thành phẩm, nên không dòng nào neo được.
+	Đã đo trên site 29/08/2026: 0 trên 47 dòng.
+
+	Một nguyên liệu nằm trong hai công thức BTP của cùng một món thì neo
+	vào CẢ HAI. Đây chỉ là danh sách xổ ra để bếp nhìn, không phải số để
+	cộng; bảng tổng nguyên liệu vẫn là bảng phẳng ở tab riêng.
+	"""
+	btp_cua_mon = {}
+	for b in btp:
+		mon = (b.get("parent_item_code") or "").strip()
+		if mon:
+			btp_cua_mon.setdefault(mon, []).append(b)
+
+	ra = {}
+	for x in nvl:
+		san = (x.get("sub_assembly_item_reference") or "").strip()
+		if san:
+			ra.setdefault(san, []).append(x)
+			continue
+		ma = (x.get("item_code") or "").strip()
+		mon = (x.get("main_item_code") or "").strip()
+		if not ma or not mon:
+			continue
+		for b in btp_cua_mon.get(mon, []):
+			cong_thuc = (b.get("bom_no") or "").strip()
+			if not cong_thuc:
+				continue
+			if ma in (ma_cua_bom.get(cong_thuc) or ()):
+				ra.setdefault(b.get("name"), []).append(x)
+	return ra
+
+
 def cau_tom_tat(so_tp, so_btp, so_nvl, so_ycsx, so_thieu):
 	"""Một câu nói gọn cả phiếu, đặt trên đầu màn hình. THUẦN."""
 	if not so_ycsx:
@@ -563,6 +616,21 @@ def _chang_cua(cac_ma):
 	return ra
 
 
+def _ma_cua_bom(cac_bom):
+	"""Mỗi công thức chứa những mã nguyên liệu nào. Đọc một lượt, không
+	hỏi từng công thức một."""
+	ra = {}
+	cac_bom = sorted({b for b in (cac_bom or []) if b})
+	if not cac_bom:
+		return ra
+	for i in range(0, len(cac_bom), 200):
+		for d in frappe.get_all("BOM Item", filters={
+			"parent": ["in", cac_bom[i:i + 200]],
+		}, fields=["parent", "item_code"], limit_page_length=0):
+			ra.setdefault(d.parent, set()).add(d.item_code)
+	return ra
+
+
 def _bep_cua(ma, kho):
 	"""Bếp của một dòng: ưu tiên hồ sơ món, không có thì đoán theo kho."""
 	return ksx._bep_cua_mon(ma) or ksx.bep_cua_kho(kho or "") or ""
@@ -660,27 +728,10 @@ def xem(ngay=None, ten=None):
 				"so_nguon": len(o["nguon"])})
 		ra_tp.append(d)
 
-	# Nguyên liệu xổ ra dưới từng bán thành phẩm.
-	#
-	# ERPNext có ô `sub_assembly_item_reference` để neo, NHƯNG nó chỉ điền ô
-	# đó trong `on_submit`. Phiếu của bếp nằm ở dạng NHÁP cho tới khi bấm
-	# Chốt, nên đọc ô đó trên phiếu nháp thì luôn rỗng và bếp không xổ ra
-	# được gì. Đo trên site 28/08/2026: 47 dòng nguyên liệu, 0 dòng có neo.
-	#
-	# Nên ở đây TỰ ĐỐI CHIẾU, đúng luật ERPNext dùng trong
-	# `add_reference_to_raw_materials`: một dòng nguyên liệu thuộc về dòng
-	# bán thành phẩm nào có cùng món và cùng công thức. Chỉ đọc, không ghi
-	# gì xuống phiếu, nên chạy được cả trên phiếu nháp lẫn phiếu đã chốt.
-	nvl_theo_btp = {}
-	neo_cua = {}
-	for x in btp:
-		neo_cua[(x.get("production_item"), x.get("bom_no"))] = x.get("name")
-	for x in nvl:
-		neo = (x.get("sub_assembly_item_reference") or "").strip()
-		if not neo:
-			neo = neo_cua.get((x.get("main_item_code"), x.get("from_bom"))) or ""
-		if neo:
-			nvl_theo_btp.setdefault(neo, []).append(x)
+	# Nguyên liệu xổ ra dưới từng bán thành phẩm. Luật neo nằm trong
+	# `neo_nvl_theo_btp`, đọc chú thích ở đó trước khi sửa.
+	nvl_theo_btp = neo_nvl_theo_btp(nvl, btp,
+		_ma_cua_bom([x.get("bom_no") for x in btp]))
 
 	def _dong_nvl(x):
 		ma = x.get("item_code")
