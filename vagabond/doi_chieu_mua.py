@@ -82,6 +82,30 @@ def _lam_duoc():
 	)
 
 
+# Ai duoc GHI SO mot to hoa don mua. Hep hon `_lam_duoc` mot bac.
+#
+# Chi Dung 28/08/2026: *"khi Uyen noi phieu la may tu ghi so luon a em"*.
+# Anh Viet hoi lai: chan lai luc noi phieu, chi ke toan moi duoc ghi so.
+#
+# Vi sao tach lam hai vai chu khong chan tat: noi phieu la viec DOI CHIEU
+# giay to, do la viec cua thu mua, va Uyen lam viec do nhanh nhat. Ghi so
+# la viec quyet dinh con so vao so cai, do la viec cua ke toan. Gop hai
+# viec vao mot nut nghia la nguoi doi chieu tu duyet phan doi chieu cua
+# chinh minh - dung cai ma hai cap duyet sinh ra de tranh.
+#
+# Uyen van bam "Chi noi phieu" duoc, to hoa don nam o dang nhap cho chi
+# Dung ghi so. Khong ai bi ket viec.
+VAI_GHI_SO = {
+	"System Manager",
+	"Accounts Manager",
+	"Accounts User",
+}
+
+
+def _ghi_so_duoc():
+	return bool(VAI_GHI_SO & set(frappe.get_roles()))
+
+
 # Vai duoc phep ghi so mot to hoa don co don gia khac phieu nhap. Khong ghi
 # cung o day ma DOC tu chinh o thiet lap cua ERPNext, de app va ERPNext
 # khong bao gio noi hai dieu khac nhau: ERPNext chan hay khong chan cung
@@ -367,6 +391,9 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 		"dem": dem,
 		"nhom": NHOM,
 		"lam_duoc": 1 if _lam_duoc() else 0,
+		# Man hinh phai biet de an nut "Khop va ghi so" di, khong thi Uyen
+		# bam roi moi biet minh khong duoc phep - mot vong lam viec vut di.
+		"ghi_so_duoc": 1 if _ghi_so_duoc() else 0,
 		"tu": str(tu),
 		"den": str(den),
 	}
@@ -443,6 +470,9 @@ def xem(name):
 		"goi_y": gy,
 		"nhom": _nhom_cua(hd, dong, bool(gy)),
 		"lam_duoc": 1 if _lam_duoc() else 0,
+		# Man hinh phai biet de an nut "Khop va ghi so" di, khong thi Uyen
+		# bam roi moi biet minh khong duoc phep - mot vong lam viec vut di.
+		"ghi_so_duoc": 1 if _ghi_so_duoc() else 0,
 		"nguong_lech": NGUONG_LECH,
 	}
 
@@ -738,6 +768,16 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 	_kiem_quyen()
 	if not _lam_duoc():
 		frappe.throw("Chỉ kế toán hoặc thu mua mới nối phiếu và ghi sổ hoá đơn mua được.")
+	# Noi phieu thi thu mua lam duoc, GHI SO thi chi ke toan. Chan ngay o
+	# dau cua, truoc khi dong vao chung tu, de nguoi bam biet lien chu
+	# khong phai doi chay het roi moi bao hong.
+	if cint(ghi_so) and not _ghi_so_duoc():
+		frappe.throw(
+			"Chỉ kế toán mới ghi sổ hoá đơn mua được. Anh chị bấm "
+			'"Chỉ nối phiếu" để nối chứng từ, tờ hoá đơn sẽ nằm ở dạng nháp '
+			"cho kế toán ghi sổ.",
+			title="Chưa đủ quyền ghi sổ",
+		)
 	if isinstance(phieu, str):
 		phieu = frappe.parse_json(phieu or "[]")
 	phieu = [str(p).strip() for p in (phieu or []) if str(p).strip()]
