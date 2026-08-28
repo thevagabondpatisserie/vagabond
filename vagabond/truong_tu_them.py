@@ -105,6 +105,11 @@ def dung():
 	from vagabond import tat_ban_web
 
 	_dung_nhom(tat_ban_web.TRUONG_MOI, "tat_ban_web")
+	# Bang Nguyen lieu thay the: cot ten, cot dem cong thuc, chip canh bao
+	# (Khai de nghi 28/08/2026). Toan truong may dien, khong ai go tay.
+	from vagabond import nvl_thay_the
+
+	_dung_nhom(nvl_thay_the.TRUONG_MOI, "nvl_thay_the")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()

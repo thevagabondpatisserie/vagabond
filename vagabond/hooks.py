@@ -96,6 +96,10 @@ scheduler_events = {
 		# ngay nao co duong dung thi bat lai bang mot dong.
 		# 1h10 dem: quet lui 30 ngay de lanh not "vo ruot" va vet sot cu.
 		"10 1 * * *": ["vagabond.minvoice_dong_bo.tu_lanh_hang_dem"],
+		# 01:40 moi dem: tinh lai bang Nguyen lieu thay the. Ton kho, gia von
+		# va so cong thuc doi hang ngay ma khong ai mo lai cap thay the de luu,
+		# nen khong co nhip nay thi cac o do dung im o con so ngay khai.
+		"40 1 * * *": ["vagabond.nvl_thay_the.quet_tu_dong"],
 		# Moi 15 phut: duong thu di co dang hong khong. Tu 16/08/2026 ca tiem
 		# khong gui duoc mot email nao suot nhieu ngay, va minh chi biet vi
 		# Uyen di hoi. Khong co nhip nay thi lan sau cung the.
@@ -241,6 +245,9 @@ doc_events = {
 	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
 	# ra phieu san xuat nen phai va o mot cho duy nhat.
 	"Stock Entry": {"before_validate": "vagabond.lo_hang.gan_lo"},
+	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
+	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
+	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},
 	# GAN ASSIGNEE THAT vao phieu luc phieu sinh ra (anh Viet 21/08/2026).
 	#
 	# Dat o hook chu khong sua muoi cho tao phieu: phieu sinh ra tu app, tu
