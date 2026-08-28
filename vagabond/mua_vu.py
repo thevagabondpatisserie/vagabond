@@ -144,6 +144,88 @@ def banh_le_trong_hop(dinh_muc, ban_theo_hop):
 	return ra
 
 
+def gom_doi_ruot(cac_dong, ngay=None):
+	"""Gộp các dòng đổi ruột thành mức điều chỉnh theo từng mã bánh. THUẦN.
+
+	cac_dong: list dict có ngay, ma_hop, so_hop, ma_banh_bot, sl_bot,
+	          ma_banh_them, sl_them.
+	ngay: chỉ lấy các dòng của đúng ngày đó. None thì lấy hết cả mùa.
+
+	Trả {ma_banh: mức chênh}, trong đó số DƯƠNG nghĩa là hộp ăn THÊM bánh
+	đó, số ÂM nghĩa là hộp KHÔNG ăn bánh đó nữa.
+
+	VÌ SAO CẦN (anh Việt 28/08/2026): phép đếm trừ bánh lẻ theo định mức
+	CHUẨN của mã hộp. Bán 25 hộp Moongarden là máy trừ 25 lần ruột chuẩn,
+	bất kể bên trong thật sự là gì. Đơn khách xin đổi bánh vì thế sai hai
+	chiều cùng lúc: trừ oan số bánh khách không lấy, và không trừ số bánh
+	bếp đã thật sự bỏ vào hộp. Càng nhiều đơn đổi ruột thì hai con số càng
+	lệch, mà không có dấu hiệu gì trên màn hình để ai nhận ra.
+	"""
+	ra = {}
+	for x in cac_dong or []:
+		x = x or {}
+		if ngay is not None and str(x.get("ngay") or "") != str(ngay):
+			continue
+		so_hop = cint(x.get("so_hop"))
+		if so_hop <= 0:
+			continue
+		bot = str(x.get("ma_banh_bot") or "").strip()
+		them = str(x.get("ma_banh_them") or "").strip()
+		if bot:
+			n = cint(x.get("sl_bot"))
+			if n > 0:
+				ra[bot] = ra.get(bot, 0) - so_hop * n
+		if them:
+			n = cint(x.get("sl_them"))
+			if n > 0:
+				ra[them] = ra.get(them, 0) + so_hop * n
+	return ra
+
+
+def ap_doi_ruot(trong_hop, chenh):
+	"""Áp mức điều chỉnh đổi ruột lên số bánh lẻ bị hộp ăn. THUẦN.
+
+	Trả về một dict MỚI, không sửa dict truyền vào: hai chỗ gọi cùng một
+	bảng gốc, sửa tại chỗ là chỗ thứ hai đọc phải số đã bị chỉnh một lần.
+
+	Kẹp sàn ở 0. Khai nhiều hơn số hộp thật sự đã bán thì con số âm sẽ
+	biến thành bánh lẻ tự mọc ra, mà bánh không tự mọc. Chỗ khai lố được
+	`soat_doi_ruot` kể riêng ra cho người khai thấy.
+	"""
+	ra = dict(trong_hop or {})
+	for ma, d in (chenh or {}).items():
+		ma = str(ma or "").strip()
+		if not ma:
+			continue
+		ra[ma] = max(0, cint(ra.get(ma)) + cint(d))
+	return ra
+
+
+def soat_doi_ruot(cac_dong, dinh_muc, ban_theo_hop):
+	"""Dòng đổi ruột nào khai lố so với số hộp đã bán. THUẦN.
+
+	Trả list câu nhắc. Rỗng nghĩa là mọi dòng đều nằm trong số hộp đã bán.
+
+	Không chặn người khai: đơn có thể vừa chốt xong mà bảng chưa đồng bộ
+	kịp, chặn ở đó là bắt người ta chờ. Chỉ nói ra để họ nhìn lại.
+	"""
+	da_khai = {}
+	for x in cac_dong or []:
+		hop = str((x or {}).get("ma_hop") or "").strip()
+		if hop:
+			da_khai[hop] = da_khai.get(hop, 0) + cint((x or {}).get("so_hop"))
+	nhac = []
+	for hop in sorted(da_khai):
+		ban = cint((ban_theo_hop or {}).get(hop))
+		if da_khai[hop] > ban:
+			nhac.append(
+				"Đã khai đổi ruột %d hộp %s nhưng bảng chỉ ghi nhận bán %d hộp. "
+				"Anh chị kiểm lại số hộp trên dòng khai."
+				% (da_khai[hop], hop, ban)
+			)
+	return nhac
+
+
 def san_luong_theo_ma(cac_dong):
 	"""Tong san luong bep lam duoc, cong theo tung ma hang. THUAN.
 
@@ -352,7 +434,7 @@ def con_ban_duoc(san_xuat, da_dat, cho_chot, don_khac, trong_hop=0):
 	)
 
 
-def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
+def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them, doi_ruot=None):
 	"""Neu them so_them cai ma_hang nua thi con lai bao nhieu. THUAN.
 
 	Day la phep chot chan dung truoc khi cho ghi so mot don (anh Viet chot
@@ -397,8 +479,12 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 	#
 	# Luat dung: don nay chi bi chan boi nhung dong ma CHINH NO lam xau di.
 	# Dong da am san tu truoc va don nay khong dung toi thi khong lien quan.
-	trong_truoc = banh_le_trong_hop(dinh_muc, ban_truoc)
-	trong_sau = banh_le_trong_hop(dinh_muc, ban_sau)
+	# Doi ruot ap len CA HAI moc bang nhau, nen no khong lam lech phep so
+	# truoc voi sau. Nhung no lam doi MUC TUYET DOI cua tung dong, ma
+	# `con_ban_duoc` doc dung muc do de biet dong nao am.
+	chenh = gom_doi_ruot(doi_ruot)
+	trong_truoc = ap_doi_ruot(banh_le_trong_hop(dinh_muc, ban_truoc), chenh)
+	trong_sau = ap_doi_ruot(banh_le_trong_hop(dinh_muc, ban_sau), chenh)
 	am, con_cua_ma = [], None
 	for ma, d in theo_ma.items():
 		# Nguon cung gop hai o: bep lam va nha in giao (anh Viet chot 21/08/2026).
@@ -438,7 +524,7 @@ def con_sau_khi_them(dong, dinh_muc, ma_hang, so_them):
 
 
 def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc,
-		chot_ton=None):
+		chot_ton=None, doi_ruot=None):
 	"""Cuon ton qua tung ngay cua mua. THUAN.
 
 	cac_ngay  : list "YYYY-MM-DD" tang dan, tu ngay dau mua den ngay can xem.
@@ -493,7 +579,11 @@ def cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam_ngay, dinh_muc,
 				cint(c.get("da_dat")) + cint(c.get("phat_sinh"))
 				+ cint(c.get("cho_chot")) + cint(c.get("don_khac"))
 			)
-		trong_hop = banh_le_trong_hop(dinh_muc, ban_hop)
+		# Doi ruot cua RIENG ngay nay. Khai ngay 04/09 thi chi ngay 04/09
+		# duoc chinh; cac ngay khac giu nguyen dinh muc chuan.
+		trong_hop = ap_doi_ruot(
+			banh_le_trong_hop(dinh_muc, ban_hop), gom_doi_ruot(doi_ruot, ng)
+		)
 
 		o_ngay = {}
 		for ma in ma_tat_ca:
@@ -1324,6 +1414,35 @@ def bang(mua=None):
 			}
 			for d in doc.dong
 		],
+		# Bang doi ruot, kem cau nhac neu khai lo so hop da ban.
+		"doi_ruot": [
+			{
+				"dong": x.name,
+				"ngay": str(x.ngay or ""),
+				"ma_hop": x.ma_hop or "",
+				"ten_hop": x.ten_hop or "",
+				"so_hop": cint(x.so_hop),
+				"ma_banh_bot": x.ma_banh_bot or "",
+				"ten_banh_bot": x.ten_banh_bot or "",
+				"sl_bot": cint(x.sl_bot),
+				"ma_banh_them": x.ma_banh_them or "",
+				"ten_banh_them": x.ten_banh_them or "",
+				"sl_them": cint(x.sl_them),
+				"ghi_chu": x.ghi_chu or "",
+				"nguoi_khai": x.nguoi_khai or "",
+			}
+			for x in sorted(
+				doc.get("doi_ruot") or [], key=lambda z: (str(z.ngay or ""), z.ma_hop or "")
+			)
+		],
+		"nhac_doi_ruot": soat_doi_ruot(
+			[x.as_dict() for x in doc.get("doi_ruot") or []],
+			[m.as_dict() for m in doc.get("dinh_muc") or []],
+			{
+				d.ma_hang: cint(d.da_dat) + cint(d.cho_chot) + cint(d.don_khac)
+				for d in doc.dong
+			},
+		),
 		"lich": {
 			"ngay": sorted(ngay_co),
 			"o": theo_ngay,
@@ -1522,7 +1641,10 @@ def bang_ngay(mua=None, ngay=None):
 	co_nguon = ma_co_nguon_cung([d.as_dict() for d in doc.dong])
 	chot = _chot_ton_tu_doc(doc, trong_khoang)
 	ai = _ai_chot(doc, trong_khoang)
-	cuon = cuon_ton_theo_ngay(cac_ngay, mo_so, them_ngay, cam, dm, chot)
+	cuon = cuon_ton_theo_ngay(
+		cac_ngay, mo_so, them_ngay, cam, dm, chot,
+		[x.as_dict() for x in doc.get("doi_ruot") or []],
+	)
 	o_ngay = ghep_theo_ngay(cuon.get(str(ng)) or {}, dm, khong_tran, co_nguon)
 
 	# Anh va ten lay tu bang san pham, de man nay khong phai hoi them lan nao.
@@ -2055,6 +2177,7 @@ def kiem_han_muc(cac_dong_ban, ngay=None, bo_qua_hoa_don=None):
 	for ma_mua in mua_dang_chay(ngay):
 		try:
 			dong, dinh_muc, _doc = _doc_mua(ma_mua)
+			doi_ruot = [x.as_dict() for x in _doc.get("doi_ruot") or []]
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "mua_vu: doc mua %s loi" % ma_mua)
 			continue
@@ -2065,7 +2188,7 @@ def kiem_han_muc(cac_dong_ban, ngay=None, bo_qua_hoa_don=None):
 		for ma, sl in gop.items():
 			if ma not in ma_trong_mua or da_dem:
 				continue
-			con, am = con_sau_khi_them(dong, dinh_muc, ma, sl)
+			con, am = con_sau_khi_them(dong, dinh_muc, ma, sl, doi_ruot)
 			if con is None:
 				continue
 			for ma_am, con_am in am:
@@ -2373,6 +2496,90 @@ def xoa_dinh_muc(mua=None, ma_hop=None, ma_banh=None):
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return bang(mua)
+# ===================================================================
+# DOI RUOT HOP THEO DON
+# ===================================================================
+#
+# Anh Viet 28/08/2026: *"nhung don hang bi doi ruot do khach yeu cau doi
+# banh ben trong thi em huong dan cach xu ly the nao de may dem cho dung
+# so banh?"*
+#
+# Bang dinh muc chi ta duoc hop ban NGUYEN RUOT. Don nao khach doi banh
+# thi khai mot dong o day, may cong tru lai phep dem. Xem `gom_doi_ruot`
+# de biet vi sao thieu no la sai hai chieu cung luc.
+
+
+@frappe.whitelist()
+def them_doi_ruot(mua=None, ngay=None, ma_hop=None, so_hop=0,
+		ma_banh_bot=None, sl_bot=1, ma_banh_them=None, sl_them=1, ghi_chu=""):
+	"""Khai mot don doi ruot.
+
+	Bot hoac them deu duoc de trong mot ben: khach chi bo bot mot vi ma
+	khong lay gi thay the thi chi khai ben bot.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	doc = _ban_ghi_mua(mua)
+	hop = str(ma_hop or "").strip()
+	bot = str(ma_banh_bot or "").strip()
+	them = str(ma_banh_them or "").strip()
+	so = cint(so_hop)
+	if not hop:
+		frappe.throw("Chưa chọn mã hộp bị đổi ruột.")
+	if so <= 0:
+		frappe.throw("Số hộp phải lớn hơn 0.")
+	if not bot and not them:
+		frappe.throw(
+			"Phải khai ít nhất một bên: bánh bớt ra, hoặc bánh thêm vào, hoặc cả hai."
+		)
+	if bot and bot == them:
+		frappe.throw("Bánh bớt ra và bánh thêm vào đang là cùng một mã, không có gì đổi.")
+
+	ten = {d.ma_hang: (d.ten_banh or "") for d in doc.dong}
+	doc.append("doi_ruot", {
+		"ngay": getdate(ngay) if ngay else getdate(),
+		"ma_hop": hop,
+		"ten_hop": ten.get(hop, ""),
+		"so_hop": so,
+		"ma_banh_bot": bot,
+		"ten_banh_bot": ten.get(bot, ""),
+		"sl_bot": cint(sl_bot) if bot else 0,
+		"ma_banh_them": them,
+		"ten_banh_them": ten.get(them, ""),
+		"sl_them": cint(sl_them) if them else 0,
+		"ghi_chu": (ghi_chu or "").strip(),
+		"nguoi_khai": frappe.session.user,
+		"luc_khai": now_datetime(),
+	})
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return bang(mua)
+
+
+@frappe.whitelist()
+def xoa_doi_ruot(mua=None, dong=None):
+	"""Bo mot dong doi ruot khai nham. Xoa theo TEN DONG chu khong theo noi dung.
+
+	Hai don giong het nhau la chuyen thuong: cung ngay, cung hop, cung vi
+	doi. Xoa theo noi dung thi mot lan bam bay mat ca hai.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	doc = _ban_ghi_mua(mua)
+	ten = str(dong or "").strip()
+	con = [x for x in (doc.get("doi_ruot") or []) if x.name != ten]
+	if len(con) == len(doc.get("doi_ruot") or []):
+		frappe.throw("Không tìm thấy dòng đổi ruột này. Vui lòng tải lại màn hình.")
+	doc.set("doi_ruot", con)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return bang(mua)
+
+
 # ===================================================================
 # SAN LUONG BEP THEO NGAY
 # ===================================================================
