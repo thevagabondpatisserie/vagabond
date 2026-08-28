@@ -438,3 +438,42 @@ def _():
 	la("không commit", "db.commit" in doan, False)
 	la("không đóng phiếu", "update_status" in doan, False)
 	dung("nói rõ là không tự đóng", "tự đóng phiếu nào" in doan)
+
+
+# ------------- loi thu ba: combine_items cua ERPNext hong voi nguon YCSX
+
+
+@ca("KHÔNG bật gộp món khi nguồn là phiếu yêu cầu sản xuất")
+def _():
+	# Hai co hong, doc trong production_plan.add_items cua ERPNext:
+	# mot la no nhet ten phieu yeu cau vao o Link tro sang Don ban, lam
+	# phieu khong luu duoc; hai la no gan so luong da gop cho TUNG dong ma
+	# khong xoa bot dong, thanh ra bep lam gap ba.
+	m = _py("ke_hoach_sx.py")
+	dung("phải tắt gộp món", "doc.combine_items = 0" in m)
+	la("không được bật", "doc.combine_items = 1" in m, False)
+
+
+@ca("vẫn gộp bán thành phẩm và nguyên liệu, vì đó mới là số bếp đi lấy hàng")
+def _():
+	m = _py("ke_hoach_sx.py")
+	dung("gộp cấp dưới vẫn bật", "doc.combine_sub_items = 1" in m)
+
+
+@ca("bảng tham chiếu đơn bán được dọn rỗng trước khi lưu")
+def _():
+	# Hang rao thu hai: mot dong thua trong bang do la ca phieu khong luu
+	# duoc, va cau tu choi khong noi gi ve nguyen nhan.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def _dung_phieu")[1].split("\ndef ")[0]
+	dung("phải dọn rỗng", 'doc.set("prod_plan_references", [])' in doan)
+
+
+@ca("ghi chú giải thích đủ CẢ HAI cỗ hỏng, không chỉ cái nhìn thấy")
+def _():
+	# Loi thu hai am tham hon nhieu: phieu van luu duoc, chi la so gap ba.
+	# Nguoi doc sau phai biet ca hai truoc khi dinh bat lai o gop mon.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def _dung_phieu")[1].split('"""')[1]
+	dung("nói lỗi không lưu được", "Không tìm thấy Dòng #1" in doan)
+	dung("nói lỗi số gấp ba", "Bếp làm gấp ba" in doan)
