@@ -159,6 +159,9 @@ MAN = (
 	("KIT", "Bảng bếp hôm nay", None),
 	("MFG", "Sản xuất", None),
 	("CTBOM", "Công thức", None),
+	# Ke hoach san xuat trong ngay (anh Viet giao 28/08/2026). Dung Production
+	# Plan co san cua ERPNext, khong de them doctype.
+	("KHSX", "Lập kế hoạch sản xuất", None),
 	# Don tiec va B2B (them 25/08/2026). Lam theo don, khong dinh muc,
 	# nen khong nam trong luong Lenh san xuat.
 	("TIEC", "Đơn tiệc", None),

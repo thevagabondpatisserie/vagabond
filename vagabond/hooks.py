@@ -132,7 +132,17 @@ scheduler_events = {
 		# doc so diem, nen thu tu khong doi ket qua - nhung neu sau nay ai
 		# gan hai viec vao nhau thi thu tu dung la xet hang truoc, dot diem
 		# sau. Ham tu kiem cau hinh va thoat ngay khi dang Tat (mac dinh).
-		"0 5 * * *": ["vagabond.diem_han.het_han_tu_dong"],
+		"0 5 * * *": [
+			"vagabond.diem_han.het_han_tu_dong",
+			# 5h sang bep vao ca: rung dien thoai bep truong bao ke hoach
+			# hom nay da san. Ham tu thoat khi ngay do chua co phieu.
+			"vagabond.ke_hoach_sx.nhac_bep_sang",
+		],
+		# 0h00: lap san phieu ke hoach san xuat cho ngay vua sang, gom moi
+		# phieu YCSX cac ben da gui. Phieu de dang NHAP, 5h sang bep doc roi
+		# tu bam Chot. Ham tu bo qua khi ngay do da co phieu, nen chay lai
+		# khong sinh phieu thu hai.
+		"0 0 * * *": ["vagabond.ke_hoach_sx.tu_lap_nua_dem"],
 		# 3h sang: xoa anh giao hang cua van don qua 30 ngay cho nhe he thong
 		"0 3 * * *": [
 			"vagabond.van_don.don_dep_anh_giao",
