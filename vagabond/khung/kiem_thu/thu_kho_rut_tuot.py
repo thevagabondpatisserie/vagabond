@@ -112,11 +112,18 @@ def _():
 	la("thành phẩm", k.LUAT_KHO_DICH[k.THANH_PHAM], k.THANH_PHAM)
 
 
-@ca("luật cũ bốn chặng còn nguyên trong ghi chú để bật lại được")
+@ca("ghi chú phải nói rõ phương án kho trung gian đã BỎ HẲN, không phải tắt tạm")
 def _():
+	# Anh Việt chốt 28/08/2026: "phương án chuyển kho trung gian là bỏ luôn,
+	# không dùng nữa". Ghi chú cũ viết "đổi hai dòng là quay về" đọc như một
+	# công tắc chờ bật lại, và người đọc sau rất dễ bật thật.
 	m = _py("kho_san_xuat.py")
-	dung("phải giữ bản cũ trong ghi chú",
+	dung("phải nói bỏ hẳn", "BỎ HẲN, KHÔNG DÙNG NỮA" in m)
+	dung("phải bảo hỏi anh Việt trước khi quay về", "phải hỏi anh Việt trước" in m)
+	# Vẫn giữ bản luật cũ để đọc lịch sử, nhưng dán nhãn là lịch sử.
+	dung("vẫn giữ bản cũ để tra lại",
 		"BTP_SAN_SANG: [BTP_SO_CAP, NGUYEN_LIEU]" in m)
+	dung("phải dặn đừng chép ngược lên trên", "ĐỪNG chép ngược lên trên" in m)
 
 
 # ------------------------------------------------ cờ Làm tươi đúng chặng
