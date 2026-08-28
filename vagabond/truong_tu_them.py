@@ -110,6 +110,15 @@ def dung():
 	from vagabond import nvl_thay_the
 
 	_dung_nhom(nvl_thay_the.TRUONG_MOI, "nvl_thay_the")
+	# Ke hoach san xuat trong ngay (anh Viet giao 28/08/2026). Ba o them vao
+	# Production Plan CO SAN cua ERPNext, khong de them doctype nao.
+	from vagabond import ke_hoach_sx
+
+	_dung_nhom(ke_hoach_sx.TRUONG_MOI, "ke_hoach_sx")
+	try:
+		ke_hoach_sx.dung_mau_in()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: mau in ke hoach")
 	# Kho Hang Huy: dung lai moi lan Migrate, lap lai duoc.
 	try:
 		hoan_tien.dung_kho_huy()

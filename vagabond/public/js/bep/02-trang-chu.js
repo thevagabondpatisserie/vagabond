@@ -61,6 +61,9 @@ async function scrHome() {
     html += '<div class="sec">Bếp</div><div class="card">' +
       card('🧑‍🍳', 'Bảng bếp hôm nay', 'Tổng số bánh cần làm, gộp theo món', kcn, 'KIT') +
       card('🏭', 'Lệnh sản xuất', 'Tạo lệnh, trừ nguyên liệu, in tem', wcn, 'MFG') +
+      /* Ke hoach san xuat (anh Viet 28/08/2026). Dat ngay tren Lenh san
+         xuat vi thu tu lam viec la doc ke hoach truoc, ra lenh sau. */
+      card('📋', 'Lập kế hoạch sản xuất', 'Tính toán nguyên vật liệu, bán thành phẩm, thành phẩm sản xuất trong ngày', 0, 'KHSX') +
       /* Don tiec lam theo don, khong co BOM nen khong di qua Lenh san
          xuat. Van dat trong nhom San xuat vi day la viec cua bep. */
       card('🍽️', 'Đơn tiệc / B2B', 'Tiệc và đơn sỉ: xem thực đơn, xuất nguyên liệu theo hợp đồng', 0, 'TIEC') +
@@ -375,7 +378,7 @@ var VGB_NHOM = [
   /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
   { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
-  { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO', 'CTBOM', 'TIEC'] },
+  { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'KHSX', 'BTPO', 'CTBOM', 'TIEC'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
@@ -882,6 +885,7 @@ var VGB_DUONG = {
   'khuyen-mai': 'KM',
   'kiem-banh-theo-mua': 'KBM',
   'kiem-ke': 'KK',
+  'lap-ke-hoach-san-xuat': 'KHSX',
   'ma-otp': 'OTP',
   'mau-in': 'CDMU',
   'may-in': 'CDMI',
@@ -1029,6 +1033,7 @@ function vgbGo(k) {
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
   if (k === 'CTBOM') return go(scrCongThuc);
+  if (k === 'KHSX') return go(scrKeHoachSX);
   if (k === 'TIEC') return go(scrDonTiec);
   if (k === 'HDCB') return go(scrHuongDan);
   if (k === 'RCV') return go(scrRecvList);

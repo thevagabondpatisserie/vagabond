@@ -146,6 +146,11 @@ CUA_NGO = {
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
 	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
 	"ton_chang.py": ["gom_chang", "ton_theo_chang"],
+	# Ke hoach san xuat trong ngay, 28/08/2026. `tu_lap_nua_dem`,
+	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
+	# KHONG mo ra ngoai. Cac phep thuan cung khong.
+	"ke_hoach_sx.py": ["chot", "ds_phieu", "lap", "tao_lenh",
+		"tinh_hinh_giu_cho", "xem", "xin_chuyen_nvl"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.

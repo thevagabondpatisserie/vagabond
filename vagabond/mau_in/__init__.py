@@ -42,6 +42,9 @@ MAU_IN = {
 	# thi nhip nay giu dong bo nhu moi mau in khac.
 	"Vagabond - Hướng dẫn chế biến": ("huong_dan_che_bien.html",
 		"Vagabond Huong Dan Che Bien"),
+	# To ke hoach san xuat A4 dan bep, them 28/08/2026. In tren chinh
+	# Production Plan cua ERPNext nen ban Desk va ban app in ra giong nhau.
+	"Vagabond - Kế hoạch sản xuất": ("ke_hoach_san_xuat.html", "Production Plan"),
 }
 
 # Le giay cua tung ban ghi Print Format. Bon o margin nam trong co so du lieu
