@@ -60,20 +60,24 @@ def _nguon_so_cap():
 		"Baker - Nguyên liệu - TV")
 
 
-@ca("kho san xuat: lam BTP san sang lay ca hai chang")
+# DOI LUAT 28/08/2026, ca kiem cu doi theo. Bon kho trung gian bi tat vi
+# chua bao gio co hang di qua; moi chang nay chi rut tu kho Nguyen lieu.
+# Ca kiem cu doi "tu so cap" ra kho so cap - gio kho do da tat, doi nhu vay
+# la doi mot kho khong con dung. Xem thu_kho_rut_tuot.py.
+@ca("kho san xuat: lam BTP san sang chi lay tu kho Nguyen lieu")
 def _nguon_san_sang():
-	la("tu so cap", ks.chon_kho_nguon(ks.BTP_SAN_SANG, ks.BTP_SO_CAP, "pastry"),
-		"Pastry - BTP sơ cấp - TV")
 	la("tu nguyen lieu", ks.chon_kho_nguon(ks.BTP_SAN_SANG, ks.NGUYEN_LIEU, "pastry"),
 		"Pastry - Nguyên liệu - TV")
+	la("kho so cap da tat, luat khong con phu",
+		ks.chon_kho_nguon(ks.BTP_SAN_SANG, ks.BTP_SO_CAP, "pastry"), None)
 
 
-@ca("kho san xuat: lam thanh pham lay tu BTP san sang va nguyen lieu")
+@ca("kho san xuat: lam thanh pham cung chi lay tu kho Nguyen lieu")
 def _nguon_thanh_pham():
-	la("tu san sang", ks.chon_kho_nguon(ks.THANH_PHAM, ks.BTP_SAN_SANG, "baker"),
-		"Baker - BTP sẵn sàng - TV")
 	la("tu nguyen lieu", ks.chon_kho_nguon(ks.THANH_PHAM, ks.NGUYEN_LIEU, "baker"),
 		"Baker - Nguyên liệu - TV")
+	la("kho san sang da tat",
+		ks.chon_kho_nguon(ks.THANH_PHAM, ks.BTP_SAN_SANG, "baker"), None)
 
 
 @ca("kho san xuat: luat KHONG cho lay nguoc chang")
@@ -90,12 +94,21 @@ def _khong_doan():
 	la("thieu chang ra", ks.chon_kho_nguon(None, ks.NGUYEN_LIEU, "baker"), None)
 
 
-@ca("kho san xuat: het ton o kho dung luat thi lui ve kho tiep theo")
+@ca("kho san xuat: chi con mot kho nguon nen khong con duong lui")
 def _lui_kho():
-	ton = {"Baker - BTP sẵn sàng - TV": 0, "Baker - BTP sơ cấp - TV": 500}
-	la("lui mot bac",
-		ks.chon_kho_nguon(ks.THANH_PHAM, ks.BTP_SAN_SANG, "baker", ton),
-		"Baker - BTP sơ cấp - TV")
+	# Phep lui van con trong ham, de danh cho ngay bat lai bon chang. Nay
+	# moi chang chi co mot kho nguon nen khong co gi de lui.
+	ton = {"Baker - Nguyên liệu - TV": 500}
+	la("van tra dung kho nguyen lieu",
+		ks.chon_kho_nguon(ks.THANH_PHAM, ks.NGUYEN_LIEU, "baker", ton),
+		"Baker - Nguyên liệu - TV")
+	# Kho nguyen lieu het hang thi VAN tra ve kho do chu khong di tim kho
+	# khac: het hang la chuyen phai bao, khong phai chuyen phai giau bang
+	# cach lay tam o dau do.
+	la("het hang van tra dung kho",
+		ks.chon_kho_nguon(ks.THANH_PHAM, ks.NGUYEN_LIEU, "baker",
+			{"Baker - Nguyên liệu - TV": 0}),
+		"Baker - Nguyên liệu - TV")
 
 
 @ca("kho san xuat: ban khai cay kho du tam kho la, moi bep bon chang")
@@ -107,8 +120,8 @@ def _khai_du():
 	nl = [x for x in k if x["chang"] == ks.NGUYEN_LIEU][0]
 	la("nguon cua kho nguyen lieu", nl["kho_nguon"], ks.KHO_GOC)
 	tp = [x for x in k if x["bep"] == "pastry" and x["chang"] == ks.THANH_PHAM][0]
-	la("nguon chinh cua thanh pham", tp["kho_nguon"], "Pastry - BTP sẵn sàng - TV")
-	la("nguon phu cua thanh pham", tp["kho_nguon_phu"], "Pastry - BTP sơ cấp - TV")
+	# Tu 28/08/2026 thanh pham rut thang tu kho Nguyen lieu.
+	la("nguon chinh cua thanh pham", tp["kho_nguon"], "Pastry - Nguyên liệu - TV")
 	dung("cha dung kho nhom", tp["cha"] == "Bếp Pastry - TV")
 
 

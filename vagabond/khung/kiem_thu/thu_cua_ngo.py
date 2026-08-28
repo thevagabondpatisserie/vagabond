@@ -100,7 +100,7 @@ CUA_NGO = {
 	# Chuyen BTP cap 1 sang Phantom, them 21/08/2026. `chuyen` mac dinh chi
 	# chay thu; phai truyen chay_that=1 moi ghi.
 	"phantom.py": ["chung_tu_thu", "chuyen", "dong_lenh", "trang_thai",
-		"xem_truoc"],
+		"xem_truoc", "soat_lam_tuoi"],
 	# Bo don du lieu san xuat mot lan, them 21/08/2026. Moi cua deu
 	# chay_that=0 mac dinh, goi trong chi tra ke hoach.
 	"don_du_lieu.py": ["dat_tran_vuot_lenh", "doi_ten", "don_kho_do_dang",
@@ -130,7 +130,7 @@ CUA_NGO = {
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate
 	# cua Work Order nen KHONG whitelist.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
-		"gan_nguoi_phu_trach", "soat_chang"],
+		"gan_nguoi_phu_trach", "soat_chang", "tat_kho_trung_gian"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.

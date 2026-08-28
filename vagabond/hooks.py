@@ -245,6 +245,10 @@ doc_events = {
 	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
 	# ra phieu san xuat nen phai va o mot cho duy nhat.
 	"Stock Entry": {"before_validate": "vagabond.lo_hang.gan_lo"},
+	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
+	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
+	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
+	"Item": {"validate": "vagabond.phantom.chan_lam_tuoi_sai_chang"},
 	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
 	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
 	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},
@@ -309,6 +313,10 @@ doc_events = {
 	# sai kho, ma sai kho thi tru nham ton cua bep khac, khong ai thay cho
 	# toi luc kiem ke.
 	"Work Order": {
+		# Dien san ba o kho theo mon va bep, chi dien o dang TRONG. Dat o
+		# before_validate vi ERPNext dung ba o do de dung bang nguyen lieu
+		# NGAY TRONG validate; dien muon hon la bang do da dung xong.
+		"before_validate": "vagabond.kho_san_xuat.gan_kho_lenh",
 		"validate": "vagabond.kho_san_xuat.gan_kho_nguon",
 	},
 	# Hoa don mua DICH VU: gom ve mot dong, so lay tu DAU hoa don dien tu.
