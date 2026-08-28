@@ -53,6 +53,12 @@ CUA_NGO = {
 	# so cua Frappe chu khong ai goi tu ngoai, nen KHONG mo ra ngoai. Ba ham
 	# thuan `so_hieu`, `la_tk_thanh_pham`, `soi_dong` cung vay.
 	"gac_tk_kho.py": ["soat_kho"],
+	# Them 28/08/2026: uy nhiem chi cho ho so thanh toan tren app. Bon cua
+	# ngo, ba cai dau la nut tren man ho so, cai cuoi chi doc de xem may
+	# dang dinh chi tien ra tu tai khoan nao. Cac ham con lai (`chep_unc`,
+	# `tk_tien_chi`, `dem_unc`, `ds_unc_tho`) la ham noi bo, ho_so_tt goi
+	# thang chu khong di qua mang.
+	"tra_tien_app.py": ["dinh_unc", "ds_unc", "go_unc", "soat_tk_chi"],
 	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.

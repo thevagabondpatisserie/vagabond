@@ -44,6 +44,9 @@
   "ngay_thanh_toan",
   "ma_giao_dich",
   "phuong_thuc",
+  "unc_tep",
+  "unc_nguoi",
+  "unc_luc",
   "sb3",
   "email_da_gui",
   "email_gui_luc",
@@ -259,6 +262,25 @@
    "fieldname": "phuong_thuc",
    "fieldtype": "Data",
    "label": "Phuong thuc tra"
+  },
+  {
+   "description": "Ma cac tep Uy nhiem chi dinh tren ho so. May ghi, khong go tay.",
+   "fieldname": "unc_tep",
+   "fieldtype": "Small Text",
+   "label": "Uy nhiem chi (ma tep)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unc_nguoi",
+   "fieldtype": "Data",
+   "label": "Nguoi dinh UNC",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unc_luc",
+   "fieldtype": "Datetime",
+   "label": "Dinh UNC luc",
+   "read_only": 1
   },
   {
    "fieldname": "sb3",

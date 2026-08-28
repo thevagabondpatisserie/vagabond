@@ -32,6 +32,10 @@ from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
 from vagabond.lib import cfg
 
+# Truoc buoc nao thi con go uy nhiem chi ra duoc. Lay tu tra_tien_app de hai
+# ben khong bao gio lech nhau.
+from vagabond.tra_tien_app import TT_GO_DUOC_UNC as TT_GO_DUOC_UNC_MAN
+
 # Bốn vai được đụng tới hồ sơ. Thu mua lập, kế toán duyệt cấp một, giám đốc
 # duyệt cấp hai. System Manager có hết vì đó là anh Việt.
 #
@@ -44,6 +48,13 @@ from vagabond.lib import cfg
 VAI_LAP = {"Purchase User", "Purchase Manager", "Accounts User", "Accounts Manager", "System Manager"}
 VAI_FIN = {"Accounts User", "Accounts Manager", "AP Kiểm soát (FIN)", "System Manager"}
 VAI_GD = {"AP Giám đốc", "System Manager"}
+
+# Hop thu gui thu bao thanh toan cho nha cung cap, va hop thu nhan ban sao.
+# De o day chu khong go thang trong ham: hai cho dung chung, va doi hop thu
+# thi sua mot dong.
+EMAIL_THU_MUA = "purchasing@thevagabondpatisserie.com"
+EMAIL_KE_TOAN = "account@thevagabondpatisserie.com"
+TEN_TIEM = "The Vagabond Pâtisserie"
 
 # Ba loai ho so, khac nhau ca ve chung tu lan ve duong tien:
 #   NCC        - cong ty no nha cung cap, tra thang cho ho tu MB
@@ -799,6 +810,8 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 	Không đi qua Payment Entry vì không có hoá đơn mua nào để xoá công nợ.
 	Mỗi dòng một bút toán Nợ; các dòng cùng TK Có thì gộp lại cho sổ gọn.
 	"""
+	from vagabond.tra_tien_app import chep_unc
+
 	dong = [d for d in doc.dong if flt(d.so_tien) > 0]
 	if not dong:
 		frappe.throw("Hồ sơ %s không có khoản chi nào." % doc.name)
@@ -852,6 +865,7 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 
 	je.flags.ignore_permissions = True
 	je.insert(ignore_permissions=True)
+	chep_unc(doc.name, "Journal Entry", je.name)
 	je.submit()
 	frappe.db.commit()
 	return je.name
@@ -1336,6 +1350,22 @@ def _ho_so_chung_tu(ten_pi):
 	return {"po": po, "pnk": pnk, "scan": scan}
 
 
+def _unc_cho_man(name):
+	"""Danh sách uỷ nhiệm chi của hồ sơ, dạng màn hình đọc được."""
+	from vagabond.tra_tien_app import ds_unc_tho
+
+	ra = []
+	try:
+		for f in ds_unc_tho(name):
+			ra.append({
+				"file": f.name, "ten": f.file_name or f.name,
+				"url": f.file_url or "", "co": cint(f.file_size),
+			})
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc danh sach UNC")
+	return ra
+
+
 def _dinh_kem(cap):
 	"""File đính kèm của một loạt chứng từ, gộp lại thành một danh sách."""
 	ra = []
@@ -1460,6 +1490,11 @@ def chi_tiet(name):
 		},
 		"dong": dong,
 		"ho_so_dinh_kem": _dinh_kem([("Vagabond Ho So TT", doc.name)]),
+		# UY NHIEM CHI tach thanh khoi rieng tren man hinh, nhung VAN nam
+		# trong `ho_so_dinh_kem` de bo ho so xuat ra co day du giay to. Man
+		# hinh tu loc trung.
+		"unc": _unc_cho_man(doc.name),
+		"unc_go_duoc": 1 if doc.trang_thai in TT_GO_DUOC_UNC_MAN else 0,
 		"quyen": {
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
@@ -1730,13 +1765,15 @@ def kiem_sepay(name=None):
 
 
 @frappe.whitelist()
-def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển khoản", tao_but_toan=1):
+def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển khoản", tao_but_toan=1, gui_thu=1):
 	"""Ghi nhận đã chuyển tiền, và sinh Payment Entry để clear công nợ.
 
 	Bút toán mới là thứ thật sự xoá nợ trên sổ; hồ sơ chỉ là chứng từ đề
 	nghị. Nếu ERPNext từ chối bút toán thì hồ sơ vẫn ở Đã duyệt để kế toán
 	xử tay, KHÔNG đánh dấu đã trả - đánh dấu mà nợ vẫn treo là tệ hơn.
 	"""
+	from vagabond.tra_tien_app import dem_unc, du_unc, loi_thieu_unc
+
 	_kiem(VAI_FIN, "ghi nhận thanh toán")
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	if doc.trang_thai == TT_DA_TRA:
@@ -1746,6 +1783,12 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 			"Hồ sơ đang ở %s. Phải duyệt xong hai cấp mới chuyển tiền được."
 			% NHAN.get(doc.trang_thai, doc.trang_thai)
 		)
+	# UY NHIEM CHI TRUOC, GHI NHAN SAU. Anh Viet chot 28/08/2026, ap cho
+	# MOI loai ho so. Chan o day chu khong chi chan luc ghi so but toan:
+	# chan o but toan thi ho so da doi trang thai xong roi moi hong, va
+	# nguoi bam tren app khong co cho nao de dinh tep.
+	if not du_unc(dem_unc(doc.name)):
+		frappe.throw(loi_thieu_unc(doc.name), title="Chưa có uỷ nhiệm chi")
 
 	pe = None
 	if cint(tao_but_toan):
@@ -1760,7 +1803,37 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	_ghi_vet(doc.name, "Đã thanh toán %s đ%s" % (_tien(doc.tong_tien), (" - bút toán " + pe) if pe else ""))
-	return {"ok": 1, "trang_thai": doc.trang_thai, "but_toan": pe or ""}
+	thu = _tu_gui_thu_bao(doc, gui_thu)
+	return {"ok": 1, "trang_thai": doc.trang_thai, "but_toan": pe or "", "thu": thu}
+
+
+def _tu_gui_thu_bao(doc, gui_thu=1):
+	"""Tự gửi thư báo thanh toán ngay sau khi ghi nhận.
+
+	Anh Việt 28/08/2026: thư báo phải TỰ đi, không chờ ai nhớ bấm nút.
+	Nút gửi tay vẫn giữ, dùng để gửi lại hoặc gửi tới địa chỉ khác.
+
+	Nuốt mọi lỗi: tiền đã ra khỏi tài khoản thật rồi, hồ sơ phải được ghi
+	nhận xong xuôi cho dù hộp thư có trục trặc. Gửi hỏng thì trả lý do về
+	màn hình để người bấm biết mà gửi tay.
+	"""
+	if not cint(gui_thu):
+		return {"gui": 0, "vi_sao": "Không gửi thư theo yêu cầu."}
+	if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD):
+		return {"gui": 0, "vi_sao": "Hồ sơ hoàn ứng không gửi thư báo cho nhà cung cấp."}
+	toi = (doc.email_ncc or "").strip()
+	if not toi or "@" not in toi:
+		return {
+			"gui": 0,
+			"vi_sao": "Nhà cung cấp %s chưa có email nên chưa gửi thư báo được."
+			% (doc.ten_ncc or doc.nha_cung_cap or ""),
+		}
+	try:
+		gui_email_ncc(doc.name, email=toi, gui_that=1)
+		return {"gui": 1, "toi": toi}
+	except Exception as loi:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: tu gui thu bao thanh toan")
+		return {"gui": 0, "vi_sao": "Gửi thư báo chưa được: %s" % str(loi)[:200]}
 
 
 def _tao_but_toan(doc, ngay, phuong_thuc):
@@ -1772,6 +1845,7 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 	ERPNext se phan bo chong len nhau - tra 3 trieu ma so sach ghi tra 9.
 	"""
 	from vagabond.chung_tu_tien import dat_dien_giai
+	from vagabond.tra_tien_app import chep_unc, loi_khong_ro_tk, tk_tien_chi, ty_gia_chi
 
 	con = [d for d in doc.dong if d.hoa_don]
 	# Chi tu TK cong ty co hai the: chon hoa don GTGT co that thi van la
@@ -1849,15 +1923,39 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 				"allocated_amount": min(flt(tien), flt(hd.get("outstanding_amount"))),
 				"due_date": hd.get("due_date"),
 			})
-		if (doc.loai or LOAI_NCC) == LOAI_TKCT and doc.tk_chi:
-			tk_nh = frappe.db.get_value('Bank Account', doc.tk_chi, 'account')
-			if tk_nh:
-				pe.paid_from = tk_nh
-				pe.bank_account = doc.tk_chi
+		# TIEN DI RA TU TAI KHOAN NAO - o bat buoc, va la cho da lam
+		# chi Dung ket ngay 28/08/2026 voi cau bao "Ty gia nguon la bat
+		# buoc". Truoc do chi ho so "Chi tu TK cong ty" moi dien o nay vi
+		# no co o chon tren man hinh; ho so cong no nha cung cap khong co
+		# o do nen bo trong, va ERPNext khong the tu doan ra.
+		tk_nh, ba = tk_tien_chi(o["cong_ty"], phuong_thuc, doc.tk_chi)
+		if not tk_nh:
+			frappe.throw(loi_khong_ro_tk(o["cong_ty"]))
+		pe.paid_from = tk_nh
+		if ba:
+			pe.bank_account = ba
 		pe.setup_party_account_field()
 		pe.set_missing_values()
+		# Cung mot loai tien thi ty gia la 1. Khac loai tien thi DUNG LAI
+		# chu khong dat bua: dat bua o day la ghi sai so tien len so cai.
+		if not flt(pe.source_exchange_rate):
+			tg = ty_gia_chi(
+				pe.paid_from_account_currency
+				or frappe.db.get_value("Account", tk_nh, "account_currency"),
+				frappe.db.get_value("Company", o["cong_ty"], "default_currency"),
+			)
+			if not tg:
+				frappe.throw(
+					"Tài khoản chi %s không cùng loại tiền với sổ của công ty nên máy "
+					"chưa dựng được bút toán. Nhờ kế toán chọn tài khoản chi bằng đồng "
+					"Việt Nam, hoặc khai tỷ giá trước." % tk_nh
+				)
+			pe.source_exchange_rate = tg
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
+		# UY NHIEM CHI phai co mat TRUOC khi ghi so: hook
+		# `chan_thieu_dinh_kem` dem tep tren chinh but toan nay.
+		chep_unc(doc.name, "Payment Entry", pe.name)
 		pe.submit()
 		ra.append(pe.name)
 	frappe.db.commit()
@@ -1868,15 +1966,28 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 
 
 @frappe.whitelist()
-def gui_email_ncc(name, email=None, gui_that=1):
-	"""Thư báo đã thanh toán, gửi nhà cung cấp.
+def gui_email_ncc(name, email=None, gui_that=1, thu_nghiem=0):
+	"""Thư báo đã thanh toán kèm uỷ nhiệm chi, và đề nghị đối chiếu công nợ.
 
 	Anh Việt 13/08/2026: "Purchasing hoặc Kế toán nhắn một cái là có thể
-	gửi email thông báo được luôn". Dùng chung khung thư thương hiệu với
-	thư PO và thư mời nhân sự.
+	gửi email thông báo được luôn". Anh mở rộng 28/08/2026: thư phải đính
+	uỷ nhiệm chi, phải đề nghị nhà cung cấp đối chiếu công nợ, gửi từ hộp
+	thư thu mua và gửi kèm bản sao cho kế toán.
+
+	Vì sao gửi từ hộp THU MUA chứ không phải hộp erp: nhà cung cấp bấm Trả
+	lời là thư về đúng người đang làm việc với họ. Hộp erp là hộp máy, không
+	ai ngồi đọc.
+
+	Vì sao gửi kèm bản sao cho kế toán: đối chiếu công nợ là việc của kế
+	toán, mà thư đối chiếu lại đi từ thu mua. Không có bản sao thì kế toán
+	không biết đã hẹn gì với nhà cung cấp.
 
 	gui_that=0 chỉ dựng HTML để xem trước, không gửi cho ai.
+	thu_nghiem=1 gửi đúng một địa chỉ để xem thử: không gửi bản sao cho ai,
+	không đánh dấu hồ sơ là đã gửi thư.
 	"""
+	from vagabond.tra_tien_app import ds_unc_tho
+
 	_kiem(VAI_LAP | VAI_FIN, "gửi thư báo nhà cung cấp")
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	# Ho so hoan ung: tien cong ty chuyen la chuyen cho NGUOI DA UNG, con
@@ -1905,25 +2016,59 @@ def gui_email_ncc(name, email=None, gui_that=1):
 			"Chưa có email của nhà cung cấp %s. Anh chị điền email vào hồ sơ "
 			"nhà cung cấp bên Next, hoặc gõ tay vào ô gửi tới." % (doc.ten_ncc or doc.nha_cung_cap)
 		)
+
+	thu = cint(thu_nghiem)
+	dinh = _tep_dinh_thu(ds_unc_tho(doc.name))
+	tieu_de = "%s%s - Thông báo thanh toán và đề nghị đối chiếu công nợ (%s)" % (
+		"[GỬI THỬ] " if thu else "", TEN_TIEM, doc.name
+	)
 	frappe.sendmail(
 		recipients=[toi],
-		sender="erp@thevagabondpatisserie.com",
-		subject="The Vagabond Pâtisserie - Thông báo đã thanh toán công nợ (%s)" % doc.name,
+		cc=[] if thu else [EMAIL_KE_TOAN],
+		sender=EMAIL_THU_MUA,
+		subject=tieu_de,
 		message=noi_dung,
+		attachments=dinh,
+		# Gan thu vao chinh ho so: mo ho so ben Next la thay da gui gi, gui
+		# luc nao, gui cho ai. Khong gan thi ban thu duy nhat nam trong hop
+		# thu ca nhan cua nguoi bam nut.
+		reference_doctype="Vagabond Ho So TT",
+		reference_name=doc.name,
 		delayed=False,
 		retry=2,
 	)
+	if thu:
+		_ghi_vet(doc.name, "Gửi thử thư báo thanh toán tới %s" % toi)
+		return {"ok": 1, "toi": toi, "thu_nghiem": 1, "tep": len(dinh)}
 	doc.db_set("email_da_gui", 1, update_modified=False)
 	doc.db_set("email_gui_luc", now_datetime(), update_modified=False)
 	doc.db_set("email_gui_toi", toi, update_modified=False)
 	frappe.db.commit()
-	_ghi_vet(doc.name, "Gửi thư báo thanh toán tới %s" % toi)
-	return {"ok": 1, "toi": toi}
+	_ghi_vet(doc.name, "Gửi thư báo thanh toán tới %s, kèm %d tệp." % (toi, len(dinh)))
+	return {"ok": 1, "toi": toi, "tep": len(dinh)}
+
+
+def _tep_dinh_thu(ds_tep):
+	"""Đọc nội dung tệp lên để đính vào thư.
+
+	Đính bằng NỘI DUNG chứ không bằng đường dẫn: uỷ nhiệm chi để chế độ
+	riêng tư, gửi đường dẫn đi thì nhà cung cấp bấm vào chỉ thấy màn đăng
+	nhập. Tệp nào đọc không được thì bỏ qua và ghi nhật ký, không làm hỏng
+	cả lá thư.
+	"""
+	ra = []
+	for f in ds_tep or []:
+		try:
+			tep = frappe.get_doc("File", f.name)
+			ra.append({"fname": tep.file_name or f.name, "fcontent": tep.get_content()})
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc tep dinh thu")
+	return ra
 
 
 def _thu_html(doc):
 	"""Nội dung thư báo thanh toán. Tách riêng để xem trước được mà không gửi."""
-	from vagabond.nhan_su import _khung_thu, _o_nhat
+	from vagabond.nhan_su import XANH, XANH_DAM, _khung_thu, _o_nhat
 
 	h = frappe.utils.escape_html
 	hang = []
@@ -1958,25 +2103,74 @@ def _thu_html(doc):
 	]
 	if doc.ma_giao_dich:
 		chi_tiet_tra.append("Mã giao dịch: <b>%s</b>" % h(doc.ma_giao_dich))
+	if doc.noi_dung_ck:
+		chi_tiet_tra.append("Nội dung chuyển khoản: <b>%s</b>" % h(doc.noi_dung_ck))
 	chi_tiet_tra.append("Mã hồ sơ bên chúng tôi: <b>%s</b>" % h(doc.name))
 
 	than = (
 		"<p style='margin:0 0 14px'>Kính gửi <b>%s</b>,</p>"
-		"<p style='margin:0 0 12px'>The Vagabond Pâtisserie xin thông báo đã <b>thanh toán</b> "
-		"cho quý công ty số tiền <b>%s đ</b> cho %d hoá đơn dưới đây.</p>"
+		"<p style='margin:0 0 12px'>%s xin thông báo đã <b>thanh toán</b> "
+		"cho quý công ty số tiền <b>%s đ</b> cho %d hoá đơn dưới đây. "
+		"Uỷ nhiệm chi của giao dịch được đính kèm trong thư này.</p>"
 		"%s"
 		"<p style='margin:14px 0 8px'>Thông tin thanh toán:</p>%s"
-		"<p style='margin:14px 0 0'>Quý công ty vui lòng đối chiếu và xác nhận giúp. "
-		"Có sai lệch xin phản hồi lại thư này để hai bên soát lại sổ.</p>"
-		"<p style='margin:12px 0 0'>Trân trọng cảm ơn quý công ty đã đồng hành cùng chúng tôi.</p>"
+		"%s"
+		"<p style='margin:14px 0 0'>Trân trọng cảm ơn quý công ty đã đồng hành cùng chúng tôi.</p>"
 	) % (
 		h(doc.ten_ncc or doc.nha_cung_cap),
+		TEN_TIEM,
 		_tien(doc.tong_tien),
 		len(doc.dong),
 		bang,
 		_o_nhat("<br>".join(chi_tiet_tra)),
+		_o_doi_chieu(XANH, XANH_DAM),
 	)
-	return _khung_thu("Thông báo đã thanh toán công nợ", than)
+	nut = _nut_doi_chieu(doc, XANH, XANH_DAM)
+	return _khung_thu("Thông báo thanh toán và đề nghị đối chiếu công nợ", than, nut)
+
+
+def _o_doi_chieu(xanh, xanh_dam):
+	"""Khối đề nghị đối chiếu công nợ, viền robin egg cho nổi khỏi phần trên.
+
+	Nói rõ ba việc mong nhà cung cấp làm và một mốc thời gian. Không có
+	mốc thì thư này chỉ là thư báo, không thành lời mời đối chiếu.
+	"""
+	return (
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
+		'style="margin:16px 0 2px"><tr><td style="padding:14px 16px;border:2px solid '
+		+ xanh
+		+ ';border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:13.5px;'
+		'line-height:1.7;color:'
+		+ xanh_dam
+		+ '">'
+		'<div style="font-weight:bold;font-size:14px;margin:0 0 6px">Đề nghị đối chiếu công nợ</div>'
+		"Kính mong quý công ty kiểm tra và phản hồi giúp ba điều:"
+		'<div style="margin:7px 0 0">1. Số tiền trên đã về tài khoản của quý công ty chưa.</div>'
+		'<div>2. Các hoá đơn liệt kê ở trên đã được ghi nhận thanh toán đủ chưa.</div>'
+		'<div>3. Sau lần thanh toán này, công nợ hai bên còn lại bao nhiêu.</div>'
+		'<div style="margin:9px 0 0">Nếu có sai lệch, xin quý công ty gửi lại bảng công nợ để '
+		"hai bên soát chung. Không nhận được phản hồi trong <b>05 ngày làm việc</b>, chúng tôi "
+		"xin phép hiểu là số liệu đã khớp.</div>"
+		"</td></tr></table>"
+	)
+
+
+def _nut_doi_chieu(doc, xanh, xanh_dam):
+	"""Nút trả lời thẳng về hộp thư kế toán, tiêu đề điền sẵn."""
+	tieu_de = "Doi chieu cong no - %s" % doc.name
+	dia_chi = "mailto:%s?subject=%s" % (EMAIL_KE_TOAN, tieu_de.replace(" ", "%20"))
+	return (
+		'<a href="'
+		+ dia_chi
+		+ '" style="display:inline-block;background:'
+		+ xanh
+		+ ';color:'
+		+ xanh_dam
+		+ ';text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;'
+		'font-size:14px;border-radius:8px;padding:12px 22px">Phản hồi đối chiếu công nợ</a>'
+		'<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#5B7280;'
+		'margin:9px 0 0">Hoặc bấm Trả lời ngay trong thư này.</div>'
+	)
 
 
 # ------------------------------------------------- nội dung chuyển khoản (MB)
