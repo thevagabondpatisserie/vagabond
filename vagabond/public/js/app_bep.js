@@ -7704,8 +7704,25 @@ function pickDate(cur, cb, tuaDe) {
   ov.onclick = function (e) { if (e.target === ov) close(); };
   ov.appendChild(box); document.body.appendChild(ov); draw();
 }
-/* ---- anh dinh kem, tien do, quy OCB cho phieu mua hang test ---- */
-var RND_OCB_TK = '1411 - Tạm ứng - Nguyễn Hoàng Việt (OCB) - TV';
+/* ---- anh dinh kem, tien do, quy tam ung cho phieu mua hang test ---- */
+/* Anh Viet bo tai khoan OCB ngay 28/08/2026. KHONG go cung tai khoan quy
+   nua: go cung thi bo mot ngan hang la phieu van chi tu quy khong con
+   dung, ma khong ai thay. Hoi he mot lan roi nho lai. */
+var RND_QUY_TK = null;
+async function rndQuyTk() {
+  if (RND_QUY_TK !== null) return RND_QUY_TK;
+  try { var q = await api('vagabond.ho_so_tt.tk_quy_tam_ung', {}); RND_QUY_TK = (q && q.tai_khoan) || ''; }
+  catch (e) { RND_QUY_TK = ''; }
+  return RND_QUY_TK;
+}
+/* Phieu lap truoc 28/08/2026 mang chu 'Quy OCB'. Doi nhan tren man hinh ma
+   khong doc duoc chu cu la nhung phieu do tut ve o 'Khac' va con so tien do
+   cua chung sai ngay. Doc ca hai, ghi ra mot. */
+function rndQuyCu(v) {
+  var x = String(v || '').trim();
+  if (!x || x === 'Quỹ OCB') return 'Quỹ tạm ứng';
+  return x;
+}
 var RND_NCC_LE = 'NCC lẻ - mua hàng test (R&D)';
 function rndLaThuMua() { return hasRole('Purchase User') || hasRole('Accounts User') || hasRole('System Manager'); }
 function rndAnhDs(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
@@ -7765,7 +7782,7 @@ function rndTienDo(items) {
   (items || []).forEach(function (x) {
     if (x.trang_thai_dong === 'Đã mua') {
       t.mua++; t.tien += Number(x.gia) || 0;
-      if ((x.tra_bang || 'Quỹ OCB') === 'Quỹ OCB') t.ocb += Number(x.gia) || 0;
+      if (rndQuyCu(x.tra_bang) === 'Quỹ tạm ứng') t.ocb += Number(x.gia) || 0;
       if (rndAnhDs(x.anh_chung_tu).length) t.anh++;
     } else if (x.trang_thai_dong === 'Không mua được') t.khong++;
     else t.chua++;
@@ -7786,7 +7803,7 @@ function rndTre(d) {
     (d.trang_thai === 'Mới tạo' || d.trang_thai === 'Đang xử lý'));
 }
 function rndBlank() {
-  return { ten_hang: '', so_luong: '', link_tham_khao: '', anh_dinh_kem: '', yeu_cau_them: '', can_hoa_don: 0, trang_thai_dong: 'Chưa mua', ncc: '', sdt_ncc: '', gia: 0, tra_bang: 'Quỹ OCB', anh_chung_tu: '', ghi_chu_mua: '' };
+  return { ten_hang: '', so_luong: '', link_tham_khao: '', anh_dinh_kem: '', yeu_cau_them: '', can_hoa_don: 0, trang_thai_dong: 'Chưa mua', ncc: '', sdt_ncc: '', gia: 0, tra_bang: 'Quỹ tạm ứng', anh_chung_tu: '', ghi_chu_mua: '' };
 }
 function rndCopy(x) {
   var o = rndBlank(), k;
@@ -7830,7 +7847,7 @@ function rndLineSheet(line, mode) {
           rndLbl('Nhà cung cấp tìm được') + rndInp('rl_ncc', 'Tên farm, shop, nhà cung cấp', L.ncc) +
           rndLbl('Điện thoại nhà cung cấp') + rndInp('rl_sdt', 'Số để lần sau gọi lại', L.sdt_ncc) +
           rndLbl('Giá mua thực tế (đồng)') + rndInp('rl_gia', '0', L.gia, 1) +
-          rndLbl('Trả bằng') + rndSeg('tra_bang', ['Quỹ OCB', 'Tiền công ty', 'Khác'], L.tra_bang || 'Quỹ OCB') +
+          rndLbl('Trả bằng') + rndSeg('tra_bang', ['Quỹ tạm ứng', 'Tiền công ty', 'Khác'], rndQuyCu(L.tra_bang)) +
           rndLbl('Ảnh chứng từ (biên lai, hoá đơn)') + rndAnhLuoi(rndAnhDs(L.anh_chung_tu), true, 'buy') +
           rndLbl('Ghi chú của người mua') + rndTa('rl_gcm', 'MOQ bao nhiêu, có xuất hoá đơn không, giao mấy ngày...', L.ghi_chu_mua, 3);
       } else {
@@ -8076,14 +8093,14 @@ async function scrRndDoc(name) {
     }
 
     if (doc.trang_thai === 'Hoàn thành' && td.tien > 0) {
-      body += '<div class="sec">Quỹ tạm ứng OCB</div><div class="card" style="padding:13px 14px;font-size:14px;line-height:1.75;color:#4a5060">' +
-        'Chi từ quỹ OCB: <b>' + rndMoney(td.ocb) + 'đ</b><br>' +
+      body += '<div class="sec">Quỹ tạm ứng</div><div class="card" style="padding:13px 14px;font-size:14px;line-height:1.75;color:#4a5060">' +
+        'Chi từ quỹ tạm ứng: <b>' + rndMoney(td.ocb) + 'đ</b><br>' +
         'Tổng tiền cả phiếu: <b>' + rndMoney(td.tien) + 'đ</b><br>' +
         'Khoản đã có ảnh chứng từ: <b>' + td.anh + '/' + td.mua + '</b>' +
         (doc.phieu_chi_phi ? '<br>Đã lập phiếu ghi chi phí: <b>' + h(doc.phieu_chi_phi) + '</b>' : '') +
         '</div>';
       if (!doc.phieu_chi_phi && td.ocb > 0 && rndLaThuMua()) {
-        body += '<div class="kwn">Bấm nút dưới để hệ thống dựng sẵn một hoá đơn mua hàng ở dạng nháp, ghi là đã trả từ quỹ OCB. Kế toán xem lại rồi mới ghi sổ.</div>' +
+        body += '<div class="kwn">Bấm nút dưới để hệ thống dựng sẵn một hoá đơn mua hàng ở dạng nháp, ghi là đã trả từ quỹ tạm ứng. Kế toán xem lại rồi mới ghi sổ.</div>' +
           '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndChiPhi">Lập phiếu ghi chi phí (nháp)</button></div>';
       }
     }
@@ -8130,16 +8147,19 @@ async function scrRndDoc(name) {
     var cpn = document.getElementById('rndChiPhi');
     if (cpn) cpn.onclick = async function () {
       var ds = (doc.items || []).filter(function (x) {
-        return x.trang_thai_dong === 'Đã mua' && (x.tra_bang || 'Quỹ OCB') === 'Quỹ OCB' && (Number(x.gia) || 0) > 0;
+        return x.trang_thai_dong === 'Đã mua' && rndQuyCu(x.tra_bang) === 'Quỹ tạm ứng' && (Number(x.gia) || 0) > 0;
       });
-      if (!ds.length) return toast('Không có khoản nào chi từ quỹ OCB');
+      if (!ds.length) return toast('Không có khoản nào chi từ quỹ tạm ứng');
       var tongDs = ds.reduce(function (a, x) { return a + (Number(x.gia) || 0); }, 0);
       var coVat = ds.filter(function (x) { return x.can_hoa_don; }).length;
       var ok = await confirmSheet('Lập phiếu ghi chi phí?',
-        'Hệ thống tạo một hoá đơn mua hàng ở dạng NHÁP gồm ' + ds.length + ' khoản, tổng ' + rndMoney(tongDs) + 'đ, ghi là đã trả từ quỹ OCB.\n\n' +
+        'Hệ thống tạo một hoá đơn mua hàng ở dạng NHÁP gồm ' + ds.length + ' khoản, tổng ' + rndMoney(tongDs) + 'đ, ghi là đã trả từ quỹ tạm ứng.\n\n' +
         (coVat ? 'Trong đó ' + coVat + ' khoản có hoá đơn VAT, kế toán sẽ nhập phần thuế và đổi sang đúng nhà cung cấp.\n\n' : '') +
         'Phiếu chỉ ở dạng nháp, kế toán xem lại rồi mới ghi sổ.', 'Lập phiếu nháp');
       if (!ok) return;
+      /* Chua khai quy tam ung nao thi lap phieu KHONG danh dau da tra, hon la
+         lap mot phieu chi tu mot quy khong con ton tai. */
+      var quyTk = await rndQuyTk();
       function than(coTra) {
         var d2 = {
           doctype: 'Purchase Invoice', company: COMPANY, supplier: RND_NCC_LE,
@@ -8154,7 +8174,7 @@ async function scrRndDoc(name) {
             };
           })
         };
-        if (coTra) { d2.is_paid = 1; d2.mode_of_payment = 'Chuyển khoản'; d2.cash_bank_account = RND_OCB_TK; d2.paid_amount = tongDs; }
+        if (coTra && quyTk) { d2.is_paid = 1; d2.mode_of_payment = 'Chuyển khoản'; d2.cash_bank_account = quyTk; d2.paid_amount = tongDs; }
         return d2;
       }
       busy(1);
@@ -26866,7 +26886,7 @@ async function scrHoSoTTTao() {
               (hsTkHoan
                 ? ((hsTkDs && hsTkDs.doan)
                     ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên máy bày tạm mọi tài khoản. Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 bên Next.'
-                    : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì ACB và OCB nhìn lướt rất giống nhau.')
+                    : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì các tài khoản nhìn lướt rất giống nhau.')
                 : 'Chưa chọn tài khoản nhận tiền. Người này có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.') +
               '</div>'
             : '<div style="font-size:13px;color:#b45309;line-height:1.6">Người này chưa khai tài khoản ngân hàng nào. ' +
@@ -27082,9 +27102,9 @@ async function hsChonLoaiMoi() {
     { k: 'tt', icon: '⏩', nhan: 'Tạo phiếu thanh toán trước cho NCC',
       mo_ta: 'Trả trước khi chưa có hoá đơn: đơn in ấn, đơn đặt sản xuất có điều khoản cọc. Neo vào đơn mua hàng, hoá đơn về thì tự cấn trừ.' },
     { k: 'hu_hd', icon: '🧾', nhan: 'Hoàn ứng có hoá đơn',
-      mo_ta: 'Uyên đã ứng tiền OCB mua hàng có hoá đơn, hàng đã nhập kho. Chọn nhiều hoá đơn gom chung một hồ sơ để hoàn lại tiền.' },
+      mo_ta: 'Uyên đã ứng tiền mua hàng có hoá đơn, hàng đã nhập kho. Chọn nhiều hoá đơn gom chung một hồ sơ để hoàn lại tiền.' },
     { k: 'hu_khd', icon: '🧮', nhan: 'Hoàn ứng không hoá đơn',
-      mo_ta: 'Khoản lẻ không có hoá đơn: hàng test, hàng phát sinh, chi phí bảo trì. Gõ tay từng khoản, gắn với giao dịch OCB.' },
+      mo_ta: 'Khoản lẻ không có hoá đơn: hàng test, hàng phát sinh, chi phí bảo trì. Gõ tay từng khoản, gắn với giao dịch ngân hàng.' },
     { k: 'tkct', icon: '🏦', nhan: 'Thanh toán từ TK công ty',
       mo_ta: 'Chi trả trực tiếp từ tài khoản công ty cho chi phí phát sinh, không qua Purchasing. Kế toán chủ động định khoản.' }
   ]);
@@ -27135,11 +27155,11 @@ async function scrHoanUngTao() {
           ? 'Chưa chọn tài khoản nhận tiền. Có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.'
           : dstk.doan
           ? '⚠️ Chưa có tài khoản nào gắn vào quỹ tạm ứng ' + '1411' + ', nên hệ thống bày tạm mọi tài khoản công ty. ' +
-            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn ACB và OCB.'
+            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn đúng tài khoản đang dùng.'
           : 'Tiền hoàn ứng luôn trả về tài khoản đã ứng ra. Chọn đúng tài khoản thì số dư quỹ tạm ứng mới khớp.') +
         '</div>'
       : '<div style="font-size:13px;color:#b45309;line-height:1.6">Chưa khai tài khoản ngân hàng nào. ' +
-        'Nhờ chị Dung tạo Bank Account cho ACB và OCB bên Next trước đã.</div>') +
+        'Nhờ chị Dung tạo Bank Account cho quỹ tạm ứng bên Next trước đã.</div>') +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
@@ -27256,7 +27276,7 @@ async function scrHuSepay(kq) {
     + '<span style="font-size:13.5px;color:#374151">' + chon.length + ' / ' + rows.length + ' giao dịch</span>'
     + '<b style="font-size:20px;color:#92400e">' + money(tong) + ' đ</b></div></div>';
 
-  html += '<div class="sec">Giao dịch chi ra từ quỹ OCB · bấm để chọn</div><div class="card">';
+  html += '<div class="sec">Giao dịch chi ra từ quỹ tạm ứng · bấm để chọn</div><div class="card">';
   rows.forEach(function (r) {
     var da = !!huGdChon[r.ma_giao_dich];
     html += '<div class="hub" data-hugd="' + h(r.ma_giao_dich) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>'
@@ -27270,7 +27290,7 @@ async function scrHuSepay(kq) {
   var foot = '<div style="display:flex;gap:8px">'
     + '<button class="btn" id="huGdXong" style="flex:2">➕ Đưa ' + chon.length + ' khoản vào hồ sơ</button>'
     + '<button class="btn gh" id="huGdVe" style="flex:1">← Quay lại</button></div>';
-  var b = frame('Sao kê quỹ OCB', html, { footer: foot });
+  var b = frame('Sao kê quỹ tạm ứng', html, { footer: foot });
 
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hugd]'); if (!r) return;
@@ -27281,7 +27301,7 @@ async function scrHuSepay(kq) {
   document.getElementById('huGdVe').onclick = function () { go(scrHoanUngTao); };
   document.getElementById('huGdXong').onclick = function () {
     var them = rows.filter(function (r) { return huGdChon[r.ma_giao_dich]; });
-    if (!them.length) return baoTin('Chưa tick giao dịch nào.', 'Sao kê OCB');
+    if (!them.length) return baoTin('Chưa tick giao dịch nào.', 'Sao kê quỹ tạm ứng');
     them.forEach(function (r) {
       // Da co khoan nao mang dung ma giao dich nay thi khong them lan hai.
       if (huDong.some(function (x) { return x.ma_giao_dich === r.ma_giao_dich; })) return;
@@ -27865,7 +27885,7 @@ async function hsHanh(k, hs) {
     if (t1 === null) return;
     var t2 = await hoiNhap('Số tài khoản:', hs.stk_nhan || '');
     if (t2 === null) return;
-    var t3 = await hoiNhap('Ngân hàng (viết tắt cũng được, ví dụ OCB, MB, VCB):', hs.ngan_hang_nhan || '');
+    var t3 = await hoiNhap('Ngân hàng (viết tắt cũng được, ví dụ ACB, MB, VCB):', hs.ngan_hang_nhan || '');
     if (t3 === null) return;
     busy(true);
     try { await api('vagabond.ho_so_tt.sua_tk_nhan', { name: hs.ma, ten_nhan: t1, stk_nhan: t2, ngan_hang_nhan: t3 }); busy(false); toast('Đã lưu tài khoản nhận'); }
