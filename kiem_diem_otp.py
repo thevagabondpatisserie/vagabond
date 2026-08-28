@@ -550,6 +550,10 @@ def _nap_mv():
 		# Bon ham duoi day them 21/08/2026 khi tach o "San xuat" thanh hai o
 		# va them phep ghep nguoc ruot ra hop. con_sau_khi_them GOI
 		# nguon_cung nen phai nap truoc, khong thi NameError.
+		# Hai ham duoi day them 28/08/2026 cung dot dung bang Doi ruot hop.
+		# con_sau_khi_them GOI ca hai, khong nap truoc thi NameError.
+		"gom_doi_ruot",
+		"ap_doi_ruot",
 		"san_luong_theo_ma",
 		"nguon_cung",
 		"ma_la_hop",
