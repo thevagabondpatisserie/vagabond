@@ -1,0 +1,121 @@
+{#
+   MẪU IN KẾ HOẠCH SẢN XUẤT TRONG NGÀY - nguồn thật ở repo, xem
+   vagabond/mau_in/__init__.py.
+
+   Tờ này in ra dán bếp cho ai không cầm điện thoại. Ba khối theo đúng thứ
+   tự bếp làm việc: thành phẩm phải ra, bán thành phẩm phải trộn, nguyên
+   liệu phải lấy ở kho.
+
+   Không in cột tồn đầu ngày: số đó đọc từ sổ kho ngay lúc mở màn app, mà
+   tờ giấy thì in một lần rồi nằm đó cả ngày. In một con số sẽ cũ trong
+   vòng một giờ là mời người ta tin nhầm.
+#}
+<style>
+  @page { size: A4 portrait; margin: 15mm; }
+  .vgb-in { padding: 0 2mm; }
+  .vgb-in table { width: 100%; border-collapse: collapse; }
+  .vgb-in th, .vgb-in td { border: 1px solid #ccc; padding: 4px 6px; font-size: 10.5px; }
+  .vgb-in th { background: #f3f1ed; text-align: left; font-weight: 600; }
+  .vgb-in .so { text-align: right; white-space: nowrap; }
+  .vgb-in h3 { font-size: 13px; margin: 14px 0 6px; }
+</style>
+{% set nguoi_lap = frappe.db.get_value("User", doc.owner, "full_name") %}
+<div class="vgb-in" style="font-family:'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif; color:#1c1a17; font-size:11px; line-height:1.45;">
+
+  <table style="border:none">
+    <tr>
+      <td style="border:none; width:45%; vertical-align:middle;">
+        <img src="/files/vagabond_logo_print.png" width="150" height="62" style="width:150px !important; height:62px !important; object-fit:contain;">
+      </td>
+      <td style="border:none; text-align:right; vertical-align:middle; font-size:9.5px; color:#444; line-height:1.5;">
+        CÔNG TY TNHH PATISSERIE VAGABOND<br>
+        307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà, TP.HCM
+      </td>
+    </tr>
+  </table>
+
+  <div style="text-align:center; margin:10px 0 4px;">
+    <div style="font-size:17px; font-weight:700; letter-spacing:1px;">KẾ HOẠCH SẢN XUẤT</div>
+    <div style="font-size:12px; margin-top:3px;">
+      Ngày bếp làm: <b>{{ frappe.utils.formatdate(doc.vgb_ngay_bep or doc.posting_date, "dd/MM/yyyy") }}</b>
+    </div>
+    <div style="font-size:10px; color:#666; margin-top:2px;">
+      Phiếu {{ doc.name }}
+      {% if doc.docstatus == 0 %} · BẢN NHÁP, CHƯA CHỐT{% endif %}
+      {% if doc.vgb_qua_han %} · gom {{ doc.vgb_qua_han }} phiếu quá hạn{% endif %}
+    </div>
+  </div>
+
+  {% if doc.material_requests %}
+  <div style="font-size:10px; color:#666; margin-bottom:8px;">
+    Gom từ {{ doc.material_requests | length }} phiếu yêu cầu sản xuất:
+    {{ doc.material_requests | map(attribute="material_request") | join(", ") }}
+  </div>
+  {% endif %}
+
+  <h3>1. Thành phẩm phải ra</h3>
+  <table>
+    <tr><th style="width:18%">Mã</th><th>Tên món</th><th class="so" style="width:12%">Cần</th>
+      <th class="so" style="width:12%">Đã ra lệnh</th><th style="width:20%">Kho nhập</th></tr>
+    {% for r in doc.po_items %}
+    <tr>
+      <td>{{ r.item_code }}</td>
+      <td>{{ frappe.db.get_value("Item", r.item_code, "item_name") or r.item_code }}</td>
+      <td class="so">{{ "%g"|format(r.planned_qty or 0) }} {{ r.stock_uom or "" }}</td>
+      <td class="so">{{ "%g"|format(r.ordered_qty or 0) }}</td>
+      <td>{{ r.warehouse or "" }}</td>
+    </tr>
+    {% endfor %}
+    {% if not doc.po_items %}<tr><td colspan="5">Không có.</td></tr>{% endif %}
+  </table>
+
+  <h3>2. Bán thành phẩm phải làm</h3>
+  <table>
+    <tr><th style="width:18%">Mã</th><th>Tên món</th><th class="so" style="width:10%">Cấp</th>
+      <th class="so" style="width:12%">Cần</th><th class="so" style="width:12%">Tồn</th>
+      <th class="so" style="width:12%">Đã ra lệnh</th></tr>
+    {% for r in doc.sub_assembly_items %}
+    <tr>
+      <td>{{ r.production_item }}</td>
+      <td>{{ r.item_name or r.production_item }}</td>
+      <td class="so">{{ r.bom_level or 0 }}</td>
+      <td class="so">{{ "%g"|format(r.qty or 0) }} {{ r.stock_uom or r.uom or "" }}</td>
+      <td class="so">{{ "%g"|format(r.actual_qty or 0) }}</td>
+      <td class="so">{{ "%g"|format(r.ordered_qty or 0) }}</td>
+    </tr>
+    {% endfor %}
+    {% if not doc.sub_assembly_items %}<tr><td colspan="6">Không có.</td></tr>{% endif %}
+  </table>
+
+  <h3>3. Nguyên liệu cần chuẩn bị</h3>
+  <table>
+    <tr><th style="width:18%">Mã</th><th>Tên nguyên liệu</th><th class="so" style="width:12%">Cần</th>
+      <th class="so" style="width:12%">Tồn bếp</th><th class="so" style="width:12%">Đã xin</th>
+      <th style="width:18%">Kho nhận</th></tr>
+    {% for r in doc.mr_items %}
+    <tr>
+      <td>{{ r.item_code }}</td>
+      <td>{{ r.item_name or r.item_code }}</td>
+      <td class="so">{{ "%g"|format(r.quantity or 0) }} {{ r.uom or "" }}</td>
+      <td class="so">{{ "%g"|format(r.actual_qty or 0) }}</td>
+      <td class="so">{{ "%g"|format(r.requested_qty or 0) }}</td>
+      <td>{{ r.warehouse or "" }}</td>
+    </tr>
+    {% endfor %}
+    {% if not doc.mr_items %}<tr><td colspan="6">Không có.</td></tr>{% endif %}
+  </table>
+
+  <table style="border:none; margin-top:22px;">
+    <tr>
+      <td style="border:none; width:50%; text-align:center; font-size:10.5px;">
+        Bếp trưởng<br><span style="color:#888">(ký, ghi rõ họ tên)</span>
+        <div style="height:52px"></div>
+      </td>
+      <td style="border:none; width:50%; text-align:center; font-size:10.5px;">
+        Người lập: {{ nguoi_lap or "" }}<br>
+        <span style="color:#888">{{ frappe.utils.formatdate(doc.posting_date, "dd/MM/yyyy") }}</span>
+        <div style="height:52px"></div>
+      </td>
+    </tr>
+  </table>
+</div>
