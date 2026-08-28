@@ -1460,6 +1460,7 @@ async function scrHome() {
        cho hỏi một lần, bấm Chặn là chặn vĩnh viễn. */
     card('🔔', 'Thông báo trên điện thoại', 'Bật rung khi có phiếu chờ bạn duyệt, và kiểm thử một tin', 0, 'CDTB') +
     card('📦', 'Tra tồn kho', 'Xem tồn hiện tại theo kho', 0, 'STOCK') +
+    card('🧭', 'Tồn kho theo chặng', 'Hàng của bếp đang đứng ở chặng nào: nguyên liệu, BTP sơ cấp, BTP sẵn sàng hay thành phẩm', 0, 'TONCHANG') +
     card('👤', 'Tài khoản', 'Thông tin tài khoản và đăng xuất', 0, 'ACC') +
     '</div>' +
     '<div style="text-align:center;color:#a0a6b4;font-size:12px;padding:14px 10px 4px;line-height:1.6">' +
@@ -1610,7 +1611,7 @@ var VGB_NHOM = [
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'BTPO', 'CTBOM', 'TIEC'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
-  { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK'] },
+  { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
@@ -1627,7 +1628,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
 ];
 
 var VGB_HUB = {};
@@ -2149,6 +2150,7 @@ var VGB_DUONG = {
   'thanh-toan-noi-bo': 'DNC',
   'thong-bao': 'CDTB',
   'ton-kho': 'STOCK',
+  'ton-kho-theo-chang': 'TONCHANG',
   'tra-cuu-bang-gia-mua-vao': 'DM:DMGIA',
   'tra-cuu-cong-thuc-dinh-muc': 'DM:DMBOM',
   'tra-cuu-danh-muc-khach-hang': 'DM:DMKH',
@@ -2256,6 +2258,7 @@ function vgbGo(k) {
   if (k === 'NCC') return go(scrNcc);
   if (k === 'NCCTAO') return go(scrNccTao);
   if (k === 'STOCK') return go(scrStock);
+  if (k === 'TONCHANG') return go(scrTonChang);
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
   if (k === 'CTBOM') return go(scrCongThuc);
@@ -17841,7 +17844,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '340';
+var APPVER = '341';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -33257,7 +33260,7 @@ function cfdGan() {
 
    Tien to ct = cong thuc. Da kiem va cham ten truoc khi dat (QT-28). */
 
-var ctD = { tab: 'pastry', tt: '', hd: '', tim: '', ds: null, tong: 0 };
+var ctD = { tab: 'pastry', tt: '', hd: '', cg: '', tim: '', ds: null, tong: 0 };
 var ctE = null;
 
 var CT_TAB = [['pastry', '🎂 Pastry'], ['baker', '🥐 Baker'], ['bar', '🍵 Quầy Bar'], ['khac', '❓ Chưa phân']];
@@ -33281,6 +33284,21 @@ var CT_MAU_TT = { nhap: 'w', dang_dung: 'g', ban_cu: 'n', da_huy: 'n' };
        vao thi thay du, khong ai nghi la thieu. */
 var CT_HD = [['', 'Hướng dẫn: tất cả'], ['chua', '📋 Chưa soạn'], ['nhap', '✏️ Đang nháp'], ['xong', '✅ Đã có'], ['lech', '⚠️ Công thức đã đổi']];
 var CT_HD_NHAN = { chua: 'Soạn hướng dẫn', nhap: 'HD nháp', xong: 'Hướng dẫn' };
+
+/* Chip loc theo CHANG, gom lai 28/08/2026.
+
+   Truoc day chang co nam nhan: Nguyen lieu, BTP thanh phan, Ruot banh
+   (C1), Banh khuon (C2), Thanh pham. Khai chot gom phan ban thanh pham
+   con hai ten:
+     BTP thanh phan + Ruot banh (C1)  ->  BTP so cap
+     Banh khuon (C2)                  ->  BTP san sang
+   Nguyen lieu va Thanh pham giu nguyen vi khong phai ban thanh pham.
+
+   Bam chip "BTP so cap" thi ra CA hai loai cu. Viec gom lam o may chu,
+   trong vagabond/ton_chang.py - man hinh chi gui ma chang di. */
+var CT_CHANG = [['', 'Chặng: tất cả'], ['nguyen_lieu', '🌾 Nguyên liệu'],
+  ['btp_so_cap', '🥣 BTP sơ cấp'], ['btp_san_sang', '🧁 BTP sẵn sàng'],
+  ['thanh_pham', '🎂 Thành phẩm']];
 
 function ctQuanLy() {
   return hasRole('Manufacturing Manager') || hasRole('System Manager') ||
@@ -33310,7 +33328,10 @@ function ctNutHd(x) {
 
 async function ctTai() {
   var r = await api('vagabond.cong_thuc.danh_sach',
-    { tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null, huong_dan: ctD.hd || null });
+    {
+      tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null,
+      huong_dan: ctD.hd || null, chang: ctD.cg || null
+    });
   ctD.ds = (r && r.ds) || [];
   ctD.tong = (r && r.tong) || 0;
   ctD.boLocTab = (r && r.bo_loc_tab) ? 1 : 0;
@@ -33337,11 +33358,15 @@ async function scrCongThuc() {
     var hds = CT_HD.map(function (c) {
       return '<div class="chip' + (ctD.hd === c[0] ? ' on' : '') + '" data-hd="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
+    var cgs = CT_CHANG.map(function (c) {
+      return '<div class="chip' + (ctD.cg === c[0] ? ' on' : '') + '" data-cg="' + c[0] + '">' + c[1] + '</div>';
+    }).join('');
     var body = '<div class="chips">' + tabs + '</div>' +
       '<input class="tin" id="ctTim" placeholder="Tìm theo tên hoặc mã món" value="' + h(ctD.tim) + '" ' +
       'style="text-align:left;font-size:14.5px;padding:0 13px;margin-bottom:9px;width:100%">' +
       '<div class="chips">' + tts + '</div>' +
       '<div class="chips">' + hds + '</div>' +
+      '<div class="chips">' + cgs + '</div>' +
       (ctD.boLocTab ? '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;margin-bottom:9px;line-height:1.5">🔎 Đang tìm cả tiệm, tạm bỏ lọc khu. ' +
         (Object.keys(ctD.theoTab || {}).map(function (k) { return (CT_TEN_TAB[k] || k) + ' ' + ctD.theoTab[k]; }).join(' · ') || 'không có kết quả') +
         '</div>' : '') +
@@ -33369,6 +33394,8 @@ async function scrCongThuc() {
       if (t2) { ctD.tt = t2.dataset.tt; ctD.ds = null; return scrCongThuc(); }
       var t3 = e.target.closest('[data-hd]');
       if (t3) { ctD.hd = t3.dataset.hd; ctD.ds = null; return scrCongThuc(); }
+      var t4 = e.target.closest('[data-cg]');
+      if (t4) { ctD.cg = t4.dataset.cg; ctD.ds = null; return scrCongThuc(); }
       /* Nut huong dan phai xet TRUOC the cong thuc: no nam LONG trong the,
          nen bam vao no cung la bam vao the. Xet the truoc thi khong bao gio
          toi luot nut. */
@@ -37921,6 +37948,124 @@ async function muInThu(vai) {
     CFGBH.mau_in = giuChung;
     CFGBH.mau_in_diem = giuDiem;
   }
+}
+
+/* ---------- 37. Ton kho theo chang (28/08/2026) ----------
+
+   Anh Viet: "em dung luon man theo doi ton kho theo chang nha".
+
+   Man Tra ton kho da co (phan 12) tra loi cau "kho nay dang co gi". Man
+   nay tra loi cau khac: "hang cua bep dang dung o chang nao". Hai cau do
+   khong thay the nhau duoc, nen dat hai man rieng chu khong nhet them mot
+   chip vao man cu.
+
+   Nam nhan chang cu gom con hai ten cho phan ban thanh pham:
+     BTP thanh phan + Ruot banh (C1)  ->  BTP so cap
+     Banh khuon (C2)                  ->  BTP san sang
+   Nguyen lieu va Thanh pham giu nguyen vi khong phai ban thanh pham.
+
+   Viec gom lam o may chu, trong vagabond/ton_chang.py. Man hinh KHONG tu
+   dich nhan: de mot bang dich o day nua la sang mai hai ban lech nhau, ma
+   luc lech thi khong ai biet ben nao dung. */
+
+var tch = { bep: '', chang: '', tim: '', d: null };
+
+var TCH_BEP = [['', '🏠 Cả hai bếp'], ['pastry', '🎂 Pastry'], ['baker', '🥐 Baker']];
+
+/* Thu tu chip do MAY CHU tra ve trong d.thu_tu, khong go tay o day. Thu tu
+   la chieu di len cua day chuyen, ma chieu do doi thi phai doi ca luat kho
+   ben Python - hai cho phai noi cung mot cau. */
+
+function tchChip(ma, ten, o) {
+  var so = (o && o.so_ma) || 0;
+  return '<div class="chip' + (tch.chang === ma ? ' on' : '') + '" data-tcc="' + h(ma) + '">' +
+    h(ten) + ' <b>' + so + '</b></div>';
+}
+
+async function tchTai() {
+  tch.d = await api('vagabond.ton_chang.ton_theo_chang', {
+    bep: tch.bep || null, chang: tch.chang || null, tim: tch.tim || null
+  });
+}
+
+async function scrTonChang() {
+  if (!tch.d) {
+    frame('Tồn kho theo chặng', '<div class="emp"><div class="e1">⏳</div></div>');
+    try { await tchTai(); }
+    catch (e) {
+      frame('Tồn kho theo chặng', '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>');
+      return;
+    }
+  }
+
+  function draw() {
+    var d = tch.d;
+    var beps = TCH_BEP.map(function (c) {
+      return '<div class="chip' + (tch.bep === c[0] ? ' on' : '') + '" data-tcb="' + c[0] + '">' + c[1] + '</div>';
+    }).join('');
+
+    /* Chip "Tat ca" dung dau, roi bon chang, roi nhom chua phan chang neu
+       co. Chip chang RONG HANG van hien voi so 0: an no di thi nguoi xem
+       tuong minh loc nham chu khong nghi la chang do het hang that. */
+    var tong = 0;
+    (d.thu_tu || []).forEach(function (m) { tong += ((d.bang || {})[m] || {}).so_ma || 0; });
+    var chua = ((d.bang || {})[''] || {}).so_ma || 0;
+    var chips = '<div class="chip' + (tch.chang === '' ? ' on' : '') + '" data-tcc="">Tất cả <b>' + (tong + chua) + '</b></div>' +
+      (d.thu_tu || []).map(function (m) {
+        return tchChip(m, (d.ten_chang || {})[m] || m, (d.bang || {})[m]);
+      }).join('') +
+      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '');
+
+    var body = '<div class="chips">' + beps + '</div>' +
+      '<div class="chips">' + chips + '</div>' +
+      '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;margin-bottom:9px;line-height:1.5">📊 ' + h(d.tom_tat || '') + '</div>' +
+      '<input class="tin" id="tchTim" placeholder="Tìm theo tên hoặc mã món" value="' + h(tch.tim) + '" ' +
+      'style="text-align:left;font-size:14.5px;padding:0 13px;margin-bottom:9px;width:100%">';
+
+    body += (d.ds && d.ds.length) ? '<div class="lst">' + d.ds.map(function (x) {
+      /* Mot ma nam o may kho thi cong lai, va ghi ro tung kho o dong duoi.
+         Bep hay hoi "hang do cua ai" chu khong chi hoi "con bao nhieu". */
+      var kho = (x.kho || []).map(function (w) {
+        return shortWh(w.kho) + ' ' + num(w.sl);
+      }).join(' · ');
+      return '<div class="li"><div class="lt"><div class="l1">' + h(x.ten) + '</div>' +
+        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + h(kho) : '') +
+        (x.lam_tuoi ? ' · <b style="color:#b3261e">làm tươi</b>' : '') + '</div></div>' +
+        '<div style="text-align:right"><div class="amt">' + num(x.sl) + '</div>' +
+        '<div class="l2">' + h(x.dvt || '') + '</div>' +
+        '<div class="st ' + h(x.mau || 'n') + '" style="margin-top:4px">' + h(x.chip || '') + '</div></div></div>';
+    }).join('') + '</div>' +
+      (d.tong_dong > d.ds.length ? '<div style="text-align:center;font-size:12px;color:#98a2b3;padding:10px">Đang hiện ' + d.ds.length + ' trên ' + d.tong_dong + ', gõ ô tìm để thu hẹp</div>' : '')
+      : '<div class="emp"><div class="e1">📦</div><div class="e2">Không có mã nào còn tồn ở bộ lọc này</div></div>';
+
+    var b = frame('Tồn kho theo chặng', body);
+    b.onclick = function (e) {
+      var t = e.target.closest('[data-tcb]');
+      if (t) { tch.bep = t.dataset.tcb; tch.d = null; return scrTonChang(); }
+      var c = e.target.closest('[data-tcc]');
+      if (c) { tch.chang = c.dataset.tcc; tch.d = null; return scrTonChang(); }
+    };
+
+    var ti = document.getElementById('tchTim');
+    if (ti) {
+      var cho = null;
+      ti.oninput = function () {
+        tch.tim = ti.value;
+        if (cho) clearTimeout(cho);
+        cho = setTimeout(async function () {
+          try { await tchTai(); } catch (e) { }
+          var giu = document.activeElement === ti;
+          var vt = ti.selectionStart;
+          draw();
+          if (giu) {
+            var ti2 = document.getElementById('tchTim');
+            if (ti2) { ti2.focus(); try { ti2.setSelectionRange(vt, vt); } catch (e) { } }
+          }
+        }, 420);
+      };
+    }
+  }
+  draw();
 }
 })();
 
