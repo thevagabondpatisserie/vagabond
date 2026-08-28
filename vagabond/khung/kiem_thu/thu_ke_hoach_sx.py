@@ -514,18 +514,77 @@ def _():
 	dung("nói rõ vì sao không gộp", "neo về đúng phiếu yêu cầu" in doan)
 
 
-@ca("neo nguyên liệu về bán thành phẩm TỰ ĐỐI CHIẾU, không đợi phiếu ghi sổ")
+@ca("neo nguyên liệu về bán thành phẩm theo MÓN và CÔNG THỨC của BTP")
 def _():
-	# ERPNext chi dien o sub_assembly_item_reference trong on_submit. Phieu
-	# cua bep nam o dang NHAP cho toi khi bam Chot, nen doc o do luon rong.
-	# Do tren phieu that: 47 dong nguyen lieu, 0 dong co neo.
+	# Dong NVL ghi `main_item_code` la ma THANH PHAM. Phai tim dong BTP cua
+	# dung mon do, roi xem cong thuc BTP co chua ma nguyen lieu khong.
+	btp = [
+		{"name": "b1", "parent_item_code": "BANH01", "bom_no": "BOM-RUOT"},
+		{"name": "b2", "parent_item_code": "BANH01", "bom_no": "BOM-VO"},
+		{"name": "b3", "parent_item_code": "BANH02", "bom_no": "BOM-KEM"},
+	]
+	nvl = [
+		{"item_code": "BOT", "main_item_code": "BANH01"},
+		{"item_code": "DUONG", "main_item_code": "BANH01"},
+		{"item_code": "SUA", "main_item_code": "BANH02"},
+	]
+	ma_cua_bom = {
+		"BOM-RUOT": {"BOT"},
+		"BOM-VO": {"DUONG"},
+		"BOM-KEM": {"SUA"},
+	}
+	ra = kh.neo_nvl_theo_btp(nvl, btp, ma_cua_bom)
+	la("bột về ruột", [x["item_code"] for x in ra.get("b1", [])], ["BOT"])
+	la("đường về vỏ", [x["item_code"] for x in ra.get("b2", [])], ["DUONG"])
+	la("sữa về kem", [x["item_code"] for x in ra.get("b3", [])], ["SUA"])
+
+
+@ca("neo KHÔNG dùng cặp (main_item_code, from_bom) như bản v346 hỏng")
+def _():
+	# Do tren site 29/08/2026: 0 tren 47 dong neo duoc, vi ca hai o do deu
+	# noi ve THANH PHAM, khong bao gio trung bom_no cua ban thanh pham.
+	btp = [{"name": "b1", "parent_item_code": "BANH01",
+		"production_item": "RUOT01", "bom_no": "BOM-RUOT01"}]
+	nvl = [{"item_code": "BOT", "main_item_code": "BANH01",
+		"from_bom": "BOM-BANH01"}]
+	ra = kh.neo_nvl_theo_btp(nvl, btp, {"BOM-RUOT01": {"BOT"}})
+	la("vẫn neo được dù from_bom là công thức thành phẩm",
+		[x["item_code"] for x in ra.get("b1", [])], ["BOT"])
+
+
+@ca("nguyên liệu không nằm trong công thức BTP nào thì KHÔNG neo bừa")
+def _():
+	btp = [{"name": "b1", "parent_item_code": "BANH01", "bom_no": "BOM-RUOT"}]
+	nvl = [{"item_code": "HOP_GIAY", "main_item_code": "BANH01"}]
+	ra = kh.neo_nvl_theo_btp(nvl, btp, {"BOM-RUOT": {"BOT"}})
+	la("không dòng nào", len(ra), 0)
+
+
+@ca("ô sub_assembly_item_reference của ERPNext vẫn được ưu tiên khi đã có")
+def _():
+	btp = [{"name": "b1", "parent_item_code": "BANH01", "bom_no": "BOM-RUOT"}]
+	nvl = [{"item_code": "BOT", "main_item_code": "BANH01",
+		"sub_assembly_item_reference": "b9"}]
+	ra = kh.neo_nvl_theo_btp(nvl, btp, {"BOM-RUOT": {"BOT"}})
+	la("theo ô của ERPNext", sorted(ra.keys()), ["b9"])
+
+
+@ca("một nguyên liệu trong hai công thức BTP của cùng món thì neo cả hai")
+def _():
+	btp = [
+		{"name": "b1", "parent_item_code": "BANH01", "bom_no": "BOM-RUOT"},
+		{"name": "b2", "parent_item_code": "BANH01", "bom_no": "BOM-VO"},
+	]
+	nvl = [{"item_code": "BOT", "main_item_code": "BANH01"}]
+	ra = kh.neo_nvl_theo_btp(nvl, btp, {"BOM-RUOT": {"BOT"}, "BOM-VO": {"BOT"}})
+	la("xổ ra ở cả hai", sorted(ra.keys()), ["b1", "b2"])
+
+
+@ca("phép neo là PHÉP THUẦN, không chạm Frappe")
+def _():
 	m = _py("ke_hoach_sx.py")
-	doan = m.split("def xem(")[1].split("\n@frappe")[0]
-	dung("phải tự dựng bảng neo", "neo_cua" in doan)
-	dung("khớp theo món và công thức",
-		'neo_cua[(x.get("production_item"), x.get("bom_no"))]' in doan)
-	# Van uu tien o cua ERPNext khi no da co, de phieu da chot khong lech.
-	dung("vẫn đọc ô của ERPNext trước", "sub_assembly_item_reference" in doan)
+	doan = m.split("def neo_nvl_theo_btp(")[1].split("\ndef ")[0]
+	la("không gọi frappe", "frappe." in doan, False)
 
 
 @ca("phép neo nguyên liệu CHỈ ĐỌC, không ghi gì xuống phiếu")
