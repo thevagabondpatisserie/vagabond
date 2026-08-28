@@ -59,6 +59,17 @@ CUA_NGO = {
 	# `tk_tien_chi`, `dem_unc`, `ds_unc_tho`) la ham noi bo, ho_so_tt goi
 	# thang chu khong di qua mang.
 	"tra_tien_app.py": ["dinh_unc", "ds_unc", "go_unc", "soat_tk_chi"],
+	# Them 28/08/2026: thu tien va xuat hoa don cho hop dong da ky, va
+	# bang doi ruot hop mua vu. Ba nhom cua ngo:
+	#   thu_hop_dong  - lap phieu, xem, xuat PDF, gui khach
+	#   hop_dong_hoa_don - doc dong hang tu bao gia, roi ghi so
+	# `mua_vu.py` khong nam trong bang nay (tep lon, nhieu phien lam song
+	# song), nen hai cua ngo doi ruot cua no khong ghi o day.
+	"thu_hop_dong.py": [
+		"muc_goi_y", "tao_phieu", "ds_phieu", "xem_phieu", "huy_phieu",
+		"kiem_sepay", "ghi_da_thu", "xem_truoc", "xuat_pdf", "gui_email",
+	],
+	"hop_dong_hoa_don.py": ["dong_tu_hop_dong", "ghi_so"],
 	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
@@ -291,7 +302,10 @@ CUA_NGO = {
 		"dat_san_luong", "dat_ton_dau", "doi_tinh_trang", "dong_bo",
 		"hang_theo_mua", "kiem_truoc_khi_ban", "luu_o", "sua_san_luong", "tao_mua",
 		"them_dinh_muc", "them_dong", "them_dot", "them_san_luong", "tim_san_pham",
-		"xin_dong_bo", "xoa_dinh_muc", "xoa_dong", "xoa_dot", "xoa_san_luong"
+		"xin_dong_bo", "xoa_dinh_muc", "xoa_dong", "xoa_dot", "xoa_san_luong",
+		# Them 28/08/2026: bang doi ruot hop, sua cho may dem sai
+		# nhung hop khach xin doi banh ben trong.
+		"them_doi_ruot", "xoa_doi_ruot",
 	],
 	# Goi y so cho phieu YCSX, them 23/08/2026. Mo dun nay CHI DOC, mot cua
 	# duy nhat. Them cua thu hai vao day thi phai hoi lai: mot man goi y ma

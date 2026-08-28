@@ -6,7 +6,7 @@ grand_total va outstanding_amount cua cac hoa don da submit.
 """
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, getdate, nowdate
 
 # Anh Viet 14/08/2026: *"cấp quyền truy cập cho Loan Anh, thu mua và kế toán"*.
 # Loan Anh dang co vai Sales User nen vao duoc ngay. Them thu mua va ke toan
@@ -58,13 +58,83 @@ def danh_sach(trang_thai=None):
 	ds = frappe.get_all(
 		"Hop Dong Ban Hang",
 		filters=loc,
-		fields=["name", "ten", "so_hop_dong", "loai", "trang_thai", "khach_hang", "ngay_su_kien", "gia_tri"],
+		fields=[
+			"name", "ten", "so_hop_dong", "loai", "trang_thai", "khach_hang",
+			"ngay_su_kien", "gia_tri",
+			# Ba o de man hinh bay chip "con thieu gi". Doc san o day chu
+			# khong hoi lai tung dong: hai muoi hop dong la hai muoi luot
+			# goi mang, va man danh sach thi mo lien tuc ca ngay.
+			"nguoi_ky_a", "nguoi_ky_b", "tep_hop_dong_chot",
+		],
 		order_by="modified desc",
 		limit_page_length=200,
 	)
+	hom_nay = getdate(nowdate())
 	for hd in ds:
 		hd.update(_tong(hd["name"]))
-	return ds
+		hd["nhan"] = NHAN_TT.get(hd["trang_thai"], hd["trang_thai"])
+		hd["co_nguoi_ky"] = 1 if (hd.get("nguoi_ky_a") and hd.get("nguoi_ky_b")) else 0
+		hd["co_ban_chot"] = 1 if (hd.get("tep_hop_dong_chot") or "").strip() else 0
+		hd["con_ngay"] = _con_ngay(hd.get("ngay_su_kien"), hom_nay)
+	return {"rows": ds, "dem": dem_chip(ds), "nhan": NHAN_TT}
+
+
+# Nhan tieng Viet cua trang thai hop dong. De o day chu khong o man hinh
+# (QT-19): man tu dich la hai noi cung giu mot bang chu, va chung se lech
+# nhau vao mot ngay khong ai doan truoc.
+NHAN_TT = {
+	"Nhap": "Nháp",
+	"Da gui khach": "Đã gửi khách",
+	"Dang thuong thao": "Đang thương thảo",
+	"Dang thuc hien": "Đang thực hiện",
+	"Hoan tat": "Hoàn tất",
+	"Da thanh ly": "Đã thanh lý",
+	"Huy": "Huỷ",
+}
+
+# Trang thai coi la con song, tuc con phai lam gi do. Chip viec ton chi
+# dem trong nhung to nay: mot hop dong da thanh ly ma chua co nguoi ky
+# thi khong con ai di ky nua.
+TT_CON_SONG = ("Nhap", "Da gui khach", "Dang thuong thao", "Dang thuc hien")
+
+# Su kien con bao nhieu ngay thi coi la sap toi.
+SAP_TOI = 7
+
+
+def _con_ngay(ngay_su_kien, hom_nay):
+	"""So ngay tu hom nay toi ngay su kien. None neu chua khai ngay."""
+	if not ngay_su_kien:
+		return None
+	try:
+		return (getdate(ngay_su_kien) - hom_nay).days
+	except Exception:
+		return None
+
+
+def dem_chip(rows):
+	"""Dem cho tung chip loc tren man danh sach. THUAN.
+
+	Nam chip viec ton, dung so lieu da co san tren tung dong chu khong hoi
+	them co so du lieu. Chip nao dem ra 0 thi man hinh tu an di: bay mot
+	hang chip rong la bat sales doc mot dong khong noi gi.
+	"""
+	ra = {"tat_ca": len(rows or [])}
+	for r in rows or []:
+		tt = str((r or {}).get("trang_thai") or "")
+		ra[tt] = ra.get(tt, 0) + 1
+	song = [r for r in (rows or []) if str(r.get("trang_thai") or "") in TT_CON_SONG]
+	ra["con_no"] = len([r for r in song if float(r.get("con_no") or 0) > 0])
+	ra["chua_hoa_don"] = len([
+		r for r in song
+		if not (int(r.get("so_hd_chot") or 0) + int(r.get("so_hd_nhap") or 0))
+	])
+	ra["sap_toi"] = len([
+		r for r in song
+		if r.get("con_ngay") is not None and 0 <= int(r["con_ngay"]) <= SAP_TOI
+	])
+	ra["chua_nguoi_ky"] = len([r for r in song if not int(r.get("co_nguoi_ky") or 0)])
+	ra["chua_ban_chot"] = len([r for r in song if not int(r.get("co_ban_chot") or 0)])
+	return ra
 
 
 @frappe.whitelist()

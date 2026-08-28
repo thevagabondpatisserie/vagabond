@@ -21,6 +21,8 @@
   "chot_ton",
   "sec_dinh_muc",
   "dinh_muc",
+  "sec_doi_ruot",
+  "doi_ruot",
   "sec_lich",
   "lich",
   "ma_loai_tru",
@@ -132,6 +134,18 @@
    "label": "Mot hop gom nhung banh nao",
    "options": "Vagabond Mua Vu Dinh Muc",
    "description": "Ban mot hop thi tru luon so banh le ben trong khoi han muc banh le do."
+  },
+  {
+   "fieldname": "sec_doi_ruot",
+   "fieldtype": "Section Break",
+   "label": "Doi ruot hop theo don"
+  },
+  {
+   "description": "Don nao khach doi banh ben trong hop thi khai o day, may cong tru lai phep dem banh le.",
+   "fieldname": "doi_ruot",
+   "fieldtype": "Table",
+   "label": "Doi ruot hop",
+   "options": "Vagabond Mua Vu Doi Ruot"
   },
   {
    "description": "Moi dong mot ma hang. Ma nam trong day thi dong bo KHONG tu keo ve mua nua. Nut X tren man hinh tu ghi vao day.",
