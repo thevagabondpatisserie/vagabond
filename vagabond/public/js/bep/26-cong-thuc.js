@@ -9,7 +9,7 @@
 
    Tien to ct = cong thuc. Da kiem va cham ten truoc khi dat (QT-28). */
 
-var ctD = { tab: 'pastry', tt: '', hd: '', tim: '', ds: null, tong: 0 };
+var ctD = { tab: 'pastry', tt: '', hd: '', cg: '', tim: '', ds: null, tong: 0 };
 var ctE = null;
 
 var CT_TAB = [['pastry', '🎂 Pastry'], ['baker', '🥐 Baker'], ['bar', '🍵 Quầy Bar'], ['khac', '❓ Chưa phân']];
@@ -33,6 +33,21 @@ var CT_MAU_TT = { nhap: 'w', dang_dung: 'g', ban_cu: 'n', da_huy: 'n' };
        vao thi thay du, khong ai nghi la thieu. */
 var CT_HD = [['', 'Hướng dẫn: tất cả'], ['chua', '📋 Chưa soạn'], ['nhap', '✏️ Đang nháp'], ['xong', '✅ Đã có'], ['lech', '⚠️ Công thức đã đổi']];
 var CT_HD_NHAN = { chua: 'Soạn hướng dẫn', nhap: 'HD nháp', xong: 'Hướng dẫn' };
+
+/* Chip loc theo CHANG, gom lai 28/08/2026.
+
+   Truoc day chang co nam nhan: Nguyen lieu, BTP thanh phan, Ruot banh
+   (C1), Banh khuon (C2), Thanh pham. Khai chot gom phan ban thanh pham
+   con hai ten:
+     BTP thanh phan + Ruot banh (C1)  ->  BTP so cap
+     Banh khuon (C2)                  ->  BTP san sang
+   Nguyen lieu va Thanh pham giu nguyen vi khong phai ban thanh pham.
+
+   Bam chip "BTP so cap" thi ra CA hai loai cu. Viec gom lam o may chu,
+   trong vagabond/ton_chang.py - man hinh chi gui ma chang di. */
+var CT_CHANG = [['', 'Chặng: tất cả'], ['nguyen_lieu', '🌾 Nguyên liệu'],
+  ['btp_so_cap', '🥣 BTP sơ cấp'], ['btp_san_sang', '🧁 BTP sẵn sàng'],
+  ['thanh_pham', '🎂 Thành phẩm']];
 
 function ctQuanLy() {
   return hasRole('Manufacturing Manager') || hasRole('System Manager') ||
@@ -62,7 +77,10 @@ function ctNutHd(x) {
 
 async function ctTai() {
   var r = await api('vagabond.cong_thuc.danh_sach',
-    { tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null, huong_dan: ctD.hd || null });
+    {
+      tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null,
+      huong_dan: ctD.hd || null, chang: ctD.cg || null
+    });
   ctD.ds = (r && r.ds) || [];
   ctD.tong = (r && r.tong) || 0;
   ctD.boLocTab = (r && r.bo_loc_tab) ? 1 : 0;
@@ -89,11 +107,15 @@ async function scrCongThuc() {
     var hds = CT_HD.map(function (c) {
       return '<div class="chip' + (ctD.hd === c[0] ? ' on' : '') + '" data-hd="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
+    var cgs = CT_CHANG.map(function (c) {
+      return '<div class="chip' + (ctD.cg === c[0] ? ' on' : '') + '" data-cg="' + c[0] + '">' + c[1] + '</div>';
+    }).join('');
     var body = '<div class="chips">' + tabs + '</div>' +
       '<input class="tin" id="ctTim" placeholder="Tìm theo tên hoặc mã món" value="' + h(ctD.tim) + '" ' +
       'style="text-align:left;font-size:14.5px;padding:0 13px;margin-bottom:9px;width:100%">' +
       '<div class="chips">' + tts + '</div>' +
       '<div class="chips">' + hds + '</div>' +
+      '<div class="chips">' + cgs + '</div>' +
       (ctD.boLocTab ? '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;margin-bottom:9px;line-height:1.5">🔎 Đang tìm cả tiệm, tạm bỏ lọc khu. ' +
         (Object.keys(ctD.theoTab || {}).map(function (k) { return (CT_TEN_TAB[k] || k) + ' ' + ctD.theoTab[k]; }).join(' · ') || 'không có kết quả') +
         '</div>' : '') +
@@ -121,6 +143,8 @@ async function scrCongThuc() {
       if (t2) { ctD.tt = t2.dataset.tt; ctD.ds = null; return scrCongThuc(); }
       var t3 = e.target.closest('[data-hd]');
       if (t3) { ctD.hd = t3.dataset.hd; ctD.ds = null; return scrCongThuc(); }
+      var t4 = e.target.closest('[data-cg]');
+      if (t4) { ctD.cg = t4.dataset.cg; ctD.ds = null; return scrCongThuc(); }
       /* Nut huong dan phai xet TRUOC the cong thuc: no nam LONG trong the,
          nen bam vao no cung la bam vao the. Xet the truoc thi khong bao gio
          toi luot nut. */
