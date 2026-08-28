@@ -282,6 +282,41 @@ def _thu_nghiem():
 	i_thu = khuc.find("if thu:")
 	i_dau = khuc.find('doc.db_set("email_da_gui"')
 	dung("thoat truoc khi danh dau da gui", 0 < i_thu < i_dau)
+	dung("tieu de mang chu gui thu", '"[GỬI THỬ] " if thu else ""' in khuc)
+
+
+@ca("thu bao: gui thu xem duoc mat la thu TRUOC khi ho so da tra")
+def _thu_truoc_khi_tra():
+	s = _doc("ho_so_tt.py")
+	than = _than_ham(s, "def gui_email_ncc(")
+	khuc = than[: than.find("def _tep_dinh_thu")]
+	dung(
+		"khong chan gui thu boi trang thai",
+		"cint(gui_that) and not cint(thu_nghiem)" in khuc,
+	)
+	# Gui THAT thi van phai doi ho so da tra, khong duoc noi long.
+	dung("gui that van doi da tra", "doc.trang_thai != TT_DA_TRA" in khuc)
+
+
+@ca("danh sach: bay co thieu uy nhiem chi ngay tren dong ho so")
+def _bay_thieu_unc():
+	s = _doc("ho_so_tt.py")
+	than = _than_ham(s, "def danh_sach(")
+	khuc = than[: than.find("def _truong_hddt_pi")]
+	dung("doc o luu UNC", '"unc_tep"' in khuc)
+	dung("tinh co_unc", 'o["co_unc"]' in khuc)
+
+	j = _js("19-ho-so-tt.js")
+	dung("man hinh doc co_unc", "r.co_unc" in j)
+	dung("chi bay khi da duyet", "r.trang_thai === 'Da duyet' && !r.co_unc" in j)
+
+
+@ca("man ho so: nut gui thu dung duoc o moi trang thai cua ho so NCC")
+def _nut_gui_thu():
+	j = _js("19-ho-so-tt.js")
+	dung("co nut gui thu", "data-hsv=\"guithuthu\"" in j)
+	dung("truyen co gui thu", "thu_nghiem: 1" in j)
+	dung("nut gui that chi hien khi da tra", "daTra ? '<button class=\"btn\" data-hsv=\"guithu\"" in j)
 
 
 @ca("thu bao: dinh uy nhiem chi bang NOI DUNG chu khong bang duong dan")
