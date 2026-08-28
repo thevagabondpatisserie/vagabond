@@ -27,6 +27,7 @@
   "sb1",
   "dong",
   "sb4",
+  "tk_nhan",
   "ten_nhan",
   "stk_nhan",
   "cb3",
@@ -168,6 +169,13 @@
    "fieldname": "sb4",
    "fieldtype": "Section Break",
    "label": "Tai khoan nhan tien"
+  },
+  {
+   "description": "Chon tai khoan thi ba o duoi tu dien. De trong thi go tay.",
+   "fieldname": "tk_nhan",
+   "fieldtype": "Link",
+   "label": "Tai khoan nhan tien (Bank Account)",
+   "options": "Bank Account"
   },
   {
    "fieldname": "ten_nhan",
