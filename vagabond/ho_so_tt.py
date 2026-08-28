@@ -332,7 +332,7 @@ def _buoc_ke_tiep_khi_gui(nguoi=None):
 
 @frappe.whitelist()
 def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
-		loai_cp_thue=None, nguoi_ung=None):
+		loai_cp_thue=None, nguoi_ung=None, tk_hoan=None):
 	"""Lập một hồ sơ từ danh sách hoá đơn đã tick.
 
 	hoa_don: danh sách mã Purchase Invoice, hoặc danh sách
@@ -341,6 +341,12 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 	nguoi_ung: bắt buộc với hồ sơ Hoàn ứng có hoá đơn. Đó là người đã ứng
 	tiền mua hộ, tức người NHẬN lại tiền - khác hẳn nhà cung cấp trên từng
 	dòng hoá đơn.
+
+	tk_hoan: Bank Account nhận tiền, cũng chỉ dùng cho hồ sơ hoàn ứng. Trước
+	28/08/2026 màn này không có ô chọn nên máy lấy đại tài khoản mặc định
+	của người ứng; người ứng có cả ACB lẫn OCB thì đó là chuyển nhầm ngân
+	hàng mà không ai biết. Nay người lập chọn tay, và lựa chọn đó được LƯU
+	vào ô `tk_nhan` chứ không tan thành ba chuỗi rời.
 	"""
 	_kiem(VAI_LAP, "lập hồ sơ thanh toán")
 	if isinstance(hoa_don, str):
@@ -471,6 +477,11 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(lay_tk) or {}).items():
 		doc.set(k, v)
+	# Tai khoan nguoi lap CHON de len tren tai khoan mac dinh, y het luong
+	# hoan ung khong hoa don. Va lan nay giu lai ca cai LINK, de sau con
+	# doi chieu duoc ho so nay da chuyen vao tai khoan nao.
+	if nhieu_ncc:
+		doc.tk_nhan = _dat_tk_nhan(doc, tk_hoan, doc.nguoi_ung)
 	if not doc.ten_nhan:
 		doc.ten_nhan = doc.ten_ncc
 	for d in dong:
@@ -601,10 +612,8 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 		doc.set(k, v)
 	# Tai khoan nguoi lap CHON de len tren tai khoan mac dinh cua ma NCC:
 	# nguoi ung co ca ACB lan OCB, cai chon tay moi la cai dung cho to nay.
-	if tk_hoan:
-		for k, v in (_tk_tu_bank_account(tk_hoan) or {}).items():
-			if v:
-				doc.set(k, v)
+	# Giu ca cai LINK chu khong chi ba chuoi, de sau con doi chieu duoc.
+	doc.tk_nhan = _dat_tk_nhan(doc, tk_hoan, ma_ncc)
 	if not doc.ten_nhan:
 		doc.ten_nhan = doc.ten_ncc
 	for d in sach:
@@ -1550,6 +1559,18 @@ def duyet(name, buoc, ly_do=""):
 		_kiem(VAI_LAP, "gửi hồ sơ đi duyệt")
 		if doc.trang_thai not in (TT_NHAP, TT_TU_CHOI):
 			frappe.throw("Hồ sơ đang ở trạng thái %s, không gửi lại được." % NHAN.get(doc.trang_thai))
+		# Hang rao TAI KHOAN NHAN TIEN, chan ngay o cua gui di duyet.
+		# Ho so hoan ung khong co so tai khoan thi ca day duyet phia sau
+		# deu vo nghia: den luc chuyen tien khong ai biet chuyen di dau, ma
+		# luc do thi ho so da qua hai cap ky roi, tra ve rat mat cong. Chan
+		# theo SO TAI KHOAN chu khong theo link, de ho so cu chi go tay ba o
+		# van di duoc.
+		if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD) and not (doc.stk_nhan or "").strip():
+			frappe.throw(
+				"Hồ sơ %s chưa có tài khoản nhận tiền. Bấm nút Chọn TK nhận "
+				"trên hồ sơ để chọn đúng ngân hàng của người được hoàn ứng, "
+				"rồi gửi lại." % doc.name
+			)
 		doc.trang_thai = _buoc_ke_tiep_khi_gui()
 		doc.ly_do_tu_choi = ""
 		# Nhay thang len giam doc thi phai ghi ro AI da dam nhiem cap ke toan,
@@ -2095,6 +2116,34 @@ def sua_tk_nhan(name, ten_nhan=None, stk_nhan=None, ngan_hang_nhan=None):
 		doc.db_set("ngan_hang_nhan", (ngan_hang_nhan or "").strip(), update_modified=False)
 	frappe.db.commit()
 	_ghi_vet(doc.name, "Sửa tài khoản nhận tiền bởi %s" % frappe.session.user)
+	return noi_dung_chuyen_khoan(name, luu=1)
+
+
+@frappe.whitelist()
+def doi_tk_nhan(name, tk_hoan=None):
+	"""Đổi tài khoản nhận tiền của một hồ sơ bằng cách CHỌN, không gõ tay.
+
+	QT-31 chốt ô ngân hàng phải là ô chọn. Gõ tay ba ô như đường cũ thì sai
+	một chữ trong tên ngân hàng là uỷ nhiệm chi bị trả về, mà không ai biết
+	sai ở đâu. Chọn một Bank Account thì cả ba ô lấy nguyên từ hồ sơ ngân
+	hàng, và hồ sơ giữ được cái link để đối chiếu.
+
+	Đường gõ tay `sua_tk_nhan` vẫn còn, cho những hồ sơ mà chị Dung chưa kịp
+	khai Bank Account bên Next.
+	"""
+	_kiem(VAI_LAP | VAI_FIN, "sửa tài khoản nhận tiền")
+	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	if doc.trang_thai == TT_DA_TRA:
+		frappe.throw("Hồ sơ đã thanh toán rồi, không sửa tài khoản nhận nữa.")
+	# Hoan ung thi tien ve tui NGUOI UNG, con cong no NCC thi ve tui nha
+	# cung cap. Truyen dung chu tai khoan vao de hang rao o `_dat_tk_nhan`
+	# soi duoc.
+	chu = (doc.nguoi_ung or doc.nha_cung_cap or "").strip()
+	doc.tk_nhan = _dat_tk_nhan(doc, tk_hoan, chu)
+	for o in ("tk_nhan", "ten_nhan", "stk_nhan", "ngan_hang_nhan"):
+		doc.db_set(o, doc.get(o) or "", update_modified=False)
+	frappe.db.commit()
+	_ghi_vet(doc.name, "Chọn tài khoản nhận tiền %s bởi %s" % (doc.tk_nhan, frappe.session.user))
 	return noi_dung_chuyen_khoan(name, luu=1)
 
 
@@ -3691,14 +3740,64 @@ def _tk_ung(b):
 	return str(b.get("account") or "").strip().startswith(TK_NHOM_TAM_UNG)
 
 
+def _cua_nguoi(b, ma_ncc):
+	"""Bank Account nay co phai cua dung nguoi duoc hoan ung khong."""
+	return (b.get("party_type") or "") == "Supplier" and (b.get("party") or "").strip() == ma_ncc
+
+
+def _dat_tk_nhan(doc, tk_hoan, ma_nguoi=""):
+	"""Ghi tài khoản nhận tiền lên hồ sơ hoàn ứng, trả về mã Bank Account.
+
+	Một chỗ duy nhất cho cả hai luồng hoàn ứng, để hai màn hình không bao giờ
+	cư xử khác nhau. Ba việc, theo đúng thứ tự:
+
+	1. Tài khoản người lập CHỌN đè lên tài khoản mặc định. Người ứng có cả
+	   ACB lẫn OCB, chỉ cái chọn tay mới là cái đúng cho tờ này.
+	2. Tài khoản phải THUỘC VỀ đúng người được hoàn ứng. Chặn ở đây vì màn
+	   hình có thể bị lùi trang, giữ chip cũ của người trước rồi gửi lên.
+	   Chuyển tiền hoàn ứng vào túi người khác là mất tiền thật.
+	3. Chọn rồi thì ba ô tên - số tài khoản - ngân hàng lấy thẳng từ Bank
+	   Account, không ai gõ tay nữa nên không lệch một chữ.
+
+	Không chọn gì thì trả về rỗng và giữ nguyên nếp cũ là đọc tài khoản mặc
+	định, để hồ sơ nháp cũ vẫn lưu được.
+	"""
+	ten = (tk_hoan or "").strip()
+	if not ten:
+		return ""
+	if not frappe.db.exists("Bank Account", ten):
+		frappe.throw("Không có tài khoản ngân hàng %s. Vui lòng chọn lại." % ten)
+	ma_nguoi = (ma_nguoi or "").strip()
+	chu = _ncc_cua_tk_hoan(ten)
+	if ma_nguoi and chu and chu != ma_nguoi:
+		frappe.throw(
+			"Tài khoản %s là của %s, không phải của người được hoàn ứng. "
+			"Tiền hoàn ứng phải về đúng túi người đã bỏ tiền ra, vui lòng chọn lại."
+			% (ten, frappe.db.get_value("Supplier", chu, "supplier_name") or chu)
+		)
+	for k, v in (_tk_tu_bank_account(ten) or {}).items():
+		if v:
+			doc.set(k, v)
+	return ten
+
+
 @frappe.whitelist()
-def ds_tk_hoan_ung():
+def ds_tk_hoan_ung(nguoi=None):
 	"""Các tài khoản nhận tiền hoàn ứng: ACB và OCB của người ứng.
 
 	Lấy đúng những Bank Account gắn vào tài khoản sổ cái quỹ tạm ứng 1411.
 	Không có cái nào khớp thì trả về mọi tài khoản công ty còn dùng, kèm cờ
 	`doan` để màn hình nói rõ đây là bản đoán - thà hiện thừa vài dòng còn
 	hơn hiện bảng trống và chặn người ta lập hồ sơ.
+
+	`nguoi` là mã nhà cung cấp của người được hoàn ứng. Truyền vào thì chỉ
+	bày tài khoản CỦA CHÍNH người đó, vì tiền hoàn ứng chỉ được chảy về túi
+	người đã bỏ tiền ra. Anh Việt 28/08/2026: màn hoàn ứng có hoá đơn trước
+	đây không có ô này nên máy tự đoán tài khoản mặc định, người ứng có cả
+	ACB lẫn OCB thì đoán sai là chuyển nhầm ngân hàng.
+
+	Người đó chưa khai tài khoản nào trong nhóm 141 thì lùi về danh sách
+	chung kèm cờ `doan`, không chặn Uyên lập hồ sơ.
 	"""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem tài khoản hoàn ứng")
 	tat_ca = frappe.get_all(
@@ -3709,6 +3808,15 @@ def ds_tk_hoan_ung():
 	)
 	ung = [b for b in tat_ca if _tk_ung(b)]
 	doan = 0
+	ma_nguoi = (nguoi or "").strip()
+	if ma_nguoi:
+		rieng = [b for b in ung if _cua_nguoi(b, ma_nguoi)]
+		if rieng:
+			ung = rieng
+		else:
+			# Chua gan tai khoan nao cho nguoi nay: bay het nhom 141 va noi
+			# ro day la ban doan, hon la de bang trong.
+			doan = 1
 	if not ung:
 		doan = 1
 		ung = [b for b in tat_ca if b.get("account")]
