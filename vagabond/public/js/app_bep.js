@@ -18477,7 +18477,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '345';
+var APPVER = '346';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -38770,8 +38770,24 @@ function khsxThe(x, loai) {
   var phu = h(x.ma) + (x.dvt ? ' · ' + h(x.dvt) : '') +
     (x.chip_chang ? ' · ' + h(x.chip_chang) : '') +
     (x.bep ? ' · ' + h(x.bep === 'baker' ? 'Baker' : 'Pastry') : '') +
-    (x.da_lenh > 0 ? ' · đã ra lệnh ' + num(x.da_lenh) : '');
+    (x.da_lenh > 0 ? ' · đã ra lệnh ' + num(x.da_lenh) : '') +
+    (x.so_nguon > 1 ? ' · gom ' + x.so_nguon + ' phiếu' : '');
   var xo = '';
+  /* Thanh pham gom theo ma nen mot the co the la sau phieu yeu cau cua sau
+     diem ban. Xo ra cho bep thay so do cua ai, khong thi con so trong ma
+     khong ai truy lai duoc. */
+  if (loai === 'tp' && (x.nguon || []).length > 1) {
+    var dangMoN = !!khsx.mo[x.khoa];
+    xo = '<div data-xo="' + h(x.khoa) + '" style="margin-top:8px;font-size:12.5px;color:#0b6bcb;font-weight:600">' +
+      (dangMoN ? '▾ Ẩn ' : '▸ Xem ') + x.nguon.length + ' phiếu yêu cầu</div>';
+    if (dangMoN) {
+      xo += '<div style="margin-top:6px;border-left:2px solid #e3e6ee;padding-left:10px">' +
+        x.nguon.map(function (n) {
+          return '<div class="l2" style="padding:4px 0">' + h(n.ycsx) + ' · ' +
+            h(shortWh(n.kho || '')) + ' · <b>' + num(n.sl) + '</b></div>';
+        }).join('') + '</div>';
+    }
+  }
   if (loai === 'btp' && (x.nvl || []).length) {
     var dangMo = !!khsx.mo[x.khoa];
     xo = '<div data-xo="' + h(x.khoa) + '" style="margin-top:8px;font-size:12.5px;color:#0b6bcb;font-weight:600">' +
