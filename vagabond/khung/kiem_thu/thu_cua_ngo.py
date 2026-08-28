@@ -47,6 +47,7 @@ CUA_NGO = {
 	# `dat` duoc mo ra ngoai; `bang` va `dang_tat` la ham noi bo, hai man kiem
 	# banh goi qua cua rieng cua chung.
 	"tat_ban_web.py": ["dat"],
+	"nvl_thay_the.py": ["tinh_lai"],
 	# Them 26/08/2026 cung lan vá phép so đơn vị giữa hoá đơn mua và phiếu
 	# nhập. `_noi`, `_goi_y`, `_vuot_lech_gia_duoc` deu la ham noi bo, chi
 	# bon ham man hinh goi truc tiep moi duoc mo ra ngoai.
