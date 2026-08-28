@@ -15,6 +15,15 @@ liệu của bếp, rồi đi lên dần:
         v
     <Bếp> - Thành phẩm           lấy từ BTP sẵn sàng, cộng Nguyên liệu
 
+CÂY BỐN CHẶNG TRÊN LÀ LỊCH SỬ, KHÔNG CÒN CHẠY
+---------------------------------------------
+Anh Việt chốt 28/08/2026: bỏ hẳn phương án chuyển hàng qua kho trung gian.
+Hai kho BTP sơ cấp và BTP sẵn sàng của cả hai bếp đã tắt, mọi lệnh rút
+nguyên liệu từ kho Nguyên liệu của bếp và cũng nhập trả về đó, trừ thành
+phẩm thì nhập kho Thành phẩm. Xem ghi chú dài ở `LUAT_NGUON` phía dưới.
+
+Giữ sơ đồ cũ ở đây để đọc lại được ý ban đầu, chứ đừng dựng lại theo nó.
+
 VÌ SAO 307 KHÔNG LÀM KHO CHA
 ----------------------------
 Đề bài ban đầu đặt `Kho tổng 307 - TV` làm kho cha của cả cây. Không làm
@@ -79,11 +88,19 @@ TEN_CHANG = {
 # Nói cách khác bếp KHÔNG chuyển hàng qua kho trung gian trên thực tế. Giữ
 # một luật đòi hàng ở nơi không có hàng thì luật đó chỉ làm bếp đứng.
 #
-# BẢN CŨ GIỮ LẠI Ở ĐÂY, không xoá. Ngày nào bếp chạy đủ bốn chặng thật thì
-# đổi hai dòng là quay về:
+# PHƯƠNG ÁN CHUYỂN KHO TRUNG GIAN: BỎ HẲN, KHÔNG DÙNG NỮA
+# --------------------------------------------------------
+# Anh Việt chốt 28/08/2026, sau khi Khải đề nghị: "phương án chuyển kho
+# trung gian là bỏ luôn, không dùng nữa". Đây KHÔNG phải một công tắc tắt
+# tạm chờ ngày bật lại. Bếp không đi qua kho trung gian trên thực tế, và
+# một luật đòi hàng ở nơi không có hàng thì chỉ làm bếp đứng.
+#
+# Bản luật cũ chép lại đây để đọc lịch sử, ĐỪNG chép ngược lên trên:
 #     BTP_SO_CAP:   [NGUYEN_LIEU]
 #     BTP_SAN_SANG: [BTP_SO_CAP, NGUYEN_LIEU]
 #     THANH_PHAM:   [BTP_SAN_SANG, BTP_SO_CAP, NGUYEN_LIEU]
+# Ai muốn quay về bản đó thì phải hỏi anh Việt trước, vì quay về là bếp
+# lại gặp đúng câu "thiếu nguyên liệu" mà Khải đã gặp sáu lần.
 LUAT_NGUON = {
 	BTP_SO_CAP: [NGUYEN_LIEU],
 	BTP_SAN_SANG: [NGUYEN_LIEU],
@@ -97,8 +114,8 @@ LUAT_KHO_DICH = {
 	THANH_PHAM: THANH_PHAM,
 }
 
-# Hai chặng kho bị tắt. Giữ tên ở đây để hàm tắt kho và ca kiểm cùng đọc
-# một chỗ, và để lần sau bật lại thì biết đúng bốn kho nào.
+# Hai chặng kho đã tắt hẳn. Giữ tên ở đây để hàm tắt kho và ca kiểm cùng
+# đọc một chỗ, và để người sau biết bốn kho nào đang nằm im.
 CHANG_TAT = (BTP_SO_CAP, BTP_SAN_SANG)
 
 # Hai bếp, kèm tiền tố tên kho và người giữ kho.
@@ -574,8 +591,9 @@ def tat_kho_trung_gian(chay_that=0):
 	nay. Còn tồn hay còn bút toán là DỪNG: tắt một kho đang giữ hàng thật
 	là làm hàng đó biến khỏi mọi màn hình mà sổ vẫn còn.
 
-	Tắt chứ KHÔNG xoá. Xoá là mất đường tra lại, mà bốn kho này có thể được
-	bật lại ngày bếp chạy đủ bốn chặng thật.
+	Tắt chứ KHÔNG xoá. Xoá là mất đường tra lại, và sổ kho cũ trỏ vào một
+	kho không còn tồn tại thì mọi màn đọc sổ đều vỡ. Tắt rồi thì kho biến
+	khỏi mọi ô chọn nhưng vẫn tra lại được.
 	"""
 	_chan()
 	chay_that = cint(chay_that)

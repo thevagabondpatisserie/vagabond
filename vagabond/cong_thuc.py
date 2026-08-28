@@ -195,9 +195,28 @@ def _nhom_nuoc():
 	return ra
 
 
+from vagabond.ton_chang import chang_cua_nhan, ten_chang
+
+
+def ten_chang_gom(nhan):
+	"""Nhãn chặng cũ hiện lên màn hình bằng tên đã gom. Rỗng thì để rỗng.
+
+	Khải chốt 28/08/2026: năm nhãn cũ gom còn hai tên cho phần bán thành
+	phẩm. Bảng gom nằm ở `ton_chang`, đây chỉ gọi sang - để hai chỗ không
+	nói hai câu khác nhau về cùng một công thức.
+	"""
+	c = chang_cua_nhan(nhan)
+	return ten_chang(c) if c else ((nhan or "").strip())
+
+
 @frappe.whitelist()
-def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None):
-	"""Toàn bộ công thức, gắn tab và trạng thái, lọc tại máy chủ."""
+def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None):
+	"""Toàn bộ công thức, gắn tab và trạng thái, lọc tại máy chủ.
+
+	`chang` lọc theo chặng ĐÃ GOM, không phải nhãn cũ. Bấm chip "BTP sơ
+	cấp" thì ra cả công thức ghi "BTP thành phần" lẫn công thức ghi "Ruột
+	bánh (C1)" - đó chính là ý của việc gom.
+	"""
 	_kiem_xem()
 	boms = frappe.get_all(
 		"BOM",
@@ -230,10 +249,13 @@ def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None):
 			continue
 		if not khop_tim(tim, b.item, ten):
 			continue
+		if chang and chang_cua_nhan(b.custom_chang) != chang:
+			continue
 		theo_tab[t] = theo_tab.get(t, 0) + 1
 		ra.append({"bom": b.name, "ma": b.item, "ten": ten, "tab": t,
 			"trang_thai": tt, "so_luong": b.quantity, "dvt": b.uom,
-			"chang": b.custom_chang or "", "ban_truoc": b.custom_ban_truoc or "",
+			"chang": ten_chang_gom(b.custom_chang),
+			"ban_truoc": b.custom_ban_truoc or "",
 			"phien_ban": duoi_phien_ban(b.name),
 			"sua_luc": str(b.modified)[:16]})
 	# Gan tinh trang huong dan che bien len tung the. Mot truy van cho ca
@@ -308,7 +330,8 @@ def chi_tiet(name):
 		"bom": b.name, "ma": b.item,
 		"ten": frappe.db.get_value("Item", b.item, "item_name") or b.item,
 		"trang_thai": trang_thai_bom(b.docstatus, b.is_active, b.is_default),
-		"so_luong": b.quantity, "dvt": b.uom, "chang": b.get("custom_chang") or "",
+		"so_luong": b.quantity, "dvt": b.uom,
+		"chang": ten_chang_gom(b.get("custom_chang")),
 		"dong": dong, "ban_truoc": chuoi, "ban_sau": ban_sau,
 		"phien_ban": duoi_phien_ban(b.name),
 	}

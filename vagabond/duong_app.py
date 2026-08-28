@@ -146,6 +146,10 @@ MAN = (
 	("XKD", "Xuất điều chuyển", None),
 	("KK", "Kiểm kê", None),
 	("STOCK", "Tồn kho", None),
+	# Ton kho theo chang, them 28/08/2026. Khac man STOCK: man kia tra loi
+	# "kho nay dang co gi", man nay tra loi "hang cua bep dang dung o chang
+	# nao". Hai cau khong thay the nhau duoc.
+	("TONCHANG", "Tồn kho theo chặng", None),
 	("PTCH", "Chuyển phantom", None),
 
 	# --- Sản xuất
