@@ -1121,10 +1121,52 @@ async function scrHoSoTTView(name) {
      Nhưng KHÔNG xoá hẳn khối: hồ sơ cũ đã đính tệp theo đường này thì tệp đó
      vẫn phải nhìn thấy và gỡ được, không thì nó nằm trong bộ hồ sơ xuất ra mà
      trên màn hình không còn dấu vết nào. Hết tệp thì khối tự biến mất. */
-  if ((d.ho_so_dinh_kem || []).length) {
+  /* UY NHIEM CHI
+     ------------------------------------------------------------------
+     Anh Viet chot 28/08/2026: dinh UNC len ho so ROI moi ghi nhan thanh
+     toan duoc, ap cho MOI loai ho so. May chu chan that, khoi nay chi la
+     cho de bam va de nhin.
+
+     Vi sao tach thanh khoi rieng chu khong tron vao "Tep dinh kem": UNC la
+     to giay quyet dinh duoc bam nut hay khong, tron vao mot dong tep chung
+     thi khong ai thay no thieu. */
+  var uncDs = d.unc || [];
+  var uncGo = Number(d.unc_go_duoc || 0) && (Q.fin || Q.gd);
+  if (Q.fin || Q.gd || uncDs.length) {
+    html += '<div class="sec">Uỷ nhiệm chi</div><div class="card" style="padding:12px 14px">';
+    if (uncDs.length) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:14px 11px;padding:2px 0 4px">' +
+        uncDs.map(function (f) {
+          var laAnh = /\.(jpe?g|png|gif|bmp|webp)$/i.test(f.ten || '');
+          return oTep({
+            url: f.url, ten: f.ten, anh: laAnh ? 1 : 0, co: 72, nhan: 1,
+            mo: laAnh ? 'data-scan="' + h(f.url) + '"' : 'data-motep="' + h(f.url) + '"',
+            go: uncGo ? 'data-hsgounc="' + h(f.file) + '"' : ''
+          });
+        }).join('') + '</div>';
+    } else {
+      html += '<div style="font-size:13px;line-height:1.6;color:#92400e;background:#fffbeb;' +
+        'border:1px solid #fde68a;border-radius:9px;padding:10px 12px">' +
+        'Chưa có uỷ nhiệm chi. Tải UNC từ e-banking về máy rồi bấm nút dưới đây. ' +
+        'Chưa có tờ này thì máy chưa cho ghi nhận thanh toán.</div>';
+    }
+    if (Q.fin || Q.gd) {
+      html += '<button class="btn gh" data-hsv="dinhunc" style="width:100%;margin:10px 0 0">' +
+        '📎 Đính kèm uỷ nhiệm chi</button>';
+    }
+    html += '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
+      'Tờ này đi theo bút toán chi và đính vào thư báo gửi nhà cung cấp.</div></div>';
+  }
+
+  /* Tep dinh kem chung cua ho so. Loc bo cac to UNC da bay o khoi tren,
+     khong thi mot to hien hai lan. */
+  var uncMa = {};
+  uncDs.forEach(function (f) { uncMa[f.file] = 1; });
+  var tepChung = (d.ho_so_dinh_kem || []).filter(function (f) { return !uncMa[f.file]; });
+  if (tepChung.length) {
     html += '<div class="sec">Tệp đính kèm thẳng vào hồ sơ</div><div class="card" style="padding:12px 14px">';
     html += '<div style="display:flex;flex-wrap:wrap;gap:14px 11px;padding-top:4px">' +
-      d.ho_so_dinh_kem.map(function (f) {
+      tepChung.map(function (f) {
         var laAnh = /\.(jpe?g|png|gif|bmp|webp)$/i.test(f.ten || '');
         return oTep({
           url: f.url, ten: f.ten, anh: laAnh ? 1 : 0, co: 72, nhan: 1,
@@ -1190,6 +1232,21 @@ async function scrHoSoTTView(name) {
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsv]'), function (el) {
     el.onclick = function (ev) { ev.stopPropagation(); hsHanh(el.getAttribute('data-hsv'), hs); };
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hsgounc]'), function (el) {
+    el.onclick = async function (ev) {
+      ev.stopPropagation();
+      var ma = el.getAttribute('data-hsgounc');
+      if (!ma) return;
+      if (!await hoiCo('Gỡ uỷ nhiệm chi',
+        'Tệp không bị xoá, chỉ thôi không nằm trên hồ sơ này nữa. Hồ sơ đã thanh toán thì không gỡ được.',
+        'Gỡ')) return;
+      busy(true);
+      try { await api('vagabond.tra_tien_app.go_unc', { name: hs.ma, tep: ma }); busy(false); toast('Đã gỡ uỷ nhiệm chi'); }
+      catch (e) { busy(false); return baoTin(errMsg(e) || 'Không gỡ được'); }
+      go(function () { scrHoSoTTView(hs.ma); }, true);
+    };
   });
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsgotep]'), function (el) {
@@ -1318,7 +1375,32 @@ async function hsHanh(k, hs) {
       var kq2 = await api('vagabond.ho_so_tt.danh_dau_da_tra', { name: hs.ma, ma_giao_dich: mgd });
       busy(false);
       toast('Đã ghi nhận thanh toán' + (kq2.but_toan ? ' · bút toán ' + kq2.but_toan : ''), 4000);
+      /* Thu bao di tu dong. Gui duoc thi bao mot dong, gui khong duoc thi
+         noi ro vi sao de nguoi bam con gui tay, dung de im lang. */
+      var th = kq2.thu || {};
+      if (th.gui) toast('✉️ Đã gửi thư báo và uỷ nhiệm chi tới ' + th.toi, 5200);
+      else if (th.vi_sao) baoTin(th.vi_sao, 'Chưa gửi được thư báo');
     } catch (e) { busy(false); return baoTin((e && e.message) || 'Ghi nhận lỗi'); }
+    return go(function () { scrHoSoTTView(hs.ma); }, true);
+  }
+  if (k === 'dinhunc') {
+    var fu = await huChonTep();
+    if (!fu) return;
+    if (fu.size > 12 * 1024 * 1024) {
+      return baoTin('Tệp nặng quá 12 MB nên máy không nhận. Vui lòng xuất lại bản PDF nhỏ hơn.', 'Tệp quá nặng');
+    }
+    busy(true);
+    var tu;
+    try { tu = await huUpTep(fu); }
+    catch (e) { busy(false); return baoTin('Không tải tệp lên được: ' + ((e && e.message) || '')); }
+    try {
+      await api('vagabond.tra_tien_app.dinh_unc', { name: hs.ma, tep: JSON.stringify([tu]) });
+      busy(false);
+      toast('Đã đính uỷ nhiệm chi vào hồ sơ ' + hs.ma, 3800);
+    } catch (e2) {
+      busy(false);
+      return baoTin(errMsg(e2) || 'Không đính được uỷ nhiệm chi.', 'Chưa đính được');
+    }
     return go(function () { scrHoSoTTView(hs.ma); }, true);
   }
   if (k === 'xemthu') {
