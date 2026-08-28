@@ -267,7 +267,7 @@ async function scrHoSoTTTao() {
               (hsTkHoan
                 ? ((hsTkDs && hsTkDs.doan)
                     ? '⚠️ Người này chưa gắn tài khoản nào vào quỹ tạm ứng 1411, nên máy bày tạm mọi tài khoản. Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 bên Next.'
-                    : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì ACB và OCB nhìn lướt rất giống nhau.')
+                    : 'Tiền hoàn ứng trả về đúng tài khoản đã ứng ra. Số tài khoản hiện cạnh tên vì các tài khoản nhìn lướt rất giống nhau.')
                 : 'Chưa chọn tài khoản nhận tiền. Người này có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.') +
               '</div>'
             : '<div style="font-size:13px;color:#b45309;line-height:1.6">Người này chưa khai tài khoản ngân hàng nào. ' +
@@ -483,9 +483,9 @@ async function hsChonLoaiMoi() {
     { k: 'tt', icon: '⏩', nhan: 'Tạo phiếu thanh toán trước cho NCC',
       mo_ta: 'Trả trước khi chưa có hoá đơn: đơn in ấn, đơn đặt sản xuất có điều khoản cọc. Neo vào đơn mua hàng, hoá đơn về thì tự cấn trừ.' },
     { k: 'hu_hd', icon: '🧾', nhan: 'Hoàn ứng có hoá đơn',
-      mo_ta: 'Uyên đã ứng tiền OCB mua hàng có hoá đơn, hàng đã nhập kho. Chọn nhiều hoá đơn gom chung một hồ sơ để hoàn lại tiền.' },
+      mo_ta: 'Uyên đã ứng tiền mua hàng có hoá đơn, hàng đã nhập kho. Chọn nhiều hoá đơn gom chung một hồ sơ để hoàn lại tiền.' },
     { k: 'hu_khd', icon: '🧮', nhan: 'Hoàn ứng không hoá đơn',
-      mo_ta: 'Khoản lẻ không có hoá đơn: hàng test, hàng phát sinh, chi phí bảo trì. Gõ tay từng khoản, gắn với giao dịch OCB.' },
+      mo_ta: 'Khoản lẻ không có hoá đơn: hàng test, hàng phát sinh, chi phí bảo trì. Gõ tay từng khoản, gắn với giao dịch ngân hàng.' },
     { k: 'tkct', icon: '🏦', nhan: 'Thanh toán từ TK công ty',
       mo_ta: 'Chi trả trực tiếp từ tài khoản công ty cho chi phí phát sinh, không qua Purchasing. Kế toán chủ động định khoản.' }
   ]);
@@ -536,11 +536,11 @@ async function scrHoanUngTao() {
           ? 'Chưa chọn tài khoản nhận tiền. Có nhiều hơn một tài khoản nên máy không tự chọn thay, phải bấm đúng cái cần chuyển.'
           : dstk.doan
           ? '⚠️ Chưa có tài khoản nào gắn vào quỹ tạm ứng ' + '1411' + ', nên hệ thống bày tạm mọi tài khoản công ty. ' +
-            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn ACB và OCB.'
+            'Nhờ chị Dung gắn đúng tài khoản ứng vào 1411 thì danh sách này gọn lại còn đúng tài khoản đang dùng.'
           : 'Tiền hoàn ứng luôn trả về tài khoản đã ứng ra. Chọn đúng tài khoản thì số dư quỹ tạm ứng mới khớp.') +
         '</div>'
       : '<div style="font-size:13px;color:#b45309;line-height:1.6">Chưa khai tài khoản ngân hàng nào. ' +
-        'Nhờ chị Dung tạo Bank Account cho ACB và OCB bên Next trước đã.</div>') +
+        'Nhờ chị Dung tạo Bank Account cho quỹ tạm ứng bên Next trước đã.</div>') +
     '</div>';
 
   html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a">' +
@@ -657,7 +657,7 @@ async function scrHuSepay(kq) {
     + '<span style="font-size:13.5px;color:#374151">' + chon.length + ' / ' + rows.length + ' giao dịch</span>'
     + '<b style="font-size:20px;color:#92400e">' + money(tong) + ' đ</b></div></div>';
 
-  html += '<div class="sec">Giao dịch chi ra từ quỹ OCB · bấm để chọn</div><div class="card">';
+  html += '<div class="sec">Giao dịch chi ra từ quỹ tạm ứng · bấm để chọn</div><div class="card">';
   rows.forEach(function (r) {
     var da = !!huGdChon[r.ma_giao_dich];
     html += '<div class="hub" data-hugd="' + h(r.ma_giao_dich) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>'
@@ -671,7 +671,7 @@ async function scrHuSepay(kq) {
   var foot = '<div style="display:flex;gap:8px">'
     + '<button class="btn" id="huGdXong" style="flex:2">➕ Đưa ' + chon.length + ' khoản vào hồ sơ</button>'
     + '<button class="btn gh" id="huGdVe" style="flex:1">← Quay lại</button></div>';
-  var b = frame('Sao kê quỹ OCB', html, { footer: foot });
+  var b = frame('Sao kê quỹ tạm ứng', html, { footer: foot });
 
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hugd]'); if (!r) return;
@@ -682,7 +682,7 @@ async function scrHuSepay(kq) {
   document.getElementById('huGdVe').onclick = function () { go(scrHoanUngTao); };
   document.getElementById('huGdXong').onclick = function () {
     var them = rows.filter(function (r) { return huGdChon[r.ma_giao_dich]; });
-    if (!them.length) return baoTin('Chưa tick giao dịch nào.', 'Sao kê OCB');
+    if (!them.length) return baoTin('Chưa tick giao dịch nào.', 'Sao kê quỹ tạm ứng');
     them.forEach(function (r) {
       // Da co khoan nao mang dung ma giao dich nay thi khong them lan hai.
       if (huDong.some(function (x) { return x.ma_giao_dich === r.ma_giao_dich; })) return;
@@ -1266,7 +1266,7 @@ async function hsHanh(k, hs) {
     if (t1 === null) return;
     var t2 = await hoiNhap('Số tài khoản:', hs.stk_nhan || '');
     if (t2 === null) return;
-    var t3 = await hoiNhap('Ngân hàng (viết tắt cũng được, ví dụ OCB, MB, VCB):', hs.ngan_hang_nhan || '');
+    var t3 = await hoiNhap('Ngân hàng (viết tắt cũng được, ví dụ ACB, MB, VCB):', hs.ngan_hang_nhan || '');
     if (t3 === null) return;
     busy(true);
     try { await api('vagabond.ho_so_tt.sua_tk_nhan', { name: hs.ma, ten_nhan: t1, stk_nhan: t2, ngan_hang_nhan: t3 }); busy(false); toast('Đã lưu tài khoản nhận'); }
