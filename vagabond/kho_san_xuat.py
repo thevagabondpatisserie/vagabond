@@ -2,10 +2,10 @@
 
 Khải chốt 21/08/2026: mỗi bếp đi bốn chặng, mỗi chặng một kho, và kho nào
 lấy hàng từ kho nào phải cố định thành luật chứ không để người tạo lệnh tự
-chọn. Nguyên liệu về kho tổng 307 do anh Kiên giữ, chuyển sang kho nguyên
+chọn. Nguyên liệu về kho tổng 307 do bộ phận kho giữ, chuyển sang kho nguyên
 liệu của bếp, rồi đi lên dần:
 
-    Kho tổng 307 (Kiên)
+    Kho tổng 307
         v  chuyển kho nội bộ
     <Bếp> - Nguyên liệu          chặng nguyen_lieu
         v
