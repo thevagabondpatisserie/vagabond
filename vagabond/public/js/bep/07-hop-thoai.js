@@ -29,6 +29,9 @@ function hopKhung(tuaDe, thanHtml, chanHtml) {
 function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
   return new Promise(function (xong) {
     var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    /* Danh sach dai thi them o tim. Hop chon tai khoan, chon nha cung cap,
+       chon nhom tai san deu di qua day, nen mot cho nay lo cho nhieu man. */
+    than += vgbOTim('hcTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       var chon = kDangChon != null && x.k === kDangChon;
       than += '<div data-hc="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;'
@@ -40,6 +43,10 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
         + '</div></div>';
     });
     var k = hopKhung(tuaDe, than, '<button class="btn gh" data-hcx style="flex:1;margin:0">Thôi</button>');
+    /* Loc theo ca nhan lan mo ta: nho gia von hay so tai khoan nam trong mo
+       ta thi go so cung ra. */
+    vgbNoiOTim(k.box, 'hcTim', '[data-hc]');
+    try { var _ot = k.box.querySelector('#hcTim'); if (_ot) _ot.focus(); } catch (e) { }
     var tra = function (v) { k.dong(); xong(v); };
     k.box.onclick = function (e) {
       if (e.target.closest('.x') || e.target.closest('[data-hcx]')) return tra(null);
@@ -698,3 +705,75 @@ async function scrRndDoc(name) {
 
 /* ---------- 16. Boot ---------- */
 document.title = APPNAME;
+
+/* ---------- O TIM DUNG CHUNG CHO MOI CHO CHON (v333, 28/08/2026) ----------
+
+   Anh Viet chot: *"moi noi can thao tac chon (select) thi phai co o tim
+   kiem, co danh muc cung phai co o tim kiem"*. Uyen bao truoc do: man Lap
+   ho so thanh toan bay 17 nha cung cap thanh mot bang chip, muon them mot
+   nha la phai do bang mat, khong co duong nao go tim.
+
+   HAI LUAT CUA CACH LAM NAY
+   -------------------------
+   1. LOC NGAY TREN DOM, KHONG VE LAI MAN. Ve lai man thi mat vi tri cuon,
+      mat cai dang go, va tren dien thoai la ban phim tut xuong sau MOI chu.
+      Man "Nguoi duoc hoan ung" truoc day loc bang cach goi go(..., true),
+      go mot chu la ban phim nhay mot cai - dung cai lam nguoi ta bo cuoc.
+   2. GO KHONG DAU VAN RA. Go "dien luc" phai thay "ĐIỆN LỰC". Dung lai
+      `mvKhongDau` da co san chu khong viet them mot ban nua.
+
+   O tim chi hien khi danh sach du dai de dang tim. Bay ba cai chip ma con
+   doi go tim thi la lam phien. */
+
+/* Nguong: it hon bay muc thi liec mat la thay, khong can o tim. */
+var VGB_NGUONG_TIM = 7;
+
+function vgbCanOTim(soMuc) { return Number(soMuc || 0) >= VGB_NGUONG_TIM; }
+
+/* HTML cua o tim. Tra ve chuoi rong khi danh sach con ngan. */
+function vgbOTim(idO, soMuc, goiY) {
+  if (!vgbCanOTim(soMuc)) return '';
+  return '<input class="tin" id="' + h(idO) + '" type="search" autocomplete="off" ' +
+    'placeholder="' + h(goiY || ('🔎 Gõ để tìm nhanh trong ' + soMuc + ' mục')) + '" ' +
+    'style="margin:0 0 9px">' +
+    '<div id="' + h(idO) + 'Trong" style="display:none;font-size:12.5px;color:#b45309;' +
+    'padding:6px 2px 9px;line-height:1.55">Không có mục nào khớp. Xoá bớt chữ rồi tìm lại.</div>';
+}
+
+/* Noi o tim vao cac muc da ve san.
+
+   goc      : phan tu chua ca o tim lan cac muc, thuong la than man hinh.
+   idO      : id da dat o `vgbOTim`.
+   mucSel   : chuoi CSS chon TUNG muc can loc.
+   layChu   : ham lay chu de so khop tu mot muc. Bo trong thi lay textContent.
+
+   Khong tim thay o tim thi im lang di ra, vi danh sach ngan khong ve o tim. */
+function vgbNoiOTim(goc, idO, mucSel, layChu) {
+  if (!goc) return;
+  var o = goc.querySelector('#' + idO);
+  if (!o) return;
+  var oTrong = goc.querySelector('#' + idO + 'Trong');
+  var muc = [].slice.call(goc.querySelectorAll(mucSel));
+  if (!muc.length) return;
+  var chu = muc.map(function (el) {
+    return mvKhongDau(layChu ? layChu(el) : (el.textContent || ''));
+  });
+  var chay = function () {
+    var q = mvKhongDau(o.value).trim();
+    var thay = 0;
+    for (var i = 0; i < muc.length; i++) {
+      var hop = !q || chu[i].indexOf(q) >= 0;
+      muc[i].style.display = hop ? '' : 'none';
+      if (hop) thay++;
+    }
+    if (oTrong) oTrong.style.display = (q && !thay) ? '' : 'none';
+  };
+  o.addEventListener('input', chay);
+  /* Enter tren dien thoai: con dung mot muc thi chon luon cho do phai cham. */
+  o.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var con = muc.filter(function (el) { return el.style.display !== 'none'; });
+    if (con.length === 1) { e.preventDefault(); con[0].click(); }
+  });
+  chay();
+}

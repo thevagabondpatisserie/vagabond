@@ -53,6 +53,23 @@ dung im trong suot mot mach xem chi tiet roi tro ve dung cho khi lui.
 Nac 0 mang chuoi rong, va chuoi rong nghia la dia chi goc cua app. */
 S.duong = [];
 
+/* VI TRI CUON CUA TUNG NAC, song song voi S.stack va S.duong.
+
+   Anh Viet bao 28/08/2026: *"nhan nut back tren trinh duyet thi cac trang
+   danh sach van bi cuon len dau chu khong tra lai o vi tri dang xem den
+   truoc do, cu phai keo xuong kha la mat thoi gian"*.
+
+   VI SAO BAN CU KHONG DU. `VGB_CUON` la MOT bien duy nhat cho ca app, va
+   `frame()` xoa no ve 0 moi khi tieu de doi. Mo mot dong trong danh sach ra
+   xem chi tiet la tieu de doi, vi tri mat ngay tai do; luc lui ve tieu de
+   lai doi lan nua nen danh sach ve dau trang. Bien mot cai thi khong the
+   nho duoc hai man cung luc.
+
+   NAY MOI NAC GIU RIENG MOT SO. Day xuong mot nac thi cat vi tri cua nac
+   duoi lai; lui len thi lay ra tra ve. Lui may nac mot lan bang nut Back
+   cua trinh duyet cung dung, vi lay theo chi so nac chu khong theo tieu de. */
+S.cuon = [0];
+
 /* Cau hoi phai hoi truoc khi roi man dang giu thay doi chua luu. Rong la
    khong co gi de mat. Xem chu thich o `roiChuaLuu` ben duoi. */
 S.chuaLuu = '';
@@ -96,8 +113,12 @@ function go(fn, replace) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
   if (!replace) {
+    /* Cat vi tri cuon cua nac dang dung TRUOC khi day xuong. Thieu dong nay
+       thi lui ve khong con gi de tra. */
+    S.cuon[S.stack.length - 1] = VGB_CUON;
     S.stack.push(fn);
     S.duong.push(slug || vgbNacDuong());
+    S.cuon.push(0);
     /* pushState TRUOC khi doi dia chi: moc moi phai chup lai dia chi CU thi
        moc cua man cha moi con nguyen dia chi cua no. Doi thu tu hai dong
        nay chinh la loi anh Viet bao ngay 24/08. */
@@ -113,7 +134,9 @@ function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
     S.chuaLuu = '';
-    S.stack.pop(); S.duong.pop(); vgbApNac(); render();
+    S.stack.pop(); S.duong.pop(); S.cuon.pop();
+    vgbHenTraCuon();
+    vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
@@ -136,6 +159,8 @@ function reset(fn) {
   S.chuaLuu = '';
   S.stack = [fn];
   S.duong = [slug];
+  S.cuon = [0];
+  VGB_CHO_TRA = 0;
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
   vgbApNac();
   return render();
@@ -184,6 +209,21 @@ function render() { var f = S.stack[S.stack.length - 1]; if (f) return f(); }
    Doi sang man khac thi tieu de khac, xoa vi tri de bat dau tu dau trang. */
 var VGB_TD = '', VGB_CUON = 0, VGB_DANG_TRA = 0;
 
+/* Vi tri dang cho duoc tra lai sau mot lan lui. 0 la khong co hen nao.
+
+   Phai la mot bien rieng chu khong gan thang vao VGB_CUON, vi `frame()` xoa
+   VGB_CUON moi khi tieu de doi - ma lui ve thi tieu de LUON doi. */
+var VGB_CHO_TRA = 0;
+
+/* Goi sau khi da cat bot chong: hen tra lai vi tri cuon cua nac con lai.
+
+   Dung cho ca nut ‹ trong app lan nut Back cua trinh duyet. Nut Back co the
+   nhay lui may nac mot lan, nhung ham nay chi doc nac tren cung sau khi cat
+   nen bao nhieu nac cung dung. */
+function vgbHenTraCuon() {
+  VGB_CHO_TRA = Number(S.cuon[S.cuon.length - 1]) || 0;
+}
+
 function vgbTheoDoiCuon(ob) {
   if (!ob || ob.vgbDaNghe) return;
   ob.vgbDaNghe = 1;
@@ -213,7 +253,11 @@ function frame(title, bodyHtml, opt) {
   /* Tieu de tab trinh duyet theo man hinh, liec tab biet ngay dang o dau */
   try { document.title = (title && title !== APPNAME) ? title + ' · Vagabond' : APPNAME; } catch (e) { }
   var doiMan = (VGB_TD !== title);
-  if (doiMan) VGB_CUON = 0;
+  /* Vua lui ve mot nac cu thi tra lai dung cho nguoi ta dang doc, DU tieu de
+     co khac. Doc mot lan roi xoa hen: man do co ve lai lan hai cho du lieu
+     that thi da co VGB_CUON giu cho. */
+  if (VGB_CHO_TRA > 0) { VGB_CUON = VGB_CHO_TRA; VGB_CHO_TRA = 0; doiMan = false; }
+  else if (doiMan) VGB_CUON = 0;
   VGB_TD = title;
   var giuCuon = (!doiMan && VGB_CUON > 0);
   var showBack = S.stack.length > 1;
