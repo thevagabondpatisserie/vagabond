@@ -164,6 +164,52 @@ def gom_theo_ma(dong):
 	return sorted(ra.values(), key=lambda x: x["ma"])
 
 
+def chon_bep(*ung_vien):
+	"""Bếp của một dòng: lấy ứng viên đầu tiên có giá trị. THUẦN.
+
+	Thứ tự tin cậy giảm dần, người gọi tự xếp: hồ sơ món trước, rồi bếp của
+	món cha, rồi kho đang gắn, cuối cùng là chip bếp người dùng đang xem.
+	Tách ra thành hàm riêng để kiểm được bằng dữ liệu dựng tay, và để chỗ
+	nào cần đoán bếp cũng đoán theo đúng một luật.
+	"""
+	for x in ung_vien:
+		x = (x or "").strip().lower()
+		if x:
+			return x
+	return ""
+
+
+def chia_so_luong(cac_con, tong):
+	"""Chia số lượng muốn làm cho từng dòng phiếu yêu cầu. THUẦN.
+
+	`cac_con` là số còn phải làm của từng dòng, theo đúng thứ tự. `tong` là
+	số bếp gõ vào. Trả về (danh sách số cho từng dòng, phần dôi ra).
+
+	Ba tình huống:
+	  - Gõ đúng bằng tổng: mỗi dòng nhận đúng phần của nó.
+	  - Gõ ÍT hơn: rót lần lượt từ dòng đầu tới khi hết số. Dòng chưa được
+	    rót thì lần sau ra lệnh tiếp, phiếu yêu cầu của nó vẫn còn treo
+	    đúng số cũ.
+	  - Gõ NHIỀU hơn (bếp làm chẵn mẻ): mỗi dòng vẫn nhận đúng phần của nó,
+	    phần dôi trả về riêng. Người gọi ra thêm MỘT lệnh cho phần dôi và
+	    KHÔNG neo lệnh đó vào phiếu yêu cầu nào. Nhét phần dôi vào một
+	    phiếu yêu cầu bất kỳ là làm sai số của điểm bán đó.
+	"""
+	cac_con = [_so(x) for x in (cac_con or [])]
+	tong = _so(tong)
+	if tong <= 0:
+		return ([], 0.0)
+	ra, con_lai = [], tong
+	for c in cac_con:
+		if con_lai <= 0:
+			ra.append(0.0)
+			continue
+		phan = c if c <= con_lai else con_lai
+		ra.append(phan)
+		con_lai -= phan
+	return (ra, con_lai if con_lai > 0 else 0.0)
+
+
 def neo_nvl_theo_btp(nvl, btp, ma_cua_bom):
 	"""Xổ nguyên liệu ra dưới đúng bán thành phẩm. PHÉP THUẦN.
 
@@ -631,6 +677,82 @@ def _ma_cua_bom(cac_bom):
 	return ra
 
 
+def _anh_cua(cac_ma):
+	"""Ảnh của từng món, đọc một lượt.
+
+	Anh Việt 29/08/2026: "chỗ tên món phải đi kèm ảnh món cho dễ nhận dạng,
+	cái này phải làm ở backend". Nên ảnh đi cùng dòng dữ liệu chứ không để
+	app tự đi hỏi thêm một vòng.
+	"""
+	ra = {}
+	cac_ma = sorted({m for m in (cac_ma or []) if m})
+	for i in range(0, len(cac_ma), 200):
+		for d in frappe.get_all("Item", filters={
+			"name": ["in", cac_ma[i:i + 200]]},
+			fields=["name", "image"], limit_page_length=0):
+			if d.get("image"):
+				ra[d["name"]] = d["image"]
+	return ra
+
+
+def _bep_cua_nhieu(cac_ma):
+	"""Bếp phụ trách của từng món, đọc một lượt thay vì hỏi từng mã."""
+	ra = {}
+	cac_ma = sorted({m for m in (cac_ma or []) if m})
+	for i in range(0, len(cac_ma), 200):
+		for d in frappe.get_all("Item", filters={
+			"name": ["in", cac_ma[i:i + 200]]},
+			fields=["name", "custom_bep_phu_trach"], limit_page_length=0):
+			b = (d.get("custom_bep_phu_trach") or "").strip().lower()
+			if not b:
+				continue
+			if b in ksx.BEP:
+				ra[d["name"]] = b
+				continue
+			for ma_bep, x in ksx.BEP.items():
+				if x["ten"].lower() in b:
+					ra[d["name"]] = ma_bep
+					break
+	return ra
+
+
+def _kho_dich_cua(ma, bep, chang=None):
+	"""Kho nhập thành phẩm của một món, theo luật kho của tiệm.
+
+	KHÔNG dùng kho mặc định của ERPNext cho việc này. Kho mặc định là MỘT
+	ô cho cả công ty, nên mọi lệnh đều nhập về cùng một kho: ngày 29/08/2026
+	lệnh BTP nhập thẳng vào kho Nguyên liệu, sai chặng. Luật của tiệm cần
+	hai dữ kiện là chặng của món và bếp nào làm, nên phải tính chứ không
+	tra được từ một ô.
+	"""
+	if not ma or not bep:
+		return ""
+	try:
+		kt, ten = ksx._ho_so_mon(ma)
+		c = chang or ksx.chang_cua_mon(ma, ksx._co_btp_con(ma), kt, ten)
+		_, _, dich = ksx.kho_cua_lenh(c, bep)
+		if dich and frappe.db.exists("Warehouse", dich):
+			return dich
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "vagabond: doan kho dich")
+	return ""
+
+
+def _cac_kho_chon():
+	"""Danh sách kho cho bếp tự chọn khi ra lệnh.
+
+	Anh Việt 29/08/2026: "lỡ có những món cả 2 kho đều dùng thì sao". Nên
+	máy chỉ ĐOÁN kho rồi hiện ra, bếp đổi được sang kho bếp kia.
+	"""
+	ra = []
+	for k in ksx.khai_cay_kho():
+		ten = k.get("ten") if isinstance(k, dict) else k
+		if ten and frappe.db.exists("Warehouse", ten) and not cint(
+				frappe.db.get_value("Warehouse", ten, "disabled")):
+			ra.append(ten)
+	return sorted(set(ra))
+
+
 def _bep_cua(ma, kho):
 	"""Bếp của một dòng: ưu tiên hồ sơ món, không có thì đoán theo kho."""
 	return ksx._bep_cua_mon(ma) or ksx.bep_cua_kho(kho or "") or ""
@@ -663,6 +785,18 @@ def xem(ngay=None, ten=None):
 	cac_ma = sorted({x.get("item_code") for x in tp if x.get("item_code")}
 		| {x.get("production_item") for x in btp if x.get("production_item")}
 		| {x.get("item_code") for x in nvl if x.get("item_code")})
+	anh = _anh_cua(cac_ma)
+	bep_khai = _bep_cua_nhieu(cac_ma)
+	# Bep cua mot THANH PHAM: ho so mon truoc, khong khai thi lay bep cua
+	# ban thanh pham con cua no trong chinh phieu nay. KHONG doan theo kho
+	# trong dong thanh pham: o do la kho DIEM BAN dat hang, khong phai bep
+	# lam ra mon. Ngay 29/08/2026 lenh banh Greengold nhap thang vao Kho
+	# Sales Online vi doan theo o kho do.
+	for x in btp:
+		cha = (x.get("parent_item_code") or "").strip()
+		con = (x.get("production_item") or "").strip()
+		if cha and cha not in bep_khai and bep_khai.get(con):
+			bep_khai[cha] = bep_khai[con]
 	ton_nay = _ton_hien_tai(cac_ma, kho_bep)
 	ton_dau = _ton_dau_ngay(cac_ma, kho_bep, ngay)
 	ton_goc = _ton_kho_goc(cac_ma)
@@ -680,7 +814,8 @@ def xem(ngay=None, ten=None):
 			"con_lam": con_phai_lam(can, t_nay), "da_lenh": flt(da_lenh),
 			"chang": c, "ten_chang": tc.ten_chang(c) if c else "",
 			"chip_chang": tc.CHIP.get(c, ""), "muc": m, "ten_muc": TEN_MUC[m],
-			"mau": MAU_MUC[m], "bep": _bep_cua(ma, kho), "kho": kho or "",
+			"mau": MAU_MUC[m], "kho": kho or "", "anh": anh.get(ma, ""),
+			"bep": chon_bep(bep_khai.get(ma, ""), ksx.bep_cua_kho(kho or "") or ""),
 		}
 		if them:
 			d.update(them)
@@ -726,6 +861,12 @@ def xem(ngay=None, ten=None):
 			o["kho"], ",".join(o["khoa"]),
 			{"bom": o["bom"], "da_lam": o["da_lam"], "nguon": o["nguon"],
 				"so_nguon": len(o["nguon"])})
+		# Kho giao la kho DIEM BAN dat, giu lai de bep biet hang di dau.
+		# Kho NHAP thanh pham thi theo luat kho cua tiem, khong lay kho
+		# diem ban: banh lam xong nhap kho Thanh pham cua bep da, chuyen
+		# sang diem ban la mot phieu dieu chuyen rieng.
+		d["kho_giao"] = o["kho"] or ""
+		d["kho_dich"] = _kho_dich_cua(o["ma"], d["bep"])
 		ra_tp.append(d)
 
 	# Nguyên liệu xổ ra dưới từng bán thành phẩm. Luật neo nằm trong
@@ -751,6 +892,9 @@ def xem(ngay=None, ten=None):
 				"cua_mon": x.get("parent_item_code") or "",
 				"da_lam": flt(x.get("wo_produced_qty"))})
 		d["nvl"] = [_dong_nvl(n) for n in nvl_theo_btp.get(x.get("name"), [])]
+		b = chon_bep(d["bep"], bep_khai.get(d["cua_mon"], ""))
+		d["bep"] = b
+		d["kho_dich"] = x.get("fg_warehouse") or _kho_dich_cua(d["ma"], b)
 		ra_btp.append(d)
 	ra_btp.sort(key=lambda d: (-d["cap"], d["ma"]))
 
@@ -765,7 +909,7 @@ def xem(ngay=None, ten=None):
 		"so_ycsx": len(doc.material_requests or []),
 		"ycsx": [d.material_request for d in (doc.material_requests or [])],
 		"thanh_pham": ra_tp, "btp": ra_btp, "nvl": ra_nvl,
-		"so_thieu": so_thieu,
+		"so_thieu": so_thieu, "cac_kho": _cac_kho_chon(),
 		"tom_tat": cau_tom_tat(len(ra_tp), len(ra_btp), len(ra_nvl),
 			len(doc.material_requests or []), so_thieu),
 	})
@@ -791,7 +935,7 @@ def chot(ten):
 
 
 @frappe.whitelist()
-def tao_lenh(ten, khoa, loai="btp"):
+def tao_lenh(ten, khoa, loai="btp", so_luong=None, kho=None):
 	"""Tạo lệnh sản xuất cho một dòng, hoặc một nhóm dòng cùng mã.
 
 	`khoa` nhận nhiều tên dòng nối bằng dấu phẩy. Màn hình gom thành phẩm
@@ -801,24 +945,106 @@ def tao_lenh(ten, khoa, loai="btp"):
 	yêu cầu mới tự đóng lại khi làm xong. Gộp thành một lệnh thì năm phiếu
 	yêu cầu treo mãi ở trạng thái Pending, đúng cái đống 233 phiếu tồn đọng
 	đang có trên hệ.
+
+	`so_luong` là số bếp gõ vào khi muốn làm khác số máy tính (anh Việt
+	29/08/2026: bếp hay làm chẵn mẻ nên nhiều hơn số cần). Cách chia nằm ở
+	`chia_so_luong`: phần dôi ra thành MỘT lệnh riêng không neo vào phiếu
+	yêu cầu nào.
+
+	`kho` là kho nhập thành phẩm bếp chọn. Bỏ trống thì máy đoán theo chặng
+	và bếp của món.
+
+	TỰ CHỐT PHIẾU. ERPNext bắt buộc phiếu kế hoạch phải ghi sổ mới tạo lệnh
+	được, nhưng anh Việt 29/08/2026 bỏ nút chốt tổng vì bếp không chốt cả
+	phiếu một lượt được. Nên bước chốt lùi xuống đây, chạy ngầm ở lần ra
+	lệnh đầu tiên.
 	"""
+	_chan(QUYEN_SUA)
+	cac_khoa = [x.strip() for x in str(khoa or "").split(",") if x.strip()]
+	if not cac_khoa:
+		return {"ok": 0, "ghi_chu": "Không có dòng nào để tạo lệnh."}
+
+	da_chot_o_day = _chot_ngam(ten)
+
+	doc = frappe.get_doc("Production Plan", ten)
+	loai_n = (loai or "btp").strip().lower()
+	bang = doc.po_items if loai_n == "tp" else doc.sub_assembly_items
+	tra = {d.name: d for d in (bang or [])}
+	cac_con = []
+	for k in cac_khoa:
+		d = tra.get(k)
+		if not d:
+			cac_con.append(0.0)
+		elif loai_n == "tp":
+			cac_con.append(max(flt(d.planned_qty) - flt(d.ordered_qty), 0.0))
+		else:
+			cac_con.append(max(flt(d.qty) - flt(d.ordered_qty), 0.0))
+
+	if so_luong in (None, "", 0, "0"):
+		phan, doi = cac_con, 0.0
+	else:
+		phan, doi = chia_so_luong(cac_con, so_luong)
+
 	ra, hong = [], []
-	for k in [x.strip() for x in str(khoa or "").split(",") if x.strip()]:
-		r = _tao_mot_lenh(ten, k, loai)
+	for k, sl in zip(cac_khoa, phan):
+		if flt(sl) <= 0:
+			continue
+		r = _tao_mot_lenh(ten, k, loai_n, so_luong=sl, kho=kho)
 		if r.get("ok"):
 			ra.append(r.get("lenh"))
 		else:
 			hong.append(r.get("ghi_chu"))
+
+	if doi > 0 and cac_khoa:
+		r = _tao_mot_lenh(ten, cac_khoa[0], loai_n, so_luong=doi, kho=kho,
+			roi_phieu=1)
+		if r.get("ok"):
+			ra.append(r.get("lenh"))
+		else:
+			hong.append(r.get("ghi_chu"))
+
 	if not ra:
 		return {"ok": 0, "ghi_chu": hong[0] if hong else
 			"Không có dòng nào để tạo lệnh."}
-	return {"ok": 1, "lenh": ra,
-		"ghi_chu": "Đã tạo %d lệnh sản xuất: %s.%s"
-			% (len(ra), ", ".join(ra),
-				" Có %d dòng bỏ qua." % len(hong) if hong else "")}
+	cau = "Đã tạo %d lệnh sản xuất: %s." % (len(ra), ", ".join(ra))
+	if doi > 0:
+		cau += (" Trong đó một lệnh %s Gram là phần làm dôi ra, không gắn "
+			"vào phiếu yêu cầu nào." % _goc(doi))
+	if da_chot_o_day:
+		cau += " Phiếu kế hoạch %s cũng vừa được ghi sổ." % ten
+	if hong:
+		cau += " Có %d dòng bỏ qua." % len(hong)
+	return {"ok": 1, "lenh": ra, "doi": doi, "ghi_chu": cau}
 
 
-def _tao_mot_lenh(ten, khoa, loai="btp"):
+def _goc(v):
+	"""Số gọn để ghép vào câu thông báo."""
+	v = flt(v)
+	return str(int(v)) if abs(v - int(v)) < 0.005 else ("%.2f" % v)
+
+
+def _chot_ngam(ten):
+	"""Ghi sổ phiếu kế hoạch nếu nó còn nháp. Trả về 1 nếu vừa chốt ở đây.
+
+	Tách riêng để cả `tao_lenh` lẫn `xin_chuyen_nvl` dùng chung một đường,
+	và để chỗ nào cũng báo cho bếp biết phiếu vừa được ghi sổ chứ không
+	làm lén.
+	"""
+	trang = frappe.db.get_value("Production Plan", ten, "docstatus")
+	if trang is None:
+		frappe.throw("Không thấy phiếu kế hoạch %s." % ten)
+	if cint(trang) == 2:
+		frappe.throw("Phiếu %s đã huỷ. Lập phiếu mới cho ngày này." % ten)
+	if cint(trang) == 1:
+		return 0
+	doc = frappe.get_doc("Production Plan", ten)
+	doc.submit()
+	frappe.db.commit()
+	return 1
+
+
+
+def _tao_mot_lenh(ten, khoa, loai="btp", so_luong=None, kho=None, roi_phieu=0):
 	"""Tạo lệnh sản xuất cho ĐÚNG MỘT dòng của phiếu.
 
 	ERPNext có sẵn nút tạo lệnh cho cả phiếu một lượt. Bếp cần ngược lại:
@@ -826,14 +1052,25 @@ def _tao_mot_lenh(ten, khoa, loai="btp"):
 	bánh hay không.
 
 	Dùng `create_work_order` của chính Production Plan chứ không tự dựng
-	Work Order: số lượng, kho, công thức và cách trừ phần đã có lệnh đều
-	phải giống hệt nút của Desk, không thì hai bản lệch nhau.
+	Work Order: số lượng, công thức và cách trừ phần đã có lệnh đều phải
+	giống hệt nút của Desk, không thì hai bản lệch nhau.
+
+	`roi_phieu=1` là lệnh cho phần bếp làm dôi ra: vẫn đúng món đúng công
+	thức, nhưng CẮT mọi mối nối về phiếu yêu cầu và về dòng kế hoạch. Nối
+	vào thì ERPNext tưởng điểm bán đặt nhiều hơn thật, và phiếu yêu cầu tự
+	đóng sớm trong khi hàng chưa giao đủ.
+
+	KHO NHẬP THÀNH PHẨM không lấy kho mặc định của ERPNext nữa. Kho mặc
+	định là một ô cho cả công ty nên mọi lệnh đổ về một kho: ngày
+	29/08/2026 lệnh BTP nhập thẳng vào kho Nguyên liệu, còn lệnh khác thì
+	để trống hẳn, màn app hiện "Chưa có". Thứ tự lấy kho bây giờ là: kho
+	bếp chọn tay, rồi luật kho của tiệm theo chặng và bếp, cuối cùng mới
+	tới kho mặc định của ERPNext.
 	"""
 	_chan(QUYEN_SUA)
 	doc = frappe.get_doc("Production Plan", ten)
 	if doc.docstatus != 1:
-		frappe.throw("Phiếu %s chưa chốt. Bấm Chốt kế hoạch trước đã, ERPNext "
-			"không cho tạo lệnh từ phiếu nháp." % ten)
+		frappe.throw("Phiếu %s chưa ghi sổ nên chưa tạo lệnh được." % ten)
 
 	from erpnext.manufacturing.doctype.work_order.work_order import get_default_warehouse
 
@@ -846,15 +1083,23 @@ def _tao_mot_lenh(ten, khoa, loai="btp"):
 			frappe.throw("Không thấy dòng thành phẩm này trong phiếu %s." % ten)
 		d = dong[0]
 		con = flt(d.planned_qty) - flt(d.ordered_qty)
+		if so_luong not in (None, ""):
+			con = flt(so_luong)
 		if con <= 0:
 			return {"ok": 0, "ghi_chu": "Món %s đã ra lệnh đủ số rồi." % d.item_code}
+		ma_mon = d.item_code
 		mon = frappe._dict({
 			"production_item": d.item_code, "use_multi_level_bom": d.include_exploded_items,
-			"material_request": d.material_request,
-			"material_request_item": d.material_request_item,
+			"material_request": None if roi_phieu else d.material_request,
+			"material_request_item": None if roi_phieu else d.material_request_item,
 			"bom_no": d.bom_no, "description": d.description, "stock_uom": d.stock_uom,
-			"company": doc.company, "fg_warehouse": d.warehouse,
-			"production_plan": doc.name, "production_plan_item": d.name,
+			# KHONG dat fg_warehouse = d.warehouse. O do la kho DIEM BAN
+			# dat hang, khong phai kho bep nhap hang lam ra. Ngay
+			# 29/08/2026 lenh banh Greengold nhap thang vao Kho Sales
+			# Online vi lay o nay. Kho nhap do luat kho quyet dinh o duoi.
+			"company": doc.company, "fg_warehouse": "",
+			"production_plan": doc.name,
+			"production_plan_item": None if roi_phieu else d.name,
 			"planned_start_date": d.planned_start_date, "qty": con,
 		})
 	else:
@@ -862,10 +1107,44 @@ def _tao_mot_lenh(ten, khoa, loai="btp"):
 		if not dong:
 			frappe.throw("Không thấy dòng bán thành phẩm này trong phiếu %s." % ten)
 		d = dong[0]
-		if flt(d.qty) - flt(d.ordered_qty) <= 0:
+		con = flt(d.qty) - flt(d.ordered_qty)
+		if so_luong not in (None, ""):
+			con = flt(so_luong)
+		if con <= 0:
 			return {"ok": 0, "ghi_chu": "Món %s đã ra lệnh đủ số rồi." % d.production_item}
+		ma_mon = d.production_item
 		mon = frappe._dict({"company": doc.company})
 		doc.prepare_data_for_sub_assembly_items(d, mon)
+		mon["qty"] = con
+		if roi_phieu:
+			mon["production_plan_sub_assembly_item"] = None
+			mon["material_request"] = None
+			mon["material_request_item"] = None
+
+	# BA KHO CUA LENH, theo dung mot luat.
+	#
+	# Thu tu: kho bep chon tay tren app, roi luat kho cua tiem theo chang
+	# va bep, cuoi cung moi toi kho mac dinh cua ERPNext. Dat o day chu
+	# khong de ERPNext dien, vi kho mac dinh la MOT o cho ca cong ty con
+	# kho dung phu thuoc hai thu: mon thuoc chang nao va bep nao lam.
+	kho_chon = (kho or "").strip()
+	if kho_chon and not frappe.db.exists("Warehouse", kho_chon):
+		kho_chon = ""
+	bep = chon_bep(ksx._bep_cua_mon(ma_mon) or "",
+		ksx.bep_cua_kho(kho_chon) or "")
+	if bep:
+		try:
+			kt, ten_mon = ksx._ho_so_mon(ma_mon)
+			chang = ksx.chang_cua_mon(ma_mon, ksx._co_btp_con(ma_mon), kt, ten_mon)
+			nguon, dd, dich = ksx.kho_cua_lenh(chang, bep)
+			for o, gt in (("source_warehouse", nguon), ("wip_warehouse", dd),
+					("fg_warehouse", dich)):
+				if gt and frappe.db.exists("Warehouse", gt):
+					mon[o] = gt
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "vagabond: ba kho cua lenh")
+	if kho_chon:
+		mon["fg_warehouse"] = kho_chon
 
 	from erpnext.manufacturing.doctype.production_plan.production_plan import (
 		set_default_warehouses,
@@ -887,25 +1166,68 @@ def _tao_mot_lenh(ten, khoa, loai="btp"):
 
 
 @frappe.whitelist()
-def xin_chuyen_nvl(ten):
+def xin_chuyen_nvl(ten, bep=None):
 	"""Sinh phiếu xin chuyển nguyên liệu từ Kho tổng 307 sang kho bếp.
 
 	Đây là mảnh còn thiếu giữa "kế hoạch nói cần bao nhiêu" và "bếp thật sự
 	có hàng trong tay". Dùng `make_material_request` của Production Plan để
 	số lượng khớp đúng bảng nguyên liệu, và để phần đã xin rồi không xin lại.
 
-	Phiếu sinh ra là NHÁP: anh Kiên còn phải xem kho tổng có đủ không đã.
+	Phiếu sinh ra là NHÁP để kho tổng còn soát hàng trước khi ghi sổ.
+
+	HAI CHỖ PHẢI DỌN TRƯỚC KHI GỌI ERPNext, cả hai đều bắt được ngày
+	29/08/2026 khi bấm thử trên phiếu thật:
+
+	1. MÓN ĐÃ TẮT. Kế hoạch nổ công thức ra vẫn kéo theo mã đã tắt trong
+	   danh mục (hôm đó là BTPB00045 và BTPB00046). Frappe chặn thẳng cả
+	   phiếu với câu "Sản phẩm BTPB00046 đã tắt", nên bếp bấm nút chỉ thấy
+	   báo lỗi mà không có phiếu nào. Nay bỏ qua các mã đó và LIỆT KÊ ra,
+	   vì mã đã tắt mà còn nằm trong công thức là chuyện của danh mục,
+	   không phải chuyện màn hình này tự sửa.
+
+	2. KHO NHẬN TRÙNG KHO GỬI. Hồ sơ món đang trỏ kho mặc định về Kho tổng
+	   307 nên ERPNext điền kho nhận cũng là Kho tổng: phiếu chuyển từ kho
+	   307 sang chính kho 307, một bút toán vô nghĩa. Nay kho nhận lấy theo
+	   kho nguyên liệu của bếp.
 	"""
 	_chan(QUYEN_SUA)
+	da_chot_o_day = _chot_ngam(ten)
 	doc = frappe.get_doc("Production Plan", ten)
-	if doc.docstatus != 1:
-		frappe.throw("Phiếu %s chưa chốt nên chưa xin chuyển nguyên liệu được." % ten)
 	if not doc.mr_items:
 		return {"ok": 0, "ghi_chu": "Phiếu này không có dòng nguyên liệu nào thiếu."}
+
+	cac_ma = sorted({d.item_code for d in doc.mr_items if d.item_code})
+	da_tat = set()
+	for i in range(0, len(cac_ma), 200):
+		da_tat |= {x.name for x in frappe.get_all("Item", filters={
+			"name": ["in", cac_ma[i:i + 200]], "disabled": 1},
+			fields=["name"], limit_page_length=0)}
+
+	giu, bo_qua = [], []
 	for d in doc.mr_items:
+		if d.item_code in da_tat:
+			bo_qua.append(d.item_code)
+			continue
 		d.material_request_type = "Material Transfer"
 		if not d.from_warehouse:
 			d.from_warehouse = ksx.KHO_GOC
+		kho_nhan = _kho_nhan_nvl(d.item_code, bep, d.warehouse)
+		if kho_nhan:
+			d.warehouse = kho_nhan
+		giu.append(d)
+
+	if not giu:
+		return {"ok": 0, "ghi_chu": "Mọi dòng nguyên liệu của phiếu này đều là "
+			"mã đã tắt trong danh mục: %s. Cần mở lại mã hoặc sửa công thức "
+			"trước." % ", ".join(sorted(set(bo_qua)))}
+
+	trung = [d.item_code for d in giu if d.warehouse == d.from_warehouse]
+	if trung:
+		return {"ok": 0, "ghi_chu": "Chưa xin được: %d mã có kho nhận trùng kho "
+			"gửi (%s). Chọn bếp ở chip trên màn rồi bấm lại, hoặc khai kho mặc "
+			"định của mã cho đúng bếp." % (len(trung), ", ".join(sorted(set(trung))[:5]))}
+
+	doc.mr_items = giu
 	doc.db_update_all()
 	truoc = set(frappe.get_all("Material Request", filters={
 		"material_request_type": "Material Transfer", "docstatus": 0}, pluck="name"))
@@ -917,9 +1239,132 @@ def xin_chuyen_nvl(ten):
 	if not moi:
 		return {"ok": 0, "ghi_chu": "Không có gì để xin thêm, các mã đã xin "
 			"chuyển đủ từ trước."}
-	return {"ok": 1, "phieu": moi,
-		"ghi_chu": "Đã tạo %d phiếu xin chuyển kho ở dạng nháp: %s. Anh Kiên "
-			"soạn hàng rồi ghi sổ." % (len(moi), ", ".join(moi))}
+	cau = ("Đã tạo %d phiếu xin chuyển kho ở dạng NHÁP: %s. Kho tổng 307 soạn "
+		"hàng rồi ghi sổ." % (len(moi), ", ".join(moi)))
+	if bo_qua:
+		cau += (" Bỏ qua %d mã đã tắt trong danh mục: %s."
+			% (len(set(bo_qua)), ", ".join(sorted(set(bo_qua)))))
+	if da_chot_o_day:
+		cau += " Phiếu kế hoạch %s cũng vừa được ghi sổ." % ten
+	return {"ok": 1, "phieu": moi, "bo_qua": sorted(set(bo_qua)), "ghi_chu": cau}
+
+
+def _kho_nhan_nvl(ma, bep_chon, kho_dang_co):
+	"""Kho nào NHẬN nguyên liệu chuyển từ kho tổng về.
+
+	Ưu tiên bếp người dùng đang chọn trên chip, rồi bếp khai trong hồ sơ
+	món, rồi bếp đọc ngược từ kho đang điền. Không đoán ra bếp nào thì trả
+	chuỗi rỗng và giữ nguyên kho cũ - để người gọi báo lên chứ không tự đặt
+	bừa một kho.
+	"""
+	kho_dang_co = (kho_dang_co or "").strip()
+	if kho_dang_co and kho_dang_co != ksx.KHO_GOC:
+		return ""
+	b = chon_bep(bep_chon, ksx._bep_cua_mon(ma) or "",
+		ksx.bep_cua_kho(kho_dang_co) or "")
+	if not b:
+		return ""
+	kho = ksx.ten_kho_cua(b, ksx.NGUYEN_LIEU)
+	if kho and frappe.db.exists("Warehouse", kho):
+		return kho
+	return ""
+
+
+@frappe.whitelist()
+def huy_phieu(ten, ly_do=None):
+	"""Huỷ một phiếu kế hoạch. Anh Việt 29/08/2026 xin nút huỷ và sửa phiếu.
+
+	ERPNext không cho SỬA phiếu đã ghi sổ, chỉ cho huỷ rồi lập lại. Nên nút
+	trên app cũng chỉ có huỷ, không hứa sửa: hứa sửa rồi báo lỗi của ERPNext
+	thì tệ hơn là nói thẳng từ đầu.
+
+	CHẶN khi phiếu đã đẻ ra lệnh sản xuất. Huỷ phiếu mẹ trong lúc lệnh con
+	đang chạy thì lệnh mất gốc, mà số đã ra lệnh trên phiếu cũng không ai
+	tính lại được. Muốn huỷ thật thì huỷ các lệnh con trước.
+	"""
+	_chan(QUYEN_SUA)
+	doc = frappe.get_doc("Production Plan", ten)
+	if doc.docstatus == 2:
+		return {"ok": 1, "ten": ten, "ghi_chu": "Phiếu %s đã huỷ từ trước." % ten}
+	con = frappe.get_all("Work Order", filters={
+		"production_plan": ten, "docstatus": ["<", 2]},
+		fields=["name"], limit_page_length=10)
+	if con:
+		return {"ok": 0, "ghi_chu": "Chưa huỷ được: phiếu %s đã tạo %d lệnh sản "
+			"xuất (%s...). Huỷ các lệnh đó trước rồi quay lại."
+			% (ten, len(con), con[0].name)}
+	if doc.docstatus == 0:
+		doc.delete()
+		frappe.db.commit()
+		return {"ok": 1, "ten": ten, "xoa": 1,
+			"ghi_chu": "Phiếu %s còn nháp nên đã xoá hẳn. Lập lại được ngay." % ten}
+	doc.cancel()
+	frappe.db.commit()
+	return {"ok": 1, "ten": ten,
+		"ghi_chu": "Đã huỷ phiếu %s. Bấm Lập kế hoạch để lập lại cho ngày này." % ten}
+
+
+@frappe.whitelist()
+def huy_lenh(ten, ly_do=None):
+	"""Huỷ một lệnh sản xuất, và trả số đã ra lệnh về cho phiếu kế hoạch.
+
+	Lệnh đã làm ra hàng rồi thì KHÔNG huỷ: hàng đã nhập kho, huỷ lệnh là
+	để lại một khoản tồn không có gốc. Trường hợp đó phải đi đường Dừng
+	lệnh của ERPNext, và đó là việc của quản lý sản xuất chứ không phải
+	một nút trên app bếp.
+	"""
+	_chan(QUYEN_SUA)
+	doc = frappe.get_doc("Work Order", ten)
+	if doc.docstatus == 2:
+		return {"ok": 1, "ten": ten, "ghi_chu": "Lệnh %s đã huỷ từ trước." % ten}
+	if flt(doc.produced_qty) > 0:
+		return {"ok": 0, "ghi_chu": "Lệnh %s đã làm ra %s rồi nên không huỷ "
+			"được. Báo quản lý sản xuất để dừng lệnh."
+			% (ten, _goc(doc.produced_qty))}
+	if flt(doc.material_transferred_for_manufacturing) > 0:
+		return {"ok": 0, "ghi_chu": "Lệnh %s đã chuyển nguyên liệu vào sản "
+			"xuất nên không huỷ được. Trả nguyên liệu về kho trước." % ten}
+	phieu = doc.get("production_plan")
+	if doc.docstatus == 0:
+		doc.delete()
+	else:
+		doc.cancel()
+	frappe.db.commit()
+	if phieu and frappe.db.exists("Production Plan", phieu):
+		try:
+			pp = frappe.get_doc("Production Plan", phieu)
+			pp.update_ordered_status()
+			pp.set_status()
+			pp.db_update_all()
+			frappe.db.commit()
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "vagabond: tra so sau khi huy lenh")
+	return {"ok": 1, "ten": ten, "phieu": phieu or "",
+		"ghi_chu": "Đã huỷ lệnh %s. Số của món đã trả lại cho kế hoạch, ra "
+			"lệnh mới được ngay." % ten}
+
+
+@frappe.whitelist()
+def sua_so_lenh(ten, so_luong):
+	"""Sửa số lượng của một lệnh còn nháp.
+
+	Chỉ sửa được khi lệnh CHƯA ghi sổ. Lệnh đã ghi sổ mà đổi số thì bảng
+	nguyên liệu cần dùng không đổi theo, bếp lấy hàng theo số cũ mà làm
+	theo số mới. Trường hợp đó huỷ lệnh rồi ra lại.
+	"""
+	_chan(QUYEN_SUA)
+	doc = frappe.get_doc("Work Order", ten)
+	if doc.docstatus != 0:
+		return {"ok": 0, "ghi_chu": "Lệnh %s đã ghi sổ nên không sửa số được. "
+			"Huỷ lệnh rồi ra lệnh mới với số đúng." % ten}
+	moi = flt(so_luong)
+	if moi <= 0:
+		return {"ok": 0, "ghi_chu": "Số lượng phải lớn hơn 0."}
+	doc.qty = moi
+	doc.save()
+	frappe.db.commit()
+	return {"ok": 1, "ten": ten,
+		"ghi_chu": "Lệnh %s đổi thành %s %s." % (ten, _goc(moi), doc.stock_uom or "")}
 
 
 @frappe.whitelist()

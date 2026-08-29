@@ -475,6 +475,23 @@ async function scrMfgList() {
     });
   } catch (e) { toast(errMsg(e)); }
 
+  /* Anh mon di kem ten mon (anh Viet 29/08/2026). Doc mot luot cho ca
+     danh sach chu khong hoi tung mon. */
+  var mfgAnh = {};
+  try {
+    var maMon = [];
+    wos.forEach(function (w) {
+      if (w.production_item && maMon.indexOf(w.production_item) < 0) maMon.push(w.production_item);
+    });
+    if (maMon.length) {
+      var its = await getList('Item', {
+        fields: ['name', 'image'], filters: { name: ['in', maMon] },
+        limit_page_length: 200
+      });
+      its.forEach(function (x) { if (x.image) mfgAnh[x.name] = x.image; });
+    }
+  } catch (e) { }
+
   function draw() {
     var f = wos.filter(function (w) {
       if (mfg.tab === 'open') return WODONE.indexOf(w.status) < 0;
@@ -484,16 +501,21 @@ async function scrMfgList() {
     var chips = [['open', 'Đang làm'], ['done', 'Đã xong'], ['all', 'Tất cả']].map(function (c) {
       return '<div class="chip' + (mfg.tab === c[0] ? ' on' : '') + '" data-t="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
-    var body = mfgWhCard() +
+    /* KHONG con the chon kho o day. Anh Viet 29/08/2026: moi lenh da chon
+       kho rieng cua no roi, de them mot o chon kho chung o trang danh sach
+       la mau thuan, nguoi dung khong biet o nao thang. Hai man con dung
+       kho chung (Tao lenh gop, Lam mon chua co cong thuc) van giu the do. */
+    var body =
       '<button class="btn gh" id="mNoBom" style="margin-bottom:12px">🧾 Làm món chưa có công thức</button>' +
       '<div class="chips">' + chips + '</div>' +
       (f.length ? '<div class="lst">' + f.map(function (w) {
         var done = w.status === 'Completed';
         var cls = done ? 'g' : (w.status === 'Stopped' || w.status === 'Closed' ? 'n' : ((w.produced_qty || 0) > 0 ? 'w' : 'b'));
-        return '<div class="li" data-n="' + h(w.name) + '"><div class="lt">' +
+        return '<div class="li" data-n="' + h(w.name) + '">' + anhMon(mfgAnh[w.production_item]) +
+          '<div class="lt" style="margin-left:9px">' +
           '<div class="l1">' + h(w.item_name || w.production_item) + '</div>' +
           '<div class="l2">' + h(w.name) + ' &middot; ' + h(dmy(w.planned_start_date)) + '</div></div>' +
-          '<div style="text-align:right"><div class="amt">' + num(w.produced_qty || 0) + '/' + num(w.qty) + '</div>' +
+          '<div style="text-align:right"><div class="amt">' + kl(w.produced_qty || 0, w.stock_uom) + ' / ' + kl(w.qty, w.stock_uom) + '</div>' +
           '<div class="st ' + cls + '" style="margin-top:4px">' + h(WOST[w.status] || w.status) + '</div></div></div>';
       }).join('') + '</div>'
         : '<div class="emp"><div class="e1">🏭</div><div class="e2">Chưa có lệnh sản xuất nào</div></div>');
@@ -915,13 +937,16 @@ async function scrMfgView(name) {
   var left = r3((d.qty || 0) - (d.produced_qty || 0));
   var canDo = d.docstatus === 1 && WODONE.indexOf(d.status) < 0 && left > 0;
 
-  var head = '<div class="card"><div class="kpg">' +
+  var anh = '';
+  try { var it0 = await mfgLoadItem(d.production_item); anh = it0.image || ''; } catch (e) { }
+  var head = '<div class="card"><div class="kpg" style="display:flex;gap:10px;align-items:flex-start">' +
+    anhMon(anh) + '<div style="flex:1;min-width:0">' +
     '<div style="font-size:18px;font-weight:700;line-height:1.3">' + h(d.item_name || d.production_item) + '</div>' +
     '<div style="font-size:12.5px;color:#8a8f9c;margin-top:5px">' + h(d.name) + ' &middot; ' + h(WOST[d.status] || d.status) + '</div>' +
-    '</div><div class="stk">' +
-    '<div><div class="s1">Cần làm</div><div class="s2">' + num(d.qty) + ' ' + h(d.stock_uom || '') + '</div></div>' +
-    '<div><div class="s1">Đã làm</div><div class="s2">' + num(d.produced_qty || 0) + '</div></div>' +
-    '<div><div class="s1">Còn lại</div><div class="s2">' + num(left) + '</div></div></div>' +
+    '</div></div><div class="stk">' +
+    '<div><div class="s1">Cần làm</div><div class="s2">' + kl(d.qty, d.stock_uom) + '</div></div>' +
+    '<div><div class="s1">Đã làm</div><div class="s2">' + kl(d.produced_qty || 0, d.stock_uom) + '</div></div>' +
+    '<div><div class="s1">Còn lại</div><div class="s2">' + kl(left, d.stock_uom) + '</div></div></div>' +
     '<div class="fld"><div class="fi">🧂</div><div class="ft"><div class="fl">Trừ nguyên liệu tại kho</div>' +
     '<div class="fv">' + h(shortWh(src) || 'Chưa có') + '</div></div></div>' +
     '<div class="fld"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
@@ -935,19 +960,52 @@ async function scrMfgView(name) {
     var bad = have < needNow - 0.0001;
     if (bad) short++;
     return '<div class="li"><div class="lt"><div class="l1">' + h(m.item_name || m.item_code) + '</div>' +
-      '<div class="l2">Tồn ' + num(have) + ' ' + h(m.stock_uom || '') + '</div></div>' +
-      '<div style="text-align:right"><div class="amt"' + (bad ? ' style="color:#c93a3a"' : '') + '>' + num(needNow) + '</div>' +
+      '<div class="l2">Tồn ' + kl(have, m.stock_uom) + '</div></div>' +
+      '<div style="text-align:right"><div class="amt"' + (bad ? ' style="color:#c93a3a"' : '') + '>' + kl(needNow, m.stock_uom) + '</div>' +
       '<div class="l2">' + h(m.stock_uom || '') + '</div></div></div>';
   }).join('') + '</div>' : '';
 
   var warn = short ? '<div class="kwn">⚠️ Có ' + short + ' nguyên liệu tồn kho không đủ. Nếu vẫn bấm hoàn tất thì máy sẽ báo lỗi thiếu hàng.</div>' : '';
 
+  /* Nut huy va sua so (anh Viet 29/08/2026). Sua so chi hien khi lenh con
+     nhap: lenh da ghi so ma doi so thi bang nguyen lieu can dung khong doi
+     theo, bep lay hang theo so cu ma lam theo so moi. */
+  var choHuy = d.docstatus < 2 && !(d.produced_qty > 0);
+  var choSua = d.docstatus === 0;
+  var hang2 = '';
+  if (choSua) hang2 += '<button class="btn gh" id="mQty" style="margin-top:9px">✏️ Sửa số lượng</button>';
+  if (choHuy) hang2 += '<button class="btn gh" id="mDel" style="margin-top:9px;color:#b3261e">🗑️ Huỷ lệnh này</button>';
+
   var b = frame('Lệnh sản xuất', head + warn + list, {
-    footer: canDo
+    footer: (canDo
       ? '<div class="row2"><button class="btn gh" id="mLbl">🖨️ In tem</button>' +
         '<button class="btn gr" id="mFin">✅ Hoàn tất</button></div>'
-      : '<button class="btn gh" id="mLbl">🖨️ In lại tem</button>'
+      : '<button class="btn gh" id="mLbl">🖨️ In lại tem</button>') + hang2
   });
+  var nQty = document.getElementById('mQty');
+  if (nQty) nQty.onclick = async function () {
+    var v = await qtySheet('Sửa số lượng lệnh', d.item_name || d.production_item, d.qty, d.stock_uom);
+    if (!(v > 0)) return;
+    busy(1);
+    try {
+      var r = await api('vagabond.ke_hoach_sx.sua_so_lenh', { ten: d.name, so_luong: v });
+      toast(r.ghi_chu, 6000);
+      if (r.ok) return go(function () { scrMfgView(d.name); });
+    } catch (err) { toast(errMsg(err), 6000); } finally { busy(0); }
+  };
+  var nDel = document.getElementById('mDel');
+  if (nDel) nDel.onclick = async function () {
+    if (!await confirmSheet('Huỷ lệnh ' + d.name + '?',
+      'Số của món sẽ được trả lại cho kế hoạch, ra lệnh mới được ngay.\n\n' +
+      'Lệnh đã làm ra hàng hoặc đã chuyển nguyên liệu vào sản xuất thì máy không cho huỷ.',
+      'Huỷ lệnh', 1)) return;
+    busy(1);
+    try {
+      var r = await api('vagabond.ke_hoach_sx.huy_lenh', { ten: d.name });
+      toast(r.ghi_chu, 7000);
+      if (r.ok) return go(scrMfgList);
+    } catch (err) { toast(errMsg(err), 7000); } finally { busy(0); }
+  };
   document.getElementById('mLbl').onclick = async function () {
     busy(1);
     try {

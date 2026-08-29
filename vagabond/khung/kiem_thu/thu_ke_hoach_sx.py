@@ -269,12 +269,57 @@ def _():
 # ------------------------------------------------------ tạo lệnh từng dòng
 
 
-@ca("chưa chốt phiếu thì không cho tạo lệnh, và nói rõ phải làm gì")
+@ca("phiếu còn nháp thì máy TỰ ghi sổ, không bắt bếp bấm chốt tổng")
+def _():
+	# Anh Viet 29/08/2026 bo nut chot tong: bep khong chot ca phieu mot
+	# luot duoc, ma chot xong cung khong biet phieu nam dau. Buoc ghi so
+	# lui xuong server, chay ngam o lan ra lenh dau tien.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def tao_lenh(")[1].split("def _goc(")[0]
+	dung("gọi bước ghi sổ ngầm", "_chot_ngam(ten)" in doan)
+	dung("báo lại cho bếp biết phiếu vừa ghi sổ", "cũng vừa được ghi sổ" in doan)
+	ngam = m.split("def _chot_ngam(")[1].split("\ndef ")[0]
+	dung("phiếu đã huỷ thì dừng", "đã huỷ" in ngam)
+	dung("phiếu đã ghi sổ thì thôi", "return 0" in ngam)
+
+
+@ca("chia số lượng: gõ đúng số máy cần thì mỗi dòng nhận đúng phần của nó")
+def _():
+	phan, doi = kh.chia_so_luong([10, 20, 5], 35)
+	la("chia đủ", phan, [10, 20, 5])
+	la("không dôi", doi, 0.0)
+
+
+@ca("chia số lượng: gõ ÍT hơn thì rót lần lượt, dòng sau chờ lệnh lần tới")
+def _():
+	phan, doi = kh.chia_so_luong([10, 20, 5], 12)
+	la("dòng đầu đủ, dòng hai được phần còn lại", phan, [10, 2, 0.0])
+	la("không dôi", doi, 0.0)
+
+
+@ca("chia số lượng: gõ NHIỀU hơn thì phần dôi tách riêng, không nhét vào phiếu nào")
+def _():
+	# Nhet phan doi vao mot phieu yeu cau bat ky la lam sai so cua diem
+	# ban do, va phieu ay tu dong som trong khi hang chua giao du.
+	phan, doi = kh.chia_so_luong([10, 20], 40)
+	la("mỗi dòng vẫn đúng phần của nó", phan, [10, 20])
+	la("phần dôi để riêng", doi, 10.0)
+
+
+@ca("lệnh cho phần dôi ra bị CẮT mọi mối nối về phiếu yêu cầu")
 def _():
 	m = _py("ke_hoach_sx.py")
-	doan = m.split("def tao_lenh")[1].split("\n@frappe")[0]
-	dung("phải chặn phiếu nháp", "doc.docstatus != 1" in doan)
-	dung("phải chỉ cách làm", "Bấm Chốt kế hoạch trước" in doan)
+	doan = m.split("def _tao_mot_lenh(")[1].split("\n\n@frappe")[0]
+	dung("có cờ rời phiếu", "roi_phieu" in doan)
+	dung("cắt mối nối phiếu yêu cầu", 'None if roi_phieu else d.material_request' in doan)
+	dung("cắt cả mối nối dòng kế hoạch", 'None if roi_phieu else d.name' in doan)
+
+
+@ca("chọn bếp lấy ứng viên đầu tiên có giá trị")
+def _():
+	la("bỏ qua ô rỗng", kh.chon_bep("", None, "Pastry"), "pastry")
+	la("ứng viên đầu thắng", kh.chon_bep("baker", "pastry"), "baker")
+	la("không có gì thì trả rỗng", kh.chon_bep("", None, "  "), "")
 
 
 @ca("tạo lệnh trừ phần đã ra lệnh, không ra hai lệnh cho một mẻ")
@@ -351,12 +396,46 @@ def _():
 		dung("phải đọc %s từ máy chủ" % o, o in m)
 
 
-@ca("nút tạo lệnh chỉ hiện khi phiếu đã chốt và còn phải làm")
+@ca("nút tạo lệnh hiện cả khi phiếu còn nháp, chỉ cần còn phải làm")
 def _():
 	m = _js("38-ke-hoach-sx.js")
 	doan = m.split("function khsxThe")[1].split("\nasync function")[0]
-	dung("phải kiểm đã chốt", "khsx.d.da_chot" in doan)
 	dung("phải kiểm còn phải làm", "x.con_lam > 0" in doan)
+	la("không còn đòi phiếu đã chốt", "khsx.d.da_chot" in doan, False)
+	dung("có ô tick chọn nhiều món", "data-tick=" in doan)
+
+
+@ca("màn kế hoạch KHÔNG còn nút chốt tổng")
+def _():
+	m = _js("38-ke-hoach-sx.js")
+	la("không còn nút chốt", "khsxChot" in m, False)
+	dung("có nút ra lệnh hàng loạt", "khsxLenhLo" in m)
+	dung("có đường mở danh sách lệnh đã tạo", "scrMfgList" in m)
+
+
+@ca("số cân đong hiển thị bằng kl(), không dùng num() để bếp khỏi đọc nhầm")
+def _():
+	# Ngay 29/08/2026 bep doc "242,486" thanh 242 nghin gram. So dung, cach
+	# viet bay: dau phay la dau thap phan theo loi Viet Nam.
+	nen = _js("00-nen.js")
+	dung("có hàm kl", "function kl(v, dvt)" in nen)
+	dung("nói rõ vì sao không dùng num", "doc nham" in nen)
+	m = _js("38-ke-hoach-sx.js")
+	doan = m.split("function khsxCot(")[1].split("\nfunction ")[0]
+	la("không còn num() trong bảng số", "num(" in doan, False)
+	dung("dùng kl kèm đơn vị", "kl(x.can, x.dvt)" in doan)
+
+
+@ca("kho nhập thành phẩm hiện ra trên thẻ và đổi được")
+def _():
+	# Anh Viet 29/08/2026: "lo co nhung mon ca 2 bep deu dung thi sao".
+	m = _js("38-ke-hoach-sx.js")
+	dung("thẻ hiện kho nhập", "x.kho_dich" in m)
+	dung("có ô chọn kho", "khsxKho" in m)
+	dung("có ô nhập số lượng", "khsxSl" in m)
+	p = _py("ke_hoach_sx.py")
+	dung("máy chủ trả danh sách kho", '"cac_kho": _cac_kho_chon()' in p)
+	dung("tạo lệnh nhận kho bếp chọn", "def tao_lenh(ten, khoa, loai=\"btp\", so_luong=None, kho=None)" in p)
 
 
 @ca("bán thành phẩm xổ ra được danh sách nguyên liệu của nó")
@@ -508,10 +587,133 @@ def _():
 	# Gop thanh mot lenh to thi cac phieu yeu cau treo mai o Pending, dung
 	# cai dong 233 phieu ton dong dang co tren he.
 	m = _py("ke_hoach_sx.py")
-	doan = m.split("def tao_lenh(")[1].split("def _tao_mot_lenh")[0]
+	doan = m.split("def tao_lenh(")[1].split("def _goc(")[0]
 	dung("phải tách khoá theo dấu phẩy", 'split(",")' in doan)
-	dung("phải gọi từng dòng", "_tao_mot_lenh(ten, k, loai)" in doan)
+	dung("phải gọi từng dòng", "_tao_mot_lenh(ten, k, loai_n" in doan)
 	dung("nói rõ vì sao không gộp", "neo về đúng phiếu yêu cầu" in doan)
+
+
+@ca("xin chuyển nguyên liệu bỏ qua mã đã tắt, và liệt kê ra")
+def _():
+	# Ngay 29/08/2026 bam nut thi Frappe chan ca phieu voi cau "San pham
+	# BTPB00046 da tat", bep khong co phieu nao. Ma da tat ma con nam trong
+	# cong thuc la chuyen cua danh muc, khong phai chuyen man hinh nay tu
+	# sua - nen bo qua roi liet ke.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xin_chuyen_nvl(")[1].split("\ndef _kho_nhan_nvl(")[0]
+	dung("có lọc mã đã tắt", '"disabled": 1' in doan)
+	dung("liệt kê mã bỏ qua", "Bỏ qua %d mã đã tắt" in doan)
+	dung("không tự mở lại mã", "db_set" not in doan)
+
+
+@ca("xin chuyển nguyên liệu chặn phiếu có kho nhận trùng kho gửi")
+def _():
+	# Ho so mon dang tro kho mac dinh ve Kho tong 307 nen ERPNext dien kho
+	# nhan cung la Kho tong: phieu chuyen tu 307 sang chinh 307.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xin_chuyen_nvl(")[1].split("\ndef _kho_nhan_nvl(")[0]
+	dung("có phép so hai kho", "d.warehouse == d.from_warehouse" in doan)
+	dung("nói rõ cách gỡ", "Chọn bếp ở chip" in doan)
+
+
+@ca("không câu thông báo nào của kế hoạch còn nêu tên riêng")
+def _():
+	# Anh Viet 29/08/2026: "lo Kien nghi thi sao". Moi thong bao chi neu
+	# ten bo phan.
+	for tep in ("ke_hoach_sx.py", "kho_san_xuat.py"):
+		m = _py(tep)
+		la("%s không nêu tên riêng" % tep, "anh Kiên" in m, False)
+	for tep in ("38-ke-hoach-sx.js", "06-nhap-kho-kiem-ke.js"):
+		m = _js(tep)
+		la("%s không nêu tên riêng" % tep, "anh Kiên" in m, False)
+
+
+@ca("lệnh thành phẩm KHÔNG nhập vào kho điểm bán")
+def _():
+	# Ngay 29/08/2026 lenh banh Greengold nhap thang vao Kho Sales Online,
+	# la kho ban hang. O `warehouse` cua dong ke hoach la kho DIEM BAN dat,
+	# khong phai kho bep nhap hang lam ra.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def _tao_mot_lenh(")[1].split("\n\n@frappe")[0]
+	la("không seed kho điểm bán vào ô kho nhập",
+		'"fg_warehouse": d.warehouse' in doan, False)
+	dung("nói rõ vì sao", "kho DIEM BAN" in doan)
+	dung("đặt cả ba kho theo luật", "ksx.kho_cua_lenh(chang, bep)" in doan)
+
+
+@ca("bếp của thành phẩm suy từ bán thành phẩm con, không đoán theo kho")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def xem(")[1].split("\n@frappe")[0]
+	dung("có bảng bếp đọc một lượt", "_bep_cua_nhieu(cac_ma)" in doan)
+	dung("suy ngược từ món con lên món cha", "bep_khai[cha] = bep_khai[con]" in doan)
+	dung("giữ riêng kho giao cho điểm bán", 'd["kho_giao"]' in doan)
+
+
+@ca("mọi dòng đều kèm ảnh món, đọc từ máy chủ")
+def _():
+	# Anh Viet 29/08/2026: "cai nay phai lam o backend, anh mon luon di kem
+	# ten mon".
+	p = _py("ke_hoach_sx.py")
+	dung("máy chủ đọc ảnh một lượt", "def _anh_cua(cac_ma)" in p)
+	dung("gắn ảnh vào từng dòng", '"anh": anh.get(ma, "")' in p)
+	nen = _js("00-nen.js")
+	dung("có khung ảnh dùng chung", "function anhMon(url)" in nen)
+	for tep in ("38-ke-hoach-sx.js", "05-san-xuat.js"):
+		dung("%s dùng khung ảnh" % tep, "anhMon(" in _js(tep))
+
+
+@ca("huỷ phiếu kế hoạch bị chặn khi đã đẻ ra lệnh sản xuất")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def huy_phieu(")[1].split("\n@frappe")[0]
+	dung("có đếm lệnh con", '"production_plan": ten' in doan)
+	dung("nói rõ phải huỷ lệnh trước", "Huỷ các lệnh đó trước" in doan)
+	dung("phiếu nháp thì xoá hẳn", "doc.delete()" in doan)
+
+
+@ca("huỷ lệnh sản xuất bị chặn khi đã làm ra hàng")
+def _():
+	# Huy lenh da lam ra hang la de lai mot khoan ton khong co goc.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def huy_lenh(")[1].split("\n@frappe")[0]
+	dung("chặn khi đã làm ra hàng", "flt(doc.produced_qty) > 0" in doan)
+	dung("chặn khi đã chuyển nguyên liệu", "material_transferred_for_manufacturing" in doan)
+	dung("trả số về cho phiếu kế hoạch", "update_ordered_status()" in doan)
+
+
+@ca("sửa số lệnh chỉ cho khi lệnh còn nháp")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def sua_so_lenh(")[1].split("\n\n")[0] + m.split("def sua_so_lenh(")[1]
+	dung("chặn lệnh đã ghi sổ", "doc.docstatus != 0" in doan)
+	dung("chỉ đường thay thế", "Huỷ lệnh rồi ra lệnh mới" in doan)
+
+
+@ca("trang danh sách lệnh sản xuất KHÔNG còn thẻ chọn kho chung")
+def _():
+	# Anh Viet 29/08/2026: moi lenh da chon kho rieng roi, de them mot o
+	# chon kho chung o trang danh sach la mau thuan.
+	m = _js("05-san-xuat.js")
+	doan = m.split("async function scrMfgList()")[1].split("\nasync function scrMfgNew()")[0]
+	la("không gọi thẻ kho ở trang danh sách", "mfgWhCard()" in doan, False)
+	dung("hai màn kia vẫn còn thẻ kho", m.count("mfgWhCard()") >= 3)
+
+
+@ca("màn lệnh sản xuất có nút huỷ và nút sửa số")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("có nút huỷ lệnh", "huy_lenh" in m)
+	dung("có nút sửa số", "sua_so_lenh" in m)
+	dung("số lượng hiển thị làm tròn", "kl(w.qty, w.stock_uom)" in m)
+
+
+@ca("có màn danh mục phiếu kế hoạch, mở và huỷ được")
+def _():
+	m = _js("38-ke-hoach-sx.js")
+	dung("có màn danh mục", "function scrKhsxDsPhieu()" in m)
+	dung("gọi được huỷ phiếu", "ke_hoach_sx.huy_phieu" in m)
+	dung("có đường mở từ màn kế hoạch", "data-dsp=" in m)
 
 
 @ca("neo nguyên liệu về bán thành phẩm theo MÓN và CÔNG THỨC của BTP")

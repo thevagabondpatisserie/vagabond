@@ -841,7 +841,7 @@ function kkCanEditWh(wh) {
   return l.indexOf(S.user) >= 0 || kkCanPost();
 }
 function kkLockNote(wh) {
-  return 'Kho ' + h(shortWh(wh)) + ' do anh Kiên chốt số. Bạn mở được để xem và tham chiếu tồn, nhưng không sửa số trong phiếu kho này.';
+  return 'Kho ' + h(shortWh(wh)) + ' do bộ phận Kho tổng 307 chốt số. Bạn mở được để xem và tham chiếu tồn, nhưng không sửa số trong phiếu kho này.';
 }
 function kkNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : r3(n); }
 
@@ -1091,7 +1091,7 @@ async function scrKkNew() {
 async function kkCreate() {
   var f = kk.newf;
   if (!f.kho) return toast('Chọn kho trước đã');
-  if (!kkCanEditWh(f.kho)) return toast('Kho ' + shortWh(f.kho) + ' chỉ anh Kiên kiểm số');
+  if (!kkCanEditWh(f.kho)) return toast('Kho ' + shortWh(f.kho) + ' chỉ bộ phận Kho tổng 307 kiểm số');
   busy(1);
   try {
     var dup = await getList('Phieu Kiem Ke', {
