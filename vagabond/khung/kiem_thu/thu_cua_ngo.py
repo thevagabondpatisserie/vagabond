@@ -85,6 +85,8 @@ CUA_NGO = {
 		"dung_lai_lech_don_vi", "soat", "soat_do_tam", "soat_don_vi",
 		"sua_to_da_ghi_so",
 	],
+	# Bang ra thu gui nha cung cap, them 28/08/2026 cung lan dat hang rao.
+	"gac_thu_ncc.py": ["soat_thu_ncc"],
 	"doi_chieu_mua.py": [
 		"danh_sach", "don_vi_cua_mon", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],
