@@ -162,7 +162,9 @@ async function scrHoSoTT() {
 var hsTaoNcc = '', hsTaoChon = {}, hsTaoGhiChu = '', hsTaoLoai = 'NCC';
 /* Nguoi da ung tien mua ho, tuc nguoi NHAN lai tien. Chi dung cho luong
    hoan ung co hoa don. */
-var hsTaoNguoiUng = '', hsTaoDsUng = null, hsUngTim = '';
+/* `hsUngTim` da bo o v333: o go tim khong con giu tu khoa trong bien va
+   khong con lam ve lai man, no loc thang tren DOM. */
+var hsTaoNguoiUng = '', hsTaoDsUng = null;
 /* Tai khoan nhan tien cua man hoan ung CO hoa don. Anh Viet 28/08/2026:
    man nay truoc khong co o chon nen may lay dai tai khoan mac dinh cua
    nguoi ung; anh Viet co ca ACB lan OCB nen doan sai la chuyen nham
@@ -232,14 +234,19 @@ async function scrHoSoTTTao() {
      Do la ben NHAN tien; de may tu dien so tai khoan cua nha cung cap vao
      day nhu truoc la mo duong chuyen nham tien cho ho. */
   if (laHU) {
+    /* Ve HET danh sach roi loc tren DOM, thay vi cat con 8 cai roi ve lai
+       man moi lan go mot chu. Ban cu goi go(scrHoSoTTTao, true) o su kien
+       change nen tren dien thoai ban phim tut xuong sau moi lan go, va
+       nguoi hay dung nam ngoai top 8 thi go mai khong ra. */
     var dsu = (hsTaoDsUng && hsTaoDsUng.ncc) || [];
     var hsTk = (hsTkDs && hsTkDs.tk) || [];
-    var q = hsUngTim.trim().toLowerCase();
-    if (q) dsu = dsu.filter(function (x) { return String(x.ten || x.ncc).toLowerCase().indexOf(q) >= 0; });
-    var hay = dsu.filter(function (x) { return x.hay_dung; }).slice(0, 8);
-    if (!hay.length) hay = dsu.slice(0, 8);
+    /* Nguoi hay dung xep len truoc cho de cham, phan con lai giu nguyen thu tu. */
+    var hay = dsu.filter(function (x) { return x.hay_dung; })
+      .concat(dsu.filter(function (x) { return !x.hay_dung; }));
     html += hsoKhoi('Người được hoàn ứng · bắt buộc') +
-      '<div class="card" style="padding:10px 12px">' + kmHangChip(
+      '<div class="card" style="padding:10px 12px">' +
+      hsOTimNcc('hsUngTim', hay.length) +
+      kmHangChip(
         hay.map(function (x) {
           return posChipNut('data-hsu="' + h(x.ncc) + '"', h(x.ten), hsTaoNguoiUng === x.ncc);
         }).join('')) +
@@ -247,7 +254,7 @@ async function scrHoSoTTTao() {
         '<div style="font-size:12px;color:#b3261e;margin-top:8px;line-height:1.6">' +
         'Chưa chọn ai. Đây là người đã bỏ tiền túi mua hộ và sẽ nhận lại tiền, ' +
         'không phải nhà cung cấp trên hoá đơn.</div>') +
-      hsKhungTimNcc('hsUngTim', hsUngTim, hay.length,
+      hsKhungTimNcc('hsUngTim', hay.length,
         'Người mới ứng tiền lần đầu thì chưa có hồ sơ. Tạo ở đây rồi chọn luôn.') + '</div>';
 
     /* HOAN UNG VAO TAI KHOAN NAO
@@ -280,8 +287,13 @@ async function scrHoSoTTTao() {
       '</div>';
   }
 
+  /* O tim cho bang chip nha cung cap. Uyen bao 28/08/2026: 17 nha bay ra
+     thanh mot bang, muon chon mot nha la phai do bang mat. Loc ngay tren
+     DOM nen go den dau thay den do, ban phim khong tut xuong. */
   html += hsoKhoi('Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ') +
-    '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    '<div class="card" style="padding:10px 12px">' +
+    vgbOTim('hsNccTim', ncc.length, '🔎 Gõ tên nhà cung cấp để tìm nhanh') +
+    kmHangChip(
     (laHU ? posChipNut('data-hsn=""', '📚 Tất cả nhà cung cấp', !hsTaoNcc) : '') +
     ncc.map(function (x) {
       return posChipNut('data-hsn="' + h(x.ncc) + '"',
@@ -369,13 +381,17 @@ async function scrHoSoTTTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstk]'), function (el) {
     el.onclick = function () { hsTkHoan = el.getAttribute('data-hstk'); go(scrHoSoTTTao, true); };
   });
+  /* Chip "Tat ca nha cung cap" khong mang ten nha nao nen dung loc no di,
+     giu nguyen de con duong quay ve xem tat ca. */
+  vgbNoiOTim(b, 'hsNccTim', '[data-hsn]:not([data-hsn=""])');
+  vgbNoiOTim(b, 'hsUngTim', '[data-hsu]');
+  /* Cai dang go trong o tim la ten se dien san khi bam Tao nha cung cap moi. */
   var oUt = document.getElementById('hsUngTim');
-  if (oUt) oUt.onchange = function () { hsUngTim = oUt.value.trim(); go(scrHoSoTTTao, true); };
-  hsNoiNutTaoNcc(hsUngTim, function (ma) {
+  hsNoiNutTaoNcc(oUt ? oUt.value.trim() : '', function (ma) {
     /* Tao xong thi nap lai danh sach, khong thi nguoi vua tao khong co
        trong `hsTaoDsUng` da cache va chip moi khong hien ra. */
     hsTaoDsUng = null;
-    if (ma) { hsTaoNguoiUng = ma; hsUngTim = ''; }
+    if (ma) { hsTaoNguoiUng = ma; }
     go(scrHoSoTTTao, true);
   });
   b.addEventListener('click', function (e) {
@@ -459,17 +475,33 @@ function huManHienTai() { return huMode === 'tkct' ? scrChiCongTyTao : scrHoanUn
 
    Nen moi cho chon nha cung cap deu phai co ba thu: o go tim, cau noi ro
    la khong tim thay, va nut tao moi mang san chu vua go sang man tao. */
-function hsKhungTimNcc(idO, tuKhoa, soThay, moTaTao) {
-  return '<input class="tin" id="' + idO + '" placeholder="Gõ tên để tìm nhà cung cấp" value="' +
-    h(tuKhoa || '') + '" style="margin-top:9px">' +
-    ((tuKhoa && !soThay)
-      ? '<div style="font-size:12.5px;color:#b45309;margin-top:8px;line-height:1.55">Không có nhà cung cấp nào tên giống "' +
-        h(tuKhoa) + '". Bấm nút dưới để lập hồ sơ mới, máy điền sẵn cái tên vừa gõ.</div>'
-      : '') +
-    '<div style="margin-top:9px;padding-top:9px;border-top:1px dashed #e5e7eb">' +
+/* O GO TIM, dat NGAY TREN bang chip nha cung cap.
+
+   v333 tach lam doi: o tim len tren vi no loc cai nam duoi, con nut tao moi
+   o lai duoi cung. Ban cu de ca hai o duoi bang chip, tuc la o loc nam duoi
+   cai no loc.
+
+   O nay khong con `value` va khong con lam ve lai man. Loc chay tren DOM
+   qua `vgbNoiOTim`, nen go den dau thay den do va ban phim dien thoai khong
+   tut xuong sau moi chu. */
+function hsOTimNcc(idO, soMuc) {
+  return vgbOTim(idO, soMuc, '🔎 Gõ tên để tìm nhà cung cấp');
+}
+
+/* DUONG TAO MOI, dat DUOI bang chip.
+
+   Diem quan trong nhat cua khung nay khong phai o tim, ma la NUT TAO MOI
+   mang san cai ten vua go sang man tao. Anh Viet 21/08/2026: chi Dung go
+   "BHXH CO SO TAN DINH" roi "bao hiem xa hoi", ca hai lan deu khong ra gi,
+   man hinh bao "Chua chon ben nhan tien" va het duong. Bat nguoi ta go lai
+   lan thu ba cai ten vua go hai lan khong ra la cach nhanh nhat de ho bo
+   cuoc va di nhan tin hoi. */
+function hsKhungTimNcc(idO, soThay, moTaTao) {
+  return '<div style="margin-top:9px;padding-top:9px;border-top:1px dashed #e5e7eb">' +
     '<button class="btn gh" id="hsTaoNccMoi" style="margin:0">➕ Không thấy tên? Tạo nhà cung cấp mới</button>' +
-    (moTaTao ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' + h(moTaTao) + '</div>' : '') +
-    '</div>';
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' +
+    h(moTaTao || '') + (moTaTao ? ' ' : '') +
+    'Máy điền sẵn cái tên đang gõ trong ô tìm sang màn tạo.</div></div>';
 }
 
 function hsNoiNutTaoNcc(tuKhoa, chon) {
@@ -829,11 +861,12 @@ async function scrChiCongTyTao() {
 
   var nhanNguoi = hopLe ? 'Trả cho nhà cung cấp nào' : 'Trả cho ai';
   html += hsoKhoi(nhanNguoi) + '<div class="card" style="padding:10px 12px">' +
+    (hopLe ? '' : hsOTimNcc('huTim', ncc.length)) +
     kmHangChip(ncc.slice(0, 40).map(function (x) {
       var ten = x.ten || x.ncc;
       return posChipNut('data-hun="' + h(x.ncc) + '"', (x.hay_dung ? '⭐ ' : '') + h(ten) + (hopLe && x.con_no ? ' · ' + money(x.con_no) : ''), huNguoi === x.ncc);
     }).join('')) +
-    (hopLe ? '' : hsKhungTimNcc('huTim', huTim, ncc.length,
+    (hopLe ? '' : hsKhungTimNcc('huTim', ncc.length,
       'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.')) +
     '</div>';
 
@@ -900,9 +933,16 @@ async function scrChiCongTyTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hucp]'), function (el) {
     el.onclick = function () { huCpThue = el.getAttribute('data-hucp'); go(scrChiCongTyTao, true); };
   });
+  /* Hai tang tim tren cung mot o. Go den dau loc ngay 40 chip dang bay ra,
+     khong ve lai man nen ban phim khong tut. Bam Enter hoac roi o thi moi
+     hoi may chu, vi danh sach nguoi nhan tien dai hon 40 va phan con lai
+     nam ben may chu chu khong co san o day. */
+  vgbNoiOTim(b, 'huTim', '[data-hun]');
   var ot = document.getElementById('huTim');
   if (ot) ot.onchange = function () { huTim = ot.value.trim(); go(scrChiCongTyTao, true); };
-  hsNoiNutTaoNcc(huTim, function (ma) {
+  /* Lay cai DANG go trong o chu khong lay bien da luu: nguoi ta go xong roi
+     bam thang nut Tao moi, chua he roi o nen bien van con rong. */
+  hsNoiNutTaoNcc(ot ? ot.value.trim() : huTim, function (ma) {
     if (ma) { huNguoi = ma; huTim = ''; }
     go(scrChiCongTyTao, true);
   });

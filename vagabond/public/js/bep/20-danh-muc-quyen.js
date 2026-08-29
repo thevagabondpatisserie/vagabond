@@ -66,6 +66,9 @@ async function scrNcc() {
   html += '</div>';
 
   var b = frame('Nhà cung cấp', html, {});
+  /* Loc ngay tren DOM 200 dong dang bay ra, go den dau thay den do. Bam
+     Enter hoac roi o thi moi hoi may chu cho phan nam ngoai 200 dong. */
+  vgbNoiOTim(b, 'nccQ', '[data-ncc]');
   var q = document.getElementById('nccQ');
   if (q) q.onchange = function () { nccTim = q.value.trim(); go(scrNcc, true); };
   Array.prototype.forEach.call(document.querySelectorAll('[data-nccc]'), function (el) {

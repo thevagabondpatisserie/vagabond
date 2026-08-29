@@ -39,9 +39,15 @@ def _js(ten):
 @ca("tìm NCC: có khung dùng chung, không rải mỗi màn một kiểu")
 def _():
 	js = _js("19-ho-so-tt.js")
-	dung("có hàm dựng khung tìm", "function hsKhungTimNcc(" in js)
+	# v333 tach lam doi: o go tim len TREN bang chip vi no loc cai nam duoi,
+	# duong tao moi o lai DUOI cung. Ban cu de ca hai o duoi, tuc la o loc
+	# nam duoi cai no loc.
+	dung("có hàm dựng ô tìm", "function hsOTimNcc(" in js)
+	dung("có hàm dựng đường tạo mới", "function hsKhungTimNcc(" in js)
 	dung("có hàm nối nút", "function hsNoiNutTaoNcc(" in js)
 	dung("nút mang tên vừa gõ sang màn tạo", "nccTaoNhanh(" in js)
+	# O tim dung chung cua ca app, khong tu che rieng mot ban o day.
+	dung("ô tìm dùng đồ chung của app", "vgbOTim(" in js)
 
 
 @ca("tìm NCC: màn tạo nhà cung cấp nhận được việc phải làm sau khi lưu")
@@ -69,8 +75,12 @@ def _():
 	# cung cap nao ca, tien tra ve dung mot trong hai tai khoan ung, nen man
 	# do gio chon TAI KHOAN. Day KHONG phai lo sot - dung khoi phuc lai o
 	# chon nha cung cap o man ay.
-	dung("hai chỗ dựng khung tìm", js.count("hsKhungTimNcc(") >= 3)
+	dung("hai chỗ dựng ô tìm", js.count("hsOTimNcc(") >= 3)
+	dung("hai chỗ dựng đường tạo mới", js.count("hsKhungTimNcc(") >= 3)
 	dung("hai chỗ nối nút", js.count("hsNoiNutTaoNcc(") >= 3)
+	# Ve o tim ma quen noi loc thi o do go vao khong lam gi ca, con te hon
+	# la khong co o.
+	dung("hai chỗ nối lọc", js.count("vgbNoiOTim(") >= 2)
 	for man in ("scrChiCongTyTao", "scrHoSoTTTao"):
 		than = js.split("function " + man)[1].split("\nasync function ")[0]
 		dung("%s có nối nút tạo" % man, "hsNoiNutTaoNcc(" in than)
@@ -94,18 +104,32 @@ def _():
 	# khong co trong danh sach va chip moi khong bao gio hien ra - nguoi
 	# dung tuong may khong luu duoc.
 	js = _js("19-ho-so-tt.js")
-	than = js.split("hsNoiNutTaoNcc(hsUngTim")[1][:400]
+	than = js.split("vgbNoiOTim(b, 'hsUngTim'")[1][:600]
 	dung("xoá cache trước khi vẽ lại", "hsTaoDsUng = null;" in than)
 
 
-@ca("tìm NCC: màn người được hoàn ứng có ô gõ tìm, không chỉ tám chip")
+@ca("tìm NCC: màn người được hoàn ứng bày ĐỦ người, không cắt còn tám")
 def _():
-	# Ban cu chi bay tam chip dau. Ai khong nam trong tam nguoi do la
-	# khong co duong nao chon.
+	# Ban cu chi bay tam chip dau roi loc bang cach VE LAI MAN moi lan go.
+	# Hai cai deu hong: ai khong nam trong tam nguoi thi go mai khong ra, va
+	# ve lai man thi ban phim dien thoai tut xuong sau MOI chu.
 	js = _js("19-ho-so-tt.js")
-	dung("có biến từ khoá riêng", "hsUngTim" in js)
-	dung("có lọc theo từ khoá", "dsu = dsu.filter(" in js)
-	dung("ô tìm có nối sự kiện", "getElementById('hsUngTim')" in js)
+	than = js.split("function scrHoSoTTTao")[1].split("\nasync function ")[0]
+	dung("có ô tìm", "hsOTimNcc('hsUngTim'" in than)
+	dung("có nối lọc trên DOM", "vgbNoiOTim(b, 'hsUngTim'" in than)
+	# Chot nguoc lai: khong duoc cat danh sach nua.
+	dung("KHÔNG cắt còn tám người", ".slice(0, 8)" not in than)
+	# Va khong duoc ve lai man moi lan go.
+	dung("KHÔNG vẽ lại màn khi gõ", "hsUngTim = " not in than)
+
+
+@ca("tìm NCC: nút tạo mới mang cái ĐANG gõ, không mang biến đã lưu")
+def _():
+	# Nguoi ta go ten xong bam thang nut Tao moi, chua he roi khoi o nen
+	# bien da luu van con rong. Doc thang gia tri trong o moi dung.
+	js = _js("19-ho-so-tt.js")
+	dung("màn hoàn ứng đọc thẳng ô", "hsNoiNutTaoNcc(oUt ? oUt.value.trim()" in js)
+	dung("màn chi công ty đọc thẳng ô", "hsNoiNutTaoNcc(ot ? ot.value.trim()" in js)
 
 
 # ------------------------------------------------------- quyen tao ho so

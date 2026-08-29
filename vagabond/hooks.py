@@ -376,6 +376,13 @@ doc_events = {
 	},
 	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,
 	# chan thang phan loai tai san co dinh. Luat nam o de_nghi_chi.py.
+	# Thu gui nha cung cap tu don mua hang. CHI dong vao thu co chung tu goc
+	# dung la Don mua hang va dang gui DI; moi thu khac di qua khong sut me
+	# gi. Doc dau tep gac_thu_ncc.py truoc khi sua: ngay 16/08/2026 mot hook
+	# dat tren "*" da lam ca tiem khong gui duoc thu nao suot bon ngay.
+	"Communication": {
+		"before_insert": "vagabond.gac_thu_ncc.chan_thu_don_hong",
+	},
 	"Vagabond De Nghi Chi": {
 		"before_validate": "vagabond.de_nghi_chi.truoc_khi_luu",
 	},

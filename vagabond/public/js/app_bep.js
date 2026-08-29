@@ -968,6 +968,23 @@ dung im trong suot mot mach xem chi tiet roi tro ve dung cho khi lui.
 Nac 0 mang chuoi rong, va chuoi rong nghia la dia chi goc cua app. */
 S.duong = [];
 
+/* VI TRI CUON CUA TUNG NAC, song song voi S.stack va S.duong.
+
+   Anh Viet bao 28/08/2026: *"nhan nut back tren trinh duyet thi cac trang
+   danh sach van bi cuon len dau chu khong tra lai o vi tri dang xem den
+   truoc do, cu phai keo xuong kha la mat thoi gian"*.
+
+   VI SAO BAN CU KHONG DU. `VGB_CUON` la MOT bien duy nhat cho ca app, va
+   `frame()` xoa no ve 0 moi khi tieu de doi. Mo mot dong trong danh sach ra
+   xem chi tiet la tieu de doi, vi tri mat ngay tai do; luc lui ve tieu de
+   lai doi lan nua nen danh sach ve dau trang. Bien mot cai thi khong the
+   nho duoc hai man cung luc.
+
+   NAY MOI NAC GIU RIENG MOT SO. Day xuong mot nac thi cat vi tri cua nac
+   duoi lai; lui len thi lay ra tra ve. Lui may nac mot lan bang nut Back
+   cua trinh duyet cung dung, vi lay theo chi so nac chu khong theo tieu de. */
+S.cuon = [0];
+
 /* Cau hoi phai hoi truoc khi roi man dang giu thay doi chua luu. Rong la
    khong co gi de mat. Xem chu thich o `roiChuaLuu` ben duoi. */
 S.chuaLuu = '';
@@ -1011,8 +1028,12 @@ function go(fn, replace) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
   if (!replace) {
+    /* Cat vi tri cuon cua nac dang dung TRUOC khi day xuong. Thieu dong nay
+       thi lui ve khong con gi de tra. */
+    S.cuon[S.stack.length - 1] = VGB_CUON;
     S.stack.push(fn);
     S.duong.push(slug || vgbNacDuong());
+    S.cuon.push(0);
     /* pushState TRUOC khi doi dia chi: moc moi phai chup lai dia chi CU thi
        moc cua man cha moi con nguyen dia chi cua no. Doi thu tu hai dong
        nay chinh la loi anh Viet bao ngay 24/08. */
@@ -1028,7 +1049,9 @@ function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
     S.chuaLuu = '';
-    S.stack.pop(); S.duong.pop(); vgbApNac(); render();
+    S.stack.pop(); S.duong.pop(); S.cuon.pop();
+    vgbHenTraCuon();
+    vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
@@ -1051,6 +1074,8 @@ function reset(fn) {
   S.chuaLuu = '';
   S.stack = [fn];
   S.duong = [slug];
+  S.cuon = [0];
+  VGB_CHO_TRA = 0;
   try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
   vgbApNac();
   return render();
@@ -1099,6 +1124,21 @@ function render() { var f = S.stack[S.stack.length - 1]; if (f) return f(); }
    Doi sang man khac thi tieu de khac, xoa vi tri de bat dau tu dau trang. */
 var VGB_TD = '', VGB_CUON = 0, VGB_DANG_TRA = 0;
 
+/* Vi tri dang cho duoc tra lai sau mot lan lui. 0 la khong co hen nao.
+
+   Phai la mot bien rieng chu khong gan thang vao VGB_CUON, vi `frame()` xoa
+   VGB_CUON moi khi tieu de doi - ma lui ve thi tieu de LUON doi. */
+var VGB_CHO_TRA = 0;
+
+/* Goi sau khi da cat bot chong: hen tra lai vi tri cuon cua nac con lai.
+
+   Dung cho ca nut ‹ trong app lan nut Back cua trinh duyet. Nut Back co the
+   nhay lui may nac mot lan, nhung ham nay chi doc nac tren cung sau khi cat
+   nen bao nhieu nac cung dung. */
+function vgbHenTraCuon() {
+  VGB_CHO_TRA = Number(S.cuon[S.cuon.length - 1]) || 0;
+}
+
 function vgbTheoDoiCuon(ob) {
   if (!ob || ob.vgbDaNghe) return;
   ob.vgbDaNghe = 1;
@@ -1128,7 +1168,11 @@ function frame(title, bodyHtml, opt) {
   /* Tieu de tab trinh duyet theo man hinh, liec tab biet ngay dang o dau */
   try { document.title = (title && title !== APPNAME) ? title + ' · Vagabond' : APPNAME; } catch (e) { }
   var doiMan = (VGB_TD !== title);
-  if (doiMan) VGB_CUON = 0;
+  /* Vua lui ve mot nac cu thi tra lai dung cho nguoi ta dang doc, DU tieu de
+     co khac. Doc mot lan roi xoa hen: man do co ve lai lan hai cho du lieu
+     that thi da co VGB_CUON giu cho. */
+  if (VGB_CHO_TRA > 0) { VGB_CUON = VGB_CHO_TRA; VGB_CHO_TRA = 0; doiMan = false; }
+  else if (doiMan) VGB_CUON = 0;
   VGB_TD = title;
   var giuCuon = (!doiMan && VGB_CUON > 0);
   var showBack = S.stack.length > 1;
@@ -7649,6 +7693,9 @@ function hopKhung(tuaDe, thanHtml, chanHtml) {
 function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
   return new Promise(function (xong) {
     var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    /* Danh sach dai thi them o tim. Hop chon tai khoan, chon nha cung cap,
+       chon nhom tai san deu di qua day, nen mot cho nay lo cho nhieu man. */
+    than += vgbOTim('hcTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       var chon = kDangChon != null && x.k === kDangChon;
       than += '<div data-hc="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;'
@@ -7660,6 +7707,10 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
         + '</div></div>';
     });
     var k = hopKhung(tuaDe, than, '<button class="btn gh" data-hcx style="flex:1;margin:0">Thôi</button>');
+    /* Loc theo ca nhan lan mo ta: nho gia von hay so tai khoan nam trong mo
+       ta thi go so cung ra. */
+    vgbNoiOTim(k.box, 'hcTim', '[data-hc]');
+    try { var _ot = k.box.querySelector('#hcTim'); if (_ot) _ot.focus(); } catch (e) { }
     var tra = function (v) { k.dong(); xong(v); };
     k.box.onclick = function (e) {
       if (e.target.closest('.x') || e.target.closest('[data-hcx]')) return tra(null);
@@ -8318,6 +8369,78 @@ async function scrRndDoc(name) {
 
 /* ---------- 16. Boot ---------- */
 document.title = APPNAME;
+
+/* ---------- O TIM DUNG CHUNG CHO MOI CHO CHON (v333, 28/08/2026) ----------
+
+   Anh Viet chot: *"moi noi can thao tac chon (select) thi phai co o tim
+   kiem, co danh muc cung phai co o tim kiem"*. Uyen bao truoc do: man Lap
+   ho so thanh toan bay 17 nha cung cap thanh mot bang chip, muon them mot
+   nha la phai do bang mat, khong co duong nao go tim.
+
+   HAI LUAT CUA CACH LAM NAY
+   -------------------------
+   1. LOC NGAY TREN DOM, KHONG VE LAI MAN. Ve lai man thi mat vi tri cuon,
+      mat cai dang go, va tren dien thoai la ban phim tut xuong sau MOI chu.
+      Man "Nguoi duoc hoan ung" truoc day loc bang cach goi go(..., true),
+      go mot chu la ban phim nhay mot cai - dung cai lam nguoi ta bo cuoc.
+   2. GO KHONG DAU VAN RA. Go "dien luc" phai thay "ĐIỆN LỰC". Dung lai
+      `mvKhongDau` da co san chu khong viet them mot ban nua.
+
+   O tim chi hien khi danh sach du dai de dang tim. Bay ba cai chip ma con
+   doi go tim thi la lam phien. */
+
+/* Nguong: it hon bay muc thi liec mat la thay, khong can o tim. */
+var VGB_NGUONG_TIM = 7;
+
+function vgbCanOTim(soMuc) { return Number(soMuc || 0) >= VGB_NGUONG_TIM; }
+
+/* HTML cua o tim. Tra ve chuoi rong khi danh sach con ngan. */
+function vgbOTim(idO, soMuc, goiY) {
+  if (!vgbCanOTim(soMuc)) return '';
+  return '<input class="tin" id="' + h(idO) + '" type="search" autocomplete="off" ' +
+    'placeholder="' + h(goiY || ('🔎 Gõ để tìm nhanh trong ' + soMuc + ' mục')) + '" ' +
+    'style="margin:0 0 9px">' +
+    '<div id="' + h(idO) + 'Trong" style="display:none;font-size:12.5px;color:#b45309;' +
+    'padding:6px 2px 9px;line-height:1.55">Không có mục nào khớp. Xoá bớt chữ rồi tìm lại.</div>';
+}
+
+/* Noi o tim vao cac muc da ve san.
+
+   goc      : phan tu chua ca o tim lan cac muc, thuong la than man hinh.
+   idO      : id da dat o `vgbOTim`.
+   mucSel   : chuoi CSS chon TUNG muc can loc.
+   layChu   : ham lay chu de so khop tu mot muc. Bo trong thi lay textContent.
+
+   Khong tim thay o tim thi im lang di ra, vi danh sach ngan khong ve o tim. */
+function vgbNoiOTim(goc, idO, mucSel, layChu) {
+  if (!goc) return;
+  var o = goc.querySelector('#' + idO);
+  if (!o) return;
+  var oTrong = goc.querySelector('#' + idO + 'Trong');
+  var muc = [].slice.call(goc.querySelectorAll(mucSel));
+  if (!muc.length) return;
+  var chu = muc.map(function (el) {
+    return mvKhongDau(layChu ? layChu(el) : (el.textContent || ''));
+  });
+  var chay = function () {
+    var q = mvKhongDau(o.value).trim();
+    var thay = 0;
+    for (var i = 0; i < muc.length; i++) {
+      var hop = !q || chu[i].indexOf(q) >= 0;
+      muc[i].style.display = hop ? '' : 'none';
+      if (hop) thay++;
+    }
+    if (oTrong) oTrong.style.display = (q && !thay) ? '' : 'none';
+  };
+  o.addEventListener('input', chay);
+  /* Enter tren dien thoai: con dung mot muc thi chon luon cho do phai cham. */
+  o.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var con = muc.filter(function (el) { return el.style.display !== 'none'; });
+    if (con.length === 1) { e.preventDefault(); con[0].click(); }
+  });
+  chay();
+}
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
 var dsLoc = 'tat_ca', dsLocNg = '', dsLocHd = '';
@@ -18573,7 +18696,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '348';
+var APPVER = '349';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -18645,7 +18768,7 @@ window.addEventListener('popstate', function (ev) {
       var giu = S.stack.length - 1;
       confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
         .then(function (ok) {
-          if (ok) { S.draft = null; S.stack.length = d + 1; S.duong.length = d + 1; vgbApNac(); render(); }
+          if (ok) { S.draft = null; S.stack.length = d + 1; S.duong.length = d + 1; S.cuon.length = d + 1; vgbHenTraCuon(); vgbApNac(); render(); }
           else { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } }
         });
       return;
@@ -18653,7 +18776,12 @@ window.addEventListener('popstate', function (ev) {
     /* Lui bang nut Back cua trinh duyet: cat chong man hinh VA cat luon
        chong dia chi, roi ap lai dia chi cua nac con lai. Thieu hai viec sau
        thi man da lui ma thanh dia chi van mang duoi cua man vua roi. */
-    S.stack.length = d + 1; S.duong.length = d + 1; vgbApNac(); render(); return;
+    /* Cat luon chong vi tri cuon roi hen tra lai vi tri cua nac con lai.
+       Day chinh la duong anh Viet di khi bam nut Back cua trinh duyet
+       (28/08/2026): thieu hai lenh nay thi danh sach ve dau trang. */
+    S.stack.length = d + 1; S.duong.length = d + 1; S.cuon.length = d + 1;
+    vgbHenTraCuon();
+    vgbApNac(); render(); return;
   }
   if (d + 1 > S.stack.length) {
     /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
@@ -27513,7 +27641,9 @@ async function scrHoSoTT() {
 var hsTaoNcc = '', hsTaoChon = {}, hsTaoGhiChu = '', hsTaoLoai = 'NCC';
 /* Nguoi da ung tien mua ho, tuc nguoi NHAN lai tien. Chi dung cho luong
    hoan ung co hoa don. */
-var hsTaoNguoiUng = '', hsTaoDsUng = null, hsUngTim = '';
+/* `hsUngTim` da bo o v333: o go tim khong con giu tu khoa trong bien va
+   khong con lam ve lai man, no loc thang tren DOM. */
+var hsTaoNguoiUng = '', hsTaoDsUng = null;
 /* Tai khoan nhan tien cua man hoan ung CO hoa don. Anh Viet 28/08/2026:
    man nay truoc khong co o chon nen may lay dai tai khoan mac dinh cua
    nguoi ung; anh Viet co ca ACB lan OCB nen doan sai la chuyen nham
@@ -27583,14 +27713,19 @@ async function scrHoSoTTTao() {
      Do la ben NHAN tien; de may tu dien so tai khoan cua nha cung cap vao
      day nhu truoc la mo duong chuyen nham tien cho ho. */
   if (laHU) {
+    /* Ve HET danh sach roi loc tren DOM, thay vi cat con 8 cai roi ve lai
+       man moi lan go mot chu. Ban cu goi go(scrHoSoTTTao, true) o su kien
+       change nen tren dien thoai ban phim tut xuong sau moi lan go, va
+       nguoi hay dung nam ngoai top 8 thi go mai khong ra. */
     var dsu = (hsTaoDsUng && hsTaoDsUng.ncc) || [];
     var hsTk = (hsTkDs && hsTkDs.tk) || [];
-    var q = hsUngTim.trim().toLowerCase();
-    if (q) dsu = dsu.filter(function (x) { return String(x.ten || x.ncc).toLowerCase().indexOf(q) >= 0; });
-    var hay = dsu.filter(function (x) { return x.hay_dung; }).slice(0, 8);
-    if (!hay.length) hay = dsu.slice(0, 8);
+    /* Nguoi hay dung xep len truoc cho de cham, phan con lai giu nguyen thu tu. */
+    var hay = dsu.filter(function (x) { return x.hay_dung; })
+      .concat(dsu.filter(function (x) { return !x.hay_dung; }));
     html += hsoKhoi('Người được hoàn ứng · bắt buộc') +
-      '<div class="card" style="padding:10px 12px">' + kmHangChip(
+      '<div class="card" style="padding:10px 12px">' +
+      hsOTimNcc('hsUngTim', hay.length) +
+      kmHangChip(
         hay.map(function (x) {
           return posChipNut('data-hsu="' + h(x.ncc) + '"', h(x.ten), hsTaoNguoiUng === x.ncc);
         }).join('')) +
@@ -27598,7 +27733,7 @@ async function scrHoSoTTTao() {
         '<div style="font-size:12px;color:#b3261e;margin-top:8px;line-height:1.6">' +
         'Chưa chọn ai. Đây là người đã bỏ tiền túi mua hộ và sẽ nhận lại tiền, ' +
         'không phải nhà cung cấp trên hoá đơn.</div>') +
-      hsKhungTimNcc('hsUngTim', hsUngTim, hay.length,
+      hsKhungTimNcc('hsUngTim', hay.length,
         'Người mới ứng tiền lần đầu thì chưa có hồ sơ. Tạo ở đây rồi chọn luôn.') + '</div>';
 
     /* HOAN UNG VAO TAI KHOAN NAO
@@ -27631,8 +27766,13 @@ async function scrHoSoTTTao() {
       '</div>';
   }
 
+  /* O tim cho bang chip nha cung cap. Uyen bao 28/08/2026: 17 nha bay ra
+     thanh mot bang, muon chon mot nha la phai do bang mat. Loc ngay tren
+     DOM nen go den dau thay den do, ban phim khong tut xuong. */
   html += hsoKhoi('Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ') +
-    '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    '<div class="card" style="padding:10px 12px">' +
+    vgbOTim('hsNccTim', ncc.length, '🔎 Gõ tên nhà cung cấp để tìm nhanh') +
+    kmHangChip(
     (laHU ? posChipNut('data-hsn=""', '📚 Tất cả nhà cung cấp', !hsTaoNcc) : '') +
     ncc.map(function (x) {
       return posChipNut('data-hsn="' + h(x.ncc) + '"',
@@ -27720,13 +27860,17 @@ async function scrHoSoTTTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstk]'), function (el) {
     el.onclick = function () { hsTkHoan = el.getAttribute('data-hstk'); go(scrHoSoTTTao, true); };
   });
+  /* Chip "Tat ca nha cung cap" khong mang ten nha nao nen dung loc no di,
+     giu nguyen de con duong quay ve xem tat ca. */
+  vgbNoiOTim(b, 'hsNccTim', '[data-hsn]:not([data-hsn=""])');
+  vgbNoiOTim(b, 'hsUngTim', '[data-hsu]');
+  /* Cai dang go trong o tim la ten se dien san khi bam Tao nha cung cap moi. */
   var oUt = document.getElementById('hsUngTim');
-  if (oUt) oUt.onchange = function () { hsUngTim = oUt.value.trim(); go(scrHoSoTTTao, true); };
-  hsNoiNutTaoNcc(hsUngTim, function (ma) {
+  hsNoiNutTaoNcc(oUt ? oUt.value.trim() : '', function (ma) {
     /* Tao xong thi nap lai danh sach, khong thi nguoi vua tao khong co
        trong `hsTaoDsUng` da cache va chip moi khong hien ra. */
     hsTaoDsUng = null;
-    if (ma) { hsTaoNguoiUng = ma; hsUngTim = ''; }
+    if (ma) { hsTaoNguoiUng = ma; }
     go(scrHoSoTTTao, true);
   });
   b.addEventListener('click', function (e) {
@@ -27810,17 +27954,33 @@ function huManHienTai() { return huMode === 'tkct' ? scrChiCongTyTao : scrHoanUn
 
    Nen moi cho chon nha cung cap deu phai co ba thu: o go tim, cau noi ro
    la khong tim thay, va nut tao moi mang san chu vua go sang man tao. */
-function hsKhungTimNcc(idO, tuKhoa, soThay, moTaTao) {
-  return '<input class="tin" id="' + idO + '" placeholder="Gõ tên để tìm nhà cung cấp" value="' +
-    h(tuKhoa || '') + '" style="margin-top:9px">' +
-    ((tuKhoa && !soThay)
-      ? '<div style="font-size:12.5px;color:#b45309;margin-top:8px;line-height:1.55">Không có nhà cung cấp nào tên giống "' +
-        h(tuKhoa) + '". Bấm nút dưới để lập hồ sơ mới, máy điền sẵn cái tên vừa gõ.</div>'
-      : '') +
-    '<div style="margin-top:9px;padding-top:9px;border-top:1px dashed #e5e7eb">' +
+/* O GO TIM, dat NGAY TREN bang chip nha cung cap.
+
+   v333 tach lam doi: o tim len tren vi no loc cai nam duoi, con nut tao moi
+   o lai duoi cung. Ban cu de ca hai o duoi bang chip, tuc la o loc nam duoi
+   cai no loc.
+
+   O nay khong con `value` va khong con lam ve lai man. Loc chay tren DOM
+   qua `vgbNoiOTim`, nen go den dau thay den do va ban phim dien thoai khong
+   tut xuong sau moi chu. */
+function hsOTimNcc(idO, soMuc) {
+  return vgbOTim(idO, soMuc, '🔎 Gõ tên để tìm nhà cung cấp');
+}
+
+/* DUONG TAO MOI, dat DUOI bang chip.
+
+   Diem quan trong nhat cua khung nay khong phai o tim, ma la NUT TAO MOI
+   mang san cai ten vua go sang man tao. Anh Viet 21/08/2026: chi Dung go
+   "BHXH CO SO TAN DINH" roi "bao hiem xa hoi", ca hai lan deu khong ra gi,
+   man hinh bao "Chua chon ben nhan tien" va het duong. Bat nguoi ta go lai
+   lan thu ba cai ten vua go hai lan khong ra la cach nhanh nhat de ho bo
+   cuoc va di nhan tin hoi. */
+function hsKhungTimNcc(idO, soThay, moTaTao) {
+  return '<div style="margin-top:9px;padding-top:9px;border-top:1px dashed #e5e7eb">' +
     '<button class="btn gh" id="hsTaoNccMoi" style="margin:0">➕ Không thấy tên? Tạo nhà cung cấp mới</button>' +
-    (moTaTao ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' + h(moTaTao) + '</div>' : '') +
-    '</div>';
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' +
+    h(moTaTao || '') + (moTaTao ? ' ' : '') +
+    'Máy điền sẵn cái tên đang gõ trong ô tìm sang màn tạo.</div></div>';
 }
 
 function hsNoiNutTaoNcc(tuKhoa, chon) {
@@ -28180,11 +28340,12 @@ async function scrChiCongTyTao() {
 
   var nhanNguoi = hopLe ? 'Trả cho nhà cung cấp nào' : 'Trả cho ai';
   html += hsoKhoi(nhanNguoi) + '<div class="card" style="padding:10px 12px">' +
+    (hopLe ? '' : hsOTimNcc('huTim', ncc.length)) +
     kmHangChip(ncc.slice(0, 40).map(function (x) {
       var ten = x.ten || x.ncc;
       return posChipNut('data-hun="' + h(x.ncc) + '"', (x.hay_dung ? '⭐ ' : '') + h(ten) + (hopLe && x.con_no ? ' · ' + money(x.con_no) : ''), huNguoi === x.ncc);
     }).join('')) +
-    (hopLe ? '' : hsKhungTimNcc('huTim', huTim, ncc.length,
+    (hopLe ? '' : hsKhungTimNcc('huTim', ncc.length,
       'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.')) +
     '</div>';
 
@@ -28251,9 +28412,16 @@ async function scrChiCongTyTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hucp]'), function (el) {
     el.onclick = function () { huCpThue = el.getAttribute('data-hucp'); go(scrChiCongTyTao, true); };
   });
+  /* Hai tang tim tren cung mot o. Go den dau loc ngay 40 chip dang bay ra,
+     khong ve lai man nen ban phim khong tut. Bam Enter hoac roi o thi moi
+     hoi may chu, vi danh sach nguoi nhan tien dai hon 40 va phan con lai
+     nam ben may chu chu khong co san o day. */
+  vgbNoiOTim(b, 'huTim', '[data-hun]');
   var ot = document.getElementById('huTim');
   if (ot) ot.onchange = function () { huTim = ot.value.trim(); go(scrChiCongTyTao, true); };
-  hsNoiNutTaoNcc(huTim, function (ma) {
+  /* Lay cai DANG go trong o chu khong lay bien da luu: nguoi ta go xong roi
+     bam thang nut Tao moi, chua he roi o nen bien van con rong. */
+  hsNoiNutTaoNcc(ot ? ot.value.trim() : huTim, function (ma) {
     if (ma) { huNguoi = ma; huTim = ''; }
     go(scrChiCongTyTao, true);
   });
@@ -29591,6 +29759,9 @@ async function scrNcc() {
   html += '</div>';
 
   var b = frame('Nhà cung cấp', html, {});
+  /* Loc ngay tren DOM 200 dong dang bay ra, go den dau thay den do. Bam
+     Enter hoac roi o thi moi hoi may chu cho phan nam ngoai 200 dong. */
+  vgbNoiOTim(b, 'nccQ', '[data-ncc]');
   var q = document.getElementById('nccQ');
   if (q) q.onchange = function () { nccTim = q.value.trim(); go(scrNcc, true); };
   Array.prototype.forEach.call(document.querySelectorAll('[data-nccc]'), function (el) {
