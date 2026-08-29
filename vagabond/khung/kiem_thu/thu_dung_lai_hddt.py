@@ -133,7 +133,11 @@ def _chu_ky_ham():
 
 	from vagabond import minvoice_chung_tu as mc
 
-	la("dong_tu_hoa_don(it)", list(inspect.signature(mc.dong_tu_hoa_don).parameters), ["it"])
+	# `dau_to` them 29/08/2026 cho to hoa don am. Tham so DAU van phai la
+	# `it` va `dau_to` phai co mac dinh, vi `dung_lai` goi bang mot doi so.
+	tham = inspect.signature(mc.dong_tu_hoa_don).parameters
+	la("dong_tu_hoa_don(it, dau_to=1)", list(tham), ["it", "dau_to"])
+	la("dau_to co mac dinh 1", tham["dau_to"].default, 1)
 	la("_tra_ma_hang(x, goc_mst, ncc)",
 		list(inspect.signature(mc._tra_ma_hang).parameters), ["x", "goc_mst", "ncc"])
 	la("_dong_pi(x, tk_chi_phi, mapped, uom, he_so)",
