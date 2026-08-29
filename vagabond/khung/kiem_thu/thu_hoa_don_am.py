@@ -365,3 +365,166 @@ def _():
 	la("nên phí ngoài thuế bằng không, không thấy gì", md.phi_ngoai_thue(NVH), 0)
 	la("còn đo bằng chi tiết thì ra đúng 101.010",
 		md.giam_ngoai_dong(NVH, NVH_CHI_TIET), 101010)
+
+
+# ------------------- v350: nan dau ngay tu luc dung chung tu, khong chi chan doan
+
+# Truoc ban nay, may chi GOI TEN duoc cai sai ("dau_nguoc") chu khong sua
+# duoc goc. Chung tu ACC-PINV-2026-02399 van nam do voi so +52.277.861
+# trong khi hoa don Grab la -56.460.090.
+#
+# Goc nam o `minvoice_chung_tu.dong_tu_hoa_don`: nha phat hanh ghi CA so
+# luong LAN don gia cung am, am nhan am ra duong. Anh Viet chot 29/08/2026
+# rang to am la hop le, la hoa don thay the, nen phai vao so cho dung chieu
+# chu khong phai bo qua.
+#
+# Nghi dinh 70/2025/ND-CP hieu luc 01/06/2025 cho phep hoa don dieu chinh
+# ghi so am bang dau tru.
+
+@ca("nắn dấu: dấu của cả tờ lấy theo tổng tiền")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	la("tờ Grab là tờ âm", mc.dau_cua_to(GRAB["tong_tien"]), -1)
+	la("tờ mua vé là tờ dương", mc.dau_cua_to(UC_MUA["tong_tien"]), 1)
+	la("không tiền coi như dương", mc.dau_cua_to(0), 1)
+	la("None coi như dương", mc.dau_cua_to(None), 1)
+	la("chữ rác coi như dương", mc.dau_cua_to("abc"), 1)
+
+
+@ca("nắn dấu: cả số lượng lẫn đơn giá cùng âm thì đơn giá phải dương lại")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	# Day dung la cai bay da lam hong to Grab: -3 nhan -25.000 ra +75.000.
+	sl, gia = mc.nan_dau_dong(-3, -25000, -75000)
+	la("số lượng âm", sl, -3.0)
+	la("đơn giá dương", gia, 25000.0)
+	la("thành tiền âm", sl * gia, -75000.0)
+
+
+@ca("nắn dấu: dấu nằm ở đâu cũng ra cùng một kết quả")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	for ten, sl, gia in (("số lượng âm", -3, 25000),
+			("đơn giá âm", 3, -25000),
+			("cả hai cùng âm", -3, -25000)):
+		a, b = mc.nan_dau_dong(sl, gia, -75000)
+		la("số lượng âm, kiểu ghi %s" % ten, a, -3.0)
+		la("đơn giá dương, kiểu ghi %s" % ten, b, 25000.0)
+		la("thành tiền âm, kiểu ghi %s" % ten, a * b, -75000.0)
+
+
+@ca("nắn dấu: giữ nguyên số lượng thật chứ không ép về một")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	# Ep so luong ve 1 la mat thong tin: to hoan 1.500 qua trung phai con
+	# thay 1.500 qua, khong phai mot dong gop 3,2 trieu.
+	sl, gia = mc.nan_dau_dong(-1500, -2190.48, -3285720)
+	la("giữ nguyên 1.500 quả", sl, -1500.0)
+	la("đơn giá dương", gia, 2190.48)
+
+
+@ca("nắn dấu: cùng quy ước với cách ghi dòng của mua dịch vụ")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	# Hai mo dun cung ghi mot kieu: don gia KHONG BAO GIO am, dau nam o so
+	# luong. Lech quy uoc la mot chung tu ra mot kieu.
+	sl_md, gia_md = md.so_dong_theo_dau(-36700000)
+	sl_mc, gia_mc = mc.nan_dau_dong(1, -36700000, -36700000)
+	la("cùng số lượng", sl_mc, float(sl_md))
+	la("cùng đơn giá", gia_mc, float(gia_md))
+
+
+@ca("nắn dấu: không có thành tiền thì lấy dấu theo tích")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	la("số lượng âm", mc.nan_dau_dong(-3, 25000, None)[0] * 25000.0, -75000.0)
+	sl, gia = mc.nan_dau_dong(-3, -25000, None)
+	# Ca hai cung am ma khong co thanh tien thi tich ra duong. Khong tu doan
+	# thanh am: doan sai o day la lat nguoc mot to mua that.
+	la("tích dương thì để dương", sl * gia, 75000.0)
+	la("đơn giá vẫn phải dương", gia, 25000.0)
+
+
+@ca("nắn dấu: tờ dương đi qua đường cũ, không đụng vào")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	goc = {"dgia": 2190.48, "dvtinh": "Quả", "sluong": 1500,
+		"ten": "Trứng gà", "thtien": 3285720}
+	la("mặc định là tờ dương", mc.dong_tu_hoa_don(goc), mc.dong_tu_hoa_don(goc, 1))
+	# Dong chiet khau ghi so am tren mot to DUONG: duong cu de don gia am,
+	# so luong duong. Doi cach ghi do la tu nhien lam hong nhung to dang
+	# chay tot.
+	ck = {"ten": "Chiết khấu", "sluong": 1, "dgia": -50000, "thtien": -50000}
+	x = mc.dong_tu_hoa_don(ck, 1)
+	la("số lượng giữ dương", x["sl"], 1)
+	la("đơn giá giữ âm", x["gia"], -50000)
+	la("thành tiền vẫn âm", x["tien"], -50000)
+
+
+@ca("nắn dấu: dòng đơn giá trống trên tờ âm vẫn ra thành tiền âm")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	# Hoa don tien dien, phi dich vu chi co thanh tien. Ban hoan lai cua no
+	# khong duoc lat nguoc thanh mot khoan chi.
+	x = mc.dong_tu_hoa_don(
+		{"ten": "Hoàn phí dịch vụ", "sluong": 0, "dgia": 0,
+			"thtien": -1283500}, -1)
+	la("số lượng âm một", x["sl"], -1.0)
+	la("đơn giá dương", x["gia"], 1283500.0)
+	la("thành tiền âm", x["tien"], -1283500.0)
+
+
+@ca("nắn dấu: cân theo trị tuyệt đối rồi mới gắn dấu lại")
+def _():
+	from vagabond import minvoice_chung_tu as mc
+
+	dau = -1
+	viec, so_tien = mc.can_theo_truoc_thue(dau * -70000, dau * -75000)
+	la("thiếu tiền thì thêm dòng phí", viec, "phi")
+	la("thiếu 5.000", so_tien, 5000)
+	la("dòng phí phải mang dấu âm", dau * so_tien, -5000)
+
+	viec, so_tien = mc.can_theo_truoc_thue(dau * -80000, dau * -75000)
+	la("thừa tiền thì ghi ô giảm giá", viec, "giam")
+	la("ô giảm giá mang dấu âm", dau * so_tien, -5000)
+
+	# To duong phai ra y nguyen ket qua cu.
+	la("tờ dương khớp", mc.can_theo_truoc_thue(3285720, 3285720), ("khop", 0))
+	la("tờ dương thiếu", mc.can_theo_truoc_thue(3650000, 3700000), ("phi", 50000))
+	la("tờ dương thừa", mc.can_theo_truoc_thue(3700000, 3650000), ("giam", 50000))
+
+
+@ca("nắn dấu: đường dựng chứng từ phải truyền dấu tờ xuống từng dòng")
+def _():
+	import inspect
+
+	from vagabond import minvoice_chung_tu as mc
+
+	c = inspect.getsource(mc.dung_hoa_don_mua)
+	dung("có lấy dấu của tờ", 'dau_cua_to(r.get("tong_tien"))' in c)
+	dung("có truyền xuống dòng", "dong_tu_hoa_don(it, dau)" in c)
+	dung("có nhân dấu vào cả hai vế khi cân", "dau * tong_dong" in c)
+	dung("dòng phí mang dấu của tờ", '"sl": dau' in c)
+	dung("ô giảm giá mang dấu của tờ", "(dau * so_tien) if viec" in c)
+
+
+@ca("nắn dấu: dòng thuế của tờ âm không được rơi mất")
+def _():
+	import inspect
+
+	from vagabond import minvoice_chung_tu as mc
+
+	# To Grab co tien thue -4.182.229. Xet "lon hon khong" la bo luon dong
+	# thue, va tong chung tu lech dung bang tien thue do.
+	c = inspect.getsource(mc.dung_hoa_don_mua)
+	dung("xét khác không", 'flt(r.get("tien_thue")) != 0' in c)
+	dung("không còn xét lớn hơn không", 'flt(r.get("tien_thue")) > 0' not in c)
+	dung("tờ Grab có tiền thuế âm thật", GRAB["tien_thue"] < 0)
