@@ -145,6 +145,11 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ic1 .ig{font-size:12px;color:#8a8f9c;margin-top:3px}
 .ic1 .im3{width:44px;height:44px;flex:0 0 44px;border-radius:11px;object-fit:cover;background:#E4F9FD}
 .ic1 .im3p{display:flex;align-items:center;justify-content:center;font-size:19px;color:#0B7C93}
+/* Anh mon dung duoc o moi khung, khong rieng trong the .ic1. Anh Viet
+   29/08/2026: danh muc lenh san xuat va ke hoach san xuat phai co anh mon
+   di kem ten mon cho de nhan dang. */
+.imm{width:40px;height:40px;flex:0 0 40px;border-radius:10px;object-fit:cover;background:#E4F9FD}
+.immp{display:flex;align-items:center;justify-content:center;font-size:18px;color:#0B7C93}
 .ic1 .del{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#fdecec;color:#e0342f;font-size:18px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-top:-1px}
 .ic1 .del:active{background:#f7cfcf}
 .stk{display:flex;background:#f6f8fc;border-top:1px solid #eef1f7;border-bottom:1px solid #eef1f7}
@@ -307,6 +312,39 @@ var VN = { 'Draft': 'Nháp', 'Pending': 'Chờ xử lý', 'Partially Ordered': '
 function vnSt(x) { return VN[x] || x || ''; }
 function money(n) { return (Math.round(n || 0)).toLocaleString('vi-VN'); }
 function num(n) { var v = Math.round((n || 0) * 1000) / 1000; return v.toLocaleString('vi-VN'); }
+
+/* ---------- So can dong, viet sao cho bep khong doc nham ----------
+
+   num() dung dau phay lam dau thap phan theo loi Viet Nam, nen 242.486
+   gram hien ra thanh "242,486". Ngay 29/08/2026 bep doc con so do thanh
+   242 nghin gram, tuc 242 ky ca phe nuoc, va bao la may tinh sai. So thi
+   dung, chi cach viet la bay.
+
+   Nen o day KHONG bao gio de dau thap phan cho don vi can dong:
+     duoi 1000    lam tron so nguyen   -> "242 g"
+     tu 1000 tro len  doi sang kg/lit  -> "9,34 kg"
+   Don vi dem duoc (Mon, Cai, Chiec) khong doi gi, van dung num().
+
+   DUNG go lai ham nay thanh num(): khong con dau thap phan thi ca so
+   "9.336" moi doc duoc dut khoat la chin nghin ba tram, chu khong con
+   lan sang chin phay ba. */
+/* Khung anh mon. Mon chua co anh thi ve o banh cho khoi lech hang. */
+function anhMon(url) {
+  return url ? '<img class="imm" src="' + h(url) + '" loading="lazy" alt="">'
+    : '<div class="imm immp">🍰</div>';
+}
+
+function kl(v, dvt) {
+  var d = String(dvt || '').trim().toLowerCase();
+  var doi = { 'gram': 'kg', 'g': 'kg', 'gam': 'kg', 'gr': 'kg', 'kilogram': null,
+    'ml': 'lít', 'millilitre': 'lít', 'milliliter': 'lít', 'mililit': 'lít' };
+  var n = Number(v) || 0;
+  if (!(d in doi) || !doi[d]) return num(n) + (dvt ? ' ' + dvt : '');
+  if (Math.abs(n) >= 1000) {
+    return (Math.round(n / 10) / 100).toLocaleString('vi-VN') + ' ' + doi[d];
+  }
+  return Math.round(n).toLocaleString('vi-VN') + ' ' + (doi[d] === 'lít' ? 'ml' : 'g');
+}
 
 /* ---------- Ô nhập tiền: dấu chấm hàng nghìn khi đang gõ ----------
 
