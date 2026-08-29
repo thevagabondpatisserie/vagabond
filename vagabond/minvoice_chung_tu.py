@@ -113,7 +113,49 @@ TT_KHOI_DUNG = ("Bị thay thế", "Đã huỷ")
 NGUONG_KHOP = 1.0
 
 
-def dong_tu_hoa_don(it):
+def nan_dau_dong(sl, gia, thtien=None):
+	"""Dua mot dong ve dang ERPNext nhan duoc: don gia KHONG AM. THUAN.
+
+	Hoa don dieu chinh giam va hoa don thay the ghi so am. Nghi dinh
+	70/2025 cho phep ghi dau tru, va nha phat hanh moi noi ghi mot kieu:
+	co noi de so luong am va don gia duong, co noi de CA HAI cung am.
+
+	Ca hai cung am la cai bay: am nhan am ra duong, nen mot to hoan tien
+	56 trieu di vao so thanh mot to MUA 56 trieu, tien di nguoc chieu ma
+	khong lop nao keu. Da gap dung ca nay voi to hoan tien cua Grab.
+
+	Quy uoc cua ERPNext cho chung tu tra hang: don gia luon duong, dau am
+	nam o SO LUONG. Nen o day gom het dau ve mot cho:
+
+	    dau lay theo thanh tien khi co, khong thi lay theo tich so luong
+	    nhan don gia; don gia tra ve luon la tri tuyet doi.
+
+	Tra ve cap (so luong, don gia).
+	"""
+	try:
+		sl = float(sl or 0)
+	except (TypeError, ValueError):
+		sl = 0.0
+	try:
+		gia = float(gia or 0)
+	except (TypeError, ValueError):
+		gia = 0.0
+	try:
+		tt = float(thtien) if thtien not in (None, "") else None
+	except (TypeError, ValueError):
+		tt = None
+
+	if tt is not None and tt != 0:
+		am = tt < 0
+	else:
+		am = (sl * gia) < 0
+
+	gia = abs(gia)
+	sl = -abs(sl) if am else abs(sl)
+	return (sl, gia)
+
+
+def dong_tu_hoa_don(it, dau_to=1):
 	"""Một dòng hàng của hoá đơn điện tử thành số liệu dùng được. THUẦN.
 
 	Ô đơn giá TRỐNG là chuyện thật: hoá đơn tiền điện, tiền nước, phí dịch
@@ -135,6 +177,10 @@ def dong_tu_hoa_don(it):
 	Nên: đơn giá trống HOẶC bằng không, mà có thành tiền, thì lấy thành
 	tiền làm đơn giá và đặt số lượng về 1. Không bao giờ để một dòng đi vào
 	chứng từ với đơn giá 0 trong khi hoá đơn có tiền.
+
+	`dau_to` là dấu của cả tờ, lấy từ tổng tiền. Tờ dương thì giữ nguyên
+	mọi thứ như cũ, kể cả dòng chiết khấu ghi số âm. Tờ ÂM thì gom hết dấu
+	về ô số lượng, xem `nan_dau_dong`.
 	"""
 	d = it or {}
 	sl = d.get("sluong") or 1
@@ -144,6 +190,8 @@ def dong_tu_hoa_don(it):
 		sl = 1
 	elif gia is None:
 		gia = 0
+	if int(dau_to or 1) < 0:
+		sl, gia = nan_dau_dong(sl, gia, d.get("thtien"))
 	return {
 		"ma": str(d.get("mhhdvu") or "").strip(),
 		"ten": str(d.get("ten") or "").strip(),
@@ -152,6 +200,14 @@ def dong_tu_hoa_don(it):
 		"gia": gia,
 		"tien": (sl or 0) * (gia or 0),
 	}
+
+
+def dau_cua_to(tong_tien):
+	"""To nay la to am hay to duong. THUAN. Tra ve -1 hoac 1."""
+	try:
+		return -1 if float(tong_tien or 0) < 0 else 1
+	except (TypeError, ValueError):
+		return 1
 
 
 def can_theo_truoc_thue(tong_dong, truoc_thue):
@@ -634,7 +690,12 @@ def dung_hoa_don_mua(r):
 		"Account", {"company": cty, "name": ["like", "1331 -%"]}, "name")
 
 	ncc, goc_mst = _tim_ncc(r.get("mst_doi_tac"), r.get("nguoi_mua_ban"))
-	dong_goc = [dong_tu_hoa_don(it) for it in json.loads(r.get("chi_tiet") or "[]")]
+
+	# Dấu của cả tờ. Tờ âm là hoá đơn điều chỉnh giảm hoặc hoá đơn thay thế
+	# ghi số âm, Nghị định 70/2025 cho phép. Xem `nan_dau_dong`.
+	dau = dau_cua_to(r.get("tong_tien"))
+	dong_goc = [dong_tu_hoa_don(it, dau)
+		for it in json.loads(r.get("chi_tiet") or "[]")]
 
 	dong = []
 	for x in dong_goc:
@@ -644,16 +705,20 @@ def dung_hoa_don_mua(r):
 	if not dong:
 		dong = [_dong_pi({
 			"ma": "", "ten": "Hàng hoá/dịch vụ theo hoá đơn", "dvt": None,
-			"sl": 1, "gia": flt(r.get("tien_truoc_thue")), "tien": 0,
+			"sl": dau, "gia": abs(flt(r.get("tien_truoc_thue"))), "tien": 0,
 		}, tk_chi_phi)]
 
+	# Cân theo TRỊ TUYỆT ĐỐI rồi mới gắn dấu lại, để tờ âm và tờ dương đi
+	# chung một đường. Nhân `dau` vào cả hai vế là phép nhân cùng chiều nên
+	# tờ dương ra đúng kết quả cũ, không đổi gì.
 	tong_dong = sum(flt(d.get("qty")) * flt(d.get("rate")) for d in dong)
-	viec, so_tien = can_theo_truoc_thue(tong_dong, r.get("tien_truoc_thue"))
-	giam_gia = so_tien if viec == "giam" else 0
+	viec, so_tien = can_theo_truoc_thue(
+		dau * tong_dong, dau * flt(r.get("tien_truoc_thue")))
+	giam_gia = (dau * so_tien) if viec == "giam" else 0
 	if viec == "phi":
 		dong.append(_dong_pi({
 			"ma": "", "ten": "Phí khác theo hoá đơn", "dvt": None,
-			"sl": 1, "gia": so_tien, "tien": so_tien,
+			"sl": dau, "gia": so_tien, "tien": so_tien,
 		}, tk_chi_phi))
 
 	pi = frappe.get_doc({
@@ -670,7 +735,10 @@ def dung_hoa_don_mua(r):
 			(" | Tra cuu: " + r["ma_tra_cuu"]) if r.get("ma_tra_cuu") else ""),
 		"items": dong,
 	})
-	if tk_thue_vao and flt(r.get("tien_thue")) > 0:
+	# Tờ âm thì tiền thuế cũng âm, nên phải xét KHÁC KHÔNG chứ không phải
+	# lớn hơn không. Xét lớn hơn không là bỏ luôn dòng thuế của tờ âm, và
+	# tổng chứng từ lệch đúng bằng tiền thuế.
+	if tk_thue_vao and flt(r.get("tien_thue")) != 0:
 		pi.append("taxes", {
 			"charge_type": "Actual", "account_head": tk_thue_vao,
 			"description": "Thuế GTGT được khấu trừ",
