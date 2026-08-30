@@ -206,6 +206,44 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ld{position:fixed;inset:0;background:rgba(238,240,245,.75);z-index:150;display:flex;align-items:center;justify-content:center}
 .ld i{width:38px;height:38px;border:3.5px solid #cdd5e6;border-top-color:#0FB5CE;border-radius:50%;animation:sp .8s linear infinite;display:block}
 .li .im{width:46px;height:46px;flex:0 0 46px;border-radius:11px;object-fit:cover;background:#E4F9FD}
+
+/* ---------- O tick tron cho cac man co chon nhieu dong ----------
+
+   Anh Viet review giao dien 30/08/2026: nut tick cu "nhin rat tho, lech
+   truc doc so voi hinh anh va text, dang lam vo layout cua the mon".
+   Dung ca ba diem: no von la mot the .chip, tuc mot vien thuoc bo goc deo
+   chu ☐, nen cao thap tuy kieu chu cua may va khong bao gio thang hang
+   voi anh mon.
+
+   Nay dung <input type=checkbox> THAT roi ghi de appearance. Input that
+   thi vung bam dung chuan cua he dieu hanh, trinh doc man hinh doc duoc,
+   va khong an theo co chu. flex:0 0 24px de ten mon dai may dong cung
+   khong bop meo duoc no.
+
+   Mau khi tich lay #0B7C93 chu KHONG lay #50DBF2 cua thanh tieu de: dau
+   tick mau trang tren nen #50DBF2 gan nhu khong doc duoc. #0B7C93 la mau
+   dam cua chinh bang mau app, dang dung cho o anh va bieu tuong. */
+.tik{appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  width:24px;height:24px;flex:0 0 24px;margin:0;border-radius:50%;
+  border:2px solid #cbd5e1;background-color:#fff;cursor:pointer;
+  transition:background-color .18s ease,border-color .18s ease,transform .12s ease}
+.tik:checked{background-color:#0B7C93;border-color:#0B7C93;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12.6l5.2 5.2L19.5 7.2'/%3E%3C/svg%3E");
+  background-size:66%;background-position:center;background-repeat:no-repeat}
+.tik:active{transform:scale(.92)}
+
+/* O go so nam ngay trong bang bon cot cua man Ke hoach san xuat. */
+.khsx-o{width:100%;height:30px;line-height:30px;text-align:center;font-size:14.5px;
+  font-weight:600;padding:0 4px;border:1px solid #cfd6e4;border-radius:7px;
+  background:#fff;color:#1b2030}
+.khsx-o:focus{outline:none;border-color:#0B7C93;box-shadow:0 0 0 2px rgba(11,124,147,.14)}
+
+/* Phan xo ra duoi mot the: nam NGOAI hang flex cua .li de hang do giu
+   duoc luat cua he thong thiet ke, khong phai boc them mot lop flex tay
+   roi tu dat lai align-items. */
+.khsx-the{background:#fff;border-bottom:1px solid #f0f2f6}
+.khsx-the .li{border-bottom:0}
+.khsx-than{padding:0 14px 12px}
 .li .imp{display:flex;align-items:center;justify-content:center;font-size:20px;color:#0B7C93}
 .sbtn{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:0;background:#E4F9FD;color:#0B7C93;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .scan{position:fixed;inset:0;background:#000;z-index:300;display:flex;flex-direction:column}
@@ -18696,7 +18734,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '351';
+var APPVER = '352';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -38989,10 +39027,6 @@ async function scrTonChang() {
 
 var khsx = { ngay: '', d: null, tab: 'tp', bep: '', muc: '', tim: '', mo: {}, chon: {}, sua: {}, kho: {} };
 
-/* O go nam ngay trong bang bon cot, nen phai gon lai cho vua o. */
-var KHSX_CSS = '.khsx-o{width:100%;height:30px;line-height:30px;text-align:center;' +
-  'font-size:14.5px;font-weight:600;padding:0 4px;border:1px solid #cfd6e4;border-radius:7px;background:#fff}';
-
 var KHSX_TAB = [['tp', '🎂 Thành phẩm'], ['btp', '🥣 Bán thành phẩm'], ['nvl', '🌾 Nguyên liệu']];
 var KHSX_BEP = [['', '🏠 Cả hai bếp'], ['pastry', '🎂 Pastry'], ['baker', '🥐 Baker']];
 /* Chip loc theo tinh trang. "Phai lam" dung dau vi do la cau hoi dau tien
@@ -39080,9 +39114,9 @@ function khsxThe(x, loai) {
   var mo = !!khsx.mo[x.khoa];
   var raLenh = khsxQuanLy() && loai !== 'nvl';
   var tick = raLenh && x.con_lam > 0
-    ? '<div class="chip' + (khsx.chon[x.khoa] ? ' on' : '') + '" data-tick="' + h(x.khoa) +
-      '" data-tloai="' + h(loai) + '" style="flex:none;margin-right:8px">' +
-      (khsx.chon[x.khoa] ? '☑' : '☐') + '</div>'
+    ? '<input type="checkbox" class="tik" data-tick="' + h(x.khoa) +
+      '" data-tloai="' + h(loai) + '"' + (khsx.chon[x.khoa] ? ' checked' : '') +
+      ' aria-label="Chọn ' + h(x.ten) + '">'
     : '';
   var phu = h(x.ma) + (x.dvt ? ' · ' + h(x.dvt) : '') +
     (loai !== 'nvl' ? ' · nhập ' + (x.kho_dich ? h(shortWh(x.kho_dich)) :
@@ -39120,11 +39154,17 @@ function khsxThe(x, loai) {
       '</div>';
   }
 
-  return '<div class="li" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
+  /* Hang tren cung dung dung lop .li cua he thong thiet ke, von da
+     display:flex, align-items:center, gap:12px, padding:14px. Ban v351
+     boc them mot lop flex tay roi dat align-items:flex-start, thanh ra
+     tick va anh khong thang hang voi ten mon. Nay tra lai cho .li lam
+     dung viec cua no, phan xo ra day xuong mot khoi rieng ben duoi. */
+  return '<div class="khsx-the">' +
+    '<div class="li"' + (loai !== 'nvl' ? ' data-xo="' + h(x.khoa) + '"' : '') + '>' +
     tick + anhMon(x.anh) +
-    '<div class="lt" style="margin-left:9px"><div class="l1">' + h(x.ten) + '</div><div class="l2">' + phu + '</div></div>' +
-    '<div class="st ' + h(x.mau) + '" style="flex:none">' + h(x.ten_muc) + '</div></div>' +
-    khsxCot(x, loai) + xo + '</div>';
+    '<div class="lt"><div class="l1">' + h(x.ten) + '</div><div class="l2">' + phu + '</div></div>' +
+    '<div class="st ' + h(x.mau) + '" style="flex:0 0 auto">' + h(x.ten_muc) + '</div></div>' +
+    '<div class="khsx-than">' + khsxCot(x, loai) + xo + '</div></div>';
 }
 
 async function scrKeHoachSX() {
@@ -39139,10 +39179,6 @@ async function scrKeHoachSX() {
 
   function draw() {
     var d = khsx.d;
-    if (!document.getElementById('khsxCss')) {
-      var st = document.createElement('style'); st.id = 'khsxCss';
-      st.textContent = KHSX_CSS; document.head.appendChild(st);
-    }
     var dau = '<div class="card" style="padding:12px 14px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">' +
       '<div><div style="font-size:12px;color:#8a8f9c">Ngày bếp làm</div>' +
@@ -39259,32 +39295,37 @@ async function scrKeHoachSX() {
     }
   }
 
+  /* Thu tu xet CO CHU Y: cac nut nam BEN TRONG hang the phai duoc xet
+     TRUOC cai hang. Ca hang nay mang data-xo de bam vao dau cung xo ra
+     duoc nguyen lieu (anh Viet 30/08/2026), nen neu xet hang truoc thi
+     bam vao o tick hay chu "doi kho" cung chi xo ra chu khong lam dung
+     viec cua no. */
   function khsxGan(b, ve) {
     b.onclick = async function (e) {
-      var t = e.target.closest('[data-tab]');
-      if (t) { khsx.tab = t.dataset.tab; return ve(); }
-      var bp = e.target.closest('[data-bep]');
-      if (bp) { khsx.bep = bp.dataset.bep; return ve(); }
-      var mc = e.target.closest('[data-muc]');
-      if (mc) { khsx.muc = mc.dataset.muc; return ve(); }
-      var xo = e.target.closest('[data-xo]');
-      if (xo) { var k = xo.dataset.xo; khsx.mo[k] = !khsx.mo[k]; return ve(); }
-      var dsp = e.target.closest('[data-dsp]');
-      if (dsp) return go(scrKhsxDsPhieu);
-      var lui = e.target.closest('[data-lui]');
-      if (lui) return khsxDoiNgay(-1);
-      var toi = e.target.closest('[data-toi]');
-      if (toi) return khsxDoiNgay(1);
-      var dk = e.target.closest('[data-doikho]');
-      if (dk) return khsxDoiKho(dk.dataset.doikho, ve);
       var tk = e.target.closest('[data-tick]');
       if (tk) {
         var kk = tk.dataset.tick;
         khsx.chon[kk] = khsx.chon[kk] ? 0 : { khoa: kk, loai: tk.dataset.tloai };
         return ve();
       }
+      var dk = e.target.closest('[data-doikho]');
+      if (dk) return khsxDoiKho(dk.dataset.doikho, ve);
       var lenh = e.target.closest('[data-lenh]');
       if (lenh) return khsxTaoLenh(lenh.dataset.lenh, lenh.dataset.loai);
+      var t = e.target.closest('[data-tab]');
+      if (t) { khsx.tab = t.dataset.tab; return ve(); }
+      var bp = e.target.closest('[data-bep]');
+      if (bp) { khsx.bep = bp.dataset.bep; return ve(); }
+      var mc = e.target.closest('[data-muc]');
+      if (mc) { khsx.muc = mc.dataset.muc; return ve(); }
+      var dsp = e.target.closest('[data-dsp]');
+      if (dsp) return go(scrKhsxDsPhieu);
+      var lui = e.target.closest('[data-lui]');
+      if (lui) return khsxDoiNgay(-1);
+      var toi = e.target.closest('[data-toi]');
+      if (toi) return khsxDoiNgay(1);
+      var xo = e.target.closest('[data-xo]');
+      if (xo) { var k = xo.dataset.xo; khsx.mo[k] = !khsx.mo[k]; return ve(); }
     };
   }
 
