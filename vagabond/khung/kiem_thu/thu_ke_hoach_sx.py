@@ -1124,6 +1124,10 @@ def _():
 
 	la("mã mới", mps.la_ma_kieu_moi("LSX-26-08-0001", "LSX"), True)
 	la("mã cũ", mps.la_ma_kieu_moi("MFG-WO-2026-00113", "LSX"), False)
+	# Lenh san xuat truoc day DA mang chuoi `LSX-.YYYY.-`, tuc ma cu cung
+	# bat dau bang "LSX-" y het ma moi. So moi tien to thi `soat_ma_cu`
+	# bao khong con ma cu nao trong khi that ra con 48 lenh.
+	la("mã LSX cũ theo năm", mps.la_ma_kieu_moi("LSX-2026-00113", "LSX"), False)
 	m = _py("ma_phieu_sx.py")
 	doan = m.split("def soat_ma_cu(")[1]
 	la("không đổi tên", "rename" in doan, False)
@@ -1144,3 +1148,17 @@ def _():
 	m = _py("truong_tu_them.py")
 	doan = m.split("ma_phieu_sx.dung()")[1].split("\n\n")[0]
 	dung("có bọc except", "except Exception" in doan)
+
+
+@ca("không đưa `parent=` vào frappe.get_all khi đọc bảng con")
+def _():
+	# Ban Frappe cua site nem thang TypeError "execute() got an unexpected
+	# keyword argument 'parent'". Ban Frappe gia lap trong bo kiem thu
+	# khong biet dieu do, nen ca kiem nay soi CHU chu khong chay that -
+	# soi tren ban da BO chu thich khoi, khong thi no khop dung cai cau
+	# giai thich cua chinh minh, y nhu ca kiem v352 da tung tu lua.
+	# yeu, nhung la thu duy nhat tang khung bat duoc. Ngay 31/08/2026 loi
+	# nay lam ca man Lenh san xuat tra ve 500 ngay sau khi deploy v353.
+	m = re.sub(r"#.*", "", _py("ke_hoach_sx.py"))
+	la("không có parent= làm đối số riêng", 'parent="Item"' in m, False)
+	dung("lọc bảng con bằng parenttype", '"parenttype": "Item"' in m)
