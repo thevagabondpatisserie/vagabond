@@ -42,6 +42,16 @@ def dung():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: nap danh muc CRM")
 
+	# Ma phieu ke hoach san xuat va lenh san xuat: KHSX-26-08-0001 va
+	# LSX-26-08-0001. Chi doi chuoi dat ten cho phieu SINH RA TU DAY VE
+	# SAU; phieu cu giu nguyen ma cu, xem dau tep ma_phieu_sx.py.
+	from vagabond import ma_phieu_sx
+
+	try:
+		ma_phieu_sx.dung()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: ma phieu san xuat")
+
 	from vagabond import (
 		ban_hang, bao_gia, chung_tu_tien, diem_otp, duyet_ycmh, hoan_tien,
 		mua_dich_vu, noi_bo, sepay,
