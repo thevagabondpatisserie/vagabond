@@ -164,6 +164,83 @@ def gom_theo_ma(dong):
 	return sorted(ra.values(), key=lambda x: x["ma"])
 
 
+def gom_lenh_theo_mon(cac_lenh):
+	"""Gộp các lệnh sản xuất cùng một món thành một thẻ cha. THUẦN.
+
+	Anh Việt 30/08/2026: máy tạo ra 6 lệnh cho 6 phiếu YCSX gộp, "nhìn vào
+	thì không rõ lệnh nào với lệnh nào là dùng cho phiếu YCSX, ngày cần
+	bánh". Cách gỡ là hai lớp: thẻ cha gom theo MÓN cho dễ nhìn, mở ra thì
+	thấy từng lệnh con kèm chip nối về phiếu yêu cầu và ngày cần.
+
+	Món chỉ có ĐÚNG MỘT lệnh thì `gop` bằng 0: bếp bấm phát vào là hoàn
+	thành luôn chứ không phải mở thêm một lớp cho một dòng duy nhất. Bớt
+	một chạm cho phần lớn thẻ.
+
+	Số của thẻ cha là TỔNG của các lệnh con, không phải số lớn nhất. Ngày
+	cần của thẻ cha là ngày SỚM NHẤT trong đám con, vì đó là hạn thật sự.
+	"""
+	nhom, thu_tu = {}, []
+	for l in cac_lenh or []:
+		ma = (l.get("ma_mon") or "").strip()
+		if not ma:
+			continue
+		o = nhom.get(ma)
+		if not o:
+			o = nhom[ma] = {"ma_mon": ma, "ten_mon": l.get("ten_mon") or ma,
+				"anh": l.get("anh") or "", "dvt": l.get("dvt") or "",
+				"bep": l.get("bep") or "", "so_can": 0.0, "so_da": 0.0,
+				"ngay_can": "", "ycsx": [], "con": []}
+			thu_tu.append(ma)
+		if not o["anh"] and l.get("anh"):
+			o["anh"] = l["anh"]
+		if not o["bep"] and l.get("bep"):
+			o["bep"] = l["bep"]
+		o["so_can"] += _so(l.get("so_can"))
+		o["so_da"] += _so(l.get("so_da"))
+		nc = (l.get("ngay_can") or "").strip()
+		if nc and (not o["ngay_can"] or nc < o["ngay_can"]):
+			o["ngay_can"] = nc
+		for y in (l.get("ycsx") or []):
+			if y and y not in o["ycsx"]:
+				o["ycsx"].append(y)
+		o["con"].append(l)
+	ra = []
+	for ma in thu_tu:
+		o = nhom[ma]
+		o["so_lenh"] = len(o["con"])
+		o["gop"] = 1 if len(o["con"]) > 1 else 0
+		ra.append(o)
+	return ra
+
+
+def chip_cua_lenh(l):
+	"""Chữ trên các chip nối của một lệnh. THUẦN.
+
+	Trả về danh sách chuỗi ngắn, app chỉ việc vẽ. Đặt ở phần thuần để câu
+	chữ có ca kiểm canh: đổi "YCSX" thành cái khác là ca kiểm đỏ, chứ không
+	phải đợi bếp mở màn ra mới thấy.
+	"""
+	ra = []
+	for y in (l.get("ycsx") or [])[:3]:
+		ra.append(str(y))
+	du = len(l.get("ycsx") or []) - 3
+	if du > 0:
+		ra.append("và %d phiếu nữa" % du)
+	if l.get("ngay_can"):
+		ra.append("Cần %s" % _ngay_goc(l["ngay_can"]))
+	if l.get("noi_giao"):
+		ra.append(str(l["noi_giao"]))
+	return ra
+
+
+def _ngay_goc(v):
+	"""2026-08-31 -> 31/08. Chuỗi rỗng hay lạ thì trả nguyên si."""
+	v = str(v or "").strip()
+	if len(v) >= 10 and v[4] == "-" and v[7] == "-":
+		return "%s/%s" % (v[8:10], v[5:7])
+	return v
+
+
 def chon_bep(*ung_vien):
 	"""Bếp của một dòng: lấy ứng viên đầu tiên có giá trị. THUẦN.
 
@@ -1606,6 +1683,161 @@ def ton_dong(truoc_ngay=None, gioi_han=200):
 				getdate(som).strftime("%d/%m/%Y") if som else "-"))
 			if ds else "Không có phiếu yêu cầu nào tồn đọng ngoài cửa sổ.",
 	}
+
+
+def _ycsx_cua_lenh(cac_lenh):
+	"""Phiếu YCSX, ngày cần và nơi giao của từng lệnh, đọc một lượt.
+
+	Mỗi lệnh do máy tạo ra đều mang sẵn `material_request` (phiếu yêu cầu)
+	và `material_request_item` (dòng nào trong phiếu đó). Ngày cần và điểm
+	bán đặt hàng nằm ở DÒNG chứ không ở đầu phiếu, vì một phiếu có thể hẹn
+	nhiều ngày cho nhiều món.
+	"""
+	cac_dong = sorted({(l.get("material_request_item") or "").strip()
+		for l in cac_lenh or []} - {""})
+	ho_so = {}
+	for i in range(0, len(cac_dong), 200):
+		for d in frappe.get_all("Material Request Item", filters={
+			"name": ["in", cac_dong[i:i + 200]]},
+			fields=["name", "parent", "schedule_date", "warehouse"],
+			limit_page_length=0):
+			ho_so[d["name"]] = d
+	# Lenh nao khong co dong (lenh phan doi ra, hay lenh bam tay tren Desk)
+	# thi con vot duoc ngay hen o dau phieu.
+	cac_phieu = sorted({(l.get("material_request") or "").strip()
+		for l in cac_lenh or []} - {""})
+	ngay_phieu = {}
+	for i in range(0, len(cac_phieu), 200):
+		for d in frappe.get_all("Material Request", filters={
+			"name": ["in", cac_phieu[i:i + 200]]},
+			fields=["name", "schedule_date"], limit_page_length=0):
+			ngay_phieu[d["name"]] = str(d.get("schedule_date") or "")
+	ra = {}
+	for l in cac_lenh or []:
+		phieu = (l.get("material_request") or "").strip()
+		dong = ho_so.get((l.get("material_request_item") or "").strip()) or {}
+		ngay = str(dong.get("schedule_date") or "") or ngay_phieu.get(phieu, "")
+		kho = (dong.get("warehouse") or "").strip()
+		ra[l["name"]] = {
+			"ycsx": [phieu] if phieu else [],
+			"ngay_can": ngay[:10],
+			"noi_giao": _ten_ngan_kho(kho),
+		}
+	return ra
+
+
+def _ten_ngan_kho(kho):
+	"""Kho tổng 307 - TV -> Kho tổng 307. Bỏ đuôi viết tắt công ty."""
+	kho = (kho or "").strip()
+	if not kho:
+		return ""
+	return kho.rsplit(" - ", 1)[0].strip() if " - " in kho else kho
+
+
+def _dvt_cua(cac_ma):
+	"""Đơn vị tính của món và các đơn vị quy đổi đã khai, đọc một lượt.
+
+	Anh Việt 30/08/2026: ô nhập số lượng lúc hoàn thành phiếu cần "chỗ chọn
+	đơn vị tính lúc nhập, gợi ý theo đơn vị tính mặc định của món" - bán
+	thành phẩm cân theo gram nhưng bếp hay đọc ra kilogram.
+	"""
+	cac_ma = sorted({m for m in (cac_ma or []) if m})
+	goc, ra = {}, {}
+	for i in range(0, len(cac_ma), 200):
+		for d in frappe.get_all("Item", filters={
+			"name": ["in", cac_ma[i:i + 200]]},
+			fields=["name", "stock_uom"], limit_page_length=0):
+			goc[d["name"]] = d.get("stock_uom") or ""
+	for i in range(0, len(cac_ma), 200):
+		for d in frappe.get_all("UOM Conversion Detail", filters={
+			"parent": ["in", cac_ma[i:i + 200]]}, parent="Item",
+			fields=["parent", "uom", "conversion_factor"], limit_page_length=0):
+			if flt(d.get("conversion_factor")) > 0:
+				ra.setdefault(d["parent"], []).append(
+					{"dvt": d["uom"], "he_so": flt(d["conversion_factor"])})
+	for ma in cac_ma:
+		ds = ra.setdefault(ma, [])
+		g = goc.get(ma) or ""
+		# Don vi goc PHAI co trong danh sach va he so cua no luon la 1.
+		# Thieu no thi o chon don vi mo ra khong co chinh don vi dang hien
+		# ben canh con so, bep tuong may hong.
+		if g and not [x for x in ds if x["dvt"] == g]:
+			ds.insert(0, {"dvt": g, "he_so": 1.0})
+		ds.sort(key=lambda x: (x["he_so"], x["dvt"]))
+	return ra
+
+
+# Trang thai lenh -> chu tieng Viet. Giu dung mot ban o day, app doc theo.
+TEN_TRANG_THAI = {
+	"Draft": "Nháp", "Submitted": "Đã duyệt", "Not Started": "Chưa bắt đầu",
+	"In Process": "Đang làm", "Completed": "Đã xong", "Stopped": "Đã dừng",
+	"Closed": "Đã đóng", "Cancelled": "Đã huỷ",
+}
+
+TRANG_THAI_XONG = ("Completed", "Stopped", "Closed", "Cancelled")
+
+
+@frappe.whitelist()
+def ds_lenh(gioi_han=150):
+	"""Danh sách lệnh sản xuất cho app, kèm ảnh, bếp, chip nối về YCSX.
+
+	MỘT vòng gọi cho cả màn hình. Bếp nhập 40-50 phiếu một ngày nên mỗi
+	vòng gọi thừa là một nhịp chờ thừa; các chip lọc bên app lọc trên danh
+	sách đã có sẵn, không hỏi lại máy chủ.
+
+	Đọc thêm đơn vị quy đổi ngay từ đây để ô "Hoàn thành phiếu" mở ra là có
+	sẵn danh sách đơn vị, không phải đợi thêm một vòng nữa.
+	"""
+	_chan()
+	gioi_han = cint(gioi_han) or 150
+	ds = frappe.get_all("Work Order", filters={"docstatus": ["<", 2]},
+		fields=["name", "production_item", "item_name", "qty", "produced_qty",
+			"status", "docstatus", "planned_start_date", "stock_uom",
+			"fg_warehouse", "source_warehouse", "material_request",
+			"material_request_item", "production_plan"],
+		order_by="creation desc", limit_page_length=gioi_han)
+	if not ds:
+		return {"lenh": [], "nhom": [], "cac_bep": []}
+
+	cac_ma = [d["production_item"] for d in ds if d.get("production_item")]
+	anh = _anh_cua(cac_ma)
+	bep_mon = _bep_cua_nhieu(cac_ma)
+	dvt = _dvt_cua(cac_ma)
+	noi = _ycsx_cua_lenh(ds)
+
+	cac_lenh = []
+	for d in ds:
+		ma = d.get("production_item") or ""
+		bep = chon_bep(bep_mon.get(ma) or "",
+			ksx.bep_cua_kho(d.get("fg_warehouse") or "") or "",
+			ksx.bep_cua_kho(d.get("source_warehouse") or "") or "")
+		x = dict(noi.get(d["name"]) or {"ycsx": [], "ngay_can": "", "noi_giao": ""})
+		x.update({
+			"ten": d["name"], "ma_mon": ma, "ten_mon": d.get("item_name") or ma,
+			"anh": anh.get(ma, ""), "dvt": d.get("stock_uom") or "",
+			"so_can": flt(d.get("qty")), "so_da": flt(d.get("produced_qty")),
+			"trang_thai": d.get("status") or "",
+			"ten_trang_thai": TEN_TRANG_THAI.get(d.get("status") or "",
+				d.get("status") or ""),
+			"xong": 1 if (d.get("status") or "") in TRANG_THAI_XONG else 0,
+			"nhap": 1 if cint(d.get("docstatus")) == 0 else 0,
+			"ngay_lam": str(d.get("planned_start_date") or "")[:10],
+			"kho_dich": d.get("fg_warehouse") or "",
+			"kho_nguon": d.get("source_warehouse") or "",
+			"phieu": d.get("production_plan") or "",
+			"bep": bep, "ten_bep": (ksx.BEP.get(bep) or {}).get("ten", ""),
+			"cac_dvt": dvt.get(ma) or [],
+		})
+		x["chip"] = chip_cua_lenh(x)
+		cac_lenh.append(x)
+
+	cac_bep, thay = [], set()
+	for l in cac_lenh:
+		if l["bep"] and l["bep"] not in thay:
+			thay.add(l["bep"])
+			cac_bep.append({"ma": l["bep"], "ten": l["ten_bep"] or l["bep"]})
+	return {"lenh": cac_lenh, "nhom": gom_lenh_theo_mon(cac_lenh),
+		"cac_bep": sorted(cac_bep, key=lambda x: x["ten"])}
 
 
 @frappe.whitelist()

@@ -706,7 +706,9 @@ def _():
 	m = _js("05-san-xuat.js")
 	dung("có nút huỷ lệnh", "huy_lenh" in m)
 	dung("có nút sửa số", "sua_so_lenh" in m)
-	dung("số lượng hiển thị làm tròn", "kl(w.qty, w.stock_uom)" in m)
+	# Tu v353 danh sach lenh doc tu `ds_lenh` nen ten o doi: `qty` thanh
+	# `so_can`, `stock_uom` thanh `dvt`. Phep lam tron van la `kl()`.
+	dung("số lượng hiển thị làm tròn", "kl(w.so_can, w.dvt)" in m)
 
 
 @ca("có màn danh mục phiếu kế hoạch, mở và huỷ được")
@@ -915,3 +917,230 @@ def _():
 	dung("có nhánh xổ nguồn", "x.nguon || []" in m)
 	dung("hiện tên phiếu", "n.ycsx" in m)
 	dung("nói rõ gom mấy phiếu", "x.so_nguon > 1" in m)
+
+
+# ------------------------------- v353: gộp lệnh theo món và chip nối YCSX
+
+
+@ca("gộp lệnh cùng một món thành một thẻ, cộng đúng tổng")
+def _():
+	ds = [
+		{"ten": "L1", "ma_mon": "CANELE", "ten_mon": "Bánh Canelé", "dvt": "Cái",
+			"so_can": 10, "so_da": 0, "ngay_can": "2026-09-02", "ycsx": ["YCSX-1"]},
+		{"ten": "L2", "ma_mon": "CANELE", "ten_mon": "Bánh Canelé", "dvt": "Cái",
+			"so_can": 6, "so_da": 2, "ngay_can": "2026-08-31", "ycsx": ["YCSX-2"]},
+		{"ten": "L3", "ma_mon": "TIRAMISU", "ten_mon": "Tiramisu", "dvt": "Cái",
+			"so_can": 4, "so_da": 0, "ngay_can": "2026-09-01", "ycsx": ["YCSX-3"]},
+	]
+	ra = kh.gom_lenh_theo_mon(ds)
+	la("hai thẻ", len(ra), 2)
+	la("thẻ đầu là Canelé", ra[0]["ma_mon"], "CANELE")
+	la("cộng đủ số cần", ra[0]["so_can"], 16.0)
+	la("cộng đủ số đã làm", ra[0]["so_da"], 2.0)
+	la("đếm đúng số lệnh", ra[0]["so_lenh"], 2)
+	la("giữ đủ hai phiếu", ra[0]["ycsx"], ["YCSX-1", "YCSX-2"])
+
+
+@ca("ngày cần của thẻ cha là ngày SỚM NHẤT trong đám con")
+def _():
+	# Lay ngay muon nhat la the cha bao han xa hon han that, bep hoan lai
+	# roi tre mot phieu ma khong ai thay.
+	ds = [
+		{"ten": "L1", "ma_mon": "M", "so_can": 1, "ngay_can": "2026-09-05"},
+		{"ten": "L2", "ma_mon": "M", "so_can": 1, "ngay_can": "2026-08-31"},
+	]
+	la("sớm nhất", kh.gom_lenh_theo_mon(ds)[0]["ngay_can"], "2026-08-31")
+
+
+@ca("món chỉ có MỘT lệnh thì KHÔNG gộp")
+def _():
+	# Gop mot dong lai thanh mot the phai bam moi xo ra la them mot cham
+	# cho khong duoc gi. Bep nhap 40-50 phieu mot ngay.
+	ds = [{"ten": "L1", "ma_mon": "M", "so_can": 3}]
+	ra = kh.gom_lenh_theo_mon(ds)
+	la("không gộp", ra[0]["gop"], 0)
+	ds.append({"ten": "L2", "ma_mon": "M", "so_can": 2})
+	la("hai lệnh thì gộp", kh.gom_lenh_theo_mon(ds)[0]["gop"], 1)
+
+
+@ca("lệnh thiếu mã món thì bỏ qua, không dựng thẻ rỗng")
+def _():
+	ra = kh.gom_lenh_theo_mon([{"ten": "L1", "ma_mon": ""}, {"ten": "L2"}])
+	la("không thẻ nào", ra, [])
+
+
+@ca("chip nối nói đủ phiếu YCSX, ngày cần và nơi giao")
+def _():
+	c = kh.chip_cua_lenh({"ycsx": ["YCSX-2026-00012"], "ngay_can": "2026-08-31",
+		"noi_giao": "Kho Sales Online"})
+	la("có phiếu", "YCSX-2026-00012" in c, True)
+	la("ngày cần đọc kiểu Việt", "Cần 31/08" in c, True)
+	la("có nơi giao", "Kho Sales Online" in c, True)
+
+
+@ca("nhiều phiếu quá thì chip gọn lại, không tràn hàng")
+def _():
+	c = kh.chip_cua_lenh({"ycsx": ["A", "B", "C", "D", "E"]})
+	la("chỉ ba phiếu đầu", c[:3], ["A", "B", "C"])
+	la("nói rõ còn mấy phiếu", "và 2 phiếu nữa" in c, True)
+
+
+@ca("lệnh không nối phiếu nào thì chip rỗng, không dựng chip trống")
+def _():
+	la("rỗng", kh.chip_cua_lenh({"ycsx": [], "ngay_can": "", "noi_giao": ""}), [])
+
+
+@ca("phép gộp lệnh là PHÉP THUẦN, không chạm Frappe")
+def _():
+	m = _py("ke_hoach_sx.py")
+	for ten in ("gom_lenh_theo_mon", "chip_cua_lenh"):
+		doan = m.split("def %s(" % ten)[1].split("\ndef ")[0]
+		la("%s không gọi frappe" % ten, "frappe." in doan, False)
+
+
+@ca("app gộp lại theo đúng luật của Python, gộp trên mảng ĐÃ LỌC")
+def _():
+	# Goi san `kq.nhom` cua may chu la gom tren CA danh sach. Bep dang nhin
+	# qua bo loc "qua han" ma the cha van keu "5 lenh" thi con so noi doi.
+	m = _js("05-san-xuat.js")
+	dung("có hàm gộp bên app", "function mfgGomMon(" in m)
+	dung("gộp trên mảng đã lọc", "mfgGomMon(f)" in m)
+	dung("một lệnh thì không gộp", "o.con.length > 1 ? 1 : 0" in m)
+
+
+@ca("danh sách lệnh đọc MỘT vòng gọi, không hỏi ảnh riêng")
+def _():
+	m = _js("05-san-xuat.js")
+	doan = m.split("async function scrMfgList()")[1].split("\n}")[0]
+	dung("gọi ds_lenh", "ke_hoach_sx.ds_lenh" in doan)
+	la("không còn tự đi hỏi Work Order", "getList('Work Order'" in doan, False)
+	la("không còn vòng hỏi ảnh riêng", "fields: ['name', 'image']" in doan, False)
+
+
+@ca("màn danh sách có chip trạng thái, chip bếp và chip hạn")
+def _():
+	m = _js("05-san-xuat.js")
+	doan = m.split("async function scrMfgList()")[1].split("\n}")[0]
+	for chu in ("Chưa bắt đầu", "Làm dở", "Đã xong", "Mọi bếp", "Quá hạn",
+			"Cần hôm nay"):
+		dung("có chip %s" % chu, chu in doan)
+
+
+@ca("chip quá hạn KHÔNG tính lệnh đã xong")
+def _():
+	# Lenh xong roi ma con nam trong o "qua han" thi con so bao dong sai,
+	# bep nhin mai thanh quen.
+	m = _js("05-san-xuat.js")
+	dung("có điều kiện chưa xong",
+		"w.ngay_can < today() && !w.xong" in m)
+
+
+@ca("nút hoàn thành nằm ngay trên hàng, khoá khi lệnh đã đủ số")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("có nút trên hàng", 'data-ok="' in m)
+	dung("khoá khi không còn phải làm", "coLam(w) ? '' : ' disabled'" in m)
+	dung("còn phải làm mới cho bấm",
+		"!w.xong && (w.so_can - w.so_da) > 0.0001" in m)
+
+
+@ca("hoàn tất đi đúng MỘT đường, màn chi tiết và nút nhanh dùng chung")
+def _():
+	# Hai duong cung mot viec thi som muon cung lech nhau, ma lech o day la
+	# lech but toan kho.
+	m = _js("05-san-xuat.js")
+	dung("có hàm dùng chung", "async function mfgChayHoanTat(" in m)
+	dung("màn chi tiết gọi hàm đó", "mfgChayHoanTat(d, null)" in m)
+	dung("nút nhanh cũng gọi hàm đó", "mfgChayHoanTat(d, goc.cac_dvt" in m)
+	la("chỉ dựng phiếu kho ở một chỗ",
+		m.count("purpose: 'Manufacture', qty: q"), 1)
+
+
+@ca("ô nhập số lúc hoàn tất có chỗ chọn đơn vị tính")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("nhận danh sách đơn vị", "function mfgSheetHoanTat(left, uom, cacDvt)" in m)
+	dung("có ô chọn", "id=\"htDvt\"" in m)
+	dung("gợi ý theo đơn vị kho", "u.dvt === dvt ? ' selected' : ''" in m)
+
+
+@ca("số trả về LUÔN quy về đơn vị kho, không trả theo đơn vị bếp chọn")
+def _():
+	# Tra ve theo don vi bep vua chon thi moi noi goi ham nay phai tu nho
+	# ma nhan lai; quen mot cho la ghi sai kho gap nghin lan.
+	m = _js("05-san-xuat.js")
+	dung("nhân hệ số khi trả về", "theo_lenh: r3(v(i1) * hs)" in m)
+	dung("cả ô cân thực tế", "thuc_te: r3((cham ? v(i2) : v(i1)) * hs)" in m)
+
+
+@ca("đổi đơn vị thì quy đổi luôn con số đang hiện")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("quy về đơn vị kho rồi chia hệ số mới",
+		"i1.value = r3(v(i1) * hs / moi)" in m)
+
+
+@ca("đơn vị kho luôn có mặt trong danh sách chọn")
+def _():
+	# Thieu no thi o chon don vi mo ra khong co chinh don vi dang hien ben
+	# canh con so, bep tuong may hong.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def _dvt_cua(")[1].split("\n\n\n")[0]
+	dung("chèn đơn vị gốc nếu thiếu", 'ds.insert(0, {"dvt": g, "he_so": 1.0})' in doan)
+
+
+@ca("chuỗi mã mới có đủ dấu chấm cho năm, tháng và bộ đếm")
+def _():
+	from vagabond import ma_phieu_sx as mps
+
+	la("lệnh sản xuất", mps.chuoi_ma("LSX"), "LSX-.YY.-.MM.-.####")
+	la("kế hoạch sản xuất", mps.chuoi_ma("KHSX"), "KHSX-.YY.-.MM.-.####")
+	la("rỗng thì trả rỗng", mps.chuoi_ma(""), "")
+
+
+@ca("chuỗi cũ KHÔNG bị xoá khỏi danh sách chọn")
+def _():
+	# Phieu cu dang giu gia tri "MFG-WO-.YYYY.-" trong o Select. Bo no di la
+	# mo phieu cu tren Desk khong luu duoc mot o nao.
+	from vagabond import ma_phieu_sx as mps
+
+	ra = mps.gop_chuoi("LSX-.YY.-.MM.-.####", "MFG-WO-.YYYY.-")
+	la("mới lên đầu", ra.split("\n")[0], "LSX-.YY.-.MM.-.####")
+	la("cũ vẫn còn", "MFG-WO-.YYYY.-" in ra.split("\n"), True)
+
+
+@ca("gộp chuỗi hai lần không nhân bản dòng")
+def _():
+	from vagabond import ma_phieu_sx as mps
+
+	moi = "LSX-.YY.-.MM.-.####"
+	mot = mps.gop_chuoi(moi, "MFG-WO-.YYYY.-")
+	la("chạy lại vẫn thế", mps.gop_chuoi(moi, mot), mot)
+
+
+@ca("nhận ra mã kiểu cũ để ĐẾM, không đổi tên phiếu nào")
+def _():
+	from vagabond import ma_phieu_sx as mps
+
+	la("mã mới", mps.la_ma_kieu_moi("LSX-26-08-0001", "LSX"), True)
+	la("mã cũ", mps.la_ma_kieu_moi("MFG-WO-2026-00113", "LSX"), False)
+	m = _py("ma_phieu_sx.py")
+	doan = m.split("def soat_ma_cu(")[1]
+	la("không đổi tên", "rename" in doan, False)
+	la("không xoá", "delete" in doan, False)
+
+
+@ca("chỉ đặt chuỗi mới khi doctype thật sự đặt tên bằng naming_series")
+def _():
+	# ERPNext co the doi cach dat ten giua cac ban. Ghi chuoi vao mot o
+	# khong ai doc toi thi ma van ra kieu cu ma minh lai tuong da xong.
+	m = _py("ma_phieu_sx.py")
+	dung("có kiểm autoname", 'dat_ten.startswith("naming_series")' in m)
+	dung("có kiểm ô tồn tại", 'meta.get_field("naming_series")' in m)
+
+
+@ca("đặt chuỗi mã hỏng KHÔNG được chặn cả lần migrate")
+def _():
+	m = _py("truong_tu_them.py")
+	doan = m.split("ma_phieu_sx.dung()")[1].split("\n\n")[0]
+	dung("có bọc except", "except Exception" in doan)
