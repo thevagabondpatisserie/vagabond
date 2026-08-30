@@ -35,6 +35,8 @@ trị không hợp lệ, sửa một ô bất kỳ cũng không lưu được. N
 
 # ------------------------------------------------------------ phần thuần
 
+import re
+
 # Doctype -> tien to moi. Chi hai cai nay, dung them cho vui.
 TIEN_TO = {
 	"Production Plan": "KHSX",
@@ -72,12 +74,19 @@ def gop_chuoi(moi, cu):
 
 
 def la_ma_kieu_moi(ten, tien_to):
-	"""Mã này đã theo kiểu mới chưa: LSX-26-08-0001 thì đúng, MFG-WO-... thì chưa."""
-	ten = (ten or "").strip()
+	"""Mã này đã theo kiểu mới chưa: LSX-26-08-0001 đúng, LSX-2026-00113 chưa.
+
+	Chỉ so tiền tố là KHÔNG đủ. Lệnh sản xuất trước đây đã mang chuỗi
+	`LSX-.YYYY.-`, tức mã cũ `LSX-2026-00113` cũng bắt đầu bằng "LSX-" y
+	như mã mới. Đếm kiểu đó thì `soat_ma_cu` báo không còn mã cũ nào trong
+	khi thực tế còn 48 lệnh. Nên soi đúng hình dạng: tiền tố, hai chữ số
+	năm, hai chữ số tháng, rồi mới tới bộ đếm.
+	"""
+	ten = (ten or "").strip().upper()
 	tien_to = (tien_to or "").strip().upper()
 	if not ten or not tien_to:
 		return False
-	return ten.upper().startswith(tien_to + "-")
+	return bool(re.match(r"^%s-\d{2}-\d{2}-\d+$" % re.escape(tien_to), ten))
 
 
 # ------------------------------------------------------- phần cần Frappe

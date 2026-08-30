@@ -1698,7 +1698,8 @@ def _ycsx_cua_lenh(cac_lenh):
 	ho_so = {}
 	for i in range(0, len(cac_dong), 200):
 		for d in frappe.get_all("Material Request Item", filters={
-			"name": ["in", cac_dong[i:i + 200]]},
+			"name": ["in", cac_dong[i:i + 200]],
+			"parenttype": "Material Request"},
 			fields=["name", "parent", "schedule_date", "warehouse"],
 			limit_page_length=0):
 			ho_so[d["name"]] = d
@@ -1749,8 +1750,13 @@ def _dvt_cua(cac_ma):
 			fields=["name", "stock_uom"], limit_page_length=0):
 			goc[d["name"]] = d.get("stock_uom") or ""
 	for i in range(0, len(cac_ma), 200):
+		# LOC BANG `parenttype`, KHONG dua ten bang cha vao lam doi so rieng
+		# cua get_all. Ban Frappe cua site nem thang TypeError "execute() got an
+		# unexpected keyword argument 'parent'", va no chi lo ra khi goi
+		# that tren site chu ban gia lap trong bo kiem thu khong biet.
+		# Ngay 31/08/2026 no lam ca man Lenh san xuat tra ve 500.
 		for d in frappe.get_all("UOM Conversion Detail", filters={
-			"parent": ["in", cac_ma[i:i + 200]]}, parent="Item",
+			"parent": ["in", cac_ma[i:i + 200]], "parenttype": "Item"},
 			fields=["parent", "uom", "conversion_factor"], limit_page_length=0):
 			if flt(d.get("conversion_factor")) > 0:
 				ra.setdefault(d["parent"], []).append(
