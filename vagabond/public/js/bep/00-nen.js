@@ -244,6 +244,41 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .khsx-the{background:#fff;border-bottom:1px solid #f0f2f6}
 .khsx-the .li{border-bottom:0}
 .khsx-than{padding:0 14px 12px}
+
+/* Chip NOI cua mot lenh san xuat: phieu YCSX nao, can ngay nao, giao ve
+   dau. Anh Viet 30/08/2026: "nhin vao thi khong ro lenh nao voi lenh nao
+   la dung cho phieu YCSX, ngay can banh".
+
+   Khong dung .chip san co vi .chip la nut BAM DUOC, cao 38px, nam trong
+   hang cuon ngang. Cai o day chi de DOC, nam duoi ten mon, nen nho hon va
+   xuong dong duoc. Dat mau nhat de khong tranh mat voi ten mon. */
+.noi{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.noi i{font-style:normal;font-size:11.5px;font-weight:600;line-height:1;
+  padding:4px 8px;border-radius:999px;background:#eef2f7;color:#4a5061;
+  border:1px solid #e2e8f0;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.noi i.d{background:#fff4e0;color:#9a6200;border-color:#f4e0b8}
+.noi i.q{background:#fdeaea;color:#b3261e;border-color:#f5c2c0}
+
+/* The GOP nhieu lenh cung mot mon. Hang cha van la .li nguyen ban, phan
+   xo ra nam ngoai hang do y nhu .khsx-the. */
+.lgop{background:#fff;border-bottom:1px solid #f0f2f6}
+.lgop .li{border-bottom:0}
+.lgop .lcon{padding:0 14px 10px}
+.lgop .lcon .li{border:1px solid #eef0f4;border-radius:12px;margin-bottom:8px;
+  padding:11px 12px;background:#fbfcfe}
+.lgop .lcon .li:last-child{margin-bottom:0}
+.lsl{flex:0 0 auto;font-size:11.5px;font-weight:700;color:#0B7C93;
+  background:#E4F9FD;border-radius:999px;padding:4px 9px;line-height:1}
+
+/* Nut hoan thanh nam ngay tren hang danh sach: bep bam mot phat la ra o
+   nhap so, khong phai mo phieu ra roi moi bam. Anh Viet 30/08/2026, mot
+   ngay bep nhap 40-50 phieu. */
+.lok{flex:0 0 auto;width:40px;height:40px;border-radius:12px;border:0;
+  background:#e4f7ec;color:#0d8a45;font-size:19px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.lok:active{transform:scale(.93)}
+.lok[disabled]{background:#f2f4f7;color:#c3c8d1;cursor:default}
 .li .imp{display:flex;align-items:center;justify-content:center;font-size:20px;color:#0B7C93}
 .sbtn{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:0;background:#E4F9FD;color:#0B7C93;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .scan{position:fixed;inset:0;background:#000;z-index:300;display:flex;flex-direction:column}
