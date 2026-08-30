@@ -431,8 +431,8 @@ def _():
 	# Anh Viet 29/08/2026: "lo co nhung mon ca 2 bep deu dung thi sao".
 	m = _js("38-ke-hoach-sx.js")
 	dung("thẻ hiện kho nhập", "x.kho_dich" in m)
-	dung("có ô chọn kho", "khsxKho" in m)
-	dung("có ô nhập số lượng", "khsxSl" in m)
+	dung("đổi được kho ngay trên thẻ", "data-doikho=" in m)
+	dung("ô nhập số Cần nằm ngay trên thẻ", "data-can=" in m)
 	p = _py("ke_hoach_sx.py")
 	dung("máy chủ trả danh sách kho", '"cac_kho": _cac_kho_chon()' in p)
 	dung("tạo lệnh nhận kho bếp chọn", "def tao_lenh(ten, khoa, loai=\"btp\", so_luong=None, kho=None)" in p)
@@ -714,6 +714,66 @@ def _():
 	dung("có màn danh mục", "function scrKhsxDsPhieu()" in m)
 	dung("gọi được huỷ phiếu", "ke_hoach_sx.huy_phieu" in m)
 	dung("có đường mở từ màn kế hoạch", "data-dsp=" in m)
+
+
+@ca("nhân công thức: cần bao nhiêu nguyên liệu cho số mẻ muốn làm")
+def _():
+	# Cong thuc khai lam ra 10 banh ton 500g bot. Lam 25 banh thi ton 1250g.
+	la("nhân đúng tỉ lệ", kh.nhan_cong_thuc(500, 10, 25), 1250.0)
+	la("làm đúng một mẻ công thức", kh.nhan_cong_thuc(500, 10, 10), 500.0)
+
+
+@ca("công thức khai làm ra 0 sản phẩm thì trả 0, KHÔNG chia cho 0")
+def _():
+	# Mot man hinh bep khong duoc phep no vi mot dong danh muc khai thieu.
+	la("không nổ", kh.nhan_cong_thuc(500, 0, 25), 0.0)
+	la("số âm cũng không nổ", kh.nhan_cong_thuc(500, -1, 25), 0.0)
+
+
+@ca("mọi thẻ món đều xổ ra được nguyên liệu, kể cả thành phẩm")
+def _():
+	# Anh Viet 30/08/2026: "click vao dong banh muon tao lenh thi se xo ra
+	# danh sach NVL de xem truoc roi quay lai tao lenh sau".
+	m = _py("ke_hoach_sx.py")
+	dung("đọc thành phần công thức một lượt", "def _thanh_phan_bom(cac_bom)" in m)
+	doan = m.split("def xem(")[1].split("\n@frappe")[0]
+	dung("gắn nguyên liệu cho thành phẩm", 'd["nvl"] = _thanh_phan(o["bom"], o["can"])' in doan)
+	dung("bán thành phẩm không neo được thì đọc công thức",
+		'd["nvl"] = _thanh_phan(x.get("bom_no")' in doan)
+	j = _js("38-ke-hoach-sx.js")
+	dung("thẻ nào cũng xổ ra được", "Xem nguyên liệu và ra lệnh" in j)
+
+
+@ca("ô Tồn đầu KHÔNG cho sửa, chỉ Tồn giờ mới sửa")
+def _():
+	# Ton dau la chuyen da xay ra luc 0h. Sua no la chen but toan lui ngay
+	# vao ngay da chot so, lam lech gia von cua ngay do.
+	j = _js("38-ke-hoach-sx.js")
+	doan = j.split("function khsxCot(")[1].split("\nfunction ")[0]
+	dung("có ô gõ tồn giờ", "data-ton=" in doan)
+	la("không có ô gõ tồn đầu", "data-tondau" in doan, False)
+	dung("tồn đầu vẫn chỉ in ra", "kl(x.ton_dau, x.dvt)" in doan)
+	dung("nói rõ vì sao không cho sửa", "lui ngay" in doan or "lùi ngày" in doan)
+
+
+@ca("đặt lại tồn đi qua phiếu kiểm kê thật, không sửa lụi sổ kho")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def dat_ton(")[1].split("\ndef _gia_von(")[0]
+	dung("dựng phiếu Stock Reconciliation", '"doctype": "Stock Reconciliation"' in doan)
+	dung("ghi sổ luôn", "doc.submit()" in doan)
+	dung("chỉ kho của bếp", "kho not in _cac_kho_chon()" in doan)
+	dung("không lùi ngày", "nowdate()" in doan)
+	dung("ghi lại người nhập", "frappe.session.user" in doan)
+	la("không đụng thẳng bảng Bin", "db_set" in doan, False)
+
+
+@ca("món chưa từng có giá vốn thì DỪNG, không bịa giá")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def dat_ton(")[1].split("\ndef _gia_von(")[0]
+	dung("có kiểm giá vốn", "not gia" in doan)
+	dung("chỉ đường cho người dùng", "Nhập kho món này một lần" in doan)
 
 
 @ca("neo nguyên liệu về bán thành phẩm theo MÓN và CÔNG THỨC của BTP")
