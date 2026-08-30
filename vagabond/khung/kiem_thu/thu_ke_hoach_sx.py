@@ -15,6 +15,7 @@ kiểm ở đây canh đúng ba chỗ dễ trượt khỏi điều kiện đó:
 """
 
 import io
+import re
 import os
 
 from vagabond import ke_hoach_sx as kh
@@ -714,6 +715,57 @@ def _():
 	dung("có màn danh mục", "function scrKhsxDsPhieu()" in m)
 	dung("gọi được huỷ phiếu", "ke_hoach_sx.huy_phieu" in m)
 	dung("có đường mở từ màn kế hoạch", "data-dsp=" in m)
+
+
+@ca("ô tick là input thật, tròn, không bóp méo khi tên món dài")
+def _():
+	# Anh Viet review giao dien 30/08/2026: nut tick cu "nhin rat tho,
+	# lech truc doc so voi hinh anh va text, dang lam vo layout".
+	nen = _js("00-nen.js")
+	doan = nen.split(".tik{")[1].split("\n.khsx-o")[0]
+	dung("bỏ hình mặc định của trình duyệt", "appearance:none" in doan)
+	dung("tròn", "border-radius:50%" in doan)
+	dung("không co giãn theo chữ", "flex:0 0 24px" in doan)
+	dung("khi tích thì đổi màu", ":checked" in doan)
+	dung("dấu tick vẽ bằng SVG nhúng", "data:image/svg+xml" in doan)
+	j = _js("38-ke-hoach-sx.js")
+	dung("dùng input thật", 'type="checkbox" class="tik"' in j)
+	la("không còn vẽ ô tick bằng chữ", "'☑'" in j, False)
+
+
+@ca("hàng thẻ món dùng đúng lớp .li của hệ thống thiết kế")
+def _():
+	# Ban v351 boc them mot lop flex tay roi dat align-items:flex-start,
+	# thanh ra tick va anh khong thang hang voi ten mon. .li von da
+	# display:flex, align-items:center, gap:12px san roi.
+	nen = _js("00-nen.js")
+	doan = nen.split(".li{")[1].split("\n")[0]
+	dung(".li canh giữa theo trục dọc", "align-items:center" in doan)
+	j = _js("38-ke-hoach-sx.js")
+	doan2 = j.split("function khsxThe(")[1].split("\nasync function")[0]
+	# Bo chu thich truoc khi soi: cau van giai thich VI SAO bo
+	# align-items:flex-start co quyen nhac lai chinh chuoi do.
+	doan2 = re.sub(r"/\*.*?\*/", "", doan2, flags=re.S)
+	la("không tự đặt lại align-items", "align-items:flex-start" in doan2, False)
+	la("không ép .li thành block", 'class="li" style="display:block"' in doan2, False)
+	dung("phần xổ ra nằm ngoài hàng", 'class="khsx-than"' in doan2)
+
+
+@ca("tên món dài không đẩy được ảnh hay ô tick ra ngoài")
+def _():
+	nen = _js("00-nen.js")
+	dung("khối chữ co lại được", ".li .lt{flex:1;min-width:0}" in nen)
+	dung("ảnh giữ nguyên bề ngang", "flex:0 0 40px" in nen or "flex:0 0 46px" in nen)
+
+
+@ca("bấm vào đâu trên hàng cũng xổ ra được, trừ các nút bên trong")
+def _():
+	j = _js("38-ke-hoach-sx.js")
+	doan = j.split("function khsxGan(")[1].split("\n    };")[0]
+	# Thu tu xet co chu y: nut ben trong phai duoc xet TRUOC ca hang.
+	dung("xét ô tick trước", doan.index("data-tick") < doan.index("data-xo"))
+	dung("xét nút đổi kho trước", doan.index("data-doikho") < doan.index("data-xo"))
+	dung("xét nút tạo lệnh trước", doan.index("data-lenh") < doan.index("data-xo"))
 
 
 @ca("nhân công thức: cần bao nhiêu nguyên liệu cho số mẻ muốn làm")
