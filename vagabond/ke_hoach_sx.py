@@ -210,6 +210,22 @@ def chia_so_luong(cac_con, tong):
 	return (ra, con_lai if con_lai > 0 else 0.0)
 
 
+def nhan_cong_thuc(sl_trong_bom, so_bom_lam_ra, so_can_lam):
+	"""Một mẻ cần bao nhiêu nguyên liệu. THUẦN.
+
+	Công thức khai "làm ra `so_bom_lam_ra` sản phẩm thì tốn `sl_trong_bom`
+	nguyên liệu". Bếp cần làm `so_can_lam` thì nhân lên theo tỉ lệ.
+
+	Công thức khai làm ra 0 sản phẩm là công thức hỏng, trả 0 chứ KHÔNG
+	chia cho 0: một màn hình bếp không được phép nổ vì một dòng danh mục
+	khai thiếu.
+	"""
+	mau = _so(so_bom_lam_ra)
+	if mau <= 0:
+		return 0.0
+	return _so(sl_trong_bom) / mau * _so(so_can_lam)
+
+
 def neo_nvl_theo_btp(nvl, btp, ma_cua_bom):
 	"""Xổ nguyên liệu ra dưới đúng bán thành phẩm. PHÉP THUẦN.
 
@@ -280,7 +296,7 @@ def cau_tom_tat(so_tp, so_btp, so_nvl, so_ycsx, so_thieu):
 import json
 
 import frappe
-from frappe.utils import add_days, cint, flt, getdate, nowdate
+from frappe.utils import add_days, cint, flt, getdate, nowdate, nowtime
 
 from vagabond import kho_san_xuat as ksx
 from vagabond import ton_chang as tc
@@ -662,6 +678,40 @@ def _chang_cua(cac_ma):
 	return ra
 
 
+def _thanh_phan_bom(cac_bom):
+	"""Từng công thức gồm những gì, kèm số lượng và số mẻ công thức làm ra.
+
+	Trả dict: tên công thức -> {"so_ra": số sản phẩm một mẻ,
+	"dong": [{ma, ten, dvt, sl}]}.
+
+	Dùng cho việc XỔ RA danh sách nguyên liệu ngay trên thẻ món để bếp
+	duyệt trước khi ra lệnh (anh Việt 30/08/2026). Đọc một lượt cho cả
+	phiếu chứ không hỏi từng công thức.
+	"""
+	ra = {}
+	cac_bom = sorted({b for b in (cac_bom or []) if b})
+	if not cac_bom:
+		return ra
+	for i in range(0, len(cac_bom), 200):
+		lo = cac_bom[i:i + 200]
+		for b in frappe.get_all("BOM", filters={"name": ["in", lo]},
+				fields=["name", "quantity"], limit_page_length=0):
+			ra[b.name] = {"so_ra": flt(b.quantity) or 1.0, "dong": []}
+		for d in frappe.get_all("BOM Item", filters={"parent": ["in", lo]},
+				fields=["parent", "item_code", "item_name", "qty", "uom",
+					"stock_uom", "stock_qty"],
+				order_by="idx", limit_page_length=0):
+			o = ra.get(d.parent)
+			if o is None:
+				continue
+			o["dong"].append({
+				"ma": d.item_code, "ten": d.item_name or d.item_code,
+				"dvt": d.stock_uom or d.uom or "",
+				"sl": flt(d.stock_qty) or flt(d.qty),
+			})
+	return ra
+
+
 def _ma_cua_bom(cac_bom):
 	"""Mỗi công thức chứa những mã nguyên liệu nào. Đọc một lượt, không
 	hỏi từng công thức một."""
@@ -782,9 +832,16 @@ def xem(ngay=None, ten=None):
 	btp = [dict(d.as_dict()) for d in (doc.sub_assembly_items or [])]
 	nvl = [dict(d.as_dict()) for d in (doc.mr_items or [])]
 
+	# Thanh phan cong thuc cua tung mon, de the nao cung xo ra duoc danh
+	# sach nguyen lieu ngay tai cho (anh Viet 30/08/2026: "click vao dong
+	# banh thi xo ra danh sach NVL de xem truoc roi quay lai tao lenh").
+	cong_thuc = _thanh_phan_bom(
+		[x.get("bom_no") for x in tp] + [x.get("bom_no") for x in btp])
+
 	cac_ma = sorted({x.get("item_code") for x in tp if x.get("item_code")}
 		| {x.get("production_item") for x in btp if x.get("production_item")}
-		| {x.get("item_code") for x in nvl if x.get("item_code")})
+		| {x.get("item_code") for x in nvl if x.get("item_code")}
+		| {d["ma"] for o in cong_thuc.values() for d in o["dong"]})
 	anh = _anh_cua(cac_ma)
 	bep_khai = _bep_cua_nhieu(cac_ma)
 	# Bep cua mot THANH PHAM: ho so mon truoc, khong khai thi lay bep cua
@@ -820,6 +877,24 @@ def xem(ngay=None, ten=None):
 		if them:
 			d.update(them)
 		return d
+
+	def _thanh_phan(bom, so_lam):
+		"""Danh sách nguyên liệu của MỘT mẻ, đã nhân theo số cần làm."""
+		o = cong_thuc.get(bom or "")
+		if not o:
+			return []
+		ds = []
+		for d in o["dong"]:
+			can = nhan_cong_thuc(d["sl"], o["so_ra"], so_lam)
+			t_nay = flt(ton_nay.get(d["ma"], 0))
+			ds.append({
+				"ma": d["ma"], "ten": d["ten"], "dvt": d["dvt"],
+				"can": can, "ton_nay": t_nay,
+				"ton_goc": flt(ton_goc.get(d["ma"], 0)),
+				"con_lam": con_phai_lam(can, t_nay),
+				"anh": anh.get(d["ma"], ""),
+			})
+		return ds
 
 	# GOM THANH PHAM THEO MA.
 	#
@@ -867,6 +942,7 @@ def xem(ngay=None, ten=None):
 		# sang diem ban la mot phieu dieu chuyen rieng.
 		d["kho_giao"] = o["kho"] or ""
 		d["kho_dich"] = _kho_dich_cua(o["ma"], d["bep"])
+		d["nvl"] = _thanh_phan(o["bom"], o["can"])
 		ra_tp.append(d)
 
 	# Nguyên liệu xổ ra dưới từng bán thành phẩm. Luật neo nằm trong
@@ -892,6 +968,10 @@ def xem(ngay=None, ten=None):
 				"cua_mon": x.get("parent_item_code") or "",
 				"da_lam": flt(x.get("wo_produced_qty"))})
 		d["nvl"] = [_dong_nvl(n) for n in nvl_theo_btp.get(x.get("name"), [])]
+		# Khong neo duoc dong nao thi doc thang cong thuc, de the nao bam
+		# vao cung xo ra duoc thanh phan.
+		if not d["nvl"]:
+			d["nvl"] = _thanh_phan(x.get("bom_no"), flt(x.get("qty")))
 		b = chon_bep(d["bep"], bep_khai.get(d["cua_mon"], ""))
 		d["bep"] = b
 		d["kho_dich"] = x.get("fg_warehouse") or _kho_dich_cua(d["ma"], b)
@@ -1268,6 +1348,99 @@ def _kho_nhan_nvl(ma, bep_chon, kho_dang_co):
 	if kho and frappe.db.exists("Warehouse", kho):
 		return kho
 	return ""
+
+
+@frappe.whitelist()
+def dat_ton(ma, kho, so_luong, ghi_chu=None):
+	"""Đặt lại số tồn của một món tại một kho bếp. LÀ MỘT LỆNH KIỂM KÊ THẬT.
+
+	Anh Việt 30/08/2026: "cho bếp đỡ phải làm kiểm kê mà vẫn có thể nhập
+	vào luôn rồi sản xuất luôn cho gọn".
+
+	Máy dựng một phiếu Stock Reconciliation của ERPNext rồi ghi sổ ngay,
+	đúng y như bếp đi làm kiểm kê trên Desk. KHÔNG có đường tắt nào khác:
+	sổ kho và sổ cái phải khớp nhau, sửa số tồn mà không đi qua phiếu là
+	để lại một khoản chênh không ai giải thích được.
+
+	BỐN HÀNG RÀO:
+
+	1. CHỈ KHO BẾP. Danh sách kho lấy từ `_cac_kho_chon()`. Không cho đụng
+	   Kho tổng 307 và các kho điểm bán: hàng ở đó không phải bếp đếm.
+	2. GHI SỔ Ở THỜI ĐIỂM HIỆN TẠI, không bao giờ lùi ngày. Lùi ngày là
+	   sửa dữ liệu quá khứ, làm lệch giá vốn của ngày đã chốt sổ. Đây cũng
+	   là lý do ô "Tồn đầu" trên màn KHÔNG cho sửa: con số đó là chuyện đã
+	   xảy ra lúc 0h, đọc từ sổ ra chứ không phải một ô để gõ.
+	3. MÓN CHƯA TỪNG CÓ GIÁ thì dừng và nói rõ. ERPNext cần đơn giá để ghi
+	   sổ cái; đoán bừa một con số là bịa giá vốn.
+	4. GHI LẠI NGƯỜI VÀ LÝ DO vào ô ghi chú của phiếu, để sau này soát lại
+	   còn biết con số từ đâu ra.
+	"""
+	_chan(QUYEN_SUA)
+	ma = (ma or "").strip()
+	kho = (kho or "").strip()
+	if not ma or not kho:
+		frappe.throw("Thiếu mã món hoặc kho.")
+	if kho not in _cac_kho_chon():
+		frappe.throw("Chỉ đặt lại tồn cho kho của bếp. Kho %s không nằm "
+			"trong danh sách đó." % kho)
+	moi = flt(so_luong)
+	if moi < 0:
+		return {"ok": 0, "ghi_chu": "Số tồn không thể âm."}
+
+	dang_co = _ton_hien_tai([ma], [kho]).get(ma, 0.0)
+	if abs(flt(dang_co) - moi) < 0.0001:
+		return {"ok": 1, "ton": moi, "ghi_chu": "Tồn của %s tại %s vốn đã là "
+			"%s rồi, không cần sửa." % (ma, kho, _goc(moi))}
+
+	gia = _gia_von(ma, kho)
+	if moi > 0 and not gia:
+		return {"ok": 0, "ghi_chu": "Món %s chưa từng có giá vốn ở kho nào "
+			"nên máy không ghi sổ được. Nhập kho món này một lần qua phiếu "
+			"nhập bình thường trước, sau đó ô tồn mới sửa được." % ma}
+
+	doc = frappe.get_doc({
+		"doctype": "Stock Reconciliation",
+		"company": _cong_ty(),
+		"purpose": "Stock Reconciliation",
+		"posting_date": nowdate(),
+		"posting_time": nowtime(),
+		"set_posting_time": 1,
+		"items": [{
+			"item_code": ma, "warehouse": kho, "qty": moi,
+			"valuation_rate": gia,
+		}],
+		"remarks": ("Bếp đếm lại tồn trên màn Kế hoạch sản xuất. Người nhập: "
+			"%s. Số cũ %s, số mới %s.%s"
+			% (frappe.session.user, _goc(dang_co), _goc(moi),
+				(" Ghi chú: " + str(ghi_chu)) if ghi_chu else "")),
+	})
+	doc.insert()
+	doc.submit()
+	frappe.db.commit()
+	return {"ok": 1, "phieu": doc.name, "ton": moi,
+		"ghi_chu": "Đã đặt tồn %s tại %s thành %s bằng phiếu kiểm kê %s."
+			% (ma, kho.replace(" - TV", ""), _goc(moi), doc.name)}
+
+
+def _gia_von(ma, kho):
+	"""Đơn giá để ghi sổ kiểm kê: giá ở chính kho đó trước, không có thì
+	giá bình quân của món ở mọi kho, cuối cùng mới tới giá khai trong hồ sơ
+	món. Không tìm được thì trả 0 để người gọi dừng lại."""
+	try:
+		g = frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho},
+			"valuation_rate")
+		if flt(g) > 0:
+			return flt(g)
+		for b in frappe.get_all("Bin", filters={"item_code": ma},
+				fields=["valuation_rate"], limit_page_length=20):
+			if flt(b.valuation_rate) > 0:
+				return flt(b.valuation_rate)
+		g = frappe.db.get_value("Item", ma, "valuation_rate")
+		if flt(g) > 0:
+			return flt(g)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "vagabond: doc gia von de kiem ke")
+	return 0.0
 
 
 @frappe.whitelist()
