@@ -20,10 +20,6 @@
 
 var khsx = { ngay: '', d: null, tab: 'tp', bep: '', muc: '', tim: '', mo: {}, chon: {}, sua: {}, kho: {} };
 
-/* O go nam ngay trong bang bon cot, nen phai gon lai cho vua o. */
-var KHSX_CSS = '.khsx-o{width:100%;height:30px;line-height:30px;text-align:center;' +
-  'font-size:14.5px;font-weight:600;padding:0 4px;border:1px solid #cfd6e4;border-radius:7px;background:#fff}';
-
 var KHSX_TAB = [['tp', '🎂 Thành phẩm'], ['btp', '🥣 Bán thành phẩm'], ['nvl', '🌾 Nguyên liệu']];
 var KHSX_BEP = [['', '🏠 Cả hai bếp'], ['pastry', '🎂 Pastry'], ['baker', '🥐 Baker']];
 /* Chip loc theo tinh trang. "Phai lam" dung dau vi do la cau hoi dau tien
@@ -111,9 +107,9 @@ function khsxThe(x, loai) {
   var mo = !!khsx.mo[x.khoa];
   var raLenh = khsxQuanLy() && loai !== 'nvl';
   var tick = raLenh && x.con_lam > 0
-    ? '<div class="chip' + (khsx.chon[x.khoa] ? ' on' : '') + '" data-tick="' + h(x.khoa) +
-      '" data-tloai="' + h(loai) + '" style="flex:none;margin-right:8px">' +
-      (khsx.chon[x.khoa] ? '☑' : '☐') + '</div>'
+    ? '<input type="checkbox" class="tik" data-tick="' + h(x.khoa) +
+      '" data-tloai="' + h(loai) + '"' + (khsx.chon[x.khoa] ? ' checked' : '') +
+      ' aria-label="Chọn ' + h(x.ten) + '">'
     : '';
   var phu = h(x.ma) + (x.dvt ? ' · ' + h(x.dvt) : '') +
     (loai !== 'nvl' ? ' · nhập ' + (x.kho_dich ? h(shortWh(x.kho_dich)) :
@@ -151,11 +147,17 @@ function khsxThe(x, loai) {
       '</div>';
   }
 
-  return '<div class="li" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
+  /* Hang tren cung dung dung lop .li cua he thong thiet ke, von da
+     display:flex, align-items:center, gap:12px, padding:14px. Ban v351
+     boc them mot lop flex tay roi dat align-items:flex-start, thanh ra
+     tick va anh khong thang hang voi ten mon. Nay tra lai cho .li lam
+     dung viec cua no, phan xo ra day xuong mot khoi rieng ben duoi. */
+  return '<div class="khsx-the">' +
+    '<div class="li"' + (loai !== 'nvl' ? ' data-xo="' + h(x.khoa) + '"' : '') + '>' +
     tick + anhMon(x.anh) +
-    '<div class="lt" style="margin-left:9px"><div class="l1">' + h(x.ten) + '</div><div class="l2">' + phu + '</div></div>' +
-    '<div class="st ' + h(x.mau) + '" style="flex:none">' + h(x.ten_muc) + '</div></div>' +
-    khsxCot(x, loai) + xo + '</div>';
+    '<div class="lt"><div class="l1">' + h(x.ten) + '</div><div class="l2">' + phu + '</div></div>' +
+    '<div class="st ' + h(x.mau) + '" style="flex:0 0 auto">' + h(x.ten_muc) + '</div></div>' +
+    '<div class="khsx-than">' + khsxCot(x, loai) + xo + '</div></div>';
 }
 
 async function scrKeHoachSX() {
@@ -170,10 +172,6 @@ async function scrKeHoachSX() {
 
   function draw() {
     var d = khsx.d;
-    if (!document.getElementById('khsxCss')) {
-      var st = document.createElement('style'); st.id = 'khsxCss';
-      st.textContent = KHSX_CSS; document.head.appendChild(st);
-    }
     var dau = '<div class="card" style="padding:12px 14px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">' +
       '<div><div style="font-size:12px;color:#8a8f9c">Ngày bếp làm</div>' +
@@ -290,32 +288,37 @@ async function scrKeHoachSX() {
     }
   }
 
+  /* Thu tu xet CO CHU Y: cac nut nam BEN TRONG hang the phai duoc xet
+     TRUOC cai hang. Ca hang nay mang data-xo de bam vao dau cung xo ra
+     duoc nguyen lieu (anh Viet 30/08/2026), nen neu xet hang truoc thi
+     bam vao o tick hay chu "doi kho" cung chi xo ra chu khong lam dung
+     viec cua no. */
   function khsxGan(b, ve) {
     b.onclick = async function (e) {
-      var t = e.target.closest('[data-tab]');
-      if (t) { khsx.tab = t.dataset.tab; return ve(); }
-      var bp = e.target.closest('[data-bep]');
-      if (bp) { khsx.bep = bp.dataset.bep; return ve(); }
-      var mc = e.target.closest('[data-muc]');
-      if (mc) { khsx.muc = mc.dataset.muc; return ve(); }
-      var xo = e.target.closest('[data-xo]');
-      if (xo) { var k = xo.dataset.xo; khsx.mo[k] = !khsx.mo[k]; return ve(); }
-      var dsp = e.target.closest('[data-dsp]');
-      if (dsp) return go(scrKhsxDsPhieu);
-      var lui = e.target.closest('[data-lui]');
-      if (lui) return khsxDoiNgay(-1);
-      var toi = e.target.closest('[data-toi]');
-      if (toi) return khsxDoiNgay(1);
-      var dk = e.target.closest('[data-doikho]');
-      if (dk) return khsxDoiKho(dk.dataset.doikho, ve);
       var tk = e.target.closest('[data-tick]');
       if (tk) {
         var kk = tk.dataset.tick;
         khsx.chon[kk] = khsx.chon[kk] ? 0 : { khoa: kk, loai: tk.dataset.tloai };
         return ve();
       }
+      var dk = e.target.closest('[data-doikho]');
+      if (dk) return khsxDoiKho(dk.dataset.doikho, ve);
       var lenh = e.target.closest('[data-lenh]');
       if (lenh) return khsxTaoLenh(lenh.dataset.lenh, lenh.dataset.loai);
+      var t = e.target.closest('[data-tab]');
+      if (t) { khsx.tab = t.dataset.tab; return ve(); }
+      var bp = e.target.closest('[data-bep]');
+      if (bp) { khsx.bep = bp.dataset.bep; return ve(); }
+      var mc = e.target.closest('[data-muc]');
+      if (mc) { khsx.muc = mc.dataset.muc; return ve(); }
+      var dsp = e.target.closest('[data-dsp]');
+      if (dsp) return go(scrKhsxDsPhieu);
+      var lui = e.target.closest('[data-lui]');
+      if (lui) return khsxDoiNgay(-1);
+      var toi = e.target.closest('[data-toi]');
+      if (toi) return khsxDoiNgay(1);
+      var xo = e.target.closest('[data-xo]');
+      if (xo) { var k = xo.dataset.xo; khsx.mo[k] = !khsx.mo[k]; return ve(); }
     };
   }
 
