@@ -206,6 +206,44 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ld{position:fixed;inset:0;background:rgba(238,240,245,.75);z-index:150;display:flex;align-items:center;justify-content:center}
 .ld i{width:38px;height:38px;border:3.5px solid #cdd5e6;border-top-color:#0FB5CE;border-radius:50%;animation:sp .8s linear infinite;display:block}
 .li .im{width:46px;height:46px;flex:0 0 46px;border-radius:11px;object-fit:cover;background:#E4F9FD}
+
+/* ---------- O tick tron cho cac man co chon nhieu dong ----------
+
+   Anh Viet review giao dien 30/08/2026: nut tick cu "nhin rat tho, lech
+   truc doc so voi hinh anh va text, dang lam vo layout cua the mon".
+   Dung ca ba diem: no von la mot the .chip, tuc mot vien thuoc bo goc deo
+   chu ☐, nen cao thap tuy kieu chu cua may va khong bao gio thang hang
+   voi anh mon.
+
+   Nay dung <input type=checkbox> THAT roi ghi de appearance. Input that
+   thi vung bam dung chuan cua he dieu hanh, trinh doc man hinh doc duoc,
+   va khong an theo co chu. flex:0 0 24px de ten mon dai may dong cung
+   khong bop meo duoc no.
+
+   Mau khi tich lay #0B7C93 chu KHONG lay #50DBF2 cua thanh tieu de: dau
+   tick mau trang tren nen #50DBF2 gan nhu khong doc duoc. #0B7C93 la mau
+   dam cua chinh bang mau app, dang dung cho o anh va bieu tuong. */
+.tik{appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  width:24px;height:24px;flex:0 0 24px;margin:0;border-radius:50%;
+  border:2px solid #cbd5e1;background-color:#fff;cursor:pointer;
+  transition:background-color .18s ease,border-color .18s ease,transform .12s ease}
+.tik:checked{background-color:#0B7C93;border-color:#0B7C93;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12.6l5.2 5.2L19.5 7.2'/%3E%3C/svg%3E");
+  background-size:66%;background-position:center;background-repeat:no-repeat}
+.tik:active{transform:scale(.92)}
+
+/* O go so nam ngay trong bang bon cot cua man Ke hoach san xuat. */
+.khsx-o{width:100%;height:30px;line-height:30px;text-align:center;font-size:14.5px;
+  font-weight:600;padding:0 4px;border:1px solid #cfd6e4;border-radius:7px;
+  background:#fff;color:#1b2030}
+.khsx-o:focus{outline:none;border-color:#0B7C93;box-shadow:0 0 0 2px rgba(11,124,147,.14)}
+
+/* Phan xo ra duoi mot the: nam NGOAI hang flex cua .li de hang do giu
+   duoc luat cua he thong thiet ke, khong phai boc them mot lop flex tay
+   roi tu dat lai align-items. */
+.khsx-the{background:#fff;border-bottom:1px solid #f0f2f6}
+.khsx-the .li{border-bottom:0}
+.khsx-than{padding:0 14px 12px}
 .li .imp{display:flex;align-items:center;justify-content:center;font-size:20px;color:#0B7C93}
 .sbtn{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:0;background:#E4F9FD;color:#0B7C93;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .scan{position:fixed;inset:0;background:#000;z-index:300;display:flex;flex-direction:column}
