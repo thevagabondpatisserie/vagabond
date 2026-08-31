@@ -279,6 +279,17 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
   display:flex;align-items:center;justify-content:center}
 .lok:active{transform:scale(.93)}
 .lok[disabled]{background:#f2f4f7;color:#c3c8d1;cursor:default}
+
+/* Chip goi y so lan truoc, nam ngay duoi o nhap so luc hoan tat. Bam mot
+   cai la con so vao o. Anh Viet 31/08/2026: "bep hay lam chan me".
+
+   Cao 30px, thap hon .chip that (38px), vi day khong phai bo loc man hinh
+   ma la mot goi y phu; de cao bang nhau thi no tranh mat voi hai o nhap. */
+.goiy{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.goiy i{font-style:normal;font-size:12.5px;font-weight:600;line-height:1;
+  padding:8px 11px;border-radius:999px;background:#E4F9FD;color:#0B7C93;
+  border:1px solid #7FE5F6;cursor:pointer}
+.goiy i:active{transform:scale(.96)}
 .li .imp{display:flex;align-items:center;justify-content:center;font-size:20px;color:#0B7C93}
 .sbtn{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:0;background:#E4F9FD;color:#0B7C93;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .scan{position:fixed;inset:0;background:#000;z-index:300;display:flex;flex-direction:column}

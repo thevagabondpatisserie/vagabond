@@ -163,8 +163,8 @@ CUA_NGO = {
 	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
 	# KHONG mo ra ngoai. Cac phep thuan cung khong.
 	"ke_hoach_sx.py": ["chot", "dat_ton", "ds_lenh", "ds_phieu", "huy_lenh",
-		"huy_phieu", "lap", "sua_so_lenh", "tao_lenh", "tinh_hinh_giu_cho",
-		"ton_dong", "xem", "xin_chuyen_nvl"],
+		"huy_phieu", "lap", "sua_so_lenh", "tao_lenh", "tim_lenh",
+		"tinh_hinh_giu_cho", "ton_dong", "xem", "xin_chuyen_nvl"],
 	# Ma phieu san xuat, them 30/08/2026. `soat_ma_cu` chi DEM phieu con
 	# mang ma kieu cu, khong doi ten phieu nao.
 	"ma_phieu_sx.py": ["soat_ma_cu"],
