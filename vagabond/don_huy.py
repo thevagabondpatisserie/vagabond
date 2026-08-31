@@ -358,7 +358,10 @@ def dong_bo(so_ngay=NGAY_GIU):
 	chưa có thì tạo. KHÔNG bao giờ đụng vào trạng thái của bản ghi mà người
 	ta đã bấm Bỏ qua.
 	"""
-	_quyen()
+	# Nhip tu dong chay duoi Administrator, khong co phien nguoi dung. Kiem
+	# quyen chi ap cho nguoi bam nut.
+	if frappe.session.user != "Administrator":
+		_quyen()
 	from vagabond.ban_hang import _sepay_theo_don
 
 	dons = [_doc_don(o) for o in _keo_don_huy(so_ngay)]
@@ -402,6 +405,36 @@ def dong_bo(so_ngay=NGAY_GIU):
 		"quet": len(dons), "moi": moi, "cap_nhat": cap_nhat,
 		"don_dep": don_ban_dem(),
 	}
+
+
+# Cua so quet cua NHIP TU DONG. Ngan hon cua nut bam tay (30 ngay) vi
+# nhip nay chay nua tieng mot lan: quet ba ngay la du bat moi don vua huy,
+# va con thua slack cho vai lan nhip hong lien tiep.
+NGAY_TU_DONG = 3
+
+
+def dong_bo_tu_dong():
+	"""Scheduler gọi 30 phút một lần: kéo đơn huỷ mới từ Pancake.
+
+	Vì sao phải có nhịp này, ghi lại ngày 31/08/2026
+	------------------------------------------------
+	Trước hôm nay mô đun này KHÔNG có nhịp tự động nào. Cách duy nhất để đơn
+	huỷ về hệ là có người bấm nút Đồng bộ trên màn. Mà chính cái nút đó lại
+	nằm ở chân màn và chưa bao giờ bấm được (xem ghi chú ở
+	`29-don-huy.js`). Hai cái hỏng chồng lên nhau nên lần đồng bộ cuối cùng
+	là 21/08/2026, mười ngày không một đơn huỷ nào về hệ.
+
+	Tiền của khách đang nằm ở mình thì không được chờ ai bấm nút. Nên nhịp
+	này là hàng rào thứ hai, và nút bấm tay vẫn giữ để kéo cửa sổ 30 ngày
+	khi cần dò lại.
+
+	Hỏng thì ghi nhật ký rồi thôi, không bao giờ ném ra ngoài: nhịp này
+	chung slot với các nhịp khác, ném ra là kéo chết cả slot.
+	"""
+	try:
+		dong_bo(so_ngay=NGAY_TU_DONG)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "don_huy: dong bo tu dong")
 
 
 def don_ban_dem(ngay_giu=NGAY_GIU):
