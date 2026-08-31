@@ -398,3 +398,76 @@ def _doc_bang_con():
 	# tham so do chi co o tang API, khong co trong DatabaseQuery.
 	dung("khong con tham so parent", "parent=PI" not in ma)
 	dung("doc bang frappe.db.get_all", "frappe.db.get_all(" in ma)
+
+
+# =====================================================================
+# GO NUT "LAY MAT HANG TU" - anh Viet hoi 31/08/2026
+# =====================================================================
+#
+# *"Day la hoa don day ve sao lai phai lay mat hang tu? No noi phieu vao
+# thoi roi anh xa chu nhi?"* Cau hoi dung, va la ly do co ban vá này.
+#
+# Ca that Kamereo 271846 ngay 27/08: hoa don dien tu 6 dong, 417.400 d.
+# Co nguoi bam "Lay mat hang tu" chon bon phieu nhap kho cua ngay do, man
+# hinh thanh: ca chua tach hai dong (hai phieu nhap rieng), mat han dong
+# Phi dich vu 30.000 (phi khong di qua kho nen khong co phieu nhap), tong
+# tut xuong 385.000.
+#
+# So sach KHONG sai vi ho chua bam Luu, va neu bam Luu thi hook
+# `dong_bo_luc_luu` da dung lai. Nhung luoi do cuu duoc so sach chu khong
+# cuu duoc nguoi: Uyen van thay man hinh sai va van bao len. Ba lan trong
+# hai tuan. Nen ban nay bo han cai nut.
+
+import io as _io
+import os as _os
+
+_GOI = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
+
+def _doc_tep(*duong):
+    p = _os.path.join(_GOI, *duong)
+    return _io.open(p, encoding="utf-8").read() if _os.path.exists(p) else ""
+
+
+MA_PI_JS = _doc_tep("public", "js", "purchase_invoice.js")
+MA_HOOKS_PI = _doc_tep("hooks.py")
+
+
+@ca("go nut Lay mat hang tu tren to sinh tu hoa don dien tu")
+def _():
+    dung("tep co that", bool(MA_PI_JS))
+    dung("hooks khai dung mot doctype",
+         'doctype_js = {"Purchase Invoice": "public/js/purchase_invoice.js"}'
+         in MA_HOOKS_PI)
+    # Quy tac 6: hook rong tren "*" ap len moi doctype ke ca ha tang Frappe.
+    dung("khong bat tat bang sao", 'doctype_js = {"*"' not in MA_HOOKS_PI)
+    # CHI go tren to sinh tu hoa don dien tu. To go tay khong co ban goc
+    # nao de pha, go nut cua ho la lam ho mat mot duong lam viec that.
+    dung("chi cham to co ma hoa don dien tu", "custom_minvoice_id" in MA_PI_JS)
+    dung("to da ghi so thi khong dung toi", "docstatus !== 0" in MA_PI_JS)
+
+
+@ca("go nut: go bang ca ten tieng Anh lan tieng Viet")
+def _():
+    # ERPNext them nhom bang add_custom_button(label, fn, __("Get Items
+    # From")), tuc TEN NHOM DA DICH khi site chay tieng Viet. Go bang mot
+    # ten la truot mot nua so truong hop.
+    for ten in ("Get Items From", "Lấy mặt hàng từ"):
+        dung("go theo ten nhom %r" % ten, ten in MA_PI_JS)
+    for ten in ("Purchase Receipt", "Phiếu nhập kho"):
+        dung("go theo ten nut %r" % ten, ten in MA_PI_JS)
+    dung("co luoi do bang CSS phong khi ERPNext doi ten",
+         ".inner-group-button" in MA_PI_JS)
+    # AN chu khong XOA phan tu: xoa nham mot cum khac la hong nut cua nguoi
+    # khac, con an nham thi chi mat mot nut.
+    dung("chi an chu khong xoa phan tu", ".hide()" in MA_PI_JS)
+    dung("khong goi remove tren DOM", ".remove()" not in MA_PI_JS)
+
+
+@ca("go nut: phai noi ro bam nut nao thay the")
+def _():
+    # Khong noi thi ho di tim, va di tim thi lai mo Desk goc ra bam.
+    dung("co cau chi duong", "Nối phiếu nhập kho" in MA_PI_JS)
+    dung("noi ro nut kia chep de", "chép đè" in MA_PI_JS)
+    dung("ke ra dong bi mat", "phí dịch vụ" in MA_PI_JS)
+    dung("moi loi keo do man hinh deu duoc bat", MA_PI_JS.count("catch (e)") >= 2)
