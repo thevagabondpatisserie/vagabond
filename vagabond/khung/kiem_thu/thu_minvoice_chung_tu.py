@@ -597,12 +597,18 @@ def _():
 def _():
 	doan = MA.split("def _dem_trung")[1].split("\ndef ")[0]
 	dung("dùng lại phép thuần", "cap_trung(" in doan)
-	dung("bỏ tờ đã huỷ ở ERPNext", '"docstatus": ["<", 2]' in doan)
+	dung("bỏ tờ đã huỷ ở ERPNext", "docstatus < 2" in doan)
 	# Go trung bang cach tick Da huy la cach go hop le. Khong bo ra thi
 	# chuong keu mai du da don xong.
-	dung('bỏ tờ đã tick "Đã huỷ" của mình', 'vgb_huy' in doan)
+	dung('bỏ tờ đã tick "Đã huỷ" của mình', "ifnull(vgb_huy, 0) = 0" in doan)
 	dung("soi cả hoá đơn mua lẫn hoá đơn bán", "(PI, SI)" in doan)
 	dung("hỏng cũng không ném ra ngoài", "except Exception" in doan)
+	# BAN DAU KEO CA BANG LEN PYTHON roi moi gom, va man Con sot tra ve 504
+	# ngay lan mo dau tien: phep dem dung ra de canh chung tu trung lai lam
+	# hong dung cai man dung de soi chung tu trung.
+	dung("gom ở tầng cơ sở dữ liệu", "group by custom_minvoice_id" in doan)
+	dung("chỉ lấy về mã ĐÃ trùng", "having count(*) > 1" in doan)
+	dung("không kéo cả bảng lên", "limit_page_length=0" not in doan)
 	cs = MA.split("def con_sot")[1].split("\ndef ")[0]
 	dung("con_sot có trả về số tờ trùng", '"trung": _dem_trung()' in cs)
 
