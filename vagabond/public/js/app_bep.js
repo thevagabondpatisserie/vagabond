@@ -1601,6 +1601,13 @@ async function scrHome() {
        duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
     var htChoChi = 0;
     try { htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
+    /* Don hang tang cho giam doc duyet. So lay tu MAY CHU, cung nguyen tac
+       voi badge phieu hoan: man hinh chi duoc HIEN so, khong tu dem. */
+    var tgCho = 0, tgQuaHan = 0;
+    try {
+      var tg = await api('vagabond.hang_tang.dem_cho_duyet', {});
+      tgCho = tg.cho || 0; tgQuaHan = tg.qua_han || 0;
+    } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
       card('🧾', 'Hoá đơn bán ra', 'Lọc theo điểm bán và trạng thái hoá đơn điện tử', 0, 'HDBAN') +
       card('🛒', 'Hoá đơn mua vào', 'Lọc theo nhà cung cấp, hạn trả, còn nợ', 0, 'HDMUA') +
@@ -1628,7 +1635,14 @@ async function scrHome() {
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
       card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
-      card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') + '</div>';
+      card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') +
+      /* Duyet don hang tang (anh Viet 31/08/2026). Don tra bang phuong thuc
+         Hang tang KHONG ghi so duoc cho toi khi giam doc bam duyet o day.
+         Dat trong phan he Ke toan theo dung yeu cau cua anh Viet. */
+      card('🎁', 'Duyệt đơn hàng tặng',
+        'Đơn tặng không thu tiền đang chờ duyệt' +
+        (tgQuaHan ? ' · ' + tgQuaHan + ' đơn chờ quá lâu' : '') +
+        '. Duyệt rồi đơn mới ghi sổ được.', tgCho, 'DUYETTANG') + '</div>';
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
@@ -1831,7 +1845,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -2310,6 +2324,7 @@ var VGB_DUONG = {
   'don-da-huy': 'DHUY',
   'don-mua-hang': 'PO',
   'don-tiec': 'TIEC',
+  'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
   'hang-chuyen-ve-kho-toi': 'NHANDC',
   'hang-khach': 'CDHT',
@@ -2499,6 +2514,7 @@ function vgbGo(k) {
   if (k === 'CNPT') return go(scrNoPhaiTra);
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
+  if (k === 'DUYETTANG') return go(scrDuyetTang);
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
   if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }
@@ -12496,6 +12512,56 @@ async function scrPosDs() {
    hoa don va co ma OTP cua quan ly. Rieng hoa don con TAM TINH (khach chua
    tra tien) thi cashier van chot binh thuong, do la nghiep vu hang ngay. */
 var posSua = null; /* {name, otp, mon[], giam, pt, mtc, ghi_chu, so_ban, xh} */
+/* Khoi "Hang tang khong thu tien" tren man bill.
+
+   Ba viec: noi ro don nay dang o dau trong luong duyet, cho nguoi lap khai
+   loai tang va ly do tang, va nhac rang chua duyet thi chua ghi so duoc.
+
+   Loai tang va ly do la BAT BUOC, nhung KHONG chan luc luu - chan luc luu
+   thi khong bao gio chon duoc phuong thuc nay, vi chinh cu bam chon la cu
+   luu. Xem ghi chu dai trong `hang_tang.truoc_khi_luu`. */
+function pbKhoiTang(d, hien) {
+  var tt = String(d.vgb_tang_duyet || '') || 'Chờ duyệt';
+  var loai = String(d.vgb_tang_loai || '');
+  var mau = tt === 'Đã duyệt' ? ['#ecfdf3', '#a6f4c5', '#05603a']
+    : (tt === 'Từ chối' ? ['#fef2f2', '#fecaca', '#b3261e'] : ['#fffbeb', '#fde68a', '#92400e']);
+  var ds = [
+    ['vip', 'Khách VIP, khách quen'],
+    ['den_bu', 'Đền bù sự cố cho khách'],
+    ['marketing', 'Marketing, KOL, chụp hình'],
+    ['doi_tac', 'Đối tác, ngoại giao'],
+    ['noi_bo', 'Nội bộ, thử món, đào tạo'],
+    ['khac', 'Khác'],
+  ];
+  var op = '<option value="">Chọn loại tặng</option>';
+  ds.forEach(function (x) {
+    op += '<option value="' + x[0] + '"' + (loai === x[0] ? ' selected' : '') + '>' + h(x[1]) + '</option>';
+  });
+  var s = '<div id="pbTang" style="display:' + (hien ? 'block' : 'none') + '">' +
+    '<div class="sec">Hàng tặng không thu tiền</div>' +
+    '<div class="card" style="padding:12px 14px;display:grid;gap:9px">' +
+    '<div style="padding:8px 11px;background:' + mau[0] + ';border:1px solid ' + mau[1] +
+    ';border-radius:9px;font-size:12.5px;color:' + mau[2] + ';line-height:1.55">' +
+    '<b>' + h(tt) + '.</b> ' +
+    (tt === 'Đã duyệt'
+      ? 'Giám đốc đã duyệt, ghi sổ được rồi. Sửa lại món hay số tiền thì đơn quay về chờ duyệt.'
+      : (tt === 'Từ chối'
+        ? ('Giám đốc từ chối' + (d.vgb_tang_y_kien ? ': ' + h(d.vgb_tang_y_kien) : '') +
+           '. Sửa lại rồi lưu để xin duyệt lần nữa, hoặc đổi phương thức thanh toán.')
+        : 'Khách không trả đồng nào, nhưng hoá đơn vẫn xuất nguyên giá và nguyên thuế ' +
+          'theo luật hàng biếu tặng. Đơn chỉ ghi sổ được sau khi Giám đốc duyệt.')) +
+    '</div>' +
+    (d.docstatus === 0
+      ? '<select class="tin" id="pbTangLoai" style="margin:0">' + op + '</select>' +
+        '<textarea class="tin" id="pbTangLyDo" rows="2" style="margin:0" ' +
+        'placeholder="Lý do tặng: tặng cho ai, vì việc gì">' + h(d.vgb_tang_ly_do || '') + '</textarea>' +
+        '<button class="btn" id="pbTangLuu" style="margin:0">🎁 Lưu và gửi giám đốc duyệt</button>'
+      : '<div style="font-size:12.5px;color:#475467;line-height:1.6">' +
+        '📝 ' + h(d.vgb_tang_ly_do || 'Không ghi lý do') + '</div>') +
+    '</div></div>';
+  return s;
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -12667,6 +12733,25 @@ async function scrPosBill(name) {
       'Cần sửa thì bấm <b>Sửa hoá đơn</b> rồi nhập mã OTP xin của quản lý ca.</div></div>';
   }
 
+  /* ----- khoi Hang tang khong thu tien (anh Viet 31/08/2026) -----
+
+     Don tra bang "Hang tang" khong thu dong nao cua khach, nhung hoa don van
+     xuat NGUYEN GIA va nguyen thue suat theo luat hang bieu tang. Doi lai,
+     no khong ghi so duoc cho toi khi Giam doc bam duyet ben man Duyet don
+     hang tang trong phan he Ke toan.
+
+     Vi sao khoi nay luon nam san trong trang, chi an di. Thu ngan bam chon
+     "Hang tang" trong luoi phuong thuc thi khong co luot ve lai man - luoi
+     do chi doi mau o duoc chon. Dung ma nguon dung o day thi phai ve lai ca
+     man, ma ve lai thi mat cai vua chon vi no chua duoc luu. Nen dung san
+     roi bat len bang mot dong style. */
+  var pbLaTang = String(d.vgb_pt_thanh_toan || '') === 'Hàng tặng';
+  if (nhap && !d.vgb_huy) {
+    html += pbKhoiTang(d, PB_PT === 'Hàng tặng' || pbLaTang);
+  } else if (pbLaTang) {
+    html += pbKhoiTang(d, true);
+  }
+
   /* ----- nut duoi chan man ----- */
   var foot;
   if (d.vgb_huy) {
@@ -12746,11 +12831,34 @@ async function scrPosBill(name) {
       });
       var mo = document.getElementById('pbMtc');
       if (mo && PB_PT === 'Chuyển khoản' && !mo.value.trim()) mo.value = maBill || '';
+      var ot = document.getElementById('pbTang');
+      if (ot) ot.style.display = (PB_PT === 'Hàng tặng') ? 'block' : 'none';
       veQr();
     };
   });
   veQr();
   function docO(id) { var o = document.getElementById(id); return o ? o.value : ''; }
+  var ntl = document.getElementById('pbTangLuu');
+  if (ntl) ntl.onclick = async function () {
+    var lo = docO('pbTangLoai'), ly = String(docO('pbTangLyDo') || '').trim();
+    if (!lo) return toast('Chọn loại tặng trước.');
+    if (ly.length < 5) return toast('Ghi rõ lý do tặng, ít nhất vài chữ.');
+    busy(true);
+    try {
+      /* Ghi phuong thuc truoc roi moi ghi ly do: `luu_thong_tin` ben may
+         chu chi dung cho don DANG NHAP, va chinh no goi save() nen hook
+         dat lai trang thai duyet ngay sau do. */
+      if (String(d.vgb_pt_thanh_toan || '') !== 'Hàng tặng') {
+        await api('vagabond.ban_hang.pos_chot', {
+          name: d.name, pt: 'Hàng tặng', ghi_chu: docO('pbGhiChu'),
+        });
+      }
+      await api('vagabond.hang_tang.luu_thong_tin', { name: d.name, loai: lo, ly_do: ly });
+      busy(false);
+      toast('Đã gửi giám đốc duyệt đơn tặng.');
+      go(function () { scrPosBill(d.name); }, true);
+    } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 4500); }
+  };
   function hutSua() {
     if (!posSua) return;
     posSua.pt = PB_PT;
@@ -19063,7 +19171,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '367';
+var APPVER = '368';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -40839,6 +40947,268 @@ function phlMoForm(ma) {
   if (phlKieu === 'huy') return hoanMoFormHuy(don);
   if (phlKieu === 'du') return hoanMoFormDu(don);
   return toast('Chọn loại việc trước đã.', 4000);
+}
+/* ---------------- Duyệt đơn hàng tặng, phân hệ Kế toán
+
+   Anh Việt giao 31/08/2026:
+
+     *"Anh đang muốn làm thêm 1 phương thức thanh toán nữa là 'Hàng tặng'.
+     Máy sẽ cho ghi sổ mà không cần đối soát, xuất hoá đơn nguyên giá sản
+     phẩm và ghi trên hoá đơn ở phần ghi chú khi xuất hoá đơn. Nhưng với
+     những đơn chọn phương thức này thì em cho anh luồng gửi giám đốc duyệt
+     đơn được không để tránh gian lận. Lập 1 màn duyệt đơn tặng bên phân hệ
+     kế toán để anh vào duyệt thì đơn sẽ để đó chờ ghi sổ."*
+
+   MÀN NÀY LÀ CỬA CHẶN, KHÔNG PHẢI MÀN THÔNG BÁO
+   ---------------------------------------------
+   Đơn trả bằng Hàng tặng KHÔNG ghi sổ được cho tới khi có người bấm Duyệt ở
+   đây. Chặn thật nằm ở máy chủ (`hang_tang.truoc_khi_ghi_so`), màn này chỉ
+   là chỗ bấm. Giấu nút đi không phải là chặn.
+
+   DUYỆT THÌ PHẢI THẤY MÌNH ĐANG DUYỆT CÁI GÌ
+   ------------------------------------------
+   Bấm vào một đơn là mở ra từng dòng hàng, kèm con số "người lập này đã
+   tặng bao nhiêu trong tháng". Không có hai thứ đó thì duyệt chỉ là bấm một
+   cái nút, mà cả hàng rào này sinh ra để không phải bấm mù.
+
+   Ô tìm và chip đếm chạy Ở MÁY CHỦ (QT-19).
+
+   Tiền tố dtg = duyệt tặng. Đã kiểm và chạm tên trước khi đặt (QT-28). */
+
+var dtgDiem = '';      // chip điểm bán đang chọn, rỗng là tất cả
+var dtgTt = '';        // chip trạng thái duyệt
+var dtgLoai = '';      // chip loại tặng
+var dtgTim = '';       // ô tìm
+var dtgMo = {};        // mã đơn nào đang mở rộng
+var dtgChiTiet = {};   // chi tiết đã đọc về, khỏi hỏi lại máy chủ
+
+function dtgMauTt(tt) {
+  if (tt === 'Chờ duyệt') return ['#fffbeb', '#fcd34d', '#92400e'];
+  if (tt === 'Đã duyệt') return ['#ecfdf3', '#a6f4c5', '#05603a'];
+  if (tt === 'Từ chối') return ['#fef2f2', '#fecaca', '#b3261e'];
+  return ['#f8fafc', '#e2e8f0', '#64748b'];
+}
+
+/* Một hàng chip, cùng khuôn với màn Danh sách phiếu hoàn tiền. Chip rỗng thì
+   ẩn, riêng chip đang chọn luôn hiện dù đếm 0 - không thì bấm vào là nó biến
+   mất và người ta không biết đường bấm lại. */
+function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa) {
+  var s = posChipNut(thuoc + '=""', (nhanTatCa || 'Tất cả') + ' · ' +
+    (dem.tat_ca || 0), chon === '');
+  (dsc || []).forEach(function (o) {
+    var n = dem[o.k] || 0;
+    if (!n && chon !== o.k) return;
+    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k);
+  });
+  return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
+}
+
+/* Nhãn nhỏ, mỗi nhãn không được gãy giữa chừng trên màn hình hẹp. Cùng bài
+   học với `phNhanHang` ở màn phiếu hoàn (anh Việt bắt được 31/08/2026). */
+function dtgNhan(cac) {
+  var s = '<div class="h2" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">';
+  (cac || []).forEach(function (o) {
+    if (!o) return;
+    s += '<span style="background:' + o[1] + ';border:1px solid ' + o[2] + ';color:' + o[3] +
+      ';border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap;' +
+      'display:inline-block;line-height:1.5">' + h(o[0]) + '</span>';
+  });
+  return s + '</div>';
+}
+
+async function scrDuyetTang() {
+  frame('Duyệt đơn hàng tặng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  var kq;
+  try {
+    kq = await api('vagabond.hang_tang.ds_don', {
+      diem: dtgDiem, trang_thai: dtgTt, loai: dtgLoai, tim: dtgTim,
+    });
+  } catch (e) {
+    frame('Duyệt đơn hàng tặng', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h(errMsg(e)) + '</div></div>');
+    return;
+  }
+  var dong = kq.dong || [];
+
+  var html = '<div class="card" style="padding:12px 13px">' +
+    '<div style="font-size:13px;color:#344054;line-height:1.6">' +
+    'Đơn trả bằng <b>Hàng tặng</b> không thu tiền của khách. Hoá đơn vẫn xuất ' +
+    '<b>nguyên giá và nguyên thuế</b> theo luật hàng biếu tặng, phần khách phải ' +
+    'trả được gạt sang chi phí biếu tặng. Đơn chỉ ghi sổ được sau khi duyệt ở đây.' +
+    '</div>' +
+    '<div style="margin-top:9px;display:flex;gap:18px;flex-wrap:wrap">' +
+    '<div><div style="font-size:12px;color:#8a8f9c">ĐANG CHỜ DUYỆT</div>' +
+    '<b style="font-size:19px;color:#b54708">' + money(kq.tien_cho || 0) + ' đ</b></div>' +
+    '<div><div style="font-size:12px;color:#8a8f9c">ĐÃ DUYỆT, CHỜ GHI SỔ</div>' +
+    '<b style="font-size:19px;color:#05603a">' + money(kq.tien_duyet || 0) + ' đ</b></div>' +
+    '</div>' +
+    (kq.thieu_tai_khoan ? '<div style="margin-top:9px;padding:7px 9px;background:#fef2f2;' +
+      'border:1px solid #fecaca;border-radius:8px;font-size:12.5px;color:#b3261e">' +
+      '⚠️ <b>Chưa khai Tài khoản chi phí biếu tặng trong Cài đặt.</b> Duyệt được ' +
+      'nhưng đơn vẫn chưa ghi sổ được, vì máy không biết hạch toán phần tặng vào ' +
+      'đâu. Nhờ anh Việt và chị Dung chọn tài khoản trước.</div>' : '') +
+    (kq.duyet_duoc ? '' : '<div style="margin-top:9px;padding:7px 9px;background:#f8fafc;' +
+      'border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#475467">' +
+      'Bạn xem được danh sách nhưng không duyệt được. Chỉ Giám đốc mới duyệt, để ' +
+      'người tặng và người duyệt không phải là một người.</div>') +
+    '</div>';
+
+  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán');
+  html += dtgHangChip('data-dtgt', (kq.trang_thai || []).map(function (k) {
+    return { k: k, ten: k };
+  }), kq.dem || {}, dtgTt, 'Mọi trạng thái');
+  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng');
+
+  html += '<div class="card" style="padding:9px 11px"><input id="dtgTim" type="search" ' +
+    'placeholder="Tìm theo mã đơn, tên khách, mã Pancake, lý do tặng" value="' + h(dtgTim) + '" ' +
+    'style="width:100%;height:38px;border:1.5px solid #e4e7ec;border-radius:9px;' +
+    'padding:0 10px;font-size:14px"></div>';
+
+  html += '<div class="sec">' + dong.length + ' đơn' +
+    (kq.con_nua ? ' trên tổng ' + kq.tong_dong : '') +
+    ' · bấm để xem từng món</div><div class="card">';
+  if (!dong.length) {
+    html += '<div class="emp" style="padding:24px"><div class="e1">🎁</div>' +
+      '<div>Không có đơn hàng tặng nào trong nhóm này.</div></div>';
+  }
+  var tenDiem = {};
+  (kq.diem || []).forEach(function (o) { tenDiem[o.k] = o.ten; });
+  dong.forEach(function (r) {
+    var tt = r.vgb_tang_duyet || 'Chờ duyệt';
+    var m = dtgMauTt(tt);
+    var mo = !!dtgMo[r.name];
+    html += '<div class="hub" data-dtgm="' + h(r.name) + '" style="align-items:flex-start' +
+      (r.cho_lau ? ';background:#fffbfb;border-left:3px solid #b3261e' : '') + '">' +
+      '<div class="hi">' + (r.da_ghi_so ? '✅' : (r.cho_lau ? '⚠️' : '🎁')) + '</div>' +
+      '<div class="ht"><div class="h1">' +
+      h(r.custom_pancake_display_id ? '#' + r.custom_pancake_display_id : r.name) +
+      ' · ' + h(r.customer_name || 'Khách lẻ') + '</div>' +
+      '<div class="h2">' + h(r.vgb_tang_ly_do || 'Chưa ghi lý do') + '</div>' +
+      dtgNhan([
+        [tt, m[0], m[1], m[2]],
+        [r.nhan_loai, '#f8fafc', '#e2e8f0', '#475467'],
+        [tenDiem[r.diem_ban] || 'Chưa rõ điểm bán', '#f8fafc', '#e2e8f0', '#475467'],
+        r.da_ghi_so ? ['Đã ghi sổ', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
+        r.cho_lau ? ['Chờ ' + r.cho_ngay + ' ngày', '#fef2f2', '#fecaca', '#b3261e'] : null,
+      ]) + (mo ? dtgThan(r, kq) : '') + '</div>' +
+      '<div style="text-align:right;white-space:nowrap">' +
+      '<b style="font-size:13.5px">' + money(r.grand_total) + '</b>' +
+      '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>';
+  });
+  html += '</div>';
+
+  frame('Duyệt đơn hàng tặng', html);
+  var o = document.getElementById('dtgTim');
+  if (o) {
+    o.onchange = function () { dtgTim = o.value.trim(); go(scrDuyetTang, true); };
+    o.onkeydown = function (e) { if (e.key === 'Enter') { dtgTim = o.value.trim(); go(scrDuyetTang, true); } };
+  }
+  /* Nghe trên `root` chứ không trên thân màn, xem bài học ở đầu 29-don-huy.js
+     và ca kiểm `thu_chan_man.py`. */
+  root.addEventListener('click', dtgBam);
+}
+
+/* Phần mở rộng của một đơn: từng món, và hai nút quyết. */
+function dtgThan(r, kq) {
+  var ct = dtgChiTiet[r.name];
+  var s = '<div style="margin-top:9px;padding:9px 10px;background:#f9fafb;' +
+    'border:1px solid #eef0f3;border-radius:9px">';
+  var d = function (nhan, gt) {
+    if (!gt) return '';
+    return '<div style="display:flex;gap:8px;font-size:12px;margin-top:3px">' +
+      '<span style="color:#98a2b3;min-width:112px">' + nhan + '</span>' +
+      '<span style="color:#344054">' + h(String(gt)) + '</span></div>';
+  };
+  if (!ct) {
+    s += '<div style="font-size:12.5px;color:#98a2b3">Đang đọc từng món...</div>';
+    return s + '</div>';
+  }
+  s += '<div style="font-size:12.5px;font-weight:700;color:#475467;margin-bottom:5px">' +
+    'Đang tặng những món này</div>';
+  (ct.mon || []).forEach(function (x) {
+    s += '<div style="display:flex;justify-content:space-between;gap:10px;' +
+      'font-size:12.5px;padding:3px 0;border-bottom:1px solid #eef0f3">' +
+      '<span style="color:#344054">' + h(x.item_name || x.item_code) +
+      ' <span style="color:#98a2b3">x' + (x.qty || 0) + '</span></span>' +
+      '<b style="white-space:nowrap">' + money(x.amount) + '</b></div>';
+  });
+  s += d('Mã đơn', r.name);
+  s += d('Loại tặng', ct.nhan_loai);
+  s += d('Lý do tặng', ct.vgb_tang_ly_do);
+  s += d('Người lập', ct.owner);
+  s += d('Người duyệt', r.vgb_tang_nguoi_duyet);
+  s += d('Duyệt lúc', r.vgb_tang_luc_duyet);
+  s += d('Ý kiến người duyệt', r.vgb_tang_y_kien);
+  s += d('Bút toán gạt công nợ', r.vgb_but_toan_tang);
+  /* Con số này là thứ giám đốc cần nhất trước khi bấm: một đơn 200 nghìn
+     nhìn vô hại, nhưng là đơn thứ mười hai của cùng một người trong tháng
+     thì câu chuyện khác hẳn. Cố ý KHÔNG chặn cứng theo hạn mức: đặt hạn
+     mức bao nhiêu là quyết định của anh Việt, máy không đặt hộ. */
+  if (ct.thang_nay) {
+    s += '<div style="margin-top:8px;padding:6px 8px;background:#fffbeb;' +
+      'border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">' +
+      'Người lập này đã lập <b>' + (ct.thang_nay.so || 0) + ' đơn tặng</b> trong tháng, ' +
+      'tổng <b>' + money(ct.thang_nay.tien || 0) + ' đ</b>.</div>';
+  }
+  if (kq.duyet_duoc && !r.da_ghi_so && (r.vgb_tang_duyet || 'Chờ duyệt') !== 'Đã duyệt') {
+    s += '<div style="display:flex;gap:9px;margin-top:10px">' +
+      '<button class="btn gh" data-dtgtc="' + h(r.name) + '" style="flex:1;margin:0">✖️ Từ chối</button>' +
+      '<button class="btn" data-dtgok="' + h(r.name) + '" style="flex:2;margin:0">✅ Duyệt đơn</button></div>';
+  } else if (kq.duyet_duoc && !r.da_ghi_so && r.vgb_tang_duyet === 'Đã duyệt') {
+    s += '<div style="margin-top:10px"><button class="btn gh" data-dtgtc="' + h(r.name) +
+      '" style="width:100%;margin:0">✖️ Rút lại, từ chối đơn này</button></div>';
+  }
+  return s + '</div>';
+}
+
+async function dtgBam(ev) {
+  var t = ev.target.closest('[data-dtgd]');
+  if (t) { dtgDiem = t.getAttribute('data-dtgd'); return go(scrDuyetTang, true); }
+  t = ev.target.closest('[data-dtgt]');
+  if (t) { dtgTt = t.getAttribute('data-dtgt'); return go(scrDuyetTang, true); }
+  t = ev.target.closest('[data-dtgl]');
+  if (t) { dtgLoai = t.getAttribute('data-dtgl'); return go(scrDuyetTang, true); }
+
+  t = ev.target.closest('[data-dtgok]');
+  if (t) {
+    var ma = t.getAttribute('data-dtgok');
+    var y = await hoiChu('Duyệt đơn hàng tặng',
+      'Duyệt xong đơn này mới ghi sổ được. Ghi thêm ý kiến nếu cần, để trống cũng được.',
+      '', { nhieu_dong: 1, goi_y: 'Ví dụ: đồng ý tặng, trừ vào ngân sách marketing tháng 8' });
+    if (y === null) return;
+    try {
+      await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
+    } catch (e) { return baoTin(errMsg(e), 'Không duyệt được'); }
+    delete dtgChiTiet[ma];
+    return go(scrDuyetTang, true);
+  }
+
+  t = ev.target.closest('[data-dtgtc]');
+  if (t) {
+    var maTc = t.getAttribute('data-dtgtc');
+    var ly = await hoiChu('Từ chối đơn hàng tặng',
+      'Ghi rõ vì sao từ chối, để người lập biết đường sửa.',
+      '', { nhieu_dong: 1, bat_buoc: 1, goi_y: 'Ví dụ: đơn quá lớn, chưa ai đồng ý, tặng sai đối tượng' });
+    if (ly === null) return;
+    try {
+      await api('vagabond.hang_tang.tu_choi', { name: maTc, ly_do: ly });
+    } catch (e) { return baoTin(errMsg(e), 'Không từ chối được'); }
+    delete dtgChiTiet[maTc];
+    return go(scrDuyetTang, true);
+  }
+
+  t = ev.target.closest('[data-dtgm]');
+  if (t) {
+    var maM = t.getAttribute('data-dtgm');
+    if (dtgMo[maM]) { delete dtgMo[maM]; return go(scrDuyetTang, true); }
+    dtgMo[maM] = 1;
+    if (!dtgChiTiet[maM]) {
+      try {
+        dtgChiTiet[maM] = await api('vagabond.hang_tang.chi_tiet', { name: maM });
+      } catch (e) { return baoTin(errMsg(e), 'Không đọc được chi tiết đơn'); }
+    }
+    return go(scrDuyetTang, true);
+  }
 }
 })();
 
