@@ -158,10 +158,18 @@ def _():
 		dung("%s dùng or_filters" % ham.__name__, "or_filters=hoac" in c)
 		dung("%s dựng điều kiện bằng hàm chung" % ham.__name__,
 			"dieu_kien_tim(" in c)
-		# Dem chip phai chay tren CUNG bo loc va CUNG o tim, khong thi go
-		# mot cai ten ra 2 dong ma chip van bao 40.
-		dung("%s đếm chip theo đúng ô tìm" % ham.__name__,
-			c.count("or_filters=hoac") >= 2)
+	# Dem chip phai chay tren CUNG bo loc va CUNG o tim, khong thi go mot cai
+	# ten ra 2 dong ma chip van bao 40. Hai man lam theo hai duong khac nhau
+	# vi hinh dang du lieu khac nhau, nhung ket qua phai nhu nhau:
+	#   - man Don da huy dem bang mot cau truy van thu hai, cung or_filters.
+	#   - man Phieu hoan doc HET so mot lan roi dem trong Python, vi diem ban
+	#     nam tren hoa don chu khong nam tren ho so, khong dua xuong SQL duoc.
+	c1 = inspect.getsource(dh.ds)
+	dung("màn Đơn đã huỷ đếm bằng truy vấn thứ hai", c1.count("or_filters=hoac") >= 2)
+	c2 = inspect.getsource(dh.ds_phieu)
+	dung("màn Phiếu hoàn đọc hết sổ rồi mới đếm", "limit_page_length=0" in c2)
+	dung("màn Phiếu hoàn không cắt dòng trước khi đếm",
+		c2.index('"tat_ca"') < c2.index("ra[:tran]"))
 
 
 @ca("ô tìm: không màn nào được lọc lại bằng Python sau khi đã cắt dòng")
@@ -214,16 +222,81 @@ def _():
 	dung("một câu cho cả trang", '["in", list(ma_pc)]' in u)
 
 
-@ca("phiếu hoàn: chỉ lấy phiếu của đơn Pancake đã huỷ, không lẫn phiếu trả hàng")
+@ca("phiếu hoàn: lấy đủ BỐN loại phiếu, không lọc riêng phiếu Pancake")
+def _():
+	# Anh Viet 31/08/2026 doi gop ca danh muc phieu hoan tien vao day, vi
+	# man cu chi co ben phan he Ke toan ma phan he do da khoa lai.
+	import inspect
+
+	from vagabond import don_huy as dh
+
+	c = inspect.getsource(dh.ds_phieu)
+	dung("không còn khoá cứng loại Pancake",
+		'"loai_hoan": LOAI_HUY_PANCAKE' not in c)
+	dung("đọc hết sổ rồi mới lọc", "limit_page_length=0" in c)
+
+
+@ca("phiếu hoàn: loại rỗng đọc là Trả hàng, không bị rơi khỏi danh sách")
+def _():
+	# 10 tren 16 phieu dang co mang loai rong, vi chung lap truoc 18/08/2026
+	# khi chua co o "Loai phieu". Bo sot nhom nay la mat hon nua danh sach.
+	from vagabond.don_huy import loai_thuc
+	from vagabond.hoan_tien import LOAI_TRA_HANG
+
+	la("rỗng", loai_thuc(""), LOAI_TRA_HANG)
+	la("None", loai_thuc(None), LOAI_TRA_HANG)
+	la("toàn khoảng trắng", loai_thuc("   "), LOAI_TRA_HANG)
+	la("có loại thì giữ nguyên", loai_thuc("Tien nop thua"), "Tien nop thua")
+
+
+@ca("phiếu hoàn: đủ bốn chip loại, nhãn nào cũng có tiếng Việt")
+def _():
+	from vagabond.don_huy import cac_loai_hoan
+
+	ds = cac_loai_hoan()
+	la("bốn loại", len(ds), 4)
+	for k, ten in ds:
+		dung("nhãn khác khoá: %s" % k, ten != k)
+		dung("nhãn có chữ: %s" % k, bool(str(ten).strip()))
+
+
+@ca("điểm bán: phiếu huỷ đơn Pancake luôn thuộc Sales Online")
+def _():
+	from vagabond.don_huy import diem_cua_phieu
+	from vagabond.hoan_tien import LOAI_HUY_PANCAKE
+
+	# Don Pancake chua bao gio co hoa don nen khong co quay de doc. Suy
+	# thang tu loai phieu, khong hoi hoa don.
+	la("không cần quầy", diem_cua_phieu(LOAI_HUY_PANCAKE), "SALES")
+	la("có truyền quầy cũng vậy", diem_cua_phieu(LOAI_HUY_PANCAKE, "TCV"), "SALES")
+
+
+@ca("điểm bán: không có hoá đơn thì trả rỗng, KHÔNG đoán bừa là Sales Online")
+def _():
+	from vagabond.don_huy import diem_cua_phieu
+	from vagabond.hoan_tien import LOAI_TRA_HANG
+
+	# Doan sai mot diem ban la lam lech so lieu cua ca mot cua hang.
+	la("trả hàng không hoá đơn", diem_cua_phieu(LOAI_TRA_HANG, None), "")
+	la("loại rỗng không hoá đơn", diem_cua_phieu("", None), "")
+
+
+@ca("phiếu hoàn: ba họ chip đều lọc được, và cắt dòng làm ở bước cuối")
 def _():
 	import inspect
 
 	from vagabond import don_huy as dh
 
 	c = inspect.getsource(dh.ds_phieu)
-	dung("lọc theo loại phiếu", '"loai_hoan": LOAI_HUY_PANCAKE' in c)
-	dung("đọc hằng từ hoan_tien chứ không tự chế chuỗi",
-		"from vagabond.hoan_tien import LOAI_HUY_PANCAKE" in c)
+	chu_ky = [d for d in c.split("\n") if d.startswith("def ds_phieu(")][0]
+	for t in ("diem", "loai", "trang_thai", "tim"):
+		dung("nhận tham số %s" % t, ("%s=" % t) in chu_ky)
+	dung("trả đếm điểm bán", '"dem_diem"' in c)
+	dung("trả đếm loại phiếu", '"dem_loai"' in c)
+	# Cat dong PHAI o buoc cuoi, sau khi da loc va da dem xong. Cat truoc la
+	# dung cai bay ma `thu_chan_man` va ca kiem o tim canh.
+	dung("cắt dòng sau khi đếm", "ra[:tran]" in c)
+	dung("đếm trước khi cắt", c.index('"tat_ca"') < c.index("ra[:tran]"))
 
 
 @ca("phiếu hoàn: màn Sales chỉ đọc, không có hàm nào sửa hồ sơ của kế toán")
@@ -232,7 +305,8 @@ def _():
 
 	from vagabond import don_huy as dh
 
-	for ham in (dh.ds_phieu, dh.xuat_excel_phieu, dh._unc_theo_phieu_chi):
+	for ham in (dh.ds_phieu, dh.xuat_excel_phieu, dh._unc_theo_phieu_chi,
+			dh._ten_diem):
 		c = inspect.getsource(ham)
 		for cam in ("frappe.get_doc(", ".save(", ".submit(", "frappe.db.set_value("):
 			dung("%s không %s" % (ham.__name__, cam.strip("(.")), cam not in c)
@@ -249,3 +323,8 @@ def _():
 	dung("có nút ở chân màn", "data-phb=" in s)
 	dung("nút tải tệp không bị nuốt bởi lắng nghe uỷ quyền",
 		"closest('a[href]')" in s)
+	for t in ("data-phd", "data-phlo", "data-phl"):
+		dung("có hàng chip %s" % t, ("'%s'" % t) in s)
+	# Nhan chip trang thai do MAY CHU gui xuong. Man tu che bang thu hai la
+	# cach sinh ra sau con chip hien nguyen khoa khong dau, 22/08/2026.
+	dung("nhãn chip trạng thái đọc từ máy chủ", "kq.nhan || {}" in s)
