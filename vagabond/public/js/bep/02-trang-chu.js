@@ -192,6 +192,13 @@ async function scrHome() {
        duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
     var htChoChi = 0;
     try { htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
+    /* Don hang tang cho giam doc duyet. So lay tu MAY CHU, cung nguyen tac
+       voi badge phieu hoan: man hinh chi duoc HIEN so, khong tu dem. */
+    var tgCho = 0, tgQuaHan = 0;
+    try {
+      var tg = await api('vagabond.hang_tang.dem_cho_duyet', {});
+      tgCho = tg.cho || 0; tgQuaHan = tg.qua_han || 0;
+    } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
       card('🧾', 'Hoá đơn bán ra', 'Lọc theo điểm bán và trạng thái hoá đơn điện tử', 0, 'HDBAN') +
       card('🛒', 'Hoá đơn mua vào', 'Lọc theo nhà cung cấp, hạn trả, còn nợ', 0, 'HDMUA') +
@@ -219,7 +226,14 @@ async function scrHome() {
          loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
       card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
-      card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') + '</div>';
+      card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') +
+      /* Duyet don hang tang (anh Viet 31/08/2026). Don tra bang phuong thuc
+         Hang tang KHONG ghi so duoc cho toi khi giam doc bam duyet o day.
+         Dat trong phan he Ke toan theo dung yeu cau cua anh Viet. */
+      card('🎁', 'Duyệt đơn hàng tặng',
+        'Đơn tặng không thu tiền đang chờ duyệt' +
+        (tgQuaHan ? ' · ' + tgQuaHan + ' đơn chờ quá lâu' : '') +
+        '. Duyệt rồi đơn mới ghi sổ được.', tgCho, 'DUYETTANG') + '</div>';
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
@@ -422,7 +436,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -901,6 +915,7 @@ var VGB_DUONG = {
   'don-da-huy': 'DHUY',
   'don-mua-hang': 'PO',
   'don-tiec': 'TIEC',
+  'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
   'hang-chuyen-ve-kho-toi': 'NHANDC',
   'hang-khach': 'CDHT',
@@ -1090,6 +1105,7 @@ function vgbGo(k) {
   if (k === 'CNPT') return go(scrNoPhaiTra);
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
+  if (k === 'DUYETTANG') return go(scrDuyetTang);
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
   if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }
