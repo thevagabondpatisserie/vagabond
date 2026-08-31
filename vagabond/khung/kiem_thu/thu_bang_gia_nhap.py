@@ -172,3 +172,41 @@ def _gan_ma_hang():
 	dung("chan to da ghi so", "đã ghi sổ rồi, không gắn mã hàng được" in MA_DCM)
 	dung("man hinh co nut", "data-dcmgan" in MA_DCM_JS)
 	dung("man hinh co ham", "async function dcmGanMaHang(" in MA_DCM_JS)
+
+
+@ca("mot dong phi ship khong duoc chan ca to hoa don")
+def _phi_ship_khong_chan():
+	# Anh Viet 31/08/2026: *"Chi can co dong phi dich vu van chuyen la da bi
+	# lech ngay roi va he thong khong cho phep noi hoa don voi PNK do vi ben
+	# PNK khong co dong phi dich vu van chuyen?"* Dung y nguyen.
+	#
+	# Hoa don 7100 cua An Phu dung hai dong: mot dong cherry, mot dong phi
+	# ship 40.000. Phieu nhap kho khong bao gio chua phi ship. Ban cu nem loi
+	# cho ca to nen to do vinh vien khong noi duoc.
+	dung("co phep xet dong khong qua kho", "def _khong_qua_kho(" in MA_DCM)
+	# Buoc NOI khong duoc chan nua.
+	dung("bo cau chan cu", 'Chưa nối được, mấy dòng này chưa khớp' not in MA_DCM)
+	# Hang rao chi con o buoc GHI SO, va chi cho dong hang that.
+	dung("van chan ghi so khi thieu phieu", "chưa có \n\t\t\t\"" not in MA_DCM
+		and "ghi sổ luôn thì giá vốn sai" in MA_DCM)
+	dung("chan ghi so chi tinh dong qua kho",
+		'[x for x in xep if x["qua_kho"]]' in MA_DCM)
+	dung("dong khong qua kho de rieng, khong chan",
+		'[x for x in xep if not x["qua_kho"]]' in MA_DCM)
+	# Duong cu cua dung_lai_hddt van doc duoc danh sach cau chu.
+	dung("giu duoc duong goi cu", "if not chi_tiet:" in MA_DCM)
+	dung("mac dinh van tra danh sach", "def _noi(doc, phieu, chi_tiet=False):" in MA_DCM)
+
+
+@ca("dong khong qua kho: phi va dich vu khong doi phieu nhap")
+def _xet_khong_qua_kho():
+	i = MA_DCM.find("def _khong_qua_kho(")
+	than = MA_DCM[i:MA_DCM.find("\ndef _noi(", i)]
+	# Chua gan ma hang thi chua biet la gi, khong doan la hang.
+	dung("chua co ma thi cho di tiep", "if not ma:" in than and "return True" in than)
+	# Co ma thi hoi danh muc Mon xem co quan kho khong.
+	dung("hoi is_stock_item", "is_stock_item" in than)
+	# Hoi khong duoc thi nghieng ve phia COI LA HANG, tuc van chan ghi so.
+	# An toan hon: tha chan nham con hon de gia von sai am tham.
+	dung("hong thi nghieng ve phia an toan", "except Exception:" in than
+		and than.rstrip().endswith("return False"))
