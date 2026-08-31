@@ -268,7 +268,15 @@ def _khong_co_phieu_nhap():
 
     noi = inspect.getsource(C._noi)
     doan = noi.split("if not ds:")[1].split("elif")[0]
-    dung("noi ro la hang chua duoc nhap kho", "chưa được nhập kho" in doan)
+    # SUA 31/08/2026. Cau cu quyet "hang chua duoc nhap kho tren he thong".
+    # Cau do SAI trong ca thuong gap nhat: hoa don 6921 cua An Phu co ba dong
+    # deu khong co ma hang, hang thi da nam trong PNK-2026-00171 da xac nhan.
+    # Khong tra ra phieu KHONG dong nghia voi hang chua ve kho - con mot ly do
+    # pho bien hon nhieu la dong hoa don chua gan ma hang, va no da duoc chan
+    # o mot nhanh rieng phia tren. Toi day thi dong CHAC CHAN co ma hang, nen
+    # cau bao phai noi dung pham vi do.
+    dung("noi ro la mon nay co ma hang roi", "có mã hàng rồi" in doan)
+    dung("khong quyet bua la hang chua ve kho", "chưa được nhập kho" not in doan)
     dung("chi duong lap phieu nhap", "lập phiếu" in doan)
     dung("chi duong ghi so thang khi hang khong qua kho",
          "ghi sổ thẳng" in doan)

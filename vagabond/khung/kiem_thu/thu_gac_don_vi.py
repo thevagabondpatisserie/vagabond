@@ -72,7 +72,11 @@ def _da_gan_hook():
 
 	from vagabond import hooks
 
-	ma = inspect.getsource(hooks)
+	# CAT TU doc_events TRO XUONG chu khong cat o lan gap dau tien trong ca
+	# tep. Ban v362 them "Purchase Receipt" vao doctype_js - nam PHIA TREN
+	# doc_events - nen phep cat cu roi trung khoi khai tep JS va bao hong
+	# trong khi hang rao van con nguyen.
+	ma = inspect.getsource(hooks).split("doc_events", 1)[1]
 	doan_dm = ma.split('"Purchase Order"', 1)[1][:900]
 	dung("don mua co hang rao", "gac_don_vi.chan_don_vi_la" in doan_dm)
 	doan_pn = ma.split('"Purchase Receipt"', 1)[1][:900]
