@@ -55,41 +55,64 @@
    hoa don dien tu. To go tay van con nut nhu cu, vi to go tay khong co
    ban goc nao de pha. */
 
+/* THU TU CHAY, va day la cho ban dau lam sai (31/08/2026)
+   -------------------------------------------------------
+   Ban dau go nut ngay trong `refresh`. Deploy xong mo to Kamereo ra thi
+   nut VAN CON: `refresh` cua tep nay chay TRUOC luc bo dieu khien cua
+   ERPNext gan nut vao thanh cong cu, nen go xong ho gan lai.
+
+   Do bang tay tren Desk: goi remove_custom_button luc trang da dung han
+   thi so cum nut tut tu 2 xuong 1, tuc phep go dung, chi sai thoi diem.
+
+   Nen goi lam nhieu nhip: ngay lap tuc de bat truong hop ho gan som, roi
+   0ms va 400ms de bat truong hop ho gan sau. Goi thua khong sao, vi go
+   mot cai nut khong con o do la khong lam gi ca. */
+
+function vgbGoNutLayMatHang(frm) {
+	var tu_hddt = (frm.doc.custom_minvoice_id || '').trim();
+	if (!tu_hddt) return;
+	if (frm.doc.docstatus !== 0) return;
+
+	/* Nhom nut duoc ERPNext them bang add_custom_button(label, fn,
+	   __("Get Items From")), tuc TEN NHOM DA DICH khi site chay tieng
+	   Viet. Nen go bang ca hai ten, ai dung ten nao thi trung ten do. */
+	var nhom = ['Get Items From', 'Lấy mặt hàng từ'];
+	var nut = ['Purchase Order', 'Purchase Receipt', 'Đơn mua hàng', 'Phiếu nhập kho'];
+	nhom.forEach(function (g) {
+		nut.forEach(function (b) {
+			try {
+				frm.remove_custom_button(b, g);
+			} catch (e) {
+				/* Khong co nut do thi thoi. */
+			}
+		});
+	});
+
+	/* LUOI DO CUOI: neu ERPNext doi ten nut o ban sau thi vong tren go
+	   truot, va nut lai hien ra. Nen an luon ca cum theo nhan. Chi AN
+	   bang CSS chu khong xoa phan tu: xoa nham mot cum khac la hong nut
+	   cua nguoi khac, con an nham thi chi mat mot nut. */
+	try {
+		frm.page.wrapper.find('.inner-group-button').each(function () {
+			var t = ($(this).text() || '').trim();
+			if (t.indexOf('Lấy mặt hàng từ') === 0 || t.indexOf('Get Items From') === 0) {
+				$(this).hide();
+			}
+		});
+	} catch (e) {
+		/* Phan nay la khuyen mai, hong cung khong duoc keo do man hinh. */
+	}
+}
+
 frappe.ui.form.on('Purchase Invoice', {
 	refresh: function (frm) {
 		var tu_hddt = (frm.doc.custom_minvoice_id || '').trim();
 		if (!tu_hddt) return;
 		if (frm.doc.docstatus !== 0) return;
 
-		/* Nhom nut duoc ERPNext them bang add_custom_button(label, fn,
-		   __("Get Items From")), tuc TEN NHOM DA DICH khi site chay tieng
-		   Viet. Nen go bang ca hai ten, ai dung ten nao thi trung ten do. */
-		var nhom = ['Get Items From', 'Lấy mặt hàng từ'];
-		var nut = ['Purchase Order', 'Purchase Receipt', 'Đơn mua hàng', 'Phiếu nhập kho'];
-		nhom.forEach(function (g) {
-			nut.forEach(function (b) {
-				try {
-					frm.remove_custom_button(b, g);
-				} catch (e) {
-					/* Khong co nut do thi thoi. */
-				}
-			});
-		});
-
-		/* LUOI DO CUOI: neu ERPNext doi ten nut o ban sau thi vong tren
-		   go truot, va nut lai hien ra. Nen an luon ca cum theo nhan.
-		   Chi AN bang CSS chu khong xoa phan tu: xoa nham mot cum khac la
-		   hong nut cua nguoi khac, con an nham thi chi mat mot nut. */
-		try {
-			frm.page.wrapper.find('.inner-group-button').each(function () {
-				var t = (frappe.utils.escape_html($(this).text()) || '').trim();
-				if (t.indexOf('Lấy mặt hàng từ') >= 0 || t.indexOf('Get Items From') >= 0) {
-					$(this).hide();
-				}
-			});
-		} catch (e) {
-			/* Phan nay la khuyen mai, hong cung khong duoc keo do man hinh. */
-		}
+		vgbGoNutLayMatHang(frm);
+		setTimeout(function () { vgbGoNutLayMatHang(frm); }, 0);
+		setTimeout(function () { vgbGoNutLayMatHang(frm); }, 400);
 
 		/* Noi ro cho nguoi dung biet vi sao khong con nut, va bam nut nao
 		   thay the. Khong noi thi ho di tim, va di tim thi lai mo Desk goc
