@@ -1144,17 +1144,29 @@ async function scrNopQuyXem() {
   var d;
   try { d = await api('vagabond.nop_quy.chi_tiet', { ma: nqXem }); }
   catch (e) { frame('Phiếu nộp quỹ', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || '') + '</div></div>'); return; }
+  /* Ky doanh thu cua phieu: phieu theo NGAY thi ghi khoang ngay, phieu
+     theo CA thi giu nguyen bang ca nhu cu. Bay bang ca RONG tren mot phieu
+     theo ngay la nguoi doc tuong phieu hong. */
+  var ky = d.tu_ngay ? (d.tu_ngay === d.den_ngay ? 'ngày ' + d.tu_ngay
+    : d.tu_ngay + ' → ' + d.den_ngay + ' · ' + d.so_ngay + ' ngày') : '';
   var html = '<div class="card" style="padding:13px 14px">' +
     '<b style="font-size:15.5px">' + h(d.ma) + '</b> ' + nqChipTt(d.trang_thai) +
-    '<div style="font-size:12.5px;color:#6b7280;margin-top:4px">Ngày ' + h(d.ngay) +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:4px">Lập ngày ' + h(d.ngay) +
     ' · Bên giao: <b>' + h(d.ten_nguoi_giao) + '</b>' +
-    (d.ten_nguoi_nhan ? ' · Bên nhận: <b>' + h(d.ten_nguoi_nhan) + '</b>' : '') + '</div></div>';
-  html += '<div class="sec">Các ca bàn giao</div><div class="card" style="padding:6px 14px">' +
-    (d.ca || []).map(function (c, i) {
-      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
-        '<div>' + h(c.ca) + ' <span style="color:#98a2b3;font-size:12px">' + h(c.quay) + ' · ' + h(c.ngay) + '</span></div>' +
-        '<b>' + money(c.tien_mat_dem) + ' đ</b></div>';
-    }).join('') + '</div>';
+    (d.ten_nguoi_nhan ? ' · Bên nhận: <b>' + h(d.ten_nguoi_nhan) + '</b>' : '') + '</div>' +
+    (d.ten_diem_ban ? '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' +
+      h(d.ten_diem_ban) + (ky ? ' · doanh thu ' + h(ky) : '') + '</div>' : '') +
+    (d.noi_dung ? '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(d.noi_dung) +
+      (d.noi_giao_nhan ? ' · tại ' + h(d.noi_giao_nhan) : '') + '</div>' : '') +
+    '</div>';
+  if ((d.ca || []).length) {
+    html += '<div class="sec">Các ca bàn giao</div><div class="card" style="padding:6px 14px">' +
+      d.ca.map(function (c, i) {
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
+          '<div>' + h(c.ca) + ' <span style="color:#98a2b3;font-size:12px">' + h(c.quay) + ' · ' + h(c.ngay) + '</span></div>' +
+          '<b>' + money(c.tien_mat_dem) + ' đ</b></div>';
+      }).join('') + '</div>';
+  }
   html += '<div class="sec">Bảng kê mệnh giá</div><div class="card" style="padding:6px 14px">' +
     (d.menh_gia || []).map(function (m, i) {
       return '<div style="display:flex;justify-content:space-between;padding:6px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + ';font-size:13.5px">' +
@@ -1166,6 +1178,10 @@ async function scrNopQuyXem() {
     '<span>Lệch</span><span>' + (d.lech > 0 ? '+' : '') + money(d.lech) + ' đ</span></div>' +
     (d.ly_do_lech ? '<div style="font-size:12.5px;color:#8a5b00;background:#fff6e5;border-radius:8px;padding:8px 10px;margin-bottom:8px">Lý do lệch: ' + h(d.ly_do_lech) + '</div>' : '') +
     '</div>';
+  if (d.anh_minh_chung) {
+    html += '<div class="sec">Ảnh minh chứng giao nhận tiền</div><div class="card" style="padding:12px 14px">' +
+      '<img class="vfanh" alt="Ảnh minh chứng" src="' + h(d.anh_minh_chung) + '"></div>';
+  }
   html += '<div class="sec">Chữ ký</div><div class="card" style="padding:12px 14px"><div style="display:flex;gap:12px">' +
     ['giao', 'nhan'].map(function (ben) {
       var anh = ben === 'giao' ? d.chu_ky_ben_giao : d.chu_ky_ben_nhan;
@@ -1185,7 +1201,7 @@ async function scrNopQuyXem() {
   }
   nut += '<button class="btn gh" id="nqPdf" style="width:100%">📄 Tải biên bản PDF</button>';
   html += nut;
-  var b = frame('Phiếu nộp quỹ', html);
+  var b = frame('Biên nhận nộp tiền mặt', html);
   var oGiao = document.getElementById('nqKyGiao');
   if (oGiao) oGiao.onclick = async function () {
     var anh = await nqKyTay('Bên giao ký tên · ' + d.ma);

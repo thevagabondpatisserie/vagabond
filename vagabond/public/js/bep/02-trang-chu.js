@@ -127,7 +127,12 @@ async function scrHome() {
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
          13/08/2026). So dem lay theo 14 ngay gan day. */
-      card('⏳', 'Đơn còn treo', 'Hoá đơn chưa ghi sổ được và lý do vì sao', dtn, 'DTREO') + '</div>';
+      card('⏳', 'Đơn còn treo', 'Hoá đơn chưa ghi sổ được và lý do vì sao', dtn, 'DTREO') +
+      /* Bien nhan nop tien mat (anh Viet 30/08/2026, theo mau ben Lark).
+         Thu ngan ba diem ban dem so to, doi chieu doanh thu tien mat cua
+         ngay, ky tay roi mang tien ve. O nay bay phieu CUA CHINH MINH;
+         ke toan co o rieng ben phan he Ke toan bay tat ca. */
+      card('💵', 'Biên nhận nộp tiền mặt', 'Đếm số tờ, đối chiếu doanh thu của ngày, ký giao nhận', 0, 'BNTM') + '</div>';
   }
   /* Anh Viet 14/08/2026: doi ten nut 'Hop dong event, catering' thanh
      'Quan ly hop dong mua ban' va mo cho Loan Anh (Sales), thu mua va ke
@@ -147,16 +152,12 @@ async function scrHome() {
       + '</div>';
   }
   if (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager')) {
-    /* Badge do so phieu hoan tien dang CHO CHI (anh Viet 18/08/2026): "chi
-       Dung Ke toan truong de nhan biet".
-
-       Hong thi bang 0 chu khong chan trang chu: mot phep dem hong khong
-       duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
-    var htChoChi = 0;
-    try { htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
     /* Phan he Bao cao (anh Viet 12/08/2026): so lieu thoi gian thuc, gop
        ca ba diem ban, xem theo ngay - tuan - thang - quy - nam va xuat
-       Excel cho ke toan. Mot cua vao, 12 bao cao ben trong. */
+       Excel cho ke toan. Mot cua vao, 12 bao cao ben trong.
+
+       Bao cao van mo cho Sales - do la so lieu ban hang cua chinh ho. Chi
+       khoi KE TOAN ben duoi moi dong lai. */
     html += '<div class="sec">Báo cáo</div><div class="card">' +
       card('📈', 'Báo cáo tổng hợp', 'Đang cộng sổ doanh thu hôm nay...', 0, 'BCHUB') +
       card('🛵', 'Doanh thu theo nguồn đơn', 'Tại chỗ, Sales Online, GrabFood, ShopeeFood...', 0, 'BC:BC03') +
@@ -164,6 +165,19 @@ async function scrHome() {
       card('🧾', 'Đối soát hoá đơn điện tử', 'Chờ ký, đã ký, CQT chấp nhận, chưa xuất', 0, 'BC:BC05') +
       card('🍰', 'Món bán chạy', 'Xếp hạng theo số lượng bán ra', 0, 'BC:BC08') +
       card('✂️', 'Sửa và huỷ hoá đơn', 'Ai sửa, ai huỷ, làm gì trên hoá đơn nào', 0, 'BC:BC07') + '</div>';
+  }
+  /* KHOI KE TOAN: chi ke toan, thu mua, giam doc. Anh Viet 30/08/2026 bat
+     duoc lo hong nay - dieu kien cu la `isSales()` nen ca thu ngan cung
+     nhin thay Cong no phai tra, Tai san va But toan tay. Xem
+     `coQuyenKeToan` o 01-khung-app.js. */
+  if (coQuyenKeToan()) {
+    /* Badge do so phieu hoan tien dang CHO CHI (anh Viet 18/08/2026): "chi
+       Dung Ke toan truong de nhan biet".
+
+       Hong thi bang 0 chu khong chan trang chu: mot phep dem hong khong
+       duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
+    var htChoChi = 0;
+    try { htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
       card('🧾', 'Hoá đơn bán ra', 'Lọc theo điểm bán và trạng thái hoá đơn điện tử', 0, 'HDBAN') +
       card('🛒', 'Hoá đơn mua vào', 'Lọc theo nhà cung cấp, hạn trả, còn nợ', 0, 'HDMUA') +
@@ -187,9 +201,10 @@ async function scrHome() {
          tai khoan tieng Viet ma chi hai but toan go tay, va khong mot tai
          san nao duoc khai. */
       card('🏗️', 'Tài sản và công cụ dụng cụ', 'Khai tài sản, chạy khấu hao và phân bổ 242 hàng tháng', 0, 'TS') +
-      /* Nop quy tien mat: gom cac ca da chot, bang ke menh gia, hai ben ky
-         tay, bien ban PDF. Mo ca / chot ca nam o man Tinh tien tung quay. */
-      card('💵', 'Nộp quỹ tiền mặt', 'Gom ca đã chốt, bảng kê mệnh giá, ký giao nhận, biên bản PDF', 0, 'NQ') +
+      /* Bien nhan nop tien mat, ban cua KE TOAN: bay phieu cua MOI nguoi,
+         loc theo diem ban, xuat Excel. Nhan vien lap phieu o o cung ten
+         ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
+      card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') + '</div>';
   }
   html += '<div class="sec">Cài đặt</div><div class="card">' +
@@ -382,7 +397,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
@@ -853,6 +868,7 @@ var VGB_DUONG = {
   'bang-bep-hom-nay': 'KIT',
   'bang-gia': 'BGIA',
   'bao-cao': 'BCHUB',
+  'bien-nhan-nop-tien-mat': 'BNTM',
   'but-toan': 'BT',
   'cai-dat-cuoi-ngay': 'CDCN',
   'canh-bao-thanh-toan': 'CBTT',
@@ -1067,7 +1083,10 @@ function vgbGo(k) {
   if (k === 'KM') return go(scrKhuyenMai);
   if (k === 'CN') return go(scrCongNo);
   if (k === 'HT') return go(scrHoanTien);
-  if (k === 'NQ') return go(scrNopQuy);
+  /* Hai o, mot man. Khac nhau dung mot bien: o ben Ban hang chi bay
+     phieu cua chinh minh, o ben Ke toan bay tat ca. */
+  if (k === 'BNTM') { BNT_TOI = 1; return go(scrBntDs); }
+  if (k === 'NQ') { BNT_TOI = 0; return go(scrBntDs); }
   if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
