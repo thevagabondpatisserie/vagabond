@@ -752,7 +752,8 @@ def _phieu_html(name):
 	qr = d.get("qr") or {}
 	esc = frappe.utils.escape_html
 
-	PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
+	# Xâu phông lấy từ một nơi duy nhất, xem vagabond/phong_chu.py.
+	from vagabond.mau_chuan import PHONG
 	VIEN = "1px solid #c9c4bd"
 	o_th = (
 		'style="border:%s;padding:6px 7px;background:#f3f0ec;font-size:10.5px;'
@@ -936,12 +937,11 @@ def xuat_phieu(name):
 	from frappe.utils.pdf import get_pdf
 
 	d = xem_phieu(name)
-	khung = (
-		"<html><head><meta charset='utf-8'>"
-		"<style>@page{margin:12mm 10mm}body{margin:0}</style></head><body>"
-		+ _phieu_html(name)
-		+ "</body></html>"
-	)
+	# Đi qua khung chuẩn: nó chép bộ phông tiếng Việt vào máy chủ rồi ép
+	# phông cho cả tờ. Xem vagabond/phong_chu.py.
+	from vagabond import mau_chuan
+
+	khung = mau_chuan.khung_trang(_phieu_html(name), name, le="12mm 10mm")
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
 	import base64
 
@@ -974,6 +974,9 @@ def _email_khach(khach):
 
 def _thu_da_nhan_html(doc, ds_dong):
 	"""Thu bao da nhan tien, giong giong to phieu de khach nhan ra ngay."""
+	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
+	from vagabond import mau_chuan
+
 	esc = frappe.utils.escape_html
 	hang = "".join(
 		'<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px">%s</td>'
@@ -989,7 +992,7 @@ def _thu_da_nhan_html(doc, ds_dong):
 		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
 		'border="0" style="width:600px;max-width:600px;background:#fff;'
 		'border:1px solid #e4e7ec">'
-		'<tr><td style="padding:26px 30px 6px;font-family:Arial,Helvetica,sans-serif">'
+		'<tr><td style="padding:26px 30px 6px;font-family:' + mau_chuan.PHONG_THU + '">'
 		'<div style="font-size:20px;font-weight:bold;color:#1c1a17">'
 		"Đã nhận được thanh toán</div>"
 		'<div style="font-size:14px;color:#475467;line-height:1.7;margin-top:12px">'

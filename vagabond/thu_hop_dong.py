@@ -467,7 +467,8 @@ def _phieu_html(name):
 	qr = d.get("qr") or {}
 	esc = frappe.utils.escape_html
 
-	PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
+	# Xâu phông lấy từ một nơi duy nhất, xem vagabond/phong_chu.py.
+	from vagabond.mau_chuan import PHONG
 	VIEN = "1px solid #c9c4bd"
 	o_th = (
 		'style="border:%s;padding:6px 7px;background:#f3f0ec;font-size:10.5px;'
@@ -652,12 +653,11 @@ def xuat_pdf(name=None):
 	_quyen()
 	from frappe.utils.pdf import get_pdf
 
-	khung = (
-		"<html><head><meta charset='utf-8'>"
-		"<style>@page{margin:12mm 10mm}body{margin:0}</style></head><body>"
-		+ _phieu_html(name)
-		+ "</body></html>"
-	)
+	# Đi qua khung chuẩn: nó chép bộ phông tiếng Việt vào máy chủ rồi ép
+	# phông cho cả tờ. Xem vagabond/phong_chu.py.
+	from vagabond import mau_chuan
+
+	khung = mau_chuan.khung_trang(_phieu_html(name), name, le="12mm 10mm")
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
 	return {
 		"ten_file": "Phieu-thanh-toan-%s.pdf" % name,

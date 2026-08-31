@@ -73,8 +73,37 @@ LOAI_PHIEU = (
 	("de_nghi_chi", "Đề nghị chi", "🧾"),
 	("hoan_tien", "Hoàn tiền", "💸"),
 	("ho_so_tt", "Hồ sơ thanh toán", "🏦"),
+	("nop_quy", "Nộp quỹ tiền mặt", "💵"),
+	("hang_tang", "Đơn hàng tặng", "🎁"),
 	("don_mua", "Đơn mua quá hẹn", "⚠️"),
 )
+
+# ====================================================== CHẾ ĐỘ GIÁM ĐỐC
+#
+# Anh Việt 31/08/2026: *"hiện 2 anh giám đốc đang có rất nhiều phiếu cần làm
+# từ kho, thu mua,... em dọn hết dùm anh. Anh và anh Sơn chỉ có nhu cầu xem
+# phiếu duyệt APP, duyệt phiếu nộp quỹ tiền mặt, duyệt hàng tặng,... những
+# việc hệ trọng thôi."*
+#
+# Vì sao phải là một hàng rào RIÊNG chứ không phải sửa ma trận ở dưới. Vai
+# cộng dồn: một người vừa là Giám đốc vừa mang vai Sales Manager hay Accounts
+# Manager thì gỡ Giám đốc khỏi từng dòng ma trận vẫn không đủ, họ vẫn thấy
+# việc kho qua vai kia. Nên siết ở đầu ra: ai mang vai giám đốc thì CHỈ thấy
+# đúng danh sách dưới đây, bất kể còn mang vai gì.
+#
+# System Manager KHÔNG nằm trong tập siết. Đó là vai kỹ thuật, người giữ nó
+# có thể đang cần nhìn toàn bộ để dò lỗi; siết luôn cả họ là tự bịt mắt mình.
+VAI_GIAM_DOC_SIET = {"AP Giám đốc", "Giám đốc"}
+
+# Ba việc anh Việt nêu đích danh. Thêm loại thứ tư thì thêm đúng một dòng ở
+# đây, và phải là việc mà giám đốc THẬT SỰ là người quyết, không phải việc
+# chỉ để xem cho biết.
+VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang")
+
+
+def la_giam_doc(vai):
+	"""Người này có đang ở chế độ giám đốc không. THUẦN."""
+	return bool(set(vai or []) & VAI_GIAM_DOC_SIET)
 
 # ==================================================== MA TRẬN PHÂN LUỒNG
 #
@@ -102,6 +131,12 @@ MA_TRAN = {
 	"de_nghi_chi": VAI_THU_MUA | VAI_KE_TOAN | VAI_GIAM_DOC,
 	"hoan_tien": VAI_KE_TOAN | VAI_GIAM_DOC,
 	"ho_so_tt": VAI_KE_TOAN | VAI_THU_MUA | VAI_GIAM_DOC,
+	# Nộp quỹ tiền mặt: người nhận tiền là kế toán hoặc giám đốc. Điểm bán
+	# lập phiếu ở màn riêng của họ, không cần thấy ở đây.
+	"nop_quy": VAI_KE_TOAN | VAI_GIAM_DOC,
+	# Đơn hàng tặng: CHỈ giám đốc, vì cả hàng rào sinh ra để tách người tặng
+	# khỏi người duyệt. Xem vagabond/hang_tang.py.
+	"hang_tang": VAI_GIAM_DOC,
 }
 
 
@@ -118,6 +153,9 @@ def thay_duoc(loai, vai):
 	"""
 	can = MA_TRAN.get(loai)
 	if not can:
+		return False
+	# Chế độ giám đốc: siết trước cả ma trận. Xem VIEC_HE_TRONG ở trên.
+	if la_giam_doc(vai) and loai not in VIEC_HE_TRONG:
 		return False
 	return bool(set(vai or []) & can)
 
@@ -528,6 +566,70 @@ def _viec_ho_so_tt(vai):
 	return ra
 
 
+def _viec_nop_quy(vai):
+	"""Phiếu nộp quỹ tiền mặt đang chờ người nhận ký.
+
+	Điểm bán đã đếm tiền, đã ký bên giao, và tiền đang nằm chờ. Bên nhận
+	chưa ký thì tiền chưa vào quỹ trên sổ, mà thực tế nó đã rời quầy - đó là
+	khoảng hở duy nhất của cả luồng, nên nó phải nằm ngay trên màn này.
+	"""
+	from vagabond import nop_quy as nq
+
+	ra = []
+	for x in frappe.get_all(
+		"Vagabond Nop Quy",
+		filters={"trang_thai": nq.TT_CHO_KY},
+		fields=["name", "ngay", "ten_diem_ban", "tong_thuc_nhan",
+			"ten_nguoi_giao", "lech"],
+		order_by="ngay asc", limit_page_length=60,
+	):
+		ra.append({
+			"loai": "nop_quy", "ma": x["name"],
+			"nhom": "Chờ ký nhận tiền",
+			"phu": "%s · %s giao" % (x.get("ten_diem_ban") or "",
+				x.get("ten_nguoi_giao") or ""),
+			"tien": float(x.get("tong_thuc_nhan") or 0),
+			"ngay": str(x.get("ngay") or ""),
+			"tt": "tre_hen" if _tre(x.get("ngay")) else "cho_nhan",
+		})
+	return ra
+
+
+def _viec_hang_tang(vai):
+	"""Đơn hàng tặng đang chờ giám đốc duyệt.
+
+	Đơn chưa duyệt là đơn CHƯA VÀO SỔ. Để lâu thì cuối tháng chốt sổ thiếu,
+	nên phiếu treo quá hạn được đánh dấu trễ hẹn như mọi việc khác.
+	"""
+	from vagabond import hang_tang as ht
+
+	ra = []
+	for x in frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"docstatus": 0, "vgb_huy": 0,
+			"vgb_pt_thanh_toan": ht.PT_TANG,
+			"vgb_tang_duyet": ht.TT_CHO,
+		},
+		fields=["name", "creation", "posting_date", "customer_name",
+			"grand_total", "vgb_tang_loai", "custom_pancake_display_id"],
+		order_by="creation asc", limit_page_length=60,
+	):
+		so_ngay, keu = ht.cho_bao_lau(ht.TT_CHO, x.get("creation"))
+		ra.append({
+			"loai": "hang_tang", "ma": x["name"],
+			"nhom": "Chờ giám đốc duyệt",
+			"phu": "%s · %s" % (
+				x.get("customer_name") or "Khách lẻ",
+				ht.NHAN_LOAI.get((x.get("vgb_tang_loai") or "").strip(), "Chưa chọn loại"),
+			),
+			"tien": float(x.get("grand_total") or 0),
+			"ngay": str(x.get("posting_date") or ""),
+			"tt": "qua_han" if keu else "cho_duyet",
+		})
+	return ra
+
+
 NHAN_TT = {
 	"cho_nhan": "chờ nhận", "cho_soan": "chờ soạn", "tre_hen": "trễ hẹn",
 	"cho_lam": "chờ làm", "ban_nhap": "bản nháp", "cho_duyet": "chờ duyệt",
@@ -565,6 +667,8 @@ def danh_sach(loai="", trang_thai=""):
 		("tang_qua", lambda: _viec_tang_qua(vai, nguoi)),
 		("ycmh", lambda: _viec_ycmh(vai)),
 		("ho_so_tt", lambda: _viec_ho_so_tt(vai)),
+		("nop_quy", lambda: _viec_nop_quy(vai)),
+		("hang_tang", lambda: _viec_hang_tang(vai)),
 	]
 
 	tat_ca = []

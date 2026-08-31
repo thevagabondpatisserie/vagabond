@@ -732,24 +732,57 @@ def xuat_excel(trang_thai="", tim=""):
 # ------------------------------------- màn Phiếu hoàn đơn huỷ, phía Sales
 
 
-def _unc_theo_phieu_chi(ma_pc):
-	"""Uỷ nhiệm chi đã đính vào từng phiếu chi. Một câu cho cả trang.
+# Đuôi tệp coi là ảnh, để màn hình biết cái nào vẽ được hình thu nhỏ.
+DUOI_ANH = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif", ".bmp")
 
-	Trả đường dẫn tệp chứ không chỉ trả cờ có/không: Sales cần TẢI VỀ để gửi
-	cho khách, đó là cả lý do anh Việt xin màn này.
+
+def la_anh(ten):
+	"""Tên tệp này có phải ảnh không. THUẦN."""
+	t = str(ten or "").strip().lower()
+	return any(t.endswith(x) for x in DUOI_ANH)
+
+
+def duoi_tep(ten):
+	"""Đuôi tệp viết hoa, để hiện lên ô tài liệu. THUẦN. Không có thì TỆP."""
+	t = str(ten or "").strip()
+	i = t.rfind(".")
+	if i <= 0 or i == len(t) - 1:
+		return "TỆP"
+	d = t[i + 1:].upper()
+	return d[:5] if len(d) <= 5 else "TỆP"
+
+
+def _tep_dinh_kem(doctype, ma_cac):
+	"""Mọi tệp đã đính vào một nhóm chứng từ. Một câu cho cả trang.
+
+	VÌ SAO VIẾT LẠI HÀM NÀY (anh Việt 31/08/2026)
+	---------------------------------------------
+	Bản cũ tên là `_unc_theo_phieu_chi` và màn hình vẽ MỌI tệp nó trả về
+	thành một nút mang chữ "Tải uỷ nhiệm chi". Nhưng nó đọc TẤT CẢ tệp đính
+	trên phiếu chi, mà kế toán còn đính cả ảnh chụp màn hình đơn hàng, ảnh
+	bằng chứng, giấy tờ khác. Kết quả đúng như anh Việt bắt được: ba cái nút
+	giống hệt nhau đều ghi "tải uỷ nhiệm chi", bấm vào ra ba thứ khác nhau.
+
+	Nay trả về ĐÚNG TÊN TỆP và cờ có phải ảnh không, để màn hình vẽ hình thu
+	nhỏ cho ảnh và ô tài liệu mang tên thật cho tệp khác. Không đoán hộ tệp
+	nào là uỷ nhiệm chi: máy không biết, và đoán sai thì người đọc tin nhầm.
 	"""
 	ra = {}
-	if not ma_pc:
+	if not ma_cac:
 		return ra
 	for f in frappe.get_all(
 		"File",
-		filters={"attached_to_doctype": "Payment Entry",
-			"attached_to_name": ["in", list(ma_pc)]},
+		filters={"attached_to_doctype": doctype,
+			"attached_to_name": ["in", list(ma_cac)]},
 		fields=["attached_to_name", "file_url", "file_name"],
 		order_by="creation asc", limit_page_length=0,
 	):
+		ten = f.get("file_name") or ""
+		url = f.get("file_url") or ""
 		ra.setdefault(f["attached_to_name"], []).append({
-			"url": f["file_url"], "ten": f["file_name"],
+			"url": url, "ten": ten,
+			"anh": 1 if (la_anh(ten) or la_anh(url)) else 0,
+			"duoi": duoi_tep(ten or url),
 		})
 	return ra
 
@@ -810,7 +843,11 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 				filters={"name": ["in", ma_pc]},
 				fields=["name", "docstatus"], limit_page_length=0):
 			da_ghi[r["name"]] = r
-	unc = _unc_theo_phieu_chi(ma_pc)
+	# Hai nguồn tệp KHÁC NHAU, không trộn: tệp kế toán đính trên phiếu chi
+	# (uỷ nhiệm chi, sao kê) và ảnh bằng chứng người lập đính trên chính hồ
+	# sơ hoàn tiền. Trộn vào một rổ là quay lại đúng cái lỗi vừa sửa.
+	unc = _tep_dinh_kem("Payment Entry", ma_pc)
+	bang_chung = _tep_dinh_kem(HT, [d["name"] for d in dong])
 
 	# Tên khách. Phiếu Pancake lấy từ bảng đệm đơn huỷ vì hồ sơ treo vào mã
 	# khách chung; phiếu có hoá đơn thì lấy tên khách trên hoá đơn.
@@ -835,6 +872,7 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 		tep = unc.get(d.get("phieu_chi") or "") or []
 		d["co_unc"] = 1 if tep else 0
 		d["unc"] = tep
+		d["bang_chung"] = bang_chung.get(d["name"]) or []
 		d["phieu_chi_da_ghi"] = 1 if int(pc.get("docstatus") or 0) == 1 else 0
 		xong, cho, cau = buoc_cua_phieu(
 			d.get("trang_thai"), d["co_unc"], d["phieu_chi_da_ghi"],

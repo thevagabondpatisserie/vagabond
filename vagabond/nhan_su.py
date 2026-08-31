@@ -15,6 +15,9 @@ from frappe.core.doctype.user.user import User
 from frappe.utils import get_url
 
 from vagabond.lib import cfg
+# Xâu phông cho thư điện tử, khai một nơi. Thư hiện trên máy NGƯỜI NHẬN nên
+# phông của nó khác phông bản in. Xem vagabond/mau_chuan.py.
+from vagabond.mau_chuan import PHONG_THU
 
 # Bo mau nhan dien dung chung voi mau thu PO gui nha cung cap (xem
 # claude/erpnext-email-va-mau-thu-po.md). Cac mang mau thuong hieu deu lot
@@ -74,7 +77,7 @@ def _nut_xanh(dia_chi, chu):
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
 		'<tr><td align="center" background="%s" bgcolor="%s" style="border-radius:10px">'
 		'<a href="%s" target="_blank" style="display:inline-block;padding:15px 40px;'
-		'font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;letter-spacing:.3px;'
+		'font-family:' + PHONG_THU + ';font-size:17px;font-weight:bold;letter-spacing:.3px;'
 		'color:%s;text-decoration:none">%s</a>'
 		"</td></tr></table>"
 	) % (ANH_NEN_XANH, XANH, dia_chi, XANH_DAM, chu)
@@ -86,7 +89,7 @@ def _nut_vien(dia_chi, chu):
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
 		'<tr><td align="center" bgcolor="#FFFFFF" style="border:2px solid %s;border-radius:10px">'
 		'<a href="%s" target="_blank" style="display:inline-block;padding:13px 38px;'
-		'font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;'
+		'font-family:' + PHONG_THU + ';font-size:16px;font-weight:bold;'
 		'color:%s;text-decoration:none">%s</a>'
 		"</td></tr></table>"
 	) % (XANH_DAM, dia_chi, XANH_DAM, chu)
@@ -99,9 +102,9 @@ def _buoc(so, tieu_de, noi_dung):
 		'<tr><td width="34" valign="top">'
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
 		'<td width="26" height="26" align="center" background="%s" bgcolor="%s" '
-		'style="border-radius:13px;font-family:Arial,Helvetica,sans-serif;font-size:13px;'
+		'style="border-radius:13px;font-family:' + PHONG_THU + ';font-size:13px;'
 		'font-weight:bold;color:%s">%s</td></tr></table></td>'
-		'<td style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;color:%s">'
+		'<td style="font-family:' + PHONG_THU + ';font-size:14px;line-height:1.65;color:%s">'
 		'<b style="color:%s">%s</b><br>%s</td></tr></table></td></tr>'
 	) % (ANH_NEN_XANH, XANH, XANH_DAM, so, CHU, XANH_DAM, tieu_de, noi_dung)
 
@@ -116,7 +119,7 @@ def thu_moi_html(ten, link_dat_mat_khau, dia_chi_app):
 		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(vien)s">\n'
 		'<tr><td><img src="%(anh_dau)s" width="600" alt="The Vagabond Patisserie" '
 		'style="display:block;width:100%%;height:auto;border:0"></td></tr>\n'
-		'<tr><td style="padding:26px 30px 6px;font-family:Arial,Helvetica,sans-serif;'
+		'<tr><td style="padding:26px 30px 6px;font-family:' + PHONG_THU + ';'
 		'font-size:14px;line-height:1.65;color:%(chu)s">\n'
 		'<p style="margin:0 0 14px">Chào <b style="color:%(dam)s">%(ten)s</b>,</p>\n'
 		'<p style="margin:0 0 4px">Anh chị đã có tài khoản trên <b>app quản lý nội bộ của công ty</b>. '
@@ -130,13 +133,13 @@ def thu_moi_html(ten, link_dat_mat_khau, dia_chi_app):
 		'</table>\n</td></tr>\n'
 		'<tr><td style="padding:2px 30px 24px">\n'
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
-		'<tr><td bgcolor="%(nhat)s" style="padding:13px 16px;font-family:Arial,Helvetica,sans-serif;'
+		'<tr><td bgcolor="%(nhat)s" style="padding:13px 16px;font-family:' + PHONG_THU + ';'
 		'font-size:13.5px;line-height:1.6;color:%(dam)s">'
 		'Đăng nhập bằng chính <b>địa chỉ email này</b> và mật khẩu anh chị vừa đặt. '
 		'App dùng trên điện thoại là đủ, không cần mở trên máy tính.</td></tr></table>\n'
 		'</td></tr>\n'
 		'<tr><td background="%(nen_xanh)s" bgcolor="%(xanh)s" '
-		'style="padding:12px 30px;font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+		'style="padding:12px 30px;font-family:' + PHONG_THU + ';font-size:12px;'
 		'line-height:1.7;color:%(dam)s;text-align:center">'
 		'The Vagabond P&acirc;tisserie - 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân, TP. Hồ Chí Minh<br>'
 		'Cần hỗ trợ về app hãy nhắn số anh Việt (0901486556, Zalo)</td></tr>\n'
@@ -261,13 +264,13 @@ def _khung_thu(tieu_de, than, nut=""):
 		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(vien)s">\n'
 		'<tr><td><img src="%(anh_dau)s" width="600" alt="The Vagabond Patisserie" '
 		'style="display:block;width:100%%;height:auto;border:0"></td></tr>\n'
-		'<tr><td style="padding:24px 30px 4px;font-family:Arial,Helvetica,sans-serif;'
+		'<tr><td style="padding:24px 30px 4px;font-family:' + PHONG_THU + ';'
 		'font-size:16px;font-weight:bold;color:%(dam)s">%(tieu_de)s</td></tr>\n'
-		'<tr><td style="padding:8px 30px 4px;font-family:Arial,Helvetica,sans-serif;'
+		'<tr><td style="padding:8px 30px 4px;font-family:' + PHONG_THU + ';'
 		'font-size:14px;line-height:1.65;color:%(chu)s">%(than)s</td></tr>\n'
 		'%(nut)s'
 		'<tr><td background="%(nen_xanh)s" bgcolor="%(xanh)s" '
-		'style="padding:12px 30px;font-family:Arial,Helvetica,sans-serif;font-size:12px;'
+		'style="padding:12px 30px;font-family:' + PHONG_THU + ';font-size:12px;'
 		'line-height:1.7;color:%(dam)s;text-align:center">'
 		'The Vagabond P&acirc;tisserie - 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân, TP. Hồ Chí Minh<br>'
 		'Cần hỗ trợ về app hãy nhắn số anh Việt (0901486556, Zalo)</td></tr>\n'
@@ -284,7 +287,7 @@ def _khung_thu(tieu_de, than, nut=""):
 def _o_nhat(noi_dung):
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
-		'<tr><td bgcolor="%s" style="padding:13px 16px;font-family:Arial,Helvetica,sans-serif;'
+		'<tr><td bgcolor="%s" style="padding:13px 16px;font-family:' + PHONG_THU + ';'
 		'font-size:13.5px;line-height:1.7;color:%s">%s</td></tr></table>'
 	) % (XANH_NHAT, XANH_DAM, noi_dung)
 

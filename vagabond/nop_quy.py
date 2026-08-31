@@ -223,10 +223,43 @@ def gom_tien_mat(rows, ten_tien_mat=None):
 	return (ds, sum(d["tien"] for d in ds))
 
 
-def noi_dung_mac_dinh(ten_ngan):
-	"""Câu Nội dung nộp tiền gợi sẵn cho một điểm bán. THUẦN."""
+def _ngay_vn(gt):
+	"""2026-08-30 thành 30/08/2026. THUẦN. Không đọc được thì TRẢ NGUYÊN.
+
+	Trả nguyên chứ không cắt mười ký tự đầu: cắt thì một chuỗi rác dài in ra
+	thành một chuỗi rác NGẮN HƠN, và người đọc tưởng đó là ngày thật bị mất
+	đuôi. Rác thì để nguyên hình rác cho dễ thấy.
+	"""
+	x = str(gt or "").strip()
+	if len(x) >= 10 and x[4] == "-" and x[7] == "-":
+		d = x[:10]
+		return "%s/%s/%s" % (d[8:10], d[5:7], d[0:4])
+	return x
+
+
+def noi_dung_mac_dinh(ten_ngan, tu_ngay=None, den_ngay=None):
+	"""Câu Nội dung nộp tiền gợi sẵn cho một điểm bán. THUẦN.
+
+	Anh Việt 31/08/2026 chốt cấu trúc câu: *"Nộp quỹ tiền mặt doanh thu cửa
+	hàng (tên cửa hàng) từ ngày ... đến ngày ..."*
+
+	Vì sao phải có khoảng ngày trong câu. Nội dung này là thứ đi thẳng lên
+	tờ biên bản và lên sổ quỹ. Câu cũ chỉ ghi "Nộp doanh thu Sales Online",
+	nên hai tờ của hai ngày khác nhau đọc lên y hệt nhau, và người soát sổ
+	phải mở từng tờ ra mới biết tờ nào của ngày nào.
+
+	Một ngày thì viết "ngày dd/mm/yyyy", nhiều ngày thì "từ ngày ... đến
+	ngày ...". Không ép câu một ngày vào khuôn "từ ... đến ..." với hai ngày
+	giống nhau: đọc lên nghe như máy nói.
+	"""
 	t = (ten_ngan or "").strip()
-	return ("Nộp doanh thu %s" % t) if t else "Nộp doanh thu tiền mặt"
+	cau = "Nộp quỹ tiền mặt doanh thu cửa hàng %s" % t if t else "Nộp quỹ tiền mặt doanh thu"
+	a, b = _ngay_vn(tu_ngay), _ngay_vn(den_ngay)
+	if a and b and a != b:
+		return "%s từ ngày %s đến ngày %s" % (cau, a, b)
+	if a or b:
+		return "%s ngày %s" % (cau, a or b)
+	return cau
 
 
 # ========================================================= chạm vào hệ
@@ -328,7 +361,7 @@ def doanh_thu_diem(diem=None, pham_vi=None, tu_ngay=None, den_ngay=None):
 		"ten_diem": d["ten"],
 		"ten_ngan": d["ten_ngan"],
 		"noi_giao_nhan": d["ten"],
-		"noi_dung": noi_dung_mac_dinh(d["ten_ngan"]),
+		"noi_dung": noi_dung_mac_dinh(d["ten_ngan"], tu, den),
 		"pham_vi": (pham_vi or PV_NGAY),
 		"tu_ngay": tu,
 		"den_ngay": den,
@@ -344,9 +377,48 @@ def doanh_thu_diem(diem=None, pham_vi=None, tu_ngay=None, den_ngay=None):
 
 
 @frappe.whitelist()
+def tim_nguoi_nhan(tu_khoa=""):
+	"""Gợi ý người có quyền ký nhận tiền, tìm ở MÁY CHỦ theo tên hoặc email.
+
+	Anh Việt 31/08/2026: *"thêm ô 'Nộp cho ai?' và cho thành ô tìm kiếm tên
+	nhân viên (thường các bạn sẽ tìm Dung, Việt hoặc Sơn mà điền vào)"*.
+
+	Chỉ trả người MANG VAI ký nhận. Cho gõ tự do rồi lưu một cái tên bất kỳ
+	thì tờ biên bản ghi tên một người không có quyền nhận tiền, mà tờ đó là
+	chứng từ gốc.
+
+	Tìm ở máy chủ (QT-19): lọc bằng `or_filters` ở tầng cơ sở dữ liệu chứ
+	không đọc cả bảng người dùng về rồi lọc bằng Python.
+	"""
+	_kiem_quyen()
+	nguoi = set()
+	for vai in VAI_KY_NHAN:
+		try:
+			for u in frappe.get_all("Has Role", filters={"role": vai},
+					fields=["parent"], limit_page_length=0):
+				nguoi.add(u["parent"])
+		except Exception:
+			continue
+	if not nguoi:
+		return {"ds": []}
+	loc = {"name": ["in", sorted(nguoi)], "enabled": 1}
+	q = str(tu_khoa or "").strip()
+	hoac = None
+	if q:
+		hoac = [["full_name", "like", "%" + q + "%"],
+			["name", "like", "%" + q + "%"]]
+	ds = frappe.get_all(
+		"User", filters=loc, or_filters=hoac,
+		fields=["name", "full_name"], order_by="full_name asc",
+		limit_page_length=20,
+	)
+	return {"ds": [{"ma": d["name"], "ten": d.get("full_name") or d["name"]} for d in ds]}
+
+
+@frappe.whitelist()
 def tao_theo_ngay(diem, bang_ke, pham_vi=None, tu_ngay=None, den_ngay=None,
 		ly_do_lech="", ghi_chu="", chu_ky_ben_giao="", anh_minh_chung="",
-		noi_dung="", noi_giao_nhan=""):
+		noi_dung="", noi_giao_nhan="", nguoi_nhan_du_kien=""):
 	"""Lập phiếu nộp tiền theo ĐIỂM BÁN và NGÀY, không cần mở ca chốt ca.
 
 	Kỳ vọng lấy từ doanh thu tiền mặt của điểm trong khoảng ngày. Khác với
@@ -364,6 +436,19 @@ def tao_theo_ngay(diem, bang_ke, pham_vi=None, tu_ngay=None, den_ngay=None,
 		bang = doc_bang_ke(bang_ke)
 	except ValueError as e:
 		frappe.throw(str(e))
+
+	# Ảnh cọc tiền BẮT BUỘC (anh Việt 31/08/2026). Trước đó ô này ghi
+	# "không bắt buộc", mà đây là chứng từ gốc của một lần bàn giao tiền
+	# mặt: không có ảnh thì lúc hai bên nhớ khác nhau về số tiền, không còn
+	# gì để đối chiếu ngoài trí nhớ. Chặn ở MÁY CHỦ chứ không chỉ đổi chữ
+	# trên màn, vì đổi chữ thì vẫn lập được phiếu trắng ảnh.
+	if not (anh_minh_chung or "").strip():
+		frappe.throw(
+			"Phải chụp ảnh cọc tiền trước khi lập biên nhận. Đây là chứng từ "
+			"gốc của một lần bàn giao tiền mặt, không có ảnh thì sau này hai "
+			"bên nhớ khác nhau là hết đường đối chiếu.",
+			title="Thiếu ảnh minh chứng giao nhận tiền",
+		)
 
 	trum = _phieu_trum(d["ma"], tu, den)
 	if trum:
@@ -386,6 +471,17 @@ def tao_theo_ngay(diem, bang_ke, pham_vi=None, tu_ngay=None, den_ngay=None,
 				"Gõ lý do rồi lập lại." % (int(lech), tu, den),
 		}
 
+	# Người dự kiến nhận tiền. Không bắt buộc, nhưng có thì tờ biên bản in
+	# ra đã mang tên người nhận thay vì một hàng dấu chấm, và bên nhận biết
+	# là mình đang được chờ.
+	nhan_du_kien = str(nguoi_nhan_du_kien or "").strip()
+	ten_nhan_du_kien = ""
+	if nhan_du_kien:
+		if not frappe.db.exists("User", nhan_du_kien):
+			frappe.throw("Không có người dùng %s trong hệ." % nhan_du_kien)
+		ten_nhan_du_kien = (
+			frappe.db.get_value("User", nhan_du_kien, "full_name") or nhan_du_kien)
+
 	co_ky = la_chu_ky(chu_ky_ben_giao)
 	doc = frappe.get_doc({
 		"doctype": NQ,
@@ -398,8 +494,10 @@ def tao_theo_ngay(diem, bang_ke, pham_vi=None, tu_ngay=None, den_ngay=None,
 		"tu_ngay": tu,
 		"den_ngay": den,
 		"so_ngay": n,
-		"noi_dung": (noi_dung or "").strip() or noi_dung_mac_dinh(d["ten_ngan"]),
+		"noi_dung": (noi_dung or "").strip() or noi_dung_mac_dinh(d["ten_ngan"], tu, den),
 		"noi_giao_nhan": (noi_giao_nhan or "").strip() or d["ten"],
+		"nguoi_nhan_du_kien": nhan_du_kien,
+		"ten_nguoi_nhan_du_kien": ten_nhan_du_kien,
 		"anh_minh_chung": (anh_minh_chung or "").strip(),
 		"nguoi_giao": frappe.session.user,
 		"ten_nguoi_giao": frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user,
@@ -653,6 +751,8 @@ def chi_tiet(ma):
 		"so_ngay": cint(doc.get("so_ngay")),
 		"noi_dung": doc.get("noi_dung") or "",
 		"noi_giao_nhan": doc.get("noi_giao_nhan") or "",
+		"nguoi_nhan_du_kien": doc.get("nguoi_nhan_du_kien") or "",
+		"ten_nguoi_nhan_du_kien": doc.get("ten_nguoi_nhan_du_kien") or "",
 		"anh_minh_chung": doc.get("anh_minh_chung") or "",
 		"nguoi_giao": doc.nguoi_giao,
 		"ten_nguoi_giao": doc.ten_nguoi_giao or doc.nguoi_giao,
@@ -873,7 +973,7 @@ def _html_bien_ban(d):
 		)
 
 	return """
-<div style="font-family:'Times New Roman',Times,serif;font-size:13px;color:#000;line-height:1.55">
+<div style="font-size:13px;color:#000;line-height:1.55">
 	<table style="width:100%%;border-collapse:collapse"><tr>
 		<td style="width:42%%;text-align:center;vertical-align:top;font-size:12px">
 			<b>THE VAGABOND P&Acirc;TISSERIE</b><br>Số: %(ma)s
@@ -917,7 +1017,14 @@ def _html_bien_ban(d):
 		"ma": d.get("ma") or "",
 		"ngay_chu": _ngay_chu(d.get("ngay") or ""),
 		"ben_giao": frappe.utils.escape_html(d.get("ten_nguoi_giao") or ""),
-		"ben_nhan": frappe.utils.escape_html(d.get("ten_nguoi_nhan") or "................................"),
+		# Chưa ai ký nhận thì in tên người DỰ KIẾN nhận, kèm chữ "(dự kiến)"
+		# để không ai đọc nhầm thành đã nhận. Trước đó chỗ này in một hàng
+		# dấu chấm, mà tờ in ra là để cầm đi đưa cho đúng người.
+		"ben_nhan": frappe.utils.escape_html(
+			d.get("ten_nguoi_nhan")
+			or ((d.get("ten_nguoi_nhan_du_kien") or "") + " (dự kiến)"
+				if (d.get("ten_nguoi_nhan_du_kien") or "").strip()
+				else "................................")),
 		"khoi_nguon": khoi_nguon,
 		"ky_vong": _tien(d.get("tien_ky_vong")),
 		"dong_mg": dong_mg or "<tr><td colspan='3' style='text-align:center'>(trống)</td></tr>",
@@ -944,11 +1051,14 @@ def xuat_pdf(ma):
 	d = chi_tiet(ma)
 	from frappe.utils.pdf import get_pdf
 
-	khung = (
-		"<html><head><meta charset='utf-8'>"
-		"<style>@page{margin:16mm 15mm}body{margin:0}</style></head><body>"
-		+ _html_bien_ban(d) + "</body></html>"
-	)
+	from vagabond import mau_chuan
+
+	# Đi qua khung chuẩn để lấy đúng bộ phông có dấu tiếng Việt. Trước
+	# 31/08/2026 tờ này tự dựng khung và khai `Times New Roman` - phông máy
+	# chủ KHÔNG có - nên wkhtmltopdf mượn phông khác cho riêng chữ có dấu và
+	# tờ in ra vỡ chữ. Xem `vagabond/phong_chu.py`.
+	khung = mau_chuan.khung_trang(
+		_html_bien_ban(d), "Biên bản bàn giao tiền mặt %s" % ma, le="16mm 15mm")
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
 	return {
 		"ten_file": "Bien-ban-ban-giao-%s.pdf" % str(ma).replace("/", "-"),

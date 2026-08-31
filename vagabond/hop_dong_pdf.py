@@ -1220,6 +1220,9 @@ def xem_nguoi_nhan(name, email=None):
 @frappe.whitelist()
 def gui_email(name, email=None, loi_nhan=None):
 	"""Gui to hop dong PDF (da gom phu luc bao gia) sang email khach."""
+	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
+	from vagabond import mau_chuan
+
 	_quyen(sua=True)
 	from vagabond.bao_gia import _cd, _tach_email
 
@@ -1253,7 +1256,7 @@ def gui_email(name, email=None, loi_nhan=None):
 	tep = tai_ve_ban_chot(name) if la_ban_chot else xuat_pdf(name)
 	so = d.get("so_hop_dong") or name
 	than = (
-		'<div style="font-family:Arial,Liberation Sans,Helvetica,sans-serif;font-size:14px;'
+		'<div style="font-family:' + mau_chuan.PHONG_THU + ';font-size:14px;'
 		'line-height:1.6;color:#1c1a17">'
 		"<p>Kính gửi Quý khách %s,</p>"
 		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách <b>Hợp đồng mua bán hàng hóa "
