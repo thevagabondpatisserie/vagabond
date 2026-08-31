@@ -65,6 +65,28 @@ function phHangChip(thuoc, dsc, dem, chon, nhan_tat_ca) {
   return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
 
+/* Một hàng nhãn nhỏ. Mỗi nhãn KHÔNG được gãy giữa chừng.
+
+   Lỗi anh Việt bắt được 31/08/2026 trên điện thoại: nhãn "Có uỷ nhiệm chi"
+   bị bẻ làm hai dòng, chữ "chi" rơi xuống dòng dưới nằm một mình. Gốc là
+   các nhãn nằm trong một khối chữ thường, nên trình duyệt ngắt dòng theo
+   TỪ chứ không theo nhãn.
+
+   Hai thứ phải có: khối bọc là flex có `flex-wrap` để nhãn xuống dòng
+   nguyên khối, và mỗi nhãn `white-space:nowrap` để không bao giờ gãy ruột.
+   Màn hình điện thoại hẹp nên đây không phải ca hiếm, gần như dòng nào
+   cũng dính. */
+function phNhanHang(cac) {
+  var s = '<div class="h2" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">';
+  (cac || []).forEach(function (o) {
+    if (!o) return;
+    s += '<span style="background:' + o[1] + ';border:1px solid ' + o[2] + ';color:' + o[3] +
+      ';border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap;' +
+      'display:inline-block;line-height:1.5">' + h(o[0]) + '</span>';
+  });
+  return s + '</div>';
+}
+
 /* Dây chuyền bốn bước, vẽ thành bốn chấm nối nhau. Cách nói này trả lời
    đúng câu khách hỏi, mà một dòng trạng thái đơn lẻ thì không: trạng thái
    nhảy sang "Đã chi" ngay lúc kế toán ghi sổ, nhưng thứ khách muốn là cái
@@ -149,17 +171,12 @@ async function scrPhieuHoanHuy() {
       (r.treo_lau ? ' <b style="color:#b3261e">Treo ' + r.treo_ngay + ' ngày rồi.</b>' : '') +
       '</div>' +
       phDay(r, buoc) +
-      '<div class="h2" style="margin-top:6px">' +
-      '<span style="background:' + m[0] + ';border:1px solid ' + m[1] + ';color:' + m[2] +
-      ';border-radius:20px;padding:1px 9px;font-size:11.5px">' + h(r.nhan_trang_thai) + '</span>' +
-      ' <span style="background:#f8fafc;border:1px solid #e2e8f0;color:#475467;' +
-      'border-radius:20px;padding:1px 9px;font-size:11.5px">' + h(r.nhan_loai) + '</span>' +
-      ' <span style="background:#f8fafc;border:1px solid #e2e8f0;color:#475467;' +
-      'border-radius:20px;padding:1px 9px;font-size:11.5px">' +
-      h(ten_diem[r.diem_ban] || 'Chưa rõ điểm bán') + '</span>' +
-      (r.co_unc ? ' <span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;' +
-        'border-radius:20px;padding:1px 9px;font-size:11.5px">Có uỷ nhiệm chi</span>' : '') +
-      '</div>' + (mo ? phChiTiet(r) : '') + '</div>' +
+      phNhanHang([
+        [r.nhan_trang_thai, m[0], m[1], m[2]],
+        [r.nhan_loai, '#f8fafc', '#e2e8f0', '#475467'],
+        [ten_diem[r.diem_ban] || 'Chưa rõ điểm bán', '#f8fafc', '#e2e8f0', '#475467'],
+        r.co_unc ? ['Có uỷ nhiệm chi', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
+      ]) + (mo ? phChiTiet(r) : '') + '</div>' +
       '<div style="text-align:right;white-space:nowrap">' +
       '<b style="font-size:13.5px">' + money(r.so_tien) + '</b>' +
       '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>';
