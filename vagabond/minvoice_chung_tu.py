@@ -233,6 +233,41 @@ def can_theo_truoc_thue(tong_dong, truoc_thue):
 	return ("khop", 0)
 
 
+def cap_trung(hang):
+	"""Gom những chứng từ cùng trỏ về MỘT tờ hoá đơn điện tử. THUẦN.
+
+	`hang` là list dict có `ma_hddt` và `ten`. Trả list nhóm từ 2 tờ trở lên,
+	tờ cũ nhất đứng đầu.
+
+	VÌ SAO ĐẾM CÁI NÀY (31/08/2026)
+	-------------------------------
+	Hôm đó 31 tờ hoá đơn mua bị dựng hai lần vì hai lượt chạy chồng nhau.
+	Khoá ở `_chay` chặn nguyên nhân đó rồi, nhưng chặn một nguyên nhân đã
+	biết không bằng NHÌN THẤY được khi có nguyên nhân mới.
+
+	Không ai phát hiện ra bằng máy cả: anh Việt nhìn màn danh sách thấy
+	dòng nào cũng có một dòng y hệt bên dưới. Một cái đếm đơn giản như hàm
+	này thì lượt quét đầu tiên đã kêu.
+	"""
+	theo_ma = {}
+	for h in hang or []:
+		ma = str((h or {}).get("ma_hddt") or "").strip()
+		if not ma:
+			continue
+		theo_ma.setdefault(ma, []).append(h)
+	ra = []
+	for ma, ds in theo_ma.items():
+		if len(ds) < 2:
+			continue
+		ra.append({
+			"ma_hddt": ma,
+			"so_to": len(ds),
+			"ten": [str((x or {}).get("ten") or "") for x in ds],
+		})
+	ra.sort(key=lambda x: (-x["so_to"], x["ma_hddt"]))
+	return ra
+
+
 def khoi_dung_duoc(trang_thai):
 	"""Tờ này khỏi cần dựng chứng từ nữa. THUẦN."""
 	return str(trang_thai or "").strip() in TT_KHOI_DUNG
@@ -272,7 +307,46 @@ def gom_theo_ly_do(hang):
 import frappe  # noqa: E402
 from frappe.utils import cint, flt, nowdate  # noqa: E402
 
+from contextlib import ExitStack  # noqa: E402
+
+# KHOA TEP, cung khuon voi ban_hang.py. May chu khong co thi lui ve khoa
+# rong chu khong chan nghiep vu: mot lan dung to con hon ca ngay khong dung
+# duoc to nao.
+try:  # pragma: no cover
+	from frappe.utils.synchronization import LockTimeoutError, filelock  # noqa: E402
+except Exception:  # pragma: no cover
+	import contextlib
+
+	class LockTimeoutError(Exception):
+		pass
+
+	@contextlib.contextmanager
+	def filelock(ten, timeout=30, **kw):
+		yield
+
 QUYEN = {"System Manager", "Accounts Manager", "Accounts User"}
+
+# Tên khoá của lượt dựng chứng từ.
+#
+# VÌ SAO PHẢI CÓ KHOÁ (ca thật 31/08/2026, mất 31 tờ trùng)
+# ----------------------------------------------------------
+# Ngày 31/08 chạy bù hai lượt chồng lên nhau: một lượt gọi trước còn đang
+# chạy dở ở máy chủ, một lượt nữa gọi vào. Cả hai đều đọc hàng đợi bằng
+# `da_tao_chung_tu = 0`, đều thấy CÙNG một tờ, `_da_co_chung_tu` của cả hai
+# đều trả về rỗng vì chưa bên nào kịp ghi, rồi cả hai cùng dựng.
+#
+# Kết quả: 31 cặp Hoá đơn mua hàng y hệt nhau, cách nhau ba mươi mốt phần
+# nghìn giây, 81.136.219 đ mua vào đếm hai lần. Chưa tờ nào ghi sổ nên chưa
+# vào sổ cái, nhưng nếu kế toán ghi sổ trước khi ai kịp nhìn thì đó là một
+# tháng số liệu mua vào sai gấp đôi.
+#
+# Phép kiểm "đã có chứng từ chưa" KHÔNG BAO GIỜ tự nó đủ, vì giữa lúc kiểm
+# và lúc ghi luôn có một khe hở. Chỉ có khoá mới đóng được khe đó.
+#
+# Từ bản này nguy cơ còn cao hơn trước chứ không thấp đi: nhịp tự động 15
+# phút vừa được khai lại, và nút "Đồng bộ M-Invoice" cho phép người ta bấm
+# tay bất cứ lúc nào. Hai đường đó gặp nhau là chuyện sớm muộn.
+KHOA_DUNG = "vagabond_minvoice_dung_chung_tu"
 
 # Mỗi lượt dựng tối đa bao nhiêu tờ. Cao hơn thì một lượt chạy quá dài và
 # Frappe cắt ngang giữa chừng.
@@ -487,6 +561,7 @@ def con_sot(tu_ngay=None, den_ngay=None, gioi_han=2000):
 
 	return {
 		"tu_ngay": str(tu_ngay), "den_ngay": str(den_ngay),
+		"trung": _dem_trung(),
 		"so_to": len(hang),
 		"tong_tien": sum(abs(h["tong_tien"]) for h in hang),
 		"theo_ly_do": gom_theo_ly_do(hang),
@@ -494,6 +569,35 @@ def con_sot(tu_ngay=None, den_ngay=None, gioi_han=2000):
 		"vo_ruot": _dem_vo_ruot(),
 		"ds": hang[:500],
 	}
+
+
+def _dem_trung():
+	"""Chứng từ nào đang trùng: nhiều tờ cùng trỏ về một hoá đơn điện tử.
+
+	Chỉ đếm tờ CÒN SỐNG: bỏ tờ đã huỷ ở ERPNext và tờ đã tick "Đã huỷ" của
+	mình, vì gỡ trùng bằng cách đánh dấu huỷ là cách gỡ hợp lệ.
+	"""
+	try:
+		hang = []
+		for dt in (PI, SI):
+			for r in frappe.get_all(
+				dt,
+				filters={"docstatus": ["<", 2], "custom_minvoice_id": ["is", "set"]},
+				fields=["name", "custom_minvoice_id", "vgb_huy"],
+				limit_page_length=0,
+			):
+				if cint(r.get("vgb_huy")):
+					continue
+				hang.append({"ma_hddt": r.custom_minvoice_id, "ten": r.name})
+		nhom = cap_trung(hang)
+		return {
+			"so_nhom": len(nhom),
+			"so_to_thua": sum(n["so_to"] - 1 for n in nhom),
+			"ds": nhom[:50],
+		}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "minvoice_chung_tu: dem trung")
+		return {"so_nhom": 0, "so_to_thua": 0, "ds": []}
 
 
 def _dem_vo_ruot():
@@ -888,7 +992,44 @@ def _dong_dau_ra(gioi_han=None):
 
 
 def _chay(tu_ngay=None, den_ngay=None, gioi_han=None):
-	"""Dựng chứng từ cho các tờ chưa xong. Trả về số đếm."""
+	"""Dựng chứng từ cho các tờ chưa xong. MỘT LƯỢT MỘT LÚC. Trả về số đếm.
+
+	Khoá bọc CẢ lượt chứ không bọc từng tờ. Bọc từng tờ vẫn hở: hai lượt
+	đọc hàng đợi cùng lúc thì cả hai đã cầm sẵn cùng một danh sách, khoá
+	bên trong chỉ làm chúng dựng nối đuôi nhau chứ không ngăn được tờ thứ
+	hai. Phải chặn từ lúc đọc hàng đợi.
+
+	Xin không được khoá thì BỎ LƯỢT chứ không chạy. Bỏ một lượt là mười lăm
+	phút sau dựng, không mất gì; chạy chồng là sinh chứng từ trùng, mà gỡ
+	chứng từ trùng thì phải có người ngồi dò từng cặp.
+	"""
+	try:
+		pila = ExitStack()
+		pila.enter_context(filelock(KHOA_DUNG, timeout=5))
+	except LockTimeoutError:
+		return {
+			"quet": 0, "da_dung": 0, "bo_qua_hop_le": 0, "dau_ra_dong_dau": 0,
+			"con_hong": 0, "vi_du_hong": [], "dang_chay_do": 1,
+			"tu_ngay": str(tu_ngay or ""), "den_ngay": str(den_ngay or ""),
+			"loi_nhan": (
+				"Máy đang dựng chứng từ dở từ lượt trước. Anh chị chờ một phút "
+				"rồi bấm lại, đừng bấm thêm lần nữa kẻo sinh chứng từ trùng."
+			),
+		}
+	except Exception:
+		# Khong lay duoc khoa vi ly do khac thi ghi nhat ky roi chay tiep:
+		# khong duoc vi mot cai khoa hong ma ca day chuyen dung lai.
+		frappe.log_error(frappe.get_traceback(),
+			"minvoice_chung_tu: khong lay duoc khoa dung")
+		pila = ExitStack()
+	try:
+		return _chay_trong_khoa(tu_ngay, den_ngay, gioi_han)
+	finally:
+		pila.close()
+
+
+def _chay_trong_khoa(tu_ngay=None, den_ngay=None, gioi_han=None):
+	"""Ruột của một lượt dựng. CHỈ gọi từ `_chay`, nơi đã cầm khoá."""
 	den_ngay = den_ngay or nowdate()
 	# KHÔNG bó hẹp cửa sổ ngày. Bản cũ chỉ ngó 60 ngày gần nhất, tờ cũ hơn
 	# thì vĩnh viễn không ai dựng và cũng không ai đếm. Hàng đợi đã xếp theo
@@ -1049,19 +1190,52 @@ def canh_bao_tac_nhip():
 			gio = (
 				frappe.utils.now_datetime() - frappe.utils.get_datetime(lan_cuoi)
 			).total_seconds() / 3600.0
-		if not nhip_da_tac(cho, gio):
+		# HAI CHUYỆN KHÁC HẲN NHAU, MỘT LÁ THƯ
+		#
+		# Tắc nhịp là thiếu chứng từ. Trùng là THỪA chứng từ. Ngày 31/08/2026
+		# gặp cả hai trong một buổi sáng, và cái thừa nguy hơn: thiếu thì kế
+		# toán tự thấy vì hoá đơn không có trong sổ, còn thừa thì nằm im
+		# trong danh sách trông y như thật, ghi sổ xong là mua vào đếm hai lần.
+		trung = _dem_trung()
+		tac = nhip_da_tac(cho, gio)
+		if not tac and not cint(trung.get("so_to_thua")):
 			return
-		frappe.sendmail(
-			recipients=[EMAIL_KE_TOAN],
-			subject="Hoá đơn điện tử: nhịp dựng chứng từ đang tắc",
-			message=(
-				"<p>Đang có <b>%s</b> hoá đơn điện tử đầu vào xếp hàng mà "
-				"<b>%s tiếng</b> nay hệ không dựng thêm được chứng từ nào.</p>"
+		phan = []
+		if tac:
+			phan.append(
+				"<p><b>Nhịp dựng chứng từ đang tắc.</b> Đang có <b>%s</b> hoá "
+				"đơn điện tử đầu vào xếp hàng mà <b>%s tiếng</b> nay hệ không "
+				"dựng thêm được chứng từ nào.</p>"
 				"<p>Mở màn Hoá đơn mua hàng trên Desk, bấm nút "
 				"<b>Đồng bộ M-Invoice</b>. Vẫn không nhúc nhích thì báo anh "
-				"Việt, nhiều khả năng nhịp tự động đã tắt.</p>"
-				% (cho, int(gio))
+				"Việt, nhiều khả năng nhịp tự động đã tắt.</p>" % (cho, int(gio))
+			)
+		if cint(trung.get("so_to_thua")):
+			phan.append(
+				"<p><b>Có chứng từ trùng.</b> %s tờ hoá đơn điện tử đang có "
+				"nhiều hơn một chứng từ trỏ về, thừa <b>%s tờ</b>.</p>"
+				"<p>ĐỪNG GHI SỔ khi còn trùng, ghi sổ là mua vào đếm hai lần. "
+				"Giữ tờ dựng trước, tick <b>Đã huỷ</b> cho tờ sau. Các tờ đang "
+				"trùng: %s.</p>"
+				% (
+					trung.get("so_nhom"),
+					trung.get("so_to_thua"),
+					", ".join(
+						" và ".join(n.get("ten") or [])
+						for n in (trung.get("ds") or [])[:10]
+					) or "(xem màn Còn sót)",
+				)
+			)
+		frappe.sendmail(
+			recipients=[EMAIL_KE_TOAN],
+			subject=(
+				"Hoá đơn điện tử: %s"
+				% (" và ".join(
+					(["nhịp dựng chứng từ đang tắc"] if tac else [])
+					+ (["có chứng từ trùng"] if cint(trung.get("so_to_thua")) else [])
+				))
 			),
+			message="".join(phan),
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
