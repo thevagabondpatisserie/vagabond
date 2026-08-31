@@ -312,11 +312,21 @@ async function scrDcmXem(name) {
     try { r = await api('vagabond.doi_chieu_mua.noi_phieu', { name: name, phieu: JSON.stringify(dcmPhieu), ghi_so: ghiSo ? 1 : 0 }); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được'); return; }
     busy(false);
-    toast(r.da_ghi_so
-      ? 'Đã nối phiếu và ghi sổ ' + name
-      : (kq.ghi_so_duoc
-          ? 'Đã nối phiếu. Bấm "Khớp và ghi sổ" khi muốn ghi sổ.'
-          : 'Đã nối phiếu ' + name + '. Tờ này đang chờ kế toán ghi sổ.'), 4500);
+    /* Tu v362 phep noi khong con la duoc-het-hoac-khong-gi. No noi duoc dong
+       nao thi noi dong do va tra ve mot cau ke ro: da noi may dong, may dong
+       khong qua kho nen khong can phieu, con may dong hang chua co phieu.
+       Nen hien dung cau do thay vi mot cau chung chung. */
+    var cau = r.loi_nhan || '';
+    if (r.da_ghi_so) {
+      toast('Đã nối phiếu và ghi sổ ' + name + (cau ? '. ' + cau : ''), 5000);
+    } else if ((r.con_lai || []).length) {
+      /* Con dong hang chua noi: phai noi ro chu khong toast roi troi qua. */
+      baoTin(cau + '\n\nMấy dòng còn lại:\n\n' + (r.con_lai || []).join('\n'));
+    } else {
+      toast((cau || 'Đã nối phiếu ' + name + '.') +
+        (kq.ghi_so_duoc ? ' Bấm "Khớp và ghi sổ" khi muốn ghi sổ.'
+                        : ' Tờ này đang chờ kế toán ghi sổ.'), 5000);
+    }
     if (r.da_ghi_so) { dcmPhieu = []; dcmSs = null; return go(scrDoiChieuMua, true); }
     go(function () { scrDcmXem(name); }, true);
   }
