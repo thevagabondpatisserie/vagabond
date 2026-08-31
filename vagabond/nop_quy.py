@@ -15,6 +15,20 @@ máy và số đếm đã bị bắt ở tầng CA kèm lý do rồi; tầng phi
 Trộn hai tầng là hết truy được lệch nằm ở khúc bán hàng hay khúc vận
 chuyển tiền.
 
+Hai đường lập phiếu, và vì sao phải có đường thứ hai
+-----------------------------------------------------
+Đường CA: gom các ca đã chốt. Đúng về lý thuyết nhưng ngày 30/08/2026 kiểm
+trên site thật thì bảng ca rỗng, không một ca nào, tức là ba điểm bán chưa
+ai mở ca chốt ca. Cả màn nộp quỹ vì thế chưa ai dùng được.
+
+Đường NGÀY: chọn điểm bán rồi chọn một ngày hoặc một khoảng ngày, máy đọc
+doanh thu TIỀN MẶT của điểm đó trong khoảng làm số kỳ vọng. Không cần ca.
+Đây là đường anh Việt đặt 30/08/2026 cho ba điểm bán dùng hằng ngày.
+
+Hai đường cùng đổ vào MỘT phiếu, một bảng kê mệnh giá, một cặp chữ ký, một
+biên bản. Ô `nguon_ky_vong` ghi phiếu này lấy kỳ vọng từ đâu, để sau này
+đọc lại còn biết con số kỳ vọng ấy tin được tới đâu.
+
 Chữ ký
 ------
 Ký tay trên màn hình, lưu thẳng ảnh nét ký (data URL) vào phiếu. Nút ký
@@ -54,6 +68,17 @@ MENH_GIA = (500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000)
 
 # Lệch bàn giao dưới mức này không bắt lý do, cùng ngưỡng với tầng ca.
 NGUONG_LECH = ca_quay.NGUONG_LECH
+
+# Phạm vi của một phiếu: gói gọn trong một ngày, hay trải một khoảng ngày.
+PV_NGAY = "Một ngày"
+PV_KHOANG = "Khoảng ngày"
+
+# Kỳ vọng của phiếu lấy từ đâu ra.
+NG_CA = "Ca đã chốt"
+NG_NGAY = "Doanh thu tiền mặt theo ngày"
+
+# Khoảng ngày dài quá thì gần như chắc chắn là gõ nhầm năm.
+TOI_DA_SO_NGAY = 62
 
 
 # ============================================================ phép THUẦN
@@ -121,6 +146,89 @@ def la_chu_ky(anh):
 	return a.startswith("data:image/png;base64,") or a.startswith("data:image/jpeg;base64,")
 
 
+def doc_ngay(gt):
+	"""Chuỗi ngày thành date. THUẦN. Không nhận rác, không đoán hộ."""
+	import datetime
+
+	if isinstance(gt, datetime.date):
+		return gt
+	t = str(gt or "").strip()[:10]
+	if not t:
+		raise ValueError("Thiếu ngày.")
+	try:
+		return datetime.date.fromisoformat(t)
+	except ValueError:
+		raise ValueError("Ngày %r không đọc được, cần dạng 2026-08-30." % t)
+
+
+def dem_ngay(tu, den):
+	"""Khoảng này gồm bao nhiêu ngày, tính cả hai đầu. THUẦN."""
+	return (doc_ngay(den) - doc_ngay(tu)).days + 1
+
+
+def chuan_khoang(pham_vi, tu_ngay, den_ngay=None):
+	"""Đưa lựa chọn của người dùng về (tu, den, so_ngay) sạch. THUẦN.
+
+	Phạm vi Một ngày thì bỏ qua ô đến ngày, lấy đúng ngày đó cho cả hai
+	đầu. Người dùng đổi ý giữa chừng vẫn còn giá trị cũ trong ô kia, tin
+	vào nó là lập phiếu trùm sang ngày không định nộp.
+	"""
+	pv = (pham_vi or PV_NGAY).strip() or PV_NGAY
+	if pv not in (PV_NGAY, PV_KHOANG):
+		raise ValueError("Phạm vi %r không có trong hệ." % pv)
+	tu = doc_ngay(tu_ngay)
+	den = tu if pv == PV_NGAY else doc_ngay(den_ngay)
+	if den < tu:
+		raise ValueError("Đến ngày (%s) sớm hơn từ ngày (%s)." % (den, tu))
+	n = dem_ngay(tu, den)
+	if n > TOI_DA_SO_NGAY:
+		raise ValueError(
+			"Khoảng %s ngày dài quá, tối đa %s ngày một phiếu. Kiểm lại năm "
+			"của hai ô ngày." % (n, TOI_DA_SO_NGAY))
+	return (str(tu), str(den), n)
+
+
+def trum_nhau(a1, a2, b1, b2):
+	"""Hai khoảng ngày có ngày nào chung không. THUẦN."""
+	return not (doc_ngay(a2) < doc_ngay(b1) or doc_ngay(b2) < doc_ngay(a1))
+
+
+def la_tien_mat(r, ten_tien_mat=None):
+	"""Bill này có tính vào tiền mặt của ngày không. THUẦN.
+
+	Bỏ bill đã huỷ và bill tạm tính, cùng một luật với `_doanh_thu_he_thong`
+	của tầng ca. Hai tầng đếm khác nhau là hai bên cãi nhau về một con số.
+	"""
+	d = r or {}
+	if cint(d.get("vgb_huy")) or cint(d.get("vgb_tam_tinh")):
+		return False
+	pt = (d.get("vgb_pt_thanh_toan") or "").strip()
+	return pt == (ten_tien_mat or ca_quay.TIEN_MAT)
+
+
+def gom_tien_mat(rows, ten_tien_mat=None):
+	"""Gom bill thành bảng tiền mặt từng ngày. THUẦN.
+
+	Trả (danh sách [{ngay, tien, so_bill}] xếp theo ngày, tổng tiền).
+	"""
+	theo = {}
+	for r in rows or []:
+		if not la_tien_mat(r, ten_tien_mat):
+			continue
+		ng = str((r or {}).get("posting_date") or "")[:10]
+		o = theo.setdefault(ng, {"ngay": ng, "tien": 0.0, "so_bill": 0})
+		o["tien"] += flt((r or {}).get("grand_total"))
+		o["so_bill"] += 1
+	ds = sorted(theo.values(), key=lambda d: d["ngay"])
+	return (ds, sum(d["tien"] for d in ds))
+
+
+def noi_dung_mac_dinh(ten_ngan):
+	"""Câu Nội dung nộp tiền gợi sẵn cho một điểm bán. THUẦN."""
+	t = (ten_ngan or "").strip()
+	return ("Nộp doanh thu %s" % t) if t else "Nộp doanh thu tiền mặt"
+
+
 # ========================================================= chạm vào hệ
 
 
@@ -146,6 +254,170 @@ def ca_cho_nop(tu_ngay=None, den_ngay=None):
 		limit_page_length=100,
 	)
 	return {"ds": ds}
+
+
+def _bill_tien_mat(diem, tu, den):
+	"""Bill của một điểm bán trong khoảng ngày. Nhập cho `gom_tien_mat`.
+
+	Nạp `ban_hang` ngay trong hàm chứ không ở đầu tệp: `ban_hang` mở đầu
+	bằng `import requests`, mà máy chạy CI của GitHub tay không. Nạp ở đầu
+	tệp là đỏ cả bộ kiểm thử tầng khung, đã xảy ra ngày 20/08/2026.
+	"""
+	from vagabond.ban_hang import _loc_diem_ban
+
+	loc = _loc_diem_ban(diem)
+	if loc is None:
+		frappe.throw("Không nhận ra điểm bán %r." % diem)
+	loc = dict(loc)
+	loc["posting_date"] = ["between", [tu, den]]
+	loc["docstatus"] = ["<", 2]
+	return frappe.get_all(
+		"Sales Invoice",
+		filters=loc,
+		fields=["name", "posting_date", "grand_total", "vgb_pt_thanh_toan",
+			"vgb_tam_tinh", "vgb_huy"],
+		limit_page_length=0,
+	)
+
+
+def _phieu_trum(diem, tu, den, bo_qua=None):
+	"""Phiếu nào của điểm này đã trùm lên khoảng ngày đang định nộp.
+
+	Nộp hai lần cùng một ngày là tiền trong sổ nhiều gấp đôi tiền có thật.
+	Chặn ở đây chứ không nhắc miệng.
+	"""
+	ds = frappe.get_all(
+		NQ,
+		filters={"diem_ban": diem, "tu_ngay": ["<=", den], "den_ngay": [">=", tu]},
+		fields=["name", "tu_ngay", "den_ngay", "trang_thai"],
+		limit_page_length=0,
+	)
+	return [d for d in ds if d.name != (bo_qua or "")]
+
+
+@frappe.whitelist()
+def doanh_thu_diem(diem=None, pham_vi=None, tu_ngay=None, den_ngay=None):
+	"""Doanh thu TIỀN MẶT của một điểm bán trong ngày hoặc khoảng ngày.
+
+	Màn lập phiếu gọi cửa này để bày số kỳ vọng ra trước khi thu ngân đếm
+	tờ. Chỉ đọc, không ghi gì.
+	"""
+	_kiem_quyen()
+	from vagabond import diem_ban as db
+
+	ds_diem = [
+		{"ma": d["ma"], "ten": d["ten"], "ten_ngan": d["ten_ngan"]}
+		for d in db.ds(chi_bat=True)
+	]
+	if not diem:
+		return {"diem": ds_diem, "chon": "", "theo_ngay": [], "tong_tien_mat": 0.0}
+
+	d = db.theo_ma(str(diem).strip().upper())
+	if not d:
+		frappe.throw("Không nhận ra điểm bán %r." % diem)
+	try:
+		tu, den, n = chuan_khoang(pham_vi, tu_ngay or nowdate(), den_ngay)
+	except ValueError as e:
+		frappe.throw(str(e))
+
+	theo_ngay, tong = gom_tien_mat(_bill_tien_mat(d["ma"], tu, den))
+	trum = _phieu_trum(d["ma"], tu, den)
+	return {
+		"diem": ds_diem,
+		"chon": d["ma"],
+		"ten_diem": d["ten"],
+		"ten_ngan": d["ten_ngan"],
+		"noi_giao_nhan": d["ten"],
+		"noi_dung": noi_dung_mac_dinh(d["ten_ngan"]),
+		"pham_vi": (pham_vi or PV_NGAY),
+		"tu_ngay": tu,
+		"den_ngay": den,
+		"so_ngay": n,
+		"theo_ngay": theo_ngay,
+		"tong_tien_mat": tong,
+		"phieu_trum": [
+			{"ma": x.name, "tu_ngay": str(x.tu_ngay), "den_ngay": str(x.den_ngay),
+				"trang_thai": x.trang_thai}
+			for x in trum
+		],
+	}
+
+
+@frappe.whitelist()
+def tao_theo_ngay(diem, bang_ke, pham_vi=None, tu_ngay=None, den_ngay=None,
+		ly_do_lech="", ghi_chu="", chu_ky_ben_giao="", anh_minh_chung="",
+		noi_dung="", noi_giao_nhan=""):
+	"""Lập phiếu nộp tiền theo ĐIỂM BÁN và NGÀY, không cần mở ca chốt ca.
+
+	Kỳ vọng lấy từ doanh thu tiền mặt của điểm trong khoảng ngày. Khác với
+	đường ca ở chỗ đó, còn lại giống hệt: cùng bảng kê mệnh giá, cùng luật
+	bắt lý do khi lệch, cùng cặp chữ ký, cùng biên bản.
+	"""
+	_kiem_quyen()
+	from vagabond import diem_ban as db
+
+	d = db.theo_ma(str(diem or "").strip().upper())
+	if not d:
+		frappe.throw("Chưa chọn điểm bán, hoặc điểm bán không có trong hệ.")
+	try:
+		tu, den, n = chuan_khoang(pham_vi, tu_ngay or nowdate(), den_ngay)
+		bang = doc_bang_ke(bang_ke)
+	except ValueError as e:
+		frappe.throw(str(e))
+
+	trum = _phieu_trum(d["ma"], tu, den)
+	if trum:
+		frappe.throw(
+			"Điểm %s đã có phiếu %s trùm lên khoảng %s tới %s. Nộp hai lần "
+			"cùng một ngày là tiền trong sổ nhiều gấp đôi tiền có thật. Mở "
+			"phiếu cũ ra xem trước." % (
+				d["ten_ngan"], trum[0].name, trum[0].tu_ngay, trum[0].den_ngay))
+
+	_, ky_vong = gom_tien_mat(_bill_tien_mat(d["ma"], tu, den))
+	thuc_nhan = tong_bang_ke(bang)
+	lech = thuc_nhan - ky_vong
+	if can_ly_do(lech) and not (ly_do_lech or "").strip():
+		return {
+			"can_ly_do": 1,
+			"ky_vong": ky_vong,
+			"thuc_nhan": thuc_nhan,
+			"lech": lech,
+			"nhac": "Thực nộp lệch %s đồng so với doanh thu tiền mặt %s tới %s. "
+				"Gõ lý do rồi lập lại." % (int(lech), tu, den),
+		}
+
+	co_ky = la_chu_ky(chu_ky_ben_giao)
+	doc = frappe.get_doc({
+		"doctype": NQ,
+		"ngay": nowdate(),
+		"trang_thai": TT_CHO_KY if co_ky else TT_NHAP,
+		"nguon_ky_vong": NG_NGAY,
+		"diem_ban": d["ma"],
+		"ten_diem_ban": d["ten"],
+		"pham_vi": PV_NGAY if n == 1 else PV_KHOANG,
+		"tu_ngay": tu,
+		"den_ngay": den,
+		"so_ngay": n,
+		"noi_dung": (noi_dung or "").strip() or noi_dung_mac_dinh(d["ten_ngan"]),
+		"noi_giao_nhan": (noi_giao_nhan or "").strip() or d["ten"],
+		"anh_minh_chung": (anh_minh_chung or "").strip(),
+		"nguoi_giao": frappe.session.user,
+		"ten_nguoi_giao": frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user,
+		"giao_luc": now_datetime() if co_ky else None,
+		"chu_ky_ben_giao": chu_ky_ben_giao if co_ky else "",
+		"tien_le_giu_lai": 0,
+		"tien_ky_vong": ky_vong,
+		"tong_thuc_nhan": thuc_nhan,
+		"lech": lech,
+		"ly_do_lech": (ly_do_lech or "").strip(),
+		"ghi_chu": (ghi_chu or "").strip(),
+	})
+	for x in bang:
+		doc.append("menh_gia", x)
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"ma": doc.name, "trang_thai": doc.trang_thai, "ky_vong": ky_vong,
+		"thuc_nhan": thuc_nhan, "lech": lech}
 
 
 @frappe.whitelist()
@@ -199,10 +471,20 @@ def tao(ds_ca, bang_ke, tien_le_giu_lai=0, ly_do_lech="", ghi_chu="", chu_ky_ben
 		}
 
 	co_ky = la_chu_ky(chu_ky_ben_giao)
+	# Khoảng ngày của phiếu ca lấy theo ngày của chính các ca, để hai đường
+	# lập phiếu cùng lọc được bằng một bộ lọc.
+	ngay_ca = sorted(str(d.ngay)[:10] for d in dong_ca if d.ngay)
+	tu_ca = ngay_ca[0] if ngay_ca else nowdate()
+	den_ca = ngay_ca[-1] if ngay_ca else nowdate()
 	doc = frappe.get_doc({
 		"doctype": NQ,
 		"ngay": nowdate(),
 		"trang_thai": TT_CHO_KY if co_ky else TT_NHAP,
+		"nguon_ky_vong": NG_CA,
+		"pham_vi": PV_NGAY if tu_ca == den_ca else PV_KHOANG,
+		"tu_ngay": tu_ca,
+		"den_ngay": den_ca,
+		"so_ngay": dem_ngay(tu_ca, den_ca),
 		"nguoi_giao": frappe.session.user,
 		"ten_nguoi_giao": frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user,
 		"giao_luc": now_datetime() if co_ky else None,
@@ -282,10 +564,18 @@ def _dong_danh_sach(d):
 		"nguoi_nhan": d.ten_nguoi_nhan or d.nguoi_nhan or "",
 		"tien_ky_vong": flt(d.tien_ky_vong), "tong_thuc_nhan": flt(d.tong_thuc_nhan),
 		"lech": flt(d.lech), "so_ca": cint(d.get("so_ca")),
+		"diem_ban": d.get("diem_ban") or "",
+		"ten_diem_ban": d.get("ten_diem_ban") or "",
+		"pham_vi": d.get("pham_vi") or "",
+		"tu_ngay": str(d.get("tu_ngay") or ""),
+		"den_ngay": str(d.get("den_ngay") or ""),
+		"so_ngay": cint(d.get("so_ngay")),
+		"nguon_ky_vong": d.get("nguon_ky_vong") or "",
 	}
 
 
-def _loc_danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim=""):
+def _loc_danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim="",
+		diem=None, chi_toi=0):
 	loc = {}
 	if trang_thai:
 		loc["trang_thai"] = trang_thai
@@ -293,18 +583,27 @@ def _loc_danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim=""):
 		loc["ngay"] = ["between", [tu_ngay, den_ngay]]
 	elif tu_ngay:
 		loc["ngay"] = [">=", tu_ngay]
+	if diem:
+		loc["diem_ban"] = str(diem).strip().upper()
+	# Nhân viên điểm bán chỉ cần thấy phiếu mình lập. Đây là bộ lọc cho gọn
+	# màn, KHÔNG phải hàng rào bảo mật: hàng rào nằm ở `_kiem_quyen`.
+	if cint(chi_toi):
+		loc["nguoi_giao"] = frappe.session.user
 	return loc
 
 
 @frappe.whitelist()
-def danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim="", so_dong=200):
+def danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim="", so_dong=200,
+		diem=None, chi_toi=0):
 	"""Danh sách phiếu nộp quỹ, kèm số đếm cho chip trạng thái."""
 	_kiem_quyen()
 	ds = frappe.get_all(
 		NQ,
-		filters=_loc_danh_sach(trang_thai, tu_ngay, den_ngay),
+		filters=_loc_danh_sach(trang_thai, tu_ngay, den_ngay, diem=diem, chi_toi=chi_toi),
 		fields=["name", "ngay", "trang_thai", "nguoi_giao", "ten_nguoi_giao",
-			"nguoi_nhan", "ten_nguoi_nhan", "tien_ky_vong", "tong_thuc_nhan", "lech"],
+			"nguoi_nhan", "ten_nguoi_nhan", "tien_ky_vong", "tong_thuc_nhan", "lech",
+			"diem_ban", "ten_diem_ban", "pham_vi", "tu_ngay", "den_ngay", "so_ngay",
+			"nguon_ky_vong"],
 		order_by="creation desc",
 		limit=cint(so_dong) or 200,
 	)
@@ -328,7 +627,7 @@ def danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim="", so_dong=200)
 	# Đếm chip trên TOÀN BỘ tập khớp ngày, không phải trang đang xem.
 	dem = {"": 0}
 	for r in frappe.get_all(
-		NQ, filters=_loc_danh_sach(None, tu_ngay, den_ngay),
+		NQ, filters=_loc_danh_sach(None, tu_ngay, den_ngay, diem=diem, chi_toi=chi_toi),
 		fields=["trang_thai"], limit_page_length=0,
 	):
 		dem[r.trang_thai] = dem.get(r.trang_thai, 0) + 1
@@ -345,6 +644,16 @@ def chi_tiet(ma):
 		"ma": doc.name,
 		"ngay": str(doc.ngay),
 		"trang_thai": doc.trang_thai,
+		"nguon_ky_vong": doc.get("nguon_ky_vong") or "",
+		"diem_ban": doc.get("diem_ban") or "",
+		"ten_diem_ban": doc.get("ten_diem_ban") or "",
+		"pham_vi": doc.get("pham_vi") or "",
+		"tu_ngay": str(doc.get("tu_ngay") or ""),
+		"den_ngay": str(doc.get("den_ngay") or ""),
+		"so_ngay": cint(doc.get("so_ngay")),
+		"noi_dung": doc.get("noi_dung") or "",
+		"noi_giao_nhan": doc.get("noi_giao_nhan") or "",
+		"anh_minh_chung": doc.get("anh_minh_chung") or "",
 		"nguoi_giao": doc.nguoi_giao,
 		"ten_nguoi_giao": doc.ten_nguoi_giao or doc.nguoi_giao,
 		"giao_luc": str(doc.giao_luc or ""),
@@ -374,11 +683,12 @@ def chi_tiet(ma):
 
 
 @frappe.whitelist()
-def xuat_excel(trang_thai="", tu_ngay=None, den_ngay=None, tim="", so_dong=500):
+def xuat_excel(trang_thai="", tu_ngay=None, den_ngay=None, tim="", so_dong=500,
+		diem=None, chi_toi=0):
 	"""Danh sách phiếu nộp quỹ ra Excel, đúng bộ lọc đang xem trên màn."""
 	_kiem_quyen()
 	kq = danh_sach(trang_thai=trang_thai, tu_ngay=tu_ngay, den_ngay=den_ngay,
-		tim=tim, so_dong=so_dong)
+		tim=tim, so_dong=so_dong, diem=diem, chi_toi=chi_toi)
 	rows = kq.get("ds") or []
 	bang = [
 		["PHIẾU NỘP QUỸ TIỀN MẶT"],
@@ -389,13 +699,17 @@ def xuat_excel(trang_thai="", tu_ngay=None, den_ngay=None, tim="", so_dong=500):
 			"Tổng thực nhận", sum(flt(r.get("tong_thuc_nhan")) for r in rows),
 			"Tổng lệch", sum(flt(r.get("lech")) for r in rows)],
 		[],
-		["Mã phiếu", "Ngày", "Trạng thái", "Số ca", "Bên giao", "Bên nhận",
-			"Tiền kỳ vọng", "Thực nhận", "Lệch"],
+		["Mã phiếu", "Ngày lập", "Điểm bán", "Doanh thu từ ngày", "Đến ngày",
+			"Số ngày", "Trạng thái", "Nguồn kỳ vọng", "Số ca", "Bên giao",
+			"Bên nhận", "Tiền kỳ vọng", "Thực nhận", "Lệch"],
 	]
 	for r in rows:
 		bang.append([
 			r.get("name") or "", r.get("ngay") or "",
-			r.get("trang_thai") or "", cint(r.get("so_ca")),
+			r.get("ten_diem_ban") or r.get("diem_ban") or "",
+			r.get("tu_ngay") or "", r.get("den_ngay") or "", cint(r.get("so_ngay")),
+			r.get("trang_thai") or "", r.get("nguon_ky_vong") or "",
+			cint(r.get("so_ca")),
 			r.get("nguoi_giao") or "", r.get("nguoi_nhan") or "",
 			flt(r.get("tien_ky_vong")), flt(r.get("tong_thuc_nhan")), flt(r.get("lech")),
 		])
@@ -504,6 +818,49 @@ def _html_bien_ban(d):
 			% (c["ca"], c["quay"], c["ngay"], _tien(c["tien_mat_dem"]))
 		)
 
+	# Khối giữa biên bản đổi theo nguồn kỳ vọng: phiếu theo ca thì kê ca,
+	# phiếu theo ngày thì kê điểm bán và khoảng ngày. Một biên bản mà kê
+	# bảng ca rỗng thì người đọc không biết số kỳ vọng ở đâu ra.
+	if (d.get("nguon_ky_vong") or "") == NG_NGAY:
+		nhan_ngay = (
+			"ngày %s" % _ngay_chu(d.get("tu_ngay"))
+			if str(d.get("tu_ngay") or "") == str(d.get("den_ngay") or "")
+			else "từ %s đến %s (%s ngày)" % (
+				_ngay_chu(d.get("tu_ngay")), _ngay_chu(d.get("den_ngay")),
+				cint(d.get("so_ngay")))
+		)
+		khoi_nguon = (
+			"<p style='margin:10px 0 4px'>Hai bên cùng kiểm đếm và bàn giao số "
+			"tiền mặt bán hàng tại <b>%s</b>, doanh thu %s.</p>"
+			"<p style='margin:6px 0'>Nội dung nộp tiền: <b>%s</b>. "
+			"Nơi giao nhận: <b>%s</b>.</p>"
+			"<p style='margin:6px 0'>Doanh thu tiền mặt theo hệ thống trong "
+			"kỳ: <b>%s đồng</b>.</p>"
+			% (
+				frappe.utils.escape_html(d.get("ten_diem_ban") or d.get("diem_ban") or ""),
+				nhan_ngay,
+				frappe.utils.escape_html(d.get("noi_dung") or ""),
+				frappe.utils.escape_html(d.get("noi_giao_nhan") or ""),
+				_tien(d.get("tien_ky_vong")),
+			)
+		)
+	else:
+		khoi_nguon = (
+			"<p style='margin:10px 0 4px'>Hai bên cùng kiểm đếm và bàn giao số "
+			"tiền mặt thu tại quầy theo các ca làm việc sau:</p>"
+			"<table style='width:100%%;border-collapse:collapse;margin:4px 0' "
+			"border='1' cellpadding='5'>"
+			"<tr style='background:#f2f2f2'><th>Mã ca</th><th>Quầy</th>"
+			"<th>Ngày</th><th>Tiền mặt đếm lúc chốt (đ)</th></tr>%s</table>"
+			"<p style='margin:6px 0'>Tiền lẻ để lại quầy cho ca sau: "
+			"<b>%s đồng</b>. Số tiền kỳ vọng bàn giao: <b>%s đồng</b>.</p>"
+			% (
+				dong_ca or "<tr><td colspan='4' style='text-align:center'>(không có ca)</td></tr>",
+				_tien(d.get("tien_le_giu_lai")),
+				_tien(d.get("tien_ky_vong")),
+			)
+		)
+
 	lech = flt(d.get("lech"))
 	khoi_lech = ""
 	if abs(lech) >= 1:
@@ -529,18 +886,11 @@ def _html_bien_ban(d):
 	</tr></table>
 	<p style="text-align:right;font-style:italic;margin:10px 0 0">Ngày %(ngay_chu)s</p>
 	<h2 style="text-align:center;margin:14px 0 4px;font-size:17px">BIÊN BẢN BÀN GIAO TIỀN MẶT</h2>
-	<p style="text-align:center;margin:0 0 12px;font-style:italic">(Kèm bảng kê mệnh giá và danh sách ca làm việc)</p>
+	<p style="text-align:center;margin:0 0 12px;font-style:italic">(Kèm bảng kê mệnh giá)</p>
 
 	<p style="margin:4px 0"><b>Bên giao (Bên A):</b> Ông/Bà %(ben_giao)s, đại diện cửa hàng.</p>
 	<p style="margin:4px 0"><b>Bên nhận (Bên B):</b> Ông/Bà %(ben_nhan)s, đại diện kế toán/quỹ.</p>
-	<p style="margin:10px 0 4px">Hai bên cùng kiểm đếm và bàn giao số tiền mặt thu tại quầy theo các ca làm việc sau:</p>
-
-	<table style="width:100%%;border-collapse:collapse;margin:4px 0" border="1" cellpadding="5">
-		<tr style="background:#f2f2f2"><th>Mã ca</th><th>Quầy</th><th>Ngày</th><th>Tiền mặt đếm lúc chốt (đ)</th></tr>
-		%(dong_ca)s
-	</table>
-	<p style="margin:6px 0">Tiền lẻ để lại quầy cho ca sau: <b>%(giu_lai)s đồng</b>.
-	Số tiền kỳ vọng bàn giao: <b>%(ky_vong)s đồng</b>.</p>
+	%(khoi_nguon)s
 
 	<p style="margin:10px 0 4px"><b>Bảng kê mệnh giá thực nhận:</b></p>
 	<table style="width:70%%;border-collapse:collapse;margin:4px 0" border="1" cellpadding="5">
@@ -568,8 +918,7 @@ def _html_bien_ban(d):
 		"ngay_chu": _ngay_chu(d.get("ngay") or ""),
 		"ben_giao": frappe.utils.escape_html(d.get("ten_nguoi_giao") or ""),
 		"ben_nhan": frappe.utils.escape_html(d.get("ten_nguoi_nhan") or "................................"),
-		"dong_ca": dong_ca or "<tr><td colspan='4' style='text-align:center'>(không có ca)</td></tr>",
-		"giu_lai": _tien(d.get("tien_le_giu_lai")),
+		"khoi_nguon": khoi_nguon,
 		"ky_vong": _tien(d.get("tien_ky_vong")),
 		"dong_mg": dong_mg or "<tr><td colspan='3' style='text-align:center'>(trống)</td></tr>",
 		"thuc_nhan": _tien(d.get("tong_thuc_nhan")),

@@ -194,3 +194,218 @@ def _():
 		"Một triệu hai trăm ba mươi bốn nghìn năm trăm sáu mươi bảy đồng")
 	la("mốt và lăm", nq.chu_so_tien(2125000),
 		"Hai triệu một trăm hai mươi lăm nghìn đồng")
+
+
+# =========== v351: bien nhan nop tien theo DIEM BAN va NGAY
+
+# Anh Viet dat 30/08/2026. Duong nay khong can mo ca chot ca, vi kiem tren
+# site that cung ngay thi bang ca RONG: ba diem ban chua ai mo ca, nen ca
+# man nop quy cu chua ai dung duoc.
+#
+# So lieu duoi day lay theo mau phieu Lark anh Viet gui: phieu
+# 202607290002, doanh thu ngay 28/07/2026 cua diem D1, 7 to 500k, 1 to
+# 50k, 1 to 20k, 1 to 10k, 1 to 5k, 2 to 2k, tong 3.589.000.
+
+LARK_BANG_KE = {"500000": 7, "50000": 1, "20000": 1, "10000": 1, "5000": 1, "2000": 2}
+
+
+@ca("biên nhận: bảng kê của phiếu Lark cộng đúng 3.589.000")
+def _():
+	bang = nq.doc_bang_ke(LARK_BANG_KE)
+	la("tổng thực nhận", nq.tong_bang_ke(bang), 3589000.0)
+	la("số dòng có tờ", len(bang), 6)
+	la("dòng đầu là mệnh giá lớn nhất", bang[0]["menh_gia"], 500000)
+	la("bảy tờ năm trăm", bang[0]["thanh_tien"], 3500000.0)
+
+
+@ca("biên nhận: mệnh giá lạ và số tờ âm bị chặn thẳng")
+def _():
+	for xau, mo_ta in ((({"300000": 1}), "mệnh giá không lưu hành"),
+			(({"500000": -2}), "số tờ âm")):
+		try:
+			nq.doc_bang_ke(xau)
+			dung("phải chặn %s" % mo_ta, False)
+		except ValueError:
+			dung("chặn %s" % mo_ta, True)
+
+
+@ca("biên nhận: đọc ngày chỉ nhận dạng chuẩn, không đoán hộ")
+def _():
+	la("ngày chuẩn", str(nq.doc_ngay("2026-07-28")), "2026-07-28")
+	la("cắt phần giờ", str(nq.doc_ngay("2026-07-28 15:09:00")), "2026-07-28")
+	for xau in ("", None, "28/07/2026", "hôm qua"):
+		try:
+			nq.doc_ngay(xau)
+			dung("phải chặn %r" % xau, False)
+		except ValueError:
+			dung("chặn %r" % xau, True)
+
+
+@ca("biên nhận: đếm ngày tính cả hai đầu")
+def _():
+	la("một ngày", nq.dem_ngay("2026-07-28", "2026-07-28"), 1)
+	la("một tuần", nq.dem_ngay("2026-07-28", "2026-08-03"), 7)
+	la("bắc qua tháng", nq.dem_ngay("2026-07-30", "2026-08-02"), 4)
+
+
+@ca("biên nhận: phạm vi Một ngày BỎ QUA ô đến ngày còn sót lại")
+def _():
+	# Nguoi dung chon Khoang ngay, go den ngay, roi doi y ve Mot ngay. Gia
+	# tri cu van nam trong o kia. Tin vao no la lap phieu trum sang ngay
+	# khong dinh nop, va ngay do coi nhu da nop.
+	la("một ngày bỏ qua đến ngày",
+		nq.chuan_khoang(nq.PV_NGAY, "2026-07-28", "2026-08-15"),
+		("2026-07-28", "2026-07-28", 1))
+	la("khoảng ngày thì dùng cả hai ô",
+		nq.chuan_khoang(nq.PV_KHOANG, "2026-07-28", "2026-07-30"),
+		("2026-07-28", "2026-07-30", 3))
+
+
+@ca("biên nhận: khoảng ngày ngược và khoảng dài quá đều bị chặn")
+def _():
+	try:
+		nq.chuan_khoang(nq.PV_KHOANG, "2026-07-30", "2026-07-28")
+		dung("phải chặn đến ngày sớm hơn từ ngày", False)
+	except ValueError:
+		dung("chặn đến ngày sớm hơn từ ngày", True)
+	try:
+		nq.chuan_khoang(nq.PV_KHOANG, "2025-07-28", "2026-07-28")
+		dung("phải chặn khoảng một năm", False)
+	except ValueError:
+		dung("chặn khoảng dài quá, gõ nhầm năm", True)
+	try:
+		nq.chuan_khoang("Cả tháng", "2026-07-28")
+		dung("phải chặn phạm vi lạ", False)
+	except ValueError:
+		dung("chặn phạm vi lạ", True)
+
+
+@ca("biên nhận: hai khoảng ngày trùm nhau thì nhận ra")
+def _():
+	dung("trùng khít", nq.trum_nhau("2026-07-28", "2026-07-28", "2026-07-28", "2026-07-28"))
+	dung("nằm trong", nq.trum_nhau("2026-07-27", "2026-07-30", "2026-07-28", "2026-07-28"))
+	dung("gối một đầu", nq.trum_nhau("2026-07-27", "2026-07-29", "2026-07-29", "2026-08-02"))
+	dung("liền kề mà không chạm", not nq.trum_nhau("2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30"))
+	dung("cách xa", not nq.trum_nhau("2026-07-01", "2026-07-02", "2026-08-01", "2026-08-02"))
+
+
+@ca("biên nhận: bill huỷ và bill tạm tính không được tính vào tiền mặt")
+def _():
+	dung("bill tiền mặt bình thường",
+		nq.la_tien_mat({"vgb_pt_thanh_toan": "Tiền mặt", "grand_total": 100000}))
+	dung("bill đã huỷ thì không",
+		not nq.la_tien_mat({"vgb_pt_thanh_toan": "Tiền mặt", "vgb_huy": 1}))
+	dung("bill tạm tính thì không",
+		not nq.la_tien_mat({"vgb_pt_thanh_toan": "Tiền mặt", "vgb_tam_tinh": 1}))
+	dung("chuyển khoản thì không",
+		not nq.la_tien_mat({"vgb_pt_thanh_toan": "Chuyển khoản"}))
+	dung("bill chưa ghi phương thức thì không",
+		not nq.la_tien_mat({}))
+
+
+@ca("biên nhận: gom tiền mặt theo ngày, xếp theo ngày và cộng đúng")
+def _():
+	rows = [
+		{"posting_date": "2026-07-29", "grand_total": 200000, "vgb_pt_thanh_toan": "Tiền mặt"},
+		{"posting_date": "2026-07-28", "grand_total": 3589000, "vgb_pt_thanh_toan": "Tiền mặt"},
+		{"posting_date": "2026-07-28", "grand_total": 900000, "vgb_pt_thanh_toan": "Chuyển khoản"},
+		{"posting_date": "2026-07-28", "grand_total": 500000, "vgb_pt_thanh_toan": "Tiền mặt", "vgb_huy": 1},
+	]
+	ds, tong = nq.gom_tien_mat(rows)
+	la("hai ngày có tiền mặt", len(ds), 2)
+	la("ngày cũ đứng trước", ds[0]["ngay"], "2026-07-28")
+	la("ngày 28 chỉ tính bill tiền mặt chưa huỷ", ds[0]["tien"], 3589000.0)
+	la("đếm đúng số bill", ds[0]["so_bill"], 1)
+	la("tổng hai ngày", tong, 3789000.0)
+	la("không có bill nào thì rỗng", nq.gom_tien_mat([]), ([], 0))
+
+
+@ca("biên nhận: ngưỡng bắt lý do lệch dùng chung với tầng ca")
+def _():
+	la("cùng một ngưỡng", nq.NGUONG_LECH, cq.NGUONG_LECH)
+	dung("lệch 1.000đ là phải có lý do", nq.can_ly_do(1000))
+	dung("lệch 999đ thì thôi", not nq.can_ly_do(999))
+	dung("lệch âm cũng tính", nq.can_ly_do(-2000))
+
+
+@ca("biên nhận: câu Nội dung nộp tiền gợi theo tên ngắn của điểm")
+def _():
+	la("có tên", nq.noi_dung_mac_dinh("District 1"), "Nộp doanh thu District 1")
+	la("trống thì có câu chung", nq.noi_dung_mac_dinh(""), "Nộp doanh thu tiền mặt")
+	la("None cũng vậy", nq.noi_dung_mac_dinh(None), "Nộp doanh thu tiền mặt")
+
+
+def _goc_app():
+	"""Thư mục gói `vagabond` trong cây mã nguồn. Dùng cho các ca đọc tệp."""
+	import os
+
+	return os.path.dirname(os.path.abspath(nq.__file__))
+
+
+@ca("biên nhận: hai cửa mới phải nạp ban_hang TRONG hàm, không ở đầu tệp")
+def _():
+	import io
+	import os
+
+	p = os.path.join(_goc_app(), "nop_quy.py")
+	c = io.open(p, encoding="utf-8").read()
+	dau = c.split("# ============================================================ phép THUẦN")[0]
+	# `ban_hang` mo dau bang `import requests`, may chay CI cua GitHub tay
+	# khong. Nap o dau tep la do ca bo kiem thu tang khung. Da xay ra
+	# ngay 20/08/2026 voi day chuyen nop_quy -> cong_no -> ban_hang.
+	dung("đầu tệp không nạp ban_hang", "ban_hang" not in dau)
+	dung("đầu tệp không nạp diem_ban", "import diem_ban" not in dau)
+	dung("có nạp ban_hang trong hàm", "from vagabond.ban_hang import _loc_diem_ban" in c)
+
+
+@ca("biên nhận: mọi mệnh giá trên màn phải khớp bảng của máy chủ")
+def _():
+	import io
+	import os
+
+	p = os.path.join(_goc_app(), "public", "js", "bep", "39-bien-nhan-tien.js")
+	c = io.open(p, encoding="utf-8").read()
+	# Man dem thieu mot menh gia la thu ngan khong go duoc so to cua menh
+	# gia do, va tien nop thieu di dung bay nhieu.
+	for mg in nq.MENH_GIA:
+		dung("màn có mệnh giá %s" % mg, str(mg) in c)
+	dung("không dùng dấu em dash", "—" not in c and "–" not in c)
+
+
+@ca("biên nhận: hai đường lập phiếu cùng ghi nguồn kỳ vọng")
+def _():
+	import io
+	import os
+
+	p = os.path.join(_goc_app(), "nop_quy.py")
+	c = io.open(p, encoding="utf-8").read()
+	# Doc lai mot phieu cu ma khong biet so ky vong tu dau ra thi khong
+	# biet tin no toi dau.
+	la("hai nguồn, không hơn", sorted([nq.NG_CA, nq.NG_NGAY]),
+		sorted(["Ca đã chốt", "Doanh thu tiền mặt theo ngày"]))
+	dung("đường ca ghi nguồn", '"nguon_ky_vong": NG_CA' in c)
+	dung("đường ngày ghi nguồn", '"nguon_ky_vong": NG_NGAY' in c)
+	dung("đường ngày chặn phiếu trùm", "_phieu_trum(" in c)
+
+
+@ca("biên nhận: ô trạng thái và phạm vi trên doctype khớp hằng số Python")
+def _():
+	import io
+	import json
+	import os
+
+	p = os.path.join(_goc_app(), "vagabond", "doctype", "vagabond_nop_quy",
+		"vagabond_nop_quy.json")
+	d = json.load(io.open(p, encoding="utf-8"))
+	o = {f["fieldname"]: f for f in d["fields"]}
+	# Frappe kiem gia tri o Select theo dung danh sach options. Lech mot
+	# dau thanh la ghi khong vao, ma loi chi lo luc co nguoi bam nut.
+	la("phạm vi", o["pham_vi"]["options"].split("\n"), [nq.PV_NGAY, nq.PV_KHOANG])
+	la("nguồn kỳ vọng", o["nguon_ky_vong"]["options"].split("\n"), [nq.NG_CA, nq.NG_NGAY])
+	la("trạng thái", o["trang_thai"]["options"].split("\n"),
+		[nq.TT_NHAP, nq.TT_CHO_KY, nq.TT_DA_NOP])
+	for t in ("diem_ban", "tu_ngay", "den_ngay", "so_ngay", "noi_dung",
+			"noi_giao_nhan", "anh_minh_chung"):
+		dung("doctype có ô %s" % t, t in o)
+	la("thứ tự ô khớp danh sách ô",
+		[f["fieldname"] for f in d["fields"]], d["field_order"])

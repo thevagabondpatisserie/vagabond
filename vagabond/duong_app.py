@@ -123,7 +123,9 @@ MAN = (
 	("CN", "Công nợ", None),
 	("CNPT", "Công nợ phải trả", None),
 	("HT", "Hoàn tiền", None),
-	("NQ", "Nộp quỹ", None),
+	# Slug "nop-quy" da chay that tu v228 nen giu nguyen, chi doi nhan.
+	("NQ", "Biên nhận nộp tiền mặt (kế toán)", "nop-quy"),
+	("BNTM", "Biên nhận nộp tiền mặt", None),
 	("HDMUA", "Hoá đơn mua", None),
 	("HDBAN", "Hoá đơn bán", None),
 	("DCM", "Đối chiếu mua", None),

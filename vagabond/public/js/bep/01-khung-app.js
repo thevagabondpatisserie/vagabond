@@ -368,6 +368,27 @@ function coQuyenMua() {
     || hasRole('Accounts Manager') || hasRole('Accounts User');
 }
 
+/* Ai duoc vao PHAN HE KE TOAN.
+
+   Anh Viet 30/08/2026: *"sao lai de cho nhan vien vao trong phan he ke
+   toan duoc co chu, phan he do em phai tat het cho nhan vien, chi ke
+   toan/thu mua/giam doc duoc truy cap"*.
+
+   Thu pham la dieu kien cu cua khoi Ke toan trong scrHome: no mo cho
+   `isSales()`, ma isSales() thi ca thu ngan cung co. Nen thu ngan nhin
+   thay Cong no phai tra, Tai san, But toan tay va Ho so thanh toan.
+
+   Day chi de AN O. Chan that nam o may chu: moi mo dun ke toan deu co
+   hang rao vai rieng (tai_san.QUYEN_XEM, but_toan.QUYEN_XEM,
+   cong_no._kiem_quyen, hoan_tien._kiem_quyen). An o ma khong co hang rao
+   thi goi thang API van lot. */
+function coQuyenKeToan() {
+  return hasRole('System Manager') || hasRole('Giám đốc')
+    || hasRole('Accounts Manager') || hasRole('Accounts User')
+    || hasRole('AP Kiểm soát (FIN)') || hasRole('AP Giám đốc')
+    || hasRole('Thu mua') || hasRole('Purchase Manager') || hasRole('Purchase User');
+}
+
 /* Ai duoc go dau huy mot phieu nhap. Khop voi QUYEN_HUY ben
    vagabond/chung_tu.py - o day chi de an nut, chan that nam o may chu. */
 function coQuyenHuy() {

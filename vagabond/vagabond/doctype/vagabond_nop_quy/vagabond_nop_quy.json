@@ -10,6 +10,18 @@
  "field_order": [
   "ngay",
   "trang_thai",
+  "sec_pv",
+  "nguon_ky_vong",
+  "diem_ban",
+  "ten_diem_ban",
+  "pham_vi",
+  "cb_pv",
+  "tu_ngay",
+  "den_ngay",
+  "so_ngay",
+  "noi_dung",
+  "noi_giao_nhan",
+  "anh_minh_chung",
   "cb0",
   "tien_le_giu_lai",
   "tien_ky_vong",
@@ -51,6 +63,77 @@
    "default": "Nháp",
    "in_list_view": 1,
    "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sec_pv",
+   "fieldtype": "Section Break",
+   "label": "Pham vi phieu"
+  },
+  {
+   "fieldname": "nguon_ky_vong",
+   "fieldtype": "Select",
+   "label": "Nguon ky vong",
+   "options": "Ca đã chốt\nDoanh thu tiền mặt theo ngày",
+   "read_only": 1
+  },
+  {
+   "fieldname": "diem_ban",
+   "fieldtype": "Data",
+   "label": "Diem ban",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_diem_ban",
+   "fieldtype": "Data",
+   "label": "Ten diem ban",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pham_vi",
+   "fieldtype": "Select",
+   "label": "Pham vi",
+   "options": "Một ngày\nKhoảng ngày",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_pv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tu_ngay",
+   "fieldtype": "Date",
+   "label": "Doanh thu tu ngay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "den_ngay",
+   "fieldtype": "Date",
+   "label": "Den ngay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_ngay",
+   "fieldtype": "Int",
+   "label": "Tong so ngay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Data",
+   "label": "Noi dung nop tien",
+   "read_only": 1
+  },
+  {
+   "fieldname": "noi_giao_nhan",
+   "fieldtype": "Data",
+   "label": "Noi giao nhan tien",
+   "read_only": 1
+  },
+  {
+   "fieldname": "anh_minh_chung",
+   "fieldtype": "Attach Image",
+   "label": "Hinh anh minh chung giao nhan tien"
   },
   {
    "fieldname": "cb0",
