@@ -132,7 +132,7 @@ async function scrHome() {
          mat dau, vi phan con lai nam ben Ke toan ma v355 da khoa phan he do
          lai. O nay la cua so CHI DOC mo ve phia Sales, kem nut tai uy nhiem
          chi de gui cho khach. */
-      card('💸', 'Phiếu hoàn đơn huỷ', 'Kế toán chi tới đâu, uỷ nhiệm chi tải về gửi khách', 0, 'PHHUY') +
+      card('💸', 'Danh sách phiếu hoàn tiền', 'Cập nhật danh sách phiếu hoàn đơn huỷ, phiếu hoàn tiền cho đơn hàng đã ghi sổ, tiền khách nộp thừa. Kế toán chi tới đâu hiện tới đó, uỷ nhiệm chi tải về gửi khách', 0, 'PHHUY') +
       /* Bien nhan nop tien mat (anh Viet 30/08/2026, theo mau ben Lark).
          Thu ngan ba diem ban dem so to, doi chieu doanh thu tien mat cua
          ngay, ky tay roi mang tien ve. O nay bay phieu CUA CHINH MINH;
@@ -929,7 +929,7 @@ var VGB_DUONG = {
   'phan-he-thu-mua': 'PH:TM',
   'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
-  'phieu-hoan-don-huy': 'PHHUY',
+  'phieu-hoan-tien': 'PHHUY',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
