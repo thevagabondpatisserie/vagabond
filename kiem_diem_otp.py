@@ -4372,6 +4372,15 @@ def _nap_ham_vcl43():
 		exec(compile(m.group(0), "viec_can_lam:%s" % ten, "exec"), mt, mt)
 	m = re.search(r"^MA_TRAN = \{.*?^\}", src, re.S | re.M)
 	exec(compile(m.group(0), "viec_can_lam:MA_TRAN", "exec"), mt, mt)
+	# Che do giam doc, them 31/08/2026. `thay_duoc` goi `la_giam_doc` nen
+	# phai nap ca ba thu do, khong thi ham nem NameError ngay dong dau.
+	for ten in ("VAI_GIAM_DOC_SIET",):
+		m = re.search(r"^%s = \{.*?\}" % re.escape(ten), src, re.S | re.M)
+		exec(compile(m.group(0), "viec_can_lam:%s" % ten, "exec"), mt, mt)
+	m = re.search(r"^VIEC_HE_TRONG = \(.*?\)", src, re.S | re.M)
+	exec(compile(m.group(0), "viec_can_lam:VIEC_HE_TRONG", "exec"), mt, mt)
+	m = re.search(r"^def la_giam_doc\(.*?(?=^def |\Z)", src, re.S | re.M)
+	exec(compile(m.group(0), "viec_can_lam:la_giam_doc", "exec"), mt, mt)
 	m = re.search(r"^def thay_duoc\(.*?(?=^def |\Z)", src, re.S | re.M)
 	exec(compile(m.group(0), "viec_can_lam:thay_duoc", "exec"), mt, mt)
 	return mt
@@ -4751,9 +4760,24 @@ la("thu mua thay yeu cau mua hang", H43_thay("ycmh", {"AP Officer"}), True)
 la("thu mua thay de nghi chi", H43_thay("de_nghi_chi", {"AP Officer"}), True)
 la("thu mua khong thay hoan tien khach", H43_thay("hoan_tien", {"Purchase User"}), False)
 
-# Giam doc thay het.
-for _l43 in ("chuyen_kho", "nhap_kho", "de_nghi_chi", "hoan_tien", "kiem_ke"):
-	la("giam doc thay %s" % _l43, H43_thay(_l43, {"AP Giám đốc"}), True)
+# CHE DO GIAM DOC, doi 31/08/2026. Anh Viet: *"hien 2 anh giam doc dang co
+# rat nhieu phieu can lam tu kho, thu mua,... em don het dum anh. Anh va anh
+# Son chi co nhu cau xem phieu duyet APP, duyet phieu nop quy tien mat, duyet
+# hang tang,... nhung viec he trong thoi."*
+#
+# Truoc doi nay giam doc thay HET moi loai. Nay chi con ba viec he trong.
+for _l43 in ("chuyen_kho", "nhap_kho", "de_nghi_chi", "hoan_tien", "kiem_ke",
+		"ycmh", "don_mua", "san_xuat", "xuat_kho", "tang_qua"):
+	la("giam doc KHONG con thay %s" % _l43, H43_thay(_l43, {"AP Giám đốc"}), False)
+for _l43 in ("ho_so_tt", "nop_quy", "hang_tang"):
+	la("giam doc van thay %s" % _l43, H43_thay(_l43, {"AP Giám đốc"}), True)
+# Vai cong don khong mo lai duong vong: sieu o DAU RA chu khong phai sua
+# tung dong ma tran.
+la("giam doc kiem thu kho van khong thay viec kho",
+   H43_thay("nhap_kho", {"AP Giám đốc", "Stock Manager"}), False)
+# System Manager la vai KY THUAT, KHONG bi siet.
+la("quan tri he thong van thay het",
+   H43_thay("nhap_kho", {"System Manager", "Stock Manager"}), True)
 
 # Nguoi khong vai gi thi khong thay gi ca.
 for _l43 in ("chuyen_kho", "nhap_kho", "de_nghi_chi", "hoan_tien"):
