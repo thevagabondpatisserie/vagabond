@@ -164,8 +164,12 @@ CUA_NGO = {
 	# hoan_tien. Xem `hoan_tien._lap_cap_phieu_huy_don`.
 	# `ds_phieu` va `xuat_excel_phieu`: man Phieu hoan don huy cho Sales,
 	# them 31/08/2026. Chi DOC ho so ben ke toan, khong sua gi.
-	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dong_bo", "ds", "ds_phieu",
-		"tao_hoan", "xem_hoan", "xuat_excel", "xuat_excel_phieu"],
+	# `dem_phieu_cho` cham do tren o Ban hang, `tim_don_de_hoan` man chon
+	# don de lap phieu hoan, them 31/08/2026. `tim_don_de_hoan` CHI TIM,
+	# viec lap van di qua ba cua cu cua hoan_tien.
+	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
+		"ds_phieu", "tao_hoan", "tim_don_de_hoan", "xem_hoan", "xuat_excel",
+		"xuat_excel_phieu"],
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate
 	# cua Work Order nen KHONG whitelist.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",

@@ -271,6 +271,26 @@ TRUONG_MOI = {
 			),
 		},
 		{
+			# Diem ban cua phieu. Suy tu quay tren hoa don goc luc lap, roi
+			# GHI LAI, khong tinh lai moi lan mo man.
+			#
+			# Vi sao phai ghi chu khong suy moi lan doc: hoa don la thu co
+			# the bi huy, bi thay the, hoac doi quay. Phieu hoan thi song
+			# lau hon the: no la ban ghi mot lan tien ra khoi cong ty. Con
+			# so cua mot cua hang khong duoc phep doi vi ai do dong vao to
+			# hoa don ba thang sau.
+			#
+			# Phieu cu chua co o nay thi man tu dien dan khi doc, khong chay
+			# lenh nao len du lieu qua khu (QT-11).
+			"fieldname": "diem_ban", "label": "Điểm bán",
+			"fieldtype": "Data", "insert_after": "ma_don_pancake",
+			"read_only": 1,
+			"description": (
+				"Suy từ quầy trên hoá đơn gốc lúc lập phiếu. Phiếu huỷ đơn "
+				"Pancake luôn thuộc Sales Online vì đơn Pancake không có quầy."
+			),
+		},
+		{
 			# Phiếu thu của luồng huỷ đơn Pancake. Luồng đó sinh HAI chân:
 			# một phiếu thu cho khoản khách đã chuyển vào, một phiếu chi trả
 			# lại. Ô `phieu_chi` sẵn có giữ chân ra, còn chân vào trước đây
@@ -463,6 +483,21 @@ TRUONG_MOI = {
 
 
 # ------------------------------------------------------------------ cai dat
+
+
+def _diem_cua_si(si):
+	"""Ma diem ban cua mot hoa don. Hong cau hinh thi tra rong chu khong doan.
+
+	Doan sai mot diem ban la lam lech so lieu cua ca mot cua hang, nen tha
+	de trong con hon dien bua mot ma nghe co ly.
+	"""
+	try:
+		from vagabond import diem_ban
+
+		return diem_ban.ma_theo_quay((si or {}).get("vgb_quay") or "")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: suy diem ban loi")
+		return ""
 
 
 def _cd():
@@ -790,6 +825,7 @@ def tao(
 		{
 			"doctype": DT,
 			"hoa_don": si.name,
+			"diem_ban": _diem_cua_si(si),
 			"khach": si.customer,
 			"so_tien": tien,
 			"ly_do": ly_do,
@@ -923,6 +959,7 @@ def tao_tien_du(
 	ho_so = frappe.get_doc({
 		"doctype": DT,
 		"hoa_don": si.name,
+		"diem_ban": _diem_cua_si(si),
 		"khach": si.customer,
 		"so_tien": tien,
 		"loai_hoan": LOAI_TIEN_DU,
@@ -1278,6 +1315,7 @@ def tao_huy_nhap(
 	ho_so = frappe.get_doc({
 		"doctype": DT,
 		"hoa_don": si.name,
+		"diem_ban": _diem_cua_si(si),
 		"khach": si.customer,
 		"so_tien": tien,
 		"loai_hoan": LOAI_HUY_NHAP,

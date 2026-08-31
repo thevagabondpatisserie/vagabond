@@ -103,7 +103,13 @@ async function scrHome() {
   html += '<div class="sec">Kiểm kê</div><div class="card">' +
     card('\ud83d\udccb', 'Kiểm kê kho', 'Quét mã, đếm hàng thực tế trong kho', kkn, 'KK') + '</div>';
   if (isSales()) {
-    var dsn = 0, dtn = 0;
+    var dsn = 0, dtn = 0, phCho = 0, phTreo = 0;
+    /* So badge lay tu MAY CHU, khong dem o day: man hinh chi duoc HIEN so,
+       khong duoc tu tinh so. Cung nguyen tac voi badge o Ke toan. */
+    try {
+      var pc = await api('vagabond.don_huy.dem_phieu_cho', {});
+      phCho = pc.cho_chi || 0; phTreo = pc.treo || 0;
+    } catch (e) { }
     try { dsn = (await getList('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
     try {
       dtn = (await getList('Sales Invoice', {
@@ -132,7 +138,10 @@ async function scrHome() {
          mat dau, vi phan con lai nam ben Ke toan ma v355 da khoa phan he do
          lai. O nay la cua so CHI DOC mo ve phia Sales, kem nut tai uy nhiem
          chi de gui cho khach. */
-      card('💸', 'Phiếu hoàn đơn huỷ', 'Kế toán chi tới đâu, uỷ nhiệm chi tải về gửi khách', 0, 'PHHUY') +
+      card('💸', 'Danh sách phiếu hoàn tiền',
+        'Cập nhật danh sách phiếu hoàn đơn huỷ, phiếu hoàn tiền cho đơn hàng đã ghi sổ, tiền khách nộp thừa. Kế toán chi tới đâu hiện tới đó, uỷ nhiệm chi tải về gửi khách' +
+        (phTreo ? ' ⚠️ ' + phTreo + ' phiếu treo quá lâu, tiền khách vẫn ở tiệm.' : ''),
+        phCho, 'PHHUY') +
       /* Bien nhan nop tien mat (anh Viet 30/08/2026, theo mau ben Lark).
          Thu ngan ba diem ban dem so to, doi chieu doanh thu tien mat cua
          ngay, ky tay roi mang tien ve. O nay bay phieu CUA CHINH MINH;
@@ -929,7 +938,7 @@ var VGB_DUONG = {
   'phan-he-thu-mua': 'PH:TM',
   'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
-  'phieu-hoan-don-huy': 'PHHUY',
+  'phieu-hoan-tien': 'PHHUY',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',

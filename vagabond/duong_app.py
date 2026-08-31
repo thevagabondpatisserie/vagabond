@@ -107,7 +107,7 @@ MAN = (
 	# --- Bán hàng và đơn khách
 	("DTREO", "Đơn còn treo", None),
 	("DHUY", "Đơn đã huỷ", None),
-	("PHHUY", "Phiếu hoàn đơn huỷ", None),
+	("PHHUY", "Danh sách phiếu hoàn tiền", "phieu-hoan-tien"),
 	("VD", "Vận đơn", None),
 	("CPX", "Chi phí vận đơn", None),
 	("DSCOD", "Đối soát COD", None),
