@@ -1336,3 +1336,69 @@ def gan_ma_hang(name, dong, item_code, nho=1):
 			if (dvt_ncc and not dvt_mua.cung_don_vi(dvt_ncc, dung_uom)
 				and abs(he_so_moi - 1.0) < 1e-9) else ""),
 	}
+
+
+@frappe.whitelist()
+def ghi_so_thang(name):
+	"""Ghi so mot to hoa don KHONG noi phieu nhap nao.
+
+	CHI DUNG MAT NUT GHI SO (anh Viet bao 31/08/2026)
+	--------------------------------------------------------------------
+	*"Ben chi Dung noi bong bi mat nut ghi so hoa don du truoc day co."*
+
+	Khong phai bong nhien, va khong phai xung dot ban. Man Doi chieu chi ve
+	KHOI NUT khi tim ra it nhat mot phieu nhap goi y:
+
+	    if (kq.lam_duoc && gy.length) { ... }
+
+	Cau do co tu lan tach tep, truoc ban v362. To nao khong co phieu nhap
+	nao de goi y thi ca cum nut bien mat, ke ca nut ghi so. Ke toan mo to
+	ra, doc cau "nho ke toan ghi so thang to nay", roi khong tim thay nut
+	nao de lam viec do.
+
+	Ngay 31/08 nhom "Khong thay phieu nhap nao" co 618 to. Nghia la chi Dung
+	gap dung cai ngo cut nay 618 lan. Va phan lon so do la hoa don KHONG BAO
+	GIO co phieu nhap: xang dau, Grab, phi dich vu. Chung khong phai hang ton
+	kho nen khong co gi de noi ca.
+
+	HANG RAO VAN CON, VA DUNG CHO
+	--------------------------------------------------------------------
+	Ghi so thang khong co nghia la ghi bua. Dong HANG THAT ma khong co phieu
+	nhap thi gia von sai, nen van chan. Chi tha nhung dong khong qua kho -
+	dung phep xet `_khong_qua_kho` ma buoc noi phieu dang dung, de hai cho
+	khong bao gio xu khac nhau (QT-19).
+	"""
+	_kiem_quyen()
+	if not _ghi_so_duoc():
+		frappe.throw(
+			"Chỉ kế toán mới ghi sổ hoá đơn mua được. Nhờ kế toán ghi sổ giúp tờ này."
+		)
+
+	doc = frappe.get_doc("Purchase Invoice", name)
+	if doc.docstatus != 0:
+		frappe.throw("Hoá đơn %s không còn ở dạng nháp." % name)
+
+	# Dong hang that ma chua noi phieu: chan. Dong dich vu, phi ship, van
+	# phong pham thi cho di.
+	ket = []
+	for d in doc.items:
+		if (d.get("purchase_receipt") or "").strip():
+			continue
+		if _khong_qua_kho(d.get("item_code")):
+			continue
+		ket.append(
+			"Dòng %d: món %s là hàng qua kho mà chưa nối phiếu nhập. Nối phiếu "
+			"trước rồi ghi sổ, ghi sổ luôn thì giá vốn sai."
+			% (d.idx, d.item_name or d.item_code)
+		)
+	if ket:
+		frappe.throw("Chưa ghi sổ thẳng được:\n\n" + "\n".join(ket))
+
+	doc.flags.ignore_permissions = True
+	doc.submit()
+	frappe.db.commit()
+	return {
+		"name": doc.name, "da_ghi_so": 1, "trang_thai": doc.status,
+		"loi_nhan": "Đã ghi sổ tờ %s. Tờ này không có dòng hàng qua kho nên "
+		"không cần nối phiếu nhập." % doc.name,
+	}
