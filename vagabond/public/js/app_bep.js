@@ -12609,9 +12609,42 @@ async function scrPosBill(name) {
   }
 
   /* ----- thanh toan ----- */
-  var choChon = suaMo || (nhap && tamTinh); /* tam tinh la nghiep vu chot binh thuong */
+  /* KHI NAO CHO CHON PHUONG THUC THANH TOAN
+     ---------------------------------------
+     Chi Loan Anh bao 31/08/2026, anh Việt chuyển lại: bấm vào đơn trong
+     danh sách thì KHÔNG có ô chọn phương thức thanh toán, phải đi vòng qua
+     ô tìm kiếm mới cập nhật được. Đơn 92243 của Ms.Tâm là ca thật.
+
+     Gốc: điều kiện cũ chỉ mở ô chọn cho bill TẠM TÍNH. Đơn Pancake đồng bộ
+     về là bill nháp thường, không phải tạm tính, nên rơi vào nhánh KHOÁ và
+     màn bảo "bấm Sửa hoá đơn rồi nhập mã OTP của quản lý ca". Trong khi đó
+     màn Chi tiết đơn mở từ ô tìm thì luôn cho chọn. Cùng một tờ hoá đơn,
+     hai màn nói hai kiểu, và kiểu chặt hơn lại nằm đúng trên đường mà thu
+     ngân đi hàng ngày.
+
+     Nay: đơn CHƯA GHI SỔ mà CHƯA CÓ phương thức thanh toán thì cho chọn tự
+     do, không cần OTP. Đây là điền vào chỗ TRỐNG, bắt buộc phải điền trước
+     khi ghi sổ, chứ không phải sửa một con số đã thu của khách. Chính máy
+     chủ cũng đang nghĩ vậy: `ban_hang.pos_chot` ghi rõ "chọn phương thức
+     thanh toán vẫn tự do, đó là nghiệp vụ bình thường, không dính gì đến
+     tiền của bill". Hàng rào OTP nằm ở front-end chứ máy chủ chưa bao giờ
+     đòi. Nghĩa là suốt thời gian qua nó chỉ chặn người làm thật.
+
+     Đơn đã CÓ phương thức rồi mà muốn ĐỔI thì vẫn phải qua Sửa hoá đơn và
+     OTP như cũ: lúc đó là đụng vào tiền đã thu, khác hẳn. */
+  var chuaCoPt = nhap && !d.vgb_pt_thanh_toan && !d.vgb_huy;
+  var choChon = suaMo || (nhap && tamTinh) || chuaCoPt;
   var PB_PT = suaMo ? (posSua.pt || d.vgb_pt_thanh_toan || '') : (d.vgb_pt_thanh_toan || '');
-  html += '<div class="sec">' + (tamTinh && nhap && !suaMo ? 'Khách thanh toán bằng gì?' : 'Thanh toán') + '</div>';
+  html += '<div class="sec">' + (nhap && !suaMo && (tamTinh || chuaCoPt)
+    ? 'Khách thanh toán bằng gì?' : 'Thanh toán') + '</div>';
+  /* Noi thang la con thieu gi, dung de thu ngan tu doan. Cau nay chi hien
+     dung ca don nhap chua co phuong thuc. */
+  if (chuaCoPt && !suaMo) {
+    html += '<div style="margin:0 0 8px;padding:8px 11px;background:#fffbeb;' +
+      'border:1px solid #fde68a;border-radius:9px;font-size:12.5px;color:#92400e;' +
+      'line-height:1.55">Đơn này <b>chưa chọn phương thức thanh toán</b>. Chọn ' +
+      'giúp rồi bấm Lưu, hoặc chọn xong ghi sổ luôn. Không cần mã OTP.</div>';
+  }
   if (choChon) {
     html += '<div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
       '<div id="pbPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, PB_PT) + '</div>' +
@@ -12661,6 +12694,14 @@ async function scrPosBill(name) {
         ? '<div style="display:flex;gap:8px;margin-top:8px">' +
           (posCoNuoc(d.items || []) ? '<button class="btn gh" id="pbPhieuMon" style="flex:1;margin:0">🧾 In phiếu làm món</button>' : '') +
           '<button class="btn gh" id="pbTemLy" style="flex:1;margin:0">🏷 In tem món</button></div>'
+        : '') +
+      /* Dien phuong thuc thanh toan roi de do, chua ghi so ngay: don
+         Pancake ve app truoc khi khach chuyen tien la ca hang ngay. Khong
+         co nut nay thi thu ngan buoc phai bam Ghi so mot the, ma ghi so la
+         chot doanh thu - hai viec khac han. */
+      (chuaCoPt && !tamTinh
+        ? '<button class="btn" id="pbLuuPt" style="margin-top:8px;width:100%">' +
+          '💾 Lưu phương thức thanh toán</button>'
         : '') +
       '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="pbSua" style="flex:1;margin:0">✏️ Sửa hoá đơn</button>' +
@@ -12741,6 +12782,23 @@ async function scrPosBill(name) {
     var ok = await confirmSheet('Chốt hoá đơn ' + money(d.grand_total) + ' đ - ' + (PB_PT || 'chưa chọn'),
       'Khách đã thanh toán xong? Chốt xong hoá đơn thành doanh thu, ghi sổ được ngay.', 'Khách đã trả, chốt hoá đơn');
     if (ok) luuVe(false);
+  };
+  /* Luu phuong thuc thanh toan MA KHONG ghi so. Di qua dung cua cu
+     `pos_chot`, khong mo cua moi cho tien. */
+  var nlp = document.getElementById('pbLuuPt');
+  if (nlp) nlp.onclick = async function () {
+    if (!PB_PT) return toast('Chọn phương thức thanh toán trước.');
+    busy(true);
+    try {
+      await api('vagabond.ban_hang.pos_chot', {
+        name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'),
+        ghi_chu: docO('pbGhiChu'),
+      });
+      busy(false);
+      toast('Đã lưu phương thức thanh toán: ' + PB_PT);
+      posHomNayTxt = null;
+      go(function () { scrPosBill(name); }, true);
+    } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 5000); }
   };
   var ng = document.getElementById('pbGhiSo');
   if (ng) ng.onclick = async function () {
@@ -19005,7 +19063,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '366';
+var APPVER = '367';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -40419,6 +40477,28 @@ function phHangChip(thuoc, dsc, dem, chon, nhan_tat_ca) {
   return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
 
+/* Một hàng nhãn nhỏ. Mỗi nhãn KHÔNG được gãy giữa chừng.
+
+   Lỗi anh Việt bắt được 31/08/2026 trên điện thoại: nhãn "Có uỷ nhiệm chi"
+   bị bẻ làm hai dòng, chữ "chi" rơi xuống dòng dưới nằm một mình. Gốc là
+   các nhãn nằm trong một khối chữ thường, nên trình duyệt ngắt dòng theo
+   TỪ chứ không theo nhãn.
+
+   Hai thứ phải có: khối bọc là flex có `flex-wrap` để nhãn xuống dòng
+   nguyên khối, và mỗi nhãn `white-space:nowrap` để không bao giờ gãy ruột.
+   Màn hình điện thoại hẹp nên đây không phải ca hiếm, gần như dòng nào
+   cũng dính. */
+function phNhanHang(cac) {
+  var s = '<div class="h2" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">';
+  (cac || []).forEach(function (o) {
+    if (!o) return;
+    s += '<span style="background:' + o[1] + ';border:1px solid ' + o[2] + ';color:' + o[3] +
+      ';border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap;' +
+      'display:inline-block;line-height:1.5">' + h(o[0]) + '</span>';
+  });
+  return s + '</div>';
+}
+
 /* Dây chuyền bốn bước, vẽ thành bốn chấm nối nhau. Cách nói này trả lời
    đúng câu khách hỏi, mà một dòng trạng thái đơn lẻ thì không: trạng thái
    nhảy sang "Đã chi" ngay lúc kế toán ghi sổ, nhưng thứ khách muốn là cái
@@ -40503,17 +40583,12 @@ async function scrPhieuHoanHuy() {
       (r.treo_lau ? ' <b style="color:#b3261e">Treo ' + r.treo_ngay + ' ngày rồi.</b>' : '') +
       '</div>' +
       phDay(r, buoc) +
-      '<div class="h2" style="margin-top:6px">' +
-      '<span style="background:' + m[0] + ';border:1px solid ' + m[1] + ';color:' + m[2] +
-      ';border-radius:20px;padding:1px 9px;font-size:11.5px">' + h(r.nhan_trang_thai) + '</span>' +
-      ' <span style="background:#f8fafc;border:1px solid #e2e8f0;color:#475467;' +
-      'border-radius:20px;padding:1px 9px;font-size:11.5px">' + h(r.nhan_loai) + '</span>' +
-      ' <span style="background:#f8fafc;border:1px solid #e2e8f0;color:#475467;' +
-      'border-radius:20px;padding:1px 9px;font-size:11.5px">' +
-      h(ten_diem[r.diem_ban] || 'Chưa rõ điểm bán') + '</span>' +
-      (r.co_unc ? ' <span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;' +
-        'border-radius:20px;padding:1px 9px;font-size:11.5px">Có uỷ nhiệm chi</span>' : '') +
-      '</div>' + (mo ? phChiTiet(r) : '') + '</div>' +
+      phNhanHang([
+        [r.nhan_trang_thai, m[0], m[1], m[2]],
+        [r.nhan_loai, '#f8fafc', '#e2e8f0', '#475467'],
+        [ten_diem[r.diem_ban] || 'Chưa rõ điểm bán', '#f8fafc', '#e2e8f0', '#475467'],
+        r.co_unc ? ['Có uỷ nhiệm chi', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
+      ]) + (mo ? phChiTiet(r) : '') + '</div>' +
       '<div style="text-align:right;white-space:nowrap">' +
       '<b style="font-size:13.5px">' + money(r.so_tien) + '</b>' +
       '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>';
