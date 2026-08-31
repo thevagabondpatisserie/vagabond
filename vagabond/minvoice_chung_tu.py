@@ -106,6 +106,10 @@ LOAI_RA = "Đầu ra"
 # Trạng thái mà hoá đơn KHÔNG cần thành chứng từ nữa.
 TT_KHOI_DUNG = ("Bị thay thế", "Đã huỷ")
 
+# Chuông báo tắc nhịp gửi về hộp thư kế toán, vì việc phải làm khi nghe
+# chuông là việc của kế toán chứ không phải của người viết mã.
+EMAIL_KE_TOAN = "account@thevagabondpatisserie.com"
+
 # Lệch tới bao nhiêu đồng thì coi như khớp, khỏi nắn.
 #
 # Một đồng là ngưỡng của cổng chặn ghi sổ và đúng là phải thế. Ở đây nắn
@@ -592,18 +596,42 @@ def _tim_ncc(mst, ten):
 			sup = frappe.db.get_value("Supplier", {"tax_id": ["like", goc + "%"]}, "name")
 	if not sup and ten:
 		sup = frappe.db.get_value("Supplier", {"supplier_name": ten.strip()}, "name")
+	# TÊN ĐÃ BỊ CẮT CÒN 140 (ca thật 31/08/2026)
+	#
+	# Ô `supplier_name` chỉ chứa 140 ký tự, mà tên trên hoá đơn điện tử thì
+	# dài hơn: "CHI NHÁNH CÔNG TY TNHH LUCA..." bị cắt cụt lúc dựng lần đầu.
+	# Lượt sau tra bằng tên ĐẦY ĐỦ nên không thấy, hệ đi dựng nhà cung cấp
+	# mới, và cơ sở dữ liệu ném Duplicate entry vì khoá chính trùng.
+	#
+	# Tra thêm một nhịp bằng đúng cái tên đã cắt trước khi kết luận là chưa
+	# có. Cùng một nhà cung cấp mà đẻ ra hai bản ghi còn tệ hơn báo lỗi.
+	ten_cat = (ten or ("NCC " + mst))[:140].strip()
+	if not sup and ten_cat:
+		sup = frappe.db.get_value("Supplier", {"supplier_name": ten_cat}, "name")
+	if not sup and ten_cat and frappe.db.exists("Supplier", ten_cat):
+		sup = ten_cat
 	if sup:
 		return sup, goc
 	s = frappe.get_doc({
 		"doctype": "Supplier",
-		"supplier_name": (ten or ("NCC " + mst))[:140],
+		"supplier_name": ten_cat,
 		"supplier_group": "Công ty (NCC)",
 		"supplier_type": "Company",
 		"country": "Vietnam",
 	})
 	if mst:
 		s.tax_id = mst
-	s.insert(ignore_permissions=True)
+	try:
+		s.insert(ignore_permissions=True)
+	except Exception:
+		# Vẫn trùng thì nghĩa là có sẵn một bản ghi mang đúng tên đó, chỉ là
+		# ba nhịp tra ở trên không soi ra (khác dấu cách, khác hoa thường).
+		# Lùi lại lấy bản ghi có sẵn chứ đừng làm chết cả tờ hoá đơn.
+		frappe.db.rollback()
+		sup = frappe.db.get_value("Supplier", {"supplier_name": ten_cat}, "name")
+		if not sup:
+			raise
+		return sup, goc
 	return s.name, goc
 
 
@@ -817,6 +845,48 @@ def _mot_to(r):
 		return (0, rut_gon_loi(e))
 
 
+# Lý do bỏ qua được coi là HỢP LỆ, không phải hỏng. Tách hẳn ra hằng số vì
+# ngày 31/08/2026 lượt chạy tay báo "173 con_hong" trong khi cả 173 tờ đều
+# là đầu ra Fabi, tức là không có gì hỏng cả. Con số báo động sai còn nguy
+# hơn không báo: nhìn quen rồi thì tới lúc hỏng thật cũng không ai giật mình.
+LY_DO_BO_QUA_HOP_LE = ("khoi_dung", "da_co", "dau_ra_fabi")
+
+# Mỗi lượt đóng dấu tối đa bao nhiêu tờ đầu ra. Đóng dấu chỉ là một câu
+# UPDATE nên nhẹ hơn dựng chứng từ rất nhiều, cho phép nhiều hơn MOI_LUOT.
+DAU_RA_MOI_LUOT = 2000
+
+
+def _dong_dau_ra(gioi_han=None):
+	"""Đóng dấu hàng loạt hoá đơn ĐẦU RA, chúng không cần chứng từ.
+
+	VÌ SAO PHẢI TÁCH RA MỘT ĐƯỜNG RIÊNG (31/08/2026)
+	------------------------------------------------
+	Đầu ra bán lẻ do Fabi xuất, hệ không dựng chứng từ cho chúng (anh Việt
+	chốt 26/08/2026). Nhưng bản trước vẫn thả chúng vào CÙNG hàng đợi với
+	đầu vào, mỗi tờ ăn một chỗ trong 200 chỗ của một lượt.
+
+	Ngày 31/08/2026 đếm được 3.907 tờ đầu ra đứng xếp hàng. Với nhịp 200 tờ
+	một lượt thì một hoá đơn MUA mới về phải chờ gần hai mươi lượt mới tới
+	lượt mình, trong khi việc duy nhất cần làm với 3.907 tờ kia là đặt một
+	con số 1 vào một ô.
+
+	Nên: quét chúng bằng một đường riêng, đóng dấu hàng loạt, và hàng đợi
+	dựng chứng từ ở dưới chỉ còn ĐẦU VÀO. Hai việc khác hẳn nhau về giá,
+	gộp chung một hàng đợi là để việc rẻ chặn đường việc đắt.
+	"""
+	ds = frappe.get_all(
+		DT_HD,
+		filters={"da_tao_chung_tu": 0, "loai": LOAI_RA},
+		pluck="name",
+		limit_page_length=cint(gioi_han) or DAU_RA_MOI_LUOT,
+	)
+	for ma in ds:
+		_ghi_xong(ma, "Hoá đơn đầu ra do Fabi xuất, hệ không dựng chứng từ.")
+	if ds:
+		frappe.db.commit()
+	return len(ds)
+
+
 def _chay(tu_ngay=None, den_ngay=None, gioi_han=None):
 	"""Dựng chứng từ cho các tờ chưa xong. Trả về số đếm."""
 	den_ngay = den_ngay or nowdate()
@@ -824,11 +894,15 @@ def _chay(tu_ngay=None, den_ngay=None, gioi_han=None):
 	# thì vĩnh viễn không ai dựng và cũng không ai đếm. Hàng đợi đã xếp theo
 	# số lần thử nên tờ hỏng không chiếm chỗ, mở rộng ra là an toàn.
 	tu_ngay = tu_ngay or NGAY_BAT_DAU
+	dau_ra = _dong_dau_ra()
 	ds = frappe.get_all(
 		DT_HD,
 		filters={
 			"ngay_lap": ["between", [tu_ngay, den_ngay]],
 			"da_tao_chung_tu": 0,
+			# CHỈ ĐẦU VÀO. Xem `_dong_dau_ra` ở trên để biết vì sao đầu ra
+			# không được đứng chung hàng đợi này.
+			"loai": LOAI_VAO,
 		},
 		fields=["name", "loai", "so_hd", "ky_hieu", "ngay_lap",
 			"nguoi_mua_ban", "mst_doi_tac", "tien_truoc_thue", "tien_thue",
@@ -843,12 +917,13 @@ def _chay(tu_ngay=None, den_ngay=None, gioi_han=None):
 		ok, ghi_chu = _mot_to(r)
 		if ok:
 			dung += 1
-		elif ghi_chu in ("khoi_dung", "da_co"):
+		elif ghi_chu in LY_DO_BO_QUA_HOP_LE:
 			bo += 1
 		else:
 			hong.append([r.get("loai"), r.get("so_hd"), ghi_chu])
 		frappe.db.commit()
 	return {"quet": len(ds), "da_dung": dung, "bo_qua_hop_le": bo,
+		"dau_ra_dong_dau": dau_ra,
 		"con_hong": len(hong), "vi_du_hong": hong[:8],
 		"tu_ngay": str(tu_ngay), "den_ngay": str(den_ngay)}
 
@@ -861,7 +936,12 @@ def chay_bu(tu_ngay=None, den_ngay=None, gioi_han=None):
 
 
 def chay_tu_dong():
-	"""Điểm gọi của bộ lập lịch. Không ném lỗi ra ngoài."""
+	"""Điểm gọi của bộ lập lịch. Không ném lỗi ra ngoài.
+
+	PHẢI CÓ TÊN NÀY TRONG `hooks.py`. Xem ca kiểm "nhip tu dong da khai
+	trong hooks" ở khung/kiem_thu/thu_minvoice_chung_tu.py để biết vì sao
+	có một ca kiểm chỉ để canh đúng một dòng khai báo.
+	"""
 	try:
 		if not frappe.db.exists("DocType", DT_HD):
 			return
@@ -869,3 +949,120 @@ def chay_tu_dong():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 			"minvoice_chung_tu: nhip tu dong vo loi")
+
+
+# ------------------------------------------------- nút bấm tay và chuông báo
+
+
+@frappe.whitelist()
+def dong_bo_ngay(so_ngay=None):
+	"""Kéo hoá đơn từ M-Invoice rồi dựng chứng từ, trong MỘT nhịp bấm.
+
+	Đây là ruột của nút "Đồng bộ M-Invoice" trên màn danh sách Desk (anh
+	Việt xin 31/08/2026). Trước bản này muốn chạy tay phải mở console gọi
+	hai cửa riêng, mà kế toán thì không có đường nào.
+
+	HAI BƯỚC, KHÔNG PHẢI MỘT. Bước kéo đổ hoá đơn từ M-Invoice vào bảng
+	trung gian, bước dựng biến chúng thành chứng từ trong sổ. Ngày
+	26/08/2026 bước kéo vẫn chạy đều suốt năm ngày trong khi bước dựng đã
+	chết, và không ai nhận ra vì trong đầu mọi người "đồng bộ" là một việc.
+	Nên ở đây trả về số đếm của CẢ HAI bước, để nhìn một cái là biết bước
+	nào đứng.
+	"""
+	_kiem_quyen("đồng bộ hoá đơn điện tử")
+	from vagabond import minvoice_dong_bo
+
+	keo = minvoice_dong_bo._keo(so_ngay=cint(so_ngay) or 0)
+	dung_ct = _chay()
+	return {
+		"ok": 1,
+		"keo": keo,
+		"dung": dung_ct,
+		"loi_nhan": (
+			"Kéo về %s tờ mới, lành %s tờ vỏ ruột. Dựng được %s chứng từ, "
+			"còn %s tờ hỏng cần soi."
+			% (keo.get("moi", 0), keo.get("chua_lanh", 0),
+				dung_ct.get("da_dung", 0), dung_ct.get("con_hong", 0))
+		),
+	}
+
+
+# Bao nhiêu giờ không dựng được tờ nào thì coi là nhịp đã tắc.
+#
+# Nhịp dựng chạy 15 phút một lần, nên 6 tiếng là hai mươi tư lượt trượt
+# liên tiếp - đủ dài để không kêu oan vì một đêm vắng hoá đơn, đủ ngắn để
+# không lặp lại chuyện 26/08.
+GIO_COI_LA_TAC = 6
+
+
+def nhip_da_tac(so_to_cho, gio_ke_tu_lan_dung_cuoi, nguong=GIO_COI_LA_TAC):
+	"""Nhịp dựng chứng từ có đang tắc không. THUẦN.
+
+	Tắc = ĐANG có tờ xếp hàng VÀ đã quá lâu không dựng được tờ nào.
+
+	Hai vế phải đi cùng nhau. Chỉ nhìn "lâu rồi không dựng" thì đêm nào
+	cũng kêu, vì đêm không ai mua gì. Chỉ nhìn "có tờ xếp hàng" thì lúc
+	nào cũng kêu, vì luôn có tờ vừa về chưa tới lượt.
+	"""
+	try:
+		cho = int(so_to_cho or 0)
+	except (TypeError, ValueError):
+		cho = 0
+	try:
+		gio = float(gio_ke_tu_lan_dung_cuoi or 0)
+	except (TypeError, ValueError):
+		gio = 0.0
+	return cho > 0 and gio >= float(nguong)
+
+
+def canh_bao_tac_nhip():
+	"""Nhịp ngày: nhịp dựng chứng từ mà tắc thì gửi thư, đừng để im.
+
+	VÌ SAO CÓ HÀM NÀY
+	-----------------
+	Ngày 26/08/2026 lúc 16h28, kịch bản dựng chứng từ trên site bị tắt, và
+	bản thay thế trong mã nguồn thì chưa được khai vào bộ lập lịch. Bước
+	kéo vẫn chạy đều nên bảng hoá đơn điện tử vẫn đầy lên mỗi 15 phút,
+	nhìn vào đâu cũng thấy "đang chạy".
+
+	NĂM NGÀY sau anh Việt mới phát hiện, và phát hiện bằng cách ngồi so
+	tay một tờ của Tác Khí Việt trên trang m-invoice với màn hoá đơn mua
+	hàng. 69 tờ hoá đơn mua đứng ngoài sổ suốt thời gian đó.
+
+	Không lớp nào kêu lên, vì không lớp nào có việc kêu. Error Log thì im
+	(nhịp có chạy đâu mà lỗi), `con_sot` thì có nhưng phải mở ra mới thấy.
+
+	Hàm này là cái lớp còn thiếu: nó không sửa gì cả, nó chỉ la lên.
+	"""
+	try:
+		if not frappe.db.exists("DocType", DT_HD):
+			return
+		cho = frappe.db.count(DT_HD, {
+			"da_tao_chung_tu": 0, "loai": LOAI_VAO,
+			"ngay_lap": ["is", "set"],
+		})
+		lan_cuoi = frappe.db.get_value(
+			PI, {"custom_minvoice_id": ["is", "set"]}, "creation",
+			order_by="creation desc")
+		gio = 999.0
+		if lan_cuoi:
+			gio = (
+				frappe.utils.now_datetime() - frappe.utils.get_datetime(lan_cuoi)
+			).total_seconds() / 3600.0
+		if not nhip_da_tac(cho, gio):
+			return
+		frappe.sendmail(
+			recipients=[EMAIL_KE_TOAN],
+			subject="Hoá đơn điện tử: nhịp dựng chứng từ đang tắc",
+			message=(
+				"<p>Đang có <b>%s</b> hoá đơn điện tử đầu vào xếp hàng mà "
+				"<b>%s tiếng</b> nay hệ không dựng thêm được chứng từ nào.</p>"
+				"<p>Mở màn Hoá đơn mua hàng trên Desk, bấm nút "
+				"<b>Đồng bộ M-Invoice</b>. Vẫn không nhúc nhích thì báo anh "
+				"Việt, nhiều khả năng nhịp tự động đã tắt.</p>"
+				% (cho, int(gio))
+			),
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(),
+			"minvoice_chung_tu: chuong bao tac nhip")
