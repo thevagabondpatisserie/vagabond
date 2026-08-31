@@ -458,6 +458,13 @@ def _():
         dung("go theo ten nut %r" % ten, ten in MA_PI_JS)
     dung("co luoi do bang CSS phong khi ERPNext doi ten",
          ".inner-group-button" in MA_PI_JS)
+    # BAN DAU GO NGAY TRONG refresh VA NUT VAN CON. `refresh` cua tep nay
+    # chay TRUOC luc bo dieu khien ERPNext gan nut, nen go xong ho gan lai.
+    # Do bang tay tren Desk: goi luc trang dung han thi so cum nut tut tu
+    # 2 xuong 1, tuc phep go dung, chi sai thoi diem.
+    dung("go lam nhieu nhip chu khong mot lan",
+         MA_PI_JS.count("vgbGoNutLayMatHang(frm)") >= 3)
+    dung("co nhip cham de bat luc ERPNext gan sau", "}, 400)" in MA_PI_JS)
     # AN chu khong XOA phan tu: xoa nham mot cum khac la hong nut cua nguoi
     # khac, con an nham thi chi mat mot nut.
     dung("chi an chu khong xoa phan tu", ".hide()" in MA_PI_JS)
