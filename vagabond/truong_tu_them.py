@@ -125,6 +125,19 @@ def dung():
 	from vagabond import ke_hoach_sx
 
 	_dung_nhom(ke_hoach_sx.TRUONG_MOI, "ke_hoach_sx")
+	# Hang tang khong thu tien va luong giam doc duyet (anh Viet 31/08/2026).
+	from vagabond import hang_tang
+
+	_dung_nhom(hang_tang.TRUONG_MOI, "hang_tang")
+	# Nhet phuong thuc thanh toan moi cua ma nguon vao cau hinh DA LUU tren
+	# site. Khong co buoc nay thi them mot dong vao MAC_DINH chi co tac dung
+	# tren site trong - xem `pt_thanh_toan.bo_sung_mac_dinh`.
+	try:
+		from vagabond import pt_thanh_toan
+
+		pt_thanh_toan.bo_sung_mac_dinh()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: bo sung phuong thuc")
 	try:
 		ke_hoach_sx.dung_mau_in()
 	except Exception:

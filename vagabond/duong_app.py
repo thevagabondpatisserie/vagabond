@@ -108,6 +108,7 @@ MAN = (
 	("DTREO", "Đơn còn treo", None),
 	("DHUY", "Đơn đã huỷ", None),
 	("PHHUY", "Danh sách phiếu hoàn tiền", "phieu-hoan-tien"),
+	("DUYETTANG", "Duyệt đơn hàng tặng", None),
 	("VD", "Vận đơn", None),
 	("CPX", "Chi phí vận đơn", None),
 	("DSCOD", "Đối soát COD", None),
