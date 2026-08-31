@@ -382,3 +382,145 @@ def _():
 	doan = MA_CUA.split('"minvoice_chung_tu.py"')[1][:220]
 	for ten in ("chay_bu", "con_sot", "lanh_vo_ruot", "mo_lai"):
 		dung("cửa %s đã khai" % ten, ('"%s"' % ten) in doan)
+
+
+# =====================================================================
+# NHIP TU DONG BI QUEN KHAI - vu 26/08/2026, lo ra 31/08/2026
+# =====================================================================
+#
+# Ngay 26/08/2026 luc 16h28, Server Script "MInvoice Make Docs" tren site
+# bi tat de nhuong cho ban trong ma nguon nay. Nhung `chay_tu_dong` KHONG
+# AI KHAI vao hooks.py.
+#
+# Buoc KEO van chay deu moi 15 phut, nen bang hoa don dien tu van day len
+# va moi man hinh deu nhin nhu binh thuong. NAM NGAY sau anh Viet moi phat
+# hien, bang cach ngoi so tay mot to cua Tac Khi Viet tren trang m-invoice
+# voi man Hoa don mua hang. 69 to hoa don mua dung ngoai so.
+#
+# Mot ham co docstring ghi "Diem goi cua bo lap lich" ma khong ai goi thi
+# Python khong bao, kiem thu khong bao, cong tra ve 0. Giong het cai bay
+# @frappe.whitelist() ma thu_cua_ngo.py da dung ra de canh.
+
+MA_HOOKS = _doc("hooks.py")
+MA_LIST_JS = _doc("public", "js", "minvoice_list.js")
+
+
+@ca("hooks: nhip dung chung tu PHAI duoc khai, day la vu 26/08")
+def _():
+	dung("hooks.py đọc được", bool(MA_HOOKS))
+	dung("có khai chay_tu_dong trong bộ lập lịch",
+		"vagabond.minvoice_chung_tu.chay_tu_dong" in MA_HOOKS)
+	dung("bước kéo vẫn còn khai",
+		"vagabond.minvoice_dong_bo.dong_bo_tu_dong" in MA_HOOKS)
+	# Dung chung tu phai chay SAU khi keo, khong thi moi luot dung deu lam
+	# tren du lieu cu hon mot nhip.
+	nhip_keo = MA_HOOKS.split('"vagabond.minvoice_dong_bo.dong_bo_tu_dong"')[0]
+	nhip_keo = nhip_keo.split('"')[-2] if '"' in nhip_keo else ""
+	dung("nhịp kéo đặt ở phút 7,22,37,52", nhip_keo == "7,22,37,52 * * * *")
+	dung("nhịp dựng đặt LỆCH SAU nhịp kéo",
+		'"12,27,42,57 * * * *": ["vagabond.minvoice_chung_tu.chay_tu_dong"]'
+		in MA_HOOKS)
+
+
+@ca("hooks: chuong bao tac nhip da duoc khai")
+def _():
+	dung("có khai canh_bao_tac_nhip",
+		"vagabond.minvoice_chung_tu.canh_bao_tac_nhip" in MA_HOOKS)
+	dung("hàm có thật trong mô đun", "def canh_bao_tac_nhip" in MA)
+	doan = MA.split("def canh_bao_tac_nhip")[1]
+	dung("có gửi thư chứ không chỉ ghi Error Log", "frappe.sendmail" in doan)
+	dung("gửi về hộp kế toán", "EMAIL_KE_TOAN" in doan)
+	dung("chuông KHÔNG tự sửa gì, chỉ la lên",
+		"_chay(" not in doan and "dung_hoa_don_mua" not in doan)
+
+
+@ca("nhip_da_tac: phai co CA HAI ve moi keu")
+def _():
+	from vagabond.minvoice_chung_tu import GIO_COI_LA_TAC, nhip_da_tac
+
+	la("ngưỡng 6 tiếng", GIO_COI_LA_TAC, 6)
+	# Dem khong ai mua gi: khong co to nao xep hang thi im, du 20 tieng.
+	dung("không tờ nào xếp hàng thì im", not nhip_da_tac(0, 20))
+	# To vua ve chua toi luot: co to xep hang nhung moi mot tieng thi im.
+	dung("mới một tiếng thì im", not nhip_da_tac(50, 1))
+	# Ca hai ve cung dung: keu.
+	dung("có tờ xếp hàng VÀ quá 6 tiếng thì kêu", nhip_da_tac(50, 6))
+	dung("quá lâu thì vẫn kêu", nhip_da_tac(1, 999))
+	dung("số rác không làm vỡ", not nhip_da_tac(None, None))
+	dung("chữ không làm vỡ", not nhip_da_tac("x", "y"))
+
+
+@ca("hang doi: dau ra KHONG duoc dung chung cho voi dau vao")
+def _():
+	doan = MA.split("def _chay(")[1].split("\ndef ")[0]
+	dung('hàng đợi lọc đúng loại đầu vào', '"loai": LOAI_VAO' in doan)
+	dung("có gọi đường đóng dấu đầu ra riêng", "_dong_dau_ra()" in doan)
+	dung("báo lại số đầu ra đã đóng dấu", '"dau_ra_dong_dau"' in doan)
+	# Ngay 31/08/2026 co 3.907 to dau ra xep hang. Voi 200 cho mot luot thi
+	# mot hoa don MUA moi ve phai cho gan hai muoi luot moi toi luot minh,
+	# trong khi viec duy nhat can lam voi 3.907 to kia la dat mot so 1.
+	dr = MA.split("def _dong_dau_ra")[1].split("\ndef ")[0]
+	dung("đóng dấu đầu ra KHÔNG dựng chứng từ nào",
+		"dung_hoa_don_mua" not in dr and "frappe.get_doc" not in dr)
+	dung("có chặn trên số lượng mỗi lượt", "DAU_RA_MOI_LUOT" in dr)
+
+
+@ca("dem sai: dau ra Fabi la BO QUA HOP LE, khong phai hong")
+def _():
+	from vagabond.minvoice_chung_tu import LY_DO_BO_QUA_HOP_LE
+
+	# Ngay 31/08/2026 luot chay tay bao "con_hong: 173" trong khi ca 173 to
+	# deu la dau ra Fabi. Con so bao dong sai con nguy hon khong bao: nhin
+	# quen roi thi toi luc hong that cung khong ai giat minh.
+	for x in ("khoi_dung", "da_co", "dau_ra_fabi"):
+		dung("%s là bỏ qua hợp lệ" % x, x in LY_DO_BO_QUA_HOP_LE)
+	doan = MA.split("def _chay(")[1].split("\ndef ")[0]
+	dung("_chay dùng đúng bảng lý do hợp lệ",
+		"in LY_DO_BO_QUA_HOP_LE" in doan)
+	dung("không còn bảng chép tay cũ",
+		'("khoi_dung", "da_co")' not in doan)
+
+
+@ca("_tim_ncc: ten bi cat con 140 khong duoc de de ra nha cung cap trung")
+def _():
+	doan = MA.split("def _tim_ncc")[1].split("\ndef ")[0]
+	dung("có tra thêm bằng tên đã cắt", "ten_cat" in doan)
+	dung("tra cả bằng khoá chính", "frappe.db.exists(\"Supplier\", ten_cat)" in doan)
+	dung("insert có lưới đỡ", "except Exception" in doan)
+	dung("đỡ xong vẫn trả về nhà cung cấp có sẵn",
+		"return sup, goc" in doan)
+	dung("KHÔNG nuốt lỗi lạ", "raise" in doan)
+
+
+@ca("nut dong bo: mot cua, hai buoc, va co khai cua ngo")
+def _():
+	dung("có cửa dong_bo_ngay", "def dong_bo_ngay" in MA)
+	doan = MA.split("def dong_bo_ngay")[1].split("\n# ---")[0]
+	dung("có chặn quyền", "_kiem_quyen(" in doan)
+	dung("bước 1 gọi tầng kéo", "minvoice_dong_bo._keo" in doan)
+	dung("bước 2 gọi tầng dựng", "_chay()" in doan)
+	dung("trả về số đếm của CẢ HAI bước",
+		'"keo"' in doan and '"dung"' in doan)
+	dung("có khai trong bảng cửa ngõ",
+		'"dong_bo_ngay"' in MA_CUA.split('"minvoice_chung_tu.py"')[1][:260])
+
+
+@ca("man danh sach Desk: nut moc vao ba man, gop chu khong gan de")
+def _():
+	dung("tệp danh sách đọc được", bool(MA_LIST_JS))
+	for dt in ("Purchase Invoice", "Sales Invoice", "MInvoice Invoice"):
+		dung("hooks khai %s" % dt,
+			('"%s": "public/js/minvoice_list.js"' % dt) in MA_HOOKS)
+		dung("tệp js có mắc vào %s" % dt, ("'%s'" % dt) in MA_LIST_JS)
+	# ERPNext co san listview_settings cho Purchase Invoice va Sales Invoice.
+	# Gan de len la xoa trang phan cua ho, ke ca add_fields ma cac phan khac
+	# dang dua vao. Bay nay bom_list.js da dinh mot lan roi.
+	dung("có giữ phần cũ của ERPNext",
+		"frappe.listview_settings[dt] || {}" in MA_LIST_JS)
+	dung("có gọi lại onload cũ", "onload_cu" in MA_LIST_JS)
+	dung("KHÔNG gán đè cả object",
+		"frappe.listview_settings['Purchase Invoice'] =" not in MA_LIST_JS)
+	dung("có chặn vai ở màn hình", "frappe.user_roles" in MA_LIST_JS)
+	dung("hộp kết quả tách rõ hai bước",
+		"Bước 1" in MA_LIST_JS and "Bước 2" in MA_LIST_JS)
+	dung("có nói rõ chứng từ ra ở dạng nháp", "nháp" in MA_LIST_JS)

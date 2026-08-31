@@ -46,7 +46,14 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # `doctype_list_js` chi nap dung mot man danh sach do, khong phai hook
 # rong tren "*". Dat hep nhu the la co y: quy tac 6 cua repo.
-doctype_list_js = {"BOM": "public/js/bom_list.js"}
+# Nut "Dong bo M-Invoice" tren ba man danh sach (anh Viet xin 31/08/2026).
+# Cung MOT tep dung chung cho ca ba, xem dau tep minvoice_list.js.
+doctype_list_js = {
+	"BOM": "public/js/bom_list.js",
+	"Purchase Invoice": "public/js/minvoice_list.js",
+	"Sales Invoice": "public/js/minvoice_list.js",
+	"MInvoice Invoice": "public/js/minvoice_list.js",
+}
 
 # Kiem banh ngay: 5 phut keo don Pancake mot lan de cot "da dat" va
 # "phat sinh" tu chay, sales khoi dem tay.
@@ -87,6 +94,21 @@ scheduler_events = {
 		# cu; hai duong idempotent nen chay song song mot thoi gian de doi
 		# chieu roi tat kich ban cu.
 		"7,22,37,52 * * * *": ["vagabond.minvoice_dong_bo.dong_bo_tu_dong"],
+		# BUOC HAI, va no da tung bi quen mat (them 31/08/2026).
+		#
+		# Keo ve moi la nua viec: hoa don nam trong bang MInvoice Invoice
+		# van chua phai la chung tu trong so. Buoc bien no thanh Hoa don
+		# mua hang truoc day do mot Server Script tren site chay moi 5 phut.
+		# Ngay 26/08/2026 luc 16h28 Server Script do bi tat de nhuong cho
+		# ban trong ma nguon, nhung ban trong ma nguon KHONG AI KHAI VAO DAY.
+		#
+		# Ket qua: suot nam ngay buoc keo van chay deu moi 15 phut nen nhin
+		# vao dau cung thay "dang chay", trong khi 69 to hoa don mua dung
+		# ngoai so. Chi lo ra khi anh Viet ngoi so tay mot to cua Tac Khi
+		# Viet tren trang m-invoice voi man Hoa don mua hang.
+		#
+		# Dat LECH 5 phut sau nhip keo, de to vua keo ve la co luot dung ngay.
+		"12,27,42,57 * * * *": ["vagabond.minvoice_chung_tu.chay_tu_dong"],
 		# BO NHIP KEO PDF (21/08/2026). Duong tai ban the hien cua API
 		# qlhd tra 400 o moi bien the ten tep da thu, va tai lieu cong khai
 		# cua M-Invoice khong noi dinh dang dung. Anh Viet chot: *"Phan ban
@@ -96,6 +118,10 @@ scheduler_events = {
 		# ngay nao co duong dung thi bat lai bang mot dong.
 		# 1h10 dem: quet lui 30 ngay de lanh not "vo ruot" va vet sot cu.
 		"10 1 * * *": ["vagabond.minvoice_dong_bo.tu_lanh_hang_dem"],
+		# 8h25 sang: nhip dung chung tu ma tac thi gui thu cho ke toan.
+		# Lop con thieu cua vu 26/08: khong lop nao keu len, vi khong lop
+		# nao co viec keu. Xem canh_bao_tac_nhip.
+		"25 8 * * *": ["vagabond.minvoice_chung_tu.canh_bao_tac_nhip"],
 		# 01:40 moi dem: tinh lai bang Nguyen lieu thay the. Ton kho, gia von
 		# va so cong thuc doi hang ngay ma khong ai mo lai cap thay the de luu,
 		# nen khong co nhip nay thi cac o do dung im o con so ngay khai.
