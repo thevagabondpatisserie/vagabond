@@ -294,6 +294,37 @@ def diem_cua_phieu(loai, quay=None):
 
 	return diem_ban.ma_theo_quay(quay)
 
+
+# Phiếu ở trạng thái chờ chi quá bao nhiêu ngày thì kêu lên. Tiền của khách
+# vẫn nằm ở tiệm suốt thời gian đó.
+#
+# Ba ngày, đặt theo đúng bài học 31/08/2026: nhịp kéo đơn huỷ đứng mười ngày
+# mà không ai biết, vì không ai làm sai cả, chỉ là không ai nhìn. Con số nhỏ
+# thì phiền, con số to thì vô dụng; ba ngày là quá một cuối tuần.
+TREO_NGAY = 3
+
+
+def treo_bao_lau(trang_thai, lap_luc, hom_nay=None, nguong=TREO_NGAY):
+	"""Phiếu treo mấy ngày rồi, và có phải kêu lên chưa. THUẦN.
+
+	Chỉ tính phiếu CHƯA chi. Phiếu đã chi thì tiền đã ra khỏi công ty, còn
+	chờ đối soát là việc của kế toán với ngân hàng, không phải việc khách
+	đang đợi tiền.
+
+	Trả (số ngày, có kêu không). Đọc không ra ngày thì trả (0, False) chứ
+	không nổ: một cái ngày hỏng không được phép làm chết cả màn hình.
+	"""
+	if str(trang_thai or "").strip() != "Cho chi":
+		return (0, False)
+	d = _ngay(lap_luc)
+	if not d:
+		return (0, False)
+	hn = _ngay(hom_nay) or datetime.now().date()
+	so = (hn - d).days
+	if so < 0:
+		so = 0
+	return (so, so >= int(nguong or TREO_NGAY))
+
 # Những ô người ta thật sự gõ vào ô tìm khi đi tìm một phiếu hoàn: mã đơn
 # Pancake, số tài khoản khách đọc trong khung chat, tên chủ tài khoản, số
 # điện thoại, mã phiếu, mã giao dịch ngân hàng.
@@ -754,7 +785,8 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 		loc["trang_thai"] = tt
 	hoac = dieu_kien_tim(tim, TRUONG_TIM_PHIEU)
 
-	truong = ["name", "loai_hoan", "hoa_don", "ma_don_pancake", "so_tien",
+	truong = ["name", "loai_hoan", "hoa_don", "ma_don_pancake", "diem_ban",
+		"so_tien",
 		"trang_thai", "ly_do", "dien_giai", "ten_tk", "so_tk", "ngan_hang",
 		"sdt", "phieu_chi", "phieu_thu", "da_doi_soat", "ma_gd",
 		"ngay_doi_soat", "noi_dung_ck", "nguoi_duyet", "creation", "so_hddt",
@@ -815,8 +847,19 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 		d["loai"] = loai_thuc(d.get("loai_hoan"))
 		d["nhan_loai"] = NHAN_LOAI_HOAN.get(d.get("loai_hoan") or "", d["loai"])
 		hd = d.get("hoa_don") or ""
-		d["diem_ban"] = diem_cua_phieu(
-			d.get("loai_hoan"), quay.get(hd) if hd else None)
+		# Ô điểm bán được ghi lúc lập phiếu. Phiếu cũ chưa có thì suy ra rồi
+		# VÁ LẠI vào phiếu, một lần duy nhất, không đổi ngày sửa đổi. Cùng
+		# cách ô số hoá đơn điện tử đang tự vá. Không chạy lệnh nào lên dữ
+		# liệu quá khứ (QT-11): phiếu nào có người mở mới được vá.
+		if not (d.get("diem_ban") or "").strip():
+			suy = diem_cua_phieu(d.get("loai_hoan"), quay.get(hd) if hd else None)
+			if suy:
+				frappe.db.set_value(HT, d["name"], "diem_ban", suy,
+					update_modified=False)
+			d["diem_ban"] = suy
+		so_ngay, keu = treo_bao_lau(d.get("trang_thai"), d.get("creation"))
+		d["treo_ngay"] = so_ngay
+		d["treo_lau"] = 1 if keu else 0
 		g = don.get(d.get("ma_don_pancake") or "") or {}
 		d["ma_hien_thi"] = (g.get("ma_hien_thi") or d.get("ma_don_pancake")
 			or hd or "")
@@ -846,6 +889,9 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 	dem_tt["tat_ca"] = len([r for r in dong if hop(r)])
 
 	ra = [r for r in dong if hop(r)]
+	# Phiếu treo lâu lên ĐẦU danh sách. Tiền của khách đang nằm ở tiệm, đó là
+	# việc gấp nhất trên màn này; để nó chìm dưới trang hai là mất tác dụng.
+	ra.sort(key=lambda r: (0 if r["treo_lau"] else 1, -int(r["treo_ngay"] or 0)))
 	tran = max(1, min(1000, int(so_dong or 200)))
 	# CẮT DÒNG Ở BƯỚC CUỐI, sau khi đã lọc và đã đếm xong.
 	return {
@@ -860,6 +906,8 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 		"diem": [{"k": k, "ten": v} for k, v in ten_diem.items()],
 		"loai": [{"k": k, "ten": t} for k, t in cac_loai_hoan()],
 		"cho_unc": len([r for r in ra if r["buoc_cho"] == "unc"]),
+		"treo_lau": len([r for r in ra if r["treo_lau"]]),
+		"treo_ngay": TREO_NGAY,
 		"tien_dang_chay": sum(flt(r.get("so_tien")) for r in ra
 			if r["buoc_xong"] < 4 and r.get("trang_thai") != "Da huy"),
 	}
@@ -874,6 +922,84 @@ def _ten_diem():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "don_huy: doc diem ban loi")
 		return {"SALES": "Sales Online"}
+
+
+@frappe.whitelist()
+def dem_phieu_cho():
+	"""Số phiếu hoàn đang chờ, cho chấm đỏ trên ô Bán hàng ở trang chủ.
+
+	Trang chủ gọi hàm này mỗi lần mở nên nó phải RẺ: hai phép đếm, không kéo
+	dòng nào về. `treo` phải đếm bằng ngày lập chứ không đọc từng phiếu.
+
+	Anh Việt 31/08/2026: "hiện muốn biết có phiếu treo thì phải mở màn ra
+	xem, mà tiền của khách đang nằm ở mình thì không nên chờ ai nhớ".
+	"""
+	_quyen()
+	from vagabond.hoan_tien import DT as HT
+
+	moc = add_days(now_datetime(), -TREO_NGAY)
+	return {
+		"cho_chi": frappe.db.count(HT, {"trang_thai": "Cho chi"}),
+		"treo": frappe.db.count(HT, {"trang_thai": "Cho chi",
+			"creation": ["<", moc]}),
+		"treo_ngay": TREO_NGAY,
+	}
+
+
+# Ô tìm của màn chọn đơn để lập phiếu hoàn.
+TRUONG_TIM_DON_HD = ("name", "customer_name", "custom_hddt_so",
+	"custom_pancake_display_id")
+
+
+@frappe.whitelist()
+def tim_don_de_hoan(diem="", tim="", so_dong=40):
+	"""Tìm hoá đơn của một điểm bán để lập phiếu hoàn.
+
+	Anh Việt 31/08/2026 duyệt: các điểm bán phải TỰ LẬP được phiếu hoàn chứ
+	không chỉ ngồi xem. Trước đây muốn lập thì phải đi qua màn hoá đơn hoặc
+	nhờ kế toán.
+
+	Hàm này CHỈ TÌM, không lập gì cả. Việc lập vẫn đi qua đúng ba cửa cũ của
+	hoan_tien, nơi đã có đủ hàng rào: trần số tiền, bắt buộc ảnh bằng chứng,
+	chặn hoàn quá số khách đã chuyển. Không mở cửa thứ hai cho tiền ra.
+
+	Ô tìm chạy ở MÁY CHỦ (QT-19).
+	"""
+	_quyen()
+	loc = {"docstatus": ["<", 2]}
+	dm = str(diem or "").strip().upper()
+	if dm:
+		from vagabond import diem_ban
+
+		d = diem_ban.theo_ma(dm)
+		q = (d or {}).get("quay") or ""
+		# Sales Online khong mang ma quay, nen loc bang "quay de trong".
+		loc["vgb_quay"] = q if q else ["in", ["", None]]
+	q = str(tim or "").strip()
+	hoac = None
+	if q:
+		hoac = [[c, "like", "%" + q + "%"] for c in TRUONG_TIM_DON_HD]
+	dong = frappe.get_all("Sales Invoice", filters=loc, or_filters=hoac,
+		fields=["name", "customer_name", "grand_total", "posting_date",
+			"docstatus", "custom_hddt_so", "vgb_quay", "vgb_huy"],
+		order_by="posting_date desc, creation desc",
+		limit_page_length=max(1, min(100, int(so_dong or 40))))
+	# Phieu hoan da co cho don nao roi thi noi thang tren dong, de nguoi ta
+	# khong lap trung mot phieu thu hai cho cung mot don.
+	from vagabond.hoan_tien import DT as HT
+
+	da_co = set()
+	if dong:
+		for r in frappe.get_all(HT,
+				filters={"hoa_don": ["in", [d["name"] for d in dong]],
+					"trang_thai": ["!=", "Da huy"]},
+				fields=["hoa_don"], limit_page_length=0):
+			da_co.add(r["hoa_don"])
+	for d in dong:
+		d["da_co_phieu"] = 1 if d["name"] in da_co else 0
+		d["da_ghi_so"] = 1 if int(d.get("docstatus") or 0) == 1 else 0
+		d["posting_date"] = str(d.get("posting_date") or "")[:10]
+	return {"dong": dong, "tong_dong": len(dong)}
 
 
 @frappe.whitelist()
@@ -1154,6 +1280,9 @@ def tao_hoan(ma_don, so_tien=0, ly_do="", ten_tk="", so_tk="", ngan_hang="",
 	ho_so = frappe.get_doc({
 		"doctype": HT,
 		"ma_don_pancake": d.ma_don,
+		# Don Pancake khong co quay nen luon thuoc Sales Online. Ghi lai
+		# ngay luc lap chu khong suy moi lan mo man.
+		"diem_ban": "SALES",
 		"khach": khach,
 		"so_tien": tien,
 		"loai_hoan": LOAI_HUY_PANCAKE,
