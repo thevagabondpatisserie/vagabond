@@ -246,3 +246,33 @@ def _soat_do_tam_chi_doc():
     dung("dung phep thuan chung", "dang_do_tam" in ma)
     for cam in (".delete(", "frappe.delete_doc", "db_set", ".save(", "set_value"):
         dung("khong %s" % cam, cam not in ma)
+
+
+@ca("doi chieu: mon khong co phieu nhap nao thi phai chi duong di tiep")
+def _khong_co_phieu_nhap():
+    """Cau bao nay tung lam Uyen ket (anh Viet bao 31/08/2026).
+
+    Ban cu chi noi "khong co trong phieu nhap nao dang chon" roi dung.
+    Nguoi doc hieu la minh chon nham phieu nen di chon lai, chon mai khong
+    ra, roi ket luan la he thong chan quyen sua gia - trong khi su that la
+    mon do CHUA TUNG duoc nhap kho, khong co phieu nao de chon ca.
+
+    Ca that: giay in A4 cua Muc In Bao Tin, hoa don 3513. Nha cung cap do
+    khong co mot phieu nhap nao trong he.
+
+    Mot cau chan doan ma khong co duong ra thi nguoi ta tu nghi ra duong sai.
+    """
+    import inspect
+
+    from vagabond import doi_chieu_mua as C
+
+    noi = inspect.getsource(C._noi)
+    doan = noi.split("if not ds:")[1].split("elif")[0]
+    dung("noi ro la hang chua duoc nhap kho", "chưa được nhập kho" in doan)
+    dung("chi duong lap phieu nhap", "lập phiếu" in doan)
+    dung("chi duong ghi so thang khi hang khong qua kho",
+         "ghi sổ thẳng" in doan)
+    dung("co ke ra loai hang khong qua kho", "văn phòng" in doan)
+    # Cau cu chi chan doan ma khong co duong ra.
+    dung("khong con cau cut ngan cu",
+         "không có trong phiếu nhập nào đang chọn." not in noi)

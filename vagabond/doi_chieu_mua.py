@@ -660,8 +660,26 @@ def _noi(doc, phieu):
 		if not chon:
 			co = sum(r["con"] for r in ds)
 			if not ds:
+				# CÂU NÀY TỪNG LÀM UYÊN KẸT (anh Việt báo 31/08/2026).
+				#
+				# Bản cũ chỉ nói "không có trong phiếu nhập nào đang chọn" rồi
+				# dừng. Người đọc hiểu là mình chọn nhầm phiếu nên đi chọn lại,
+				# chọn mãi không ra, rồi kết luận là hệ thống chặn quyền sửa
+				# giá - trong khi sự thật là món đó CHƯA TỪNG được nhập kho,
+				# không có phiếu nào để chọn cả.
+				#
+				# Ca thật: giấy in A4 của Mực In Bảo Tín, hoá đơn 3513. Nhà
+				# cung cấp đó không có một phiếu nhập nào trong hệ.
+				#
+				# Nên câu báo phải nói cả HAI đường đi tiếp, chứ một câu chẩn
+				# đoán mà không có đường ra thì người ta tự nghĩ ra đường sai.
 				loi.append(
-					"Dòng %d: món %s không có trong phiếu nhập nào đang chọn."
+					"Dòng %d: món %s không nằm trong phiếu nhập kho nào của "
+					"nhà cung cấp này, tức là hàng chưa được nhập kho trên hệ "
+					"thống. Hai đường đi tiếp: hàng có qua kho thì lập phiếu "
+					"nhập kho trước rồi nối lại; hàng không qua kho (văn phòng "
+					"phẩm, dịch vụ, chi phí) thì bỏ qua bước nối phiếu, nhờ kế "
+					"toán ghi sổ thẳng tờ này."
 					% (d.idx, d.item_name or d.item_code)
 				)
 			elif dvt_mua.lech_don_vi(d.get("uom"), hs_hd, ds[0].get("uom"), ds[0]["hs"]):
