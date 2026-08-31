@@ -209,6 +209,107 @@ def noi_dung_chuyen_khoan(ma_don, ma_hien_thi=None):
 	return ("THE VAGABOND HOAN TIEN %s" % ma).strip()
 
 
+# --------------------------------------- dây chuyền phiếu hoàn, cho Sales
+#
+# Anh Việt 31/08/2026: *"thêm dùm anh nút để xem lại danh sách các phiếu
+# hoàn cho đơn đã huỷ của pancake để sales theo dõi, nối các trạng thái, hồ
+# sơ, uỷ nhiệm chi,... bên chỗ kế toán làm lên để tự động cập nhật sang cho
+# bên sales theo dõi, tải UNC gửi khách"*.
+#
+# Sales lập phiếu xong là mất dấu: phần còn lại (chi tiền, đính uỷ nhiệm
+# chi, ghi sổ, đối soát sao kê) đều nằm bên kế toán, mà phân hệ Kế toán thì
+# v355 đã khoá lại không cho nhân viên vào. Nên phải có một cửa sổ RIÊNG mở
+# về phía Sales, chỉ ĐỌC, không sửa được gì của kế toán.
+#
+# Không đẻ bảng thứ hai và không có nhịp đồng bộ nào: màn đọc thẳng hồ sơ
+# hoàn tiền và phiếu chi mà kế toán đang làm, nên kế toán bấm xong là Sales
+# thấy ngay ở lần mở màn kế tiếp.
+
+# Bốn bước của một phiếu, theo đúng thứ tự đời thật. Khoá không dấu vì nó đi
+# vào tên chip và vào tệp Excel; nhãn có dấu vì người ta đọc.
+BUOC = (
+	("lap", "Sales đã lập phiếu"),
+	("unc", "Kế toán chuyển tiền và đính uỷ nhiệm chi"),
+	("ghi", "Kế toán ghi sổ phiếu chi"),
+	("soat", "Đối soát với sao kê ngân hàng"),
+)
+
+# Trạng thái hồ sơ hoàn tiền. Đọc lại y nguyên chuỗi bên hoan_tien để không
+# đẻ ra danh sách thứ hai (bài học 22/08/2026: màn tự chế bảng chip rồi hiện
+# nguyên khoá không dấu ra cho người dùng đọc).
+TT_PHIEU = ("Cho chi", "Da chi", "Da doi soat", "Hoan thanh", "Da huy")
+
+NHAN_TT_PHIEU = {
+	"Cho chi": "Chờ kế toán chi",
+	"Da chi": "Đã chi",
+	"Da doi soat": "Đã đối soát",
+	"Hoan thanh": "Hoàn thành",
+	"Da huy": "Đã huỷ",
+}
+
+# Những ô người ta thật sự gõ vào ô tìm khi đi tìm một phiếu hoàn: mã đơn
+# Pancake, số tài khoản khách đọc trong khung chat, tên chủ tài khoản, số
+# điện thoại, mã phiếu, mã giao dịch ngân hàng.
+TRUONG_TIM_PHIEU = (
+	"name", "ma_don_pancake", "ten_tk", "so_tk", "sdt", "phieu_chi", "ma_gd",
+)
+
+# Ô tìm của chính màn Đơn đã huỷ.
+TRUONG_TIM_DON = ("ma_don", "ma_hien_thi", "ten_khach", "sdt", "ma_gd")
+
+
+def dieu_kien_tim(tim, truong):
+	"""Dựng điều kiện HOẶC cho ô tìm, để đưa thẳng vào `or_filters`. THUẦN.
+
+	QT-19 và anh Việt nhắc lại 31/08/2026: *"ô tìm kiếm đã yêu cầu viết ở
+	backend cho MỌI MÀN"*. Lọc bằng Python SAU khi đã cắt dòng là cái bẫy
+	im lặng nhất trong repo này: màn vẫn chạy, vẫn ra kết quả, chỉ là kết
+	quả tìm trong đúng N dòng mới nhất. Đơn cũ hơn N thì gõ mã vào ô tìm ra
+	danh sách rỗng, và người dùng kết luận là đơn đã mất.
+
+	Trả None khi ô tìm rỗng, vì `or_filters=None` mới là "không lọc gì";
+	truyền danh sách rỗng xuống Frappe là một chuyện khác hẳn.
+	"""
+	q = str(tim or "").strip()
+	if not q:
+		return None
+	return [[c, "like", "%" + q + "%"] for c in truong]
+
+
+def buoc_cua_phieu(trang_thai, co_unc=0, da_ghi_so=0, da_doi_soat=0):
+	"""Phiếu đang đứng ở bước nào. THUẦN.
+
+	Trả về (số bước đã xong trên bốn, khoá bước đang chờ, câu nói cho Sales).
+	Phiếu đã huỷ thì không còn bước nào để chờ.
+
+	Vì sao đọc bốn cờ chứ không đọc mỗi `trang_thai`: trạng thái nhảy sang
+	"Da chi" ngay lúc kế toán ghi sổ phiếu chi, nhưng thứ khách hỏi Sales là
+	*"đã chuyển chưa, cho em xin cái uỷ nhiệm chi"*. Cờ uỷ nhiệm chi trả lời
+	được câu đó, còn trạng thái thì không.
+	"""
+	tt = str(trang_thai or "").strip()
+	if tt in ("Da huy",):
+		return (0, "", "Phiếu đã huỷ, không hoàn nữa.")
+	if tt in ("Hoan thanh",) or int(da_doi_soat or 0):
+		return (4, "", "Xong. Tiền đã ra và đã khớp sao kê ngân hàng.")
+	if int(da_ghi_so or 0) or tt in ("Da chi", "Da doi soat"):
+		return (3, "soat", "Tiền đã ra và đã ghi sổ, đang chờ khớp sao kê.")
+	if int(co_unc or 0):
+		return (2, "ghi", "Đã có uỷ nhiệm chi, đang chờ kế toán ghi sổ.")
+	return (1, "unc", "Đang chờ kế toán chuyển tiền và đính uỷ nhiệm chi.")
+
+
+def dem_theo_tt_phieu(cac_dong):
+	"""Đếm phiếu theo từng chip trạng thái. THUẦN."""
+	dem = {k: 0 for k in TT_PHIEU}
+	for d in cac_dong or ():
+		tt = str(d.get("trang_thai") or "").strip()
+		if tt in dem:
+			dem[tt] += 1
+	dem["tat_ca"] = len(cac_dong or ())
+	return dem
+
+
 def _ngay(v):
 	"""Đọc ngày từ chuỗi hoặc từ đối tượng ngày giờ. Trả None nếu không đọc được.
 
@@ -471,15 +572,16 @@ def ds(trang_thai="", tim="", so_dong=200):
 	truong = ["name", "ma_don", "ma_hien_thi", "ten_khach", "sdt", "tong_don",
 		"da_nhan", "ngay_dat", "ngay_giao", "huy_luc", "trang_thai",
 		"ho_so_hoan", "hoa_don", "ghi_chu_don", "ma_gd"]
-	dong = frappe.get_all(DT, filters=loc, fields=truong,
+	# Ô tìm chạy Ở MÁY CHỦ, không lọc lại bằng Python sau khi đã cắt dòng.
+	# Trước 31/08/2026 chỗ này cắt 200 dòng mới nhất rồi mới lọc, nên gõ mã
+	# một đơn huỷ từ tháng trước là ra danh sách rỗng dù đơn vẫn còn nguyên.
+	hoac = dieu_kien_tim(tim, TRUONG_TIM_DON)
+	dong = frappe.get_all(DT, filters=loc, or_filters=hoac, fields=truong,
 		order_by="huy_luc desc", limit_page_length=int(so_dong or 200))
-	q = (tim or "").strip().lower()
-	if q:
-		dong = [d for d in dong if q in " ".join(
-			str(d.get(c) or "") for c in
-			("ma_don", "ma_hien_thi", "ten_khach", "sdt")).lower()]
-	tat_ca = frappe.get_all(DT, fields=["trang_thai", "da_nhan"],
-		limit_page_length=0)
+	# Số trên chip đếm theo ĐÚNG ô tìm đang gõ. Nếu không thì gõ một cái tên
+	# ra 2 dòng mà chip vẫn báo 40, và người đọc không biết tin con số nào.
+	tat_ca = frappe.get_all(DT, filters={}, or_filters=hoac,
+		fields=["trang_thai", "da_nhan"], limit_page_length=0)
 	for d in dong:
 		d["nhan_trang_thai"] = NHAN_TT.get(d["trang_thai"], d["trang_thai"])
 		d["muc_hoan"] = muc_hoan(d["da_nhan"])
@@ -546,6 +648,155 @@ def xuat_excel(trang_thai="", tim=""):
 		"hang": [[d.get(f) for f, _n in cot] for d in kq["dong"]],
 		"tong_dong": len(kq["dong"]),
 		"tien_cho_hoan": kq["tien_cho_hoan"],
+	}
+
+
+# ------------------------------------- màn Phiếu hoàn đơn huỷ, phía Sales
+
+
+def _unc_theo_phieu_chi(ma_pc):
+	"""Uỷ nhiệm chi đã đính vào từng phiếu chi. Một câu cho cả trang.
+
+	Trả đường dẫn tệp chứ không chỉ trả cờ có/không: Sales cần TẢI VỀ để gửi
+	cho khách, đó là cả lý do anh Việt xin màn này.
+	"""
+	ra = {}
+	if not ma_pc:
+		return ra
+	for f in frappe.get_all(
+		"File",
+		filters={"attached_to_doctype": "Payment Entry",
+			"attached_to_name": ["in", list(ma_pc)]},
+		fields=["attached_to_name", "file_url", "file_name"],
+		order_by="creation asc", limit_page_length=0,
+	):
+		ra.setdefault(f["attached_to_name"], []).append({
+			"url": f["file_url"], "ten": f["file_name"],
+		})
+	return ra
+
+
+@frappe.whitelist()
+def ds_phieu(trang_thai="", tim="", so_dong=200):
+	"""Phiếu hoàn của đơn Pancake đã huỷ, dựng cho Sales theo dõi.
+
+	CHỈ ĐỌC. Không hàm nào ở đây sửa được hồ sơ hay phiếu chi của kế toán;
+	Sales nhìn thấy việc chạy tới đâu, thế thôi.
+
+	Chỉ lấy phiếu loại "Huỷ đơn Pancake". Phiếu trả hàng và phiếu tiền nộp
+	thừa có đời sống khác hẳn (chúng khử doanh thu bằng hoá đơn trả hàng) và
+	đã có màn riêng bên Kế toán.
+	"""
+	_quyen()
+	from vagabond.hoan_tien import DT as HT
+	from vagabond.hoan_tien import LOAI_HUY_PANCAKE
+
+	loc = {"loai_hoan": LOAI_HUY_PANCAKE}
+	tt = str(trang_thai or "").strip()
+	if tt and tt in TT_PHIEU:
+		loc["trang_thai"] = tt
+	hoac = dieu_kien_tim(tim, TRUONG_TIM_PHIEU)
+
+	truong = ["name", "ma_don_pancake", "so_tien", "trang_thai", "ly_do",
+		"dien_giai", "ten_tk", "so_tk", "ngan_hang", "sdt", "phieu_chi",
+		"phieu_thu", "da_doi_soat", "ma_gd", "ngay_doi_soat", "noi_dung_ck",
+		"nguoi_duyet", "creation", "ly_do_tu_choi", "nguoi_tu_choi"]
+	dong = frappe.get_all(HT, filters=loc, or_filters=hoac, fields=truong,
+		order_by="creation desc",
+		limit_page_length=max(1, min(1000, int(so_dong or 200))))
+
+	ma_pc = [d["phieu_chi"] for d in dong if d.get("phieu_chi")]
+	da_ghi = {}
+	if ma_pc:
+		for r in frappe.get_all("Payment Entry",
+				filters={"name": ["in", ma_pc]},
+				fields=["name", "docstatus", "reference_no", "reference_date"],
+				limit_page_length=0):
+			da_ghi[r["name"]] = r
+	unc = _unc_theo_phieu_chi(ma_pc)
+
+	# Tên khách và mã hiển thị lấy từ bảng đệm đơn huỷ: hồ sơ hoàn tiền treo
+	# vào mã khách chung "Khách lẻ Online" nên bản thân nó không biết tên ai.
+	ma_don = [d["ma_don_pancake"] for d in dong if d.get("ma_don_pancake")]
+	don = {}
+	if ma_don:
+		for r in frappe.get_all(DT, filters={"ma_don": ["in", ma_don]},
+				fields=["ma_don", "ma_hien_thi", "ten_khach", "tong_don",
+					"da_nhan", "huy_luc"], limit_page_length=0):
+			don[r["ma_don"]] = r
+
+	for d in dong:
+		pc = da_ghi.get(d.get("phieu_chi") or "") or {}
+		tep = unc.get(d.get("phieu_chi") or "") or []
+		d["co_unc"] = 1 if tep else 0
+		d["unc"] = tep
+		d["phieu_chi_da_ghi"] = 1 if int(pc.get("docstatus") or 0) == 1 else 0
+		xong, cho, cau = buoc_cua_phieu(
+			d.get("trang_thai"), d["co_unc"], d["phieu_chi_da_ghi"],
+			d.get("da_doi_soat"))
+		d["buoc_xong"] = xong
+		d["buoc_cho"] = cho
+		d["cau_tinh_hinh"] = cau
+		d["nhan_trang_thai"] = NHAN_TT_PHIEU.get(
+			d.get("trang_thai"), d.get("trang_thai"))
+		g = don.get(d.get("ma_don_pancake") or "") or {}
+		d["ma_hien_thi"] = g.get("ma_hien_thi") or d.get("ma_don_pancake") or ""
+		d["ten_khach"] = g.get("ten_khach") or ""
+		d["huy_luc"] = g.get("huy_luc")
+		d["nhan_ly_do"] = nhan_ly_do(d.get("ly_do"))
+		d["creation"] = str(d.get("creation") or "")[:16]
+		d["ngay_doi_soat"] = str(d.get("ngay_doi_soat") or "")[:16]
+
+	# Chip đếm trên CẢ SỔ và theo đúng ô tìm đang gõ, không đếm trang đang xem.
+	dem = {}
+	for k in TT_PHIEU:
+		l2 = dict(loc)
+		l2["trang_thai"] = k
+		dem[k] = len(frappe.get_all(HT, filters=l2, or_filters=hoac,
+			fields=["name"], limit_page_length=0))
+	dem["tat_ca"] = sum(dem.values())
+
+	cho_unc = len([d for d in dong if d["buoc_cho"] == "unc"])
+	return {
+		"dong": dong,
+		"dem": dem,
+		"nhan": dict(NHAN_TT_PHIEU),
+		"buoc": [{"k": k, "ten": t} for k, t in BUOC],
+		"cho_unc": cho_unc,
+		"tien_dang_chay": sum(flt(d.get("so_tien")) for d in dong
+			if d["buoc_xong"] < 4 and d.get("trang_thai") != "Da huy"),
+	}
+
+
+@frappe.whitelist()
+def xuat_excel_phieu(trang_thai="", tim=""):
+	"""Xuất đúng cái đang hiện trên màn Phiếu hoàn: cùng chip, cùng ô tìm."""
+	_quyen()
+	kq = ds_phieu(trang_thai=trang_thai, tim=tim, so_dong=1000)
+	cot = [
+		("ma_hien_thi", "Ma don"),
+		("ma_don_pancake", "ID Pancake"),
+		("ten_khach", "Khach hang"),
+		("so_tien", "So tien hoan"),
+		("nhan_trang_thai", "Trang thai"),
+		("cau_tinh_hinh", "Dang cho gi"),
+		("name", "Ma phieu hoan"),
+		("phieu_chi", "Phieu chi"),
+		("co_unc", "Co uy nhiem chi"),
+		("phieu_chi_da_ghi", "Phieu chi da ghi so"),
+		("ma_gd", "Ma giao dich"),
+		("ngay_doi_soat", "Ngay doi soat"),
+		("ten_tk", "Ten chu tai khoan"),
+		("so_tk", "So tai khoan"),
+		("ngan_hang", "Ngan hang"),
+		("nguoi_duyet", "Nguoi lap"),
+		("creation", "Lap luc"),
+	]
+	return {
+		"ten_tep": "phieu-hoan-don-huy-%s.csv" % str(now_datetime())[:10],
+		"cot": [n for _f, n in cot],
+		"hang": [[d.get(f) for f, _n in cot] for d in kq["dong"]],
+		"tong_dong": len(kq["dong"]),
 	}
 
 

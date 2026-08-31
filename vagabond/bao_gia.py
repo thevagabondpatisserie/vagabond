@@ -946,18 +946,33 @@ def danh_sach(trang_thai=None, loc=None, tim=None, ban_cu=None):
 	Chip "Bản cũ" mo ra xem lai lich su khi can.
 	"""
 	_quyen()
+	# O tim chay o MAY CHU (QT-19, anh Viet nhac lai 31/08/2026). Truoc day
+	# cho nay doc 400 to moi sua nhat roi moi loc bang Python, nen mot to
+	# bao gia cu hon 400 to do la go ma vao o tim khong bao gio ra, va con
+	# so tren chip cung chi dem trong cua so 400 to ay.
+	hoac = None
+	q = str(tim or "").strip()
+	if q:
+		hoac = [
+			["name", "like", "%" + q + "%"],
+			["ten", "like", "%" + q + "%"],
+			["ten_khach", "like", "%" + q + "%"],
+		]
 	tat_ca = frappe.get_all(
 		DT,
 		# Mau bao gia khong phai to that nen khong nam trong danh sach.
 		# Mau xem va quan ly rieng o man "Mau bao gia".
 		filters={"la_mau": 0},
+		or_filters=hoac,
 		fields=[
 			"name", "ten", "trang_thai", "khach_hang", "ten_khach",
 			"ngay_bao_gia", "hieu_luc_den", "tong_cong", "hop_dong",
 			"nguoi_lap", "modified", "goc", "phien_ban", "thay_the_boi",
 		],
 		order_by="modified desc",
-		limit_page_length=400,
+		# Doc het tap da khop o tim thi dem chip moi dung. Cat dong lam o
+		# buoc cuoi, sau khi da dem xong.
+		limit_page_length=0 if q else 400,
 	)
 	# Loc bang "thay_the_boi con trong" chu khong bang mot co ban_moi_nhat:
 	# co thi phai backfill cho cac to dang co, ma dung vao du lieu qua khu la
@@ -1010,13 +1025,7 @@ def danh_sach(trang_thai=None, loc=None, tim=None, ban_cu=None):
 		ra = [x for x in ra if x["cua_toi"] and x["dang_mo"]]
 	elif loc == "gia_tri":
 		ra = sorted(ra, key=lambda x: -flt(x["tong_cong"]))
-	if tim:
-		t = str(tim).lower()
-		ra = [
-			x for x in ra
-			if t in ((x.get("ten") or "") + " " + (x.get("ten_khach") or "")
-					 + " " + x["name"]).lower()
-		]
+	# Khong loc lai o tim o day nua: co so du lieu da loc roi.
 	return {"dem": dem, "ds": ra[:200]}
 
 
