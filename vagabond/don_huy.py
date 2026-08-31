@@ -244,8 +244,55 @@ NHAN_TT_PHIEU = {
 	"Da chi": "Đã chi",
 	"Da doi soat": "Đã đối soát",
 	"Hoan thanh": "Hoàn thành",
-	"Da huy": "Đã huỷ",
+	"Da huy": "Đã huỷ / Từ chối",
 }
+
+# Bốn loại phiếu hoàn. Khoá đọc từ hoan_tien, KHÔNG chép chuỗi sang đây: đó
+# là cách sinh ra hai bảng rồi lệch nhau (bài học ba bảng điểm bán 12/08).
+# Chuỗi rỗng là phiếu lập trước 18/08/2026, khi chưa có ô "Loại phiếu"; theo
+# mô tả của chính ô đó thì mọi phiếu cũ đều là phiếu trả hàng. Hôm nay còn
+# 10 trên 16 phiếu ở dạng rỗng, nên bỏ sót nhóm này là mất hơn nửa danh sách.
+LOAI_RONG_LA = "Tra hang"
+
+
+def cac_loai_hoan():
+	"""Danh sách (khoá, nhãn) các loại phiếu, theo đúng thứ tự hiện trên chip."""
+	from vagabond.hoan_tien import (
+		LOAI_HUY_NHAP, LOAI_HUY_PANCAKE, LOAI_TIEN_DU, LOAI_TRA_HANG,
+		NHAN_LOAI_HOAN,
+	)
+
+	return [(k, NHAN_LOAI_HOAN.get(k, k)) for k in (
+		LOAI_HUY_PANCAKE, LOAI_TRA_HANG, LOAI_TIEN_DU, LOAI_HUY_NHAP)]
+
+
+def loai_thuc(loai):
+	"""Loại thật của một phiếu. THUẦN. Rỗng thì là phiếu trả hàng."""
+	return str(loai or "").strip() or LOAI_RONG_LA
+
+
+def diem_cua_phieu(loai, quay=None):
+	"""Điểm bán của một phiếu hoàn. THUẦN.
+
+	Hồ sơ hoàn tiền không mang sẵn ô điểm bán, nên phải suy ra:
+
+	- Phiếu huỷ đơn Pancake thì chưa bao giờ có hoá đơn nào, và đơn Pancake
+	  luôn thuộc Sales Online. Suy thẳng, không cần hỏi hoá đơn.
+	- Còn lại thì đọc mã quầy trên hoá đơn gốc. Quầy để trống nghĩa là đơn
+	  online, tức Sales Online.
+	- Không có hoá đơn mà cũng không phải phiếu Pancake thì chịu, trả rỗng
+	  chứ KHÔNG đoán bừa là Sales Online: đoán sai một điểm bán là làm lệch
+	  số liệu của cả một cửa hàng.
+	"""
+	from vagabond.hoan_tien import LOAI_HUY_PANCAKE
+
+	if loai_thuc(loai) == LOAI_HUY_PANCAKE:
+		return "SALES"
+	if quay is None:
+		return ""
+	from vagabond import diem_ban
+
+	return diem_ban.ma_theo_quay(quay)
 
 # Những ô người ta thật sự gõ vào ô tìm khi đi tìm một phiếu hoàn: mã đơn
 # Pancake, số tài khoản khách đọc trong khung chat, tên chủ tài khoản, số
@@ -677,53 +724,79 @@ def _unc_theo_phieu_chi(ma_pc):
 
 
 @frappe.whitelist()
-def ds_phieu(trang_thai="", tim="", so_dong=200):
-	"""Phiếu hoàn của đơn Pancake đã huỷ, dựng cho Sales theo dõi.
+def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
+	"""Danh sách phiếu hoàn tiền, dựng cho các điểm bán theo dõi.
+
+	Anh Việt 31/08/2026: màn danh mục phiếu hoàn tiền trước giờ chỉ có bên
+	phân hệ Kế toán, mà phân hệ đó v355 đã khoá lại không cho nhân viên vào.
+	Nên gộp cả bốn loại phiếu vào đây, mở về phía các điểm bán.
 
 	CHỈ ĐỌC. Không hàm nào ở đây sửa được hồ sơ hay phiếu chi của kế toán;
-	Sales nhìn thấy việc chạy tới đâu, thế thôi.
+	các điểm bán nhìn thấy việc chạy tới đâu, thế thôi.
 
-	Chỉ lấy phiếu loại "Huỷ đơn Pancake". Phiếu trả hàng và phiếu tiền nộp
-	thừa có đời sống khác hẳn (chúng khử doanh thu bằng hoá đơn trả hàng) và
-	đã có màn riêng bên Kế toán.
+	BA HỌ CHIP: điểm bán, loại phiếu, trạng thái. Mỗi họ đếm trên tập đã lọc
+	bởi HAI họ kia, để bấm một chip xong thì số trên các chip còn lại vẫn nói
+	đúng "bấm thêm cái này thì còn bao nhiêu". Đếm trên toàn sổ mà không nhìn
+	các chip khác thì con số to hơn danh sách, người đọc mất tin.
+
+	Vì sao lọc điểm bán bằng Python chứ không bằng câu truy vấn: hồ sơ hoàn
+	tiền không mang sẵn ô điểm bán, nó nằm trên hoá đơn gốc. Nhưng phép đọc ở
+	đây KHÔNG cắt dòng trước (`limit_page_length=0`), nên đây không phải cái
+	bẫy mà `thu_phieu_hoan_huy.py` canh: cắt dòng làm ở bước CUỐI, sau khi đã
+	lọc xong và đã đếm xong. Cùng cách tầng khung dựng danh sách vẫn làm.
 	"""
 	_quyen()
 	from vagabond.hoan_tien import DT as HT
-	from vagabond.hoan_tien import LOAI_HUY_PANCAKE
 
-	loc = {"loai_hoan": LOAI_HUY_PANCAKE}
+	loc = {}
 	tt = str(trang_thai or "").strip()
 	if tt and tt in TT_PHIEU:
 		loc["trang_thai"] = tt
 	hoac = dieu_kien_tim(tim, TRUONG_TIM_PHIEU)
 
-	truong = ["name", "ma_don_pancake", "so_tien", "trang_thai", "ly_do",
-		"dien_giai", "ten_tk", "so_tk", "ngan_hang", "sdt", "phieu_chi",
-		"phieu_thu", "da_doi_soat", "ma_gd", "ngay_doi_soat", "noi_dung_ck",
-		"nguoi_duyet", "creation", "ly_do_tu_choi", "nguoi_tu_choi"]
+	truong = ["name", "loai_hoan", "hoa_don", "ma_don_pancake", "so_tien",
+		"trang_thai", "ly_do", "dien_giai", "ten_tk", "so_tk", "ngan_hang",
+		"sdt", "phieu_chi", "phieu_thu", "da_doi_soat", "ma_gd",
+		"ngay_doi_soat", "noi_dung_ck", "nguoi_duyet", "creation", "so_hddt",
+		"ly_do_tu_choi", "nguoi_tu_choi"]
 	dong = frappe.get_all(HT, filters=loc, or_filters=hoac, fields=truong,
-		order_by="creation desc",
-		limit_page_length=max(1, min(1000, int(so_dong or 200))))
+		order_by="creation desc", limit_page_length=0)
+
+	# Quầy của hoá đơn gốc, một câu cho cả trang. Từ quầy mới ra điểm bán.
+	ma_hd = list({d["hoa_don"] for d in dong if d.get("hoa_don")})
+	quay = {}
+	if ma_hd:
+		for r in frappe.get_all("Sales Invoice",
+				filters={"name": ["in", ma_hd]},
+				fields=["name", "vgb_quay"], limit_page_length=0):
+			quay[r["name"]] = r.get("vgb_quay") or ""
 
 	ma_pc = [d["phieu_chi"] for d in dong if d.get("phieu_chi")]
 	da_ghi = {}
 	if ma_pc:
 		for r in frappe.get_all("Payment Entry",
 				filters={"name": ["in", ma_pc]},
-				fields=["name", "docstatus", "reference_no", "reference_date"],
-				limit_page_length=0):
+				fields=["name", "docstatus"], limit_page_length=0):
 			da_ghi[r["name"]] = r
 	unc = _unc_theo_phieu_chi(ma_pc)
 
-	# Tên khách và mã hiển thị lấy từ bảng đệm đơn huỷ: hồ sơ hoàn tiền treo
-	# vào mã khách chung "Khách lẻ Online" nên bản thân nó không biết tên ai.
+	# Tên khách. Phiếu Pancake lấy từ bảng đệm đơn huỷ vì hồ sơ treo vào mã
+	# khách chung; phiếu có hoá đơn thì lấy tên khách trên hoá đơn.
 	ma_don = [d["ma_don_pancake"] for d in dong if d.get("ma_don_pancake")]
 	don = {}
 	if ma_don:
 		for r in frappe.get_all(DT, filters={"ma_don": ["in", ma_don]},
-				fields=["ma_don", "ma_hien_thi", "ten_khach", "tong_don",
-					"da_nhan", "huy_luc"], limit_page_length=0):
+				fields=["ma_don", "ma_hien_thi", "ten_khach", "huy_luc"],
+				limit_page_length=0):
 			don[r["ma_don"]] = r
+	ten_hd = {}
+	if ma_hd:
+		for r in frappe.get_all("Sales Invoice",
+				filters={"name": ["in", ma_hd]},
+				fields=["name", "customer_name"], limit_page_length=0):
+			ten_hd[r["name"]] = r.get("customer_name") or ""
+
+	from vagabond.hoan_tien import NHAN_LOAI_HOAN
 
 	for d in dong:
 		pc = da_ghi.get(d.get("phieu_chi") or "") or {}
@@ -739,43 +812,85 @@ def ds_phieu(trang_thai="", tim="", so_dong=200):
 		d["cau_tinh_hinh"] = cau
 		d["nhan_trang_thai"] = NHAN_TT_PHIEU.get(
 			d.get("trang_thai"), d.get("trang_thai"))
+		d["loai"] = loai_thuc(d.get("loai_hoan"))
+		d["nhan_loai"] = NHAN_LOAI_HOAN.get(d.get("loai_hoan") or "", d["loai"])
+		hd = d.get("hoa_don") or ""
+		d["diem_ban"] = diem_cua_phieu(
+			d.get("loai_hoan"), quay.get(hd) if hd else None)
 		g = don.get(d.get("ma_don_pancake") or "") or {}
-		d["ma_hien_thi"] = g.get("ma_hien_thi") or d.get("ma_don_pancake") or ""
-		d["ten_khach"] = g.get("ten_khach") or ""
+		d["ma_hien_thi"] = (g.get("ma_hien_thi") or d.get("ma_don_pancake")
+			or hd or "")
+		d["ten_khach"] = g.get("ten_khach") or ten_hd.get(hd, "")
 		d["huy_luc"] = g.get("huy_luc")
 		d["nhan_ly_do"] = nhan_ly_do(d.get("ly_do"))
 		d["creation"] = str(d.get("creation") or "")[:16]
 		d["ngay_doi_soat"] = str(d.get("ngay_doi_soat") or "")[:16]
 
-	# Chip đếm trên CẢ SỔ và theo đúng ô tìm đang gõ, không đếm trang đang xem.
-	dem = {}
-	for k in TT_PHIEU:
-		l2 = dict(loc)
-		l2["trang_thai"] = k
-		dem[k] = len(frappe.get_all(HT, filters=l2, or_filters=hoac,
-			fields=["name"], limit_page_length=0))
-	dem["tat_ca"] = sum(dem.values())
+	dm = str(diem or "").strip().upper()
+	lo = str(loai or "").strip()
+	hop = lambda r: ((not dm or r["diem_ban"] == dm)
+		and (not lo or r["loai"] == lo))
 
-	cho_unc = len([d for d in dong if d["buoc_cho"] == "unc"])
+	ten_diem = _ten_diem()
+	dem_diem, dem_loai, dem_tt = {}, {}, {}
+	for r in dong:
+		# Mỗi họ chip đếm trên tập đã lọc bởi HAI họ kia.
+		if (not lo or r["loai"] == lo):
+			dem_diem[r["diem_ban"]] = dem_diem.get(r["diem_ban"], 0) + 1
+		if (not dm or r["diem_ban"] == dm):
+			dem_loai[r["loai"]] = dem_loai.get(r["loai"], 0) + 1
+		if hop(r):
+			dem_tt[r["trang_thai"]] = dem_tt.get(r["trang_thai"], 0) + 1
+	dem_diem["tat_ca"] = len([r for r in dong if (not lo or r["loai"] == lo)])
+	dem_loai["tat_ca"] = len([r for r in dong if (not dm or r["diem_ban"] == dm)])
+	dem_tt["tat_ca"] = len([r for r in dong if hop(r)])
+
+	ra = [r for r in dong if hop(r)]
+	tran = max(1, min(1000, int(so_dong or 200)))
+	# CẮT DÒNG Ở BƯỚC CUỐI, sau khi đã lọc và đã đếm xong.
 	return {
-		"dong": dong,
-		"dem": dem,
+		"dong": ra[:tran],
+		"tong_dong": len(ra),
+		"con_nua": 1 if len(ra) > tran else 0,
+		"dem": dem_tt,
+		"dem_diem": dem_diem,
+		"dem_loai": dem_loai,
 		"nhan": dict(NHAN_TT_PHIEU),
 		"buoc": [{"k": k, "ten": t} for k, t in BUOC],
-		"cho_unc": cho_unc,
-		"tien_dang_chay": sum(flt(d.get("so_tien")) for d in dong
-			if d["buoc_xong"] < 4 and d.get("trang_thai") != "Da huy"),
+		"diem": [{"k": k, "ten": v} for k, v in ten_diem.items()],
+		"loai": [{"k": k, "ten": t} for k, t in cac_loai_hoan()],
+		"cho_unc": len([r for r in ra if r["buoc_cho"] == "unc"]),
+		"tien_dang_chay": sum(flt(r.get("so_tien")) for r in ra
+			if r["buoc_xong"] < 4 and r.get("trang_thai") != "Da huy"),
 	}
 
 
+def _ten_diem():
+	"""Bảng mã điểm bán -> tên ngắn, cho chip. Hỏng cấu hình thì vẫn chạy."""
+	try:
+		from vagabond import diem_ban
+
+		return diem_ban.ten_diem()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "don_huy: doc diem ban loi")
+		return {"SALES": "Sales Online"}
+
+
 @frappe.whitelist()
-def xuat_excel_phieu(trang_thai="", tim=""):
-	"""Xuất đúng cái đang hiện trên màn Phiếu hoàn: cùng chip, cùng ô tìm."""
+def xuat_excel_phieu(diem="", loai="", trang_thai="", tim=""):
+	"""Xuất đúng cái đang hiện trên màn: cùng ba họ chip, cùng ô tìm."""
 	_quyen()
-	kq = ds_phieu(trang_thai=trang_thai, tim=tim, so_dong=1000)
+	kq = ds_phieu(diem=diem, loai=loai, trang_thai=trang_thai, tim=tim,
+		so_dong=1000)
+	ten_diem = _ten_diem()
+	for d in kq["dong"]:
+		d["ten_diem_ban"] = ten_diem.get(d.get("diem_ban") or "", "(chua ro)")
 	cot = [
-		("ma_hien_thi", "Ma don"),
+		("ma_hien_thi", "Ma don hoac hoa don"),
 		("ma_don_pancake", "ID Pancake"),
+		("hoa_don", "Hoa don goc"),
+		("ten_diem_ban", "Diem ban"),
+		("nhan_loai", "Loai phieu"),
 		("ten_khach", "Khach hang"),
 		("so_tien", "So tien hoan"),
 		("nhan_trang_thai", "Trang thai"),
@@ -793,7 +908,7 @@ def xuat_excel_phieu(trang_thai="", tim=""):
 		("creation", "Lap luc"),
 	]
 	return {
-		"ten_tep": "phieu-hoan-don-huy-%s.csv" % str(now_datetime())[:10],
+		"ten_tep": "phieu-hoan-tien-%s.csv" % str(now_datetime())[:10],
 		"cot": [n for _f, n in cot],
 		"hang": [[d.get(f) for f, _n in cot] for d in kq["dong"]],
 		"tong_dong": len(kq["dong"]),
