@@ -28,7 +28,7 @@ import unicodedata
 
 import frappe
 import requests
-from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, get_datetime, getdate, now_datetime, nowdate
 
 from vagabond import chiem_sao_ke, gia_pancake, hoa_don_vat
 
@@ -51,7 +51,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, tai_khoan
-from vagabond import ghi_so_dieu_kien, luat_thanh_toan
+from vagabond import ghi_so_dieu_kien, khop_tien, luat_thanh_toan, ma_bill
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
@@ -800,6 +800,13 @@ def cau_hinh_ban_hang():
 		# 11/08/2026. Doi anh trong app thi lay anh moi, chua doi thi dung
 		# anh nay.
 		"anh_sales": _anh_quay_da_luu("SALES") or "/assets/vagabond/images/quay-sales.jpg",
+		# Bang tien to ma bill, MOT NOI GIU (`ma_bill.py`). Man hinh sinh ma
+		# doc bang nay chu khong chep lai: chep lai la den luc them diem ban
+		# thu ba, may chu doc duoc tien to moi ma man hinh van sinh VGB.
+		"ma_tien_to": dict(ma_bill.TIEN_TO_DIEM),
+		"ma_tien_to_cu": ma_bill.TIEN_TO_CU,
+		"ma_chu_sinh": ma_bill.CHU_SINH,
+		"ma_dai_duoi": ma_bill.DAI_DUOI,
 		"qr_quay": tai_khoan.tk_cho(),
 		# Tai khoan ao rieng cua tung nguon don, de man tinh tien sinh QR
 		# vao dung tai khoan cua nguon do.
@@ -3960,7 +3967,19 @@ def xuat_hddt_con_thieu_tu_dong():
 
 import hashlib
 
-RE_MA_BILL = re.compile(r"VGB[A-Z0-9]{5}")
+# Tien to ma bill KHONG con mot minh VGB nua (anh Viet 31/08/2026): bill moi
+# o Tran Cao Van mang TCV, NVHTN mang NVH, Sales Online mang SOL. Bang tien to
+# va bang chu sinh ma nam ben `ma_bill.py` - THUAN, kiem thu duoc khong can
+# site - va CA man hinh lan may chu deu doc tu do, khong noi nao chep lai.
+#
+# VGB o lai trong bang doc vinh vien: hon hai nghin bill cu mang tien to do,
+# bo ra la sao ke cu mat duong doi soat.
+#
+# Mau moi CHAT hon mau cu `VGB[A-Z0-9]{5}`: no chi nhan dung bang chu sinh ma,
+# thieu B I O Z 0 1 2. Nho vay mot chuoi rac trong sao ke nhu "TCVB1OZ0" khong
+# con khop bua. Da quet 2.914 giao dich thang 8: VGB khop 11 lan, deu la ma
+# that; TCV, NVH, SOL khong khop nham lan nao.
+RE_MA_BILL = ma_bill.RE_MA
 
 
 def _sepay_theo_ma_bill(ds_ma, so_ngay=45):
@@ -4024,6 +4043,173 @@ def _sepay_bill(ma):
 	"""Bang ket qua cua MOT ma bill. Duong tat cho cac cho chi can mot ma."""
 	theo_ma, _bo = _sepay_theo_ma_bill([ma])
 	return theo_ma.get(str(ma or "").strip().upper()) or {}
+
+
+# ==================================================== KHOP THEO SO TIEN VA GIO
+#
+# ANH VIET 31/08/2026, 23h:
+#
+#   "Quá trời hoá đơn chuyển khoản bên điểm bán Quận 1 hôm nay sao cứ bị chờ
+#    tiền về thế này? Hoá đơn chuyển khoản thì ngay lập tức đã có SePay đồng
+#    bộ về để khớp trong vòng có mấy giây thôi mà."
+#
+# SePay khong hong. Hom do ve du 90 giao dich, dung gio dung so. Cai hong la
+# PHEP KHOP: may chi biet tim ma bill ben trong noi dung chuyen khoan, ma quet
+# ca thang 8 thi trong 2.914 giao dich chi 11 giao dich mang ma bill. Noi dung
+# ngan hang tra ve co dang:
+#
+#   Q00033k5p6  VAGABOND1 1  QR   25622 5MQJ9- Ma GD ACSP/ XR703682
+#
+# Do la chuoi ngan hang tu sinh cho ma QR cua DIEM BAN, khong phai noi dung
+# minh dat trong ma QR cua app. Nghia la duong khop theo ma gan nhu chua bao
+# gio chay cho bill quay, khong phai hong rieng hom do.
+#
+# VI SAO KHONG GHI GI XUONG CO SO DU LIEU
+# ---------------------------------------
+# Phep nay chay luc DOC man hinh, khong luu ket qua. Gach nham mot giao dich
+# vao sai bill la sai doanh thu cua CA HAI bill, ma sai doanh thu thi kho lan
+# ra hon nhieu so voi de trong. Tinh lai moi lan mo man thi re, luon dung theo
+# du lieu moi nhat, va sai thi tu het khi du lieu ve du.
+#
+# NO KHONG MO CONG GHI SO
+# -----------------------
+# `ghi_so_dieu_kien` giu nguyen: khop theo so tien chi lam SANG man hinh, chu
+# khong bien mot bill dang treo thanh bill ghi so duoc. Mot noi tinh mot noi
+# kiem (QT-19), va noi kiem van la `ghi_so_dieu_kien`.
+
+
+def _phut_trong_ngay(moc):
+	"""So phut ke tu dau ngay cua mot moc thoi gian. None neu khong doc duoc."""
+	if not moc:
+		return None
+	try:
+		d = get_datetime(moc)
+	except Exception:
+		return None
+	return d.hour * 60 + d.minute + d.second / 60.0
+
+
+def _gd_ngay(ngay):
+	"""Moi khoan TIEN VE trong mot ngay, kem gio. [{ten, tien, phut, mo_ta}].
+
+	Lay gio theo `creation` chu khong theo o `date`: `date` chi la ngay, con
+	SePay day giao dich ve trong vai giay nen `creation` sat gio khach chuyen.
+	Dong nao `creation` roi sang ngay khac (day bu, dong bo lai) thi bo ra chu
+	khong doan gio, vi doan gio la gach nham.
+	"""
+	try:
+		gds = frappe.db.sql(
+			"""select name, description, reference_number, deposit, creation, date
+			from `tabBank Transaction`
+			where docstatus < 2 and date = %s and deposit > 0""",
+			(str(getdate(ngay)),), as_dict=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc sao ke trong ngay")
+		return []
+	ra = []
+	for g in gds:
+		if str(getdate(g.get("creation"))) != str(getdate(ngay)):
+			continue
+		p = _phut_trong_ngay(g.get("creation"))
+		if p is None:
+			continue
+		ra.append({
+			"ten": g.get("name"),
+			"tien": flt(g.get("deposit")),
+			"phut": p,
+			"mo_ta": "%s %s" % (g.get("description") or "", g.get("reference_number") or ""),
+		})
+	return ra
+
+
+def _khop_theo_tien(ds, ngay, theo_ma=None):
+	"""Duong khop thu hai cho cac bill chuyen khoan CHUA khop duoc theo ma.
+
+	Gan len tung dong cua `ds`:
+	  sepay_duong     'ma' | 'so_tien' | 'phan_van' | ''
+	  sepay_nhan      so tien coi nhu da nhan (chi tang khi khop chac chan)
+	  sepay_gd        ten dong sao ke da gach, de nguoi con lan ra duoc
+	  sepay_phan_van  so duong dang phan van, khi co tu hai
+
+	Tra ve nhung giao dich KHONG bill nao nhan la cua minh.
+	"""
+	con_gd = _gd_ngay(ngay)
+	if not con_gd:
+		return []
+	# Dong nao da bi mot bill gach theo MA thi tien do co chu roi.
+	da_gach = set()
+	for o in (theo_ma or {}).values():
+		for t in ((o or {}).get("gd") or []):
+			da_gach.add(t)
+	# Va dong nao mang bat ky ma bill nao cung khong con tu do, ke ca ma cua
+	# bill ngoai danh sach dang xem (ngay khac, quay khac).
+	con_gd = [
+		g for g in con_gd
+		if g["ten"] not in da_gach and not RE_MA_BILL.search((g["mo_ta"] or "").upper())
+	]
+	if not con_gd:
+		return []
+	bills = []
+	for r in ds or []:
+		if (r.get("vgb_pt_thanh_toan") or "") != "Chuyển khoản":
+			continue
+		if r.get("vgb_huy") or r.get("sepay_du"):
+			continue
+		if flt(r.get("grand_total")) <= 0:
+			continue
+		p = _phut_trong_ngay(r.get("creation"))
+		if p is None:
+			continue
+		bills.append({"ma": r.get("name"), "tien": flt(r.get("grand_total")), "phut": p})
+	if not bills:
+		return con_gd
+	kq = khop_tien.de_xuat(bills, con_gd)
+	chac, phan_van = kq.get("chac") or {}, kq.get("phan_van") or {}
+	for r in ds or []:
+		g = chac.get(r.get("name"))
+		if g:
+			r["sepay_nhan"] = flt(g.get("tien"))
+			r["sepay_du"] = 1 if flt(g.get("tien")) >= flt(r.get("grand_total")) - 1 else 0
+			r["sepay_duong"] = "so_tien"
+			r["sepay_gd"] = g.get("ten")
+		elif phan_van.get(r.get("name")):
+			r["sepay_duong"] = "phan_van"
+			r["sepay_phan_van"] = len(phan_van[r.get("name")])
+	# Dong nao da co bill nhan, du la chac hay phan van, deu khong con tu do.
+	het = set()
+	for g in chac.values():
+		het.add(g.get("ten"))
+	for ds_g in phan_van.values():
+		for g in ds_g:
+			het.add(g.get("ten"))
+	return [g for g in con_gd if g["ten"] not in het]
+
+
+def _gd_chua_ai_nhan(ngay=None):
+	"""Cac khoan tien ve trong ngay ma KHONG bill nao da luu nhan la cua minh.
+
+	Man tinh tien hoi lien tuc trong luc cho khach chuyen, nen ket qua giu
+	tam 8 giay: du de man hinh sang gan nhu tuc thi, va du ngan de khong bao
+	tien ve muon.
+	"""
+	ngay = str(getdate(ngay or nowdate()))
+	kh = "vgb:gd_chua_ai_nhan:%s" % ngay
+	cu = cache_get(kh)
+	if cu is not None:
+		return cu
+	ds = frappe.get_all(
+		"Sales Invoice",
+		filters={"posting_date": ngay, "docstatus": ["<", 2], "vgb_pt_thanh_toan": "Chuyển khoản"},
+		fields=["name", "creation", "grand_total", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_huy"],
+		limit_page_length=0,
+	)
+	theo_ma, _bo = _sepay_theo_ma_bill([r.vgb_ma_tham_chieu for r in ds])
+	for r in ds:
+		g = theo_ma.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
+		r["sepay_du"] = 1 if flt(g.get("nhan")) >= flt(r.grand_total) - 1 else 0
+	con = _khop_theo_tien(ds, ngay, theo_ma)
+	cache_set(kh, con, 8)
+	return con
 
 
 # =========================================================== BA DUONG KHOP TIEN
@@ -4135,7 +4321,36 @@ def pos_kiem_sepay(noi_dung=None, tien=0):
 	_kiem_quyen()
 	g = _sepay_bill(noi_dung)
 	nhan = flt(g.get("nhan"))
-	return {"nhan": nhan, "du": 1 if nhan >= flt(tien) - 1 else 0, "ma": g.get("ma") or ""}
+	if nhan >= flt(tien) - 1:
+		return {"nhan": nhan, "du": 1, "ma": g.get("ma") or "", "duong": "ma"}
+	# DUONG HAI, them 31/08/2026. Noi dung chuyen khoan cua khach hau nhu
+	# khong bao gio mang ma bill (11 tren 2.914 giao dich ca thang 8), nen
+	# neu chi biet mot duong thi o QR nay gan nhu khong bao gio sang xanh va
+	# thu ngan van phai ngoi nhin tin nhan bao chuyen khoan.
+	#
+	# Duong hai tim khoan tien DUNG BANG so phai thu, vua ve trong khoang ba
+	# muoi phut, va KHONG bill nao da luu nhan la cua minh. Dung mot khoan
+	# thi bao xanh; hai khoan tro len thi noi ro dang phan van chu khong
+	# chon bua, vi chon bua la doi tien cua ban khac sang bill nay.
+	try:
+		con = _gd_chua_ai_nhan(nowdate())
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc sao ke chua ai nhan")
+		con = []
+	bay_gio = _phut_trong_ngay(now_datetime())
+	hop = [
+		c for c in con
+		if khop_tien.cung_tien(c.get("tien"), tien)
+		and khop_tien.trong_cua_so(bay_gio, c.get("phut"), 30, 2)
+	] if (bay_gio is not None and flt(tien) > 0) else []
+	if len(hop) == 1:
+		return {
+			"nhan": flt(hop[0].get("tien")), "du": 1, "ma": "",
+			"duong": "so_tien", "gd": hop[0].get("ten"),
+		}
+	if len(hop) > 1:
+		return {"nhan": nhan, "du": 0, "ma": "", "duong": "phan_van", "so": len(hop)}
+	return {"nhan": nhan, "du": 0, "ma": g.get("ma") or "", "duong": ""}
 
 
 @frappe.whitelist()
@@ -4196,7 +4411,14 @@ def pos_ds_bill(quay=None, ngay=None):
 		gd = theo_don.get(str(r.custom_pancake_display_id or "").strip()) or {}
 		r["sepay_nhan"] = max(flt(g.get("nhan")), flt(gd.get("nhan")))
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
+		r["sepay_duong"] = "ma" if r["sepay_du"] else ""
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
+	# Duong khop thu hai: theo SO TIEN va GIO, cho nhung bill ma noi dung
+	# chuyen khoan khong mang ma. Xem khoi chu thich o `_khop_theo_tien`.
+	try:
+		_khop_theo_tien(ds, ngay, sepay)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: khop tien theo so tien va gio")
 	_gan_ly_do_treo(ds)
 	# Tinh trang keo don Pancake. Man hinh dan cau nay len dau bang khi don
 	# chua ve, thay vi de Sales nhin danh sach it hon roi tu doan (bai hoc
