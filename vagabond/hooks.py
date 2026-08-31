@@ -87,7 +87,15 @@ scheduler_events = {
 			# la du sat, vi bo lap lich cua Frappe cung nhat thu theo nhip do.
 			"vagabond.trang_thai_thu.soat_tu_dong",
 		],
-		"*/30 * * * *": ["vagabond.ban_hang.dong_bo_doanh_so_tu_dong"],
+		"*/30 * * * *": [
+			"vagabond.ban_hang.dong_bo_doanh_so_tu_dong",
+			# Don khach HUY ben Pancake: tien khach van nam o minh nen khong
+			# duoc cho ai bam nut. Truoc 31/08/2026 mo dun nay khong co nhip
+			# tu dong nao, va nut bam tay o chan man lai chua bao gio bam
+			# duoc, nen lan dong bo cuoi cung la 21/08 - muoi ngay khong mot
+			# don huy nao ve he.
+			"vagabond.don_huy.dong_bo_tu_dong",
+		],
 		# KHONG CON NHIP 06:00 CHO TANG QUA VIP.
 		#
 		# Truoc 26/08/2026 o day chay `tang_qua.quet_dem_tu_dong`: moi sang
