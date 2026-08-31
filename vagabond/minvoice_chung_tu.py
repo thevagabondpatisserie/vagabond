@@ -577,18 +577,36 @@ def _dem_trung():
 	Chỉ đếm tờ CÒN SỐNG: bỏ tờ đã huỷ ở ERPNext và tờ đã tick "Đã huỷ" của
 	mình, vì gỡ trùng bằng cách đánh dấu huỷ là cách gỡ hợp lệ.
 	"""
+	# GOM Ở TẦNG CƠ SỞ DỮ LIỆU, KHÔNG KÉO CẢ BẢNG LÊN PYTHON
+	#
+	# Bản đầu của hàm này (31/08/2026) kéo TOÀN BỘ hoá đơn mua và hoá đơn
+	# bán có mã hoá đơn điện tử về rồi mới gom. Bảng hoá đơn bán có hàng
+	# chục nghìn dòng, nên màn Còn sót trả về 504 ngay lần mở đầu tiên -
+	# tức là phép đếm dựng ra để canh chứng từ trùng lại làm hỏng đúng cái
+	# màn dùng để soi chứng từ trùng.
+	#
+	# Câu SQL dưới chỉ trả về những mã ĐÃ trùng, thường là không dòng nào.
+	# Phép gom vẫn đi qua `cap_trung` để một chỗ tính, một chỗ kiểm (QT-19).
 	try:
 		hang = []
 		for dt in (PI, SI):
-			for r in frappe.get_all(
-				dt,
-				filters={"docstatus": ["<", 2], "custom_minvoice_id": ["is", "set"]},
-				fields=["name", "custom_minvoice_id", "vgb_huy"],
-				limit_page_length=0,
-			):
-				if cint(r.get("vgb_huy")):
-					continue
-				hang.append({"ma_hddt": r.custom_minvoice_id, "ten": r.name})
+			try:
+				dong = frappe.db.sql(
+					"""select custom_minvoice_id as ma, group_concat(name) as ten
+					from `tab%s`
+					where docstatus < 2
+					and ifnull(custom_minvoice_id, '') != ''
+					and ifnull(vgb_huy, 0) = 0
+					group by custom_minvoice_id
+					having count(*) > 1""" % dt, as_dict=True)
+			except Exception:
+				# Bang nao chua co o vgb_huy thi bo qua bang do, dung de ca
+				# phep dem chet theo.
+				continue
+			for r in dong:
+				for ten in str(r.get("ten") or "").split(","):
+					if ten.strip():
+						hang.append({"ma_hddt": r.get("ma"), "ten": ten.strip()})
 		nhom = cap_trung(hang)
 		return {
 			"so_nhom": len(nhom),
