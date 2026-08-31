@@ -17,14 +17,39 @@ function posNgayVn(iso) {
    ma QR. Sinh truoc thi khach quet duoc ngay, khoi doi luu bill xong;
    luu bill thi chinh ma nay di vao o ma tham chieu de ke toan doi soat
    dung cai khach da chuyen (giong ma HD tren bill Fabi). */
-function posMaBill() {
-  var chu = 'ACDEFGHJKLMNPQRSTUVWXY3456789';
+/* TIEN TO THEO DIEM BAN, anh Viet 31/08/2026:
+
+     "Don o Tran Cao Van se mang ma TCV thay vi VGB, NVHTN thi la NVH, con o
+      307/1 Nguyen Van Troi Sales Online thi tien to la SOL."
+
+   Loi ich that: ke toan nhin sao ke ngan hang la biet ngay giao dich thuoc
+   diem nao, khong phai mo tung don ra tra. Va noi dung chuyen khoan gon lai
+   con dung mot chuoi tam ky tu, khong con khoang trang de app ngan hang nao
+   cat bot lam mat phan duoi.
+
+   Bang tien to lay tu MAY CHU (`ma_bill.py` qua CFGBH), khong chep lai o
+   day: chep lai la den luc them diem ban thu ba, may chu doc duoc tien to
+   moi ma man hinh van sinh VGB.
+
+   Bill cu mang VGB thi giu nguyen mai mai, chi khong sinh moi nua. */
+function posTienTo(maDiem) {
+  var c = CFGBH || {};
+  var b = c.ma_tien_to || {};
+  var d = posDiemCua(maDiem);
+  return b[d] || c.ma_tien_to_cu || 'VGB';
+}
+function posMaBill(maDiem) {
+  var c = CFGBH || {};
+  /* Bang chu co tinh thieu B I O Z 0 1 2: khach hay doc nham chung thanh
+     8 1 0 2 khi phai go tay noi dung chuyen khoan. */
+  var chu = c.ma_chu_sinh || 'ACDEFGHJKLMNPQRSTUVWXY3456789';
+  var n = parseInt(c.ma_dai_duoi, 10) || 5;
   var s = '';
-  for (var i = 0; i < 5; i++) s += chu.charAt(Math.floor(Math.random() * chu.length));
-  return 'VGB' + s;
+  for (var i = 0; i < n; i++) s += chu.charAt(Math.floor(Math.random() * chu.length));
+  return posTienTo(maDiem) + s;
 }
 function posMoi() {
-  posSepayNhan = 0;
+  posSepayNhan = 0; posSepayDuong = ''; posSepayPhanVan = 0;
   /* Chế độ mặc định phải là chế độ CÓ THẬT của điểm bán này. Điểm Sales
      Online không bán tại chỗ, để nguyên 'Tại chỗ' là máy chủ từ chối đơn với
      câu "Nguồn đơn (trống) không có trong danh mục". */
@@ -40,6 +65,11 @@ function posKmGiam(km, tong) {
 /* Tien SePay da nhan cho ma bill dang mo - poll 5 giay mot lan khi dang
    chia QR chuyen khoan, de khach chuyen den noi la cashier thay ngay. */
 var posSepayNhan = 0, posPollId = null;
+/* Duong nao lam sang o QR: 'ma' la khop duoc ma bill trong noi dung chuyen
+   khoan, 'so_tien' la khop theo dung so tien vua ve, 'phan_van' la co tu hai
+   khoan cung so tien nen may khong dam chon. Man hinh phai noi ro duong nao,
+   vi hai duong do khong chac chan bang nhau. */
+var posSepayDuong = '', posSepayPhanVan = 0;
 function posPollTat() { if (posPollId) { clearInterval(posPollId); posPollId = null; } }
 function posPollBat(ma, tien) {
   posPollTat();
@@ -48,10 +78,14 @@ function posPollBat(ma, tien) {
     if (!document.getElementById('posNd')) return posPollTat();
     try {
       var kq = await api('vagabond.ban_hang.pos_kiem_sepay', { noi_dung: ma, tien: tien });
-      if (kq && flt0(kq.nhan) > posSepayNhan) {
-        posSepayNhan = flt0(kq.nhan);
-        if (document.getElementById('posNd')) go(scrPosQuay, true);
+      var doi = false;
+      if (kq && flt0(kq.nhan) > posSepayNhan) { posSepayNhan = flt0(kq.nhan); doi = true; }
+      if (kq && (kq.duong || '') !== posSepayDuong) {
+        posSepayDuong = kq.duong || '';
+        posSepayPhanVan = parseInt(kq.so, 10) || 0;
+        doi = true;
       }
+      if (doi && document.getElementById('posNd')) go(scrPosQuay, true);
       if (kq && kq.du) posPollTat();
     } catch (e) { }
   }, 5000);
@@ -1354,7 +1388,18 @@ function posNoiDungCk(maBill, maDiem, nguon) {
   var d = posDiemCua(maDiem);
   var tk = posTaiKhoan(nguon, d);
   if (tk && tk.rieng) return b;
+  /* Tu 31/08/2026 chinh MA BILL da mang tien to cua diem (TCVQ4PFX), nen
+     dan them ma diem o dau nua la thua va con lam noi dung dai ra. Chi bill
+     cu mang tien to chung VGB moi con can ma diem di kem. */
+  if (b && posMaCoTienTo(b)) return b;
   return d ? (d + ' ' + b) : b;
+}
+/* Ma bill nay da tu mang tien to cua mot diem ban chua. */
+function posMaCoTienTo(ma) {
+  var b = (CFGBH || {}).ma_tien_to || {};
+  var m = String(ma || '').trim().toUpperCase();
+  for (var k in b) { if (b.hasOwnProperty(k) && m.indexOf(b[k]) === 0) return true; }
+  return false;
 }
 
 /* Ma diem ban dang lam viec. Man tinh tien quay thi tu biet, cac man khac
@@ -1408,10 +1453,20 @@ function posKhoiQr(noiDung, tien, nguon, maDiem) {
   if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào hoá đơn rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
   /* Tien ve du la khoi nay tu doi mau xanh - poll SePay 5 giay mot lan. */
   if (posSepayNhan >= tien - 1) {
+    /* Hai duong khop khong chac chan bang nhau nen phai noi ro duong nao.
+       Khop theo MA la chac: dung ma bill nay nam trong noi dung chuyen
+       khoan. Khop theo SO TIEN la may thay dung mot khoan dung bang so phai
+       thu vua ve trong ba muoi phut va chua bill nao nhan - rat sat nhung
+       van la suy ra, nen thu ngan liec lai mot cai truoc khi tra banh. */
+    var laMa = posSepayDuong !== 'so_tien';
     return '<div style="border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;background:#f0fdf4">' +
       '<div style="font-size:34px">✅</div>' +
       '<div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(posSepayNhan) + ' đ</div>' +
-      '<div style="font-size:13px;color:#374151;margin-top:4px">SePay khớp nội dung <b>' + h(noiDung) + '</b>. Bấm nút cuối màn để lưu hoá đơn rồi ghi sổ.</div>' +
+      '<div style="font-size:13px;color:#374151;margin-top:4px">' +
+      (laMa
+        ? 'SePay khớp nội dung <b>' + h(noiDung) + '</b>.'
+        : 'Ngân hàng vừa nhận đúng <b>' + money(posSepayNhan) + ' đ</b>, chỉ một khoản duy nhất và chưa hoá đơn nào nhận. Nội dung khách chuyển không mang mã bill nên máy khớp theo số tiền.') +
+      ' Bấm nút cuối màn để lưu hoá đơn rồi ghi sổ.</div>' +
       '</div>';
   }
   return '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
@@ -1420,7 +1475,10 @@ function posKhoiQr(noiDung, tien, nguon, maDiem) {
     '<div style="font-size:18px;font-weight:800;color:#0f766e">' + money(tien) + ' đ</div>' +
     '<div style="font-size:13px;color:#374151;margin-top:2px">Nội dung: <b>' + h(noiDung) + '</b></div>' +
     '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
-    '<div id="posChoTien" style="font-size:12px;color:#b45309;margin-top:8px">⏳ Đang chờ tiền về... màn hình tự báo khi SePay nhận đủ.</div>' +
+    '<div id="posChoTien" style="font-size:12px;color:#b45309;margin-top:8px">' +
+    (posSepayDuong === 'phan_van'
+      ? '❓ Có ' + posSepayPhanVan + ' khoản cùng số tiền vừa về, máy không dám chọn hộ. Mở app ngân hàng xem đúng khoản của khách này chưa.'
+      : '⏳ Đang chờ tiền về... màn hình tự báo khi ngân hàng nhận đủ.') + '</div>' +
     '</div>';
 }
 function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
@@ -1447,7 +1505,13 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
       if (kq && kq.du) {
         clearInterval(pid);
         var bao = ov.querySelector('#qrsBao');
-        if (bao) { bao.style.color = '#15803d'; bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - SePay khớp nội dung ' + h(soPhieu) + '.'; }
+        if (bao) {
+          bao.style.color = '#15803d';
+          bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - ' +
+            (kq.duong === 'so_tien'
+              ? 'khớp theo số tiền, nội dung khách chuyển không mang mã bill.'
+              : 'SePay khớp nội dung ' + h(soPhieu) + '.');
+        }
         var ny = ov.querySelector('[data-y]');
         if (ny && siName) { ny.textContent = '📒 Ghi sổ luôn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
       }

@@ -211,8 +211,25 @@ function posChipBill(r) {
   else if (r.vgb_tam_tinh) c.push(the('#fef3c7', '#92400e', '🕐 Tạm tính'));
   else c.push(the('#e5e7eb', '#374151', '📄 Chưa ghi sổ'));
   if (r.vgb_pt_thanh_toan) c.push(the('#e0f2fe', '#075985', h(r.vgb_pt_thanh_toan)));
+  /* CHIP DOI SOAT CHUYEN KHOAN, sua 31/08/2026.
+
+     Truoc day chip nay chi co hai mau: xanh khi khop duoc theo ma, con lai
+     la DO "Cho tien ve". Ma noi dung chuyen khoan cua khach hau nhu khong
+     bao gio mang ma bill, nen ca man hinh do ruc ke ca khi bill ghi so
+     duoc binh thuong. Sang 31/08 anh Viet tuong ca diem Quan 1 bi ket:
+     *"quá trời hoá đơn chuyển khoản ... cứ bị chờ tiền về"*. Thuc te khong
+     bill nao bi chan, chuoi 23h ghi so sach tron.
+
+     Nay chip noi dung mot viec: DOI SOAT den dau. Con viec "co ghi so duoc
+     khong" da co chip rieng ben duoi, do `ghi_so_dieu_kien` tinh. Chi khi
+     may chu that su chan vi chua ve tien thi chip nay moi do. */
   if ((r.vgb_pt_thanh_toan || '') === 'Chuyển khoản') {
-    c.push(r.sepay_du ? the('#dcfce7', '#166534', 'SePay ✓ đủ tiền') : the('#fee2e2', '#991b1b', '⏳ Chờ tiền về'));
+    if (r.sepay_duong === 'ma') c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
+    else if (r.sepay_duong === 'so_tien') c.push(the('#dcfce7', '#166534', '✓ Đủ tiền · khớp theo số tiền'));
+    else if (r.sepay_duong === 'phan_van') c.push(the('#fef3c7', '#92400e', '❓ ' + (r.sepay_phan_van || 2) + ' khoản cùng số tiền'));
+    else if (r.ly_do_treo === 'chua_ve_tien') c.push(the('#fee2e2', '#991b1b', '⏳ Chờ tiền về'));
+    else if (r.sepay_du) c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
+    else c.push(the('#eef2ff', '#3730a3', '· Chưa đối soát được'));
   }
   if (r.custom_hddt_so || (r.custom_hddt_trang_thai || '').trim()) {
     var mhd = DS_MAU_HD[r.custom_hddt_trang_thai] || ['#ede9fe', '#5b21b6'];
@@ -302,7 +319,12 @@ async function scrPosDs() {
     { k: 'tam_tinh', nhan: '🕐 Tạm tính', loc: function (r) { return !!r.vgb_tam_tinh && !r.vgb_huy; } },
     { k: 'da_huy', nhan: '🚫 Đã huỷ', loc: function (r) { return !!r.vgb_huy; } },
     { k: 'da_sua', nhan: '✏️ Đã sửa', loc: function (r) { return !!r.vgb_lan_sua; } },
-    { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du; } },
+    /* Chip loc nay truoc day nhat MOI bill chuyen khoan chua khop duoc theo
+       ma, tuc la gan nhu ca ngay. Nay dung nghia: chi bill may chu that su
+       chan vi chua ve tien. Muon nhin cac bill chua doi soat duoc thi dung
+       chip ke ben. */
+    { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return r.ly_do_treo === 'chua_ve_tien'; } },
+    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du && !r.sepay_duong; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!r.vgb_xhd_mst; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !!r.vgb_xhd_mst && !r.custom_hddt_so; } },
