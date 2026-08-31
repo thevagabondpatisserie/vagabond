@@ -1306,6 +1306,13 @@ async function scrDsNhapTay() {
     dstDiem.forEach(function (x) { if (!mac && !x.quay) mac = x; });
     dsTay.quay = (mac || dstDiem[0] || {}).ma || '';
   }
+  /* Ma bill mang TIEN TO cua diem ban (31/08/2026), ma diem chi chot xong o
+     may dong ngay tren, nen phai sinh lai ma khi tien to lech - khong thi
+     don Sales Online lai mang tien to TCV. Chi sinh lai khi lech that, de
+     bam ra bam vao khong lam doi ma dang hien tren QR cua khach. */
+  if (dsTay.bill && posTienTo(dsTay.quay) !== String(dsTay.bill).slice(0, 3)) {
+    dsTay.bill = posMaBill(dsTay.quay);
+  }
   var dstPhaiChon = dstDiem.length > 1;
   var dstTenDiem = '';
   dstDiem.forEach(function (x) { if (x.ma === dsTay.quay) dstTenDiem = x.ten; });
