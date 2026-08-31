@@ -624,7 +624,41 @@ def _doi_ten_don_vi(dong, phieu):
 	return True
 
 
-def _noi(doc, phieu):
+def _khong_qua_kho(item_code):
+	"""Dong nay co di qua kho khong. Khong thi dung doi hoi phieu nhap.
+
+	ANH VIET 31/08/2026
+	--------------------------------------------------------------------
+	*"Chi can co dong phi dich vu van chuyen la da bi lech ngay roi va he
+	thong khong cho phep noi hoa don voi PNK do vi ben PNK khong co dong
+	phi dich vu van chuyen va cac dong phu phi khac?"*
+
+	Dung y nguyen. Va do la mot be tac CAU TRUC chu khong phai loi vat.
+
+	Phi ship, phi dich vu, van phong pham KHONG BAO GIO nam trong phieu
+	nhap kho, vi chung khong phai hang ton kho. Ma phep noi cu doi MOI dong
+	phai tim ra phieu, tim khong ra la nem loi cho ca to. Nghia la he to
+	hoa don nao co mot dong phi la to do VINH VIEN khong noi duoc. Hoa don
+	7100 cua An Phu dung hai dong: mot dong cherry va mot dong phi ship.
+
+	Nen phai tach hai loai dong:
+	  - Dong KHONG qua kho: khong doi phieu, khong bao loi, cho di tiep.
+	  - Dong CO qua kho ma chua noi: van noi ra, va van chan luc GHI SO
+	    (khong co phieu thi gia von sai), nhung KHONG chan buoc noi.
+	"""
+	ma = str(item_code or "").strip()
+	if not ma:
+		# Chua gan ma hang thi chua biet no la gi. Khong doan la hang, cung
+		# khong doan la phi. Cho di tiep o buoc noi, con ghi so thi da co
+		# hang rao rieng.
+		return True
+	try:
+		return not cint(frappe.db.get_value("Item", ma, "is_stock_item"))
+	except Exception:
+		return False
+
+
+def _noi(doc, phieu, chi_tiet=False):
 	"""Gan tung dong hoa don vao dung dong phieu nhap. Tra danh sach loi.
 
 	Noi bua la hong ca gia von lan ton kho, nen o day thua nhan la khong
@@ -649,7 +683,19 @@ def _noi(doc, phieu):
 	except Exception:
 		giu_gia = 0
 	vuot_duoc = _vuot_lech_gia_duoc()
+
+	# Hai ro rieng biet. `loi` giu nguyen dinh dang cu (danh sach cau chu)
+	# vi `dung_lai_hddt._phieu_da_noi` dang doc kieu do. `xep` ghi them dong
+	# nao la hang that - chi nhung dong do moi duoc chan luc ghi so.
 	loi = []
+	xep = []
+
+	def _ghi(idx, ma, cau):
+		loi.append(cau)
+		xep.append({"idx": idx, "item_code": ma or "",
+			"qua_kho": 0 if _khong_qua_kho(ma) else 1, "cau": cau})
+
+	da_noi = 0
 	for d in doc.items:
 		if (d.get("purchase_receipt") or "").strip():
 			continue
@@ -675,15 +721,14 @@ def _noi(doc, phieu):
 		#
 		# Nen noi dung mot cau: dong nay chua gan ma hang.
 		if not (d.get("item_code") or "").strip():
-			loi.append(
+			_ghi(d.idx, d.get("item_code"),
 				"Dòng %d: hàng \"%s\" chưa gắn mã hàng, nên máy không biết "
 				"đối chiếu với món nào trong kho. Bấm nút \"Gắn mã hàng\" "
 				"ngay trên dòng này để chọn món một lần; lần sau nhà cung cấp "
 				"gửi đúng tên hàng đó là máy tự nhận. Hàng không qua kho "
 				"(dịch vụ, phí ship, văn phòng phẩm) thì bỏ qua bước nối "
 				"phiếu, nhờ kế toán ghi sổ thẳng tờ này."
-				% (d.idx, d.item_name or "")
-			)
+				% (d.idx, d.item_name or ""))
 			continue
 
 		ds = kho.get(d.item_code) or []
@@ -714,19 +759,17 @@ def _noi(doc, phieu):
 				# Toi day thi dong DA co ma hang (khuc tren da chan roi),
 				# nen cau nay moi dung: mon co that, ma khong phieu nhap nao
 				# cua nha cung cap nay chua no.
-				loi.append(
+				_ghi(d.idx, d.item_code,
 					"Dòng %d: món %s có mã hàng rồi nhưng không nằm trong "
 					"phiếu nhập kho nào của nhà cung cấp này. Hai đường đi tiếp. "
 					"Hàng có qua kho thì lập phiếu nhập kho trước rồi nối lại. "
 					"Hàng không qua kho (văn phòng phẩm, dịch vụ, chi phí) thì "
 					"bỏ qua bước nối phiếu, nhờ kế toán ghi sổ thẳng tờ này."
-					% (d.idx, d.item_name or d.item_code)
-				)
+					% (d.idx, d.item_name or d.item_code))
 			elif dvt_mua.lech_don_vi(d.get("uom"), hs_hd, ds[0].get("uom"), ds[0]["hs"]):
 				# Lech don vi thi so luong lech theo, va cai can noi la don vi
 				# chu khong phai so luong. Noi dung cai goc.
-				loi.append(
-					dvt_mua.loi_lech_don_vi(
+				_ghi(d.idx, d.item_code, dvt_mua.loi_lech_don_vi(
 						d.idx,
 						d.item_name or d.item_code,
 						d.get("qty"),
@@ -737,13 +780,11 @@ def _noi(doc, phieu):
 						ds[0]["hs"],
 						dvt_kho,
 						dvt_mua.dvt_tren_hoa_don(d.get("description")),
-					)
-				)
+					))
 			else:
-				loi.append(
+				_ghi(d.idx, d.item_code,
 					"Dòng %d: món %s trên hoá đơn %g %s mà phiếu nhập chỉ còn %g %s."
-					% (d.idx, d.item_name or d.item_code, can, dvt_kho, co, dvt_kho)
-				)
+					% (d.idx, d.item_name or d.item_code, can, dvt_kho, co, dvt_kho))
 			continue
 		# ERPNext doi o "uom" cua hai ben bang nhau TUNG CHU, da do ma nguon
 		# v16: compare_fields cua Purchase Receipt Item la
@@ -758,8 +799,7 @@ def _noi(doc, phieu):
 		#     ma nut do lai khong hien vi man hinh coi la khop - ket cung.
 		xet = dvt_mua.xet_don_vi(d.get("uom"), hs_hd, chon.get("uom"), chon["hs"])
 		if xet == dvt_mua.DVT_LECH:
-			loi.append(
-				dvt_mua.loi_lech_don_vi(
+			_ghi(d.idx, d.item_code, dvt_mua.loi_lech_don_vi(
 					d.idx,
 					d.item_name or d.item_code,
 					d.get("qty"),
@@ -770,11 +810,10 @@ def _noi(doc, phieu):
 					chon["hs"],
 					dvt_kho,
 					dvt_mua.dvt_tren_hoa_don(d.get("description")),
-				)
-			)
+				))
 			continue
 		if xet == dvt_mua.DVT_KHAC_TEN and not _doi_ten_don_vi(d, chon):
-			loi.append(
+			_ghi(d.idx, d.item_code,
 				"Dòng %d: món %s ghi đơn vị %s còn phiếu nhập ghi %s. Hai bên "
 				"cùng số lượng nhưng danh mục Món chưa khai %s nên chưa đổi tên "
 				"được. Khai đơn vị đó vào bảng quy đổi của món rồi nối lại."
@@ -784,8 +823,7 @@ def _noi(doc, phieu):
 					d.get("uom") or "",
 					chon.get("uom") or "",
 					chon.get("uom") or "",
-				)
-			)
+				))
 			continue
 		# ERPNext dang bat "Giu nguyen don gia suot chu ky mua hang". Noi mot
 		# dong lech gia vao phieu nhap la no chan ngay luc luu.
@@ -802,18 +840,29 @@ def _noi(doc, phieu):
 		gia_pnk = dvt_mua.gia_moi_don_vi_kho(chon.get("rate"), chon["hs"])
 		if giu_gia and abs(gia_hd - gia_pnk) > 0.5 / max(1.0, hs_hd):
 			if not vuot_duoc:
-				loi.append(
+				_ghi(d.idx, d.item_code,
 					"Dòng %d: món %s đơn giá hoá đơn %s, phiếu nhập %s. Hai bên "
 					"khác giá nên chỉ kế toán mới ghi sổ được tờ này. Nhờ kế toán "
 					"ghi sổ giúp, hoặc đề nghị nhà cung cấp phát hành lại hoá đơn."
-					% (d.idx, d.item_name or d.item_code, flt(d.rate), flt(chon["rate"]))
-				)
+					% (d.idx, d.item_name or d.item_code, flt(d.rate), flt(chon["rate"])))
 				continue
 			_ghi_chu_lech_gia(doc, d, chon)
 		chon["con"] -= can
 		d.purchase_receipt = chon["phieu"]
 		d.pr_detail = chon["name"]
-	return loi
+		da_noi += 1
+
+	if not chi_tiet:
+		return loi
+	return {
+		"da_noi": da_noi,
+		"loi": loi,
+		# Chi nhung dong HANG THAT chua noi moi chan buoc ghi so. Dong phi
+		# ship, phi dich vu, van phong pham thi khong bao gio nam trong phieu
+		# nhap, doi hoi chung co phieu la doi mot thu khong ton tai.
+		"chan_ghi_so": [x for x in xep if x["qua_kho"]],
+		"khong_qua_kho": [x for x in xep if not x["qua_kho"]],
+	}
 
 
 @frappe.whitelist()
@@ -853,25 +902,70 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 		if frappe.db.get_value("Purchase Receipt", p, "supplier") != doc.supplier:
 			frappe.throw("Phiếu nhập %s không phải của nhà cung cấp này." % p)
 
-	loi = _noi(doc, phieu)
-	if loi:
-		frappe.throw(
-			"Chưa nối được, mấy dòng này chưa khớp:\n\n" + "\n".join(loi) +
-			"\n\nSửa lại số lượng trên hoá đơn cho khớp phiếu nhập, hoặc chọn "
-			"thêm phiếu nhập khác."
-		)
+	kq = _noi(doc, phieu, chi_tiet=True)
+
+	# KHONG CHAN BUOC NOI NUA (anh Viet 31/08/2026).
+	#
+	# Ban cu: `if loi: frappe.throw(...)`. Mot dong khong khop la nem loi cho
+	# CA TO, khong dong nao duoc noi. Ma dong phi ship thi khong bao gio khop
+	# duoc, vi phieu nhap kho khong chua phi ship. Nghia la moi to hoa don co
+	# mot dong phi la mot to VINH VIEN khong noi duoc - va hoa don cua tiem
+	# thi hau nhu to nao cung co dong phi.
+	#
+	# Anh Viet: *"Chi can co dong phi dich vu van chuyen la da bi lech ngay
+	# roi va he thong khong cho phep noi hoa don voi PNK do?"* Dung. Do la be
+	# tac cau truc, va no la ly do that su khien "cac ben khong the lam viec".
+	#
+	# Nay: noi duoc dong nao thi noi dong do, dong nao chua noi duoc thi noi
+	# ro ra chu khong chan. Hang rao chi con o buoc GHI SO, va chi cho dong
+	# HANG THAT - vi hang that ma khong co phieu nhap thi gia von sai.
 	doc.flags.ignore_permissions = True
 	doc.save()
+	frappe.db.commit()
+
+	con_lai = [x["cau"] for x in kq["chan_ghi_so"]]
+	bo_qua = [x["cau"] for x in kq["khong_qua_kho"]]
 
 	if not cint(ghi_so):
-		frappe.db.commit()
-		return {"da_noi": 1, "da_ghi_so": 0, "name": doc.name}
+		return {
+			"da_noi": 1, "da_ghi_so": 0, "name": doc.name,
+			"so_dong_da_noi": kq["da_noi"],
+			"con_lai": con_lai, "khong_qua_kho": bo_qua,
+			"loi_nhan": _loi_nhan_noi(kq),
+		}
+
+	if con_lai:
+		frappe.throw(
+			"Đã nối %d dòng. Chưa ghi sổ được vì mấy dòng hàng này chưa có "
+			"phiếu nhập, ghi sổ luôn thì giá vốn sai:\n\n%s"
+			% (kq["da_noi"], "\n".join(con_lai))
+		)
 
 	doc.reload()
 	doc.flags.ignore_permissions = True
 	doc.submit()
 	frappe.db.commit()
-	return {"da_noi": 1, "da_ghi_so": 1, "name": doc.name, "trang_thai": doc.status}
+	return {
+		"da_noi": 1, "da_ghi_so": 1, "name": doc.name, "trang_thai": doc.status,
+		"so_dong_da_noi": kq["da_noi"], "khong_qua_kho": bo_qua,
+		"loi_nhan": _loi_nhan_noi(kq),
+	}
+
+
+def _loi_nhan_noi(kq):
+	"""Mot cau cho man hinh, noi ro da lam gi va con gi."""
+	p = ["Đã nối %d dòng vào phiếu nhập." % kq["da_noi"]]
+	if kq["khong_qua_kho"]:
+		p.append(
+			"%d dòng không qua kho (phí ship, dịch vụ, chi phí) nên không cần "
+			"phiếu nhập, kế toán ghi sổ thẳng." % len(kq["khong_qua_kho"])
+		)
+	if kq["chan_ghi_so"]:
+		p.append(
+			"Còn %d dòng hàng chưa có phiếu nhập, xem chi tiết bên dưới."
+			% len(kq["chan_ghi_so"])
+		)
+	return " ".join(p)
 
 
 @frappe.whitelist()
