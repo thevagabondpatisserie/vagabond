@@ -33,24 +33,30 @@ RONG_TRONG_MM = 210 - LE_MM * 2      # 180
 CAO_TRONG_MM = 297 - LE_MM * 2       # 267
 
 
-def css_trang(le_mm=LE_MM):
+def css_trang(le_mm=LE_MM, phong=""):
 	"""Khối <style> chuẩn cho một tờ in A4 dọc. THUẦN, không chạm Frappe.
 
 	Đặt ở ĐẦU tài liệu in. Ai cần lề khác thì truyền le_mm, đừng chép khối
 	này ra chỗ khác rồi sửa - chép ra là bắt đầu có hai luật.
+
+	`phong` là xâu phông chữ. Tệp này cố ý KHÔNG import `phong_chu` để giữ
+	tính thuần (không chạm Frappe, chạy được trên máy CI tay không), nên nơi
+	gọi phải truyền vào. Truyền rỗng thì không ép phông, giữ y hành vi cũ.
+	Bỏ quên tham số này là tờ in vỡ dấu tiếng Việt - xem vagabond/phong_chu.py.
 	"""
 	return (
 		"<style>"
 		"@page{size:A4 portrait;margin:%dmm}"
-		"html,body{margin:0;padding:0}"
+		+ ("*{font-family:%s}" % phong if phong else "")
+		+ "html,body{margin:0;padding:0}"
 		# Hang rao thu hai: dem trong khung, phong khi wkhtmltopdf bo qua @page.
 		".vgb-in{padding:0 2mm;box-sizing:border-box}"
 		# Bang dai duoc phep tran sang trang sau, nhung mot HANG thi khong -
 		# cat doi mot hang la doc mat mot dong so.
 		"table{page-break-inside:auto}tr{page-break-inside:avoid}"
 		"img{max-width:100%%}"
-		"</style>" % le_mm
-	)
+		"</style>"
+	) % le_mm
 
 
 # Kho giay duoc phep ap le chung. Ban in khac kho (tem 62x45mm) KHONG duoc

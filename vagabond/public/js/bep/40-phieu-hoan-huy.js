@@ -54,13 +54,22 @@ function phMau(tt) {
    Chip rỗng thì ẩn, để hàng chip không dài ra vì những nhóm chưa có phiếu
    nào. Riêng chip đang chọn thì luôn hiện dù đếm 0, nếu không bấm vào là nó
    biến mất và người ta không biết đường bấm lại. */
-function phHangChip(thuoc, dsc, dem, chon, nhan_tat_ca) {
+/* Mau cua tung HO chip. Anh Viet 31/08/2026: ba hang chip xep chong nhau ma
+   hang nao cung xanh y het nhau thi nhin rat roi, khong biet minh dang loc
+   theo cai gi.
+
+   Chon mau theo NGHIA chu khong theo thu tu: diem ban la noi chon (chi lam),
+   loai phieu la ban chat viec (tim), trang thai la buoc chay (xanh mong ket
+   nhu moi man khac cua app). */
+var PH_MAU_CHIP = { diem: '#4338ca', loai: '#b45309', tt: '#0d9488' };
+
+function phHangChip(thuoc, dsc, dem, chon, nhan_tat_ca, mau) {
   var s = posChipNut(thuoc + '=""', (nhan_tat_ca || 'Tất cả') + ' · ' +
-    (dem.tat_ca || 0), chon === '');
+    (dem.tat_ca || 0), chon === '', 0, mau);
   (dsc || []).forEach(function (o) {
     var n = dem[o.k] || 0;
     if (!n && chon !== o.k) return;
-    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k);
+    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k, 0, mau);
   });
   return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
@@ -127,8 +136,8 @@ async function scrPhieuHoanHuy() {
     '<div style="font-size:13px;color:#344054;line-height:1.6">' +
     'Phiếu hoàn tiền cho khách: đơn Pancake <b>đã huỷ</b>, đơn <b>đã ghi sổ</b> ' +
     'trả hàng, tiền khách <b>nộp thừa</b>. Kế toán làm tới đâu màn này hiện tới ' +
-    'đó, không phải đi hỏi. Có uỷ nhiệm chi rồi thì tải về gửi cho khách ngay ' +
-    'tại đây.</div>' +
+    'đó, không phải đi hỏi. Bấm vào một phiếu là thấy đủ chứng từ kế toán đã ' +
+    'đính và ảnh bằng chứng, bấm vào hình là mở ra gửi khách được.</div>' +
     '<div style="margin-top:9px;display:flex;align-items:baseline;gap:8px">' +
     '<span style="font-size:12px;color:#8a8f9c">TIỀN ĐANG CHẠY</span>' +
     '<b style="font-size:19px;color:#b54708">' + money(kq.tien_dang_chay || 0) + ' đ</b></div>' +
@@ -141,9 +150,12 @@ async function scrPhieuHoanHuy() {
       'danh sách.</div>' : '') +
     '</div>';
 
-  html += phHangChip('data-phd', kq.diem, kq.dem_diem || {}, phDiem, 'Mọi điểm bán');
-  html += phHangChip('data-phlo', kq.loai, kq.dem_loai || {}, phLoai, 'Mọi loại phiếu');
-  html += phHangChip('data-phl', phDsTt(kq), kq.dem || {}, phLoc, 'Mọi trạng thái');
+  html += phHangChip('data-phd', kq.diem, kq.dem_diem || {}, phDiem,
+    'Mọi điểm bán', PH_MAU_CHIP.diem);
+  html += phHangChip('data-phlo', kq.loai, kq.dem_loai || {}, phLoai,
+    'Mọi loại phiếu', PH_MAU_CHIP.loai);
+  html += phHangChip('data-phl', phDsTt(kq), kq.dem || {}, phLoc,
+    'Mọi trạng thái', PH_MAU_CHIP.tt);
 
   html += '<div class="card" style="padding:9px 11px"><input id="phTim" type="search" ' +
     'placeholder="Tìm theo mã đơn, hoá đơn, tên khách, số tài khoản, mã phiếu" value="' + h(phTim) + '" ' +
@@ -175,7 +187,11 @@ async function scrPhieuHoanHuy() {
         [r.nhan_trang_thai, m[0], m[1], m[2]],
         [r.nhan_loai, '#f8fafc', '#e2e8f0', '#475467'],
         [ten_diem[r.diem_ban] || 'Chưa rõ điểm bán', '#f8fafc', '#e2e8f0', '#475467'],
-        r.co_unc ? ['Có uỷ nhiệm chi', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
+        /* Nhan noi dung so tep, khong tu xung la uy nhiem chi: may chu
+           khong biet tep nao la uy nhiem chi (anh Viet 31/08/2026). */
+        r.co_unc ? [(r.unc || []).length + ' chứng từ chi', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
+        (r.bang_chung || []).length ? [(r.bang_chung || []).length + ' ảnh bằng chứng',
+          '#eff8ff', '#b2ddff', '#175cd3'] : null,
       ]) + (mo ? phChiTiet(r) : '') + '</div>' +
       '<div style="text-align:right;white-space:nowrap">' +
       '<b style="font-size:13.5px">' + money(r.so_tien) + '</b>' +
@@ -210,47 +226,99 @@ function phDsTt(kq) {
   return thu_tu.map(function (k) { return { k: k, ten: nhan[k] || k }; });
 }
 
-/* Phần mở rộng: những gì bên kế toán đã làm, kèm nút tải uỷ nhiệm chi. */
-function phChiTiet(r) {
-  var d = function (nhan, gt) {
-    if (!gt) return '';
-    return '<div style="display:flex;gap:8px;font-size:12px;margin-top:3px">' +
-      '<span style="color:#98a2b3;min-width:112px">' + nhan + '</span>' +
-      '<span style="color:#344054">' + h(String(gt)) + '</span></div>';
-  };
-  var s = '<div style="margin-top:9px;padding:9px 10px;background:#f9fafb;' +
-    'border:1px solid #eef0f3;border-radius:9px">';
-  s += d('Mã phiếu hoàn', r.name);
-  s += d('Loại phiếu', r.nhan_loai);
-  s += d('Hoá đơn gốc', r.hoa_don);
-  s += d('Số hoá đơn điện tử', r.so_hddt);
-  s += d('Mã đơn Pancake', r.ma_don_pancake);
-  s += d('Lý do', r.nhan_ly_do);
-  s += d('Diễn giải', r.dien_giai);
-  s += d('Chuyển vào', (r.ten_tk || '') + (r.so_tk ? ' · ' + r.so_tk : '') +
-    (r.ngan_hang ? ' · ' + r.ngan_hang : ''));
-  s += d('Nội dung chuyển', r.noi_dung_ck);
-  s += d('Phiếu thu', r.phieu_thu);
-  s += d('Phiếu chi', (r.phieu_chi || '(chưa có)') +
-    (r.phieu_chi_da_ghi ? ' · đã ghi sổ' : (r.phieu_chi ? ' · còn nháp' : '')));
-  s += d('Mã giao dịch', r.ma_gd);
-  s += d('Đối soát lúc', r.ngay_doi_soat);
-  s += d('Người lập', r.nguoi_duyet);
-  if (r.ly_do_tu_choi) s += d('Từ chối vì', r.ly_do_tu_choi);
-  if ((r.unc || []).length) {
-    s += '<div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">';
-    (r.unc || []).forEach(function (t) {
-      s += '<a href="' + h(t.url) + '" target="_blank" rel="noopener" download ' +
-        'style="display:inline-block;background:#fff;border:1.5px solid #12b76a;' +
-        'color:#05603a;border-radius:9px;padding:6px 11px;font-size:12.5px;' +
-        'text-decoration:none;font-weight:600">⬇️ Tải uỷ nhiệm chi</a>';
-    });
-    s += '</div>';
+/* Phần mở rộng: những gì bên kế toán đã làm, kèm các tệp đã đính.
+
+   BỐ CỤC DÒNG (anh Việt 31/08/2026, kèm CSS anh gửi)
+   --------------------------------------------------
+   Mỗi dòng là một hàng flex: cột nhãn khoá cứng 118px, cột giá trị ăn hết
+   phần còn lại và tự ngắt dòng thông minh. Giữa hai dòng có một nét đứt mờ
+   để mắt dóng ngang được. Bản cũ để hai cột trôi tự do nên mã dài đẩy nhãn
+   lệch đi, nhìn như thụt lề bậy.
+
+   Khoá 118px chứ không phải 130px như CSS anh gửi: màn hình điện thoại hẹp
+   nhất mà nhân viên đang dùng rộng 320px, trừ đệm hai bên còn 276px, để
+   130px thì cột giá trị chỉ còn 134px và mã hoá đơn nào cũng gãy làm ba
+   dòng. Đã đo trên đúng khổ đó rồi mới chốt con số.
+
+   TỆP ĐÍNH KÈM (anh Việt 31/08/2026)
+   ----------------------------------
+   *"Các nút tải thì cả 3 nút đều ghi là tải uỷ nhiệm chi nhưng nhấn vào lại
+   ra ảnh bằng chứng, ảnh đơn hàng... mọi tệp đính kèm phải trình bày dạng
+   thumbnail, không để nút tải như thế."*
+
+   Nay ảnh vẽ thành hình thu nhỏ bấm được, tệp khác vẽ thành một ô vuông
+   mang đúng ĐUÔI TỆP và tên thật ở dưới. Không con nút nào tự xưng là uỷ
+   nhiệm chi nữa: máy chủ không biết tệp nào là uỷ nhiệm chi, và đoán sai
+   thì người đọc tin nhầm. */
+function phDong(nhan, gt) {
+  if (!gt) return '';
+  return '<div style="display:flex;align-items:flex-start;padding-bottom:8px;' +
+    'margin-bottom:8px;border-bottom:1px dashed #e6e8ec">' +
+    '<span style="flex:0 0 118px;color:#98a2b3;font-size:12px;line-height:1.5;' +
+    'padding-right:10px">' + h(nhan) + '</span>' +
+    '<span style="flex:1;color:#344054;font-size:12.5px;font-weight:500;' +
+    'line-height:1.5;word-break:break-word;overflow-wrap:break-word">' +
+    h(String(gt)) + '</span></div>';
+}
+
+/* Một ô tệp: ảnh thì hiện hình, tệp khác thì hiện đuôi. Cả hai đều mở được
+   trong thẻ mới, và đều mang tên thật ở dưới để biết mình sắp mở cái gì. */
+function phOTep(t) {
+  var ten = String(t.ten || 'tệp');
+  var o = '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
+    'title="' + h(ten) + '" style="display:block;width:88px;text-decoration:none">';
+  if (t.anh) {
+    o += '<img src="' + h(t.url) + '" alt="' + h(ten) + '" loading="lazy" ' +
+      'style="width:88px;height:88px;object-fit:cover;border-radius:9px;' +
+      'border:1px solid #e4e7ec;background:#f8fafc;display:block">';
   } else {
-    s += '<div style="margin-top:8px;font-size:12px;color:#b54708">Chưa có uỷ ' +
-      'nhiệm chi. Kế toán tải từ e-banking về và đính vào phiếu chi thì nút ' +
-      'tải sẽ hiện ở đây.</div>';
+    o += '<div style="width:88px;height:88px;border-radius:9px;border:1px solid #e4e7ec;' +
+      'background:#f8fafc;display:flex;align-items:center;justify-content:center;' +
+      'color:#475467;font-size:13px;font-weight:800;letter-spacing:.5px">' +
+      h(t.duoi || 'TỆP') + '</div>';
   }
+  o += '<div style="font-size:10.5px;color:#667085;margin-top:4px;line-height:1.35;' +
+    'word-break:break-word">' + h(ten.length > 34 ? ten.slice(0, 32) + '…' : ten) +
+    '</div></a>';
+  return o;
+}
+
+function phLuoiTep(tieu_de, cac, khi_trong) {
+  if (!(cac || []).length) {
+    return khi_trong ? '<div style="margin-top:8px;font-size:12px;color:#b54708">' +
+      h(khi_trong) + '</div>' : '';
+  }
+  return '<div style="margin-top:10px">' +
+    '<div style="font-size:11.5px;font-weight:700;color:#667085;margin-bottom:6px;' +
+    'text-transform:uppercase;letter-spacing:.3px">' + h(tieu_de) + '</div>' +
+    '<div style="display:flex;gap:9px;flex-wrap:wrap">' +
+    cac.map(phOTep).join('') + '</div></div>';
+}
+
+function phChiTiet(r) {
+  var s = '<div style="margin-top:9px;padding:11px 12px;background:#f9fafb;' +
+    'border:1px solid #eef0f3;border-radius:9px">';
+  s += phDong('Mã phiếu hoàn', r.name);
+  s += phDong('Loại phiếu', r.nhan_loai);
+  s += phDong('Hoá đơn gốc', r.hoa_don);
+  s += phDong('Số hoá đơn điện tử', r.so_hddt);
+  s += phDong('Mã đơn Pancake', r.ma_don_pancake);
+  s += phDong('Lý do', r.nhan_ly_do);
+  s += phDong('Diễn giải', r.dien_giai);
+  s += phDong('Chuyển vào', (r.ten_tk || '') + (r.so_tk ? ' · ' + r.so_tk : '') +
+    (r.ngan_hang ? ' · ' + r.ngan_hang : ''));
+  s += phDong('Nội dung chuyển', r.noi_dung_ck);
+  s += phDong('Phiếu thu', r.phieu_thu);
+  s += phDong('Phiếu chi', (r.phieu_chi || '(chưa có)') +
+    (r.phieu_chi_da_ghi ? ' · đã ghi sổ' : (r.phieu_chi ? ' · còn nháp' : '')));
+  s += phDong('Mã giao dịch', r.ma_gd);
+  s += phDong('Đối soát lúc', r.ngay_doi_soat);
+  s += phDong('Người lập', r.nguoi_duyet);
+  if (r.ly_do_tu_choi) s += phDong('Từ chối vì', r.ly_do_tu_choi);
+  s += phLuoiTep('Chứng từ kế toán đính trên phiếu chi', r.unc,
+    'Kế toán chưa đính chứng từ chi nào. Có uỷ nhiệm chi rồi thì nó hiện ở đây, ' +
+    'bấm vào là mở ra gửi khách được.');
+  s += phLuoiTep('Ảnh bằng chứng người lập đính', r.bang_chung, '');
   return s + '</div>';
 }
 

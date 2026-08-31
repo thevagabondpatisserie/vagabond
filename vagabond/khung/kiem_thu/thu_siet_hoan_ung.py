@@ -265,13 +265,22 @@ def _ba_chu_ky():
 	la("ba o deu ra", ra.count("<td"), 3)
 
 
-@ca("khuon chuan: phong DejaVu dung dau, day la rang buoc cua may in PDF")
+@ca("khuon chuan: phong co du dau tieng Viet dung truoc Arial")
 def _phong_dejavu():
 	from vagabond import mau_chuan as mc
+	from vagabond.phong_chu import NGAN_XEP
 
-	# wkhtmltopdf tren may chu chi co phong nay dung du dau tieng Viet. Dat
-	# Arial len truoc la ra ban in mat dau, da gap mot lan.
-	dung("DejaVu dung dau", mc.PHONG.startswith("'DejaVu Sans'"))
+	# Doi 31/08/2026: xau phong khong con viet tay o mau_chuan nua ma lay
+	# tu MOT nguon duy nhat la phong_chu.NGAN_XEP, sau khi phat hien to
+	# Bien ban ban giao tien mat khai Times New Roman va vo het dau.
+	#
+	# Rang buoc KHONG doi: phong co du dau tieng Viet phai dung TRUOC Arial.
+	# Dat Arial len truoc la ra ban in mat dau, da gap mot lan.
+	la("khuon chuan dung dung xau phong chung", mc.PHONG, NGAN_XEP)
+	dung("Vagabond Sans dung dau", mc.PHONG.startswith("'Vagabond Sans'"))
+	dung("van con DejaVu lam luoi do", "'DejaVu Sans'" in mc.PHONG)
+	dung("hai phong do deu dung truoc Arial",
+		mc.PHONG.index("DejaVu Sans") < mc.PHONG.index("Arial"))
 
 
 @ca("to de nghi: da chuyen sang dung khuon chuan, khong tu dung nua")

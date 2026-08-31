@@ -44,7 +44,27 @@ HO_PHONG = "Vagabond Sans"
 # dung dau vi do la ban duy nhat chac chan co du tieng Viet. Arial va
 # Liberation Sans dung sau lam luoi do phong, phong khi thu muc phong
 # chua chep kip.
-NGAN_XEP = "'Vagabond Sans',Arial,'Liberation Sans',Helvetica,sans-serif"
+# DejaVu Sans dat ngay sau Vagabond Sans, them 31/08/2026. Do la phong DUY
+# NHAT chac chan co san tren may chu Frappe Cloud va co du dau tieng Viet.
+# Neu vi ly do nao do thu muc phong chua chep kip thi to PDF roi ve DejaVu
+# chu KHONG roi ve Times hay Nimbus - hai cai do thieu dau tieng Viet va cho
+# ra dung cai to "loi font tum lum" anh Viet nhin thay tren bien ban ban giao
+# tien mat ngay 31/08/2026.
+NGAN_XEP = "'Vagabond Sans','DejaVu Sans',Arial,'Liberation Sans',Helvetica,sans-serif"
+
+def css_ep(phong=None):
+	"""Cau CSS ep phong cho CA to in.
+
+	Dung dau `*` chu khong dat tren `body`: mot the con co thuoc tinh
+	`font-family` rieng se de len thu thua ke tu body, ma cac to in cu cua
+	repo nay day nhung the nhu vay.
+
+	LUU Y: style noi tuyen tren chinh the do van thang cau nay. Nen ngoai
+	cau CSS con phai KHONG viet ten phong thang vao style noi tuyen - ca
+	kiem `thu_phong_moi_to.py` canh dieu do.
+	"""
+	return "*{font-family:%s}" % (phong or NGAN_XEP)
+
 
 CAC_TEP = (
 	"VagabondSans-Regular.ttf",

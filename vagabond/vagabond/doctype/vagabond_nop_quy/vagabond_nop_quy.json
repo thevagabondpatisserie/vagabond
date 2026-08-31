@@ -21,6 +21,8 @@
   "so_ngay",
   "noi_dung",
   "noi_giao_nhan",
+  "nguoi_nhan_du_kien",
+  "ten_nguoi_nhan_du_kien",
   "anh_minh_chung",
   "cb0",
   "tien_le_giu_lai",
@@ -128,6 +130,19 @@
    "fieldname": "noi_giao_nhan",
    "fieldtype": "Data",
    "label": "Noi giao nhan tien",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_nhan_du_kien",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Nop cho ai (du kien)",
+   "description": "Nguoi ben ke toan hoac quy se nhan tien. Chua ky nhan thi day chi la du kien."
+  },
+  {
+   "fieldname": "ten_nguoi_nhan_du_kien",
+   "fieldtype": "Data",
+   "label": "Ten nguoi nhan du kien",
    "read_only": 1
   },
   {

@@ -28,14 +28,30 @@ tiếng Việt là tiếng chính thì phải nổi hơn.
 
 Phông chữ
 ---------
-DejaVu Sans đứng đầu danh sách là CỐ Ý, không đổi tuỳ tiện: wkhtmltopdf trên
-máy chủ Frappe Cloud chỉ có phông đó dựng đủ dấu tiếng Việt. Đặt Arial lên
-trước là ra bản in mất dấu, đã gặp một lần.
+Từ 31/08/2026 xâu phông KHÔNG còn viết tay ở đây nữa mà lấy thẳng từ
+`vagabond/phong_chu.py`, nơi duy nhất khai phông của cả ứng dụng. Trước đó
+xâu này bị chép tay ở BỐN tệp khác nhau, và tệp thứ năm là `nop_quy.py` thì
+lại khai `Times New Roman` - phông máy chủ không có - nên tờ Biên bản bàn
+giao tiền mặt in ra vỡ hết dấu tiếng Việt.
+
+Điều không đổi: phông có đủ dấu tiếng Việt phải đứng TRƯỚC Arial. Đặt Arial
+lên đầu là ra bản in mất dấu, đã gặp một lần.
 """
 
 import frappe
 
-PHONG = "'DejaVu Sans','Liberation Sans',Arial,Helvetica,sans-serif"
+from vagabond.phong_chu import NGAN_XEP as PHONG
+
+# Xâu phông cho THƯ ĐIỆN TỬ. Khác hẳn phông bản in, và khác có chủ ý.
+#
+# Thư hiện trên máy NGƯỜI NHẬN, không đi qua wkhtmltopdf, nên không dính
+# chuyện máy chủ thiếu phông. Ngược lại, nhét một cái tên phông máy người ta
+# không có vào thư là hộp thư nào cũng tự chọn một phông khác, mỗi nơi một
+# kiểu. Arial thì máy nào cũng có.
+#
+# Khai ở đây thay vì gõ tay trong từng tệp, để bộ ca kiểm phông phân biệt
+# được đâu là bản in đâu là thư, và bắt đúng chỗ sai.
+PHONG_THU = "Arial,Helvetica,sans-serif"
 VIEN = "1px solid #c9c4bd"
 
 CONG_TY = {
@@ -150,17 +166,36 @@ def o_th(vi, en):
 	)
 
 
-def khung_trang(noi_dung, tieu_de_tep=""):
-	"""Bọc nội dung vào một trang A4 dọc hoàn chỉnh, sẵn sàng đưa qua get_pdf."""
+def khung_trang(noi_dung, tieu_de_tep="", le="12mm"):
+	"""Bọc nội dung vào một trang A4 dọc hoàn chỉnh, sẵn sàng đưa qua get_pdf.
+
+	MỌI tờ PDF của ứng dụng phải đi qua đây. Hai việc cửa này làm hộ, và cả
+	hai đều là thứ dễ quên khi tự dựng khung:
+
+	  1. Chép bộ phông Vagabond Sans vào thư mục phông của người dùng trên
+	     máy chủ. Mỗi lần deploy là một container mới, không chép thì phông
+	     biến mất và tờ in vỡ dấu.
+	  2. Ép phông cho CẢ tờ bằng `*`, không chỉ đặt trên `body`.
+
+	Hàm chép phông không bao giờ ném lỗi: hỏng thì tờ vẫn in ra được, chỉ là
+	xấu phông trở lại như cũ.
+	"""
 	h = frappe.utils.escape_html
+	try:
+		from vagabond.phong_chu import bao_dam_phong
+
+		bao_dam_phong()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "mau_chuan: bao dam phong")
 	return (
 		"<html><head><meta charset='utf-8'><title>%s</title><style>"
-		"@page{size:A4 portrait;margin:12mm}"
-		"body{margin:0;font-family:%s;color:#1c1a17}"
+		"@page{size:A4 portrait;margin:%s}"
+		"*{font-family:%s}"
+		"body{margin:0;color:#1c1a17}"
 		"table{page-break-inside:auto}tr{page-break-inside:avoid}"
 		"img{max-width:100%%}"
 		"</style></head><body>%s</body></html>"
-		% (h(tieu_de_tep), PHONG, noi_dung)
+		% (h(tieu_de_tep), le, PHONG, noi_dung)
 	)
 
 

@@ -328,11 +328,30 @@ def _():
 	dung("lệch âm cũng tính", nq.can_ly_do(-2000))
 
 
-@ca("biên nhận: câu Nội dung nộp tiền gợi theo tên ngắn của điểm")
+@ca("biên nhận: câu Nội dung nộp tiền gợi theo điểm bán và khoảng ngày")
 def _():
-	la("có tên", nq.noi_dung_mac_dinh("District 1"), "Nộp doanh thu District 1")
-	la("trống thì có câu chung", nq.noi_dung_mac_dinh(""), "Nộp doanh thu tiền mặt")
-	la("None cũng vậy", nq.noi_dung_mac_dinh(None), "Nộp doanh thu tiền mặt")
+	# Anh Viet 31/08/2026 chot cau: "Nop quy tien mat doanh thu cua hang
+	# (ten cua hang) tu ngay ... den ngay ...". Cau nay di thang len to bien
+	# ban va len so quy, nen phai mang khoang ngay - khong thi hai to cua
+	# hai ngay khac nhau doc len y het nhau.
+	la("một ngày thì viết ngày đó",
+		nq.noi_dung_mac_dinh("District 1", "2026-08-30", "2026-08-30"),
+		"Nộp quỹ tiền mặt doanh thu cửa hàng District 1 ngày 30/08/2026")
+	la("nhiều ngày thì viết từ đến",
+		nq.noi_dung_mac_dinh("District 1", "2026-08-28", "2026-08-30"),
+		"Nộp quỹ tiền mặt doanh thu cửa hàng District 1 "
+		"từ ngày 28/08/2026 đến ngày 30/08/2026")
+	la("không có ngày thì bỏ vế ngày",
+		nq.noi_dung_mac_dinh("District 1"),
+		"Nộp quỹ tiền mặt doanh thu cửa hàng District 1")
+	la("trống tên thì có câu chung",
+		nq.noi_dung_mac_dinh(""), "Nộp quỹ tiền mặt doanh thu")
+	la("None cũng vậy",
+		nq.noi_dung_mac_dinh(None), "Nộp quỹ tiền mặt doanh thu")
+	# Ngay hong thi in nguyen, khong doan hộ va cung khong lam vo ham.
+	la("ngày hỏng thì in nguyên",
+		nq.noi_dung_mac_dinh("D1", "khong-phai-ngay", "khong-phai-ngay"),
+		"Nộp quỹ tiền mặt doanh thu cửa hàng D1 ngày khong-phai-ngay")
 
 
 def _goc_app():

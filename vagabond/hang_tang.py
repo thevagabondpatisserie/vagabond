@@ -81,6 +81,14 @@ LOAI_TANG = (
 )
 NHAN_LOAI = dict(LOAI_TANG)
 
+# Loại tặng BẮT BUỘC có ảnh chứng minh (anh Việt duyệt 31/08/2026).
+#
+# Chỉ đền bù sự cố. Lý do: ba loại kia có dấu vết ở nơi khác - khách VIP có
+# phiếu tặng quà, marketing có kế hoạch, đối tác có lịch hẹn. Riêng "đền bù
+# sự cố" thì bằng chứng duy nhất là cái bánh hỏng, mà cái đó chỉ còn lại
+# trong một tấm ảnh. Không có ảnh thì bất kỳ ai cũng khai được là đền bù.
+LOAI_CAN_ANH = ("den_bu",)
+
 # Chờ duyệt quá bao nhiêu ngày thì kêu. Đơn tặng nằm chờ là đơn chưa vào
 # sổ, mà cuối tháng chốt sổ thì nó thành lỗ hổng doanh thu.
 CHO_NGAY = 1
@@ -92,6 +100,11 @@ THIEU = {
 		"Ghi \"tặng khách\" là không đủ, cuối tháng rà lại không ai hiểu."
 	),
 	"loai": "Đơn hàng tặng phải chọn LOẠI tặng để cuối tháng còn cộng ra được.",
+	"anh": (
+		"Đơn tặng loại Đền bù sự cố phải đính ít nhất một ẢNH chứng minh "
+		"(bánh hỏng, tin nhắn khách phàn nàn). Không có ảnh thì ai cũng khai "
+		"được là đền bù."
+	),
 }
 
 
@@ -113,18 +126,30 @@ def la_don_tang(don):
 	return chuoi((don or {}).get("vgb_pt_thanh_toan")) == PT_TANG
 
 
-def thieu_gi(don):
+def can_anh(loai):
+	"""Loại tặng này có bắt buộc ảnh chứng minh không. THUẦN."""
+	return chuoi(loai) in LOAI_CAN_ANH
+
+
+def thieu_gi(don, so_anh=None):
 	"""Những ô bắt buộc còn trống trên một đơn hàng tặng. THUẦN.
 
 	Trả DANH SÁCH mã thiếu chứ không ném lỗi ngay: phần thuần không được
 	chạm Frappe, và người dùng nên thấy hết mọi chỗ sai trong một lần.
+
+	`so_anh` là số ảnh đang đính trên tờ. Truyền None nghĩa là NGƯỜI GỌI
+	CHƯA ĐẾM, và khi đó phép kiểm ảnh được bỏ qua thay vì báo thiếu. Thà im
+	còn hơn chặn oan một tờ chỉ vì nơi gọi chưa đọc tệp đính kèm.
 	"""
 	d = don or {}
 	ra = []
 	if len(chuoi(d.get("vgb_tang_ly_do"))) < 5:
 		ra.append("ly_do")
-	if chuoi(d.get("vgb_tang_loai")) not in NHAN_LOAI:
+	lo = chuoi(d.get("vgb_tang_loai"))
+	if lo not in NHAN_LOAI:
 		ra.append("loai")
+	elif can_anh(lo) and so_anh is not None and int(so_anh or 0) <= 0:
+		ra.append("anh")
 	return ra
 
 
@@ -348,6 +373,34 @@ TRUONG_MOI = {
 		},
 	],
 }
+
+
+# Đuôi tệp coi là ẢNH. Đính một tệp .pdf hay .docx rồi bảo đó là bằng chứng
+# bánh hỏng thì không ai soi được trên điện thoại, nên chỉ nhận ảnh thật.
+DUOI_ANH = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif")
+
+
+def la_anh(ten):
+	"""Tên tệp này có phải ảnh không. THUẦN."""
+	t = chuoi(ten).lower()
+	return any(t.endswith(x) for x in DUOI_ANH)
+
+
+def _anh_cua_to(name):
+	"""Ảnh đang đính trên một tờ hoá đơn. Trả danh sách {url, ten}."""
+	ra = []
+	try:
+		for f in frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": SI, "attached_to_name": name},
+			fields=["file_url", "file_name"],
+			order_by="creation asc", limit_page_length=0,
+		):
+			if la_anh(f.get("file_name")) or la_anh(f.get("file_url")):
+				ra.append({"url": f.get("file_url") or "", "ten": f.get("file_name") or ""})
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hang_tang: doc anh dinh kem")
+	return ra
 
 
 def _dong_cua_to(doc):
@@ -598,15 +651,50 @@ def cai_dat():
 	_quyen()
 	return {
 		"pt": PT_TANG,
-		"loai": [{"k": k, "ten": t} for k, t in LOAI_TANG],
+		"loai": [{"k": k, "ten": t, "can_anh": 1 if can_anh(k) else 0}
+			for k, t in LOAI_TANG],
 		"trang_thai": list(TT_DS),
 		"thieu_tai_khoan": _thieu_tai_khoan(),
 		"duyet_duoc": 1 if duoc_duyet() else 0,
+		"loai_can_anh": list(LOAI_CAN_ANH),
 	}
 
 
+def _dinh_anh(name, anh):
+	"""Đính ảnh chứng minh vào tờ hoá đơn. Trả số tệp đính được.
+
+	Cùng nếp với `hoan_tien._dinh_kem`: hỏng một tệp không được làm đổ cả
+	yêu cầu, vì phần còn lại của việc đã xong rồi.
+
+	Để `is_private = 1`: ảnh bánh hỏng của khách và tin nhắn khách phàn nàn
+	không phải thứ để ai có đường dẫn cũng xem được.
+	"""
+	n = 0
+	for a in (anh or []):
+		try:
+			ten = chuoi((a or {}).get("ten")) or "anh-hang-tang.jpg"
+			if not la_anh(ten):
+				continue
+			noi = chuoi((a or {}).get("noi_dung"))
+			if "," in noi and noi[:5].lower() == "data:":
+				noi = noi.split(",", 1)[1]
+			if not noi:
+				continue
+			f = frappe.get_doc({
+				"doctype": "File", "file_name": ten,
+				"attached_to_doctype": SI, "attached_to_name": name,
+				"content": noi, "decode": True, "is_private": 1,
+			})
+			f.flags.ignore_permissions = True
+			f.insert(ignore_permissions=True)
+			n += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hang_tang: dinh anh chung minh")
+	return n
+
+
 @frappe.whitelist()
-def luu_thong_tin(name, loai=None, ly_do=None):
+def luu_thong_tin(name, loai=None, ly_do=None, anh=None):
 	"""Người lập khai loại tặng và lý do ngay trên màn bill.
 
 	Chỉ đụng đơn CÒN NHÁP. Đơn đã ghi sổ mà đổi lý do tặng thì bút toán và
@@ -625,12 +713,23 @@ def luu_thong_tin(name, loai=None, ly_do=None):
 		si.vgb_tang_ly_do = chuoi(ly_do)
 	si.flags.ignore_permissions = True
 	si.save()
+	if isinstance(anh, str):
+		anh = frappe.parse_json(anh or "[]")
+	them_anh = _dinh_anh(name, anh) if anh else 0
 	frappe.db.commit()
+	da_co = _anh_cua_to(name)
 	return {
 		"ok": 1,
 		"trang_thai": chuoi(si.get("vgb_tang_duyet")),
 		"loai": chuoi(si.get("vgb_tang_loai")),
 		"ly_do": chuoi(si.get("vgb_tang_ly_do")),
+		"anh_them": them_anh,
+		"so_anh": len(da_co),
+		"anh": da_co,
+		# Nói ngay tại đây là còn thiếu gì, để màn hình khỏi phải tự đoán
+		# luật. Một nơi khai luật, mọi nơi đọc lại.
+		"thieu": thieu_gi(si, so_anh=len(da_co)),
+		"cau_thieu": [THIEU[m] for m in thieu_gi(si, so_anh=len(da_co))],
 	}
 
 
@@ -760,6 +859,7 @@ def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
 		"con_nua": 1 if len(ra) > tran else 0,
 		"diem": _ten_diem(),
 		"loai": [{"k": k, "ten": t} for k, t in LOAI_TANG],
+		"loai_can_anh": list(LOAI_CAN_ANH),
 		"trang_thai": list(TT_DS),
 		"dem_diem": dem_diem,
 		"dem": dem_tt,
@@ -799,6 +899,8 @@ def chi_tiet(name):
 	)
 	d = dict(d)
 	d["mon"] = mon
+	d["anh"] = _anh_cua_to(name)
+	d["can_anh"] = 1 if can_anh(d.get("vgb_tang_loai")) else 0
 	d["nhan_loai"] = NHAN_LOAI.get(chuoi(d.get("vgb_tang_loai")), "Chưa chọn")
 	d["creation"] = str(d.get("creation") or "")[:16]
 	# Người lập này đã tặng bao nhiêu trong tháng. Con số để giám đốc nhìn
@@ -857,7 +959,7 @@ def duyet(name, y_kien=""):
 		frappe.throw("Đơn %s đã ghi sổ hoặc đã huỷ, không duyệt lại được." % name)
 	if cint(si.get("vgb_huy")):
 		frappe.throw("Đơn %s đã huỷ." % name)
-	thieu = thieu_gi(si)
+	thieu = thieu_gi(si, so_anh=len(_anh_cua_to(name)))
 	if thieu:
 		frappe.throw(
 			"<br>".join("- " + THIEU[m] for m in thieu),
@@ -910,3 +1012,87 @@ def tu_choi(name, ly_do=""):
 	frappe.db.commit()
 	_ghi_vet(name, "Từ chối đơn hàng tặng: %s" % ly)
 	return {"ok": 1, "trang_thai": TT_TU_CHOI}
+
+
+# ------------------------------------------------------------------ báo cáo
+
+
+def gom_bao_cao(dong, ten_diem=None):
+	"""Cộng hàng tặng theo tháng, theo điểm bán, theo loại tặng. THUẦN.
+
+	`dong` là danh sách tự điển: {thang, diem, loai, tien, da_ghi_so}.
+
+	Vì sao là phần thuần: đây là phép cộng, mà phép cộng sai thì không ai
+	nhìn ra bằng mắt. Tách ra để kiểm thử được không cần site.
+
+	CHỈ cộng đơn ĐÃ GHI SỔ. Đơn còn chờ duyệt chưa phải chi phí của tiệm,
+	gộp vào là báo cáo phồng lên bằng những thứ có thể bị từ chối.
+	"""
+	thang, diem, loai = {}, {}, {}
+	tong, so = 0.0, 0
+	for d in (dong or []):
+		if not int((d or {}).get("da_ghi_so") or 0):
+			continue
+		t = float((d or {}).get("tien") or 0)
+		tong += t
+		so += 1
+		for bang, khoa in ((thang, "thang"), (diem, "diem"), (loai, "loai")):
+			k = chuoi((d or {}).get(khoa)) or "?"
+			o = bang.setdefault(k, {"k": k, "so": 0, "tien": 0.0})
+			o["so"] += 1
+			o["tien"] += t
+	sap = lambda b, theo_khoa: sorted(
+		b.values(), key=(lambda o: o["k"]) if theo_khoa else (lambda o: -o["tien"]))
+	ra_loai = sap(loai, False)
+	for o in ra_loai:
+		o["ten"] = NHAN_LOAI.get(o["k"], o["k"])
+	ra_diem = sap(diem, False)
+	for o in ra_diem:
+		o["ten"] = (ten_diem or {}).get(o["k"], o["k"] or "Chưa rõ điểm bán")
+	return {
+		"so": so, "tien": tong,
+		"thang": sap(thang, True),
+		"diem": ra_diem,
+		"loai": ra_loai,
+	}
+
+
+@frappe.whitelist()
+def bao_cao(tu_ngay=None, den_ngay=None):
+	"""Tiệm đã tặng đi bao nhiêu, cho việc gì, ở điểm bán nào.
+
+	Anh Việt duyệt 31/08/2026. Mặc định lấy từ đầu năm tới hôm nay: hàng
+	tặng là con số cả năm mới nói lên chuyện, xem theo tuần thì tháng nào
+	cũng thấy nhỏ.
+	"""
+	_quyen()
+	den = chuoi(den_ngay) or nowdate()
+	tu = chuoi(tu_ngay) or (den[:4] + "-01-01")
+	ds = frappe.get_all(
+		SI,
+		filters={
+			"vgb_pt_thanh_toan": PT_TANG,
+			"posting_date": ["between", [tu, den]],
+			"docstatus": ["<", 2],
+			"vgb_huy": 0,
+		},
+		fields=["name", "posting_date", "docstatus", "grand_total",
+			"vgb_tang_loai", "vgb_quay"],
+		limit_page_length=0,
+	)
+	dong = [{
+		"thang": str(d.get("posting_date") or "")[:7],
+		"diem": _diem_cua_don(d.get("vgb_quay")),
+		"loai": chuoi(d.get("vgb_tang_loai")),
+		"tien": flt(d.get("grand_total")),
+		"da_ghi_so": 1 if cint(d.get("docstatus")) == 1 else 0,
+	} for d in ds]
+	ten = {x["k"]: x["ten"] for x in _ten_diem()}
+	ra = gom_bao_cao(dong, ten)
+	ra["tu_ngay"] = tu
+	ra["den_ngay"] = den
+	# Đơn chưa ghi sổ đếm riêng, không cộng vào báo cáo. Người đọc vẫn cần
+	# biết còn bao nhiêu đang treo, nhưng không được lẫn vào con số chi phí.
+	ra["cho_so"] = sum(1 for d in dong if not d["da_ghi_so"])
+	ra["cho_tien"] = sum(d["tien"] for d in dong if not d["da_ghi_so"])
+	return ra

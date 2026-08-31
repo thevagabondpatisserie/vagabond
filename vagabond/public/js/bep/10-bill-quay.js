@@ -416,6 +416,20 @@ function pbKhoiTang(d, hien) {
       ? '<select class="tin" id="pbTangLoai" style="margin:0">' + op + '</select>' +
         '<textarea class="tin" id="pbTangLyDo" rows="2" style="margin:0" ' +
         'placeholder="Lý do tặng: tặng cho ai, vì việc gì">' + h(d.vgb_tang_ly_do || '') + '</textarea>' +
+        /* Anh chung minh. Chi BAT BUOC voi loai "Den bu su co" - ba loai kia
+           deu co dau vet o noi khac, rieng den bu thi bang chung duy nhat la
+           cai banh hong, ma cai do chi con lai trong mot tam anh.
+           O nap anh luon hien de nguoi lap dinh them cho loai nao cung duoc;
+           dong nhac do chi hien khi loai dang chon la loai bat buoc. */
+        '<label class="tin" id="pbTangAnhO" style="margin:0;display:flex;' +
+        'align-items:center;gap:9px;cursor:pointer">' +
+        '<input type="file" accept="image/*" id="pbTangAnh" multiple style="display:none">' +
+        '<span style="font-size:19px">📷</span>' +
+        '<span style="font-size:13px;color:#475467" id="pbTangAnhT">Đính ảnh chứng minh</span>' +
+        '</label>' +
+        '<div id="pbTangAnhNhac" style="display:' + (loai === 'den_bu' ? 'block' : 'none') +
+        ';font-size:12px;color:#b3261e;line-height:1.5">Đơn <b>Đền bù sự cố</b> bắt buộc ' +
+        'có ít nhất một ảnh chứng minh, không thì giám đốc không duyệt được.</div>' +
         '<button class="btn" id="pbTangLuu" style="margin:0">🎁 Lưu và gửi giám đốc duyệt</button>'
       : '<div style="font-size:12.5px;color:#475467;line-height:1.6">' +
         '📝 ' + h(d.vgb_tang_ly_do || 'Không ghi lý do') + '</div>') +
@@ -699,6 +713,33 @@ async function scrPosBill(name) {
   });
   veQr();
   function docO(id) { var o = document.getElementById(id); return o ? o.value : ''; }
+  /* Anh chon o may khach, doc thanh data URL roi gui kem luc Luu. Khong
+     tai len ngay luc chon: don co the chua ton tai tren may chu neu nguoi
+     ta doi y, va anh da tai len thi thanh rac khong ai don. */
+  var pbTangAnh = [];
+  var oTa = document.getElementById('pbTangAnh');
+  if (oTa) oTa.onchange = function () {
+    var cac = Array.prototype.slice.call(oTa.files || []);
+    var oT = document.getElementById('pbTangAnhT');
+    if (!cac.length) return;
+    pbTangAnh = [];
+    var con = cac.length;
+    cac.forEach(function (f) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        pbTangAnh.push({ ten: f.name, noi_dung: String(fr.result || '') });
+        if (!--con && oT) oT.textContent = 'Đã chọn ' + pbTangAnh.length + ' ảnh';
+      };
+      fr.onerror = function () { if (!--con && oT) oT.textContent = 'Đọc ảnh lỗi, chọn lại'; };
+      fr.readAsDataURL(f);
+    });
+  };
+  var oTl = document.getElementById('pbTangLoai');
+  if (oTl) oTl.onchange = function () {
+    var on = document.getElementById('pbTangAnhNhac');
+    if (on) on.style.display = (oTl.value === 'den_bu') ? 'block' : 'none';
+  };
+
   var ntl = document.getElementById('pbTangLuu');
   if (ntl) ntl.onclick = async function () {
     var lo = docO('pbTangLoai'), ly = String(docO('pbTangLyDo') || '').trim();
@@ -714,9 +755,18 @@ async function scrPosBill(name) {
           name: d.name, pt: 'Hàng tặng', ghi_chu: docO('pbGhiChu'),
         });
       }
-      await api('vagabond.hang_tang.luu_thong_tin', { name: d.name, loai: lo, ly_do: ly });
+      var kq = await api('vagabond.hang_tang.luu_thong_tin', {
+        name: d.name, loai: lo, ly_do: ly,
+        anh: pbTangAnh.length ? JSON.stringify(pbTangAnh) : '',
+      });
       busy(false);
-      toast('Đã gửi giám đốc duyệt đơn tặng.');
+      /* Cau "con thieu gi" do MAY CHU tra ve, man hinh khong tu doan luat.
+         Mot noi khai luat, moi noi doc lai. */
+      if ((kq.cau_thieu || []).length) {
+        toast(kq.cau_thieu[0], 6000);
+      } else {
+        toast('Đã gửi giám đốc duyệt đơn tặng.');
+      }
       go(function () { scrPosBill(d.name); }, true);
     } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 4500); }
   };

@@ -130,7 +130,8 @@ CUA_NGO = {
 	# quy. Cac ham _doanh_thu_he_thong, _ca_dang_mo la noi bo, khong mo.
 	"ca_quay.py": ["chi_tiet", "chot_ca", "danh_sach", "mo_ca", "tinh_trang"],
 	"nop_quy.py": ["ca_cho_nop", "chi_tiet", "danh_sach", "doanh_thu_diem",
-		"ky_giao", "ky_nhan", "tao", "tao_theo_ngay", "xuat_excel", "xuat_pdf"],
+		"ky_giao", "ky_nhan", "tao", "tao_theo_ngay", "tim_nguoi_nhan",
+		"xuat_excel", "xuat_pdf"],
 	# Trang thai gui thu tren chung tu. `danh_dau_cho_gui` la hook va
 	# `soat_tu_dong` la nhip lap lich, ca hai chay tu ben trong.
 	"trang_thai_thu.py": ["soat_lai", "tinh_trang"],
@@ -218,7 +219,7 @@ CUA_NGO = {
 	# hooks.py goi, KHONG duoc mo ra ngoai; `bo_sung_mac_dinh` ben
 	# pt_thanh_toan cung vay, no chi chay trong after_migrate.
 	"hang_tang.py": ["cai_dat", "luu_thong_tin", "dem_cho_duyet", "ds_don",
-		"chi_tiet", "duyet", "tu_choi"],
+		"chi_tiet", "duyet", "tu_choi", "bao_cao"],
 	# Hoa don dien tu thanh chung tu, them 26/08/2026 sau khi phat hien 125
 	# to bi nuot. `con_sot` chi DOC, `mo_lai` chi doi co, `chay_bu` dung
 	# chung tu that. `chay_tu_dong` la nhip lap lich, `_chay`, `_mot_to`,

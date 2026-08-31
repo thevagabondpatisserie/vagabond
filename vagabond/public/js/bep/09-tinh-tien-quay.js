@@ -951,9 +951,16 @@ function locTim(ds, k) {
 
 /* Chip chung cho moi nut chon nhanh cua app (anh Viet 09/08/2026: nut
    bam thi lam dang CHIP cho de nhin, de phan biet). */
-function posChipNut(attr, chu, dangChon, laXoa) {
-  var vien = dangChon ? '#0d9488' : (laXoa ? '#fecaca' : '#d7dce5');
-  var nen = dangChon ? '#0d9488' : '#fff';
+/* Mot con chip loc.
+
+   `mau` la mau cua trang thai DANG CHON, mac dinh xanh mong két. Them
+   31/08/2026 vi anh Viet bao man Danh sach phieu hoan tien co ba hang chip
+   xep chong nhau ma hang nao cung xanh y het nhau, nhin khong biet minh
+   dang o hang nao. Moi HO chip mot mau thi liec mot cai la ro. */
+function posChipNut(attr, chu, dangChon, laXoa, mau) {
+  var m = mau || '#0d9488';
+  var vien = dangChon ? m : (laXoa ? '#fecaca' : '#d7dce5');
+  var nen = dangChon ? m : '#fff';
   var chuMau = dangChon ? '#fff' : (laXoa ? '#b3261e' : '#374151');
   return '<button ' + attr + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +

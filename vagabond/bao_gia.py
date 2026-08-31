@@ -2476,6 +2476,9 @@ def xem_nguoi_nhan(name, email=None):
 @frappe.whitelist()
 def gui_email(name, email=None, loi_nhan=None):
 	"""Gui to bao gia PDF sang email khach, dong thoi doi trang thai."""
+	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
+	from vagabond import mau_chuan
+
 	_quyen(sua=True)
 	doc = frappe.get_doc(DT, name)
 	cd = _cd()
@@ -2501,7 +2504,7 @@ def gui_email(name, email=None, loi_nhan=None):
 
 	tep = xuat_pdf(name)
 	than = (
-		'<div style="font-family:Arial,Liberation Sans,Helvetica,sans-serif;font-size:14px;'
+		'<div style="font-family:' + mau_chuan.PHONG_THU + ';font-size:14px;'
 		'line-height:1.6;color:#1c1a17">'
 		"<p>Kính gửi Quý khách %s,</p>"
 		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách bảng báo giá "

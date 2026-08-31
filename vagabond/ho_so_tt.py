@@ -2142,11 +2142,14 @@ def _o_doi_chieu(xanh, xanh_dam):
 	Nói rõ ba việc mong nhà cung cấp làm và một mốc thời gian. Không có
 	mốc thì thư này chỉ là thư báo, không thành lời mời đối chiếu.
 	"""
+	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
+	from vagabond import mau_chuan as mc
+
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
 		'style="margin:16px 0 2px"><tr><td style="padding:14px 16px;border:2px solid '
 		+ xanh
-		+ ';border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:13.5px;'
+		+ ';border-radius:6px;font-family:' + mc.PHONG_THU + ';font-size:13.5px;'
 		'line-height:1.7;color:'
 		+ xanh_dam
 		+ '">'
@@ -2173,9 +2176,9 @@ def _nut_doi_chieu(doc, xanh, xanh_dam):
 		+ xanh
 		+ ';color:'
 		+ xanh_dam
-		+ ';text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;'
+		+ ';text-decoration:none;font-family:' + mc.PHONG_THU + ';font-weight:bold;'
 		'font-size:14px;border-radius:8px;padding:12px 22px">Phản hồi đối chiếu công nợ</a>'
-		'<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#5B7280;'
+		'<div style="font-family:' + mc.PHONG_THU + ';font-size:12px;color:#5B7280;'
 		'margin:9px 0 0">Hoặc bấm Trả lời ngay trong thư này.</div>'
 	)
 
@@ -2387,6 +2390,11 @@ def xuat_ho_so(name):
 	hs = d["ho_so"]
 	h = frappe.utils.escape_html
 
+	# Xâu phông dùng chung, xem vagabond/phong_chu.py. Ba khối dưới đây từng
+	# khai thẳng Arial, mà máy chủ không có Arial nên chữ có dấu bị mượn
+	# phông khác và vỡ nét.
+	from vagabond import mau_chuan as mc
+
 	NGAT = '<div style="page-break-after:always"></div>'
 	phan = [_to_app_html(name)]
 	muc_luc, hong, pdf_rieng = ["Tờ đề nghị thanh toán %s" % hs["ma"]], [], []
@@ -2394,7 +2402,7 @@ def xuat_ho_so(name):
 	def _in_html(dt, dn, nhan):
 		try:
 			noi = frappe.get_print(dt, dn)
-			phan.append(NGAT + '<div style="font-family:Arial,sans-serif">' + noi + "</div>")
+			phan.append(NGAT + '<div style="font-family:' + mc.PHONG + '">' + noi + "</div>")
 			muc_luc.append("%s %s" % (nhan, dn))
 			return True
 		except Exception:
@@ -2445,7 +2453,7 @@ def xuat_ho_so(name):
 		# mot dong tieu de ma an tron mot mat giay A4 la dung cai lang phi do.
 		phan.append(
 			NGAT
-			+ '<div style="font-family:Arial,sans-serif;margin-bottom:4mm">'
+			+ '<div style="font-family:' + mc.PHONG + ';margin-bottom:4mm">'
 			+ '<div style="font-size:14px;font-weight:bold">'
 			+ 'CHỨNG TỪ ĐÍNH KÈM'
 			+ '<span style="font-style:italic;font-weight:normal;'
@@ -2465,7 +2473,7 @@ def xuat_ho_so(name):
 	# Trang muc luc dat o CUOI: doc xong bo ho so moi doi chieu lai cho tien.
 	ml = (
 		NGAT
-		+ '<div style="font-family:Arial,sans-serif;font-size:12.5px">'
+		+ '<div style="font-family:' + mc.PHONG + ';font-size:12.5px">'
 		+ '<div style="font-size:16px;font-weight:bold;margin-bottom:10px">MỤC LỤC BỘ HỒ SƠ %s</div>' % h(hs["ma"])
 		+ "<ol>" + "".join("<li>%s</li>" % h(x) for x in muc_luc) + "</ol>"
 	)
@@ -2484,13 +2492,23 @@ def xuat_ho_so(name):
 
 	khung = (
 		"<html><head><meta charset='utf-8'>"
-		+ css_trang()
+		+ css_trang(phong=mc.PHONG)
 		+ '</head><body><div class="vgb-in">'
 		+ "".join(phan)
 		+ "</div></body></html>"
 	)
 
 	from frappe.utils.pdf import get_pdf
+
+	# Chép bộ phông tiếng Việt vào máy chủ trước khi in. Bộ hồ sơ này dựng
+	# khung riêng (`le_in.css_trang`) nên không đi qua `mau_chuan.khung_trang`,
+	# vì vậy phải gọi tay. Xem vagabond/phong_chu.py.
+	try:
+		from vagabond.phong_chu import bao_dam_phong
+
+		bao_dam_phong()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: bao dam phong")
 
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
 
