@@ -112,6 +112,11 @@ async function scrPhieuHoanHuy() {
     '<b style="font-size:19px;color:#b54708">' + money(kq.tien_dang_chay || 0) + ' đ</b></div>' +
     (kq.cho_unc ? '<div style="font-size:11.5px;color:#b3261e;margin-top:4px">' +
       kq.cho_unc + ' phiếu đang chờ kế toán chuyển tiền và đính uỷ nhiệm chi.</div>' : '') +
+    (kq.treo_lau ? '<div style="margin-top:8px;padding:7px 9px;background:#fef2f2;' +
+      'border:1px solid #fecaca;border-radius:8px;font-size:12.5px;color:#b3261e">' +
+      '⚠️ <b>' + kq.treo_lau + ' phiếu treo quá ' + (kq.treo_ngay || 3) + ' ngày.</b> ' +
+      'Tiền của khách vẫn đang nằm ở tiệm. Những phiếu này đã được đưa lên đầu ' +
+      'danh sách.</div>' : '') +
     '</div>';
 
   html += phHangChip('data-phd', kq.diem, kq.dem_diem || {}, phDiem, 'Mọi điểm bán');
@@ -135,11 +140,14 @@ async function scrPhieuHoanHuy() {
   dong.forEach(function (r) {
     var m = phMau(r.trang_thai);
     var mo = !!phMoRong[r.name];
-    html += '<div class="hub" data-phm="' + h(r.name) + '" style="align-items:flex-start">' +
-      '<div class="hi">' + ((r.buoc_xong || 0) >= 4 ? '✅' : '💸') + '</div>' +
+    html += '<div class="hub" data-phm="' + h(r.name) + '" style="align-items:flex-start' +
+      (r.treo_lau ? ';background:#fffbfb;border-left:3px solid #b3261e' : '') + '">' +
+      '<div class="hi">' + (r.treo_lau ? '⚠️' : ((r.buoc_xong || 0) >= 4 ? '✅' : '💸')) + '</div>' +
       '<div class="ht"><div class="h1">#' + h(r.ma_hien_thi || r.name) +
       ' · ' + h(r.ten_khach || 'Khách lẻ') + '</div>' +
-      '<div class="h2">' + h(r.cau_tinh_hinh || '') + '</div>' +
+      '<div class="h2">' + h(r.cau_tinh_hinh || '') +
+      (r.treo_lau ? ' <b style="color:#b3261e">Treo ' + r.treo_ngay + ' ngày rồi.</b>' : '') +
+      '</div>' +
       phDay(r, buoc) +
       '<div class="h2" style="margin-top:6px">' +
       '<span style="background:' + m[0] + ';border:1px solid ' + m[1] + ';color:' + m[2] +
@@ -158,7 +166,9 @@ async function scrPhieuHoanHuy() {
   });
   html += '</div>';
 
-  var foot = '<div style="display:flex;gap:9px">' +
+  var foot = '<button class="btn" data-phb="lap" style="width:100%;margin-bottom:8px">' +
+    '➕ Lập phiếu hoàn tiền</button>' +
+    '<div style="display:flex;gap:9px">' +
     '<button class="btn gh" data-phb="don" style="flex:1">↩️ Đơn đã huỷ</button>' +
     '<button class="btn gh" data-phb="excel" style="flex:1">📄 Xuất Excel</button></div>';
 
@@ -245,6 +255,7 @@ async function phBam(ev) {
   if ((el = ev.target.closest('[data-phb]'))) {
     var v = el.getAttribute('data-phb');
     if (v === 'don') return go(scrDonHuy);
+    if (v === 'lap') return go(scrPhLap);
     if (v === 'excel') return phExcel();
   }
   if ((el = ev.target.closest('[data-phm]'))) {
@@ -278,4 +289,125 @@ async function phExcel() {
   a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   toast('Đã xuất ' + kq.tong_dong + ' dòng.', 4000);
+}
+
+/* ---------------- Lập phiếu hoàn tiền, chọn đường rồi chọn đơn
+
+   Anh Việt duyệt 31/08/2026: các điểm bán phải TỰ LẬP được phiếu hoàn chứ
+   không chỉ ngồi xem. Trước đây muốn lập thì phải đi qua màn hoá đơn hoặc
+   nhờ kế toán, mà phân hệ Kế toán thì nhân viên không vào được.
+
+   MÀN NÀY KHÔNG LẬP PHIẾU. Nó chỉ dẫn người ta tới đúng cửa cũ. Bốn luồng
+   hoàn tiền đã có đủ hàng rào ở máy chủ: trần số tiền, bắt buộc ảnh bằng
+   chứng, chặn hoàn quá số khách đã chuyển, chặn lập trùng. Mở thêm một cửa
+   thứ hai cho tiền ra là mở thêm một chỗ để sai. */
+
+var phlDiem = '';      // điểm bán đang chọn
+var phlKieu = '';      // đường đang chọn
+var phlTim = '';
+
+var PHL_KIEU = [
+  ['tra', '↩️', 'Khách trả hàng', 'Đơn ĐÃ ghi sổ, khách trả lại bánh. Máy lập hoá đơn trả hàng để khử doanh thu.'],
+  ['huy', '🚫', 'Khách huỷ đơn chưa ghi sổ', 'Khách đã chuyển tiền rồi báo huỷ, đơn còn nháp. Không đụng doanh thu.'],
+  ['du', '💰', 'Khách nộp thừa', 'Khách chuyển dư so với tổng đơn. Chỉ trả lại phần dư.'],
+  ['pancake', '📦', 'Đơn Pancake đã huỷ', 'Đơn huỷ bên Pancake, chưa bao giờ về hệ. Đi qua màn Đơn đã huỷ.'],
+];
+
+async function scrPhLap() {
+  var html = '<div class="card" style="padding:12px 13px">' +
+    '<div style="font-size:13px;color:#344054;line-height:1.6">' +
+    'Chọn đúng loại việc trước, rồi chọn đơn. Máy sẽ tự kiểm xem đơn đó có ' +
+    'hoàn được không và hoàn được tối đa bao nhiêu.</div></div>';
+
+  html += '<div class="sec">Điểm bán</div>';
+  /* Doc thang danh muc diem ban, KHONG goi lai man danh sach phieu chi de
+     lay ten chip: man do doc het so phieu, ma o day chi can ba cai ten. */
+  var dsd = [];
+  try {
+    var kq = await api('vagabond.diem_ban.danh_sach', {});
+    dsd = (kq.diem || []).filter(function (o) { return o.bat; })
+      .map(function (o) { return { k: o.ma, ten: o.ten_ngan || o.ten }; });
+  } catch (e) { dsd = []; }
+  var sc = posChipNut('data-phld=""', 'Mọi điểm bán', phlDiem === '');
+  dsd.forEach(function (o) {
+    sc += posChipNut('data-phld="' + h(o.k) + '"', o.ten, phlDiem === o.k);
+  });
+  html += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + sc + '</div>';
+
+  html += '<div class="sec">Loại việc</div><div class="card">';
+  PHL_KIEU.forEach(function (k) {
+    html += '<div class="hub" data-phlk="' + k[0] + '" style="align-items:flex-start">' +
+      '<div class="hi">' + k[1] + '</div>' +
+      '<div class="ht"><div class="h1">' + k[2] +
+      (phlKieu === k[0] ? ' <span style="color:#12b76a">✓</span>' : '') + '</div>' +
+      '<div class="h2" style="line-height:1.5">' + k[3] + '</div></div></div>';
+  });
+  html += '</div>';
+
+  if (phlKieu && phlKieu !== 'pancake') {
+    html += '<div class="card" style="padding:9px 11px"><input id="phlTim" type="search" ' +
+      'placeholder="Tìm hoá đơn theo mã, tên khách, số hoá đơn điện tử" value="' + h(phlTim) + '" ' +
+      'style="width:100%;height:38px;border:1.5px solid #e4e7ec;border-radius:9px;' +
+      'padding:0 10px;font-size:14px"></div>';
+    var d = { dong: [] };
+    try { d = await api('vagabond.don_huy.tim_don_de_hoan', { diem: phlDiem, tim: phlTim }); }
+    catch (e) { d = { dong: [] }; }
+    html += '<div class="sec">' + (d.dong || []).length + ' đơn · bấm để lập phiếu</div><div class="card">';
+    if (!(d.dong || []).length) {
+      html += '<div class="emp" style="padding:20px"><div class="e1">🔍</div>' +
+        '<div>Không thấy đơn nào. Gõ mã đơn hoặc tên khách vào ô tìm.</div></div>';
+    }
+    (d.dong || []).forEach(function (r) {
+      html += '<div class="hub" data-phlo="' + h(r.name) + '">' +
+        '<div class="hi">🧾</div>' +
+        '<div class="ht"><div class="h1">' + h(r.name) + ' · ' + h(r.customer_name || 'Khách lẻ') + '</div>' +
+        '<div class="h2">' + h(r.posting_date || '') +
+        (r.da_ghi_so ? ' · đã ghi sổ' : ' · còn nháp') +
+        (r.custom_hddt_so ? ' · hoá đơn ' + h(r.custom_hddt_so) : '') + '</div>' +
+        (r.da_co_phieu ? '<div class="h2" style="color:#b54708;margin-top:3px">' +
+          'Đơn này đã có phiếu hoàn rồi.</div>' : '') +
+        '</div>' +
+        '<div style="text-align:right;white-space:nowrap"><b style="font-size:13.5px">' +
+        money(r.grand_total) + '</b></div></div>';
+    });
+    html += '</div>';
+  }
+
+  var foot = '<button class="btn gh" data-phlb="ve" style="width:100%">' +
+    '← Về danh sách phiếu hoàn</button>';
+  frame('Lập phiếu hoàn tiền', html, { footer: foot });
+  var o = document.getElementById('phlTim');
+  if (o) {
+    o.onchange = function () { phlTim = o.value.trim(); go(scrPhLap, true); };
+    o.onkeydown = function (e) { if (e.key === 'Enter') { phlTim = o.value.trim(); go(scrPhLap, true); } };
+  }
+  root.addEventListener('click', phlBam);
+}
+
+async function phlBam(ev) {
+  var el;
+  if ((el = ev.target.closest('[data-phld]'))) {
+    phlDiem = el.getAttribute('data-phld');
+    return go(scrPhLap, true);
+  }
+  if ((el = ev.target.closest('[data-phlk]'))) {
+    var k = el.getAttribute('data-phlk');
+    if (k === 'pancake') return go(scrDonHuy);
+    phlKieu = k;
+    return go(scrPhLap, true);
+  }
+  if ((el = ev.target.closest('[data-phlo]'))) {
+    return phlMoForm(el.getAttribute('data-phlo'));
+  }
+  if ((el = ev.target.closest('[data-phlb]'))) return go(scrPhieuHoanHuy);
+}
+
+/* Mở đúng form cũ của luồng hoàn tiền. Ba form này đều tự hỏi máy chủ xem
+   đơn có hoàn được không rồi mới cho gõ, nên ở đây chỉ cần đưa mã đơn. */
+function phlMoForm(ma) {
+  var don = { name: ma, grand_total: 0, custom_hddt_so: '' };
+  if (phlKieu === 'tra') return hoanMoForm(don);
+  if (phlKieu === 'huy') return hoanMoFormHuy(don);
+  if (phlKieu === 'du') return hoanMoFormDu(don);
+  return toast('Chọn loại việc trước đã.', 4000);
 }
