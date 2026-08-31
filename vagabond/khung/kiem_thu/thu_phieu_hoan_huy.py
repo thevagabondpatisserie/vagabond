@@ -215,11 +215,22 @@ def _():
 	c = inspect.getsource(dh.ds_phieu)
 	# Sales can TAI VE de gui khach, do la ca ly do co man nay. Chi tra cai
 	# dau tich co/khong thi man dung duoc nhung viec van khong xong.
-	dung("có gom tệp uỷ nhiệm chi", "_unc_theo_phieu_chi(" in c)
+	dung("có gom tệp đính kèm", "_tep_dinh_kem(" in c)
 	dung("có trả danh sách tệp ra màn", '"unc"' in c or "'unc'" in c)
-	u = inspect.getsource(dh._unc_theo_phieu_chi)
+	# Hai nguon tep KHAC NHAU, khong tron (anh Viet 31/08/2026): tep ke toan
+	# dinh tren phieu chi, va anh bang chung nguoi lap dinh tren chinh ho so.
+	# Ban cu tron lam mot roi ve ca ba thanh nut "Tai uy nhiem chi", bam vao
+	# ra ba thu khac nhau.
+	dung("có trả ảnh bằng chứng riêng", '"bang_chung"' in c)
+	u = inspect.getsource(dh._tep_dinh_kem)
 	dung("lấy file_url", "file_url" in u)
-	dung("một câu cho cả trang", '["in", list(ma_pc)]' in u)
+	dung("một câu cho cả trang", '["in", list(ma_cac)]' in u)
+	# Tra ve TEN THAT va co la anh hay khong, de man hinh ve hinh thu nho
+	# cho anh va o tai lieu mang ten that cho tep khac.
+	dung("trả cờ có phải ảnh không", '"anh":' in u)
+	dung("trả đuôi tệp", '"duoi":' in u)
+	dung("không tự xưng tệp nào là uỷ nhiệm chi", "uỷ nhiệm chi" not in u.split('"""')[2]
+		if u.count('"""') >= 3 else True)
 
 
 @ca("phiếu hoàn: lấy đủ BỐN loại phiếu, không lọc riêng phiếu Pancake")
@@ -305,7 +316,7 @@ def _():
 
 	from vagabond import don_huy as dh
 
-	for ham in (dh.ds_phieu, dh.xuat_excel_phieu, dh._unc_theo_phieu_chi,
+	for ham in (dh.ds_phieu, dh.xuat_excel_phieu, dh._tep_dinh_kem,
 			dh._ten_diem, dh.tim_don_de_hoan, dh.dem_phieu_cho):
 		c = inspect.getsource(ham)
 		for cam in ("frappe.get_doc(", ".save(", ".submit(", ".cancel("):

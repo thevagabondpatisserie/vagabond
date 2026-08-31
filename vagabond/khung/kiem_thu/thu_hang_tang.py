@@ -277,7 +277,10 @@ def _():
 	i = s.find("def tu_choi(")
 	dung("từ chối bắt buộc nêu lý do", "len(ly) < 5" in s[i:i + 900])
 	i = s.find("def duyet(")
-	dung("không duyệt được tờ còn thiếu thông tin", "thieu_gi(si)" in s[i:i + 900])
+	dung("không duyệt được tờ còn thiếu thông tin",
+		"thieu_gi(si, so_anh=" in s[i:i + 900])
+	dung("đếm ảnh thật trên tờ trước khi duyệt",
+		"_anh_cua_to(name)" in s[i:i + 900])
 	dung("duyệt xong ghi lại dấu vân đơn",
 		'"vgb_tang_dau_van": _dau_van_cua_to(si)' in s)
 
@@ -338,3 +341,89 @@ def _():
 		"PB_PT === 'Hàng tặng'" in b)
 	dung("màn bill gửi được loại tặng và lý do lên máy chủ",
 		"vagabond.hang_tang.luu_thong_tin" in b)
+
+
+# ============================ bổ sung 31/08/2026: ảnh chứng minh và báo cáo
+
+
+@ca("hàng tặng: chỉ đơn đền bù sự cố mới bắt buộc ảnh chứng minh")
+def _():
+	from vagabond.hang_tang import LOAI_CAN_ANH, can_anh, la_anh
+
+	# Ba loai kia deu co dau vet o noi khac: khach VIP co phieu tang qua,
+	# marketing co ke hoach, doi tac co lich hen. Rieng den bu su co thi bang
+	# chung duy nhat la cai banh hong.
+	dung("đền bù thì bắt buộc", can_anh("den_bu"))
+	for k in ("vip", "marketing", "doi_tac", "noi_bo", "khac"):
+		dung("%s không bắt buộc" % k, not can_anh(k))
+	dung("chỉ đúng một loại bắt buộc", len(LOAI_CAN_ANH) == 1)
+	# Chi nhan ANH that. Dinh mot tep .pdf roi bao do la bang chung banh hong
+	# thi khong ai soi duoc tren dien thoai.
+	for t in ("a.jpg", "A.JPEG", "b.png", "c.webp", "d.HEIC"):
+		dung("%s là ảnh" % t, la_anh(t))
+	for t in ("a.pdf", "b.docx", "c.xlsx", "d", "", None):
+		dung("%r không phải ảnh" % t, not la_anh(t))
+
+
+@ca("hàng tặng: thiếu ảnh thì báo thiếu, nhưng chưa đếm thì không báo oan")
+def _():
+	don = _don(vgb_tang_ly_do="Đền bù bánh hỏng cho chị Lan", vgb_tang_loai="den_bu")
+	la("có ảnh thì đủ", thieu_gi(don, so_anh=1), [])
+	la("không ảnh thì thiếu", thieu_gi(don, so_anh=0), ["anh"])
+	# NGUOI GOI CHUA DEM thi bo qua phep kiem anh, khong bao thieu. Tha im
+	# con hon chan oan mot to chi vi noi goi chua doc tep dinh kem.
+	la("chưa đếm thì không báo", thieu_gi(don), [])
+	la("chưa đếm cũng không báo, viết rõ None", thieu_gi(don, so_anh=None), [])
+	# Loai khac thi khong anh van du.
+	kh = _don(vgb_tang_ly_do="Tặng chị Lan khách quen", vgb_tang_loai="vip")
+	la("loại khác không cần ảnh", thieu_gi(kh, so_anh=0), [])
+	# Thieu ca ly do lan anh thi bao ca hai, khong bat sua tung cai mot.
+	tr = _don(vgb_tang_loai="den_bu")
+	la("thiếu cả hai thì báo cả hai", thieu_gi(tr, so_anh=0), ["ly_do", "anh"])
+
+
+@ca("hàng tặng: báo cáo chỉ cộng đơn đã ghi sổ")
+def _():
+	from vagabond.hang_tang import gom_bao_cao
+
+	dong = [
+		{"thang": "2026-08", "diem": "SALES", "loai": "vip", "tien": 100, "da_ghi_so": 1},
+		{"thang": "2026-08", "diem": "TCV", "loai": "den_bu", "tien": 200, "da_ghi_so": 1},
+		{"thang": "2026-07", "diem": "SALES", "loai": "vip", "tien": 50, "da_ghi_so": 1},
+		# Don nay CHUA ghi so: chua phai chi phi cua tiem, khong duoc cong.
+		{"thang": "2026-08", "diem": "SALES", "loai": "vip", "tien": 9999, "da_ghi_so": 0},
+	]
+	r = gom_bao_cao(dong, {"SALES": "Sales Online", "TCV": "District 1"})
+	la("chỉ đếm đơn đã ghi sổ", r["so"], 3)
+	la("tổng tiền không dính đơn chờ duyệt", r["tien"], 350)
+	la("hai tháng", [o["k"] for o in r["thang"]], ["2026-07", "2026-08"])
+	la("tháng xếp theo thứ tự thời gian", r["thang"][0]["k"], "2026-07")
+	# Diem va loai xep theo TIEN giam dan: nguoi doc can thay cho ton nhat.
+	la("điểm nhiều tiền nhất đứng đầu", r["diem"][0]["k"], "TCV")
+	la("tên điểm dịch ra tiếng người", r["diem"][0]["ten"], "District 1")
+	la("nhãn loại tặng dịch ra tiếng người",
+		r["loai"][0]["ten"], "Đền bù sự cố cho khách")
+	la("rỗng thì không vỡ", gom_bao_cao([]), {"so": 0, "tien": 0.0,
+		"thang": [], "diem": [], "loai": []})
+
+
+@ca("hàng tặng: cửa ảnh và cửa báo cáo nối đúng vào màn hình")
+def _():
+	s = _doc("vagabond", "hang_tang.py")
+	# Anh de is_private: anh banh hong cua khach va tin nhan khach phan nan
+	# khong phai thu de ai co duong dan cung xem duoc.
+	i = s.find("def _dinh_anh(")
+	j = s.find("\n@frappe.whitelist", i + 10)
+	dung("ảnh chứng minh để riêng tư", '"is_private": 1' in s[i:j])
+	dung("chỉ nhận tệp ảnh", "if not la_anh(ten):" in s[i:j])
+	# Bao cao KHONG duoc cong don chua ghi so.
+	i = s.find("def gom_bao_cao(")
+	j = s.find("\n@frappe.whitelist", i + 10)
+	dung("báo cáo bỏ qua đơn chưa ghi sổ", 'da_ghi_so' in s[i:j])
+	m = _doc("vagabond", "public", "js", "bep", "41-duyet-don-tang.js")
+	dung("màn duyệt có nút báo cáo", "data-dtgbc" in m)
+	dung("màn duyệt gọi cửa báo cáo", "vagabond.hang_tang.bao_cao" in m)
+	dung("màn duyệt vẽ ảnh thành hình thu nhỏ", "object-fit:cover" in m)
+	b = _doc("vagabond", "public", "js", "bep", "10-bill-quay.js")
+	dung("màn bill có ô đính ảnh", "pbTangAnh" in b)
+	dung("màn bill nhắc riêng loại đền bù", "'den_bu'" in b)

@@ -328,7 +328,8 @@ def _():
 	dung("có hàng rào thứ hai bằng padding", ".vgb-in{padding" in css)
 
 	nguon = _doc_nguon("ho_so_tt.py")
-	dung("bản in hồ sơ dùng CSS chung", "css_trang()" in nguon)
+	# Tu 31/08/2026 co truyen them xau phong vao, xem thu_phong_moi_to.py.
+	dung("bản in hồ sơ dùng CSS chung", "css_trang(" in nguon)
 	dung("không còn tự khai 12mm", "margin:12mm" not in nguon)
 
 
