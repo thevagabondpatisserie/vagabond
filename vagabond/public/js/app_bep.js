@@ -1541,7 +1541,7 @@ async function scrHome() {
          mat dau, vi phan con lai nam ben Ke toan ma v355 da khoa phan he do
          lai. O nay la cua so CHI DOC mo ve phia Sales, kem nut tai uy nhiem
          chi de gui cho khach. */
-      card('💸', 'Phiếu hoàn đơn huỷ', 'Kế toán chi tới đâu, uỷ nhiệm chi tải về gửi khách', 0, 'PHHUY') +
+      card('💸', 'Danh sách phiếu hoàn tiền', 'Cập nhật danh sách phiếu hoàn đơn huỷ, phiếu hoàn tiền cho đơn hàng đã ghi sổ, tiền khách nộp thừa. Kế toán chi tới đâu hiện tới đó, uỷ nhiệm chi tải về gửi khách', 0, 'PHHUY') +
       /* Bien nhan nop tien mat (anh Viet 30/08/2026, theo mau ben Lark).
          Thu ngan ba diem ban dem so to, doi chieu doanh thu tien mat cua
          ngay, ky tay roi mang tien ve. O nay bay phieu CUA CHINH MINH;
@@ -2338,7 +2338,7 @@ var VGB_DUONG = {
   'phan-he-thu-mua': 'PH:TM',
   'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
-  'phieu-hoan-don-huy': 'PHHUY',
+  'phieu-hoan-tien': 'PHHUY',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
@@ -18996,7 +18996,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '365';
+var APPVER = '366';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -40343,33 +40343,45 @@ async function scrBntTao() {
     go(scrNopQuyXem, true);
   };
 }
-/* ---------------- Phiếu hoàn của đơn Pancake đã huỷ, cửa sổ phía Sales
+/* ---------------- Danh sách phiếu hoàn tiền, cửa sổ phía các điểm bán
 
-   Anh Việt giao 31/08/2026: *"thêm dùm anh nút để xem lại danh sách các
-   phiếu hoàn cho đơn đã huỷ của pancake để sales theo dõi, nối các trạng
-   thái, hồ sơ, uỷ nhiệm chi,... bên chỗ kế toán làm lên để tự động cập nhật
-   sang cho bên sales theo dõi, tải UNC gửi khách"*.
+   Anh Việt giao 31/08/2026, hai đợt.
+
+   Đợt một: *"thêm nút để xem lại danh sách các phiếu hoàn cho đơn đã huỷ
+   của pancake để sales theo dõi, nối các trạng thái, hồ sơ, uỷ nhiệm
+   chi... tải UNC gửi khách"*.
+
+   Đợt hai: *"màn danh mục phiếu hoàn tiền cash back lại chỉ có bên phân hệ
+   kế toán mà không có ở bên phân hệ Bán hàng. Em làm thêm danh sách đó rồi
+   gộp luôn vào... cho anh những chip lọc điểm bán... vì tương lai cả bên
+   các điểm bán khác không chỉ bên Sales cũng cần làm những phiếu hoàn tiền
+   này, họ cũng cần theo dõi."*
 
    VÌ SAO PHẢI CÓ MÀN NÀY
    ----------------------
-   Sales lập phiếu hoàn xong là mất dấu. Phần còn lại của việc - kế toán
-   chuyển tiền, đính uỷ nhiệm chi, ghi sổ phiếu chi, khớp sao kê - đều nằm
-   trong phân hệ Kế toán, mà v355 đã khoá phân hệ đó lại không cho nhân viên
-   vào. Nên khách nhắn "tiền của em tới đâu rồi" là Sales không có chỗ nào
-   để nhìn, phải đi hỏi.
+   Người lập phiếu xong là mất dấu. Phần còn lại của việc - kế toán chuyển
+   tiền, đính uỷ nhiệm chi, ghi sổ phiếu chi, khớp sao kê - đều nằm trong
+   phân hệ Kế toán, mà v355 đã khoá phân hệ đó lại không cho nhân viên vào.
+   Nên khách nhắn "tiền của em tới đâu rồi" là không ai có chỗ nhìn.
 
-   Màn này là cửa sổ CHỈ ĐỌC mở về phía Sales. Không có nhịp đồng bộ nào và
-   cũng không có bảng thứ hai: nó đọc thẳng hồ sơ hoàn tiền và phiếu chi mà
-   kế toán đang làm, nên kế toán bấm xong là Sales mở màn ra thấy ngay.
+   Màn này là cửa sổ CHỈ ĐỌC mở về phía các điểm bán. Không có nhịp đồng bộ
+   nào và cũng không có bảng thứ hai: nó đọc thẳng hồ sơ hoàn tiền và phiếu
+   chi mà kế toán đang làm, nên kế toán bấm xong là mở màn ra thấy ngay.
 
    Uỷ nhiệm chi trả về ĐƯỜNG DẪN TỆP chứ không phải chỉ một cái dấu tích:
-   thứ Sales cần là tải nó xuống gửi cho khách, đó là cả lý do có màn.
+   thứ người bán cần là tải nó xuống gửi cho khách, đó là cả lý do có màn.
+
+   BA HỌ CHIP: điểm bán, loại phiếu, trạng thái. Mỗi họ đếm trên tập đã lọc
+   bởi hai họ kia, để bấm một chip xong thì số trên các chip còn lại vẫn nói
+   đúng "bấm thêm cái này thì còn bao nhiêu".
 
    Ô tìm và chip đếm chạy Ở MÁY CHỦ (QT-19). Xem `don_huy.dieu_kien_tim`.
 
    Tiền tố ph = phiếu hoàn. Đã kiểm và chạm tên trước khi đặt (QT-28). */
 
-var phLoc = '';        // chip trạng thái đang chọn, rỗng là tất cả
+var phDiem = '';       // chip điểm bán đang chọn, rỗng là tất cả
+var phLoai = '';       // chip loại phiếu
+var phLoc = '';        // chip trạng thái
 var phTim = '';        // ô tìm
 var phMoRong = {};     // mã phiếu nào đang mở rộng xem chi tiết
 
@@ -40382,21 +40394,26 @@ function phMau(tt) {
   return ['#f8fafc', '#e2e8f0', '#64748b'];
 }
 
-function phChips(dem, nhan) {
-  var thu_tu = ['Cho chi', 'Da chi', 'Da doi soat', 'Hoan thanh', 'Da huy'];
-  var s = posChipNut('data-phl=""', 'Tất cả · ' + (dem.tat_ca || 0), phLoc === '');
-  thu_tu.forEach(function (k) {
-    var n = dem[k] || 0;
-    if (!n && k !== 'Cho chi') return;   // chip rỗng thì ẩn, trừ chip chính
-    s += posChipNut('data-phl="' + k + '"', (nhan[k] || k) + ' · ' + n, phLoc === k);
+/* Một hàng chip. `dsc` là danh sách {k, ten} máy chủ gửi xuống, `dem` là số
+   đếm, `chon` là chip đang bật, `thuoc` là tên thuộc tính data-.
+   Chip rỗng thì ẩn, để hàng chip không dài ra vì những nhóm chưa có phiếu
+   nào. Riêng chip đang chọn thì luôn hiện dù đếm 0, nếu không bấm vào là nó
+   biến mất và người ta không biết đường bấm lại. */
+function phHangChip(thuoc, dsc, dem, chon, nhan_tat_ca) {
+  var s = posChipNut(thuoc + '=""', (nhan_tat_ca || 'Tất cả') + ' · ' +
+    (dem.tat_ca || 0), chon === '');
+  (dsc || []).forEach(function (o) {
+    var n = dem[o.k] || 0;
+    if (!n && chon !== o.k) return;
+    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k);
   });
-  return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:9px 0">' + s + '</div>';
+  return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
 
 /* Dây chuyền bốn bước, vẽ thành bốn chấm nối nhau. Cách nói này trả lời
-   đúng câu khách hỏi Sales, mà một dòng trạng thái đơn lẻ thì không: trạng
-   thái nhảy sang "Đã chi" ngay lúc kế toán ghi sổ, nhưng thứ khách muốn là
-   cái uỷ nhiệm chi. */
+   đúng câu khách hỏi, mà một dòng trạng thái đơn lẻ thì không: trạng thái
+   nhảy sang "Đã chi" ngay lúc kế toán ghi sổ, nhưng thứ khách muốn là cái
+   uỷ nhiệm chi. */
 function phDay(r, buoc) {
   var s = '<div style="display:flex;align-items:center;gap:0;margin-top:7px">';
   (buoc || []).forEach(function (b, i) {
@@ -40416,21 +40433,25 @@ function phDay(r, buoc) {
 }
 
 async function scrPhieuHoanHuy() {
-  frame('Phiếu hoàn đơn huỷ', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  frame('Danh sách phiếu hoàn tiền', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
   var kq;
-  try { kq = await api('vagabond.don_huy.ds_phieu', { trang_thai: phLoc, tim: phTim }); }
-  catch (e) {
-    frame('Phiếu hoàn đơn huỷ', '<div class="emp"><div class="e1">⚠️</div><div>' +
+  try {
+    kq = await api('vagabond.don_huy.ds_phieu', {
+      diem: phDiem, loai: phLoai, trang_thai: phLoc, tim: phTim,
+    });
+  } catch (e) {
+    frame('Danh sách phiếu hoàn tiền', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
-  var dong = kq.dong || [], dem = kq.dem || {}, nhan = kq.nhan || {}, buoc = kq.buoc || [];
+  var dong = kq.dong || [], buoc = kq.buoc || [];
 
   var html = '<div class="card" style="padding:12px 13px">' +
     '<div style="font-size:13px;color:#344054;line-height:1.6">' +
-    'Phiếu hoàn tiền của những đơn Pancake <b>đã huỷ</b>. Kế toán làm tới đâu ' +
-    'màn này hiện tới đó, không phải đi hỏi. Có uỷ nhiệm chi rồi thì tải về ' +
-    'gửi cho khách ngay tại đây.</div>' +
+    'Phiếu hoàn tiền cho khách: đơn Pancake <b>đã huỷ</b>, đơn <b>đã ghi sổ</b> ' +
+    'trả hàng, tiền khách <b>nộp thừa</b>. Kế toán làm tới đâu màn này hiện tới ' +
+    'đó, không phải đi hỏi. Có uỷ nhiệm chi rồi thì tải về gửi cho khách ngay ' +
+    'tại đây.</div>' +
     '<div style="margin-top:9px;display:flex;align-items:baseline;gap:8px">' +
     '<span style="font-size:12px;color:#8a8f9c">TIỀN ĐANG CHẠY</span>' +
     '<b style="font-size:19px;color:#b54708">' + money(kq.tien_dang_chay || 0) + ' đ</b></div>' +
@@ -40438,29 +40459,41 @@ async function scrPhieuHoanHuy() {
       kq.cho_unc + ' phiếu đang chờ kế toán chuyển tiền và đính uỷ nhiệm chi.</div>' : '') +
     '</div>';
 
-  html += phChips(dem, nhan);
+  html += phHangChip('data-phd', kq.diem, kq.dem_diem || {}, phDiem, 'Mọi điểm bán');
+  html += phHangChip('data-phlo', kq.loai, kq.dem_loai || {}, phLoai, 'Mọi loại phiếu');
+  html += phHangChip('data-phl', phDsTt(kq), kq.dem || {}, phLoc, 'Mọi trạng thái');
+
   html += '<div class="card" style="padding:9px 11px"><input id="phTim" type="search" ' +
-    'placeholder="Tìm theo mã đơn, tên khách, số tài khoản, mã phiếu" value="' + h(phTim) + '" ' +
+    'placeholder="Tìm theo mã đơn, hoá đơn, tên khách, số tài khoản, mã phiếu" value="' + h(phTim) + '" ' +
     'style="width:100%;height:38px;border:1.5px solid #e4e7ec;border-radius:9px;' +
     'padding:0 10px;font-size:14px"></div>';
 
-  html += '<div class="sec">' + dong.length + ' phiếu · bấm để xem chi tiết</div><div class="card">';
+  html += '<div class="sec">' + dong.length + ' phiếu' +
+    (kq.con_nua ? ' trên tổng ' + kq.tong_dong : '') +
+    ' · bấm để xem chi tiết</div><div class="card">';
   if (!dong.length) {
     html += '<div class="emp" style="padding:24px"><div class="e1">📄</div>' +
       '<div>Chưa có phiếu hoàn nào trong nhóm này.</div></div>';
   }
+  var ten_diem = {};
+  (kq.diem || []).forEach(function (o) { ten_diem[o.k] = o.ten; });
   dong.forEach(function (r) {
     var m = phMau(r.trang_thai);
     var mo = !!phMoRong[r.name];
     html += '<div class="hub" data-phm="' + h(r.name) + '" style="align-items:flex-start">' +
       '<div class="hi">' + ((r.buoc_xong || 0) >= 4 ? '✅' : '💸') + '</div>' +
-      '<div class="ht"><div class="h1">#' + h(r.ma_hien_thi || r.ma_don_pancake) +
+      '<div class="ht"><div class="h1">#' + h(r.ma_hien_thi || r.name) +
       ' · ' + h(r.ten_khach || 'Khách lẻ') + '</div>' +
       '<div class="h2">' + h(r.cau_tinh_hinh || '') + '</div>' +
       phDay(r, buoc) +
       '<div class="h2" style="margin-top:6px">' +
       '<span style="background:' + m[0] + ';border:1px solid ' + m[1] + ';color:' + m[2] +
       ';border-radius:20px;padding:1px 9px;font-size:11.5px">' + h(r.nhan_trang_thai) + '</span>' +
+      ' <span style="background:#f8fafc;border:1px solid #e2e8f0;color:#475467;' +
+      'border-radius:20px;padding:1px 9px;font-size:11.5px">' + h(r.nhan_loai) + '</span>' +
+      ' <span style="background:#f8fafc;border:1px solid #e2e8f0;color:#475467;' +
+      'border-radius:20px;padding:1px 9px;font-size:11.5px">' +
+      h(ten_diem[r.diem_ban] || 'Chưa rõ điểm bán') + '</span>' +
       (r.co_unc ? ' <span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;' +
         'border-radius:20px;padding:1px 9px;font-size:11.5px">Có uỷ nhiệm chi</span>' : '') +
       '</div>' + (mo ? phChiTiet(r) : '') + '</div>' +
@@ -40474,7 +40507,7 @@ async function scrPhieuHoanHuy() {
     '<button class="btn gh" data-phb="don" style="flex:1">↩️ Đơn đã huỷ</button>' +
     '<button class="btn gh" data-phb="excel" style="flex:1">📄 Xuất Excel</button></div>';
 
-  frame('Phiếu hoàn đơn huỷ', html, { footer: foot });
+  frame('Danh sách phiếu hoàn tiền', html, { footer: foot });
   var o = document.getElementById('phTim');
   if (o) {
     o.onchange = function () { phTim = o.value.trim(); go(scrPhieuHoanHuy, true); };
@@ -40484,6 +40517,15 @@ async function scrPhieuHoanHuy() {
      ô thân, không nằm trong nó. Xem bài học ở đầu 29-don-huy.js và ca kiểm
      `thu_chan_man.py`. */
   root.addEventListener('click', phBam);
+}
+
+/* Danh sách chip trạng thái. Nhãn do MÁY CHỦ gửi xuống, màn không tự chế
+   bảng thứ hai: ngày 22/08/2026 sáu con chip đã hiện nguyên khoá không dấu
+   ra cho người dùng đọc, đúng vì màn tự dựng danh sách bằng chuỗi khoá. */
+function phDsTt(kq) {
+  var thu_tu = ['Cho chi', 'Da chi', 'Da doi soat', 'Hoan thanh', 'Da huy'];
+  var nhan = kq.nhan || {};
+  return thu_tu.map(function (k) { return { k: k, ten: nhan[k] || k }; });
 }
 
 /* Phần mở rộng: những gì bên kế toán đã làm, kèm nút tải uỷ nhiệm chi. */
@@ -40497,10 +40539,16 @@ function phChiTiet(r) {
   var s = '<div style="margin-top:9px;padding:9px 10px;background:#f9fafb;' +
     'border:1px solid #eef0f3;border-radius:9px">';
   s += d('Mã phiếu hoàn', r.name);
-  s += d('Lý do huỷ đơn', r.nhan_ly_do);
+  s += d('Loại phiếu', r.nhan_loai);
+  s += d('Hoá đơn gốc', r.hoa_don);
+  s += d('Số hoá đơn điện tử', r.so_hddt);
+  s += d('Mã đơn Pancake', r.ma_don_pancake);
+  s += d('Lý do', r.nhan_ly_do);
+  s += d('Diễn giải', r.dien_giai);
   s += d('Chuyển vào', (r.ten_tk || '') + (r.so_tk ? ' · ' + r.so_tk : '') +
     (r.ngan_hang ? ' · ' + r.ngan_hang : ''));
   s += d('Nội dung chuyển', r.noi_dung_ck);
+  s += d('Phiếu thu', r.phieu_thu);
   s += d('Phiếu chi', (r.phieu_chi || '(chưa có)') +
     (r.phieu_chi_da_ghi ? ' · đã ghi sổ' : (r.phieu_chi ? ' · còn nháp' : '')));
   s += d('Mã giao dịch', r.ma_gd);
@@ -40526,7 +40574,15 @@ function phChiTiet(r) {
 
 async function phBam(ev) {
   var el;
-  if ((el = ev.target.closest('a[href]'))) return;   // để nút tải tệp đi đường của nó
+  if (ev.target.closest('a[href]')) return;   // để nút tải tệp đi đường của nó
+  if ((el = ev.target.closest('[data-phd]'))) {
+    phDiem = el.getAttribute('data-phd');
+    return go(scrPhieuHoanHuy, true);
+  }
+  if ((el = ev.target.closest('[data-phlo]'))) {
+    phLoai = el.getAttribute('data-phlo');
+    return go(scrPhieuHoanHuy, true);
+  }
   if ((el = ev.target.closest('[data-phl]'))) {
     phLoc = el.getAttribute('data-phl');
     return go(scrPhieuHoanHuy, true);
@@ -40546,8 +40602,11 @@ async function phBam(ev) {
 async function phExcel() {
   busy(1);
   var kq;
-  try { kq = await api('vagabond.don_huy.xuat_excel_phieu', { trang_thai: phLoc, tim: phTim }); }
-  catch (e) { busy(0); return toast(errMsg(e), 6000); }
+  try {
+    kq = await api('vagabond.don_huy.xuat_excel_phieu', {
+      diem: phDiem, loai: phLoai, trang_thai: phLoc, tim: phTim,
+    });
+  } catch (e) { busy(0); return toast(errMsg(e), 6000); }
   busy(0);
   if (!kq.tong_dong) return toast('Không có dòng nào để xuất.', 4000);
   var esc = function (v) {
