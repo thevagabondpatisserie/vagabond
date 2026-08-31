@@ -306,10 +306,21 @@ def _():
 	from vagabond import don_huy as dh
 
 	for ham in (dh.ds_phieu, dh.xuat_excel_phieu, dh._unc_theo_phieu_chi,
-			dh._ten_diem):
+			dh._ten_diem, dh.tim_don_de_hoan, dh.dem_phieu_cho):
 		c = inspect.getsource(ham)
-		for cam in ("frappe.get_doc(", ".save(", ".submit(", "frappe.db.set_value("):
+		for cam in ("frappe.get_doc(", ".save(", ".submit(", ".cancel("):
 			dung("%s không %s" % (ham.__name__, cam.strip("(.")), cam not in c)
+
+	# NGOAI LE DUY NHAT: va lai o diem ban cho phieu cu chua co. Do la o
+	# SUY RA duoc, khong phai so lieu ke toan, va phai va bang tay vi QT-11
+	# cam chay lenh len du lieu qua khu. Ca kiem chot chat: chi duoc ghi
+	# dung o do, va khong duoc doi ngay sua doi cua phieu.
+	c = inspect.getsource(dh.ds_phieu)
+	la("chỉ một chỗ ghi", c.count("frappe.db.set_value("), 1)
+	i = c.index("frappe.db.set_value(")
+	doan = c[i:i + 200]
+	dung("chỉ ghi ô điểm bán", '"diem_ban"' in doan)
+	dung("không đổi ngày sửa đổi", "update_modified=False" in doan)
 
 
 @ca("phiếu hoàn: màn có nghe cú bấm trên root, nút chân màn bấm được")
@@ -328,3 +339,134 @@ def _():
 	# Nhan chip trang thai do MAY CHU gui xuong. Man tu che bang thu hai la
 	# cach sinh ra sau con chip hien nguyen khoa khong dau, 22/08/2026.
 	dung("nhãn chip trạng thái đọc từ máy chủ", "kq.nhan || {}" in s)
+
+
+# ------------------------------- bốn việc anh Việt duyệt thêm 31/08/2026
+
+
+@ca("treo lâu: chỉ đếm phiếu CHƯA chi, phiếu đã chi thì tiền đã ra khỏi công ty")
+def _():
+	from vagabond.don_huy import treo_bao_lau
+
+	# Phieu da chi thi khach khong con doi tien nua; con cho doi soat la
+	# viec cua ke toan voi ngan hang.
+	for tt in ("Da chi", "Da doi soat", "Hoan thanh", "Da huy"):
+		la("%s không kêu" % tt, treo_bao_lau(tt, "2026-08-01", "2026-08-31"), (0, False))
+
+
+@ca("treo lâu: quá ngưỡng thì kêu, chưa quá thì im")
+def _():
+	from vagabond.don_huy import TREO_NGAY, treo_bao_lau
+
+	la("mới lập hôm nay", treo_bao_lau("Cho chi", "2026-08-31", "2026-08-31"), (0, False))
+	la("hai ngày", treo_bao_lau("Cho chi", "2026-08-29", "2026-08-31"), (2, False))
+	la("đúng ngưỡng", treo_bao_lau("Cho chi", "2026-08-28", "2026-08-31"), (3, True))
+	la("mười ngày", treo_bao_lau("Cho chi", "2026-08-21", "2026-08-31"), (10, True))
+	la("ngưỡng đang đặt", TREO_NGAY, 3)
+
+
+@ca("treo lâu: ngày hỏng thì im lặng, không được làm chết màn hình")
+def _():
+	from vagabond.don_huy import treo_bao_lau
+
+	# Mot cai ngay hong khong duoc phep lam vo ca danh sach.
+	la("rỗng", treo_bao_lau("Cho chi", ""), (0, False))
+	la("None", treo_bao_lau("Cho chi", None), (0, False))
+	la("chữ vớ vẩn", treo_bao_lau("Cho chi", "khong phai ngay"), (0, False))
+	# Ngay lap o tuong lai (lech dong ho) thi tinh la 0 chu khong ra so am.
+	la("ngày tương lai", treo_bao_lau("Cho chi", "2026-09-05", "2026-08-31"), (0, False))
+
+
+@ca("treo lâu: phiếu treo được đưa lên ĐẦU danh sách")
+def _():
+	import inspect
+
+	from vagabond import don_huy as dh
+
+	# De no chim duoi trang hai la mat tac dung canh bao.
+	c = inspect.getsource(dh.ds_phieu)
+	dung("có sắp xếp", "ra.sort(" in c)
+	dung("treo lâu lên đầu", 'r["treo_lau"]' in c.split("ra.sort(")[1][:200])
+	dung("sắp trước khi cắt dòng", c.index("ra.sort(") < c.index("ra[:tran]"))
+
+
+@ca("chấm đỏ: phép đếm cho trang chủ phải RẺ, không kéo dòng nào về")
+def _():
+	import inspect
+
+	from vagabond import don_huy as dh
+
+	# Trang chu goi ham nay moi lan mo. Keo dong ve la lam cham ca trang chu
+	# cua moi nhan vien.
+	c = inspect.getsource(dh.dem_phieu_cho)
+	dung("dùng phép đếm", "frappe.db.count(" in c)
+	dung("không kéo dòng", "frappe.get_all(" not in c)
+	dung("có đếm phiếu treo", '"treo"' in c)
+
+
+@ca("điểm bán: ghi vào phiếu lúc lập, cả bốn đường lập phiếu")
+def _():
+	import inspect
+
+	from vagabond import don_huy as dh
+	from vagabond import hoan_tien as ht
+
+	# Ghi luc lap chu khong suy moi lan doc: hoa don co the bi huy, bi thay
+	# the, hoac doi quay; con so cua mot cua hang khong duoc doi theo.
+	c = inspect.getsource(dh.tao_hoan)
+	dung("đường Pancake ghi thẳng Sales Online", '"diem_ban": "SALES"' in c)
+	for ham in (ht.tao, ht.tao_tien_du, ht.tao_huy_nhap):
+		c2 = inspect.getsource(ham)
+		dung("%s có ghi điểm bán" % ham.__name__, '"diem_ban": _diem_cua_si(si)' in c2)
+
+
+@ca("điểm bán: ô mới có khai trong bảng trường bổ sung, để lệnh nâng cấp dựng ra")
+def _():
+	from vagabond.hoan_tien import DT, TRUONG_MOI
+
+	o = [f for f in TRUONG_MOI.get(DT, ()) if f.get("fieldname") == "diem_ban"]
+	la("có đúng một ô", len(o), 1)
+	la("chỉ đọc", o[0].get("read_only"), 1)
+	dung("có nhãn tiếng Việt", "Điểm bán" in (o[0].get("label") or ""))
+
+
+@ca("lập phiếu: màn chọn đơn CHỈ TÌM, không mở cửa thứ hai cho tiền ra")
+def _():
+	import inspect
+
+	from vagabond import don_huy as dh
+
+	# Bon luong hoan tien da co du hang rao o may chu. Mo them mot cua thu
+	# hai cho tien ra la mo them mot cho de sai.
+	c = inspect.getsource(dh.tim_don_de_hoan)
+	for cam in ("frappe.get_doc(", ".insert(", ".save(", ".submit("):
+		dung("không %s" % cam.strip("(."), cam not in c)
+	dung("ô tìm chạy ở máy chủ", "or_filters=hoac" in c)
+	dung("lọc theo điểm bán", 'loc["vgb_quay"]' in c)
+	dung("báo đơn đã có phiếu rồi", '"da_co_phieu"' in c)
+
+
+@ca("lập phiếu: Sales Online lọc bằng quầy để trống, không lọc bằng mã điểm")
+def _():
+	import inspect
+
+	from vagabond import don_huy as dh
+
+	# Sales Online khong mang ma quay. Loc `vgb_quay = "SALES"` thi ra rong,
+	# va man se bao "khong thay don nao" giua luc so day don.
+	c = inspect.getsource(dh.tim_don_de_hoan)
+	dung("có nhánh quầy trống", '["in", ["", None]]' in c)
+
+
+@ca("lập phiếu: màn mới nghe cú bấm trên root và đi qua ba form cũ")
+def _():
+	import io
+	import os
+
+	bep = os.path.join(_goc_app(), "public", "js", "bep")
+	s = io.open(os.path.join(bep, "40-phieu-hoan-huy.js"), encoding="utf-8").read()
+	dung("nghe trên root", "root.addEventListener('click', phlBam)" in s)
+	for f in ("hoanMoForm(don)", "hoanMoFormHuy(don)", "hoanMoFormDu(don)"):
+		dung("gọi lại form cũ %s" % f, f in s)
+	# Duong Pancake khong co hoa don nao de chon, phai di sang man Don da huy.
+	dung("đường Pancake đi sang màn Đơn đã huỷ", "if (k === 'pancake') return go(scrDonHuy)" in s)
