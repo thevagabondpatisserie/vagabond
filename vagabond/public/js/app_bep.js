@@ -18989,7 +18989,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '361';
+var APPVER = '363';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -35733,13 +35733,24 @@ async function scrDonHuy() {
     '<button class="btn gh" data-dhb="dongbo" style="flex:1">🔄 Đồng bộ Pancake</button>' +
     '<button class="btn gh" data-dhb="excel" style="flex:1">📄 Xuất Excel</button></div>';
 
-  var b = frame('Đơn đã huỷ chờ hoàn', html, { footer: foot });
+  frame('Đơn đã huỷ chờ hoàn', html, { footer: foot });
   var o = document.getElementById('dhTim');
   if (o) {
     o.onchange = function () { dhTim = o.value.trim(); go(scrDonHuy, true); };
     o.onkeydown = function (e) { if (e.key === 'Enter') { dhTim = o.value.trim(); go(scrDonHuy, true); } };
   }
-  b.addEventListener('click', dhBam);
+  /* NGHE TREN `root`, KHONG PHAI TREN THAN MAN. Bai hoc 31/08/2026.
+     `frame` tra ve o THAN (`#vgbBody`), con chan man `.vf` la ANH EM cua no
+     chu khong nam trong. Ban cu dat lang nghe uy quyen tren than, nen hai
+     nut o chan - Dong bo Pancake va Xuat Excel - chua bao gio bam duoc lan
+     nao ke tu ngay dung man. Khong bao loi, khong hien gi, bam nhu bam vao
+     tuong.
+     Hau qua that: lan dong bo cuoi cung la 21/08/2026, muoi ngay khong ai
+     keo don huy ve, don 92583 cua chi Minh Ngoc huy 26/08 khong bao gio ve
+     he de lam hoan tien. Anh Viet phai tu phat hien.
+     Man nao co chan man va dung uy quyen theo `data-` thi phai nghe tren
+     `root`. Co ca kiem `thu_chan_man.py` chot lai chuyen nay. */
+  root.addEventListener('click', dhBam);
 }
 
 async function dhBam(ev) {
