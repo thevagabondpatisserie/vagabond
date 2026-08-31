@@ -213,6 +213,12 @@ CUA_NGO = {
 	# trong Frappe nen TUYET DOI khong duoc whitelist: mo ra la ai cung goi
 	# duoc ham dong dau "Da tang" len phieu ma khong can hoa don nao.
 	"qua_tang_hoa_don.py": ["kiem_phieu", "xuat_hoa_don"],
+	# Them 31/08/2026: phuong thuc "Hang tang" va luong giam doc duyet. Cac
+	# ham hook (truoc_khi_luu, truoc_khi_ghi_so, sau_khi_ghi_so, khi_huy) do
+	# hooks.py goi, KHONG duoc mo ra ngoai; `bo_sung_mac_dinh` ben
+	# pt_thanh_toan cung vay, no chi chay trong after_migrate.
+	"hang_tang.py": ["cai_dat", "luu_thong_tin", "dem_cho_duyet", "ds_don",
+		"chi_tiet", "duyet", "tu_choi"],
 	# Hoa don dien tu thanh chung tu, them 26/08/2026 sau khi phat hien 125
 	# to bi nuot. `con_sot` chi DOC, `mo_lai` chi doi co, `chay_bu` dung
 	# chung tu that. `chay_tu_dong` la nhip lap lich, `_chay`, `_mot_to`,

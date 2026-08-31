@@ -824,6 +824,9 @@ def cau_hinh_ban_hang():
 		},
 		"pt_chua_ve_tien": pt_thanh_toan.chua_ve_tien(),
 		"pt_ve_sau": pt_thanh_toan.ve_sau(),
+		# Nhom thu tu: tien KHONG BAO GIO ve (hang tang). Tra ve cung cho voi
+		# hai nhom kia de man nao can cung doc duoc mot chuong.
+		"pt_khong_thu": pt_thanh_toan.khong_thu(),
 		# De app biet luc nao phai hoi ma OTP. May chu van kiem lai het, day
 		# chi la de khoi bat thu ngan go ma cho mot viec ho duoc phep lam.
 		"quyen_bo_mon": quyen_quay.muc(),
@@ -2639,6 +2642,18 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 				continue
 			if cint(si.get("vgb_tam_tinh")) or cint(si.get("vgb_huy")):
 				continue
+			# Don hang tang chua duoc giam doc duyet thi BO QUA, khong ep ghi
+			# so. Khong bo qua thi hook before_submit nem loi va dem nao chuoi
+			# cuoi ngay cung bao mot danh sach loi dai bang so don dang cho -
+			# tieng keu that chim trong tieng keu gia.
+			if ghi_so_dieu_kien.ly_do({
+				"docstatus": si.get("docstatus"),
+				"vgb_huy": si.get("vgb_huy"),
+				"vgb_tam_tinh": si.get("vgb_tam_tinh"),
+				"vgb_pt_thanh_toan": si.get("vgb_pt_thanh_toan"),
+				"vgb_tang_duyet": si.get("vgb_tang_duyet"),
+			}) in ("tang_cho_duyet", "tang_tu_choi"):
+				continue
 			a, b, e = _ghi_so_mot_don(si, sepay if not (si.get("vgb_quay") or "").strip() else None)
 			xong += a
 			hddt += b
@@ -2766,6 +2781,11 @@ def _ly_do_treo(r, sepay):
 	pt = (r.get("vgb_pt_thanh_toan") or "").strip()
 	if not pt:
 		return "chua_pt"
+	if pt == ghi_so_dieu_kien.HANG_TANG:
+		tt = (r.get("vgb_tang_duyet") or "").strip()
+		if tt == ghi_so_dieu_kien.TANG_TU_CHOI:
+			return "tang_tu_choi"
+		return "san_sang" if tt == ghi_so_dieu_kien.TANG_DA_DUYET else "tang_cho_duyet"
 	try:
 		if pt not in _pt_cho_nguon(r.get("custom_nguon")):
 			return "pt_sai_nguon"
@@ -2802,6 +2822,7 @@ def _quet_don_treo(so_ngay=14):
 			"name", "posting_date", "grand_total", "customer",
 			"custom_nguon", "custom_pancake_display_id",
 			"vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "remarks",
+			"vgb_tang_duyet",
 		],
 		order_by="posting_date asc, name asc",
 		limit_page_length=0,
@@ -4143,6 +4164,10 @@ def pos_ds_bill(quay=None, ngay=None):
 			"custom_hddt_so", "custom_hddt_trang_thai",
 			# Ba o duoi day chi phuc vu phep "ghi so duoc chua" ben duoi.
 			"customer", "custom_pancake_id", "vgb_quay",
+			# Don hang tang: trang thai duyet quyet dinh don co ghi so duoc
+			# khong, nen phai doc ve cung mot luot. Thieu o nay thi chip
+			# "Khong ghi so duoc" im lang bo qua ca nhom don tang.
+			"vgb_tang_duyet", "vgb_tang_loai", "vgb_tang_ly_do",
 		],
 		order_by="creation desc",
 		limit_page_length=0,
@@ -4769,17 +4794,28 @@ def pos_chot_ca(quay=None, ngay=None):
 	# khong bi lech, va quan ly biet con bao nhieu phai di doi.
 	# Doc bang phuong thuc MOT LAN roi dung lai, khong goi trong vong lap.
 	cho_ve = set(pt_thanh_toan.chua_ve_tien()) | set(pt_thanh_toan.ve_sau())
+	# Hang tang KHONG nam trong "cho ve": tien do khong bao gio ve. Gop chung
+	# thi man Chot ca hien mot con so "con phai di doi" trong do co ca so
+	# tiem da cho di, va thu ngan lai di doi mot mon qua.
+	khong_thu_pt = set(pt_thanh_toan.khong_thu())
 	chua_ve = {"so": 0, "tien": 0.0, "dong": []}
+	khong_thu = {"so": 0, "tien": 0.0, "dong": []}
 	for k, v in pt_tong.items():
-		if k in cho_ve:
+		if k in khong_thu_pt:
+			khong_thu["so"] += v["so"]
+			khong_thu["tien"] += v["tien"]
+			khong_thu["dong"].append({"pt": k, "so": v["so"], "tien": v["tien"]})
+		elif k in cho_ve:
 			chua_ve["so"] += v["so"]
 			chua_ve["tien"] += v["tien"]
 			chua_ve["dong"].append({"pt": k, "so": v["so"], "tien": v["tien"]})
 	chua_ve["dong"].sort(key=lambda x: -x["tien"])
+	khong_thu["dong"].sort(key=lambda x: -x["tien"])
 	return {
 		"quay": quay,
 		"ngay": str(ngay),
 		"chua_ve": chua_ve,
+		"khong_thu": khong_thu,
 		"pt": [
 			{"pt": k, "so": v["so"], "tien": v["tien"]}
 			for k, v in sorted(pt_tong.items(), key=lambda x: -x[1]["tien"])

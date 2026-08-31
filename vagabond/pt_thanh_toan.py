@@ -28,6 +28,13 @@ TRUONG = "vgb_pt_thanh_toan_ds"
 TIEN_NGAY = "ngay"      # tien vao ngay: tien mat, the, chuyen khoan
 TIEN_VE_SAU = "sau"     # ben thu ba giu roi tra sau: Grab Dine-Out
 TIEN_CONG_NO = "cong_no"  # khach no, phai di doi
+# Tien KHONG BAO GIO ve: hang tang khong thu tien (anh Viet 31/08/2026).
+#
+# Khac han TIEN_CONG_NO. Cong no la tien SE ve, chi la chua ve; xep hang
+# tang vao do thi man Cong no phai thu di doi mot mon qua, va so cong no
+# phong len bang dung so tiem da tang. Khac ca TIEN_VE_SAU vi khong co ben
+# thu ba nao giu gi ca.
+TIEN_KHONG_THU = "khong_thu"
 
 from vagabond.vai_cua_hang import VAI_QLCH
 
@@ -43,6 +50,7 @@ MA_THUE = ("", "TM", "CK", "TM/CK")
 TEN_KHOA = {
 	"Chuyển khoản": "đối soát SePay dò theo đúng tên này",
 	"Công nợ": "phân hệ Công nợ phải thu lọc hoá đơn theo đúng tên này",
+	"Hàng tặng": "luồng duyệt đơn tặng của giám đốc dò theo đúng tên này",
 }
 
 # Giu DUNG mau cu ben ban_hang.py: bill ca the in ca "So tham chieu" toan
@@ -134,6 +142,20 @@ MAC_DINH = [
 		"quay": 1, "online": 1, "tien_ve": TIEN_CONG_NO, "minvoice": "",
 		"nhan": "Tên hoặc mã khách công nợ", "vd": "Ravie",
 	},
+	{
+		# Hang tang khong thu tien (anh Viet 31/08/2026). Hoa don van xuat
+		# NGUYEN GIA va nguyen thue suat theo luat hang bieu tang, khach tra
+		# 0 dong bang mot but toan gat cong no sang chi phi bieu tang.
+		#
+		# Khong bat ma tham chieu vi khong co giao dich nao de tham chieu, va
+		# khong doi soat vi khong co dong nao ve. Cai thay cho doi soat la
+		# GIAM DOC DUYET - xem vagabond/hang_tang.py.
+		#
+		# minvoice de trong nen `ma_minvoice` tra ve TM/CK, giong Cong no.
+		"ten": "Hàng tặng", "ic": "🎁",
+		"quay": 1, "online": 1, "tien_ve": TIEN_KHONG_THU, "minvoice": "",
+		"nhan": "Ghi chú thêm cho đơn tặng (không bắt buộc)",
+	},
 	# Bon phuong thuc duoi day di theo NGUON DON cua san, khong hien o man
 	# chon phuong thuc - nhung van phai khai de con kiem ma don va gui dung
 	# ma hinh thuc thanh toan sang co quan thue.
@@ -171,7 +193,7 @@ MAC_DINH = [
 def _chuan(d, i=0):
 	ten = str(d.get("ten") or "").strip()
 	tv = str(d.get("tien_ve") or TIEN_NGAY).strip()
-	if tv not in (TIEN_NGAY, TIEN_VE_SAU, TIEN_CONG_NO):
+	if tv not in (TIEN_NGAY, TIEN_VE_SAU, TIEN_CONG_NO, TIEN_KHONG_THU):
 		tv = TIEN_NGAY
 	lg = str(d.get("lg") or "").strip()
 	# Logo phai la tep da tai len site nay. Khong cho tro ra ngoai: man hinh
@@ -253,6 +275,15 @@ def ve_sau():
 	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_VE_SAU]
 
 
+def khong_thu():
+	"""Phuong thuc KHONG THU TIEN: hang tang.
+
+	Man Chot ca phai tach nhom nay ra khoi tien mat, khong thi thu ngan dem
+	tien xong thay thieu dung bang so hang da tang ma khong hieu vi sao.
+	"""
+	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_KHONG_THU]
+
+
 # Anh xa san cho hai kenh dang chay that, dung khi nguoi dung chua kip khai
 # o Cai dat. Do tren du lieu that 15/08/2026: 285 giao dich mbbank va 41
 # giao dich onepay trong bay ngay.
@@ -299,6 +330,7 @@ def danh_sach():
 			{"k": TIEN_NGAY, "ten": "Tiền vào ngay"},
 			{"k": TIEN_VE_SAU, "ten": "Bên thứ ba giữ, trả sau"},
 			{"k": TIEN_CONG_NO, "ten": "Khách nợ, phải đi đòi"},
+			{"k": TIEN_KHONG_THU, "ten": "Không thu tiền (hàng tặng)"},
 		],
 	}
 
@@ -479,6 +511,63 @@ def luu(pt=None):
 		% ", ".join("%s%s" % (d["ten"], "" if d["dung"] else " (tắt)") for d in ra)
 	)
 	return danh_sach()
+
+
+def bo_sung_mac_dinh():
+	"""Nhet cac phuong thuc MOI cua ma nguon vao cau hinh DA LUU tren site.
+
+	Vi sao phai co ham nay. `ds()` chi doc MAC_DINH khi chua ai luu gi. Site
+	that thi da luu tu lau, nen them mot dong vao MAC_DINH la them cho cai
+	site trong, con site that KHONG BAO GIO thay phuong thuc moi - va khong
+	ai bao loi, no chi lang le vang mat khoi man tinh tien.
+
+	Chay trong `after_migrate`. Ba dieu phai giu, giong `vai_cua_hang.dung`:
+
+	  1. CHI THEM, khong bao gio sua hay bot cai dang co. Ai do co the da
+	     tat mot phuong thuc hoac doi nhan cua no ngay tren man Cai dat.
+	  2. Lam lai duoc nhieu lan. Chay lan hai khong doi gi.
+	  3. Khai luon sang Mode of Payment ben Next, khong thi thu ngan chon
+	     vao la bi chan cung voi cau "Chua khai phuong thuc X ben Next".
+	"""
+	tho = (cfg().get(TRUONG) or "").strip()
+	if not tho:
+		# Chua luu gi: `ds()` dang doc thang MAC_DINH nen da co du. Chi con
+		# viec khai sang Next.
+		try:
+			_mo_loi_next([_chuan(d, i) for i, d in enumerate(MAC_DINH)])
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "pt_thanh_toan: khai Next mac dinh")
+		return 0
+	try:
+		dang = json.loads(tho)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "pt_thanh_toan: cau hinh hong khi bo sung")
+		return 0
+	if not isinstance(dang, list):
+		return 0
+
+	da_co = {str((d or {}).get("ten") or "").strip() for d in dang}
+	them = [d for d in MAC_DINH if d["ten"] not in da_co]
+	if not them:
+		return 0
+
+	sau = cint(max([cint((d or {}).get("thu_tu") or 0) for d in dang] or [0]))
+	ra = [_chuan(d, i) for i, d in enumerate(dang)]
+	for j, d in enumerate(them):
+		m = _chuan(d, 0)
+		m["thu_tu"] = sau + j + 1
+		ra.append(m)
+	try:
+		_mo_loi_next(ra)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "pt_thanh_toan: khai Next khi bo sung")
+		return 0
+	frappe.db.set_single_value(
+		"Vagabond Settings", TRUONG, json.dumps(ra, ensure_ascii=False, indent=1)
+	)
+	_ghi_vet("Bổ sung phương thức thanh toán mới của mã nguồn: %s"
+		% ", ".join(d["ten"] for d in them))
+	return len(them)
 
 
 def _ghi_vet(viec):

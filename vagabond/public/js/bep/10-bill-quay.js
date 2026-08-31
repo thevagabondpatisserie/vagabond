@@ -373,6 +373,56 @@ async function scrPosDs() {
    hoa don va co ma OTP cua quan ly. Rieng hoa don con TAM TINH (khach chua
    tra tien) thi cashier van chot binh thuong, do la nghiep vu hang ngay. */
 var posSua = null; /* {name, otp, mon[], giam, pt, mtc, ghi_chu, so_ban, xh} */
+/* Khoi "Hang tang khong thu tien" tren man bill.
+
+   Ba viec: noi ro don nay dang o dau trong luong duyet, cho nguoi lap khai
+   loai tang va ly do tang, va nhac rang chua duyet thi chua ghi so duoc.
+
+   Loai tang va ly do la BAT BUOC, nhung KHONG chan luc luu - chan luc luu
+   thi khong bao gio chon duoc phuong thuc nay, vi chinh cu bam chon la cu
+   luu. Xem ghi chu dai trong `hang_tang.truoc_khi_luu`. */
+function pbKhoiTang(d, hien) {
+  var tt = String(d.vgb_tang_duyet || '') || 'Chờ duyệt';
+  var loai = String(d.vgb_tang_loai || '');
+  var mau = tt === 'Đã duyệt' ? ['#ecfdf3', '#a6f4c5', '#05603a']
+    : (tt === 'Từ chối' ? ['#fef2f2', '#fecaca', '#b3261e'] : ['#fffbeb', '#fde68a', '#92400e']);
+  var ds = [
+    ['vip', 'Khách VIP, khách quen'],
+    ['den_bu', 'Đền bù sự cố cho khách'],
+    ['marketing', 'Marketing, KOL, chụp hình'],
+    ['doi_tac', 'Đối tác, ngoại giao'],
+    ['noi_bo', 'Nội bộ, thử món, đào tạo'],
+    ['khac', 'Khác'],
+  ];
+  var op = '<option value="">Chọn loại tặng</option>';
+  ds.forEach(function (x) {
+    op += '<option value="' + x[0] + '"' + (loai === x[0] ? ' selected' : '') + '>' + h(x[1]) + '</option>';
+  });
+  var s = '<div id="pbTang" style="display:' + (hien ? 'block' : 'none') + '">' +
+    '<div class="sec">Hàng tặng không thu tiền</div>' +
+    '<div class="card" style="padding:12px 14px;display:grid;gap:9px">' +
+    '<div style="padding:8px 11px;background:' + mau[0] + ';border:1px solid ' + mau[1] +
+    ';border-radius:9px;font-size:12.5px;color:' + mau[2] + ';line-height:1.55">' +
+    '<b>' + h(tt) + '.</b> ' +
+    (tt === 'Đã duyệt'
+      ? 'Giám đốc đã duyệt, ghi sổ được rồi. Sửa lại món hay số tiền thì đơn quay về chờ duyệt.'
+      : (tt === 'Từ chối'
+        ? ('Giám đốc từ chối' + (d.vgb_tang_y_kien ? ': ' + h(d.vgb_tang_y_kien) : '') +
+           '. Sửa lại rồi lưu để xin duyệt lần nữa, hoặc đổi phương thức thanh toán.')
+        : 'Khách không trả đồng nào, nhưng hoá đơn vẫn xuất nguyên giá và nguyên thuế ' +
+          'theo luật hàng biếu tặng. Đơn chỉ ghi sổ được sau khi Giám đốc duyệt.')) +
+    '</div>' +
+    (d.docstatus === 0
+      ? '<select class="tin" id="pbTangLoai" style="margin:0">' + op + '</select>' +
+        '<textarea class="tin" id="pbTangLyDo" rows="2" style="margin:0" ' +
+        'placeholder="Lý do tặng: tặng cho ai, vì việc gì">' + h(d.vgb_tang_ly_do || '') + '</textarea>' +
+        '<button class="btn" id="pbTangLuu" style="margin:0">🎁 Lưu và gửi giám đốc duyệt</button>'
+      : '<div style="font-size:12.5px;color:#475467;line-height:1.6">' +
+        '📝 ' + h(d.vgb_tang_ly_do || 'Không ghi lý do') + '</div>') +
+    '</div></div>';
+  return s;
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -544,6 +594,25 @@ async function scrPosBill(name) {
       'Cần sửa thì bấm <b>Sửa hoá đơn</b> rồi nhập mã OTP xin của quản lý ca.</div></div>';
   }
 
+  /* ----- khoi Hang tang khong thu tien (anh Viet 31/08/2026) -----
+
+     Don tra bang "Hang tang" khong thu dong nao cua khach, nhung hoa don van
+     xuat NGUYEN GIA va nguyen thue suat theo luat hang bieu tang. Doi lai,
+     no khong ghi so duoc cho toi khi Giam doc bam duyet ben man Duyet don
+     hang tang trong phan he Ke toan.
+
+     Vi sao khoi nay luon nam san trong trang, chi an di. Thu ngan bam chon
+     "Hang tang" trong luoi phuong thuc thi khong co luot ve lai man - luoi
+     do chi doi mau o duoc chon. Dung ma nguon dung o day thi phai ve lai ca
+     man, ma ve lai thi mat cai vua chon vi no chua duoc luu. Nen dung san
+     roi bat len bang mot dong style. */
+  var pbLaTang = String(d.vgb_pt_thanh_toan || '') === 'Hàng tặng';
+  if (nhap && !d.vgb_huy) {
+    html += pbKhoiTang(d, PB_PT === 'Hàng tặng' || pbLaTang);
+  } else if (pbLaTang) {
+    html += pbKhoiTang(d, true);
+  }
+
   /* ----- nut duoi chan man ----- */
   var foot;
   if (d.vgb_huy) {
@@ -623,11 +692,34 @@ async function scrPosBill(name) {
       });
       var mo = document.getElementById('pbMtc');
       if (mo && PB_PT === 'Chuyển khoản' && !mo.value.trim()) mo.value = maBill || '';
+      var ot = document.getElementById('pbTang');
+      if (ot) ot.style.display = (PB_PT === 'Hàng tặng') ? 'block' : 'none';
       veQr();
     };
   });
   veQr();
   function docO(id) { var o = document.getElementById(id); return o ? o.value : ''; }
+  var ntl = document.getElementById('pbTangLuu');
+  if (ntl) ntl.onclick = async function () {
+    var lo = docO('pbTangLoai'), ly = String(docO('pbTangLyDo') || '').trim();
+    if (!lo) return toast('Chọn loại tặng trước.');
+    if (ly.length < 5) return toast('Ghi rõ lý do tặng, ít nhất vài chữ.');
+    busy(true);
+    try {
+      /* Ghi phuong thuc truoc roi moi ghi ly do: `luu_thong_tin` ben may
+         chu chi dung cho don DANG NHAP, va chinh no goi save() nen hook
+         dat lai trang thai duyet ngay sau do. */
+      if (String(d.vgb_pt_thanh_toan || '') !== 'Hàng tặng') {
+        await api('vagabond.ban_hang.pos_chot', {
+          name: d.name, pt: 'Hàng tặng', ghi_chu: docO('pbGhiChu'),
+        });
+      }
+      await api('vagabond.hang_tang.luu_thong_tin', { name: d.name, loai: lo, ly_do: ly });
+      busy(false);
+      toast('Đã gửi giám đốc duyệt đơn tặng.');
+      go(function () { scrPosBill(d.name); }, true);
+    } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 4500); }
+  };
   function hutSua() {
     if (!posSua) return;
     posSua.pt = PB_PT;

@@ -46,6 +46,8 @@ LY_DO = {
 	"thieu_ma": "Phương thức này bắt buộc có mã tham chiếu mà đang để trống",
 	"chua_ve_tien": "Chuyển khoản nhưng ngân hàng chưa nhận đủ tiền, cũng chưa có mã tham chiếu",
 	"thieu_khach_no": "Bán công nợ nhưng chưa chọn khách công nợ",
+	"tang_cho_duyet": "Đơn hàng tặng đang chờ Giám đốc duyệt",
+	"tang_tu_choi": "Đơn hàng tặng đã bị Giám đốc từ chối, sửa lại hoặc đổi phương thức",
 	"ngoai_chuoi": "Đơn đủ điều kiện nhưng nằm ngoài chuỗi tự ghi sổ cuối ngày, phải ghi sổ tay",
 }
 
@@ -58,11 +60,22 @@ THU_TU = [
 	"chua_ve_tien",
 	"thieu_ma",
 	"thieu_khach_no",
+	"tang_tu_choi",
+	"tang_cho_duyet",
 	"ngoai_chuoi",
 ]
 
 CHUYEN_KHOAN = "Chuyển khoản"
 CONG_NO = "Công nợ"
+
+# Ba chuoi duoi day CHEP TU `vagabond/hang_tang.py`, co y va bat dac di:
+# tep nay khong duoc import gi ca, ke ca mo dun cua chinh minh, vi no phai
+# chay tren may CI tay khong. Ban sao duoc canh boi ca kiem
+# `thu_hang_tang.py`, ca do doc ca hai tep va bat den do neu hai ben lech
+# nhau. Doi ten o mot ben ma quen ben kia thi ca kiem bao ngay.
+HANG_TANG = "Hàng tặng"
+TANG_DA_DUYET = "Đã duyệt"
+TANG_TU_CHOI = "Từ chối"
 
 
 def _chu(x):
@@ -123,6 +136,17 @@ def ly_do(b, pt_hop_le=None, pt_can_ma=None, trong_chuoi=True, khach_le=""):
 		kh = _chu(b.get("customer"))
 		if not kh or kh == _chu(khach_le):
 			return "thieu_khach_no"
+
+	# Hang tang: khong co dong nao ve nen khong co gi de doi soat, cai thay
+	# cho doi soat la giam doc duyet. Dat SAU cac phep tren de thu tu bao loi
+	# van bam theo `_chuan_bi_ghi_so`: to thieu phuong thuc thi noi thieu
+	# phuong thuc truoc da.
+	if pt == HANG_TANG:
+		tt = _chu(b.get("vgb_tang_duyet"))
+		if tt == TANG_TU_CHOI:
+			return "tang_tu_choi"
+		if tt != TANG_DA_DUYET:
+			return "tang_cho_duyet"
 
 	if not trong_chuoi:
 		return "ngoai_chuoi"

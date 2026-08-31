@@ -486,9 +486,14 @@ doc_events = {
 		# Dat o validate chu khong o before_submit vi anh Viet yeu cau "vang
 		# loi chan cung khong cho xuat" - chan ngay luc luu thi nhan vien biet
 		# sai trong luc con dang go.
+		#   3. Hang tang khong thu tien: bat khai loai tang va ly do tang,
+		#      xoa moi khoan giam de giu nguyen gia va thue, va dat trang thai
+		#      duyet. Sua ruot don sau khi da duyet thi don tu roi ve Cho
+		#      duyet - xem dau van don trong vagabond/hang_tang.py.
 		"validate": [
 			"vagabond.ban_hang.kiem_truoc_khi_luu",
 			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
+			"vagabond.hang_tang.truoc_khi_luu",
 		],
 		# Chan ban lo han muc mua vu (anh Viet chot 18/08/2026: "tuyet doi
 		# khong cho phep ban lo").
@@ -501,9 +506,13 @@ doc_events = {
 		#   2. Noi ghi chu "(Hang tang khong thu tien)" vao dien giai tung
 		#      dong cua hoa don qua, va kiem tai khoan chi phi bieu tang da
 		#      khai chua TRUOC khi to vao so.
+		#   3. Don hang tang chua duoc Giam doc duyet thi KHONG cho ghi so.
+		#      Day la cua chan that cua luong duyet; giau nut tren man hinh
+		#      khong phai la chan.
 		"before_submit": [
 			"vagabond.mua_vu.chan_ban_lo",
 			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
+			"vagabond.hang_tang.truoc_khi_ghi_so",
 		],
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
@@ -512,6 +521,9 @@ doc_events = {
 			# Hoa don qua: dong dau Da tang len phieu (chong nhan hai lan) va
 			# gat cong no sang chi phi bieu tang de khach tra 0 dong.
 			"vagabond.qua_tang_hoa_don.sau_khi_ghi_so",
+			# Don tra bang Hang tang: gat cong no sang chi phi bieu tang de
+			# khach tra 0 dong, con hoa don van giu nguyen gia va thue.
+			"vagabond.hang_tang.sau_khi_ghi_so",
 		],
 		# Huy hoa don kenh khac thi tra so lai cho bang kiem banh. Truoc day
 		# co ca after_delete o day, nay bo di: khong ai xoa duoc hoa don nua
@@ -531,6 +543,8 @@ doc_events = {
 			# but toan gat cong no. Khong tra lai thi phieu ket vinh vien o
 			# Da tang ma khach chua he nhan duoc gi.
 			"vagabond.qua_tang_hoa_don.khi_huy",
+			# Huy don hang tang thi HUY (khong xoa) but toan gat cong no.
+			"vagabond.hang_tang.khi_huy",
 		],
 	},
 }
