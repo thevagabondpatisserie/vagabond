@@ -96,8 +96,8 @@ CUA_NGO = {
 	# nham thanh "hang chua duoc nhap kho". `_mst_cua_to` va `_phieu_ung_vien`
 	# la ham noi bo, KHONG mo ra ngoai.
 	"doi_chieu_mua.py": [
-		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "goi_y_mon", "khai_don_vi",
-		"noi_phieu", "so_sanh", "sua_don_vi", "xem",
+		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_thang", "goi_y_mon",
+		"khai_don_vi", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],
 	# Bang gia nhap duoi theo gia tren hoa don, them 31/08/2026. `can_khai_don_vi`
 	# chi DOC, dua ra danh sach don vi cua nha cung cap ma Mon chua khai.

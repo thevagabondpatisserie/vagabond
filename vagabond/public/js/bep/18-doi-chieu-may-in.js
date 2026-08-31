@@ -261,7 +261,28 @@ async function scrDcmXem(name) {
   html += '<div id="dcmSs"></div>';
 
   var foot = '';
-  if (kq.lam_duoc && gy.length) {
+
+  /* KHONG CON DOI PHAI CO PHIEU GOI Y MOI VE NUT.
+
+     Chi Dung bao 31/08/2026 "bong bi mat nut ghi so". Khong bong nhien: cau
+     `if (kq.lam_duoc && gy.length)` chi ve khoi nut khi tim ra it nhat mot
+     phieu nhap goi y. To nao khong co phieu nao thi ca cum nut bien mat, ke
+     ca nut ghi so - trong khi chinh man hinh bao "nho ke toan ghi so thang
+     to nay". Bao mot duong, khong co nut de lam duong do.
+
+     Ngay do nhom "Khong thay phieu nhap nao" co 618 to, phan lon la xang
+     dau, Grab, phi dich vu - nhung thu KHONG BAO GIO co phieu nhap. */
+  if (kq.lam_duoc && !gy.length) {
+    foot = kq.ghi_so_duoc
+      ? '<button class="btn" id="dcmThang" style="margin:0;width:100%">✅ Ghi sổ thẳng, không nối phiếu</button>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin:6px 0 10px;line-height:1.6">' +
+        'Tờ này không tìm được phiếu nhập nào. Hàng không qua kho (xăng dầu, ' +
+        'dịch vụ, phí ship) thì ghi sổ thẳng là đúng. Còn dòng hàng qua kho ' +
+        'chưa nối phiếu thì hệ vẫn chặn.</div>'
+      : '<div style="font-size:11.5px;color:#98a2b3;margin:0 0 10px;line-height:1.6">' +
+        'Tờ này không tìm được phiếu nhập nào. Nếu là hàng không qua kho ' +
+        '(xăng dầu, dịch vụ, phí ship) thì nhờ kế toán ghi sổ thẳng.</div>';
+  } else if (kq.lam_duoc && gy.length) {
     foot = '<div style="display:flex;gap:8px">' +
       /* Ghi so la viec cua ke toan. Thu mua chi thay nut noi phieu, kem
          mot cau noi ro to hoa don di dau tiep - khong thi Uyen tuong minh
@@ -332,6 +353,23 @@ async function scrDcmXem(name) {
   }
   var n1 = document.getElementById('dcmNoi');
   if (n1) n1.onclick = function () { chay(0); };
+  var n3 = document.getElementById('dcmThang');
+  if (n3) n3.onclick = async function () {
+    var ok = await confirmSheet('Ghi sổ thẳng tờ ' + name,
+      'Tờ này không nối vào phiếu nhập kho nào.\n\n' +
+      'Đúng khi hàng không qua kho: xăng dầu, dịch vụ, phí ship, văn phòng phẩm.\n\n' +
+      'Nếu có dòng hàng thật đáng lẽ phải qua kho thì hệ sẽ chặn và nói rõ dòng nào.',
+      'Ghi sổ', false);
+    if (!ok) return;
+    busy(true);
+    try {
+      var r = await api('vagabond.doi_chieu_mua.ghi_so_thang', { name: name });
+      busy(false);
+      toast((r && r.loi_nhan) || ('Đã ghi sổ ' + name), 5000);
+      dcmPhieu = []; dcmSs = null;
+      go(scrDoiChieuMua, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không ghi sổ được'); }
+  };
   var n2 = document.getElementById('dcmXong');
   if (n2) n2.onclick = function () { chay(1); };
 }

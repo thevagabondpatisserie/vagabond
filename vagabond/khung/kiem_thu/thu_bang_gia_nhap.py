@@ -210,3 +210,32 @@ def _xet_khong_qua_kho():
 	# An toan hon: tha chan nham con hon de gia von sai am tham.
 	dung("hong thi nghieng ve phia an toan", "except Exception:" in than
 		and than.rstrip().endswith("return False"))
+
+
+@ca("nut ghi so khong duoc bien mat khi khong tim ra phieu nhap")
+def _nut_ghi_so_khong_bien():
+	# Chi Dung 31/08/2026: "bong bi mat nut ghi so hoa don du truoc day co".
+	# Khong bong nhien: man hinh chi ve khoi nut khi co it nhat mot phieu goi
+	# y. To nao khong co phieu nao thi mat sach nut, ke ca nut ghi so - trong
+	# khi chinh man hinh bao "nho ke toan ghi so thang to nay".
+	dung("khong con doi phai co phieu goi y moi ve nut",
+		"if (kq.lam_duoc && !gy.length)" in MA_DCM_JS)
+	dung("co nut ghi so thang", "dcmThang" in MA_DCM_JS)
+	dung("co cua ghi so thang", "@frappe.whitelist()\ndef ghi_so_thang(" in MA_DCM)
+	# Nguoi khong co quyen ghi so thi khong thay nut, nhung van duoc noi ro
+	# phai nho ai.
+	dung("nguoi khong co quyen van duoc chi duong",
+		"nhờ kế toán ghi sổ thẳng" in MA_DCM_JS)
+
+
+@ca("ghi so thang van chan dong hang qua kho chua noi phieu")
+def _ghi_so_thang_van_chan():
+	i = MA_DCM.find("def ghi_so_thang(")
+	than = MA_DCM[i:]
+	# Chi ke toan.
+	dung("chi ke toan", "_ghi_so_duoc()" in than)
+	# Dung CHUNG phep xet voi buoc noi phieu, khong duoc viet luat thu hai.
+	dung("dung chung phep xet voi buoc noi", "_khong_qua_kho(" in than)
+	# Hang that khong co phieu thi gia von sai, phai chan.
+	dung("van chan hang qua kho", "là hàng qua kho mà chưa nối phiếu nhập" in than)
+	dung("chi ghi so to con nhap", "không còn ở dạng nháp" in than)
