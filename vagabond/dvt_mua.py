@@ -281,6 +281,53 @@ def dang_do_tam(item_code, so_ten_ncc, nguong=NGUONG_DO_TAM):
 	return mon_bi_do_tam(so_ten_ncc, nguong)
 
 
+def he_so_de_xuat(sl_hd, sl_pnk, hs_pnk):
+	"""He so nen khai cho don vi la cua nha cung cap. 0 neu khong dam doan.
+
+	Vi sao doan duoc, va vi sao chi doan duoc TRONG MOT TRUONG HOP
+	--------------------------------------------------------------------
+	Hoa don ghi "4 BAG", phieu nhap cung lo hang do ghi "4 Tui" voi 1 Tui
+	la 1.000 Gram. Hai ben cung con so 4, tuc cai thung cua ho va cai tui
+	cua minh la mot. Vay 1 BAG = 1.000 Gram.
+
+	So luong hai ben KHAC nhau thi chiu. "4 BAG" voi "2 Tui" co the la mot
+	BAG bang hai tui, cung co the la nha cung cap giao thieu. May khong
+	phan biet duoc, ma doan sai o day la hong gia von, nen tra 0 va de
+	nguoi go.
+	"""
+	try:
+		a = float(sl_hd or 0)
+		b = float(sl_pnk or 0)
+	except (TypeError, ValueError):
+		return 0.0
+	if a <= 0 or b <= 0:
+		return 0.0
+	if abs(a - b) > 0.0001:
+		return 0.0
+	return he_so(hs_pnk)
+
+
+def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
+	"""Dong nay co dang mang don vi bia ra khong. THUAN.
+
+	True khi nha cung cap co ghi don vi, ma don vi minh dang dung tren dong
+	lai khac ten VA he so dang la 1. Do dung la dau van tay cua duong ha
+	ngam: tra khong ra he so nen tam lay don vi kho voi he so 1.
+
+	He so khac 1 thi khong tinh, vi luc do da tra ra bang quy doi that.
+
+	Phep nay truoc nam trong `minvoice_chung_tu.py`. Dua ve day 31/08/2026
+	de tang thuan giu tron mot phep, va de bo kiem chay duoc tren may CI
+	tay khong - nap `minvoice_chung_tu` la keo theo ca Frappe.
+	"""
+	ncc = (dvt_ncc or "").strip()
+	if not ncc:
+		return False
+	if cung_don_vi(ncc, dvt_dang_dung):
+		return False
+	return abs(he_so(he_so_dang_dung) - 1.0) < 1e-9
+
+
 # ------------------------------------------------------- phan can Frappe
 
 import frappe

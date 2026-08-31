@@ -783,6 +783,25 @@ def _tra_ma_hang(x, goc_mst, ncc):
 	if uom and uom != dvt_kho:
 		cf = frappe.db.get_value("UOM Conversion Detail",
 			{"parent": mapped, "uom": uom}, "conversion_factor")
+		if not cf:
+			# DICH TEN TRUOC KHI CHIU THUA. Nha cung cap ghi "BAG", mon khai
+			# "Tui" - hai chu do la mot thu, chi khac tieng. Truoc day may
+			# khong tra ra "BAG" nen ha thang ve don vi kho he so 1, thanh
+			# ra 4 BAG bien thanh 4 Gram. Bang goi y trong dvt_mua von da co
+			# san tu 26/08 nhung chi dung de HIEN cho nguoi doc, khong ai
+			# noi no vao duong dung chung tu. Nay noi vao.
+			#
+			# Chi dich khi mon DA KHAI don vi tieng Viet do. Khong khai thi
+			# van chiu thua nhu cu, vi he so la con so cua nguoi dat ra,
+			# may khong duoc bia.
+			from vagabond import dvt_mua as _dv
+
+			dich = _dv.goi_y_don_vi(uom)
+			if dich and dich != dvt_kho:
+				cf2 = frappe.db.get_value("UOM Conversion Detail",
+					{"parent": mapped, "uom": dich}, "conversion_factor")
+				if cf2:
+					uom, cf = dich, cf2
 		if cf:
 			dung_uom, he_so = uom, cf
 		else:
@@ -810,23 +829,15 @@ def _tra_ma_hang(x, goc_mst, ncc):
 
 
 def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
-	"""Dong nay co dang mang don vi bia ra khong. THUAN.
+	"""Dong nay co dang mang don vi bia ra khong.
 
-	True khi nha cung cap co ghi don vi, ma don vi minh dang dung tren dong
-	lai khac ten VA he so dang la 1. Do dung la dau van tay cua duong ha
-	ngam: tra khong ra he so nen tam lay don vi kho voi he so 1.
-
-	He so khac 1 thi khong tinh, vi luc do da tra ra bang quy doi that.
+	Ruot da chuyen sang `dvt_mua.don_vi_chua_khai` ngay 31/08/2026 de giu
+	dung mot cho tinh (QT-19). Giu lai ten o day vi `dung_lai_hddt` va man
+	Soat don vi dang goi qua duong nay.
 	"""
 	from vagabond import dvt_mua
 
-	ncc = (dvt_ncc or "").strip()
-	if not ncc:
-		return False
-	if dvt_mua.cung_don_vi(ncc, dvt_dang_dung):
-		return False
-	return abs(dvt_mua.he_so(he_so_dang_dung) - 1.0) < 1e-9
-
+	return dvt_mua.don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung)
 
 def dung_hoa_don_mua(r):
 	"""Dựng một Hoá đơn mua hàng từ một tờ hoá đơn điện tử đầu vào.

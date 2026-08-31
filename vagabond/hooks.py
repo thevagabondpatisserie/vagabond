@@ -52,7 +52,13 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 # purchase_invoice.js de biet ca that cua Kamereo 271846.
 #
 # Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
-doctype_js = {"Purchase Invoice": "public/js/purchase_invoice.js"}
+doctype_js = {
+	"Purchase Invoice": "public/js/purchase_invoice.js",
+	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
+	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
+	# chi quan so luong, HSD?"). Xem dau tep purchase_receipt.js.
+	"Purchase Receipt": "public/js/purchase_receipt.js",
+}
 
 # Nut "Dong bo M-Invoice" tren ba man danh sach (anh Viet xin 31/08/2026).
 # Cung MOT tep dung chung cho ca ba, xem dau tep minvoice_list.js.
@@ -407,6 +413,18 @@ doc_events = {
 			"vagabond.dung_lai_hddt.tk_theo_mon",
 		],
 		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
+		# BANG GIA NHAP DUOI THEO GIA THAT (anh Viet duyet 31/08/2026).
+		#
+		# Truoc ban nay bang gia dong bang o gia lan mua dau: thiet lap kho
+		# dat "chi ghi khi thieu, khong cap nhat lai". Don mua keo gia tu bang
+		# gia xuong, phieu nhap ke thua tu don mua, nen ca day chuyen chay
+		# bang mot con so khong ai soat. Ca that: mon NVLT00116 trai cherry,
+		# bang gia 420.000 mot Kg dat 30/07, hoa don thuc 19/08 la 480.000.
+		#
+		# Chi nghe HOA DON luc ghi so, va chi nhan dong co don vi sach. Doc
+		# dau tep bang_gia_nhap.py de biet vi sao khong bat thang o cua
+		# ERPNext.
+		"on_submit": "vagabond.bang_gia_nhap.cap_nhat_tu_hoa_don",
 	},
 	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,
 	# chan thang phan loai tai san co dinh. Luat nam o de_nghi_chi.py.
