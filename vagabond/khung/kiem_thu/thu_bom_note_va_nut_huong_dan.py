@@ -175,8 +175,19 @@ def _():
 	# Quy tac 6: hook rong tren "*" ap len moi doctype ke ca ha tang
 	# Frappe. Ngay 16/08 mot hook nhu vay lam ca tiem khong gui duoc email
 	# suot bon ngay.
-	dung("có khai hook", 'doctype_list_js = {"BOM": "public/js/bom_list.js"}' in MA_HOOK)
+	#
+	# Ca kiem nay TRUOC 31/08/2026 chot nguyen mot dong
+	# `doctype_list_js = {"BOM": ...}`. Ngay do them nut Dong bo M-Invoice
+	# cho ba man danh sach khac nen bang khai thanh nhieu dong, va ca kiem
+	# do hong trong khi khong co gi sai ca.
+	#
+	# Chot lai theo DUNG dieu can canh: BOM co mat, va khong ai bat tat
+	# bang dau sao. So luong man trong bang la chuyen tu do.
+	dung("có khai hook", '"BOM": "public/js/bom_list.js"' in MA_HOOK)
+	dung("có bảng doctype_list_js", "doctype_list_js = {" in MA_HOOK)
 	dung("không bắt tất bằng sao", 'doctype_list_js = {"*"' not in MA_HOOK)
+	dung("không có mục sao nào trong bảng",
+		'"*": "public/js/' not in MA_HOOK)
 
 
 @ca("phần nới cột chỉ là khuyến mãi, hỏng cũng không kéo đổ màn hình")

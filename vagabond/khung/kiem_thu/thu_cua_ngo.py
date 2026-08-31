@@ -198,7 +198,11 @@ CUA_NGO = {
 	# to bi nuot. `con_sot` chi DOC, `mo_lai` chi doi co, `chay_bu` dung
 	# chung tu that. `chay_tu_dong` la nhip lap lich, `_chay`, `_mot_to`,
 	# `dung_hoa_don_mua` chay tu ben trong nen KHONG duoc whitelist.
-	"minvoice_chung_tu.py": ["chay_bu", "con_sot", "lanh_vo_ruot", "mo_lai"],
+	# `dong_bo_ngay` them 31/08/2026: ruot cua nut "Dong bo M-Invoice" tren
+	# man danh sach Desk. Keo roi dung trong mot nhip bam.
+	"minvoice_chung_tu.py": [
+		"chay_bu", "con_sot", "dong_bo_ngay", "lanh_vo_ruot", "mo_lai",
+	],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach", "dem"],
