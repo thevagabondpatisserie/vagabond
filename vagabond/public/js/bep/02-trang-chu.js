@@ -814,7 +814,8 @@ function vclIcon(l) {
   return {
     chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
     kiem_ke: '🧮', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
-    ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁'
+    ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
+    nop_quy: '💵', hang_tang: '🎁'
   }[l] || '';
 }
 
@@ -838,6 +839,17 @@ function vclMo(x) {
   if (l === 'tang_qua') return go(function () { tq.form = { ma: x.ma }; return scrTqSua(); });
   if (l === 'ycmh') return go(function () { scrDuyetYcXem(x.ma); });
   if (l === 'ho_so_tt') return go(function () { scrHoSoTTView(x.ma); });
+  /* Hai nhanh them 31/08/2026 cho che do giam doc: hai anh chi con thay ba
+     loai viec he trong, nen ba loai do bat buoc phai bam mo duoc ngay tren
+     app. Man Viec can lam ma day nguoi ta sang may tinh thi coi nhu khong
+     co man. */
+  if (l === 'nop_quy') return go(function () { nqXem = x.ma; return scrNopQuyXem(); });
+  /* Chi loc san o tim ve dung don do, KHONG mo san phan chi tiet: phan do
+     doc chi tiet bang mot loi goi rieng luc nguoi ta bam vao, mo san ma
+     chua goi thi no dung mai o cau "Dang doc tung mon". */
+  if (l === 'hang_tang') return go(function () {
+    dtgTt = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
+  });
   toast('Phiếu ' + x.ma + ' cần xử lý trên máy tính.', 4200);
 }
 

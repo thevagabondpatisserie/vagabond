@@ -160,7 +160,7 @@ async function scrBntTao() {
   var NG_MAC_DINH = hqua.toISOString().slice(0, 10);
 
   var BNT = { diem: bntDiem || dsDiem[0].ma, pham_vi: 'Một ngày',
-    tu: NG_MAC_DINH, den: NG_MAC_DINH, kyVong: 0, anh: '' };
+    tu: NG_MAC_DINH, den: NG_MAC_DINH, kyVong: 0, anh: '', nhan: '', nhanTen: '' };
 
   var html = '<div class="vf"><div class="vfh"><span class="ic">🏪</span><b>Nộp cho điểm bán nào, doanh thu ngày nào</b></div>' +
     '<div class="vxl">Điểm bán</div>' +
@@ -195,17 +195,39 @@ async function scrBntTao() {
     '<div style="display:flex;justify-content:space-between;padding:2px 0 8px;font-size:13px;font-weight:700">' +
     '<span>Lệch</span><span id="bntLech">0 đ</span></div></div>';
 
-  html += '<div class="vf"><div class="vfh"><span class="ic">📷</span><b>Ảnh minh chứng giao nhận tiền</b></div>' +
+  /* Anh coc tien BAT BUOC (anh Viet 31/08/2026). Chan that nam o may chu
+     (`nop_quy.tao_theo_ngay`), o day chi noi truoc cho nguoi ta biet - noi
+     "bat buoc" ma van lap duoc phieu trang anh thi cau do la noi doi. */
+  html += '<div class="vf"><div class="vfh"><span class="ic">📷</span>' +
+    '<b>Ảnh minh chứng giao nhận tiền</b>' +
+    '<span style="margin-left:7px;background:#fef2f2;border:1px solid #fecaca;' +
+    'color:#b3261e;border-radius:20px;padding:1px 8px;font-size:11px;' +
+    'font-weight:700;white-space:nowrap">bắt buộc</span></div>' +
     '<label class="vfa" id="bntAnhO"><input type="file" accept="image/*" id="bntAnh">' +
     '<div class="i">📷</div><div class="t" id="bntAnhT">Chụp hoặc chọn ảnh cọc tiền</div>' +
-    '<div class="p">Không bắt buộc, nhưng có ảnh thì đỡ tranh cãi về sau</div></label>' +
+    '<div class="p">Bắt buộc. Đây là chứng từ gốc của lần bàn giao tiền mặt này, ' +
+    'không có ảnh thì sau này hai bên nhớ khác nhau là hết đường đối chiếu.</div></label>' +
     '<div id="bntAnhOk"></div></div>';
 
+  /* Ba sua theo ghi chu anh Viet 31/08/2026:
+       - Noi dung: may tu goi y cau day du kem khoang ngay, nguoi lap chi
+         sua khi can. Cau do may chu dung, xem `nop_quy.noi_dung_mac_dinh`.
+       - Noi giao nhan: DROPDOWN cac diem ban, dung bat go. Go tay thi mot
+         cho ra nam cach viet, va bao cao gom theo noi giao nhan la vo dung.
+       - Them o "Nop cho ai": go vai chu roi chon trong danh sach nguoi CO
+         QUYEN ky nhan. Khong cho go tu do mot cai ten bat ky. */
   html += '<div class="vf"><div class="vfh"><span class="ic">📝</span><b>Nội dung và nơi giao nhận</b></div>' +
     '<div class="vxl">Nội dung nộp tiền</div>' +
-    '<input class="vfi" id="bntNd" placeholder="Nộp doanh thu">' +
+    '<input class="vfi" id="bntNd" placeholder="Máy tự điền, sửa được">' +
     '<div class="vxl">Nơi giao nhận tiền</div>' +
-    '<input class="vfi" id="bntNoi" placeholder="Địa điểm giao nhận">' +
+    '<select class="vfs" id="bntNoi">' +
+    dsDiem.map(function (d) {
+      return '<option value="' + h(d.ten) + '">' + h(d.ten) + '</option>';
+    }).join('') + '</select>' +
+    '<div class="vxl">Nộp cho ai</div>' +
+    '<input class="vfi" id="bntNhan" placeholder="Gõ vài chữ tên người nhận, ví dụ Dung" ' +
+    'autocomplete="off">' +
+    '<div id="bntNhanDs" style="margin-top:4px"></div>' +
     '<div class="vxl">Ghi chú</div>' +
     '<input class="vfi" id="bntGc" placeholder="Không bắt buộc"></div>';
 
@@ -263,13 +285,58 @@ async function scrBntTao() {
       '<b>Tổng tiền mặt</b><b>' + money(BNT.kyVong) + ' đ</b></div>';
     o.innerHTML = t;
     var oNd = document.getElementById('bntNd'), oNoi = document.getElementById('bntNoi');
+    /* Cau goi y do MAY CHU dung, man hinh khong tu ghep chuoi: ghep o hai
+       noi thi som muon hai noi viet khac nhau, ma cau nay di thang len to
+       bien ban va len so quy. Nguoi lap sua tay roi thi khong de len nua. */
     if (!oNd.value || oNd.getAttribute('data-tu-may') === '1') {
       oNd.value = k.noi_dung || ''; oNd.setAttribute('data-tu-may', '1');
     }
-    if (!oNoi.value || oNoi.getAttribute('data-tu-may') === '1') {
-      oNoi.value = k.noi_giao_nhan || ''; oNoi.setAttribute('data-tu-may', '1');
-    }
+    if (oNoi && k.noi_giao_nhan) oNoi.value = k.noi_giao_nhan;
     tinhTien();
+  }
+
+  /* O tim nguoi nhan. Go vai chu, may chu tra ve nhung nguoi CO QUYEN ky
+     nhan, bam mot cai la chon. Khong cho go tu do mot cai ten bat ky: to
+     bien ban la chung tu goc, ghi ten mot nguoi khong co quyen nhan tien
+     thi to do sai ngay tu luc in ra. */
+  var oNhan = document.getElementById('bntNhan'), oNhanDs = document.getElementById('bntNhanDs');
+  var bntTimHen = null;
+  function veNhanDs(ds) {
+    if (!oNhanDs) return;
+    if (!ds || !ds.length) { oNhanDs.innerHTML = ''; return; }
+    oNhanDs.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+      ds.map(function (u) {
+        return '<button type="button" data-bntn="' + h(u.ma) + '" data-bntt="' + h(u.ten) + '" ' +
+          'style="border:1.5px solid #d7dce5;background:#fff;color:#374151;' +
+          'border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer">' +
+          h(u.ten) + '</button>';
+      }).join('') + '</div>';
+  }
+  async function timNhan() {
+    var q = String(oNhan.value || '').trim();
+    if (BNT.nhan && BNT.nhanTen !== q) { BNT.nhan = ''; BNT.nhanTen = ''; }
+    try {
+      var k = await api('vagabond.nop_quy.tim_nguoi_nhan', { tu_khoa: q });
+      veNhanDs((k || {}).ds || []);
+    } catch (e) { veNhanDs([]); }
+  }
+  if (oNhan) {
+    oNhan.oninput = function () {
+      if (bntTimHen) clearTimeout(bntTimHen);
+      bntTimHen = setTimeout(timNhan, 260);
+    };
+    oNhan.onfocus = function () { if (!oNhanDs.innerHTML) timNhan(); };
+  }
+  if (oNhanDs) {
+    oNhanDs.onclick = function (ev) {
+      var t = ev.target.closest('[data-bntn]');
+      if (!t) return;
+      BNT.nhan = t.getAttribute('data-bntn');
+      BNT.nhanTen = t.getAttribute('data-bntt');
+      oNhan.value = BNT.nhanTen;
+      oNhanDs.innerHTML = '<div style="font-size:12px;color:#05603a">✓ Sẽ nộp cho ' +
+        h(BNT.nhanTen) + '</div>';
+    };
   }
 
   document.getElementById('bntDiemO').onchange = function () { BNT.diem = this.value; napDoanhThu(); };
@@ -328,8 +395,12 @@ async function scrBntTao() {
       anh_minh_chung: BNT.anh || '',
       noi_dung: document.getElementById('bntNd').value || '',
       noi_giao_nhan: document.getElementById('bntNoi').value || '',
+      nguoi_nhan_du_kien: BNT.nhan || '',
       ghi_chu: document.getElementById('bntGc').value || ''
     };
+    /* Noi truoc khi goi may chu, de nguoi ta khong mat cong doi mot vong
+       chi de nghe cau tu choi. May chu van chan lai, day chi la loi nhac. */
+    if (!BNT.anh) return toast('Chụp ảnh cọc tiền trước đã, ảnh này bắt buộc.', 4500);
     busy(true);
     var k;
     try { k = await api('vagabond.nop_quy.tao_theo_ngay', thamSo); }

@@ -147,7 +147,10 @@ async function scrDuyetTang() {
   });
   html += '</div>';
 
-  frame('Duyệt đơn hàng tặng', html);
+  frame('Duyệt đơn hàng tặng', html, {
+    footer: '<button class="btn gh" data-dtgbc="1" style="width:100%;margin:0">' +
+      '📊 Báo cáo hàng tặng</button>',
+  });
   var o = document.getElementById('dtgTim');
   if (o) {
     o.onchange = function () { dtgTim = o.value.trim(); go(scrDuyetTang, true); };
@@ -182,6 +185,23 @@ function dtgThan(r, kq) {
       ' <span style="color:#98a2b3">x' + (x.qty || 0) + '</span></span>' +
       '<b style="white-space:nowrap">' + money(x.amount) + '</b></div>';
   });
+  /* Anh chung minh, ve thanh hinh thu nho. Duyet mot don den bu ma khong
+     thay cai banh hong thi chi la bam mot cai nut. */
+  if ((ct.anh || []).length) {
+    s += '<div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap">' +
+      (ct.anh || []).map(function (a) {
+        return '<a href="' + h(a.url) + '" target="_blank" rel="noopener" ' +
+          'title="' + h(a.ten || '') + '" style="display:block">' +
+          '<img src="' + h(a.url) + '" alt="' + h(a.ten || 'ảnh') + '" loading="lazy" ' +
+          'style="width:82px;height:82px;object-fit:cover;border-radius:9px;' +
+          'border:1px solid #e4e7ec;background:#f8fafc;display:block"></a>';
+      }).join('') + '</div>';
+  } else if (ct.can_anh) {
+    s += '<div style="margin-top:9px;padding:7px 9px;background:#fef2f2;' +
+      'border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b3261e">' +
+      'Đơn <b>Đền bù sự cố</b> chưa có ảnh chứng minh nên chưa duyệt được. ' +
+      'Nhờ người lập đính ảnh vào đơn rồi bấm lưu lại.</div>';
+  }
   s += d('Mã đơn', r.name);
   s += d('Loại tặng', ct.nhan_loai);
   s += d('Lý do tặng', ct.vgb_tang_ly_do);
@@ -218,6 +238,8 @@ async function dtgBam(ev) {
   if (t) { dtgTt = t.getAttribute('data-dtgt'); return go(scrDuyetTang, true); }
   t = ev.target.closest('[data-dtgl]');
   if (t) { dtgLoai = t.getAttribute('data-dtgl'); return go(scrDuyetTang, true); }
+
+  if (ev.target.closest('[data-dtgbc]')) return go(scrTangBaoCao);
 
   t = ev.target.closest('[data-dtgok]');
   if (t) {
@@ -259,4 +281,84 @@ async function dtgBam(ev) {
     }
     return go(scrDuyetTang, true);
   }
+}
+
+
+/* ---------------- Báo cáo hàng tặng
+
+   Anh Việt duyệt 31/08/2026: *"Báo cáo hàng tặng theo tháng, theo điểm bán,
+   theo loại tặng, để cuối năm biết tiệm đã cho đi bao nhiêu cho việc gì."*
+
+   CHỈ CỘNG ĐƠN ĐÃ GHI SỔ. Đơn còn chờ duyệt chưa phải chi phí của tiệm, gộp
+   vào là báo cáo phồng lên bằng những thứ có thể bị từ chối. Số đang chờ để
+   riêng một dòng, không lẫn vào. */
+var tbcTu = '';
+var tbcDen = '';
+
+function tbcBang(tieu_de, cac, tong) {
+  if (!(cac || []).length) return '';
+  var s = '<div class="sec">' + h(tieu_de) + '</div><div class="card">';
+  cac.forEach(function (o) {
+    var pt = tong > 0 ? Math.round(o.tien * 100 / tong) : 0;
+    s += '<div style="padding:9px 12px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px">' +
+      '<span style="color:#344054">' + h(o.ten || o.k) +
+      ' <span style="color:#98a2b3">· ' + o.so + ' đơn</span></span>' +
+      '<b style="white-space:nowrap">' + money(o.tien) + ' đ</b></div>' +
+      /* Thanh ty le ve bang chieu rong, khong ve bang mau: mot thanh dai
+         ngan noi ro hon mot con so phan tram nam le loi. */
+      '<div style="margin-top:5px;height:6px;background:#f2f4f7;border-radius:99px">' +
+      '<div style="width:' + pt + '%;height:6px;background:#7c3aed;border-radius:99px"></div>' +
+      '</div></div>';
+  });
+  return s + '</div>';
+}
+
+async function scrTangBaoCao() {
+  frame('Báo cáo hàng tặng', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ...</div></div>');
+  var kq;
+  try {
+    kq = await api('vagabond.hang_tang.bao_cao', { tu_ngay: tbcTu, den_ngay: tbcDen });
+  } catch (e) {
+    frame('Báo cáo hàng tặng', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h(errMsg(e)) + '</div></div>');
+    return;
+  }
+  tbcTu = kq.tu_ngay || ''; tbcDen = kq.den_ngay || '';
+
+  var html = '<div class="card" style="padding:12px 13px">' +
+    '<div style="font-size:12px;color:#8a8f9c">TIỆM ĐÃ TẶNG (đã ghi sổ)</div>' +
+    '<b style="font-size:24px;color:#5b21b6">' + money(kq.tien || 0) + ' đ</b>' +
+    '<div style="font-size:12.5px;color:#475467;margin-top:2px">' +
+    (kq.so || 0) + ' đơn, từ ' + h(kq.tu_ngay || '') + ' đến ' + h(kq.den_ngay || '') + '</div>' +
+    (kq.cho_so ? '<div style="margin-top:8px;padding:7px 9px;background:#fffbeb;' +
+      'border:1px solid #fde68a;border-radius:8px;font-size:12.5px;color:#92400e">' +
+      'Còn <b>' + kq.cho_so + ' đơn</b> chưa ghi sổ, tổng ' + money(kq.cho_tien || 0) +
+      ' đ. Chưa cộng vào con số trên, vì đơn chưa duyệt thì chưa phải chi phí.</div>' : '') +
+    '<div style="display:flex;gap:8px;margin-top:10px">' +
+    '<input class="tin" type="date" id="tbcTu" value="' + h(tbcTu) + '" style="margin:0;flex:1">' +
+    '<input class="tin" type="date" id="tbcDen" value="' + h(tbcDen) + '" style="margin:0;flex:1">' +
+    '</div></div>';
+
+  html += tbcBang('Theo loại tặng', kq.loai, kq.tien);
+  html += tbcBang('Theo điểm bán', kq.diem, kq.tien);
+  html += tbcBang('Theo tháng', (kq.thang || []).map(function (o) {
+    return { k: o.k, ten: o.k, so: o.so, tien: o.tien };
+  }), kq.tien);
+  if (!(kq.so || 0)) {
+    html += '<div class="card"><div class="emp" style="padding:24px">' +
+      '<div class="e1">🎁</div><div>Chưa có đơn hàng tặng nào đã ghi sổ trong kỳ này.</div>' +
+      '</div></div>';
+  }
+
+  frame('Báo cáo hàng tặng', html);
+  ['tbcTu', 'tbcDen'].forEach(function (id) {
+    var o = document.getElementById(id);
+    if (!o) return;
+    o.onchange = function () {
+      tbcTu = document.getElementById('tbcTu').value || '';
+      tbcDen = document.getElementById('tbcDen').value || '';
+      go(scrTangBaoCao, true);
+    };
+  });
 }
