@@ -128,6 +128,11 @@ async function scrHome() {
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
          13/08/2026). So dem lay theo 14 ngay gan day. */
       card('⏳', 'Đơn còn treo', 'Hoá đơn chưa ghi sổ được và lý do vì sao', dtn, 'DTREO') +
+      /* Phieu hoan don huy (anh Viet 31/08/2026). Sales lap phieu xong la
+         mat dau, vi phan con lai nam ben Ke toan ma v355 da khoa phan he do
+         lai. O nay la cua so CHI DOC mo ve phia Sales, kem nut tai uy nhiem
+         chi de gui cho khach. */
+      card('💸', 'Phiếu hoàn đơn huỷ', 'Kế toán chi tới đâu, uỷ nhiệm chi tải về gửi khách', 0, 'PHHUY') +
       /* Bien nhan nop tien mat (anh Viet 30/08/2026, theo mau ben Lark).
          Thu ngan ba diem ban dem so to, doi chieu doanh thu tien mat cua
          ngay, ky tay roi mang tien ve. O nay bay phieu CUA CHINH MINH;
@@ -397,7 +402,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'BNTM'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
@@ -924,6 +929,7 @@ var VGB_DUONG = {
   'phan-he-thu-mua': 'PH:TM',
   'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
+  'phieu-hoan-don-huy': 'PHHUY',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
@@ -1061,6 +1067,7 @@ function vgbGo(k) {
      khoa rieng. Them khoa o day de no co DIA CHI that, con o nho tren trang
      chu thi giu nguyen nhu cu, khong them the moi. */
   if (k === 'DHUY') return go(scrDonHuy);
+  if (k === 'PHHUY') return go(scrPhieuHoanHuy);
   if (k === 'POS') return go(scrPosChonQuay);
   if (k === 'TQV') return go(scrTqDot);
   if (k === 'HDG') return go(scrHopDongHub);
