@@ -130,6 +130,30 @@ async function scrDcmXem(name) {
             (kq.lam_duoc && r.dvt_pnk && !r.da_noi
               ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
                 '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
+              : '') +
+            /* KHAI HAN DON VI CUA NHA CUNG CAP VAO MON. Nut tren chi chua
+               DONG NAY; thang sau nha cung cap gui to khac la lech y nguyen.
+               Nut duoi day chua CAI GOC: khai mot lan cho mon, tu do ve sau
+               may doc dung don vi do. Anh Viet 31/08/2026: "anh chang hieu
+               anh phai lam gi de no khong lech". Day la cai phai lam. */
+            /* CHUA GAN MA HANG. Day la ca chiem gan het so dong dang hong
+               (9.985 tren 11.351 dong, ngay 31/08/2026). Truoc ban nay man
+               hinh bao "hang chua duoc nhap kho" - sai, va sai theo huong
+               day nguoi ta di lap them phieu nhap cho lo hang da nhap roi. */
+            (!r.item_code
+              ? '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55">' +
+                '<b>Dòng này chưa gắn mã hàng.</b> Máy chưa biết "' + h(r.item_name || '') +
+                '" là món nào bên mình nên không đối chiếu với kho được.</div>' +
+                (kq.lam_duoc && !r.da_noi
+                  ? '<button class="btn gh" data-dcmgan="' + h(String(r.idx)) +
+                    '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Gắn mã hàng cho dòng này</button>'
+                  : '')
+              : '') +
+            (kq.lam_duoc && r.dvt_ncc && r.item_code && !r.da_noi
+              ? '<button class="btn gh" data-dcmkhai="' + h(r.item_code) + '" data-dvt="' + h(r.dvt_ncc) +
+                '" data-slhd="' + h(String(r.sl_hd)) + '" data-slpnk="' + h(String(r.co_phieu ? r.sl_pnk : 0)) +
+                '" data-hspnk="' + h(String(r.hs_pnk || 0)) + '" data-kho="' + h(r.dvt_kho || '') +
+                '" style="margin:7px 0 2px 8px;padding:7px 12px;font-size:12.5px">Khai đơn vị "' + h(r.dvt_ncc) + '" cho món này</button>'
               : '')
           : (khacTen ? '<div style="font-size:12px;color:#166534;margin-top:3px;line-height:1.55">Hoá đơn ghi <b>' + h(r.dvt_hd || '') + '</b>, phiếu nhập ghi <b>' + h(r.dvt_pnk || '') + '</b>, hai bên cùng ' + num(r.ton_hd) + ' ' + h(r.dvt_kho || '') + ' nên không sao. Lúc nối máy tự đổi tên đơn vị dòng hoá đơn cho khớp phiếu nhập.</div>' : '') +
             (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
@@ -259,6 +283,12 @@ async function scrDcmXem(name) {
        ve don vi kho la duoc nan lai. Anh Viet 26/08/2026. */
     var u = e.target.closest('[data-dcmdvt]');
     if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
+    var g = e.target.closest('[data-dcmgan]');
+    if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'));
+    var k = e.target.closest('[data-dcmkhai]');
+    if (k) return dcmKhaiDonVi(name, k.getAttribute('data-dcmkhai'), k.getAttribute('data-dvt'),
+      k.getAttribute('data-slhd'), k.getAttribute('data-slpnk'), k.getAttribute('data-hspnk'),
+      k.getAttribute('data-kho'));
     var t = e.target.closest('[data-dcmp]');
     if (!t) return;
     var ma = t.getAttribute('data-dcmp');
@@ -1378,6 +1408,93 @@ async function dcmDoiDonVi(name, idx, dvt) {
     toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
     go(function () { scrDcmXem(name); }, true);
   } catch (e) { busy(false); baoTin((e && e.message) || 'Không đổi được đơn vị'); }
+}
+
+/* Khai han don vi cua nha cung cap vao bang quy doi cua mon.
+
+   Doi don vi mot dong hoa don la va cai ngon. Khai don vi cho mon la chua
+   cai goc: lan sau nha cung cap van ghi "BAG" thi he doc ra ngay, khong ha
+   ngam ve don vi kho he so 1 nua.
+
+   HE SO PHAI DO NGUOI GO. May co de xuat mot con so khi hoa don va phieu
+   nhap cung so luong - luc do cai thung cua ho va cai tui cua minh la mot -
+   nhung van bat nguoi nhin va xac nhan. Doan sai he so o day la sai so
+   luong ton kho gap hang nghin lan, dung cai loi ngay 27/08 da mac. */
+async function dcmKhaiDonVi(name, itemCode, dvt, slHd, slPnk, hsPnk, dvtKho) {
+  if (!itemCode || !dvt) return;
+
+  /* De xuat he so: hai ben cung so luong thi don vi cua ho bang don vi cua
+     minh, nen he so chinh la he so cua dong phieu nhap. Khac so luong thi
+     de trong, khong doan. */
+  var a = parseFloat(slHd || 0), b = parseFloat(slPnk || 0), hs = parseFloat(hsPnk || 0);
+  var deXuat = (a > 0 && b > 0 && Math.abs(a - b) < 0.0001 && hs > 0) ? String(hs) : '';
+
+  var nhan = 'Nhà cung cấp ghi "' + dvt + '", hệ chưa biết đó là bao nhiêu ' +
+    (dvtKho || 'đơn vị kho') + '. Gõ vào: 1 ' + dvt + ' bằng bao nhiêu ' + (dvtKho || 'đơn vị kho') + '?' +
+    (deXuat ? ' Máy đề xuất ' + deXuat + ' vì hoá đơn và phiếu nhập cùng ghi ' + a + ', vẫn nên nhìn lại.' : '');
+  var d = await qtySheet('Khai đơn vị "' + dvt + '" cho món này', nhan,
+    deXuat ? parseFloat(deXuat) : 0, dvtKho || '');
+  if (!(parseFloat(d) > 0)) return;
+
+  busy(true);
+  try {
+    var kq = await api('vagabond.doi_chieu_mua.khai_don_vi',
+      { item_code: itemCode, dvt: dvt, he_so: parseFloat(d) });
+    busy(false);
+    baoTin((kq && kq.loi_nhan) || 'Đã khai đơn vị.');
+    go(function () { scrDcmXem(name); }, true);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không khai được đơn vị'); }
+}
+
+/* Gan mot Mon vao dong hoa don chua co ma hang.
+
+   Ten hang cua nha cung cap va ten Mon cua minh gan nhu khong bao gio giong
+   nhau: "CHERRY CALADA S10_5K/T" ben ho la "Trai cherry tuoi, Thung 5 kg"
+   ben minh. May so chuoi kieu gi cung khong ra, nen phai co nguoi chon.
+
+   Nhung khong bat nguoi go tim trong ba nghin Mon. May xep san nhung Mon
+   nam tren phieu nhap chua thanh toan cua chinh nha cung cap do - hang da
+   ve kho roi thi gan nhu chac chan la lo hang cua to hoa don nay.
+
+   Bam mot lan la NHO LUON: lan sau nha cung cap gui dung ten hang do, may
+   tu nhan. Do moi la cho chua goc, chu sua tay tung dong thi 9.985 dong lam
+   den bao gio moi het. */
+async function dcmGanMaHang(name, idx) {
+  busy(true);
+  var gy;
+  try { gy = await api('vagabond.doi_chieu_mua.goi_y_mon', { name: name, dong: idx }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không lấy được gợi ý'); }
+  busy(false);
+
+  /* `sheet` doi dung ba khoa: label, value, phu. Va no tra ve CA MUC chu
+     khong tra ve rieng value. */
+  var ds = (gy.goi_y || []).map(function (x) {
+    return { value: x.item_code, label: x.item_name, phu: x.vi_sao, tim: x.item_code };
+  });
+  ds.push({ value: '__TIM__', label: 'Tìm món khác...', phu: 'Gõ tên hoặc mã để tìm trong toàn bộ danh mục' });
+
+  sheet('Hàng "' + (gy.ten_ncc || '') + '" là món nào?', ds, null, function (muc) {
+    if (!muc || !muc.value) return;
+    if (muc.value === '__TIM__') {
+      /* mfgPickItem tra ve thang chuoi ma hang. */
+      return mfgPickItem('Tìm món cho "' + (gy.ten_ncc || '') + '"', null, function (ma) {
+        dcmGanXong(name, idx, ma);
+      });
+    }
+    dcmGanXong(name, idx, muc.value);
+  }, true);
+}
+
+async function dcmGanXong(name, idx, itemCode) {
+  if (!itemCode) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang',
+      { name: name, dong: idx, item_code: itemCode, nho: 1 });
+    busy(false);
+    baoTin((kq && kq.loi_nhan) || 'Đã gắn mã hàng.');
+    go(function () { scrDcmXem(name); }, true);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không gắn được mã hàng'); }
 }
 
 /* Dung lai dong hang cua mot hoa don NHAP theo ban hoa don dien tu goc.
