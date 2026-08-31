@@ -436,9 +436,14 @@ MA_HOOKS_PI = _doc_tep("hooks.py")
 @ca("go nut Lay mat hang tu tren to sinh tu hoa don dien tu")
 def _():
     dung("tep co that", bool(MA_PI_JS))
-    dung("hooks khai dung mot doctype",
-         'doctype_js = {"Purchase Invoice": "public/js/purchase_invoice.js"}'
-         in MA_HOOKS_PI)
+    # KHONG ghim nguyen van dong doctype_js nua. Ban v356 da vap dung cai
+    # bay nay o doctype_list_js: them mot man moi la ca kiem do, trong khi
+    # dieu can chot chi la "Hoa don mua co tep rieng, va khong ai dat tren
+    # sao". v362 them Purchase Receipt vao cung o do.
+    dung("Hoa don mua co tep JS rieng",
+         '"Purchase Invoice": "public/js/purchase_invoice.js"' in MA_HOOKS_PI)
+    dung("doctype_js khong dat tren sao",
+         '"*"' not in MA_HOOKS_PI.split("doctype_js", 1)[1].split("}", 1)[0])
     # Quy tac 6: hook rong tren "*" ap len moi doctype ke ca ha tang Frappe.
     dung("khong bat tat bang sao", 'doctype_js = {"*"' not in MA_HOOKS_PI)
     # CHI go tren to sinh tu hoa don dien tu. To go tay khong co ban goc
