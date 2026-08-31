@@ -46,6 +46,14 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # `doctype_list_js` chi nap dung mot man danh sach do, khong phai hook
 # rong tren "*". Dat hep nhu the la co y: quy tac 6 cua repo.
+# Man Hoa don mua: bo nut "Lay mat hang tu" tren nhung to sinh tu hoa don
+# dien tu. Nut do chep de dong hang cua phieu nhap len dong hang cua hoa don,
+# lam mat cac dong khong di qua kho (phi dich vu, phi giao hang). Xem dau tep
+# purchase_invoice.js de biet ca that cua Kamereo 271846.
+#
+# Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
+doctype_js = {"Purchase Invoice": "public/js/purchase_invoice.js"}
+
 # Nut "Dong bo M-Invoice" tren ba man danh sach (anh Viet xin 31/08/2026).
 # Cung MOT tep dung chung cho ca ba, xem dau tep minvoice_list.js.
 doctype_list_js = {
