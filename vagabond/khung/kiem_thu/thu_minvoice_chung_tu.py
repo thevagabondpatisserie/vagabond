@@ -321,14 +321,14 @@ def _():
 	dung("có gọi rollback", "rollback" in doan)
 	# Mot to mot commit, nen rollback khong bao gio dung toi to truoc.
 	dung("mỗi tờ một lần ghi sổ riêng",
-		"frappe.db.commit()" in MA.split("def _chay")[1].split("\n@frappe")[0])
+		"frappe.db.commit()" in MA.split("def _chay_trong_khoa")[1].split("\n@frappe")[0])
 
 
 @ca("hang rao 2: KHONG bo hep cua so ngay khi di dung chung tu")
 def _():
 	# Ban cu chi ngo 60 ngay gan nhat, to cu hon thi vinh vien khong ai dung
 	# va cung khong ai dem.
-	doan = MA.split("def _chay")[1].split("\n@frappe")[0]
+	doan = MA.split("def _chay_trong_khoa")[1].split("\n@frappe")[0]
 	dung("mốc đầu là hằng số, không phải trừ lùi vài chục ngày",
 		"NGAY_BAT_DAU" in doan)
 	dung("không còn add_days âm trong hàm chạy", "add_days" not in doan)
@@ -452,7 +452,7 @@ def _():
 
 @ca("hang doi: dau ra KHONG duoc dung chung cho voi dau vao")
 def _():
-	doan = MA.split("def _chay(")[1].split("\ndef ")[0]
+	doan = MA.split("def _chay_trong_khoa")[1].split("\n@frappe")[0]
 	dung('hàng đợi lọc đúng loại đầu vào', '"loai": LOAI_VAO' in doan)
 	dung("có gọi đường đóng dấu đầu ra riêng", "_dong_dau_ra()" in doan)
 	dung("báo lại số đầu ra đã đóng dấu", '"dau_ra_dong_dau"' in doan)
@@ -474,7 +474,7 @@ def _():
 	# quen roi thi toi luc hong that cung khong ai giat minh.
 	for x in ("khoi_dung", "da_co", "dau_ra_fabi"):
 		dung("%s là bỏ qua hợp lệ" % x, x in LY_DO_BO_QUA_HOP_LE)
-	doan = MA.split("def _chay(")[1].split("\ndef ")[0]
+	doan = MA.split("def _chay_trong_khoa")[1].split("\n@frappe")[0]
 	dung("_chay dùng đúng bảng lý do hợp lệ",
 		"in LY_DO_BO_QUA_HOP_LE" in doan)
 	dung("không còn bảng chép tay cũ",
@@ -524,3 +524,98 @@ def _():
 	dung("hộp kết quả tách rõ hai bước",
 		"Bước 1" in MA_LIST_JS and "Bước 2" in MA_LIST_JS)
 	dung("có nói rõ chứng từ ra ở dạng nháp", "nháp" in MA_LIST_JS)
+
+
+# =====================================================================
+# CHUNG TU TRUNG - vu 31/08/2026, 31 cap, 81.136.219 d dem hai lan
+# =====================================================================
+#
+# Chay bu hai luot chong len nhau: mot luot con dang chay do o may chu,
+# mot luot nua goi vao. Ca hai doc hang doi bang `da_tao_chung_tu = 0`,
+# ca hai thay CUNG mot to, `_da_co_chung_tu` cua ca hai deu tra ve rong
+# vi chua ben nao kip ghi, roi ca hai cung dung.
+#
+# Ket qua: 31 cap Hoa don mua hang y het nhau, cach nhau 31 phan nghin
+# giay. Chua to nao ghi so nen chua vao so cai, nhung neu ke toan ghi so
+# truoc khi ai kip nhin thi do la mot thang mua vao sai gap doi.
+#
+# Bai hoc: phep kiem "da co chung tu chua" KHONG BAO GIO tu no du, vi
+# giua luc kiem va luc ghi luon co mot khe ho. Chi khoa moi dong duoc.
+
+
+@ca("khoa: mot luot dung mot luc, xin khong duoc thi BO luot")
+def _():
+	dung("có khai tên khoá", "KHOA_DUNG" in MA)
+	doan = MA.split("def _chay(")[1].split("def _chay_trong_khoa")[0]
+	dung("có xin khoá tệp", "filelock(KHOA_DUNG" in doan)
+	dung("bắt đúng lỗi hết giờ chờ", "LockTimeoutError" in doan)
+	# Xin khong duoc thi bo luot, TUYET DOI khong chay tiep. Chay tiep la
+	# dung lai canh cua ngay 31/08.
+	bo = doan.split("except LockTimeoutError:")[1].split("except Exception:")[0]
+	dung("bỏ lượt chứ không dựng gì", "_chay_trong_khoa" not in bo)
+	dung("có trả về cờ báo đang chạy dở", '"dang_chay_do"' in bo)
+	dung("có câu dặn đừng bấm thêm", "đừng bấm thêm" in bo)
+	# Khoa boc CA luot chu khong boc tung to: boc tung to van ho, vi hai
+	# luot da cam san cung mot danh sach tu luc doc hang doi.
+	ruot = MA.split("def _chay_trong_khoa")[1].split("\n@frappe")[0]
+	dung("ruột không tự xin khoá lần nữa", "filelock" not in ruot)
+	dung("khoá luôn được thả", "finally:" in doan and "pila.close()" in doan)
+
+
+@ca("cap_trung: gom nhung chung tu cung tro ve mot to hoa don")
+def _():
+	from vagabond.minvoice_chung_tu import cap_trung
+
+	la("không có gì thì rỗng", cap_trung([]), [])
+	la("mỗi tờ một chứng từ thì không phải trùng", cap_trung([
+		{"ma_hddt": "a", "ten": "HDM-1"},
+		{"ma_hddt": "b", "ten": "HDM-2"},
+	]), [])
+	# Dung ca that ngay 31/08: hai to lien nhau cung mot ma hoa don dien tu.
+	r = cap_trung([
+		{"ma_hddt": "3bf09df8", "ten": "HDM-26-08-00287"},
+		{"ma_hddt": "3bf09df8", "ten": "HDM-26-08-00288"},
+		{"ma_hddt": "khac", "ten": "HDM-26-08-00290"},
+	])
+	la("bắt được đúng một nhóm", len(r), 1)
+	la("nhóm đó có hai tờ", r[0]["so_to"], 2)
+	dung("giữ tên cả hai tờ để người ta soi được",
+		r[0]["ten"] == ["HDM-26-08-00287", "HDM-26-08-00288"])
+	# Ma rong la to go tay, khong phai to may dung, khong duoc dem.
+	la("mã trống thì bỏ qua", cap_trung([
+		{"ma_hddt": "", "ten": "A"}, {"ma_hddt": None, "ten": "B"},
+	]), [])
+	# Nhom dong nhat len dau de nguoi doc thay cai nang nhat truoc.
+	r2 = cap_trung(
+		[{"ma_hddt": "x", "ten": "1"}, {"ma_hddt": "x", "ten": "2"}]
+		+ [{"ma_hddt": "y", "ten": str(i)} for i in range(3)]
+	)
+	la("nhóm đông đứng trước", r2[0]["ma_hddt"], "y")
+
+
+@ca("dem trung: chi dem to CON SONG, va co mat o man Con sot")
+def _():
+	doan = MA.split("def _dem_trung")[1].split("\ndef ")[0]
+	dung("dùng lại phép thuần", "cap_trung(" in doan)
+	dung("bỏ tờ đã huỷ ở ERPNext", '"docstatus": ["<", 2]' in doan)
+	# Go trung bang cach tick Da huy la cach go hop le. Khong bo ra thi
+	# chuong keu mai du da don xong.
+	dung('bỏ tờ đã tick "Đã huỷ" của mình', 'vgb_huy' in doan)
+	dung("soi cả hoá đơn mua lẫn hoá đơn bán", "(PI, SI)" in doan)
+	dung("hỏng cũng không ném ra ngoài", "except Exception" in doan)
+	cs = MA.split("def con_sot")[1].split("\ndef ")[0]
+	dung("con_sot có trả về số tờ trùng", '"trung": _dem_trung()' in cs)
+
+
+@ca("chuong: THIEU chung tu va THUA chung tu deu phai keu")
+def _():
+	doan = MA.split("def canh_bao_tac_nhip")[1]
+	dung("có xét cả tờ trùng", "_dem_trung()" in doan)
+	# Thieu thi ke toan tu thay vi hoa don khong co trong so. THUA thi nam
+	# im trong danh sach trong y nhu that, ghi so xong la mua vao dem hai
+	# lan - nen khong duoc im lang chi vi nhip van chay tot.
+	dung("nhịp chạy tốt mà có trùng thì VẪN gửi thư",
+		"if not tac and not cint(trung.get" in doan)
+	dung("có câu cấm ghi sổ khi còn trùng", "ĐỪNG GHI SỔ" in doan)
+	dung("có chỉ cách gỡ", "Đã huỷ" in doan)
+	dung("có kể tên tờ đang trùng", 'n.get("ten")' in doan)
