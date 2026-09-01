@@ -168,9 +168,16 @@ CUA_NGO = {
 	# `dem_phieu_cho` cham do tren o Ban hang, `tim_don_de_hoan` man chon
 	# don de lap phieu hoan, them 31/08/2026. `tim_don_de_hoan` CHI TIM,
 	# viec lap van di qua ba cua cu cua hoan_tien.
+	# `tai_tep` them 01/09/2026: ruot mot tep cua phieu hoan tien, di duong
+	# co kiem quyen thay cho /private/files (Sales khong doc duoc Payment
+	# Entry nen tep uy nhiem chi tra 403).
+	# Mot don tra bang nhieu phuong thuc, them 01/09/2026. Cac phep thuan
+	# (gom_dong, chinh_cua, tach_theo_pt...) va hai hook (dat_pt_chinh,
+	# kiem_truoc_ghi_so) TUYET DOI khong mo ra ngoai.
+	"thanh_toan_nhieu.py": ["luu", "xem"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
-		"ds_phieu", "tao_hoan", "tim_don_de_hoan", "xem_hoan", "xuat_excel",
-		"xuat_excel_phieu"],
+		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
+		"xuat_excel", "xuat_excel_phieu"],
 	# Cay kho bon chang, them 21/08/2026. `gan_kho_nguon` la hook validate
 	# cua Work Order nen KHONG whitelist.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
@@ -183,7 +190,7 @@ CUA_NGO = {
 	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
 	# KHONG mo ra ngoai. Cac phep thuan cung khong.
 	"ke_hoach_sx.py": ["chot", "dat_ton", "ds_lenh", "ds_phieu", "huy_lenh",
-		"huy_phieu", "lap", "sua_so_lenh", "tao_lenh", "tinh_hinh_giu_cho",
+		"huy_phieu", "lap", "sua_so_lenh", "tao_lenh", "tim_lenh", "tinh_hinh_giu_cho",
 		"ton_dong", "xem", "xin_chuyen_nvl"],
 	# Ma phieu san xuat, them 30/08/2026. `soat_ma_cu` chi DEM phieu con
 	# mang ma kieu cu, khong doi ten phieu nao.

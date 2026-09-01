@@ -495,6 +495,9 @@ async function scrDsView(name, can) {
      Truoc day man nay chi co o go ma tham chieu, nen diem Sales chon nguon
      Tai cho hoac Mang ve roi chon Chuyen khoan la khong sinh duoc QR - thu
      ngan phai mo app ngan hang go tay (anh Viet 12/08/2026). */
+  /* Khach tra mot don bang NHIEU duong (anh Viet 01/09/2026). Khoi nay ve
+     rieng o 42-thanh-toan-nhieu.js, nap sau khi man da dung xong. */
+  html += '<div id="dsvTtn"></div>';
   html += '<div id="dsvQr" style="margin-top:10px"></div>';
     html += '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px">'
     + '<div id="dsvMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>'
@@ -648,6 +651,8 @@ async function scrDsView(name, can) {
   });
     if (ptWrap) ptWrap.addEventListener('click', function () { setTimeout(function () { veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan'); veKhachNo(); dsvVeQr(); }, 0); });
   veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan');
+  /* Khong await: mot vong goi nua khong duoc lam cham man chi tiet don. */
+  ttnVe('dsvTtn', d.name, d.grand_total, PTDS.map(function (p) { return p.v; }));
 
   /* Ma diem ban cua nguon don nay, de noi dung chuyen khoan mang ma diem -
      ke toan doc sao ke la biet ngay tien cua noi nao. */

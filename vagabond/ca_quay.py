@@ -162,13 +162,38 @@ def _doanh_thu_he_thong(quay, tu_luc, den_luc):
 		fields=["name", "grand_total", "vgb_pt_thanh_toan", "vgb_tam_tinh", "vgb_huy"],
 		limit_page_length=0,
 	)
+	# Mot don tra bang NHIEU phuong thuc thi khong duoc don ca to vao mot
+	# ten (anh Viet 01/09/2026). Don 92857 ngay 31/08 la vi du that: 2 trieu
+	# tien mat cong 225.000 quet the. Don ca to vao "Tien mat" thi ket cuoi
+	# ca lech dung 225.000 ma khong ai truy ra, vi so noi la tien mat.
+	#
+	# Chi doc bang con cho nhung to CO dong; to mot phuong thuc van di
+	# nguyen duong cu, khong them mot vong doc nao.
+	from vagabond import thanh_toan_nhieu as ttn
+
 	pt, so_bill = {}, {}
-	for r in ds:
-		if cint(r.get("vgb_huy")) or cint(r.get("vgb_tam_tinh")):
-			continue
-		t = (r.get("vgb_pt_thanh_toan") or "").strip() or "Chưa rõ"
-		pt[t] = pt.get(t, 0.0) + flt(r.get("grand_total"))
-		so_bill[t] = so_bill.get(t, 0) + 1
+	con_lam = [r for r in ds
+		if not (cint(r.get("vgb_huy")) or cint(r.get("vgb_tam_tinh")))]
+	nhieu = {}
+	try:
+		nhieu = ttn.bang_dong_cua([r["name"] for r in con_lam])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ca_quay: doc dong thanh toan")
+	for r in con_lam:
+		tach = ttn.tach_theo_pt(nhieu.get(r["name"]) or [], flt(r.get("grand_total")))
+		if not tach:
+			t = (r.get("vgb_pt_thanh_toan") or "").strip() or "Chưa rõ"
+			tach = {t: flt(r.get("grand_total"))}
+		# So BILL dem theo phuong thuc CHINH, khong dem moi dong mot lan:
+		# mot to tra hai duong van la MOT bill, dem hai lan thi tong so bill
+		# cua ca lon hon so to that va thu ngan tuong minh sot phieu.
+		chinh = ttn.chinh_cua(nhieu.get(r["name"]) or []) \
+			or (r.get("vgb_pt_thanh_toan") or "").strip() or "Chưa rõ"
+		so_bill[chinh] = so_bill.get(chinh, 0) + 1
+		for ten, so in tach.items():
+			ten = (ten or "").strip() or "Chưa rõ"
+			pt[ten] = pt.get(ten, 0.0) + flt(so)
+			so_bill.setdefault(ten, 0)
 	return pt, so_bill
 
 

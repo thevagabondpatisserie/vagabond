@@ -3426,20 +3426,33 @@ def tai_unc(ho_so=None, tep=None, co="lon"):
 		frappe.throw(
 			"Tệp này không nằm trên phiếu chi của phiếu hoàn tiền %s. Vui lòng tải lại trang rồi bấm lại." % ho_so
 		)
-	doc_tep = frappe.get_doc("File", f.name)
+	return ruot_tep_b64(f, co)
+
+
+def ruot_tep_b64(f, co="lon", ten_lui="uy-nhiem-chi"):
+	"""Doc mot ban ghi File ra base64. Dung chung cho moi duong tai tep.
+
+	`f` la dict co name, file_name, file_url - nguoi goi da tu kiem quyen VA
+	kiem tep dung dinh vao dung chung tu roi. Ham nay khong kiem quyen gi
+	them; dat ten khong gach dau de cho khac goi duoc, nhung TUYET DOI
+	khong whitelist no: whitelist la mo cua doc moi tep trong he.
+	"""
+	doc_tep = frappe.get_doc("File", f["name"] if isinstance(f, dict) else f.name)
+	ten_f = (f.get("file_name") if isinstance(f, dict) else f.file_name) or ""
+	url_f = (f.get("file_url") if isinstance(f, dict) else f.file_url) or ""
 	try:
 		ruot = doc_tep.get_content()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc tep UNC")
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: doc ruot tep")
 		frappe.throw(
 			"Tệp %s có trong sổ nhưng máy đọc không ra nội dung. Có thể tệp đã "
-			"bị gỡ trên Desk; nhờ chị Dung đính lại giúp." % (f.file_name or tep)
+			"bị gỡ trên Desk; nhờ chị Dung đính lại giúp." % (ten_f or ten_lui)
 		)
 	if isinstance(ruot, str):
 		ruot = ruot.encode("utf-8")
 
 	mime = "application/octet-stream"
-	ten_thap = str(f.file_name or f.file_url or "").lower()
+	ten_thap = str(ten_f or url_f).lower()
 	if _la_anh(ten_thap):
 		mime = "image/" + ("jpeg" if ten_thap.endswith((".jpg", ".jpeg")) else ten_thap.rsplit(".", 1)[-1])
 	elif ten_thap.endswith(".pdf"):
@@ -3466,7 +3479,7 @@ def tai_unc(ho_so=None, tep=None, co="lon"):
 			pass
 
 	return {
-		"ok": 1, "ten": f.file_name or "uy-nhiem-chi",
+		"ok": 1, "ten": ten_f or ten_lui,
 		"mime": mime, "b64": base64.b64encode(ruot).decode("ascii"),
 	}
 

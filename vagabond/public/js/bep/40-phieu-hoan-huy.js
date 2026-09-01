@@ -215,6 +215,9 @@ async function scrPhieuHoanHuy() {
      ô thân, không nằm trong nó. Xem bài học ở đầu 29-don-huy.js và ca kiểm
      `thu_chan_man.py`. */
   root.addEventListener('click', phBam);
+  /* Nap hinh thu nho SAU khi ve xong. Khong await: mot phieu co the co nam
+     sau anh chup man hinh e-banking, cho het moi thay gi thi man dung im. */
+  phNapAnh(root);
 }
 
 /* Danh sách chip trạng thái. Nhãn do MÁY CHỦ gửi xuống, màn không tự chế
@@ -261,16 +264,24 @@ function phDong(nhan, gt) {
     h(String(gt)) + '</span></div>';
 }
 
-/* Một ô tệp: ảnh thì hiện hình, tệp khác thì hiện đuôi. Cả hai đều mở được
-   trong thẻ mới, và đều mang tên thật ở dưới để biết mình sắp mở cái gì. */
-function phOTep(t) {
+/* Một ô tệp: ảnh thì hiện hình, tệp khác thì hiện đuôi. Bấm vào là tải về.
+
+   KHÔNG trỏ thẳng vào /private/files nữa (anh Việt 01/09/2026). Uỷ nhiệm
+   chi đính trên PHIẾU CHI, mà Sales, thu ngân, quản lý đều không có quyền
+   đọc Payment Entry, nên Frappe trả "403 Forbidden - Bạn không có quyền
+   truy cập tệp này" đúng như ảnh anh chụp. Mọi tệp giờ đi qua cửa
+   `don_huy.tai_tep`: cửa đó kiểm quyền theo PHIẾU HOÀN TIỀN rồi tự đọc tệp
+   hộ, không phải mở quyền đọc cả sổ phiếu chi cho nhân viên bán hàng. */
+function phOTep(t, hoSo) {
   var ten = String(t.ten || 'tệp');
-  var o = '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
-    'title="' + h(ten) + '" style="display:block;width:88px;text-decoration:none">';
+  var goi = 'data-phtep="' + h(t.tep || '') + '" data-phhs="' + h(hoSo || '') + '"';
+  var o = '<div ' + goi + ' title="' + h(ten) + '" ' +
+    'style="display:block;width:88px;cursor:pointer">';
   if (t.anh) {
-    o += '<img src="' + h(t.url) + '" alt="' + h(ten) + '" loading="lazy" ' +
-      'style="width:88px;height:88px;object-fit:cover;border-radius:9px;' +
-      'border:1px solid #e4e7ec;background:#f8fafc;display:block">';
+    o += '<div class="phanh" ' + goi + ' ' +
+      'style="width:88px;height:88px;border-radius:9px;border:1px solid #e4e7ec;' +
+      'background:#f8fafc url(\'\') center/cover no-repeat;display:flex;' +
+      'align-items:center;justify-content:center;color:#98a2b3;font-size:20px">🧾</div>';
   } else {
     o += '<div style="width:88px;height:88px;border-radius:9px;border:1px solid #e4e7ec;' +
       'background:#f8fafc;display:flex;align-items:center;justify-content:center;' +
@@ -279,11 +290,54 @@ function phOTep(t) {
   }
   o += '<div style="font-size:10.5px;color:#667085;margin-top:4px;line-height:1.35;' +
     'word-break:break-word">' + h(ten.length > 34 ? ten.slice(0, 32) + '…' : ten) +
-    '</div></a>';
+    '</div></div>';
   return o;
 }
 
-function phLuoiTep(tieu_de, cac, khi_trong) {
+/* Nạp hình thu nhỏ cho các ô ảnh đang hiện trên màn.
+
+   Nạp SAU khi vẽ xong chứ không chặn lúc vẽ: một phiếu có thể có năm sáu
+   ảnh chụp màn hình e-banking, chờ hết mới thấy gì thì màn đứng im. Xin
+   bản "nho" nên mỗi tấm chỉ vài chục KB. */
+async function phNapAnh(b) {
+  var cac = [].slice.call(b.querySelectorAll('.phanh[data-phtep]'));
+  for (var i = 0; i < cac.length; i++) {
+    var el = cac[i];
+    if (el.dataset.phdone) continue;
+    el.dataset.phdone = '1';
+    try {
+      var r = await api('vagabond.don_huy.tai_tep', {
+        ho_so: el.dataset.phhs, tep: el.dataset.phtep, co: 'nho',
+      });
+      if (r && r.b64) {
+        el.style.background = '#f8fafc url("data:' + r.mime + ';base64,' + r.b64 +
+          '") center/cover no-repeat';
+        el.textContent = '';
+      }
+    } catch (e) { el.textContent = '⚠️'; }
+  }
+}
+
+/* Tải một tệp về máy để gửi khách. Đi cùng đường có kiểm quyền. */
+async function phTaiTep(hoSo, tep) {
+  busy(1);
+  var r;
+  try { r = await api('vagabond.don_huy.tai_tep', { ho_so: hoSo, tep: tep, co: 'lon' }); }
+  catch (e) { busy(0); return toast(errMsg(e), 7000); }
+  busy(0);
+  if (!r || !r.b64) return toast('Máy không đọc được nội dung tệp này.', 5000);
+  var bin = atob(r.b64), n = bin.length, u8 = new Uint8Array(n);
+  for (var i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([u8], { type: r.mime }));
+  a.download = r.ten || 'chung-tu';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast('Đã tải ' + (r.ten || 'tệp') + '.', 4000);
+}
+
+function phLuoiTep(tieu_de, cac, khi_trong, hoSo) {
   if (!(cac || []).length) {
     return khi_trong ? '<div style="margin-top:8px;font-size:12px;color:#b54708">' +
       h(khi_trong) + '</div>' : '';
@@ -292,7 +346,7 @@ function phLuoiTep(tieu_de, cac, khi_trong) {
     '<div style="font-size:11.5px;font-weight:700;color:#667085;margin-bottom:6px;' +
     'text-transform:uppercase;letter-spacing:.3px">' + h(tieu_de) + '</div>' +
     '<div style="display:flex;gap:9px;flex-wrap:wrap">' +
-    cac.map(phOTep).join('') + '</div></div>';
+    cac.map(function (t) { return phOTep(t, hoSo); }).join('') + '</div></div>';
 }
 
 function phChiTiet(r) {
@@ -317,14 +371,17 @@ function phChiTiet(r) {
   if (r.ly_do_tu_choi) s += phDong('Từ chối vì', r.ly_do_tu_choi);
   s += phLuoiTep('Chứng từ kế toán đính trên phiếu chi', r.unc,
     'Kế toán chưa đính chứng từ chi nào. Có uỷ nhiệm chi rồi thì nó hiện ở đây, ' +
-    'bấm vào là mở ra gửi khách được.');
-  s += phLuoiTep('Ảnh bằng chứng người lập đính', r.bang_chung, '');
+    'bấm vào là tải về gửi khách được.', r.name);
+  s += phLuoiTep('Ảnh bằng chứng người lập đính', r.bang_chung, '', r.name);
   return s + '</div>';
 }
 
 async function phBam(ev) {
   var el;
   if (ev.target.closest('a[href]')) return;   // để nút tải tệp đi đường của nó
+  if ((el = ev.target.closest('[data-phtep]'))) {
+    return phTaiTep(el.getAttribute('data-phhs'), el.getAttribute('data-phtep'));
+  }
   if ((el = ev.target.closest('[data-phd]'))) {
     phDiem = el.getAttribute('data-phd');
     return go(scrPhieuHoanHuy, true);

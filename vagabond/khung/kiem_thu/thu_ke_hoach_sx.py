@@ -1059,7 +1059,10 @@ def _():
 @ca("ô nhập số lúc hoàn tất có chỗ chọn đơn vị tính")
 def _():
 	m = _js("05-san-xuat.js")
-	dung("nhận danh sách đơn vị", "function mfgSheetHoanTat(left, uom, cacDvt)" in m)
+	# Tu v356 ham nhan them ma mon (de tra so da nho) va tieu de rieng cho
+	# che do ca nhom.
+	dung("nhận danh sách đơn vị",
+		"function mfgSheetHoanTat(left, uom, cacDvt, maMon, tieuDe)" in m)
 	dung("có ô chọn", "id=\"htDvt\"" in m)
 	dung("gợi ý theo đơn vị kho", "u.dvt === dvt ? ' selected' : ''" in m)
 
@@ -1162,3 +1165,187 @@ def _():
 	m = re.sub(r"#.*", "", _py("ke_hoach_sx.py"))
 	la("không có parent= làm đối số riêng", 'parent="Item"' in m, False)
 	dung("lọc bảng con bằng parenttype", '"parenttype": "Item"' in m)
+
+
+# ------------------------------- v356: năm ý anh Việt duyệt ngày 31/08/2026
+
+
+@ca("đếm nguyên liệu thiếu theo TỶ LỆ CÒN LẠI, không theo cả lệnh")
+def _():
+	# Lenh lam duoc 8 tren 10 thi chi con can nguyen lieu cho 2. Bao thieu
+	# theo so cua ca 10 la bao dong gia, bep nhin chip do mai thanh quen
+	# roi bo qua ca luc thieu that.
+	dong = [{"ma": "BOT", "can": 100, "kho": "K"}]
+	ton = {("BOT", "K"): 25}
+	la("còn cả lệnh thì thiếu", kh.thieu_cua_lenh(dong, ton, 1.0), ["BOT"])
+	la("còn hai phần mười thì đủ", kh.thieu_cua_lenh(dong, ton, 0.2), [])
+
+
+@ca("thiếu đọc đúng kho của TỪNG dòng nguyên liệu")
+def _():
+	# Hai dong cung mot ma nhung khac kho: doc nham kho la bao thieu cai
+	# dang du va bao du cai dang thieu.
+	dong = [{"ma": "BOT", "can": 10, "kho": "A"}, {"ma": "BOT", "can": 10, "kho": "B"}]
+	ton = {("BOT", "A"): 50, ("BOT", "B"): 1}
+	la("chỉ dòng kho B thiếu", kh.thieu_cua_lenh(dong, ton, 1.0), ["BOT"])
+	la("đếm đúng một dòng", len(kh.thieu_cua_lenh(dong, ton, 1.0)), 1)
+
+
+@ca("lệnh đã đủ số thì không soi thiếu nữa")
+def _():
+	dong = [{"ma": "BOT", "can": 100, "kho": "K"}]
+	la("tỷ lệ 0", kh.thieu_cua_lenh(dong, {}, 0), [])
+	la("tỷ lệ âm", kh.thieu_cua_lenh(dong, {}, -1), [])
+
+
+@ca("dòng thiếu mã hay số 0 thì bỏ qua, không đếm nhầm")
+def _():
+	ton = {}
+	la("mã rỗng", kh.thieu_cua_lenh([{"ma": "", "can": 5, "kho": "K"}], ton, 1.0), [])
+	la("cần 0", kh.thieu_cua_lenh([{"ma": "X", "can": 0, "kho": "K"}], ton, 1.0), [])
+
+
+@ca("phép đếm thiếu là PHÉP THUẦN, không chạm Frappe")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def thieu_cua_lenh(")[1].split("\ndef ")[0]
+	la("không gọi frappe", "frappe." in doan, False)
+
+
+@ca("đọc Work Order Item vẫn lọc bằng parenttype")
+def _():
+	# Dung cai bay da lam chet man Lenh san xuat o v353.
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def _thieu_nvl(")[1].split("\n\n\n")[0]
+	dung("lọc parenttype", '"parenttype": "Work Order"' in doan)
+	la("không có parent= làm đối số riêng", 'parent="Work Order"' in doan, False)
+
+
+@ca("mã quét bị cắt sạch khoảng trắng và tiền tố đường dẫn")
+def _():
+	la("khoảng trắng", kh.doc_ma_quet("  LSX-26-08-0001  "), "LSX-26-08-0001")
+	la("xuống dòng", kh.doc_ma_quet("LSX-26-08-0001\r\n"), "LSX-26-08-0001")
+	la("mã QR có đường dẫn", kh.doc_ma_quet("https://erp.abc.com/BATCH-001"), "BATCH-001")
+	la("rỗng", kh.doc_ma_quet(None), "")
+
+
+@ca("quét mã đi ba đường tra, không dừng ở đường đầu")
+def _():
+	m = _py("ke_hoach_sx.py")
+	doan = m.split("def tim_lenh(")[1].split("\n\n\n")[0]
+	dung("tra lệnh sản xuất", 'frappe.db.exists("Work Order", ma)' in doan)
+	dung("tra mẻ", 'frappe.db.exists("Batch", ma)' in doan)
+	dung("mẻ trỏ về lệnh", "custom_lenh_san_xuat" in doan)
+	dung("tra mã vạch hàng hoá", '"Item Barcode"' in doan)
+
+
+@ca("chia số cho lệnh con: rót lần lượt, phần dôi trả về riêng")
+def _():
+	# Cung mot luat voi `chia_so_luong` ben Python. Nhet phan doi vao mot
+	# lenh bat ky la lam sai so cua phieu yeu cau ma lenh do dang neo vao.
+	m = _js("05-san-xuat.js")
+	dung("có hàm chia bên app", "function mfgChiaSo(" in m)
+	dung("trả về cả phần dôi", "doi: conLai > 0 ? r3(conLai) : 0" in m)
+	dung("rót lần lượt", "var phan = can <= conLai ? can : conLai;" in m)
+
+
+@ca("hoàn thành cả nhóm hỏi số MỘT lần rồi tự chia")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("có hàm nhóm", "async function mfgHoanTatNhom(" in m)
+	dung("gọi phép chia", "mfgChiaSo(conLai, q)" in m)
+	dung("chỉ tính lệnh còn phải làm",
+		"return !c.xong && (c.so_can - c.so_da) > 0.0001;" in m)
+	dung("nhóm một lệnh thì đi đường lệnh đơn",
+		"if (con.length === 1) return mfgHoanTatNhanh(" in m)
+
+
+@ca("ghi sổ cả nhóm phải hiện rõ từng lệnh nhận bao nhiêu TRƯỚC khi ghi")
+def _():
+	# But toan kho khong sua lai duoc nen bep phai nhin thay con so truoc,
+	# chu khong phai bam mot phat roi doc lai o so cai.
+	m = _js("05-san-xuat.js")
+	doan = m.split("async function mfgHoanTatNhom(")[1].split("\n}")[0]
+	dung("có hộp xác nhận", "confirmSheet(" in doan)
+	dung("liệt kê từng lệnh", "c.ten + ': ' + num(chia.phan[i])" in doan)
+	dung("nói rõ không sửa lại được", "không sửa lại được" in doan)
+
+
+@ca("chạy theo lô KHÔNG hỏi lại từng lệnh con, nhưng vẫn tự làm BTP tươi")
+def _():
+	m = _js("05-san-xuat.js")
+	doan = m.split("async function mfgHoanTatMot(")[1].split("\n}\n")[0]
+	dung("bỏ hộp hỏi khi chạy lô", "if (plan.length && !imLang) {" in doan)
+	dung("vẫn chạy phần làm tươi", "if (plan.length) await mfgRunFresh(plan, 1);" in doan)
+
+
+@ca("máy KHÔNG tự điền số cũ lên ô nhập, chỉ gợi ý bằng chip")
+def _():
+	# Tu dien de len thi bep go Enter theo thoi quen la ghi so sai vao but
+	# toan kho, ma but toan kho khong sua lai duoc.
+	m = _js("05-san-xuat.js")
+	doan = m.split("function mfgSheetHoanTat(")[1].split("\n}\n")[0]
+	dung("ô nhập vẫn mặc định là còn lại", "id=\"htLenh\" value=\"' + r3(left / hs)" in doan)
+	dung("có chip gợi ý", "data-goi=" in doan)
+	dung("bấm chip mới điền", "i1.value = x.so;" in doan)
+
+
+@ca("số nhớ theo ĐƠN VỊ bếp chọn, không quy về đơn vị kho")
+def _():
+	# Bep nho "2 kg" chu khong nho "2000 gram".
+	m = _js("05-san-xuat.js")
+	dung("chia hệ số khi cất", "so: r3(soKho / (heSo || 1))" in m)
+	dung("cất cả đơn vị", "dvt: dvt || ''" in m)
+	dung("chỉ giữ hai số gần nhất", "ds.slice(0, 2)" in m)
+
+
+@ca("bộ nhớ số không phình mãi trong localStorage")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("có chặn số món", "while (k.length > 150)" in m)
+
+
+@ca("in tem cả nhóm chỉ đi đường in ngầm, thiếu QZ thì nói thẳng")
+def _():
+	# Duong trinh duyet mo MOT cua so cho MOT ban in, sau lenh la sau cua
+	# so bung ra roi trinh duyet chan bot.
+	m = _js("05-san-xuat.js")
+	dung("có hàm in nhóm", "async function mfgInTemNhom(" in m)
+	dung("kiểm QZ trước", "if (!inSanSang('tem')) {" in m)
+	dung("nói rõ khi thiếu QZ", "chưa nối qua QZ Tray" in m)
+	dung("có hàm in chờ được", "async function mfgPrintCho(" in m)
+
+
+@ca("đường dẫn in tem dựng ở MỘT chỗ, hai lối in dùng chung")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("có hàm dựng đường dẫn", "function mfgTemUrl(" in m)
+	la("chỉ dựng printview ở một chỗ", m.count("'/printview?doctype=Batch"), 1)
+
+
+@ca("chip Thiếu nguyên liệu và bộ lọc theo nó có ở màn danh sách")
+def _():
+	m = _js("05-san-xuat.js")
+	dung("có chip trên hàng", "Thiếu ' + w.thieu.length + ' nguyên liệu" in m)
+	dung("có chip lọc", "'⚠️ Thiếu nguyên liệu'" in m)
+	dung("lọc đúng", "mfg.han === 'thieu' && !(w.thieu && w.thieu.length)" in m)
+
+
+@ca("nút của thẻ cha bắt TRƯỚC nút xổ thẻ")
+def _():
+	# Bat sau thi bam ✓ chi lam the xo ra chu khong ghi so gi ca.
+	m = _js("05-san-xuat.js")
+	doan = m.split("async function scrMfgList()")[1].split("\n}")[0]
+	la("gok đứng trước data-g",
+		doan.index("[data-gok]") < doan.index("e.target.closest('[data-g]')"), True)
+	la("gin đứng trước data-g",
+		doan.index("[data-gin]") < doan.index("e.target.closest('[data-g]')"), True)
+
+
+@ca("quét ra món thì mở hết bộ lọc trạng thái ra")
+def _():
+	# Mon vua quet co the dang o tab khac; loc xong van trong tron thi bep
+	# tuong may hong.
+	m = _js("05-san-xuat.js")
+	dung("đặt lại tab", "mfg.tab = 'all'; mfg.han = '';" in m)
+	dung("có chip bỏ lọc món", "data-xmon=" in m)

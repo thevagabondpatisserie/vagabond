@@ -1043,6 +1043,72 @@ def _vnd(so):
 	return "{:,.0f}".format(so).replace(",", ".")
 
 
+def _dien_dong_thanh_toan(si, o):
+	"""Dien bang cac dong thanh toan tu don Pancake, KHONG de len tay nguoi.
+
+	Bang chi duoc dien khi no dang trong, hoac moi dong dang co deu mang co
+	`do_may`. Sales sua tay mot dong la ca bang thanh cua nguoi, va tu do
+	nhip dong bo 30 phut mot lan khong dung vao nua.
+
+	Tong cac dong phai KHOP tong don thi moi ghi. Lech thi bo qua ca bang -
+	de trong con hon de mot bang sai roi chan luon duong ghi so cua sales.
+	"""
+	from vagabond import thanh_toan_nhieu as ttn
+
+	moi = dong_thanh_toan_pancake(o)
+	if not moi:
+		return
+	dang_co = list(si.get(ttn.BANG) or [])
+	if dang_co and not all(cint(d.get("do_may")) for d in dang_co):
+		return
+	if not ttn.khop_tong(moi, flt(si.get("grand_total"))):
+		return
+	cu = [{"pt": d.get("pt"), "so_tien": d.get("so_tien")} for d in dang_co]
+	if cu == [{"pt": d["pt"], "so_tien": d["so_tien"]} for d in moi]:
+		return
+	si.set(ttn.BANG, [])
+	for d in moi:
+		si.append(ttn.BANG, {"pt": d["pt"], "so_tien": d["so_tien"],
+			"ma_tham_chieu": d.get("ma_tham_chieu") or "", "do_may": 1})
+
+
+def dong_thanh_toan_pancake(o):
+	"""Cac dong thanh toan doc tu lich su giao dich Pancake. THUAN doi voi o.
+
+	Anh Viet 01/09/2026: khach tra mot don bang hai duong (chuyen khoan
+	truoc mot phan, toi cua hang dua not tien mat) thi phai nhap cho dung
+	ban chat. Don 92857 ngay 31/08 la vi du that.
+
+	CHI dung tu lich su giao dich, khong dung tu cac o tien. Cac o tien cua
+	Pancake chong cheo nhau - `cod` gom ca tien hang lan phi ship tuy cach
+	khai - nen cong chung lai thi ra so khong khop tong don, ma bang nay
+	bat buoc phai khop tong don moi ghi so duoc.
+
+	Tra list rong khi khong doc duoc du HAI kenh ro rang: mot kenh thi
+	duong cu da lo, khong can bang.
+	"""
+	ls = _lich_su_thanh_toan(o)
+	if not ls:
+		return []
+	dong = []
+	for g in ls:
+		ten_pt = pt_thanh_toan.theo_khoa_pancake(g["kieu"])
+		if not ten_pt:
+			# Mot kenh khong doan ra ten thi BO CA BANG: ghi thieu mot dong
+			# la tong khong khop, ma tu bia mot ten phuong thuc con te hon.
+			return []
+		try:
+			so = float(g["tien"] or 0)
+		except (TypeError, ValueError):
+			so = 0
+		if so > 0:
+			dong.append({"pt": ten_pt, "so_tien": so, "do_may": 1})
+	from vagabond import thanh_toan_nhieu as ttn
+
+	dong = ttn.gom_dong(dong)
+	return dong if len(dong) >= 2 else []
+
+
 def _doan_thanh_toan(o):
 	"""Doan phuong thuc thanh toan tu cac o tien cua don Pancake.
 
@@ -1063,8 +1129,10 @@ def _doan_thanh_toan(o):
 			thay.append("%s %s%s" % (nhan, _vnd(g["tien"]), (" lúc " + g["luc"][11:16]) if len(g["luc"]) >= 16 else ""))
 			if ten_pt and ten_pt not in pt_ro:
 				pt_ro.append(ten_pt)
-		# Nhieu kenh khac nhau tren mot don thi khong tu chon: de sales quyet
-		# ghi so theo kenh nao, con so tien van vao ghi chu doi soat.
+		# Nhieu kenh khac nhau tren mot don thi o `vgb_pt_thanh_toan` van
+		# chi mang duoc mot ten, nen van de trong cho sales quyet. NHUNG tu
+		# 01/09/2026 may dung them BANG CAC DONG: moi kenh mot dong kem so
+		# tien, va o cu se mang dong lon nhat. Xem thanh_toan_nhieu.py.
 		pt = pt_ro[0] if len(pt_ro) == 1 else ""
 		return pt, "Pancake: " + " + ".join(thay)
 
@@ -1450,6 +1518,13 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 			si.vgb_pt_do_may = 1
 	elif not (si.get("vgb_pt_thanh_toan") or "").strip():
 		si.vgb_pt_do_may = 0
+	# Bang cac dong thanh toan cho don tra bang nhieu duong. Chi dien khi
+	# bang dang TRONG hoac cac dong hien co deu do may dien: nguoi da go tay
+	# thi may khong dung vao, cung mot luat voi o phuong thuc o tren.
+	try:
+		_dien_dong_thanh_toan(si, o)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: dien dong thanh toan")
 	# Co "nghi cong no" chi de sales ra lai, khong bao gio tu ghi phuong thuc.
 	si.vgb_nghi_cong_no = nghi_cong_no(o)
 	if ghi_tt:

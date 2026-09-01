@@ -129,6 +129,12 @@ def dung():
 	from vagabond import hang_tang
 
 	_dung_nhom(hang_tang.TRUONG_MOI, "hang_tang")
+	# Bang cac dong thanh toan: mot don tra bang nhieu duong (anh Viet
+	# 01/09/2026). O `vgb_pt_thanh_toan` cu VAN GIU va van la o chinh, xem
+	# dau tep thanh_toan_nhieu.py.
+	from vagabond import thanh_toan_nhieu
+
+	_dung_nhom(thanh_toan_nhieu.TRUONG_MOI, "thanh_toan_nhieu")
 	# Nhet phuong thuc thanh toan moi cua ma nguon vao cau hinh DA LUU tren
 	# site. Khong co buoc nay thi them mot dong vao MAC_DINH chi co tac dung
 	# tren site trong - xem `pt_thanh_toan.bo_sung_mac_dinh`.
