@@ -294,6 +294,13 @@ def _man_khong_tinh():
 	dung("người được chấm nói lại được", "vagabond.kpi.y_kien" in js)
 	dung("ô thử tính có tô đỏ chỗ nhảy", "doNhay" in js)
 
+	# Gia tri LUU khong dau, chu CO dau chi de hien. Man khong duoc dan thang
+	# gia tri luu ra chip, khong thi anh Viet doc thay "Cho quan ly".
+	dung("chip trạng thái hiện chữ có dấu",
+	     "(kq.nhan_trang_thai || {})[t] || t" in js)
+	dung("dòng phiếu hiện chữ có dấu",
+	     "(kq.nhan_trang_thai || {})[r.trang_thai] || r.trang_thai" in js)
+
 	# Anh Viet chot 01/09/2026: san, tran va ba moc phai doi duoc theo tung
 	# thoi diem. Khoi sua chi hien cho giam doc, va phai goi cua ngo luu chu
 	# khong tu ghi cau hinh o dau khac.
