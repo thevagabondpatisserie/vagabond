@@ -96,7 +96,15 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
     return {
       ten: String(m.ten || ''),
       sl: Number(m.qty) || 0,
-      tien: (Number(m.qty) || 0) * (Number(m.rate) || 0)
+      tien: (Number(m.qty) || 0) * (Number(m.rate) || 0),
+      /* ANH MON, them 01/09/2026 theo y anh Viet: *"hien thi ten mon anh
+         mon, roi hien thi ma QR tren nen xanh robin egg cua branding"*.
+
+         Anh mon KHONG phai du lieu rieng tu: no la anh san pham ai vao
+         tiem cung nhin thay tren menu. Ranh gioi rieng tu cua man nay van
+         nguyen: khong so dien thoai, khong ma khach, khong hang the,
+         khong diem tich luy, khong cong no, khong ma so thue. */
+      anh: String(m.anh || '')
     };
   });
   var tong = mon.reduce(function (t, m) { return t + m.tien; }, 0);
@@ -172,9 +180,14 @@ function cfdDay(don, quay, phaiThu, nguon, laApp) {
   if (!cfdCo()) return;
   var qr = null;
   if (!laApp && don && don.pt === 'Chuyển khoản' && phaiThu > 0) {
-    var nd = posNoiDungCk(don.bill, '', nguon);
-    var tk = posTaiKhoan(nguon, '') || {};
-    var url = posQrUrl(nd, phaiThu, nguon, '');
+    /* Truyen ma diem vao ca ba cho. De rong la ba ham roi ve tai khoan
+       mac dinh, nen man hinh khach bay ma QR vao TAI KHOAN CHUNG trong khi
+       man thu ngan bay ma QR vao tai khoan rieng cua diem - hai man mot
+       ben mot neo, khach quet cai nao cung duoc va tien ve sai cho. */
+    var maDiem = (quay && quay.ma) || '';
+    var nd = posNoiDungCk(don.bill, maDiem, nguon);
+    var tk = posTaiKhoan(nguon, maDiem) || {};
+    var url = posQrUrl(nd, phaiThu, nguon, maDiem);
     if (url) {
       qr = {
         url: url, nd: nd, ten: tk.ten || '', bank: tk.bank || '', stk: tk.stk || '',

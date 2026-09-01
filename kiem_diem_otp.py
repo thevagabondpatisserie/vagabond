@@ -6248,7 +6248,12 @@ if _ham50:
 			la("goi tin KHONG mang %s" % _c50, _c50 in _van50, False)
 		la("chi co dung cac o da khai", sorted(_goi50.keys()),
 		   ["giam", "gt", "loai", "luc", "man", "mon", "pt", "qr", "quay", "tab", "tong", "tra"])
-		la("moi mon chi ba o", sorted(_goi50["mon"][0].keys()), ["sl", "ten", "tien"])
+		# 01/09/2026 them o "anh" theo y anh Viet: *"hien thi ten mon anh mon,
+		# roi hien thi ma QR tren nen xanh robin egg cua branding"*. Anh mon
+		# KHONG phai du lieu rieng tu, no la anh san pham ai vao tiem cung
+		# nhin thay tren menu. Bon o, khong duoc them o thu nam.
+		la("moi mon chi bon o", sorted(_goi50["mon"][0].keys()), ["anh", "sl", "ten", "tien"])
+		la("o anh mon di qua duoc", "anh" in _goi50["mon"][0], True)
 		la("ten mon di qua", _goi50["mon"][0]["ten"], "Croissant bơ")
 		la("tam tinh dung", _goi50["tong"], 145000)
 		la("so phai tra dung", _goi50["tra"], 115000)

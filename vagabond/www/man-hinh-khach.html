@@ -49,8 +49,8 @@ body {
 
 .dau { padding: 2.2vh 3vw; display: flex; align-items: center; gap: 16px; }
 .dau img { height: clamp(38px, 4.6vw, 62px); width: auto; display: block; }
-.dau b { font-size: clamp(17px, 2vw, 24px); letter-spacing: .3px; }
-.dau span { font-size: clamp(12px, 1.2vw, 16px); color: var(--nhat); }
+.dau b { font-size: clamp(16px, 1.8vw, 23px); letter-spacing: .3px; display: block; }
+.dau span { font-size: clamp(11px, 1.15vw, 15px); color: var(--nhat); }
 
 .than { flex: 1; display: flex; min-height: 0; gap: 2vw; padding: 0 3vw 3vh; }
 .trai, .phai {
@@ -62,11 +62,32 @@ body {
 .phai { flex: 1; align-items: center; justify-content: center; }
 
 .nhan { font-size: clamp(11px, 1.1vw, 15px); color: var(--nhat); letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 1.4vh; }
-#dsMon { flex: 1; overflow: hidden; }
-.mon { display: flex; align-items: baseline; gap: 12px; padding: 1.35vh 0; border-bottom: 1px solid var(--vien); font-size: clamp(15px, 1.7vw, 23px); }
-.mon .sl { font-weight: 800; min-width: 2.6em; color: var(--muc); }
-.mon .ten { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.mon .tien { font-weight: 700; white-space: nowrap; }
+#dsMon { flex: 1; overflow: hidden; align-content: start; }
+
+/* MOT DONG MON = ANH + TEN + SO LUONG + TIEN (anh Viet 01/09/2026).
+
+   Anh mon la thu khach nhan ra nhanh nhat: dung xep hang liec mot cai la
+   biet thu ngan dang bam dung mon minh goi chua, khong phai doc chu. Nen
+   anh di truoc, va di o kich thuoc doc duoc tu hai met.
+
+   Mon khong co anh thi de mot o tron mau nhat mang chu cai dau, chu khong
+   de khoang trong: mot dong thut vao giua danh sach nhin ra ngay. */
+.mon { display: flex; align-items: center; gap: clamp(10px, 1.2vw, 18px); padding: 1.25vh 0; border-bottom: 1px solid var(--vien); font-size: clamp(15px, 1.7vw, 23px); }
+.mon:last-child { border-bottom: none; }
+.mon .anh {
+  flex: none; width: clamp(44px, 4.6vw, 76px); aspect-ratio: 1; border-radius: 14px;
+  object-fit: cover; background: rgba(5, 50, 60, .06); display: block;
+}
+.mon .chu {
+  flex: none; width: clamp(44px, 4.6vw, 76px); aspect-ratio: 1; border-radius: 14px;
+  background: rgba(5, 50, 60, .06); color: var(--nhat);
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(18px, 2vw, 30px); font-weight: 800;
+}
+.mon .ten { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.28; }
+.mon .sl { flex: none; font-weight: 800; color: var(--nhat); white-space: nowrap; }
+.mon .tien { flex: none; font-weight: 700; white-space: nowrap; min-width: 4.2em; text-align: right; }
+.them { padding: 1.2vh 0 0; font-size: clamp(12px, 1.2vw, 17px); color: var(--nhat); }
 .cong { padding-top: 1.8vh; }
 .dong { display: flex; justify-content: space-between; font-size: clamp(13px, 1.3vw, 18px); color: var(--nhat); padding: .5vh 0; }
 .tong { display: flex; justify-content: space-between; align-items: baseline; margin-top: 1vh; border-top: 2px solid var(--muc); padding-top: 1.2vh; }
@@ -75,8 +96,12 @@ body {
 
 /* Ma QR khong duoc bo them vien mau: may quet doc bang do tuong phan, va
    vung trang quanh ma la mot phan cua ma. */
-#qrAnh { width: min(38vh, 82%); aspect-ratio: 1; background: #fff; border-radius: 12px; display: block; }
+#qrAnh { width: min(40vh, 88%); aspect-ratio: 1; background: #fff; border-radius: 12px; display: block; }
 .qrTien { font-size: clamp(24px, 3.2vw, 46px); font-weight: 800; margin-top: 2vh; }
+/* So tien nam TREN ma QR chu khong duoi: khach cam dien thoai len la mat
+   nhin thang vao ma, doc so tien truoc khi quet moi yen tam. */
+.qrDau { font-size: clamp(13px, 1.35vw, 19px); color: var(--nhat); margin-bottom: 1.6vh; text-align: center; }
+.qrDau b { display: block; font-size: clamp(28px, 3.6vw, 52px); color: var(--muc); letter-spacing: -1px; margin-top: .3vh; }
 .qrNd { font-size: clamp(12px, 1.2vw, 17px); color: var(--nhat); margin-top: .6vh; text-align: center; }
 .qrTk { font-size: clamp(11px, 1.05vw, 15px); color: var(--nhat); margin-top: .4vh; text-align: center; }
 .xanh { color: var(--xanh); }
@@ -155,11 +180,27 @@ body {
   }
 
   function veDon(g) {
-    var mon = (g.mon || []).map(function (m) {
-      return '<div class="mon"><span class="sl">' + so(m.sl) + '×</span>' +
-        '<span class="ten">' + ch(m.ten) + '</span>' +
+    /* Chi bay so dong VUA DU man, phan con lai gop thanh mot dong dem.
+       Danh sach dai hon man hinh thi truoc day bi cat cut o giua, khach
+       nhin thay mot dong bi xen doi. */
+    var cac = g.mon || [];
+    var TRAN = 6;
+    var hien = cac.slice(0, TRAN);
+    var mon = hien.map(function (m) {
+      var ten = ch(m.ten);
+      var o = m.anh
+        ? '<img class="anh" src="' + ch(m.anh) + '" alt="" ' +
+          'onerror="this.outerHTML=&quot;<span class=\'chu\'>' + ch((m.ten || '?').trim().charAt(0).toUpperCase()) + '</span>&quot;">'
+        : '<span class="chu">' + ch((m.ten || '?').trim().charAt(0).toUpperCase()) + '</span>';
+      return '<div class="mon">' + o +
+        '<span class="ten">' + ten + '</span>' +
+        '<span class="sl">×' + so(m.sl) + '</span>' +
         '<span class="tien">' + so(m.tien) + '</span></div>';
     }).join('');
+    if (cac.length > TRAN) {
+      var conLai = cac.slice(TRAN).reduce(function (t, m) { return t + (Number(m.sl) || 0); }, 0);
+      mon += '<div class="them">và ' + so(conLai) + ' món nữa</div>';
+    }
 
     var phai;
     if (g.qr && g.qr.du) {
@@ -168,10 +209,9 @@ body {
         '<div class="qrTien xanh">Đã nhận ' + so(g.qr.nhan) + ' đ</div>' +
         '<div class="qrNd">Cảm ơn quý khách, thu ngân đang hoàn tất hoá đơn</div></div>';
     } else if (g.qr) {
-      phai = '<div class="nhan">Quét mã để chuyển khoản</div>' +
+      phai = '<div class="qrDau">Quét mã để chuyển khoản<b>' + so(g.tra) + ' đ</b></div>' +
         '<img id="qrAnh" src="' + ch(g.qr.url) + '" alt="Mã QR chuyển khoản">' +
-        '<div class="qrTien">' + so(g.tra) + ' đ</div>' +
-        '<div class="qrNd">Nội dung: <b>' + ch(g.qr.nd) + '</b></div>' +
+        '<div class="qrNd">Nội dung <b>' + ch(g.qr.nd) + '</b> đã điền sẵn trong mã</div>' +
         '<div class="qrTk">' + ch(g.qr.ten) + '<br>' + ch(g.qr.bank + ' ' + g.qr.stk) + '</div>';
     } else {
       phai = '<div style="text-align:center">' +
@@ -181,8 +221,11 @@ body {
     }
 
     man.innerHTML =
+      /* Logo da mang ten tiem roi, nen canh no chi de ten diem ban. Truoc
+         day viet lai "The Vagabond Patisserie" mot lan nua ngay canh logo,
+         doc thanh hai lan cung mot cau. */
       '<div class="dau">' + theLogo() +
-      '<div><b>The Vagabond Pâtisserie</b><br><span>' + ch(g.quay || '') + '</span></div></div>' +
+      '<div><span>Kính chào quý khách</span><br><b>' + ch(g.quay || '') + '</b></div></div>' +
       '<div class="than">' +
       '<div class="trai"><div class="nhan">Đơn của quý khách</div>' +
       '<div id="dsMon">' + mon + '</div>' +
@@ -234,6 +277,39 @@ body {
   kenh.onmessage = function (e) { nhan(e && e.data); };
 
   veChao();
+
+  /* CHE DO THU: mo /man-hinh-khach?thu=1 la ra don mau.
+
+     De ai cung kiem duoc man hinh phu ma khong can mot thu ngan ngoi bam
+     bill that. Cam mot cai may tinh ra quay, mo dia chi nay, keo sang man
+     phu, nhin mot cai la biet man hinh do dang o che do Extend hay
+     Duplicate, chu co dung mau va anh mon co len khong.
+
+     Don mau KHONG chua mot o rieng tu nao, dung y het don that. */
+  if (/(^|[?&])thu=1(&|$)/.test(location.search)) {
+    goi = {
+      gt: GT, loai: 'trang_thai', tab: 'THU', luc: Date.now(), man: 'don',
+      quay: 'Thử màn hình',
+      mon: [
+        /* Ba mon that trong danh muc, de thay ca anh len that hay khong.
+           Tep anh bi doi ten hay xoa thi o anh tu roi ve chu cai dau, nen
+           man thu khong bao gio vo. */
+        { ten: 'Bánh Solitude', sl: 1, tien: 160000, anh: '/files/20260818-104355.jpg' },
+        { ten: 'Bánh Mead', sl: 2, tien: 340000, anh: '/files/sp-baen00078.png' },
+        { ten: 'Bánh Bánh Khúc', sl: 1, tien: 165000, anh: '/files/20260818-103831.jpg' }
+      ],
+      tong: 665000, giam: 50000, tra: 615000, pt: 'Chuyển khoản',
+      qr: {
+        url: 'https://img.vietqr.io/image/MB-VQRQALEAF2999-qr_only.png?amount=615000&addInfo=TCVAVQW5',
+        nd: 'TCVAVQW5', ten: 'PATISSERIE VAGABOND COMPANY LIMITED',
+        bank: 'MB', stk: 'VQRQALEAF2999', nhan: 0, du: false
+      }
+    };
+    nhanLuc = Date.now();
+    ve();
+    return;
+  }
+
   /* BroadcastChannel khong luu tin cu: mo man hinh nay sau khi thu ngan da
      bam vai mon thi khong nhan duoc gi. Nen xin mot lan luc mo, va xin lai
      vai lan dau phong khi tab tinh tien dang ban. */
