@@ -45,6 +45,10 @@ def _py(ten):
 	return io.open(os.path.join(_goc(), "vagabond", ten), encoding="utf-8").read()
 
 
+def _www(ten):
+	return io.open(os.path.join(_goc(), "vagabond", "www", ten), encoding="utf-8").read()
+
+
 # ------------------------------------------------------ tiền tố theo điểm bán
 
 
@@ -310,3 +314,88 @@ def _thuan():
 		s = _py(ten)
 		dung("%s không import frappe" % ten, "import frappe" not in s)
 		dung("%s không import requests" % ten, "import requests" not in s)
+
+
+# ============================== 01/09/2026: anh Việt sửa lại ba chỗ em làm sai
+
+
+@ca("mã bill tự chữa khi tiền tố lệch")
+def _tu_chua_ma():
+	# Sáng 01/09 anh Việt: *"mã chuyển khoản thì lại có chữ TCV VGB... mà
+	# trong đơn thì lại không có chữ TCV"*. Máy quầy đang mở từ trước lần
+	# deploy nên bảng tiền tố trong đầu nó là bảng cũ, mã sinh ra vẫn mang
+	# VGB dù đang đứng ở Trần Cao Vân.
+	j = _js("09-tinh-tien-quay.js")
+	dung("có phép tự chữa mã", "posDon.bill = posMaBill();" in j)
+	dung("chỉ chữa khi bảng tiền tố đã về", "posCoBangTienTo()" in j)
+	# Giỏ hàng có món rồi thì khách có thể đã quét mã QR. Đổi mã lúc đó là
+	# đổi nội dung khách vừa chuyển.
+	dung("chỉ chữa khi giỏ hàng còn trống", "!posDon.mon.length" in j)
+
+
+@ca("cấu hình bán hàng không giữ mãi trong đầu màn hình")
+def _cfg_tuoi():
+	# Sửa Cài đặt mà quầy không thấy thì sửa cũng như không: ba tài khoản ảo
+	# khai lúc 08h mà máy quầy đang mở vẫn sinh QR vào tài khoản chung.
+	j = _js("08-doanh-so-sales.js")
+	dung("có hạn dùng cho cấu hình", "CFGBH_HAN" in j)
+	dung("quá hạn thì đọc lại", "(Date.now() - CFGBH_LUC) > CFGBH_HAN" in j)
+
+
+@ca("dò tiền xổ ra cả sao kê của điểm bán, không chỉ khoản đúng số tiền")
+def _do_tien_ca_ngay():
+	# Anh Việt 01/09/2026: *"nút Dò tay thì cài thêm để vừa dò tự động, vừa
+	# phải xổ ra danh sách giao dịch ngày hôm đó chuyển khoản vào tài khoản
+	# ảo của điểm bán, nhân viên click vào rồi chọn từ danh sách để gắn"*.
+	s = _py("ban_hang.py")
+	dung("có phép lọc sao kê theo điểm", "def _gd_cua_diem(" in s)
+	dung("cửa dò tiền dùng phép đó", "gds, tk = _gd_cua_diem(ngay, diem)" in s)
+	dung("đánh dấu khoản đúng số tiền", '"khop":' in s)
+	dung("nói rõ khoản nào đã có chủ", "def _gd_da_co_chu(" in s)
+	j = _js("09-tinh-tien-quay.js")
+	dung("màn hình nói rõ đang soi tài khoản nào", "tk_rieng" in j)
+	dung("khoản đã gắn cho hoá đơn khác thì không bấm được", "g.cua_bill" in j)
+
+
+@ca("dấu nhận tài khoản ảo bỏ ba chữ VQR ở đầu")
+def _dau_tk():
+	# Ngân hàng ghi "Q00033k5p6" cho tài khoản "VQRQ00033k5p6". Đối chiếu cả
+	# chuỗi thì không dòng sao kê nào khớp.
+	s = _py("ban_hang.py")
+	dung("có hàm cắt tiền tố VQR", "def _dau_tk(" in s)
+	dung("cắt đúng ba chữ VQR", 't[3:] if t.startswith("VQR") else t' in s)
+
+
+@ca("gắn tay lệch số tiền thì KHÔNG chặn, nhưng phải ghi rõ số lệch")
+def _gan_lech():
+	# Chặn là sai: khách trả gộp hai bill, hay trả chẵn cho tiền lẻ, là máy
+	# chặn mất đường đối soát duy nhất còn lại.
+	s = _py("ban_hang.py")
+	dung("không còn câu chặn lệch tiền", "Hai số không bằng nhau nên máy" not in s)
+	dung("có ghi số lệch vào ghi chú đối soát", "Lệch %s đ so với hoá đơn" in s)
+
+
+@ca("màn hình khách bày ảnh món, và vẫn giữ nguyên ranh giới riêng tư")
+def _man_khach():
+	j = _js("25-man-hinh-khach.js")
+	dung("gói tin mang ảnh món", "anh: String(m.anh || '')" in j)
+	# Ranh giới riêng tư của màn này không được nới ra một ly nào.
+	for o in ("don.sdt", "don.khach_ma", "don.khach_hang", "don.khach_no",
+	          "don.diemVe", "don.xh", "don.ten"):
+		dung("gói tin không đụng %s" % o, o not in j)
+	t = _www("man-hinh-khach.html")
+	dung("trang khách vẽ ảnh món", 'class="anh"' in t)
+	dung("món không có ảnh thì ra ô chữ cái đầu", 'class="chu"' in t)
+	dung("có chế độ thử không cần thu ngân", "thu=1" in t)
+	dung("trang khách vẫn không gọi API nào", "/api/method" not in t and "frappe.call" not in t)
+
+
+@ca("mã QR trên màn hình khách vào ĐÚNG tài khoản của điểm bán")
+def _qr_dung_tk():
+	# Để rỗng mã điểm là ba hàm rơi về tài khoản mặc định, nên màn hình khách
+	# bày QR vào tài khoản chung trong khi màn thu ngân bày QR vào tài khoản
+	# riêng của điểm. Hai màn một bên một nẻo, tiền về sai chỗ.
+	j = _js("25-man-hinh-khach.js")
+	dung("nội dung chuyển khoản theo điểm", "posNoiDungCk(don.bill, maDiem, nguon)" in j)
+	dung("tài khoản theo điểm", "posTaiKhoan(nguon, maDiem)" in j)
+	dung("đường dẫn QR theo điểm", "posQrUrl(nd, phaiThu, nguon, maDiem)" in j)
