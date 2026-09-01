@@ -272,9 +272,24 @@ def danh_sach():
 			) if len(ds_diem) > 1 else "",
 			"da_khai": da_co.get(n["v"], 0),
 		})
+	# CANH BAO DIEM CHUA KHAI TAI KHOAN RIENG.
+	#
+	# Anh Viet 01/09/2026: *"truoc do anh da cai roi nhung sao gio vao phan
+	# cai dat thay bien mat"*. Dung vay: `theo_nguon` rong tron, ca ba diem
+	# ban do chung vao mot tai khoan ao, nen sao ke ngan hang khong con tach
+	# duoc tien cua Tran Cao Van voi tien cua Nha Van Hoa Thanh Nien.
+	#
+	# Cai hong that su la no bien mat MA KHONG AI HAY. Nen tu nay man Cai dat
+	# noi thang ra diem nao dang thieu, ngay tren dau man.
+	thieu_diem = [
+		{"ma": d["ma"], "ten": d["ten"]}
+		for d in diem_ban.ds(chi_bat=True)
+		if not da_co.get(CN_DIEM + d["ma"])
+	]
 	return {
 		"mac_dinh": c["mac_dinh"],
 		"theo_nguon": c["theo_nguon"],
+		"thieu_diem": thieu_diem,
 		"nguon": nguon,
 		"muc_dich": MUC_DICH,
 		"ngan_hang": NGAN_HANG,

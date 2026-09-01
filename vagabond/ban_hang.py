@@ -28,7 +28,7 @@ import unicodedata
 
 import frappe
 import requests
-from frappe.utils import add_days, cint, flt, get_datetime, getdate, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, fmt_money, get_datetime, getdate, now_datetime, nowdate
 
 from vagabond import chiem_sao_ke, gia_pancake, hoa_don_vat
 
@@ -710,6 +710,38 @@ def _nan_pt_theo_nguon(si):
 		if dong not in co:
 			si.vgb_ghi_chu_doi_soat = (co + " | " + dong) if co else dong
 	return pt
+
+
+def _nan_pt_tai_cho(si):
+	"""Nan phuong thuc ve dung nguon don NGAY LUC SUA, khong doi den ghi so.
+
+	BEN DE 01/09/2026: *"cac food app no khong co nut chon phuong thuc, khi
+	luu hoa don no de la thanh toan chuyen khoan, cho tien ve"*.
+
+	Da soi hai hoa don that (ShopeeFood ma o phuong thuc ghi "Chuyen khoan",
+	31/08/2026). Phep nan `_nan_pt_theo_nguon` von da co, nhung truoc day chi
+	chay luc GHI SO. Bill nam o trang thai nhap ca ngay thi cac ban nhin thay
+	chip "Chuyen khoan - Cho tien ve" va tuong he thong hong, trong khi den
+	23h may van ghi so dung.
+
+	Nay nan ngay o cua sua, nen cai cac ban nhin thay chinh la cai se ghi so.
+
+	KHONG dung cho bill TAM TINH: bill do co y de trong phuong thuc, nan vao
+	la dat ho khach mot cach tra tien ma khach chua chon.
+	"""
+	if cint(si.get("vgb_tam_tinh")):
+		return
+	cu = (si.get("vgb_pt_thanh_toan") or "").strip()
+	if not cu:
+		return
+	try:
+		moi = _nan_pt_theo_nguon(si)
+	except Exception:
+		# Nan hong thi de nguyen, dung chan nguoi ta sua bill vi mot phep phu.
+		frappe.log_error(frappe.get_traceback(), "ban_hang: nan phuong thuc tai cho")
+		return
+	if moi and moi != cu:
+		si.vgb_pt_thanh_toan = moi
 
 
 # Anh thumbnail cua tung quay: luu bang default toan he thong nen doi anh
@@ -4328,10 +4360,13 @@ def pos_kiem_sepay(noi_dung=None, tien=0):
 	# neu chi biet mot duong thi o QR nay gan nhu khong bao gio sang xanh va
 	# thu ngan van phai ngoi nhin tin nhan bao chuyen khoan.
 	#
-	# Duong hai tim khoan tien DUNG BANG so phai thu, vua ve trong khoang ba
-	# muoi phut, va KHONG bill nao da luu nhan la cua minh. Dung mot khoan
-	# thi bao xanh; hai khoan tro len thi noi ro dang phan van chu khong
-	# chon bua, vi chon bua la doi tien cua ban khac sang bill nay.
+	# Duong hai chi DEM xem co bao nhieu khoan tien dung bang so phai thu vua
+	# ve trong khoang ba muoi phut va chua bill nao nhan. Dem xong thi man
+	# hinh moi thu ngan bam nut do tien de tu nhin va tu chon.
+	#
+	# Truoc day cho nay tu bao xanh khi dung mot khoan. Anh Viet 01/09/2026
+	# bo: khach A tra 85.000 luc 14h00 khong ai gach, khach B goi 85.000 luc
+	# 14h20 la may xanh nham ngay, thu ngan tra banh ma tien chua ve.
 	try:
 		con = _gd_chua_ai_nhan(nowdate())
 	except Exception:
@@ -4343,14 +4378,147 @@ def pos_kiem_sepay(noi_dung=None, tien=0):
 		if khop_tien.cung_tien(c.get("tien"), tien)
 		and khop_tien.trong_cua_so(bay_gio, c.get("phut"), 30, 2)
 	] if (bay_gio is not None and flt(tien) > 0) else []
-	if len(hop) == 1:
-		return {
-			"nhan": flt(hop[0].get("tien")), "du": 1, "ma": "",
-			"duong": "so_tien", "gd": hop[0].get("ten"),
-		}
-	if len(hop) > 1:
-		return {"nhan": nhan, "du": 0, "ma": "", "duong": "phan_van", "so": len(hop)}
-	return {"nhan": nhan, "du": 0, "ma": g.get("ma") or "", "duong": ""}
+	# CHI DEM, KHONG TU NHAN. Man hinh dung con so nay de moi thu ngan bam
+	# nut "Do tien chuyen khoan" chu may khong tu gach.
+	return {
+		"nhan": nhan, "du": 0, "ma": g.get("ma") or "",
+		"duong": "", "goi_y": len(hop),
+	}
+
+
+# ============================================== NUT "DO TIEN CHUYEN KHOAN"
+#
+# ANH VIET 01/09/2026:
+#
+#   "Em cho them giup anh nut 'Do tien chuyen khoan' o man bam bill de thu
+#    ngan co the nhan roi do thu cong."
+#
+# Day la ban thay cho phep doan tu dong da bo. Khac nhau o dung mot chuyen:
+# MAY DE XUAT, NGUOI QUYET DINH. May liet ke cac khoan tien dung bang so
+# phai thu ma chua bill nao nhan; thu ngan nhin gio, nhin so, doi chieu voi
+# dien thoai khach roi chon. Chon xong may ghi SO THAM CHIEU NGAN HANG vao
+# o Ma tham chieu cua bill, tu do tro di duong doi soat co san
+# (`_sepay_theo_tham_chieu`) tu tim ra, khong can nho lai lan chon nay.
+#
+# Vi sao ghi so tham chieu chu khong ghi mot o rieng: so tham chieu la thu
+# ke toan tra cuu duoc tren sao ke ngan hang. Mot o rieng chi co app doc
+# duoc thi den luc doi soat cuoi thang lai phai mo app ra tra.
+
+
+# Sai so tien cho nut do tay, tinh bang dong. Mot dong la de nuot sai so
+# lam tron, khong phai de noi long phep so sanh.
+SAI_SO_DO_TIEN = 1.0
+
+
+def _gd_thay_duoc(tien, ngay=None, sai_so=None):
+	"""Cac khoan tien dung bang `tien` trong ngay ma chua bill nao nhan.
+
+	Khong loc theo gio: nguoi dang nhin man hinh biet ro khach vua tra luc
+	nao, chinh xac hon moi khung gio may tu dat. May chi lo phan may lam
+	tot hon nguoi: doc het sao ke va loai nhung khoan da co chu.
+	"""
+	t = flt(tien)
+	if t <= 0:
+		return []
+	con = _gd_chua_ai_nhan(ngay)
+	sai = SAI_SO_DO_TIEN if sai_so is None else flt(sai_so)
+	return [g for g in con if khop_tien.cung_tien(g.get("tien"), t, sai)]
+
+
+@frappe.whitelist()
+def pos_do_tien(tien=0, ngay=None, name=None):
+	"""Liet ke cac khoan tien co the la cua bill nay. KHONG ghi gi.
+
+	Goi duoc ca khi bill CHUA luu (man bam bill, chi truyen `tien`) lan khi
+	bill da luu (truyen them `name` de man hinh biet gan vao dau).
+	"""
+	_kiem_quyen()
+	t = flt(tien)
+	if not t and name:
+		t = flt(frappe.db.get_value("Sales Invoice", str(name), "grand_total"))
+	ds = _gd_thay_duoc(t, ngay)
+	return {
+		"tien": t,
+		"ngay": str(getdate(ngay or nowdate())),
+		"gd": [
+			{
+				"ten": g.get("ten"),
+				"tien": flt(g.get("tien")),
+				"gio": _gio_hhmm(g.get("phut")),
+				"mo_ta": (g.get("mo_ta") or "").strip()[:120],
+			}
+			for g in ds
+		],
+	}
+
+
+def _gio_hhmm(phut):
+	"""Doi so phut ke tu dau ngay thanh chu '14:32'. THUAN."""
+	try:
+		p = int(round(float(phut)))
+	except (TypeError, ValueError):
+		return ""
+	return "%02d:%02d" % ((p // 60) % 24, p % 60)
+
+
+@frappe.whitelist()
+def pos_gan_tien(name=None, gd=None):
+	"""Thu ngan chon mot khoan tien la cua bill nay.
+
+	Ghi so tham chieu ngan hang vao o Ma tham chieu, va de lai mot dong
+	trong ghi chu doi soat. Gan tay ma khong ghi lai thi cuoi thang ke toan
+	thay con so la khong biet ai gan, gan luc nao.
+	"""
+	_kiem_quyen()
+	ten = str(name or "").strip()
+	ma_gd = str(gd or "").strip()
+	if not ten or not ma_gd:
+		frappe.throw("Thiếu hoá đơn hoặc dòng sao kê cần gắn.")
+	si = frappe.get_doc("Sales Invoice", ten)
+	if si.docstatus == 2:
+		frappe.throw("Hoá đơn %s đã huỷ, không gắn tiền được." % ten)
+	g = frappe.db.get_value(
+		"Bank Transaction", ma_gd,
+		["name", "deposit", "reference_number", "date", "docstatus"], as_dict=True)
+	if not g or cint(g.docstatus) == 2:
+		frappe.throw("Không tìm thấy dòng sao kê %s." % ma_gd)
+	if not khop_tien.cung_tien(g.deposit, si.grand_total, SAI_SO_DO_TIEN):
+		frappe.throw(
+			"Khoản này %s đ, còn hoá đơn %s đ. Hai số không bằng nhau nên máy "
+			"không gắn." % (fmt_money(flt(g.deposit)), fmt_money(flt(si.grand_total)))
+		)
+	tc = re.sub(r"\s+", "", str(g.reference_number or "")).upper()
+	if not RE_MA_NGAN_HANG.fullmatch(tc):
+		frappe.throw(
+			"Dòng sao kê này không có số tham chiếu ngân hàng nên máy không "
+			"gắn được. Báo anh Việt kiểm lại dòng %s." % ma_gd
+		)
+	# Khong de hai bill cung om mot so tham chieu.
+	trung = frappe.get_all(
+		"Sales Invoice",
+		filters={"vgb_ma_tham_chieu": tc, "docstatus": ["<", 2], "name": ["!=", ten]},
+		fields=["name"], limit_page_length=1)
+	if trung:
+		frappe.throw(
+			"Khoản này đã gắn cho hoá đơn %s rồi. Một khoản tiền chỉ thuộc về "
+			"một hoá đơn." % trung[0]["name"])
+	dong = "Thu ngân dò tay: gắn khoản %s đ ngày %s, số tham chiếu %s." % (
+		fmt_money(flt(g.deposit)), g.date, tc)
+	co = (si.get("vgb_ghi_chu_doi_soat") or "").strip()
+	if si.docstatus == 0:
+		si.vgb_ma_tham_chieu = tc
+		if dong not in co:
+			si.vgb_ghi_chu_doi_soat = (co + " | " + dong) if co else dong
+		si.flags.ignore_permissions = True
+		si.save()
+	else:
+		# Bill da ghi so thi khong mo ra sua ca chung tu, chi vet hai o.
+		frappe.db.set_value("Sales Invoice", ten, {
+			"vgb_ma_tham_chieu": tc,
+			"vgb_ghi_chu_doi_soat": (co + " | " + dong) if co and dong not in co else (co or dong),
+		}, update_modified=False)
+	frappe.db.commit()
+	return {"ma_tham_chieu": tc, "nhan": flt(g.deposit)}
 
 
 @frappe.whitelist()
@@ -4413,12 +4581,17 @@ def pos_ds_bill(quay=None, ngay=None):
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
 		r["sepay_duong"] = "ma" if r["sepay_du"] else ""
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
-	# Duong khop thu hai: theo SO TIEN va GIO, cho nhung bill ma noi dung
-	# chuyen khoan khong mang ma. Xem khoi chu thich o `_khop_theo_tien`.
-	try:
-		_khop_theo_tien(ds, ngay, sepay)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ban_hang: khop tien theo so tien va gio")
+	# ANH VIET 01/09/2026: MAY KHONG DUOC TU DOAN.
+	#
+	#   "May cung khong can phai doan qua khung gio vi rat rui ro doan nham."
+	#
+	# Nen o day KHONG goi `_khop_theo_tien` nua. Phep do van con, nhung chi
+	# chay khi thu ngan tu bam nut "Do tien chuyen khoan" va tu chon khoan
+	# nao la cua bill nay - xem `pos_do_tien` va `pos_gan_tien`. May de xuat,
+	# nguoi quyet dinh, va quyet dinh do duoc ghi lai.
+	#
+	# Duong doi soat that su phai sua nam o CHO KHAC: moi diem ban mot tai
+	# khoan ao rieng, de sao ke tu no tach san theo diem. Xem `tai_khoan.py`.
 	_gan_ly_do_treo(ds)
 	# Tinh trang keo don Pancake. Man hinh dan cau nay len dau bang khi don
 	# chua ve, thay vi de Sales nhin danh sach it hon roi tu doan (bai hoc
@@ -4595,6 +4768,7 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+	_nan_pt_tai_cho(si)
 	if ghi_chu is not None:
 		si.vgb_ghi_chu = (ghi_chu or "").strip()
 	if giam_gia is not None:
@@ -4753,6 +4927,7 @@ def pos_sua_don(
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
 		doi.append("phương thức thanh toán")
+	_nan_pt_tai_cho(si)
 	if ghi_chu is not None:
 		si.vgb_ghi_chu = (ghi_chu or "").strip()
 		doi.append("ghi chú")
