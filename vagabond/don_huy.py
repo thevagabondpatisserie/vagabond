@@ -431,6 +431,26 @@ def _quyen():
 	_kiem_quyen()
 
 
+# Man danh sach phieu hoan tien la man CHI DOC: khong ham nao o day sua duoc
+# ho so hay phieu chi. Nen cua no rong hon cua ghi nhan doanh so.
+#
+# Anh Viet 01/09/2026: "cap quyen cho cac ban Sales, thu ngan, quan ly vao
+# duoc xem de con tai UNC ve gui khach". Quan ly cua hang va ke toan truoc
+# day khong co vai Sales User nen bi chan ngay tu cua, du ho chinh la nguoi
+# hay phai tra loi khach ve tien hoan.
+def _vai_xem_phieu():
+	from vagabond.ban_hang import QUYEN_BAN_HANG
+	from vagabond.hoan_tien import VAI_KE_TOAN
+	from vagabond.vai_cua_hang import VAI_QLCH
+
+	return set(QUYEN_BAN_HANG) | set(VAI_KE_TOAN) | {VAI_QLCH, "Giám đốc", "AP Giám đốc"}
+
+
+def _quyen_xem_phieu():
+	if not _vai_xem_phieu() & set(frappe.get_roles()):
+		frappe.throw("Tài khoản của bạn chưa được cấp quyền xem phiếu hoàn tiền.")
+
+
 def _shop():
 	from vagabond.lib import cfg
 
@@ -774,17 +794,76 @@ def _tep_dinh_kem(doctype, ma_cac):
 		"File",
 		filters={"attached_to_doctype": doctype,
 			"attached_to_name": ["in", list(ma_cac)]},
-		fields=["attached_to_name", "file_url", "file_name"],
+		fields=["name", "attached_to_name", "file_url", "file_name"],
 		order_by="creation asc", limit_page_length=0,
 	):
 		ten = f.get("file_name") or ""
 		url = f.get("file_url") or ""
 		ra.setdefault(f["attached_to_name"], []).append({
+			# `tep` la ma ban ghi File. Man hinh PHAI tai qua ma nay chu
+			# khong duoc dua thang `url`: tep dinh tren Payment Entry, ma
+			# Sales khong co quyen doc doctype do nen /private/files tra
+			# 403 Forbidden - dung loi anh Viet chup lai 01/09/2026.
+			"tep": f["name"],
 			"url": url, "ten": ten,
 			"anh": 1 if (la_anh(ten) or la_anh(url)) else 0,
 			"duoi": duoi_tep(ten or url),
 		})
 	return ra
+
+
+@frappe.whitelist()
+def tai_tep(ho_so=None, tep=None, co="lon"):
+	"""Ruot mot tep cua phieu hoan tien, tra base64 cho man hinh diem ban.
+
+	VI SAO CAN CUA NAY (anh Viet 01/09/2026)
+	----------------------------------------
+	Man danh sach phieu hoan tien ve tep bang the <img src="/private/files/...">
+	va <a href="..."> tro thang vao duong tep. Anh Viet bam vao mot uy nhiem
+	chi thi Frappe tra "403 Forbidden - Ban khong co quyen truy cap tep nay".
+
+	Ly do: uy nhiem chi dinh tren PAYMENT ENTRY. Frappe cho doc tep rieng khi
+	nguoi doc co quyen doc chung tu ma tep dang dinh vao; Sales, thu ngan,
+	quan ly deu khong co quyen doc Payment Entry nen bi chan.
+
+	Cach dung: KHONG mo quyen doc Payment Entry cho ho - lam vay la mo ca so
+	phieu chi cua tiem cho nhan vien ban hang. Thay vao do di duong nay:
+	kiem quyen theo PHIEU HOAN TIEN, ai xem duoc phieu thi tai duoc tep cua
+	phieu do, roi may tu doc tep ho.
+
+	Chong doc chui (IDOR): tep phai dang dinh vao DUNG ho so nay, hoac vao
+	dung phieu chi cua no. Dua ma File cua phieu khac la bi tu choi, du ma
+	do co that trong he.
+	"""
+	from vagabond.hoan_tien import DT as HT_DT
+	from vagabond.hoan_tien import PE as HT_PE
+	from vagabond.hoan_tien import ruot_tep_b64
+
+	_quyen_xem_phieu()
+	ho_so = (ho_so or "").strip()
+	tep = (tep or "").strip()
+	if not ho_so or not frappe.db.exists(HT_DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
+	if not tep:
+		frappe.throw("Chưa biết cần tải tệp nào.")
+
+	cho_phep = [{"attached_to_doctype": HT_DT, "attached_to_name": ho_so}]
+	ma_pc = frappe.db.get_value(HT_DT, ho_so, "phieu_chi")
+	if ma_pc:
+		cho_phep.append({"attached_to_doctype": HT_PE, "attached_to_name": ma_pc})
+
+	f = None
+	for dk in cho_phep:
+		dk = dict(dk)
+		dk["name"] = tep
+		f = frappe.db.get_value("File", dk, ["name", "file_name", "file_url"], as_dict=True)
+		if f:
+			break
+	if not f:
+		frappe.throw(
+			"Tệp này không nằm trên phiếu hoàn tiền %s hay phiếu chi của nó. "
+			"Vui lòng tải lại trang rồi bấm lại." % ho_so)
+	return ruot_tep_b64(f, co, "chung-tu")
 
 
 @frappe.whitelist()
@@ -809,7 +888,7 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 	bẫy mà `thu_phieu_hoan_huy.py` canh: cắt dòng làm ở bước CUỐI, sau khi đã
 	lọc xong và đã đếm xong. Cùng cách tầng khung dựng danh sách vẫn làm.
 	"""
-	_quyen()
+	_quyen_xem_phieu()
 	from vagabond.hoan_tien import DT as HT
 
 	loc = {}
@@ -972,7 +1051,7 @@ def dem_phieu_cho():
 	Anh Việt 31/08/2026: "hiện muốn biết có phiếu treo thì phải mở màn ra
 	xem, mà tiền của khách đang nằm ở mình thì không nên chờ ai nhớ".
 	"""
-	_quyen()
+	_quyen_xem_phieu()
 	from vagabond.hoan_tien import DT as HT
 
 	moc = add_days(now_datetime(), -TREO_NGAY)
@@ -1043,7 +1122,7 @@ def tim_don_de_hoan(diem="", tim="", so_dong=40):
 @frappe.whitelist()
 def xuat_excel_phieu(diem="", loai="", trang_thai="", tim=""):
 	"""Xuất đúng cái đang hiện trên màn: cùng ba họ chip, cùng ô tìm."""
-	_quyen()
+	_quyen_xem_phieu()
 	kq = ds_phieu(diem=diem, loai=loai, trang_thai=trang_thai, tim=tim,
 		so_dong=1000)
 	ten_diem = _ten_diem()

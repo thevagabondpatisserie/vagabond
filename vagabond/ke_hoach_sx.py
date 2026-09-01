@@ -213,6 +213,38 @@ def gom_lenh_theo_mon(cac_lenh):
 	return ra
 
 
+def thieu_cua_lenh(cac_dong, ton, ty_le):
+	"""Nguyên liệu nào của một lệnh không đủ tồn. THUẦN.
+
+	Anh Việt duyệt 31/08/2026: chip "Thiếu nguyên liệu" đọc được NGAY trên
+	màn danh sách, để bếp không bấm hoàn thành rồi mới bị máy chặn.
+
+	`cac_dong` là [{"ma", "can", "kho"}] của một lệnh, `ton` là bảng tra
+	{(mã, kho): số}, `ty_le` là phần còn phải làm chia cho tổng số của
+	lệnh. Trả về danh sách mã thiếu, theo đúng thứ tự dòng.
+
+	Nhân theo TỶ LỆ CÒN LẠI chứ không lấy nguyên số cần của cả lệnh: lệnh
+	làm được 8 trên 10 rồi thì chỉ còn cần nguyên liệu cho 2, mà báo thiếu
+	theo số của cả 10 là báo động giả. Bếp nhìn chip đỏ mãi thành quen rồi
+	bỏ qua cả lúc thiếu thật.
+	"""
+	ty_le = _so(ty_le)
+	if ty_le <= 0:
+		return []
+	ra = []
+	for d in cac_dong or []:
+		ma = (d.get("ma") or "").strip()
+		if not ma:
+			continue
+		can = _so(d.get("can")) * ty_le
+		if can <= 0:
+			continue
+		co = _so(ton.get((ma, (d.get("kho") or "").strip())))
+		if co < can - 0.0001:
+			ra.append(ma)
+	return ra
+
+
 def chip_cua_lenh(l):
 	"""Chữ trên các chip nối của một lệnh. THUẦN.
 
@@ -1773,6 +1805,57 @@ def _dvt_cua(cac_ma):
 	return ra
 
 
+def _thieu_nvl(cac_lenh):
+	"""Đếm nguyên liệu thiếu cho từng lệnh CHƯA XONG, đọc một lượt.
+
+	Chỉ soi lệnh còn phải làm. Lệnh đã xong thì bảng nguyên liệu của nó là
+	chuyện quá khứ, soi nữa chỉ tốn hai vòng đọc.
+
+	Đọc bảng con `Work Order Item` bằng cách lọc `parenttype`, KHÔNG đưa
+	tên bảng cha vào làm đối số riêng của get_all - xem lại v354.
+	"""
+	con_lam = [l for l in (cac_lenh or [])
+		if (l.get("status") or "") not in TRANG_THAI_XONG
+		and flt(l.get("qty")) - flt(l.get("produced_qty")) > 0.0001]
+	if not con_lam:
+		return {}
+	ten = sorted({l["name"] for l in con_lam})
+	kho_lenh = {l["name"]: (l.get("source_warehouse") or "") for l in con_lam}
+
+	dong = {}
+	for i in range(0, len(ten), 100):
+		for d in frappe.get_all("Work Order Item", filters={
+			"parent": ["in", ten[i:i + 100]], "parenttype": "Work Order"},
+			fields=["parent", "item_code", "required_qty", "source_warehouse"],
+			limit_page_length=0):
+			kho = (d.get("source_warehouse") or "").strip() \
+				or kho_lenh.get(d["parent"], "")
+			dong.setdefault(d["parent"], []).append({
+				"ma": d["item_code"], "can": flt(d.get("required_qty")),
+				"kho": kho})
+
+	can_tra = {(x["ma"], x["kho"]) for ds in dong.values() for x in ds}
+	ton = {}
+	cac_ma = sorted({m for m, _ in can_tra})
+	cac_kho = sorted({k for _, k in can_tra if k})
+	if cac_ma and cac_kho:
+		for i in range(0, len(cac_ma), 200):
+			for b in frappe.get_all("Bin", filters={
+				"item_code": ["in", cac_ma[i:i + 200]],
+				"warehouse": ["in", cac_kho]},
+				fields=["item_code", "warehouse", "actual_qty"],
+				limit_page_length=0):
+				ton[(b["item_code"], b["warehouse"])] = flt(b.get("actual_qty"))
+
+	ra = {}
+	for l in con_lam:
+		tong = flt(l.get("qty"))
+		con = tong - flt(l.get("produced_qty"))
+		ty_le = (con / tong) if tong > 0 else 0.0
+		ra[l["name"]] = thieu_cua_lenh(dong.get(l["name"]) or [], ton, ty_le)
+	return ra
+
+
 # Trang thai lenh -> chu tieng Viet. Giu dung mot ban o day, app doc theo.
 TEN_TRANG_THAI = {
 	"Draft": "Nháp", "Submitted": "Đã duyệt", "Not Started": "Chưa bắt đầu",
@@ -1810,6 +1893,7 @@ def ds_lenh(gioi_han=150):
 	bep_mon = _bep_cua_nhieu(cac_ma)
 	dvt = _dvt_cua(cac_ma)
 	noi = _ycsx_cua_lenh(ds)
+	thieu = _thieu_nvl(ds)
 
 	cac_lenh = []
 	for d in ds:
@@ -1833,6 +1917,7 @@ def ds_lenh(gioi_han=150):
 			"phieu": d.get("production_plan") or "",
 			"bep": bep, "ten_bep": (ksx.BEP.get(bep) or {}).get("ten", ""),
 			"cac_dvt": dvt.get(ma) or [],
+			"thieu": thieu.get(d["name"]) or [],
 		})
 		x["chip"] = chip_cua_lenh(x)
 		cac_lenh.append(x)
@@ -1844,6 +1929,60 @@ def ds_lenh(gioi_han=150):
 			cac_bep.append({"ma": l["bep"], "ten": l["ten_bep"] or l["bep"]})
 	return {"lenh": cac_lenh, "nhom": gom_lenh_theo_mon(cac_lenh),
 		"cac_bep": sorted(cac_bep, key=lambda x: x["ten"])}
+
+
+def doc_ma_quet(ma):
+	"""Bỏ phần thừa quanh mã vừa quét. THUẦN.
+
+	Máy quét hay gắn thêm khoảng trắng và ký tự xuống dòng, và tem của tiệm
+	có lúc in kèm tiền tố URL khi mã là QR. Cắt về phần cuối cùng sau dấu
+	gạch chéo rồi bỏ khoảng trắng.
+	"""
+	ma = str(ma or "").strip().strip("\r\n").strip()
+	if not ma:
+		return ""
+	if "/" in ma:
+		ma = ma.rsplit("/", 1)[-1].strip()
+	return ma
+
+
+@frappe.whitelist()
+def tim_lenh(ma):
+	"""Quét một mã bất kỳ, trả về lệnh sản xuất tương ứng.
+
+	Anh Việt duyệt 31/08/2026: bếp quét tem mẻ là nhảy thẳng vào lệnh, khỏi
+	tìm trong danh sách.
+
+	Ba đường tra, theo thứ tự chắc chắn giảm dần:
+	  1. Chính mã lệnh sản xuất.
+	  2. Mã mẻ - mẻ nào cũng ghi lệnh đã sinh ra nó ở ô `custom_lenh_san_xuat`.
+	  3. Mã vạch hàng hoá - không ra được MỘT lệnh, nhưng trả về mã món để
+	     app lọc danh sách theo món đó. Vẫn hơn là báo không thấy gì.
+	"""
+	_chan()
+	ma = doc_ma_quet(ma)
+	if not ma:
+		return {"ok": 0, "ghi_chu": "Chưa quét được mã nào."}
+
+	if frappe.db.exists("Work Order", ma):
+		return {"ok": 1, "lenh": ma, "ghi_chu": "Mở lệnh %s." % ma}
+
+	if frappe.db.exists("Batch", ma):
+		lenh = frappe.db.get_value("Batch", ma, "custom_lenh_san_xuat")
+		if lenh and frappe.db.exists("Work Order", lenh):
+			return {"ok": 1, "lenh": lenh, "me": ma,
+				"ghi_chu": "Mẻ %s thuộc lệnh %s." % (ma, lenh)}
+		mon = frappe.db.get_value("Batch", ma, "item")
+		if mon:
+			return {"ok": 1, "ma_mon": mon,
+				"ghi_chu": "Mẻ %s chưa gắn lệnh nào, lọc theo món." % ma}
+		return {"ok": 0, "ghi_chu": "Mẻ %s chưa gắn lệnh sản xuất nào." % ma}
+
+	mon = frappe.db.get_value("Item Barcode", {"barcode": ma}, "parent") \
+		or (ma if frappe.db.exists("Item", ma) else "")
+	if mon:
+		return {"ok": 1, "ma_mon": mon, "ghi_chu": "Lọc theo món %s." % mon}
+	return {"ok": 0, "ghi_chu": "Không tìm thấy lệnh, mẻ hay món nào mang mã %s." % ma}
 
 
 @frappe.whitelist()

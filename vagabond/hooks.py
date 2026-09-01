@@ -490,10 +490,17 @@ doc_events = {
 		#      xoa moi khoan giam de giu nguyen gia va thue, va dat trang thai
 		#      duyet. Sua ruot don sau khi da duyet thi don tu roi ve Cho
 		#      duyet - xem dau van don trong vagabond/hang_tang.py.
+		#   4. Mot don tra bang NHIEU phuong thuc (anh Viet 01/09/2026): o
+		#      `vgb_pt_thanh_toan` luon mang dong LON NHAT cua bang con.
+		#      Dat CUOI cung trong day validate, sau `kiem_truoc_khi_luu`:
+		#      dat truoc thi luat cu doc o phuong thuc luc no con la gia tri
+		#      nguoi go, roi bang con doi no ngay sau, thanh ra to di vao so
+		#      mang mot phuong thuc chua qua phep kiem nao.
 		"validate": [
 			"vagabond.ban_hang.kiem_truoc_khi_luu",
 			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
 			"vagabond.hang_tang.truoc_khi_luu",
+			"vagabond.thanh_toan_nhieu.dat_pt_chinh",
 		],
 		# Chan ban lo han muc mua vu (anh Viet chot 18/08/2026: "tuyet doi
 		# khong cho phep ban lo").
@@ -509,10 +516,14 @@ doc_events = {
 		#   3. Don hang tang chua duoc Giam doc duyet thi KHONG cho ghi so.
 		#      Day la cua chan that cua luong duyet; giau nut tren man hinh
 		#      khong phai la chan.
+		#   4. Cac dong thanh toan phai cong du tong don. Cho qua mot to
+		#      lech thi dung cai sai cu quay lai, ma lan nay con kho thay
+		#      hon vi nhin vao tuong da tach roi.
 		"before_submit": [
 			"vagabond.mua_vu.chan_ban_lo",
 			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
 			"vagabond.hang_tang.truoc_khi_ghi_so",
+			"vagabond.thanh_toan_nhieu.kiem_truoc_ghi_so",
 		],
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
