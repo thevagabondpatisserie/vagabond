@@ -48,6 +48,19 @@ CUA_NGO = {
 	# banh goi qua cua rieng cua chung.
 	"tat_ban_web.py": ["dat"],
 	"nvl_thay_the.py": ["tinh_lai"],
+	# Them 01/09/2026 cung lan mo phan he Nhan su, man Duyet KPI va hoa hong.
+	# Muoi hai cua ngo deu la cua man hinh: dung phieu, cham diem, duyet, tra
+	# lai, gop y, day sang de nghi chi, xem danh sach, xem chi tiet, xem phieu
+	# cua chinh minh, doc va luu bang chi tieu, tra danh sach nguoi dung.
+	#
+	# `tinh_lai` va `so_lieu_tu_dong` CO Y khong nam trong danh sach. Hai ham
+	# do tinh ra tien hoa hong; mo ra ngoai la cho trinh duyet tu quyet so
+	# tien. Man hinh chi duoc XEM so may chu da tinh, khong duoc tu tinh.
+	"kpi.py": [
+		"cai_dat", "cham", "chi_tiet", "cua_toi", "danh_sach", "day_chi",
+		"dung_phieu", "duyet", "luu_cai_dat", "nguoi_dung", "tra_lai",
+		"y_kien",
+	],
 	# Them 01/09/2026: cong tai tep dung chung cho moi man. Ba cua ngo:
 	# `nap_tam` nhan mot tep luc chung tu chua co ma, `go_ra` go tep con treo,
 	# `cai_dat` chi doc luat de man hinh va may chu khong noi khac nhau.
