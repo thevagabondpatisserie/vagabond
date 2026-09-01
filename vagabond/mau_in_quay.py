@@ -95,6 +95,10 @@ O = {
 		{"k": "web", "loai": "chu", "ten": "Dòng địa chỉ web cuối cùng", "dai": 60},
 	],
 	"phieu_mon": [
+		{"k": "tu_in_kem_bill", "loai": "bat", "ten": "Tự in kèm khi in hoá đơn",
+		 "mo": "In hoá đơn cho khách là phiếu làm món ra luôn, khỏi bấm thêm "
+			"nút. Chỉ áp cho hoá đơn thật có món nước, và mỗi hoá đơn chỉ ra "
+			"một lần; in lại hoá đơn thì phiếu KHÔNG ra thêm."},
 		{"k": "co_chu", "loai": "so", "ten": "Cỡ chữ tên món", "min": 10, "max": 22, "buoc": 0.5},
 		{"k": "hien_ban", "loai": "bat", "ten": "In số bàn thật to"},
 		{"k": "hien_tuy_chon", "loai": "bat", "ten": "In tuỳ chọn pha chế"},
@@ -126,6 +130,11 @@ MAC_DINH = {
 		"web": "thevagabondpatisserie.com",
 	},
 	"phieu_mon": {
+		# BAT SAN (anh Viet 01/09/2026, de xuat cua De o TCV va NVH). Quay
+		# nao khong muon thi tat rieng cho diem cua minh, mot o tick.
+		# Quay khong ban mon nuoc thi o nay khong bao gio cham toi, vi phieu
+		# lam mon chi ra khi hoa don CO mon nuoc.
+		"tu_in_kem_bill": 1,
 		"co_chu": 14,
 		"hien_ban": 1,
 		"hien_tuy_chon": 1,
