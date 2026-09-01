@@ -224,11 +224,8 @@ function posChipBill(r) {
      khong" da co chip rieng ben duoi, do `ghi_so_dieu_kien` tinh. Chi khi
      may chu that su chan vi chua ve tien thi chip nay moi do. */
   if ((r.vgb_pt_thanh_toan || '') === 'Chuyển khoản') {
-    if (r.sepay_duong === 'ma') c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
-    else if (r.sepay_duong === 'so_tien') c.push(the('#dcfce7', '#166534', '✓ Đủ tiền · khớp theo số tiền'));
-    else if (r.sepay_duong === 'phan_van') c.push(the('#fef3c7', '#92400e', '❓ ' + (r.sepay_phan_van || 2) + ' khoản cùng số tiền'));
+    if (r.sepay_du) c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
     else if (r.ly_do_treo === 'chua_ve_tien') c.push(the('#fee2e2', '#991b1b', '⏳ Chờ tiền về'));
-    else if (r.sepay_du) c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
     else c.push(the('#eef2ff', '#3730a3', '· Chưa đối soát được'));
   }
   if (r.custom_hddt_so || (r.custom_hddt_trang_thai || '').trim()) {
@@ -324,7 +321,7 @@ async function scrPosDs() {
        chan vi chua ve tien. Muon nhin cac bill chua doi soat duoc thi dung
        chip ke ben. */
     { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return r.ly_do_treo === 'chua_ve_tien'; } },
-    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du && !r.sepay_duong; } },
+    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du && r.ly_do_treo !== 'chua_ve_tien'; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!r.vgb_xhd_mst; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !!r.vgb_xhd_mst && !r.custom_hddt_so; } },
@@ -714,6 +711,13 @@ async function scrPosBill(name) {
       return;
     }
     o.innerHTML = posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay);
+    /* Nut "Do tien chuyen khoan" nam san trong khoi QR. O day bill DA LUU
+       nen truyen ten hoa don vao: thu ngan chon duoc khoan nao la cua bill
+       nay, va may ghi so tham chieu ngan hang vao hoa don. */
+    var nDo = o.querySelector('[data-dotien]');
+    if (nDo) nDo.onclick = function () {
+      posSheetDoTien(phaiThu, d.name, function () { posHomNayTxt = null; go(scrPosDs, true); });
+    };
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
