@@ -2,16 +2,12 @@
 name = "vagabond"
 authors = [{ name = "Cong ty TNHH Patisserie Vagabond", email = "thevagabondbakery@gmail.com" }]
 description = "Cong dat banh online cua The Vagabond Patisserie: noi Frappe voi Pancake POS, Goong va Ahamove."
-# Chan tren 3.14 la CO Y, khong phai cho dep.
-# Bo dung anh Docker cua Frappe Cloud doc dong nay de chon ban Python dem di
-# bien dich thu ca thu muc app truoc khi dung anh (buoc "Run Validations -
-# Pre-build"). Neu dong nay con nhan 3.14 thi no di tim python3.14 tren may
-# dung anh, khong thay thi ca buoc kiem chet ma KHONG in ra dong loi nao -
-# man deploy chi bao "Image build failed at step Run Validations - Pre-build"
-# voi o Output trong ron. Ngay 01/09/2026 da lam hong ba lan deploy lien tiep
-# kieu do. Chan tren 3.14 thi no quay ve dung Python cua chinh may chu, dung
-# ban ma tiem dang chay.
-requires-python = ">=3.10,<3.14"
+# DUNG CHAN TREN. Ngay 01/09/2026 da thu dat ">=3.10,<3.14" va deploy hong
+# ngay voi dong: "vagabond requires Python version >=3.10,<3.14, found version
+# is 3.14". May dung anh cua Frappe Cloud CHAY PYTHON 3.14, va no doc dong nay
+# de chon ban Python dem di bien dich thu ca thu muc app o buoc "Run
+# Validations - Pre-build". Ha tran xuong duoi 3.14 la tu chan chinh minh.
+requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
 # pywebpush keo theo py_vapid, http_ece va cryptography - du bo de ky VAPID
