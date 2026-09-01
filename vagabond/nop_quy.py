@@ -574,9 +574,37 @@ def tao(ds_ca, bang_ke, tien_le_giu_lai=0, ly_do_lech="", ghi_chu="", chu_ky_ben
 	ngay_ca = sorted(str(d.ngay)[:10] for d in dong_ca if d.ngay)
 	tu_ca = ngay_ca[0] if ngay_ca else nowdate()
 	den_ca = ngay_ca[-1] if ngay_ca else nowdate()
+	# ĐIỂM BÁN CỦA PHIẾU. Trước 01/09/2026 đường CA không ghi ô này, nên
+	# phiếu lập theo ca KHÔNG BAO GIỜ khớp bộ lọc chống nộp trùng, và cùng
+	# một ngày của cùng một điểm có thể nộp hai lần: một lần theo ca, một
+	# lần theo ngày ở màn Biên nhận tiền. Sổ quỹ ghi gấp đôi tiền có thật.
+	#
+	# Chuyện này chưa nổ vì tới hôm nay bảng ca còn rỗng. Nhưng anh Việt
+	# vừa cho mở ca ở Sales Online, nên nó sẽ nổ ngay tuần đầu.
+	#
+	# Ô `quay` của ca chứa MÃ ĐIỂM BÁN (xem ca_quay.py), nên dùng thẳng.
+	diem_ca = sorted({str(d.quay or "").strip().upper() for d in dong_ca if d.quay})
+	if len(diem_ca) > 1:
+		frappe.throw(
+			"Các ca đang chọn thuộc %d điểm bán khác nhau (%s). Mỗi phiếu nộp "
+			"quỹ chỉ nộp cho một điểm bán, lập riêng từng điểm."
+			% (len(diem_ca), ", ".join(diem_ca))
+		)
+	diem_phieu = diem_ca[0] if diem_ca else ""
+	if diem_phieu:
+		trum = _phieu_trum(diem_phieu, tu_ca, den_ca)
+		if trum:
+			t = trum[0]
+			frappe.throw(
+				"Điểm bán %s đã có phiếu nộp quỹ %s trùm lên khoảng %s tới %s "
+				"(%s). Nộp hai lần cùng một ngày là tiền trong sổ nhiều gấp "
+				"đôi tiền có thật. Mở phiếu đó ra xem trước."
+				% (diem_phieu, t["name"], t["tu_ngay"], t["den_ngay"], t["trang_thai"])
+			)
 	doc = frappe.get_doc({
 		"doctype": NQ,
 		"ngay": nowdate(),
+		"diem_ban": diem_phieu,
 		"trang_thai": TT_CHO_KY if co_ky else TT_NHAP,
 		"nguon_ky_vong": NG_CA,
 		"pham_vi": PV_NGAY if tu_ca == den_ca else PV_KHOANG,
