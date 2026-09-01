@@ -12,8 +12,17 @@ Nguyen tac:
    luon dung voi giay to, khong bao gio "quen chay job tong hop". Doi lai
    moi lan mo la quet lai - hien moi ngay vai tram hoa don nen nhanh; khi
    nao du lieu len hang chuc nghin thi moi tinh chuyen luu bang tong.
-2. CHI TINH HOA DON DA GHI SO (docstatus 1). Don con nhap chua phai doanh
-   thu. Rieng bao cao sua/huy thi nguoc lai, phai soi vao don da huy.
+2. HOA DON CHUA GHI SO VAN DUOC TINH, NHUNG LUON DEM RIENG. Truoc
+   01/09/2026 bao cao chi lay don da ghi so (docstatus 1), nen trong ngay
+   ban hang man bao cao gan nhu trong: quay ban ca ngay, ke toan chi ghi so
+   vao cuoi ngay hoac sang hom sau. Sang 01/09 co 179 don voi 71,8 trieu
+   nam o dang nhap ma bao cao chi hien 3 don voi 1,88 trieu. Nay mac dinh
+   TINH CA don nhap de ke toan xem duoc trong ngay, kem mot dai canh bao
+   ghi ro bao nhieu don va bao nhieu tien chua ghi so, va mot cong tac de
+   tat di khi can con so chot. Rieng bao cao thue dau ra thi mac dinh
+   NGUOC LAI - xem muc "chot" trong DANH_SACH.
+   Don tam tinh va don da huy van khong bao gio duoc tinh.
+   Rieng bao cao sua/huy thi nguoc lai, phai soi vao don da huy.
 3. Moi bao cao deu tra ve cung MOT hinh dang: cot, dong, tong, bieu do.
    Nho vay man hinh chi viet mot lan, them bao cao moi khong phai sua giao
    dien.
@@ -57,6 +66,11 @@ KY_HAN = ["ngay", "tuan", "thang", "quy", "nam", "tuy_chon"]
 # MAN HINH chi nhan toi day, con FILE EXCEL luon day du - vi ke toan can du
 # lieu thi ho mo Excel chu khong soi tren dien thoai.
 GIOI_HAN_DONG = 600
+
+# Nhan trang thai ghi so, dung chung cho ba bang ke va cho bao cao hoa don
+# dien tu. Viet mot cho de ba noi khong bao gio noi khac nhau.
+NHAN_NHAP = "Chưa ghi sổ"
+NHAN_GHI = "Đã ghi sổ"
 
 
 def _kiem_quyen():
@@ -162,11 +176,20 @@ def _diem(si):
 	return (si.get("vgb_quay") or "").strip().upper() or "SALES"
 
 
-def _hoa_don(tu, den, diem=None, nguon=None, pt=None, docstatus=1):
+def _hoa_don(tu, den, diem=None, nguon=None, pt=None):
 	"""Doc hoa don trong khoang ngay, da loc theo diem ban - nguon - phuong
 	thuc. Loc diem ban lam bang Python vi "SALES" trong app la vgb_quay
-	de TRONG duoi CSDL, khong viet duoc thanh bo loc SQL goi gon."""
-	loc = {"docstatus": docstatus, "posting_date": ["between", [str(tu), str(den)]]}
+	de TRONG duoi CSDL, khong viet duoc thanh bo loc SQL goi gon.
+
+	LAY CA docstatus 0 VA 1 trong mot lan doc, roi gan co `_nhap` cho tung
+	dong. Doc mot lan chu khong hai lan la co chu dich: dong nao cung phai
+	tra loi duoc ca hai cau "ky nay ban bao nhieu" va "trong do bao nhieu
+	chua ghi so", ma doc hai lan thi hai con so lech nhau neu ke toan bam
+	ghi so dung giua hai cau truy van."""
+	loc = {
+		"docstatus": ["in", [0, 1]],
+		"posting_date": ["between", [str(tu), str(den)]],
+	}
 	if nguon:
 		loc["custom_nguon"] = nguon
 	if pt:
@@ -180,7 +203,7 @@ def _hoa_don(tu, den, diem=None, nguon=None, pt=None, docstatus=1):
 			"vgb_quay", "custom_nguon", "vgb_pt_thanh_toan", "custom_hddt_so",
 			"custom_hddt_trang_thai", "custom_pancake_display_id", "vgb_khach_no",
 			"outstanding_amount", "owner", "vgb_tam_tinh", "vgb_huy",
-			"vgb_ma_tham_chieu", "custom_hddt_ky_hieu",
+			"vgb_ma_tham_chieu", "custom_hddt_ky_hieu", "docstatus",
 		],
 		order_by="posting_date asc, posting_time asc",
 		limit_page_length=0,
@@ -192,7 +215,21 @@ def _hoa_don(tu, den, diem=None, nguon=None, pt=None, docstatus=1):
 	if diem:
 		can = [d.strip().upper() for d in str(diem).split(",") if d.strip()]
 		ds = [r for r in ds if _diem(r) in can]
+	for r in ds:
+		r["_nhap"] = 1 if int(r.get("docstatus") or 0) == 0 else 0
+		r["ghi_so"] = NHAN_NHAP if r["_nhap"] else NHAN_GHI
 	return ds
+
+
+def _loc_nhap(hd, nhap):
+	"""Bo don chua ghi so ra khoi tap hoa don khi cong tac dang tat."""
+	return hd if nhap else [r for r in hd if not r.get("_nhap")]
+
+
+def _do_nhap(hd):
+	"""Bao nhieu don va bao nhieu tien dang nam o dang nhap trong tap nay."""
+	nh = [r for r in hd if r.get("_nhap")]
+	return len(nh), sum(_tien(r.get("grand_total")) for r in nh)
 
 
 def _tien(x):
@@ -310,6 +347,9 @@ def _bc_thanh_toan(hd, **kw):
 		o = gom.setdefault(p, {"pt": p, "so_hd": 0, "tien": 0.0, "con_no": 0.0})
 		o["so_hd"] += 1
 		o["tien"] += _tien(r.grand_total)
+		# Don chua ghi so chua co so con phai thu (Frappe chi tinh luc ghi
+		# so), nen cot nay chi phan anh phan da ghi so. De nguyen co y: doan
+		# ra mot con so cong no cho don chua ghi so con sai hon la de trong.
 		o["con_no"] += _tien(r.outstanding_amount)
 	dong = sorted(gom.values(), key=lambda x: -x["tien"])
 	tong = sum(o["tien"] for o in dong)
@@ -332,6 +372,12 @@ def _bc_hddt(hd, **kw):
 	for r in hd:
 		if (r.custom_hddt_so or "").strip():
 			t = (r.custom_hddt_trang_thai or "").strip() or "Đã đẩy, chưa rõ trạng thái"
+		elif r.get("_nhap"):
+			# Don chua ghi so thi CHUA THE co hoa don dien tu, ghep chung
+			# voi don da ghi so ma chua xuat la lam phong dong ton dong ke
+			# toan phai duoi. Tach rieng thi hai con so deu dung viec: mot
+			# cai la viec cua ke toan, mot cai la viec cua quay.
+			t = "Chưa ghi sổ nên chưa xuất được"
 		else:
 			t = "Chưa xuất hoá đơn điện tử"
 		o = gom.setdefault(t, {"trang_thai": t, "so_hd": 0, "tien": 0.0})
@@ -639,6 +685,7 @@ def _bc_ke_hoa_don(hd, **kw):
 		dong.append({
 			"ngay": str(r.posting_date),
 			"hoa_don": r.name,
+			"ghi_so": r.get("ghi_so") or NHAN_GHI,
 			"ky_hieu": (r.custom_hddt_ky_hieu or "").strip(),
 			"so_hddt": (r.custom_hddt_so or "").strip(),
 			"don": r.custom_pancake_display_id or "",
@@ -656,6 +703,7 @@ def _bc_ke_hoa_don(hd, **kw):
 	return {
 		"cot": _cot(
 			("ngay", "Ngày", "ngay"), ("hoa_don", "Mã phiếu", "chu"),
+			("ghi_so", "Ghi sổ", "chu"),
 			("ky_hieu", "Ký hiệu", "chu"), ("so_hddt", "Số HĐĐT", "chu"),
 			("don", "Đơn", "chu"), ("diem", "Điểm bán", "chu"),
 			("nguon", "Nguồn", "chu"), ("khach", "Khách hàng", "chu"),
@@ -707,6 +755,7 @@ def _bc_ke_dong_mon(hd, **kw):
 		dong.append({
 			"ngay": str(r.posting_date),
 			"hoa_don": m.parent,
+			"ghi_so": r.get("ghi_so") or NHAN_GHI,
 			"diem": ten.get(_diem(r), _diem(r)),
 			"nguon": (r.custom_nguon or "").strip(),
 			"ma_mon": m.item_code,
@@ -722,6 +771,7 @@ def _bc_ke_dong_mon(hd, **kw):
 	return {
 		"cot": _cot(
 			("ngay", "Ngày", "ngay"), ("hoa_don", "Mã phiếu", "chu"),
+			("ghi_so", "Ghi sổ", "chu"),
 			("diem", "Điểm bán", "chu"), ("nguon", "Nguồn", "chu"),
 			("ma_mon", "Mã hàng", "chu"), ("mon", "Tên hàng", "chu"),
 			("nhom", "Nhóm món", "chu"), ("dvt", "Đơn vị", "chu"),
@@ -795,11 +845,19 @@ def _bc_ke_thanh_toan(hd, **kw):
 		canh = ""
 		if m and dem.get(m.upper(), 0) > 1:
 			canh = "Mã dùng %d lần" % dem[m.upper()]
-		elif not m and (r.vgb_pt_thanh_toan or "").strip() in ("Chuyển khoản", "Thẻ"):
+		elif (
+			not m
+			and not r.get("_nhap")
+			and (r.vgb_pt_thanh_toan or "").strip() in ("Chuyển khoản", "Thẻ")
+		):
+			# Don CHUA ghi so ma chua co ma tham chieu la binh thuong: tien
+			# co the chua ve. Bao thieu o day thi ca ngay ban hang dong nao
+			# cung do, cot canh bao thanh vo dung.
 			canh = "Thiếu mã tham chiếu"
 		dong.append({
 			"ngay": str(r.posting_date),
 			"hoa_don": r.name,
+			"ghi_so": r.get("ghi_so") or NHAN_GHI,
 			"don": r.custom_pancake_display_id or "",
 			"diem": ten.get(_diem(r), _diem(r)),
 			"pt": (r.vgb_pt_thanh_toan or "").strip() or "(chưa chọn)",
@@ -813,6 +871,7 @@ def _bc_ke_thanh_toan(hd, **kw):
 	return {
 		"cot": _cot(
 			("ngay", "Ngày", "ngay"), ("hoa_don", "Mã phiếu", "chu"),
+			("ghi_so", "Ghi sổ", "chu"),
 			("don", "Đơn", "chu"), ("diem", "Điểm bán", "chu"),
 			("pt", "Phương thức", "chu"), ("ma_tc", "Mã tham chiếu", "chu"),
 			("tong", "Số tiền", "tien"), ("con_no", "Còn nợ", "tien"),
@@ -823,6 +882,11 @@ def _bc_ke_thanh_toan(hd, **kw):
 	}
 
 
+# co "chot": 1 nghia la bao cao nay MAC DINH chi tinh don da ghi so. Chi dat
+# cho bao cao ma con so di thang ra giay to voi ben ngoai: so tren to khai
+# thue phai bang so tren so, khong duoc nhinh len vi mot don quay con dang
+# nhap. Nguoi xem van bat cong tac len duoc, nhung phai la mot cu bam co y
+# thuc chu khong phai mac dinh.
 DANH_SACH = [
 	{"ma": "BC01", "ten": "Tổng doanh thu", "ic": "💰", "mo": "Tổng doanh thu ba điểm bán, tỷ trọng từng nơi", "ham": _bc_tong_doanh_thu, "nhom": "Doanh thu", "ss": "khoa"},
 	{"ma": "BC02", "ten": "Doanh thu theo ngày", "ic": "📈", "mo": "Đường doanh thu từng ngày trong kỳ", "ham": _bc_theo_ngay, "nhom": "Doanh thu", "ss": "vi_tri"},
@@ -835,7 +899,7 @@ DANH_SACH = [
 	{"ma": "BC09", "ten": "Nhóm món bán chạy", "ic": "🗂️", "mo": "Dòng sản phẩm nào kéo doanh thu", "ham": _bc_nhom_mon, "nhom": "Hàng hoá", "ss": "khoa"},
 	{"ma": "BC10", "ten": "Giờ cao điểm", "ic": "⏰", "mo": "Doanh thu theo khung giờ, dùng để xếp ca", "ham": _bc_gio_cao_diem, "nhom": "Vận hành", "ss": "khoa"},
 	{"ma": "BC11", "ten": "Khách hàng chi tiêu nhiều", "ic": "👑", "mo": "Xếp hạng khách và số còn nợ", "ham": _bc_khach_hang, "nhom": "Khách hàng", "ss": "khoa"},
-	{"ma": "BC12", "ten": "Doanh thu và thuế đầu ra", "ic": "🏛️", "mo": "Trước thuế, thuế, tổng - dùng khai thuế", "ham": _bc_thue, "nhom": "Kế toán", "ss": "vi_tri"},
+	{"ma": "BC12", "ten": "Doanh thu và thuế đầu ra", "ic": "🏛️", "mo": "Trước thuế, thuế, tổng - dùng khai thuế", "ham": _bc_thue, "nhom": "Kế toán", "ss": "vi_tri", "chot": 1},
 	{"ma": "BC13", "ten": "Bảng kê chi tiết hoá đơn", "ic": "📄", "mo": "Mỗi hoá đơn một dòng, đủ cột để đối chiếu tờ khai", "ham": _bc_ke_hoa_don, "nhom": "Kế toán", "ss": None},
 	{"ma": "BC14", "ten": "Bảng kê chi tiết theo dòng món", "ic": "🧮", "mo": "Dữ liệu thô từng món trên từng hoá đơn, để pivot trong Excel", "ham": _bc_ke_dong_mon, "nhom": "Kế toán", "ss": None},
 	{"ma": "BC15", "ten": "Tiền về theo ngày", "ic": "🧺", "mo": "Mỗi ngày thu bao nhiêu theo từng phương thức, dùng đối két", "ham": _bc_tien_ve_ngay, "nhom": "Kiểm soát", "ss": "vi_tri"},
@@ -846,14 +910,29 @@ THEO_MA = {b["ma"]: b for b in DANH_SACH}
 
 # ---------------------------------------------------------------------- API
 
-def _ss_tong(ky, t, d, tong, so_hd, diem=None, nguon=None, pt=None):
+def _mac_dinh_nhap(b, nhap):
+	"""Cong tac "tinh ca don chua ghi so" cua mot bao cao.
+
+	nhap de trong nghia la NGUOI XEM CHUA CHON, luc do may chu quyet theo
+	tinh chat bao cao: bao cao co "chot" thi tat, con lai thi bat. Nguoi xem
+	da bam thi y cua ho thang, ke ca khi ho bat cho bao cao thue - ho co the
+	dang muon uoc luong so thue phai nop cua ngay hom nay."""
+	if nhap is None or str(nhap).strip() == "":
+		return 0 if b.get("chot") else 1
+	return 1 if int(nhap) else 0
+
+
+def _ss_tong(ky, t, d, tong, so_hd, diem=None, nguon=None, pt=None, nhap=1):
 	"""Khoi so sanh voi ky truoc: tong tien, so hoa don va phan tram chenh.
 
 	Ky truoc bang khong ma ky nay co tien thi khong chia duoc, tra ve None
 	de man hinh hien "khong co ky truoc de so" thay vi mot con so vo nghia
 	kieu +100% hay vo cuc."""
 	tt, dd = _ky_truoc(ky, t, d)
-	hd2 = _hoa_don(tt, dd, diem=diem, nguon=nguon, pt=pt)
+	# Ky truoc phai dem theo DUNG cong tac cua ky nay, khong thi so sanh
+	# thanh vo nghia: hom nay tinh ca don nhap ma hom qua chi tinh don da
+	# ghi so thi bao cao luon bao "tang manh" du khong ban them dong nao.
+	hd2 = _loc_nhap(_hoa_don(tt, dd, diem=diem, nguon=nguon, pt=pt), nhap)
 	tong2 = sum(_tien(r.grand_total) for r in hd2)
 	return {
 		"nhan_ky": _nhan_ky(ky, tt, dd),
@@ -867,25 +946,35 @@ def _ss_tong(ky, t, d, tong, so_hd, diem=None, nguon=None, pt=None):
 
 
 @frappe.whitelist()
-def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None, ss=0):
+def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None, ss=0, nhap=None):
 	"""Man chinh cua phan he: danh sach bao cao kem con so tong de nhin
-	phat la biet ngay hom nay ban duoc bao nhieu."""
+	phat la biet ngay hom nay ban duoc bao nhieu.
+
+	Man chinh luon MAC DINH tinh ca don chua ghi so: day la con so nguoi ta
+	liec mot cai de biet hom nay ban duoc bao nhieu, ma trong ngay ban hang
+	thi gan het don deu chua ghi so."""
 	_kiem_quyen()
 	t, d = khoang_ngay(ky, moc, tu, den)
-	hd = _hoa_don(t, d, diem=diem)
+	n = _mac_dinh_nhap({}, nhap)
+	tat_ca = _hoa_don(t, d, diem=diem)
+	so_nhap, tien_nhap = _do_nhap(tat_ca)
+	hd = _loc_nhap(tat_ca, n)
 	tong = sum(_tien(r.grand_total) for r in hd)
 	theo_diem = {}
 	for r in hd:
 		theo_diem[_diem(r)] = theo_diem.get(_diem(r), 0.0) + _tien(r.grand_total)
 	return {
 		"ky": ky,
+		"nhap": n,
+		"so_nhap": so_nhap,
+		"tien_nhap": tien_nhap,
 		"tu": str(t),
 		"den": str(d),
 		"nhan_ky": _nhan_ky(ky, t, d),
 		"tong_doanh_thu": tong,
 		"so_hoa_don": len(hd),
 		"binh_quan": tong / len(hd) if hd else 0,
-		"ss": _ss_tong(ky, t, d, tong, len(hd), diem=diem) if int(ss or 0) else None,
+		"ss": _ss_tong(ky, t, d, tong, len(hd), diem=diem, nhap=n) if int(ss or 0) else None,
 		"diem_ban": [
 			{"ma": x["ma"], "ten": x["ten"], "dia_chi": x["dia_chi"], "tien": theo_diem.get(x["ma"], 0.0)}
 			for x in _diem_ban()
@@ -898,7 +987,7 @@ def danh_sach(ky="ngay", moc=None, tu=None, den=None, diem=None, ss=0):
 
 
 @frappe.whitelist()
-def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None, ss=0, day_du=0):
+def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None, ss=0, day_du=0, nhap=None):
 	"""Chay mot bao cao. Moi bao cao deu tra ve cung mot hinh dang de man
 	hinh chi phai viet mot lan.
 
@@ -906,13 +995,21 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	truoc" va "Chenh" vao cuoi bang. Lam o day chu khong lam trong tung
 	bao cao, nho vay MOI bao cao deu co so sanh ma khong phai sua ham nao.
 
-	day_du=1 thi khong cat bot dong - chi dung khi xuat Excel."""
+	day_du=1 thi khong cat bot dong - chi dung khi xuat Excel.
+
+	nhap de trong thi may chu tu quyet theo tinh chat bao cao, xem
+	_mac_dinh_nhap. Du bat hay tat, khoi so nhap trong ket qua LUON co so
+	don va so tien dang cho ghi so, de man hinh noi duoc cho nguoi xem biet
+	phan chua tinh la bao nhieu."""
 	_kiem_quyen()
 	b = THEO_MA.get((ma or "").strip().upper())
 	if not b:
 		frappe.throw("Không có báo cáo mã %s." % ma)
 	t, d = khoang_ngay(ky, moc, tu, den)
-	hd = _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
+	n = _mac_dinh_nhap(b, nhap)
+	tat_ca = _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
+	so_nhap, tien_nhap = _do_nhap(tat_ca)
+	hd = _loc_nhap(tat_ca, n)
 	kq = b["ham"](hd, tu=t, den=d)
 	tong = sum(_tien(r.grand_total) for r in hd)
 	cot = list(kq["cot"])
@@ -920,12 +1017,13 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 
 	khoi_ss = None
 	if int(ss or 0):
-		khoi_ss = _ss_tong(ky, t, d, tong, len(hd), diem=diem, nguon=nguon, pt=pt)
+		khoi_ss = _ss_tong(ky, t, d, tong, len(hd), diem=diem, nguon=nguon, pt=pt, nhap=n)
 		chinh = _cot_chinh(kq)
 		if b.get("ss") and chinh and dong:
 			tt, dd = _ky_truoc(ky, t, d)
 			kq2 = b["ham"](
-				_hoa_don(tt, dd, diem=diem, nguon=nguon, pt=pt), tu=tt, den=dd
+				_loc_nhap(_hoa_don(tt, dd, diem=diem, nguon=nguon, pt=pt), n),
+				tu=tt, den=dd,
 			)
 			if b["ss"] == "vi_tri":
 				# Bao cao xep theo ngay: khoa hai ky khac nhau nen khong doi
@@ -984,6 +1082,10 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"den": str(d),
 		"tong_doanh_thu": tong,
 		"so_hoa_don": len(hd),
+		"nhap": n,
+		"chot": 1 if b.get("chot") else 0,
+		"so_nhap": so_nhap,
+		"tien_nhap": tien_nhap,
 		"cot": cot,
 		"dong": dong,
 		"cong": cong,
@@ -994,13 +1096,18 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"co_ss_dong": 1 if b.get("ss") else 0,
 		"bieu_do": kq.get("bieu_do"),
 		"phu": kq.get("phu"),
-		"nguon_loc": sorted({(r.custom_nguon or "").strip() for r in hd if (r.custom_nguon or "").strip()}),
-		"pt_loc": sorted({(r.vgb_pt_thanh_toan or "").strip() for r in hd if (r.vgb_pt_thanh_toan or "").strip()}),
+		# Chip loc doc tu TAT CA don trong ky, ke ca don chua ghi so: tat
+		# cong tac di ma chip cung bien mat thi nguoi dung tuong app hong.
+		"nguon_loc": sorted({(r.custom_nguon or "").strip() for r in tat_ca if (r.custom_nguon or "").strip()}),
+		"pt_loc": sorted({(r.vgb_pt_thanh_toan or "").strip() for r in tat_ca if (r.vgb_pt_thanh_toan or "").strip()}),
+		# Diem ban gui kem de man hinh dung hang chip theo DANH SACH THAT,
+		# khong cai cung ba diem trong ma nguon app.
+		"diem_ban": _diem_ban(),
 	}
 
 
 @frappe.whitelist()
-def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None, ss=0):
+def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=None, ss=0, nhap=None):
 	"""Xuat bao cao ra file Excel that (.xlsx) cho ke toan.
 
 	Tra ve chuoi base64 chu khong ghi file len may chu: bao cao la so lieu
@@ -1011,12 +1118,20 @@ def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None
 	_kiem_quyen()
 	kq = chay(
 		ma, ky=ky, moc=moc, tu=tu, den=den, diem=diem, nguon=nguon, pt=pt,
-		ss=ss, day_du=1,
+		ss=ss, day_du=1, nhap=nhap,
 	)
 	bang = [
 		["%s - %s" % (kq["ma"], kq["ten"])],
 		[kq["nhan_ky"]],
 		["Tổng doanh thu", kq["tong_doanh_thu"], "Số hoá đơn", kq["so_hoa_don"]],
+		[
+			"Tính cả đơn chưa ghi sổ" if kq["nhap"] else "Chỉ đơn đã ghi sổ",
+			"",
+			"Đơn chưa ghi sổ trong kỳ",
+			kq["so_nhap"],
+			"Tiền chưa ghi sổ",
+			kq["tien_nhap"],
+		],
 	]
 	if kq.get("ss"):
 		bang.append([
