@@ -997,9 +997,14 @@ function dncKhoanMoi() {
   return {
     id: 'k' + (dncIdSau++), noi_dung: '', so_tien: '', phan_loai: '',
     loai_chung_tu: '', so_hoa_don: '', ngay_hoa_don: '', mst: '',
-    ten_ban: '', dia_chi_ban: '', ghi_chu: ''
+    ten_ban: '', dia_chi_ban: '', ghi_chu: '', tep: []
   };
 }
+
+/* Mã ô tải tệp của một khoản chi. Lấy theo id của khoản chứ không theo số
+   thứ tự: xoá khoản giữa bảng thì số thứ tự nhảy, mà tệp thì không được
+   nhảy theo. */
+function dncOTep(k) { return 'dnc-' + k.id; }
 
 function dncMoi() {
   return {
@@ -1056,6 +1061,9 @@ function dncDoc() {
       var v = g('dnk_' + o + '_' + k.id);
       if (v !== null) k[o] = v;
     });
+    /* Tệp không nằm trong ô input nào nên không đọc bằng g(). Lấy thẳng từ
+       kho của ô tải tệp, là nơi duy nhất biết tệp nào đã lên máy chủ. */
+    k.tep = tdkDs(dncOTep(k));
   });
   return f;
 }
@@ -1116,6 +1124,24 @@ function dncTheKhoan(k, i, tong) {
     (k.loai_chung_tu ? '#0f766e' : '#e5e7eb') + ';background:#fff;border-radius:11px;padding:11px 13px;font-size:14px;' +
     'color:' + (k.loai_chung_tu ? '#0f172a' : '#9ca3af') + ';font-weight:' + (k.loai_chung_tu ? '600' : '400') + '">' +
     (k.loai_chung_tu ? h(k.loai_chung_tu) : 'Chọn loại chứng từ đính kèm') + '</button>';
+
+  /* Ô đính kèm của RIÊNG khoản này. Đặt ngay dưới nút chọn loại chứng từ vì
+     đó là nơi người lập vừa nói mình có tờ gì trong tay - hỏi ảnh ngay lúc đó
+     là đúng nhịp nghĩ. Loại chứng từ mang cờ "bắt buộc tệp" thì viền đổi đỏ
+     khi chưa có tệp nào. */
+  tdkNap(dncOTep(k), k.tep || []);
+  var thieuTep = ct.bat_buoc_tep && !(k.tep || []).length;
+  html += '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e5e7eb' +
+    (thieuTep ? ';border-left:3px solid #dc2626;padding-left:9px;margin-left:-9px' : '') + '">' +
+    tdkKhoi(dncOTep(k), {
+      style: 'margin:0',
+      tieu_de: 'CHỨNG TỪ VÀ HÀNG HOÁ CỦA KHOẢN NÀY' + (ct.bat_buoc_tep ? ' · BẮT BUỘC' : ''),
+      nhan: '📎 Chụp hoặc chọn tệp',
+      goi_y: (ct.bat_buoc_tep
+        ? 'Loại chứng từ này bắt buộc có tệp thì mới gửi duyệt được. '
+        : '') +
+        'Đính được nhiều tệp một lượt, cả ảnh lẫn PDF. Ảnh tự thu nhỏ ngay trên máy anh chị trước khi gửi.'
+    }) + '</div>';
 
   /* Ba ô hoá đơn chỉ hiện khi loại chứng từ mang CỜ hoá đơn VAT. */
   if (ct.la_hoa_don_vat) {
@@ -1236,6 +1262,22 @@ function dncVe(lichSu) {
     n.oninput = dncNhayTong;
   });
 
+  /* Nối sự kiện cho từng ô tải tệp. Phải nối SAU khi khung đã vẽ xong, và
+     nối cho từng khoản một vì mỗi khoản là một ô riêng. */
+  (dncForm.cac_khoan || []).forEach(function (k) {
+    var ct2 = dncCoCT(k.loai_chung_tu);
+    tdkNoi(b, dncOTep(k), {
+      style: 'margin:0',
+      tieu_de: 'CHỨNG TỪ VÀ HÀNG HOÁ CỦA KHOẢN NÀY' + (ct2.bat_buoc_tep ? ' · BẮT BUỘC' : ''),
+      nhan: '📎 Chụp hoặc chọn tệp',
+      goi_y: (ct2.bat_buoc_tep
+        ? 'Loại chứng từ này bắt buộc có tệp thì mới gửi duyệt được. '
+        : '') +
+        'Đính được nhiều tệp một lượt, cả ảnh lẫn PDF. Ảnh tự thu nhỏ ngay trên máy anh chị trước khi gửi.',
+      khi_doi: function () { dncDoc(); }
+    });
+  });
+
   /* Tra mã số thuế khi rời ô. Luôn cho sửa tay: tra không ra thì hai ô tên
      và địa chỉ vẫn gõ được như thường. */
   b.querySelectorAll('.dncMst').forEach(function (n) {
@@ -1353,7 +1395,21 @@ function dncVe(lichSu) {
         if (!k.ngay_hoa_don) thieu.push(stt + ': thiếu ngày hoá đơn');
         if (!(k.mst || '').trim()) thieu.push(stt + ': thiếu mã số thuế người bán');
       }
+      if (dncCoCT(k.loai_chung_tu).bat_buoc_tep && !(k.tep || []).length) {
+        thieu.push(stt + ': loại chứng từ này bắt buộc đính kèm tệp');
+      }
     });
+    /* Gửi duyệt thì cả phiếu phải có ít nhất một tấm ảnh. Máy chủ cũng chặn
+       câu này, nhưng nó chặn SAU khi phiếu đã lưu, nên bắt ở đây thì anh chị
+       không bị đẻ ra một phiếu nháp thừa mỗi lần quên ảnh. */
+    if (gui && !thieu.length) {
+      var coAnh = (f2.cac_khoan || []).some(function (k) { return (k.tep || []).length; });
+      if (!coAnh) {
+        return baoTin('Phải đính kèm ít nhất một ảnh bill, hoá đơn hoặc ảnh hàng hoá ' +
+          'thì kế toán mới duyệt được. Ô đính kèm nằm ngay trong từng khoản chi.',
+          'Chưa có chứng từ');
+      }
+    }
     if (thieu.length) return baoTin(thieu.join('\n'), 'Còn thiếu');
     busy(true);
     try {
@@ -1364,6 +1420,9 @@ function dncVe(lichSu) {
       (goi.cac_khoan || []).forEach(function (k) { k.so_tien = soTien(k.so_tien); });
       var r = await api('vagabond.de_nghi_chi.tao', { du_lieu: JSON.stringify(goi), gui_luon: gui ? 1 : 0 });
       busy(false);
+      /* Dọn kho tệp của màn vừa lập. Giữ lại thì phiếu sau mở ra đã thấy sẵn
+         ảnh của phiếu trước, mà tệp đó đã buộc vào phiếu trước rồi. */
+      tdkXoaHet();
       dncForm = dncMoi();
       toast('Đã lập phiếu ' + r.ma + ' · ' + h(r.nhan_trang_thai), 4000);
       go(scrDeNghiChi, true);
@@ -1680,12 +1739,33 @@ async function ttnbCt(ma) {
 
   html += '<div class="sec">Bảng kê · ' + ((d.cac_khoan || []).length) + ' khoản</div><div class="card">' +
     (d.cac_khoan || []).map(function (k, i) {
-      return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7;display:flex;gap:10px">' +
+      /* Chứng từ của khoản nào vẽ ngay dưới khoản đó. Dồn hết xuống chân
+         phiếu thì kế toán soi một khoản phải tự đoán tấm nào của khoản nào,
+         mà đoán sai là duyệt nhầm. */
+      var luoi = (k.tep_hien || []).length
+        ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
+          k.tep_hien.map(function (t) {
+            var trong = t.anh
+              ? '<img src="' + h(t.url) + '" alt="' + h(t.ten) + '" loading="lazy" ' +
+                'style="width:100%;height:100%;object-fit:cover;display:block">'
+              : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;' +
+                'background:#f1f5f9;color:#475569;font-size:12px;font-weight:800">' + h(t.duoi || 'TỆP') + '</div>';
+            return '<div style="width:72px">' +
+              '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
+              'style="display:block;width:72px;height:72px;border-radius:9px;overflow:hidden;' +
+              'border:1.5px solid #e5e7eb;background:#fff">' + trong + '</a>' +
+              '<div style="font-size:10px;color:#98a2b3;margin-top:3px;line-height:1.3;' +
+              'word-break:break-all;max-height:26px;overflow:hidden">' + h(t.ten || '') + '</div></div>';
+          }).join('') + '</div>'
+        : '';
+      return '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+        '<div style="display:flex;gap:10px">' +
         '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(k.noi_dung || '') + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(k.phan_loai || '') +
         (k.loai_chung_tu ? ' · ' + h(k.loai_chung_tu) : '') +
         (k.so_hoa_don ? ' · HĐ ' + h(k.so_hoa_don) : '') + '</div></div>' +
-        '<div style="text-align:right;font-weight:800;font-size:13.5px">' + money(k.so_tien) + ' đ</div></div>';
+        '<div style="text-align:right;font-weight:800;font-size:13.5px">' + money(k.so_tien) + ' đ</div></div>' +
+        luoi + '</div>';
     }).join('') + '</div>';
 
   html += '<div class="sec">Người nhận tiền</div><div class="card" style="padding:2px 14px 8px">' +
