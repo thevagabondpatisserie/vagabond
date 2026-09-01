@@ -126,7 +126,15 @@ def _():
 def _():
 	m = _doc("vagabond", "public", "js", "bep", "40-phieu-hoan-huy.js")
 	dung("có hàm vẽ ô tệp", "function phOTep(" in m)
-	dung("ảnh vẽ thành hình", "<img src=" in m and "object-fit:cover" in m)
+	# Tu v374 anh KHONG con la <img src="/private/files/...">: tep uy nhiem
+	# chi dinh tren Payment Entry, ma Sales khong co quyen doc doctype do
+	# nen Frappe tra 403 va o anh ra hinh vo. Nay o anh la mot khoi trong,
+	# ruot anh nap sau qua cua `don_huy.tai_tep` co kiem quyen. Van la "ve
+	# thanh hinh thu nho", chi khac duong lay ruot.
+	dung("ảnh vẽ thành hình", "class=\"phanh\"" in m and "center/cover" in m)
+	dung("ruột ảnh đi qua cửa có kiểm quyền", "don_huy.tai_tep" in m)
+	la("không trỏ thẳng vào đường tệp riêng nữa",
+		'<img src="\' + h(t.url)' in m, False)
 	dung("tệp khác hiện đuôi tệp thật", "t.duoi" in m)
 	dung("mỗi ô mang tên tệp thật", "t.ten" in m)
 	# Cai nut noi doi da bien mat.
