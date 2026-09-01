@@ -389,6 +389,20 @@ function coQuyenKeToan() {
     || hasRole('Thu mua') || hasRole('Purchase Manager') || hasRole('Purchase User');
 }
 
+/* Ai duoc vao PHAN HE HRM (KPI va hoa hong).
+
+   Anh Viet chot 01/09/2026: nut KPI "chi cho quan ly, ke toan, giam doc
+   thay". Nhan vien thuong KHONG thay nut nay tren trang chu, nhung van xem
+   duoc diem CUA CHINH MINH qua man rieng - do la thu lam KPI co tac dung,
+   cuoi ky moi cho biet thi no chi la bang cham diem.
+
+   Day chi de AN O. Chan that nam o may chu: kpi._kiem_quyen. */
+function coQuyenHRM() {
+  return hasRole('System Manager') || hasRole('Giám đốc') || hasRole('AP Giám đốc')
+    || hasRole('Accounts Manager') || hasRole('Accounts User') || hasRole('Kế toán')
+    || hasRole('Sales Manager') || hasRole('Quản lý cửa hàng') || hasRole('Bếp trưởng');
+}
+
 /* Ai duoc go dau huy mot phieu nhap. Khop voi QUYEN_HUY ben
    vagabond/chung_tu.py - o day chi de an nut, chan that nam o may chu. */
 function coQuyenHuy() {

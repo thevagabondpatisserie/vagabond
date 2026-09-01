@@ -235,6 +235,25 @@ async function scrHome() {
         (tgQuaHan ? ' · ' + tgQuaHan + ' đơn chờ quá lâu' : '') +
         '. Duyệt rồi đơn mới ghi sổ được.', tgCho, 'DUYETTANG') + '</div>';
   }
+
+  /* Nhan su. Anh Viet chot 01/09/2026: nut KPI chi cho quan ly, ke toan,
+     giam doc thay. Chan that nam o may chu (kpi._kiem_quyen), day chi an o.
+
+     O "KPI cua toi" nam NGOAI dieu kien do: ai cung phai xem duoc diem cua
+     chinh minh. Cuoi ky moi cho biet thi KPI chi la bang cham diem, khong
+     phai cong cu dieu hanh. */
+  if (coQuyenHRM()) {
+    html += '<div class="sec">Nhân sự</div><div class="card">' +
+      card('📊', 'Duyệt KPI và hoa hồng',
+        'Chấm điểm theo kỳ tháng, tính hoa hồng bậc thang, duyệt ba cấp rồi đẩy sang đề nghị chi',
+        0, 'KPI') +
+      card('🎯', 'Bảng chỉ tiêu và bậc hoa hồng',
+        'Trọng số từng vai, sàn, mốc, trần và ô thử tính trước khi chốt', 0, 'KPICD') + '</div>';
+  }
+  html += '<div class="sec">KPI của tôi</div><div class="card">' +
+    card('🙋', 'Điểm KPI của tôi',
+      'Xem điểm từng tiêu chí của chính mình và nói lại nếu thấy chưa đúng', 0, 'KPITOI') + '</div>';
+
   html += '<div class="sec">Cài đặt</div><div class="card">' +
     (coQuyenMua() || hasRole('Accounts Manager') || hasRole('System Manager')
       ? card('🏪', 'Điểm bán', 'Chi nhánh, mã quầy, nguồn đơn - khai một nơi dùng cho cả hệ', 0, 'CDDB') +
@@ -437,6 +456,10 @@ var VGB_NHOM = [
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
   { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
+  /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
+     toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
+     toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
+  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['KPI', 'KPICD', 'KPITOI'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -942,6 +965,9 @@ var VGB_DUONG = {
   'khuyen-mai': 'KM',
   'kiem-banh-theo-mua': 'KBM',
   'kiem-ke': 'KK',
+  'kpi': 'KPI',
+  'kpi-bang-chi-tieu': 'KPICD',
+  'kpi-cua-toi': 'KPITOI',
   'lap-ke-hoach-san-xuat': 'KHSX',
   'ma-otp': 'OTP',
   'mau-in': 'CDMU',
@@ -960,6 +986,7 @@ var VGB_DUONG = {
   'phan-he-giao-hang': 'PH:GH',
   'phan-he-ke-toan': 'PH:KT',
   'phan-he-kiem-ke': 'PH:KK',
+  'phan-he-nhan-su': 'PH:NS',
   'phan-he-nhap-kho': 'PH:NK',
   'phan-he-san-xuat': 'PH:SX',
   'phan-he-thu-mua': 'PH:TM',
@@ -1142,6 +1169,9 @@ function vgbGo(k) {
      gõ nhầm một mã, và đó đúng là lỗi dead link ngày 16/08. */
   if (k.indexOf('DM:') === 0) return kgMo(k.slice(3));
   if (k === 'DNC') return go(scrTTNB);
+  if (k === 'KPI') return go(scrKPI);
+  if (k === 'KPICD') return go(scrKPICau);
+  if (k === 'KPITOI') return go(scrKPIToi);
   if (k === 'CDDB') return go(scrDiemBan);
   if (k === 'CDKS') return go(scrKhoaSo);
   if (k === 'CDPT') return go(scrPtThanhToan);
