@@ -40,7 +40,12 @@ Bốn điểm anh Việt chốt 19/08/2026
 import frappe
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate
 
+from vagabond import tep_dinh_kem
+
 DT = "Vagabond De Nghi Chi"
+# Ô mà mọi tệp đính kèm của phiếu này nằm vào. Ghi rõ một chỗ để nhịp dọn
+# rác và các phép đếm sau này đều hỏi được câu "tệp nằm ở ô nào".
+O_TEP = "cac_khoan"
 HO_SO_TT = "Vagabond Ho So TT"
 PI = "Purchase Invoice"
 
@@ -873,13 +878,19 @@ def gui_duyet(ma_phieu):
 	if doc.nguoi_tao != frappe.session.user and "System Manager" not in _vai():
 		frappe.throw("Chỉ người lập phiếu mới gửi phiếu này đi duyệt được.")
 
-	# Tệp đính kèm: đếm một lần rồi gắn cờ vào từng dòng. Hệ đang đính tệp
-	# vào cả PHIẾU chứ chưa đính theo dòng, nên ở đây cờ là chung cho mọi
-	# dòng. Khi nào đính theo dòng thì chỉ phải đổi đúng chỗ này.
+	# Tệp đính kèm ĐỌC THEO TỪNG DÒNG từ 01/09/2026. Trước đó đếm chung cho
+	# cả phiếu, nên một phiếu năm khoản mà chỉ có ảnh của khoản đầu thì bốn
+	# khoản sau vẫn coi như đủ chứng từ - đúng cái mà cờ "bắt buộc tệp" trên
+	# danh mục chứng từ sinh ra để chặn.
+	#
+	# Vẫn chấp nhận tệp đính ở cấp PHIẾU cho phiếu lập trước ngày đó và cho
+	# phiếu đính thêm trên Desk: dòng nào tự có tệp thì tính tệp của nó,
+	# dòng nào không có thì mượn cờ chung của phiếu.
 	d_dict = _kem_dm(doc)
-	co_tep = bool(_so_tep(ma_phieu))
+	co_tep_phieu = bool(_so_tep(ma_phieu))
 	for d in d_dict.get("cac_khoan") or []:
-		d["_co_tep"] = co_tep
+		rieng = tep_dinh_kem.doc_ds(d.get("tep"))
+		d["_co_tep"] = bool(rieng) or co_tep_phieu
 
 	thieu = thieu_gi(d_dict)
 	if thieu:
@@ -887,9 +898,18 @@ def gui_duyet(ma_phieu):
 
 	# Ảnh bill hoặc hoá đơn: bắt buộc trước khi gửi đi duyệt. Uyên ngồi xa
 	# quầy, cái duy nhất chị có để quyết là tấm ảnh người lập chụp.
-	if not _so_tep(ma_phieu):
+	# Không tấm ảnh nào trên cả phiếu thì chặn. Uyên ngồi xa quầy, cái duy
+	# nhất chị có để quyết là tấm ảnh người lập chụp.
+	#
+	# Câu nhắc cũ chỉ đường tới nút đính kèm trên Desk, mà người lập phiếu là
+	# bạn bếp cầm điện thoại, cả đời không mở Desk. Từ 01/09/2026 màn app có
+	# ô đính kèm ngay trong từng khoản chi nên nhắc đúng chỗ đó.
+	if not (co_tep_phieu or any(
+		tep_dinh_kem.doc_ds(d.get("tep")) for d in (d_dict.get("cac_khoan") or [])
+	)):
 		frappe.throw(
-			"Phải đính kèm ảnh bill, hoá đơn hoặc ảnh hàng hoá trước khi gửi duyệt. Vui lòng bấm nút đính kèm ở góc phải rồi gửi lại."
+			"Phải đính kèm ảnh bill, hoá đơn hoặc ảnh hàng hoá trước khi gửi "
+			"duyệt. Trên app, ô đính kèm nằm ngay trong từng khoản chi."
 		)
 
 	trung = trung_hoa_don(doc.as_dict())
@@ -1241,6 +1261,10 @@ def tao(du_lieu=None, gui_luon=0):
 			"ten_ban": str(k.get("ten_ban") or "").strip() or None,
 			"dia_chi_ban": str(k.get("dia_chi_ban") or "").strip() or None,
 			"ghi_chu": str(k.get("ghi_chu") or "").strip() or None,
+			# Tệp của RIÊNG khoản này. Lưu đường dẫn ở đây, còn việc buộc
+			# tệp vào phiếu thì làm sau khi phiếu có mã - lúc này phiếu còn
+			# chưa được lưu nên chưa có gì để buộc vào.
+			"tep": tep_dinh_kem.ghi_ds(tep_dinh_kem.doc_ds(k.get("tep"))),
 		})
 	# Tên phiếu cho dễ tìm trên Desk. KHÔNG dùng làm số liệu: mọi con số đọc
 	# từ bảng kê.
@@ -1254,6 +1278,13 @@ def tao(du_lieu=None, gui_luon=0):
 	# đánh mã theo format nên lúc before_validate chạy thì `name` còn trống.
 	frappe.db.set_value(DT, doc.name, "noi_dung_ck", noi_dung_ck(doc.name), update_modified=False)
 	doc.noi_dung_ck = noi_dung_ck(doc.name)
+
+	# Buộc tệp vào phiếu. Làm SAU khi phiếu có mã, và làm qua đúng một cổng
+	# (tep_dinh_kem.gan_vao) chứ không tự sửa bảng File ở đây: cổng đó giữ
+	# luật ai được buộc tệp nào vào đâu, viết lại luật ở đây là mở đường cho
+	# hai bộ luật lệch nhau.
+	for k in doc.cac_khoan or []:
+		tep_dinh_kem.gan_vao(DT, doc.name, O_TEP, k.get("tep"))
 	frappe.db.commit()
 
 	# Gửi duyệt luôn thì đi qua ĐÚNG hàm gui_duyet, không tự đặt trạng thái.
@@ -1417,7 +1448,12 @@ def chi_tiet(ma_phieu=None):
 		doc.trang_thai in (TT_CHO_KE_TOAN, TT_HOAN_TAT) and not (doc.get("ma_gd") or "").strip()
 	) else 0
 	ra["tep"] = [
-		{"url": f["file_url"], "ten": f["file_name"]}
+		{
+			"url": f["file_url"],
+			"ten": f["file_name"],
+			"anh": 1 if tep_dinh_kem.la_anh(f["file_name"]) else 0,
+			"duoi": tep_dinh_kem.nhan_duoi(f["file_name"]),
+		}
 		for f in frappe.get_all(
 			"File",
 			filters={"attached_to_doctype": DT, "attached_to_name": ma_phieu},
@@ -1425,6 +1461,11 @@ def chi_tiet(ma_phieu=None):
 			limit_page_length=0,
 		)
 	]
+	# Tệp của RIÊNG từng khoản chi, để màn hình vẽ hình thu nhỏ ngay dưới
+	# khoản đó chứ không dồn hết xuống chân phiếu. Kế toán soi một khoản thì
+	# cần đúng tờ chứng từ của khoản ấy.
+	for d in ra.get("cac_khoan") or []:
+		d["tep_hien"] = tep_dinh_kem.hien(d.get("tep"))
 
 	# Cấn trừ. Phiếu tạm ứng thì nhìn xuống, phiếu hoàn ứng thì nhìn lên.
 	ra["can_tru"] = None

@@ -171,6 +171,15 @@ scheduler_events = {
 		"55 23 * * *": ["vagabond.ban_hang.canh_bao_don_treo"],
 		# 2h sang: ra don bi lap hai hoa don, co thi gui thu bao.
 		"0 2 * * *": ["vagabond.ban_hang.ra_trung_hang_dem"],
+		# 2h20 sang: don tep TREO cua cong tai tep dinh kem. Tep treo la tep
+		# nguoi lap da chon len nhung roi bo man giua chung, khong buoc vao
+		# chung tu nao. Khong don thi moi lan ai do mo man roi thoat la mot
+		# tam anh nam lai vinh vien.
+		#
+		# Nhip nay CHI dung tep mang dau rieng cua cong do, va chi khi tra
+		# loi duoc ca ba cau hoi cua bai hoc 24/08/2026. Xem tep_dinh_kem.py
+		# va khung/kiem_thu/thu_don_rac_tep.py.
+		"20 2 * * *": ["vagabond.tep_dinh_kem.don_rac"],
 		# Xet lai hang thanh vien theo chi tieu ky. Chay sau nua dem, truoc
 		# gio mo cua, de sang ra quay da thay dung hang cua khach.
 		"30 4 * * *": ["vagabond.khach_hang.xet_lai_tu_dong"],
