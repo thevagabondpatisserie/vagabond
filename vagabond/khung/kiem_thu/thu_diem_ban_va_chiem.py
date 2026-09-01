@@ -244,17 +244,20 @@ def _():
 	dung("nguồn thực trả thẳng chế độ khi không có quầy", "if (!posCoQuay()) return posDon.che_do;" in js)
 
 
-@ca("điểm không có quầy thì không có ca làm việc")
+@ca("MỌI điểm bán đều có ca làm việc, kể cả điểm không quầy")
 def _():
-	# Diem Sales khong giu ket. Ve khoi ca ra la bat nguoi ban chot mot cai
-	# ca khong ton tai, va ban doi soat se bao TOAN BO doanh thu la tien thua
-	# khong giai trinh duoc.
+	# Doi chieu voi ban cu: truoc 01/09/2026 khoi ca chi ve cho diem CO quay,
+	# vi may chu doc doanh thu ca bang o quay tren hoa don ma hoa don Sales
+	# Online de trong o do. Anh Viet 01/09/2026 chot mo ca cho Sales Online:
+	# *"Ben cho man Sales online em dung luon cai mo ca dong ca di de dem
+	# tien."* May chu nay doc theo DIEM BAN nen hang rao khong con ly do.
 	js = _doc("09-tinh-tien-quay.js", BEP)
-	neo = "if (posCoQuay()) html += "
-	dung("khối ca chỉ vẽ khi có quầy", neo in js)
-	dung("đúng khối thẻ ca", "posCaKhoi" in js.split(neo)[1][:200])
-	dung("phép đọc ca thoát sớm khi không có quầy",
-		"async function posCaVe() {\n  if (!posCoQuay()) return;" in js)
+	dung("khối ca không còn bị chặn theo quầy",
+		"if (posCoQuay()) html += '<div class=\"card\" id=\"posCaKhoi\"" not in js)
+	dung("vẫn còn khối thẻ ca", 'id="posCaKhoi"' in js)
+	dung("phép đọc ca không thoát sớm nữa",
+		"async function posCaVe() {\n  if (!posCoQuay()) return;" not in js)
+	dung("phép đọc ca vẫn gọi máy chủ", "vagabond.ca_quay.tinh_trang" in js)
 
 
 @ca("máy chủ nhận bill của điểm không có quầy")
