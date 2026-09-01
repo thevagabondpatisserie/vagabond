@@ -399,3 +399,52 @@ def _qr_dung_tk():
 	dung("nội dung chuyển khoản theo điểm", "posNoiDungCk(don.bill, maDiem, nguon)" in j)
 	dung("tài khoản theo điểm", "posTaiKhoan(nguon, maDiem)" in j)
 	dung("đường dẫn QR theo điểm", "posQrUrl(nd, phaiThu, nguon, maDiem)" in j)
+
+
+@ca("màn hình khách KHÔNG bày thông tin khách, dù ở bất kỳ màn nào")
+def _man_khach_kin():
+	# Anh Việt chốt 01/09/2026 sau đề xuất của Gemini: màn này quay thẳng ra
+	# hàng người đang xếp hàng, nên không tên, không số điện thoại, không hạng
+	# thành viên, không số dư điểm. Khách vẫn biết mình được ưu đãi qua dòng
+	# "Giảm giá thành viên", và biết mình được cộng điểm ở màn Cảm ơn.
+	t = _www("man-hinh-khach.html")
+	for cam in ("customer-phone", "customer-name", "tier-badge", "customer-avatar",
+	            "sdt", "hang_the", "du_sau", "du_truoc"):
+		dung("trang khách không có %s" % cam, cam not in t)
+	dung("có dòng nói phần giảm đến từ đâu", "g.giam_vi" in t)
+	dung("màn Cảm ơn nói số điểm vừa cộng", "điểm vào thẻ thành viên" in t)
+	dung("chỉ lấy số điểm vừa cộng, không lấy số dư", "g.diem" in t)
+
+
+@ca("số điểm gửi sang màn khách là điểm VỪA CỘNG, không phải số dư")
+def _diem_vua_cong():
+	j = _js("09-tinh-tien-quay.js")
+	dung("lấy đúng ô tích của hoá đơn này", "r.diem && r.diem.tich" in j)
+	dung("không gửi số dư sang", "du_sau" not in j.split("cfdCamOn")[1][:300])
+
+
+@ca("ảnh món dùng thẻ img ảnh thật, ô trống không mang chữ cái")
+def _anh_that():
+	# Anh Việt 01/09/2026: *"hình ảnh sản phẩm phải dùng thẻ img hiển thị ảnh
+	# thật, KHÔNG dùng các ô vuông chứa chữ cái"*.
+	t = _www("man-hinh-khach.html")
+	dung("vẽ ảnh bằng thẻ img", '<img class="anh" src=' in t)
+	dung("ô trống không còn chữ cái đầu", "charAt(0).toUpperCase()" not in t)
+	# Nhưng ô trống PHẢI còn: 192 trên 506 món đang bán chưa có ảnh, bỏ hẳn ô
+	# đi thì ảnh hỏng sẽ ra biểu tượng ảnh vỡ ngay trước mặt khách.
+	dung("vẫn còn ô tròn màu nhạt làm lưới đỡ", 'class="chu"' in t)
+
+
+@ca("logo phải là thẻ img trỏ vào tệp thật, không vẽ lại bằng SVG hay CSS")
+def _logo_that():
+	# Anh Việt 01/09/2026: *"TUYỆT ĐỐI KHÔNG sử dụng code (SVG/CSS) để tự vẽ
+	# lại logo của The Vagabond. Phải sử dụng thẻ img chuẩn"*.
+	t = _www("man-hinh-khach.html")
+	dung("logo là thẻ img", "'<img' + (lop" in t)
+	# Nền xanh robin egg thì phải là bản logo NỀN TRONG SUỐT, không phải bản
+	# in nền trắng đục: bản in dán lên nền xanh thành một miếng trắng vuông.
+	dung("trỏ vào tệp logo thật", "/files/logo.png" in t)
+	dung("có lưới đỡ khi tệp logo hỏng", "/files/logo-in.png" in t)
+	# Không được có SVG vẽ chữ trong trang này.
+	dung("không có svg tự vẽ trong trang khách", "<svg" not in t.lower())
+	dung("không có tên thương hiệu dựng bằng text SVG", "letter-spacing=" not in t)

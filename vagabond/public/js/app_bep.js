@@ -10605,6 +10605,18 @@ function posNgayVn(iso) {
    Bill cu mang VGB thi giu nguyen mai mai, chi khong sinh moi nua. */
 /* Bang tien to da tu may chu ve chua. Chua ve thi khong duoc sinh lai ma,
    khong thi ma dang dung lai bi doi thanh VGB. */
+/* Nhan ngan cho dong giam gia tren man hinh khach. Rong la de nguyen chu
+   "Giam gia" nhu cu. THUAN theo nghia khong cham DOM. */
+function posLyDoGiam() {
+  if (!posDon) return '';
+  /* Tru diem, hoac chuong trinh khuyen mai gan voi ho so khach: ca hai deu
+     la uu dai cua thanh vien. Voucher go tay thi khong phai. */
+  var coDiem = !!(posDon.diemVe && posDon.diemVe.so_tien);
+  var coTv = !!(posDon.khach_ma && posDon.kmKq && (posDon.kmKq.ap || []).length);
+  if (coDiem || coTv) return 'thành viên';
+  if (posDon.maVc || posDon.km) return 'ưu đãi';
+  return '';
+}
 function posCoBangTienTo() {
   var b = (CFGBH || {}).ma_tien_to;
   if (!b) return false;
@@ -11343,7 +11355,18 @@ async function scrPosQuay() {
   /* Chuyen khoan dang cho tien: poll SePay de bao ngay khi tien ve. */
   if (!laApp && posDon.pt === 'Chuyển khoản' && phaiThu > 0 && posSepayNhan < phaiThu - 1) posPollBat(posDon.bill, phaiThu);
   /* Man hinh khach bam theo man nay: moi lan ve lai la mot lan day. */
-  cfdDay(posDon, posQuay, phaiThu, nguonThuc, laApp);
+  /* LY DO GIAM GIA, tinh O DAY chu khong ben man hinh khach.
+
+     Anh Viet 01/09/2026 chon: man hinh khach KHONG bay ten, so dien thoai,
+     hang the hay so diem cua khach, vi no quay thang ra hang nguoi dang xep
+     hang. Thay vao do chi noi cho khach biet phan giam nay den TU DAU.
+
+     Vi sao tinh o day: tep 25-man-hinh-khach.js bi ca kiem soi tung chu,
+     no khong duoc phep nhac den mot o rieng tu nao cua don. Nen ben nay doc
+     cac o do roi chi chuyen sang mot NHAN NGAN, khong chuyen du lieu goc.
+     Nhan cung khong duoc mang ten hang the: noi "thanh vien" thi khong ai
+     doan duoc khach nay hang gi. */
+  cfdDay(posDon, posQuay, phaiThu, nguonThuc, laApp, posLyDoGiam());
 }
 async function posDemHomNay() {
   if (!posQuay) return;
@@ -12320,7 +12343,10 @@ async function posLuuDon() {
   posDangLuu = false;
   busy(false);
   var thu = (r && r.grand_total) || phaiThu;
-  cfdCamOn(thu);
+  /* So diem VUA CONG cua chinh hoa don nay. Khong bay so du con lai: so du
+     la thu chi chu the moi can biet, con so vua cong thi ai nhin cung chi
+     suy ra duoc tu tong tien tren man, khong lo them gi. */
+  cfdCamOn(thu, (r && r.diem && r.diem.tich) || 0);
   var laCK = !laApp && posDon.pt === 'Chuyển khoản';
   var thoi = !laApp && posDon.pt === 'Tiền mặt' && dua >= thu ? dua - thu : 0;
   var maCk = posDon.mtc || posDon.bill || '';
@@ -19481,7 +19507,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '372';
+var APPVER = '373';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -34982,7 +35008,7 @@ function cfdPhat(goi) {
 
    DANH SACH O DUOC PHEP nam gon trong ham nay. Ai muon them o thi phai sua
    dung day, va ca kiem thu nhom 50 se soi lai. */
-function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
+function cfdDungGoi(don, quay, phaiThu, qr, tab, luc, giamVi) {
   don = don || {};
   quay = quay || {};
   var mon = (don.mon || []).map(function (m) {
@@ -35012,6 +35038,12 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
     mon: mon,
     tong: tong,
     giam: Math.max(0, tong - tra),
+    /* LY DO GIAM, do man tinh tien tinh san roi chuyen sang (xem
+       posLyDoGiam ben 09-tinh-tien-quay.js). O day CHI chep lai mot nhan
+       ngan, khong doc mot o rieng tu nao cua don - do la ly do phep tinh
+       nam ben kia chu khong nam day. Nhan la "thanh vien" hay "uu dai",
+       khong bao gio mang ten hang the. */
+    giam_vi: String(giamVi || '').slice(0, 24),
     tra: tra,
     pt: String(don.pt || ''),
     qr: null
@@ -35033,7 +35065,7 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
 /* Goi tin cam on sau khi luu hoa don xong. Khong mang theo mon nao, khong
    mang theo QR: viec cua no la doi man hinh sang loi cam on roi ve man
    chao, khong de so tien cua khach truoc nam lai tren man. */
-function cfdGoiCamOn(quay, thu, tab, luc) {
+function cfdGoiCamOn(quay, thu, tab, luc, diem) {
   quay = quay || {};
   return {
     gt: CFD_GT,
@@ -35045,9 +35077,13 @@ function cfdGoiCamOn(quay, thu, tab, luc) {
     mon: [],
     tong: Number(thu) || 0,
     giam: 0,
+    giam_vi: '',
     tra: Number(thu) || 0,
     pt: '',
-    qr: null
+    qr: null,
+    /* So diem VUA CONG cua hoa don nay. Khong phai so du: so du la thu chi
+       chu the moi can biet. Khong co diem thi de 0 va man hinh bo qua. */
+    diem: Math.max(0, Math.round(Number(diem) || 0))
   };
 }
 
@@ -35069,7 +35105,7 @@ function cfdNhipBat() {
 
 /* Day trang thai gio hang sang man hinh khach. Goi o cuoi scrPosQuay nen
    moi lan them mon, doi phuong thuc, hay SePay bao tien ve deu tu day. */
-function cfdDay(don, quay, phaiThu, nguon, laApp) {
+function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
   if (!cfdCo()) return;
   var qr = null;
   if (!laApp && don && don.pt === 'Chuyển khoản' && phaiThu > 0) {
@@ -35088,14 +35124,14 @@ function cfdDay(don, quay, phaiThu, nguon, laApp) {
       };
     }
   }
-  cfdGoiCuoi = cfdDungGoi(don, quay, phaiThu, qr, cfdMaTab(), Date.now());
+  cfdGoiCuoi = cfdDungGoi(don, quay, phaiThu, qr, cfdMaTab(), Date.now(), giamVi);
   cfdPhat(cfdGoiCuoi);
   cfdNhipBat();
 }
 
-function cfdCamOn(thu) {
+function cfdCamOn(thu, diem) {
   if (!cfdCo()) return;
-  cfdGoiCuoi = cfdGoiCamOn(posQuay, thu, cfdMaTab(), Date.now());
+  cfdGoiCuoi = cfdGoiCamOn(posQuay, thu, cfdMaTab(), Date.now(), diem);
   cfdPhat(cfdGoiCuoi);
 }
 
