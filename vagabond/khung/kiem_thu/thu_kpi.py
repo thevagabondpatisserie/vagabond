@@ -320,6 +320,33 @@ def _nut():
 	dung("bảng đường dẫn có kpi", "'kpi': 'KPI'," in js)
 
 
+@ca("KPI: danh sách trạng thái trong kho phải khớp TỪNG DẤU với hằng số")
+def _kho_trang_thai():
+	"""Ngày 01/09/2026 bản v381 lên site rồi mới lộ: danh sách trạng thái
+	trong kho viết KHÔNG dấu, còn mã nguồn ghi CÓ dấu. Phiếu dựng ra bị đóng
+	dấu sai, màn hình đọc không ra bước nào, nút duyệt biến mất và cả luồng
+	đứng. Không lớp kiểm nào bắt được vì hai bên nằm ở hai tệp khác nhau.
+	"""
+	import json
+	import os
+	goi = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	d = json.load(io.open(os.path.join(
+		goi, "vagabond", "doctype", "vagabond_kpi_phieu",
+		"vagabond_kpi_phieu.json"), encoding="utf-8"))
+	tt = None
+	for x in d.get("fields") or []:
+		if x.get("fieldname") == "trang_thai":
+			tt = x
+	dung("có ô trạng thái trong kho", bool(tt))
+	oc = [x for x in (tt or {}).get("options", "").split("\n") if x.strip()]
+	la("đủ sáu trạng thái", len(oc), 6)
+	la("khớp từng dấu với hằng số", oc, list(kpi.CHUOI) + [kpi.TT_HUY])
+	# Moi ma nam trong CHUOI deu phai co trong danh sach cua kho, khong thi
+	# Frappe tu chối hoặc đóng dấu sai.
+	for t in list(kpi.CHUOI) + [kpi.TT_HUY]:
+		dung("kho nhận được %s" % t, t in oc)
+
+
 @ca("KPI: cửa ngõ mở đúng danh sách, hàm nội bộ phải kín")
 def _cua_ngo():
 	m = _doc("vagabond", "kpi.py")
