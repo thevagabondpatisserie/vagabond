@@ -6210,7 +6210,7 @@ _pos50 = open("vagabond/public/js/bep/09-tinh-tien-quay.js", encoding="utf-8").r
 # Phep kiem chay THAT: dua vao mot don hang co du cac o cam roi doc goi tin
 # ra, chu khong chi doc ma nguon. Doc ma nguon thi mot ngay nao do ai do
 # them "don.sdt" vao qua mot bien trung gian la khong bat duoc.
-_ham50 = re.search(r"function cfdDungGoi\(don, quay, phaiThu, qr, tab, luc\) \{.*?\n\}",
+_ham50 = re.search(r"function cfdDungGoi\(don, quay, phaiThu, qr, tab, luc, giamVi\) \{.*?\n\}",
                    _cfd50, re.S)
 la("tim thay ham dung goi tin", bool(_ham50), True)
 
@@ -6233,7 +6233,7 @@ if _ham50:
 	_ma50 = ("var CFD_GT=1;\n" + _ham50.group(0) +
 	         "\nvar g=cfdDungGoi(" + _don50 + ",{ten:'Thảo Điền',ma:'TCV'},115000," +
 	         "{url:'https://img.vietqr.io/image/MB-123-qr_only.png',nd:'TCV VGBQWERT'," +
-	         "ten:'CTY VAGABOND',bank:'MB',stk:'123',nhan:0,du:false},'TAB123',777);" +
+	         "ten:'CTY VAGABOND',bank:'MB',stk:'123',nhan:0,du:false},'TAB123',777,'thành viên');" +
 	         "console.log(JSON.stringify(g));")
 	try:
 		_kq50 = _sp50.run(["node", "-e", _ma50], capture_output=True, text=True, timeout=30)
@@ -6246,8 +6246,15 @@ if _ham50:
 		_van50 = json.dumps(_goi50, ensure_ascii=False)
 		for _c50 in _CAM50:
 			la("goi tin KHONG mang %s" % _c50, _c50 in _van50, False)
+		# 01/09/2026 them o "giam_vi": nhan ngan noi phan giam den tu dau
+		# ("thành viên" hay "ưu đãi"). Anh Viet chot man nay KHONG bay ten,
+		# so dien thoai, hang the hay so diem cua khach, nhung khach van phai
+		# thay minh duoc uu dai. Nhan do man tinh tien tinh san roi chuyen
+		# sang, va TUYET DOI khong mang ten hang the.
 		la("chi co dung cac o da khai", sorted(_goi50.keys()),
-		   ["giam", "gt", "loai", "luc", "man", "mon", "pt", "qr", "quay", "tab", "tong", "tra"])
+		   ["giam", "giam_vi", "gt", "loai", "luc", "man", "mon", "pt", "qr",
+		    "quay", "tab", "tong", "tra"])
+		la("nhan ly do giam di qua", _goi50["giam_vi"], "thành viên")
 		# 01/09/2026 them o "anh" theo y anh Viet: *"hien thi ten mon anh mon,
 		# roi hien thi ma QR tren nen xanh robin egg cua branding"*. Anh mon
 		# KHONG phai du lieu rieng tu, no la anh san pham ai vao tiem cung
@@ -6262,7 +6269,7 @@ if _ham50:
 		la("ma tab di theo goi tin", _goi50["tab"], "TAB123")
 	# Gio hang rong thi phai ve man chao chu khong phai man don trong.
 	_ma50b = ("var CFD_GT=1;\n" + _ham50.group(0) +
-	          "\nconsole.log(cfdDungGoi({mon:[]},{ten:'TCV'},0,null,'T',1).man);")
+	          "\nconsole.log(cfdDungGoi({mon:[]},{ten:'TCV'},0,null,'T',1,'').man);")
 	try:
 		_kq50b = _sp50.run(["node", "-e", _ma50b], capture_output=True, text=True, timeout=30)
 		la("gio hang rong thi ve man chao", _kq50b.stdout.strip(), "chao")
@@ -6313,8 +6320,13 @@ la("chip noi that khi da mo", "Đang bật" in _cfd50, True)
 la("trinh duyet khong co BroadcastChannel thi noi thang", "không có BroadcastChannel" in _cfd50, True)
 
 # ---------- 50.7 Man tinh tien phai thuc su goi sang ----------
-la("man tinh tien day trang thai o cuoi man", "cfdDay(posDon, posQuay, phaiThu, nguonThuc, laApp)" in _pos50, True)
-la("luu hoa don xong thi doi sang loi cam on", "cfdCamOn(thu)" in _pos50, True)
+la("man tinh tien day trang thai o cuoi man",
+   "cfdDay(posDon, posQuay, phaiThu, nguonThuc, laApp, posLyDoGiam())" in _pos50, True)
+la("luu hoa don xong thi doi sang loi cam on", "cfdCamOn(thu," in _pos50, True)
+# Ly do giam phai tinh BEN MAN TINH TIEN chu khong ben man hinh khach: tep
+# man hinh khach khong duoc phep nhac den mot o rieng tu nao cua don.
+la("ly do giam tinh ben man tinh tien", "function posLyDoGiam(" in _pos50, True)
+la("nhan giam khong bao gio mang ten hang the", "hang" in _cfd50.lower().split("giam_vi")[1][:400], False)
 la("man tinh tien co khoi man hinh khach", "html += cfdKhoi();" in _pos50, True)
 la("man tinh tien noi nut mo", "cfdGan();" in _pos50, True)
 
