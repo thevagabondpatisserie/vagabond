@@ -51,12 +51,19 @@ import json
 TRUONG_CAU_HINH = "vgb_kpi_cau_hinh"
 
 # Trạng thái phiếu, đúng năm bước anh Việt chốt.
-TT_QUAN_LY = "Chờ quản lý"
-TT_KE_TOAN = "Chờ kế toán"
-TT_GIAM_DOC = "Chờ giám đốc"
-TT_DUYET = "Đã duyệt"
-TT_DA_CHI = "Đã đẩy chi"
-TT_HUY = "Đã huỷ"
+# Giá trị LƯU trong kho viết KHÔNG dấu, đúng lệ của mọi doctype khác trong
+# repo này (đề nghị chi, hồ sơ thanh toán, hoàn tiền...). Chữ có dấu để ở
+# NHAN_TT bên dưới, chỉ dùng để hiện lên màn.
+#
+# Ngày 01/09/2026 bản v381 lỡ lưu chữ CÓ dấu trong khi danh sách của kho ghi
+# không dấu. Frappe không báo lỗi, nó lặng lẽ thay bằng lựa chọn đầu danh
+# sách. Phiếu dựng ra đứng ở "bước 0/5", nút duyệt biến mất, cả luồng kẹt.
+TT_QUAN_LY = "Cho quan ly"
+TT_KE_TOAN = "Cho ke toan"
+TT_GIAM_DOC = "Cho giam doc"
+TT_DUYET = "Da duyet"
+TT_DA_CHI = "Da day chi"
+TT_HUY = "Da huy"
 
 CHUOI = [TT_QUAN_LY, TT_KE_TOAN, TT_GIAM_DOC, TT_DUYET, TT_DA_CHI]
 
@@ -694,7 +701,11 @@ def dung_phieu(ky=None, nguoi=None, bo="sales"):
 	doc.nguoi = nguoi
 	doc.ten_nguoi = _ten_nguoi(nguoi)
 	doc.bo = bo
-	if not doc.trang_thai:
+	# Trạng thái lạ thì kéo về bước đầu. Bản v381 lỡ ghi danh sách trạng thái
+	# trong kho KHÔNG dấu, nên phiếu dựng ngày 01/09 bị đóng dấu sai và kẹt
+	# ở "bước 0/5", không ai bấm được. Dòng này gỡ luôn cho phiếu cũ khi dựng
+	# lại, khỏi phải đụng tay vào cơ sở dữ liệu.
+	if doc.trang_thai not in CHUOI and doc.trang_thai != TT_HUY:
 		doc.trang_thai = TT_QUAN_LY
 
 	cu = {d.k: d for d in (doc.get("cac_dong") or [])}
