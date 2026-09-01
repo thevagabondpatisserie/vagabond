@@ -500,6 +500,55 @@ document.addEventListener('input', function (e) {
   }
 }, true);
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+/* KHACH TREN MOT DON: MOT CHO DOC, MOI MAN DUNG CHUNG.
+
+   Anh Viet 01/09/2026: *"don ma xem lai thi khong thay duoc thong tin khach
+   hang hien thi tren don o moi man luon"*. Du lieu von co san tu lau, nhung
+   moi man tu doc mot kieu nen man nao quen doc la man do trang.
+
+   May chu da tach san ten va so vao `ten_tren_don` va `sdt_tren_don` (xem
+   `ban_hang.gan_khach_vao_dong`), nen o day uu tien doc hai o do. Chi khi
+   dong khong co hai o ay - vi du don doc thang bang frappe.client.get -
+   moi tach tu ghi chu.
+
+   KHUON GHI CHU that: "<nguon> #<ma don> - <ten khach>[ - <sdt>][ - Quay <ma>]"
+   Dung `split(' - ')[1]` tho nhu truoc la sai hai duong: bill quay co duoi
+   "Quay TCV" se bi hien thanh so dien thoai, va don khong co ten thi lay
+   nham manh khac. Ham nay bo duoi Quay ra va nhan so bang chinh chu so. */
+function khachTrenDon(d) {
+  d = d || {};
+  var ten = String(d.ten_tren_don || '').trim();
+  var sdt = String(d.sdt_tren_don || '').trim();
+  if (!ten && !sdt) {
+    var tho = String(d.remarks || '').trim();
+    if (tho.indexOf(' - ') >= 0) {
+      var phan = tho.split(' - ').slice(1);
+      for (var i = 0; i < phan.length; i++) {
+        var x = String(phan[i] || '').trim();
+        if (!x) continue;
+        var thap = x.toLowerCase();
+        if (thap.indexOf('quầy') === 0 || thap.indexOf('quay') === 0) continue;
+        var so = x.replace(/[^0-9]/g, '');
+        if (so && so.length >= 9 && so.length >= x.length - 2) { if (!sdt) sdt = so; }
+        else if (!ten) ten = x;
+      }
+    }
+    if (!ten) ten = String(d.customer_name || '').trim();
+  }
+  var ma = String(d.ma_khach || d.vgb_khach_no || '').trim();
+  if (!ma) {
+    var c = String(d.customer || '').trim();
+    if (c && c.indexOf('Khách lẻ') !== 0 && c !== 'Khách bán lẻ') ma = c;
+  }
+  return { ten: ten, sdt: sdt, ma: ma };
+}
+/* Mot dong chu goi de dan len dau man xem lai don. Rong thi tra chuoi rong,
+   de man hinh biet ma khong ve o trong. */
+function khachMotDong(d) {
+  var k = khachTrenDon(d);
+  if (!k.ten && !k.sdt) return '';
+  return h(k.ten || 'Khách lẻ') + (k.sdt ? ' · ' + h(k.sdt) : '');
+}
 function addDays(iso, n) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 /* Input ngay cua trinh duyet hien theo locale may (iOS ra 01 Aug 2026).
    Phu mot lop chu dd/mm/yyyy cua minh len tren, van bam mo lich duoc. */

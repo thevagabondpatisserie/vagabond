@@ -1098,7 +1098,11 @@ def tim_don_de_hoan(diem="", tim="", so_dong=40):
 		hoac = [[c, "like", "%" + q + "%"] for c in TRUONG_TIM_DON_HD]
 	dong = frappe.get_all("Sales Invoice", filters=loc, or_filters=hoac,
 		fields=["name", "customer_name", "grand_total", "posting_date",
-			"docstatus", "custom_hddt_so", "vgb_quay", "vgb_huy"],
+			"docstatus", "custom_hddt_so", "vgb_quay", "vgb_huy",
+			# Ten that cua khach le nam trong ghi chu. Thieu ba o nay thi moi
+			# dong deu ra chu "Khach le Online" va nguoi lap phieu hoan khong
+			# biet minh dang chon don cua ai (anh Viet 01/09/2026).
+			"remarks", "customer", "vgb_khach_no"],
 		order_by="posting_date desc, creation desc",
 		limit_page_length=max(1, min(100, int(so_dong or 40))))
 	# Phieu hoan da co cho don nao roi thi noi thang tren dong, de nguoi ta
@@ -1112,6 +1116,9 @@ def tim_don_de_hoan(diem="", tim="", so_dong=40):
 					"trang_thai": ["!=", "Da huy"]},
 				fields=["hoa_don"], limit_page_length=0):
 			da_co.add(r["hoa_don"])
+	from vagabond import ban_hang as _bh
+
+	_bh.gan_khach_vao_dong(dong)
 	for d in dong:
 		d["da_co_phieu"] = 1 if d["name"] in da_co else 0
 		d["da_ghi_so"] = 1 if int(d.get("docstatus") or 0) == 1 else 0

@@ -502,7 +502,7 @@ async function scrPhLap() {
     (d.dong || []).forEach(function (r) {
       html += '<div class="hub" data-phlo="' + h(r.name) + '">' +
         '<div class="hi">🧾</div>' +
-        '<div class="ht"><div class="h1">' + h(r.name) + ' · ' + h(r.customer_name || 'Khách lẻ') + '</div>' +
+        '<div class="ht"><div class="h1">' + h(r.name) + ' · ' + (khachMotDong(r) || 'Khách lẻ') + '</div>' +
         '<div class="h2">' + h(r.posting_date || '') +
         (r.da_ghi_so ? ' · đã ghi sổ' : ' · còn nháp') +
         (r.custom_hddt_so ? ' · hoá đơn ' + h(r.custom_hddt_so) : '') + '</div>' +

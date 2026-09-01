@@ -116,6 +116,9 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 			"vgb_pt_thanh_toan", "custom_pancake_display_id", "vgb_tam_tinh",
 			"vgb_khach_no", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
 			"vgb_lan_sua", "amended_from",
+			# Ten that cua khach le nam trong ghi chu chu khong o customer_name
+			# (anh Viet 01/09/2026: moi man phai thay duoc khach tren don).
+			"remarks",
 		],
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
@@ -126,6 +129,12 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 	thay_the = chung_tu.ds_da_bi_sua(
 		"Sales Invoice", [r.name for r in ds if r.get("docstatus") == 2]
 	)
+	# Nhap tai cho chu khong o dau tep: ban_hang keo theo ca chuoi dong bo
+	# Pancake, dat o dau tep la ke_toan khong con nhap duoc khi khong co mang
+	# (bai hoc CI do ba ca ngay 20/08/2026).
+	from vagabond import ban_hang as _bh
+
+	_bh.gan_khach_vao_dong(ds)
 	ra = []
 	for r in ds:
 		if r.get("vgb_tam_tinh"):
@@ -137,7 +146,10 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 		o["diem"] = diem
 		o["nhom"] = _nhom_ban(r)
 		o["da_sua"] = _da_sua(r, thay_the)
-		o["khach"] = r.vgb_khach_no or r.customer_name or r.customer
+		# Thu tu tin cay: khach cong no da gan tay, roi ten that doc tu ghi
+		# chu, roi moi den customer_name. Dat customer_name truoc thi moi don
+		# ban le deu ra chu "Khach le Online", dung mot chu ma vo nghia.
+		o["khach"] = r.vgb_khach_no or o.get("ten_tren_don") or r.customer_name or r.customer
 		if q and q not in (
 			(r.name or "") + " " + (o["khach"] or "") + " "
 			+ (r.custom_hddt_so or "") + " " + (r.custom_pancake_display_id or "")

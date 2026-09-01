@@ -473,7 +473,15 @@ async function scrPosQuay() {
     if (dsPt.length === 1) posDon.pt = dsPt[0].v;
     else if (!dsPt.some(function (p) { return p.v === posDon.pt; })) posDon.pt = '';
   }
-  else if (!posDon.pt || !dsPt.some(function (p) { return p.v === posDon.pt; })) posDon.pt = 'Tiền mặt';
+  /* Don tai quay roi ve Tien mat, NHUNG chi khi Tien mat con bat. Truoc day
+     go cung chuoi 'Tiền mặt' o day, nen ai tat phuong thuc do trong Cai dat
+     la man tinh tien khong nut nao sang, bam Thu tien thi may chu nem loi.
+     Lay dung phan tu dau danh sach lam duong lui. */
+  else if (!posDon.pt || !dsPt.some(function (p) { return p.v === posDon.pt; })) {
+    posDon.pt = dsPt.some(function (p) { return p.v === 'Tiền mặt'; })
+      ? 'Tiền mặt'
+      : ((dsPt[0] && dsPt[0].v) || '');
+  }
   var tong = posDon.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
   /* Voucher phan tram bam theo tong bill: them bot mon la so giam tu tinh lai. */
   if (posDon.km) posDon.giam = String(posKmGiam(posDon.km, tong) || '');

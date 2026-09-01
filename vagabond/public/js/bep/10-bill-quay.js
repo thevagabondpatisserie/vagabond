@@ -422,6 +422,11 @@ async function scrPosDs() {
     var gio = String(r.creation || '').slice(11, 16);
     var phu = [gio, h(r.custom_nguon || '')];
     if (r.total_qty) phu.push(money(r.total_qty) + ' món');
+    /* Ten khach ngay tren dong bill. May chu da tra ve tu lau trong o ghi
+       chu, chi la man nay khong doc (anh Viet 01/09/2026). Cat ngan de dong
+       khong vo tren may quay. */
+    var khD = khachTrenDon(r);
+    if (khD.ten) phu.push('👤 ' + h(String(khD.ten).slice(0, 22)));
     /* "Ban cho nguoi tieu dung" la gia tri mac dinh, khong phai cong ty
        that - hien len moi dong chi gay nhieu. */
     if (r.vgb_xhd_ten && r.vgb_xhd_ten !== 'Bán cho người tiêu dùng') phu.push('🏢 ' + h(String(r.vgb_xhd_ten).slice(0, 26)));
@@ -570,6 +575,10 @@ async function scrPosBill(name) {
     '<div style="display:flex;justify-content:space-between"><b style="font-size:16px">' + h(maBill || d.name) + '</b><span style="color:#98a2b3;font-size:12px">' + h(d.name) + '</span></div>' +
     '<div style="font-size:12px;color:#6b7280">' + h(d.custom_nguon || '') + ' · ' + h(String(d.creation || '').slice(0, 16)) +
     (d.vgb_quay ? ' · quầy ' + h(d.vgb_quay) : '') + '</div>' +
+    /* KHACH TREN BILL. Truoc 01/09/2026 man nay trang tron phan khach, nen
+       cung mot to hoa don mo ben Sales thi thay ten con mo ben quay thi
+       khong. Doc bang ham dung chung de hai man khong bao gio lech nhau. */
+    (khachMotDong(d) ? '<div style="font-size:13.5px;font-weight:600;margin-top:3px">👤 ' + khachMotDong(d) + '</div>' : '') +
     '<div style="margin-top:4px">' + posChipBill({
       docstatus: d.docstatus, vgb_tam_tinh: d.vgb_tam_tinh, vgb_pt_thanh_toan: d.vgb_pt_thanh_toan,
       sepay_du: 0, custom_hddt_so: d.custom_hddt_so, vgb_xhd_mst: d.vgb_xhd_mst,
@@ -577,7 +586,11 @@ async function scrPosBill(name) {
       vgb_huy: d.vgb_huy, vgb_lan_sua: d.vgb_lan_sua
     }) +
     (soBan ? '<span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:3px 5px 0 0">🪑 Bàn ' + h(soBan) + '</span>' : '') +
-    '</div></div>';
+    '</div></div>' +
+    /* CHO TRONG cho the thanh vien. Ve rong truoc roi nhet sau, vi the
+       phai hoi may chu them mot luot; cho luot do xong moi ve ca man thi
+       thu ngan phai ngoi nhin man trang. */
+    '<div id="pbThe"></div>';
 
   /* Bill da huy: noi thang o ngay dau man, khong de thu ngan doc het bang
      mon roi moi phat hien minh dang xem mot to da bo. */
@@ -761,6 +774,45 @@ async function scrPosBill(name) {
       '</div>';
   }
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+
+  /* --- THE THANH VIEN CUA KHACH TREN BILL ---
+     Anh Viet 01/09/2026 chot: moi man xem lai don deu phai thay thong tin
+     khach. Man Sales da co khoi nay tu lau, man quay thi khong, nen cung
+     mot to hoa don mo hai duong ra hai ket qua khac nhau.
+     Chi DOC, khong sua: gan khach hay bo khach van lam ben man Sales, o
+     day chi bay ra de thu ngan biet minh dang cam bill cua ai. */
+  (async function pbVeThe() {
+    var o = document.getElementById('pbThe');
+    if (!o) return;
+    var kh = khachTrenDon(d);
+    if (!kh.ma) return;
+    var the = null;
+    try {
+      the = await api('vagabond.khach_hang.the_tren_don', {
+        khach: kh.ma, tien: Number(d.grand_total) || 0, hoa_don: d.name || ''
+      });
+    } catch (e) { the = null; }
+    if (!the || !the.co) return;
+    var oo = document.getElementById('pbThe');
+    if (!oo) return; /* thu ngan da roi man trong luc cho */
+    var anh = the.anh_hang
+      ? '<img src="' + h(the.anh_hang) + '" alt="" style="width:44px;height:44px;flex:none;border-radius:10px;object-fit:cover">'
+      : '<div style="width:44px;height:44px;flex:none;border-radius:10px;background:#f1f5f9"></div>';
+    oo.innerHTML = '<div class="card" style="padding:11px 14px;margin-top:10px">' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:7px"><b>Khách hàng thân thiết</b></div>' +
+      '<div style="display:flex;align-items:center;gap:9px">' + anh +
+      '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(the.ten || kh.ma) + '</b>' +
+      '<div style="font-size:11.5px;color:#6b7280">mã ' + h(kh.ma) +
+      (the.ten_hang ? ' · hạng ' + h(the.ten_hang) : '') +
+      (the.giam_gia ? ' · <b style="color:#b45309">ưu đãi giảm ' + the.giam_gia + '%</b>' : '') +
+      '</div></div></div>' +
+      '<div style="font-size:12.5px;color:#475467;margin-top:7px;line-height:1.65">' +
+      'Điểm hiện có <b>' + money(the.diem_hien_tai) + '</b>' +
+      (the.da_tich
+        ? ' · đơn này <b style="color:#067a5f">đã cộng ' + money(the.diem_don_nay) + '</b>'
+        : (the.diem_don_nay ? ' · đơn này sẽ cộng <b>' + money(the.diem_don_nay) + '</b> khi ghi sổ' : '')) +
+      '</div></div>';
+  })();
 
   /* Don Pancake da co tai khoan ao rieng cua no, xem doan mo ta ben
      `dsvVeQr` trong 08-doanh-so-sales.js. Ve them mot ma QR nua o day la

@@ -527,8 +527,8 @@ async function scrVdTao() {
       catch (er) { busy(false); return baoTin('Không tải được hoá đơn'); }
       busy(false);
       return sheet('Chọn hoá đơn', si.map(function (x) {
-        var kh = (x.remarks || '').split(' - ');
-        return { value: x.name, label: '#' + (x.custom_pancake_display_id || '?') + ' · ' + (kh[1] || x.customer_name || '') + ' · ' + money(x.grand_total) + ' đ', icon: '🧾' };
+        var kh = khachTrenDon(x);
+        return { value: x.name, label: '#' + (x.custom_pancake_display_id || '?') + ' · ' + (kh.ten || '') + ' · ' + money(x.grand_total) + ' đ', icon: '🧾' };
       }), vdTay.si, function (o) { vdTay.si = o.value; go(scrVdTao, true); }, true);
     }
     if (e.target.closest('[data-t="gio"]')) {
@@ -767,7 +767,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '374';
+var APPVER = '375';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
