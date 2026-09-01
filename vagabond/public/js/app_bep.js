@@ -20155,7 +20155,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '382';
+var APPVER = '383';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -43172,7 +43172,10 @@ async function scrKPI() {
   ) + '<div style="height:7px"></div>' + kmHangChip(
     posChipNut('data-kpitt=""', 'Mọi trạng thái', !kpiTT) +
     (kq.trang_thai || []).map(function (t) {
-      return posChipNut('data-kpitt="' + h(t) + '"', h(t), kpiTT === t);
+      /* Chip hiện CHỮ CÓ DẤU, còn giá trị gửi lên máy chủ vẫn là chữ lưu
+         trong kho. Hai thứ khác nhau, đừng gộp làm một. */
+      return posChipNut('data-kpitt="' + h(t) + '"',
+        h((kq.nhan_trang_thai || {})[t] || t), kpiTT === t);
     }).join('')
   ) + '<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">' +
     posChipNut('data-kpiky="-1"', '◀ Kỳ trước', false) +
@@ -43191,7 +43194,8 @@ async function scrKPI() {
           '<div style="display:flex;gap:10px;align-items:baseline">' +
           '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(r.ten_nguoi || r.nguoi) + '</b>' +
           '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' +
-          '<span style="color:' + kpiMau(r.trang_thai) + ';font-weight:700">' + h(r.trang_thai) + '</span>' +
+          '<span style="color:' + kpiMau(r.trang_thai) + ';font-weight:700">' +
+          h((kq.nhan_trang_thai || {})[r.trang_thai] || r.trang_thai) + '</span>' +
           (r.con_thieu ? ' · còn ' + r.con_thieu + ' tiêu chí chưa chấm' : '') +
           (r.phieu_chi ? ' · ' + h(r.phieu_chi) : '') + '</div></div>' +
           '<div style="text-align:right">' +
