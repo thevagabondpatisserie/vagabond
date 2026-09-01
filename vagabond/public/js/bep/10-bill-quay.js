@@ -771,9 +771,24 @@ async function scrPosBill(name) {
       '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="pbSua" style="flex:1;margin:0">✏️ Sửa hoá đơn</button>' +
       (nhap ? '<button class="btn gh" id="pbXoa" style="flex:1;margin:0;color:#b3261e;border-color:#fecaca">🚫 Huỷ bill</button>' : '') +
-      '</div>';
+      '</div>' +
+      /* CỬA SANG MÀN CHI TIẾT ĐƠN.
+
+         Anh Việt 01/09/2026: mọi tính năng phải có ở mọi màn. Hoàn tiền,
+         chuyển lại tiền dư, hoá đơn thay thế và xuất hoá đơn điện tử tay
+         đều nằm ở màn Chi tiết đơn, mà đường duy nhất tới đó là gõ vào ô
+         tìm kiếm. Bill đã ghi sổ mà khách trả bánh thì thu ngân đứng ở màn
+         này không thấy nút hoàn tiền nào.
+
+         Mở một cửa sang đó thay vì chép bộ nút sang đây: hoàn tiền là
+         đường tiền RA, chép làm hai bản là hai bản sẽ lệch nhau, và tiền ra
+         thì chỉ được có một cửa (QT-19). */
+      '<button class="btn gh" id="pbChiTiet" style="margin-top:8px;width:100%">' +
+      '↩️ Hoàn tiền, tiền dư, hoá đơn thay thế</button>';
   }
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+  var nCt = document.getElementById('pbChiTiet');
+  if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };
 
   /* --- THE THANH VIEN CUA KHACH TREN BILL ---
      Anh Viet 01/09/2026 chot: moi man xem lai don deu phai thay thong tin
