@@ -42,13 +42,13 @@ function dtgMauTt(tt) {
 /* Một hàng chip, cùng khuôn với màn Danh sách phiếu hoàn tiền. Chip rỗng thì
    ẩn, riêng chip đang chọn luôn hiện dù đếm 0 - không thì bấm vào là nó biến
    mất và người ta không biết đường bấm lại. */
-function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa) {
+function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa, mau) {
   var s = posChipNut(thuoc + '=""', (nhanTatCa || 'Tất cả') + ' · ' +
-    (dem.tat_ca || 0), chon === '');
+    (dem.tat_ca || 0), chon === '', false, mau);
   (dsc || []).forEach(function (o) {
     var n = dem[o.k] || 0;
     if (!n && chon !== o.k) return;
-    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k);
+    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k, false, mau);
   });
   return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
@@ -103,11 +103,14 @@ async function scrDuyetTang() {
       'người tặng và người duyệt không phải là một người.</div>') +
     '</div>';
 
-  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán');
+  /* Ba họ chip ba màu, cùng bảng màu với màn Danh sách phiếu hoàn tiền:
+     ba hàng xếp chồng mà cùng một màu thì không biết mình đang lọc theo
+     cái gì. Anh Việt nhắc 31/08/2026. */
+  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán', '#4338ca');
   html += dtgHangChip('data-dtgt', (kq.trang_thai || []).map(function (k) {
     return { k: k, ten: k };
-  }), kq.dem || {}, dtgTt, 'Mọi trạng thái');
-  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng');
+  }), kq.dem || {}, dtgTt, 'Mọi trạng thái', '#0d9488');
+  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng', '#b45309');
 
   html += '<div class="card" style="padding:9px 11px"><input id="dtgTim" type="search" ' +
     'placeholder="Tìm theo mã đơn, tên khách, mã Pancake, lý do tặng" value="' + h(dtgTim) + '" ' +

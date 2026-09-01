@@ -20111,7 +20111,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '376';
+var APPVER = '377';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -22530,6 +22530,14 @@ var bcXem = 'bang';
 var bcMa = null;
 var bcLocNguon = '', bcLocPt = '';
 var bcSS = 0;          /* 1 la bat so sanh voi ky lien truoc */
+/* null la CHUA CHON, de may chu tu quyet theo tung bao cao: bao cao thue
+   thi chi tinh don da ghi so, con lai thi tinh ca don chua ghi so. Bam vao
+   chip mot cai la thanh 0 hoac 1, luc do y nguoi xem thang. */
+var bcNhap = null;
+/* Danh sach diem ban do MAY CHU gui ve. Truoc 01/09/2026 ba diem duoc go
+   cung ngay trong tep nay, mo them mot diem la hang chip thieu mat mot cai
+   ma khong ai biet. */
+var bcDsDiem = null;
 
 var BC_KY = [
   { k: 'ngay', nhan: 'Ngày' },
@@ -22539,19 +22547,46 @@ var BC_KY = [
   { k: 'nam', nhan: 'Năm' },
   { k: 'tuy_chon', nhan: 'Tuỳ chọn' }
 ];
-var BC_DIEM = [
-  { ma: '', ten: 'Cả ba điểm' },
-  { ma: 'SALES', ten: 'Sales Online' },
-  { ma: 'TCV', ten: 'District 1' },
-  { ma: 'NVHTN', ten: 'NVHTN' }
-];
+/* Chi la ban du phong cho lan ve dau tien, truoc khi may chu kip tra loi.
+   Danh sach that lay tu bcDsDiem. */
+var BC_DIEM = [{ ma: '', ten: 'Mọi điểm bán' }];
+
+function bcHangDiem() {
+  var ds = [{ ma: '', ten: 'Mọi điểm bán' }];
+  (bcDsDiem || []).forEach(function (d) { ds.push({ ma: d.ma, ten: d.ten }); });
+  return ds.length > 1 ? ds : BC_DIEM;
+}
 
 function bcThamSo() {
   var o = { ky: bcKy, diem: bcDiem };
   if (bcKy === 'tuy_chon') { o.tu = bcTu || today(); o.den = bcDen || today(); }
   else o.moc = bcMoc || today();
   if (bcSS) o.ss = 1;
+  /* Chua chon thi KHONG gui gi ca, de may chu tu quyet. Gui 1 san se ep
+     ca bao cao thue phai tinh don chua ghi so, dung cai minh khong muon. */
+  if (bcNhap !== null) o.nhap = bcNhap;
   return o;
+}
+
+/* Dai canh bao ve so don chua ghi so. Bat hay tat cong tac deu phai ve, va
+   phai ve KHAC NHAU: dang tinh vao thi canh bao con so se con doi, dang bo
+   ra thi canh bao con so dang thieu. Im lang o day la nguy hiem nhat, ke
+   toan tuong minh dang nhin con so cuoi cung. */
+function bcDaiNhap(kq) {
+  var so = kq.so_nhap || 0;
+  if (!so) return '';
+  var tien = money(Math.round(kq.tien_nhap || 0)) + ' đ';
+  if (kq.nhap) {
+    return '<div class="card" style="padding:11px 13px;border:1.5px solid #fcd34d;background:#fffbeb">' +
+      '<div style="font-size:12.5px;color:#92400e;line-height:1.65">' +
+      'Đang tính cả <b>' + money(so) + '</b> đơn chưa ghi sổ (<b>' + tien + '</b>). ' +
+      'Số này còn đổi khi kế toán ghi sổ hoặc huỷ đơn. ' +
+      'Cần con số chốt thì bấm "Chỉ đơn đã ghi sổ".</div></div>';
+  }
+  return '<div class="card" style="padding:11px 13px;border:1.5px solid #bfdbfe;background:#eff6ff">' +
+    '<div style="font-size:12.5px;color:#1e40af;line-height:1.65">' +
+    'Đang bỏ ngoài <b>' + money(so) + '</b> đơn chưa ghi sổ (<b>' + tien + '</b>). ' +
+    'Muốn nhìn cả phần bán trong ngày thì bấm "Tính cả đơn chưa ghi sổ".</div></div>';
 }
 
 /* Chenh lech so voi ky truoc. Ky truoc bang 0 thi khong chia duoc - noi
@@ -22591,12 +22626,20 @@ function bcNhay(huong) {
   bcMoc = d.toISOString().slice(0, 10);
 }
 
+/* Cong tac dang bat hay tat. Nguoi dung chua bam thi lay theo cai may chu
+   vua tra ve cho man dang xem, nho vay chip khong bao gio noi mot dang ma
+   so lieu chay mot dang khac. */
+var bcNhapMayChu = 1;
+function bcNhapDangBat() {
+  return bcNhap === null ? !!bcNhapMayChu : !!bcNhap;
+}
+
 function bcThanhKy() {
   var h1 = BC_KY.map(function (x) {
     return posChipNut('data-bcky="' + x.k + '"', x.nhan, bcKy === x.k);
   }).join('');
-  var h2 = BC_DIEM.map(function (x) {
-    return posChipNut('data-bcdiem="' + x.ma + '"', x.ten, bcDiem === x.ma);
+  var h2 = bcHangDiem().map(function (x) {
+    return posChipNut('data-bcdiem="' + h(x.ma) + '"', h(x.ten), bcDiem === x.ma);
   }).join('');
   var dieu = bcKy === 'tuy_chon'
     ? '<div style="display:flex;gap:8px;margin-top:8px">' +
@@ -22607,8 +22650,12 @@ function bcThanhKy() {
       posChipNut('data-bcnhay="-1"', '◀ Kỳ trước', false) +
       posChipNut('data-bcnhay="0"', 'Hiện tại', false) +
       posChipNut('data-bcnhay="1"', 'Kỳ sau ▶', false) + '</div>';
-  var ss = '<div style="margin-top:7px">' +
-    posChipNut('data-bcss="1"', '⇄ So với kỳ trước', !!bcSS) + '</div>';
+  /* Hai chip cung mot hang: mot cai doi cach nhin, mot cai doi pham vi so
+     lieu. De hai hang roi nhau thi thanh loc cao qua nua man hinh. */
+  var ss = '<div style="display:flex;gap:7px;margin-top:7px;flex-wrap:wrap">' +
+    posChipNut('data-bcss="1"', '⇄ So với kỳ trước', !!bcSS) +
+    posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309') +
+    '</div>';
   return '<div class="card" style="padding:11px 12px">' +
     kmHangChip(h1) + '<div style="height:7px"></div>' + kmHangChip(h2) + dieu + ss + '</div>';
 }
@@ -22635,6 +22682,8 @@ function bcNoiThanh(b, veLai) {
     if (t) { bcLocPt = t.getAttribute('data-bcpt'); return veLai(); }
     t = e.target.closest('[data-bcss]');
     if (t) { bcSS = bcSS ? 0 : 1; return veLai(); }
+    t = e.target.closest('[data-bcnhap]');
+    if (t) { bcNhap = bcNhapDangBat() ? 0 : 1; return veLai(); }
   };
   ['bcTu', 'bcDen'].forEach(function (id) {
     var o = document.getElementById(id);
@@ -22656,7 +22705,10 @@ async function scrBaoCao() {
     return;
   }
 
-  var html = bcThanhKy();
+  bcNhapMayChu = kq.nhap;
+  if ((kq.diem_ban || []).length) bcDsDiem = kq.diem_ban;
+
+  var html = bcThanhKy() + bcDaiNhap(kq);
 
   html += '<div class="card" style="padding:14px">' +
     '<div style="font-size:12px;color:#98a2b3">TỔNG DOANH THU · ' + h(kq.nhan_ky) + '</div>' +
@@ -22693,7 +22745,8 @@ async function scrBaoCao() {
   });
 
   html += '<div style="text-align:center;color:#a0a6b4;font-size:11.5px;padding:8px 14px 2px;line-height:1.6">' +
-    'Số liệu đọc thẳng từ hoá đơn đã ghi sổ, không qua bảng tổng hợp nên luôn khớp với sổ sách.</div>';
+    'Số liệu đọc thẳng từ hoá đơn, không qua bảng tổng hợp nên luôn khớp với sổ sách. ' +
+    'Đơn tạm tính và đơn đã huỷ không bao giờ được tính.</div>';
 
   var b = frame('Báo cáo', html);
   bcNoiThanh(b, function () { go(scrBaoCao, true); });
@@ -22789,12 +22842,22 @@ async function scrBaoCaoXem() {
     return;
   }
 
-  var html = bcThanhKy();
+  bcNhapMayChu = kq.nhap;
+  if ((kq.diem_ban || []).length) bcDsDiem = kq.diem_ban;
+
+  var html = bcThanhKy() + bcDaiNhap(kq);
+  if (kq.chot && !kq.nhap) {
+    html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
+      '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
+      'Báo cáo này mặc định <b>chỉ tính đơn đã ghi sổ</b>, vì con số ở đây đi thẳng ra tờ khai thuế. ' +
+      'Bật đơn chưa ghi sổ lên chỉ để ước lượng, đừng lấy số đó đi khai.</div></div>';
+  }
   html += '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">' + h(kq.ma) + ' · ' + h(kq.nhan_ky) + '</div>' +
     '<div style="font-size:19px;font-weight:800">' + kq.ic + ' ' + h(kq.ten) + '</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(kq.mo) + '</div>' +
-    '<div style="font-size:13px;color:#0f766e;margin-top:8px"><b>' + money(kq.tong_doanh_thu) + ' đ</b> doanh thu · ' + money(kq.so_hoa_don) + ' hoá đơn trong phạm vi đang lọc</div>' +
+    '<div style="font-size:13px;color:#0f766e;margin-top:8px"><b>' + money(kq.tong_doanh_thu) + ' đ</b> doanh thu · ' + money(kq.so_hoa_don) + ' hoá đơn trong phạm vi đang lọc' +
+    (kq.nhap && kq.so_nhap ? ' <span style="color:#b45309">(gồm ' + money(kq.so_nhap) + ' đơn chưa ghi sổ)</span>' : '') + '</div>' +
     bcHangSoSanh(kq.ss) +
     (kq.ss && !kq.co_ss_dong
       ? '<div style="font-size:12px;color:#98a2b3;margin-top:5px">Báo cáo dạng bảng kê nên không so được từng dòng, chỉ so tổng.</div>'
@@ -42168,13 +42231,13 @@ function dtgMauTt(tt) {
 /* Một hàng chip, cùng khuôn với màn Danh sách phiếu hoàn tiền. Chip rỗng thì
    ẩn, riêng chip đang chọn luôn hiện dù đếm 0 - không thì bấm vào là nó biến
    mất và người ta không biết đường bấm lại. */
-function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa) {
+function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa, mau) {
   var s = posChipNut(thuoc + '=""', (nhanTatCa || 'Tất cả') + ' · ' +
-    (dem.tat_ca || 0), chon === '');
+    (dem.tat_ca || 0), chon === '', false, mau);
   (dsc || []).forEach(function (o) {
     var n = dem[o.k] || 0;
     if (!n && chon !== o.k) return;
-    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k);
+    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k, false, mau);
   });
   return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
@@ -42229,11 +42292,14 @@ async function scrDuyetTang() {
       'người tặng và người duyệt không phải là một người.</div>') +
     '</div>';
 
-  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán');
+  /* Ba họ chip ba màu, cùng bảng màu với màn Danh sách phiếu hoàn tiền:
+     ba hàng xếp chồng mà cùng một màu thì không biết mình đang lọc theo
+     cái gì. Anh Việt nhắc 31/08/2026. */
+  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán', '#4338ca');
   html += dtgHangChip('data-dtgt', (kq.trang_thai || []).map(function (k) {
     return { k: k, ten: k };
-  }), kq.dem || {}, dtgTt, 'Mọi trạng thái');
-  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng');
+  }), kq.dem || {}, dtgTt, 'Mọi trạng thái', '#0d9488');
+  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng', '#b45309');
 
   html += '<div class="card" style="padding:9px 11px"><input id="dtgTim" type="search" ' +
     'placeholder="Tìm theo mã đơn, tên khách, mã Pancake, lý do tặng" value="' + h(dtgTim) + '" ' +
