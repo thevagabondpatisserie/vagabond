@@ -1315,6 +1315,23 @@ function tkVe() {
     'Khai tài khoản ảo riêng cho từng điểm bán thì sao kê ngân hàng tự tách sẵn, ' +
     'kế toán không phải lần theo nội dung chuyển khoản nữa. Tiền vẫn về tài khoản chính.</div></div>';
 
+  /* CANH BAO DIEM CHUA KHAI TAI KHOAN RIENG.
+
+     Anh Viet 01/09/2026: ba tai khoan ao anh tao ben SePay cho tung diem
+     ban da BIEN MAT khoi cau hinh nay luc nao khong ai hay, nen ca ba diem
+     do chung vao mot tai khoan va sao ke khong con tach duoc tien cua noi
+     nao. Cai hong that su la no bien mat lang le. Nen no phai hien ngay
+     tren dau man, khong nam duoi day cho ai cuon xuong moi thay. */
+  var thieu = (tkData && tkData.thieu_diem) || [];
+  if (thieu.length) {
+    html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fecaca;background:#fef2f2">' +
+      '<div style="font-size:13.5px;color:#b3261e;line-height:1.7">' +
+      '<b>⚠ ' + thieu.length + ' điểm bán chưa khai tài khoản riêng:</b> ' +
+      thieu.map(function (d) { return h(d.ten); }).join(', ') + '.<br>' +
+      'Tiền của các điểm này đang đổ chung vào một tài khoản, nên sao kê ngân hàng ' +
+      'không tách được tiền của nơi nào và việc đối soát phải làm tay.</div></div>';
+  }
+
   html += '<div class="sec">Tài khoản mặc định</div><div class="card">' +
     '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
     '<div style="font-size:12px;color:#6b7280;margin-bottom:4px">Ngân hàng</div>' +

@@ -10606,7 +10606,7 @@ function posMaBill(maDiem) {
   return posTienTo(maDiem) + s;
 }
 function posMoi() {
-  posSepayNhan = 0; posSepayDuong = ''; posSepayPhanVan = 0;
+  posSepayNhan = 0; posSepayGoiY = 0;
   /* Chế độ mặc định phải là chế độ CÓ THẬT của điểm bán này. Điểm Sales
      Online không bán tại chỗ, để nguyên 'Tại chỗ' là máy chủ từ chối đơn với
      câu "Nguồn đơn (trống) không có trong danh mục". */
@@ -10622,11 +10622,13 @@ function posKmGiam(km, tong) {
 /* Tien SePay da nhan cho ma bill dang mo - poll 5 giay mot lan khi dang
    chia QR chuyen khoan, de khach chuyen den noi la cashier thay ngay. */
 var posSepayNhan = 0, posPollId = null;
-/* Duong nao lam sang o QR: 'ma' la khop duoc ma bill trong noi dung chuyen
-   khoan, 'so_tien' la khop theo dung so tien vua ve, 'phan_van' la co tu hai
-   khoan cung so tien nen may khong dam chon. Man hinh phai noi ro duong nao,
-   vi hai duong do khong chac chan bang nhau. */
-var posSepayDuong = '', posSepayPhanVan = 0;
+/* So khoan tien DUNG BANG so phai thu vua ve ma chua bill nao nhan.
+
+   Anh Viet 01/09/2026 bo hoan toan phep tu gach theo khung gio: khach A tra
+   85.000 luc 14h00 khong ai gach, khach B goi 85.000 luc 14h20 la may xanh
+   nham ngay, thu ngan tra banh ma tien chua ve. Nen o day chi DEM, roi moi
+   thu ngan bam nut "Do tien chuyen khoan" de tu nhin va tu chon. */
+var posSepayGoiY = 0;
 function posPollTat() { if (posPollId) { clearInterval(posPollId); posPollId = null; } }
 function posPollBat(ma, tien) {
   posPollTat();
@@ -10637,11 +10639,8 @@ function posPollBat(ma, tien) {
       var kq = await api('vagabond.ban_hang.pos_kiem_sepay', { noi_dung: ma, tien: tien });
       var doi = false;
       if (kq && flt0(kq.nhan) > posSepayNhan) { posSepayNhan = flt0(kq.nhan); doi = true; }
-      if (kq && (kq.duong || '') !== posSepayDuong) {
-        posSepayDuong = kq.duong || '';
-        posSepayPhanVan = parseInt(kq.so, 10) || 0;
-        doi = true;
-      }
+      var gy = kq ? (parseInt(kq.goi_y, 10) || 0) : 0;
+      if (gy !== posSepayGoiY) { posSepayGoiY = gy; doi = true; }
       if (doi && document.getElementById('posNd')) go(scrPosQuay, true);
       if (kq && kq.du) posPollTat();
     } catch (e) { }
@@ -10988,7 +10987,13 @@ async function scrPosQuay() {
   var laApp = posDon.che_do !== 'Tại chỗ' && posDon.che_do !== 'Mang về';
   var nguonThuc = posNguonThuc();
   var dsPt = ptTheoNguon(nguonThuc);
-  if (laApp) posDon.pt = dsPt.length === 1 ? dsPt[0].v : '';
+  /* Nguon cua san giu lai lua chon cua thu ngan neu no van hop le. Truoc
+     day dong nay dat lai o phuong thuc moi lan ve man, nen nguon nao di
+     duoc hai phuong thuc thi bam chon xong ve man la mat lua chon. */
+  if (laApp) {
+    if (dsPt.length === 1) posDon.pt = dsPt[0].v;
+    else if (!dsPt.some(function (p) { return p.v === posDon.pt; })) posDon.pt = '';
+  }
   else if (!posDon.pt || !dsPt.some(function (p) { return p.v === posDon.pt; })) posDon.pt = 'Tiền mặt';
   var tong = posDon.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
   /* Voucher phan tram bam theo tong bill: them bot mon la so giam tu tinh lai. */
@@ -11115,10 +11120,21 @@ async function scrPosQuay() {
   html += '<div style="padding:10px 0"><button class="btn gh" id="posThem" style="width:100%">➕ Thêm món</button></div></div>';
   html += '<div class="sec">Thanh toán</div><div class="card" style="padding:12px 14px;display:grid;gap:10px">' +
     (posDon.pt === 'Công nợ' && !laApp ? posKhoiKhachNo() : '') +
+    /* BEN DE 01/09/2026: *"cac food app no khong co nut chon phuong thuc,
+       khi luu hoa don no de la thanh toan chuyen khoan, cho tien ve"*.
+
+       Truoc day nguon cua san chi hien MOT DONG CHU, khong co nut nao, nen
+       khi o phuong thuc bi lech thi khong ai nhin ra va cung khong ai sua
+       duoc tai cho. Nay van hien nut y het cac nguon khac. Nguon chi di mot
+       phuong thuc thi ra dung mot nut, bam vao khong doi duoc gi - nhung
+       cai thu ngan NHIN THAY chinh la cai se ghi so, do moi la diem quan
+       trong. May chu van la noi chot (`_kiem_pt`), man hinh khong tu quyet. */
+    '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
     (laApp
-      ? '<div style="font-size:13.5px;color:#6b7280">Nguồn thanh toán <b>' + h(posDon.pt || posDon.che_do) + '</b> · máy đã tự động chọn nguồn tương ứng cho bạn.</div>'
-      : '<div id="posPt" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + posNutPt(dsPt, posDon.pt) + '</div>' +
-        (posDon.pt === 'Chuyển khoản'
+      ? (dsPt.length > 1
+          ? '<div style="font-size:12px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' đi được ' + dsPt.length + ' phương thức, chọn đúng cách khách đã trả.</div>'
+          : '<div style="font-size:12px;color:#6b7280">Đơn ' + h(posDon.che_do) + ' chỉ đi một phương thức này.</div>')
+      : (posDon.pt === 'Chuyển khoản'
           ? posKhoiQr(posNoiDungCk(posDon.bill, '', posNguonThuc()), phaiThu, posNguonThuc())
           : '<div><div id="posMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>' +
             '<input class="tin" id="posMtc" placeholder="Mã tham chiếu" value="' + h(posDon.mtc || '') + '"></div>')) +
@@ -11226,6 +11242,8 @@ async function scrPosQuay() {
     t = e.target.closest('[data-gc-mo]');
     if (t) { posDoc(); return posMoGhiChuMon(+t.getAttribute('data-gc-mo')); }
   });
+  var nDo = document.querySelector('[data-dotien]');
+  if (nDo) nDo.onclick = function () { posDoc(); posSheetDoTien(phaiThu, ''); };
   var ptw = document.getElementById('posPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
     c.onclick = function () { posDoc(); posDon.pt = c.getAttribute('data-pt'); go(scrPosQuay, true); };
@@ -12010,20 +12028,10 @@ function posKhoiQr(noiDung, tien, nguon, maDiem) {
   if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào hoá đơn rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
   /* Tien ve du la khoi nay tu doi mau xanh - poll SePay 5 giay mot lan. */
   if (posSepayNhan >= tien - 1) {
-    /* Hai duong khop khong chac chan bang nhau nen phai noi ro duong nao.
-       Khop theo MA la chac: dung ma bill nay nam trong noi dung chuyen
-       khoan. Khop theo SO TIEN la may thay dung mot khoan dung bang so phai
-       thu vua ve trong ba muoi phut va chua bill nao nhan - rat sat nhung
-       van la suy ra, nen thu ngan liec lai mot cai truoc khi tra banh. */
-    var laMa = posSepayDuong !== 'so_tien';
     return '<div style="border:2px solid #16a34a;border-radius:12px;padding:16px;text-align:center;background:#f0fdf4">' +
       '<div style="font-size:34px">✅</div>' +
       '<div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(posSepayNhan) + ' đ</div>' +
-      '<div style="font-size:13px;color:#374151;margin-top:4px">' +
-      (laMa
-        ? 'SePay khớp nội dung <b>' + h(noiDung) + '</b>.'
-        : 'Ngân hàng vừa nhận đúng <b>' + money(posSepayNhan) + ' đ</b>, chỉ một khoản duy nhất và chưa hoá đơn nào nhận. Nội dung khách chuyển không mang mã bill nên máy khớp theo số tiền.') +
-      ' Bấm nút cuối màn để lưu hoá đơn rồi ghi sổ.</div>' +
+      '<div style="font-size:13px;color:#374151;margin-top:4px">SePay khớp nội dung <b>' + h(noiDung) + '</b>. Bấm nút cuối màn để lưu hoá đơn rồi ghi sổ.</div>' +
       '</div>';
   }
   return '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;text-align:center;background:#fff">' +
@@ -12033,11 +12041,83 @@ function posKhoiQr(noiDung, tien, nguon, maDiem) {
     '<div style="font-size:13px;color:#374151;margin-top:2px">Nội dung: <b>' + h(noiDung) + '</b></div>' +
     '<div style="font-size:12px;color:#98a2b3;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
     '<div id="posChoTien" style="font-size:12px;color:#b45309;margin-top:8px">' +
-    (posSepayDuong === 'phan_van'
-      ? '❓ Có ' + posSepayPhanVan + ' khoản cùng số tiền vừa về, máy không dám chọn hộ. Mở app ngân hàng xem đúng khoản của khách này chưa.'
+    (posSepayGoiY
+      ? '💡 Có ' + posSepayGoiY + ' khoản đúng ' + money(tien) + ' đ vừa về mà chưa hoá đơn nào nhận. Bấm nút bên dưới để xem.'
       : '⏳ Đang chờ tiền về... màn hình tự báo khi ngân hàng nhận đủ.') + '</div>' +
+    /* NUT DO TAY, anh Viet 01/09/2026: may de xuat, nguoi quyet dinh. */
+    '<button class="btn gh" data-dotien style="width:100%;margin:10px 0 0">🔎 Dò tiền chuyển khoản</button>' +
     '</div>';
 }
+/* ---------------- Do tien chuyen khoan tay (anh Viet 01/09/2026) ----------
+
+   *"Em cho them giup anh nut 'Do tien chuyen khoan' o man bam bill de thu
+    ngan co the nhan roi do thu cong."*
+
+   Ban thay cho phep tu doan theo khung gio da bo. Khac nhau o dung mot
+   chuyen: MAY DE XUAT, NGUOI QUYET DINH.
+
+   May liet ke moi khoan tien DUNG BANG so phai thu trong ngay ma chua hoa
+   don nao nhan. Khong loc theo gio: nguoi dang dung day biet ro khach vua
+   tra luc nao, chinh xac hon moi khung gio may tu dat.
+
+   `siName` rong nghia la bill CHUA LUU: luc do chi xem cho biet tien da ve
+   chua, khong gan duoc vao dau. Luu bill xong bam lai o man danh sach thi
+   moi gan. */
+async function posSheetDoTien(tien, siName, sauKhiGan) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.ban_hang.pos_do_tien', { tien: tien || 0, name: siName || '' }); }
+  catch (e) { busy(false); return toast((e && e.message) || 'Không đọc được sao kê.'); }
+  busy(false);
+  var gd = (kq && kq.gd) || [];
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var than = '';
+  if (!gd.length) {
+    than = '<div style="padding:22px 4px;text-align:center;color:#6b7280;font-size:13.5px;line-height:1.7">' +
+      'Chưa có khoản nào đúng <b>' + money(tien) + ' đ</b> về trong hôm nay mà chưa hoá đơn nào nhận.<br>' +
+      'Khách vừa chuyển thì chờ vài giây rồi dò lại.</div>';
+  } else {
+    than = gd.map(function (g, i) {
+      return '<div data-gan="' + i + '" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1.5px solid #e5e7eb;border-radius:10px;margin-bottom:8px;background:#fff;text-align:left">' +
+        '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:15px;font-weight:800;color:#0f766e">' + money(g.tien) + ' đ · ' + h(g.gio || '') + '</div>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(g.mo_ta || '') + '</div></div>' +
+        (siName ? '<span style="flex:none;font-size:12.5px;font-weight:700;color:#0d9488">Chọn &#8250;</span>' : '') +
+        '</div>';
+    }).join('');
+    than = '<div style="font-size:12.5px;color:#6b7280;margin-bottom:9px;line-height:1.6;text-align:left">' +
+      (siName
+        ? 'Đối chiếu giờ với điện thoại khách rồi chọn đúng khoản của hoá đơn này. Máy ghi số tham chiếu ngân hàng vào hoá đơn, không tự chọn hộ.'
+        : 'Các khoản đúng số tiền đã về hôm nay mà chưa hoá đơn nào nhận. Lưu hoá đơn xong vào danh sách bấm dò lại thì mới gắn được.') +
+      '</div>' + than;
+  }
+  ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
+    '<div style="font-size:19px;font-weight:800">Dò tiền chuyển khoản</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin:2px 0 12px">Cần thu ' + money(tien) + ' đ</div>' +
+    than +
+    '<button class="btn gh" data-dong style="width:100%;margin:6px 0 0">Đóng</button></div>';
+  document.body.appendChild(ov);
+  ov.onclick = async function (e) {
+    if (e.target === ov || e.target.hasAttribute('data-dong')) return ov.remove();
+    var t = e.target.closest('[data-gan]');
+    if (!t || !siName) return;
+    var g = gd[+t.getAttribute('data-gan')];
+    if (!g) return;
+    var dong_y = await confirmSheet(
+      'Gắn khoản này vào hoá đơn?',
+      money(g.tien) + ' đ về lúc ' + (g.gio || '') + '.\nHoá đơn ' + siName + '.\n\nMáy ghi số tham chiếu ngân hàng vào hoá đơn và để lại một dòng trong ghi chú đối soát.',
+      'Gắn vào hoá đơn');
+    if (!dong_y) return;
+    busy(true);
+    try {
+      await api('vagabond.ban_hang.pos_gan_tien', { name: siName, gd: g.ten });
+      busy(false); ov.remove();
+      toast('Đã gắn khoản ' + money(g.tien) + ' đ vào ' + siName + '.');
+      if (sauKhiGan) sauKhiGan();
+    } catch (err) { busy(false); toast((err && err.message) || 'Không gắn được.'); }
+  };
+}
+
 function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
   var q = posTaiKhoan(nguon, maDiem);
   var url = posQrUrl(soPhieu, tien, nguon, maDiem);
@@ -12062,13 +12142,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
       if (kq && kq.du) {
         clearInterval(pid);
         var bao = ov.querySelector('#qrsBao');
-        if (bao) {
-          bao.style.color = '#15803d';
-          bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - ' +
-            (kq.duong === 'so_tien'
-              ? 'khớp theo số tiền, nội dung khách chuyển không mang mã bill.'
-              : 'SePay khớp nội dung ' + h(soPhieu) + '.');
-        }
+        if (bao) { bao.style.color = '#15803d'; bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - SePay khớp nội dung ' + h(soPhieu) + '.'; }
         var ny = ov.querySelector('[data-y]');
         if (ny && siName) { ny.textContent = '📒 Ghi sổ luôn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
       }
@@ -12152,7 +12226,11 @@ async function posLuuDon() {
   try {
     r = await api('vagabond.ban_hang.tao_don_tay', {
       ngay: today(), nguon: nguon, ma_don: laApp ? (posDon.ma || '') : posDon.bill, ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
-      pt: laApp ? '' : posDon.pt, ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
+      /* Gui ca phuong thuc cua don cua san. May chu van la noi chot: nguon
+         chi di mot phuong thuc thi `_kiem_pt` nan ve dung phuong thuc do,
+         gui sai cung khong vao duoc. Nhung nguon di duoc hai phuong thuc
+         thi phai gui, khong thi lua chon cua thu ngan roi mat. */
+      pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
@@ -12453,11 +12531,8 @@ function posChipBill(r) {
      khong" da co chip rieng ben duoi, do `ghi_so_dieu_kien` tinh. Chi khi
      may chu that su chan vi chua ve tien thi chip nay moi do. */
   if ((r.vgb_pt_thanh_toan || '') === 'Chuyển khoản') {
-    if (r.sepay_duong === 'ma') c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
-    else if (r.sepay_duong === 'so_tien') c.push(the('#dcfce7', '#166534', '✓ Đủ tiền · khớp theo số tiền'));
-    else if (r.sepay_duong === 'phan_van') c.push(the('#fef3c7', '#92400e', '❓ ' + (r.sepay_phan_van || 2) + ' khoản cùng số tiền'));
+    if (r.sepay_du) c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
     else if (r.ly_do_treo === 'chua_ve_tien') c.push(the('#fee2e2', '#991b1b', '⏳ Chờ tiền về'));
-    else if (r.sepay_du) c.push(the('#dcfce7', '#166534', 'SePay ✓ đủ tiền'));
     else c.push(the('#eef2ff', '#3730a3', '· Chưa đối soát được'));
   }
   if (r.custom_hddt_so || (r.custom_hddt_trang_thai || '').trim()) {
@@ -12553,7 +12628,7 @@ async function scrPosDs() {
        chan vi chua ve tien. Muon nhin cac bill chua doi soat duoc thi dung
        chip ke ben. */
     { k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return r.ly_do_treo === 'chua_ve_tien'; } },
-    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du && !r.sepay_duong; } },
+    { k: 'chua_soat', nhan: '· Chưa đối soát được', loc: function (r) { return (r.vgb_pt_thanh_toan || '') === 'Chuyển khoản' && !r.sepay_du && r.ly_do_treo !== 'chua_ve_tien'; } },
     { k: 'du_tien', nhan: '💰 SePay đã đủ tiền', loc: function (r) { return !!r.sepay_du; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!r.vgb_xhd_mst; } },
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !!r.vgb_xhd_mst && !r.custom_hddt_so; } },
@@ -12943,6 +13018,13 @@ async function scrPosBill(name) {
       return;
     }
     o.innerHTML = posKhoiQr(posNoiDungCk(maBill || d.name, d.vgb_quay, d.custom_nguon || ''), phaiThu, d.custom_nguon || '', d.vgb_quay);
+    /* Nut "Do tien chuyen khoan" nam san trong khoi QR. O day bill DA LUU
+       nen truyen ten hoa don vao: thu ngan chon duoc khoan nao la cua bill
+       nay, va may ghi so tham chieu ngan hang vao hoa don. */
+    var nDo = o.querySelector('[data-dotien]');
+    if (nDo) nDo.onclick = function () {
+      posSheetDoTien(phaiThu, d.name, function () { posHomNayTxt = null; go(scrPosDs, true); });
+    };
   }
   var ptw = document.getElementById('pbPt');
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
@@ -19333,7 +19415,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '370';
+var APPVER = '371';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -25678,6 +25760,23 @@ function tkVe() {
     'chi tiết đơn Sales, phiếu tạm tính in cho khách và phiếu đòi công nợ.<br>' +
     'Khai tài khoản ảo riêng cho từng điểm bán thì sao kê ngân hàng tự tách sẵn, ' +
     'kế toán không phải lần theo nội dung chuyển khoản nữa. Tiền vẫn về tài khoản chính.</div></div>';
+
+  /* CANH BAO DIEM CHUA KHAI TAI KHOAN RIENG.
+
+     Anh Viet 01/09/2026: ba tai khoan ao anh tao ben SePay cho tung diem
+     ban da BIEN MAT khoi cau hinh nay luc nao khong ai hay, nen ca ba diem
+     do chung vao mot tai khoan va sao ke khong con tach duoc tien cua noi
+     nao. Cai hong that su la no bien mat lang le. Nen no phai hien ngay
+     tren dau man, khong nam duoi day cho ai cuon xuong moi thay. */
+  var thieu = (tkData && tkData.thieu_diem) || [];
+  if (thieu.length) {
+    html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fecaca;background:#fef2f2">' +
+      '<div style="font-size:13.5px;color:#b3261e;line-height:1.7">' +
+      '<b>⚠ ' + thieu.length + ' điểm bán chưa khai tài khoản riêng:</b> ' +
+      thieu.map(function (d) { return h(d.ten); }).join(', ') + '.<br>' +
+      'Tiền của các điểm này đang đổ chung vào một tài khoản, nên sao kê ngân hàng ' +
+      'không tách được tiền của nơi nào và việc đối soát phải làm tay.</div></div>';
+  }
 
   html += '<div class="sec">Tài khoản mặc định</div><div class="card">' +
     '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +

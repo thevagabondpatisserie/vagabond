@@ -3260,8 +3260,16 @@ la("nut trong bang xac nhan cung doi",
    "laApp ? 'Lưu hoá đơn' : 'Thu tiền, lưu hoá đơn'" in _pos_src, True)
 # Don tai quay thi VAN phai giu chu Thu tien, vi quay that su thu tien.
 la("don tai quay van giu chu Thu tien", "'💰 Thu tiền '" in _pos_src, True)
-la("dong giai thich nguon da doi theo y anh Viet",
-   "máy đã tự động chọn nguồn tương ứng cho bạn" in _pos_src, True)
+# 01/09/2026: cau nay DOI. Truoc day don cua san chi hien mot dong chu,
+# khong co nut nao. Ben De bao *"cac food app no khong co nut chon phuong
+# thuc, khi luu hoa don no de la thanh toan chuyen khoan, cho tien ve"*, tuc
+# la khi o phuong thuc bi lech thi khong ai nhin ra va khong ai sua duoc tai
+# cho. Nay don cua san van hien nut y het cac nguon khac, con dong chu chi
+# noi ro nguon do di duoc may phuong thuc.
+la("dong giai thich so phuong thuc cua nguon cua san",
+   "chỉ đi một phương thức này." in _pos_src, True)
+la("nguon di duoc nhieu phuong thuc thi noi ro phai chon",
+   "chọn đúng cách khách đã trả." in _pos_src, True)
 la("khong con cau vao nguon nao ra nguon do",
    "vào nguồn nào ra nguồn đó" in _pos_src, False)
 

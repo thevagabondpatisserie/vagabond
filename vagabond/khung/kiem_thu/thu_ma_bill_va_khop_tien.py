@@ -223,20 +223,85 @@ def _chip_do():
 	# màn hình chỉ đọc ly_do_treo chứ không tự đoán.
 	s = _js("10-bill-quay.js")
 	dung("chip đỏ soi ly_do_treo", "r.ly_do_treo === 'chua_ve_tien'" in s)
-	dung("có nói được đường khớp theo số tiền", "sepay_duong === 'so_tien'" in s)
 	dung(
 		"chip lọc Chờ tiền về cũng soi cùng một ô",
 		"{ k: 'cho_tien', nhan: '⏳ Chờ tiền về', loc: function (r) { return r.ly_do_treo === 'chua_ve_tien'; } }" in s,
 	)
 
 
+@ca("máy KHÔNG tự đoán khoản tiền theo khung giờ")
+def _khong_tu_doan():
+	# Anh Việt 01/09/2026: *"máy cũng không cần phải đoán qua khung giờ vì
+	# rất rủi ro đoán nhầm"*. Ca kiểm này chốt việc đó lại: `pos_ds_bill`
+	# tuyệt đối không được gọi phép ghép tự động.
+	s = _py("ban_hang.py")
+	than = s[s.index("def pos_ds_bill("):]
+	than = than[: than.index("\ndef ")]
+	dung("pos_ds_bill không gọi _khop_theo_tien", "_khop_theo_tien(" not in than)
+	# Và màn hình cũng không còn đường nào tự sáng xanh theo số tiền.
+	j = _js("09-tinh-tien-quay.js")
+	dung("màn tính tiền không còn biến đường khớp", "posSepayDuong" not in j)
+	dung("không còn nhánh tự xanh theo số tiền", "'so_tien'" not in j)
+
+
+@ca("nút Dò tiền chuyển khoản: máy đề xuất, người quyết định")
+def _nut_do_tien():
+	s = _py("ban_hang.py")
+	dung("có cửa liệt kê", "def pos_do_tien(" in s)
+	dung("có cửa gắn tay", "def pos_gan_tien(" in s)
+	# Gắn tay PHẢI để lại vết, không thì cuối tháng không ai biết ai gắn.
+	dung("gắn xong ghi lại vào ghi chú đối soát", "Thu ngân dò tay" in s)
+	# Và phải chặn hai hoá đơn cùng ôm một khoản tiền.
+	dung(
+		"chặn một khoản gắn cho hai hoá đơn",
+		"Một khoản tiền chỉ thuộc về" in s,
+	)
+	j = _js("09-tinh-tien-quay.js")
+	dung("màn hình có nút", "data-dotien" in j)
+	dung("có bảng dò tiền", "function posSheetDoTien(" in j)
+	dung("bill chưa lưu thì không gắn được", "if (!t || !siName) return;" in j)
+
+
 @ca("khớp theo số tiền KHÔNG mở cổng ghi sổ")
 def _khong_mo_cong():
-	# Một nơi tính một nơi kiểm (QT-19). Nơi kiểm vẫn là ghi_so_dieu_kien,
-	# khớp theo số tiền chỉ làm sáng màn hình.
+	# Một nơi tính một nơi kiểm (QT-19). Nơi kiểm vẫn là ghi_so_dieu_kien.
 	s = _py("ghi_so_dieu_kien.py")
 	dung("ghi_so_dieu_kien không đụng tới khop_tien", "khop_tien" not in s)
 	dung("ghi_so_dieu_kien không đụng tới ma_bill", "ma_bill" not in s)
+
+
+@ca("nguồn food app cũng hiện nút chọn phương thức thanh toán")
+def _pt_food_app():
+	# Bên Dễ 01/09/2026: *"các food app nó không có nút chọn phương thức,
+	# khi lưu hoá đơn nó để là thanh toán chuyển khoản, chờ tiền về"*.
+	j = _js("09-tinh-tien-quay.js")
+	dung(
+		"khối nút phương thức nằm ngoài nhánh laApp",
+		"'</div>' +\n    (laApp" in j,
+	)
+	dung("đơn của sàn vẫn gửi phương thức lên máy chủ", "pt: posDon.pt || ''" in j)
+
+
+@ca("phương thức được nắn về đúng nguồn ngay lúc sửa")
+def _nan_tai_cho():
+	# Phép nắn vốn đã có nhưng chỉ chạy lúc ghi sổ, nên bill nằm ở trạng thái
+	# nháp cả ngày với phương thức sai và các bạn tưởng hệ thống hỏng.
+	s = _py("ban_hang.py")
+	dung("có phép nắn tại chỗ", "def _nan_pt_tai_cho(" in s)
+	dung("bill tạm tính thì không nắn", 'if cint(si.get("vgb_tam_tinh")):' in s)
+	# Hai cua sua bill deu phai goi, khong duoc chi mot cua.
+	la("nắn ở cả hai cửa sửa bill", s.count("\n\t_nan_pt_tai_cho(si)"), 2)
+
+
+@ca("màn Cài đặt kêu lên khi điểm bán chưa khai tài khoản riêng")
+def _canh_bao_tai_khoan():
+	# Ba tài khoản ảo của ba điểm bán đã biến mất khỏi cấu hình lúc nào không
+	# ai hay (anh Việt 01/09/2026). Cái hỏng thật sự là nó biến mất lặng lẽ.
+	s = _py("tai_khoan.py")
+	dung("máy chủ có đếm điểm còn thiếu", '"thieu_diem": thieu_diem' in s)
+	j = _js("17-cai-dat.js")
+	dung("màn hình có hiện cảnh báo", "tkData.thieu_diem" in j)
+	dung("cảnh báo nói rõ hậu quả", "không tách được tiền của nơi nào" in j)
 
 
 @ca("hai mô đun mới đều THUẦN, không kéo theo Frappe")
