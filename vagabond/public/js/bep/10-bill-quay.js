@@ -4,6 +4,61 @@
    vong qua man Doanh thu Sales cua ai het. */
 var posBillVua = null;
 
+/* Nhung hoa don DA tu in phieu lam mon kem theo, de khoi in lai lan hai.
+
+   Vi sao can nho: bam "In lai" mot to bill la chuyen thuong - giay ket, to
+   bill mo chu, khach xin them mot to. Nhung mon nuoc thi da pha xong tu lan
+   dau; phieu ra lan nua la quay bar pha them mot ly khong ai goi.
+
+   Nho o localStorage chu khong o bien: thu ngan tai lai trang giua ca la
+   bien mat sach, ma to bill cu van con do de bam in lai. Chan khong cho
+   phinh mai bang cach chi giu 300 ma gan nhat.
+
+   Van con duong ra: nut "In phieu lam mon" bam tay VAN in binh thuong, moi
+   luc moi lan. Cai chan nay chi chan duong TU DONG. */
+var POS_PM_KHOA = 'vgb_pos_pm_da_in';
+
+function posPmDaIn(ma) {
+  if (!ma) return false;
+  try {
+    var ds = JSON.parse(localStorage.getItem(POS_PM_KHOA) || '[]');
+    return ds.indexOf(ma) >= 0;
+  } catch (e) { return false; }
+}
+
+function posPmGhiNho(ma) {
+  if (!ma) return;
+  try {
+    var ds = JSON.parse(localStorage.getItem(POS_PM_KHOA) || '[]');
+    if (ds.indexOf(ma) >= 0) return;
+    ds.push(ma);
+    while (ds.length > 300) ds.shift();
+    localStorage.setItem(POS_PM_KHOA, JSON.stringify(ds));
+  } catch (e) { }
+}
+
+/* Hoa don nay co phai tu in kem phieu lam mon khong.
+
+   Anh Viet 01/09/2026, de xuat cua De o TCV va NVH: "in hoa don cho khach
+   thi may se tu in luon phieu lam mon de khoi phai bam in tay".
+
+   Bon hang rao, thieu mot cai la in ra giay thua hoac in nham luc:
+     1. Cai dat cua DIEM do dang bat.
+     2. KHONG phai phieu tam tinh, va KHONG phai bill da huy. Phieu tam
+        tinh la giu mon chu khach chua tra tien, in phieu lam mon o buoc do
+        la quay bar pha truoc khi chot - sai nhip ban hang cua tiem.
+     3. Hoa don CO mon nuoc. Bill chi co banh thi quay bar khong lam gi.
+     4. Chua tung tu in cho chinh to nay.
+
+   Phep nay phai THUAN va chay duoc NGAY, khong await gi ca: nguoi goi can
+   biet cau tra loi trong lung cu cham de con mo cua so in. */
+function posCanInKemPhieuMon(d) {
+  if (!d || d.tam_tinh || d.huy) return false;
+  if (!inMau('phieu_mon').tu_in_kem_bill) return false;
+  if (!posMonNuoc(d.mon || []).length) return false;
+  return !posPmDaIn(d.bill || d.name || '');
+}
+
 /* Mau in kho 80mm, in qua trinh duyet (AirPrint / may in nhiet co driver).
    Logo den tren nen trang de hop in nhiet; thieu anh thi tu an, van in chu. */
 async function posInBill(d) {
@@ -15,6 +70,13 @@ async function posInBill(d) {
      bao 09/08) - gio moi duong in deu co. */
   var inW = inMoCuaSoNeuCan('hoa_don');
   if (inW === 'chan') return;
+  /* Phieu lam mon in kem: quyet dinh VA mo cua so ngay tai day, con trong
+     cu cham cua thu ngan. Doi toi sau khi in bill xong moi mo thi trinh
+     duyet chan popup - xem ghi chu o posInPhieuMon. Duong in ngam qua QZ
+     khong mo cua so nao nen buoc nay khong ton gi. */
+  var pmCan = posCanInKemPhieuMon(d);
+  var pmW = pmCan ? inMoCuaSoNeuCan('phieu_mon') : null;
+  if (pmW === 'chan') { pmCan = false; pmW = null; }
   if (!d.tam_tinh && !d.huy && d.name && !d.xhd_url) {
     try { var lk0 = await api('vagabond.ban_hang.pos_link_xhd', { name: d.name }); d.xhd_url = (lk0 && lk0.url) || ''; } catch (e0) { }
   }
@@ -150,6 +212,17 @@ async function posInBill(d) {
     lien2 +
     '</body></html>');
   await inTo('hoa_don', inTieuDe, inToBill, inKho('hoa_don').rong, 1100, inW);
+  /* Phieu lam mon di SAU to bill: to bill la thu khach dang doi cam, ra
+     truoc mot nhip van hon. Loi cua phieu KHONG duoc lam hong duong in
+     bill da chay xong. */
+  if (pmCan) {
+    try {
+      await posInPhieuMon(d, pmW, 1);
+      posPmGhiNho(d.bill || d.name || '');
+    } catch (e) {
+      toast('Hoá đơn đã in. Phiếu làm món chưa ra, bấm nút In phiếu làm món giúp.', 6000);
+    }
+  }
 }
 
 /* In phieu tam tinh: luu bill tam tinh vao so (giu mon, chua thanh toan)
@@ -1170,7 +1243,9 @@ var IN_MAU_MD = {
     hien_tuy_chon: 1, qr_xhd: 1, khoi_diem: 1,
     chan_trang: 'Cảm ơn quý khách!', web: 'thevagabondpatisserie.com'
   },
-  phieu_mon: { co_chu: 14, hien_ban: 1, hien_tuy_chon: 1, hien_gio: 1 },
+  phieu_mon: {
+    tu_in_kem_bill: 1, co_chu: 14, hien_ban: 1, hien_tuy_chon: 1, hien_gio: 1
+  },
   tem: { co_chu: 11, hien_dau: 1, hien_tuy_chon: 1, hien_ghi_chu: 1, hien_chan: 1 }
 };
 
@@ -1220,9 +1295,16 @@ function posLaNuoc(m) {
 function posCoNuoc(mon) { return (mon || []).some(posLaNuoc); }
 function posMonNuoc(mon) { return (mon || []).filter(posLaNuoc); }
 
-async function posInPhieuMon(d) {
+/* `wSan` la cua so in da mo san, va `imLang` la dang chay TU DONG kem bill.
+
+   Vi sao phai nhan cua so tu ben ngoai: trinh duyet chi cho mo cua so moi
+   NGAY TRONG cu cham cua nguoi dung. In bill xong roi moi mo cua so thu
+   hai cho phieu mon la da roi khoi cu cham do, trinh duyet chan popup va
+   phieu khong bao gio ra. Nen `posInBill` mo san ca hai cua so tu dau roi
+   chuyen xuong day. Duong bam nut tay van khong truyen gi, tu mo nhu cu. */
+async function posInPhieuMon(d, wSan, imLang) {
   var nuoc = posMonNuoc(d.mon || []);
-  if (!nuoc.length) return toast('Hoá đơn không có món nước nào.');
+  if (!nuoc.length) return imLang ? undefined : toast('Hoá đơn không có món nước nào.');
   /* Phieu lam mon di dung vai CUA NO (v294).
 
      Ban cu goi thang 'hoa_don' voi ly do "no la giay cuon 80mm nhu bill".
@@ -1230,7 +1312,8 @@ async function posInPhieuMon(d) {
      inKho('phieu_mon') o duoi. Hau qua: o "May in phieu quay bar" tren man
      Cai dat chua bao gio duoc dung toi, quay bar khong nhan duoc phieu nao.
      Tiem nao chua khai may rieng thi inManhCho tu ro ve may hoa don. */
-  var inW = inMoCuaSoNeuCan('phieu_mon');
+  var inW = (wSan === undefined || wSan === null)
+    ? inMoCuaSoNeuCan('phieu_mon') : wSan;
   if (inW === 'chan') return;
   var M = inMau('phieu_mon');
   var gio = new Date();
