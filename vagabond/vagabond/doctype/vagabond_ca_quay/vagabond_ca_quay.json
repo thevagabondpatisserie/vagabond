@@ -35,10 +35,11 @@
   {
    "fieldname": "quay",
    "fieldtype": "Data",
-   "label": "Ma quay",
+   "label": "Điểm bán",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "description": "Mã ĐIỂM BÁN của ca, không phải mã quầy. Điểm có quầy thì hai mã bằng nhau; Sales Online thì mã là SALES trong khi hoá đơn của nó để trống ô quầy."
   },
   {
    "fieldname": "ngay",
