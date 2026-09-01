@@ -70,6 +70,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_siet_hoan_ung,
 	thu_tang_qua,
 	thu_ten_mon,
+	thu_tep_dinh_kem,
 	thu_thanh_toan_nhieu,
 	thu_tiec_b2b,
 	thu_tk_kho_va_ghi_so,

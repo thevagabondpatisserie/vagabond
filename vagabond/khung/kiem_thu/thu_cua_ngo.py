@@ -48,6 +48,15 @@ CUA_NGO = {
 	# banh goi qua cua rieng cua chung.
 	"tat_ban_web.py": ["dat"],
 	"nvl_thay_the.py": ["tinh_lai"],
+	# Them 01/09/2026: cong tai tep dung chung cho moi man. Ba cua ngo:
+	# `nap_tam` nhan mot tep luc chung tu chua co ma, `go_ra` go tep con treo,
+	# `cai_dat` chi doc luat de man hinh va may chu khong noi khac nhau.
+	#
+	# `gan_vao` va `don_rac` CO Y khong nam trong danh sach. `gan_vao` buoc tep
+	# vao chung tu - mo ra ngoai la cho bat ky ai buoc tep bat ky vao chung tu
+	# bat ky. `don_rac` xoa tep that - mo ra ngoai la cho goi mot nhip xoa tu
+	# trinh duyet.
+	"tep_dinh_kem.py": ["cai_dat", "go_ra", "nap_tam"],
 	# Them 28/08/2026 cung lan dat hang rao tai khoan kho. Chi `soat_kho` la
 	# cua man hinh; `chan_nhap_vao_thanh_pham` la HOOK, chay tren duong ghi
 	# so cua Frappe chu khong ai goi tu ngoai, nen KHONG mo ra ngoai. Ba ham
