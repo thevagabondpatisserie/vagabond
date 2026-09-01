@@ -107,6 +107,35 @@ def can_ly_do(bang, nguong=NGUONG_LECH):
 	return any(abs(flt(d.get("lech"))) >= flt(nguong) for d in bang or [])
 
 
+def loc_trong_ket(pt, ngoai_ket):
+	"""Tách doanh thu thành phần NẰM TRONG KÉT và phần không. THUẦN.
+
+	Anh Việt 01/09/2026 mở ca cho Sales Online, và chỗ này lộ ra một lỗi có
+	sẵn từ trước: bảng đối soát ca gom MỌI phương thức, kể cả tiền bên thứ
+	ba đang giữ.
+
+	Grab Dine-Out thì Grab giữ tới hôm sau mới trả. Công nợ thì khách còn
+	nợ. Hàng tặng thì không bao giờ có tiền. Ba loại đó KHÔNG nằm trong két
+	lúc thu ngân đếm, nên đưa vào bảng đối soát là bắt người ta gõ 0 rồi máy
+	báo thiếu đúng bằng số đó, ca nào cũng lệch, ca nào cũng phải bịa một
+	lý do. Ở quầy thì phiền, ở Sales Online thì hỏng hẳn vì phần lớn doanh
+	thu là tiền các sàn giữ.
+
+	Màn Chốt ca cũ đã tách đúng từ lâu (`ban_hang.pos_chot_ca`), chỉ có ca
+	là chưa. Đây là gom về một luật (QT-19).
+
+	Trả (trong_ket, ngoai_ket_chi_tiet), cả hai đều là dict tên sang tiền.
+	"""
+	kho = set(ngoai_ket or [])
+	trong, ngoai = {}, {}
+	for ten, so in (pt or {}).items():
+		if ten in kho:
+			ngoai[ten] = flt(so)
+		else:
+			trong[ten] = flt(so)
+	return trong, ngoai
+
+
 def doc_so_dem(tho):
 	"""Đọc chuỗi JSON số đếm của thu ngân thành dict sạch. THUẦN.
 
@@ -136,6 +165,58 @@ def _kiem_quyen():
 	kq()
 
 
+def _co_quay(diem):
+	"""Điểm bán này có quầy tiền mặt không. Rỗng hoặc lạ thì coi như không."""
+	try:
+		from vagabond import diem_ban
+
+		d = diem_ban.theo_ma(str(diem or "").strip().upper())
+		return bool((d or {}).get("quay"))
+	except Exception:
+		return False
+
+
+def _ngoai_ket():
+	"""Tên các phương thức KHÔNG mang tiền vào két lúc chốt ca."""
+	try:
+		from vagabond import pt_thanh_toan
+
+		return (set(pt_thanh_toan.chua_ve_tien())
+			| set(pt_thanh_toan.ve_sau())
+			| set(pt_thanh_toan.khong_thu()))
+	except Exception:
+		return set()
+
+
+def _pt_cua_diem(diem):
+	"""Danh sách phương thức để vẽ ô đếm mù cho MỘT điểm bán.
+
+	Điểm có quầy thì lấy bộ phương thức tại quầy. Điểm không quầy (Sales
+	Online) mà lấy bộ đó thì màn đếm mù bày ra Thẻ Payoo, Thẻ ShinhanBank,
+	Grab Dine-Out - những thứ điểm đó không có - và thiếu các phương thức
+	app mà điểm đó dùng thật. Mỗi dòng thừa thiếu là một dòng lệch.
+
+	Cuối cùng bỏ các phương thức không mang tiền vào két ra, vì thu ngân
+	không đếm được thứ mình không cầm.
+	"""
+	from vagabond import pt_thanh_toan
+
+	try:
+		if _co_quay(diem):
+			pt = list(pt_thanh_toan.ten_quay())
+		else:
+			pt = list(pt_thanh_toan.ten_online())
+	except Exception:
+		pt = [TIEN_MAT]
+	kho = _ngoai_ket()
+	pt = [t for t in pt if t not in kho]
+	# Tien mat luon con lai trong danh sach du Cai dat co go the nao: do la
+	# dong duy nhat mang tien le dau ca, thieu no thi ca khong doi soat duoc.
+	if TIEN_MAT not in pt:
+		pt.insert(0, TIEN_MAT)
+	return pt
+
+
 def _ca_dang_mo(quay):
 	"""Tên ca đang mở của một quầy, hoặc None."""
 	return frappe.db.get_value(
@@ -143,22 +224,51 @@ def _ca_dang_mo(quay):
 	)
 
 
-def _doanh_thu_he_thong(quay, tu_luc, den_luc):
-	"""Doanh thu hệ thống theo phương thức trong khoảng giờ của ca.
+def _doanh_thu_he_thong(diem, tu_luc, den_luc):
+	"""Doanh thu hệ thống theo phương thức trong khoảng của ca.
 
-	Đọc từ hoá đơn quầy: đúng quầy, giờ TẠO nằm trong ca. Dùng giờ tạo chứ
-	không dùng posting_date vì bill quầy sinh ra ngay lúc tính tiền, còn ca
-	là một khoảng giờ có thể vắt qua nửa đêm.
+	`diem` là MÃ ĐIỂM BÁN chứ không phải mã quầy. Với điểm có quầy hai cái
+	đó bằng nhau, với Sales Online thì mã điểm là SALES còn ô `vgb_quay`
+	trên hoá đơn để TRỐNG - đó là quy ước cũ của hệ, báo cáo và đối soát
+	đều dựa vào nó nên không đổi được.
+
+	VÌ THẾ KHÔNG ĐƯỢC LỌC BẰNG `vgb_quay = diem`. Lọc như vậy thì với Sales
+	Online kết quả ra RỖNG, và bảng đối soát sẽ báo toàn bộ tiền thu ngân
+	đếm được là "tiền thừa không rõ nguồn". Dùng `_loc_diem_ban` của
+	ban_hang, cùng phép lọc mà màn Chốt ca cũ đang dùng (QT-19).
+
+	Nạp ban_hang TRONG hàm chứ không ở đầu tệp: ban_hang mở đầu bằng
+	`import requests`, đặt ở đầu tệp là cả bộ kiểm thử tầng khung đỏ trên
+	máy CI tay không. Bài học ba ca đỏ ngày 20/08/2026.
+
+	MỐC THỜI GIAN khác nhau theo loại điểm:
+
+	  - Điểm có quầy: giờ TẠO hoá đơn, vì bill quầy sinh ra ngay lúc tính
+	    tiền, và ca là một khoảng giờ có thể vắt qua nửa đêm.
+	  - Điểm không quầy: NGÀY hoá đơn. Đơn của Sales Online về theo nhịp
+	    đồng bộ, giờ tạo là giờ MÁY KÉO VỀ chứ không phải giờ bán. Lọc theo
+	    giờ tạo thì một ca mở 8h sẽ nuốt cả đơn hôm qua vừa đồng bộ lúc
+	    8h05, và bỏ sót đơn bán lúc 21h55 chưa kịp về. Phiếu nộp quỹ đường
+	    NGÀY cũng đọc theo ngày, để hai bên nói cùng một con số.
 
 	Bỏ bill huỷ (không phải doanh thu) và bill tạm tính (chưa chốt tiền).
 	"""
+	from vagabond import ban_hang as _bh
+
+	loc = _bh._loc_diem_ban(str(diem or "").strip().upper())
+	if loc is None:
+		frappe.throw("Mã điểm bán %s không có trong danh sách điểm bán." % diem)
+	loc["docstatus"] = ["<", 2]
+	if _co_quay(diem):
+		loc["creation"] = ["between", [str(tu_luc), str(den_luc)]]
+	else:
+		loc["posting_date"] = [
+			"between",
+			[str(get_datetime(tu_luc).date()), str(get_datetime(den_luc).date())],
+		]
 	ds = frappe.get_all(
 		"Sales Invoice",
-		filters={
-			"vgb_quay": quay,
-			"creation": ["between", [str(tu_luc), str(den_luc)]],
-			"docstatus": ["<", 2],
-		},
+		filters=loc,
 		fields=["name", "grand_total", "vgb_pt_thanh_toan", "vgb_tam_tinh", "vgb_huy"],
 		limit_page_length=0,
 	)
@@ -206,14 +316,9 @@ def tinh_trang(quay):
 	"""
 	_kiem_quyen()
 	quay = (quay or "").strip()
-	# Danh sach phuong thuc tai quay: man chot ca ve moi phuong thuc mot o
-	# trong de thu ngan go so dem. Chi tra TEN, khong tra so lieu nao.
-	from vagabond import pt_thanh_toan
-
-	try:
-		pt = pt_thanh_toan.ten_quay()
-	except Exception:
-		pt = [TIEN_MAT]
+	# Danh sach phuong thuc cua DIEM BAN nay: man chot ca ve moi phuong thuc
+	# mot o trong de thu ngan go so dem. Chi tra TEN, khong tra so lieu nao.
+	pt = _pt_cua_diem(quay)
 	ten = _ca_dang_mo(quay)
 	if not ten:
 		return {"dang_mo": 0, "phuong_thuc": pt}
@@ -241,15 +346,15 @@ def mo_ca(quay, tien_le_dau_ca=0):
 	_kiem_quyen()
 	quay = (quay or "").strip()
 	if not quay:
-		frappe.throw("Thiếu mã quầy.")
+		frappe.throw("Thiếu mã điểm bán.")
 	tien_le = flt(tien_le_dau_ca)
 	if tien_le < 0:
 		frappe.throw("Tiền lẻ đầu ca không thể là số âm.")
 	dang = _ca_dang_mo(quay)
 	if dang:
 		frappe.throw(
-			"Quầy này đang có ca %s chưa chốt (mở lúc %s). Chốt ca đó trước "
-			"rồi mới mở ca mới."
+			"Điểm bán này đang có ca %s chưa chốt (mở lúc %s). Chốt ca đó "
+			"trước rồi mới mở ca mới."
 			% (dang, frappe.db.get_value(CA, dang, "mo_luc"))
 		)
 	doc = frappe.get_doc({
@@ -262,6 +367,21 @@ def mo_ca(quay, tien_le_dau_ca=0):
 		"tien_le_dau_ca": tien_le,
 	})
 	doc.insert(ignore_permissions=True)
+	# CHAN HAI NGUOI CUNG MO MOT LUC. Phep kiem o tren doc truoc khi ghi, nen
+	# hai nguoi bam cach nhau mot giay thi ca hai deu thay "chua co ca nao"
+	# va ra HAI ca cung mo. Voi mot quay vat ly thi hiem, vi chi mot may dung
+	# do. Voi Sales Online thi that: nhieu ban cung mo app tren nhieu may.
+	# Hai ca chong nhau la doanh thu duoc dem hai lan.
+	#
+	# Dem lai SAU khi ghi, con hon mot ca thi nem loi - Frappe cuon nguoc ca
+	# luot ghi khi co loi nem ra truoc luc commit, nen ban ghi vua tao bien
+	# mat theo. Nguoi bam sau nhan duoc loi, nguoi bam truoc giu ca.
+	so_mo = frappe.db.count(CA, {"quay": quay, "trang_thai": TT_DANG_MO})
+	if cint(so_mo) > 1:
+		frappe.throw(
+			"Vừa có người khác mở ca cho điểm bán này cùng lúc. Tải lại màn "
+			"hình để thấy ca đang mở, đừng mở thêm ca thứ hai."
+		)
 	frappe.db.commit()
 	return {"ma": doc.name, "mo_luc": str(doc.mo_luc), "tien_le_dau_ca": tien_le}
 
@@ -281,7 +401,7 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	quay = (quay or "").strip()
 	ten = _ca_dang_mo(quay)
 	if not ten:
-		frappe.throw("Quầy này không có ca nào đang mở.")
+		frappe.throw("Điểm bán này không có ca nào đang mở.")
 	try:
 		so_dem = doc_so_dem(dem)
 	except ValueError as e:
@@ -292,12 +412,17 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	doc = frappe.get_doc(CA, ten)
 	luc = now_datetime()
 	pt_may, so_bill = _doanh_thu_he_thong(quay, doc.mo_luc, luc)
+	# Tien bên thứ ba đang giữ (Grab Dine-Out), khách còn nợ (Công nợ) và
+	# hàng tặng KHÔNG nằm trong két, nên không đưa vào bảng đối soát. Bày ra
+	# riêng để quản lý biết còn bao nhiêu phải đi đòi.
+	pt_may, pt_ngoai = loc_trong_ket(pt_may, _ngoai_ket())
 	bang = ghep_doi_soat(pt_may, so_dem, doc.tien_le_dau_ca, so_bill)
 
 	if can_ly_do(bang) and not (ly_do_lech or "").strip():
 		return {
 			"can_ly_do": 1,
 			"bang": bang,
+			"ngoai_ket": pt_ngoai,
 			"tong_lech": tong_lech(bang),
 			"nhac": (
 				"Có phương thức lệch từ %s đồng. Gõ lý do (đếm sót, trả nhầm "
@@ -325,6 +450,7 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 		"ma": doc.name,
 		"da_chot": 1,
 		"bang": bang,
+		"ngoai_ket": pt_ngoai,
 		"tong_lech": tong_lech(bang),
 		"tien_mat_dem": flt(doc.tien_mat_dem),
 	}

@@ -11041,7 +11041,7 @@ function posMoi() {
      câu "Nguồn đơn (trống) không có trong danh mục". */
   var ds0 = posDsCheDo();
   var mac = (ds0[0] && ds0[0].v) || 'Tại chỗ';
-  return { che_do: mac, ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', dua: '', ghi_chu: '', km: null, so_ban: '', khach_no: null, xhd_mo: false, xh: { mst: '', ten: '', dc: '', email: '' }, mon: [], ctkm: [], combo: [], maVc: '', otpKm: '', kmKq: null, khach_ma: '', khach_hang: '', diemThe: null, diemTt: null, diemNhap: '', diemPhien: null, diemHan: 0, diemVe: null };
+  return { che_do: mac, ma: '', bill: posMaBill(), pt: 'Tiền mặt', mtc: '', ten: '', sdt: '', giam: '', ship: '', dua: '', ghi_chu: '', km: null, so_ban: '', khach_no: null, xhd_mo: false, xh: { mst: '', ten: '', dc: '', email: '' }, mon: [], ctkm: [], combo: [], maVc: '', otpKm: '', kmKq: null, khach_ma: '', khach_hang: '', diemThe: null, diemTt: null, diemNhap: '', diemPhien: null, diemHan: 0, diemVe: null };
 }
 function posKmGiam(km, tong) {
   if (!km) return 0;
@@ -11092,11 +11092,21 @@ function posDsCheDo() {
   function bay(v) { var n = ic[v] || {}; return { v: v, ic: n.ic || '', lg: n.lg || '' }; }
   var d = posQuay || {};
   var nguon = (d.nguon || []).filter(function (v) { return v !== 'Pancake'; });
+  /* NGHE THEO CÀI ĐẶT ĐIỂM BÁN, không nối cứng.
+
+     Trước 01/09/2026 điểm có quầy thì màn này bỏ qua cấu hình của điểm và
+     tự nối thêm TOÀN BỘ nguồn sàn của cả hệ vào. Nghĩa là màn Cài đặt Điểm
+     bán nói một đằng còn màn tính tiền làm một nẻo, đúng cái mà quy tắc
+     một nguồn duy nhất hứa sẽ không xảy ra. Nay đọc thẳng danh sách nguồn
+     của điểm.
+
+     Điểm có quầy vẫn luôn có Tại chỗ và Mang về đứng đầu, vì đó là hai chế
+     độ bán của một cái quầy vật lý, không phải nguồn đơn. Thiếu chúng thì
+     không bán tại quầy được. */
   if (posCoQuay()) {
-    var app = (((CFGBH || {}).nguon) || []).filter(function (n) {
-      return n.v.indexOf('Tại chỗ') !== 0 && n.v.indexOf('Mang về') !== 0 && n.v !== 'Khách sỉ' && n.v !== 'Pancake';
-    });
-    return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(app.map(function (n) { return { v: n.v, ic: n.ic || '', lg: n.lg || '' }; }));
+    var dau = ['Tại chỗ', 'Mang về'];
+    var them = nguon.filter(function (v) { return dau.indexOf(v) < 0; });
+    return [{ v: 'Tại chỗ', ic: '🏬' }, { v: 'Mang về', ic: '🥡' }].concat(them.map(bay));
   }
   /* Điểm không có quầy: chế độ chính là nguồn đơn của nó. */
   return nguon.map(bay);
@@ -11147,6 +11157,7 @@ function posDoc() {
   v = g('posMtc'); if (v !== null) posDon.mtc = v;
   if (!posDon.bill) posDon.bill = posMaBill();
   v = g('posGiam'); if (v !== null) posDon.giam = posSoTien(v) ? String(posSoTien(v)) : '';
+  v = g('posShip'); if (v !== null) posDon.ship = posSoTien(v) ? String(posSoTien(v)) : '';
   v = g('posDua'); if (v !== null) posDon.dua = posSoTien(v) ? String(posSoTien(v)) : '';
   v = g('posGhiChu'); if (v !== null) posDon.ghi_chu = v;
   v = g('posXhMst'); if (v !== null) posDon.xh.mst = v;
@@ -11283,7 +11294,6 @@ function posNutPt(ds, chon) {
 var caPos = null;
 
 async function posCaVe() {
-  if (!posCoQuay()) return;
   var tt = document.getElementById('posCaTt'), nut = document.getElementById('posCaNut');
   if (!tt || !nut) return;
   try { caPos = await api('vagabond.ca_quay.tinh_trang', { quay: posQuay.ma }); }
@@ -11295,7 +11305,7 @@ async function posCaVe() {
     nut.style.display = '';
     nut.onclick = function () { go(scrChotCa); };
   } else {
-    tt.textContent = 'Quầy chưa mở ca. Mở ca để tiền mặt cuối ngày đối soát được.';
+    tt.textContent = 'Chưa mở ca. Mở ca để tiền mặt cuối ngày đối soát được.';
     nut.textContent = 'Mở ca';
     nut.style.display = '';
     nut.onclick = posMoCa;
@@ -11456,13 +11466,19 @@ async function scrPosQuay() {
      roi luc chot ra so khac (anh Viet 11/08/2026). */
   await posTinhKm();
   var giamTay = posSoTien(posDon.giam), dua = posSoTien(posDon.dua);
+  /* PHÍ GIAO thu của khách. Màn nhập đơn tay bên Sales thu được từ lâu, màn
+     quầy thì gửi cứng số 0, nên đơn tại quầy có ship là hoá đơn thiếu đúng
+     khoản đó (anh Việt 01/09/2026: mọi tính năng phải có ở mọi màn). */
+  var ship = posSoTien(posDon.ship);
   var giamKm = (posDon.kmKq && posDon.kmKq.tong_giam) || 0;
   var giam = giamTay + giamKm;
   /* The hang va tran diem phai tinh tren so tien TRUOC khi tru diem, dung
-     nhu may chu lam - xem diem_otp.tran_dung_duoc. */
+     nhu may chu lam - xem diem_otp.tran_dung_duoc.
+     Phi giao KHONG tinh vao day: no la tien cong van chuyen, khong phai
+     gia tri hang, nen khong duoc dung de day khach len hang cao hon. */
   await posTaiThe(tong - giam);
   var giamDiem = (posDon.diemVe && posDon.diemVe.so_tien) || 0;
-  var phaiThu = Math.max(0, tong - giam - giamDiem);
+  var phaiThu = Math.max(0, tong - giam - giamDiem) + ship;
   var qApp = laApp ? (quyPt(posDon.pt) || {}) : {};
   var html = '<div class="card" style="padding:8px 14px">' +
     '<div class="hub" data-t="posDoiQuay" style="padding:6px 0;border:none"><div class="ht"><div class="h2">Quầy đang bán · bấm để đổi</div><div class="h1">' + h(posQuay.ten) + '</div></div>' +
@@ -11479,15 +11495,20 @@ async function scrPosQuay() {
   /* Ca lam viec: mo ca khai tien le, chot ca dem mu. Trang thai doc SAU
      khi man da ve (posCaVe) de khong bat khach cho mot vong API nua.
 
-     Chỉ điểm CÓ quầy tiền mặt mới có ca. Điểm Sales Online không giữ két
-     nên không có tiền lẻ đầu ca và không có gì để đếm mù cuối ca; vẽ khối
-     này ra là bắt người bán chốt một cái ca không tồn tại, và bản đối soát
-     sẽ báo toàn bộ doanh thu là tiền thừa không giải trình được. */
-  if (posCoQuay()) html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
+     MỌI ĐIỂM BÁN ĐỀU CÓ CA, kể cả điểm không có quầy. Anh Việt 01/09/2026:
+     *"Bên chỗ màn Sales online em dựng luôn cái mở ca đóng ca đi để đếm
+     tiền. Tiền mặt kênh này có tiền shipper thu về, khách vãng lai cũng có
+     thể ghé mua chỗ sales online mua mang đi rồi trả tiền mặt."*
+
+     Trước đó khối này chỉ vẽ cho điểm có quầy, vì máy chủ đọc doanh thu ca
+     bằng ô quầy trên hoá đơn, mà hoá đơn Sales Online để trống ô đó, nên
+     bảng đối soát sẽ báo toàn bộ doanh thu là tiền thừa. Nay máy chủ đọc
+     theo ĐIỂM BÁN nên hàng rào này không còn lý do tồn tại. */
+  html += '<div class="card" id="posCaKhoi" style="padding:11px 14px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
     '<span style="font-size:20px">🕐</span>' +
     '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">Ca làm việc</div>' +
-    '<div id="posCaTt" style="font-size:12.5px;color:#98a2b3">Đang xem ca của quầy...</div></div>' +
+    '<div id="posCaTt" style="font-size:12.5px;color:#98a2b3">Đang xem ca của điểm bán...</div></div>' +
     /* flex:none BAT BUOC. Lop .btn mang width:100%, de nguyen trong mot hang
        flex thi nut nuot tron be ngang va cot chu ben trai bi bop con mot ky
        tu moi dong. Thay tan mat tren site that ngay 21/08/2026. */
@@ -11595,6 +11616,25 @@ async function scrPosQuay() {
     '<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
     '<span style="font-size:12.5px;color:#6b7280;font-weight:600">GIẢM GIÁ TAY THÊM (đ)</span></div>' +
     '<input class="tin" id="posGiam" placeholder="0" inputmode="numeric" value="' + (giamTay ? money(giamTay) : '') + '"></div>' +
+    '<div><div style="font-size:12.5px;color:#6b7280;font-weight:600;margin-bottom:6px">PHÍ GIAO THU CỦA KHÁCH (đ)</div>' +
+    '<input class="tin" id="posShip" placeholder="0" inputmode="numeric" value="' + (ship ? money(ship) : '') + '"></div>' +
+    /* HÀNG TẶNG LÀ NGÕ CỤT NẾU KHÔNG NÓI TRƯỚC.
+
+       Nút Hàng tặng vẫn hiện ở đây vì nó là một phương thức thanh toán
+       thật, nhưng chỗ khai loại tặng và lý do lại nằm ở màn bill. Lưu xong
+       mà không khai thì bill treo Chờ duyệt và không ghi sổ được, thu ngân
+       không hiểu vì sao (anh Việt 01/09/2026).
+
+       Nói trước ngay tại đây, và sau khi lưu thì đưa thẳng sang màn bill
+       chứ không bắt tự mò. Không chép khối khai sang đây: đơn tặng phải
+       qua giám đốc duyệt, để hai cửa khai là hai bản khai lệch nhau. */
+    (posDon.pt === 'Hàng tặng'
+      ? '<div style="padding:9px 11px;background:#fffbeb;border:1px solid #fde68a;' +
+        'border-radius:9px;font-size:12.5px;color:#92400e;line-height:1.55">' +
+        'Đơn <b>hàng tặng</b> cần khai loại tặng và lý do thì giám đốc mới duyệt ' +
+        'được. Bấm Thu tiền xong máy đưa thẳng sang màn khai, khai luôn rồi mới ' +
+        'ghi sổ được.</div>'
+      : '') +
     (!laApp && posDon.pt === 'Tiền mặt'
       ? '<div><div style="font-size:12.5px;color:#6b7280;font-weight:600;margin-bottom:6px">KHÁCH ĐƯA (đ) - máy tính tiền thối</div>' +
         '<input class="tin" id="posDua" placeholder="0" inputmode="numeric" value="' + (dua ? money(dua) : '') + '"></div>'
@@ -11649,6 +11689,7 @@ async function scrPosQuay() {
     }).join('')) +
     (giamTay ? '<div style="display:flex;justify-content:space-between;color:#b45309"><span>Giảm giá tay</span><span>&minus;' + money(giamTay) + ' đ</span></div>' : '') +
     (giamDiem ? '<div style="display:flex;justify-content:space-between;color:#0369a1"><span>Trừ ' + money(posDon.diemVe.so_diem) + ' điểm thành viên</span><span>&minus;' + money(giamDiem) + ' đ</span></div>' : '') +
+    (ship ? '<div style="display:flex;justify-content:space-between;color:#5a6070"><span>Phí giao</span><span>+' + money(ship) + ' đ</span></div>' : '') +
     '<div style="display:flex;justify-content:space-between;font-size:19px"><b>PHẢI THU</b><b>' + money(phaiThu) + ' đ</b></div>' +
     (!laApp && posDon.pt === 'Tiền mặt' && dua ? '<div style="display:flex;justify-content:space-between;color:' + (dua >= phaiThu ? '#0f766e' : '#b3261e') + '"><span>Khách đưa ' + money(dua) + ' đ</span><b>' + (dua >= phaiThu ? 'Thối ' + money(dua - phaiThu) : 'Còn thiếu ' + money(phaiThu - dua)) + ' đ</b></div>' : '') +
     '</div>';
@@ -12678,7 +12719,8 @@ async function posLuuDon() {
   var giamKm = (posDon.kmKq && posDon.kmKq.tong_giam) || 0;
   var giam = giamTay + giamKm;
   var giamDiem = (posDon.diemVe && posDon.diemVe.so_tien) || 0;
-  var phaiThu = Math.max(0, tong - giam - giamDiem);
+  var ship = posSoTien(posDon.ship);
+  var phaiThu = Math.max(0, tong - giam - giamDiem) + ship;
   if (laApp && !(posDon.ma || '').trim()) return toast('Đơn ' + posDon.che_do + ' phải nhập mã đơn bên app để đối soát.');
   if (!laApp) {
     /* Cong no ma khong biet no cua ai thi cuoi thang khong doi duoc. */
@@ -12706,6 +12748,7 @@ async function posLuuDon() {
     posQuay.ten + ' · ' + posDon.che_do + '\n' + posDon.mon.map(function (m) { return m.ten + ' x' + money(m.qty); }).join(', ') +
     (giamKm ? '\n' + ((posDon.kmKq.ap || []).map(function (a) { return a.ten + ' −' + money(a.giam) + ' đ'; }).join('\n')) : '') +
     (giamTay ? '\nGiảm tay ' + money(giamTay) + ' đ' : '') +
+    (ship ? '\nPhí giao ' + money(ship) + ' đ' : '') +
     (giamDiem ? '\nTrừ ' + money(posDon.diemVe.so_diem) + ' điểm thành viên −' + money(giamDiem) + ' đ' : '') + canhBao,
     laApp ? 'Lưu hoá đơn' : 'Thu tiền, lưu hoá đơn');
   if (!ok) return;
@@ -12724,7 +12767,7 @@ async function posLuuDon() {
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
       items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
-      giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
+      giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
       /* CHI gui ma chuong trinh, KHONG gui so tien giam - may chu tu tinh
@@ -12778,6 +12821,14 @@ async function posLuuDon() {
   /* Van la ma QR khach da quet luc nay, khong doi sang so phieu - de neu
      khach chua chuyen kip thi quet lai van ra dung noi dung. */
   if (laCK) return posQrSheet(maCk, thu, (r && r.name) || '', nguonCk);
+  /* Đơn hàng tặng: đưa thẳng sang màn bill để khai loại tặng và lý do. Bỏ
+     qua bảng "đã thu" vì đơn tặng không thu đồng nào, và việc còn dở là
+     khai chứ không phải in. */
+  if (posBillVua.pt === 'Hàng tặng' && posBillVua.name) {
+    toast('Đơn hàng tặng: khai loại tặng và lý do để giám đốc duyệt.', 4500);
+    var tenTang = posBillVua.name;
+    return go(function () { scrPosBill(tenTang); }, true);
+  }
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:22px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
     '<div style="font-size:44px">✅</div>' +
@@ -13573,9 +13624,24 @@ async function scrPosBill(name) {
       '<div style="display:flex;gap:8px;margin-top:8px">' +
       '<button class="btn gh" id="pbSua" style="flex:1;margin:0">✏️ Sửa hoá đơn</button>' +
       (nhap ? '<button class="btn gh" id="pbXoa" style="flex:1;margin:0;color:#b3261e;border-color:#fecaca">🚫 Huỷ bill</button>' : '') +
-      '</div>';
+      '</div>' +
+      /* CỬA SANG MÀN CHI TIẾT ĐƠN.
+
+         Anh Việt 01/09/2026: mọi tính năng phải có ở mọi màn. Hoàn tiền,
+         chuyển lại tiền dư, hoá đơn thay thế và xuất hoá đơn điện tử tay
+         đều nằm ở màn Chi tiết đơn, mà đường duy nhất tới đó là gõ vào ô
+         tìm kiếm. Bill đã ghi sổ mà khách trả bánh thì thu ngân đứng ở màn
+         này không thấy nút hoàn tiền nào.
+
+         Mở một cửa sang đó thay vì chép bộ nút sang đây: hoàn tiền là
+         đường tiền RA, chép làm hai bản là hai bản sẽ lệch nhau, và tiền ra
+         thì chỉ được có một cửa (QT-19). */
+      '<button class="btn gh" id="pbChiTiet" style="margin-top:8px;width:100%">' +
+      '↩️ Hoàn tiền, tiền dư, hoá đơn thay thế</button>';
   }
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+  var nCt = document.getElementById('pbChiTiet');
+  if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };
 
   /* --- THE THANH VIEN CUA KHACH TREN BILL ---
      Anh Viet 01/09/2026 chot: moi man xem lai don deu phai thay thong tin
@@ -20045,7 +20111,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '375';
+var APPVER = '376';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
