@@ -17,7 +17,8 @@
   "mst",
   "ten_ban",
   "dia_chi_ban",
-  "ghi_chu"
+  "ghi_chu",
+  "tep"
  ],
  "fields": [
   {
@@ -94,11 +95,18 @@
    "fieldname": "ghi_chu",
    "fieldtype": "Small Text",
    "label": "Ghi chu"
+  },
+  {
+   "description": "Danh sach duong dan tep dinh kem cua rieng khoan chi nay, ghi dang JSON. Doc bang vagabond.tep_dinh_kem.doc_ds, dung tu doc tay.",
+   "fieldname": "tep",
+   "fieldtype": "Small Text",
+   "label": "Tep dinh kem",
+   "read_only": 1
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-20 00:30:00.000000",
+ "modified": "2026-09-01 23:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond De Nghi Chi Dong",
