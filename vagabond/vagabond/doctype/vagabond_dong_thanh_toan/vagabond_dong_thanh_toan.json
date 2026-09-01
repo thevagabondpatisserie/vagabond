@@ -1,0 +1,59 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Dong Thanh Toan",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "editable_grid": 1,
+ "istable": 1,
+ "field_order": [
+  "pt",
+  "so_tien",
+  "ma_tham_chieu",
+  "do_may"
+ ],
+ "fields": [
+  {
+   "fieldname": "pt",
+   "fieldtype": "Link",
+   "options": "Mode of Payment",
+   "label": "Phuong thuc",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 4
+  },
+  {
+   "fieldname": "so_tien",
+   "fieldtype": "Currency",
+   "label": "So tien",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "ma_tham_chieu",
+   "fieldtype": "Data",
+   "label": "Ma tham chieu",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "do_may",
+   "fieldtype": "Check",
+   "label": "Do may dien",
+   "read_only": 1,
+   "columns": 1
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "modified": "2026-09-01 07:00:00.000000",
+ "creation": "2026-09-01 07:00:00.000000",
+ "links": [],
+ "states": [],
+ "actions": [],
+ "allow_rename": 0,
+ "index_web_pages_for_search": 1
+}
