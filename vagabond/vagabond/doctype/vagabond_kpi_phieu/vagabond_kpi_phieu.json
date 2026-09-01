@@ -1,0 +1,354 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:KPI-{ky}-{nguoi}",
+ "creation": "2026-09-01 23:50:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ky",
+  "tu_ngay",
+  "den_ngay",
+  "cb1",
+  "nguoi",
+  "ten_nguoi",
+  "bo",
+  "trang_thai",
+  "sec_diem",
+  "diem_tong",
+  "xep_loai",
+  "he_so",
+  "con_thieu",
+  "cb2",
+  "doanh_thu",
+  "doanh_thu_gan_tay",
+  "hoa_hong_tho",
+  "hoa_hong",
+  "bi_tran",
+  "sec_bang",
+  "cac_dong",
+  "sec_duyet",
+  "nguoi_cham",
+  "luc_cham",
+  "nguoi_ke_toan",
+  "luc_ke_toan",
+  "cb3",
+  "nguoi_giam_doc",
+  "luc_giam_doc",
+  "vao_buoc_luc",
+  "dong_bang",
+  "sec_ghi",
+  "ghi_chu_quan_ly",
+  "ghi_chu_duyet",
+  "y_kien_nhan_vien",
+  "y_kien_luc",
+  "tra_lai_boi",
+  "tra_lai_ly_do",
+  "sec_khac",
+  "don_gan_tay",
+  "so_lieu",
+  "phieu_chi"
+ ],
+ "fields": [
+  {
+   "fieldname": "ky",
+   "fieldtype": "Data",
+   "label": "Ky (2026-08)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tu_ngay",
+   "fieldtype": "Date",
+   "label": "Tu ngay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "den_ngay",
+   "fieldtype": "Date",
+   "label": "Den ngay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Nguoi duoc cham",
+   "options": "User",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_nguoi",
+   "fieldtype": "Data",
+   "label": "Ten",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "bo",
+   "fieldtype": "Data",
+   "label": "Bo tieu chi",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trang thai",
+   "options": "Cho quan ly\nCho ke toan\nCho giam doc\nDa duyet\nDa day chi\nDa huy",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sec_diem",
+   "fieldtype": "Section Break",
+   "label": "Diem va hoa hong"
+  },
+  {
+   "fieldname": "diem_tong",
+   "fieldtype": "Float",
+   "label": "Diem tong",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "xep_loai",
+   "fieldtype": "Data",
+   "label": "Xep loai",
+   "read_only": 1
+  },
+  {
+   "fieldname": "he_so",
+   "fieldtype": "Float",
+   "label": "He so xep loai",
+   "read_only": 1
+  },
+  {
+   "fieldname": "con_thieu",
+   "fieldtype": "Int",
+   "label": "So tieu chi chua cham",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "doanh_thu",
+   "fieldtype": "Currency",
+   "label": "Doanh thu tinh hoa hong",
+   "read_only": 1
+  },
+  {
+   "fieldname": "doanh_thu_gan_tay",
+   "fieldtype": "Currency",
+   "label": "Trong do gan tay",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hoa_hong_tho",
+   "fieldtype": "Currency",
+   "label": "Hoa hong truoc tran",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hoa_hong",
+   "fieldtype": "Currency",
+   "label": "Hoa hong",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "bi_tran",
+   "fieldtype": "Check",
+   "label": "Bi cham tran",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_bang",
+   "fieldtype": "Section Break",
+   "label": "Bang tieu chi"
+  },
+  {
+   "fieldname": "cac_dong",
+   "fieldtype": "Table",
+   "label": "Cac tieu chi",
+   "options": "Vagabond KPI Dong"
+  },
+  {
+   "fieldname": "sec_duyet",
+   "fieldtype": "Section Break",
+   "label": "Chuoi duyet"
+  },
+  {
+   "fieldname": "nguoi_cham",
+   "fieldtype": "Link",
+   "label": "Quan ly cham",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_cham",
+   "fieldtype": "Datetime",
+   "label": "Luc cham",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nguoi_ke_toan",
+   "fieldtype": "Link",
+   "label": "Ke toan soat",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_ke_toan",
+   "fieldtype": "Datetime",
+   "label": "Luc ke toan soat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguoi_giam_doc",
+   "fieldtype": "Link",
+   "label": "Giam doc duyet",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_giam_doc",
+   "fieldtype": "Datetime",
+   "label": "Luc giam doc duyet",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vao_buoc_luc",
+   "fieldtype": "Datetime",
+   "label": "Vao buoc hien tai luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dong_bang",
+   "fieldtype": "Check",
+   "label": "Da dong bang so lieu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_ghi",
+   "fieldtype": "Section Break",
+   "label": "Ghi chu"
+  },
+  {
+   "fieldname": "ghi_chu_quan_ly",
+   "fieldtype": "Small Text",
+   "label": "Nhan xet cua quan ly"
+  },
+  {
+   "fieldname": "ghi_chu_duyet",
+   "fieldtype": "Small Text",
+   "label": "Ghi chu khi duyet"
+  },
+  {
+   "fieldname": "y_kien_nhan_vien",
+   "fieldtype": "Small Text",
+   "label": "Y kien nguoi duoc cham"
+  },
+  {
+   "fieldname": "y_kien_luc",
+   "fieldtype": "Datetime",
+   "label": "Luc ghi y kien",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_lai_boi",
+   "fieldtype": "Link",
+   "label": "Tra lai boi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_lai_ly_do",
+   "fieldtype": "Small Text",
+   "label": "Ly do tra lai",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_khac",
+   "fieldtype": "Section Break",
+   "label": "Khac"
+  },
+  {
+   "fieldname": "don_gan_tay",
+   "fieldtype": "Long Text",
+   "label": "Don gan tay (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_lieu",
+   "fieldtype": "Long Text",
+   "label": "So lieu chup lai (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "phieu_chi",
+   "fieldtype": "Link",
+   "label": "De nghi chi da day",
+   "options": "Vagabond De Nghi Chi",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-01 23:50:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond KPI Phieu",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ten_nguoi",
+ "track_changes": 1
+}
