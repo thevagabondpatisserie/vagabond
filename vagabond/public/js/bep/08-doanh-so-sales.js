@@ -236,9 +236,23 @@ async function dsHanh(k) {
     go(scrDoanhSo, true); return;
   }
 }
-var CFGBH = null;
+/* Cau hinh ban hang giu tam 10 phut roi doc lai.
+
+   Truoc day doc mot lan roi giu mai cho den khi nap lai app. Ngay 01/09/2026
+   anh Viet khai ba tai khoan ao theo diem ban, nhung may quay dang mo san
+   van sinh QR vao tai khoan chung va van sinh ma bill tien to cu, vi cai
+   bang trong dau no la bang doc tu sang. Sua Cai dat ma quay khong thay thi
+   sua cung nhu khong.
+
+   Muoi phut la du ngan de mot lan sua o Cai dat den duoc quay trong ca lam
+   viec, va du dai de khong hoi may chu mot cach vo ich. */
+var CFGBH = null, CFGBH_LUC = 0;
+var CFGBH_HAN = 600000;
 async function cfgBanHang() {
-  if (!CFGBH) CFGBH = await api('vagabond.ban_hang.cau_hinh_ban_hang', {});
+  if (!CFGBH || (Date.now() - CFGBH_LUC) > CFGBH_HAN) {
+    CFGBH = await api('vagabond.ban_hang.cau_hinh_ban_hang', {});
+    CFGBH_LUC = Date.now();
+  }
   return CFGBH;
 }
 function nguonBH(v) {
