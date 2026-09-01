@@ -18,12 +18,12 @@ var kpiMa = null;
 
 function kpiMau(tt) {
   return {
-    'Chờ quản lý': '#b45309',
-    'Chờ kế toán': '#4338ca',
-    'Chờ giám đốc': '#be123c',
-    'Đã duyệt': '#0f766e',
-    'Đã đẩy chi': '#0f766e',
-    'Đã huỷ': '#6b7280'
+    'Cho quan ly': '#b45309',
+    'Cho ke toan': '#4338ca',
+    'Cho giam doc': '#be123c',
+    'Da duyet': '#0f766e',
+    'Da day chi': '#0f766e',
+    'Da huy': '#6b7280'
   }[tt] || '#6b7280';
 }
 
@@ -189,7 +189,7 @@ async function scrKPICt() {
       h((e && e.message) || 'Không mở được phiếu') + '</div></div>');
     return;
   }
-  var suaDuoc = d.duoc_bam && d.trang_thai === 'Chờ quản lý' && !d.dong_bang;
+  var suaDuoc = d.duoc_bam && d.trang_thai === 'Cho quan ly' && !d.dong_bang;
 
   var html = '<div class="card" style="padding:13px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="display:flex;gap:10px;align-items:baseline">' +
@@ -281,7 +281,7 @@ async function scrKPICt() {
     }
   }
 
-  if (d.duoc_bam && d.trang_thai !== 'Chờ quản lý' && d.trang_thai !== 'Đã duyệt') {
+  if (d.duoc_bam && d.trang_thai !== 'Cho quan ly' && d.trang_thai !== 'Da duyet') {
     html += '<div style="padding:12px 0 2px">' +
       '<button class="btn gh" id="kpiTra" style="margin:0;width:100%;border-color:#fecaca;color:#b3261e">' +
       '↩︎ Trả phiếu về bước trước</button></div>';
@@ -289,8 +289,8 @@ async function scrKPICt() {
 
   var chan = '';
   if (d.duoc_bam) {
-    var nhan = { 'Chờ quản lý': '✅ Xác nhận, chuyển kế toán', 'Chờ kế toán': '✅ Soát xong, chuyển giám đốc',
-      'Chờ giám đốc': '✅ Duyệt và chốt kỳ', 'Đã duyệt': '💸 Đẩy sang đề nghị chi' }[d.trang_thai] || '';
+    var nhan = { 'Cho quan ly': '✅ Xác nhận, chuyển kế toán', 'Cho ke toan': '✅ Soát xong, chuyển giám đốc',
+      'Cho giam doc': '✅ Duyệt và chốt kỳ', 'Da duyet': '💸 Đẩy sang đề nghị chi' }[d.trang_thai] || '';
     chan = '<div style="display:flex;gap:8px">' +
       (suaDuoc ? '<button class="btn gh" id="kpiLuu" style="margin:0;flex:1">💾 Lưu chấm</button>' : '') +
       '<button class="btn" id="kpiDuyet" style="margin:0;flex:2">' + nhan + '</button></div>';
@@ -330,8 +330,8 @@ async function scrKPICt() {
 
   var nd = document.getElementById('kpiDuyet');
   if (nd) nd.onclick = async function () {
-    if (d.trang_thai === 'Chờ quản lý' && !(await luu(1))) return;
-    if (d.trang_thai === 'Chờ giám đốc') {
+    if (d.trang_thai === 'Cho quan ly' && !(await luu(1))) return;
+    if (d.trang_thai === 'Cho giam doc') {
       var ok = await confirmSheet('Duyệt và chốt kỳ',
         'Duyệt phiếu của ' + (d.ten_nguoi || d.nguoi) + ', hoa hồng ' + money(d.hoa_hong) + ' đ. ' +
         'Bấm xong số liệu ĐÓNG BĂNG: dữ liệu gốc sau này có đổi thì phiếu này không đổi theo.',
@@ -340,7 +340,7 @@ async function scrKPICt() {
     }
     busy(true);
     try {
-      if (d.trang_thai === 'Đã duyệt') {
+      if (d.trang_thai === 'Da duyet') {
         var r = await api('vagabond.kpi.day_chi', { ma: d.name });
         busy(false);
         baoTin(r.nhac || 'Đã đẩy sang đề nghị chi.', 'Xong');
