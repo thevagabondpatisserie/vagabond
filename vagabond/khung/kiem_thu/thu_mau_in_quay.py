@@ -184,3 +184,105 @@ def _():
 	dung("màn hình có hàm vào", "async function scrMauIn()" in man)
 	dung("in thử dùng đúng đường in thật", "await posInTemLy(d)" in man)
 	dung("in thử trả lại cấu hình cũ", "CFGBH.mau_in = giuChung;" in man)
+
+
+# ------------------ v374: in hoá đơn thì tự in kèm phiếu làm món
+#
+# Anh Việt 01/09/2026, đề xuất của Dễ ở TCV và NVH: "khi in hoá đơn cho
+# khách thì máy sẽ tự in luôn phiếu làm món để khỏi phải bấm in tay".
+
+
+@ca("in kèm: có ô bật tắt riêng cho từng điểm bán, mặc định BẬT")
+def _():
+	o = {x["k"]: x for x in mau_in_quay.O["phieu_mon"]}
+	dung("có ô trong màn Cài đặt", "tu_in_kem_bill" in o)
+	la("là ô bật tắt", o["tu_in_kem_bill"]["loai"], "bat")
+	la("mặc định bật", mau_in_quay.MAC_DINH["phieu_mon"]["tu_in_kem_bill"], 1)
+	# Diem nao khong muon thi tat rieng, khong phai sua ma nguon.
+	het = {"chung": {"phieu_mon": {"tu_in_kem_bill": 0}},
+		"diem": {"TCV": {"phieu_mon": {"tu_in_kem_bill": 1}}}}
+	la("tắt được ở bản chung",
+		mau_in_quay.mau_cho(het, "")["phieu_mon"]["tu_in_kem_bill"], 0)
+	la("điểm khai riêng thì theo điểm",
+		mau_in_quay.mau_cho(het, "TCV")["phieu_mon"]["tu_in_kem_bill"], 1)
+
+
+@ca("in kèm: bốn hàng rào, thiếu một cái là ra giấy thừa")
+def _():
+	src = _js("10-bill-quay.js")
+	doan = src.split("function posCanInKemPhieuMon(d) {")[1].split("\n}")[0]
+	dung("bỏ phiếu tạm tính và bill đã huỷ", "d.tam_tinh || d.huy" in doan)
+	dung("theo cài đặt của điểm", "inMau('phieu_mon').tu_in_kem_bill" in doan)
+	dung("phải có món nước", "posMonNuoc(d.mon || []).length" in doan)
+	dung("chưa từng in cho tờ này", "posPmDaIn(" in doan)
+
+
+@ca("in kèm: phiếu tạm tính KHÔNG được kéo theo phiếu làm món")
+def _():
+	# Tam tinh la giu mon chu khach chua tra tien. In phieu lam mon o buoc
+	# do la quay bar pha truoc khi chot, sai nhip ban hang cua tiem.
+	src = _js("10-bill-quay.js")
+	doan = src.split("function posCanInKemPhieuMon(d) {")[1].split("\n}")[0]
+	la("chặn ngay dòng đầu", doan.strip().startswith("if (!d || d.tam_tinh || d.huy) return false;"), True)
+
+
+@ca("in kèm: in lại hoá đơn thì phiếu KHÔNG ra thêm lần nữa")
+def _():
+	# Bam "In lai" mot to bill la chuyen thuong: giay ket, to bill mo chu,
+	# khach xin them mot to. Nhung mon nuoc da pha xong tu lan dau; phieu ra
+	# lan nua la quay bar pha them mot ly khong ai goi.
+	src = _js("10-bill-quay.js")
+	dung("có phép nhớ tờ đã in", "function posPmDaIn(" in src)
+	dung("có phép ghi nhớ", "function posPmGhiNho(" in src)
+	dung("ghi nhớ sau khi in xong", "posPmGhiNho(d.bill || d.name || '');" in src)
+	# Nho qua tai trang: thu ngan F5 giua ca la bien mat sach, ma to bill cu
+	# van con do de bam in lai.
+	dung("nhớ ở localStorage", "localStorage.getItem(POS_PM_KHOA)" in src)
+	dung("không cho phình mãi", "while (ds.length > 300) ds.shift();" in src)
+
+
+@ca("in kèm: nút bấm tay vẫn in được mọi lúc, không bị cái chặn kia chặn")
+def _():
+	# Duong ra khi giay ket hay phieu bay mat.
+	src = _js("10-bill-quay.js")
+	dung("nút tay vẫn gọi thẳng", "posInPhieuMon(pbBillObj());" in src)
+	# Goi khong kem tham so thi ham tu mo cua so nhu cu.
+	dung("thiếu cửa sổ thì tự mở",
+		"(wSan === undefined || wSan === null)" in src)
+
+
+@ca("in kèm: mở CẢ HAI cửa sổ in ngay trong cú chạm, không đợi in xong bill")
+def _():
+	# Trinh duyet chi cho mo cua so moi NGAY TRONG cu cham. In bill xong roi
+	# moi mo cua so thu hai la da roi khoi cu cham do, trinh duyet chan
+	# popup va phieu khong bao gio ra.
+	src = _js("10-bill-quay.js")
+	doan = src.split("async function posInBill(d) {")[1].split("\n}")[0]
+	dung("mở cửa sổ phiếu món ngay đầu", "var pmW = pmCan ? inMoCuaSoNeuCan('phieu_mon') : null;" in doan)
+	i_mo = doan.index("inMoCuaSoNeuCan('phieu_mon')")
+	i_bill = doan.index("await inTo('hoa_don'")
+	la("mở trước khi in bill", i_mo < i_bill, True)
+	dung("bị chặn popup thì bỏ in kèm, không nổ", "if (pmW === 'chan')" in doan)
+
+
+@ca("in kèm: phiếu đi SAU tờ bill, và lỗi phiếu không làm hỏng đường in bill")
+def _():
+	# To bill la thu khach dang doi cam, ra truoc mot nhip van hon.
+	src = _js("10-bill-quay.js")
+	doan = src.split("async function posInBill(d) {")[1].split("\n}\n")[0]
+	i_bill = doan.index("await inTo('hoa_don'")
+	i_pm = doan.index("await posInPhieuMon(d, pmW, 1);")
+	la("phiếu in sau bill", i_bill < i_pm, True)
+	dung("bọc try để lỗi phiếu không kéo theo", "} catch (e) {" in doan)
+	dung("báo rõ cho thu ngân biết mà bấm tay",
+		"Hoá đơn đã in. Phiếu làm món chưa ra" in doan)
+
+
+@ca("in kèm: chạy tự động thì không bắn câu Hoá đơn không có món nước nào")
+def _():
+	# Cau do la de tra loi nguoi vua BAM NUT. Chay tu dong ma van ban ra thi
+	# moi to bill chi co banh la mot lan toast vo co.
+	src = _js("10-bill-quay.js")
+	dung("có cờ im lặng", "async function posInPhieuMon(d, wSan, imLang)" in src)
+	dung("im lặng thì không toast",
+		"return imLang ? undefined : toast('Hoá đơn không có món nước nào.');" in src)
