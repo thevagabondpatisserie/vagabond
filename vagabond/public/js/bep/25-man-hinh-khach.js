@@ -89,7 +89,7 @@ function cfdPhat(goi) {
 
    DANH SACH O DUOC PHEP nam gon trong ham nay. Ai muon them o thi phai sua
    dung day, va ca kiem thu nhom 50 se soi lai. */
-function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
+function cfdDungGoi(don, quay, phaiThu, qr, tab, luc, giamVi) {
   don = don || {};
   quay = quay || {};
   var mon = (don.mon || []).map(function (m) {
@@ -119,6 +119,12 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
     mon: mon,
     tong: tong,
     giam: Math.max(0, tong - tra),
+    /* LY DO GIAM, do man tinh tien tinh san roi chuyen sang (xem
+       posLyDoGiam ben 09-tinh-tien-quay.js). O day CHI chep lai mot nhan
+       ngan, khong doc mot o rieng tu nao cua don - do la ly do phep tinh
+       nam ben kia chu khong nam day. Nhan la "thanh vien" hay "uu dai",
+       khong bao gio mang ten hang the. */
+    giam_vi: String(giamVi || '').slice(0, 24),
     tra: tra,
     pt: String(don.pt || ''),
     qr: null
@@ -140,7 +146,7 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc) {
 /* Goi tin cam on sau khi luu hoa don xong. Khong mang theo mon nao, khong
    mang theo QR: viec cua no la doi man hinh sang loi cam on roi ve man
    chao, khong de so tien cua khach truoc nam lai tren man. */
-function cfdGoiCamOn(quay, thu, tab, luc) {
+function cfdGoiCamOn(quay, thu, tab, luc, diem) {
   quay = quay || {};
   return {
     gt: CFD_GT,
@@ -152,9 +158,13 @@ function cfdGoiCamOn(quay, thu, tab, luc) {
     mon: [],
     tong: Number(thu) || 0,
     giam: 0,
+    giam_vi: '',
     tra: Number(thu) || 0,
     pt: '',
-    qr: null
+    qr: null,
+    /* So diem VUA CONG cua hoa don nay. Khong phai so du: so du la thu chi
+       chu the moi can biet. Khong co diem thi de 0 va man hinh bo qua. */
+    diem: Math.max(0, Math.round(Number(diem) || 0))
   };
 }
 
@@ -176,7 +186,7 @@ function cfdNhipBat() {
 
 /* Day trang thai gio hang sang man hinh khach. Goi o cuoi scrPosQuay nen
    moi lan them mon, doi phuong thuc, hay SePay bao tien ve deu tu day. */
-function cfdDay(don, quay, phaiThu, nguon, laApp) {
+function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
   if (!cfdCo()) return;
   var qr = null;
   if (!laApp && don && don.pt === 'Chuyển khoản' && phaiThu > 0) {
@@ -195,14 +205,14 @@ function cfdDay(don, quay, phaiThu, nguon, laApp) {
       };
     }
   }
-  cfdGoiCuoi = cfdDungGoi(don, quay, phaiThu, qr, cfdMaTab(), Date.now());
+  cfdGoiCuoi = cfdDungGoi(don, quay, phaiThu, qr, cfdMaTab(), Date.now(), giamVi);
   cfdPhat(cfdGoiCuoi);
   cfdNhipBat();
 }
 
-function cfdCamOn(thu) {
+function cfdCamOn(thu, diem) {
   if (!cfdCo()) return;
-  cfdGoiCuoi = cfdGoiCamOn(posQuay, thu, cfdMaTab(), Date.now());
+  cfdGoiCuoi = cfdGoiCamOn(posQuay, thu, cfdMaTab(), Date.now(), diem);
   cfdPhat(cfdGoiCuoi);
 }
 
