@@ -155,6 +155,52 @@ def _cong_ty():
 	return frappe.db.get_single_value("Global Defaults", "default_company")
 
 
+def gan_khach_vao_dong(ds):
+	"""Gan ten khach, so dien thoai va ma khach vao TUNG DONG don. Tai cho.
+
+	Anh Viet 01/09/2026: *"don ma xem lai thi khong thay duoc thong tin khach
+	hang hien thi tren don o moi man luon"*. Dung vay: du lieu von co san,
+	nhung moi man tu doc mot kieu nen man nao quen doc la man do trang.
+
+	MOT CHO TINH, MOI MAN DUNG CHUNG (QT-19). Truoc day man Sales tu
+	`split(' - ')` tho ngay tren trinh duyet, ma khuon that con co duoi
+	"Quay <ma>", nen bill quay hien nham chu "Quay TCV" vao o so dien thoai.
+	`tach_ghi_chu_don` da xu ly dung cai duoi do roi, nen goi lai no chu dung
+	viet lai phep tach lan thu hai.
+
+	Sau khi chay, moi dong co them ba o:
+	  ten_tren_don - ten khach doc duoc, roi ve customer_name neu ghi chu trong
+	  sdt_tren_don - so dien thoai, chuoi rong neu khong co
+	  ma_khach     - ma ho so khach de man hinh xin the thanh vien, rong voi
+	                 don ban le chua gan ho so
+
+	Sua ds tai cho va tra lai chinh no, de goi duoc theo kieu mot dong.
+	"""
+	try:
+		from vagabond.hoan_tien import tach_ghi_chu_don
+	except Exception:
+		tach_ghi_chu_don = None
+	for d in ds or []:
+		ten, so = "", ""
+		if tach_ghi_chu_don:
+			try:
+				ten, so = tach_ghi_chu_don(d.get("remarks"))
+			except Exception:
+				ten, so = "", ""
+		d["ten_tren_don"] = ten or d.get("customer_name") or ""
+		d["sdt_tren_don"] = so
+		# Ma khach chi co nghia khi no tro toi mot ho so that. Khach gop dung
+		# chung thi khong phai ho so cua ai, dua len man hinh se ra the thanh
+		# vien cua mot nguoi khong ton tai.
+		kh = str(d.get("vgb_khach_no") or "").strip()
+		if not kh:
+			c = str(d.get("customer") or "").strip()
+			if c and not c.startswith(KHACH_LE) and c != "Khách bán lẻ":
+				kh = c
+		d["ma_khach"] = kh
+	return ds
+
+
 def _khach_le():
 	"""Khach le online dung chung. Ten that cua khach nam o remarks tung hoa don."""
 	if frappe.db.exists("Customer", KHACH_LE):
@@ -1845,6 +1891,12 @@ def bang_doanh_so(ngay=None):
 			"docstatus",
 			"grand_total",
 			"remarks",
+			# Ba o khach cho man danh sach va man chi tiet don Sales. Ten
+			# that cua khach le nam trong remarks, con customer chi la giu
+			# cho, nen phai co ca hai moi hien dung (anh Viet 01/09/2026).
+			"customer",
+			"customer_name",
+			"vgb_khach_no",
 			"custom_pancake_id",
 			"custom_pancake_display_id",
 			"custom_hddt_trang_thai",
@@ -1898,6 +1950,7 @@ def bang_doanh_so(ngay=None):
 		s["sepay_du"] = 1 if g and g["nhan"] >= flt(s.grand_total) - 1 else 0
 	# Tong phan giam TREN DONG HANG cua tung don. Doc mot luot cho ca ngay
 	# thay vi mo tung don: mot cau truy van thay vi vai chuc.
+	gan_khach_vao_dong(sis)
 	_gan_giam_dong(sis)
 	# Cung mot phep voi man tinh tien cua cac diem ban: chip "Khong ghi so
 	# duoc" phai noi CUNG MOT CAU o moi man (anh Viet 27/08/2026).
@@ -4729,6 +4782,10 @@ def pos_ds_bill(quay=None, ngay=None):
 			"custom_hddt_so", "custom_hddt_trang_thai",
 			# Ba o duoi day chi phuc vu phep "ghi so duoc chua" ben duoi.
 			"customer", "custom_pancake_id", "vgb_quay",
+			# Thong tin khach cho man xem lai bill (anh Viet 01/09/2026).
+			# Doc cung mot luot chu dung hoi tung don, mot ngay cao diem co
+			# ca tram bill thi hoi tung don la ca tram luot.
+			"customer_name", "vgb_khach_no",
 			# Don hang tang: trang thai duyet quyet dinh don co ghi so duoc
 			# khong, nen phai doc ve cung mot luot. Thieu o nay thi chip
 			# "Khong ghi so duoc" im lang bo qua ca nhom don tang.
@@ -4763,6 +4820,7 @@ def pos_ds_bill(quay=None, ngay=None):
 		r["sepay_du"] = 1 if r["sepay_nhan"] >= flt(r.grand_total) - 1 else 0
 		r["sepay_duong"] = "ma" if r["sepay_du"] else ""
 		r["trung_ma"] = 1 if str(r.vgb_ma_tham_chieu or "").upper() in ma_trung else 0
+	gan_khach_vao_dong(ds)
 	# ANH VIET 01/09/2026: MAY KHONG DUOC TU DOAN.
 	#
 	#   "May cung khong can phai doan qua khung gio vi rat rui ro doan nham."
@@ -5972,16 +6030,8 @@ def tim_don(tu_khoa="", so_dong=40):
 		tuple(gia_tri),
 		as_dict=True,
 	)
+	gan_khach_vao_dong(ds)
 	for d in ds:
-		ten, so = "", ""
-		try:
-			from vagabond.hoan_tien import tach_ghi_chu_don
-
-			ten, so = tach_ghi_chu_don(d.get("remarks"))
-		except Exception:
-			pass
-		d["ten_tren_don"] = ten or d.get("customer_name") or ""
-		d["sdt_tren_don"] = so
 		d["ngay"] = str(d.get("posting_date") or "")
 	return {"ds": ds, "tu_khoa": tu, "vi_sao": "" if ds else (
 		'Không thấy đơn nào khớp "%s". Thử gõ mã đơn Pancake, số điện thoại khách, hoặc một phần tên khách.' % tu
