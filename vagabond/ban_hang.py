@@ -3849,7 +3849,7 @@ def pos_bill_them(name=None):
 		# Nguoi ban di kem BAN IN. Anh Viet chot 02/09/2026: to hoa don in
 		# ra phai co ten nguoi ban, khong chi ten thu ngan. Hai vai thuong
 		# la mot nguoi tai quay, nhung don online thi khac han nhau.
-		"nguoi_ban": _tn.ten(si.owner or ""),
+		"nguoi_ban": _tn.ten((si.get("vgb_nguoi_ban") or "").strip() or si.owner or ""),
 	}
 
 
@@ -3873,7 +3873,7 @@ def ai_lam_gi(name=None):
 		"Sales Invoice", name,
 		["name", "owner", "creation", "modified_by", "modified",
 		 "vgb_huy", "vgb_huy_boi", "vgb_huy_luc", "vgb_huy_ly_do",
-		 "vgb_lan_sua", "docstatus"],
+		 "vgb_lan_sua", "docstatus", "vgb_nguoi_ban"],
 		as_dict=True,
 	)
 	if not si:
@@ -3882,7 +3882,10 @@ def ai_lam_gi(name=None):
 
 	ra = {
 		"ma": si.name,
-		"nguoi_ban": _tn.ten(si.owner),
+		# O nguoi ban dung TRUOC nguoi lap: nguoi lap chi la nguoi bam nut,
+		# co the la tai khoan may. Xem vagabond/nguoi_ban.py.
+		"nguoi_ban": _tn.ten((si.get("vgb_nguoi_ban") or "").strip() or si.owner),
+		"nguoi_lap": _tn.ten(si.owner),
 		"ban_luc": str(si.creation or "")[:16],
 		"lan_sua": cint(si.get("vgb_lan_sua")),
 		"nguoi_sua": "",

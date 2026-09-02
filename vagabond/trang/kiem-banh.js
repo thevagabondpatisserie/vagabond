@@ -676,3 +676,290 @@
 	if (document.readyState === "complete") boot();
 	else window.addEventListener("load", boot);
 })();
+
+/* ------------------------------------------------------------------
+   Kiem kho theo diem ban - hai tab moi "Kiem banh 9 TCV" va "Kiem banh
+   NVHTN" (anh Viet 02/09/2026). Tab tu sinh tu danh sach diem ban co
+   quay, nen mo them chi nhanh la co them tab, khong phai sua ma nguon.
+
+   Vi sao la mot khoi rieng chu khong xen vao khoi tren: bang tren dem
+   banh cua BEP theo ngay giao, nguon so la don Pancake; bang nay dem
+   banh trong TU cua MOT QUAY, nguon so la hoa don ban ra. Hai phep dem
+   khac nhau, tron chung mot khoi la som muon cung lay nham so.
+   ------------------------------------------------------------------ */
+(function () {
+	var DIEM = [], DIEM_CHON = "", NGAY = null, DL = null, DANG_SUA = null;
+	var SO_NGAY = 3;   // hom nay va hai ngay truoc, de doi chieu nguoc
+	var HEN_TIM = null, NHIP = null;
+
+	function ngayISO(d) {
+		return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+	}
+	function fmtNgan(iso) { return iso.slice(8, 10) + "/" + iso.slice(5, 7); }
+	function h(t) {
+		return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
+			return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+		});
+	}
+
+	function API(m, b) {
+		var hd = { "Content-Type": "application/json", "Accept": "application/json" };
+		var tk = window.csrf_token || (window.frappe && frappe.csrf_token);
+		if (tk && tk !== "None") hd["X-Frappe-CSRF-Token"] = tk;
+		return fetch("/api/method/vagabond.kiem_kho." + m, {
+			method: "POST", headers: hd, credentials: "same-origin",
+			body: JSON.stringify(b || {})
+		}).then(function (r) {
+			if (r.status === 403 || r.status === 401) {
+				location.href = "/login?redirect-to=/kiem-banh"; throw new Error("login");
+			}
+			return r.json().then(function (j) {
+				if (!r.ok) {
+					var loi = j.exception || "Lỗi hệ thống";
+					try { loi = JSON.parse(JSON.parse(j._server_messages)[0]).message; } catch (e) {}
+					throw new Error(loi);
+				}
+				return j.message;
+			});
+		});
+	}
+
+	/* Luoi chan khoa API cua rieng khoi nay. Khoi tren co mot cai giong
+	   het, va co y giong het: hai khoi la hai pham vi ham khac nhau, dung
+	   chung mot ham la phai keo ca hai ra ngoai IIFE - luc do bat ky ma
+	   nao tren trang cung goi duoc. Ngay 26/08/2026 Sales chup duoc mot
+	   man hinh co ca khoa Pancake, nen cho nay khong duoc thoang. */
+	function sachKK(t) {
+		return String(t == null ? "" : t)
+			.replace(/(api_key|access_token|token|key)=[^&\s"']+/gi, "$1=***");
+	}
+
+	function loiKK(e) {
+		var x = sachKK(e && e.message);
+		if (/403|Forbidden/i.test(x)) return "Anh chị không có quyền làm việc này.";
+		if (/50\d|Server Error/i.test(x)) return "Máy chủ đang trục trặc. Lát nữa thử lại.";
+		if (/Timeout|timed out|Connection|Failed to fetch/i.test(x)) return "Không nối được máy chủ. Kiểm tra mạng rồi thử lại.";
+		return x.length > 160 ? "Chưa lưu được. Lát nữa thử lại." : x;
+	}
+
+	function bao(t, xau) {
+		var el = document.getElementById("kk-bao");
+		if (!el) return;
+		el.textContent = sachKK(t); el.className = xau ? "loi" : "";
+		if (t) setTimeout(function () { if (el.textContent === sachKK(t)) el.textContent = ""; }, 4000);
+	}
+
+	/* ---------------------------------------------------------- tab */
+
+	function veTabs() {
+		var g = document.getElementById("kb-tabs");
+		if (!g) return;
+		var x = '<button class="kb-tab' + (DIEM_CHON ? "" : " on") + '" data-diem="">Kiểm bánh ngày</button>';
+		DIEM.forEach(function (d) {
+			x += '<button class="kb-tab' + (DIEM_CHON === d.ma ? " on" : "") + '" data-diem="'
+				+ h(d.ma) + '">Kiểm bánh ' + h(d.ten) + "</button>";
+		});
+		g.innerHTML = x;
+	}
+
+	function chonTab(ma) {
+		DIEM_CHON = ma || "";
+		veTabs();
+		var goc = document.getElementById("kb-goc"), kk = document.getElementById("kk");
+		if (!goc || !kk) return;
+		goc.style.display = DIEM_CHON ? "none" : "";
+		kk.style.display = DIEM_CHON ? "" : "none";
+		try { sessionStorage.setItem("kk_tab", DIEM_CHON); } catch (e) {}
+		if (DIEM_CHON) {
+			var d = DIEM.filter(function (x) { return x.ma === DIEM_CHON; })[0];
+			document.getElementById("kk-diem-to").textContent = d ? d.ten : DIEM_CHON;
+			an_them();
+			if (!NGAY) NGAY = ngayISO(new Date());
+			veChips(); tai();
+		}
+	}
+
+	function veChips() {
+		var g = document.getElementById("kk-chips");
+		var t = new Date(); t.setHours(0, 0, 0, 0);
+		var x = "";
+		for (var i = 0; i < SO_NGAY; i++) {
+			var d = new Date(t); d.setDate(t.getDate() - i);
+			var iso = ngayISO(d);
+			x += '<button class="kb-chip' + (iso === NGAY ? " on" : "") + '" data-ngay="' + iso + '">'
+				+ (i === 0 ? "Hôm nay " : "") + fmtNgan(iso) + "</button>";
+		}
+		g.innerHTML = x;
+	}
+
+	/* --------------------------------------------------------- bang */
+
+	function tai() {
+		if (!DIEM_CHON) return Promise.resolve();
+		return API("bang", { diem: DIEM_CHON, ngay: NGAY }).then(function (m) {
+			DL = m; ve();
+		}).catch(function (e) { bao(loiKK(e), true); });
+	}
+
+	function o(d, truong, nhan, gt, sua, lop) {
+		var dang = DANG_SUA && DANG_SUA.ma === d.ma_hang && DANG_SUA.truong === truong;
+		var c = "kb-o" + (lop ? " " + lop : "") + (sua ? " sua" : "") + (dang ? " dang" : "");
+		var trong = '<b>' + (gt === "" ? "·" : h(gt)) + "</b>";
+		if (dang) trong = '<input id="kk-inp" type="number" inputmode="numeric" value="' + h(gt) + '">';
+		return '<div class="' + c + '" data-ma="' + h(d.ma_hang) + '" data-truong="' + truong + '">'
+			+ "<label>" + h(nhan) + "</label>" + trong + "</div>";
+	}
+
+	function ve() {
+		var g = document.getElementById("kk-luoi");
+		if (!DL) { g.innerHTML = ""; return; }
+		document.getElementById("kk-phu").textContent =
+			DL.tinh_trang === "Da chot" ? "Ngày này đã chốt sổ" : "Đang bán";
+		document.getElementById("kk-dachot").style.display = DL.sua_duoc ? "none" : "";
+		document.getElementById("kk-them").style.display = DL.sua_duoc ? "" : "none";
+		document.getElementById("kk-chot").style.display = DL.sua_duoc ? "" : "none";
+		if (!DL.dong.length) {
+			g.innerHTML = '<div class="kb-trong">Bảng của ngày này chưa có dòng nào.<br>'
+				+ 'Bấm "Thêm mã" để đưa món vào bảng, hoặc cứ bán bình thường - '
+				+ 'máy tự thêm dòng cho bánh ngay khi có hoá đơn đầu tiên.</div>';
+			return;
+		}
+		var sua = !!DL.sua_duoc, x = "";
+		DL.dong.forEach(function (d) {
+			x += '<div class="kb-the"><div class="kb-ten">'
+				+ "<b>" + h(d.ma_hang) + "</b><span>" + h(d.ten_banh) + "</span>"
+				+ (sua && !d.ton_dau && !d.tong_nhap && !d.da_ban && !d.hong && !d.dieu_chinh
+					? '<button class="kb-web" data-xoa="' + h(d.ma_hang) + '">Xoá dòng</button>' : "")
+				+ '</div><div class="kk-so">';
+			x += o(d, "ton_dau", "Tồn đầu", d.ton_dau, sua);
+			for (var i = 0; i < d.nhap.length; i++) {
+				x += o(d, "nhap_" + (i + 1), "Đợt " + (i + 1), d.nhap[i], sua);
+			}
+			x += o(d, "da_ban", "Đã bán", d.da_ban, false);
+			x += o(d, "hong", "Hỏng", d.hong, sua);
+			x += o(d, "dieu_chinh", "Đ/chỉnh", d.dieu_chinh, sua);
+			x += o(d, "co_the_ban", "CÒN", d.co_the_ban, false, "con" + (d.co_the_ban < 0 ? " am" : ""));
+			x += o(d, "kiem_tay", "Kiểm tay", d.da_kiem ? d.kiem_tay : "", sua, d.da_kiem ? "" : "chuakiem");
+			x += o(d, "lech", "Lệch", d.da_kiem ? d.lech : "", false, "lech" + (d.da_kiem && d.lech ? " co" : ""));
+			x += "</div></div>";
+		});
+		g.innerHTML = x;
+		ganInput();
+	}
+
+	function ganInput() {
+		var inp = document.getElementById("kk-inp");
+		if (!inp) return;
+		inp.focus(); inp.select();
+		var hen = null;
+		var hoan = function () { if (hen) { clearTimeout(hen); hen = null; } };
+		inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); hoan(); luu(); } });
+		inp.addEventListener("input", function () { hoan(); hen = setTimeout(function () { hen = null; luu(); }, 3000); });
+		inp.addEventListener("change", function () { hoan(); luu(); });
+		inp.addEventListener("blur", function () { hoan(); luu(); });
+	}
+
+	function luu() {
+		if (!DANG_SUA) return;
+		var inp = document.getElementById("kk-inp");
+		var gt = inp ? inp.value : "";
+		var s = DANG_SUA; DANG_SUA = null;
+		API("luu_o", { diem: DIEM_CHON, ngay: NGAY, ma_hang: s.ma, truong: s.truong, gia_tri: gt })
+			.then(function () { return tai(); })
+			.catch(function (e) { bao(loiKK(e), true); tai(); });
+	}
+
+	/* ------------------------------------------------------- them ma */
+
+	function an_them() {
+		var hop = document.getElementById("kk-them-hop");
+		if (hop) { hop.style.display = "none"; document.getElementById("kk-goiy").innerHTML = ""; }
+	}
+
+	function goiY() {
+		var tu = document.getElementById("kk-tim").value;
+		var g = document.getElementById("kk-goiy");
+		if (String(tu || "").trim().length < 2) { g.innerHTML = ""; return; }
+		API("tim_mon", { diem: DIEM_CHON, ngay: NGAY, tu_khoa: tu }).then(function (ds) {
+			if (!ds || !ds.length) { g.innerHTML = '<div class="kb-phu">Không tìm thấy mã nào.</div>'; return; }
+			g.innerHTML = ds.map(function (d) {
+				return '<button data-them="' + h(d.ma_hang) + '"><b>' + h(d.ma_hang) + "</b> · "
+					+ h(d.ten_banh) + "</button>";
+			}).join("");
+		}).catch(function (e) { bao(loiKK(e), true); });
+	}
+
+	/* ------------------------------------------------------ su kien */
+
+	function ganSuKien() {
+		document.getElementById("kb-tabs").addEventListener("click", function (ev) {
+			var n = ev.target.closest("button[data-diem]");
+			if (n) chonTab(n.getAttribute("data-diem"));
+		});
+		document.getElementById("kk-chips").addEventListener("click", function (ev) {
+			var n = ev.target.closest("button[data-ngay]");
+			if (!n) return;
+			NGAY = n.getAttribute("data-ngay"); DANG_SUA = null; veChips(); tai();
+		});
+		document.getElementById("kk-luoi").addEventListener("click", function (ev) {
+			var xo = ev.target.closest("button[data-xoa]");
+			if (xo) {
+				var ma = xo.getAttribute("data-xoa");
+				API("xoa_dong", { diem: DIEM_CHON, ngay: NGAY, ma_hang: ma })
+					.then(function () { bao("Đã xoá " + ma); return tai(); })
+					.catch(function (e) { bao(loiKK(e), true); });
+				return;
+			}
+			var n = ev.target.closest(".kb-o.sua");
+			if (!n || !DL || !DL.sua_duoc) return;
+			DANG_SUA = { ma: n.getAttribute("data-ma"), truong: n.getAttribute("data-truong") };
+			ve();
+		});
+		document.getElementById("kk-them").onclick = function () {
+			var hop = document.getElementById("kk-them-hop");
+			var mo = hop.style.display === "none";
+			hop.style.display = mo ? "" : "none";
+			if (mo) { document.getElementById("kk-tim").value = ""; document.getElementById("kk-goiy").innerHTML = ""; document.getElementById("kk-tim").focus(); }
+		};
+		document.getElementById("kk-tim").addEventListener("input", function () {
+			if (HEN_TIM) clearTimeout(HEN_TIM);
+			HEN_TIM = setTimeout(goiY, 300);
+		});
+		document.getElementById("kk-goiy").addEventListener("click", function (ev) {
+			var n = ev.target.closest("button[data-them]");
+			if (!n) return;
+			API("them_dong", { diem: DIEM_CHON, ngay: NGAY, ma_hang: n.getAttribute("data-them") })
+				.then(function () { an_them(); bao("Đã thêm vào bảng"); return tai(); })
+				.catch(function (e) { bao(loiKK(e), true); });
+		});
+		document.getElementById("kk-chot").onclick = function () {
+			if (!confirm("Chốt sổ ngày này? Số còn lại sẽ chuyển thành tồn đầu ngày mai.")) return;
+			API("chot", { diem: DIEM_CHON, ngay: NGAY })
+				.then(function () { bao("Đã chốt. Tồn đã chuyển sang ngày mai."); return tai(); })
+				.catch(function (e) { bao(loiKK(e), true); });
+		};
+	}
+
+	function boot() {
+		if (!document.getElementById("kb-tabs")) return;
+		API("diem_ds").then(function (ds) {
+			DIEM = ds || [];
+			if (!DIEM.length) { document.getElementById("kb-tabs").style.display = "none"; return; }
+			ganSuKien();
+			var cu = "";
+			try { cu = sessionStorage.getItem("kk_tab") || ""; } catch (e) {}
+			if (cu && !DIEM.filter(function (d) { return d.ma === cu; }).length) cu = "";
+			chonTab(cu);
+			if (NHIP) clearInterval(NHIP);
+			NHIP = setInterval(function () {
+				if (DIEM_CHON && !DANG_SUA && document.visibilityState === "visible") tai();
+			}, 60000);
+		}).catch(function () {
+			var g = document.getElementById("kb-tabs");
+			if (g) g.style.display = "none";
+		});
+	}
+
+	if (document.readyState === "complete") boot();
+	else window.addEventListener("load", boot);
+})();

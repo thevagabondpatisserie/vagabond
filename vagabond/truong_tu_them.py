@@ -78,6 +78,11 @@ def dung():
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")
 	_dung_nhom(mua_dich_vu.TRUONG_MOI, "mua_dich_vu")
 	_dung_nhom(sepay.TRUONG_MOI, "sepay")
+	# O nguoi ban tren hoa don (them 02/09/2026). Doc dau tep
+	# vagabond/nguoi_ban.py de biet vi sao may CO Y de trong voi don dong bo.
+	from vagabond import nguoi_ban
+
+	_dung_nhom(nguoi_ban.TRUONG_MOI, "nguoi_ban")
 	# M-Invoice: cau hinh keo PDF ban the hien (them 20/08/2026).
 	from vagabond import minvoice_tep
 

@@ -166,7 +166,11 @@ def _tang_ten():
 def _ai_lam_gi():
 	py = _doc("vagabond", "ban_hang.py")
 	dung("có cửa ai_lam_gi", "def ai_lam_gi(name=None):" in py)
-	dung("trả tên người bán", '"nguoi_ban": _tn.ten(si.owner)' in py)
+	# Doi ngay 02/09/2026 cung lan mo o Nguoi ban: truoc do man hoa don doc
+	# NGUOI LAP phieu roi goi do la nguoi ban. Nay o `vgb_nguoi_ban` dung
+	# TRUOC, nguoi lap chi la duong lui cho nhung to co truoc khi co o.
+	dung("trả tên người bán từ ô người bán trước, người lập chỉ là đường lui",
+	     '"nguoi_ban": _tn.ten((si.get("vgb_nguoi_ban") or "").strip() or si.owner)' in py)
 	dung("người cấp mã dùng điểm đọc từ sổ điểm",
 	     '"loai": "Dung diem tru vao don"' in py)
 	# Chi DOC, khong sua gi tren hoa don: goi luc nao cung an toan.
@@ -187,11 +191,13 @@ def _ai_lam_gi():
 @ca("Hoá đơn: người bán hiện trên danh sách và trên bản in")
 def _nguoi_ban():
 	kt = _doc("vagabond", "ke_toan.py")
-	dung("danh sách đọc thêm người lập", '\t\t\t"owner",\n' in kt)
-	dung("và đổi thành tên một lượt", '_tn.gan(ra, "owner", "vgb_huy_boi")' in kt)
+	dung("danh sách đọc cả ô người bán lẫn người lập", '"owner", "vgb_nguoi_ban",' in kt)
+	dung("ô người bán dùng trước, người lập là đường lui",
+	     'o["nguoi_ban"] = (o.get("vgb_nguoi_ban") or "").strip() or o.get("owner")' in kt)
+	dung("và đổi thành tên một lượt", '_tn.gan(ra, "nguoi_ban", "vgb_huy_boi")' in kt)
 	js = _doc("vagabond", "public", "js", "bep", "16-mua-hang.js")
 	dung("dòng danh sách hiện người bán", "Người bán: <b>" in js)
-	dung("và ưu tiên ô tên chứ không phải ô mã", "d.owner_ten || d.owner" in js)
+	dung("và ưu tiên ô tên chứ không phải ô mã", "d.nguoi_ban_ten" in js)
 
 	bq = _doc("vagabond", "public", "js", "bep", "10-bill-quay.js")
 	dung("bản in có dòng người bán", "'<div class=\"d\"><span>Người bán: '" in bq)
@@ -199,7 +205,8 @@ def _nguoi_ban():
 	# mot cai ten tren to hoa don giay la thua.
 	dung("chỉ in khi khác thu ngân", "d.nguoi_ban !== d.thu_ngan" in bq)
 	py = _doc("vagabond", "ban_hang.py")
-	dung("máy chủ trả người bán cho bản in", '"nguoi_ban": _tn.ten(si.owner or "")' in py)
+	dung("máy chủ trả người bán cho bản in",
+	     '"nguoi_ban": _tn.ten((si.get("vgb_nguoi_ban") or "").strip() or si.owner or "")' in py)
 
 
 # ------------------------------- 5. phieu tu khai commission
