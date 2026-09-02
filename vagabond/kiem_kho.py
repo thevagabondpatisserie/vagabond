@@ -198,17 +198,38 @@ def da_ban(diem, ngay):
 	return ra
 
 
+def _ho_so_hang(ds_ma):
+	"""{ma: {"ten", "hinh"}} cho một loạt mã, đọc một lượt.
+
+	Ảnh đi cùng dòng dữ liệu chứ không để màn hình đi hỏi thêm một vòng.
+	Anh Việt 29/08/2026: *"chỗ tên món phải đi kèm ảnh món cho dễ nhận
+	dạng, cái này phải làm ở backend"*, và nhắc lại 02/09/2026 khi ô tìm mã
+	của bảng kiểm kho ra tên trơ không ảnh.
+
+	Món chưa có ảnh thì để TRỐNG, màn hình vẽ ô rỗng. Không lấy chữ cái đầu
+	tên món thay ảnh - quy tắc thường trực từ 01/09/2026.
+	"""
+	ds_ma = sorted({str(m).strip() for m in (ds_ma or []) if str(m).strip()})
+	ra = {}
+	for i in range(0, len(ds_ma), 200):
+		try:
+			r = frappe.get_all(
+				"Item", filters={"name": ["in", ds_ma[i:i + 200]]},
+				fields=["name", "item_name", "image"],
+				limit_page_length=0, ignore_permissions=True,
+			)
+		except Exception:
+			continue
+		for d in r:
+			ra[d["name"]] = {
+				"ten": d.get("item_name") or d["name"],
+				"hinh": d.get("image") or "",
+			}
+	return ra
+
+
 def _ten_hang(ds_ma):
-	if not ds_ma:
-		return {}
-	try:
-		r = frappe.get_all(
-			"Item", filters={"name": ["in", list(ds_ma)]},
-			fields=["name", "item_name"], limit_page_length=0, ignore_permissions=True,
-		)
-	except Exception:
-		return {}
-	return {d["name"]: d.get("item_name") or d["name"] for d in r}
+	return {m: o["ten"] for m, o in _ho_so_hang(ds_ma).items()}
 
 
 def _phieu_truoc(diem, ngay):
@@ -323,6 +344,18 @@ def bang(diem, ngay=None):
 	ngay = getdate(ngay) if ngay else getdate()
 	doc = _lay_hoac_tao(diem, ngay)
 	doc = _luu_may(doc)
+	# Ten va anh doc THANG tu danh muc Hang hoa moi lan mo bang, khong luu
+	# lai trong dong. Ten luu trong dong la ten luc them ma, doi ten mon
+	# ben danh muc thi bang nay con giu ten cu - dung cai bay dang lam man
+	# Ke hoach san xuat hien "Nuoc, ml" cho mot mon da doi ten tu lau.
+	ho_so = _ho_so_hang([r.ma_hang for r in doc.dong])
+	dong = []
+	for r in sorted(doc.dong, key=lambda x: str(x.ma_hang or "")):
+		o = _ra_dong(r)
+		h = ho_so.get(r.ma_hang) or {}
+		o["ten_banh"] = h.get("ten") or o["ten_banh"]
+		o["hinh"] = h.get("hinh") or ""
+		dong.append(o)
 	return {
 		"diem": doc.diem,
 		"ngay": str(doc.ngay),
@@ -331,7 +364,7 @@ def bang(diem, ngay=None):
 		"sua_duoc": 1 if (_duoc_sua() and doc.tinh_trang != TT_CHOT) else 0,
 		"so_dot": SO_DOT,
 		"ghi_chu": doc.ghi_chu or "",
-		"dong": [_ra_dong(r) for r in sorted(doc.dong, key=lambda x: str(x.ma_hang or ""))],
+		"dong": dong,
 	}
 
 
@@ -431,12 +464,16 @@ def tim_mon(diem=None, tu_khoa="", ngay=None):
 			"Item",
 			or_filters=[["name", "like", "%" + tu + "%"], ["item_name", "like", "%" + tu + "%"]],
 			filters={"disabled": 0},
-			fields=["name", "item_name"], limit_page_length=30, ignore_permissions=True,
+			fields=["name", "item_name", "image"], limit_page_length=30, ignore_permissions=True,
 		)
 	except Exception:
 		return []
 	return [
-		{"ma_hang": d["name"], "ten_banh": d.get("item_name") or d["name"]}
+		{
+			"ma_hang": d["name"],
+			"ten_banh": d.get("item_name") or d["name"],
+			"hinh": d.get("image") or "",
+		}
 		for d in r if d["name"] not in da_co
 	]
 

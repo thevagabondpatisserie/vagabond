@@ -31,9 +31,9 @@ import base64
 
 import frappe
 
-# Vai được phép xin chữ ký in. Quầy, bếp và quản lý - tức những người thật
-# sự đứng cạnh một cái máy in.
-QUYEN_IN = (
+# HÀNG RÀO CŨ, ĐÃ GỠ ngày 02/09/2026. Giữ danh sách lại để đọc được lịch sử,
+# KHÔNG dùng để chặn nữa - xem `_chan()` bên dưới.
+QUYEN_IN_CU = (
 	"System Manager", "Giám đốc", "AP Giám đốc",
 	"Vagabond Thu ngan", "Vagabond Bep", "Vagabond Sales",
 	"Accounts Manager", "Accounts User", "Manufacturing Manager",
@@ -45,10 +45,31 @@ THUAT_TOAN = {"SHA512": "SHA512", "SHA256": "SHA256", "SHA1": "SHA1"}
 
 
 def _chan():
+	"""Ai được xin chữ ký in: MỌI tài khoản đã đăng nhập.
+
+	Anh Việt 02/09/2026: *"2 tài khoản của nhân viên thu ngân khi đăng nhập
+	vào (Gia Bảo và Hoàng Ngân) thì khi in máy lại báo hộp thoại allow của
+	qz tray. Em kiểm tra fix ở backend dùm anh, toàn bộ tài khoản trong hệ
+	thống đều phải dùng được qz tray để in ngầm."*
+
+	Đúng là lỗi của hàng rào cũ. Bản trước chặn theo một danh sách vai gõ
+	cứng, mà hai bạn đó chỉ mang các vai Bộ phận đặt hàng, Kiểm kê viên,
+	Sales User, Nhận hàng điều chuyển - không vai nào nằm trong danh sách.
+	Máy chủ từ chối ký, màn hình lặng lẽ quay về đường in không chữ ký, và
+	QZ Tray hiện hộp Allow. Thu ngân đứng trước mặt khách phải bấm thêm một
+	nút cho mỗi tờ bill.
+
+	Hàng rào theo vai sai ngay từ ý: cấp một vai mới cho ai đó là việc xảy
+	ra hàng tháng, mà mỗi lần lại phải nhớ ra tệp này. Ai quên là quầy đó
+	hỏng nhịp, và không có phép kiểm nào bắt được.
+
+	Vì sao mở ra là AN TOÀN: chứng thư này chỉ ký lệnh in. Nó không dùng để
+	đăng nhập, không ký hoá đơn điện tử, không ký gì khác. Người xin được
+	chữ ký chỉ in được ra chính cái máy in đứng cạnh họ. Khách vãng lai vẫn
+	bị chặn, và đó mới là hàng rào thật.
+	"""
 	if frappe.session.user == "Guest":
 		frappe.throw("Phải đăng nhập mới in được.")
-	if not set(frappe.get_roles()) & set(QUYEN_IN):
-		frappe.throw("Tài khoản này không có quyền in. Báo quản lý cấp vai.")
 
 
 def _cai_dat():

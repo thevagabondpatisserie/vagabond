@@ -109,25 +109,40 @@ def _so(x):
 		return 0.0
 
 
-def con_phai_lam(can, ton):
+def con_phai_lam(can, ton, quan_ton=True):
 	"""Cần bao nhiêu, còn tồn bao nhiêu, thì phải làm thêm bao nhiêu. THUẦN.
 
 	Không bao giờ trả số âm: dư hàng không có nghĩa là làm âm mẻ.
+
+	`quan_ton` sai nghĩa là món này KHÔNG quản tồn kho - nước máy, điện,
+	đá lạnh chạy máy. Không quản tồn thì tồn luôn bằng không, mà bằng
+	không thì phép trừ nào cũng ra thiếu. Xem `muc_cua`.
 	"""
+	if not quan_ton:
+		return 0.0
 	thieu = _so(can) - _so(ton)
 	return thieu if thieu > 0 else 0.0
 
 
-def muc_cua(can, ton, da_co_lenh=0, co_bom=True):
+def muc_cua(can, ton, da_co_lenh=0, co_bom=True, quan_ton=True):
 	"""Chip trạng thái của một dòng. THUẦN.
 
 	Thứ tự xét là có chủ ý. "Chưa có công thức" đứng TRƯỚC mọi thứ vì dòng
 	đó máy không tính được gì cả, gắn chip "đủ tồn" lên nó là nói dối. "Đã
 	có lệnh" đứng trên "phải làm" vì việc đã giao đi rồi, bếp bấm tạo lệnh
 	lần nữa là ra hai lệnh cho một mẻ.
+
+	MÓN KHÔNG QUẢN TỒN luôn là "đủ" (anh Việt 02/09/2026: *"món Nước, ml
+	vẫn bị quản tồn và báo thiếu trong khi cái này là nước máy, không
+	quản"*). Những món đó không có phiếu nhập, không có tồn kho, nên tồn
+	đọc ra luôn bằng không và mọi mẻ bánh đều bị đánh dấu thiếu. Bếp nhìn
+	chip đỏ giả mãi thành quen rồi bỏ qua cả lúc thiếu thật, đó mới là cái
+	giá thật của lỗi này.
 	"""
 	if not co_bom:
 		return MUC_CHUA_BOM
+	if not quan_ton:
+		return MUC_DU
 	thieu = con_phai_lam(can, ton)
 	if _so(da_co_lenh) > 0:
 		if _so(da_co_lenh) + _so(ton) >= _so(can):
@@ -213,7 +228,7 @@ def gom_lenh_theo_mon(cac_lenh):
 	return ra
 
 
-def thieu_cua_lenh(cac_dong, ton, ty_le):
+def thieu_cua_lenh(cac_dong, ton, ty_le, khong_quan_ton=None):
 	"""Nguyên liệu nào của một lệnh không đủ tồn. THUẦN.
 
 	Anh Việt duyệt 31/08/2026: chip "Thiếu nguyên liệu" đọc được NGAY trên
@@ -231,10 +246,14 @@ def thieu_cua_lenh(cac_dong, ton, ty_le):
 	ty_le = _so(ty_le)
 	if ty_le <= 0:
 		return []
+	bo_qua = set(khong_quan_ton or ())
 	ra = []
 	for d in cac_dong or []:
 		ma = (d.get("ma") or "").strip()
 		if not ma:
+			continue
+		# Mon khong quan ton khong bao gio thieu. Xem `muc_cua`.
+		if ma in bo_qua:
 			continue
 		can = _so(d.get("can")) * ty_le
 		if can <= 0:
@@ -836,22 +855,41 @@ def _ma_cua_bom(cac_bom):
 	return ra
 
 
-def _anh_cua(cac_ma):
-	"""Ảnh của từng món, đọc một lượt.
+def _ho_so_cua(cac_ma):
+	"""{ma: {"anh", "ten", "quan_ton"}} cho một loạt mã, đọc một lượt.
 
-	Anh Việt 29/08/2026: "chỗ tên món phải đi kèm ảnh món cho dễ nhận dạng,
-	cái này phải làm ở backend". Nên ảnh đi cùng dòng dữ liệu chứ không để
-	app tự đi hỏi thêm một vòng.
+	Ảnh: anh Việt 29/08/2026 *"chỗ tên món phải đi kèm ảnh món cho dễ nhận
+	dạng, cái này phải làm ở backend"*. Nên ảnh đi cùng dòng dữ liệu chứ
+	không để app tự đi hỏi thêm một vòng.
+
+	TÊN đọc thẳng từ danh mục Hàng hoá chứ không lấy tên nằm sẵn trong dòng
+	công thức. ERPNext chép tên món vào dòng công thức lúc thêm dòng và
+	KHÔNG bao giờ chép lại, nên đổi tên món xong thì công thức cũ vẫn giữ
+	tên cũ mãi mãi. Ngày 02/09/2026 anh Việt chụp màn Kế hoạch sản xuất
+	hiện "Nước, ml" cho một món đã đổi tên thành "Nước, gram" từ lâu; đúng
+	43 công thức đang giữ cái tên cũ đó.
+
+	`quan_ton` là cờ hàng tồn kho của món. Món không quản tồn không bao giờ
+	bị báo thiếu, xem `muc_cua`.
 	"""
 	ra = {}
 	cac_ma = sorted({m for m in (cac_ma or []) if m})
 	for i in range(0, len(cac_ma), 200):
 		for d in frappe.get_all("Item", filters={
 			"name": ["in", cac_ma[i:i + 200]]},
-			fields=["name", "image"], limit_page_length=0):
-			if d.get("image"):
-				ra[d["name"]] = d["image"]
+			fields=["name", "image", "item_name", "is_stock_item"],
+			limit_page_length=0):
+			ra[d["name"]] = {
+				"anh": d.get("image") or "",
+				"ten": d.get("item_name") or "",
+				"quan_ton": bool(cint(d.get("is_stock_item"))),
+			}
 	return ra
+
+
+def _anh_cua(cac_ma):
+	"""Chỉ ảnh, giữ cho những chỗ gọi từ trước khỏi phải sửa."""
+	return {m: o["anh"] for m, o in _ho_so_cua(cac_ma).items() if o["anh"]}
 
 
 def _bep_cua_nhieu(cac_ma):
@@ -951,7 +989,11 @@ def xem(ngay=None, ten=None):
 		| {x.get("production_item") for x in btp if x.get("production_item")}
 		| {x.get("item_code") for x in nvl if x.get("item_code")}
 		| {d["ma"] for o in cong_thuc.values() for d in o["dong"]})
-	anh = _anh_cua(cac_ma)
+	ho_so = _ho_so_cua(cac_ma)
+	anh = {m: o["anh"] for m, o in ho_so.items() if o["anh"]}
+	# Ten THAT trong danh muc, va co quan ton hay khong. Xem `_ho_so_cua`.
+	ten_that = {m: o["ten"] for m, o in ho_so.items() if o["ten"]}
+	khong_quan_ton = {m for m, o in ho_so.items() if not o["quan_ton"]}
 	bep_khai = _bep_cua_nhieu(cac_ma)
 	# Bep cua mot THANH PHAM: ho so mon truoc, khong khai thi lay bep cua
 	# ban thanh pham con cua no trong chinh phieu nay. KHONG doan theo kho
@@ -972,12 +1014,17 @@ def xem(ngay=None, ten=None):
 		t_nay = flt(ton_nay.get(ma, 0))
 		t_dau = flt(ton_dau.get(ma, 0))
 		c = chang.get(ma, "")
-		m = muc_cua(can, t_nay, da_lenh, co_bom=True)
+		qt = ma not in khong_quan_ton
+		m = muc_cua(can, t_nay, da_lenh, co_bom=True, quan_ton=qt)
 		d = {
-			"khoa": khoa, "ma": ma, "ten": ten_mon or ma, "dvt": dvt or "",
+			"khoa": khoa, "ma": ma,
+			# Ten trong danh muc di TRUOC ten chep san trong dong: dong cu
+			# giu ten cu mai mai, xem `_ho_so_cua`.
+			"ten": ten_that.get(ma) or ten_mon or ma,
+			"quan_ton": 1 if qt else 0, "dvt": dvt or "",
 			"can": flt(can), "ton_dau": t_dau, "ton_nay": t_nay,
 			"ton_goc": flt(ton_goc.get(ma, 0)),
-			"con_lam": con_phai_lam(can, t_nay), "da_lenh": flt(da_lenh),
+			"con_lam": con_phai_lam(can, t_nay, qt), "da_lenh": flt(da_lenh),
 			"chang": c, "ten_chang": tc.ten_chang(c) if c else "",
 			"chip_chang": tc.CHIP.get(c, ""), "muc": m, "ten_muc": TEN_MUC[m],
 			"mau": MAU_MUC[m], "kho": kho or "", "anh": anh.get(ma, ""),
@@ -996,11 +1043,13 @@ def xem(ngay=None, ten=None):
 		for d in o["dong"]:
 			can = nhan_cong_thuc(d["sl"], o["so_ra"], so_lam)
 			t_nay = flt(ton_nay.get(d["ma"], 0))
+			qt = d["ma"] not in khong_quan_ton
 			ds.append({
-				"ma": d["ma"], "ten": d["ten"], "dvt": d["dvt"],
+				"ma": d["ma"], "ten": ten_that.get(d["ma"]) or d["ten"],
+				"dvt": d["dvt"], "quan_ton": 1 if qt else 0,
 				"can": can, "ton_nay": t_nay,
 				"ton_goc": flt(ton_goc.get(d["ma"], 0)),
-				"con_lam": con_phai_lam(can, t_nay),
+				"con_lam": con_phai_lam(can, t_nay, qt),
 				"anh": anh.get(d["ma"], ""),
 			})
 		return ds
@@ -1847,12 +1896,17 @@ def _thieu_nvl(cac_lenh):
 				limit_page_length=0):
 				ton[(b["item_code"], b["warehouse"])] = flt(b.get("actual_qty"))
 
+	# Mon khong quan ton (nuoc may, dien) khong bao gio thieu. Doc mot luot
+	# cho ca lo lenh chu khong hoi tung ma. Xem `muc_cua`.
+	khong_quan_ton = {m for m, o in _ho_so_cua(cac_ma).items() if not o["quan_ton"]}
+
 	ra = {}
 	for l in con_lam:
 		tong = flt(l.get("qty"))
 		con = tong - flt(l.get("produced_qty"))
 		ty_le = (con / tong) if tong > 0 else 0.0
-		ra[l["name"]] = thieu_cua_lenh(dong.get(l["name"]) or [], ton, ty_le)
+		ra[l["name"]] = thieu_cua_lenh(
+			dong.get(l["name"]) or [], ton, ty_le, khong_quan_ton)
 	return ra
 
 
