@@ -79,6 +79,14 @@ CUA_NGO = {
 	# to hoa don, tuyet doi khong duoc mo ra ngoai. `ai_ban` va `_dang_chay_nen`
 	# la ham thuan va ham noi bo.
 	"nguoi_ban.py": ["gan"],
+	# Them 02/09/2026: dong bo ten mon luu san trong cong thuc. Mot cua ngo
+	# duy nhat la `soat`, va no CHI DOC - liet ke cho anh Viet xem cho nao
+	# lech roi quyet.
+	#
+	# `dong_bo` va `dung` CO Y khong nam trong danh sach. Hai ham do GHI vao
+	# dong cong thuc; mo ra ngoai la cho trinh duyet goi mot nhip ghi hang
+	# loat len cong thuc cua ca tiem.
+	"dong_bo_ten_bom.py": ["soat"],
 	# Them 02/09/2026: bang kiem kho theo diem ban, dung cho quay TCV va NVHTN.
 	# Tam cua ngo deu la cua man hinh: danh sach tab, doc bang, sua mot o, them
 	# dong, xoa dong, tim ma, chot ngay, va `con_lai` cho man tinh tien doc so
