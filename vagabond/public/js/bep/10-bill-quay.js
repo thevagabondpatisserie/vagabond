@@ -89,6 +89,7 @@ async function posInBill(d) {
       var th0 = await api('vagabond.ban_hang.pos_bill_them', { name: d.name });
       d.diem = (th0 && th0.diem) || null;
       if (th0 && th0.thu_ngan) d.thu_ngan = th0.thu_ngan;
+      if (th0 && th0.nguoi_ban) d.nguoi_ban = th0.nguoi_ban;
     } catch (e1) { d.diem = null; }
   }
   var q = (CFGBH || {}).qr_quay || {};
@@ -176,6 +177,11 @@ async function posInBill(d) {
 
     '<div class="d"><span>Mã bill: <b>' + h(d.bill || '') + '</b></span><span>' + h(d.name || '') + '</span></div>' +
     '<div class="d"><span>Thu ngân: ' + h(d.thu_ngan || S.me.full_name || String(S.user).split('@')[0]) + '</span><span>' + lucIn + '</span></div>' +
+    /* Nguoi ban in ra to hoa don. Anh Viet chot 02/09/2026. Tai quay thi
+       nguoi ban va thu ngan thuong la mot, nen chi in them dong nay khi
+       hai ten KHAC nhau, khoi to hoa don lap hai lan mot cai ten. */
+    (d.nguoi_ban && d.nguoi_ban !== d.thu_ngan
+      ? '<div class="d"><span>Người bán: ' + h(d.nguoi_ban) + '</span></div>' : '') +
     (d.so_ban ? '<div class="d"><span style="font-size:14px;font-weight:bold">Bàn: ' + h(d.so_ban) + '</span></div>' : '') +
     (d.ten ? '<div class="d"><span>Khách: ' + h(d.ten) + '</span></div>' : '') +
     '<hr><table>' + rows + '</table><hr>' +
@@ -534,6 +540,54 @@ function pbKhoiTang(d, hien) {
   return s;
 }
 
+/* ---------------- Ai da lam gi tren mot to hoa don ----------------
+
+   Anh Viet chot 02/09/2026: *"Ten nguoi huy, sua, nguoi cap OTP cung can
+   hien thi trong hoa don tren app de quy trach nhiem."*
+
+   MOT khoi dung chung cho ca hai man hoa don, doc tu MOT cua may chu. Neu
+   moi man tu dung mot khoi rieng thi som muon hai man noi hai chuyen khac
+   nhau ve cung mot to hoa don, ma day la thu de quy trach nhiem.
+
+   Doc hong thi tra ve chuoi rong chu KHONG chan man: thieu mot khoi con
+   hon khong mo duoc to hoa don. */
+async function hdAiLamGi(name) {
+  var a;
+  try { a = await api('vagabond.ban_hang.ai_lam_gi', { name: name }); }
+  catch (e) { return ''; }
+  if (!a || !a.ma) return '';
+
+  var d = function (nhan, gt, mau) {
+    if (!gt && gt !== 0) return '';
+    return '<div style="display:flex;gap:8px;font-size:12.5px;padding:5px 0;' +
+      'border-bottom:1px solid #f2f4f7;align-items:baseline">' +
+      '<span style="color:#98a2b3;flex:0 0 auto;min-width:118px">' + nhan + '</span>' +
+      '<span style="flex:1;min-width:0;word-break:break-word;color:' +
+      (mau || '#344054') + '">' + h(String(gt)) + '</span></div>';
+  };
+
+  var s = '<div class="sec">Ai đã làm gì trên hoá đơn này</div>' +
+    '<div class="card" style="padding:8px 14px">';
+  s += d('Người bán', a.nguoi_ban, '#0f766e');
+  s += d('Bán lúc', a.ban_luc);
+  if (a.nguoi_sua) {
+    s += d('Người sửa gần nhất', a.nguoi_sua + (a.lan_sua ? ' · đã sửa ' + a.lan_sua + ' lần' : ''), '#b45309');
+    s += d('Sửa lúc', a.sua_luc);
+  }
+  if (a.nguoi_huy) {
+    s += d('Người huỷ', a.nguoi_huy, '#b3261e');
+    s += d('Huỷ lúc', a.huy_luc);
+    s += d('Lý do huỷ', a.huy_ly_do);
+  }
+  if (a.nguoi_cap_ma_diem) {
+    s += d('Người cấp mã dùng điểm',
+      a.nguoi_cap_ma_diem + (a.diem_da_dung ? ' · ' + money(a.diem_da_dung) + ' điểm' : ''),
+      '#4338ca');
+    s += d('Cấp mã lúc', a.cap_ma_luc);
+  }
+  return s + '</div>';
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -786,6 +840,10 @@ async function scrPosBill(name) {
       '<button class="btn gh" id="pbChiTiet" style="margin-top:8px;width:100%">' +
       '↩️ Hoàn tiền, tiền dư, hoá đơn thay thế</button>';
   }
+  /* Ai da lam gi tren to hoa don nay, xem `hdAiLamGi`. Chi hien khi to
+     hoa don DA LUU: bill dang soan thi chua co gi de quy trach nhiem. */
+  if (d.name && !nhap) html += await hdAiLamGi(d.name);
+
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
   var nCt = document.getElementById('pbChiTiet');
   if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };

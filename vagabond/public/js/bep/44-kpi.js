@@ -209,6 +209,34 @@ async function scrKPICt() {
       (d.ky_truoc.diem_tong || 0) + ' điểm · ' + money(d.ky_truoc.hoa_hong) + ' đ</span>' : '') +
     '</div></div>';
 
+  /* Phiếu do chính nhân viên tự khai. Kế toán phải NHÌN RA ngay đây là số
+     người ta tự tính chứ không phải số máy đo, và phải mở được bảng kê
+     ngay trên phiếu. Anh Việt chốt 02/09/2026. */
+  if (d.tu_khai) {
+    html += '<div class="card" style="padding:12px 14px;border:1.5px solid #fcd34d;' +
+      'background:#fffbeb"><div style="font-size:12.5px;color:#92400e;line-height:1.75">' +
+      '<b>Phiếu do nhân viên tự khai</b><br>Kỳ này máy chưa có số liệu nên số tiền ' +
+      'là do người nhận tự tính. Soát theo bảng kê đính kèm.' +
+      (d.ly_do_tu_khai ? '<div style="margin-top:7px;color:#78350f">' +
+        h(d.ly_do_tu_khai) + '</div>' : '') + '</div>' +
+      ((d.tep_hien || []).length
+        ? '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:10px">' +
+          (d.tep_hien || []).map(function (t) {
+            return '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
+              'title="' + h(t.ten || '') + '" style="display:block;width:82px;height:82px;' +
+              'border-radius:10px;overflow:hidden;border:1.5px solid #e5e7eb;background:#fff">' +
+              (t.anh
+                ? '<img src="' + h(t.url) + '" alt="' + h(t.ten || 'bảng kê') + '" loading="lazy" ' +
+                  'style="width:100%;height:100%;object-fit:cover;display:block">'
+                : '<div style="width:100%;height:100%;display:flex;align-items:center;' +
+                  'justify-content:center;background:#f1f5f9;color:#475569;font-size:12.5px;' +
+                  'font-weight:800">' + h(t.duoi || 'TỆP') + '</div>') + '</a>';
+          }).join('') + '</div>'
+        : '<div style="font-size:12px;color:#b3261e;margin-top:8px">Phiếu này không ' +
+          'có bảng kê đính kèm. Trả lại phiếu và nhờ người khai đính bảng kê vào.</div>') +
+      '</div>';
+  }
+
   /* Khối tiền. Bày cả số thô lẫn số sau trần: người bị chạm trần phải thấy
      mình bị chạm trần chứ không phải chỉ thấy một con số thấp hơn mình nghĩ. */
   html += '<div class="card" style="padding:12px 14px">' +
@@ -546,9 +574,11 @@ async function scrKPIToi() {
     return;
   }
   if (!d.co) {
-    frame('KPI của tôi', '<div class="card"><div class="emp" style="padding:28px">' +
+    var b0 = frame('KPI của tôi', '<div class="card"><div class="emp" style="padding:28px">' +
       '<div class="e1">🗂️</div><div>Kỳ ' + h(d.ky) + ' chưa có phiếu KPI cho anh chị.<br>' +
-      'Quản lý dựng phiếu xong thì anh chị sẽ thấy ở đây.</div></div></div>');
+      'Quản lý dựng phiếu xong thì anh chị sẽ thấy ở đây.</div></div></div>' +
+      kpiKhoiTuKhai());
+    kpiNoiTuKhai(b0);
     return;
   }
 
@@ -598,7 +628,10 @@ async function scrKPIToi() {
       : '<button class="btn gh" id="kpiGuiYk" style="margin:9px 0 0;width:100%">Gửi ý kiến</button>') +
     '</div>';
 
+  html += kpiKhoiTuKhai();
+
   var b = frame('KPI của tôi', html);
+  kpiNoiTuKhai(b);
   var ng = document.getElementById('kpiGuiYk');
   if (ng) ng.onclick = async function () {
     busy(true);
@@ -607,5 +640,127 @@ async function scrKPIToi() {
       busy(false);
       toast('Đã gửi ý kiến, quản lý sẽ thấy ngay trên phiếu', 4000);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không gửi được'); }
+  };
+}
+
+/* ------------- Nhân viên tự lập phiếu duyệt KPI và hoa hồng -------------
+
+   Anh Việt chốt 02/09/2026: *"tháng trước máy không có số liệu để tính,
+   các bạn đã tự tính excel"*. Đây là đường TẠM cho những kỳ đó, không thay
+   cho phiếu máy dựng.
+
+   Bảng kê đính kèm là BẮT BUỘC và máy chủ cũng chặn lần nữa: một con số tự
+   khai không kèm bảng kê thì kế toán không có gì để soát. */
+
+var KPI_TK_TEP = 'kpitk';
+
+function kpiKhoiTuKhai() {
+  return '<div class="sec">Kỳ máy chưa có số liệu</div>' +
+    '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12.5px;color:#6b7280;line-height:1.7">' +
+    'Kỳ nào máy chưa đo được thì anh chị tự khai số đã tính, đính kèm bảng kê ' +
+    'rồi gửi kế toán soát và giám đốc duyệt.</div>' +
+    '<button class="btn" id="kpiMoTuKhai" style="margin-top:10px;width:100%">' +
+    '🧾 Tạo phiếu duyệt KPI và commission</button></div>';
+}
+
+function kpiNoiTuKhai(b) {
+  var n = b && b.querySelector('#kpiMoTuKhai');
+  if (n) n.onclick = function () { go(scrKPITuKhai); };
+}
+
+async function scrKPITuKhai() {
+  /* Mở form mới thì bỏ hết tệp của lần trước, không thì bảng kê tháng
+     trước theo sang phiếu tháng này mà không ai để ý. */
+  tdkXoaHet();
+
+  var nay = new Date();
+  /* Mặc định là kỳ TRƯỚC, đúng thứ người ta hay khai nhất: khai xong một
+     tháng là khi tháng đó đã hết. */
+  var tMac = nay.getMonth() === 0 ? 12 : nay.getMonth();
+  var nMac = nay.getMonth() === 0 ? nay.getFullYear() - 1 : nay.getFullYear();
+
+  function o(nhan, id, gt, kieu, goiY) {
+    return '<div style="margin-top:11px">' +
+      '<div style="font-size:12.5px;color:#374151;font-weight:700">' + nhan +
+      ' <span style="color:#b3261e">*</span></div>' +
+      '<input class="tin" id="' + id + '" type="' + (kieu || 'number') + '" ' +
+      'inputmode="numeric" value="' + h(String(gt === null || gt === undefined ? '' : gt)) + '" ' +
+      (goiY ? 'placeholder="' + h(goiY) + '" ' : '') +
+      'style="width:100%;text-align:left;padding:0 12px;margin-top:5px"></div>';
+  }
+
+  var html = '<div class="card" style="padding:13px 14px;font-size:12.5px;' +
+    'color:#374151;line-height:1.7">' +
+    'Phiếu này dành cho kỳ <b>máy chưa có số liệu</b>. Kỳ nào máy đã dựng phiếu ' +
+    'thì mở phiếu đó ra xem, không khai tay đè lên.' +
+    '</div>';
+
+  html += '<div class="card" style="padding:12px 14px">' +
+    o('Tháng tính commission', 'kpiTkThang', tMac) +
+    o('Năm tính commission', 'kpiTkNam', nMac) +
+    o('Tổng tiền commission (đ)', 'kpiTkTien', '', 'number', 'Ví dụ 4500000') +
+    '<div style="margin-top:11px">' +
+    '<div style="font-size:12.5px;color:#374151;font-weight:700">Diễn giải cách tính</div>' +
+    '<textarea class="tin" id="kpiTkLyDo" rows="3" ' +
+    'placeholder="Ví dụ: doanh thu 480 triệu, mốc 1 và mốc 2, chi tiết trong bảng kê" ' +
+    'style="width:100%;text-align:left;padding:9px 12px;margin-top:5px;height:auto"></textarea></div>' +
+    tdkKhoi(KPI_TK_TEP, {
+      tieu_de: 'ĐÍNH KÈM BẢNG KÊ CHI TIẾT',
+      nhan: '📎 Tải lên bảng kê (ảnh hoặc PDF)',
+      goi_y: 'Bắt buộc có bảng kê. Kế toán soát theo bảng kê này chứ không soát theo con số suông.',
+    }) +
+    '</div>';
+
+  html += '<div class="card" style="padding:11px 13px;border:1.5px solid #bfdbfe;' +
+    'background:#eff6ff"><div style="font-size:12.5px;color:#1e40af;line-height:1.7">' +
+    '<b>Sau khi gửi</b><br>Phiếu sang thẳng bước <b>chờ kế toán soát</b>, rồi tới ' +
+    '<b>giám đốc duyệt</b>. Không ai tự duyệt phiếu của chính mình. Duyệt xong ' +
+    'kế toán đẩy sang đề nghị chi, tiền chuyển tách khỏi lương cứng.</div></div>';
+
+  var b = frame('Phiếu duyệt commission', html, {
+    footer: '<button class="btn" id="kpiTkGui" style="width:100%;margin:0">Gửi</button>',
+  });
+  tdkNoi(b, KPI_TK_TEP, {
+    tieu_de: 'ĐÍNH KÈM BẢNG KÊ CHI TIẾT',
+    nhan: '📎 Tải lên bảng kê (ảnh hoặc PDF)',
+    goi_y: 'Bắt buộc có bảng kê. Kế toán soát theo bảng kê này chứ không soát theo con số suông.',
+  });
+
+  var ng = document.getElementById('kpiTkGui');
+  if (ng) ng.onclick = async function () {
+    var so = function (id) {
+      var e = document.getElementById(id);
+      var v = String((e && e.value) || '').trim();
+      return v === '' ? null : Number(v);
+    };
+    var thang = so('kpiTkThang'), nam = so('kpiTkNam'), tien = so('kpiTkTien');
+    if (thang === null || nam === null) return baoTin('Chưa điền tháng và năm.');
+    if (tien === null || !(tien > 0)) return baoTin('Chưa điền tổng tiền commission.');
+    var tep = tdkDs(KPI_TK_TEP);
+    if (!tep.length) {
+      return baoTin('Phải đính kèm bảng kê chi tiết. Kế toán soát theo bảng kê ' +
+        'chứ không soát theo con số suông.');
+    }
+    var ok = await hoiCo('Gửi phiếu duyệt commission',
+      'Gửi phiếu kỳ ' + thang + '/' + nam + ' với số tiền ' + money(tien) +
+      ' đ cho kế toán soát?');
+    if (!ok) return;
+    busy(true);
+    var kq;
+    try {
+      kq = await api('vagabond.kpi.tu_khai', {
+        thang: thang, nam: nam, tien: tien,
+        ly_do: (document.getElementById('kpiTkLyDo') || {}).value || '',
+        tep: JSON.stringify(tep),
+      });
+    } catch (e) { busy(false); return baoTin((e && e.message) || 'Không gửi được'); }
+    busy(false);
+    /* Gửi xong mới bỏ tệp khỏi màn: bỏ trước mà máy chủ từ chối thì người
+       ta phải tải lại bảng kê từ đầu. */
+    tdkXoaHet();
+    toast('Đã gửi phiếu kỳ ' + (kq && kq.ky ? kq.ky : '') + ' cho kế toán soát', 4500);
+    kpiKy = (kq && kq.ky) || kpiKy;
+    go(scrKPIToi, true);
   };
 }

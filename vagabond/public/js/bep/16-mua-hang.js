@@ -918,7 +918,15 @@ function mkBangHd(ds, loai) {
         (d.docstatus === 0 && !d.vgb_huy ? ' · <b style="color:#b45309">còn nháp</b>' : '') +
         (d.docstatus === 2 || d.vgb_huy ? ' · <b style="color:#b3261e">🚫 đã huỷ</b>' : '') +
         (d.vgb_huy && d.vgb_huy_ly_do ? ' <span style="color:#b3261e">(' + h(d.vgb_huy_ly_do) + ')</span>' : '') +
-        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div></div>' +
+        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div>' +
+        /* Nguoi ban ngay tren dong danh sach. Anh Viet chot 02/09/2026:
+           moi man hoa don phai thay duoc ai ban to nay. May chu tra ve TEN
+           chu khong tra dia chi thu, xem `vagabond/ten_nguoi.py`. */
+        '<div style="font-size:12px;color:#0f766e;margin-top:2px">Người bán: <b>' +
+        h(d.owner_ten || d.owner || 'chưa rõ') + '</b>' +
+        (d.vgb_huy && d.vgb_huy_boi_ten
+          ? ' · <span style="color:#b3261e">huỷ bởi ' + h(d.vgb_huy_boi_ten) + '</span>' : '') +
+        '</div></div>' +
         '<div style="text-align:right;white-space:nowrap"><b>' + money(d.grand_total) + '</b>' +
         (d.docstatus === 1 && d.outstanding_amount > 0 ? '<div style="font-size:11.5px;color:#b3261e">còn ' + money(d.outstanding_amount) + '</div>' : '') +
         '</div></div>';

@@ -610,6 +610,10 @@ async function scrDsView(name, can) {
   } else if (can && !d.custom_hddt_so) {
     foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
   }
+  /* Ai da lam gi tren to hoa don nay. Dat NGAY TRUOC khi dung khung, de
+     no nam cuoi man, sau moi thu ve tien. Anh Viet chot 02/09/2026. */
+  html += await hdAiLamGi(d.name);
+
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
