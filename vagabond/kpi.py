@@ -407,6 +407,54 @@ CAU_HINH_MAC_DINH = {
 }
 
 
+# --------------------------------------------------------- phiếu tự khai
+# Anh Việt chốt 02/09/2026: tháng trước máy chưa có số liệu nên các bạn tự
+# tính bằng Excel. Cho các bạn tự lập phiếu, đính kèm bảng kê, gửi kế toán
+# và giám đốc duyệt. Đây là đường TẠM cho các kỳ máy chưa đo được, không
+# thay cho phiếu máy dựng.
+
+TRAN_TU_KHAI = 200000000.0
+
+
+def kiem_ky_tu_khai(thang, nam, hom_nay_nam, hom_nay_thang):
+	"""Tháng năm khai có hợp lệ không. Trả về (mã kỳ, câu từ chối).
+
+	Chặn kỳ TƯƠNG LAI: khai hoa hồng cho tháng chưa hết là khai một con số
+	chưa ai đối chiếu được. Chặn kỳ quá cũ hơn hai năm: gõ nhầm năm thì
+	phiếu trôi vào một chỗ không ai nhìn.
+	"""
+	try:
+		t = int(thang)
+		n = int(nam)
+	except Exception:
+		return "", "Tháng và năm phải là số."
+	if t < 1 or t > 12:
+		return "", "Tháng phải từ 1 đến 12."
+	if n < hom_nay_nam - 2 or n > hom_nay_nam:
+		return "", "Năm phải trong khoảng %s tới %s." % (hom_nay_nam - 2, hom_nay_nam)
+	if n > hom_nay_nam or (n == hom_nay_nam and t > hom_nay_thang):
+		return "", "Chưa khai được kỳ chưa tới."
+	if n == hom_nay_nam and t == hom_nay_thang:
+		return "", "Kỳ này chưa hết tháng, chờ sang tháng sau rồi khai."
+	return "%04d-%02d" % (n, t), ""
+
+
+def kiem_tien_tu_khai(tien, tran=TRAN_TU_KHAI):
+	"""Số tiền khai có nhận được không. Trả về (số tiền, câu từ chối)."""
+	try:
+		v = float(str(tien).replace(",", "").strip() or 0)
+	except Exception:
+		return 0.0, "Số tiền không đọc được."
+	if v <= 0:
+		return 0.0, "Số tiền phải lớn hơn 0."
+	if v > tran:
+		return 0.0, (
+			"Số tiền vượt %s đ nên phải gửi giám đốc bằng đường khác, "
+			"không khai ở đây." % ("{:,.0f}".format(tran).replace(",", "."))
+		)
+	return v, ""
+
+
 def gop_cau_hinh(luu):
 	"""Cấu hình đang dùng: bản đã lưu đè lên bản gốc, thiếu thì lấy gốc.
 
@@ -443,6 +491,7 @@ import frappe  # noqa: E402
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate  # noqa: E402
 
 from vagabond.lib import cfg  # noqa: E402
+from vagabond import tep_dinh_kem  # noqa: E402
 
 DT = "Vagabond KPI Phieu"
 
@@ -623,7 +672,10 @@ def so_lieu_tu_dong(ky=None):
 # ------------------------------------------------------------ dựng phiếu
 
 def _ten_nguoi(u):
-	return frappe.db.get_value("User", u, "full_name") or u
+	"""Mot phep doi duy nhat cho ca he, xem `vagabond/ten_nguoi.py`."""
+	from vagabond import ten_nguoi as _tn
+
+	return _tn.ten(u)
 
 
 def _don_da_gan(ky, tru_phieu=None):
@@ -1114,6 +1166,8 @@ def chi_tiet(ma=None):
 		["diem_tong", "xep_loai", "hoa_hong"], as_dict=True,
 	)
 	ra["ky_truoc"] = kt or None
+	# Bang ke dinh kem cua phieu tu khai, doi thanh duong dan xem duoc.
+	ra["tep_hien"] = tep_dinh_kem.hien(doc.get("tep_dinh_kem"))
 	if doc.trang_thai == TT_QUAN_LY and not cint(doc.dong_bang):
 		sl = so_lieu_tu_dong(doc.ky)
 		da = _don_da_gan(doc.ky, tru_phieu=doc.name)
@@ -1136,6 +1190,99 @@ def cua_toi(ky=None):
 	d = chi_tiet(ten)
 	d["co"] = 1
 	return d
+
+
+@frappe.whitelist()
+def tu_khai(thang=None, nam=None, tien=None, ly_do=None, tep=None):
+	"""Nhân viên tự lập phiếu duyệt KPI và hoa hồng cho một kỳ đã qua.
+
+	Anh Việt chốt 02/09/2026: *"tháng trước máy không có số liệu để tính,
+	các bạn đã tự tính excel"*. Đây là đường TẠM cho những kỳ đó: người
+	nhận tiền tự khai, đính kèm bảng kê, rồi kế toán soát và giám đốc
+	duyệt. Không thay cho phiếu máy dựng, và cố ý bỏ qua bước quản lý:
+	quản lý không có số liệu để xác nhận thì bắt họ bấm cũng chỉ là bấm.
+
+	Ba hàng rào, vì đây là người tự khai tiền của chính mình:
+	  1. Chỉ khai được cho CHÍNH MÌNH, không khai hộ ai.
+	  2. Kỳ phải là kỳ đã hết tháng, và không quá hai năm trước.
+	  3. Kỳ nào máy đã dựng phiếu thì KHÔNG khai đè: đã có số máy đo thì
+	     con số tự khai không có chỗ đứng.
+	Bảng kê đính kèm là BẮT BUỘC. Một con số tự khai không kèm bảng kê thì
+	kế toán không có gì để soát.
+	"""
+	toi = frappe.session.user
+	hn = getdate(nowdate())
+	ky, loi = kiem_ky_tu_khai(thang, nam, hn.year, hn.month)
+	if loi:
+		frappe.throw(loi)
+	so_tien, loi = kiem_tien_tu_khai(tien)
+	if loi:
+		frappe.throw(loi)
+
+	ds_tep = tep_dinh_kem.doc_ds(tep)
+	if not ds_tep:
+		frappe.throw(
+			"Phải đính kèm bảng kê chi tiết. Con số tự khai không có bảng kê "
+			"thì kế toán không soát được."
+		)
+
+	cu = frappe.db.get_value(
+		DT, {"ky": ky, "nguoi": toi}, ["name", "tu_khai", "trang_thai", "dong_bang"],
+		as_dict=True,
+	)
+	if cu and not cint(cu.get("tu_khai")):
+		frappe.throw(
+			"Kỳ %s đã có phiếu do máy dựng nên không khai tay đè lên được. "
+			"Mở phiếu đó ra xem, thấy sai thì ghi ý kiến vào phiếu." % ky
+		)
+	if cu and cint(cu.get("dong_bang")):
+		frappe.throw("Phiếu tự khai kỳ %s đã chốt, không sửa lại được." % ky)
+	if cu and cu.get("trang_thai") == TT_DA_CHI:
+		frappe.throw("Phiếu tự khai kỳ %s đã đẩy chi rồi." % ky)
+
+	tu, den = _hai_dau_ky(ky)
+	doc = frappe.get_doc(DT, cu["name"]) if cu else frappe.new_doc(DT)
+	doc.ky = ky
+	doc.tu_ngay = tu
+	doc.den_ngay = den
+	doc.nguoi = toi
+	doc.ten_nguoi = _ten_nguoi(toi)
+	doc.bo = "tu_khai"
+	doc.tu_khai = 1
+	doc.hoa_hong = so_tien
+	doc.hoa_hong_tho = so_tien
+	doc.doanh_thu = 0
+	doc.diem_tong = 0
+	doc.xep_loai = "Tự khai"
+	doc.he_so = 1
+	doc.con_thieu = 0
+	doc.ly_do_tu_khai = (ly_do or "").strip()[:2000]
+	doc.tep_dinh_kem = tep_dinh_kem.ghi_ds(ds_tep)
+	doc.set("cac_dong", [])
+	# Vao thang buoc ke toan. Nguoi khai la nguoi nhan tien, nen `duoc_bam`
+	# van chan ho tu duyet phieu cua chinh minh.
+	doc.trang_thai = TT_KE_TOAN
+	doc.vao_buoc_luc = now_datetime()
+	doc.dong_bang = 0
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+
+	# Buoc tep khoi trang thai treo sang phieu, de nhip don rac dem khong
+	# xoa mat bang ke. Xem `vagabond/tep_dinh_kem.py`.
+	tep_dinh_kem.gan_vao(DT, doc.name, "tep_dinh_kem", ds_tep)
+	frappe.db.commit()
+	return {"ma": doc.name, "ky": ky, "tien": so_tien}
+
+
+def _hai_dau_ky(ky):
+	"""Ngày đầu và ngày cuối của một mã kỳ dạng 2026-08."""
+	n, t = int(ky[:4]), int(ky[5:7])
+	dau = getdate("%04d-%02d-01" % (n, t))
+	if t == 12:
+		sau = getdate("%04d-01-01" % (n + 1))
+	else:
+		sau = getdate("%04d-%02d-01" % (n, t + 1))
+	return dau, add_days(sau, -1)
 
 
 @frappe.whitelist()

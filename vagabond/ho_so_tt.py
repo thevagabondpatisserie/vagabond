@@ -186,19 +186,12 @@ def _ten_nguoi(email):
 	"""Ten that thay vi dia chi thu.
 
 	Anh Viet 13/08/2026 khoanh do man ho so: "hien thi ten dang hoang, chu
-	khong phai hien email the nay". Khong tim thay User thi tra lai khuc
-	truoc dau @ chu khong tra chuoi rong - mat dau vet con te hon xau.
+	khong phai hien email the nay". Phep doi da don ve mot cho duy nhat
+	ngay 02/09/2026, xem `vagabond/ten_nguoi.py`.
 	"""
-	e = (email or "").strip()
-	if not e:
-		return ""
-	ten = frappe.db.get_value("User", e, "full_name")
-	if ten and str(ten).strip() and str(ten).strip().lower() != e.lower():
-		return str(ten).strip()
-	nv = frappe.db.get_value("Employee", {"user_id": e}, "employee_name")
-	if nv:
-		return str(nv).strip()
-	return e.split("@")[0]
+	from vagabond import ten_nguoi
+
+	return ten_nguoi.ten(email)
 
 
 def _tk_nhan(ma_ncc):
@@ -3095,15 +3088,6 @@ def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60):
 			"so_tep": len(_dinh_kem([(DNC, r["name"])])),
 		})
 	return {"ds": ra, "tong": len(ra)}
-
-
-def _ten_nguoi(email):
-	if not email:
-		return ""
-	try:
-		return frappe.db.get_value("User", email, "full_name") or email
-	except Exception:
-		return email
 
 
 @frappe.whitelist()

@@ -3841,12 +3841,90 @@ def pos_bill_them(name=None):
 	if not name or not frappe.db.exists("Sales Invoice", name):
 		return {"diem": None, "thu_ngan": ""}
 	si = frappe.get_doc("Sales Invoice", name)
-	nguoi = si.owner or ""
-	ten = frappe.db.get_value("User", nguoi, "full_name") if nguoi else ""
+	from vagabond import ten_nguoi as _tn
+
 	return {
 		"diem": _khoi_diem_bill(si),
-		"thu_ngan": (ten or str(nguoi).split("@")[0] or "").strip(),
+		"thu_ngan": _tn.ten(si.owner or ""),
+		# Nguoi ban di kem BAN IN. Anh Viet chot 02/09/2026: to hoa don in
+		# ra phai co ten nguoi ban, khong chi ten thu ngan. Hai vai thuong
+		# la mot nguoi tai quay, nhung don online thi khac han nhau.
+		"nguoi_ban": _tn.ten(si.owner or ""),
 	}
+
+
+@frappe.whitelist()
+def ai_lam_gi(name=None):
+	"""Ai đã làm gì trên một hoá đơn: bán, sửa, huỷ, cấp mã dùng điểm.
+
+	Anh Việt chốt 02/09/2026: *"Tên người huỷ, sửa, người cấp OTP cũng cần
+	hiển thị trong hoá đơn trên app để quy trách nhiệm."*
+
+	MỘT cửa duy nhất cho cả hai màn hoá đơn và cho bản in, thay vì mỗi màn
+	tự đi tra một kiểu. Trả về TÊN người, không trả địa chỉ thư.
+
+	Chỉ ĐỌC. Không sửa gì trên hoá đơn, nên gọi lúc nào cũng an toàn.
+	"""
+	_kiem_quyen()
+	name = (name or "").strip()
+	if not name:
+		return {}
+	si = frappe.db.get_value(
+		"Sales Invoice", name,
+		["name", "owner", "creation", "modified_by", "modified",
+		 "vgb_huy", "vgb_huy_boi", "vgb_huy_luc", "vgb_huy_ly_do",
+		 "vgb_lan_sua", "docstatus"],
+		as_dict=True,
+	)
+	if not si:
+		return {}
+	from vagabond import ten_nguoi as _tn
+
+	ra = {
+		"ma": si.name,
+		"nguoi_ban": _tn.ten(si.owner),
+		"ban_luc": str(si.creation or "")[:16],
+		"lan_sua": cint(si.get("vgb_lan_sua")),
+		"nguoi_sua": "",
+		"sua_luc": "",
+		"nguoi_huy": "",
+		"huy_luc": "",
+		"huy_ly_do": (si.get("vgb_huy_ly_do") or "").strip(),
+		"nguoi_cap_ma_diem": "",
+		"cap_ma_luc": "",
+		"diem_da_dung": 0,
+	}
+
+	# Người sửa gần nhất. Chỉ hiện khi KHÁC người bán: hoá đơn nào cũng có
+	# `modified_by`, mà bằng chính người lập thì đó không phải một lần sửa
+	# đáng kể ai, chỉ là tiếng ồn.
+	if si.modified_by and si.modified_by != si.owner:
+		ra["nguoi_sua"] = _tn.ten(si.modified_by)
+		ra["sua_luc"] = str(si.modified or "")[:16]
+
+	if cint(si.get("vgb_huy")):
+		ra["nguoi_huy"] = _tn.ten(si.get("vgb_huy_boi") or si.modified_by)
+		ra["huy_luc"] = str(si.get("vgb_huy_luc") or "")[:16]
+
+	# Người cấp mã dùng điểm. Bút trừ điểm nằm ở sổ điểm, người bấm xác
+	# nhận mã chính là chủ của bút đó.
+	try:
+		bt = frappe.get_all(
+			"Vagabond So Diem",
+			filters={"hoa_don": name, "loai": "Dung diem tru vao don"},
+			fields=["owner", "creation", "diem"],
+			order_by="creation desc", limit_page_length=1,
+			ignore_permissions=True,
+		)
+		if bt:
+			ra["nguoi_cap_ma_diem"] = _tn.ten(bt[0].get("owner"))
+			ra["cap_ma_luc"] = str(bt[0].get("creation") or "")[:16]
+			ra["diem_da_dung"] = abs(cint(bt[0].get("diem")))
+	except Exception:
+		# Sổ điểm hỏng KHÔNG được chặn màn hoá đơn: thiếu một dòng còn hơn
+		# không mở được tờ hoá đơn.
+		pass
+	return ra
 
 
 # ---------------------------------------------------------------- m-invoice
