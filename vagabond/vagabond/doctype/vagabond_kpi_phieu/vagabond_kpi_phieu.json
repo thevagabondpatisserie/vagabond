@@ -48,6 +48,9 @@
   "sec_khac",
   "don_gan_tay",
   "so_lieu",
+  "tu_khai",
+  "ly_do_tu_khai",
+  "tep_dinh_kem",
   "phieu_chi"
  ],
  "fields": [
@@ -293,6 +296,24 @@
    "fieldname": "so_lieu",
    "fieldtype": "Long Text",
    "label": "So lieu chup lai (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tu_khai",
+   "fieldtype": "Check",
+   "label": "Nhan vien tu khai",
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_tu_khai",
+   "fieldtype": "Small Text",
+   "label": "Dien giai cua nguoi tu khai"
+  },
+  {
+   "fieldname": "tep_dinh_kem",
+   "fieldtype": "Small Text",
+   "label": "Bang ke dinh kem",
    "read_only": 1
   },
   {

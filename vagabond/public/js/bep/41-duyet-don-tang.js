@@ -143,10 +143,18 @@ async function scrDuyetTang() {
         [tenDiem[r.diem_ban] || 'Chưa rõ điểm bán', '#f8fafc', '#e2e8f0', '#475467'],
         r.da_ghi_so ? ['Đã ghi sổ', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
         r.cho_lau ? ['Chờ ' + r.cho_ngay + ' ngày', '#fef2f2', '#fecaca', '#b3261e'] : null,
-      ]) + (mo ? dtgThan(r, kq) : '') + '</div>' +
+      ]) + '</div>' +
       '<div style="text-align:right;white-space:nowrap">' +
       '<b style="font-size:13.5px">' + money(r.grand_total) + '</b>' +
-      '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>';
+      '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>' +
+      /* Khoi chi tiet nam NGOAI hang bam, chiem ca chieu ngang man hinh.
+         Truoc 02/09/2026 no nam trong cot chu cua hang, tuc la bi ep giua
+         cai bieu tuong ben trai va cot tien ben phai; tren dien thoai cot
+         do con chung ba muoi ky tu nen chu xuong dong tung chu mot. Anh
+         Viet gui anh chup: "no dang bi ep dong".
+         Nam ngoai con duoc mot cai loi thu hai: bam vao trong phan chi
+         tiet khong con lam dong sap hang lai. */
+      (mo ? dtgThan(r, kq) : '');
   });
   html += '</div>';
 
@@ -169,11 +177,17 @@ function dtgThan(r, kq) {
   var ct = dtgChiTiet[r.name];
   var s = '<div style="margin-top:9px;padding:9px 10px;background:#f9fafb;' +
     'border:1px solid #eef0f3;border-radius:9px">';
-  var d = function (nhan, gt) {
-    if (!gt) return '';
-    return '<div style="display:flex;gap:8px;font-size:12px;margin-top:3px">' +
-      '<span style="color:#98a2b3;min-width:112px">' + nhan + '</span>' +
-      '<span style="color:#344054">' + h(String(gt)) + '</span></div>';
+  /* `flex-shrink:0` cho o nhan va `min-width:0` cho o gia tri la hai nua
+     cua cung mot viec: khong co chung thi trinh duyet co the bop o gia tri
+     xuong con vai ky tu roi be chu xuong dong tung chu mot. */
+  var d = function (nhan, gt, dam) {
+    if (!gt && gt !== 0) return '';
+    return '<div style="display:flex;gap:8px;font-size:12px;margin-top:3px;' +
+      'align-items:baseline">' +
+      '<span style="color:#98a2b3;flex:0 0 auto;min-width:112px">' + nhan + '</span>' +
+      '<span style="color:' + (dam ? '#0f766e;font-weight:700' : '#344054') +
+      ';flex:1;min-width:0;word-break:break-word">' + h(String(gt)) +
+      '</span></div>';
   };
   if (!ct) {
     s += '<div style="font-size:12.5px;color:#98a2b3">Đang đọc từng món...</div>';
@@ -206,10 +220,19 @@ function dtgThan(r, kq) {
       'Nhờ người lập đính ảnh vào đơn rồi bấm lưu lại.</div>';
   }
   s += d('Mã đơn', r.name);
+  /* So hoa don dien tu da xuat cho chinh don nay. Anh Viet 02/09/2026:
+     duyet xong van phai doi chieu voi to hoa don that, de o day thi khong
+     phai mo them man khac de tra. Chua xuat thi noi thang la chua xuat,
+     dung de o trong cho nguoi ta doan. */
+  s += d('Số hoá đơn đã xuất',
+    ct.custom_hddt_so
+      ? (ct.custom_hddt_so + (ct.custom_hddt_trang_thai ? ' · ' + ct.custom_hddt_trang_thai : ''))
+      : 'Chưa xuất hoá đơn điện tử',
+    !!ct.custom_hddt_so);
   s += d('Loại tặng', ct.nhan_loai);
   s += d('Lý do tặng', ct.vgb_tang_ly_do);
-  s += d('Người lập', ct.owner);
-  s += d('Người duyệt', r.vgb_tang_nguoi_duyet);
+  s += d('Người lập', ct.owner_ten || ct.owner);
+  s += d('Người duyệt', ct.vgb_tang_nguoi_duyet_ten || r.vgb_tang_nguoi_duyet);
   s += d('Duyệt lúc', r.vgb_tang_luc_duyet);
   s += d('Ý kiến người duyệt', r.vgb_tang_y_kien);
   s += d('Bút toán gạt công nợ', r.vgb_but_toan_tang);

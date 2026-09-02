@@ -59,6 +59,9 @@ CUA_NGO = {
 	"kpi.py": [
 		"cai_dat", "cham", "chi_tiet", "cua_toi", "danh_sach", "day_chi",
 		"dung_phieu", "duyet", "luu_cai_dat", "nguoi_dung", "tra_lai",
+		# Them 02/09/2026: nhan vien tu lap phieu duyet KPI va hoa hong cho
+		# nhung ky may chua co so lieu.
+		"tu_khai",
 		"y_kien",
 	],
 	# Them 01/09/2026: cong tai tep dung chung cho moi man. Ba cua ngo:

@@ -26,6 +26,16 @@ def dung():
 
 	vai_cua_hang.dung()
 
+	# Hien HO TEN thay cho dia chi thu o moi o Link tro toi User, trong toan
+	# bo ERPNext ban may tinh. Anh Viet chot 02/09/2026. Mot dong, va moi o
+	# them sau nay cung tu dung, khong phai nho.
+	from vagabond import ten_nguoi
+
+	try:
+		ten_nguoi.dung()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: hien ten nguoi")
+
 	# Ban in Huong dan che bien: tao ban ghi Print Format lan dau neu chua
 	# co. Dat sau vai vi ban ghi do co khai quyen theo vai.
 	from vagabond import huong_dan_che_bien

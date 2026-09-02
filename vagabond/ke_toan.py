@@ -116,6 +116,9 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 			"vgb_pt_thanh_toan", "custom_pancake_display_id", "vgb_tam_tinh",
 			"vgb_khach_no", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
 			"vgb_lan_sua", "amended_from",
+			# Nguoi ban. Anh Viet chot 02/09/2026: moi man hoa don phai thay
+			# duoc ai ban to nay, khong phai mo tung to ra doan.
+			"owner",
 			# Ten that cua khach le nam trong ghi chu chu khong o customer_name
 			# (anh Viet 01/09/2026: moi man phai thay duoc khach tren don).
 			"remarks",
@@ -171,6 +174,12 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 			and not cint(o.get("vgb_huy"))
 		]
 	)
+
+	# Doi ma tai khoan thanh TEN nguoi, mot luot cho ca trang chu khong hoi
+	# tung dong. Anh Viet chot 02/09/2026, xem `vagabond/ten_nguoi.py`.
+	from vagabond import ten_nguoi as _tn
+
+	_tn.gan(ra, "owner", "vgb_huy_boi")
 
 	# Loc theo chip PHAI lam o day, TRUOC khi cat 300 dong - loc tren tap da
 	# bi cat thi bam chip "Chua xuat hoa don dien tu" se ra rong trong khi

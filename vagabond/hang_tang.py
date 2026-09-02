@@ -282,6 +282,8 @@ SI = "Sales Invoice"
 # bán, mà hàng rào này sinh ra để tách người tặng khỏi người duyệt.
 from vagabond.quyen_phan_he import ROLE_GIAM_DOC  # noqa: E402
 
+from vagabond import ten_nguoi  # noqa: E402
+
 VAI_DUYET = {"System Manager", ROLE_GIAM_DOC, "AP Giám đốc"}
 
 TRUONG_TIM = (
@@ -811,6 +813,10 @@ def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
 			"vgb_huy", "vgb_ghi_chu", "vgb_tang_loai", "vgb_tang_ly_do",
 			"vgb_tang_duyet", "vgb_tang_nguoi_duyet", "vgb_tang_luc_duyet",
 			"vgb_tang_y_kien", "vgb_but_toan_tang",
+			# So hoa don dien tu da xuat cho don nay. Anh Viet 02/09/2026:
+			# duyet xong con phai doi chieu voi to hoa don that, ma di tra
+			# cuu o man khac thi mat luot.
+			"custom_hddt_so", "custom_hddt_trang_thai",
 		],
 		order_by="creation desc",
 		limit_page_length=0,
@@ -826,6 +832,10 @@ def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
 		d["cho_lau"] = 1 if keu else 0
 		d["creation"] = str(d.get("creation") or "")[:16]
 		d["vgb_tang_luc_duyet"] = str(d.get("vgb_tang_luc_duyet") or "")[:16]
+
+	# Hien TEN nguoi chu khong hien dia chi thu, doi mot luot cho ca trang.
+	# Anh Viet chot 02/09/2026, xem `vagabond/ten_nguoi.py`.
+	ten_nguoi.gan(dong, "owner", "vgb_tang_nguoi_duyet")
 
 	dm = chuoi(diem).upper()
 	lo = chuoi(loai)
@@ -886,7 +896,9 @@ def chi_tiet(name):
 		SI, name,
 		["name", "customer_name", "grand_total", "vgb_tang_loai",
 		 "vgb_tang_ly_do", "vgb_tang_duyet", "vgb_tang_y_kien", "owner",
-		 "vgb_quay", "custom_nguon", "custom_pancake_display_id", "creation"],
+		 "vgb_quay", "custom_nguon", "custom_pancake_display_id", "creation",
+		 "custom_hddt_so", "custom_hddt_trang_thai", "custom_hddt_sobaomat",
+		 "vgb_tang_nguoi_duyet"],
 		as_dict=True,
 	)
 	if not d:
@@ -907,6 +919,7 @@ def chi_tiet(name):
 	# trước khi bấm duyệt, không phải hàng rào cứng: đặt hạn mức bao nhiêu
 	# là quyết định của anh Việt, máy không tự đặt hộ.
 	d["thang_nay"] = _da_tang_thang(d.get("owner"))
+	ten_nguoi.gan(d, "owner", "vgb_tang_nguoi_duyet")
 	return d
 
 
