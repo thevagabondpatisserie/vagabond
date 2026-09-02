@@ -82,9 +82,38 @@ header, .navbar, .web-footer, footer {display:none!important}
 #kb .kb-so .kb-o:nth-child(15) label,#kb .kb-so .kb-o:nth-child(16) label{color:#0f766e}
 #kb .kb-nhom{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#4b5563;margin:0 0 10px;padding:0 2px}
 #kb .kb-nhom i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* --- Kiem kho theo diem ban (02/09/2026) --- */
+#kb .kb-tabs{display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap;border-bottom:1px solid #e5e7eb;padding-bottom:8px}
+#kb .kb-tab{background:#fff;border:1px solid #d1d5db;color:#374151;padding:9px 14px;font-size:13px;font-weight:700;border-radius:9px}
+#kb .kb-tab.on{background:#0f766e;border-color:#0f766e;color:#fff}
+#kb .kk-so{display:grid;grid-template-columns:repeat(13,1fr);text-align:center}
+#kb .kk-so .kb-o:nth-child(n+2):nth-child(-n+7){background:#fefce8}
+#kb .kk-so .kb-o:nth-child(2){border-left:2px solid #fde68a}
+#kb .kk-so .kb-o:nth-child(2) label,#kb .kk-so .kb-o:nth-child(3) label,
+#kb .kk-so .kb-o:nth-child(4) label,#kb .kk-so .kb-o:nth-child(5) label,
+#kb .kk-so .kb-o:nth-child(6) label,#kb .kk-so .kb-o:nth-child(7) label{color:#b45309}
+#kb .kk-so .kb-o:nth-child(8){background:#eff6ff;border-left:2px solid #dbeafe}
+#kb .kk-so .kb-o:nth-child(8) label{color:#1d4ed8}
+#kb .kk-so .kb-o:nth-child(11){background:#effbf8;border-left:2px solid #99f6e4}
+#kb .kk-so .kb-o:nth-child(11) label{color:#0f766e}
+#kb .kk-so .kb-o.con b{color:#059669;font-size:18px}
+#kb .kk-so .kb-o.con.am b{color:#dc2626}
+#kb .kk-so .kb-o.lech b{color:#9ca3af}
+#kb .kk-so .kb-o.lech.co b{color:#b45309;font-weight:800}
+#kb .kk-so .kb-o.chuakiem b{color:#d1d5db}
+@media(max-width:520px){
+  #kb .kk-so{grid-template-columns:repeat(4,1fr)}
+}
+#kb #kk-them-hop{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px}
+#kb #kk-them-hop input{width:100%;box-sizing:border-box;border:1.5px solid #0d9488;border-radius:8px;padding:9px 10px;font-size:14px}
+#kb #kk-goiy{margin-top:8px;max-height:220px;overflow:auto}
+#kb #kk-goiy button{display:block;width:100%;text-align:left;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin-bottom:5px;font-size:13px;color:#111827}
+#kb #kk-goiy button b{color:#1d4ed8;font-size:12px;letter-spacing:.03em}
 </style>
 <div id="kb">
   <a class="kb-back" href="/bep">‹ Màn hình nghiệp vụ</a>
+  <div class="kb-tabs" id="kb-tabs"></div>
+  <div id="kb-goc">
   <h1>Kiểm bánh ngày <span id="kb-ngay-to"></span></h1>
   <div class="kb-chips" id="kb-chips"></div>
   <div class="kb-phu"><span id="kb-luc"></span> · <span id="kb-btp-luc"></span></div>
@@ -102,4 +131,22 @@ header, .navbar, .web-footer, footer {display:none!important}
      dong nhap nhay bon giay. Dung khi so dang bay la so cu. -->
 <div id="kb-canh" style="display:none"></div>
   <div id="kb-luoi"></div>
+  </div>
+  <div id="kk" style="display:none">
+    <h1>Kiểm bánh <span id="kk-diem-to"></span></h1>
+    <div class="kb-chips" id="kk-chips"></div>
+    <div class="kb-phu" id="kk-phu"></div>
+    <div class="kb-nut">
+      <button id="kk-them">Thêm mã</button>
+      <button id="kk-chot">Chốt ngày</button>
+      <div id="kk-dachot">Ngày này đã chốt sổ. Số còn lại đã chuyển sang tồn đầu ngày mai.</div>
+    </div>
+    <details class="kb-cg"><summary>Chú giải các cột</summary><div><b>Tồn đầu</b>: số còn trong tủ đầu ngày, máy tự chuyển từ ngày hôm trước khi chốt sổ.<br><b>Đợt 1 tới Đợt 6</b>: bánh nhận thêm trong ngày, mỗi chuyến giao một đợt - ghi riêng từng đợt để truy được chuyến nào thiếu.<br><b>Đã bán</b>: máy đếm thẳng từ hoá đơn bán ra của chính quầy này trong ngày, không sửa tay được. Hoá đơn còn nháp cũng tính, vì cái bánh đó đã rời khỏi tủ.<br><b>Hỏng</b>: bánh hỏng, bỏ, trả về.<br><b>Đ/chỉnh</b>: ô sửa tay khi có chuyện bất thường, được phép âm, nhớ ghi lý do vào ô ghi chú.<br><b>CÒN</b> = tồn đầu + các đợt nhập - đã bán - hỏng + điều chỉnh. Số này hiện luôn bên màn tính tiền, thu ngân tìm món là thấy còn hay hết.<br><b>Kiểm tay</b>: số đếm thật cuối ngày. <b>Lệch</b> = kiểm tay trừ CÒN; khác 0 là có chuyện cần truy.<br><b>Nút Chốt ngày</b>: bấm một lần cuối ngày. Số còn lại chuyển thành tồn đầu ngày mai - có kiểm tay thì lấy số kiểm tay, vì người đếm bao giờ cũng đúng hơn phép trừ.</div></details>
+    <div id="kk-bao"></div>
+    <div id="kk-them-hop" style="display:none">
+      <input id="kk-tim" type="text" placeholder="Gõ mã hoặc tên món để thêm vào bảng" autocomplete="off">
+      <div id="kk-goiy"></div>
+    </div>
+    <div id="kk-luoi"></div>
+  </div>
 </div>
