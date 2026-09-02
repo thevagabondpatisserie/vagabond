@@ -828,6 +828,10 @@
 		DL.dong.forEach(function (d) {
 			x += '<div class="kb-the"><div class="kb-ten">'
 				+ "<b>" + h(d.ma_hang) + "</b><span>" + h(d.ten_banh) + "</span>"
+				/* Dong may tu them vi thay co ban ra ma chua ai khai ton. Man
+				   tinh tien chua ve chip con/het cho mon nay, va nguoi doc bang
+				   can biet ngay vi sao. */
+				+ (d.theo_doi ? "" : '<span class="kk-chuakhai">chưa khai tồn</span>')
 				+ (sua && !d.ton_dau && !d.tong_nhap && !d.da_ban && !d.hong && !d.dieu_chinh
 					? '<button class="kb-web" data-xoa="' + h(d.ma_hang) + '">Xoá dòng</button>' : "")
 				+ '</div><div class="kk-so">';
