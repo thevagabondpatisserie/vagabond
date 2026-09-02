@@ -566,6 +566,9 @@ def _hoa_don_ky(tu, den, cf):
 			"name", "owner", "grand_total", "vgb_quay", "custom_nguon",
 			"custom_hop_dong", "custom_ma_khach", "customer",
 			"vgb_tam_tinh", "vgb_huy", "vgb_pt_thanh_toan",
+			# Ô người bán, thêm 02/09/2026. Đọc ô này TRƯỚC người lập:
+			# người lập chỉ là người bấm nút, còn ô kia là người bán thật.
+			"vgb_nguoi_ban",
 		],
 		limit_page_length=0,
 	)
@@ -621,7 +624,9 @@ def so_lieu_tu_dong(ky=None):
 	theo_nguoi, theo_diem, chua_gan = {}, {}, []
 	khach_theo_nguoi = {}
 	for r in hd:
-		ng = r.get("owner") or ""
+		# Ô người bán đứng TRƯỚC người lập. Đơn nào chưa có ô đó thì rơi
+		# về người lập như cũ, nên đơn cũ không đổi cách tính.
+		ng = (r.get("vgb_nguoi_ban") or "").strip() or (r.get("owner") or "")
 		tien = flt(r.get("grand_total"))
 		d = (r.get("vgb_quay") or "").strip().upper() or "SALES"
 		theo_diem[d] = theo_diem.get(d, 0.0) + tien

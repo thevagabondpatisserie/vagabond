@@ -480,6 +480,10 @@ doc_events = {
 		"before_validate": [
 			"vagabond.email_sach.don",
 			"vagabond.noi_bo.truoc_khi_luu",
+			# Nguoi ban: dien tai khoan dang dang nhap luc TAO to hoa don.
+			# May dong bo ve thi de trong chu khong dien bua, xem dau tep
+			# vagabond/nguoi_ban.py.
+			"vagabond.nguoi_ban.truoc_khi_luu",
 		],
 		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
 		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh

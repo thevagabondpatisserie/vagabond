@@ -117,8 +117,9 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 			"vgb_khach_no", "vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi",
 			"vgb_lan_sua", "amended_from",
 			# Nguoi ban. Anh Viet chot 02/09/2026: moi man hoa don phai thay
-			# duoc ai ban to nay, khong phai mo tung to ra doan.
-			"owner",
+			# duoc ai ban to nay, khong phai mo tung to ra doan. O
+			# `vgb_nguoi_ban` dung TRUOC nguoi lap, xem vagabond/nguoi_ban.py.
+			"owner", "vgb_nguoi_ban",
 			# Ten that cua khach le nam trong ghi chu chu khong o customer_name
 			# (anh Viet 01/09/2026: moi man phai thay duoc khach tren don).
 			"remarks",
@@ -179,7 +180,15 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 	# tung dong. Anh Viet chot 02/09/2026, xem `vagabond/ten_nguoi.py`.
 	from vagabond import ten_nguoi as _tn
 
-	_tn.gan(ra, "owner", "vgb_huy_boi")
+	from vagabond.nguoi_ban import MAY as _MAY_BAN
+
+	for o in ra:
+		o["nguoi_ban"] = (o.get("vgb_nguoi_ban") or "").strip() or o.get("owner") or ""
+		# To nao quy ve tai khoan may la to CHUA AI GAN nguoi ban - dung
+		# dinh nghia voi ro "chua gan" ben man KPI. Ghi ro ra day de man
+		# hinh khong phai doan tu cai ten "He thong".
+		o["nguoi_ban_may"] = 1 if o["nguoi_ban"] in _MAY_BAN else 0
+	_tn.gan(ra, "nguoi_ban", "vgb_huy_boi")
 
 	# Loc theo chip PHAI lam o day, TRUOC khi cat 300 dong - loc tren tap da
 	# bi cat thi bam chip "Chua xuat hoa don dien tu" se ra rong trong khi
