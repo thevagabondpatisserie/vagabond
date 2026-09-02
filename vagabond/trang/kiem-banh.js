@@ -702,6 +702,14 @@
 		});
 	}
 
+	/* Anh mon that. Mon chua co anh thi ve O TRONG, khong bao gio lay chu
+	   cai dau ten mon thay anh - quy tac thuong truc cua anh Viet tu
+	   01/09/2026, ghi trong claude/v373-logo-that-va-anh-mon-that.md. */
+	function anhMon(u) {
+		if (!u) return '<span class="kb-noimg"></span>';
+		return '<img src="' + h(u) + '" loading="lazy" alt="">';
+	}
+
 	function API(m, b) {
 		var hd = { "Content-Type": "application/json", "Accept": "application/json" };
 		var tk = window.csrf_token || (window.frappe && frappe.csrf_token);
@@ -827,6 +835,7 @@
 		var sua = !!DL.sua_duoc, x = "";
 		DL.dong.forEach(function (d) {
 			x += '<div class="kb-the"><div class="kb-ten">'
+				+ anhMon(d.hinh)
 				+ "<b>" + h(d.ma_hang) + "</b><span>" + h(d.ten_banh) + "</span>"
 				/* Dong may tu them vi thay co ban ra ma chua ai khai ton. Man
 				   tinh tien chua ve chip con/het cho mon nay, va nguoi doc bang
@@ -887,8 +896,8 @@
 		API("tim_mon", { diem: DIEM_CHON, ngay: NGAY, tu_khoa: tu }).then(function (ds) {
 			if (!ds || !ds.length) { g.innerHTML = '<div class="kb-phu">Không tìm thấy mã nào.</div>'; return; }
 			g.innerHTML = ds.map(function (d) {
-				return '<button data-them="' + h(d.ma_hang) + '"><b>' + h(d.ma_hang) + "</b> · "
-					+ h(d.ten_banh) + "</button>";
+				return '<button data-them="' + h(d.ma_hang) + '">' + anhMon(d.hinh)
+					+ "<span><b>" + h(d.ma_hang) + "</b> · " + h(d.ten_banh) + "</span></button>";
 			}).join("");
 		}).catch(function (e) { bao(loiKK(e), true); });
 	}
