@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "ma_hang",
+  "theo_doi",
   "ten_banh",
   "cb1",
   "ton_dau",
@@ -33,6 +34,13 @@
    "label": "Ma hang",
    "in_list_view": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "theo_doi",
+   "fieldtype": "Check",
+   "label": "Dang theo doi ton",
+   "description": "Da co nguoi khai so cho dong nay. Dong may tu them vi thay co ban ra ma chua ai khai thi CHUA theo doi, va man tinh tien khong ve chip con/het cho no.",
+   "default": "0"
   },
   {
    "fieldname": "ten_banh",

@@ -104,6 +104,8 @@ header, .navbar, .web-footer, footer {display:none!important}
 @media(max-width:520px){
   #kb .kk-so{grid-template-columns:repeat(4,1fr)}
 }
+#kb .kk-chuakhai{margin-left:auto;flex:none;font-size:10.5px;font-weight:700;color:#b45309;
+  background:#fffbeb;border:1px solid #fde68a;border-radius:999px;padding:2px 8px;white-space:nowrap}
 #kb #kk-them-hop{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px}
 #kb #kk-them-hop input{width:100%;box-sizing:border-box;border:1.5px solid #0d9488;border-radius:8px;padding:9px 10px;font-size:14px}
 #kb #kk-goiy{margin-top:8px;max-height:220px;overflow:auto}
@@ -141,7 +143,7 @@ header, .navbar, .web-footer, footer {display:none!important}
       <button id="kk-chot">Chốt ngày</button>
       <div id="kk-dachot">Ngày này đã chốt sổ. Số còn lại đã chuyển sang tồn đầu ngày mai.</div>
     </div>
-    <details class="kb-cg"><summary>Chú giải các cột</summary><div><b>Tồn đầu</b>: số còn trong tủ đầu ngày, máy tự chuyển từ ngày hôm trước khi chốt sổ.<br><b>Đợt 1 tới Đợt 6</b>: bánh nhận thêm trong ngày, mỗi chuyến giao một đợt - ghi riêng từng đợt để truy được chuyến nào thiếu.<br><b>Đã bán</b>: máy đếm thẳng từ hoá đơn bán ra của chính quầy này trong ngày, không sửa tay được. Hoá đơn còn nháp cũng tính, vì cái bánh đó đã rời khỏi tủ.<br><b>Hỏng</b>: bánh hỏng, bỏ, trả về.<br><b>Đ/chỉnh</b>: ô sửa tay khi có chuyện bất thường, được phép âm, nhớ ghi lý do vào ô ghi chú.<br><b>CÒN</b> = tồn đầu + các đợt nhập - đã bán - hỏng + điều chỉnh. Số này hiện luôn bên màn tính tiền, thu ngân tìm món là thấy còn hay hết.<br><b>Kiểm tay</b>: số đếm thật cuối ngày. <b>Lệch</b> = kiểm tay trừ CÒN; khác 0 là có chuyện cần truy.<br><b>Nút Chốt ngày</b>: bấm một lần cuối ngày. Số còn lại chuyển thành tồn đầu ngày mai - có kiểm tay thì lấy số kiểm tay, vì người đếm bao giờ cũng đúng hơn phép trừ.</div></details>
+    <details class="kb-cg"><summary>Chú giải các cột</summary><div><b>Tồn đầu</b>: số còn trong tủ đầu ngày, máy tự chuyển từ ngày hôm trước khi chốt sổ.<br><b>Đợt 1 tới Đợt 6</b>: bánh nhận thêm trong ngày, mỗi chuyến giao một đợt - ghi riêng từng đợt để truy được chuyến nào thiếu.<br><b>Đã bán</b>: máy đếm thẳng từ hoá đơn bán ra của chính quầy này trong ngày, không sửa tay được. Hoá đơn còn nháp cũng tính, vì cái bánh đó đã rời khỏi tủ.<br><b>Hỏng</b>: bánh hỏng, bỏ, trả về.<br><b>Đ/chỉnh</b>: ô sửa tay khi có chuyện bất thường, được phép âm, nhớ ghi lý do vào ô ghi chú.<br><b>CÒN</b> = tồn đầu + các đợt nhập - đã bán - hỏng + điều chỉnh. Số này hiện luôn bên màn tính tiền, thu ngân tìm món là thấy còn hay hết.<br><b>Kiểm tay</b>: số đếm thật cuối ngày. <b>Lệch</b> = kiểm tay trừ CÒN; khác 0 là có chuyện cần truy.<br><b>Chưa khai tồn</b>: dòng này máy tự thêm vì thấy có bán ra, chưa ai khai tồn đầu hay đợt nhập nào. Màn tính tiền chưa hiện số còn cho món đó - gõ một số vào dòng là bắt đầu theo dõi.<br><b>Nút Chốt ngày</b>: bấm một lần cuối ngày. Số còn lại chuyển thành tồn đầu ngày mai - có kiểm tay thì lấy số kiểm tay, vì người đếm bao giờ cũng đúng hơn phép trừ.</div></details>
     <div id="kk-bao"></div>
     <div id="kk-them-hop" style="display:none">
       <input id="kk-tim" type="text" placeholder="Gõ mã hoặc tên món để thêm vào bảng" autocomplete="off">

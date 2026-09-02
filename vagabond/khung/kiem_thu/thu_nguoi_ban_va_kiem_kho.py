@@ -231,6 +231,32 @@ def _():
 	dung("ma rong", not kiem_kho.la_banh(""))
 
 
+@ca("kiem kho: dong may tu them ma chua ai khai thi khong bao so ra man tinh tien")
+def _():
+	# Ngay dau bat bang, moi dong deu do may tu them vi thay co ban ra, va
+	# con lai cua chung deu am (bang dung so da ban). Ve chip "het" cho tat
+	# ca la chan ban ca tu banh trong ngay dau.
+	chua = {"theo_doi": 0, "ton_dau": 0, "hong": 0, "dieu_chinh": 0}
+	dung("dong may tu them, chua ai cham", not kiem_kho.dang_theo_doi(chua))
+	da = dict(chua); da["theo_doi"] = 1
+	dung("co nguoi cham vao roi", kiem_kho.dang_theo_doi(da))
+	khai = dict(chua); khai["ton_dau"] = 6
+	dung("khai ton dau la dang theo doi", kiem_kho.dang_theo_doi(khai))
+	nhap = dict(chua); nhap["nhap_2"] = 4
+	dung("ghi mot dot nhap la dang theo doi", kiem_kho.dang_theo_doi(nhap))
+	hong = dict(chua); hong["hong"] = 1
+	dung("ghi hang hong la dang theo doi", kiem_kho.dang_theo_doi(hong))
+
+	m = _doc("vagabond/kiem_kho.py")
+	i = m.find("def con_lai(")
+	than = m[i:]
+	dung("con lai bo qua dong chua khai", "if not dang_theo_doi(r):" in than)
+	dung("sua mot o la bat co theo doi", "r.theo_doi = 1" in m)
+	dung("them tay thi theo doi ngay", '"theo_doi": 1,' in m)
+	j = _doc("vagabond/trang/kiem-banh.js")
+	dung("bang co bao dong chua khai", "kk-chuakhai" in j and "chưa khai tồn" in j)
+
+
 @ca("man tinh tien: chip con hang chi ve cho mon co trong bang kiem kho")
 def _():
 	j = _doc("vagabond/public/js/bep/09-tinh-tien-quay.js")
