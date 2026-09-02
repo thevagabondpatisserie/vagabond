@@ -108,6 +108,24 @@ def dot_ke_tiep(o):
 	return 0
 
 
+def dang_theo_doi(o):
+	"""Dong nay da co ai khai so chua. THUAN.
+
+	Dong may TU THEM vi thay co ban ra ma chua ai khai ton dau, chua ai ghi
+	dot nhap nao, thi KHONG phai la dong dang theo doi ton. Con lai cua no
+	la mot so am vo nghia (bang dung so da ban), va man tinh tien ma ve chip
+	"het" cho nhung dong do la chan ban ca tu banh trong ngay dau bat bang.
+
+	Co nguoi cham vao mot o bat ky la tu do tro di dong duoc theo doi that.
+	"""
+	lay = (lambda k: (o.get(k) if hasattr(o, "get") else getattr(o, k, 0)) or 0)
+	if cint(lay("theo_doi")):
+		return True
+	# Luoi do cho phieu dung truoc khi co co `theo_doi`: co so khai la co
+	# theo doi. Khong co luoi nay thi cac phieu cua ngay 02/09 mat chip.
+	return bool(cint(lay("ton_dau")) or tong_nhap(o) or cint(lay("hong")) or cint(lay("dieu_chinh")))
+
+
 def con_lai_ngay_mai(kiem_tay, co_kiem, co_the_ban):
 	"""So chay sang ton dau ngay mai. THUAN.
 
@@ -221,6 +239,7 @@ def _lay_hoac_tao(diem, ngay):
 				continue
 			doc.append("dong", {
 				"ma_hang": r.ma_hang, "ten_banh": r.ten_banh, "ton_dau": ton,
+				"theo_doi": 1 if dang_theo_doi(r) else 0,
 			})
 	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
@@ -283,6 +302,7 @@ def _ra_dong(r):
 		"co_the_ban": cint(r.co_the_ban),
 		"kiem_tay": cint(r.kiem_tay),
 		"da_kiem": _co_kiem(r),
+		"theo_doi": 1 if dang_theo_doi(r) else 0,
 		"lech": cint(r.lech),
 		"ghi_chu": r.ghi_chu or "",
 	}
@@ -340,6 +360,8 @@ def luu_o(diem, ngay, ma_hang, truong, gia_tri):
 			r.dieu_chinh = cint(gia_tri)  # cot nay duoc am, do la nghia cua no
 		else:
 			r.set(truong, max(0, cint(gia_tri)))
+		# Co nguoi cham vao dong nay, tu day tro di no duoc theo doi that.
+		r.theo_doi = 1
 		_tinh_lai(doc)
 		doc.save(ignore_permissions=True)
 		frappe.db.commit()
@@ -361,7 +383,11 @@ def them_dong(diem, ngay, ma_hang):
 		frappe.throw("Ngày này đã chốt sổ, không thêm dòng nữa.")
 	if any(r.ma_hang == ma_hang for r in doc.dong):
 		frappe.throw("Mã này đã có trong bảng.")
-	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": _ten_hang([ma_hang]).get(ma_hang) or ma_hang})
+	# Them tay la mot quyet dinh cua nguoi, nen dong nay theo doi ngay.
+	doc.append("dong", {
+		"ma_hang": ma_hang, "theo_doi": 1,
+		"ten_banh": _ten_hang([ma_hang]).get(ma_hang) or ma_hang,
+	})
 	_tinh_lai(doc)
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
@@ -446,7 +472,10 @@ def chot(diem, ngay=None):
 		if r.ma_hang in cu:
 			cu[r.ma_hang].ton_dau = ton
 		elif ton or la_banh(r.ma_hang):
-			sau.append("dong", {"ma_hang": r.ma_hang, "ten_banh": r.ten_banh, "ton_dau": ton})
+			sau.append("dong", {
+				"ma_hang": r.ma_hang, "ten_banh": r.ten_banh, "ton_dau": ton,
+				"theo_doi": 1 if dang_theo_doi(r) else 0,
+			})
 	_tinh_lai(sau)
 	if sau.get("__islocal") or not sau.name:
 		sau.insert(ignore_permissions=True)
@@ -472,7 +501,7 @@ def con_lai(diem, ngay=None):
 	try:
 		dong = frappe.get_all(
 			DT_DONG, filters={"parent": ma, "parenttype": DT},
-			fields=["ma_hang", "ton_dau", "hong", "dieu_chinh"] + list(O_NHAP),
+			fields=["ma_hang", "theo_doi", "ton_dau", "hong", "dieu_chinh"] + list(O_NHAP),
 			limit_page_length=0, ignore_permissions=True,
 		)
 	except Exception:
@@ -481,6 +510,10 @@ def con_lai(diem, ngay=None):
 	ban = da_ban(d["ma"], ngay)
 	ra = {}
 	for r in dong:
+		# Dong chua ai khai thi KHONG bao so ra man tinh tien. Xem
+		# `dang_theo_doi`.
+		if not dang_theo_doi(r):
+			continue
 		ra[r["ma_hang"]] = tinh_co_the_ban(
 			r["ton_dau"], tong_nhap(r), ban.get(r["ma_hang"]) or 0, r["hong"], r["dieu_chinh"]
 		)
