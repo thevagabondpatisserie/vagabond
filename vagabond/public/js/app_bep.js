@@ -9778,6 +9778,10 @@ async function scrDsView(name, can) {
   } else if (can && !d.custom_hddt_so) {
     foot = '<button class="btn" id="dsvHddt">Xuất HĐĐT (Chờ ký)</button>';
   }
+  /* Ai da lam gi tren to hoa don nay. Dat NGAY TRUOC khi dung khung, de
+     no nam cuoi man, sau moi thu ve tien. Anh Viet chot 02/09/2026. */
+  html += await hdAiLamGi(d.name);
+
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
@@ -12986,6 +12990,7 @@ async function posInBill(d) {
       var th0 = await api('vagabond.ban_hang.pos_bill_them', { name: d.name });
       d.diem = (th0 && th0.diem) || null;
       if (th0 && th0.thu_ngan) d.thu_ngan = th0.thu_ngan;
+      if (th0 && th0.nguoi_ban) d.nguoi_ban = th0.nguoi_ban;
     } catch (e1) { d.diem = null; }
   }
   var q = (CFGBH || {}).qr_quay || {};
@@ -13073,6 +13078,11 @@ async function posInBill(d) {
 
     '<div class="d"><span>Mã bill: <b>' + h(d.bill || '') + '</b></span><span>' + h(d.name || '') + '</span></div>' +
     '<div class="d"><span>Thu ngân: ' + h(d.thu_ngan || S.me.full_name || String(S.user).split('@')[0]) + '</span><span>' + lucIn + '</span></div>' +
+    /* Nguoi ban in ra to hoa don. Anh Viet chot 02/09/2026. Tai quay thi
+       nguoi ban va thu ngan thuong la mot, nen chi in them dong nay khi
+       hai ten KHAC nhau, khoi to hoa don lap hai lan mot cai ten. */
+    (d.nguoi_ban && d.nguoi_ban !== d.thu_ngan
+      ? '<div class="d"><span>Người bán: ' + h(d.nguoi_ban) + '</span></div>' : '') +
     (d.so_ban ? '<div class="d"><span style="font-size:14px;font-weight:bold">Bàn: ' + h(d.so_ban) + '</span></div>' : '') +
     (d.ten ? '<div class="d"><span>Khách: ' + h(d.ten) + '</span></div>' : '') +
     '<hr><table>' + rows + '</table><hr>' +
@@ -13431,6 +13441,54 @@ function pbKhoiTang(d, hien) {
   return s;
 }
 
+/* ---------------- Ai da lam gi tren mot to hoa don ----------------
+
+   Anh Viet chot 02/09/2026: *"Ten nguoi huy, sua, nguoi cap OTP cung can
+   hien thi trong hoa don tren app de quy trach nhiem."*
+
+   MOT khoi dung chung cho ca hai man hoa don, doc tu MOT cua may chu. Neu
+   moi man tu dung mot khoi rieng thi som muon hai man noi hai chuyen khac
+   nhau ve cung mot to hoa don, ma day la thu de quy trach nhiem.
+
+   Doc hong thi tra ve chuoi rong chu KHONG chan man: thieu mot khoi con
+   hon khong mo duoc to hoa don. */
+async function hdAiLamGi(name) {
+  var a;
+  try { a = await api('vagabond.ban_hang.ai_lam_gi', { name: name }); }
+  catch (e) { return ''; }
+  if (!a || !a.ma) return '';
+
+  var d = function (nhan, gt, mau) {
+    if (!gt && gt !== 0) return '';
+    return '<div style="display:flex;gap:8px;font-size:12.5px;padding:5px 0;' +
+      'border-bottom:1px solid #f2f4f7;align-items:baseline">' +
+      '<span style="color:#98a2b3;flex:0 0 auto;min-width:118px">' + nhan + '</span>' +
+      '<span style="flex:1;min-width:0;word-break:break-word;color:' +
+      (mau || '#344054') + '">' + h(String(gt)) + '</span></div>';
+  };
+
+  var s = '<div class="sec">Ai đã làm gì trên hoá đơn này</div>' +
+    '<div class="card" style="padding:8px 14px">';
+  s += d('Người bán', a.nguoi_ban, '#0f766e');
+  s += d('Bán lúc', a.ban_luc);
+  if (a.nguoi_sua) {
+    s += d('Người sửa gần nhất', a.nguoi_sua + (a.lan_sua ? ' · đã sửa ' + a.lan_sua + ' lần' : ''), '#b45309');
+    s += d('Sửa lúc', a.sua_luc);
+  }
+  if (a.nguoi_huy) {
+    s += d('Người huỷ', a.nguoi_huy, '#b3261e');
+    s += d('Huỷ lúc', a.huy_luc);
+    s += d('Lý do huỷ', a.huy_ly_do);
+  }
+  if (a.nguoi_cap_ma_diem) {
+    s += d('Người cấp mã dùng điểm',
+      a.nguoi_cap_ma_diem + (a.diem_da_dung ? ' · ' + money(a.diem_da_dung) + ' điểm' : ''),
+      '#4338ca');
+    s += d('Cấp mã lúc', a.cap_ma_luc);
+  }
+  return s + '</div>';
+}
+
 async function scrPosBill(name) {
   frame('Hoá đơn ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -13683,6 +13741,10 @@ async function scrPosBill(name) {
       '<button class="btn gh" id="pbChiTiet" style="margin-top:8px;width:100%">' +
       '↩️ Hoàn tiền, tiền dư, hoá đơn thay thế</button>';
   }
+  /* Ai da lam gi tren to hoa don nay, xem `hdAiLamGi`. Chi hien khi to
+     hoa don DA LUU: bill dang soan thi chua co gi de quy trach nhiem. */
+  if (d.name && !nhap) html += await hdAiLamGi(d.name);
+
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
   var nCt = document.getElementById('pbChiTiet');
   if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };
@@ -20155,7 +20217,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '383';
+var APPVER = '384';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -24405,7 +24467,15 @@ function mkBangHd(ds, loai) {
         (d.docstatus === 0 && !d.vgb_huy ? ' · <b style="color:#b45309">còn nháp</b>' : '') +
         (d.docstatus === 2 || d.vgb_huy ? ' · <b style="color:#b3261e">🚫 đã huỷ</b>' : '') +
         (d.vgb_huy && d.vgb_huy_ly_do ? ' <span style="color:#b3261e">(' + h(d.vgb_huy_ly_do) + ')</span>' : '') +
-        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div></div>' +
+        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div>' +
+        /* Nguoi ban ngay tren dong danh sach. Anh Viet chot 02/09/2026:
+           moi man hoa don phai thay duoc ai ban to nay. May chu tra ve TEN
+           chu khong tra dia chi thu, xem `vagabond/ten_nguoi.py`. */
+        '<div style="font-size:12px;color:#0f766e;margin-top:2px">Người bán: <b>' +
+        h(d.owner_ten || d.owner || 'chưa rõ') + '</b>' +
+        (d.vgb_huy && d.vgb_huy_boi_ten
+          ? ' · <span style="color:#b3261e">huỷ bởi ' + h(d.vgb_huy_boi_ten) + '</span>' : '') +
+        '</div></div>' +
         '<div style="text-align:right;white-space:nowrap"><b>' + money(d.grand_total) + '</b>' +
         (d.docstatus === 1 && d.outstanding_amount > 0 ? '<div style="font-size:11.5px;color:#b3261e">còn ' + money(d.outstanding_amount) + '</div>' : '') +
         '</div></div>';
@@ -42456,10 +42526,18 @@ async function scrDuyetTang() {
         [tenDiem[r.diem_ban] || 'Chưa rõ điểm bán', '#f8fafc', '#e2e8f0', '#475467'],
         r.da_ghi_so ? ['Đã ghi sổ', '#ecfdf3', '#a6f4c5', '#05603a'] : null,
         r.cho_lau ? ['Chờ ' + r.cho_ngay + ' ngày', '#fef2f2', '#fecaca', '#b3261e'] : null,
-      ]) + (mo ? dtgThan(r, kq) : '') + '</div>' +
+      ]) + '</div>' +
       '<div style="text-align:right;white-space:nowrap">' +
       '<b style="font-size:13.5px">' + money(r.grand_total) + '</b>' +
-      '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>';
+      '<div style="font-size:11px;color:#98a2b3">' + h(r.creation || '') + '</div></div></div>' +
+      /* Khoi chi tiet nam NGOAI hang bam, chiem ca chieu ngang man hinh.
+         Truoc 02/09/2026 no nam trong cot chu cua hang, tuc la bi ep giua
+         cai bieu tuong ben trai va cot tien ben phai; tren dien thoai cot
+         do con chung ba muoi ky tu nen chu xuong dong tung chu mot. Anh
+         Viet gui anh chup: "no dang bi ep dong".
+         Nam ngoai con duoc mot cai loi thu hai: bam vao trong phan chi
+         tiet khong con lam dong sap hang lai. */
+      (mo ? dtgThan(r, kq) : '');
   });
   html += '</div>';
 
@@ -42482,11 +42560,17 @@ function dtgThan(r, kq) {
   var ct = dtgChiTiet[r.name];
   var s = '<div style="margin-top:9px;padding:9px 10px;background:#f9fafb;' +
     'border:1px solid #eef0f3;border-radius:9px">';
-  var d = function (nhan, gt) {
-    if (!gt) return '';
-    return '<div style="display:flex;gap:8px;font-size:12px;margin-top:3px">' +
-      '<span style="color:#98a2b3;min-width:112px">' + nhan + '</span>' +
-      '<span style="color:#344054">' + h(String(gt)) + '</span></div>';
+  /* `flex-shrink:0` cho o nhan va `min-width:0` cho o gia tri la hai nua
+     cua cung mot viec: khong co chung thi trinh duyet co the bop o gia tri
+     xuong con vai ky tu roi be chu xuong dong tung chu mot. */
+  var d = function (nhan, gt, dam) {
+    if (!gt && gt !== 0) return '';
+    return '<div style="display:flex;gap:8px;font-size:12px;margin-top:3px;' +
+      'align-items:baseline">' +
+      '<span style="color:#98a2b3;flex:0 0 auto;min-width:112px">' + nhan + '</span>' +
+      '<span style="color:' + (dam ? '#0f766e;font-weight:700' : '#344054') +
+      ';flex:1;min-width:0;word-break:break-word">' + h(String(gt)) +
+      '</span></div>';
   };
   if (!ct) {
     s += '<div style="font-size:12.5px;color:#98a2b3">Đang đọc từng món...</div>';
@@ -42519,10 +42603,19 @@ function dtgThan(r, kq) {
       'Nhờ người lập đính ảnh vào đơn rồi bấm lưu lại.</div>';
   }
   s += d('Mã đơn', r.name);
+  /* So hoa don dien tu da xuat cho chinh don nay. Anh Viet 02/09/2026:
+     duyet xong van phai doi chieu voi to hoa don that, de o day thi khong
+     phai mo them man khac de tra. Chua xuat thi noi thang la chua xuat,
+     dung de o trong cho nguoi ta doan. */
+  s += d('Số hoá đơn đã xuất',
+    ct.custom_hddt_so
+      ? (ct.custom_hddt_so + (ct.custom_hddt_trang_thai ? ' · ' + ct.custom_hddt_trang_thai : ''))
+      : 'Chưa xuất hoá đơn điện tử',
+    !!ct.custom_hddt_so);
   s += d('Loại tặng', ct.nhan_loai);
   s += d('Lý do tặng', ct.vgb_tang_ly_do);
-  s += d('Người lập', ct.owner);
-  s += d('Người duyệt', r.vgb_tang_nguoi_duyet);
+  s += d('Người lập', ct.owner_ten || ct.owner);
+  s += d('Người duyệt', ct.vgb_tang_nguoi_duyet_ten || r.vgb_tang_nguoi_duyet);
   s += d('Duyệt lúc', r.vgb_tang_luc_duyet);
   s += d('Ý kiến người duyệt', r.vgb_tang_y_kien);
   s += d('Bút toán gạt công nợ', r.vgb_but_toan_tang);
@@ -43301,6 +43394,34 @@ async function scrKPICt() {
       (d.ky_truoc.diem_tong || 0) + ' điểm · ' + money(d.ky_truoc.hoa_hong) + ' đ</span>' : '') +
     '</div></div>';
 
+  /* Phiếu do chính nhân viên tự khai. Kế toán phải NHÌN RA ngay đây là số
+     người ta tự tính chứ không phải số máy đo, và phải mở được bảng kê
+     ngay trên phiếu. Anh Việt chốt 02/09/2026. */
+  if (d.tu_khai) {
+    html += '<div class="card" style="padding:12px 14px;border:1.5px solid #fcd34d;' +
+      'background:#fffbeb"><div style="font-size:12.5px;color:#92400e;line-height:1.75">' +
+      '<b>Phiếu do nhân viên tự khai</b><br>Kỳ này máy chưa có số liệu nên số tiền ' +
+      'là do người nhận tự tính. Soát theo bảng kê đính kèm.' +
+      (d.ly_do_tu_khai ? '<div style="margin-top:7px;color:#78350f">' +
+        h(d.ly_do_tu_khai) + '</div>' : '') + '</div>' +
+      ((d.tep_hien || []).length
+        ? '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:10px">' +
+          (d.tep_hien || []).map(function (t) {
+            return '<a href="' + h(t.url) + '" target="_blank" rel="noopener" ' +
+              'title="' + h(t.ten || '') + '" style="display:block;width:82px;height:82px;' +
+              'border-radius:10px;overflow:hidden;border:1.5px solid #e5e7eb;background:#fff">' +
+              (t.anh
+                ? '<img src="' + h(t.url) + '" alt="' + h(t.ten || 'bảng kê') + '" loading="lazy" ' +
+                  'style="width:100%;height:100%;object-fit:cover;display:block">'
+                : '<div style="width:100%;height:100%;display:flex;align-items:center;' +
+                  'justify-content:center;background:#f1f5f9;color:#475569;font-size:12.5px;' +
+                  'font-weight:800">' + h(t.duoi || 'TỆP') + '</div>') + '</a>';
+          }).join('') + '</div>'
+        : '<div style="font-size:12px;color:#b3261e;margin-top:8px">Phiếu này không ' +
+          'có bảng kê đính kèm. Trả lại phiếu và nhờ người khai đính bảng kê vào.</div>') +
+      '</div>';
+  }
+
   /* Khối tiền. Bày cả số thô lẫn số sau trần: người bị chạm trần phải thấy
      mình bị chạm trần chứ không phải chỉ thấy một con số thấp hơn mình nghĩ. */
   html += '<div class="card" style="padding:12px 14px">' +
@@ -43638,9 +43759,11 @@ async function scrKPIToi() {
     return;
   }
   if (!d.co) {
-    frame('KPI của tôi', '<div class="card"><div class="emp" style="padding:28px">' +
+    var b0 = frame('KPI của tôi', '<div class="card"><div class="emp" style="padding:28px">' +
       '<div class="e1">🗂️</div><div>Kỳ ' + h(d.ky) + ' chưa có phiếu KPI cho anh chị.<br>' +
-      'Quản lý dựng phiếu xong thì anh chị sẽ thấy ở đây.</div></div></div>');
+      'Quản lý dựng phiếu xong thì anh chị sẽ thấy ở đây.</div></div></div>' +
+      kpiKhoiTuKhai());
+    kpiNoiTuKhai(b0);
     return;
   }
 
@@ -43690,7 +43813,10 @@ async function scrKPIToi() {
       : '<button class="btn gh" id="kpiGuiYk" style="margin:9px 0 0;width:100%">Gửi ý kiến</button>') +
     '</div>';
 
+  html += kpiKhoiTuKhai();
+
   var b = frame('KPI của tôi', html);
+  kpiNoiTuKhai(b);
   var ng = document.getElementById('kpiGuiYk');
   if (ng) ng.onclick = async function () {
     busy(true);
@@ -43699,6 +43825,128 @@ async function scrKPIToi() {
       busy(false);
       toast('Đã gửi ý kiến, quản lý sẽ thấy ngay trên phiếu', 4000);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không gửi được'); }
+  };
+}
+
+/* ------------- Nhân viên tự lập phiếu duyệt KPI và hoa hồng -------------
+
+   Anh Việt chốt 02/09/2026: *"tháng trước máy không có số liệu để tính,
+   các bạn đã tự tính excel"*. Đây là đường TẠM cho những kỳ đó, không thay
+   cho phiếu máy dựng.
+
+   Bảng kê đính kèm là BẮT BUỘC và máy chủ cũng chặn lần nữa: một con số tự
+   khai không kèm bảng kê thì kế toán không có gì để soát. */
+
+var KPI_TK_TEP = 'kpitk';
+
+function kpiKhoiTuKhai() {
+  return '<div class="sec">Kỳ máy chưa có số liệu</div>' +
+    '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12.5px;color:#6b7280;line-height:1.7">' +
+    'Kỳ nào máy chưa đo được thì anh chị tự khai số đã tính, đính kèm bảng kê ' +
+    'rồi gửi kế toán soát và giám đốc duyệt.</div>' +
+    '<button class="btn" id="kpiMoTuKhai" style="margin-top:10px;width:100%">' +
+    '🧾 Tạo phiếu duyệt KPI và commission</button></div>';
+}
+
+function kpiNoiTuKhai(b) {
+  var n = b && b.querySelector('#kpiMoTuKhai');
+  if (n) n.onclick = function () { go(scrKPITuKhai); };
+}
+
+async function scrKPITuKhai() {
+  /* Mở form mới thì bỏ hết tệp của lần trước, không thì bảng kê tháng
+     trước theo sang phiếu tháng này mà không ai để ý. */
+  tdkXoaHet();
+
+  var nay = new Date();
+  /* Mặc định là kỳ TRƯỚC, đúng thứ người ta hay khai nhất: khai xong một
+     tháng là khi tháng đó đã hết. */
+  var tMac = nay.getMonth() === 0 ? 12 : nay.getMonth();
+  var nMac = nay.getMonth() === 0 ? nay.getFullYear() - 1 : nay.getFullYear();
+
+  function o(nhan, id, gt, kieu, goiY) {
+    return '<div style="margin-top:11px">' +
+      '<div style="font-size:12.5px;color:#374151;font-weight:700">' + nhan +
+      ' <span style="color:#b3261e">*</span></div>' +
+      '<input class="tin" id="' + id + '" type="' + (kieu || 'number') + '" ' +
+      'inputmode="numeric" value="' + h(String(gt === null || gt === undefined ? '' : gt)) + '" ' +
+      (goiY ? 'placeholder="' + h(goiY) + '" ' : '') +
+      'style="width:100%;text-align:left;padding:0 12px;margin-top:5px"></div>';
+  }
+
+  var html = '<div class="card" style="padding:13px 14px;font-size:12.5px;' +
+    'color:#374151;line-height:1.7">' +
+    'Phiếu này dành cho kỳ <b>máy chưa có số liệu</b>. Kỳ nào máy đã dựng phiếu ' +
+    'thì mở phiếu đó ra xem, không khai tay đè lên.' +
+    '</div>';
+
+  html += '<div class="card" style="padding:12px 14px">' +
+    o('Tháng tính commission', 'kpiTkThang', tMac) +
+    o('Năm tính commission', 'kpiTkNam', nMac) +
+    o('Tổng tiền commission (đ)', 'kpiTkTien', '', 'number', 'Ví dụ 4500000') +
+    '<div style="margin-top:11px">' +
+    '<div style="font-size:12.5px;color:#374151;font-weight:700">Diễn giải cách tính</div>' +
+    '<textarea class="tin" id="kpiTkLyDo" rows="3" ' +
+    'placeholder="Ví dụ: doanh thu 480 triệu, mốc 1 và mốc 2, chi tiết trong bảng kê" ' +
+    'style="width:100%;text-align:left;padding:9px 12px;margin-top:5px;height:auto"></textarea></div>' +
+    tdkKhoi(KPI_TK_TEP, {
+      tieu_de: 'ĐÍNH KÈM BẢNG KÊ CHI TIẾT',
+      nhan: '📎 Tải lên bảng kê (ảnh hoặc PDF)',
+      goi_y: 'Bắt buộc có bảng kê. Kế toán soát theo bảng kê này chứ không soát theo con số suông.',
+    }) +
+    '</div>';
+
+  html += '<div class="card" style="padding:11px 13px;border:1.5px solid #bfdbfe;' +
+    'background:#eff6ff"><div style="font-size:12.5px;color:#1e40af;line-height:1.7">' +
+    '<b>Sau khi gửi</b><br>Phiếu sang thẳng bước <b>chờ kế toán soát</b>, rồi tới ' +
+    '<b>giám đốc duyệt</b>. Không ai tự duyệt phiếu của chính mình. Duyệt xong ' +
+    'kế toán đẩy sang đề nghị chi, tiền chuyển tách khỏi lương cứng.</div></div>';
+
+  var b = frame('Phiếu duyệt commission', html, {
+    footer: '<button class="btn" id="kpiTkGui" style="width:100%;margin:0">Gửi</button>',
+  });
+  tdkNoi(b, KPI_TK_TEP, {
+    tieu_de: 'ĐÍNH KÈM BẢNG KÊ CHI TIẾT',
+    nhan: '📎 Tải lên bảng kê (ảnh hoặc PDF)',
+    goi_y: 'Bắt buộc có bảng kê. Kế toán soát theo bảng kê này chứ không soát theo con số suông.',
+  });
+
+  var ng = document.getElementById('kpiTkGui');
+  if (ng) ng.onclick = async function () {
+    var so = function (id) {
+      var e = document.getElementById(id);
+      var v = String((e && e.value) || '').trim();
+      return v === '' ? null : Number(v);
+    };
+    var thang = so('kpiTkThang'), nam = so('kpiTkNam'), tien = so('kpiTkTien');
+    if (thang === null || nam === null) return baoTin('Chưa điền tháng và năm.');
+    if (tien === null || !(tien > 0)) return baoTin('Chưa điền tổng tiền commission.');
+    var tep = tdkDs(KPI_TK_TEP);
+    if (!tep.length) {
+      return baoTin('Phải đính kèm bảng kê chi tiết. Kế toán soát theo bảng kê ' +
+        'chứ không soát theo con số suông.');
+    }
+    var ok = await hoiCo('Gửi phiếu duyệt commission',
+      'Gửi phiếu kỳ ' + thang + '/' + nam + ' với số tiền ' + money(tien) +
+      ' đ cho kế toán soát?');
+    if (!ok) return;
+    busy(true);
+    var kq;
+    try {
+      kq = await api('vagabond.kpi.tu_khai', {
+        thang: thang, nam: nam, tien: tien,
+        ly_do: (document.getElementById('kpiTkLyDo') || {}).value || '',
+        tep: JSON.stringify(tep),
+      });
+    } catch (e) { busy(false); return baoTin((e && e.message) || 'Không gửi được'); }
+    busy(false);
+    /* Gửi xong mới bỏ tệp khỏi màn: bỏ trước mà máy chủ từ chối thì người
+       ta phải tải lại bảng kê từ đầu. */
+    tdkXoaHet();
+    toast('Đã gửi phiếu kỳ ' + (kq && kq.ky ? kq.ky : '') + ' cho kế toán soát', 4500);
+    kpiKy = (kq && kq.ky) || kpiKy;
+    go(scrKPIToi, true);
   };
 }
 })();
