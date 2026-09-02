@@ -90,8 +90,13 @@ function khsxBangNvl(ds, tieu_de) {
         anhMon(n.anh) +
         '<div style="flex:1;min-width:0">' +
         '<div style="font-size:13.5px;font-weight:600">' + h(n.ten) + '</div>' +
-        '<div class="l2">tồn bếp ' + kl(n.ton_nay, n.dvt) +
-        (n.ton_goc ? ' · kho tổng ' + kl(n.ton_goc, n.dvt) : '') + '</div></div>' +
+        /* Mon khong quan ton (nuoc may, dien) khong co phieu nhap nen ton
+           doc ra luon bang khong. In "ton bep 0 g" cho nhung mon do la noi
+           mot con so vo nghia, con to hon la lam bep tuong minh thieu. */
+        (n.quan_ton === 0
+          ? '<div class="l2">không quản tồn</div></div>'
+          : '<div class="l2">tồn bếp ' + kl(n.ton_nay, n.dvt) +
+            (n.ton_goc ? ' · kho tổng ' + kl(n.ton_goc, n.dvt) : '') + '</div></div>') +
         '<div style="text-align:right;flex:none">' +
         '<div class="amt"' + (n.con_lam > 0 ? ' style="color:#b3261e"' : '') + '>' + kl(n.can, n.dvt) + '</div>' +
         (n.con_lam > 0 ? '<div class="l2" style="color:#b3261e">thiếu ' + kl(n.con_lam, n.dvt) + '</div>' : '') +
