@@ -152,7 +152,14 @@ MAN = (
 	("RCV", "Nhập kho", None),
 	("NHANDC", "Hàng chuyển về kho tôi", None),
 	("XKH", "Xuất huỷ", None),
+	# Ba man con lai cua phan he Xuat kho (anh Viet chot 02/09/2026).
+	# Ten dat sao cho slug doc ra dung viec: "xuat-dung-noi-bo" chu khong
+	# phai "xuat-khac", vi "khac" la cai ten da lam iPOS hong - phieu nao
+	# khong biet xep dau thi nem vao do, va cuoi thang khong doc duoc gi.
+	("XKNB", "Xuất dùng nội bộ", None),
 	("XKD", "Xuất điều chuyển", None),
+	("XKTRA", "Xuất trả nhà cung cấp", None),
+	("XKSI", "Xuất bán sỉ", None),
 	("KK", "Kiểm kê", None),
 	("STOCK", "Tồn kho", None),
 	# Ton kho theo chang, them 28/08/2026. Khac man STOCK: man kia tra loi

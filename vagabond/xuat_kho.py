@@ -523,12 +523,19 @@ def ds_phieu(loai="huy", gioi_han=40):
 	_duoc_xuat()
 	if loai not in LOAI:
 		frappe.throw("Loại phiếu không hợp lệ.")
+	# vgb_huy 0: phieu da bo phai loai o DAY, truoc khi cat 40 dong. Loc sau
+	# khi cat thi phieu bo chiem cho, day phieu that ra ngoai danh sach - bai
+	# hoc cu cua du an, khong duoc lap lai.
+	dieu_kien = {"purpose": LOAI[loai], "docstatus": ["<", 2], "vgb_huy": 0}
+	if loai == "huy":
+		# Tu 02/09/2026 phieu XUAT DUNG NOI BO cung la Material Issue, chung
+		# mot `purpose` voi xuat huy, chi khac o `vgb_muc_dich_xuat`. Khong
+		# loc o day thi banh Marketing mang di chup nam lan trong danh sach
+		# hang huy, tuc la dung lai cai loi ma man moi sinh ra de chua.
+		dieu_kien["vgb_muc_dich_xuat"] = ["in", ["", None]]
 	ds = frappe.get_all(
 		"Stock Entry",
-		# vgb_huy 0: phieu da bo phai loai o DAY, truoc khi cat 40 dong. Loc
-		# sau khi cat thi phieu bo chiem cho, day phieu that ra ngoai danh
-		# sach - bai hoc cu cua du an, khong duoc lap lai.
-		filters={"purpose": LOAI[loai], "docstatus": ["<", 2], "vgb_huy": 0},
+		filters=dieu_kien,
 		fields=[
 			"name",
 			"posting_date",
@@ -681,7 +688,13 @@ def hang_chuyen_ve(so_ngay=14, kho=None):
 				"stock_entry_type": "Material Transfer",
 				"posting_date": [">=", tu],
 			},
-			fields=["name", "posting_date", "posting_time", "owner", "remarks"],
+			# vgb_nhan_tt / vgb_nhan_boi: kho nhan da bam xac nhan chua (them
+			# 02/09/2026). Hai o nay KHONG dung toi so kho, chung chi ghi lai
+			# loi khai cua nguoi nhan - xem dau nhan_dieu_chuyen.py.
+			fields=[
+				"name", "posting_date", "posting_time", "owner", "remarks",
+				"vgb_nhan_tt", "vgb_nhan_boi",
+			],
 			limit_page_length=0,
 		)
 	}
@@ -700,6 +713,8 @@ def hang_chuyen_ve(so_ngay=14, kho=None):
 				"ghi_chu": p.get("remarks") or "",
 				"kho_xuat": d.get("s_warehouse") or "",
 				"kho_nhan": d.get("t_warehouse") or "",
+				"da_nhan": p.get("vgb_nhan_tt") or "",
+				"nhan_boi": p.get("vgb_nhan_boi") or "",
 				"so_dong": 0,
 				"tong_sl": 0.0,
 				"hang": [],
