@@ -570,6 +570,9 @@ async function hdAiLamGi(name) {
     '<div class="card" style="padding:8px 14px">';
   s += d('Người bán', a.nguoi_ban, '#0f766e');
   s += d('Bán lúc', a.ban_luc);
+  /* Nguoi LAP khac nguoi BAN khi don do may dong bo ve roi quan ly gan tay
+     nguoi ban. Chi hien khi hai ten khac nhau, khong thi thua mot dong. */
+  if (a.nguoi_lap && a.nguoi_lap !== a.nguoi_ban) s += d('Người lập phiếu', a.nguoi_lap);
   if (a.nguoi_sua) {
     s += d('Người sửa gần nhất', a.nguoi_sua + (a.lan_sua ? ' · đã sửa ' + a.lan_sua + ' lần' : ''), '#b45309');
     s += d('Sửa lúc', a.sua_luc);

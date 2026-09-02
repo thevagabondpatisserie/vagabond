@@ -923,7 +923,9 @@ function mkBangHd(ds, loai) {
            moi man hoa don phai thay duoc ai ban to nay. May chu tra ve TEN
            chu khong tra dia chi thu, xem `vagabond/ten_nguoi.py`. */
         '<div style="font-size:12px;color:#0f766e;margin-top:2px">Người bán: <b>' +
-        h(d.owner_ten || d.owner || 'chưa rõ') + '</b>' +
+        (d.nguoi_ban_may || !d.nguoi_ban_ten
+          ? '<span style="color:#b45309">chưa gán</span>'
+          : h(d.nguoi_ban_ten)) + '</b>' +
         (d.vgb_huy && d.vgb_huy_boi_ten
           ? ' · <span style="color:#b3261e">huỷ bởi ' + h(d.vgb_huy_boi_ten) + '</span>' : '') +
         '</div></div>' +
