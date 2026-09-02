@@ -36,6 +36,13 @@ def dung():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: hien ten nguoi")
 
+	# Dong bo TEN mon luu san trong cong thuc voi ten trong danh muc, chi cho
+	# nhung ma anh Viet chi dich danh. Chay lai nhieu lan khong sao. Doc dau
+	# tep vagabond/dong_bo_ten_bom.py de biet vi sao KHONG dong bo tat ca.
+	from vagabond import dong_bo_ten_bom
+
+	dong_bo_ten_bom.dung()
+
 	# Ban in Huong dan che bien: tao ban ghi Print Format lan dau neu chua
 	# co. Dat sau vai vi ban ghi do co khai quyen theo vai.
 	from vagabond import huong_dan_che_bien
