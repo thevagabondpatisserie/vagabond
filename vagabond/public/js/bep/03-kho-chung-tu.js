@@ -1164,6 +1164,15 @@ async function scrHangVeKho() {
               '<b style="color:#0f766e;white-space:nowrap">' + money(m.sl) + ' ' + h(m.dvt) + '</b></div>';
           }).join('') +
           (x.ghi_chu ? '<div style="font-size:11px;color:#98a2b3;margin-top:8px">' + h(x.ghi_chu) + '</div>' : '') +
+          /* Nut xac nhan nhan hang (anh Viet chot phuong an A ngay
+             02/09/2026). Man nay von CHI DOC; nut nay van khong dung toi so
+             kho, no chi ghi lai loi khai cua nguoi nhan. Xem doan dai o dau
+             vagabond/nhan_dieu_chuyen.py. */
+          (x.da_nhan
+            ? '<div style="font-size:11.5px;color:#0f766e;margin-top:10px;font-weight:600">' +
+              '\u2713 ' + h(x.da_nhan) + (x.nhan_boi ? ' - ' + h(x.nhan_boi) : '') + '</div>'
+            : '<button class="vxb o" data-hvx="' + h(x.ma) + '" style="margin-top:10px">' +
+              '\u2713 X\u00e1c nh\u1eadn nh\u1eadn h\u00e0ng</button>') +
           '</div>'
           : '') +
         '</div>';
@@ -1179,6 +1188,15 @@ async function scrHangVeKho() {
       var m = n.getAttribute('data-hvm');
       HVK.mo = (HVK.mo === m) ? '' : m;
       go(scrHangVeKho, true);
+    };
+  });
+  b.querySelectorAll('[data-hvx]').forEach(function (n) {
+    n.onclick = function (ev) {
+      /* Chan noi len: the cha co onclick dong lai phan dang mo, bam nut
+         xac nhan ma the cha nghe duoc thi man tu sap lai truoc khi di. */
+      ev.stopPropagation();
+      var m = n.getAttribute('data-hvx');
+      go(function () { return scrNhanDcXacNhan(m); });
     };
   });
 }

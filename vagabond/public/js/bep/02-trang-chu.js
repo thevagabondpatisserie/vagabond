@@ -442,7 +442,7 @@ var VGB_NHOM = [
   { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'KHSX', 'BTPO', 'CTBOM', 'TIEC'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
-  { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKD'] },
+  { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKD', 'XKTRA', 'XKSI'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
@@ -621,6 +621,24 @@ function vgbGomNhom() {
   VGB_HUB.XKD = {
     cnt: 0,
     html: vgbODong('XKD', '🔁', 'Xuất điều chuyển nội bộ', 'Chuyển hàng sang kho khác')
+  };
+  /* Ba ô còn lại của phân hệ Xuất kho (anh Việt chốt 02/09/2026).
+
+     Trước hôm nay phân hệ chỉ có Xuất huỷ và Điều chuyển, nên bánh cho
+     Marketing chụp ảnh phải đi đường Xuất huỷ, và hàng trả nhà cung cấp
+     thì không có đường nào cả. Ba ô này để mỗi việc thật đi đúng một
+     đường, thay vì mượn tạm cái nút gần giống nhất. */
+  VGB_HUB.XKNB = {
+    cnt: 0,
+    html: vgbODong('XKNB', '🏷️', 'Xuất dùng nội bộ', 'Chụp ảnh, mẫu thử, mời khách, ăn ca')
+  };
+  VGB_HUB.XKTRA = {
+    cnt: 0,
+    html: vgbODong('XKTRA', '↩️', 'Xuất trả nhà cung cấp', 'Hàng lỗi trả về, giảm luôn công nợ')
+  };
+  VGB_HUB.XKSI = {
+    cnt: 0,
+    html: vgbODong('XKSI', '🚚', 'Xuất bán sỉ', 'Phiếu giao hàng cho khách sỉ và doanh nghiệp')
   };
   /* Phân hệ Danh mục. VGB_KHUNG_CO là danh bạ máy chủ trả về, chỉ gồm các
      màn tài khoản này đủ quyền xem. Ô nào không có trong đó thì không dựng,
@@ -1026,8 +1044,11 @@ var VGB_DUONG = {
   'tro-ly': 'CDTL',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
+  'xuat-ban-si': 'XKSI',
   'xuat-dieu-chuyen': 'XKD',
-  'xuat-huy': 'XKH'
+  'xuat-dung-noi-bo': 'XKNB',
+  'xuat-huy': 'XKH',
+  'xuat-tra-nha-cung-cap': 'XKTRA'
 };
 /* === HET BANG DUONG DAN === */
 
@@ -1194,7 +1215,10 @@ function vgbGo(k) {
   if (k === 'QLQ') return go(scrQuyen);
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
+  if (k === 'XKNB') return go(scrXkNbList);
   if (k === 'XKD') return go(scrXkCkList);
+  if (k === 'XKTRA') return go(scrXkTraList);
+  if (k === 'XKSI') return go(scrXkSiList);
   go(function () { scrMRList(TYPES[k]); });
   } finally {
     /* XOA KHOA DU NHANH NAO CHAY. Nhanh nao khong goi go() - vi du nhanh

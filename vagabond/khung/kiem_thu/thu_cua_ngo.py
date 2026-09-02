@@ -463,6 +463,26 @@ CUA_NGO = {
 	"tiec.py": [
 		"chi_tiet_tiec", "don_tiec", "huy_xuat_nvl", "lai_lo", "xuat_nvl",
 	],
+	# Phan he Xuat kho day du (anh Viet chot 02/09/2026). Bon mo dun moi,
+	# ba trong bon deu GHI THANG vao so kho va so cai nen chot ky.
+	#
+	# `bo_phan.py` chi mo mot cua doc: `dung()` chay trong after_migrate,
+	# KHONG duoc whitelist - mo cua do ra ngoai la cho ai cung dung duoc
+	# them trung tam chi phi.
+	"bo_phan.py": ["danh_sach"],
+	"xuat_noi_bo.py": [
+		"bo_phieu", "chi_tiet", "ds_phieu", "ghi_so", "khoi_dong", "luu",
+	],
+	"tra_ncc.py": [
+		"chi_tiet", "dong_cua_phieu", "ds_phieu", "khoi_dong", "luu",
+		"phieu_cua_ncc",
+	],
+	"xuat_ban.py": ["chi_tiet", "ds_phieu", "khoi_dong", "luu", "tim_khach"],
+	# `xac_nhan` KHONG dung toi so kho, no chi ghi loi khai cua nguoi nhan.
+	# `da_doi_chieu` chi quan ly kho goi duoc.
+	"nhan_dieu_chuyen.py": [
+		"da_doi_chieu", "dong_de_nhan", "phieu_lech_cho_xu_ly", "xac_nhan",
+	],
 }
 
 

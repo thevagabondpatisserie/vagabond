@@ -187,6 +187,36 @@ def dung():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: trang thai tu choi")
 
+	# Phan he Xuat kho day du (anh Viet chot 02/09/2026). Bon man moi, va
+	# cay bo phan de biet chi phi thuoc ve ai.
+	#
+	# CAY BO PHAN DUNG TRUOC: man Xuat dung noi bo bat buoc chon bo phan,
+	# ma cay chua co thi o chon rong va khong ai luu duoc mot phieu nao.
+	from vagabond import bo_phan
+
+	try:
+		bo_phan.dung()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: cay bo phan")
+	# O muc dich xuat dung noi bo tren Stock Entry. Chinh o nay phan biet
+	# phieu noi bo voi phieu xuat huy - hai thu cung la Material Issue.
+	from vagabond import xuat_noi_bo
+
+	_dung_nhom(xuat_noi_bo.TRUONG_MOI, "xuat_noi_bo")
+	# O ly do tra va anh hang loi tren phieu nhap mua tra lai.
+	from vagabond import tra_ncc
+
+	_dung_nhom(tra_ncc.TRUONG_MOI, "tra_ncc")
+	# O nguoi nhan va hop dong tren phieu giao hang ban si.
+	from vagabond import xuat_ban
+
+	_dung_nhom(xuat_ban.TRUONG_MOI, "xuat_ban")
+	# Cac o ghi vet xac nhan nhan hang dieu chuyen. TOAN o ghi vet, khong o
+	# nao dung toi so kho - xem doan dai o dau nhan_dieu_chuyen.py.
+	from vagabond import nhan_dieu_chuyen
+
+	_dung_nhom(nhan_dieu_chuyen.TRUONG_MOI, "nhan_dieu_chuyen")
+
 
 def _dung_nhom(khai, ten_nhom):
 	"""Dung mot nhom truong. Hong nhom nay khong duoc keo do ca lan deploy."""
