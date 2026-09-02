@@ -43,7 +43,7 @@ import io
 import os
 
 from vagabond.khung.kiem_thu.nen import ca, dung, la
-from vagabond import in_ngam, ke_hoach_sx
+from vagabond import dong_bo_ten_bom, in_ngam, ke_hoach_sx
 
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 	os.path.abspath(__file__)))))
@@ -192,3 +192,54 @@ def _():
 	dung("man hinh biet co quan ton", "n.quan_ton === 0" in j)
 	dung("va ghi ro thay vi in so khong", "không quản tồn" in j)
 	dung("chip thieu van doc theo con_lam", "n.con_lam > 0" in j)
+
+
+# --------------------------------------- dong bo ten mon trong cong thuc
+
+@ca("dong bo ten: chi doi khi that su lech, va khong bao gio xoa trang o ten")
+def _():
+	dung("lech thi doi", dong_bo_ten_bom.can_doi("Nước, ml", "Nước, gram"))
+	dung("khop thi khong dong vao", not dong_bo_ten_bom.can_doi("Nước, gram", "Nước, gram"))
+	dung("khac moi khoang trang thua van la khop",
+		not dong_bo_ten_bom.can_doi("  Nước, gram  ", "Nước, gram"))
+	# Ten danh muc rong thi tha giu ten cu con hon xoa trang o ten cua mot
+	# dong cong thuc.
+	dung("danh muc rong thi khong dong vao", not dong_bo_ten_bom.can_doi("Nước, ml", ""))
+	dung("danh muc None cung vay", not dong_bo_ten_bom.can_doi("Nước, ml", None))
+
+
+@ca("dong bo ten: CHI dong bo ma anh Viet chi dich danh, khong quet ca bang")
+def _():
+	# Do tren site 02/09/2026: 1.650 tren 2.384 dong cong thuc dang giu ten
+	# cu, thuoc 103 ma. Quet ca bang la cham vao 103 ma anh Viet chua xem.
+	la("danh sach dung mot ma nuoc", tuple(dong_bo_ten_bom.MA_DONG_BO), ("NVLT00231",))
+	m = _doc("vagabond/dong_bo_ten_bom.py")
+	i = m.find("def dong_bo(")
+	than = m[i:m.find("def dung():")]
+	dung("mac dinh lay danh sach chot san", "cac_ma or MA_DONG_BO" in than)
+	dung("chi ghi o ten", '"item_name", moi' in than)
+	dung("khong dung dau thoi gian cua to cong thuc", "update_modified=False" in than)
+	for cam in ('"qty"', '"uom"', '"stock_uom"', '"conversion_factor"', '"stock_qty"'):
+		dung("khong cham %s" % cam, cam not in than)
+
+
+@ca("dong bo ten: cua ngo mo ra ngoai chi co ham CHI DOC")
+def _():
+	from vagabond.khung.kiem_thu import thu_cua_ngo
+
+	la("dung mot cua ngo", thu_cua_ngo.CUA_NGO.get("dong_bo_ten_bom.py"), ["soat"])
+	m = _doc("vagabond/dong_bo_ten_bom.py")
+	dung("ham ghi khong duoc whitelist", "@frappe.whitelist()\ndef dong_bo" not in m)
+	dung("nhip migrate cung khong duoc whitelist", "@frappe.whitelist()\ndef dung" not in m)
+	i = m.find("def soat(")
+	dung("soat co kiem quyen", "_kiem_quyen()" in m[i:i + 700])
+	dung("soat khong ghi gi", "set_value" not in m[i:])
+
+
+@ca("dong bo ten: nhip migrate co goi, va hong thi khong chan migrate")
+def _():
+	t = _doc("vagabond/truong_tu_them.py")
+	dung("migrate co goi", "dong_bo_ten_bom.dung()" in t)
+	m = _doc("vagabond/dong_bo_ten_bom.py")
+	i = m.find("def dung():")
+	dung("hong thi chi ghi nhat ky", "frappe.log_error" in m[i:i + 500])
