@@ -11901,6 +11901,15 @@ async function posThemMon() {
      Viet 11/08/2026). Bam mot combo la may RA no thanh cac mon thanh phan
      do vao gio, moi mon mang chip ten combo de nguoi di lay mon biet no
      thuoc combo nao. */
+  /* So con lai tren quay, doc tu bang Kiem kho cua chinh diem nay (anh Viet
+     02/09/2026: "so co the ban nay se hien thi sang man tinh tien luon ke ben
+     moi mon khi ma thu ngan tim mon de bam cho khach de biet mon do con hay
+     khong"). Mon khong nam trong bang kiem kho thi KHONG co chip - im lang
+     dung hon la ghi "het" cho mot mon khong ai theo doi ton. */
+  var posConLai = {};
+  try {
+    if (posQuay && posQuay.ma) posConLai = (await api('vagabond.kiem_kho.con_lai', { diem: posQuay.ma })) || {};
+  } catch (eCL) { posConLai = {}; }
   var dsCombo = [];
   try {
     var kqCb = await api('vagabond.khuyen_mai.ds_combo', { quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc() });
@@ -11915,7 +11924,7 @@ async function posThemMon() {
     };
   });
   posSheetMon(oCombo.concat(dsItemsCache.map(function (x) {
-    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
+    return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
   })), function (o) {
     if (o.combo) { return posBamCombo(o.combo); }
     var i = -1;
@@ -11936,6 +11945,21 @@ async function posThemMon() {
     posDon.mon.forEach(function (m) { if (m.item_code === ma) q += m.qty; });
     return q;
   });
+}
+
+/* Chip "con N" hoac "het" canh ten mon o o tim mon.
+
+   null nghia la mon nay khong nam trong bang Kiem kho cua quay, tuc khong ai
+   dang dem ton cho no - khong ve chip. So 0 va so am thi CO ve, vi do la
+   thong tin thu ngan can nhat: so am la da ban lo hon so nhap, phai bao quan
+   ly chu khong phai giau di. */
+function posChipCon(n) {
+  if (n === null || n === undefined) return '';
+  var het = n <= 0;
+  return '<span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;'
+    + 'font-size:11px;font-weight:700;vertical-align:1px;'
+    + (het ? 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca' : 'background:#f0fdfa;color:#0f766e;border:1px solid #99d5cf')
+    + '">' + (het ? (n < 0 ? 'hết (' + n + ')' : 'hết') : 'còn ' + n) + '</span>';
 }
 
 var NHOM_COMBO = 'Combo';
@@ -12196,7 +12220,7 @@ function posSheetMon(items, onPick, onDong, demSo) {
       var dc = demSo ? (demSo(it.value) || 0) : 0;
       return '<div class="shi" data-i="' + items.indexOf(it) + '"' + (dc ? ' style="background:#f0fdfa"' : '') + '>' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : '<span>' + (it.icon || '🎂') + '</span>') +
-        '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
+        '<span style="flex:1;min-width:0">' + h(it.label) + posChipCon(it.con) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
         (dc ? '<b style="flex:none;background:#0d9488;color:#fff;border-radius:999px;min-width:26px;height:26px;' +
           'display:flex;align-items:center;justify-content:center;font-size:13px;padding:0 8px">' + money(dc) + '</b>' : '') +
         '</div>';
@@ -13471,6 +13495,9 @@ async function hdAiLamGi(name) {
     '<div class="card" style="padding:8px 14px">';
   s += d('Người bán', a.nguoi_ban, '#0f766e');
   s += d('Bán lúc', a.ban_luc);
+  /* Nguoi LAP khac nguoi BAN khi don do may dong bo ve roi quan ly gan tay
+     nguoi ban. Chi hien khi hai ten khac nhau, khong thi thua mot dong. */
+  if (a.nguoi_lap && a.nguoi_lap !== a.nguoi_ban) s += d('Người lập phiếu', a.nguoi_lap);
   if (a.nguoi_sua) {
     s += d('Người sửa gần nhất', a.nguoi_sua + (a.lan_sua ? ' · đã sửa ' + a.lan_sua + ' lần' : ''), '#b45309');
     s += d('Sửa lúc', a.sua_luc);
@@ -20217,7 +20244,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '384';
+var APPVER = '385';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -24472,7 +24499,9 @@ function mkBangHd(ds, loai) {
            moi man hoa don phai thay duoc ai ban to nay. May chu tra ve TEN
            chu khong tra dia chi thu, xem `vagabond/ten_nguoi.py`. */
         '<div style="font-size:12px;color:#0f766e;margin-top:2px">Người bán: <b>' +
-        h(d.owner_ten || d.owner || 'chưa rõ') + '</b>' +
+        (d.nguoi_ban_may || !d.nguoi_ban_ten
+          ? '<span style="color:#b45309">chưa gán</span>'
+          : h(d.nguoi_ban_ten)) + '</b>' +
         (d.vgb_huy && d.vgb_huy_boi_ten
           ? ' · <span style="color:#b3261e">huỷ bởi ' + h(d.vgb_huy_boi_ten) + '</span>' : '') +
         '</div></div>' +
