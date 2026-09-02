@@ -73,6 +73,24 @@ CUA_NGO = {
 	# bat ky. `don_rac` xoa tep that - mo ra ngoai la cho goi mot nhip xoa tu
 	# trinh duyet.
 	"tep_dinh_kem.py": ["cai_dat", "go_ra", "nap_tam"],
+	# Them 02/09/2026: o Nguoi ban tren hoa don. Mot cua ngo duy nhat la `gan`
+	# - quan ly gan tay nguoi ban cho nhung to hoa don may dong bo ve khong co
+	# ai dang dang nhap. `truoc_khi_luu` la HOOK, chay tren duong luu cua moi
+	# to hoa don, tuyet doi khong duoc mo ra ngoai. `ai_ban` va `_dang_chay_nen`
+	# la ham thuan va ham noi bo.
+	"nguoi_ban.py": ["gan"],
+	# Them 02/09/2026: bang kiem kho theo diem ban, dung cho quay TCV va NVHTN.
+	# Tam cua ngo deu la cua man hinh: danh sach tab, doc bang, sua mot o, them
+	# dong, xoa dong, tim ma, chot ngay, va `con_lai` cho man tinh tien doc so
+	# con lai cua tung mon.
+	#
+	# `da_ban` CO Y khong nam trong danh sach. No dem tu hoa don ban ra; mo ra
+	# ngoai la cho trinh duyet hoi thang so ban hang cua mot quay theo ngay ma
+	# khong qua lop quyen nao. Man hinh doc so do qua `bang`.
+	"kiem_kho.py": [
+		"bang", "chot", "con_lai", "diem_ds", "them_dong", "tim_mon",
+		"luu_o", "xoa_dong",
+	],
 	# Them 28/08/2026 cung lan dat hang rao tai khoan kho. Chi `soat_kho` la
 	# cua man hinh; `chan_nhap_vao_thanh_pham` la HOOK, chay tren duong ghi
 	# so cua Frappe chu khong ai goi tu ngoai, nen KHONG mo ra ngoai. Ba ham
