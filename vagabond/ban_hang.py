@@ -3885,6 +3885,7 @@ def ai_lam_gi(name=None):
 		# O nguoi ban dung TRUOC nguoi lap: nguoi lap chi la nguoi bam nut,
 		# co the la tai khoan may. Xem vagabond/nguoi_ban.py.
 		"nguoi_ban": _tn.ten((si.get("vgb_nguoi_ban") or "").strip() or si.owner),
+		"nguoi_ban_ma": (si.get("vgb_nguoi_ban") or "").strip(),
 		"nguoi_lap": _tn.ten(si.owner),
 		"ban_luc": str(si.creation or "")[:16],
 		"lan_sua": cint(si.get("vgb_lan_sua")),
@@ -3901,6 +3902,16 @@ def ai_lam_gi(name=None):
 	# Người sửa gần nhất. Chỉ hiện khi KHÁC người bán: hoá đơn nào cũng có
 	# `modified_by`, mà bằng chính người lập thì đó không phải một lần sửa
 	# đáng kể ai, chỉ là tiếng ồn.
+	# Hai co cho NUT GAN NGUOI BAN tren man hoa don (anh Viet 02/09/2026,
+	# viec 4). `chua_gan` la to nay dang nam trong ro "chua gan nguoi ban"
+	# cua phan he KPI; `gan_duoc` la nguoi DANG XEM co quyen gan hay khong.
+	# Tach lam hai co chu khong gop: thu ngan van can THAY to nay chua co
+	# nguoi ban, chi la khong duoc tu gan.
+	from vagabond import nguoi_ban as _nb
+
+	ra["chua_gan"] = 1 if _nb.chua_gan(si.get("vgb_nguoi_ban"), si.owner) else 0
+	ra["gan_duoc"] = 1 if _nb.duoc_gan(frappe.get_roles()) else 0
+
 	if si.modified_by and si.modified_by != si.owner:
 		ra["nguoi_sua"] = _tn.ten(si.modified_by)
 		ra["sua_luc"] = str(si.modified or "")[:16]
