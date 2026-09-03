@@ -13115,7 +13115,10 @@ async function posInBill(d) {
   } else if (d.xhd_url && M.qr_xhd) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
        tu dien thong tin, ERP map vao don, cuoi ngay tu day m-invoice. */
-    var ulink = location.origin + d.xhd_url;
+    /* May chu tra dia chi TUYET DOI tren mien khach tu 03/09/2026. Con giu
+       nhanh ghep location.origin cho ban may chu cu, nhung khong duoc dung
+       no lam duong chinh nua: location.origin o quay la mien app noi bo. */
+    var ulink = /^https?:\/\//.test(d.xhd_url) ? d.xhd_url : (location.origin + d.xhd_url);
     qrKhoi = '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=' + encodeURIComponent(ulink) + '">' +
       '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong ngày.</div></div>';
   }
@@ -20382,7 +20385,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '403';
+var APPVER = '404';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -36289,9 +36292,92 @@ function cfdVeChip() {
      ba cau nay la ba viec can lam de no thanh man hinh rieng. */
   o.textContent = song
     ? 'Đang bật, khách nhìn thấy giỏ hàng và mã QR.'
-    : 'Chưa mở. Bấm Mở, kéo cửa sổ sang màn hình phụ rồi bấm Toàn màn hình. '
-    + 'Windows phải để màn hình phụ ở chế độ Extend, không phải Duplicate.';
+    : 'Chưa mở. Bấm Mở, máy tự đặt sang màn hình phụ; chạm vào màn đó một lần để phóng to. '
+    + 'Windows phải để màn hình phụ ở chế độ Extend (Win+P), không phải Duplicate.';
   o.style.color = song ? '#0f766e' : '#98a2b3';
+}
+
+/* ---------------------------------------------- mo dung man hinh phu
+
+   HAI TRIEU CHUNG anh Viet bao 03/09/2026, va vi sao cung mot goc:
+
+   1. "Mat cam ung man hinh chinh cua thu ngan." Cua so man hinh khach mo
+      bang window.open thi Windows dat no LEN TREN cua so dang co, tren
+      CUNG man hinh voi thu ngan. Bam Toan man hinh o do la no phu kin man
+      thu ngan. Thu ngan cham vao dau cung la cham vao man hinh khach, nen
+      tuong may hong cam ung. Man phu de Duplicate thi con te hon: hai man
+      la mot, keo di dau cung the.
+
+   2. "Man hinh khach toi den." Man phu khong ai cham vao, Windows tat no
+      di de tiet kiem dien sau muoi lam phut. Phan nay sua ben trang
+      man-hinh-khach.html bang Wake Lock, khong o day.
+
+   Cach sua o day: khong bat thu ngan keo cua so nua. Hoi trinh duyet may
+   nay co bao nhieu man hinh (Window Management API, Chrome tu ban 100),
+   co man phu thi DAT THANG cua so len man phu voi dung kich thuoc man do.
+   Chi thay MOT man hinh thi noi thang la dang Duplicate va KHONG mo, vi
+   mo ra chi de no de len man thu ngan.
+
+   Trinh duyet cu khong co API nay thi ve duong cu va noi ro phai keo tay.
+
+   THUAN: hai ham dau khong cham DOM, ca kiem chay bang node duoc. */
+
+/* Chon man hinh phu trong danh sach trinh duyet tra ve. Uu tien man KHONG
+   phai man chinh; khong co thi lay man thu hai; chi co mot man thi null. */
+function cfdChonManPhu(cacMan) {
+  cacMan = cacMan || [];
+  for (var i = 0; i < cacMan.length; i++) {
+    if (cacMan[i] && cacMan[i].isPrimary === false) return cacMan[i];
+  }
+  return cacMan.length > 1 ? cacMan[1] : null;
+}
+
+/* Chuoi dac tinh cua window.open de cua so nam TRON trong man phu do.
+   Dung avail* chu khong dung width/height: avail da tru thanh tac vu. */
+function cfdDacTinhCuaSo(man) {
+  if (!man) return '';
+  return 'popup=1,left=' + Math.round(Number(man.availLeft) || 0) +
+    ',top=' + Math.round(Number(man.availTop) || 0) +
+    ',width=' + Math.round(Number(man.availWidth) || 1280) +
+    ',height=' + Math.round(Number(man.availHeight) || 720);
+}
+
+async function cfdMo() {
+  var w = null;
+  /* screen.isExtended khong can xin quyen: false chac chan la may chi co
+     mot man hinh (hoac Duplicate). Noi ngay, dung mo. */
+  try {
+    if (window.screen && window.screen.isExtended === false) {
+      toast('Máy chỉ thấy MỘT màn hình. Windows đang để Duplicate: bấm Win+P chọn Extend, rồi bấm Mở lại.', 9000);
+      return;
+    }
+  } catch (e0) { }
+  if (typeof window.getScreenDetails === 'function') {
+    try {
+      /* Lan dau Chrome hoi quyen "quan ly cua so tren cac man hinh". Bam
+         Cho phep mot lan la nho. Tu choi thi roi xuong duong cu ben duoi. */
+      var sd = await window.getScreenDetails();
+      var phu = cfdChonManPhu(sd && sd.screens);
+      if (!phu) {
+        toast('Máy chỉ thấy MỘT màn hình. Windows đang để Duplicate: bấm Win+P chọn Extend, rồi bấm Mở lại.', 9000);
+        return;
+      }
+      w = window.open(CFD_TRANG + '?phu=1', 'vgbManKhach', cfdDacTinhCuaSo(phu));
+    } catch (e1) { w = null; }
+  }
+  if (!w) {
+    /* Duong cu: trinh duyet cu, hoac bi tu choi quyen. */
+    try { w = window.open(CFD_TRANG, 'vgbManKhach'); } catch (e2) { w = null; }
+    if (w) toast('Đã mở. Kéo cửa sổ đó sang màn hình phụ rồi chạm vào nó một lần để phóng toàn màn hình.', 7000);
+  }
+  if (!w) {
+    toast('Trình duyệt chặn mở cửa sổ. Mở tay địa chỉ ' + CFD_TRANG + ' rồi kéo sang màn hình phụ.', 6000);
+    return;
+  }
+  /* Tra tieu diem ve man thu ngan: cua so vua mo cuop tieu diem, va cai
+     cham dau tien cua thu ngan sau do chi de lay lai tieu diem chu khong
+     bam duoc nut nao. */
+  try { window.focus(); } catch (e3) { }
 }
 
 function cfdGan() {
@@ -36299,14 +36385,7 @@ function cfdGan() {
   cfdKenh();
   cfdVeChip();
   var n = document.getElementById('cfdMoNut');
-  if (n) {
-    n.onclick = function () {
-      /* Dat ten cua so co dinh: bam Mo lan hai thi dua cua so cu len chu
-         khong de ba cai man hinh khach chong len nhau. */
-      try { window.open(CFD_TRANG, 'vgbManKhach'); }
-      catch (e) { toast('Trình duyệt chặn mở cửa sổ. Mở tay địa chỉ ' + CFD_TRANG + ' rồi kéo sang màn hình phụ.', 6000); }
-    };
-  }
+  if (n) n.onclick = function () { cfdMo(); };
 }
 
 /* ---------------- Danh muc cong thuc BOM (anh Viet giao 21/08/2026)
@@ -44511,6 +44590,19 @@ function xktDemTT(ds) {
 
 var XKT_TT = [{ k: '', ten: 'Tất cả' }, { k: 'cho', ten: 'Chờ ghi sổ', ic: '🟡' }, { k: 'xong', ten: 'Đã ghi sổ', ic: '🟢' }];
 
+/* KHOI BAO LOI DO khi may chu khong tra duoc danh sach.
+
+   Ban v387 nuot loi im lang (catch rong), nen khi xuat_ban.ds_phieu do vi doc
+   cot `remarks` khong co tren Delivery Note, man chi hien "Chua co phieu nao"
+   nhu binh thuong. Loi nam do ba ngay khong ai biet (03/09/2026). Tu nay may
+   chu do thi noi ro, va bao chup man gui anh Viet. */
+function xktLoiHtml(loi) {
+  return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;' +
+    'padding:14px;margin:8px 0;font-size:13px;color:#991b1b;line-height:1.6">' +
+    '<b>Không đọc được danh sách phiếu.</b><br>' + h(loi) +
+    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi anh Việt giúp.</span></div>';
+}
+
 /* Man danh sach dung chung: tim, ba hang chip, the tom tat, cac dong. */
 function xktManDanhSach(cfg) {
   var st = cfg.st;
@@ -44521,7 +44613,9 @@ function xktManDanhSach(cfg) {
     var nhoms = [{ k: '', ten: cfg.nhomTatCa || 'Mọi nhóm' }].concat(cfg.nhoms.filter(function (n) { return demNhom[n.k]; }));
     var rows = '';
     for (var i = 0; i < loc.length; i++) rows += cfg.row(loc[i]);
-    if (!loc.length) {
+    if (cfg.loi && !cfg.ds.length) {
+      rows = xktLoiHtml(cfg.loi);
+    } else if (!loc.length) {
       rows = '<div class="emp"><div class="e1">' + (cfg.ds.length ? '🔎' : '📭') + '</div><div class="e2">' +
         h(cfg.ds.length ? 'Không có phiếu nào khớp bộ lọc. Chạm chip để bỏ bớt điều kiện.' : (cfg.rong || 'Chưa có phiếu nào. Bấm nút + để lập phiếu.')) + '</div></div>';
     }
@@ -44684,13 +44778,15 @@ async function scrXkNbList() {
   xktCss();
   frame('Xuất dùng nội bộ', '<div class="emp"><div class="e1">⏳</div></div>');
   var b = await xktBootNb();
+  var loiDs = '';
   var ds = [];
-  try { ds = (await api('vagabond.xuat_noi_bo.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { }
+  try { ds = (await api('vagabond.xuat_noi_bo.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var nhoms = (b.muc_dich || []).map(function (m) { return { k: m.ma, ten: m.ten }; });
   xktManDanhSach({
     tieuDe: 'Xuất dùng nội bộ',
     st: XKT.nb,
     ds: ds,
+    loi: loiDs,
     moTa: 'Hàng ra khỏi kho mà <b>tiệm vẫn dùng</b>: chụp ảnh, mẫu thử, mời khách, ăn ca. Hàng hỏng thật thì vẫn đi đường Xuất huỷ.',
     tenPhieu: 'phiếu',
     nhoms: nhoms,
@@ -44912,14 +45008,16 @@ async function scrXkTraList() {
   xktCss();
   frame('Xuất trả nhà cung cấp', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootTra();
+  var loiDs = '';
   var ds = [];
-  try { ds = (await api('vagabond.tra_ncc.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { }
+  try { ds = (await api('vagabond.tra_ncc.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var nccs = {};
   ds.forEach(function (x) { if (x.supplier) nccs[x.supplier] = x.supplier_name || x.supplier; });
   xktManDanhSach({
     tieuDe: 'Xuất trả nhà cung cấp',
     st: XKT.tra,
     ds: ds,
+    loi: loiDs,
     moTa: 'Phiếu này vừa <b>giảm tồn kho</b> vừa <b>giảm công nợ phải trả</b>, nên kế toán không phải gõ bút toán tay để nắn lại.',
     tenPhieu: 'phiếu trả',
     nhoms: Object.keys(nccs).map(function (k) { return { k: k, ten: nccs[k], ic: '🏭' }; }),
@@ -45113,14 +45211,16 @@ async function scrXkSiList() {
   xktCss();
   frame('Xuất bán sỉ', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootSi();
+  var loiDs = '';
   var ds = [];
-  try { ds = (await api('vagabond.xuat_ban.ds_phieu', { gioi_han: 200, so_ngay: 365 })) || []; } catch (e) { }
+  try { ds = (await api('vagabond.xuat_ban.ds_phieu', { gioi_han: 200, so_ngay: 365 })) || []; } catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var khs = {};
   ds.forEach(function (x) { if (x.customer) khs[x.customer] = x.customer_name || x.customer; });
   xktManDanhSach({
     tieuDe: 'Xuất bán sỉ',
     st: XKT.si,
     ds: ds,
+    loi: loiDs,
     moTa: 'Phiếu giao hàng cho khách sỉ và khách doanh nghiệp. Phiếu này <b>trừ kho thật</b> và ghi giá vốn.',
     tenPhieu: 'phiếu giao',
     nhoms: Object.keys(khs).map(function (k) { return { k: k, ten: khs[k], ic: '🏢' }; }),
