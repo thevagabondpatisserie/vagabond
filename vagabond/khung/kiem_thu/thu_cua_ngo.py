@@ -184,7 +184,7 @@ CUA_NGO = {
 	# `bu_nguoi_gui` va `canh_bao_email_loi` KHONG duoc co mat o day: mot cai
 	# la hook nam tren duong di cua MOI email trong he, mot cai la nhip lap
 	# lich. Ho ra thi la decorator vua bam nham.
-	"gui_thu.py": ["cuu_su_co_1608", "suc_khoe", "va_hang_doi_ket"],
+	"gui_thu.py": ["cuu_su_co_1608", "gui_bo_thu_mau", "suc_khoe", "va_hang_doi_ket"],
 	# Luong dong tien, them 21/08/2026: ca lam viec tai quay va phieu nop
 	# quy. Cac ham _doanh_thu_he_thong, _ca_dang_mo la noi bo, khong mo.
 	"ca_quay.py": ["chi_tiet", "chot_ca", "danh_sach", "mo_ca", "tinh_trang"],
@@ -319,7 +319,7 @@ CUA_NGO = {
 	# Phieu thanh toan TRUOC cho nha cung cap, them 21/08/2026. Bon cua:
 	# ba cua DOC de app bay man hinh, mot cua GHI dung phieu o trang thai
 	# nhap. Khong cua nao ghi so, khong cua nao chuyen tien.
-	"tra_truoc.py": ["chi_tiet_don", "ds_don_mua", "ds_nguon_tien", "tao_phieu"],
+	"tra_truoc.py": ["chi_tiet_don", "ds_don_mua", "ds_nguon_tien", "ds_phieu", "tao_phieu"],
 	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
 	# Tang doi soat SePay dung chung, them 24/08/2026. Ba cua ngo nay phuc vu
 	# MOI man co doi soat, nen thieu mot ten la mot man mat nut.

@@ -734,3 +734,20 @@ def suc_khoe(so_gio=24):
 			for ma, dem in gom_theo_loai(loi).items()
 		},
 	}
+
+
+@frappe.whitelist()
+def gui_bo_thu_mau(email=None, chi_mot=None):
+	"""Gửi bộ thư mẫu tới một địa chỉ để soi trên hộp thư thật.
+
+	Anh Việt 03/09/2026: *"Em gửi thử tất cả các email em đã fix đến email anh
+	là thevagabondbakery@gmail.com nhé"*. Soi thư trên trình duyệt không thay
+	được việc mở nó trong Gmail: Gmail cắt thẻ style, đảo màu ở chế độ tối, và
+	bóp bảng lại trên điện thoại.
+
+	Thân thư dựng bằng đúng khuôn đang chạy, nội dung là số liệu mẫu. Không
+	đọc đơn nào, không đổi trạng thái gì, tiêu đề luôn mang chữ THƯ MẪU.
+	"""
+	from vagabond import thu_khung as tk
+
+	return tk.gui_thu_mau(email=email, chi_mot=chi_mot)

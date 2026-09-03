@@ -551,17 +551,69 @@ def _viec_ho_so_tt(vai):
 		],
 		order_by="han_tra_som_nhat asc", limit_page_length=60,
 	):
+		# HAI o khac nhau, dung lan.
+		#
+		# `buoc` la viec dang nam o khau nao, thuan tuy theo trang thai.
+		# `tt` la mau va thu tu bay tren man Viec can lam, nen tre han an
+		# tren tat ca - viec tre thi phai do va phai len dau.
+		#
+		# Truoc 03/09/2026 chi co mot o `tt`, va o rong cua man Duyet phieu
+		# chi dem "co bao nhieu ho so cho toi" bang cach loc `tt == cho_duyet`.
+		# He qua: ho so nao qua han la mang nhan `tre_hen` va bi dem SOT.
+		# Chi Dung mo man Duyet phieu chi thay dau tich xanh "khong co phieu
+		# nao can xu ly", trong khi ben man Ho so thanh toan dang co tam bo
+		# cho chi chuyen tien, trong do vai bo qua han tu 12/08. Viec cang
+		# tre thi cang de bi giau di - dung nguoc.
+		buoc = (
+			"cho_chi" if x["trang_thai"] == hs.TT_DA_DUYET
+			else ("ban_nhap" if x["trang_thai"] == hs.TT_NHAP else "cho_duyet")
+		)
 		ra.append({
 			"loai": "ho_so_tt", "ma": x["name"],
 			"nhom": hs.NHAN.get(x["trang_thai"]) or x["trang_thai"],
 			"phu": x.get("ten_ncc") or x.get("ten_nguoi_ung") or "",
 			"tien": float(x.get("con_lai") or x.get("tong_tien") or 0),
 			"ngay": str(x.get("han_tra_som_nhat") or ""),
-			"tt": (
-				"tre_hen" if _tre(x.get("han_tra_som_nhat"))
-				else ("cho_chi" if x["trang_thai"] == hs.TT_DA_DUYET
-					else ("ban_nhap" if x["trang_thai"] == hs.TT_NHAP else "cho_duyet"))
-			),
+			"buoc": buoc,
+			"tt": "tre_hen" if _tre(x.get("han_tra_som_nhat")) else buoc,
+		})
+
+	# PHIEU TRA TRUOC cung nam o hang doi nay.
+	#
+	# No la Payment Entry chu khong phai ho so thanh toan, nhung nguoi phai
+	# dung tay vao thi van la ke toan roi giam doc, dung hai buoc ay. De no
+	# ngoai danh sach viec can lam thi phieu nam cho khong ai biet: phieu
+	# APP-26-08-713 lap 28/08 nam khong ai cham toi 03/09.
+	ra.extend(_viec_tra_truoc(vai))
+	return ra
+
+
+def _viec_tra_truoc(vai):
+	"""Phiếu trả trước cho nhà cung cấp đang chờ đúng bước của người xem."""
+	from vagabond import tra_truoc as tt
+
+	buoc = []
+	if vai & VAI_KE_TOAN or vai & VAI_GIAM_DOC:
+		buoc.append(tt.TT_CHO_FIN)
+	if vai & VAI_GIAM_DOC:
+		buoc.append(tt.TT_CHO_GD)
+	if not buoc:
+		return []
+
+	ra = []
+	for o in tt.gom_phieu(so_ngay=180):
+		if o.get("buoc_phieu_chi") not in buoc:
+			continue
+		ra.append({
+			"loai": "ho_so_tt", "ma": o["name"],
+			"nhom": "Trả trước NCC · %s" % o.get("buoc_phieu_chi"),
+			"phu": o.get("ten_ncc") or "",
+			"tien": float(o.get("tong_tien") or 0),
+			"ngay": str(o.get("ngay") or ""),
+			"buoc": "cho_duyet",
+			# Nam cho qua mot tuan thi coi nhu tre: tien da hua voi nha cung
+			# cap tu luc dat don, giu phieu lai chi lam don giao cham.
+			"tt": "tre_hen" if int(o.get("cho_ngay") or 0) > 7 else "cho_duyet",
 		})
 	return ra
 

@@ -329,3 +329,199 @@ def khung(tieu_de, than, nut_html="", chan="khach", nhan=""):
 		tieu_de, than, nut_html=nut_html, chan=chan, nhan=nhan,
 		goc_anh=goc_anh(), cac_quay=_cac_quay() if chan == "khach" else None,
 	)
+
+
+# ---------------------------------------------------------- gửi thư mẫu
+
+# Anh Việt 03/09/2026: *"Em gửi thử tất cả các email em đã fix đến email anh
+# là thevagabondbakery@gmail.com nhé"*.
+#
+# Soi thư trên trình duyệt không thay được việc mở nó trong hộp thư thật:
+# Gmail cắt thẻ style, đảo màu ở chế độ tối, và bóp bảng lại trên điện thoại.
+# Nên phải có một cửa bấm là gửi cả bộ đi, dùng đúng khuôn đang chạy chứ
+# không phải một bản chép tay.
+#
+# Cửa này KHÔNG chạm vào dữ liệu thật: nó dựng nội dung mẫu, không đọc đơn
+# nào, không đổi trạng thái gì. Chỉ gửi được cho một địa chỉ mỗi lần và có
+# chữ THƯ MẪU trên tiêu đề, để không ai nhầm nó là thư thật của tiệm.
+
+MAU_THU = (
+	("bao_gia", "Báo giá gửi khách", "khach"),
+	("hop_dong", "Hợp đồng gửi khách", "khach"),
+	("da_nhan_tien", "Xác nhận đã nhận tiền", "khach"),
+	("xuat_hoa_don", "Tiếp nhận yêu cầu xuất hoá đơn", "khach"),
+	("khuyen_mai", "Mã ưu đãi gửi khách", "khach"),
+	("bao_ncc", "Báo đã thanh toán cho nhà cung cấp", "ncc"),
+	("moi_tai_khoan", "Thư mời tạo tài khoản nhân viên", "nhan_vien"),
+	("phan_cong_giao", "Phân công đơn giao hàng", "nhan_vien"),
+	("hoan_tien", "Báo kế toán có phiếu hoàn tiền", "nhan_vien"),
+	("canh_bao", "Cảnh báo hệ thống", "noi_bo"),
+	("cuoi_ngay", "Chốt cuối ngày", "noi_bo"),
+	("hddt_sot", "Hoá đơn điện tử còn sót", "noi_bo"),
+	("minvoice", "Chuông m-invoice", "noi_bo"),
+	("diem_han", "Nhắc điểm hẹn", "noi_bo"),
+)
+
+
+def _than_mau(ma):
+	"""Ruột thư mẫu cho từng loại. THUẦN, không chạm Frappe."""
+	if ma == "bao_gia":
+		return (
+			doan("Cảm ơn anh chị đã quan tâm tới The Vagabond Pâtisserie. "
+				"Dưới đây là báo giá cho đơn bánh anh chị hỏi.")
+			+ o_kem(cap([
+				("Số báo giá", "BG-2026-00128"),
+				("Ngày lập", "03/09/2026"),
+				("Hiệu lực đến", "17/09/2026"),
+				("Tổng tiền", tien(4850000) + " đ"),
+			]))
+			+ chu_ky("Nhân viên kinh doanh", "The Vagabond Pâtisserie")
+		)
+	if ma == "hop_dong":
+		return (
+			doan("Kính gửi anh chị, hợp đồng đặt bánh đã soạn xong, "
+				"anh chị vui lòng xem tệp đính kèm.")
+			+ cap([("Số hợp đồng", "HD-2026-00041"), ("Giá trị", tien(12500000) + " đ")])
+		)
+	if ma == "da_nhan_tien":
+		return (
+			doan("Tiệm xác nhận đã nhận được khoản thanh toán của anh chị. Cảm ơn anh chị.")
+			+ bang(
+				[("Nội dung", "left"), ("Số tiền", "right")],
+				[["Đơn bánh 28/08", tien(3200000)], ["Đơn bánh 01/09", tien(1650000)]],
+				tong=("Tổng đã nhận", tien(4850000)),
+			)
+		)
+	if ma == "xuat_hoa_don":
+		return (
+			doan("Tiệm đã nhận được yêu cầu xuất hoá đơn của anh chị. "
+				"Hoá đơn điện tử sẽ gửi về địa chỉ thư này trong ngày.")
+			+ cap([("Số bill", "HDB-26-09-00120"), ("Mã số thuế", "0316xxxxxx")])
+		)
+	if ma == "khuyen_mai":
+		return (
+			doan("Tiệm gửi anh chị mã ưu đãi cho lần đặt bánh sắp tới.")
+			+ o_kem('<div style="font-size:26px;font-weight:800;letter-spacing:3px">VGB0925</div>')
+			+ doan("Mã dùng đến hết 30/09/2026.")
+		)
+	if ma == "bao_ncc":
+		return (
+			doan("Kính gửi quý nhà cung cấp, The Vagabond Pâtisserie đã chuyển khoản "
+				"thanh toán cho các hoá đơn dưới đây.")
+			+ bang(
+				[("Hoá đơn", "left"), ("Số tiền", "right")],
+				[["HDM-2026-00512", tien(5054400)], ["HDM-2026-00530", tien(1575000)]],
+				tong=("Tổng chuyển", tien(6629400)),
+			)
+		)
+	if ma == "moi_tai_khoan":
+		return (
+			doan("Chào bạn, tiệm đã tạo tài khoản để bạn vào app làm việc. "
+				"Bấm nút bên dưới để đặt mật khẩu lần đầu.")
+			+ cap([("Tài khoản", "nhanvien@thevagabondpatisserie.com"), ("Bộ phận", "Quầy District 1")])
+		)
+	if ma == "phan_cong_giao":
+		return (
+			doan("Bạn vừa được phân công một đơn giao hàng.")
+			+ cap([
+				("Mã vận đơn", "VD-2026-00877"),
+				("Người nhận", "Chị Lan"),
+				("Thời gian giao", "03/09/2026 15:30"),
+				("Thu hộ", tien(850000) + " đ"),
+			])
+		)
+	if ma == "hoan_tien":
+		return (
+			doan("Có một phiếu hoàn tiền vừa được lập, cần kế toán kiểm và chi.")
+			+ cap([("Số phiếu", "HT-26-09-0021"), ("Số tiền", tien(320000) + " đ")])
+			+ o_canh_bao("Phiếu quá 48 giờ chưa chi thì khách sẽ hỏi lại quầy.")
+		)
+	if ma == "canh_bao":
+		return (
+			doan("Máy phát hiện một việc cần người xem ngay.")
+			+ o_canh_bao("Hàng đợi thư đang kẹt 12 thư chưa gửi được.")
+		)
+	if ma == "cuoi_ngay":
+		return (
+			doan("Chốt cuối ngày 03/09/2026.")
+			+ bang(
+				[("Mục", "left"), ("Số", "right")],
+				[["Đơn treo chưa ghi sổ", "3"], ["Hoá đơn điện tử còn sót", "1"]],
+			)
+		)
+	if ma == "hddt_sot":
+		return (
+			doan("Còn hoá đơn điện tử chưa phát hành cho các bill dưới đây.")
+			+ bang([("Bill", "left"), ("Ngày", "right")], [["HDB-26-09-00088", "02/09/2026"]])
+		)
+	if ma == "minvoice":
+		return (
+			doan("Nhịp kiểm m-invoice vừa chạy xong.")
+			+ cap([("Chứng từ đã đối chiếu", "95"), ("Lệch", "0")])
+		)
+	return (
+		doan("Nhắc việc theo điểm hẹn đã đặt.")
+		+ cap([("Việc", "Gọi lại khách đặt tiệc"), ("Hạn", "04/09/2026")])
+	)
+
+
+def _nut_mau(ma):
+	if ma == "bao_gia":
+		return nut("https://thevagabondpatisserie.com", "Xem báo giá", goc_anh=goc_anh())
+	if ma == "moi_tai_khoan":
+		return nut("https://thevagabondpatisserie.com", "Đặt mật khẩu", goc_anh=goc_anh())
+	if ma == "xuat_hoa_don":
+		return nut("https://thevagabondpatisserie.com", "Xem yêu cầu", goc_anh=goc_anh())
+	return ""
+
+
+def dung_thu_mau(ma, nhan_phu=""):
+	"""Dựng MỘT thư mẫu, trả về (tiêu đề, HTML). Không gửi, không chạm dữ liệu."""
+	loai = dict((k, (t, c)) for k, t, c in MAU_THU)
+	if ma not in loai:
+		raise ValueError("Không có thư mẫu tên %s." % ma)
+	ten, chan = loai[ma]
+	return ten, khung(ten, _than_mau(ma), nut_html=_nut_mau(ma), chan=chan, nhan=nhan_phu)
+
+
+def _quyen_gui_mau():
+	import frappe
+
+	if not (set(frappe.get_roles()) & {"System Manager", "Accounts Manager"}):
+		frappe.throw("Chỉ quản trị hệ thống mới gửi được bộ thư mẫu.")
+
+
+# Cửa mở ra ngoài nằm ở `gui_thu.gui_bo_thu_mau`, KHÔNG đặt ở đây: tệp này
+# cố ý không import Frappe ở tầng mô đun để bộ kiểm thử tầng khung dựng được
+# thư mà không cần site. Gắn cửa ngõ vào đây là kéo Frappe lên
+# đầu tệp và làm chết cả bộ kiểm đó.
+def gui_thu_mau(email=None, chi_mot=None):
+	"""Gửi cả bộ thư mẫu tới MỘT địa chỉ, để soi trên hộp thư thật.
+
+	Không đọc đơn nào, không đổi trạng thái gì, không gửi cho khách. Tiêu đề
+	luôn mang chữ THƯ MẪU.
+	"""
+	import frappe
+
+	_quyen_gui_mau()
+	email = (email or "").strip()
+	if not email or "@" not in email:
+		frappe.throw("Chưa điền địa chỉ thư để gửi bộ thư mẫu.")
+
+	da_gui, hong = [], []
+	for ma, ten, _chan_loai in MAU_THU:
+		if chi_mot and ma != chi_mot:
+			continue
+		try:
+			tieu_de, html = dung_thu_mau(ma, nhan_phu="Thư mẫu")
+			frappe.sendmail(
+				recipients=[email],
+				subject="[THƯ MẪU] %s" % tieu_de,
+				message=html,
+				now=True,
+			)
+			da_gui.append(ma)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "thu_khung: gui thu mau %s loi" % ma)
+			hong.append(ma)
+	return {"da_gui": da_gui, "hong": hong, "email": email}

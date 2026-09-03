@@ -25,7 +25,12 @@ async function scrRecvList() {
   catch (ePo) { poDs = []; }
   dem.po = poDs.length;
   for (var ti = 0; ti < TB.length; ti++) {
-    var t = TB[ti], f = { docstatus: t.ds };
+    /* `is_return: 0` - man NHAN hang chi bay phieu hang DI VAO.
+       Phieu tra hang lai nha cung cap cung la Purchase Receipt, chi khac o
+       co `is_return`, va no duoc ghi so ngay luc lap ben man Tra hang NCC.
+       Khong loc thi moi lan tra hang la tab "Đã nhập kho" lai cong them mot
+       to, thu kho doc so lai tuong hang vua ve. */
+    var t = TB[ti], f = { docstatus: t.ds, is_return: 0 };
     if (t.ds < 0) { D[t.k] = []; continue; }
     if (t.ds === 1) f.posting_date = ['>=', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)];
     if (t.ds === 2) f.posting_date = ['>=', new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)];

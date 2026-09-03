@@ -61,6 +61,35 @@ TT_DONG = {"Closed", "Completed", "Delivered"}
 # lech mot dau la phieu roi ra ngoai luong duyet va nam mai o do.
 TT_NHAP = "Nháp"
 
+# Buoc HAI cua workflow, cung phai trung tung dau voi ten trong workflow that.
+#
+# VI SAO PHIEU MOI LAP VAO THANG BUOC NAY chu khong nam o "Nháp".
+# Uyen bao 03/09/2026: *"cho nay khong co muc Tao phieu thanh toan truoc cho
+# NCC, nen khi em tao TT thi ben app se khong hien len a, tren desktop thi co
+# hien a"*. Ro ra hai chuyen cung sai mot luc.
+#
+# Mot, man Duyet phieu chi chia tab theo VAI: tab "Nháp" chi nguoi mang vai
+# AP Officer moi thay. Uyen la thu mua, khong mang vai do, nen phieu vua lap
+# xong la bien khoi mat co nguoi lap. Hai, chinh ham nay tra ve cau "dang cho
+# ke toan kiem tra" trong khi phieu van nam o "Nháp" - ma ke toan khong he
+# thay buoc "Nháp". Cau bao thi noi da gui, thuc te thi chua gui.
+#
+# Ket qua that: APP-26-08-713 lap ngay 28/08 nam nguyen o "Nháp" toi 03/09,
+# khong ai o FIN nhin thay de kiem. Sau ay ToDo giao cho ke toan van tro vao
+# mot phieu ho khong mo duoc tren app.
+#
+# Lap phieu tra truoc CHINH LA thao tac gui di: nguoi lap da dam phan xong
+# dieu khoan, da dinh kem bao gia hoac hop dong, da chon nguon tien. Khong
+# con gi de soan them o buoc nhap ca. Nen phieu vao thang hang doi cua ke
+# toan, dung nhu cau ma app noi voi nguoi lap.
+TT_CHO_FIN = "Chờ FIN kiểm tra"
+
+# Ten cac buoc con lai cua workflow "Duyet phieu chi APP", dung de dich sang
+# ma trang thai cua man Ho so thanh toan.
+TT_CHO_GD = "Chờ giám đốc duyệt"
+TT_DA_GHI_SO = "Đã duyệt - Đã ghi sổ"
+TT_TRA_LAI = "Bị trả lại"
+
 CHUNG_TU = (
 	"Bảng báo giá",
 	"Hợp đồng mua bán hàng hóa giữa hai bên",
@@ -403,8 +432,9 @@ def tao_phieu(don=None, so_tien=None, nguon_tien=None, loai_chung_tu=None,
 		"tra_tu": pe.paid_from,
 		"tra_vao": pe.paid_to,
 		"don": don,
-		"trang_thai": pe.get("workflow_state") or TT_NHAP,
-		"nhan": "Đã lập phiếu trả trước %s, đang chờ kế toán kiểm tra." % pe.name,
+		"trang_thai": pe.get("workflow_state") or TT_CHO_FIN,
+		"nhan": "Đã lập phiếu trả trước %s, đang chờ kế toán kiểm tra. "
+			"Xem lại phiếu ở màn Hồ sơ thanh toán, chip Trả trước NCC." % pe.name,
 	}
 
 
@@ -437,8 +467,10 @@ def _dung_phieu(d, tien, tk_so_cai):
 	# ERPNext dang tu tinh.
 	pe.posting_date = nowdate()
 	pe.reference_date = nowdate()
+	# Vao thang buoc ke toan kiem, khong dung o "Nháp". Ly do dai o phan
+	# khai bao TT_CHO_FIN phia tren tep.
 	if pe.get("workflow_state") is not None or _co_o_workflow():
-		pe.workflow_state = TT_NHAP
+		pe.workflow_state = TT_CHO_FIN
 
 	# Chot lai ba dieu truoc khi luu. Neu ERPNext doi cach dung phieu o phien
 	# ban sau thi vo day chu khong vo lang le tren so.
@@ -517,3 +549,154 @@ def _bao_ke_toan(ten_phieu, d, tien):
 		giao_viec.giao(PE, ten_phieu, nguoi, mo_ta)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tra_truoc: bao ke toan loi")
+
+
+# ============================================================ NHIN THAY PHIEU
+#
+# Uyen 03/09/2026: lap xong phieu tra truoc thi tren app khong con thay no o
+# dau nua, tren Desk thi thay. Ba chuyen chong len nhau lam ra ca do:
+#
+#   1. Phieu tra truoc la mot Payment Entry, khong phai mot Ho so thanh toan.
+#      Man Ho so thanh toan doc DUNG mot bang la "Vagabond Ho So TT", nen no
+#      khong bao gio cham toi phieu tra truoc.
+#   2. Bang chip loc cua man do co nam luong luc lap (Cong no NCC, tra truoc,
+#      hoan ung co HD, hoan ung khong HD, chi tu TK cong ty) nhung chi co BON
+#      chip loc. Luong tra truoc lap duoc ma khong loc ra duoc.
+#   3. Man Duyet phieu chi thi co thay phieu, nhung no chia tab theo VAI:
+#      moi nguoi chi thay dung buoc minh phai lam. Nguoi LAP khong mang vai
+#      duyet nao thi khong thay buoc nao ca.
+#
+# Nen phieu tra truoc phai quay ve dung cho nguoi ta di tim no: man Ho so
+# thanh toan, chip rieng, nhin duoc bat ke dang o buoc nao. Duyet thi van
+# duyet ben man Duyet phieu chi nhu cu, day chi la cua so nhin.
+
+LOAI_TRA_TRUOC = "Tra truoc"
+
+# Dich buoc cua workflow "Duyet phieu chi APP" sang ma trang thai cua man Ho
+# so thanh toan, de hai loai chung tu nam chung mot danh sach ma bang chip
+# trang thai van dung.
+DICH_TRANG_THAI = {
+	TT_NHAP: "Nhap",
+	TT_CHO_FIN: "Cho ke toan",
+	TT_CHO_GD: "Cho giam doc",
+	TT_DA_GHI_SO: "Da thanh toan",
+	TT_TRA_LAI: "Tu choi",
+}
+
+# Buoc chua ket thuc: tien chua di ra, phieu con phai co nguoi dung tay vao.
+TT_CON_TREO = (TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_TRA_LAI)
+
+
+def dich_buoc(buoc):
+	"""Buoc workflow cua phieu chi -> ma trang thai man Ho so thanh toan. THUAN.
+
+	Buoc la khong biet thi tra "Nhap": tha xep nham vao nhom nhap con hon
+	lam ro mot dong khong thuoc nhom nao roi no bien mat khoi moi chip.
+	"""
+	return DICH_TRANG_THAI.get(str(buoc or "").strip(), "Nhap")
+
+
+def con_treo(buoc):
+	"""Phieu nay con phai co nguoi xu ly khong. THUAN."""
+	return str(buoc or "").strip() in TT_CON_TREO
+
+
+@frappe.whitelist()
+def ds_phieu(so_ngay=90, tu=None, den=None, tu_khoa=""):
+	"""Cua ngo cho app goi thang. Quyen giong quyen lap phieu tra truoc."""
+	_chan()
+	return gom_phieu(so_ngay=so_ngay, tu=tu, den=den, tu_khoa=tu_khoa)
+
+
+def gom_phieu(so_ngay=90, tu=None, den=None, tu_khoa=""):
+	"""Danh sach phieu TRA TRUOC cho nha cung cap, dang de man Ho so TT ghep vao.
+
+	KHONG tu kiem quyen. Ham nay duoc `ho_so_tt.danh_sach` goi lai, ma man do
+	mo cho ca ke toan lan giam doc - hai vai khong nam trong tap lap phieu
+	tra truoc. Bat quyen lap o day thi ke toan mo man Ho so thanh toan la
+	loi ngay, mat luon ca danh sach ho so that. Cho goi dat quyen truoc.
+
+	Loc `party_type = "Supplier"` chu khong chi loc `payment_type = "Pay"`:
+	phieu hoan tien cho KHACH cung la phieu chi, va no da tung lot vao man
+	Duyet phieu chi mot lan roi (anh Viet 22/08/2026). Tra truoc thi luon
+	tro vao nha cung cap.
+
+	Neo vao don mua la dieu kien thu hai: chi phieu nao co dong tham chieu
+	tro vao mot Purchase Order moi la tra truoc. Phieu tra cong no thuong tro
+	vao hoa don mua.
+	"""
+	from frappe.utils import add_days, getdate
+
+	if tu and den:
+		loc_ngay = ["between", [str(tu), str(den)]]
+	else:
+		loc_ngay = [">=", add_days(nowdate(), -int(so_ngay or 90))]
+
+	ds = frappe.get_all(
+		PE,
+		filters={
+			"payment_type": "Pay",
+			"party_type": "Supplier",
+			"docstatus": ["<", 2],
+			"posting_date": loc_ngay,
+		},
+		fields=[
+			"name", "posting_date", "party", "party_name", "paid_amount",
+			"workflow_state", "owner", "remarks", "creation",
+		],
+		order_by="posting_date desc, creation desc",
+		limit_page_length=0,
+	)
+	if not ds:
+		return []
+
+	# Chi giu phieu CO neo vao don mua hang. Mot truy van cho ca danh sach.
+	neo = {}
+	for r in frappe.get_all(
+		"Payment Entry Reference",
+		filters={"parent": ["in", [x.name for x in ds]], "reference_doctype": PO},
+		fields=["parent", "reference_name"],
+		limit_page_length=0,
+	):
+		neo.setdefault(r.parent, []).append(r.reference_name)
+
+	hom_nay = getdate(nowdate())
+	q = (tu_khoa or "").strip().lower()
+	ra = []
+	for x in ds:
+		don = neo.get(x.name)
+		if not don:
+			continue
+		if q and q not in ((x.name or "") + " " + (x.party_name or "") + " "
+				+ " ".join(don)).lower():
+			continue
+		ma_tt = dich_buoc(x.workflow_state)
+		ra.append({
+			"name": x.name,
+			"ma": x.name,
+			"la_phieu_chi": 1,
+			"loai": LOAI_TRA_TRUOC,
+			"ngay": str(x.posting_date or ""),
+			"nha_cung_cap": x.party,
+			"ten_ncc": x.party_name or x.party,
+			"trang_thai": ma_tt,
+			"buoc_phieu_chi": x.workflow_state or TT_NHAP,
+			"tong_tien": flt(x.paid_amount),
+			"da_tra": 0.0,
+			"da_tam_ung": 0.0,
+			"con_lai": flt(x.paid_amount),
+			"so_hd": len(don),
+			"don_mua": don,
+			"han_tra_som_nhat": None,
+			"tre_ngay": 0,
+			"co_unc": 0,
+			"email_da_gui": 0,
+			"nguoi_tao": x.owner,
+			"ghi_chu": x.remarks or "",
+			# So ngay phieu nam cho, tinh tu ngay lap. Phieu tra truoc khong
+			# co han tra nao ca - no la tien di truoc - nen cai dang lo la
+			# nam cho bao lau chu khong phai tre han bao nhieu.
+			"cho_ngay": (hom_nay - getdate(x.posting_date)).days
+				if x.posting_date and con_treo(x.workflow_state) else 0,
+		})
+	return ra

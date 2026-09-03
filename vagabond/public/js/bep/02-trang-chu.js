@@ -8,7 +8,14 @@ async function scrHome() {
     getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Material Transfer', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
     getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Manufacture', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 })
   ];
-  if (apRoles) q.push(getList('Payment Entry', { fields: ['name'], filters: { workflow_state: ['in', myPayStates()] }, limit_page_length: 0 }));
+  /* Con so tren the phai dem DUNG cai man hinh se bay ra.
+     Workflow "Duyet phieu chi APP" dat tren CA doctype Payment Entry, nen
+     Frappe dong dau "Nháp" len moi phieu tien moi - ke ca phieu THU tien
+     khach do may tu tao luc doi soat sao ke, va phieu hoan tien cho khach.
+     Man Duyet phieu chi da loc ca hai loai do ra tu lau; the o trang chu thi
+     chua, nen the bao 12 ma vao thay 7. */
+  if (apRoles) q.push(getList('Payment Entry', { fields: ['name', 'party_type'], filters: { payment_type: 'Pay', workflow_state: ['in', myPayStates()] }, limit_page_length: 0 })
+    .then(function (ds) { return ds.filter(function (d) { return (d.party_type || '') !== 'Customer'; }); }));
   var c = await Promise.all(q.map(function (p) { return (p && p.catch) ? p.catch(function () { return []; }) : p; }));
   var n = c.map(function (x) { return x.length; });
 
@@ -112,9 +119,20 @@ async function scrHome() {
     } catch (e) { }
     try { dsn = (await getList('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
     try {
+      /* Ba cho lech voi man Don con treo, sua cho khop het:
+         1. Man hinh mac dinh nhin 14 ngay gan day, the thi khong co moc duoi
+            nao ca - moi to nhap nam lai tu thang nao cung dem, nen the bao mot
+            so ma vao man khong tim ra to nao ung voi no.
+         2. Man hinh chi lay don CHUA vao quay (`vgb_quay` trong), the thi dem
+            ca don da co quay. Nhung don do the dem ma man khong bao gio bay
+            ra o bat ky chip nao.
+         3. Man hinh co ca don HOM NAY, the thi cat hom nay di.
+         Loi ghi chu ngay tren day tu truoc van noi "lay theo 14 ngay gan day",
+         tuc y dinh ban dau la vay, chi la code khong lam. */
+      var mocTreo = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
       dtn = (await getList('Sales Invoice', {
         fields: ['name'],
-        filters: { posting_date: ['<', today()], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_huy: 0, vgb_tam_tinh: 0 },
+        filters: { posting_date: ['>=', mocTreo], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_quay: ['in', ['', null]], vgb_huy: 0, vgb_tam_tinh: 0 },
         limit_page_length: 0
       })).length;
     } catch (e) { }

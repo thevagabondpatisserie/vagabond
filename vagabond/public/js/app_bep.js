@@ -1491,7 +1491,14 @@ async function scrHome() {
     getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Material Transfer', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
     getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Manufacture', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 })
   ];
-  if (apRoles) q.push(getList('Payment Entry', { fields: ['name'], filters: { workflow_state: ['in', myPayStates()] }, limit_page_length: 0 }));
+  /* Con so tren the phai dem DUNG cai man hinh se bay ra.
+     Workflow "Duyet phieu chi APP" dat tren CA doctype Payment Entry, nen
+     Frappe dong dau "Nháp" len moi phieu tien moi - ke ca phieu THU tien
+     khach do may tu tao luc doi soat sao ke, va phieu hoan tien cho khach.
+     Man Duyet phieu chi da loc ca hai loai do ra tu lau; the o trang chu thi
+     chua, nen the bao 12 ma vao thay 7. */
+  if (apRoles) q.push(getList('Payment Entry', { fields: ['name', 'party_type'], filters: { payment_type: 'Pay', workflow_state: ['in', myPayStates()] }, limit_page_length: 0 })
+    .then(function (ds) { return ds.filter(function (d) { return (d.party_type || '') !== 'Customer'; }); }));
   var c = await Promise.all(q.map(function (p) { return (p && p.catch) ? p.catch(function () { return []; }) : p; }));
   var n = c.map(function (x) { return x.length; });
 
@@ -1595,9 +1602,20 @@ async function scrHome() {
     } catch (e) { }
     try { dsn = (await getList('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
     try {
+      /* Ba cho lech voi man Don con treo, sua cho khop het:
+         1. Man hinh mac dinh nhin 14 ngay gan day, the thi khong co moc duoi
+            nao ca - moi to nhap nam lai tu thang nao cung dem, nen the bao mot
+            so ma vao man khong tim ra to nao ung voi no.
+         2. Man hinh chi lay don CHUA vao quay (`vgb_quay` trong), the thi dem
+            ca don da co quay. Nhung don do the dem ma man khong bao gio bay
+            ra o bat ky chip nao.
+         3. Man hinh co ca don HOM NAY, the thi cat hom nay di.
+         Loi ghi chu ngay tren day tu truoc van noi "lay theo 14 ngay gan day",
+         tuc y dinh ban dau la vay, chi la code khong lam. */
+      var mocTreo = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
       dtn = (await getList('Sales Invoice', {
         fields: ['name'],
-        filters: { posting_date: ['<', today()], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_huy: 0, vgb_tam_tinh: 0 },
+        filters: { posting_date: ['>=', mocTreo], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_quay: ['in', ['', null]], vgb_huy: 0, vgb_tam_tinh: 0 },
         limit_page_length: 0
       })).length;
     } catch (e) { }
@@ -2937,7 +2955,15 @@ async function vxDsHuy(loai) {
   try {
     ds = await getList('Stock Entry', {
       fields: ['name', 'posting_date', 'from_warehouse', 'to_warehouse'],
-      filters: { docstatus: 2, purpose: loai === 'huy' ? 'Material Issue' : 'Material Transfer', posting_date: ['>=', moc] },
+      /* Loc them `vgb_muc_dich_xuat` trong cho tab huy.
+         Ben may chu da va dung cho nay ngay 02/09/2026: xuat dung noi bo
+         cung la "Material Issue", nen banh Marketing mang di chup nam lan
+         trong danh sach hang huy. Hai tab kia doc qua may chu nen da an
+         theo; rieng tab "Đã huỷ" goi thang Stock Entry o day nen khong an
+         duoc cai va do. */
+      filters: loai === 'huy'
+        ? { docstatus: 2, purpose: 'Material Issue', vgb_muc_dich_xuat: ['in', ['', null]], posting_date: ['>=', moc] }
+        : { docstatus: 2, purpose: 'Material Transfer', posting_date: ['>=', moc] },
       limit_page_length: 40, order_by: 'modified desc'
     });
   } catch (e) { }
@@ -4606,21 +4632,62 @@ async function scrPayList() {
      Loc theo `payment_type` la cach chac nhat: phieu thu tien khach khong
      phai phieu chi, khong bao gio duoc xuat hien o man nay. */
   var docs = await getList('Payment Entry', {
-    fields: ['name', 'posting_date', 'party_name', 'party', 'paid_amount', 'workflow_state', 'mode_of_payment', 'custom_loai_chi', 'remarks', 'owner'],
+    fields: ['name', 'posting_date', 'party_name', 'party', 'party_type', 'paid_amount', 'workflow_state', 'mode_of_payment', 'custom_loai_chi', 'remarks', 'owner'],
     filters: { payment_type: 'Pay', workflow_state: ['in', mine] }, limit_page_length: 60, order_by: 'posting_date desc, name desc'
   });
+  /* LOC THEM MOT TANG: phieu tra tien cho KHACH khong thuoc man nay.
+
+     Loc `payment_type = "Pay"` o tren da duoi duoc phieu THU tien khach ra,
+     nhung con mot loai nua lot qua: phieu HOAN tien cho khach. No cung la
+     tien di ra nen cung mang "Pay", chi khac o cho ben nhan la Customer chu
+     khong phai Supplier. Ngay 03/09/2026 tab "Nháp" dang giu hai to nhu vay,
+     APP-26-08-413 va APP-26-08-388, ca hai deu neo vao hoa don ban.
+
+     Chung khong bien mat: luong hoan tien khach co man rieng. O day chi go
+     chung ra khoi hang doi duyet chi cho nha cung cap, va noi ro con bao
+     nhieu to nam nham cho de con biet duong di don.
+     Loc tren may chu khong loc o may chu: `party_type != Customer` trong SQL
+     se an luon nhung phieu bo trong o do, ma phieu chi noi bo thi hay bo
+     trong that. */
+  var lac = docs.filter(function (d) { return (d.party_type || '') === 'Customer'; });
+  docs = docs.filter(function (d) { return (d.party_type || '') !== 'Customer'; });
   var done = await getList('Payment Entry', {
     fields: ['name', 'posting_date', 'party_name', 'paid_amount', 'workflow_state'],
     filters: { payment_type: 'Pay', workflow_state: ['in', ['Đã duyệt - Đã ghi sổ', 'Bị trả lại']] }, limit_page_length: 25, order_by: 'modified desc'
   });
+  /* TAB "TÔI LẬP": phieu cua chinh minh, dang o bat ky buoc nao.
+
+     Man nay chia tab theo VAI: moi tab la mot buoc, va chi ai co vai xu ly
+     buoc do moi thay tab do. Rat gon cho nguoi duyet, nhung nguoi LAP thi
+     mat dau phieu ngay sau khi gui: AP Officer chi co hai tab "Nháp" va
+     "Bị trả lại", nen phieu vua chuyen sang "Chờ FIN kiểm tra" la bien khoi
+     man hinh cua ho, khong con cho nao trong app xem lai duoc.
+
+     Uyen 03/09/2026 bao dung canh nay voi phieu tra truoc: lap xong thi ben
+     app khong hien len, tren desktop thi co. Chip "Trả trước NCC" ben man Ho
+     so thanh toan lo cho phieu tra truoc; tab nay lo cho moi phieu chi khac.
+
+     Tab chi bay ra khi nguoi do THAT SU co phieu dang treo. */
+  var cuaToi = [];
+  try {
+    cuaToi = await getList('Payment Entry', {
+      fields: ['name', 'posting_date', 'party_name', 'party', 'party_type', 'paid_amount', 'workflow_state', 'custom_loai_chi'],
+      filters: { payment_type: 'Pay', owner: S.user, docstatus: 0 }, limit_page_length: 40, order_by: 'creation desc'
+    });
+    cuaToi = cuaToi.filter(function (d) { return (d.party_type || '') !== 'Customer'; });
+  } catch (e) { cuaToi = []; }
+  var TAB_TOI = '📄 Tôi lập';
   if (!payTab) payTab = mine[0] || 'Xong';
   function draw() {
-    var tabs = mine.concat(['Đã xử lý']);
+    var tabs = mine.concat(cuaToi.length ? [TAB_TOI] : []).concat(['Đã xử lý']);
+    if (tabs.indexOf(payTab) < 0) payTab = tabs[0];
     var chips = tabs.map(function (s) {
-      var c = s === 'Đã xử lý' ? done.length : docs.filter(function (d) { return d.workflow_state === s; }).length;
+      var c = s === 'Đã xử lý' ? done.length
+        : (s === TAB_TOI ? cuaToi.length : docs.filter(function (d) { return d.workflow_state === s; }).length);
       return '<div class="chip' + (payTab === s ? ' on' : '') + '" data-s="' + h(s) + '">' + h(s) + ' ' + c + '</div>';
     }).join('');
-    var rows = payTab === 'Đã xử lý' ? done : docs.filter(function (d) { return d.workflow_state === payTab; });
+    var rows = payTab === 'Đã xử lý' ? done
+      : (payTab === TAB_TOI ? cuaToi : docs.filter(function (d) { return d.workflow_state === payTab; }));
     var lst = rows.length ? '<div class="lst">' + rows.map(function (d) {
       var cls = d.workflow_state === 'Đã duyệt - Đã ghi sổ' ? 'g' : (d.workflow_state === 'Bị trả lại' ? 'r' : (d.workflow_state === 'Nháp' ? 'w' : 'b'));
       return '<div class="li" data-n="' + h(d.name) + '"><div class="lt">' +
@@ -4629,7 +4696,22 @@ async function scrPayList() {
         '<div style="text-align:right"><div class="amt">' + money(d.paid_amount) + '</div>' +
         '<span class="st ' + cls + '" style="margin-top:4px">' + h(d.workflow_state) + '</span></div></div>';
     }).join('') + '</div>' : payRong();
-    var b = frame('Duyệt phiếu chi', '<div class="chips">' + chips + '</div>' + lst);
+    /* Nhac ho so thanh toan NGAY TREN danh sach, khong doi den luc trong.
+       Ban cu chi noi khi tab dang mo khong con to nao. Nguoi nao tab con
+       mot to le thi khong bao gio thay dong nay, ma ben kia van dang co
+       tam bo cho ho. */
+    var nhac = (paySoHoSo && rows.length)
+      ? '<div class="card" style="padding:10px 12px;background:#fff7ed;border:1.5px solid #fed7aa;font-size:12.5px;color:#9a3412;line-height:1.55">' +
+        '🏦 Còn <b>' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn xử lý' +
+        (paySoTre ? ', <b>' + paySoTre + '</b> đã quá hạn' : '') + '. ' +
+        '<button class="btn gh" data-hstt="1" style="margin:8px 0 0;padding:7px 10px;font-size:12.5px">Mở Hồ sơ thanh toán</button></div>'
+      : '';
+    var nhacLac = lac.length
+      ? '<div class="card" style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-size:12px;color:#64748b;line-height:1.55">' +
+        'Có ' + lac.length + ' phiếu hoàn tiền cho khách đang nằm nhầm trong hàng đợi duyệt chi nhà cung cấp. ' +
+        'Chúng được ẩn khỏi màn này, xử lý ở màn Hoàn tiền.</div>'
+      : '';
+    var b = frame('Duyệt phiếu chi', '<div class="chips">' + chips + '</div>' + nhac + lst + nhacLac);
     b.onclick = function (e) {
       var c = e.target.closest('[data-s]'); if (c) { payTab = c.dataset.s; return draw(); }
       if (e.target.closest('[data-hstt]')) return vgbGo('APPTT');
@@ -4643,12 +4725,29 @@ async function scrPayList() {
 /* So ho so thanh toan dang cho CHINH nguoi nay, doc mot lan moi lan mo man. */
 var paySoHoSo = 0;
 
+var paySoTre = 0;
+
 async function payDoHoSo(ve) {
-  paySoHoSo = 0;
+  paySoHoSo = 0; paySoTre = 0;
   try {
     var kq = await api('vagabond.viec_can_lam.danh_sach', { loai: 'ho_so_tt' });
     var ds = (kq && kq.ds) || [];
-    paySoHoSo = ds.filter(function (x) { return x.tt === 'cho_duyet'; }).length;
+    /* DEM THEO BUOC, KHONG DEM THEO MAU.
+
+       Ban cu dem `tt === 'cho_duyet'`. Ma o `tt` con mang mot nghia thu hai
+       la mau bay tren man Viec can lam, va tre han an tren tat ca - ho so
+       nao qua han la doi thanh 'tre_hen'. Ket qua: cang de lau cang bi dem
+       sot, tuc la dung nguoc voi cai minh muon.
+
+       Chi Dung 03/09/2026 mo man nay thay dau tich xanh "khong co phieu nao
+       can xu ly", trong khi ben Ho so thanh toan dang co tam bo cho chi
+       chuyen tien, vai bo qua han tu 12/08.
+
+       Danh sach tra ve DA loc theo vai roi, moi dong deu la viec cua chinh
+       nguoi nay. Nen dem tat ca, tru ban nhap cua nguoi khac. */
+    var cua_toi = ds.filter(function (x) { return (x.buoc || x.tt) !== 'ban_nhap'; });
+    paySoHoSo = cua_toi.length;
+    paySoTre = cua_toi.filter(function (x) { return x.tt === 'tre_hen'; }).length;
   } catch (e) { return; }
   if (paySoHoSo && ve) ve();
 }
@@ -4670,7 +4769,8 @@ function payRong() {
     return '<div class="emp"><div class="e1">🏦</div>' +
       '<div class="e2">Không có phiếu chi lẻ nào ở bước này</div>' +
       '<div style="font-size:13px;color:#8a90a0;margin-top:10px;line-height:1.6;padding:0 18px">' +
-      'Nhưng còn <b style="color:#c0392b">' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn duyệt. ' +
+      'Nhưng còn <b style="color:#c0392b">' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn xử lý' +
+      (paySoTre ? ', trong đó <b style="color:#c0392b">' + paySoTre + '</b> hồ sơ đã quá hạn trả' : '') + '. ' +
       'Hồ sơ thanh toán gom nhiều hoá đơn của một nhà cung cấp vào một bộ, nằm ở màn riêng.</div>' +
       '<button class="btn" data-hstt="1" style="margin:14px 18px 0">Mở Hồ sơ thanh toán</button></div>';
   }
@@ -6641,7 +6741,12 @@ async function scrRecvList() {
   catch (ePo) { poDs = []; }
   dem.po = poDs.length;
   for (var ti = 0; ti < TB.length; ti++) {
-    var t = TB[ti], f = { docstatus: t.ds };
+    /* `is_return: 0` - man NHAN hang chi bay phieu hang DI VAO.
+       Phieu tra hang lai nha cung cap cung la Purchase Receipt, chi khac o
+       co `is_return`, va no duoc ghi so ngay luc lap ben man Tra hang NCC.
+       Khong loc thi moi lan tra hang la tab "Đã nhập kho" lai cong them mot
+       to, thu kho doc so lai tuong hang vua ve. */
+    var t = TB[ti], f = { docstatus: t.ds, is_return: 0 };
     if (t.ds < 0) { D[t.k] = []; continue; }
     if (t.ds === 1) f.posting_date = ['>=', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)];
     if (t.ds === 2) f.posting_date = ['>=', new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)];
@@ -20490,7 +20595,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '407';
+var APPVER = '408';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -29860,7 +29965,13 @@ async function scrHoSoTT() {
      NCC gom hoa don mua da co trong he; ho so hoan ung la tien anh chi ung
      ra mua le, luc lap chua co hoa don nao ca. */
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
-    [['', '📚 Tất cả'], ['NCC', '🏭 Công nợ NCC'], ['Hoan ung HD', '🧾 Hoàn ứng có HĐ'], ['Hoan ung', '🧮 Hoàn ứng không HĐ'], ['TK cong ty', '🏦 Chi từ TK công ty']].map(function (x) {
+    /* Uyen 03/09/2026: *"cho nay khong co muc Tao phieu thanh toan truoc cho
+       NCC, nen khi em tao TT thi ben app se khong hien len a, tren desktop
+       thi co hien a"*. Dung: bang chon luc lap co NAM luong, ma bang chip loc
+       chi co BON. Luong tra truoc lap duoc ma khong loc ra duoc, va no cung
+       khong nam trong bang ho so nen "Tat ca" cung khong bay ra.
+       Chip thu nam va nguon du lieu di kem nam o `tra_truoc.gom_phieu`. */
+    [['', '📚 Tất cả'], ['NCC', '🏭 Công nợ NCC'], ['Tra truoc', '⏩ Trả trước NCC'], ['Hoan ung HD', '🧾 Hoàn ứng có HĐ'], ['Hoan ung', '🧮 Hoàn ứng không HĐ'], ['TK cong ty', '🏦 Chi từ TK công ty']].map(function (x) {
       return posChipNut('data-hsloai="' + x[0] + '"', x[1], hsLoai === x[0]);
     }).join('')) +
     /* Loc theo loai chi phi thue: cuoi nam quyet toan TNDN chi can bam mot
@@ -29894,8 +30005,11 @@ async function scrHoSoTT() {
     (treN.length ? '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#b3261e;margin-top:3px"><span>Đã quá hạn trả ' + treN.length + ' hồ sơ</span><b>' + money(treN.reduce(function (a, r) { return a + Number(r.tong_tien || 0); }, 0)) + ' đ</b></div>' : '') +
     '</div>';
 
+  /* Xuat Excel chay tren bang ho so that. Dang loc chip tra truoc thi bang
+     do khong co dong nao, bam ra tep rong - bay mot nut chi de tra ve tep
+     rong la mot cach noi doi nhe nhang, nen giau nut di. */
   html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-    '<button class="btn gh" id="hsXuat" style="flex:1;margin:0">📊 Xuất Excel</button>' +
+    (hsLoai === 'Tra truoc' ? '' : '<button class="btn gh" id="hsXuat" style="flex:1;margin:0">📊 Xuất Excel</button>') +
     (Q.fin ? '<button class="btn gh" id="hsSepay" style="flex:1;margin:0">🏦 Dò SePay</button>' : '') +
     '</div>';
 
@@ -29904,14 +30018,18 @@ async function scrHoSoTT() {
   else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có hồ sơ nào thuộc nhóm <b>' + h(f.nhan) + '</b>.</div></div>';
   loc.forEach(function (r) {
     var m = hsMau[r.trang_thai] || ['#f3f4f6', '#e5e7eb', '#374151', '•'];
-    html += '<div class="hub" data-hs="' + h(r.name) + '">' +
+    html += '<div class="hub" data-hs="' + h(r.name) + '"' + (r.la_phieu_chi ? ' data-hspc="1"' : '') + '>' +
       '<div class="hub-i" style="background:' + m[0] + '">' + m[3] + '</div>' +
       '<div class="hub-t"><div class="t1">' + h(r.ten_ncc || r.nha_cung_cap) + '</div>' +
-      '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn') + '</div>' +
+      '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
       h(r.nhan) + '</span>' +
       (r.loai === 'Hoan ung' || r.loai === 'Hoan ung HD' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' + (r.loai === 'Hoan ung HD' ? '🧾 hoàn ứng có HĐ' : '🧮 hoàn ứng không HĐ') + '</span>' : '') +
+      (r.la_phieu_chi ? '<span style="margin-left:6px;display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">⏩ trả trước</span>' : '') +
+      /* Phieu tra truoc khong co han tra - no la tien di TRUOC - nen cai
+         dang lo la no nam cho bao lau chu khong phai tre han bao nhieu. */
+      (r.cho_ngay > 7 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">nằm chờ ' + r.cho_ngay + ' ngày</span>' : '') +
       (r.tre_ngay > 0 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">quá hạn ' + r.tre_ngay + ' ngày</span>' : '') +
       (r.email_da_gui ? '<span style="margin-left:7px;font-size:11.5px;color:#0e7490">✉️ đã báo NCC</span>' : '') +
       /* Ho so da duyet ma chua co uy nhiem chi thi khong ghi nhan thanh toan
@@ -29940,6 +30058,10 @@ async function scrHoSoTT() {
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hs]'); if (!r) return;
     var nm = r.getAttribute('data-hs');
+    /* Dong tra truoc la mot phieu chi, khong phai mot ho so. Man chi tiet
+       ho so doc bang khac nen mo ra se bao khong tim thay. Duong duyet cua
+       no van la man Duyet phieu chi nhu cu - day chi la cua so nhin. */
+    if (r.getAttribute('data-hspc') === '1') return go(function () { scrPayView(nm); });
     go(function () { scrHoSoTTView(nm); });
   });
   var bx = document.getElementById('hsXuat');
@@ -44836,7 +44958,12 @@ function xktManDanhSach(cfg) {
       xktHangChip(XKT_NGAY.map(function (n) {
         return xktChip('data-ng="' + n[0] + '"', h(n[1]), Number(st.ngay) === n[0]);
       }).join('')) +
-      (st.tab || st.nhom || st.tim
+      /* Hien dong doi chieu bat cu khi nao hai con so LECH nhau, chu khong
+         chi khi bam chip tab/nhom/tim. Chip NGAY cung la mot bo loc, va no
+         co san gia tri mac dinh - man Xuat ban si keo ve 365 ngay roi bay
+         mac dinh 90, nen o chua cham gi con so tren the tom tat da khac so
+         dong ben duoi, ma khong co dong nao giai thich vi sao. */
+      (loc.length !== cfg.ds.length || st.tab || st.nhom || st.tim
         ? '<div style="font-size:12px;color:#0b7c93;font-weight:700;padding:4px 2px 8px">Tổng theo bộ lọc · ' + loc.length + ' phiếu · ' +
           vxSo(loc.reduce(function (t, x) { return t + Number(cfg.tienCua(x) || 0); }, 0)) + ' đ</div>'
         : '') +

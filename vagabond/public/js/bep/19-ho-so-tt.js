@@ -49,7 +49,13 @@ async function scrHoSoTT() {
      NCC gom hoa don mua da co trong he; ho so hoan ung la tien anh chi ung
      ra mua le, luc lap chua co hoa don nao ca. */
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
-    [['', '📚 Tất cả'], ['NCC', '🏭 Công nợ NCC'], ['Hoan ung HD', '🧾 Hoàn ứng có HĐ'], ['Hoan ung', '🧮 Hoàn ứng không HĐ'], ['TK cong ty', '🏦 Chi từ TK công ty']].map(function (x) {
+    /* Uyen 03/09/2026: *"cho nay khong co muc Tao phieu thanh toan truoc cho
+       NCC, nen khi em tao TT thi ben app se khong hien len a, tren desktop
+       thi co hien a"*. Dung: bang chon luc lap co NAM luong, ma bang chip loc
+       chi co BON. Luong tra truoc lap duoc ma khong loc ra duoc, va no cung
+       khong nam trong bang ho so nen "Tat ca" cung khong bay ra.
+       Chip thu nam va nguon du lieu di kem nam o `tra_truoc.gom_phieu`. */
+    [['', '📚 Tất cả'], ['NCC', '🏭 Công nợ NCC'], ['Tra truoc', '⏩ Trả trước NCC'], ['Hoan ung HD', '🧾 Hoàn ứng có HĐ'], ['Hoan ung', '🧮 Hoàn ứng không HĐ'], ['TK cong ty', '🏦 Chi từ TK công ty']].map(function (x) {
       return posChipNut('data-hsloai="' + x[0] + '"', x[1], hsLoai === x[0]);
     }).join('')) +
     /* Loc theo loai chi phi thue: cuoi nam quyet toan TNDN chi can bam mot
@@ -83,8 +89,11 @@ async function scrHoSoTT() {
     (treN.length ? '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#b3261e;margin-top:3px"><span>Đã quá hạn trả ' + treN.length + ' hồ sơ</span><b>' + money(treN.reduce(function (a, r) { return a + Number(r.tong_tien || 0); }, 0)) + ' đ</b></div>' : '') +
     '</div>';
 
+  /* Xuat Excel chay tren bang ho so that. Dang loc chip tra truoc thi bang
+     do khong co dong nao, bam ra tep rong - bay mot nut chi de tra ve tep
+     rong la mot cach noi doi nhe nhang, nen giau nut di. */
   html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-    '<button class="btn gh" id="hsXuat" style="flex:1;margin:0">📊 Xuất Excel</button>' +
+    (hsLoai === 'Tra truoc' ? '' : '<button class="btn gh" id="hsXuat" style="flex:1;margin:0">📊 Xuất Excel</button>') +
     (Q.fin ? '<button class="btn gh" id="hsSepay" style="flex:1;margin:0">🏦 Dò SePay</button>' : '') +
     '</div>';
 
@@ -93,14 +102,18 @@ async function scrHoSoTT() {
   else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có hồ sơ nào thuộc nhóm <b>' + h(f.nhan) + '</b>.</div></div>';
   loc.forEach(function (r) {
     var m = hsMau[r.trang_thai] || ['#f3f4f6', '#e5e7eb', '#374151', '•'];
-    html += '<div class="hub" data-hs="' + h(r.name) + '">' +
+    html += '<div class="hub" data-hs="' + h(r.name) + '"' + (r.la_phieu_chi ? ' data-hspc="1"' : '') + '>' +
       '<div class="hub-i" style="background:' + m[0] + '">' + m[3] + '</div>' +
       '<div class="hub-t"><div class="t1">' + h(r.ten_ncc || r.nha_cung_cap) + '</div>' +
-      '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn') + '</div>' +
+      '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
       h(r.nhan) + '</span>' +
       (r.loai === 'Hoan ung' || r.loai === 'Hoan ung HD' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' + (r.loai === 'Hoan ung HD' ? '🧾 hoàn ứng có HĐ' : '🧮 hoàn ứng không HĐ') + '</span>' : '') +
+      (r.la_phieu_chi ? '<span style="margin-left:6px;display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">⏩ trả trước</span>' : '') +
+      /* Phieu tra truoc khong co han tra - no la tien di TRUOC - nen cai
+         dang lo la no nam cho bao lau chu khong phai tre han bao nhieu. */
+      (r.cho_ngay > 7 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">nằm chờ ' + r.cho_ngay + ' ngày</span>' : '') +
       (r.tre_ngay > 0 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">quá hạn ' + r.tre_ngay + ' ngày</span>' : '') +
       (r.email_da_gui ? '<span style="margin-left:7px;font-size:11.5px;color:#0e7490">✉️ đã báo NCC</span>' : '') +
       /* Ho so da duyet ma chua co uy nhiem chi thi khong ghi nhan thanh toan
@@ -129,6 +142,10 @@ async function scrHoSoTT() {
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hs]'); if (!r) return;
     var nm = r.getAttribute('data-hs');
+    /* Dong tra truoc la mot phieu chi, khong phai mot ho so. Man chi tiet
+       ho so doc bang khac nen mo ra se bao khong tim thay. Duong duyet cua
+       no van la man Duyet phieu chi nhu cu - day chi la cua so nhin. */
+    if (r.getAttribute('data-hspc') === '1') return go(function () { scrPayView(nm); });
     go(function () { scrHoSoTTView(nm); });
   });
   var bx = document.getElementById('hsXuat');

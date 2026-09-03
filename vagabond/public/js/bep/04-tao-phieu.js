@@ -678,21 +678,62 @@ async function scrPayList() {
      Loc theo `payment_type` la cach chac nhat: phieu thu tien khach khong
      phai phieu chi, khong bao gio duoc xuat hien o man nay. */
   var docs = await getList('Payment Entry', {
-    fields: ['name', 'posting_date', 'party_name', 'party', 'paid_amount', 'workflow_state', 'mode_of_payment', 'custom_loai_chi', 'remarks', 'owner'],
+    fields: ['name', 'posting_date', 'party_name', 'party', 'party_type', 'paid_amount', 'workflow_state', 'mode_of_payment', 'custom_loai_chi', 'remarks', 'owner'],
     filters: { payment_type: 'Pay', workflow_state: ['in', mine] }, limit_page_length: 60, order_by: 'posting_date desc, name desc'
   });
+  /* LOC THEM MOT TANG: phieu tra tien cho KHACH khong thuoc man nay.
+
+     Loc `payment_type = "Pay"` o tren da duoi duoc phieu THU tien khach ra,
+     nhung con mot loai nua lot qua: phieu HOAN tien cho khach. No cung la
+     tien di ra nen cung mang "Pay", chi khac o cho ben nhan la Customer chu
+     khong phai Supplier. Ngay 03/09/2026 tab "Nháp" dang giu hai to nhu vay,
+     APP-26-08-413 va APP-26-08-388, ca hai deu neo vao hoa don ban.
+
+     Chung khong bien mat: luong hoan tien khach co man rieng. O day chi go
+     chung ra khoi hang doi duyet chi cho nha cung cap, va noi ro con bao
+     nhieu to nam nham cho de con biet duong di don.
+     Loc tren may chu khong loc o may chu: `party_type != Customer` trong SQL
+     se an luon nhung phieu bo trong o do, ma phieu chi noi bo thi hay bo
+     trong that. */
+  var lac = docs.filter(function (d) { return (d.party_type || '') === 'Customer'; });
+  docs = docs.filter(function (d) { return (d.party_type || '') !== 'Customer'; });
   var done = await getList('Payment Entry', {
     fields: ['name', 'posting_date', 'party_name', 'paid_amount', 'workflow_state'],
     filters: { payment_type: 'Pay', workflow_state: ['in', ['Đã duyệt - Đã ghi sổ', 'Bị trả lại']] }, limit_page_length: 25, order_by: 'modified desc'
   });
+  /* TAB "TÔI LẬP": phieu cua chinh minh, dang o bat ky buoc nao.
+
+     Man nay chia tab theo VAI: moi tab la mot buoc, va chi ai co vai xu ly
+     buoc do moi thay tab do. Rat gon cho nguoi duyet, nhung nguoi LAP thi
+     mat dau phieu ngay sau khi gui: AP Officer chi co hai tab "Nháp" va
+     "Bị trả lại", nen phieu vua chuyen sang "Chờ FIN kiểm tra" la bien khoi
+     man hinh cua ho, khong con cho nao trong app xem lai duoc.
+
+     Uyen 03/09/2026 bao dung canh nay voi phieu tra truoc: lap xong thi ben
+     app khong hien len, tren desktop thi co. Chip "Trả trước NCC" ben man Ho
+     so thanh toan lo cho phieu tra truoc; tab nay lo cho moi phieu chi khac.
+
+     Tab chi bay ra khi nguoi do THAT SU co phieu dang treo. */
+  var cuaToi = [];
+  try {
+    cuaToi = await getList('Payment Entry', {
+      fields: ['name', 'posting_date', 'party_name', 'party', 'party_type', 'paid_amount', 'workflow_state', 'custom_loai_chi'],
+      filters: { payment_type: 'Pay', owner: S.user, docstatus: 0 }, limit_page_length: 40, order_by: 'creation desc'
+    });
+    cuaToi = cuaToi.filter(function (d) { return (d.party_type || '') !== 'Customer'; });
+  } catch (e) { cuaToi = []; }
+  var TAB_TOI = '📄 Tôi lập';
   if (!payTab) payTab = mine[0] || 'Xong';
   function draw() {
-    var tabs = mine.concat(['Đã xử lý']);
+    var tabs = mine.concat(cuaToi.length ? [TAB_TOI] : []).concat(['Đã xử lý']);
+    if (tabs.indexOf(payTab) < 0) payTab = tabs[0];
     var chips = tabs.map(function (s) {
-      var c = s === 'Đã xử lý' ? done.length : docs.filter(function (d) { return d.workflow_state === s; }).length;
+      var c = s === 'Đã xử lý' ? done.length
+        : (s === TAB_TOI ? cuaToi.length : docs.filter(function (d) { return d.workflow_state === s; }).length);
       return '<div class="chip' + (payTab === s ? ' on' : '') + '" data-s="' + h(s) + '">' + h(s) + ' ' + c + '</div>';
     }).join('');
-    var rows = payTab === 'Đã xử lý' ? done : docs.filter(function (d) { return d.workflow_state === payTab; });
+    var rows = payTab === 'Đã xử lý' ? done
+      : (payTab === TAB_TOI ? cuaToi : docs.filter(function (d) { return d.workflow_state === payTab; }));
     var lst = rows.length ? '<div class="lst">' + rows.map(function (d) {
       var cls = d.workflow_state === 'Đã duyệt - Đã ghi sổ' ? 'g' : (d.workflow_state === 'Bị trả lại' ? 'r' : (d.workflow_state === 'Nháp' ? 'w' : 'b'));
       return '<div class="li" data-n="' + h(d.name) + '"><div class="lt">' +
@@ -701,7 +742,22 @@ async function scrPayList() {
         '<div style="text-align:right"><div class="amt">' + money(d.paid_amount) + '</div>' +
         '<span class="st ' + cls + '" style="margin-top:4px">' + h(d.workflow_state) + '</span></div></div>';
     }).join('') + '</div>' : payRong();
-    var b = frame('Duyệt phiếu chi', '<div class="chips">' + chips + '</div>' + lst);
+    /* Nhac ho so thanh toan NGAY TREN danh sach, khong doi den luc trong.
+       Ban cu chi noi khi tab dang mo khong con to nao. Nguoi nao tab con
+       mot to le thi khong bao gio thay dong nay, ma ben kia van dang co
+       tam bo cho ho. */
+    var nhac = (paySoHoSo && rows.length)
+      ? '<div class="card" style="padding:10px 12px;background:#fff7ed;border:1.5px solid #fed7aa;font-size:12.5px;color:#9a3412;line-height:1.55">' +
+        '🏦 Còn <b>' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn xử lý' +
+        (paySoTre ? ', <b>' + paySoTre + '</b> đã quá hạn' : '') + '. ' +
+        '<button class="btn gh" data-hstt="1" style="margin:8px 0 0;padding:7px 10px;font-size:12.5px">Mở Hồ sơ thanh toán</button></div>'
+      : '';
+    var nhacLac = lac.length
+      ? '<div class="card" style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-size:12px;color:#64748b;line-height:1.55">' +
+        'Có ' + lac.length + ' phiếu hoàn tiền cho khách đang nằm nhầm trong hàng đợi duyệt chi nhà cung cấp. ' +
+        'Chúng được ẩn khỏi màn này, xử lý ở màn Hoàn tiền.</div>'
+      : '';
+    var b = frame('Duyệt phiếu chi', '<div class="chips">' + chips + '</div>' + nhac + lst + nhacLac);
     b.onclick = function (e) {
       var c = e.target.closest('[data-s]'); if (c) { payTab = c.dataset.s; return draw(); }
       if (e.target.closest('[data-hstt]')) return vgbGo('APPTT');
@@ -715,12 +771,29 @@ async function scrPayList() {
 /* So ho so thanh toan dang cho CHINH nguoi nay, doc mot lan moi lan mo man. */
 var paySoHoSo = 0;
 
+var paySoTre = 0;
+
 async function payDoHoSo(ve) {
-  paySoHoSo = 0;
+  paySoHoSo = 0; paySoTre = 0;
   try {
     var kq = await api('vagabond.viec_can_lam.danh_sach', { loai: 'ho_so_tt' });
     var ds = (kq && kq.ds) || [];
-    paySoHoSo = ds.filter(function (x) { return x.tt === 'cho_duyet'; }).length;
+    /* DEM THEO BUOC, KHONG DEM THEO MAU.
+
+       Ban cu dem `tt === 'cho_duyet'`. Ma o `tt` con mang mot nghia thu hai
+       la mau bay tren man Viec can lam, va tre han an tren tat ca - ho so
+       nao qua han la doi thanh 'tre_hen'. Ket qua: cang de lau cang bi dem
+       sot, tuc la dung nguoc voi cai minh muon.
+
+       Chi Dung 03/09/2026 mo man nay thay dau tich xanh "khong co phieu nao
+       can xu ly", trong khi ben Ho so thanh toan dang co tam bo cho chi
+       chuyen tien, vai bo qua han tu 12/08.
+
+       Danh sach tra ve DA loc theo vai roi, moi dong deu la viec cua chinh
+       nguoi nay. Nen dem tat ca, tru ban nhap cua nguoi khac. */
+    var cua_toi = ds.filter(function (x) { return (x.buoc || x.tt) !== 'ban_nhap'; });
+    paySoHoSo = cua_toi.length;
+    paySoTre = cua_toi.filter(function (x) { return x.tt === 'tre_hen'; }).length;
   } catch (e) { return; }
   if (paySoHoSo && ve) ve();
 }
@@ -742,7 +815,8 @@ function payRong() {
     return '<div class="emp"><div class="e1">🏦</div>' +
       '<div class="e2">Không có phiếu chi lẻ nào ở bước này</div>' +
       '<div style="font-size:13px;color:#8a90a0;margin-top:10px;line-height:1.6;padding:0 18px">' +
-      'Nhưng còn <b style="color:#c0392b">' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn duyệt. ' +
+      'Nhưng còn <b style="color:#c0392b">' + paySoHoSo + '</b> hồ sơ thanh toán đang chờ bạn xử lý' +
+      (paySoTre ? ', trong đó <b style="color:#c0392b">' + paySoTre + '</b> hồ sơ đã quá hạn trả' : '') + '. ' +
       'Hồ sơ thanh toán gom nhiều hoá đơn của một nhà cung cấp vào một bộ, nằm ở màn riêng.</div>' +
       '<button class="btn" data-hstt="1" style="margin:14px 18px 0">Mở Hồ sơ thanh toán</button></div>';
   }

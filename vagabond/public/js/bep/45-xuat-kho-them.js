@@ -320,7 +320,12 @@ function xktManDanhSach(cfg) {
       xktHangChip(XKT_NGAY.map(function (n) {
         return xktChip('data-ng="' + n[0] + '"', h(n[1]), Number(st.ngay) === n[0]);
       }).join('')) +
-      (st.tab || st.nhom || st.tim
+      /* Hien dong doi chieu bat cu khi nao hai con so LECH nhau, chu khong
+         chi khi bam chip tab/nhom/tim. Chip NGAY cung la mot bo loc, va no
+         co san gia tri mac dinh - man Xuat ban si keo ve 365 ngay roi bay
+         mac dinh 90, nen o chua cham gi con so tren the tom tat da khac so
+         dong ben duoi, ma khong co dong nao giai thich vi sao. */
+      (loc.length !== cfg.ds.length || st.tab || st.nhom || st.tim
         ? '<div style="font-size:12px;color:#0b7c93;font-weight:700;padding:4px 2px 8px">Tổng theo bộ lọc · ' + loc.length + ' phiếu · ' +
           vxSo(loc.reduce(function (t, x) { return t + Number(cfg.tienCua(x) || 0); }, 0)) + ' đ</div>'
         : '') +

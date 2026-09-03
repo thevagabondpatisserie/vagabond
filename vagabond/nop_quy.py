@@ -733,11 +733,15 @@ def danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim="", so_dong=200,
 		order_by="creation desc",
 		limit=cint(so_dong) or 200,
 	)
+	def _khop(d):
+		return q in (
+			(d.get("name") or "") + " " + (d.get("ten_nguoi_giao") or "")
+			+ " " + (d.get("nguoi_giao") or "")
+		).lower()
+
 	q = (tim or "").strip().lower()
 	if q:
-		ds = [d for d in ds if q in (
-			(d.name or "") + " " + (d.ten_nguoi_giao or "") + " " + (d.nguoi_giao or "")
-		).lower()]
+		ds = [d for d in ds if _khop(d)]
 	# Số ca của từng phiếu: một câu hỏi cho cả trang, không hỏi từng phiếu.
 	so_ca = {}
 	if ds:
@@ -751,11 +755,18 @@ def danh_sach(trang_thai=None, tu_ngay=None, den_ngay=None, tim="", so_dong=200,
 	for d in ds:
 		d["so_ca"] = so_ca.get(d.name, 0)
 	# Đếm chip trên TOÀN BỘ tập khớp ngày, không phải trang đang xem.
+	#
+	# NHƯNG phải khớp cả ô tìm. Trước 03/09/2026 vòng đếm này bỏ qua `tim`,
+	# nên gõ một cái tên ra hai dòng mà hàng chip vẫn báo "Tất cả 40 · Nháp
+	# 11". Đúng lỗi này đã được vá ở `hoan_tien.ds` và `de_nghi_chi.ds_man`
+	# từ trước, riêng đây thì sót.
 	dem = {"": 0}
 	for r in frappe.get_all(
 		NQ, filters=_loc_danh_sach(None, tu_ngay, den_ngay, diem=diem, chi_toi=chi_toi),
-		fields=["trang_thai"], limit_page_length=0,
+		fields=["name", "trang_thai", "ten_nguoi_giao", "nguoi_giao"], limit_page_length=0,
 	):
+		if q and not _khop(r):
+			continue
 		dem[r.trang_thai] = dem.get(r.trang_thai, 0) + 1
 		dem[""] += 1
 	return {"ds": [_dong_danh_sach(d) for d in ds], "dem": dem}
