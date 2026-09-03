@@ -126,6 +126,27 @@ def dang_theo_doi(o):
 	return bool(cint(lay("ton_dau")) or tong_nhap(o) or cint(lay("hong")) or cint(lay("dieu_chinh")))
 
 
+# Giờ sớm nhất trong ngày được phép chốt sổ. Anh Việt 03/09/2026: ngày
+# 02/09 quầy District 1 bấm Chốt ngày lúc giữa buổi, bảng khoá cứng, sales
+# không nhập tiếp được và số đã chạy sang tồn đầu hôm sau.
+GIO_CHOT_SOM_NHAT = 17
+
+
+def chot_som(gio, gio_som_nhat=GIO_CHOT_SOM_NHAT):
+	"""Bấm chốt vào giờ này có phải là sớm bất thường không. THUẦN.
+
+	Không CHẶN, chỉ để màn hình hỏi lại cho chắc. Chặn cứng theo giờ là sai:
+	có ngày tiệm đóng sớm, có ngày kiểm sổ lúc trưa vì đổi ca. Cái sai của
+	bản trước không phải là thiếu hàng rào giờ, mà là bấm nhầm rồi KHÔNG MỞ
+	LẠI ĐƯỢC - xem `mo_lai`.
+	"""
+	try:
+		g = int(gio)
+	except (TypeError, ValueError):
+		return False
+	return 0 <= g < int(gio_som_nhat)
+
+
 def con_lai_ngay_mai(kiem_tay, co_kiem, co_the_ban):
 	"""So chay sang ton dau ngay mai. THUAN.
 
@@ -479,13 +500,30 @@ def tim_mon(diem=None, tu_khoa="", ngay=None):
 
 
 @frappe.whitelist()
-def chot(diem, ngay=None):
-	"""Chot so cuoi ngay. So con lai chay sang ton dau ngay mai."""
+def chot(diem, ngay=None, dong_y_som=0):
+	"""Chot so cuoi ngay. So con lai chay sang ton dau ngay mai.
+
+	Bấm chốt sớm hơn giờ đóng cửa thì máy HỎI LẠI một lần chứ không chặn:
+	trả về `hoi_lai` kèm câu hỏi, màn hình hiện lên, người bấm đồng ý thì
+	gọi lại kèm `dong_y_som`. Xem `chot_som`.
+	"""
 	_chan_neu_khong_duoc_sua()
 	ngay = getdate(ngay) if ngay else getdate()
 	doc = _lay_hoac_tao(diem, ngay)
 	if doc.tinh_trang == TT_CHOT:
 		frappe.throw("Ngày %s đã chốt rồi." % ngay)
+
+	hom_nay = getdate()
+	if ngay == hom_nay and not cint(dong_y_som) \
+			and chot_som(now_datetime().hour):
+		return {
+			"hoi_lai": 1,
+			"cau_hoi": (
+				"Bây giờ mới %dh, chưa tới giờ đóng cửa. Chốt sổ bây giờ là "
+				"khoá bảng hôm nay, cả ca sau không nhập thêm được nữa.\n\n"
+				"Vẫn chốt chứ?" % now_datetime().hour
+			),
+		}
 	_tinh_lai(doc)
 	doc.tinh_trang = TT_CHOT
 	doc.chot_luc = now_datetime()
@@ -520,6 +558,62 @@ def chot(diem, ngay=None):
 		sau.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ngay_mai": str(mai)}
+
+
+@frappe.whitelist()
+def mo_lai(diem, ngay=None):
+	"""Mở lại một ngày đã chốt nhầm.
+
+	Anh Việt 03/09/2026: ngày 02/09 quầy District 1 bấm Chốt ngày lúc giữa
+	buổi. Bản trước KHÔNG có đường mở lại, nên bảng của chính hôm đó khoá
+	cứng tới nửa đêm và phải vào Desk sửa tay. Đó mới là lỗi thật, chứ không
+	phải chuyện bấm sớm.
+
+	KHÔNG đụng vào tồn đầu của ngày hôm sau. Lý do: chốt xong có thể sales
+	đã nhập tiếp cho ngày mai, xoá số đó đi là lấy mất công của người khác.
+	Sửa xong bảng hôm nay thì bấm Chốt ngày lại, lúc đó tồn đầu ngày mai mới
+	được ghi đè bằng số mới. Máy nói rõ điều này ra để người bấm biết còn
+	một bước nữa phải làm.
+	"""
+	_chan_neu_khong_duoc_sua()
+	ngay = getdate(ngay) if ngay else getdate()
+	d = _kiem_diem(diem)
+	ma = ten_phieu(d["ma"], ngay)
+	if not frappe.db.exists(DT, ma):
+		frappe.throw("Ngày %s chưa có bảng kiểm kho." % ngay)
+	doc = frappe.get_doc(DT, ma)
+	if doc.tinh_trang != TT_CHOT:
+		frappe.throw("Ngày %s đang mở, không cần mở lại." % ngay)
+
+	chot_cu = str(doc.chot_luc or "")[:16]
+	nguoi_cu = doc.chot_boi or ""
+	doc.tinh_trang = TT_BAN
+	doc.chot_luc = None
+	doc.chot_boi = None
+	_tinh_lai(doc)
+	doc.save(ignore_permissions=True)
+
+	# Ghi vết: mở lại một ngày đã chốt là việc phải truy được về sau.
+	try:
+		from vagabond import ten_nguoi
+
+		frappe.get_doc({
+			"doctype": "Comment", "comment_type": "Info",
+			"reference_doctype": DT, "reference_name": ma,
+			"content": "Mở lại ngày %s (trước đó %s chốt lúc %s)." % (
+				ngay, ten_nguoi.ten(nguoi_cu) if nguoi_cu else "ai đó", chot_cu or "?"),
+		}).insert(ignore_permissions=True)
+	except Exception:
+		pass
+	frappe.db.commit()
+	return {
+		"ok": 1,
+		"nhac": (
+			"Đã mở lại ngày %s. Tồn đầu ngày mai vẫn đang giữ số của lần chốt "
+			"trước; sửa xong bảng nhớ bấm Chốt ngày lại thì số mới mới chạy "
+			"sang." % ngay
+		),
+	}
 
 
 @frappe.whitelist()

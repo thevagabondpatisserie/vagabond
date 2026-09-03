@@ -69,6 +69,34 @@ def ai_ban(nguoi_dang_lam, dang_chay_nen=False):
 	return ma
 
 
+# Ai duoc gan tay nguoi ban. KHONG mo cho thu ngan: o nay quyet dinh doanh
+# so va hoa hong roi vao tay ai, nen phai la nguoi co trach nhiem ky. Danh
+# sach nay trung voi bo vai xem duoc phan he KPI, vi chinh ho la nguoi phai
+# don ro "chua gan nguoi ban" o do.
+VAI_GAN = {
+	"System Manager", "Giám đốc", "AP Giám đốc",
+	"Accounts Manager", "Accounts User", "Kế toán",
+	"Sales Manager", "Quản lý cửa hàng", "Bếp trưởng",
+}
+
+
+def duoc_gan(cac_vai):
+	"""Phép THUẦN: bộ vai này có được gán tay người bán không."""
+	return bool(VAI_GAN & set(cac_vai or ()))
+
+
+def chua_gan(o_nguoi_ban, nguoi_lap):
+	"""Phép THUẦN: tờ hoá đơn này có đang nằm trong rổ chưa gán không.
+
+	Chưa gán nghĩa là ô người bán còn TRỐNG và người lập là tài khoản máy.
+	Ô trống mà người lập là người thật thì đó là tờ cũ lập trước khi có ô
+	này, màn hình vẫn lấy người lập ra hiển thị nên không coi là thiếu.
+	"""
+	if str(o_nguoi_ban or "").strip():
+		return False
+	return str(nguoi_lap or "").strip() in MAY
+
+
 def _dang_chay_nen():
 	"""Đang chạy trong nhịp nền hay trong một lượt bấm của người thật.
 
