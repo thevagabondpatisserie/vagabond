@@ -713,3 +713,109 @@ def gan_kho_nguon(doc, method=None):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 			"vagabond: gan kho nguon theo chang")
+
+
+# ---------------------------------------------------- hoàn tất lệnh, một cửa
+
+
+def so_hoan_tat(q, can):
+	"""Hai ô của hộp hoàn tất ra hai con số cho phiếu kho. THUẦN.
+
+	`q` là số LÀM THEO LỆNH (trừ nguyên liệu), `can` là số CÂN THỰC TẾ
+	(nhập kho). Trả về (fg_completed_qty, qty_dong_thanh_pham).
+
+	Rà 03/09/2026: app đang đặt CẢ HAI ô của phiếu bằng số cân. ERPNext
+	tính hao hụt bằng chênh `fg_completed_qty - qty dòng thành phẩm`
+	(stock_entry.py, set_process_loss_qty) và chỉ đóng lệnh khi
+	`produced_qty + process_loss_qty >= qty`. Đặt cả hai bằng số cân thì
+	không có hao hụt nào được ghi, lệnh 1000 làm 1000 cân 900 sẽ còn treo
+	100 "làm dở", hôm sau bếp bấm tiếp là trừ nguyên liệu lần hai.
+
+	Luật: fg_completed_qty GIỮ số làm, chỉ dòng thành phẩm hạ xuống số cân.
+	Cân DƯ thì nhập đủ số cân, fg_completed_qty cũng theo số cân (ERPNext
+	không có hao hụt âm, và trần vượt lệnh 50% vẫn do ERPNext canh).
+	"""
+	q = flt(q)
+	can = flt(can) if can not in (None, "") else q
+	if can <= 0 or q <= 0:
+		return q, q
+	if can < q:
+		return q, can
+	return can, can
+
+
+def _don_phieu_nhap_mo_coi(ten_lenh):
+	"""Phiếu kho Manufacture còn NHÁP của lệnh này là rác của lần hoàn tất
+	hỏng nửa chừng (insert xong, submit chết). ERPNext đếm cả phiếu nháp khi
+	kiểm trùng (check_duplicate_entry_for_work_order, docstatus != 2), nên
+	một phiếu nháp mồ côi là lệnh đó không bao giờ hoàn tất được nữa.
+
+	Không xoá (QT-20, chan_xoa cũng chặn). Đánh dấu huỷ mềm bằng đúng đường
+	của tiệm, rồi THÁO mối nối về lệnh để ERPNext thôi đếm.
+	"""
+	from vagabond import chung_tu
+
+	if not ten_lenh:
+		return []
+	da = []
+	for ten in frappe.get_all("Stock Entry", filters={
+			"work_order": ten_lenh, "purpose": "Manufacture", "docstatus": 0},
+			pluck="name"):
+		try:
+			doc = frappe.get_doc("Stock Entry", ten)
+			chung_tu.danh_dau_huy(doc,
+				"Phiếu nháp mồ côi của lần hoàn tất hỏng, máy dọn khi hoàn tất lại")
+			frappe.db.set_value("Stock Entry", ten, "work_order", None,
+				update_modified=False)
+			da.append(ten)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+				"vagabond: don phieu nhap mo coi %s" % ten)
+	return da
+
+
+@frappe.whitelist()
+def hoan_tat_phieu(phieu, q=None, can=None):
+	"""Ghi phiếu kho hoàn tất lệnh trong MỘT yêu cầu.
+
+	Trước 03/09/2026 app gọi insert rồi submit là hai lệnh rời. Rớt mạng
+	giữa chừng, hay submit bị chặn (thiếu tồn dòng không theo lô, vượt trần
+	50%), thì phiếu nháp nằm lại và khoá lệnh vĩnh viễn. Gom vào một yêu cầu
+	thì Frappe bọc cả hai trong một giao dịch: submit hỏng là insert cũng
+	lùi, không còn phiếu nháp nào rơi lại.
+
+	`phieu` là phiếu do make_stock_entry của ERPNext dựng, app đã gắn mẻ và
+	giờ ghi sổ. `q` và `can` là hai ô của hộp hoàn tất; máy chủ tự đặt số
+	theo `so_hoan_tat`, app không tự đặt nữa.
+	"""
+	if not set(frappe.get_roles()) & (set(QUYEN) | {"Manufacturing User", "Stock User"}):
+		frappe.throw("Chỉ bếp, quản lý sản xuất hoặc giám đốc mới hoàn tất lệnh được.")
+	if isinstance(phieu, str):
+		phieu = frappe.parse_json(phieu)
+	phieu = frappe._dict(phieu or {})
+	if phieu.get("doctype") != "Stock Entry" or phieu.get("purpose") != "Manufacture":
+		frappe.throw("Phiếu gửi lên không phải phiếu hoàn tất lệnh sản xuất.")
+	ten_lenh = phieu.get("work_order")
+
+	da_don = _don_phieu_nhap_mo_coi(ten_lenh)
+
+	fg, qty_tp = so_hoan_tat(q if q not in (None, "") else phieu.get("fg_completed_qty"), can)
+	phieu["fg_completed_qty"] = fg
+	for d in phieu.get("items") or []:
+		if cint(d.get("is_finished_item")):
+			d["qty"] = qty_tp
+			d["transfer_qty"] = flt(qty_tp) * (flt(d.get("conversion_factor")) or 1)
+	if abs(fg - qty_tp) > 0.0001:
+		phieu["remarks"] = ("Làm theo lệnh %s, cân thực tế %s. Hao hụt %s."
+			% (_goc_so(fg), _goc_so(qty_tp), _goc_so(fg - qty_tp)))
+
+	doc = frappe.get_doc(phieu)
+	doc.insert()
+	doc.submit()
+	return {"name": doc.name, "da_don": da_don, "fg_completed_qty": fg,
+		"qty_thanh_pham": qty_tp}
+
+
+def _goc_so(v):
+	v = flt(v)
+	return str(int(v)) if v == int(v) else ("%.3f" % v).rstrip("0").rstrip(".")
