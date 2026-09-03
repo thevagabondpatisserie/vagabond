@@ -6099,7 +6099,9 @@ la("nut ghi that hoi lai mot lan nua", "KHÔNG có nút hoàn tác" in _js48, Tr
 la("khong con ghi cung use_multi_level_bom bang 0",
    "use_multi_level_bom: 0" in _sx48, False)
 la("hoi he truoc khi lap lenh", "mfgNoNhieuCap()" in _sx48, True)
-la("hoi mot lan roi nho lai", "if (mfgPhantom !== null)" in _sx48, True)
+# v402 (03/09/2026): cong tac "hoi he" bi mot ma chua chuyen keo ca tiem ve
+# no mot cap, ERPNext loc im lang dong phantom. Nay ghi cung 1.
+la("v399 no nhieu cap ghi cung 1, het hoi he", "return 1;" in _sx48.split("async function mfgNoNhieuCap()")[1][:60], True)
 
 # Doc bang con thi KHONG duoc truyen `parent=`: do la tham so cua duong
 # REST ben ngoai, `frappe.get_all` trong may chu nem TypeError. Dung loi da
@@ -6416,8 +6418,10 @@ la("khong con hop chu gach dau dong cu", "NGUYÊN LIỆU SẼ TRỪ tại kho" i
 
 # ---------- 51.5 Khoi 3: so can thuc te ----------
 la("co hop hai so mfgSheetHoanTat", "function mfgSheetHoanTat(" in _sx51, True)
-la("thanh pham nhap theo so can", "r.qty = can" in _sx51, True)
-la("chenh lech ghi vao phieu", "Chênh" in _sx51, True)
+# v402 (03/09/2026): hai so cua hop hoan tat do MAY CHU dat
+# (kho_san_xuat.so_hoan_tat), app khong tu dat qty va fg_completed_qty nua.
+la("v399 app khong tu dat qty thanh pham", "r.qty = can" in _sx51, False)
+la("v399 hoan tat qua mot cua may chu", "vagabond.kho_san_xuat.hoan_tat_phieu" in _sx51, True)
 la("so theo lenh van bi chan tran con lai", "q > left + 0.0001" in _sx51, True)
 la("bo don co cua mo tran vuot lenh", "def dat_tran_vuot_lenh" in _dd51, True)
 
