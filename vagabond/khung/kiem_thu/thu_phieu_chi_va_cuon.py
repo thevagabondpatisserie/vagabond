@@ -57,7 +57,13 @@ def _mau_in():
 def _():
 	js = _js("04-tao-phieu.js")
 	khuc = js.split("async function scrPayList(")[1].split("async function scrPayView(")[0]
-	la("cả hai lần gọi đều lọc payment_type Pay", khuc.count("payment_type: 'Pay'"), 2)
+	# Đếm theo SỐ LẦN GỌI chứ không chốt cứng con số hai: 03/09/2026 màn này
+	# thêm tab "Tôi lập" nên có ba lần gọi. Điều phải giữ là mọi lần gọi đều
+	# có bộ lọc, chứ không phải là có đúng bao nhiêu lần gọi.
+	so_goi = khuc.count("getList('Payment Entry'")
+	dung("có ít nhất hai lần gọi", so_goi >= 2)
+	la("mọi lần gọi đều lọc payment_type Pay", khuc.count("payment_type: 'Pay'"), so_goi)
+	dung("có tách phiếu trả tiền cho khách ra", "!== 'Customer'" in khuc)
 
 
 @ca("duyệt phiếu chi: màn chi tiết cũng chặn phiếu thu")

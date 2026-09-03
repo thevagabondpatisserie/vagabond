@@ -157,11 +157,20 @@ def _():
 	dung("chốt số tiền phân bổ khác 0", "allocated_amount" in src)
 
 
-@ca("trả trước: phiếu dựng ra ở trạng thái NHÁP, không tự ghi sổ")
+@ca("trả trước: phiếu dựng ra ở bước kế toán kiểm, không tự ghi sổ")
 def _():
+	"""Đổi 03/09/2026: bước đầu là "Chờ FIN kiểm tra" chứ không phải "Nháp".
+
+	Lý do dài nằm ở phần khai báo TT_CHO_FIN trong tra_truoc.py. Tóm tắt:
+	tab "Nháp" của màn Duyệt phiếu chi chỉ người mang vai AP Officer mới
+	thấy, mà người lập phiếu trả trước là thu mua. Phiếu vừa lập xong là
+	biến khỏi mắt cả người lập lẫn kế toán, và câu app báo lại nói là đã
+	gửi cho kế toán. Phiếu APP-26-08-713 nằm im như vậy sáu ngày.
+	"""
 	src = _ma_nguon()
-	la("tên trạng thái đúng workflow đang chạy", tt.TT_NHAP, "Nháp")
-	dung("có đặt workflow_state", "workflow_state = TT_NHAP" in src)
+	la("tên bước nháp vẫn đúng workflow đang chạy", tt.TT_NHAP, "Nháp")
+	la("tên bước kế toán đúng workflow đang chạy", tt.TT_CHO_FIN, "Chờ FIN kiểm tra")
+	dung("có đặt workflow_state", "workflow_state = TT_CHO_FIN" in src)
 	# Khong duoc co bat ky loi goi submit nao trong tep nay.
 	dung("KHÔNG có lời gọi submit", ".submit()" not in src)
 

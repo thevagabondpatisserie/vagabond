@@ -88,6 +88,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_tk_nhan_hoan_ung,
 	thu_ton_chang,
 	thu_tra_truoc,
+	thu_tra_truoc_hien_tren_app,
 	thu_trang_web,
 	thu_tro_ly,
 	thu_unc_va_tk_chi,
