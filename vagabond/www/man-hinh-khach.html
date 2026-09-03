@@ -357,12 +357,53 @@ body {
   }, 1000);
 
   var nutTo = document.getElementById('nutTo');
-  nutTo.onclick = function () {
+  function toanMan() {
     try {
       if (document.fullscreenElement) document.exitFullscreen();
       else document.documentElement.requestFullscreen();
     } catch (e) { }
+  }
+  nutTo.onclick = toanMan;
+
+  /* CHAM MOT LAN LA PHONG TO (them 03/09/2026). Man tinh tien da dat cua
+     so nay len dung man phu roi (xem cfdMo ben 25-man-hinh-khach.js),
+     nhung trinh duyet chi cho phong toan man hinh trong mot cu cham cua
+     nguoi dung, khong tu lam duoc. Nen cham dau tien vao bat cu dau tren
+     man nay la phong to, khoi phai mo nut nho o goc. Chi bat mot lan: sau
+     do cham vao man khach khong duoc lam no nhay ra nhay vao.
+
+     Ap cho MOI cach mo, khong chi khi man tinh tien mo bang duong moi: trang
+     nay khong bao gio can ai bam vao dau ca, nen cham dau tien luon la
+     "phong to giup toi". */
+  var chamDau = function () {
+    document.removeEventListener('pointerdown', chamDau);
+    if (!document.fullscreenElement) toanMan();
   };
+  document.addEventListener('pointerdown', chamDau);
+
+  /* GIU MAN HINH SANG (them 03/09/2026). Man phu quay ra khach khong ai
+     cham vao, Windows tat no sau muoi lam phut de tiet kiem dien - do la
+     cai "man hinh khach toi den" anh Viet bao. Wake Lock la cach trinh
+     duyet xin he dieu hanh dung tat man khi trang nay dang hien.
+
+     Khoa nay bi thu lai khi trang bi che (chuyen tab, thu nho cua so), nen
+     phai xin lai moi khi trang hien tro lai, va xin lai dinh ky phong khi
+     bi thu ma khong bao. Trinh duyet khong co API nay thi thoi, khong
+     hong gi, chi la khong giu duoc man. */
+  var khoaSang = null;
+  function giuSang() {
+    try {
+      if (!navigator.wakeLock || document.visibilityState !== 'visible') return;
+      if (khoaSang && !khoaSang.released) return;
+      navigator.wakeLock.request('screen').then(function (k) {
+        khoaSang = k;
+        k.addEventListener('release', function () { khoaSang = null; });
+      }).catch(function () { khoaSang = null; });
+    } catch (e) { khoaSang = null; }
+  }
+  giuSang();
+  document.addEventListener('visibilitychange', giuSang);
+  setInterval(giuSang, 60000);
 })();
 </script>
 </body>
