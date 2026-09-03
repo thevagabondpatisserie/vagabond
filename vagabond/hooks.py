@@ -152,7 +152,9 @@ scheduler_events = {
 		# khong gui duoc mot email nao suot nhieu ngay, va minh chi biet vi
 		# Uyen di hoi. Khong co nhip nay thi lan sau cung the.
 		"*/15 * * * *": ["vagabond.gui_thu.canh_bao_email_loi"],
-		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu.
+		# Moi gio: don da ghi so ma chua co hoa don dien tu thi xuat bu. Tu
+		# 03/09/2026 di cung duong kich ban m-invoice voi chuoi cuoi ngay,
+		# cung mot cong tac, cung mot khoa. Xem xuat_hddt_con_thieu_tu_dong.
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
 		# Moi gio: doi soat lenh chi hoan tien voi sao ke SePay.
 		"35 * * * *": ["vagabond.hoan_tien.doi_soat_tu_dong"],
@@ -168,7 +170,14 @@ scheduler_events = {
 		# so duoc thi gui thu bao ngay trong dem. Truoc 13/08/2026 loi chi rot
 		# vao Error Log ma khong ai mo, nen 149 don nam nhap nua thang (114
 		# trieu) khong ai hay.
-		"55 23 * * *": ["vagabond.ban_hang.canh_bao_don_treo"],
+		# 23h55 con mot chuong nua: to DA GHI SO ma CHUA CO hoa don dien tu.
+		# Vu 01-02/09/2026: chuoi bi cat o 300 giay giua luc phat hanh, 95 to
+		# nam lai hai ngay, khong lop nao keu vi chuong don treo chi dem don
+		# con nhap. Xem canh_bao_hddt_sot.
+		"55 23 * * *": [
+			"vagabond.ban_hang.canh_bao_don_treo",
+			"vagabond.ban_hang.canh_bao_hddt_sot",
+		],
 		# 2h sang: ra don bi lap hai hoa don, co thi gui thu bao.
 		"0 2 * * *": ["vagabond.ban_hang.ra_trung_hang_dem"],
 		# 2h20 sang: don tep TREO cua cong tai tep dinh kem. Tep treo la tep
