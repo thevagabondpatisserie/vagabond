@@ -268,6 +268,7 @@ async function scrHome() {
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
+        card('📦', 'Ngưỡng kho', 'Dung sai giao thừa giao thiếu, hạn dùng tối thiểu khi nhận', 0, 'CDKHO') +
         card('💬', 'Trợ lý hướng dẫn dùng app', 'Khoá API, hạn mức lượt hỏi và ai được dùng', 0, 'CDTL') +
         card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE') +
         /* Nhập tệp sao kê: bù những khoản SePay không đẩy về. OCB không có
@@ -470,7 +471,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
 ];
 
 var VGB_HUB = {};
@@ -1210,6 +1211,7 @@ function vgbGo(k) {
   if (k === 'CDQQ') return go(scrQuyenQuay);
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
+  if (k === 'CDKHO') return go(scrCaiDatKho);
   if (k === 'CDSE') return go(scrSePay);
   if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
