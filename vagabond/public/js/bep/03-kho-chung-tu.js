@@ -103,7 +103,9 @@ function scrXkChonHang(kho, quayVe) {
     for (var m = 0; m < XK.gio.length; m++) {
       if (XK.gio[m].ma === x.ma) { toast('Món này đã có trong phiếu.'); return; }
     }
-    XK.gio.push({ ma: x.ma, ten: x.ten, dvt: x.dvt, ton: x.ton, sl: 1 });
+    /* Mang anh theo vao gio: dong hang trong phieu phai co anh mon (nguyen
+       tac thiet ke 03/09/2026). */
+    XK.gio.push({ ma: x.ma, ten: x.ten, dvt: x.dvt, ton: x.ton, sl: 1, anh: x.anh || '' });
     toast('Đã thêm ' + (x.ten || x.ma));
     back();
   }
@@ -128,6 +130,7 @@ function scrXkChonHang(kho, quayVe) {
       var its = await getList('Item', { fields: ['name', 'image'], filters: { name: ['in', ds.map(function (x) { return x.ma; })] }, limit_page_length: 0 });
       its.forEach(function (x) { if (x.image) anh[x.name] = x.image; });
     } catch (e) { }
+    ds.forEach(function (x) { x.anh = anh[x.ma] || ''; });
     var MAU = ['#e0f2fe', '#fce7f3', '#ecfdf3', '#fef0c7', '#ede9fe', '#fee4e2'];
     var s = '<div class="vxg">';
     for (var i = 0; i < ds.length; i++) {
