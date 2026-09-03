@@ -170,3 +170,4 @@ vagabond.patches.dong_bo_cau_truc #v402
 vagabond.patches.no_phantom_chuan #v403
 vagabond.patches.dong_bo_cau_truc #v403
 vagabond.patches.dong_bo_cau_truc #v404
+vagabond.patches.dong_bo_cau_truc #v405
