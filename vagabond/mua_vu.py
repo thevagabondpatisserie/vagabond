@@ -1238,7 +1238,12 @@ def _keo_that(doc, mua, c, k):
 		d.da_dat = dem_chot.get(ma, 0)
 		d.cho_chot = dem_cho.get(ma, 0)
 		d.don_khac = khac.get(ma, 0)
-		if hinh.get(ma) and hinh[ma] != d.hinh:
+		# Anh tu DON chi de bu cho dong CHUA co anh. Khong ghi de: anh trong
+		# don la ban chup luc dat, co the cu hon anh Minh Vu vua doi ben danh
+		# muc Pancake, va nut "Dong bo tu Pancake" o man Cai dat web da ghi
+		# anh moi vao day roi (03/09/2026). De dong nay ghi de la nut do bam
+		# xong lan dong bo don ke tiep lai tra ve anh cu.
+		if hinh.get(ma) and not str(d.hinh or "").strip():
 			d.hinh = hinh[ma]
 		kh = []
 		for (m, _ng), o_l in theo_ngay.items():
@@ -2794,6 +2799,31 @@ def _ruot_cua_hop(dinh_muc, ten_theo_ma):
 	return {k: ", ".join(v) for k, v in ra.items()}
 
 
+def _anh_danh_muc_pancake(cac_ma):
+	"""{ma: anh dau tien ben danh muc Pancake}, qua bo nho dem nua tieng
+	cua kiem_banh. Thieu khoa hay Pancake hong thi tra rong, ben goi lui
+	ve anh trong dong."""
+	ra = {}
+	try:
+		from vagabond import kiem_banh
+		from vagabond.lib import cfg as _cfg, key as _key
+
+		c = _cfg()
+		k = _key(c, "pancake_api_key")
+		if not (k and c.pancake_shop_id):
+			return ra
+		for m in cac_ma or []:
+			try:
+				anhs = kiem_banh._anh_pancake(c, k, m) or []
+			except Exception:
+				anhs = []
+			if anhs and anhs[0]:
+				ra[m] = anhs[0]
+	except Exception:
+		pass
+	return ra
+
+
 @frappe.whitelist(allow_guest=True)
 def hang_theo_mua():
 	"""Nhom hang mua vu cho trang dat banh order.thevagabondpatisserie.com.
@@ -2838,6 +2868,7 @@ def hang_theo_mua():
 		limit_page_length=0,
 	)
 	it = {x["item_code"]: x for x in ds}
+	anh_pancake = _anh_danh_muc_pancake([d.ma_hang for d in doc.dong if not cint(d.khong_tran)])
 
 	mon = []
 	for d in doc.dong:
@@ -2848,7 +2879,11 @@ def hang_theo_mua():
 		# Banh chi lam theo hop thi khong ban le, khong dua ra web.
 		if cint(d.khong_tran):
 			continue
-		anh = d.hinh or x.get("image") or ""
+		# Anh: danh muc Pancake truoc (nho nua tieng, cung mot duong voi tab
+		# Co san hom nay), roi anh luu trong dong, roi anh ben Next. Truoc
+		# 03/09/2026 tab nay chi doc anh trong dong, ma dong chi duoc ghi luc
+		# keo DON ve, nen Minh Vu doi anh ben Pancake ma web dung im.
+		anh = anh_pancake.get(d.ma_hang) or d.hinh or x.get("image") or ""
 		if str(anh).startswith("/private"):
 			anh = ""
 		con = cint(d.con_thuc_te)
