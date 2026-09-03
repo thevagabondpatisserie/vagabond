@@ -345,8 +345,11 @@ def _mau():
 	s = _doc("ho_so_tt.py")
 	than = _than_ham(s, "def _thu_html(")
 	khuc = than[: than.find("def _o_doi_chieu")]
-	dung("lay mau tu nhan_su", "from vagabond.nhan_su import XANH" in khuc)
-	dung("truyen mau vao khoi doi chieu", "_o_doi_chieu(XANH, XANH_DAM)" in khuc)
+	# 03/09/2026: mau va khung lay tu vagabond/thu_khung.py, khong con qua
+	# nhan_su. Khoi doi chieu tu doc mau tu do, khong nhan tham so mau nua.
+	dung("dung khuon thu chung", "from vagabond import thu_khung as _tk" in khuc)
+	dung("khoi doi chieu khong go cung ma mau", "#50DBF2" not in s and "#4FDCF2" not in _than_ham(s, "def _o_doi_chieu("))
+	dung("chan thu cho nha cung cap", 'chan="ncc"' in khuc)
 
 
 @ca("thu bao: tu gui ngay sau khi ghi nhan, va nuot loi de khong hong ho so")
