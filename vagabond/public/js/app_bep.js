@@ -20373,7 +20373,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '391';
+var APPVER = '392';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -25630,7 +25630,11 @@ function cdVe() {
   }
 
   if (cdData.nhat_ky) {
-    html += '<div class="sec">Lần chạy gần nhất</div><div class="card" style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6">' +
+    // Co chu CANH BAO (to da ghi so ma chua co hoa don dien tu, chuong
+    // 23h55 ghi vao) thi to do len, khong de lan trong mot dong chu xam.
+    var cdSot = cdData.nhat_ky.indexOf('CẢNH BÁO') >= 0;
+    html += '<div class="sec">Lần chạy gần nhất</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;' +
+      (cdSot ? 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b' : 'color:#374151') + '">' +
       h(cdData.nhat_ky) + '</div>';
   }
 
