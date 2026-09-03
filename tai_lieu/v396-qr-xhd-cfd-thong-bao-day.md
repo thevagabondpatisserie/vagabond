@@ -1,12 +1,20 @@
-# v396: QR xuất hoá đơn, màn hình khách (CFD), thông báo đẩy, xuất bán sỉ
+# v400 (khởi đầu là v396): QR xuất hoá đơn, màn hình khách (CFD), thông báo đẩy, xuất bán sỉ, đồng bộ Pancake giữ khách
 
-Ngày 03/09/2026. Nhánh `v396-qr-xhd-cfd-push`, PR #157, commit cuối 2cf07fd, 14 tệp.
-CI "Kiem thu truoc deploy" xanh, "Able to merge".
+Ngày 03/09/2026. Nhánh `v400-qr-xhd-cfd-push-khach-pancake` (tách từ main v399),
+PR #161, commit cuối 42dde83, 15 tệp. CI "Kiem thu truoc deploy" xanh, "Ready to
+merge", merge sạch với main.
 
 TRẠNG THÁI: ĐÃ ĐẨY, CHƯA MERGE, CHƯA DEPLOY. Anh Việt dặn "khoan deploy". Chờ anh
 Việt duyệt rồi mới merge và bấm Frappe Cloud.
 
-## Bốn lỗi anh Việt duyệt sửa
+VÌ SAO SỐ NHẢY 396 -> 400 TRONG MỘT BUỔI: bốn phiên làm song song. Trong lúc em
+đẩy v396, phiên khuôn thư cũng lấy 396 (rồi đổi 398), phiên ba màn xuất kho lấy
+397 và merge, phiên sửa giỏ hàng lấy 399 và merge. Mỗi lần main nhảy là em ghép
+lại và tăng số. PR #157 (nhánh cũ tách từ v395) đã đóng vì dính xung đột lịch
+sử; PR #162 là PR NGƯỢC (main vào nhánh của em, thay nút Update branch), đã merge,
+main không đổi. Nhánh `v396-qr-xhd-cfd-push` giờ là nhánh rác, xoá được.
+
+## Năm lỗi đã sửa (bốn lỗi anh Việt duyệt sáng 03/09 cộng một lỗi tìm ra lúc soi đơn 92862)
 
 ### 1. QR xuất hoá đơn lúc ra trang nhập, lúc nhảy sang app nội bộ
 
@@ -76,38 +84,61 @@ Sửa: trường mới `vgb_dien_giai` (Small Text) trên Delivery Note, đặt 
 màn danh sách (nội bộ, trả NCC, bán sỉ) hiện KHỐI LỖI ĐỎ khi máy chủ trả lỗi
 thay vì "chưa có phiếu nào".
 
+### 5. Đồng bộ Pancake XOÁ khách đã gán, đơn công nợ phải chọn tay lại
+
+Anh Việt hỏi 03/09: "Đơn chưa chọn khách công nợ thì em viết code để đồng bộ bên
+Pancake về để đỡ chọn tay được không?". Soi lịch sử đơn 92862 (HDB-26-09-00154):
+
+- 18:32 nhịp đồng bộ TẠO đơn, gán đúng khách KL028403 (Ms.Dung Masterpiece) theo
+  số điện thoại 0933331308. Máy đã làm đúng việc anh hỏi từ 13/08.
+- 18:33 Loan Anh chọn phương thức Công nợ.
+- 19:00 nhịp đồng bộ tiếp theo ĐỔI khách về "Khách lẻ Online". Version ghi rõ
+  `["customer", "KL028403", "Khách lẻ Online"]`.
+- 23:32 vét cuối ngày chặn "bán công nợ phải chọn khách", Loan Anh phải chọn tay
+  lại đúng người máy đã tìm ra lúc 18:32.
+
+Nguyên nhân trong `_upsert_hoa_don` (ban_hang.py, có từ 13/08): khối tìm khách chỉ
+chạy khi đơn MỚI hoặc đang mang giỏ chung. Đơn đã có khách thật thì khối bị bỏ
+qua, biến `khach_don` vẫn là giỏ chung mặc định, rồi `si.update` đặt lại
+customer. Nghĩa là nhịp đầu gán đúng, nhịp sau 30 phút xoá đi, với MỌI đơn
+Pancake còn nháp. Không ai thấy vì cuối ngày ghi sổ vẫn được (khách lẻ ghi sổ
+bình thường), chỉ đơn công nợ mới lộ.
+
+Sửa: hàm thuần `giu_khach_cua_don(cu, khach_dang_co, la_gop)`: đơn đã có và đang
+mang khách thật thì GIỮ, không tìm lại, không đặt về giỏ. Hai ca kiểm mới.
+
+Trả lời câu hỏi của anh: không cần viết thêm đồng bộ, đồng bộ đã có sẵn; chỉ là
+nó tự xoá công sức của chính nó. Sau bản này đơn công nợ có số điện thoại khớp
+khách trong danh mục sẽ tự có khách, Loan Anh chỉ còn chọn tay khi Pancake không
+ghi số điện thoại hoặc số đó chưa có trong danh mục khách.
+
 ## Hai việc không phải code
 
 - Goong 403: khoá Goong bị từ chối. Anh Việt xem lại tài khoản Goong (hết hạn
   hay đổi gói). Em chỉ báo, không đụng.
-- Đơn 92862: ghi sổ lỗi vì bán công nợ nhưng chọn khách lẻ. Báo Loan Anh chọn
-  khách công nợ đúng tên rồi ghi sổ lại. Không sửa dữ liệu cũ (điều 11).
+- Đơn 92862: đã ghi sổ xong (Loan Anh chọn tay). Gốc rễ là lỗi 5 ở trên, không
+  phải Loan Anh quên. Không sửa dữ liệu cũ (điều 11).
 - Error Log "Session Stopped" từ sw.js trong lúc migrate: nhiễu, bỏ qua.
 
-## TRANH SỐ PHIÊN BẢN VỚI PHIÊN KHÁC, ĐỌC TRƯỚC KHI MERGE
+## Ghép với v397 và v399 của phiên khác
 
-Nhánh `v394-khuon-thu-dien-tu` (phiên khác, khuôn thư điện tử) đẩy lúc 13:04
-đến 13:07 ngày 03/09 các commit "v396 lo 6..9": APPVER 396 và dòng patch #v396.
-Nhánh này (v396-qr-xhd-cfd-push) đẩy lô 1 lúc 13:04:48. Hai nhánh CÙNG CHIẾM số
-396, cả hai đều chưa merge (main đang ở 38cc4b0 = v395).
-
-Tệp trùng giữa hai nhánh: ban_hang.py (tự ghép được, vùng khác nhau), chay.py
-(cả hai cùng thêm mô đun vào một dòng, xung đột kiểu cộng thêm, giữ CẢ HAI),
-patches.txt và 12-van-don.js (nội dung giống hệt nên git không báo, NHƯNG đó
-chính là vấn đề: hai bản cùng số 396 thì Frappe Cloud chỉ chạy migrate một lần).
-
-Cách gỡ đề nghị (chờ anh Việt chốt): nhánh nào merge SAU phải đổi sang v397:
-APPVER 397, dòng patch `#v397` thêm dưới dòng #v396, chay.py giữ cả hai mô đun,
-ghép lại app_bep.js, chạy lại hai cổng. Phiên này sẵn sàng đổi sang 397 nếu phiên
-khuôn thư merge trước.
+- v397 viết lại ba màn xuất kho (`45-xuat-kho-them.js`) thành một hàm vẽ chung
+  `xktManDanhSach`. Khối báo lỗi đỏ của em gắn lại qua `cfg.loi`, hàm chung vẽ
+  `xktLoiHtml(cfg.loi)` khi máy chủ lỗi. Ba chỗ `catch (e) { }` của v397 vẫn
+  nuốt lỗi, đã đổi thành giữ `loiDs`.
+- chay.py giữ CẢ HAI mô đun mới (`thu_nguyen_tac_man_hinh` của v397 và
+  `thu_qr_xhd_cfd_push` của em).
+- patches.txt: 167 dòng của main (tới #v399) cộng dòng #v400. APPVER 400.
 
 ## Kiểm ở máy làm việc
 
-- 1934 ca khung xanh, 2311/2311 cổng, 105 màn, `dung_app_bep.py --kiem` khớp
-  từng byte, `kiem_truoc_deploy.sh` trả 0, giả lập CI không requests xanh.
-- 16 ca mới trong `thu_qr_xhd_cfd_push.py`: link_khach, /xhd qua mọi miền, bill
+- 1940 ca khung xanh trên nền v399, `dung_app_bep.py --kiem` khớp từng byte,
+  `kiem_truoc_deploy.sh` trả 0, giả lập CI không requests xanh.
+- 18 ca mới trong `thu_qr_xhd_cfd_push.py`: link_khach, /xhd qua mọi miền, bill
   nhận link tuyệt đối, cfdChonManPhu và cfdDacTinhCuaSo (chạy bằng node),
-  dang_khoa_rieng, xuat_ban không còn remarks, danh sách hiện lỗi.
+  dang_khoa_rieng, xuat_ban không còn remarks, danh sách hiện lỗi,
+  giu_khach_cua_don và _upsert_hoa_don đi qua hàm đó.
+- 15 tệp trên nhánh đối chiếu mã băm từng tệp với cây local: 15/15 trùng.
 
 ## Sau khi deploy phải kiểm trên site thật
 
@@ -120,5 +151,6 @@ khuôn thư merge trước.
    dòng thong_bao.
 5. Mở màn Xuất bán sỉ: danh sách phiếu hiện ra, không còn "chưa có phiếu nào"
    khi máy chủ lỗi.
-6. Patch Log có dòng v396 (hoặc v397 nếu đổi số). Customize Form Delivery Note
-   có trường vgb_dien_giai.
+6. Patch Log có dòng v400. Customize Form Delivery Note có trường vgb_dien_giai.
+7. Đơn Pancake còn nháp có khách thật: chờ qua hai nhịp đồng bộ (1 giờ), mở lại
+   vẫn phải còn đúng khách, không bị về "Khách lẻ Online".
