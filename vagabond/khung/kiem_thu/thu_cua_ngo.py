@@ -95,9 +95,11 @@ CUA_NGO = {
 	# `da_ban` CO Y khong nam trong danh sach. No dem tu hoa don ban ra; mo ra
 	# ngoai la cho trinh duyet hoi thang so ban hang cua mot quay theo ngay ma
 	# khong qua lop quyen nao. Man hinh doc so do qua `bang`.
+	# `mo_lai` them 03/09/2026: quay TCV bam Chot ngay giua ngay, bang khoa
+	# cung, khong con duong nao mo lai. Xem `vagabond/kiem_kho.py`.
 	"kiem_kho.py": [
 		"bang", "chot", "con_lai", "diem_ds", "them_dong", "tim_mon",
-		"luu_o", "xoa_dong",
+		"luu_o", "xoa_dong", "mo_lai",
 	],
 	# Them 28/08/2026 cung lan dat hang rao tai khoan kho. Chi `soat_kho` la
 	# cua man hinh; `chan_nhap_vao_thanh_pham` la HOOK, chay tren duong ghi
