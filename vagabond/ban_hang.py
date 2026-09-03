@@ -2679,7 +2679,18 @@ def _goi_server_script(ten, tham_so):
 		frappe.local.form_dict = frappe._dict(cu)
 
 
-def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
+def chuoi_cuoi_ngay_nen(bo_qua_gio=False, chay_tay=False):
+	"""Luot CHINH cua chuoi cuoi ngay, chay tren hang doi dai (mot gio).
+
+	Nhip 5 phut chi dung de canh gio; toi gio thi day ca chuoi sang day.
+	Hang doi mac dinh cat o 300 giay, ma rieng buoc keo Pancake da an 3
+	phut (anh Viet duyet tach 03/09/2026).
+	"""
+	frappe.set_user("Administrator")
+	tu_ghi_so_cuoi_ngay(bo_qua_gio=bo_qua_gio, chay_tay=chay_tay, tren_hang_doi=True)
+
+
+def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 	"""Chuoi cuoi ngay: ghi so, phat hanh hoa don dien tu, roi ky.
 
 	Ham nay chay 5 phut mot lan nhung MOI NGAY CHI LAM MOT LAN, vao dung
@@ -2717,6 +2728,39 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 	# rieng ngay sau do). Nhip vet bat dau bang mot cau dem: khong con don
 	# nao thi thoat luon, khong ton gi.
 	da_du_chuoi = str(c.get("tu_ghi_so_lan_cuoi") or "") == ngay
+
+	# LUOT CHINH DI HANG DOI DAI. Keo Pancake 3 phut + ghi so 1 phut + phat
+	# hanh da nam sat mep 300 giay cua hang doi mac dinh (vu 01-02/09/2026).
+	# Nhip 5 phut o day chi canh gio roi day ca chuoi sang hang doi dai voi
+	# mot gio. Chong day trung bang ma viec theo ngay: chuoi dang chay ma
+	# nhip sau toi thi bo qua, khong xep them mot ban nua.
+	#
+	# Nhip VET (da_du_chuoi) van lam tai cho: chi ghi so vai don le, khong
+	# keo Pancake, khong phat hanh hang loat.
+	if (not da_du_chuoi or chay_tay) and not tren_hang_doi:
+		try:
+			frappe.enqueue(
+				"vagabond.ban_hang.chuoi_cuoi_ngay_nen",
+				queue="long",
+				timeout=3600,
+				job_id="vgb-chuoi-cuoi-ngay-%s" % ngay,
+				deduplicate=True,
+				bo_qua_gio=bool(bo_qua_gio),
+				chay_tay=bool(chay_tay),
+			)
+			if chay_tay:
+				frappe.db.set_single_value(
+					"Vagabond Settings",
+					"tu_ghi_so_nhat_ky",
+					"%s lúc %s: đang chạy chuỗi cuối ngày ở lượt chạy nền, mở lại màn này sau vài phút."
+					% (ngay, bay_gio),
+				)
+				frappe.db.commit()
+			return
+		except Exception:
+			# Khong day duoc sang hang doi thi lam ngay tai cho nhu truoc,
+			# con hon la khong lam.
+			frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: khong day duoc chuoi sang hang doi")
 
 	quay_bat = [
 		q.strip().upper()
@@ -2901,6 +2945,10 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False):
 			title="Vagabond: chuỗi cuối ngày %s" % ngay,
 			message=nhat_ky + "\n\n" + "\n".join(loi),
 		)
+	if tren_hang_doi:
+		# Da o tren hang doi dai voi mot gio: lam tiep ngay, khong xep them.
+		phat_hanh_cuoi_ngay(str(ngay), xong, len(loi))
+		return
 	try:
 		frappe.enqueue(
 			"vagabond.ban_hang.phat_hanh_cuoi_ngay",
@@ -3135,6 +3183,125 @@ def canh_bao_hddt_sot():
 		frappe.db.commit()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang: canh bao HDDT sot")
+
+
+def xuat_rai_trong_ngay():
+	"""Nhip 30 phut: bill quay da chot va nam yen du 4 gio thi ghi so va xuat
+	hoa don dien tu luon, khong doi 23h.
+
+	Anh Viet 03/09/2026: "nang len 4 tieng, nhung don cuoi ngay thi don lai
+	xuat 1 lan luc 23h". Truoc do bill quay nam nhap ca ngay de khach quet
+	QR dien cong ty, roi 23h hon 140 to dan vao mot luot va bi cat.
+
+	Chi lam bill cua diem dang bat tu ghi so. Bill thieu dieu kien can
+	nguoi xu (thieu phuong thuc, cho duyet tang...) thi bo qua im lang, chuoi
+	23h va chuong don treo se noi. Bill chuyen khoan chua ve tien thi de lai,
+	luot sau hoi SePay lai.
+
+	Dung CUNG duong voi chuoi cuoi ngay: cung ham ghi so, cung kich ban
+	m-invoice, cung hai khoa. Khong co duong rieng nao de sau nay lech.
+	"""
+	try:
+		frappe.set_user("Administrator")
+		c = cfg()
+		if not cint(c.get("tu_ghi_so_bat") if c.get("tu_ghi_so_bat") is not None else 1):
+			return
+		ngay = nowdate()
+		gio = _gio_hop_le(c.get("tu_ghi_so_gio"))
+		if not hddt_bu.duoc_rai(
+			now_datetime().strftime("%H:%M"), gio, str(c.get("tu_ghi_so_lan_cuoi") or "") == ngay
+		):
+			return
+		quay_bat = sorted(_quay_tu_ghi_so())
+		if not quay_bat:
+			return
+		moc = hddt_bu.moc_bill_du_gio(now_datetime())
+		ds = frappe.db.get_all(
+			"Sales Invoice",
+			filters={
+				"posting_date": ngay,
+				"docstatus": 0,
+				"vgb_quay": ["in", quay_bat],
+				"vgb_tam_tinh": 0,
+				"vgb_huy": 0,
+				"modified": ["<=", moc],
+			},
+			fields=[
+				"name", "docstatus", "vgb_huy", "vgb_tam_tinh", "vgb_pt_thanh_toan",
+				"vgb_ma_tham_chieu", "customer", "vgb_tang_duyet", "custom_nguon",
+			],
+			order_by="modified asc",
+			limit_page_length=80,
+		)
+		if not ds:
+			return
+		try:
+			khach_le = _khach_le()
+		except Exception:
+			khach_le = ""
+
+		xong, loi = [], []
+		khoa = _khoa_dong_bo(cho=5, im_lang=True)
+		if khoa is None:
+			return
+		try:
+			for r in ds:
+				ma = ghi_so_dieu_kien.ly_do(r, khach_le=khach_le)
+				if hddt_bu.rai_bo_qua(ma):
+					continue
+				try:
+					si = frappe.get_doc("Sales Invoice", r.name)
+				except Exception:
+					continue
+				if si.docstatus != 0 or cint(si.get("vgb_huy")) or cint(si.get("vgb_tam_tinh")):
+					continue
+				a, _b, e = _ghi_so_mot_don(si, None)
+				if a:
+					xong.append(si.name)
+				elif e and "chưa đủ tiền" not in e:
+					loi.append(e)
+			frappe.db.commit()
+		finally:
+			_mo_khoa_dong_bo(khoa)
+
+		if not xong:
+			if loi:
+				frappe.log_error("\n".join(loi)[:4000], "Vagabond: xuất rải %s ghi sổ lỗi" % ngay)
+			return
+
+		bat_ph, bat_ky = _cong_tac_minvoice()
+		tao = 0
+		if bat_ph:
+			khoa2 = _khoa_hddt(cho=5)
+			if khoa2 is None:
+				# Luot khac dang giu m-invoice; to da ghi so se duoc nhip sau
+				# hoac chuoi 23h nhat, khong mat.
+				return
+			try:
+				for ten in xong:
+					try:
+						r = _goi_server_script(
+							"MInvoice - Phat hanh HD Sales (API)",
+							{"che_do": "day", "ngay": ngay, "so_luong": 0, "phieu": ten, "khong_commit": 0},
+						)
+						tao += cint((r or {}).get("tao_ok"))
+						for x in (r or {}).get("loi") or []:
+							loi.append(str(x))
+					except Exception:
+						frappe.log_error(frappe.get_traceback(), "ban_hang: xuat rai %s" % ten)
+						loi.append("%s: phát hành lỗi, xem Error Log." % ten)
+				if bat_ky and tao:
+					ky = _ky_theo_lo(ngay)
+					loi += ky.get("loi") or []
+			finally:
+				_mo_khoa_dong_bo(khoa2)
+		if loi:
+			frappe.log_error(
+				"Ghi sổ %d, phát hành %d.\n%s" % (len(xong), tao, "\n".join(str(x) for x in loi)[:4000]),
+				"Vagabond: xuất rải %s" % ngay,
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: xuat rai trong ngay")
 
 
 # ------------------------------------------------------------ don con treo
