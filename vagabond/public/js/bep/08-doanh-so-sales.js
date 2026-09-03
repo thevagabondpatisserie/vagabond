@@ -615,6 +615,10 @@ async function scrDsView(name, can) {
   html += await hdAiLamGi(d.name);
 
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  /* Nut gan nguoi ban nam trong khoi `hdAiLamGi`, phai noi SAU khi dung
+     khung. Man Sales la cho don may dong bo ve do lai nhieu nhat, nen day
+     moi la cho nut nay duoc bam nhieu nhat. */
+  hdGanBind();
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
   var nHuyHoan = document.getElementById('dsvHuyHoan');
