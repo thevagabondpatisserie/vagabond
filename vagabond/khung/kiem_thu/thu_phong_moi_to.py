@@ -183,9 +183,16 @@ def _():
 
 	dung("phông thư là phông máy nào cũng có", PHONG_THU.startswith("Arial"))
 	dung("phông thư khác phông bản in", PHONG_THU != NGAN_XEP)
+	# Tu 03/09/2026 cac to thu khong tu ghep phong nua ma di qua khuon thu
+	# chung vagabond/thu_khung.py. Khuon do khai phong thu MOT lan va phai
+	# trung voi PHONG_THU o day; hai xau lech nhau la co hai nguon.
+	from vagabond import thu_khung
+
+	la("khuôn thư dùng đúng phông thư", thu_khung.PHONG, PHONG_THU)
 	for t in ("bao_gia.py", "hop_dong_pdf.py", "cong_no.py", "ho_so_tt.py"):
-		dung("%s dùng phông thư từ nguồn chung" % t,
-			"PHONG_THU" in _doc("vagabond", t))
+		m = _doc("vagabond", t)
+		dung("%s dựng thư qua khuôn chung" % t, "from vagabond import thu_khung as _tk" in m)
+		dung("%s không tự ghép xâu phông thư" % t, "font-family:' + mau_chuan.PHONG_THU" not in m)
 
 
 @ca("phông: khung lề chung nhận được xâu phông từ nơi gọi")
