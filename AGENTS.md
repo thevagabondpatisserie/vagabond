@@ -79,6 +79,56 @@ tiến, đó là bỏ đi hai năm.
 
 ---
 
+## 2b. Nguyên tắc thiết kế màn hình app, bắt buộc (anh Việt duyệt 03/09/2026)
+
+Anh Việt đã yêu cầu nhiều lần, lần cuối 03/09/2026 với ảnh hai màn xuất kho
+"rất thô sơ, không đồng bộ với giao diện đẹp của app". Bản đầy đủ nằm ở
+project doc `nguyen-tac-thiet-ke-man-hinh-app-va-de-xuat-kho-theo-sap`. Mười
+lăm điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
+`thu_nguyen_tac_man_hinh.py` canh những điều soi được bằng chuỗi.
+
+1. **Dùng khung có sẵn, không tự vẽ.** `frame`, `card`, hàng chip, bottom
+   sheet, `anhMon`, `toast`, `confirmSheet`, khuôn danh sách B3. Không viết
+   HTML form thô. Màn mới phải giống màn Hoá đơn hôm nay và Tính tiền.
+2. **Chọn là tìm. Không xổ danh sách để kéo.** Ô chọn có hơn 8 lựa chọn thì
+   mở bottom sheet có ô tìm (`sheet(..., searchable)`, `sheetTimKhach`,
+   `scrXkChonHang`), hàng hoá có thêm nút quét mã. TUYỆT ĐỐI không dùng
+   `<select>`. Dưới 8 lựa chọn thì dùng hàng chip. Giá trị đang chọn hiện
+   dạng thẻ (ảnh, tên đậm, dòng phụ xám, mũi tên), chạm vào là mở sheet.
+3. **Ba hàng chip trên mọi màn danh sách:** trạng thái có đếm số, nhóm hoặc
+   nguồn, khoảng ngày. Chip đang chọn tô đậm. Hàng chip cuộn ngang. Trên
+   từng dòng có chip trạng thái: xanh xong, vàng chờ, đỏ cần xử, xám huỷ.
+4. **Chỗ nào có tên món thì có ảnh món** qua `anhMon(url)`; chưa có ảnh thì
+   ô 🍰 giữ hàng. Ảnh thật từ danh mục, không ô chữ cái thay ảnh. Khách và
+   nhà cung cấp có logo thì hiện logo, không thì biểu tượng nhóm.
+5. **Ô tìm nhanh ở đầu mọi danh sách,** gõ là lọc, có mã thì có nút quét.
+6. **Thẻ tóm tắt đầu màn danh sách:** số phiếu, tổng tiền, chia theo trạng
+   thái và nguồn; bấm số là lọc; đang lọc thì có thanh "Tổng theo bộ lọc".
+7. **Ba trạng thái phụ phải có câu chữ:** đang tải, rỗng (câu chỉ đường), lỗi
+   (câu người đọc biết làm gì tiếp, không lỗi máy, không để trắng).
+8. **Nút hành động:** một nút chính to dính đáy, nói rõ việc; nút phụ dạng
+   viền; nút nguy hiểm màu đỏ và hỏi `confirmSheet`; không có nút xoá vĩnh
+   viễn chứng từ (QT-20). Bấm xong phải có phản hồi.
+9. **Mặc định thông minh và nhớ lựa chọn** (kho, điểm bán, quầy, ca) theo tài
+   khoản và lần chọn gần nhất, ở mọi màn.
+10. **Dòng hàng trong phiếu:** ảnh, tên đậm, dòng phụ (mã, đơn vị, tồn, lô
+    hoặc hạn dùng), ô số lượng có nút trừ cộng và bàn phím số; vượt tồn thì
+    viền đỏ tại chỗ; tổng cập nhật ngay khi gõ.
+11. **Dấu vết trên mọi phiếu:** ai lập, ai ghi sổ, lúc nào, chip "Đã sửa N
+    lần". Câu lý do treo lấy từ MỘT nguồn phía máy chủ (QT-19).
+12. **Mọi tính năng có ở mọi màn cùng loại:** dựng cho một màn tính tiền thì
+    có ở mọi màn tính tiền; dựng cho một màn phiếu kho thì có ở mọi màn phiếu
+    kho (ảnh chứng từ, ghi chú, chip trạng thái, dấu vết, tìm hàng).
+13. **Chạm và cuộn:** nút, chip, dòng cao ít nhất 44 điểm; không cuộn ngang
+    cả trang; chừa vùng an toàn đáy máy; chữ tối thiểu 13 điểm.
+14. **Số liệu và ngôn ngữ:** tiền có dấu chấm nghìn và chữ đ, khối lượng qua
+    `kl()`, ngày dd/mm, giờ HH:MM, tiếng Việt có dấu, không dấu gạch dài.
+15. **Có ca kiểm giữ nguyên tắc.** Số ô `<select` trong từng tệp `bep/` chỉ
+    được GIẢM so với mốc ghi trong `thu_nguyen_tac_man_hinh.py`; tệp mới
+    không được có ô nào. Nguyên tắc không có ca kiểm thì ba tuần sau lại bị bỏ.
+
+---
+
 ## 3. Quy ước viết code của repo này
 
 - **Tên hàm, biến, tệp: tiếng Việt không dấu.** `chia_theo_lo`,
