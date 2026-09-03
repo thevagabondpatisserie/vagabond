@@ -5132,8 +5132,16 @@ _req44 = [
 ]
 la("pywebpush co ca trong requirements.txt",
    any(d.strip().startswith("pywebpush") for d in _req44), True)
-la("doi khoa sang PEM truoc khi ky", "def _pem(" in _tb44, True)
-la("ham gui dung khoa PEM chu khong dung chuoi tho",
+# SUA 03/09/2026. Ca kiem cu chot "doi khoa sang PEM truoc khi ky", va
+# chinh cai PEM do la nguyen nhan 53 thong bao khong di duoc tu 31/08:
+# pywebpush 2.x (theo Python 3.14) chi doc PEM khi chuoi la DUONG DAN TEP,
+# dua nguyen van PEM thi no base64 giai ma ca "-----BEGIN" roi nem
+# "ASN.1 parsing error". Ca kiem cu xanh trong khi tinh nang chet - nghia
+# la no chot mot niem tin sai. Nay chot duong pywebpush ghi trong tai lieu:
+# dua DOI TUONG Vapid, khong dua chuoi.
+la("khong doi khoa sang PEM nua", "def _pem(" in _tb44, False)
+la("dung doi tuong Vapid tu khoa 32 byte", "Vapid.from_raw(" in _tb44, True)
+la("ham gui dua doi tuong Vapid chu khong dua chuoi tho",
    "vapid_private_key=khoa," in _tb44, True)
 la("thieu thu vien thi ghi log chu khong im lang",
    "thong_bao: thieu pywebpush" in _tb44, True)
