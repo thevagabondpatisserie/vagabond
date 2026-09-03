@@ -61,8 +61,12 @@ async function scrXkNbList() {
   vgbCss();
   frame('Xuất dùng nội bộ', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootNb();
-  var ds = [];
-  try { ds = (await api('vagabond.xuat_noi_bo.ds_phieu', { gioi_han: 40 })) || []; } catch (e) { }
+  var ds = [], loiDs = '';
+  /* KHONG nuot loi (sua 03/09/2026). Ban v387 nuot im, nen khi may chu do
+     thi man hien "chua co phieu nao" - nhin nhu binh thuong, va loi cua man
+     Xuat ban si nam do ba ngay khong ai biet. */
+  try { ds = (await api('vagabond.xuat_noi_bo.ds_phieu', { gioi_han: 40 })) || []; }
+  catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var D = {
     cho: ds.filter(function (x) { return x.docstatus === 0; }),
     xong: ds.filter(function (x) { return x.docstatus === 1; })
@@ -73,6 +77,7 @@ async function scrXkNbList() {
 
   function listHtml() {
     var ls = D[XKT.nb.tab] || [];
+    if (loiDs) return xktLoiHtml(loiDs);
     if (!ls.length) {
       return '<div style="text-align:center;color:#98a2b3;padding:40px 20px;font-size:14px">' +
         (XKT.nb.tab === 'cho'
@@ -360,8 +365,9 @@ async function scrXkTraList() {
   vgbCss();
   frame('Xuất trả nhà cung cấp', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootTra();
-  var ds = [];
-  try { ds = (await api('vagabond.tra_ncc.ds_phieu', { gioi_han: 40 })) || []; } catch (e) { }
+  var ds = [], loiDs = '';
+  try { ds = (await api('vagabond.tra_ncc.ds_phieu', { gioi_han: 40 })) || []; }
+  catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var s = '';
   for (var i = 0; i < ds.length; i++) {
     var x = ds[i];
@@ -369,7 +375,8 @@ async function scrXkTraList() {
     s += vxTheRow(x, '<span class="vxtag ' + (x.docstatus === 0 ? 'c' : 'd') + '">' +
       h(x.trang_thai) + '</span>');
   }
-  if (!ds.length) {
+  if (loiDs) s = xktLoiHtml(loiDs);
+  else if (!ds.length) {
     s = '<div style="text-align:center;color:#98a2b3;padding:40px 20px;font-size:14px">' +
       'Chưa có phiếu trả hàng nào.<br>Bấm nút + để lập phiếu.</div>';
   }
@@ -649,8 +656,9 @@ async function scrXkSiList() {
   vgbCss();
   frame('Xuất bán sỉ', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootSi();
-  var ds = [];
-  try { ds = (await api('vagabond.xuat_ban.ds_phieu', { gioi_han: 40 })) || []; } catch (e) { }
+  var ds = [], loiDs = '';
+  try { ds = (await api('vagabond.xuat_ban.ds_phieu', { gioi_han: 40 })) || []; }
+  catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var s = '';
   for (var i = 0; i < ds.length; i++) {
     var x = ds[i];
@@ -658,7 +666,8 @@ async function scrXkSiList() {
     s += vxTheRow(x, '<span class="vxtag ' + (x.docstatus === 0 ? 'c' : 'd') + '">' +
       h(x.trang_thai) + '</span>');
   }
-  if (!ds.length) {
+  if (loiDs) s = xktLoiHtml(loiDs);
+  else if (!ds.length) {
     s = '<div style="text-align:center;color:#98a2b3;padding:40px 20px;font-size:14px">' +
       'Chưa có phiếu giao hàng nào trong 60 ngày qua.<br>Bấm nút + để lập phiếu.</div>';
   }
@@ -865,6 +874,15 @@ async function scrXkSiView(name) {
 /* ==================================================================
    Ho tro chung cho ba man tren
    ================================================================== */
+
+/* Khoi bao loi thay cho danh sach. Loi may chu phai NHIN THAY duoc, khong
+   duoc hoa trang thanh "chua co phieu nao". */
+function xktLoiHtml(loi) {
+  return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;' +
+    'padding:14px;margin:8px 0;font-size:13px;color:#991b1b;line-height:1.6">' +
+    '<b>Không đọc được danh sách phiếu.</b><br>' + h(loi) +
+    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi anh Việt giúp.</span></div>';
+}
 
 /* Ban sao cua vxDongHtml nhung nhan gio TRUYEN VAO thay vi doc XK.gio.
 
