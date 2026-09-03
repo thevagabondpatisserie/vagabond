@@ -6154,8 +6154,11 @@ _cd49 = open("vagabond/public/js/bep/17-cai-dat.js", encoding="utf-8").read()
 # Khai bam lam mot cai Plain Croissant thi may nem ra "Serial No / Batch No
 # are mandatory for Item NVLT00166". App chi gan lo cho THANH PHAM, con
 # NGUYEN LIEU bi tru thi de trong.
+# 03/09/2026 hook nay thanh HAI viec: mo chot lo qua han truoc, roi gan lo.
 la("co hook Stock Entry truoc khi kiem",
-   '"Stock Entry": {"before_validate": "vagabond.lo_hang.gan_lo"}' in _hk49, True)
+   '"vagabond.lo_hang.gan_lo"' in _hk49 and '"before_validate"' in _hk49, True)
+la("mo chot lo qua han chay truoc gan lo",
+   _hk49.index("vagabond.lo_het_han.mo_chot") < _hk49.index("vagabond.lo_hang.gan_lo"), True)
 # Va o man hinh la va ba lan va lan thu tu se quen.
 for _ham49 in ("def chia_theo_lo(", "def cau_thieu_lo(", "def gan_lo(",
                "def _ton_tung_lo(", "def _xep_het_han_truoc("):
