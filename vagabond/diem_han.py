@@ -291,7 +291,17 @@ def _bao_nguoi(tieu_de, noi_dung):
 		if not nhan:
 			frappe.log_error(noi_dung, tieu_de)
 			return
-		frappe.sendmail(recipients=[nhan], subject=tieu_de, message=noi_dung)
+		from vagabond import thu_khung as _tk
+		from vagabond.nhan_su import link_app
+
+		frappe.sendmail(
+			recipients=[nhan], subject="[Vagabond] " + tieu_de,
+			message=_tk.khung(
+				tieu_de, _tk.doan(_tk.h(noi_dung), cach=0),
+				nut_html=_tk.nut(link_app(), "Mở app", goc_anh=_tk.goc_anh()),
+				chan="noi_bo", nhan="Điểm thành viên",
+			),
+		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "diem_han: khong gui duoc thu")
 

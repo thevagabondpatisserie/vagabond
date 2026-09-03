@@ -630,12 +630,30 @@ def _bao_bang_thu(cau, so_loi):
 			recipients=dia_chi,
 			sender=nguoi_gui,
 			subject="[Vagabond] BAO DONG DO: %d email khong gui duoc" % so_loi,
-			message="<pre>%s</pre>" % frappe.utils.escape_html(cau),
+			message=_khung_bao_dong(cau, so_loi),
 		)
 		return True
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "gui_thu: bao bang thu loi")
 		return False
+
+
+def _khung_bao_dong(cau, so_loi):
+	"""Thu bao dong do qua khuon thu chung. Noi dung loi giu nguyen dang chu
+	don cach de doc duoc ten hop thu va ma loi."""
+	try:
+		from vagabond import thu_khung as _tk
+
+		than = (
+			_tk.doan("Trong cửa sổ vừa qua có <b>%d</b> thư không gửi được. Chi tiết:" % so_loi)
+			+ '<pre style="margin:0 0 14px;padding:12px 14px;background:%s;border:1px solid %s;'
+			'font-size:12px;line-height:1.55;color:%s;white-space:pre-wrap;word-break:break-word">%s</pre>'
+			% (_tk.KEM, _tk.KE, _tk.MUC, frappe.utils.escape_html(cau))
+			+ _tk.doan("Mở Desk, vào Email Queue lọc trạng thái Error để xem từng thư.", cach=0)
+		)
+		return _tk.khung("Email của tiệm đang không gửi được", than, chan="noi_bo", nhan="Báo động đỏ")
+	except Exception:
+		return "<pre>%s</pre>" % frappe.utils.escape_html(cau)
 
 
 def canh_bao_email_loi():
