@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Phát hành hoá đơn điện tử theo lô và lưới đỡ mỗi giờ (v392).
+"""Phát hành hoá đơn điện tử theo lô và lưới đỡ mỗi giờ (v395).
 
 Anh Việt 03/09/2026, kèm ba ảnh màn Hoá đơn hôm nay TCV:
 
@@ -169,16 +169,65 @@ def _cau_sot():
 # -------------------------------------------------------- soi mã nguồn thật
 
 
-@ca("chuỗi cuối ngày: phát hành và ký đã đi hàng đợi dài, không còn gọi thẳng")
+@ca("chuỗi cuối ngày: lượt chính và phát hành đều đi hàng đợi dài, không còn gọi thẳng")
 def _chuoi_hang_doi():
 	s = _py("ban_hang.py")
 	than = _than(s, "tu_ghi_so_cuoi_ngay")
-	dung("đẩy sang hàng đợi long", 'queue="long"' in than and "phat_hanh_cuoi_ngay" in than)
+	dung("lượt chính đẩy sang hàng đợi long",
+		'"vagabond.ban_hang.chuoi_cuoi_ngay_nen"' in than and 'queue="long"' in than)
+	dung("phát hành cũng đi hàng đợi long khi chưa ở đó",
+		'"vagabond.ban_hang.phat_hanh_cuoi_ngay"' in than)
+	dung("đang ở hàng đợi dài thì gọi thẳng, không xếp thêm",
+		"if tren_hang_doi:" in than and "phat_hanh_cuoi_ngay(str(ngay), xong, len(loi))" in than)
 	dung("một giờ, không phải 300 giây", "timeout=3600" in than)
-	dung("chống đẩy trùng", "deduplicate=True" in than)
+	dung("chống đẩy trùng theo ngày", "deduplicate=True" in than and '"vgb-chuoi-cuoi-ngay-%s" % ngay' in than)
 	dung("không còn gọi phát hành thẳng trong luồng 300 giây",
 		'"MInvoice - Phat hanh HD Sales (API)"' not in than)
 	dung("nhịp vét im khi không có gì", "vet_co_gi_de_ghi" in than)
+	nen = _than(s, "chuoi_cuoi_ngay_nen")
+	dung("lượt nền gọi lại chuỗi với cờ hàng đợi", "tren_hang_doi=True" in nen)
+
+
+# ---------------------------------------------------- xuất rải trong ngày
+
+
+@ca("xuất rải: chỉ chạy trước giờ chuỗi và khi chuỗi hôm nay chưa xong")
+def _rai_gio():
+	dung("14:10 trước 23:00: chạy", hddt_bu.duoc_rai("14:10", "23:00", False))
+	dung("23:10: nhường chuỗi", not hddt_bu.duoc_rai("23:10", "23:00", False))
+	dung("chuỗi đã chạy: thôi", not hddt_bu.duoc_rai("14:10", "23:00", True))
+	dung("giờ chuỗi đổi 22:30 thì 22:40 thôi", not hddt_bu.duoc_rai("22:40", "22:30", False))
+
+
+@ca("xuất rải: mốc 4 giờ tính từ lần sửa cuối, anh Việt chốt 03/09")
+def _rai_moc():
+	la("hằng số 4 giờ", hddt_bu.GIO_CHO_TRUOC_KHI_XUAT, 4)
+	bay_gio = datetime.datetime(2026, 9, 3, 14, 10)
+	la("mốc lùi 4 giờ", hddt_bu.moc_bill_du_gio(bay_gio), datetime.datetime(2026, 9, 3, 10, 10))
+	la("đổi số giờ được", hddt_bu.moc_bill_du_gio(bay_gio, 2), datetime.datetime(2026, 9, 3, 12, 10))
+
+
+@ca("xuất rải: bỏ qua bill cần người xử, không bỏ qua bill chờ tiền về")
+def _rai_bo_qua():
+	for ma in ("chua_pt", "tang_cho_duyet", "tang_tu_choi", "thieu_khach_no", "thieu_ma", "pt_sai_nguon"):
+		dung("bỏ qua " + ma, hddt_bu.rai_bo_qua(ma))
+	dung("chưa về tiền thì thử", not hddt_bu.rai_bo_qua("chua_ve_tien"))
+	dung("đủ điều kiện thì làm", not hddt_bu.rai_bo_qua(""))
+
+
+@ca("xuất rải: cùng đường với chuỗi, có khoá, đã khai nhịp 30 phút")
+def _rai_ma_nguon():
+	s = _py("ban_hang.py")
+	than = _than(s, "xuat_rai_trong_ngay")
+	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None)" in than)
+	dung("cùng kịch bản m-invoice, từng phiếu", '"phieu": ten' in than)
+	dung("hai khoá", "_khoa_dong_bo(" in than and "_khoa_hddt(" in than)
+	dung("lọc theo lần sửa cuối", '"modified": ["<=", moc]' in than)
+	dung("chỉ điểm đang bật tự ghi sổ", "_quay_tu_ghi_so()" in than)
+	dung("bỏ qua theo phép thuần", "hddt_bu.rai_bo_qua(" in than)
+	dung("chưa đủ tiền thì im", '"chưa đủ tiền" not in e' in than)
+	h = _py("hooks.py")
+	dung("khai nhịp 30 phút", '"10,40 * * * *": ["vagabond.ban_hang.xuat_rai_trong_ngay"]' in h)
 
 
 @ca("lượt phát hành: theo lô, có khoá, một công tắc m-invoice")
