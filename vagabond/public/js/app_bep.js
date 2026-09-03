@@ -9825,6 +9825,10 @@ async function scrDsView(name, can) {
   html += await hdAiLamGi(d.name);
 
   frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  /* Nut gan nguoi ban nam trong khoi `hdAiLamGi`, phai noi SAU khi dung
+     khung. Man Sales la cho don may dong bo ve do lai nhieu nhat, nen day
+     moi la cho nut nay duoc bam nhieu nhat. */
+  hdGanBind();
   var nHoan = document.getElementById('dsvHoan');
   if (nHoan) nHoan.onclick = function () { hoanMoForm(d); };
   var nHuyHoan = document.getElementById('dsvHuyHoan');
@@ -13518,24 +13522,46 @@ function pbKhoiTang(d, hien) {
 
    Doc hong thi tra ve chuoi rong chu KHONG chan man: thieu mot khoi con
    hon khong mo duoc to hoa don. */
+/* Ma tai khoan dang nam o o nguoi ban cua to hoa don dang mo, de o chon
+   nguoi mo ra la dung san nguoi cu. Mot man chi mo MOT to hoa don mot luc
+   nen mot bien la du. */
+var hdGanMa = '';
+var hdGanTo = '';
+
 async function hdAiLamGi(name) {
   var a;
   try { a = await api('vagabond.ban_hang.ai_lam_gi', { name: name }); }
   catch (e) { return ''; }
   if (!a || !a.ma) return '';
 
-  var d = function (nhan, gt, mau) {
+  var d = function (nhan, gt, mau, id) {
     if (!gt && gt !== 0) return '';
     return '<div style="display:flex;gap:8px;font-size:12.5px;padding:5px 0;' +
       'border-bottom:1px solid #f2f4f7;align-items:baseline">' +
       '<span style="color:#98a2b3;flex:0 0 auto;min-width:118px">' + nhan + '</span>' +
-      '<span style="flex:1;min-width:0;word-break:break-word;color:' +
+      '<span' + (id ? ' id="' + id + '"' : '') +
+      ' style="flex:1;min-width:0;word-break:break-word;color:' +
       (mau || '#344054') + '">' + h(String(gt)) + '</span></div>';
   };
 
   var s = '<div class="sec">Ai đã làm gì trên hoá đơn này</div>' +
     '<div class="card" style="padding:8px 14px">';
-  s += d('Người bán', a.nguoi_ban, '#0f766e');
+  s += d('Người bán', a.chua_gan ? 'chưa gán' : a.nguoi_ban,
+    a.chua_gan ? '#b45309' : '#0f766e', 'hdGanTen');
+  /* NUT GAN NGUOI BAN. Don do may dong bo ve (Pancake, cac san) khong co
+     ai dang dang nhap luc tao, nen o nguoi ban de trong co chu dich va to
+     do roi vao ro "chua gan" ben KPI. Truoc day muon go ro do phai vao tan
+     Desk sua tay tung to; nut nay dua viec gan ve ngay man hoa don.
+     Chi hien cho nguoi CO QUYEN, va chi gan o nguoi ban chu khong dong
+     vao mot con so tien nao, nen gan lai luc nao cung an toan. */
+  hdGanMa = a.nguoi_ban_ma || '';
+  hdGanTo = a.ma;
+  if (a.gan_duoc) {
+    s += '<div id="hdGanO" style="padding:7px 0 3px">' +
+      '<button class="btn gh" id="hdGanNut" style="margin:0;width:auto;' +
+      'font-size:12.5px;padding:5px 11px">' +
+      (a.chua_gan ? 'Gán người bán' : 'Đổi người bán') + '</button></div>';
+  }
   s += d('Bán lúc', a.ban_luc);
   /* Nguoi LAP khac nguoi BAN khi don do may dong bo ve roi quan ly gan tay
      nguoi ban. Chi hien khi hai ten khac nhau, khong thi thua mot dong. */
@@ -13556,6 +13582,58 @@ async function hdAiLamGi(name) {
     s += d('Cấp mã lúc', a.cap_ma_luc);
   }
   return s + '</div>';
+}
+
+/* Noi nut "Gan nguoi ban" vao viec. Goi SAU khi dung khung xong, vi luc
+   `hdAiLamGi` chay thi khoi HTML moi la chuoi, chua co trong trang.
+   Gan xong KHONG dung lai ca man: chi sua lai dong chu tai cho, de thu
+   ngan dang xem do khong bi nhay mat cho. */
+function hdGanBind() {
+  var nut = document.getElementById('hdGanNut');
+  var o = document.getElementById('hdGanO');
+  if (!nut || !o) return;
+  nut.onclick = async function () {
+    nut.disabled = true;
+    var r;
+    try { r = await api('vagabond.kpi.nguoi_dung'); }
+    catch (e) {
+      nut.disabled = false;
+      return toast((e && e.message) || 'Không đọc được danh sách tài khoản.', 4500);
+    }
+    var op = '<option value="">- để trống, chưa gán -</option>';
+    ((r && r.ds) || []).forEach(function (n) {
+      op += '<option value="' + h(n.ma) + '"' +
+        (n.ma === hdGanMa ? ' selected' : '') + '>' + h(n.ten) + '</option>';
+    });
+    o.innerHTML = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
+      '<select id="hdGanChon" style="flex:1 1 150px;min-width:0;font-size:12.5px;' +
+      'padding:5px 7px;border:1px solid #d0d5dd;border-radius:7px">' + op + '</select>' +
+      '<button class="btn" id="hdGanLuu" style="margin:0;width:auto;font-size:12.5px;padding:5px 11px">Lưu</button>' +
+      '<button class="btn gh" id="hdGanThoi" style="margin:0;width:auto;font-size:12.5px;padding:5px 11px">Thôi</button>' +
+      '</div>';
+    document.getElementById('hdGanThoi').onclick = function () {
+      o.innerHTML = '';
+    };
+    document.getElementById('hdGanLuu').onclick = async function () {
+      var chon = document.getElementById('hdGanChon');
+      var ma = chon ? chon.value : '';
+      busy(true);
+      var kq;
+      try { kq = await api('vagabond.nguoi_ban.gan', { name: hdGanTo, nguoi: ma }); }
+      catch (e) { busy(false); return toast((e && e.message) || 'Không gán được, thử lại.', 5000); }
+      busy(false);
+      hdGanMa = ma;
+      o.innerHTML = '';
+      /* Ve lai dong "Nguoi ban" tai cho. Do trong to hoa don thi may van
+         hien nguoi lap phieu, dung y het khi o con trong. */
+      var dong = document.getElementById('hdGanTen');
+      if (dong) {
+        dong.textContent = (kq && kq.ten) || 'chưa gán';
+        dong.style.color = ma ? '#0f766e' : '#b45309';
+      }
+      toast(ma ? ('Người bán: ' + ((kq && kq.ten) || ma)) : 'Đã gỡ người bán.');
+    };
+  };
 }
 
 async function scrPosBill(name) {
@@ -13815,6 +13893,7 @@ async function scrPosBill(name) {
   if (d.name && !nhap) html += await hdAiLamGi(d.name);
 
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+  hdGanBind();
   var nCt = document.getElementById('pbChiTiet');
   if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };
 
@@ -20286,7 +20365,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '389';
+var APPVER = '390';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
