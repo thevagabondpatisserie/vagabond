@@ -97,10 +97,16 @@ CUA_NGO = {
 	# khong qua lop quyen nao. Man hinh doc so do qua `bang`.
 	# `mo_lai` them 03/09/2026: quay TCV bam Chot ngay giua ngay, bang khoa
 	# cung, khong con duong nao mo lai. Xem `vagabond/kiem_kho.py`.
+	# `con_tren_quay_web` them 03/09/2026: cua cho KHACH VANG LAI (allow_guest)
+	# nuoi tab In store cua trang dat banh. Chi doc, chi tra ten-anh-gia-so con.
 	"kiem_kho.py": [
 		"bang", "chot", "con_lai", "diem_ds", "them_dong", "tim_mon",
-		"luu_o", "xoa_dong", "mo_lai",
+		"luu_o", "xoa_dong", "mo_lai", "con_tren_quay_web",
 	],
+	# Them 03/09/2026: man Cai dat trang dat banh web. `dong_bo` keo danh muc
+	# Pancake ve mot luot roi xoa dem va ghi lai anh; `tinh_hinh` chi doc. Cac
+	# ham `_ghi_lai_hinh`, `_gan_anh_mon_trong`, `_xoa_dem` la noi bo, KHONG mo.
+	"web_dong_bo.py": ["dong_bo", "tinh_hinh"],
 	# Them 28/08/2026 cung lan dat hang rao tai khoan kho. Chi `soat_kho` la
 	# cua man hinh; `chan_nhap_vao_thanh_pham` la HOOK, chay tren duong ghi
 	# so cua Frappe chu khong ai goi tu ngoai, nen KHONG mo ra ngoai. Ba ham

@@ -26,7 +26,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_bang_gia_nhap,
 	thu_bao_cao_don_nhap,
 	thu_bo_doctype, thu_bom_note_va_nut_huong_dan,
-	thu_ca_moi_diem, thu_card_khong_la_flex, thu_chan_man, thu_chi_loi_qz,
+	thu_ca_moi_diem, thu_cai_dat_web_va_in_store, thu_card_khong_la_flex, thu_chan_man, thu_chi_loi_qz,
 	thu_chon_pt_moi_man,
 	thu_cua_ngo, thu_cuon_va_o_tim,
 	thu_de_nghi_chi, thu_dien_giai, thu_dinh_kem_go,
