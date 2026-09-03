@@ -1402,6 +1402,19 @@ def _thong_tin_xhd(o, did):
 	return {"vgb_xhd_ten": XHD_MAC_DINH, "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
 
+def giu_khach_cua_don(cu, khach_dang_co, la_gop):
+	"""Nhip dong bo co GIU khach dang nam tren don khong. Ham THUAN.
+
+	Giu khi: don da co tu truoc VA dang mang mot khach that (khong rong,
+	khong phai gio chung). Con lai (don moi, hay don dang mang gio chung)
+	thi di tim khach theo so dien thoai nhu cu.
+
+	`la_gop` truyen vao chu khong import, de kiem thu duoc khong can site.
+	"""
+	k = str(khach_dang_co or "").strip()
+	return bool(cu) and bool(k) and not la_gop(k)
+
+
 def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
@@ -1478,7 +1491,20 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	khach_don = khach
 	from vagabond.khach_hang import la_khach_gop
 
-	if (not cu) or la_khach_gop(si.get("customer")):
+	# DON DA MANG KHACH THAT THI GIU NGUYEN, KHONG GAN LAI, KHONG DAT VE GIO.
+	#
+	# Loi cu (13/08 den 03/09/2026): khoi `if` duoi day chi chay khi don MOI
+	# hoac dang mang gio chung. Don da co khach that (may gan tu nhip truoc,
+	# hay sales chon tay) thi khoi nay bi bo qua, `khach_don` van la gio
+	# chung mac dinh, va `si.update` ben duoi DAT LAI customer thanh "Khach
+	# le Online". Nghia la: nhip dau gan dung nguoi, nhip sau 30 phut xoa
+	# di. Bat duoc tu don 92862 ngay 01/09: 18:32 gan KL028403 dung so dien
+	# thoai, 19:00 nhip dong bo doi ve Khach le Online, 23:32 vet cuoi ngay
+	# chan "ban cong no phai chon khach", Loan Anh phai chon tay lai dung
+	# nguoi may da tim ra.
+	if giu_khach_cua_don(cu, si.get("customer"), la_khach_gop):
+		khach_don = si.get("customer")
+	else:
 		try:
 			from vagabond import nhap_khach
 
