@@ -364,6 +364,7 @@ def chi_tiet(name=None):
 		if d.get("cost_center"):
 			tt = d.get("cost_center")
 			break
+	anh = xuat_kho.anh_theo_ma([d.item_code for d in doc.items])
 	return {
 		"name": doc.name,
 		"ngay": str(doc.posting_date),
@@ -392,6 +393,7 @@ def chi_tiet(name=None):
 				"dvt": d.uom,
 				"sl": flt(d.qty),
 				"tien": flt(d.amount),
+				"anh": anh.get(d.item_code, ""),
 			}
 			for d in doc.items
 		],

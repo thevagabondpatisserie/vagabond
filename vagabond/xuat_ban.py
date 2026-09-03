@@ -244,6 +244,7 @@ def chi_tiet(name=None):
 	"""Mot phieu giao hang kem cac dong."""
 	_kiem_quyen()
 	doc = frappe.get_doc("Delivery Note", name)
+	anh = xuat_kho.anh_theo_ma([d.item_code for d in doc.items])
 	return {
 		"name": doc.name,
 		"ngay": str(doc.posting_date),
@@ -265,6 +266,7 @@ def chi_tiet(name=None):
 				"sl": flt(d.qty),
 				"tien": flt(d.amount),
 				"kho": d.warehouse,
+				"anh": anh.get(d.item_code, ""),
 			}
 			for d in doc.items
 		],
