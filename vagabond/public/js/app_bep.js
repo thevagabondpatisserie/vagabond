@@ -5039,12 +5039,17 @@ function pad2(n) { return ('0' + n).slice(-2); }
 function hmOf(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00'; }
 function ymdOf(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 async function freshOf(codes) {
+  /* Mon "lam tuoi" ma may tu lam giup khi hoan tat mon cha. CHI mon con
+     theo ton kho. Tu 25/08/2026 ban thanh pham phantom (is_stock_item = 0)
+     tu no trong lenh cha, khong can lenh con; tao lenh con cho no thi
+     ERPNext cho tao nhung phieu kho chan "is not a stock Item", lenh con
+     nam lai thanh rac, moi lan bam them mot cai. Ra soat 03/09/2026. */
   var m = {};
   if (!codes || !codes.length) return m;
   var rows = await inChunks(codes, 80, function (lot) {
-    return getList('Item', { fields: ['name', 'custom_lam_tuoi'], filters: { name: ['in', lot] }, limit_page_length: 0 });
+    return getList('Item', { fields: ['name', 'custom_lam_tuoi', 'is_stock_item'], filters: { name: ['in', lot] }, limit_page_length: 0 });
   });
-  rows.forEach(function (r) { if (r.custom_lam_tuoi) m[r.name] = 1; });
+  rows.forEach(function (r) { if (r.custom_lam_tuoi && r.is_stock_item) m[r.name] = 1; });
   return m;
 }
 async function mfgBatchOf(woName) {
@@ -5632,24 +5637,24 @@ async function mfgDemand(horizon) {
   }).filter(function (a) { return a.need > 0; });
 }
 
-/* Nổ nhiều cấp hay không thì HỎI HỆ, không ghi cứng ở đây.
+/* Nổ nhiều cấp: LUÔN LÀ 1 kể từ 03/09/2026.
 
-   Trước 21/08/2026 chỗ này ghi cứng 0, đúng vì bán thành phẩm cấp 1 còn
-   theo tồn kho nên lệnh phải đòi thẳng mã đó. Sau khi chuyển cấp đó thành
-   Phantom thì ngược lại: để 0 là lệnh đòi một mã không còn kho để lấy, và
-   bếp đứng. Bật cứng lên 1 trước ngày chuyển cũng sai, vì 71 dòng bán
-   thành phẩm đang sẵn công thức con sẽ nổ ngay hôm nay.
+   Từ 21/08 tới 03/09 chỗ này hỏi hệ qua phantom.trang_thai, và hàm đó trả
+   0 hễ CÒN MỘT mã bán thành phẩm chưa chuyển phantom. Ngày 03/09 đo trên
+   site: đúng một mã BTPB00024 còn theo tồn, thế là toàn bộ lệnh từ app nổ
+   một cấp. Nổ một cấp thì ERPNext lọc IM LẶNG mọi dòng bán thành phẩm
+   phantom khỏi bảng nguyên liệu, hoàn tất vẫn báo thành công mà bột trứng
+   bên trong không bị trừ. Một công tắc "tất cả hoặc không" cho cả tiệm là
+   quá mong manh.
 
-   Nên đọc trạng thái thật một lần mỗi phiên rồi nhớ lại. */
-var mfgPhantom = null;
+   Phantom là luật đã chốt (21/08 và 25/08), và từ v402 các công thức BTP
+   mang cờ phantom chính thức của ERPNext nên nổ đúng ở cả hai chế độ. Ghi
+   cứng 1. Mã nào lỡ còn theo tồn thì phantom.trang_thai vẫn liệt kê để
+   quản lý đi gỡ, nhưng không được kéo cả tiệm về nổ một cấp nữa. */
+var mfgPhantom = 1;
 
 async function mfgNoNhieuCap() {
-  if (mfgPhantom !== null) return mfgPhantom;
-  try {
-    var r = await api('vagabond.phantom.trang_thai', {});
-    mfgPhantom = (r && r.da_phantom) ? 1 : 0;
-  } catch (e) { mfgPhantom = 0; }
-  return mfgPhantom;
+  return 1;
 }
 
 async function mfgCreateWO(row) {
@@ -5696,6 +5701,12 @@ async function scrMfgBtp(woNames, depth) {
         a.short = r3(a.need - a.ton - a.wo);
         a.qty = a.short > 0 ? Math.ceil(a.short) : 0;
         a.on = a.short > 0 ? 1 : 0;
+        /* Ban thanh pham nhap ve KHO NGUYEN LIEU cua bep, khong phai kho
+           thanh pham (luat 28/08/2026). Truoc 03/09 dong nay khong co fg
+           nen mfgCreateWO lay mfg.fg = kho Thanh pham: lenh banh cha rut
+           ruot banh o kho Nguyen lieu bao thieu, stockOf doc ton o do bang
+           0, may lai de xuat lam ruot banh lan nua, ra lenh trung. */
+        a.fg = mfg.src; a.src = mfg.src;
         return a;
       }).filter(function (a) { return a.short > 0; });
     }
@@ -6145,22 +6156,17 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     se.posting_date = today();
     se.posting_time = nowStamp().slice(11);
     /* Nguyen lieu tru theo so LAM (q); thanh pham nhap kho theo so CAN
-       THUC TE (can). Lech nhau la hao hut hay doi du that cua me,
-       ghi thang vao phieu de ke toan gia thanh doc duoc. */
+       THUC TE (can). Hai con so do MAY CHU dat (kho_san_xuat.so_hoan_tat),
+       app chi gan me. Truoc 03/09/2026 app tu dat ca hai o cua phieu bang
+       so can nen ERPNext khong ghi hao hut, can thieu la lenh treo mai va
+       bam tiep la tru nguyen lieu lan hai.
+
+       Insert va submit gop vao MOT yeu cau (hoan_tat_phieu): rot mang
+       giua chung thi khong con phieu nhap nao roi lai khoa lenh. */
     (se.items || []).forEach(function (r) {
-      if (r.is_finished_item) {
-        if (batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
-        if (Math.abs(can - q) > 0.0001) r.qty = can;
-      }
+      if (r.is_finished_item && batch) { r.use_serial_batch_fields = 1; r.batch_no = batch; }
     });
-    if (Math.abs(can - q) > 0.0001) {
-      se.fg_completed_qty = can;
-      se.remarks = 'Làm theo lệnh ' + num(q) + ' ' + (d.stock_uom || '') +
-        ', cân thực tế ' + num(can) + '. Chênh ' + num(r3(can - q)) +
-        ' (' + (q ? Math.round((can - q) / q * 1000) / 10 : 0) + '%).';
-    }
-    var ins = await api('frappe.client.insert', { doc: se });
-    await api('frappe.client.submit', { doc: ins });
+    await api('vagabond.kho_san_xuat.hoan_tat_phieu', { phieu: se, q: q, can: can });
     busy(0);
     if (imLang) return 'lai';
     toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || ''), 5000);
@@ -20376,7 +20382,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '399';
+var APPVER = '402';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -41544,15 +41550,21 @@ async function khsxLuuTon(khoa, o, ve) {
 async function khsxTaoLenh(khoa, loai) {
   var x = khsxDong(khoa);
   if (!x) return toast('Không thấy dòng này nữa, tải lại màn hình rồi thử lại');
-  var sl = khsx.sua[khoa] != null ? khsx.sua[khoa] : x.con_lam;
-  if (!(sl > 0)) return toast('Số lượng phải lớn hơn 0');
+  /* CHI gui so luong khi bep THAT SU go vao o. So may tinh thi de may chu
+     tu chia theo tung dong phieu. Truoc 03/09/2026 app gui ca so may tinh:
+     tai lai trang, o van hien so cu, bam lai la may chu coi do la so bep
+     muon lam, chia vao cac dong da ra lenh du roi thanh phan doi, de them
+     mot lenh roi phieu. */
+  var daGo = khsx.sua[khoa] != null;
+  var sl = daGo ? khsx.sua[khoa] : x.con_lam;
+  if (!(sl > 0)) return toast('Dòng này đã ra lệnh đủ rồi');
   var kho = khsx.kho[khoa] || x.kho_dich || '';
   if (!kho) return toast('Chọn kho nhập trước đã', 4000);
   busy(1);
   try {
     var r = await api('vagabond.ke_hoach_sx.tao_lenh',
       { ten: khsx.d.ten, khoa: khoa, loai: loai === 'tp' ? 'tp' : 'btp',
-        so_luong: sl, kho: kho });
+        so_luong: daGo ? sl : null, kho: kho });
     toast(r.ghi_chu, 6000);
     delete khsx.chon[khoa];
     delete khsx.sua[khoa];

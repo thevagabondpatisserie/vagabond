@@ -124,6 +124,18 @@ def con_phai_lam(can, ton, quan_ton=True):
 	return thieu if thieu > 0 else 0.0
 
 
+def con_lam_sau_lenh(can, ton, da_lenh, quan_ton=True):
+	"""Còn phải làm SAU KHI trừ phần đã có lệnh. THUẦN.
+
+	Ngày 03/09/2026 rà lại: ô "còn làm" trên thẻ kế hoạch chỉ trừ tồn mà
+	không trừ số đã ra lệnh, nên tải lại trang là thẻ vẫn hiện đủ số và
+	nút Tạo lệnh vẫn mở. Bấm lần hai là ra thêm một lệnh nữa cho cùng dòng.
+	Số hiện ra phải là số THẬT SỰ còn thiếu lệnh, không thì nút nói dối.
+	"""
+	con = con_phai_lam(can, ton, quan_ton) - _so(da_lenh)
+	return con if con > 0 else 0.0
+
+
 def muc_cua(can, ton, da_co_lenh=0, co_bom=True, quan_ton=True):
 	"""Chip trạng thái của một dòng. THUẦN.
 
@@ -1024,7 +1036,8 @@ def xem(ngay=None, ten=None):
 			"quan_ton": 1 if qt else 0, "dvt": dvt or "",
 			"can": flt(can), "ton_dau": t_dau, "ton_nay": t_nay,
 			"ton_goc": flt(ton_goc.get(ma, 0)),
-			"con_lam": con_phai_lam(can, t_nay, qt), "da_lenh": flt(da_lenh),
+			"con_lam": con_lam_sau_lenh(can, t_nay, da_lenh, qt),
+			"da_lenh": flt(da_lenh),
 			"chang": c, "ten_chang": tc.ten_chang(c) if c else "",
 			"chip_chang": tc.CHIP.get(c, ""), "muc": m, "ten_muc": TEN_MUC[m],
 			"mau": MAU_MUC[m], "kho": kho or "", "anh": anh.get(ma, ""),
@@ -1218,6 +1231,14 @@ def tao_lenh(ten, khoa, loai="btp", so_luong=None, kho=None):
 		else:
 			cac_con.append(max(flt(d.qty) - flt(d.ordered_qty), 0.0))
 
+	# Ca dong da ra lenh du roi thi DUNG, ke ca khi man hinh gui kem so
+	# luong. Truoc 03/09/2026: tai lai trang, o so van hien so cu, bam lai
+	# la toan bo so do thanh "phan doi", may de them mot lenh roi phieu.
+	# Bep muon lam doi that thi vao man Tao lenh cua app, o do noi ro.
+	if not any(flt(c) > 0 for c in cac_con):
+		return {"ok": 0, "ghi_chu": "Các dòng này đã ra lệnh đủ số rồi. "
+			"Muốn làm thêm thì tạo lệnh ở màn Tạo lệnh sản xuất."}
+
 	if so_luong in (None, "", 0, "0"):
 		phan, doi = cac_con, 0.0
 	else:
@@ -1359,15 +1380,40 @@ def _tao_mot_lenh(ten, khoa, loai="btp", so_luong=None, kho=None, roi_phieu=0):
 			mon["material_request"] = None
 			mon["material_request_item"] = None
 
+	# MON KHONG QUAN TON (bán thành phẩm phantom) thì KHÔNG ra lệnh riêng.
+	# Nó tự nổ trong lệnh của món cha. Ra lệnh riêng thì ERPNext cho tạo
+	# nhưng phiếu kho lúc hoàn tất chặn "is not a stock Item", lệnh treo mãi.
+	if not cint(frappe.db.get_value("Item", ma_mon, "is_stock_item")):
+		return {"ok": 0, "ghi_chu": "Món %s không quản tồn kho, nó tự nổ trong "
+			"lệnh của món cha nên không cần lệnh riêng." % ma_mon}
+
+	# HAI CO BAT BUOC cua moi lenh, dat o day cho CA HAI nhanh. Ra soat
+	# 03/09/2026: `prepare_data_for_sub_assembly_items` cua ERPNext ghi cung
+	# use_multi_level_bom = 0 cho lenh BTP, va khong dong nao dat
+	# skip_transfer. Lenh no mot cap thi ERPNext LOC IM LANG moi dong ban
+	# thanh pham phantom khoi bang nguyen lieu (bom.py, dieu kien
+	# is_stock_item), hoan tat van bao thanh cong ma bot trung ben trong
+	# khong bi tru. Con skip_transfer = 0 thi nguyen lieu rut o kho do dang
+	# thay vi kho tung dong. Ca hai deu la luat da chot (21/08, 28/08).
+	mon["use_multi_level_bom"] = 1
+	mon["skip_transfer"] = 1
+
 	# BA KHO CUA LENH, theo dung mot luat.
 	#
 	# Thu tu: kho bep chon tay tren app, roi luat kho cua tiem theo chang
 	# va bep, cuoi cung moi toi kho mac dinh cua ERPNext. Dat o day chu
 	# khong de ERPNext dien, vi kho mac dinh la MOT o cho ca cong ty con
 	# kho dung phu thuoc hai thu: mon thuoc chang nao va bep nao lam.
+	#
+	# Kho bep chon phai la KHO BEP. Kho diem ban (Sales Online, D1, NVHTN)
+	# la kho ban hang, banh lam xong phai ve kho bep roi moi dieu chuyen.
 	kho_chon = (kho or "").strip()
 	if kho_chon and not frappe.db.exists("Warehouse", kho_chon):
 		kho_chon = ""
+	if kho_chon and kho_chon not in _cac_kho_chon():
+		return {"ok": 0, "ghi_chu": "Kho %s không phải kho bếp. Bánh làm xong "
+			"nhập kho bếp trước, chuyển sang điểm bán là phiếu điều chuyển riêng."
+			% kho_chon}
 	bep = chon_bep(ksx._bep_cua_mon(ma_mon) or "",
 		ksx.bep_cua_kho(kho_chon) or "")
 	if bep:

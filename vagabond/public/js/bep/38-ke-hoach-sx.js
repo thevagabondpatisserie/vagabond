@@ -411,15 +411,21 @@ async function khsxLuuTon(khoa, o, ve) {
 async function khsxTaoLenh(khoa, loai) {
   var x = khsxDong(khoa);
   if (!x) return toast('Không thấy dòng này nữa, tải lại màn hình rồi thử lại');
-  var sl = khsx.sua[khoa] != null ? khsx.sua[khoa] : x.con_lam;
-  if (!(sl > 0)) return toast('Số lượng phải lớn hơn 0');
+  /* CHI gui so luong khi bep THAT SU go vao o. So may tinh thi de may chu
+     tu chia theo tung dong phieu. Truoc 03/09/2026 app gui ca so may tinh:
+     tai lai trang, o van hien so cu, bam lai la may chu coi do la so bep
+     muon lam, chia vao cac dong da ra lenh du roi thanh phan doi, de them
+     mot lenh roi phieu. */
+  var daGo = khsx.sua[khoa] != null;
+  var sl = daGo ? khsx.sua[khoa] : x.con_lam;
+  if (!(sl > 0)) return toast('Dòng này đã ra lệnh đủ rồi');
   var kho = khsx.kho[khoa] || x.kho_dich || '';
   if (!kho) return toast('Chọn kho nhập trước đã', 4000);
   busy(1);
   try {
     var r = await api('vagabond.ke_hoach_sx.tao_lenh',
       { ten: khsx.d.ten, khoa: khoa, loai: loai === 'tp' ? 'tp' : 'btp',
-        so_luong: sl, kho: kho });
+        so_luong: daGo ? sl : null, kho: kho });
     toast(r.ghi_chu, 6000);
     delete khsx.chon[khoa];
     delete khsx.sua[khoa];
