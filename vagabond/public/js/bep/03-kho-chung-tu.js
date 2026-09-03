@@ -137,7 +137,7 @@ function scrXkChonHang(kho, quayVe) {
       var x = ds[i];
       var a = anh[x.ma] ?
         '<img class="vxga" src="' + h(anh[x.ma]) + '" loading="lazy">' :
-        '<div class="vxga t" style="background:' + MAU[i % MAU.length] + '">' + h((x.ten || x.ma).charAt(0).toUpperCase()) + '</div>';
+        '<div class="vxga t" style="background:' + MAU[i % MAU.length] + '">🍰</div>';
       s += '<div class="vxgi" data-th="' + i + '">' + a +
         '<div class="vxgn">' + h(x.ten || x.ma) + '</div>' +
         '<div class="vxgm">' + h(x.ma) + '</div>' +
