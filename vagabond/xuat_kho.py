@@ -73,6 +73,22 @@ def _cong_ty():
 	return ds[0] if ds else None
 
 
+def anh_theo_ma(ds_ma):
+	"""Anh cua tung mon, {ma: url}. Mon khong co anh thi khong co khoa.
+
+	Nguyen tac thiet ke 03/09/2026: cho nao hien ten mon la co anh mon. Doc
+	mot lan cho ca phieu, khong hoi tung dong.
+	"""
+	ma = sorted({m for m in (ds_ma or []) if m})
+	if not ma:
+		return {}
+	ra = {}
+	for r in frappe.get_all("Item", filters={"name": ["in", ma]}, fields=["name", "image"]):
+		if r.image:
+			ra[r.name] = r.image
+	return ra
+
+
 def _kho_that(cong_ty):
 	"""Kho la vi tri that (khong phai nhom), thuoc cong ty dang dung."""
 	return frappe.get_all(
