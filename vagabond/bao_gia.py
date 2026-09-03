@@ -2476,9 +2476,6 @@ def xem_nguoi_nhan(name, email=None):
 @frappe.whitelist()
 def gui_email(name, email=None, loi_nhan=None):
 	"""Gui to bao gia PDF sang email khach, dong thoi doi trang thai."""
-	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
-	from vagabond import mau_chuan
-
 	_quyen(sua=True)
 	doc = frappe.get_doc(DT, name)
 	cd = _cd()
@@ -2503,24 +2500,28 @@ def gui_email(name, email=None, loi_nhan=None):
 	cc = [x for x in cc if x.lower() not in da_co and x.lower() != toi_la]
 
 	tep = xuat_pdf(name)
+	from vagabond import thu_khung as _tk
+
 	than = (
-		'<div style="font-family:' + mau_chuan.PHONG_THU + ';font-size:14px;'
-		'line-height:1.6;color:#1c1a17">'
-		"<p>Kính gửi Quý khách %s,</p>"
-		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách bảng báo giá "
-		"<b>%s</b> theo nội dung trao đổi. Chi tiết vui lòng xem tệp PDF đính kèm.</p>"
-		"<p>Báo giá có hiệu lực đến hết ngày <b>%s</b>. Tổng giá trị tạm tính là "
-		"<b>%s đ</b>.</p>%s"
-		"<p>Quý khách cần điều chỉnh số lượng hoặc quy cách, xin vui lòng phản hồi "
-		"lại email này hoặc liên hệ trực tiếp với chúng tôi.</p>"
-		"<p>Trân trọng,<br><b>%s</b><br>%s<br>The Vagabond Pâtisserie<br>%s</p></div>"
-	) % (
-		_esc(doc.ten_khach or ""), _esc(doc.ten or ""),
-		_ngay_vn(doc.hieu_luc_den) or "...", _tien_vn(doc.tong_cong),
-		("<p>%s</p>" % _esc(loi_nhan)) if (loi_nhan or "").strip() else "",
-		_esc(doc.ten_nguoi_lap_in or ""), _esc(doc.chuc_vu_lap or ""),
-		_esc(_cd()["web_ban"]),
+		_tk.doan("Kính gửi Quý khách <b>%s</b>," % _esc(doc.ten_khach or ""))
+		+ _tk.doan(
+			"%s trân trọng gửi Quý khách bảng báo giá <b>%s</b> theo nội dung đã trao đổi. "
+			"Chi tiết vui lòng xem tệp PDF đính kèm." % (_tk.TEN_TIEM, _esc(doc.ten or ""))
+		)
+		+ _tk.o_kem(
+			"Số báo giá: <b>%s</b><br>Tổng giá trị tạm tính: <b>%s đ</b><br>"
+			"Hiệu lực đến hết ngày: <b>%s</b>"
+			% (_esc(doc.name), _tien_vn(doc.tong_cong), _ngay_vn(doc.hieu_luc_den) or "..."),
+			goc_anh=_tk.goc_anh(),
+		)
+		+ (_tk.doan(_esc(loi_nhan)) if (loi_nhan or "").strip() else "")
+		+ _tk.doan(
+			"Quý khách cần điều chỉnh số lượng hoặc quy cách, xin phản hồi lại email này "
+			"hoặc liên hệ trực tiếp với chúng tôi.", cach=0,
+		)
+		+ _tk.chu_ky(doc.ten_nguoi_lap_in or _tk.TEN_TIEM, doc.chuc_vu_lap or "", _cd()["web_ban"] or "")
 	)
+	than = _tk.khung("Bảng báo giá %s" % (doc.ten or doc.name), than, chan="khach", nhan="Báo giá")
 	gui = {
 		"recipients": nhan,
 		"cc": cc or None,

@@ -1083,34 +1083,34 @@ def _bao_ke_toan(ho_so, si):
 		tien = "{:,.0f}".format(flt(ho_so.so_tien)).replace(",", ".")
 		tong = "{:,.0f}".format(flt(si.grand_total)).replace(",", ".")
 		phan = "toàn bộ đơn" if flt(ho_so.so_tien) >= flt(si.grand_total) - 0.5 else "một phần đơn"
+		from vagabond import thu_khung as _tk
+		from vagabond.nhan_su import link_app as _link_app
+
+		e = _tk.h
 		than = (
-			"<p>Có một yêu cầu hoàn tiền mới chờ chi.</p>"
-			"<table cellpadding='6' style='border-collapse:collapse'>"
-			"<tr><td><b>Phiếu</b></td><td>%s</td></tr>"
-			"<tr><td><b>Hoá đơn gốc</b></td><td>%s (tổng %s đ)</td></tr>"
-			"<tr><td><b>Số tiền hoàn</b></td><td><b>%s đ</b> - %s</td></tr>"
-			"<tr><td><b>Lý do</b></td><td>%s%s</td></tr>"
-			"<tr><td><b>Người gửi</b></td><td>%s</td></tr>"
-			"<tr><td><b>Tài khoản nhận</b></td><td>%s - %s - %s</td></tr>"
-			"<tr><td><b>Nội dung chuyển khoản</b></td><td><b>%s</b></td></tr>"
-			"</table>"
-			"<p>Mở app, vào Bán hàng, Hoàn tiền / Trả hàng để xem ảnh khách gửi kèm "
-			"và bấm Xuất thông tin chuyển khoản MB Biz.</p>"
-			"<p style='color:#92400e'>Tiền chỉ được ghi sổ sau khi có Uỷ nhiệm chi tải "
-			"từ e-banking đính kèm. Dòng sao kê SePay chỉ để biết tiền đã đi chưa.</p>"
-		) % (
-			ho_so.name,
-			si.name,
-			tong,
-			tien,
-			phan,
-			frappe.utils.escape_html(ho_so.ly_do or ""),
-			(": " + frappe.utils.escape_html(ho_so.dien_giai)) if ho_so.dien_giai else "",
-			frappe.utils.escape_html(ho_so.nguoi_duyet or ""),
-			frappe.utils.escape_html(ho_so.ten_tk or ""),
-			frappe.utils.escape_html(ho_so.so_tk or ""),
-			frappe.utils.escape_html(str(ho_so.ngan_hang or "")),
-			frappe.utils.escape_html(ho_so.noi_dung_ck or ""),
+			_tk.doan("Có một yêu cầu hoàn tiền mới chờ chi.")
+			+ _tk.cap([
+				("Phiếu", "<b>%s</b>" % e(ho_so.name)),
+				("Hoá đơn gốc", "%s (tổng %s đ)" % (e(si.name), tong)),
+				("Số tiền hoàn", "<b>%s đ</b> - %s" % (tien, phan)),
+				("Lý do", e(ho_so.ly_do or "") + ((": " + e(ho_so.dien_giai)) if ho_so.dien_giai else "")),
+				("Người gửi", e(ho_so.nguoi_duyet or "")),
+				("Tài khoản nhận", "%s - %s - %s" % (e(ho_so.ten_tk or ""), e(ho_so.so_tk or ""), e(str(ho_so.ngan_hang or "")))),
+				("Nội dung CK", "<b>%s</b>" % e(ho_so.noi_dung_ck or "")),
+			])
+			+ _tk.doan(
+				"Mở app, vào Bán hàng, Hoàn tiền / Trả hàng để xem ảnh khách gửi kèm và bấm "
+				"Xuất thông tin chuyển khoản MB Biz.", cach=10,
+			)
+			+ _tk.o_canh_bao(
+				"Tiền chỉ được ghi sổ sau khi có Uỷ nhiệm chi tải từ e-banking đính kèm. "
+				"Dòng sao kê SePay chỉ để biết tiền đã đi chưa."
+			)
+		)
+		than = _tk.khung(
+			"Yêu cầu hoàn tiền %s đ chờ chi" % tien, than,
+			nut_html=_tk.nut(_link_app(), "Mở app xem hồ sơ", goc_anh=_tk.goc_anh()),
+			chan="noi_bo", nhan="Hoàn tiền",
 		)
 		frappe.sendmail(
 			recipients=mail,
@@ -3805,6 +3805,10 @@ def ghi_hddt_thay_the(ma_phieu, so, ky_hieu=None):
 	hàng gốc, phiếu hoàn tiền và nhật ký đều có, thay vì chị Dung phải nhớ
 	mở ba nơi. Đó đúng là phần máy làm được mà không đụng tới hoá đơn thật.
 	"""
+	# Import tai cho nhu cac ham khac trong tep: v295 quen dong nay o ba ham
+	# nay, bam nut la NameError (bat duoc 03/09/2026 khi ra lai email).
+	from vagabond.ban_hang import _kiem_quyen
+
 	_kiem_quyen()
 	so = (str(so or "")).strip()
 	if not so:
@@ -3876,6 +3880,10 @@ def go_hddt_thay_the(ma_phieu, ly_do):
 	Không xoá lặng lẽ: ô trống lại nhưng nhật ký vẫn giữ cả số cũ lẫn lý do
 	gỡ, đúng QT-20.
 	"""
+	# Import tai cho nhu cac ham khac trong tep: v295 quen dong nay o ba ham
+	# nay, bam nut la NameError (bat duoc 03/09/2026 khi ra lai email).
+	from vagabond.ban_hang import _kiem_quyen
+
 	_kiem_quyen()
 	ly_do = (str(ly_do or "")).strip()
 	if not ly_do:
@@ -3911,6 +3919,10 @@ def can_ghi_thay_the(so_ngay=90):
 	còn một bước nối mã về đây, và bước đó rất dễ quên vì nó nằm ở phần mềm
 	khác.
 	"""
+	# Import tai cho nhu cac ham khac trong tep: v295 quen dong nay o ba ham
+	# nay, bam nut la NameError (bat duoc 03/09/2026 khi ra lai email).
+	from vagabond.ban_hang import _kiem_quyen
+
 	_kiem_quyen()
 	tu = add_days(nowdate(), -int(so_ngay or 90))
 	ra = []
