@@ -243,9 +243,92 @@ function cfdVeChip() {
      ba cau nay la ba viec can lam de no thanh man hinh rieng. */
   o.textContent = song
     ? 'Đang bật, khách nhìn thấy giỏ hàng và mã QR.'
-    : 'Chưa mở. Bấm Mở, kéo cửa sổ sang màn hình phụ rồi bấm Toàn màn hình. '
-    + 'Windows phải để màn hình phụ ở chế độ Extend, không phải Duplicate.';
+    : 'Chưa mở. Bấm Mở, máy tự đặt sang màn hình phụ; chạm vào màn đó một lần để phóng to. '
+    + 'Windows phải để màn hình phụ ở chế độ Extend (Win+P), không phải Duplicate.';
   o.style.color = song ? '#0f766e' : '#98a2b3';
+}
+
+/* ---------------------------------------------- mo dung man hinh phu
+
+   HAI TRIEU CHUNG anh Viet bao 03/09/2026, va vi sao cung mot goc:
+
+   1. "Mat cam ung man hinh chinh cua thu ngan." Cua so man hinh khach mo
+      bang window.open thi Windows dat no LEN TREN cua so dang co, tren
+      CUNG man hinh voi thu ngan. Bam Toan man hinh o do la no phu kin man
+      thu ngan. Thu ngan cham vao dau cung la cham vao man hinh khach, nen
+      tuong may hong cam ung. Man phu de Duplicate thi con te hon: hai man
+      la mot, keo di dau cung the.
+
+   2. "Man hinh khach toi den." Man phu khong ai cham vao, Windows tat no
+      di de tiet kiem dien sau muoi lam phut. Phan nay sua ben trang
+      man-hinh-khach.html bang Wake Lock, khong o day.
+
+   Cach sua o day: khong bat thu ngan keo cua so nua. Hoi trinh duyet may
+   nay co bao nhieu man hinh (Window Management API, Chrome tu ban 100),
+   co man phu thi DAT THANG cua so len man phu voi dung kich thuoc man do.
+   Chi thay MOT man hinh thi noi thang la dang Duplicate va KHONG mo, vi
+   mo ra chi de no de len man thu ngan.
+
+   Trinh duyet cu khong co API nay thi ve duong cu va noi ro phai keo tay.
+
+   THUAN: hai ham dau khong cham DOM, ca kiem chay bang node duoc. */
+
+/* Chon man hinh phu trong danh sach trinh duyet tra ve. Uu tien man KHONG
+   phai man chinh; khong co thi lay man thu hai; chi co mot man thi null. */
+function cfdChonManPhu(cacMan) {
+  cacMan = cacMan || [];
+  for (var i = 0; i < cacMan.length; i++) {
+    if (cacMan[i] && cacMan[i].isPrimary === false) return cacMan[i];
+  }
+  return cacMan.length > 1 ? cacMan[1] : null;
+}
+
+/* Chuoi dac tinh cua window.open de cua so nam TRON trong man phu do.
+   Dung avail* chu khong dung width/height: avail da tru thanh tac vu. */
+function cfdDacTinhCuaSo(man) {
+  if (!man) return '';
+  return 'popup=1,left=' + Math.round(Number(man.availLeft) || 0) +
+    ',top=' + Math.round(Number(man.availTop) || 0) +
+    ',width=' + Math.round(Number(man.availWidth) || 1280) +
+    ',height=' + Math.round(Number(man.availHeight) || 720);
+}
+
+async function cfdMo() {
+  var w = null;
+  /* screen.isExtended khong can xin quyen: false chac chan la may chi co
+     mot man hinh (hoac Duplicate). Noi ngay, dung mo. */
+  try {
+    if (window.screen && window.screen.isExtended === false) {
+      toast('Máy chỉ thấy MỘT màn hình. Windows đang để Duplicate: bấm Win+P chọn Extend, rồi bấm Mở lại.', 9000);
+      return;
+    }
+  } catch (e0) { }
+  if (typeof window.getScreenDetails === 'function') {
+    try {
+      /* Lan dau Chrome hoi quyen "quan ly cua so tren cac man hinh". Bam
+         Cho phep mot lan la nho. Tu choi thi roi xuong duong cu ben duoi. */
+      var sd = await window.getScreenDetails();
+      var phu = cfdChonManPhu(sd && sd.screens);
+      if (!phu) {
+        toast('Máy chỉ thấy MỘT màn hình. Windows đang để Duplicate: bấm Win+P chọn Extend, rồi bấm Mở lại.', 9000);
+        return;
+      }
+      w = window.open(CFD_TRANG + '?phu=1', 'vgbManKhach', cfdDacTinhCuaSo(phu));
+    } catch (e1) { w = null; }
+  }
+  if (!w) {
+    /* Duong cu: trinh duyet cu, hoac bi tu choi quyen. */
+    try { w = window.open(CFD_TRANG, 'vgbManKhach'); } catch (e2) { w = null; }
+    if (w) toast('Đã mở. Kéo cửa sổ đó sang màn hình phụ rồi chạm vào nó một lần để phóng toàn màn hình.', 7000);
+  }
+  if (!w) {
+    toast('Trình duyệt chặn mở cửa sổ. Mở tay địa chỉ ' + CFD_TRANG + ' rồi kéo sang màn hình phụ.', 6000);
+    return;
+  }
+  /* Tra tieu diem ve man thu ngan: cua so vua mo cuop tieu diem, va cai
+     cham dau tien cua thu ngan sau do chi de lay lai tieu diem chu khong
+     bam duoc nut nao. */
+  try { window.focus(); } catch (e3) { }
 }
 
 function cfdGan() {
@@ -253,12 +336,5 @@ function cfdGan() {
   cfdKenh();
   cfdVeChip();
   var n = document.getElementById('cfdMoNut');
-  if (n) {
-    n.onclick = function () {
-      /* Dat ten cua so co dinh: bam Mo lan hai thi dua cua so cu len chu
-         khong de ba cai man hinh khach chong len nhau. */
-      try { window.open(CFD_TRANG, 'vgbManKhach'); }
-      catch (e) { toast('Trình duyệt chặn mở cửa sổ. Mở tay địa chỉ ' + CFD_TRANG + ' rồi kéo sang màn hình phụ.', 6000); }
-    };
-  }
+  if (n) n.onclick = function () { cfdMo(); };
 }
