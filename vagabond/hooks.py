@@ -156,6 +156,11 @@ scheduler_events = {
 		# 03/09/2026 di cung duong kich ban m-invoice voi chuoi cuoi ngay,
 		# cung mot cong tac, cung mot khoa. Xem xuat_hddt_con_thieu_tu_dong.
 		"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"],
+		# Moi 30 phut: bill quay da chot va nam yen du 4 gio thi ghi so va
+		# xuat hoa don luon, khong doi 23h (anh Viet 03/09/2026). Lech nhip
+		# bu moi gio (phut 15) va nhip khop SePay (phut 0, 15, 30, 45) de
+		# hai viec cham m-invoice khong cung gio, va SePay da khop truoc.
+		"10,40 * * * *": ["vagabond.ban_hang.xuat_rai_trong_ngay"],
 		# Moi gio: doi soat lenh chi hoan tien voi sao ke SePay.
 		"35 * * * *": ["vagabond.hoan_tien.doi_soat_tu_dong"],
 		# Doi soat phieu thanh toan noi bo voi dong tien ra (OCB, MB...).

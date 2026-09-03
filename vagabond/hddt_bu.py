@@ -162,3 +162,52 @@ def cau_canh_bao_sot(ngay, so_to, tong_tien):
 	return "CẢNH BÁO: ngày %s còn %d hoá đơn đã ghi sổ mà chưa có hoá đơn điện tử, tổng %s đ." % (
 		ngay, int(so_to), "{:,.0f}".format(float(tong_tien or 0)).replace(",", "."),
 	)
+
+
+# ------------------------------------------------- xuat rai trong ngay (v395)
+#
+# Anh Viet 03/09/2026: "Xuat hoa don rai trong ngay thi anh dong y nhung can
+# nang len 4 tieng, nhung don cuoi ngay thi don lai xuat 1 lan luc 23h."
+#
+# Bill quay chot xong van nam nhap mot quang de khach quet QR dien cong ty.
+# Qua quang do thi ghi so va xuat luon, khong doi 23h. Nho vay luot 23h chi
+# con phan duoi cua ngay, khong con hon 140 to dan vao mot luc.
+
+GIO_CHO_TRUOC_KHI_XUAT = 4
+
+
+def duoc_rai(bay_gio_hhmm, gio_chuoi_hhmm, chuoi_da_chay_hom_nay):
+	"""Nhip rai co duoc chay luc nay khong.
+
+	Khong chay tu gio chuoi cuoi ngay tro di (23h la viec cua chuoi), va
+	khong chay nua khi chuoi hom nay da xong (phan con lai chuoi da lo).
+	"""
+	if chuoi_da_chay_hom_nay:
+		return False
+	return str(bay_gio_hhmm or "") < str(gio_chuoi_hhmm or "23:00")
+
+
+def moc_bill_du_gio(bay_gio, so_gio=GIO_CHO_TRUOC_KHI_XUAT):
+	"""Bill sua lan cuoi TRUOC moc nay la da cho du so_gio, duoc xuat.
+
+	Lay theo "sua lan cuoi" chu khong theo "tao": khach quet QR dien cong ty
+	hay thu ngan doi phuong thuc deu dat lai dong ho, de to hoa don luon
+	mang thong tin moi nhat.
+	"""
+	return bay_gio - datetime.timedelta(hours=float(so_gio))
+
+
+LY_DO_BO_QUA_RAI = {
+	"chua_pt", "pt_sai_nguon", "thieu_ma", "thieu_khach_no",
+	"tang_cho_duyet", "tang_tu_choi", "ngoai_chuoi",
+}
+
+
+def rai_bo_qua(ma_ly_do):
+	"""Nhip rai co bo qua bill mang ma ly do nay khong.
+
+	Bo qua nhung ly do can NGUOI xu (thieu phuong thuc, thieu khach no, cho
+	duyet tang...). "chua_ve_tien" thi KHONG bo qua: cho phep ghi so tu hoi
+	SePay, tien ve roi thi qua, chua ve thi bill nam lai cho luot sau.
+	"""
+	return str(ma_ly_do or "") in LY_DO_BO_QUA_RAI
