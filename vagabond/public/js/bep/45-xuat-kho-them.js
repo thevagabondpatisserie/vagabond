@@ -283,6 +283,19 @@ function xktDemTT(ds) {
 
 var XKT_TT = [{ k: '', ten: 'Tất cả' }, { k: 'cho', ten: 'Chờ ghi sổ', ic: '🟡' }, { k: 'xong', ten: 'Đã ghi sổ', ic: '🟢' }];
 
+/* KHOI BAO LOI DO khi may chu khong tra duoc danh sach.
+
+   Ban v387 nuot loi im lang (catch rong), nen khi xuat_ban.ds_phieu do vi doc
+   cot `remarks` khong co tren Delivery Note, man chi hien "Chua co phieu nao"
+   nhu binh thuong. Loi nam do ba ngay khong ai biet (03/09/2026). Tu nay may
+   chu do thi noi ro, va bao chup man gui anh Viet. */
+function xktLoiHtml(loi) {
+  return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;' +
+    'padding:14px;margin:8px 0;font-size:13px;color:#991b1b;line-height:1.6">' +
+    '<b>Không đọc được danh sách phiếu.</b><br>' + h(loi) +
+    '<br><span style="color:#7f1d1d;font-size:12px">Chụp màn này gửi anh Việt giúp.</span></div>';
+}
+
 /* Man danh sach dung chung: tim, ba hang chip, the tom tat, cac dong. */
 function xktManDanhSach(cfg) {
   var st = cfg.st;
@@ -293,7 +306,9 @@ function xktManDanhSach(cfg) {
     var nhoms = [{ k: '', ten: cfg.nhomTatCa || 'Mọi nhóm' }].concat(cfg.nhoms.filter(function (n) { return demNhom[n.k]; }));
     var rows = '';
     for (var i = 0; i < loc.length; i++) rows += cfg.row(loc[i]);
-    if (!loc.length) {
+    if (cfg.loi && !cfg.ds.length) {
+      rows = xktLoiHtml(cfg.loi);
+    } else if (!loc.length) {
       rows = '<div class="emp"><div class="e1">' + (cfg.ds.length ? '🔎' : '📭') + '</div><div class="e2">' +
         h(cfg.ds.length ? 'Không có phiếu nào khớp bộ lọc. Chạm chip để bỏ bớt điều kiện.' : (cfg.rong || 'Chưa có phiếu nào. Bấm nút + để lập phiếu.')) + '</div></div>';
     }
@@ -456,13 +471,15 @@ async function scrXkNbList() {
   xktCss();
   frame('Xuất dùng nội bộ', '<div class="emp"><div class="e1">⏳</div></div>');
   var b = await xktBootNb();
+  var loiDs = '';
   var ds = [];
-  try { ds = (await api('vagabond.xuat_noi_bo.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { }
+  try { ds = (await api('vagabond.xuat_noi_bo.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var nhoms = (b.muc_dich || []).map(function (m) { return { k: m.ma, ten: m.ten }; });
   xktManDanhSach({
     tieuDe: 'Xuất dùng nội bộ',
     st: XKT.nb,
     ds: ds,
+    loi: loiDs,
     moTa: 'Hàng ra khỏi kho mà <b>tiệm vẫn dùng</b>: chụp ảnh, mẫu thử, mời khách, ăn ca. Hàng hỏng thật thì vẫn đi đường Xuất huỷ.',
     tenPhieu: 'phiếu',
     nhoms: nhoms,
@@ -684,14 +701,16 @@ async function scrXkTraList() {
   xktCss();
   frame('Xuất trả nhà cung cấp', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootTra();
+  var loiDs = '';
   var ds = [];
-  try { ds = (await api('vagabond.tra_ncc.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { }
+  try { ds = (await api('vagabond.tra_ncc.ds_phieu', { gioi_han: 200 })) || []; } catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var nccs = {};
   ds.forEach(function (x) { if (x.supplier) nccs[x.supplier] = x.supplier_name || x.supplier; });
   xktManDanhSach({
     tieuDe: 'Xuất trả nhà cung cấp',
     st: XKT.tra,
     ds: ds,
+    loi: loiDs,
     moTa: 'Phiếu này vừa <b>giảm tồn kho</b> vừa <b>giảm công nợ phải trả</b>, nên kế toán không phải gõ bút toán tay để nắn lại.',
     tenPhieu: 'phiếu trả',
     nhoms: Object.keys(nccs).map(function (k) { return { k: k, ten: nccs[k], ic: '🏭' }; }),
@@ -885,14 +904,16 @@ async function scrXkSiList() {
   xktCss();
   frame('Xuất bán sỉ', '<div class="emp"><div class="e1">⏳</div></div>');
   await xktBootSi();
+  var loiDs = '';
   var ds = [];
-  try { ds = (await api('vagabond.xuat_ban.ds_phieu', { gioi_han: 200, so_ngay: 365 })) || []; } catch (e) { }
+  try { ds = (await api('vagabond.xuat_ban.ds_phieu', { gioi_han: 200, so_ngay: 365 })) || []; } catch (e) { loiDs = errMsg(e) || 'Không đọc được danh sách phiếu.'; }
   var khs = {};
   ds.forEach(function (x) { if (x.customer) khs[x.customer] = x.customer_name || x.customer; });
   xktManDanhSach({
     tieuDe: 'Xuất bán sỉ',
     st: XKT.si,
     ds: ds,
+    loi: loiDs,
     moTa: 'Phiếu giao hàng cho khách sỉ và khách doanh nghiệp. Phiếu này <b>trừ kho thật</b> và ghi giá vốn.',
     tenPhieu: 'phiếu giao',
     nhoms: Object.keys(khs).map(function (k) { return { k: k, ten: khs[k], ic: '🏢' }; }),
