@@ -2268,10 +2268,17 @@ def ra_trung_hang_dem():
 		if not nguoi:
 			frappe.log_error(than[:5000], "ban_hang: co don trung ma chua khai email canh bao")
 			return
+		from vagabond import thu_khung as _tk
+		from vagabond.nhan_su import link_app as _link_app
+
 		frappe.sendmail(
 			recipients=nguoi,
 			subject="[Vagabond] %d đơn đang có hoá đơn trùng" % len(nhom),
-			message=than,
+			message=_tk.khung(
+				"Có đơn đang bị tính doanh thu hai lần", than,
+				nut_html=_tk.nut(_link_app(), "Mở app rà phiếu trùng", goc_anh=_tk.goc_anh()),
+				chan="noi_bo", nhan="Cảnh báo doanh thu",
+			),
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang cron ra trung")
@@ -3202,7 +3209,8 @@ def canh_bao_hddt_sot():
 		frappe.sendmail(
 			recipients=nhan,
 			subject="Vagabond: còn %d hoá đơn chưa xuất hoá đơn điện tử ngày %s" % (so, ngay),
-			message=_khung_thu("Hoá đơn điện tử còn sót", than, _nut_xanh(link_app(), "Mở app")),
+			message=_khung_thu("Hoá đơn điện tử còn sót", than, _nut_xanh(link_app(), "Mở app"),
+				chan="noi_bo", nhan="Cuối ngày"),
 			delayed=False,
 			retry=2,
 		)
@@ -3605,7 +3613,8 @@ def canh_bao_don_treo():
 		frappe.sendmail(
 			recipients=nhan,
 			subject="Vagabond: còn %d đơn chưa ghi sổ ngày %s" % (len(ds), nowdate()),
-			message=_khung_thu("Đơn chưa ghi sổ được", than, _nut_xanh(link_app(), "Mở app xử đơn")),
+			message=_khung_thu("Đơn chưa ghi sổ được", than, _nut_xanh(link_app(), "Mở app xử đơn"),
+				chan="noi_bo", nhan="Cuối ngày"),
 			delayed=False,
 			retry=2,
 		)
@@ -6107,23 +6116,31 @@ def _xhd_mail_tiep_nhan(name, email, ten, so_mst):
 	ngay = str(si.get("posting_date") or "")
 	ngay = "/".join(reversed(ngay.split("-"))) if ngay else ""
 	ma = si.get("custom_pancake_display_id") or name
-	noi_dung = """<div style="font-family:Arial,sans-serif;font-size:14px;color:#222;line-height:1.7;max-width:560px">
-<p>Ch&agrave;o anh ch&#7883;,</p>
-<p>The Vagabond P&acirc;tisserie &#273;&atilde; nh&#7853;n &#273;&#7911; th&ocirc;ng tin xu&#7845;t ho&aacute; &#273;&#417;n cho bill <b>%(ma)s</b> ng&agrave;y %(ngay)s, t&#7893;ng ti&#7873;n <b>%(tien)s &#273;</b>:</p>
-<p style="background:#f6f6f6;border-radius:8px;padding:12px 16px;margin:8px 0">
-T&ecirc;n ph&aacute;p nh&acirc;n: <b>%(ten)s</b><br>
-M&atilde; s&#7889; thu&#7871;: <b>%(mst)s</b></p>
-<p>Ho&aacute; &#273;&#417;n &#273;i&#7879;n t&#7917; s&#7869; &#273;&#432;&#7907;c ph&aacute;t h&agrave;nh v&agrave; g&#7917;i v&#7873; &#273;&uacute;ng &#273;&#7883;a ch&#7881; email n&agrave;y <b>trong ng&agrave;y</b>. N&#7871;u qu&aacute; 24 gi&#7901; ch&#432;a th&#7845;y, anh ch&#7883; ki&#7875;m tra gi&uacute;p m&#7909;c th&#432; r&aacute;c, ho&#7863;c nh&#7855;n l&#7841;i cho ti&#7879;m qua fanpage.</p>
-<p>Th&ocirc;ng tin c&oacute; sai s&oacute;t th&igrave; anh ch&#7883; b&aacute;o l&#7841;i tr&#432;&#7899;c 22h h&ocirc;m nay &#273;&#7875; ti&#7879;m k&#7883;p s&#7917;a tr&#432;&#7899;c khi ph&aacute;t h&agrave;nh nh&eacute;.</p>
-<p>C&#7843;m &#417;n anh ch&#7883; &#273;&atilde; gh&eacute; ti&#7879;m!</p>
-<p style="color:#777;font-size:12.5px;margin-top:18px">The Vagabond P&acirc;tisserie<br>9 Tr&#7847;n Cao V&acirc;n, Qu&#7853;n 1, TP.HCM<br>thevagabondpatisserie.com</p>
-</div>""" % {
-		"ma": ma,
-		"ngay": ngay,
-		"tien": _tien(si.get("grand_total") or 0),
-		"ten": ten,
-		"mst": so_mst,
-	}
+	from vagabond import thu_khung as _tk
+
+	_e = _tk.h
+	than = (
+		_tk.doan("Chào anh chị,")
+		+ _tk.doan(
+			"%s đã nhận đủ thông tin xuất hoá đơn cho bill <b>%s</b> ngày %s, "
+			"tổng tiền <b>%s đ</b>:" % (_tk.TEN_TIEM, _e(ma), _e(ngay), _tk.tien(si.get("grand_total") or 0))
+		)
+		+ _tk.o_kem(
+			"Tên pháp nhân: <b>%s</b><br>Mã số thuế: <b>%s</b>" % (_e(ten), _e(so_mst)),
+			goc_anh=_tk.goc_anh(),
+		)
+		+ _tk.doan(
+			"Hoá đơn điện tử sẽ được phát hành và gửi về đúng địa chỉ email này "
+			"<b>trong ngày</b>. Quá 24 giờ chưa thấy, anh chị kiểm giúp mục thư rác, "
+			"hoặc nhắn lại cho tiệm qua fanpage."
+		)
+		+ _tk.o_canh_bao(
+			"Thông tin có sai sót thì anh chị báo lại <b>trước 22h hôm nay</b> để tiệm "
+			"kịp sửa trước khi phát hành nhé."
+		)
+		+ _tk.doan("Cảm ơn anh chị đã ghé tiệm!", cach=0)
+	)
+	noi_dung = _tk.khung("Đã nhận thông tin xuất hoá đơn", than, chan="khach", nhan="Hoá đơn điện tử")
 	frappe.sendmail(
 		recipients=[email],
 		sender="erp@thevagabondpatisserie.com",

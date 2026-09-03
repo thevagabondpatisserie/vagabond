@@ -1220,9 +1220,6 @@ def xem_nguoi_nhan(name, email=None):
 @frappe.whitelist()
 def gui_email(name, email=None, loi_nhan=None):
 	"""Gui to hop dong PDF (da gom phu luc bao gia) sang email khach."""
-	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
-	from vagabond import mau_chuan
-
 	_quyen(sua=True)
 	from vagabond.bao_gia import _cd, _tach_email
 
@@ -1255,29 +1252,33 @@ def gui_email(name, email=None, loi_nhan=None):
 	la_ban_chot = bool(ban_chot_cua(name))
 	tep = tai_ve_ban_chot(name) if la_ban_chot else xuat_pdf(name)
 	so = d.get("so_hop_dong") or name
+	from vagabond import thu_khung as _tk
+
 	than = (
-		'<div style="font-family:' + mau_chuan.PHONG_THU + ';font-size:14px;'
-		'line-height:1.6;color:#1c1a17">'
-		"<p>Kính gửi Quý khách %s,</p>"
-		"<p>The Vagabond Pâtisserie trân trọng gửi Quý khách <b>Hợp đồng mua bán hàng hóa "
-		"số %s</b> theo nội dung hai bên đã thống nhất.%s</p>"
-		"<p>Tổng giá trị Hợp đồng là <b>%s đ</b> (Bằng chữ: %s).</p>%s"
-		"<p>Quý khách vui lòng kiểm tra lại thông tin doanh nghiệp, người đại diện và các "
-		"điều khoản. Nếu cần điều chỉnh, xin phản hồi lại email này trước khi ký.</p>"
-		"<p>Trân trọng,<br><b>%s</b><br>%s<br>The Vagabond Pâtisserie<br>%s</p></div>"
-	) % (
-		_esc(d.get("ten_khach") or ""),
-		_esc(so),
-		(" Đây là bản hai bên đã thống nhất và chốt nội dung."
-		 if la_ban_chot else
-		 " Bản báo giá đã chốt được đính kèm trong cùng tệp PDF làm Phụ lục 01."),
-		_tien_vn(d.get("gia_tri")),
-		_chu_so_tien(d.get("gia_tri")),
-		("<p>%s</p>" % _br(loi_nhan)) if (loi_nhan or "").strip() else "",
-		_esc(b.get("dai_dien") or ""),
-		_esc(b.get("chuc_vu") or ""),
-		_esc(b.get("dien_thoai") or ""),
+		_tk.doan("Kính gửi Quý khách <b>%s</b>," % _esc(d.get("ten_khach") or ""))
+		+ _tk.doan(
+			"%s trân trọng gửi Quý khách <b>Hợp đồng mua bán hàng hóa số %s</b> theo nội "
+			"dung hai bên đã thống nhất.%s"
+			% (
+				_tk.TEN_TIEM, _esc(so),
+				(" Đây là bản hai bên đã thống nhất và chốt nội dung."
+				 if la_ban_chot else
+				 " Bản báo giá đã chốt được đính kèm trong cùng tệp PDF làm Phụ lục 01."),
+			)
+		)
+		+ _tk.o_kem(
+			"Tổng giá trị Hợp đồng: <b>%s đ</b><br>Bằng chữ: %s"
+			% (_tien_vn(d.get("gia_tri")), _esc(_chu_so_tien(d.get("gia_tri")))),
+			goc_anh=_tk.goc_anh(),
+		)
+		+ (_tk.doan(_br(loi_nhan)) if (loi_nhan or "").strip() else "")
+		+ _tk.doan(
+			"Quý khách vui lòng kiểm tra lại thông tin doanh nghiệp, người đại diện và các "
+			"điều khoản. Nếu cần điều chỉnh, xin phản hồi lại email này trước khi ký.", cach=0,
+		)
+		+ _tk.chu_ky(b.get("dai_dien") or _tk.TEN_TIEM, b.get("chuc_vu") or "", b.get("dien_thoai") or "")
 	)
+	than = _tk.khung("Hợp đồng mua bán hàng hóa số %s" % so, than, chan="khach", nhan="Hợp đồng")
 	gui = {
 		"recipients": nhan,
 		"cc": cc or None,

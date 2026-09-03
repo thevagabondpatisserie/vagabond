@@ -685,8 +685,9 @@ def gui_email(name=None, email=None):
 	if d.get("trang_thai") == TT_HUY:
 		frappe.throw("Phiếu %s đã huỷ, không gửi cho khách được." % name)
 
-	from vagabond.nhan_su import _khung_thu, _o_nhat
+	from vagabond import thu_khung as _tk
 
+	_o_nhat = lambda x: _tk.o_kem(x, goc_anh=_tk.goc_anh())
 	tep = xuat_pdf(name)
 	h = frappe.utils.escape_html
 	than = (
@@ -714,7 +715,7 @@ def gui_email(name=None, email=None):
 		cc=[EMAIL_KE_TOAN],
 		sender=EMAIL_SALES,
 		subject="%s - Phiếu thanh toán hợp đồng %s" % (TEN_TIEM, d.get("so_hop_dong") or ""),
-		message=_khung_thu("Phiếu thanh toán hợp đồng", than),
+		message=_tk.khung("Phiếu thanh toán hợp đồng", than, chan="khach", nhan="Hợp đồng"),
 		attachments=[{"fname": tep["ten_file"], "fcontent": base64.b64decode(tep["b64"])}],
 		reference_doctype=DT,
 		reference_name=name,

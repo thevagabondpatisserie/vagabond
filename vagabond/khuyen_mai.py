@@ -1264,23 +1264,28 @@ def _csv_lo(ten_ctkm, ds_ma, han):
 def _gui_mail_lo(lo, ten_ctkm, ds_ma, email, gui_cho, han):
 	"""Tra ve chuoi loi neu gui that bai, chuoi rong neu gui duoc."""
 	try:
-		noi_dung = """
-<p>Chào anh chị,</p>
-<p>Đây là danh sách <b>%d mã ưu đãi</b> của chương trình <b>%s</b> tại
-The Vagabond Pâtisserie.</p>
-<p>Hạn dùng: <b>%s</b></p>
-<p>Mỗi mã chỉ dùng được <b>một lần</b>. Khách đọc mã cho thu ngân tại quầy,
-máy tự kiểm tra và trừ ưu đãi trên hoá đơn.</p>
-<p>File CSV đầy đủ đính kèm trong thư này.</p>
-<p>Mã lô: %s%s</p>
-<p>Trân trọng,<br>The Vagabond Pâtisserie</p>
-""" % (
-			len(ds_ma),
-			frappe.utils.escape_html(ten_ctkm or ""),
-			han or "không giới hạn",
-			lo,
-			(" &middot; Gửi cho: " + frappe.utils.escape_html(gui_cho)) if gui_cho else "",
+		from vagabond import thu_khung as _tk
+
+		e = _tk.h
+		than = (
+			_tk.doan("Chào anh chị,")
+			+ _tk.doan(
+				"Đây là danh sách <b>%d mã ưu đãi</b> của chương trình <b>%s</b> tại %s."
+				% (len(ds_ma), e(ten_ctkm or ""), _tk.TEN_TIEM)
+			)
+			+ _tk.o_kem(
+				"Hạn dùng: <b>%s</b><br>Mã lô: <b>%s</b>%s"
+				% (e(han or "không giới hạn"), e(lo),
+				   ("<br>Gửi cho: " + e(gui_cho)) if gui_cho else ""),
+				goc_anh=_tk.goc_anh(),
+			)
+			+ _tk.doan(
+				"Mỗi mã chỉ dùng được <b>một lần</b>. Khách đọc mã cho thu ngân tại quầy, "
+				"máy tự kiểm tra và trừ ưu đãi trên hoá đơn."
+			)
+			+ _tk.doan("Danh sách mã đầy đủ nằm trong tệp CSV đính kèm thư này.", cach=0)
 		)
+		noi_dung = _tk.khung("%d mã ưu đãi cho anh chị" % len(ds_ma), than, chan="khach", nhan="Ưu đãi")
 		frappe.sendmail(
 			recipients=[email],
 			subject="[The Vagabond] %d mã ưu đãi - %s" % (len(ds_ma), ten_ctkm or ""),
