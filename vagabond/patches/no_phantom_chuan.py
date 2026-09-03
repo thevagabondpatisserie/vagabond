@@ -30,6 +30,14 @@ nằm trong Mirror Glaze vẫn là lá của 62 bánh.
 
 Hàm này LẶP LẠI ĐƯỢC: chạy lần hai không đổi gì thêm. Hỏng ở bước nào thì
 ghi nhật ký rồi đi tiếp, KHÔNG ném lỗi ra ngoài để không chặn migrate.
+
+Đợt hai (v403, đo sau khi v402 chạy trên site 03/09 15:29): còn 13 công thức
+giữ lá Egg yolk, Gelatine mass, Coffee liquid vì dòng cha trỏ vào công thức
+con PHIÊN BẢN CŨ đã tắt (BOM-BTPB00073-001, 00086-001, 00098-001,
+00065-001), mà bảng nổ của công thức tắt thì không được dựng lại. ERPNext
+vốn cấm công thức đang chạy trỏ vào công thức tắt (validate_bom_no), nên
+đợt này trỏ lại về công thức mặc định đang chạy của cùng mã, rồi dựng lại.
+Và tách báo cáo lá hỏng ra ba loại để người đọc biết cái nào cần làm gì.
 """
 
 import frappe
@@ -86,6 +94,43 @@ def la_hong(la, phantom, tat):
 	return ra
 
 
+def chon_bom_con(bom_no, mac_dinh, dang_chay):
+	"""Dòng cha nên trỏ vào công thức con nào. THUẦN.
+
+	`bom_no` là công thức dòng đang trỏ (có thể rỗng), `mac_dinh` là công
+	thức mặc định đang chạy của mã (có thể None), `dang_chay` là tập tên công
+	thức đang chạy. Giữ nguyên nếu dòng đang trỏ vào công thức đang chạy;
+	trỏ vào công thức tắt hoặc chưa trỏ thì lấy mặc định; không có mặc định
+	thì trả None (để yên, và báo ra ở bước kiểm).
+	"""
+	if bom_no and bom_no in dang_chay:
+		return bom_no
+	return mac_dinh or None
+
+
+def phan_loai_la(la, phantom_co_bom, phantom_khong_bom, tat):
+	"""Chia lá của một bảng nổ ra ba loại. THUẦN.
+
+	Trả về dict chỉ gồm loại có mã: `phantom_con_bom` là lỗi dựng bảng nổ
+	(phải sửa ở đây), `phantom_chua_co_bom` là mã cần bếp khai công thức,
+	`tat` là mã đã tắt. Mã không quản tồn mà KHÔNG phải mã có chặng BTP
+	(nước chẳng hạn) không tính là hỏng: ERPNext bỏ nó khỏi phiếu kho là đúng.
+	"""
+	ra = {"phantom_con_bom": [], "phantom_chua_co_bom": [], "tat": []}
+	thay = set()
+	for m in la or []:
+		if m in thay:
+			continue
+		thay.add(m)
+		if m in tat:
+			ra["tat"].append(m)
+		elif m in phantom_co_bom:
+			ra["phantom_con_bom"].append(m)
+		elif m in phantom_khong_bom:
+			ra["phantom_chua_co_bom"].append(m)
+	return {k: v for k, v in ra.items() if v}
+
+
 # ---------------------------------------------------------- chạm hệ thống
 
 
@@ -107,7 +152,8 @@ def _bom_mac_dinh(ma):
 
 def execute():
 	kq = {"ma_doi": [], "trung": [], "bom_phantom": 0, "dong_phantom": 0,
-		"dong_giu_ton": 0, "dung_lai": 0, "hong_dung_lai": [], "la_hong": {}}
+		"dong_giu_ton": 0, "tro_lai": [], "dung_lai": 0, "hong_dung_lai": [],
+		"la_hong": {}, "ma_can_cong_thuc": [], "ma_khong_ton_khong_bom": []}
 	try:
 		_chuyen_ma_con_lai(kq)
 	except Exception:
@@ -193,18 +239,23 @@ def _gan_co_phantom(kq):
 				frappe.db.set_value("BOM", b.name, "is_phantom_bom", 1, update_modified=False)
 				kq["bom_phantom"] += 1
 	ten_bom = [b.name for b in boms]
+	dang_chay = set(ten_bom)
 	dong = frappe.get_all("BOM Item", filters={"parenttype": "BOM",
 		"parent": ["in", ten_bom]},
 		fields=["name", "parent", "item_code", "bom_no", "is_phantom_item", "do_not_explode"],
 		limit_page_length=0)
 	for d in dong:
 		if d.item_code in phantom:
-			bom_con = d.bom_no or _bom_mac_dinh(d.item_code) or bom_cua.get(d.item_code)
+			bom_con = chon_bom_con(d.bom_no,
+				_bom_mac_dinh(d.item_code) or bom_cua.get(d.item_code), dang_chay)
 			if not bom_con:
 				continue
 			gt = {}
 			if d.bom_no != bom_con:
 				gt["bom_no"] = bom_con
+				if d.bom_no:
+					kq["tro_lai"].append({"cha": d.parent, "ma": d.item_code,
+						"cu": d.bom_no, "moi": bom_con})
 			if not cint(d.is_phantom_item):
 				gt["is_phantom_item"] = 1
 			if cint(d.do_not_explode):
@@ -257,12 +308,26 @@ def _kiem_lai(kq):
 		return
 	ho_so = frappe.get_all("Item", filters={"name": ["in", list(ma)]},
 		fields=["name", "is_stock_item", "disabled"], limit_page_length=0)
-	phantom = {h.name for h in ho_so if not cint(h.is_stock_item)}
+	khong_ton = {h.name for h in ho_so if not cint(h.is_stock_item)}
 	tat = {h.name for h in ho_so if cint(h.disabled)}
+	# Mã không quản tồn chia ba: có công thức đang chạy (lá này là lỗi dựng
+	# bảng nổ), có chặng BTP nhưng chưa có công thức nào (bếp phải khai),
+	# và mã không có chặng BTP như nước (ERPNext bỏ khỏi phiếu kho, không sao).
+	co_bom = {b.item for b in _cac_bom_dang_chay() if b.item in khong_ton}
+	co_bat_ky_bom = {b.item for b in frappe.get_all("BOM",
+		filters={"item": ["in", list(khong_ton)], "docstatus": ["<", 2]},
+		fields=["item"], limit_page_length=0)}
+	nhom = {h.name: h.item_group for h in frappe.get_all("Item",
+		filters={"name": ["in", list(khong_ton)]}, fields=["name", "item_group"],
+		limit_page_length=0)}
+	can_cong_thuc = {m for m in khong_ton if m not in co_bom
+		and (m in co_bat_ky_bom or "Bán thành phẩm" in (nhom.get(m) or ""))}
+	kq["ma_can_cong_thuc"] = sorted(can_cong_thuc)
+	kq["ma_khong_ton_khong_bom"] = sorted(khong_ton - co_bom - can_cong_thuc)
 	theo_bom = {}
 	for x in la:
 		theo_bom.setdefault(x.parent, []).append(x.item_code)
 	for ten, cac in theo_bom.items():
-		h = la_hong(cac, phantom, tat)
+		h = phan_loai_la(cac, co_bom, can_cong_thuc, tat)
 		if h:
 			kq["la_hong"][ten] = h
