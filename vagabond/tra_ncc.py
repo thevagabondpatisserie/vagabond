@@ -45,6 +45,8 @@ import json
 import frappe
 from frappe.utils import add_days, cint, flt, nowdate
 
+from vagabond import xuat_kho
+
 QUYEN_TRA = {
 	"System Manager",
 	"Stock Manager",
@@ -276,6 +278,7 @@ def dong_cua_phieu(phieu=None):
 	if cint(doc.get("is_return")):
 		frappe.throw("Phiếu %s đã là phiếu trả hàng, không trả tiếp theo nó được." % phieu)
 	da_tra = _da_tra_theo_ma(phieu)
+	anh = xuat_kho.anh_theo_ma([d.item_code for d in doc.items])
 	ra = []
 	for d in doc.items:
 		con = con_tra_duoc(d.qty, da_tra.get(d.item_code, 0))
@@ -289,6 +292,7 @@ def dong_cua_phieu(phieu=None):
 				"da_tra": flt(da_tra.get(d.item_code, 0)),
 				"con": con,
 				"don_gia": flt(d.rate),
+				"anh": anh.get(d.item_code, ""),
 			}
 		)
 	return {
@@ -406,6 +410,7 @@ def chi_tiet(name=None):
 	doc = frappe.get_doc("Purchase Receipt", name)
 	if not cint(doc.get("is_return")):
 		frappe.throw("Phiếu %s không phải phiếu trả hàng." % name)
+	anh = xuat_kho.anh_theo_ma([d.item_code for d in doc.items])
 	return {
 		"name": doc.name,
 		"ngay": str(doc.posting_date),
@@ -429,6 +434,7 @@ def chi_tiet(name=None):
 				"sl": abs(flt(d.qty)),
 				"tien": abs(flt(d.amount)),
 				"kho": d.warehouse,
+				"anh": anh.get(d.item_code, ""),
 			}
 			for d in doc.items
 		],
