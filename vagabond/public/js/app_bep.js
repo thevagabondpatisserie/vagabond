@@ -2858,7 +2858,7 @@ function scrXkChonHang(kho, quayVe) {
       var x = ds[i];
       var a = anh[x.ma] ?
         '<img class="vxga" src="' + h(anh[x.ma]) + '" loading="lazy">' :
-        '<div class="vxga t" style="background:' + MAU[i % MAU.length] + '">' + h((x.ten || x.ma).charAt(0).toUpperCase()) + '</div>';
+        '<div class="vxga t" style="background:' + MAU[i % MAU.length] + '">🍰</div>';
       s += '<div class="vxgi" data-th="' + i + '">' + a +
         '<div class="vxgn">' + h(x.ten || x.ma) + '</div>' +
         '<div class="vxgm">' + h(x.ma) + '</div>' +
@@ -20376,7 +20376,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '397';
+var APPVER = '399';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -44702,12 +44702,23 @@ async function scrXkNbList() {
   });
 }
 
+/* Keo gio tu man chon hang (03) ve trang thai cua man lap phieu. Man chon
+   hang ghi vao XK.gio roi back(); man lap phieu ve lai tu dau ham nen phai
+   doc XK.gio o day, va chi doc khi chinh minh vua mo man chon (co dangChon),
+   keo lan mo sau tu danh sach lai keo nham gio cu cua man khac. */
+function xktKeoGioVe(st) {
+  if (!st.dangChon) return;
+  st.dangChon = false;
+  st.gio = (XK.gio || []).slice();
+}
+
 async function scrXkNbNew() {
   xktCss();
   if (!XKT.nb.kho) { try { XKT.nb.kho = localStorage.getItem('vgbKhoXuat') || ''; } catch (e) { } }
   frame('Lập phiếu xuất dùng nội bộ', '<div class="emp"><div class="e1">⏳</div></div>');
   var b = await xktBootNb();
   var st = XKT.nb;
+  xktKeoGioVe(st);
   var mucDichs = (b.muc_dich || []).map(function (m) { return { k: m.ma, ten: m.ten }; });
   var bpItems = xktBoPhanItems(b.bo_phan);
 
@@ -44760,10 +44771,13 @@ async function scrXkNbNew() {
     body.querySelector('#nbthem').onclick = function () {
       if (!st.kho) { toast('Chọn kho xuất trước đã.'); xktBaoThieu(body, [['nbkho', 1]]); return; }
       var kho2 = st.kho;
-      /* Man chon hang cua 03 ghi thang vao XK.gio. Muon dung lai no ma khong
-         sua no thi muon tam XK.gio, chon xong keo ve gio cua man nay. */
+      /* Man chon hang cua 03 ghi thang vao XK.gio roi goi back(), KHONG goi
+         ham quay ve. Nen muon tam XK.gio, cam co "dang chon", va luc man
+         nay ve lai (dau ham) thi keo XK.gio ve gio cua minh. Loi v397 tren
+         site that: chon mon xong ve man van "Chua co mon nao". */
       XK.gio = st.gio.slice();
-      go(function () { scrXkChonHang(kho2, function () { st.gio = XK.gio.slice(); return scrXkNbNew(); }); });
+      st.dangChon = true;
+      go(function () { scrXkChonHang(kho2, null); });
     };
     body.querySelector('#nbluu').onclick = luu;
   }
@@ -45164,6 +45178,7 @@ async function scrXkSiNew() {
   frame('Lập phiếu giao hàng', '<div class="emp"><div class="e1">⏳</div></div>');
   var b = await xktBootSi();
   var st = XKT.si;
+  xktKeoGioVe(st);
 
   function ve() {
     var kho = xktKhoHtml('sikho', b.kho, st.kho);
@@ -45217,7 +45232,8 @@ async function scrXkSiNew() {
       if (!st.kho) { toast('Chọn kho xuất trước đã.'); xktBaoThieu(body, [['sikho', 1]]); return; }
       var kho2 = st.kho;
       XK.gio = st.gio.slice();
-      go(function () { scrXkChonHang(kho2, function () { st.gio = XK.gio.slice(); return scrXkSiNew(); }); });
+      st.dangChon = true;
+      go(function () { scrXkChonHang(kho2, null); });
     };
     body.querySelector('#siluu').onclick = luu;
   }
