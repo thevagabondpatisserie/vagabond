@@ -105,6 +105,8 @@ def _so(x):
 import frappe
 from frappe.utils import cint, flt
 
+from vagabond import lo_het_han
+
 # Các khoá của khung, phải bỏ đi khi nhân một dòng ra làm hai, nếu không
 # bản sao mang tên của bản gốc và Frappe ghi đè lên nhau.
 KHOA_BO = (
@@ -123,13 +125,22 @@ def _theo_lo(ma):
 		return 0
 
 
-def _ton_tung_lo(ma, kho):
-	"""Tồn từng lô của một mã tại một kho. Trả về {tên lô: tồn}."""
+def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
+	"""Tồn từng lô của một mã tại một kho. Trả về {tên lô: tồn}.
+
+	`ke_ca_qua_han` bật thì gọi ERPNext kèm cờ `for_stock_levels`, là cách
+	duy nhất để nó chịu trả về lô đã quá hạn (get_auto_batch_nos lọc
+	`expiry_date >= today` nếu không có cờ). Cờ đó cũng bỏ luôn phần trừ
+	hàng đang giữ cho hoá đơn POS nháp, nên CHỈ dùng cho vòng vét cuối,
+	sau khi vòng thường đã tính đủ phần hàng còn hạn.
+	"""
 	ra = {}
 	try:
 		from erpnext.stock.doctype.batch.batch import get_batch_qty
 
-		ds = get_batch_qty(item_code=ma, warehouse=kho) or []
+		ds = get_batch_qty(
+			item_code=ma, warehouse=kho, for_stock_levels=bool(ke_ca_qua_han)
+		) or []
 		if isinstance(ds, (list, tuple)):
 			for d in ds:
 				ten = (d or {}).get("batch_no") if hasattr(d, "get") else None
@@ -141,22 +152,50 @@ def _ton_tung_lo(ma, kho):
 	if ra:
 		return {k: v for k, v in ra.items() if flt(v) > LI_TI}
 	# Đường dự phòng khi ERPNext đổi cách gọi: cộng thẳng sổ kho.
+	#
+	# 03/09/2026: đường này TỪNG VÔ DỤNG. Nó cộng theo cột `batch_no` của
+	# sổ kho, mà ERPNext v16 để trống cột đó và cất số lô trong gói Serial
+	# and Batch Bundle. Đo thật: NVLT00037 còn 3.000 gram ở Kho tổng 307,
+	# sổ kho đúng một dòng, batch_no của nó NULL. Nay cộng cả hai đường.
+	# Số trong gói đã mang dấu sẵn (nhập dương, xuất âm) nên cộng thẳng.
 	try:
 		dong = frappe.get_all(
 			"Stock Ledger Entry",
 			filters={"item_code": ma, "warehouse": kho, "is_cancelled": 0},
-			fields=["batch_no", "sum(actual_qty) as ton"],
-			group_by="batch_no",
+			fields=["batch_no", "actual_qty", "serial_and_batch_bundle"],
 			limit_page_length=0,
 		)
+		goi = []
 		for d in dong:
-			if not d.get("batch_no"):
-				continue
-			if flt(d.get("ton")) > LI_TI:
-				ra[d["batch_no"]] = flt(d["ton"])
+			if d.get("batch_no"):
+				ten = d["batch_no"]
+				ra[ten] = flt(ra.get(ten, 0)) + flt(d.get("actual_qty"))
+			elif d.get("serial_and_batch_bundle"):
+				goi.append(d["serial_and_batch_bundle"])
+		if goi:
+			for e in frappe.get_all(
+				"Serial and Batch Entry",
+				filters={"parenttype": "Serial and Batch Bundle",
+					"parent": ["in", goi]},
+				fields=["batch_no", "qty"],
+				limit_page_length=0,
+			):
+				if e.get("batch_no"):
+					ra[e["batch_no"]] = flt(ra.get(e["batch_no"], 0)) + flt(e.get("qty"))
 	except Exception:
 		pass
-	return ra
+	return {k: v for k, v in ra.items() if flt(v) > LI_TI}
+
+
+def _ton_lo_qua_han(ma, kho, da_tinh=None):
+	"""Tồn của riêng các lô ĐÃ QUÁ HẠN, trừ các lô vòng thường đã tính."""
+	tat = _ton_tung_lo(ma, kho, ke_ca_qua_han=True)
+	if not tat:
+		return {}
+	return lo_het_han.chi_lo_qua_han(
+		tat, lo_het_han.han_cua(list(tat)), lo_het_han.hom_nay(),
+		bo_qua=set(da_tinh or {}),
+	)
 
 
 def _xep_het_han_truoc(cac_lo):
@@ -285,6 +324,15 @@ def gan_lo(doc, method=None):
 						phan_thay.append((ma_thay, ten_lo, so))
 					if thieu <= LI_TI:
 						break
+			# Vòng vét cuối: lô QUÁ HẠN của chính mã đó. Đặt sau cùng để
+			# máy không tự dồn hàng quá hạn vào bánh khi kho còn hàng tốt
+			# và còn mã thay thế. Chốt của anh Việt 03/09/2026: thà bếp
+			# xuất được rồi ghi vết, còn hơn đứng im vì một dòng ngày hết
+			# hạn gõ sai lúc kiểm kho. Ô chặn nằm ở Vagabond Settings.
+			if thieu > LI_TI and not lo_het_han.dang_chan():
+				hh = _ton_lo_qua_han(ma, kho, da_tinh=ton)
+				p3, thieu = chia_theo_lo(thieu, _xep_het_han_truoc(hh))
+				phan = list(phan) + list(p3)
 			if thieu > LI_TI:
 				frappe.throw(
 					cau_thieu_lo(

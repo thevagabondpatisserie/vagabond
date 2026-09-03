@@ -325,7 +325,14 @@ doc_events = {
 	# Tu chon lo cho nguyen lieu bi tru. Xem dau tep lo_hang.py: bep khong
 	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
 	# ra phieu san xuat nen phai va o mot cho duy nhat.
-	"Stock Entry": {"before_validate": "vagabond.lo_hang.gan_lo"},
+	# Hai viec, dung thu tu: mo chot lo qua han TRUOC roi moi gan lo. Ham
+	# mo_chot thay validate_batch cua ERPNext ngay truoc khi ERPNext goi no
+	# trong cung mot lan luu; dat sau gan_lo thi gan_lo thoat som la khong
+	# ai thay. Doc dau tep vagabond/lo_het_han.py.
+	"Stock Entry": {"before_validate": [
+		"vagabond.lo_het_han.mo_chot",
+		"vagabond.lo_hang.gan_lo",
+	]},
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
