@@ -14,6 +14,31 @@ def cfg():
 	return frappe.get_cached_doc("Vagabond Settings")
 
 
+def cfg_o(ten):
+	"""Doc MOT o Cai dat, di thang xuong bang Singles.
+
+	Vi sao khong doc qua cfg(): duong do di qua danh sach truong cua doctype,
+	con phep GHI (`frappe.db.set_single_value`) thi khong. O nao chua duoc
+	dung thi ghi van vao, doc lai luon rong, va man Cai dat bao "da luu" xong
+	quay lai thay trang - khong mot dong loi nao.
+
+	Anh Viet 03/09/2026 gap dung canh do voi tai khoan nhan tien cua Tran Cao
+	Van, lan thu hai trong ba tuan. Ra soat thi con bon o nua cung canh: mau
+	in quay, danh sach may in, can tem, nhip Pancake.
+
+	Doc thang thi cau hinh cu nam san duoi bang Singles tro lai duoc ngay,
+	khong phai khai lai. Con o thi van phai dung - xem `o_cai_dat.py` va ca
+	kiem `thu_o_cai_dat.py`.
+	"""
+	try:
+		return frappe.db.get_single_value("Vagabond Settings", ten) or ""
+	except Exception:
+		try:
+			return cfg().get(ten) or ""
+		except Exception:
+			return ""
+
+
 def key(doc, field):
 	"""Doc truong Password ra dang chu."""
 	val = doc.get_password(field, raise_exception=False)

@@ -41,7 +41,7 @@ import json
 
 import frappe
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg, cfg_o
 
 TRUONG = "vgb_mau_in_quay"
 
@@ -217,7 +217,7 @@ def mau_cho(het, diem=""):
 def het():
 	"""Toan bo cau hinh mau in dang luu. Hong dinh dang thi ve mac dinh."""
 	try:
-		tho = json.loads((cfg().get(TRUONG) or "").strip() or "{}")
+		tho = json.loads((cfg_o(TRUONG) or "").strip() or "{}")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "mau_in: cau hinh hong dinh dang")
 		tho = {}

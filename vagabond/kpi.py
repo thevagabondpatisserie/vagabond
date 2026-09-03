@@ -490,7 +490,7 @@ def tong_trong_so(bo):
 import frappe  # noqa: E402
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate  # noqa: E402
 
-from vagabond.lib import cfg  # noqa: E402
+from vagabond.lib import cfg  # noqa: E402, cfg_o
 from vagabond import tep_dinh_kem  # noqa: E402
 
 DT = "Vagabond KPI Phieu"
@@ -513,7 +513,7 @@ def _kiem_quyen():
 
 def cau_hinh():
 	"""Cấu hình đang dùng trên site này."""
-	return gop_cau_hinh((cfg().get(TRUONG_CAU_HINH) or "").strip())
+	return gop_cau_hinh((cfg_o(TRUONG_CAU_HINH) or "").strip())
 
 
 def khoang_ky(ky=None):

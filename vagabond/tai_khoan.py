@@ -24,9 +24,40 @@ import json
 import frappe
 from frappe.utils import cint
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg_o
 
 TRUONG = "vgb_tai_khoan_nhan"
+
+# O CHUA CAU HINH NAY PHAI DUOC DUNG BANG MA NGUON.
+#
+# Anh Viet 03/09/2026, kem anh chuyen khoan thu cho Tran Cao Van van ra tai
+# khoan chung: *"no van khong ra tai khoan cua chi nhanh nay"*.
+#
+# Nguyen nhan: tu 12/08/2026 toi nay ma nguon van ghi va doc o `vgb_tai_khoan_nhan`
+# tren Vagabond Settings, ma o do CHUA BAO GIO TON TAI - khong co trong
+# vagabond_settings.json, cung khong co ban ghi truong tu them nao tren site.
+# Phep ghi van chay tron tru vi no ghi thang xuong bang Singles, khong soi
+# danh sach truong; con phep doc thi di qua danh sach truong nen luon tra ve
+# rong. Ket qua: khai xong bam luu thay bao thanh cong, quay lai thay trong,
+# va moi diem ban roi ve tai khoan mac dinh trong im lang. Dung hai lan:
+# 16/08 va 01/09.
+#
+# Tu nay o chua duoc khai o day, after_migrate dung lai sau moi lan deploy.
+# Ca kiem `thu_o_cai_dat.py` chan moi o Cai dat moi ma quen dung.
+TRUONG_MOI = {
+	"Vagabond Settings": [
+		{
+			"fieldname": TRUONG,
+			"label": "Tài khoản nhận chuyển khoản",
+			"fieldtype": "Long Text",
+			"read_only": 1,
+			"description": (
+				"Máy tự ghi khi sửa ở màn Cài đặt của app. Đừng gõ tay vào đây: "
+				"gõ sai một dấu là mọi màn tính tiền ngừng sinh được mã QR."
+			),
+		},
+	],
+}
 
 # Muc dich dac biet, khong phai nguon don. Khai chung mot bang cho gon,
 # nhung tach ra day de man Cai dat hien thanh mot khoi rieng va de cho
@@ -142,10 +173,21 @@ def _du(tk):
 	return bool(tk.get("bank") and tk.get("stk"))
 
 
+def _doc_o():
+	"""Chuoi cau hinh tho, doc THANG tu bang Singles.
+
+	Khong doc qua `cfg()`: duong do di qua danh sach truong cua doctype, nen
+	o nao chua kip dung lai sau mot lan deploy la doc ra rong ma khong ai
+	hay - dung cai da lam mat cau hinh tai khoan hai lan. Doc thang thi cau
+	hinh cu con nam duoi bang Singles van tro lai duoc.
+	"""
+	return cfg_o(TRUONG)
+
+
 def cai():
 	"""Toan bo cau hinh: tai khoan mac dinh va cac tai khoan theo nguon."""
 	try:
-		tho = json.loads((cfg().get(TRUONG) or "").strip() or "{}")
+		tho = json.loads((_doc_o() or "").strip() or "{}")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_khoan: cau hinh hong dinh dang")
 		tho = {}
@@ -354,12 +396,22 @@ def luu(mac_dinh=None, theo_nguon=None):
 		tk["dung"] = 1 if cint(d.get("dung") if d.get("dung") is not None else 1) else 0
 		ds.append(tk)
 	_kiem(md, ds)
-	frappe.db.set_single_value(
-		"Vagabond Settings",
-		TRUONG,
-		json.dumps({"mac_dinh": md, "theo_nguon": ds}, ensure_ascii=False, indent=1),
-	)
+	chuoi = json.dumps({"mac_dinh": md, "theo_nguon": ds}, ensure_ascii=False, indent=1)
+	frappe.db.set_single_value("Vagabond Settings", TRUONG, chuoi)
 	frappe.db.commit()
+	# GHI XONG PHAI DOC LAI.
+	#
+	# Cai da lam mat cau hinh hai lan khong phai la phep ghi hong, ma la phep
+	# ghi thanh cong vao mot o khong ai doc duoc. Man Cai dat bao "da luu",
+	# nguoi dung yen tam di ve, va tien van chay ve tai khoan chung. Nen tu
+	# nay luu xong doc lai ngay: khong khop thi keu len tai cho.
+	if (_doc_o() or "").strip() != chuoi.strip():
+		frappe.throw(
+			"Máy ghi xong nhưng đọc lại không thấy, nghĩa là ô chứa cấu hình "
+			"tài khoản chưa được dựng trên hệ thống này. Đừng dùng tiếp màn "
+			"này cho tới khi báo kỹ thuật, vì mọi điểm bán vẫn đang nhận tiền "
+			"về tài khoản mặc định."
+		)
 	_ghi_vet(
 		"Sửa tài khoản nhận chuyển khoản: mặc định %s %s%s"
 		% (

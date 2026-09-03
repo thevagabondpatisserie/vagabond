@@ -292,17 +292,22 @@ def chi_tiet(don):
 			"đơn bên phần Đơn mua hàng." % don
 		)
 
+	from vagabond import kho_cai_dat, kho_sap
+
+	nguong = kho_cai_dat.doc()
 	ma_hang = [r.item_code for r in d.items]
-	lo, han = {}, {}
+	lo, han, han_min = {}, {}, {}
 	if ma_hang:
 		for it in frappe.get_all(
 			"Item",
 			filters={"name": ["in", ma_hang]},
-			fields=["name", "has_batch_no", "shelf_life_in_days"],
+			fields=["name", "has_batch_no", "shelf_life_in_days", "vgb_hsd_toi_thieu"],
 			limit_page_length=0,
 		):
 			lo[it["name"]] = 1 if it.get("has_batch_no") else 0
 			han[it["name"]] = cint(it.get("shelf_life_in_days"))
+			rieng = cint(it.get("vgb_hsd_toi_thieu"))
+			han_min[it["name"]] = rieng if rieng > 0 else nguong["hsd_toi_thieu_chung"]
 
 	mon = []
 	for r in d.items:
@@ -324,6 +329,17 @@ def chi_tiet(don):
 				"gia": flt(r.rate),
 				"co_lo": lo.get(r.item_code, 0),
 				"han_chuan": han.get(r.item_code, 0),
+				# Muc han dung toi thieu khi nhan, va so duoc phep nhan du.
+				# Man hinh noi truoc, khong de nguoi ta dem xong bam Luu moi
+				# biet la khong nhan duoc.
+				"hsd_toi_thieu": han_min.get(r.item_code, 0),
+				"bat_buoc_hsd": kho_sap.bat_buoc_han_dung(
+					lo.get(r.item_code, 0), han_min.get(r.item_code, 0)
+				),
+				"du_cho_phep": kho_sap.muc_thua_cho_phep(dat, nguong["dung_sai_thua"]),
+				"thieu_dong_duoc": kho_sap.thieu_dong_duoc(
+					dat, nhan, nguong["dung_sai_thieu"]
+				),
 			}
 		)
 	# Mon da nhan du xuong cuoi va lam mo tren man hinh: thu kho chi nhin
@@ -342,6 +358,8 @@ def chi_tiet(don):
 		"so_mon_con": len([x for x in mon if x["sl_con"] > EPS]),
 		"lich_su": ls,
 		"dot_toi": len(ls) + 1,
+		"dung_sai_thua": nguong["dung_sai_thua"],
+		"dung_sai_thieu": nguong["dung_sai_thieu"],
 	}
 
 
@@ -402,7 +420,23 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		ten_mon[r.name] = r.item_name or r.item_code
 		dvt[r.name] = r.uom or r.stock_uom or ""
 
-	la, qua = {}, []
+	# DUNG SAI GIAO THUA (anh Viet duyet 03/09/2026, SAP goi la
+	# over-delivery tolerance). Truoc day nhap qua so con lai la chan thang,
+	# nen nha cung cap giao du nua ky la thu kho dung khong lam gi duoc.
+	# Nay du trong nguong thi nhan va GHI VET; qua nguong moi chan.
+	#
+	# Nguong tinh tren so DAT cua dong, khong tinh tren phan con lai: don
+	# giao lam nhieu dot thi phan con lai cua dot cuoi rat nho, tinh theo no
+	# thi du mot hop cung chan.
+	from vagabond import kho_cai_dat, kho_sap
+
+	nguong = kho_cai_dat.doc()
+	dat_dong, da_nhan_dong = {}, {}
+	for r in goc.items:
+		dat_dong[r.name] = flt(r.qty)
+		da_nhan_dong[r.name] = flt(r.received_qty)
+
+	la, qua, du_trong_nguong = {}, [], []
 	for khoa, x in nhap.items():
 		sl = flt(x.get("sl"))
 		if khoa not in con_lai:
@@ -411,20 +445,57 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 			)
 		if sl <= EPS:
 			continue
-		if sl > con_lai[khoa] + EPS:
-			qua.append(
-				"%s: còn phải nhận %s %s, đang nhập %s"
-				% (ten_mon[khoa], _so(con_lai[khoa]), dvt[khoa], _so(sl))
-			)
+		kq = kho_sap.soat_nhan_thua(
+			dat_dong.get(khoa), da_nhan_dong.get(khoa), sl, nguong["dung_sai_thua"]
+		)
+		if kq["qua"] and not kq["trong_dung_sai"]:
+			qua.append(kho_sap.cau_nhan_thua(ten_mon[khoa], kq, dvt[khoa]))
+		elif kq["qua"]:
+			du_trong_nguong.append(kho_sap.cau_nhan_thua(ten_mon[khoa], kq, dvt[khoa]))
 		la[khoa] = x
 	if qua:
 		frappe.throw(
-			"Nhập quá số còn phải nhận:<br>%s<br><br>Nhà cung cấp giao dư thì "
-			"báo thu mua lên đơn bổ sung rồi nhập sau, đừng nhập dồn vào đơn "
-			"này." % "<br>".join(qua)
+			"Nhận dư quá mức cho phép:<br>%s<br><br>Dung sai đang đặt %s phần "
+			"trăm, sửa trong Cài đặt. Nhà cung cấp giao dư nhiều thì báo thu "
+			"mua lên đơn bổ sung rồi nhập sau, đừng nhập dồn vào đơn này."
+			% ("<br>".join(qua), _so(nguong["dung_sai_thua"]))
 		)
 	if not la:
 		frappe.throw("Tất cả các dòng đều để 0, chưa có gì để nhập kho.")
+
+	# LO VA HAN DUNG (SAP goi la batch va SLED). Mon quan ly theo lo thi
+	# khong duoc nhap ma bo trong han dung: lo khong han thi phep lay hang
+	# theo han khong con biet lay cai nao truoc. Mon co khai so ngay toi
+	# thieu thi han con lai phai du dai.
+	hom_nay = getdate(nowdate())
+	ma_dong = {r.name: r.item_code for r in goc.items}
+	thieu_han, han_ngan = [], []
+	for khoa in la:
+		ma = ma_dong.get(khoa)
+		if not ma:
+			continue
+		theo_lo = cint(frappe.db.get_value("Item", ma, "has_batch_no") or 0)
+		toi_thieu = kho_cai_dat.hsd_toi_thieu_cua(ma, nguong["hsd_toi_thieu_chung"])
+		hsd = (la[khoa].get("hsd") or "").strip()
+		if not hsd:
+			if kho_sap.bat_buoc_han_dung(theo_lo, toi_thieu):
+				thieu_han.append(ten_mon[khoa])
+			continue
+		kq = kho_sap.soat_han_dung(getdate(hsd), hom_nay, toi_thieu)
+		if not kq["dat"]:
+			han_ngan.append(kho_sap.cau_han_dung(ten_mon[khoa], kq))
+	if thieu_han:
+		frappe.throw(
+			"Chưa điền hạn sử dụng cho:<br>%s<br><br>Mặt hàng quản lý theo lô "
+			"phải có hạn dùng thì hệ thống mới lấy hàng cũ ra trước được."
+			% "<br>".join(thieu_han)
+		)
+	if han_ngan:
+		frappe.throw(
+			"Hạn dùng không đạt:<br>%s<br><br>Hàng cận hạn thì báo thu mua đổi "
+			"lô khác, đừng nhận vào kho. Muốn đổi mức tối thiểu thì sửa trong "
+			"danh mục Món." % "<br>".join(han_ngan)
+		)
 
 	from erpnext.buying.doctype.purchase_order.purchase_order import (
 		make_purchase_receipt,
@@ -485,6 +556,8 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		ghi += " Nhập khi chưa có giá: %s - kế toán bổ sung giá sau." % ", ".join(
 			thieu_gia
 		)
+	if du_trong_nguong:
+		ghi += " Nhận dư trong dung sai: %s" % " ".join(du_trong_nguong)
 	pr.remarks = ((pr.get("remarks") or "") + " | " + ghi).strip(" |")
 
 	pr.flags.ignore_permissions = True
@@ -506,6 +579,7 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		"con_lai": flt(sau.get("sl_con")),
 		"so_mon_con": sau.get("so_mon_con") or 0,
 		"thieu_gia": thieu_gia,
+		"nhan_du": du_trong_nguong,
 	}
 
 # ------------------------------------------------- dong phan con lai lai

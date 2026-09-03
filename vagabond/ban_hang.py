@@ -54,7 +54,7 @@ from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nh
 from vagabond import ghi_so_dieu_kien, hddt_bu, khop_tien, luat_thanh_toan, ma_bill
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
-from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
+from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, cfg_o, giau_khoa, key
 
 # Trang thai Pancake tinh vao doanh so: 3 da nhan, 16 da thu tien.
 TT_DOANH_SO = {3, 16}
@@ -3642,7 +3642,7 @@ def _hddt_diem_dang_bat():
 	Tra None khi chua ai luu theo khoa nay bao gio - de noi goi con biet
 	duong doc lai theo kieu cu thay vi hieu nham la tat het.
 	"""
-	tho = str(cfg().get(TRUONG_HDDT_QUAY) or "").strip()
+	tho = str(cfg_o(TRUONG_HDDT_QUAY) or "").strip()
 	if not tho:
 		return None
 	nhan = {

@@ -19,7 +19,7 @@ import json
 import frappe
 from frappe.utils import cint
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg, cfg_o
 
 TRUONG = "vgb_pt_thanh_toan_ds"
 
@@ -227,7 +227,7 @@ def _chuan(d, i=0):
 def ds(chi_dung=False):
 	"""Toan bo phuong thuc, da chuan hoa va sap theo thu tu."""
 	try:
-		tho = json.loads((cfg().get(TRUONG) or "").strip() or "[]")
+		tho = json.loads((cfg_o(TRUONG) or "").strip() or "[]")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "pt_thanh_toan: cau hinh hong")
 		tho = []
@@ -529,7 +529,7 @@ def bo_sung_mac_dinh():
 	  3. Khai luon sang Mode of Payment ben Next, khong thi thu ngan chon
 	     vao la bi chan cung voi cau "Chua khai phuong thuc X ben Next".
 	"""
-	tho = (cfg().get(TRUONG) or "").strip()
+	tho = (cfg_o(TRUONG) or "").strip()
 	if not tho:
 		# Chua luu gi: `ds()` dang doc thang MAC_DINH nen da co du. Chi con
 		# viec khai sang Next.

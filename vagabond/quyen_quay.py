@@ -20,7 +20,7 @@ mon bien mat khoi bill la lech voi to khach dang cam.
 import frappe
 from frappe.utils import cint, flt
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg, cfg_o
 
 TRUONG = "vgb_quyen_bo_mon"
 MAC_DINH = "duyet"
@@ -53,7 +53,7 @@ MUC = [
 
 
 def muc():
-	m = str((cfg().get(TRUONG) or "")).strip()
+	m = str((cfg_o(TRUONG) or "")).strip()
 	return m if m in {x["k"] for x in MUC} else MAC_DINH
 
 

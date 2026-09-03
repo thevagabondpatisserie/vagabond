@@ -23,7 +23,7 @@ import json
 import frappe
 from frappe.utils import cint
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg, cfg_o
 
 TRUONG = "vgb_diem_ban"
 
@@ -126,7 +126,7 @@ def ds(chi_bat=False):
 	dong van phai xem lai duoc.
 	"""
 	try:
-		tho = json.loads((cfg().get(TRUONG) or "").strip() or "[]")
+		tho = json.loads((cfg_o(TRUONG) or "").strip() or "[]")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "diem_ban: cau hinh hong dinh dang")
 		tho = []

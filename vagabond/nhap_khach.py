@@ -34,7 +34,7 @@ import re
 import frappe
 from frappe.utils import cint, flt, getdate
 
-from vagabond.lib import cfg, sdt
+from vagabond.lib import cfg, cfg_o, sdt
 
 TRUONG_TIEN_DO = "vgb_nhap_khach_tien_do"
 NHOM_MAC_DINH = "Khách lẻ"
@@ -235,7 +235,7 @@ def _cap_nhat_mot(ma, d, bang_hang):
 
 def _doc_tien_do():
 	try:
-		t = json.loads((cfg().get(TRUONG_TIEN_DO) or "").strip() or "{}")
+		t = json.loads((cfg_o(TRUONG_TIEN_DO) or "").strip() or "{}")
 		return t if isinstance(t, dict) else {}
 	except Exception:
 		return {}
