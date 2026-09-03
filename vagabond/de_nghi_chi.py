@@ -178,7 +178,12 @@ CHIP_TRANG_THAI = (
 	("cho_duyet", "Chờ duyệt", (TT_CHO_DUYET, TT_CHO_GIAM_DOC)),
 	("cho_chi", "Chờ chi", (TT_CHO_KE_TOAN, TT_HOAN_TAT)),
 	("da_chi", "Đã chi", (TT_DA_CHI,)),
-	("da_huy", "Đã huỷ", (TT_TRA_LAI,)),
+	# Nhãn phải đúng thứ nó chứa. Doctype này không có trạng thái huỷ nào
+	# cả, nhóm này chỉ chứa phiếu BỊ TRẢ LẠI - mà phiếu bị trả lại là phiếu
+	# người lập còn phải sửa rồi gửi lại (chỉ hai bước Nháp và Bị trả lại mới
+	# gửi lại được). Gọi nó là "Đã huỷ" là bảo người ta rằng việc của họ chết
+	# rồi, trong khi đúng ra là việc đang chờ chính họ.
+	("da_huy", "Bị trả lại", (TT_TRA_LAI,)),
 )
 
 # Chip loc thoi gian.

@@ -800,7 +800,16 @@ def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
 	loc = {"vgb_pt_thanh_toan": PT_TANG, "docstatus": ["<", 2]}
 	tt = chuoi(trang_thai)
 	if tt in TT_DS:
-		loc["vgb_tang_duyet"] = tt
+		# Ô trạng thái để TRỐNG cũng là "chờ duyệt".
+		#
+		# Vòng đếm chip ở dưới quy ô trống về TT_CHO, nhưng bộ lọc này lại so
+		# bằng nên không bao giờ bắt được dòng trống. Kết quả: chip báo có N
+		# đơn chờ duyệt, bấm vào thì mất mấy dòng. Đơn bị huỷ mềm hay rơi vào
+		# cảnh này vì bộ chuẩn hoá trạng thái bỏ qua đơn đã huỷ.
+		if tt == TT_CHO:
+			loc["vgb_tang_duyet"] = ["in", [TT_CHO, "", None]]
+		else:
+			loc["vgb_tang_duyet"] = tt
 	hoac = dieu_kien_tim(tim, TRUONG_TIM)
 
 	dong = frappe.get_all(

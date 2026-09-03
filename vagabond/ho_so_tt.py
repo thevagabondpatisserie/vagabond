@@ -68,11 +68,18 @@ LOAI_NCC = "NCC"
 LOAI_HU_HD = "Hoan ung HD"
 LOAI_HU = "Hoan ung"
 LOAI_TKCT = "TK cong ty"
+
+# Luong thu nam, KHONG phai mot ban ghi cua bang nay. Phieu tra truoc la mot
+# Payment Entry: tien di truoc khi chua co hoa don nao. Man Ho so thanh toan
+# van phai bay no ra, vi day la cho nguoi lap di tim no. Xem `tra_truoc.py`.
+LOAI_TRA_TRUOC = "Tra truoc"
+
 NHAN_LOAI = {
 	LOAI_NCC: "Công nợ nhà cung cấp",
 	LOAI_HU_HD: "Hoàn ứng có hoá đơn",
 	LOAI_HU: "Hoàn ứng không hoá đơn",
 	LOAI_TKCT: "Thanh toán từ TK công ty",
+	LOAI_TRA_TRUOC: "Trả trước cho nhà cung cấp",
 }
 
 # Bóc tách chi phí lúc quyết toán thuế TNDN: khoản nào có hoá đơn GTGT mang
@@ -1238,6 +1245,34 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		if q and q not in ((r.ma or "") + " " + (r.ten_ncc or "") + " " + (r.ghi_chu or "")).lower():
 			continue
 		ra.append(o)
+
+	# GHEP PHIEU TRA TRUOC VAO CUNG DANH SACH.
+	#
+	# Uyen 03/09/2026: lap phieu tra truoc xong thi tren app khong thay no o
+	# dau. Dung vay: phieu tra truoc la Payment Entry, con vong lap tren chi
+	# doc bang "Vagabond Ho So TT". Man Duyet phieu chi co thay, nhung man do
+	# chia tab theo VAI nen nguoi lap khong mang vai duyet la khong thay buoc
+	# nao. Ghep vao day de phieu quay ve dung cho nguoi ta di tim.
+	#
+	# Chi ghep khi nguoi dung dang xem "tat ca" hoac dang loc dung chip tra
+	# truoc. Hong thi bo qua chu khong lam chet ca man: danh sach ho so that
+	# quan trong hon cai cua so nhin them nay.
+	if not loai or loai == LOAI_TRA_TRUOC:
+		try:
+			from vagabond import tra_truoc as tt
+
+			for o in tt.gom_phieu(so_ngay=so_ngay, tu=tu, den=den, tu_khoa=tu_khoa):
+				if ncc and o.get("nha_cung_cap") != ncc:
+					continue
+				o["nhan"] = NHAN.get(o["trang_thai"], o["trang_thai"])
+				o["nhan_cp_thue"] = ""
+				o["nguoi_tao_ten"] = _ten_nguoi(o.get("nguoi_tao"))
+				o["fin_ten"] = ""
+				o["gd_ten"] = ""
+				ra.append(o)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghep phieu tra truoc loi")
+		ra.sort(key=lambda o: str(o.get("ngay") or ""), reverse=True)
 
 	dem, tien = {}, {}
 	for o in ra:
