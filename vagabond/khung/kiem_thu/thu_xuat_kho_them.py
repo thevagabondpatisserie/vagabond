@@ -447,9 +447,9 @@ def _khong_doi_chu_ky():
 	c = _js("03-kho-chung-tu.js")
 	dung("ham cu con nguyen chu ky", "function vxDongHtml() {" in c)
 	j = _js("45-xuat-kho-them.js")
-	dung("phan 45 co ban rieng", "function xktDongHtml(gio) {" in j)
+	dung("phan 45 co ban rieng", "function xktDongHtml(gio, opt) {" in j)
 	# Muon tam XK.gio de dung lai man chon hang cua 03 ma khong sua no.
-	dung("co muon tam roi keo ve", "XK.gio = XKT.nb.gio.slice();" in j)
+	dung("co muon tam roi keo ve", "XK.gio = st.gio.slice();" in j)
 
 
 @ca("xuat kho them: nut xac nhan chan noi len the cha")

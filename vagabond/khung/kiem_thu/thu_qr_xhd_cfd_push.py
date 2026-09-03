@@ -236,7 +236,10 @@ def _khong_nuot_loi():
 	la("khong con catch rong sau ds_phieu", "ds_phieu', { gioi_han: 40 })) || []; } catch (e) { }" in j, False)
 	la("ba man deu bat loi", j.count("catch (e) { loiDs = errMsg(e)"), 3)
 	dung("co khoi bao loi", "function xktLoiHtml(loi)" in j)
-	la("ba man deu ve khoi loi", j.count("xktLoiHtml(loiDs)"), 3)
+	# v397 gom ba man vao mot ham ve chung xktManDanhSach, nen loi di qua
+	# cfg.loi roi ham chung ve khoi do (ghep lai 03/09 sau khi v397 merge).
+	la("ba man deu dua loi vao man chung", j.count("loi: loiDs,"), 3)
+	dung("man chung ve khoi loi", "rows = xktLoiHtml(cfg.loi);" in j)
 
 
 # ============================================ 5. dong bo Pancake xoa mat khach
