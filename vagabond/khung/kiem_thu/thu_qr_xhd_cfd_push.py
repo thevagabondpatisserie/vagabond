@@ -237,3 +237,42 @@ def _khong_nuot_loi():
 	la("ba man deu bat loi", j.count("catch (e) { loiDs = errMsg(e)"), 3)
 	dung("co khoi bao loi", "function xktLoiHtml(loi)" in j)
 	la("ba man deu ve khoi loi", j.count("xktLoiHtml(loiDs)"), 3)
+
+
+# ============================================ 5. dong bo Pancake xoa mat khach
+
+
+def _ham_py(tep, ten):
+	"""Cat mot ham THUAN ra khoi tep Python roi nap, khong keo theo frappe."""
+	m = _py(tep)
+	than = m.split("\ndef %s(" % ten)[1]
+	than = "def %s(" % ten + than.split("\n\n\n")[0]
+	kho = {}
+	exec(than, kho)
+	return kho[ten]
+
+
+@ca("dong bo Pancake: don da mang khach that thi GIU, khong dat lai ve gio chung")
+def _giu_khach():
+	# Don 92862 ngay 01/09/2026: 18:32 nhip dong bo gan dung KL028403 theo so
+	# dien thoai, 19:00 nhip sau doi ve "Khach le Online", 23:32 vet cuoi ngay
+	# chan vi "ban cong no phai chon khach". May tim ra dung nguoi roi tu xoa
+	# di, Loan Anh phai chon tay lai.
+	giu = _ham_py("ban_hang.py", "giu_khach_cua_don")
+	gop = lambda k: k in ("Khách lẻ Online", "Khách bán lẻ")
+	la("don cu, khach that: giu", giu(object(), "KL028403", gop), True)
+	la("don cu, gio chung: tim lai", giu(object(), "Khách lẻ Online", gop), False)
+	la("don cu, gio ban le: tim lai", giu(object(), "Khách bán lẻ", gop), False)
+	la("don cu, trong: tim lai", giu(object(), "", gop), False)
+	la("don cu, None: tim lai", giu(object(), None, gop), False)
+	la("don moi: luon tim", giu(None, "KL028403", gop), False)
+
+
+@ca("dong bo Pancake: _upsert_hoa_don di qua giu_khach_cua_don, khong con dat khach_don = gio")
+def _upsert_dung_ham_giu():
+	m = _py("ban_hang.py")
+	than = m.split("\ndef _upsert_hoa_don(")[1].split("\n\n\ndef ")[0]
+	khong_ghi_chu = re.sub(r"#.*", "", than)
+	dung("co goi ham giu", "if giu_khach_cua_don(cu, si.get(\"customer\"), la_khach_gop):" in khong_ghi_chu)
+	dung("giu thi lay khach dang co", "khach_don = si.get(\"customer\")" in khong_ghi_chu)
+	la("khong con dieu kien cu", "if (not cu) or la_khach_gop(si.get(\"customer\")):" in khong_ghi_chu, False)
