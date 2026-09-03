@@ -204,6 +204,7 @@ MAN = (
 	("CDTL", "Trợ lý", None),
 	("CDSE", "SePay", None),
 	("CDTB", "Thông báo", None),
+	("CDWEB", "Trang đặt bánh web", None),
 	("QLND", "Người dùng", None),
 	("QLQ", "Phân quyền", None),
 	("ACC", "Tài khoản của tôi", None),

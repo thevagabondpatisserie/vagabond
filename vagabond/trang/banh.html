@@ -70,6 +70,24 @@ header{position:sticky;top:0;z-index:40;background:rgba(0,0,0,.82);backdrop-filt
 .tab.mua{color:var(--amber-2)}
 .tab.mua.on{color:var(--amber)}
 .tab.mua.on::after{background:var(--amber);box-shadow:0 0 16px rgba(219,126,42,.7)}
+/* Bon tab thi man dien thoai khong du cho: cho thanh tab cuon ngang, moi tab
+   rong theo chu cua no, khong bop chu xuong hai dong (anh Viet 03/09/2026). */
+.tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;padding-left:14px;padding-right:14px;white-space:nowrap}
+/* ===== NHOM IN STORE =====
+   Banh con tren tu cua tung quay, doc tu bang kiem kho theo diem ban. Dung
+   lai bo the .card cua banh hom nay, chi doi nhan sang mau luc. */
+.tab.store{color:var(--cyan)}
+.store-hd{padding:4px 0 6px}
+.store-hd .num{color:var(--cyan)}
+.quay{margin:26px 0 6px;padding:0 0 12px;border-bottom:1px solid var(--line-2)}
+.quay .q-ten{font-family:var(--serif,inherit);font-size:24px;color:var(--paper);letter-spacing:.02em}
+.quay .q-dc{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog-2);margin-top:6px}
+.quay .q-con{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-top:6px}
+.store-note{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);line-height:1.7;padding:14px 0 4px}
+.store-note a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(41,189,179,.5)}
+.store-empty{padding:26px 0 10px;color:var(--fog-2);font-family:var(--sans);font-size:13px;line-height:1.7}
 .mua-hd{padding:4px 0 18px}
 .mua-hd .num{color:var(--amber)}
 .mua-han{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-2);margin-top:10px}
@@ -423,6 +441,9 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
        may chu bao dang co mua chay - het mua ma con tab la khach bam vao mot
        trang trong. -->
   <button class="tab mua" data-tab="season" id="tabMua" hidden>In season</button>
+  <!-- In store: banh dang con tren tu tung quay. An toi khi may chu tra ve
+       danh sach quay, de khach mo link thang vao van thay (anh Viet 03/09/2026). -->
+  <button class="tab store" data-tab="store" id="tabStore" hidden>In store</button>
   <button class="tab on" data-tab="today">Có sẵn hôm nay</button>
   <button class="tab" data-tab="order">Đặt bánh trước</button>
 </nav>
@@ -436,6 +457,20 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
       <div class="mua-han" id="muaHan"></div>
     </div>
     <div class="grid" id="muaLuoi"></div>
+  </section>
+</main>
+
+<!-- ============ IN STORE ============ -->
+<main id="store" hidden>
+  <section class="wrap">
+    <div class="store-hd">
+      <div class="meta"><span class="num">00 / In store</span><span id="storeLuc"></span></div>
+      <h1 class="h1">Bánh trên tủ<br><em>tại quầy</em></h1>
+    </div>
+    <div id="storeBody"></div>
+    <div class="store-note">Số bánh cập nhật theo từng hoá đơn tại quầy. Muốn giữ bánh thì nhắn
+      <a href="https://m.me/thevagabond.saigon" target="_blank">Messenger</a> hoặc gọi
+      <a href="tel:0931224334">0931 224 334</a>, tiệm để riêng cho anh chị tới lấy.</div>
   </section>
 </main>
 
@@ -887,8 +922,15 @@ function setTab(t){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   $('#today').hidden=t!=='today'; $('#order').hidden=t!=='order';
   var mS=$('#season'); if(mS) mS.hidden=t!=='season';
+  var mQ=$('#store'); if(mQ) mQ.hidden=t!=='store';
+  /* Thanh tab cuon ngang: tab dang mo phai loi ra cho thay. */
+  var nutTab=document.querySelector('.tab[data-tab="'+t+'"]');
+  if(nutTab&&nutTab.scrollIntoView) try{ nutTab.scrollIntoView({block:'nearest',inline:'center'}); }catch(e){}
 }
-function go(t){ nav(t==='season'?'#/in-season':(t==='order'?'#/dat-truoc':'#/')); window.scrollTo({top:0,behavior:'smooth'}); }
+function go(t){
+  nav(t==='season'?'#/in-season':(t==='store'?'#/in-store':(t==='order'?'#/dat-truoc':'#/')));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>go(b.dataset.tab));
 
 function applyRoute(){
@@ -898,6 +940,7 @@ function applyRoute(){
   const isTruoc=/^\/dat-truoc/.test(h);
   const isMua=/^\/in-season/.test(h);
   const mMua=h.match(/^\/in-season\/(.+)$/);
+  const isStore=/^\/in-store/.test(h);
 
   if(mBanh){
     const c=CAKES.find(x=>slug(x.k)===mBanh[1]);
@@ -921,7 +964,7 @@ function applyRoute(){
     return;
   }
   closeSheetUI(); closeCoUI(); dongSheetMuaUI();
-  setTab(isMua?'season':(isTruoc?'order':'today'));
+  setTab(isMua?'season':(isStore?'store':(isTruoc?'order':'today')));
   drawBar();
 }
 window.addEventListener('popstate',applyRoute);
@@ -1766,6 +1809,72 @@ napHangMua();
 /* Nhip 5 phut: hang mua vu ban ca thang chu khong doi tung phut nhu banh
    trong ngay, nen khong can nhip 60 giay. */
 setInterval(napHangMua,300000);
+
+/* =======================================================
+   NHOM IN STORE - banh dang con tren tu tung quay
+
+   Anh Viet 03/09/2026: *"em cho them 1 tab In Store ke ben tab In Season de
+   dong bo nhung mon co the ban va so luong banh len tab do lay tu man kiem
+   banh nhe de khach nao hoi thi gui cai link do de khach lua."*
+
+   Doc tu vagabond.kiem_kho.con_tren_quay_web: bang kiem kho cua CHINH quay
+   do, so con tru theo tung hoa don thu ngan bam. KHONG co nut them vao gio:
+   banh nay nam tren tu quay, khach toi lay tai quay; gio hang cua trang la
+   don online giao tu bep, tron hai thu vao mot gio la bep lam mot cai banh
+   dang nam san o quay. Muon giu banh thi nhan hay goi, ghi ro ben duoi.
+
+   Tab hien khi may chu tra ve co quay (du quay het banh), vi link nay gui
+   thang cho khach; het banh thi noi ro "da het" chu khong an tab di.
+   ======================================================= */
+var STORE={quay:[]};
+
+function napTonQuay(){
+  return fetch("/api/method/vagabond.kiem_kho.con_tren_quay_web",{headers:{Accept:"application/json"}})
+    .then(function(r){return r.json();})
+    .then(function(j){ STORE=(j&&j.message)||{quay:[]}; veTonQuay(); })
+    .catch(function(){});
+}
+
+function veTonQuay(){
+  var tab=$('#tabStore'), than=$('#storeBody');
+  if(!tab||!than) return;
+  var quay=STORE.quay||[];
+  if(!quay.length){
+    tab.hidden=true;
+    if(tabNow==='store') go('today');
+    return;
+  }
+  tab.hidden=false;
+  var luc=$('#storeLuc');
+  if(luc) luc.textContent=STORE.cap_nhat?('Cập nhật '+String(STORE.cap_nhat).slice(11,16)):'';
+  than.innerHTML=quay.map(function(q){
+    var mon=q.mon||[];
+    var tong=mon.reduce(function(a,m){return a+(m.con||0);},0);
+    var dau='<div class="quay">'+
+      '<div class="q-ten">'+esc(q.ten)+'</div>'+
+      (q.dia_chi?'<div class="q-dc">'+esc(q.dia_chi)+'</div>':'')+
+      '<div class="q-con">'+(tong?('Còn '+tong+' bánh · '+mon.length+' loại'):'Hiện đã hết bánh trên tủ')+'</div>'+
+      '</div>';
+    if(!mon.length) return dau+'<div class="store-empty">Quầy này đã bán hết bánh trong tủ. Bánh mới lên tủ theo từng đợt trong ngày.</div>';
+    /* Dung lai dung bo the cua banh hom nay. Khong co onclick: khong co
+       sheet chi tiet, khong co gio. */
+    return dau+'<div class="grid">'+mon.map(function(m){
+      return '<div class="card">'+
+        '<div class="ph"><i class="tagline">'+esc(q.ten_ngan||q.ten)+'</i>'+
+        (m.anh?'<img loading="lazy" onerror="this.style.display=\'none\'" src="'+m.anh+'" alt="">':'')+
+        '</div>'+
+        '<div class="c-body">'+
+        '<div class="c-name">'+esc(m.ten)+'</div>'+
+        (m.gia?'<div class="c-price"><b>'+vnd(m.gia)+'</b></div>':'')+
+        '<div class="c-sizes"><i class="sz has">Còn '+m.con+'</i></div>'+
+        '</div></div>';
+    }).join('')+'</div>';
+  }).join('');
+}
+
+napTonQuay();
+/* Nhip 60 giay: banh tren tu doi theo tung hoa don, cung nhip voi tab hom nay. */
+setInterval(napTonQuay,60000);
 
 lamTuoiTon();
 setInterval(lamTuoiTon,60000);

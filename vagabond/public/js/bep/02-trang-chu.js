@@ -275,6 +275,12 @@ async function scrHome() {
            NGÂN HÀNG và SePay, ngoài tầm sửa của tiệm. Đây là phần trong tầm. */
         card('📑', 'Nhập tệp sao kê ngân hàng', 'Tải tệp ngân hàng gửi, máy bù đúng những dòng còn thiếu', 0, 'NHAPSK')
       : '') +
+    /* Trang dat banh web: Minh Vu doi anh ben Pancake xong bam mot nut la web
+       doi theo, khong phai cho hay nho ai deploy (anh Viet 03/09/2026). Mo
+       cho ca sales vi chinh sales la nguoi cam danh muc Pancake. */
+    (coQuyenMua() || hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager')
+      ? card('🌐', 'Trang đặt bánh web', 'Đồng bộ ảnh và mô tả từ Pancake, xem tab nào đang lên bao nhiêu mã', 0, 'CDWEB')
+      : '') +
     /* Quan ly nguoi dung: anh Viet, chi Dung va De. Bay theo goi chuc vu chu
        khong bay ma tran 40 vai tro cua Frappe ra man hinh dien thoai. */
     /* Bo chuyen BTP cap 1 sang Phantom. Chi giam doc va quan ly he thong,
@@ -464,7 +470,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
 ];
 
 var VGB_HUB = {};
@@ -1041,6 +1047,7 @@ var VGB_DUONG = {
   'tra-cuu-tai-khoan-ke-toan': 'DM:DMTK',
   'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
+  'trang-dat-banh-web': 'CDWEB',
   'tro-ly': 'CDTL',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
@@ -1206,6 +1213,7 @@ function vgbGo(k) {
   if (k === 'CDSE') return go(scrSePay);
   if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
+  if (k === 'CDWEB') return go(scrCaiDatWeb);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);

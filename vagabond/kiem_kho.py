@@ -126,6 +126,39 @@ def dang_theo_doi(o):
 	return bool(cint(lay("ton_dau")) or tong_nhap(o) or cint(lay("hong")) or cint(lay("dieu_chinh")))
 
 
+# Ma banh si khong len web ban le (anh Viet 10/08/2026, ap cho ca tab In store).
+TIEN_TO_KHONG_LEN_WEB = ("BAWS",)
+
+
+def dong_len_web(cac_dong, ban, tat=None):
+	"""Nhung dong cua mot quay duoc bay len tab In store. THUAN.
+
+	cac_dong: dict/row cua bang kiem kho;  ban: {ma: da ban};  tat: {ma: {"tat"}}.
+	Tra [(ma, con)] chi cho dong DANG THEO DOI, con > 0, khong phai banh si,
+	khong bi cong tac tay tat. Ba hang rao nay phai giu:
+	  - dong chua ai khai thi khong bay (cung le voi man tinh tien),
+	  - con <= 0 thi khong bay - khach chi can biet cai gi CON,
+	  - cong tac tay bat len la an, du so con duong.
+	"""
+	ra = []
+	lay = (lambda o, k: (o.get(k) if hasattr(o, "get") else getattr(o, k, 0)) or 0)
+	for r in cac_dong or []:
+		ma = str(lay(r, "ma_hang") or "").strip()
+		if not ma or ma.upper().startswith(TIEN_TO_KHONG_LEN_WEB):
+			continue
+		if not dang_theo_doi(r):
+			continue
+		if ((tat or {}).get(ma) or {}).get("tat"):
+			continue
+		con = tinh_co_the_ban(
+			lay(r, "ton_dau"), tong_nhap(r), (ban or {}).get(ma) or 0,
+			lay(r, "hong"), lay(r, "dieu_chinh"),
+		)
+		if con > 0:
+			ra.append((ma, con))
+	return ra
+
+
 # Giờ sớm nhất trong ngày được phép chốt sổ. Anh Việt 03/09/2026: ngày
 # 02/09 quầy District 1 bấm Chốt ngày lúc giữa buổi, bảng khoá cứng, sales
 # không nhập tiếp được và số đã chạy sang tồn đầu hôm sau.
@@ -648,4 +681,86 @@ def con_lai(diem, ngay=None):
 		ra[r["ma_hang"]] = tinh_co_the_ban(
 			r["ton_dau"], tong_nhap(r), ban.get(r["ma_hang"]) or 0, r["hong"], r["dieu_chinh"]
 		)
+	return ra
+
+
+@frappe.whitelist(allow_guest=True)
+def con_tren_quay_web():
+	"""Tab "In store" cua trang dat banh: tung quay dang con gi, bao nhieu cai.
+
+	Anh Viet 03/09/2026: *"em cho them 1 tab In Store ke ben tab In Season
+	de dong bo nhung mon co the ban va so luong banh len tab do lay tu man
+	kiem banh nhe de khach nao hoi thi gui cai link do de khach lua."*
+
+	Nguon so la bang kiem kho cua CHINH quay do trong ngay hom nay, dung cai
+	sales dang nhap tung dot va thu ngan dang tru tung hoa don. Khong dung
+	bang kiem banh ngay cua bep - bang do dem banh cho don online.
+
+	Chi DOC. Khong ghi gi xuong: day la cua khach vang lai goi.
+	Chi tra ten, anh, gia, so con - khong tra ton dau, da ban, hong hay
+	ghi chu noi bo cua quay.
+	"""
+	from vagabond import kiem_banh, tat_ban_web
+	from vagabond.lib import cfg as _cfg, key as _key
+
+	ngay = getdate()
+	ra = {"ngay": str(ngay), "cap_nhat": str(now_datetime())[:16], "quay": []}
+	try:
+		cac_diem = _diem_co_quay()
+	except Exception:
+		return ra
+
+	c = _cfg()
+	k = _key(c, "pancake_api_key")
+	co_pancake = bool(k and c.pancake_shop_id)
+
+	for d in cac_diem:
+		q = {
+			"ma": d["ma"], "ten": d["ten"], "ten_ngan": d.get("ten_ngan") or d["ten"],
+			"dia_chi": d.get("dia_chi") or d.get("phu") or "", "mon": [],
+		}
+		ra["quay"].append(q)
+		ma_phieu = ten_phieu(d["ma"], ngay)
+		if not frappe.db.exists(DT, ma_phieu):
+			continue
+		try:
+			dong = frappe.get_all(
+				DT_DONG, filters={"parent": ma_phieu, "parenttype": DT},
+				fields=["ma_hang", "theo_doi", "ton_dau", "hong", "dieu_chinh"] + list(O_NHAP),
+				limit_page_length=0, ignore_permissions=True,
+			)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "kiem_kho: in store loi")
+			continue
+		ban = da_ban(d["ma"], ngay)
+		tat = tat_ban_web.bang([r["ma_hang"] for r in dong], ngay)
+		con_theo_ma = dict(dong_len_web(dong, ban, tat))
+		if not con_theo_ma:
+			continue
+		ds = frappe.get_all(
+			"Item", filters={"item_code": ["in", list(con_theo_ma)]},
+			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item"],
+			limit_page_length=0, ignore_permissions=True,
+		)
+		for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
+			if cint(x.get("disabled")) or not cint(x.get("is_sales_item", 1)):
+				continue
+			anh = ""
+			if co_pancake:
+				try:
+					anhs = kiem_banh._anh_pancake(c, k, x["item_code"]) or []
+					anh = anhs[0] if anhs else ""
+				except Exception:
+					anh = ""
+			if not anh:
+				anh = x.get("image") or ""
+			if str(anh).startswith("/private"):
+				anh = ""
+			q["mon"].append({
+				"ma": x["item_code"],
+				"ten": x.get("item_name") or x["item_code"],
+				"gia": int(x.get("standard_rate") or 0),
+				"anh": anh,
+				"con": int(con_theo_ma[x["item_code"]]),
+			})
 	return ra

@@ -1758,6 +1758,12 @@ async function scrHome() {
            NGÂN HÀNG và SePay, ngoài tầm sửa của tiệm. Đây là phần trong tầm. */
         card('📑', 'Nhập tệp sao kê ngân hàng', 'Tải tệp ngân hàng gửi, máy bù đúng những dòng còn thiếu', 0, 'NHAPSK')
       : '') +
+    /* Trang dat banh web: Minh Vu doi anh ben Pancake xong bam mot nut la web
+       doi theo, khong phai cho hay nho ai deploy (anh Viet 03/09/2026). Mo
+       cho ca sales vi chinh sales la nguoi cam danh muc Pancake. */
+    (coQuyenMua() || hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager')
+      ? card('🌐', 'Trang đặt bánh web', 'Đồng bộ ảnh và mô tả từ Pancake, xem tab nào đang lên bao nhiêu mã', 0, 'CDWEB')
+      : '') +
     /* Quan ly nguoi dung: anh Viet, chi Dung va De. Bay theo goi chuc vu chu
        khong bay ma tran 40 vai tro cua Frappe ra man hinh dien thoai. */
     /* Bo chuyen BTP cap 1 sang Phantom. Chi giam doc va quan ly he thong,
@@ -1947,7 +1953,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
 ];
 
 var VGB_HUB = {};
@@ -2524,6 +2530,7 @@ var VGB_DUONG = {
   'tra-cuu-tai-khoan-ke-toan': 'DM:DMTK',
   'tra-cuu-thue-ban-ra': 'DM:DMTHUE',
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
+  'trang-dat-banh-web': 'CDWEB',
   'tro-ly': 'CDTL',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
@@ -2689,6 +2696,7 @@ function vgbGo(k) {
   if (k === 'CDSE') return go(scrSePay);
   if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
+  if (k === 'CDWEB') return go(scrCaiDatWeb);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);
@@ -20365,7 +20373,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '390';
+var APPVER = '391';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27911,6 +27919,101 @@ async function scrThongBao() {
       busy(false);
       baoTin((e && e.message) || 'Chưa gửi được.', 'Lỗi');
     }
+  };
+}
+
+/* ===== Cai dat: trang dat banh web (anh Viet 03/09/2026) =====
+
+*"Minh Vu da import hinh anh moi len tren pancake nhung ben web khong tu
+map hinh do ve. Em co the cho anh 1 nut cai dat web ben trong phan he cai
+dat va co nut nhan dong bo de ban ay tu nhan sau khi cai cac thu ben
+pancake de dong bo ve duoc khong?"*
+
+Man nay chi co MOT viec: bam "Dong bo tu Pancake". May chu keo ca danh muc
+Pancake ve mot luot, xoa bo nho dem nua tieng cua moi ma dang len web, ghi
+lai anh vao bang mua vu va bang kiem banh hom nay. Ket qua hien thang ra
+bang loi, va giu lai lam "lan cuoi" cho lan mo sau.
+
+Quan trong nhat la danh sach "Pancake KHONG co anh": do la viec con phai
+lam BEN PANCAKE, khong phai loi cua web. Truoc day khong ai biet ma nao
+thieu, chi thay web trong. */
+
+async function scrCaiDatWeb() {
+  frame('Trang đặt bánh web', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc...</div></div>');
+  var t = {};
+  try { t = await api('vagabond.web_dong_bo.tinh_hinh', {}); }
+  catch (e) {
+    frame('Trang đặt bánh web', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không đọc được.') + '</div></div>');
+    return;
+  }
+  var so = t.so_ma || {};
+
+  function hang(nhan, gt, phu) {
+    return '<div style="display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid #f2f4f7">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;color:#101828">' + h(nhan) + '</div>' +
+      (phu ? '<div style="font-size:12px;color:#8a90a0;margin-top:2px;line-height:1.5">' + h(phu) + '</div>' : '') +
+      '</div><div style="flex:none;font-size:15px;font-weight:700;color:#0f766e">' + h(String(gt)) + '</div></div>';
+  }
+  function ketQua(kq) {
+    if (!kq) return '<div style="font-size:12.5px;color:#8a90a0;padding:8px 0">Chưa đồng bộ lần nào.</div>';
+    var s = '<div style="font-size:12.5px;color:#475467;line-height:1.7;padding:6px 0">' +
+      '<b>' + h(kq.luc || '') + '</b> · ' + h(kq.boi || '') + '<br>' +
+      'Pancake có <b>' + h(String(kq.so_ma_pancake || 0)) + '</b> mã, web đang lên <b>' + h(String(kq.tong_len_web || 0)) + '</b> mã.<br>' +
+      'Đổi ảnh: mùa vụ <b>' + h(String(kq.doi_anh_mua_vu || 0)) + '</b>, hôm nay <b>' + h(String(kq.doi_anh_hom_nay || 0)) + '</b>. ' +
+      'Gán ảnh cho món chưa có: <b>' + h(String((kq.gan_anh_mon || []).length)) + '</b>.' +
+      '</div>';
+    var thieu = kq.thieu_anh_tren_pancake || [];
+    if (thieu.length) {
+      s += '<div style="margin-top:6px;padding:9px 11px;border-radius:9px;background:#fffbeb;border:1px solid #fde68a;font-size:12.5px;color:#92400e;line-height:1.6">' +
+        '<b>' + thieu.length + ' mã đang lên web mà Pancake chưa có ảnh.</b> Đây là việc bên Pancake, thêm ảnh xong bấm đồng bộ lại.<br>' +
+        '<span style="font-family:ui-monospace,monospace;font-size:11.5px;word-break:break-word">' + h(thieu.join(', ')) + '</span></div>';
+    } else {
+      s += '<div style="margin-top:6px;font-size:12.5px;color:#0f766e">Mọi mã đang lên web đều có ảnh bên Pancake.</div>';
+    }
+    if ((kq.loi_gan_anh || []).length) {
+      s += '<div style="margin-top:6px;font-size:12.5px;color:#b3261e">Không tải được ảnh cho: ' + h(kq.loi_gan_anh.join(', ')) + '</div>';
+    }
+    return s;
+  }
+
+  var html =
+    '<div class="sec">Web đang lên gì</div><div class="card" style="padding:4px 15px 8px">' +
+    hang('In season', so.mua_vu || 0, 'Hàng mùa vụ đang chạy') +
+    hang('In store', so.quay || 0, 'Bánh còn trên tủ hai quầy, lấy từ bảng kiểm kho') +
+    hang('Có sẵn hôm nay', so.hom_nay || 0, 'Bảng kiểm bánh ngày của bếp') +
+    hang('Đặt bánh trước', so.dat_truoc || 0, 'Bánh ổ còn đủ decor') +
+    '</div>' +
+    (t.co_khoa ? '' :
+      '<div style="margin:10px 12px 0;padding:10px 12px;border-radius:10px;background:#fef3f2;border:1px solid #fecdca;font-size:13px;color:#b3261e">' +
+      'Chưa điền khoá Pancake trong Cài đặt, nút đồng bộ sẽ không chạy.</div>') +
+    '<div style="padding:12px 12px 4px">' +
+    '<button class="btn" id="cwDongBo" style="margin:0;width:100%"' + (t.co_khoa ? '' : ' disabled') + '>🔄 Đồng bộ ảnh và mô tả từ Pancake</button>' +
+    '<div style="font-size:12px;color:#8a90a0;margin:8px 2px 0;line-height:1.55">Bấm sau khi đổi ảnh hay mô tả bên Pancake. ' +
+    'Web đổi ngay sau khi xong, không phải chờ nửa tiếng. Món bên Next đã có ảnh thì máy không ghi đè.</div>' +
+    '</div>' +
+    '<div class="sec">Lần đồng bộ gần nhất</div><div class="card" id="cwKq" style="padding:8px 15px 12px">' + ketQua(t.lan_cuoi) + '</div>' +
+    '<div style="text-align:center;color:#a0a6b4;font-size:11.5px;padding:8px 16px 4px;line-height:1.6">' +
+    'Ảnh khách thấy trên web là ảnh bên Pancake. Bảng kiểm bánh và màn tính tiền dùng ảnh trong danh mục Next, ' +
+    'muốn đổi ảnh ở đó thì vào Danh mục sản phẩm.</div>';
+
+  frame('Trang đặt bánh web', html);
+  var nut = document.getElementById('cwDongBo');
+  if (nut) nut.onclick = async function () {
+    nut.disabled = true;
+    nut.textContent = '⏳ Đang kéo danh mục Pancake...';
+    var kq;
+    try { kq = await api('vagabond.web_dong_bo.dong_bo', {}); }
+    catch (e) {
+      nut.disabled = false;
+      nut.textContent = '🔄 Đồng bộ ảnh và mô tả từ Pancake';
+      return toast((e && e.message) || 'Chưa đồng bộ được, thử lại.', 5000);
+    }
+    nut.disabled = false;
+    nut.textContent = '🔄 Đồng bộ ảnh và mô tả từ Pancake';
+    var o = document.getElementById('cwKq');
+    if (o) o.innerHTML = ketQua(kq);
+    toast('Đã đồng bộ. Mở lại trang web là thấy ảnh mới.', 4000);
   };
 }
 /* ---------- Doi chieu hoa don mua (Uyen 12/08/2026) ----------
