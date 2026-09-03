@@ -85,6 +85,11 @@ def dung():
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")
 	_dung_nhom(mua_dich_vu.TRUONG_MOI, "mua_dich_vu")
 	_dung_nhom(sepay.TRUONG_MOI, "sepay")
+	# O tat chot chan lo qua han (them 03/09/2026). Doc dau tep
+	# vagabond/lo_het_han.py de biet ba lop chan da lam bep dung im ra sao.
+	from vagabond import lo_het_han
+
+	_dung_nhom(lo_het_han.TRUONG_MOI, "lo_het_han")
 	# O nguoi ban tren hoa don (them 02/09/2026). Doc dau tep
 	# vagabond/nguoi_ban.py de biet vi sao may CO Y de trong voi don dong bo.
 	from vagabond import nguoi_ban
