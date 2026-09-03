@@ -2067,34 +2067,23 @@ def _tep_dinh_thu(ds_tep):
 
 
 def _thu_html(doc):
-	"""Nội dung thư báo thanh toán. Tách riêng để xem trước được mà không gửi."""
-	from vagabond.nhan_su import XANH, XANH_DAM, _khung_thu, _o_nhat
+	"""Nội dung thư báo thanh toán. Tách riêng để xem trước được mà không gửi.
 
-	h = frappe.utils.escape_html
-	hang = []
-	for d in doc.dong:
-		hang.append(
-			"<tr>"
-			'<td style="padding:7px 10px;border-bottom:1px solid #E6EEF1;font-size:13px">%s</td>'
-			'<td style="padding:7px 10px;border-bottom:1px solid #E6EEF1;font-size:13px">%s</td>'
-			'<td style="padding:7px 10px;border-bottom:1px solid #E6EEF1;font-size:13px;text-align:right;white-space:nowrap">%s đ</td>'
-			"</tr>"
-			% (h(d.so_hd_ncc or d.noi_dung or d.hoa_don), _ngay_vn(d.ngay_hd), _tien(d.so_tien))
-		)
-	# KHONG dat phep % len ca chuoi HTML nay: trong do co width="100%" va
-	# noi dung tung dong da ghep san. Python doc "%" do la ma dinh dang roi
-	# nem ValueError. Ghep bang cong chuoi, chi dinh dang dung o cho nao that
-	# su can. Loi nay tung lam vo nut Xuat bo ho so ngay 13/08/2026.
-	bang = (
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
-		'style="border-collapse:collapse;margin:6px 0 4px">'
-		'<tr><td style="padding:7px 10px;background:#E4F9FD;font-size:12px;font-weight:bold;color:#05323C">Số hoá đơn</td>'
-		'<td style="padding:7px 10px;background:#E4F9FD;font-size:12px;font-weight:bold;color:#05323C">Ngày</td>'
-		'<td style="padding:7px 10px;background:#E4F9FD;font-size:12px;font-weight:bold;color:#05323C;text-align:right">Số tiền</td></tr>'
-		+ "".join(hang)
-		+ '<tr><td colspan="2" style="padding:9px 10px;font-size:13.5px;font-weight:bold;color:#05323C">TỔNG THANH TOÁN</td>'
-		+ '<td style="padding:9px 10px;font-size:15px;font-weight:bold;color:#0B7C93;text-align:right;white-space:nowrap">'
-		+ _tien(doc.tong_tien) + " đ</td></tr></table>"
+	Từ 03/09/2026 đi qua khuôn thư chung (vagabond/thu_khung.py). Bản trước
+	(v369 tới v393) HỎNG: nút "Phản hồi đối chiếu" tham chiếu biến phông `mc`
+	nằm ngoài phạm vi khai báo, mỗi lần bấm gửi là máy chủ ném NameError. Đây
+	đúng là kiểu lỗi mà việc mỗi tệp tự dựng thư sinh ra.
+	"""
+	from vagabond import thu_khung as _tk
+
+	h = _tk.h
+	dong = [
+		[h(d.so_hd_ncc or d.noi_dung or d.hoa_don), _ngay_vn(d.ngay_hd), _tien(d.so_tien) + " đ"]
+		for d in doc.dong
+	]
+	bang = _tk.bang(
+		[("Số hoá đơn", "left"), ("Ngày", "left"), ("Số tiền", "right")], dong,
+		tong=("Tổng thanh toán", _tien(doc.tong_tien) + " đ"), goc_anh=_tk.goc_anh(),
 	)
 
 	chi_tiet_tra = [
@@ -2108,44 +2097,37 @@ def _thu_html(doc):
 	chi_tiet_tra.append("Mã hồ sơ bên chúng tôi: <b>%s</b>" % h(doc.name))
 
 	than = (
-		"<p style='margin:0 0 14px'>Kính gửi <b>%s</b>,</p>"
-		"<p style='margin:0 0 12px'>%s xin thông báo đã <b>thanh toán</b> "
-		"cho quý công ty số tiền <b>%s đ</b> cho %d hoá đơn dưới đây. "
-		"Uỷ nhiệm chi của giao dịch được đính kèm trong thư này.</p>"
-		"%s"
-		"<p style='margin:14px 0 8px'>Thông tin thanh toán:</p>%s"
-		"%s"
-		"<p style='margin:14px 0 0'>Trân trọng cảm ơn quý công ty đã đồng hành cùng chúng tôi.</p>"
-	) % (
-		h(doc.ten_ncc or doc.nha_cung_cap),
-		TEN_TIEM,
-		_tien(doc.tong_tien),
-		len(doc.dong),
-		bang,
-		_o_nhat("<br>".join(chi_tiet_tra)),
-		_o_doi_chieu(XANH, XANH_DAM),
+		_tk.doan("Kính gửi <b>%s</b>," % h(doc.ten_ncc or doc.nha_cung_cap))
+		+ _tk.doan(
+			"%s xin thông báo đã <b>thanh toán</b> cho quý công ty số tiền <b>%s đ</b> "
+			"cho %d hoá đơn dưới đây. Uỷ nhiệm chi của giao dịch được đính kèm trong thư này."
+			% (TEN_TIEM, _tien(doc.tong_tien), len(doc.dong))
+		)
+		+ bang
+		+ _tk.nhan_hoa("Thông tin thanh toán")
+		+ _tk.o_kem("<br>".join(chi_tiet_tra), goc_anh=_tk.goc_anh())
+		+ _o_doi_chieu()
+		+ _tk.doan("Trân trọng cảm ơn quý công ty đã đồng hành cùng chúng tôi.", cach=0)
 	)
-	nut = _nut_doi_chieu(doc, XANH, XANH_DAM)
-	return _khung_thu("Thông báo thanh toán và đề nghị đối chiếu công nợ", than, nut)
+	return _tk.khung(
+		"Thông báo thanh toán và đề nghị đối chiếu công nợ", than,
+		nut_html=_nut_doi_chieu(doc), chan="ncc", nhan="Thanh toán công nợ",
+	)
 
 
-def _o_doi_chieu(xanh, xanh_dam):
+def _o_doi_chieu():
 	"""Khối đề nghị đối chiếu công nợ, viền robin egg cho nổi khỏi phần trên.
 
 	Nói rõ ba việc mong nhà cung cấp làm và một mốc thời gian. Không có
 	mốc thì thư này chỉ là thư báo, không thành lời mời đối chiếu.
 	"""
-	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
-	from vagabond import mau_chuan as mc
+	from vagabond import thu_khung as _tk
 
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
-		'style="margin:16px 0 2px"><tr><td style="padding:14px 16px;border:2px solid '
-		+ xanh
-		+ ';border-radius:6px;font-family:' + mc.PHONG_THU + ';font-size:13.5px;'
-		'line-height:1.7;color:'
-		+ xanh_dam
-		+ '">'
+		'style="margin:16px 0 14px"><tr><td style="padding:14px 16px;border:2px solid '
+		+ _tk.XANH + ';border-radius:6px;font-family:' + _tk.PHONG + ';font-size:13.5px;'
+		'line-height:1.7;color:' + _tk.MUC + '">'
 		'<div style="font-weight:bold;font-size:14px;margin:0 0 6px">Đề nghị đối chiếu công nợ</div>'
 		"Kính mong quý công ty kiểm tra và phản hồi giúp ba điều:"
 		'<div style="margin:7px 0 0">1. Số tiền trên đã về tài khoản của quý công ty chưa.</div>'
@@ -2158,21 +2140,16 @@ def _o_doi_chieu(xanh, xanh_dam):
 	)
 
 
-def _nut_doi_chieu(doc, xanh, xanh_dam):
+def _nut_doi_chieu(doc):
 	"""Nút trả lời thẳng về hộp thư kế toán, tiêu đề điền sẵn."""
+	from vagabond import thu_khung as _tk
+
 	tieu_de = "Doi chieu cong no - %s" % doc.name
 	dia_chi = "mailto:%s?subject=%s" % (EMAIL_KE_TOAN, tieu_de.replace(" ", "%20"))
 	return (
-		'<a href="'
-		+ dia_chi
-		+ '" style="display:inline-block;background:'
-		+ xanh
-		+ ';color:'
-		+ xanh_dam
-		+ ';text-decoration:none;font-family:' + mc.PHONG_THU + ';font-weight:bold;'
-		'font-size:14px;border-radius:8px;padding:12px 22px">Phản hồi đối chiếu công nợ</a>'
-		'<div style="font-family:' + mc.PHONG_THU + ';font-size:12px;color:#5B7280;'
-		'margin:9px 0 0">Hoặc bấm Trả lời ngay trong thư này.</div>'
+		_tk.nut(dia_chi, "Phản hồi đối chiếu công nợ", goc_anh=_tk.goc_anh())
+		+ '<div style="text-align:center;font-family:' + _tk.PHONG + ';font-size:12px;color:'
+		+ _tk.XAM + ';margin:9px 0 0">Hoặc bấm Trả lời ngay trong thư này.</div>'
 	)
 
 

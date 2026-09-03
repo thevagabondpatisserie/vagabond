@@ -1264,8 +1264,18 @@ def canh_bao_tac_nhip():
 					+ (["có chứng từ trùng"] if cint(trung.get("so_to_thua")) else [])
 				))
 			),
-			message="".join(phan),
+			message=_khung_chuong("".join(phan)),
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 			"minvoice_chung_tu: chuong bao tac nhip")
+
+
+def _khung_chuong(than):
+	"""Boc thu chuong bao vao khuon thu chung. Hong thi gui than thu tho."""
+	try:
+		from vagabond import thu_khung as _tk
+
+		return _tk.khung("Hoá đơn điện tử đầu vào cần xem ngay", than, chan="noi_bo", nhan="Chuông báo")
+	except Exception:
+		return than

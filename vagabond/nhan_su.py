@@ -19,18 +19,17 @@ from vagabond.lib import cfg
 # phông của nó khác phông bản in. Xem vagabond/mau_chuan.py.
 from vagabond.mau_chuan import PHONG_THU
 
-# Bo mau nhan dien dung chung voi mau thu PO gui nha cung cap (xem
-# claude/erpnext-email-va-mau-thu-po.md). Cac mang mau thuong hieu deu lot
-# anh nen, vi Gmail che do toi tu dao mau nhung mang sang thuan CSS.
-SITE_ANH = "https://vagabond.s.frappe.cloud"
-ANH_DAU_THU = SITE_ANH + "/files/vgb_email_header.png"
-ANH_NEN_XANH = SITE_ANH + "/files/vgb_bg_robinegg.png"
-XANH = "#50DBF2"          # robin egg dac
-XANH_NHAT = "#E4F9FD"     # robin egg nhat
-XANH_DAM = "#05323C"      # chu tren nen xanh
-CHU = "#22333B"
-VIEN = "#CDEBF2"
-LIEN_KET = "#0B7C93"
+# Bo mau va khuon thu nay lay tu MOT cho: vagabond/thu_khung.py (03/09/2026).
+# Cac ten duoi day giu lai de cac tep khac dang import khong vo; viet moi thi
+# goi thang thu_khung.
+from vagabond import thu_khung as _tk
+
+XANH = _tk.XANH
+XANH_NHAT = _tk.KEM
+XANH_DAM = _tk.XANH_DAM
+CHU = _tk.MUC
+VIEN = _tk.KE
+LIEN_KET = _tk.LIEN_KET
 
 
 def link_app():
@@ -72,104 +71,59 @@ def _lien_ket_dat_mat_khau(doc):
 
 
 def _nut_xanh(dia_chi, chu):
-	"""Nut chinh mau robin egg, lot anh nen de khong bi Gmail dao mau."""
-	return (
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
-		'<tr><td align="center" background="%s" bgcolor="%s" style="border-radius:10px">'
-		'<a href="%s" target="_blank" style="display:inline-block;padding:15px 40px;'
-		'font-family:' + PHONG_THU + ';font-size:17px;font-weight:bold;letter-spacing:.3px;'
-		'color:%s;text-decoration:none">%s</a>'
-		"</td></tr></table>"
-	) % (ANH_NEN_XANH, XANH, dia_chi, XANH_DAM, chu)
+	"""Nut chinh. Giu ten cu cho cac cho dang goi."""
+	return _tk.nut(dia_chi, chu, goc_anh=_tk.goc_anh())
 
 
 def _nut_vien(dia_chi, chu):
-	"""Nut phu: nen trang, vien xanh dam."""
-	return (
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
-		'<tr><td align="center" bgcolor="#FFFFFF" style="border:2px solid %s;border-radius:10px">'
-		'<a href="%s" target="_blank" style="display:inline-block;padding:13px 38px;'
-		'font-family:' + PHONG_THU + ';font-size:16px;font-weight:bold;'
-		'color:%s;text-decoration:none">%s</a>'
-		"</td></tr></table>"
-	) % (XANH_DAM, dia_chi, XANH_DAM, chu)
+	"""Nut phu."""
+	return _tk.nut(dia_chi, chu, phu=True, goc_anh=_tk.goc_anh())
 
 
 def _buoc(so, tieu_de, noi_dung):
+	"""Mot buoc danh so trong vong tron robin egg."""
+	goc = _tk.goc_anh()
 	return (
 		'<tr><td style="padding:0 0 16px">'
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
-		'<tr><td width="34" valign="top">'
+		'<tr><td width="36" valign="top">'
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
 		'<td width="26" height="26" align="center" background="%s" bgcolor="%s" '
 		'style="border-radius:13px;font-family:' + PHONG_THU + ';font-size:13px;'
 		'font-weight:bold;color:%s">%s</td></tr></table></td>'
 		'<td style="font-family:' + PHONG_THU + ';font-size:14px;line-height:1.65;color:%s">'
-		'<b style="color:%s">%s</b><br>%s</td></tr></table></td></tr>'
-	) % (ANH_NEN_XANH, XANH, XANH_DAM, so, CHU, XANH_DAM, tieu_de, noi_dung)
+		'<b>%s</b><br>%s</td></tr></table></td></tr>'
+	) % (_tk._anh(goc, _tk.ANH_LOT_XANH), XANH, XANH_DAM, so, CHU, tieu_de, noi_dung)
 
 
 def thu_moi_html(ten, link_dat_mat_khau, dia_chi_app):
 	"""Dung noi dung thu moi. Tach rieng de xem truoc duoc ma khong phai gui."""
-	return (
-		'<div style="margin:0;padding:0;background:#F2FAFC">\n'
-		'<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0"><tr>'
-		'<td align="center" style="padding:18px 8px">\n'
-		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" '
-		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(vien)s">\n'
-		'<tr><td><img src="%(anh_dau)s" width="600" alt="The Vagabond Patisserie" '
-		'style="display:block;width:100%%;height:auto;border:0"></td></tr>\n'
-		'<tr><td style="padding:26px 30px 6px;font-family:' + PHONG_THU + ';'
-		'font-size:14px;line-height:1.65;color:%(chu)s">\n'
-		'<p style="margin:0 0 14px">Chào <b style="color:%(dam)s">%(ten)s</b>,</p>\n'
-		'<p style="margin:0 0 4px">Anh chị đã có tài khoản trên <b>app quản lý nội bộ của công ty</b>. '
-		'App chạy thẳng trên <b>điện thoại</b>, không cần cài đặt gì, chỉ cần làm ba bước dưới đây.</p>\n'
-		'</td></tr>\n'
-		'<tr><td style="padding:18px 30px 0">\n'
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">\n'
-		'%(b1)s<tr><td style="padding:0 0 20px">%(nut1)s</td></tr>\n'
-		'%(b2)s<tr><td style="padding:0 0 20px">%(nut2)s</td></tr>\n'
-		'%(b3)s'
-		'</table>\n</td></tr>\n'
-		'<tr><td style="padding:2px 30px 24px">\n'
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
-		'<tr><td bgcolor="%(nhat)s" style="padding:13px 16px;font-family:' + PHONG_THU + ';'
-		'font-size:13.5px;line-height:1.6;color:%(dam)s">'
-		'Đăng nhập bằng chính <b>địa chỉ email này</b> và mật khẩu anh chị vừa đặt. '
-		'App dùng trên điện thoại là đủ, không cần mở trên máy tính.</td></tr></table>\n'
-		'</td></tr>\n'
-		'<tr><td background="%(nen_xanh)s" bgcolor="%(xanh)s" '
-		'style="padding:12px 30px;font-family:' + PHONG_THU + ';font-size:12px;'
-		'line-height:1.7;color:%(dam)s;text-align:center">'
-		'The Vagabond P&acirc;tisserie - 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân, TP. Hồ Chí Minh<br>'
-		'Cần hỗ trợ về app hãy nhắn số anh Việt (0901486556, Zalo)</td></tr>\n'
-		"</table>\n</td></tr></table></div>"
-	) % {
-		"vien": VIEN,
-		"anh_dau": ANH_DAU_THU,
-		"chu": CHU,
-		"dam": XANH_DAM,
-		"nhat": XANH_NHAT,
-		"xanh": XANH,
-		"nen_xanh": ANH_NEN_XANH,
-		"ten": frappe.utils.escape_html(ten or ""),
-		"b1": _buoc(
-			1, "Đặt mật khẩu",
-			"Bấm nút bên dưới, gõ mật khẩu mới hai lần rồi lưu lại. Nhớ mật khẩu này để đăng nhập app.",
-		),
-		"nut1": _nut_vien(link_dat_mat_khau, "Đặt mật khẩu"),
-		"b2": _buoc(
-			2, "Mở app trên điện thoại",
-			"Bấm nút xanh bên dưới, đăng nhập bằng email và mật khẩu vừa đặt.",
-		),
-		"nut2": _nut_xanh(dia_chi_app, "Mở app"),
-		"b3": _buoc(
-			3, "Gắn app ra màn hình chính",
+	than = (
+		_tk.doan("Chào <b>%s</b>," % _tk.h(ten or ""))
+		+ _tk.doan(
+			"Anh chị đã có tài khoản trên <b>app quản lý nội bộ của công ty</b>. "
+			"App chạy thẳng trên <b>điện thoại</b>, không cần cài đặt gì, chỉ cần làm ba bước dưới đây.",
+			cach=18,
+		)
+		+ '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">'
+		+ _buoc(1, "Đặt mật khẩu",
+			"Bấm nút bên dưới, gõ mật khẩu mới hai lần rồi lưu lại. Nhớ mật khẩu này để đăng nhập app.")
+		+ '<tr><td style="padding:0 0 22px">%s</td></tr>' % _nut_vien(link_dat_mat_khau, "Đặt mật khẩu")
+		+ _buoc(2, "Mở app trên điện thoại",
+			"Bấm nút xanh bên dưới, đăng nhập bằng email và mật khẩu vừa đặt.")
+		+ '<tr><td style="padding:0 0 22px">%s</td></tr>' % _nut_xanh(dia_chi_app, "Mở app")
+		+ _buoc(3, "Gắn app ra màn hình chính",
 			"iPhone: bấm nút Chia sẻ ở thanh dưới rồi chọn Thêm vào MH chính. "
 			"Android: bấm dấu ba chấm góc trên rồi chọn Thêm vào màn hình chính. "
-			"Từ lần sau chỉ cần bấm biểu tượng như một app bình thường.",
-		),
-	}
+			"Từ lần sau chỉ cần bấm biểu tượng như một app bình thường.")
+		+ "</table>"
+		+ _tk.o_kem(
+			"Đăng nhập bằng chính <b>địa chỉ email này</b> và mật khẩu anh chị vừa đặt. "
+			"App dùng trên điện thoại là đủ, không cần mở trên máy tính.",
+			goc_anh=_tk.goc_anh(),
+		)
+	)
+	return _tk.khung("Tài khoản app của anh chị đã sẵn sàng", than, chan="nhan_vien", nhan="Chào mừng")
 
 
 class NguoiDung(User):
@@ -254,42 +208,17 @@ def ds_nhan_su_theo_vai(vai="Shipper"):
 	return sorted(ra, key=lambda x: x["ten"] or "")
 
 
-def _khung_thu(tieu_de, than, nut=""):
-	"""Khung thu dung chung: dai logo, than trang, chan robin egg."""
-	return (
-		'<div style="margin:0;padding:0;background:#F2FAFC">\n'
-		'<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0"><tr>'
-		'<td align="center" style="padding:18px 8px">\n'
-		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" '
-		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(vien)s">\n'
-		'<tr><td><img src="%(anh_dau)s" width="600" alt="The Vagabond Patisserie" '
-		'style="display:block;width:100%%;height:auto;border:0"></td></tr>\n'
-		'<tr><td style="padding:24px 30px 4px;font-family:' + PHONG_THU + ';'
-		'font-size:16px;font-weight:bold;color:%(dam)s">%(tieu_de)s</td></tr>\n'
-		'<tr><td style="padding:8px 30px 4px;font-family:' + PHONG_THU + ';'
-		'font-size:14px;line-height:1.65;color:%(chu)s">%(than)s</td></tr>\n'
-		'%(nut)s'
-		'<tr><td background="%(nen_xanh)s" bgcolor="%(xanh)s" '
-		'style="padding:12px 30px;font-family:' + PHONG_THU + ';font-size:12px;'
-		'line-height:1.7;color:%(dam)s;text-align:center">'
-		'The Vagabond P&acirc;tisserie - 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân, TP. Hồ Chí Minh<br>'
-		'Cần hỗ trợ về app hãy nhắn số anh Việt (0901486556, Zalo)</td></tr>\n'
-		"</table>\n</td></tr></table></div>"
-	) % {
-		"vien": VIEN, "anh_dau": ANH_DAU_THU, "chu": CHU, "dam": XANH_DAM,
-		"xanh": XANH, "nen_xanh": ANH_NEN_XANH,
-		"tieu_de": tieu_de, "than": than,
-		"nut": ('<tr><td style="padding:18px 30px 24px">%s</td></tr>\n' % nut) if nut else
-			'<tr><td style="padding:0 30px 24px"></td></tr>\n',
-	}
+def _khung_thu(tieu_de, than, nut="", chan="nhan_vien", nhan=""):
+	"""Khung thu dung chung. Giu ten cu; than thu la vagabond/thu_khung.py.
+
+	Mac dinh chan thu NHAN VIEN vi cac cho goi cu deu la thu cho nguoi trong
+	cong ty. Thu cho khach hay nha cung cap phai truyen chan= cho dung.
+	"""
+	return _tk.khung(tieu_de, than, nut_html=nut, chan=chan, nhan=nhan)
 
 
 def _o_nhat(noi_dung):
-	return (
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%">'
-		'<tr><td bgcolor="%s" style="padding:13px 16px;font-family:' + PHONG_THU + ';'
-		'font-size:13.5px;line-height:1.7;color:%s">%s</td></tr></table>'
-	) % (XANH_NHAT, XANH_DAM, noi_dung)
+	return _tk.o_kem(noi_dung, goc_anh=_tk.goc_anh())
 
 
 def _tien(v):
@@ -315,9 +244,9 @@ def thu_phan_cong_html(ten, doc):
 	if doc.ghi_chu_in:
 		dong.append("Ghi chú: %s" % h(doc.ghi_chu_in))
 	than = (
-		"<p style='margin:0 0 14px'>Chào <b style='color:%s'>%s</b>, anh chị vừa được giao một đơn mới.</p>%s"
-	) % (XANH_DAM, h(ten or ""), _o_nhat("<br>".join(dong)))
-	return _khung_thu("Có đơn mới cho anh chị", than, _nut_xanh(link_app(), "Mở app xem đơn"))
+		"<p style='margin:0 0 14px'>Chào <b>%s</b>, anh chị vừa được giao một đơn mới.</p>%s"
+	) % (h(ten or ""), _o_nhat("<br>".join(dong)))
+	return _khung_thu("Có đơn mới cho anh chị", than, _nut_xanh(link_app(), "Mở app xem đơn"), nhan="Giao hàng")
 
 
 def thu_tai_xe_huy_html(doc):
@@ -337,7 +266,7 @@ def thu_tai_xe_huy_html(doc):
 		"nhờ anh chị phân công lại giúp.</p>%s"
 	) % _o_nhat("<br>".join(dong))
 	return _khung_thu("Tài xế huỷ đơn, cần phân công lại", than,
-		_nut_xanh(link_app(), "Mở màn Vận đơn"))
+		_nut_xanh(link_app(), "Mở màn Vận đơn"), chan="noi_bo", nhan="Giao hàng")
 
 
 CONG_TY = "CÔNG TY TNHH PATISSERIE VAGABOND"

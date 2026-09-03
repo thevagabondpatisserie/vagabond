@@ -973,62 +973,29 @@ def _email_khach(khach):
 
 
 def _thu_da_nhan_html(doc, ds_dong):
-	"""Thu bao da nhan tien, giong giong to phieu de khach nhan ra ngay."""
-	# Xâu phông thư điện tử, khai một nơi. Xem vagabond/mau_chuan.py.
-	from vagabond import mau_chuan
+	"""Thu bao da nhan tien. Di qua khuon thu chung (vagabond/thu_khung.py)."""
+	from vagabond import thu_khung as _tk
 
-	esc = frappe.utils.escape_html
-	hang = "".join(
-		'<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px">%s</td>'
-		'<td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;'
-		'text-align:right;white-space:nowrap">%s đ</td></tr>'
-		% (esc(x.get("hoa_don") or ""), _tien_vn(x.get("so_tien")))
-		for x in ds_dong
+	esc = _tk.h
+	dong = [[esc(x.get("hoa_don") or ""), _tien_vn(x.get("so_tien")) + " đ"] for x in ds_dong]
+	than = (
+		_tk.doan("Kính gửi <b>%s</b>," % esc(doc.ten_khach or doc.khach or "Quý khách"))
+		+ _tk.doan(
+			"%s xác nhận đã nhận được khoản thanh toán <b>%s đ</b> theo phiếu đề nghị "
+			"thanh toán <b>%s</b>. Công nợ của quý khách cho các hoá đơn dưới đây đã được "
+			"tất toán." % (_tk.TEN_TIEM, _tien_vn(doc.da_thu), esc(doc.ma_phieu or ""))
+		)
+		+ _tk.bang(
+			[("Số hoá đơn", "left"), ("Số tiền", "right")], dong,
+			tong=("Tổng cộng", _tien_vn(doc.tong_tien) + " đ"), goc_anh=_tk.goc_anh(),
+		)
+		+ _tk.doan(
+			"Cảm ơn quý khách đã tin tưởng và đồng hành cùng %s. Nếu cần hoá đơn hoặc "
+			"chứng từ gì thêm, quý khách cứ trả lời thẳng thư này, bộ phận kinh doanh sẽ "
+			"hỗ trợ ngay." % _tk.TEN_TIEM, cach=0,
+		)
 	)
-	return (
-		'<div style="margin:0;padding:0;background:#F2FAFC">'
-		'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-		'border="0"><tr><td align="center" style="padding:20px 8px">'
-		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
-		'border="0" style="width:600px;max-width:600px;background:#fff;'
-		'border:1px solid #e4e7ec">'
-		'<tr><td style="padding:26px 30px 6px;font-family:' + mau_chuan.PHONG_THU + '">'
-		'<div style="font-size:20px;font-weight:bold;color:#1c1a17">'
-		"Đã nhận được thanh toán</div>"
-		'<div style="font-size:14px;color:#475467;line-height:1.7;margin-top:12px">'
-		"Kính gửi <b>%s</b>,<br><br>"
-		"The Vagabond Pâtisserie xác nhận đã nhận được khoản thanh toán "
-		'<b style="color:#0f766e">%s đ</b> theo phiếu đề nghị thanh toán '
-		"<b>%s</b>. Công nợ của quý khách cho các hoá đơn dưới đây đã được "
-		"tất toán."
-		"</div>"
-		'<table style="width:100%%;border-collapse:collapse;margin-top:18px">'
-		'<tr><td style="padding:6px 8px;border-bottom:2px solid #1c1a17;'
-		'font-size:12px;font-weight:bold">Số hoá đơn</td>'
-		'<td style="padding:6px 8px;border-bottom:2px solid #1c1a17;font-size:12px;'
-		'font-weight:bold;text-align:right">Số tiền</td></tr>'
-		"%s"
-		'<tr><td style="padding:9px 8px;font-size:14px;font-weight:bold">Tổng cộng</td>'
-		'<td style="padding:9px 8px;font-size:15px;font-weight:bold;text-align:right;'
-		'white-space:nowrap">%s đ</td></tr></table>'
-		'<div style="font-size:13.5px;color:#475467;line-height:1.7;margin-top:20px">'
-		"Cảm ơn quý khách đã tin tưởng và đồng hành cùng The Vagabond Pâtisserie. "
-		"Nếu cần hoá đơn hoặc chứng từ gì thêm, quý khách cứ trả lời thẳng thư này, "
-		"bộ phận kinh doanh sẽ hỗ trợ ngay."
-		"</div>"
-		'<div style="font-size:13.5px;color:#475467;margin-top:22px;line-height:1.7">'
-		"Trân trọng,<br><b>The Vagabond Pâtisserie</b>"
-		'<div style="font-size:12px;color:#98a2b3;margin-top:4px">'
-		"9 Trần Cao Vân, Phường Sài Gòn, TP.HCM<br>"
-		"www.thevagabondpatisserie.com</div></div>"
-		"</td></tr></table></td></tr></table></div>"
-	) % (
-		esc(doc.ten_khach or doc.khach or "Quý khách"),
-		_tien_vn(doc.da_thu),
-		esc(doc.ma_phieu or ""),
-		hang,
-		_tien_vn(doc.tong_tien),
-	)
+	return _tk.khung("Đã nhận được thanh toán", than, chan="khach", nhan="Công nợ")
 
 
 def _gui_thu_da_nhan(doc, buoc_gui=False):
