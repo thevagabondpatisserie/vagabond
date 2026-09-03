@@ -214,7 +214,15 @@ async function vxDsHuy(loai) {
   try {
     ds = await getList('Stock Entry', {
       fields: ['name', 'posting_date', 'from_warehouse', 'to_warehouse'],
-      filters: { docstatus: 2, purpose: loai === 'huy' ? 'Material Issue' : 'Material Transfer', posting_date: ['>=', moc] },
+      /* Loc them `vgb_muc_dich_xuat` trong cho tab huy.
+         Ben may chu da va dung cho nay ngay 02/09/2026: xuat dung noi bo
+         cung la "Material Issue", nen banh Marketing mang di chup nam lan
+         trong danh sach hang huy. Hai tab kia doc qua may chu nen da an
+         theo; rieng tab "Đã huỷ" goi thang Stock Entry o day nen khong an
+         duoc cai va do. */
+      filters: loai === 'huy'
+        ? { docstatus: 2, purpose: 'Material Issue', vgb_muc_dich_xuat: ['in', ['', null]], posting_date: ['>=', moc] }
+        : { docstatus: 2, purpose: 'Material Transfer', posting_date: ['>=', moc] },
       limit_page_length: 40, order_by: 'modified desc'
     });
   } catch (e) { }
