@@ -450,6 +450,15 @@ def _khong_doi_chu_ky():
 	dung("phan 45 co ban rieng", "function xktDongHtml(gio, opt) {" in j)
 	# Muon tam XK.gio de dung lai man chon hang cua 03 ma khong sua no.
 	dung("co muon tam roi keo ve", "XK.gio = st.gio.slice();" in j)
+	# v399: man chon hang cua 03 goi back() chu khong goi ham quay ve, nen
+	# man lap phieu phai tu keo XK.gio ve o dau ham. Loi v397 tren site that:
+	# chon mon xong ve man van "Chua co mon nao".
+	dung("hai man lap phieu deu keo gio ve o dau ham", j.count("xktKeoGioVe(st);") == 2)
+	dung("cam co dang chon truoc khi mo man chon hang", j.count("st.dangChon = true;") == 2)
+	dung("khong con tin vao ham quay ve cua man chon hang", "return scrXkNbNew(); });" not in j and "return scrXkSiNew(); });" not in j)
+	# Man chon hang: mon chua co anh thi o 🍰 giu hang, khong o chu cai
+	# (nguyen tac 4, AGENTS.md muc 2b).
+	dung("man chon hang khong ve o chu cai thay anh", "charAt(0).toUpperCase()" not in c[c.find("function scrXkChonHang"):c.find("function scrXkChonHang") + 12000])
 
 
 @ca("xuat kho them: nut xac nhan chan noi len the cha")
