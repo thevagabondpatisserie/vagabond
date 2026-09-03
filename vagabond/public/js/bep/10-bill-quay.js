@@ -127,7 +127,10 @@ async function posInBill(d) {
   } else if (d.xhd_url && M.qr_xhd) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
        tu dien thong tin, ERP map vao don, cuoi ngay tu day m-invoice. */
-    var ulink = location.origin + d.xhd_url;
+    /* May chu tra dia chi TUYET DOI tren mien khach tu 03/09/2026. Con giu
+       nhanh ghep location.origin cho ban may chu cu, nhung khong duoc dung
+       no lam duong chinh nua: location.origin o quay la mien app noi bo. */
+    var ulink = /^https?:\/\//.test(d.xhd_url) ? d.xhd_url : (location.origin + d.xhd_url);
     qrKhoi = '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=' + encodeURIComponent(ulink) + '">' +
       '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong ngày.</div></div>';
   }
