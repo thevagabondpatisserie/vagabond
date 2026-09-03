@@ -329,10 +329,18 @@ doc_events = {
 	# mo_chot thay validate_batch cua ERPNext ngay truoc khi ERPNext goi no
 	# trong cung mot lan luu; dat sau gan_lo thi gan_lo thoat som la khong
 	# ai thay. Doc dau tep vagabond/lo_het_han.py.
-	"Stock Entry": {"before_validate": [
-		"vagabond.lo_het_han.mo_chot",
-		"vagabond.lo_hang.gan_lo",
-	]},
+	#
+	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
+	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
+	"Stock Entry": {
+		"before_validate": [
+			"vagabond.lo_het_han.mo_chot",
+			"vagabond.lo_hang.gan_lo",
+		],
+		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
+		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.
+		"before_submit": "vagabond.kiem_ke.chan_khi_dang_kiem",
+	},
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
@@ -379,12 +387,23 @@ doc_events = {
 		# vao 155, 155 la thanh pham khi minh xuat ban thoi". Dat o
 		# before_submit chu khong phai validate: luu nhap thi cu cho luu,
 		# chi chan dung luc con so sap cham so cai. Doc dau tep gac_tk_kho.py.
-		"before_submit": "vagabond.gac_tk_kho.chan_nhap_vao_thanh_pham",
+		"before_submit": [
+			"vagabond.gac_tk_kho.chan_nhap_vao_thanh_pham",
+			"vagabond.kiem_ke.chan_khi_dang_kiem",
+		],
 		"on_submit": "vagabond.giao_viec.khi_xong",
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},
 	"Phieu Kiem Ke": {
-		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
+		"after_insert": [
+			"vagabond.giao_viec.khi_sinh_phieu",
+			# Ghi lai thoi diem chup ton so: chenh lech dem ra la chenh lech so
+			# voi thoi diem nay chu khong phai so voi luc ghi so.
+			"vagabond.kiem_ke.chup_ton_so",
+		],
+		# Chot phieu thi moi dong lech phai co ly do chuan. Dat o validate chu
+		# khong o luc dem: dang dem ma bat khai la vuong tay nguoi dem.
+		"validate": "vagabond.kiem_ke.soat_truoc_khi_chot",
 		"on_update": "vagabond.giao_viec.khi_sinh_phieu",
 	},
 	# Tang qua khach VIP: KHONG CON HOOK GIAO VIEC TU DONG.

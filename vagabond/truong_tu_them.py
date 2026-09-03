@@ -228,6 +228,23 @@ def dung():
 	from vagabond import nhan_dieu_chuyen
 
 	_dung_nhom(nhan_dieu_chuyen.TRUONG_MOI, "nhan_dieu_chuyen")
+	# O chua cau hinh tai khoan nhan chuyen khoan theo diem ban. Doc dau
+	# tai_khoan.TRUONG_MOI de biet vi sao o nay tung mat hai lan.
+	from vagabond import tai_khoan
+
+	_dung_nhom(tai_khoan.TRUONG_MOI, "tai_khoan")
+	# Bay o Cai dat cu, truoc day bam tay tren Desk. Doc dau o_cai_dat.py.
+	from vagabond import o_cai_dat
+
+	_dung_nhom(o_cai_dat.TRUONG_MOI, "o_cai_dat")
+	# So ngay han dung toi thieu khi nhan hang, khai theo tung mon.
+	from vagabond import kho_cai_dat
+
+	_dung_nhom(kho_cai_dat.TRUONG_MOI, "kho_cai_dat")
+	# O chup ton so tren phieu kiem va o ly do chenh lech tren tung dong.
+	from vagabond import kiem_ke
+
+	_dung_nhom(kiem_ke.TRUONG_MOI, "kiem_ke")
 
 
 def _dung_nhom(khai, ten_nhom):

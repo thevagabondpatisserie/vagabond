@@ -454,6 +454,16 @@ CUA_NGO = {
 		"chi_tiet", "danh_sach", "dong_con_lai", "go_anh_nhan",
 		"mo_lai", "tao_phieu",
 	],
+	# Kiem ke xoay vong. Bon cua them 03/09/2026 cung dot nam nut hoc tu SAP.
+	# `chan_khi_dang_kiem`, `soat_truoc_khi_chot` va `chup_ton_so` la HOOK,
+	# phai nam NGOAI danh sach: mo ra ngoai la cho phep goi thang tu trinh
+	# duyet vao dung cho dang khoa so kho.
+	"kiem_ke.py": [
+		"ghi_ly_do", "lich_hom_nay", "ly_do_ds", "mo_phieu",
+		"phieu_cho_duyet", "phieu_dang_khoa", "tao_phieu_hom_nay",
+	],
+	# Nguong kho: dung sai giao nhan va han dung toi thieu chung.
+	"kho_cai_dat.py": ["danh_sach", "luu"],
 	# Xuat kho: dieu chuyen va xuat huy. `go_anh_xuat_huy` them 24/08/2026
 	# (v294), chan khi da ghi so hoac da huy - luc do anh la chung tu.
 	"xuat_kho.py": [

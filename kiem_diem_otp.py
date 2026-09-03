@@ -3535,8 +3535,10 @@ _js33c = open("vagabond/public/js/bep/02-trang-chu.js", encoding="utf-8").read()
 la("co man Cai dat SePay", "async function scrSePay()" in _js33b, True)
 la("man SePay duoc noi vao menu", "if (k === 'CDSE') return go(scrSePay);" in _js33c, True)
 # v316 chen the "Tro ly" vao giua CDCN va CDSE, nen chuoi ke nhau doi theo.
-# Van giu nguyen do chat: doi dung thu tu chu khong chi doi "co mat".
-la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDTL', 'CDSE'," in _js33c, True)
+# v407 chen tiep the "Nguong kho" (dung sai giao nhan, han dung toi thieu)
+# vao giua CDCN va CDTL. Van giu nguyen do chat: doi dung thu tu chu khong
+# chi doi "co mat".
+la("the SePay nam trong nhom Cai dat", "'CDCN', 'CDKHO', 'CDTL', 'CDSE'," in _js33c, True)
 
 # --- Man Cai dat Tro ly (anh Viet 26/08/2026) ---
 # Ban v313 chi them cac o vao Vagabond Settings ben Desk, khong co duong nao

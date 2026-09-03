@@ -28,7 +28,7 @@ import re
 import frappe
 from frappe.utils import cint
 
-from vagabond.lib import cfg
+from vagabond.lib import cfg, cfg_o
 
 TRUONG = "vgb_may_in"
 
@@ -168,7 +168,7 @@ def _chuan(d, i=0):
 def ds(chi_bat=False):
 	"""Toan bo may in da khai."""
 	try:
-		tho = json.loads((cfg().get(TRUONG) or "").strip() or "[]")
+		tho = json.loads((cfg_o(TRUONG) or "").strip() or "[]")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "may_in: cau hinh hong dinh dang")
 		tho = []
@@ -181,7 +181,7 @@ def ds(chi_bat=False):
 def can_tem():
 	"""Thong so can tem dang dung. Hong dinh dang thi ve mac dinh."""
 	try:
-		tho = json.loads((cfg().get(TRUONG_CAN) or "").strip() or "{}")
+		tho = json.loads((cfg_o(TRUONG_CAN) or "").strip() or "{}")
 	except Exception:
 		tho = {}
 	if not isinstance(tho, dict):

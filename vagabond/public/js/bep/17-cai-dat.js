@@ -2463,3 +2463,107 @@ async function scrCaiDatWeb() {
     toast('Đã đồng bộ. Mở lại trang web là thấy ảnh mới.', 4000);
   };
 }
+
+/* ------------------------------------------------------------------ NGƯỠNG KHO
+
+   Dung sai giao thừa giao thiếu, và hạn dùng tối thiểu chung khi nhận hàng.
+   Anh Việt duyệt 03/09/2026, mặc định 5 phần trăm, học từ SAP (over/under
+   delivery tolerance đặt trên từng dòng đơn mua).
+
+   Theo bộ nguyên tắc thiết kế màn hình mục 2b: chip chứ không xổ danh sách,
+   và mỗi con số có một câu nói rõ đổi nó thì đời thay đổi ra sao. */
+
+var ckData = null;
+
+async function scrCaiDatKho() {
+  frame('Ngưỡng kho', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { ckData = await api('vagabond.kho_cai_dat.danh_sach', {}); }
+  catch (e) {
+    frame('Ngưỡng kho', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  ckVe();
+}
+
+function ckSo(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+function ckVe() {
+  var c = ckData;
+  var suaDuoc = c.sua_duoc ? 1 : 0;
+
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">DUNG SAI GIAO NHẬN</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Nhà cung cấp ít khi giao đúng từng gram. Dung sai là mức lệch máy chấp nhận: ' +
+    'trong mức thì thủ kho nhận bình thường và máy ghi lại vết, quá mức thì máy chặn ' +
+    'và thu mua phải lên đơn bổ sung.</div></div>';
+
+  html += '<div class="sec">Giao dư tới bao nhiêu thì vẫn nhận</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip([0, 3, 5, 10].map(function (v) {
+      return posChipNut('data-ckdu="' + v + '"', v + '%', Math.abs(ckSo(c.dung_sai_thua) - v) < 0.001);
+    }).join('')) +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px">' +
+    '<span style="font-size:12.5px;color:#6b7280">Mức khác:</span>' +
+    '<input class="tin" id="ckDuTay" type="number" step="0.5" min="0" max="' + h(String(c.tran)) + '" value="' + h(String(c.dung_sai_thua)) + '" style="flex:1;max-width:120px">' +
+    '<span style="font-size:12.5px;color:#6b7280">%</span></div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Đặt 0 là không cho nhận dư một chút nào. ' +
+    (c.tran_erpnext !== null && c.tran_erpnext !== undefined
+      ? 'ERPNext đang cho tối đa <b>' + num(c.tran_erpnext) + '%</b>, đặt rộng hơn số này thì đặt xong vẫn không nhận dư được.'
+      : '') + '</div></div>';
+
+  html += '<div class="sec">Giao thiếu tới bao nhiêu thì coi như xong đơn</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip([0, 3, 5, 10].map(function (v) {
+      return posChipNut('data-ckthieu="' + v + '"', v + '%', Math.abs(ckSo(c.dung_sai_thieu) - v) < 0.001);
+    }).join('')) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Phần thiếu nhỏ hơn mức này thì màn nhận hàng gợi ý đóng phần còn lại, ' +
+    'khỏi để đơn treo mãi vì thiếu vài gram. Máy KHÔNG tự đóng, người bấm mới đóng.</div></div>';
+
+  html += '<div class="sec">Hạn dùng tối thiểu khi nhận</div><div class="card" style="padding:11px 12px">' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    '<input class="tin" id="ckHsd" type="number" step="1" min="0" value="' + h(String(c.hsd_toi_thieu_chung)) + '" style="flex:1;max-width:120px">' +
+    '<span style="font-size:12.5px;color:#6b7280">ngày</span></div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Mức chung cho mọi mặt hàng. Hàng nào cần khắt khe hơn thì khai riêng ' +
+    'trong danh mục Món, ô <b>Số ngày hạn dùng tối thiểu khi nhận</b> - số riêng thắng số chung. Để 0 là không soi.</div></div>';
+
+  html += '<div class="sec">Lý do chênh lệch khi kiểm kê</div>' +
+    '<div class="card" style="padding:11px 12px"><div style="font-size:12.5px;color:#6b7280;line-height:1.6;margin-bottom:8px">' +
+    'Danh sách cố định, quản lý chọn khi ghi sổ chênh lệch. Cuối tháng đọc báo cáo lệch theo lý do là biết nên sửa chỗ nào trong quy trình.</div>' +
+    (c.ly_do_lech || []).map(function (x) {
+      var chieu = x.dau > 0 ? 'chỉ dùng khi thừa' : (x.dau < 0 ? 'chỉ dùng khi thiếu' : 'dùng cả hai chiều');
+      return '<div style="padding:8px 0;border-top:1px solid #f0f2f5">' +
+        '<div style="font-size:14px;font-weight:700;color:#111">' + h(x.ten) + '</div>' +
+        '<div style="font-size:12.5px;color:#6b7280;line-height:1.5">' + h(x.mo) + '</div>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + chieu + ' · tài khoản ' + h(x.tk) + '</div></div>';
+    }).join('') + '</div>';
+
+  var b = frame('Ngưỡng kho', html, suaDuoc
+    ? { fab: '💾', onFab: ckLuu }
+    : {});
+  if (!suaDuoc) {
+    toast('Bạn chỉ xem được, sửa ngưỡng kho cần quyền quản lý kho hoặc kế toán.', 5000);
+  }
+  b.onclick = function (e) {
+    var du = e.target.closest('[data-ckdu]');
+    if (du) { ckData.dung_sai_thua = ckSo(du.dataset.ckdu); return ckVe(); }
+    var th = e.target.closest('[data-ckthieu]');
+    if (th) { ckData.dung_sai_thieu = ckSo(th.dataset.ckthieu); return ckVe(); }
+  };
+  var it = document.getElementById('ckDuTay');
+  if (it) it.onchange = function () { ckData.dung_sai_thua = ckSo(this.value); ckVe(); };
+}
+
+async function ckLuu() {
+  var hsd = document.getElementById('ckHsd');
+  var du = document.getElementById('ckDuTay');
+  busy(1);
+  try {
+    ckData = await api('vagabond.kho_cai_dat.luu', {
+      dung_sai_thua: du ? ckSo(du.value) : ckData.dung_sai_thua,
+      dung_sai_thieu: ckData.dung_sai_thieu,
+      hsd_toi_thieu_chung: hsd ? ckSo(hsd.value) : ckData.hsd_toi_thieu_chung
+    });
+    busy(0);
+    toast('Đã lưu ngưỡng kho');
+    ckVe();
+  } catch (e) { busy(0); toast(errMsg(e), 7000); }
+}

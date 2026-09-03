@@ -48,7 +48,7 @@ import time
 
 import frappe
 
-from vagabond.lib import cfg, giau_khoa
+from vagabond.lib import cfg, cfg_o, giau_khoa
 
 TRUONG = "vgb_pancake_nhip"
 KHOA_NGHI = "vgb_pancake_nghi_den"
@@ -102,7 +102,7 @@ def cau_bao(t, hom_nay_giay=None):
 
 def _doc():
 	try:
-		return json.loads((cfg().get(TRUONG) or "").strip() or "{}")
+		return json.loads((cfg_o(TRUONG) or "").strip() or "{}")
 	except Exception:
 		return {}
 
