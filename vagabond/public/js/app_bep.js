@@ -1751,6 +1751,7 @@ async function scrHome() {
         card('🙅', 'Quyền tại quầy', 'Thu ngân được bỏ món tới đâu, khi nào phải xin quản lý', 0, 'CDQQ') +
         card('🎖️', 'Hạng thành viên', 'Ngưỡng lên hạng, giảm giá, tích điểm và xét lại hàng loạt', 0, 'CDHT') +
         card('🌙', 'Cuối ngày: ghi sổ và xuất hoá đơn', 'Bật tắt từng điểm bán, chọn giờ chạy', 0, 'CDCN') +
+        card('📦', 'Ngưỡng kho', 'Dung sai giao thừa giao thiếu, hạn dùng tối thiểu khi nhận', 0, 'CDKHO') +
         card('💬', 'Trợ lý hướng dẫn dùng app', 'Khoá API, hạn mức lượt hỏi và ai được dùng', 0, 'CDTL') +
         card('🏦', 'SePay: nhận giao dịch ngân hàng', 'Đường dẫn webhook, bản đồ tài khoản, nạp bù sao kê cũ', 0, 'CDSE') +
         /* Nhập tệp sao kê: bù những khoản SePay không đẩy về. OCB không có
@@ -1953,7 +1954,7 @@ var VGB_NHOM = [
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
   { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
+  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
 ];
 
 var VGB_HUB = {};
@@ -2693,6 +2694,7 @@ function vgbGo(k) {
   if (k === 'CDQQ') return go(scrQuyenQuay);
   if (k === 'CDHT') return go(scrHangKhach);
   if (k === 'CDCN') return go(scrCaiDatCuoiNgay);
+  if (k === 'CDKHO') return go(scrCaiDatKho);
   if (k === 'CDSE') return go(scrSePay);
   if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
@@ -7119,6 +7121,34 @@ function nhpSo(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
 /* Ba con so tren mot dong. Con lai to dam va doi mau khi con no hang, vi
    day moi la con so thu kho phai nhin. */
+/* Cau nhac ngay duoi o so luong: nhan du bao nhieu, con trong dung sai hay
+   khong, va han dung co du dai khong. */
+function nhpNhac(x) {
+  var ra = [];
+  var du = (x.got || 0) - (x.con || 0);
+  if (du > 0.0001) {
+    if (du <= (x.duCP || 0) + 0.0005) {
+      ra.push('<span style="color:#b45309">Nhận dư ' + num(du) + ' ' + h(x.uom) +
+        ', còn trong dung sai nên máy cho nhận và ghi lại vết.</span>');
+    } else {
+      ra.push('<span style="color:#b3261e">Nhận dư ' + num(du) + ' ' + h(x.uom) +
+        ', vượt mức cho phép ' + num(x.duCP || 0) + ' ' + h(x.uom) + '. Báo thu mua lên đơn bổ sung.</span>');
+    }
+  }
+  if (x.batHsd && (x.got || 0) > 0.0001 && !x.hsd) {
+    ra.push('<span style="color:#b3261e">Mặt hàng theo lô: phải điền hạn sử dụng mới nhập được.</span>');
+  }
+  if (x.hsdMin && x.hsd) {
+    var con = Math.round((new Date(x.hsd) - new Date(today())) / 86400000);
+    if (con < x.hsdMin) {
+      ra.push('<span style="color:#b3261e">Hạn dùng chỉ còn ' + con + ' ngày, mặt hàng này cần ít nhất ' +
+        x.hsdMin + ' ngày. Đổi lô khác hoặc báo thu mua.</span>');
+    }
+  }
+  if (!ra.length) return '';
+  return '<div style="font-size:12.5px;line-height:1.5;padding:0 12px 8px">' + ra.join('<br>') + '</div>';
+}
+
 function nhpBaSo(x) {
   function o(nhan, gt, mau, dam) {
     return '<div style="flex:1;min-width:0;text-align:center">' +
@@ -7151,6 +7181,12 @@ async function scrNhpDon(don) {
         got: m.sl_con,
         batch: m.co_lo ? 1 : 0, sl: m.han_chuan || 0,
         hsd: m.han_chuan ? addDays(base, m.han_chuan) : '',
+        /* Dung sai giao thua va han dung toi thieu (v406, hoc tu SAP). Man
+           hinh noi TRUOC, khong de nguoi ta dem xong bam Luu moi biet la
+           may khong nhan. */
+        duCP: m.du_cho_phep || 0,
+        hsdMin: m.hsd_toi_thieu || 0,
+        batHsd: m.bat_buoc_hsd ? 1 : 0,
         dflt: 1, ok: 0
       };
     })
@@ -7174,6 +7210,8 @@ async function scrNhpDon(don) {
     var lb = el.querySelector('.lb');
     if (lb) lb.innerHTML = 'Số lượng thực nhận' +
       (Math.abs(x.got - x.con) > 0.0001 ? ' <b class="lbw">(khác số còn lại)</b>' : '');
+    var wn = el.querySelector('[data-nwn]');
+    if (wn) wn.innerHTML = nhpNhac(x);
     syncHdr();
   }
 
@@ -7195,6 +7233,9 @@ async function scrNhpDon(don) {
         anh1: nhpD.anh1, anh2: nhpD.anh2, scan: nhpD.scan
       });
       busy(0);
+      if (r.nhan_du && r.nhan_du.length) {
+        setTimeout(function () { toast('Đã ghi vết ' + r.nhan_du.length + ' món nhận dư trong dung sai lên phiếu nhập.', 6000); }, 700);
+      }
       if (r.thieu_gia && r.thieu_gia.length) {
         setTimeout(function () { toast('Có ' + r.thieu_gia.length + ' món nhập khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
       }
@@ -7242,7 +7283,8 @@ async function scrNhpDon(don) {
         }).join('') + '</div>';
     }
 
-    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Không nhập quá số còn lại: nhà cung cấp giao dư thì báo thu mua lên đơn bổ sung.</div>';
+    body += '<div class="rcvh">Số điền sẵn là <b>số còn lại phải nhận</b>, không phải số đã đặt ban đầu. Đếm tới đâu sửa số tới đó. Nhà cung cấp giao dư trong <b>' +
+      num(d.dung_sai_thua || 0) + '%</b> thì máy cho nhận và ghi lại vết; dư nhiều hơn thì báo thu mua lên đơn bổ sung.</div>';
 
     body += '<div class="sec">Đợt ' + d.dot_toi + ' · ' + conL.length + ' món còn phải nhận</div>';
     body += L.map(function (x, i) {
@@ -7267,9 +7309,11 @@ async function scrNhpDon(don) {
         '<button data-na="' + i + '">+</button></div>' +
         '<div class="uml">' + h(x.uom) + '</div></div></div></div>' +
         (x.batch ? '<div class="hw"><div class="hl">Hạn sử dụng' +
-          (x.sl ? '<b class="hbd">chuẩn ' + x.sl + ' ngày</b>' : '') + '</div>' +
+          (x.sl ? '<b class="hbd">chuẩn ' + x.sl + ' ngày</b>' : '') +
+          (x.hsdMin ? '<b class="hbd">tối thiểu ' + x.hsdMin + ' ngày</b>' : '') + '</div>' +
           '<input type="date" class="hin' + (x.dflt ? '' : ' ed') + '" data-nh="' + i + '" value="' + h(x.hsd) + '">' +
           '<div class="hn' + (x.dflt ? '' : ' ed') + '" data-nhn="' + i + '">' + hsdNote(x) + '</div></div>' : '') +
+        '<div data-nwn="' + i + '">' + nhpNhac(x) + '</div>' +
         '</div>';
     }).join('');
 
@@ -7753,29 +7797,44 @@ async function kkLoadCat(pv, vt) {
   return its;
 }
 
+/* DEM MU (anh Viet duyet 03/09/2026, SAP goi la blind count).
+
+   Nguoi di dem khong duoc thay may dang ghi bao nhieu, chi go so dem duoc.
+   Thay so truoc la sinh ra thoi quen "dem cho khop", va con so kiem ke mat
+   het y nghia.
+
+   Che o MAY CHU chu khong chi giau tren man: cua `mo_phieu` khong tra cot
+   ton so khi phieu dang dem va nguoi mo khong phai quan ly. Man hinh cung
+   khong nap bang Bin nua trong luc do - nap la tu tay dua lai dung cai vua
+   duoc giau. */
 async function scrKkDoc(name) {
   frame('Kiểm kê', '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
   var doc = null;
-  try { doc = await api('frappe.client.get', { doctype: 'Phieu Kiem Ke', name: name }); }
+  try { doc = await api('vagabond.kiem_ke.mo_phieu', { name: name }); }
   catch (e) { toast(errMsg(e)); return back(); }
   kk.doc = doc; kk.q = ''; kk.tab = 'da'; kk.dirty = 0; kk.savedAt = '';
+  kk.mu = doc.dem_mu ? 1 : 0;
+  kk.lyDo = doc.ly_do_lech || [];
   kk.rows = (doc.items || []).map(function (r) {
     return {
       item_code: r.item_code, item_name: r.item_name || r.item_code, item_group: r.item_group || '',
       dvt: r.dvt || '', ton_he_thong: kkNum(r.ton_he_thong), so_luong: kkNum(r.so_luong),
       cach_dem: r.cach_dem || '',
       han_su_dung: r.han_su_dung || '', ghi_chu: r.ghi_chu || '', da_dem: r.da_dem ? 1 : 0,
+      ly_do_lech: r.ly_do_lech || '',
       name: r.name, docstatus: 0
     };
   });
   try { await kkLoadCat(doc.pham_vi, doc.vi_tri); } catch (e) { kk.cat = kk.cat || []; }
   try { await kkLoadConv(); } catch (e) { kk.conv = kk.conv || {}; }
-  try {
-    kk.sys = {};
-    var bins = await getList('Bin', { fields: ['item_code', 'actual_qty'], filters: { warehouse: doc.kho, actual_qty: ['!=', 0] }, limit_page_length: 0 });
-    bins.forEach(function (b) { kk.sys[b.item_code] = b.actual_qty; });
-  } catch (e) { kk.sys = {}; }
+  kk.sys = {};
+  if (!kk.mu) {
+    try {
+      var bins = await getList('Bin', { fields: ['item_code', 'actual_qty'], filters: { warehouse: doc.kho, actual_qty: ['!=', 0] }, limit_page_length: 0 });
+      bins.forEach(function (b) { kk.sys[b.item_code] = b.actual_qty; });
+    } catch (e) { kk.sys = {}; }
+  }
   kkDraw();
 }
 
@@ -7945,7 +8004,7 @@ function kkDraw(keepScroll) {
   });
 }
 
-function kkHasLech(r) { return r.da_dem && Math.abs(kkNum(r.so_luong) - kkNum(r.ton_he_thong)) > 0.0001; }
+function kkHasLech(r) { return !kk.mu && r.da_dem && Math.abs(kkNum(r.so_luong) - kkNum(r.ton_he_thong)) > 0.0001; }
 function kkProgText() {
   var cat = (kk.cat || []).length, done = kk.rows.filter(function (r) { return r.da_dem; }).length;
   return 'ĐÃ ĐẾM ' + done + '/' + cat + ' MÓN TRONG NHÓM';
@@ -7960,6 +8019,7 @@ function kkProgSync() {
 }
 
 function kkLechHtml(r) {
+  if (kk.mu) return '';
   if (!r.da_dem) return '';
   var s = kkNum(r.ton_he_thong), c = kkNum(r.so_luong), d = r3(c - s);
   if (!s && !c) return '';
@@ -7974,7 +8034,7 @@ function kkRowHtml(r, i, live) {
     '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
     '<div class="in">' + h(r.item_name) +
     '<div class="ig">' + h(r.item_code) + (r.item_group ? ' · ' + h(r.item_group) : '') +
-    (kkNum(r.ton_he_thong) ? ' · máy ' + num(r.ton_he_thong) + ' ' + h(r.dvt) : ' · máy chưa có tồn') + '</div></div>' +
+    (kk.mu ? '' : (kkNum(r.ton_he_thong) ? ' · máy ' + num(r.ton_he_thong) + ' ' + h(r.dvt) : ' · máy chưa có tồn')) + '</div></div>' +
     (live ? '<div class="del" data-x="' + i + '">&times;</div>' : '<div class="rok">&#10003;</div>') + '</div>' +
     '<div class="qw"><div style="flex:1;min-width:0">' +
     '<div class="lb">Số lượng thực đếm' + (r.da_dem ? '' : ' <b class="lbw">(chưa nhập)</b>') + '</div>' +
@@ -8247,10 +8307,11 @@ var kkp = { doc: null, rows: [], rates: {}, opening: 1 };
 async function scrKkPost(name) {
   frame('Ghi sổ kiểm kê', '<div class="emp"><div class="e1">⏳</div></div>');
   var d = null;
-  try { d = await api('frappe.client.get', { doctype: 'Phieu Kiem Ke', name: name }); }
+  try { d = await api('vagabond.kiem_ke.mo_phieu', { name: name }); }
   catch (e) { toast(errMsg(e)); return back(); }
   if (d.trang_thai === 'Đã ghi sổ') { toast('Phiếu này đã ghi sổ rồi'); return back(); }
   kkp.doc = d;
+  kkp.lyDo = d.ly_do_lech || [];
   kkp.rows = (d.items || []).filter(function (r) { return r.da_dem; });
   var codes = kkp.rows.map(function (r) { return r.item_code; });
   var info = {};
@@ -8282,6 +8343,28 @@ async function scrKkPost(name) {
     kkp.rates[r.item_code] = kkNum(i.valuation_rate) || kkNum(i.last_purchase_rate) || 0;
   });
   kkpDraw();
+}
+
+/* Ly do chenh lech chuan (anh Viet duyet 03/09/2026, SAP goi la reason for
+   movement). Chip chu khong o xo danh sach, theo bo nguyen tac muc 2b: it
+   lua chon thi chip cham mot lan la xong. Chi bay ra nhung ly do DUNG CHIEU
+   voi chenh lech - chon "hao hut" cho mot dong thua hang la sai nghia. */
+function kkpLyDoHop(dv) {
+  return (kkp.lyDo || []).filter(function (x) {
+    return dv > 0 ? x.dau >= 0 : (dv < 0 ? x.dau <= 0 : true);
+  });
+}
+function kkpLyDoChip(r, dv) {
+  var ds = kkpLyDoHop(dv);
+  if (!ds.length) return '';
+  return '<div style="display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;-webkit-overflow-scrolling:touch">' +
+    ds.map(function (x) {
+      var on = r.vgb_ly_do_lech === x.ma;
+      return '<button class="chp' + (on ? ' on' : '') + '" data-ly="' + h(r.name) + '" data-lyma="' + h(x.ma) + '" ' +
+        'style="flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:999px;font-size:13px;' +
+        'border:1px solid ' + (on ? '#0B7C93' : '#d7dbe0') + ';background:' + (on ? '#0B7C93' : '#fff') + ';' +
+        'color:' + (on ? '#fff' : '#374151') + '">' + h(x.ten) + '</button>';
+    }).join('') + '</div>';
 }
 
 function kkpDraw() {
@@ -8326,13 +8409,18 @@ function kkpDraw() {
 
   var lech = kkp.rows.filter(function (r) { return Math.abs(kkNum(r.so_luong) - kkNum(r.ton_he_thong)) > 0.0001; });
   if (lech.length) {
-    body += '<div class="sec">Lệch so với máy (' + lech.length + ' món)</div><div class="lst">' +
-      lech.slice(0, 200).map(function (r) {
+    var chuaLy = lech.filter(function (r) { return !r.vgb_ly_do_lech; }).length;
+    body += '<div class="sec">Lệch so với máy (' + lech.length + ' món)</div>' +
+      (chuaLy ? '<div class="kwn">Còn <b>' + chuaLy + ' món</b> chưa chọn lý do chênh lệch. Chọn đủ rồi mới ghi sổ được. Cuối tháng đọc báo cáo lệch theo lý do là biết nên sửa chỗ nào trong quy trình.</div>' : '') +
+      '<div class="lst">' +
+      lech.slice(0, 200).map(function (r, i) {
         var dv = r3(kkNum(r.so_luong) - kkNum(r.ton_he_thong));
-        return '<div class="li"><div class="lt"><div class="l1">' + h(r.item_name || r.item_code) + '</div>' +
+        return '<div class="li" style="display:block"><div style="display:flex;align-items:center;gap:8px">' +
+          '<div class="lt" style="flex:1;min-width:0"><div class="l1">' + h(r.item_name || r.item_code) + '</div>' +
           '<div class="l2">máy ' + num(r.ton_he_thong) + ' → đếm ' + num(r.so_luong) + ' ' + h(r.dvt) +
           (kkPartsText(r.cach_dem) ? ' (' + h(kkPartsText(r.cach_dem)) + ')' : '') + '</div></div>' +
-          '<span class="st ' + (dv > 0 ? 'g' : 'r') + '">' + (dv > 0 ? '+' : '') + num(dv) + '</span></div>';
+          '<span class="st ' + (dv > 0 ? 'g' : 'r') + '">' + (dv > 0 ? '+' : '') + num(dv) + '</span></div>' +
+          kkpLyDoChip(r, dv) + '</div>';
       }).join('') + '</div>';
   }
 
@@ -8349,6 +8437,19 @@ function kkpDraw() {
         });
       }
       return sheet('Trung tâm chi phí', kkp.ccs, kkp.cc, function (o) { kkp.cc = o.value; kkpDraw(); }, true);
+    }
+    var ly = e.target.closest('[data-ly]');
+    if (ly) {
+      var ten = ly.dataset.ly, ma = ly.dataset.lyma;
+      var d0 = kkp.rows.filter(function (x) { return x.name === ten; })[0];
+      if (d0) {
+        var moi = d0.vgb_ly_do_lech === ma ? '' : ma;
+        d0.vgb_ly_do_lech = moi;
+        kkpDraw();
+        api('vagabond.kiem_ke.ghi_ly_do', { name: kkp.doc.name, dong: ten, ly_do: moi })
+          .catch(function (er) { toast(errMsg(er)); });
+      }
+      return;
     }
     if (e.target.closest('[data-op]')) {
       sheet('Kiểu ghi sổ', [
@@ -8371,6 +8472,10 @@ async function kkpSubmit() {
   var bad = rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
   if (bad.length) return toast('Còn ' + bad.length + ' món chưa có giá vốn, vui lòng điền rồi ghi sổ lại');
   if (!kkp.acc) return toast('Chọn tài khoản đối ứng chênh lệch trước đã');
+  var thieuLy = kkp.rows.filter(function (r) {
+    return Math.abs(kkNum(r.so_luong) - kkNum(r.ton_he_thong)) > 0.0001 && !r.vgb_ly_do_lech;
+  });
+  if (thieuLy.length) return toast('Còn ' + thieuLy.length + ' món lệch chưa chọn lý do, chọn đủ rồi ghi sổ');
 
   var ok = await confirmSheet('Ghi sổ ' + rows.length + ' món?',
     'Kho ' + shortWh(d.kho) + ' · ' + d.pham_vi + '\n\nMáy sẽ tạo phiếu điều chỉnh tồn kho và NỘP luôn. Sau đó tồn kho đổi theo số đã đếm và không sửa lại bằng app được, phải huỷ phiếu trên máy tính.',
@@ -20385,7 +20490,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '406';
+var APPVER = '407';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -28031,6 +28136,110 @@ async function scrCaiDatWeb() {
     if (o) o.innerHTML = ketQua(kq);
     toast('Đã đồng bộ. Mở lại trang web là thấy ảnh mới.', 4000);
   };
+}
+
+/* ------------------------------------------------------------------ NGƯỠNG KHO
+
+   Dung sai giao thừa giao thiếu, và hạn dùng tối thiểu chung khi nhận hàng.
+   Anh Việt duyệt 03/09/2026, mặc định 5 phần trăm, học từ SAP (over/under
+   delivery tolerance đặt trên từng dòng đơn mua).
+
+   Theo bộ nguyên tắc thiết kế màn hình mục 2b: chip chứ không xổ danh sách,
+   và mỗi con số có một câu nói rõ đổi nó thì đời thay đổi ra sao. */
+
+var ckData = null;
+
+async function scrCaiDatKho() {
+  frame('Ngưỡng kho', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
+  try { ckData = await api('vagabond.kho_cai_dat.danh_sach', {}); }
+  catch (e) {
+    frame('Ngưỡng kho', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
+    return;
+  }
+  ckVe();
+}
+
+function ckSo(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+function ckVe() {
+  var c = ckData;
+  var suaDuoc = c.sua_duoc ? 1 : 0;
+
+  var html = '<div class="card" style="padding:13px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">DUNG SAI GIAO NHẬN</div>' +
+    '<div style="font-size:14px;color:#374151;line-height:1.6;margin-top:4px">' +
+    'Nhà cung cấp ít khi giao đúng từng gram. Dung sai là mức lệch máy chấp nhận: ' +
+    'trong mức thì thủ kho nhận bình thường và máy ghi lại vết, quá mức thì máy chặn ' +
+    'và thu mua phải lên đơn bổ sung.</div></div>';
+
+  html += '<div class="sec">Giao dư tới bao nhiêu thì vẫn nhận</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip([0, 3, 5, 10].map(function (v) {
+      return posChipNut('data-ckdu="' + v + '"', v + '%', Math.abs(ckSo(c.dung_sai_thua) - v) < 0.001);
+    }).join('')) +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px">' +
+    '<span style="font-size:12.5px;color:#6b7280">Mức khác:</span>' +
+    '<input class="tin" id="ckDuTay" type="number" step="0.5" min="0" max="' + h(String(c.tran)) + '" value="' + h(String(c.dung_sai_thua)) + '" style="flex:1;max-width:120px">' +
+    '<span style="font-size:12.5px;color:#6b7280">%</span></div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Đặt 0 là không cho nhận dư một chút nào. ' +
+    (c.tran_erpnext !== null && c.tran_erpnext !== undefined
+      ? 'ERPNext đang cho tối đa <b>' + num(c.tran_erpnext) + '%</b>, đặt rộng hơn số này thì đặt xong vẫn không nhận dư được.'
+      : '') + '</div></div>';
+
+  html += '<div class="sec">Giao thiếu tới bao nhiêu thì coi như xong đơn</div><div class="card" style="padding:11px 12px">' +
+    kmHangChip([0, 3, 5, 10].map(function (v) {
+      return posChipNut('data-ckthieu="' + v + '"', v + '%', Math.abs(ckSo(c.dung_sai_thieu) - v) < 0.001);
+    }).join('')) +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Phần thiếu nhỏ hơn mức này thì màn nhận hàng gợi ý đóng phần còn lại, ' +
+    'khỏi để đơn treo mãi vì thiếu vài gram. Máy KHÔNG tự đóng, người bấm mới đóng.</div></div>';
+
+  html += '<div class="sec">Hạn dùng tối thiểu khi nhận</div><div class="card" style="padding:11px 12px">' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    '<input class="tin" id="ckHsd" type="number" step="1" min="0" value="' + h(String(c.hsd_toi_thieu_chung)) + '" style="flex:1;max-width:120px">' +
+    '<span style="font-size:12.5px;color:#6b7280">ngày</span></div>' +
+    '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px">Mức chung cho mọi mặt hàng. Hàng nào cần khắt khe hơn thì khai riêng ' +
+    'trong danh mục Món, ô <b>Số ngày hạn dùng tối thiểu khi nhận</b> - số riêng thắng số chung. Để 0 là không soi.</div></div>';
+
+  html += '<div class="sec">Lý do chênh lệch khi kiểm kê</div>' +
+    '<div class="card" style="padding:11px 12px"><div style="font-size:12.5px;color:#6b7280;line-height:1.6;margin-bottom:8px">' +
+    'Danh sách cố định, quản lý chọn khi ghi sổ chênh lệch. Cuối tháng đọc báo cáo lệch theo lý do là biết nên sửa chỗ nào trong quy trình.</div>' +
+    (c.ly_do_lech || []).map(function (x) {
+      var chieu = x.dau > 0 ? 'chỉ dùng khi thừa' : (x.dau < 0 ? 'chỉ dùng khi thiếu' : 'dùng cả hai chiều');
+      return '<div style="padding:8px 0;border-top:1px solid #f0f2f5">' +
+        '<div style="font-size:14px;font-weight:700;color:#111">' + h(x.ten) + '</div>' +
+        '<div style="font-size:12.5px;color:#6b7280;line-height:1.5">' + h(x.mo) + '</div>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + chieu + ' · tài khoản ' + h(x.tk) + '</div></div>';
+    }).join('') + '</div>';
+
+  var b = frame('Ngưỡng kho', html, suaDuoc
+    ? { fab: '💾', onFab: ckLuu }
+    : {});
+  if (!suaDuoc) {
+    toast('Bạn chỉ xem được, sửa ngưỡng kho cần quyền quản lý kho hoặc kế toán.', 5000);
+  }
+  b.onclick = function (e) {
+    var du = e.target.closest('[data-ckdu]');
+    if (du) { ckData.dung_sai_thua = ckSo(du.dataset.ckdu); return ckVe(); }
+    var th = e.target.closest('[data-ckthieu]');
+    if (th) { ckData.dung_sai_thieu = ckSo(th.dataset.ckthieu); return ckVe(); }
+  };
+  var it = document.getElementById('ckDuTay');
+  if (it) it.onchange = function () { ckData.dung_sai_thua = ckSo(this.value); ckVe(); };
+}
+
+async function ckLuu() {
+  var hsd = document.getElementById('ckHsd');
+  var du = document.getElementById('ckDuTay');
+  busy(1);
+  try {
+    ckData = await api('vagabond.kho_cai_dat.luu', {
+      dung_sai_thua: du ? ckSo(du.value) : ckData.dung_sai_thua,
+      dung_sai_thieu: ckData.dung_sai_thieu,
+      hsd_toi_thieu_chung: hsd ? ckSo(hsd.value) : ckData.hsd_toi_thieu_chung
+    });
+    busy(0);
+    toast('Đã lưu ngưỡng kho');
+    ckVe();
+  } catch (e) { busy(0); toast(errMsg(e), 7000); }
 }
 /* ---------- Doi chieu hoa don mua (Uyen 12/08/2026) ----------
 
