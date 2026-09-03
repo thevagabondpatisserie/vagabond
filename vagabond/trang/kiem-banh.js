@@ -823,9 +823,11 @@
 		if (!DL) { g.innerHTML = ""; return; }
 		document.getElementById("kk-phu").textContent =
 			DL.tinh_trang === "Da chot" ? "Ngày này đã chốt sổ" : "Đang bán";
+		var daChot = DL.tinh_trang === "Da chot";
 		document.getElementById("kk-dachot").style.display = DL.sua_duoc ? "none" : "";
 		document.getElementById("kk-them").style.display = DL.sua_duoc ? "" : "none";
 		document.getElementById("kk-chot").style.display = DL.sua_duoc ? "" : "none";
+		document.getElementById("kk-mo-lai").style.display = daChot ? "" : "none";
 		if (!DL.dong.length) {
 			g.innerHTML = '<div class="kb-trong">Bảng của ngày này chưa có dòng nào.<br>'
 				+ 'Bấm "Thêm mã" để đưa món vào bảng, hoặc cứ bán bình thường - '
@@ -880,6 +882,22 @@
 		API("luu_o", { diem: DIEM_CHON, ngay: NGAY, ma_hang: s.ma, truong: s.truong, gia_tri: gt })
 			.then(function () { return tai(); })
 			.catch(function (e) { bao(loiKK(e), true); tai(); });
+	}
+
+	function chotThat(dongY) {
+		API("chot", { diem: DIEM_CHON, ngay: NGAY, dong_y_som: dongY ? 1 : 0 })
+			.then(function (r) {
+				/* May thay bam som hon gio dong cua thi hoi lai mot lan chu
+				   khong chan: co ngay tiem dong som, co ngay kiem so luc trua
+				   vi doi ca. */
+				if (r && r.hoi_lai) {
+					if (confirm(sachKK(r.cau_hoi))) return chotThat(1);
+					return;
+				}
+				bao("Đã chốt. Tồn đã chuyển sang ngày mai.");
+				return tai();
+			})
+			.catch(function (e) { bao(loiKK(e), true); });
 	}
 
 	/* ------------------------------------------------------- them ma */
@@ -947,8 +965,17 @@
 		});
 		document.getElementById("kk-chot").onclick = function () {
 			if (!confirm("Chốt sổ ngày này? Số còn lại sẽ chuyển thành tồn đầu ngày mai.")) return;
-			API("chot", { diem: DIEM_CHON, ngay: NGAY })
-				.then(function () { bao("Đã chốt. Tồn đã chuyển sang ngày mai."); return tai(); })
+			chotThat(0);
+		};
+		/* Nut mo lai chi hien khi ngay do da chot. Ngay 02/09/2026 quay
+		   District 1 bam Chot ngay luc giua buoi va bang khoa cung toi nua
+		   dem vi khong co duong mo lai. */
+		document.getElementById("kk-mo-lai").onclick = function () {
+			if (!confirm("Mở lại ngày này để sửa tiếp?\n\n"
+				+ "Tồn đầu ngày mai vẫn giữ số của lần chốt trước. Sửa xong nhớ bấm "
+				+ "Chốt ngày lại thì số mới mới chạy sang.")) return;
+			API("mo_lai", { diem: DIEM_CHON, ngay: NGAY })
+				.then(function (r) { bao((r && r.nhac) || "Đã mở lại ngày này."); return tai(); })
 				.catch(function (e) { bao(loiKK(e), true); });
 		};
 	}
