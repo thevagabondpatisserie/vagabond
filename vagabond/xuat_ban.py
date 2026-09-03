@@ -68,8 +68,25 @@ TRUONG_MOI = {
 			"insert_after": "vgb_nguoi_nhan",
 			"description": "Đơn giao theo hợp đồng nào, để trống nếu là đơn lẻ.",
 		},
+		# O DIEN GIAI RIENG (sua 03/09/2026). Phieu giao hang cua ERPNext KHONG
+		# co o `remarks` nhu Hoa don hay Phieu kho. Ban v387 ghi vao
+		# `doc.remarks` - Frappe im lang bo qua nen ghi chu roi mat - va doc
+		# `remarks` trong get_all - MariaDB nem "Unknown column", danh sach
+		# phieu do ba lan hom 03/09 ma man chi hien "chua co phieu nao" vi
+		# loi bi nuot. Loi cua phien v387, khong phai cua ai khac.
+		{
+			"fieldname": "vgb_dien_giai",
+			"label": "Diễn giải",
+			"fieldtype": "Small Text",
+			"insert_after": "vgb_hop_dong",
+			"description": "Máy ghép từ khách, người nhận và ghi chú lúc lập phiếu trên app.",
+		},
 	]
 }
+
+# Ten o dien giai, dung o BON cho ben duoi. Mot hang so de khong ai go
+# "remarks" lai lan nua.
+O_DIEN_GIAI = "vgb_dien_giai"
 
 
 # ------------------------------------------------------------- phần thuần
@@ -193,7 +210,7 @@ def luu(khach=None, kho=None, nguoi_nhan=None, hop_dong=None, ghi_chu=None, dong
 	doc.vgb_nguoi_nhan = (nguoi_nhan or "").strip()
 	if hop_dong and frappe.db.exists("Hop Dong Ban Hang", hop_dong):
 		doc.vgb_hop_dong = hop_dong
-	doc.remarks = dien_giai(ten_khach, nguoi_nhan, ghi_chu)
+	doc.set(O_DIEN_GIAI, dien_giai(ten_khach, nguoi_nhan, ghi_chu))
 	for d in sach:
 		doc.append("items", {"item_code": d["ma"], "qty": d["sl"], "warehouse": kho})
 	doc.flags.ignore_permissions = True
@@ -224,7 +241,7 @@ def ds_phieu(gioi_han=40, so_ngay=60):
 			"set_warehouse",
 			"grand_total",
 			"owner",
-			"remarks",
+			O_DIEN_GIAI,
 		],
 		order_by="creation desc",
 		limit_page_length=int(gioi_han or 40),
@@ -236,6 +253,8 @@ def ds_phieu(gioi_han=40, so_ngay=60):
 		d["nguoi_tao"] = ten.get(d.owner, d.owner)
 		d["trang_thai"] = "Chờ ghi sổ" if d.docstatus == 0 else "Đã ghi sổ"
 		d["so_dong"] = frappe.db.count("Delivery Note Item", {"parent": d.name})
+		# App cu doc `remarks`; giu ten do trong goi tra ve de man khong doi.
+		d["remarks"] = d.get(O_DIEN_GIAI) or ""
 	return ds
 
 
@@ -254,7 +273,7 @@ def chi_tiet(name=None):
 		"kho": doc.get("set_warehouse") or "",
 		"nguoi_nhan": doc.get("vgb_nguoi_nhan") or "",
 		"hop_dong": doc.get("vgb_hop_dong") or "",
-		"ghi_chu": doc.remarks or "",
+		"ghi_chu": doc.get(O_DIEN_GIAI) or "",
 		"nguoi_tao": frappe.db.get_value("User", doc.owner, "full_name") or doc.owner,
 		"tong_tien": flt(doc.grand_total),
 		"dong": [

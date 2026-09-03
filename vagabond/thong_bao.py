@@ -58,27 +58,48 @@ def _sinh_khoa():
 	return _b64(so), _b64(cong)
 
 
-def _pem(rieng):
-	"""Đổi khoá riêng dạng base64url 32 byte sang PEM cho pywebpush.
+def _khoa_vapid(rieng):
+	"""Đối tượng Vapid cho pywebpush, dựng từ khoá riêng đang lưu.
 
-	Vì sao không đưa thẳng chuỗi base64url: py_vapid có nhận dạng đó, nhưng
-	cách nó đoán định dạng đã đổi vài lần giữa các phiên bản. PEM thì phiên
-	bản nào cũng đọc được. Đây là chỗ mà đoán sai định dạng dẫn tới hỏng im
-	lặng - thông báo không bắn mà không ai báo gì - nên chọn đường chắc.
+	VÌ SAO KHÔNG ĐƯA CHUỖI NỮA (sửa 03/09/2026)
+	-------------------------------------------
+	Bản trước đổi khoá sang PEM rồi đưa CHUỖI PEM cho `webpush(...)`, với
+	lý lẽ "PEM thì phiên bản nào cũng đọc được". Sai. pywebpush chỉ đọc PEM
+	khi chuỗi đó là ĐƯỜNG DẪN TỆP; đưa nguyên văn PEM thì nó gọi
+	`Vapid.from_string`, hàm này base64 giải mã cả cái chuỗi "-----BEGIN"
+	rồi ném "ASN.1 parsing error: invalid length". Máy dựng ảnh Python 3.14
+	kéo pywebpush 2.x nên từ đó tới 03/09 không một thông báo nào đi được,
+	53 lần ghi Nhật ký lỗi mà ngoài chỉ thấy "không thấy thông báo".
+
+	Đường chắc nhất là đường pywebpush ghi trong tài liệu của nó: đưa MỘT
+	ĐỐI TƯỢNG Vapid, nó không phải đoán định dạng gì cả. Khoá đang lưu là
+	32 byte base64url do `_sinh_khoa` sinh ra, nên `from_raw` là đúng dạng;
+	ai lỡ dán PEM vào ô Cài đặt thì đi `from_pem`.
 	"""
-	from cryptography.hazmat.primitives import serialization
-	from cryptography.hazmat.primitives.asymmetric import ec
+	from py_vapid import Vapid
 
 	s = (rieng or "").strip()
 	if "-----BEGIN" in s:
-		return s
-	raw = base64.urlsafe_b64decode((s + "=" * ((4 - len(s) % 4) % 4)).encode())
-	k = ec.derive_private_key(int.from_bytes(raw, "big"), ec.SECP256R1())
-	return k.private_bytes(
-		serialization.Encoding.PEM,
-		serialization.PrivateFormat.PKCS8,
-		serialization.NoEncryption(),
-	).decode()
+		return Vapid.from_pem(s.encode())
+	return Vapid.from_raw(s.encode())
+
+
+def dang_khoa_rieng(rieng):
+	"""Khoá riêng đang lưu là dạng gì. Hàm THUẦN, để kiểm thử không cần site.
+
+	"raw" là 32 byte base64url (dạng `_sinh_khoa` sinh ra), "pem" là chuỗi
+	PEM, "hong" là không phải hai dạng đó. Chỉ hai dạng đầu gửi được.
+	"""
+	s = (rieng or "").strip()
+	if not s:
+		return "hong"
+	if "-----BEGIN" in s:
+		return "pem"
+	try:
+		raw = base64.urlsafe_b64decode((s + "=" * ((4 - len(s) % 4) % 4)).encode())
+	except Exception:
+		return "hong"
+	return "raw" if len(raw) == 32 else "hong"
 
 
 def _cai_dat():
@@ -186,8 +207,16 @@ def gui(nguoi, tieu_de, than, duong_dan="/bep", tag=None):
 				"thong_bao: thieu pywebpush",
 			)
 			return {"gui": 0, "vi_sao": "ban build chua co pywebpush"}
+		if dang_khoa_rieng(rieng) == "hong":
+			frappe.log_error(
+				"Khoa rieng trong Cai dat khong phai 32 byte base64url, cung khong "
+				"phai PEM. Xoa o push_khoa_rieng va push_khoa_cong_khai roi mo lai "
+				"app de may sinh cap khoa moi; moi may phai dang ky nhan lai.",
+				"thong_bao: khoa VAPID hong",
+			)
+			return {"gui": 0, "vi_sao": "khoa VAPID hong"}
 		try:
-			khoa = _pem(rieng)
+			khoa = _khoa_vapid(rieng)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "thong_bao: khoa VAPID hong")
 			return {"gui": 0, "vi_sao": "khoa VAPID hong"}

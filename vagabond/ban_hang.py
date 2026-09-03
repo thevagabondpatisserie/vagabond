@@ -5979,9 +5979,18 @@ def _xhd_token(name):
 
 @frappe.whitelist()
 def pos_link_xhd(name):
-	"""Duong dan cho ma QR xuat hoa don in cuoi bill."""
+	"""Duong dan cho ma QR xuat hoa don in cuoi bill.
+
+	TUYET DOI, tren mien khach (them 03/09/2026). Ban cu tra duong tuong doi
+	"/xhd?..." roi man in ghep voi location.origin cua trinh duyet thu ngan,
+	tuc la app.thevagabondpatisserie.com - mien noi bo, khach quet la bi
+	luat ten mien da ve /bep. Xem chu thich DUONG_CHUNG trong ten_mien.py.
+	"""
+	from vagabond.ten_mien import link_khach
+
 	_kiem_quyen()
-	return {"url": "/xhd?d=%s&t=%s" % (name, _xhd_token(name))}
+	duong = "/xhd?d=%s&t=%s" % (name, _xhd_token(name))
+	return {"url": link_khach(duong), "duong": duong}
 
 
 @frappe.whitelist(allow_guest=True)

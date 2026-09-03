@@ -52,6 +52,22 @@ DAU_APP = ("/bep", "/btp", "/kiem-banh", "/kho-moi", "/kho-v2", "/in-tem", "/cuo
 DAU_KHACH = ("/banh", "/tt", "/xhd", "/ong-trang", "/suc-khoe", "/sop-san-xuat")
 # Mien Desk: khong khai o day, xem `_la_desk`.
 
+# DUONG DI QUA MOI MIEN, khong bao gio bi da (them 03/09/2026).
+#
+# /xhd la trang khach quet QR cuoi bill giay de dien thong tin xuat hoa don.
+# Cai QR do IN LEN GIAY dia chi cua trinh duyet thu ngan luc in, tuc la
+# app.thevagabondpatisserie.com. Tu 23/08 luat tren coi /xhd la trang KHACH
+# nen mien app da no ve /bep: khach quet xong thay man dang nhap app noi bo.
+#
+# Vi sao "luc duoc luc khong": luat nay chay trong luc DUNG trang, ma Frappe
+# giu trang web da dung trong bo nho dem cho khach vang lai. Trang dang nam
+# trong dem thi luat khong chay va khach vao duoc; moi lan deploy xoa dem
+# la khach dau tien lai bi da. Hai tuan qua deploy hon muoi lan mot ngay.
+#
+# Sua hai tang: ma QR in dia chi mien khach co dinh (xem `link_khach`), VA
+# /xhd di qua moi mien de nhung to bill da in truoc hom nay van quet duoc.
+DUONG_CHUNG = ("/xhd",)
+
 
 def _sach(duong):
 	d = "/" + str(duong or "").lstrip("/")
@@ -91,6 +107,9 @@ def dich_chuyen_huong(host, duong, duong_app=()):
 		if d == x.rstrip("/") or d.startswith(x):
 			return ""
 
+	if _thuoc(d, DUONG_CHUNG):
+		return ""
+
 	la_app = _thuoc(d, DAU_APP) or _thuoc(d, tuple("/" + s for s in duong_app or ()))
 	la_khach = _thuoc(d, DAU_KHACH)
 	la_desk = _la_desk(d)
@@ -102,6 +121,17 @@ def dich_chuyen_huong(host, duong, duong_app=()):
 	if m == MIEN_KHACH:
 		return "" if la_khach else (NHA[m] if (la_app or la_desk) else "")
 	return ""
+
+
+def link_khach(duong):
+	"""Địa chỉ TUYỆT ĐỐI trên miền khách cho một đường. Hàm THUẦN.
+
+	Dùng cho mọi thứ in ra giấy hay gửi cho khách: QR xuất hoá đơn, link
+	thanh toán. In địa chỉ theo trình duyệt của thu ngân là in cái miền
+	app.*, mà miền đó là miền nội bộ, khách vào là bị đá.
+	"""
+	d = _sach(duong)
+	return "https://%s%s" % (MIEN_KHACH, d if d != "/" else "")
 
 
 def ap_luat():
