@@ -247,6 +247,11 @@ CUA_NGO = {
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
 	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
 	"ton_chang.py": ["gom_chang", "ton_theo_chang"],
+	# Ban thanh pham tren mon, chot 04/09/2026. Bay ham nay da chay tren app
+	# tu truoc ma chua ai chot danh sach, nen mot decorator bam nham la khong
+	# ai biet. `quyen_btp` chi DOC quyen, van phai co ten o day.
+	"btp.py": ["bang_btp", "gieo_tu_kiem_banh", "luu_btp", "luu_decor",
+		"quyen_btp", "them_ma_btp", "xoa_ma_btp"],
 	# Ke hoach san xuat trong ngay, 28/08/2026. `tu_lap_nua_dem`,
 	# `nhac_bep_sang` va `dung_mau_in` la nhip lap lich va after_migrate,
 	# KHONG mo ra ngoai. Cac phep thuan cung khong.
