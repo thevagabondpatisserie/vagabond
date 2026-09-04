@@ -467,6 +467,10 @@ doc_events = {
 		],
 		"validate": [
 			"vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
+			# Ghi lai to nay dang cho ai lam gi, de man danh sach noi duoc
+			# ra thay vi 3.170 to cung mot chu "Nhap". Doc dau tep
+			# vagabond/buoc_hoa_don_mua.py.
+			"vagabond.buoc_hoa_don_mua.dat_buoc",
 			# To may dung thi tai khoan chi phi cua dong DICH VU di theo khai
 			# bao cua danh muc Mon (tiep khach di 64183, chi Dung chot
 			# 26/08/2026). Chi cham dong khong quan kho va chua noi phieu

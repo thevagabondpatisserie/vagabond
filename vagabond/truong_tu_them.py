@@ -70,8 +70,8 @@ def dung():
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: ma phieu san xuat")
 
 	from vagabond import (
-		ban_hang, bao_gia, chung_tu_tien, diem_otp, duyet_ycmh, hoan_tien,
-		mua_dich_vu, noi_bo, sepay,
+		ban_hang, bao_gia, buoc_hoa_don_mua, chung_tu_tien, diem_otp,
+		duyet_ycmh, hoan_tien, mua_dich_vu, noi_bo, sepay,
 	)
 
 	_dung_nhom(duyet_ycmh.TRUONG_MOI, "duyet_ycmh")
@@ -84,6 +84,7 @@ def dung():
 	_dung_nhom(bao_gia.TRUONG_CAI_DAT, "bao_gia_cai_dat")
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")
 	_dung_nhom(mua_dich_vu.TRUONG_MOI, "mua_dich_vu")
+	_dung_nhom(buoc_hoa_don_mua.TRUONG_MOI, "buoc_hoa_don_mua")
 	_dung_nhom(sepay.TRUONG_MOI, "sepay")
 	# O tat chot chan lo qua han (them 03/09/2026). Doc dau tep
 	# vagabond/lo_het_han.py de biet ba lop chan da lam bep dung im ra sao.
