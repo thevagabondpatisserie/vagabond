@@ -109,3 +109,26 @@ def _noi_day():
 	dung("tờ đã ghi sổ thì đọc số dư chứ không đọc ô bước",
 		"outstanding_amount" in j)
 	dung("không dùng dấu gạch dài", "—" not in j and "–" not in j)
+
+
+@ca("bước hoá đơn mua: phải bật cờ thì Frappe mới gọi hàm tô màu của mình")
+def _co_cho_to_nhap():
+	"""Ngày 04/09/2026, lộ ra khi mở danh sách thật sau khi deploy v420.
+
+	Frappe chặn trước: với doctype có ghi sổ, tờ đang nháp trả thẳng về
+	"Nháp" và tờ đã huỷ trả về "Đã huỷ", KHÔNG hề gọi `get_indicator` của
+	mình, trừ khi bật đúng hai cờ này. Thiếu chúng thì tờ đã ghi sổ hiện
+	đúng nhãn mới, còn 3.170 tờ nháp vẫn trơ trơ một chữ "Nháp" - tức là
+	đúng cái đông người ta cần phân biệt nhất.
+
+	Cổng xanh và ca kiểm xanh đều không bắt được, vì chỗ chặn nằm trong mã
+	của Frappe chứ không nằm trong mã của mình.
+	"""
+	j = _doc("vagabond/public/js/minvoice_list.js")
+	dung("có bật cờ cho tờ nháp", "has_indicator_for_draft = 1" in j)
+	dung("có bật cờ cho tờ đã huỷ", "has_indicator_for_cancelled = 1" in j)
+	than = j.split("ganTrangThaiMuaHang")[1]
+	dung(
+		"bật cờ TRƯỚC khi khai hàm tô màu",
+		than.index("has_indicator_for_draft") < than.index("CU.get_indicator = function"),
+	)
