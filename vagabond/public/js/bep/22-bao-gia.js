@@ -23,27 +23,10 @@ var BGTT_ICON = {
 };
 var BGNHAN = 'style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:2px"';
 
-/* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
-   tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
-   dau phay cung khong hut mat ket qua.
-   Anh Viet 15/08/2026 bat duoc: go "moonlapis" khong ra "HỘP MOONLAPIS,
-   năm 2026" chi vi o tim con thua mot dau cach o cuoi. */
-function vgbChuan(s) {
-  return String(s == null ? '' : s).toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
-function vgbKhop(kho, tim) {
-  var t = vgbChuan(tim);
-  if (!t) return true;
-  var k = vgbChuan(kho);
-  var tu = t.split(' ');
-  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
-  return true;
-}
+/* `vgbChuan` va `vgbKhop` da chuyen xuong `00-nen.js` ngay 04/09/2026.
+   Chinh ghi chu cu cua chung noi "dung cho MOI o tim trong app", ma o
+   tim cua man Van don cung can, nen phai nam o tep nen chu khong nam
+   trong mot man cu the (QT-19: mot cho tinh). */
 /* Doc so tien nguoi dung go: bo dau cham ngan nghin, bo chu, bo khoang trang. */
 function vgbSo(v) { return Number(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
 /* Hien so tien co dau cham ngan nghin. Anh Viet 15/08/2026: "tất cả giá tiền
