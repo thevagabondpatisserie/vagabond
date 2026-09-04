@@ -20702,7 +20702,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '412';
+var APPVER = '413';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30667,10 +30667,17 @@ async function hsChonLoaiMoi() {
        hay chua. Than luong nam trong 30-tra-truoc.js. */
     { k: 'tt', icon: '⏩', nhan: 'Tạo phiếu thanh toán trước cho NCC',
       mo_ta: 'Trả trước khi chưa có hoá đơn: đơn in ấn, đơn đặt sản xuất có điều khoản cọc. Neo vào đơn mua hàng, hoá đơn về thì tự cấn trừ.' },
-    { k: 'hu_hd', icon: '🧾', nhan: 'Hoàn ứng có hoá đơn',
-      mo_ta: 'Uyên đã ứng tiền mua hàng có hoá đơn, hàng đã nhập kho. Chọn nhiều hoá đơn gom chung một hồ sơ để hoàn lại tiền.' },
-    { k: 'hu_khd', icon: '🧮', nhan: 'Hoàn ứng không hoá đơn',
-      mo_ta: 'Khoản lẻ không có hoá đơn: hàng test, hàng phát sinh, chi phí bảo trì. Gõ tay từng khoản, gắn với giao dịch ngân hàng.' },
+    /* Hai the nay hay bi chon nham, va ten cua chung la nguyen nhan.
+       "Co hoa don" o day nghia la hoa don DA NAM TRONG HE ERPNext thanh mot
+       hoa don mua con no, chu khong phai la co to hoa don giay trong tay.
+       Uyen cam to hoa don VAT that nhung ke toan chua nhap vao he thi van
+       phai di duong "chua co hoa don trong he", vi chinh duong do moi sinh
+       hoa don mua ra. Ghi ro dieu do vao mo ta, va ghi ro cho noi phieu
+       thanh toan noi bo chi co o duong duoi. */
+    { k: 'hu_hd', icon: '🧾', nhan: 'Hoàn ứng · hoá đơn ĐÃ có trong hệ',
+      mo_ta: 'Kế toán đã nhập hoá đơn vào hệ, hàng đã nhập kho, hoá đơn đang nằm ở công nợ nhà cung cấp. Tick các hoá đơn còn nợ để hoàn lại tiền cho người ứng. KHÔNG nối được phiếu thanh toán nội bộ ở đường này.' },
+    { k: 'hu_khd', icon: '🧮', nhan: 'Hoàn ứng · hoá đơn CHƯA vào hệ',
+      mo_ta: 'Gõ tay từng khoản rồi máy tự sinh hoá đơn mua khi giám đốc duyệt. Dùng cho khoản lẻ không hoá đơn, VÀ cho khoản có tờ hoá đơn thật mà kế toán chưa nhập vào hệ. Đây là đường DUY NHẤT nối được phiếu thanh toán nội bộ của quản lý.' },
     { k: 'tkct', icon: '🏦', nhan: 'Thanh toán từ TK công ty',
       mo_ta: 'Chi trả trực tiếp từ tài khoản công ty cho chi phí phát sinh, không qua Purchasing. Kế toán chủ động định khoản.' }
   ]);
@@ -31866,18 +31873,39 @@ async function huNoiPhieuNoiBo(i) {
   try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', {}); }
   catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được danh sách phiếu.', 'Lỗi'); }
   busy(false);
+  /* Doc kq.loi TRUOC. May chu tra {ds: [], loi: "..."} khi doc bang hong,
+     ma cau "khong co phieu nao" thi Uyen tin la quan ly chua lap phieu roi
+     go tay lai toan bo khoan chi - dung duong sinh ra chi hai lan. */
+  if (kq && kq.loi) {
+    return baoTin(kq.loi + '\n\nĐây là lỗi đọc dữ liệu, KHÔNG phải là không có phiếu. ' +
+      'Thử lại sau một phút, còn nếu vẫn vậy thì báo anh Việt, đừng gõ tay lại khoản đã có phiếu.',
+      'Chưa đọc được danh sách');
+  }
   var ds = (kq && kq.ds) || [];
   if (!ds.length) {
     return baoTin('Không có phiếu thanh toán nội bộ nào đã duyệt mà chưa nối hồ sơ.\n\n' +
       'Phiếu còn nháp hoặc đang chờ duyệt thì chưa nối được, và phiếu đã nối vào hồ sơ ' +
       'khác cũng không hiện ra ở đây để tránh trả tiền hai lần.', 'Chưa có phiếu nào');
   }
+  /* Phieu da noi o mot dong KHAC cua chinh to nay thi phai noi ro ra.
+     Bang chon truoc day khong danh dau gi, nen chon nham cung mot phieu cho
+     hai dong la chuyen thuong, va moi lan nhan lai de so tien phieu len
+     dong - tong ho so doi len dung mot lan so tien do. May chu nay da chan
+     (`_soi_phieu_noi_bo`), nhung chan o day thi nguoi ta khong mat cong go
+     xong 12 dong roi moi bi tra ve. */
+  var daDung = {};
+  huDong.forEach(function (d, j) {
+    var m = (d && d.de_nghi_chi || '').trim();
+    if (m && j !== i) daDung[m] = j + 1;
+  });
   sheet('Phiếu thanh toán nội bộ · ' + ds.length + ' phiếu',
     ds.map(function (r) {
+      var oDong = daDung[r.ma];
       return {
         value: r.ma,
-        label: r.ten + ' · ' + money(r.so_tien) + ' đ',
-        phu: r.ma + ' · ' + (r.nguoi_ten || r.nguoi_tao) + ' · ' + hsNgayVn(r.ngay) +
+        label: (oDong ? '⚠️ ' : '') + r.ten + ' · ' + money(r.so_tien) + ' đ',
+        phu: (oDong ? 'ĐÃ NỐI Ở KHOẢN SỐ ' + oDong + ' · ' : '') +
+             r.ma + ' · ' + (r.nguoi_ten || r.nguoi_tao) + ' · ' + hsNgayVn(r.ngay) +
              ' · ' + r.trang_thai + (r.so_tep ? ' · ' + r.so_tep + ' tệp' : ' · chưa có tệp'),
         tim: r.ma + ' ' + r.ten + ' ' + (r.nguoi_ten || '') + ' ' + (r.dien_giai || '')
       };
@@ -31886,6 +31914,16 @@ async function huNoiPhieuNoiBo(i) {
 }
 
 async function huXemVaNoiPhieu(i, ma) {
+  var oDong = -1;
+  huDong.forEach(function (d, j) {
+    if (j !== i && (d && d.de_nghi_chi || '').trim() === ma) oDong = j + 1;
+  });
+  if (oDong > 0) {
+    return baoTin('Phiếu ' + ma + ' đã nối vào khoản số ' + oDong + ' của hồ sơ này rồi.\n\n' +
+      'Mỗi phiếu chỉ nối được một lần. Nối hai lần là tổng hồ sơ dôi lên đúng một lần ' +
+      'số tiền của phiếu, mà người duyệt không nhìn ra vì màn hồ sơ không hiện mã phiếu.',
+      'Phiếu đã dùng rồi');
+  }
   busy(true);
   var p;
   try { p = await api('vagabond.ho_so_tt.xem_phieu_noi_bo', { phieu: ma }); }
