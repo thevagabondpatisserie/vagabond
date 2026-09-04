@@ -180,3 +180,26 @@ def _man_hinh():
 	dung("nhãn bước nói đúng nghĩa mới", "'Đã duyệt chi, chờ chuyển tiền'" in j)
 	dung("bước cuối đọc là đã chuyển tiền", "'Đã chuyển tiền, đã ghi sổ'" in j)
 	dung("không dùng dấu gạch dài", "—" not in j.split("var PAYFLOW")[1][:4000])
+
+
+@ca("duyệt chi: dựng sẵn tên bước và tên nút trước khi lưu đường duyệt")
+def _dung_san_ten_buoc():
+	"""Ngay 04/09/2026: deploy v414 xong, đường duyệt vẫn nằm nguyên bản cũ.
+
+	Frappe soi liên kết khi lưu Workflow: tên bước phải có sẵn một bản ghi
+	trong Workflow State, tên nút phải có sẵn trong Workflow Action Master.
+	Bước mới và nút mới chưa có bản ghi nào nên lệnh lưu bị chối, mà chỗ gọi
+	lại nuốt lỗi, nên máy báo deploy thành công trong khi đường duyệt không
+	đổi. Hàng rào mới thì đã chạy, thành ra giám đốc bấm Duyệt chi là bị
+	chặn: cả đường chi tiền tắc. Ca kiểm này giữ phần dựng sẵn đó.
+	"""
+	s = _doc("vagabond/duyet_chi.py")
+	dung("có phần dựng sẵn tên", "def _dung_san_ten(" in s)
+	dung("dựng bản ghi tên bước", '"doctype": "Workflow State",' in s)
+	dung("dựng bản ghi tên nút", '"doctype": "Workflow Action Master",' in s)
+	than = s[s.index("def dung_workflow("):]
+	dung("và gọi nó trước khi lưu", "_dung_san_ten(states, trans)" in than)
+	dung(
+		"gọi trước chứ không phải sau",
+		than.index("_dung_san_ten(states, trans)") < than.index("w.save("),
+	)

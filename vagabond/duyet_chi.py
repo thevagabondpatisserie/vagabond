@@ -255,6 +255,30 @@ TRUONG_MOI = {
 }
 
 
+def _dung_san_ten(states, trans):
+	"""Dung san ban ghi ten buoc va ten nut truoc khi luu duong duyet.
+
+	Frappe soi lien ket: ten buoc phai co san trong Workflow State, ten nut
+	phai co san trong Workflow Action Master. Thieu mot cai la luu hong, ma
+	hong o day thi duong duyet nam nguyen ban cu trong khi hang rao moi da
+	chay - phieu chi tac ngay giua duong. Da xay ra dung the ngay 04/09/2026.
+	"""
+	for s in states:
+		ten = s["state"]
+		if not frappe.db.exists("Workflow State", ten):
+			frappe.get_doc({
+				"doctype": "Workflow State",
+				"workflow_state_name": ten,
+			}).insert(ignore_permissions=True)
+	for t in trans:
+		ten = t["action"]
+		if not frappe.db.exists("Workflow Action Master", ten):
+			frappe.get_doc({
+				"doctype": "Workflow Action Master",
+				"workflow_action_name": ten,
+			}).insert(ignore_permissions=True)
+
+
 def dung_workflow():
 	"""Dung lai duong duyet phieu chi bang ma nguon. Goi tu after_migrate.
 
@@ -273,6 +297,7 @@ def dung_workflow():
 			return
 		w = frappe.get_doc("Workflow", TEN_WORKFLOW)
 		states, trans = khuon_workflow()
+		_dung_san_ten(states, trans)
 		cu_state = {s.state: s for s in (w.states or [])}
 		w.set("states", [])
 		for s in states:
