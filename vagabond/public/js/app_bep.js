@@ -754,6 +754,28 @@ async function api(method, args) {
 }
 function getList(dt, o) { o = o || {}; o.doctype = dt; if (o.limit_page_length === undefined || o.limit_page_length === null) o.limit_page_length = 100; return api('frappe.client.get_list', o); }
 
+/* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
+   tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
+   dau phay cung khong hut mat ket qua.
+   Anh Viet 15/08/2026 bat duoc: go "moonlapis" khong ra "HỘP MOONLAPIS,
+   năm 2026" chi vi o tim con thua mot dau cach o cuoi. */
+function vgbChuan(s) {
+  return String(s == null ? '' : s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
+function vgbKhop(kho, tim) {
+  var t = vgbChuan(tim);
+  if (!t) return true;
+  var k = vgbChuan(kho);
+  var tu = t.split(' ');
+  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
+  return true;
+}
+
 /* ---- o tim kiem dung chung (co nut quet ma vach) ---- */
 function srchBox(id, ph, val, withScan) {
   return '<div class="srch"><span>&#128269;</span>' +
@@ -20079,9 +20101,16 @@ async function scrVanDon() {
   if (!vdNgay) vdNgay = today();
   frame('Vận đơn', '<div class="emp"><div class="e1">⏳</div><div>Đang tải vận đơn...</div></div>');
   var ds;
-  try { ds = await api('vagabond.van_don.danh_sach', vdThamSo()); try { vdBoLoc = await api('vagabond.van_don.bo_loc', { ngay: vdNgay }); } catch (e9) { vdBoLoc = null; }
-  if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } } }
-  catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  if (vdVeSuong && vdDs && vdDsNgay === vdNgay) {
+    vdVeSuong = 0;
+    ds = vdDs;
+  } else {
+    vdVeSuong = 0;
+    try { ds = await api('vagabond.van_don.danh_sach', vdThamSo()); try { vdBoLoc = await api('vagabond.van_don.bo_loc', { ngay: vdNgay }); } catch (e9) { vdBoLoc = null; }
+    if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } } }
+    catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+    vdDs = ds; vdDsNgay = vdNgay;
+  }
   var chonMode = !!window.vdChon;
   /* Hai nut lui/toi mot ngay: tren dien thoai bam nhanh hon mo bang chon
      ngay, va khong dinh loi bang chon ngay lam trang bi ve lai. */
@@ -20091,15 +20120,41 @@ async function scrVanDon() {
     '<button class="btn gh" id="vdToi" style="margin:0;width:auto;padding:8px 13px;flex:0 0 auto">▶</button></div>';
   if (isSales() || vdLaKeToan()) html += '<button class="btn gh" id="vdDongBo" style="margin:0 0 10px">🔄 Đồng bộ đơn Pancake ngày ' + vdNgay.split('-').reverse().join('/') + '</button>';
   var ICON = VD_TT_ICON;
-  html += vdChipsHtml(ds);
+  /* THU TU LOC, doi cho la sai so tren tab: o tim truoc, roi tab, roi chip.
+     So deo tren tab phai tinh tren tap DA TIM nhung CHUA vao tab, co vay
+     nhin hang tab moi biet don minh go dang nam o tab nao. */
   var dsTho = ds;
-  ds = vdLocRa(dsTho);
-  html += vdKhoiTong(ds, vdNhanLoc(dsTho));
+  var dsTim = vdLocTim(dsTho);
+  if (!vdTab) vdTab = vdTabMacDinh(dsTim);
+  html += '<div class="card" style="padding:8px 10px">' + srchBox('vdQ', 'Tìm mã đơn, khách, số điện thoại, địa chỉ, món...', vdTim) + '</div>';
+  html += vdTabHtml(dsTim);
+  var dsTab = dsTim.filter(vdTabTim(vdTab).loc);
+  html += vdChipsHtml(dsTab);
+  ds = vdSapXep(vdLocRa(dsTab));
+  html += vdKhoiTong(ds, vdNhanLoc(dsTab));
   if (chonMode) html += '<div class="sec" style="color:#0369a1">' + (window.vdChonDe === 'in' ? 'ĐANG CHỌN ĐƠN ĐỂ IN' : 'ĐANG GỘP CHUYẾN') + ' - BẤM VÀO TỪNG ĐƠN ĐỂ CHỌN</div>';
   else html += '<div class="sec">' + ds.length + ' vận đơn · bấm vào để xử lý</div>';
   html += '<div class="card">';
   if (!dsTho.length) html += '<div class="emp" style="padding:24px"><div class="e1">🛵</div><div>Chưa có vận đơn nào cho ngày này.</div></div>';
-  else if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có đơn nào thuộc nhóm <b>' + h(vdNhanLoc(dsTho)) + '</b>.</div></div>';
+  else if (!ds.length) {
+    /* CAI BAY LON NHAT CUA TAB CONG O TIM: go dung ten khach, ra khong co
+       gi, vi don do nam o tab khac. Khong noi ra thi nguoi ta ket luan la
+       mat don. Nen o day chi thang sang tab dang giu no, bam mot cai la
+       qua. */
+    var goiY = vdNhomTab().filter(function (t) {
+      return t.k !== vdTab && t.k !== 'tat_ca' && dsTim.filter(t.loc).length;
+    });
+    html += '<div class="emp" style="padding:24px"><div class="e1">' + (goiY.length ? '🔎' : '✅') + '</div><div>' +
+      (String(vdTim || '').trim()
+        ? 'Không có đơn nào khớp <b>' + h(vdTim) + '</b> trong tab <b>' + h(vdTabTim(vdTab).nhan) + '</b>.'
+        : 'Không có đơn nào thuộc nhóm <b>' + h(vdNhanLoc(dsTab)) + '</b>.') + '</div></div>';
+    if (goiY.length) {
+      html += '<div style="display:flex;gap:7px;flex-wrap:wrap;padding:0 14px 16px;justify-content:center">' +
+        goiY.map(function (t) {
+          return posChipNut('data-vdtab="' + t.k + '"', t.nhan + ' · ' + dsTim.filter(t.loc).length + ' đơn', false, false, t.mau);
+        }).join('') + '</div>';
+    }
+  }
   ds.forEach(function (r) {
     var daChon = chonMode && window.vdChon[r.name];
     /* Trang thai da co chip mau ben duoi nen bo khoi dong chu xam nay. */
@@ -20150,6 +20205,25 @@ async function scrVanDon() {
   var bLui = document.getElementById('vdLui'); if (bLui) bLui.onclick = function () { vdDoiNgay(-1); };
   var bToi = document.getElementById('vdToi'); if (bToi) bToi.onclick = function () { vdDoiNgay(1); };
   vdGanChips();
+  /* Ve lai ca man sau moi nhip go thi mat con tro, nen theo dung cach man
+     Kiem kho dang lam: cho 220ms, ve lai, roi tra con tro ve dung cho cu. */
+  var oq = document.getElementById('vdQ');
+  if (oq) {
+    var hen = null;
+    oq.oninput = function () {
+      vdTim = oq.value;
+      clearTimeout(hen);
+      hen = setTimeout(function () {
+        var v = vdTim, vt = oq.selectionStart;
+        vdVeSuong = 1;
+        go(scrVanDon, true);
+        setTimeout(function () {
+          var i2 = document.getElementById('vdQ');
+          if (i2) { i2.focus(); i2.value = v; try { i2.setSelectionRange(vt, vt); } catch (e1) { } }
+        }, 0);
+      }, 220);
+    };
+  }
   var btq = document.getElementById('vdTuyen'); if (btq) btq.onclick = function () { go(scrVdTuyen, true); };
   var bcd = document.getElementById('vdDuong'); if (bcd) bcd.onclick = vdChiDuongToi;
   var db = document.getElementById('vdDongBo');
@@ -20166,7 +20240,9 @@ async function scrVanDon() {
       }
     };
   var gp = document.getElementById('vdGop');
-  if (gp) gp.onclick = function () { window.vdChon = {}; window.vdChonDe = 'gan'; go(scrVanDon, true); };
+  /* Gop chuyen la viec PHAN CONG, nen nhay thang ve tab Can phan cong. Dung
+     o tab Da giao ma bam Gop chuyen thi bam vao don nao cung bi tu choi. */
+  if (gp) gp.onclick = function () { window.vdChon = {}; window.vdChonDe = 'gan'; vdTab = 'cho_gan'; go(scrVanDon, true); };
   var bin = document.getElementById('vdIn');
   if (bin) bin.onclick = function () { window.vdChon = {}; window.vdChonDe = 'in'; go(scrVanDon, true); };
   var cod = document.getElementById('vdCod');
@@ -20800,7 +20876,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '417';
+var APPVER = '418';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -21337,6 +21413,18 @@ async function vdInPhieu(names) {
    the khung gio + phuong ve app, va de xuat thu tu chay cho tung chuyen. ---------- */
 var vdPhuong = null, vdTagGio = null, vdBuoi = null, vdBoLoc = null;
 var vdKenh = null, vdGio = null;
+/* Tab dang dung, tu khoa dang go, kieu sap xep. Giu trong phien nen doi
+   ngay hay mo mot don roi quay lai van dung cho cu. */
+var vdTab = null, vdTim = '', vdSap = '';
+/* VE SUONG: ve lai man bang dung du lieu dang cam, KHONG goi lai may chu.
+   Chi dat co nay cho viec DOI CACH NHIN - go o tim, doi tab, doi chip, doi
+   kieu sap xep. Moi viec DOI DU LIEU (gan shipper, gop chuyen, dong bo,
+   doi soat, doi ngay) deu phai de man tai lai binh thuong.
+
+   Vi sao phai co: o tim ve lai man sau moi 220ms go, ma man nay moi lan ve
+   la goi hai lan API danh sach. Go mot ten khach mat muoi nhip la muoi lan
+   keo ca ngay don ve - dien thoai dung hinh va may chu an dan vo co. */
+var vdDs = null, vdDsNgay = null, vdVeSuong = 0;
 var vtBuoiChon = null, vtSoTuyen = 2, vtDiemLay = 'Bếp', vtKq = null, vtShipper = null;
 
 /* Truoc 13/08/2026 cac bo loc day het xuong may chu, nen man hinh chi nhan
@@ -21385,24 +21473,136 @@ function vdHuyHieu(r) {
 function vdChip(id, nhan, dang) {
   return '<button class="btn gh" id="' + id + '" style="flex:0 0 auto;width:auto;padding:6px 12px;font-size:13px' + (dang ? ';background:#0f766e;color:#fff;border-color:#0f766e' : '') + '">' + nhan + '</button>';
 }
-/* ---------- Chip loc man Van don (anh Viet 13/08/2026) ----------
-   Truoc day man nay chi co mot nut "Tat ca ▾" mo bang chon trang thai, va
-   ba nut khung gio / buoi / phuong khong mang con so nao. Nhin vao khong
-   biet hom nay con bao nhieu don cho giao, bao nhieu don chua gan shipper.
+/* ================= TAB TRẠNG THÁI màn Vận đơn =================
+   Anh Việt 04/09/2026, lấy mẫu màn đơn hàng bên Pancake: *"chia ra các tab
+   trạng thái... nguyên lý là tránh rối danh sách, các đơn tự chuyển theo
+   trạng thái được gắn để dễ thao tác."*
 
-   Nay ba hang chip dung chung khung voi man Doanh thu Sales: chip nao cung
-   deo so don cua nhom do, chip nao khong co don thi tu an di. */
-function vdNhomTrangThai() {
+   VÌ SAO TAB CHỨ KHÔNG THÊM CHIP. Từ 13/08/2026 màn này đã có ba hàng chip,
+   trong đó hàng đầu trộn chung hai loại khác hẳn nhau: chip TRẠNG THÁI (chờ
+   giao, đã giao, huỷ) và chip DẤU HIỆU cắt ngang mọi trạng thái (có COD,
+   thiếu thẻ giờ). Trộn vào một hàng thì người dùng phải tự nhớ cái nào loại
+   trừ cái nào. Nay tách hẳn: trạng thái lên TAB, dấu hiệu ở lại hàng chip.
+
+   Một đơn CHỈ nằm trong đúng một tab, nên đổi trạng thái là đơn tự rời tab
+   cũ sang tab mới, không phải đi tìm.
+
+   ĐƠN CHỜ GIAO MÀ ĐÃ CÓ SHIPPER NẰM Ở TAB "ĐANG GIAO", không nằm ở "Cần
+   phân công". Tab đầu là hàng việc phải làm ngay của Sales; đơn đã giao cho
+   ai rồi thì việc phân công đã xong, để lại đó chỉ làm dài thêm hàng chờ.
+   Anh Việt chốt sáu tab này 04/09/2026. */
+function vdNhomTab() {
   return [
-    { k: '', nhan: '📚 Tất cả', loc: function () { return true; } },
-    { k: 'Chờ giao', nhan: '📦 Chờ giao', loc: function (r) { return r.trang_thai === 'Chờ giao'; } },
-    { k: 'Đang giao', nhan: '🛵 Đang giao', loc: function (r) { return r.trang_thai === 'Đang giao'; } },
-    { k: 'Đã giao', nhan: '✅ Đã giao', loc: function (r) { return r.trang_thai === 'Đã giao'; } },
-    { k: 'Không giao được', nhan: '⚠️ Không giao được', loc: function (r) { return r.trang_thai === 'Không giao được'; } },
-    { k: 'Huỷ', nhan: '🚫 Huỷ', loc: function (r) { return r.trang_thai === 'Huỷ'; } },
-    { k: '@chua_gan', nhan: '🙋 Chưa gán shipper', loc: function (r) { return !r.shipper && r.trang_thai !== 'Huỷ'; } },
+    { k: 'cho_gan', nhan: '🙋 Cần phân công', mau: '#c2410c',
+      loc: function (r) { return r.trang_thai === 'Chờ giao' && !r.shipper; } },
+    { k: 'dang_giao', nhan: '🛵 Đang giao', mau: '#0369a1',
+      loc: function (r) { return r.trang_thai === 'Đang giao' || (r.trang_thai === 'Chờ giao' && !!r.shipper); } },
+    { k: 'da_giao', nhan: '✅ Đã giao', mau: '#12a150',
+      loc: function (r) { return r.trang_thai === 'Đã giao'; } },
+    { k: 'hong', nhan: '⚠️ Không giao được', mau: '#b91c1c',
+      loc: function (r) { return r.trang_thai === 'Không giao được'; } },
+    { k: 'huy', nhan: '⛔ Đã huỷ', mau: '#7f1d1d',
+      loc: function (r) { return r.trang_thai === 'Huỷ'; } },
+    { k: 'tat_ca', nhan: '📚 Tất cả', mau: '#0f766e',
+      loc: function () { return true; } }
+  ];
+}
+/* Khoá lạ thì về "Tất cả" chứ không về tab đầu: thà thấy dư còn hơn tưởng
+   là mất đơn. */
+function vdTabTim(k) {
+  var A = vdNhomTab();
+  for (var i = 0; i < A.length; i++) if (A[i].k === k) return A[i];
+  return A[A.length - 1];
+}
+/* Mở màn ra đứng ở tab ĐẦU TIÊN CÒN ĐƠN theo thứ tự việc phải làm. Ngày
+   nào cũng mở đúng vào hàng chờ, không phải bấm thêm một nhịp. Shipper thì
+   không bao giờ thấy đơn chưa phân công nên bỏ qua tab đó. */
+function vdTabMacDinh(ds) {
+  var uu = (vdLaShipper() && !isSales()) ? ['dang_giao', 'da_giao'] : ['cho_gan', 'dang_giao', 'da_giao'];
+  for (var i = 0; i < uu.length; i++) {
+    if (ds.filter(vdTabTim(uu[i]).loc).length) return uu[i];
+  }
+  return 'tat_ca';
+}
+/* Tab RỖNG vẫn hiện, khác hẳn chip. Chip rỗng thì ẩn cho gọn, còn tab là bộ
+   khung cố định: hôm nay không có đơn huỷ mà tab "Đã huỷ" biến mất thì hôm
+   sau nó hiện ra người dùng lại tưởng có gì mới. */
+function vdTabHtml(ds) {
+  var ra = vdNhomTab().map(function (t) {
+    var n = ds.filter(t.loc).length;
+    var on = t.k === vdTab;
+    return '<button data-vdtab="' + t.k + '" style="flex:0 0 auto;border:0;border-bottom:3px solid ' +
+      (on ? t.mau : 'transparent') + ';background:transparent;color:' + (on ? t.mau : (n ? '#4b5563' : '#9ca3af')) +
+      ';padding:10px 12px 8px;font-size:13.5px;font-weight:' + (on ? '800' : '600') +
+      ';cursor:pointer;white-space:nowrap;font-family:inherit">' + t.nhan +
+      ' <span style="background:' + (on ? t.mau : '#e5e7eb') + ';color:' + (on ? '#fff' : '#4b5563') +
+      ';border-radius:999px;padding:1px 7px;font-size:11.5px;font-weight:700">' + n + '</span></button>';
+  }).join('');
+  return '<div class="card" style="padding:0 4px;display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+}
+
+/* ---------- Ô tìm nhanh ----------
+   Gõ gì cũng ra: mã đơn, tên khách, số điện thoại người đặt hoặc người
+   nhận, địa chỉ, phường, tên món, tên chuyến, tên shipper, số phiếu điều
+   chuyển gốc. Bỏ dấu và bỏ dấu câu trước khi so (`vgbKhop` ở tệp nền), nên
+   gõ "nguyen hue" ra "Nguyễn Huệ" và gõ thiếu dấu cách cũng không hụt.
+
+   Ô tìm CẮT NGANG mọi tab: số trên từng tab được tính lại theo kết quả tìm,
+   nên nhìn hàng tab là biết đơn mình tìm đang nằm ở tab nào. */
+var VD_TIM_O = ['ma_don', 'name', 'khach', 'sdt', 'nguoi_nhan', 'sdt_nhan',
+  'dia_chi', 'dia_chi_lay', 'phuong', 'chuyen', 'kenh', 'booking_id',
+  'chung_tu_goc', 'ghi_chu_in', 'the_don', 'mon_tat', 'mon_chinh', 'tag_gio'];
+function vdKhoTim(r) {
+  var s = [];
+  for (var i = 0; i < VD_TIM_O.length; i++) if (r[VD_TIM_O[i]]) s.push(String(r[VD_TIM_O[i]]));
+  if (r.shipper) s.push(vdTen(r.shipper));
+  return s.join(' ');
+}
+function vdLocTim(ds) {
+  var q = String(vdTim || '').trim();
+  if (!q) return ds;
+  return ds.filter(function (r) { return vgbKhop(vdKhoTim(r), q); });
+}
+
+/* ---------- Sắp xếp danh sách ----------
+   Mặc định giữ đúng thứ tự máy chủ trả về, tức thứ tự điểm trong tuyến. Ba
+   cách kia là ba việc thật: Sales soát theo khung giờ, kế toán soát tiền
+   theo COD, shipper gom theo địa bàn. */
+var VD_SAP = [
+  { k: '', nhan: '🧭 Theo tuyến' },
+  { k: 'gio', nhan: '🕒 Theo khung giờ' },
+  { k: 'cod', nhan: '💵 COD lớn trước' },
+  { k: 'phuong', nhan: '📍 Theo phường' }
+];
+function vdSapNhan() {
+  for (var i = 0; i < VD_SAP.length; i++) if (VD_SAP[i].k === (vdSap || '')) return VD_SAP[i].nhan;
+  return VD_SAP[0].nhan;
+}
+function vdSapXep(ds) {
+  var a = ds.slice();
+  var vi = function (x, y) { return String(x || '').localeCompare(String(y || ''), 'vi'); };
+  if (vdSap === 'gio') a.sort(function (x, y) { return vi(x.tag_gio || 'zzz', y.tag_gio || 'zzz') || vi(x.gio_giao, y.gio_giao); });
+  else if (vdSap === 'cod') a.sort(function (x, y) { return Number(y.tien_thu_ho || 0) - Number(x.tien_thu_ho || 0); });
+  else if (vdSap === 'phuong') a.sort(function (x, y) { return vi(x.phuong || 'zzz', y.phuong || 'zzz') || vi(x.tag_gio, y.tag_gio); });
+  return a;
+}
+
+/* ---------- Hàng chip DẤU HIỆU, cắt ngang mọi trạng thái ----------
+   Từ 04/09/2026 hàng này không còn chip trạng thái nào (đã lên tab). Chỉ
+   giữ những dấu hiệu mà người dùng cần lọc ra bất kể đơn đang ở bước nào,
+   và ba dấu hiệu nguy hiểm về tiền và hàng lạnh thì để lên đầu. */
+function vdNhomDau() {
+  return [
+    { k: '', nhan: '🔎 Không lọc thêm', loc: function () { return true; } },
+    { k: '@cod_chua', nhan: '💵 COD chưa đối soát', loc: function (r) { return r.trang_thai === 'Đã giao' && Number(r.tien_thu_ho || 0) > 0 && !r.da_doi_soat; } },
     { k: '@cod', nhan: '💵 Có COD', loc: function (r) { return Number(r.tien_thu_ho || 0) > 0; } },
-    { k: '@chua_gio', nhan: '🕒 Thiếu thẻ giờ', loc: function (r) { return !(r.tag_gio || '').trim() && r.trang_thai === 'Chờ giao'; } }
+    { k: '@goc_huy', nhan: '⛔ Phiếu gốc đã huỷ', loc: function (r) { return r.tt_chung_tu === 'Đã huỷ'; } },
+    { k: '@tre', nhan: '⚠️ Dễ trễ giờ', loc: function (r) { return !!r.tre_khung_gio; } },
+    { k: '@chua_gio', nhan: '🕒 Thiếu thẻ giờ', loc: function (r) { return !(r.tag_gio || '').trim(); } },
+    { k: '@goi', nhan: '📞 Gọi trước', loc: function (r) { return !!r.goi_truoc; } },
+    { k: '@anh', nhan: '📷 Gửi ảnh trước', loc: function (r) { return !!r.chup_truoc; } },
+    { k: '@dc', nhan: '🏭 Điều chuyển kho', loc: function (r) { return !!r.la_dieu_chuyen; } },
+    { k: '@lanh', nhan: '🧊 Hàng mát, hàng đông', loc: function (r) { return r.bao_quan === 'Mát' || r.bao_quan === 'Đông'; } }
   ];
 }
 function vdNhomKenh(ds) {
@@ -21453,11 +21653,15 @@ function vdNhomGio(ds) {
 /* Tong theo bo loc: loc cai gi thi phai biet loc ra bao nhieu don, bao
    nhieu tien COD - khong thi phai cong tay tung dong tren man. */
 function vdKhoiTong(ds, nhan) {
-  var cod = 0, xong = 0, con = 0;
+  var cod = 0, xong = 0, con = 0, codChua = 0;
   ds.forEach(function (r) {
     cod += Number(r.tien_thu_ho || 0);
-    if (r.trang_thai === 'Đã giao') xong++;
-    else if (r.trang_thai !== 'Huỷ') con++;
+    if (r.trang_thai === 'Đã giao') {
+      xong++;
+      /* Tien da thu ma chua ai doi soat: day moi la con so phai di doi
+         nguoi, chu tong COD chi noi hom nay ban duoc bao nhieu. */
+      if (!r.da_doi_soat) codChua += Number(r.tien_thu_ho || 0);
+    } else if (r.trang_thai !== 'Huỷ') con++;
   });
   return '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800;letter-spacing:.3px">TỔNG THEO BỘ LỌC' +
@@ -21467,42 +21671,63 @@ function vdKhoiTong(ds, nhan) {
     '<b style="font-size:19px;color:#0f766e">COD ' + money(cod) + ' đ</b></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#6b7280;margin-top:3px">' +
     '<span>Đã giao ' + xong + ' · còn phải giao ' + con + '</span></div>' +
+    (codChua ? '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#a16207;margin-top:2px">' +
+      '<span>💵 COD đã thu, chưa đối soát</span><b>' + money(codChua) + ' đ</b></div>' : '') +
     '</div>';
 }
 function vdChipsHtml(ds) {
-  var A = vdNhomTrangThai(), B = vdNhomKenh(ds), C = vdNhomGio(ds);
+  var A = vdNhomDau(), B = vdNhomKenh(ds), C = vdNhomGio(ds);
   if (!locTim(A, vdLoc || '') || locTim(A, vdLoc || '').k !== (vdLoc || '')) vdLoc = null;
   if (!locTim(B, vdKenh || '') || locTim(B, vdKenh || '').k !== (vdKenh || '')) vdKenh = null;
   if (!locTim(C, vdGio || '') || locTim(C, vdGio || '').k !== (vdGio || '')) vdGio = null;
-  var fa = locTim(A, vdLoc || ''), fb = locTim(B, vdKenh || ''), fc = locTim(C, vdGio || '');
+  var fa = locTim(A, vdLoc || '');
   var s = '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
     locHang(A, vdLoc || '', 'data-vdla', ds) +
     locHang(B, vdKenh || '', 'data-vdlb', ds.filter(fa.loc)) +
-    locHang(C, vdGio || '', 'data-vdlc', ds.filter(fa.loc)) + '</div>';
+    locHang(C, vdGio || '', 'data-vdlc', ds.filter(fa.loc)) +
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;padding-top:2px">' +
+    posChipNut('data-vdsap="1"', vdSapNhan(), false, false, '#7c3aed') +
+    (vdCoLoc() ? posChipNut('data-vdxoa="1"', '✖ Bỏ hết bộ lọc', false, true) : '') +
+    '</div></div>';
   if (vdBoLoc && vdBoLoc.so_thieu_the_gio) s += '<div class="sec" style="color:#b45309">⚠️ ' + vdBoLoc.so_thieu_the_gio + ' đơn chưa có thẻ khung giờ. Gắn thẻ bên Pancake rồi bấm Đồng bộ, đơn mới vào được tuyến.</div>';
   return s;
 }
+/* Co dang loc thu gi khong. Tab khong tinh la loc: tab la cho dung, con loc
+   la thu nguoi ta gan them vao va hay quen mat. */
+function vdCoLoc() {
+  /* Sap xep KHONG tinh la loc: no khong giau don nao di. Nut "Bo het bo
+     loc" ma keo luon kieu sap xep ve mac dinh la lam thay doi mot thu
+     nguoi ta khong nho la minh vua bo. */
+  return !!(vdLoc || vdKenh || vdGio || String(vdTim || '').trim());
+}
 function vdLocRa(ds) {
-  var fa = locTim(vdNhomTrangThai(), vdLoc || '');
+  var fa = locTim(vdNhomDau(), vdLoc || '');
   var fb = locTim(vdNhomKenh(ds), vdKenh || '');
   var fc = locTim(vdNhomGio(ds), vdGio || '');
   return ds.filter(function (r) { return fa.loc(r) && fb.loc(r) && fc.loc(r); });
 }
 function vdNhanLoc(ds) {
-  var fa = locTim(vdNhomTrangThai(), vdLoc || '');
+  var fa = locTim(vdNhomDau(), vdLoc || '');
   var fb = locTim(vdNhomKenh(ds), vdKenh || '');
   var fc = locTim(vdNhomGio(ds), vdGio || '');
-  return [vdLoc ? fa.nhan : '', vdKenh ? fb.nhan : '', vdGio ? fc.nhan : ''].filter(Boolean).join(' · ');
+  return [vdTabTim(vdTab).nhan, vdLoc ? fa.nhan : '', vdKenh ? fb.nhan : '', vdGio ? fc.nhan : ''].filter(Boolean).join(' · ');
 }
 function vdGanChips() {
   var g = function (attr, dat) {
     Array.prototype.forEach.call(document.querySelectorAll('[' + attr + ']'), function (el) {
-      el.onclick = function () { dat(el.getAttribute(attr)); go(scrVanDon, true); };
+      el.onclick = function () { dat(el.getAttribute(attr)); vdVeSuong = 1; go(scrVanDon, true); };
     });
   };
   g('data-vdla', function (v) { vdLoc = v || null; });
   g('data-vdlb', function (v) { vdKenh = v || null; });
   g('data-vdlc', function (v) { vdGio = v || null; });
+  g('data-vdtab', function (v) { vdTab = v || 'tat_ca'; });
+  var bx = document.querySelector('[data-vdxoa]');
+  if (bx) bx.onclick = function () { vdLoc = null; vdKenh = null; vdGio = null; vdTim = ''; vdVeSuong = 1; go(scrVanDon, true); };
+  var bs = document.querySelector('[data-vdsap]');
+  if (bs) bs.onclick = function () {
+    sheet('Sắp xếp danh sách theo', VD_SAP.map(function (x) { return { value: x.k, label: x.nhan }; }), vdSap || '', function (o) { vdSap = o.value || ''; vdVeSuong = 1; go(scrVanDon, true); });
+  };
 }
 async function vdChiDuongToi() {
   busy(true);
@@ -34451,27 +34676,10 @@ var BGTT_ICON = {
 };
 var BGNHAN = 'style="font-size:12.5px;color:#8a8f9c;line-height:1.35;margin-top:2px"';
 
-/* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
-   tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
-   dau phay cung khong hut mat ket qua.
-   Anh Viet 15/08/2026 bat duoc: go "moonlapis" khong ra "HỘP MOONLAPIS,
-   năm 2026" chi vi o tim con thua mot dau cach o cuoi. */
-function vgbChuan(s) {
-  return String(s == null ? '' : s).toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
-function vgbKhop(kho, tim) {
-  var t = vgbChuan(tim);
-  if (!t) return true;
-  var k = vgbChuan(kho);
-  var tu = t.split(' ');
-  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
-  return true;
-}
+/* `vgbChuan` va `vgbKhop` da chuyen xuong `00-nen.js` ngay 04/09/2026.
+   Chinh ghi chu cu cua chung noi "dung cho MOI o tim trong app", ma o
+   tim cua man Van don cung can, nen phai nam o tep nen chu khong nam
+   trong mot man cu the (QT-19: mot cho tinh). */
 /* Doc so tien nguoi dung go: bo dau cham ngan nghin, bo chu, bo khoang trang. */
 function vgbSo(v) { return Number(String(v == null ? '' : v).replace(/[^0-9]/g, '')) || 0; }
 /* Hien so tien co dau cham ngan nghin. Anh Viet 15/08/2026: "tất cả giá tiền
