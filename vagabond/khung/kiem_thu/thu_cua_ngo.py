@@ -449,8 +449,13 @@ CUA_NGO = {
 		# Chu ky chan chat hon anh giao, xem TT_GO_DUOC_ANH trong van_don.
 		"go_anh",
 		"gop_chuyen", "huy_van_don", "khach_khong_ky", "luu_chu_ky",
-		"mon_van_don", "nap_mon_thieu", "nhan_don", "phieu_in",
-		"tao_chi_phi", "tao_van_don", "xac_nhan_cod",
+		"luu_dieu_chuyen",
+		"mon_van_don", "nap_mon_thieu", "nhan_don",
+		# Dieu chuyen kho noi bo, them 04/09/2026: nut "Tao van don" tren man
+		# phieu dieu chuyen, va danh sach phieu chua co van don de bay ra cho
+		# nguoi ta bam khoi phai nho so phieu.
+		"phieu_dieu_chuyen_lap_duoc", "phieu_in",
+		"tao_chi_phi", "tao_van_don", "tao_van_don_dieu_chuyen", "xac_nhan_cod",
 	],
 	# Nhan hang tu nha cung cap. `go_anh_nhan` them 24/08/2026 (v294): anh
 	# Viet chot chi chan khi phieu da huy, vi anh chup hang thuong phai
