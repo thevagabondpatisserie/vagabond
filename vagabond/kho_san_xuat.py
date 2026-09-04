@@ -378,18 +378,76 @@ def _ho_so_mon(ma):
 		return "", ""
 
 
-def _bep_cua_mon(ma):
-	"""Bếp phụ trách món, đọc ô custom_bep_phu_trach; chưa khai thì đoán theo
-	công thức đang có, cuối cùng mới chịu thua trả None."""
-	b = frappe.db.get_value("Item", ma, "custom_bep_phu_trach")
-	if b:
-		b = str(b).strip().lower()
-		if b in BEP:
-			return b
-		for ma_bep, x in BEP.items():
-			if x["ten"].lower() in b:
-				return ma_bep
+def bep_tu_chuoi(b):
+	"""Đổi chữ người gõ thành mã bếp. THUẦN.
+
+	Nhận cả mã ("pastry") lẫn tên hiển thị ("Bếp Pastry"), không phân biệt
+	hoa thường. Không khớp thì trả None.
+	"""
+	if not b:
+		return None
+	b = str(b).strip().lower()
+	if b in BEP:
+		return b
+	for ma_bep, x in BEP.items():
+		if x["ten"].lower() in b:
+			return ma_bep
 	return None
+
+
+def bep_theo_nhom(nhom, bep_cua, cha_cua, gioi_han=8):
+	"""Bếp của một nhóm hàng, leo ngược lên nhóm cha. THUẦN.
+
+	`bep_cua` là {tên nhóm: chữ khai ở ô Bếp phụ trách}, `cha_cua` là
+	{tên nhóm: tên nhóm cha}. Cùng một luật với `bepOfItem` bên app
+	(01-khung-app.js), kể cả chuyện leo tối đa 8 tầng để cây nhóm bị nối
+	vòng cũng không treo.
+	"""
+	n, di = nhom, 0
+	while n and di < gioi_han:
+		ra = bep_tu_chuoi((bep_cua or {}).get(n))
+		if ra:
+			return ra
+		n = (cha_cua or {}).get(n)
+		di += 1
+	return None
+
+
+def _cay_nhom_hang():
+	"""Bản đồ nhóm hàng: ô Bếp phụ trách và nhóm cha của từng nhóm."""
+	bep_cua, cha_cua = {}, {}
+	try:
+		for g in frappe.get_all(
+			"Item Group",
+			fields=["name", "parent_item_group", "custom_bep_phu_trach"],
+			limit_page_length=0,
+		):
+			if g.get("custom_bep_phu_trach"):
+				bep_cua[g["name"]] = g["custom_bep_phu_trach"]
+			if g.get("parent_item_group"):
+				cha_cua[g["name"]] = g["parent_item_group"]
+	except Exception:
+		return {}, {}
+	return bep_cua, cha_cua
+
+
+def _bep_cua_mon(ma):
+	"""Bếp phụ trách món: đọc ô trên MÓN trước, chưa khai thì suy từ NHÓM HÀNG.
+
+	04/09/2026: trước đây hàm này chỉ đọc ô trên món, món nào chưa khai là
+	trả None và phiếu rơi về kho mặc định của ERPNext, tức Kho tổng 307,
+	chứ không về kho bếp. App thì lâu nay vẫn suy theo nhóm hàng
+	(`bepOfItem`), nên hai bên nói hai kiểu về cùng một món. Nay máy chủ
+	theo đúng luật của app.
+	"""
+	ra = bep_tu_chuoi(frappe.db.get_value("Item", ma, "custom_bep_phu_trach"))
+	if ra:
+		return ra
+	nhom = frappe.db.get_value("Item", ma, "item_group")
+	if not nhom:
+		return None
+	bep_cua, cha_cua = _cay_nhom_hang()
+	return bep_theo_nhom(nhom, bep_cua, cha_cua)
 
 
 @frappe.whitelist()
