@@ -490,7 +490,11 @@ def tong_trong_so(bo):
 import frappe  # noqa: E402
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate  # noqa: E402
 
-from vagabond.lib import cfg  # noqa: E402, cfg_o
+from vagabond.lib import cfg, cfg_o  # noqa: E402
+# `cfg_o` PHAI nam trong cau import that, khong duoc de trong phan chu thich.
+# Truoc 04/09/2026 ten cfg_o bi day sang sau dau thang cua noqa, nhin luot
+# tuong da nhap ca hai. Python khong bao gi luc nap mo dun, chi khi co nguoi
+# mo man KPI thi `cau_hinh()` goi `cfg_o` va ca man tra ve loi 500.
 from vagabond import tep_dinh_kem  # noqa: E402
 
 DT = "Vagabond KPI Phieu"
