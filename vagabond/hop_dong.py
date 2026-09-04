@@ -6,7 +6,7 @@ grand_total va outstanding_amount cua cac hoa don da submit.
 """
 
 import frappe
-from frappe.utils import flt, getdate, nowdate
+from frappe.utils import cint, flt, getdate, nowdate
 
 # Anh Viet 14/08/2026: *"cấp quyền truy cập cho Loan Anh, thu mua và kế toán"*.
 # Loan Anh dang co vai Sales User nen vao duoc ngay. Them thu mua va ke toan
@@ -309,33 +309,134 @@ def go_phu_luc_scan(name):
 
 @frappe.whitelist()
 def gan_hoa_don(hop_dong, si_name, go=0):
-	"""Gan (hoac go) mot hoa don vao hop dong. Dung db_set de gan duoc ca
-	hoa don da submit (custom field, khong dung cham vao so lieu)."""
+	"""Gan (hoac go) mot hoa don vao hop dong.
+
+	Dung db_set de gan duoc ca hoa don da submit: `custom_hop_dong` la
+	truong phu, khong dung cham vao so tien, thue hay du no cua to.
+
+	CHAN GAN TRUNG va GHI VET (anh Viet 04/09/2026). Truoc ban nay ham chi
+	co mot dong set_value: gan de len hop dong cu ma khong hoi mot cau,
+	nen mot to hoa don co the lang le roi khoi hop dong A sang hop dong B
+	va tien do thu tien cua A tut xuong ma khong ai biet vi sao.
+	"""
 	_quyen()
 	if not frappe.db.exists("Sales Invoice", si_name):
 		frappe.throw("Không có hoá đơn %s" % si_name)
-	frappe.db.set_value("Sales Invoice", si_name, "custom_hop_dong", None if int(go or 0) else hop_dong)
+	go = int(go or 0)
+	dang_gan = frappe.db.get_value("Sales Invoice", si_name, "custom_hop_dong")
+	if go:
+		if not dang_gan:
+			return si_name
+		frappe.db.set_value("Sales Invoice", si_name, "custom_hop_dong", None)
+		_ghi_vet_gan(si_name, dang_gan, "gỡ khỏi")
+		return si_name
+	if not frappe.db.exists("Hop Dong Ban Hang", hop_dong):
+		frappe.throw("Không có hợp đồng %s" % hop_dong)
+	if dang_gan == hop_dong:
+		# Bam lai lan nua khong phai loi, chi la khong co gi de lam.
+		return si_name
+	if dang_gan:
+		frappe.throw(
+			"Hoá đơn %s đang gắn ở hợp đồng %s rồi. Mở hợp đồng đó gỡ ra "
+			"trước, rồi hãy gắn sang hợp đồng này - một hoá đơn chỉ thuộc "
+			"về một hợp đồng, để tiến độ thu tiền của hai bên không cùng "
+			"đếm một khoản." % (si_name, dang_gan)
+		)
+	frappe.db.set_value("Sales Invoice", si_name, "custom_hop_dong", hop_dong)
+	_ghi_vet_gan(si_name, hop_dong, "gắn vào")
 	return si_name
 
 
+def _ghi_vet_gan(si_name, hop_dong, viec):
+	"""Ai gan, gan vao dau, luc nao. Ghi vao ca hai phia."""
+	cau = "Hoá đơn %s %s hợp đồng %s. Người làm %s." % (
+		si_name, viec, hop_dong, frappe.session.user)
+	for dt, ten in (("Sales Invoice", si_name), ("Hop Dong Ban Hang", hop_dong)):
+		try:
+			frappe.get_doc(dt, ten).add_comment("Comment", cau)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hop_dong: ghi vet gan hoa don")
+
+
 @frappe.whitelist()
-def hoa_don_chua_gan(khach_hang=None):
-	"""Hoa don 90 ngay gan nhat chua gan hop dong, de tick gan."""
+def hoa_don_chua_gan(khach_hang=None, tu_khoa="", ma_so_thue="", so_ngay=180):
+	"""Hoa don chua gan hop dong, de tick gan.
+
+	VI SAO PHAI VIET LAI (anh Viet 04/09/2026)
+	--------------------------------------------------------------------
+	Loan Anh bam "Gan hoa don vao hop dong" ma khong tim thay to vua tao.
+	Do tren du lieu that, hai cai chan cong lai:
+
+	  1. LOC CUNG THEO `customer`. Hop dong HDBH-2026-1838 mang khach hang
+	     "CONG TY TRACH NHIEM HUU HAN DENTSU VIET NAM", con hoa don
+	     HDB-26-09-00508 mang customer "KL042003" (Ms.Linh, khach le dat
+	     hang) va chi xuat VAT cho Dentsu. Loc theo customer la loai thang
+	     to do ra, du no dung la to can gan.
+	  2. CAT CON 60 TO. Ngay 04/09 co 18.711 hoa don chua gan hop dong
+	     trong 90 ngay. May lay 60 to moi nhat, va o tim trong bang chon
+	     chi tim trong 60 to DA TAI. Ke ca bo cai chan thu nhat thi van
+	     khong bao gio tim ra.
+
+	Ca hai deu im lang: man chi bao "khong co hoa don nao chua gan", khong
+	he noi la da cat bot.
+
+	Nay: khong loc cung theo khach nua ma XEP uu tien, va o tim day xuong
+	may chu - tim duoc theo so hoa don, ten khach, ten va ma so thue tren
+	hoa don VAT. Bi cat thi noi ro con bao nhieu to nua.
+	"""
 	_quyen()
+	tu_khoa = (tu_khoa or "").strip()
 	loc = {
 		"custom_hop_dong": ["in", ["", None]],
 		"docstatus": ["<", 2],
 		# Hoa don da huy thi khong gan vao hop dong duoc: gan roi la so tien
 		# hop dong sai ma khong ai nhin ra.
 		"vgb_huy": 0,
-		"posting_date": [">=", frappe.utils.add_days(frappe.utils.nowdate(), -90)],
+		"posting_date": [">=", frappe.utils.add_days(frappe.utils.nowdate(), -cint(so_ngay or 180))],
 	}
-	if khach_hang:
-		loc["customer"] = khach_hang
-	return frappe.get_all(
-		"Sales Invoice",
-		filters=loc,
-		fields=["name", "posting_date", "customer_name", "grand_total", "docstatus"],
-		order_by="posting_date desc",
-		limit_page_length=60,
-	)
+	TRUONG = ["name", "posting_date", "customer", "customer_name", "grand_total",
+		"docstatus", "vgb_xhd_ten", "vgb_xhd_mst"]
+	GIOI_HAN = 80
+
+	if tu_khoa:
+		# Moi o mot cau truy van roi gom lai: OR nhieu cot khong di qua duoc
+		# bo loc dang dict cua Frappe, ma viet SQL tay thi mat luon hang rao
+		# quyen cua get_all.
+		gom, thay = [], set()
+		for cot in ("name", "customer_name", "vgb_xhd_ten", "vgb_xhd_mst", "vgb_ma_tham_chieu"):
+			l = dict(loc)
+			l[cot] = ["like", "%" + tu_khoa + "%"]
+			try:
+				ds = frappe.get_all("Sales Invoice", filters=l, fields=TRUONG,
+					order_by="posting_date desc", limit_page_length=GIOI_HAN)
+			except Exception:
+				continue
+			for r in ds:
+				if r["name"] not in thay:
+					thay.add(r["name"])
+					gom.append(r)
+		rows = gom
+	else:
+		rows = frappe.get_all("Sales Invoice", filters=loc, fields=TRUONG,
+			order_by="posting_date desc", limit_page_length=400)
+
+	mst = (ma_so_thue or "").strip().split("-")[0]
+	kh = (khach_hang or "").strip()
+
+	def _uu_tien(r):
+		# 0 la len dau. To cua dung khach, hoac to xuat VAT dung ma so thue
+		# cua hop dong, gan nhu chac chan la to can tim.
+		if kh and r.get("customer") == kh:
+			return 0
+		if mst and (r.get("vgb_xhd_mst") or "").split("-")[0] == mst:
+			return 0
+		if kh and kh.lower() in ((r.get("vgb_xhd_ten") or "").lower()):
+			return 1
+		return 2
+
+	rows.sort(key=lambda r: (_uu_tien(r), str(r.get("posting_date") or "")[::-1]), reverse=False)
+	con = max(0, len(rows) - GIOI_HAN)
+	ra = rows[:GIOI_HAN]
+	for r in ra:
+		r["hop_ly"] = _uu_tien(r) < 2
+	return {"hoa_don": ra, "con_lai": con, "tu_khoa": tu_khoa}

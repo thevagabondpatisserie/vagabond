@@ -86,12 +86,29 @@ def chinh_cua(dong):
 	Thứ tự dòng là thứ tự khách trả, nên dòng trước là lần trả đầu; chọn
 	theo chữ cái thì cùng một đơn nhập lại có thể ra phương thức chính
 	khác, mà ô đó đang là căn cứ cho chốt ca và hoá đơn điện tử.
+
+	DÒNG CÔNG NỢ KHÔNG ĐƯỢC LÀM PHƯƠNG THỨC CHÍNH khi tờ đã thu được đồng
+	nào (anh Việt 04/09/2026: *"Công nợ là phần chưa thu, không phải phương
+	thức thanh toán thành công"*). Ô chính đi thẳng vào mã hình thức thanh
+	toán gửi cơ quan thuế và vào màn chốt ca; điền "Công nợ" vào đó là khai
+	sai với thuế một khoản tiền đã thu thật.
+
+	Cả tờ đều là công nợ thì mới lấy chính nó, vì lúc đó không còn gì khác.
 	"""
+	from vagabond.thu_tien import la_cong_no
+
 	chon = None
 	for d in dong or []:
+		if la_cong_no(d.get("pt")):
+			continue
 		if chon is None or _so(d.get("so_tien")) > _so(chon.get("so_tien")):
 			chon = d
-	return (chon or {}).get("pt") or ""
+	if chon is not None:
+		return chon.get("pt") or ""
+	for d in dong or []:
+		if d.get("pt"):
+			return d.get("pt")
+	return ""
 
 
 def lech(dong, tong_don):
@@ -125,8 +142,15 @@ def ma_thue_cua(dong, ma_theo_pt):
 	Có mã lạ hay thiếu mã thì trả rỗng chứ KHÔNG đoán: gửi sai mã sang cơ
 	quan thuế thì lỗi hiện ở bên đó, không hiện trên màn của mình.
 	"""
+	from vagabond.thu_tien import la_cong_no
+
 	thay = []
 	for d in dong or []:
+		# Phan CHUA THU khong co ma hinh thuc thanh toan nao ca. De no lot
+		# vao day thi phep tra ma tra rong, va ca to di sang co quan thue
+		# khong mang ma nao.
+		if la_cong_no(d.get("pt")):
+			continue
 		ma = (ma_theo_pt or {}).get((d.get("pt") or "").strip())
 		ma = (ma or "").strip()
 		if not ma:
@@ -319,6 +343,38 @@ def kiem_truoc_ghi_so(doc):
 		% (_vnd(tong(dong)), _vnd(tong_don),
 			"thừa" if l > 0 else "thiếu", _vnd(abs(l)))
 	)
+
+
+def sau_khi_ghi_so(doc, method=None):
+	"""Ghi so xong thi sinh chung tu thu tien cho phan DA THU THAT.
+
+	Anh Viet 04/09/2026, nguyen tac 2: *"Chi Payment Entry hoac giao dich da
+	xac nhan tu Tien mat, ATM, OnePay, Chuyen khoan moi giam Outstanding
+	Amount."* Truoc ban nay bang dong chi dung de dem ket cuoi ca, khong he
+	di vao so cai, nen mot to tra truoc mot nua van treo no ca to.
+
+	CHI chay cho to CO BANG DONG. To mot phuong thuc di nguyen duong cu,
+	khong dong nao doi - do la cua giu cho 2.183 to cu nam yen (xem dau tep
+	vagabond/thu_tien.py).
+
+	Loi o day khong duoc lam rot viec ghi so: to da vao sach roi, khong the
+	vi mot chung tu chua sinh duoc ma keo ca to ra. Ghi nhat ky de co nguoi
+	di sinh lai.
+	"""
+	try:
+		dong = gom_dong([
+			{"pt": d.get("pt"), "so_tien": d.get("so_tien")}
+			for d in (doc.get(BANG) or [])
+		])
+		if not dong:
+			return
+		from vagabond import thu_tien as tt
+
+		if not tt.da_thu_that(dong):
+			return
+		tt.ghi_thu_tien(doc.name, dong, nguon="ghi_so", ghi_chu="Ghi sổ hoá đơn.")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thanh_toan_nhieu: sinh chung tu thu tien")
 
 
 def _vnd(so):
