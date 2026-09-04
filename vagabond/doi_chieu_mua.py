@@ -923,6 +923,18 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 	doc.save()
 	frappe.db.commit()
 
+	# DEM LAI TREN TO, dung dem tren cai doc cam tren tay truoc khi luu.
+	#
+	# Hook `dung_lai_hddt.dong_bo_luc_luu` co quyen dung lai ca bang dong
+	# hang ngay trong luot luu nay. No co goi lai `_noi` de gan lai phieu
+	# nhap, nhung "co goi lai" khong bang "da dem tren to". Bao da noi 5
+	# dong trong khi tren to chi con 3 la day ke toan di ghi so mot to chua
+	# du. Doc lai to roi hay bao so (04/09/2026).
+	sau = frappe.get_doc("Purchase Invoice", name)
+	that = len([1 for x in sau.items if (x.get("purchase_receipt") or "").strip()])
+	if that < cint(kq["da_noi"]):
+		kq["da_noi"] = that
+
 	con_lai = [x["cau"] for x in kq["chan_ghi_so"]]
 	bo_qua = [x["cau"] for x in kq["khong_qua_kho"]]
 
@@ -998,6 +1010,7 @@ def sua_don_vi(name, dong=None, dvt=None):
 		str(x).strip() for x in (dong or [])
 	]
 	sua = 0
+	da_doi = []
 	for d in doc.items:
 		if ds_dong and d.name not in ds_dong and str(d.idx) not in ds_dong:
 			continue
@@ -1015,12 +1028,34 @@ def sua_don_vi(name, dong=None, dvt=None):
 			continue
 		d.uom = dvt
 		d.conversion_factor = hs
+		da_doi.append(cint(d.idx))
 		sua += 1
 	if not sua:
 		frappe.throw("Không có dòng nào cần đổi đơn vị.")
 	doc.flags.ignore_permissions = True
 	doc.save()
 	frappe.db.commit()
+
+	# XEM LAI DUNG NHUNG DONG MINH VUA DOI. To dang lech tong voi hoa don
+	# dien tu thi nhip luu co the dung lai ca bang dong hang, va don vi vua
+	# doi bi tra ve don vi may tra ra. Bao "da sua" ma tren to khong doi la
+	# noi sai (04/09/2026). Dem ca to thi khong ke gi, vi dong khac von da
+	# mang san don vi do.
+	sau = frappe.get_doc("Purchase Invoice", name)
+	con = len([
+		1 for x in sau.items
+		if cint(x.idx) in da_doi and dvt_mua.cung_don_vi(x.get("uom"), dvt)
+	])
+	if not con:
+		return {
+			"da_sua": 0, "name": doc.name, "khong_giu_duoc": 1,
+			"loi_nhan": (
+				"Đã đổi đơn vị nhưng tờ này vừa được dựng lại theo hoá đơn điện "
+				"tử trong cùng lượt lưu nên đơn vị chưa giữ được. Kiểm tra tổng "
+				"tiền của tờ so với hoá đơn điện tử trước, khớp rồi hãy đổi đơn "
+				"vị lại."
+			),
+		}
 	return {"da_sua": sua, "name": doc.name}
 
 
@@ -1123,15 +1158,24 @@ def khai_don_vi(item_code, dvt, he_so):
 
 
 def _mst_cua_to(doc):
-	"""Ma so thue cua nha cung cap tren mot to hoa don. '' neu chiu.
+	"""Ma so thue GOC cua nha cung cap tren mot to hoa don. '' neu chiu.
 
 	Doc tren chinh to truoc, roi moi lui ve ho so Nha cung cap: to hoa don
 	dien tu mang MST cua ban goc, con ho so co the da bi sua tay.
+
+	CAT DUOI CHI NHANH (04/09/2026). MST chi nhanh co dang "0108269207-005".
+	Duong tra anh xa trong `minvoice_chung_tu._tra_ma_hang` luon cat o dau
+	gach roi moi tra, con cho nay truoc do tra ve nguyen ca duoi. Nen moi
+	lan ai bam "Gan ma hang" tren to cua mot chi nhanh, cai ghi nho di vao
+	mot khoa KHONG AI DOC, va lan sau van phai bam lai - im lang, khong bao
+	loi. He dang co 39 nha cung cap mang MST kieu nay.
 	"""
 	mst = str(doc.get("tax_id") or "").strip()
-	if mst:
-		return mst
-	return str(frappe.db.get_value("Supplier", doc.get("supplier"), "tax_id") or "").strip()
+	if not mst:
+		mst = str(
+			frappe.db.get_value("Supplier", doc.get("supplier"), "tax_id") or ""
+		).strip()
+	return mst.split("-")[0]
 
 
 @frappe.whitelist()
@@ -1164,7 +1208,7 @@ def goi_y_mon(name, dong):
 	if not d:
 		frappe.throw("Không tìm thấy dòng %s trên hoá đơn %s." % (dong, name))
 
-	ten_ncc = (d.item_name or "").strip()
+	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
 	mst = _mst_cua_to(doc)
 
 	# 1. Mon nam tren phieu nhap chua thanh toan cua chinh nha cung cap nay.
@@ -1274,7 +1318,9 @@ def gan_ma_hang(name, dong, item_code, nho=1):
 	if (d.get("item_code") or "").strip():
 		frappe.throw("Dòng %d đã có mã hàng %s rồi." % (d.idx, d.item_code))
 
-	ten_ncc = (d.item_name or "").strip()
+	# TEN NHA CUNG CAP GHI, khong phai ten Mon cua minh. O `ten_hang_ncc`
+	# la o duoc ghi luc dung to va khong bi ERPNext thay, nen doc no truoc.
+	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
 	dvt_ncc = (d.get("uom") or "").strip()
 
 	# NAN LAI DON VI. Don vi tho cua nha cung cap ("BAG", "TRAI") duoc dich
@@ -1299,6 +1345,11 @@ def gan_ma_hang(name, dong, item_code, nho=1):
 	d.conversion_factor = he_so_moi
 	if not (d.get("stock_uom") or "").strip():
 		d.stock_uom = dvt_kho
+	# Giu lai ten nha cung cap ghi TRUOC khi ERPNext thay `item_name` bang
+	# ten Mon cua minh. Mat ten do la mat cai khoa duy nhat de dung lai to
+	# ma van giu duoc ma hang vua gan.
+	if not (d.get("ten_hang_ncc") or "").strip() and ten_ncc:
+		d.ten_hang_ncc = ten_ncc[:140]
 	doc.flags.ignore_permissions = True
 	doc.save()
 
@@ -1324,12 +1375,44 @@ def gan_ma_hang(name, dong, item_code, nho=1):
 			da_nho = 1
 
 	frappe.db.commit()
+
+	# LUU XONG PHAI XEM LAI TREN TO, DUNG TIN CAI DONG CAM TREN TAY.
+	#
+	# Hook `dung_lai_hddt.dong_bo_luc_luu` co quyen dung lai ca bang dong
+	# hang ngay trong chinh luot luu vua roi, nen `d` co the da roi khoi to.
+	# Bao "da gan" trong khi tren to khong co ma nao la day nguoi ta di lam
+	# tiep tren mot thu khong co that: Uyen bam nut, nhan cau bao thanh
+	# cong, roi ngoi cho mot to khong bao gio noi duoc phieu nhap. Ca that
+	# HDM-26-08-00149 Green Ball ngay 04/09/2026.
+	sau = frappe.get_doc("Purchase Invoice", name)
+	theo_ten = [
+		x for x in sau.items
+		if ten_ncc and str(x.get("ten_hang_ncc") or "").strip() == ten_ncc[:140]
+	]
+	theo_so = [x for x in sau.items if cint(x.idx) == idx]
+	con = ""
+	for x in (theo_ten or theo_so):
+		con = str(x.get("item_code") or "").strip()
+		if con:
+			break
+	if con != item_code:
+		return {
+			"name": doc.name, "idx": idx, "item_code": con,
+			"dvt": dung_uom, "he_so": he_so_moi, "da_nho": da_nho,
+			"chua_khai_don_vi": 0, "khong_giu_duoc": 1,
+			"loi_nhan": (
+				"Đã chọn món nhưng tờ này vừa được dựng lại theo hoá đơn điện tử "
+				"trong cùng lượt lưu nên dòng %d chưa giữ được mã hàng. "
+				"Mở lại tờ và bấm gắn lần nữa; nếu vẫn không giữ được thì báo "
+				"kỹ thuật, đừng nối phiếu nhập khi dòng còn trống mã." % idx
+			),
+		}
 	return {
-		"name": doc.name, "idx": d.idx, "item_code": item_code,
+		"name": doc.name, "idx": idx, "item_code": item_code,
 		"dvt": dung_uom, "he_so": he_so_moi, "da_nho": da_nho,
 		"chua_khai_don_vi": 1 if (dvt_ncc and not dvt_mua.cung_don_vi(dvt_ncc, dung_uom)
 			and abs(he_so_moi - 1.0) < 1e-9) else 0,
-		"loi_nhan": ("Đã gắn món cho dòng %d." % d.idx)
+		"loi_nhan": ("Đã gắn món cho dòng %d." % idx)
 		+ (" Từ giờ nhà cung cấp này gửi \"%s\" là máy tự nhận." % ten_ncc if da_nho else "")
 		+ (" Đơn vị \"%s\" món này chưa khai nên tạm để %s, nhớ khai đơn vị."
 			% (dvt_ncc, dung_uom)
