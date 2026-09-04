@@ -252,24 +252,63 @@ def _hd_da_gom():
 def ds_khach_no():
 	"""Danh sach khach dang con no, kem so tien va so hoa don.
 
-	Chi tinh hoa don DA GHI SO va co phuong thuc Cong no - hoa don nhap
-	con o ban nhap thi chua phai la no that.
+	Chi tinh hoa don DA GHI SO - hoa don con o ban nhap thi chua phai no.
+
+	SO NO LA PHAN CHUA THU, KHONG PHAI CA TO (anh Viet 04/09/2026)
+	--------------------------------------------------------------------
+	Ban truoc quet theo CO `vgb_pt_thanh_toan = "Cong no"` roi cong thang
+	`grand_total`. Hai cai sai nam trong mot dong:
+
+	  * Cong ca to thi thu bao nhieu cung khong tru ra. Hoa don 92523 tra
+	    truoc 21.989.250 tren tong 43.978.500 van bi doi ca 43.978.500.
+	  * Doc CO thi to nao co con ghi Cong no la con no, du tien da ve. Ca
+	    Ms.Amber: phieu doi no da ghi thu du 21.000.000 ma to hoa don van
+	    nam trong danh sach.
+
+	Nay so no tinh boi `thu_tien.con_no_cua`, doc ca dong thanh toan lan
+	du no so cai. Doc phan dau `vagabond/thu_tien.py` truoc khi sua cho
+	nay: co mot phep `min` o do ganh ca 2.183 to cu chua co chung tu thu
+	tien, bo di la man cong no nhay tu 115 trieu len 1,31 ty.
+
+	Quet ca hai duong: to mang co Cong no, VA to co dong thanh toan ghi
+	Cong no. Duong thu hai bat duoc to tra hon hop ma phan da thu lon hon
+	phan no, vi khi do o phuong thuc chinh ghi ten phuong thuc kia.
 	"""
 	_kiem_quyen()
+	from vagabond import thu_tien as tt
+
+	TRUONG = [
+		"name", "customer", "customer_name", "posting_date",
+		"grand_total", "outstanding_amount", "vgb_pt_thanh_toan",
+		"custom_nguon", "vgb_quay", "vgb_ma_tham_chieu", "vgb_khach_no",
+	]
 	rows = frappe.get_all(
 		"Sales Invoice",
 		filters={"docstatus": 1, "vgb_pt_thanh_toan": "Công nợ"},
-		fields=[
-			"name", "customer", "customer_name", "posting_date",
-			"grand_total", "custom_nguon", "vgb_quay", "vgb_ma_tham_chieu",
-			"vgb_khach_no",
-		],
+		fields=TRUONG,
 		order_by="posting_date asc",
 		limit_page_length=0,
 	)
+	da_co = {r["name"] for r in rows}
+	them = [x for x in tt.si_co_dong_cong_no() if x not in da_co]
+	for i in range(0, len(them), 200):
+		rows += frappe.get_all(
+			"Sales Invoice",
+			filters={"docstatus": 1, "name": ["in", them[i:i + 200]]},
+			fields=TRUONG, limit_page_length=0,
+		)
+	rows.sort(key=lambda r: str(r.get("posting_date") or ""))
+	bang_dong = tt.bang_dong_cua([r["name"] for r in rows])
 	da_gom = _hd_da_gom()
 	khach = {}
 	for r in rows:
+		r["con_no"] = tt.con_no_cua(
+			r.get("grand_total"), r.get("outstanding_amount"),
+			bang_dong.get(r["name"]) or [], r.get("vgb_pt_thanh_toan"),
+		)
+		# Da thu het thi khong con la no, du co con ghi gi di nua.
+		if r["con_no"] <= 0:
+			continue
 		# Don da ghi so roi moi phat hien gan nham khach le thi ke toan gan
 		# chu no vao truong phu vgb_khach_no - khong sua duoc customer nua
 		# vi but toan da len so cai. Cot phu nay uu tien hon customer.
@@ -293,14 +332,18 @@ def ds_khach_no():
 		if r.name in da_gom:
 			continue
 		o["so_hd"] += 1
-		o["tien"] += flt(r.grand_total)
+		o["tien"] += flt(r["con_no"])
 		if not o["cu_nhat"] or str(r.posting_date) < o["cu_nhat"]:
 			o["cu_nhat"] = str(r.posting_date)
 		o["hd"].append(
 			{
 				"name": r.name,
 				"ngay": str(r.posting_date),
-				"tien": flt(r.grand_total),
+				# `tien` la SO CON PHAI DOI, khong phai tong to. Man hinh bay
+				# ca hai de nguoi doc thay ngay to nao da tra mot phan.
+				"tien": flt(r["con_no"]),
+				"tong_don": flt(r.grand_total),
+				"da_thu": flt(r.grand_total) - flt(r["con_no"]),
 				"nguon": r.custom_nguon or "",
 				"quay": r.vgb_quay or "",
 				"ma": r.vgb_ma_tham_chieu or "",
@@ -443,6 +486,67 @@ def xem_phieu(name):
 	}
 
 
+def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu=""):
+	"""Sinh chung tu thu tien cho cac hoa don trong mot phieu doi no.
+
+	VI SAO PHAI CO (anh Viet 04/09/2026)
+	--------------------------------------------------------------------
+	Truoc ban nay phieu doi no chuyen sang "Da thu du" ma khong sinh chung
+	tu nao. Ba hau qua, do duoc tren du lieu that:
+
+	  * Hoa don roi khoi phep loai "dang nam trong phieu cho thu" (phep do
+	    chi tinh phieu "Cho thu" va "Thu thieu"), nen QUAY LAI danh sach
+	    khach dang no. Dung ca Ms.Amber ngay 04/09.
+	  * So cai van ghi khach no. Phieu DNTT-26-09-00001 ghi da thu du
+	    21.000.000 ma hoa don HDB-26-08-02800 van du no 21.000.000.
+	  * Tien vao ngan hang khong duoc ghi doi ung o dau ca.
+
+	Phan bo theo thu tu hoa don cu truoc: khoan cu la khoan de mat nhat,
+	tra duoc dong nao thi tra dong cu nhat truoc.
+
+	Loi o day KHONG duoc lam rot viec danh dau phieu: tien da ve that roi,
+	khong the vi mot chung tu chua sinh duoc ma bat ke toan lam lai tu dau.
+	Ghi nhat ky va noi ro tren phieu de co nguoi di sinh lai.
+	"""
+	from vagabond import thu_tien as tt
+
+	con = flt(doc.da_thu)
+	if con <= 0:
+		return []
+	ds = frappe.get_all(
+		"Vagabond Cong No Dong",
+		filters={"parent": doc.name},
+		fields=["hoa_don"], order_by="idx asc", limit_page_length=0,
+	)
+	ten = [r["hoa_don"] for r in ds if r.get("hoa_don")]
+	if not ten:
+		return []
+	hd = frappe.get_all(
+		"Sales Invoice",
+		filters={"name": ["in", ten], "docstatus": 1, "outstanding_amount": [">", 0]},
+		fields=["name", "outstanding_amount", "posting_date"],
+		order_by="posting_date asc", limit_page_length=0,
+	)
+	ra = []
+	for h in hd:
+		if con <= 0:
+			break
+		phan = min(flt(h["outstanding_amount"]), con)
+		if phan <= 0:
+			continue
+		try:
+			ra += tt.ghi_thu_tien(
+				h["name"], [{"pt": pt, "so_tien": phan}],
+				nguon="phieu:%s" % doc.name,
+				ghi_chu=("Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, ghi_chu)).strip(),
+			)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "cong_no: sinh chung tu thu tien")
+			continue
+		con -= phan
+	return ra
+
+
 @frappe.whitelist()
 def kiem_sepay(name):
 	"""Doi chieu voi SePay va tu clear cong no khi tien da ve du."""
@@ -468,6 +572,10 @@ def kiem_sepay(name):
 	da_du_truoc = truoc == "Da thu du"
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
+	# TIEN VE THI SO CAI PHAI BIET. Xem `ghi_thu_cho_phieu`.
+	if doc.da_thu and not da_du_truoc:
+		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Đối chiếu SePay.")
+		frappe.db.commit()
 	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
 	if doc.trang_thai == "Da thu du" and not da_du_truoc:
 		try:
@@ -1136,6 +1244,9 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 		),
 	)
 	frappe.db.commit()
+	if truoc != "Da thu du":
+		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.")
+		frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
 		try:
 			_gui_thu_da_nhan(doc)

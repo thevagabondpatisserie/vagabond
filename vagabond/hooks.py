@@ -601,6 +601,12 @@ doc_events = {
 			# Don tra bang Hang tang: gat cong no sang chi phi bieu tang de
 			# khach tra 0 dong, con hoa don van giu nguyen gia va thue.
 			"vagabond.hang_tang.sau_khi_ghi_so",
+			# To co BANG DONG THANH TOAN thi sinh chung tu thu tien cho phan
+			# da thu that, de du no so cai dung ngay tu dau. Dat CUOI cung
+			# trong day on_submit: hai ham tren co the gat cong no sang chi
+			# phi bieu tang, chay truoc chung la ghi thu mot khoan roi bi
+			# gat di ngay sau. Xem dau tep vagabond/thu_tien.py.
+			"vagabond.thanh_toan_nhieu.sau_khi_ghi_so",
 		],
 		# Huy hoa don kenh khac thi tra so lai cho bang kiem banh. Truoc day
 		# co ca after_delete o day, nay bo di: khong ai xoa duoc hoa don nua

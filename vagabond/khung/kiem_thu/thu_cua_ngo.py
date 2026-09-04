@@ -240,6 +240,10 @@ CUA_NGO = {
 	# (gom_dong, chinh_cua, tach_theo_pt...) va hai hook (dat_pt_chinh,
 	# kiem_truoc_ghi_so) TUYET DOI khong mo ra ngoai.
 	"thanh_toan_nhieu.py": ["luu", "xem"],
+	# Thu tien hoa don ban, them 04/09/2026. `tom_tat` cho man hinh doc bon
+	# con so; `soat_thieu_chung_tu` la bang LIET KE cho ke toan truong, chi
+	# doc, khong sinh chung tu nao (dieu 11).
+	"thu_tien.py": ["soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
 		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
 		"xuat_excel", "xuat_excel_phieu"],
