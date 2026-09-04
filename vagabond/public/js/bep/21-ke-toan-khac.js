@@ -920,10 +920,14 @@ async function bgNhapExcel() {
 var nqLoc = '', nqNgay = 30, nqTim = '';
 var nqXem = null;
 var NQ_MENH_GIA = [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000];
+/* Ma phieu dang mo tren man Sua cua giam doc. Bien rieng chu khong dung
+   chung `nqXem`: mo man Sua roi bam Thoi thi phai quay ve dung phieu do. */
+var nqSuaMa = '';
 var NQ_MAU_TT = {
   'Nháp': ['#f2f4f7', '#6b7280'],
   'Chờ ký nhận': ['#fef3c7', '#92400e'],
-  'Đã nộp quỹ': ['#dcfce7', '#166534']
+  'Đã nộp quỹ': ['#dcfce7', '#166534'],
+  'Đã huỷ': ['#f2f4f7', '#98a2b3']
 };
 
 function nqChipTt(tt) {
@@ -984,7 +988,7 @@ async function scrNopQuy() {
   var html = '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng'], [0, 'Tất cả']], nqNgay, 'data-nqngay') + '</div>';
   html += '<div class="card" style="padding:10px 12px"><div style="display:flex;flex-wrap:wrap;gap:8px">' +
-    [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ ký nhận', 'Chờ ký nhận'], ['Đã nộp quỹ', 'Đã nộp quỹ']].map(function (c) {
+    [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ ký nhận', 'Chờ ký nhận'], ['Đã nộp quỹ', 'Đã nộp quỹ'], ['Đã huỷ', 'Đã huỷ']].map(function (c) {
       var on = nqLoc === c[0];
       var so = dem[c[0]] !== undefined ? dem[c[0]] : 0;
       return '<button class="chip' + (on ? ' on' : '') + '" data-nqloc="' + h(c[0]) + '" style="font-family:inherit">' + h(c[1]) + ' · ' + so + '</button>';
@@ -1190,6 +1194,18 @@ async function scrNopQuyXem() {
         (anh ? '<img src="' + anh + '" style="height:64px;max-width:100%;object-fit:contain">' : '<div style="height:64px;display:flex;align-items:center;justify-content:center;color:#c3c8d4">✍️</div>') +
         '<div style="font-size:12.5px;font-weight:600">' + h(ten) + '</div></div>';
     }).join('') + '</div></div>';
+  /* Phieu da huy: noi thang ai huy, luc nao, vi sao. Phieu van con nam do
+     va van doc duoc - huy chu khong xoa - nen phai co cho de doc cai ly do,
+     khong thi nguoi mo ra chi thay mot phieu cu ma khong hieu chuyen gi. */
+  if (d.trang_thai === 'Đã huỷ') {
+    html = '<div class="card" style="padding:12px 14px;background:#f9fafb;border:1px solid #e4e7ec">' +
+      '<b style="font-size:13.5px;color:#475467">Phiếu này đã huỷ</b>' +
+      '<div style="font-size:12.5px;color:#667085;margin-top:4px">' +
+      h(d.ten_nguoi_huy || d.huy_boi || '') + (d.huy_luc ? ' · ' + h(String(d.huy_luc).slice(0, 16)) : '') + '</div>' +
+      (d.ly_do_huy ? '<div style="font-size:13px;color:#344054;margin-top:6px">Lý do: ' + h(d.ly_do_huy) + '</div>' : '') +
+      '<div style="font-size:12px;color:#98a2b3;margin-top:6px">Phiếu vẫn giữ nguyên trong hệ để tra cứu, ' +
+      'nhưng không còn giữ chỗ khoảng ngày của điểm bán nữa.</div></div>' + html;
+  }
   var nut = '';
   if (d.trang_thai === 'Nháp') {
     nut += '<button class="btn" id="nqKyGiao" style="width:100%">Ký bên giao</button>';
@@ -1198,6 +1214,16 @@ async function scrNopQuyXem() {
      con chan lai lan nua trong nop_quy.ky_nhan - an nut chi la lich su. */
   if (d.trang_thai === 'Chờ ký nhận' && d.duoc_ky_nhan) {
     nut += '<button class="btn" id="nqKyNhan" style="width:100%">🖊 Ký nhận tiền (kế toán / giám đốc)</button>';
+  }
+  /* Nut Sua va Huy cua cap giam doc. May chu quyet co ve hay khong
+     (`duoc_sua_huy`), va chan lai lan nua trong `nop_quy.sua` / `nop_quy.huy`
+     - an nut chi la lich su. */
+  if (d.duoc_sua_huy && d.trang_thai !== 'Đã huỷ') {
+    nut += '<div style="display:flex;gap:9px;margin:9px 0 0">' +
+      '<button class="btn gh" id="nqSua" style="flex:1;margin:0">✏️ Sửa phiếu</button>' +
+      '<button class="btn gh" id="nqHuy" style="flex:1;margin:0;color:#b3261e">🚫 Huỷ phiếu</button></div>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:5px 2px 0">Hai nút này dành cho cấp giám đốc. ' +
+      'Huỷ là huỷ mềm, phiếu vẫn nằm nguyên trong hệ, chỉ thôi giữ chỗ khoảng ngày.</div>';
   }
   nut += '<button class="btn gh" id="nqPdf" style="width:100%">📄 Tải biên bản PDF</button>';
   html += nut;
@@ -1220,6 +1246,28 @@ async function scrNopQuyXem() {
     try { await api('vagabond.nop_quy.ky_nhan', { ma: d.ma, chu_ky: anh }); busy(false); toast('Đã ký nhận, phiếu vào quỹ ✓', 4000); go(scrNopQuyXem, true); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Không ký được', 'Ký nhận tiền'); }
   };
+  var oSua = document.getElementById('nqSua');
+  if (oSua) oSua.onclick = function () { nqSuaMa = d.ma; go(scrNopQuySua); };
+  var oHuy = document.getElementById('nqHuy');
+  if (oHuy) oHuy.onclick = async function () {
+    var dongY = await hoiCo('Huỷ phiếu ' + d.ma,
+      'Phiếu sẽ chuyển sang Đã huỷ và thôi giữ chỗ khoảng ngày của điểm bán, ' +
+      'nên lập lại phiếu đúng cho chính ngày đó được ngay.\n\n' +
+      'Phiếu KHÔNG bị xoá: vẫn tra cứu được, vẫn mang tên người huỷ và lý do.',
+      'Tiếp, ghi lý do', true);
+    if (!dongY) return;
+    var ld = await hoiChu('Lý do huỷ phiếu ' + d.ma,
+      'Ghi rõ vì sao bỏ phiếu này. Đây là dấu vết duy nhất còn lại để sau này hiểu chuyện.',
+      '', { nhieu_dong: true, bat_buoc: true, goi_y: 'Ví dụ: phiếu lập thử, trùng ngày với biên nhận thật' });
+    if (!ld) return;
+    busy(true);
+    try {
+      var k = await api('vagabond.nop_quy.huy', { ma: d.ma, ly_do: ld });
+      busy(false);
+      toast('Đã huỷ ' + d.ma + (k.so_ca_nha ? ', nhả ' + k.so_ca_nha + ' ca' : ''), 4000);
+      go(scrNopQuyXem, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không huỷ được', 'Huỷ phiếu'); }
+  };
   document.getElementById('nqPdf').onclick = async function () {
     busy(true);
     try {
@@ -1228,5 +1276,155 @@ async function scrNopQuyXem() {
       bcTaiVe(fl.ten_file, fl.b64, fl.kieu || 'application/pdf');
       toast('Đã tải ' + fl.ten_file, 3500);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không xuất được PDF', 'Tải PDF'); }
+  };
+}
+
+
+/* ---- Man SUA phieu nop quy, danh cho cap giam doc ----------------------
+
+   Anh Viet 04/09/2026: "luon co nut sua/huy (chu khong xoa) danh cho cap
+   giam doc cho moi loai phieu".
+
+   Sua la DAP CHU KY, khong phai chinh len. To bien ban co hai chu ky la de
+   hai ben xac nhan CUNG MOT con so; sua con so ma giu nguyen chu ky cu thi
+   chu ky do dang xac nhan mot thu khong con ton tai. Luat that nam o may
+   chu trong `nop_quy.sua`, man nay chi noi truoc cho nguoi ta biet. */
+async function scrNopQuySua() {
+  frame('Sửa phiếu nộp quỹ', '<div class="emp"><div class="e1">⏳</div></div>');
+  var d;
+  try { d = await api('vagabond.nop_quy.chi_tiet', { ma: nqSuaMa }); }
+  catch (e) { frame('Sửa phiếu nộp quỹ', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || '') + '</div></div>'); return; }
+  if (!d.duoc_sua_huy) {
+    frame('Sửa phiếu nộp quỹ', '<div class="emp"><div class="e1">🔒</div><div>Chỉ cấp giám đốc mới sửa được phiếu.</div></div>');
+    return;
+  }
+  var theoNgay = d.nguon_ky_vong === 'Doanh thu tiền mặt theo ngày';
+  var soTo = {};
+  (d.menh_gia || []).forEach(function (m) { soTo[m.menh_gia] = m.so_to; });
+
+  var canh = d.trang_thai === 'Đã nộp quỹ'
+    ? 'Phiếu đang ở <b>Đã nộp quỹ</b>. Sửa xong phiếu rơi về <b>Chờ ký nhận</b>, chữ ký bên nhận bị xoá và bên nhận phải ký lại.'
+    : (d.trang_thai === 'Chờ ký nhận'
+      ? 'Phiếu đang ở <b>Chờ ký nhận</b>. Nếu sửa vào <b>số tiền</b> hoặc <b>khoảng ngày</b> thì phiếu rơi về <b>Nháp</b> và bên giao phải ký lại.'
+      : 'Phiếu đang ở <b>Nháp</b>, chưa ai ký nên sửa thoải mái.');
+
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<b style="font-size:15px">' + h(d.ma) + '</b> ' + nqChipTt(d.trang_thai) +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:4px">' + h(d.ten_diem_ban || '') + '</div></div>';
+  html += '<div class="card" style="padding:11px 13px;background:#fffaeb;border:1px solid #fedf89;font-size:12.5px;color:#93370d;line-height:1.6">' + canh + '</div>';
+
+  if (theoNgay) {
+    html += '<div class="vf"><div class="vfh"><span class="ic">📅</span><b>Khoảng ngày doanh thu</b></div>' +
+      /* Hai lua chon thi bay ra thanh hai chip, khong xo danh sach. AGENTS.md
+         muc 2b, va ca kiem thu_nguyen_tac_man_hinh.py giu cho no khong troi. */
+      '<div class="vxl">Phạm vi</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:4px">' +
+      ['Một ngày', 'Khoảng ngày'].map(function (x) {
+        return '<button class="chip' + (d.pham_vi === x ? ' on' : '') + '" data-nqspv="' + h(x) +
+          '" style="font-family:inherit">' + h(x) + '</button>';
+      }).join('') + '</div>' +
+      '<div class="vxl">Từ ngày</div><input class="vfi" type="date" id="nqsTu" value="' + h(d.tu_ngay) + '">' +
+      '<div id="nqsKhoiDen"' + (d.pham_vi === 'Khoảng ngày' ? '' : ' style="display:none"') + '>' +
+      '<div class="vxl">Đến ngày</div><input class="vfi" type="date" id="nqsDen" value="' + h(d.den_ngay) + '"></div>' +
+      '<div class="vfm">Đổi ngày thì máy đọc lại doanh thu tiền mặt của khoảng ngày mới làm kỳ vọng, ' +
+      'và chặn nếu đụng phiếu khác của cùng điểm bán.</div></div>';
+  } else {
+    html += '<div class="card" style="padding:11px 13px;font-size:12.5px;color:#667085">' +
+      'Phiếu này lấy kỳ vọng từ các ca đã chốt nên khoảng ngày do chính các ca quyết định, không sửa tay được. ' +
+      'Muốn đổi ngày thì huỷ phiếu rồi gom lại ca khác.</div>';
+  }
+
+  html += '<div class="vf"><div class="vfh"><span class="ic">🧾</span><b>Bảng kê mệnh giá</b></div>' +
+    NQ_MENH_GIA.map(function (mg, i) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0' + (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
+        '<div style="width:88px;text-align:right;font-weight:700">' + money(mg) + '</div>' +
+        '<div style="color:#98a2b3;font-size:12px">đ ×</div>' +
+        '<input class="tin nqsTo" data-mg="' + mg + '" inputmode="numeric" placeholder="0" value="' +
+        (soTo[mg] ? soTo[mg] : '') + '" style="width:82px;text-align:right;margin:0">' +
+        '<div style="flex:1;text-align:right;font-size:13px" id="nqsTt' + mg + '">' +
+        money((soTo[mg] || 0) * mg) + ' đ</div></div>';
+    }).join('') +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #101828;font-size:15px">' +
+    '<b>Tổng thực nhận</b><b id="nqsTong">' + money(d.tong_thuc_nhan) + ' đ</b></div></div>';
+
+  html += '<div class="vf"><div class="vfh"><span class="ic">📝</span><b>Nội dung và ghi chú</b></div>' +
+    '<div class="vxl">Nội dung nộp tiền</div><input class="vfi" id="nqsNd" value="' + h(d.noi_dung || '') + '">' +
+    '<div class="vxl">Nơi giao nhận</div><input class="vfi" id="nqsNoi" value="' + h(d.noi_giao_nhan || '') + '">' +
+    '<div class="vxl">Lý do lệch</div><input class="vfi" id="nqsLdl" value="' + h(d.ly_do_lech || '') + '" placeholder="Bắt buộc khi lệch từ ngưỡng trở lên">' +
+    '<div class="vxl">Ghi chú</div><input class="vfi" id="nqsGc" value="' + h(d.ghi_chu || '') + '"></div>';
+
+  html += '<div class="vf"><div class="vfh"><span class="ic">✍️</span><b>Lý do sửa</b>' +
+    '<span style="margin-left:7px;background:#fef2f2;border:1px solid #fecaca;color:#b3261e;' +
+    'border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700">bắt buộc</span></div>' +
+    '<textarea class="tin" id="nqsLd" rows="3" style="margin:0" ' +
+    'placeholder="Ví dụ: đếm lại thiếu một tờ 500.000, sửa bảng kê"></textarea>' +
+    '<div class="vfm">Câu này đi vào nhật ký của phiếu. Sau này mở ra đọc, nó là thứ duy nhất còn lại ' +
+    'để hiểu vì sao con số đổi.</div></div>';
+
+  html += '<div style="display:flex;gap:9px">' +
+    '<button class="btn gh" id="nqsThoi" style="flex:1;margin:0">Thôi</button>' +
+    '<button class="btn" id="nqsLuu" style="flex:2;margin:0">Lưu sửa</button></div>';
+
+  var b = frame('Sửa phiếu ' + d.ma, html);
+
+  /* Chip pham vi: giu lua chon trong mot bien chu khong doc nguoc tu DOM,
+     de doan gui di khong phu thuoc vao nut nao dang sang. */
+  var nqsPv = d.pham_vi || 'Một ngày';
+  b.querySelectorAll('[data-nqspv]').forEach(function (o) {
+    o.onclick = function () {
+      nqsPv = o.getAttribute('data-nqspv');
+      b.querySelectorAll('[data-nqspv]').forEach(function (x) {
+        x.classList.toggle('on', x.getAttribute('data-nqspv') === nqsPv);
+      });
+      var kh = document.getElementById('nqsKhoiDen');
+      if (kh) kh.style.display = nqsPv === 'Khoảng ngày' ? '' : 'none';
+    };
+  });
+
+  function tinhTong() {
+    var tong = 0;
+    b.querySelectorAll('.nqsTo').forEach(function (o) {
+      var mg = Number(o.getAttribute('data-mg'));
+      var so = Math.max(0, parseInt(String(o.value).replace(/[^0-9]/g, ''), 10) || 0);
+      tong += mg * so;
+      var oT = document.getElementById('nqsTt' + mg);
+      if (oT) oT.textContent = money(mg * so) + ' đ';
+    });
+    document.getElementById('nqsTong').textContent = money(tong) + ' đ';
+    return tong;
+  }
+  b.querySelectorAll('.nqsTo').forEach(function (o) { o.oninput = tinhTong; });
+
+  document.getElementById('nqsThoi').onclick = function () { nqXem = d.ma; go(scrNopQuyXem, true); };
+  document.getElementById('nqsLuu').onclick = async function () {
+    var ld = String(document.getElementById('nqsLd').value || '').trim();
+    if (ld.length < 8) { baoTin('Phải ghi lý do sửa, ít nhất 8 ký tự.', 'Thiếu lý do'); return; }
+    var bang = {};
+    b.querySelectorAll('.nqsTo').forEach(function (o) {
+      var so = Math.max(0, parseInt(String(o.value).replace(/[^0-9]/g, ''), 10) || 0);
+      if (so > 0) bang[o.getAttribute('data-mg')] = so;
+    });
+    if (!Object.keys(bang).length) { baoTin('Bảng kê mệnh giá đang trống. Phiếu nộp tiền phải có tờ nào đó.', 'Bảng kê trống'); return; }
+    var ts = {
+      ma: d.ma, ly_do: ld, bang_ke: JSON.stringify(bang),
+      noi_dung: document.getElementById('nqsNd').value,
+      noi_giao_nhan: document.getElementById('nqsNoi').value,
+      ly_do_lech: document.getElementById('nqsLdl').value,
+      ghi_chu: document.getElementById('nqsGc').value
+    };
+    if (theoNgay) {
+      ts.pham_vi = nqsPv;
+      ts.tu_ngay = document.getElementById('nqsTu').value;
+      ts.den_ngay = nqsPv === 'Một ngày' ? document.getElementById('nqsTu').value
+        : document.getElementById('nqsDen').value;
+    }
+    busy(true);
+    try {
+      var k = await api('vagabond.nop_quy.sua', ts);
+      busy(false);
+      toast('Đã sửa ' + k.ma + (k.trang_thai !== k.tt_cu ? ', phiếu về ' + k.trang_thai : ''), 4500);
+      nqXem = d.ma;
+      go(scrNopQuyXem, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không sửa được', 'Sửa phiếu'); }
   };
 }
