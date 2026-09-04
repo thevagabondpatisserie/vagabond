@@ -299,12 +299,41 @@ async function freshOf(codes) {
   rows.forEach(function (r) { if (r.custom_lam_tuoi && r.is_stock_item) m[r.name] = 1; });
   return m;
 }
+/* Me nao cua lenh nay con dung duoc. THUAN.
+
+   `cacMe` xep me moi nhat len truoc, `daGhiSo` la cac me DA bi tru tren mot
+   phieu kho da ghi so. Tra ve me moi nhat chua ghi so, khong co thi tra ve
+   chuoi rong de ben goi tu lam me moi. */
+function mfgMeChuaGhiSo(cacMe, daGhiSo) {
+  var xong = {};
+  (daGhiSo || []).forEach(function (t) { if (t) xong[t] = 1; });
+  var ds = cacMe || [];
+  for (var i = 0; i < ds.length; i++) { if (ds[i] && !xong[ds[i]]) return ds[i]; }
+  return '';
+}
+/* Truoc 04/09/2026 ham nay tra ve me MOI NHAT cua lenh, bat ke me do da nam
+   tren phieu kho ghi so hay chua. Lenh hoan tat lam hai lan vi the dung lai
+   dung mot me: banh ra lo chieu mang ngay san xuat, gio va han dung cua me
+   lam ban sang, ma hai me that gop thanh mot so lo nen truy vet mat duong.
+   Nay chi nhan me chua tung bi tru tren so. */
 async function mfgBatchOf(woName) {
   if (!woName) return '';
+  var ten = [];
   try {
-    var r = await getList('Batch', { fields: ['name'], filters: { custom_lenh_san_xuat: woName }, order_by: 'creation desc', limit_page_length: 1 });
-    return r.length ? r[0].name : '';
+    var r = await getList('Batch', { fields: ['name'], filters: { custom_lenh_san_xuat: woName }, order_by: 'creation desc', limit_page_length: 20 });
+    ten = r.map(function (x) { return x.name; });
   } catch (e) { return ''; }
+  if (!ten.length) return '';
+  try {
+    var d = await getList('Stock Entry Detail', { parent: 'Stock Entry', fields: ['batch_no'], filters: { parenttype: 'Stock Entry', batch_no: ['in', ten], docstatus: 1 }, limit_page_length: 0 });
+    return mfgMeChuaGhiSo(ten, d.map(function (x) { return x.batch_no; }));
+  } catch (e) {
+    /* Hoi khong duoc (mang rot, hoac tai khoan bep khong doc duoc bang
+       dong phieu kho) thi GIU NEP CU: tra ve me moi nhat. Tra ve rong o
+       day la moi lan bam lai de ra mot me moi, tem da dan tren banh se
+       khong con khop voi me ghi so - hong nang hon cai dang sua. */
+    return ten[0];
+  }
 }
 async function bomOf(codes) {
   var m = {};
