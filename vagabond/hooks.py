@@ -511,6 +511,11 @@ doc_events = {
 			# KHONG cong nhan dong sao ke SePay thay cho tep nay.
 			"vagabond.chung_tu_tien.chan_thieu_dinh_kem",
 			"vagabond.hoan_tien.chan_thieu_uy_nhiem_chi",
+			# Phieu chi tra truoc: duyet chi va ghi so la HAI viec. Chan ghi
+			# so khi chua qua chu ky giam doc, chua dinh dung to uy nhiem
+			# chi, hoac tien chua thuc su roi khoi tai khoan. Doc dau tep
+			# vagabond/duyet_chi.py.
+			"vagabond.duyet_chi.chan_ghi_so_som",
 		],
 		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
 	},

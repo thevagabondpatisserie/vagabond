@@ -575,16 +575,23 @@ LOAI_TRA_TRUOC = "Tra truoc"
 # Dich buoc cua workflow "Duyet phieu chi APP" sang ma trang thai cua man Ho
 # so thanh toan, de hai loai chung tu nam chung mot danh sach ma bang chip
 # trang thai van dung.
+# Buoc giam doc da ky ma tien chua di. Them 03/09/2026, xem duyet_chi.py.
+TT_DA_DUYET_CHI = "Đã duyệt chi - chờ chuyển tiền"
+
 DICH_TRANG_THAI = {
 	TT_NHAP: "Nhap",
 	TT_CHO_FIN: "Cho ke toan",
 	TT_CHO_GD: "Cho giam doc",
+	# Giam doc ky xong thi phieu ve dung o "Da duyet, cho chuyen tien" cua
+	# man Ho so thanh toan, KHONG con nhay thang sang "Da thanh toan".
+	# Anh Viet 03/09/2026: *"giam doc duyet la moi duyet chi thoi"*.
+	TT_DA_DUYET_CHI: "Da duyet",
 	TT_DA_GHI_SO: "Da thanh toan",
 	TT_TRA_LAI: "Tu choi",
 }
 
 # Buoc chua ket thuc: tien chua di ra, phieu con phai co nguoi dung tay vao.
-TT_CON_TREO = (TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_TRA_LAI)
+TT_CON_TREO = (TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_DA_DUYET_CHI, TT_TRA_LAI)
 
 
 def dich_buoc(buoc):

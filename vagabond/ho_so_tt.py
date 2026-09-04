@@ -1848,7 +1848,7 @@ def kiem_sepay(name=None):
 
 
 @frappe.whitelist()
-def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển khoản", tao_but_toan=1, gui_thu=1):
+def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển khoản", tao_but_toan=1, gui_thu=1, ly_do_som=None):
 	"""Ghi nhận đã chuyển tiền, và sinh Payment Entry để clear công nợ.
 
 	Bút toán mới là thứ thật sự xoá nợ trên sổ; hồ sơ chỉ là chứng từ đề
@@ -1873,6 +1873,30 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	if not du_unc(dem_unc(doc.name)):
 		frappe.throw(loi_thieu_unc(doc.name), title="Chưa có uỷ nhiệm chi")
 
+	# GIAO DICH NGAN HANG PHAI VE. Anh Viet 03/09/2026: *"ke toan chi tien
+	# roi dinh kem UNC, khop giao dich SePay vao thi moi ghi so va chuyen
+	# trang thai da thanh toan"*.
+	#
+	# To uy nhiem chi la lenh chuyen tien, khong phai bang chung tien da ra
+	# khoi tai khoan: lenh co the bi ngan hang tu choi, co the bi go, co the
+	# la anh chup cua lan chuyen truoc. Dong sao ke moi noi duoc tien da di.
+	#
+	# Duong thoat CO VET cho ke toan truong: chuyen lien ngan hang ngoai gio
+	# thi sao ke ve cham vai tieng, ma tien da di that. Khong co duong nay
+	# thi den luc ket nguoi ta se vong qua ca he thong, va vong qua thi
+	# khong con vet nao het.
+	from vagabond import duyet_chi
+
+	ly_do = (ly_do_som or "").strip()
+	da_chi = flt((_sepay_theo_ma_app([doc.name]).get(doc.name) or {}).get("chi"))
+	if not duyet_chi.sepay_du(flt(doc.tong_tien), da_chi):
+		if not (ly_do and (duyet_chi.VAI_BO_QUA_SEPAY & set(frappe.get_roles()))):
+			frappe.throw(
+				duyet_chi.cau_thieu(["chua_ve_tien"], flt(doc.tong_tien), da_chi),
+				title="Chưa thấy tiền ra khỏi tài khoản",
+			)
+		doc.vgb_tt_ly_do_som = ly_do
+
 	pe = None
 	if cint(tao_but_toan):
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
@@ -1892,7 +1916,11 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	doc.flags.ignore_permissions = True
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
-	_ghi_vet(doc.name, "Đã thanh toán %s đ%s" % (_tien(doc.tong_tien), (" - bút toán " + pe) if pe else ""))
+	_ghi_vet(doc.name, "Đã thanh toán %s đ%s%s" % (
+		_tien(doc.tong_tien),
+		(" - bút toán " + pe) if pe else "",
+		(" - ghi sổ sớm: " + ly_do) if (ly_do and not duyet_chi.sepay_du(flt(doc.tong_tien), da_chi)) else "",
+	))
 	thu = _tu_gui_thu_bao(doc, gui_thu)
 	return {"ok": 1, "trang_thai": doc.trang_thai, "but_toan": pe or "", "thu": thu}
 

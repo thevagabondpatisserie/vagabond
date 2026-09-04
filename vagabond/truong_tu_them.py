@@ -246,6 +246,17 @@ def dung():
 
 	_dung_nhom(kiem_ke.TRUONG_MOI, "kiem_ke")
 
+	# Phieu chi: o ghi vet nguoi xac nhan da chuyen tien va to uy nhiem chi
+	# cua rieng phieu. Doc dau tep duyet_chi.py.
+	from vagabond import duyet_chi
+
+	_dung_nhom(duyet_chi.TRUONG_MOI, "duyet_chi")
+	# Duong duyet phieu chi: tach buoc duyet ra khoi buoc ghi so.
+	try:
+		duyet_chi.dung_workflow()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: dung duong duyet chi")
+
 
 def _dung_nhom(khai, ten_nhom):
 	"""Dung mot nhom truong. Hong nhom nay khong duoc keo do ca lan deploy."""
