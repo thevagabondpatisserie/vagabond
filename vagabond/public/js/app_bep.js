@@ -10068,6 +10068,45 @@ function veOMtc(pt, idO, idNhan) {
         : (pt === 'Chuyển khoản' ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
   }
 }
+/* Khối "tiền của tờ này": tổng đơn, đã thu theo từng phương thức, còn nợ,
+   trạng thái. Anh Việt 04/09/2026: *"Không bắt nhân viên tự suy ra trạng
+   thái kế toán từ màn hình."*
+
+   Số lấy từ CHỨNG TỪ đã ghi nhận, không lấy từ ô phương thức trên tờ. Đọc
+   đầu tệp vagabond/thu_tien.py để biết vì sao hai thứ đó khác nhau. */
+async function dsvVeThu(name) {
+  var o = document.getElementById('dsvThu');
+  if (!o) return;
+  var x = null;
+  try { x = await api('vagabond.thu_tien.tom_tat', { si: name }); }
+  catch (e) { o.innerHTML = ''; return; }
+  if (!x) { o.innerHTML = ''; return; }
+  var mau = x.con_no <= 0 ? '#15803d' : (x.con_no >= x.tong_don - 1 ? '#b91c1c' : '#c2410c');
+  var hang = function (nhan, so, dam, m) {
+    return '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0' +
+      (dam ? ';border-top:1px solid #eef0f4;margin-top:4px;padding-top:7px' : '') + '">' +
+      '<span style="color:#6b7280">' + nhan + '</span>' +
+      '<b style="color:' + (m || '#111827') + '">' + money(so) + ' đ</b></div>';
+  };
+  var s = '<div class="card" style="padding:12px 14px;margin-top:10px">' +
+    '<div style="font-size:11.5px;color:#6b7280;font-weight:800;letter-spacing:.3px">TIỀN CỦA TỜ NÀY</div>' +
+    hang('Tổng hoá đơn', x.tong_don);
+  (x.theo_pt || []).forEach(function (p) { s += hang('Đã thu · ' + h(p.pt), p.so_tien, false, '#15803d'); });
+  if (!(x.theo_pt || []).length && x.da_thu > 0) s += hang('Đã thu', x.da_thu, false, '#15803d');
+  s += hang('Còn nợ', x.con_no, true, mau) +
+    '<div style="margin-top:7px"><span style="display:inline-block;background:' + mau +
+    ';color:#fff;border-radius:6px;padding:2px 9px;font-size:12px;font-weight:700">' + h(x.trang_thai) + '</span></div>';
+  /* Nói thẳng khi sổ cái và con số trên màn chưa khớp nhau, thay vì để kế
+     toán tự phát hiện lúc lên báo cáo. */
+  if (x.du_no_so_cai > x.con_no + 1) {
+    s += '<div style="font-size:12px;color:#b45309;margin-top:7px;line-height:1.45">' +
+      '⚠️ Sổ cái vẫn ghi khách nợ ' + money(x.du_no_so_cai) + ' đ vì phần đã thu chưa có chứng từ thu tiền. ' +
+      'Nhờ kế toán ghi nhận thanh toán cho tờ này.</div>';
+  }
+  s += '</div>';
+  o.innerHTML = s;
+}
+
 async function scrDsView(name, can) {
   frame('Chi tiết đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -10137,6 +10176,9 @@ async function scrDsView(name, can) {
   /* Khach tra mot don bang NHIEU duong (anh Viet 01/09/2026). Khoi nay ve
      rieng o 42-thanh-toan-nhieu.js, nap sau khi man da dung xong. */
   html += '<div id="dsvTtn"></div>';
+  /* Bon con so ke toan, bay san chu khong bat ai tu suy ra (anh Viet
+     04/09/2026, nguyen tac 7). O nay tu an di khi to chua ghi so. */
+  html += '<div id="dsvThu"></div>';
   html += '<div id="dsvQr" style="margin-top:10px"></div>';
     html += '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px">'
     + '<div id="dsvMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>'
@@ -10300,6 +10342,7 @@ async function scrDsView(name, can) {
   veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan');
   /* Khong await: mot vong goi nua khong duoc lam cham man chi tiet don. */
   ttnVe('dsvTtn', d.name, d.grand_total, PTDS.map(function (p) { return p.v; }));
+  dsvVeThu(d.name);
 
   /* Ma diem ban cua nguon don nay, de noi dung chuyen khoan mang ma diem -
      ke toan doc sao ke la biet ngay tien cua noi nao. */
@@ -15101,7 +15144,7 @@ async function scrCongNo() {
   var tienChoThu = choThu.reduce(function (t, p) { return t + (p.con_thieu || 0); }, 0);
 
   var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
-    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">CHƯA GOM PHIẾU</div>' +
+    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">CÒN PHẢI ĐÒI · CHƯA GOM PHIẾU</div>' +
     '<div style="font-size:19px;font-weight:800;color:#b45309">' + money(kq.tong || 0) + ' đ</div>' +
     '<div style="font-size:12px;color:#98a2b3">' + khach.length + ' khách</div></div>' +
     '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">ĐÃ GỬI, CHỜ TIỀN</div>' +
@@ -15137,7 +15180,11 @@ async function scrCongNo() {
           html += '<div data-cnhd="' + h(k.khach) + '|' + h(d.name) + '" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f6f7f9;cursor:pointer">' +
             '<span style="width:22px;height:22px;flex:none;border-radius:6px;border:2px solid ' + (on ? '#0d9488;background:#0d9488' : '#d7dce5') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900">' + (on ? '✓' : '') + '</span>' +
             '<div style="flex:1;min-width:0"><div style="font-size:13.5px">' + h(d.name) + '</div>' +
-            '<div style="font-size:12px;color:#98a2b3">' + posNgayVn(d.ngay) + (d.nguon ? ' · ' + h(d.nguon) : '') + (d.quay ? ' · ' + h(d.quay) : '') + '</div></div>' +
+            '<div style="font-size:12px;color:#98a2b3">' + posNgayVn(d.ngay) + (d.nguon ? ' · ' + h(d.nguon) : '') + (d.quay ? ' · ' + h(d.quay) : '') + '</div>' +
+            /* Tra mot phan thi phai thay ngay, khong bat ai tru tay: con so
+               ben phai la SO CON PHAI DOI, khong phai tong to. */
+            (d.da_thu > 0 ? '<div style="font-size:12px;color:#15803d">đã thu ' + money(d.da_thu) + ' đ trên tổng ' + money(d.tong_don) + ' đ</div>' : '') +
+            '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
         html += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">' +
@@ -15914,20 +15961,13 @@ async function scrHdView(name) {
       go(function () { scrHdView(name); }, true);
     });
   };
-  document.getElementById('hdGan').onclick = async function () {
-    busy(true);
-    var cg;
-    try { cg = await api('vagabond.hop_dong.hoa_don_chua_gan', hd.khach_hang ? { khach_hang: hd.khach_hang } : {}); }
-    catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
-    busy(false);
-    if (!cg.length) return baoTin('Không có hoá đơn nào chưa gắn trong 90 ngày gần nhất' + (hd.khach_hang ? ' của khách ' + hd.khach_hang : '') + '.');
-    sheet('Chọn hoá đơn để gắn', cg.map(function (x) { return { value: x.name, label: x.name + ' · ' + (x.customer_name || '') + ' · ' + money(x.grand_total) + ' đ', icon: x.docstatus === 1 ? '✅' : '📝' }; }), null, async function (o) {
-      busy(true);
-      try { await api('vagabond.hop_dong.gan_hoa_don', { hop_dong: name, si_name: o.value }); busy(false); toast('Đã gắn ' + o.value); }
-      catch (e) { busy(false); baoTin((e && e.message) || 'Lỗi'); }
-      go(function () { scrHdView(name); }, true);
-    }, true);
-  };
+  /* Ô TÌM ĐẨY XUỐNG MÁY CHỦ, không lọc trong danh sách đã tải.
+
+     Ngày 04/09/2026 có 18.711 hoá đơn chưa gắn hợp đồng. Bản cũ lấy 60 tờ
+     mới nhất rồi để ô tìm của bảng chọn lọc trong 60 tờ đó, nên tờ cần tìm
+     gần như không bao giờ nằm trong tay. Nay gõ chữ nào là máy chủ đi tìm
+     chữ đó trên số hoá đơn, tên khách, tên và mã số thuế trên hoá đơn VAT. */
+  document.getElementById('hdGan').onclick = function () { hdGanHoaDon(name, hd, ''); };
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-si]'); if (!r) return;
     var nm = r.getAttribute('data-si');
@@ -15942,6 +15982,54 @@ async function scrHdView(name) {
       go(function () { scrHdView(name); }, true);
     });
   });
+}
+
+/* Bảng chọn hoá đơn để gắn vào hợp đồng, có ô tìm chạy trên máy chủ. */
+async function hdGanHoaDon(name, hd, tuKhoa) {
+  busy(true);
+  var cg;
+  try {
+    cg = await api('vagabond.hop_dong.hoa_don_chua_gan', {
+      khach_hang: hd.khach_hang || '', ma_so_thue: hd.ma_so_thue || '', tu_khoa: tuKhoa || ''
+    });
+  } catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
+  busy(false);
+  var ds = (cg && cg.hoa_don) || [];
+  if (!ds.length) {
+    return baoTin(tuKhoa
+      ? 'Không có hoá đơn nào chưa gắn khớp "' + tuKhoa + '". Thử gõ số hoá đơn, tên khách, hoặc mã số thuế trên hoá đơn VAT.'
+      : 'Không có hoá đơn nào chưa gắn trong 180 ngày gần nhất.');
+  }
+  var muc = ds.map(function (x) {
+    return {
+      value: x.name,
+      /* Tờ xuất VAT cho ai thì phải thấy ngay: hợp đồng mang tên công ty
+         còn hoá đơn thường mang tên người đặt hàng, nhìn tên khách không
+         thôi là không biết có đúng tờ hay không. */
+      label: x.name + ' · ' + (x.customer_name || '') +
+        (x.vgb_xhd_ten ? ' · VAT ' + x.vgb_xhd_ten : '') +
+        ' · ' + money(x.grand_total) + ' đ',
+      icon: x.hop_ly ? '⭐' : (x.docstatus === 1 ? '✅' : '📝')
+    };
+  });
+  /* Bị cắt thì NÓI RA. Im lặng cắt bớt chính là cái làm Loan Anh tìm mãi
+     không thấy tờ của mình. */
+  if (cg.con_lai > 0) {
+    muc.push({ value: '@them', label: '🔎 Còn ' + cg.con_lai + ' hoá đơn nữa - gõ chữ để tìm', icon: '🔎' });
+  } else {
+    muc.push({ value: '@them', label: '🔎 Tìm hoá đơn khác', icon: '🔎' });
+  }
+  sheet('Chọn hoá đơn để gắn' + (tuKhoa ? ' · đang tìm "' + tuKhoa + '"' : ''), muc, null, async function (o) {
+    if (o.value === '@them') {
+      var q = await promptSheet('Gõ số hoá đơn, tên khách hoặc mã số thuế', 'ví dụ HDB-26-09 hoặc dentsu');
+      if (q === null) return;
+      return hdGanHoaDon(name, hd, String(q || '').trim());
+    }
+    busy(true);
+    try { await api('vagabond.hop_dong.gan_hoa_don', { hop_dong: name, si_name: o.value }); busy(false); toast('Đã gắn ' + o.value); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
+    go(function () { scrHdView(name); }, true);
+  }, true);
 }
 
 var hdTay = null;
@@ -20876,7 +20964,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '422';
+var APPVER = '423';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
