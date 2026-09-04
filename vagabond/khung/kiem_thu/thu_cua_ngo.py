@@ -168,6 +168,10 @@ CUA_NGO = {
 		# trang thai va chip thoi gian, va doi soat dong tien ra tu OCB.
 		"doi_soat", "ds_man",
 		"duyet", "goi_y_tai_khoan", "gui_duyet",
+		# huy them 04/09/2026: cua huy MEM cua cap giam doc. Truoc do doctype
+		# nay khong co trang thai huy nao, phieu lap nham nam mai trong hop
+		# viec cua nguoi lap. Chan vai o may chu qua `giam_doc_sua_huy.chan`.
+		"huy",
 		# chi_tiet va tam_ung_cua_toi them ngay 20/08/2026 cung lan doi sang
 		# bang ke nhieu dong: mot phieu gio co nhieu khoan nen phai co cua
 		# doc ca phieu, va o "Thuoc ma Tam ung" phai co cai de do vao.
@@ -188,9 +192,11 @@ CUA_NGO = {
 	# Luong dong tien, them 21/08/2026: ca lam viec tai quay va phieu nop
 	# quy. Cac ham _doanh_thu_he_thong, _ca_dang_mo la noi bo, khong mo.
 	"ca_quay.py": ["chi_tiet", "chot_ca", "danh_sach", "mo_ca", "tinh_trang"],
+	# `huy` va `sua` them 04/09/2026: cua sua/huy cua cap giam doc. Ca hai
+	# deu chan vai o may chu qua `giam_doc_sua_huy.chan`, khong tin nut an.
 	"nop_quy.py": ["ca_cho_nop", "chi_tiet", "danh_sach", "doanh_thu_diem",
-		"ky_giao", "ky_nhan", "tao", "tao_theo_ngay", "tim_nguoi_nhan",
-		"xuat_excel", "xuat_pdf"],
+		"huy", "ky_giao", "ky_nhan", "sua", "tao", "tao_theo_ngay",
+		"tim_nguoi_nhan", "xuat_excel", "xuat_pdf"],
 	# Trang thai gui thu tren chung tu. `danh_dau_cho_gui` la hook va
 	# `soat_tu_dong` la nhip lap lich, ca hai chay tu ben trong.
 	"trang_thai_thu.py": ["soat_lai", "tinh_trang"],

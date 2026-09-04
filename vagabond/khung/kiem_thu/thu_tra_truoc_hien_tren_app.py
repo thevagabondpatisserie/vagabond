@@ -272,7 +272,21 @@ def _nhan_chip_dung():
 
 	nhom = {k: (ten, tt) for k, ten, tt in dn.CHIP_TRANG_THAI}
 	la("nhom chua phieu bi tra lai duoc goi dung ten", nhom["da_huy"][0], "Bị trả lại")
-	dung("khong con goi la Da huy", all(t != "Đã huỷ" for t, _ in nhom.values()))
+	# Y goc cua ca kiem nay: nhan chip phai dung voi thu no chua. Phieu BI
+	# TRA LAI la viec dang cho chinh nguoi lap sua roi gui lai, goi no la
+	# "Da huy" la bao ho rang viec cua ho chet roi.
+	#
+	# Tu 04/09/2026 doctype CO trang thai huy that (TT_HUY), va co mot chip
+	# rieng ten "Đã huỷ" mang khoa "huy". Nen ca kiem doi tu "khong chip nao
+	# duoc ten Da huy" sang dung y goc: chip ten "Đã huỷ" chi duoc chua dung
+	# TT_HUY, va tuyet doi khong duoc chua TT_TRA_LAI.
+	for k, (ten, tt) in nhom.items():
+		if ten != "Đã huỷ":
+			continue
+		la("chip Đã huỷ chi chua trang thai huy", list(tt or ()), [dn.TT_HUY])
+		dung("chip Đã huỷ khong chua phieu bi tra lai", dn.TT_TRA_LAI not in (tt or ()))
+	dung("co dung mot chip ten Đã huỷ",
+		len([1 for ten, _ in nhom.values() if ten == "Đã huỷ"]) == 1)
 
 
 @ca("xuat kho them: dong doi chieu hien khi hai con so lech nhau")
