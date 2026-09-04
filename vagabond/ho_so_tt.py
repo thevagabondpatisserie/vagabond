@@ -384,7 +384,20 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 			frappe.throw("Hoá đơn %s đã trả xong rồi." % ma)
 		ncc_thay.add(hd.supplier)
 		so_tien = flt(x.get("so_tien")) if isinstance(x, dict) and x.get("so_tien") else flt(hd.outstanding_amount)
+		# PHIEU THANH TOAN NOI BO NOI VAO DAY CHI LA CHUNG TU, KHONG PHAI TIEN.
+		#
+		# Anh Viet chot 04/09/2026. Man hoan ung CO hoa don lay so tien theo
+		# HOA DON, phieu noi vao chi de chung minh nhan vien da ung tien mua
+		# hoa don do, va de keo anh chung tu cua phieu sang. Khong dong toi
+		# mot dong nao cua `so_tien`.
+		#
+		# Nhung van phai KHOA phieu lai: phieu da dung lam chung tu o day ma
+		# van hien trong bang chon cua man hoan ung khong hoa don thi co
+		# nguoi noi lai lan hai va de nghi hoan tiep - dung duong chi hai lan
+		# ma v413 vua bit ben kia.
+		ma_phieu = (x.get("de_nghi_chi") or "").strip() if isinstance(x, dict) else ""
 		dong.append({
+			"de_nghi_chi": ma_phieu or None,
 			"hoa_don": hd.name,
 			"so_hd_ncc": hd.bill_no or "",
 			"ngay_hd": hd.bill_date or hd.posting_date,
@@ -415,6 +428,10 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 	# Chan truoc khi lam bat cu viec gi khac: mot hoa don chi duoc nam trong
 	# MOT ho so con song. Xem _chan_hoa_don_trung de biet vi sao chan cung.
 	_chan_hoa_don_trung(dong)
+	# `theo_tien=False`: o luong nay so tien lay theo hoa don chu khong theo
+	# phieu, nen khong so hai so voi nhau. Van giu hai chot con lai: mot
+	# phieu khong duoc noi hai dong, va phieu phai da qua duyet.
+	_soi_phieu_noi_bo(dong, theo_tien=False)
 
 	nhieu_ncc = (loai or "") == LOAI_HU_HD
 	if len(ncc_thay) > 1 and not nhieu_ncc:
@@ -500,6 +517,11 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		doc.append("dong", d)
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
+	# Khoa phieu noi bo NGAY SAU khi chen, y het `tao_hoan_ung`. Ham nay nem
+	# loi khi phieu da thuoc ho so khac, va vi chua `frappe.db.commit()` nen
+	# Frappe cuon nguoc ca ban ghi vua chen.
+	_khoa_phieu_noi_bo(doc.name, dong)
+	_dap_tep_phieu_noi_bo(doc)
 
 	# Dinh PDF ban the hien cua tung hoa don vao ho so, de ke toan truong
 	# duyet ngay tren phieu thay vi tai tay tu M-Invoice (anh Viet
@@ -1626,6 +1648,48 @@ def go_tep(name=None, tep=None):
 	return {"ok": 1, "tep": _dinh_kem([("Vagabond Ho So TT", name)])}
 
 
+def _hoa_don_da_sinh(doc):
+	"""Các hoá đơn mua ĐÃ GHI SỔ mà chính hồ sơ này sinh ra. THUẦN đọc."""
+	ra = []
+	for d in (doc.dong or []):
+		ma = (getattr(d, "hoa_don", "") or "").strip()
+		if not ma:
+			continue
+		try:
+			if cint(frappe.db.get_value("Purchase Invoice", ma, "docstatus")) == 1:
+				ra.append(ma)
+		except Exception:
+			continue
+	return sorted(set(ra))
+
+
+def _chan_giet_ho_so_da_sinh_hoa_don(doc, viec):
+	"""Hồ sơ đã sinh hoá đơn mua ghi sổ thì không Từ chối hay Huỷ suông được.
+
+	Bước giám đốc duyệt của luồng hoàn ứng gọi `_sinh_hoa_don_hoan_ung`, hàm
+	đó lập VÀ ghi sổ Purchase Invoice thật. Trước 04/09/2026, sau đó bấm Từ
+	chối hay Huỷ thì hồ sơ đổi trạng thái còn hoá đơn vẫn nằm nguyên trên sổ,
+	công nợ nhà cung cấp treo lại mà không còn chứng từ nào giải thích. Nhìn
+	trên app thì tờ đã chết, nhìn trên sổ thì tiền vẫn đang nợ.
+
+	KHÔNG tự huỷ hoá đơn hộ. Huỷ một chứng từ đã ghi sổ là việc động vào sổ
+	cái, anh Việt chốt 13/08/2026 là không tự quyết. Nên chặn lại và chỉ rõ
+	thứ tự đúng: kế toán huỷ hoá đơn trước, rồi mới huỷ hồ sơ.
+	"""
+	hd = _hoa_don_da_sinh(doc)
+	if not hd:
+		return
+	frappe.throw(
+		"Hồ sơ %s đã sinh %d hoá đơn mua ĐÃ GHI SỔ: %s.\n\n"
+		"%s hồ sơ bây giờ thì hoá đơn vẫn nằm trên sổ và công nợ treo lại, "
+		"không còn chứng từ nào giải thích.\n\n"
+		"Thứ tự đúng: nhờ kế toán huỷ những hoá đơn đó bên Next trước, "
+		"rồi quay lại %s hồ sơ này."
+		% (doc.name, len(hd), ", ".join(hd), viec, viec.lower()),
+		title="Còn hoá đơn đã ghi sổ",
+	)
+
+
 def _nha_het_phieu_noi_bo(doc):
 	"""Hồ sơ chết thì trả mọi phiếu nội bộ của nó về trạng thái chưa nối.
 
@@ -1731,6 +1795,7 @@ def duyet(name, buoc, ly_do=""):
 			frappe.throw("Từ chối thì phải ghi lý do, để người lập còn biết sửa gì.")
 		if doc.trang_thai in (TT_DA_TRA, TT_HUY):
 			frappe.throw("Hồ sơ đã %s, không từ chối được nữa." % NHAN.get(doc.trang_thai))
+		_chan_giet_ho_so_da_sinh_hoa_don(doc, "Từ chối")
 		doc.trang_thai = TT_TU_CHOI
 		doc.ly_do_tu_choi = ly_do.strip()
 		_nha_het_phieu_noi_bo(doc)
@@ -1739,6 +1804,7 @@ def duyet(name, buoc, ly_do=""):
 		_kiem(VAI_LAP, "huỷ hồ sơ")
 		if doc.trang_thai == TT_DA_TRA:
 			frappe.throw("Hồ sơ đã thanh toán rồi, không huỷ được.")
+		_chan_giet_ho_so_da_sinh_hoa_don(doc, "Huỷ")
 		doc.trang_thai = TT_HUY
 		doc.ly_do_tu_choi = (ly_do or "").strip()
 		_nha_het_phieu_noi_bo(doc)
@@ -1858,6 +1924,23 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	from vagabond.tra_tien_app import dem_unc, du_unc, loi_thieu_unc
 
 	_kiem(VAI_FIN, "ghi nhận thanh toán")
+	# KHOA BAN GHI TRUOC KHI DOC TRANG THAI.
+	#
+	# Ham nay doc trang thai roi moi ghi, va o giua co `_tao_but_toan` tu
+	# `frappe.db.commit()`. Khong khoa thi hai lan bam chong nhau (mang chap
+	# chon, nguoi dung bam lai) deu doc thay "Da duyet" o cung mot luc, roi
+	# ca hai cung sinh Payment Entry. Cong ty ghi so tra tien hai lan cho
+	# mot ho so, ma tren man hinh nhin chi thay mot dong "Da thanh toan".
+	#
+	# `for_update` bat MySQL giu dong lai: lan bam thu hai dung o day cho
+	# lan thu nhat xong, doc lai thay "Da thanh toan" va thoat ngay o cau
+	# duoi. Phai khoa TRUOC `get_doc`, khoa sau thi da doc so cu roi.
+	try:
+		frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai", for_update=True)
+	except Exception:
+		# Bo may du lieu khong cho khoa thi van chay tiep: chot `da_lam_roi`
+		# ben duoi con do duoc phan lon truong hop, tha yeu con hon chet.
+		frappe.log_error(frappe.get_traceback(), "ho_so_tt: khong khoa duoc ho so khi ghi nhan")
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	if doc.trang_thai == TT_DA_TRA:
 		return {"ok": 1, "da_lam_roi": 1, "trang_thai": doc.trang_thai}
@@ -1889,10 +1972,19 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 
 	ly_do = (ly_do_som or "").strip()
 	da_chi = flt((_sepay_theo_ma_app([doc.name]).get(doc.name) or {}).get("chi"))
-	if not duyet_chi.sepay_du(flt(doc.tong_tien), da_chi):
+	# SO VOI SO THAT SU CHUYEN DI, khong phai tong tien.
+	#
+	# Ho so co tru tam ung thi ngan hang chi chuyen `con_lai`, va ban in
+	# cung ghi ro "CON LAI PHAI CHUYEN". So voi `tong_tien` thi moi ho so co
+	# tru tam ung se VINH VIEN khong ghi so duoc du ngan hang da chuyen dung
+	# so, va ke toan buoc phai muon duong bo qua co ly do - tuc bien mot
+	# duong thoat ngoai le thanh duong di hang ngay. Cung mot cai bay da sua
+	# cho `kiem_sepay` o v413.
+	phai_chuyen = flt(doc.con_lai) or flt(doc.tong_tien)
+	if not duyet_chi.sepay_du(phai_chuyen, da_chi):
 		if not (ly_do and (duyet_chi.VAI_BO_QUA_SEPAY & set(frappe.get_roles()))):
 			frappe.throw(
-				duyet_chi.cau_thieu(["chua_ve_tien"], flt(doc.tong_tien), da_chi),
+				duyet_chi.cau_thieu(["chua_ve_tien"], phai_chuyen, da_chi),
 				title="Chưa thấy tiền ra khỏi tài khoản",
 			)
 		doc.vgb_tt_ly_do_som = ly_do
@@ -1919,10 +2011,27 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	_ghi_vet(doc.name, "Đã thanh toán %s đ%s%s" % (
 		_tien(doc.tong_tien),
 		(" - bút toán " + pe) if pe else "",
-		(" - ghi sổ sớm: " + ly_do) if (ly_do and not duyet_chi.sepay_du(flt(doc.tong_tien), da_chi)) else "",
+		(" - ghi sổ sớm: " + ly_do) if (ly_do and not duyet_chi.sepay_du(phai_chuyen, da_chi)) else "",
 	))
+	# TRU TAM UNG THI SO CAI CHUA CAN BANG, PHAI NOI RA.
+	#
+	# But toan xoa cong no nha cung cap theo `tong_tien`, dung ve phia nha
+	# cung cap. Nhung tien that ra khoi ngan hang chi la `con_lai`; phan
+	# `da_tam_ung` von da ung tu quy 1411 tu truoc. Buoc bu tru 1411 hien
+	# van do chi Dung lam TAY ben Next.
+	#
+	# Truoc 04/09/2026 khong co dong nao nhac, nen quen mot lan la quy tam
+	# ung phinh ra ma khong ai truy duoc tu ho so nao. Ghi hang vet va tra
+	# co ve man hinh de nguoi bam nhin thay ngay.
+	nhac = ""
+	if flt(doc.da_tam_ung) > 0:
+		nhac = ("Hồ sơ này trừ %s đ tạm ứng. Bút toán vừa sinh xoá công nợ theo "
+			"TỔNG %s đ, còn phần tạm ứng phải bù trừ tay với quỹ 1411 bên Next. "
+			"Chưa bù là quỹ tạm ứng phình ra." % (_tien(doc.da_tam_ung), _tien(doc.tong_tien)))
+		_ghi_vet(doc.name, nhac)
 	thu = _tu_gui_thu_bao(doc, gui_thu)
-	return {"ok": 1, "trang_thai": doc.trang_thai, "but_toan": pe or "", "thu": thu}
+	return {"ok": 1, "trang_thai": doc.trang_thai, "but_toan": pe or "", "thu": thu,
+		"nhac_tam_ung": nhac}
 
 
 def _tu_gui_thu_bao(doc, gui_thu=1):
@@ -3324,7 +3433,7 @@ def _gan_tep_ve_ho_so(ten_ho_so, sach):
 				frappe.log_error(frappe.get_traceback(), "ho_so_tt: gan tep dong ve ho so")
 
 
-def _soi_phieu_noi_bo(sach):
+def _soi_phieu_noi_bo(sach, theo_tien=True):
 	"""Soi các dòng có nối phiếu nội bộ TRƯỚC khi ghi. Ba việc, ba lý do.
 
 	Trước 04/09/2026 máy chủ nhận thẳng `de_nghi_chi` và `so_tien` từ màn
@@ -3365,12 +3474,43 @@ def _soi_phieu_noi_bo(sach):
 				% (ma, r.get("trang_thai") or "không rõ")
 			)
 		tien_phieu = flt(r.get("tong_tien")) or flt(r.get("so_tien"))
-		if tien_phieu > 0 and abs(flt(d.get("so_tien")) - tien_phieu) > 1:
+		if theo_tien and tien_phieu > 0 and abs(flt(d.get("so_tien")) - tien_phieu) > 1:
 			frappe.throw(
 				"Khoản nối phiếu %s ghi %s đ nhưng phiếu ghi %s đ. "
 				"Số tiền phải bằng đúng số của phiếu."
 				% (ma, _tien(d.get("so_tien")), _tien(tien_phieu))
 			)
+
+
+def _dap_tep_phieu_noi_bo(doc):
+	"""Kéo tệp chứng từ của phiếu nội bộ sang dòng đã nối nó.
+
+	Người lập nối phiếu vào một dòng hoá đơn là để nói "khoản này nhân viên
+	đã ứng tiền mua, đây là phiếu". Bộ ảnh hoá đơn bán lẻ, phiếu thu, sao kê
+	nằm bên phiếu; không kéo sang thì người duyệt phải mở hai màn để đối
+	chiếu một khoản, và bản in bộ hồ sơ thiếu đúng phần chứng minh đó.
+
+	GIỮ tệp sẵn có của dòng, chỉ THÊM tệp của phiếu vào sau, không đè.
+	"""
+	co_doi = 0
+	for d in (doc.dong or []):
+		ma = (getattr(d, "de_nghi_chi", "") or "").strip()
+		if not ma:
+			continue
+		try:
+			them = [t["file"] for t in _dinh_kem([(DNC, ma)]) if t.get("file")]
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: dap tep phieu noi bo")
+			continue
+		cu = _tep_cua_dong(d.tep)
+		moi = cu + [m for m in them if m not in cu]
+		if moi != cu:
+			d.tep = "\n".join(moi)
+			co_doi = 1
+	if co_doi:
+		doc.flags.ignore_permissions = True
+		doc.save(ignore_permissions=True)
+		_gan_tep_ve_ho_so(doc.name, [{"tep": d.tep} for d in (doc.dong or [])])
 
 
 def _khoa_phieu_noi_bo(ten_ho_so, sach):

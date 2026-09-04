@@ -76,8 +76,10 @@ def _nha_phieu_dem_dong_con():
 @ca("v413 máy chủ soi phiếu nội bộ trước khi ghi: trùng, sai tiền, chưa duyệt")
 def _soi_phieu():
 	src = _py("ho_so_tt.py")
-	dung("có hàm soi", "def _soi_phieu_noi_bo(sach):" in src)
-	than = _doan(src, "def _soi_phieu_noi_bo(sach):", "\ndef ")
+	# v416 them cong tac `theo_tien` cho luong co hoa don, neo bat theo tien
+	# ham chu khong bat nguyen chu ky.
+	dung("có hàm soi", "def _soi_phieu_noi_bo(sach" in src)
+	than = _doan(src, "def _soi_phieu_noi_bo(sach", "\ndef ")
 	dung("chặn một phiếu hai dòng", "đang nối vào hai khoản trong cùng hồ sơ" in than)
 	dung("chặn phiếu chưa duyệt", "TT_PHIEU_NOI_BO" in than)
 	dung("chặn số tiền lệch", "abs(flt(d.get(\"so_tien\")) - tien_phieu) > 1" in than)
