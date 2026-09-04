@@ -63,7 +63,7 @@ async function scrBntDs() {
   html += '<div class="card" style="padding:10px 12px">' +
     mkChipNgay([[7, '7 ngày'], [30, '30 ngày'], [90, '3 tháng'], [0, 'Tất cả']], bntNgay, 'data-bntngay') + '</div>';
   html += '<div class="card" style="padding:10px 12px"><div style="display:flex;flex-wrap:wrap;gap:8px">' +
-    [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ ký nhận', 'Chờ ký nhận'], ['Đã nộp quỹ', 'Đã nộp quỹ']].map(function (c) {
+    [['', 'Tất cả'], ['Nháp', 'Nháp'], ['Chờ ký nhận', 'Chờ ký nhận'], ['Đã nộp quỹ', 'Đã nộp quỹ'], ['Đã huỷ', 'Đã huỷ']].map(function (c) {
       var on = bntLoc === c[0];
       var so = dem[c[0]] !== undefined ? dem[c[0]] : 0;
       return '<button class="chip' + (on ? ' on' : '') + '" data-bntloc="' + h(c[0]) + '" style="font-family:inherit">' + h(c[1]) + ' · ' + so + '</button>';

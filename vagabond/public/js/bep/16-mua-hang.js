@@ -1747,6 +1747,17 @@ async function ttnbCt(ma) {
     '<div style="font-size:20px;font-weight:800;color:#0f766e">' + money(d.tien) + ' đ</div></div>' +
     '<div style="font-size:12px;color:#0f766e;margin-top:4px">' + h(d.nhan_trang_thai || '') + '</div></div>';
 
+  /* Phieu da huy: noi thang ai huy, luc nao, vi sao. Huy chu khong xoa, nen
+     phieu van mo ra doc duoc va phai co cho de doc cai ly do. */
+  if (d.trang_thai === 'Da huy') {
+    html += '<div class="card" style="padding:12px 14px;background:#f9fafb;border:1px solid #e4e7ec">' +
+      '<b style="font-size:13.5px;color:#475467">Phiếu này đã huỷ</b>' +
+      '<div style="font-size:12.5px;color:#667085;margin-top:4px">' +
+      h(d.ten_nguoi_huy || d.huy_boi || '') + (d.huy_luc ? ' · ' + h(String(d.huy_luc).slice(0, 16)) : '') + '</div>' +
+      (d.ly_do_huy ? '<div style="font-size:13px;color:#344054;margin-top:6px">Lý do: ' + h(d.ly_do_huy) + '</div>' : '') +
+      '</div>';
+  }
+
   html += '<div class="sec">Bảng kê · ' + ((d.cac_khoan || []).length) + ' khoản</div><div class="card">' +
     (d.cac_khoan || []).map(function (k, i) {
       /* Chứng từ của khoản nào vẽ ngay dưới khoản đó. Dồn hết xuống chân
@@ -1807,6 +1818,22 @@ async function ttnbCt(ma) {
       'border-radius:9px;padding:9px 11px;margin-top:8px;line-height:1.6">' + h(c.nhac || '') + '</div></div>';
   }
 
+  /* Nut Huy cua cap giam doc. Truoc 04/09/2026 doctype nay khong co trang
+     thai huy nao: phieu lap nham chi co duong "Bi tra lai", ma bi tra lai la
+     viec dang cho CHINH nguoi lap sua roi gui lai, khong phai la bo. Nen mot
+     phieu nham nam lai trong hop viec cua ho mai mai.
+
+     May chu quyet co ve nut hay khong (`huy_duoc`) va chan lai lan nua trong
+     `de_nghi_chi.huy` - an nut chi la lich su. Phieu DA CHI thi may chu tra
+     ve huy_duoc = 0, vi tien da roi khoi tai khoan that. */
+  if (d.huy_duoc) {
+    html += '<div class="card" style="padding:12px 14px">' +
+      '<button class="btn gh" id="ttnbHuy" style="width:100%;margin:0;color:#b3261e">🚫 Huỷ phiếu (giám đốc)</button>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.6">' +
+      'Huỷ mềm: phiếu vẫn nằm nguyên trong hệ và vẫn tra cứu được, chỉ thôi đi tiếp trong chuỗi duyệt ' +
+      'và rời khỏi hộp việc của mọi người. Phiếu đã chi tiền thật thì không huỷ được nữa.</div></div>';
+  }
+
   var chan = '';
   if (d.duoc_duyet_buoc_nay) {
     chan += '<button class="btn" id="ttnbDuyet" style="margin:0;flex:2">✅ Duyệt thanh toán nội bộ</button>' +
@@ -1836,6 +1863,24 @@ async function ttnbCt(ma) {
       toast('Đã duyệt, phiếu chuyển sang ' + h(r.nhan_trang_thai || r.trang_thai || ''), 4500);
       ttnbCt(d.name);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không duyệt được'); }
+  };
+  var nH = document.getElementById('ttnbHuy');
+  if (nH) nH.onclick = async function () {
+    if (!await hoiCo('Huỷ phiếu ' + d.name,
+      'Phiếu chuyển sang Đã huỷ và rời khỏi hộp việc của mọi người.\n\n' +
+      'Phiếu KHÔNG bị xoá: vẫn tra cứu được, vẫn mang tên người huỷ và lý do.',
+      'Tiếp, ghi lý do', true)) return;
+    var ly = await hoiChu('Lý do huỷ phiếu ' + d.name,
+      'Ghi rõ vì sao bỏ phiếu này. Đây là dấu vết duy nhất còn lại để sau này hiểu chuyện.',
+      '', { nhieu_dong: true, bat_buoc: true, goi_y: 'Ví dụ: lập nhầm, đã có phiếu khác cho cùng khoản này' });
+    if (!ly) return;
+    busy(true);
+    try {
+      await api('vagabond.de_nghi_chi.huy', { ma_phieu: d.name, ly_do: ly });
+      busy(false);
+      toast('Đã huỷ phiếu ' + d.name, 4000);
+      ttnbCt(d.name);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không huỷ được', 'Huỷ phiếu'); }
   };
   var nT = document.getElementById('ttnbTra');
   if (nT) nT.onclick = async function () {

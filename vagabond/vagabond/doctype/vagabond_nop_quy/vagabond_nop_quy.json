@@ -48,7 +48,13 @@
   "cb3",
   "chu_ky_ben_nhan",
   "sec_ghi",
-  "ghi_chu"
+  "ghi_chu",
+  "sec_huy",
+  "huy_boi",
+  "ten_nguoi_huy",
+  "cb4",
+  "huy_luc",
+  "ly_do_huy"
  ],
  "fields": [
   {
@@ -61,7 +67,7 @@
    "fieldname": "trang_thai",
    "fieldtype": "Select",
    "label": "Trang thai",
-   "options": "Nháp\nChờ ký nhận\nĐã nộp quỹ",
+   "options": "Nháp\nChờ ký nhận\nĐã nộp quỹ\nĐã huỷ",
    "default": "Nháp",
    "in_list_view": 1,
    "in_standard_filter": 1
@@ -287,6 +293,40 @@
    "fieldname": "ghi_chu",
    "fieldtype": "Small Text",
    "label": "Ghi chu"
+  },
+  {
+   "fieldname": "sec_huy",
+   "fieldtype": "Section Break",
+   "label": "Huy phieu"
+  },
+  {
+   "fieldname": "huy_boi",
+   "fieldtype": "Link",
+   "label": "Nguoi huy",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_nguoi_huy",
+   "fieldtype": "Data",
+   "label": "Ten nguoi huy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "huy_luc",
+   "fieldtype": "Datetime",
+   "label": "Huy luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_huy",
+   "fieldtype": "Small Text",
+   "label": "Ly do huy",
+   "read_only": 1
   }
  ],
  "permissions": [

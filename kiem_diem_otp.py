@@ -4352,6 +4352,11 @@ def _nap_ham_dnc42():
 	mt = {"CHIP_TRANG_THAI": None, "TT_NHAP": "Nhap", "TT_CHO_DUYET": "Cho duyet",
 	      "TT_CHO_GIAM_DOC": "Cho giam doc", "TT_CHO_KE_TOAN": "Cho ke toan",
 	      "TT_HOAN_TAT": "Hoan tat", "TT_DA_CHI": "Da chi", "TT_TRA_LAI": "Bi tra lai"}
+	# TT_HUY them 04/09/2026 cung lan mo cua huy cho cap giam doc. Doc THANG
+	# tu ma nguon chu khong go lai chuoi o day: go lai la lech chinh ta ma
+	# khong ai thay, dung ly le voi VAI_QLCH o _nap_ham_vcl43 ben duoi.
+	exec(compile(re.search(r"^TT_HUY = .*$", src, re.M).group(0),
+				 "de_nghi_chi:TT_HUY", "exec"), mt, mt)
 	m = re.search(r"^CHIP_TRANG_THAI = \(.*?^\)", src, re.S | re.M)
 	exec(compile(m.group(0), "de_nghi_chi:CHIP", "exec"), mt, mt)
 	for ten in ("trang_thai_theo_chip", "khop_noi_dung", "noi_dung_ck"):

@@ -40,7 +40,7 @@ Bốn điểm anh Việt chốt 19/08/2026
 import frappe
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate
 
-from vagabond import tep_dinh_kem
+from vagabond import giam_doc_sua_huy, tep_dinh_kem
 
 DT = "Vagabond De Nghi Chi"
 # Ô mà mọi tệp đính kèm của phiếu này nằm vào. Ghi rõ một chỗ để nhịp dọn
@@ -154,6 +154,10 @@ TT_TRA_LAI = "Bi tra lai"
 # Da chi: TIEN DA RA THAT khoi tai khoan, do doi soat SePay xac nhan chu
 # khong do ai bam. Them 20/08/2026 cung lan noi webhook OCB.
 TT_DA_CHI = "Da chi"
+# Huy MEM cua cap giam doc, them 04/09/2026. Phieu huy van nam nguyen trong
+# co so du lieu, chi khong con di tiep duoc trong chuoi duyet. Xem
+# `vagabond/giam_doc_sua_huy.py` de biet vi sao huy chu khong xoa.
+TT_HUY = "Da huy"
 
 NHAN_TRANG_THAI = {
 	TT_NHAP: "Nháp",
@@ -163,6 +167,7 @@ NHAN_TRANG_THAI = {
 	TT_HOAN_TAT: "Hoàn tất",
 	TT_DA_CHI: "Đã chi",
 	TT_TRA_LAI: "Bị trả lại",
+	TT_HUY: "Đã huỷ",
 }
 
 # Chip tren man Danh sach. Anh Viet 20/08/2026 goi ten nam chip: Nhap, Cho
@@ -184,6 +189,11 @@ CHIP_TRANG_THAI = (
 	# gửi lại được). Gọi nó là "Đã huỷ" là bảo người ta rằng việc của họ chết
 	# rồi, trong khi đúng ra là việc đang chờ chính họ.
 	("da_huy", "Bị trả lại", (TT_TRA_LAI,)),
+	# Chip huy that su, them 04/09/2026 cung lan mo cua huy cho giam doc.
+	# Khoa chip la "huy" chu khong phai "da_huy": khoa "da_huy" da co nguoi
+	# dung tu 20/08 va dang tro toi nhom BI TRA LAI, doi y nghia cua no la
+	# doi cai ma nguoi ta da quen bam.
+	("huy", "Đã huỷ", (TT_HUY,)),
 )
 
 # Chip loc thoi gian.
@@ -969,6 +979,65 @@ def duyet(ma_phieu, ghi_chu=None):
 	}
 
 
+@frappe.whitelist()
+def huy(ma_phieu, ly_do):
+	"""Giam doc huy MEM mot phieu de nghi chi. Khong xoa, chi doi trang thai.
+
+	Vi sao phieu de nghi chi can cua nay
+	------------------------------------
+	Truoc 04/09/2026 doctype nay khong co mot trang thai huy nao. Phieu lap
+	nham chi co duong "Bi tra lai", ma bi tra lai la viec dang cho CHINH
+	nguoi lap sua roi gui lai, khong phai la bo. Nen mot phieu nham nam lai
+	trong hop viec cua nguoi ta mai mai.
+
+	Ba cua chan
+	-----------
+	1. Phieu DA CHI thi khong huy: tien da roi khoi tai khoan that, do doi
+	   soat SePay xac nhan. Gio chi con duong hoan tien, khong con duong bo
+	   phieu. Bo phieu luc do la so mat dau vet cua mot lan tien di ra.
+	2. Phieu da duoc noi vao mot ho so thanh toan thi khong huy: huy la de
+	   lai mot o `de_nghi_chi` tro toi phieu khong con hieu luc trong ho so
+	   do. Go khoi ho so truoc da.
+	3. Phai co ly do, va ly do phai ra hon.
+	"""
+	giam_doc_sua_huy.chan("huỷ phiếu thanh toán nội bộ")
+	ly_do = giam_doc_sua_huy.doc_ly_do(ly_do)
+	doc = frappe.get_doc(DT, ma_phieu)
+	giam_doc_sua_huy.da_huy(doc, TT_HUY)
+
+	if doc.trang_thai == TT_DA_CHI:
+		frappe.throw(
+			"Phiếu %s đã chi tiền thật, đối soát ngân hàng đã khớp. Không huỷ "
+			"được nữa. Nếu chi nhầm thì đi đường hoàn tiền, đừng bỏ phiếu, vì "
+			"bỏ phiếu là mất dấu vết một lần tiền đi ra." % doc.name)
+
+	noi = frappe.db.sql(
+		"""select parent from `tabVagabond Ho So TT Dong`
+		where parenttype = 'Vagabond Ho So TT'
+		and ifnull(de_nghi_chi, '') = %s limit 1""",
+		(doc.name,),
+	)
+	if noi:
+		frappe.throw(
+			"Phiếu %s đang được nối vào hồ sơ thanh toán %s. Gỡ khỏi hồ sơ đó "
+			"trước rồi mới huỷ, không thì hồ sơ còn trỏ tới một phiếu không "
+			"còn hiệu lực." % (doc.name, noi[0][0]))
+
+	tt_cu = doc.trang_thai
+	doc.trang_thai = TT_HUY
+	giam_doc_sua_huy.dong_dau_huy(doc, ly_do)
+	doc.save(ignore_permissions=True)
+	_het_viec(doc.name)
+	giam_doc_sua_huy.ghi_vet(DT, doc.name, giam_doc_sua_huy.cau_vet(
+		"Huỷ phiếu thanh toán nội bộ (đang ở %s)" % tt_cu,
+		frappe.session.user, ly_do))
+	frappe.db.commit()
+	return {
+		"ok": 1, "trang_thai": doc.trang_thai, "tt_cu": tt_cu,
+		"nhan_trang_thai": NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai,
+	}
+
+
 VAI_BUOC = {
 	TT_CHO_DUYET: VAI_DUYET,
 	TT_CHO_GIAM_DOC: VAI_GIAM_DOC,
@@ -1446,6 +1515,12 @@ def chi_tiet(ma_phieu=None):
 	)
 	ra["duoc_duyet_buoc_nay"] = 1 if duoc else 0
 	ra["vi_sao_khong_duyet"] = "" if duoc else vi_sao
+	# Nut Huy chi ve ra khi may chu bao nguoi nay du vai giam doc, VA phieu
+	# con huy duoc. May chu con chan lai lan nua trong `huy`.
+	ra["duoc_sua_huy"] = 1 if giam_doc_sua_huy.duoc_sua_huy(frappe.get_roles()) else 0
+	ra["huy_duoc"] = 1 if (
+		ra["duoc_sua_huy"] and doc.trang_thai not in (TT_HUY, TT_DA_CHI)
+	) else 0
 	# Khop lenh chi duoc chua (v294). Phieu phai qua het chuoi duyet va chua
 	# co giao dich nao gan vao. Tinh o may chu chu khong de man tu suy, y het
 	# nep cua man Phieu hoan tien.

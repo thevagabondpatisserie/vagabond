@@ -55,7 +55,12 @@
   "noi_dung_ck",
   "ma_gd",
   "ngay_da_chi",
-  "ghi_chu"
+  "ghi_chu",
+  "sec_huy",
+  "huy_boi",
+  "ten_nguoi_huy",
+  "huy_luc",
+  "ly_do_huy"
  ],
  "fields": [
   {
@@ -120,7 +125,7 @@
    "fieldname": "trang_thai",
    "fieldtype": "Select",
    "label": "Trạng thái",
-   "options": "Nhap\nCho duyet\nCho giam doc\nCho ke toan\nHoan tat\nDa chi\nBi tra lai",
+   "options": "Nhap\nCho duyet\nCho giam doc\nCho ke toan\nHoan tat\nDa chi\nBi tra lai\nDa huy",
    "default": "Nhap",
    "read_only": 1,
    "in_list_view": 1,
@@ -379,6 +384,36 @@
    "fieldname": "ngay_da_chi",
    "fieldtype": "Datetime",
    "label": "Luc tien ra khoi tai khoan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_huy",
+   "fieldtype": "Section Break",
+   "label": "Huy phieu"
+  },
+  {
+   "fieldname": "huy_boi",
+   "fieldtype": "Link",
+   "label": "Nguoi huy",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_nguoi_huy",
+   "fieldtype": "Data",
+   "label": "Ten nguoi huy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "huy_luc",
+   "fieldtype": "Datetime",
+   "label": "Huy luc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ly_do_huy",
+   "fieldtype": "Small Text",
+   "label": "Ly do huy",
    "read_only": 1
   }
  ],

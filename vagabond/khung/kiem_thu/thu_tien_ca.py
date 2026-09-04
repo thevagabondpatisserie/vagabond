@@ -421,8 +421,11 @@ def _():
 	# dau thanh la ghi khong vao, ma loi chi lo luc co nguoi bam nut.
 	la("phạm vi", o["pham_vi"]["options"].split("\n"), [nq.PV_NGAY, nq.PV_KHOANG])
 	la("nguồn kỳ vọng", o["nguon_ky_vong"]["options"].split("\n"), [nq.NG_CA, nq.NG_NGAY])
+	# TT_HUY them 04/09/2026 cung lan mo cua sua/huy cho cap giam doc. Giu
+	# nguyen y do goc cua ca kiem nay: danh sach options tren doctype phai
+	# khop TUNG DAU THANH voi hang so Python, khong duoc lech mot dau nao.
 	la("trạng thái", o["trang_thai"]["options"].split("\n"),
-		[nq.TT_NHAP, nq.TT_CHO_KY, nq.TT_DA_NOP])
+		[nq.TT_NHAP, nq.TT_CHO_KY, nq.TT_DA_NOP, nq.TT_HUY])
 	for t in ("diem_ban", "tu_ngay", "den_ngay", "so_ngay", "noi_dung",
 			"noi_giao_nhan", "anh_minh_chung"):
 		dung("doctype có ô %s" % t, t in o)
