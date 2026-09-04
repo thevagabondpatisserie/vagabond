@@ -86,7 +86,11 @@ def _khong_noi_hai_lan():
 	dung("luc xem con chan lan nua", "đã nối vào hồ sơ" in s[j:j + 2200])
 	dung("luc ghi con khoa lai", "def _khoa_phieu_noi_bo(" in s)
 	k = s.find("def _khoa_phieu_noi_bo(")
-	dung("ghi de len phieu nguoi khac thi ghi nhat ky", "bi noi hai lan" in s[k:k + 1200])
+	# v413: truoc day cho nay chi GHI NHAT KY roi `continue`, ma ham chay sau
+	# doc.insert nen ho so cua nguoi sau van ra doi day du va van di qua hai
+	# cap duyet - cong ty chi hai lan. Nay phai DUNG HAN de Frappe cuon nguoc.
+	dung("ghi de len phieu nguoi khac thi DUNG HAN", "frappe.throw(" in s[k:k + 1600])
+	dung("het bo qua bang continue", "\n\t\t\t\tcontinue\n" not in s[k:k + 1600])
 
 
 @ca("tep chung tu: chi giu ma tep con that tren may chu")
