@@ -503,7 +503,14 @@ def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
 		dong["item_name"] = (x["ten"] or "Hàng hoá/dịch vụ")[:140]
 		dong["uom"] = uom or "Nos"
 		dong["stock_uom"] = uom or "Nos"
-		dong["ten_hang_ncc"] = x["ten"][:140]
+	# TEN NHA CUNG CAP GHI PHAI CON LAI TREN MOI DONG, ke ca dong da co ma
+	# hang. Truoc 04/09/2026 o nay chi ghi cho dong CHUA co ma, nen mot khi
+	# dong duoc gan ma thi ERPNext thay `item_name` bang ten Mon cua minh va
+	# ten goc bien mat. Mat ten goc la mat cai khoa duy nhat de:
+	#   - dung lai to ma van giu duoc ma hang nguoi vua gan,
+	#   - ghi nho ma do vao bang anh xa cho lan sau.
+	# Ca that HDM-26-08-00149 Green Ball ngay 04/09/2026, xem `dung_lai_hddt`.
+	dong["ten_hang_ncc"] = (x["ten"] or "")[:140]
 	if tk_chi_phi:
 		dong["expense_account"] = tk_chi_phi
 	return dong
@@ -778,6 +785,23 @@ def _tra_ma_hang(x, goc_mst, ncc):
 	if not mapped:
 		return None, uom, 1
 
+	dung_uom, he_so = don_vi_theo_ma(mapped, uom)
+	return mapped, dung_uom, he_so
+
+
+def don_vi_theo_ma(mapped, uom):
+	"""(don vi dung, he so quy doi) cua mon `mapped` ung voi don vi NCC ghi.
+
+	Tach ra khoi `_tra_ma_hang` ngay 04/09/2026 de duong DUNG LAI dung
+	chung dung mot phep nan don vi voi duong dung chung tu lan dau. Truoc
+	do phep nay nam lut trong `_tra_ma_hang`, nen cho nao muon nan don vi
+	cho mot ma hang NGUOI VUA GAN deu phai chep lai - ma chep lai thi som
+	muon cung lech nhau (QT-19).
+	"""
+	if not mapped:
+		return uom, 1
+	if uom and not frappe.db.exists("UOM", uom):
+		uom = None
 	dvt_kho = frappe.db.get_value("Item", mapped, "stock_uom")
 	dung_uom, he_so = dvt_kho, 1
 	if uom and uom != dvt_kho:
@@ -825,7 +849,7 @@ def _tra_ma_hang(x, goc_mst, ncc):
 				% (mapped, uom, dvt_kho),
 				"minvoice: don vi chua khai",
 			)
-	return mapped, dung_uom, he_so
+	return dung_uom, he_so
 
 
 def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
