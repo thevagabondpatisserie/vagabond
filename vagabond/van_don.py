@@ -2370,6 +2370,31 @@ def _kho_chan(doc):
 	return ""
 
 
+def van_don_cua_phieu(phieu):
+	"""Phieu nay da co van don chua. Tra ve so van don, khong co thi rong.
+
+	MOT PHIEU CHI MOT VAN DON. Bam hai lan thi mo lai to cu chu khong de hai
+	to cung so chay song song, roi hai shipper cung di lay mot lo hang.
+
+	DO THEO CA HAI O, khong chi o `chung_tu_goc`. Ly do: 146 van don lap
+	truoc ban v411 deu duoc go tay, chung chi co so phieu nam trong o
+	`ma_don` chu khong co o noi goc. Do bang mot o thi may khong thay chung,
+	va bam nut se sinh to thu hai cho cung mot phieu.
+
+	Do that ngay 04/09/2026 sau khi deploy v411: trong 30 phieu bay ra cho
+	nguoi ta bam, 27 phieu DA CO van don go tay tu truoc. Tuc neu chi do o
+	noi goc thi gan nhu bam cai nao cung ra to trung.
+	"""
+	if not phieu:
+		return ""
+	for loc in ({"chung_tu_goc": phieu}, {"ma_don": phieu}):
+		loc["trang_thai"] = ["!=", "Huỷ"]
+		ten = frappe.db.get_value("Van Don", loc, "name")
+		if ten:
+			return ten
+	return ""
+
+
 @frappe.whitelist()
 def tao_van_don_dieu_chuyen(phieu=None, ngay_giao=None, ghi_chu=""):
 	"""Sinh MOT van don day du tu MOT phieu dieu chuyen da ghi so.
@@ -2389,10 +2414,7 @@ def tao_van_don_dieu_chuyen(phieu=None, ngay_giao=None, ghi_chu=""):
 	if vi_sao:
 		frappe.throw(vi_sao)
 
-	# Mot phieu chi mot van don. Bam hai lan thi mo lai to cu chu khong de
-	# hai to cung so chay song song, roi hai shipper cung di lay mot lo hang.
-	cu = frappe.db.get_value(
-		"Van Don", {"chung_tu_goc": phieu, "trang_thai": ["!=", "Huỷ"]}, "name")
+	cu = van_don_cua_phieu(phieu)
 	if cu:
 		return {"name": cu, "da_co": 1,
 			"nhan": "Phiếu %s đã có vận đơn %s rồi." % (phieu, cu)}
@@ -2473,14 +2495,18 @@ def phieu_dieu_chuyen_lap_duoc(so_ngay=7):
 	)
 	if not ds:
 		return []
-	da_co = {
-		r["chung_tu_goc"]
+	# Do ca hai o vi cung ly do o `van_don_cua_phieu`: van don go tay truoc
+	# ban v411 chi mang so phieu trong `ma_don`.
+	ten_ds = [x.name for x in ds]
+	da_co = set()
+	for o in ("chung_tu_goc", "ma_don"):
 		for r in frappe.get_all(
 			"Van Don",
-			filters={"chung_tu_goc": ["in", [x.name for x in ds]],
-				"trang_thai": ["!=", "Huỷ"]},
-			fields=["chung_tu_goc"], limit_page_length=0)
-	}
+			filters={o: ["in", ten_ds], "trang_thai": ["!=", "Huỷ"]},
+			fields=[o], limit_page_length=0,
+		):
+			if r.get(o):
+				da_co.add(r[o])
 	return [
 		{
 			"phieu": x.name,
