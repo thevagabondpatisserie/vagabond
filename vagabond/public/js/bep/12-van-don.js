@@ -108,7 +108,12 @@ async function scrVanDon() {
     html += '<div class="hub" data-vd="' + h(r.name) + '" data-tt="' + h(r.trang_thai) + '"' + (daChon ? ' style="background:#dbeafe"' : '') + '><div class="hi" style="overflow:hidden">' + oAnh + '</div>' +
       '<div class="ht"><div class="h1">' + (r.ma_don ? '#' + h(r.ma_don) + ' · ' : '') + h(r.khach || 'Khách lẻ') + '</div>' +
       '<div class="h2">' + d2 + '</div>' +
-      '<div class="h2">' + h((r.dia_chi || '').slice(0, 70)) + '</div>' +
+      /* Don dieu chuyen phai thay CA HAI dau. Ban cu chi in mot dong dia
+         chi, ma dia chi do la noi GIAO, nen shipper khong biet di lay o dau. */
+      (r.la_dieu_chuyen
+        ? '<div class="h2">📤 Lấy: ' + h((r.dia_chi_lay || '').slice(0, 60)) + '</div>' +
+          '<div class="h2">📥 Giao: ' + h((r.dia_chi || '').slice(0, 60)) + '</div>'
+        : '<div class="h2">' + h((r.dia_chi || '').slice(0, 70)) + '</div>') +
       (mon1 ? '<div class="h2" style="color:#7a5b2e">🎂 ' + mon1 + '</div>' : '') + vdHuyHieu(r) + '</div>' +
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto">'
       + (r.tien_thu_ho ? '<b style="white-space:nowrap;font-size:13px">COD ' + money(r.tien_thu_ho) + '</b>' : '')
@@ -336,7 +341,23 @@ async function scrVdView(name) {
   var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
     '<div style="display:flex;justify-content:space-between"><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b><span>' + h(d.trang_thai) + '</span></div>' +
     '<div>' + h(d.khach || 'Khách lẻ') + (d.sdt ? ' · <a href="tel:' + h(d.sdt) + '">' + h(d.sdt) + '</a>' : '') + '</div>' +
-    '<div style="font-size:13px">' + h(d.dia_chi || '(chưa có địa chỉ)') + '</div>' +
+    (d.la_dieu_chuyen
+      ? '<div style="margin-top:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:9px 11px;font-size:13px;line-height:1.6">' +
+        '<div style="font-size:11.5px;color:#0f766e;font-weight:800;letter-spacing:.4px">ĐIỀU CHUYỂN NỘI BỘ' +
+        (d.chung_tu_goc ? ' · ' + h(d.chung_tu_goc) : '') +
+        (d.tt_chung_tu === 'Đã huỷ' ? ' <span style="color:#b91c1c">· PHIẾU GỐC ĐÃ HUỶ</span>' : '') + '</div>' +
+        '<div style="margin-top:3px">📤 <b>Lấy tại ' + h(vdKhoNgan(d.kho_xuat)) + '</b></div>' +
+        '<div style="color:#4b5563">' + h(d.dia_chi_lay || '') + '</div>' +
+        '<div style="margin-top:4px">📥 <b>Giao tới ' + h(vdKhoNgan(d.kho_nhan)) + '</b></div>' +
+        '<div style="color:#4b5563">' + h(d.dia_chi || '') + '</div>' +
+        (d.bao_quan && d.bao_quan !== 'Thường'
+          ? '<div style="margin-top:5px;color:#1d4ed8;font-weight:700">' +
+            (d.bao_quan === 'Đông' ? '🧊 Hàng đông' : '❄️ Hàng mát') +
+            (d.phut_ngoai_lanh ? ' · tối đa ' + d.phut_ngoai_lanh + ' phút ngoài lạnh' : '') + '</div>' : '') +
+        (d.so_kien ? '<div style="margin-top:3px">📦 ' + d.so_kien + ' kiện</div>' : '') +
+        (d.nguoi_giao ? '<div style="margin-top:3px">Người giao: <b>' + h(d.nguoi_giao) + '</b>' + (d.sdt_giao ? ' · <a href="tel:' + h(d.sdt_giao) + '">' + h(d.sdt_giao) + '</a>' : '') + '</div>' : '') +
+        '</div>'
+      : '<div style="font-size:13px">' + h(d.dia_chi || '(chưa có địa chỉ)') + '</div>') +
     '<div style="color:#6b7280;font-size:13px">' + h(d.kenh) + (d.gio_giao ? ' · khung ' + h(d.gio_giao) : '') + (d.shipper ? ' · ' + h(vdTen(d.shipper)) : '') + (d.chuyen ? ' · 🧺' + h(d.chuyen) : '') + '</div>' +
     ((d.mon && d.mon.length) ? '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e5e7eb">' +
       '<div style="font-size:12px;color:#6b7280;letter-spacing:.4px">HÀNG TRONG ĐƠN</div>' +
@@ -390,6 +411,13 @@ async function scrVdView(name) {
     hang.push('<button class="btn gh" data-va="loi" style="flex:1;color:#b3261e">⚠️ Không giao được</button>');
     html += '<div style="display:flex;gap:8px;padding:8px 0 0">' + hang.join('') + '</div>';
   }
+  /* Don dieu chuyen: nut sua nhung o may KHONG the tu biet.
+     So kien la viec cua nguoi dong thung. Dieu kien bao quan thi may co
+     doan theo tien to ma hang, nhung doan sai mot lo bo la mat tien that,
+     nen luon phai sua duoc bang tay. */
+  if (d.la_dieu_chuyen && d.trang_thai !== 'Huỷ' && d.trang_thai !== 'Đã giao') {
+    html += '<button class="btn gh" data-va="suadc" style="margin-top:8px">📦 Sửa số kiện, bảo quản, người giao nhận</button>';
+  }
   /* Chu ky la chung tu giao nhan: cho ky ca truoc va sau khi bam Da giao,
      chi giau di khi don da huy hoac da co chu ky. */
   if (!d.chu_ky && d.trang_thai !== 'Huỷ') {
@@ -410,6 +438,7 @@ async function scrVdView(name) {
     var el = e.target.closest('[data-va]'); if (!el) return;
     var k = el.getAttribute('data-va');
     if (k === 'chiduong') { vdMoDuong(vdDich(d)); return; }
+    if (k === 'suadc') { return vdSuaDieuChuyen(d); }
     if (k === 'phancong') {
       if (!vtShipper) { busy(true); try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e7) { vtShipper = []; } busy(false); }
       var opsP = vdOpsGiao(vtShipper);
@@ -767,7 +796,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '410';
+var APPVER = '411';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -863,6 +892,66 @@ try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
 
 
 /* ---------- Van don: nguoi nhan, phan cong, va phieu in (02/08/2026) ---------- */
+/* Tran thoi gian ngoai lanh, phai TRUNG voi DC_PHUT_NGOAI_LANH ben may chu.
+   Lech hai ben thi man hinh hua mot dang ma to in ghi mot dang khac. */
+var VD_PHUT_LANH = { 'Thường': 0, 'Mát': 120, 'Đông': 45 };
+var vdBqChon = 'Thường';
+
+async function vdSuaDieuChuyen(d) {
+  var g = function (id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  /* Hang chip chu KHONG phai o xo danh sach: luat cua repo, va tren dien
+     thoai ba lua chon bay san van nhanh hon mo mot cai xo. */
+  vdBqChon = d.bao_quan || 'Thường';
+  var oBq = kmHangChip([['Thường', '📦 Thường'], ['Mát', '❄️ Mát'], ['Đông', '🧊 Đông']].map(function (x) {
+    return posChipNut('data-dcbq="' + x[0] + '"', x[1], vdBqChon === x[0]);
+  }).join(''));
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div class="sec" style="padding:0 0 6px">Hàng đi mấy thùng</div>' +
+    '<input class="hin" id="dcKien" type="number" min="0" inputmode="numeric" value="' + (d.so_kien || '') + '" placeholder="Số kiện, số thùng">' +
+    '<div class="sec" style="padding:10px 0 6px">Điều kiện bảo quản</div>' +
+    oBq +
+    '<input class="hin" id="dcPhut" type="number" min="0" inputmode="numeric" value="' + (d.phut_ngoai_lanh || '') + '" placeholder="Số phút tối đa ngoài lạnh">' +
+    '<div style="font-size:12px;color:#98a2b3;line-height:1.5;padding:2px 2px 0">Để trống ô phút thì máy tự đặt lại theo loại bảo quản: mát 120 phút, đông 45 phút.</div>' +
+    '<div class="sec" style="padding:12px 0 6px">Người giao bên kho xuất</div>' +
+    '<input class="hin" id="dcNg" value="' + h(d.nguoi_giao || '') + '" placeholder="Tên người giao">' +
+    '<input class="hin" id="dcSg" value="' + h(d.sdt_giao || '') + '" placeholder="Số điện thoại">' +
+    '<div class="sec" style="padding:12px 0 6px">Người nhận bên kho nhận</div>' +
+    '<input class="hin" id="dcNn" value="' + h(d.nguoi_nhan || '') + '" placeholder="Tên người nhận">' +
+    '<input class="hin" id="dcSn" value="' + h(d.sdt_nhan || '') + '" placeholder="Số điện thoại">' +
+    '</div>' +
+    '<button class="btn" id="dcLuu">Lưu</button>';
+  var bd = frame('Thông tin điều chuyển', html);
+  bd.addEventListener('click', function (e) {
+    var c = e.target.closest('[data-dcbq]'); if (!c) return;
+    vdBqChon = c.getAttribute('data-dcbq');
+    /* Doi loai bao quan thi dat lai tran thoi gian theo loai moi, tru khi
+       nguoi ta da tu go mot con so khac. */
+    var op = document.getElementById('dcPhut');
+    if (op && (op.value === '' || op.value === String(VD_PHUT_LANH[d.bao_quan] || 0))) op.value = VD_PHUT_LANH[vdBqChon] || '';
+    d.bao_quan = vdBqChon;
+    vdSuaDieuChuyen(d);
+  });
+  document.getElementById('dcLuu').onclick = async function () {
+    var phut = g('dcPhut');
+    busy(true);
+    try {
+      await api('vagabond.van_don.luu_dieu_chuyen', {
+        name: d.name, so_kien: g('dcKien') || 0, bao_quan: vdBqChon,
+        phut_ngoai_lanh: phut === '' ? null : phut,
+        nguoi_giao: g('dcNg'), sdt_giao: g('dcSg'),
+        nguoi_nhan: g('dcNn'), sdt_nhan: g('dcSn')
+      });
+      busy(false); toast('Đã lưu');
+      go(function () { scrVdView(d.name); }, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi'); }
+  };
+}
+
+/* Bo duoi cong ty cho ten kho ngan lai tren man hinh hep. Giu dung mot luat
+   voi `_ten_kho_ngan` ben may chu, doi mot ben thi phai doi ca hai. */
+function vdKhoNgan(t) {
+  return String(t || '').trim().replace(/\s-\s(TVD|TV)$/, '');
+}
 function vdKhoiNhan(d) {
   var s = '';
   var khac = (d.nguoi_nhan || '') && ((d.nguoi_nhan || '') !== (d.khach || '') || (d.sdt_nhan || '') !== (d.sdt || ''));
@@ -933,13 +1022,38 @@ function vdO(nhan, giatri, to) {
 var VD_DAN = 'Quý khách vui lòng kiểm tra bánh khi nhận, bảo quản ngăn mát tủ lạnh và dùng hết trong ngày.';
 function vdPhieuHtml(d) {
   var s = '<div class="p">';
+  var laDC = !!d.la_dieu_chuyen;
   s += '<div class="hd"><div><div class="bd">The Vagabond Pâtisserie</div>'
     + '<div class="stt">' + h(d.name || '') + (d.nguoi_tao ? ' · lập bởi ' + h(d.nguoi_tao) : '') + '</div></div>'
-    + '<div style="text-align:right"><div class="dt">Phiếu giao hàng</div>'
+    + '<div style="text-align:right"><div class="dt">' + (laDC ? 'Phiếu điều chuyển nội bộ' : 'Phiếu giao hàng') + '</div>'
     + '<div class="stt">' + h(d.trang_thai || '') + '</div></div>'
     + (d.qr ? '<div class="qr">' + d.qr + '</div>' : '')
     + '</div>';
 
+  if (laDC) {
+    /* GOP PHIEU DIEU CHUYEN VAO CHINH TO VAN DON (anh Viet 04/09/2026).
+       Truoc day phai in hai to roi ghim lai: to van don khong co bang hang,
+       to phieu dieu chuyen khong co ten shipper. Nay mot to A5 du ca hai. */
+    s += '<div class="gr">';
+    s += vdO('Phiếu điều chuyển', h(d.chung_tu_goc || d.ma_don || ''), true);
+    s += vdO('Ngày giao', h(String(d.ngay_giao || '').split('-').reverse().join('/')), true);
+    s += '<div class="f wide"><div class="l">Kho xuất · nơi lấy hàng</div><div class="v big">' +
+      h(d.ten_kho_xuat || d.kho_xuat || '') + '</div><div>' + h(d.dia_chi_lay || '') + '</div></div>';
+    s += '<div class="f wide"><div class="l">Kho nhận · nơi giao hàng</div><div class="v big">' +
+      h(d.ten_kho_nhan || d.kho_nhan || '') + '</div><div>' + h(d.dia_chi || '') + '</div></div>';
+    var tenDC = d.ten_shipper || (d.shipper ? String(d.shipper).split('@')[0] : '');
+    s += vdO('Shipper giao', (tenDC ? h(tenDC) : '<span class="mo">chưa phân công</span>') + (d.chuyen ? ' · ' + h(d.chuyen) : ''), true);
+    s += vdO('Số kiện / thùng', d.so_kien ? d.so_kien + ' kiện' : '<span class="mo">chưa đếm</span>');
+    s += vdO('Người giao (kho xuất)', (d.nguoi_giao ? h(d.nguoi_giao) : '<span class="mo">.....................</span>') + (d.sdt_giao ? ' · ' + h(d.sdt_giao) : ''));
+    s += vdO('Người nhận (kho nhận)', (d.nguoi_nhan ? h(d.nguoi_nhan) : '<span class="mo">.....................</span>') + (d.sdt_nhan ? ' · ' + h(d.sdt_nhan) : ''));
+    if (d.bao_quan && d.bao_quan !== 'Thường') {
+      s += '<div class="f wide"><div class="l">Điều kiện bảo quản</div><div class="v big">' +
+        (d.bao_quan === 'Đông' ? '🧊 HÀNG ĐÔNG' : '❄️ HÀNG MÁT') +
+        (d.phut_ngoai_lanh ? ' · tối đa ' + d.phut_ngoai_lanh + ' phút ngoài lạnh' : '') + '</div></div>';
+    }
+    s += '</div>';
+    if (d.ma_vach) s += '<div style="text-align:center;margin:6px 0 2px">' + d.ma_vach + '</div>';
+  } else {
   s += '<div class="gr">';
   s += vdO('Số đơn', h(d.ma_don || d.name || ''), true);
   s += vdO('Ngày giao', h(String(d.ngay_giao || '').split('-').reverse().join('/')) + (d.tag_gio ? ' · ' + h(d.tag_gio) : (d.gio_giao ? ' · ' + h(d.gio_giao) : '')), true);
@@ -958,14 +1072,21 @@ function vdPhieuHtml(d) {
   (String(d.the_don || '').split(', ')).forEach(function (x) { x = x.trim(); if (x && the.indexOf(x) < 0) the.push(x); });
   if (the.length) s += '<div class="f wide"><div class="l">Lưu ý khi giao</div><div>' + the.map(function (x) { return '<span class="the">' + h(x) + '</span>'; }).join('') + '</div></div>';
   s += '</div>';
+  }
 
   if (d.mon && d.mon.length) {
-    s += '<table><thead><tr><th style="width:20px">#</th><th>Sản phẩm</th><th class="q" style="width:42px">SL</th><th class="a" style="width:92px">Thành tiền</th></tr></thead><tbody>';
+    /* Don dieu chuyen khong mang gia: hang di trong noi bo, in tien ra chi
+       lam nguoi cam to giay tuong day la don ban. Thay cot tien bang o TICK
+       de kho nhan dem tay tung mon luc nhan. */
+    s += '<table><thead><tr><th style="width:20px">#</th><th>Sản phẩm</th><th class="q" style="width:42px">SL</th>'
+      + '<th class="a" style="width:92px">' + (laDC ? 'Đơn vị · nhận đủ' : 'Thành tiền') + '</th></tr></thead><tbody>';
     d.mon.forEach(function (m, i) {
       s += '<tr><td class="n">' + (i + 1) + '</td><td>' + h(m.item_name || m.item_code || '')
         + (m.item_code ? '<div class="code">' + h(m.item_code) + '</div>' : '') + '</td>'
         + '<td class="q">' + (m.qty != null ? m.qty : '') + '</td>'
-        + '<td class="a">' + (Number(m.amount) ? money(m.amount) + ' đ' : '-') + '</td></tr>';
+        + '<td class="a">' + (laDC
+            ? h(m.ghi_chu || '') + ' &nbsp;<span style="display:inline-block;width:13px;height:13px;border:1.4px solid #1A1A1A;vertical-align:-2px"></span>'
+            : (Number(m.amount) ? money(m.amount) + ' đ' : '-')) + '</td></tr>';
     });
     s += '</tbody></table>';
   }
@@ -973,10 +1094,18 @@ function vdPhieuHtml(d) {
   if (d.ghi_chu_in) s += '<div class="note"><b>Ghi chú giao hàng</b>' + h(d.ghi_chu_in) + '</div>';
   if (d.ghi_chu) s += '<div class="note" style="border-left-color:#8a8279"><b>Ghi chú nội bộ</b>' + h(d.ghi_chu) + '</div>';
 
-  s += '<div class="cod"><div class="dan">' + VD_DAN + '</div>'
-    + '<div style="text-align:right"><div class="l">Tiền thu hộ (COD)</div>'
-    + '<div class="so">' + (Number(d.tien_thu_ho) ? money(d.tien_thu_ho) + ' đ' : 'Không thu') + '</div></div></div>';
-  s += '<div class="sig"><div><span>Người giao</span></div><div><span>Người nhận ký</span></div></div>';
+  if (!laDC) {
+    s += '<div class="cod"><div class="dan">' + VD_DAN + '</div>'
+      + '<div style="text-align:right"><div class="l">Tiền thu hộ (COD)</div>'
+      + '<div class="so">' + (Number(d.tien_thu_ho) ? money(d.tien_thu_ho) + ' đ' : 'Không thu') + '</div></div></div>';
+  }
+  /* Hai dong ky, moi ben mot GIO rieng. Hang lanh ma khong biet roi kho luc
+     may gio va toi kho luc may gio thi khong ai truy duoc lo hang hong o
+     chang nao. */
+  s += laDC
+    ? '<div class="sig"><div><span>Người giao · giờ ....... : .......</span></div>' +
+      '<div><span>Người nhận ký · giờ ....... : .......</span></div></div>'
+    : '<div class="sig"><div><span>Người giao</span></div><div><span>Người nhận ký</span></div></div>';
   s += '<div class="ft"><b>THE VAGABOND PÂTISSERIE</b> · 307/1 Nguyễn Văn Trỗi &amp; 9 Trần Cao Vân · Cảm ơn Quý khách đã tin chọn</div>';
   return s + '</div>';
 }
@@ -1238,6 +1367,14 @@ function vdHuyHieu(r) {
   if (r.chup_truoc) t.push(vdThe('#7c3aed', '📷 Gửi ảnh trước'));
   if (r.tre_khung_gio) t.push(vdThe('#b91c1c', '⚠️ Dễ trễ giờ'));
   if (r.ghi_chu_in) t.push(vdThe('#475569', '📝 ' + h(String(r.ghi_chu_in).replace(/[\r\n]+/g, ' ').slice(0, 38))));
+  /* Don dieu chuyen: ba thu shipper phai biet TRUOC khi len xe. */
+  if (r.la_dieu_chuyen) {
+    t.push(vdThe('#0f766e', '🏭 Điều chuyển' + (r.chung_tu_goc ? ' · ' + h(r.chung_tu_goc) : '')));
+    if (r.bao_quan === 'Đông') t.push(vdThe('#1d4ed8', '🧊 Hàng đông' + (r.phut_ngoai_lanh ? ' · tối đa ' + r.phut_ngoai_lanh + ' phút' : '')));
+    else if (r.bao_quan === 'Mát') t.push(vdThe('#0891b2', '❄️ Hàng mát' + (r.phut_ngoai_lanh ? ' · tối đa ' + r.phut_ngoai_lanh + ' phút' : '')));
+    if (r.so_kien) t.push(vdThe('#7c3aed', '📦 ' + r.so_kien + ' kiện'));
+    if (r.tt_chung_tu === 'Đã huỷ') t.push(vdThe('#b91c1c', '⛔ Phiếu gốc đã huỷ'));
+  }
   if (!t.length) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">' + t.join('') + '</div>';
 }

@@ -612,6 +612,18 @@ async function scrXkView(name) {
       '<span style="font-weight:700">' + vxSo(x.sl) + ' ' + h(x.dvt || '') + '</span></div>';
   }
   var nut = '';
+  /* Nut lap van don, dat NGAY TREN phieu dieu chuyen.
+
+     Anh Viet 04/09/2026. Truoc ban nay nguoi ta mo man Van don, bam dau
+     cong, GO TAY so phieu vao o "So don" va go ten kho vao o "Khach". Nen
+     van don khong co kho xuat, khong co danh sach hang, khong noi duoc ve
+     phieu goc, va to in ra trong phan hang.
+
+     Bam tu day thi may tu dien het: chieu di, hai dia chi that, bang hang,
+     va duong nối ve phieu goc de sau con doi chieu. */
+  if (d.docstatus === 1 && !laHuy) {
+    nut += '<button class="vxb" id="vxVanDon">🛵 Lập vận đơn giao hàng này</button>';
+  }
   if (d.docstatus === 1 && !laHuy && d.kho_nhan && (!khoGiuCuaToi().length || laKhoCuaToi(d.kho_nhan))) {
     nut += '<button class="vxb o" id="vxHuyTiep">🗑️ Xuất huỷ hàng này tại ' + h(shortWh(d.kho_nhan)) + '</button>';
   }
@@ -669,6 +681,22 @@ async function scrXkView(name) {
       toast('Đã gỡ ảnh', 2800);
       go(function () { scrXkView(d.name); }, true);
     } catch (e) { busy(false); baoTin(errMsg(e) || 'Không gỡ được ảnh'); }
+  };
+
+  var vd = body.querySelector('#vxVanDon');
+  if (vd) vd.onclick = async function () {
+    if (!await xacNhan('Lập vận đơn cho phiếu ' + d.name + '?\n\n' +
+      shortWh(d.kho_xuat) + ' → ' + shortWh(d.kho_nhan) + '\n' +
+      d.dong.length + ' món.\n\nVận đơn sẽ nằm ở màn Vận đơn để phân công shipper.',
+      'Lập vận đơn', 'Lập')) return;
+    this.disabled = true;
+    busy(true);
+    try {
+      var kq = await api('vagabond.van_don.tao_van_don_dieu_chuyen', { phieu: d.name });
+      busy(false);
+      toast(kq.nhan || 'Đã lập vận đơn', 4200);
+      if (typeof scrVdView === 'function') go(function () { scrVdView(kq.name); });
+    } catch (e) { busy(false); this.disabled = false; baoTin(errMsg(e) || 'Không lập được vận đơn'); }
   };
 
   var hu = body.querySelector('#vxHuyTiep');
