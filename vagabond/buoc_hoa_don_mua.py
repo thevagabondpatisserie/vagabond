@@ -34,7 +34,7 @@ báo cáo đối chiếu. Một ô nói sai còn hại hơn không có ô nào.
 """
 
 import frappe
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 PI = "Purchase Invoice"
 TRUONG = "vgb_buoc"
@@ -130,6 +130,23 @@ def han_tra_that(ngay_hach_toan, han_tra):
 	return 1 if b > a else 0
 
 
+def lech_tu_so(tong_tien, tien_thue, tien_truoc_thue, tong_dong, giam_gia, nguong):
+	"""Tờ có lệch với bản hoá đơn điện tử không, tính thẳng từ số. THUẦN.
+
+	Tách ra khỏi `_lech_hddt` để phần nạp lại hàng loạt dùng được mà không
+	phải mở từng tờ. Giữ đúng luật của `dung_lai_hddt`: con số đáng tin là
+	`tong_tien` trừ thuế, chỉ khi không có tổng mới đành quay về ô
+	`tien_truoc_thue`. Không có mốc nào để so thì trả 0, vì không biết thì
+	không được phép kết luận là lệch.
+	"""
+	tong = flt(tong_tien)
+	muc_tieu = (tong - flt(tien_thue)) if tong else flt(tien_truoc_thue)
+	if not muc_tieu:
+		return 0
+	hien = flt(tong_dong) - flt(giam_gia)
+	return 1 if abs(hien - muc_tieu) > flt(nguong) else 0
+
+
 # ------------------------------------------------------------ chạm Frappe
 
 
@@ -181,3 +198,105 @@ def dat_buoc(doc, method=None):
 		doc.set(TRUONG, buoc_cua_to(dong, _lech_hddt(doc)))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "buoc_hoa_don_mua: dat buoc")
+
+
+def nap_lai_hang_loat(gioi_han=6000):
+	"""Điền bước cho những tờ nháp lưu TRƯỚC khi có tính năng này.
+
+	VÌ SAO CẦN - phát hiện 04/09/2026 ngay sau khi deploy v421
+	----------------------------------------------------------
+	Ô bước chỉ được tính lúc lưu tờ. Bật tính năng lên xong thì 3.168 trên
+	3.170 tờ nháp vẫn trống ô đó và hiện "Nháp, chưa xét", vì lần lưu gần
+	nhất của chúng đã lâu rồi. Không ai đi mở lại ba nghìn tờ để bấm lưu,
+	nên nếu không nạp lại một lượt thì tính năng coi như chỉ chạy cho tờ
+	mới, tức là gần như không giải quyết được cái anh Việt hỏi.
+
+	KHÔNG PHẢI LÀ SỬA DỮ LIỆU CŨ. Ô này do máy tính ra từ chính dữ liệu
+	đang có trên tờ, chỉ để hiển thị, người không gõ được, và mỗi lần lưu
+	lại tự tính lại. Ở đây không đụng tới một con số tiền nào, không đụng
+	tờ đã ghi sổ, không đụng hoá đơn điện tử.
+
+	Đọc theo LÔ chứ không mở từng tờ: mở 3.168 tờ là chạy lại toàn bộ hook
+	của mỗi tờ, vừa chậm vừa có thể làm đổi dòng hàng. Ở đây chỉ đọc bảng
+	và ghi đúng một ô, `update_modified=False` để không làm xê dịch ngày
+	sửa của ai cả.
+
+	Chạy lại được: chỉ nhận tờ còn nháp và còn TRỐNG ô bước, nên lượt sau
+	không còn tờ nào thoả điều kiện.
+	"""
+	kq = {"xet": 0, "ghi": 0}
+	try:
+		from vagabond import mua_dich_vu
+
+		to = frappe.get_all(
+			PI,
+			filters={"docstatus": 0, TRUONG: ["in", ["", None]]},
+			fields=["name", "custom_minvoice_id", "discount_amount"],
+			limit_page_length=cint(gioi_han),
+			order_by="modified desc",
+		)
+		if not to:
+			return kq
+		kq["xet"] = len(to)
+		ten = [t["name"] for t in to]
+
+		dong = {}
+		ma_hang = set()
+		for lo in range(0, len(ten), 500):
+			for d in frappe.get_all(
+				"Purchase Invoice Item",
+				filters={"parent": ["in", ten[lo:lo + 500]]},
+				fields=["parent", "item_code", "purchase_receipt", "qty", "rate"],
+				limit_page_length=0,
+			):
+				dong.setdefault(d["parent"], []).append(d)
+				if d.get("item_code"):
+					ma_hang.add(d["item_code"])
+
+		qua_kho = {}
+		ds_ma = list(ma_hang)
+		for lo in range(0, len(ds_ma), 500):
+			for m in frappe.get_all(
+				"Item",
+				filters={"name": ["in", ds_ma[lo:lo + 500]]},
+				fields=["name", "is_stock_item"],
+				limit_page_length=0,
+			):
+				qua_kho[m["name"]] = cint(m["is_stock_item"])
+
+		ma_hddt = [t["custom_minvoice_id"] for t in to if (t.get("custom_minvoice_id") or "").strip()]
+		goc = {}
+		for lo in range(0, len(ma_hddt), 500):
+			for g in frappe.get_all(
+				"MInvoice Invoice",
+				filters={"name": ["in", ma_hddt[lo:lo + 500]]},
+				fields=["name", "tong_tien", "tien_thue", "tien_truoc_thue"],
+				limit_page_length=0,
+			):
+				goc[g["name"]] = g
+
+		for t in to:
+			ds = dong.get(t["name"]) or []
+			lech = 0
+			g = goc.get((t.get("custom_minvoice_id") or "").strip())
+			if g:
+				tong_dong = sum(flt(d.get("qty")) * flt(d.get("rate")) for d in ds)
+				lech = lech_tu_so(
+					g.get("tong_tien"), g.get("tien_thue"), g.get("tien_truoc_thue"),
+					tong_dong, t.get("discount_amount"), mua_dich_vu.NGUONG_LECH,
+				)
+			buoc = buoc_cua_to(
+				[{
+					"item_code": d.get("item_code"),
+					"purchase_receipt": d.get("purchase_receipt"),
+					"qua_kho": qua_kho.get(d.get("item_code"), 0),
+				} for d in ds],
+				lech,
+			)
+			frappe.db.set_value(PI, t["name"], TRUONG, buoc, update_modified=False)
+			kq["ghi"] += 1
+
+		frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "buoc_hoa_don_mua: nap lai hang loat")
+	return kq
