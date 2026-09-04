@@ -149,6 +149,83 @@ def ten_dong_bu(so_tien):
 		if abs(flt(so_tien)) < 100 else "Phí khác theo hoá đơn")
 
 
+def khoa_ten(ten):
+	"""Khoá so khớp một tên hàng nhà cung cấp ghi. THUẦN.
+
+	Bỏ khoảng trắng thừa và hạ chữ thường. KHÔNG bỏ dấu, vì "Trân châu
+	khoai (ô long)" và "Trân châu khoai (khoai môn)" là hai món khác nhau
+	và nhập nhèm hai cái đó là gắn nhầm mã hàng.
+	"""
+	return " ".join(str(ten or "").strip().lower().split())
+
+
+def ten_ncc_cua_dong(d):
+	"""Tên hàng nhà cung cấp ghi, đọc từ một dòng chứng từ. THUẦN.
+
+	Ô `ten_hang_ncc` là chỗ tin được: ERPNext thay `item_name` bằng tên Món
+	của mình ngay khi dòng được gắn mã hàng, nên đọc `item_name` không thôi
+	là mất dấu.
+	"""
+	lay = d.get if hasattr(d, "get") else (lambda k, v=None: getattr(d, k, v))
+	for o in ("ten_hang_ncc", "item_name"):
+		v = str(lay(o) or "").strip()
+		if v:
+			return v
+	return ""
+
+
+def nen_nan_don_vi(uom_hien, hs_hien, uom_dung, hs_dung):
+	"""Có nên nắn đơn vị của một dòng về (uom_dung, hs_dung) không. THUẦN.
+
+	CHỈ nắn khi dòng đang mang đơn vị máy hạ tạm, tức hệ số đúng bằng 1,
+	mà phép tra ra được một hệ số thật khác 1. Người đã tự khai đơn vị thì
+	hệ số của họ khác 1, và của họ thì để yên - máy không đè lên khai báo
+	của người.
+	"""
+	if not uom_dung:
+		return False
+	if str(uom_hien or "").strip() == str(uom_dung or "").strip():
+		return False
+	return abs(flt(hs_hien) - 1.0) < 1e-9 and abs(flt(hs_dung) - 1.0) > 1e-9
+
+
+def xep_ma_theo_dong_goc(ma_tren_to, khoa_goc, so_dong_to):
+	"""Mã hàng đang có trên tờ, xếp về đúng vị trí dòng của bản gốc. THUẦN.
+
+	`ma_tren_to` là list (khoá tên của dòng, mã hàng) theo thứ tự dòng trên
+	chứng từ; `khoa_goc` là list khoá tên của các dòng bản gốc.
+
+	Ghép bằng TÊN trước, vì tên là thứ nhà cung cấp ghi và không đổi. Tên
+	nào xuất hiện hai lần trong bản gốc thì bỏ qua, không đoán.
+
+	Chỉ khi dòng trên tờ không còn tên nào để so mới ghép theo VỊ TRÍ, và
+	chỉ khi số dòng của tờ bằng số dòng bản gốc hoặc hơn đúng một dòng
+	(dòng bù chênh lệch). Lệch hơn thế là tờ đã bị xáo, đoán vị trí lúc đó
+	là gắn nhầm mã hàng cho nhau.
+	"""
+	dem = {}
+	for i, k in enumerate(khoa_goc):
+		dem.setdefault(k, []).append(i)
+	duy_nhat = {k: v[0] for k, v in dem.items() if len(v) == 1 and k}
+
+	ra = {}
+	con_lai = []
+	for vi_tri, (khoa, ma) in enumerate(ma_tren_to):
+		if not ma:
+			continue
+		if khoa and khoa in duy_nhat:
+			ra.setdefault(duy_nhat[khoa], ma)
+		elif not khoa:
+			con_lai.append((vi_tri, ma))
+
+	xep_duoc = so_dong_to in (len(khoa_goc), len(khoa_goc) + 1)
+	if xep_duoc:
+		for vi_tri, ma in con_lai:
+			if vi_tri < len(khoa_goc):
+				ra.setdefault(vi_tri, ma)
+	return ra
+
+
 # ------------------------------------------------------- phan can Frappe
 
 
@@ -229,10 +306,31 @@ def _dung_dong_tai_cho(doc, g):
 		if d.get("expense_account"):
 			tk = d.expense_account
 			break
+	# MÃ HÀNG NGƯỜI VỪA GẮN PHẢI SỐNG SÓT QUA LƯỢT DỰNG LẠI.
+	#
+	# Ca thật HDM-26-08-00149 Green Ball, ngày 04/09/2026, Uyên báo:
+	# *"em đã gắn mã ánh xạ, lưu xong mất cái mã em gắn và hiện ra thông
+	# báo, không nhảy qua chỗ kế toán duyệt."*
+	#
+	# Chuỗi sự việc: gắn mã hàng vào một dòng thì ERPNext lấy lại đơn giá
+	# theo Bảng giá nhập của Món, tiền dòng đổi (69.000 thành 74.556), tổng
+	# tờ lệch khỏi hoá đơn điện tử, hook lưu thấy lệch nên dựng lại cả bảng
+	# dòng hàng - mà đường dựng chỉ lấy mã hàng từ BẢNG ÁNH XẠ, không bao
+	# giờ nhìn cái người vừa gõ. Nên công gõ bay mất.
+	#
+	# Hậu quả kéo theo đúng như Uyên tả: dòng không còn mã hàng thì nối
+	# phiếu nhập kho từ chối, không nối được thì không ghi sổ được, không
+	# ghi sổ thì tờ không sang bước kế toán duyệt. Một lỗi, ba triệu chứng.
+	#
+	# Nay: bảng ánh xạ tra không ra thì lấy mã hàng ĐANG CÓ TRÊN TỜ.
+	giu = _ma_dang_gan(doc, dong_goc)
 	moi = []
-	for it in dong_goc:
+	for vi_tri, it in enumerate(dong_goc):
 		x = mc.dong_tu_hoa_don(it)
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
+		if not ma and giu.get(vi_tri):
+			ma = giu[vi_tri]
+			uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"))
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
 	dp_gia, dp_tien, dp_sl = _do_chinh_xac()
 	tong_dong = sum(
@@ -256,6 +354,144 @@ def _dung_dong_tai_cho(doc, g):
 	_dung_thue_tai_cho(doc, g)
 	mc.bo_mau_thue_mat_hang(doc)
 	return len(doc.get("items"))
+
+
+def _khoa_goc(dong_goc):
+	"""Khoá tên của từng dòng bản gốc, đúng thứ tự."""
+	from vagabond import minvoice_chung_tu as mc
+
+	return [khoa_ten(mc.dong_tu_hoa_don(it).get("ten")) for it in dong_goc]
+
+
+def _ma_dang_gan(doc, dong_goc):
+	"""Mã hàng đang có trên tờ, xếp về đúng vị trí dòng của bản gốc."""
+	tren_to = [
+		(khoa_ten(ten_ncc_cua_dong(d)), str(d.get("item_code") or "").strip())
+		for d in (doc.get("items") or [])
+	]
+	return xep_ma_theo_dong_goc(tren_to, _khoa_goc(dong_goc), len(tren_to))
+
+
+def ghim_lai_theo_goc(doc, g):
+	"""Kéo số lượng và đơn giá từng dòng về đúng bản gốc, GIỮ NGUYÊN mã hàng.
+
+	Đây là bước NHẸ, chạy trước khi tính tới chuyện dựng lại cả bảng dòng
+	hàng. Dựng lại thì đúng số nhưng thay mới toàn bộ các dòng, kéo theo
+	việc phải nối lại phiếu nhập và làm người dùng thấy tờ của mình bị thay
+	sau lưng. Kéo tại chỗ thì chỉ đụng đúng hai ô làm sai số tiền.
+
+	Chỉ đụng dòng nào ghép được với một dòng bản gốc BẰNG TÊN. Dòng bù
+	chênh lệch do máy tự thêm không có tên trong bản gốc nên không bị đụng.
+
+	Trả về số dòng đã kéo lại.
+	"""
+	dong_goc = doc_chi_tiet(g.get("chi_tiet"))
+	if not dong_goc:
+		return 0
+	from vagabond import minvoice_chung_tu as mc
+
+	theo_khoa = {}
+	dem = {}
+	for it in dong_goc:
+		x = mc.dong_tu_hoa_don(it)
+		k = khoa_ten(x.get("ten"))
+		if not k:
+			continue
+		dem[k] = dem.get(k, 0) + 1
+		theo_khoa[k] = x
+	# Tên trùng nhau trong cùng một tờ thì không đoán dòng nào là dòng nào.
+	for k, n in dem.items():
+		if n > 1:
+			theo_khoa.pop(k, None)
+
+	da = 0
+	for d in doc.get("items") or []:
+		x = theo_khoa.get(khoa_ten(ten_ncc_cua_dong(d)))
+		if not x:
+			continue
+		sua = False
+		if flt(d.get("qty")) != flt(x.get("sl")):
+			d.qty = x.get("sl")
+			sua = True
+		if flt(d.get("rate")) != flt(x.get("gia")):
+			d.rate = x.get("gia")
+			sua = True
+		if sua:
+			# Ghim luôn giá bảng, không thì ERPNext lại lấy giá Bảng giá nhập
+			# điền đè lên ngay trong chính lượt lưu này.
+			d.price_list_rate = x.get("gia")
+			d.discount_percentage = 0
+			d.discount_amount = 0
+			d.margin_rate_or_amount = 0
+			da += 1
+		ma = str(d.get("item_code") or "").strip()
+		if not ma:
+			continue
+		uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"))
+		if nen_nan_don_vi(d.get("uom"), d.get("conversion_factor"), uom, he_so):
+			d.uom = uom
+			d.conversion_factor = he_so
+	return da
+
+
+def hoc_ma_hang(doc, g):
+	"""Ghi nhớ mã hàng người gõ tay vào bảng ánh xạ. Trả số dòng đã nhớ.
+
+	VÌ SAO PHẢI HỌC Ở ĐÂY (04/09/2026)
+	--------------------------------------------------------------------
+	Màn Đối chiếu trong app đã có nút "Gắn mã hàng" và nút đó có ghi nhớ.
+	Nhưng người gõ thẳng trên màn quản trị thì không đi qua nút đó, nên
+	công gõ chỉ nằm trên đúng một tờ và tờ sau của cùng nhà cung cấp lại
+	phải gõ lại từ đầu. Anh Việt chốt 26/08/2026: một việc mà hai nơi bấm
+	ra hai bản chất là cấm. Nên phép ghi nhớ phải nằm ở tầng lưu chứng từ,
+	không nằm trong một cái nút.
+
+	CHỈ ghi khi ô nhớ còn TRỐNG. Đổi một ánh xạ đã có là quyết định phân
+	loại kế toán của người, điều 11 không cho máy tự làm.
+
+	Chỉ học từ dòng có tên KHỚP một dòng của bản gốc, để không bao giờ học
+	nhầm từ dòng bù chênh lệch do chính máy thêm vào.
+	"""
+	mst = (g.get("mst_doi_tac") or "").split("-")[0]
+	if not mst:
+		return 0
+	# GHI VÀO Ô NHỚ BẰNG ĐÚNG CHỮ CỦA BẢN GỐC, không phải chữ đang nằm trên
+	# chứng từ. Phép tra ánh xạ ở `_tra_ma_hang` so khớp CHÍNH XÁC với tên
+	# trên hoá đơn điện tử, nên lệch một chữ hoa hay một khoảng trắng là
+	# ghi nhớ xong vẫn không ai đọc ra.
+	from vagabond import minvoice_chung_tu as mc
+
+	ten_goc = {}
+	for it in doc_chi_tiet(g.get("chi_tiet")):
+		t = str(mc.dong_tu_hoa_don(it).get("ten") or "").strip()
+		if t:
+			ten_goc.setdefault(khoa_ten(t), t[:140])
+	if not ten_goc:
+		return 0
+	da = 0
+	for d in doc.get("items") or []:
+		ma = str(d.get("item_code") or "").strip()
+		ten = ten_goc.get(khoa_ten(ten_ncc_cua_dong(d)))
+		if not (ma and ten):
+			continue
+		cu = frappe.db.get_value(
+			"MInvoice NCC Map", {"supplier_mst": mst, "ten_ncc": ten}, "name"
+		)
+		if cu:
+			if (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip():
+				continue
+			frappe.db.set_value("MInvoice NCC Map", cu, "item_code", ma)
+		else:
+			m = frappe.get_doc({
+				"doctype": "MInvoice NCC Map",
+				"supplier_mst": mst,
+				"ten_ncc": ten,
+				"item_code": ma,
+			})
+			m.flags.ignore_permissions = True
+			m.insert(ignore_permissions=True)
+		da += 1
+	return da
 
 
 def _tong_thue_tren_phieu(doc):
@@ -423,10 +659,35 @@ def dong_bo_luc_luu(doc, method=None):
 		g = _goc(doc.get("custom_minvoice_id"))
 		if not g:
 			return
+		# HỌC TRƯỚC, DỰNG SAU. Ghi nhớ mã hàng người vừa gõ vào bảng ánh xạ
+		# ngay đầu lượt lưu, để nếu bên dưới có phải dựng lại cả bảng dòng
+		# hàng thì phép tra ánh xạ đã thấy mã đó và tự gắn lại. Hai lớp giữ
+		# cùng một thứ, hỏng một lớp vẫn còn lớp kia.
+		try:
+			hoc_ma_hang(doc, g)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "dung_lai_hddt: hoc ma hang")
 		muc_tieu = muc_tieu_truoc_thue(g)
 		if not muc_tieu:
 			return
 		if not mua_dich_vu.lech_qua_nguong(_tong_dong_hien_tai(doc), muc_tieu, NGUONG):
+			return
+		# BƯỚC NHẸ TRƯỚC KHI TÍNH TỚI DỰNG LẠI. Kéo số lượng và đơn giá của
+		# từng dòng về đúng bản gốc mà không thay dòng nào. Đủ để chữa ca
+		# hay gặp nhất - gắn mã hàng xong ERPNext lấy giá bảng điền đè - mà
+		# không đụng tới mã hàng, đơn vị hay liên kết phiếu nhập của người.
+		da_ghim = ghim_lai_theo_goc(doc, g)
+		if da_ghim and not mua_dich_vu.lech_qua_nguong(
+			_tong_dong_hien_tai(doc), muc_tieu, NGUONG
+		):
+			frappe.msgprint(
+				"Số lượng và đơn giá vừa bị đổi lệch khỏi hoá đơn điện tử %s/%s, "
+				"là số nhà cung cấp đã gửi cơ quan thuế, nên hệ thống kéo lại "
+				"đúng bản gốc trong lần lưu này. Mã hàng và phiếu nhập đã nối "
+				"trên tờ vẫn giữ nguyên."
+				% (g.get("ky_hieu") or "", g.get("so_hd") or ""),
+				title="Giữ đúng số hoá đơn điện tử", indicator="orange",
+			)
 			return
 		nen, vi_sao = dung_lai_co_loi_khong(doc, g)
 		if not nen:
@@ -435,9 +696,16 @@ def dong_bo_luc_luu(doc, method=None):
 			# chắc đúng thì để yên và nói cho người ta biết.
 			frappe.msgprint(
 				"Tờ này đang lệch với hoá đơn điện tử %s/%s và hệ thống chưa dựng "
-				"lại được: %s. Hệ thống giữ nguyên tờ như đang có, nhờ kế toán đối "
-				"chiếu tay và đừng ghi sổ khi còn lệch."
-				% (g.get("ky_hieu") or "", g.get("so_hd") or "", vi_sao),
+				"lại được: %s. %s Nhờ kế toán đối chiếu tay và đừng ghi sổ khi "
+				"còn lệch."
+				% (
+					g.get("ky_hieu") or "", g.get("so_hd") or "", vi_sao,
+					(
+						"Hệ thống đã kéo %d dòng về đúng số lượng và đơn giá của "
+						"bản gốc, phần còn lại giữ nguyên như đang có." % da_ghim
+					) if da_ghim else
+					"Hệ thống giữ nguyên tờ như đang có.",
+				),
 				title="Lệch so với hoá đơn điện tử", indicator="red",
 			)
 			return
