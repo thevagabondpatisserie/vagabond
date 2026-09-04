@@ -20800,7 +20800,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '416';
+var APPVER = '417';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30112,9 +30112,13 @@ async function dcmDoiDonVi(name, idx, dvt) {
   if (!ok) return;
   busy(true);
   try {
-    await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt });
+    var kq = await api('vagabond.doi_chieu_mua.sua_don_vi', { name: name, dong: JSON.stringify([String(idx)]), dvt: dvt });
     busy(false);
-    toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
+    /* May tra ve la CHUA GIU DUOC thi phai noi that, dung toast "da doi".
+       To dang lech tong voi hoa don dien tu thi nhip luu dung lai ca bang
+       dong hang va don vi vua doi bi tra ve nhu cu (04/09/2026). */
+    if (kq && kq.khong_giu_duoc) baoTin(kq.loi_nhan || 'Chưa giữ được đơn vị vừa đổi.');
+    else toast('Đã đổi đơn vị dòng ' + idx + ' thành ' + dvt + '.', 3200);
     go(function () { scrDcmXem(name); }, true);
   } catch (e) { busy(false); baoTin((e && e.message) || 'Không đổi được đơn vị'); }
 }
@@ -30215,7 +30219,8 @@ function dcmGanDungLai(name) {
   n.onclick = async function () {
     var ok = await confirmSheet('Dựng lại theo hoá đơn điện tử',
       'Toàn bộ dòng hàng của phiếu này sẽ được dựng lại đúng như bản hoá đơn ' +
-      'nhà cung cấp đã gửi cơ quan thuế.\n\nNhững gì đã sửa tay trên dòng hàng sẽ mất.',
+      'nhà cung cấp đã gửi cơ quan thuế.\n\nSố lượng và đơn giá sửa tay sẽ về lại số gốc. ' +
+      'Mã hàng đã gắn trên từng dòng thì vẫn giữ.',
       'Dựng lại', true);
     if (!ok) return;
     busy(true);

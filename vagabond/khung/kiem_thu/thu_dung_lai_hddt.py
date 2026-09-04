@@ -483,3 +483,218 @@ def _():
     dung("noi ro nut kia chep de", "chép đè" in MA_PI_JS)
     dung("ke ra dong bi mat", "phí dịch vụ" in MA_PI_JS)
     dung("moi loi keo do man hinh deu duoc bat", MA_PI_JS.count("catch (e)") >= 2)
+
+
+# ===================================================================
+# GIU MA HANG NGUOI GAN TAY QUA LUOT DUNG LAI (04/09/2026)
+#
+# Ca that HDM-26-08-00149, CONG TY TNHH GREEN BALL, hoa don dien tu
+# C26MGB/1661. Hai dong: "Tran chau khoai (o long)" 5 x 69.000 va
+# "Phi van chuyen" 1 x 27.778, tien hang 372.778, thue 29.822, tong
+# 402.600.
+#
+# Uyen gan ma hang cho hai dong do. Gan xong ERPNext lay lai don gia
+# theo Bang gia nhap (69.000 thanh 74.556), tong to lech khoi hoa don
+# dien tu, nhip luu thay lech nen dung lai ca bang dong hang - ma
+# duong dung chi lay ma hang tu BANG ANH XA, khong nhin cai vua go.
+# Ma bay mat, dong khong co ma thi khong noi duoc phieu nhap, khong
+# noi duoc thi khong ghi so, khong ghi so thi khong sang buoc ke toan
+# duyet. Mot loi, ba trieu chung.
+# ===================================================================
+
+MA_DUNG_LAI = _doc_tep("dung_lai_hddt.py")
+MA_MC = _doc_tep("minvoice_chung_tu.py")
+MA_DCM = _doc_tep("doi_chieu_mua.py")
+MA_DCM_JS = _doc_tep("public", "js", "bep", "18-doi-chieu-may-in.js")
+
+
+@ca("khoa ten: bo khoang trang thua, ha chu thuong, GIU NGUYEN dau")
+def _():
+	la("bo khoang trang hai dau", D.khoa_ten("  Phí vận chuyển  "), "phí vận chuyển")
+	la("gop khoang trang giua", D.khoa_ten("Trân  châu\tkhoai"), "trân châu khoai")
+	la("rong thi ra rong", D.khoa_ten(None), "")
+	# Hai mon that su khac nhau cua chinh Green Ball. Bo dau la hai cai nay
+	# van khac nhau, nhung "o long" va "ô long" thi khong duoc coi la mot
+	# voi bat ky mon nao khac - nen o day KHONG bo dau.
+	dung("hai ten khac nhau van khac nhau",
+	     D.khoa_ten("Trân châu khoai (ô long)") != D.khoa_ten("Trân châu khoai (khoai môn)"))
+
+
+@ca("ten nha cung cap ghi: doc o ten_hang_ncc truoc item_name")
+def _():
+	# Gan ma hang xong la ERPNext thay item_name bang ten Mon cua minh,
+	# nen doc item_name khong thoi la mat dau ten goc.
+	d = {"ten_hang_ncc": "Phí vận chuyển", "item_name": "Dịch vụ vận chuyển"}
+	la("uu tien ten goc", D.ten_ncc_cua_dong(d), "Phí vận chuyển")
+	la("khong co thi lui ve item_name",
+	   D.ten_ncc_cua_dong({"item_name": "Dịch vụ vận chuyển"}), "Dịch vụ vận chuyển")
+	la("khong co gi thi rong", D.ten_ncc_cua_dong({}), "")
+
+
+@ca("nan don vi: chi nan khi may dang ha tam, khong de len khai bao cua nguoi")
+def _():
+	# Dong dang mang he so 1 (may ha tam), tra ra duoc he so that 1000.
+	dung("ha tam thi nan", D.nen_nan_don_vi("Gram", 1, "Kg", 1000))
+	# Nguoi da tu khai he so khac 1 thi de yen, do la khai bao cua ho.
+	dung("nguoi khai roi thi de yen", not D.nen_nan_don_vi("Tui", 4000, "Kg", 1000))
+	# Tra ra cung don vi dang dung thi khong co gi de nan.
+	dung("cung don vi thi thoi", not D.nen_nan_don_vi("Kg", 1, "Kg", 1))
+	dung("tra khong ra don vi thi thoi", not D.nen_nan_don_vi("Kg", 1, "", 1))
+
+
+@ca("xep ma theo dong goc: ghep bang TEN truoc")
+def _():
+	goc = [D.khoa_ten("Trân châu khoai (ô long)"), D.khoa_ten("Phí vận chuyển")]
+	# Uyen gan hai ma, thu tu tren to bi dao nguoc lai.
+	to = [(D.khoa_ten("Phí vận chuyển"), "DVTI00003"),
+	      (D.khoa_ten("Trân châu khoai (ô long)"), "NVLT00280")]
+	ra = D.xep_ma_theo_dong_goc(to, goc, len(to))
+	la("dong 1 cua ban goc lay dung ma", ra.get(0), "NVLT00280")
+	la("dong 2 cua ban goc lay dung ma", ra.get(1), "DVTI00003")
+
+
+@ca("xep ma theo dong goc: ten trung nhau trong mot to thi KHONG doan")
+def _():
+	goc = [D.khoa_ten("Phí vận chuyển"), D.khoa_ten("Phí vận chuyển")]
+	to = [(D.khoa_ten("Phí vận chuyển"), "DVTI00003"),
+	      (D.khoa_ten("Phí vận chuyển"), "DVTI00009")]
+	la("khong xep dong nao", D.xep_ma_theo_dong_goc(to, goc, len(to)), {})
+
+
+@ca("xep ma theo dong goc: dong mat ten thi ghep theo vi tri, nhung phai dung so dong")
+def _():
+	goc = ["a", "b"]
+	# Dong khong con ten goc (to cu dung truoc 04/09/2026).
+	to = [("", "M1"), ("", "M2")]
+	la("dung so dong thi ghep theo vi tri",
+	   D.xep_ma_theo_dong_goc(to, goc, 2), {0: "M1", 1: "M2"})
+	# Them mot dong bu chenh lech thi van con ghep duoc.
+	to3 = [("", "M1"), ("", "M2"), ("", "M3")]
+	ra3 = D.xep_ma_theo_dong_goc(to3, goc, 3)
+	la("dong bu khong lam hong phep ghep", ra3, {0: "M1", 1: "M2"})
+	# Lech hon the la to da bi xao, doan vi tri luc do la gan nham ma.
+	to9 = [("", "M%d" % i) for i in range(9)]
+	la("to bi xao thi khong doan", D.xep_ma_theo_dong_goc(to9, goc, 9), {})
+
+
+@ca("duong dung lai: tra anh xa khong ra thi lay ma dang co tren to")
+def _():
+	dung("co goi phep xep ma", "_ma_dang_gan(doc, dong_goc)" in MA_DUNG_LAI)
+	dung("chi lay khi bang anh xa chiu", "if not ma and giu.get(vi_tri):" in MA_DUNG_LAI)
+	dung("nan lai don vi cho ma vua lay",
+	     "mc.don_vi_theo_ma(ma, x.get(\"dvt\"))" in MA_DUNG_LAI)
+	dung("ghi lai ca that vao cho sua", "HDM-26-08-00149" in MA_DUNG_LAI)
+
+
+@ca("nhip luu: hoc ma hang TRUOC roi moi tinh toi dung lai")
+def _():
+	# Chi soi THAN cua nhip luu, khong soi ca tep: ten ham nao cung xuat
+	# hien o cho dinh nghia truoc, so vi tri tren ca tep la so nham.
+	than = MA_DUNG_LAI[
+		MA_DUNG_LAI.find("def dong_bo_luc_luu"):MA_DUNG_LAI.find("def tk_theo_mon")
+	]
+	i_hoc = than.find("hoc_ma_hang(doc, g)")
+	i_ghim = than.find("da_ghim = ghim_lai_theo_goc(doc, g)")
+	i_dung = than.find("nen, vi_sao = dung_lai_co_loi_khong(doc, g)")
+	dung("co hoc ma hang", i_hoc > 0)
+	dung("co buoc ghim nhe", i_ghim > 0)
+	dung("hoc truoc khi ghim", i_hoc < i_ghim)
+	dung("ghim truoc khi dung lai ca bang", i_ghim < i_dung)
+	dung("hoc hong khong duoc lam chet luot luu",
+	     "dung_lai_hddt: hoc ma hang" in than)
+	# Da keo dong ve goc roi thi cau bao KHONG duoc noi la "giu nguyen to".
+	dung("cau bao noi dung viec da lam", "Hệ thống đã kéo %d dòng" in than)
+
+
+@ca("ghim lai theo goc: chi dung hai o lam sai tien, khong thay dong")
+def _():
+	i = MA_DUNG_LAI.find("def ghim_lai_theo_goc")
+	j = MA_DUNG_LAI.find("def hoc_ma_hang")
+	than = MA_DUNG_LAI[i:j]
+	dung("co keo so luong ve goc", "d.qty = x.get(\"sl\")" in than)
+	dung("co keo don gia ve goc", "d.rate = x.get(\"gia\")" in than)
+	dung("ghim ca gia bang keo ERPNext khoi dien de",
+	     "d.price_list_rate = x.get(\"gia\")" in than)
+	dung("khong bao gio dung toi ma hang", "item_code =" not in than)
+	dung("khong thay ca bang dong hang", "doc.set(\"items\"" not in than)
+	dung("ten trung nhau thi bo qua, khong doan", "theo_khoa.pop(k, None)" in than)
+
+
+@ca("hoc ma hang: khong bao gio de len mot anh xa da co")
+def _():
+	i = MA_DUNG_LAI.find("def hoc_ma_hang")
+	j = MA_DUNG_LAI.find("def _tong_thue_tren_phieu")
+	than = MA_DUNG_LAI[i:j]
+	dung("o nho con trong moi ghi", "continue" in than and "item_code\") or \"\").strip():" in than)
+	dung("cat duoi chi nhanh cua ma so thue", 'split("-")[0]' in than)
+	dung("chi hoc tu dong co ten khop ban goc", "ten_goc.get(khoa_ten(" in than)
+	# Ghi bang dung chu cua ban goc, khong phai chu dang nam tren chung tu:
+	# phep tra anh xa so khop chinh xac, lech mot chu hoa la ghi xong khong
+	# ai doc ra.
+	dung("ghi bang chu cua ban goc", 'ten_goc.setdefault(khoa_ten(t), t[:140])' in than)
+	dung("noi ro dieu 11 trong phan giai thich", "điều 11" in than)
+
+
+@ca("dong hang nao cung phai giu ten nha cung cap ghi")
+def _():
+	# Truoc 04/09/2026 o nay chi ghi cho dong CHUA co ma hang. Gan ma vao la
+	# ERPNext thay item_name bang ten Mon, ten goc bien mat, va mat ten goc
+	# la mat khoa duy nhat de giu lai ma qua luot dung lai.
+	i = MA_MC.find("def _dong_pi")
+	j = MA_MC.find("def con_sot")
+	than = MA_MC[i:j]
+	dung("ghi ten goc ngoai nhanh if/else",
+	     '\n\tdong["ten_hang_ncc"] = (x["ten"] or "")[:140]' in than)
+
+
+@ca("nan don vi cua mot ma hang chi co MOT cho tinh")
+def _():
+	dung("co ham dung chung", "def don_vi_theo_ma(" in MA_MC)
+	dung("duong tra ma hang goi ham do", "don_vi_theo_ma(mapped, uom)" in MA_MC)
+	dung("duong dung lai cung goi ham do", "mc.don_vi_theo_ma(" in MA_DUNG_LAI)
+
+
+@ca("ma so thue chi nhanh: ghi nho va tra cuu phai cung mot khoa")
+def _():
+	# MST chi nhanh co dang 0108269207-005. Duong tra anh xa luon cat o dau
+	# gach, con `_mst_cua_to` truoc 04/09/2026 tra ve nguyen ca duoi, nen
+	# cai ghi nho di vao mot khoa khong ai doc. He co 39 nha cung cap kieu
+	# nay, va khong he bao loi mot cau nao.
+	i = MA_DCM.find("def _mst_cua_to")
+	j = MA_DCM.find("def goi_y_mon")
+	than = MA_DCM[i:j]
+	dung("cat duoi chi nhanh", 'return mst.split("-")[0]' in than)
+	dung("cat dung mot cho cuoi ham", than.count('split("-")[0]') == 1)
+
+
+@ca("bam nut xong phai xem lai tren to roi hay bao da lam duoc")
+def _():
+	# Nhip luu co quyen dung lai ca bang dong hang ngay trong luot bam, nen
+	# cai dong cam tren tay chua chac con nam tren to. Bao "da gan" ma tren
+	# to khong co ma nao la day nguoi ta di lam tiep tren mot thu khong that.
+	for ten, moc in (
+		("gan ma hang", "khong_giu_duoc"),
+		("sua don vi", "khong_giu_duoc"),
+	):
+		dung("co duong bao that cho %s" % ten, moc in MA_DCM)
+	dung("gan ma hang doc lai to sau khi luu",
+	     MA_DCM.count('frappe.get_doc("Purchase Invoice", name)') >= 2)
+	dung("noi phieu dem lai tren to", "that < cint(kq[\"da_noi\"])" in MA_DCM)
+	dung("man hinh khong toast bua khi chua giu duoc",
+	     "kq.khong_giu_duoc" in MA_DCM_JS)
+
+
+@ca("cau dan nguoi dung khong duoc hua sai nua")
+def _():
+	# Ban cu doa "Nhung gi da sua tay tren dong hang se mat" - nay ma hang
+	# thi giu, chi so luong va don gia moi ve so goc.
+	dung("noi ro ma hang van giu", "Mã hàng đã gắn trên từng dòng thì vẫn giữ" in MA_DCM_JS)
+
+
+@ca("quy uoc trinh bay: phan viet moi khong co dau gach dai")
+def _():
+	i = MA_DUNG_LAI.find("def khoa_ten")
+	j = MA_DUNG_LAI.find("def _kiem_quyen")
+	for ten, than in (("dung_lai_hddt", MA_DUNG_LAI[i:j]),):
+		dung("%s khong em dash" % ten, "—" not in than)
+		dung("%s khong en dash" % ten, "–" not in than)
