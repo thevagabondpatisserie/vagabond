@@ -2368,6 +2368,21 @@ function vclIcon(l) {
   }[l] || '';
 }
 
+/* Dong viec nay la phieu chi (Payment Entry) hay ho so thanh toan? THUAN.
+
+   Doc o `phieu_chi` may chu gui xuong truoc. Neu vi ly do gi do o ay khong
+   co, van con duong nhan dang thu hai: ma Ho so TT luon dung dau CHAM
+   (APP.26.08.027) vi doctype do tu sinh ma, con Payment Entry di theo bo ma
+   cua ERPNext nen dung dau GACH (APP-26-08-534). Hai duong doc lap nhau, mat
+   mot van con mot, de khong bao gio quay lai canh bam vao thi bao khong tim
+   thay. */
+function vclLaPhieuChi(x) {
+  if (!x) return false;
+  if (x.phieu_chi) return true;
+  var ma = String(x.ma || '');
+  return ma.indexOf('-') >= 0 && ma.indexOf('.') < 0;
+}
+
 /* Bấm vào một việc thì mở đúng màn của loại đó. */
 function vclMo(x) {
   if (!x) return;
@@ -2387,7 +2402,13 @@ function vclMo(x) {
      Mo phieu tang qua theo dung cach man CRM tu mo: dat tq.form roi go. */
   if (l === 'tang_qua') return go(function () { tq.form = { ma: x.ma }; return scrTqSua(); });
   if (l === 'ycmh') return go(function () { scrDuyetYcXem(x.ma); });
-  if (l === 'ho_so_tt') return go(function () { scrHoSoTTView(x.ma); });
+  /* Hai duong khac nhau duoi cung mot nhan.
+     Dong co co phieu_chi la mot PAYMENT ENTRY tra truoc NCC (ten dang
+     APP-26-08-534, dau gach), khong phai mot Ho so TT (APP.26.08.027, dau
+     cham). Mo bang man Ho so TT thi may chu bao "Khong tim thay Vagabond Ho
+     So TT ...". Man Ho so thanh toan da chia dung tu v408 bang o data-hspc,
+     man nay tra no not. */
+  if (l === 'ho_so_tt') return go(function () { vclLaPhieuChi(x) ? scrPayView(x.ma) : scrHoSoTTView(x.ma); });
   /* Hai nhanh them 31/08/2026 cho che do giam doc: hai anh chi con thay ba
      loai viec he trong, nen ba loai do bat buoc phai bam mo duoc ngay tren
      app. Man Viec can lam ma day nguoi ta sang may tinh thi coi nhu khong
@@ -20624,7 +20645,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '409';
+var APPVER = '410';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
