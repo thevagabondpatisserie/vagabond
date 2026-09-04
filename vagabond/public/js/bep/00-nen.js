@@ -754,6 +754,28 @@ async function api(method, args) {
 }
 function getList(dt, o) { o = o || {}; o.doctype = dt; if (o.limit_page_length === undefined || o.limit_page_length === null) o.limit_page_length = 100; return api('frappe.client.get_list', o); }
 
+/* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
+   tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
+   dau phay cung khong hut mat ket qua.
+   Anh Viet 15/08/2026 bat duoc: go "moonlapis" khong ra "HỘP MOONLAPIS,
+   năm 2026" chi vi o tim con thua mot dau cach o cuoi. */
+function vgbChuan(s) {
+  return String(s == null ? '' : s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
+function vgbKhop(kho, tim) {
+  var t = vgbChuan(tim);
+  if (!t) return true;
+  var k = vgbChuan(kho);
+  var tu = t.split(' ');
+  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
+  return true;
+}
+
 /* ---- o tim kiem dung chung (co nut quet ma vach) ---- */
 function srchBox(id, ph, val, withScan) {
   return '<div class="srch"><span>&#128269;</span>' +
