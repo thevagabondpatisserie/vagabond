@@ -145,7 +145,11 @@ def _tra_lai_phieu():
 	nen = s[j:j + 1200]
 	# Phai xoa dung moi phieu cua CHINH ho so nay, khong duoc go phieu ma ho
 	# so khac dang giu.
-	dung("chi go khi dung ho so", 'get_value(DNC, ma_phieu, "ho_so_tt") == ten_ho_so' in nen)
+	dung("chi go khi dung ho so", 'get_value(DNC, ma_phieu, "ho_so_tt") != ten_ho_so' in nen)
+	# v413 siet them: con dong KHAC cua chinh ho so nay dang giu phieu thi
+	# cung khong duoc nha, khong thi phieu quay lai bang chon trong khi dong
+	# kia van giu no, roi noi tiep vao mot ho so thu hai.
+	dung("con dong khac giu thi khong nha", "tabVagabond Ho So TT Dong" in nen)
 
 
 @ca("xoa dong: KHONG xoa tep khoi may chu")
