@@ -23,7 +23,7 @@ async function scrCongNo() {
   var tienChoThu = choThu.reduce(function (t, p) { return t + (p.con_thieu || 0); }, 0);
 
   var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
-    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">CHƯA GOM PHIẾU</div>' +
+    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">CÒN PHẢI ĐÒI · CHƯA GOM PHIẾU</div>' +
     '<div style="font-size:19px;font-weight:800;color:#b45309">' + money(kq.tong || 0) + ' đ</div>' +
     '<div style="font-size:12px;color:#98a2b3">' + khach.length + ' khách</div></div>' +
     '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">ĐÃ GỬI, CHỜ TIỀN</div>' +
@@ -59,7 +59,11 @@ async function scrCongNo() {
           html += '<div data-cnhd="' + h(k.khach) + '|' + h(d.name) + '" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f6f7f9;cursor:pointer">' +
             '<span style="width:22px;height:22px;flex:none;border-radius:6px;border:2px solid ' + (on ? '#0d9488;background:#0d9488' : '#d7dce5') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900">' + (on ? '✓' : '') + '</span>' +
             '<div style="flex:1;min-width:0"><div style="font-size:13.5px">' + h(d.name) + '</div>' +
-            '<div style="font-size:12px;color:#98a2b3">' + posNgayVn(d.ngay) + (d.nguon ? ' · ' + h(d.nguon) : '') + (d.quay ? ' · ' + h(d.quay) : '') + '</div></div>' +
+            '<div style="font-size:12px;color:#98a2b3">' + posNgayVn(d.ngay) + (d.nguon ? ' · ' + h(d.nguon) : '') + (d.quay ? ' · ' + h(d.quay) : '') + '</div>' +
+            /* Tra mot phan thi phai thay ngay, khong bat ai tru tay: con so
+               ben phai la SO CON PHAI DOI, khong phai tong to. */
+            (d.da_thu > 0 ? '<div style="font-size:12px;color:#15803d">đã thu ' + money(d.da_thu) + ' đ trên tổng ' + money(d.tong_don) + ' đ</div>' : '') +
+            '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
         html += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">' +
@@ -836,20 +840,13 @@ async function scrHdView(name) {
       go(function () { scrHdView(name); }, true);
     });
   };
-  document.getElementById('hdGan').onclick = async function () {
-    busy(true);
-    var cg;
-    try { cg = await api('vagabond.hop_dong.hoa_don_chua_gan', hd.khach_hang ? { khach_hang: hd.khach_hang } : {}); }
-    catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
-    busy(false);
-    if (!cg.length) return baoTin('Không có hoá đơn nào chưa gắn trong 90 ngày gần nhất' + (hd.khach_hang ? ' của khách ' + hd.khach_hang : '') + '.');
-    sheet('Chọn hoá đơn để gắn', cg.map(function (x) { return { value: x.name, label: x.name + ' · ' + (x.customer_name || '') + ' · ' + money(x.grand_total) + ' đ', icon: x.docstatus === 1 ? '✅' : '📝' }; }), null, async function (o) {
-      busy(true);
-      try { await api('vagabond.hop_dong.gan_hoa_don', { hop_dong: name, si_name: o.value }); busy(false); toast('Đã gắn ' + o.value); }
-      catch (e) { busy(false); baoTin((e && e.message) || 'Lỗi'); }
-      go(function () { scrHdView(name); }, true);
-    }, true);
-  };
+  /* Ô TÌM ĐẨY XUỐNG MÁY CHỦ, không lọc trong danh sách đã tải.
+
+     Ngày 04/09/2026 có 18.711 hoá đơn chưa gắn hợp đồng. Bản cũ lấy 60 tờ
+     mới nhất rồi để ô tìm của bảng chọn lọc trong 60 tờ đó, nên tờ cần tìm
+     gần như không bao giờ nằm trong tay. Nay gõ chữ nào là máy chủ đi tìm
+     chữ đó trên số hoá đơn, tên khách, tên và mã số thuế trên hoá đơn VAT. */
+  document.getElementById('hdGan').onclick = function () { hdGanHoaDon(name, hd, ''); };
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-si]'); if (!r) return;
     var nm = r.getAttribute('data-si');
@@ -864,6 +861,54 @@ async function scrHdView(name) {
       go(function () { scrHdView(name); }, true);
     });
   });
+}
+
+/* Bảng chọn hoá đơn để gắn vào hợp đồng, có ô tìm chạy trên máy chủ. */
+async function hdGanHoaDon(name, hd, tuKhoa) {
+  busy(true);
+  var cg;
+  try {
+    cg = await api('vagabond.hop_dong.hoa_don_chua_gan', {
+      khach_hang: hd.khach_hang || '', ma_so_thue: hd.ma_so_thue || '', tu_khoa: tuKhoa || ''
+    });
+  } catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
+  busy(false);
+  var ds = (cg && cg.hoa_don) || [];
+  if (!ds.length) {
+    return baoTin(tuKhoa
+      ? 'Không có hoá đơn nào chưa gắn khớp "' + tuKhoa + '". Thử gõ số hoá đơn, tên khách, hoặc mã số thuế trên hoá đơn VAT.'
+      : 'Không có hoá đơn nào chưa gắn trong 180 ngày gần nhất.');
+  }
+  var muc = ds.map(function (x) {
+    return {
+      value: x.name,
+      /* Tờ xuất VAT cho ai thì phải thấy ngay: hợp đồng mang tên công ty
+         còn hoá đơn thường mang tên người đặt hàng, nhìn tên khách không
+         thôi là không biết có đúng tờ hay không. */
+      label: x.name + ' · ' + (x.customer_name || '') +
+        (x.vgb_xhd_ten ? ' · VAT ' + x.vgb_xhd_ten : '') +
+        ' · ' + money(x.grand_total) + ' đ',
+      icon: x.hop_ly ? '⭐' : (x.docstatus === 1 ? '✅' : '📝')
+    };
+  });
+  /* Bị cắt thì NÓI RA. Im lặng cắt bớt chính là cái làm Loan Anh tìm mãi
+     không thấy tờ của mình. */
+  if (cg.con_lai > 0) {
+    muc.push({ value: '@them', label: '🔎 Còn ' + cg.con_lai + ' hoá đơn nữa - gõ chữ để tìm', icon: '🔎' });
+  } else {
+    muc.push({ value: '@them', label: '🔎 Tìm hoá đơn khác', icon: '🔎' });
+  }
+  sheet('Chọn hoá đơn để gắn' + (tuKhoa ? ' · đang tìm "' + tuKhoa + '"' : ''), muc, null, async function (o) {
+    if (o.value === '@them') {
+      var q = await promptSheet('Gõ số hoá đơn, tên khách hoặc mã số thuế', 'ví dụ HDB-26-09 hoặc dentsu');
+      if (q === null) return;
+      return hdGanHoaDon(name, hd, String(q || '').trim());
+    }
+    busy(true);
+    try { await api('vagabond.hop_dong.gan_hoa_don', { hop_dong: name, si_name: o.value }); busy(false); toast('Đã gắn ' + o.value); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Lỗi'); }
+    go(function () { scrHdView(name); }, true);
+  }, true);
 }
 
 var hdTay = null;

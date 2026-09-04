@@ -433,6 +433,45 @@ function veOMtc(pt, idO, idNhan) {
         : (pt === 'Chuyển khoản' ? ' · SePay tự khớp, để trống cũng được' : ' · không bắt buộc'));
   }
 }
+/* Khối "tiền của tờ này": tổng đơn, đã thu theo từng phương thức, còn nợ,
+   trạng thái. Anh Việt 04/09/2026: *"Không bắt nhân viên tự suy ra trạng
+   thái kế toán từ màn hình."*
+
+   Số lấy từ CHỨNG TỪ đã ghi nhận, không lấy từ ô phương thức trên tờ. Đọc
+   đầu tệp vagabond/thu_tien.py để biết vì sao hai thứ đó khác nhau. */
+async function dsvVeThu(name) {
+  var o = document.getElementById('dsvThu');
+  if (!o) return;
+  var x = null;
+  try { x = await api('vagabond.thu_tien.tom_tat', { si: name }); }
+  catch (e) { o.innerHTML = ''; return; }
+  if (!x) { o.innerHTML = ''; return; }
+  var mau = x.con_no <= 0 ? '#15803d' : (x.con_no >= x.tong_don - 1 ? '#b91c1c' : '#c2410c');
+  var hang = function (nhan, so, dam, m) {
+    return '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0' +
+      (dam ? ';border-top:1px solid #eef0f4;margin-top:4px;padding-top:7px' : '') + '">' +
+      '<span style="color:#6b7280">' + nhan + '</span>' +
+      '<b style="color:' + (m || '#111827') + '">' + money(so) + ' đ</b></div>';
+  };
+  var s = '<div class="card" style="padding:12px 14px;margin-top:10px">' +
+    '<div style="font-size:11.5px;color:#6b7280;font-weight:800;letter-spacing:.3px">TIỀN CỦA TỜ NÀY</div>' +
+    hang('Tổng hoá đơn', x.tong_don);
+  (x.theo_pt || []).forEach(function (p) { s += hang('Đã thu · ' + h(p.pt), p.so_tien, false, '#15803d'); });
+  if (!(x.theo_pt || []).length && x.da_thu > 0) s += hang('Đã thu', x.da_thu, false, '#15803d');
+  s += hang('Còn nợ', x.con_no, true, mau) +
+    '<div style="margin-top:7px"><span style="display:inline-block;background:' + mau +
+    ';color:#fff;border-radius:6px;padding:2px 9px;font-size:12px;font-weight:700">' + h(x.trang_thai) + '</span></div>';
+  /* Nói thẳng khi sổ cái và con số trên màn chưa khớp nhau, thay vì để kế
+     toán tự phát hiện lúc lên báo cáo. */
+  if (x.du_no_so_cai > x.con_no + 1) {
+    s += '<div style="font-size:12px;color:#b45309;margin-top:7px;line-height:1.45">' +
+      '⚠️ Sổ cái vẫn ghi khách nợ ' + money(x.du_no_so_cai) + ' đ vì phần đã thu chưa có chứng từ thu tiền. ' +
+      'Nhờ kế toán ghi nhận thanh toán cho tờ này.</div>';
+  }
+  s += '</div>';
+  o.innerHTML = s;
+}
+
 async function scrDsView(name, can) {
   frame('Chi tiết đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -502,6 +541,9 @@ async function scrDsView(name, can) {
   /* Khach tra mot don bang NHIEU duong (anh Viet 01/09/2026). Khoi nay ve
      rieng o 42-thanh-toan-nhieu.js, nap sau khi man da dung xong. */
   html += '<div id="dsvTtn"></div>';
+  /* Bon con so ke toan, bay san chu khong bat ai tu suy ra (anh Viet
+     04/09/2026, nguyen tac 7). O nay tu an di khi to chua ghi so. */
+  html += '<div id="dsvThu"></div>';
   html += '<div id="dsvQr" style="margin-top:10px"></div>';
     html += '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px">'
     + '<div id="dsvMtcNhan" style="font-size:12px;color:#6b7280;margin-bottom:6px"></div>'
@@ -665,6 +707,7 @@ async function scrDsView(name, can) {
   veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan');
   /* Khong await: mot vong goi nua khong duoc lam cham man chi tiet don. */
   ttnVe('dsvTtn', d.name, d.grand_total, PTDS.map(function (p) { return p.v; }));
+  dsvVeThu(d.name);
 
   /* Ma diem ban cua nguon don nay, de noi dung chuyen khoan mang ma diem -
      ke toan doc sao ke la biet ngay tien cua noi nao. */
