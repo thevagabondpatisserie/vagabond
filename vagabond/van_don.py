@@ -751,6 +751,11 @@ TRUONG_DS = [
 	"ly_do_loi", "chuyen", "da_doi_soat", "nguoi_nhan", "sdt_nhan",
 	"tag_gio", "buoi", "phuong", "the_don", "goi_truoc", "chup_truoc", "ghi_chu_in",
 	"thu_tu", "gio_du_kien", "km_chang", "tre_khung_gio", "lat", "lng",
+	# Dieu chuyen kho noi bo (04/09/2026). Phai nam trong danh sach nay thi
+	# dong tren man Van don moi bay duoc chieu di va dieu kien bao quan; thieu
+	# thi lai quay ve canh chi thay ten kho nhan tro tren nhu truoc.
+	"la_dieu_chuyen", "chung_tu_goc", "tt_chung_tu", "kho_xuat", "kho_nhan",
+	"dia_chi_lay", "nguoi_giao", "sdt_giao", "so_kien", "bao_quan", "phut_ngoai_lanh",
 ]
 
 
@@ -927,9 +932,26 @@ def phieu_in(names):
 		frappe.throw("Chưa chọn vận đơn nào để in.")
 	ra = []
 	for nm in names[:60]:
-		d = frappe.db.get_value("Van Don", nm, TRUONG_DS + ["hoa_don", "ngay_giao", "ghi_chu", "owner"], as_dict=True)
+		d = frappe.db.get_value(
+			"Van Don", nm,
+			TRUONG_DS + ["hoa_don", "ngay_giao", "ghi_chu", "owner", "la_dieu_chuyen",
+				"chung_tu_goc", "tt_chung_tu", "kho_xuat", "kho_nhan", "dia_chi_lay",
+				"nguoi_giao", "sdt_giao", "so_kien", "bao_quan", "phut_ngoai_lanh"],
+			as_dict=True)
 		if not d:
 			continue
+		# To in cua don dieu chuyen phai mang duoc ma vach so phieu, de kho
+		# nhan quet thay vi go tay. Dung lai ham da co cua phieu nhap kho,
+		# da kiem bang may quet that hoi 23/08 - dung khai @font-face.
+		if cint(d.get("la_dieu_chuyen")) and d.get("chung_tu_goc"):
+			d["ten_kho_xuat"] = _ten_kho_ngan(d.get("kho_xuat"))
+			d["ten_kho_nhan"] = _ten_kho_ngan(d.get("kho_nhan"))
+			try:
+				from vagabond.ma_vach import code39_img
+
+				d["ma_vach"] = code39_img(d["chung_tu_goc"], cao_mm=11, don_vi_mm=0.26)
+			except Exception:
+				d["ma_vach"] = ""
 		d["ten_shipper"] = frappe.db.get_value("User", d.shipper, "full_name") if d.shipper else ""
 		d["nguoi_tao"] = frappe.db.get_value("User", d.owner, "full_name") or d.owner or ""
 		# Uu tien bang mon cua chinh van don: don keo tu Pancake ve thuong chua
@@ -1120,6 +1142,16 @@ def gan_shipper(name, shipper=None, kenh=None):
 	doc = frappe.get_doc("Van Don", name)
 	if doc.trang_thai in ("Đã giao", "Huỷ"):
 		frappe.throw("Đơn đã ở trạng thái %s, không đổi người giao được." % doc.trang_thai)
+	# Van don dieu chuyen: doc lai phieu goc NGAY LUC gan nguoi giao, khong
+	# tin o `tt_chung_tu` da luu. Phieu co the bi huy sau luc lap van don, va
+	# cho nay la cai cong cuoi truoc khi mot nguoi that su chay xe di lay hang.
+	if cint(doc.get("la_dieu_chuyen")) and doc.get("chung_tu_goc"):
+		ds_goc = frappe.db.get_value("Stock Entry", doc.chung_tu_goc, "docstatus")
+		if ds_goc is None or cint(ds_goc) == 2:
+			frappe.db.set_value("Van Don", doc.name, "tt_chung_tu", "Đã huỷ", update_modified=False)
+			frappe.throw(
+				"Phiếu điều chuyển %s đã bị huỷ nên không phân công giao được. "
+				"Hàng không còn rời kho theo phiếu này nữa." % doc.chung_tu_goc)
 	cu = doc.shipper
 	if kenh:
 		if kenh not in KENH_NGOAI:
@@ -2238,3 +2270,290 @@ def canh_bao_thanh_toan(so_ngay=7, ke_ca_nhap_lieu=0):
 		"so_hoa_don_soat": len(hd),
 		"bo_qua_nhap_lieu": bo_qua_nhap,
 	}
+
+
+# =====================================================================
+# VAN DON DIEU CHUYEN NOI BO (anh Viet 04/09/2026)
+# =====================================================================
+#
+# Anh Viet: *"Phan PDC va YCDC khi tao ben man Van Don bi thieu cac truong
+# thong tin, dieu chuyen tu kho nao den kho nao, hang hoa la gi, noi file
+# phieu dieu chuyen sang van don de in an ra"*.
+#
+# HIEN TRANG TRUOC BAN NAY. Khong he co duong noi nao giua phieu dieu chuyen
+# va van don. Nguoi ta mo man Van don, bam dau cong, GO TAY so phieu vao o
+# "So don" va go ten kho vao o "Khach". Ket qua do duoc tren du lieu that
+# ngay 04/09:
+#
+#   - 146 van don dieu chuyen, TAT CA deu dang "Cho giao", KHONG to nao co
+#     shipper. Man do la mot cho chua giay chu khong phai hang doi viec.
+#   - Hai to tro vao phieu DA BI HUY (PDC-2026-00151, PDC-2026-00154). Phieu
+#     goc huy roi ma van don van nam cho giao.
+#   - O "Khach" va o "Dia chi" cung mang mot chuoi la ten kho NHAN. Kho XUAT
+#     khong nam o dau ca, nen shipper khong biet di lay hang cho nao.
+#   - Bang hang rong, nen to in ra khong co gi de doi chieu.
+#
+# QUYET DINH CUA ANH VIET 04/09/2026:
+#   - CHI phieu dieu chuyen (Stock Entry) moi sinh van don. Yeu cau dieu
+#     chuyen (Material Request) thi KHONG: no moi la loi de nghi, hang chua
+#     roi kho. Ca 19 yeu cau dang co van don deu da "Transferred" bang phieu
+#     khac roi, tuc van don do vua thieu tin vua het han dung.
+#   - 146 to cu bo qua, chi lam cho tuong lai.
+
+DC_BAO_QUAN = ("Thường", "Mát", "Đông")
+
+# Tran thoi gian ngoai lanh, phut. Con so nay khong phai de trang tri: bo
+# ghi len to in de shipper biet minh co bao lau, va de nguoi nhan biet luc
+# nao thi phai tu choi lo hang.
+DC_PHUT_NGOAI_LANH = {"Thường": 0, "Mát": 120, "Đông": 45}
+
+# Dia chi that cua tung noi. Kho o he nay KHONG co o dia chi nao duoc dien
+# (da kiem ca 22 kho ngay 04/09, address_line_1 va city deu rong), nen phai
+# suy tu TEN kho. Suy theo ten thi mong manh, vi vay thu tu uu tien la:
+# doc o dia chi cua chinh kho truoc, khong co moi suy theo ten.
+DC_DIA_CHI = (
+	("D1", "9 Trần Cao Vân, Quận 1"),
+	("TRẦN CAO VÂN", "9 Trần Cao Vân, Quận 1"),
+	("NVHTN", "21 Phạm Ngọc Thạch, Quận 3"),
+	("PHẠM NGỌC THẠCH", "21 Phạm Ngọc Thạch, Quận 3"),
+)
+DC_DIA_CHI_MAC_DINH = "307/1 Nguyễn Văn Trỗi, Phường 1, Quận Tân Bình"
+
+
+def dia_chi_kho(ten_kho, dia_chi_khai=""):
+	"""Dia chi that de shipper toi lay hoac giao. THUAN.
+
+	`dia_chi_khai` la o dia chi khai tren chinh phieu kho. Co thi dung ngay -
+	ai do dien tay bao gio cung dung hon may suy theo ten. Khong co thi do
+	ten kho; do khong ra thi ve xuong 307, vi phan lon kho nam o xuong.
+	"""
+	dc = str(dia_chi_khai or "").strip()
+	if dc:
+		return dc
+	ten = str(ten_kho or "").upper()
+	for khoa, dia in DC_DIA_CHI:
+		if khoa in ten:
+			return dia
+	return DC_DIA_CHI_MAC_DINH
+
+
+def doan_bao_quan(cac_ma_hang):
+	"""Lo hang nay phai di lanh khong. THUAN, tra ve (bao_quan, so_phut).
+
+	Doan theo tien to ma hang: hang dong lanh va hang mat deu bat dau bang
+	NVLD / NVLM neu co, con lai coi la hang thuong. Chi la GOI Y ban dau,
+	nguoi lap van don sua duoc tren man hinh - may doan sai mot lo bo thi
+	mat tien that, nen khong bao gio khoa cung.
+	"""
+	ma = [str(x or "").upper() for x in (cac_ma_hang or [])]
+	if any(x.startswith("NVLD") for x in ma):
+		return "Đông", DC_PHUT_NGOAI_LANH["Đông"]
+	if any(x.startswith("NVLM") for x in ma):
+		return "Mát", DC_PHUT_NGOAI_LANH["Mát"]
+	return "Thường", DC_PHUT_NGOAI_LANH["Thường"]
+
+
+def _kho_chan(doc):
+	"""Phieu nay co sinh van don duoc khong. Tra ve ly do neu khong."""
+	if (doc.get("purpose") or "") != "Material Transfer":
+		return "Phiếu %s không phải phiếu điều chuyển kho." % doc.name
+	if cint(doc.get("docstatus")) != 1:
+		return (
+			"Phiếu %s chưa ghi sổ hoặc đã huỷ. Chỉ phiếu đã ghi sổ mới lập được "
+			"vận đơn, vì hàng phải rời kho thật rồi mới có gì để chở." % doc.name)
+	if not doc.get("from_warehouse") or not doc.get("to_warehouse"):
+		return (
+			"Phiếu %s không ghi rõ kho xuất hoặc kho nhận nên không biết chở từ "
+			"đâu tới đâu." % doc.name)
+	if doc.get("from_warehouse") == doc.get("to_warehouse"):
+		return "Kho xuất và kho nhận trùng nhau, không có gì để chở."
+	return ""
+
+
+@frappe.whitelist()
+def tao_van_don_dieu_chuyen(phieu=None, ngay_giao=None, ghi_chu=""):
+	"""Sinh MOT van don day du tu MOT phieu dieu chuyen da ghi so.
+
+	Day la duong dung. Truoc ban nay nguoi ta go tay so phieu va ten kho vao
+	man tao van don khach le, nen khong co cho nao chua kho xuat, chung tu
+	goc, hay danh sach hang.
+	"""
+	if not _la_sales():
+		frappe.throw("Chỉ sales hoặc quản lý kho lập được vận đơn điều chuyển.")
+	phieu = (phieu or "").strip()
+	if not phieu or not frappe.db.exists("Stock Entry", phieu):
+		frappe.throw("Không tìm thấy phiếu điều chuyển %s." % (phieu or ""))
+
+	doc = frappe.get_doc("Stock Entry", phieu)
+	vi_sao = _kho_chan(doc)
+	if vi_sao:
+		frappe.throw(vi_sao)
+
+	# Mot phieu chi mot van don. Bam hai lan thi mo lai to cu chu khong de
+	# hai to cung so chay song song, roi hai shipper cung di lay mot lo hang.
+	cu = frappe.db.get_value(
+		"Van Don", {"chung_tu_goc": phieu, "trang_thai": ["!=", "Huỷ"]}, "name")
+	if cu:
+		return {"name": cu, "da_co": 1,
+			"nhan": "Phiếu %s đã có vận đơn %s rồi." % (phieu, cu)}
+
+	ma_hang = [d.item_code for d in doc.items]
+	bao_quan, phut = doan_bao_quan(ma_hang)
+	dc_lay = dia_chi_kho(doc.from_warehouse, doc.get("vgb_dia_chi_kho_xuat"))
+	dc_giao = dia_chi_kho(doc.to_warehouse, doc.get("vgb_dia_chi_kho_nhan"))
+
+	vd = frappe.new_doc("Van Don")
+	vd.ma_don = doc.name
+	vd.la_dieu_chuyen = 1
+	vd.chung_tu_goc = doc.name
+	vd.tt_chung_tu = "Đã ghi sổ"
+	vd.kho_xuat = doc.from_warehouse
+	vd.kho_nhan = doc.to_warehouse
+	vd.dia_chi_lay = dc_lay
+	vd.dia_chi = dc_giao
+	# O "Khach" tren van don la thu bay ra dau danh sach. Voi don noi bo thi
+	# thu can nhin nhat la CHIEU di, khong phai mot cai ten kho tro tren.
+	vd.khach = "%s → %s" % (_ten_kho_ngan(doc.from_warehouse), _ten_kho_ngan(doc.to_warehouse))
+	vd.ngay_giao = ngay_giao or nowdate()
+	vd.trang_thai = "Chờ giao"
+	vd.kenh = "Shipper nội bộ"
+	vd.tien_thu_ho = 0
+	vd.bao_quan = bao_quan
+	vd.phut_ngoai_lanh = phut
+	vd.so_kien = 0
+	vd.ghi_chu = (ghi_chu or "").strip() or (doc.remarks or "")
+
+	for d in doc.items:
+		vd.append("mon", {
+			"ma_hang": d.item_code,
+			"ten": d.item_name,
+			"so_luong": flt(d.qty),
+			"gia": 0,
+			"ghi_chu": (d.uom or ""),
+		})
+
+	vd.flags.ignore_permissions = True
+	vd.insert(ignore_permissions=True)
+	return {
+		"name": vd.name, "da_co": 0,
+		"nhan": "Đã lập vận đơn %s cho phiếu %s, %d món." % (vd.name, doc.name, len(doc.items)),
+	}
+
+
+def _ten_kho_ngan(ten):
+	"""Bo duoi cong ty cho ten kho ngan lai. THUAN."""
+	t = str(ten or "").strip()
+	for duoi in (" - TVD", " - TV"):
+		if t.endswith(duoi):
+			return t[: -len(duoi)]
+	return t
+
+
+@frappe.whitelist()
+def phieu_dieu_chuyen_lap_duoc(so_ngay=7):
+	"""Cac phieu dieu chuyen da ghi so ma CHUA co van don.
+
+	De man kho bay ra mot danh sach ngan cho nguoi ta bam, khoi phai nho so
+	phieu. Chi nhin lai vai ngay gan day: phieu cu hon thi hang da di roi.
+	"""
+	if not _la_sales():
+		frappe.throw("Chỉ sales hoặc quản lý kho xem được danh sách này.")
+	from frappe.utils import add_days
+
+	ds = frappe.get_all(
+		"Stock Entry",
+		filters={
+			"purpose": "Material Transfer",
+			"docstatus": 1,
+			"posting_date": [">=", add_days(nowdate(), -int(so_ngay or 7))],
+		},
+		fields=["name", "posting_date", "from_warehouse", "to_warehouse"],
+		order_by="posting_date desc, creation desc",
+		limit_page_length=60,
+	)
+	if not ds:
+		return []
+	da_co = {
+		r["chung_tu_goc"]
+		for r in frappe.get_all(
+			"Van Don",
+			filters={"chung_tu_goc": ["in", [x.name for x in ds]],
+				"trang_thai": ["!=", "Huỷ"]},
+			fields=["chung_tu_goc"], limit_page_length=0)
+	}
+	return [
+		{
+			"phieu": x.name,
+			"ngay": str(x.posting_date or ""),
+			"kho_xuat": x.from_warehouse,
+			"kho_nhan": x.to_warehouse,
+			"chieu": "%s → %s" % (_ten_kho_ngan(x.from_warehouse), _ten_kho_ngan(x.to_warehouse)),
+		}
+		for x in ds if x.name not in da_co
+	]
+
+
+def dong_van_don_khi_huy_phieu(doc, method=None):
+	"""Phieu dieu chuyen bi huy thi van don di kem phai tat theo.
+
+	Hai to PDC-2026-00151 va PDC-2026-00154 dang nam "Cho giao" trong khi
+	phieu goc da huy tu truoc. Khong ai bat duoc chuyen do vi van don khong
+	biet gi ve phieu goc. Nay biet roi thi phai tu tat.
+
+	Khong bao gio nem loi: huy mot phieu kho ma chet vi cai van don thi mat
+	mot thao tac kho that vi mot to giay.
+	"""
+	try:
+		for nm in frappe.get_all(
+			"Van Don",
+			filters={"chung_tu_goc": doc.name, "trang_thai": ["in", ["Chờ giao", "Đang giao"]]},
+			pluck="name",
+		):
+			frappe.db.set_value("Van Don", nm, {
+				"trang_thai": "Huỷ",
+				"tt_chung_tu": "Đã huỷ",
+				"ly_do_loi": "Phiếu điều chuyển %s đã bị huỷ nên vận đơn tự đóng." % doc.name,
+			}, update_modified=False)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "van_don: dong van don khi huy phieu loi")
+
+
+@frappe.whitelist()
+def luu_dieu_chuyen(name=None, so_kien=None, nguoi_giao=None, sdt_giao=None,
+		nguoi_nhan=None, sdt_nhan=None, bao_quan=None, phut_ngoai_lanh=None):
+	"""Sua cac o rieng cua van don dieu chuyen ngay tren app.
+
+	May doan dieu kien bao quan theo tien to ma hang, doan sai mot lo bo la
+	mat tien that, nen nguoi lap luon sua duoc. So kien thi may khong bao gio
+	biet: dem thung la viec cua nguoi dong hang.
+	"""
+	if not _la_sales():
+		frappe.throw("Chỉ sales hoặc quản lý kho sửa được vận đơn điều chuyển.")
+	doc = frappe.get_doc("Van Don", name)
+	if not cint(doc.get("la_dieu_chuyen")):
+		frappe.throw("Vận đơn %s không phải vận đơn điều chuyển nội bộ." % name)
+	if doc.trang_thai in ("Đã giao", "Huỷ"):
+		frappe.throw("Đơn đã ở trạng thái %s, không sửa được nữa." % doc.trang_thai)
+
+	if so_kien is not None:
+		doc.so_kien = max(0, cint(so_kien))
+	if bao_quan is not None:
+		bq = str(bao_quan).strip()
+		if bq not in DC_BAO_QUAN:
+			frappe.throw("Điều kiện bảo quản phải là một trong: %s." % ", ".join(DC_BAO_QUAN))
+		doc.bao_quan = bq
+		# Doi kieu bao quan ma quen doi tran thoi gian thi to in noi doi. Chi
+		# tu dat lai khi nguoi dung KHONG go tay so phut trong cung lan luu.
+		if phut_ngoai_lanh is None:
+			doc.phut_ngoai_lanh = DC_PHUT_NGOAI_LANH.get(bq, 0)
+	if phut_ngoai_lanh is not None:
+		doc.phut_ngoai_lanh = max(0, cint(phut_ngoai_lanh))
+	for o, v in (("nguoi_giao", nguoi_giao), ("sdt_giao", sdt_giao),
+			("nguoi_nhan", nguoi_nhan), ("sdt_nhan", sdt_nhan)):
+		if v is not None:
+			doc.set(o, str(v).strip())
+
+	doc.flags.ignore_permissions = True
+	doc.save()
+	return {"name": doc.name, "so_kien": cint(doc.so_kien), "bao_quan": doc.bao_quan,
+		"phut_ngoai_lanh": cint(doc.phut_ngoai_lanh)}

@@ -340,6 +340,10 @@ doc_events = {
 		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
 		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.
 		"before_submit": "vagabond.kiem_ke.chan_khi_dang_kiem",
+		# Huy phieu dieu chuyen thi van don di kem phai tat theo. Ngay
+		# 04/09/2026 co hai to van don nam "Cho giao" trong khi phieu goc da
+		# huy tu lau, khong ai bat duoc vi van don khong biet gi ve phieu goc.
+		"on_cancel": "vagabond.van_don.dong_van_don_khi_huy_phieu",
 	},
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
