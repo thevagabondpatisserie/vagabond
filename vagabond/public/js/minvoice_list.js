@@ -141,6 +141,86 @@
 		d.show();
 	}
 
+	/* ---------- Cot trang thai cua man Hoa don mua hang ----------
+
+	   Anh Viet 04/09/2026: ghi so xong ra danh sach van chi thay "Qua han",
+	   va "cai trang thai nay cung it xai nua".
+
+	   Dem that hom do noi ro vi sao:
+
+	     * 63 to da ghi so thi 62 to co han tra TRUNG ngay hach toan, vi
+	       525 nha cung cap khong ai duoc khai dieu khoan thanh toan. To
+	       vua ghi so xong la qua han ngay. Mot cot luc nao cung do thi
+	       nguoi ta thoi nhin no.
+	     * 3.170 to con nhap deu hien dung mot chu "Nhap", trong khi 2.487
+	       to con thieu ma hang, 508 to cho noi phieu nhap, va chi 5 to la
+	       sach. Ba viec cua ba nguoi doi chung mot cai nhan.
+
+	   Nen cot nay khong doi ten "Qua han" thanh "Da ghi so" cho xong, ma
+	   noi ra to dang o BUOC nao. Phan buoc do may chu tinh va ghi san vao
+	   o `vgb_buoc` moi lan luu, ben nay chi to mau - MOT CHO TINH, MOT CHO
+	   HIEN (QT-19), de man Desk va app khong bao gio noi khac nhau. */
+
+	var MAU_BUOC = {
+		'Thiếu mã hàng': 'red',
+		'Lệch hoá đơn điện tử': 'red',
+		'Chờ nối phiếu nhập': 'orange',
+		'Chờ ghi sổ': 'blue',
+	};
+
+	function ganTrangThaiMuaHang() {
+		var dt = 'Purchase Invoice';
+		var CU = frappe.listview_settings[dt] || {};
+		var ind_cu = CU.get_indicator;
+
+		CU.add_fields = (CU.add_fields || []).concat([
+			'docstatus', 'status', 'outstanding_amount',
+			'posting_date', 'due_date', 'vgb_buoc', 'vgb_huy',
+		]);
+
+		CU.get_indicator = function (doc) {
+			var ds = parseInt(doc.docstatus, 10) || 0;
+
+			if (ds === 2 || parseInt(doc.vgb_huy, 10) === 1) {
+				return ['Đã huỷ', 'gray', 'docstatus,=,2'];
+			}
+
+			if (ds === 0) {
+				var b = String(doc.vgb_buoc || '').trim();
+				/* To cu luu truoc ban nay chua co o `vgb_buoc`. Dung bia
+				   ra mot buoc: noi that la chua tinh, luu lai mot lan la
+				   co. */
+				if (!b) return ['Nháp, chưa xét', 'gray', 'vgb_buoc,=,'];
+				return [b, MAU_BUOC[b] || 'gray', 'vgb_buoc,=,' + b];
+			}
+
+			/* DA GHI SO. O `vgb_buoc` khong duoc dung o day: to da ghi so
+			   thi khong luu lai nua nen o do dung yen, ma cong no thi van
+			   chay. Doc thang so du con lai. */
+			var con = Number(doc.outstanding_amount || 0);
+			if (Math.abs(con) < 1) {
+				return ['Đã ghi sổ, đã trả', 'green', 'outstanding_amount,=,0'];
+			}
+
+			/* Chi goi la qua han khi co HAN TRA THAT, tuc han tra dat sau
+			   ngay hach toan. Han bang dung ngay lap nghia la chua ai khai
+			   dieu khoan thanh toan cho nha cung cap do, goi la qua han la
+			   vu oan. Khai dieu khoan xong thi chu nay tu co nghia lai. */
+			var lap = String(doc.posting_date || '');
+			var han = String(doc.due_date || '');
+			var conHan = lap && han && han > lap;
+			var homNay = frappe.datetime.get_today();
+			if (conHan && han < homNay) {
+				return ['Quá hạn trả', 'red', 'due_date,<,' + homNay];
+			}
+			return ['Đã ghi sổ, còn nợ', 'blue', 'outstanding_amount,>,0'];
+		};
+
+		/* Phan cua ERPNext van duoc goi neu minh khong xu ly duoc. */
+		CU._vgb_ind_cu = ind_cu;
+		frappe.listview_settings[dt] = CU;
+	}
+
 	function gan(dt) {
 		var CU = frappe.listview_settings[dt] || {};
 		var onload_cu = CU.onload;
@@ -169,4 +249,5 @@
 	}
 
 	MAN.forEach(gan);
+	ganTrangThaiMuaHang();
 })();
