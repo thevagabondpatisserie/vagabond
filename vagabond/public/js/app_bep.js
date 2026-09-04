@@ -20800,7 +20800,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '415';
+var APPVER = '416';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30434,6 +30434,67 @@ function hsoKhoi(ten) {
   return '<div class="sec">' + hsoBuoc + ' · ' + ten + '</div>';
 }
 
+/* ---------- Nối phiếu thanh toán nội bộ vào một dòng hoá đơn ----------
+
+   Anh Việt chốt 04/09/2026: ở màn hoàn ứng CÓ hoá đơn, phiếu nội bộ chỉ
+   đóng vai CHỨNG TỪ, không đụng tới số tiền. Số tiền luôn lấy theo hoá đơn.
+   Máy kéo ảnh chứng từ của phiếu sang dòng và khoá phiếu lại, để không ai
+   nối nó lần nữa bên màn hoàn ứng không hoá đơn rồi đề nghị hoàn tiếp. */
+var hsPhieuCua = {};
+
+function hsODongPhieu(maHd) {
+  var co = (hsPhieuCua[maHd] || '').trim();
+  return '<div data-hsphieu="' + h(maHd) + '" style="cursor:pointer;margin-top:5px;' +
+    'display:inline-block;border:1.5px solid ' + (co ? '#c7d2fe' : '#e5e7eb') +
+    ';background:' + (co ? '#eef2ff' : '#fff') + ';border-radius:8px;padding:4px 8px;' +
+    'font-size:11.5px;font-weight:' + (co ? '700' : '500') + ';color:' +
+    (co ? '#4338ca' : '#6b7280') + '">' +
+    (co ? '🔗 ' + h(co) : '🔗 Nối phiếu nội bộ') + '</div>';
+}
+
+async function hsNoiPhieuVaoHd(maHd) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', {}); }
+  catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được danh sách phiếu.', 'Lỗi'); }
+  busy(false);
+  if (kq && kq.loi) {
+    return baoTin(kq.loi + '\n\nĐây là lỗi đọc dữ liệu, KHÔNG phải là không có phiếu.',
+      'Chưa đọc được danh sách');
+  }
+  var ds = (kq && kq.ds) || [];
+  if (!ds.length) {
+    return baoTin('Không có phiếu thanh toán nội bộ nào đã duyệt mà chưa nối hồ sơ.',
+      'Chưa có phiếu nào');
+  }
+  var daDung = {};
+  Object.keys(hsPhieuCua).forEach(function (k) {
+    var m = (hsPhieuCua[k] || '').trim();
+    if (m && k !== maHd) daDung[m] = k;
+  });
+  var muc = ds.map(function (r) {
+    var oHd = daDung[r.ma];
+    return {
+      value: r.ma,
+      label: (oHd ? '⚠️ ' : '') + r.ten + ' · ' + money(r.so_tien) + ' đ',
+      phu: (oHd ? 'ĐÃ NỐI Ở HOÁ ĐƠN ' + oHd + ' · ' : '') +
+           r.ma + ' · ' + (r.nguoi_ten || r.nguoi_tao) + ' · ' + hsNgayVn(r.ngay) +
+           ' · ' + r.trang_thai + (r.so_tep ? ' · ' + r.so_tep + ' tệp' : ' · chưa có tệp'),
+      tim: r.ma + ' ' + r.ten + ' ' + (r.nguoi_ten || '') + ' ' + (r.dien_giai || '')
+    };
+  });
+  muc.unshift({ value: '', label: '✖ Bỏ nối phiếu khỏi hoá đơn này', phu: 'Gỡ liên kết, không xoá phiếu', tim: 'bo go' });
+  sheet('Chứng từ cho hoá đơn ' + maHd, muc, hsPhieuCua[maHd] || '', function (it) {
+    var m = (it.value || '').trim();
+    if (m && daDung[m]) {
+      return baoTin('Phiếu ' + m + ' đã nối vào hoá đơn ' + daDung[m] + ' trong hồ sơ này rồi.\n\n' +
+        'Mỗi phiếu chỉ nối được một lần.', 'Phiếu đã dùng rồi');
+    }
+    if (m) hsPhieuCua[maHd] = m; else delete hsPhieuCua[maHd];
+    go(scrHoSoTTTao, true);
+  }, true);
+}
+
 async function scrHoSoTTTao() {
   hsoBuoc = 0;
   var laHU = hsTaoLoai === 'Hoan ung HD';
@@ -30586,6 +30647,10 @@ async function scrHoSoTTTao() {
       (laHU ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(r.ten_ncc || r.ncc || '') + '</div>' : '') +
       '<div class="t2">' + h(r.hoa_don) + ' · HĐ ' + hsNgayVn(r.ngay_hd) + (r.han_tra ? ' · hạn ' + hsNgayVn(r.han_tra) : '') + '</div>' +
       (r.tre_ngay > 0 ? '<div class="t2" style="color:#b3261e;font-weight:700">Quá hạn ' + r.tre_ngay + ' ngày</div>' : '') +
+      /* Chi hien o luong HOAN UNG va chi khi dong da duoc tick. Luong cong
+         no NCC thi tien di thang toi nha cung cap, khong co ai ung tien nen
+         khong co phieu noi bo nao de noi. */
+      (laHU && da ? hsODongPhieu(r.hoa_don) : '') +
       '</div><b style="white-space:nowrap">' + money(r.con_no) + ' đ</b>' +
       hsONutBanTheHien(r.hoa_don) + '</div>';
   });
@@ -30597,6 +30662,14 @@ async function scrHoSoTTTao() {
     '<button class="btn" id="hsLuu" style="flex:2">📤 Lập và gửi kế toán</button>' +
     '<button class="btn gh" id="hsLuuNhap" style="flex:1">💾 Lưu nháp</button></div>';
   var b = frame(tenMan, html, { footer: foot });
+
+  b.addEventListener('click', function (e) {
+    var n = e.target.closest('[data-hsphieu]');
+    if (!n) return;
+    /* Chan noi len, khong thi bam nut nay lai bo tick chinh hoa don do. */
+    e.stopPropagation(); e.preventDefault();
+    hsNoiPhieuVaoHd(n.getAttribute('data-hsphieu'));
+  }, true);
 
   var ghiChon = function (r) { hsTaoChon[r.hoa_don] = { con_no: Number(r.con_no || 0), ten_ncc: r.ten_ncc || r.ncc || '' }; };
 
@@ -30643,7 +30716,9 @@ async function scrHoSoTTTao() {
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
-    if (hsTaoChon[ma]) delete hsTaoChon[ma];
+    if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
+    /* Bo tick hoa don ma van giu phieu da noi thi phieu di theo mot dong
+       khong con ton tai, va may chu se khoa nham mot phieu chang cua ai. */
     else {
       var d = rows.filter(function (x) { return x.hoa_don === ma; })[0];
       if (d) ghiChon(d);
@@ -30653,14 +30728,20 @@ async function scrHoSoTTTao() {
   var g1 = document.getElementById('hsChonHet');
   if (g1) g1.onclick = function () { rows.forEach(ghiChon); go(scrHoSoTTTao, true); };
   var g2 = document.getElementById('hsChonQH');
-  if (g2) g2.onclick = function () { hsTaoChon = {}; rows.forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
+  if (g2) g2.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; rows.forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
   var g3 = document.getElementById('hsBoChon');
-  if (g3) g3.onclick = function () { hsTaoChon = {}; go(scrHoSoTTTao, true); };
+  if (g3) g3.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); };
 
   var luu = async function (guiLuon) {
     var gc = document.getElementById('hsGc');
     hsTaoGhiChu = gc ? gc.value : '';
-    var ds = Object.keys(hsTaoChon);
+    /* Gui len dang doi tuong de mang theo `de_nghi_chi`. May chu van nhan
+       ca chuoi tran lan doi tuong, nen luong cong no NCC khong doi gi. */
+    var ds = Object.keys(hsTaoChon).map(function (m) {
+      var o = { hoa_don: m };
+      if ((hsPhieuCua[m] || '').trim()) o.de_nghi_chi = hsPhieuCua[m].trim();
+      return o;
+    });
     if (!ds.length) return baoTin('Chưa chọn hoá đơn nào.');
     if (laHU && !hsTaoNguoiUng) return baoTin('Chưa chọn người được hoàn ứng. Đây là người sẽ nhận lại tiền.');
     /* Chan CA hai nut, ke ca luu nhap. Ho so nhap thieu tai khoan roi de
@@ -30679,7 +30760,7 @@ async function scrHoSoTTTao() {
         gui_luon: guiLuon ? 1 : 0, loai: hsTaoLoai
       });
       busy(false);
-      hsTaoChon = {}; hsTaoGhiChu = ''; hsTaoNguoiUng = '';
+      hsTaoChon = {}; hsTaoGhiChu = ''; hsTaoNguoiUng = ''; hsPhieuCua = {};
       hsTkHoan = ''; hsTkDs = null; hsTkCua = '';
       toast('Đã lập hồ sơ ' + kq.ma + ' · ' + money(kq.tong_tien) + ' đ', 3500);
       go(function () { scrHoSoTTView(kq.ma); }, true);
