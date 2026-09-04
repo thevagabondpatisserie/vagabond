@@ -605,6 +605,20 @@ def _viec_tra_truoc(vai):
 		if o.get("buoc_phieu_chi") not in buoc:
 			continue
 		ra.append({
+			# `phieu_chi` la o SONG CON, khong phai o trang tri.
+			#
+			# Dong nay mang `loai` la "ho_so_tt" de nam dung nhom tren man
+			# Viec can lam, nhung `ma` cua no la ten mot PAYMENT ENTRY
+			# (APP-26-08-534, dau GACH), khong phai ma mot Ho so TT
+			# (APP.26.08.027, dau CHAM). Hai doctype khac nhau, hai man
+			# chi tiet khac nhau. Bam mo bang man Ho so TT thi may chu tra
+			# "Khong tim thay Vagabond Ho So TT APP-26-08-534" - anh Viet
+			# gap dung cau do ngay 04/09/2026 khi vao duyet.
+			#
+			# Man Ho so thanh toan da co o tuong duong (`data-hspc`) tu
+			# v408 va mo dung, chi rieng man Viec can lam la chua co. Nen
+			# o nay phai di kem, va app phai doc no truoc khi chon man.
+			"phieu_chi": 1,
 			"loai": "ho_so_tt", "ma": o["name"],
 			"nhom": "Trả trước NCC · %s" % o.get("buoc_phieu_chi"),
 			"phu": o.get("ten_ncc") or "",
