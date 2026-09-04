@@ -173,6 +173,18 @@
 		var CU = frappe.listview_settings[dt] || {};
 		var ind_cu = CU.get_indicator;
 
+		/* HAI CO NAY LA DIEU KIEN DE HAM DUOI DUOC GOI (04/09/2026).
+
+		   Frappe chan truoc: voi doctype co ghi so, to o trang thai nhap
+		   tra thang ve "Nhap" va to da huy tra ve "Da huy", KHONG he goi
+		   `get_indicator` cua minh - tru khi bat dung hai co nay. Thieu
+		   chung thi to da ghi so hien dung nhan moi, con 3.170 to nhap
+		   van tro tro mot chu "Nhap", tuc la dung cai dong nguoi ta can
+		   phan biet nhat. Da dinh dung the o ban v420, chi lo ra khi mo
+		   danh sach that tren site. */
+		CU.has_indicator_for_draft = 1;
+		CU.has_indicator_for_cancelled = 1;
+
 		CU.add_fields = (CU.add_fields || []).concat([
 			'docstatus', 'status', 'outstanding_amount',
 			'posting_date', 'due_date', 'vgb_buoc', 'vgb_huy',
