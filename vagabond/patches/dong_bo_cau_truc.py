@@ -335,3 +335,22 @@ def execute():
 			frappe.logger().info("dong_bo_cau_truc: bat dieu chinh gia tri ton kho theo gia hoa don")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: gia tri ton kho theo hoa don")
+
+	# Dien buoc xu ly cho nhung to nhap luu TRUOC khi co tinh nang do
+	# (anh Viet 04/09/2026). Xem vagabond/buoc_hoa_don_mua.py.
+	#
+	# O nay do may tinh ra tu chinh du lieu dang co tren to, chi de hien
+	# thi, nguoi khong go duoc. Khong dung toi mot con so tien nao, khong
+	# dung to da ghi so, khong dung hoa don dien tu.
+	#
+	# Chay lai duoc: chi nhan to con nhap va con TRONG o buoc.
+	try:
+		from vagabond import buoc_hoa_don_mua
+
+		kq = buoc_hoa_don_mua.nap_lai_hang_loat()
+		if kq.get("ghi"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: dien buoc xu ly cho %d to hoa don mua" % kq["ghi"]
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: nap lai buoc hoa don mua")
