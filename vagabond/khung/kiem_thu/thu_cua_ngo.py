@@ -474,6 +474,11 @@ CUA_NGO = {
 	],
 	# Nguong kho: dung sai giao nhan va han dung toi thieu chung.
 	"kho_cai_dat.py": ["danh_sach", "luu"],
+	# Tach buoc duyet chi khoi buoc ghi so (03/09/2026). `chan_ghi_so_som`
+	# la HOOK va `dung_workflow` dung lai duong duyet, ca hai phai nam NGOAI
+	# danh sach: mo ra ngoai la cho phep goi thang tu trinh duyet vao dung
+	# cho quyet dinh tien co roi khoi tai khoan hay khong.
+	"duyet_chi.py": ["tinh_hinh", "xac_nhan_da_chuyen"],
 	# Xuat kho: dieu chuyen va xuat huy. `go_anh_xuat_huy` them 24/08/2026
 	# (v294), chan khi da ghi so hoac da huy - luc do anh la chung tu.
 	"xuat_kho.py": [
