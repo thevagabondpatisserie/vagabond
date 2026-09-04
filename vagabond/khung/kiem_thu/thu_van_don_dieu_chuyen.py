@@ -151,11 +151,31 @@ def _ycdc_khong_sinh_van_don():
 @ca("dieu chuyen: mot phieu chi mot van don, bam hai lan khong ra hai to")
 def _mot_phieu_mot_van_don():
 	s = _doc("van_don.py")
+	dung("co ham do rieng", "def van_don_cua_phieu(" in s)
 	i = s.index("def tao_van_don_dieu_chuyen(")
 	than = s[i:i + 3500]
-	dung("co do van don cu", '"chung_tu_goc": phieu' in than)
-	dung("bo qua to da huy khi do", '"trang_thai": ["!=", "Huỷ"]' in than)
+	dung("co do van don cu truoc khi lap", "cu = van_don_cua_phieu(phieu)" in than)
 	dung("tra ve to cu chu khong nem loi", '"da_co": 1' in than)
+
+
+@ca("dieu chuyen: do trung theo CA HAI o, bat duoc ca van don go tay cu")
+def _do_trung_ca_hai_o():
+	# 146 van don lap truoc v411 deu go tay: so phieu nam trong `ma_don`, o
+	# `chung_tu_goc` rong. Do bang mot o thi khong thay chung, va bam nut se
+	# sinh to thu hai cho cung mot phieu. Do that sau khi deploy v411:
+	# trong 30 phieu bay ra cho nguoi ta bam thi 27 phieu DA CO van don cu.
+	s = _doc("van_don.py")
+	i = s.index("def van_don_cua_phieu(")
+	than = s[i:i + 1600]
+	dung("do o noi goc", '{"chung_tu_goc": phieu}' in than)
+	dung("do ca o so don go tay", '{"ma_don": phieu}' in than)
+	dung("bo qua to da huy", 'loc["trang_thai"] = ["!=", "Huỷ"]' in than)
+	dung("phieu rong thi tra ve rong ngay", 'if not phieu:' in than)
+
+	j = s.index("def phieu_dieu_chuyen_lap_duoc(")
+	than2 = s[j:j + 2600]
+	dung("danh sach de bam cung do ca hai o",
+		'for o in ("chung_tu_goc", "ma_don"):' in than2)
 
 
 # ------------------------------------------------------ Chặn giao nhầm
