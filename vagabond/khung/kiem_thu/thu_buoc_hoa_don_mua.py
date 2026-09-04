@@ -132,3 +132,49 @@ def _co_cho_to_nhap():
 		"bật cờ TRƯỚC khi khai hàm tô màu",
 		than.index("has_indicator_for_draft") < than.index("CU.get_indicator = function"),
 	)
+
+
+@ca("bước hoá đơn mua: xét lệch hoá đơn điện tử thẳng từ số")
+def _lech_tu_so():
+	"""Bản thuần này để phần nạp lại hàng loạt không phải mở từng tờ.
+
+	Phải giữ đúng luật của dung_lai_hddt: con số đáng tin là tổng tiền trừ
+	thuế, chứ không phải ô tiền trước thuế. Ngày 27/08/2026 bản v319 neo
+	vào ô tiền trước thuế và làm hỏng 5 tờ thật ngay lượt chạy đầu.
+	"""
+	dung("khớp thì không lệch",
+		B.lech_tu_so(1100, 100, 0, 1000, 0, 1) == 0)
+	dung("lệch quá ngưỡng thì báo lệch",
+		B.lech_tu_so(1100, 100, 0, 900, 0, 1) == 1)
+	dung("trừ giảm giá trước khi so",
+		B.lech_tu_so(1100, 100, 0, 1200, 200, 1) == 0)
+	dung("lấy tổng trừ thuế chứ không lấy ô tiền trước thuế",
+		B.lech_tu_so(1100, 100, 555, 1000, 0, 1) == 0)
+	dung("không có tổng thì mới quay về ô tiền trước thuế",
+		B.lech_tu_so(0, 0, 1000, 1000, 0, 1) == 0)
+	dung("không có mốc nào để so thì KHÔNG kết luận là lệch",
+		B.lech_tu_so(0, 0, 0, 12345, 0, 1) == 0)
+
+
+@ca("bước hoá đơn mua: nạp lại hàng loạt chỉ đụng tờ nháp còn trống ô")
+def _nap_lai():
+	"""Ngày 04/09/2026: deploy v421 xong mới thấy 3.168 trên 3.170 tờ nháp
+	vẫn trống ô bước, vì ô chỉ được tính lúc lưu tờ. Không ai mở lại ba
+	nghìn tờ để bấm lưu, nên phải nạp lại một lượt lúc chuyển cấu trúc.
+
+	Ba điều kiện phải giữ, ca kiểm này chốt luôn kẻo bản sau sửa mất:
+	chỉ tờ còn nháp, chỉ tờ còn trống ô, và không làm xê dịch ngày sửa.
+	"""
+	s = _doc("vagabond/buoc_hoa_don_mua.py")
+	than = s.split("def nap_lai_hang_loat(")[1]
+	dung("chỉ nhận tờ còn nháp", '"docstatus": 0' in than)
+	dung("chỉ nhận tờ còn trống ô bước", 'TRUONG: ["in", ["", None]]' in than)
+	dung("không làm xê dịch ngày sửa của ai", "update_modified=False" in than)
+	dung("chỉ ghi đúng một ô, không lưu cả tờ",
+		"frappe.db.set_value" in than and "get_doc(" not in than)
+	dung("nuốt lỗi, không làm chết lượt chuyển cấu trúc",
+		"frappe.log_error" in than)
+
+	p = _doc("vagabond/patches/dong_bo_cau_truc.py")
+	dung("đã cắm vào lượt chuyển cấu trúc",
+		"buoc_hoa_don_mua.nap_lai_hang_loat()" in p)
