@@ -53,6 +53,19 @@
   "sdt_nhan",
   "sec_mon",
   "mon",
+  "sec_dc",
+  "la_dieu_chuyen",
+  "chung_tu_goc",
+  "tt_chung_tu",
+  "kho_xuat",
+  "dia_chi_lay",
+  "nguoi_giao",
+  "sdt_giao",
+  "cb_dc",
+  "kho_nhan",
+  "so_kien",
+  "bao_quan",
+  "phut_ngoai_lanh",
   "sec_ky",
   "chu_ky",
   "nguoi_ky",
@@ -328,6 +341,76 @@
    "fieldtype": "Table",
    "label": "Danh sach mon",
    "options": "Van Don Mon"
+  },
+  {
+   "fieldname": "sec_dc",
+   "fieldtype": "Section Break",
+   "label": "Dieu chuyen kho noi bo"
+  },
+  {
+   "fieldname": "la_dieu_chuyen",
+   "fieldtype": "Check",
+   "label": "Van don dieu chuyen noi bo"
+  },
+  {
+   "fieldname": "chung_tu_goc",
+   "fieldtype": "Link",
+   "label": "Phieu dieu chuyen (PDC)",
+   "options": "Stock Entry"
+  },
+  {
+   "fieldname": "tt_chung_tu",
+   "fieldtype": "Data",
+   "label": "Trang thai phieu dieu chuyen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kho_xuat",
+   "fieldtype": "Link",
+   "label": "Kho xuat",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "dia_chi_lay",
+   "fieldtype": "Small Text",
+   "label": "Dia chi lay hang"
+  },
+  {
+   "fieldname": "nguoi_giao",
+   "fieldtype": "Data",
+   "label": "Nguoi giao (ben kho xuat)"
+  },
+  {
+   "fieldname": "sdt_giao",
+   "fieldtype": "Data",
+   "label": "SDT nguoi giao"
+  },
+  {
+   "fieldname": "cb_dc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kho_nhan",
+   "fieldtype": "Link",
+   "label": "Kho nhan",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "so_kien",
+   "fieldtype": "Int",
+   "label": "So kien / thung"
+  },
+  {
+   "default": "Thường",
+   "fieldname": "bao_quan",
+   "fieldtype": "Select",
+   "label": "Dieu kien bao quan",
+   "options": "Thường\nMát\nĐông"
+  },
+  {
+   "fieldname": "phut_ngoai_lanh",
+   "fieldtype": "Int",
+   "label": "So phut toi da duoc de ngoai lanh"
   },
   {
    "fieldname": "sec_ky",
