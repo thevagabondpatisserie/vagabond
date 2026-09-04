@@ -605,6 +605,7 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	# hang rao chung tu: thieu giay to thi con bo sung duoc nen chi chan luc
 	# gui, con hoa don trung thi luu nhap da la sai roi.
 	_chan_hoa_don_trung(sach)
+	_soi_phieu_noi_bo(sach)
 
 	if cint(gui_luon):
 		_chan_thieu_chung_tu(sach)
@@ -1625,6 +1626,31 @@ def go_tep(name=None, tep=None):
 	return {"ok": 1, "tep": _dinh_kem([("Vagabond Ho So TT", name)])}
 
 
+def _nha_het_phieu_noi_bo(doc):
+	"""Hồ sơ chết thì trả mọi phiếu nội bộ của nó về trạng thái chưa nối.
+
+	Từ chối và Huỷ là hai cửa tử của một hồ sơ. Trước 04/09/2026 hai cửa
+	này chỉ đổi `trang_thai` rồi thôi, phiếu nội bộ vẫn mang mã một hồ sơ đã
+	chết. Mà `ds_phieu_noi_bo` lọc bỏ mọi phiếu đã có hồ sơ, `xem_phieu_noi_bo`
+	thì ném lỗi "đã nối vào hồ sơ ... rồi". Riêng hồ sơ Huỷ còn không xoá dòng
+	được nữa (`_kiem_sua_duoc_ruot` chỉ cho Nháp và Từ chối), nên phiếu KẸT
+	VĨNH VIỄN: tiền quản lý đã ứng không bao giờ hoàn được qua máy nữa.
+
+	Cùng đúng cái lý lẽ mà `_chan_hoa_don_trung` đã ghi từ lâu: hồ sơ Từ chối
+	và Huỷ không được giữ chỗ, thứ trong đó phải dùng lại được, nếu không thì
+	một lần lập nhầm là kẹt vĩnh viễn. Nay áp nốt cho phiếu nội bộ.
+	"""
+	for d in (doc.dong or []):
+		ma = (getattr(d, "de_nghi_chi", "") or "").strip()
+		if not ma:
+			continue
+		try:
+			if frappe.db.get_value(DNC, ma, "ho_so_tt") == doc.name:
+				frappe.db.set_value(DNC, ma, "ho_so_tt", None, update_modified=False)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: nha phieu noi bo khi ho so chet")
+
+
 @frappe.whitelist()
 def duyet(name, buoc, ly_do=""):
 	"""buoc: gui_fin / fin / gd / tu_choi / huy.
@@ -1674,6 +1700,21 @@ def duyet(name, buoc, ly_do=""):
 		_kiem(VAI_GD, "duyệt hồ sơ ở cấp giám đốc")
 		if doc.trang_thai != TT_CHO_GD:
 			frappe.throw("Hồ sơ đang ở %s, chưa tới lượt giám đốc duyệt." % NHAN.get(doc.trang_thai))
+		# HAI CHOT NAY CAP KE TOAN CO TU LAU, CAP GIAM DOC THI KHONG.
+		#
+		# Mot tai khoan mang ca vai ke toan lan vai giam doc thi: tu lap ho
+		# so, bam Gui, `_buoc_ke_tiep_khi_gui` thay co vai ke toan nen nhay
+		# thang len "Cho giam doc" va ghi luon `fin_boi` la chinh nguoi do,
+		# roi nguoi do bam Duyet cap giam doc. Ho so sang "Da duyet" voi hai
+		# chu ky cung mot cai ten. Ghi chu dau tep noi la da bit lo nay,
+		# nhung moi bit o phia VAI chu chua bit o phia NGUOI.
+		if doc.nguoi_tao == toi and "System Manager" not in _vai():
+			frappe.throw("Người lập hồ sơ không tự duyệt được, nhờ người khác duyệt giúp.")
+		if (doc.fin_boi or "") == toi and "System Manager" not in _vai():
+			frappe.throw(
+				"Bạn đã ký ở cấp kế toán cho hồ sơ này rồi. "
+				"Hai cấp duyệt phải là hai người khác nhau."
+			)
 		# Ho so hoan ung: den day moi sinh hoa don mua that. Dat TRUOC khi
 		# doi trang thai - ham nem loi thi ho so con nguyen o buoc cho giam
 		# doc, khong co gi nua voi nua chin.
@@ -1692,6 +1733,7 @@ def duyet(name, buoc, ly_do=""):
 			frappe.throw("Hồ sơ đã %s, không từ chối được nữa." % NHAN.get(doc.trang_thai))
 		doc.trang_thai = TT_TU_CHOI
 		doc.ly_do_tu_choi = ly_do.strip()
+		_nha_het_phieu_noi_bo(doc)
 
 	elif buoc == "huy":
 		_kiem(VAI_LAP, "huỷ hồ sơ")
@@ -1699,6 +1741,7 @@ def duyet(name, buoc, ly_do=""):
 			frappe.throw("Hồ sơ đã thanh toán rồi, không huỷ được.")
 		doc.trang_thai = TT_HUY
 		doc.ly_do_tu_choi = (ly_do or "").strip()
+		_nha_het_phieu_noi_bo(doc)
 
 	else:
 		frappe.throw("Bước duyệt không hợp lệ: %s." % buoc)
@@ -1774,12 +1817,12 @@ def kiem_sepay(name=None):
 	"""Dò SePay xem hồ sơ đã chuyển tiền chưa. Không ghi gì, chỉ xem."""
 	_kiem(VAI_FIN, "đối chiếu SePay")
 	if name:
-		ds = [frappe.db.get_value("Vagabond Ho So TT", name, ["name", "tong_tien", "trang_thai"], as_dict=True)]
+		ds = [frappe.db.get_value("Vagabond Ho So TT", name, ["name", "tong_tien", "con_lai", "trang_thai"], as_dict=True)]
 	else:
 		ds = frappe.get_all(
 			"Vagabond Ho So TT",
 			filters={"trang_thai": TT_DA_DUYET},
-			fields=["name", "tong_tien", "trang_thai"],
+			fields=["name", "tong_tien", "con_lai", "trang_thai"],
 			limit_page_length=0,
 		)
 	ds = [d for d in ds if d]
@@ -1787,11 +1830,19 @@ def kiem_sepay(name=None):
 	ra = []
 	for d in ds:
 		o = g.get(d["name"]) or {}
+		# SO VOI SO THAT SU CHUYEN DI, khong phai tong tien.
+		#
+		# Ho so co tru tam ung thi tien ngan hang chuyen di la `con_lai`, va
+		# ban in cung ghi ro "CON LAI PHAI CHUYEN". So voi `tong_tien` thi
+		# moi ho so co tru tam ung se VINH VIEN bao "chua du tien" du ngan
+		# hang da chuyen dung, va ke toan de tuong tien chua di.
+		phai_chuyen = flt(d.get("con_lai")) or flt(d["tong_tien"])
 		ra.append({
 			"ma": d["name"], "tong_tien": flt(d["tong_tien"]),
+			"phai_chuyen": phai_chuyen,
 			"da_chi": flt(o.get("chi")), "so_gd": o.get("so_gd") or 0,
 			"ma_gd": o.get("ma_gd") or "", "ngay": o.get("ngay") or "",
-			"du": 1 if flt(o.get("chi")) >= flt(d["tong_tien"]) - 1 else 0,
+			"du": 1 if flt(o.get("chi")) >= phai_chuyen - 1 else 0,
 		})
 	return {"rows": ra, "so_du": len([x for x in ra if x["du"]])}
 
@@ -1828,7 +1879,14 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 
 	doc.trang_thai = TT_DA_TRA
 	doc.ngay_thanh_toan = ngay or nowdate()
-	doc.ma_giao_dich = (ma_giao_dich or "").strip()
+	# CHI GHI DE KHI NGUOI TA THUC SU GO MA.
+	#
+	# Truoc 04/09/2026 dong nay ghi de vo dieu kien. Ke toan da khop tay mot
+	# ma bang `gan_giao_dich`, sau do bam Ghi nhan da thanh toan ma bo trong
+	# o hoi ma (man hinh cho phep bo trong) la ma cu bi xoa trang, mat luon
+	# dau vet khop tay, phai do lai tu dau.
+	if (ma_giao_dich or "").strip():
+		doc.ma_giao_dich = ma_giao_dich.strip()
 	doc.phuong_thuc = (phuong_thuc or "").strip()
 	doc.da_tra = flt(doc.tong_tien)
 	doc.flags.ignore_permissions = True
@@ -2324,6 +2382,29 @@ def noi_dung_chuyen_khoan(name, luu=1):
 	}
 
 
+def _doi_tk_thi_ky_lai(doc):
+	"""Đổi tài khoản nhận tiền sau khi đã duyệt thì phải xin chữ ký giám đốc lại.
+
+	Trước 04/09/2026 hai hàm đổi tài khoản chỉ chặn đúng trạng thái đã thanh
+	toán. Hồ sơ ở "Đã duyệt, chờ chuyển tiền" vẫn đổi được ba ô tên, số tài
+	khoản, ngân hàng; lại ghi bằng `db_set(update_modified=False)` nên mốc
+	sửa cũng không đổi, nhìn vào không thấy tờ đã bị đụng. Sáng hôm sau kế
+	toán mở ra thấy trạng thái Đã duyệt, ba ô điền sẵn, nội dung chuyển khoản
+	đúng mã hồ sơ, và chuyển tiền vào một tài khoản lạ.
+
+	Không chặn cứng, vì đổi tài khoản là việc có thật (khai nhầm ngân hàng
+	thì phải sửa). Nhưng đổi xong thì chữ ký giám đốc không còn giá trị với
+	tờ này nữa, nên hạ về bước chờ giám đốc để ký lại.
+	"""
+	if doc.trang_thai != TT_DA_DUYET:
+		return ""
+	cu = "%s · %s · %s" % (doc.ten_nhan or "-", doc.stk_nhan or "-", doc.ngan_hang_nhan or "-")
+	doc.db_set("trang_thai", TT_CHO_GD, update_modified=False)
+	doc.db_set("gd_boi", "", update_modified=False)
+	doc.db_set("gd_luc", None, update_modified=False)
+	return cu
+
+
 @frappe.whitelist()
 def sua_tk_nhan(name, ten_nhan=None, stk_nhan=None, ngan_hang_nhan=None):
 	"""Sửa tay tài khoản nhận tiền trên hồ sơ (khi Bank Account chưa khai)."""
@@ -2331,6 +2412,7 @@ def sua_tk_nhan(name, ten_nhan=None, stk_nhan=None, ngan_hang_nhan=None):
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	if doc.trang_thai == TT_DA_TRA:
 		frappe.throw("Hồ sơ đã thanh toán rồi, không sửa tài khoản nhận nữa.")
+	cu_tk = _doi_tk_thi_ky_lai(doc)
 	if ten_nhan is not None:
 		doc.db_set("ten_nhan", (ten_nhan or "").strip(), update_modified=False)
 	if stk_nhan is not None:
@@ -2339,6 +2421,9 @@ def sua_tk_nhan(name, ten_nhan=None, stk_nhan=None, ngan_hang_nhan=None):
 		doc.db_set("ngan_hang_nhan", (ngan_hang_nhan or "").strip(), update_modified=False)
 	frappe.db.commit()
 	_ghi_vet(doc.name, "Sửa tài khoản nhận tiền bởi %s" % frappe.session.user)
+	if cu_tk:
+		_ghi_vet(doc.name, "Đổi tài khoản nhận SAU khi đã duyệt (cũ: %s), "
+			"hồ sơ hạ về chờ giám đốc ký lại." % cu_tk)
 	return noi_dung_chuyen_khoan(name, luu=1)
 
 
@@ -2358,6 +2443,7 @@ def doi_tk_nhan(name, tk_hoan=None):
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	if doc.trang_thai == TT_DA_TRA:
 		frappe.throw("Hồ sơ đã thanh toán rồi, không sửa tài khoản nhận nữa.")
+	cu_tk = _doi_tk_thi_ky_lai(doc)
 	# Hoan ung thi tien ve tui NGUOI UNG, con cong no NCC thi ve tui nha
 	# cung cap. Truyen dung chu tai khoan vao de hang rao o `_dat_tk_nhan`
 	# soi duoc.
@@ -2367,6 +2453,9 @@ def doi_tk_nhan(name, tk_hoan=None):
 		doc.db_set(o, doc.get(o) or "", update_modified=False)
 	frappe.db.commit()
 	_ghi_vet(doc.name, "Chọn tài khoản nhận tiền %s bởi %s" % (doc.tk_nhan, frappe.session.user))
+	if cu_tk:
+		_ghi_vet(doc.name, "Đổi tài khoản nhận SAU khi đã duyệt (cũ: %s), "
+			"hồ sơ hạ về chờ giám đốc ký lại." % cu_tk)
 	return noi_dung_chuyen_khoan(name, luu=1)
 
 
@@ -3207,6 +3296,55 @@ def _gan_tep_ve_ho_so(ten_ho_so, sach):
 				frappe.log_error(frappe.get_traceback(), "ho_so_tt: gan tep dong ve ho so")
 
 
+def _soi_phieu_noi_bo(sach):
+	"""Soi các dòng có nối phiếu nội bộ TRƯỚC khi ghi. Ba việc, ba lý do.
+
+	Trước 04/09/2026 máy chủ nhận thẳng `de_nghi_chi` và `so_tien` từ màn
+	hình mà không đọc lại phiếu lần nào. Ba đường hỏng đi kèm:
+
+	1. **Một phiếu nối vào hai dòng của cùng một hồ sơ.** Bảng chọn không
+	   đánh dấu phiếu đã dùng ở dòng khác, nên chọn nhầm là chuyện thường.
+	   Máy đè số tiền phiếu lên cả hai dòng, tổng hồ sơ dôi đúng một lần số
+	   tiền phiếu. Người duyệt không nhìn ra vì màn hồ sơ không hiện mã phiếu.
+	2. **Số tiền dòng khác số tiền phiếu.** Ô số tiền vẫn sửa tay tự do sau
+	   khi nối, gõ thừa một số 0 trên điện thoại là hồ sơ đội lên mười lần mà
+	   chứng từ đính kèm vẫn là bộ ảnh của phiếu số nhỏ. Gọi thẳng API thì
+	   còn không có hàng rào nào cả.
+	3. **Phiếu chưa qua duyệt.** `ds_phieu_noi_bo` và `xem_phieu_noi_bo` có
+	   lọc trạng thái, nhưng cả hai đều là cửa XEM. Gọi thẳng API với mã một
+	   phiếu còn nháp là lọt, đúng cái mà docstring của `ds_phieu_noi_bo` đã
+	   cảnh báo: người lập tự viết phiếu rồi tự nối, cửa duyệt thành vô nghĩa.
+	"""
+	da_thay = {}
+	for d in (sach or []):
+		ma = (d.get("de_nghi_chi") or "").strip()
+		if not ma:
+			continue
+		if ma in da_thay:
+			frappe.throw(
+				"Phiếu %s đang nối vào hai khoản trong cùng hồ sơ này. "
+				"Mỗi phiếu chỉ được nối một lần, gỡ bớt một khoản đi." % ma
+			)
+		da_thay[ma] = 1
+		r = frappe.db.get_value(
+			DNC, ma, ["trang_thai", "tong_tien", "so_tien"], as_dict=True
+		)
+		if not r:
+			frappe.throw("Không thấy phiếu thanh toán nội bộ %s." % ma)
+		if r.get("trang_thai") not in TT_PHIEU_NOI_BO:
+			frappe.throw(
+				"Phiếu %s đang ở bước %s, chưa duyệt xong thì chưa nối vào hồ sơ được."
+				% (ma, r.get("trang_thai") or "không rõ")
+			)
+		tien_phieu = flt(r.get("tong_tien")) or flt(r.get("so_tien"))
+		if tien_phieu > 0 and abs(flt(d.get("so_tien")) - tien_phieu) > 1:
+			frappe.throw(
+				"Khoản nối phiếu %s ghi %s đ nhưng phiếu ghi %s đ. "
+				"Số tiền phải bằng đúng số của phiếu."
+				% (ma, _tien(d.get("so_tien")), _tien(tien_phieu))
+			)
+
+
 def _khoa_phieu_noi_bo(ten_ho_so, sach):
 	"""Đóng dấu hồ sơ lên phiếu nội bộ đã nối, để không ai nối lại lần hai.
 
@@ -3219,18 +3357,27 @@ def _khoa_phieu_noi_bo(ten_ho_so, sach):
 		ma = (d.get("de_nghi_chi") or "").strip()
 		if not ma:
 			continue
-		try:
-			cu = frappe.db.get_value(DNC, ma, "ho_so_tt")
-			if cu and cu != ten_ho_so:
-				frappe.log_error(
-					"Phiếu %s đang nối hồ sơ %s, nay bị hồ sơ %s nối chồng."
-					% (ma, cu, ten_ho_so),
-					"ho_so_tt: phieu noi bo bi noi hai lan",
-				)
-				continue
-			frappe.db.set_value(DNC, ma, "ho_so_tt", ten_ho_so, update_modified=False)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "ho_so_tt: khoa phieu noi bo")
+		cu = frappe.db.get_value(DNC, ma, "ho_so_tt")
+		if cu and cu != ten_ho_so:
+			# DUNG HAN, khong di tiep.
+			#
+			# Truoc 04/09/2026 cho nay chi ghi Error Log roi `continue`. Ma
+			# ham nay chay SAU doc.insert va TRUOC frappe.db.commit, nen ho
+			# so cua nguoi sau van ra doi day du, van mang dong so tien do,
+			# van di qua hai cap duyet ngon lanh. Hai to nhin rieng deu hop
+			# le, khong ai doi chieu, va cong ty chi hai lan cho mot khoan.
+			# Nhat ky thi khong ai doc.
+			#
+			# Nem loi o day thi Frappe cuon nguoc ca ban ghi ho so vua chen.
+			frappe.throw(
+				"Phiếu %s đã nằm trong hồ sơ %s rồi, không nối lần nữa được. "
+				"Có người vừa lập hồ sơ với phiếu này trước bạn một nhịp. "
+				"Mở lại bảng chọn phiếu để lấy danh sách mới." % (ma, cu)
+			)
+		# Dong dau KHONG boc try/except: dong dau hong ma van cho ho so ra
+		# doi thi phieu van hien trong bang chon va noi duoc vao ho so thu
+		# hai, tuc lai chi hai lan. Tha hong han con hon hong nua voi.
+		frappe.db.set_value(DNC, ma, "ho_so_tt", ten_ho_so, update_modified=False)
 
 
 @frappe.whitelist()
@@ -3280,6 +3427,18 @@ def go_tep_dong(name=None, dong=None, tep=None):
 	if not frappe.db.exists("Vagabond Ho So TT", name):
 		frappe.throw("Không tìm thấy hồ sơ %s." % name)
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	# CUA DAN CHUNG TU KHONG DUOC MO SAU KHI DA DUYET.
+	#
+	# `dinh_tep_dong` co chan, rieng ham nay truoc 04/09/2026 khong kiem
+	# trang thai mot dong nao. Nghia la go duoc anh chung tu khoi mot ho so
+	# da duyet xong hoac da chi tien, tuc xoa dau vet giai trinh cua mot lan
+	# tien that di ra, ma cung khong ghi vet lai.
+	if doc.trang_thai in (TT_DA_DUYET, TT_DA_TRA):
+		frappe.throw(
+			"Hồ sơ đang ở %s, không gỡ chứng từ ra được nữa. "
+			"Bộ hồ sơ là giải trình của một lần chuyển tiền, gỡ một tờ ra là "
+			"làm thủng bộ đó." % NHAN.get(doc.trang_thai, doc.trang_thai)
+		)
 	i = cint(dong)
 	if i < 1 or i > len(doc.dong):
 		frappe.throw("Hồ sơ %s không có khoản số %s." % (name, dong))
@@ -3289,6 +3448,7 @@ def go_tep_dong(name=None, dong=None, tep=None):
 	doc.flags.ignore_permissions = True
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
+	_ghi_vet(name, "Gỡ chứng từ khỏi khoản %s bởi %s" % (i, frappe.session.user))
 	return {"ok": 1, "dong": i, "tep": _ho_tep(con)}
 
 
@@ -3687,8 +3847,28 @@ def _tra_phieu_noi_bo(ma_phieu, ten_ho_so):
 	if not ma_phieu:
 		return
 	try:
-		if frappe.db.get_value(DNC, ma_phieu, "ho_so_tt") == ten_ho_so:
-			frappe.db.set_value(DNC, ma_phieu, "ho_so_tt", None, update_modified=False)
+		if frappe.db.get_value(DNC, ma_phieu, "ho_so_tt") != ten_ho_so:
+			return
+		# CON DONG NAO KHAC CUA CHINH HO SO NAY DANG GIU PHIEU THI DUNG NHA.
+		#
+		# Mot phieu co the bi noi vao hai dong cua cung mot ho so (bang chon
+		# khong danh dau phieu da dung o dong khac). Xoa mot trong hai dong
+		# ma nha phieu ra la phieu quay lai bang chon trong khi dong kia van
+		# dang giu no, roi noi tiep vao mot ho so thu hai. Luc do khong lop
+		# nao biet gi ca.
+		# SQL thang, dung nep `_gd_da_gom`. `frappe.db.count` tren bang CON
+		# di qua tang quyen cua Frappe va da tung hong voi doctype con, mà
+		# hong o day thi phieu khong bao gio duoc nha - dung cai benh minh
+		# vua chua. Cau nay thi khong the hong vi ly do do.
+		con = frappe.db.sql(
+			"""select count(*) from `tabVagabond Ho So TT Dong`
+			where parent = %s and parenttype = 'Vagabond Ho So TT'
+			and ifnull(de_nghi_chi, '') = %s""",
+			(ten_ho_so, ma_phieu),
+		)
+		if con and cint(con[0][0]) > 0:
+			return
+		frappe.db.set_value(DNC, ma_phieu, "ho_so_tt", None, update_modified=False)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: tra phieu noi bo khi xoa dong")
 
