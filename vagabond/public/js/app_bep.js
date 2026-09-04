@@ -4651,10 +4651,29 @@ var PAYFLOW = [
   { state: 'Nháp', action: 'Gửi kiểm tra', next: 'Chờ FIN kiểm tra', role: 'AP Officer', ok: 1 },
   { state: 'Chờ FIN kiểm tra', action: 'Xác nhận hợp lệ', next: 'Chờ giám đốc duyệt', role: 'AP Kiểm soát (FIN)', ok: 1 },
   { state: 'Chờ FIN kiểm tra', action: 'Trả lại', next: 'Bị trả lại', role: 'AP Kiểm soát (FIN)', ok: 0 },
-  { state: 'Chờ giám đốc duyệt', action: 'Duyệt chi', next: 'Đã duyệt - Đã ghi sổ', role: 'AP Giám đốc', ok: 1 },
+  /* Giam doc ky thi phieu sang buoc CHO CHUYEN TIEN, khong ghi so.
+     Anh Viet 03/09/2026: *"giam doc duyet la moi duyet chi thoi, ke toan
+     chi tien roi dinh kem UNC, khop giao dich SePay vao thi moi ghi so"*. */
+  { state: 'Chờ giám đốc duyệt', action: 'Duyệt chi', next: 'Đã duyệt chi - chờ chuyển tiền', role: 'AP Giám đốc', ok: 1 },
   { state: 'Chờ giám đốc duyệt', action: 'Trả lại', next: 'Bị trả lại', role: 'AP Giám đốc', ok: 0 },
+  /* Buoc nay KHONG di qua apply_workflow: no phai qua cua rieng de soat uy
+     nhiem chi va giao dich ngan hang truoc khi ghi so. Xem pvXacNhan. */
+  { state: 'Đã duyệt chi - chờ chuyển tiền', action: 'Xác nhận đã chuyển tiền', next: 'Đã duyệt - Đã ghi sổ', role: 'AP Kiểm soát (FIN)', ok: 1, cua_rieng: 1 },
+  { state: 'Đã duyệt chi - chờ chuyển tiền', action: 'Trả lại', next: 'Bị trả lại', role: 'AP Kiểm soát (FIN)', ok: 0 },
   { state: 'Bị trả lại', action: 'Gửi kiểm tra', next: 'Chờ FIN kiểm tra', role: 'AP Officer', ok: 1 }
 ];
+
+/* Nhan doc tren man. O trang thai giu ten cu de phieu cu khong mo coi, con
+   chu hien ra thi noi dung nghia moi. */
+var PAYNHAN = {
+  'Nháp': 'Nháp',
+  'Chờ FIN kiểm tra': 'Chờ kế toán kiểm tra',
+  'Chờ giám đốc duyệt': 'Chờ giám đốc duyệt chi',
+  'Đã duyệt chi - chờ chuyển tiền': 'Đã duyệt chi, chờ chuyển tiền',
+  'Đã duyệt - Đã ghi sổ': 'Đã chuyển tiền, đã ghi sổ',
+  'Bị trả lại': 'Bị trả lại'
+};
+function payNhan(s) { return PAYNHAN[s] || s || ''; }
 function myPayStates() {
   var s = [];
   PAYFLOW.forEach(function (t) { if (hasRole(t.role) && s.indexOf(t.state) < 0) s.push(t.state); });
@@ -4826,6 +4845,50 @@ function payRong() {
   return '<div class="emp"><div class="e1">✅</div><div class="e2">Không có phiếu nào cần xử lý</div></div>';
 }
 
+/* Tinh hinh chuyen tien cua phieu dang mo, de nut xac nhan biet dang thieu
+   gi ma noi cho dung. */
+var pvTh = null;
+
+/* Ke toan xac nhan da chuyen tien. Di qua cua rieng chu khong qua duong
+   workflow chung: cua nay soat uy nhiem chi va giao dich ngan hang truoc
+   khi cho phieu ghi so. */
+async function pvXacNhan(d, name) {
+  var unc = tdkDs('pvunc') || [];
+  var th = pvTh || {};
+  if (!unc.length && !th.so_unc) {
+    return baoTin('Đính tờ uỷ nhiệm chi vào phiếu trước đã. Đó là bằng chứng tiền đã rời tài khoản.',
+      'Chưa có uỷ nhiệm chi');
+  }
+  var lyDo = null;
+  if (!th.du_tien) {
+    if (!th.duoc_bo_qua_sepay) {
+      return baoTin('Chưa thấy giao dịch ngân hàng nào mang mã phiếu này. Chờ ngân hàng đẩy về rồi xác nhận lại. ' +
+        'Nếu tiền đã đi thật thì nhờ kế toán trưởng xác nhận.', 'Chưa thấy tiền ra khỏi tài khoản');
+    }
+    lyDo = await promptSheet('Ngân hàng chưa báo giao dịch',
+      'Tiền đã chuyển thật thì ghi một câu lý do, câu này nằm lại trên phiếu để kỳ sau đối chiếu.');
+    if (lyDo === null) return;
+    if (!lyDo) return toast('Phải ghi lý do thì mới ghi sổ sớm được');
+  }
+  var ma = await promptSheet('Mã giao dịch ngân hàng', 'Số tham chiếu trên uỷ nhiệm chi. Bỏ trống cũng được.');
+  if (ma === null) return;
+  if (!await confirmSheet('Xác nhận đã chuyển tiền?',
+    'Phiếu ' + name + ' · ' + money(d.paid_amount) + ' đ cho ' + (d.party_name || d.party) +
+    '.\n\nXác nhận xong là phiếu ghi sổ, tiền trừ khỏi sổ và công nợ nhà cung cấp giảm.',
+    'Đã chuyển tiền')) return;
+  busy(1);
+  try {
+    await api('vagabond.duyet_chi.xac_nhan_da_chuyen', {
+      name: name, ma_giao_dich: ma || '', ly_do_som: lyDo || '',
+      unc: JSON.stringify(unc.map(function (x) { return x.url; }))
+    });
+    busy(0);
+    tdkNap('pvunc', []);
+    toast('Đã ghi sổ phiếu ' + name, 3200);
+    back();
+  } catch (err) { busy(0); toast(errMsg(err), 6000); }
+}
+
 async function scrPayView(name) {
   frame(name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d = await api('frappe.client.get', { doctype: 'Payment Entry', name: name });
@@ -4855,7 +4918,7 @@ async function scrPayView(name) {
     (d.custom_loai_chi ? '<div class="kv"><span>Loại chi</span><b>' + h(d.custom_loai_chi) + '</b></div>' : '') +
     '<div class="kv"><span>Hình thức</span><b>' + h(d.mode_of_payment || '-') + '</b></div>' +
     '<div class="kv"><span>Tài khoản chi</span><b>' + h(d.paid_from || '-') + '</b></div>' +
-    '<div class="kv"><span>Trạng thái</span><b>' + h(d.workflow_state) + '</b></div>' +
+    '<div class="kv"><span>Trạng thái</span><b>' + h(payNhan(d.workflow_state)) + '</b></div>' +
     '<div class="kv"><span>Người lập</span><b>' + h(d.nguoi_lap_ten || d.owner) + '</b></div>' +
     '</div>' +
     (refs ? '<div class="sec">Hoá đơn thanh toán</div><div class="card">' + refs + '</div>' : '') +
@@ -4866,10 +4929,44 @@ async function scrPayView(name) {
       '</div>' : '') +
     '<button class="btn gh" id="pvPrint" style="margin-bottom:10px">Xem bản in đầy đủ</button>';
 
+  /* BUOC CHUYEN TIEN. Phieu da co chu ky giam doc, gio la viec cua ke
+     toan: chuyen tien that, dinh to uy nhiem chi, doi chieu giao dich ngan
+     hang. Man noi ro dang thieu cai nao chu khong de nguoi ta bam roi mo
+     doan cau bao loi. */
+  var chuyenTien = d.workflow_state === 'Đã duyệt chi - chờ chuyển tiền' && hasRole('AP Kiểm soát (FIN)');
+  if (chuyenTien) {
+    var th = null;
+    try { th = await api('vagabond.duyet_chi.tinh_hinh', { name: name }); } catch (e) { th = null; }
+    html += '<div class="sec">Chuyển tiền</div><div class="card" style="padding:13px 14px">' +
+      '<div style="font-size:13.5px;color:#3a404e;line-height:1.6">Giám đốc đã duyệt chi. ' +
+      'Chuyển tiền xong thì đính tờ uỷ nhiệm chi vào đây, máy dò giao dịch ngân hàng mang mã phiếu, ' +
+      'đủ hai thứ thì phiếu mới ghi sổ.</div>' +
+      (th ? '<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:13.5px">' +
+        '<div>' + (th.so_unc ? '✅' : '⬜') + ' Uỷ nhiệm chi: <b>' + (th.so_unc ? th.so_unc + ' tờ' : 'chưa có') + '</b></div>' +
+        '<div>' + (th.du_tien ? '✅' : '⬜') + ' Ngân hàng báo đã chi: <b>' + money(th.da_chi) + ' đ</b> trên ' + money(th.tong_tien) + ' đ' +
+        (th.ma_gd ? ' · giao dịch ' + h(th.ma_gd) : '') + '</div></div>' : '') +
+      '<div id="pvUnc" style="margin-top:12px"></div>' +
+      '</div>';
+    pvTh = th;
+  }
+
   var ft = acts.map(function (t) {
     return '<button class="btn ' + (t.ok ? 'gr' : 'dg') + '" data-act="' + h(t.action) + '" style="margin-bottom:9px">' + h(t.action) + '</button>';
   }).join('');
   var b = frame(name, html, { footer: ft || '<button class="btn gh" disabled>Không có thao tác cho vai trò của bạn</button>' });
+  if (chuyenTien) {
+    var khungUnc = document.getElementById('pvUnc');
+    if (khungUnc) {
+      var oUnc = {
+        nhan: '📎 Đính uỷ nhiệm chi',
+        goi_y: 'Tải tờ uỷ nhiệm chi từ e-banking về rồi chọn ở đây. Đính đúng tờ uỷ nhiệm chi, đừng đính bảng báo giá.',
+        style: 'margin-top:0'
+      };
+      tdkNap('pvunc', []);
+      khungUnc.innerHTML = tdkKhoi('pvunc', oUnc);
+      tdkNoi(khungUnc, 'pvunc', oUnc);
+    }
+  }
   document.getElementById('pvPrint').onclick = function () {
     window.open('/printview?doctype=Payment%20Entry&name=' + encodeURIComponent(name) + '&format=' + encodeURIComponent('Vagabond - Chứng từ thanh toán') + '&no_letterhead=0&_lang=vi', '_blank');
   };
@@ -4878,6 +4975,7 @@ async function scrPayView(name) {
     var t = e.target.closest('[data-act]'); if (!t) return;
     var action = t.dataset.act;
     var tr = acts.filter(function (x) { return x.action === action; })[0];
+    if (tr && tr.cua_rieng) return pvXacNhan(d, name);
     var reason = null;
     if (!tr.ok) {
       reason = await promptSheet('Lý do trả lại', 'Nhập lý do để người lập biết cần sửa gì...');
@@ -20702,7 +20800,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '413';
+var APPVER = '414';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
