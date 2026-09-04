@@ -44,19 +44,28 @@ import json
 import frappe
 from frappe.utils import cint, flt, now_datetime, nowdate
 
-from vagabond import ca_quay
+from vagabond import ca_quay, giam_doc_sua_huy
 
 NQ = "Vagabond Nop Quy"
 
 TT_NHAP = "Nháp"
 TT_CHO_KY = "Chờ ký nhận"
 TT_DA_NOP = "Đã nộp quỹ"
+# Huỷ MỀM, thêm 04/09/2026. Phiếu huỷ vẫn nằm nguyên trong cơ sở dữ liệu,
+# vẫn mở ra đọc được, chỉ không còn chặn phiếu khác của cùng ngày nữa. Xem
+# `vagabond/giam_doc_sua_huy.py` để biết vì sao huỷ chứ không xoá.
+TT_HUY = "Đã huỷ"
 
 NHAN_TRANG_THAI = {
 	TT_NHAP: "Nháp",
 	TT_CHO_KY: "Chờ ký nhận",
 	TT_DA_NOP: "Đã nộp quỹ",
+	TT_HUY: "Đã huỷ",
 }
+
+# Phiếu ở các trạng thái này còn GIỮ CHỖ một khoảng ngày của một điểm bán.
+# Phiếu đã huỷ thì không, đó là toàn bộ ý nghĩa của việc huỷ.
+TT_CON_GIU_CHO = (TT_NHAP, TT_CHO_KY, TT_DA_NOP)
 
 # Vai được ký NHẬN tiền. Bên giao là người lập phiếu, không cần vai riêng:
 # ai đứng quầy cũng có thể phải mang tiền về quỹ.
@@ -321,7 +330,14 @@ def _phieu_trum(diem, tu, den, bo_qua=None):
 	"""
 	ds = frappe.get_all(
 		NQ,
-		filters={"diem_ban": diem, "tu_ngay": ["<=", den], "den_ngay": [">=", tu]},
+		filters={
+			"diem_ban": diem, "tu_ngay": ["<=", den], "den_ngay": [">=", tu],
+			# Phiếu ĐÃ HUỶ không giữ chỗ nữa. Trước 04/09/2026 bộ lọc này
+			# không có dòng nào về trạng thái, nên một phiếu lập thử rồi bỏ
+			# đó vẫn khoá cứng ngày đó của điểm đó, mà trên màn không có nút
+			# nào gỡ ra. Đúng cảnh NQ-2026-01629 ngày 30/08 của Quận 1.
+			"trang_thai": ["in", list(TT_CON_GIU_CHO)],
+		},
 		fields=["name", "tu_ngay", "den_ngay", "trang_thai"],
 		limit_page_length=0,
 	)
@@ -683,6 +699,188 @@ def ky_nhan(ma, chu_ky):
 	return {"ma": doc.name, "trang_thai": doc.trang_thai, "nhan_luc": str(doc.nhan_luc)}
 
 
+# ------------------------------------------- cửa SỬA và HUỶ của giám đốc
+#
+# Anh Việt 04/09/2026. Xem `vagabond/giam_doc_sua_huy.py` để biết vì sao
+# huỷ chứ không xoá, và vì sao lý do là bắt buộc.
+
+
+def _nha_ca(doc, ve_da_chot):
+	"""Trả các ca mà phiếu đang giữ về cho người khác lập phiếu lại.
+
+	Huỷ hay sửa mà quên nhả ca là khoá vĩnh viễn các ca đó: ô `phieu_nop`
+	còn trỏ vào một phiếu không còn hiệu lực, và `tao()` sẽ chặn mãi mãi
+	với câu "ca này đã nằm trong phiếu ... rồi".
+	"""
+	n = 0
+	for d in doc.ca or []:
+		if not d.ca:
+			continue
+		frappe.db.set_value(ca_quay.CA, d.ca, "phieu_nop", "", update_modified=False)
+		if ve_da_chot:
+			frappe.db.set_value(
+				ca_quay.CA, d.ca, "trang_thai", ca_quay.TT_DA_CHOT,
+				update_modified=False)
+		n += 1
+	return n
+
+
+@frappe.whitelist()
+def huy(ma, ly_do):
+	"""Giám đốc huỷ MỀM một phiếu nộp quỹ. Không xoá, chỉ đổi trạng thái.
+
+	Huỷ được ở mọi trạng thái, kể cả phiếu đã ký nhận: có thật chuyện hai
+	bên ký xong mới phát hiện đếm nhầm hay lập trùng, và lúc đó thứ duy
+	nhất còn đúng là ghi rõ nó sai chứ không phải giả vờ nó không tồn tại.
+
+	Huỷ xong phiếu KHÔNG còn giữ chỗ khoảng ngày của điểm bán nữa, nên lập
+	lại phiếu đúng cho chính ngày đó được ngay.
+	"""
+	giam_doc_sua_huy.chan("huỷ phiếu nộp quỹ")
+	ly_do = giam_doc_sua_huy.doc_ly_do(ly_do)
+	doc = frappe.get_doc(NQ, ma)
+	giam_doc_sua_huy.da_huy(doc, TT_HUY)
+
+	tt_cu = doc.trang_thai
+	so_ca = _nha_ca(doc, ve_da_chot=(tt_cu == TT_DA_NOP))
+	doc.trang_thai = TT_HUY
+	giam_doc_sua_huy.dong_dau_huy(doc, ly_do)
+	doc.save(ignore_permissions=True)
+	giam_doc_sua_huy.ghi_vet(NQ, doc.name, giam_doc_sua_huy.cau_vet(
+		"Huỷ phiếu nộp quỹ (đang ở %s, %s đ, nhả %d ca)" % (
+			tt_cu, int(flt(doc.tong_thuc_nhan)), so_ca),
+		frappe.session.user, ly_do))
+	frappe.db.commit()
+	return {"ma": doc.name, "trang_thai": doc.trang_thai, "tt_cu": tt_cu,
+		"so_ca_nha": so_ca}
+
+
+@frappe.whitelist()
+def sua(ma, ly_do, bang_ke=None, tu_ngay=None, den_ngay=None, pham_vi=None,
+		noi_dung=None, noi_giao_nhan=None, ghi_chu=None, ly_do_lech=None,
+		anh_minh_chung=None):
+	"""Giám đốc sửa một phiếu nộp quỹ. Sửa gì cũng phải ghi lý do.
+
+	Sửa là ĐẬP CHỮ KÝ, không phải chỉnh lén
+	---------------------------------------
+	Tờ biên bản có hai chữ ký là để hai bên xác nhận CÙNG MỘT con số. Sửa
+	con số mà giữ nguyên chữ ký cũ thì chữ ký đó đang xác nhận một thứ
+	không còn tồn tại, tức là tờ biên bản mất sạch giá trị mà nhìn vào vẫn
+	thấy đầy đủ. Nên:
+
+	  - phiếu Đã nộp quỹ mà bị sửa thì rơi về Chờ ký nhận, xoá chữ ký bên
+	    nhận, và các ca trả về Đã chốt;
+	  - phiếu Chờ ký nhận mà bị sửa vào SỐ TIỀN hoặc KHOẢNG NGÀY thì rơi về
+	    Nháp, xoá luôn chữ ký bên giao;
+	  - sửa mấy ô chữ (nội dung, nơi giao nhận, ghi chú) thì giữ nguyên
+	    trạng thái, vì không ai ký để xác nhận một dòng ghi chú.
+
+	Phiếu đã huỷ thì không sửa. Muốn dùng lại thì lập phiếu mới.
+	"""
+	giam_doc_sua_huy.chan("sửa phiếu nộp quỹ")
+	ly_do = giam_doc_sua_huy.doc_ly_do(ly_do)
+	doc = frappe.get_doc(NQ, ma)
+	if doc.trang_thai == TT_HUY:
+		frappe.throw(
+			"Phiếu %s đã huỷ, không sửa được nữa. Lập phiếu mới cho khoảng "
+			"ngày đó." % doc.name)
+
+	tt_cu = doc.trang_thai
+	tien_cu = flt(doc.tong_thuc_nhan)
+	ngay_cu = (str(doc.tu_ngay or ""), str(doc.den_ngay or ""))
+	doi = []
+
+	# --- khoảng ngày. Chỉ phiếu lấy kỳ vọng THEO NGÀY mới đổi được: phiếu
+	# theo ca lấy ngày từ chính các ca, đổi tay là số kỳ vọng hết khớp với
+	# bảng ca ngay bên dưới nó.
+	if tu_ngay or den_ngay or pham_vi:
+		if (doc.get("nguon_ky_vong") or "") != NG_NGAY:
+			frappe.throw(
+				"Phiếu này lấy kỳ vọng từ các ca đã chốt, khoảng ngày do "
+				"chính các ca quyết định. Muốn đổi ngày thì huỷ phiếu rồi "
+				"gom lại ca khác.")
+		try:
+			tu, den, n = chuan_khoang(
+				pham_vi or doc.get("pham_vi"),
+				tu_ngay or str(doc.tu_ngay), den_ngay or str(doc.den_ngay))
+		except ValueError as e:
+			frappe.throw(str(e))
+		trum = _phieu_trum(doc.get("diem_ban"), tu, den, bo_qua=doc.name)
+		if trum:
+			frappe.throw(
+				"Đổi sang %s tới %s thì đụng phiếu %s (%s) của cùng điểm bán. "
+				"Nộp hai lần cùng một ngày là tiền trong sổ nhiều gấp đôi tiền "
+				"có thật." % (tu, den, trum[0]["name"], trum[0]["trang_thai"]))
+		if (str(doc.tu_ngay), str(doc.den_ngay)) != (tu, den):
+			doi.append("khoảng ngày %s..%s thành %s..%s" % (
+				doc.tu_ngay, doc.den_ngay, tu, den))
+		doc.tu_ngay, doc.den_ngay, doc.so_ngay = tu, den, n
+		doc.pham_vi = PV_NGAY if n == 1 else PV_KHOANG
+		_, doc.tien_ky_vong = gom_tien_mat(
+			_bill_tien_mat(doc.get("diem_ban"), tu, den))
+
+	# --- bảng kê mệnh giá
+	if bang_ke is not None:
+		try:
+			bang = doc_bang_ke(bang_ke)
+		except ValueError as e:
+			frappe.throw(str(e))
+		if not bang:
+			frappe.throw("Bảng kê mệnh giá trống. Phiếu nộp tiền phải có tờ nào đó.")
+		doc.set("menh_gia", [])
+		for x in bang:
+			doc.append("menh_gia", x)
+		doc.tong_thuc_nhan = tong_bang_ke(bang)
+
+	doc.lech = flt(doc.tong_thuc_nhan) - flt(doc.tien_ky_vong)
+	if flt(doc.tong_thuc_nhan) != tien_cu:
+		doi.append("thực nhận %d đ thành %d đ" % (int(tien_cu), int(flt(doc.tong_thuc_nhan))))
+
+	# --- các ô chữ. Truyền None nghĩa là không đụng tới, truyền chuỗi rỗng
+	# nghĩa là xoá trắng ô đó.
+	for o, gt in (("noi_dung", noi_dung), ("noi_giao_nhan", noi_giao_nhan),
+			("ghi_chu", ghi_chu), ("ly_do_lech", ly_do_lech),
+			("anh_minh_chung", anh_minh_chung)):
+		if gt is None:
+			continue
+		gt = str(gt).strip()
+		if (doc.get(o) or "") != gt:
+			doi.append("ô %s" % o)
+		doc.set(o, gt)
+
+	if can_ly_do(doc.lech) and not (doc.ly_do_lech or "").strip():
+		frappe.throw(
+			"Sửa xong phiếu lệch %d đồng so với kỳ vọng. Phải ghi lý do lệch."
+			% int(flt(doc.lech)))
+
+	# --- chữ ký nào còn giá trị sau lần sửa này
+	doi_tien = (flt(doc.tong_thuc_nhan) != tien_cu
+		or (str(doc.tu_ngay or ""), str(doc.den_ngay or "")) != ngay_cu)
+	nha_ca = 0
+	if tt_cu == TT_DA_NOP:
+		nha_ca = _nha_ca(doc, ve_da_chot=True)
+		doc.chu_ky_ben_nhan = ""
+		doc.nguoi_nhan = None
+		doc.ten_nguoi_nhan = ""
+		doc.nhan_luc = None
+		doc.trang_thai = TT_CHO_KY
+	if doi_tien and doc.trang_thai == TT_CHO_KY:
+		doc.chu_ky_ben_giao = ""
+		doc.giao_luc = None
+		doc.trang_thai = TT_NHAP
+
+	doc.save(ignore_permissions=True)
+	giam_doc_sua_huy.ghi_vet(NQ, doc.name, giam_doc_sua_huy.cau_vet(
+		"Sửa phiếu nộp quỹ (%s): %s" % (
+			tt_cu, "; ".join(doi) or "không đổi ô nào"),
+		frappe.session.user, ly_do))
+	frappe.db.commit()
+	return {"ma": doc.name, "trang_thai": doc.trang_thai, "tt_cu": tt_cu,
+		"doi": doi, "so_ca_nha": nha_ca,
+		"tong_thuc_nhan": flt(doc.tong_thuc_nhan),
+		"tien_ky_vong": flt(doc.tien_ky_vong), "lech": flt(doc.lech)}
+
+
 def _dong_danh_sach(d):
 	return {
 		"name": d.name, "ngay": str(d.ngay), "trang_thai": d.trang_thai,
@@ -810,6 +1008,13 @@ def chi_tiet(ma):
 		"chu_ky_ben_giao": doc.chu_ky_ben_giao or "",
 		"chu_ky_ben_nhan": doc.chu_ky_ben_nhan or "",
 		"duoc_ky_nhan": 1 if duoc_ky_nhan(frappe.get_roles()) else 0,
+		# Nút Sửa và Huỷ chỉ vẽ ra khi máy chủ bảo người này đủ vai. Máy chủ
+		# còn chặn lại lần nữa trong `sua` và `huy` - ẩn nút chỉ là lịch sự.
+		"duoc_sua_huy": 1 if giam_doc_sua_huy.duoc_sua_huy(frappe.get_roles()) else 0,
+		"huy_boi": doc.get("huy_boi") or "",
+		"ten_nguoi_huy": doc.get("ten_nguoi_huy") or "",
+		"huy_luc": str(doc.get("huy_luc") or ""),
+		"ly_do_huy": doc.get("ly_do_huy") or "",
 		"ca": [
 			{"ca": d.ca, "quay": d.quay, "ngay": str(d.ngay), "tien_mat_dem": flt(d.tien_mat_dem)}
 			for d in doc.ca
