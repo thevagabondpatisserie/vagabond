@@ -11,11 +11,11 @@ lối mà thu_qr_xhd_cfd_push.py đã dùng. Phần chạm DOM thì chỉ neo b�
 phép đọc mã nguồn, và đã kiểm tay trên trang thật, ghi lại trong hồ sơ bàn
 giao của PR.
 
-Commit này lo PHẦN HIỂN THỊ của #205:
+Ba việc của #205:
 1. Ngày hiện ra "6th 9" vì chữ th viết tắt của tháng đứng ngay sau số ngày.
 2. Số tồn kho thô lọt ra ngoài giao diện, có chỗ hiện "Còn 1092".
-
-Phần bước chọn lịch trong giỏ hàng nằm ở commit sau.
+3. Bước chọn ngày giờ bắt khách làm hai lần, mà hai bộ chọn còn lệch miền
+   ngày: ngoài 14 ngày, trong giỏ hàng 10 ngày.
 """
 
 import io
@@ -194,6 +194,103 @@ def _khong_lay_nhan_lam_du_lieu():
 	dung("payload gui ngayNhan", "ngay_nhan:ngayNhan" in TRANG)
 	dung("payload khong dung nhanNgay", "ngay_nhan:nhanNgay" not in TRANG)
 	dung("payload khong dung dmy", "ngay_nhan:dmy" not in TRANG)
+
+
+# ==================================================== 3. BƯỚC CHỌN LỊCH
+
+
+@ca("#205 chi tom tat khi khach THAT SU da chon, chua bam Thay doi, gio con kip")
+def _quyet_dinh_tom_tat():
+	ra = _node(_ham("hienTomTatLich") + """
+var r=[];
+r.push(hienTomTatLich(true,  false, true ));  /* da chon, chua doi, gio kip */
+r.push(hienTomTatLich(false, false, true ));  /* chua chon bao gio */
+r.push(hienTomTatLich(true,  true,  true ));  /* dang bam Thay doi */
+r.push(hienTomTatLich(true,  false, false));  /* gio het kip */
+r.push(hienTomTatLich(false, true,  false));
+console.log(JSON.stringify(r));
+""")
+	la("chi truong hop dau tien moi tom tat", json.loads(ra),
+		[True, False, False, False, False])
+
+
+@ca("#205 gia tri mac dinh cua trang KHONG duoc coi la khach da chon")
+def _mac_dinh_khong_phai_da_chon():
+	# picked=2 la mac dinh khi mo trang. Neu coi do la da chon thi khach chua
+	# bam gi ma gio hang da bao "anh chi da chon ngay X" roi giao nham ngay.
+	dung("co co rieng danh dau da chon", "let daChonLich=false;" in TRANG)
+	dung("bam ngay moi bat co", "function pick(i){ picked=i; daChonLich=true;" in TRANG)
+	dung("bam khung gio cung bat co",
+		"function pickSlot(i){ pickedSlot=i; daChonLich=true;" in TRANG)
+
+
+@ca("#205 hai bo chon ngay phai CUNG mien ngay")
+def _cung_mien_ngay():
+	# Truoc day ngoai 14 ngay, trong gio hang 10 ngay, nen khach chon ngay thu
+	# 11 toi 14 o ngoai thi vao gio hang khong sua lai duoc.
+	so = re.findall(r"railHtml\((\d+),'pick'\)", TRANG)
+	la("hai noi goi railHtml", len(so), 2)
+	la("cung mot so ngay", len(set(so)), 1)
+	la("deu la 14 ngay", so[0], "14")
+
+
+@ca("#205 bam Thay doi thi bung lai bo chon, va dua con tro vao do")
+def _nut_thay_doi():
+	dung("co nut Thay doi", 'onclick="doiLich()"' in TRANG)
+	than = _than("doiLich")
+	dung("mo lai bo chon", "moLich=true" in than)
+	dung("ve lai muc 02", "drawCoDate()" in than)
+	dung("dua con tro vao ngay dang chon", ".focus()" in than)
+	# Mo lai gio hang thi tro ve the tom tat chu khong giu trang thai dang mo.
+	dung("mo gio hang thi dong bo chon lai", "moLich=false;" in _than("openCoUI"))
+
+
+@ca("#205 khung gio het kip thi phai NOI RO, khong lang le doi khung khac")
+def _bao_gio_het_kip():
+	than = _than("drawCoDate")
+	dung("co tinh gio con kip khong", "const hongGio=!slotOk(picked,SLOTS[pickedSlot]);" in than)
+	dung("gio hong thi khong tom tat", "hienTomTatLich(daChonLich, moLich, !hongGio)" in than)
+	dung("co cau bao cho khach", "không còn kịp nữa" in than)
+
+
+# ==================================================== 4. NGƯỜI NHẬN VÀ HOÁ ĐƠN
+
+
+@ca("#205 hai khoi nguoi nhan va hoa don an san, bat moi bung")
+def _an_mac_dinh():
+	dung("khoi nguoi nhan an", '<div id="otherBlock" style="display:none"' in TRANG)
+	dung("khoi hoa don an", '<div id="vatBlock" style="display:none">' in TRANG)
+	dung("co khoi tao tat", "other:false" in TRANG and "vat:false" in TRANG)
+
+
+@ca("#205 tat toggle thi KHONG gui du lieu cu len may chu")
+def _tat_thi_khong_gui():
+	dung("nguoi nhan gac theo CO.other", "nguoi_nhan: CO.other ?" in TRANG)
+	dung("tat thi gui null", "CO.other ? {ho_ten:" in TRANG and ": null," in TRANG)
+	dung("hoa don gac theo CO.vat", "const vat = CO.vat ? {" in TRANG)
+
+
+@ca("#205 ba toggle doc lap nhau, nguoi khac nhan khong keo theo bo hoa don")
+def _doc_lap():
+	than = _than("tgl")
+	dung("moi lan chi lat dung mot co", "CO[k]=!CO[k];" in than)
+	dung("khong co cho nao lat co khac", "CO.gift=" not in than and "CO.vat=" not in than)
+
+
+@ca("#205 bung thu co bao cho trinh doc man hinh va co dua con tro vao")
+def _tro_giup_ban_phim():
+	dung("nut nguoi nhan khai aria", 'id="c-other" onclick="tgl(\'other\')" aria-expanded="false"' in TRANG)
+	dung("nut hoa don khai aria", 'id="c-vat" onclick="tgl(\'vat\')" aria-expanded="false"' in TRANG)
+	than = _than("tgl")
+	dung("cap nhat lai aria khi lat", "setAttribute('aria-expanded'" in than)
+	dung("dua con tro vao o dau tien", "o.focus()" in than)
+
+
+@ca("#205 thu lai KHONG duoc xoa chu khach vua go")
+def _khong_xoa_chu():
+	than = _than("tgl")
+	dung("khong dat lai gia tri o nhap", ".value=''" not in than)
+	dung("khong goi reset", ".reset()" not in than)
 
 
 @ca("#205 nguong ton phai giu o 10 dung nhu anh Viet chot trong issue")
