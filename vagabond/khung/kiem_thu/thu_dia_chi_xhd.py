@@ -29,6 +29,11 @@ def _py(ten):
 	return io.open(os.path.join(GOI, ten), encoding="utf-8").read()
 
 
+def _js(ten):
+	return io.open(
+		os.path.join(GOI, "public", "js", "bep", ten), encoding="utf-8").read()
+
+
 # Năm chuỗi THẬT lấy từ site ngày 05/09/2026. Giữ nguyên từng ký tự, kể cả
 # chỗ thiếu khoảng trắng sau dấu hai chấm và chỗ thừa khoảng trắng trước nó.
 THAT = (
@@ -150,23 +155,78 @@ def _moi_duong_deu_sach():
 		la("không còn %s" % xau[:34], xau in s, False)
 
 
-@ca("#193 chặn tờ có địa chỉ mà không có tên và mã số thuế")
-def _chan_thieu_chu():
+# Câu mặc định của ô tên người mua. Chép nguyên văn từ `ban_hang.XHD_MAC_DINH`
+# chứ không import, để bộ ca này chạy được mà không cần Frappe.
+TEN_MAC_DINH = "Bán cho người tiêu dùng"
+
+
+@ca("#193 luật địa chỉ không có chủ: kiểm HÀNH VI, không dò chuỗi")
+def _luat_dia_chi_khong_chu():
+	f = hdv.dia_chi_khong_chu
+	# Năm ca Codex yêu cầu trong review PR #194.
+	dung("địa chỉ + tên mặc định + không MST thì CHẶN",
+		f(TEN_MAC_DINH, "", "5 Lê Lợi", TEN_MAC_DINH) is True)
+	dung("địa chỉ + tên thật + không MST thì CHO QUA",
+		f("Nguyễn Văn A", "", "5 Lê Lợi", TEN_MAC_DINH) is False)
+	dung("địa chỉ + MST + tên hợp lệ thì CHO QUA",
+		f("CÔNG TY TNHH IMAE", "0301464830", "5 Lê Lợi", TEN_MAC_DINH) is False)
+	dung("không có địa chỉ thì CHO QUA",
+		f(TEN_MAC_DINH, "", "", TEN_MAC_DINH) is False)
+	dung("địa chỉ toàn khoảng trắng cũng coi như không có",
+		f(TEN_MAC_DINH, "", "   ", TEN_MAC_DINH) is False)
+	# Vài ca biên nữa.
+	dung("tên rỗng cũng tính là chưa có chủ",
+		f("", "", "5 Lê Lợi", TEN_MAC_DINH) is True)
+	dung("tên mặc định có khoảng trắng thừa vẫn nhận ra",
+		f("  " + TEN_MAC_DINH + " ", "", "5 Lê Lợi", TEN_MAC_DINH) is True)
+	dung("có MST thì tên mặc định cũng cho qua, cửa tên đã chặn ở chỗ khác",
+		f(TEN_MAC_DINH, "0301464830", "5 Lê Lợi", TEN_MAC_DINH) is False)
+	dung("None ở mọi ô không làm nổ",
+		f(None, None, None, TEN_MAC_DINH) is False)
+
+
+@ca("#193 mọi cửa ghi đều thực thi luật, mỗi cửa một cách phù hợp")
+def _moi_cua_thuc_thi():
 	s = _py("ban_hang.py")
-	dung("có hàm chặn", "def _chan_dia_chi_khong_chu(" in s)
+	# Hàm ném ra màn phải gọi phép THUẦN chứ không tự chép lại luật.
 	i = s.index("def _chan_dia_chi_khong_chu(")
 	than = s[i:s.index("\n@frappe.whitelist()", i)]
-	dung("có địa chỉ mới xét", 'if not (dia_chi or "").strip():' in than)
-	dung("có mã số thuế thì cho qua", 'if (so_mst or "").strip():' in than)
-	dung("tên thật thì cho qua", "!= XHD_MAC_DINH" in than)
-	dung("ném ra màn", "frappe.throw(" in than)
-	# Hai cửa NGƯỜI GÕ phải gọi hàm chặn: `luu_xhd` của màn Doanh số sales và
-	# `xhd_khach_luu` của trang /xhd khách tự điền. Hai nguồn tự động thì
-	# không cần, vì chúng luôn đi kèm mã số thuế.
-	#
-	# Đếm theo dòng có THỤT ĐẦU, để không đếm nhầm chính dòng `def`.
-	la("hai cửa gọi hàm chặn",
+	dung("hàm chặn gọi phép thuần", "hoa_don_vat.dia_chi_khong_chu(" in than)
+	dung("hàm chặn ném ra màn", "frappe.throw(" in than)
+	# Hai cửa NGƯỜI GÕ thì ném lỗi: người đang ngồi đó, sửa được ngay.
+	la("hai cửa người gõ gọi hàm chặn",
 		s.count("\n\t_chan_dia_chi_khong_chu(ten"), 2)
+	# Cửa POS thì KHÔNG ném, mà bỏ qua lần ghi địa chỉ. Ném ở đây là chặn
+	# luôn việc sửa món, sửa tiền của những tờ cũ đã lỡ mang tổ hợp sai.
+	dung("cửa POS cũng thực thi luật",
+		"if not hoa_don_vat.dia_chi_khong_chu(" in s)
+	dung("cửa POS không ném lỗi mà bỏ qua lần ghi",
+		"si.vgb_xhd_dia_chi = _moi" in s)
+
+
+@ca("#193 lời nhắn khớp với luật, không đòi cá nhân phải có mã số thuế")
+def _loi_nhan_khop_luat():
+	s = _py("ban_hang.py")
+	i = s.index("def _chan_dia_chi_khong_chu(")
+	than = s[i:s.index("\n@frappe.whitelist()", i)]
+	# Luật CHO PHÉP khách cá nhân có tên thật mà không có mã số thuế, nên
+	# lời nhắn không được nói rằng phải có cả hai.
+	dung("lời nhắn nói rõ cá nhân vẫn điền được",
+		"không có mã số thuế thì vẫn điền địa chỉ bình thường" in than)
+	la("không còn câu đòi cả tên lẫn mã số thuế",
+		"phải có tên người mua và mã số thuế" in than, False)
+
+
+@ca("#193 màn Bill quay không gửi lên địa chỉ mồ côi")
+def _man_pos_khong_gui_mo_coi():
+	j = _js("10-bill-quay.js")
+	# Trước 05/09/2026 màn này bỏ trống ô tên khi tên là câu mặc định nhưng
+	# vẫn giữ nguyên ô địa chỉ, nên payload gửi lên đúng tổ hợp bị cấm.
+	la("không còn giữ địa chỉ khi bỏ trống tên",
+		"mst: d.vgb_xhd_mst || '', dc: d.vgb_xhd_dia_chi || '', email: d.vgb_xhd_email || ''\n      }" in j,
+		False)
+	dung("bỏ trống tên thì bỏ trống luôn địa chỉ và mã số thuế",
+		"return { ten: '', mst: '', dc: '', email: d.vgb_xhd_email || '' };" in j)
 
 
 @ca("#193 KHÔNG có đường nào tự sửa hoá đơn cũ")
