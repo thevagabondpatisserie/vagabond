@@ -489,6 +489,98 @@ def _cod_tu_don(o, si):
 	return max(0, tong - da_tra)
 
 
+# Van don da dong so thi khong noi hoa don nua. Noi vao mot to da huy chi
+# lam no hien lai trong cac man soi theo hoa don, khong duoc gi.
+TT_KHONG_NOI_HOA_DON = ("Huỷ", "Huy", "Đã huỷ", "Da huy")
+
+
+def nen_tim_hoa_don(hoa_don_cu, trang_thai=""):
+	"""Co dang cong di tim hoa don cho van don nay khong. THUAN.
+
+	Tach rieng khoi nen_noi_hoa_don de ben goi biet co can chay cau truy van
+	Sales Invoice hay khong. Nhip van don chay 5 phut mot lan tren ca tram
+	don, hoi them mot cau cho moi don la hoi khong can thiet.
+	"""
+	if str(hoa_don_cu or "").strip():
+		return False
+	if str(trang_thai or "").strip() in TT_KHONG_NOI_HOA_DON:
+		return False
+	return True
+
+
+def nen_noi_hoa_don(hoa_don_cu, si_name, trang_thai=""):
+	"""Co duoc lap o hoa_don bang si_name khong. THUAN.
+
+	Ba dieu, phai du ca ba:
+
+	  1. O hoa_don dang TRONG. Da co gia tri thi khong dong toi, du gia tri
+	     do khac voi hoa don vua tim thay. Nguoi va may deu co the da gan
+	     tay o do, va gan tay thi thang.
+	  2. Van don chua dong so.
+	  3. Tim duoc mot hoa don that.
+	"""
+	if not nen_tim_hoa_don(hoa_don_cu, trang_thai):
+		return False
+	return bool(str(si_name or "").strip())
+
+
+def _noi_lai_hoa_don(cu, pid, ma_don):
+	"""Lap o hoa_don cho van don DA TON TAI khi o do dang trong.
+
+	VI SAO PHAI CO BUOC NAY (chan doan 05/09/2026, issue 201)
+	----------------------------------------------------------
+	Dem tam ngay lien tu 29/08 toi 05/09: 391 van don, KHONG MOT CAI NAO noi
+	duoc hoa don, ke ca nhung don thuc su co hoa don trong he.
+
+	Ly do: o hoa_don truoc day chi duoc gan DUNG MOT LAN, luc tao van don
+	moi. Ma nhip van don chay 5 phut mot lan con nhip hoa don chay 30 phut
+	mot lan, nen van don gan nhu LUON ra doi truoc hoa don. Luc tao thi
+	khong tim thay gi, o de trong, va khong co duong nao quay lai lap.
+
+	Sales goi do la "thieu thong tin ben van don".
+
+	MOT DIEU CAM, doc ky truoc khi sua ham nay
+	------------------------------------------
+	Ham nay lap DUY NHAT o hoa_don. KHONG duoc dung toi tien_thu_ho.
+
+	Trong ban chan doan dau tien phien nay da de xuat: lap hoa_don xong thi
+	tinh lai tien_thu_ho theo hoa don, vi 51 tren 57 van don ngay 05/09 co
+	tien thu ho bang 0 va trong nhu la sai. Codex phan doi, va Codex dung.
+
+	Soi lai 42 don co COD bang 0 va co hoa don khop: ca 42 hoa don deu con
+	docstatus 0, tuc chua ghi so, nen so con lai tren hoa don mac dinh bang
+	tong tien va khong noi len dieu gi. Phuong thuc thanh toan cua chung la
+	chuyen khoan 33, OnePay 5, the 2, cong no 1, hang tang 1. Khong mot don
+	nao la tien mat. Shipper khong phai thu dong nao la DUNG.
+
+	_cod_tu_don o ngay tren da chan viec nay tu truoc bang _pt_thu_tien_mat,
+	va docstring cua no ghi lai su co 13/08/2026: don chi Hau 700.000 va don
+	Oshima 1.480.000 hien trong doi soat COD du khach da chuyen khoan. Tinh
+	lai tien_thu_ho theo hoa don la dung lai dung cai bay do, va lan nay tren
+	42 don cung mot luc.
+
+	Ca kiem "lap hoa don khong duoc lam doi tien thu ho" trong
+	thu_noi_hoa_don_van_don.py dung de chot dieu cam nay lai.
+	"""
+	if not nen_tim_hoa_don(cu.get("hoa_don"), cu.get("trang_thai")):
+		return None
+	si_name = frappe.db.get_value(
+		"Sales Invoice",
+		{"custom_pancake_id": pid, "docstatus": ["<", 2]},
+		"name",
+	)
+	if not nen_noi_hoa_don(cu.get("hoa_don"), si_name, cu.get("trang_thai")):
+		return None
+	frappe.db.set_value("Van Don", cu.name, "hoa_don", si_name, update_modified=False)
+	# Cap nhat luon ban trong tay de doan ma phia duoi khong doc phai gia tri cu.
+	cu["hoa_don"] = si_name
+	nhat_ky.ghi_nhieu(
+		"van_don", ma_don, "Van Don", cu.name, "Noi lai hoa don",
+		{"hoa_don": (None, si_name)},
+	)
+	return si_name
+
+
 @frappe.whitelist()
 def dong_bo_pancake(ngay=None):
 	"""Keo don Pancake giao trong NGAY ve thanh van don de sales phan shipper.
@@ -619,7 +711,7 @@ def _dong_bo_pancake(ngay=None):
 		frappe.log_error(frappe.get_traceback(), "van_don: dong bo Pancake")
 		frappe.throw("Pancake chưa trả dữ liệu, anh chị vui lòng thử lại sau ít phút.")
 
-	them, da_co, bo_qua, lam_moi = 0, 0, 0, 0
+	them, da_co, bo_qua, lam_moi, noi_hd = 0, 0, 0, 0, 0
 	for o in ds:
 		if (o.get("status") or 0) in BO_QUA_TT:
 			bo_qua += 1
@@ -644,6 +736,10 @@ def _dong_bo_pancake(ngay=None):
 				"khach", "sdt", "nguoi_nhan", "sdt_nhan",
 				"buoi", "goi_truoc", "chup_truoc",
 				"dia_chi", "gio_giao", "ghi_chu", "tien_thu_ho",
+				# hoa_don KHONG nam trong vong so sanh chung (moi khong bao
+				# gio sinh ra o nay), doc ve chi de biet o dang trong hay da
+				# co ma quyet dinh co noi lai khong. Xem nen_noi_hoa_don.
+				"hoa_don",
 				# Ba o duoi day KHONG nam trong vong so sanh chung ma danh
 				# rieng cho luat doi ngay giao, xem luat_doi_ngay().
 				"ngay_giao", "chuyen", "shipper",
@@ -652,6 +748,10 @@ def _dong_bo_pancake(ngay=None):
 		)
 		if cu:
 			da_co += 1
+			# Van don da ton tai ma o hoa don con trong thi noi lai o day.
+			# Doc dau ham _noi_lai_hoa_don de biet vi sao phai co buoc nay.
+			if _noi_lai_hoa_don(cu, pid, str(o.get("display_id") or pid)):
+				noi_hd += 1
 			# Don da keo ve van phai bam theo Pancake: khach doi dia chi, doi
 			# gio, them bot banh, chuyen khoan truoc... deu phai sang day
 			# (Loan Anh 10/08/2026). KHONG dung toi nhung gi sales va shipper
@@ -740,7 +840,7 @@ def _dong_bo_pancake(ngay=None):
 		them += 1
 	frappe.db.commit()
 	return {"them": them, "da_co": da_co, "lam_moi": lam_moi, "bo_qua": bo_qua,
-		"tong": len(ds), "ngay": str(ngay)}
+		"noi_hoa_don": noi_hd, "tong": len(ds), "ngay": str(ngay)}
 
 
 def dong_bo_tu_dong():
