@@ -21007,7 +21007,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '433';
+var APPVER = '434';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30709,6 +30709,13 @@ function dcmGanDungLai(name) {
    chuyen tien, may do SePay khop giao dich roi sinh but toan clear cong no
    -> bam mot nut gui thu bao nha cung cap. */
 var hsTT = '', hsNcc = '', hsTu = null, hsDen = null, hsKhoang = 90, hsTim = '', hsLoai = '', hsCpThue = '';
+/* Chi Dung, qua issue #196: *"sau 1 thoi gian can tim lai so app hay nha
+   cung cap do thanh toan khi nao chi can loc la ra"*. Ba manh cua cau do:
+   o tim (`hsTim`), ngay da chi hien ngay tren danh sach, va chip loc theo
+   tai khoan da chi (`hsTkChi`).
+   `hsTim` von da co tu truoc va da duoc gui len may chu, nhung KHONG CO O
+   NHAP nao dat gia tri cho no - mot tham so chet. */
+var hsTkChi = '';
 var hsMau = {
   'Nhap': ['#f8fafc', '#e2e8f0', '#475569', '📝'],
   'Cho ke toan': ['#fff7ed', '#fed7aa', '#9a3412', '⏳'],
@@ -30735,6 +30742,7 @@ async function scrHoSoTT() {
   if (hsTim) ts.tu_khoa = hsTim;
   if (hsLoai) ts.loai = hsLoai;
   if (hsCpThue) ts.loai_cp_thue = hsCpThue;
+  if (hsTkChi) ts.tk_chi = hsTkChi;
   try { kq = await api('vagabond.ho_so_tt.danh_sach', ts); }
   catch (e) { frame('Hồ sơ thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
   var rows = kq.rows || [], NH = kq.nhan || {}, Q = kq.quyen || {};
@@ -30746,6 +30754,18 @@ async function scrHoSoTT() {
     [[30, '30 ngày'], [90, '90 ngày'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-hsng="' + x[0] + '"', x[1], !hsTu && hsKhoang === x[0]);
     }).join('')) + '</div>';
+
+  /* O TIM. Bam Enter moi di hoi may chu chu khong hoi theo tung phim: bo loc
+     nay chay o may chu (`danh_sach` doi chieu voi ma ho so, ten nha cung cap
+     va ghi chu), go moi chu mot lan goi la lam nang may vo ich. */
+  html += '<div class="card" style="padding:10px 12px">' +
+    '<input class="tin" id="hsTimO" type="search" autocomplete="off" style="margin:0" ' +
+    'placeholder="🔎 Gõ mã hồ sơ, tên nhà cung cấp hoặc ghi chú rồi bấm Enter">' +
+    (hsTim
+      ? '<div style="font-size:11.5px;color:#0f766e;margin-top:7px;line-height:1.5">Đang lọc theo "<b>' +
+        h(hsTim) + '</b>". Xoá hết chữ rồi bấm Enter để bỏ lọc.</div>'
+      : '') +
+    '</div>';
 
   /* Chip loai: hai luong khac han nhau nen phai tach nhin duoc ngay. Ho so
      NCC gom hoa don mua da co trong he; ho so hoan ung la tien anh chi ung
@@ -30766,6 +30786,17 @@ async function scrHoSoTT() {
       [['', '🧾 Mọi loại chi phí'], ['Chi phi hop le', '✅ Hợp lệ tính thuế'], ['Chi phi khong hop le', '🚫 Không hợp lệ']].map(function (x) {
         return posChipNut('data-hscpt="' + x[0] + '"', x[1], hsCpThue === x[0]);
       }).join('')) + '</div>' : '') +
+    /* Chip loc theo TAI KHOAN DA CHI. Chi bay nhung tai khoan co that trong
+       ky dang xem (`tk_chi_co` do may chu dem tren bo CHUA loc), khong bay ca
+       danh muc ngan hang: chip bam vao ra rong la chip lam phien. */
+    ((kq.tk_chi_co || []).length > 1
+      ? '<div style="margin-top:8px">' + kmHangChip(
+        [['', '🏦 Mọi tài khoản chi']].concat((kq.tk_chi_co || []).map(function (t) {
+          return [t, '💳 ' + t];
+        })).map(function (x) {
+          return posChipNut('data-hstkc="' + h(x[0]) + '"', x[1], hsTkChi === x[0]);
+        }).join('')) + '</div>'
+      : '') +
     '</div>';
 
   /* Chip trang thai: bay dung cac trang thai CO THAT trong ky, kem so ho so
@@ -30817,6 +30848,15 @@ async function scrHoSoTT() {
          dang lo la no nam cho bao lau chu khong phai tre han bao nhieu. */
       (r.cho_ngay > 7 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">nằm chờ ' + r.cho_ngay + ' ngày</span>' : '') +
       (r.tre_ngay > 0 ? '<span style="margin-left:7px;font-size:11.5px;color:#b3261e;font-weight:700">quá hạn ' + r.tre_ngay + ' ngày</span>' : '') +
+      /* NGAY DA CHI. Day la nua sau cau cua chi Dung: loc ra roi con phai
+         nhin thay ngay tra ngay tren danh sach, khong phai mo tung ho so.
+         Chi hien khi that su co ngay, dung suy tu trang thai: ho so cu ghi
+         nhan truoc khi co o nay van o trang thai Da thanh toan ma o ngay
+         trong. */
+      (r.ngay_thanh_toan
+        ? '<span style="margin-left:6px;display:inline-block;background:#ecfeff;border:1px solid #a5f3fc;color:#0e7490;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">💸 trả ' + hsNgayVn(r.ngay_thanh_toan) + '</span>'
+        : '') +
+      (r.tk_chi ? '<span style="margin-left:6px;font-size:11.5px;color:#6b7280">từ ' + h(r.tk_chi) + '</span>' : '') +
       (r.email_da_gui ? '<span style="margin-left:7px;font-size:11.5px;color:#0e7490">✉️ đã báo NCC</span>' : '') +
       /* Ho so da duyet ma chua co uy nhiem chi thi khong ghi nhan thanh toan
          duoc. Bay ngay tren danh sach de chi Dung tai UNC ve mot lot, khoi
@@ -30841,6 +30881,24 @@ async function scrHoSoTT() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hscpt]'), function (el) {
     el.onclick = function () { hsCpThue = el.getAttribute('data-hscpt'); go(scrHoSoTT, true); };
   });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hstkc]'), function (el) {
+    el.onclick = function () { hsTkChi = el.getAttribute('data-hstkc'); go(scrHoSoTT, true); };
+  });
+  /* Tra chu ve o TRUOC khi noi phim: man nay ve lai sau moi lan bam chip, gan
+     sau thi nguoi ta go xong bam mot chip la mat chu vua go. Cung mot cai bay
+     da vap o o tim hoa don ky truoc. */
+  var oTim = document.getElementById('hsTimO');
+  if (oTim) {
+    oTim.value = hsTim;
+    oTim.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault(); e.stopPropagation();
+      var v = String(oTim.value || '').trim();
+      if (v === hsTim) return;
+      hsTim = v;
+      go(scrHoSoTT, true);
+    }, true);
+  }
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hs]'); if (!r) return;
     var nm = r.getAttribute('data-hs');
@@ -30854,10 +30912,16 @@ async function scrHoSoTT() {
   if (bx) bx.onclick = async function () {
     busy(true);
     try {
+      /* Gui DU moi o loc dang bay tren man. Truoc day thieu `tu_khoa`,
+         `loai_cp_thue` va `tk_chi`, nen tep tai ve rong hon cai dang nhin ma
+         khong bao gi - dua nham so lieu mot cach lang le. */
       var t2 = hsKhoangNgay();
       if (hsTT) t2.trang_thai = hsTT;
       if (hsNcc) t2.ncc = hsNcc;
       if (hsLoai) t2.loai = hsLoai;
+      if (hsTim) t2.tu_khoa = hsTim;
+      if (hsCpThue) t2.loai_cp_thue = hsCpThue;
+      if (hsTkChi) t2.tk_chi = hsTkChi;
       var fl = await api('vagabond.ho_so_tt.xuat_excel', t2);
       busy(false); bcTaiVe(fl.ten_file, fl.b64); toast('Đã tải ' + fl.ten_file);
     } catch (er) { busy(false); baoTin((er && er.message) || 'Xuất Excel lỗi'); }
@@ -31550,7 +31614,7 @@ var huNguoi = '', huDong = [], huGhiChu = '', huTamUng = 0, huTim = '';
 var huTkHoan = '';
 /* Luong 4: chi thang tu TK cong ty. Dung chung man go khoan chi voi hoan
    ung, khac o cho co them tai khoan chi, loai chi phi thue va TK No. */
-var huMode = 'hu', huTkChi = '', huCpThue = '', huTkTim = '';
+var huMode = 'hu', huTkChi = '', huCpThue = '';
 var huChonHd = {};
 /* Goi y noi dung chi hay gap, lay tu thong ke chi phi that cua tiem. Van go
    tay duoc: danh sach chi de bam cho nhanh, khong phai de ep. */
@@ -31948,18 +32012,52 @@ async function scrHuSepay(kq) {
    Entry theo dinh khoan ke toan tu chon; va bat buoc phan loai chi phi thue
    ngay luc lap de cuoi nam loc ra khoan khong duoc tru khi quyet toan TNDN. */
 
+/* ---------- Chon tai khoan so cai: BAY CA DANH MUC, khong bat go truoc ----
+
+   Anh Viet 06/09/2026: *"cho chon tk no tai sao lai bat go tay? Phai chon
+   duoc tu danh muc tai khoan da cau hinh chu nhi?"*. Dung.
+
+   Ban cu bat go mot tu khoa TRUOC roi moi tra ve toi da 40 dong khop. Ba cai
+   sai o do: nguoi ta phai doan chu de go trong khi chua duoc nhin thay gi;
+   go sai mot chu la man bao "khong thay tai khoan nao khop" roi tra ve tay
+   khong; va cai chot 40 dong thi lang le, go tu chung chung la mat nhung
+   dong phia sau ma khong bao gi.
+
+   Nay tai HET danh muc mot lan roi bay vao o chon co san bo loc. He thong
+   tai khoan la bang co han (hom nay 158 dong), tai het la an toan. Giu lai
+   trong `huTkDs` vi man nay hoi tai khoan cho TUNG dong, tai lai moi dong
+   la phi.
+
+   Dung `hoiChon` chu khong dung `sheet`: `hoiChon` tu ve o tim khi danh sach
+   dai (nguong VGB_NGUONG_TIM), bo loc cua no di qua `mvKhongDau` ca hai phia
+   nen go khong dau van ra, va no tra ve null khi nguoi ta bam Thoi - `sheet`
+   khong goi lai gi ca khi dong, de treo loi hua mai mai. */
+var huTkDs = null;
+
+async function huTaiDanhMucTk() {
+  if (huTkDs) return huTkDs;
+  /* gioi_han: 0 la LAY HET, xem chu thich o `ds_tai_khoan`. */
+  var kq = await api('vagabond.ho_so_tt.ds_tai_khoan', { tu_khoa: '', gioi_han: 0 });
+  huTkDs = (kq && kq.tk) || [];
+  return huTkDs;
+}
+
 async function huChonTaiKhoan(tieu_de, dang_chon) {
-  var tu = await hoiNhap(tieu_de + '\n\nGõ số hiệu hoặc tên tài khoản để tìm (ví dụ 6277, chi phi dich vu):', huTkTim || '');
-  if (tu === null) return null;
-  huTkTim = String(tu || '').trim();
-  var kq;
-  try { kq = await api('vagabond.ho_so_tt.ds_tai_khoan', { tu_khoa: huTkTim }); }
-  catch (e) { baoTin((e && e.message) || 'Không tra được hệ thống tài khoản'); return null; }
-  var ds = (kq && kq.tk) || [];
-  if (!ds.length) { baoTin('Không thấy tài khoản nào khớp "' + huTkTim + '".'); return null; }
-  var c = await hoiChon('Chọn tài khoản', ds.length + ' tài khoản khớp', ds.slice(0, 40).map(function (a) {
-    return { k: a.ma, icon: '🔢', nhan: a.ma, mo_ta: a.ten + (a.loai ? ' · ' + a.loai : '') };
-  }), dang_chon || '');
+  var ds;
+  busy(true);
+  try { ds = await huTaiDanhMucTk(); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Không tra được hệ thống tài khoản'); return null; }
+  busy(false);
+  if (!ds.length) {
+    baoTin('Chưa có tài khoản sổ cái nào đang dùng. Nhờ chị Dung mở Hệ thống tài khoản bên Next kiểm lại, ' +
+      'hoặc bỏ đánh dấu Ngưng dùng cho các tài khoản cần khai.');
+    return null;
+  }
+  var c = await hoiChon(tieu_de,
+    ds.length + ' tài khoản đang dùng. Gõ số hiệu hoặc tên để lọc nhanh, ví dụ 6277 hoặc chi phi dich vu.',
+    ds.map(function (a) {
+      return { k: a.ma, icon: '🔢', nhan: a.ma, mo_ta: a.ten + (a.loai ? ' · ' + a.loai : '') };
+    }), dang_chon || '');
   if (c === null) return null;
   return c || '';
 }
