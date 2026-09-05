@@ -2132,6 +2132,12 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 		pe.received_amount = flt(tong_nhom)
 		pe.reference_no = doc.ma_giao_dich or doc.name
 		pe.reference_date = ngay
+		# Ho so tu khai ra minh la cha cua phieu nay. Day la CHO DUY NHAT
+		# biet duoc mot khoan la hoan ung nhan vien hay tra nha cung cap
+		# that: khoan hoan ung CO hoa don thi phieu chi lai mang ten nha
+		# cung cap doc tu hoa don, khong mang ten nguoi duoc hoan ung, nen
+		# nhin vao phieu khong tai nao doan ra. Xem vagabond/nghiep_vu_tien.py
+		pe.vgb_ho_so_tt = doc.name
 		dat_dien_giai(pe, "Thanh toán công nợ nhà cung cấp %s theo hồ sơ %s. "
 			"Gồm %d hoá đơn: %s. Số tiền %s đ.%s" % (
 				frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc,
