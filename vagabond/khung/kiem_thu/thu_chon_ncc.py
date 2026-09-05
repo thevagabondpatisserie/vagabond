@@ -13,6 +13,7 @@ thành hoá đơn trùng trên sổ.
 """
 
 import io
+import re
 import os
 
 from vagabond import chon_ncc as cn
@@ -366,9 +367,15 @@ def _rebase_giu_ca_hai_ben():
 		encoding="utf-8").read()
 	dung("bộ ca của phiên khác còn được nạp", "thu_dat_banh" in chay)
 	dung("bộ ca của mình cũng còn được nạp", "thu_chon_ncc" in chay)
-	# Số phiên bản chỉ được TĂNG.
+	# So phien ban chi duoc TANG. Ban dau ca kiem nay ghim cung chuoi
+	# "var APPVER = '429';" - viet nhu vay la sai y minh: no do DUNG MOT so
+	# chu khong do chieu tang, nen dot sau vua nhich len 432 la no do ngay
+	# du chang ai lui so ca. Doc lay so roi so lon hon bang thi moi dung la
+	# "chi duoc tang".
 	js = _js("12-van-don.js")
-	dung("APPVER là 429, không lùi về 428", "var APPVER = '429';" in js)
+	m = re.search(r"var APPVER = '(\d+)';", js)
+	dung("có khai APPVER", bool(m))
+	dung("APPVER không lùi xuống dưới 429", int(m.group(1)) >= 429)
 	assert goc
 
 
@@ -450,5 +457,13 @@ def _doi_ncc_xoa_tu_khoa():
 	dung("so sánh đứng trước lúc gán",
 		than.index("!== hsTaoNcc") < than.index("hsTaoNcc = ma"))
 	# Không được đụng vào tick của luồng hoàn ứng nhiều nhà cung cấp.
-	dung("luồng hoàn ứng vẫn giữ tick khi đổi nhà",
-		"if (!laHU) hsTaoChon = {};" in than)
+	#
+	# v432 thêm `hsPhieuCua = {}` vào cùng nhánh đó (bất biến "xoá tick tới
+	# đâu thì xoá phiếu nội bộ tới đó", xem thu_chon_luong.py) nên câu chốt
+	# không còn khớp NGUYÊN VĂN dòng cũ. Ý định thì giữ nguyên và chốt chặt
+	# hơn: phải có rào `if (!laHU)`, và trong cả khối không được có lần xoá
+	# tick nào đứng ngoài rào đó.
+	dung("có rào luồng hoàn ứng trước khi xoá tick",
+		"if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; }" in than)
+	dung("không có lần xoá tick nào đứng ngoài rào",
+		than.count("hsTaoChon = {}") == 1)

@@ -175,16 +175,43 @@ def _app_chan_noi_trung():
 
 @ca("v413 hai thẻ hoàn ứng nói rõ khác nhau ở chỗ hoá đơn đã vào hệ hay chưa")
 def _hai_the_hoan_ung():
+	"""Ý ĐỊNH GỐC GIỮ NGUYÊN, chỗ đọc và hai câu về phiếu nội bộ thì đổi.
+
+	Ca kiểm này dựng ở v413 để chốt một việc: hai thẻ hoàn ứng phải nói rõ
+	chúng khác nhau ở chỗ hoá đơn ĐÃ vào hệ hay CHƯA. Ý đó còn nguyên và
+	dưới đây vẫn chốt nó.
+
+	Hai chỗ phải sửa lại ở v432:
+
+	1. Chỗ đọc. Hai thẻ không còn nằm trong thân `hsChonLoaiMoi` nữa mà ở
+	   bảng `HS_LUONG_HOAN_UNG` khai ngay trên hàm, vì màn này đổi từ năm
+	   nút thành hai câu hỏi (issue #196 phần A).
+
+	2. Hai câu về phiếu thanh toán nội bộ. v413 chốt "đường DUY NHẤT nối
+	   được phiếu thanh toán nội bộ" và "KHÔNG nối được phiếu thanh toán
+	   nội bộ ở đường này". Anh Việt chốt 04/09/2026 cho nối phiếu ở CẢ
+	   đường hoàn ứng có hoá đơn (phiếu chỉ đóng vai chứng từ, không đụng
+	   số tiền - xem `hsODongPhieu` và `_soi_phieu_noi_bo(dong,
+	   theo_tien=False)`). Từ hôm đó hai câu ấy sai sự thật, mà sai theo
+	   hướng đẩy người ta sang nhầm đường, nên v432 bỏ hẳn. Ca kiểm giờ
+	   chốt chiều ngược lại: KHÔNG được có lại hai câu đó.
+	"""
 	src = _js("19-ho-so-tt.js")
-	than = _doan(src, "async function hsChonLoaiMoi(", "\nfunction huTong(")
-	dung("thẻ trên nói đã có trong hệ", "hoá đơn ĐÃ có trong hệ" in than)
-	dung("thẻ dưới nói chưa vào hệ", "hoá đơn CHƯA vào hệ" in than)
-	dung("nói rõ đường nào nối được phiếu",
-		"đường DUY NHẤT nối được phiếu thanh toán nội bộ" in than)
-	dung("nói rõ đường kia không nối được",
-		"KHÔNG nối được phiếu thanh toán nội bộ ở đường này" in than)
+	than = _doan(src, "var HS_LUONG_HOAN_UNG = [", "\nvar HS_CAU_HOA_DON")
+	dung("thẻ trên nói đã có trong hệ", "Đã có, đang nợ trên sổ" in than)
+	dung("thẻ dưới nói chưa có", "nhan: 'Chưa có'" in than)
 	# Ma cua hai the khong duoc doi, doi la vo duong di.
 	dung("mã thẻ giữ nguyên", "k: 'hu_hd'" in than and "k: 'hu_khd'" in than)
+	# Cau hoi chung phai noi thang "da nam trong he", vi do moi la tieu chi
+	# that. Xem chu thich dai o `hsChonLoaiMoi`.
+	dung("câu hỏi chung hỏi đúng tiêu chí",
+		"var HS_CAU_HOA_DON = 'Hoá đơn mua đã nằm trong hệ chưa?';" in src)
+	dung("nói thẳng cầm hoá đơn giấy vẫn là chưa có",
+		'Cầm tờ hoá đơn giấy trong tay mà kế toán chưa nhập thì vẫn chọn "chưa có".' in src)
+	la("bỏ câu DUY NHẤT đã sai từ 04/09/2026",
+		"đường DUY NHẤT nối được phiếu thanh toán nội bộ" in src, False)
+	la("bỏ câu KHÔNG nối được đã sai từ 04/09/2026",
+		"KHÔNG nối được phiếu thanh toán nội bộ ở đường này" in src, False)
 
 
 @ca("v413 patches.txt có dòng đợt này")
