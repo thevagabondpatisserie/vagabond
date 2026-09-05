@@ -184,7 +184,7 @@ def _man_hinh_noi_dung_cua():
 @ca("#196 màn Vì sao thiếu phải dặn KHÔNG gõ lại tờ còn nháp")
 def _dan_khong_go_lai():
 	j = _js("19-ho-so-tt.js")
-	i = j.index("async function hsViSaoThieu(")
+	i = j.index("function hsViSaoThieu(")
 	than = j[i:j.index("\nasync function scrHoSoTTTao(", i)]
 	dung("có câu dặn đừng gõ tay lại", "ĐỪNG gõ tay lại" in than)
 	dung("nói rõ hậu quả là hoá đơn trùng", "hoá đơn trùng" in than)
@@ -209,3 +209,110 @@ def _cua_may_chu_chi_doc():
 		"def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0, tu_khoa=\"\")" in s)
 	dung("từ khoá khớp cả số hoá đơn của nhà cung cấp",
 		'(r.bill_no or "")' in s)
+
+
+# ---------------------------------------------------------------- vòng hai
+#
+# Sáu điểm Codex nêu trên PR #198 ngày 05/09/2026, cả sáu đều đúng. Mỗi cái
+# một ca chốt lại để không tái phát.
+
+
+@ca("#198 ô tìm hoá đơn phải sống sót qua mỗi lần tick")
+def _o_tim_song_sot():
+	# Đây là cái nặng nhất: mỗi lần tick một tờ là `go(scrHoSoTTTao, true)`
+	# dựng lại cả màn, ô tìm về rỗng và bảng bày lại đầy đủ. Lúc đó nút
+	# "Chọn hết đang hiện" vơ trọn danh sách, ngược hẳn cái tên nó mang.
+	j = _js("19-ho-so-tt.js")
+	dung("từ khoá giữ ngoài DOM", "\nvar hsHdTu = '';" in j)
+	dung("dựng lại màn thì trả giá trị về ô", "oHd.value = hsHdTu;" in j)
+	dung("gõ tới đâu ghi lại tới đó",
+		"oHd.addEventListener('input', function () { hsHdTu = oHd.value; });" in j)
+	# `vgbNoiOTim` chạy `chay()` một lần ngay lúc nối, nên phải gán giá trị
+	# TRƯỚC nó thì bộ lọc mới sống lại. Gán sau là bày đủ bảng rồi mới điền
+	# chữ vào ô, đúng cái lỗi đang vá.
+	a = j.index("oHd.value = hsHdTu;")
+	b = j.index("vgbNoiOTim(b, 'hsHdTim'")
+	dung("gán giá trị đứng trước lúc nối bộ lọc", a < b)
+	# Lập hồ sơ mới thì phải sạch, không mang từ khoá của hồ sơ trước sang.
+	k = j.index("async function hsChonLoaiMoi(")
+	dung("hồ sơ mới thì xoá từ khoá", "hsHdTu = '';" in j[k:k + 3000])
+
+
+@ca("#198 tìm nhà cung cấp không dấu vẫn phải ra")
+def _tim_khong_dau():
+	# `sheet()` của 00-nen.js chỉ hạ chữ thường chứ không bỏ dấu, còn ô tìm
+	# cũ có `mvKhongDau` cả hai phía. Đổi sang tấm trượt mà không bù lại là
+	# gõ "dien luc" không còn ra "ĐIỆN LỰC".
+	j = _js("19-ho-so-tt.js")
+	dung("nhét bản không dấu vào trường tìm",
+		"tim: mvKhongDau(x.ten) + ' ' + x.ncc" in j)
+
+
+@ca("#198 màn Vì sao thiếu tra được TỪNG tờ, không cắt ở tờ thứ 7")
+def _vi_sao_thieu_tra_duoc_tung_to():
+	j = _js("19-ho-so-tt.js")
+	i = j.index("async function scrViSaoThieu(")
+	than = j[i:j.index("\nasync function scrHoSoTTTao(", i)]
+	la("không còn cắt sáu tờ đầu", ".slice(0, 6)" in than, False)
+	dung("có ô tìm riêng cho bảng tờ", "vgbOTim('hsVsTim'" in than)
+	dung("ô tìm nối vào từng dòng", "vgbNoiOTim(b, 'hsVsTim', '[data-vshd]')" in than)
+	dung("giữ từ khoá qua mỗi lần dựng lại", "oV.value = hsVsTu;" in than)
+	# Gộp mọi nhóm thành một bảng phẳng: để thành từng khối có tiêu đề thì
+	# lọc xong tiêu đề ở lại lơ lửng còn dòng thì biến mất.
+	dung("gộp các nhóm thành một bảng phẳng", "dong.push({ g: g, x: x })" in than)
+	s = _py("ho_so_tt.py")
+	la("máy chủ không còn cắt 40 tờ", '"hoa_don": to[:40]' in s, False)
+	dung("máy chủ trả tới 500 tờ và nói rõ khi bị cắt",
+		'"hoa_don": to[:500]' in s and '"bi_cat"' in s)
+	dung("màn hình nói ra khi bị cắt", "bi_cat" in than)
+
+
+@ca("#198 ô chọn phải tìm được MỌI nhà cung cấp, kể cả nhà chỉ có HĐ đã trả")
+def _tim_duoc_moi_nha():
+	s = _py("ho_so_tt.py")
+	i = s.index("def ds_ncc_chon(")
+	than = s[i:s.index("\n@frappe.whitelist()", i)]
+	dung("nạp cả danh mục nhà cung cấp", '"Supplier",' in than)
+	dung("bỏ nhà đã tắt", '"disabled": 0' in than)
+	# Nhà không nợ, không nháp thì các con số bằng 0 và phải nằm cuối bảng.
+	f = cn.xep_ncc
+	ds = [
+		{"ncc": "A", "ten": "Không còn gì"},
+		{"ncc": "B", "ten": "Chỉ có nháp", "nhap_so": 2},
+		{"ncc": "C", "ten": "Nợ mà chưa lập được", "no_ghi_so": 5},
+		{"ncc": "D", "ten": "Lập được", "lap_duoc_so": 1, "lap_duoc_tien": 9, "no_ghi_so": 9},
+	]
+	dung("bốn nhóm xếp đúng thứ tự", [x["ncc"] for x in f(ds)] == ["D", "C", "B", "A"])
+	dung("nhà trắng trơn không có chip nào", cn.chip_ncc(ds[0]) == [])
+
+
+@ca("#198 tờ ĐÃ HUỶ phải vào được phép phân loại")
+def _to_da_huy_vao_duoc():
+	# Lọc `docstatus < 2` là vứt tờ đã huỷ đi TRƯỚC khi phép thuần kịp phân
+	# loại, nên nhãn "Đã huỷ" không bao giờ hiện, mà màn hình còn có thể nói
+	# rằng mọi tờ đều đang thấy.
+	s = _py("ho_so_tt.py")
+	i = s.index("def ly_do_thieu_hd(")
+	than = s[i:s.index("\ndef _hd_ho_so_giu(", i)]
+	la("không còn lọc docstatus dưới 2", '"docstatus": ["<", 2]' in than, False)
+	dung("lấy hết mọi tờ của nhà đó", '{"supplier": ncc}' in than)
+	# Và phép thuần vẫn nhận ra tờ đã huỷ.
+	dung("phép thuần trả về đúng lý do huỷ",
+		cn.vi_sao_thieu({"name": "X", "docstatus": 2, "outstanding": 100,
+			"posting_date": "2026-06-01"}, MOC) == cn.LD_HUY)
+
+
+@ca("#198 câu báo lỗi phải nói việc làm tiếp, đúng QT-24")
+def _bao_loi_noi_viec_lam_tiep():
+	j = _js("19-ho-so-tt.js")
+	i = j.index("async function scrViSaoThieu(")
+	than = j[i:j.index("\nasync function scrHoSoTTTao(", i)]
+	dung("nhắc kiểm mạng và bấm lại", "Kiểm lại mạng rồi bấm nút" in than)
+	dung("nói rõ việc ở màn trước không bị kẹt theo",
+		"vẫn tick và lập bình thường" in than)
+	# Ô chọn nhà cung cấp trống cũng phải nói làm gì tiếp, không được chỉ
+	# thông báo là trống rồi bỏ mặc người dùng đứng đó.
+	k = j.index("function hsMoChonNcc(")
+	than2 = j[k:j.index("\n/* ==================== XEM VÌ SAO THIẾU", k)]
+	dung("ô chọn trống cũng chỉ việc làm tiếp",
+		"mở lại màn này một lần" in than2 and "nhờ chị Dung" in than2)
