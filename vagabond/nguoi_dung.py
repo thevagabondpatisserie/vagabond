@@ -230,6 +230,26 @@ for _g in GOI:
 	VAI_QUAN_LY |= set(_g["vai"])
 
 
+def trong_pham_vi_quan_ly(loai_tk, vai_nguoi):
+	"""Người này có thuộc phạm vi màn Quản lý người dùng không.
+
+	PHÉP THUẦN, không chạm Frappe, để hai màn dùng chung một điều kiện.
+
+	Tài khoản nội bộ thì luôn thuộc: họ được tạo ra để làm việc trong hệ
+	thống. Tài khoản web thì CHỈ thuộc khi đang giữ ít nhất một vai nằm
+	trong các gói chức vụ, tức là người của tiệm.
+
+	Không dùng phép "có vai nào ngoài vai nền" ở đây. Vai Customer và
+	Supplier của cổng thông tin không nằm trong vai nền, nên phép đó sẽ kéo
+	cả khách hàng vào màn quản lý nhân sự, và người quản lý có thể vô tình
+	tắt tài khoản hay đổi quyền của khách. Cổng đặt hàng cho khách đang
+	được dựng nên đây là chuyện sắp xảy ra, không phải chuyện xa.
+	"""
+	if str(loai_tk or "") == "System User":
+		return True
+	return bool(set(vai_nguoi or ()) & VAI_QUAN_LY)
+
+
 def _vai_toi(nguoi=None):
 	return set(frappe.get_roles(nguoi))
 
@@ -316,16 +336,23 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		limit_page_length=0,
 	)
 	co_that = _vai_co_that()
+	tim_dung_email = (tu_khoa or "").strip().lower()
 	rows = []
 	dem = {"dang_lam": 0, "da_tat": 0, "chua_dang_nhap": 0, "chua_gan": 0, "tuy_chinh": 0}
 	for u in users:
 		if u.name in BO_QUA_USER:
 			continue
 		vai = _vai_cua(u.name)
-		# Tài khoản KHÔNG phải nội bộ chỉ hiện khi có quyền nghiệp vụ, tức là
-		# người của tiệm. Mai này khách có tài khoản cổng thông tin thì màn
-		# này không bị đổ đầy tên khách.
-		if u.user_type != "System User" and not ((vai & co_that) - VAI_NEN):
+		# Tài khoản web chỉ hiện khi giữ vai thuộc một gói chức vụ, tức là
+		# người của tiệm. Dùng chung phép với màn Quản lý quyền để hai màn
+		# không bao giờ đếm khác nhau.
+		trong = trong_pham_vi_quan_ly(u.user_type, vai)
+		# NGOẠI LỆ: gõ đúng nguyên email thì luôn tìm ra, kể cả người ngoài
+		# phạm vi. Không có lối này thì câu báo "email đã có tài khoản rồi,
+		# anh chị tìm trong danh sách" lại chỉ tới chỗ không tìm được, đúng
+		# cái ngõ cụt mà bản này sinh ra để dẹp. Trên site thật đang có hai
+		# tài khoản web không vai nào rơi vào ca này.
+		if not trong and u.name.lower() != tim_dung_email:
 			continue
 		g = _doan_goi(vai)
 		thua = _thua_so_voi_goi(vai, g)
@@ -343,21 +370,29 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 			"vai_thua": thua,
 			"loai": u.user_type,
 			"la_tk_web": 0 if u.user_type == "System User" else 1,
+			"ngoai_pham_vi": 0 if trong else 1,
 			"lan_cuoi": u.last_active,
 			"tao_luc": u.creation,
 		}
-		if not cint(u.enabled):
-			dem["da_tat"] += 1
-		else:
-			dem["dang_lam"] += 1
-		if not u.last_active:
-			dem["chua_dang_nhap"] += 1
-		if not nghiep_vu:
-			dem["chua_gan"] += 1
-		if thua:
-			dem["tuy_chinh"] += 1
+		# Người lọt vào chỉ vì gõ đúng email thì KHÔNG tính vào các con số
+		# trên đầu màn, kẻo tổng số nhảy lung tung theo ô tìm kiếm.
+		if trong:
+			if not cint(u.enabled):
+				dem["da_tat"] += 1
+			else:
+				dem["dang_lam"] += 1
+			if not u.last_active:
+				dem["chua_dang_nhap"] += 1
+			if not nghiep_vu:
+				dem["chua_gan"] += 1
+			if thua:
+				dem["tuy_chinh"] += 1
 		rows.append(r)
 
+	# Tách người ngoài phạm vi ra, cho họ đi vòng qua mọi bộ lọc: đã gõ đúng
+	# nguyên email thì phải thấy, không thì lại thành ngõ cụt.
+	ngoai = [r for r in rows if r["ngoai_pham_vi"]]
+	rows = [r for r in rows if not r["ngoai_pham_vi"]]
 	tat_ca = len(rows)
 
 	if chip == "dang_lam":
@@ -383,6 +418,9 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 			or k in (r["sdt"] or "").lower()
 		]
 
+	co_roi = {r["email"] for r in rows}
+	rows = rows + [r for r in ngoai if r["email"] not in co_roi]
+
 	rows.sort(key=lambda r: (0 if r["bat"] else 1, (r["ten"] or "").lower()))
 	dem_goi = {}
 	for r in rows:
@@ -405,15 +443,25 @@ def danh_sach_goi():
 	"""Man Quan ly quyen: bay tung goi kem viec lam duoc va so nguoi dang giu."""
 	_kiem("xem quản lý quyền")
 	co_that = _vai_co_that()
+	# Lấy MỌI loại tài khoản đang bật rồi lọc bằng đúng phép mà màn danh
+	# sách người dùng đang dùng. Bản cũ lọc thẳng System User trong câu truy
+	# vấn, nên sau khi màn kia hiện bốn shipper là tài khoản web thì màn này
+	# vẫn báo gói Shipper có 0 người. Hai màn nói hai số khác nhau về cùng
+	# một nhóm người là lỗi tự nó, không cần ai bấm mới lộ.
 	users = frappe.get_all(
-		"User", filters={"user_type": "System User", "enabled": 1}, pluck="name"
+		"User", filters={"enabled": 1}, fields=["name", "user_type"],
+		limit_page_length=0,
 	)
 	dem = {}
 	nguoi_theo_goi = {}
-	for u in users:
+	for row in users:
+		u = row.name
 		if u in BO_QUA_USER:
 			continue
-		g = _doan_goi(_vai_cua(u))
+		vai_u = _vai_cua(u)
+		if not trong_pham_vi_quan_ly(row.user_type, vai_u):
+			continue
+		g = _doan_goi(vai_u)
 		k = g["k"] if g else ""
 		dem[k] = dem.get(k, 0) + 1
 		nguoi_theo_goi.setdefault(k, []).append(
@@ -533,13 +581,20 @@ def _dat_vai(email, vai_can, cham_vao):
 
 	them = sorted((vai_can & cham_vao) - dang_co)
 	go = sorted((dang_co & cham_vao) - vai_can)
-	if not them and not go:
-		return [], []
-
-	_chan_leo_quyen(sorted((dang_co | set(them)) - set(go)), sorted(dang_co))
+	if them or go:
+		_chan_leo_quyen(sorted((dang_co | set(them)) - set(go)), sorted(dang_co))
 
 	doc = frappe.get_doc("User", email)
-	_go_bo_vai_mau(doc)
+	# Gỡ bộ vai mẫu LUÔN LUÔN, kể cả khi vai hiện tại đã đúng gói rồi.
+	#
+	# Đây chính là ca hay gặp nhất: bộ vai mẫu bung ra đúng bằng vai của
+	# gói, nên không có vai nào cần thêm hay gỡ. Nếu thoát sớm ở đây thì màn
+	# hình báo "gói đã đúng" trong khi quyền thật vẫn do bộ mẫu nắm. Hôm nào
+	# có người sửa bộ mẫu dùng chung là quyền của người này đổi theo mà
+	# không ai đụng vào họ. Bộ "VGB - Sales" đang buộc 4 tài khoản.
+	da_go = _go_bo_vai_mau(doc)
+	if not them and not go and not da_go:
+		return [], []
 	giu = [r.role for r in doc.roles if r.role not in cham_vao]
 	doc.set("roles", [])
 	for r in sorted(set(giu) | (vai_can & cham_vao)):
@@ -548,13 +603,23 @@ def _dat_vai(email, vai_can, cham_vao):
 	# Doc lai tu co so du lieu chu KHONG tin bien trong bo nho: neu con thu
 	# gi ghi de vai luc luu thi phai lo ra ngay day, dung de man hinh bao
 	# thanh cong roi nguoi dung phat hien sau.
-	con_thieu = sorted((vai_can & cham_vao) - _vai_cua(email))
-	if con_thieu:
+	vai_sau = _vai_cua(email)
+	con_thieu = sorted((vai_can & cham_vao) - vai_sau)
+	# Kiểm CẢ HAI CHIỀU. Vai đáng lẽ phải gỡ mà vẫn còn thì cũng nguy hệt
+	# vai chưa vào, thậm chí nguy hơn: người đã bị rút quyền vẫn dùng được
+	# quyền đó, mà màn hình báo đã rút xong.
+	con_sot = sorted(set(go) & vai_sau)
+	if con_thieu or con_sot:
+		phan = []
+		if con_thieu:
+			phan.append("%s vẫn chưa vào" % ", ".join(con_thieu))
+		if con_sot:
+			phan.append("%s đáng lẽ phải gỡ mà vẫn còn" % ", ".join(con_sot))
 		frappe.throw(
-			"Lưu quyền cho %s không ăn: %s vẫn chưa vào. Thường là do tài "
-			"khoản còn bị buộc theo một bộ vai mẫu của hệ thống. Anh chị báo "
-			"kỹ thuật, đừng bấm lại vì bấm lại cũng vậy."
-			% (email, ", ".join(con_thieu))
+			"Lưu quyền cho %s không ăn: %s. Thường là do tài khoản còn bị "
+			"buộc theo một bộ vai mẫu của hệ thống. Anh chị báo kỹ thuật, "
+			"đừng bấm lại vì bấm lại cũng vậy."
+			% (email, "; ".join(phan))
 		)
 	return them, go
 
@@ -637,6 +702,11 @@ def moi(email, ten, goi=None, sdt=None, gui_thu=1):
 		# Câu báo lỗi phải nói RA cái đang chặn và làm gì tiếp (QT-24). Bản cũ
 		# chỉ nói "đã có tài khoản rồi" trong khi tài khoản đó không hiện ở
 		# danh sách, nên người dùng đứng im không biết đi đường nào.
+		#
+		# Chỉ đường bằng Ô TÌM KIẾM chứ không bảo "tìm trong danh sách": tài
+		# khoản web chưa có vai nào thì không nằm trong danh sách mặc định,
+		# nhưng gõ đúng nguyên email vào ô tìm là ra. Nói chung chung thì lại
+		# đẩy người dùng vào đúng ngõ cụt cũ.
 		frappe.throw(
 			"Email %s đã có tài khoản rồi: %s, loại %s, đang %s. %s"
 			% (
@@ -644,11 +714,12 @@ def moi(email, ten, goi=None, sdt=None, gui_thu=1):
 				cu.full_name or "chưa đặt tên",
 				"nội bộ" if cu.user_type == "System User" else "tài khoản web",
 				"bật" if cint(cu.enabled) else "tắt",
-				"Anh chị tìm người này trong danh sách rồi xếp gói chức vụ cho "
-				"họ, không cần tạo mới."
+				"Anh chị dán nguyên email %s vào ô tìm kiếm ở đầu màn để mở "
+				"người này ra rồi xếp gói chức vụ, không cần tạo mới." % email
 				if cint(cu.enabled)
-				else "Tài khoản đang tắt nên không hiện ở danh sách đang làm. "
-				"Anh chị lọc sang nhóm đã tắt, bật lại rồi xếp gói.",
+				else "Tài khoản đang tắt. Anh chị dán nguyên email %s vào ô tìm "
+				"kiếm ở đầu màn để mở người này ra, bật lại rồi xếp gói."
+				% email,
 			)
 		)
 	g = GOI_THEO_KEY.get(goi) if goi else None
