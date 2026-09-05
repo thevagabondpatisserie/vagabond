@@ -30714,8 +30714,17 @@ var hsTT = '', hsNcc = '', hsTu = null, hsDen = null, hsKhoang = 90, hsTim = '',
    o tim (`hsTim`), ngay da chi hien ngay tren danh sach, va chip loc theo
    tai khoan da chi (`hsTkChi`).
    `hsTim` von da co tu truoc va da duoc gui len may chu, nhung KHONG CO O
-   NHAP nao dat gia tri cho no - mot tham so chet. */
-var hsTkChi = '';
+   NHAP nao dat gia tri cho no - mot tham so chet.
+
+   HAI BIEN CHO O TIM, khong phai mot:
+     `hsTimGo` - chu DANG NAM TRONG O, giu ngoai DOM.
+     `hsTim`   - chu DA AP, tuc la cai dang duoc gui len may chu.
+   Codex neu tren PR #207: ban dau chi co `hsTim`, va no chi duoc ghi luc bam
+   Enter. Ai go xong roi bam mot chip thay vi bam Enter thi man ve lai, dong
+   `oTim.value = hsTim` tra ve chu CU, chu vua go bien mat khong dau vet. Tach
+   lam hai thi go toi dau con nguyen toi do, ma van chi hoi may chu khi bam
+   Enter. */
+var hsTkChi = '', hsTimGo = '';
 var hsMau = {
   'Nhap': ['#f8fafc', '#e2e8f0', '#475569', '📝'],
   'Cho ke toan': ['#fff7ed', '#fed7aa', '#9a3412', '⏳'],
@@ -30761,10 +30770,13 @@ async function scrHoSoTT() {
   html += '<div class="card" style="padding:10px 12px">' +
     '<input class="tin" id="hsTimO" type="search" autocomplete="off" style="margin:0" ' +
     'placeholder="🔎 Gõ mã hồ sơ, tên nhà cung cấp hoặc ghi chú rồi bấm Enter">' +
-    (hsTim
-      ? '<div style="font-size:11.5px;color:#0f766e;margin-top:7px;line-height:1.5">Đang lọc theo "<b>' +
-        h(hsTim) + '</b>". Xoá hết chữ rồi bấm Enter để bỏ lọc.</div>'
-      : '') +
+    (hsTimGo !== hsTim
+      ? '<div style="font-size:11.5px;color:#b45309;margin-top:7px;line-height:1.5">Đã gõ nhưng chưa tìm. Bấm <b>Enter</b> để lọc theo "<b>' +
+        h(hsTimGo) + '</b>".</div>'
+      : (hsTim
+        ? '<div style="font-size:11.5px;color:#0f766e;margin-top:7px;line-height:1.5">Đang lọc theo "<b>' +
+          h(hsTim) + '</b>". Xoá hết chữ rồi bấm Enter để bỏ lọc.</div>'
+        : '')) +
     '</div>';
 
   /* Chip loai: hai luong khac han nhau nen phai tach nhin duoc ngay. Ho so
@@ -30782,21 +30794,44 @@ async function scrHoSoTT() {
     }).join('')) +
     /* Loc theo loai chi phi thue: cuoi nam quyet toan TNDN chi can bam mot
        chip la ra het cac khoan khong duoc tru, khoi mo lai tung chung tu. */
-    (hsLoai === 'TK cong ty' ? '<div style="margin-top:8px">' + kmHangChip(
+    /* HE CON BAT BO LOC THI PHAI CON DUONG GO RA. Codex neu tren PR #207,
+       va neu dung ca cho hang chip nay - cai da co tu truoc, khong phai cai
+       dot nay them.
+
+       `tk_chi` va `loai_cp_thue` chi duoc ghi tren ho so luong Chi tu TK cong
+       ty (ho_so_tt.py dong 646-647 va 977), nen doi chip loai sang Cong no
+       NCC la danh sach rong. Truoc day hang chip bi giau luon theo, tuc la
+       bo loc van con bat, van duoc gui len may chu, ma khong con nut nao de
+       tat. Man hinh trong tron va nguoi ta khong hieu vi sao.
+
+       Nay: he bo loc dang bat thi hang chip LUON hien, du dang o loai nao.
+       Chu dong tu xoa bo loc thi khong lam: xoa lang le mot lua chon nguoi
+       ta vua bam la kieu hong nguoc lai. */
+    (hsLoai === 'TK cong ty' || hsCpThue ? '<div style="margin-top:8px">' + kmHangChip(
       [['', '🧾 Mọi loại chi phí'], ['Chi phi hop le', '✅ Hợp lệ tính thuế'], ['Chi phi khong hop le', '🚫 Không hợp lệ']].map(function (x) {
         return posChipNut('data-hscpt="' + x[0] + '"', x[1], hsCpThue === x[0]);
       }).join('')) + '</div>' : '') +
     /* Chip loc theo TAI KHOAN DA CHI. Chi bay nhung tai khoan co that trong
        ky dang xem (`tk_chi_co` do may chu dem tren bo CHUA loc), khong bay ca
-       danh muc ngan hang: chip bam vao ra rong la chip lam phien. */
-    ((kq.tk_chi_co || []).length > 1
-      ? '<div style="margin-top:8px">' + kmHangChip(
-        [['', '🏦 Mọi tài khoản chi']].concat((kq.tk_chi_co || []).map(function (t) {
+       danh muc ngan hang: chip bam vao ra rong la chip lam phien.
+       Cong them cai dang chon, de no luon co mat ma bam tat. */
+    (function () {
+      var tkCo = (kq.tk_chi_co || []).slice();
+      if (hsTkChi && tkCo.indexOf(hsTkChi) < 0) tkCo.push(hsTkChi);
+      if (tkCo.length <= 1 && !hsTkChi) return '';
+      return '<div style="margin-top:8px">' + kmHangChip(
+        [['', '🏦 Mọi tài khoản chi']].concat(tkCo.map(function (t) {
           return [t, '💳 ' + t];
         })).map(function (x) {
           return posChipNut('data-hstkc="' + h(x[0]) + '"', x[1], hsTkChi === x[0]);
-        }).join('')) + '</div>'
-      : '') +
+        }).join('')) +
+        (hsTkChi && !(kq.tk_chi_co || []).length
+          ? '<div style="font-size:11.5px;color:#b45309;margin-top:7px;line-height:1.5">Đang lọc theo tài khoản <b>' +
+            h(hsTkChi) + '</b> nhưng nhóm đang xem không có hồ sơ nào chi từ tài khoản đó. ' +
+            'Bấm <b>Mọi tài khoản chi</b> để bỏ lọc.</div>'
+          : '') +
+        '</div>';
+    })() +
     '</div>';
 
   /* Chip trang thai: bay dung cac trang thai CO THAT trong ky, kem so ho so
@@ -30889,13 +30924,15 @@ async function scrHoSoTT() {
      da vap o o tim hoa don ky truoc. */
   var oTim = document.getElementById('hsTimO');
   if (oTim) {
-    oTim.value = hsTim;
+    oTim.value = hsTimGo;
+    /* Go toi dau ghi lai toi do, de bam chip giua chung khong lam mat chu. */
+    oTim.addEventListener('input', function () { hsTimGo = oTim.value; });
     oTim.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       e.preventDefault(); e.stopPropagation();
-      var v = String(oTim.value || '').trim();
-      if (v === hsTim) return;
-      hsTim = v;
+      hsTimGo = String(oTim.value || '').trim();
+      if (hsTimGo === hsTim) return;
+      hsTim = hsTimGo;
       go(scrHoSoTT, true);
     }, true);
   }
