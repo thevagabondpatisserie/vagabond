@@ -35,6 +35,23 @@ TIEN_CONG_NO = "cong_no"  # khach no, phai di doi
 # phong len bang dung so tiem da tang. Khac ca TIEN_VE_SAU vi khong co ben
 # thu ba nao giu gi ca.
 TIEN_KHONG_THU = "khong_thu"
+# Tien DA VE ROI, nhung ve o mot NGAY KHAC (anh Viet 05/09/2026).
+#
+# Sinh ra tu luong dat banh o tai cua hang: khach tra truoc toan bo vao
+# ngay dat, hoa don VAT xuat vao ngay giao. Nghia la ngay giao co mot to
+# hoa don du gia tri ma khong mot dong nao vao ket.
+#
+# Khac ca ba loai tren, va khong duoc nhet bua vao loai nao:
+#   - Khong phai TIEN_NGAY: ngay giao khong co dong nao vao ket, de nguyen
+#     thi chot ca doi thu ngan mot khoan tien khong ton tai.
+#   - Khong phai TIEN_CONG_NO: khach khong no gi ca, da tra du tu truoc.
+#     Xep vao day thi man Cong no phai thu di doi mot khoan da thu roi.
+#   - Khong phai TIEN_VE_SAU: khong co ben thu ba nao dang giu tien.
+#   - Khong phai TIEN_KHONG_THU: co thu tien that, chi la thu hom khac.
+#
+# Tien cua no da duoc dem MOT lan roi, o ca cua ngay thu. Xem
+# ca_quay._doanh_thu_he_thong.
+TIEN_NGAY_KHAC = "ngay_khac"
 
 from vagabond.vai_cua_hang import VAI_QLCH
 
@@ -156,6 +173,17 @@ MAC_DINH = [
 		"quay": 1, "online": 1, "tien_ve": TIEN_KHONG_THU, "minvoice": "",
 		"nhan": "Ghi chú thêm cho đơn tặng (không bắt buộc)",
 	},
+	{
+		# Khach dat banh o tai cua hang tra truoc TOAN BO vao ngay dat, hoa
+		# don VAT xuat vao ngay giao (anh Viet chot 05/09/2026). To hoa don
+		# ngay giao mang phuong thuc nay.
+		#
+		# minvoice de trong: tien that su vao bang tien mat hay chuyen khoan
+		# o NGAY THU, va ma gui co quan thue lay theo duong thu do.
+		"ten": "Trả trước", "ic": "🎫",
+		"quay": 1, "online": 1, "tien_ve": TIEN_NGAY_KHAC, "minvoice": "",
+		"nhan": "Số phiếu đặt bánh", "vd": "SO-2026-00123",
+	},
 	# Bon phuong thuc duoi day di theo NGUON DON cua san, khong hien o man
 	# chon phuong thuc - nhung van phai khai de con kiem ma don va gui dung
 	# ma hinh thuc thanh toan sang co quan thue.
@@ -193,7 +221,7 @@ MAC_DINH = [
 def _chuan(d, i=0):
 	ten = str(d.get("ten") or "").strip()
 	tv = str(d.get("tien_ve") or TIEN_NGAY).strip()
-	if tv not in (TIEN_NGAY, TIEN_VE_SAU, TIEN_CONG_NO, TIEN_KHONG_THU):
+	if tv not in (TIEN_NGAY, TIEN_VE_SAU, TIEN_CONG_NO, TIEN_KHONG_THU, TIEN_NGAY_KHAC):
 		tv = TIEN_NGAY
 	lg = str(d.get("lg") or "").strip()
 	# Logo phai la tep da tai len site nay. Khong cho tro ra ngoai: man hinh
@@ -275,6 +303,16 @@ def ve_sau():
 	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_VE_SAU]
 
 
+def thu_ngay_khac():
+	"""Phuong thuc ma tien da ve roi, nhung ve o mot ngay khac.
+
+	Man Chot ca phai tach nhom nay ra: ngay giao co hoa don ma khong co
+	tien vao ket, de trong bang doi soat thi thu ngan bi doi mot khoan
+	tien da nop tu hom truoc.
+	"""
+	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_NGAY_KHAC]
+
+
 def khong_thu():
 	"""Phuong thuc KHONG THU TIEN: hang tang.
 
@@ -331,6 +369,7 @@ def danh_sach():
 			{"k": TIEN_VE_SAU, "ten": "Bên thứ ba giữ, trả sau"},
 			{"k": TIEN_CONG_NO, "ten": "Khách nợ, phải đi đòi"},
 			{"k": TIEN_KHONG_THU, "ten": "Không thu tiền (hàng tặng)"},
+			{"k": TIEN_NGAY_KHAC, "ten": "Đã thu ngày khác (khách trả trước)"},
 		],
 	}
 

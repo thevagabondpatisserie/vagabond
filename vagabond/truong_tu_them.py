@@ -167,6 +167,13 @@ def dung():
 	from vagabond import thanh_toan_nhieu
 
 	_dung_nhom(thanh_toan_nhieu.TRUONG_MOI, "thanh_toan_nhieu")
+	# O quay thu tien va o phieu dat tren chung tu thu (anh Viet 05/09/2026,
+	# issue #195). Khong co o quay thi man Chot ca khong biet khoan tien
+	# khach tra truoc roi vao quay nao, va ca ba diem cung nhan hoac cung
+	# khong nhan - hai kieu sai deu bat thu ngan bia ly do lech.
+	from vagabond import dat_banh
+
+	_dung_nhom(dat_banh.TRUONG_MOI, "dat_banh")
 	# Nhet phuong thuc thanh toan moi cua ma nguon vao cau hinh DA LUU tren
 	# site. Khong co buoc nay thi them mot dong vao MAC_DINH chi co tac dung
 	# tren site trong - xem `pt_thanh_toan.bo_sung_mac_dinh`.

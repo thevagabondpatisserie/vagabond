@@ -535,6 +535,27 @@ def _dem_don_khac(ngay, dang_theo_doi=None):
 	return dem, mo_ta
 
 
+def _ghi_giu_cho(doc, ngay):
+	"""Do cot "Giu cho" tu phieu dat banh o. KHONG tu save.
+
+	Ngay da chot so thi khong dung vao nua, giong het cot Kenh khac: so cua
+	ngay do da khoa, ton con lai da chay sang ngay mai theo con so luc chot.
+	"""
+	if doc.tinh_trang == "Da chot":
+		return {}
+	from vagabond import dat_banh
+
+	dem = dat_banh.dem_giu_cho(ngay)
+	co = {d.ma_hang: d for d in doc.dong}
+	for ma, d in co.items():
+		d.giu_cho = int(dem.get(str(ma or "").upper()) or 0)
+	# Ma co phieu dat ma chua co dong tren bang thi khong tu them dong o
+	# day: cot Kenh khac da co duong them dong rieng, gop hai duong vao mot
+	# cho la hai nguoi cung sua mot bang. Dong se hien ra o vong dong bo
+	# thuong, con so giu cho cua no duoc do o lan chay sau.
+	return dem
+
+
 def _ghi_don_khac(doc, ngay):
 	"""Do cot "Kenh khac" vao mot ban ghi kiem banh. KHONG tu save.
 
@@ -591,13 +612,21 @@ def cap_nhat_don_khac(ngay=None):
 	if doc.tinh_trang == "Da chot":
 		return {"ok": 1, "da_chot": 1}
 	_ghi_don_khac(doc, ngay)
+	_ghi_giu_cho(doc, ngay)
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ma_hang": len(dem)}
 
 
 def khi_doi_hoa_don(doc, method=None):
-	"""Hook Sales Invoice: huy hoac xoa hoa don thi tra so lai bang kiem banh."""
+	"""Hook Sales Invoice: huy hoac xoa hoa don thi tra so lai bang kiem banh.
+
+	Do lai CA NGAY CU LAN NGAY MOI (sua 05/09/2026, Codex bat duoc o issue
+	#195). Ban cu chi goi voi `doc.posting_date`, tuc ngay MOI. Ai doi ngay
+	chung tu tu 20 sang 22 thi ngay 20 van tru mot cai banh cua to hoa don
+	da khong con o do nua, va sales tu choi khach oan. Loi im lang: khong
+	cau bao nao keu len, chi lo ra khi co nguoi ngoi doi tay hai bang.
+	"""
 	try:
 		if str(doc.get("custom_nguon") or "").strip().lower() in NGUON_PANCAKE:
 			return
@@ -605,7 +634,13 @@ def khi_doi_hoa_don(doc, method=None):
 			str(r.item_code or "").upper().startswith(TIEN_TO_MA) for r in (doc.get("items") or [])
 		):
 			return
-		cap_nhat_don_khac(doc.posting_date)
+		from vagabond.dat_banh import hai_ngay_phai_do
+
+		cu = (doc.get_doc_before_save() or {}) if hasattr(doc, "get_doc_before_save") else {}
+		for ngay in hai_ngay_phai_do(
+			(cu or {}).get("posting_date") if cu else None, doc.posting_date
+		):
+			cap_nhat_don_khac(ngay)
 	except Exception:
 		frappe.log_error(title="Vagabond: cap nhat kiem banh khi doi hoa don", message=frappe.get_traceback())
 

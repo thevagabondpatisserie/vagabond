@@ -183,7 +183,11 @@ def _ngoai_ket():
 
 		return (set(pt_thanh_toan.chua_ve_tien())
 			| set(pt_thanh_toan.ve_sau())
-			| set(pt_thanh_toan.khong_thu()))
+			| set(pt_thanh_toan.khong_thu())
+			# Tien da ve roi nhung ve hom khac (khach dat banh o tra truoc).
+			# Ngay giao co hoa don ma khong co dong nao vao ket, de trong
+			# bang doi soat thi thu ngan bi doi mot khoan da nop hom truoc.
+			| set(pt_thanh_toan.thu_ngay_khac()))
 	except Exception:
 		return set()
 
@@ -304,6 +308,30 @@ def _doanh_thu_he_thong(diem, tu_luc, den_luc):
 			ten = (ten or "").strip() or "Chưa rõ"
 			pt[ten] = pt.get(ten, 0.0) + flt(so)
 			so_bill.setdefault(ten, 0)
+	# Tien khach TRA TRUOC cho phieu dat banh o (anh Viet chot 05/09/2026).
+	#
+	# Ngay khach dat, tien vao ket nhung KHONG co hoa don nao - hoa don VAT
+	# xuat vao ngay giao. Khong cong doan nay vao thi ket thua dung bang so
+	# tien do va khong dong nao tren bang doi soat giai thich duoc, ca nao
+	# co don dat banh la ca do lech.
+	#
+	# Chieu nguoc lai da xu ly o cho khac: to hoa don ngay giao mang phuong
+	# thuc "Tra truoc" thuoc nhom TIEN_NGAY_KHAC, va `_ngoai_ket()` da ke
+	# nhom do nen no roi khoi bang doi soat ket. Nho vay tien cua mot don
+	# chi vao ket DUNG MOT LAN, o ngay thu.
+	try:
+		from vagabond import dat_banh
+
+		ung = dat_banh.thu_ung_truoc(
+			diem, tu_luc, den_luc, theo_ngay=not _co_quay(diem)
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ca_quay: doc thu ung truoc")
+		ung = {}
+	for ten, so in (ung or {}).items():
+		ten = (ten or "").strip() or "Chưa rõ"
+		pt[ten] = pt.get(ten, 0.0) + flt(so)
+		so_bill.setdefault(ten, 0)
 	return pt, so_bill
 
 
