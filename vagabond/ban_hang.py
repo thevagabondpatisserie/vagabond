@@ -2402,13 +2402,19 @@ def dong_bo_doanh_so_tu_dong():
 def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
 	_kiem_quyen()
+	# Frappe version-16, database/database.py:set_value không gọi sự kiện
+	# Document. Luật document.py:check_docstatus_transition chặn chứng từ
+	# huỷ và validate_update_after_submit kiểm trường sau ghi sổ, nhưng
+	# cửa ghi trực tiếp này bỏ qua cả hai. Phải khóa và kiểm trước khi ghi.
 	si = frappe.db.get_value(
 		"Sales Invoice", si_name,
-		["name", "custom_nguon", "docstatus", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu"],
-		as_dict=True,
+		["name", "custom_nguon", "docstatus", "vgb_huy", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu"],
+		as_dict=True, for_update=True,
 	)
 	if not si:
 		frappe.throw("Không có hoá đơn %s." % si_name)
+	if cint(si.docstatus) == 2 or cint(si.get("vgb_huy")):
+		frappe.throw("Hoá đơn đã huỷ, không sửa thanh toán. Anh chị mở chứng từ còn hiệu lực để xử lý.")
 	pt = _kiem_pt(pt, si.custom_nguon)
 	# Man hinh khong gui ma thi GIU ma cu, khong xoa trang - xem
 	# luat_thanh_toan.ma_can_ghi.
@@ -2416,6 +2422,12 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 	# Luu nhap thi chua bat buoc, den luc ghi so moi bat.
 	ma = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
+	if cint(si.docstatus) != 0:
+		# Màn sales gọi cửa này cả khi chỉ lưu thông tin xuất HĐ. Cùng giá
+		# trị thì trả thành công nhưng không ghi gì, không phá chuỗi lưu đó.
+		if pt == (si.vgb_pt_thanh_toan or "") and (ma or "") == (si.vgb_ma_tham_chieu or ""):
+			return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
+		frappe.throw("Hoá đơn đã ghi sổ, không đổi thanh toán ở cửa lưu nháp. Anh chị nhờ kế toán kiểm tra chứng từ thu liên quan.")
 	frappe.db.set_value(
 		"Sales Invoice", si_name, {"vgb_pt_thanh_toan": pt, "vgb_ma_tham_chieu": ma}
 	)

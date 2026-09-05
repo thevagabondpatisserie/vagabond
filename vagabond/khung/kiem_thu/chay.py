@@ -82,6 +82,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_phong_moi_to,
 	thu_qua_tang_hoa_don,
 	thu_quyen_ap, thu_tien_ca, thu_tim_ncc, thu_tinh,
+	thu_ra_soat_ban_hang,
 	thu_san_xuat_v402,
 	thu_san_xuat_v409, thu_viec_can_lam_v410, thu_ho_so_tt_v413, thu_ho_so_tt_v416,
 	thu_san_xuat_v403,

@@ -117,9 +117,12 @@ def cong_tien(dong, ds_ma_muon, mau):
 	           người khớp tay chứ không im lặng nuốt mất
 	"""
 	theo_ma, bo_qua = {}, []
+	hop = {str(m).strip().upper() for m in (ds_ma_muon or []) if str(m or "").strip()}
 	for g in dong or []:
-		ds = ma_trong_dong(g.get("mo_ta"), ds_ma_muon, mau)
-		if not ds:
+		# Phải thấy mọi mã TRƯỚC khi lọc. Màn chi tiết chỉ hỏi một bill;
+		# lọc trước sẽ giấu mã thứ hai và gạch trọn tiền cho bill đang mở.
+		ds = ma_trong_dong(g.get("mo_ta"), [], mau)
+		if not ds or (hop and not hop.intersection(ds)):
 			continue
 		if dong_nhap_nhang(ds):
 			bo_qua.append({"ten": g.get("ten"), "ma": ds, "tien": g.get("tien")})

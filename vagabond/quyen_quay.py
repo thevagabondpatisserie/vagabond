@@ -57,7 +57,7 @@ def muc():
 	return m if m in {x["k"] for x in MUC} else MAC_DINH
 
 
-def _theo_ma(rows):
+def _theo_ma(rows, tinh_tien=False):
 	"""Gom so luong theo ma hang.
 
 	Gom theo MA HANG chu khong theo tung dong: thu ngan tach mot dong 2 cai
@@ -69,12 +69,14 @@ def _theo_ma(rows):
 		if isinstance(r, dict):
 			ma = (r.get("item_code") or "").strip()
 			sl = flt(r.get("qty") or 0)
+			gia = flt(r.get("rate") or 0) if tinh_tien else 1
 		else:
 			ma = (getattr(r, "item_code", "") or "").strip()
 			sl = flt(getattr(r, "qty", 0) or 0)
+			gia = flt(getattr(r, "rate", 0) or 0) if tinh_tien else 1
 		if not ma:
 			continue
-		ra[ma] = ra.get(ma, 0.0) + sl
+		ra[ma] = ra.get(ma, 0.0) + sl * gia
 	return ra
 
 
@@ -98,6 +100,15 @@ def can_otp(si, items=None, giam_gia=None):
 			return True, (
 				"bill này đã in tạm tính đưa khách rồi, bớt \"%s\" thì cần quản lý ca duyệt" % ten
 			)
+		# Hạ đơn giá cũng là giảm tiền, dù không gửi ô giam_gia. So giá
+		# bình quân theo mã để tách dòng cùng giá không bị hỏi OTP nhầm;
+		# tăng số lượng không được che một lần hạ đơn giá.
+		tien_cu = _theo_ma(si.get("items"), tinh_tien=True)
+		tien_moi = _theo_ma(items, tinh_tien=True)
+		for ma, sl in cu.items():
+			if sl > 0 and moi.get(ma, 0) > 0:
+				if tien_moi[ma] / moi[ma] < tien_cu[ma] / sl - 0.0001:
+					return True, "bill này đã in tạm tính đưa khách rồi, giảm đơn giá thì cần quản lý ca duyệt"
 	if them_giam_gia(si, giam_gia):
 		return True, "bill này đã in tạm tính đưa khách rồi, thêm giảm giá thì cần quản lý ca duyệt"
 	return False, ""

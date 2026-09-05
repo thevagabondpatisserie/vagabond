@@ -93,11 +93,13 @@ def _sepay_theo_ma_cn(ds_ma):
 		if RE_MA_CN.fullmatch(chuan) or RE_MA_DNTT.fullmatch(chuan):
 			theo_chuan[chuan] = goc
 	if not theo_chuan:
-		return {}
+		return {}, []
 	# Loc so bo o tang SQL cho nhe, roi loc lai chac chan o Python tren ban
 	# da chuan hoa. Loc SQL dung tien to vi dau gach co the bi ngan hang bo.
 	mau = "(%s)" % "|".join(
-		sorted(set(k[:6] for k in theo_chuan))
+		# DNTT26 không tìm được nội dung DNTT-26-09-00001. Chỉ lọc tiền
+		# tố chữ ở SQL, phần số và dấu phân cách do Python kiểm bên dưới.
+		sorted({"DNTT" if k.startswith("DNTT") else "CN" for k in theo_chuan})
 	)
 	try:
 		gds = frappe.db.sql(
@@ -115,16 +117,15 @@ def _sepay_theo_ma_cn(ds_ma):
 	for g in gds:
 		mo_ta = _chuan_ma("%s %s" % (g.get("description") or "", g.get("reference_number") or ""))
 		thay = set(RE_MA_CN.findall(mo_ta)) | set(RE_MA_DNTT.findall(mo_ta))
-		# CHI GIU MA CUA CHINH DOT NAY. Mot dong sao ke nhac hai ma phieu
-		# khac nhau thi may khong biet chia tien cho ai; cong du cho ca hai
-		# la nhan doi tien. De nguyen cho nguoi khop tay.
-		thay = sorted(m for m in thay if theo_chuan.get(m))
-		if not thay:
+		# Giữ mọi mã để phát hiện nhập nhằng, kể cả mã ngoài phiếu đang
+		# xem. Chỉ lọc mức liên quan, không cắt mất mã thứ hai trước khi đếm.
+		thay = sorted(thay)
+		if not any(m in theo_chuan for m in thay):
 			continue
 		if chiem_sao_ke.dong_nhap_nhang(thay):
 			bo_qua.append({
 				"ten": g.get("name"),
-				"ma": [theo_chuan[m] for m in thay],
+				"ma": [theo_chuan.get(m, m) for m in thay],
 				"tien": flt(g.get("deposit")) - flt(g.get("withdrawal")),
 			})
 			continue
@@ -552,6 +553,10 @@ def kiem_sepay(name):
 	"""Doi chieu voi SePay va tu clear cong no khi tien da ve du."""
 	_kiem_quyen()
 	doc = frappe.get_doc("Vagabond Cong No", name)
+	# Phiếu đã huỷ không còn giữ quyền nhận giao dịch ngân hàng. Mở lại
+	# bằng nút kiểm tiền có thể nhận dòng sao kê đã chuyển cho phiếu khác.
+	if doc.trang_thai == "Huy":
+		frappe.throw("Phiếu đã huỷ, không đối soát lại. Anh chị mở phiếu còn hiệu lực để kiểm tiền.")
 	truoc = doc.trang_thai
 	sepay = _sepay_cn(doc.ma_phieu)
 	# MOT DONG SAO KE CHI DUOC GACH CHO MOT CHUNG TU.
