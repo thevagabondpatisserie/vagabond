@@ -1017,7 +1017,7 @@ async function hsChonLoaiMoi() {
     if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; huSuaO = -1; return go(scrHoanUngTao); }
     hsHdTu = '';
     /* `hsPhieuCua` phai xoa cung luc voi `hsTaoChon`, y het ba cho kia trong
-       tep nay. Truoc v432 chi cho nay quen xoa: lap ho so hoan ung, noi phieu
+       tep nay. Truoc v433 chi cho nay quen xoa: lap ho so hoan ung, noi phieu
        vao mot hoa don, bo giua chung khong luu, lap lai roi tick trung dung
        hoa don do thi phieu cu lang le dinh lai vao. */
     if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTkHoan = ''; hsTkDs = null; hsTkCua = ''; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
