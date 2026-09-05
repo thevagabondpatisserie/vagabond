@@ -3907,7 +3907,17 @@ la("chi tiet tra ve so nha cung cap", '"so_ncc": len({' in _hs35, True)
 la("to in ghi ten nha cung cap trong bang khi gom nhieu nha", "nhieu_nha = len({" in _hs35, True)
 
 # --- Man hinh ---
-la("doi chip nha cung cap KHONG xoa hoa don da tick", "if (!laHU) hsTaoChon = {};" in _js35, True)
+# v432 them `hsPhieuCua = {}` vao cung nhanh do (bat bien "xoa tick toi dau
+# thi xoa phieu noi bo toi do", xem khung/kiem_thu/thu_chon_luong.py) nen
+# cau chot khong con khop NGUYEN VAN dong cu. Y dinh giu nguyen: phai co rao
+# `if (!laHU)` truoc lan xoa tick, va trong ca tep khong duoc co lan xoa nao
+# dung ngoai rao.
+la("doi chip nha cung cap KHONG xoa hoa don da tick",
+   "if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; }" in _js35, True)
+_doi_ncc35 = _js35[_js35.index("var doiNcc = function (ma) {"):]
+_doi_ncc35 = _doi_ncc35[:_doi_ncc35.index("\n  };")]
+la("khong co lan xoa tick nao dung ngoai rao laHU",
+   _doi_ncc35.count("hsTaoChon = {}") == 1, True)
 # Issue #196, 05/09/2026: bang chip nha cung cap doi thanh tam truot co o
 # tim, nen duong quay ve "tat ca" khong con la mot chip nua ma la mot MUC
 # trong tam truot. Dieu can canh khong doi: luong hoan ung phai luon con
