@@ -363,6 +363,19 @@ def ds_ncc_chon(so_ngay=365):
 		o["nhap_so"] += 1
 		o["nhap_tien"] += flt(r.grand_total)
 
+	# DANH MUC DAY DU. Codex neu tren PR #198: gom o tren chi dung tu hoa don
+	# con no va hoa don nhap, nen nha chi con hoa don DA TRA hoac DA HUY thi
+	# khong tim ra, ma cung khong mo duoc "Vi sao thieu" de doc chinh nhung
+	# ly do do. Nap them ca danh muc, nha khong co gi thi cac con so bang 0
+	# va `xep_ncc` xep no xuong cuoi.
+	for r in frappe.get_all(
+		"Supplier",
+		filters={"disabled": 0},
+		fields=["name", "supplier_name"],
+		limit_page_length=0,
+	):
+		o_cua(r.name, r.supplier_name)
+
 	ra = chon_ncc.xep_ncc(list(gom.values()))
 	for o in ra:
 		o["chip"] = chon_ncc.chip_ncc(o)
@@ -396,7 +409,11 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365):
 	ho_so_giu = _hd_ho_so_giu()
 	ds = frappe.get_all(
 		"Purchase Invoice",
-		filters={"supplier": ncc, "docstatus": ["<", 2]},
+		# KHONG loc docstatus o day. Codex neu tren PR #198: loc "< 2" la
+		# vut to DA HUY di TRUOC khi `vi_sao_thieu` kip phan loai, nen nhan
+		# "Da huy" khong bao gio hien ra, va man hinh con co the noi rang moi
+		# to deu dang thay - trong khi to da huy dung la khong thay.
+		filters={"supplier": ncc},
 		fields=["name", "docstatus", "outstanding_amount", "grand_total",
 			"posting_date", "due_date", "bill_no"],
 		order_by="posting_date desc",
@@ -416,8 +433,13 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365):
 			continue
 		for x in to:
 			x["ho_so_giu"] = ho_so_giu.get(x["name"], "")
+		# Truoc day cat con 40 to. Codex neu tren PR #198: muc dich cua nut
+		# nay la tra ra DUNG to dang thieu de khoi nhap trung, cat di thi to
+		# thu 41 khong tra duoc, tuc la nut hong dung cai viec no sinh ra de
+		# lam. Tra du, man hinh co o tim rieng. Van chan tren 500 to mot nha
+		# de khong bao gio ganh mot goi khong lo ve dien thoai.
 		ra.append({"ly_do": ma, "so": len(to), "tien": sum(x["tong"] for x in to),
-			"hoa_don": to[:40]})
+			"hoa_don": to[:500], "bi_cat": 1 if len(to) > 500 else 0})
 	return {
 		"ncc": ncc,
 		"ten": frappe.db.get_value("Supplier", ncc, "supplier_name") or ncc,

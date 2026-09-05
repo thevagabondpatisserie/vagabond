@@ -121,14 +121,29 @@ def chip_ncc(o):
 def xep_ncc(ds):
 	"""Thứ tự bày nhà cung cấp trong ô chọn.
 
-	Nhà đang có tờ lập được lên trước, trong đó quá hạn lên trên; rồi tới
-	nhà chỉ còn nợ mà chưa lập được; cuối cùng là nhà chỉ có hoá đơn nháp.
+	Bốn nhóm, theo đúng thứ tự người lập cần: nhà đang có tờ lập được (quá
+	hạn lên trên), nhà còn nợ mà chưa lập được tờ nào, nhà chỉ có hoá đơn
+	nháp, và cuối cùng là nhà không có gì trong cả ba tập đó.
+
+	Nhóm cuối có mặt vì ô chọn nạp cả danh mục nhà cung cấp: Codex nêu trên
+	PR #198 rằng nhà chỉ còn hoá đơn đã trả hay đã huỷ thì trước đó không
+	tìm ra, nên cũng không mở được màn "Vì sao thiếu" để đọc chính hai lý
+	do đó.
+
 	Cùng nhóm thì xếp theo tên để lần nào mở ra cũng đứng đúng chỗ cũ.
 	"""
+	def nhom(o):
+		if int(o.get("lap_duoc_so") or 0):
+			return 0
+		if float(o.get("no_ghi_so") or 0) > 0:
+			return 1
+		if int(o.get("nhap_so") or 0):
+			return 2
+		return 3
+
 	def khoa(o):
-		lap = int(o.get("lap_duoc_so") or 0)
 		return (
-			0 if lap else (1 if float(o.get("no_ghi_so") or 0) > 0 else 2),
+			nhom(o),
 			-float(o.get("qua_han_tien") or 0),
 			-float(o.get("lap_duoc_tien") or 0),
 			str(o.get("ten") or o.get("ncc") or "").lower(),
