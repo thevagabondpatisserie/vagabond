@@ -354,3 +354,22 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: nap lai buoc hoa don mua")
+
+	# Xep nghiep vu cho nhung phieu thu chi lap TRUOC khi co o do
+	# (anh Viet 05/09/2026). Xem vagabond/nghiep_vu_tien.py.
+	#
+	# O nay do may xep ra tu chinh du lieu dang co tren phieu, chi de hien
+	# thi va de loc, nguoi khong go duoc. Khong dung toi mot con so tien
+	# nao, khong dung tai khoan, khong dung trang thai ghi so.
+	#
+	# Chay lai duoc: chi nhan phieu con TRONG o nghiep vu.
+	try:
+		from vagabond import nghiep_vu_tien
+
+		kq = nghiep_vu_tien.nap_lai_hang_loat()
+		if kq.get("ghi"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: xep nghiep vu cho %d phieu thu chi" % kq["ghi"]
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: nap lai nghiep vu tien")
