@@ -79,6 +79,38 @@ SO = "Sales Order"
 PE = "Payment Entry"
 
 
+# Trạng thái phiếu đặt KHÔNG còn giữ chỗ bánh nữa.
+#
+# Khai thành hằng số chứ không gõ thẳng vào truy vấn, để cả bộ kiểm thử lẫn
+# người đọc sau này thấy ngay quyết định là gì, và đổi thì đổi một chỗ.
+TT_NHA_CHO = ("Closed", "Cancelled")
+
+# Trạng thái TẠM DỪNG. Codex hỏi ở vòng bốn PR #197: đơn On Hold có nên nhả
+# bánh ra bán tiếp không.
+#
+# Chốt là KHÔNG nhả, và đây là quyết định nghiệp vụ chứ không phải sót:
+#
+#   Khách đặt bánh ổ trả trước TOÀN BỘ (anh Việt chốt 05/09/2026). Đơn bị tạm
+#   dừng nghĩa là tiệm dừng xử lý, KHÔNG có nghĩa là khách đã lấy tiền về. Nhả
+#   chỗ là bán mất cái bánh mà khách đã trả tiền, và tới ngày giao thì không
+#   có cách nào chữa.
+#
+#   Hai chiều sai không cân nhau. Giữ nhầm thì kẹt một cái bánh, nhìn bảng là
+#   thấy, đóng đơn lại là xong. Nhả nhầm thì mất bánh của khách đã trả tiền.
+#   Khi hai chiều sai lệch nhau đến vậy thì chọn chiều tự chữa được.
+#
+#   Muốn nhả chỗ thì đóng đơn (Closed) hoặc huỷ đơn, hai đường đó đã nhả sẵn.
+#
+# Anh Việt đổi ý thì chỉ cần dời chuỗi "On Hold" xuống TT_NHA_CHO, có ca kiểm
+# canh cả hai chiều.
+TT_TAM_DUNG = ("On Hold",)
+
+
+def con_giu_cho_theo_trang_thai(trang_thai):
+	"""Phiếu đặt ở trạng thái này còn giữ chỗ bánh không. THUẦN."""
+	return str(trang_thai or "").strip() not in TT_NHA_CHO
+
+
 def _so_nguyen(x):
 	try:
 		return int(float(x or 0))
@@ -426,8 +458,16 @@ def dong_phieu_dat(ngay=None):
 
 	Chỉ lấy phiếu đã ghi sổ và chưa đóng: phiếu nháp chưa phải cam kết,
 	phiếu đã đóng hoặc đã huỷ thì khách không còn đặt nữa.
+
+	Đơn TẠM DỪNG vẫn giữ chỗ, xem ghi chú ở `TT_TAM_DUNG` đầu tệp.
+
+	MỘT ĐIỀU PHẢI BIẾT VỀ ĐƯỜNG ĐÓNG ĐƠN: ERPNext đóng và tạm dừng phiếu đặt
+	bằng cách ghi thẳng vào cơ sở dữ liệu, không đi qua lượt lưu, nên hook
+	`khi_doi_phieu_dat` KHÔNG chạy ở những thao tác đó. Cái đỡ là nhịp đồng
+	bộ 5 phút có đo lại cột giữ chỗ, nên số sai nhiều nhất là 5 phút rồi tự
+	đúng. Đây là lý do nhịp đó phải gọi `_ghi_giu_cho`, đừng ai gỡ ra.
 	"""
-	loc = {"docstatus": 1, "status": ["not in", ["Closed", "Cancelled"]]}
+	loc = {"docstatus": 1, "status": ["not in", list(TT_NHA_CHO)]}
 	cha = frappe.get_all(SO, filters=loc, pluck="name", limit_page_length=0)
 	if not cha:
 		return []
