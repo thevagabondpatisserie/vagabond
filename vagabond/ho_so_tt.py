@@ -30,6 +30,7 @@ import re
 import frappe
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
+from vagabond import chon_ncc
 from vagabond.lib import cfg
 
 # Truoc buoc nao thi con go uy nhiem chi ra duoc. Lay tu tra_tien_app de hai
@@ -238,7 +239,7 @@ def _bo_dau(s):
 
 
 @frappe.whitelist()
-def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0):
+def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0, tu_khoa=""):
 	"""Hoá đơn mua còn nợ của một nhà cung cấp, để thu mua tick vào hồ sơ.
 
 	Bỏ sẵn những hoá đơn đang nằm trong hồ sơ khác còn hiệu lực - tick vào
@@ -262,12 +263,22 @@ def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0):
 	)
 	da_gom = _hd_da_gom()
 	hom_nay = getdate(nowdate())
+	q = (tu_khoa or "").strip().lower()
 	ra = []
 	for r in ds:
 		if r.name in da_gom:
 			continue
 		tre = (hom_nay - getdate(r.due_date)).days if r.due_date else 0
 		if cint(chi_qua_han) and tre <= 0:
+			continue
+		# TIM NGAY LUC LAP. Codex neu tren #196: tim trong lich su sau khi
+		# thanh toan khong thay duoc viec nay. Ho so hoan ung gom hang chuc
+		# to cua nhieu nha, do bang mat het bang la cach de sot.
+		# Khop ca ma hoa don trong he, so hoa don cua nha cung cap, va ten
+		# nha - vi chi Dung cam to giay trong tay thi chi doc duoc so cua ho.
+		if q and q not in (
+				(r.name or "") + " " + (r.bill_no or "") + " "
+				+ (r.supplier_name or "") + " " + (r.supplier or "")).lower():
 			continue
 		ra.append({
 			"hoa_don": r.name,
@@ -286,6 +297,178 @@ def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0):
 		"qua_han": sum(x["con_no"] for x in ra if x["tre_ngay"] > 0),
 		"so_hd": len(ra),
 	}
+
+
+@frappe.whitelist()
+def ds_ncc_chon(so_ngay=365):
+	"""Nguon du lieu cho O CHON nha cung cap (Issue #196).
+
+	Man cu bay HET nha cung cap thanh mot bang chip dai, anh Viet keu roi.
+	Doi thanh o chon thu gon, cham moi mo tam truot len co o tim. Muon tim
+	duoc CA nha chi con hoa don nhap thi khong the dung `ds_ncc_con_no()`:
+	ham do chi biet hoa don da ghi so.
+
+	Gom so theo LO bang hai truy van group by, khong hoi tung nha mot. Site
+	dang co hon nam tram nha cung cap, hoi tung nha la nam tram vong.
+
+	Moi nha tra ve bon con so KHAC NHAU, va phai giu chung tach bach:
+	  no_ghi_so    - tong con no tren hoa don da ghi so, khong gioi han ngay
+	  lap_duoc_*   - phan THAT SU tick duoc ngay bay gio, tuc la da tru to
+	                 dang nam trong ho so khac va to ngoai khoang ngay
+	  qua_han_tien - phan qua han trong so lap duoc
+	  nhap_*       - hoa don con nhap, KHONG cong vao no_ghi_so
+	Codex neu tren #196: khong tach ra thi se co chip bao no ma mo bang ra
+	trong, va tien nhap bi cong lan vao no la sai so.
+	"""
+	_kiem(VAI_LAP, "xem công nợ phải trả")
+	moc = add_days(nowdate(), -int(cint(so_ngay) or 365))
+	hom_nay = getdate(nowdate())
+	da_gom = _hd_da_gom()
+	gom = {}
+
+	def o_cua(ma, ten):
+		return gom.setdefault(ma, {
+			"ncc": ma, "ten": ten or ma,
+			"no_ghi_so": 0.0, "so_hd_no": 0,
+			"lap_duoc_tien": 0.0, "lap_duoc_so": 0, "qua_han_tien": 0.0,
+			"nhap_tien": 0.0, "nhap_so": 0,
+		})
+
+	for r in frappe.get_all(
+		"Purchase Invoice",
+		filters={"docstatus": 1, "outstanding_amount": [">", 0]},
+		fields=["name", "supplier", "supplier_name", "outstanding_amount",
+			"posting_date", "due_date"],
+		limit_page_length=0,
+	):
+		o = o_cua(r.supplier, r.supplier_name)
+		o["no_ghi_so"] += flt(r.outstanding_amount)
+		o["so_hd_no"] += 1
+		if r.name in da_gom:
+			continue
+		if r.posting_date and str(r.posting_date) < str(moc):
+			continue
+		o["lap_duoc_tien"] += flt(r.outstanding_amount)
+		o["lap_duoc_so"] += 1
+		if r.due_date and getdate(r.due_date) < hom_nay:
+			o["qua_han_tien"] += flt(r.outstanding_amount)
+
+	for r in frappe.get_all(
+		"Purchase Invoice",
+		filters={"docstatus": 0},
+		fields=["supplier", "supplier_name", "grand_total"],
+		limit_page_length=0,
+	):
+		o = o_cua(r.supplier, r.supplier_name)
+		o["nhap_so"] += 1
+		o["nhap_tien"] += flt(r.grand_total)
+
+	# DANH MUC DAY DU. Codex neu tren PR #198: gom o tren chi dung tu hoa don
+	# con no va hoa don nhap, nen nha chi con hoa don DA TRA hoac DA HUY thi
+	# khong tim ra, ma cung khong mo duoc "Vi sao thieu" de doc chinh nhung
+	# ly do do. Nap them ca danh muc, nha khong co gi thi cac con so bang 0
+	# va `xep_ncc` xep no xuong cuoi.
+	for r in frappe.get_all(
+		"Supplier",
+		filters={"disabled": 0},
+		fields=["name", "supplier_name"],
+		limit_page_length=0,
+	):
+		o_cua(r.name, r.supplier_name)
+
+	ra = chon_ncc.xep_ncc(list(gom.values()))
+	for o in ra:
+		o["chip"] = chon_ncc.chip_ncc(o)
+	return {
+		"ncc": ra,
+		"so_ngay": int(cint(so_ngay) or 365),
+		"moc_ngay": str(moc),
+		"tong_lap_duoc": sum(x["lap_duoc_tien"] for x in ra),
+		"tong_no": sum(x["no_ghi_so"] for x in ra),
+	}
+
+
+@frappe.whitelist()
+def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
+	"""Man "Xem vi sao thieu" (Issue #196, anh Viet chot 05/09/2026).
+
+	Chi Dung noi *"list ra ma thieu co nghia la chua hach toan"*. Cau do
+	khong dung: `hoa_don_cho_tra()` con loc theo ngay va con loai to dang
+	nam trong ho so khac. Neu tin theo cau do ma moi nguoi go tay lai mot
+	khoan da co to hoa don nhap, thi buoc giam doc duyet se sinh them mot
+	hoa don mua nua - hoa don trung tren so.
+
+	Nen o day liet ke DUNG ly do cua tung to, kem ma ho so dang giu no.
+	Ham nay chi DOC. Khong sinh, khong sua, khong go to nao.
+	"""
+	_kiem(VAI_LAP, "xem công nợ phải trả")
+	ncc = (ncc or "").strip()
+	if not ncc:
+		frappe.throw("Chưa chọn nhà cung cấp.")
+	moc = add_days(nowdate(), -int(cint(so_ngay) or 365))
+	ho_so_giu = _hd_ho_so_giu()
+	ds = frappe.get_all(
+		"Purchase Invoice",
+		# KHONG loc docstatus o day. Codex neu tren PR #198: loc "< 2" la
+		# vut to DA HUY di TRUOC khi `vi_sao_thieu` kip phan loai, nen nhan
+		# "Da huy" khong bao gio hien ra, va man hinh con co the noi rang moi
+		# to deu dang thay - trong khi to da huy dung la khong thay.
+		filters={"supplier": ncc},
+		fields=["name", "docstatus", "outstanding_amount", "grand_total",
+			"posting_date", "due_date", "bill_no"],
+		order_by="posting_date desc",
+		limit_page_length=0,
+	)
+	hd = [{
+		"name": r.name, "docstatus": r.docstatus,
+		"outstanding": flt(r.outstanding_amount),
+		"posting_date": str(r.posting_date or ""),
+		"tong": flt(r.grand_total), "so_hd_ncc": r.bill_no or "",
+	} for r in ds]
+	# TIM TREN MAY CHU, khong chi loc tren man hinh.
+	#
+	# Codex neu vong hai tren PR #198: cat 500 to moi NHOM roi de man hinh
+	# loc tren DOM thi to thu 501 khong bao gio tra ra duoc, du du lieu co
+	# that. Loc theo tu khoa TRUOC khi cat thi go so hoa don nao cung ra,
+	# ke ca to nam ngoai 500 to dau.
+	q = (tu_khoa or "").strip().lower()
+	if q:
+		hd = [x for x in hd
+			if q in ((x["name"] or "") + " " + (x["so_hd_ncc"] or "")).lower()]
+	nhom, chon_duoc = chon_ncc.gom_ly_do(hd, str(moc), ho_so_giu)
+	ra = []
+	for ma in chon_ncc.THU_TU_LY_DO:
+		to = nhom.get(ma) or []
+		if not to:
+			continue
+		for x in to:
+			x["ho_so_giu"] = ho_so_giu.get(x["name"], "")
+		# Truoc day cat con 40 to. Codex neu tren PR #198: muc dich cua nut
+		# nay la tra ra DUNG to dang thieu de khoi nhap trung, cat di thi to
+		# thu 41 khong tra duoc, tuc la nut hong dung cai viec no sinh ra de
+		# lam. Van chan tren 500 to MOI NHOM de khong ganh mot goi khong lo
+		# ve dien thoai, nhung to nam ngoai khoang do van tra duoc: go tu
+		# khoa vao thi bo loc o tren chay TRUOC luc cat.
+		ra.append({"ly_do": ma, "so": len(to), "tien": sum(x["tong"] for x in to),
+			"hoa_don": to[:500], "bi_cat": 1 if len(to) > 500 else 0})
+	return {
+		"ncc": ncc,
+		"ten": frappe.db.get_value("Supplier", ncc, "supplier_name") or ncc,
+		"moc_ngay": str(moc), "so_ngay": int(cint(so_ngay) or 365),
+		"tu_khoa": q, "nhom": ra, "chon_duoc": len(chon_duoc),
+	}
+
+
+def _hd_ho_so_giu():
+	"""Hoa don nao dang nam trong ho so nao. Giong `_hd_da_gom` nhung tra ve
+	CA MA ho so, de man "Vi sao thieu" chi duoc dung cho ma tim."""
+	rows = frappe.db.sql(
+		"""select d.hoa_don, p.ma from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where p.trang_thai in ('Nhap', 'Cho ke toan', 'Cho giam doc', 'Da duyet')""",
+		as_dict=True,
+	)
+	return dict((r["hoa_don"], r["ma"]) for r in rows if r["hoa_don"])
 
 
 def _hd_da_gom():
