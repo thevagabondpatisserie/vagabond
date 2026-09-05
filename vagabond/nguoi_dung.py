@@ -299,10 +299,20 @@ def _thua_so_voi_goi(vai_nguoi, goi):
 @frappe.whitelist()
 def danh_sach(tu_khoa=None, chip=None, goi=None):
 	_kiem("xem danh sách người dùng")
+	# LẤY MỌI LOẠI TÀI KHOẢN, không lọc theo loại nữa.
+	#
+	# Bản cũ chỉ lấy tài khoản nội bộ, nên bốn shipper của tiệm không hiện ở
+	# đây, vì họ được tạo dưới dạng tài khoản web hồi dựng site 02/08/2026.
+	# Trong khi đó đường mời tài khoản mới lại chặn theo MỌI loại. Kết quả là
+	# màn hình nói người này chưa có tài khoản, còn lúc tạo thì máy báo đã có
+	# rồi, và không có cách nào đi tiếp. Anh Việt gặp đúng ca này ngày
+	# 05/09/2026 khi tạo tài khoản cho một shipper.
+	#
+	# Một màn quản lý người dùng mà giấu người dùng thì tệ hơn là không có.
 	users = frappe.get_all(
 		"User",
-		filters={"user_type": "System User"},
-		fields=["name", "full_name", "enabled", "last_active", "mobile_no", "phone", "creation"],
+		fields=["name", "full_name", "enabled", "last_active", "mobile_no",
+			"phone", "creation", "user_type"],
 		limit_page_length=0,
 	)
 	co_that = _vai_co_that()
@@ -312,6 +322,11 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		if u.name in BO_QUA_USER:
 			continue
 		vai = _vai_cua(u.name)
+		# Tài khoản KHÔNG phải nội bộ chỉ hiện khi có quyền nghiệp vụ, tức là
+		# người của tiệm. Mai này khách có tài khoản cổng thông tin thì màn
+		# này không bị đổ đầy tên khách.
+		if u.user_type != "System User" and not ((vai & co_that) - VAI_NEN):
+			continue
 		g = _doan_goi(vai)
 		thua = _thua_so_voi_goi(vai, g)
 		nghiep_vu = sorted((vai & co_that) - VAI_NEN)
@@ -326,6 +341,8 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 			"vai": nghiep_vu,
 			"so_vai": len(nghiep_vu),
 			"vai_thua": thua,
+			"loai": u.user_type,
+			"la_tk_web": 0 if u.user_type == "System User" else 1,
 			"lan_cuoi": u.last_active,
 			"tao_luc": u.creation,
 		}
@@ -473,6 +490,36 @@ def _chan_leo_quyen(vai_moi, vai_cu):
 		)
 
 
+def _go_bo_vai_mau(doc):
+	"""Gỡ bộ vai mẫu khỏi một tài khoản. Trả về danh sách bộ đã gỡ.
+
+	VÌ SAO PHẢI GỠ, đây là lỗi im lặng nhất từng gặp ở phân hệ này:
+
+	Khung dựng LẠI toàn bộ danh sách vai từ bộ vai mẫu mỗi lần lưu tài
+	khoản. Nên vai mình vừa ghi bằng tay bị xoá sạch ngay trong cùng lượt
+	lưu đó. Bản ghi vẫn lưu thành công, dấu thời gian vẫn đổi, màn hình vẫn
+	báo "đã xếp gói", chỉ có quyền là không vào.
+
+	Ngày 05/09/2026 anh Việt cấp quyền cho một người và máy báo thành công
+	trong khi vai không hề vào; lần thử ngày 21/08/2026 cũng hỏng đúng vì
+	lý do này mà lúc đó chỉ ghi lại được triệu chứng "ô nhập vai không lưu".
+	Đo ra 22 trên 35 tài khoản đang bị buộc bộ vai mẫu, tức là màn Quản lý
+	quyền đang vô hiệu với hai phần ba số người mà vẫn báo thành công.
+
+	Gói chức vụ của app là nguồn sự thật về quyền, nên bộ vai mẫu phải nhường
+	đường. Gỡ chứ không sửa bộ mẫu: bộ mẫu dùng chung nhiều người, sửa nó là
+	đụng tới người không liên quan.
+	"""
+	da_go = [r.role_profile for r in (doc.get("role_profiles") or [])]
+	if doc.get("role_profile_name"):
+		if doc.role_profile_name not in da_go:
+			da_go.append(doc.role_profile_name)
+		doc.role_profile_name = None
+	if doc.get("role_profiles"):
+		doc.set("role_profiles", [])
+	return da_go
+
+
 def _dat_vai(email, vai_can, cham_vao):
 	"""Dat lai vai cho mot nguoi, CHI trong pham vi cham_vao.
 
@@ -492,11 +539,23 @@ def _dat_vai(email, vai_can, cham_vao):
 	_chan_leo_quyen(sorted((dang_co | set(them)) - set(go)), sorted(dang_co))
 
 	doc = frappe.get_doc("User", email)
+	_go_bo_vai_mau(doc)
 	giu = [r.role for r in doc.roles if r.role not in cham_vao]
 	doc.set("roles", [])
 	for r in sorted(set(giu) | (vai_can & cham_vao)):
 		doc.append("roles", {"role": r})
 	doc.save(ignore_permissions=True)
+	# Doc lai tu co so du lieu chu KHONG tin bien trong bo nho: neu con thu
+	# gi ghi de vai luc luu thi phai lo ra ngay day, dung de man hinh bao
+	# thanh cong roi nguoi dung phat hien sau.
+	con_thieu = sorted((vai_can & cham_vao) - _vai_cua(email))
+	if con_thieu:
+		frappe.throw(
+			"Lưu quyền cho %s không ăn: %s vẫn chưa vào. Thường là do tài "
+			"khoản còn bị buộc theo một bộ vai mẫu của hệ thống. Anh chị báo "
+			"kỹ thuật, đừng bấm lại vì bấm lại cũng vậy."
+			% (email, ", ".join(con_thieu))
+		)
 	return them, go
 
 
@@ -571,8 +630,27 @@ def moi(email, ten, goi=None, sdt=None, gui_thu=1):
 		frappe.throw("Email không hợp lệ.")
 	if not ten:
 		frappe.throw("Chưa nhập họ tên.")
-	if frappe.db.exists("User", email):
-		frappe.throw("Email %s đã có tài khoản rồi." % email)
+	cu = frappe.db.get_value(
+		"User", email, ["full_name", "user_type", "enabled"], as_dict=True
+	)
+	if cu:
+		# Câu báo lỗi phải nói RA cái đang chặn và làm gì tiếp (QT-24). Bản cũ
+		# chỉ nói "đã có tài khoản rồi" trong khi tài khoản đó không hiện ở
+		# danh sách, nên người dùng đứng im không biết đi đường nào.
+		frappe.throw(
+			"Email %s đã có tài khoản rồi: %s, loại %s, đang %s. %s"
+			% (
+				email,
+				cu.full_name or "chưa đặt tên",
+				"nội bộ" if cu.user_type == "System User" else "tài khoản web",
+				"bật" if cint(cu.enabled) else "tắt",
+				"Anh chị tìm người này trong danh sách rồi xếp gói chức vụ cho "
+				"họ, không cần tạo mới."
+				if cint(cu.enabled)
+				else "Tài khoản đang tắt nên không hiện ở danh sách đang làm. "
+				"Anh chị lọc sang nhóm đã tắt, bật lại rồi xếp gói.",
+			)
+		)
 	g = GOI_THEO_KEY.get(goi) if goi else None
 	if goi and not g:
 		frappe.throw("Không có gói chức vụ %s." % goi)
