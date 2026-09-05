@@ -22,7 +22,9 @@ from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdat
 
 from vagabond import nhat_ky_dong_bo as nhat_ky
 from vagabond.kiem_banh import BO_QUA_TT, _keo_don, _khoang_unix
+from vagabond import pickup
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
+from vagabond.vai_cua_hang import VAI_QLCH
 
 QUYEN_SALES = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
 QUYEN_KE_TOAN = {"System Manager", "Accounts User", "Purchase User"}
@@ -44,8 +46,18 @@ def _la_ke_toan():
 	return bool(QUYEN_KE_TOAN & _roles())
 
 
+def _la_quan_ly_diem():
+	"""Quan ly cua hang. Ho truc quay, nen phai thay duoc don khach tu lay.
+
+	Truoc 05/09/2026 vai nay khong nam trong cong nao cua phan he van don,
+	nen mot quan ly khong kiem vai Sales User thi mo man ra bi chan, du don
+	pickup dang nam ngay tren quay cua ho.
+	"""
+	return VAI_QLCH in _roles()
+
+
 def _kiem_quyen_xem():
-	if not (_la_sales() or _la_shipper() or _la_ke_toan()):
+	if not (_la_sales() or _la_shipper() or _la_ke_toan() or _la_quan_ly_diem()):
 		frappe.throw("Tài khoản chưa được cấp quyền dùng phân hệ vận đơn.")
 
 
@@ -747,7 +759,7 @@ def dong_bo_tu_dong():
 
 TRUONG_DS = [
 	"name", "ma_don", "khach", "sdt", "dia_chi", "gio_giao", "trang_thai",
-	"kenh", "shipper", "tien_thu_ho", "phi_giao", "anh_giao", "booking_id", "tracking_url",
+	"kenh", "shipper", "diem_pickup", "nguoi_trao", "tien_thu_ho", "phi_giao", "anh_giao", "booking_id", "tracking_url",
 	"ly_do_loi", "chuyen", "da_doi_soat", "nguoi_nhan", "sdt_nhan",
 	"tag_gio", "buoi", "phuong", "the_don", "goi_truoc", "chup_truoc", "ghi_chu_in",
 	"thu_tu", "gio_du_kien", "km_chang", "tre_khung_gio", "lat", "lng",
@@ -1059,6 +1071,11 @@ def giao_xong(name, file_url=None):
 	doc.giao_luc = now_datetime()
 	if not doc.shipper and _la_shipper():
 		doc.shipper = frappe.session.user
+	# Don pickup khong co shipper nao ca. Nguoi bam hoan tat chinh la nguoi
+	# dung tai quay trao hop banh cho khach, va do la nguoi duy nhat tra loi
+	# duoc "ai dua hang cho khach" khi sau nay co khieu nai.
+	if doc.diem_pickup and not doc.nguoi_trao:
+		doc.nguoi_trao = frappe.session.user
 	if file_url:
 		doc.anh_giao = file_url
 	bao = False
@@ -1126,7 +1143,7 @@ KENH_NGOAI = {
 
 
 @frappe.whitelist()
-def gan_shipper(name, shipper=None, kenh=None):
+def gan_shipper(name, shipper=None, kenh=None, diem=None):
 	"""Sales chi dinh nguoi giao cho MOT van don.
 
 	- shipper = email nhan vien: don hien ngay tren man hinh shipper do,
@@ -1135,7 +1152,13 @@ def gan_shipper(name, shipper=None, kenh=None):
 	  don di app ngoai. Don vi co API thi de trang thai Cho giao cho sales bam
 	  Goi xe; don vi khong co API thi chuyen thang Dang giao vi nhan vien tu
 	  dat tren app cua ho.
-	- ca hai rong: go ra, tra ve Cho giao.
+	- diem = ma diem pickup (SALES / TCV / NVHTN): khach ra tan noi lay,
+	  khong ai chay xe. Xem vagabond/pickup.py.
+	- ca ba rong: go ra, tra ve Cho giao.
+
+	Ba loai loai tru nhau. Gan cai nay thi XOA cai kia, khong de mot don vua
+	mang ten shipper vua mang ten diem - hai nguoi cung tuong don la cua minh
+	la co ngay mot hop banh di hai duong.
 	"""
 	if not _la_sales():
 		frappe.throw("Chỉ sales chỉ định người giao được.")
@@ -1159,10 +1182,22 @@ def gan_shipper(name, shipper=None, kenh=None):
 		doc.shipper = None
 		doc.chuyen = ""
 		doc.thu_tu = 0
+		doc.diem_pickup = ""
 		doc.kenh = kenh
 		doc.trang_thai = "Chờ giao" if KENH_NGOAI[kenh]["api"] else "Đang giao"
+	elif diem:
+		ds_pk = pickup.ds()
+		if not pickup.hop_le(diem, ds_pk):
+			frappe.throw(pickup.loi_ma_la(diem, ds_pk))
+		doc.shipper = None
+		doc.chuyen = ""
+		doc.thu_tu = 0
+		doc.diem_pickup = pickup.chuan_ma(diem)
+		doc.kenh = "Khách tự lấy"
+		doc.trang_thai = pickup.TRANG_THAI
 	elif shipper:
 		doc.shipper = shipper
+		doc.diem_pickup = ""
 		doc.trang_thai = "Đang giao"
 		if doc.kenh != "Shipper nội bộ":
 			doc.kenh = "Shipper nội bộ"
@@ -1170,13 +1205,21 @@ def gan_shipper(name, shipper=None, kenh=None):
 		doc.shipper = None
 		doc.chuyen = ""
 		doc.thu_tu = 0
+		doc.diem_pickup = ""
 		doc.trang_thai = "Chờ giao"
 	doc.flags.ignore_permissions = True
 	doc.save()
 	if doc.shipper and doc.shipper != cu:
 		_mail_phan_cong(doc)
 	return {"name": doc.name, "shipper": doc.shipper, "kenh": doc.kenh,
-		"trang_thai": doc.trang_thai}
+		"diem_pickup": doc.diem_pickup, "trang_thai": doc.trang_thai}
+
+
+@frappe.whitelist()
+def ds_diem_pickup():
+	"""Ba diem khach ra lay hang, cho o Phan cong tren app."""
+	_kiem_quyen_xem()
+	return pickup.ds()
 
 
 def _mail_phan_cong(doc):
@@ -1250,6 +1293,7 @@ def gop_chuyen(names, shipper, chuyen=None):
 			continue
 		doc.shipper = shipper
 		doc.chuyen = chuyen
+		doc.diem_pickup = ""
 		doc.trang_thai = "Đang giao"
 		if doc.kenh != "Shipper nội bộ":
 			doc.kenh = "Shipper nội bộ"
@@ -1522,6 +1566,12 @@ def book_xe(name, kenh, service_id=None, requests_them=None):
 	doc = frappe.get_doc("Van Don", name)
 	if doc.booking_id:
 		frappe.throw("Đơn này đã book rồi (%s). Huỷ bên app kia trước nếu muốn book lại." % doc.booking_id)
+	# Don khach tu lay khong co ai chay xe. Book xe cho no la mat tien that
+	# cho mot cuoc xe khong ai di.
+	if doc.diem_pickup:
+		frappe.throw(
+			"Đơn này đang để khách tự lấy tại điểm, không book xe được. "
+			"Mở ô Phân công đổi sang shipper hoặc app ngoài trước nếu muốn giao tận nơi.")
 	if isinstance(requests_them, str):
 		requests_them = json.loads(requests_them or "[]")
 	if kenh == "Ahamove":
