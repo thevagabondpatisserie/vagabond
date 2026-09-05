@@ -23,6 +23,7 @@ import os
 
 from vagabond.dat_banh import (
 	PT_TRA_TRUOC, con_giu_cho, gom_giu_cho, gop_ngay, hai_ngay_phai_do,
+	TT_NHA_CHO, TT_TAM_DUNG, con_giu_cho_theo_trang_thai,
 	la_banh_o, la_phieu_dat_banh, loi_khach_khong_khop, loi_phieu_dat_banh,
 	ngay_nhan_cua_phieu, phieu_dat_duoc_tro, tham_chieu_la, thieu_o_bat_buoc,
 	tien_thuc_thu, tong_ung_truoc,
@@ -348,7 +349,7 @@ def _con_hieu_luc():
 	i = DB.find("def dong_phieu_dat(")
 	than = DB[i:DB.find("def dem_giu_cho(", i)]
 	dung("chi phieu da ghi so", '"docstatus": 1' in than)
-	dung("bo phieu da dong va da huy", '["Closed", "Cancelled"]' in than)
+	dung("bo phieu da dong va da huy", "TT_NHA_CHO" in than)
 
 
 # ------------------------------------------------- Ô trên chứng từ thu
@@ -698,3 +699,70 @@ def _khoa_theo_khach():
 	than = DB[i:]
 	dung("hook co doi chieu khach", "loi_khach_khong_khop(" in than)
 	dung("hook doc khach cua phieu dat", 'get_value(SO, ten_phieu_dat, "customer")' in than)
+
+
+@ca("trang thai phieu dat: dong va huy thi nha cho, tam dung thi VAN giu")
+def _trang_thai_giu_cho():
+	"""Codex hoi o vong bon. Chot la don tam dung VAN giu cho, va day la
+	quyet dinh nghiep vu chu khong phai sot.
+
+	Khach dat banh o tra truoc TOAN BO. Don tam dung nghia la tiem dung xu ly,
+	KHONG co nghia la khach da lay tien ve. Nha cho la ban mat cai banh khach
+	da tra tien, toi ngay giao khong chua duoc. Con giu nham thi ket mot cai
+	banh, nhin bang la thay, dong don lai la xong."""
+	dung("dong don thi nha cho", not con_giu_cho_theo_trang_thai("Closed"))
+	dung("huy don thi nha cho", not con_giu_cho_theo_trang_thai("Cancelled"))
+	dung("tam dung VAN giu cho", con_giu_cho_theo_trang_thai("On Hold"))
+	dung("dang giao van giu cho", con_giu_cho_theo_trang_thai("To Deliver and Bill"))
+	dung("trang thai rong thi giu cho", con_giu_cho_theo_trang_thai(""))
+	la("hai trang thai nha cho", sorted(TT_NHA_CHO), ["Cancelled", "Closed"])
+	la("trang thai tam dung khai rieng", list(TT_TAM_DUNG), ["On Hold"])
+	# Hai danh sach khong duoc chong nhau: chong la mot trang thai vua nha
+	# vua giu, va khong ai doc ra duoc y dinh.
+	dung("hai danh sach roi nhau",
+		not (set(TT_NHA_CHO) & set(TT_TAM_DUNG)))
+	# Truy van phai dung hang so chu khong go lai chuoi.
+	i = DB.find("def dong_phieu_dat(")
+	than = DB[i:DB.find("def dem_giu_cho(", i)]
+	dung("truy van dung hang so", "list(TT_NHA_CHO)" in than)
+	dung("khong go lai chuoi trong truy van", '["Closed", "Cancelled"]' not in than)
+	# Va phai ghi ro cai bay: dong don khong chay hook, chi co nhip 5 phut do.
+	dung("co canh bao ve duong dong don", "không đi qua lượt lưu" in than)
+
+
+@ca("do giu cho that: don dong va don huy khong tinh, don tam dung co tinh")
+def _do_theo_trang_thai():
+	"""Chay that qua dong_phieu_dat voi ban Frappe gia co loc, chu khong chi
+	doc ma nguon."""
+	import frappe
+
+	from vagabond import dat_banh
+
+	cu = frappe.get_all
+	frappe.get_all = _gia_lap_get_all({
+		"Sales Order": [
+			{"name": "SO-1", "docstatus": 1, "status": "To Deliver and Bill"},
+			{"name": "SO-2", "docstatus": 1, "status": "On Hold"},
+			{"name": "SO-3", "docstatus": 1, "status": "Closed"},
+			{"name": "SO-4", "docstatus": 2, "status": "Cancelled"},
+		],
+		"Sales Order Item": [
+			{"parent": "SO-1", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 2, "delivered_qty": 0, "billed_qty": 0},
+			{"parent": "SO-2", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 3, "delivered_qty": 0, "billed_qty": 0},
+			{"parent": "SO-3", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 9, "delivered_qty": 0, "billed_qty": 0},
+			{"parent": "SO-4", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 7, "delivered_qty": 0, "billed_qty": 0},
+		],
+	})
+	try:
+		dem = dat_banh.dem_giu_cho("2026-09-20")
+	finally:
+		frappe.get_all = cu
+	# 2 cua don dang giao + 3 cua don tam dung = 5. Don dong va don huy khong
+	# duoc gop vao: gop la 21.
+	la("chi cong don con giu cho", dem.get("BAWC00001"), 5)
+	dung("khong gop don dong", dem.get("BAWC00001") != 14)
+	dung("khong gop don huy", dem.get("BAWC00001") != 12)
