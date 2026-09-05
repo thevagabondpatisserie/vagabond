@@ -23,8 +23,9 @@ import os
 
 from vagabond.dat_banh import (
 	PT_TRA_TRUOC, con_giu_cho, gom_giu_cho, gop_ngay, hai_ngay_phai_do,
-	la_banh_o, la_phieu_dat_banh, loi_phieu_dat_banh, ngay_nhan_cua_phieu,
-	tham_chieu_la, thieu_o_bat_buoc, tien_thuc_thu, tong_ung_truoc,
+	la_banh_o, la_phieu_dat_banh, loi_khach_khong_khop, loi_phieu_dat_banh,
+	ngay_nhan_cua_phieu, phieu_dat_duoc_tro, tham_chieu_la, thieu_o_bat_buoc,
+	tien_thuc_thu, tong_ung_truoc,
 )
 from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la
 from vagabond.kiem_banh import TIEN_TO_MA
@@ -242,7 +243,7 @@ def _chan_khai_thieu():
 	la("thieu ca hai", thieu_o_bat_buoc({}), ["Phiếu đặt bánh", "Quầy thu tiền"])
 	# Dung phieu kieu Desk: co dong tro toi phieu dat, KHONG co o nao.
 	desk = {"vgb_phieu_dat": "", "vgb_quay": ""}
-	tc = [{"reference_doctype": "Sales Order"}]
+	tc = [{"reference_doctype": "Sales Order", "reference_name": "SO-1"}]
 	dung("van nhan dien la phieu dat banh", la_phieu_dat_banh(desk, tc))
 	loi = loi_phieu_dat_banh(desk, tc)
 	dung("co chan", bool(loi))
@@ -258,8 +259,8 @@ def _chan_tron_tham_chieu():
 	"""Tron hai loai tham chieu thi ca so tien duoc cong vao duong ung truoc,
 	trong khi to hoa don kia da duoc dem o duong thuong."""
 	o = {"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}
-	tron = [{"reference_doctype": "Sales Order"},
-		{"reference_doctype": "Sales Invoice"}]
+	tron = [{"reference_doctype": "Sales Order", "reference_name": "SO-1"},
+		{"reference_doctype": "Sales Invoice", "reference_name": "HD-1"}]
 	la("doc dung cac loai tham chieu", tham_chieu_la(tron),
 		["Sales Order", "Sales Invoice"])
 	loi = loi_phieu_dat_banh(o, tron)
@@ -267,7 +268,8 @@ def _chan_tron_tham_chieu():
 	dung("noi ro dem hai lan", "hai" in loi)
 	dung("noi ro lam gi tiep", "tách ra" in loi)
 	la("chi tro toi phieu dat thi khong chan",
-		loi_phieu_dat_banh(o, [{"reference_doctype": "Sales Order"}]), None)
+		loi_phieu_dat_banh(o, [
+			{"reference_doctype": "Sales Order", "reference_name": "SO-1"}]), None)
 
 
 @ca("phieu thu chi khac khong dinh gi toi hang rao nay")
@@ -277,7 +279,7 @@ def _khong_dinh_phieu_khac():
 	dung("phieu thu hoa don thuong khong phai phieu dat banh",
 		not la_phieu_dat_banh(
 			{"vgb_phieu_dat": "", "vgb_quay": ""},
-			[{"reference_doctype": "Sales Invoice"}]))
+			[{"reference_doctype": "Sales Invoice", "reference_name": "HD-1"}]))
 	dung("phieu khong tham chieu gi cung khong phai",
 		not la_phieu_dat_banh({"vgb_phieu_dat": "", "vgb_quay": ""}, []))
 	# Va hook phai thoat som cho nhung phieu do.
@@ -641,3 +643,58 @@ def _phan_thuan_sach():
 	dung("phan thuan khong dung frappe.utils", "from frappe.utils" not in tren)
 	dung("phan thuan khong nap kiem_banh", "from vagabond.kiem_banh" not in tren)
 	dung("nhan tien to qua tham so", "def la_banh_o(ma, tien_to)" in tren)
+
+
+@ca("o ghi chu phai KHOP voi bang tham chieu, khong chi co chu la duoc")
+def _khoa_theo_tham_chieu():
+	"""Codex bắt ở vòng ba. Ô chỉ đọc chỉ là ghi chú; thứ ERPNext dùng để cấn
+	tiền vào ngày giao là bảng tham chiếu. Hai chỗ lệch nhau thì ca vẫn cộng
+	đủ tiền, nhưng tới ngày giao máy không có đường cấn đúng, hoặc cấn nhầm
+	sang đơn của khách khác."""
+	o = {"vgb_phieu_dat": "SO-A", "vgb_quay": "SALES"}
+	la("doc dung phieu dat duoc tro", phieu_dat_duoc_tro([
+		{"reference_doctype": "Sales Order", "reference_name": "SO-A"},
+		{"reference_doctype": "Sales Invoice", "reference_name": "HD-9"},
+	]), ["SO-A"])
+
+	# Co du hai o nhung KHONG gan phieu dat nao.
+	loi = loi_phieu_dat_banh(o, [])
+	dung("khong co tham chieu thi chan", bool(loi))
+	dung("noi ro may dung bang tham chieu", "bảng tham chiếu" in loi)
+
+	# O ghi SO-A ma gan SO-B.
+	loi = loi_phieu_dat_banh(o, [
+		{"reference_doctype": "Sales Order", "reference_name": "SO-B"}])
+	dung("lech nhau thi chan", bool(loi))
+	dung("noi du ca hai so", "SO-A" in loi and "SO-B" in loi)
+	dung("noi ro hau qua", "cấn nhầm" in loi)
+
+	# Gan hai phieu dat cung luc.
+	loi = loi_phieu_dat_banh(o, [
+		{"reference_doctype": "Sales Order", "reference_name": "SO-A"},
+		{"reference_doctype": "Sales Order", "reference_name": "SO-B"}])
+	dung("gan hai phieu dat thi chan", bool(loi))
+	dung("noi ro thu rieng tung don", "thu riêng" in loi)
+
+	# Dung mot phieu dat, khop o ghi chu.
+	la("dung mot va khop thi qua", loi_phieu_dat_banh(o, [
+		{"reference_doctype": "Sales Order", "reference_name": "SO-A"}]), None)
+
+
+@ca("khach tren phieu thu phai trung khach tren phieu dat")
+def _khoa_theo_khach():
+	"""Thu tien cua khach nay ghi vao don cua khach kia thi toi ngay giao don
+	kia hien la da tra du."""
+	la("trung khach thi qua", loi_khach_khong_khop("Khach A", "Khach A", "SO-A"), None)
+	loi = loi_khach_khong_khop("Khach A", "Khach B", "SO-A")
+	dung("lech khach thi chan", bool(loi))
+	dung("noi du hai ten khach", "Khach A" in loi and "Khach B" in loi)
+	# Khong doc duoc ten khach thi khong chan bua: de hang rao khac lo ra.
+	la("thieu du lieu thi khong chan", loi_khach_khong_khop("", "Khach B", "SO-A"), None)
+	la("khong doc duoc phieu dat thi khong chan",
+		loi_khach_khong_khop("Khach A", None, "SO-A"), None)
+	# Hook phai hoi co so du lieu de doi chieu, khong the doan tu chung tu.
+	i = DB.find("def chan_phieu_dat_banh(")
+	than = DB[i:]
+	dung("hook co doi chieu khach", "loi_khach_khong_khop(" in than)
+	dung("hook doc khach cua phieu dat", 'get_value(SO, ten_phieu_dat, "customer")' in than)
