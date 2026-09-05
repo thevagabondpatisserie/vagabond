@@ -233,7 +233,7 @@ def _():
 	trong bảng chọn, nằm ngay sau Công nợ nhà cung cấp, và lời trên màn đã
 	được sửa cho khớp số luồng. Cả ba ý còn nguyên.
 
-	v432 đổi màn từ năm nút thành hai câu hỏi (issue #196 phần A) nên:
+	v433 đổi màn từ năm nút thành hai câu hỏi (issue #196 phần A) nên:
 
 	- Bảng chọn tách làm hai, khai ngay trên hàm chứ không nằm trong thân,
 	  nên cắt theo "if (!c) return;" không còn đúng. Đọc thẳng cả tệp và so

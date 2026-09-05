@@ -181,7 +181,7 @@ def _hai_the_hoan_ung():
 	chúng khác nhau ở chỗ hoá đơn ĐÃ vào hệ hay CHƯA. Ý đó còn nguyên và
 	dưới đây vẫn chốt nó.
 
-	Hai chỗ phải sửa lại ở v432:
+	Hai chỗ phải sửa lại ở v433:
 
 	1. Chỗ đọc. Hai thẻ không còn nằm trong thân `hsChonLoaiMoi` nữa mà ở
 	   bảng `HS_LUONG_HOAN_UNG` khai ngay trên hàm, vì màn này đổi từ năm
@@ -193,7 +193,7 @@ def _hai_the_hoan_ung():
 	   đường hoàn ứng có hoá đơn (phiếu chỉ đóng vai chứng từ, không đụng
 	   số tiền - xem `hsODongPhieu` và `_soi_phieu_noi_bo(dong,
 	   theo_tien=False)`). Từ hôm đó hai câu ấy sai sự thật, mà sai theo
-	   hướng đẩy người ta sang nhầm đường, nên v432 bỏ hẳn. Ca kiểm giờ
+	   hướng đẩy người ta sang nhầm đường, nên v433 bỏ hẳn. Ca kiểm giờ
 	   chốt chiều ngược lại: KHÔNG được có lại hai câu đó.
 	"""
 	src = _js("19-ho-so-tt.js")

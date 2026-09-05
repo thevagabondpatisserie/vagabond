@@ -462,7 +462,7 @@ def _doi_ncc_xoa_tu_khoa():
 		than.index("!== hsTaoNcc") < than.index("hsTaoNcc = ma"))
 	# Không được đụng vào tick của luồng hoàn ứng nhiều nhà cung cấp.
 	#
-	# v432 thêm `hsPhieuCua = {}` vào cùng nhánh đó (bất biến "xoá tick tới
+	# v433 thêm `hsPhieuCua = {}` vào cùng nhánh đó (bất biến "xoá tick tới
 	# đâu thì xoá phiếu nội bộ tới đó", xem thu_chon_luong.py) nên câu chốt
 	# không còn khớp NGUYÊN VĂN dòng cũ. Ý định thì giữ nguyên và chốt chặt
 	# hơn: phải có rào `if (!laHU)`, và trong cả khối không được có lần xoá

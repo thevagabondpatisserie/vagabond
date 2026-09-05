@@ -5,7 +5,7 @@ Anh Việt mở issue #196: *"Chị Dung và anh đều cảm thấy 5 nút củ
 là quá rối. Anh muốn làm gọn lại"*.
 
 Năm nút cũ bắt người ta đối chiếu ba tiêu chí cùng một lúc: tiền đi cho ai,
-hoá đơn đã vào hệ chưa, có đi qua Purchasing không. v432 tách thành hai nhịp,
+hoá đơn đã vào hệ chưa, có đi qua Purchasing không. v433 tách thành hai nhịp,
 mỗi nhịp một tiêu chí, và KHÔNG bỏ luồng nào.
 
 Bộ ca này canh đúng những chỗ mà một lần sửa giao diện dễ làm hỏng lặng lẽ:
@@ -88,7 +88,7 @@ def _cau_hoi_duoc_ve_ra():
 
 @ca("#196A câu 2 nói thẳng tiêu chí thật, không bắt người ta suy ra")
 def _cau_hai_noi_thang():
-	"""Lỗi hiểu nhầm này có thật và đã ghi lại từ trước v432.
+	"""Lỗi hiểu nhầm này có thật và đã ghi lại từ trước v433.
 
 	"Có hoá đơn" ở màn này nghĩa là hoá đơn ĐÃ NẰM TRONG HỆ thành một hoá
 	đơn mua còn nợ, chứ không phải cầm tờ hoá đơn giấy trong tay. Cầm tờ
@@ -225,7 +225,7 @@ def _don_trang_thai():
 
 @ca("#196A xoá hsTaoChon tới đâu thì xoá hsPhieuCua tới đó")
 def _xoa_phieu_cua_theo_cap():
-	"""Lỗi có thật trước v432, sửa luôn trong đợt này.
+	"""Lỗi có thật trước v433, sửa luôn trong đợt này.
 
 	`hsPhieuCua` giữ phiếu thanh toán nội bộ đã nối vào từng hoá đơn. Ba
 	chỗ trong tệp xoá `hsTaoChon` đều xoá kèm `hsPhieuCua`, riêng chỗ lập
@@ -269,7 +269,18 @@ def _khong_dung_select():
 def _dang_ky():
 	dong = [d.strip() for d in
 		io.open(os.path.join(GOI, "patches.txt"), encoding="utf-8").read().splitlines()]
-	dung("có dòng v432", "vagabond.patches.dong_bo_cau_truc #v432" in dong)
-	# Hai dong nay cua hai phien khac, dot nay khong duoc lam mat.
+	dung("có dòng v433", "vagabond.patches.dong_bo_cau_truc #v433" in dong)
+	# Ba dong nay cua cac phien khac, dot nay khong duoc lam mat.
+	#
+	# Rieng #v432 la cua phien lam man Quan ly nguoi dung (PR #199). Dot nay
+	# ban dau cung dinh lay so 432, ho merge truoc nen phai nhuong. Nguy hiem
+	# o cho git KHONG bao xung dot: hai ben cung doi APPVER thanh '432' va
+	# cung them dung mot dong `#v432`, gop lai thanh MOT dong, tuc la ban dong
+	# bo cau truc cua dot nay se khong bao gio chay ma khong ai hay. Bat duoc
+	# nho doc APPVER va patches.txt tren origin/main NGAY TRUOC khi dat so.
 	dung("giữ nguyên dòng v429", "vagabond.patches.dong_bo_cau_truc #v429" in dong)
 	dung("giữ nguyên dòng v431", "vagabond.patches.dong_bo_cau_truc #v431" in dong)
+	dung("giữ nguyên dòng v432 của phiên khác",
+		"vagabond.patches.dong_bo_cau_truc #v432" in dong)
+	dung("v433 đứng sau v432", dong.index("vagabond.patches.dong_bo_cau_truc #v432")
+		< dong.index("vagabond.patches.dong_bo_cau_truc #v433"))
