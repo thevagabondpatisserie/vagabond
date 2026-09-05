@@ -23,8 +23,8 @@ import os
 
 from vagabond.dat_banh import (
 	PT_TRA_TRUOC, con_giu_cho, gom_giu_cho, gop_ngay, hai_ngay_phai_do,
-	la_banh_o, la_phieu_ung_truoc, ngay_nhan_cua_phieu, tien_thuc_thu,
-	tong_ung_truoc,
+	la_banh_o, la_phieu_dat_banh, loi_phieu_dat_banh, ngay_nhan_cua_phieu,
+	tham_chieu_la, thieu_o_bat_buoc, tien_thuc_thu, tong_ung_truoc,
 )
 from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la
 from vagabond.kiem_banh import TIEN_TO_MA
@@ -215,22 +215,80 @@ def _khong_dung_so_du():
 	la("rong ve khong", tien_thuc_thu({}), 0.0)
 
 
-@ca("chi cong chung tu thu CUA luong dat banh, khong cong tien nop thua")
-def _dung_dau_hieu():
-	"""Codex bat o PR #197: ban dau khong doi dau hieu nao, nen moi khoan
-	khach nop thua o quay deu bi cong vao ca nhu tien dat banh."""
-	dung("co o phieu dat thi nhan", la_phieu_ung_truoc(
-		{"vgb_phieu_dat": "SO-2026-00007"}, False))
-	dung("co dong tham chieu thi nhan", la_phieu_ung_truoc(
-		{"vgb_phieu_dat": ""}, True))
-	dung("khong dau hieu nao thi loai", not la_phieu_ung_truoc(
-		{"vgb_phieu_dat": ""}, False))
-	dung("o toan khoang trang khong tinh", not la_phieu_ung_truoc(
-		{"vgb_phieu_dat": "   "}, False))
+@ca("chi cong phieu thu co DU ca hai o, khong con cua phu nao")
+def _du_hai_o():
+	"""Codex bắt o vong hai, va bat dung: ban truoc em con mot cua phu la
+	"khong co o phieu dat nhung co dong tro toi phieu dat thi van nhan", de
+	do duong ke toan tao thang ben Desk. Cua do KHONG BAO GIO MO, vi truy van
+	loc theo quay TRUOC, ma phieu tao ben Desk khong co ai dien o quay nen bi
+	loai ngay tu dau. Ca kiem cu cua em xanh gia vi tu gan san o quay cho
+	chinh cai phieu ma em bao la khong co o do."""
 	i = DB.find("def thu_ung_truoc(")
 	than = DB[i:]
-	dung("co doi dau hieu", "la_phieu_ung_truoc(" in than)
-	dung("co hoi bang dong tham chieu", "_tro_toi_phieu_dat(" in than)
+	dung("doi co o phieu dat", '"vgb_phieu_dat": ["is", "set"]' in than)
+	dung("doi dung quay", '"vgb_quay"' in than)
+	dung("khong con cua phu tham chieu", "_tro_toi_phieu_dat" not in DB)
+
+
+@ca("thieu o quay hoac o phieu dat thi CHAN ngay luc ghi so")
+def _chan_khai_thieu():
+	"""Thieu mot trong hai o thi tien khong vao duoc ca nao, va chot ca
+	thieu dung so tien do ma khong ai biet vi sao. Tha khong cho ghi so con
+	hon cho ghi so roi tien im lang bien mat."""
+	la("du ca hai o thi khong thieu gi",
+		thieu_o_bat_buoc({"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}), [])
+	la("thieu o quay", thieu_o_bat_buoc({"vgb_phieu_dat": "SO-1"}), ["Quầy thu tiền"])
+	la("thieu o phieu dat", thieu_o_bat_buoc({"vgb_quay": "SALES"}), ["Phiếu đặt bánh"])
+	la("thieu ca hai", thieu_o_bat_buoc({}), ["Phiếu đặt bánh", "Quầy thu tiền"])
+	# Dung phieu kieu Desk: co dong tro toi phieu dat, KHONG co o nao.
+	desk = {"vgb_phieu_dat": "", "vgb_quay": ""}
+	tc = [{"reference_doctype": "Sales Order"}]
+	dung("van nhan dien la phieu dat banh", la_phieu_dat_banh(desk, tc))
+	loi = loi_phieu_dat_banh(desk, tc)
+	dung("co chan", bool(loi))
+	# QT-24: cau bao loi phai noi lam gi tiep.
+	dung("noi ro thieu o nao", "Phiếu đặt bánh" in loi and "Quầy thu tiền" in loi)
+	dung("noi ro lam gi tiep", "màn đặt bánh" in loi)
+	la("du hai o thi khong chan", loi_phieu_dat_banh(
+		{"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}, tc), None)
+
+
+@ca("phieu thu dat banh tro toi ca hoa don ban thi chan, vi dem hai lan")
+def _chan_tron_tham_chieu():
+	"""Tron hai loai tham chieu thi ca so tien duoc cong vao duong ung truoc,
+	trong khi to hoa don kia da duoc dem o duong thuong."""
+	o = {"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}
+	tron = [{"reference_doctype": "Sales Order"},
+		{"reference_doctype": "Sales Invoice"}]
+	la("doc dung cac loai tham chieu", tham_chieu_la(tron),
+		["Sales Order", "Sales Invoice"])
+	loi = loi_phieu_dat_banh(o, tron)
+	dung("co chan", bool(loi))
+	dung("noi ro dem hai lan", "hai" in loi)
+	dung("noi ro lam gi tiep", "tách ra" in loi)
+	la("chi tro toi phieu dat thi khong chan",
+		loi_phieu_dat_banh(o, [{"reference_doctype": "Sales Order"}]), None)
+
+
+@ca("phieu thu chi khac khong dinh gi toi hang rao nay")
+def _khong_dinh_phieu_khac():
+	"""Ca tiem moi ngay tao nhieu phieu thu chi khong lien quan dat banh.
+	Hang rao ma quet ca nhung phieu do la chan ho ke toan lam vic."""
+	dung("phieu thu hoa don thuong khong phai phieu dat banh",
+		not la_phieu_dat_banh(
+			{"vgb_phieu_dat": "", "vgb_quay": ""},
+			[{"reference_doctype": "Sales Invoice"}]))
+	dung("phieu khong tham chieu gi cung khong phai",
+		not la_phieu_dat_banh({"vgb_phieu_dat": "", "vgb_quay": ""}, []))
+	# Va hook phai thoat som cho nhung phieu do.
+	i = DB.find("def chan_phieu_dat_banh(")
+	than = DB[i:]
+	dung("thoat som neu khong phai phieu dat banh",
+		"if not la_phieu_dat_banh(" in than)
+	dung("da khai vao hooks", "vagabond.dat_banh.chan_phieu_dat_banh" in HK)
+	# Chan luc GHI SO chu khong phai luc luu: ban nhap con dang go cho sua.
+	j = HK.find("vagabond.dat_banh.chan_phieu_dat_banh")
+	dung("dat o before_submit", "before_submit" in HK[max(0, j - 1500):j])
 
 
 @ca("gom tien ung truoc theo phuong thuc, bo dong khong duong")
@@ -383,10 +441,14 @@ def _gia_lap_get_all(bang):
 
 @ca("phieu thu da gan HET vao phieu dat van duoc tinh dung mot lan vao ca")
 def _gan_het_van_tinh():
-	"""Đây chính là lỗi Codex bắt: bộ lọc cũ đòi số dư chưa gán phải dương,
-	nên chứng từ thu chuẩn (đã gán đủ, số dư 0) bị loại sạch khỏi chốt ca.
-	Ngày khách trả tiền, két thừa nguyên giá trị đơn mà không ai giải thích
-	được."""
+	"""Đây chính là lỗi Codex bắt vòng một: bộ lọc cũ đòi số dư chưa gán phải
+	dương, nên chứng từ thu chuẩn (đã gán đủ, số dư 0) bị loại sạch khỏi chốt
+	ca. Ngày khách trả tiền, két thừa nguyên giá trị đơn mà không ai giải
+	thích được.
+
+	Và ca này KHÔNG tự gán ô quầy cho phiếu kiểu Desk nữa. Vòng hai Codex bắt
+	đúng: bản trước em bảo có đỡ đường Desk, rồi fixture lại tự điền sẵn ô mà
+	đường Desk không hề có, nên ca kiểm xanh giả cho một đường không chạy."""
 	import frappe
 
 	from vagabond import dat_banh
@@ -394,30 +456,33 @@ def _gan_het_van_tinh():
 	cu = frappe.get_all
 	frappe.get_all = _gia_lap_get_all({
 		"Payment Entry": [
-			# Chuẩn: gán đủ vào phiếu đặt, số dư chưa gán bằng 0.
-			{"name": "PE-1", "creation": "2026-09-05 10:00:00", "mode_of_payment": "Tiền mặt", "vgb_quay": "SALES",
+			# Chuẩn: qua màn đặt bánh, đủ hai ô, gán đủ vào phiếu đặt nên
+			# số dư chưa gán bằng 0.
+			{"name": "PE-1", "creation": "2026-09-05 10:00:00",
+				"mode_of_payment": "Tiền mặt", "vgb_quay": "SALES",
 				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
 				"vgb_phieu_dat": "SO-2026-00007", "unallocated_amount": 0,
 				"received_amount": 850000, "paid_amount": 850000},
 			# Khách nộp thừa ở quầy, không dính gì tới đặt bánh.
-			{"name": "PE-2", "creation": "2026-09-05 10:00:00", "mode_of_payment": "Tiền mặt", "vgb_quay": "SALES",
+			{"name": "PE-2", "creation": "2026-09-05 10:05:00",
+				"mode_of_payment": "Tiền mặt", "vgb_quay": "SALES",
 				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
 				"vgb_phieu_dat": "", "unallocated_amount": 300000,
 				"received_amount": 300000, "paid_amount": 300000},
-			# Đúng luồng nhưng đi đường Desk: không có ô, có dòng tham chiếu.
-			{"name": "PE-3", "creation": "2026-09-05 10:00:00", "mode_of_payment": "Chuyển khoản", "vgb_quay": "SALES",
+			# Phiếu kiểu Desk THẬT: không ô quầy, không ô phiếu đặt. Loại
+			# này KHÔNG được lọt vào ca, và hàng rào ghi sổ đã chặn từ đầu
+			# nên nó không nên tồn tại. Xem ca _chan_khai_thieu.
+			{"name": "PE-3", "creation": "2026-09-05 10:10:00",
+				"mode_of_payment": "Chuyển khoản", "vgb_quay": "",
 				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
 				"vgb_phieu_dat": "", "unallocated_amount": 0,
 				"received_amount": 1200000, "paid_amount": 1200000},
 			# Quầy khác, không được lẫn sang ca này.
-			{"name": "PE-4", "creation": "2026-09-05 10:00:00", "mode_of_payment": "Tiền mặt", "vgb_quay": "TCV",
+			{"name": "PE-4", "creation": "2026-09-05 10:15:00",
+				"mode_of_payment": "Tiền mặt", "vgb_quay": "TCV",
 				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
 				"vgb_phieu_dat": "SO-2026-00009", "unallocated_amount": 0,
 				"received_amount": 999000, "paid_amount": 999000},
-		],
-		"Payment Entry Reference": [
-			{"parent": "PE-3", "reference_doctype": "Sales Order"},
-			{"parent": "PE-2", "reference_doctype": "Sales Invoice"},
 		],
 	})
 	try:
@@ -425,9 +490,10 @@ def _gan_het_van_tinh():
 	finally:
 		frappe.get_all = cu
 	la("tien mat dung mot lan", g.get("Tiền mặt"), 850000.0)
-	la("chuyen khoan qua duong tham chieu", g.get("Chuyển khoản"), 1200000.0)
 	dung("khong cong tien nop thua", g.get("Tiền mặt") != 1150000.0)
+	dung("khong lay phieu khai thieu o", "Chuyển khoản" not in g)
 	dung("khong lay tien cua quay khac", 999000.0 not in g.values())
+	la("chi mot phuong thuc duoc cong", sorted(g), ["Tiền mặt"])
 
 
 @ca("ma banh chi co tren phieu dat van duoc them dong vao bang")
