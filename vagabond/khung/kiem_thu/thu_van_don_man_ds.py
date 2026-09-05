@@ -53,12 +53,20 @@ def _than(ma, tu, den):
 def _du_sau_tab():
 	than = _than(VD, "function vdNhomTab()", "function vdTabTim")
 	dung("co ham sinh tab", bool(than))
-	for k in ("cho_gan", "dang_giao", "da_giao", "hong", "huy", "tat_ca"):
+	# 05/09/2026 them tab thu bay "Khach tu lay": don khach ra tan diem nhan,
+	# khong co shipper nao chay. Truoc do no nam lan trong tab Can phan cong
+	# lam roi danh sach, dung cai anh Viet muon tranh.
+	for k in ("cho_gan", "pickup", "dang_giao", "da_giao", "hong", "huy", "tat_ca"):
 		dung("co tab %s" % k, "k: '%s'" % k in than)
-	la("dung sau tab, khong hon", than.count("k: '"), 6)
+	la("dung bay tab, khong hon", than.count("k: '"), 7)
 	# Tab phai deo mau rieng, khong thi sau tab xanh y het nhau nhu vu ba hang
 	# chip ngay 31/08/2026.
-	la("moi tab mot mau", than.count("mau: '"), 6)
+	la("moi tab mot mau", than.count("mau: '"), 7)
+	# Va bay mau phai KHAC nhau. Dem so luong thoi thi hai tab cung mau van
+	# lot, ma nguoi dung nhin hang tab lai khong phan biet duoc.
+	mau = [x for x in than.split("mau: '")[1:]]
+	mau = [x[:x.find("'")] for x in mau]
+	la("khong mau nao trung", len(set(mau)), 7)
 
 
 @ca("man van don: don cho giao DA CO shipper nam o tab Dang giao")
@@ -96,7 +104,7 @@ def _khoa_la_ve_tat_ca():
 @ca("man van don: mo ra dung ngay tab con viec phai lam")
 def _tab_mac_dinh():
 	than = _than(VD, "function vdTabMacDinh(ds)", "/* Tab RỖNG")
-	dung("uu tien can phan cong truoc", "'cho_gan', 'dang_giao', 'da_giao'" in than)
+	dung("uu tien can phan cong truoc", "'cho_gan', 'pickup', 'dang_giao', 'da_giao'" in than)
 	# Shipper khong bao gio thay don chua phan cong (may chu da loc), nen mo
 	# ra dung o tab do la mo ra thay man trong.
 	dung("shipper bo qua tab can phan cong", "'dang_giao', 'da_giao'" in than)
