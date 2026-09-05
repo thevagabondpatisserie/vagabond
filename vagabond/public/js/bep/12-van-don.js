@@ -81,7 +81,8 @@ async function scrVanDon() {
   } else {
     vdVeSuong = 0;
     try { ds = await api('vagabond.van_don.danh_sach', vdThamSo()); try { vdBoLoc = await api('vagabond.van_don.bo_loc', { ngay: vdNgay }); } catch (e9) { vdBoLoc = null; }
-    if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } } }
+    if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } }
+    await vdNapDiem(); }
     catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
     vdDs = ds; vdDsNgay = vdNgay;
   }
@@ -132,7 +133,7 @@ async function scrVanDon() {
   ds.forEach(function (r) {
     var daChon = chonMode && window.vdChon[r.name];
     /* Trang thai da co chip mau ben duoi nen bo khoi dong chu xam nay. */
-    var d2 = (r.tag_gio ? '\u{1F552} ' + h(r.tag_gio) + ' · ' : (r.gio_giao ? r.gio_giao + ' · ' : '')) + (r.phuong ? h(vdPhuongNgan(r.phuong)) + ' · ' : '') + h(r.kenh) + (r.shipper ? ' · ' + h(vdTen(r.shipper)) : '') + (r.chuyen ? ' · 🧺' + h(r.chuyen) : '');
+    var d2 = (r.tag_gio ? '\u{1F552} ' + h(r.tag_gio) + ' · ' : (r.gio_giao ? r.gio_giao + ' · ' : '')) + (r.phuong ? h(vdPhuongNgan(r.phuong)) + ' · ' : '') + h(r.kenh) + (r.shipper ? ' · ' + h(vdTen(r.shipper)) : '') + (r.diem_pickup ? ' · 🏬 ' + h(vdDiemNgan(r.diem_pickup)) : '') + (r.chuyen ? ' · 🧺' + h(r.chuyen) : '');
     /* Ten mon rut gon: mon dau + "còn N món". Ten day du xem trong chi tiet. */
     var mon1 = r.mon_chinh ? (h(r.mon_chinh) + (r.so_mon > 1 ? ' · còn ' + (r.so_mon - 1) + ' món' : '')) : h(r.mon_tat || '');
     var oAnh = daChon ? '☑️'
@@ -390,7 +391,7 @@ function scrVdKy(name, d) {
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
-  try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } }
+  try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
   catch (e) { frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
   var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
     '<div style="display:flex;justify-content:space-between"><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b><span>' + h(d.trang_thai) + '</span></div>' +
@@ -426,6 +427,14 @@ async function scrVdView(name) {
     (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b>' + (d.da_doi_soat ? ' <span style="color:#15803d;font-size:13px">đã đối soát ✅</span>' : '') + '</div>' : '') +
     (d.booking_id ? '<div style="font-size:13px">Mã app ngoài: ' + h(d.booking_id) + (d.tracking_url ? ' · <a href="' + h(d.tracking_url) + '" target="_blank">theo dõi</a>' : '') + '</div>' : '') +
     (d.hoa_don ? '<div style="color:#6b7280;font-size:13px">Hoá đơn: ' + h(d.hoa_don) + '</div>' : '') +
+    /* Don pickup: dia chi giao o tren la dia chi khach, khong phai noi
+       khach den. Khong ghi ro cho nay thi nguoi truc quay doc nham. */
+    (d.diem_pickup ? '<div style="margin-top:10px;padding:9px 11px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:10px">' +
+      '<div style="font-size:11.5px;color:#6d28d9;font-weight:800;letter-spacing:.3px">KHÁCH TỰ RA LẤY</div>' +
+      '<div style="font-size:15px;font-weight:700;margin-top:2px">' + h(vdNhanDiem(d.diem_pickup)) + '</div>' +
+      (vdDiemDiaChi(d.diem_pickup) ? '<div style="color:#4b5563;font-size:13px">' + h(vdDiemDiaChi(d.diem_pickup)) + '</div>' : '') +
+      (d.nguoi_trao ? '<div style="color:#15803d;font-size:13px;margin-top:3px">Đã trao tay bởi ' + h(vdTen(d.nguoi_trao)) + '</div>' : '') +
+      '</div>' : '') +
     /* Nút X ở góc ảnh giao và chữ ký (anh Việt 24/08/2026). Shipper chụp
        nhầm đơn khác thì trước đây tấm ảnh nằm lại vĩnh viễn, mà sales vẫn
        tải đúng tấm đó gửi khách.
@@ -456,13 +465,19 @@ async function scrVdView(name) {
       : (d.khong_ky ? '<div style="color:#b45309;font-size:13px;margin-top:8px">✍️ Khách không ký: ' + h(d.khong_ky) + '</div>' : '')) +
     (d.ly_do_loi ? '<div style="color:#b3261e;font-size:13px">Không giao được: ' + h(d.ly_do_loi) + '</div>' : '') +
     (d.ghi_chu ? '<div style="color:#6b7280;font-size:13px;white-space:pre-wrap">' + h(d.ghi_chu) + '</div>' : '') + vdKhoiNhan(d) + '</div>' + vdNutPhanCong(d);
-  var dangGiao = d.trang_thai === 'Chờ giao' || d.trang_thai === 'Đang giao';
+  /* Don pickup di y het duong cua shipper: chup anh, khach ky, bam hoan tat.
+     Chi khac chu tren nut, vi nguoi truc quay khong "giao" ma "trao tan tay".
+     Va khong co nut Book xe: khach dang tu ra lay. */
+  var laPickup = !!d.diem_pickup;
+  var dangGiao = d.trang_thai === 'Chờ giao' || d.trang_thai === 'Đang giao' || d.trang_thai === VD_TT_PICKUP;
   if (dangGiao) {
-    html += '<button class="btn" data-va="giao" style="margin-top:4px">📷 Đã giao, chụp ảnh</button>';
+    html += '<button class="btn" data-va="giao" style="margin-top:4px">'
+      + (laPickup ? '📷 Khách đã lấy, chụp ảnh' : '📷 Đã giao, chụp ảnh') + '</button>';
     var hang = [];
-    if (vdLaShipper() && !d.shipper) hang.push('<button class="btn gh" data-va="nhan" style="flex:1">🙋 Nhận đơn</button>');
-    if (isSales() && !d.booking_id) hang.push('<button class="btn gh" data-va="book" style="flex:1">🚕 Book xe app</button>');
-    hang.push('<button class="btn gh" data-va="loi" style="flex:1;color:#b3261e">⚠️ Không giao được</button>');
+    if (vdLaShipper() && !d.shipper && !laPickup) hang.push('<button class="btn gh" data-va="nhan" style="flex:1">🙋 Nhận đơn</button>');
+    if (isSales() && !d.booking_id && !laPickup) hang.push('<button class="btn gh" data-va="book" style="flex:1">🚕 Book xe app</button>');
+    hang.push('<button class="btn gh" data-va="loi" style="flex:1;color:#b3261e">'
+      + (laPickup ? '⚠️ Khách không ra lấy' : '⚠️ Không giao được') + '</button>');
     html += '<div style="display:flex;gap:8px;padding:8px 0 0">' + hang.join('') + '</div>';
   }
   /* Don dieu chuyen: nut sua nhung o may KHONG the tu biet.
@@ -494,7 +509,10 @@ async function scrVdView(name) {
     if (k === 'chiduong') { vdMoDuong(vdDich(d)); return; }
     if (k === 'suadc') { return vdSuaDieuChuyen(d); }
     if (k === 'phancong') {
-      if (!vtShipper) { busy(true); try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e7) { vtShipper = []; } busy(false); }
+      busy(true);
+      if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e7) { vtShipper = []; } }
+      await vdNapDiem();
+      busy(false);
       var opsP = vdOpsGiao(vtShipper);
       sheet('Phân công đơn này cho ai', opsP, d.shipper || '', async function (o) {
         busy(true);
@@ -507,7 +525,9 @@ async function scrVdView(name) {
           go(function () { scrVdView(name); }, true);
             return;
           }
-          toast(o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người giao khỏi đơn');
+          toast(kq.diem
+            ? 'Đơn để khách ra ' + vdDiemNgan(kq.diem) + ' lấy. Quầy đó thấy đơn ở tab Khách tự lấy.'
+            : (o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người giao khỏi đơn'));
           go(function () { scrVdView(name); }, true);
         } catch (e8) { busy(false); baoTin((e8 && e8.message) || 'Phân công lỗi'); }
       });
@@ -850,7 +870,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '423';
+var APPVER = '424';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -1025,7 +1045,9 @@ function vdNutPhanCong(d) {
   if (d.dia_chi || (d.lat && d.lng)) b.push('<button class="btn gh" data-va="chiduong" style="flex:1">' + vdAnhMap(20) + ' Chỉ đường</button>');
   if (isSales() && d.trang_thai !== 'Đã giao' && d.trang_thai !== 'Huỷ') {
     var ten = vdTen(d.shipper);
-    b.push('<button class="btn gh" data-va="phancong" style="flex:1">🛵 ' + (ten ? h(ten) : 'Phân công') + '</button>');
+    b.push(d.diem_pickup
+      ? '<button class="btn gh" data-va="phancong" style="flex:1">🏬 ' + h(vdDiemNgan(d.diem_pickup)) + '</button>'
+      : '<button class="btn gh" data-va="phancong" style="flex:1">🛵 ' + (ten ? h(ten) : 'Phân công') + '</button>');
   }
   if (!b.length) return '';
   return '<div style="display:flex;gap:8px;margin-top:10px">' + b.join('') + '</div>';
@@ -1311,21 +1333,33 @@ var VD_APPS = [
   { ten: 'BE', api: 0, anh: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAMAAABiM0N1AAAAkFBMVEX/zQz/yhD/yRD/yA3/yAD4yBH/xw//xwb7xxP+xRj/xBn+xBv+xBr+xBn/xBj+xBj/xhX/xBf+xBf/xg3/xgz+xg39xB39xBv9xBr9xBj4xBj9wxn8wxr8wxn8wxj8whr7whrqvyHTti20qUJmh3QzdJsXa68XaK0SaLIRZ7MNZrYIY7oJYbMBYL8JUpwEQ40ERo27AAACN0lEQVR42u2XDW/bIBCGgXaquzSJ46Zd8ceKOSBgwP7//26H205rJ60hiSZV8imKuCh6DHf33hlyfSEjC2gBLaD/Crrf7x8e9ifY/XvQzeruRFvdvAettxXn1Tbf1n+Dnn4soK8M2qVS2J0N4mWv0fqSnwnqyn7w3smyOx9knDOXAQ3DJUGiE+INxnEtWn4SqLqllJWdSL8Jzii5YjvB80E96SXInl01vGloIQFA1mTTZoNAjeMYDhrY7paCdjHGQauaiTyQs9M0jeMhxKjqWgXvjDHWRy3Zcx7IzaBgjY1aTeMBIQkWP2bzKBDWd/DW+nEag9dKO29N1AXPPRr0ZQ0aSbjWULBS6ogkICIDZMMkyebnlvRIciM6dV2zb9obr4smAzQ/mG+5IBCtC+mUsw0OC+PPKH0eI1mkv3fVS8AwSLM55wbJ2nytNWV/GKxLaXszfyyI73o9WA9z6YlCBpdS+LojtEEeeTTeMhVNVCTpVBAVrPM6KQQ1Mn93G35cq50DbL1ihBGKxegcOuSaEIJiY4xtju3ZvKpTzqPGp+sRT4XRxvIGUFHXpWiPb/4tAz/gnlCnKNxpst7MTkS59BXPGEeCwoBFbMwhcQDM7MyqhQ/y/2SuCSo17sGHMGqgTKrk4AebSps3IAVjoJRWCgr6LEoqX5yaNbmTtm1YyhChDfafDh2anO8if2TzVrRNK167NC66387yNrKA/gF6ugRodbd+fFyff4W42KVmuUEuoAX0VUC/AHYG+ERa95YPAAAAAElFTkSuQmCC' },
   { ten: 'Lalamove', api: 0, anh: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAMAAABiM0N1AAAAkFBMVEX9rCHnmh7WjhzKhRv8cifKfBu4eRipcBb1bCXraCTeYyK9ZByibRaXZRTAVh63URyyTxylSRmKURSVQxeEOxVtRw9ePg14NRNbNA5qLxFKLQtYJw5QIw1IIgtDHgs2IwcvGwctFAceEAUXDAMWCgQQCQMIAwEEAgEDAgACAgADAQACAQECAQABAQABAAAAAADZNdywAAAB/0lEQVR42u2V2Y7jIBBF8b4o3u04eA8OsZMB6v//bspJpPT0rErnYR5AQsZIHOpWXYDAmxrRIA3SIA3SIA3SoH8FyfeAlPhCREKoB+W6ALBpVa+BthjkFRdv68+05uolkMK13WkbLcBpEZfLq9KUZHVRd0wBj227hOWWJYEhittI4ketl1uXqxIrCKzHqi5CiB+lSTi1tCzLvveDcL7L+pM4+ftkw0zbtg6CwM7gXAzblnXCoC0xdzDFFJjn8ZPnzTxynAZ2BxDRIXdc93hL8LP8qIrSvrQDewAWDJitIfBbSDPUKRM/gYYQtifGbLljTpi1k3tjNKqx4ffQnz4SuG9ap3ayITiaIK6zEmK6nKGNuxAq02pc02sIh7NxyF0wqyPJ8+Ye0EdDSozEt0MmgMb424dlkC3hEe0QF7F/inZbiyoTYCLT3mlMWRlV3qifQFfR2n42o6gs7NpjWLMinGzaTnXIOr+zKo80ZjWRarRcGA1jD545jvOjKE+QUiIOh83jUCZJ2mYcpmJI05gWLUDRRVPl8d0Ie8fJOcxe9A1y17UauHwCXaELT7DIX9VYqg+p/NuhFdekh+UxxKOHhw+7uDWcUkKiDy8SVilXCeqy4iQaUn4GCegLWN5wH6lzyaT8OghrfwT1phtSvumqVfo50iAN0iAN0iAN+m9B3wHXSpRqyofP9gAAAABJRU5ErkJggg==' }
 ];
+/* Ba loai nguoi giao dung chung mot o: shipper cua tiem, diem khach ra lay,
+   va app ngoai. Xep diem o GIUA vi don khach tu lay hay bi bo quen nhat -
+   de duoi cung thi phai cuon qua het app moi thay. */
 function vdOpsGiao(ds) {
   return [{ value: '', label: 'Gỡ ra, trả về Chờ giao', icon: '↩️' }]
     .concat((ds || []).map(function (x) { return { value: x.user, label: x.ten, icon: '🛵' }; }))
+    .concat((vtDiem || []).map(function (d) {
+      return { value: 'diem:' + d.ma, label: d.nhan, icon: '🏬', mo: d.dia_chi || '' };
+    }))
     .concat(VD_APPS.map(function (a) {
       return { value: 'app:' + a.ten, label: a.ten + (a.api ? '' : ' (đặt tay trên app)'), img: vdLogoApp(a) };
     }));
 }
 async function vdGanNguoiGiao(name, o) {
-  var ten = (o.value || '').indexOf('app:') === 0 ? o.value.slice(4) : '';
+  var v = o.value || '';
+  var ten = v.indexOf('app:') === 0 ? v.slice(4) : '';
   if (ten) {
     await api('vagabond.van_don.gan_shipper', { name: name, kenh: ten });
     var a = vdApp(ten);
     return { app: ten, goiXe: !!(a && a.api) };
   }
-  await api('vagabond.van_don.gan_shipper', { name: name, shipper: o.value || '' });
+  if (v.indexOf('diem:') === 0) {
+    var ma = v.slice(5);
+    await api('vagabond.van_don.gan_shipper', { name: name, diem: ma });
+    return { app: '', diem: ma };
+  }
+  await api('vagabond.van_don.gan_shipper', { name: name, shipper: v });
   return { app: '' };
 }
 function vdApp(ten) {
@@ -1345,7 +1379,10 @@ function vdLogoApp(a) {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 async function vdChonShipper(name) {
-  if (!vtShipper) { busy(true); try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e) { vtShipper = []; } busy(false); }
+  busy(true);
+  if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e) { vtShipper = []; } }
+  await vdNapDiem();
+  busy(false);
   var ops = vdOpsGiao(vtShipper);
   sheet('Phân công đơn này cho ai', ops, '', async function (o) {
     busy(true);
@@ -1358,7 +1395,9 @@ async function vdChonShipper(name) {
       go(scrVanDon, true);
         return;
       }
-      toast(o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người giao khỏi đơn');
+      toast(kq.diem
+        ? 'Đơn để khách ra ' + vdDiemNgan(kq.diem) + ' lấy. Quầy đó thấy đơn ở tab Khách tự lấy.'
+        : (o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người giao khỏi đơn'));
       go(scrVanDon, true);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Phân công lỗi'); }
   });
@@ -1418,8 +1457,28 @@ function vdThe(bg, txt) {
 /* Mau va icon cua tung trang thai van don, dung chung cho icon dau dong va
    chip mau. Loan Anh 08/08/2026: dau tick xanh nho o dau dong kho nhin, doi
    sang chip co chu. */
-var VD_TT_ICON = { 'Chờ giao': '📦', 'Đang giao': '🛵', 'Đã giao': '✅', 'Không giao được': '⚠️', 'Huỷ': '⛔' };
-var VD_TT_MAU = { 'Chờ giao': '#64748b', 'Đang giao': '#0369a1', 'Đã giao': '#12a150', 'Không giao được': '#b91c1c', 'Huỷ': '#7f1d1d' };
+var VD_TT_PICKUP = 'Chờ khách lấy';
+var VD_TT_ICON = { 'Chờ giao': '📦', 'Chờ khách lấy': '🏬', 'Đang giao': '🛵', 'Đã giao': '✅', 'Không giao được': '⚠️', 'Huỷ': '⛔' };
+var VD_TT_MAU = { 'Chờ giao': '#64748b', 'Chờ khách lấy': '#7c3aed', 'Đang giao': '#0369a1', 'Đã giao': '#12a150', 'Không giao được': '#b91c1c', 'Huỷ': '#7f1d1d' };
+/* Ba diem pickup nap tu may chu mot lan roi giu lai, giong vtShipper. */
+var vtDiem = null;
+function vdDiemNgan(ma) {
+  var x = (vtDiem || []).filter(function (d) { return d.ma === ma; })[0];
+  return x ? x.ngan : (ma || '');
+}
+function vdDiemDiaChi(ma) {
+  var x = (vtDiem || []).filter(function (d) { return d.ma === ma; })[0];
+  return x ? (x.dia_chi || '') : '';
+}
+function vdNhanDiem(ma) {
+  var n = vdDiemNgan(ma);
+  return n ? 'Pickup tại ' + n : '';
+}
+async function vdNapDiem() {
+  if (vtDiem) return vtDiem;
+  try { vtDiem = await api('vagabond.van_don.ds_diem_pickup'); } catch (e) { vtDiem = []; }
+  return vtDiem;
+}
 function vdHuyHieu(r) {
   var t = [];
   var tt = r.trang_thai || '';
@@ -1427,6 +1486,7 @@ function vdHuyHieu(r) {
   /* Hai cho hay sot nhat: don chua ai nhan giao, va tien COD da thu ma chua
      doi soat. */
   if (tt === 'Chờ giao' && !r.shipper) t.push(vdThe('#c2410c', '🛵 Chưa phân công'));
+  if (r.diem_pickup) t.push(vdThe('#7c3aed', '🏬 ' + h(vdDiemNgan(r.diem_pickup))));
   if (tt === 'Đã giao' && r.tien_thu_ho && !r.da_doi_soat) t.push(vdThe('#a16207', '💵 COD chưa đối soát'));
   if (r.thu_tu) t.push(vdThe('#0f766e', '#' + r.thu_tu + (r.gio_du_kien ? ' ~' + h(r.gio_du_kien) : '')));
   if (r.goi_truoc) t.push(vdThe('#b45309', '📞 Gọi trước'));
@@ -1469,6 +1529,8 @@ function vdNhomTab() {
   return [
     { k: 'cho_gan', nhan: '🙋 Cần phân công', mau: '#c2410c',
       loc: function (r) { return r.trang_thai === 'Chờ giao' && !r.shipper; } },
+    { k: 'pickup', nhan: '🏬 Khách tự lấy', mau: '#7c3aed',
+      loc: function (r) { return r.trang_thai === 'Chờ khách lấy' || (!!r.diem_pickup && r.trang_thai !== 'Đã giao' && r.trang_thai !== 'Huỷ'); } },
     { k: 'dang_giao', nhan: '🛵 Đang giao', mau: '#0369a1',
       loc: function (r) { return r.trang_thai === 'Đang giao' || (r.trang_thai === 'Chờ giao' && !!r.shipper); } },
     { k: 'da_giao', nhan: '✅ Đã giao', mau: '#12a150',
@@ -1492,7 +1554,7 @@ function vdTabTim(k) {
    nào cũng mở đúng vào hàng chờ, không phải bấm thêm một nhịp. Shipper thì
    không bao giờ thấy đơn chưa phân công nên bỏ qua tab đó. */
 function vdTabMacDinh(ds) {
-  var uu = (vdLaShipper() && !isSales()) ? ['dang_giao', 'da_giao'] : ['cho_gan', 'dang_giao', 'da_giao'];
+  var uu = (vdLaShipper() && !isSales()) ? ['dang_giao', 'da_giao'] : ['cho_gan', 'pickup', 'dang_giao', 'da_giao'];
   for (var i = 0; i < uu.length; i++) {
     if (ds.filter(vdTabTim(uu[i]).loc).length) return uu[i];
   }
@@ -1592,6 +1654,17 @@ function vdNhomKenh(ds) {
   ship.sort(function (a, b) { return vdTen(a).localeCompare(vdTen(b), 'vi'); });
   kenh.forEach(function (a) {
     out.push({ k: 'kenh:' + a, nhan: h(a), loc: function (r) { return (r.kenh || '') === a; } });
+  });
+  /* Chip theo diem pickup: nguoi truc quay 9TCV chi can loc mot cai la ra
+     dung phan cua quay minh, khong phai doc het danh sach ca ba diem. */
+  var diem = [];
+  ds.forEach(function (r) {
+    var p = (r.diem_pickup || '').trim();
+    if (p && diem.indexOf(p) < 0) diem.push(p);
+  });
+  diem.sort(function (a, b) { return vdDiemNgan(a).localeCompare(vdDiemNgan(b), 'vi'); });
+  diem.forEach(function (p) {
+    out.push({ k: 'pk:' + p, nhan: '🏬 ' + h(vdDiemNgan(p)), loc: function (r) { return (r.diem_pickup || '') === p; } });
   });
   ship.forEach(function (b) {
     out.push({ k: 'ship:' + b, nhan: '🛵 ' + h(vdTen(b)), loc: function (r) { return (r.shipper || '') === b; } });

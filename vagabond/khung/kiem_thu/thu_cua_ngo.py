@@ -446,14 +446,14 @@ CUA_NGO = {
 	# trong cac ham nay se lam ham cu mat quyen goi, Python khong bao,
 	# kiem thu khong bao, cong tra ve 0, chi lo khi co nguoi bam nut.
 	#
-	# van_don.py la mo dun to nhat trong ba: 31 cua, gom ca duong shipper
+	# van_don.py la mo dun to nhat trong ba: 32 cua, gom ca duong shipper
 	# bam va duong webhook cua Aha goi vao.
 	"van_don.py": [
 		"aha_bao_gia", "aha_dich_vu", "aha_webhook",
 		"bo_loc", "book_xe", "canh_bao_thanh_toan",
 		"chi_phi_danh_sach", "chi_phi_xuat_excel",
 		"chuyen_cua_toi", "chuyen_dang_chay",
-		"danh_sach", "doi_soat_cod", "dong_bo_pancake", "ds_shipper",
+		"danh_sach", "doi_soat_cod", "dong_bo_pancake", "ds_diem_pickup", "ds_shipper",
 		"duyet_chi_phi", "gan_anh", "gan_shipper", "giao_loi", "giao_xong",
 		# go_anh them 24/08/2026 (v294): nut X tren anh giao va chu ky.
 		# Chu ky chan chat hon anh giao, xem TT_GO_DUOC_ANH trong van_don.
