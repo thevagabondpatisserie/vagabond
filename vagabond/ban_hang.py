@@ -1350,7 +1350,7 @@ def _thong_tin_xhd(o, did):
 		return {
 			"vgb_xhd_ten": hd.ten_cong_ty or "",
 			"vgb_xhd_mst": _chuan_mst(hd.ma_so_thue),
-			"vgb_xhd_dia_chi": hd.dia_chi or "",
+			"vgb_xhd_dia_chi": hoa_don_vat.sach_dia_chi_xhd(hd.dia_chi),
 			"vgb_xhd_email": hd.email or mail,
 		}
 
@@ -1389,7 +1389,7 @@ def _thong_tin_xhd(o, did):
 			return {
 				"vgb_xhd_ten": tt.get("ten"),
 				"vgb_xhd_mst": mst,
-				"vgb_xhd_dia_chi": tt.get("dia_chi") or "",
+				"vgb_xhd_dia_chi": hoa_don_vat.sach_dia_chi_xhd(tt.get("dia_chi")),
 				"vgb_xhd_email": mail,
 			}
 
@@ -2543,6 +2543,36 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 	return {"ok": 1, "name": si.name, "da_xuat_hddt": 1 if da_xuat else 0}
 
 
+def _chan_dia_chi_khong_chu(ten, so_mst, dia_chi):
+	"""Chan to hoa don co DIA CHI ma khong co chu cua no.
+
+	Ca that ngay 03/09/2026: to HDB-26-09-00514 mang ten nguoi mua "Ban cho
+	nguoi tieu dung", ma so thue rong, nhung o dia chi lai la dia chi cua Tap
+	doan Thien Long, giong het to HDB-26-09-00643 lam truoc do mot ngay. Tuc
+	la co nguoi dien dia chi cong ty roi quen dien ten va ma so thue, va may
+	khong noi gi ca.
+
+	To nhu vay vua sai ve hinh thuc vua bay thong tin cua mot khach khac.
+
+	Chi chan dung to hop chac chan sai: CO dia chi, KHONG co ma so thue, va
+	ten van la cau mac dinh. Khach ca nhan co ten that ma khong co ma so thue
+	thi van dien dia chi binh thuong.
+	"""
+	if not (dia_chi or "").strip():
+		return
+	if (so_mst or "").strip():
+		return
+	if (ten or "").strip() and (ten or "").strip() != XHD_MAC_DINH:
+		return
+	frappe.throw(
+		"Đã điền địa chỉ trên hoá đơn thì phải có tên người mua và mã số thuế. "
+		"Tờ hoá đơn mang địa chỉ của một pháp nhân mà lại đứng tên %r là sai, "
+		"và còn để lộ thông tin của khách khác. Vui lòng điền đủ tên và mã số "
+		"thuế, hoặc xoá trống ô địa chỉ." % XHD_MAC_DINH,
+		title="Thiếu tên và mã số thuế",
+	)
+
+
 @frappe.whitelist()
 def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	"""Sales sua thong tin nguoi mua tren hoa don VAT.
@@ -2573,10 +2603,12 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 		frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
 	if so_mst and hoa_don_vat.thieu_ten_rieng(ten):
 		frappe.throw(hoa_don_vat.LOI_TEN_CUT)
+	dia_chi = hoa_don_vat.sach_dia_chi_xhd(dia_chi)
+	_chan_dia_chi_khong_chu(ten or XHD_MAC_DINH, so_mst, dia_chi)
 	gt = {
 		"vgb_xhd_ten": ten or XHD_MAC_DINH,
 		"vgb_xhd_mst": so_mst,
-		"vgb_xhd_dia_chi": (dia_chi or "").strip(),
+		"vgb_xhd_dia_chi": dia_chi,
 		"vgb_xhd_email": (email or "").strip(),
 	}
 	frappe.db.set_value("Sales Invoice", si_name, gt)
@@ -4086,7 +4118,7 @@ def tao_don_tay(
 			frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 		si.vgb_xhd_ten = (xhd_ten or "").strip()
 		si.vgb_xhd_mst = so_mst
-		si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
+		si.vgb_xhd_dia_chi = hoa_don_vat.sach_dia_chi_xhd(xhd_dia_chi)
 		si.vgb_xhd_email = (xhd_email or "").strip()
 	# Luu vet cac chuong trinh da ap ngay tren hoa don de bill in ra co dong
 	# "Khuyen mai" va ke toan mo hoa don len la thay ngay, khoi phai doi
@@ -5725,7 +5757,7 @@ def pos_sua_don(
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
 		if xhd_dia_chi is not None:
-			si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
+			si.vgb_xhd_dia_chi = hoa_don_vat.sach_dia_chi_xhd(xhd_dia_chi)
 		if xhd_email is not None:
 			si.vgb_xhd_email = (xhd_email or "").strip()
 		doi.append("thông tin xuất hoá đơn")
@@ -6082,12 +6114,14 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	email = (email or "").strip()
 	if not email or "@" not in email or "." not in email.split("@")[-1]:
 		frappe.throw("Vui lòng nhập email để nhận hoá đơn điện tử.")
+	dia_chi = hoa_don_vat.sach_dia_chi_xhd(dia_chi)
+	_chan_dia_chi_khong_chu(ten, so_mst, dia_chi)
 	frappe.db.set_value(
 		"Sales Invoice", name,
 		{
 			"vgb_xhd_ten": ten,
 			"vgb_xhd_mst": so_mst,
-			"vgb_xhd_dia_chi": (dia_chi or "").strip(),
+			"vgb_xhd_dia_chi": dia_chi,
 			"vgb_xhd_email": (email or "").strip(),
 		},
 	)

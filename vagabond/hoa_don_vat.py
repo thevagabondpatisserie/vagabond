@@ -160,6 +160,60 @@ def thieu_ten_rieng(ten):
 
 # ------------------------------------------------------- dien giai thay the
 
+# ------------------------------------------------------------- o dia chi
+
+# Ky tu gach dau dong hay dinh theo khi dan mot dong tu khoi thong tin khach
+# gui qua Pancake hay Zalo. Viet bang ma escape chu khong go thang, de tep
+# nay khong chua dau gach dai (quy uoc trinh bay cua tiem).
+KY_TU_DAU_DONG = "-+*>\u2022\u00b7\u2013\u2014\u25cf\u25aa"
+
+# Nhan dung truoc dau hai cham. Da got: bo dau, hoa het, gom khoang trang.
+NHAN_DIA_CHI = ("DIA CHI", "DC", "D C", "ADDRESS", "ADD", "DIACHI")
+
+# Nhan chi duoc coi la nhan khi nam gan dau chuoi. Dia chi that co the co
+# dau hai cham o giua ("Lo A: 12 Nguyen Van Cu"), va boc cai do la an mat
+# mot phan dia chi.
+XA_NHAT_CUA_NHAN = 24
+
+
+def _boc_mot_lop_dia_chi(t):
+	"""Boc MOT lop gach dau dong hoac MOT nhan o dau chuoi. THUAN."""
+	t = t.lstrip(KY_TU_DAU_DONG + " \t")
+	i = t.find(":")
+	if 0 < i <= XA_NHAT_CUA_NHAN and _got(t[:i]) in NHAN_DIA_CHI:
+		t = t[i + 1:]
+	return t.strip()
+
+
+def sach_dia_chi_xhd(chuoi):
+	"""Boc tien to gach dau dong va nhan "Dia chi:" dinh o DAU o dia chi. THUAN.
+
+	Vi sao can. Ngay 05/09/2026 ra soat thay nam to hoa don DA PHAT HANH mang
+	o dia chi nguoi mua bat dau bang chinh cai nhan, vi du:
+
+	    "- Dia chi: Tang Tret Phoenix 1A, 547-549 duong Ta Quang Buu, ..."
+	    "+ Dia chi :Tang 10, Sofic Tower, So 10 Duong Mai Chi Tho, ..."
+
+	Khach nhan mot khoi thong tin xuat hoa don qua Pancake, sales chep nguyen
+	mot dong dan vao o, va o do truoc nay chi `.strip()` khoang trang nen chu
+	"Dia chi" di thang len to hoa don dien tu.
+
+	Chi boc o DAU chuoi va chi boc nhan khop TUYET DOI. Dia chi that bat dau
+	bang so nha, bang "Tang", bang "Lo" thi khong bi dung toi.
+
+	Boc toi da hai lop, du cho truong hop vua co gach dau dong vua co nhan.
+	Khong boc vong vo han: chuoi la chi toan dau gach thi phai tra ve rong
+	chu khong duoc chay mai.
+	"""
+	t = str(chuoi or "").strip()
+	for _ in range(2):
+		moi = _boc_mot_lop_dia_chi(t)
+		if moi == t:
+			break
+		t = moi
+	return t
+
+
 def mau_va_ky_hieu(ky_hieu):
 	"""Tach "mau so" va "ky hieu" tu chuoi in tren to hoa don.
 
