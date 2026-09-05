@@ -21007,7 +21007,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '429';
+var APPVER = '432';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -33672,6 +33672,15 @@ async function scrNguoiDung() {
       '<div class="hub-t"><div class="t1">' + h(r.ten) + '</div>' +
       '<div class="t2">' + h(r.email) + (r.sdt ? ' · ' + h(r.sdt) : '') + '</div>' +
       '<div class="t2">' + h(r.goi_ten) +
+      /* Tai khoan web (shipper) truoc day khong hien o man nay ma van chan
+         duong tao moi, nen anh Viet thay "chua co tai khoan" roi tao thi bao
+         "da co roi". Nay hien ra, va noi ro la loai gi de khong ai tuong minh
+         nhin nham. */
+      (r.la_tk_web ? ' <span style="color:#0369a1">· tài khoản web</span>' : '') +
+      /* Nguoi lot vao chi vi go dung nguyen email: khong thuoc pham vi
+         man nay, hien ra de con duong xep goi cho ho, nhung phai noi ro
+         keo tuong ho la nhan su cua tiem. */
+      (r.ngoai_pham_vi ? ' <span style="color:#b45309">· ngoài danh sách, tìm đúng email mới ra</span>' : '') +
       (r.vai_thua && r.vai_thua.length ? ' <span style="color:#b45309">+' + r.vai_thua.length + ' quyền riêng</span>' : '') +
       (r.lan_cuoi ? ' · vào app ' + hsNgayVn(String(r.lan_cuoi).slice(0, 10)) : ' · <span style="color:#b45309">chưa đăng nhập lần nào</span>') +
       '</div></div>' +

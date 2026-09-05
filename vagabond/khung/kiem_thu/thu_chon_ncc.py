@@ -13,6 +13,7 @@ thành hoá đơn trùng trên sổ.
 """
 
 import io
+import re
 import os
 
 from vagabond import chon_ncc as cn
@@ -368,7 +369,13 @@ def _rebase_giu_ca_hai_ben():
 	dung("bộ ca của mình cũng còn được nạp", "thu_chon_ncc" in chay)
 	# Số phiên bản chỉ được TĂNG.
 	js = _js("12-van-don.js")
-	dung("APPVER là 429, không lùi về 428", "var APPVER = '429';" in js)
+	# Bản đầu chốt cứng "APPVER là 429". Ý định phiên đó tự ghi ngay dòng
+	# trên là "số phiên bản chỉ được TĂNG", mà chốt cứng thì cứ ai nâng số
+	# là ca này đỏ, tức là nó phạt đúng cái việc mà nó muốn bảo vệ. Giữ
+	# nguyên ý định, đọc số ra rồi so lớn hơn hoặc bằng (phiên v432, 05/09).
+	so = re.search(r"var APPVER = '(\d+)';", js)
+	dung("đọc được APPVER trong tệp", bool(so))
+	dung("APPVER không lùi xuống dưới 429", int(so.group(1)) >= 429 if so else False)
 	assert goc
 
 
