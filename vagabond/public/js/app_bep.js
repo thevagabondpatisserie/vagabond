@@ -20548,6 +20548,9 @@ async function scrVdView(name) {
       '<div style="font-size:15px;font-weight:700;margin-top:2px">' + h(vdNhanDiem(d.diem_pickup)) + '</div>' +
       (vdDiemDiaChi(d.diem_pickup) ? '<div style="color:#4b5563;font-size:13px">' + h(vdDiemDiaChi(d.diem_pickup)) + '</div>' : '') +
       (d.nguoi_trao ? '<div style="color:#15803d;font-size:13px;margin-top:3px">Đã trao tay bởi ' + h(vdTen(d.nguoi_trao)) + '</div>' : '') +
+      ((d.shipper || d.booking_id) && d.trang_thai !== 'Đã giao'
+        ? '<div style="color:#0369a1;font-size:13px;margin-top:3px">🚕 Đang được chở tới quầy này'
+          + (d.shipper ? ' bởi ' + h(vdTen(d.shipper)) : '') + ', khách chưa nhận</div>' : '') +
       '</div>' : '') +
     /* Nút X ở góc ảnh giao và chữ ký (anh Việt 24/08/2026). Shipper chụp
        nhầm đơn khác thì trước đây tấm ảnh nằm lại vĩnh viễn, mà sales vẫn
@@ -20585,11 +20588,20 @@ async function scrVdView(name) {
   var laPickup = !!d.diem_pickup;
   var dangGiao = d.trang_thai === 'Chờ giao' || d.trang_thai === 'Đang giao' || d.trang_thai === VD_TT_PICKUP;
   if (dangGiao) {
+    /* Ba chu khac nhau cho ba nguoi khac nhau dung mot nut. Ban shipper cho
+       hop banh ra quay thi day KHONG phai luc khach nhan hang, nen chu phai
+       noi dung viec cua ban ay, khong thi ban ay bam va don dong som. */
+    var choToiQuay = laPickup && vdLaShipper() && !isSales() && !vdLaKeToan();
     html += '<button class="btn" data-va="giao" style="margin-top:4px">'
-      + (laPickup ? '📷 Khách đã lấy, chụp ảnh' : '📷 Đã giao, chụp ảnh') + '</button>';
+      + (choToiQuay ? '📦 Đã bỏ hàng xuống ' + h(vdDiemNgan(d.diem_pickup))
+        : laPickup ? '📷 Khách đã lấy, chụp ảnh' : '📷 Đã giao, chụp ảnh') + '</button>';
     var hang = [];
-    if (vdLaShipper() && !d.shipper && !laPickup) hang.push('<button class="btn gh" data-va="nhan" style="flex:1">🙋 Nhận đơn</button>');
-    if (isSales() && !d.booking_id && !laPickup) hang.push('<button class="btn gh" data-va="book" style="flex:1">🚕 Book xe app</button>');
+    if (vdLaShipper() && !d.shipper) hang.push('<button class="btn gh" data-va="nhan" style="flex:1">🙋 Nhận đơn</button>');
+    /* Don pickup VAN book xe duoc, va do la truong hop thuong gap nhat:
+       banh lam o 307 roi cho ra quay cho khach den lay. Xe cho toi DIEM,
+       khong toi nha khach, va khong thu ho dong nao. */
+    if (isSales() && !d.booking_id) hang.push('<button class="btn gh" data-va="book" style="flex:1">'
+      + (laPickup ? '🚕 Book xe chở ra ' + h(vdDiemNgan(d.diem_pickup)) : '🚕 Book xe app') + '</button>');
     hang.push('<button class="btn gh" data-va="loi" style="flex:1;color:#b3261e">'
       + (laPickup ? '⚠️ Khách không ra lấy' : '⚠️ Không giao được') + '</button>');
     html += '<div style="display:flex;gap:8px;padding:8px 0 0">' + hang.join('') + '</div>';
@@ -20627,7 +20639,7 @@ async function scrVdView(name) {
       if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e7) { vtShipper = []; } }
       await vdNapDiem();
       busy(false);
-      var opsP = vdOpsGiao(vtShipper);
+      var opsP = vdOpsGiao(vtShipper, d);
       sheet('Phân công đơn này cho ai', opsP, d.shipper || '', async function (o) {
         busy(true);
         try {
@@ -20639,9 +20651,10 @@ async function scrVdView(name) {
           go(function () { scrVdView(name); }, true);
             return;
           }
-          toast(kq.diem
+          toast(kq.boDiem ? 'Đã bỏ điểm. Đơn quay lại giao tận nơi cho khách.'
+            : kq.diem
             ? 'Đơn để khách ra ' + vdDiemNgan(kq.diem) + ' lấy. Quầy đó thấy đơn ở tab Khách tự lấy.'
-            : (o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người giao khỏi đơn'));
+            : (o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người chở khỏi đơn'));
           go(function () { scrVdView(name); }, true);
         } catch (e8) { busy(false); baoTin((e8 && e8.message) || 'Phân công lỗi'); }
       });
@@ -20668,7 +20681,9 @@ async function scrVdView(name) {
           var fu = await vdUpload(blob, 'Van Don', name, 'anh_giao');
           var kq = await api('vagabond.van_don.giao_xong', { name: name, file_url: fu });
           busy(false);
-          toast(kq.da_bao_pancake ? 'Đã giao + báo Pancake ✅' : 'Đã giao (Pancake chưa nhận được, sales kiểm lại)', 3500);
+          toast(kq.toi_quay
+            ? 'Đã ghi nhận bỏ hàng xuống ' + vdDiemNgan(kq.diem_pickup) + '. Đơn về lại hàng chờ khách lấy, chưa báo Pancake.'
+            : kq.da_bao_pancake ? 'Đã giao + báo Pancake ✅' : 'Đã giao (Pancake chưa nhận được, sales kiểm lại)', 4000);
         } catch (er) { busy(false); baoTin((er && er.message) || 'Lỗi khi lưu ảnh giao'); }
         go(function () { scrVdView(name); }, true);
       });
@@ -20984,7 +20999,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '424';
+var APPVER = '425';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -21447,14 +21462,19 @@ var VD_APPS = [
   { ten: 'BE', api: 0, anh: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAMAAABiM0N1AAAAkFBMVEX/zQz/yhD/yRD/yA3/yAD4yBH/xw//xwb7xxP+xRj/xBn+xBv+xBr+xBn/xBj+xBj/xhX/xBf+xBf/xg3/xgz+xg39xB39xBv9xBr9xBj4xBj9wxn8wxr8wxn8wxj8whr7whrqvyHTti20qUJmh3QzdJsXa68XaK0SaLIRZ7MNZrYIY7oJYbMBYL8JUpwEQ40ERo27AAACN0lEQVR42u2XDW/bIBCGgXaquzSJ46Zd8ceKOSBgwP7//26H205rJ60hiSZV8imKuCh6DHf33hlyfSEjC2gBLaD/Crrf7x8e9ifY/XvQzeruRFvdvAettxXn1Tbf1n+Dnn4soK8M2qVS2J0N4mWv0fqSnwnqyn7w3smyOx9knDOXAQ3DJUGiE+INxnEtWn4SqLqllJWdSL8Jzii5YjvB80E96SXInl01vGloIQFA1mTTZoNAjeMYDhrY7paCdjHGQauaiTyQs9M0jeMhxKjqWgXvjDHWRy3Zcx7IzaBgjY1aTeMBIQkWP2bzKBDWd/DW+nEag9dKO29N1AXPPRr0ZQ0aSbjWULBS6ogkICIDZMMkyebnlvRIciM6dV2zb9obr4smAzQ/mG+5IBCtC+mUsw0OC+PPKH0eI1mkv3fVS8AwSLM55wbJ2nytNWV/GKxLaXszfyyI73o9WA9z6YlCBpdS+LojtEEeeTTeMhVNVCTpVBAVrPM6KQQ1Mn93G35cq50DbL1ihBGKxegcOuSaEIJiY4xtju3ZvKpTzqPGp+sRT4XRxvIGUFHXpWiPb/4tAz/gnlCnKNxpst7MTkS59BXPGEeCwoBFbMwhcQDM7MyqhQ/y/2SuCSo17sGHMGqgTKrk4AebSps3IAVjoJRWCgr6LEoqX5yaNbmTtm1YyhChDfafDh2anO8if2TzVrRNK167NC66387yNrKA/gF6ugRodbd+fFyff4W42KVmuUEuoAX0VUC/AHYG+ERa95YPAAAAAElFTkSuQmCC' },
   { ten: 'Lalamove', api: 0, anh: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAMAAABiM0N1AAAAkFBMVEX9rCHnmh7WjhzKhRv8cifKfBu4eRipcBb1bCXraCTeYyK9ZByibRaXZRTAVh63URyyTxylSRmKURSVQxeEOxVtRw9ePg14NRNbNA5qLxFKLQtYJw5QIw1IIgtDHgs2IwcvGwctFAceEAUXDAMWCgQQCQMIAwEEAgEDAgACAgADAQACAQECAQABAQABAAAAAADZNdywAAAB/0lEQVR42u2V2Y7jIBBF8b4o3u04eA8OsZMB6v//bspJpPT0rErnYR5AQsZIHOpWXYDAmxrRIA3SIA3SIA3SoH8FyfeAlPhCREKoB+W6ALBpVa+BthjkFRdv68+05uolkMK13WkbLcBpEZfLq9KUZHVRd0wBj227hOWWJYEhittI4ketl1uXqxIrCKzHqi5CiB+lSTi1tCzLvveDcL7L+pM4+ftkw0zbtg6CwM7gXAzblnXCoC0xdzDFFJjn8ZPnzTxynAZ2BxDRIXdc93hL8LP8qIrSvrQDewAWDJitIfBbSDPUKRM/gYYQtifGbLljTpi1k3tjNKqx4ffQnz4SuG9ap3ayITiaIK6zEmK6nKGNuxAq02pc02sIh7NxyF0wqyPJ8+Ye0EdDSozEt0MmgMb424dlkC3hEe0QF7F/inZbiyoTYCLT3mlMWRlV3qifQFfR2n42o6gs7NpjWLMinGzaTnXIOr+zKo80ZjWRarRcGA1jD545jvOjKE+QUiIOh83jUCZJ2mYcpmJI05gWLUDRRVPl8d0Ie8fJOcxe9A1y17UauHwCXaELT7DIX9VYqg+p/NuhFdekh+UxxKOHhw+7uDWcUkKiDy8SVilXCeqy4iQaUn4GCegLWN5wH6lzyaT8OghrfwT1phtSvumqVfo50iAN0iAN0iAN+m9B3wHXSpRqyofP9gAAAABJRU5ErkJggg==' }
 ];
-/* Ba loai nguoi giao dung chung mot o: shipper cua tiem, diem khach ra lay,
-   va app ngoai. Xep diem o GIUA vi don khach tu lay hay bi bo quen nhat -
-   de duoi cung thi phai cuon qua het app moi thay. */
-function vdOpsGiao(ds) {
-  return [{ value: '', label: 'Gỡ ra, trả về Chờ giao', icon: '↩️' }]
+/* Mot o, hai viec khac nhau: AI CHO hop banh, va KHACH LAY O DAU.
+   Chon diem KHONG go ten shipper ra, vi don hay gap nhat la banh lam o 307
+   roi book xe cho ra 9TCV cho khach den lay (anh Viet 05/09/2026). Muon bo
+   diem thi co dong rieng, chi hien khi don dang co diem. */
+function vdOpsGiao(ds, d) {
+  var out = [{ value: '', label: 'Gỡ người chở, giữ nguyên nơi khách lấy', icon: '↩️' }];
+  if (d && d.diem_pickup) {
+    out.push({ value: 'bodiem', label: 'Bỏ điểm, quay lại giao tận nơi cho khách', icon: '🏠' });
+  }
+  return out
     .concat((ds || []).map(function (x) { return { value: x.user, label: x.ten, icon: '🛵' }; }))
-    .concat((vtDiem || []).map(function (d) {
-      return { value: 'diem:' + d.ma, label: d.nhan, icon: '🏬', mo: d.dia_chi || '' };
+    .concat((vtDiem || []).map(function (x) {
+      return { value: 'diem:' + x.ma, label: x.nhan, icon: '🏬', mo: x.dia_chi || '' };
     }))
     .concat(VD_APPS.map(function (a) {
       return { value: 'app:' + a.ten, label: a.ten + (a.api ? '' : ' (đặt tay trên app)'), img: vdLogoApp(a) };
@@ -21472,6 +21492,10 @@ async function vdGanNguoiGiao(name, o) {
     var ma = v.slice(5);
     await api('vagabond.van_don.gan_shipper', { name: name, diem: ma });
     return { app: '', diem: ma };
+  }
+  if (v === 'bodiem') {
+    await api('vagabond.van_don.gan_shipper', { name: name, bo_diem: 1 });
+    return { app: '', boDiem: 1 };
   }
   await api('vagabond.van_don.gan_shipper', { name: name, shipper: v });
   return { app: '' };
@@ -21497,7 +21521,11 @@ async function vdChonShipper(name) {
   if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e) { vtShipper = []; } }
   await vdNapDiem();
   busy(false);
-  var ops = vdOpsGiao(vtShipper);
+  /* Lay dong tuong ung tu danh sach dang mo, de biet don nay da gan diem
+     chua ma hien dong "Bo diem". Khong doc lai may chu vi danh sach vua
+     tai xong dang nam san trong tay. */
+  var r0 = (vdDs || []).filter(function (x) { return x.name === name; })[0] || {};
+  var ops = vdOpsGiao(vtShipper, r0);
   sheet('Phân công đơn này cho ai', ops, '', async function (o) {
     busy(true);
     try {
@@ -21509,9 +21537,10 @@ async function vdChonShipper(name) {
       go(scrVanDon, true);
         return;
       }
-      toast(kq.diem
+      toast(kq.boDiem ? 'Đã bỏ điểm. Đơn quay lại giao tận nơi cho khách.'
+        : kq.diem
         ? 'Đơn để khách ra ' + vdDiemNgan(kq.diem) + ' lấy. Quầy đó thấy đơn ở tab Khách tự lấy.'
-        : (o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người giao khỏi đơn'));
+        : (o.value ? 'Đã phân công cho ' + o.label : 'Đã gỡ người chở khỏi đơn'));
       go(scrVanDon, true);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Phân công lỗi'); }
   });
