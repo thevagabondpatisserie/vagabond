@@ -241,3 +241,138 @@ def _khong_sua_qua_khu():
 	s2 = _py("hoa_don_vat.py")
 	for xau in ("frappe", "set_value", "sql"):
 		la("phép làm sạch không có %s" % xau, xau in s2, False)
+
+
+def _payload_bill_quay(doc):
+	"""Chép lại đúng phép dựng gói của `10-bill-quay.js` (dòng 1197-1201).
+
+	Màn Bill quay bỏ trống cả ba ô khi tên đang là câu mặc định và không có
+	mã số thuế. Dựng lại ở đây để bộ ca chạy được cái mà người dùng thật sự
+	bấm, chứ không phải cái mình tưởng máy gửi lên.
+	"""
+	ten_th = doc.get("vgb_xhd_ten") or ""
+	if ten_th == TEN_MAC_DINH:
+		ten_th = ""
+	if not ten_th and not (doc.get("vgb_xhd_mst") or ""):
+		return {
+			"vgb_xhd_ten": "",
+			"vgb_xhd_mst": "",
+			"vgb_xhd_dia_chi": "",
+			"vgb_xhd_email": doc.get("vgb_xhd_email") or "",
+		}
+	return {
+		"vgb_xhd_ten": ten_th,
+		"vgb_xhd_mst": doc.get("vgb_xhd_mst") or "",
+		"vgb_xhd_dia_chi": doc.get("vgb_xhd_dia_chi") or "",
+		"vgb_xhd_email": doc.get("vgb_xhd_email") or "",
+	}
+
+
+# Một trong năm tờ dính lỗi #193: tên vẫn là câu mặc định, không mã số thuế,
+# mà ô địa chỉ lại mang trụ sở Thiên Long. Tờ này ĐÃ phát hành hoá đơn điện tử.
+TO_DA_PHAT_HANH = {
+	"custom_hddt_so": "00012345",
+	"vgb_xhd_ten": TEN_MAC_DINH,
+	"vgb_xhd_mst": "",
+	"vgb_xhd_dia_chi": "Lô 6-8-10-12 Đường số 3, Khu công nghiệp Tân Tạo, "
+		"Phường Tân Tạo A, Thành phố Hồ Chí Minh, Việt Nam",
+	"vgb_xhd_email": "",
+}
+
+
+@ca("#194 tờ đã phát hành: mở rồi lưu qua POS thì bốn ô XHD giữ nguyên")
+def _to_da_phat_hanh_khong_bi_doi():
+	# Đây là ca hồi quy Codex yêu cầu trên PR #194 ngày 05/09/2026.
+	goi = _payload_bill_quay(TO_DA_PHAT_HANH)
+	dung("màn Bill quay đúng là gửi lên ô địa chỉ RỖNG",
+		goi["vgb_xhd_dia_chi"] == "")
+	de_trang, ghi_de = hdv.doi_o_xhd(TO_DA_PHAT_HANH, goi, TEN_MAC_DINH)
+	dung("máy chủ thấy đây là lần XOÁ TRẮNG địa chỉ",
+		de_trang == ["vgb_xhd_dia_chi"])
+	dung("không có ô nào bị ghi đè bằng nội dung mới", ghi_de == [])
+	# `ghi_de` rỗng nghĩa là `_chan_doi_xhd_da_phat_hanh` không ném lỗi, nên
+	# việc sửa ghi chú hay số bàn của tờ cũ vẫn làm được; và vì tờ đã có
+	# `custom_hddt_so` nên hàm trả về False, bốn ô không ai ghi xuống.
+
+
+@ca("#194 tờ đã phát hành: người thật sự gõ tên mới thì phải BÁO RA MÀN")
+def _to_da_phat_hanh_go_ten_moi():
+	goi = dict(_payload_bill_quay(TO_DA_PHAT_HANH))
+	goi["vgb_xhd_ten"] = "CÔNG TY TNHH MTV ABC"
+	goi["vgb_xhd_mst"] = "0301464830"
+	de_trang, ghi_de = hdv.doi_o_xhd(TO_DA_PHAT_HANH, goi, TEN_MAC_DINH)
+	dung("tên và mã số thuế bị tính là ghi đè",
+		sorted(ghi_de) == ["vgb_xhd_mst", "vgb_xhd_ten"])
+	dung("địa chỉ vẫn chỉ là xoá trắng", de_trang == ["vgb_xhd_dia_chi"])
+	# Có phần tử trong `ghi_de` thì hàm chặn ném lỗi, người gõ biết ngay là
+	# tờ này phải xử lý bằng hoá đơn điều chỉnh hoặc thay thế.
+
+
+@ca("#194 tờ CHƯA phát hành thì không bị hàng rào này chạm vào")
+def _to_chua_phat_hanh_van_sua_duoc():
+	doc = dict(TO_DA_PHAT_HANH)
+	doc["custom_hddt_so"] = ""
+	goi = dict(_payload_bill_quay(doc))
+	goi["vgb_xhd_ten"] = "Nguyễn Văn A"
+	_, ghi_de = hdv.doi_o_xhd(doc, goi, TEN_MAC_DINH)
+	dung("vẫn nhận ra là có gõ tên mới", ghi_de == ["vgb_xhd_ten"])
+	# Hàng rào chỉ bật khi `custom_hddt_so` có giá trị; tờ còn nháp thì
+	# `_chan_doi_xhd_da_phat_hanh` trả về True ngay dòng đầu.
+
+
+@ca("#194 phép so bốn ô XHD: các ca biên")
+def _so_bon_o_ca_bien():
+	f = hdv.doi_o_xhd
+	dung("y hệt nhau thì không có gì đổi",
+		f(TO_DA_PHAT_HANH, TO_DA_PHAT_HANH, TEN_MAC_DINH) == ([], []))
+	dung("câu mặc định và ô tên rỗng là một",
+		f({"vgb_xhd_ten": TEN_MAC_DINH}, {"vgb_xhd_ten": ""}, TEN_MAC_DINH)
+		== ([], []))
+	dung("khoảng trắng hai đầu không tính là đổi",
+		f({"vgb_xhd_dia_chi": "5 Lê Lợi"}, {"vgb_xhd_dia_chi": " 5 Lê Lợi "},
+			TEN_MAC_DINH) == ([], []))
+	dung("None và chuỗi rỗng là một",
+		f({"vgb_xhd_email": None}, {"vgb_xhd_email": ""}, TEN_MAC_DINH)
+		== ([], []))
+	dung("dict rỗng không làm nổ", f({}, {}, TEN_MAC_DINH) == ([], []))
+	dung("đổi tên thật này sang tên thật khác là ghi đè",
+		f({"vgb_xhd_ten": "CTY A"}, {"vgb_xhd_ten": "CTY B"}, TEN_MAC_DINH)
+		== ([], ["vgb_xhd_ten"]))
+	dung("hạ tên thật về câu mặc định là để trắng",
+		f({"vgb_xhd_ten": "CTY A"}, {"vgb_xhd_ten": TEN_MAC_DINH},
+			TEN_MAC_DINH) == (["vgb_xhd_ten"], []))
+
+
+@ca("#194 cửa POS đi qua hàng rào hoá đơn đã phát hành")
+def _cua_pos_co_hang_rao():
+	s = _py("ban_hang.py")
+	i = s.index("def _chan_doi_xhd_da_phat_hanh(")
+	than = s[i:s.index("\ndef _chan_dia_chi_khong_chu(", i)]
+	dung("hàng rào gọi phép thuần", "hoa_don_vat.doi_o_xhd(" in than)
+	dung("hàng rào chỉ bật khi tờ đã có số hoá đơn điện tử",
+		'si.get("custom_hddt_so")' in than)
+	dung("hàng rào không tự ghi gì xuống",
+		("set_value" not in than) and ("save(" not in than))
+	# `pos_sua_don` phải hỏi hàng rào TRƯỚC khi ghi bốn ô đó.
+	j = s.index("def pos_sua_don(")
+	tp = s[j:s.index("\ndef _chiem_gd_bill(", j)]
+	dung("pos_sua_don gọi hàng rào",
+		"duoc_ghi = _chan_doi_xhd_da_phat_hanh(si, {" in tp)
+	dung("chỉ ghi bốn ô khi hàng rào cho phép", "\n\tif duoc_ghi:\n" in tp)
+	k = tp.index("duoc_ghi = _chan_doi_xhd_da_phat_hanh")
+	for o in ("si.vgb_xhd_mst = ", "si.vgb_xhd_ten = ",
+			"si.vgb_xhd_dia_chi = ", "si.vgb_xhd_email = "):
+		dung("%s nằm sau hàng rào" % o.strip(), tp.index(o) > k)
+
+
+@ca("#194 ba cửa kia đã khoá sẵn tờ đã phát hành")
+def _ba_cua_kia_da_khoa():
+	s = _py("ban_hang.py")
+	for ham, moc in (
+			("def luu_xhd(", "def doi_ngay_hoa_don("),
+			("def xhd_khach_luu(", "\ndef _xhd_kiem_han(")):
+		i = s.index(ham)
+		j = s.find(moc, i)
+		than = s[i:j if j > 0 else i + 4000]
+		dung("%s khoá tờ đã phát hành" % ham[4:-1],
+			"custom_hddt_so" in than and "frappe.throw(" in than)
