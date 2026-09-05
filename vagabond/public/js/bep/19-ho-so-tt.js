@@ -347,6 +347,43 @@ var HS_NHAN_LY_DO = {
 
 var hsVsNcc = '', hsVsDl = null, hsVsTu = '';
 
+/* Ô TÌM LUÔN HIỆN cho màn "Vì sao thiếu".
+   ------------------------------------------------------------------
+   `vgbOTim` có ngưỡng: danh sách dưới `VGB_NGUONG_TIM` (7) mục thì nó trả
+   về chuỗi RỖNG, vì nói chung bày ô tìm cho ba dòng là làm phiền. Màn này
+   khác hẳn: ô tìm ở đây không chỉ lọc trên DOM mà còn là CỬA DUY NHẤT để
+   hỏi máy chủ, tức là đường duy nhất tra ra tờ nằm ngoài 500 tờ máy chủ
+   vừa gửi về. Giấu nó đi là khoá luôn đường đó.
+
+   Vòng trước truyền `vgbOTim('hsVsTim', 2, ...)` vì tưởng tham số thứ hai
+   là cờ bật; nó là SỐ MỤC, nên ô tìm không bao giờ được vẽ và cả cơ chế
+   Enter chết theo. Codex bắt đúng lỗi này trên PR #200 bằng cách CHẠY thật
+   hàm đó chứ không đọc chuỗi nguồn. Giữ nguyên hình dạng thẻ như `vgbOTim`
+   để `vgbNoiOTim` nối vào được. */
+function hsOTimLuon(idO, goiY) {
+  return '<input class="tin" id="' + h(idO) + '" type="search" autocomplete="off" ' +
+    'placeholder="' + h(goiY) + '" style="margin:0 0 9px">' +
+    '<div id="' + h(idO) + 'Trong" style="display:none;font-size:12.5px;color:#b45309;' +
+    'padding:6px 2px 9px;line-height:1.55">Không có tờ nào khớp trong danh sách đang bày. ' +
+    'Bấm Enter để tìm cả kho, hoặc xoá bớt chữ.</div>';
+}
+
+/* Nối ô tìm của màn tra cứu: gõ là lọc DOM cho nhanh tay, Enter là hỏi
+   thẳng máy chủ. Dùng chung cho cả hai nhánh của màn để chúng không lệch. */
+function hsVsNoiOTim(b) {
+  var oV = document.getElementById('hsVsTim');
+  if (!oV) return;
+  oV.value = hsVsTu;
+  oV.addEventListener('input', function () { hsVsTu = oV.value; });
+  oV.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); e.stopPropagation();
+    hsVsTu = oV.value; hsVsDl = null;
+    go(scrViSaoThieu, true);
+  }, true);
+  vgbNoiOTim(b, 'hsVsTim', '[data-vshd]');
+}
+
 function hsViSaoThieu(ncc) {
   if (!ncc) return baoTin('Chọn một nhà cung cấp ở ô phía trên rồi bấm lại nút này.',
     'Chưa chọn nhà');
@@ -389,30 +426,31 @@ async function scrViSaoThieu() {
     'Những tờ dưới đây KHÔNG hiện ra ở đó, kèm lý do thật của từng tờ.</div>';
 
   if (!(kq.nhom || []).length) {
-    html += '<div class="emp" style="padding:24px"><div class="e1">' + (hsVsTu ? '🔎' : '✅') + '</div><div>' +
-      (hsVsTu
-        ? 'Không có tờ nào của nhà này khớp "' + h(hsVsTu) + '". Xoá bớt chữ rồi bấm Enter tìm lại.'
-        : 'Không có tờ nào bị giấu đi. Mọi hoá đơn của nhà này đều đang hiện ở bảng tick.') +
+    /* BA CANH KHAC NHAU, ba lai khac nhau. Codex neu tren PR #200: to tim
+       ra ma DANG CHON DUOC thi may chu tra `chon_duoc > 0` va khong co
+       nhom ly do nao, nen man cu vua bao "dang chon duoc 1 hoa don" vua
+       bao "khong co to nao khop" - hai cau chan nhau. Dung o man sinh ra
+       de chong nhap trung, cau do de day nguoi ta di go tay lai. */
+    var daCo = hsVsTu && Number(kq.chon_duoc || 0) > 0;
+    html += '<div class="emp" style="padding:24px"><div class="e1">' +
+      (daCo ? '✅' : (hsVsTu ? '🔎' : '✅')) + '</div><div>' +
+      (daCo
+        ? 'Tờ khớp "' + h(hsVsTu) + '" <b>đã có trong hệ và đang chọn được</b>. ' +
+          'Nó không nằm ở đây vì đây chỉ là nơi liệt kê tờ bị giấu đi. ' +
+          'Quay ra bảng tick ở màn lập hồ sơ, gõ đúng số đó vào ô tìm rồi tick. ' +
+          '<b>Đừng gõ tay lại</b> khoản này.'
+        : (hsVsTu
+          ? 'Không có tờ nào của nhà này khớp "' + h(hsVsTu) + '". Xoá bớt chữ rồi bấm Enter tìm lại.'
+          : 'Không có tờ nào bị giấu đi. Mọi hoá đơn của nhà này đều đang hiện ở bảng tick.')) +
       '</div></div>';
-    /* Van bay o tim ra khi go hut, khong thi nguoi dung ket trong man nay
-       va phai quay ra vao lai moi tim duoc lan hai. */
+    /* Vẫn bày ô tìm ra khi gõ hụt, không thì người dùng kẹt trong màn này
+       và phải quay ra vào lại mới tìm được lần hai. */
     if (hsVsTu) {
       html += '<div class="card" style="padding:10px 12px">' +
-        vgbOTim('hsVsTim', 2, '🔎 Gõ số hoá đơn rồi bấm Enter để tìm cả kho') + '</div>';
+        hsOTimLuon('hsVsTim', '🔎 Gõ số hoá đơn rồi bấm Enter để tìm cả kho') + '</div>';
     }
     var b0 = frame('Vì sao thiếu hoá đơn', html);
-    /* Van phai con o tim, khong thi go hut mot lan la ket luon trong man. */
-    if (hsVsTu) {
-      var oV0 = document.getElementById('hsVsTim');
-      if (oV0) {
-        oV0.value = hsVsTu;
-        oV0.addEventListener('input', function () { hsVsTu = oV0.value; });
-        oV0.addEventListener('keydown', function (e) {
-          if (e.key !== 'Enter') return;
-          e.preventDefault(); hsVsTu = oV0.value; hsVsDl = null; go(scrViSaoThieu, true);
-        }, true);
-      }
-    }
+    hsVsNoiOTim(b0);
     return;
   }
 
@@ -436,7 +474,7 @@ async function scrViSaoThieu() {
        Enter thi hoi thang may chu. Phai co tang thu hai vi may chu cat 500
        to moi nhom: to thu 501 khong nam trong DOM nen loc kieu gi cung
        khong ra. Codex neu dung diem nay vong hai tren PR #198. */
-    vgbOTim('hsVsTim', 2, '🔎 Gõ số hoá đơn rồi bấm Enter để tìm cả kho');
+    hsOTimLuon('hsVsTim', '🔎 Gõ số hoá đơn rồi bấm Enter để tìm cả kho');
   dong.forEach(function (d) {
     html += '<div class="hub" data-vshd="' + h(d.x.name) + '">' +
       '<div class="hub-i">📄</div><div class="hub-t">' +
@@ -458,22 +496,7 @@ async function scrViSaoThieu() {
   }
 
   var b = frame('Vì sao thiếu hoá đơn', html);
-  /* Giu tu khoa qua moi lan dung lai man, y het o tim ben bang tick. */
-  var oV = document.getElementById('hsVsTim');
-  if (oV) {
-    oV.value = hsVsTu;
-    oV.addEventListener('input', function () { hsVsTu = oV.value; });
-    /* Enter la di hoi may chu voi dung tu khoa do, nen to nam ngoai 500 to
-       may chu vua tra ve van tim ra. Chan `keydown` truoc `vgbNoiOTim` de
-       phim Enter khong bi cai bam-muc-duy-nhat cua ham do nuot mat. */
-    oV.addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter') return;
-      e.preventDefault(); e.stopPropagation();
-      hsVsTu = oV.value; hsVsDl = null;
-      go(scrViSaoThieu, true);
-    }, true);
-  }
-  vgbNoiOTim(b, 'hsVsTim', '[data-vshd]');
+  hsVsNoiOTim(b);
 }
 
 
@@ -696,6 +719,12 @@ async function scrHoSoTTTao() {
   hsDemBanTheHien(hd.rows || []);
 
   var doiNcc = function (ma) {
+    /* Doi sang nha khac thi tu khoa hoa don cua nha cu KHONG duoc mang
+       theo: bang cua nha moi se trong tron trong khi chip van bao con no,
+       nguoi dung tuong he hong. Codex neu tren PR #200.
+       Van GIU tu khoa khi ve lai man vi tick mot to, va tuyet doi khong
+       dong vao `hsTaoChon` cua luong hoan ung nhieu nha. */
+    if ((ma || '') !== hsTaoNcc) hsHdTu = '';
     hsTaoNcc = ma || '';
     /* Luong hoan ung: doi nha la DOI BO LOC, khong phai bo lam lai. Xoa
        tick o day chinh la thu bat Uyen phai lam mot ho so cho moi nha cung
