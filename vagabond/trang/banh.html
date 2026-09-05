@@ -133,6 +133,17 @@ header{position:sticky;top:0;z-index:40;background:rgba(0,0,0,.82);backdrop-filt
 .h-sec{font-family:'Vagabond Sans',var(--sans);font-size:clamp(32px,7vw,56px);line-height:1;text-transform:uppercase;margin:44px 0 6px;color:var(--cyan)}
 .h-sec em{font-family:var(--serif);font-style:italic;text-transform:none;color:var(--paper);opacity:.9;margin-left:.3em}
 .note{font-size:12.5px;color:var(--fog);margin-top:14px;padding-left:14px;border-left:1px solid var(--cyan);line-height:1.65}
+/* The tom tat ngay gio o muc 02 cua gio hang (#205). Dung lai bien mau san
+   cua trang, khong dat mau moi. */
+.tomtat{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:4px}
+.tt-doc span{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);margin-bottom:5px}
+.tt-doc b{font-weight:400;font-size:14.5px;color:var(--paper)}
+/* AGENTS.md dieu 13: nut cao it nhat 44 diem, chu it nhat 13 diem. */
+.tt-doi{background:none;border:1px solid var(--cyan);color:var(--cyan);border-radius:24px;
+  min-height:44px;padding:11px 20px;font:inherit;font-size:13.5px;cursor:pointer;letter-spacing:.04em}
+.tt-doi:hover{background:var(--cyan);color:var(--bg)}
+.tt-doi:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .note b{color:var(--paper);font-weight:500}
 
 /* Trang ban hang tu lo dieu huong; thanh HOME/LOGIN va chan trang
@@ -546,8 +557,13 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
     <button class="cart-add" onclick="closeCo()">+ Chọn thêm bánh</button>
 
     <div class="sec"><span class="n">02</span><h3>Ngày và giờ nhận</h3><i class="rule"></i></div>
-    <div class="rail" id="c-days"></div>
-    <div class="rail" id="c-slots"></div>
+    <!-- Khach da chon lich o ngoai roi thi cho nay chi tom tat lai, bam Thay
+         doi moi bung bo chon ra. Do la muc 2.1 cua #205. -->
+    <div class="tomtat" id="c-tomtat" style="display:none"></div>
+    <div id="c-chon">
+      <div class="rail" id="c-days"></div>
+      <div class="rail" id="c-slots"></div>
+    </div>
     <div class="note" id="c-prep"></div>
 
     <div class="sec"><span class="n">03</span><h3>Nhận bánh bằng cách nào</h3><i class="rule"></i></div>
@@ -579,7 +595,7 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
     </div>
 
     <div class="sec"><span class="n">06</span><h3>Người nhận</h3><i class="rule"></i></div>
-    <button class="chk" id="c-other" onclick="tgl('other')"><span class="bx"></span>
+    <button class="chk" id="c-other" onclick="tgl('other')" aria-expanded="false" aria-controls="otherBlock"><span class="bx"></span>
       <span class="tx">Người khác nhận bánh<small>Nhận thay, hoặc gửi tặng</small></span></button>
     <div id="otherBlock" style="display:none" class="two">
       <div class="fld"><label>Tên người nhận</label><input id="f-rname" placeholder="Họ và tên người nhận"></div>
@@ -594,7 +610,7 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
     </div>
 
     <div class="sec"><span class="n">08</span><h3>Hoá đơn</h3><i class="rule"></i></div>
-    <button class="chk" id="c-vat" onclick="tgl('vat')"><span class="bx"></span>
+    <button class="chk" id="c-vat" onclick="tgl('vat')" aria-expanded="false" aria-controls="vatBlock"><span class="bx"></span>
       <span class="tx">Xuất hoá đơn cho công ty<small>Điền mã số thuế, hệ thống tự lấy tên và địa chỉ công ty</small></span></button>
     <div id="vatBlock" style="display:none">
       <div class="fld"><label>Mã số thuế</label>
@@ -877,19 +893,128 @@ const TICK = ["Bánh ra lò mỗi sáng","Đặt trước 2 ngày là tốt nh�
 const DAYS=["Chủ nhật","Thứ 2","Thứ 3","Thứ 4","Thứ 5","Thứ 6","Thứ 7"];
 const vnd=n=>n.toLocaleString('vi-VN')+" đ";
 const $=s=>document.querySelector(s);
-const dmy=d=>String(d.getDate()).padStart(2,'0')+"."+String(d.getMonth()+1).padStart(2,'0');
+const dmy=d=>String(d.getDate()).padStart(2,'0')+"/"+String(d.getMonth()+1).padStart(2,'0');
 const NOW=new Date();
+
+/* ================= CAC PHEP THUAN CUA #205 =================
+   De o day, khai bao dang `function` o dau dong, khong dung bien ngoai, de
+   bo kiem thu cat ra chay bang node duoc. Moi noi hien ngay hay hien ton
+   deu phai goi hai ham nay, khong ai tu ghep chuoi rieng nua.
+
+   Vi sao gom mot cho: truoc day chu 'th' (viet tat cua thang) dung ngay sau
+   so ngay nen '6th 9' doc ra giong hau to tieng Anh. Va so ton kho tho thi
+   lo ra o BA cho khac nhau, moi cho mot cach ghep chuoi. Gom lai mot moi thi
+   sua mot lan la dung het. */
+
+var NGUONG_TON = 10;   /* tren muc nay thi khong khoe so nua */
+
+function nhanNgay(lech, moc, tenThu){
+	/* Tra ve nhan ngay kieu Viet: {ten, ngay}. `lech` la so ngay ke tu moc.
+	   Chi lo phan HIEN THI. Gia tri gui len may chu van do mocGioNhan() tinh,
+	   khong duoc lay chuoi nay lam du lieu don. */
+	var t = moc ? new Date(moc) : new Date();
+	t.setHours(0, 0, 0, 0);
+	var d = new Date(t);
+	d.setDate(t.getDate() + (Number(lech) || 0));
+	var dd = String(d.getDate()).padStart(2, '0');
+	var mm = String(d.getMonth() + 1).padStart(2, '0');
+	var thu = (tenThu && tenThu.length === 7) ? tenThu[d.getDay()] : '';
+	return {
+		ten: lech === 0 ? 'Hôm nay' : lech === 1 ? 'Ngày mai' : thu,
+		ngay: dd + '/' + mm
+	};
+}
+
+function hienTomTatLich(daChon, dangMoLich, gioConHopLe){
+	/* Muc 02 cua gio hang hien THE TOM TAT hay hien BO CHON.
+	   Chi tom tat khi ca ba dieu cung dung:
+	   - khach that su da chon lich (khong tinh gia tri mac dinh cua trang),
+	   - khach chua bam Thay doi,
+	   - khung gio da chon van con kip.
+	   Thieu bat cu dieu nao thi bung bo chon ra, vi luc do khach con phai
+	   quyet mot viec chu khong phai chi doc lai. */
+	return !!daChon && !dangMoLich && !!gioConHopLe;
+}
+
+function nhanTon(con, donVi){
+	/* Nhan ton kho cho khach doc. KHONG doi so that trong du lieu, chi doi
+	   chu hien ra man hinh. Phep kiem gioi han khi them vao gio van dung so
+	   that chu khong dung nhan nay.
+
+	   Chua tai xong hay loi thi tra ve chuoi rong: khong duoc doan bua thanh
+	   con hang hay het hang, vi doan sai chieu nao cung hai. */
+	if (con === null || con === undefined || con === '') return '';
+	var n = Number(con);
+	if (!isFinite(n)) return '';
+	if (n <= 0) return 'Tạm hết';
+	if (n <= NGUONG_TON) return 'Chỉ còn ' + n + (donVi ? ' ' + donVi : '');
+	return 'Còn hàng';
+}
+
+/* --------- NEO NGAY THAT, VA DONG HO PHAI DOC LAI MOI LAN ---------
+   Hai lo hong Codex bat duoc o vong mot, deu do doc gio SAI THOI DIEM:
+
+   1. slotOk goi minHour, minHour doc NOW la `const new Date()` tao MOT LAN
+      luc tai trang. Khach mo trang luc 08:00, chon 13h hom nay, de may do
+      toi 14:00 roi quay lai gio hang: trang van tuong bay gio la 08:00 nen
+      van coi khung 13h la con kip.
+   2. picked chi la SO NGAY LECH so voi "hom nay", ma "hom nay" thi doi luc
+      nua dem. 23:59 chon D+2 ra 08/09; 00:01 hom sau van con nguyen picked=2
+      nen payload thanh 09/09 trong khi the tom tat van ghi 08/09.
+
+   Cach chua: gio lay tu dong ho hien tai moi lan hoi, va ngay thi NEO lai
+   thanh mot ngay THAT dang yyyy-mm-dd chu khong giu duoi dang do lech. */
+
+function isoNgay(d){
+	/* yyyy-mm-dd theo gio dia phuong. KHONG dung toISOString vi ham do quy
+	   ve UTC, o mui gio +07 thi buoi toi bi lui mat mot ngay. */
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+		+ '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function lechNgay(homNayIso, ngayIso){
+	/* So ngay tu homNay den ngayIso. Am nghia la ngay do da qua. */
+	if (!homNayIso || !ngayIso) return null;
+	var a = new Date(homNayIso + 'T00:00:00');
+	var b = new Date(ngayIso + 'T00:00:00');
+	if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+	return Math.round((b - a) / 86400000);
+}
+
+function gioToiThieu(lech, gioHienTai, prepHours, tomorrowFrom){
+	/* Khung gio som nhat con nhan duoc cho ngay lech ngay ke tu hom nay.
+	   gioHienTai phai la gio DOC LUC HOI, khong phai gio luc tai trang. */
+	if (lech === 0) return Number(gioHienTai) + Number(prepHours);
+	if (lech === 1) return Number(tomorrowFrom);
+	return 0;
+}
+
+function lichConHopLe(lech, gioBatDau, gioHienTai, prepHours, tomorrowFrom){
+	/* Cap ngay gio da chon con dat duoc khong. Ngay da qua thi khong. */
+	if (lech === null || lech === undefined) return false;
+	if (Number(lech) < 0) return false;
+	return Number(gioBatDau) >= gioToiThieu(Number(lech), gioHienTai, prepHours, tomorrowFrom);
+}
+
+function daChotLich(daChonNgay, daChonGio){
+	/* Bam mot ngay KHONG co nghia la da chot ca khung gio. Truoc day chi can
+	   bam ngay la bo chon tu thu lai, khach di thang toi nut gui va don mang
+	   khung gio mac dinh cua trang. Phai chon du ca hai moi tinh la da chot. */
+	return !!daChonNgay && !!daChonGio;
+}
 
 /* QUY TAC KHUNG GIO
    Hom nay        : tu bay gio + prepHours
    Ngay mai (D+1) : tu tomorrowFrom (13h) tro di, de khuyen khich dat som
    D+2 tro di     : mo het */
 function minHour(dayIdx){
-  if(dayIdx===0) return NOW.getHours()+CONFIG.prepHours;
-  if(dayIdx===1) return CONFIG.tomorrowFrom;
-  return 0;
+  /* DOC LAI dong ho moi lan hoi. Truoc day dung NOW la ban chup luc tai
+     trang, nen tab mo lau thi khung gio da qua van duoc coi la con kip. */
+  return gioToiThieu(dayIdx, new Date().getHours(), CONFIG.prepHours, CONFIG.tomorrowFrom);
 }
-function slotOk(dayIdx,s){ return s.from >= minHour(dayIdx); }
+function slotOk(dayIdx,s){
+  return lichConHopLe(dayIdx, s.from, new Date().getHours(), CONFIG.prepHours, CONFIG.tomorrowFrom);
+}
 function firstOk(dayIdx){ return SLOTS.find(s=>slotOk(dayIdx,s)); }
 
 /* =======================================================
@@ -973,9 +1098,14 @@ function card(c,todayMode){
   const avail=c.sizes.filter(s=>TODAY[s.id]>0);
   const truocCo=Object.keys(TRUOC).length>0;
   const truocSz=truocCo?c.sizes.filter(s=>TRUOC[s.id]>0):c.sizes;
+  /* Nhan ton di qua nhanTon() chu khong khoe so tho nua. Rieng che do dat
+     truoc khi CHUA co so lieu thi khong ghi gi ca, chu khong doan bua. */
   const chips=todayMode
-    ? avail.map(s=>`<i class="sz has">${s.cm ? s.cm + 'cm' : '1 cỡ'} · còn ${TODAY[s.id]}</i>`).join('')
-    : truocSz.map(s=>`<i class="sz${truocCo?' has':''}">${s.cm ? s.cm + 'cm' : '1 cỡ'}${truocCo?' · còn '+TRUOC[s.id]:''}</i>`).join('');
+    ? avail.map(s=>`<i class="sz has">${s.cm ? s.cm + 'cm' : '1 cỡ'} · ${nhanTon(TODAY[s.id],'bánh')}</i>`).join('')
+    : truocSz.map(s=>{
+        const nh=truocCo?nhanTon(TRUOC[s.id],'bánh'):'';
+        return `<i class="sz${truocCo?' has':''}">${s.cm ? s.cm + 'cm' : '1 cỡ'}${nh?' · '+nh:''}</i>`;
+      }).join('');
   const price=todayMode?vnd(Math.min(...avail.map(s=>s.p))):'từ '+vnd(Math.min(...(truocSz.length?truocSz:c.sizes).map(s=>s.p)));
   return `<button class="card" onclick="openSheet('${c.k.replace(/'/g,"\\'")}')">
     <div class="ph">${c.seasonal?`<i class="tagline">${c.seasonal}</i>`:''}<img loading="lazy" onerror="this.style.display='none'" src="${c.img}" alt=""></div>
@@ -988,7 +1118,7 @@ function card(c,todayMode){
 }
 
 function renderToday(){
-  $('#dateline').textContent=DAYS[NOW.getDay()]+" · "+dmy(NOW)+"."+NOW.getFullYear();
+  $('#dateline').textContent=DAYS[NOW.getDay()]+" · "+dmy(NOW)+"/"+NOW.getFullYear();
   $('#bigDate').textContent=dmy(NOW);
   $('#synced').textContent="Cập nhật "+String(NOW.getHours()).padStart(2,'0')+":"+String(NOW.getMinutes()).padStart(2,'0');
 
@@ -1006,12 +1136,36 @@ function renderToday(){
 }
 
 let picked=2, pickedSlot=SLOTS.findIndex(s=>s.from>=13);
+/* picked=2 la GIA TRI MAC DINH cua trang, khong phai khach da chon. Phai
+   phan biet hai cai do: neu coi mac dinh la da chon thi khach chua he bam
+   gi ma checkout da bao "anh chi da chon ngay X", roi giao nham ngay.
+   Co nay chi bat len khi khach that su bam vao mot ngay hay mot khung gio. */
+let daChonNgay=false, daChonGio=false;
+/* NGAY THAT da chon, dang yyyy-mm-dd. picked chi la do lech dan xuat ra tu
+   day, vi do lech tu no sai sau nua dem. */
+let ngayChon=null;
+/* Khi khach bam Thay doi thi mo lai bo chon ngay trong checkout. */
+let moLich=false;
+function dongBoNgay(){
+  /* Goi truoc moi lan ve lai lich: tinh lai do lech tu ngay THAT da chon,
+     de sang ngay moi thi tom tat, phi giao va payload cung dich chuyen theo
+     nhau chu khong nguoi mot ngay. */
+  if(!ngayChon) return;
+  const l=lechNgay(isoNgay(new Date()), ngayChon);
+  if(l!==null) picked=l;
+}
+function neoNgay(i){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const d=new Date(t); d.setDate(t.getDate()+i);
+  ngayChon=isoNgay(d);
+}
 function railHtml(n,cb){
   const t=new Date(); t.setHours(0,0,0,0); let h='';
   for(let i=0;i<n;i++){ const d=new Date(t); d.setDate(t.getDate()+i);
+    const nh=nhanNgay(i,t,DAYS);
     h+=`<button class="day ${i===picked?'on':''} ${i>=2?'best':''}" onclick="${cb}(${i})">
-      <span>${i===0?'Hôm nay':i===1?'Ngày mai':DAYS[d.getDay()]}</span>
-      <b>${d.getDate()}</b><small>th ${d.getMonth()+1}</small></button>`; }
+      <span>${nh.ten}</span>
+      <b>${nh.ngay}</b></button>`; }
   return h;
 }
 function slotsHtml(){
@@ -1022,9 +1176,13 @@ function slotsHtml(){
 }
 function fixSlot(){ if(!slotOk(picked,SLOTS[pickedSlot])){ const f=firstOk(picked); pickedSlot=f?SLOTS.indexOf(f):SLOTS.length-1; } }
 /* Doi ngay hay doi khung gio la phai hoi lai phi: Ahamove tinh gia theo gio. */
-function pick(i){ picked=i; fixSlot(); renderRail(); quoteShip(); }
-function pickSlot(i){ pickedSlot=i; renderRail(); quoteShip(); }
+function pick(i){ picked=i; daChonNgay=true; neoNgay(i); fixSlot(); renderRail(); quoteShip(); }
+function pickSlot(i){ pickedSlot=i; daChonGio=true; if(!ngayChon) neoNgay(picked); renderRail(); quoteShip(); }
+/* Nut Thay doi o muc 02 cua checkout. */
+function doiLich(){ moLich=true; drawCoDate();
+  const o=$('#c-days'); if(o){ const b=o.querySelector('.day.on')||o.querySelector('.day'); if(b) b.focus(); } }
 function renderRail(){
+  dongBoNgay();
   $('#rail').innerHTML=railHtml(14,'pick');
   $('#slots').innerHTML=slotsHtml();
   const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
@@ -1076,7 +1234,7 @@ function renderSheet(c){
   curSize=avail[0]||c.sizes[0];
   $('#s-img').src=c.img; $('#s-name').textContent=c.k;
   $('#s-avail').innerHTML=avail.length
-    ? `<div class="avail"><i class="dot"></i>Có sẵn hôm nay · còn ${avail.reduce((a,s)=>a+TODAY[s.id],0)} bánh</div>`
+    ? `<div class="avail"><i class="dot"></i>Có sẵn hôm nay · ${nhanTon(avail.reduce((a,s)=>a+TODAY[s.id],0),'bánh')}</div>`
     : (c.seasonal?`<div class="avail">${c.seasonal}</div>`:`<div class="avail">Đặt trước · bếp làm theo đơn</div>`);
   $('#s-desc').textContent=c.desc||'';
   $('#s-layers').innerHTML=c.layers
@@ -1209,7 +1367,8 @@ function drawSizes(){
   $('#s-sizes').innerHTML=cur.sizes.map(s=>{
     const n=TODAY[s.id]||0;
     const t=TRUOC[s.id]||0;
-    const em=n?`<em>Có sẵn ${n} bánh</em>`:(t?`<em>Còn nhận ${t} bánh</em>`:'');
+    /* Khong ghep so tho nua, di chung mot cua voi the va luoi (#205). */
+    const em=n?`<em>${nhanTon(n,'bánh')}</em>`:(t?`<em>Đặt trước · ${nhanTon(t,'bánh')}</em>`:'');
     return `<button class="size ${s===curSize?'on':''}" onclick="setSize('${s.id}')">
       <b>${vnd(s.p)}</b><span>Ø ${s.cm}cm${s.serve?' · '+s.serve:''}</span>${em}</button>`;
   }).join('');
@@ -1218,15 +1377,44 @@ function drawSizes(){
 function setSize(id){ curSize=cur.sizes.find(s=>s.id===id); drawSizes(); }
 function drawCoDate(){
   if(!$('#c-days')) return;
-  $('#c-days').innerHTML=railHtml(10,'pick');
+  /* CUNG mien ngay voi bo chon ngoai danh muc. Truoc day ngoai 14 ngay ma
+     trong 10 ngay, nen khach chon ngay thu 11 toi 14 o ngoai thi vao day
+     khong sua lai duoc, va bo chon cung khong sang o dung ngay nao. */
+  dongBoNgay();
+  $('#c-days').innerHTML=railHtml(14,'pick');
   $('#c-slots').innerHTML=slotsHtml();
+  /* Khung gio da chon co con hop le khong. Doc dong ho HIEN TAI chu khong
+     doc lai ban chup luc tai trang. Het han thi phai mo chon lai va noi ro,
+     khong duoc lang le doi sang khung khac. */
+  const hongGio=!slotOk(picked,SLOTS[pickedSlot]);
+  const goc=$('#c-tomtat'), kh=$('#c-chon');
+  if(goc&&kh){
+    const hienTomTat = hienTomTatLich(daChotLich(daChonNgay,daChonGio), moLich, !hongGio);
+    goc.style.display = hienTomTat ? '' : 'none';
+    kh.style.display  = hienTomTat ? 'none' : '';
+    if(hienTomTat){
+      const nh=nhanNgay(picked,null,DAYS);
+      goc.innerHTML='<div class="tt-doc"><span>Thời gian nhận</span>'
+        +'<b>'+nh.ten+', '+nh.ngay+' · '+SLOTS[pickedSlot].t+'</b></div>'
+        +'<button type="button" class="tt-doi" onclick="doiLich()">Thay đổi</button>';
+    }
+  }
   const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
-  $('#c-prep').innerHTML= (picked===0
-    ? `Nhận <b>hôm nay</b>. Bếp cần ${CONFIG.prepHours} tiếng nên các khung sớm hơn đã đóng.`
-    : picked===1
-      ? `Nhận <b>ngày mai ${dmy(d)}</b>, chỉ từ ${CONFIG.tomorrowFrom}h trở đi.`
-      : `Nhận <b>${DAYS[d.getDay()]} ${dmy(d)}</b>, khung <b>${SLOTS[pickedSlot].t}</b>.`)
-    + ' Cả đơn được giao một lần vào khung này.';
+  /* Ngay da chon roi vao qua khu, xay ra khi khach de tab mo qua nua dem. */
+  const ngayQua = picked<0;
+  $('#c-prep').innerHTML= (ngayQua
+    ? `Ngày anh chị chọn lúc nãy đã qua rồi.`
+    : picked===0
+      ? `Nhận <b>hôm nay</b>. Bếp cần ${CONFIG.prepHours} tiếng nên các khung sớm hơn đã đóng.`
+      : picked===1
+        ? `Nhận <b>ngày mai ${dmy(d)}</b>, chỉ từ ${CONFIG.tomorrowFrom}h trở đi.`
+        : `Nhận <b>${DAYS[d.getDay()]} ${dmy(d)}</b>, khung <b>${SLOTS[pickedSlot].t}</b>.`)
+    + (ngayQua ? '' : ' Cả đơn được giao một lần vào khung này.')
+    + (ngayQua
+        ? ' <b>Anh chị chọn lại ngày nhận giúp em nhé.</b>'
+        : hongGio ? ' <b>Khung giờ anh chị chọn lúc nãy không còn kịp nữa, anh chị chọn lại giúp em một khung khác.</b>' : '')
+    + (!hongGio && !daChotLich(daChonNgay,daChonGio)
+        ? ' <b>Anh chị chọn giúp em cả ngày và khung giờ nhận nhé.</b>' : '');
   if($('#checkout').classList.contains('open')) drawCo();
 }
 function updateCta(){
@@ -1265,6 +1453,10 @@ function openCo(){
   nav('#/gio-hang');
 }
 function openCoUI(){
+  /* Moi lan mo lai gio hang thi dong bo chon lich lai, de khach thay cai tom
+     tat truoc chu khong phai mot rung nut. Bam Thay doi moi bung ra. */
+  moLich=false;
+  dongBoNgay();
   drawCart(); drawCoDate(); drawCo();
   $('#checkout').classList.add('open'); $('#checkout').scrollTop=0; drawBar();
 }
@@ -1279,10 +1471,21 @@ function setMode(m){ CO.mode=m;
 function setPickup(i){ CO.pickup=i; drawCo(); }
 function setPay(k){ CO.pay=k; drawCo(); }
 function tgl(k){ CO[k]=!CO[k];
-  $('#c-'+k).classList.toggle('on',CO[k]);
-  $('#c-'+k).querySelector('.bx').textContent=CO[k]?'✓':'';
+  const nut=$('#c-'+k);
+  nut.classList.toggle('on',CO[k]);
+  nut.querySelector('.bx').textContent=CO[k]?'✓':'';
   if(k==='other') $('#otherBlock').style.display=CO.other?'grid':'none';
   if(k==='vat')   $('#vatBlock').style.display  =CO.vat  ?'block':'none';
+  /* Bung hay thu thi bao cho trinh doc man hinh biet, va dua con tro vao o
+     dau tien cho nguoi dung ban phim khoi phai tim.
+     KHONG xoa noi dung da go khi thu lai: khach bam nham mot cai la mat cong
+     go lai het. Payload da co CO.other va CO.vat gac o tao_don, tat thi gui
+     null, nen giu chu trong o cung khong lot du lieu cu len may chu. */
+  const khoi = k==='other' ? $('#otherBlock') : k==='vat' ? $('#vatBlock') : null;
+  if(khoi){
+    nut.setAttribute('aria-expanded', CO[k] ? 'true' : 'false');
+    if(CO[k]){ const o=khoi.querySelector('input,textarea,select'); if(o) o.focus(); }
+  }
 }
 
 /* Tra ma so thue -> ten + dia chi cong ty.
@@ -1436,10 +1639,13 @@ const TEN_DIEM = {
 /* Moc gio khach muon nhan banh, dang ISO. Dung chung cho ca hoi phi lan tao don
    de hai cho khong bao gio lech nhau. */
 function mocGioNhan(){
+  const gio=String(SLOTS[pickedSlot].from).padStart(2,'0');
+  /* Ngay da neo thi lay dung ngay do, khong tinh lai tu do lech, vi qua nua
+     dem do lech se tro ve mot ngay khac voi cai the tom tat dang hien. */
+  if(ngayChon) return `${ngayChon}T${gio}:00:00`;
   const t=new Date(); t.setHours(0,0,0,0);
   const d=new Date(t); d.setDate(t.getDate()+picked);
-  const gio=String(SLOTS[pickedSlot].from).padStart(2,'0');
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${gio}:00:00`;
+  return `${isoNgay(d)}T${gio}:00:00`;
 }
 
 function quoteShip(){
@@ -1540,6 +1746,24 @@ function sendBusy(on, text){
 
 async function submitOrder(){
   if(!CART.length){ toast('Giỏ chưa có bánh nào'); return; }
+
+  /* CHOT LICH TRUOC KHI GUI. Hai viec, deu la loi Codex bat o vong mot:
+     - khach chua tu chon du ngay va gio thi khong duoc lay gia tri mac dinh
+       cua trang lam lich giao,
+     - tab mo lau thi khung gio da chon co the da qua, phai tinh lai bang
+       dong ho hien tai chu khong tin lan ve truoc. */
+  dongBoNgay();
+  const lichHong = !slotOk(picked, SLOTS[pickedSlot]);
+  if(!daChotLich(daChonNgay,daChonGio) || lichHong){
+    moLich=true; drawCoDate();
+    toast(lichHong
+      ? 'Khung giờ đã chọn không còn kịp, anh chị chọn lại giúp em nhé.'
+      : 'Anh chị chọn giúp em ngày và khung giờ nhận bánh.');
+    const o=$('#c-days');
+    if(o){ o.scrollIntoView({behavior:'smooth',block:'center'});
+      const b=o.querySelector('.day.on')||o.querySelector('.day'); if(b) b.focus(); }
+    return;
+  }
 
   const ten=($('#f-name').value||'').trim();
   const sdt=($('#f-phone').value||'').replace(/\D/g,'');
@@ -1719,7 +1943,9 @@ function veHangMua(){
      hieu, khong phai chep lai mot bo quy tac thu hai roi lech nhau. */
   luoi.innerHTML=(MUA.mon||[]).map(function(m){
     var het=!!m.het;
-    var chip='<i class="sz'+(het?'':' has')+'">'+(het?'Hết hàng':'Còn '+m.con)+'</i>';
+    /* Dung chung nhanTon voi the banh thuong. Truoc day cho nay ghi thang
+       'Con '+m.con nen lo ra "Con 1092" tren trang that. */
+    var chip='<i class="sz'+(het?'':' has')+'">'+(het?'Tạm hết':nhanTon(m.con,'phần'))+'</i>';
     return '<button class="card mua'+(het?' het':'')+'" onclick="moSheetMua(\''+esc(m.ma)+'\')">'+
       '<div class="ph"><i class="tagline">Seasonal</i>'+
       (m.anh?'<img loading="lazy" onerror="this.style.display=\'none\'" src="'+m.anh+'" alt="">':'')+
@@ -1751,9 +1977,11 @@ function veSheetMua(m){
   var img=$('#sm-img');
   if(m.anh){ img.src=m.anh; img.style.display=''; } else { img.removeAttribute('src'); img.style.display='none'; }
   $('#sm-name').textContent=m.ten;
+  /* Cung mot nhan voi ngoai the: khong de ngoai ghi "Con hang" ma vao trong
+     lai lo ra so hang nghin. */
   $('#sm-avail').innerHTML=m.het
     ? '<div class="avail">Hết hàng mùa này</div>'
-    : '<div class="avail">'+(MUA.ten_mua||'Hàng theo mùa')+' · còn '+m.con+' phần</div>';
+    : '<div class="avail">'+(MUA.ten_mua||'Hàng theo mùa')+' · '+nhanTon(m.con,'phần')+'</div>';
   $('#sm-gia').innerHTML='<b style="font-weight:400">'+vnd(m.gia||0)+'</b>';
 
   /* Chuoi ruot may chu tra ve dang "1 x Dua Buoi Xi Muoi, 80gram, nam 2026,
