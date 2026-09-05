@@ -71,7 +71,7 @@ def dung():
 
 	from vagabond import (
 		ban_hang, bao_gia, buoc_hoa_don_mua, chung_tu_tien, diem_otp,
-		duyet_ycmh, hoan_tien, mua_dich_vu, noi_bo, sepay,
+		duyet_ycmh, hoan_tien, mua_dich_vu, nghiep_vu_tien, noi_bo, sepay,
 	)
 
 	_dung_nhom(duyet_ycmh.TRUONG_MOI, "duyet_ycmh")
@@ -80,6 +80,10 @@ def dung():
 	_dung_nhom(noi_bo.TRUONG_MOI, "noi_bo")
 	_dung_nhom(hoan_tien.TRUONG_MOI, "hoan_tien")
 	_dung_nhom(chung_tu_tien.TRUONG_MOI, "chung_tu_tien")
+	# O nghiep vu cua phieu thu chi. PHAI dung SAU chung_tu_tien vi no
+	# chen ngay duoi o `vgb_loai_ct` do nhom kia dung, va sau hoan_tien vi
+	# o `vgb_ho_so_tt` chen ngay duoi o `vgb_hoan_tien`.
+	_dung_nhom(nghiep_vu_tien.TRUONG_MOI, "nghiep_vu_tien")
 	_dung_nhom(bao_gia.TRUONG_MOI, "bao_gia")
 	_dung_nhom(bao_gia.TRUONG_CAI_DAT, "bao_gia_cai_dat")
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")

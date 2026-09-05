@@ -3523,7 +3523,14 @@ la("phieu da huy thi khong gan them", 'đã huỷ nên không đối chiếu th�
 # --- Truong moi phai duoc dung lai moi lan Migrate ---
 _tt33 = open("vagabond/truong_tu_them.py", encoding="utf-8").read()
 la("nhom truong sepay duoc dung lai khi Migrate", '_dung_nhom(sepay.TRUONG_MOI, "sepay")' in _tt33, True)
-la("sepay nam trong danh sach import", "mua_dich_vu, noi_bo, sepay," in _tt33, True)
+# 05/09/2026: ca kiem nay truoc do chot NGUYEN VAN chuoi "mua_dich_vu,
+# noi_bo, sepay," nen no vo ngay khi ban v425 chen `nghiep_vu_tien` vao
+# giua danh sach, du y dinh cua ca kiem van duoc giu nguyen. Chot lai
+# theo DUNG Y DINH: sepay phai nam trong khoi import cua ham dung().
+# Viet the nay thi lan sau them mo dun moi khong lam vo ca kiem, ma bo
+# quen sepay thi van bi bat.
+_kh33 = _tt33.split("\tfrom vagabond import (", 1)[1].split(")", 1)[0]
+la("sepay nam trong danh sach import", "sepay," in _kh33, True)
 for _o33 in ("gd_vao", "nguoi_gan_gd_vao", "ngay_gan_gd_vao"):
 	la("phieu hoan tien co o %s" % _o33, '"fieldname": "%s"' % _o33 in _ht_src, True)
 for _o33 in ("sepay_bat", "sepay_khoa", "sepay_chua_map"):

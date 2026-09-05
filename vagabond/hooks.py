@@ -67,7 +67,24 @@ doctype_list_js = {
 	"Purchase Invoice": "public/js/minvoice_list.js",
 	"Sales Invoice": "public/js/minvoice_list.js",
 	"MInvoice Invoice": "public/js/minvoice_list.js",
+	# Man phieu thu / phieu chi: sau nghiep vu khac nhau lau nay do chung
+	# mot man ma khong co o nao noi ra la loai gi (anh Viet 05/09/2026).
+	"Payment Entry": "public/js/payment_entry_list.js",
 }
+
+# Chip trang thai cho cac man danh sach rieng cua Vagabond (anh Viet
+# 05/09/2026). Ra soat ngay do: 23 tren 76 doctype rieng co mot truong
+# trang thai day du y nghia, ma KHONG doctype nao to no ra tren man danh
+# sach. Muoi hai man dong viec nhat dung chung MOT tep khai, chep muoi
+# hai ban la muoi hai ban se lech nhau. Doc dau tep vagabond_list.js.
+for _dt_vgb in (
+	"Vagabond De Nghi Chi", "Vagabond Ho So TT", "Vagabond KPI Phieu",
+	"Vagabond Cong No", "Vagabond Hoan Tien", "Vagabond Nop Quy",
+	"Bao Gia Ban Hang", "Hop Dong Ban Hang", "Vagabond Don Huy",
+	"Vagabond Yeu Cau TT", "Vagabond Kiem Kho Diem", "Vagabond Nhan Banh",
+):
+	doctype_list_js[_dt_vgb] = "public/js/vagabond_list.js"
+del _dt_vgb
 
 # Kiem banh ngay: 5 phut keo don Pancake mot lan de cot "da dat" va
 # "phat sinh" tu chay, sales khoi dem tay.
@@ -509,7 +526,15 @@ doc_events = {
 	"Payment Entry": {
 		# Ten goi dung theo tai khoan tien: 111 la Phieu thu/Phieu chi, 112
 		# la Giay bao Co / Uy nhiem chi (chi Dung chot 16/08/2026).
-		"validate": "vagabond.chung_tu_tien.dat_ten",
+		"validate": [
+			"vagabond.chung_tu_tien.dat_ten",
+			# Phieu nay thuoc viec gi: thu tien khach, tra nha cung cap,
+			# tra truoc, hoan ung nhan vien, hoan tien khach hay chuyen noi
+			# bo. Sau nghiep vu do lau nay do chung mot man ma khong co o
+			# nao noi ra (anh Viet 05/09/2026). Doc dau tep
+			# vagabond/nghiep_vu_tien.py.
+			"vagabond.nghiep_vu_tien.dat_nghiep_vu",
+		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung
 			# KHONG cong nhan dong sao ke SePay thay cho tep nay.
