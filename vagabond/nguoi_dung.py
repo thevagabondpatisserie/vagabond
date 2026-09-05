@@ -389,9 +389,15 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 				dem["tuy_chinh"] += 1
 		rows.append(r)
 
-	# Tách người ngoài phạm vi ra, cho họ đi vòng qua mọi bộ lọc: đã gõ đúng
-	# nguyên email thì phải thấy, không thì lại thành ngõ cụt.
-	ngoai = [r for r in rows if r["ngoai_pham_vi"]]
+	# Tách RIÊNG người khớp đúng nguyên email, cho đi vòng qua mọi bộ lọc.
+	#
+	# Vòng trước chỉ mở lối này cho người NGOÀI phạm vi, nên vẫn còn ngõ cụt:
+	# màn giữ nguyên chip và gói đang chọn khi đổi ô tìm kiếm, nên đang đứng ở
+	# nhóm Đang làm mà tìm một tài khoản ĐÃ TẮT thì vẫn không thấy, dù làm
+	# đúng y lời câu báo trùng. Người nội bộ đã tắt và shipper đã tắt đều mắc.
+	# Gõ đúng nguyên email là ý định rõ ràng tới mức không bộ lọc nào được
+	# phép chắn, bất kể người đó thuộc loại nào.
+	khop_email = [r for r in rows if r["email"].lower() == tim_dung_email] if tim_dung_email else []
 	rows = [r for r in rows if not r["ngoai_pham_vi"]]
 	tat_ca = len(rows)
 
@@ -419,7 +425,7 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		]
 
 	co_roi = {r["email"] for r in rows}
-	rows = rows + [r for r in ngoai if r["email"] not in co_roi]
+	rows = rows + [r for r in khop_email if r["email"] not in co_roi]
 
 	rows.sort(key=lambda r: (0 if r["bat"] else 1, (r["ten"] or "").lower()))
 	dem_goi = {}
