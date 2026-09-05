@@ -1067,6 +1067,22 @@ def giao_xong(name, file_url=None):
 	doc = frappe.get_doc("Van Don", name)
 	if doc.trang_thai in ("Đã giao", "Huỷ"):
 		frappe.throw("Đơn đã ở trạng thái %s." % doc.trang_thai)
+	# Chang noi bo cua don pickup: banh lam o 307 duoc cho ra quay, khach
+	# CHUA cam duoc hop nao ca. Truoc day ban shipper bam "Da giao" luc bo
+	# hang xuong quay la don dong lai va Pancake bao khach da nhan, trong
+	# khi khach con chua toi. Nen chang nay chi ket thuc phan cua bac tai:
+	# go nguoi cho ra, don ve lai hang cho o quay, khong day Pancake.
+	if doc.diem_pickup and _la_shipper() and not (_la_sales() or _la_ke_toan()):
+		if file_url:
+			doc.anh_giao = file_url
+		doc.shipper = None
+		doc.chuyen = ""
+		doc.thu_tu = 0
+		doc.trang_thai = pickup.TRANG_THAI
+		doc.flags.ignore_permissions = True
+		doc.save()
+		return {"name": doc.name, "da_bao_pancake": False, "toi_quay": 1,
+			"diem_pickup": doc.diem_pickup}
 	doc.trang_thai = "Đã giao"
 	doc.giao_luc = now_datetime()
 	if not doc.shipper and _la_shipper():
@@ -1133,6 +1149,61 @@ def ds_shipper():
 
 # Don vi giao hang ngoai. Co API thi app tu goi xe duoc, khong co API thi
 # chi danh dau de nhan vien tu dat tren app cua ho roi ghi nhan lai.
+def _tt_theo_gan(doc):
+	"""Trang thai suy ra tu hai thu da gan. Mot cho tinh (QT-19).
+
+	Don khong con ai cho ma van co diem thi ve "Cho khach lay" chu khong ve
+	"Cho giao": hop banh dang nam san o quay, khong con viec gi phai phan
+	cong nua.
+	"""
+	if doc.get("shipper") or doc.get("kenh") in KENH_NGOAI:
+		return "Đang giao"
+	if doc.get("diem_pickup"):
+		return pickup.TRANG_THAI
+	return "Chờ giao"
+
+
+def _noi_giao(doc):
+	"""Xe cho hang TOI DAU, va thu ho bao nhieu.
+
+	Anh Viet 05/09/2026: don pickup VAN book xe duoc, va do la truong hop
+	thuong gap nhat. Banh lam o 307/1, book xe cho ra 9TCV, khach den quay
+	do lay. Tuc la mot don co the vua co nguoi cho vua co diem khach lay -
+	hai viec khac nhau, khong loai tru nhau.
+
+	Cho nay quan trong vi ba duong goi xe (Ahamove dat don, Ahamove bao gia,
+	GreenSM) deu tung lay thang `doc.dia_chi`, tuc DIA CHI KHACH. Voi don
+	pickup thi bac tai se cho hop banh toi nha khach trong khi khach dang
+	ngoi cho o quay - mat tien cuoc xe va mat luon hop banh. Nen gom ve mot
+	ham (QT-19), ba duong deu goi cho nay.
+
+	Hai thu doi theo, khong chi dia chi:
+	  - Ten va so dien thoai nguoi nhan la CUA QUAY, khong phai cua khach.
+	    Bac tai goi cho khach thi khach khong biet gi.
+	  - COD ve 0. Khach tra tien tai quay chu khong tra cho bac tai.
+	"""
+	from vagabond import pickup
+
+	if doc.get("diem_pickup"):
+		d = pickup.tim(doc.diem_pickup, pickup.ds())
+		if d and d.get("dia_chi"):
+			c = cfg()
+			return {
+				"dia_chi": d["dia_chi"],
+				"ten": "The Vagabond %s" % (d.get("ngan") or ""),
+				"sdt": c.ahamove_mobile or "",
+				"cod": 0.0,
+				"toi_diem": 1,
+			}
+	return {
+		"dia_chi": doc.dia_chi or "",
+		"ten": doc.khach or "Khách",
+		"sdt": doc.sdt or "",
+		"cod": flt(doc.tien_thu_ho) or 0,
+		"toi_diem": 0,
+	}
+
+
 KENH_NGOAI = {
 	"Ahamove": {"api": 1},
 	"GreenSM": {"api": 1},
@@ -1143,22 +1214,31 @@ KENH_NGOAI = {
 
 
 @frappe.whitelist()
-def gan_shipper(name, shipper=None, kenh=None, diem=None):
-	"""Sales chi dinh nguoi giao cho MOT van don.
+def gan_shipper(name, shipper=None, kenh=None, diem=None, bo_diem=0):
+	"""Sales chi dinh NGUOI CHO va NOI KHACH LAY cho mot van don.
 
-	- shipper = email nhan vien: don hien ngay tren man hinh shipper do,
-	  va he thong gui email bao cho ban ay.
-	- kenh = ten don vi ngoai (Ahamove, GreenSM, Grab, BE, Lalamove): danh dau
-	  don di app ngoai. Don vi co API thi de trang thai Cho giao cho sales bam
-	  Goi xe; don vi khong co API thi chuyen thang Dang giao vi nhan vien tu
-	  dat tren app cua ho.
-	- diem = ma diem pickup (SALES / TCV / NVHTN): khach ra tan noi lay,
-	  khong ai chay xe. Xem vagabond/pickup.py.
-	- ca ba rong: go ra, tra ve Cho giao.
+	Day la hai viec khac nhau, khong loai tru nhau. Anh Viet 05/09/2026:
+	"banh san xuat o 307 roi can book xe cho ra 9TCV roi khach moi den pickup
+	o do la phan nhieu, vi day la cua hang". Tuc mot don rat hay co CA HAI:
+	mot bac tai cho hop banh giua hai co so cua minh, va mot cai quay noi
+	khach den nhan. Ban dau (v424) cho nay bat hai thu loai tru nhau, sai.
 
-	Ba loai loai tru nhau. Gan cai nay thi XOA cai kia, khong de mot don vua
-	mang ten shipper vua mang ten diem - hai nguoi cung tuong don la cua minh
-	la co ngay mot hop banh di hai duong.
+	NGUOI CHO, chon mot trong hai:
+	- shipper = email nhan vien: don hien ngay tren man hinh shipper do, va
+	  he thong gui email bao cho ban ay.
+	- kenh = don vi ngoai (Ahamove, GreenSM, Grab, BE, Lalamove). Don vi co
+	  API thi de trang thai Cho giao cho sales bam Goi xe; don vi khong co
+	  API thi chuyen thang Dang giao vi nhan vien tu dat tren app cua ho.
+	- ca hai rong: go nguoi cho ra.
+
+	NOI KHACH LAY, doc lap voi tren:
+	- diem = ma diem pickup (SALES / TCV / NVHTN). Xem vagabond/pickup.py.
+	- bo_diem = 1: go diem ra, don quay ve giao tan noi cho khach.
+
+	Trang thai suy ra tu hai thu do, khong dat tay o hai cho:
+	  co nguoi cho  -> Dang giao (hoac Cho giao neu doi bam Goi xe)
+	  khong nguoi cho, co diem -> Cho khach lay
+	  khong ca hai  -> Cho giao
 	"""
 	if not _la_sales():
 		frappe.throw("Chỉ sales chỉ định người giao được.")
@@ -1176,37 +1256,39 @@ def gan_shipper(name, shipper=None, kenh=None, diem=None):
 				"Phiếu điều chuyển %s đã bị huỷ nên không phân công giao được. "
 				"Hàng không còn rời kho theo phiếu này nữa." % doc.chung_tu_goc)
 	cu = doc.shipper
+	# --- Noi khach lay, doc lap voi nguoi cho ---
+	if cint(bo_diem):
+		doc.diem_pickup = ""
+	elif diem:
+		ds_pk = pickup.ds()
+		if not pickup.hop_le(diem, ds_pk):
+			frappe.throw(pickup.loi_ma_la(diem, ds_pk))
+		doc.diem_pickup = pickup.chuan_ma(diem)
+	# --- Nguoi cho ---
 	if kenh:
 		if kenh not in KENH_NGOAI:
 			frappe.throw("Không biết đơn vị giao hàng %s." % kenh)
 		doc.shipper = None
 		doc.chuyen = ""
 		doc.thu_tu = 0
-		doc.diem_pickup = ""
 		doc.kenh = kenh
 		doc.trang_thai = "Chờ giao" if KENH_NGOAI[kenh]["api"] else "Đang giao"
-	elif diem:
-		ds_pk = pickup.ds()
-		if not pickup.hop_le(diem, ds_pk):
-			frappe.throw(pickup.loi_ma_la(diem, ds_pk))
-		doc.shipper = None
-		doc.chuyen = ""
-		doc.thu_tu = 0
-		doc.diem_pickup = pickup.chuan_ma(diem)
-		doc.kenh = "Khách tự lấy"
-		doc.trang_thai = pickup.TRANG_THAI
 	elif shipper:
 		doc.shipper = shipper
-		doc.diem_pickup = ""
 		doc.trang_thai = "Đang giao"
 		if doc.kenh != "Shipper nội bộ":
 			doc.kenh = "Shipper nội bộ"
+	elif diem or cint(bo_diem):
+		# Chi dong den diem, khong dong den nguoi cho. Giu nguyen bac tai
+		# dang chay, chi tinh lai trang thai.
+		doc.trang_thai = _tt_theo_gan(doc)
+		if doc.diem_pickup and not doc.shipper and doc.kenh not in KENH_NGOAI:
+			doc.kenh = "Khách tự lấy"
 	else:
 		doc.shipper = None
 		doc.chuyen = ""
 		doc.thu_tu = 0
-		doc.diem_pickup = ""
-		doc.trang_thai = "Chờ giao"
+		doc.trang_thai = _tt_theo_gan(doc)
 	doc.flags.ignore_permissions = True
 	doc.save()
 	if doc.shipper and doc.shipper != cu:
@@ -1288,12 +1370,11 @@ def gop_chuyen(names, shipper, chuyen=None):
 	gan = 0
 	for nm in names:
 		doc = frappe.get_doc("Van Don", nm)
-		if doc.trang_thai not in ("Chờ giao", "Đang giao"):
+		if doc.trang_thai not in ("Chờ giao", "Đang giao", pickup.TRANG_THAI):
 			bo_qua.append("%s (%s)" % (doc.ma_don or nm, doc.trang_thai))
 			continue
 		doc.shipper = shipper
 		doc.chuyen = chuyen
-		doc.diem_pickup = ""
 		doc.trang_thai = "Đang giao"
 		if doc.kenh != "Shipper nội bộ":
 			doc.kenh = "Shipper nội bộ"
@@ -1438,9 +1519,10 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 	c = cfg()
 	if not (key(c, "ahamove_api_key") and c.ahamove_base and c.ahamove_mobile):
 		frappe.throw("Chưa cấu hình Ahamove trong Vagabond Settings.")
-	if not (doc.dia_chi or "").strip():
+	noi = _noi_giao(doc)
+	if not (noi["dia_chi"] or "").strip():
 		frappe.throw("Vận đơn chưa có địa chỉ giao.")
-	toa = geocode(c, doc.dia_chi)
+	toa = geocode(c, noi["dia_chi"])
 	if not toa or not toa.get("lat"):
 		frappe.throw("Không tìm được toạ độ cho địa chỉ này, vui lòng sửa lại địa chỉ.")
 	dv = (service_id or c.ma_dich_vu or "").strip()
@@ -1455,9 +1537,9 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 		"path": [
 			dict(_diem_lay(c), mobile=c.ahamove_mobile, name="The Vagabond", address=c.kitchen_address or ""),
 			{
-				"lat": toa["lat"], "lng": toa["lng"], "address": doc.dia_chi,
-				"name": doc.khach or "Khách", "mobile": doc.sdt or c.ahamove_mobile,
-				"cod": flt(doc.tien_thu_ho) or 0,
+				"lat": toa["lat"], "lng": toa["lng"], "address": noi["dia_chi"],
+				"name": noi["ten"], "mobile": noi["sdt"] or c.ahamove_mobile,
+				"cod": noi["cod"],
 			},
 		],
 		# TAO don dung service_id (chuoi) + requests o cap cao nhat.
@@ -1532,12 +1614,13 @@ def _greensm_dat_don(doc):
 		)
 	from vagabond.dia_chi import geocode
 
-	toa = geocode(c, doc.dia_chi or "")
+	noi = _noi_giao(doc)
+	toa = geocode(c, noi["dia_chi"] or "")
 	diem = _diem_lay(c)
 	MAP_GSM = {
 		"pickup": {"lat": diem["lat"], "lng": diem["lng"], "address": diem["dia_chi"], "contact_name": "The Vagabond", "contact_phone": c.ahamove_mobile or ""},
-		"dropoff": {"lat": (toa or {}).get("lat"), "lng": (toa or {}).get("lng"), "address": doc.dia_chi, "contact_name": doc.khach or "Khách", "contact_phone": doc.sdt or ""},
-		"cod_amount": flt(doc.tien_thu_ho) or 0,
+		"dropoff": {"lat": (toa or {}).get("lat"), "lng": (toa or {}).get("lng"), "address": noi["dia_chi"], "contact_name": noi["ten"], "contact_phone": noi["sdt"]},
+		"cod_amount": noi["cod"],
 		"note": "Đơn %s - %s" % (doc.ma_don or doc.name, doc.gio_giao or ""),
 	}
 	r = _mang().post(
@@ -1566,12 +1649,6 @@ def book_xe(name, kenh, service_id=None, requests_them=None):
 	doc = frappe.get_doc("Van Don", name)
 	if doc.booking_id:
 		frappe.throw("Đơn này đã book rồi (%s). Huỷ bên app kia trước nếu muốn book lại." % doc.booking_id)
-	# Don khach tu lay khong co ai chay xe. Book xe cho no la mat tien that
-	# cho mot cuoc xe khong ai di.
-	if doc.diem_pickup:
-		frappe.throw(
-			"Đơn này đang để khách tự lấy tại điểm, không book xe được. "
-			"Mở ô Phân công đổi sang shipper hoặc app ngoài trước nếu muốn giao tận nơi.")
 	if isinstance(requests_them, str):
 		requests_them = json.loads(requests_them or "[]")
 	if kenh == "Ahamove":
@@ -1669,9 +1746,10 @@ def aha_bao_gia(name, service_id=None, requests_them=None):
 		requests_them = json.loads(requests_them or "[]")
 	c = cfg()
 	doc = frappe.get_doc("Van Don", name)
-	if not (doc.dia_chi or "").strip():
+	noi = _noi_giao(doc)
+	if not (noi["dia_chi"] or "").strip():
 		frappe.throw("Vận đơn chưa có địa chỉ giao.")
-	toa = geocode(c, doc.dia_chi)
+	toa = geocode(c, noi["dia_chi"])
 	if not toa or not toa.get("lat"):
 		frappe.throw("Không tìm được toạ độ cho địa chỉ này, vui lòng sửa lại địa chỉ.")
 	diem = _diem_lay(c)
@@ -1679,8 +1757,8 @@ def aha_bao_gia(name, service_id=None, requests_them=None):
 		"order_time": 0,
 		"path": [
 			{"lat": diem["lat"], "lng": diem["lng"], "address": c.kitchen_address or ""},
-			{"lat": toa["lat"], "lng": toa["lng"], "address": doc.dia_chi,
-				"cod": flt(doc.tien_thu_ho) or 0},
+			{"lat": toa["lat"], "lng": toa["lng"], "address": noi["dia_chi"],
+				"cod": noi["cod"]},
 		],
 		"services": [{
 			"_id": (service_id or c.ma_dich_vu or "SGN-BIKE").strip(),

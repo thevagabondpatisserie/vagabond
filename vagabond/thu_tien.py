@@ -66,6 +66,20 @@ SI = "Sales Invoice"
 # Cộng chúng vào phần đã thu là tự xoá sổ nợ của mình.
 PT_KHONG_PHAI_THU = ("Công nợ", "Chưa thu", "Ghi nợ")
 
+# Hàng tặng không phải một đường tiền vào, cũng không phải một khoản nợ.
+# Tờ đã tất toán rồi, nhưng tất toán bằng CHI PHÍ biếu tặng chứ không bằng
+# tiền: xem vagabond/hang_tang.py, nó có đường ghi sổ riêng vào 64181 và
+# 64182. Sinh chứng từ thu cho nó là dựng ra một khoản tiền không ai trả.
+#
+# Nên nó nằm riêng khỏi PT_KHONG_PHAI_THU: vào danh sách đó thì nó lại bị
+# tính thành nợ, và màn công nợ sẽ đi đòi khách một hộp bánh mình tặng.
+PT_KHONG_SINH_PHIEU = ("Hàng tặng",)
+
+
+def khong_sinh_phieu(pt):
+	"""Phương thức đã tất toán tờ nhưng KHÔNG bằng tiền. THUẦN."""
+	return (pt or "").strip() in PT_KHONG_SINH_PHIEU
+
 
 # ------------------------------------------------------------ phần thuần
 
@@ -346,6 +360,10 @@ def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu=""):
 	for pt, so_tien in da_thu_theo_pt(dong):
 		if con <= 0:
 			break
+		if khong_sinh_phieu(pt):
+			# Hàng tặng: tờ đã tất toán bằng chi phí biếu tặng, không có
+			# đồng nào vào két để mà lập phiếu thu.
+			continue
 		khoa = khoa_chong_trung(si_name, "%s|%s" % (nguon or "", pt))
 		if _da_ghi_roi(khoa):
 			continue
