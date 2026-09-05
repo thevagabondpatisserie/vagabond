@@ -14,6 +14,8 @@ class KiemBanhNgay(Document):
 		# don Pancake. Truoc day Loan Anh phai tao mot don Pancake gia de
 		# tru so, thanh ra mot khach hai bill. Nay dem thang tu hoa don ban
 		# ra co nguon khac Pancake trong ngay.
+		# "Giu cho" (05/09/2026): phieu dat banh o tai cua hang, tinh theo
+		# ngay khach ra nhan. Xem vagabond/dat_banh.py.
 		for d in self.dong:
 			d.co_the_ban = (
 				(d.ton_cu or 0)
@@ -24,4 +26,10 @@ class KiemBanhNgay(Document):
 				- (d.phat_sinh or 0)
 				- (d.cho_chot or 0)
 				- (d.don_khac or 0)
+				# "Giu cho" (05/09/2026) la banh khach da dat tai cua hang va
+				# TRA TRUOC TOAN BO, nhung chua toi ngay ra lay. Tru vao ngay
+				# NHAN chu khong phai ngay dat: hang phai co mat dung hom
+				# khach toi. Phan da giao roi thi roi khoi cot nay va di vao
+				# cot Kenh khac cua chinh ngay giao, nen tong luon can.
+				- (d.giu_cho or 0)
 			)

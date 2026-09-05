@@ -431,6 +431,11 @@ def dong_bo(ngay=None):
 	# Don kenh khac (Grab, Shopee, quay...) khong nam trong Pancake, dem
 	# rieng tu hoa don ban ra. Chay o day de moi lan dong bo la so dung.
 	_ghi_don_khac(doc, ngay)
+	# Giữ chỗ của khách đặt bánh ổ. Nhịp đồng bộ phải đo lại cột này để TỰ
+	# CHỮA nếu một lần hook phiếu đặt bị lỗi: không có dòng này thì một
+	# hook hỏng là số giữ chỗ sai vĩnh viễn cho tới khi có người sờ tay.
+	# Codex bắt ở PR #197.
+	_ghi_giu_cho(doc, ngay)
 	co = {d.ma_hang: d for d in doc.dong}
 
 	for ma, d in co.items():
@@ -535,6 +540,68 @@ def _dem_don_khac(ngay, dang_theo_doi=None):
 	return dem, mo_ta
 
 
+def _them_dong_thieu(doc, co, thieu):
+	"""Thêm các mã chưa có dòng trên bảng, lấy tên và ảnh từ danh mục Hàng hoá.
+
+	Dùng chung cho cột Kênh khác và cột Giữ chỗ. Trước đây chỉ cột Kênh khác
+	có đường thêm dòng, nên một loại bánh mới chỉ có khách đặt trước mà chưa
+	bán buổi nào thì không bao giờ hiện trên bảng, và số giữ chỗ của nó không
+	trừ vào khả năng bán. Codex bắt ở PR #197.
+	"""
+	if not thieu:
+		return
+	ten_moi = {}
+	for it in frappe.get_all(
+		"Item",
+		filters={"name": ["in", sorted(thieu)]},
+		fields=["name", "item_name", "image"],
+		limit_page_length=0,
+	):
+		ten_moi[it.name] = it
+	for ma in thieu:
+		x = ten_moi.get(ma) or {}
+		anh = x.get("image") or ""
+		d = doc.append(
+			"dong",
+			{
+				"ma_hang": ma,
+				"ten_banh": x.get("item_name") or ma,
+				"hinh": anh if not str(anh).startswith("/private") else "",
+			},
+		)
+		co[ma] = d
+
+
+def _ghi_giu_cho(doc, ngay):
+	"""Đo cột "Giữ chỗ" từ phiếu đặt bánh ổ. KHÔNG tự save.
+
+	Ngày đã chốt số thì không đụng vào nữa, giống hệt cột Kênh khác: số của
+	ngày đó đã khoá, tồn còn lại đã chạy sang ngày mai theo con số lúc chốt.
+
+	Trả về None khi ĐỌC HỎNG, và khi đó không sửa một ô nào. Bản đầu ghi 0
+	vào mọi dòng trong trường hợp này, tức là một trục trặc cơ sở dữ liệu
+	vài giây sẽ nhả toàn bộ bánh đã giữ của khách ra bán tiếp. Codex bắt
+	đúng ở PR #197.
+	"""
+	if doc.tinh_trang == "Da chot":
+		return {}
+	from vagabond import dat_banh
+
+	try:
+		dem = dat_banh.dem_giu_cho(ngay)
+	except Exception:
+		frappe.log_error(
+			title="Vagabond: doc so giu cho that bai, giu nguyen so cu",
+			message=frappe.get_traceback(),
+		)
+		return None
+	co = {d.ma_hang: d for d in doc.dong}
+	_them_dong_thieu(doc, co, [ma for ma in dem if ma not in co])
+	for ma, d in co.items():
+		d.giu_cho = int(dem.get(str(ma or "").upper()) or 0)
+	return dem
+
+
 def _ghi_don_khac(doc, ngay):
 	"""Do cot "Kenh khac" vao mot ban ghi kiem banh. KHONG tu save.
 
@@ -547,27 +614,7 @@ def _ghi_don_khac(doc, ngay):
 		ngay, {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
 	)
 	co = {d.ma_hang: d for d in doc.dong}
-	thieu = [ma for ma in dem if ma not in co]
-	ten_moi = {}
-	if thieu:
-		for it in frappe.get_all(
-			"Item",
-			filters={"name": ["in", sorted(thieu)]},
-			fields=["name", "item_name", "image"],
-			limit_page_length=0,
-		):
-			ten_moi[it.name] = it
-	for ma in thieu:
-		x = ten_moi.get(ma) or {}
-		d = doc.append(
-			"dong",
-			{
-				"ma_hang": ma,
-				"ten_banh": x.get("item_name") or ma,
-				"hinh": (x.get("image") or "") if not str(x.get("image") or "").startswith("/private") else "",
-			},
-		)
-		co[ma] = d
+	_them_dong_thieu(doc, co, [ma for ma in dem if ma not in co])
 	for ma, d in co.items():
 		d.don_khac = dem.get(ma, 0)
 		d.ten_khach_khac = ", ".join(mo_ta.get(ma, []))
@@ -591,13 +638,79 @@ def cap_nhat_don_khac(ngay=None):
 	if doc.tinh_trang == "Da chot":
 		return {"ok": 1, "da_chot": 1}
 	_ghi_don_khac(doc, ngay)
+	_ghi_giu_cho(doc, ngay)
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ma_hang": len(dem)}
 
 
+def cap_nhat_giu_cho(ngay=None):
+	"""Đo lại riêng cột "Giữ chỗ" cho một ngày nhận.
+
+	KHÔNG tự commit: hàm này chạy bên trong lượt lưu phiếu đặt của người
+	dùng, commit ở giữa là cắt đôi giao dịch của họ. Khung tự commit khi
+	lượt lưu xong.
+	"""
+	ngay = getdate(ngay) if ngay else getdate()
+	ma = "KB-%s" % ngay
+	if not frappe.db.exists("Kiem Banh Ngay", ma):
+		from vagabond import dat_banh
+
+		if not dat_banh.dem_giu_cho(ngay):
+			return {"ok": 1, "bo_qua": 1}
+	doc = _lay_hoac_tao(ngay)
+	if doc.tinh_trang == "Da chot":
+		return {"ok": 1, "da_chot": 1}
+	if _ghi_giu_cho(doc, ngay) is None:
+		return {"ok": 0, "doc_hong": 1}
+	doc.save(ignore_permissions=True)
+	return {"ok": 1}
+
+
+def khi_doi_phieu_dat(doc, method=None):
+	"""Hook Sales Order: phiếu đặt đổi thì đo lại cột Giữ chỗ.
+
+	Codex bắt ở PR #197: bản đầu chỉ đo cột này bên trong đường của hoá
+	đơn, mà không móc vào sự kiện nào của phiếu đặt. Nghĩa là lập một phiếu
+	đặt hợp lệ xong, cột giữ chỗ vẫn bằng 0 cho tới khi tình cờ có một hoá
+	đơn khác chạy qua, và bánh đã bán cho khách đặt vẫn hiện là bán được.
+
+	Đo CẢ ngày cũ lẫn ngày mới, vì dời ngày nhận thì ngày cũ phải nhả số
+	ra. Nuốt lỗi vì hook này chạy giữa lượt lưu của người dùng: bảng kiểm
+	bánh sai một nhịp thì nhịp đồng bộ 5 phút chữa được, còn chặn không cho
+	sales lưu phiếu đặt của khách thì không chữa được bằng gì.
+	"""
+	try:
+		from vagabond import dat_banh
+
+		cu = doc.get_doc_before_save() if hasattr(doc, "get_doc_before_save") else None
+		ngay = dat_banh.gop_ngay(
+			dat_banh.ngay_nhan_cua(doc), dat_banh.ngay_nhan_cua(cu)
+		)
+		for n in ngay:
+			try:
+				cap_nhat_giu_cho(n)
+			except Exception:
+				frappe.log_error(
+					title="Vagabond: cap nhat giu cho mot ngay that bai",
+					message=frappe.get_traceback(),
+				)
+	except Exception:
+		frappe.log_error(
+			title="Vagabond: hook phieu dat banh",
+			message=frappe.get_traceback(),
+		)
+
+
 def khi_doi_hoa_don(doc, method=None):
-	"""Hook Sales Invoice: huy hoac xoa hoa don thi tra so lai bang kiem banh."""
+	"""Hook Sales Invoice: huy hoac xoa hoa don thi tra so lai bang kiem banh.
+
+	Do lai CA NGAY CU LAN NGAY MOI (sua 05/09/2026, Codex bat duoc o issue
+	#195). Ban cu chi goi voi `doc.posting_date`, tuc ngay MOI. Ai doi ngay
+	chung tu tu 20 sang 22 thi ngay 20 van tru mot cai banh cua to hoa don
+	da khong con o do nua, va sales tu choi khach oan. Loi im lang: khong
+	cau bao nao keu len, chi lo ra khi co nguoi ngoi doi tay hai bang.
+	"""
 	try:
 		if str(doc.get("custom_nguon") or "").strip().lower() in NGUON_PANCAKE:
 			return
@@ -605,7 +718,13 @@ def khi_doi_hoa_don(doc, method=None):
 			str(r.item_code or "").upper().startswith(TIEN_TO_MA) for r in (doc.get("items") or [])
 		):
 			return
-		cap_nhat_don_khac(doc.posting_date)
+		from vagabond.dat_banh import hai_ngay_phai_do
+
+		cu = (doc.get_doc_before_save() or {}) if hasattr(doc, "get_doc_before_save") else {}
+		for ngay in hai_ngay_phai_do(
+			(cu or {}).get("posting_date") if cu else None, doc.posting_date
+		):
+			cap_nhat_don_khac(ngay)
 	except Exception:
 		frappe.log_error(title="Vagabond: cap nhat kiem banh khi doi hoa don", message=frappe.get_traceback())
 

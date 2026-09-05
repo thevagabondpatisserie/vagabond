@@ -35,6 +35,23 @@ TIEN_CONG_NO = "cong_no"  # khach no, phai di doi
 # phong len bang dung so tiem da tang. Khac ca TIEN_VE_SAU vi khong co ben
 # thu ba nao giu gi ca.
 TIEN_KHONG_THU = "khong_thu"
+# Tiền ĐÃ VỀ RỒI, nhưng về ở một NGÀY KHÁC (anh Việt 05/09/2026).
+#
+# Sinh ra từ luồng đặt bánh ổ tại cửa hàng: khách trả trước toàn bộ vào
+# ngày đặt, hoá đơn VAT xuất vào ngày giao. Nghĩa là ngày giao có một tờ
+# hoá đơn đủ giá trị mà không một đồng nào vào két.
+#
+# Khác cả ba loại trên, và không được nhét bừa vào loại nào:
+#   - Không phải TIEN_NGAY: ngày giao không có đồng nào vào két, để nguyên
+#     thì chốt ca đòi thu ngân một khoản tiền không tồn tại.
+#   - Không phải TIEN_CONG_NO: khách không nợ gì cả, đã trả đủ từ trước.
+#     Xếp vào đây thì màn Công nợ phải đi đòi một khoản đã thu rồi.
+#   - Không phải TIEN_VE_SAU: không có bên thứ ba nào đang giữ tiền.
+#   - Không phải TIEN_KHONG_THU: có thu tiền thật, chỉ là thu hôm khác.
+#
+# Tiền của nó đã được đếm MỘT lần rồi, ở ca của ngày thu. Xem
+# ca_quay._doanh_thu_he_thong.
+TIEN_NGAY_KHAC = "ngay_khac"
 
 from vagabond.vai_cua_hang import VAI_QLCH
 
@@ -156,6 +173,30 @@ MAC_DINH = [
 		"quay": 1, "online": 1, "tien_ve": TIEN_KHONG_THU, "minvoice": "",
 		"nhan": "Ghi chú thêm cho đơn tặng (không bắt buộc)",
 	},
+	{
+		# Khách đặt bánh ổ tại cửa hàng trả trước TOÀN BỘ vào ngày đặt, hoá
+		# đơn VAT xuất vào ngày giao (anh Việt chốt 05/09/2026). Tờ hoá đơn
+		# ngày giao mang phương thức này.
+		#
+		# quay: 0, online: 0 - KHÔNG hiện ở màn chọn phương thức, giống hệt
+		# bốn phương thức sàn bên dưới. Codex bắt ở PR #197: để hiện ra thì
+		# thu ngân chọn nhầm được cho một hoá đơn bán thường, mà nhóm tiền
+		# này bị `ca_quay._ngoai_ket` loại khỏi bảng đối soát, nên một khoản
+		# tiền THẬT vừa thu sẽ biến mất khỏi số két phải có. Đây là kiểu sai
+		# tệ nhất: chọn nhầm một lần là hụt két đúng bằng giá trị đơn mà
+		# không dòng nào giải thích. Chỉ luồng đặt bánh mới đặt phương thức
+		# này, và đặt bằng máy chứ không bằng tay.
+		#
+		# bat: 1 - bắt buộc có số phiếu đặt. Không có số phiếu thì không lần
+		# ngược ra khoản đã thu ở ngày khác được, và cái cớ để loại tờ này
+		# khỏi đối soát cũng không còn.
+		#
+		# minvoice để trống: tiền thật sự vào bằng tiền mặt hay chuyển khoản
+		# ở NGÀY THU, và mã gửi cơ quan thuế lấy theo đường thu đó.
+		"ten": "Trả trước", "ic": "🎫",
+		"quay": 0, "online": 0, "tien_ve": TIEN_NGAY_KHAC, "minvoice": "",
+		"bat": 1, "nhan": "Số phiếu đặt bánh", "vd": "SO-2026-00123",
+	},
 	# Bon phuong thuc duoi day di theo NGUON DON cua san, khong hien o man
 	# chon phuong thuc - nhung van phai khai de con kiem ma don va gui dung
 	# ma hinh thuc thanh toan sang co quan thue.
@@ -193,7 +234,7 @@ MAC_DINH = [
 def _chuan(d, i=0):
 	ten = str(d.get("ten") or "").strip()
 	tv = str(d.get("tien_ve") or TIEN_NGAY).strip()
-	if tv not in (TIEN_NGAY, TIEN_VE_SAU, TIEN_CONG_NO, TIEN_KHONG_THU):
+	if tv not in (TIEN_NGAY, TIEN_VE_SAU, TIEN_CONG_NO, TIEN_KHONG_THU, TIEN_NGAY_KHAC):
 		tv = TIEN_NGAY
 	lg = str(d.get("lg") or "").strip()
 	# Logo phai la tep da tai len site nay. Khong cho tro ra ngoai: man hinh
@@ -275,6 +316,16 @@ def ve_sau():
 	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_VE_SAU]
 
 
+def thu_ngay_khac():
+	"""Phuong thuc ma tien da ve roi, nhung ve o mot ngay khac.
+
+	Man Chot ca phai tach nhom nay ra: ngay giao co hoa don ma khong co
+	tien vao ket, de trong bang doi soat thi thu ngan bi doi mot khoan
+	tien da nop tu hom truoc.
+	"""
+	return [d["ten"] for d in ds() if d["tien_ve"] == TIEN_NGAY_KHAC]
+
+
 def khong_thu():
 	"""Phuong thuc KHONG THU TIEN: hang tang.
 
@@ -331,6 +382,7 @@ def danh_sach():
 			{"k": TIEN_VE_SAU, "ten": "Bên thứ ba giữ, trả sau"},
 			{"k": TIEN_CONG_NO, "ten": "Khách nợ, phải đi đòi"},
 			{"k": TIEN_KHONG_THU, "ten": "Không thu tiền (hàng tặng)"},
+			{"k": TIEN_NGAY_KHAC, "ten": "Đã thu ngày khác (khách trả trước)"},
 		],
 	}
 

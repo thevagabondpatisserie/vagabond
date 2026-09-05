@@ -1,0 +1,768 @@
+"""Ca kiểm cho nền móng luồng khách đặt bánh ổ tại cửa hàng (issue #195).
+
+Anh Việt chốt năm câu nghiệp vụ 05/09/2026: khách trả trước toàn bộ, thu
+tiền mặt tại quầy được, đặt điểm này nhận điểm khác được, huỷ thì hoàn
+tiền, hoá đơn VAT xuất ngày giao.
+
+Bản này là phần NỀN, không có màn hình. Bốn thứ được canh:
+
+1. Ba cái ngày không được lẫn: ngày đặt, ngày thu, ngày nhận.
+2. Chốt ca không lệch ở CẢ HAI đầu. Tiền của một đơn vào két đúng MỘT lần,
+   ở ngày thu.
+3. Phần giữ chỗ tính theo ngày NHẬN, và không bao giờ đếm trùng với phần
+   đã giao.
+4. Đổi ngày chứng từ thì đo lại cả ngày cũ lẫn ngày mới. Đây là lỗi có sẵn
+   từ trước, Codex bắt được khi soi issue.
+
+Mọi ca chạy trên phép THUẦN và trên văn bản tệp: không cần Frappe, không
+cần site, không cần mạng, không cần thư viện requests.
+"""
+
+import io
+import os
+
+from vagabond.dat_banh import (
+	PT_TRA_TRUOC, con_giu_cho, gom_giu_cho, gop_ngay, hai_ngay_phai_do,
+	TT_NHA_CHO, TT_TAM_DUNG, con_giu_cho_theo_trang_thai,
+	la_banh_o, la_phieu_dat_banh, loi_khach_khong_khop, loi_phieu_dat_banh,
+	ngay_nhan_cua_phieu, phieu_dat_duoc_tro, tham_chieu_la, thieu_o_bat_buoc,
+	tien_thuc_thu, tong_ung_truoc,
+)
+from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la
+from vagabond.kiem_banh import TIEN_TO_MA
+from vagabond.pt_thanh_toan import TIEN_NGAY_KHAC
+
+GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _doc(ten):
+	with io.open(os.path.join(GOI, ten), encoding="utf-8") as f:
+		return f.read()
+
+
+DB = _doc("dat_banh.py")
+HK = _doc("hooks.py")
+CQ = _doc("ca_quay.py")
+KB = _doc("kiem_banh.py")
+PT = _doc("pt_thanh_toan.py")
+TTT = _doc("truong_tu_them.py")
+KBN = _doc(os.path.join("vagabond", "doctype", "kiem_banh_ngay", "kiem_banh_ngay.py"))
+
+
+# ------------------------------------------------- Nhận diện bánh ổ
+
+
+@ca("chi banh o moi vao bang, khong go lai tien to o hai noi")
+def _banh_o():
+	for x in ("BAWC-001", "baws-9", "BAWC"):
+		dung("%r la banh o" % x, la_banh_o(x, TIEN_TO_MA))
+	for x in ("HOP-01", "PHIGIAO", "", None):
+		dung("%r khong phai banh o" % x, not la_banh_o(x, TIEN_TO_MA))
+	# Go lai chuoi "BAWC" trong dat_banh.py la de ra hai noi noi khac nhau.
+	dung("lay tien to tu kiem_banh", "from vagabond.kiem_banh import TIEN_TO_MA" in DB)
+	dung("khong go lai tien to", '"BAWC"' not in DB and "'BAWC'" not in DB)
+
+
+# ------------------------------------------------- Giữ chỗ, không đếm trùng
+
+
+@ca("con giu cho = so dat tru phan da xong, khong bao gio am")
+def _con_giu_cho():
+	la("chua giao gi", con_giu_cho(3, 0, 0), 3)
+	la("giao mot", con_giu_cho(3, 1, 0), 2)
+	la("giao het", con_giu_cho(3, 3, 0), 0)
+	la("giao qua so dat van ve khong", con_giu_cho(3, 5, 0), 0)
+	la("so dat bang khong", con_giu_cho(0, 0, 0), 0)
+	la("so dat am", con_giu_cho(-2, 0, 0), 0)
+
+
+@ca("lay MAX cua da giao va da xuat hoa don, khong cong hai cot")
+def _khong_cong_hai_cot():
+	"""Hai duong hoan tat khac nhau cap nhat hai cot khac nhau. Cong lai la
+	tru hai lan: khach dat 2 ma bang tuong da giao 4."""
+	la("chi phieu giao chay", con_giu_cho(2, 2, 0), 0)
+	la("chi hoa don chay", con_giu_cho(2, 0, 2), 0)
+	# Ca hai cung chay cho CUNG mot lan giao: van la 2, khong phai 4.
+	la("ca hai cung chay", con_giu_cho(2, 2, 2), 0)
+	la("giao mot, xuat hoa don mot", con_giu_cho(2, 1, 1), 1)
+	# Neu cong hai cot thi ca nay ra 0, tuc mat mot cai banh khoi bang.
+	dung("khong bi cong thanh 0", con_giu_cho(2, 1, 1) != 0)
+
+
+@ca("gom giu cho theo NGAY NHAN chu khong theo ngay dat")
+def _gom_theo_ngay_nhan():
+	dong = [
+		{"item_code": "BAWC-01", "delivery_date": "2026-09-20", "qty": 2,
+			"delivered_qty": 0, "billed_qty": 0},
+		{"item_code": "BAWC-01", "delivery_date": "2026-09-22", "qty": 1,
+			"delivered_qty": 0, "billed_qty": 0},
+		{"item_code": "BAWS-07", "delivery_date": "2026-09-20", "qty": 5,
+			"delivered_qty": 2, "billed_qty": 0},
+	]
+	g = gom_giu_cho(dong, TIEN_TO_MA)
+	la("hai ngay", sorted(g), ["2026-09-20", "2026-09-22"])
+	la("ngay 20 banh 01", g["2026-09-20"]["BAWC-01"], 2)
+	la("ngay 20 banh 07 tru phan da giao", g["2026-09-20"]["BAWS-07"], 3)
+	la("ngay 22", g["2026-09-22"]["BAWC-01"], 1)
+
+
+@ca("gom giu cho bo dong khong phai banh o, dong da xong, dong thieu ngay")
+def _gom_bo_rac():
+	dong = [
+		{"item_code": "HOP-01", "delivery_date": "2026-09-20", "qty": 9,
+			"delivered_qty": 0, "billed_qty": 0},
+		{"item_code": "BAWC-01", "delivery_date": "", "qty": 2,
+			"delivered_qty": 0, "billed_qty": 0},
+		{"item_code": "BAWC-02", "delivery_date": "2026-09-20", "qty": 2,
+			"delivered_qty": 2, "billed_qty": 0},
+		None, "rac", {},
+	]
+	la("khong giu cho nao", gom_giu_cho(dong, TIEN_TO_MA), {})
+	la("danh sach rong", gom_giu_cho([], TIEN_TO_MA), {})
+
+
+@ca("hai dong cung ma cung ngay thi cong don")
+def _cong_don():
+	dong = [
+		{"item_code": "BAWC-01", "delivery_date": "2026-09-20", "qty": 2,
+			"delivered_qty": 0, "billed_qty": 0},
+		{"item_code": "bawc-01", "delivery_date": "2026-09-20", "qty": 3,
+			"delivered_qty": 0, "billed_qty": 0},
+	]
+	la("cong don va chuan hoa ma", gom_giu_cho(dong, TIEN_TO_MA)["2026-09-20"]["BAWC-01"], 5)
+
+
+# ------------------------------------------------- Đổi ngày: đo lại hai ngày
+
+
+@ca("doi ngay chung tu thi do lai CA ngay cu lan ngay moi")
+def _hai_ngay():
+	la("doi ngay", hai_ngay_phai_do("2026-09-20", "2026-09-22"),
+		["2026-09-20", "2026-09-22"])
+	la("khong doi thi mot ngay", hai_ngay_phai_do("2026-09-20", "2026-09-20"),
+		["2026-09-20"])
+	la("khong co ngay cu", hai_ngay_phai_do(None, "2026-09-22"), ["2026-09-22"])
+	la("ca hai rong", hai_ngay_phai_do("", None), [])
+
+
+@ca("hook hoa don goi do lai hai ngay, khong con goi mot ngay")
+def _hook_hai_ngay():
+	"""Loi co san tu truoc: ban cu chi goi cap_nhat_don_khac(doc.posting_date),
+	tuc ngay MOI. Doi ngay tu 20 sang 22 thi ngay 20 van tru mot cai banh cua
+	to hoa don da khong con o do."""
+	i = KB.find("def khi_doi_hoa_don(")
+	than = KB[i:KB.find("def dong_bo_tu_dong", i)]
+	dung("dung ham do hai ngay", "hai_ngay_phai_do" in than)
+	dung("doc lai ban truoc khi luu", "get_doc_before_save" in than)
+	dung("khong con goi thang mot ngay", "cap_nhat_don_khac(doc.posting_date)" not in than)
+
+
+# ------------------------------------------------- Chốt ca, hai đầu
+
+
+@ca("nhom tien thu ngay khac la nhom RIENG, khong nhap vao bon nhom cu")
+def _nhom_rieng():
+	la("ma nhom", TIEN_NGAY_KHAC, "ngay_khac")
+	for cu in ('"ngay"', '"sau"', '"cong_no"', '"khong_thu"'):
+		dung("khong trung ma nhom %s" % cu, ('TIEN_NGAY_KHAC = %s' % cu) not in PT)
+	dung("co ham doc nhom", "def thu_ngay_khac()" in PT)
+	dung("hien tren man Cai dat", "Đã thu ngày khác" in PT)
+	dung("co phuong thuc Tra truoc", '"ten": "Trả trước"' in PT)
+	la("ten phuong thuc dung mot cho", PT_TRA_TRUOC, "Trả trước")
+
+
+@ca("dau ngay giao: phuong thuc Tra truoc roi khoi bang doi soat ket")
+def _dau_ngay_giao():
+	i = CQ.find("def _ngoai_ket()")
+	than = CQ[i:CQ.find("def _pt_cua_diem", i)]
+	dung("ke nhom thu ngay khac", "thu_ngay_khac()" in than)
+	# Ba nhom cu phai con nguyen, khong duoc thay the.
+	for x in ("chua_ve_tien()", "ve_sau()", "khong_thu()"):
+		dung("con giu nhom %s" % x, x in than)
+
+
+@ca("dau ngay thu: chot ca cong them tien khach tra truoc")
+def _dau_ngay_thu():
+	i = CQ.find("def _doanh_thu_he_thong(")
+	than = CQ[i:CQ.find("def tinh_trang(", i)]
+	dung("goi ham thu ung truoc", "dat_banh.thu_ung_truoc(" in than)
+	# Phai theo dung quy uoc moc thoi gian cua chinh ham do, khong thi mot
+	# ca mo 8h se nuot ca tien cua hom qua.
+	dung("theo dung moc thoi gian tung loai diem", "theo_ngay=not _co_quay(diem)" in than)
+	# Nuot loi: doc chung tu thu hong khong duoc lam thu ngan khong chot
+	# duoc ca.
+	j = than.find("dat_banh.thu_ung_truoc(")
+	dung("boc trong try", "try:" in than[max(0, j - 400):j])
+
+
+@ca("tien ung truoc lay so THUC THU, khong lay so du chua gan")
+def _khong_dung_so_du():
+	"""Codex bat o PR #197. Chung tu thu tao dung cach tu phieu dat co dong
+	tham chieu tro ve phieu do; gan du xong thi unallocated_amount ve 0, tuc
+	la moi khoan tra truoc CHUAN deu bi loai khoi ca. Con so ay lai con DOI
+	ve sau luc khoan ung duoc can vao hoa don ngay giao, ma ca cua ngay thu
+	la so lich su, khong duoc phep doi theo viec xay ra o ngay khac."""
+	i = DB.find("def thu_ung_truoc(")
+	than = DB[i:]
+	dung("khong con loc theo so du chua gan", "unallocated_amount" not in than)
+	dung("chi lay chung tu da ghi so", '"docstatus": 1' in than)
+	dung("chi lay chieu thu", '"payment_type": "Receive"' in than)
+	dung("chi lay khach hang", '"party_type": "Customer"' in than)
+	dung("loc theo quay", '"vgb_quay"' in than)
+	# So thuc thu: uu tien so vao tai khoan nhan, thieu thi lay so tra.
+	la("lay so vao tai khoan nhan", tien_thuc_thu(
+		{"received_amount": 500000, "paid_amount": 9}), 500000.0)
+	la("thieu thi lay so tra", tien_thuc_thu(
+		{"received_amount": 0, "paid_amount": 700000}), 700000.0)
+	la("rong ve khong", tien_thuc_thu({}), 0.0)
+
+
+@ca("chi cong phieu thu co DU ca hai o, khong con cua phu nao")
+def _du_hai_o():
+	"""Codex bắt o vong hai, va bat dung: ban truoc em con mot cua phu la
+	"khong co o phieu dat nhung co dong tro toi phieu dat thi van nhan", de
+	do duong ke toan tao thang ben Desk. Cua do KHONG BAO GIO MO, vi truy van
+	loc theo quay TRUOC, ma phieu tao ben Desk khong co ai dien o quay nen bi
+	loai ngay tu dau. Ca kiem cu cua em xanh gia vi tu gan san o quay cho
+	chinh cai phieu ma em bao la khong co o do."""
+	i = DB.find("def thu_ung_truoc(")
+	than = DB[i:]
+	dung("doi co o phieu dat", '"vgb_phieu_dat": ["is", "set"]' in than)
+	dung("doi dung quay", '"vgb_quay"' in than)
+	dung("khong con cua phu tham chieu", "_tro_toi_phieu_dat" not in DB)
+
+
+@ca("thieu o quay hoac o phieu dat thi CHAN ngay luc ghi so")
+def _chan_khai_thieu():
+	"""Thieu mot trong hai o thi tien khong vao duoc ca nao, va chot ca
+	thieu dung so tien do ma khong ai biet vi sao. Tha khong cho ghi so con
+	hon cho ghi so roi tien im lang bien mat."""
+	la("du ca hai o thi khong thieu gi",
+		thieu_o_bat_buoc({"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}), [])
+	la("thieu o quay", thieu_o_bat_buoc({"vgb_phieu_dat": "SO-1"}), ["Quầy thu tiền"])
+	la("thieu o phieu dat", thieu_o_bat_buoc({"vgb_quay": "SALES"}), ["Phiếu đặt bánh"])
+	la("thieu ca hai", thieu_o_bat_buoc({}), ["Phiếu đặt bánh", "Quầy thu tiền"])
+	# Dung phieu kieu Desk: co dong tro toi phieu dat, KHONG co o nao.
+	desk = {"vgb_phieu_dat": "", "vgb_quay": ""}
+	tc = [{"reference_doctype": "Sales Order", "reference_name": "SO-1"}]
+	dung("van nhan dien la phieu dat banh", la_phieu_dat_banh(desk, tc))
+	loi = loi_phieu_dat_banh(desk, tc)
+	dung("co chan", bool(loi))
+	# QT-24: cau bao loi phai noi lam gi tiep.
+	dung("noi ro thieu o nao", "Phiếu đặt bánh" in loi and "Quầy thu tiền" in loi)
+	dung("noi ro lam gi tiep", "màn đặt bánh" in loi)
+	la("du hai o thi khong chan", loi_phieu_dat_banh(
+		{"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}, tc), None)
+
+
+@ca("phieu thu dat banh tro toi ca hoa don ban thi chan, vi dem hai lan")
+def _chan_tron_tham_chieu():
+	"""Tron hai loai tham chieu thi ca so tien duoc cong vao duong ung truoc,
+	trong khi to hoa don kia da duoc dem o duong thuong."""
+	o = {"vgb_phieu_dat": "SO-1", "vgb_quay": "SALES"}
+	tron = [{"reference_doctype": "Sales Order", "reference_name": "SO-1"},
+		{"reference_doctype": "Sales Invoice", "reference_name": "HD-1"}]
+	la("doc dung cac loai tham chieu", tham_chieu_la(tron),
+		["Sales Order", "Sales Invoice"])
+	loi = loi_phieu_dat_banh(o, tron)
+	dung("co chan", bool(loi))
+	dung("noi ro dem hai lan", "hai" in loi)
+	dung("noi ro lam gi tiep", "tách ra" in loi)
+	la("chi tro toi phieu dat thi khong chan",
+		loi_phieu_dat_banh(o, [
+			{"reference_doctype": "Sales Order", "reference_name": "SO-1"}]), None)
+
+
+@ca("phieu thu chi khac khong dinh gi toi hang rao nay")
+def _khong_dinh_phieu_khac():
+	"""Ca tiem moi ngay tao nhieu phieu thu chi khong lien quan dat banh.
+	Hang rao ma quet ca nhung phieu do la chan ho ke toan lam vic."""
+	dung("phieu thu hoa don thuong khong phai phieu dat banh",
+		not la_phieu_dat_banh(
+			{"vgb_phieu_dat": "", "vgb_quay": ""},
+			[{"reference_doctype": "Sales Invoice", "reference_name": "HD-1"}]))
+	dung("phieu khong tham chieu gi cung khong phai",
+		not la_phieu_dat_banh({"vgb_phieu_dat": "", "vgb_quay": ""}, []))
+	# Va hook phai thoat som cho nhung phieu do.
+	i = DB.find("def chan_phieu_dat_banh(")
+	than = DB[i:]
+	dung("thoat som neu khong phai phieu dat banh",
+		"if not la_phieu_dat_banh(" in than)
+	dung("da khai vao hooks", "vagabond.dat_banh.chan_phieu_dat_banh" in HK)
+	# Chan luc GHI SO chu khong phai luc luu: ban nhap con dang go cho sua.
+	j = HK.find("vagabond.dat_banh.chan_phieu_dat_banh")
+	dung("dat o before_submit", "before_submit" in HK[max(0, j - 1500):j])
+
+
+@ca("gom tien ung truoc theo phuong thuc, bo dong khong duong")
+def _gom_ung_truoc():
+	rows = [
+		{"pt": "Tiền mặt", "so_tien": 500000},
+		{"pt": "Tiền mặt", "so_tien": 300000},
+		{"pt": "Chuyển khoản", "so_tien": 1200000},
+		{"pt": "Tiền mặt", "so_tien": -100000},
+		{"pt": "Tiền mặt", "so_tien": 0},
+		None, "rac",
+	]
+	g = tong_ung_truoc(rows)
+	la("tien mat cong don", g["Tiền mặt"], 800000.0)
+	la("chuyen khoan", g["Chuyển khoản"], 1200000.0)
+	la("khong sinh nhom la", sorted(g), ["Chuyển khoản", "Tiền mặt"])
+	la("danh sach rong", tong_ung_truoc([]), {})
+
+
+@ca("phuong thuc trong khong bi nuot, ve nhom Chua ro")
+def _chua_ro():
+	la("pt rong", tong_ung_truoc([{"pt": "", "so_tien": 5000}]), {"Chưa rõ": 5000.0})
+
+
+# ------------------------------------------------- Bảng kiểm bánh
+
+
+@ca("bang kiem banh co cot giu cho va TRU no vao so co the ban")
+def _cot_giu_cho():
+	import json
+
+	j = json.load(io.open(os.path.join(
+		GOI, "vagabond", "doctype", "kiem_banh_dong", "kiem_banh_dong.json"),
+		encoding="utf-8"))
+	ten = [f["fieldname"] for f in j["fields"]]
+	dung("co cot giu cho", "giu_cho" in ten)
+	dung("cot nam trong field_order", "giu_cho" in (j.get("field_order") or []))
+	la("so o bang so dong field_order", len(j["fields"]), len(j["field_order"]))
+	# Them cot ma quen tru la bang bay ra mot con so khong ai dung toi.
+	dung("co the ban tru giu cho", "- (d.giu_cho or 0)" in KBN)
+	for cu in ("d.da_dat", "d.phat_sinh", "d.cho_chot", "d.don_khac"):
+		dung("van tru %s" % cu, ("- (%s or 0)" % cu) in KBN)
+
+
+@ca("ngay da chot so thi khong dung vao cot giu cho nua")
+def _ngay_da_chot():
+	i = KB.find("def _ghi_giu_cho(")
+	than = KB[i:KB.find("def _ghi_don_khac(", i)]
+	dung("co chan ngay da chot", 'doc.tinh_trang == "Da chot"' in than)
+	dung("do giu cho tu dat_banh", "dat_banh.dem_giu_cho" in than)
+
+
+@ca("chi dem phieu dat con hieu luc")
+def _con_hieu_luc():
+	i = DB.find("def dong_phieu_dat(")
+	than = DB[i:DB.find("def dem_giu_cho(", i)]
+	dung("chi phieu da ghi so", '"docstatus": 1' in than)
+	dung("bo phieu da dong va da huy", "TT_NHA_CHO" in than)
+
+
+# ------------------------------------------------- Ô trên chứng từ thu
+
+
+@ca("o quay thu tien va o phieu dat da khai va da dang ky dung lai")
+def _o_moi():
+	dung("khai o quay", '"fieldname": "vgb_quay"' in DB)
+	dung("khai o phieu dat", '"fieldname": "vgb_phieu_dat"' in DB)
+	dung("hai o deu chi doc", DB.count('"read_only": 1') >= 2)
+	# Khai ma quen dang ky thi sau moi lan deploy o bien mat.
+	dung("da dang ky trong truong tu them", "dat_banh.TRUONG_MOI" in TTT)
+
+
+@ca("ba cai ngay duoc noi ro trong tai lieu cua mo dun")
+def _ba_ngay():
+	"""Anh Viet hoi 05/09: nhap luon ngay thu tien va ngay lay banh duoc
+	khong. Duoc, va phai tach han ba cai ngay ra."""
+	for x in ("Ngày ĐẶT", "Ngày THU", "Ngày NHẬN"):
+		dung("co noi ve %s" % x, x in DB)
+	dung("noi ro bat bien mot lan", "đúng MỘT lần" in DB)
+
+
+# ------------------------------------------------- Codex PR #197: hành vi thật
+#
+# Bốn ca dưới đây chạy trên bản Frappe giả có LỌC, chứ không chỉ tìm chuỗi
+# trong mã nguồn. Codex nói đúng: cổng xanh mà toàn ca tìm chuỗi thì không
+# chứng minh được đường chạm cơ sở dữ liệu có đúng hay không.
+
+
+class _Dong(dict):
+	"""Một dòng con trên bảng kiểm bánh, truy cập được bằng dấu chấm."""
+
+	def __getattr__(self, k):
+		return self.get(k)
+
+	def __setattr__(self, k, v):
+		self[k] = v
+
+
+class _Bang:
+	"""Bản ghi kiểm bánh giả, đủ cho _ghi_giu_cho làm việc."""
+
+	def __init__(self, ma_hang, tinh_trang="Dang mo"):
+		self.tinh_trang = tinh_trang
+		self.dong = [_Dong({"ma_hang": m, "giu_cho": 0}) for m in ma_hang]
+
+	def append(self, _bang, gia_tri):
+		d = _Dong(dict(gia_tri, giu_cho=0))
+		self.dong.append(d)
+		return d
+
+
+def _gia_lap_get_all(bang):
+	"""Trả về hàm thay cho frappe.get_all, CÓ tôn trọng bộ lọc.
+
+	`bang` là {doctype: list dict}. Bản giả trong nen.py bỏ qua bộ lọc, nên
+	không dùng để kiểm phần lọc được.
+	"""
+	def _chay(dt, filters=None, fields=None, pluck=None, **k):
+		ds = list(bang.get(dt) or [])
+		for o, dk in (filters or {}).items():
+			if isinstance(dk, list) and len(dk) == 2 and dk[0] == "in":
+				ds = [r for r in ds if r.get(o) in dk[1]]
+			elif isinstance(dk, list) and len(dk) == 2 and dk[0] == "not in":
+				ds = [r for r in ds if r.get(o) not in dk[1]]
+			elif isinstance(dk, list) and len(dk) == 2 and dk[0] == "between":
+				ds = [r for r in ds if dk[1][0] <= str(r.get(o) or "") <= dk[1][1]]
+			elif isinstance(dk, list) and len(dk) == 2 and dk[0] in (">", ">=", "<", "<="):
+				# Phai hieu ca phep so sanh, khong thi mot bo loc sai lot qua
+				# ma ca kiem van xanh. Dung dieu do da xay ra: cay lai loi
+				# "unallocated_amount > 0" ma ca kiem hanh vi khong keu.
+				import operator
+
+				ph = {">": operator.gt, ">=": operator.ge,
+					"<": operator.lt, "<=": operator.le}[dk[0]]
+				ds = [r for r in ds if ph(float(r.get(o) or 0), float(dk[1]))]
+			elif isinstance(dk, list) and len(dk) == 2 and dk[0] == "is":
+				ds = [r for r in ds if (
+					bool(str(r.get(o) or "").strip())
+					if dk[1] == "set" else not str(r.get(o) or "").strip()
+				)]
+			elif not isinstance(dk, list):
+				ds = [r for r in ds if r.get(o) == dk]
+		if pluck:
+			return [r.get(pluck) for r in ds]
+		# Frappe that tra ve _dict (truy cap duoc bang dau cham), khong phai
+		# dict tran. Tra dict tran thi ca kiem xanh gia o day ma no o site.
+		return [Doi(r) for r in ds]
+	return _chay
+
+
+@ca("phieu thu da gan HET vao phieu dat van duoc tinh dung mot lan vao ca")
+def _gan_het_van_tinh():
+	"""Đây chính là lỗi Codex bắt vòng một: bộ lọc cũ đòi số dư chưa gán phải
+	dương, nên chứng từ thu chuẩn (đã gán đủ, số dư 0) bị loại sạch khỏi chốt
+	ca. Ngày khách trả tiền, két thừa nguyên giá trị đơn mà không ai giải
+	thích được.
+
+	Và ca này KHÔNG tự gán ô quầy cho phiếu kiểu Desk nữa. Vòng hai Codex bắt
+	đúng: bản trước em bảo có đỡ đường Desk, rồi fixture lại tự điền sẵn ô mà
+	đường Desk không hề có, nên ca kiểm xanh giả cho một đường không chạy."""
+	import frappe
+
+	from vagabond import dat_banh
+
+	cu = frappe.get_all
+	frappe.get_all = _gia_lap_get_all({
+		"Payment Entry": [
+			# Chuẩn: qua màn đặt bánh, đủ hai ô, gán đủ vào phiếu đặt nên
+			# số dư chưa gán bằng 0.
+			{"name": "PE-1", "creation": "2026-09-05 10:00:00",
+				"mode_of_payment": "Tiền mặt", "vgb_quay": "SALES",
+				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
+				"vgb_phieu_dat": "SO-2026-00007", "unallocated_amount": 0,
+				"received_amount": 850000, "paid_amount": 850000},
+			# Khách nộp thừa ở quầy, không dính gì tới đặt bánh.
+			{"name": "PE-2", "creation": "2026-09-05 10:05:00",
+				"mode_of_payment": "Tiền mặt", "vgb_quay": "SALES",
+				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
+				"vgb_phieu_dat": "", "unallocated_amount": 300000,
+				"received_amount": 300000, "paid_amount": 300000},
+			# Phiếu kiểu Desk THẬT: không ô quầy, không ô phiếu đặt. Loại
+			# này KHÔNG được lọt vào ca, và hàng rào ghi sổ đã chặn từ đầu
+			# nên nó không nên tồn tại. Xem ca _chan_khai_thieu.
+			{"name": "PE-3", "creation": "2026-09-05 10:10:00",
+				"mode_of_payment": "Chuyển khoản", "vgb_quay": "",
+				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
+				"vgb_phieu_dat": "", "unallocated_amount": 0,
+				"received_amount": 1200000, "paid_amount": 1200000},
+			# Quầy khác, không được lẫn sang ca này.
+			{"name": "PE-4", "creation": "2026-09-05 10:15:00",
+				"mode_of_payment": "Tiền mặt", "vgb_quay": "TCV",
+				"docstatus": 1, "payment_type": "Receive", "party_type": "Customer",
+				"vgb_phieu_dat": "SO-2026-00009", "unallocated_amount": 0,
+				"received_amount": 999000, "paid_amount": 999000},
+		],
+	})
+	try:
+		g = dat_banh.thu_ung_truoc("SALES", "2026-09-05 00:00:00", "2026-09-05 23:59:59")
+	finally:
+		frappe.get_all = cu
+	la("tien mat dung mot lan", g.get("Tiền mặt"), 850000.0)
+	dung("khong cong tien nop thua", g.get("Tiền mặt") != 1150000.0)
+	dung("khong lay phieu khai thieu o", "Chuyển khoản" not in g)
+	dung("khong lay tien cua quay khac", 999000.0 not in g.values())
+	la("chi mot phuong thuc duoc cong", sorted(g), ["Tiền mặt"])
+
+
+@ca("ma banh chi co tren phieu dat van duoc them dong vao bang")
+def _them_dong_thieu():
+	"""Codex bắt: vòng đồng bộ thường chỉ thêm mã từ đơn Pancake và từ hoá
+	đơn bán. Một loại bánh chỉ mới có khách đặt trước thì không có dòng nào,
+	nên số giữ chỗ của nó không trừ vào khả năng bán, và cùng một cái bánh
+	bán được hai lần."""
+	import frappe
+
+	from vagabond import kiem_banh
+
+	bang = _Bang(["BAWC00001"])
+	cu_ga, cu_dem = frappe.get_all, None
+	from vagabond import dat_banh
+	cu_dem = dat_banh.dem_giu_cho
+	frappe.get_all = _gia_lap_get_all({
+		"Item": [{"name": "BAWS00007", "item_name": "Bánh mới", "image": ""}],
+	})
+	dat_banh.dem_giu_cho = lambda ngay: {"BAWC00001": 2, "BAWS00007": 3}
+	try:
+		kiem_banh._ghi_giu_cho(bang, "2026-09-20")
+	finally:
+		frappe.get_all, dat_banh.dem_giu_cho = cu_ga, cu_dem
+	co = {d.ma_hang: d for d in bang.dong}
+	la("da them dong con thieu", sorted(co), ["BAWC00001", "BAWS00007"])
+	la("dong cu duoc do", co["BAWC00001"].giu_cho, 2)
+	la("dong moi duoc do", co["BAWS00007"].giu_cho, 3)
+	la("lay ten tu danh muc hang hoa", co["BAWS00007"].ten_banh, "Bánh mới")
+
+
+@ca("doc so giu cho hong thi GIU NGUYEN so cu, khong ghi 0")
+def _khong_fail_open():
+	"""Codex bắt: bản đầu nuốt lỗi rồi trả về rỗng, bên gọi hiểu rỗng là
+	không còn ai đặt và ghi 0 vào mọi dòng. Một trục trặc cơ sở dữ liệu vài
+	giây sẽ nhả toàn bộ bánh đã giữ của khách ra bán tiếp, im lặng."""
+	from vagabond import dat_banh, kiem_banh
+
+	bang = _Bang(["BAWC00001"])
+	bang.dong[0].giu_cho = 5
+	cu = dat_banh.dem_giu_cho
+
+	def _no(ngay):
+		raise Exception("gia lap loi co so du lieu")
+
+	dat_banh.dem_giu_cho = _no
+	try:
+		ra = kiem_banh._ghi_giu_cho(bang, "2026-09-20")
+	finally:
+		dat_banh.dem_giu_cho = cu
+	la("bao cho ben goi biet la doc hong", ra, None)
+	la("so cu con nguyen", bang.dong[0].giu_cho, 5)
+	# Va chinh dem_giu_cho khong duoc nuot loi nua.
+	i = DB.find("def dem_giu_cho(")
+	than = DB[i:DB.find("def ngay_nhan_cua(", i)]
+	dung("dem_giu_cho khong nuot loi", "except Exception" not in than)
+
+
+@ca("ngay da chot khong bi sua du co phieu dat moi")
+def _da_chot_van_yen():
+	from vagabond import kiem_banh
+
+	bang = _Bang(["BAWC00001"], tinh_trang="Da chot")
+	bang.dong[0].giu_cho = 4
+	la("tra ve rong", kiem_banh._ghi_giu_cho(bang, "2026-09-20"), {})
+	la("khong dung vao so cu", bang.dong[0].giu_cho, 4)
+
+
+# ------------------------------------------------- Codex PR #197: đường nối
+
+
+@ca("phieu dat co hook rieng, khong doi hoa don chay qua moi do giu cho")
+def _co_hook_phieu_dat():
+	"""Codex bắt: không có mục này thì lập một phiếu đặt hợp lệ xong, cột
+	giữ chỗ vẫn bằng 0 cho tới khi tình cờ có một hoá đơn khác chạy qua."""
+	i = HK.find('"Sales Order": {')
+	dung("co khai Sales Order trong doc_events", i > 0)
+	than = HK[i:HK.find("}", i)]
+	for cua in ("on_submit", "on_update_after_submit", "on_cancel", "on_trash",
+			"on_update"):
+		dung("bat cua %s" % cua, cua in than)
+	dung("goi dung ham", "vagabond.kiem_banh.khi_doi_phieu_dat" in than)
+	# Ham do phai do ca ngay cu lan ngay moi, va khong duoc nem loi ra ngoai
+	# vi no chay giua luot luu phieu cua sales.
+	j = KB.find("def khi_doi_phieu_dat(")
+	th = KB[j:KB.find("def khi_doi_hoa_don(", j)]
+	dung("doc ban truoc khi luu", "get_doc_before_save" in th)
+	dung("gop ca hai ben ngay", "gop_ngay(" in th)
+	dung("nuot loi", "except Exception" in th)
+
+
+@ca("nhip dong bo tu chua cot giu cho neu hook tung hong")
+def _dong_bo_tu_chua():
+	i = KB.find("def dong_bo(")
+	than = KB[i:KB.find("def _lay_hoac_tao(", i)]
+	if not than:
+		than = KB[i:i + 12000]
+	dung("nhip dong bo co do lai giu cho", "_ghi_giu_cho(doc, ngay)" in than)
+	dung("van do kenh khac", "_ghi_don_khac(doc, ngay)" in than)
+
+
+@ca("phuong thuc Tra truoc khong hien o man chon thanh toan")
+def _tra_truoc_khong_hien():
+	"""Codex bắt: để hiện ra thì thu ngân chọn nhầm được cho một hoá đơn bán
+	thường, mà nhóm tiền này bị loại khỏi bảng đối soát, nên một khoản tiền
+	THẬT vừa thu sẽ biến mất khỏi số két phải có."""
+	from vagabond import pt_thanh_toan
+
+	tt = [x for x in pt_thanh_toan.MAC_DINH if x.get("ten") == PT_TRA_TRUOC]
+	la("co dung mot khai bao", len(tt), 1)
+	la("khong hien o man quay", tt[0].get("quay"), 0)
+	la("khong hien cho don online", tt[0].get("online"), 0)
+	la("bat khai so phieu dat", tt[0].get("bat"), 1)
+	la("dung nhom tien ngay khac", tt[0].get("tien_ve"), TIEN_NGAY_KHAC)
+
+
+@ca("gop ngay cua phieu dat: nhieu dong nhieu ngay, bo trung va bo rong")
+def _gop_ngay_phieu():
+	dong = [
+		{"item_code": "BAWC00001", "delivery_date": "2026-09-20"},
+		{"item_code": "BAWS00007", "delivery_date": "2026-09-22"},
+		{"item_code": "BAWC00002", "delivery_date": "2026-09-20"},
+		{"item_code": "HOP-01", "delivery_date": "2026-09-25"},
+		{"item_code": "BAWC00003", "delivery_date": ""},
+	]
+	la("chi ngay cua banh o, bo trung", ngay_nhan_cua_phieu(dong, TIEN_TO_MA),
+		["2026-09-20", "2026-09-22"])
+	la("gop hai ben", gop_ngay(["2026-09-20"], ["2026-09-22", "2026-09-20"]),
+		["2026-09-20", "2026-09-22"])
+	la("gop ban rong", gop_ngay([], None), [])
+	# Dong da giao xong VAN phai co trong danh sach: chinh no la dong phai do
+	# lai de nha so giu cho ra.
+	la("dong da giao van duoc ke", ngay_nhan_cua_phieu(
+		[{"item_code": "BAWC00001", "delivery_date": "2026-09-20"}], TIEN_TO_MA),
+		["2026-09-20"])
+
+
+@ca("phan thuan cua dat_banh khong dung frappe")
+def _phan_thuan_sach():
+	"""AGENTS.md: phan thuan phai chay duoc khong can khung. Vi vay phan
+	tren khong import frappe, va nhan tien to ma banh qua tham so chu khong
+	tu di lay (di lay la keo theo kiem_banh, tuc keo theo frappe)."""
+	tren = DB[:DB.find("# ------------------------------------------------------------- chạm Frappe")]
+	dung("phan thuan khong import frappe", "import frappe" not in tren)
+	dung("phan thuan khong dung frappe.utils", "from frappe.utils" not in tren)
+	dung("phan thuan khong nap kiem_banh", "from vagabond.kiem_banh" not in tren)
+	dung("nhan tien to qua tham so", "def la_banh_o(ma, tien_to)" in tren)
+
+
+@ca("o ghi chu phai KHOP voi bang tham chieu, khong chi co chu la duoc")
+def _khoa_theo_tham_chieu():
+	"""Codex bắt ở vòng ba. Ô chỉ đọc chỉ là ghi chú; thứ ERPNext dùng để cấn
+	tiền vào ngày giao là bảng tham chiếu. Hai chỗ lệch nhau thì ca vẫn cộng
+	đủ tiền, nhưng tới ngày giao máy không có đường cấn đúng, hoặc cấn nhầm
+	sang đơn của khách khác."""
+	o = {"vgb_phieu_dat": "SO-A", "vgb_quay": "SALES"}
+	la("doc dung phieu dat duoc tro", phieu_dat_duoc_tro([
+		{"reference_doctype": "Sales Order", "reference_name": "SO-A"},
+		{"reference_doctype": "Sales Invoice", "reference_name": "HD-9"},
+	]), ["SO-A"])
+
+	# Co du hai o nhung KHONG gan phieu dat nao.
+	loi = loi_phieu_dat_banh(o, [])
+	dung("khong co tham chieu thi chan", bool(loi))
+	dung("noi ro may dung bang tham chieu", "bảng tham chiếu" in loi)
+
+	# O ghi SO-A ma gan SO-B.
+	loi = loi_phieu_dat_banh(o, [
+		{"reference_doctype": "Sales Order", "reference_name": "SO-B"}])
+	dung("lech nhau thi chan", bool(loi))
+	dung("noi du ca hai so", "SO-A" in loi and "SO-B" in loi)
+	dung("noi ro hau qua", "cấn nhầm" in loi)
+
+	# Gan hai phieu dat cung luc.
+	loi = loi_phieu_dat_banh(o, [
+		{"reference_doctype": "Sales Order", "reference_name": "SO-A"},
+		{"reference_doctype": "Sales Order", "reference_name": "SO-B"}])
+	dung("gan hai phieu dat thi chan", bool(loi))
+	dung("noi ro thu rieng tung don", "thu riêng" in loi)
+
+	# Dung mot phieu dat, khop o ghi chu.
+	la("dung mot va khop thi qua", loi_phieu_dat_banh(o, [
+		{"reference_doctype": "Sales Order", "reference_name": "SO-A"}]), None)
+
+
+@ca("khach tren phieu thu phai trung khach tren phieu dat")
+def _khoa_theo_khach():
+	"""Thu tien cua khach nay ghi vao don cua khach kia thi toi ngay giao don
+	kia hien la da tra du."""
+	la("trung khach thi qua", loi_khach_khong_khop("Khach A", "Khach A", "SO-A"), None)
+	loi = loi_khach_khong_khop("Khach A", "Khach B", "SO-A")
+	dung("lech khach thi chan", bool(loi))
+	dung("noi du hai ten khach", "Khach A" in loi and "Khach B" in loi)
+	# Khong doc duoc ten khach thi khong chan bua: de hang rao khac lo ra.
+	la("thieu du lieu thi khong chan", loi_khach_khong_khop("", "Khach B", "SO-A"), None)
+	la("khong doc duoc phieu dat thi khong chan",
+		loi_khach_khong_khop("Khach A", None, "SO-A"), None)
+	# Hook phai hoi co so du lieu de doi chieu, khong the doan tu chung tu.
+	i = DB.find("def chan_phieu_dat_banh(")
+	than = DB[i:]
+	dung("hook co doi chieu khach", "loi_khach_khong_khop(" in than)
+	dung("hook doc khach cua phieu dat", 'get_value(SO, ten_phieu_dat, "customer")' in than)
+
+
+@ca("trang thai phieu dat: dong va huy thi nha cho, tam dung thi VAN giu")
+def _trang_thai_giu_cho():
+	"""Codex hoi o vong bon. Chot la don tam dung VAN giu cho, va day la
+	quyet dinh nghiep vu chu khong phai sot.
+
+	Khach dat banh o tra truoc TOAN BO. Don tam dung nghia la tiem dung xu ly,
+	KHONG co nghia la khach da lay tien ve. Nha cho la ban mat cai banh khach
+	da tra tien, toi ngay giao khong chua duoc. Con giu nham thi ket mot cai
+	banh, nhin bang la thay, dong don lai la xong."""
+	dung("dong don thi nha cho", not con_giu_cho_theo_trang_thai("Closed"))
+	dung("huy don thi nha cho", not con_giu_cho_theo_trang_thai("Cancelled"))
+	dung("tam dung VAN giu cho", con_giu_cho_theo_trang_thai("On Hold"))
+	dung("dang giao van giu cho", con_giu_cho_theo_trang_thai("To Deliver and Bill"))
+	dung("trang thai rong thi giu cho", con_giu_cho_theo_trang_thai(""))
+	la("hai trang thai nha cho", sorted(TT_NHA_CHO), ["Cancelled", "Closed"])
+	la("trang thai tam dung khai rieng", list(TT_TAM_DUNG), ["On Hold"])
+	# Hai danh sach khong duoc chong nhau: chong la mot trang thai vua nha
+	# vua giu, va khong ai doc ra duoc y dinh.
+	dung("hai danh sach roi nhau",
+		not (set(TT_NHA_CHO) & set(TT_TAM_DUNG)))
+	# Truy van phai dung hang so chu khong go lai chuoi.
+	i = DB.find("def dong_phieu_dat(")
+	than = DB[i:DB.find("def dem_giu_cho(", i)]
+	dung("truy van dung hang so", "list(TT_NHA_CHO)" in than)
+	dung("khong go lai chuoi trong truy van", '["Closed", "Cancelled"]' not in than)
+	# Va phai ghi ro cai bay: dong don khong chay hook, chi co nhip 5 phut do.
+	dung("co canh bao ve duong dong don", "không đi qua lượt lưu" in than)
+
+
+@ca("do giu cho that: don dong va don huy khong tinh, don tam dung co tinh")
+def _do_theo_trang_thai():
+	"""Chay that qua dong_phieu_dat voi ban Frappe gia co loc, chu khong chi
+	doc ma nguon."""
+	import frappe
+
+	from vagabond import dat_banh
+
+	cu = frappe.get_all
+	frappe.get_all = _gia_lap_get_all({
+		"Sales Order": [
+			{"name": "SO-1", "docstatus": 1, "status": "To Deliver and Bill"},
+			{"name": "SO-2", "docstatus": 1, "status": "On Hold"},
+			{"name": "SO-3", "docstatus": 1, "status": "Closed"},
+			{"name": "SO-4", "docstatus": 2, "status": "Cancelled"},
+		],
+		"Sales Order Item": [
+			{"parent": "SO-1", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 2, "delivered_qty": 0, "billed_qty": 0},
+			{"parent": "SO-2", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 3, "delivered_qty": 0, "billed_qty": 0},
+			{"parent": "SO-3", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 9, "delivered_qty": 0, "billed_qty": 0},
+			{"parent": "SO-4", "item_code": "BAWC00001", "delivery_date": "2026-09-20",
+				"qty": 7, "delivered_qty": 0, "billed_qty": 0},
+		],
+	})
+	try:
+		dem = dat_banh.dem_giu_cho("2026-09-20")
+	finally:
+		frappe.get_all = cu
+	# 2 cua don dang giao + 3 cua don tam dung = 5. Don dong va don huy khong
+	# duoc gop vao: gop la 21.
+	la("chi cong don con giu cho", dem.get("BAWC00001"), 5)
+	dung("khong gop don dong", dem.get("BAWC00001") != 14)
+	dung("khong gop don huy", dem.get("BAWC00001") != 12)

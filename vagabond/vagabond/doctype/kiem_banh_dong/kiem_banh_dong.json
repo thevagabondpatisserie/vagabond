@@ -19,6 +19,7 @@
   "phat_sinh",
   "ten_khach_ps",
   "don_khac",
+  "giu_cho",
   "ten_khach_khac",
   "cho_chot",
   "ten_khach_cho",
@@ -117,6 +118,15 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Kenh khac",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "description": "May dem tu phieu dat banh o tai cua hang: phan CHUA giao, tinh theo ngay khach nhan",
+   "fieldname": "giu_cho",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Giu cho",
    "read_only": 1
   },
   {
