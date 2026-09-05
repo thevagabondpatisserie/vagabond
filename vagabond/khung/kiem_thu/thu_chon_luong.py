@@ -46,18 +46,44 @@ def _than_ham():
 	return _doan(src, "async function hsChonLoaiMoi() {", "\nfunction huTong(")
 
 
-@ca("#196A hỏi làm hai nhịp, mỗi nhịp một tiêu chí")
-def _hai_nhip():
-	than = _than_ham()
-	dung("câu 1 đánh số 1/2", "'Lập hồ sơ thanh toán · 1/2'" in than)
-	dung("câu 2 đánh số 2/2", "'Lập hồ sơ thanh toán · 2/2'" in than)
-	dung("câu 1 hỏi tiền đi cho ai", "'Tiền của tiệm lần này chuyển cho ai?'" in than)
-	# Câu 2 dùng chung một chỗ khai cho cả hai nhánh, để hai nhánh không bao
-	# giờ lệch lời nhau.
+@ca("#196A hỏi theo nhịp, mỗi nhịp một tiêu chí")
+def _hoi_theo_nhip():
 	src = _js("19-ho-so-tt.js")
-	dung("câu 2 khai một chỗ dùng chung",
+	than = _than_ham()
+	dung("câu 1 hỏi đường tiền đi",
+		"var HS_CAU_DUONG_TIEN = 'Khoản chi này đi theo đường nào?';" in src)
+	dung("câu 2 khai một chỗ dùng chung cho cả hai nhánh",
 		"var HS_CAU_HOA_DON = 'Hoá đơn mua đã nằm trong hệ chưa?';" in src)
-	dung("câu 2 lấy mô tả từ chỗ dùng chung", "HS_MO_TA_HOA_DON," in than)
+	dung("câu 2 đánh dấu là bước 2", "'Lập hồ sơ thanh toán · bước 2'" in src)
+	dung("câu 2 đi qua đúng một cửa", than.count("hsHoiHoaDon(") == 1)
+
+
+@ca("#196A câu hỏi phải được VẼ RA màn hình, không phải chỉ khai biến")
+def _cau_hoi_duoc_ve_ra():
+	"""Codex nêu trên PR #203, và nêu đúng.
+
+	Bản đầu khai `HS_CAU_HOA_DON` rồi truyền cho `hoiChon` mỗi tiêu đề
+	chung và phần mô tả, nên câu hỏi thật KHÔNG BAO GIỜ hiện lên. Người
+	dùng thấy "Lập hồ sơ thanh toán · 2/2" rồi tới một đoạn giải thích,
+	không thấy câu hỏi mà hai lựa chọn bên dưới đang trả lời.
+
+	Ca kiểm cũ của phiên này chốt bằng "chuỗi có mặt trong tệp" nên bỏ lọt
+	sạch: khai một biến không ai dùng vẫn qua. Đây đúng kiểu lỗi mà vòng
+	#200 đã dính một lần với `vgbOTim`. Nay chốt bằng CHỖ DÙNG: câu hỏi
+	phải nằm trong chính lời gọi `hoiChon`, và biến phải được nhắc tới
+	nhiều hơn một lần (một lần khai, ít nhất một lần dùng).
+	"""
+	src = _js("19-ho-so-tt.js")
+	goi = _doan(src, "function hsHoiHoaDon(", "\nasync function hsChonLoaiMoi(")
+	dung("câu 2 nằm trong chính lời gọi hoiChon", "HS_CAU_HOA_DON" in goi)
+	dung("câu 2 in đậm rồi mới tới lời giải thích",
+		"'<b>' + HS_CAU_HOA_DON + '</b><br>' + HS_MO_TA_HOA_DON" in goi)
+	than = _than_ham()
+	dung("câu 1 cũng được vẽ ra chứ không chỉ khai",
+		"'<b>' + HS_CAU_DUONG_TIEN + '</b><br>" in than)
+	# Khai ma khong dung thi so lan nhac chi bang 1.
+	for ten in ("HS_CAU_HOA_DON", "HS_CAU_DUONG_TIEN"):
+		dung("%s có được dùng chứ không chỉ khai" % ten, src.count(ten) >= 2)
 
 
 @ca("#196A câu 2 nói thẳng tiêu chí thật, không bắt người ta suy ra")
@@ -83,47 +109,96 @@ def _du_nam_luong():
 	src = _js("19-ho-so-tt.js")
 	for ma in MA_LUONG:
 		dung("luồng %s có đúng một thẻ" % ma, src.count("k: '%s'" % ma) == 1)
-	# Ma cua cau 1 phai khac han nam ma luong. Dung trung chu `ncc` cho ca
-	# nhanh lan luong thi doc code khong biet dang noi toi cai nao, ma ca
-	# kiem do chuoi thi dem nham.
-	dung("mã nhánh không trùng mã luồng",
-		"k: 'ben_ban'" in src and "k: 'nguoi_ung'" in src)
-	for ma in ("ben_ban", "nguoi_ung"):
-		la("mã nhánh %s không phải mã luồng" % ma, ma in MA_LUONG, False)
+	# Ma cua cau 1 phai khac han ma luong, tru `tkct` la vao thang nen dung
+	# chinh ma luong cua no. Dung trung chu `ncc` cho ca nhanh lan luong thi
+	# doc code khong biet dang noi toi cai nao, ma ca kiem do chuoi thi dem
+	# nham.
+	dung("câu 1 có đủ ba lựa chọn",
+		"k: 'cong_no'" in src and "k: 'tkct'" in src and "k: 'nguoi_ung'" in src)
+	for ma in ("cong_no", "nguoi_ung"):
+		la("mã nhánh %s không trùng mã luồng nào" % ma, ma in MA_LUONG, False)
 
 
 @ca("#196A mỗi nhánh gắn đúng bảng của nó")
 def _nhanh_gan_dung_bang():
 	src = _js("19-ho-so-tt.js")
-	tra = _doan(src, "var HS_LUONG_TRA_NCC = [", "\nvar HS_LUONG_HOAN_UNG")
+	cn = _doan(src, "var HS_LUONG_CONG_NO = [", "\nvar HS_LUONG_HOAN_UNG")
 	hoan = _doan(src, "var HS_LUONG_HOAN_UNG = [", "\nvar HS_CAU_HOA_DON")
-	for ma in ("ncc", "tt", "tkct"):
-		dung("luồng %s nằm ở nhánh trả nhà cung cấp" % ma, "k: '%s'" % ma in tra)
+	for ma in ("ncc", "tt"):
+		dung("luồng %s nằm ở nhánh công nợ" % ma, "k: '%s'" % ma in cn)
 		la("luồng %s không lẫn sang nhánh hoàn ứng" % ma, "k: '%s'" % ma in hoan, False)
 	for ma in ("hu_hd", "hu_khd"):
 		dung("luồng %s nằm ở nhánh hoàn ứng" % ma, "k: '%s'" % ma in hoan)
-		la("luồng %s không lẫn sang nhánh trả nhà cung cấp" % ma, "k: '%s'" % ma in tra, False)
+		la("luồng %s không lẫn sang nhánh công nợ" % ma, "k: '%s'" % ma in cn, False)
 	# Chon nhanh nao thi bay bang nao: sai mot chu o dong nay la tien chay
 	# ve nham nguoi.
 	dung("chọn người ứng thì bày bảng hoàn ứng",
-		"ai === 'nguoi_ung' ? HS_LUONG_HOAN_UNG : HS_LUONG_TRA_NCC" in src)
+		"duong === 'nguoi_ung' ? HS_LUONG_HOAN_UNG : HS_LUONG_CONG_NO" in src)
 
 
-@ca("#196A thứ tự khai luồng giữ nguyên như thời năm nút")
-def _thu_tu_giu_nguyen():
-	# Thu tu nay da co ca kiem rieng ben thu_tra_truoc.py tu luc them luong
-	# tra truoc. Chot lai o day de doi bang khong lam xao tron ma khong ai
-	# hay: nguoi dung da quen vi tri.
+@ca("#196A chi từ TK công ty vẫn vào được khi hoá đơn ĐÃ nằm trong hệ")
+def _tkct_khong_bi_chan_boi_cau_hoa_don():
+	"""Codex nêu trên PR #203, và nêu đúng. Đây là lỗi nặng nhất của vòng này.
+
+	Bản đầu xếp `tkct` thành một thẻ của câu 2 với nhãn "Không có hoá đơn
+	mua nào". Nhãn đó sai: `scrChiCongTyTao` có HAI chế độ theo ô "Loại chi
+	phí thuế" - chi phí hợp lệ thì nó gọi `hoa_don_cho_tra` rồi cho TICK
+	hoá đơn đang nợ, không hoá đơn thì gõ tay. Người có hoá đơn trong hệ mà
+	phải chi từ tài khoản khác MB, trả lời THẬT ("đã có") thì bị đẩy sang
+	`ncc` (tiền ra từ MB); muốn tới đúng chỗ thì phải trả lời dối. Bắt
+	người ta nói dối với máy để đi đúng đường là hỏng nặng hơn cái rối mà
+	đợt này định chữa.
+
+	Cái tách `ncc` với `tkct` không phải hoá đơn đã vào hệ hay chưa, mà là
+	TIỀN ĐI ĐƯỜNG NÀO (ho_so_tt.py dòng 62: NCC trả thẳng từ MB). Nên
+	`tkct` thuộc về câu 1 và vào thẳng, không đi qua câu hỏi hoá đơn.
+	"""
 	src = _js("19-ho-so-tt.js")
-	vt = [src.index("k: '%s'" % ma) for ma in MA_LUONG]
-	dung("khai theo đúng thứ tự ncc, tt, tkct, hu_hd, hu_khd", vt == sorted(vt))
+	than = _than_ham()
+	cn = _doan(src, "var HS_LUONG_CONG_NO = [", "\nvar HS_LUONG_HOAN_UNG")
+	hoan = _doan(src, "var HS_LUONG_HOAN_UNG = [", "\nvar HS_CAU_HOA_DON")
+	la("tkct không nằm trong bảng của câu 2 nhánh công nợ", "tkct" in cn, False)
+	la("tkct không nằm trong bảng của câu 2 nhánh hoàn ứng", "tkct" in hoan, False)
+	dung("tkct là một lựa chọn của câu 1", "k: 'tkct'" in than)
+	# Vao thang: nhanh tkct phai `return` TRUOC loi goi cau 2.
+	i_tkct = than.index("if (duong === 'tkct')")
+	i_cau2 = than.index("hsHoiHoaDon(")
+	dung("tkct vào thẳng, không phải trả lời câu hoá đơn trước", i_tkct < i_cau2)
+	dung("tkct đi thẳng tới màn chi từ TK công ty",
+		than.index("go(scrChiCongTyTao)") < i_cau2)
+	# Mo ta phai noi ro no lam duoc CA HAI, khong dan nhan "khong co hoa don".
+	dung("mô tả nói rõ tick hoá đơn đang nợ HOẶC gõ tay",
+		"tick hoá đơn đang nợ hoặc gõ tay từng khoản" in than)
+	la("không còn dán nhãn không có hoá đơn cho tkct",
+		"Không có hoá đơn mua nào" in src, False)
+	# Man kia that su co doc hoa don ra: neu ngay nao do bo di thi cau chot
+	# tren thanh noi suong, nen chot luon o day.
+	dung("màn chi từ TK công ty thật sự có nạp hoá đơn đang nợ",
+		"api('vagabond.ho_so_tt.hoa_don_cho_tra', { ncc: huNguoi" in src)
+
+
+@ca("#196A thứ tự trong từng bảng giữ nguyên như thời năm nút")
+def _thu_tu_giu_nguyen():
+	"""Người dùng đã quen vị trí, đổi bảng thì đừng xáo trộn thêm.
+
+	`tkct` được nâng lên câu 1 nên nó KHÔNG còn nằm trong dãy năm mã nữa,
+	đó là đổi có chủ ý (xem ca kiểm tkct ở trên). Những gì còn giữ được thì
+	vẫn chốt: trong bảng công nợ, `ncc` đứng trước `tt` y như thời năm nút;
+	trong bảng hoàn ứng, `hu_hd` đứng trước `hu_khd`; và bảng công nợ khai
+	trước bảng hoàn ứng.
+	"""
+	src = _js("19-ho-so-tt.js")
+	dung("ncc đứng trước tt", src.index("k: 'ncc'") < src.index("k: 'tt'"))
+	dung("tt đứng trước hu_hd", src.index("k: 'tt'") < src.index("k: 'hu_hd'"))
+	dung("hu_hd đứng trước hu_khd",
+		src.index("k: 'hu_hd'") < src.index("k: 'hu_khd'"))
 
 
 @ca("#196A thôi ở câu 2 thì quay lại câu 1, không văng ra ngoài")
 def _thoi_o_cau_hai_quay_lai():
 	than = _than_ham()
 	dung("có vòng lặp bọc hai câu", "for (;;) {" in than)
-	dung("thôi ở câu 1 mới thoát hẳn", "if (!ai) return;" in than)
+	dung("thôi ở câu 1 mới thoát hẳn", "if (!duong) return;" in than)
 	dung("thôi ở câu 2 thì quay lại", "if (!c) continue;" in than)
 	# `return` o cau 2 la loi cu the phai chan: no dua nguoi ta ve man danh
 	# sach, bat bam dau cong lai tu dau.
@@ -138,8 +213,8 @@ def _don_trang_thai():
 	dung("trả trước gọi ttReset",
 		"if (c === 'tt') { ttReset(); return go(scrTraTruocTao); }" in than)
 	dung("chi từ TK công ty dọn đủ bộ của nó",
-		"if (c === 'tkct') { huDong = []; huGhiChu = ''; huTkChi = ''; "
-		"huCpThue = ''; huChonHd = {}; huSuaO = -1; return go(scrChiCongTyTao); }" in than)
+		"huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; "
+		"huChonHd = {}; huSuaO = -1;" in than)
 	dung("hoàn ứng không hoá đơn dọn đủ bộ của nó",
 		"if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; "
 		"huSuaO = -1; return go(scrHoanUngTao); }" in than)
@@ -182,8 +257,12 @@ def _khong_dung_select():
 	# AGENTS.md mục 2b: man nay khong duoc dung <select>. hoiChon ve chip
 	# bam, doi sang select la vua trai quy uoc vua kho bam tren dien thoai.
 	than = _than_ham()
-	la("không có thẻ select", "<select" in than, False)
-	dung("vẫn đi qua hoiChon", than.count("await hoiChon(") == 2)
+	src = _js("19-ho-so-tt.js")
+	goi = _doan(src, "function hsHoiHoaDon(", "\nasync function hsChonLoaiMoi(")
+	la("không có thẻ select ở câu 1", "<select" in than, False)
+	la("không có thẻ select ở câu 2", "<select" in goi, False)
+	dung("câu 1 đi qua hoiChon", than.count("await hoiChon(") == 1)
+	dung("câu 2 đi qua hoiChon", goi.count("return hoiChon(") == 1)
 
 
 @ca("#196A patches.txt có dòng đợt này và giữ nguyên dòng của phiên khác")
