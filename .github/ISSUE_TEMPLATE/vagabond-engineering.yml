@@ -1,0 +1,40 @@
+name: Vagabond engineering task
+description: Một thay đổi có thể giao cho Claude hoặc Codex
+title: "VGB: "
+labels: ["status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Không giao code qua chat. Điền rõ phạm vi và tiêu chí nghiệm thu."
+  - type: textarea
+    id: business_goal
+    attributes:
+      label: Mục tiêu nghiệp vụ
+    validations:
+      required: true
+  - type: textarea
+    id: scopes
+    attributes:
+      label: Phạm vi tệp hoặc module dự kiến
+      description: Mỗi dòng một đường dẫn. Đây là lock giữa các agent.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Tiêu chí nghiệm thu và test
+    validations:
+      required: true
+  - type: checkboxes
+    id: sensitive
+    attributes:
+      label: Phạm vi nhạy cảm
+      options:
+        - label: Có dữ liệu cũ hoặc HĐĐT
+        - label: Có Chart of Accounts hoặc nghiệp vụ kế toán
+        - label: Có Server Script hoặc deploy Frappe Cloud
+  - type: textarea
+    id: claim
+    attributes:
+      label: Claim record
+      description: Ghi owner, branch, phạm vi chính xác, thời hạn và handoff.
