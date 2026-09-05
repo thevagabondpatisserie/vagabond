@@ -3907,7 +3907,7 @@ la("chi tiet tra ve so nha cung cap", '"so_ncc": len({' in _hs35, True)
 la("to in ghi ten nha cung cap trong bang khi gom nhieu nha", "nhieu_nha = len({" in _hs35, True)
 
 # --- Man hinh ---
-# v432 them `hsPhieuCua = {}` vao cung nhanh do (bat bien "xoa tick toi dau
+# v433 them `hsPhieuCua = {}` vao cung nhanh do (bat bien "xoa tick toi dau
 # thi xoa phieu noi bo toi do", xem khung/kiem_thu/thu_chon_luong.py) nen
 # cau chot khong con khop NGUYEN VAN dong cu. Y dinh giu nguyen: phai co rao
 # `if (!laHU)` truoc lan xoa tick, va trong ca tep khong duoc co lan xoa nao
