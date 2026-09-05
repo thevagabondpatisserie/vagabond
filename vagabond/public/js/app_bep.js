@@ -33388,6 +33388,10 @@ async function scrNguoiDung() {
          "da co roi". Nay hien ra, va noi ro la loai gi de khong ai tuong minh
          nhin nham. */
       (r.la_tk_web ? ' <span style="color:#0369a1">· tài khoản web</span>' : '') +
+      /* Nguoi lot vao chi vi go dung nguyen email: khong thuoc pham vi
+         man nay, hien ra de con duong xep goi cho ho, nhung phai noi ro
+         keo tuong ho la nhan su cua tiem. */
+      (r.ngoai_pham_vi ? ' <span style="color:#b45309">· ngoài danh sách, tìm đúng email mới ra</span>' : '') +
       (r.vai_thua && r.vai_thua.length ? ' <span style="color:#b45309">+' + r.vai_thua.length + ' quyền riêng</span>' : '') +
       (r.lan_cuoi ? ' · vào app ' + hsNgayVn(String(r.lan_cuoi).slice(0, 10)) : ' · <span style="color:#b45309">chưa đăng nhập lần nào</span>') +
       '</div></div>' +
