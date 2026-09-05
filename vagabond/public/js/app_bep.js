@@ -30743,6 +30743,26 @@ function hsNgayVn(s) {
   return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(s || '');
 }
 
+/* Dong nhac duoi o tim. Tach ra thanh ham rieng vi no duoc dap lai HAI cho:
+   luc ve man, va moi lan go mot phim. Dat chu mot lan luc ve man la dong nhac
+   dung yen trong khi chu trong o da doi - dung cai loi Codex neu tren #207. */
+function hsVeNhacTim() {
+  var o = document.getElementById('hsTimNhac');
+  if (!o) return;
+  var go = String(hsTimGo == null ? '' : hsTimGo).trim();
+  if (go !== hsTim) {
+    o.style.color = '#b45309';
+    o.innerHTML = go
+      ? 'Đã gõ nhưng chưa tìm. Bấm <b>Enter</b> để lọc theo "<b>' + h(go) + '</b>".'
+      : 'Đang lọc theo "<b>' + h(hsTim) + '</b>". Bấm <b>Enter</b> để bỏ lọc.';
+    return;
+  }
+  o.style.color = '#0f766e';
+  o.innerHTML = hsTim
+    ? 'Đang lọc theo "<b>' + h(hsTim) + '</b>". Xoá hết chữ rồi bấm Enter để bỏ lọc.'
+    : '';
+}
+
 async function scrHoSoTT() {
   frame('Hồ sơ thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang tải hồ sơ...</div></div>');
   var kq;
@@ -30767,16 +30787,15 @@ async function scrHoSoTT() {
   /* O TIM. Bam Enter moi di hoi may chu chu khong hoi theo tung phim: bo loc
      nay chay o may chu (`danh_sach` doi chieu voi ma ho so, ten nha cung cap
      va ghi chu), go moi chu mot lan goi la lam nang may vo ich. */
+  /* Dong nhac duoi o tim de RONG o day, `hsVeNhacTim()` dap chu vao. Cung
+     mot ham do duoc goi lai trong su kien nhap, nen go toi dau dong nhac doi
+     toi do. Codex neu tren PR #207: dung chu dat san mot lan luc ve man thi
+     dang loc A ma go B, dong nhac van noi dang loc A; doi chip cho hien loi
+     cho B roi go tiep C thi no van ghi B. */
   html += '<div class="card" style="padding:10px 12px">' +
     '<input class="tin" id="hsTimO" type="search" autocomplete="off" style="margin:0" ' +
     'placeholder="🔎 Gõ mã hồ sơ, tên nhà cung cấp hoặc ghi chú rồi bấm Enter">' +
-    (hsTimGo !== hsTim
-      ? '<div style="font-size:11.5px;color:#b45309;margin-top:7px;line-height:1.5">Đã gõ nhưng chưa tìm. Bấm <b>Enter</b> để lọc theo "<b>' +
-        h(hsTimGo) + '</b>".</div>'
-      : (hsTim
-        ? '<div style="font-size:11.5px;color:#0f766e;margin-top:7px;line-height:1.5">Đang lọc theo "<b>' +
-          h(hsTim) + '</b>". Xoá hết chữ rồi bấm Enter để bỏ lọc.</div>'
-        : '')) +
+    '<div id="hsTimNhac" style="font-size:11.5px;margin-top:7px;line-height:1.5"></div>' +
     '</div>';
 
   /* Chip loai: hai luong khac han nhau nen phai tach nhin duoc ngay. Ho so
@@ -30825,7 +30844,11 @@ async function scrHoSoTT() {
         })).map(function (x) {
           return posChipNut('data-hstkc="' + h(x[0]) + '"', x[1], hsTkChi === x[0]);
         }).join('')) +
-        (hsTkChi && !(kq.tk_chi_co || []).length
+        /* Do CAI DANG CHON co con trong ky khong, chu khong do danh sach
+           co rong khong. Codex neu tren PR #207: dang loc theo A ma ky moi
+           chi con B thi `tk_chi_co` van khac rong, cau cu im lang trong khi
+           danh sach van trong tron. */
+        (hsTkChi && (kq.tk_chi_co || []).indexOf(hsTkChi) < 0
           ? '<div style="font-size:11.5px;color:#b45309;margin-top:7px;line-height:1.5">Đang lọc theo tài khoản <b>' +
             h(hsTkChi) + '</b> nhưng nhóm đang xem không có hồ sơ nào chi từ tài khoản đó. ' +
             'Bấm <b>Mọi tài khoản chi</b> để bỏ lọc.</div>'
@@ -30925,8 +30948,11 @@ async function scrHoSoTT() {
   var oTim = document.getElementById('hsTimO');
   if (oTim) {
     oTim.value = hsTimGo;
-    /* Go toi dau ghi lai toi do, de bam chip giua chung khong lam mat chu. */
-    oTim.addEventListener('input', function () { hsTimGo = oTim.value; });
+    hsVeNhacTim();
+    /* Go toi dau ghi lai toi do, de bam chip giua chung khong lam mat chu.
+       Dap lai dong nhac ngay tai day: KHONG goi may chu, KHONG ve lai ca man
+       (ve lai la mat con tro dang go). */
+    oTim.addEventListener('input', function () { hsTimGo = oTim.value; hsVeNhacTim(); });
     oTim.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       e.preventDefault(); e.stopPropagation();
