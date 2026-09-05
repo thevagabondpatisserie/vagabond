@@ -243,10 +243,24 @@ def la_phieu_dat_banh(phieu, ds_tham_chieu):
 	return SO in tham_chieu_la(ds_tham_chieu)
 
 
+def phieu_dat_duoc_tro(ds_tham_chieu):
+	"""Các phiếu đặt mà một chứng từ thu đang trỏ tới. THUẦN."""
+	ra = []
+	for r in ds_tham_chieu or []:
+		if not isinstance(r, dict):
+			continue
+		if str(r.get("reference_doctype") or "").strip() != SO:
+			continue
+		ten = str(r.get("reference_name") or "").strip()
+		if ten and ten not in ra:
+			ra.append(ten)
+	return ra
+
+
 def loi_phieu_dat_banh(phieu, ds_tham_chieu):
 	"""Câu báo lỗi cho một phiếu thu đặt bánh sai. THUẦN. None là hợp lệ.
 
-	HAI HÀNG RÀO, và vì sao cần cả hai (Codex bắt ở PR #197):
+	BỐN HÀNG RÀO, và vì sao cần đủ bốn (Codex bắt dần qua ba vòng PR #197):
 
 	  1. Thiếu một trong hai ô thì phiếu KHÔNG BAO GIỜ vào được ca nào cả,
 	     vì `thu_ung_truoc` lọc theo quầy ngay ở truy vấn đầu. Không chặn
@@ -258,6 +272,16 @@ def loi_phieu_dat_banh(phieu, ds_tham_chieu):
 	  2. Trỏ tới cả hoá đơn bán thì ĐẾM HAI LẦN: cả số tiền được cộng vào
 	     đường ứng trước, trong khi tờ hoá đơn kia đã được đếm ở đường
 	     thường. Một phiếu thu đặt bánh chỉ được trỏ tới phiếu đặt.
+
+	  3. Có ô phiếu đặt mà KHÔNG có dòng tham chiếu nào, hoặc dòng tham
+	     chiếu trỏ tới một phiếu đặt KHÁC với ô đã ghi. Ô chỉ đọc là ghi
+	     chú, còn thứ ERPNext dùng để cấn tiền vào ngày giao là bảng tham
+	     chiếu. Hai cái lệch nhau thì ca vẫn cộng đủ tiền, nhưng tới ngày
+	     giao máy không có đường cấn đúng, hoặc cấn nhầm sang đơn khác.
+
+	  4. Trỏ tới nhiều phiếu đặt cùng lúc thì không biết số tiền thuộc về
+	     đơn nào. Bản đầu tiên giữ nguyên tắc một phiếu thu cho một phiếu
+	     đặt, dễ đối chiếu và dễ huỷ khi khách đổi ý.
 
 	Câu báo lỗi nói rõ làm gì tiếp, theo QT-24.
 	"""
@@ -280,7 +304,49 @@ def loi_phieu_dat_banh(phieu, ds_tham_chieu):
 			"lần. Anh chị tách ra thành hai phiếu thu riêng."
 			% ", ".join(la)
 		)
+	tro = phieu_dat_duoc_tro(ds_tham_chieu)
+	o = str((phieu or {}).get("vgb_phieu_dat") or "").strip()
+	if not tro:
+		return (
+			"Phiếu thu tiền đặt bánh ghi phiếu đặt %s ở ô ghi chú nhưng chưa "
+			"gắn phiếu đặt đó vào bảng tham chiếu. Máy dùng bảng tham chiếu "
+			"để cấn tiền vào ngày giao, không dùng ô ghi chú, nên để vậy thì "
+			"tới ngày giao khoản này không trừ được vào đơn của khách. Anh "
+			"chị huỷ phiếu này rồi thu lại trên màn đặt bánh." % o
+		)
+	if len(tro) > 1:
+		return (
+			"Phiếu thu tiền đặt bánh đang gắn %d phiếu đặt cùng lúc (%s). Mỗi "
+			"phiếu thu chỉ được gắn một phiếu đặt, không thì không biết tiền "
+			"thuộc đơn nào và khách huỷ một đơn là không tách ra được. Anh "
+			"chị thu riêng từng đơn." % (len(tro), ", ".join(tro))
+		)
+	if tro[0] != o:
+		return (
+			"Phiếu thu tiền đặt bánh ghi phiếu đặt %s ở ô ghi chú nhưng lại "
+			"gắn vào phiếu đặt %s. Hai chỗ lệch nhau thì tới ngày giao tiền "
+			"sẽ cấn nhầm sang đơn của khách khác. Anh chị huỷ phiếu này rồi "
+			"thu lại trên màn đặt bánh." % (o, tro[0])
+		)
 	return None
+
+
+def loi_khach_khong_khop(khach_phieu_thu, khach_phieu_dat, phieu_dat):
+	"""Khách trên phiếu thu phải trùng khách trên phiếu đặt. THUẦN.
+
+	Không trùng nghĩa là đang thu tiền của người này ghi vào đơn của người
+	kia. Ngày giao, đơn của khách A hiện đã trả đủ nhờ tiền của khách B.
+	"""
+	a = str(khach_phieu_thu or "").strip()
+	b = str(khach_phieu_dat or "").strip()
+	if not a or not b or a == b:
+		return None
+	return (
+		"Phiếu thu đang đứng tên khách %s nhưng phiếu đặt %s là của khách "
+		"%s. Thu tiền của khách này ghi vào đơn của khách kia thì tới ngày "
+		"giao đơn kia hiện là đã trả đủ. Anh chị kiểm lại tên khách, hoặc "
+		"thu lại trên màn đặt bánh của đúng đơn." % (a, phieu_dat, b)
+	)
 
 
 def tien_thuc_thu(phieu):
@@ -461,7 +527,7 @@ def thu_ung_truoc(quay, tu_luc, den_luc, theo_ngay=False):
 
 
 def chan_phieu_dat_banh(doc, method=None):
-	"""Hook Payment Entry: chặn ghi sổ phiếu thu đặt bánh khai thiếu.
+	"""Hook Payment Entry: chặn ghi sổ phiếu thu đặt bánh khai sai.
 
 	Chỉ đụng tới phiếu của luồng đặt bánh, phiếu thu chi khác đi qua không
 	vướng gì. Chặn ở máy chủ chứ không tin ô chỉ đọc trên giao diện, vì ô
@@ -469,9 +535,10 @@ def chan_phieu_dat_banh(doc, method=None):
 	"""
 	tc = []
 	for r in (doc.get("references") or []):
+		lay = (lambda k: r.get(k)) if hasattr(r, "get") else (lambda k: getattr(r, k, None))
 		tc.append({
-			"reference_doctype": r.get("reference_doctype")
-			if hasattr(r, "get") else getattr(r, "reference_doctype", None),
+			"reference_doctype": lay("reference_doctype"),
+			"reference_name": lay("reference_name"),
 		})
 	o = {
 		"vgb_phieu_dat": doc.get("vgb_phieu_dat"),
@@ -480,5 +547,14 @@ def chan_phieu_dat_banh(doc, method=None):
 	if not la_phieu_dat_banh(o, tc):
 		return
 	loi = loi_phieu_dat_banh(o, tc)
+	if loi:
+		frappe.throw(loi)
+	# Tới đây chắc chắn có đúng một phiếu đặt và nó khớp ô ghi chú. Còn một
+	# thứ chỉ hỏi cơ sở dữ liệu mới biết: phiếu đặt đó có đúng của khách này
+	# không. Thu tiền của khách này ghi vào đơn của khách kia là kiểu sai
+	# không cách nào tự lộ ra, cho tới ngày giao.
+	ten_phieu_dat = str(o["vgb_phieu_dat"]).strip()
+	khach_dat = frappe.db.get_value(SO, ten_phieu_dat, "customer")
+	loi = loi_khach_khong_khop(doc.get("party"), khach_dat, ten_phieu_dat)
 	if loi:
 		frappe.throw(loi)
