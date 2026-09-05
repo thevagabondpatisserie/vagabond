@@ -1350,7 +1350,7 @@ def _thong_tin_xhd(o, did):
 		return {
 			"vgb_xhd_ten": hd.ten_cong_ty or "",
 			"vgb_xhd_mst": _chuan_mst(hd.ma_so_thue),
-			"vgb_xhd_dia_chi": hd.dia_chi or "",
+			"vgb_xhd_dia_chi": hoa_don_vat.sach_dia_chi_xhd(hd.dia_chi),
 			"vgb_xhd_email": hd.email or mail,
 		}
 
@@ -1389,7 +1389,7 @@ def _thong_tin_xhd(o, did):
 			return {
 				"vgb_xhd_ten": tt.get("ten"),
 				"vgb_xhd_mst": mst,
-				"vgb_xhd_dia_chi": tt.get("dia_chi") or "",
+				"vgb_xhd_dia_chi": hoa_don_vat.sach_dia_chi_xhd(tt.get("dia_chi")),
 				"vgb_xhd_email": mail,
 			}
 
@@ -2543,6 +2543,60 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 	return {"ok": 1, "name": si.name, "da_xuat_hddt": 1 if da_xuat else 0}
 
 
+def _chan_doi_xhd_da_phat_hanh(si, moi):
+	"""CỬA THỨ TƯ. Tờ đã xuất hoá đơn điện tử thì bốn ô thông tin người mua
+	đóng băng lại.
+
+	Vì sao cần (Codex nêu trên PR #194, 05/09/2026): màn Bill quay luôn gửi
+	kèm bốn ô đó trong mỗi lần "Lưu thay đổi", và nó CỐ Ý bỏ trống cả ba ô
+	khi tên đang là câu mặc định. Nên chỉ cần mở một tờ cũ ra sửa ghi chú
+	rồi lưu là `pos_sua_don` xoá trắng địa chỉ của tờ đó, kể cả tờ đã có
+	`custom_hddt_so`, tức là đã gửi cơ quan thuế. Luật anh Việt chốt
+	13/08/2026: không đụng vào dữ liệu quá khứ đã xuất chứng từ.
+
+	Hai cửa người gõ (`luu_xhd`, `xhd_khach_luu`) đã khoá sẵn từ trước. Cửa
+	này thiếu, đây là chỗ vá.
+
+	Trả về True nếu được phép ghi bốn ô đó xuống, False nếu phải bỏ qua.
+	Người thật sự gõ một nội dung mới vào thì NÉM LỖI để họ biết; máy tự bỏ
+	trống thì lặng lẽ bỏ qua, không thì chặn luôn cả việc sửa ghi chú.
+	"""
+	so_hd = si.get("custom_hddt_so")
+	if not so_hd:
+		return True
+	cu = dict((o, si.get(o)) for o in hoa_don_vat.O_XHD)
+	_, ghi_de = hoa_don_vat.doi_o_xhd(cu, moi, XHD_MAC_DINH)
+	if ghi_de:
+		frappe.throw(
+			"Hoá đơn này đã xuất hoá đơn điện tử số %s nên không đổi được %s "
+			"nữa. Tờ đã gửi cơ quan thuế thì phải xử lý bằng hoá đơn điều "
+			"chỉnh hoặc thay thế, không sửa ngầm trong hệ thống."
+			% (so_hd, ", ".join(hoa_don_vat.NHAN_O_XHD[o] for o in ghi_de)),
+			title="Hoá đơn điện tử đã phát hành",
+		)
+	return False
+
+
+def _chan_dia_chi_khong_chu(ten, so_mst, dia_chi):
+	"""Chan to hoa don co DIA CHI ma khong co chu cua no.
+
+	Quyet dinh nam o phep THUAN `hoa_don_vat.dia_chi_khong_chu`, o day chi
+	nem ra man. Tach nhu vay de kiem thu duoc HANH VI cua luat, khong phai
+	do chuoi trong ma nguon.
+	"""
+	if not hoa_don_vat.dia_chi_khong_chu(ten, so_mst, dia_chi, XHD_MAC_DINH):
+		return
+	frappe.throw(
+		"Tờ này chưa có tên người mua, vẫn đang để câu mặc định %r, mà ô địa "
+		"chỉ lại có nội dung. Một tờ như vậy không biết bán cho ai nhưng lại "
+		"mang địa chỉ cụ thể của người khác. Vui lòng điền tên người mua (và "
+		"mã số thuế nếu có), hoặc xoá địa chỉ. Khách cá nhân có tên thật mà "
+		"không có mã số thuế thì vẫn điền địa chỉ bình thường."
+		% XHD_MAC_DINH,
+		title="Địa chỉ không có chủ",
+	)
+
+
 @frappe.whitelist()
 def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	"""Sales sua thong tin nguoi mua tren hoa don VAT.
@@ -2573,10 +2627,12 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 		frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
 	if so_mst and hoa_don_vat.thieu_ten_rieng(ten):
 		frappe.throw(hoa_don_vat.LOI_TEN_CUT)
+	dia_chi = hoa_don_vat.sach_dia_chi_xhd(dia_chi)
+	_chan_dia_chi_khong_chu(ten or XHD_MAC_DINH, so_mst, dia_chi)
 	gt = {
 		"vgb_xhd_ten": ten or XHD_MAC_DINH,
 		"vgb_xhd_mst": so_mst,
-		"vgb_xhd_dia_chi": (dia_chi or "").strip(),
+		"vgb_xhd_dia_chi": dia_chi,
 		"vgb_xhd_email": (email or "").strip(),
 	}
 	frappe.db.set_value("Sales Invoice", si_name, gt)
@@ -4086,7 +4142,7 @@ def tao_don_tay(
 			frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 		si.vgb_xhd_ten = (xhd_ten or "").strip()
 		si.vgb_xhd_mst = so_mst
-		si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
+		si.vgb_xhd_dia_chi = hoa_don_vat.sach_dia_chi_xhd(xhd_dia_chi)
 		si.vgb_xhd_email = (xhd_email or "").strip()
 	# Luu vet cac chuong trinh da ap ngay tren hoa don de bill in ra co dong
 	# "Khuyen mai" va ke toan mo hoa don len la thay ngay, khoi phai doi
@@ -5714,6 +5770,24 @@ def pos_sua_don(
 		doi.append("số bàn")
 	if xhd_mst is not None or xhd_ten is not None:
 		so_mst = _chuan_mst(xhd_mst)
+		ten_moi = (xhd_ten or "").strip() or XHD_MAC_DINH
+		dc_moi = (
+			hoa_don_vat.sach_dia_chi_xhd(xhd_dia_chi)
+			if xhd_dia_chi is not None else si.vgb_xhd_dia_chi
+		)
+		mail_moi = (
+			(xhd_email or "").strip()
+			if xhd_email is not None else si.vgb_xhd_email
+		)
+		duoc_ghi = _chan_doi_xhd_da_phat_hanh(si, {
+			"vgb_xhd_ten": ten_moi,
+			"vgb_xhd_mst": so_mst,
+			"vgb_xhd_dia_chi": dc_moi,
+			"vgb_xhd_email": mail_moi,
+		})
+	else:
+		duoc_ghi = False
+	if duoc_ghi:
 		if (xhd_mst or "").strip() and not so_mst:
 			frappe.throw(
 				"Mã số thuế phải 10 số (doanh nghiệp), 12 số (hộ kinh doanh hoặc cá "
@@ -5723,11 +5797,26 @@ def pos_sua_don(
 		if so_mst and hoa_don_vat.thieu_ten_rieng(xhd_ten):
 			frappe.throw(hoa_don_vat.LOI_TEN_CUT)
 		si.vgb_xhd_mst = so_mst
-		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
+		si.vgb_xhd_ten = ten_moi
 		if xhd_dia_chi is not None:
-			si.vgb_xhd_dia_chi = (xhd_dia_chi or "").strip()
+			# CUA THU BA, va la cua da de lot to HDB-26-09-00514.
+			#
+			# Man Bill quay (`10-bill-quay.js`) khi mo phieu sua co CO Y bo
+			# trong o ten neu ten dang la cau mac dinh, nhung van giu nguyen o
+			# dia chi. Luu lai la may nhan duoc (ten rong, ma so thue rong,
+			# dia chi con) va ghi thang xuong - dung to hop bi cam.
+			#
+			# O day KHONG nem loi nhu hai cua nguoi go, vi day la man sua ca
+			# to hoa don chu khong phai man dien thong tin thue: nem loi thi
+			# chan luon viec sua mon, sua tien cua nhung to cu da lo mang to
+			# hop do. Thay vao do BO QUA lan ghi dia chi. To cu giu nguyen
+			# nhu no dang co, khong to moi nao nhiem them.
+			_moi = dc_moi
+			if not hoa_don_vat.dia_chi_khong_chu(
+					si.vgb_xhd_ten, si.vgb_xhd_mst, _moi, XHD_MAC_DINH):
+				si.vgb_xhd_dia_chi = _moi
 		if xhd_email is not None:
-			si.vgb_xhd_email = (xhd_email or "").strip()
+			si.vgb_xhd_email = mail_moi
 		doi.append("thông tin xuất hoá đơn")
 	si.flags.ignore_permissions = True
 	if da_ghi:
@@ -6082,12 +6171,14 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	email = (email or "").strip()
 	if not email or "@" not in email or "." not in email.split("@")[-1]:
 		frappe.throw("Vui lòng nhập email để nhận hoá đơn điện tử.")
+	dia_chi = hoa_don_vat.sach_dia_chi_xhd(dia_chi)
+	_chan_dia_chi_khong_chu(ten, so_mst, dia_chi)
 	frappe.db.set_value(
 		"Sales Invoice", name,
 		{
 			"vgb_xhd_ten": ten,
 			"vgb_xhd_mst": so_mst,
-			"vgb_xhd_dia_chi": (dia_chi or "").strip(),
+			"vgb_xhd_dia_chi": dia_chi,
 			"vgb_xhd_email": (email or "").strip(),
 		},
 	)

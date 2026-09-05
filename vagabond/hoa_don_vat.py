@@ -160,6 +160,84 @@ def thieu_ten_rieng(ten):
 
 # ------------------------------------------------------- dien giai thay the
 
+# ------------------------------------------------------------- o dia chi
+
+# Ky tu gach dau dong hay dinh theo khi dan mot dong tu khoi thong tin khach
+# gui qua Pancake hay Zalo. Viet bang ma escape chu khong go thang, de tep
+# nay khong chua dau gach dai (quy uoc trinh bay cua tiem).
+KY_TU_DAU_DONG = "-+*>\u2022\u00b7\u2013\u2014\u25cf\u25aa"
+
+# Nhan dung truoc dau hai cham. Da got: bo dau, hoa het, gom khoang trang.
+NHAN_DIA_CHI = ("DIA CHI", "DC", "D C", "ADDRESS", "ADD", "DIACHI")
+
+# Nhan chi duoc coi la nhan khi nam gan dau chuoi. Dia chi that co the co
+# dau hai cham o giua ("Lo A: 12 Nguyen Van Cu"), va boc cai do la an mat
+# mot phan dia chi.
+XA_NHAT_CUA_NHAN = 24
+
+
+def _boc_mot_lop_dia_chi(t):
+	"""Boc MOT lop gach dau dong hoac MOT nhan o dau chuoi. THUAN."""
+	t = t.lstrip(KY_TU_DAU_DONG + " \t")
+	i = t.find(":")
+	if 0 < i <= XA_NHAT_CUA_NHAN and _got(t[:i]) in NHAN_DIA_CHI:
+		t = t[i + 1:]
+	return t.strip()
+
+
+def sach_dia_chi_xhd(chuoi):
+	"""Boc tien to gach dau dong va nhan "Dia chi:" dinh o DAU o dia chi. THUAN.
+
+	Vi sao can. Ngay 05/09/2026 ra soat thay nam to hoa don DA PHAT HANH mang
+	o dia chi nguoi mua bat dau bang chinh cai nhan, vi du:
+
+	    "- Dia chi: Tang Tret Phoenix 1A, 547-549 duong Ta Quang Buu, ..."
+	    "+ Dia chi :Tang 10, Sofic Tower, So 10 Duong Mai Chi Tho, ..."
+
+	Khach nhan mot khoi thong tin xuat hoa don qua Pancake, sales chep nguyen
+	mot dong dan vao o, va o do truoc nay chi `.strip()` khoang trang nen chu
+	"Dia chi" di thang len to hoa don dien tu.
+
+	Chi boc o DAU chuoi va chi boc nhan khop TUYET DOI. Dia chi that bat dau
+	bang so nha, bang "Tang", bang "Lo" thi khong bi dung toi.
+
+	Boc toi da hai lop, du cho truong hop vua co gach dau dong vua co nhan.
+	Khong boc vong vo han: chuoi la chi toan dau gach thi phai tra ve rong
+	chu khong duoc chay mai.
+	"""
+	t = str(chuoi or "").strip()
+	for _ in range(2):
+		moi = _boc_mot_lop_dia_chi(t)
+		if moi == t:
+			break
+		t = moi
+	return t
+
+
+def dia_chi_khong_chu(ten, mst, dia_chi, ten_mac_dinh):
+	"""To hoa don nay co DIA CHI ma khong co chu cua no khong. THUAN.
+
+	Tra ve True khi to hop CHAC CHAN sai: co dia chi, KHONG co ma so thue, va
+	ten van la cau mac dinh ("Ban cho nguoi tieu dung").
+
+	Vi sao dung ba dieu kien chu khong phai hai. Khach ca nhan co ten that ma
+	khong co ma so thue thi van duoc dien dia chi binh thuong, do la truong
+	hop hop le. Chi khi ten VAN LA CAU MAC DINH thi to hoa don moi vua khong
+	biet ban cho ai vua mang mot dia chi cu the, va do la luc dia chi ay chac
+	chan la cua nguoi khac.
+
+	Ca that ngay 03/09/2026: to HDB-26-09-00514 ten nguoi mua "Ban cho nguoi
+	tieu dung", ma so thue rong, ma o dia chi lai la tru so Tap doan Thien
+	Long. Khach cua to do la "Khach le Online", mot don ShopeeFood.
+	"""
+	if not str(dia_chi or "").strip():
+		return False
+	if str(mst or "").strip():
+		return False
+	t = str(ten or "").strip()
+	return (not t) or t == str(ten_mac_dinh or "").strip()
+
+
 def mau_va_ky_hieu(ky_hieu):
 	"""Tach "mau so" va "ky hieu" tu chuoi in tren to hoa don.
 
@@ -231,3 +309,58 @@ def chen_dien_giai(dien_giai_goc, so_cu, ky_hieu_cu=None, ngay_cu=None, mau_cu=N
 	if goc.startswith(cau):
 		return goc
 	return cau + (". " + goc if goc else "")
+
+
+# ---------------------------------------------------------------------------
+# Bon o thong tin nguoi mua tren hoa don. To DA XUAT hoa don dien tu thi bon o
+# nay dong bang: to giay da nam ben co quan thue, sua ngam trong he thong chi
+# lam so lieu hai ben lech nhau (luat anh Viet chot 13/08/2026).
+# ---------------------------------------------------------------------------
+
+O_XHD = ("vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email")
+
+NHAN_O_XHD = {
+	"vgb_xhd_ten": "tên người mua",
+	"vgb_xhd_mst": "mã số thuế",
+	"vgb_xhd_dia_chi": "địa chỉ",
+	"vgb_xhd_email": "email",
+}
+
+
+def _o_xhd_coi_nhu_trong(o, gt, ten_mac_dinh):
+	"""O ten thi cau mac dinh cung la trong, vi no khong chi ai ca."""
+	t = str(gt or "").strip()
+	if o == "vgb_xhd_ten":
+		return (not t) or t == str(ten_mac_dinh or "").strip()
+	return not t
+
+
+def doi_o_xhd(cu, moi, ten_mac_dinh):
+	"""Phep THUAN. So bon o thong tin nguoi mua giua ban dang co va ban may
+	nhan duoc, tra ve hai danh sach ten truong: (de_trang, ghi_de).
+
+	`de_trang` la nhung o bi lam rong di. Man Bill quay tu bo trong ca ba o
+	khi ten dang la cau mac dinh, nguoi dung khong go gi ca, nen day khong
+	phai y muon cua ai.
+	`ghi_de` la nhung o bi thay bang mot noi dung moi that su, tuc la co
+	nguoi ngoi do go vao.
+
+	To da xuat hoa don dien tu thi ca hai deu khong duoc ghi xuong. Tach lam
+	hai de biet cai nao phai bao ra man va cai nao lang le bo qua: nem loi
+	cho ca `de_trang` la chan luon viec sua ghi chu, sua so ban cua nhung to
+	cu, ma sua ghi chu thi chang dung gi toi to hoa don.
+	"""
+	de_trang, ghi_de = [], []
+	mac_dinh = str(ten_mac_dinh or "").strip()
+	for o in O_XHD:
+		a = str((cu or {}).get(o) or "").strip()
+		b = str((moi or {}).get(o) or "").strip()
+		if o == "vgb_xhd_ten":
+			a, b = (a or mac_dinh), (b or mac_dinh)
+		if a == b:
+			continue
+		if _o_xhd_coi_nhu_trong(o, b, ten_mac_dinh):
+			de_trang.append(o)
+		else:
+			ghi_de.append(o)
+	return de_trang, ghi_de
