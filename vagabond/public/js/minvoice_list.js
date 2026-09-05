@@ -168,6 +168,91 @@
 		'Chờ ghi sổ': 'blue',
 	};
 
+	/* ---------- TRANG THAI THANH TOAN, dung chung mua vao va ban ra
+
+	   Anh Viet xin 05/09/2026: them chip "trang thai thanh toan" (da thanh
+	   toan, con mot phan...) cho ca man hoa don mua lan man hoa don ban.
+
+	   Truoc ban nay hai man do noi hai giong khac nhau. Man mua chi chia
+	   duoc hai muc la da tra het hay con no. Man ban thi khong co gi ca,
+	   dung nhan mac dinh cua ERPNext. Cung mot cau hoi "to nay tra toi
+	   dau roi" ma hai man tra loi hai kieu.
+
+	   VI SAO TACH RIENG "TRA MOT PHAN": gop no vao chung voi chua tra la
+	   mat dung thong tin dang gia nhat. To chua tra dong nao va to da tra
+	   tam phan muoi la hai tinh huong khac han nhau khi di doi no hay khi
+	   xep lich chi. Nhap chung lai thi ke toan phai mo tung to ra xem,
+	   tuc la cai chip khong tiet kiem duoc gi.
+
+	   PHEP TINH NAY CHEP TU vagabond/trang_thai_tra.py, ban thuan o may
+	   chu la ban goc va co bo kiem thu giu. Sua ben nao phai sua ben kia.
+	   Chep sang day vi man danh sach khong goi duoc may chu cho tung dong,
+	   goi tung dong la mot man 100 dong thanh 100 luot goi. */
+
+	var LE = 1;
+
+	function quaHan(ngayLap, hanTra, homNay) {
+		/* Hai dieu kien, phai du ca hai. Mot: co han tra THAT, tuc han dat
+		   SAU ngay hach toan. Han bang dung ngay lap nghia la chua ai khai
+		   dieu khoan thanh toan cho doi tac do, goi la qua han la vu oan.
+		   Hai: han do da troi qua. Thieu ngay nao thi khong ket luan. */
+		var a = String(ngayLap || '').trim();
+		var b = String(hanTra || '').trim();
+		var n = String(homNay || '').trim();
+		if (!a || !b || !n) return false;
+		if (!(b > a)) return false;
+		return b < n;
+	}
+
+	function trangThaiTra(tong, conLai, ghiSo, ngayLap, hanTra, homNay) {
+		if (!ghiSo) return 'Chưa ghi sổ';
+		var t = Number(tong || 0);
+		var c = Number(conLai || 0);
+		if (c < -LE) return 'Trả thừa';
+		if (Math.abs(c) < LE) return 'Đã thanh toán';
+		if (quaHan(ngayLap, hanTra, homNay)) return 'Quá hạn thanh toán';
+		if (t > 0 && Math.abs(c - t) < LE) return 'Chưa thanh toán';
+		if (t <= 0) return 'Chưa thanh toán';
+		return 'Trả một phần';
+	}
+
+	var MAU_TRA = {
+		'Chưa ghi sổ': 'gray',
+		'Đã thanh toán': 'green',
+		'Trả một phần': 'blue',
+		'Chưa thanh toán': 'orange',
+		'Quá hạn thanh toán': 'red',
+		'Trả thừa': 'purple',
+	};
+
+	function phanTramDaTra(tong, conLai) {
+		var t = Number(tong || 0);
+		if (t <= 0) return 0;
+		var da = t - Number(conLai || 0);
+		if (da <= 0) return 0;
+		if (da >= t) return 100;
+		return Math.round((da * 100) / t);
+	}
+
+	function chipTra(doc) {
+		/* Tra ve mang ba phan dung khuon get_indicator cua Frappe: nhan,
+		   mau, va bo loc bam vao thi loc theo. */
+		var tt = trangThaiTra(
+			doc.grand_total, doc.outstanding_amount,
+			parseInt(doc.docstatus, 10) === 1,
+			doc.posting_date, doc.due_date,
+			frappe.datetime.get_today()
+		);
+		var nhan = tt;
+		if (tt === 'Trả một phần') {
+			nhan = 'Trả một phần ' + phanTramDaTra(doc.grand_total, doc.outstanding_amount) + '%';
+		}
+		var loc = 'outstanding_amount,>,0';
+		if (tt === 'Đã thanh toán') loc = 'outstanding_amount,=,0';
+		else if (tt === 'Quá hạn thanh toán') loc = 'due_date,<,' + frappe.datetime.get_today();
+		return [nhan, MAU_TRA[tt] || 'gray', loc];
+	}
+
 	function ganTrangThaiMuaHang() {
 		var dt = 'Purchase Invoice';
 		var CU = frappe.listview_settings[dt] || {};
@@ -186,7 +271,7 @@
 		CU.has_indicator_for_cancelled = 1;
 
 		CU.add_fields = (CU.add_fields || []).concat([
-			'docstatus', 'status', 'outstanding_amount',
+			'docstatus', 'status', 'outstanding_amount', 'grand_total',
 			'posting_date', 'due_date', 'vgb_buoc', 'vgb_huy',
 		]);
 
@@ -206,26 +291,15 @@
 				return [b, MAU_BUOC[b] || 'gray', 'vgb_buoc,=,' + b];
 			}
 
-			/* DA GHI SO. O `vgb_buoc` khong duoc dung o day: to da ghi so
-			   thi khong luu lai nua nen o do dung yen, ma cong no thi van
-			   chay. Doc thang so du con lai. */
-			var con = Number(doc.outstanding_amount || 0);
-			if (Math.abs(con) < 1) {
-				return ['Đã ghi sổ, đã trả', 'green', 'outstanding_amount,=,0'];
-			}
+			/* DA GHI SO thi chuyen sang noi chuyen TIEN. O `vgb_buoc`
+			   khong duoc dung o day: to da ghi so thi khong luu lai nua
+			   nen o do dung yen, ma cong no thi van chay.
 
-			/* Chi goi la qua han khi co HAN TRA THAT, tuc han tra dat sau
-			   ngay hach toan. Han bang dung ngay lap nghia la chua ai khai
-			   dieu khoan thanh toan cho nha cung cap do, goi la qua han la
-			   vu oan. Khai dieu khoan xong thi chu nay tu co nghia lai. */
-			var lap = String(doc.posting_date || '');
-			var han = String(doc.due_date || '');
-			var conHan = lap && han && han > lap;
-			var homNay = frappe.datetime.get_today();
-			if (conHan && han < homNay) {
-				return ['Quá hạn trả', 'red', 'due_date,<,' + homNay];
-			}
-			return ['Đã ghi sổ, còn nợ', 'blue', 'outstanding_amount,>,0'];
+			   Tu ban v425 phan nay dung chung phep tinh voi man hoa don
+			   ban, nen hai man tra loi cung mot giong. Truoc do man nay
+			   chi chia duoc hai muc la da tra het hay con no, gop mat
+			   nhom tra mot phan vao chung voi nhom chua tra dong nao. */
+			return chipTra(doc);
 		};
 
 		/* Phan cua ERPNext van duoc goi neu minh khong xu ly duoc. */
@@ -260,6 +334,56 @@
 		frappe.listview_settings[dt] = CU;
 	}
 
+	function ganTrangThaiBanHang() {
+		/* Man hoa don BAN ra. Truoc ban nay man nay khong co tuy bien nao
+		   ca, dung nhan mac dinh cua ERPNext, nen nhin vao khong biet
+		   khach da tra toi dau tru khi mo tung to.
+
+		   Vi sao khong dung thang o `status` cua ERPNext: chu "Overdue"
+		   cua ho doc thang han tra, ma phan lon doi tac chua duoc khai
+		   dieu khoan thanh toan nen han tra bang luon ngay lap, khien to
+		   vua ghi so xong da thanh qua han. Bai hoc nay da ghi o ban v420.
+
+		   Man nay khong co o buoc xu ly nhu man mua, vi to ban ra khong
+		   phai di qua day chuyen noi phieu nhap. To nhap o day chi la to
+		   chua chot, noi dung mot chu la du. */
+		var dt = 'Sales Invoice';
+		var CU = frappe.listview_settings[dt] || {};
+		var ind_cu = CU.get_indicator;
+
+		/* Hai co nay la dieu kien de ham duoi duoc goi. Thieu chung thi
+		   Frappe chan truoc, to nhap tra thang ve "Nhap" va to da huy tra
+		   ve "Da huy". Da dinh dung the o ban v420 ben man mua. */
+		CU.has_indicator_for_draft = 1;
+		CU.has_indicator_for_cancelled = 1;
+
+		CU.add_fields = (CU.add_fields || []).concat([
+			'docstatus', 'status', 'outstanding_amount', 'grand_total',
+			'posting_date', 'due_date', 'vgb_huy', 'is_return',
+		]);
+
+		CU.get_indicator = function (doc) {
+			var ds = parseInt(doc.docstatus, 10) || 0;
+
+			if (ds === 2 || parseInt(doc.vgb_huy, 10) === 1) {
+				return ['Đã huỷ', 'gray', 'docstatus,=,2'];
+			}
+			if (ds === 0) {
+				return ['Nháp, chưa chốt', 'gray', 'docstatus,=,0'];
+			}
+			/* To tra hang mang tong tien AM, nen phep tinh chung se doc ra
+			   "tra thua". Noi thang no la to tra hang thi dung hon. */
+			if (parseInt(doc.is_return, 10) === 1) {
+				return ['Trả hàng', 'purple', 'is_return,=,1'];
+			}
+			return chipTra(doc);
+		};
+
+		CU._vgb_ind_cu = ind_cu;
+		frappe.listview_settings[dt] = CU;
+	}
+
 	MAN.forEach(gan);
 	ganTrangThaiMuaHang();
+	ganTrangThaiBanHang();
 })();
