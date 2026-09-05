@@ -317,12 +317,20 @@ def _site_mau():
 		_nguoi("shipper@vgb", "Website User"),
 		_nguoi("khach@vgb", "Website User"),
 		_nguoi("web-khong-vai@vgb", "Website User"),
+		# Ba nguoi DA TAT: day la ca Codex tai hien duoc o vong hai. Ai cung
+		# co the bi tat roi mot hom nao do can bat lai.
+		_nguoi("noibo-tat@vgb", bat=0),
+		_nguoi("shipper-tat@vgb", "Website User", bat=0),
+		_nguoi("web-khong-vai-tat@vgb", "Website User", bat=0),
 	]
 	vai = {
 		"noibo@vgb": set(VAI_SALES),
 		"shipper@vgb": {"Shipper"},
 		"khach@vgb": {"Customer"},
 		"web-khong-vai@vgb": set(),
+		"noibo-tat@vgb": set(VAI_SALES),
+		"shipper-tat@vgb": {"Shipper"},
+		"web-khong-vai-tat@vgb": set(),
 	}
 	return users, vai
 
@@ -352,7 +360,44 @@ def _tim_dung_email():
 	dung("tim dung email thi ra", "web-khong-vai@vgb" in co)
 	dong = [r for r in ra["rows"] if r["email"] == "web-khong-vai@vgb"][0]
 	la("co danh dau la ngoai pham vi", dong["ngoai_pham_vi"], 1)
-	dung("khong tinh vao tong so", ra["tat_ca"] <= 2)
+	# Tong so tren dau man chi dem nguoi TRONG pham vi: 2 nguoi noi bo va 2
+	# shipper. Nguoi lot vao vi go dung email khong duoc lam so nay nhay.
+	la("tong so khong nhay theo o tim kiem", ra["tat_ca"], 4)
+
+
+@ca("go dung email thi thay ca khi dang dung bo loc khac, moi loai tai khoan")
+def _tim_dung_email_vuot_bo_loc():
+	# Vong hai moi mo loi nay cho nguoi NGOAI pham vi, nen van con ngo cut:
+	# man giu nguyen chip dang chon khi doi o tim kiem. Dang o nhom Dang lam
+	# ma moi mot email da ton tai va DA TAT thi lam dung y loi cau bao van
+	# khong thay nguoi do. Ca ba loai tai khoan deu phai tim ra.
+	users, vai = _site_mau()
+	for email in ("noibo-tat@vgb", "shipper-tat@vgb", "web-khong-vai-tat@vgb"):
+		with _Site(users, vai, MOI_VAI):
+			ra = nd.danh_sach(tu_khoa=email, chip="dang_lam")
+		co = {r["email"] for r in ra["rows"]}
+		dung("tim ra %s du dang loc nhom Dang lam" % email, email in co)
+
+
+@ca("go dung email thi thay ca khi dang loc theo mot goi khac")
+def _tim_dung_email_vuot_loc_goi():
+	users, vai = _site_mau()
+	with _Site(users, vai, MOI_VAI):
+		ra = nd.danh_sach(tu_khoa="noibo@vgb", goi="shipper")
+	co = {r["email"] for r in ra["rows"]}
+	dung("nguoi noi bo van tim ra du dang loc goi shipper", "noibo@vgb" in co)
+
+
+@ca("go mot manh chu thi van chiu bo loc nhu cu, khong pha bo loc")
+def _tim_mot_manh_van_theo_bo_loc():
+	# Chi khop DUNG NGUYEN email moi duoc vuot bo loc. Go vai chu thi phai
+	# hanh xu nhu cu, khong thi bo loc thanh vo nghia.
+	users, vai = _site_mau()
+	with _Site(users, vai, MOI_VAI):
+		ra = nd.danh_sach(tu_khoa="noibo", chip="dang_lam")
+	co = {r["email"] for r in ra["rows"]}
+	dung("nguoi dang bat van hien", "noibo@vgb" in co)
+	dung("nguoi da tat KHONG hien vi chi go mot manh", "noibo-tat@vgb" not in co)
 
 
 @ca("hai man phai dem shipper giong nhau, khong duoc man 4 nguoi man 0 nguoi")
@@ -361,12 +406,14 @@ def _hai_man_khop_nhau():
 	with _Site(users, vai, MOI_VAI):
 		ds = nd.danh_sach()
 		goi = nd.danh_sach_goi()
-	so_ds = len([r for r in ds["rows"] if "Shipper" in r["vai"]])
+	# Man goi CHI dem nguoi dang bat (goi chuc vu la de biet ai dang lam),
+	# nen so sanh voi shipper dang bat chu khong phai moi shipper.
+	so_ds = len([r for r in ds["rows"] if "Shipper" in r["vai"] and r["bat"]])
 	so_goi = 0
 	for g in goi["goi"]:
 		if g["k"] == "shipper":
 			so_goi = g["so_nguoi"]
-	la("man danh sach dem duoc 1 shipper", so_ds, 1)
+	la("man danh sach dem duoc 1 shipper dang bat", so_ds, 1)
 	la("man quan ly quyen dem cung so", so_goi, so_ds)
 
 
