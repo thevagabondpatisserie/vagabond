@@ -35,21 +35,21 @@ TIEN_CONG_NO = "cong_no"  # khach no, phai di doi
 # phong len bang dung so tiem da tang. Khac ca TIEN_VE_SAU vi khong co ben
 # thu ba nao giu gi ca.
 TIEN_KHONG_THU = "khong_thu"
-# Tien DA VE ROI, nhung ve o mot NGAY KHAC (anh Viet 05/09/2026).
+# Tiền ĐÃ VỀ RỒI, nhưng về ở một NGÀY KHÁC (anh Việt 05/09/2026).
 #
-# Sinh ra tu luong dat banh o tai cua hang: khach tra truoc toan bo vao
-# ngay dat, hoa don VAT xuat vao ngay giao. Nghia la ngay giao co mot to
-# hoa don du gia tri ma khong mot dong nao vao ket.
+# Sinh ra từ luồng đặt bánh ổ tại cửa hàng: khách trả trước toàn bộ vào
+# ngày đặt, hoá đơn VAT xuất vào ngày giao. Nghĩa là ngày giao có một tờ
+# hoá đơn đủ giá trị mà không một đồng nào vào két.
 #
-# Khac ca ba loai tren, va khong duoc nhet bua vao loai nao:
-#   - Khong phai TIEN_NGAY: ngay giao khong co dong nao vao ket, de nguyen
-#     thi chot ca doi thu ngan mot khoan tien khong ton tai.
-#   - Khong phai TIEN_CONG_NO: khach khong no gi ca, da tra du tu truoc.
-#     Xep vao day thi man Cong no phai thu di doi mot khoan da thu roi.
-#   - Khong phai TIEN_VE_SAU: khong co ben thu ba nao dang giu tien.
-#   - Khong phai TIEN_KHONG_THU: co thu tien that, chi la thu hom khac.
+# Khác cả ba loại trên, và không được nhét bừa vào loại nào:
+#   - Không phải TIEN_NGAY: ngày giao không có đồng nào vào két, để nguyên
+#     thì chốt ca đòi thu ngân một khoản tiền không tồn tại.
+#   - Không phải TIEN_CONG_NO: khách không nợ gì cả, đã trả đủ từ trước.
+#     Xếp vào đây thì màn Công nợ phải đi đòi một khoản đã thu rồi.
+#   - Không phải TIEN_VE_SAU: không có bên thứ ba nào đang giữ tiền.
+#   - Không phải TIEN_KHONG_THU: có thu tiền thật, chỉ là thu hôm khác.
 #
-# Tien cua no da duoc dem MOT lan roi, o ca cua ngay thu. Xem
+# Tiền của nó đã được đếm MỘT lần rồi, ở ca của ngày thu. Xem
 # ca_quay._doanh_thu_he_thong.
 TIEN_NGAY_KHAC = "ngay_khac"
 
@@ -174,15 +174,28 @@ MAC_DINH = [
 		"nhan": "Ghi chú thêm cho đơn tặng (không bắt buộc)",
 	},
 	{
-		# Khach dat banh o tai cua hang tra truoc TOAN BO vao ngay dat, hoa
-		# don VAT xuat vao ngay giao (anh Viet chot 05/09/2026). To hoa don
-		# ngay giao mang phuong thuc nay.
+		# Khách đặt bánh ổ tại cửa hàng trả trước TOÀN BỘ vào ngày đặt, hoá
+		# đơn VAT xuất vào ngày giao (anh Việt chốt 05/09/2026). Tờ hoá đơn
+		# ngày giao mang phương thức này.
 		#
-		# minvoice de trong: tien that su vao bang tien mat hay chuyen khoan
-		# o NGAY THU, va ma gui co quan thue lay theo duong thu do.
+		# quay: 0, online: 0 - KHÔNG hiện ở màn chọn phương thức, giống hệt
+		# bốn phương thức sàn bên dưới. Codex bắt ở PR #197: để hiện ra thì
+		# thu ngân chọn nhầm được cho một hoá đơn bán thường, mà nhóm tiền
+		# này bị `ca_quay._ngoai_ket` loại khỏi bảng đối soát, nên một khoản
+		# tiền THẬT vừa thu sẽ biến mất khỏi số két phải có. Đây là kiểu sai
+		# tệ nhất: chọn nhầm một lần là hụt két đúng bằng giá trị đơn mà
+		# không dòng nào giải thích. Chỉ luồng đặt bánh mới đặt phương thức
+		# này, và đặt bằng máy chứ không bằng tay.
+		#
+		# bat: 1 - bắt buộc có số phiếu đặt. Không có số phiếu thì không lần
+		# ngược ra khoản đã thu ở ngày khác được, và cái cớ để loại tờ này
+		# khỏi đối soát cũng không còn.
+		#
+		# minvoice để trống: tiền thật sự vào bằng tiền mặt hay chuyển khoản
+		# ở NGÀY THU, và mã gửi cơ quan thuế lấy theo đường thu đó.
 		"ten": "Trả trước", "ic": "🎫",
-		"quay": 1, "online": 1, "tien_ve": TIEN_NGAY_KHAC, "minvoice": "",
-		"nhan": "Số phiếu đặt bánh", "vd": "SO-2026-00123",
+		"quay": 0, "online": 0, "tien_ve": TIEN_NGAY_KHAC, "minvoice": "",
+		"bat": 1, "nhan": "Số phiếu đặt bánh", "vd": "SO-2026-00123",
 	},
 	# Bon phuong thuc duoi day di theo NGUON DON cua san, khong hien o man
 	# chon phuong thuc - nhung van phai khai de con kiem ma don va gui dung

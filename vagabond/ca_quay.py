@@ -184,9 +184,9 @@ def _ngoai_ket():
 		return (set(pt_thanh_toan.chua_ve_tien())
 			| set(pt_thanh_toan.ve_sau())
 			| set(pt_thanh_toan.khong_thu())
-			# Tien da ve roi nhung ve hom khac (khach dat banh o tra truoc).
-			# Ngay giao co hoa don ma khong co dong nao vao ket, de trong
-			# bang doi soat thi thu ngan bi doi mot khoan da nop hom truoc.
+			# Tiền đã về rồi nhưng về hôm khác (khách đặt bánh ổ trả trước).
+			# Ngày giao có hoá đơn mà không có đồng nào vào két, để trong
+			# bảng đối soát thì thu ngân bị đòi một khoản đã nộp hôm trước.
 			| set(pt_thanh_toan.thu_ngay_khac()))
 	except Exception:
 		return set()
@@ -308,17 +308,23 @@ def _doanh_thu_he_thong(diem, tu_luc, den_luc):
 			ten = (ten or "").strip() or "Chưa rõ"
 			pt[ten] = pt.get(ten, 0.0) + flt(so)
 			so_bill.setdefault(ten, 0)
-	# Tien khach TRA TRUOC cho phieu dat banh o (anh Viet chot 05/09/2026).
+	# Tiền khách TRẢ TRƯỚC cho phiếu đặt bánh ổ (anh Việt chốt 05/09/2026).
 	#
-	# Ngay khach dat, tien vao ket nhung KHONG co hoa don nao - hoa don VAT
-	# xuat vao ngay giao. Khong cong doan nay vao thi ket thua dung bang so
-	# tien do va khong dong nao tren bang doi soat giai thich duoc, ca nao
-	# co don dat banh la ca do lech.
+	# Ngày khách đặt, tiền vào két nhưng KHÔNG có hoá đơn nào, vì hoá đơn
+	# VAT xuất vào ngày giao. Không cộng đoạn này vào thì két thừa đúng bằng
+	# số tiền đó và không dòng nào trên bảng đối soát giải thích được, ca nào
+	# có đơn đặt bánh là ca đó lệch.
 	#
-	# Chieu nguoc lai da xu ly o cho khac: to hoa don ngay giao mang phuong
-	# thuc "Tra truoc" thuoc nhom TIEN_NGAY_KHAC, va `_ngoai_ket()` da ke
-	# nhom do nen no roi khoi bang doi soat ket. Nho vay tien cua mot don
-	# chi vao ket DUNG MOT LAN, o ngay thu.
+	# Chiều ngược lại đã xử lý ở chỗ khác: tờ hoá đơn ngày giao mang phương
+	# thức "Trả trước" thuộc nhóm TIEN_NGAY_KHAC, và `_ngoai_ket()` đã kể
+	# nhóm đó nên nó rơi khỏi bảng đối soát két. Nhờ vậy tiền của một đơn
+	# chỉ vào két ĐÚNG MỘT LẦN, ở ngày thu.
+	#
+	# VÌ SAO Ở ĐÂY NUỐT LỖI ĐƯỢC, mà chỗ đo giữ chỗ thì không (Codex hỏi ở
+	# PR #197): đọc hỏng ở đây làm bảng đối soát THIẾU một dòng, thu ngân
+	# thấy lệch và báo ngay, không ai mất gì. Đọc hỏng ở cột giữ chỗ mà nuốt
+	# lỗi thì bảng ghi 0 và NHẢ bánh đã giữ của khách ra bán tiếp, im lặng.
+	# Nuốt lỗi chỉ an toàn khi hậu quả của nó tự lộ ra.
 	try:
 		from vagabond import dat_banh
 

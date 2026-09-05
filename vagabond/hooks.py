@@ -548,6 +548,24 @@ doc_events = {
 		],
 		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
 	},
+	# Phieu dat banh o cua khach (anh Viet chot 05/09/2026, issue #195).
+	#
+	# Codex bat o PR #197: khong co muc nay thi cot "Giu cho" tren bang kiem
+	# banh khong bao gio duoc do. Lap mot phieu dat hop le xong, bang van
+	# hien du so ban duoc, va cung mot cai banh ban duoc hai lan cho hai
+	# khach. Loi im lang tuyet doi: khong cau bao nao keu, chi lo ra khi co
+	# khach den lay banh ma het.
+	#
+	# Bat DU CA SAU cua vi phieu dat co the doi so hoac doi ngay nhan o bat
+	# ky cua nao. Ham tu do lai ca ngay cu lan ngay moi, va tu nuot loi de
+	# khong chan sales luu phieu cua khach.
+	"Sales Order": {
+		"on_update": "vagabond.kiem_banh.khi_doi_phieu_dat",
+		"on_submit": "vagabond.kiem_banh.khi_doi_phieu_dat",
+		"on_update_after_submit": "vagabond.kiem_banh.khi_doi_phieu_dat",
+		"on_cancel": "vagabond.kiem_banh.khi_doi_phieu_dat",
+		"on_trash": "vagabond.kiem_banh.khi_doi_phieu_dat",
+	},
 	"Sales Invoice": {
 		# Hang OWNER: tu ap giam 100%, bat co don noi bo. Dat o
 		# before_validate vi ERPNext tinh lai tong tien SAU buoc nay; dat o
