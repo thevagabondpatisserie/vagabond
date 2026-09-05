@@ -730,7 +730,12 @@ async function scrHoSoTTTao() {
        tick o day chinh la thu bat Uyen phai lam mot ho so cho moi nha cung
        cap. Luong cong no NCC thi van xoa, vi ho so do chi duoc phep mang
        mot nha. */
-    if (!laHU) hsTaoChon = {};
+    /* Xoa tick toi dau thi xoa phieu noi bo toi do. Hom nay dong
+       `hsPhieuCua = {}` nay la thua, vi phieu chi duoc noi o luong hoan ung
+       (`laHU && da` cho `hsODongPhieu`) ma nhanh nay lai la `!laHU`. Giu
+       lai de bat bien "xoa hsTaoChon la xoa ca hsPhieuCua" dung o MOI cho,
+       phong ngay nao do luong cong no NCC cung noi duoc phieu. */
+    if (!laHU) { hsTaoChon = {}; hsPhieuCua = {}; }
     go(scrHoSoTTTao, true);
   };
   var moNcc = document.getElementById('hsMoNcc');
@@ -896,37 +901,129 @@ function hsNoiNutTaoNcc(tuKhoa, chon) {
   n.onclick = function () { nccTaoNhanh(tuKhoa, chon); };
 }
 
+/* ---------- Lap ho so moi: HOI THEO NHIP thay cho nam nut ----------
+
+   Anh Viet mo issue #196: *"Chi Dung va anh deu cam thay 5 nut cua cho tao
+   APP la qua roi. Anh muon lam gon lai"*.
+
+   Nam nut cu bat nguoi ta doc nam doan van roi tu doi chieu nhieu tieu chi
+   mot luc. Nay hoi theo nhip, moi nhip mot tieu chi, va KHONG bo luong nao,
+   khong doi ma luong nao.
+
+     Cau 1 - khoan chi nay di theo DUONG nao:
+       tra nha cung cap qua cong no  -> hoi tiep: ncc | tt
+       chi thang tu mot TK cong ty   -> tkct, vao thang, khong hoi them
+       hoan lai cho nguoi da ung ra  -> hoi tiep: hu_hd | hu_khd
+
+     Cau 2 - hoa don mua DA NAM TRONG HE chua. Hoi Y HET NHAU o ca hai
+     nhanh con lai, nen khai chung mot cho de khong bao gio lech loi.
+
+   VI SAO tkct DUNG O CAU 1 CHU KHONG PHAI CAU 2. Ban dau phien nay xep tkct
+   thanh mot the trong cau 2 voi nhan "khong co hoa don mua nao". Codex bat
+   duoc tren PR #203 va bat DUNG: `scrChiCongTyTao` co HAI che do theo o
+   "Loai chi phi thue" - chi phi hop le thi no goi `hoa_don_cho_tra` roi cho
+   TICK hoa don dang no, khong hoa don thi go tay. Nghia la tkct xu ly duoc
+   ca to da nam trong he. Dan nhan "khong co hoa don mua nao" cho no la cat
+   mat mot nua duong: ai co hoa don trong he ma phai chi tu tai khoan khac
+   MB, tra loi that thi bi day sang `ncc` (MB), muon toi dung cho thi phai
+   tra loi doi. Bat nguoi ta noi doi voi may de di dung duong la hong nang
+   hon cai roi ma minh dinh chua.
+
+   Chuyen that: cai tach `ncc` voi `tkct` KHONG phai la hoa don da vao he
+   hay chua, ma la TIEN DI DUONG NAO. `ncc` la dot tra cong no, tien ra tu
+   MB (xem ho_so_tt.py dong 62). `tkct` la chi thang tu mot tai khoan cong
+   ty tu chon, khong qua cong no Purchasing. Nen no thuoc ve cau 1.
+
+   CAU 2 LA CHO PHAI VIET CAN THAN NHAT. Loi hieu nham da ghi lai tu truoc:
+   "co hoa don" o day nghia la hoa don DA NAM TRONG HE ERPNext thanh mot hoa
+   don mua con no, chu khong phai la co to hoa don giay trong tay. Uyen cam
+   to hoa don VAT that nhung ke toan chua nhap vao he thi van phai di duong
+   "chua vao he", vi chinh duong do moi sinh hoa don mua ra. Cau hoi va mo ta
+   ben duoi phai noi thang dieu do, dung de nguoi ta suy ra.
+
+   Thoi o cau 2 thi QUAY VE cau 1 chu khong van ra ngoai. Bat nguoi ta bam
+   dau cong lai tu dau chi vi lo chon nham nhanh la buoc lui vo ly. */
+
+var HS_LUONG_CONG_NO = [
+  { k: 'ncc', icon: '🧾', nhan: 'Đã có, đang nợ trên sổ',
+    mo_ta: 'Kế toán đã nhập hoá đơn vào hệ, hàng đã nhập kho, hoá đơn đang nằm ở công nợ nhà cung cấp. Tick các tờ còn nợ rồi chuyển tiền từ tài khoản MB.' },
+  /* Luong thu nam, anh Viet giao 21/08/2026. Dat ngay duoi Cong no NCC vi
+     hai cai cung la tra tien cho nha cung cap, khac o cho da co hoa don
+     hay chua. Than luong nam trong 30-tra-truoc.js. */
+  { k: 'tt', icon: '⏩', nhan: 'Chưa có, đây là khoản trả trước',
+    mo_ta: 'Trả trước khi chưa có hoá đơn: đơn in ấn, đơn đặt sản xuất có điều khoản cọc. Neo vào đơn mua hàng, hoá đơn về thì tự cấn trừ.' }
+];
+
+/* Hai the nay hay bi chon nham, va ten cua chung la nguyen nhan. Tu 04/09/2026
+   CA HAI duong deu noi duoc phieu thanh toan noi bo (o duong hoan ung CO hoa
+   don thi phieu chi dong vai chung tu, khong dung toi so tien - xem chu thich
+   o `hsODongPhieu`). Nen bo hai cau cu "KHONG noi duoc phieu thanh toan noi
+   bo o duong nay" va "day la duong DUY NHAT noi duoc phieu thanh toan noi bo
+   cua quan ly": ca hai deu da sai su that, ma sai theo huong day nguoi ta
+   sang nham duong. */
+var HS_LUONG_HOAN_UNG = [
+  { k: 'hu_hd', icon: '🧾', nhan: 'Đã có, đang nợ trên sổ',
+    mo_ta: 'Kế toán đã nhập hoá đơn vào hệ, hàng đã nhập kho, hoá đơn đang nằm ở công nợ nhà cung cấp. Tick các hoá đơn còn nợ để hoàn lại tiền cho người ứng. Gom được nhiều nhà cung cấp trong một hồ sơ.' },
+  { k: 'hu_khd', icon: '🧮', nhan: 'Chưa có',
+    mo_ta: 'Gõ tay từng khoản rồi máy tự sinh hoá đơn mua khi giám đốc duyệt. Dùng cho khoản lẻ không hoá đơn, VÀ cho khoản có tờ hoá đơn thật mà kế toán chưa nhập vào hệ.' }
+];
+
+/* Cau hoi thu hai hoi y het nhau o ca hai nhanh, nen dung chung mot cho de
+   khong bao gio lech loi. `hoiChon` chen `moTa` vao thang HTML (khong qua
+   `h()`) nen the <b> o day chay duoc; ba chuoi nay deu la chu cua minh,
+   khong phai chu nguoi dung go vao. */
+var HS_CAU_HOA_DON = 'Hoá đơn mua đã nằm trong hệ chưa?';
+var HS_MO_TA_HOA_DON = 'Hỏi về tờ hoá đơn ĐÃ ĐƯỢC KẾ TOÁN NHẬP VÀO HỆ thành một hoá đơn mua còn nợ. ' +
+  'Cầm tờ hoá đơn giấy trong tay mà kế toán chưa nhập thì vẫn chọn "chưa có".';
+var HS_CAU_DUONG_TIEN = 'Khoản chi này đi theo đường nào?';
+
+function hsHoiHoaDon(dsMuc) {
+  return hoiChon('Lập hồ sơ thanh toán · bước 2',
+    '<b>' + HS_CAU_HOA_DON + '</b><br>' + HS_MO_TA_HOA_DON, dsMuc);
+}
+
 async function hsChonLoaiMoi() {
-  var c = await hoiChon('Lập hồ sơ thanh toán', 'Năm luồng khác nhau về chứng từ lẫn về tiền, chọn đúng loại thì các bước sau tự bày ra cho hợp.', [
-    { k: 'ncc', icon: '🏭', nhan: 'Công nợ nhà cung cấp',
-      mo_ta: 'Gom hoá đơn mua đến hạn của một nhà cung cấp, công ty trả thẳng cho họ từ tài khoản MB.' },
-    /* Luong thu nam, anh Viet giao 21/08/2026. Dat ngay duoi Cong no NCC vi
-       hai cai cung la tra tien cho nha cung cap, khac o cho da co hoa don
-       hay chua. Than luong nam trong 30-tra-truoc.js. */
-    { k: 'tt', icon: '⏩', nhan: 'Tạo phiếu thanh toán trước cho NCC',
-      mo_ta: 'Trả trước khi chưa có hoá đơn: đơn in ấn, đơn đặt sản xuất có điều khoản cọc. Neo vào đơn mua hàng, hoá đơn về thì tự cấn trừ.' },
-    /* Hai the nay hay bi chon nham, va ten cua chung la nguyen nhan.
-       "Co hoa don" o day nghia la hoa don DA NAM TRONG HE ERPNext thanh mot
-       hoa don mua con no, chu khong phai la co to hoa don giay trong tay.
-       Uyen cam to hoa don VAT that nhung ke toan chua nhap vao he thi van
-       phai di duong "chua co hoa don trong he", vi chinh duong do moi sinh
-       hoa don mua ra. Ghi ro dieu do vao mo ta, va ghi ro cho noi phieu
-       thanh toan noi bo chi co o duong duoi. */
-    { k: 'hu_hd', icon: '🧾', nhan: 'Hoàn ứng · hoá đơn ĐÃ có trong hệ',
-      mo_ta: 'Kế toán đã nhập hoá đơn vào hệ, hàng đã nhập kho, hoá đơn đang nằm ở công nợ nhà cung cấp. Tick các hoá đơn còn nợ để hoàn lại tiền cho người ứng. KHÔNG nối được phiếu thanh toán nội bộ ở đường này.' },
-    { k: 'hu_khd', icon: '🧮', nhan: 'Hoàn ứng · hoá đơn CHƯA vào hệ',
-      mo_ta: 'Gõ tay từng khoản rồi máy tự sinh hoá đơn mua khi giám đốc duyệt. Dùng cho khoản lẻ không hoá đơn, VÀ cho khoản có tờ hoá đơn thật mà kế toán chưa nhập vào hệ. Đây là đường DUY NHẤT nối được phiếu thanh toán nội bộ của quản lý.' },
-    { k: 'tkct', icon: '🏦', nhan: 'Thanh toán từ TK công ty',
-      mo_ta: 'Chi trả trực tiếp từ tài khoản công ty cho chi phí phát sinh, không qua Purchasing. Kế toán chủ động định khoản.' }
-  ]);
-  if (!c) return;
-  if (c === 'tt') { ttReset(); return go(scrTraTruocTao); }
-  if (c === 'tkct') { huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huChonHd = {}; huSuaO = -1; return go(scrChiCongTyTao); }
-  if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; huSuaO = -1; return go(scrHoanUngTao); }
-  hsHdTu = '';
-  if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTkHoan = ''; hsTkDs = null; hsTkCua = ''; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
-  hsTaoNcc = ''; hsTaoChon = {}; hsTaoLoai = 'NCC';
-  go(scrHoSoTTTao);
+  for (;;) {
+    var duong = await hoiChon('Lập hồ sơ thanh toán',
+      '<b>' + HS_CAU_DUONG_TIEN + '</b><br>Chọn đúng đường thì các bước sau tự bày ra cho hợp.', [
+      /* Ma cua cau 1 co y dat khac han nam ma luong (`ncc`, `tt`, `hu_hd`,
+         `hu_khd`, `tkct`), tru `tkct` la vao thang nen dung chinh ma luong.
+         Dung trung chu `ncc` cho ca nhanh lan luong thi doc code khong biet
+         dang noi toi cai nao. */
+      { k: 'cong_no', icon: '🏭', nhan: 'Trả cho nhà cung cấp qua công nợ',
+        mo_ta: 'Tiền đi từ tài khoản MB tới thẳng bên bán, theo đợt trả công nợ.' },
+      { k: 'tkct', icon: '🏦', nhan: 'Chi thẳng từ một tài khoản công ty',
+        mo_ta: 'Không qua công nợ Purchasing. Chọn tài khoản chi, rồi tuỳ loại chi phí thuế mà tick hoá đơn đang nợ hoặc gõ tay từng khoản.' },
+      { k: 'nguoi_ung', icon: '🙋', nhan: 'Hoàn lại cho người đã ứng tiền ra',
+        mo_ta: 'Người trong tiệm đã bỏ tiền túi hoặc tiền tạm ứng mua hộ, giờ công ty trả lại cho họ.' }
+    ]);
+    if (!duong) return;
+
+    /* Chi tu TK cong ty vao thang, khong hoi cau 2: man cua no da hoi bang
+       o "Loai chi phi thue", va chinh o do moi la thu quyet dinh bay bang
+       tick hoa don hay bang go tay. Hoi truoc mot lan nua la hoi hai lan
+       cung mot chuyen roi con mau thuan duoc voi nhau. */
+    if (duong === 'tkct') {
+      huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huChonHd = {}; huSuaO = -1;
+      return go(scrChiCongTyTao);
+    }
+
+    var c = await hsHoiHoaDon(
+      duong === 'nguoi_ung' ? HS_LUONG_HOAN_UNG : HS_LUONG_CONG_NO);
+    /* Thoi o cau 2 la quay lai cau 1, khong van ra ngoai. */
+    if (!c) continue;
+
+    if (c === 'tt') { ttReset(); return go(scrTraTruocTao); }
+    if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; huSuaO = -1; return go(scrHoanUngTao); }
+    hsHdTu = '';
+    /* `hsPhieuCua` phai xoa cung luc voi `hsTaoChon`, y het ba cho kia trong
+       tep nay. Truoc v433 chi cho nay quen xoa: lap ho so hoan ung, noi phieu
+       vao mot hoa don, bo giua chung khong luu, lap lai roi tick trung dung
+       hoa don do thi phieu cu lang le dinh lai vao. */
+    if (c === 'hu_hd') { hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsTaoNguoiUng = ''; hsTaoDsUng = null; hsTkHoan = ''; hsTkDs = null; hsTkCua = ''; hsTaoLoai = 'Hoan ung HD'; return go(scrHoSoTTTao); }
+    hsTaoNcc = ''; hsTaoChon = {}; hsPhieuCua = {}; hsTaoLoai = 'NCC';
+    return go(scrHoSoTTTao);
+  }
 }
 
 function huTong() { return huDong.reduce(function (a, x) { return a + Number(x.so_tien || 0); }, 0); }

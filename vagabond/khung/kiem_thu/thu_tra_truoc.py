@@ -227,17 +227,32 @@ def _():
 
 @ca("màn trả trước: luồng thứ năm nằm ngay dưới Công nợ nhà cung cấp")
 def _():
+	"""Ý ĐỊNH GỐC GIỮ NGUYÊN, chỗ đọc và câu đếm luồng thì đổi.
+
+	Ca kiểm này dựng lúc thêm luồng trả trước, chốt ba việc: luồng đó CÓ
+	trong bảng chọn, nằm ngay sau Công nợ nhà cung cấp, và lời trên màn đã
+	được sửa cho khớp số luồng. Cả ba ý còn nguyên.
+
+	v433 đổi màn từ năm nút thành hai câu hỏi (issue #196 phần A) nên:
+
+	- Bảng chọn tách làm hai, khai ngay trên hàm chứ không nằm trong thân,
+	  nên cắt theo "if (!c) return;" không còn đúng. Đọc thẳng cả tệp và so
+	  vị trí năm mã luồng: thứ tự khai vẫn phải là ncc, tt, tkct rồi mới
+	  tới hu_hd, hu_khd, nên phép so cũ vẫn nói đúng cái nó muốn nói.
+	- Không còn câu nào đếm số luồng, vì hai câu hỏi không bày cả năm cùng
+	  lúc nữa. Thay bằng phép chốt chắc hơn: đủ NĂM mã luồng, mỗi mã đúng
+	  một lần. Thiếu một mã là có luồng không còn đường vào.
+	"""
 	goi = os.path.dirname(os.path.abspath(tt.__file__))
 	js19 = io.open(
 		os.path.join(goi, "public", "js", "bep", "19-ho-so-tt.js"),
 		encoding="utf-8").read()
-	# Cat den dong "if (!c) return;" chu khong cat o dau ngoac nhon dau
-	# tien: bang lua chon la mang cac object, ben trong day dau ngoac.
-	than = js19.split("async function hsChonLoaiMoi")[1].split("if (!c) return;")[0]
-	i_ncc = than.find("k: 'ncc'")
-	i_tt = than.find("k: 'tt'")
-	i_hu = than.find("k: 'hu_hd'")
+	i_ncc = js19.find("k: 'ncc'")
+	i_tt = js19.find("k: 'tt'")
+	i_hu = js19.find("k: 'hu_hd'")
 	dung("có luồng trả trước trong bảng chọn", i_tt > 0)
-	dung("nằm sau Công nợ nhà cung cấp", i_ncc < i_tt)
+	dung("nằm sau Công nợ nhà cung cấp", 0 <= i_ncc < i_tt)
 	dung("nằm trước Hoàn ứng có hoá đơn", i_tt < i_hu)
-	dung("đã đổi lời từ Bốn luồng sang Năm luồng", "Năm luồng" in than)
+	for ma in ("ncc", "tt", "tkct", "hu_hd", "hu_khd"):
+		dung("luồng %s vẫn có đúng một đường vào" % ma,
+			js19.count("k: '%s'" % ma) == 1)
