@@ -462,24 +462,84 @@ def tao(
 
 
 @frappe.whitelist()
-def day_sang_pancake(item_code):
+def day_sang_pancake(item_code, cho_phep_gia_0=0):
 	"""Nut Dong bo Pancake tren man Danh muc san pham."""
 	_kiem_quyen()
 	if not _duoc_tao():
 		frappe.throw("Chỉ kế toán, thu mua hoặc giám đốc mới đẩy mã sang Pancake được.")
 	from vagabond import pancake_sp
 
-	return pancake_sp.tao_tren_pancake(item_code)
+	return pancake_sp.tao_tren_pancake(item_code, cho_phep_gia_0=cho_phep_gia_0)
 
 
 @frappe.whitelist()
-def gan_day(so_dong=30):
-	"""May ma vua mo, de nguoi tao xem lai va bam dong bo Pancake."""
+def kiem_ma_tren_pancake(item_code):
+	"""Nút "Kiểm lại": tra tình trạng một mã bên Pancake, KHÔNG tạo gì.
+
+	Có cửa này vì bản gia cố 05/09/2026 trả về trạng thái "chưa rõ" khi lệnh
+	tạo đã gửi mà không nghe được trả lời. Lúc đó việc đúng là đi kiểm, chứ
+	không phải bấm tạo lần nữa.
+	"""
 	_kiem_quyen()
+	from vagabond import pancake_sp
+
+	return pancake_sp.trang_thai_tren_pancake(item_code)
+
+
+@frappe.whitelist()
+def gan_day(so_dong=30, tim="", trang=1):
+	"""Tìm mã để đẩy sang Pancake. Mặc định là mấy mã vừa mở gần đây.
+
+	VÌ SAO PHẢI CÓ Ô TÌM (Codex nêu 05/09/2026)
+	--------------------------------------------
+	Bản cũ chỉ trả về mấy mã mới nhất, trần 200. Mã cũ hơn thì không có
+	đường nào mở lại để đẩy.
+
+	Và bản cũ chưa được màn hình nào gọi tới, nên trên app chỉ đẩy được đúng
+	cái mã VỪA tạo trong phiên đó: tải lại trang là nút biến mất. Uyên tạo
+	mã hôm trước, hôm sau muốn đẩy thì không có cửa nào.
+
+	Nay: gõ mã hoặc gõ tên để tìm bất kỳ mã nào, có phân trang.
+
+	Mã ngừng dùng hoặc không phải hàng bán vẫn hiện ra để người ta biết nó
+	tồn tại, nhưng mang cờ `day_duoc = 0`. Máy chủ chốt cờ đó chứ không để
+	màn hình tự đoán, và `pancake_sp` chặn lần nữa lúc đẩy thật.
+	"""
+	_kiem_quyen()
+	from vagabond import pancake_ket_qua as pkq
+
+	moi_trang = max(1, min(200, cint(so_dong) or 30))
+	trang = max(1, cint(trang) or 1)
+	tu = (tim or "").strip()
+
+	loc = {}
+	if tu:
+		loc = {"name": ["like", "%%%s%%" % tu]}
+	truong = ["name", "item_name", "item_group", "stock_uom", "standard_rate",
+		"disabled", "is_sales_item"]
 	rows = frappe.get_all(
-		"Item",
-		fields=["name", "item_name", "item_group", "stock_uom", "standard_rate", "disabled"],
+		"Item", filters=loc, fields=truong,
 		order_by="creation desc",
-		limit_page_length=max(1, min(200, cint(so_dong) or 30)),
+		limit_start=(trang - 1) * moi_trang, limit_page_length=moi_trang,
 	)
-	return {"mon": rows, "tao_duoc": 1 if _duoc_tao() else 0}
+	# Gõ tên món thì tìm thêm theo tên, rồi gộp lại theo mã cho khỏi trùng.
+	if tu and len(rows) < moi_trang:
+		da_co = set(r["name"] for r in rows)
+		for r in frappe.get_all(
+			"Item", filters={"item_name": ["like", "%%%s%%" % tu]}, fields=truong,
+			order_by="creation desc", limit_page_length=moi_trang - len(rows),
+		):
+			if r["name"] not in da_co:
+				rows.append(r)
+
+	for r in rows:
+		r["day_duoc"] = 1 if pkq.duoc_xuat_ban(r.get("disabled"), r.get("is_sales_item")) else 0
+
+	return {
+		"mon": rows,
+		"tao_duoc": 1 if _duoc_tao() else 0,
+		"trang": trang,
+		"moi_trang": moi_trang,
+		"con_nua": 1 if len(rows) >= moi_trang else 0,
+		"tim": tu,
+	}
