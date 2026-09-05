@@ -188,6 +188,11 @@ CUA_NGO = {
 	# `bu_nguoi_gui` va `canh_bao_email_loi` KHONG duoc co mat o day: mot cai
 	# la hook nam tren duong di cua MOI email trong he, mot cai la nhip lap
 	# lich. Ho ra thi la decorator vua bam nham.
+	# Duong day ma sang Pancake. Chi MOT cua mo ra ngoai: `tao_tren_pancake`.
+	# `trang_thai_tren_pancake` CHI DOC nhung khong duoc whitelist, vi cua
+	# ra ngoai cua no la `danh_muc.kiem_ma_tren_pancake`, noi co kiem quyen
+	# theo vai. Hai cua cho mot viec la dung cai bay QT-19.
+	"pancake_sp.py": ["tao_tren_pancake"],
 	"gui_thu.py": ["cuu_su_co_1608", "gui_bo_thu_mau", "suc_khoe", "va_hang_doi_ket"],
 	# Luong dong tien, them 21/08/2026: ca lam viec tai quay va phieu nop
 	# quy. Cac ham _doanh_thu_he_thong, _ca_dang_mo la noi bo, khong mo.

@@ -21007,7 +21007,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '433';
+var APPVER = '435';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -28173,6 +28173,7 @@ function posSheetChonCombo(c, xong) {
    Man nay chi hoi BAY thu. Ma hang, ba co mua/ban/ton kho va don vi tinh
    thi may tu dat theo LOAI HANG. */
 var dmCai = null, dmVe = null, dmTre = null, dmVuaTao = null, dmNangCao = 0;
+var dmTimTu = '', dmTimTre = null, dmTimDs = null, dmTimTrang = 1;
 
 async function scrDanhMuc() {
   frame('Danh mục sản phẩm', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh mục...</div></div>');
@@ -28356,7 +28357,31 @@ function dmVeXem() {
         }).join('') + '</div>';
     }
   }
+  /* ---------- Tim mot ma CU de day sang Pancake ----------
+
+     Truoc ban nay, nut day chi hien cho dung cai ma vua tao trong phien do
+     (bien dmVuaTao). Tai lai trang la mat, nen khong co duong nao day mot ma
+     cu. Uyen tao ma hom truoc, hom sau muon day thi chiu.
+
+     May chu da co san danh_muc.gan_day tu lau nhung khong man nao goi. Nay
+     noi vao day, kem o tim va phan trang. */
+  html += '<div class="card" style="padding:14px;margin-top:12px">' +
+    '<div style="font-weight:800;font-size:14px">Tìm mã cũ để đẩy sang Pancake</div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:2px">Gõ mã hoặc tên món. Bỏ trống thì hiện mã mới mở gần đây.</div>' +
+    '<input id="dmTimMa" class="inp" style="margin-top:8px" placeholder="Ví dụ BAWC00148 hoặc Very Cherry" value="' + h(dmTimTu) + '">' +
+    '<div id="dmTimKq" style="margin-top:8px"></div></div>';
+
   o.innerHTML = html;
+
+  var oTim = document.getElementById('dmTimMa');
+  if (oTim) {
+    oTim.oninput = function () {
+      dmTimTu = oTim.value;
+      if (dmTimTre) clearTimeout(dmTimTre);
+      dmTimTre = setTimeout(dmTimChay, 350);
+    };
+    dmTimChay();
+  }
 
   var np = document.getElementById('dmPan');
   if (np) np.onclick = async function () {
@@ -28364,12 +28389,109 @@ function dmVeXem() {
     np.disabled = true; np.textContent = 'Đang đẩy sang Pancake...';
     try {
       var r = await api('vagabond.danh_muc.day_sang_pancake', { item_code: dmVuaTao.ma });
-      if (bao) bao.textContent = (r && r.thong_bao) || 'Xong.';
+      /* KHONG duoc roi ve mot cau bao thanh cong mac dinh. Bao xong trong khi
+         chua biet ket qua dung la cai da lam Uyen mat niem tin vao nut nay
+         (issue 204). Thieu thong bao thi noi that la chua xac minh. */
+      if (bao) bao.textContent = (r && r.thong_bao) || 'Chưa xác minh được kết quả. Bấm Kiểm lại.';
     } catch (e) {
       if (bao) bao.textContent = (e && e.message) || 'Không đẩy được sang Pancake.';
     }
     np.disabled = false; np.textContent = '🔄 Đồng bộ mã này sang Pancake';
   };
+}
+
+/* Tim ma de day sang Pancake. May chu chot co `day_duoc`, man nay chi ve
+   lai: ma ngung dung hay khong phai hang ban thi van hien de nguoi ta biet
+   no ton tai, nhung khong co nut day. */
+async function dmTimChay(trang) {
+  var o = document.getElementById('dmTimKq');
+  if (!o) return;
+  dmTimTrang = Math.max(1, trang || 1);
+  o.innerHTML = '<div style="font-size:12.5px;color:#98a2b3">Đang tìm...</div>';
+  try {
+    dmTimDs = await api('vagabond.danh_muc.gan_day', {
+      tim: dmTimTu, trang: dmTimTrang, so_dong: 20
+    });
+  } catch (e) {
+    o.innerHTML = '<div style="font-size:12.5px;color:#b3261e">' + h((e && e.message) || 'Không tìm được.') + '</div>';
+    return;
+  }
+  var ds = (dmTimDs && dmTimDs.mon) || [];
+  if (!ds.length) {
+    o.innerHTML = '<div style="font-size:12.5px;color:#98a2b3">Không có mã nào khớp.</div>';
+    return;
+  }
+  o.innerHTML = ds.map(function (x, i) {
+    var nut = x.day_duoc
+      ? '<button class="btn sm" data-dmday="' + h(x.name) + '">Đẩy</button>' +
+        '<button class="btn sm ghost" data-dmkiem="' + h(x.name) + '" style="margin-left:6px">Kiểm lại</button>'
+      : '<span style="font-size:11.5px;color:#98a2b3">ngừng dùng hoặc không bán</span>';
+    return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-top:' +
+      (i ? '1px solid #eef0f4' : 'none') + '">' +
+      '<div style="flex:1;min-width:0">' +
+      '<div style="font-weight:700;font-size:13px">' + h(x.name) + '</div>' +
+      '<div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x.item_name || '') + '</div>' +
+      '<div id="dmBao_' + h(x.name) + '" style="font-size:12px;color:#374151;margin-top:2px"></div>' +
+      '</div><div style="flex:none">' + nut + '</div></div>';
+  }).join('') +
+    '<div style="display:flex;gap:8px;margin-top:8px">' +
+    (dmTimTrang > 1 ? '<button class="btn sm ghost" id="dmTruoc">Trang trước</button>' : '') +
+    (dmTimDs.con_nua ? '<button class="btn sm ghost" id="dmSau">Trang sau</button>' : '') +
+    '</div>';
+
+  var tr = document.getElementById('dmTruoc');
+  if (tr) tr.onclick = function () { dmTimChay(dmTimTrang - 1); };
+  var sa = document.getElementById('dmSau');
+  if (sa) sa.onclick = function () { dmTimChay(dmTimTrang + 1); };
+
+  Array.prototype.forEach.call(o.querySelectorAll('[data-dmday]'), function (b) {
+    b.onclick = function () { dmDayMot(b.getAttribute('data-dmday'), b, 0); };
+  });
+  Array.prototype.forEach.call(o.querySelectorAll('[data-dmkiem]'), function (b) {
+    b.onclick = function () { dmKiemMot(b.getAttribute('data-dmkiem'), b); };
+  });
+}
+
+function dmBaoMot(ma, chu, mau) {
+  var e = document.getElementById('dmBao_' + ma);
+  if (e) { e.textContent = chu; e.style.color = mau || '#374151'; }
+}
+
+/* Mau theo trang thai may chu tra ve. Do danh cho hai truong hop CAN NGUOI
+   NGO TOI: xung dot nhieu ma trung, va chua ro ket qua. Chua ro KHONG duoc
+   to xanh, va tuyet doi khong duoc tu bam day lai. */
+function dmMauTrangThai(tt) {
+  if (tt === 'da_tao' || tt === 'da_co') return '#15803d';
+  if (tt === 'xung_dot' || tt === 'chua_ro') return '#b3261e';
+  if (tt === 'thieu_gia') return '#b45309';
+  return '#374151';
+}
+
+async function dmDayMot(ma, nut, choGia0) {
+  if (nut) { nut.disabled = true; nut.textContent = 'Đang đẩy...'; }
+  dmBaoMot(ma, 'Đang đẩy sang Pancake...', '#6b7280');
+  var r = null;
+  try {
+    r = await api('vagabond.danh_muc.day_sang_pancake', { item_code: ma, cho_phep_gia_0: choGia0 ? 1 : 0 });
+  } catch (e) {
+    dmBaoMot(ma, (e && e.message) || 'Không đẩy được, chưa xác minh.', '#b3261e');
+    if (nut) { nut.disabled = false; nut.textContent = 'Đẩy'; }
+    return;
+  }
+  dmBaoMot(ma, (r && r.thong_bao) || 'Chưa xác minh được kết quả.', dmMauTrangThai(r && r.trang_thai));
+  if (nut) { nut.disabled = false; nut.textContent = 'Đẩy'; }
+}
+
+async function dmKiemMot(ma, nut) {
+  if (nut) { nut.disabled = true; }
+  dmBaoMot(ma, 'Đang kiểm bên Pancake...', '#6b7280');
+  try {
+    var r = await api('vagabond.danh_muc.kiem_ma_tren_pancake', { item_code: ma });
+    dmBaoMot(ma, (r && r.thong_bao) || 'Chưa xác minh được.', dmMauTrangThai(r && r.trang_thai));
+  } catch (e) {
+    dmBaoMot(ma, (e && e.message) || 'Không kiểm được.', '#b3261e');
+  }
+  if (nut) { nut.disabled = false; }
 }
 
 async function dmTao(boQuaTrung) {
