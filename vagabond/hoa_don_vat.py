@@ -309,3 +309,58 @@ def chen_dien_giai(dien_giai_goc, so_cu, ky_hieu_cu=None, ngay_cu=None, mau_cu=N
 	if goc.startswith(cau):
 		return goc
 	return cau + (". " + goc if goc else "")
+
+
+# ---------------------------------------------------------------------------
+# Bon o thong tin nguoi mua tren hoa don. To DA XUAT hoa don dien tu thi bon o
+# nay dong bang: to giay da nam ben co quan thue, sua ngam trong he thong chi
+# lam so lieu hai ben lech nhau (luat anh Viet chot 13/08/2026).
+# ---------------------------------------------------------------------------
+
+O_XHD = ("vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email")
+
+NHAN_O_XHD = {
+	"vgb_xhd_ten": "tên người mua",
+	"vgb_xhd_mst": "mã số thuế",
+	"vgb_xhd_dia_chi": "địa chỉ",
+	"vgb_xhd_email": "email",
+}
+
+
+def _o_xhd_coi_nhu_trong(o, gt, ten_mac_dinh):
+	"""O ten thi cau mac dinh cung la trong, vi no khong chi ai ca."""
+	t = str(gt or "").strip()
+	if o == "vgb_xhd_ten":
+		return (not t) or t == str(ten_mac_dinh or "").strip()
+	return not t
+
+
+def doi_o_xhd(cu, moi, ten_mac_dinh):
+	"""Phep THUAN. So bon o thong tin nguoi mua giua ban dang co va ban may
+	nhan duoc, tra ve hai danh sach ten truong: (de_trang, ghi_de).
+
+	`de_trang` la nhung o bi lam rong di. Man Bill quay tu bo trong ca ba o
+	khi ten dang la cau mac dinh, nguoi dung khong go gi ca, nen day khong
+	phai y muon cua ai.
+	`ghi_de` la nhung o bi thay bang mot noi dung moi that su, tuc la co
+	nguoi ngoi do go vao.
+
+	To da xuat hoa don dien tu thi ca hai deu khong duoc ghi xuong. Tach lam
+	hai de biet cai nao phai bao ra man va cai nao lang le bo qua: nem loi
+	cho ca `de_trang` la chan luon viec sua ghi chu, sua so ban cua nhung to
+	cu, ma sua ghi chu thi chang dung gi toi to hoa don.
+	"""
+	de_trang, ghi_de = [], []
+	mac_dinh = str(ten_mac_dinh or "").strip()
+	for o in O_XHD:
+		a = str((cu or {}).get(o) or "").strip()
+		b = str((moi or {}).get(o) or "").strip()
+		if o == "vgb_xhd_ten":
+			a, b = (a or mac_dinh), (b or mac_dinh)
+		if a == b:
+			continue
+		if _o_xhd_coi_nhu_trong(o, b, ten_mac_dinh):
+			de_trang.append(o)
+		else:
+			ghi_de.append(o)
+	return de_trang, ghi_de
