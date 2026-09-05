@@ -355,3 +355,12 @@ câu "khoảng chừng" trong repo này là một lần đối chiếu kho sai.
 
 Không im lặng nuốt lỗi. Nuốt lỗi là cách hệ này mất 26 đơn mua hàng hồi
 16/08 mà không ai biết cho tới khi Uyên đi hỏi.
+
+---
+
+## 9. Phối hợp Claude và Codex
+
+Khi có nhiều agent, đọc `vgb-control-tower/README.md` trước khi nhận việc.
+GitHub Issue đang `In progress`, có owner, branch và phạm vi tệp là nguồn
+khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy preflight trước
+khi sửa, bàn giao bằng mẫu handoff, và review chéo trước khi tạo PR.
