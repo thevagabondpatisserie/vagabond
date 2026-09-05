@@ -3908,7 +3908,13 @@ la("to in ghi ten nha cung cap trong bang khi gom nhieu nha", "nhieu_nha = len({
 
 # --- Man hinh ---
 la("doi chip nha cung cap KHONG xoa hoa don da tick", "if (!laHU) hsTaoChon = {};" in _js35, True)
-la("co chip tat ca nha cung cap", "'📚 Tất cả nhà cung cấp'" in _js35, True)
+# Issue #196, 05/09/2026: bang chip nha cung cap doi thanh tam truot co o
+# tim, nen duong quay ve "tat ca" khong con la mot chip nua ma la mot MUC
+# trong tam truot. Dieu can canh khong doi: luong hoan ung phai luon con
+# duong gom hoa don cua moi nha, mat duong do la bat Uyen lap mot ho so
+# rieng cho tung nha cung cap.
+la("con duong xem tat ca nha cung cap",
+   "label: 'Tất cả nhà cung cấp'" in _js35 and "icon: '📚'" in _js35, True)
 la("dem so nha cung cap dang chon", "var soNha = Object.keys(nhaChon).length;" in _js35, True)
 la("man hinh chan luu khi chua chon nguoi duoc hoan ung",
    "if (laHU && !hsTaoNguoiUng) return baoTin" in _js35, True)
