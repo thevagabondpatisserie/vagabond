@@ -254,9 +254,10 @@ def _vi_sao_thieu_tra_duoc_tung_to():
 	i = j.index("async function scrViSaoThieu(")
 	than = j[i:j.index("\nasync function scrHoSoTTTao(", i)]
 	la("không còn cắt sáu tờ đầu", ".slice(0, 6)" in than, False)
-	dung("có ô tìm riêng cho bảng tờ", "vgbOTim('hsVsTim'" in than)
-	dung("ô tìm nối vào từng dòng", "vgbNoiOTim(b, 'hsVsTim', '[data-vshd]')" in than)
-	dung("giữ từ khoá qua mỗi lần dựng lại", "oV.value = hsVsTu;" in than)
+	# Ca kiem cu chi do chuoi `vgbOTim('hsVsTim'` va DA BO LOT dung loi
+	# nang nhat cua vong nay, xem ca `#200 o tim tra cuu phai LUON duoc ve`.
+	dung("có ô tìm riêng cho bảng tờ", "hsOTimLuon('hsVsTim'" in than)
+	dung("ô tìm nối vào từng dòng", "hsVsNoiOTim(b)" in than)
 	# Gộp mọi nhóm thành một bảng phẳng: để thành từng khối có tiêu đề thì
 	# lọc xong tiêu đề ở lại lơ lửng còn dòng thì biến mất.
 	dung("gộp các nhóm thành một bảng phẳng", "dong.push({ g: g, x: x })" in than)
@@ -340,8 +341,12 @@ def _tra_duoc_to_ngoai_gioi_han():
 	k = j.index("async function scrViSaoThieu(")
 	thanJs = j[k:j.index("\nasync function scrHoSoTTTao(", k)]
 	dung("màn hình gửi từ khoá lên máy chủ", "tu_khoa: hsVsTu" in thanJs)
+	# Đoạn bấm Enter chuyển sang hàm nối dùng chung `hsVsNoiOTim` từ vòng
+	# #200, nên đọc ở đó chứ không đọc trong thân màn nữa.
+	n = j.index("function hsVsNoiOTim(")
+	thanNoi = j[n:j.index("\n}", n)]
 	dung("bấm Enter là hỏi lại máy chủ chứ không chỉ lọc DOM",
-		"hsVsDl = null; go(scrViSaoThieu, true);" in thanJs)
+		"hsVsDl = null;" in thanNoi and "go(scrViSaoThieu, true);" in thanNoi)
 	dung("dòng nhắc nói rõ cách tra tờ ngoài khoảng", "bấm Enter" in thanJs)
 	# Gõ hụt một lần không được làm người dùng kẹt trong màn không còn ô tìm.
 	dung("gõ hụt vẫn còn ô tìm để tìm lại", "Xoá bớt chữ rồi bấm Enter tìm lại" in thanJs)
@@ -365,3 +370,85 @@ def _rebase_giu_ca_hai_ben():
 	js = _js("12-van-don.js")
 	dung("APPVER là 429, không lùi về 428", "var APPVER = '429';" in js)
 	assert goc
+
+
+@ca("#200 ô tìm tra cứu phải LUÔN được vẽ, không dính ngưỡng của vgbOTim")
+def _o_tim_tra_cuu_luon_duoc_ve():
+	# Đây là lỗi nặng nhất của vòng này và nó là lỗi đọc sai chữ ký hàm:
+	# tham số thứ hai của `vgbOTim` là SỐ MỤC chứ không phải cờ bật, mà
+	# `vgbCanOTim` trả False khi số mục nhỏ hơn `VGB_NGUONG_TIM`. Truyền 2
+	# nghĩa là ô tìm KHÔNG BAO GIỜ được vẽ, nên cả cơ chế bấm Enter hỏi máy
+	# chủ chết theo, và người dùng vẫn không tra được tờ thứ 501 dù máy chủ
+	# đã làm đúng phần của nó.
+	#
+	# Codex bắt được vì CHẠY thật hàm đó bằng Node. Ca kiểm cũ của em chỉ
+	# dò chuỗi `vgbOTim('hsVsTim'` nên bỏ lọt hoàn toàn. Nay chốt bằng ba
+	# ràng buộc cấu trúc, mỗi cái đều đỏ nếu lỗi tái phát.
+	j = _js("19-ho-so-tt.js")
+	hop = _js("07-hop-thoai.js")
+	dung("ngưỡng của ô tìm chung vẫn là 7", "VGB_NGUONG_TIM = 7" in hop)
+	dung("ô tìm chung có cửa chặn theo số mục",
+		"if (!vgbCanOTim(soMuc)) return '';" in hop)
+	# 1. Màn tra cứu KHÔNG được dùng ô tìm có ngưỡng nữa. Dò trong THÂN MÀN
+	#    chứ không dò cả tệp: chính lời chú thích của bản vá có nhắc lại
+	#    dòng gọi cũ để giải thích lỗi.
+	k0 = j.index("async function scrViSaoThieu(")
+	thanMan0 = j[k0:j.index("\nasync function scrHoSoTTTao(", k0)]
+	la("không còn gọi ô tìm có ngưỡng ở màn tra cứu",
+		"vgbOTim('hsVsTim'" in thanMan0, False)
+	# 2. Phải dùng ô tìm riêng, và ô đó KHÔNG có cửa chặn nào.
+	i = j.index("function hsOTimLuon(")
+	than = j[i:j.index("\n}", i)]
+	dung("ô tìm riêng luôn trả về thẻ input", '<input class="tin"' in than)
+	la("ô tìm riêng không có cửa chặn theo số mục", "vgbCanOTim" in than, False)
+	la("ô tìm riêng không có đường trả về rỗng", "return '';" in than, False)
+	dung("giữ đúng hình dạng thẻ để nối lọc được",
+		"'Trong\" style=\"display:none" in than)
+	# 3. Cả HAI nhánh của màn tra cứu đều phải vẽ ô tìm.
+	k = j.index("async function scrViSaoThieu(")
+	thanMan = j[k:j.index("\nasync function scrHoSoTTTao(", k)]
+	dung("cả hai nhánh đều vẽ ô tìm", thanMan.count("hsOTimLuon('hsVsTim'") == 2)
+	dung("cả hai nhánh đều nối ô tìm", thanMan.count("hsVsNoiOTim(") == 2)
+	# Và hàm nối phải mang cả hai tầng: lọc DOM và bấm Enter hỏi máy chủ.
+	n = j.index("function hsVsNoiOTim(")
+	thanNoi = j[n:j.index("\n}", n)]
+	dung("có tầng lọc DOM", "vgbNoiOTim(b, 'hsVsTim', '[data-vshd]')" in thanNoi)
+	dung("có tầng hỏi máy chủ khi bấm Enter",
+		"hsVsDl = null;" in thanNoi and "go(scrViSaoThieu, true);" in thanNoi)
+	dung("giữ từ khoá qua mỗi lần dựng lại", "oV.value = hsVsTu;" in thanNoi)
+
+
+@ca("#200 tờ tìm ra mà ĐANG CHỌN ĐƯỢC thì không được báo là không có")
+def _to_chon_duoc_khong_bao_la_khong_co():
+	# Máy chủ trả `chon_duoc > 0` và không nhóm lý do nào khi tờ tìm ra vẫn
+	# đang tick được. Màn cũ vừa báo "đang chọn được 1 hoá đơn" vừa báo
+	# "không có tờ nào khớp" - hai câu chọi nhau, và đúng ở màn sinh ra để
+	# chống nhập trùng thì câu đó đẩy người ta đi gõ tay lại.
+	j = _js("19-ho-so-tt.js")
+	k = j.index("async function scrViSaoThieu(")
+	than = j[k:j.index("\nasync function scrHoSoTTTao(", k)]
+	dung("có phân biệt tờ đang chọn được",
+		"var daCo = hsVsTu && Number(kq.chon_duoc || 0) > 0;" in than)
+	dung("nói rõ tờ đó đã có trong hệ", "đã có trong hệ và đang chọn được" in than)
+	dung("chỉ đường quay lại bảng tick", "Quay ra bảng tick" in than)
+	dung("vẫn dặn đừng gõ tay lại ở nhánh này", than.count("Đừng gõ tay lại") >= 1)
+	dung("giữ nguyên câu cho ca tìm không ra thật",
+		"Không có tờ nào của nhà này khớp" in than)
+
+
+@ca("#200 đổi nhà cung cấp thì xoá từ khoá hoá đơn của nhà cũ")
+def _doi_ncc_xoa_tu_khoa():
+	# Giữ từ khoá qua lần tick là đúng, nhưng mang nó sang nhà khác thì
+	# bảng của nhà mới trông như rỗng trong khi chip vẫn báo còn nợ.
+	j = _js("19-ho-so-tt.js")
+	i = j.index("var doiNcc = function (ma) {")
+	than = j[i:j.index("\n  };", i)]
+	dung("đổi nhà thật sự mới xoá từ khoá",
+		"if ((ma || '') !== hsTaoNcc) hsHdTu = '';" in than)
+	# Thứ tự bắt buộc: so sánh TRƯỚC khi gán, gán trước thì không còn gì
+	# để so và từ khoá không bao giờ bị xoá.
+	dung("so sánh đứng trước lúc gán",
+		than.index("!== hsTaoNcc") < than.index("hsTaoNcc = ma"))
+	# Không được đụng vào tick của luồng hoàn ứng nhiều nhà cung cấp.
+	dung("luồng hoàn ứng vẫn giữ tick khi đổi nhà",
+		"if (!laHU) hsTaoChon = {};" in than)
