@@ -214,6 +214,30 @@ def sach_dia_chi_xhd(chuoi):
 	return t
 
 
+def dia_chi_khong_chu(ten, mst, dia_chi, ten_mac_dinh):
+	"""To hoa don nay co DIA CHI ma khong co chu cua no khong. THUAN.
+
+	Tra ve True khi to hop CHAC CHAN sai: co dia chi, KHONG co ma so thue, va
+	ten van la cau mac dinh ("Ban cho nguoi tieu dung").
+
+	Vi sao dung ba dieu kien chu khong phai hai. Khach ca nhan co ten that ma
+	khong co ma so thue thi van duoc dien dia chi binh thuong, do la truong
+	hop hop le. Chi khi ten VAN LA CAU MAC DINH thi to hoa don moi vua khong
+	biet ban cho ai vua mang mot dia chi cu the, va do la luc dia chi ay chac
+	chan la cua nguoi khac.
+
+	Ca that ngay 03/09/2026: to HDB-26-09-00514 ten nguoi mua "Ban cho nguoi
+	tieu dung", ma so thue rong, ma o dia chi lai la tru so Tap doan Thien
+	Long. Khach cua to do la "Khach le Online", mot don ShopeeFood.
+	"""
+	if not str(dia_chi or "").strip():
+		return False
+	if str(mst or "").strip():
+		return False
+	t = str(ten or "").strip()
+	return (not t) or t == str(ten_mac_dinh or "").strip()
+
+
 def mau_va_ky_hieu(ky_hieu):
 	"""Tach "mau so" va "ky hieu" tu chuoi in tren to hoa don.
 

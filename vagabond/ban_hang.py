@@ -2546,31 +2546,22 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 def _chan_dia_chi_khong_chu(ten, so_mst, dia_chi):
 	"""Chan to hoa don co DIA CHI ma khong co chu cua no.
 
-	Ca that ngay 03/09/2026: to HDB-26-09-00514 mang ten nguoi mua "Ban cho
-	nguoi tieu dung", ma so thue rong, nhung o dia chi lai la dia chi cua Tap
-	doan Thien Long, giong het to HDB-26-09-00643 lam truoc do mot ngay. Tuc
-	la co nguoi dien dia chi cong ty roi quen dien ten va ma so thue, va may
-	khong noi gi ca.
-
-	To nhu vay vua sai ve hinh thuc vua bay thong tin cua mot khach khac.
-
-	Chi chan dung to hop chac chan sai: CO dia chi, KHONG co ma so thue, va
-	ten van la cau mac dinh. Khach ca nhan co ten that ma khong co ma so thue
-	thi van dien dia chi binh thuong.
+	Quyet dinh nam o phep THUAN `hoa_don_vat.dia_chi_khong_chu`, o day chi
+	nem ra man. Tach nhu vay de kiem thu duoc HANH VI cua luat, khong phai
+	do chuoi trong ma nguon.
 	"""
-	if not (dia_chi or "").strip():
-		return
-	if (so_mst or "").strip():
-		return
-	if (ten or "").strip() and (ten or "").strip() != XHD_MAC_DINH:
+	if not hoa_don_vat.dia_chi_khong_chu(ten, so_mst, dia_chi, XHD_MAC_DINH):
 		return
 	frappe.throw(
-		"Đã điền địa chỉ trên hoá đơn thì phải có tên người mua và mã số thuế. "
-		"Tờ hoá đơn mang địa chỉ của một pháp nhân mà lại đứng tên %r là sai, "
-		"và còn để lộ thông tin của khách khác. Vui lòng điền đủ tên và mã số "
-		"thuế, hoặc xoá trống ô địa chỉ." % XHD_MAC_DINH,
-		title="Thiếu tên và mã số thuế",
+		"Tờ này chưa có tên người mua, vẫn đang để câu mặc định %r, mà ô địa "
+		"chỉ lại có nội dung. Một tờ như vậy không biết bán cho ai nhưng lại "
+		"mang địa chỉ cụ thể của người khác. Vui lòng điền tên và mã số thuế "
+		"của khách, hoặc xoá trống ô địa chỉ. Khách cá nhân có tên thật mà "
+		"không có mã số thuế thì vẫn điền địa chỉ bình thường."
+		% XHD_MAC_DINH,
+		title="Địa chỉ không có chủ",
 	)
+
 
 
 @frappe.whitelist()
@@ -5757,7 +5748,22 @@ def pos_sua_don(
 		si.vgb_xhd_mst = so_mst
 		si.vgb_xhd_ten = (xhd_ten or "").strip() or XHD_MAC_DINH
 		if xhd_dia_chi is not None:
-			si.vgb_xhd_dia_chi = hoa_don_vat.sach_dia_chi_xhd(xhd_dia_chi)
+			# CUA THU BA, va la cua da de lot to HDB-26-09-00514.
+			#
+			# Man Bill quay (`10-bill-quay.js`) khi mo phieu sua co CO Y bo
+			# trong o ten neu ten dang la cau mac dinh, nhung van giu nguyen o
+			# dia chi. Luu lai la may nhan duoc (ten rong, ma so thue rong,
+			# dia chi con) va ghi thang xuong - dung to hop bi cam.
+			#
+			# O day KHONG nem loi nhu hai cua nguoi go, vi day la man sua ca
+			# to hoa don chu khong phai man dien thong tin thue: nem loi thi
+			# chan luon viec sua mon, sua tien cua nhung to cu da lo mang to
+			# hop do. Thay vao do BO QUA lan ghi dia chi. To cu giu nguyen
+			# nhu no dang co, khong to moi nao nhiem them.
+			_moi = hoa_don_vat.sach_dia_chi_xhd(xhd_dia_chi)
+			if not hoa_don_vat.dia_chi_khong_chu(
+					si.vgb_xhd_ten, si.vgb_xhd_mst, _moi, XHD_MAC_DINH):
+				si.vgb_xhd_dia_chi = _moi
 		if xhd_email is not None:
 			si.vgb_xhd_email = (xhd_email or "").strip()
 		doi.append("thông tin xuất hoá đơn")
