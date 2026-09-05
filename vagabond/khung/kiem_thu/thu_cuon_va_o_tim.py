@@ -125,16 +125,29 @@ def _():
 	dung("ngưỡng khai một chỗ", "VGB_NGUONG_TIM = 7" in js)
 
 
-@ca("ô tìm: bảng chip nhà cung cấp trên màn hồ sơ thanh toán đã có ô tìm")
+@ca("ô tìm: chọn nhà cung cấp trên màn hồ sơ thanh toán không phải dò bằng mắt")
 def _():
 	# Uyen bao 28/08/2026: 17 nha cung cap bay thanh mot bang chip, muon
-	# chon mot nha la phai do bang mat.
+	# chon mot nha la phai do bang mat. Luc do vá bang cach them o tim
+	# `hsNccTim` ngay tren bang chip.
+	#
+	# 05/09/2026, Issue #196: anh Viet keu bang chip do van dai muot man
+	# hinh dien thoai, doi han sang o chon thu gon, cham moi mo tam truot
+	# len. O tim di theo vao trong tam truot. Y DINH cua ca kiem nay khong
+	# doi: chon mot nha cung cap KHONG duoc bat nguoi ta do bang mat. Chi
+	# doi cho kiem, tu bang chip sang tam truot.
 	js = _js("19-ho-so-tt.js")
-	dung("có ô tìm cho bảng chip", "vgbOTim('hsNccTim'" in js)
-	dung("có nối lọc", "vgbNoiOTim(b, 'hsNccTim'" in js)
-	# Chip "Tat ca nha cung cap" khong mang ten nha nao, loc no di thi mat
-	# duong quay ve xem tat ca.
-	dung("chừa chip Tất cả ra", ':not([data-hsn=""])' in js)
+	dung("không còn bày cả bảng chip nhà cung cấp",
+		"posChipNut('data-hsn=\"' + h(x.ncc)" not in js)
+	dung("có tấm trượt chọn nhà cung cấp", "sheet('Chọn nhà cung cấp'" in js)
+	# Tham so thu nam cua `sheet()` la `searchable`. Thieu no thi tam truot
+	# hien ra khong co o tim, va nguoi dung lai phai do bang mat.
+	i = js.index("sheet('Chọn nhà cung cấp'")
+	dung("tấm trượt có bật ô tìm", js[i:i + 200].split("\n")[0].rstrip().endswith("true);"))
+	# Duong quay ve xem tat ca nha cung cap van con, nam thanh mot muc
+	# trong tam truot thay vi mot chip rieng.
+	dung("vẫn còn đường xem tất cả nhà cung cấp",
+		"label: 'Tất cả nhà cung cấp'" in js)
 
 
 @ca("ô tìm: danh mục nhà cung cấp lọc được ngay không chờ máy chủ")
