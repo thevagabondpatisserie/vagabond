@@ -104,7 +104,10 @@ def _():
 	# khong co trong danh sach va chip moi khong bao gio hien ra - nguoi
 	# dung tuong may khong luu duoc.
 	js = _js("19-ho-so-tt.js")
-	than = js.split("vgbNoiOTim(b, 'hsUngTim'")[1][:600]
+	# Cua so noi rong tu 600 len 1400 ky tu ngay 05/09/2026 (Issue #196):
+	# giua hai moc da chen them doan noi lai o tim hoa don. Dieu can canh
+	# khong doi, van la `hsTaoDsUng = null;` phai co truoc luc ve lai.
+	than = js.split("vgbNoiOTim(b, 'hsUngTim'")[1][:1400]
 	dung("xoá cache trước khi vẽ lại", "hsTaoDsUng = null;" in than)
 
 
