@@ -23,7 +23,7 @@ import os
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 from vagabond.thu_tien import (
 	con_no_cua, da_thu_that, da_thu_theo_pt, khoa_chong_trung,
-	la_cong_no, trang_thai_thu,
+	khong_sinh_phieu, la_cong_no, trang_thai_thu,
 )
 
 GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -355,3 +355,23 @@ def _bang_soat_hinh_thuc():
 	dung("co bang", i > 0)
 	dung("bo qua nhan cong no", "la_cong_no(m[\"name\"])" in than)
 	dung("khong ghi gi", "set_value" not in than and "insert(" not in than)
+
+
+@ca("hang tang khong sinh phieu thu, cung khong bi tinh la no")
+def _hang_tang():
+	"""Anh Viet duyet danh sach tai khoan 05/09/2026: chin kenh thu ho va
+	cong the vao 113 Tien dang chuyen, rieng Hang tang KHONG khai tai khoan
+	tien vi no khong phai tien. To da tat toan bang chi phi bieu tang, co
+	duong ghi so rieng o hang_tang.py vao 64181 va 64182."""
+	dung("hang tang khong sinh phieu", khong_sinh_phieu("Hàng tặng"))
+	for x in ("Tiền mặt", "Chuyển khoản", "OnePay", "Công nợ", ""):
+		dung("%r van di duong thuong" % x, not khong_sinh_phieu(x))
+	# KHONG duoc nam trong danh sach cong no, khong thi man cong no se di
+	# doi khach mot hop banh minh tang.
+	dung("hang tang khong phai cong no", not la_cong_no("Hàng tặng"))
+	dong = [{"pt": "Hàng tặng", "so_tien": 500000}]
+	la("khong con no dong nao", con_no_cua(500000, 500000, dong, "Hàng tặng"), 0)
+	# Va vong sinh phieu phai bo qua no.
+	i = TT.find("def ghi_thu_tien(")
+	than = TT[i:TT.find("def tom_tat(", i)]
+	dung("vong sinh phieu bo qua hang tang", "if khong_sinh_phieu(pt):" in than)

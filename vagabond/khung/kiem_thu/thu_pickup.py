@@ -123,43 +123,96 @@ def _bo_rac():
 # ----------------------------------------------- Ba loai nguoi giao loai tru
 
 
-@ca("gan diem thi xoa shipper, chuyen va thu tu tuyen")
-def _gan_diem_xoa_shipper():
-	i = VD.find("elif diem:")
-	dung("co nhanh gan diem trong gan_shipper", i > 0)
-	than = VD[i:VD.find("elif shipper:", i)]
-	dung("xoa shipper", "doc.shipper = None" in than)
-	dung("xoa chuyen", 'doc.chuyen = ""' in than)
-	dung("xoa thu tu tuyen", "doc.thu_tu = 0" in than)
-	dung("dat trang thai cho khach lay", "pickup.TRANG_THAI" in than)
-	dung("kenh la Khach tu lay", "Khách tự lấy" in than)
-
-
-@ca("gan shipper hoac app ngoai thi xoa diem pickup")
-def _gan_shipper_xoa_diem():
+@ca("nguoi cho va noi khach lay KHONG loai tru nhau")
+def _khong_loai_tru():
+	"""Anh Viet 05/09/2026: banh lam o 307, book xe cho ra 9TCV, khach den
+	quay do lay - day la truong hop thuong gap nhat. Ban v424 bat hai thu
+	loai tru nhau, sai."""
 	i = VD.find("def gan_shipper(")
 	than = VD[i:VD.find("def _mail_phan_cong", i)]
-	# Bon nhanh: app ngoai, diem, shipper, go ra. Ba nhanh khong phai diem
-	# deu phai xoa diem_pickup, khong thi don vua co shipper vua co diem.
-	# Bon lan dat + mot lan tra ve trong ket qua cho man hinh doc.
-	la("du nam lan cham diem_pickup", than.count("doc.diem_pickup"), 5)
-	la("ba nhanh xoa diem", than.count('doc.diem_pickup = ""'), 3)
+	# Chi con DUNG MOT cho xoa diem, la khi nguoi ta bam Bo diem.
+	la("chi mot cho xoa diem", than.count('doc.diem_pickup = ""'), 1)
+	j = than.find('doc.diem_pickup = ""')
+	dung("cho do nam trong nhanh bo_diem", "bo_diem" in than[max(0, j - 120):j])
+	# Nhanh gan shipper va nhanh gan app ngoai deu KHONG duoc dong den diem.
+	a = than.find("if kenh:")
+	b = than.find("elif shipper:")
+	c = than.find("elif diem or cint(bo_diem):")
+	dung("doc duoc ba nhanh", 0 < a < b < c)
+	dung("nhanh app ngoai khong dong den diem", "diem_pickup" not in than[a:b])
+	dung("nhanh shipper khong dong den diem", "diem_pickup" not in than[b:c])
 
 
-@ca("gop chuyen cung xoa diem pickup")
-def _gop_chuyen_xoa_diem():
+@ca("gan diem khong go ten shipper dang cho")
+def _gan_diem_giu_shipper():
+	i = VD.find("def gan_shipper(")
+	than = VD[i:VD.find("def _mail_phan_cong", i)]
+	j = than.find("elif diem:")
+	k = than.find("# --- Nguoi cho ---")
+	dung("nhanh gan diem dung truoc phan nguoi cho", 0 < j < k)
+	nhanh = than[j:k]
+	dung("chi dat diem", "doc.diem_pickup = pickup.chuan_ma(diem)" in nhanh)
+	dung("khong dung den shipper", "doc.shipper" not in nhanh)
+	dung("khong dung den chuyen", "doc.chuyen" not in nhanh)
+
+
+@ca("trang thai suy ra mot cho, khong dat tay o hai noi")
+def _tt_mot_cho():
+	dung("co ham suy trang thai", "def _tt_theo_gan(doc)" in VD)
+	i = VD.find("def _tt_theo_gan(doc)")
+	than = VD[i:VD.find("def _noi_giao(doc)", i)]
+	dung("con nguoi cho thi Dang giao", '"Đang giao"' in than)
+	dung("khong nguoi cho ma con diem thi Cho khach lay", "pickup.TRANG_THAI" in than)
+	dung("khong ca hai thi Cho giao", '"Chờ giao"' in than)
+
+
+@ca("gop chuyen KHONG xoa diem, va nhan ca don dang cho khach lay")
+def _gop_chuyen_giu_diem():
 	i = VD.find("def gop_chuyen(")
 	than = VD[i:VD.find("def doi_soat_cod", i)]
-	dung("gop chuyen xoa diem", 'doc.diem_pickup = ""' in than)
+	dung("khong xoa diem nua", 'doc.diem_pickup = ""' not in than)
+	dung("nhan don dang cho khach lay", "pickup.TRANG_THAI" in than)
 
 
-@ca("don pickup khong book xe duoc")
-def _khong_book_xe():
+@ca("don pickup VAN book xe duoc")
+def _van_book_xe():
 	i = VD.find("def book_xe(")
 	than = VD[i:VD.find("def aha_dich_vu", i)]
-	dung("co chan don pickup", "if doc.diem_pickup:" in than)
-	dung("noi ro vi sao", "khách tự lấy" in than or "khách tự lấy tại điểm" in than)
-	dung("chi duong go ra", "Phân công" in than)
+	dung("khong con chan don pickup", "if doc.diem_pickup:" not in than)
+
+
+@ca("xe cho toi DIEM chu khong toi nha khach, va khong thu ho dong nao")
+def _xe_toi_diem():
+	"""Cai bay dat tien nhat cua tinh nang nay: ba duong goi xe deu tung lay
+	thang doc.dia_chi, tuc dia chi khach. Voi don pickup thi bac tai cho hop
+	banh toi nha khach trong khi khach ngoi cho o quay."""
+	dung("co ham mot cho tinh noi giao", "def _noi_giao(doc)" in VD)
+	i = VD.find("def _noi_giao(doc)")
+	than = VD[i:VD.find("KENH_NGOAI = {", i)]
+	dung("don co diem thi lay dia chi diem", '"dia_chi": d["dia_chi"]' in than)
+	dung("ten nguoi nhan la cua quay", "The Vagabond" in than)
+	dung("COD ve khong", '"cod": 0.0' in than)
+	# Ngoai ham nay ra, khong duong nao duoc doc thang dia chi khach nua.
+	con = VD[:i] + VD[VD.find("KENH_NGOAI = {", i):]
+	la("khong con cho nao lay thang dia chi khach", con.count("doc.dia_chi"), 0)
+
+
+@ca("shipper cho hang ra quay thi CHUA phai khach da nhan")
+def _cho_ra_quay():
+	"""Truoc day ban shipper bam Da giao luc bo hang xuong quay la don dong
+	lai va Pancake bao khach da nhan, trong khi khach con chua toi."""
+	i = VD.find("def giao_xong(")
+	than = VD[i:VD.find("def giao_loi(", i)]
+	j = than.find("if doc.diem_pickup and _la_shipper()")
+	dung("co nhanh cho chang noi bo", j > 0)
+	nhanh = than[j:than.find('doc.trang_thai = "Đã giao"', j)]
+	dung("go nguoi cho ra", "doc.shipper = None" in nhanh)
+	dung("ve lai hang cho khach lay", "doc.trang_thai = pickup.TRANG_THAI" in nhanh)
+	dung("khong day Pancake", "_day_trang_thai_pancake" not in nhanh)
+	dung("bao ro cho man hinh", '"toi_quay": 1' in nhanh)
+	# Sales va ke toan van dong duoc don nhu thuong, vi ho la nguoi thay
+	# khach den nhan that.
+	dung("chi chan dung vai shipper", "not (_la_sales() or _la_ke_toan())" in nhanh)
 
 
 # ----------------------------------------------- Dung ba buoc cua shipper
@@ -245,9 +298,10 @@ def _nut_hoan_tat():
 	dung("trang thai moi co icon", "'Chờ khách lấy': '🏬'" in JS)
 	dung("nut hoan tat mo cho don pickup", "d.trang_thai === VD_TT_PICKUP" in JS)
 	dung("chu tren nut noi dung viec", "Khách đã lấy, chụp ảnh" in JS)
-	# Khach dang tu ra lay ma con nut book xe la mat tien that cho mot cuoc
-	# xe khong ai di.
-	dung("giau nut book xe", "!d.booking_id && !laPickup" in JS)
+	# Nut book xe PHAI con, va noi ro cho ra dau.
+	dung("khong giau nut book xe", "!d.booking_id && !laPickup" not in JS)
+	dung("nut book noi ro cho ra dau", "Book xe chở ra" in JS)
+	dung("chu rieng cho ban shipper bo hang xuong quay", "Đã bỏ hàng xuống" in JS)
 
 
 @ca("man chi tiet noi ro khach ra dau lay, khong de doc nham dia chi khach")
@@ -274,3 +328,30 @@ def _doctype():
 	# Thieu trong TRUONG_DS thi dong tren man khong bay duoc diem, dung cai
 	# loi da mac hom 04/09 voi don dieu chuyen.
 	dung("diem nam trong danh sach truong", '"diem_pickup", "nguoi_trao"' in VD)
+
+
+@ca("o phan cong co dong Bo diem, va chi hien khi don dang co diem")
+def _dong_bo_diem():
+	i = JS.find("function vdOpsGiao(")
+	than = JS[i:JS.find("async function vdGanNguoiGiao", i)]
+	dung("nhan tham so don de biet co diem chua", "function vdOpsGiao(ds, d)" in than)
+	dung("co dong bo diem", "'bodiem'" in than)
+	dung("chi hien khi co diem", "d && d.diem_pickup" in than)
+	# Dong go nguoi cho phai noi ro la KHONG go diem, khong thi nguoi ta
+	# tuong bam vao la mat luon noi khach lay.
+	dung("go nguoi cho noi ro giu diem", "giữ nguyên nơi khách lấy" in than)
+
+
+@ca("bo diem goi may chu dung tham so, khong gan nham shipper rong")
+def _goi_bo_diem():
+	i = JS.find("async function vdGanNguoiGiao(")
+	than = JS[i:JS.find("function vdApp(", i)]
+	j = than.find("v === 'bodiem'")
+	dung("co nhanh bo diem", j > 0)
+	dung("goi voi bo_diem", "bo_diem: 1" in than[j:j + 260])
+
+
+@ca("khoi diem noi ro don dang duoc cho toi, khach chua nhan")
+def _khoi_dang_cho():
+	dung("bao dang duoc cho toi quay", "Đang được chở tới quầy này" in JS)
+	dung("noi ro khach chua nhan", "khách chưa nhận" in JS)
