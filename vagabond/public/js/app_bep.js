@@ -14626,10 +14626,18 @@ async function scrPosBill(name) {
       name: d.name, otp: otp, mon: monTuDoc(),
       giam: String(d.discount_amount || ''), pt: d.vgb_pt_thanh_toan || '',
       mtc: d.vgb_ma_tham_chieu || '', ghi_chu: d.vgb_ghi_chu || '', so_ban: d.vgb_so_ban || '',
-      xh: {
-        ten: (d.vgb_xhd_ten && d.vgb_xhd_ten !== 'Bán cho người tiêu dùng') ? d.vgb_xhd_ten : '',
-        mst: d.vgb_xhd_mst || '', dc: d.vgb_xhd_dia_chi || '', email: d.vgb_xhd_email || ''
-      }
+      /* O TEN co y bo trong khi ten dang la cau mac dinh, de nguoi sua khong
+         phai xoa tay. Nhung truoc 05/09/2026 o DIA CHI van duoc giu nguyen,
+         nen luu lai la gui len may chu bo ba (ten rong, ma so thue rong, dia
+         chi con) - dung to hop lam ra to HDB-26-09-00514: ten "Ban cho nguoi
+         tieu dung", ma so thue rong, ma dia chi lai la tru so Thien Long.
+         Bo trong o ten thi bo trong luon dia chi va ma so thue, ba o phai di
+         cung nhau. May chu con chan them mot lan trong `pos_sua_don`. */
+      xh: (function () {
+        var tenTh = (d.vgb_xhd_ten && d.vgb_xhd_ten !== 'Bán cho người tiêu dùng') ? d.vgb_xhd_ten : '';
+        if (!tenTh && !(d.vgb_xhd_mst || '')) return { ten: '', mst: '', dc: '', email: d.vgb_xhd_email || '' };
+        return { ten: tenTh, mst: d.vgb_xhd_mst || '', dc: d.vgb_xhd_dia_chi || '', email: d.vgb_xhd_email || '' };
+      })()
     };
     go(function () { scrPosBill(name); }, true);
   };
