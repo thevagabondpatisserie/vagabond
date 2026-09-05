@@ -53,7 +53,9 @@ def _o_tim_co_that():
 	dung("có ô nhập trên màn", 'id="hsTimO"' in than)
 	# Day moi la cho quan trong: PHAI co dong dat gia tri cho `hsTim`. Truoc
 	# v434 chi co dong doc `hsTim` gui len may chu, khong dong nao ghi vao no.
-	dung("có chỗ ghi giá trị vào hsTim", "hsTim = v;" in than)
+	# v434 vong 2 tach lam hai bien nen cau gan doi hinh. Y dinh giu nguyen:
+	# phai co dong GHI vao `hsTim`, khong chi doc no.
+	dung("có chỗ ghi giá trị vào hsTim", "hsTim = hsTimGo;" in than)
 	dung("vẫn gửi từ khoá lên máy chủ", "if (hsTim) ts.tu_khoa = hsTim;" in than)
 	dung("bấm Enter mới đi hỏi máy chủ", "if (e.key !== 'Enter') return;" in than)
 
@@ -66,10 +68,61 @@ def _o_tim_giu_chu():
 	phím. Gán sau là người ta gõ xong bấm một chip là mất chữ vừa gõ.
 	"""
 	than = _man_danh_sach()
-	dung("trả giá trị về ô", "oTim.value = hsTim;" in than)
-	a = than.index("oTim.value = hsTim;")
+	dung("trả giá trị về ô", "oTim.value = hsTimGo;" in than)
+	a = than.index("oTim.value = hsTimGo;")
 	b = than.index("oTim.addEventListener('keydown'")
 	dung("gán giá trị đứng trước lúc nối phím", a < b)
+
+
+@ca("#196C gõ xong bấm chip trước khi bấm Enter thì KHÔNG mất chữ")
+def _go_roi_bam_chip_khong_mat_chu():
+	"""Codex nêu trên PR #207, và nêu đúng.
+
+	Bản đầu chỉ có MỘT biến `hsTim`, và nó chỉ được ghi lúc bấm Enter. Ai gõ
+	xong rồi bấm một chip ngày, chip loại, chip trạng thái hay chip tài khoản
+	thay vì bấm Enter thì màn vẽ lại, dòng trả giá trị về ô đưa lại chữ CŨ,
+	chữ vừa gõ biến mất không dấu vết. Không màn nào báo.
+
+	Nay tách làm hai: `hsTimGo` là chữ đang nằm trong ô, `hsTim` là chữ đã áp
+	và đang được gửi lên máy chủ. Gõ tới đâu ghi lại tới đó, nhưng vẫn chỉ
+	hỏi máy chủ khi bấm Enter.
+	"""
+	j = _js("19-ho-so-tt.js")
+	than = _man_danh_sach()
+	dung("có hai biến riêng cho ô tìm", "var hsTkChi = '', hsTimGo = '';" in j)
+	dung("gõ tới đâu ghi lại tới đó",
+		"oTim.addEventListener('input', function () { hsTimGo = oTim.value; });" in than)
+	# Van chi hoi may chu khi bam Enter, khong hoi theo tung phim.
+	dung("chỉ áp khi bấm Enter", "hsTim = hsTimGo;" in than)
+	la("không gọi máy chủ trong lúc gõ",
+		"oTim.addEventListener('input', function () { hsTimGo = oTim.value; go(" in than, False)
+	# Bao cho nguoi ta biet dang go ma chua tim, khong de ho tuong da loc roi.
+	dung("nói rõ đã gõ nhưng chưa tìm", "hsTimGo !== hsTim" in than)
+
+
+@ca("#196C hễ còn bật bộ lọc thì phải còn đường gỡ ra")
+def _con_bat_loc_thi_con_duong_go():
+	"""Codex nêu trên PR #207, và nêu đúng cả cho hàng chip đã có từ trước.
+
+	`tk_chi` và `loai_cp_thue` chỉ được ghi trên hồ sơ luồng Chi từ TK công
+	ty, nên đổi chip loại sang Công nợ NCC là danh sách rỗng. Trước đây hàng
+	chip bị giấu luôn theo, tức là bộ lọc vẫn còn bật, vẫn được gửi lên máy
+	chủ, mà không còn nút nào để tắt. Màn hình trống trơn và người ta không
+	hiểu vì sao.
+	"""
+	than = _man_danh_sach()
+	dung("còn bật lọc chi phí thuế thì vẫn bày hàng chip",
+		"hsLoai === 'TK cong ty' || hsCpThue ?" in than)
+	dung("còn bật lọc tài khoản thì vẫn bày hàng chip",
+		"if (tkCo.length <= 1 && !hsTkChi) return '';" in than)
+	# Cai dang chon phai luon co mat trong hang chip, khong thi bam tat bang gi.
+	dung("cộng thêm cái đang chọn vào hàng chip",
+		"if (hsTkChi && tkCo.indexOf(hsTkChi) < 0) tkCo.push(hsTkChi);" in than)
+	dung("nói rõ vì sao danh sách rỗng và bấm đâu để bỏ lọc",
+		"Bấm <b>Mọi tài khoản chi</b> để bỏ lọc." in than)
+	# KHONG tu xoa bo loc: xoa lang le mot lua chon nguoi ta vua bam la kieu
+	# hong nguoc lai, va cung la thu Codex canh o chieu kia.
+	la("không tự xoá bộ lọc của người dùng", "hsTkChi = '';\n" in than, False)
 
 
 @ca("#196C ngày đã chi hiện ngay trên danh sách")
@@ -98,8 +151,10 @@ def _chip_tai_khoan_chi():
 	# chip xong cac chip kia rong het va khong bam lai duoc.
 	dung("máy chủ đếm chip trên bộ chưa lọc", '"tk_chi_co": tk_co,' in s)
 	la("không đưa tk_chi vào bộ lọc get_all", 'loc["tk_chi"]' in s, False)
-	# Mot tai khoan thi khong can hang chip.
-	dung("một tài khoản thì giấu hàng chip", "(kq.tk_chi_co || []).length > 1" in than)
+	# Mot tai khoan thi khong can hang chip - TRU KHI dang bat bo loc, xem ca
+	# kiem "he con bat bo loc thi phai con duong go ra".
+	dung("một tài khoản mà không lọc thì giấu hàng chip",
+		"if (tkCo.length <= 1 && !hsTkChi) return '';" in than)
 
 
 @ca("#196C xuất Excel gửi ĐỦ mọi ô lọc đang bày trên màn")
