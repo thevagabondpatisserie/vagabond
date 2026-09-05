@@ -158,3 +158,60 @@ def loc_ncc(ds, tu_khoa):
 		return list(ds or [])
 	return [o for o in (ds or [])
 		if q in (str(o.get("ten") or "") + " " + str(o.get("ncc") or "")).lower()]
+
+# ---------------------------------------------------------------------------
+# GIOI HAN SO DONG CHO O CHON TAI KHOAN SO CAI
+# ---------------------------------------------------------------------------
+#
+# Tach ra thanh phep THUAN de co the GOI THAT trong ca kiem, chu khong chi do
+# chuoi trong ma nguon. Codex neu tren PR #207: ca kiem do chuoi khong chung
+# minh duoc gia tri dau vao chay ra sao.
+#
+# Lich su cua cho nay:
+#   Ban dau: `int(gioi_han or 40)`. Truyen 0 van ra 40, nen KHONG BAO GIO lay
+#   het danh muc duoc. Goi dung, nhan ve 40 dong, tuong la ca danh muc.
+#   Ban va lan mot: tach 0 ra rieng, nhung so AM lai lang le thanh "lay het",
+#   con chu khong phai so thi nem ValueError tho ra man hinh.
+#
+# Nay khai ro tung truong hop, va dau vao xau thi NEM LOI CO CHU chu khong
+# doan bua: doan bua o cho gioi han la kieu hong im lang nhat.
+
+HAN_TK_MAC_DINH = 40
+
+
+class GioiHanXau(ValueError):
+	"""Số dòng tối đa không đọc được. Người gọi đổi thành lời nhắn cho người dùng."""
+
+
+def gioi_han_tk(gioi_han):
+	"""Số dòng tối đa cho danh mục tài khoản. THUẦN.
+
+	  không truyền, None, chuỗi rỗng hay toàn khoảng trắng  ->  40 như cũ
+	  0 hoặc "0"                                            ->  0, tức LẤY HẾT
+	  số dương                                              ->  chính nó
+	  số âm, chữ không phải số                              ->  ném GioiHanXau
+
+	Số âm KHÔNG được coi là lấy hết. Trước đây nó lặng lẽ thành lấy hết, mà
+	một con số âm gửi lên thì gần như chắc chắn là chỗ gọi đang tính sai chứ
+	không phải người ta muốn cả danh mục.
+	"""
+	if gioi_han is None:
+		return HAN_TK_MAC_DINH
+	t = str(gioi_han).strip()
+	if t == "":
+		return HAN_TK_MAC_DINH
+	try:
+		han = int(t)
+	except (TypeError, ValueError):
+		# So thuc tron ("3.0") van nhan: JSON khong phan biet so nguyen voi
+		# so thuc, nen chan cho nay la chan nham chinh nguoi goi that tha.
+		try:
+			so = float(t)
+		except (TypeError, ValueError):
+			raise GioiHanXau(t)
+		if so != int(so):
+			raise GioiHanXau(t)
+		han = int(so)
+	if han < 0:
+		raise GioiHanXau(t)
+	return han

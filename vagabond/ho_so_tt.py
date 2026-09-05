@@ -1265,14 +1265,20 @@ def ds_tai_khoan(tu_khoa="", gioi_han=40):
 	_kiem(VAI_LAP | VAI_FIN, "tra hệ thống tài khoản")
 	q = (tu_khoa or "").strip()
 	loc = {"is_group": 0, "disabled": 0}
-	# Cau cu `int(gioi_han or 40)` tra ve 40 khi truyen 0, nen khong bao gio
-	# lay het duoc. Tach ra: khong truyen gi thi van 40 nhu cu, truyen 0 (hoac
-	# chuoi "0" tu web) thi limit_page_length=0, tuc la Frappe lay het.
-	if gioi_han is None or str(gioi_han).strip() == "":
-		han = 40
-	else:
-		han = int(gioi_han)
-		han = han if han > 0 else 0
+	# Phep tinh so dong toi da nam o `chon_ncc.gioi_han_tk`, la phep THUAN nen
+	# ca kiem goi that duoc chu khong chi do chuoi trong ma nguon (Codex neu
+	# tren PR #207). Dau vao xau thi NEM LOI CO CHU, khong doan bua.
+	from vagabond import chon_ncc
+
+	try:
+		han = chon_ncc.gioi_han_tk(gioi_han)
+	except chon_ncc.GioiHanXau:
+		frappe.throw(
+			"Số dòng tối đa gửi lên không đọc được: %r. Gửi số nguyên không âm, "
+			"hoặc gửi 0 để lấy hết danh mục, hoặc bỏ hẳn ô này để lấy %d dòng "
+			"như mặc định." % (gioi_han, chon_ncc.HAN_TK_MAC_DINH),
+			title="Số dòng tối đa không hợp lệ",
+		)
 	ds = []
 	if q:
 		ds = frappe.get_all(
