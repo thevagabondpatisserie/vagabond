@@ -23,6 +23,7 @@ Bộ ca này canh bốn chỗ mà một lần sửa màn hình dễ làm hỏng 
 import io
 import os
 
+from vagabond import chon_ncc as cn
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 
@@ -91,13 +92,41 @@ def _go_roi_bam_chip_khong_mat_chu():
 	than = _man_danh_sach()
 	dung("có hai biến riêng cho ô tìm", "var hsTkChi = '', hsTimGo = '';" in j)
 	dung("gõ tới đâu ghi lại tới đó",
-		"oTim.addEventListener('input', function () { hsTimGo = oTim.value; });" in than)
+		"oTim.addEventListener('input', function () { hsTimGo = oTim.value; hsVeNhacTim(); });"
+		in than)
 	# Van chi hoi may chu khi bam Enter, khong hoi theo tung phim.
 	dung("chỉ áp khi bấm Enter", "hsTim = hsTimGo;" in than)
 	la("không gọi máy chủ trong lúc gõ",
 		"oTim.addEventListener('input', function () { hsTimGo = oTim.value; go(" in than, False)
-	# Bao cho nguoi ta biet dang go ma chua tim, khong de ho tuong da loc roi.
-	dung("nói rõ đã gõ nhưng chưa tìm", "hsTimGo !== hsTim" in than)
+
+
+@ca("#196C dòng nhắc dưới ô tìm đổi ngay theo từng phím")
+def _dong_nhac_doi_ngay_theo_phim():
+	"""Codex nêu vòng hai trên PR #207, và nêu đúng.
+
+	Bản trước dựng câu "Đã gõ nhưng chưa tìm" một lần duy nhất lúc vẽ màn,
+	còn sự kiện nhập chỉ ghi `hsTimGo`. Nên gõ thêm chữ thì dòng nhắc vẫn
+	đứng yên ở trạng thái cũ, nói sai với cái người ta đang nhìn.
+
+	Cách gỡ phải đắp chữ vào ĐÚNG cái ô nhắc, không được vẽ lại cả màn: vẽ
+	lại là mất chỗ con trỏ đang đứng, mà gõ tới đâu gọi máy chủ tới đó thì
+	còn tệ hơn.
+	"""
+	j = _js("19-ho-so-tt.js")
+	than = _man_danh_sach()
+	nhac = _doan(j, "function hsVeNhacTim() {", "\nasync function scrHoSoTT() {")
+	dung("có ô riêng cho dòng nhắc", 'id="hsTimNhac"' in than)
+	dung("ô nhắc để rỗng lúc vẽ màn, chữ do hàm nhắc đắp vào",
+		'id="hsTimNhac" style="font-size:11.5px;margin-top:7px;line-height:1.5"></div>' in than)
+	dung("vẽ lại dòng nhắc ngay lúc dựng màn", "hsVeNhacTim();" in than)
+	dung("so chữ đang gõ với chữ đã áp", "if (go !== hsTim) {" in nhac)
+	dung("nói rõ đã gõ nhưng chưa tìm", "Đã gõ nhưng chưa tìm." in nhac)
+	dung("nói rõ đang lọc theo chữ nào", "Đang lọc theo" in nhac)
+	# Hai dieu cam: khong ve lai ca man va khong hoi may chu trong ham nhac.
+	la("dòng nhắc không vẽ lại cả màn", "go(scrHoSoTT" in nhac, False)
+	la("dòng nhắc không gọi máy chủ", "api(" in nhac, False)
+	# Chu nguoi ta go duoc dap thang vao innerHTML, phai qua bo loc the.
+	dung("chữ người ta gõ phải qua bộ lọc thẻ", "h(go)" in nhac)
 
 
 @ca("#196C hễ còn bật bộ lọc thì phải còn đường gỡ ra")
@@ -197,24 +226,51 @@ def _chon_tai_khoan_bay_ca_danh_muc():
 	dung("vẫn giữ được tài khoản đang chọn", "dang_chon || ''" in than)
 
 
-@ca("#196C máy chủ cho lấy hết danh mục tài khoản khi gioi_han = 0")
-def _ds_tai_khoan_lay_het():
-	"""Câu cũ `int(gioi_han or 40)` trả về 40 khi truyền 0, nên không bao giờ
-	lấy hết được. Đây là kiểu lỗi im lặng: gọi đúng, nhận về 40 dòng, tưởng
-	là cả danh mục."""
+@ca("#196C phép tính số dòng tối đa: gọi THẬT chứ không dò chữ")
+def _gioi_han_tk_goi_that():
+	"""Codex nêu vòng hai trên PR #207, và nêu đúng.
+
+	Bản trước để phép tính nằm thẳng trong `ho_so_tt.py` (có `import frappe`)
+	nên ca kiểm chỉ dò được chuỗi trong mã nguồn. Dò chuỗi không chứng minh
+	được gì: một biến khai ra rồi không dùng vẫn qua được.
+
+	Nay phép tính nằm ở `chon_ncc.gioi_han_tk`, là phép THUẦN, gọi thẳng
+	được. Hai đầu vào xấu Codex chỉ ra đều được canh: số âm KHÔNG lặng lẽ
+	thành lấy hết, chữ không phải số KHÔNG ném ValueError trần.
+	"""
+	dung("không truyền thì giữ 40 như cũ", cn.gioi_han_tk(None) == 40)
+	dung("chuỗi rỗng cũng giữ 40", cn.gioi_han_tk("") == 40)
+	dung("toàn khoảng trắng cũng giữ 40", cn.gioi_han_tk("   ") == 40)
+	dung("số 0 là LẤY HẾT", cn.gioi_han_tk(0) == 0)
+	dung('chuỗi "0" cũng là lấy hết', cn.gioi_han_tk("0") == 0)
+	dung("số dương giữ nguyên", cn.gioi_han_tk(7) == 7)
+	dung("chuỗi có khoảng trắng hai đầu vẫn đọc được", cn.gioi_han_tk("  40 ") == 40)
+	# JSON khong phan biet so nguyen voi so thuc, nen 3.0 la nguoi goi that
+	# tha chu khong phai dau vao xau.
+	dung("số thực tròn vẫn nhận", cn.gioi_han_tk(3.0) == 3)
+	dung('chuỗi "3.0" vẫn nhận', cn.gioi_han_tk("3.0") == 3)
+	for xau in (-5, "-1", "abc", "1.5", "3,5"):
+		nem = False
+		try:
+			cn.gioi_han_tk(xau)
+		except cn.GioiHanXau:
+			nem = True
+		dung("đầu vào xấu %r phải ném lỗi có tên" % (xau,), nem)
+
+
+@ca("#196C máy chủ đổi số dòng tối đa xấu thành lời nhắn có chữ")
+def _gioi_han_tk_loi_co_chu():
+	"""`GioiHanXau` ném ra ngoài màn hình thì người ta chỉ thấy một dòng
+	ValueError trần, không biết phải làm gì tiếp. QT-24 của AGENTS.md: lời
+	báo lỗi phải nói việc kế tiếp."""
 	s = _py("ho_so_tt.py")
 	than = _doan(s, "def ds_tai_khoan(", "\ndef _sinh_hoa_don_hoan_ung(")
-	# Bo dong CHU THICH truoc khi do. Chinh chu thich giai thich vi sao bo cau
-	# cu lai chua nguyen van cau do, do thang ca tep la ca kiem do trung chu
-	# thich cua minh roi bao con nguyen. Da vap dung cai bay nay ba lan: mot
-	# lan voi "frappe" trong docstring, mot lan voi "<select" trong chu thich.
 	ma = "\n".join(d for d in than.split("\n") if not d.strip().startswith("#"))
-	la("bỏ câu int(gioi_han or 40) khỏi phần mã chạy",
-		"int(gioi_han or 40)" in ma, False)
-	dung("chú thích vẫn giữ lại câu cũ để người sau biết vì sao",
-		"int(gioi_han or 40)" in than)
-	dung("không truyền gì thì vẫn giữ 40 như cũ", "han = 40" in than)
-	dung("truyền 0 thì lấy hết", "han = han if han > 0 else 0" in than)
+	la("không còn tự tính trong hàm chạm hệ", "int(gioi_han or 40)" in ma, False)
+	dung("gọi phép tính thuần", "chon_ncc.gioi_han_tk(gioi_han)" in than)
+	dung("bắt đúng lỗi có tên", "except chon_ncc.GioiHanXau:" in than)
+	dung("nói việc kế tiếp: gửi số nguyên không âm", "Gửi số nguyên không âm" in than)
+	dung("nói cả đường lấy hết", "hoặc gửi 0 để lấy hết danh mục" in than)
 	dung("cả hai nhánh đều dùng chung con số đã tính",
 		than.count("limit_page_length=han,") == 2)
 
