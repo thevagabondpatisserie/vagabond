@@ -545,6 +545,13 @@ doc_events = {
 			# chi, hoac tien chua thuc su roi khoi tai khoan. Doc dau tep
 			# vagabond/duyet_chi.py.
 			"vagabond.duyet_chi.chan_ghi_so_som",
+			# Phieu thu tien dat banh o phai co CA o quay thu lan o phieu
+			# dat. Thieu mot trong hai thi khoan tien do khong vao duoc ca
+			# nao ca, va chot ca thieu dung so tien do ma khong ai biet vi
+			# sao. Chan o may chu chu khong tin o chi doc tren giao dien:
+			# o chi doc chan duoc nguoi go, khong chan duoc duong tao bang
+			# ma. Codex bat o PR #197.
+			"vagabond.dat_banh.chan_phieu_dat_banh",
 		],
 		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
 	},

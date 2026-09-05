@@ -206,24 +206,81 @@ def gop_ngay(*danh_sach):
 	return ra
 
 
-def la_phieu_ung_truoc(phieu, co_tro_phieu_dat):
-	"""Chứng từ thu này có thuộc luồng đặt bánh không. THUẦN.
+def thieu_o_bat_buoc(phieu):
+	"""Chứng từ thu của luồng đặt bánh còn THIẾU ô nào. THUẦN.
 
-	Codex bắt đúng: bản đầu không đòi dấu hiệu nào, nên mọi khoản khách
-	nộp thừa ở quầy đều bị cộng vào ca như tiền đặt bánh.
+	Trả về danh sách nhãn ô thiếu, rỗng nghĩa là đủ.
+	"""
+	ra = []
+	if not str((phieu or {}).get("vgb_phieu_dat") or "").strip():
+		ra.append("Phiếu đặt bánh")
+	if not str((phieu or {}).get("vgb_quay") or "").strip():
+		ra.append("Quầy thu tiền")
+	return ra
 
-	Nhận theo MỘT trong hai dấu hiệu, vì hai dấu hiệu sinh ra ở hai đường
-	khác nhau:
 
-	  - Ô `vgb_phieu_dat`: màn đặt bánh của tiệm tự điền.
-	  - Dòng tham chiếu trỏ tới phiếu đặt: kế toán tạo chứng từ thu thẳng
-	    từ phiếu đặt bên Desk, đường này máy không điền ô trên.
+def tham_chieu_la(ds_tham_chieu):
+	"""Các loại chứng từ mà một phiếu thu đang trỏ tới. THUẦN."""
+	ra = []
+	for r in ds_tham_chieu or []:
+		if not isinstance(r, dict):
+			continue
+		t = str(r.get("reference_doctype") or "").strip()
+		if t and t not in ra:
+			ra.append(t)
+	return ra
 
-	Đòi cả hai là bỏ sót đường thứ hai, không đòi gì là cộng nhầm.
+
+def la_phieu_dat_banh(phieu, ds_tham_chieu):
+	"""Phiếu thu này có thuộc luồng đặt bánh không. THUẦN.
+
+	Nhận diện RỘNG, cố ý: có ô phiếu đặt, hoặc có trỏ tới một phiếu đặt.
+	Rộng để cái hàng rào dưới không bỏ sót phiếu nào; còn phiếu nào ĐƯỢC
+	CỘNG vào ca thì `thu_ung_truoc` đòi chặt hơn nhiều.
 	"""
 	if str((phieu or {}).get("vgb_phieu_dat") or "").strip():
 		return True
-	return bool(co_tro_phieu_dat)
+	return SO in tham_chieu_la(ds_tham_chieu)
+
+
+def loi_phieu_dat_banh(phieu, ds_tham_chieu):
+	"""Câu báo lỗi cho một phiếu thu đặt bánh sai. THUẦN. None là hợp lệ.
+
+	HAI HÀNG RÀO, và vì sao cần cả hai (Codex bắt ở PR #197):
+
+	  1. Thiếu một trong hai ô thì phiếu KHÔNG BAO GIỜ vào được ca nào cả,
+	     vì `thu_ung_truoc` lọc theo quầy ngay ở truy vấn đầu. Không chặn
+	     thì tiền thật im lặng biến mất khỏi mọi bảng đối soát. Đây đúng là
+	     lỗi mà bản trước của em mắc: em nói có đỡ đường tạo phiếu thu thẳng
+	     từ Desk, nhưng đường đó không có ô quầy nên bị loại ngay từ đầu, và
+	     ca kiểm của em xanh giả vì tự gán sẵn ô quầy cho nó.
+
+	  2. Trỏ tới cả hoá đơn bán thì ĐẾM HAI LẦN: cả số tiền được cộng vào
+	     đường ứng trước, trong khi tờ hoá đơn kia đã được đếm ở đường
+	     thường. Một phiếu thu đặt bánh chỉ được trỏ tới phiếu đặt.
+
+	Câu báo lỗi nói rõ làm gì tiếp, theo QT-24.
+	"""
+	thieu = thieu_o_bat_buoc(phieu)
+	if thieu:
+		return (
+			"Phiếu thu tiền đặt bánh còn thiếu ô %s. Khoản này phải được tạo "
+			"từ màn đặt bánh chứ không tạo tay, vì màn đó mới điền được quầy "
+			"thu và số phiếu đặt. Thiếu một trong hai ô thì tiền không vào "
+			"được ca nào, chốt ca sẽ thiếu đúng số tiền này. Anh chị huỷ "
+			"phiếu này rồi thu lại trên màn đặt bánh."
+			% " và ".join(thieu)
+		)
+	la = [t for t in tham_chieu_la(ds_tham_chieu) if t != SO]
+	if la:
+		return (
+			"Phiếu thu tiền đặt bánh đang trỏ tới cả %s. Một phiếu thu đặt "
+			"bánh chỉ được trỏ tới phiếu đặt, vì tiền của hoá đơn đã được "
+			"đếm ở đường thường rồi, để chung là chốt ca đếm số tiền này hai "
+			"lần. Anh chị tách ra thành hai phiếu thu riêng."
+			% ", ".join(la)
+		)
+	return None
 
 
 def tien_thuc_thu(phieu):
@@ -351,18 +408,6 @@ def ngay_nhan_cua(doc):
 	return ngay_nhan_cua_phieu(ra, TIEN_TO_MA)
 
 
-def _tro_toi_phieu_dat(ten_phieu_thu):
-	"""Trong các chứng từ thu này, cái nào có dòng trỏ tới phiếu đặt."""
-	if not ten_phieu_thu:
-		return set()
-	return set(frappe.get_all(
-		"Payment Entry Reference",
-		filters={"parent": ["in", list(ten_phieu_thu)], "reference_doctype": SO},
-		pluck="parent",
-		limit_page_length=0,
-	) or [])
-
-
 def thu_ung_truoc(quay, tu_luc, den_luc, theo_ngay=False):
 	"""Tiền khách trả TRƯỚC đã vào trong khoảng ca, theo từng phương thức.
 
@@ -383,6 +428,21 @@ def thu_ung_truoc(quay, tu_luc, den_luc, theo_ngay=False):
 		"payment_type": "Receive",
 		"party_type": "Customer",
 		"vgb_quay": str(quay or "").strip().upper(),
+		# Đòi CÓ ô phiếu đặt, không nhận đường vòng nào khác.
+		#
+		# Bản trước em còn một cửa phụ: phiếu không có ô này nhưng có dòng
+		# trỏ tới phiếu đặt thì vẫn nhận, để đỡ đường kế toán tạo thẳng bên
+		# Desk. Codex bắt đúng là cửa đó KHÔNG BAO GIỜ MỞ: truy vấn này lọc
+		# theo quầy trước, mà phiếu tạo bên Desk không có ai điền ô quầy,
+		# nên nó bị loại ngay và dòng tham chiếu chẳng được đọc tới. Ca kiểm
+		# của em xanh giả vì tự gán sẵn ô quầy cho chính cái phiếu mà em bảo
+		# là không có ô đó.
+		#
+		# Nay hợp đồng gọn lại đúng một đường: mọi phiếu thu tiền đặt bánh
+		# phải có CẢ ô quầy lẫn ô phiếu đặt, và `chan_phieu_dat_banh` chặn
+		# ngay lúc ghi sổ nếu thiếu. Thà không cho ghi sổ còn hơn cho ghi sổ
+		# rồi tiền im lặng biến mất khỏi mọi bảng đối soát.
+		"vgb_phieu_dat": ["is", "set"],
 	}
 	if theo_ngay:
 		loc["posting_date"] = ["between", [str(getdate(tu_luc)), str(getdate(den_luc))]]
@@ -391,23 +451,34 @@ def thu_ung_truoc(quay, tu_luc, den_luc, theo_ngay=False):
 	ds = frappe.get_all(
 		PE,
 		filters=loc,
-		fields=[
-			"name", "mode_of_payment", "vgb_phieu_dat",
-			"received_amount", "paid_amount",
-		],
+		fields=["name", "mode_of_payment", "received_amount", "paid_amount"],
 		limit_page_length=0,
 	)
-	if not ds:
-		return {}
-	# Chỉ hỏi bảng con cho những chứng từ chưa có ô phiếu đặt, để không
-	# quét thừa. Chứng từ đã có ô đó thì khỏi cần dòng tham chiếu.
-	chua_co_o = [
-		r.get("name") for r in ds
-		if not str(r.get("vgb_phieu_dat") or "").strip()
-	]
-	co_tro = _tro_toi_phieu_dat(chua_co_o)
 	return tong_ung_truoc([
 		{"pt": r.get("mode_of_payment"), "so_tien": tien_thuc_thu(r)}
 		for r in ds
-		if la_phieu_ung_truoc(r, r.get("name") in co_tro)
 	])
+
+
+def chan_phieu_dat_banh(doc, method=None):
+	"""Hook Payment Entry: chặn ghi sổ phiếu thu đặt bánh khai thiếu.
+
+	Chỉ đụng tới phiếu của luồng đặt bánh, phiếu thu chi khác đi qua không
+	vướng gì. Chặn ở máy chủ chứ không tin ô chỉ đọc trên giao diện, vì ô
+	chỉ đọc chặn được người gõ chứ không chặn được đường tạo bằng mã.
+	"""
+	tc = []
+	for r in (doc.get("references") or []):
+		tc.append({
+			"reference_doctype": r.get("reference_doctype")
+			if hasattr(r, "get") else getattr(r, "reference_doctype", None),
+		})
+	o = {
+		"vgb_phieu_dat": doc.get("vgb_phieu_dat"),
+		"vgb_quay": doc.get("vgb_quay"),
+	}
+	if not la_phieu_dat_banh(o, tc):
+		return
+	loi = loi_phieu_dat_banh(o, tc)
+	if loi:
+		frappe.throw(loi)
