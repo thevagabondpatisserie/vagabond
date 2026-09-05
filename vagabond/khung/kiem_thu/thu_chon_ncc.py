@@ -373,9 +373,13 @@ def _rebase_giu_ca_hai_ben():
 	# du chang ai lui so ca. Doc lay so roi so lon hon bang thi moi dung la
 	# "chi duoc tang".
 	js = _js("12-van-don.js")
-	m = re.search(r"var APPVER = '(\d+)';", js)
-	dung("có khai APPVER", bool(m))
-	dung("APPVER không lùi xuống dưới 429", int(m.group(1)) >= 429)
+	# Bản đầu chốt cứng "APPVER là 429". Ý định phiên đó tự ghi ngay dòng
+	# trên là "số phiên bản chỉ được TĂNG", mà chốt cứng thì cứ ai nâng số
+	# là ca này đỏ, tức là nó phạt đúng cái việc mà nó muốn bảo vệ. Giữ
+	# nguyên ý định, đọc số ra rồi so lớn hơn hoặc bằng (phiên v432, 05/09).
+	so = re.search(r"var APPVER = '(\d+)';", js)
+	dung("đọc được APPVER trong tệp", bool(so))
+	dung("APPVER không lùi xuống dưới 429", int(so.group(1)) >= 429 if so else False)
 	assert goc
 
 
