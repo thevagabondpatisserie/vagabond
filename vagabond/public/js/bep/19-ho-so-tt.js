@@ -266,18 +266,125 @@ async function hsNoiPhieuVaoHd(maHd) {
   }, true);
 }
 
+/* ==================== Ô CHỌN NHÀ CUNG CẤP (Issue #196) ====================
+
+Anh Việt 05/09/2026: *"danh sách NCC về mặt hiển thị đang hiển thị hết ra nên
+rất dài, em gom lại thành dropdown dùm anh, có ô tìm kiếm, kế bên các NCC khi
+tìm ra thì có thêm các chip nợ bao nhiêu, còn bao nhiêu hoá đơn chưa ghi sổ"*.
+
+Chữ "dropdown" ở đây KHÔNG được làm bằng thẻ <select>: AGENTS.md mục 2b cấm
+thẻ đó trên các màn này. Dùng `sheet()` của 00-nen.js, vốn đã có sẵn ô tìm và
+đã chạy ổn ở nhiều màn khác.
+
+Chữ nghĩa của chip nằm ở đây, còn QUYẾT ĐỊNH chip nào hiện và mang con số nào
+thì nằm ở phép thuần `vagabond/chon_ncc.py`, để kiểm thử được mà không cần
+site. */
+
+var HS_CHIP_NCC = {
+  lap_duoc: function (c) { return c.so + ' hoá đơn lập được · ' + money(c.tien) + ' đ'; },
+  qua_han: function (c) { return '⚠️ quá hạn ' + money(c.tien) + ' đ'; },
+  khong_lap_duoc: function (c) { return money(c.tien) + ' đ không lập được ở đây'; },
+  nhap: function (c) { return c.so + ' hoá đơn còn nháp'; }
+};
+
+function hsChipNcc(o) {
+  var ds = (o && o.chip) || [];
+  if (!ds.length) return 'Không còn nợ, không có hoá đơn nháp';
+  return ds.map(function (c) {
+    var f = HS_CHIP_NCC[c.ma];
+    return h(f ? f(c) : c.ma);
+  }).join(' · ');
+}
+
+function hsMoChonNcc(ncc, laHU, chon) {
+  var muc = [];
+  /* Luong hoan ung gom duoc nhieu nha mot luc nen phai co duong quay ve
+     "tat ca". Luong cong no NCC thi mot ho so chi mang mot nha, khong co
+     muc nay. */
+  if (laHU) muc.push({ value: '', label: 'Tất cả nhà cung cấp', icon: '📚',
+    phu: 'Gộp hoá đơn của mọi nhà vào một hồ sơ' });
+  (ncc || []).forEach(function (x) {
+    muc.push({ value: x.ncc, label: x.ten, icon: '🏭', tim: x.ncc, phu: hsChipNcc(x) });
+  });
+  if (!muc.length) return baoTin('Chưa có nhà cung cấp nào có công nợ hay hoá đơn nháp.',
+    'Không có gì để chọn');
+  sheet('Chọn nhà cung cấp', muc, hsTaoNcc || '', function (it) { chon(it.value); }, true);
+}
+
+/* ==================== XEM VÌ SAO THIẾU HOÁ ĐƠN ====================
+
+Chị Dung nói *"Nếu list ra mà thiếu có nghĩa là chưa hạch toán"*. Câu đó
+KHÔNG đúng với cách hệ đang chạy, và tin theo nó thì hỏng thật:
+`hoa_don_cho_tra()` còn lọc theo 365 ngày và còn giấu những tờ đang nằm trong
+hồ sơ khác. Gõ tay lại một khoản mà hệ đã có tờ hoá đơn nháp thì tới bước
+giám đốc duyệt máy sinh thêm một hoá đơn mua nữa, thành hoá đơn trùng trên sổ.
+
+Nên màn này nói thẳng ra bốn lý do có thật, kèm mã hồ sơ đang giữ tờ đó, và
+dặn rõ tờ còn nháp thì nhờ kế toán ghi sổ chứ đừng gõ lại. Anh Việt chốt
+hướng này 05/09/2026. */
+
+var HS_NHAN_LY_DO = {
+  nhap: 'Còn nháp, chưa ghi sổ',
+  ho_so_khac: 'Đang nằm trong hồ sơ khác',
+  ngoai_ky: 'Ngoài khoảng ngày đang lọc',
+  da_tra: 'Đã trả xong, không còn nợ',
+  huy: 'Đã huỷ'
+};
+
+async function hsViSaoThieu(ncc) {
+  if (!ncc) return baoTin('Chọn một nhà cung cấp trước đã.', 'Chưa chọn nhà');
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.ho_so_tt.ly_do_thieu_hd', { ncc: ncc, so_ngay: 365 }); }
+  catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được dữ liệu.', 'Lỗi'); }
+  busy(false);
+  var nhom = (kq && kq.nhom) || [];
+  var t = kq.ten + '\n\nĐang chọn được: ' + (kq.chon_duoc || 0) + ' hoá đơn.\n';
+  if (!nhom.length) {
+    t += '\nKhông có tờ nào bị giấu đi. Mọi hoá đơn của nhà này đều đang hiện ra ở bảng trên.';
+    return baoTin(t, 'Vì sao thiếu hoá đơn');
+  }
+  t += '\nKhông hiện ra ở bảng trên:\n';
+  nhom.forEach(function (g) {
+    t += '\n• ' + (HS_NHAN_LY_DO[g.ly_do] || g.ly_do) + ': ' + g.so + ' tờ, ' + money(g.tien) + ' đ';
+    (g.hoa_don || []).slice(0, 6).forEach(function (x) {
+      t += '\n    ' + (x.so_hd_ncc ? x.so_hd_ncc + ' · ' : '') + x.name +
+        (x.ho_so_giu ? ' · hồ sơ ' + x.ho_so_giu : '');
+    });
+    if ((g.hoa_don || []).length > 6) t += '\n    ... và ' + (g.so - 6) + ' tờ nữa';
+  });
+  var coNhap = nhom.filter(function (g) { return g.ly_do === 'nhap'; })[0];
+  if (coNhap) {
+    t += '\n\nTờ còn nháp thì nhờ kế toán ghi sổ rồi quay lại đây tick. ' +
+      'ĐỪNG gõ tay lại khoản đó ở luồng hoàn ứng: gõ lại là máy sinh thêm ' +
+      'một hoá đơn mua nữa, thành hoá đơn trùng trên sổ.';
+  }
+  baoTin(t, 'Vì sao thiếu hoá đơn');
+}
+
+
 async function scrHoSoTTTao() {
   hsoBuoc = 0;
   var laHU = hsTaoLoai === 'Hoan ung HD';
   frame(laHU ? 'Lập hồ sơ hoàn ứng có hoá đơn' : 'Lập hồ sơ thanh toán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc công nợ phải trả...</div></div>');
   var dsn;
-  try { dsn = await api('vagabond.ho_so_tt.ds_ncc_con_no', {}); }
+  /* Doi tu `ds_ncc_con_no` sang `ds_ncc_chon` (Issue #196). Ham cu chi
+     biet hoa don DA GHI SO, nen nha nao chi con hoa don nhap la khong tim
+     ra. Ham moi gom theo lo va tach bach bon con so: no da ghi so, phan
+     THAT SU lap duoc, phan qua han, va so to con nhap. */
+  try { dsn = await api('vagabond.ho_so_tt.ds_ncc_chon', { so_ngay: 365 }); }
   catch (e) { frame('Lập hồ sơ thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
   var ncc = dsn.ncc || [];
   /* Luong hoan ung mo san o che do TAT CA nha cung cap: Uyen mua le te nen
      mot ho so cua chi thuong tro toi chuc nha khac nhau. Luong cong no NCC
      van chon dung mot nha nhu cu. */
-  if (!laHU && !hsTaoNcc && ncc.length) hsTaoNcc = ncc[0].ncc;
+  /* Mac dinh chon nha DAU TIEN CON TICK DUOC. Danh sach moi co ca nha chi
+     con hoa don nhap, ma nha do mo ra thi bang trong - mo man hinh len da
+     thay trong la cai lam nguoi ta tuong he hong. */
+  if (!laHU && !hsTaoNcc && ncc.length) {
+    var dau = ncc.filter(function (x) { return (x.lap_duoc_so || 0) > 0; })[0] || ncc[0];
+    hsTaoNcc = dau.ncc;
+  }
   if (laHU && !hsTaoDsUng) {
     try { hsTaoDsUng = await api('vagabond.ho_so_tt.ds_nguoi_ung', {}); } catch (e3) { hsTaoDsUng = { ncc: [] }; }
   }
@@ -365,21 +472,24 @@ async function scrHoSoTTTao() {
       '</div>';
   }
 
-  /* O tim cho bang chip nha cung cap. Uyen bao 28/08/2026: 17 nha bay ra
-     thanh mot bang, muon chon mot nha la phai do bang mat. Loc ngay tren
-     DOM nen go den dau thay den do, ban phim khong tut xuong. */
-  html += hsoKhoi('Nhà cung cấp còn nợ · ' + ncc.length + ' nhà, tổng ' + money(dsn.tong) + ' đ') +
-    '<div class="card" style="padding:10px 12px">' +
-    vgbOTim('hsNccTim', ncc.length, '🔎 Gõ tên nhà cung cấp để tìm nhanh') +
-    kmHangChip(
-    (laHU ? posChipNut('data-hsn=""', '📚 Tất cả nhà cung cấp', !hsTaoNcc) : '') +
-    ncc.map(function (x) {
-      return posChipNut('data-hsn="' + h(x.ncc) + '"',
-        h(x.ten) + ' · ' + money(x.tien) + (x.qua_han ? ' ⚠️' : ''), hsTaoNcc === x.ncc);
-    }).join('')) +
-    (laHU ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
-      'Chip này chỉ để <b>lọc cho dễ nhìn</b>. Đổi chip không làm mất hoá đơn đã tick, ' +
-      'nên anh chị tick bên nhà này rồi đổi sang nhà khác tick tiếp thoải mái.</div>' : '') + '</div>';
+  /* O CHON NHA CUNG CAP (Issue #196, anh Viet 05/09/2026).
+     ------------------------------------------------------------------
+     Truoc day cho nay ve HET nha cung cap thanh mot bang chip, dai muot
+     man hinh dien thoai. Gio thu gon thanh MOT dong, cham vao moi mo tam
+     truot len co o tim - dung y anh Viet "gom lai thanh dropdown dum anh,
+     co o tim kiem". AGENTS.md muc 2b cam the <select> nen dung `sheet()`
+     cua 00-nen.js chu khong dung dropdown cua trinh duyet. */
+  var nccDangChon = null;
+  for (var iN = 0; iN < ncc.length; iN++) if (ncc[iN].ncc === hsTaoNcc) nccDangChon = ncc[iN];
+  html += hsoKhoi('Nhà cung cấp' + (ncc.length ? ' · ' + ncc.length + ' nhà' : '')) +
+    '<div class="card"><div class="hub" id="hsMoNcc">' +
+    '<div class="hub-i">🏭</div><div class="hub-t">' +
+    '<div class="t1">' + h(nccDangChon ? nccDangChon.ten : (laHU && !hsTaoNcc ? 'Tất cả nhà cung cấp' : 'Chạm để chọn nhà cung cấp')) + '</div>' +
+    '<div class="t2">' + (nccDangChon ? hsChipNcc(nccDangChon) : (laHU ? 'Đang gộp hoá đơn của mọi nhà' : 'Chưa chọn nhà nào')) + '</div>' +
+    '</div><b style="color:#2563eb;white-space:nowrap">Đổi</b></div></div>' +
+    (laHU ? '<div style="font-size:11.5px;color:#98a2b3;margin:-4px 0 10px;line-height:1.6">' +
+      'Ô này chỉ để <b>lọc cho dễ nhìn</b>. Đổi nhà không làm mất hoá đơn đã tick, ' +
+      'nên anh chị tick bên nhà này rồi đổi sang nhà khác tick tiếp thoải mái.</div>' : '');
 
   var rows = hd.rows || [];
   /* Tick nam ngoai danh sach dang loc van phai duoc dem. Neu chi dem tren
@@ -402,11 +512,15 @@ async function scrHoSoTTTao() {
         h(Object.keys(nhaChon).sort().join(' · ')) + '</div>' : '') + '</div>';
 
   html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-    '<button class="btn gh" id="hsChonHet" style="flex:1;margin:0">☑️ Chọn hết</button>' +
+    '<button class="btn gh" id="hsChonHet" style="flex:1;margin:0">☑️ Chọn hết đang hiện</button>' +
     '<button class="btn gh" id="hsChonQH" style="flex:1;margin:0">⚠️ Chỉ quá hạn</button>' +
     '<button class="btn gh" id="hsBoChon" style="flex:1;margin:0">✖ Bỏ chọn</button></div>';
 
-  html += hsoKhoi('Chứng từ tham chiếu · hoá đơn còn nợ') + '<div class="card">';
+  html += hsoKhoi('Chứng từ tham chiếu · hoá đơn còn nợ · ' + rows.length + ' tờ') + '<div class="card">' +
+    /* TIM NGAY LUC LAP (Issue #196). Ho so hoan ung gom hang chuc to cua
+       nhieu nha, do bang mat het bang la cach de sot. Loc tren DOM nen tick
+       da dat KHONG mat khi go, va ban phim khong tut xuong. */
+    vgbOTim('hsHdTim', rows.length, '🔎 Gõ số hoá đơn, mã hoá đơn hoặc tên nhà cung cấp');
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🎉</div><div>Không còn hoá đơn nào chờ trả ở đây.</div></div>';
   rows.forEach(function (r) {
     var da = !!hsTaoChon[r.hoa_don];
@@ -426,6 +540,19 @@ async function scrHoSoTTTao() {
       hsONutBanTheHien(r.hoa_don) + '</div>';
   });
   html += '</div>';
+
+  /* XEM VI SAO THIEU (Issue #196, anh Viet chot 05/09/2026).
+     ------------------------------------------------------------------
+     Chi Dung noi "list ra ma thieu co nghia la chua hach toan". Cau do
+     KHONG dung: bang tren con loc theo 365 ngay va con giau nhung to dang
+     nam trong ho so khac. Neu tin theo cau do ma go tay lai mot khoan da
+     co to hoa don nhap, thi buoc giam doc duyet se sinh them mot hoa don
+     mua nua - hoa don trung tren so. Nen bay ra cai nut noi that thay vi
+     de nguoi dung tu suy. */
+  if (hsTaoNcc) {
+    html += '<button class="btn gh" id="hsViSao" style="margin:0 0 10px">' +
+      '🔍 Thiếu hoá đơn? Xem vì sao</button>';
+  }
 
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="hsGc" placeholder="Ghi chú cho hồ sơ (không bắt buộc)" value="' + h(hsTaoGhiChu) + '"></div>';
 
@@ -454,27 +581,27 @@ async function scrHoSoTTTao() {
   }, true);
   hsDemBanTheHien(hd.rows || []);
 
-  Array.prototype.forEach.call(document.querySelectorAll('[data-hsn]'), function (el) {
-    el.onclick = function () {
-      hsTaoNcc = el.getAttribute('data-hsn');
-      /* Luong hoan ung: doi chip la DOI BO LOC, khong phai bo lam lai.
-         Xoa tick o day chinh la thu bat Uyen phai lam mot ho so cho moi
-         nha cung cap. Luong cong no NCC thi van xoa, vi ho so do chi duoc
-         phep mang mot nha. */
-      if (!laHU) hsTaoChon = {};
-      go(scrHoSoTTTao, true);
-    };
-  });
+  var doiNcc = function (ma) {
+    hsTaoNcc = ma || '';
+    /* Luong hoan ung: doi nha la DOI BO LOC, khong phai bo lam lai. Xoa
+       tick o day chinh la thu bat Uyen phai lam mot ho so cho moi nha cung
+       cap. Luong cong no NCC thi van xoa, vi ho so do chi duoc phep mang
+       mot nha. */
+    if (!laHU) hsTaoChon = {};
+    go(scrHoSoTTTao, true);
+  };
+  var moNcc = document.getElementById('hsMoNcc');
+  if (moNcc) moNcc.onclick = function () { hsMoChonNcc(ncc, laHU, doiNcc); };
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsu]'), function (el) {
     el.onclick = function () { hsTaoNguoiUng = el.getAttribute('data-hsu'); go(scrHoSoTTTao, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstk]'), function (el) {
     el.onclick = function () { hsTkHoan = el.getAttribute('data-hstk'); go(scrHoSoTTTao, true); };
   });
-  /* Chip "Tat ca nha cung cap" khong mang ten nha nao nen dung loc no di,
-     giu nguyen de con duong quay ve xem tat ca. */
-  vgbNoiOTim(b, 'hsNccTim', '[data-hsn]:not([data-hsn=""])');
   vgbNoiOTim(b, 'hsUngTim', '[data-hsu]');
+  /* O tim hoa don: loc tren DOM nen tick da dat KHONG mat khi go. Khop ca
+     so hoa don cua nha cung cap, ma hoa don trong he va ten nha. */
+  vgbNoiOTim(b, 'hsHdTim', '[data-hsh]');
   /* Cai dang go trong o tim la ten se dien san khi bam Tao nha cung cap moi. */
   var oUt = document.getElementById('hsUngTim');
   hsNoiNutTaoNcc(oUt ? oUt.value.trim() : '', function (ma) {
@@ -496,10 +623,21 @@ async function scrHoSoTTTao() {
     }
     go(scrHoSoTTTao, true);
   });
+  /* Codex neu tren #196: "chon het" khi dang loc phai noi ro no ap dung
+     cho TAP DANG HIEN. Bam mot nut roi om ca tram hoa don ngoai man hinh
+     la cach tao ra mot ho so khong ai co y dinh lap. */
+  var dangHien = function () {
+    var el = [].slice.call(b.querySelectorAll('[data-hsh]'));
+    var ma = {};
+    el.forEach(function (x) { if (x.style.display !== 'none') ma[x.getAttribute('data-hsh')] = 1; });
+    return rows.filter(function (r) { return ma[r.hoa_don]; });
+  };
   var g1 = document.getElementById('hsChonHet');
-  if (g1) g1.onclick = function () { rows.forEach(ghiChon); go(scrHoSoTTTao, true); };
+  if (g1) g1.onclick = function () { dangHien().forEach(ghiChon); go(scrHoSoTTTao, true); };
   var g2 = document.getElementById('hsChonQH');
-  if (g2) g2.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; rows.forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
+  if (g2) g2.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; dangHien().forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
+  var gV = document.getElementById('hsViSao');
+  if (gV) gV.onclick = function () { hsViSaoThieu(hsTaoNcc); };
   var g3 = document.getElementById('hsBoChon');
   if (g3) g3.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); };
 
