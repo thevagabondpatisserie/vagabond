@@ -556,6 +556,10 @@ pick(2); pickSlot(i13);
 
 NEN_TUA_DONG_HO = """
 openCoUI();
+/* Dọn sạch phần bất đồng bộ CỦA SETUP trước khi tua đồng hồ. Nếu còn một
+   callback nào của setup treo lại, nó sẽ chạy sau khi tua và đồng bộ ngày hộ
+   thao tác đang kiểm. Codex nêu trên PR #213. */
+await CHO_XONG();
 var truoc={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
 DAT('2026-09-07T00:01:00');
 /* Đọc độ lệch NGAY TRƯỚC lời gọi đang kiểm. Nó phải còn là 2, tức là chưa ai
@@ -565,7 +569,8 @@ var picked_truoc_thao_tac = picked;
 """
 
 
-def _canh_mot_loi_vao(loi_vao, them="", dung_truoc="", dat_lai_ghi=False):
+def _canh_mot_loi_vao(loi_vao, them="", dung_truoc="", dat_lai_ghi=False,
+		cho_xong=False):
 	"""Dựng lại đúng một lối vào drawCo, trên một máy ảo riêng.
 
 	Kịch bản: 23h59 chọn D+2 khung 13h, dựng sẵn bối cảnh cần thiết, mở
@@ -582,6 +587,11 @@ def _canh_mot_loi_vao(loi_vao, them="", dung_truoc="", dat_lai_ghi=False):
 
 	Kết quả `sau` được đọc TRƯỚC khi gọi submitOrder, để submit không sửa
 	trạng thái giúp rồi ca kiểm lại tưởng là lối vào đã đúng.
+
+	`cho_xong=True` cho lối vào chạy bất đồng bộ: chờ callback của nó xong
+	rồi mới đọc `sau`. Không chờ thì đọc phải trạng thái cũ, và ca kiểm sẽ
+	xanh cả trên bản chưa sửa. Số callback đã chờ nằm trong `so_callback` để
+	ca kiểm khẳng định được là mình thật sự có chờ.
 	"""
 	goi = loi_vao.strip()
 	if ";" in goi or "\n" in goi or goi.count("(") != 1:
@@ -591,6 +601,13 @@ def _canh_mot_loi_vao(loi_vao, them="", dung_truoc="", dat_lai_ghi=False):
 			"trước lúc tua đồng hồ." % (loi_vao,)
 		)
 	thao_tac = ("GHI.goiMang.length=0;\n" if dat_lai_ghi else "") + goi + ";\n"
+	# Loi vao nao chay bat dong bo thi phai CHO xong roi moi doc ket qua, va
+	# doc TRUOC khi gui don. Khong cho la doc lai trang thai cu, ca kiem se
+	# xanh ca tren ban chua sua.
+	if cho_xong:
+		thao_tac += "var so_callback = await CHO_XONG();\n"
+	else:
+		thao_tac += "var so_callback = 0;\n"
 	return _chay("2026-09-06T23:59:00",
 		NEN_DAT_LICH + dung_truoc + NEN_TUA_DONG_HO + thao_tac + """
 var sau={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
@@ -657,15 +674,27 @@ def _loi_vao_set_mode():
 	_soi_mot_loi_vao(_canh_mot_loi_vao("setMode('ship')"))
 
 
-@ca("#205 callback phí giao chạy MỘT MÌNH: hỏi phí đúng mốc đã neo")
+@ca("#205 callback phí giao chạy MỘT MÌNH: chờ phản hồi xong rồi mới soi")
 def _loi_vao_quote_ship():
-	# Callback phí là lối vào dễ bị bỏ sót nhất: nó chạy khi máy chủ trả về,
-	# tức là sau cả đoạn im lặng, và nó gọi drawCo() để vẽ lại bảng tổng kết.
-	# Chạy một mình, không có thao tác nào đồng bộ ngày hộ nó.
-	r = _canh_mot_loi_vao("quoteShip()", dat_lai_ghi=True, them=r"""
+	"""Codex nêu vòng bốn trên PR #213, và nêu đúng.
+
+	`quoteShip()` TRẢ VỀ NGAY, còn callback của nó mới là chỗ gọi `drawCo()`,
+	và callback đó còn `await fetch(...)` rồi `await r.json()`. Bản trước đọc
+	bảng tổng kết ngay sau khi gọi, tức là đọc lúc callback chưa chạy tới
+	`drawCo()`. Hậu quả: ca kiểm XANH cả trên bản main CHƯA SỬA. Nó chỉ chứng
+	minh được cái yêu cầu đã khởi động, không chứng minh gì về bảng tổng kết
+	sau khi phản hồi về.
+
+	Nay chờ ĐÚNG cái callback đó xong rồi mới soi, và soi TRƯỚC khi gửi đơn.
+	`CHO_XONG()` trả về số callback đã chờ, nên ca kiểm khẳng định được là
+	mình thật sự có chờ một cái gì đó chứ không phải gọi cho vui.
+	"""
+	r = _canh_mot_loi_vao("quoteShip()", dat_lai_ghi=True, cho_xong=True, them=r"""
 var url=GHI.goiMang.map(function(g){return g.url;}).join(' ');
-var rieng={luc_giao:decodeURIComponent((url.match(/luc_giao=([^&]*)/)||[])[1]||'')};
+var rieng={luc_giao:decodeURIComponent((url.match(/luc_giao=([^&]*)/)||[])[1]||''),
+           so_callback_da_cho:so_callback};
 """)
+	la("có chờ đúng một callback của yêu cầu phí", r["them"]["so_callback_da_cho"], 1)
 	_soi_mot_loi_vao(r)
 	la("callback phí hỏi đúng mốc đã neo", r["them"]["luc_giao"], "2026-09-08T13:00:00")
 

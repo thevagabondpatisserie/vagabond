@@ -131,7 +131,9 @@ function taoEl(ten) {
 	return el;
 }
 
-const GHI = { troVao: null, keo: null, banh: [], goiMang: [] };
+const setTimeoutThat = setTimeout;
+
+const GHI = { troVao: null, keo: null, banh: [], goiMang: [], dangCho: [], daCho: 0 };
 
 /* Lay noi dung THAT trong the co id nay tu HTML cua trang, de phan tu gia lap
    khoi rong ruot. Can vi tgl() doc `nut.querySelector('.bx')`, ma o dau tich
@@ -209,7 +211,17 @@ const hopBoi = {
 	localStorage: window.localStorage,
 	location: window.location,
 	history: window.history,
-	setTimeout: (f) => { if (typeof f === 'function') f(); return 0; },
+	/* Goi ngay chu khong doi, nhung NEU ham do la async thi giu lai loi hua de
+	   kich ban con CHO duoc. Truoc day nuot mat loi hua: `quoteShip()` tra ve
+	   ngay, con callback cua no van dang `await fetch(...)`, nen ca kiem doc
+	   ket qua khi callback chua he chay toi `drawCo()`. Codex bat duoc dung
+	   cho nay tren PR #213: ca kiem XANH ca tren ban main chua sua. */
+	setTimeout: (f) => {
+		if (typeof f !== 'function') return 0;
+		const ra = f();
+		if (ra && typeof ra.then === 'function') GHI.dangCho.push(ra);
+		return 0;
+	},
 	clearTimeout() {},
 	setInterval: () => 0,
 	clearInterval() {},
@@ -218,6 +230,22 @@ const hopBoi = {
 	EL,
 	GHI,
 	RA: (o) => { console.log(JSON.stringify(o)); },
+	/* Cho cho het phan bat dong bo dang treo, roi TRA VE SO callback da cho.
+	   Tra ve so de kich ban khang dinh duoc la minh that su co cho mot cai gi
+	   do, chu khong phai goi cho vui roi doc ket qua cu. */
+	CHO_XONG: async () => {
+		let dem = 0;
+		for (let vong = 0; vong < 50 && GHI.dangCho.length; vong++) {
+			const ds = GHI.dangCho.splice(0, GHI.dangCho.length);
+			dem += ds.length;
+			await Promise.all(ds);
+			/* Chay het vi mo tac vu con lai, phong khi callback vua xong lai
+			   dat tiep mot callback nua. */
+			await new Promise((x) => setTimeoutThat(x, 0));
+		}
+		GHI.daCho += dem;
+		return dem;
+	},
 	DAT: (iso) => { hienTai = new DateThat(iso).getTime(); },
 	TUA: (phut) => { hienTai = hienTai + Number(phut) * 60000; }
 };
@@ -226,4 +254,15 @@ hopBoi.self = hopBoi;
 
 const boi = vm.createContext(hopBoi);
 vm.runInContext(ma, boi, { filename: 'banh.html' });
-vm.runInContext(kichBan, boi, { filename: 'kich-ban' });
+
+/* Boc kich ban trong mot ham async de no dung duoc `await CHO_XONG()`. Kich
+   ban dong bo van chay y nguyen, chi khac la bay gio cho nao can doi phan bat
+   dong bo thi doi duoc. */
+const ketQua = vm.runInContext(
+	'(async () => {\n' + kichBan + '\n})()', boi, { filename: 'kich-ban' });
+if (ketQua && typeof ketQua.then === 'function') {
+	ketQua.catch((e) => {
+		console.error(e && e.stack ? e.stack : String(e));
+		process.exit(1);
+	});
+}
