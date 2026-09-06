@@ -290,25 +290,32 @@ def _dang_ma_dung(ma):
 	)
 
 
-def so_da_tieu(da_dat=0, phat_sinh=0, don_khac=0, huy=0):
-	"""Số bánh RỜI KHỎI tồn trong ngày: bán ra và huỷ. Phép THUẦN.
+def so_ban_ra(da_dat=0, phat_sinh=0, don_khac=0):
+	"""Số bánh BÁN RA trong ngày. Phép THUẦN.
 
-	MỘT nguồn duy nhất cho khái niệm "đã tiêu" (QT-19). Trước 06/09/2026 phép
-	này gõ lại ở HAI chỗ trong `chot_ngay`: một chỗ trừ lô hàng, một chỗ trừ
-	vỏ BTP. Hai chỗ gõ tay là hai chỗ có thể lệch nhau, và đúng lúc thêm cột
-	Huỷ thì sửa một chỗ quên chỗ kia là số tồn ngày mai sai âm thầm.
-
-	Vì sao HUỶ cũng tính vào đây: bánh huỷ đã rời khỏi tồn thật, không được
-	phép chạy sang tồn đầu ngày mai. Không tính là mỗi ngày huỷ bao nhiêu thì
-	tồn ảo cộng dồn bấy nhiêu.
-
-	`giu_cho` và `cho_chot` KHÔNG nằm ở đây: hai cột đó là giữ chỗ, bánh còn
-	nguyên trong tủ, chỉ trừ ảo vào "có thể bán" chứ không rời tồn.
+	Ba cột máy đếm: đơn Pancake tạo trước hôm nay, đơn tạo trong ngày, và
+	bánh bán qua kênh không đi qua Pancake. `cho_chot` và `giu_cho` KHÔNG
+	nằm ở đây: hai cột đó là giữ chỗ, bánh còn nguyên trong tủ.
 	"""
-	return max(
-		0,
-		int(da_dat or 0) + int(phat_sinh or 0) + int(don_khac or 0) + int(huy or 0),
-	)
+	return max(0, int(da_dat or 0) + int(phat_sinh or 0) + int(don_khac or 0))
+
+
+def so_roi_tu(da_dat=0, phat_sinh=0, don_khac=0, huy=0):
+	"""Số bánh RỜI KHỎI TỦ trong ngày: bán ra cộng huỷ. Phép THUẦN.
+
+	Vì sao huỷ phải nằm ở đây: bánh huỷ đã rời khỏi tủ thật, không được phép
+	chạy sang tồn đầu ngày mai. Không tính là mỗi ngày huỷ bao nhiêu thì tồn
+	ảo cộng dồn bấy nhiêu.
+
+	HAI HÀM CHỨ KHÔNG MỘT (Codex chốt trên PR #218, 06/09/2026). Bản đầu gộp
+	cả hai thành một hàm `so_da_tieu` rồi dùng chung cho cả phép trừ lô hàng
+	lẫn phép trừ vỏ BTP. Làm vậy là lặng lẽ đổi luôn quy tắc trừ BTP, mà anh
+	Việt chỉ mới duyệt "thêm cột huỷ để theo dõi" chứ chưa duyệt cho huỷ ăn
+	vào vỏ BTP. Gom về một nguồn KHÔNG có nghĩa là ép hai đại lượng nghiệp vụ
+	bằng nhau: `so_ban_ra` là nền chung, `so_roi_tu` cộng thêm phần huỷ, và
+	mỗi nơi gọi đúng đại lượng của mình.
+	"""
+	return so_ban_ra(da_dat, phat_sinh, don_khac) + max(0, int(huy or 0))
 
 
 def tru_theo_lo(lo, so_tieu):
@@ -936,7 +943,8 @@ def chot_ngay(ngay=None):
 	co_mai = {d.ma_hang: d for d in mai.dong}
 
 	for d in doc.dong:
-		ban = so_da_tieu(d.da_dat, d.phat_sinh, d.don_khac, d.huy)
+		# Trừ lô hàng dùng SỐ RỜI TỦ: bánh huỷ cũng phải biến khỏi tồn ngày mai.
+		ban = so_roi_tu(d.da_dat, d.phat_sinh, d.don_khac, d.huy)
 		lo = [
 			[d.ton_cu or 0, d.nsx_cu],
 			[d.ton_d2 or 0, d.nsx_d2],
@@ -974,7 +982,11 @@ def chot_ngay(ngay=None):
 			b = co_btp.get(d.ma_hang)
 			if not b:
 				continue
-			an = so_da_tieu(d.da_dat, d.phat_sinh, d.don_khac, d.huy)
+			# Trừ vỏ BTP giữ NGUYÊN quy tắc cũ: chỉ theo số BÁN RA, không cộng
+			# huỷ. Quy tắc này chưa ai duyệt sửa, và một cái bánh huỷ chưa chắc
+			# đã ăn một vỏ mới - có thể là hàng tồn cũ vốn đã trừ vỏ hôm trước.
+			# Muốn đưa huỷ vào đây thì phải trình bảng ví dụ cho anh Việt chốt.
+			an = so_ban_ra(d.da_dat, d.phat_sinh, d.don_khac)
 			if an and ((b.so_btp or 0) or (b.so_decor or 0)):
 				b.so_btp = max(0, (b.so_btp or 0) - an)
 				# Banh ban ra la banh DA du decor - tru luon so du decor
