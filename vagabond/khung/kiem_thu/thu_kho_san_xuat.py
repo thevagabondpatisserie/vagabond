@@ -237,21 +237,33 @@ def _doc_khai_tay():
 	la("khai chu la thi suy nhu cu", ks.chang_cua_mon("BTPB00100", True, "Cấp 3"), ks.BTP_SAN_SANG)
 
 
-@ca("kho san xuat: bang doi ma cu sang chu phu het ma cu va khong doi chang")
+@ca("kho san xuat: ma cu va chu moi doc ra cung mot chang, KHONG ai duoc tu doi du lieu cu")
 def _bang_doi():
-	# Ô là Select, mã cũ còn sót là hồ sơ món không lưu được. Bảng phải phủ
-	# đúng hai mã cũ, và chữ đích phải nằm trong danh sách lựa chọn mới.
+	# Ô là Select. Mã cũ còn sót thì hồ sơ món có thể mất giá trị khi có
+	# NGƯỜI mở ra sửa và lưu bên Desk. Đó là lý do vòng trước viết một hàm
+	# tự đổi sau migrate. Đã GỠ hàm đó: AGENTS.md điều 11 cấm máy tự sửa dữ
+	# liệu cũ, và không cần sửa thì app vẫn đọc đúng.
 	la("hai ma cu", sorted(ks.MA_CU_SANG_CHU.keys()), sorted([ks.BTP_SO_CAP, ks.BTP_SAN_SANG]))
 	o = [x for x in ks.TRUONG_MOI["Item"] if x["fieldname"] == "custom_chang_btp"][0]
 	lua = [d for d in o["options"].split("\n") if d]
 	for cu, moi in ks.MA_CU_SANG_CHU.items():
 		dung("chu dich %s nam trong o" % moi, moi in lua)
-		la("doi xong van cung chang cho %s" % cu, ks.ma_chang_khai_tay(moi), ks.ma_chang_khai_tay(cu))
-	# Hàm chạy sau migrate chỉ đổi đúng những hồ sơ mang mã cũ, không đụng gì khác.
+		la("ma cu va chu moi cung mot chang cho %s" % cu,
+			ks.ma_chang_khai_tay(moi), ks.ma_chang_khai_tay(cu))
+	# CHỐT NGƯỢC LẠI, và đây mới là điều ca này giữ: không còn đường nào để
+	# migrate tự ghi vào hồ sơ món cũ.
+	dung("da go han ham tu doi", not hasattr(ks, "doi_ma_cu_sang_chu"))
+	import io as _io
+	import os as _os
+	tt = _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(ks.__file__)),
+		"truong_tu_them.py"), encoding="utf-8").read()
+	dung("migrate khong goi ham tu doi nao", "doi_ma_cu_sang_chu()" not in tt)
+	# Còn lại một cửa CHỈ ĐỌC để đếm, để anh Việt tự quyết.
 	import inspect
-	src = inspect.getsource(ks.doi_ma_cu_sang_chu)
-	dung("loc dung o custom_chang_btp", 'filters={"custom_chang_btp": cu}' in src)
+	src = inspect.getsource(ks.soat_ma_chang_cu)
+	dung("chi doc, khong set_value", "set_value" not in src)
 	dung("khong rename, khong delete", "rename" not in src and "delete" not in src)
+	dung("co dem theo tung ma cu", 'filters={"custom_chang_btp": cu}' in src)
 
 
 @ca("kho san xuat va ton chang doc o khai tay ra CUNG mot chang")

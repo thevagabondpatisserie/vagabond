@@ -251,8 +251,11 @@ CUA_NGO = {
 	# cua Work Order nen KHONG whitelist.
 	# `hoan_tat_phieu` them 03/09/2026: ghi phieu kho hoan tat lenh trong MOT
 	# yeu cau, thay cho insert roi submit roi o app.
+	# `soat_ma_chang_cu` them 06/09/2026 (#206): CHI DEM ho so mon con mang
+	# ma may cu, khong sua gi. Thay cho ham tu doi da go.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
-		"gan_nguoi_phu_trach", "hoan_tat_phieu", "soat_chang", "tat_kho_trung_gian"],
+		"gan_nguoi_phu_trach", "hoan_tat_phieu", "soat_chang",
+		"soat_ma_chang_cu", "tat_kho_trung_gian"],
 	# Gom nam nhan chang ve hai ten, va man Ton kho theo chang, 28/08/2026.
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
 	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
