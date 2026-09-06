@@ -920,11 +920,13 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 		tk_no = (x.get("tk_no") or "").strip()
 		if not tk_no:
 			frappe.throw("Khoản \"%s\" chưa chọn tài khoản Nợ." % noi_dung)
-		if not frappe.db.exists("Account", tk_no):
-			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_no)
-		tk_co = (x.get("tk_co") or "").strip()
-		if tk_co and not frappe.db.exists("Account", tk_co):
-			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_co)
+		_kiem_tk_ghi_so_duoc(tk_no, "Nợ")
+		# Kiem tai khoan Co THUC SU DUOC GHI, tuc la sau khi da roi ve tai
+		# khoan so cai cua ngan hang. Kiem moi `tk_co` do nguoi dung gui len la
+		# bo lot ca duong mac dinh: Bank Account tro toi mot tai khoan nhom hay
+		# mot tai khoan da ngung dung thi van ghi vao duoc. Codex neu vong nam.
+		tk_co = (x.get("tk_co") or "").strip() or tk_so_cai
+		_kiem_tk_ghi_so_duoc(tk_co, "Có")
 		ma_tep = _tep_hop_le(x.get("tep"))
 		sach.append({
 			"ngay_hd": x.get("ngay_hd") or nowdate(),
@@ -934,7 +936,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			"loai_chi": (x.get("loai_chi") or "").strip(),
 			"co_vat": 1 if cint(x.get("co_vat")) else 0,
 			"tk_no": tk_no,
-			"tk_co": tk_co or tk_so_cai,
+			"tk_co": tk_co,
 			"so_tien": tien,
 			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
@@ -1250,25 +1252,84 @@ def ds_tk_cong_ty():
 	return {"tk": ra}
 
 
+def _kiem_tk_ghi_so_duoc(ma_tk, vai="Nợ"):
+	"""Chặn tài khoản không ghi sổ được NGAY LÚC NHẬN, không để tới lúc ghi sổ.
+
+	Ba điều kiện, ĐỌC LẠI TỪ MÁY CHỦ chứ không tin bản danh mục ở máy người
+	dùng: đúng công ty của chứng từ, chưa ngưng dùng, và không phải tài khoản
+	nhóm. Đúng ba điều kiện mà `ds_tai_khoan` đang lọc.
+
+	Vì sao phải đọc lại: ô chọn giữ danh mục trong `huTkDs` suốt phiên. Ai mở
+	app từ sáng rồi kế toán khoá một tài khoản lúc trưa thì chiều họ vẫn thấy
+	và vẫn chọn được cái đã khoá. Codex nêu vòng năm trên PR #211.
+	"""
+	from vagabond import chon_ncc
+
+	ho_so = None
+	if ma_tk:
+		ho_so = frappe.db.get_value(
+			"Account", ma_tk, ["company", "disabled", "is_group"], as_dict=True)
+	loi = chon_ncc.loi_tk_khong_ghi_so_duoc(ma_tk, ho_so, _cong_ty_chung_tu(), vai)
+	if loi:
+		frappe.throw(loi, title="Tài khoản không ghi sổ được")
+
+
+def _cong_ty_chung_tu():
+	"""Công ty mà mọi bút toán của phần hồ sơ thanh toán ghi vào.
+
+	Một chỗ duy nhất, để ô chọn tài khoản và cửa nhận dữ liệu không bao giờ
+	lệch nhau. Đổi chỗ này là đổi cả hai.
+	"""
+	return frappe.db.get_single_value("Global Defaults", "default_company")
+
+
 @frappe.whitelist()
 def ds_tai_khoan(tu_khoa="", gioi_han=40):
-	"""Tra tài khoản sổ cái cho kế toán tự định khoản trên điện thoại."""
+	"""Tra tài khoản sổ cái cho kế toán tự định khoản trên điện thoại.
+
+	`gioi_han=0` nghĩa là LẤY HẾT danh mục, không cắt. Màn hình dùng đường đó
+	để bày cả danh mục vào ô chọn rồi lọc ngay trên máy, khỏi bắt người ta
+	đoán từ khoá trước khi được nhìn thấy gì.
+
+	Hệ thống tài khoản là bảng có hạn, vài trăm dòng, nên lấy hết là an toàn.
+	Đừng bắt chước chỗ này cho hoá đơn hay chứng từ: những bảng đó lớn dần
+	theo thời gian.
+	"""
 	_kiem(VAI_LAP | VAI_FIN, "tra hệ thống tài khoản")
 	q = (tu_khoa or "").strip()
-	loc = {"is_group": 0, "disabled": 0}
+	# Loc theo CONG TY cua chung tu. But toan o `_tao_but_toan_tkct` lay cong
+	# ty tu `Global Defaults.default_company`, nen danh muc bay ra phai cung
+	# mot cong ty do, khong thi nguoi ta chon duoc mot tai khoan ma toi luc ghi
+	# so ERPNext moi tu choi. Ngay 06/09/2026 site that co 158 tai khoan dang
+	# dung thi 14 tai khoan duoi "- TVD" thuoc cong ty demo.
+	loc = {"is_group": 0, "disabled": 0, "company": _cong_ty_chung_tu()}
+	# Phep tinh so dong toi da nam o `chon_ncc.gioi_han_tk`, la phep THUAN nen
+	# ca kiem goi that duoc chu khong chi do chuoi trong ma nguon (Codex neu
+	# tren PR #207). Dau vao xau thi NEM LOI CO CHU, khong doan bua.
+	from vagabond import chon_ncc
+
+	try:
+		han = chon_ncc.gioi_han_tk(gioi_han)
+	except chon_ncc.GioiHanXau:
+		frappe.throw(
+			"Số dòng tối đa gửi lên không đọc được: %r. Gửi số nguyên không âm, "
+			"hoặc gửi 0 để lấy hết danh mục, hoặc bỏ hẳn ô này để lấy %d dòng "
+			"như mặc định." % (gioi_han, chon_ncc.HAN_TK_MAC_DINH),
+			title="Số dòng tối đa không hợp lệ",
+		)
 	ds = []
 	if q:
 		ds = frappe.get_all(
 			"Account", filters=loc,
 			or_filters={"name": ["like", "%" + q + "%"], "account_name": ["like", "%" + q + "%"]},
 			fields=["name", "account_name", "account_type", "root_type"],
-			order_by="name asc", limit_page_length=int(gioi_han or 40),
+			order_by="name asc", limit_page_length=han,
 		)
 	else:
 		ds = frappe.get_all(
 			"Account", filters=loc,
 			fields=["name", "account_name", "account_type", "root_type"],
-			order_by="name asc", limit_page_length=int(gioi_han or 40),
+			order_by="name asc", limit_page_length=han,
 		)
 	return {"tk": [{
 		"ma": a.name, "ten": a.account_name or a.name,
@@ -1386,8 +1447,15 @@ def _email_ncc(ma):
 
 
 @frappe.whitelist()
-def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None, loai_cp_thue=None):
-	"""Màn Hồ sơ thanh toán: danh sách kèm đếm theo trạng thái cho chip."""
+def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None,
+		loai_cp_thue=None, tk_chi=None):
+	"""Màn Hồ sơ thanh toán: danh sách kèm đếm theo trạng thái cho chip.
+
+	`tk_chi` lọc theo tài khoản ngân hàng công ty đã chi. Lọc ở CUỐI hàm y
+	hệt `trang_thai`, không đưa vào `loc` của `get_all`: bảng chip phải đếm
+	trên bộ CHƯA lọc, đưa vào `loc` thì bấm một chip xong các chip kia rỗng
+	hết và không bấm lại được.
+	"""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem hồ sơ thanh toán")
 	if tu and den:
 		loc = {"ngay": ["between", [str(tu), str(den)]]}
@@ -1484,7 +1552,18 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 	for o in ra:
 		dem[o["trang_thai"]] = dem.get(o["trang_thai"], 0) + 1
 		tien[o["trang_thai"]] = tien.get(o["trang_thai"], 0) + flt(o["tong_tien"])
+	# Chi bay chip cho nhung tai khoan CO THAT trong ky dang xem. Bay ca danh
+	# muc ngan hang thi phan lon chip bam vao ra rong.
+	tk_co = []
+	for o in ra:
+		t = (o.get("tk_chi") or "").strip()
+		if t and t not in tk_co:
+			tk_co.append(t)
+	tk_co.sort()
+
 	loc_ra = [o for o in ra if o["trang_thai"] == trang_thai] if trang_thai else ra
+	if tk_chi:
+		loc_ra = [o for o in loc_ra if (o.get("tk_chi") or "") == tk_chi]
 	return {
 		"rows": loc_ra,
 		"tong_dong": len(loc_ra),
@@ -1493,6 +1572,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		"dem": dem,
 		"tien": tien,
 		"trang_thai_co": THU_TU,
+		"tk_chi_co": tk_co,
 		"nhan": NHAN,
 		"quyen": {
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
@@ -3137,12 +3217,19 @@ def _to_app_html(name):
 
 
 @frappe.whitelist()
-def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None, loai_cp_thue=None):
-	"""Bộ hồ sơ ra Excel cho kế toán theo dõi: một dòng một hoá đơn."""
+def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None,
+		loai_cp_thue=None, tk_chi=None):
+	"""Bộ hồ sơ ra Excel cho kế toán theo dõi: một dòng một hoá đơn.
+
+	NHẬN ĐỦ MỌI Ô LỌC CỦA MÀN HÌNH. Tệp tải về phải đúng bằng cái đang bày
+	trên màn: xuất ra một bộ rộng hơn cái người ta đang nhìn là lặng lẽ đưa
+	nhầm số liệu, mà không ai đối chiếu lại.
+	"""
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xuất hồ sơ thanh toán")
 	kq = danh_sach(
 		trang_thai=trang_thai, ncc=ncc, tu=tu, den=den,
 		tu_khoa=tu_khoa, so_ngay=so_ngay, loai=loai, loai_cp_thue=loai_cp_thue,
+		tk_chi=tk_chi,
 	)
 	rows = kq["rows"]
 	chi_tiet_dong = {}

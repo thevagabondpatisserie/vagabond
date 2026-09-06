@@ -158,3 +158,156 @@ def loc_ncc(ds, tu_khoa):
 		return list(ds or [])
 	return [o for o in (ds or [])
 		if q in (str(o.get("ten") or "") + " " + str(o.get("ncc") or "")).lower()]
+
+# ---------------------------------------------------------------------------
+# GIOI HAN SO DONG CHO O CHON TAI KHOAN SO CAI
+# ---------------------------------------------------------------------------
+#
+# Tach ra thanh phep THUAN de co the GOI THAT trong ca kiem, chu khong chi do
+# chuoi trong ma nguon. Codex neu tren PR #207: ca kiem do chuoi khong chung
+# minh duoc gia tri dau vao chay ra sao.
+#
+# Lich su cua cho nay:
+#   Ban dau: `int(gioi_han or 40)`. Truyen 0 van ra 40, nen KHONG BAO GIO lay
+#   het danh muc duoc. Goi dung, nhan ve 40 dong, tuong la ca danh muc.
+#   Ban va lan mot: tach 0 ra rieng, nhung so AM lai lang le thanh "lay het",
+#   con chu khong phai so thi nem ValueError tho ra man hinh.
+#
+# Nay khai ro tung truong hop, va dau vao xau thi NEM LOI CO CHU chu khong
+# doan bua: doan bua o cho gioi han la kieu hong im lang nhat.
+
+HAN_TK_MAC_DINH = 40
+
+
+class GioiHanXau(ValueError):
+	"""Số dòng tối đa không đọc được. Người gọi đổi thành lời nhắn cho người dùng."""
+
+
+def gioi_han_tk(gioi_han):
+	"""Số dòng tối đa cho danh mục tài khoản. THUẦN.
+
+	  không truyền, None, chuỗi rỗng hay toàn khoảng trắng  ->  40 như cũ
+	  0 hoặc "0"                                            ->  0, tức LẤY HẾT
+	  số dương                                              ->  chính nó
+	  số âm, chữ không phải số                              ->  ném GioiHanXau
+
+	Số âm KHÔNG được coi là lấy hết. Trước đây nó lặng lẽ thành lấy hết, mà
+	một con số âm gửi lên thì gần như chắc chắn là chỗ gọi đang tính sai chứ
+	không phải người ta muốn cả danh mục.
+	"""
+	if gioi_han is None:
+		return HAN_TK_MAC_DINH
+	t = str(gioi_han).strip()
+	if t == "":
+		return HAN_TK_MAC_DINH
+	try:
+		han = int(t)
+	except (TypeError, ValueError):
+		# So thuc tron ("3.0") van nhan: JSON khong phan biet so nguyen voi
+		# so thuc, nen chan cho nay la chan nham chinh nguoi goi that tha.
+		try:
+			so = float(t)
+		except (TypeError, ValueError):
+			raise GioiHanXau(t)
+		# NaN va vo cung phai chan TRUOC khi ep sang so nguyen. Codex neu vong
+		# ba tren PR #207: "NaN" nem ValueError, con "Infinity" va "1e309" nem
+		# OverflowError ngay tai int(so). Hai loai loi do khong phai GioiHanXau
+		# nen no lot qua tay bat cua nguoi goi va roi thang len man hinh duoi
+		# dang mot dong loi Python tran. `so != so` la phep thu NaN, dung duoc
+		# ma khong can keo them thu vien.
+		if so != so or so in (float("inf"), float("-inf")):
+			raise GioiHanXau(t)
+		if so != int(so):
+			raise GioiHanXau(t)
+		han = int(so)
+	if han < 0:
+		raise GioiHanXau(t)
+	return han
+
+
+def loi_tk_khong_ghi_so_duoc(ma_tk, ho_so, cty_ct, vai="Nợ"):
+	"""Tài khoản này có ghi sổ được không. THUẦN.
+
+	Trả về None khi dùng được, trả về chuỗi lời báo khi không.
+
+	`ho_so` là bản ghi tài khoản đọc từ máy chủ NGAY LÚC LƯU, dạng
+	{"company": ..., "disabled": 0/1, "is_group": 0/1}, hoặc None khi không
+	có tài khoản đó.
+
+	Codex nêu vòng năm trên PR #211, và nêu đúng: bản trước chỉ đọc mỗi ô
+	company, nên một tài khoản đã ngưng dùng hoặc một tài khoản NHÓM vẫn lọt
+	qua cửa nhận. Ô chọn có lọc `disabled` và `is_group`, nhưng danh mục được
+	giữ lại suốt phiên, nên ai mở app từ sáng rồi kế toán khoá một tài khoản
+	lúc trưa thì chiều họ vẫn chọn được cái đã khoá. Phải đọc lại trạng thái
+	ở máy chủ ngay trước khi ghi, không tin bản danh mục ở máy người dùng.
+
+	Ba điều kiện này phải TRÙNG KHÍT với bộ lọc của `ds_tai_khoan`. Ô chọn
+	bày cái gì thì cửa nhận đúng cái đó, không rộng hơn không hẹp hơn.
+	"""
+	if not ma_tk:
+		return None
+	if ho_so is None:
+		return (
+			"Không có tài khoản %s trong hệ thống tài khoản. Mở lại ô chọn tài "
+			"khoản %s rồi chọn từ danh mục." % (ma_tk, vai)
+		)
+	loi = loi_tk_khac_cong_ty(ma_tk, ho_so.get("company"), cty_ct, vai)
+	if loi:
+		return loi
+	if _co(ho_so.get("disabled")):
+		return (
+			"Tài khoản %s đã ngưng dùng, không ghi sổ vào đó được nữa. Chọn "
+			"tài khoản %s khác trong danh mục. Nếu tài khoản này lẽ ra vẫn "
+			"phải dùng thì nhờ kế toán kiểm tra lại cấu hình hệ thống tài "
+			"khoản." % (ma_tk, vai)
+		)
+	if _co(ho_so.get("is_group")):
+		return (
+			"Tài khoản %s là tài khoản nhóm, chỉ để gom các tài khoản con chứ "
+			"không ghi sổ thẳng vào được. Chọn một tài khoản %s con nằm trong "
+			"nhóm đó." % (ma_tk, vai)
+		)
+	return None
+
+
+def _co(v):
+	"""Ô đánh dấu của Frappe về được 0/1, "0"/"1", True/False hay None."""
+	if v is None:
+		return False
+	if isinstance(v, bool):
+		return v
+	try:
+		return int(v) != 0
+	except (TypeError, ValueError):
+		return str(v).strip().lower() in ("true", "yes", "1")
+
+
+def loi_tk_khac_cong_ty(ma_tk, cty_tk, cty_ct, vai="Nợ"):
+	"""Lời báo khi tài khoản không thuộc công ty của chứng từ. THUẦN.
+
+	Trả về None khi hợp lệ, trả về chuỗi lời báo khi lệch. Tách ra đây để ca
+	kiểm gọi thật được, và để ô chọn với cửa nhận dữ liệu dùng CHUNG một câu.
+
+	Codex nêu vòng ba trên PR #207, và nêu đúng: bút toán lấy công ty từ
+	`Global Defaults.default_company`, còn danh mục tài khoản lại không lọc
+	theo công ty. Ngày 06/09/2026 site thật có 158 tài khoản đang dùng thì 14
+	tài khoản đuôi "- TVD" thuộc công ty demo. Chọn nhầm một tài khoản như vậy
+	thì lưu vẫn qua, duyệt vẫn qua, tới lúc ghi sổ mới vỡ bằng lời báo của
+	ERPNext, tức là vỡ ở chỗ xa nhất so với chỗ gây ra.
+	"""
+	if not ma_tk:
+		return None
+	if not cty_ct:
+		return None
+	if (cty_tk or "") == cty_ct:
+		return None
+	# KHONG huong nguoi dung di doi cong ty cua tai khoan. Codex neu vong bon
+	# tren PR #207, va neu dung: doi o Company cua mot tai khoan la viec dong
+	# toi so cai, khong phai cach chua mac dinh cho mot lan chon nham.
+	return (
+		"Tài khoản %s là %s của công ty %s, không phải %s. Chọn lại tài khoản "
+		"%s thuộc %s trong danh mục. Nếu danh mục không có tài khoản nào đúng "
+		"cho khoản chi này thì nhờ kế toán kiểm tra lại cấu hình hệ thống tài "
+		"khoản, đừng ghi sổ bằng tài khoản của công ty khác."
+		% (ma_tk, vai, cty_tk or "một công ty khác", cty_ct, vai, cty_ct)
+	)

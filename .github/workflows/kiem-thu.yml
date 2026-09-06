@@ -51,3 +51,10 @@ jobs:
 
       - name: 5. Doi chieu app_bep.js voi cac phan trong bep
         run: python3 dung_app_bep.py --kiem
+
+      # Buoc 6 CHAY THAT chuoi bam tren man hinh bang mot DOM gia viet tay,
+      # khong can npm, khong tai goi nao. Nam buoc tren chi doc ma nguon.
+      # Codex neu tren PR #207: do chuoi trong ma nguon khong chung minh duoc
+      # hanh vi. Node co san tren may nay, buoc 2 da dung roi.
+      - name: 6. Bo ca kiem hanh vi man ho so thanh toan
+        run: node vagabond/khung/kiem_thu/hanh_vi/chay.js
