@@ -542,41 +542,71 @@ RA({truoc:truoc, picked_van_la:picked, sau:mocGioNhan()});
 	la("nhung moc gio van neo o 08/09", r["sau"], "2026-09-08T13:00:00")
 
 
-DOC_NGAY = """
+DOC_NGAY = r"""
 function ngaySum(){ return (EL('#sum').innerHTML.match(/Nhận ngày<\/span><b>([^<]*)<\/b>/)||[])[1]; }
 function ngayThe(){ return (EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1]; }
 """
 
-# Moi ca goi `_chay` mot lan, ma moi lan `_chay` la MOT tien trinh node moi,
-# tuc la mot may ao sach. Nen bon loi vao duoi day khong the muon trang thai
-# cua nhau.
-NEN_QUA_NUA_DEM = GIO_HANG + DON_GUI + I13 + DOC_NGAY + """
+# Mỗi ca gọi `_chay` một lần, mà mỗi lần `_chay` là MỘT tiến trình node mới,
+# tức là một máy ảo sạch. Nên bốn lối vào dưới đây không thể mượn trạng thái
+# của nhau.
+NEN_DAT_LICH = GIO_HANG + DON_GUI + I13 + DOC_NGAY + """
 pick(2); pickSlot(i13);
+"""
+
+NEN_TUA_DONG_HO = """
 openCoUI();
 var truoc={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
 DAT('2026-09-07T00:01:00');
+/* Đọc độ lệch NGAY TRƯỚC lời gọi đang kiểm. Nó phải còn là 2, tức là chưa ai
+   đồng bộ lại ngày sau khi tua đồng hồ. Về 1 nghĩa là có thứ gì đó đã sửa hộ,
+   và ca kiểm không còn kiểm được lối vào tự nó nữa. */
+var picked_truoc_thao_tac = picked;
 """
 
 
-def _canh_mot_loi_vao(thao_tac, them=""):
+def _canh_mot_loi_vao(loi_vao, them="", dung_truoc="", dat_lai_ghi=False):
 	"""Dựng lại đúng một lối vào drawCo, trên một máy ảo riêng.
 
-	Kịch bản: 23h59 chọn D+2 khung 13h, mở checkout, tua sang 00h01 hôm sau,
-	rồi gọi ĐÚNG MỘT thao tác. Không gọi lại openCoUI, renderRail hay
-	drawCoDate, vì ba hàm đó có đồng bộ ngày nên sẽ che mất lối đang kiểm.
+	Kịch bản: 23h59 chọn D+2 khung 13h, dựng sẵn bối cảnh cần thiết, mở
+	checkout, tua sang 00h01 hôm sau, rồi gọi ĐÚNG MỘT lời gọi.
+
+	`loi_vao` bắt buộc là MỘT lời gọi, không dấu chấm phẩy, không xuống dòng.
+	Ràng buộc này có thật chứ không phải lời dặn suông: Codex đo trên bản
+	trước rằng `setMode('pick'); setPickup(1);` chạy nối nhau thì setMode đã
+	kéo `picked` từ 2 về 1 trước khi tới setPickup, tức là ca kiểm đang được
+	thao tác trước sửa hộ. Nay viết như vậy là hỏng ngay tại đây, không phải
+	đợi ai đọc kỹ mới thấy.
+
+	`dung_truoc` chạy TRƯỚC lúc tua đồng hồ. Mọi thứ cần đặt sẵn nằm ở đó.
+
+	Kết quả `sau` được đọc TRƯỚC khi gọi submitOrder, để submit không sửa
+	trạng thái giúp rồi ca kiểm lại tưởng là lối vào đã đúng.
 	"""
-	return _chay("2026-09-06T23:59:00", NEN_QUA_NUA_DEM + thao_tac + """
+	goi = loi_vao.strip()
+	if ";" in goi or "\n" in goi or goi.count("(") != 1:
+		raise AssertionError(
+			"`loi_vao` phải là ĐÚNG MỘT lời gọi, ví dụ \"setPickup(1)\". "
+			"Nhận được: %r. Thứ cần đặt sẵn thì đưa vào `dung_truoc`, chạy "
+			"trước lúc tua đồng hồ." % (loi_vao,)
+		)
+	thao_tac = ("GHI.goiMang.length=0;\n" if dat_lai_ghi else "") + goi + ";\n"
+	return _chay("2026-09-06T23:59:00",
+		NEN_DAT_LICH + dung_truoc + NEN_TUA_DONG_HO + thao_tac + """
 var sau={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
 """ + them + """
 GHI.goiMang.length=0; submitOrder();
 var don=donDaGui();
 RA({truoc:truoc, sau:sau, ngay_nhan:don?don.ngay_nhan:null,
+    picked_truoc:picked_truoc_thao_tac,
     sum_luc_gui:ngaySum(), them:(typeof rieng==='undefined'?null:rieng)});
 """)
 
 
 def _soi_mot_loi_vao(r):
 	"""Ba chỗ hiện ngày và cái đơn gửi đi phải cùng nói 08/09."""
+	# Canh trước đã: không thao tác nào đồng bộ hộ thao tác đang kiểm.
+	la("chưa có gì đồng bộ hộ, độ lệch vẫn còn cũ", r["picked_truoc"], 2)
 	la("trước nửa đêm thẻ lịch ghi 08/09", "08/09" in r["truoc"]["the"], True)
 	la("trước nửa đêm tổng kết ghi 08/09", r["truoc"]["sum"], "08/09 · 13h - 15h")
 	la("sau nửa đêm thẻ lịch VẪN 08/09", "08/09" in r["sau"]["the"], True)
@@ -597,39 +627,42 @@ def _qua_nua_dem_khong_mo_lai():
 	# Ca này CÓ Ý không gọi openCoUI, renderRail hay drawCoDate sau khi tua
 	# đồng hồ. Ca _qua_nua_dem ở dưới gọi openCoUI ngay sau khi tua, nên nó
 	# che mất đường lỗi này.
-	_soi_mot_loi_vao(_canh_mot_loi_vao("""
-CO.mode='pick'; CO.pickup=0;
-setPay('card');            /* gọi THẲNG drawCo, KHÔNG mở lại checkout */
-"""))
+	# Gọi THẲNG drawCo, KHÔNG mở lại checkout.
+	_soi_mot_loi_vao(_canh_mot_loi_vao(
+		"setPay('card')", dung_truoc="CO.mode='pick'; CO.pickup=0;\n"))
 
 
-# Bon loi vao duoi day tach thanh bon ca RIENG, moi ca mot may ao. Codex neu
-# tren PR #212: gop bon thao tac noi tiep thi thao tac dau tien da dong bo lai
-# ngay, cac thao tac sau duoc huong trang thai da sua, nen ca kiem khong con
-# chung minh duoc tung loi vao tu no da dung.
+# Bốn lối vào dưới đây tách thành bốn ca RIÊNG, mỗi ca một máy ảo. Codex nêu
+# trên PR #212: gộp bốn thao tác nối tiếp thì thao tác đầu tiên đã đồng bộ lại
+# ngày, các thao tác sau được hưởng trạng thái đã sửa, nên ca kiểm không còn
+# chứng minh được từng lối vào tự nó đã đúng. Mọi thứ cần đặt sẵn đều nằm
+# trong `dung_truoc`, tức là trước lúc tua đồng hồ.
 
 @ca("#205 lối setPay gọi thẳng drawCo: vẫn đúng ngày đã neo")
 def _loi_vao_set_pay():
-	_soi_mot_loi_vao(_canh_mot_loi_vao("setPay('card');\n"))
+	_soi_mot_loi_vao(_canh_mot_loi_vao("setPay('card')"))
 
 
 @ca("#205 lối setPickup gọi thẳng drawCo: vẫn đúng ngày đã neo")
 def _loi_vao_set_pickup():
-	_soi_mot_loi_vao(_canh_mot_loi_vao("setMode('pick'); setPickup(1);\n"))
+	# Chế độ tự lấy đặt SẴN từ trước khi tua đồng hồ. Bản trước gọi
+	# `setMode('pick')` sau khi tua, mà setMode đi vào drawCo và đồng bộ ngày,
+	# nên tới lượt setPickup thì trạng thái đã được sửa hộ rồi.
+	_soi_mot_loi_vao(_canh_mot_loi_vao(
+		"setPickup(1)", dung_truoc="setMode('pick');\n"))
 
 
 @ca("#205 lối setMode gọi thẳng drawCo: vẫn đúng ngày đã neo")
 def _loi_vao_set_mode():
-	_soi_mot_loi_vao(_canh_mot_loi_vao("setMode('ship');\n"))
+	_soi_mot_loi_vao(_canh_mot_loi_vao("setMode('ship')"))
 
 
 @ca("#205 callback phí giao chạy MỘT MÌNH: hỏi phí đúng mốc đã neo")
 def _loi_vao_quote_ship():
-	# Callback phi la loi vao de bi bo sot nhat: no chay khi may chu tra ve,
-	# tuc la sau ca doan im lang, va no goi drawCo() de ve lai bang tong ket.
-	# Chay mot minh, khong co thao tac nao dong bo ngay ho no.
-	r = _canh_mot_loi_vao("""
-GHI.goiMang.length=0; quoteShip();
+	# Callback phí là lối vào dễ bị bỏ sót nhất: nó chạy khi máy chủ trả về,
+	# tức là sau cả đoạn im lặng, và nó gọi drawCo() để vẽ lại bảng tổng kết.
+	# Chạy một mình, không có thao tác nào đồng bộ ngày hộ nó.
+	r = _canh_mot_loi_vao("quoteShip()", dat_lai_ghi=True, them=r"""
 var url=GHI.goiMang.map(function(g){return g.url;}).join(' ');
 var rieng={luc_giao:decodeURIComponent((url.match(/luc_giao=([^&]*)/)||[])[1]||'')};
 """)
