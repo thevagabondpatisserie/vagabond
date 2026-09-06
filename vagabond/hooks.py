@@ -447,11 +447,28 @@ doc_events = {
 	# sai kho, ma sai kho thi tru nham ton cua bep khac, khong ai thay cho
 	# toi luc kiem ke.
 	"Work Order": {
+		# Ma lenh LSX-ddmmyy-nnnnnn, duoi so tang LIEN TUC qua ngay (anh Viet
+		# 06/09/2026, #206). Dat o autoname chu khong o before_insert:
+		# before_insert chay SAU khi Frappe da chot ten, doi ten o do la
+		# khong an. Doc dau tep vagabond/ma_phieu_sx.py de biet vi sao chuoi
+		# naming_series khong lam duoc viec nay.
+		"autoname": "vagabond.ma_phieu_sx.dat_ten_lenh",
 		# Dien san ba o kho theo mon va bep, chi dien o dang TRONG. Dat o
 		# before_validate vi ERPNext dung ba o do de dung bang nguyen lieu
 		# NGAY TRONG validate; dien muon hon la bang do da dung xong.
 		"before_validate": "vagabond.kho_san_xuat.gan_kho_lenh",
 		"validate": "vagabond.kho_san_xuat.gan_kho_nguon",
+	},
+	# Ma lo LO-yymmdd-nnnnnn, cung mot bo dem lien tuc, dung chung cho thanh
+	# pham va ban thanh pham.
+	#
+	# HAI hook chu khong mot: before_naming ghi nho NGUOI co go so lo hay
+	# khong, vi toi luc autoname chay thi ERPNext da tu dien `batch_id` tu
+	# chuoi cua ma hang roi, khong con phan biet duoc nua. Lo mang so nha
+	# cung cap (661 tren 750 lo dang co) phai duoc giu nguyen.
+	"Batch": {
+		"before_naming": "vagabond.ma_phieu_sx.nho_nguoi_go_lo",
+		"autoname": "vagabond.ma_phieu_sx.dat_ten_lo",
 	},
 	# Hoa don mua DICH VU: gom ve mot dong, so lay tu DAU hoa don dien tu.
 	#
