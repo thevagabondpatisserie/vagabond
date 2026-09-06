@@ -106,6 +106,14 @@ Object.defineProperty(ElementGia.prototype, 'innerHTML', {
   get: function () { return this._html == null ? '' : this._html; },
   set: function (v) {
     this._html = String(v == null ? '' : v);
+    /* PHAI don con cu TRUOC khi doc lai. `doc()` day thang vao
+       `cha.children`, nen khong don thi ve lai mot khoi la con cu con
+       nguyen va con moi nam ke ben: dem so phan tu ra gap doi, ma ca kiem
+       nao chi hoi "co ton tai khong" thi van xanh. Bat duoc ngay 06/09/2026
+       khi viet ca kiem loc trong tam truot chon ben nhan tien: go tim xong
+       dem duoc 4 dong trong khi chi con dung 1 dong khop. */
+    this.children = [];
+    this._chu = '';
     this.children = doc(this._html, this);
   },
 });
@@ -138,10 +146,18 @@ function chonThuocTinh(chon) {
 }
 
 /* Bo chon. Chi ba dang, dung het cho man bep can toi: [thuoc-tinh], #id,
-   .lop. Gap dang khac thi NEM LOI chu khong lang le tra ve rong, vi mot bo
-   chon go sai ma tra ve rong se lam ca kiem xanh oan. */
+   .lop, va DANH SACH cac dang do ngan bang dau phay - `huNoiBang` uy quyen
+   bam bang mot danh sach muoi mot bo chon nhu vay. Gap dang khac thi NEM
+   LOI chu khong lang le tra ve rong, vi mot bo chon go sai ma tra ve rong
+   se lam ca kiem xanh oan. */
 function hopBoChon(el, chon) {
   var t = String(chon).trim();
+  if (t.indexOf(',') >= 0) {
+    return t.split(',').some(function (m) {
+      m = m.trim();
+      return m ? hopBoChon(el, m) : false;
+    });
+  }
   var m = /^\[([a-zA-Z0-9_-]+)\]$/.exec(t);
   if (m) return el.hasAttribute(m[1]);
   if (t.charAt(0) === '#') return el.getAttribute('id') === t.slice(1);
@@ -149,7 +165,7 @@ function hopBoChon(el, chon) {
     var lop = String(el.getAttribute('class') || '').split(/\s+/);
     return lop.indexOf(t.slice(1)) >= 0;
   }
-  throw new Error('DOM gia chi hieu [thuoc-tinh], #id va .lop, khong hieu: ' + chon);
+  throw new Error('DOM gia chi hieu [thuoc-tinh], #id, .lop va danh sach ngan bang dau phay, khong hieu: ' + chon);
 }
 
 /* Doc HTML. Du cho markup ma man bep sinh ra: the mo co thuoc tinh trong nhay
