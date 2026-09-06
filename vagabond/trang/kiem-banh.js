@@ -160,6 +160,12 @@
 					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true)
 					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true)
 					+ o(d, "sx", "Bếp làm " + NGAY_CHON.slice(8, 10) + "/" + NGAY_CHON.slice(5, 7), d.sx, true)
+					/* Cột Huỷ, gõ tay (anh Việt 06/09/2026, hướng A của issue #216).
+					   Đặt ngay sau Bếp làm để bốn ô gõ tay nằm liền nhau, và trước
+					   khối màu xanh của các cột máy đếm. Huỷ trừ vào BÁN ĐƯỢC, và
+					   lúc chốt ngày nó ăn vào lô hàng y hệt bánh bán ra. Vỏ BTP thì
+					   KHÔNG trừ theo huỷ - xem kiem_banh.chot_ngay. */
+					+ o(d, "huy", "Huỷ", d.huy, true, "huy")
 					+ o(d, "da_dat", "Đã đặt", d.da_dat, false)
 					+ o(d, "phat_sinh", "Phát sinh", d.phat_sinh, false)
 					+ oKhach("Khách phát sinh", d.ten_khach_ps)
@@ -184,7 +190,7 @@
 	   khong the lo tay lam mat so cua bep hay cua sales. Han bao 03/08/2026:
 	   so co hai dong rac la BAWC00025 va mot dong ten dung "BAWC". */
 	function trongTron(d) {
-		return !(d.ton_cu || d.ton_d2 || d.ton_d1 || d.sx || d.da_dat || d.phat_sinh || d.cho_chot || d.don_khac);
+		return !(d.ton_cu || d.ton_d2 || d.ton_d1 || d.sx || d.huy || d.da_dat || d.phat_sinh || d.cho_chot || d.don_khac);
 	}
 
 	function nutXoa(d) {
@@ -263,13 +269,14 @@
 		});
 	}
 
-	function o(d, truong, nhan, gt, sua) {
+	function o(d, truong, nhan, gt, sua, lop) {
 		var id = d.ma_hang + "|" + truong;
+		var them = lop ? " " + lop : "";
 		if (DANG_SUA === id) {
-			return '<div class="kb-o dang"><label>' + nhan + '</label>'
+			return '<div class="kb-o dang' + them + '"><label>' + nhan + '</label>'
 				+ '<input id="kb-inp" type="number" min="0" inputmode="numeric" value="' + (gt || 0) + '">' + nutOK() + '</div>';
 		}
-		return '<div class="kb-o' + (sua ? " sua" : "") + '" data-id="' + id + '">'
+		return '<div class="kb-o' + (sua ? " sua" : "") + them + (lop && gt ? " co" : "") + '" data-id="' + id + '">'
 			+ "<label>" + nhan + "</label><b>" + (gt || 0) + "</b></div>";
 	}
 
