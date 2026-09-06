@@ -649,23 +649,40 @@ def _gan_chang_theo_ten(chay_that=0, gioi_han=1000):
 	return ra
 
 
-def doi_ma_cu_sang_chu():
-	"""Đổi mã máy còn sót trong ô "Chặng bán thành phẩm" sang chữ. Gọi sau migrate.
+@frappe.whitelist()
+def soat_ma_chang_cu():
+	"""ĐẾM những hồ sơ món còn mang mã máy cũ trong ô "Chặng bán thành phẩm".
 
-	Chỉ chạm đúng những hồ sơ món đang mang `btp_so_cap` hay `btp_san_sang`
-	trong ô này, đổi sang chữ tương ứng để hồ sơ vẫn lưu được sau khi danh
-	sách lựa chọn đã đổi sang chữ. Không đổi chặng của món nào: mã và chữ
-	cùng nghĩa, `ma_chang_khai_tay` đọc ra cùng một chặng. Lặp lại được, lần
-	hai không còn gì để đổi. Đo trên site 06/09/2026: 0 hồ sơ.
+	CHỈ ĐỌC. Không sửa hồ sơ nào.
+
+	Vòng trước có một hàm `doi_ma_cu_sang_chu()` chạy tự động sau migrate,
+	ghi thẳng vào ô này của mọi Item còn mang mã cũ. Đã gỡ. Lý do:
+
+	1. Anh Việt chốt 13/08/2026, và AGENTS.md điều 11 chép lại: không tự sửa
+	   dữ liệu cũ, phát hiện sai sót thì LIỆT KÊ cho anh Việt.
+	2. Đo được 0 hồ sơ tại một thời điểm không bảo đảm 0 hồ sơ lúc deploy.
+	   Người ta có thể khai tay thêm giữa hai mốc đó.
+	3. Không cần sửa dữ liệu thì phần app vẫn chạy đúng: `ma_chang_khai_tay`
+	   nhận CẢ mã máy cũ lẫn chữ mới và trả về cùng một chặng, nên lệnh sản
+	   xuất chọn kho không hề lệch vì mã cũ.
+
+	Còn lại đúng một rủi ro, và là rủi ro của người chứ không phải của máy:
+	ô này là Select, hồ sơ nào còn mang mã cũ mà có người mở ra sửa rồi lưu
+	bên Desk thì giá trị cũ có thể bị bỏ trắng. Hàm này để anh Việt biết
+	CÓ BAO NHIÊU hồ sơ như vậy rồi tự quyết, chứ máy không tự đổi.
 	"""
-	ra = {"doi": 0, "ma": []}
-	for cu, moi in MA_CU_SANG_CHU.items():
+	_chan()
+	ra = {"tong": 0, "theo_ma": {}}
+	for cu in MA_CU_SANG_CHU:
 		ds = frappe.get_all("Item", filters={"custom_chang_btp": cu}, pluck="name")
-		for ma in ds:
-			frappe.db.set_value("Item", ma, "custom_chang_btp", moi, update_modified=False)
-			frappe.clear_document_cache("Item", ma)
-		ra["doi"] += len(ds)
-		ra["ma"].extend(ds)
+		ra["theo_ma"][cu] = ds
+		ra["tong"] += len(ds)
+	ra["ghi_chu"] = (
+		"%d hồ sơ món còn mang mã máy cũ trong ô Chặng bán thành phẩm. "
+		"Máy KHÔNG tự đổi. App vẫn đọc đúng chặng của các mã cũ này; chỉ khi "
+		"có người mở hồ sơ ra sửa và lưu bên Desk thì giá trị cũ mới có thể "
+		"bị bỏ trắng. Muốn dọn thì báo anh Việt quyết, đừng để máy tự ghi."
+		% ra["tong"])
 	return ra
 
 
