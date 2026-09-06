@@ -113,6 +113,10 @@ python3 dung_app_bep.py --kiem
 echo "[10/10] Bo ca kiem HANH VI man ho so thanh toan (DOM gia)..."
 node vagabond/khung/kiem_thu/hanh_vi/chay.js
 
+# Man "Nhan hang" dieu chuyen noi bo. Truoc 06/09/2026 man nay tu chon lo o
+# trinh duyet va giau mat lo qua han, bep bi bao thieu hang trong khi kho con.
+node vagabond/khung/kiem_thu/hanh_vi/chay_nhan_hang.js
+
 echo ""
 echo "=============================================="
 echo " DAT HET tang khung. Duoc phep deploy."
