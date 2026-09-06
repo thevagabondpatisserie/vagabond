@@ -160,10 +160,11 @@
 					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true)
 					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true)
 					+ o(d, "sx", "Bếp làm " + NGAY_CHON.slice(8, 10) + "/" + NGAY_CHON.slice(5, 7), d.sx, true)
-					/* Cot Huy, go tay (anh Viet 06/09/2026, huong A cua issue #216).
-					   Dat ngay sau Bep lam de bon o go tay nam lien nhau, va truoc
-					   khoi mau xanh cua cac cot may dem. Huy tru vao BAN DUOC, va
-					   luc chot ngay no an vao lo hang y het banh ban ra. */
+					/* Cột Huỷ, gõ tay (anh Việt 06/09/2026, hướng A của issue #216).
+					   Đặt ngay sau Bếp làm để bốn ô gõ tay nằm liền nhau, và trước
+					   khối màu xanh của các cột máy đếm. Huỷ trừ vào BÁN ĐƯỢC, và
+					   lúc chốt ngày nó ăn vào lô hàng y hệt bánh bán ra. Vỏ BTP thì
+					   KHÔNG trừ theo huỷ - xem kiem_banh.chot_ngay. */
 					+ o(d, "huy", "Huỷ", d.huy, true, "huy")
 					+ o(d, "da_dat", "Đã đặt", d.da_dat, false)
 					+ o(d, "phat_sinh", "Phát sinh", d.phat_sinh, false)
