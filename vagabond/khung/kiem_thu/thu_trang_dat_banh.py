@@ -494,6 +494,11 @@ def _qua_nua_dem():
 	# picked chi la do lech so voi "hom nay", ma "hom nay" doi luc nua dem.
 	# 23:59 chon D+2 ra 08/09, 00:01 hom sau payload thanh 09/09 trong khi the
 	# tom tat van ghi 08/09. Neo ngay that lai thi hai cho khong the lech.
+	#
+	# LƯU Ý: ca này gọi openCoUI() ngay sau khi tua đồng hồ, mà openCoUI có
+	# đồng bộ lại ngày, nên nó CHE MẤT đường khách không mở lại checkout. Đó
+	# là lý do bảng tổng kết vẫn lệch sau khi merge #208. Đường đó có ca kiểm
+	# riêng ở trên, đừng sửa ca này thành có mở lại.
 	r = _chay("2026-09-06T23:59:00", GIO_HANG + DON_GUI + I13 + r"""
 pick(2); pickSlot(i13);
 openCoUI();
@@ -535,6 +540,154 @@ RA({truoc:truoc, picked_van_la:picked, sau:mocGioNhan()});
 	la("truoc nua dem la 08/09", r["truoc"], "2026-09-08T13:00:00")
 	la("do lech van con nguyen", r["picked_van_la"], 2)
 	la("nhung moc gio van neo o 08/09", r["sau"], "2026-09-08T13:00:00")
+
+
+DOC_NGAY = r"""
+function ngaySum(){ return (EL('#sum').innerHTML.match(/Nhận ngày<\/span><b>([^<]*)<\/b>/)||[])[1]; }
+function ngayThe(){ return (EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1]; }
+"""
+
+# Mỗi ca gọi `_chay` một lần, mà mỗi lần `_chay` là MỘT tiến trình node mới,
+# tức là một máy ảo sạch. Nên bốn lối vào dưới đây không thể mượn trạng thái
+# của nhau.
+NEN_DAT_LICH = GIO_HANG + DON_GUI + I13 + DOC_NGAY + """
+pick(2); pickSlot(i13);
+"""
+
+NEN_TUA_DONG_HO = """
+openCoUI();
+var truoc={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+DAT('2026-09-07T00:01:00');
+/* Đọc độ lệch NGAY TRƯỚC lời gọi đang kiểm. Nó phải còn là 2, tức là chưa ai
+   đồng bộ lại ngày sau khi tua đồng hồ. Về 1 nghĩa là có thứ gì đó đã sửa hộ,
+   và ca kiểm không còn kiểm được lối vào tự nó nữa. */
+var picked_truoc_thao_tac = picked;
+"""
+
+
+def _canh_mot_loi_vao(loi_vao, them="", dung_truoc="", dat_lai_ghi=False):
+	"""Dựng lại đúng một lối vào drawCo, trên một máy ảo riêng.
+
+	Kịch bản: 23h59 chọn D+2 khung 13h, dựng sẵn bối cảnh cần thiết, mở
+	checkout, tua sang 00h01 hôm sau, rồi gọi ĐÚNG MỘT lời gọi.
+
+	`loi_vao` bắt buộc là MỘT lời gọi, không dấu chấm phẩy, không xuống dòng.
+	Ràng buộc này có thật chứ không phải lời dặn suông: Codex đo trên bản
+	trước rằng `setMode('pick'); setPickup(1);` chạy nối nhau thì setMode đã
+	kéo `picked` từ 2 về 1 trước khi tới setPickup, tức là ca kiểm đang được
+	thao tác trước sửa hộ. Nay viết như vậy là hỏng ngay tại đây, không phải
+	đợi ai đọc kỹ mới thấy.
+
+	`dung_truoc` chạy TRƯỚC lúc tua đồng hồ. Mọi thứ cần đặt sẵn nằm ở đó.
+
+	Kết quả `sau` được đọc TRƯỚC khi gọi submitOrder, để submit không sửa
+	trạng thái giúp rồi ca kiểm lại tưởng là lối vào đã đúng.
+	"""
+	goi = loi_vao.strip()
+	if ";" in goi or "\n" in goi or goi.count("(") != 1:
+		raise AssertionError(
+			"`loi_vao` phải là ĐÚNG MỘT lời gọi, ví dụ \"setPickup(1)\". "
+			"Nhận được: %r. Thứ cần đặt sẵn thì đưa vào `dung_truoc`, chạy "
+			"trước lúc tua đồng hồ." % (loi_vao,)
+		)
+	thao_tac = ("GHI.goiMang.length=0;\n" if dat_lai_ghi else "") + goi + ";\n"
+	return _chay("2026-09-06T23:59:00",
+		NEN_DAT_LICH + dung_truoc + NEN_TUA_DONG_HO + thao_tac + """
+var sau={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+""" + them + """
+GHI.goiMang.length=0; submitOrder();
+var don=donDaGui();
+RA({truoc:truoc, sau:sau, ngay_nhan:don?don.ngay_nhan:null,
+    picked_truoc:picked_truoc_thao_tac,
+    sum_luc_gui:ngaySum(), them:(typeof rieng==='undefined'?null:rieng)});
+""")
+
+
+def _soi_mot_loi_vao(r):
+	"""Ba chỗ hiện ngày và cái đơn gửi đi phải cùng nói 08/09."""
+	# Canh trước đã: không thao tác nào đồng bộ hộ thao tác đang kiểm.
+	la("chưa có gì đồng bộ hộ, độ lệch vẫn còn cũ", r["picked_truoc"], 2)
+	la("trước nửa đêm thẻ lịch ghi 08/09", "08/09" in r["truoc"]["the"], True)
+	la("trước nửa đêm tổng kết ghi 08/09", r["truoc"]["sum"], "08/09 · 13h - 15h")
+	la("sau nửa đêm thẻ lịch VẪN 08/09", "08/09" in r["sau"]["the"], True)
+	la("sau nửa đêm tổng kết VẪN 08/09", r["sau"]["sum"], "08/09 · 13h - 15h")
+	la("mốc giờ nhận vẫn 08/09", r["sau"]["moc"], "2026-09-08T13:00:00")
+	la("đơn gửi đi đúng 08/09", r["ngay_nhan"], "2026-09-08T13:00:00")
+	la("và tổng kết lúc bấm gửi cũng 08/09", r["sum_luc_gui"], "08/09 · 13h - 15h")
+
+
+@ca("#205 qua nửa đêm mà khách chỉ đổi thanh toán: tổng kết vẫn đúng ngày")
+def _qua_nua_dem_khong_mo_lai():
+	# Codex tái hiện được trên main sau khi merge #208: dongBoNgay() chỉ được
+	# gọi trên đường lịch, mở giỏ hàng và trước khi gửi. drawCo() thì tự tính
+	# new Date() + picked, mà setPay, setPickup, setMode và callback phí gọi
+	# THẲNG vào drawCo(). Qua nửa đêm, khách chỉ bấm đổi phương thức thanh
+	# toán là bảng tổng kết ghi một ngày, thẻ lịch và đơn ghi ngày khác.
+	#
+	# Ca này CÓ Ý không gọi openCoUI, renderRail hay drawCoDate sau khi tua
+	# đồng hồ. Ca _qua_nua_dem ở dưới gọi openCoUI ngay sau khi tua, nên nó
+	# che mất đường lỗi này.
+	# Gọi THẲNG drawCo, KHÔNG mở lại checkout.
+	_soi_mot_loi_vao(_canh_mot_loi_vao(
+		"setPay('card')", dung_truoc="CO.mode='pick'; CO.pickup=0;\n"))
+
+
+# Bốn lối vào dưới đây tách thành bốn ca RIÊNG, mỗi ca một máy ảo. Codex nêu
+# trên PR #212: gộp bốn thao tác nối tiếp thì thao tác đầu tiên đã đồng bộ lại
+# ngày, các thao tác sau được hưởng trạng thái đã sửa, nên ca kiểm không còn
+# chứng minh được từng lối vào tự nó đã đúng. Mọi thứ cần đặt sẵn đều nằm
+# trong `dung_truoc`, tức là trước lúc tua đồng hồ.
+
+@ca("#205 lối setPay gọi thẳng drawCo: vẫn đúng ngày đã neo")
+def _loi_vao_set_pay():
+	_soi_mot_loi_vao(_canh_mot_loi_vao("setPay('card')"))
+
+
+@ca("#205 lối setPickup gọi thẳng drawCo: vẫn đúng ngày đã neo")
+def _loi_vao_set_pickup():
+	# Chế độ tự lấy đặt SẴN từ trước khi tua đồng hồ. Bản trước gọi
+	# `setMode('pick')` sau khi tua, mà setMode đi vào drawCo và đồng bộ ngày,
+	# nên tới lượt setPickup thì trạng thái đã được sửa hộ rồi.
+	_soi_mot_loi_vao(_canh_mot_loi_vao(
+		"setPickup(1)", dung_truoc="setMode('pick');\n"))
+
+
+@ca("#205 lối setMode gọi thẳng drawCo: vẫn đúng ngày đã neo")
+def _loi_vao_set_mode():
+	_soi_mot_loi_vao(_canh_mot_loi_vao("setMode('ship')"))
+
+
+@ca("#205 callback phí giao chạy MỘT MÌNH: hỏi phí đúng mốc đã neo")
+def _loi_vao_quote_ship():
+	# Callback phí là lối vào dễ bị bỏ sót nhất: nó chạy khi máy chủ trả về,
+	# tức là sau cả đoạn im lặng, và nó gọi drawCo() để vẽ lại bảng tổng kết.
+	# Chạy một mình, không có thao tác nào đồng bộ ngày hộ nó.
+	r = _canh_mot_loi_vao("quoteShip()", dat_lai_ghi=True, them=r"""
+var url=GHI.goiMang.map(function(g){return g.url;}).join(' ');
+var rieng={luc_giao:decodeURIComponent((url.match(/luc_giao=([^&]*)/)||[])[1]||'')};
+""")
+	_soi_mot_loi_vao(r)
+	la("callback phí hỏi đúng mốc đã neo", r["them"]["luc_giao"], "2026-09-08T13:00:00")
+
+
+@ca("#205 không còn chỗ nào tự ghép ngày từ độ lệch nữa")
+def _mot_nguon_duy_nhat():
+	# Gốc của cả hai lần lệch ngày là có NHIỀU chỗ cùng tự tính
+	# new Date() + picked. Nay chỉ còn MỘT cửa là ngayDangChon().
+	dung("không còn chỗ nào ghép offset", "d.setDate(t.getDate()+picked)" not in TRANG)
+	dung("có hàm lấy ngày đang chọn", "function ngayDangChon()" in TRANG)
+	dung("drawCo dùng hàm đó", "const d=ngayDangChon();" in TRANG)
+	# Và phép thuần ngayTuNeo phải ưu tiên ngày đã neo.
+	ra = _node(_ham("ngayTuNeo") + r"""
+var a=ngayTuNeo('2026-09-08', 99);          /* có neo thì bỏ qua độ lệch */
+var b=ngayTuNeo(null, 2, new Date(2026,8,6)); /* không neo thì tính từ độ lệch */
+var c=ngayTuNeo('khong-phai-ngay', 2, new Date(2026,8,6));
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+console.log(JSON.stringify([iso(a),iso(b),iso(c)]));
+""")
+	la("có neo thì lấy ngày neo, bỏ qua độ lệch", json.loads(ra)[0], "2026-09-08")
+	la("không có neo thì tính từ độ lệch", json.loads(ra)[1], "2026-09-08")
+	la("neo hỏng thì quay về độ lệch", json.loads(ra)[2], "2026-09-08")
 
 
 @ca("#205 chon ngay xa o ngoai roi vao gio hang van sua lai duoc, ba cho khop nhau")
