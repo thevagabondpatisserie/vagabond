@@ -201,13 +201,46 @@ def _giu_nep_cu():
 	la("khong truyen ten", ks.chang_cua_mon("BTPB00100", True), ks.BTP_SAN_SANG)
 
 
-@ca("kho san xuat: o khai tay duoc khai dung mot lan tren ho so mon")
+@ca("kho san xuat: o khai tay duoc khai dung mot lan tren ho so mon, bang CHU")
 def _o_khai_tay():
 	o = [x for x in ks.TRUONG_MOI.get("Item", [])
 		if x["fieldname"] == "custom_chang_btp"]
 	la("co dung mot o", len(o), 1)
 	la("la o chon", o[0]["fieldtype"], "Select")
-	# Hai gia tri phai TRUNG ten hai chang, lech mot dau la khai tay vo tac
-	# dung ma khong ai bao.
-	dung("o chon co du hai chang", ks.BTP_SO_CAP in o[0]["options"]
-		and ks.BTP_SAN_SANG in o[0]["options"])
+	lua = [d for d in o[0]["options"].split("\n") if d]
+	# #206, 06/09/2026: ô hiện CHỮ theo lời Khải, không hiện mã máy. Trước đó
+	# ô hiện "btp_so_cap" nên 0 trên 260 mã bán thành phẩm được khai.
+	la("ba lua chon", lua, ["BTP thành phần", "BTP sơ cấp", "BTP sẵn sàng"])
+	dung("khong con ma may trong o", "btp_so_cap" not in o[0]["options"]
+		and "btp_san_sang" not in o[0]["options"])
+	# MỖI lựa chọn trong ô phải đọc ra được một mã chặng. Lệch một chữ là ô
+	# khai vô tác dụng mà không ai báo.
+	for d in lua:
+		dung("doc duoc lua chon %s" % d, ks.ma_chang_khai_tay(d) in (ks.BTP_SO_CAP, ks.BTP_SAN_SANG))
+	dung("mo ta noi bang loi Khai", "cấp 1" in o[0]["description"] and "cấp 2" in o[0]["description"])
+
+
+@ca("kho san xuat: doc o khai tay ca ban cu (ma may) va ban moi (chu)")
+def _doc_khai_tay():
+	la("ma cu so cap", ks.ma_chang_khai_tay("btp_so_cap"), ks.BTP_SO_CAP)
+	la("ma cu san sang", ks.ma_chang_khai_tay("btp_san_sang"), ks.BTP_SAN_SANG)
+	la("chu so cap", ks.ma_chang_khai_tay("BTP sơ cấp"), ks.BTP_SO_CAP)
+	la("chu san sang", ks.ma_chang_khai_tay("BTP sẵn sàng"), ks.BTP_SAN_SANG)
+	la("chu thanh phan ve so cap", ks.ma_chang_khai_tay("BTP thành phần"), ks.BTP_SO_CAP)
+	la("hoa thuong, thua cach", ks.ma_chang_khai_tay("  btp   SẴN sàng "), ks.BTP_SAN_SANG)
+	la("trong", ks.ma_chang_khai_tay(""), None)
+	la("None", ks.ma_chang_khai_tay(None), None)
+	la("chu la khong doan", ks.ma_chang_khai_tay("Cấp 3"), None)
+	# Đi qua chang_cua_mon: ô khai tay bằng CHỮ phải thắng cấu trúc công thức.
+	la("khai chu thang cong thuc", ks.chang_cua_mon("BTPB00100", True, "BTP sơ cấp"), ks.BTP_SO_CAP)
+	la("khai ma cu van thang", ks.chang_cua_mon("BTPB00100", False, "btp_san_sang"), ks.BTP_SAN_SANG)
+	la("khai chu la thi suy nhu cu", ks.chang_cua_mon("BTPB00100", True, "Cấp 3"), ks.BTP_SAN_SANG)
+
+
+@ca("kho san xuat va ton chang doc o khai tay ra CUNG mot chang")
+def _hai_noi_mot_cau():
+	# Hai mô đun cùng đọc một ô. Chốt ở đây để không bao giờ có ngày màn tồn
+	# kho xếp một mã vào chặng này mà lệnh sản xuất lại lấy kho chặng kia.
+	from vagabond import ton_chang as tc
+	for d in ks.NHAN_KHAI_TAY + (ks.BTP_SO_CAP, ks.BTP_SAN_SANG):
+		la("cung cau cho %s" % d, tc.chang_cua_nhan(d), ks.ma_chang_khai_tay(d))
