@@ -95,9 +95,18 @@ ElementGia.prototype.remove = function () {
   this.parentNode = null;
 };
 
-/* Khong co con tro that, nhung ma nguon co goi focus() nen phai co mat. */
-ElementGia.prototype.focus = function () { this._daFocus = true; };
-ElementGia.prototype.blur = function () { this._daFocus = false; };
+/* Không có con trỏ thật, nhưng mã nguồn có gọi focus() nên phải có mặt.
+   Ghi lại ô đang được chọn vào `_DANG_FOCUS` để `document.activeElement` trả
+   về đúng phần tử: `ve()` của /kiem-banh dựa vào nó để KHÔNG vẽ lại khi
+   người dùng đang gõ dở. Chỉ một tài liệu mỗi lượt chạy, đủ cho bộ kiểm. */
+var _DANG_FOCUS = null;
+ElementGia.prototype.focus = function () { this._daFocus = true; _DANG_FOCUS = this; };
+ElementGia.prototype.blur = function () {
+  this._daFocus = false;
+  if (_DANG_FOCUS === this) _DANG_FOCUS = null;
+};
+/* Ô nhập thật có select(); mã nguồn gọi ngay sau focus(). */
+ElementGia.prototype.select = function () { this._daChon = true; };
 ElementGia.prototype.querySelector = function (chon) {
   return this.querySelectorAll(chon)[0] || null;
 };
@@ -106,6 +115,13 @@ Object.defineProperty(ElementGia.prototype, 'innerHTML', {
   get: function () { return this._html == null ? '' : this._html; },
   set: function (v) {
     this._html = String(v == null ? '' : v);
+    /* XOÁ CON CŨ TRƯỚC KHI ĐỌC BẢN MỚI. `doc()` đẩy thẻ mới vào thẳng
+       `cha.children`, nên nếu không xoá thì lần vẽ lại thứ hai sẽ CHỒNG lên
+       lần đầu chứ không thay thế. Màn hồ sơ thanh toán chỉ vẽ một lần nên
+       không lộ ra; trang /kiem-banh vẽ lại sau mỗi lần lưu, và chỗ này làm
+       ca kiểm đọc phải ô cũ trong khi HTML mới đã đúng. Bắt được ngày
+       06/09/2026 khi dựng ca kiểm gõ ô Huỷ. */
+    this.children = [];
     this.children = doc(this._html, this);
   },
 });
@@ -116,6 +132,20 @@ Object.defineProperty(ElementGia.prototype, 'textContent', {
     this.children.forEach(function (c) { ra += c.textContent; });
     return ra;
   },
+  /* Trang /kiem-banh đặt textContent để bày lỗi và bày dòng cảnh báo. Gần
+     giống trình duyệt thật: xoá sạch con rồi đặt chữ. */
+  set: function (v) {
+    this._html = null;
+    this.children = [];
+    this._chu = String(v == null ? '' : v);
+  },
+});
+
+/* `ve()` của /kiem-banh bỏ qua lần vẽ lại khi lưới đã có con và khoá vẽ
+   không đổi. Thiếu thuộc tính này thì nó vẽ lại vô điều kiện, tức là ca kiểm
+   chạy trên một đường khác với đường thật. */
+Object.defineProperty(ElementGia.prototype, 'childElementCount', {
+  get: function () { return this.children.length; },
 });
 
 Object.defineProperty(ElementGia.prototype, 'className', {
@@ -137,19 +167,29 @@ function chonThuocTinh(chon) {
   return m ? m[1] : null;
 }
 
-/* Bo chon. Chi ba dang, dung het cho man bep can toi: [thuoc-tinh], #id,
-   .lop. Gap dang khac thi NEM LOI chu khong lang le tra ve rong, vi mot bo
-   chon go sai ma tra ve rong se lam ca kiem xanh oan. */
+/* Bộ chọn. Bốn dạng, đủ hết chỗ màn bếp và trang /kiem-banh cần tới:
+   [thuoc-tinh], #id, .lop, và NHIỀU LỚP DÍNH NHAU như `.kb-o.sua`. Gặp dạng
+   khác thì NÉM LỖI chứ không lặng lẽ trả về rỗng, vì một bộ chọn gõ sai mà
+   trả về rỗng sẽ làm ca kiểm xanh oan.
+
+   Dạng nhiều lớp thêm ngày 06/09/2026: `/kiem-banh` bắt sự kiện bằng
+   `ev.target.closest('.kb-o.sua')`, tức chỉ những ô SỬA ĐƯỢC mới mở ô nhập.
+   Nếu chỉ đòi một lớp đầu thì ca kiểm sẽ mở được cả ô máy tự đếm - đúng cái
+   mà màn thật không cho. */
 function hopBoChon(el, chon) {
   var t = String(chon).trim();
   var m = /^\[([a-zA-Z0-9_-]+)\]$/.exec(t);
   if (m) return el.hasAttribute(m[1]);
   if (t.charAt(0) === '#') return el.getAttribute('id') === t.slice(1);
-  if (t.charAt(0) === '.') {
+  if (/^(\.[A-Za-z0-9_-]+)+$/.test(t)) {
     var lop = String(el.getAttribute('class') || '').split(/\s+/);
-    return lop.indexOf(t.slice(1)) >= 0;
+    return t.slice(1).split('.').every(function (c) { return lop.indexOf(c) >= 0; });
   }
-  throw new Error('DOM gia chi hieu [thuoc-tinh], #id va .lop, khong hieu: ' + chon);
+  /* Tên thẻ trần: `label`, `b`. Ca kiểm đọc số trên bảng theo NHÃN nhìn thấy
+     được, đúng như người dùng nhìn, chứ không theo thuộc tính nội bộ. */
+  if (/^[a-zA-Z][a-zA-Z0-9]*$/.test(t)) return el.tagName === t.toUpperCase();
+  throw new Error(
+    'DOM gia chi hieu [thuoc-tinh], #id, .lop, .lop.lop va ten the, khong hieu: ' + chon);
 }
 
 /* Doc HTML. Du cho markup ma man bep sinh ra: the mo co thuoc tinh trong nhay
@@ -217,6 +257,7 @@ function taiLieuGia() {
     querySelector: function (chon) { return than.querySelector(chon); },
     addEventListener: function () {},
     removeEventListener: function () {},
+    get activeElement() { return _DANG_FOCUS; },
   };
 }
 
