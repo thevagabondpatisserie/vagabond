@@ -5258,7 +5258,9 @@ var mfg = { src: '', fg: '', tab: 'open', bep: '', han: '', mon: '' };
 /* Nhung the mon dang xo ra o man danh sach lenh, giu theo ma mon de
    ve lai man khong dong het cac the bep vua mo. */
 var mfgMo = {};
-var mfgN = { horizon: 0, rows: null };
+/* q la tu khoa o tim, seq chan phan hoi ve nguoc thu tu, dangGui chan bam
+   lap nut tao (#206). */
+var mfgN = { horizon: 0, rows: null, q: '', seq: 0, tmr: null, dangGui: 0 };
 var mfgD = null;
 var mfgL = null;
 
@@ -5774,6 +5776,75 @@ async function mfgHoanTatNhanh(ten, all, veLai) {
 }
 
 /* ---------- 12c-2. Tao lenh: gop nhu cau tu cac phieu yeu cau ---------- */
+/* ================= O TIM MON KHI TAO LENH SAN XUAT (#206) =================
+
+   Khai neu 06/09/2026: man tao lenh dang trai het moi mon dang can ra man
+   hinh, bep phai cuon rat lau moi tim duoc mon minh muon lam. De nghi co o
+   tim de goi mon ra, thay vi doc ca danh sach.
+
+   Cach dung moi: man chinh CHI hien nhung mon bep DA THEM. Muon them thi go
+   vao o tim. Nhu cau san xuat khong bien mat, no thanh NGUON GOI Y trong ket
+   qua tim, van mang du phong ban can, da co lenh, ton thanh pham va so luong
+   du kien. Mon nao khong nam trong nhu cau thi tim tiep tren danh muc hang
+   hoa, va them duoc nhu thuong.
+
+   Bon phep duoi day la PHEP THUAN, khong cham DOM va khong goi mang, de bo
+   ca kiem hanh vi chay that duoc chung. */
+
+/* Bo dau tieng Viet de go "banh su" van ra "Banh Su". Dung lai cach cua
+   mvKhongDau ben man khach hang, khong che them mot ban khac. */
+function mfgKhongDau(s) {
+  s = String(s || '').toLowerCase();
+  try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { }
+  return s.replace(/\u0111/g, 'd');
+}
+
+/* Mon co khop tu khoa khong: khop theo TEN hoac theo MA, khong dau, khong
+   phan biet hoa thuong. Tu khoa nhieu chu thi phai khop DU cac chu, de go
+   "su kem" ra dung mon chu khong ra moi mon co chu "kem". */
+function mfgKhopMon(mon, tuKhoa) {
+  var q = mfgKhongDau(tuKhoa).trim();
+  if (!q) return true;
+  var kho = mfgKhongDau((mon && mon.name) || '') + ' ' + mfgKhongDau((mon && mon.code) || '');
+  var tu = q.split(/\s+/);
+  for (var i = 0; i < tu.length; i++) if (kho.indexOf(tu[i]) < 0) return false;
+  return true;
+}
+
+/* Loc nguon goi y. CHI tra ve nhung mon CHUA duoc them, vi mon da them thi
+   da nam o danh sach duoi roi, hien lai lan nua chi lam roi. */
+function mfgLocGoiY(rows, tuKhoa, gioiHan) {
+  var ra = [];
+  for (var i = 0; i < (rows || []).length; i++) {
+    var r = rows[i];
+    if (r.on) continue;
+    if (!mfgKhopMon(r, tuKhoa)) continue;
+    ra.push(r);
+    if (gioiHan && ra.length >= gioiHan) break;
+  }
+  return ra;
+}
+
+/* Vi tri cua mot ma mon trong danh sach, -1 la chua co. Dung de KHONG BAO
+   GIO nhan doi mot ma mon: tim thay mon von da nam trong nhu cau thi chon
+   chinh dong do, chu khong bao "Mon nay da co trong danh sach" roi bat bep
+   tu di cuon tim nhu duong mAdd cu. */
+function mfgViTriMon(rows, ma) {
+  for (var i = 0; i < (rows || []).length; i++) if (rows[i].code === ma) return i;
+  return -1;
+}
+
+/* Dem so mon THAT SU se duoc gui: da them, co cong thuc, va so luong duong.
+   Nut tao phai dem bang chinh phep nay, khong dem bang so dong dang hien. */
+function mfgDemSeGui(rows) {
+  var n = 0;
+  for (var i = 0; i < (rows || []).length; i++) {
+    var r = rows[i];
+    if (r.on && r.bom && r.qty > 0) n++;
+  }
+  return n;
+}
+
 async function scrMfgNew() {
   mfgInitWh();
   if (!mfgN.rows) {
@@ -5783,37 +5854,78 @@ async function scrMfgNew() {
   }
   var rows = mfgN.rows;
 
+  function theMon(r, i, laGoiY) {
+    var img = r.image ? '<img class="im3" src="' + h(r.image) + '">' : '<div class="im3 im3p">🍰</div>';
+    return '<div class="ic1' + (!laGoiY && r.bom ? ' ok' : '') + '" data-i="' + i + '">' +
+      '<div class="ih">' + img +
+      '<div class="in">' + h(r.name) + '<div class="ig">Mã: ' + h(r.code) +
+      (r.bom ? '' : ' &middot; <span class="mno">Chưa có công thức</span>') + '</div></div>' +
+      (laGoiY
+        ? '<div class="rok" data-them="' + h(r.code) + '">+</div>'
+        : '<div class="rok" data-bo="' + h(r.code) + '">&times;</div>') + '</div>' +
+      '<div class="stk">' +
+      '<div><div class="s1">Phòng ban cần</div><div class="s2">' + num(r.need) + ' ' + h(r.uom) + '</div></div>' +
+      '<div><div class="s1">Đã có lệnh</div><div class="s2">' + num(r.wo) + '</div></div>' +
+      '<div><div class="s1">Tồn thành phẩm</div><div class="s2">' + num(r.ton) + '</div></div></div>' +
+      (laGoiY ? '' :
+        (r.bom ?
+          '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng sẽ làm</div>' +
+          '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
+          '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '">' +
+          '<button data-p="' + i + '">+</button></div><div class="uml">' + h(r.uom) + '</div></div></div></div>'
+          : '<div class="qw"><button class="btn gh" data-dec="' + i + '">🧾 Khai nguyên liệu đã dùng</button></div>')) +
+      '</div>';
+  }
+
   function draw() {
-    var nsel = rows.filter(function (r) { return r.on && r.bom; }).length;
+    var nsel = mfgDemSeGui(rows);
     var chips = [[0, 'Đến hôm nay'], [1, 'Đến ngày mai'], [7, 'Đến hết tuần']].map(function (c) {
       return '<div class="chip' + (mfgN.horizon === c[0] ? ' on' : '') + '" data-hz="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
+
+    /* DA THEM: chi nhung mon bep that su da chon. Man chinh khong trai het
+       danh sach nhu cau nua (#206). */
+    var daThem = [];
+    rows.forEach(function (r, i) { if (r.on) daThem.push({ r: r, i: i }); });
+
+    /* GOI Y: nhu cau san xuat con lai, loc theo tu khoa. Chua go gi thi van
+       cho xem vai mon dau de bep biet o day co gi, khong bat go moi thay. */
+    var goiY = mfgLocGoiY(rows, mfgN.q, mfgN.q ? 40 : 8);
+    var conNhuCau = mfgLocGoiY(rows, '', 0).length;
+
+    var khoiChon = daThem.length
+      ? '<div class="sec">Đã chọn ' + daThem.length + ' món</div>' +
+        daThem.map(function (x) { return theMon(x.r, x.i, 0); }).join('')
+      : '<div class="emp"><div class="e1">🔎</div><div class="e2">Chưa chọn món nào. ' +
+        'Gõ tên hoặc mã món vào ô tìm ở trên để thêm.</div></div>';
+
+    var khoiGoiY = '';
+    if (mfgN.q && mfgN.q.length >= 2) {
+      khoiGoiY = '<div class="sec">Kết quả tìm trong phiếu yêu cầu</div>' +
+        (goiY.length
+          ? goiY.map(function (r) { return theMon(r, mfgViTriMon(rows, r.code), 1); }).join('')
+          : '<div class="emp" style="padding:18px"><div class="e2">Không có món nào đang cần khớp từ khoá này</div></div>') +
+        '<div id="mNgoai"></div>';
+    } else if (goiY.length) {
+      khoiGoiY = '<div class="sec">Đang cần làm' + (conNhuCau > goiY.length ? ' (' + conNhuCau + ' món, gõ để tìm)' : '') + '</div>' +
+        goiY.map(function (r) { return theMon(r, mfgViTriMon(rows, r.code), 1); }).join('');
+    }
+
+    /* Giu duong "mot cham chon het" ma anh Viet chot 21/08/2026. Man khong
+       trai het danh sach ra nua (#206), nhung nhu cau van con, nen chip nay
+       van la duong nhanh cho bep muon lam het luot. Khac ban cu o cho no noi
+       ro CO BAO NHIEU MON, va van khong tu tick san mon nao. */
     var coBom = rows.filter(function (r) { return r.bom; });
     var chonHet = coBom.length && coBom.every(function (r) { return r.on; });
-    var chipChon = rows.length
-      ? '<div class="chip" data-all="1">' + (chonHet ? '✕ Bỏ chọn hết' : '✓ Chọn tất cả') + '</div>'
+    var chipChon = coBom.length
+      ? '<div class="chip" data-all="1">' +
+        (chonHet ? '✕ Bỏ chọn hết' : '✓ Chọn tất cả ' + coBom.length + ' món đang cần') + '</div>'
       : '';
+
     var body = mfgWhCard() + '<div class="chips">' + chips + chipChon + '</div>' +
-      (rows.length ? rows.map(function (r, i) {
-        var img = r.image ? '<img class="im3" src="' + h(r.image) + '">' : '<div class="im3 im3p">🍰</div>';
-        return '<div class="ic1' + (r.on && r.bom ? ' ok' : '') + '" data-i="' + i + '">' +
-          '<div class="ih">' + img +
-          '<div class="in">' + h(r.name) + '<div class="ig">Mã: ' + h(r.code) +
-          (r.bom ? '' : ' &middot; <span class="mno">Chưa có công thức</span>') + '</div></div>' +
-          (r.bom ? '<div class="rok" data-k="' + i + '">&#10003;</div>' : '') + '</div>' +
-          '<div class="stk">' +
-          '<div><div class="s1">Phòng ban cần</div><div class="s2">' + num(r.need) + ' ' + h(r.uom) + '</div></div>' +
-          '<div><div class="s1">Đã có lệnh</div><div class="s2">' + num(r.wo) + '</div></div>' +
-          '<div><div class="s1">Tồn thành phẩm</div><div class="s2">' + num(r.ton) + '</div></div></div>' +
-          (r.bom ?
-            '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng sẽ làm</div>' +
-            '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
-            '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '">' +
-            '<button data-p="' + i + '">+</button></div><div class="uml">' + h(r.uom) + '</div></div></div></div>'
-            : '<div class="qw"><button class="btn gh" data-dec="' + i + '">🧾 Khai nguyên liệu đã dùng</button></div>') +
-          '</div>';
-      }).join('')
-        : '<div class="emp"><div class="e1">✅</div><div class="e2">Không còn món nào cần sản xuất trong khoảng này</div></div>') +
+      '<div style="padding:2px 0 8px"><input class="nt" id="mfgQ" placeholder="Tìm tên hoặc mã món" ' +
+      'style="height:46px;padding:0 12px;width:100%" value="' + h(mfgN.q || '') + '"></div>' +
+      khoiChon + khoiGoiY +
       '<button class="btn gh" id="mAdd" style="margin-top:4px">+ Thêm món ngoài phiếu yêu cầu</button>';
 
     var b = frame('Tạo lệnh sản xuất', body, {
@@ -5822,6 +5934,14 @@ async function scrMfgNew() {
     b.addEventListener('input', function (e) {
       var t = e.target;
       if (t.dataset.q != null) rows[+t.dataset.q].qty = parseFloat(t.value) || 0;
+      /* Go o tim thi CHI ve lai, KHONG dung lai danh sach da chon va khong
+         dung lai so luong da nhap: hai thu do nam trong `rows`, o tim chi
+         loc phan goi y. */
+      if (t.id === 'mfgQ') {
+        mfgN.q = t.value;
+        clearTimeout(mfgN.tmr);
+        mfgN.tmr = setTimeout(function () { draw(); mfgTimNgoai(); }, 260);
+      }
     });
     b.onclick = function (e) {
       if (mfgWhTap(e, draw)) return;
@@ -5830,12 +5950,35 @@ async function scrMfgNew() {
       var ca = e.target.closest('[data-all]');
       if (ca) {
         var dangHet = rows.filter(function (r) { return r.bom; }).every(function (r) { return r.on; });
-        rows.forEach(function (r) { if (r.bom) r.on = dangHet ? 0 : 1; });
+        rows.forEach(function (r) {
+          if (!r.bom) return;
+          r.on = dangHet ? 0 : 1;
+          if (r.on && !(r.qty > 0)) r.qty = 1;
+        });
         return draw();
       }
-      var t = e.target.closest('[data-k],[data-m],[data-p],[data-dec]');
+      var th = e.target.closest('[data-them]');
+      if (th) {
+        var vt = mfgViTriMon(rows, th.dataset.them);
+        /* Mon von da nam trong nhu cau thi CHON CHINH DONG DO. Truoc day
+           duong mAdd bao "Mon nay da co trong danh sach" roi bat bep tu di
+           tim, Codex neu dung cho nay tren #206. */
+        if (vt >= 0) { rows[vt].on = 1; if (!(rows[vt].qty > 0)) rows[vt].qty = 1; }
+        return draw();
+      }
+      var bo = e.target.closest('[data-bo]');
+      if (bo) {
+        var vb = mfgViTriMon(rows, bo.dataset.bo);
+        if (vb >= 0) {
+          /* Mon tu nhu cau thi chi bo chon, van con trong nguon goi y. Mon
+             them tay thi khong con cho nao giu no nen xoa han khoi mang. */
+          if (rows[vb].ngoai) rows.splice(vb, 1);
+          else rows[vb].on = 0;
+        }
+        return draw();
+      }
+      var t = e.target.closest('[data-m],[data-p],[data-dec]');
       if (!t) return;
-      if (t.dataset.k != null) { var i = +t.dataset.k; rows[i].on = !rows[i].on; return draw(); }
       if (t.dataset.m != null) { var j = +t.dataset.m; rows[j].qty = Math.max(0, r3(rows[j].qty - 1)); var el = b.querySelector('[data-q="' + j + '"]'); if (el) el.value = rows[j].qty; return; }
       if (t.dataset.p != null) { var k2 = +t.dataset.p; rows[k2].qty = r3(rows[k2].qty + 1); var e2 = b.querySelector('[data-q="' + k2 + '"]'); if (e2) e2.value = rows[k2].qty; return; }
       if (t.dataset.dec != null) {
@@ -5847,23 +5990,22 @@ async function scrMfgNew() {
         }).catch(function (err) { toast(errMsg(err)); }).then(function () { busy(0); });
       }
     };
+    var oq = document.getElementById('mfgQ');
+    if (oq && mfgN.q) { try { oq.focus(); oq.setSelectionRange(oq.value.length, oq.value.length); } catch (e) { } }
+
     document.getElementById('mAdd').onclick = function () {
-      mfgPickItem('Thêm món cần làm', leavesUnder(['Bán ra', 'Sản xuất']), async function (code) {
-        if (rows.some(function (x) { return x.code === code; })) return toast('Món này đã có trong danh sách');
-        busy(1);
-        try {
-          var it = await mfgLoadItem(code);
-          var bm = await bomOf([code]);
-          var tn = await stockOf([code], mfg.fg);
-          rows.push({ code: code, name: it.item_name || code, uom: it.stock_uom, image: it.image || '', need: 0, wo: 0, ton: tn[code] || 0, bom: bm[code] ? bm[code].name : '', qty: 1, on: 1 });
-          draw();
-        } catch (err) { toast(errMsg(err)); } finally { busy(0); }
+      mfgPickItem('Thêm món cần làm', leavesUnder(['Bán ra', 'Sản xuất']), function (code) {
+        return mfgThemNgoai(code);
       });
     };
     document.getElementById('mGo').onclick = async function () {
+      /* Chan bam lap. Bep bam hai lan vi lan dau tuong chua an thi truoc day
+         ra hai bo lenh giong het nhau. */
+      if (mfgN.dangGui) return;
       var sel = rows.filter(function (r) { return r.on && r.bom && r.qty > 0; });
       if (!sel.length) return toast('Chưa chọn món nào');
       if (!mfg.src || !mfg.fg) return toast('Chưa chọn kho nguyên liệu hoặc kho thành phẩm');
+      mfgN.dangGui = 1;
       busy(1);
       var made = [], errs = [];
       for (var i = 0; i < sel.length; i++) {
@@ -5871,14 +6013,72 @@ async function scrMfgNew() {
         catch (err) { errs.push(sel[i].name + ': ' + errMsg(err)); }
       }
       busy(0);
+      mfgN.dangGui = 0;
       if (errs.length) toast(errs[0], 6000);
       if (!made.length) return;
       toast('Đã tạo ' + made.length + ' lệnh sản xuất');
       mfgN.rows = null;
+      mfgN.q = '';
       go(function () { scrMfgBtp(made, 1); }, true);
     };
   }
+
+  /* Them mot mon KHONG nam trong nhu cau: hoi may chu don vi, cong thuc va
+     ton, roi cam vao danh sach da chon. Khong bao gio nhan doi ma mon. */
+  async function mfgThemNgoai(code) {
+    var vt = mfgViTriMon(rows, code);
+    if (vt >= 0) { rows[vt].on = 1; if (!(rows[vt].qty > 0)) rows[vt].qty = 1; return draw(); }
+    busy(1);
+    try {
+      var it = await mfgLoadItem(code);
+      var bm = await bomOf([code]);
+      var tn = await stockOf([code], mfg.fg);
+      rows.push({
+        code: code, name: it.item_name || code, uom: it.stock_uom, image: it.image || '',
+        need: 0, wo: 0, ton: tn[code] || 0, bom: bm[code] ? bm[code].name : '',
+        qty: 1, on: 1, ngoai: 1
+      });
+      draw();
+    } catch (err) { toast(errMsg(err)); } finally { busy(0); }
+  }
+
+  /* Tim tiep tren danh muc hang hoa khi tu khoa khong ra mon nao trong nhu
+     cau. Ket qua ve NGUOC THU TU thi bo, chi nhan lan goi moi nhat: bep go
+     nhanh thi phan hoi cu ve sau se de len phan hoi moi. */
+  async function mfgTimNgoai() {
+    var q = String(mfgN.q || '').trim();
+    var oNgoai = document.getElementById('mNgoai');
+    if (!oNgoai) return;
+    if (q.length < 2) { oNgoai.innerHTML = ''; return; }
+    var my = ++mfgN.seq;
+    var res = [];
+    try {
+      res = await getList('Item', {
+        fields: ['name', 'item_name', 'stock_uom', 'image'],
+        filters: { disabled: 0, has_variants: 0, item_group: ['in', leavesUnder(['Bán ra', 'Sản xuất'])] },
+        or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] },
+        limit_page_length: 20, order_by: 'item_name'
+      });
+    } catch (e) { res = []; }
+    if (my !== mfgN.seq) return;
+    var o2 = document.getElementById('mNgoai');
+    if (!o2) return;
+    var ds = res.filter(function (it) { return mfgViTriMon(rows, it.name) < 0; });
+    if (!ds.length) { o2.innerHTML = ''; return; }
+    o2.innerHTML = '<div class="sec">Món khác trong danh mục</div>' + ds.map(function (it) {
+      return '<div class="li" data-ngoai="' + h(it.name) + '">' +
+        (it.image ? '<img class="im" src="' + h(it.image) + '" loading="lazy">' : '<div class="im imp">🍰</div>') +
+        '<div class="lt"><div class="l1">' + h(it.item_name || it.name) + '</div>' +
+        '<div class="l2">Mã: ' + h(it.name) + ' &middot; ' + h(it.stock_uom || '') + '</div></div></div>';
+    }).join('');
+    o2.onclick = function (e) {
+      var r = e.target.closest('[data-ngoai]');
+      if (r) mfgThemNgoai(r.dataset.ngoai);
+    };
+  }
+
   draw();
+  mfgTimNgoai();
 }
 
 /* gop nhu cau tu cac phieu yeu cau san xuat da duyet */
@@ -21007,7 +21207,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '437';
+var APPVER = '438';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
