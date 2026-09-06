@@ -5263,8 +5263,9 @@ var mfg = { src: '', fg: '', tab: 'open', bep: '', han: '', mon: '' };
    ve lai man khong dong het cac the bep vua mo. */
 var mfgMo = {};
 /* q là từ khoá ô tìm, seq chặn phản hồi về ngược thứ tự, dangGui chặn bấm
-   lặp nút tạo, dangThem khoá từng mã đang được thêm (#206). */
-var mfgN = { horizon: 0, rows: null, q: '', seq: 0, tmr: null, dangGui: 0, dangThem: {} };
+   lặp nút tạo, dangThem khoá từng mã đang được thêm, phien là số lần mở màn
+   để phản hồi của lần mở cũ không vẽ đè lần mở mới (#206). */
+var mfgN = { horizon: 0, rows: null, q: '', seq: 0, tmr: null, dangGui: 0, dangThem: {}, phien: 0 };
 var mfgD = null;
 var mfgL = null;
 
@@ -5853,6 +5854,21 @@ function mfgDemSeGui(rows) {
 
 async function scrMfgNew() {
   mfgInitWh();
+  /* Mỗi lần mở màn là một PHIÊN. Mọi việc chạy trễ (nhịp chờ ô tìm, hỏi
+     Item/BOM/tồn, tìm danh mục) đều nhớ phiên của mình và hỏi conMan()
+     trước khi đụng vào màn. Codex tái hiện trên #215 vòng 2: gõ ô tìm rồi
+     rời màn trong 260ms, nhịp chờ vẫn vẽ lại màn lệnh sản xuất đè lên màn
+     vừa mở. seq chỉ chặn kết quả tìm, không chặn cái draw đó. */
+  mfgN.phien = (mfgN.phien || 0) + 1;
+  var phien = mfgN.phien;
+  clearTimeout(mfgN.tmr);
+  var thanMan = null;
+  function conMan() {
+    if (phien !== mfgN.phien) return false;
+    if (!document.getElementById('mfgQ')) return false;
+    if (thanMan && thanMan.isConnected === false) return false;
+    return true;
+  }
   if (!mfgN.rows) {
     frame('Tạo lệnh sản xuất', '<div class="emp"><div class="e1">⏳</div></div>');
     try { mfgN.rows = await mfgDemand(mfgN.horizon); }
@@ -5949,6 +5965,7 @@ async function scrMfgNew() {
     var b = frame('Tạo lệnh sản xuất', body, {
       footer: '<button class="btn" id="mGo">Tạo lệnh sản xuất</button>'
     });
+    thanMan = b;
     veNut();
     b.addEventListener('input', function (e) {
       var t = e.target;
@@ -5969,7 +5986,11 @@ async function scrMfgNew() {
            của từ khoá mới thì vẫn được vẽ lên màn. */
         mfgN.seq++;
         clearTimeout(mfgN.tmr);
-        mfgN.tmr = setTimeout(function () { draw(); mfgTimNgoai(); }, 260);
+        mfgN.tmr = setTimeout(function () {
+          /* Đã rời màn, hoặc màn đã mở lại thành phiên khác: im. */
+          if (!conMan()) return;
+          draw(); mfgTimNgoai();
+        }, 260);
       }
     });
     b.onclick = function (e) {
@@ -6081,6 +6102,10 @@ async function scrMfgNew() {
         var it = await mfgLoadItem(code);
         var bm = await bomOf([code]);
         var tn = await stockOf([code], mfg.fg);
+        /* Rời màn trong lúc chờ thì bỏ hẳn, không cắm vào mảng: mảng có thể
+           đang được phiên mới dùng chung, cắm vào là món tự mọc ra ở màn
+           người ta vừa mở. */
+        if (!conMan()) return;
         /* Kiểm lại SAU khi chờ: trong lúc chờ có thể một đường khác (quét
            mã, chọn từ nhu cầu) đã đưa đúng mã này vào rồi. */
         var vt2 = mfgViTriMon(rows, code);
@@ -6118,6 +6143,7 @@ async function scrMfgNew() {
     /* Chỉ nhận khi vẫn là lượt mới nhất VÀ từ khoá trên màn vẫn là từ khoá
        đã hỏi. Hai điều kiện, vì seq đã tăng ngay lúc gõ (xem ô tìm). */
     if (my !== mfgN.seq || String(mfgN.q || '').trim() !== q) return;
+    if (!conMan()) return;
     var o2 = document.getElementById('mNgoai');
     if (!o2) return;
     if (loi) {
