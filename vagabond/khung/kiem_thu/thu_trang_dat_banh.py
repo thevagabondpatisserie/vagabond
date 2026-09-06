@@ -325,7 +325,7 @@ openCoUI();
 var a={tomtat:EL('#c-tomtat').style.display, boChon:EL('#c-chon').style.display};
 pick(3);
 var b={tomtat:EL('#c-tomtat').style.display, boChon:EL('#c-chon').style.display};
-""" + I16 + """
+""" + I16 + r"""
 pickSlot(i16);
 var c={tomtat:EL('#c-tomtat').style.display, boChon:EL('#c-chon').style.display,
        chu:(EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1]};
@@ -342,7 +342,7 @@ RA({vao:a, chi_ngay:b, du_ca_hai:c});
 def _bam_gio_chua_la_chot():
 	r = _chay("2026-09-06T08:00:00", """
 openCoUI();
-""" + I16 + """
+""" + I16 + r"""
 pickSlot(i16);
 RA({tomtat:EL('#c-tomtat').style.display, boChon:EL('#c-chon').style.display});
 """)
@@ -397,7 +397,7 @@ def _bao_gio_het_kip():
 	# CHAY THAT co TUA DONG HO. Ban cu cua ca kiem nay chi do chuoi trong ma
 	# nguon nen van xanh trong khi loi van con: slotOk doc NOW la ban chup luc
 	# tai trang, tab mo lau thi khung da qua van duoc coi la con kip.
-	r = _chay("2026-09-06T08:00:00", GIO_HANG + I13 + """
+	r = _chay("2026-09-06T08:00:00", GIO_HANG + I13 + r"""
 pick(0); pickSlot(i13);
 var truoc={tomtat:EL('#c-tomtat').style.display, ok:slotOk(picked,SLOTS[pickedSlot])};
 DAT('2026-09-06T14:00:00');   /* de tab mo toi qua gio bat dau */
@@ -418,7 +418,7 @@ RA({truoc:truoc,
 
 @ca("#205 lich het kip thi nut gui cung phai chan lai")
 def _het_kip_thi_chan_gui():
-	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I13 + """
+	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I13 + r"""
 pick(0); pickSlot(i13);
 DAT('2026-09-06T14:00:00');
 GHI.goiMang.length=0;
@@ -430,12 +430,71 @@ RA({goi: GHI.goiMang.filter(function(x){return x.opt&&x.opt.method==='POST';}).l
 	la("bung bo chon de khach chon lai", r["boChon"], "")
 
 
+@ca("#205 may tu doi khung gio thi KHONG duoc coi la khach da chon gio")
+def _may_doi_gio_khong_phai_khach_chon():
+	# Codex tai hien duoc o vong hai: pick() goi fixSlot(), fixSlot doi
+	# pickedSlot vi khung cu khong con dat duoc cho ngay moi, nhung daChonGio
+	# van giu true tu lan chon truoc. The tom tat hien ra nhu da xac nhan, va
+	# nut gui cho gui mot khung gio khach chua he bam.
+	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I13 + r"""
+pick(2); pickSlot(i13);                 /* D+2, khung 13h - 15h */
+DAT('2026-09-06T14:00:00');             /* de tab mo qua gio */
+openCoUI(); doiLich();
+pick(0);                                /* doi sang hom nay: 13h khong con kip */
+var a={daChonNgay:daChonNgay, daChonGio:daChonGio, slot:SLOTS[pickedSlot].t,
+       boChon:EL('#c-chon').style.display, loi:EL('#c-prep').innerHTML};
+closeCoUI(); openCoUI();                /* dong roi mo lai gio hang */
+var b={tomtat:EL('#c-tomtat').style.display, boChon:EL('#c-chon').style.display};
+GHI.goiMang.length=0; submitOrder();
+RA({sau_doi_ngay:a, mo_lai:b,
+    POST: GHI.goiMang.filter(function(x){return x.opt&&x.opt.method==='POST';}).length});
+""")
+	la("may co doi khung gio that", r["sau_doi_ngay"]["slot"] != "13h - 15h", True)
+	la("ngay thi khach da chon", r["sau_doi_ngay"]["daChonNgay"], True)
+	la("nhung gio thi KHONG duoc coi la da chon", r["sau_doi_ngay"]["daChonGio"], False)
+	la("bo chon phai mo ra", r["sau_doi_ngay"]["boChon"], "")
+	dung("va noi ro cho khach biet",
+		"không dùng được cho ngày này" in r["sau_doi_ngay"]["loi"])
+	la("dong roi mo lai gio hang van khong tom tat", r["mo_lai"]["tomtat"], "none")
+	la("va van bung bo chon", r["mo_lai"]["boChon"], "")
+	la("nut gui khong duoc goi may chu", r["POST"], 0)
+
+
+@ca("#205 khach bam lai mot khung hop le thi moi gui duoc, va gui dung khung do")
+def _chon_lai_gio_thi_gui_duoc():
+	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I13 + r"""
+var i19=SLOTS.findIndex(function(s){return s.from===19;});
+pick(2); pickSlot(i13);
+DAT('2026-09-06T14:00:00');
+openCoUI(); doiLich(); pick(0);
+pickSlot(i19);                          /* khach that su bam 19h - 21h */
+var a={tomtat:EL('#c-tomtat').style.display, boChon:EL('#c-chon').style.display,
+       chu:(EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1],
+       loi:EL('#c-prep').innerHTML};
+GHI.goiMang.length=0; quoteShip();
+var url=GHI.goiMang.map(function(g){return g.url;}).join(' ');
+var lucGiao=decodeURIComponent((url.match(/luc_giao=([^&]*)/)||[])[1]||'');
+GHI.goiMang.length=0; submitOrder();
+var don=donDaGui();
+RA({sau_chon:a, luc_giao:lucGiao, ngay_nhan:don?don.ngay_nhan:null,
+    tag:don?don.tags[0]:null});
+""")
+	la("chon du roi thi hien the tom tat", r["sau_chon"]["tomtat"], "")
+	la("va thu bo chon lai", r["sau_chon"]["boChon"], "none")
+	la("tom tat ghi dung khung khach vua bam", r["sau_chon"]["chu"],
+		"Hôm nay, 06/09 · 19h - 21h")
+	dung("cau bao khung gio bi doi phai bien mat",
+		"không dùng được cho ngày này" not in r["sau_chon"]["loi"])
+	la("phi giao hoi dung khung do", r["luc_giao"], "2026-09-06T19:00:00")
+	la("don gui dung khung do", r["ngay_nhan"], "2026-09-06T19:00:00")
+	la("the khung gio la 19h - 21h", r["tag"], 95)
+
 @ca("#205 qua nua dem: the tom tat, phi giao va don PHAI cung mot ngay")
 def _qua_nua_dem():
 	# picked chi la do lech so voi "hom nay", ma "hom nay" doi luc nua dem.
 	# 23:59 chon D+2 ra 08/09, 00:01 hom sau payload thanh 09/09 trong khi the
 	# tom tat van ghi 08/09. Neo ngay that lai thi hai cho khong the lech.
-	r = _chay("2026-09-06T23:59:00", GIO_HANG + DON_GUI + I13 + """
+	r = _chay("2026-09-06T23:59:00", GIO_HANG + DON_GUI + I13 + r"""
 pick(2); pickSlot(i13);
 openCoUI();
 var truoc={chu:(EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1], moc:mocGioNhan()};
@@ -484,7 +543,7 @@ def _chuoi_day_du():
 	# thu 12 toi 14, chon khung gio, quay lai. Roi doi chieu the tom tat,
 	# luc_giao trong request hoi phi, va ngay_nhan cung the khung gio trong
 	# request tao don.
-	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I16 + """
+	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I16 + r"""
 var ra=[];
 [11,12,13].forEach(function(n){
   pick(n); openCoUI(); doiLich();
@@ -530,7 +589,7 @@ def _an_mac_dinh():
 @ca("#205 tat toggle thi KHONG gui du lieu cu len may chu")
 def _tat_thi_khong_gui():
 	# CHAY THAT: go chu vao hai khoi, tat ca hai, roi doc PAYLOAD that.
-	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I13 + """
+	r = _chay("2026-09-06T08:00:00", GIO_HANG + DON_GUI + I13 + r"""
 tgl('other');
 EL('#f-rname').value='Chi Lan'; EL('#f-rphone').value='0900000000';
 tgl('vat');
