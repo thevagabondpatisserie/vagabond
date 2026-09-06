@@ -920,14 +920,13 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 		tk_no = (x.get("tk_no") or "").strip()
 		if not tk_no:
 			frappe.throw("Khoản \"%s\" chưa chọn tài khoản Nợ." % noi_dung)
-		if not frappe.db.exists("Account", tk_no):
-			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_no)
-		_kiem_tk_cung_cong_ty(tk_no, "Nợ")
-		tk_co = (x.get("tk_co") or "").strip()
-		if tk_co and not frappe.db.exists("Account", tk_co):
-			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_co)
-		if tk_co:
-			_kiem_tk_cung_cong_ty(tk_co, "Có")
+		_kiem_tk_ghi_so_duoc(tk_no, "Nợ")
+		# Kiem tai khoan Co THUC SU DUOC GHI, tuc la sau khi da roi ve tai
+		# khoan so cai cua ngan hang. Kiem moi `tk_co` do nguoi dung gui len la
+		# bo lot ca duong mac dinh: Bank Account tro toi mot tai khoan nhom hay
+		# mot tai khoan da ngung dung thi van ghi vao duoc. Codex neu vong nam.
+		tk_co = (x.get("tk_co") or "").strip() or tk_so_cai
+		_kiem_tk_ghi_so_duoc(tk_co, "Có")
 		ma_tep = _tep_hop_le(x.get("tep"))
 		sach.append({
 			"ngay_hd": x.get("ngay_hd") or nowdate(),
@@ -937,7 +936,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			"loai_chi": (x.get("loai_chi") or "").strip(),
 			"co_vat": 1 if cint(x.get("co_vat")) else 0,
 			"tk_no": tk_no,
-			"tk_co": tk_co or tk_so_cai,
+			"tk_co": tk_co,
 			"so_tien": tien,
 			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
@@ -1253,20 +1252,26 @@ def ds_tk_cong_ty():
 	return {"tk": ra}
 
 
-def _kiem_tk_cung_cong_ty(ma_tk, vai="Nợ"):
-	"""Chặn tài khoản của công ty khác NGAY LÚC NHẬN, không để tới lúc ghi sổ.
+def _kiem_tk_ghi_so_duoc(ma_tk, vai="Nợ"):
+	"""Chặn tài khoản không ghi sổ được NGAY LÚC NHẬN, không để tới lúc ghi sổ.
 
-	Kiểm ở đây và bộ lọc của `ds_tai_khoan` phải luôn cùng một điều kiện. Ô
-	chọn bày cái gì thì cửa nhận đúng cái đó, không rộng hơn không hẹp hơn.
+	Ba điều kiện, ĐỌC LẠI TỪ MÁY CHỦ chứ không tin bản danh mục ở máy người
+	dùng: đúng công ty của chứng từ, chưa ngưng dùng, và không phải tài khoản
+	nhóm. Đúng ba điều kiện mà `ds_tai_khoan` đang lọc.
+
+	Vì sao phải đọc lại: ô chọn giữ danh mục trong `huTkDs` suốt phiên. Ai mở
+	app từ sáng rồi kế toán khoá một tài khoản lúc trưa thì chiều họ vẫn thấy
+	và vẫn chọn được cái đã khoá. Codex nêu vòng năm trên PR #211.
 	"""
 	from vagabond import chon_ncc
 
-	loi = chon_ncc.loi_tk_khac_cong_ty(
-		ma_tk, frappe.db.get_value("Account", ma_tk, "company"),
-		_cong_ty_chung_tu(), vai,
-	)
+	ho_so = None
+	if ma_tk:
+		ho_so = frappe.db.get_value(
+			"Account", ma_tk, ["company", "disabled", "is_group"], as_dict=True)
+	loi = chon_ncc.loi_tk_khong_ghi_so_duoc(ma_tk, ho_so, _cong_ty_chung_tu(), vai)
 	if loi:
-		frappe.throw(loi, title="Tài khoản không thuộc công ty này")
+		frappe.throw(loi, title="Tài khoản không ghi sổ được")
 
 
 def _cong_ty_chung_tu():

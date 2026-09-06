@@ -225,6 +225,63 @@ def gioi_han_tk(gioi_han):
 	return han
 
 
+def loi_tk_khong_ghi_so_duoc(ma_tk, ho_so, cty_ct, vai="Nợ"):
+	"""Tài khoản này có ghi sổ được không. THUẦN.
+
+	Trả về None khi dùng được, trả về chuỗi lời báo khi không.
+
+	`ho_so` là bản ghi tài khoản đọc từ máy chủ NGAY LÚC LƯU, dạng
+	{"company": ..., "disabled": 0/1, "is_group": 0/1}, hoặc None khi không
+	có tài khoản đó.
+
+	Codex nêu vòng năm trên PR #211, và nêu đúng: bản trước chỉ đọc mỗi ô
+	company, nên một tài khoản đã ngưng dùng hoặc một tài khoản NHÓM vẫn lọt
+	qua cửa nhận. Ô chọn có lọc `disabled` và `is_group`, nhưng danh mục được
+	giữ lại suốt phiên, nên ai mở app từ sáng rồi kế toán khoá một tài khoản
+	lúc trưa thì chiều họ vẫn chọn được cái đã khoá. Phải đọc lại trạng thái
+	ở máy chủ ngay trước khi ghi, không tin bản danh mục ở máy người dùng.
+
+	Ba điều kiện này phải TRÙNG KHÍT với bộ lọc của `ds_tai_khoan`. Ô chọn
+	bày cái gì thì cửa nhận đúng cái đó, không rộng hơn không hẹp hơn.
+	"""
+	if not ma_tk:
+		return None
+	if ho_so is None:
+		return (
+			"Không có tài khoản %s trong hệ thống tài khoản. Mở lại ô chọn tài "
+			"khoản %s rồi chọn từ danh mục." % (ma_tk, vai)
+		)
+	loi = loi_tk_khac_cong_ty(ma_tk, ho_so.get("company"), cty_ct, vai)
+	if loi:
+		return loi
+	if _co(ho_so.get("disabled")):
+		return (
+			"Tài khoản %s đã ngưng dùng, không ghi sổ vào đó được nữa. Chọn "
+			"tài khoản %s khác trong danh mục. Nếu tài khoản này lẽ ra vẫn "
+			"phải dùng thì nhờ kế toán kiểm tra lại cấu hình hệ thống tài "
+			"khoản." % (ma_tk, vai)
+		)
+	if _co(ho_so.get("is_group")):
+		return (
+			"Tài khoản %s là tài khoản nhóm, chỉ để gom các tài khoản con chứ "
+			"không ghi sổ thẳng vào được. Chọn một tài khoản %s con nằm trong "
+			"nhóm đó." % (ma_tk, vai)
+		)
+	return None
+
+
+def _co(v):
+	"""Ô đánh dấu của Frappe về được 0/1, "0"/"1", True/False hay None."""
+	if v is None:
+		return False
+	if isinstance(v, bool):
+		return v
+	try:
+		return int(v) != 0
+	except (TypeError, ValueError):
+		return str(v).strip().lower() in ("true", "yes", "1")
+
+
 def loi_tk_khac_cong_ty(ma_tk, cty_tk, cty_ct, vai="Nợ"):
 	"""Lời báo khi tài khoản không thuộc công ty của chứng từ. THUẦN.
 
