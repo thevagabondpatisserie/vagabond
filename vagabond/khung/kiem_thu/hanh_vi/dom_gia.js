@@ -81,7 +81,13 @@ ElementGia.prototype.dispatchEvent = function (ev) {
   while (nut) {
     ev.currentTarget = nut;
     (nut._nghe[ev.type] || []).slice().forEach(function (f) { f.call(nut, ev); });
-    if (ev.type === 'click' && typeof nut.onclick === 'function') nut.onclick.call(nut, ev);
+    /* Gọi cả thuộc tính `on<loại>` chứ không riêng `onclick`. Màn thật gán
+       `inp.oninput` cho ô tìm của tấm chọn món; bản cũ chỉ gọi `onclick`
+       nên bắn sự kiện input vào ô đó KHÔNG chạy gì, và ca kiểm tưởng là
+       tấm chọn không tìm ra hàng. Bắt được ngày 06/09/2026 khi viết ca 26
+       của màn lệnh sản xuất. */
+    var ho = nut['on' + ev.type];
+    if (typeof ho === 'function') ho.call(nut, ev);
     if (ev._dungNoi) break;
     nut = nut.parentNode;
   }

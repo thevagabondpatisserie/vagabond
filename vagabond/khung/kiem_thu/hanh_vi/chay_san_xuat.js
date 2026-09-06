@@ -679,6 +679,188 @@ async function chayHet() {
     await nhip(8);
     bang('phien 2 them EXT: dung mot dong', demTt(m, 'data-bo'), 1);
   });
+
+  /* ----- Vòng 4, finding Codex trên b31e0b1: vòng đời màn còn hở hai chỗ -----
+
+     conMan() cũ đòi phải có #mfgQ trên màn. Trong lúc MỚI MỞ và đang tải nhu
+     cầu thì #mfgQ chưa hề tồn tại, nên mọi việc chạy trễ trong cửa sổ đó
+     không có cách nào tự hỏi "màn còn của mình không". Hai đường lọt: tải
+     nhu cầu ban đầu, và đường quét mã ra món ĐÃ CÓ trong nhu cầu. */
+
+  await ca('21. roi man trong luc dang tai nhu cau: phan hoi ve KHONG de len man moi', async function () {
+    var giu = [];
+    var m = dungMan({});
+    m.g.mfgDemand = function () {
+      return new Promise(function (r) { giu.push(function () { r(nhuCauMau()); }); });
+    };
+    var chay = m.g.scrMfgNew();
+    await nhip(3);
+    bang('dang cho tai nhu cau', giu.length, 1);
+    roiMan(m);
+    giu[0]();
+    await chay; await nhip(8);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+    dung('man lenh san xuat KHONG quay lai', m.tai.getElementById('mfgQ') === null);
+    bang('KHONG ghi de mfgN.rows cua phien da roi', m.g.mfgN.rows, null);
+  });
+
+  await ca('22. hai yeu cau nhu cau ve NGUOC THU TU: phien cu khong de len phien moi', async function () {
+    var giu = [], lan = 0;
+    var m = dungMan({});
+    m.g.mfgDemand = function () {
+      var n = ++lan;
+      return new Promise(function (r) {
+        giu.push(function () {
+          r(nhuCauMau().map(function (x) {
+            var y = {}; Object.keys(x).forEach(function (k) { y[k] = x[k]; });
+            y.name = x.name + ' L' + n; return y;
+          }));
+        });
+      });
+    };
+    var p1 = m.g.scrMfgNew();
+    await nhip(3);
+    roiMan(m);
+    var p2 = m.g.scrMfgNew();
+    await nhip(3);
+    bang('hai yeu cau dang cho', giu.length, 2);
+    giu[1]();                       /* phiên 2 về TRƯỚC */
+    await nhip(6);
+    dung('phien 2 da ve man', !!m.tai.getElementById('mfgQ'));
+    giu[0]();                       /* phiên 1 về SAU */
+    await p1; await p2; await nhip(8);
+    dung('man dang la cua phien 2', m.khung.innerHTML.indexOf('L2') > 0);
+    dung('khong co du lieu phien 1 tren man', m.khung.innerHTML.indexOf('L1') < 0);
+    bang('mfgN.rows la cua phien 2', String(m.g.mfgN.rows[0].name).slice(-2), 'L2');
+  });
+
+  await ca('23. roi man khi dang tra ma vach ra mon CO SAN: khong ve lai man lenh', async function () {
+    var giu = [];
+    var m = dungMan({});
+    m.g.scanBarcode = function () { return Promise.resolve('8938001'); };
+    m.g.itemByBarcode = function () {
+      return new Promise(function (r) { giu.push(function () { r('TP001'); }); });
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    m.tai.getElementById('mfgScan').click();
+    await nhip(3);
+    bang('dang cho tra ma vach', giu.length, 1);
+    roiMan(m);
+    giu[0]();
+    await nhip(8);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+    dung('man lenh san xuat KHONG quay lai', m.tai.getElementById('mfgQ') === null);
+    bang('TP001 khong bi tu chon', m.g.mfgN.rows.filter(function (r) { return r.code === 'TP001' && r.on; }).length, 0);
+  });
+
+  await ca('24. quet ma ve o PHIEN MOI: mon cua phien cu khong tu moc ra', async function () {
+    var giu = [];
+    var m = dungMan({});
+    m.g.scanBarcode = function () { return Promise.resolve('8938001'); };
+    m.g.itemByBarcode = function () {
+      return new Promise(function (r) { giu.push(function () { r('TP001'); }); });
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    m.tai.getElementById('mfgScan').click();
+    await nhip(3);
+    bang('dang cho tra ma vach', giu.length, 1);
+    roiMan(m);
+    await m.g.scrMfgNew();
+    await nhip(3);
+    dung('phien 2 da mo', !!m.tai.getElementById('mfgQ'));
+    bang('phien 2 chua chon mon nao', demTt(m, 'data-bo'), 0);
+    giu[0]();
+    await nhip(8);
+    bang('TP001 KHONG tu moc ra o phien 2', demTt(m, 'data-bo'), 0);
+    bang('mang dung chung khong bi bat chon', m.g.mfgN.rows.filter(function (r) { return r.code === 'TP001' && r.on; }).length, 0);
+    dung('man phien 2 van nguyen', !!m.tai.getElementById('mfgQ') && m.tai.getElementById('away') === null);
+  });
+
+  await ca('25. roi man khi dang tai mon de khai nguyen lieu: khong giat man dang xem', async function () {
+    var giu = [];
+    var m = dungMan({});
+    m.g.mfgLoadItem = function () {
+      return new Promise(function (r) { giu.push(function () { r({ item_name: 'x', stock_uom: 'Cai' }); }); });
+    };
+    var daNhay = 0;
+    m.g.go = function (fn) { daNhay++; return fn; };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    /* Nút "Khai nguyên liệu" chỉ hiện trên món ĐÃ CHỌN mà chưa có công
+       thức, nên phải chọn TP004 trước. */
+    await goTim(m, 'chua co cong thuc');
+    theoTt(m, 'data-them', 'TP004').click();
+    await nhip(2);
+    var nutDec = theoTt(m, 'data-dec', String(mfgViTri(m, 'TP004')));
+    dung('co nut khai nguyen lieu', !!nutDec);
+    nutDec.click();
+    await nhip(3);
+    bang('dang cho tai mon', giu.length, 1);
+    roiMan(m);
+    giu[0]();
+    await nhip(8);
+    bang('KHONG nhay sang man khai nguyen lieu', daNhay, 0);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+  });
+
+  await ca('26. tam chon mon con mo sau khi da roi man: bam mot dong KHONG cam vao phien cu', async function () {
+    /* Tấm chọn món gắn thẳng vào document.body nên nó SỐNG SÓT qua một lần
+       vẽ màn khác. Bấm một dòng lúc đó là gọi thẳng mfgThemNgoai của phiên
+       đã rời. Đường này KHÔNG đi qua nút quét, nên nó chốt riêng cái chặn ở
+       CỬA VÀO mfgThemNgoai, không nhờ lớp chặn của đường quét đỡ hộ. */
+    var m = dungMan({ danhMuc: [{ name: 'TP001', item_name: 'Bánh Su Kem', stock_uom: 'Cái', image: '' }] });
+    await m.g.scrMfgNew();
+    await nhip(3);
+    m.tai.getElementById('mAdd').click();
+    await nhip(2);
+    var o = m.tai.getElementById('mpq');
+    dung('tam chon mon da mo', !!o);
+    o.value = 'su kem';
+    o.dispatchEvent(dg.suKien('input', {}, o));
+    await cho(320); await nhip(6);
+    var dong = theoTt(m, 'data-c', 'TP001');
+    dung('tim ra dong trong tam chon', !!dong);
+    roiMan(m);
+    dong.click();
+    await nhip(8);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+    dung('man lenh san xuat KHONG quay lai', m.tai.getElementById('mfgQ') === null);
+    bang('TP001 khong bi tu chon', m.g.mfgN.rows.filter(function (r) { return r.code === 'TP001' && r.on; }).length, 0);
+  });
+
+  await ca('27. quet ra ma vach LA sau khi da roi man: khong bung loi len man nguoi ta dang xem', async function () {
+    /* Nhánh "không tra ra hàng hoá" của đường quét. Nó không đi tới
+       mfgThemNgoai nên lớp chặn ở cửa vào hàm đó không đỡ được; phải có
+       phép kiểm riêng ngay sau lần chờ tra mã. Không có nó thì người ta đã
+       sang màn khác vẫn bị bung một câu lỗi của màn cũ. */
+    var giu = [];
+    var m = dungMan({});
+    m.g.scanBarcode = function () { return Promise.resolve('0000000'); };
+    m.g.itemByBarcode = function () {
+      return new Promise(function (r) { giu.push(function () { r(null); }); });
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    m.tai.getElementById('mfgScan').click();
+    await nhip(3);
+    bang('dang cho tra ma vach', giu.length, 1);
+    var truoc = m.g._toast.length;
+    roiMan(m);
+    giu[0]();
+    await nhip(8);
+    bang('KHONG bung them cau bao nao', m.g._toast.length, truoc);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+  });
+}
+
+/* Vị trí của một mã trong mảng nhu cầu, để ca kiểm bấm đúng nút theo chỉ số
+   mà không phải chép cứng con số. */
+function mfgViTri(m, ma) {
+  var r = m.g.mfgN.rows || [];
+  for (var i = 0; i < r.length; i++) if (r[i].code === ma) return i;
+  return -1;
 }
 
 var HAN_GIO_MS = 5000;
