@@ -141,8 +141,17 @@ def gia_lap():
 	fr = types.ModuleType("frappe")
 	fr.get_roles = lambda *a, **k: ["System Manager"]
 
+	# Frappe that nem ValidationError chu khong nem Exception tran, va co
+	# ma bat rieng loai do: `lo_hang.gan_lo` nem tiep ValidationError (de
+	# cau bao thieu hang len duoc mat bep) nhung NUOT moi loi khac. Ban gia
+	# thieu lop nay thi khong ca kiem nao chay duoc doan do.
+	class ValidationError(Exception):
+		pass
+
+	fr.ValidationError = ValidationError
+
 	def _throw(msg, *a, **k):
-		raise Exception(msg)
+		raise ValidationError(msg)
 
 	fr.throw = _throw
 	fr.whitelist = lambda *a, **k: (lambda f: f)
