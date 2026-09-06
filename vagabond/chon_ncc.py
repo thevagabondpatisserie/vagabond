@@ -209,9 +209,45 @@ def gioi_han_tk(gioi_han):
 			so = float(t)
 		except (TypeError, ValueError):
 			raise GioiHanXau(t)
+		# NaN va vo cung phai chan TRUOC khi ep sang so nguyen. Codex neu vong
+		# ba tren PR #207: "NaN" nem ValueError, con "Infinity" va "1e309" nem
+		# OverflowError ngay tai int(so). Hai loai loi do khong phai GioiHanXau
+		# nen no lot qua tay bat cua nguoi goi va roi thang len man hinh duoi
+		# dang mot dong loi Python tran. `so != so` la phep thu NaN, dung duoc
+		# ma khong can keo them thu vien.
+		if so != so or so in (float("inf"), float("-inf")):
+			raise GioiHanXau(t)
 		if so != int(so):
 			raise GioiHanXau(t)
 		han = int(so)
 	if han < 0:
 		raise GioiHanXau(t)
 	return han
+
+
+def loi_tk_khac_cong_ty(ma_tk, cty_tk, cty_ct, vai="Nợ"):
+	"""Lời báo khi tài khoản không thuộc công ty của chứng từ. THUẦN.
+
+	Trả về None khi hợp lệ, trả về chuỗi lời báo khi lệch. Tách ra đây để ca
+	kiểm gọi thật được, và để ô chọn với cửa nhận dữ liệu dùng CHUNG một câu.
+
+	Codex nêu vòng ba trên PR #207, và nêu đúng: bút toán lấy công ty từ
+	`Global Defaults.default_company`, còn danh mục tài khoản lại không lọc
+	theo công ty. Ngày 06/09/2026 site thật có 158 tài khoản đang dùng thì 14
+	tài khoản đuôi "- TVD" thuộc công ty demo. Chọn nhầm một tài khoản như vậy
+	thì lưu vẫn qua, duyệt vẫn qua, tới lúc ghi sổ mới vỡ bằng lời báo của
+	ERPNext, tức là vỡ ở chỗ xa nhất so với chỗ gây ra.
+	"""
+	if not ma_tk:
+		return None
+	if not cty_ct:
+		return None
+	if (cty_tk or "") == cty_ct:
+		return None
+	return (
+		"Tài khoản %s là %s của công ty %s, không phải %s. Chọn lại tài khoản "
+		"%s trong danh mục của %s. Nếu tài khoản này lẽ ra phải thuộc công ty "
+		"đang dùng thì nhờ kế toán sửa ô Company của tài khoản bên Next trước, "
+		"đừng ghi sổ bằng tài khoản của công ty khác."
+		% (ma_tk, vai, cty_tk or "một công ty khác", cty_ct, vai, cty_ct)
+	)

@@ -922,9 +922,12 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			frappe.throw("Khoản \"%s\" chưa chọn tài khoản Nợ." % noi_dung)
 		if not frappe.db.exists("Account", tk_no):
 			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_no)
+		_kiem_tk_cung_cong_ty(tk_no, "Nợ")
 		tk_co = (x.get("tk_co") or "").strip()
 		if tk_co and not frappe.db.exists("Account", tk_co):
 			frappe.throw("Không có tài khoản %s trong hệ thống tài khoản." % tk_co)
+		if tk_co:
+			_kiem_tk_cung_cong_ty(tk_co, "Có")
 		ma_tep = _tep_hop_le(x.get("tep"))
 		sach.append({
 			"ngay_hd": x.get("ngay_hd") or nowdate(),
@@ -1250,6 +1253,31 @@ def ds_tk_cong_ty():
 	return {"tk": ra}
 
 
+def _kiem_tk_cung_cong_ty(ma_tk, vai="Nợ"):
+	"""Chặn tài khoản của công ty khác NGAY LÚC NHẬN, không để tới lúc ghi sổ.
+
+	Kiểm ở đây và bộ lọc của `ds_tai_khoan` phải luôn cùng một điều kiện. Ô
+	chọn bày cái gì thì cửa nhận đúng cái đó, không rộng hơn không hẹp hơn.
+	"""
+	from vagabond import chon_ncc
+
+	loi = chon_ncc.loi_tk_khac_cong_ty(
+		ma_tk, frappe.db.get_value("Account", ma_tk, "company"),
+		_cong_ty_chung_tu(), vai,
+	)
+	if loi:
+		frappe.throw(loi, title="Tài khoản không thuộc công ty này")
+
+
+def _cong_ty_chung_tu():
+	"""Công ty mà mọi bút toán của phần hồ sơ thanh toán ghi vào.
+
+	Một chỗ duy nhất, để ô chọn tài khoản và cửa nhận dữ liệu không bao giờ
+	lệch nhau. Đổi chỗ này là đổi cả hai.
+	"""
+	return frappe.db.get_single_value("Global Defaults", "default_company")
+
+
 @frappe.whitelist()
 def ds_tai_khoan(tu_khoa="", gioi_han=40):
 	"""Tra tài khoản sổ cái cho kế toán tự định khoản trên điện thoại.
@@ -1264,7 +1292,12 @@ def ds_tai_khoan(tu_khoa="", gioi_han=40):
 	"""
 	_kiem(VAI_LAP | VAI_FIN, "tra hệ thống tài khoản")
 	q = (tu_khoa or "").strip()
-	loc = {"is_group": 0, "disabled": 0}
+	# Loc theo CONG TY cua chung tu. But toan o `_tao_but_toan_tkct` lay cong
+	# ty tu `Global Defaults.default_company`, nen danh muc bay ra phai cung
+	# mot cong ty do, khong thi nguoi ta chon duoc mot tai khoan ma toi luc ghi
+	# so ERPNext moi tu choi. Ngay 06/09/2026 site that co 158 tai khoan dang
+	# dung thi 14 tai khoan duoi "- TVD" thuoc cong ty demo.
+	loc = {"is_group": 0, "disabled": 0, "company": _cong_ty_chung_tu()}
 	# Phep tinh so dong toi da nam o `chon_ncc.gioi_han_tk`, la phep THUAN nen
 	# ca kiem goi that duoc chu khong chi do chuoi trong ma nguon (Codex neu
 	# tren PR #207). Dau vao xau thi NEM LOI CO CHU, khong doan bua.
