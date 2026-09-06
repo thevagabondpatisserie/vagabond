@@ -494,6 +494,11 @@ def _qua_nua_dem():
 	# picked chi la do lech so voi "hom nay", ma "hom nay" doi luc nua dem.
 	# 23:59 chon D+2 ra 08/09, 00:01 hom sau payload thanh 09/09 trong khi the
 	# tom tat van ghi 08/09. Neo ngay that lai thi hai cho khong the lech.
+	#
+	# LUU Y: ca nay goi openCoUI() ngay sau khi tua dong ho, ma openCoUI co
+	# dong bo lai ngay, nen no CHE MAT duong khach khong mo lai checkout. Do
+	# la ly do bang tong ket van lech sau khi merge #208. Duong do co ca kiem
+	# rieng o tren, dung sua ca nay thanh co mo lai.
 	r = _chay("2026-09-06T23:59:00", GIO_HANG + DON_GUI + I13 + r"""
 pick(2); pickSlot(i13);
 openCoUI();
@@ -536,6 +541,92 @@ RA({truoc:truoc, picked_van_la:picked, sau:mocGioNhan()});
 	la("do lech van con nguyen", r["picked_van_la"], 2)
 	la("nhung moc gio van neo o 08/09", r["sau"], "2026-09-08T13:00:00")
 
+
+@ca("#205 qua nua dem ma khach chi doi thanh toan: tong ket van dung ngay")
+def _qua_nua_dem_khong_mo_lai():
+	# Codex tai hien duoc tren main sau khi merge #208: dongBoNgay() chi duoc
+	# goi tren duong lich, mo gio hang va truoc khi gui. drawCo() thi tu tinh
+	# new Date() + picked, ma setPay/setPickup/setMode va callback phi goi
+	# THANG vao drawCo(). Qua nua dem, khach chi bam doi phuong thuc thanh
+	# toan la bang tong ket ghi mot ngay, the lich va don ghi ngay khac.
+	#
+	# Ca nay CO Y khong goi openCoUI, renderRail hay drawCoDate sau khi tua
+	# dong ho. Ca _qua_nua_dem o duoi goi openCoUI ngay sau khi tua, nen no
+	# che mat duong loi nay.
+	r = _chay("2026-09-06T23:59:00", GIO_HANG + DON_GUI + I13 + r"""
+function ngaySum(){ return (EL('#sum').innerHTML.match(/Nhận ngày<\/span><b>([^<]*)<\/b>/)||[])[1]; }
+function ngayThe(){ return (EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1]; }
+CO.mode='pick'; CO.pickup=0;
+pick(2); pickSlot(i13);
+openCoUI();
+var truoc={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+DAT('2026-09-07T00:01:00');
+setPay('card');            /* goi THANG drawCo, KHONG mo lai checkout */
+var sau={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+GHI.goiMang.length=0; submitOrder();
+var don=donDaGui();
+RA({truoc:truoc, sau:sau, ngay_nhan:don?don.ngay_nhan:null,
+    sum_luc_gui:ngaySum()});
+""")
+	la("truoc nua dem the lich ghi 08/09", "08/09" in r["truoc"]["the"], True)
+	la("truoc nua dem tong ket ghi 08/09", r["truoc"]["sum"], "08/09 · 13h - 15h")
+	la("sau nua dem the lich VAN 08/09", "08/09" in r["sau"]["the"], True)
+	la("sau nua dem tong ket VAN 08/09", r["sau"]["sum"], "08/09 · 13h - 15h")
+	la("moc gio nhan van 08/09", r["sau"]["moc"], "2026-09-08T13:00:00")
+	la("don gui dung 08/09", r["ngay_nhan"], "2026-09-08T13:00:00")
+	la("va tong ket luc bam gui cung 08/09", r["sum_luc_gui"], "08/09 · 13h - 15h")
+
+
+@ca("#205 bon loi vao goi thang drawCo deu phai dung ngay da neo")
+def _moi_loi_vao_drawco():
+	# setPay, setPickup, setMode va callback phi giao deu goi drawCo() truc
+	# tiep. Ca bon phai cho ra cung mot ngay voi the lich va voi payload.
+	r = _chay("2026-09-06T23:59:00", GIO_HANG + DON_GUI + I13 + r"""
+function ngaySum(){ return (EL('#sum').innerHTML.match(/Nhận ngày<\/span><b>([^<]*)<\/b>/)||[])[1]; }
+function ngayThe(){ return (EL('#c-tomtat').innerHTML.match(/<b>([^<]*)<\/b>/)||[])[1]; }
+pick(2); pickSlot(i13);
+openCoUI();
+DAT('2026-09-07T00:01:00');
+var ra={};
+setPay('card');   ra.setPay   ={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+setPickup(1);     ra.setPickup={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+setMode('ship');  ra.setMode  ={sum:ngaySum(), the:ngayThe(), moc:mocGioNhan()};
+GHI.goiMang.length=0; quoteShip();
+var url=GHI.goiMang.map(function(g){return g.url;}).join(' ');
+ra.quoteShip={sum:ngaySum(), the:ngayThe(),
+              luc_giao:decodeURIComponent((url.match(/luc_giao=([^&]*)/)||[])[1]||'')};
+GHI.goiMang.length=0; submitOrder();
+var don=donDaGui();
+ra.don=don?don.ngay_nhan:null;
+RA(ra);
+""")
+	for loi in ("setPay", "setPickup", "setMode"):
+		la("%s: tong ket dung ngay" % loi, r[loi]["sum"], "08/09 · 13h - 15h")
+		la("%s: the lich dung ngay" % loi, "08/09" in r[loi]["the"], True)
+		la("%s: moc gio nhan dung ngay" % loi, r[loi]["moc"], "2026-09-08T13:00:00")
+	la("callback phi: tong ket dung ngay", r["quoteShip"]["sum"], "08/09 · 13h - 15h")
+	la("callback phi: hoi dung moc", r["quoteShip"]["luc_giao"], "2026-09-08T13:00:00")
+	la("don gui dung ngay", r["don"], "2026-09-08T13:00:00")
+
+
+@ca("#205 khong con cho nao tu ghep ngay tu do lech nua")
+def _mot_nguon_duy_nhat():
+	# Goc cua ca hai lan lech ngay la co NHIEU cho cung tu tinh
+	# new Date() + picked. Nay chi con MOT cua la ngayDangChon().
+	dung("khong con cho nao ghep offset", "d.setDate(t.getDate()+picked)" not in TRANG)
+	dung("co ham lay ngay dang chon", "function ngayDangChon()" in TRANG)
+	dung("drawCo dung ham do", "const d=ngayDangChon();" in TRANG)
+	# Va phep thuan ngayTuNeo phai uu tien ngay da neo.
+	ra = _node(_ham("ngayTuNeo") + r"""
+var a=ngayTuNeo('2026-09-08', 99);          /* co neo thi bo qua do lech */
+var b=ngayTuNeo(null, 2, new Date(2026,8,6)); /* khong neo thi tinh tu do lech */
+var c=ngayTuNeo('khong-phai-ngay', 2, new Date(2026,8,6));
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+console.log(JSON.stringify([iso(a),iso(b),iso(c)]));
+""")
+	la("co neo thi lay ngay neo, bo qua do lech", json.loads(ra)[0], "2026-09-08")
+	la("khong co neo thi tinh tu do lech", json.loads(ra)[1], "2026-09-08")
+	la("neo hong thi quay ve do lech", json.loads(ra)[2], "2026-09-08")
 
 @ca("#205 chon ngay xa o ngoai roi vao gio hang van sua lai duoc, ba cho khop nhau")
 def _chuoi_day_du():
