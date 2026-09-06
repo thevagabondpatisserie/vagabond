@@ -290,6 +290,50 @@ def _dang_ma_dung(ma):
 	)
 
 
+def so_da_tieu(da_dat=0, phat_sinh=0, don_khac=0, huy=0):
+	"""Số bánh RỜI KHỎI tồn trong ngày: bán ra và huỷ. Phép THUẦN.
+
+	MỘT nguồn duy nhất cho khái niệm "đã tiêu" (QT-19). Trước 06/09/2026 phép
+	này gõ lại ở HAI chỗ trong `chot_ngay`: một chỗ trừ lô hàng, một chỗ trừ
+	vỏ BTP. Hai chỗ gõ tay là hai chỗ có thể lệch nhau, và đúng lúc thêm cột
+	Huỷ thì sửa một chỗ quên chỗ kia là số tồn ngày mai sai âm thầm.
+
+	Vì sao HUỶ cũng tính vào đây: bánh huỷ đã rời khỏi tồn thật, không được
+	phép chạy sang tồn đầu ngày mai. Không tính là mỗi ngày huỷ bao nhiêu thì
+	tồn ảo cộng dồn bấy nhiêu.
+
+	`giu_cho` và `cho_chot` KHÔNG nằm ở đây: hai cột đó là giữ chỗ, bánh còn
+	nguyên trong tủ, chỉ trừ ảo vào "có thể bán" chứ không rời tồn.
+	"""
+	return max(
+		0,
+		int(da_dat or 0) + int(phat_sinh or 0) + int(don_khac or 0) + int(huy or 0),
+	)
+
+
+def tru_theo_lo(lo, so_tieu):
+	"""Trừ số đã tiêu vào các lô, LÔ CŨ TRƯỚC. Phép THUẦN, sửa tại chỗ `lo`.
+
+	`lo` là danh sách các cặp `[số lượng, NSX]` xếp từ cũ tới mới. Bán trước
+	lấy hàng cũ trước (đúng như sales tư vấn clear hàng tồn), nên phép trừ
+	cũng ăn vào lô cũ trước.
+
+	Trả về phần KHÔNG trừ được, tức là đã tiêu nhiều hơn tồn có ghi nhận.
+	Bên gọi hiện bỏ qua số dư này; tách ra để sau còn dựng cảnh báo lệch mà
+	không phải sờ lại vòng lặp.
+
+	Tách khỏi `chot_ngay` ngày 06/09/2026 để kiểm thử được không cần site:
+	trước đó vòng này nằm lọt trong một hàm phải có `frappe.get_doc` mới
+	chạy, nên chưa từng có ca kiểm nào chạm tới.
+	"""
+	con = int(so_tieu or 0)
+	for cap in lo:
+		an = min(int(cap[0] or 0), con)
+		cap[0] = int(cap[0] or 0) - an
+		con -= an
+	return con
+
+
 def _co_that(c, k, ma):
 	"""Ma co that: co tren Pancake, hoac co trong danh muc Hang hoa ben Next."""
 	if frappe.db.exists("Item", ma):
@@ -758,7 +802,7 @@ def bang(ngay=None):
 				"ton_cu": d.ton_cu or 0, "nsx_cu": str(d.nsx_cu or ""),
 				"ton_d2": d.ton_d2 or 0, "nsx_d2": str(d.nsx_d2 or ""),
 				"ton_d1": d.ton_d1 or 0, "nsx_d1": str(d.nsx_d1 or ""),
-				"sx": d.sx or 0, "da_dat": d.da_dat or 0,
+				"sx": d.sx or 0, "huy": d.huy or 0, "da_dat": d.da_dat or 0,
 				"phat_sinh": d.phat_sinh or 0, "ten_khach_ps": d.ten_khach_ps or "",
 				"cho_chot": d.cho_chot or 0, "ten_khach_cho": d.ten_khach_cho or "",
 				"don_khac": d.don_khac or 0, "ten_khach_khac": d.ten_khach_khac or "",
@@ -773,7 +817,10 @@ def bang(ngay=None):
 	}
 
 
-SUA_DUOC = {"ton_cu", "ton_d2", "ton_d1", "sx"}
+# Cot nguoi go tay. "huy" vao day tu 06/09/2026: cua hang go so banh hong,
+# het han, roi vo, nem thu ngay tren bang nay (anh Viet chot huong A cua
+# issue #216). Cac cot may dem thi khong ai sua duoc.
+SUA_DUOC = {"ton_cu", "ton_d2", "ton_d1", "sx", "huy"}
 
 
 @frappe.whitelist()
@@ -827,7 +874,10 @@ def them_dong(ngay, ma_hang):
 	return {"ok": 1, "ten_banh": ten}
 
 
-SO_PHAI_RONG = ("ton_cu", "ton_d2", "ton_d1", "sx", "da_dat", "phat_sinh", "cho_chot", "don_khac")
+SO_PHAI_RONG = (
+	"ton_cu", "ton_d2", "ton_d1", "sx", "huy",
+	"da_dat", "phat_sinh", "cho_chot", "don_khac",
+)
 
 
 @frappe.whitelist()
@@ -886,17 +936,14 @@ def chot_ngay(ngay=None):
 	co_mai = {d.ma_hang: d for d in mai.dong}
 
 	for d in doc.dong:
-		ban = (d.da_dat or 0) + (d.phat_sinh or 0) + (d.don_khac or 0)
+		ban = so_da_tieu(d.da_dat, d.phat_sinh, d.don_khac, d.huy)
 		lo = [
 			[d.ton_cu or 0, d.nsx_cu],
 			[d.ton_d2 or 0, d.nsx_d2],
 			[d.ton_d1 or 0, d.nsx_d1],
 			[d.sx or 0, ngay],
 		]
-		for cap in lo:
-			an = min(cap[0], ban)
-			cap[0] -= an
-			ban -= an
+		tru_theo_lo(lo, ban)
 		# lo[0]+lo[1] don thanh "cu hon" cua ngay mai, lay NSX cu nhat lam moc
 		cu = lo[0][0] + lo[1][0]
 		nsx_cu = lo[0][1] if lo[0][0] else (lo[1][1] if lo[1][0] else None)
@@ -927,7 +974,7 @@ def chot_ngay(ngay=None):
 			b = co_btp.get(d.ma_hang)
 			if not b:
 				continue
-			an = (d.da_dat or 0) + (d.phat_sinh or 0) + (d.don_khac or 0)
+			an = so_da_tieu(d.da_dat, d.phat_sinh, d.don_khac, d.huy)
 			if an and ((b.so_btp or 0) or (b.so_decor or 0)):
 				b.so_btp = max(0, (b.so_btp or 0) - an)
 				# Banh ban ra la banh DA du decor - tru luon so du decor
