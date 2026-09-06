@@ -21,6 +21,11 @@
 #   6. Khai bao man danh sach nap duoc     - bat typo kieu cot, thieu quyen
 #   7. Moi the tren app deu bam duoc         - bat the chet, thieu nhanh dinh tuyen
 #   8. app_bep.js khop voi cac phan bep/   - bat ai sua tay vao tep may sinh
+#  10. Bo ca kiem hanh vi man ho so tt    - chay that chuoi bam tren DOM gia
+#
+# Cong doan 2 va 10 chay bang node, nen node la DIEU KIEN BAT BUOC va duoc
+# kiem ngay dau script. Thieu node thi dung luon, khong chay tiep roi bao
+# "duoc phep deploy" trong khi mot ca kiem bat buoc chua he chay.
 #
 # Cong doan 4 quan trong hon ve ngoai cua no: khai bao man nap duoc nghia la
 # LoiKhaiBao khong bat duoc gi, tuc khong co man nao se vo luc nguoi dung mo.
@@ -33,17 +38,42 @@ echo " CONG KIEM TRA TRUOC DEPLOY - Vagabond"
 echo "=============================================="
 echo ""
 
+# NODE LA DIEU KIEN BAT BUOC, kiem NGAY DAU chu khong doi toi cong doan 10.
+#
+# Codex neu vong nam tren PR #211, va neu dung: truoc do cong doan 2 ghi "BO
+# QUA neu khong co node" con cong doan 10 lai goi node thang duoi `set -e`.
+# Nghia la may khong co node thi chay toi cong 10 moi vo, sau khi da in ra
+# chin dong xanh - vua mat cong chay lai, vua de nguoi doc tuong chin cong
+# doan kia da du dieu kien deploy.
+#
+# Bo ca kiem HANH VI la ca kiem BAT BUOC, khong duoc lang le bo qua roi bao
+# "duoc phep deploy". Thieu node thi dung ngay tai day, va noi ro viec ke tiep.
+if ! command -v node > /dev/null 2>&1; then
+	echo "DUNG: may nay khong co node."
+	echo ""
+	echo "  Cong doan 2 (doc lai app_bep.js) va cong doan 10 (bo ca kiem hanh"
+	echo "  vi man ho so thanh toan) deu chay bang node. Hai cong doan do la"
+	echo "  bat buoc, khong duoc bo qua roi bao la du dieu kien deploy."
+	echo ""
+	echo "  Cai node roi chay lai:"
+	echo "    Debian/Ubuntu   sudo apt-get install -y nodejs"
+	echo "    macOS           brew install node"
+	echo "  Kiem lai bang:  node --version"
+	echo ""
+	echo "  May chay CI cua GitHub co san node, nen day chi la viec cua may"
+	echo "  dang ngoi. Chua cai duoc thi DUNG bam Deploy, doi CI xanh da."
+	exit 1
+fi
+echo "Node: $(node --version). Du dieu kien chay cong doan 2 va 10."
+echo ""
+
 echo "[1/10] Bien dich Python..."
 python3 -m compileall -q vagabond > /dev/null
 echo "      xong, khong loi cu phap."
 
 echo "[2/10] Doc lai JavaScript cua app..."
-if command -v node > /dev/null 2>&1; then
-	node --check vagabond/public/js/app_bep.js
-	echo "      xong, $(grep -c '' vagabond/public/js/app_bep.js) dong doc duoc."
-else
-	echo "      BO QUA: may nay khong co node. Nho kiem tay truoc khi day."
-fi
+node --check vagabond/public/js/app_bep.js
+echo "      xong, $(grep -c '' vagabond/public/js/app_bep.js) dong doc duoc."
 
 echo "[3/10] Bo kiem thu tang khung..."
 python3 vagabond/khung/kiem_thu/chay.py -im
