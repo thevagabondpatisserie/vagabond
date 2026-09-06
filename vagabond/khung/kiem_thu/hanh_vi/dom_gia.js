@@ -26,12 +26,12 @@ function ElementGia(ten) {
   this._chu = '';
 }
 
-/* `el.dataset.abc` doc va ghi thuoc tinh `data-abc`. Man bep dung dataset
-   rat nhieu (data-them, data-bo, data-q...) nen DOM gia phai co, khong thi
-   ca kiem hong o cho khong lien quan gi den viec dang kiem.
+/* `el.dataset.abc` đọc và ghi thuộc tính `data-abc`. Màn bếp dùng dataset
+   rất nhiều (data-them, data-bo, data-q...) nên DOM giả phải có, không thì
+   ca kiểm hỏng ở chỗ không liên quan gì đến việc đang kiểm.
 
-   Them 06/09/2026 cho bo ca kiem man tao lenh san xuat (#206). Them moi,
-   khong doi hanh vi cu cua tep nay. */
+   Thêm 06/09/2026 cho bộ ca kiểm màn tạo lệnh sản xuất (#206). Thêm mới,
+   không đổi hành vi cũ của tệp này. */
 Object.defineProperty(ElementGia.prototype, 'dataset', {
   get: function () {
     var el = this;
@@ -58,6 +58,7 @@ ElementGia.prototype.getAttribute = function (t) {
   return Object.prototype.hasOwnProperty.call(this.attrs, t) ? this.attrs[t] : null;
 };
 ElementGia.prototype.setAttribute = function (t, v) { this.attrs[t] = String(v); };
+ElementGia.prototype.removeAttribute = function (t) { delete this.attrs[t]; };
 ElementGia.prototype.hasAttribute = function (t) {
   return Object.prototype.hasOwnProperty.call(this.attrs, t);
 };
@@ -134,12 +135,12 @@ Object.defineProperty(ElementGia.prototype, 'innerHTML', {
   get: function () { return this._html == null ? '' : this._html; },
   set: function (v) {
     this._html = String(v == null ? '' : v);
-    /* PHAI DON CON CU TRUOC. doc() day node moi vao chinh mang children cua
-       cha, nen neu khong don thi ve lai man mot cai la DOM gia giu ca ban cu
-       lan ban moi. Ca kiem nao dem "khong con dong nao" se thay dong cu con
-       nguyen va bao xanh oan, hoac hong oan.
-       Sua 06/09/2026 khi dung bo ca kiem man tao lenh san xuat (#206): ca
-       "bo mot mon da chon" dem ra 1 trong khi man da ve lai khong con dong. */
+    /* PHẢI DỌN CON CŨ TRƯỚC. doc() đẩy node mới vào chính mảng children của
+       cha, nên nếu không dọn thì vẽ lại màn một cái là DOM giả giữ cả bản cũ
+       lẫn bản mới. Ca kiểm nào đếm "không còn dòng nào" sẽ thấy dòng cũ còn
+       nguyên và báo xanh oan, hoặc hỏng oan.
+       Sửa 06/09/2026 khi dựng bộ ca kiểm màn tạo lệnh sản xuất (#206): ca
+       "bỏ một món đã chọn" đếm ra 1 trong khi màn đã vẽ lại không còn dòng. */
     this.children = [];
     this._chu = '';
     this.children = doc(this._html, this);
@@ -151,6 +152,13 @@ Object.defineProperty(ElementGia.prototype, 'textContent', {
     var ra = this._chu || '';
     this.children.forEach(function (c) { ra += c.textContent; });
     return ra;
+  },
+  /* Gán textContent thì xoá hết con, chỉ còn chữ. Thêm cho #206 khi nút tạo
+     đổi chữ tại chỗ mà không vẽ lại cả màn. */
+  set: function (v) {
+    this.children = [];
+    this._html = '';
+    this._chu = String(v == null ? '' : v);
   },
 });
 
@@ -178,9 +186,9 @@ function chonThuocTinh(chon) {
    chon go sai ma tra ve rong se lam ca kiem xanh oan. */
 function hopBoChon(el, chon) {
   var t = String(chon).trim();
-  /* Danh sach ngan cach bang dau phay: khop mot phan la khop. Man bep viet
-     closest('[data-m],[data-p],[data-dec]') rat nhieu cho.
-     Them 06/09/2026 cho bo ca kiem man tao lenh san xuat (#206). */
+  /* Danh sách ngăn cách bằng dấu phẩy: khớp một phần là khớp. Màn bếp viết
+     closest('[data-m],[data-p],[data-dec]') rất nhiều chỗ.
+     Thêm 06/09/2026 cho bộ ca kiểm màn tạo lệnh sản xuất (#206). */
   if (t.indexOf(',') >= 0) {
     var phan = t.split(',');
     for (var i = 0; i < phan.length; i++) {
@@ -190,12 +198,16 @@ function hopBoChon(el, chon) {
   }
   var m = /^\[([a-zA-Z0-9_-]+)\]$/.exec(t);
   if (m) return el.hasAttribute(m[1]);
+  /* [thuoc-tinh="gia-tri"]: màn tạo lệnh dùng để tìm ô số lượng theo chỉ
+     số dòng khi bấm cộng trừ. Thêm cho #206. */
+  var mg = /^\[([a-zA-Z0-9_-]+)=(?:"([^"]*)"|'([^']*)'|([^\]]*))\]$/.exec(t);
+  if (mg) return el.getAttribute(mg[1]) === (mg[2] != null ? mg[2] : mg[3] != null ? mg[3] : mg[4]);
   if (t.charAt(0) === '#') return el.getAttribute('id') === t.slice(1);
   if (t.charAt(0) === '.') {
     var lop = String(el.getAttribute('class') || '').split(/\s+/);
     return lop.indexOf(t.slice(1)) >= 0;
   }
-  throw new Error('DOM gia chi hieu [thuoc-tinh], #id va .lop, khong hieu: ' + chon);
+  throw new Error('DOM gia chi hieu [thuoc-tinh], [thuoc-tinh="gia-tri"], #id va .lop, khong hieu: ' + chon);
 }
 
 /* Doc HTML. Du cho markup ma man bep sinh ra: the mo co thuoc tinh trong nhay

@@ -1,10 +1,10 @@
-/* Bo ca kiem HANH VI cho man TAO LENH SAN XUAT (#206).
+/* Bộ ca kiểm HÀNH VI cho màn TẠO LỆNH SẢN XUẤT (#206).
  *
- * Cung loi voi hanh_vi/chay.js: khong do chuoi trong ma nguon, ma CHAY THAT
- * ham `scrMfgNew` tren DOM gia roi ban su kien nhu nguoi that go va bam.
+ * Cùng lối với hanh_vi/chay.js: không dò chuỗi trong mã nguồn, mà CHẠY THẬT
+ * hàm `scrMfgNew` trên DOM giả rồi bắn sự kiện như người thật gõ và bấm.
  *
- * Chay:  node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
- * Ma tra ve 0 la dat het.
+ * Chạy:  node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
+ * Mã trả về 0 là đạt hết.
  */
 'use strict';
 
@@ -21,8 +21,8 @@ function docTep(ten) { return fs.readFileSync(path.join(BEP, ten), 'utf8'); }
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
   if (dau < 0) throw new Error('Khong thay ham ' + ten);
-  /* Ham async thi phai keo theo ca chu `async`, khong thi `await` ben trong
-     thanh loi cu phap. Da vap dung cai nay khi lay scrMfgNew. */
+  /* Hàm async thì phải kéo theo cả chữ `async`, không thì `await` bên trong
+     thành lỗi cú pháp. Đã vấp đúng cái này khi lấy scrMfgNew. */
   if (src.slice(Math.max(0, dau - 6), dau) === 'async ') dau -= 6;
   var i = src.indexOf('{', dau), sau = 0;
   for (var j = i; j < src.length; j++) {
@@ -32,6 +32,12 @@ function layHam(src, ten) {
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
 
+function layDong(src, dau) {
+  var i = src.indexOf(dau);
+  if (i < 0) throw new Error('Khong thay dong ' + dau);
+  return src.slice(i, src.indexOf('\n', i));
+}
+
 var ket = { dat: 0, hong: 0, loi: [] };
 
 function dung(mo, dk) { if (!dk) throw new Error(mo + ': duoc false, mong true'); }
@@ -39,9 +45,9 @@ function bang(mo, a, b) {
   if (a !== b) throw new Error(mo + ': duoc ' + JSON.stringify(a) + ', mong ' + JSON.stringify(b));
 }
 
-/* ---------- dung moi truong ---------- */
+/* ---------- dựng môi trường ---------- */
 
-/* Nhu cau san xuat gia lap. Dung dang ma mfgDemand() that tra ve. */
+/* Nhu cầu sản xuất giả lập. Đúng dạng mà mfgDemand() thật trả về. */
 function nhuCauMau() {
   return [
     { code: 'TP001', name: 'Bánh Su Kem', uom: 'Cái', image: '', need: 10, wo: 0, ton: 2, bom: 'BOM-TP001', qty: 8, on: 0 },
@@ -70,9 +76,9 @@ function dungMan(canh) {
     setTimeout: setTimeout, clearTimeout: clearTimeout, isNaN: isNaN,
     parseInt: parseInt, parseFloat: parseFloat,
 
-    /* frame that ve than man va chan man vao hai cho khac nhau; o day gop
-       vao mot khung cho don gian, nhung KHONG duoc bo chan man di vi nut
-       "Tao N lenh san xuat" nam trong do. */
+    /* frame thật vẽ thân màn và chân màn vào hai chỗ khác nhau; ở đây gộp
+       vào một khung cho đơn giản, nhưng KHÔNG được bỏ chân màn đi vì nút
+       "Tạo N lệnh sản xuất" nằm trong đó. */
     frame: function (tieuDe, html, o) {
       khung.innerHTML = html + ((o && o.footer) ? o.footer : '');
       return khung;
@@ -88,10 +94,10 @@ function dungMan(canh) {
     r3: function (n) { return Math.round(n * 1000) / 1000; },
     leavesUnder: function () { return ['Bán ra', 'Sản xuất']; },
 
-    /* Nhu cau san xuat: tra ban SAO moi lan, de moi ca mot the gioi rieng. */
+    /* Nhu cầu sản xuất: trả bản SAO mỗi lần, để mỗi ca một thế giới riêng. */
     mfgDemand: function () { return Promise.resolve(canh.rows || nhuCauMau()); },
 
-    /* Danh muc hang hoa cho phan "Mon khac trong danh muc". */
+    /* Danh mục hàng hoá cho phần "Món khác trong danh mục". */
     getList: function (dt, ts) {
       goiList.push({ dt: dt, ts: ts });
       if (canh.getList) return canh.getList(dt, ts);
@@ -118,9 +124,9 @@ function dungMan(canh) {
   that._toast = [];
   that.globalThis = that;
 
-  /* Ten toan cuc chua dat thi NEM LOI, tru danh sach duoi. Cung ly do nhu
-     hanh_vi/chay.js: mot cai bay nuot moi ten se lam ca kiem xanh oan khi
-     go sai ten ham. */
+  /* Tên toàn cục chưa đặt thì NÉM LỖI, trừ danh sách dưới. Cùng lý do như
+     hanh_vi/chay.js: một cái bẫy nuốt mọi tên sẽ làm ca kiểm xanh oan khi
+     gõ sai tên hàm. */
   var CHO_GIA = ['hasRole', 'today', 'addDays', 'inChunks', 'openWoQty', 'scanBarcode', 'itemByBarcode'];
   var daGia = {};
   var bay = new Proxy(that, {
@@ -140,7 +146,7 @@ function dungMan(canh) {
 
   var nen = docTep('00-nen.js');
   var sx = docTep('05-san-xuat.js');
-  /* Nap ham THAT, khong bia lai mot ban khac. */
+  /* Nạp hàm THẬT, không bịa lại một bản khác. */
   var ma = [
     layHam(nen, 'h'),
     layHam(sx, 'mfgKhongDau'),
@@ -149,7 +155,9 @@ function dungMan(canh) {
     layHam(sx, 'mfgViTriMon'),
     layHam(sx, 'mfgDemSeGui'),
     layHam(sx, 'mfgPickItem'),
-    'var mfgN = { horizon: 0, rows: null, q: "", seq: 0, tmr: null, dangGui: 0 };',
+    /* Lấy đúng dòng khai báo trạng thái trong nguồn, không chép tay một bản
+       khác: bản chép tay đã lệch một lần khi nguồn thêm khoá dangThem. */
+    layDong(sx, 'var mfgN = {'),
     layHam(sx, 'scrMfgNew'),
   ].join('\n;\n');
 
@@ -170,8 +178,8 @@ function theoTt(m, tt, gt) {
 }
 function demTt(m, tt) { return m.tai.querySelectorAll('[' + tt + ']').length; }
 
-/* O tim co nhip cho 260ms truoc khi ve lai, nen phai cho THAT chu khong the
-   cho bang vai nhip vi mo. Cho du roi moi doc man. */
+/* Ô tìm có nhịp chờ 260ms trước khi vẽ lại, nên phải chờ THẬT chứ không thể
+   chờ bằng vài nhịp vi mô. Chờ đủ rồi mới đọc màn. */
 async function cho(ms) { await new Promise(function (r) { setTimeout(r, ms); }); }
 
 async function goTim(m, chu) {
@@ -184,7 +192,7 @@ async function goTim(m, chu) {
   return o;
 }
 
-/* ---------- cac ca ---------- */
+/* ---------- các ca ---------- */
 
 async function chayHet() {
   await ca('1. mo man moi: khong mon nao tu chon san, va co o tim', async function () {
@@ -233,10 +241,10 @@ async function chayHet() {
   });
 
   await ca('4. them mot mon DANG CO trong nhu cau thi giu nguyen so lieu cua dong do', async function () {
-    /* Cho Codex neu tren #206: duong mAdd cu bao "Mon nay da co trong danh
-       sach" roi bat bep tu di cuon tim. Nay tim ra la CHON CHINH DONG DO, va
-       phai giu Phong ban can / Da co lenh / Ton thanh pham, chu khong dung
-       mot dong moi rong tuech. */
+    /* Chỗ Codex nêu trên #206: tấm tìm cũ báo "Món này đã có trong danh
+       sách" rồi bắt bếp tự đi cuộn tìm. Nay tìm ra là CHỌN CHÍNH DÒNG ĐÓ, và
+       phải giữ Phòng ban cần / Đã có lệnh / Tồn thành phẩm, chứ không dựng
+       một dòng mới rỗng tuếch. */
     var m = dungMan({});
     m.g._toast.length = 0;
     await m.g.scrMfgNew();
@@ -254,16 +262,16 @@ async function chayHet() {
     bang('khong bao "da co trong danh sach"',
       m.g._toast.filter(function (s) { return /đã có trong danh sách/i.test(String(s)); }).length, 0);
 
-    /* Tim lai chinh mon do: no khong duoc hien lai o phan goi y nua. */
+    /* Tìm lại chính món đó: nó không được hiện lại ở phần gợi ý nữa. */
     await goTim(m, 'su kem');
     dung('mon da them khong bay lai o goi y', theoTt(m, 'data-them', 'TP001') === null);
     bang('va van chi mot dong o danh sach da chon', demTt(m, 'data-bo'), 1);
   });
 
   await ca('4b. chip Chon tat ca van con, va chi chon mon CO cong thuc', async function () {
-    /* Anh Viet chot 21/08/2026: khong tu tick san mon nao, nhung phai co mot
-       cham de chon het khi bep that su muon lam het luot. Man moi khong trai
-       danh sach ra nua nhung duong do phai con. */
+    /* Anh Việt chốt 21/08/2026: không tự tick sẵn món nào, nhưng phải có một
+       chạm để chọn hết khi bếp thật sự muốn làm hết lượt. Màn mới không trải
+       danh sách ra nữa nhưng đường đó phải còn. */
     var m = dungMan({});
     await m.g.scrMfgNew();
     await nhip(3);
@@ -361,7 +369,7 @@ async function chayHet() {
     await goTim(m, 'bbb');
     dung('co hai lan hoi danh muc', cho.length >= 2);
     var cuoi = cho[cho.length - 1], dau = cho[cho.length - 2];
-    /* Tra loi lan MOI truoc, roi moi tra loi lan CU. */
+    /* Trả lời lần MỚI trước, rồi mới trả lời lần CŨ. */
     cuoi.r([{ name: 'MOI', item_name: 'Ket qua MOI', stock_uom: 'Cái', image: '' }]);
     await nhip(3);
     dau.r([{ name: 'CU', item_name: 'Ket qua CU', stock_uom: 'Cái', image: '' }]);
@@ -389,13 +397,13 @@ async function chayHet() {
   });
 
   await ca('11. bam LAP nut tao thi khong ra hai bo lenh', async function () {
-    /* Bep bam hai lan vi lan dau tuong chua an. Lan bam thu hai roi vao dung
-       luc lan mot con dang cho may chu, nen phai giu lenh dau lai giua chung
-       moi mo ra dung khe do.
+    /* Bếp bấm hai lần vì lần đầu tưởng chưa ăn. Lần bấm thứ hai rơi vào đúng
+       lúc lần một còn đang chờ máy chủ, nên phải giữ lệnh đầu lại giữa chừng
+       mới mở ra đúng khe đó.
 
-       DEM SO LAN GOI, khong dem so lenh da xong: neu dem so lenh xong thi ca
-       kiem van xanh khi bo phep chan, vi lenh cua lan bam thu nhat con treo
-       chua tra loi. Da dot bien va bat duoc dung cho nay. */
+       ĐẾM SỐ LẦN GỌI, không đếm số lệnh đã xong: nếu đếm số lệnh xong thì ca
+       kiểm vẫn xanh khi bỏ phép chặn, vì lệnh của lần bấm thứ nhất còn treo
+       chưa trả lời. Đã đột biến và bắt được đúng chỗ này. */
     var soGoi = 0, moKhoa = [];
     var m = dungMan({});
     m.g.mfgCreateWO = function (row) {
@@ -418,6 +426,183 @@ async function chayHet() {
     await nhip(6);
     bang('tong cong van chi mot lan goi', soGoi, 1);
   });
+
+  /* ----- Vòng 2, các finding của Codex trên #215 ----- */
+
+  await ca('12. bam KEP mon ngoai trong luc dang tai thi van chi mot dong, mot lenh', async function () {
+    /* Codex [P1] trên #215: hai lần bấm cùng một món ngoài trước khi
+       Item/BOM/tồn về thì mảng có hai dòng cùng mã, rồi gửi hai lệnh. Đo
+       trên SHA 642349d: rows=2, WO CALLS=2. Giữ Item treo để mở đúng khe. */
+    var giu = [];
+    var m = dungMan({ danhMuc: [{ name: 'EXT', item_name: 'Món Ngoài', stock_uom: 'Cái', image: '' }] });
+    m.g.mfgLoadItem = function (ma) {
+      return new Promise(function (r) { giu.push(function () { r({ item_name: 'Món ' + ma, stock_uom: 'Cái', image: '' }); }); });
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    await goTim(m, 'ngoai');
+    var ng = theoTt(m, 'data-ngoai', 'EXT');
+    dung('co goi y mon ngoai', !!ng);
+    ng.click(); ng.click();
+    await nhip(2);
+    bang('chi mot lan hoi Item cho mot ma', giu.length, 1);
+    giu.forEach(function (f) { f(); });
+    await nhip(8);
+    bang('chi mot dong cho ma EXT', m.g.mfgN.rows.filter(function (r) { return r.code === 'EXT'; }).length, 1);
+    bang('man cung chi mot dong', demTt(m, 'data-bo'), 1);
+    m.tai.getElementById('mGo').onclick();
+    await nhip(8);
+    bang('gui dung MOT lenh', JSON.stringify(m.goiWO), '[{"code":"EXT","qty":1}]');
+  });
+
+  await ca('13. so luong doi thi nut tao doi theo ngay, qua go va qua cong tru, hai chieu', async function () {
+    /* Codex [P2] trên #215. Đo trên 642349d: gõ 0 mà nút vẫn "Tạo 1 lệnh",
+       vẽ lại ở 0 rồi gõ 2 thì nút vẫn khoá. KHÔNG gọi thêm draw() hay vẽ
+       lại nào để "cho chắc": vẽ lại chính là cái sẽ chữa lỗi trước khi ca
+       kiểm nhìn (điều 15). */
+    var m = dungMan({});
+    await m.g.scrMfgNew();
+    await nhip(3);
+    await goTim(m, 'su kem');
+    theoTt(m, 'data-them', 'TP001').click();
+    await nhip(2);
+    function nut() { return m.tai.getElementById('mGo'); }
+    function khoa() { return nut().getAttribute('disabled') !== null; }
+    bang('chon xong: nut mo, dem 1', nut().textContent.replace(/\s+/g, ' ').trim(), 'Tạo 1 lệnh sản xuất');
+    var o = theoTt(m, 'data-q', '0');
+    o.value = '0'; o.dispatchEvent(dg.suKien('input', {}, o));
+    await nhip(1);
+    dung('go 0: nut khoa', khoa());
+    dung('go 0: khong con so 1 tren nut', nut().textContent.indexOf('1') < 0);
+    o.value = '2'; o.dispatchEvent(dg.suKien('input', {}, o));
+    await nhip(1);
+    dung('go 2: nut mo lai', !khoa());
+    bang('go 2: dem 1', nut().textContent.replace(/\s+/g, ' ').trim(), 'Tạo 1 lệnh sản xuất');
+    /* Cộng trừ cũng phải đồng bộ với cùng một hàm tính nút. */
+    theoTt(m, 'data-m', '0').click(); theoTt(m, 'data-m', '0').click();
+    await nhip(1);
+    bang('tru ve 0 trong mang', m.g.mfgN.rows[0].qty, 0);
+    dung('tru ve 0: nut khoa', khoa());
+    theoTt(m, 'data-p', '0').click();
+    await nhip(1);
+    dung('cong len 1: nut mo', !khoa());
+    /* Vẽ lại ở 0 rồi gõ dương: đúng chuỗi Codex mô tả. */
+    theoTt(m, 'data-m', '0').click();
+    await goTim(m, 'su kem ');
+    dung('sau ve lai o 0: nut khoa', khoa());
+    o = theoTt(m, 'data-q', '0');
+    o.value = '3'; o.dispatchEvent(dg.suKien('input', {}, o));
+    await nhip(1);
+    dung('go 3 sau ve lai: nut mo', !khoa());
+  });
+
+  await ca('14. phan hoi cua tu khoa CU ve trong cua so cho cua tu khoa moi thi bi bo', async function () {
+    /* Codex [P2] trên #215: seq chỉ tăng khi lượt tìm phát, không tăng lúc
+       gõ, nên OLD về trước 260ms của NEW vẫn được vẽ. Đo trên 642349d:
+       STALE BEFORE DEBOUNCE true. Ca 9 không bao phủ vì ở đó cả hai lượt đã
+       phát rồi mới trả. */
+    var treo = null;
+    var m = dungMan({ getList: function (dt, ts) {
+      var q = ts.or_filters.name[1];
+      if (q.indexOf('old') >= 0) return new Promise(function (r) { treo = function () { r([{ name: 'OLD1', item_name: 'Món Old', stock_uom: 'Cái' }]); }; });
+      return Promise.resolve([{ name: 'NEW1', item_name: 'Món New', stock_uom: 'Cái' }]);
+    } });
+    await m.g.scrMfgNew();
+    await nhip(3);
+    await goTim(m, 'old');
+    dung('luot old dang treo', typeof treo === 'function');
+    var o = m.tai.getElementById('mfgQ');
+    o.value = 'new'; o.dispatchEvent(dg.suKien('input', {}, o));
+    await nhip(2);
+    treo();
+    await nhip(4);
+    dung('OLD ve trong cua so cho: KHONG duoc hien', theoTt(m, 'data-ngoai', 'OLD1') === null);
+    await cho(320); await nhip(6);
+    dung('het cua so cho: NEW hien', !!theoTt(m, 'data-ngoai', 'NEW1'));
+    dung('OLD van khong hien', theoTt(m, 'data-ngoai', 'OLD1') === null);
+    /* Xoá về dưới hai ký tự thì phần danh mục phải trống. */
+    await goTim(m, 'n');
+    dung('duoi hai ky tu: khong con goi y danh muc', demTt(m, 'data-ngoai') === 0);
+  });
+
+  await ca('15. tim danh muc LOI thi bao loi co nut thu lai, giu danh sach da chon', async function () {
+    /* Codex trên #215: catch thành [] nên lỗi mạng hay quyền trông y như
+       "không tìm thấy". */
+    var hong = true;
+    var m = dungMan({ getList: function () {
+      if (hong) return Promise.reject(new Error('mất kết nối'));
+      return Promise.resolve([{ name: 'TP777', item_name: 'Món Về Sau', stock_uom: 'Cái' }]);
+    } });
+    await m.g.scrMfgNew();
+    await nhip(3);
+    await goTim(m, 'su kem');
+    theoTt(m, 'data-them', 'TP001').click();
+    await nhip(2);
+    await goTim(m, 've sau');
+    /* Đọc qua textContent của vùng danh mục, không đọc innerHTML của khung:
+       innerHTML của khung là chuỗi lúc vẽ, không phản ánh phần đổi tại chỗ. */
+    function chuNgoai() { var o = m.tai.getElementById('mNgoai'); return o ? o.textContent : ''; }
+    dung('co cau bao loi noi ro la khong tim duoc trong danh muc', chuNgoai().indexOf('Không tìm được trong danh mục') >= 0);
+    dung('cau loi mang theo ly do', chuNgoai().indexOf('mất kết nối') >= 0);
+    var lai = m.tai.getElementById('mNgoaiLai');
+    dung('co nut thu lai', !!lai);
+    dung('danh sach da chon van con', !!theoTt(m, 'data-bo', 'TP001'));
+    dung('khong hien nhu "khong tim thay"', chuNgoai().indexOf('Không tìm thấy hàng hoá') < 0);
+    hong = false;
+    lai.onclick();
+    await nhip(6);
+    dung('thu lai thanh cong thi ra ket qua', !!theoTt(m, 'data-ngoai', 'TP777'));
+    dung('cau loi bien mat', chuNgoai().indexOf('Không tìm được trong danh mục') < 0);
+  });
+
+  await ca('16. quet ma canh o tim: mon trong nhu cau thi chon dong do, mon ngoai thi them, khong ra thi bao', async function () {
+    /* Codex trên #215 và AGENTS.md mục 5: có mã thì có nút quét. Dùng lại
+       đúng đường scanBarcode + itemByBarcode của các màn khác. */
+    var maQuet = null, bang_ma = { '893001': 'TP002', '893999': 'TP555' };
+    var m = dungMan({});
+    m.g.scanBarcode = function () { return Promise.resolve(maQuet); };
+    m.g.itemByBarcode = function (code) { return Promise.resolve(bang_ma[code] || null); };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    var q = m.tai.getElementById('mfgScan');
+    dung('co nut quet canh o tim', !!q);
+    maQuet = '893001';
+    await q.onclick(); await nhip(6);
+    dung('mon trong nhu cau: chon chinh dong do', !!theoTt(m, 'data-bo', 'TP002'));
+    bang('khong nhan doi', m.g.mfgN.rows.filter(function (r) { return r.code === 'TP002'; }).length, 1);
+    bang('giu Phong ban can cua dong do', m.g.mfgN.rows.filter(function (r) { return r.code === 'TP002'; })[0].need, 4);
+    maQuet = '893999';
+    await q.onclick(); await nhip(8);
+    dung('mon ngoai nhu cau: duoc them', !!theoTt(m, 'data-bo', 'TP555'));
+    m.g._toast.length = 0;
+    maQuet = '000000';
+    await q.onclick(); await nhip(4);
+    bang('ma la thi bao cau nguoi doc hieu', m.g._toast.filter(function (s) { return /mã vạch/i.test(String(s)); }).length, 1);
+    bang('va khong them gi', m.g.mfgN.rows.length, 5);
+    maQuet = null;
+    await q.onclick(); await nhip(2);
+    bang('huy quet thi im', m.g.mfgN.rows.length, 5);
+  });
+
+  await ca('17. nut them/bo mang lop vung bam 44 va CSS chung khai dung 44 (chot tinh)', async function () {
+    /* DOM giả không tính layout, nên đây là PHÉP DÒ TĨNH, chỉ chốt hai đầu
+       nối: nút có lớp, và lớp có khai 44. Bằng chứng kích thước thật lấy từ
+       Chromium, đính trên PR, không lấy từ ca này. */
+    var m = dungMan({});
+    await m.g.scrMfgNew();
+    await nhip(3);
+    var them = theoTt(m, 'data-them', 'TP001');
+    dung('nut them mang lop rk44', /\brk44\b/.test(them.getAttribute('class') || ''));
+    them.click(); await nhip(2);
+    var bo = theoTt(m, 'data-bo', 'TP001');
+    dung('nut bo mang lop rk44', /\brk44\b/.test(bo.getAttribute('class') || ''));
+    var css = docTep('00-nen.js');
+    var luat = css.match(/\.rok\.rk44\{([^}]*)\}/);
+    dung('00-nen.js co luat .rok.rk44', !!luat);
+    dung('luat khai rong 44', /width:44px/.test(luat[1]));
+    dung('luat khai cao 44', /height:44px/.test(luat[1]));
+    dung('chu khong trong suot', !/color:transparent/.test(luat[1]) && /color:#/.test(luat[1]));
+  });
 }
 
 var HAN_GIO_MS = 5000;
@@ -439,7 +624,11 @@ async function ca(ten, ham) {
   }
 }
 
-chayHet().then(function () {
+/* Cho phép tệp khác (probe tái hiện, ca kiểm bổ sung) mượn lại khung dựng
+   màn mà không tự chạy hết bộ ca. Chạy trực tiếp thì mới chạy hết. */
+module.exports = { dungMan: dungMan, nhip: nhip, theoTt: theoTt, demTt: demTt, cho: cho, goTim: goTim, dung: dung, bang: bang };
+
+if (require.main === module) chayHet().then(function () {
   console.log('Bo ca kiem HANH VI man tao lenh san xuat');
   ket.loi.forEach(function (d) { console.log('  HONG  ' + d); });
   console.log('');
