@@ -26,6 +26,34 @@ function ElementGia(ten) {
   this._chu = '';
 }
 
+/* `el.dataset.abc` doc va ghi thuoc tinh `data-abc`. Man bep dung dataset
+   rat nhieu (data-them, data-bo, data-q...) nen DOM gia phai co, khong thi
+   ca kiem hong o cho khong lien quan gi den viec dang kiem.
+
+   Them 06/09/2026 cho bo ca kiem man tao lenh san xuat (#206). Them moi,
+   khong doi hanh vi cu cua tep nay. */
+Object.defineProperty(ElementGia.prototype, 'dataset', {
+  get: function () {
+    var el = this;
+    if (el._dataset) return el._dataset;
+    el._dataset = new Proxy({}, {
+      get: function (_, k) {
+        if (typeof k !== 'string') return undefined;
+        var v = el.getAttribute('data-' + k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }));
+        return v === null ? undefined : v;
+      },
+      set: function (_, k, v) {
+        el.setAttribute('data-' + String(k).replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }), v);
+        return true;
+      },
+      has: function (_, k) {
+        return el.hasAttribute('data-' + String(k).replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }));
+      },
+    });
+    return el._dataset;
+  },
+});
+
 ElementGia.prototype.getAttribute = function (t) {
   return Object.prototype.hasOwnProperty.call(this.attrs, t) ? this.attrs[t] : null;
 };
@@ -106,6 +134,14 @@ Object.defineProperty(ElementGia.prototype, 'innerHTML', {
   get: function () { return this._html == null ? '' : this._html; },
   set: function (v) {
     this._html = String(v == null ? '' : v);
+    /* PHAI DON CON CU TRUOC. doc() day node moi vao chinh mang children cua
+       cha, nen neu khong don thi ve lai man mot cai la DOM gia giu ca ban cu
+       lan ban moi. Ca kiem nao dem "khong con dong nao" se thay dong cu con
+       nguyen va bao xanh oan, hoac hong oan.
+       Sua 06/09/2026 khi dung bo ca kiem man tao lenh san xuat (#206): ca
+       "bo mot mon da chon" dem ra 1 trong khi man da ve lai khong con dong. */
+    this.children = [];
+    this._chu = '';
     this.children = doc(this._html, this);
   },
 });
@@ -142,6 +178,16 @@ function chonThuocTinh(chon) {
    chon go sai ma tra ve rong se lam ca kiem xanh oan. */
 function hopBoChon(el, chon) {
   var t = String(chon).trim();
+  /* Danh sach ngan cach bang dau phay: khop mot phan la khop. Man bep viet
+     closest('[data-m],[data-p],[data-dec]') rat nhieu cho.
+     Them 06/09/2026 cho bo ca kiem man tao lenh san xuat (#206). */
+  if (t.indexOf(',') >= 0) {
+    var phan = t.split(',');
+    for (var i = 0; i < phan.length; i++) {
+      if (phan[i].trim() && hopBoChon(el, phan[i])) return true;
+    }
+    return false;
+  }
   var m = /^\[([a-zA-Z0-9_-]+)\]$/.exec(t);
   if (m) return el.hasAttribute(m[1]);
   if (t.charAt(0) === '#') return el.getAttribute('id') === t.slice(1);
