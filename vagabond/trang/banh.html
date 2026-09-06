@@ -996,6 +996,28 @@ function lichConHopLe(lech, gioBatDau, gioHienTai, prepHours, tomorrowFrom){
 	return Number(gioBatDau) >= gioToiThieu(Number(lech), gioHienTai, prepHours, tomorrowFrom);
 }
 
+function ngayTuNeo(ngayIso, lech, moc){
+	/* PHÉP THUẦN. Trả về đối tượng Date của NGÀY THẬT đang được chọn.
+	   Ưu tiên ngày đã neo; không có neo thì mới tính từ độ lệch.
+
+	   Vì sao phải gom một mối: trước đây có BỐN chỗ tự tính
+	   `new Date() + picked` riêng (thanh ngày, ghi chú đơn, ghi chú checkout,
+	   và bảng tổng kết). Ba chỗ đầu nằm sau dongBoNgay() nên đúng, riêng bảng
+	   tổng kết thì không: setPay, setPickup, setMode và callback phí gọi
+	   THẲNG drawCo(), không đi qua đồng bộ. Qua nửa đêm mà khách chỉ bấm đổi
+	   phương thức thanh toán là bảng tổng kết ghi một ngày, thẻ lịch và đơn
+	   ghi một ngày khác. */
+	if (ngayIso) {
+		var a = new Date(ngayIso + 'T00:00:00');
+		if (!isNaN(a.getTime())) return a;
+	}
+	var t = moc ? new Date(moc) : new Date();
+	t.setHours(0, 0, 0, 0);
+	var d = new Date(t);
+	d.setDate(t.getDate() + (Number(lech) || 0));
+	return d;
+}
+
 function daChotLich(daChonNgay, daChonGio){
 	/* Bam mot ngay KHONG co nghia la da chot ca khung gio. Truoc day chi can
 	   bam ngay la bo chon tu thu lai, khach di thang toi nut gui va don mang
@@ -1161,6 +1183,16 @@ function neoNgay(i){
   const d=new Date(t); d.setDate(t.getDate()+i);
   ngayChon=isoNgay(d);
 }
+/* MỘT NGUỒN DUY NHẤT cho mọi chỗ hiện ngày. Không chỗ nào được tự ghép
+   new Date() + picked nữa. */
+function ngayDangChon(){ return ngayTuNeo(ngayChon, picked); }
+function nhanNgayDangChon(){
+  /* Chữ "Hôm nay" hay "Ngày mai" phải tính lại theo đồng hồ HIỆN TẠI, không
+     được kẹt lại ở độ lệch lúc bấm. */
+  const d=ngayDangChon();
+  const l=lechNgay(isoNgay(new Date()), isoNgay(d));
+  return nhanNgay(l===null?picked:l, null, DAYS);
+}
 function railHtml(n,cb){
   const t=new Date(); t.setHours(0,0,0,0); let h='';
   for(let i=0;i<n;i++){ const d=new Date(t); d.setDate(t.getDate()+i);
@@ -1204,7 +1236,7 @@ function renderRail(){
   dongBoNgay();
   $('#rail').innerHTML=railHtml(14,'pick');
   $('#slots').innerHTML=slotsHtml();
-  const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
+  const d=ngayDangChon();
   let extra='';
   if(picked===0) extra=` Đơn trong ngày cần trước <b>${CONFIG.prepHours} tiếng</b>.`;
   else if(picked===1) extra=` Đơn cho ngày mai chỉ nhận <b>từ ${CONFIG.tomorrowFrom}h trở đi</b>, vì bếp cần thời gian chuẩn bị nguyên liệu.`;
@@ -1412,7 +1444,7 @@ function drawCoDate(){
     goc.style.display = hienTomTat ? '' : 'none';
     kh.style.display  = hienTomTat ? 'none' : '';
     if(hienTomTat){
-      const nh=nhanNgay(picked,null,DAYS);
+      const nh=nhanNgayDangChon();
       goc.innerHTML='<div class="tt-doc"><span>Thời gian nhận</span>'
         +'<b>'+nh.ten+', '+nh.ngay+' · '+SLOTS[pickedSlot].t+'</b></div>'
         +'<button type="button" class="tt-doi" onclick="doiLich()">Thay đổi</button>';
@@ -1421,7 +1453,7 @@ function drawCoDate(){
       goc.innerHTML='';
     }
   }
-  const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
+  const d=ngayDangChon();
   /* Ngay da chon roi vao qua khu, xay ra khi khach de tab mo qua nua dem. */
   const ngayQua = picked<0;
   $('#c-prep').innerHTML= (ngayQua
@@ -1664,12 +1696,10 @@ const TEN_DIEM = {
    de hai cho khong bao gio lech nhau. */
 function mocGioNhan(){
   const gio=String(SLOTS[pickedSlot].from).padStart(2,'0');
-  /* Ngay da neo thi lay dung ngay do, khong tinh lai tu do lech, vi qua nua
-     dem do lech se tro ve mot ngay khac voi cai the tom tat dang hien. */
-  if(ngayChon) return `${ngayChon}T${gio}:00:00`;
-  const t=new Date(); t.setHours(0,0,0,0);
-  const d=new Date(t); d.setDate(t.getDate()+picked);
-  return `${isoNgay(d)}T${gio}:00:00`;
+  /* Ngày đã neo thì lấy đúng ngày đó, không tính lại từ độ lệch, vì qua nửa
+     đêm độ lệch sẽ trỏ về một ngày khác với cái thẻ tóm tắt đang hiện.
+     Đi chung một cửa với mọi chỗ hiện ngày. */
+  return `${isoNgay(ngayDangChon())}T${gio}:00:00`;
 }
 
 function quoteShip(){
@@ -1725,11 +1755,14 @@ function coTotals(){
   return {items, ship, total:items+ship};
 }
 function drawCo(){
+  /* setPay, setPickup, setMode và callback phí gọi THẲNG vào đây, không đi
+     qua drawCoDate, nên phải tự đồng bộ lấy. */
+  dongBoNgay();
   $('#pickList').innerHTML = PICKUPS.map((x,i)=>`<button class="pick ${CO.pickup===i?'on':''}" onclick="setPickup(${i})">
     <b>${x.n}</b><span>${x.a}</span></button>`).join('');
   $('#payList').innerHTML = PAYS.map(x=>`<button class="pick ${CO.pay===x.k?'on':''}" onclick="setPay('${x.k}')">
     <b>${x.n}</b><span>${x.d}</span></button>`).join('');
-  const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
+  const d=ngayDangChon();
   const S=coTotals();
   $('#sum').innerHTML=`
     ${CART.map(o=>`<div class="row"><span>${esc(o.k)} · Ø ${o.cm}cm${o.qty>1?' × '+o.qty:''}</span><b>${vnd(o.price*o.qty)}</b></div>`
@@ -1805,7 +1838,9 @@ async function submitOrder(){
   }
 
   const S=coTotals();
-  const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
+  /* Trước đây chỗ này còn tính một ngày riêng từ độ lệch rồi bỏ không dùng.
+     Đã bỏ hẳn: ngày của đơn CHỈ lấy từ mocGioNhan(), và mocGioNhan đọc ngày
+     đã neo. Một nguồn duy nhất thì không thể lệch nhau được. */
 
   /* note_print la thu BEP doc khi in phieu. Nhieu banh thi phai ghi ro
      loi chuc nao thuoc banh nao, khong duoc gop chung mot dong. */
