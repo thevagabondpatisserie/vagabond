@@ -997,16 +997,16 @@ function lichConHopLe(lech, gioBatDau, gioHienTai, prepHours, tomorrowFrom){
 }
 
 function ngayTuNeo(ngayIso, lech, moc){
-	/* PHEP THUAN. Tra ve doi tuong Date cua NGAY THAT dang duoc chon.
-	   Uu tien ngay da neo; khong co neo thi moi tinh tu do lech.
+	/* PHÉP THUẦN. Trả về đối tượng Date của NGÀY THẬT đang được chọn.
+	   Ưu tiên ngày đã neo; không có neo thì mới tính từ độ lệch.
 
-	   Vi sao phai gom mot moi: truoc day co BON cho tu tinh
-	   `new Date() + picked` rieng (thanh ngay, ghi chu don, ghi chu checkout,
-	   va bang tong ket). Ba cho dau nam sau dongBoNgay() nen dung, rieng bang
-	   tong ket thi khong: setPay, setPickup, setMode va callback phi goi
-	   THANG drawCo(), khong di qua dong bo. Qua nua dem ma khach chi bam doi
-	   phuong thuc thanh toan la bang tong ket ghi mot ngay, the lich va don
-	   ghi mot ngay khac. */
+	   Vì sao phải gom một mối: trước đây có BỐN chỗ tự tính
+	   `new Date() + picked` riêng (thanh ngày, ghi chú đơn, ghi chú checkout,
+	   và bảng tổng kết). Ba chỗ đầu nằm sau dongBoNgay() nên đúng, riêng bảng
+	   tổng kết thì không: setPay, setPickup, setMode và callback phí gọi
+	   THẲNG drawCo(), không đi qua đồng bộ. Qua nửa đêm mà khách chỉ bấm đổi
+	   phương thức thanh toán là bảng tổng kết ghi một ngày, thẻ lịch và đơn
+	   ghi một ngày khác. */
 	if (ngayIso) {
 		var a = new Date(ngayIso + 'T00:00:00');
 		if (!isNaN(a.getTime())) return a;
@@ -1183,12 +1183,12 @@ function neoNgay(i){
   const d=new Date(t); d.setDate(t.getDate()+i);
   ngayChon=isoNgay(d);
 }
-/* MOT NGUON DUY NHAT cho moi cho hien ngay. Khong cho nao duoc tu ghep
-   new Date() + picked nua. */
+/* MỘT NGUỒN DUY NHẤT cho mọi chỗ hiện ngày. Không chỗ nào được tự ghép
+   new Date() + picked nữa. */
 function ngayDangChon(){ return ngayTuNeo(ngayChon, picked); }
 function nhanNgayDangChon(){
-  /* Chu "Hom nay" hay "Ngay mai" phai tinh lai theo dong ho HIEN TAI, khong
-     duoc ket lai o do lech luc bam. */
+  /* Chữ "Hôm nay" hay "Ngày mai" phải tính lại theo đồng hồ HIỆN TẠI, không
+     được kẹt lại ở độ lệch lúc bấm. */
   const d=ngayDangChon();
   const l=lechNgay(isoNgay(new Date()), isoNgay(d));
   return nhanNgay(l===null?picked:l, null, DAYS);
@@ -1696,9 +1696,9 @@ const TEN_DIEM = {
    de hai cho khong bao gio lech nhau. */
 function mocGioNhan(){
   const gio=String(SLOTS[pickedSlot].from).padStart(2,'0');
-  /* Ngay da neo thi lay dung ngay do, khong tinh lai tu do lech, vi qua nua
-     dem do lech se tro ve mot ngay khac voi cai the tom tat dang hien.
-     Di chung mot cua voi moi cho hien ngay. */
+  /* Ngày đã neo thì lấy đúng ngày đó, không tính lại từ độ lệch, vì qua nửa
+     đêm độ lệch sẽ trỏ về một ngày khác với cái thẻ tóm tắt đang hiện.
+     Đi chung một cửa với mọi chỗ hiện ngày. */
   return `${isoNgay(ngayDangChon())}T${gio}:00:00`;
 }
 
@@ -1755,8 +1755,8 @@ function coTotals(){
   return {items, ship, total:items+ship};
 }
 function drawCo(){
-  /* setPay, setPickup, setMode va callback phi goi THANG vao day, khong di
-     qua drawCoDate, nen phai tu dong bo lay. */
+  /* setPay, setPickup, setMode và callback phí gọi THẲNG vào đây, không đi
+     qua drawCoDate, nên phải tự đồng bộ lấy. */
   dongBoNgay();
   $('#pickList').innerHTML = PICKUPS.map((x,i)=>`<button class="pick ${CO.pickup===i?'on':''}" onclick="setPickup(${i})">
     <b>${x.n}</b><span>${x.a}</span></button>`).join('');
@@ -1838,9 +1838,9 @@ async function submitOrder(){
   }
 
   const S=coTotals();
-  /* Truoc day cho nay con tinh mot ngay rieng tu do lech roi bo khong dung.
-     Da bo han: ngay cua don CHI lay tu mocGioNhan(), va mocGioNhan doc ngay
-     da neo. Mot nguon duy nhat thi khong the lech nhau duoc. */
+  /* Trước đây chỗ này còn tính một ngày riêng từ độ lệch rồi bỏ không dùng.
+     Đã bỏ hẳn: ngày của đơn CHỈ lấy từ mocGioNhan(), và mocGioNhan đọc ngày
+     đã neo. Một nguồn duy nhất thì không thể lệch nhau được. */
 
   /* note_print la thu BEP doc khi in phieu. Nhieu banh thi phai ghi ro
      loi chuc nao thuoc banh nao, khong duoc gop chung mot dong. */
