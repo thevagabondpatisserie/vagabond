@@ -297,46 +297,126 @@ def _gioi_han_tk_khong_huu_han():
 	dung("không chặn nhầm số thực tròn", cn.gioi_han_tk("3.0") == 3)
 
 
-@ca("#196C tài khoản của công ty khác bị chặn ngay, không để tới lúc ghi sổ")
-def _tk_khac_cong_ty():
-	"""Codex nêu vòng ba trên PR #207, và nêu đúng.
+@ca("#196C tài khoản không ghi sổ được bị chặn ngay lúc lưu, không đợi tới lúc ghi sổ")
+def _tk_khong_ghi_so_duoc():
+	"""Codex nêu vòng ba rồi vòng năm trên PR #207 và #211, đúng cả hai lần.
 
-	Bút toán ở `_tao_but_toan_tkct` lấy công ty từ `Global Defaults
-	.default_company`, còn `ds_tai_khoan` chỉ lọc `is_group` và `disabled`,
-	không lọc công ty. Ngày 06/09/2026 site thật có 158 tài khoản đang dùng
-	thì 14 tài khoản đuôi "- TVD" thuộc công ty demo. Chọn nhầm một tài khoản
-	như vậy thì lưu qua, duyệt qua, tới lúc ghi sổ mới vỡ bằng lời báo của
-	ERPNext, tức là vỡ ở chỗ xa nhất so với chỗ gây ra.
+	Vòng ba: bút toán ở `_tao_but_toan_tkct` lấy công ty từ `Global Defaults
+	.default_company`, còn `ds_tai_khoan` không lọc công ty. Ngày 06/09/2026
+	site thật có 158 tài khoản đang dùng thì 14 tài khoản đuôi "- TVD" thuộc
+	công ty demo.
+
+	Vòng năm: bản sửa vòng ba mới đọc mỗi ô `company`, nên tài khoản ĐÃ NGƯNG
+	DÙNG và tài khoản NHÓM vẫn lọt. Hai cái đó ô chọn có lọc, nhưng danh mục
+	được giữ trong `huTkDs` suốt phiên: ai mở app từ sáng rồi kế toán khoá một
+	tài khoản lúc trưa thì chiều họ vẫn chọn được cái đã khoá.
 	"""
-	# Phep THUAN, goi that.
-	dung("cùng công ty thì không có lời báo",
-		cn.loi_tk_khac_cong_ty("6277 - VGB", "CTY A", "CTY A") is None)
-	dung("chưa chọn gì thì không có lời báo",
-		cn.loi_tk_khac_cong_ty("", "CTY B", "CTY A") is None)
-	loi = cn.loi_tk_khac_cong_ty("Cash - TVD", "The Vagabond (Demo)", "CTY A", "Nợ")
-	dung("khác công ty thì có lời báo", bool(loi))
-	dung("lời báo gọi tên tài khoản", "Cash - TVD" in loi)
-	dung("lời báo gọi tên cả hai công ty",
-		"The Vagabond (Demo)" in loi and "CTY A" in loi)
-	# QT-24: loi bao phai noi viec ke tiep.
-	dung("lời báo nói việc kế tiếp", "Chọn lại tài khoản" in loi)
-	# Codex neu vong bon: KHONG duoc bao nguoi dung di doi cong ty cua tai
-	# khoan. Doi o Company la viec dong toi so cai, khong phai cach chua mac
-	# dinh cho mot lan chon nham.
-	la("không xui người dùng đổi công ty của tài khoản",
-		"Company" in loi or "đổi công ty" in loi, False)
-	dung("chỉ mời kiểm tra lại cấu hình", "kiểm tra lại cấu hình" in loi)
+	C = "CTY A"
+	tot = {"company": C, "disabled": 0, "is_group": 0}
 
-	# O chon va cua nhan phai dung CHUNG mot dieu kien.
+	# Phep THUAN, goi that.
+	dung("tài khoản lành thì không có lời báo",
+		cn.loi_tk_khong_ghi_so_duoc("6277 - VGB", tot, C) is None)
+	dung("chưa chọn gì thì không có lời báo",
+		cn.loi_tk_khong_ghi_so_duoc("", None, C) is None)
+
+	khac = cn.loi_tk_khong_ghi_so_duoc(
+		"Cash - TVD", {"company": "The Vagabond (Demo)", "disabled": 0, "is_group": 0}, C, "Nợ")
+	dung("khác công ty thì có lời báo", bool(khac))
+	dung("lời báo gọi tên tài khoản", "Cash - TVD" in khac)
+	dung("lời báo gọi tên cả hai công ty",
+		"The Vagabond (Demo)" in khac and "CTY A" in khac)
+	dung("lời báo nói việc kế tiếp", "Chọn lại tài khoản" in khac)
+	# KHONG duoc xui nguoi dung doi cong ty cua tai khoan: doi o Company la
+	# viec dong toi so cai, khong phai cach chua mac dinh cho mot lan chon nham.
+	la("không xui người dùng đổi công ty của tài khoản",
+		"Company" in khac or "đổi công ty" in khac, False)
+	dung("chỉ mời kiểm tra lại cấu hình", "kiểm tra lại cấu hình" in khac)
+
+	ngung = cn.loi_tk_khong_ghi_so_duoc(
+		"6277 - VGB", {"company": C, "disabled": 1, "is_group": 0}, C, "Nợ")
+	dung("tài khoản ngưng dùng bị chặn", bool(ngung))
+	dung("nói rõ vì sao", "đã ngưng dùng" in ngung)
+	dung("nói việc kế tiếp", "Chọn tài khoản Nợ khác trong danh mục" in ngung)
+
+	nhom = cn.loi_tk_khong_ghi_so_duoc(
+		"642 - VGB", {"company": C, "disabled": 0, "is_group": 1}, C, "Có")
+	dung("tài khoản nhóm bị chặn", bool(nhom))
+	dung("nói rõ vì sao", "tài khoản nhóm" in nhom)
+	dung("nói việc kế tiếp", "tài khoản Có con nằm trong nhóm" in nhom)
+
+	mat = cn.loi_tk_khong_ghi_so_duoc("6277 - VGB", None, C, "Nợ")
+	dung("tài khoản không còn trong hệ thì cũng chặn", bool(mat))
+	dung("nói rõ là không có tài khoản đó", "Không có tài khoản" in mat)
+
+	# O danh dau cua Frappe ve duoc nhieu kieu: 1, "1", True.
+	for v in (1, "1", True):
+		dung("ô ngưng dùng về kiểu %r vẫn hiểu" % (v,), bool(
+			cn.loi_tk_khong_ghi_so_duoc("a", {"company": C, "disabled": v, "is_group": 0}, C)))
+	for v in (0, "0", False, None, ""):
+		dung("ô ngưng dùng rỗng kiểu %r thì không chặn nhầm" % (v,),
+			cn.loi_tk_khong_ghi_so_duoc("a", {"company": C, "disabled": v, "is_group": 0}, C) is None)
+
+	# TINH HUONG THAT Codex neu: danh muc da tai luc sang, tai khoan bi khoa
+	# luc trua. Ban ghi doc lai o may chu la ban MOI, nen phai chan.
+	dung("danh mục cũ còn nhớ, nhưng bản ghi mới nói đã khoá thì vẫn chặn", bool(
+		cn.loi_tk_khong_ghi_so_duoc("6277 - VGB", {"company": C, "disabled": 1, "is_group": 0}, C)))
+
+
+@ca("#196C cửa nhận đọc lại trạng thái tài khoản từ máy chủ, cho cả Nợ lẫn Có")
+def _cua_nhan_doc_lai_may_chu():
 	s = _py("ho_so_tt.py")
-	dung("ô chọn lọc theo công ty", '"company": _cong_ty_chung_tu()' in s)
-	dung("cửa nhận chặn tài khoản Nợ", '_kiem_tk_cung_cong_ty(tk_no, "Nợ")' in s)
-	dung("cửa nhận chặn cả tài khoản Có", '_kiem_tk_cung_cong_ty(tk_co, "Có")' in s)
-	dung("cả hai đi qua cùng một phép thuần",
-		"chon_ncc.loi_tk_khac_cong_ty(" in s)
+	than = _doan(s, "def tao_chi_cong_ty(", "\n@frappe.whitelist()")
+
+	# Doc DU ba o, trong MOT lan hoi may chu.
+	dung("đọc lại đủ ba ô từ máy chủ",
+		'"Account", ma_tk, ["company", "disabled", "is_group"], as_dict=True' in s)
+	dung("đi qua phép thuần chung", "chon_ncc.loi_tk_khong_ghi_so_duoc(" in s)
+
+	# Ca No lan Co deu qua cua.
+	dung("chặn tài khoản Nợ", '_kiem_tk_ghi_so_duoc(tk_no, "Nợ")' in than)
+	dung("chặn tài khoản Có", '_kiem_tk_ghi_so_duoc(tk_co, "Có")' in than)
+
+	# Chan tren tai khoan Co THUC SU DUOC GHI, tuc sau khi roi ve mac dinh.
+	# Kiem moi cai nguoi dung gui len la bo lot duong mac dinh: Bank Account
+	# tro toi mot tai khoan nhom hay da ngung dung thi van ghi vao duoc.
+	dung("rơi về tài khoản mặc định TRƯỚC khi kiểm",
+		'tk_co = (x.get("tk_co") or "").strip() or tk_so_cai' in than)
+	a = than.index('tk_co = (x.get("tk_co") or "").strip() or tk_so_cai')
+	b = than.index('_kiem_tk_ghi_so_duoc(tk_co, "Có")')
+	dung("thứ tự đúng: rơi về mặc định rồi mới kiểm", a < b)
+	dung("ghi xuống đúng cái vừa kiểm", '"tk_co": tk_co,' in than)
+	la("không còn ghi xuống bằng câu chưa qua cửa", '"tk_co": tk_co or tk_so_cai,' in than, False)
+
+	# Cua nhan va bo loc cua o chon phai TRUNG KHIT ba dieu kien.
+	dung("ô chọn lọc đúng ba điều kiện",
+		'loc = {"is_group": 0, "disabled": 0, "company": _cong_ty_chung_tu()}' in s)
 	# Mot cho duy nhat quyet dinh cong ty, khong thi hai ben lech nhau.
 	dung("chỉ một chỗ quyết định công ty của chứng từ",
 		s.count('get_single_value("Global Defaults", "default_company")') <= 3)
+
+
+@ca("#196C cổng trước deploy đòi Node ngay từ đầu, không bỏ qua ca kiểm bắt buộc")
+def _cong_doi_node():
+	"""Codex nêu vòng năm trên PR #211, và nêu đúng.
+
+	Công đoạn 2 ghi "BỎ QUA nếu không có node" còn công đoạn 10 lại gọi node
+	thẳng dưới `set -e`. Máy không có node thì chạy tới công 10 mới vỡ, sau
+	khi đã in ra chín dòng xanh: vừa mất công chạy lại, vừa dễ làm người đọc
+	tưởng chín công đoạn kia đã đủ điều kiện deploy.
+	"""
+	goc = os.path.dirname(GOI)
+	cong = io.open(os.path.join(goc, "kiem_truoc_deploy.sh"), encoding="utf-8").read()
+	dau = cong[:cong.index('echo "[1/10]')]
+	dung("kiểm node NGAY ĐẦU, trước công đoạn 1",
+		"command -v node" in dau)
+	dung("thiếu node thì dừng hẳn", "exit 1" in dau)
+	dung("nói rõ việc kế tiếp", "Cai node roi chay lai" in dau)
+	# Khong duoc lang le bo qua roi van bao la du dieu kien deploy.
+	la("công đoạn 2 không còn bỏ qua khi thiếu node",
+		"BO QUA: may nay khong co node" in cong, False)
+	dung("công đoạn 2 gọi node thẳng",
+		"node --check vagabond/public/js/app_bep.js\necho" in cong)
 
 
 @ca("#196C bộ ca kiểm HÀNH VI có thật và được cổng gọi tới")
