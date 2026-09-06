@@ -275,6 +275,80 @@ def _gioi_han_tk_loi_co_chu():
 		than.count("limit_page_length=han,") == 2)
 
 
+@ca("#196C số dòng tối đa: NaN và vô cùng cũng phải là lỗi có tên")
+def _gioi_han_tk_khong_huu_han():
+	"""Codex nêu vòng ba trên PR #207, và nêu đúng.
+
+	Nhánh số thực còn hai lỗ: "NaN" ném ValueError trần, "Infinity" và
+	"1e309" ném OverflowError, cả ba đều ngay tại `int(so)`. `ds_tai_khoan`
+	chỉ bắt `GioiHanXau` nên ba giá trị đó rơi thẳng lên màn hình dưới dạng
+	một dòng lỗi Python, không phải lời nhắn đã soạn.
+	"""
+	for xau in ("NaN", "nan", "Infinity", "-Infinity", "1e309", "inf",
+			float("nan"), float("inf"), float("-inf")):
+		nem = False
+		try:
+			cn.gioi_han_tk(xau)
+		except cn.GioiHanXau:
+			nem = True
+		dung("số không hữu hạn %r phải ném lỗi có tên" % (xau,), nem)
+	# Va khong duoc chan nham cac dau vao lanh.
+	dung("không chặn nhầm số 0", cn.gioi_han_tk(0) == 0)
+	dung("không chặn nhầm số thực tròn", cn.gioi_han_tk("3.0") == 3)
+
+
+@ca("#196C tài khoản của công ty khác bị chặn ngay, không để tới lúc ghi sổ")
+def _tk_khac_cong_ty():
+	"""Codex nêu vòng ba trên PR #207, và nêu đúng.
+
+	Bút toán ở `_tao_but_toan_tkct` lấy công ty từ `Global Defaults
+	.default_company`, còn `ds_tai_khoan` chỉ lọc `is_group` và `disabled`,
+	không lọc công ty. Ngày 06/09/2026 site thật có 158 tài khoản đang dùng
+	thì 14 tài khoản đuôi "- TVD" thuộc công ty demo. Chọn nhầm một tài khoản
+	như vậy thì lưu qua, duyệt qua, tới lúc ghi sổ mới vỡ bằng lời báo của
+	ERPNext, tức là vỡ ở chỗ xa nhất so với chỗ gây ra.
+	"""
+	# Phep THUAN, goi that.
+	dung("cùng công ty thì không có lời báo",
+		cn.loi_tk_khac_cong_ty("6277 - VGB", "CTY A", "CTY A") is None)
+	dung("chưa chọn gì thì không có lời báo",
+		cn.loi_tk_khac_cong_ty("", "CTY B", "CTY A") is None)
+	loi = cn.loi_tk_khac_cong_ty("Cash - TVD", "The Vagabond (Demo)", "CTY A", "Nợ")
+	dung("khác công ty thì có lời báo", bool(loi))
+	dung("lời báo gọi tên tài khoản", "Cash - TVD" in loi)
+	dung("lời báo gọi tên cả hai công ty",
+		"The Vagabond (Demo)" in loi and "CTY A" in loi)
+	# QT-24: loi bao phai noi viec ke tiep.
+	dung("lời báo nói việc kế tiếp", "Chọn lại tài khoản" in loi)
+
+	# O chon va cua nhan phai dung CHUNG mot dieu kien.
+	s = _py("ho_so_tt.py")
+	dung("ô chọn lọc theo công ty", '"company": _cong_ty_chung_tu()' in s)
+	dung("cửa nhận chặn tài khoản Nợ", '_kiem_tk_cung_cong_ty(tk_no, "Nợ")' in s)
+	dung("cửa nhận chặn cả tài khoản Có", '_kiem_tk_cung_cong_ty(tk_co, "Có")' in s)
+	dung("cả hai đi qua cùng một phép thuần",
+		"chon_ncc.loi_tk_khac_cong_ty(" in s)
+	# Mot cho duy nhat quyet dinh cong ty, khong thi hai ben lech nhau.
+	dung("chỉ một chỗ quyết định công ty của chứng từ",
+		s.count('get_single_value("Global Defaults", "default_company")') <= 3)
+
+
+@ca("#196C bộ ca kiểm HÀNH VI có thật và được cổng gọi tới")
+def _bo_ca_hanh_vi():
+	"""Codex nêu vòng hai và nhắc lại vòng ba: dò chuỗi trong mã nguồn không
+	chứng minh được hành vi. Nay có bộ ca chạy thật trên một DOM giả viết
+	tay, và nó phải nằm trong cổng chứ không phải một tệp để đó."""
+	dung("có DOM giả", os.path.exists(os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "dom_gia.js")))
+	dung("có bộ ca hành vi", os.path.exists(os.path.join(GOI, "khung", "kiem_thu", "hanh_vi", "chay.js")))
+	goc = os.path.dirname(GOI)
+	cong = io.open(os.path.join(goc, "kiem_truoc_deploy.sh"), encoding="utf-8").read()
+	dung("cổng trước deploy có gọi",
+		"node vagabond/khung/kiem_thu/hanh_vi/chay.js" in cong)
+	ci = io.open(os.path.join(goc, ".github", "workflows", "kiem-thu.yml"), encoding="utf-8").read()
+	dung("máy CI cũng gọi",
+		"node vagabond/khung/kiem_thu/hanh_vi/chay.js" in ci)
+
+
 @ca("#196C patches.txt có dòng đợt này và giữ nguyên dòng của phiên khác")
 def _dang_ky():
 	dong = [d.strip() for d in
