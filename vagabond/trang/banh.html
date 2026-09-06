@@ -1146,6 +1146,8 @@ let daChonNgay=false, daChonGio=false;
 let ngayChon=null;
 /* Khi khach bam Thay doi thi mo lai bo chon ngay trong checkout. */
 let moLich=false;
+/* May vua tu doi khung gio vi khung cu khong dat duoc cho ngay moi. */
+let gioBiDoi=false;
 function dongBoNgay(){
   /* Goi truoc moi lan ve lai lich: tinh lai do lech tu ngay THAT da chon,
      de sang ngay moi thi tom tat, phi giao va payload cung dich chuyen theo
@@ -1174,10 +1176,27 @@ function slotsHtml(){
     return `<button class="slot ${i===pickedSlot&&!off?'on':''} ${off?'off':''}" onclick="pickSlot(${i})">${s.t}</button>`;
   }).join('');
 }
-function fixSlot(){ if(!slotOk(picked,SLOTS[pickedSlot])){ const f=firstOk(picked); pickedSlot=f?SLOTS.indexOf(f):SLOTS.length-1; } }
+/* Doi ngay xong ma khung gio cu khong con dat duoc thi phai NHAY sang khung
+   khac, neu khong bo chon se tro ve mot khung da dong. Nhung cai nhay do la
+   MAY TU LAM, khong phai khach bam, nen tra ve true de noi goi biet ma ha co
+   xac nhan gio xuong. Truoc day khong tra ve gi, nen doi tu ngay xa co khung
+   sang hom nay la don lang le mang khung gio may tu chon. */
+function fixSlot(){
+  if(slotOk(picked,SLOTS[pickedSlot])) return false;
+  const f=firstOk(picked);
+  pickedSlot=f?SLOTS.indexOf(f):SLOTS.length-1;
+  return true;
+}
 /* Doi ngay hay doi khung gio la phai hoi lai phi: Ahamove tinh gia theo gio. */
-function pick(i){ picked=i; daChonNgay=true; neoNgay(i); fixSlot(); renderRail(); quoteShip(); }
-function pickSlot(i){ pickedSlot=i; daChonGio=true; if(!ngayChon) neoNgay(picked); renderRail(); quoteShip(); }
+function pick(i){
+  picked=i; daChonNgay=true; neoNgay(i);
+  /* May tu doi khung gio thi coi nhu khach CHUA chon gio cho ngay moi:
+     ha co xac nhan xuong, giu bo chon mo, va noi ro o dong ghi chu. */
+  gioBiDoi=false;
+  if(fixSlot()){ daChonGio=false; moLich=true; gioBiDoi=true; }
+  renderRail(); quoteShip();
+}
+function pickSlot(i){ pickedSlot=i; daChonGio=true; moLich=false; gioBiDoi=false; if(!ngayChon) neoNgay(picked); renderRail(); quoteShip(); }
 /* Nut Thay doi o muc 02 cua checkout. */
 function doiLich(){ moLich=true; drawCoDate();
   const o=$('#c-days'); if(o){ const b=o.querySelector('.day.on')||o.querySelector('.day'); if(b) b.focus(); } }
@@ -1397,6 +1416,9 @@ function drawCoDate(){
       goc.innerHTML='<div class="tt-doc"><span>Thời gian nhận</span>'
         +'<b>'+nh.ten+', '+nh.ngay+' · '+SLOTS[pickedSlot].t+'</b></div>'
         +'<button type="button" class="tt-doi" onclick="doiLich()">Thay đổi</button>';
+    } else {
+      /* Doc sach the tom tat khi dang an, khong de lai ban cu trong DOM. */
+      goc.innerHTML='';
     }
   }
   const t=new Date(); t.setHours(0,0,0,0); const d=new Date(t); d.setDate(t.getDate()+picked);
@@ -1413,8 +1435,10 @@ function drawCoDate(){
     + (ngayQua
         ? ' <b>Anh chị chọn lại ngày nhận giúp em nhé.</b>'
         : hongGio ? ' <b>Khung giờ anh chị chọn lúc nãy không còn kịp nữa, anh chị chọn lại giúp em một khung khác.</b>' : '')
-    + (!hongGio && !daChotLich(daChonNgay,daChonGio)
-        ? ' <b>Anh chị chọn giúp em cả ngày và khung giờ nhận nhé.</b>' : '');
+    + (!hongGio && gioBiDoi
+        ? ' <b>Khung giờ anh chị chọn lúc nãy không dùng được cho ngày này, anh chị chọn lại giúp em một khung khác.</b>'
+        : !hongGio && !daChotLich(daChonNgay,daChonGio)
+          ? ' <b>Anh chị chọn giúp em cả ngày và khung giờ nhận nhé.</b>' : '');
   if($('#checkout').classList.contains('open')) drawCo();
 }
 function updateCta(){
