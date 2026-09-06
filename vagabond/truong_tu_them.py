@@ -59,10 +59,12 @@ def dung():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: nap danh muc CRM")
 
-	# Mã phiếu kế hoạch sản xuất theo tháng KHSX-26-09-0001, lệnh sản xuất
-	# theo NGÀY TẠO LSX-060926-000001 (anh Việt chốt 06/09/2026, #206). Chỉ
-	# đổi chuỗi đặt tên cho phiếu SINH RA TỪ ĐÂY VỀ SAU; phiếu cũ giữ nguyên
-	# mã cũ, xem đầu tệp ma_phieu_sx.py.
+	# Mã phiếu kế hoạch sản xuất theo tháng KHSX-26-09-0001. Lệnh sản xuất
+	# LSX-060926-000057 và lô LO-260906-000751: phần ngày là ngày tạo, đuôi
+	# sáu số tăng LIÊN TỤC qua ngày (anh Việt chốt 06/09/2026, #206). Bước
+	# này đặt chuỗi đặt tên làm ĐƯỜNG LÙI và dựng sẵn dòng đếm; tên thật do
+	# hai hook autoname đặt. Chỉ ảnh hưởng chứng từ SINH RA TỪ ĐÂY VỀ SAU;
+	# lệnh và lô cũ giữ nguyên mã cũ, xem đầu tệp ma_phieu_sx.py.
 	from vagabond import ma_phieu_sx
 
 	try:
