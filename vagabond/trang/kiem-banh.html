@@ -34,7 +34,7 @@ body{background:#eef1f5}
 #kb .kb-web:hover{border-color:#9ca3af}
 #kb .kb-web.tat{border-color:#fca5a5;background:#fef2f2;color:#b91c1c}
 #kb .kb-web[disabled]{opacity:.5;cursor:default}
-#kb .kb-so{display:grid;grid-template-columns:repeat(16,1fr);text-align:center}
+#kb .kb-so{display:grid;grid-template-columns:repeat(17,1fr);text-align:center}
 #kb .kb-o{padding:8px 2px 9px;border-right:1px solid #f1f3f5}
 #kb .kb-o:last-child{border-right:0}
 #kb .kb-o label{display:block;font-size:8.5px;color:#6b7280;letter-spacing:.03em;margin-bottom:3px;text-transform:uppercase;font-weight:600}
@@ -55,6 +55,11 @@ body{background:#eef1f5}
 #kb .kb-o.cho.co b{color:#d97706;font-size:17px}
 #kb .kb-o.khac b{color:#9ca3af}
 #kb .kb-o.khac.co b{color:#7c3aed;font-size:17px}
+/* Cot Huy (06/09/2026): go tay, nen giu gach chan teal cua nhom sua duoc,
+   nhung con so thi do de nhin luot ca bang la thay ngay hom nay huy nhieu. */
+#kb .kb-o.huy{background:#fff5f5}
+#kb .kb-o.huy label{color:#b91c1c}
+#kb .kb-o.huy.co b{color:#dc2626;font-size:17px}
 /* Dau trang "Trang chu" va chan trang "Cung cap boi ERPNext" la khung
    mac dinh cua Web Page Frappe, khong thuoc app - an di cho dong bo voi /bep */
 header, .navbar, .web-footer, footer {display:none!important}
@@ -71,13 +76,13 @@ header, .navbar, .web-footer, footer {display:none!important}
 /* Nhom mau cot lien quan (anh Viet 01/08): sales dang gap khong nhin nham */
 #kb .kb-so .kb-o:nth-child(4){background:#fefce8;border-left:2px solid #fde68a}
 #kb .kb-so .kb-o:nth-child(4) label{color:#b45309}
-#kb .kb-so .kb-o:nth-child(n+5):nth-child(-n+11){background:#eff6ff}
-#kb .kb-so .kb-o:nth-child(5){border-left:2px solid #dbeafe}
-#kb .kb-so .kb-o:nth-child(12){background:#fff}
-#kb .kb-so .kb-o:nth-child(12){border-left:2px solid #e5e7eb}
-#kb .kb-so .kb-o:nth-child(13),#kb .kb-so .kb-o:nth-child(14){background:#fefce8}
-#kb .kb-so .kb-o:nth-child(13){border-left:2px solid #fde68a}
-#kb .kb-so .kb-o:nth-child(13) label,#kb .kb-so .kb-o:nth-child(14) label{color:#b45309}
+#kb .kb-so .kb-o:nth-child(n+6):nth-child(-n+12){background:#eff6ff}
+#kb .kb-so .kb-o:nth-child(6){border-left:2px solid #dbeafe}
+#kb .kb-so .kb-o:nth-child(13){background:#fff}
+#kb .kb-so .kb-o:nth-child(13){border-left:2px solid #e5e7eb}
+#kb .kb-so .kb-o:nth-child(14),#kb .kb-so .kb-o:nth-child(15){background:#fefce8}
+#kb .kb-so .kb-o:nth-child(14){border-left:2px solid #fde68a}
+#kb .kb-so .kb-o:nth-child(14) label,#kb .kb-so .kb-o:nth-child(15) label{color:#b45309}
 #kb .kb-so .kb-o:nth-child(15),#kb .kb-so .kb-o:nth-child(16){background:#effbf8}
 #kb .kb-so .kb-o:nth-child(15){border-left:2px solid #99f6e4}
 #kb .kb-so .kb-o:nth-child(15) label,#kb .kb-so .kb-o:nth-child(16) label{color:#0f766e}
@@ -131,7 +136,7 @@ header, .navbar, .web-footer, footer {display:none!important}
     <button id="kb-chot">Chốt ngày</button>
     <div id="kb-dachot">Ngày này đã chốt sổ. Số dư đã chuyển sang tồn đầu ngày mai.</div>
   </div>
-  <details class="kb-cg"><summary>Chú giải các cột và nút</summary><div><b>Tồn (ngày), Tồn cũ hơn</b>: bánh thành phẩm còn lại của các ngày trước chuyển sang - sales kiểm tủ, bấm vào sửa được.<br><b>Bếp làm (kèm ngày, ví dụ "Bếp làm 02/08")</b>: số bánh bếp trang trí hoàn thiện cho đúng NGÀY ghi trên nhãn - bếp gõ, sales gõ hộ được lúc bếp bận.<br><b>Đã đặt</b>: máy đếm từ Pancake - đơn giao ngày này, tạo từ trước.<br><b>Phát sinh</b>: đơn giao ngày này, tạo ngay trong ngày. <b>Khách phát sinh</b>: tên các khách đó.<br><b>Chờ chốt</b>: đơn trạng thái "Mới" - khách đang tư vấn, sales tạo đơn giữ chỗ, máy đã trừ vào Bán được. Khách bỏ thì huỷ đơn, số tự trả. <b>Khách chờ</b>: tên khách đang chờ, để bàn giao ca.<br><b>BÁN ĐƯỢC</b> = tồn + bếp làm - đã đặt - phát sinh - chờ chốt. Số âm đỏ là đang nhận lố.<br><b>BTP sẵn</b>: vỏ bánh đông lạnh chờ trang trí trong tủ - CHỈ BẾP được nhập (bếp chịu trách nhiệm số). Vô khuôn mẻ mới thì cộng thêm, KHÔNG ai trừ tay - máy tự trừ khi chốt ngày.<br><b>Đủ decor</b>: trong số BTP sẵn, bao nhiêu cái đã chuẩn bị đủ đồ decor (bắt mặt, phun, đồ trang trí...) - CHỈ BẾP nhập.<br><b>CÒN NHẬN 3 NGÀY</b> = BTP sẵn - đơn đang giữ của 3 ngày tới. Dùng cho đơn giao từ NGÀY KIA trở đi (bếp còn kịp chuẩn bị decor); đỏ là hết, lái khách sang món còn nhiều. KHÔNG dùng cho đơn giao ngày mai - đơn mai nhìn CÒN NHẬN MAI.<br><b>CÒN NHẬN MAI</b> = Đủ decor - đơn đã nhận giao ngày mai. Đơn GẤP giao NGÀY MAI chỉ nhận khi ô này còn dương, vì sau 12h trưa bếp không kịp chuẩn bị thêm decor cho ngày mai.<br><b>Nút Chốt ngày</b> (chỉ có ở tab hôm nay, bấm 1 lần cuối ngày): khoá sổ hôm nay. Bánh làm ra chưa bán hết tự chuyển thành Tồn của ngày mai, và máy trừ kho BTP sẵn đúng số bánh đã bán trong ngày (đã đặt + phát sinh) - bếp khỏi trừ tay. Quên bấm là tồn ngày mai trống và BTP bị dư ảo, nên cuối ngày BẮT BUỘC chốt.<br><b>Nút Đồng bộ Pancake</b>: máy tự đồng bộ mỗi 5 phút và khi đang mở màn hình; nút chỉ để ép chạy ngay khi cần đối chiếu.<br><b>Nút Thêm mã</b>: thêm dòng cho mã bánh chưa có trong bảng của ngày đang xem.</div></details>
+  <details class="kb-cg"><summary>Chú giải các cột và nút</summary><div><b>Tồn (ngày), Tồn cũ hơn</b>: bánh thành phẩm còn lại của các ngày trước chuyển sang - sales kiểm tủ, bấm vào sửa được.<br><b>Bếp làm (kèm ngày, ví dụ "Bếp làm 02/08")</b>: số bánh bếp trang trí hoàn thiện cho đúng NGÀY ghi trên nhãn - bếp gõ, sales gõ hộ được lúc bếp bận.<br><b>Đã đặt</b>: máy đếm từ Pancake - đơn giao ngày này, tạo từ trước.<br><b>Phát sinh</b>: đơn giao ngày này, tạo ngay trong ngày. <b>Khách phát sinh</b>: tên các khách đó.<br><b>Chờ chốt</b>: đơn trạng thái "Mới" - khách đang tư vấn, sales tạo đơn giữ chỗ, máy đã trừ vào Bán được. Khách bỏ thì huỷ đơn, số tự trả. <b>Khách chờ</b>: tên khách đang chờ, để bàn giao ca.<br><b>Huỷ</b>: bánh hỏng, vỡ, hết hạn, nếm thử - cửa hàng gõ tay ngay ở đây. Bánh đã huỷ không bán được nữa và cuối ngày KHÔNG chuyển sang tồn ngày mai. Gõ đúng thì tồn ngày mai đúng, gõ thiếu thì tồn phình ảo cộng dồn.<br><b>BÁN ĐƯỢC</b> = tồn + bếp làm - huỷ - đã đặt - phát sinh - chờ chốt. Số âm đỏ là đang nhận lố.<br><b>BTP sẵn</b>: vỏ bánh đông lạnh chờ trang trí trong tủ - CHỈ BẾP được nhập (bếp chịu trách nhiệm số). Vô khuôn mẻ mới thì cộng thêm, KHÔNG ai trừ tay - máy tự trừ khi chốt ngày.<br><b>Đủ decor</b>: trong số BTP sẵn, bao nhiêu cái đã chuẩn bị đủ đồ decor (bắt mặt, phun, đồ trang trí...) - CHỈ BẾP nhập.<br><b>CÒN NHẬN 3 NGÀY</b> = BTP sẵn - đơn đang giữ của 3 ngày tới. Dùng cho đơn giao từ NGÀY KIA trở đi (bếp còn kịp chuẩn bị decor); đỏ là hết, lái khách sang món còn nhiều. KHÔNG dùng cho đơn giao ngày mai - đơn mai nhìn CÒN NHẬN MAI.<br><b>CÒN NHẬN MAI</b> = Đủ decor - đơn đã nhận giao ngày mai. Đơn GẤP giao NGÀY MAI chỉ nhận khi ô này còn dương, vì sau 12h trưa bếp không kịp chuẩn bị thêm decor cho ngày mai.<br><b>Nút Chốt ngày</b> (chỉ có ở tab hôm nay, bấm 1 lần cuối ngày): khoá sổ hôm nay. Bánh làm ra chưa bán hết tự chuyển thành Tồn của ngày mai, và máy trừ kho BTP sẵn đúng số bánh đã rời tủ trong ngày (đã đặt + phát sinh + kênh khác + huỷ) - bếp khỏi trừ tay. Quên bấm là tồn ngày mai trống và BTP bị dư ảo, nên cuối ngày BẮT BUỘC chốt.<br><b>Nút Đồng bộ Pancake</b>: máy tự đồng bộ mỗi 5 phút và khi đang mở màn hình; nút chỉ để ép chạy ngay khi cần đối chiếu.<br><b>Nút Thêm mã</b>: thêm dòng cho mã bánh chưa có trong bảng của ngày đang xem.</div></details>
 <div class="kb-nhom"><span><i style="background:#dbeafe"></i>Đơn và khách đang giữ</span><span><i style="background:#fde68a"></i>Bếp nhập (Bếp làm, BTP sẵn, Đủ decor)</span><span><i style="background:#99f6e4"></i>Số để nhận đơn (CÒN NHẬN MAI, CÒN NHẬN 3 NGÀY)</span></div>
 <div id="kb-bao"></div>
 <!-- Dong canh bao nam lai tren man cho den khi het van de, khac kb-bao la
