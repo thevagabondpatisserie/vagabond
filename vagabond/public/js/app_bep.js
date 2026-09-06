@@ -3759,110 +3759,21 @@ function canReceive(d) {
   return left;
 }
 
-async function fefoPick(code, wh, need) {
-  var q = {};
-  try {
-    var bq = await api('erpnext.stock.doctype.batch.batch.get_batch_qty', { item_code: code, warehouse: wh }) || [];
-    bq.forEach(function (x) { if (x.batch_no) q[x.batch_no] = (q[x.batch_no] || 0) + (x.qty || 0); });
-  } catch (e) {
-    var sle = await getList('Stock Ledger Entry', {
-      fields: ['batch_no', 'actual_qty'],
-      filters: { item_code: code, warehouse: wh, is_cancelled: 0 }, limit_page_length: 0
-    });
-    sle.forEach(function (x) { if (x.batch_no) q[x.batch_no] = (q[x.batch_no] || 0) + (x.actual_qty || 0); });
-  }
-  var names = Object.keys(q).filter(function (b) { return q[b] > 0.0000001; });
-  if (!names.length) return { short: need, list: [] };
-  var ex = {};
-  try {
-    var bs = await getList('Batch', { fields: ['name', 'expiry_date'], filters: { name: ['in', names] }, limit_page_length: 0 });
-    bs.forEach(function (b) { ex[b.name] = b.expiry_date || '9999-12-31'; });
-  } catch (e2) { }
-  names.sort(function (a, b) {
-    var ea = ex[a] || '9999-12-31', eb = ex[b] || '9999-12-31';
-    if (ea !== eb) return ea < eb ? -1 : 1;
-    return a < b ? -1 : 1;
-  });
-  var out = [], rem = need;
-  for (var i = 0; i < names.length && rem > 0.0000001; i++) {
-    var take = q[names[i]] < rem ? q[names[i]] : rem;
-    out.push({ batch: names[i], qty: Math.round(take * 1000000) / 1000000 });
-    rem -= take;
-  }
-  return { short: rem > 0.0000001 ? rem : 0, list: out };
-}
+/* Man "Nhan hang" KHONG con tu chon lo nua (06/09/2026, #206).
+   Truoc day o day co ham fefoPick tu goi get_batch_qty roi tu xep FEFO.
+   Ba cai sai cua no:
+     - goi get_batch_qty khong kem co for_stock_levels, ma khong co co do
+       thi ERPNext loc bo moi lo qua han. Do that ngay 06/09: NVLT00109 con
+       330.000 gram o Kho Lab, ham nay chi thay 50.000, con 280.000 nam o
+       ba lo qua han. Bep xin nhan qua 50.000 la man hinh bao "khong du lo
+       hang" trong khi kho van con hang.
+     - khong co vong vet lo qua han, khong co ma thay the, va cau bao thieu
+       khong noi duoc kho nao con bao nhieu.
+     - viet lai mot lan thu hai cai luat da nam o may chu (dieu 18).
+   Nay man hinh gui dong phieu KHONG kem batch_no, va lo_hang.gan_lo o
+   before_validate cua Stock Entry chon lo. Mot nguon duy nhat. */
 
-var rcv = { mr: null, rows: [] };
-async function scrRecvTransfer(mr, opt) {
-  opt = opt || {};
-  rcv.mr = mr;
-  rcv.rows = (mr.items || []).map(function (it) {
-    var done = opt.doneMap ? ((opt.doneMap[it.name] || 0) / (it.conversion_factor || 1)) : (it.ordered_qty || 0);
-    var left = (it.qty || 0) - done;
-    return {
-      row: it.name, item_code: it.item_code, item_name: it.item_name || it.item_code,
-      uom: it.uom, stock_uom: it.stock_uom || it.uom, cf: it.conversion_factor || 1,
-      max: left, qty: left > 0 ? left : 0, done: done
-    };
-  }).filter(function (r) { return r.max > 0.0001; });
-
-  var src = opt.src || mr.set_from_warehouse || (mr.items && mr.items[0] && mr.items[0].from_warehouse) || '';
-  var dst = mr.set_warehouse || (mr.items && mr.items[0] && mr.items[0].warehouse) || '';
-
-  function draw() {
-    var cards = rcv.rows.map(function (r, i) {
-      return '<div class="ic1">' +
-        '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
-        '<div class="in">' + h(r.item_name) + '<div class="ig">Mã: ' + h(r.item_code) + '</div></div></div>' +
-        '<div class="stk"><div><div class="s1">Phiếu xin</div><div class="s2">' + num(r.max) + ' ' + h(r.uom) + '</div></div>' +
-        (r.done > 0.0001 ? '<div><div class="s1">Đã nhận trước</div><div class="s2">' + num(r.done) + ' ' + h(r.uom) + '</div></div>' : '') +
-        '</div>' +
-        '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng thực nhận</div>' +
-        '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
-        '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '"><button data-p="' + i + '">+</button></div>' +
-        '<div class="uom" style="display:flex;align-items:center;justify-content:center">' + h(r.uom) + '</div></div></div></div>' +
-        '</div>';
-    }).join('');
-
-    var head = '<div class="card">' +
-      '<div class="kv"><span>Phiếu</span><b>' + h(mr.name) + '</b></div>' +
-      '<div class="kv"><span>Kho xuất</span><b>' + h(shortWh(src) || '-') + '</b></div>' +
-      '<div class="kv"><span>Kho nhận</span><b>' + h(shortWh(dst) || '-') + '</b></div>' +
-      '</div>' +
-      '<div style="padding:2px 16px 0;font-size:12.5px;color:#8a8f9c;line-height:1.5">Sửa lại số lượng nếu nhận thiếu. Bấm xác nhận là máy trừ kho ' + h(shortWh(src)) + ' và nhập vào kho ' + h(shortWh(dst)) + '. Lô hàng máy tự chọn theo hạn dùng gần nhất trước.</div>';
-
-    var body = rcv.rows.length
-      ? head + '<div class="sec">' + rcv.rows.length + ' hàng hoá</div>' + cards
-      : head + '<div class="emp"><div class="e1">✅</div><div class="e2">' + h(opt.emptyMsg || 'Phiếu này đã nhận đủ hàng') + '</div></div>';
-
-    var b = frame((opt.title || 'Nhận hàng ') + mr.name, body,
-      rcv.rows.length ? { footer: '<button class="btn" id="rcOk">' + h(opt.okLabel || 'Xác nhận nhập kho') + '</button>' } : {});
-
-    b.onclick = function (e) {
-      var p = e.target.closest('[data-p]'), m = e.target.closest('[data-m]');
-      var i = p ? +p.dataset.p : (m ? +m.dataset.m : -1);
-      if (i < 0) return;
-      var r = rcv.rows[i];
-      var v = (r.qty || 0) + (p ? 1 : -1);
-      if (v < 0) v = 0;
-      if (v > r.max) v = r.max;
-      r.qty = Math.round(v * 1000000) / 1000000;
-      var inp = b.querySelector('[data-q="' + i + '"]');
-      if (inp) inp.value = r.qty;
-    };
-    b.addEventListener('input', function (e) {
-      var q = e.target.closest('[data-q]'); if (!q) return;
-      var i = +q.dataset.q, r = rcv.rows[i];
-      var v = parseFloat(q.value); if (!(v >= 0)) v = 0;
-      if (v > r.max) { v = r.max; q.value = v; toast('Không nhận quá số trên phiếu'); }
-      r.qty = v;
-    });
-
-    var ok = document.getElementById('rcOk');
-    if (ok) ok.onclick = function () { doReceive(mr, src, dst, opt); };
-  }
-  draw();
-}
+var RCV_DANG_GUI = 0;   /* 1 khi mot lan nhap kho dang tren duong gui */
 
 async function doReceive(mr, src, dst, opt) {
   opt = opt || {};
@@ -3874,37 +3785,28 @@ async function doReceive(mr, src, dst, opt) {
     'Máy sẽ trừ ' + use.length + ' món ở kho ' + shortWh(src) + ' và nhập vào kho ' + shortWh(dst) + '. Bút toán kho không sửa lại được.',
     'Xác nhận nhập kho');
   if (!ok) return;
+  /* Chan bam kep trong luc dang gui: mang chap chon thi nguoi ta bam lai,
+     ma moi lan bam la mot phieu kho. Day chi la chot o MAN HINH; chong
+     trung that su phai lam o may chu, dang khao sat rieng. Bo co o finally
+     nen gui hong van bam lai duoc. */
+  if (RCV_DANG_GUI) return;
+  RCV_DANG_GUI = 1;
   busy(1);
   try {
-    var codes = use.map(function (r) { return r.item_code; });
-    var metas = await getList('Item', { fields: ['name', 'has_batch_no'], filters: { name: ['in', codes] }, limit_page_length: 0 });
-    var hb = {};
-    metas.forEach(function (x) { hb[x.name] = x.has_batch_no ? 1 : 0; });
-
-    var items = [], thieu = [];
+    /* Dong phieu gui di KHONG kem batch_no. May chu chon lo o
+       lo_hang.gan_lo, hook before_validate cua Stock Entry: no co vong vet
+       lo qua han, co thu tu FEFO, va cau bao thieu noi duoc kho khac con
+       bao nhieu. Man hinh khong lam viec do nua. */
+    var items = [];
     for (var i = 0; i < use.length; i++) {
       var r = use[i];
-      if (hb[r.item_code]) {
-        var need = r.qty * (r.cf || 1);
-        var al = await fefoPick(r.item_code, src, need);
-        if (al.short > 0.0001) { thieu.push(r.item_name + ' (thiếu ' + num(al.short) + ' ' + r.stock_uom + ')'); continue; }
-        al.list.forEach(function (a) {
-          items.push({
-            item_code: r.item_code, qty: a.qty, uom: r.stock_uom, conversion_factor: 1,
-            s_warehouse: src, t_warehouse: dst, use_serial_batch_fields: 1, batch_no: a.batch,
-            material_request: mr.name, material_request_item: r.row
-          });
-        });
-      } else {
-        items.push({
-          item_code: r.item_code, qty: r.qty, uom: r.uom, conversion_factor: r.cf || 1,
-          s_warehouse: src, t_warehouse: dst,
-          material_request: mr.name, material_request_item: r.row
-        });
-      }
+      items.push({
+        item_code: r.item_code, qty: r.qty, uom: r.uom, conversion_factor: r.cf || 1,
+        s_warehouse: src, t_warehouse: dst,
+        material_request: mr.name, material_request_item: r.row
+      });
     }
-    if (thieu.length) { busy(0); return toast('Kho ' + shortWh(src) + ' không đủ lô hàng: ' + thieu.join('; '), 7000); }
-    if (!items.length) { busy(0); return toast('Không có dòng nào để nhập kho'); }
+    if (!items.length) { busy(0); RCV_DANG_GUI = 0; return toast('Không có dòng nào để nhập kho'); }
 
     var doc = {
       doctype: 'Stock Entry', company: COMPANY,
@@ -3916,10 +3818,11 @@ async function doReceive(mr, src, dst, opt) {
     var ins = await api('frappe.client.insert', { doc: doc });
     await api('frappe.client.submit', { doc: ins });
     busy(0);
+    RCV_DANG_GUI = 0;
     toast('Đã nhập kho ' + shortWh(dst) + ' theo phiếu ' + mr.name + ' (' + ins.name + ')', 4500);
     back();
     setTimeout(function () { render(); }, 60);
-  } catch (err) { busy(0); toast(errMsg(err), 6000); }
+  } catch (err) { busy(0); RCV_DANG_GUI = 0; toast(errMsg(err), 6000); }
 }
 
 function errMsg(e) {
@@ -21007,7 +20910,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '437';
+var APPVER = '440';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
