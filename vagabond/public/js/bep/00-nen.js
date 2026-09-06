@@ -360,6 +360,10 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .rok{width:32px;height:32px;flex:0 0 32px;border-radius:50%;border:2px solid #cfd6e4;color:transparent;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;background:#fff;cursor:pointer;margin-top:-1px}
 .ic1.ok .rok{background:#12a150;border-color:#12a150;color:#fff}
 .ic1.ok{box-shadow:0 0 0 2px #12a150}
+/* Nút thêm/bỏ món trên màn tạo lệnh sản xuất (#206): bấm nhiều lần trên
+   điện thoại nên phải đủ 44 điểm (AGENTS.md mục 13); .rok gốc 32 điểm là
+   dấu tick chỉ để nhìn. Chữ luôn hiện, không trong suốt như .rok gốc. */
+.rok.rk44{width:44px;height:44px;flex:0 0 44px;font-size:24px;color:#0B7C93;border-color:#b9c3d6}
 .ic1.zero .in{color:#9aa0ad;text-decoration:line-through}
 .lbw{color:#c07800}.hw{padding:0 14px 12px}.hl{font-size:12px;color:#8a8f9c;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.35}.hbd{font-size:11px;font-weight:700;color:#0B7C93;background:#E4F9FD;border-radius:6px;padding:2px 7px;white-space:nowrap}.hin{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none;border:1.5px solid #dfe3ec;border-radius:12px;height:48px;padding:0 12px;font-size:16px;font-weight:600;text-align:left;background:#fff;color:#16181d;outline:0;font-family:inherit}.hin::-webkit-date-and-time-value{text-align:left;margin:0;padding:0;min-width:0;flex:1 1 auto}.hin::-webkit-calendar-picker-indicator{opacity:.85;margin:0;padding:0;flex:0 0 auto;cursor:pointer;width:22px;height:22px}input.hin[type="date"]{cursor:pointer;height:48px;min-height:48px;box-sizing:border-box}input.hin[type="date"]:hover{border-color:#0FB5CE}.hin.ed{border-color:#0FB5CE;background:#f4fdff}.hn{font-size:11px;color:#9aa0ad;margin-top:5px;line-height:1.4}.hn.ed{color:#0B7C93;font-weight:600}
 .mno{display:inline-block;background:#fff4e0;color:#c07800;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px}

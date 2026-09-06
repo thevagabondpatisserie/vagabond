@@ -234,7 +234,10 @@ var mfg = { src: '', fg: '', tab: 'open', bep: '', han: '', mon: '' };
 /* Nhung the mon dang xo ra o man danh sach lenh, giu theo ma mon de
    ve lai man khong dong het cac the bep vua mo. */
 var mfgMo = {};
-var mfgN = { horizon: 0, rows: null };
+/* q là từ khoá ô tìm, seq chặn phản hồi về ngược thứ tự, dangGui chặn bấm
+   lặp nút tạo, dangThem khoá từng mã đang được thêm, phien là số lần mở màn
+   để phản hồi của lần mở cũ không vẽ đè lần mở mới (#206). */
+var mfgN = { horizon: 0, rows: null, q: '', seq: 0, tmr: null, dangGui: 0, dangThem: {}, phien: 0 };
 var mfgD = null;
 var mfgL = null;
 
@@ -750,54 +753,235 @@ async function mfgHoanTatNhanh(ten, all, veLai) {
 }
 
 /* ---------- 12c-2. Tao lenh: gop nhu cau tu cac phieu yeu cau ---------- */
+/* ================= Ô TÌM MÓN KHI TẠO LỆNH SẢN XUẤT (#206) =================
+
+   Khải nêu 06/09/2026: màn tạo lệnh đang trải hết mọi món đang cần ra màn
+   hình, bếp phải cuộn rất lâu mới tìm được món mình muốn làm. Đề nghị có ô
+   tìm để gọi món ra, thay vì đọc cả danh sách.
+
+   Cách dùng mới: màn chính CHỈ hiện những món bếp ĐÃ THÊM. Muốn thêm thì gõ
+   vào ô tìm hoặc quét mã. Nhu cầu sản xuất không biến mất, nó thành NGUỒN
+   GỢI Ý trong kết quả tìm, vẫn mang đủ phòng ban cần, đã có lệnh, tồn thành
+   phẩm và số lượng dự kiến. Món nào không nằm trong nhu cầu thì tìm tiếp trên
+   danh mục hàng hoá, và thêm được như thường. Bản cũ đã có nút "Thêm món
+   ngoài phiếu yêu cầu" mở một tấm tìm riêng; bản này đưa việc tìm lên ngay
+   màn chính và giữ nút cũ làm đường phụ.
+
+   Năm phép dưới đây là PHÉP THUẦN, không chạm DOM và không gọi mạng, để bộ
+   ca kiểm hành vi chạy thật được chúng. */
+
+/* Bỏ dấu tiếng Việt để gõ "banh su" vẫn ra "Bánh Su". Dùng lại cách của
+   mvKhongDau bên màn khách hàng, không chế thêm một bản khác. */
+function mfgKhongDau(s) {
+  s = String(s || '').toLowerCase();
+  try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { }
+  return s.replace(/\u0111/g, 'd');
+}
+
+/* Món có khớp từ khoá không: khớp theo TÊN hoặc theo MÃ, không dấu, không
+   phân biệt hoa thường. Từ khoá nhiều chữ thì phải khớp ĐỦ các chữ, để gõ
+   "su kem" ra đúng món chứ không ra mọi món có chữ "kem". */
+function mfgKhopMon(mon, tuKhoa) {
+  var q = mfgKhongDau(tuKhoa).trim();
+  if (!q) return true;
+  var kho = mfgKhongDau((mon && mon.name) || '') + ' ' + mfgKhongDau((mon && mon.code) || '');
+  var tu = q.split(/\s+/);
+  for (var i = 0; i < tu.length; i++) if (kho.indexOf(tu[i]) < 0) return false;
+  return true;
+}
+
+/* Lọc nguồn gợi ý. CHỈ trả về những món CHƯA được thêm, vì món đã thêm thì
+   đã nằm ở danh sách đã chọn rồi, hiện lại lần nữa chỉ làm rối. */
+function mfgLocGoiY(rows, tuKhoa, gioiHan) {
+  var ra = [];
+  for (var i = 0; i < (rows || []).length; i++) {
+    var r = rows[i];
+    if (r.on) continue;
+    if (!mfgKhopMon(r, tuKhoa)) continue;
+    ra.push(r);
+    if (gioiHan && ra.length >= gioiHan) break;
+  }
+  return ra;
+}
+
+/* Vị trí của một mã món trong danh sách, -1 là chưa có. Dùng để KHÔNG BAO
+   GIỜ nhân đôi một mã món: tìm thấy món vốn đã nằm trong nhu cầu thì chọn
+   chính dòng đó, chứ không báo "Món này đã có trong danh sách" rồi bắt bếp
+   tự đi cuộn tìm như tấm tìm cũ. */
+function mfgViTriMon(rows, ma) {
+  for (var i = 0; i < (rows || []).length; i++) if (rows[i].code === ma) return i;
+  return -1;
+}
+
+/* Đếm số món THẬT SỰ sẽ được gửi: đã thêm, có công thức, và số lượng dương.
+   Nút tạo phải đếm bằng chính phép này, không đếm bằng số dòng đang hiện. */
+function mfgDemSeGui(rows) {
+  var n = 0;
+  for (var i = 0; i < (rows || []).length; i++) {
+    var r = rows[i];
+    if (r.on && r.bom && r.qty > 0) n++;
+  }
+  return n;
+}
+
 async function scrMfgNew() {
   mfgInitWh();
+  /* Mỗi lần mở màn là một PHIÊN. Mọi việc chạy trễ (nhịp chờ ô tìm, hỏi
+     Item/BOM/tồn, tìm danh mục) đều nhớ phiên của mình và hỏi conMan()
+     trước khi đụng vào màn. Codex tái hiện trên #215 vòng 2: gõ ô tìm rồi
+     rời màn trong 260ms, nhịp chờ vẫn vẽ lại màn lệnh sản xuất đè lên màn
+     vừa mở. seq chỉ chặn kết quả tìm, không chặn cái draw đó. */
+  mfgN.phien = (mfgN.phien || 0) + 1;
+  var phien = mfgN.phien;
+  clearTimeout(mfgN.tmr);
+  var thanMan = null;
+
+  /* PHIÊN PHẢI CÓ HIỆU LỰC NGAY TỪ LÚC ĐANG TẢI.
+     -------------------------------------------------------------------
+     Bản vòng 3 hỏi `document.getElementById('mfgQ')`, mà ô tìm chỉ ra đời
+     SAU khi nhu cầu tải xong. Trong cả cửa sổ đang tải thì conMan() luôn
+     trả false, nên không đường nào tự hỏi được "màn còn của mình không",
+     và mọi việc chạy trễ trong cửa sổ đó đều lọt. Codex tái hiện đúng hai
+     đường trên b31e0b1: tải nhu cầu ban đầu, và quét mã ra món đã có.
+
+     Nay khối chờ mang id `mfgTai`, nên câu hỏi "màn còn đó không" trả lời
+     được ở CẢ HAI lúc: đang tải thì mốc là khối chờ, vẽ xong thì mốc là ô
+     tìm. Rời sang màn khác là cả hai biến mất. */
+  function conMan() {
+    if (phien !== mfgN.phien) return false;
+    if (!document.getElementById('mfgQ') && !document.getElementById('mfgTai')) return false;
+    if (thanMan && thanMan.isConnected === false) return false;
+    return true;
+  }
   if (!mfgN.rows) {
-    frame('Tạo lệnh sản xuất', '<div class="emp"><div class="e1">⏳</div></div>');
-    try { mfgN.rows = await mfgDemand(mfgN.horizon); }
-    catch (e) { mfgN.rows = []; toast(errMsg(e), 5000); }
+    frame('Tạo lệnh sản xuất', '<div class="emp" id="mfgTai"><div class="e1">⏳</div></div>');
+    var duLieu = null, loiTai = null;
+    try { duLieu = await mfgDemand(mfgN.horizon); }
+    catch (e) { loiTai = e; }
+    /* Kiểm TRƯỚC khi ghi vào mfgN.rows. Mảng đó dùng chung giữa các phiên,
+       nên ghi rồi mới kiểm là phiên cũ đã kịp đè dữ liệu của phiên mới. */
+    if (!conMan()) return;
+    if (loiTai) { mfgN.rows = []; toast(errMsg(loiTai), 5000); }
+    else mfgN.rows = duLieu;
   }
   var rows = mfgN.rows;
 
+  function theMon(r, i, laGoiY) {
+    var img = r.image ? '<img class="im3" src="' + h(r.image) + '">' : '<div class="im3 im3p">🍰</div>';
+    return '<div class="ic1' + (!laGoiY && r.bom ? ' ok' : '') + '" data-i="' + i + '">' +
+      '<div class="ih">' + img +
+      '<div class="in">' + h(r.name) + '<div class="ig">Mã: ' + h(r.code) +
+      (r.bom ? '' : ' &middot; <span class="mno">Chưa có công thức</span>') + '</div></div>' +
+      (laGoiY
+        ? '<div class="rok rk44" data-them="' + h(r.code) + '">+</div>'
+        : '<div class="rok rk44" data-bo="' + h(r.code) + '">&times;</div>') + '</div>' +
+      '<div class="stk">' +
+      '<div><div class="s1">Phòng ban cần</div><div class="s2">' + num(r.need) + ' ' + h(r.uom) + '</div></div>' +
+      '<div><div class="s1">Đã có lệnh</div><div class="s2">' + num(r.wo) + '</div></div>' +
+      '<div><div class="s1">Tồn thành phẩm</div><div class="s2">' + num(r.ton) + '</div></div></div>' +
+      (laGoiY ? '' :
+        (r.bom ?
+          '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng sẽ làm</div>' +
+          '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
+          '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '">' +
+          '<button data-p="' + i + '">+</button></div><div class="uml">' + h(r.uom) + '</div></div></div></div>'
+          : '<div class="qw"><button class="btn gh" data-dec="' + i + '">🧾 Khai nguyên liệu đã dùng</button></div>')) +
+      '</div>';
+  }
+
+  /* MỘT nguồn cho nút tạo: chữ và trạng thái khoá đều tính từ mfgDemSeGui.
+     Vẽ màn, gõ số lượng, bấm cộng trừ đều gọi hàm này, không nơi nào tự
+     tính lại (điều 18). */
+  function veNut() {
+    var nut = document.getElementById('mGo');
+    if (!nut) return;
+    var nsel = mfgDemSeGui(rows);
+    nut.textContent = 'Tạo ' + (nsel || '') + ' lệnh sản xuất';
+    if (nsel) nut.removeAttribute('disabled'); else nut.setAttribute('disabled', '');
+  }
+
   function draw() {
-    var nsel = rows.filter(function (r) { return r.on && r.bom; }).length;
     var chips = [[0, 'Đến hôm nay'], [1, 'Đến ngày mai'], [7, 'Đến hết tuần']].map(function (c) {
       return '<div class="chip' + (mfgN.horizon === c[0] ? ' on' : '') + '" data-hz="' + c[0] + '">' + c[1] + '</div>';
     }).join('');
+
+    /* ĐÃ THÊM: chỉ những món bếp thật sự đã chọn. Màn chính không trải hết
+       danh sách nhu cầu nữa (#206). */
+    var daThem = [];
+    rows.forEach(function (r, i) { if (r.on) daThem.push({ r: r, i: i }); });
+
+    /* GỢI Ý: nhu cầu sản xuất còn lại, lọc theo từ khoá. Chưa gõ gì thì vẫn
+       cho xem vài món đầu để bếp biết ở đây có gì, không bắt gõ mới thấy. */
+    var goiY = mfgLocGoiY(rows, mfgN.q, mfgN.q ? 40 : 8);
+    var conNhuCau = mfgLocGoiY(rows, '', 0).length;
+
+    var khoiChon = daThem.length
+      ? '<div class="sec">Đã chọn ' + daThem.length + ' món</div>' +
+        daThem.map(function (x) { return theMon(x.r, x.i, 0); }).join('')
+      : '<div class="emp"><div class="e1">🔎</div><div class="e2">Chưa chọn món nào. ' +
+        'Gõ tên hoặc mã món vào ô tìm ở trên để thêm.</div></div>';
+
+    var khoiGoiY = '';
+    if (mfgN.q && mfgN.q.length >= 2) {
+      khoiGoiY = '<div class="sec">Kết quả tìm trong phiếu yêu cầu</div>' +
+        (goiY.length
+          ? goiY.map(function (r) { return theMon(r, mfgViTriMon(rows, r.code), 1); }).join('')
+          : '<div class="emp" style="padding:18px"><div class="e2">Không có món nào đang cần khớp từ khoá này</div></div>') +
+        '<div id="mNgoai"></div>';
+    } else if (goiY.length) {
+      khoiGoiY = '<div class="sec">Đang cần làm' + (conNhuCau > goiY.length ? ' (' + conNhuCau + ' món, gõ để tìm)' : '') + '</div>' +
+        goiY.map(function (r) { return theMon(r, mfgViTriMon(rows, r.code), 1); }).join('');
+    }
+
+    /* Giữ đường "một chạm chọn hết" mà anh Việt chốt 21/08/2026. Màn không
+       trải hết danh sách ra nữa (#206), nhưng nhu cầu vẫn còn, nên chip này
+       vẫn là đường nhanh cho bếp muốn làm hết lượt. Khác bản cũ ở chỗ nó nói
+       rõ CÓ BAO NHIÊU MÓN, và vẫn không tự tick sẵn món nào. */
     var coBom = rows.filter(function (r) { return r.bom; });
     var chonHet = coBom.length && coBom.every(function (r) { return r.on; });
-    var chipChon = rows.length
-      ? '<div class="chip" data-all="1">' + (chonHet ? '✕ Bỏ chọn hết' : '✓ Chọn tất cả') + '</div>'
+    var chipChon = coBom.length
+      ? '<div class="chip" data-all="1">' +
+        (chonHet ? '✕ Bỏ chọn hết' : '✓ Chọn tất cả ' + coBom.length + ' món đang cần') + '</div>'
       : '';
+
     var body = mfgWhCard() + '<div class="chips">' + chips + chipChon + '</div>' +
-      (rows.length ? rows.map(function (r, i) {
-        var img = r.image ? '<img class="im3" src="' + h(r.image) + '">' : '<div class="im3 im3p">🍰</div>';
-        return '<div class="ic1' + (r.on && r.bom ? ' ok' : '') + '" data-i="' + i + '">' +
-          '<div class="ih">' + img +
-          '<div class="in">' + h(r.name) + '<div class="ig">Mã: ' + h(r.code) +
-          (r.bom ? '' : ' &middot; <span class="mno">Chưa có công thức</span>') + '</div></div>' +
-          (r.bom ? '<div class="rok" data-k="' + i + '">&#10003;</div>' : '') + '</div>' +
-          '<div class="stk">' +
-          '<div><div class="s1">Phòng ban cần</div><div class="s2">' + num(r.need) + ' ' + h(r.uom) + '</div></div>' +
-          '<div><div class="s1">Đã có lệnh</div><div class="s2">' + num(r.wo) + '</div></div>' +
-          '<div><div class="s1">Tồn thành phẩm</div><div class="s2">' + num(r.ton) + '</div></div></div>' +
-          (r.bom ?
-            '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng sẽ làm</div>' +
-            '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
-            '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '">' +
-            '<button data-p="' + i + '">+</button></div><div class="uml">' + h(r.uom) + '</div></div></div></div>'
-            : '<div class="qw"><button class="btn gh" data-dec="' + i + '">🧾 Khai nguyên liệu đã dùng</button></div>') +
-          '</div>';
-      }).join('')
-        : '<div class="emp"><div class="e1">✅</div><div class="e2">Không còn món nào cần sản xuất trong khoảng này</div></div>') +
+      '<div style="padding:2px 0 8px;display:flex;gap:8px;align-items:center">' +
+      '<input class="nt" id="mfgQ" placeholder="Tìm tên hoặc mã món" ' +
+      'style="height:46px;padding:0 12px;flex:1;min-width:0" value="' + h(mfgN.q || '') + '">' +
+      '<button class="sbtn" id="mfgScan" title="Quét mã vạch" style="width:46px;height:46px;flex:0 0 46px">&#128247;</button></div>' +
+      khoiChon + khoiGoiY +
       '<button class="btn gh" id="mAdd" style="margin-top:4px">+ Thêm món ngoài phiếu yêu cầu</button>';
 
     var b = frame('Tạo lệnh sản xuất', body, {
-      footer: '<button class="btn" id="mGo"' + (nsel ? '' : ' disabled') + '>Tạo ' + (nsel || '') + ' lệnh sản xuất</button>'
+      footer: '<button class="btn" id="mGo">Tạo lệnh sản xuất</button>'
     });
+    thanMan = b;
+    veNut();
     b.addEventListener('input', function (e) {
       var t = e.target;
-      if (t.dataset.q != null) rows[+t.dataset.q].qty = parseFloat(t.value) || 0;
+      if (t.dataset.q != null) {
+        rows[+t.dataset.q].qty = parseFloat(t.value) || 0;
+        /* Số lượng đổi thì nút tạo phải đổi theo ngay, không chờ vẽ lại.
+           Codex bắt trên #215: gõ 0 mà nút vẫn "Tạo 1 lệnh", gõ lại số
+           dương sau một lần vẽ lại ở 0 thì nút vẫn khoá. */
+        veNut();
+      }
+      /* Gõ ô tìm thì CHỈ vẽ lại, KHÔNG dựng lại danh sách đã chọn và không
+         dựng lại số lượng đã nhập: hai thứ đó nằm trong `rows`, ô tìm chỉ
+         lọc phần gợi ý. */
+      if (t.id === 'mfgQ') {
+        mfgN.q = t.value;
+        /* Vô hiệu ngay lượt tìm đang bay, không chờ tới lúc lượt mới phát.
+           Codex bắt trên #215: phản hồi của từ khoá cũ về trong 260ms chờ
+           của từ khoá mới thì vẫn được vẽ lên màn. */
+        mfgN.seq++;
+        clearTimeout(mfgN.tmr);
+        mfgN.tmr = setTimeout(function () {
+          /* Đã rời màn, hoặc màn đã mở lại thành phiên khác: im. */
+          if (!conMan()) return;
+          draw(); mfgTimNgoai();
+        }, 260);
+      }
     });
     b.onclick = function (e) {
       if (mfgWhTap(e, draw)) return;
@@ -806,40 +990,82 @@ async function scrMfgNew() {
       var ca = e.target.closest('[data-all]');
       if (ca) {
         var dangHet = rows.filter(function (r) { return r.bom; }).every(function (r) { return r.on; });
-        rows.forEach(function (r) { if (r.bom) r.on = dangHet ? 0 : 1; });
+        rows.forEach(function (r) {
+          if (!r.bom) return;
+          r.on = dangHet ? 0 : 1;
+          if (r.on && !(r.qty > 0)) r.qty = 1;
+        });
         return draw();
       }
-      var t = e.target.closest('[data-k],[data-m],[data-p],[data-dec]');
+      var th = e.target.closest('[data-them]');
+      if (th) {
+        var vt = mfgViTriMon(rows, th.dataset.them);
+        /* Món vốn đã nằm trong nhu cầu thì CHỌN CHÍNH DÒNG ĐÓ. Trước đây
+           tấm tìm cũ báo "Món này đã có trong danh sách" rồi bắt bếp tự đi
+           tìm, Codex nêu đúng chỗ này trên #206. */
+        if (vt >= 0) { rows[vt].on = 1; if (!(rows[vt].qty > 0)) rows[vt].qty = 1; }
+        return draw();
+      }
+      var bo = e.target.closest('[data-bo]');
+      if (bo) {
+        var vb = mfgViTriMon(rows, bo.dataset.bo);
+        if (vb >= 0) {
+          /* Món từ nhu cầu thì chỉ bỏ chọn, vẫn còn trong nguồn gợi ý. Món
+             thêm tay thì không còn chỗ nào giữ nó nên xoá hẳn khỏi mảng. */
+          if (rows[vb].ngoai) rows.splice(vb, 1);
+          else rows[vb].on = 0;
+        }
+        return draw();
+      }
+      var t = e.target.closest('[data-m],[data-p],[data-dec]');
       if (!t) return;
-      if (t.dataset.k != null) { var i = +t.dataset.k; rows[i].on = !rows[i].on; return draw(); }
-      if (t.dataset.m != null) { var j = +t.dataset.m; rows[j].qty = Math.max(0, r3(rows[j].qty - 1)); var el = b.querySelector('[data-q="' + j + '"]'); if (el) el.value = rows[j].qty; return; }
-      if (t.dataset.p != null) { var k2 = +t.dataset.p; rows[k2].qty = r3(rows[k2].qty + 1); var e2 = b.querySelector('[data-q="' + k2 + '"]'); if (e2) e2.value = rows[k2].qty; return; }
+      if (t.dataset.m != null) { var j = +t.dataset.m; rows[j].qty = Math.max(0, r3(rows[j].qty - 1)); var el = b.querySelector('[data-q="' + j + '"]'); if (el) el.value = rows[j].qty; return veNut(); }
+      if (t.dataset.p != null) { var k2 = +t.dataset.p; rows[k2].qty = r3(rows[k2].qty + 1); var e2 = b.querySelector('[data-q="' + k2 + '"]'); if (e2) e2.value = rows[k2].qty; return veNut(); }
       if (t.dataset.dec != null) {
         var r = rows[+t.dataset.dec];
         busy(1);
         mfgLoadItem(r.code).then(function (it) {
+          /* Cùng họ với hai đường trên: chờ xong rồi mới nhảy màn. Người ta
+             đã đi chỗ khác mà vẫn nhảy sang màn Khai nguyên liệu là giật
+             mất màn đang xem. */
+          if (!conMan()) return;
           mfgD = { code: r.code, name: r.name, stock_uom: it.stock_uom, meta: it, qty: r.qty || 1, mats: [], saveBom: 1 };
           go(scrMfgDeclare);
         }).catch(function (err) { toast(errMsg(err)); }).then(function () { busy(0); });
       }
     };
+    var oq = document.getElementById('mfgQ');
+    if (oq && mfgN.q) { try { oq.focus(); oq.setSelectionRange(oq.value.length, oq.value.length); } catch (e) { } }
+
     document.getElementById('mAdd').onclick = function () {
-      mfgPickItem('Thêm món cần làm', leavesUnder(['Bán ra', 'Sản xuất']), async function (code) {
-        if (rows.some(function (x) { return x.code === code; })) return toast('Món này đã có trong danh sách');
-        busy(1);
-        try {
-          var it = await mfgLoadItem(code);
-          var bm = await bomOf([code]);
-          var tn = await stockOf([code], mfg.fg);
-          rows.push({ code: code, name: it.item_name || code, uom: it.stock_uom, image: it.image || '', need: 0, wo: 0, ton: tn[code] || 0, bom: bm[code] ? bm[code].name : '', qty: 1, on: 1 });
-          draw();
-        } catch (err) { toast(errMsg(err)); } finally { busy(0); }
+      mfgPickItem('Thêm món cần làm', leavesUnder(['Bán ra', 'Sản xuất']), function (code) {
+        return mfgThemNgoai(code);
       });
     };
+    /* Quét mã vạch ngay cạnh ô tìm (AGENTS.md mục 5: có mã thì có nút quét).
+       Dùng lại đúng đường quét của các màn khác. Món quét ra mà đang nằm
+       trong nhu cầu thì chọn chính dòng đó, không thì thêm như món ngoài. */
+    document.getElementById('mfgScan').onclick = async function () {
+      var code = await scanBarcode();
+      /* Hỏi lại sau MỖI lần chờ: quét xong rồi tra mã là hai nhịp chờ, đủ
+         để người ta thoát ra và mở lại màn khác. */
+      if (!code || !conMan()) return;
+      busy(1);
+      var ic = null;
+      try { ic = await itemByBarcode(code); } catch (e) { }
+      busy(0);
+      if (!conMan()) return;
+      if (!ic) return toast('Không tìm thấy hàng hoá có mã vạch này');
+      return mfgThemNgoai(ic);
+    };
     document.getElementById('mGo').onclick = async function () {
+      /* Chặn bấm lặp. Bếp bấm hai lần vì lần đầu tưởng chưa ăn thì trước đây
+         ra hai bộ lệnh giống hệt nhau. */
+      if (mfgN.dangGui) return;
       var sel = rows.filter(function (r) { return r.on && r.bom && r.qty > 0; });
       if (!sel.length) return toast('Chưa chọn món nào');
       if (!mfg.src || !mfg.fg) return toast('Chưa chọn kho nguyên liệu hoặc kho thành phẩm');
+      mfgN.dangGui = 1;
       busy(1);
       var made = [], errs = [];
       for (var i = 0; i < sel.length; i++) {
@@ -847,14 +1073,106 @@ async function scrMfgNew() {
         catch (err) { errs.push(sel[i].name + ': ' + errMsg(err)); }
       }
       busy(0);
+      mfgN.dangGui = 0;
       if (errs.length) toast(errs[0], 6000);
       if (!made.length) return;
       toast('Đã tạo ' + made.length + ' lệnh sản xuất');
       mfgN.rows = null;
+      mfgN.q = '';
       go(function () { scrMfgBtp(made, 1); }, true);
     };
   }
+
+  /* Thêm một món KHÔNG nằm trong nhu cầu: hỏi máy chủ đơn vị, công thức và
+     tồn, rồi cắm vào danh sách đã chọn. Không bao giờ nhân đôi mã món. */
+  async function mfgThemNgoai(code) {
+    /* Chặn ngay CỬA VÀO, không chỉ ở cuối đường tải món. Đường quét mã đã
+       chờ hai lần trước khi tới đây, nên tới nơi thì màn có thể đã là của
+       phiên khác; nhánh "món đã có" bên dưới ghi thẳng vào mảng dùng chung
+       rồi vẽ, tức là món của phiên cũ tự mọc ra ở màn phiên mới. */
+    if (!conMan()) return;
+    var vt = mfgViTriMon(rows, code);
+    if (vt >= 0) { rows[vt].on = 1; if (!(rows[vt].qty > 0)) rows[vt].qty = 1; return draw(); }
+    /* Khoá theo mã trong lúc còn đang hỏi máy chủ. Codex tái hiện trên
+       #215: bấm kép một món ngoài khi Item/BOM/tồn chưa về thì mảng có hai
+       dòng cùng mã và gửi hai lệnh. Lớp busy() không được coi là hàng rào
+       cho bất biến "mỗi mã một dòng". */
+    if (mfgN.dangThem[code]) return mfgN.dangThem[code];
+    busy(1);
+    var viec = (async function () {
+      try {
+        var it = await mfgLoadItem(code);
+        var bm = await bomOf([code]);
+        var tn = await stockOf([code], mfg.fg);
+        /* Rời màn trong lúc chờ thì bỏ hẳn, không cắm vào mảng: mảng có thể
+           đang được phiên mới dùng chung, cắm vào là món tự mọc ra ở màn
+           người ta vừa mở. */
+        if (!conMan()) return;
+        /* Kiểm lại SAU khi chờ: trong lúc chờ có thể một đường khác (quét
+           mã, chọn từ nhu cầu) đã đưa đúng mã này vào rồi. */
+        var vt2 = mfgViTriMon(rows, code);
+        if (vt2 >= 0) { rows[vt2].on = 1; if (!(rows[vt2].qty > 0)) rows[vt2].qty = 1; }
+        else rows.push({
+          code: code, name: it.item_name || code, uom: it.stock_uom, image: it.image || '',
+          need: 0, wo: 0, ton: tn[code] || 0, bom: bm[code] ? bm[code].name : '',
+          qty: 1, on: 1, ngoai: 1
+        });
+        draw();
+      } catch (err) { toast(errMsg(err)); } finally { busy(0); delete mfgN.dangThem[code]; }
+    })();
+    mfgN.dangThem[code] = viec;
+    return viec;
+  }
+
+  /* Tìm tiếp trên danh mục hàng hoá song song với phần nhu cầu. Kết quả về
+     NGƯỢC THỨ TỰ thì bỏ, chỉ nhận lần gọi mới nhất và đúng từ khoá đang trên
+     màn: bếp gõ nhanh thì phản hồi cũ về sau sẽ đè lên phản hồi mới. */
+  async function mfgTimNgoai() {
+    var q = String(mfgN.q || '').trim();
+    var oNgoai = document.getElementById('mNgoai');
+    if (!oNgoai) return;
+    if (q.length < 2) { oNgoai.innerHTML = ''; return; }
+    var my = ++mfgN.seq;
+    var res = [], loi = '';
+    try {
+      res = await getList('Item', {
+        fields: ['name', 'item_name', 'stock_uom', 'image'],
+        filters: { disabled: 0, has_variants: 0, item_group: ['in', leavesUnder(['Bán ra', 'Sản xuất'])] },
+        or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] },
+        limit_page_length: 20, order_by: 'item_name'
+      });
+    } catch (e) { loi = errMsg(e); }
+    /* Chỉ nhận khi vẫn là lượt mới nhất VÀ từ khoá trên màn vẫn là từ khoá
+       đã hỏi. Hai điều kiện, vì seq đã tăng ngay lúc gõ (xem ô tìm). */
+    if (my !== mfgN.seq || String(mfgN.q || '').trim() !== q) return;
+    if (!conMan()) return;
+    var o2 = document.getElementById('mNgoai');
+    if (!o2) return;
+    if (loi) {
+      /* Lỗi mạng hay quyền KHÔNG được hiện như "không tìm thấy" (AGENTS.md
+         mục 7). Danh sách đã chọn vẫn giữ nguyên, chỉ vùng này đổi. */
+      o2.innerHTML = '<div class="emp" style="padding:18px"><div class="e2">Không tìm được trong danh mục hàng hoá: ' +
+        h(loi) + '</div><button class="btn gh" id="mNgoaiLai" style="margin-top:10px">Thử tìm lại</button></div>';
+      var nl = document.getElementById('mNgoaiLai');
+      if (nl) nl.onclick = function () { mfgTimNgoai(); };
+      return;
+    }
+    var ds = res.filter(function (it) { return mfgViTriMon(rows, it.name) < 0; });
+    if (!ds.length) { o2.innerHTML = ''; return; }
+    o2.innerHTML = '<div class="sec">Món khác trong danh mục</div>' + ds.map(function (it) {
+      return '<div class="li" data-ngoai="' + h(it.name) + '">' +
+        (it.image ? '<img class="im" src="' + h(it.image) + '" loading="lazy">' : '<div class="im imp">🍰</div>') +
+        '<div class="lt"><div class="l1">' + h(it.item_name || it.name) + '</div>' +
+        '<div class="l2">Mã: ' + h(it.name) + ' &middot; ' + h(it.stock_uom || '') + '</div></div></div>';
+    }).join('');
+    o2.onclick = function (e) {
+      var r = e.target.closest('[data-ngoai]');
+      if (r) mfgThemNgoai(r.dataset.ngoai);
+    };
+  }
+
   draw();
+  mfgTimNgoai();
 }
 
 /* gop nhu cau tu cac phieu yeu cau san xuat da duyet */
