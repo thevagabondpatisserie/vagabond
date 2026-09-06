@@ -5863,16 +5863,34 @@ async function scrMfgNew() {
   var phien = mfgN.phien;
   clearTimeout(mfgN.tmr);
   var thanMan = null;
+
+  /* PHIÊN PHẢI CÓ HIỆU LỰC NGAY TỪ LÚC ĐANG TẢI.
+     -------------------------------------------------------------------
+     Bản vòng 3 hỏi `document.getElementById('mfgQ')`, mà ô tìm chỉ ra đời
+     SAU khi nhu cầu tải xong. Trong cả cửa sổ đang tải thì conMan() luôn
+     trả false, nên không đường nào tự hỏi được "màn còn của mình không",
+     và mọi việc chạy trễ trong cửa sổ đó đều lọt. Codex tái hiện đúng hai
+     đường trên b31e0b1: tải nhu cầu ban đầu, và quét mã ra món đã có.
+
+     Nay khối chờ mang id `mfgTai`, nên câu hỏi "màn còn đó không" trả lời
+     được ở CẢ HAI lúc: đang tải thì mốc là khối chờ, vẽ xong thì mốc là ô
+     tìm. Rời sang màn khác là cả hai biến mất. */
   function conMan() {
     if (phien !== mfgN.phien) return false;
-    if (!document.getElementById('mfgQ')) return false;
+    if (!document.getElementById('mfgQ') && !document.getElementById('mfgTai')) return false;
     if (thanMan && thanMan.isConnected === false) return false;
     return true;
   }
   if (!mfgN.rows) {
-    frame('Tạo lệnh sản xuất', '<div class="emp"><div class="e1">⏳</div></div>');
-    try { mfgN.rows = await mfgDemand(mfgN.horizon); }
-    catch (e) { mfgN.rows = []; toast(errMsg(e), 5000); }
+    frame('Tạo lệnh sản xuất', '<div class="emp" id="mfgTai"><div class="e1">⏳</div></div>');
+    var duLieu = null, loiTai = null;
+    try { duLieu = await mfgDemand(mfgN.horizon); }
+    catch (e) { loiTai = e; }
+    /* Kiểm TRƯỚC khi ghi vào mfgN.rows. Mảng đó dùng chung giữa các phiên,
+       nên ghi rồi mới kiểm là phiên cũ đã kịp đè dữ liệu của phiên mới. */
+    if (!conMan()) return;
+    if (loiTai) { mfgN.rows = []; toast(errMsg(loiTai), 5000); }
+    else mfgN.rows = duLieu;
   }
   var rows = mfgN.rows;
 
@@ -6035,6 +6053,10 @@ async function scrMfgNew() {
         var r = rows[+t.dataset.dec];
         busy(1);
         mfgLoadItem(r.code).then(function (it) {
+          /* Cùng họ với hai đường trên: chờ xong rồi mới nhảy màn. Người ta
+             đã đi chỗ khác mà vẫn nhảy sang màn Khai nguyên liệu là giật
+             mất màn đang xem. */
+          if (!conMan()) return;
           mfgD = { code: r.code, name: r.name, stock_uom: it.stock_uom, meta: it, qty: r.qty || 1, mats: [], saveBom: 1 };
           go(scrMfgDeclare);
         }).catch(function (err) { toast(errMsg(err)); }).then(function () { busy(0); });
@@ -6053,11 +6075,14 @@ async function scrMfgNew() {
        trong nhu cầu thì chọn chính dòng đó, không thì thêm như món ngoài. */
     document.getElementById('mfgScan').onclick = async function () {
       var code = await scanBarcode();
-      if (!code) return;
+      /* Hỏi lại sau MỖI lần chờ: quét xong rồi tra mã là hai nhịp chờ, đủ
+         để người ta thoát ra và mở lại màn khác. */
+      if (!code || !conMan()) return;
       busy(1);
       var ic = null;
       try { ic = await itemByBarcode(code); } catch (e) { }
       busy(0);
+      if (!conMan()) return;
       if (!ic) return toast('Không tìm thấy hàng hoá có mã vạch này');
       return mfgThemNgoai(ic);
     };
@@ -6089,6 +6114,11 @@ async function scrMfgNew() {
   /* Thêm một món KHÔNG nằm trong nhu cầu: hỏi máy chủ đơn vị, công thức và
      tồn, rồi cắm vào danh sách đã chọn. Không bao giờ nhân đôi mã món. */
   async function mfgThemNgoai(code) {
+    /* Chặn ngay CỬA VÀO, không chỉ ở cuối đường tải món. Đường quét mã đã
+       chờ hai lần trước khi tới đây, nên tới nơi thì màn có thể đã là của
+       phiên khác; nhánh "món đã có" bên dưới ghi thẳng vào mảng dùng chung
+       rồi vẽ, tức là món của phiên cũ tự mọc ra ở màn phiên mới. */
+    if (!conMan()) return;
     var vt = mfgViTriMon(rows, code);
     if (vt >= 0) { rows[vt].on = 1; if (!(rows[vt].qty > 0)) rows[vt].qty = 1; return draw(); }
     /* Khoá theo mã trong lúc còn đang hỏi máy chủ. Codex tái hiện trên
