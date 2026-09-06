@@ -170,8 +170,9 @@ def _man_hinh_noi_dung_cua():
 		"'vagabond.ho_so_tt.ly_do_thieu_hd'" in j)
 	dung("không còn bày hết nhà cung cấp thành bảng chip",
 		"posChipNut('data-hsn=\"' + h(x.ncc)" not in j)
-	dung("dùng tấm trượt của nền, không dùng thẻ select",
-		"sheet('Chọn nhà cung cấp'" in j)
+	dung("dùng tấm trượt riêng, không dùng thẻ select",
+		"function hsMoChonBenNhan(" in j)
+	dung("màn hồ sơ mở tấm trượt đó", "hsMoChonNcc(ncc, laHU, doiNcc)" in j)
 	# Cửa cấm thẻ <select> đã có sẵn ở `thu_nguyen_tac_man_hinh`, không lặp
 	# lại ở đây: dò chữ "<select" trần thì chính lời chú thích nhắc tới nó
 	# cũng bị tính là vi phạm.
@@ -241,12 +242,15 @@ def _o_tim_song_sot():
 
 @ca("#198 tìm nhà cung cấp không dấu vẫn phải ra")
 def _tim_khong_dau():
-	# `sheet()` của 00-nen.js chỉ hạ chữ thường chứ không bỏ dấu, còn ô tìm
-	# cũ có `mvKhongDau` cả hai phía. Đổi sang tấm trượt mà không bù lại là
-	# gõ "dien luc" không còn ra "ĐIỆN LỰC".
+	# Bỏ dấu phải nằm ở CẢ HAI phía, không thì gõ "dien luc" không ra
+	# "ĐIỆN LỰC". 06/09/2026 phép lọc dọn về một chỗ duy nhất là hàm `loc`
+	# trong `hsMoChonBenNhan`, nên chốt thẳng vào đó.
 	j = _js("19-ho-so-tt.js")
-	dung("nhét bản không dấu vào trường tìm",
-		"tim: mvKhongDau(x.ten) + ' ' + x.ncc" in j)
+	than = j[j.index("function hsMoChonBenNhan("):j.index("function hsMoChonNcc(")]
+	dung("bỏ dấu phía người gõ", "var k = mvKhongDau(q).trim();" in than)
+	dung("bỏ dấu phía dữ liệu",
+		"return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;"
+		in than)
 
 
 @ca("#198 màn Vì sao thiếu tra được TỪNG tờ, không cắt ở tờ thứ 7")
