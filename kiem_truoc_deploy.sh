@@ -110,8 +110,9 @@ python3 dung_app_bep.py --kiem
 # Chin cong doan tren chi doc ma nguon; rieng cong nay ban su kien nhu nguoi
 # that go va bam. Codex neu tren PR #207: do chuoi trong ma nguon khong chung
 # minh duoc hanh vi. May CI co node vi cong doan 2 da dung `node --check`.
-echo "[10/10] Bo ca kiem HANH VI man ho so thanh toan (DOM gia)..."
+echo "[10/10] Bo ca kiem HANH VI tren DOM gia..."
 node vagabond/khung/kiem_thu/hanh_vi/chay.js
+node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
 
 echo ""
 echo "=============================================="
