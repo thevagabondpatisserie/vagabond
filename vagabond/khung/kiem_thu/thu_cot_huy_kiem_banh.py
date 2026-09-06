@@ -161,8 +161,8 @@ def _():
 	la("chưa huỷ gì", _tinh(ton_d1=10, sx=5), 15)
 	la("huỷ 3", _tinh(ton_d1=10, sx=5, huy=3), 12)
 	la("huỷ hết", _tinh(ton_d1=10, sx=5, huy=15), 0)
-	# Huy nhieu hon ton la con so AM co that, khong duoc kep ve 0: bang phai
-	# to do de nguoi doi chieu, giong het cot ban duoc am san co.
+	# Huỷ nhiều hơn tồn là con số ÂM có thật, không được kẹp về 0: bảng phải
+	# tô đỏ để người đối chiếu, giống hệt cột bán được âm sẵn có.
 	la("huỷ quá tồn thì âm, không kẹp về 0", _tinh(ton_d1=2, huy=5), -3)
 
 
@@ -183,9 +183,50 @@ def _():
 	nem("huỷ -1 phải ném lỗi", lambda: _tinh(ton_d1=10, huy=-1))
 	nem("huỷ -3 phải ném lỗi", lambda: _tinh(ton_d1=10, huy=-3))
 	nem("huỷ không phải số phải ném lỗi", lambda: _tinh(ton_d1=10, huy="ba"))
-	# 0 va so duong van phai chay binh thuong.
+	# 0 và số dương vẫn phải chạy bình thường.
 	la("huỷ 0 vẫn chạy", _tinh(ton_d1=10, huy=0), 10)
 	la("huỷ 4 vẫn chạy", _tinh(ton_d1=10, huy=4), 6)
+
+
+@ca("số huỷ được KIỂM trước khi ép kiểu, không cắt số rồi mới xét")
+def _():
+	"""Codex bắt vòng hai trên PR #218.
+
+	Bản vá đầu viết `int(d.huy or 0)` rồi mới xét `n < 0`, nên `-0.5` được
+	nhận và lưu thành 0, `1.9` được nhận và lưu thành 1. Giá trị không hợp lệ
+	bị biến thành một con số khác mà không ai báo - đúng kiểu hỏng âm thầm mà
+	cột này sinh ra để tránh.
+	"""
+	nem("-0.5 phải ném lỗi, không được thành 0", lambda: _tinh(ton_d1=10, huy=-0.5))
+	nem("1.9 phải ném lỗi, không được thành 1", lambda: _tinh(ton_d1=10, huy=1.9))
+	nem("chuỗi '3.5' phải ném lỗi", lambda: _tinh(ton_d1=10, huy="3.5"))
+	nem("vô cực phải ném lỗi", lambda: _tinh(ton_d1=10, huy=float("inf")))
+	nem("NaN phải ném lỗi", lambda: _tinh(ton_d1=10, huy=float("nan")))
+	nem("kiểu lạ phải ném lỗi", lambda: _tinh(ton_d1=10, huy=[3]))
+	# Va khong duoc lang le doi thanh so khac: kiem CA GIA TRI da luu.
+	d = _tao_dong(ton_d1=10, huy=-0.5)
+	try:
+		BangGia(dong=[d]).validate()
+	except Exception:
+		pass
+	dung("giá trị sai KHÔNG bị biến thành 0 rồi lưu", d.huy in (-0.5,))
+
+
+@ca("chính sách nhận số huỷ: rỗng là 0, số tròn và chuỗi số nguyên thì nhận")
+def _():
+	"""Viết chính sách ra thành ca kiểm để người sau khỏi phải đoán."""
+	doc_so = KiemBanhNgay._doc_so_huy
+	la("None là 0", doc_so(None), 0)
+	la("chuỗi rỗng là 0", doc_so(""), 0)
+	la("khoảng trắng là 0", doc_so("   "), 0)
+	la("số nguyên giữ nguyên", doc_so(3), 3)
+	la("chuỗi số nguyên đọc được", doc_so("3"), 3)
+	la("chuỗi có khoảng trắng vẫn đọc được", doc_so(" 3 "), 3)
+	la("số thực TRÒN thì nhận", doc_so(3.0), 3)
+	la("0 vẫn là 0", doc_so(0), 0)
+	# Và các giá trị bị chặn thì không bao giờ trả về số.
+	for xau in (-1, -0.5, 1.9, "3.5", "ba", [3], {}, float("inf"), float("nan")):
+		nem("chặn %r" % (xau,), lambda x=xau: doc_so(x))
 
 
 @ca("lời báo huỷ âm có dấu và nói rõ cách sửa")
@@ -361,7 +402,7 @@ def _():
 	_nay, mai, kho = _chot([d], btp=[b])
 	la("vỏ BTP chỉ trừ 5 bánh bán ra", kho["dong"][0].so_btp, 15)
 	la("decor cũng chỉ trừ 5", kho["dong"][0].so_decor, 10)
-	# Nhung ton thi van phai tru ca 8 (5 ban + 3 huy).
+	# Nhưng tồn thì vẫn phải trừ cả 8 (5 bán + 3 huỷ).
 	la("tồn ngày mai là 12, tức trừ đủ 8", mai.dong[0].ton_cu
 		+ mai.dong[0].ton_d2 + mai.dong[0].ton_d1, 12)
 
@@ -414,7 +455,7 @@ def _():
 		d["field_order"][d["field_order"].index("sx") + 1], "huy")
 	o = [f for f in d["fields"] if f["fieldname"] == "huy"][0]
 	la("là số nguyên", o["fieldtype"], "Int")
-	# AGENTS.md muc 3: chuoi hien ra man hinh phai co dau tieng Viet.
+	# AGENTS.md mục 3: chuỗi hiện ra màn hình phải có dấu tiếng Việt.
 	la("nhãn có dấu", o["label"], "Huỷ trong ngày")
 
 
@@ -502,7 +543,7 @@ def _():
 		la("ô %d đúng màu nhóm" % n, mau.get(n), nen)
 	for n in (1, 2, 3):
 		dung("ô %d không bị nhóm nào tô" % n, n not in mau)
-	# O Huy to bang lop rieng chu khong bang nth-child, de con doi cho duoc.
+	# Ô Huỷ tô bằng lớp riêng chứ không bằng nth-child, để còn đổi chỗ được.
 	dung("ô Huỷ có màu riêng theo lớp", ".kb-o.huy{background:#fff5f5}" in css)
 	dung("ô Huỷ không bị nth-child tô đè", 5 not in mau)
 
