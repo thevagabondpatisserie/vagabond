@@ -603,6 +603,82 @@ async function chayHet() {
     dung('luat khai cao 44', /height:44px/.test(luat[1]));
     dung('chu khong trong suot', !/color:transparent/.test(luat[1]) && /color:#/.test(luat[1]));
   });
+
+  /* ----- Vòng 3, finding của Codex trên d3384f5: vòng đời màn ----- */
+
+  function roiMan(m) { m.g.frame('Màn khác', '<div id="away">Đã rời màn</div>'); }
+
+  await ca('18. roi man trong nhip cho cua o tim: nhip cho KHONG ve lai man lenh san xuat', async function () {
+    /* Codex đo trên d3384f5: AWAY false, MFG_RETURNED true. Rời màn bằng
+       cách cho khung vẽ một màn khác, đúng chuỗi probe của Codex. Không gọi
+       thêm gì sau khi rời. */
+    var m = dungMan({});
+    await m.g.scrMfgNew();
+    await nhip(3);
+    var q = m.tai.getElementById('mfgQ');
+    q.value = 'su'; q.dispatchEvent(dg.suKien('input', {}, q));
+    roiMan(m);
+    await cho(310); await nhip(3);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+    dung('man lenh san xuat KHONG quay lai', m.tai.getElementById('mfgQ') === null);
+  });
+
+  await ca('19. roi man trong luc dang tai mon ngoai: phan hoi ve khong ve, khong cam vao mang', async function () {
+    var giu = [];
+    var m = dungMan({ danhMuc: [{ name: 'EXT', item_name: 'Món Ngoài', stock_uom: 'Cái', image: '' }] });
+    m.g.mfgLoadItem = function (ma) {
+      return new Promise(function (r) { giu.push(function () { r({ item_name: 'Món ' + ma, stock_uom: 'Cái', image: '' }); }); });
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    await goTim(m, 'ngoai');
+    theoTt(m, 'data-ngoai', 'EXT').click();
+    await nhip(2);
+    roiMan(m);
+    giu.forEach(function (f) { f(); });
+    await nhip(8);
+    dung('man khac van con', !!m.tai.getElementById('away'));
+    dung('khong ve lai man lenh', m.tai.getElementById('mfgQ') === null);
+    bang('EXT khong bi cam vao mang', m.g.mfgN.rows.filter(function (r) { return r.code === 'EXT'; }).length, 0);
+    bang('khoa theo ma da duoc tha', Object.keys(m.g.mfgN.dangThem).length, 0);
+  });
+
+  await ca('20. roi man roi MO LAI: phan hoi tai mon cua phien cu ve sau khong cam mon vao phien moi', async function () {
+    /* seq đã chặn đường TÌM DANH MỤC của phiên cũ. Đường còn hở là TẢI MÓN
+       (Item/BOM/tồn) của phiên cũ: nó không có seq, và mảng rows dùng chung
+       giữa hai phiên, nên trên d3384f5 món của phiên cũ tự mọc ra ở màn
+       phiên mới. Ca này đi đúng đường đó. */
+    var giu = [];
+    var m = dungMan({ danhMuc: [{ name: 'EXT', item_name: 'Món Ngoài', stock_uom: 'Cái', image: '' }] });
+    m.g.mfgLoadItem = function (ma) {
+      return new Promise(function (r) { giu.push(function () { r({ item_name: 'Món ' + ma, stock_uom: 'Cái', image: '' }); }); });
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    await goTim(m, 'ngoai');
+    theoTt(m, 'data-ngoai', 'EXT').click();
+    await nhip(2);
+    bang('phien 1 dang cho tai EXT', giu.length, 1);
+    roiMan(m);
+    /* Phiên 2 mở lại, từ khoá còn trong trạng thái. */
+    await m.g.scrMfgNew();
+    await nhip(3);
+    dung('phien 2 da mo', !!m.tai.getElementById('mfgQ'));
+    bang('phien 2 chua chon mon nao', demTt(m, 'data-bo'), 0);
+    /* Phản hồi tải món của PHIÊN CŨ về. */
+    var cu = giu.shift(); cu();
+    await nhip(8);
+    bang('EXT KHONG tu moc ra o phien 2', demTt(m, 'data-bo'), 0);
+    bang('mang dung chung khong bi cam EXT', m.g.mfgN.rows.filter(function (r) { return r.code === 'EXT'; }).length, 0);
+    dung('man phien 2 van nguyen', !!m.tai.getElementById('mfgQ') && m.tai.getElementById('away') === null);
+    /* Phiên 2 tự thêm EXT thì vẫn được như thường. */
+    await goTim(m, 'ngoai');
+    theoTt(m, 'data-ngoai', 'EXT').click();
+    await nhip(2);
+    giu.forEach(function (f) { f(); });
+    await nhip(8);
+    bang('phien 2 them EXT: dung mot dong', demTt(m, 'data-bo'), 1);
+  });
 }
 
 var HAN_GIO_MS = 5000;
