@@ -22,6 +22,17 @@ class KiemBanhNgay(Document):
 				+ (d.ton_d2 or 0)
 				+ (d.ton_d1 or 0)
 				+ (d.sx or 0)
+				# "Huy trong ngay" (06/09/2026, anh Viet chot huong A cua
+				# issue #216): banh hong, het han, roi vo, nem thu. Cua hang
+				# go tay ngay tren bang nay. Banh da huy thi KHONG ban duoc
+				# nua nen phai tru, va luc chot ngay no cung an vao lo hang
+				# giong nhu banh ban ra - xem kiem_banh.so_da_tieu.
+				#
+				# Vi sao khong di qua phieu xuat huy kho: ton ERPNext cua Kho
+				# D1 khong duoc nap hang ngay, 218 ma banh chi 30 ma co ton,
+				# nen man xuat huy khong liet ke duoc mon nao de huy. Ly do
+				# day du nam trong vagabond/nhan_banh.py.
+				- (d.huy or 0)
 				- (d.da_dat or 0)
 				- (d.phat_sinh or 0)
 				- (d.cho_chot or 0)
