@@ -273,7 +273,7 @@ CUA_NGO = {
 		"ton_dong", "xem", "xin_chuyen_nvl"],
 	# Ma phieu san xuat, them 30/08/2026. `soat_ma_cu` chi DEM phieu con
 	# mang ma kieu cu, khong doi ten phieu nao.
-	"ma_phieu_sx.py": ["soat_ma_cu"],
+	"ma_phieu_sx.py": ["soat_ma_cu", "soat_bo_dem"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.

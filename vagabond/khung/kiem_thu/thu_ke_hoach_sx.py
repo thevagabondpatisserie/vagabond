@@ -1101,14 +1101,19 @@ def _():
 	la("rỗng thì trả rỗng", mps.chuoi_ma(""), "")
 
 
-@ca("mã LSX theo NGÀY TẠO, KHSX vẫn theo tháng (anh Việt chốt 06/09/2026, #206)")
+@ca("chuỗi naming_series chỉ còn là ĐƯỜNG LÙI, không còn kiểu đánh lại theo ngày")
 def _():
+	# Doi 06/09/2026 (#206): duoi so phai tang LIEN TUC qua ngay, ma chuoi
+	# `.DD.MM.YY.-.######` thi Frappe dem theo tung ngay nen sang ngay la ve
+	# 1. Chuoi dat ten nay bay gio chi la duong lui khi hook hong.
 	from vagabond import ma_phieu_sx as mps
 
-	la("lệnh sản xuất theo ngày", mps.chuoi_cua("Work Order"), "LSX-.DD.MM.YY.-.######")
+	la("lệnh sản xuất lùi về chuỗi tháng", mps.chuoi_cua("Work Order"), "LSX-.YY.-.MM.-.####")
 	la("kế hoạch giữ theo tháng", mps.chuoi_cua("Production Plan"), "KHSX-.YY.-.MM.-.####")
 	la("doctype lạ thì rỗng", mps.chuoi_cua("Stock Entry"), "")
-	la("hàm ngày rỗng thì rỗng", mps.chuoi_ma_ngay(""), "")
+	# Duong lui PHAI khac hinh dang day moi, khong thi hook hong mot luot la
+	# co the de ra mot ma trung voi ma hook se cap sau nay.
+	dung("đường lùi không mang khuôn ngày", ".DD.MM.YY." not in mps.chuoi_cua("Work Order"))
 	# _dat_mot phải lấy chuỗi từ chuoi_cua, không gọi thẳng chuoi_ma nữa:
 	# gọi thẳng là cả hai doctype lại chung một kiểu, đúng cái bẫy Codex nêu.
 	m = _py("ma_phieu_sx.py")
@@ -1142,33 +1147,38 @@ def _dien_chuoi_frappe(chuoi, ngay, dem):
 	return ten
 
 
-@ca("chuỗi LSX theo ngày điền ra LSX-060926-000001 và đánh lại từ 1 khi sang ngày")
+@ca("chứng minh chuỗi Frappe ĐÁNH LẠI theo ngày, nên mới phải tự đặt tên")
 def _():
+	# Ca nay khong kiem code cua minh, no kiem cai LY DO. Neu mot ngay nao
+	# do Frappe doi cach dem va chuoi `.DD.MM.YY.` khong con danh lai nua
+	# thi ca nay do, va nguoi doc biet ngay la co the bo phan tu dat ten.
 	import datetime
 	from vagabond import ma_phieu_sx as mps
 
 	dem = {}
-	c = mps.chuoi_cua("Work Order")
+	c = "LSX-.DD.MM.YY.-.######"
 	d6 = datetime.date(2026, 9, 6)
 	la("lệnh đầu ngày 06/09", _dien_chuoi_frappe(c, d6, dem), "LSX-060926-000001")
 	la("lệnh thứ hai cùng ngày", _dien_chuoi_frappe(c, d6, dem), "LSX-060926-000002")
-	d7 = datetime.date(2026, 9, 7)
-	la("sang ngày 07/09 quay về 1", _dien_chuoi_frappe(c, d7, dem), "LSX-070926-000001")
+	la("sang ngày 07/09 QUAY VỀ 1", _dien_chuoi_frappe(c, d7(), dem), "LSX-070926-000001")
 	la("dòng đếm của ngày là tiền tố đã điền", dem.get("LSX-060926-"), 2)
-	# Qua tháng, qua năm: chỉ đổi phần ngày, bộ đếm mỗi ngày một dòng riêng.
-	la("qua năm", _dien_chuoi_frappe(c, datetime.date(2027, 1, 1), dem), "LSX-010127-000001")
-	# KHSX không bị kéo theo.
+	# KHSX khong bi keo theo, van theo thang.
 	la("KHSX vẫn theo tháng", _dien_chuoi_frappe(mps.chuoi_cua("Production Plan"), d6, dem), "KHSX-26-09-0001")
-	# Mã sinh ra phải được chính nhà nhận diện là kiểu mới và đọc lại đúng ngày.
-	la("nhận là kiểu mới", mps.la_ma_kieu_moi("LSX-060926-000001", "LSX"), True)
-	la("nhận là theo ngày", mps.la_ma_theo_ngay("LSX-060926-000001", "LSX"), True)
+	# Ma sinh ra van phai duoc chinh nha nhan dien va doc lai dung ngay.
+	la("nhận là kiểu mới", mps.la_ma_kieu_moi("LSX-060926-000057", "LSX"), True)
+	la("nhận là theo ngày", mps.la_ma_theo_ngay("LSX-060926-000057", "LSX"), True)
 	la("kiểu tháng không phải theo ngày", mps.la_ma_theo_ngay("LSX-26-09-0001", "LSX"), False)
-	la("đọc lại ngày tạo", mps.ngay_tao_trong_ma("LSX-060926-000001", "LSX"), "2026-09-06")
+	la("đọc lại ngày tạo", mps.ngay_tao_trong_ma("LSX-060926-000057", "LSX"), "2026-09-06")
 	la("ngày không có thật thì rỗng", mps.ngay_tao_trong_ma("LSX-320926-000001", "LSX"), "")
 	la("mã kiểu tháng không đọc ra ngày", mps.ngay_tao_trong_ma("LSX-26-09-0001", "LSX"), "")
 
 
-@ca("đổi chuỗi LSX theo ngày vẫn GIỮ chuỗi theo tháng và chuỗi cũ trong danh sách chọn")
+def d7():
+	import datetime
+	return datetime.date(2026, 9, 7)
+
+
+@ca("đổi chuỗi đặt tên vẫn GIỮ mọi chuỗi cũ trong danh sách chọn")
 def _():
 	# 48 lệnh mang LSX-2026-xxxxx và các lệnh 30/08 tới 06/09 mang
 	# LSX-26-09-xxxx đều phải mở được trên Desk: ô Select phải còn giá trị.
@@ -1176,8 +1186,8 @@ def _():
 
 	cu = "LSX-.YY.-.MM.-.####\nMFG-WO-.YYYY.-\nLSX-.YYYY.-"
 	ra = mps.gop_chuoi(mps.chuoi_cua("Work Order"), cu).split("\n")
-	la("theo ngày lên đầu", ra[0], "LSX-.DD.MM.YY.-.######")
-	la("theo tháng còn", "LSX-.YY.-.MM.-.####" in ra, True)
+	la("đường lùi theo tháng lên đầu", ra[0], "LSX-.YY.-.MM.-.####")
+	la("không nhân bản dòng", ra.count("LSX-.YY.-.MM.-.####"), 1)
 	la("hai chuỗi cổ còn", "MFG-WO-.YYYY.-" in ra and "LSX-.YYYY.-" in ra, True)
 	la("mã theo tháng vẫn tính là kiểu mới khi đếm", mps.la_ma_kieu_moi("LSX-26-09-0001", "LSX"), True)
 
