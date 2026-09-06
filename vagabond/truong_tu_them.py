@@ -59,9 +59,10 @@ def dung():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: nap danh muc CRM")
 
-	# Ma phieu ke hoach san xuat va lenh san xuat: KHSX-26-08-0001 va
-	# LSX-26-08-0001. Chi doi chuoi dat ten cho phieu SINH RA TU DAY VE
-	# SAU; phieu cu giu nguyen ma cu, xem dau tep ma_phieu_sx.py.
+	# Ma phieu ke hoach san xuat theo thang KHSX-26-09-0001, lenh san xuat
+	# theo NGAY TAO LSX-060926-000001 (anh Viet chot 06/09/2026, #206). Chi
+	# doi chuoi dat ten cho phieu SINH RA TU DAY VE SAU; phieu cu giu nguyen
+	# ma cu, xem dau tep ma_phieu_sx.py.
 	from vagabond import ma_phieu_sx
 
 	try:
@@ -125,6 +126,13 @@ def dung():
 	from vagabond import kho_san_xuat
 
 	_dung_nhom(kho_san_xuat.TRUONG_MOI, "kho_san_xuat")
+	# O "Chang ban thanh pham" doi tu ma may sang chu (06/09/2026, #206). Ma
+	# cu con sot thi ho so mon khong luu duoc, nen doi not sang chu. Do tren
+	# site: 0 ho so, ham nay thuong khong lam gi.
+	try:
+		kho_san_xuat.doi_ma_cu_sang_chu()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: doi ma chang cu sang chu")
 	# Tuy bien ruot hop qua tren dong bao gia (them 21/08/2026).
 	from vagabond import hop_qua
 

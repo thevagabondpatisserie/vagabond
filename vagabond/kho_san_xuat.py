@@ -162,6 +162,15 @@ CHU_CAP = ((BTP_SO_CAP, "cấp 1"), (BTP_SAN_SANG, "cấp 2"))
 NHAN_BTP_THANH_PHAN = "BTP thành phần"
 NHAN_KHAI_TAY = (NHAN_BTP_THANH_PHAN, TEN_CHANG[BTP_SO_CAP], TEN_CHANG[BTP_SAN_SANG])
 
+# Mã máy bản cũ trong ô -> chữ bản mới. Ô là Select: Frappe từ chối lưu hồ sơ
+# món nếu giá trị không nằm trong danh sách lựa chọn, nên mã cũ còn sót lại
+# sau khi đổi danh sách là hồ sơ đó không lưu được nữa. Đo trên site
+# 06/09/2026: 0 mã đang mang mã cũ, bảng này để chắc, không để sửa dữ liệu.
+MA_CU_SANG_CHU = {
+	BTP_SO_CAP: TEN_CHANG[BTP_SO_CAP],
+	BTP_SAN_SANG: TEN_CHANG[BTP_SAN_SANG],
+}
+
 TRUONG_MOI = {"Item": [
 	{
 		"fieldname": "custom_chang_btp", "label": "Chặng bán thành phẩm",
@@ -637,6 +646,26 @@ def _gan_chang_theo_ten(chay_that=0, gioi_han=1000):
 		"%d món không có chữ cấp nên để nguyên chờ bảng duyệt của Khải."
 		% ("Đã ghi" if chay_that else "Chạy thử, chưa ghi gì",
 			len(ra["se_khai"]), len(ra["da_khai"]), ra["khong_co_chu_cap"]))
+	return ra
+
+
+def doi_ma_cu_sang_chu():
+	"""Đổi mã máy còn sót trong ô "Chặng bán thành phẩm" sang chữ. Gọi sau migrate.
+
+	Chỉ chạm đúng những hồ sơ món đang mang `btp_so_cap` hay `btp_san_sang`
+	trong ô này, đổi sang chữ tương ứng để hồ sơ vẫn lưu được sau khi danh
+	sách lựa chọn đã đổi sang chữ. Không đổi chặng của món nào: mã và chữ
+	cùng nghĩa, `ma_chang_khai_tay` đọc ra cùng một chặng. Lặp lại được, lần
+	hai không còn gì để đổi. Đo trên site 06/09/2026: 0 hồ sơ.
+	"""
+	ra = {"doi": 0, "ma": []}
+	for cu, moi in MA_CU_SANG_CHU.items():
+		ds = frappe.get_all("Item", filters={"custom_chang_btp": cu}, pluck="name")
+		for ma in ds:
+			frappe.db.set_value("Item", ma, "custom_chang_btp", moi, update_modified=False)
+			frappe.clear_document_cache("Item", ma)
+		ra["doi"] += len(ds)
+		ra["ma"].extend(ds)
 	return ra
 
 
