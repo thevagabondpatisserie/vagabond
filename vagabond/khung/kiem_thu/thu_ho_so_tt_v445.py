@@ -151,6 +151,7 @@ class _San(object):
 
 		self.va = _Vet(
 			_tao_but_toan=_tao, _but_toan_cua_ho_so=_bo, _tu_gui_thu_bao=_thu,
+			_ke_hoach_duyet=lambda d, pt=None: _ke(d),
 			_ghi_vet=lambda *a, **k: san.nhat_ky.append("vet"),
 			_sepay_theo_ma_app=lambda ds: {san.doc.name: {"chi": san.chi, "so_gd": 1}},
 			_kiem=lambda *a, **k: None,
@@ -169,13 +170,51 @@ class _San(object):
 		tra_tien_app.dem_unc, tra_tien_app.du_unc = self.ttx_cu
 
 
-def _pe(ten, phan_bo, party="NCC-A"):
-	return {"doctype": "Payment Entry", "name": ten, "company": "TV", "party": party,
-		"tham_chieu": [{"reference_name": h, "allocated_amount": t} for h, t in phan_bo]}
+NGUON = "11211 - MB"
 
 
-def _je(ten, tong):
-	return {"doctype": "Journal Entry", "name": ten, "company": "TV", "tong_no": tong}
+def _pe(ten, phan_bo, party="NCC-A", **doi):
+	"""Payment Entry DUNG BO nhu `_but_toan_cua_ho_so` doc ve; truyen `doi` de lam sai mot o."""
+	o = {"doctype": "Payment Entry", "name": ten, "company": "TV", "party_type": "Supplier",
+		"party": party, "payment_type": "Pay", "paid_from": NGUON,
+		"paid_amount": sum(t for _h, t in phan_bo), "unallocated_amount": 0.0,
+		"tham_chieu": [{"reference_doctype": "Purchase Invoice", "reference_name": h, "allocated_amount": t}
+			for h, t in phan_bo]}
+	o.update(doi)
+	return o
+
+
+def _je(ten, tong, no=None, co=None, company="TV"):
+	"""Journal Entry dung bo: No tk chi phi, Co tai khoan ngan hang."""
+	no = no if no is not None else {"6427 - Chi khác": tong}
+	co = co if co is not None else {NGUON: tong}
+	dong = [{"account": k, "debit_in_account_currency": v, "credit_in_account_currency": 0, "party": ""} for k, v in no.items()]
+	dong += [{"account": k, "debit_in_account_currency": 0, "credit_in_account_currency": v, "party": ""} for k, v in co.items()]
+	return {"doctype": "Journal Entry", "name": ten, "company": company, "tong_no": sum(no.values()), "dong": dong}
+
+
+def _ke(doc, nguon=NGUON, supplier="NCC-A", company="TV"):
+	"""Ke hoach duyet gia, cung hinh voi `_ke_hoach_duyet` nhung khong cham he."""
+	from vagabond import ho_so_tt as hs
+
+	pb = hs._ke_hoach_phan_bo(doc)
+	if pb:
+		return {"loai": "PE", "tong": flt_(doc.get("tong_tien")), "nha_cung_cap": supplier,
+			"hoa_don": {h: {"tien": t, "supplier": supplier, "company": company, "nguon_chi": nguon} for h, t in pb.items()}}
+	no, co = {}, {}
+	for d in doc.get("dong") or []:
+		no[d.get("tk_no")] = no.get(d.get("tk_no"), 0.0) + flt_(d.get("so_tien"))
+		tk_co = d.get("tk_co") or nguon
+		co[tk_co] = co.get(tk_co, 0.0) + flt_(d.get("so_tien"))
+	return {"loai": "JE", "tong": flt_(doc.get("tong_tien")), "company": company,
+		"nha_cung_cap": supplier, "no": no, "co": co, "doi_tac": {}}
+
+
+def flt_(v):
+	try:
+		return float(v or 0)
+	except (TypeError, ValueError):
+		return 0.0
 
 
 def _loi(ham):
@@ -655,9 +694,9 @@ def _bo_nhieu_pe():
 	from vagabond import ho_so_tt as hs
 
 	doc = _ho_so(dong=[_dong("HDM-1", 60.0), _dong("HDM-2", 40.0)])
-	kq = hs._kiem_bo_chung_tu(doc, [_pe("PE-1", [("HDM-1", 60.0)])], 2)
+	kq = hs._kiem_bo_chung_tu(_ke(doc), [_pe("PE-1", [("HDM-1", 60.0)])], 2)
 	la("một tờ chưa đủ", kq["du"], 0)
-	kq = hs._kiem_bo_chung_tu(doc, [_pe("PE-1", [("HDM-1", 60.0)]), _pe("PE-2", [("HDM-2", 40.0)], "NCC-B")], 2)
+	kq = hs._kiem_bo_chung_tu(_ke(doc), [_pe("PE-1", [("HDM-1", 60.0)]), _pe("PE-2", [("HDM-2", 40.0)])], 2)
 	la("hai tờ đủ", kq["du"], 1)
 	la("tên đủ hai", kq["ten"], ["PE-1", "PE-2"])
 
@@ -667,7 +706,7 @@ def _bo_thua():
 	from vagabond import ho_so_tt as hs
 
 	doc = _ho_so()
-	kq = hs._kiem_bo_chung_tu(doc, [_pe("PE-1", [("HDM-1", 100.0), ("HDM-9", 5.0)])], 2)
+	kq = hs._kiem_bo_chung_tu(_ke(doc), [_pe("PE-1", [("HDM-1", 100.0), ("HDM-9", 5.0)])], 2)
 	la("không đủ", kq["du"], 0)
 	dung("nêu HDM-9 thừa", any("HDM-9" in x for x in kq["thua"]))
 
@@ -676,11 +715,11 @@ def _bo_thua():
 def _bo_je():
 	from vagabond import ho_so_tt as hs
 
-	doc = _ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70.0}], tong_tien=70.0)
-	la("chưa có gì thì thiếu", hs._kiem_bo_chung_tu(doc, [], 2)["du"], 0)
-	la("một JE đúng tổng thì đủ", hs._kiem_bo_chung_tu(doc, [_je("JE-1", 70.0)], 2)["du"], 1)
-	la("JE sai tổng thì lệch", hs._kiem_bo_chung_tu(doc, [_je("JE-1", 60.0)], 2)["du"], 0)
-	kq = hs._kiem_bo_chung_tu(doc, [_je("JE-1", 70.0), _je("JE-2", 70.0)], 2)
+	doc = _ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70.0, "tk_no": "6427 - Chi khác", "tk_co": ""}], tong_tien=70.0)
+	la("chưa có gì thì thiếu", hs._kiem_bo_chung_tu(_ke(doc), [], 2)["du"], 0)
+	la("một JE đúng bộ thì đủ", hs._kiem_bo_chung_tu(_ke(doc), [_je("JE-1", 70.0)], 2)["du"], 1)
+	la("JE sai tổng thì lệch", hs._kiem_bo_chung_tu(_ke(doc), [_je("JE-1", 60.0)], 2)["du"], 0)
+	kq = hs._kiem_bo_chung_tu(_ke(doc), [_je("JE-1", 70.0), _je("JE-2", 70.0)], 2)
 	la("hai JE là thừa một", kq["du"], 0)
 	dung("nêu JE-2 thừa", any("JE-2" in x for x in kq["thua"]))
 
@@ -689,8 +728,114 @@ def _bo_je():
 def _bo_rong():
 	from vagabond import ho_so_tt as hs
 
-	la("rỗng thì không đủ", hs._kiem_bo_chung_tu(_ho_so(), [], 2)["du"], 0)
+	la("rỗng thì không đủ", hs._kiem_bo_chung_tu(_ke(_ho_so()), [], 2)["du"], 0)
 
+
+
+@ca("v445 B1: PE đúng phân bổ nhưng CÒN tiền chưa phân bổ, hay trả nhiều hơn phân bổ: không đủ")
+def _bo_pe_du_tien():
+	from vagabond import ho_so_tt as hs
+
+	ke = _ke(_ho_so())
+	kq = hs._kiem_bo_chung_tu(ke, [_pe("PE-1", [("HDM-1", 100.0)], unallocated_amount=10.0, paid_amount=110.0)], 2)
+	la("không đủ", kq["du"], 0)
+	dung("nêu chưa phân bổ", any("chưa phân bổ" in x for x in kq["lech"]))
+	dung("nêu trả nhiều hơn phân bổ", any("chỉ phân bổ" in x for x in kq["lech"]))
+
+
+@ca("v445 B1: PE có thêm dòng trỏ Đơn mua hàng là THỪA dù phân bổ hoá đơn đúng")
+def _bo_pe_them_po():
+	from vagabond import ho_so_tt as hs
+
+	pe = _pe("PE-1", [("HDM-1", 100.0)], paid_amount=130.0)
+	pe["tham_chieu"].append({"reference_doctype": "Purchase Order", "reference_name": "DMH-9", "allocated_amount": 30.0})
+	kq = hs._kiem_bo_chung_tu(_ke(_ho_so()), [pe], 2)
+	la("không đủ", kq["du"], 0)
+	# Phai noi ro do la DON MUA HANG, khong phai "hoa don DMH-9 khong co trong
+	# ho so": dot bien coi PO nhu PI van ra thua theo ten, nhung mat loai.
+	dung("nêu DMH-9 thừa và nói rõ là Purchase Order", any("DMH-9" in x and "Purchase Order" in x for x in kq["thua"]))
+
+
+@ca("v445 B1: PE sai nguồn chi, sai nhà cung cấp, sai công ty, sai loại phiếu: từng cái đều lệch")
+def _bo_pe_sai_o():
+	from vagabond import ho_so_tt as hs
+
+	ke = _ke(_ho_so())
+	for o, chu in ((dict(paid_from="1111 - Tiền mặt"), "chi từ"), (dict(party="NCC-B"), "nhà cung cấp"),
+			(dict(company="KHAC"), "công ty"), (dict(payment_type="Receive"), "không phải phiếu chi"),
+			(dict(party_type="Customer"), "nhà cung cấp")):
+		kq = hs._kiem_bo_chung_tu(ke, [_pe("PE-1", [("HDM-1", 100.0)], **o)], 2)
+		la("%s: không đủ" % chu, kq["du"], 0)
+		dung("%s: nêu đúng lý do" % chu, any(chu in x for x in kq["lech"]))
+
+
+@ca("v445 B1: kế hoạch đọc không ra nguồn chi hay nhà cung cấp thì là CHƯA KIỂM ĐƯỢC, không phải khớp")
+def _bo_ke_hoach_none():
+	from vagabond import ho_so_tt as hs
+
+	ke = _ke(_ho_so(), nguon=None)
+	la("nguồn chi None thì không đủ", hs._kiem_bo_chung_tu(ke, [_pe("PE-1", [("HDM-1", 100.0)], paid_from=None)], 2)["du"], 0)
+	ke = _ke(_ho_so())
+	ke["hoa_don"]["HDM-1"]["supplier"] = None
+	la("nhà cung cấp None thì không đủ", hs._kiem_bo_chung_tu(ke, [_pe("PE-1", [("HDM-1", 100.0)], party=None)], 2)["du"], 0)
+
+
+@ca("v445 B1: JE đúng tổng nhưng sai tài khoản, sai công ty, sai đối tượng: không đủ")
+def _bo_je_sai():
+	from vagabond import ho_so_tt as hs
+
+	doc = _ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70.0, "tk_no": "6427 - Chi khác", "tk_co": ""}], tong_tien=70.0)
+	ke = _ke(doc)
+	kq = hs._kiem_bo_chung_tu(ke, [_je("JE-1", 70.0, no={"6421 - Lương": 70.0})], 2)
+	la("sai tài khoản Nợ: không đủ", kq["du"], 0)
+	dung("nêu thiếu 6427 và thừa 6421", any("6427" in x for x in kq["thieu"]) and any("6421" in x for x in kq["thua"]))
+	kq = hs._kiem_bo_chung_tu(ke, [_je("JE-1", 70.0, co={"1111 - Tiền mặt": 70.0})], 2)
+	la("sai tài khoản Có: không đủ", kq["du"], 0)
+	kq = hs._kiem_bo_chung_tu(ke, [_je("JE-1", 70.0, company="KHAC")], 2)
+	la("sai công ty: không đủ", kq["du"], 0)
+	kq = hs._kiem_bo_chung_tu(ke, [_je("JE-1", 70.0, no={"6427 - Chi khác": 40.0, "6421 - Lương": 30.0})], 2)
+	la("tách sai giữa hai tài khoản dù tổng đúng: không đủ", kq["du"], 0)
+	# Doi tuong tren dong phai tra: ke hoach noi 331 phai mang NCC-A.
+	ke2 = _ke(_ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70.0, "tk_no": "331 - Phải trả", "tk_co": ""}], tong_tien=70.0))
+	ke2["doi_tac"] = {"331 - Phải trả": "NCC-A"}
+	kq = hs._kiem_bo_chung_tu(ke2, [_je("JE-1", 70.0, no={"331 - Phải trả": 70.0})], 2)
+	la("thiếu đối tượng trên dòng phải trả: không đủ", kq["du"], 0)
+	dung("nêu đối tượng", any("đối tượng" in x for x in kq["lech"]))
+
+
+@ca("v445 B2: bấm lại hồ sơ ĐÃ thanh toán mà bộ chứng từ mất, huỷ hay lệch thì ném lỗi, không ok, không thư")
+def _b2_retry_da_tra_lech():
+	from vagabond import ho_so_tt as hs
+
+	for bo, nhan in (([], "không còn bút toán"), ([_pe("PE-CU", [("HDM-1", 40.0)])], "lệch 40/100"),
+			([_pe("PE-CU", [("HDM-1", 100.0)], unallocated_amount=5.0, paid_amount=105.0)], "còn chưa phân bổ")):
+		doc = _ho_so(trang_thai="Da thanh toan")
+		with _San(doc, bo_san=bo) as san:
+			cau = _loi(lambda: hs.danh_dau_da_tra("APP.26.09.001"))
+		dung("%s: ném lỗi chưa xác minh" % nhan, "không khớp" in cau or "chưa xác minh" in cau.lower() or "Chưa xác minh" in cau)
+		dung("%s: nêu tên chứng từ đang có" % nhan, ("PE-CU" in cau) if bo else ("không có" in cau))
+		la("%s: không sinh" % nhan, san.goi_tao, 0)
+		la("%s: không thư" % nhan, san.goi_thu, 0)
+		la("%s: không commit" % nhan, san.nhat_ky.count("commit"), 0)
+
+
+@ca("v445 R4 ACB: hồ sơ hoàn ứng MỚI không nhận trừ tạm ứng, ở cả cửa tạo lẫn controller")
+def _r4_hoan_ung_khong_tam_ung():
+	from vagabond import ho_so_tt as hs
+	from vagabond.vagabond.doctype.vagabond_ho_so_tt import vagabond_ho_so_tt as c
+
+	# Cua tao: tu choi truoc khi dung ho so.
+	with _Vet(_kiem=lambda *a, **k: None):
+		cau = _loi(lambda: hs.tao_hoan_ung(dong=[{"noi_dung": "x", "so_tien": 10}], da_tam_ung=5000, tk_hoan="ACB"))
+	dung("tao_hoan_ung từ chối", "không trừ tạm ứng" in cau)
+	# Phep thuan cua controller.
+	la("hoàn ứng mới có số: chặn", c.hoan_ung_them_tam_ung("Hoan ung", None, 5000, True), True)
+	la("hoàn ứng HD mới có số: chặn", c.hoan_ung_them_tam_ung("Hoan ung HD", None, 1, True), True)
+	la("hoàn ứng mới để 0: cho", c.hoan_ung_them_tam_ung("Hoan ung", None, 0, True), False)
+	la("hồ sơ cũ đang 0 đổi thành có số: chặn", c.hoan_ung_them_tam_ung("Hoan ung", 0, 5000, False), True)
+	la("hồ sơ cũ đã có số từ trước, lưu lại: cho (không reset lịch sử)", c.hoan_ung_them_tam_ung("Hoan ung", 5000, 5000, False), False)
+	la("hồ sơ NCC không dính luật này", c.hoan_ung_them_tam_ung("NCC", None, 5000, True), False)
+	la("trả trước không dính luật này", c.hoan_ung_them_tam_ung("Tra truoc", None, 5000, True), False)
 
 # ========================================= controller: mọi đường vào một cửa
 
