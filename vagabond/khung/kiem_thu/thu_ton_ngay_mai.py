@@ -477,3 +477,42 @@ def _():
 	b.save()
 	la("giữ nguồn", m.nguon_ton_d1, TAY)
 	la("giữ người đếm", json.loads(m.kiem_dem_ghi)["ton_d1"]["ai"], "nguoi-dem")
+
+
+@ca("ton ngay mai: dong_bo giu dong ma la co so hoac audit, don dong trang va van luu duoc")
+def _():
+	# Chạy dong_bo và validate thật. Chỉ thay I/O Pancake, cache và DB.
+	# Trước bản sửa, lọc mã lạ làm mất dòng rồi chính validate từ chối lưu.
+	from contextlib import ExitStack
+	from unittest.mock import Mock, patch
+	for kw in ({"sx": 5}, {"da_dat": 1}, {"nguon_ton_d1": TAY}):
+		la_co_so = _tao_dong(ma_hang="MA-LA", **kw)
+		la_trang = _dong_moi(ma_hang="MA-TRANG")
+		hop_le = _dong_moi(ma_hang="BAWC00055", sx=3)
+		b = BangTruoc(truoc=_sao([la_co_so, la_trang, hop_le]),
+			ngay="2026-08-16", dong=[la_co_so, la_trang, hop_le])
+		nhat_ky = Mock()
+		with ExitStack() as cua:
+			for ten, gia in {
+				"cfg": lambda: Doi({"pancake_shop_id": "thu"}),
+				"key": lambda *a: "khoa-thu", "_con_nghi": lambda *a: 0,
+				"_keo_don": lambda *a: [], "_lay_hoac_tao": lambda *a: b,
+				"_dem_banh": lambda *a: ({}, {}, {}, {}),
+				"_ghi_don_khac": lambda *a: None, "_ghi_giu_cho": lambda *a: None,
+				"bang": lambda *a: {"dong": b.dong},
+			}.items():
+				cua.enter_context(patch.object(kiem_banh, ten, gia))
+			cua.enter_context(patch.object(kiem_banh.pancake_nhip, "ghi_ok", lambda: None))
+			cua.enter_context(patch.object(frappe.db, "exists", lambda *a: False))
+			cua.enter_context(patch.object(frappe.db, "commit", lambda: None))
+			cua.enter_context(patch.object(frappe, "cache", lambda: Mock(get_value=lambda *a: True), create=True))
+			cua.enter_context(patch.object(frappe, "log_error", nhat_ky))
+			kiem_banh.dong_bo("2026-08-16")
+		la("đồng bộ lưu thành công", b.so_lan_luu, 1)
+		la("giữ dòng có số/audit và dòng hợp lệ", [d.ma_hang for d in b.dong], ["MA-LA", "BAWC00055"])
+		la("có thông báo mã cần đối chiếu", nhat_ky.call_count, 1)
+		dung("nhật ký nêu mã", "MA-LA" in nhat_ky.call_args[1]["message"])
+		if "sx" in kw:
+			la("số sản xuất còn nguyên", la_co_so.sx, 5)
+		if "nguon_ton_d1" in kw:
+			la("dấu đếm 0 còn nguyên", la_co_so.nguon_ton_d1, TAY)

@@ -578,9 +578,18 @@ def dong_bo(ngay=None):
 	# mot lan, chay ngam) dong do bien mat khong dau vet - vi bo loc cu chi
 	# giu BAWC/BAWS. Bep se tuong minh bam hut hoac may nuot mat so vua dem.
 	# Cho bep THEM ma khong cho bang GIU thi tinh nang do khong ton tai.
+	# Dòng gõ trên Desk có thể mang mã lạ. Chỉ dọn dòng trắng, không làm
+	# mất số hoặc audit rồi khiến validate chặn cả ngày kiểm bánh.
+	giu_la = [d for d in doc.dong
+		if not str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY)
+		and not dong_duoc_xoa(d)]
+	if giu_la:
+		frappe.log_error(title="Kiểm bánh: giữ dòng mã cần đối chiếu",
+			message="Ngày %s, mã: %s. Dòng có số hoặc dấu kiểm đếm nên được giữ lại."
+			% (ngay, ", ".join(str(d.ma_hang or "") for d in giu_la)))
 	doc.dong = [
 		d for d in doc.dong
-		if str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY)
+		if str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY) or not dong_duoc_xoa(d)
 	]
 	co = {d.ma_hang: d for d in doc.dong}
 	for ma in set(list(dem_dd) + list(dem_ps) + list(dem_cho)):
