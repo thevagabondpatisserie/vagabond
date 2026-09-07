@@ -127,7 +127,7 @@ function dungMan(canh) {
   /* Tên toàn cục chưa đặt thì NÉM LỖI, trừ danh sách dưới. Cùng lý do như
      hanh_vi/chay.js: một cái bẫy nuốt mọi tên sẽ làm ca kiểm xanh oan khi
      gõ sai tên hàm. */
-  var CHO_GIA = ['hasRole', 'today', 'addDays', 'inChunks', 'openWoQty', 'scanBarcode', 'itemByBarcode'];
+  var CHO_GIA = ['hasRole', 'today', 'addDays', 'inChunks', 'openWoQty', 'scanBarcode'];
   var daGia = {};
   var bay = new Proxy(that, {
     has: function () { return true; },
@@ -149,6 +149,11 @@ function dungMan(canh) {
   /* Nạp hàm THẬT, không bịa lại một bản khác. */
   var ma = [
     layHam(nen, 'h'),
+    /* Đường tra mã vạch nạp bản THẬT (Codex trên #220): stub itemByBarcode
+       trả null thì không bao giờ phân biệt được "không có" với "không hỏi
+       được". Máy chủ giả nằm ở tầng getList, ca kiểm điều khiển ở đó. */
+    layHam(nen, 'traHangTheoMaVach'),
+    layHam(nen, 'itemByBarcode'),
     layHam(sx, 'mfgKhongDau'),
     layHam(sx, 'mfgKhopMon'),
     layHam(sx, 'mfgLocGoiY'),
@@ -163,6 +168,30 @@ function dungMan(canh) {
 
   vm.runInNewContext(ma, bay, { filename: '05-san-xuat.js' });
   return { g: that, tai: tai, khung: khung, goiWO: goiWO, goiList: goiList };
+}
+
+/* Máy chủ giả cho đường tra mã vạch, cắm ở tầng getList để hàm tra THẬT
+   chạy. `bang_ma`: {mã vạch: mã hàng}. `hong`: hàm trả về lỗi để ném cho
+   một bảng ('Item Barcode' hay 'Item'), hoặc null. `giu`: nếu có, mỗi lượt
+   hỏi bảng mã vạch được GIỮ lại và đẩy hàm thả vào mảng đó. */
+function mayChuMaVach(m, bang_ma, hong, giu) {
+  var goc = m.g.getList;
+  m.g.getList = function (dt, ts) {
+    if (dt === 'Item Barcode') {
+      var loi = hong && hong('Item Barcode');
+      if (loi) return Promise.reject(loi);
+      var ma = bang_ma[ts && ts.filters && ts.filters.barcode];
+      var kq = ma ? [{ parent: ma, barcode: ts.filters.barcode }] : [];
+      if (giu) return new Promise(function (r) { giu.push(function () { r(kq); }); });
+      return Promise.resolve(kq);
+    }
+    if (dt === 'Item' && ts && ts.filters && ts.filters.name) {
+      var loi2 = hong && hong('Item');
+      if (loi2) return Promise.reject(loi2);
+      return Promise.resolve([]);
+    }
+    return goc(dt, ts);
+  };
 }
 
 function nhip(n) {
@@ -561,7 +590,7 @@ async function chayHet() {
     var maQuet = null, bang_ma = { '893001': 'TP002', '893999': 'TP555' };
     var m = dungMan({});
     m.g.scanBarcode = function () { return Promise.resolve(maQuet); };
-    m.g.itemByBarcode = function (code) { return Promise.resolve(bang_ma[code] || null); };
+    mayChuMaVach(m, bang_ma, null, null);
     await m.g.scrMfgNew();
     await nhip(3);
     var q = m.tai.getElementById('mfgScan');
@@ -578,6 +607,8 @@ async function chayHet() {
     maQuet = '000000';
     await q.onclick(); await nhip(4);
     bang('ma la thi bao cau nguoi doc hieu', m.g._toast.filter(function (s) { return /mã vạch/i.test(String(s)); }).length, 1);
+    dung('ma la, hoi duoc may chu: noi la KHONG TIM THAY', /Không tìm thấy/.test(String(m.g._toast[0])));
+    dung('va khong noi nham la chua tra duoc', !/Chưa tra được/.test(String(m.g._toast[0])));
     bang('va khong them gi', m.g.mfgN.rows.length, 5);
     maQuet = null;
     await q.onclick(); await nhip(2);
@@ -738,9 +769,7 @@ async function chayHet() {
     var giu = [];
     var m = dungMan({});
     m.g.scanBarcode = function () { return Promise.resolve('8938001'); };
-    m.g.itemByBarcode = function () {
-      return new Promise(function (r) { giu.push(function () { r('TP001'); }); });
-    };
+    mayChuMaVach(m, { '8938001': 'TP001' }, null, giu);
     await m.g.scrMfgNew();
     await nhip(3);
     m.tai.getElementById('mfgScan').click();
@@ -758,9 +787,7 @@ async function chayHet() {
     var giu = [];
     var m = dungMan({});
     m.g.scanBarcode = function () { return Promise.resolve('8938001'); };
-    m.g.itemByBarcode = function () {
-      return new Promise(function (r) { giu.push(function () { r('TP001'); }); });
-    };
+    mayChuMaVach(m, { '8938001': 'TP001' }, null, giu);
     await m.g.scrMfgNew();
     await nhip(3);
     m.tai.getElementById('mfgScan').click();
@@ -838,9 +865,7 @@ async function chayHet() {
     var giu = [];
     var m = dungMan({});
     m.g.scanBarcode = function () { return Promise.resolve('0000000'); };
-    m.g.itemByBarcode = function () {
-      return new Promise(function (r) { giu.push(function () { r(null); }); });
-    };
+    mayChuMaVach(m, {}, null, giu);
     await m.g.scrMfgNew();
     await nhip(3);
     m.tai.getElementById('mfgScan').click();
@@ -852,6 +877,63 @@ async function chayHet() {
     await nhip(8);
     bang('KHONG bung them cau bao nao', m.g._toast.length, truoc);
     dung('man khac van con', !!m.tai.getElementById('away'));
+  });
+
+  await ca('28. quet ma ma MAT MANG: noi la chua tra duoc va bao quet lai, KHONG noi khong tim thay', async function () {
+    /* Codex trên #220: bản cũ nuốt lỗi rồi báo "Không tìm thấy hàng hoá có
+       mã vạch này" y như mã lạ, nhân viên đi tìm một mã không hề thiếu.
+       Ba đường hỏng phải cùng một câu: mất mạng, hết quyền, máy chủ lỗi. */
+    var cacLoi = [new Error('Failed to fetch'), new Error('PermissionError: Not permitted'), new Error('Internal Server Error')];
+    for (var i = 0; i < cacLoi.length; i++) {
+      var loi = cacLoi[i];
+      var m = dungMan({});
+      m.g.scanBarcode = function () { return Promise.resolve('893001'); };
+      mayChuMaVach(m, { '893001': 'TP002' }, function () { return loi; }, null);
+      await m.g.scrMfgNew();
+      await nhip(3);
+      m.g._toast.length = 0;
+      await m.tai.getElementById('mfgScan').onclick(); await nhip(6);
+      bang('co dung mot cau bao (' + loi.message + ')', m.g._toast.length, 1);
+      dung('noi la CHUA TRA DUOC: ' + m.g._toast[0], /Chưa tra được/.test(String(m.g._toast[0])));
+      dung('khong noi nham la khong tim thay', !/Không tìm thấy/.test(String(m.g._toast[0])));
+      dung('mang theo ly do that', String(m.g._toast[0]).indexOf(loi.message) >= 0);
+      dung('chi duong lam tiep', /quét lại/.test(String(m.g._toast[0])));
+      bang('khong tu chon mon nao', m.g.mfgN.rows.filter(function (r) { return r.on; }).length, 0);
+    }
+  });
+
+  await ca('29. bang ma vach hong nhung tra thang ma hang thi RA: khong bao loi oan', async function () {
+    /* Hai bước tra: bước một hỏng, bước hai tìm ra thì vẫn là tìm ra. Chỉ khi
+       không ra mà có bước hỏng mới nói "chưa tra được". */
+    var m = dungMan({});
+    m.g.scanBarcode = function () { return Promise.resolve('TP002'); };
+    var goc = m.g.getList;
+    m.g.getList = function (dt, ts) {
+      if (dt === 'Item Barcode') return Promise.reject(new Error('Failed to fetch'));
+      if (dt === 'Item' && ts && ts.filters && ts.filters.name === 'TP002') return Promise.resolve([{ name: 'TP002' }]);
+      return goc(dt, ts);
+    };
+    await m.g.scrMfgNew();
+    await nhip(3);
+    m.g._toast.length = 0;
+    await m.tai.getElementById('mfgScan').onclick(); await nhip(6);
+    dung('mon trong nhu cau duoc chon', !!theoTt(m, 'data-bo', 'TP002'));
+    bang('khong bao cau nao', m.g._toast.length, 0);
+    /* Ngược lại: bước một hỏng, bước hai hỏi được mà không có -> chưa tra
+       được, vì không kết luận được là kho không có mã này. */
+    var m2 = dungMan({});
+    m2.g.scanBarcode = function () { return Promise.resolve('999'); };
+    var goc2 = m2.g.getList;
+    m2.g.getList = function (dt, ts) {
+      if (dt === 'Item Barcode') return Promise.reject(new Error('Failed to fetch'));
+      if (dt === 'Item' && ts && ts.filters && ts.filters.name) return Promise.resolve([]);
+      return goc2(dt, ts);
+    };
+    await m2.g.scrMfgNew();
+    await nhip(3);
+    m2.g._toast.length = 0;
+    await m2.tai.getElementById('mfgScan').onclick(); await nhip(6);
+    dung('buoc mot hong, buoc hai rong: van la chua tra duoc', /Chưa tra được/.test(String(m2.g._toast[0])));
   });
 }
 
