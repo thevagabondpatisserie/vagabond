@@ -327,7 +327,7 @@ def _dung_dong_tai_cho(doc, g):
 	giu = _ma_dang_gan(doc, dong_goc)
 	moi = []
 	for vi_tri, it in enumerate(dong_goc):
-		x = mc.dong_tu_hoa_don(it)
+		x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
 		if not ma and giu.get(vi_tri):
 			ma = giu[vi_tri]
@@ -338,11 +338,12 @@ def _dung_dong_tai_cho(doc, g):
 		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
 		for d in moi
 	)
-	viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
+	dau = mc.dau_cua_to(g.get("tong_tien"))
+	viec, so_tien = mc.can_theo_truoc_thue(dau * tong_dong, dau * muc_tieu_truoc_thue(g))
 	if viec == "phi":
 		moi.append(mc._dong_pi({
 			"ma": "", "ten": ten_dong_bu(so_tien), "dvt": None,
-			"sl": 1, "gia": so_tien, "tien": so_tien,
+			"sl": dau, "gia": so_tien, "tien": dau * so_tien,
 		}, tk))
 	doc.set("items", [])
 	tt = doc.get("cost_center")
@@ -351,7 +352,9 @@ def _dung_dong_tai_cho(doc, g):
 			d["cost_center"] = tt
 		doc.append("items", d)
 	doc.apply_discount_on = "Net Total"
-	doc.discount_amount = so_tien if viec == "giam" else 0
+	doc.discount_amount = dau * so_tien if viec == "giam" else 0
+	if dau < 0:
+		mua_dich_vu._bat_tra_lai(doc)
 	doc.additional_discount_percentage = 0
 	_dung_thue_tai_cho(doc, g)
 	mc.bo_mau_thue_mat_hang(doc)
@@ -396,7 +399,7 @@ def ghim_lai_theo_goc(doc, g):
 	theo_khoa = {}
 	dem = {}
 	for it in dong_goc:
-		x = mc.dong_tu_hoa_don(it)
+		x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
 		k = khoa_ten(x.get("ten"))
 		if not k:
 			continue
@@ -587,11 +590,12 @@ def du_kien_tong(doc, g):
 		dp_gia, dp_tien, dp_sl = _do_chinh_xac()
 		tong_dong = 0.0
 		for it in dong_goc:
-			x = mc.dong_tu_hoa_don(it)
+			x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
 			tong_dong += tien_dong_may_ghi(
 				x.get("sl"), x.get("gia"), dp_gia, dp_tien, dp_sl)
-		viec, so_tien = mc.can_theo_truoc_thue(tong_dong, muc_tieu_truoc_thue(g))
-		net = tong_dong + (so_tien if viec == "phi" else 0) - (so_tien if viec == "giam" else 0)
+		dau = mc.dau_cua_to(g.get("tong_tien"))
+		viec, so_tien = mc.can_theo_truoc_thue(dau * tong_dong, dau * muc_tieu_truoc_thue(g))
+		net = tong_dong + dau * (so_tien if viec == "phi" else 0) - dau * (so_tien if viec == "giam" else 0)
 		# Thuế lấy theo BẢN GỐC, không lấy theo bảng thuế đang có trên phiếu:
 		# `_dung_thue_tai_cho` sẽ dựng lại bảng đó theo đúng bản gốc.
 		return net + flt(g.get("tien_thue"))
@@ -679,6 +683,10 @@ def dong_bo_luc_luu(doc, method=None):
 		if not g:
 			return
 		from vagabond import minvoice_chung_tu as mc
+		# ERPNext controllers/sales_and_purchase_return.py: validate_return
+		# chỉ kiểm tờ trả khi is_return bật; cùng quy tắc với lần nhập đầu.
+		if mc.dau_cua_to(g.get("tong_tien")) < 0:
+			mua_dich_vu._bat_tra_lai(doc)
 		# Thuế phải được chuẩn hoá cả khi TIỀN HÀNG đã khớp. Ca Nam An:
 		# 15.229 Actual bị cộng thêm mẫu 8% khi gắn mã món trên Desk.
 		_dung_thue_tai_cho(doc, g)
@@ -702,6 +710,16 @@ def dong_bo_luc_luu(doc, method=None):
 			hoc_ma_hang(doc, g)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "dung_lai_hddt: hoc ma hang")
+		# Tổng âm vẫn có thể khớp với qty dương/rate âm, hoặc nhờ một
+		# khoản giảm giả. Nắn dấu TRƯỚC cửa tổng khớp, rồi cân lại bên dưới.
+		if mc.dau_cua_to(g.get("tong_tien")) < 0:
+			ghim_lai_theo_goc(doc, g)
+			# Tên trùng thì ghim không đoán. Dựng theo thứ tự bản gốc
+			# nếu còn giá âm, không để tổng khớp che dấu sai.
+			if any(flt(d.get("rate")) < 0 for d in doc.get("items") or []):
+				phieu = _phieu_da_noi(doc)
+				_dung_dong_tai_cho(doc, g)
+				_noi_lai(doc, phieu)
 		muc_tieu = muc_tieu_truoc_thue(g)
 		if not muc_tieu:
 			return

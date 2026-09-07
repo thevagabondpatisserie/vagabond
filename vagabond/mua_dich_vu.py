@@ -261,7 +261,7 @@ def giam_ngoai_dong(dau, chi_tiet):
 	mot cho khac han, y het chuyen phi ve may bay - va do la ly do phai do
 	no bang hieu chu khong di tim no.
 	"""
-	return gom_dong_theo_tinh_chat(chi_tiet) - goc_dong_hang(dau)
+	return gom_dong_theo_tinh_chat(chi_tiet, -1 if la_hoa_don_am(dau) else 1) - goc_dong_hang(dau)
 
 
 def la_hoa_don_am(dau):
@@ -330,7 +330,7 @@ def chan_doan_lech(dau, tong_phieu, tong_thue_tren_phieu, nguong=NGUONG_LECH):
 	return "lech_khac"
 
 
-def gom_dong_theo_tinh_chat(chi_tiet):
+def gom_dong_theo_tinh_chat(chi_tiet, dau_to=1):
 	"""Cong phan chi tiet cho DUNG DAU. THUAN.
 
 	Dong chiet khau thuong mai (tchat 3) phai tru ra, dong ghi chu dien giai
@@ -346,7 +346,7 @@ def gom_dong_theo_tinh_chat(chi_tiet):
 		if tc == TC_GHI_CHU:
 			continue
 		tien = flt(d.get("thtien"))
-		tong += -abs(tien) if tc == TC_CHIET_KHAU else tien
+		tong += (-1 if dau_to >= 0 else 1) * abs(tien) if tc == TC_CHIET_KHAU else tien
 	return tong
 
 

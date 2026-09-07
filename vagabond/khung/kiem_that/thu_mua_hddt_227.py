@@ -172,3 +172,24 @@ def _hai_nhap():
 		dung("phải chặn PI thứ hai", False)
 	la("PI thứ hai vẫn nháp trong DB", frappe.db.get_value("Purchase Invoice", ds[1].name, "docstatus"), 0)
 	la("PI thứ hai không có GL", len(nen.so_cai_cua(ds[1])), 0)
+
+
+@ca("#227: tờ trả dựng lại dấu âm, save lặp và GL đảo đúng")
+def _tra_lai_dung_dau():
+	from vagabond import dung_lai_hddt
+	g = _nguon([{"ten": "Món trả thử", "sluong": -2, "dgia": -100000,
+		"thtien": -200000}, {"ten": "Chiết khấu", "tchat": 3, "thtien": -20000}],
+		-18000, -198000)
+	hd = _phieu([("Món trả thử", 2, 100000)])
+	_luu(hd)
+	hd.custom_minvoice_id = g.name
+	# Đi qua đúng đường dựng lại trước save, không tự gán dấu đúng cho fixture.
+	dung_lai_hddt._dung_dong_tai_cho(hd, g.as_dict())
+	for _ in range(2):
+		hd.save()
+		hd.reload()
+		la("là phiếu trả", hd.is_return, 1)
+		la("lượng âm", hd.items[0].qty, -2)
+		la("giá dương", hd.items[0].rate, 100000)
+		la("giảm theo chiều trả", hd.discount_amount, -20000)
+	_ghi_so(hd, -198000, -18000)

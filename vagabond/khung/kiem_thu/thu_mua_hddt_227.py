@@ -181,3 +181,75 @@ def _hai_nhap():
 	la("khoá và đọc trong cùng giao dịch", len(goi), 2)
 	dung("không dùng snapshot cũ", all("for update" in s for s in goi))
 	dung("loại trừ chính phiếu đang submit", "d.parent != %(hd)s" in goi[1])
+
+
+@ca("#227: 2400 Quả bằng 2400 PCS khi danh mục trứng khai cả hai hệ số 1")
+def _trung_qua_pcs():
+	t = To(name="PI", items=[_dong(uom="Quả")])
+	with _gia_lap(_phieu(), giu_gia=1):
+		dc.frappe.db.get_value = lambda dt, loc, cot: 1 if loc["uom"] == "PCS" else None
+		ra = dc._noi(t, list(_phieu()), True)
+		la("không báo lệch tên giả", ra["loi"], [])
+		la("đủ ba phiếu", ra["da_noi"], 3)
+		la("tổng lượng kho", sum(d.qty * d.conversion_factor for d in t.items), 2400)
+		la("không đổi tiền", sum(d.qty * d.rate for d in t.items), 5520000)
+		la("tên theo phiếu", {d.uom for d in t.items}, {"PCS"})
+
+
+@ca("#227: dựng lại tờ âm không tạo đơn giá âm rồi che bằng chiết khấu")
+def _dung_to_am():
+	for muc_tieu, giam, so_dong in ((-200, 0, 1), (-180, -20, 1), (-220, 0, 2)):
+		g = dict(tong_tien=muc_tieu, tien_thue=0, tien_truoc_thue=muc_tieu,
+			chi_tiet=[dict(ten="Món trả", sluong=-2, dgia=-100, thtien=-200)])
+		t = To(name="PI", supplier="NCC", items=[], taxes=[_thue(0)])
+		with patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+			la("dự kiến theo đúng dấu", dl.du_kien_tong(t, g), muc_tieu)
+			for _ in range(2):
+				dl._dung_dong_tai_cho(t, g)
+				la("là trả lại", t.is_return, 1)
+				la("không bù giả", len(t.items), so_dong)
+				la("giảm theo chiều tờ", t.discount_amount, giam)
+				la("giá hàng dương", t.items[0].rate, 100)
+				la("lượng hàng âm", t.items[0].qty, -2)
+				la("đúng tiền", sum(d.qty * d.rate for d in t.items) - t.discount_amount, muc_tieu)
+				dung("mọi đơn giá không âm", all(d.rate >= 0 for d in t.items))
+		t.items[0].qty = 2
+		t.items[0].rate = -100
+		dl.ghim_lai_theo_goc(t, g)
+		la("ghim lượng đúng", t.items[0].qty, -2)
+		la("ghim giá đúng", t.items[0].rate, 100)
+
+
+@ca("#227: chiết khấu trên tờ trả giảm trị tuyệt đối, không tăng tiền trả")
+def _giam_to_am():
+	for so in (-20, 20):
+		la("âm 200 giảm 20 còn âm 180", dv.gom_dong_theo_tinh_chat([
+			{"thtien": -200}, {"tchat": 3, "thtien": so}], -1), -180)
+
+
+@ca("#227: tổng tờ âm khớp không cho phép bỏ qua dấu lượng và giá")
+def _tong_khop_dau_sai():
+	g = dict(tong_tien=-200, tien_thue=0, tien_truoc_thue=-200,
+		chi_tiet=[dict(ten="Món trả", sluong=-2, dgia=-100, thtien=-200)])
+	for sl, gia, giam in ((2, -100, 0), (-2, -100, 400)):
+		t = To(name="PI", supplier="NCC", docstatus=0, custom_minvoice_id="M", discount_amount=giam,
+			items=[_dong(sl, gia, item_code=None, item_name="Món trả", ten_hang_ncc="Món trả")], taxes=[_thue(0)])
+		with patch.object(dl, "_goc", lambda *a: g), patch.object(dl, "hoc_ma_hang", lambda *a: 0), patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+			dl.dong_bo_luc_luu(t)
+		la("lượng âm", t.items[0].qty, -2)
+		la("giá dương", t.items[0].rate, 100)
+		la("không giảm giả", t.discount_amount, 0)
+		la("trả lại", t.is_return, 1)
+
+
+@ca("#227: tên trùng khiến ghim bỏ qua vẫn phải dựng đúng dấu trước tổng khớp")
+def _am_trung_ten():
+	g = dict(tong_tien=-200, tien_thue=0, tien_truoc_thue=-200,
+		chi_tiet=[dict(ten="Món trả", sluong=-1, dgia=100, thtien=-100) for _ in range(2)])
+	t = To(name="PI", supplier="NCC", docstatus=0, custom_minvoice_id="M", discount_amount=0,
+		items=[_dong(1, -100, item_code=None, item_name="Món trả", ten_hang_ncc="Món trả") for _ in range(2)], taxes=[_thue(0)])
+	with patch.object(dl, "_goc", lambda *a: g), patch.object(dl, "hoc_ma_hang", lambda *a: 0), patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+		for _ in range(2):
+			dl.dong_bo_luc_luu(t)
+			la("hai dòng đúng dấu", [(d.qty, d.rate) for d in t.items], [(-1, 100), (-1, 100)])
+			la("không giảm giả", t.discount_amount, 0)

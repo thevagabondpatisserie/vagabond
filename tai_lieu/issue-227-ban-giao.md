@@ -213,3 +213,17 @@ không phải xác nhận đã chạy các thay đổi trên runtime thực tế
 
 PR vẫn Draft để Claude review bổ sung và chạy các cổng trên. Codex chỉ
 code/test/push; không merge, deploy hoặc chỉnh dữ liệu thật trong lượt này.
+
+## Bổ sung sau khi đọc kho tài liệu Claude, 08/09/2026
+
+Xem `issue-227-bai-hoc-tu-tai-lieu.md` cùng thư mục: phân biệt bằng chứng
+site, lỗi mã đã tái hiện và nghi vấn lịch sử. Quả = PCS = 1 trên Item
+NVLT00041; không cần đổi lại đơn vị ca 2.400 trứng. Đã thêm regression này.
+
+Sửa thêm dấu tờ trả trên đường dựng lại/ghim/dự kiến, chiều chiết khấu và
+cửa tổng khớp. Test mới chạy trên code trước sửa: 4 ca đỏ; code sửa qua
+2.619 ca tầng khung và cổng deploy. Ca tích hợp mua tăng từ 5 lên 6;
+`_tra_lai_dung_dau` phải qua insert/save lặp/submit/GL trên bench. Chưa
+chạy bench tại máy Codex; không dùng kết quả pure để thay điều kiện này.
+Các điều kiện kiểm đồng thời PR/PI, snapshot Server Script, migrate và
+hàng tặng trong phần trên vẫn giữ nguyên. Không có deploy trong lượt này.
