@@ -127,7 +127,11 @@ def _sepay_so_con_lai():
 	src = _py("ho_so_tt.py")
 	than = _doan(src, "def kiem_sepay(", "\n@frappe.whitelist()")
 	dung("đọc con_lai", '"con_lai"' in than)
-	dung("có số phải chuyển", "phai_chuyen = flt(d.get(\"con_lai\")) or flt(d[\"tong_tien\"])" in than)
+	# v445 (Codex #225 R4): bieu thuc cu `flt(con_lai) or flt(tong_tien)` coi
+	# so 0 la "chua co so" roi thay bang tong, nen ho so tru HET tam ung vinh
+	# vien bao thieu tien. Ca nay tung chot dung bieu thuc do; nay chot la
+	# bieu thuc do KHONG con, va hanh vi that kiem o thu_ho_so_tt_v445.
+	dung("hết biểu thức `or tổng tiền`", "or flt(d[\"tong_tien\"])" not in than)
 	dung("so với số phải chuyển", 'flt(o.get("chi")) >= phai_chuyen - 1' in than)
 	dung("hết so thẳng với tổng tiền", 'flt(o.get("chi")) >= flt(d["tong_tien"]) - 1' not in than)
 

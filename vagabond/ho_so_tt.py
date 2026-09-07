@@ -125,6 +125,16 @@ NHAN = {
 }
 THU_TU = [TT_NHAP, TT_CHO_FIN, TT_CHO_GD, TT_DA_DUYET, TT_DA_TRA, TT_TU_CHOI, TT_HUY]
 
+
+def loi_hoan_ung_tam_ung(so):
+	"""Cau bao khi ho so hoan ung moi bi nhap tru tam ung. THUAN."""
+	return (
+		"Hồ sơ hoàn ứng không trừ tạm ứng (đang nhập %s đ). Người ứng đã trả "
+		"trước toàn bộ tiền hàng từ tài khoản ứng, công ty hoàn đúng số đã chi; "
+		"số dư sẵn có của tài khoản ứng hay số đã trả nhà cung cấp không phải "
+		"khoản tạm ứng đã trừ. Để 0 rồi lưu lại." % _tien(so)
+	)
+
 # Ma ho so: APP.26.08.027 - anh Viet chot 13/08/2026, theo dung dang chung tu
 # Uyen dang lap bang Excel (APP.26.08.027) va dang phieu thu tu dong da chay
 # trong he (APP-26-08-001). So thu tu chay lai tu 001 moi thang.
@@ -753,6 +763,16 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 		dong = frappe.parse_json(dong)
 	if not dong:
 		frappe.throw("Chưa nhập khoản chi nào.")
+	# LUONG HOAN UNG CHUAN KHONG TRU TAM UNG (anh Viet va Codex, #225 07/09/2026).
+	#
+	# Uyen tra truoc TOAN BO tien hang tu ACB, lap ho so, cong ty hoan dung
+	# so do ve ACB. So du san co cua ACB hay so Uyen da tra nha cung cap
+	# KHONG phai "tam ung da tru": nhap vao o nay la so hoan thanh 0 va cong
+	# ty khong tra lai ai. Tham so giu ten de man hinh cu nhan cau bao ro.
+	# Ho so cu dang mang gia tri thi giu nguyen, khong reset (dieu 11).
+	if flt(da_tam_ung) > 0:
+		frappe.throw(loi_hoan_ung_tam_ung(flt(da_tam_ung)), title="Hoàn ứng không trừ tạm ứng")
+
 	# Anh Viet 22/08/2026: man nay khong bat chon nha cung cap nua, chi chon
 	# TAI KHOAN nhan tien (ACB hay OCB). Ma nha cung cap van phai co, vi so
 	# cai treo cong no theo ma - nhung nay may tu suy tu tai khoan chu khong
@@ -822,7 +842,7 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
-	doc.da_tam_ung = flt(da_tam_ung)
+	doc.da_tam_ung = 0.0
 	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
@@ -1072,11 +1092,18 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 			hang["party"] = doc.nha_cung_cap
 		je.append("accounts", hang)
 
+	# Ho so tu khai la cha cua but toan nay, y het Payment Entry o
+	# `_tao_but_toan`. Truoc v445 nhanh nay KHONG co dau vet nguoc: bam lai
+	# sau khi mat phan hoi thi khong co cach nao tim lai but toan da sinh,
+	# nen sinh them mot cai nua (Codex #225 R1).
+	je.vgb_ho_so_tt = doc.name
 	je.flags.ignore_permissions = True
 	je.insert(ignore_permissions=True)
 	chep_unc(doc.name, "Journal Entry", je.name)
 	je.submit()
-	frappe.db.commit()
+	# KHONG commit o day. Ham ngoai (`danh_dau_da_tra`) giu MOT giao dich cho
+	# ca but toan lan trang thai ho so; commit som o day la nha khoa ho so
+	# trong khi ho so van "Da duyet" (Codex #225 R1).
 	return je.name
 
 
@@ -2165,13 +2192,20 @@ def kiem_sepay(name=None):
 		# ban in cung ghi ro "CON LAI PHAI CHUYEN". So voi `tong_tien` thi
 		# moi ho so co tru tam ung se VINH VIEN bao "chua du tien" du ngan
 		# hang da chuyen dung, va ke toan de tuong tien chua di.
-		phai_chuyen = flt(d.get("con_lai")) or flt(d["tong_tien"])
+		#
+		# v445 (Codex #225 R4): `flt(con_lai) or flt(tong_tien)` cua v413 coi so
+		# 0 la "chua co so" roi thay bang tong, nen ho so tru HET tam ung (con
+		# phai chuyen 0) vinh vien bao thieu tien. Nay 0 la 0. O trong (None)
+		# thi khong doan, tra co `chua_tinh` de man hinh noi ro.
+		con_lai = d.get("con_lai")
+		chua_tinh = 1 if con_lai is None else 0
+		phai_chuyen = flt(con_lai) if not chua_tinh else flt(d["tong_tien"])
 		ra.append({
 			"ma": d["name"], "tong_tien": flt(d["tong_tien"]),
-			"phai_chuyen": phai_chuyen,
+			"phai_chuyen": phai_chuyen, "chua_tinh": chua_tinh,
 			"da_chi": flt(o.get("chi")), "so_gd": o.get("so_gd") or 0,
 			"ma_gd": o.get("ma_gd") or "", "ngay": o.get("ngay") or "",
-			"du": 1 if flt(o.get("chi")) >= phai_chuyen - 1 else 0,
+			"du": 1 if (not chua_tinh and flt(o.get("chi")) >= phai_chuyen - 1) else 0,
 		})
 	return {"rows": ra, "so_du": len([x for x in ra if x["du"]])}
 
@@ -2183,78 +2217,173 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	Bút toán mới là thứ thật sự xoá nợ trên sổ; hồ sơ chỉ là chứng từ đề
 	nghị. Nếu ERPNext từ chối bút toán thì hồ sơ vẫn ở Đã duyệt để kế toán
 	xử tay, KHÔNG đánh dấu đã trả - đánh dấu mà nợ vẫn treo là tệ hơn.
+
+	v445 (Codex #225 R1, R2, R4, R6), bon dieu giu chat:
+	  1. MOT giao dich cho ca bo but toan lan trang thai ho so. Hai ham con
+	     `_tao_but_toan`, `_tao_but_toan_tkct` khong commit; commit duy nhat
+	     o cuoi ham nay, sau `doc.save()`. Nem loi o bat ky dau thi Frappe
+	     lui ca giao dich, ho so con nguyen "Da duyet".
+	  2. Khong giu duoc khoa thi DUNG, khong chay tiep.
+	  3. Truoc khi sinh but toan, TRA but toan da ghi so mang `vgb_ho_so_tt`
+	     cua ho so. Co roi thi doi chieu voi ke hoach duyet: DU thi khong
+	     sinh them, THIEU/THUA/LECH thi dung va liet ke, khong tu sinh bu.
+	     Bam lai ho so da xong thi tra ve cung bo chung tu do, khong gui thu.
+	  4. `tao_but_toan=0` bi tu choi thang. Duong "da tra ma khong but toan"
+	     khong con.
 	"""
 	from vagabond.tra_tien_app import dem_unc, du_unc, loi_thieu_unc
 
 	_kiem(VAI_FIN, "ghi nhận thanh toán")
+	# DUONG BO QUA BUT TOAN DA DONG (Codex #225 R2). Giu ten tham so de
+	# caller cu nhan duoc cau bao ro, thay vi coi request cu la yeu cau khac.
+	if not cint(tao_but_toan):
+		frappe.throw(
+			"Không còn đường ghi nhận đã thanh toán mà bỏ qua bút toán. Hồ sơ "
+			"chỉ hoàn tất khi bút toán xoá công nợ đã ghi sổ trong cùng một lượt.",
+			title="Đường ghi nhận không bút toán đã đóng",
+		)
 	# KHOA BAN GHI TRUOC KHI DOC TRANG THAI.
 	#
-	# Ham nay doc trang thai roi moi ghi, va o giua co `_tao_but_toan` tu
-	# `frappe.db.commit()`. Khong khoa thi hai lan bam chong nhau (mang chap
-	# chon, nguoi dung bam lai) deu doc thay "Da duyet" o cung mot luc, roi
-	# ca hai cung sinh Payment Entry. Cong ty ghi so tra tien hai lan cho
-	# mot ho so, ma tren man hinh nhin chi thay mot dong "Da thanh toan".
+	# Ham nay doc trang thai roi moi ghi. Khong khoa thi hai lan bam chong
+	# nhau (mang chap chon, nguoi dung bam lai) deu doc thay "Da duyet" o cung
+	# mot luc, roi ca hai cung sinh Payment Entry. Cong ty ghi so tra tien hai
+	# lan cho mot ho so, ma tren man hinh nhin chi thay mot dong "Da thanh toan".
 	#
-	# `for_update` bat MySQL giu dong lai: lan bam thu hai dung o day cho
-	# lan thu nhat xong, doc lai thay "Da thanh toan" va thoat ngay o cau
-	# duoi. Phai khoa TRUOC `get_doc`, khoa sau thi da doc so cu roi.
+	# `for_update` bat MySQL giu dong lai: lan bam thu hai dung o day cho lan
+	# thu nhat xong, doc lai thay "Da thanh toan" va thoat ngay o cau duoi.
+	# Phai khoa TRUOC `get_doc`, khoa sau thi da doc so cu roi.
+	#
+	# Truoc v445 loi lay khoa bi nuot roi cho chay tiep ("tha yeu con hon
+	# chet"). Codex #225 R1 chi ra: chay tiep khong khoa la mo lai dung cai
+	# dua tranh ma khoa sinh ra de chan. Nay khong giu duoc khoa thi dung.
 	try:
 		frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai", for_update=True)
 	except Exception:
-		# Bo may du lieu khong cho khoa thi van chay tiep: chot `da_lam_roi`
-		# ben duoi con do duoc phan lon truong hop, tha yeu con hon chet.
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: khong khoa duoc ho so khi ghi nhan")
+		frappe.throw(
+			"Chưa giữ được khoá hồ sơ %s để ghi nhận (có thể một lượt khác đang "
+			"ghi nhận đúng hồ sơ này). Chờ vài giây rồi mở lại hồ sơ xem trạng "
+			"thái trước khi bấm lại." % name,
+			title="Chưa giữ được khoá hồ sơ",
+		)
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	if doc.trang_thai == TT_DA_TRA:
-		return {"ok": 1, "da_lam_roi": 1, "trang_thai": doc.trang_thai}
+		# Bam lai ho so da xong: tra lai CUNG bo chung tu da co, de nguoi bam
+		# thay dung nhung gi da ghi so, khong chi mot chu "da lam roi". Khong
+		# sinh gi, khong gui thu lan hai.
+		bo = _but_toan_cua_ho_so(doc.name)
+		kq = _kiem_bo_chung_tu(_ke_hoach_duyet(doc, doc.get("phuong_thuc") or phuong_thuc), bo, _do_chinh_xac())
+		if not kq["du"]:
+			# Codex #226 B2: ho so da xong ma bo chung tu doc lai KHONG khop
+			# (bi huy, mat lien ket, lech ke hoach) thi KHONG duoc tra "ok".
+			# Noi ro chua xac minh duoc va chung tu nao can kiem; khong sinh
+			# bu, khong gui thu.
+			frappe.throw(
+				"Hồ sơ %s đang ghi Đã thanh toán nhưng bộ bút toán đọc lại không khớp "
+				"nội dung hồ sơ: %s. Chứng từ đang có: %s. Kế toán mở các bút toán "
+				"đó kiểm lại; máy không tự sinh bù."
+				% (doc.name, _cau_bo_chung_tu(kq) or "không còn bút toán nào",
+					", ".join(kq["ten"]) or "không có"),
+				title="Chưa xác minh được bộ chứng từ",
+			)
+		return {"ok": 1, "da_lam_roi": 1, "trang_thai": doc.trang_thai,
+			"but_toan": ", ".join(kq["ten"]), "bo_chung_tu": kq}
 	if doc.trang_thai != TT_DA_DUYET:
 		frappe.throw(
 			"Hồ sơ đang ở %s. Phải duyệt xong hai cấp mới chuyển tiền được."
 			% NHAN.get(doc.trang_thai, doc.trang_thai)
 		)
+
+	# SO PHAI CHUYEN tinh lai tu dong, 0 la so hop le (Codex #225 R4).
+	do = _do_chinh_xac()
+	so = _so_phai_chuyen(doc, do)
+	phai_chuyen = so["con"]
+
+	# HANG RAO TAM UNG (Codex #225 R4). Ho so co tru tam ung thi but toan
+	# hien tai xoa cong no theo TONG, con tien that ra khoi ngan hang chi la
+	# `con_lai`; phan tam ung phai bu tru voi quy 141x bang mot chung tu
+	# khac. Chi Dung chua chot cap tai khoan bu tru theo tung loai ho so, nen
+	# v445 KHONG tu sinh but toan bu tru va cung KHONG hoan tat ho so khi
+	# con thieu chung tu do. Ap cho ca tam ung mot phan lan tam ung du.
+	#
+	# ANH HUONG VAN HANH: ho so nao co tam ung se dung o "Da duyet" cho toi
+	# khi co duong bu tru. Da neu trong PR truoc khi de nghi deploy.
+	if so["tam_ung"] > 0:
+		frappe.throw(
+			"Hồ sơ %s trừ %s đ tạm ứng (tổng %s đ, còn phải chuyển %s đ). Phần tạm "
+			"ứng chưa có chứng từ bù trừ với quỹ tạm ứng nên chưa hoàn tất hồ sơ "
+			"được: hoàn tất bây giờ là công nợ được xoá theo tổng trong khi sổ quỹ "
+			"tạm ứng vẫn phình. Chờ kế toán trưởng chốt cách bù trừ; hồ sơ giữ ở "
+			"Đã duyệt." % (doc.name, _tien(so["tam_ung"]), _tien(so["tong"]), _tien(phai_chuyen)),
+			title="Thiếu chứng từ bù trừ tạm ứng",
+		)
+
 	# UY NHIEM CHI TRUOC, GHI NHAN SAU. Anh Viet chot 28/08/2026, ap cho
 	# MOI loai ho so. Chan o day chu khong chi chan luc ghi so but toan:
 	# chan o but toan thi ho so da doi trang thai xong roi moi hong, va
 	# nguoi bam tren app khong co cho nao de dinh tep.
-	if not du_unc(dem_unc(doc.name)):
-		frappe.throw(loi_thieu_unc(doc.name), title="Chưa có uỷ nhiệm chi")
-
-	# GIAO DICH NGAN HANG PHAI VE. Anh Viet 03/09/2026: *"ke toan chi tien
-	# roi dinh kem UNC, khop giao dich SePay vao thi moi ghi so va chuyen
-	# trang thai da thanh toan"*.
 	#
-	# To uy nhiem chi la lenh chuyen tien, khong phai bang chung tien da ra
-	# khoi tai khoan: lenh co the bi ngan hang tu choi, co the bi go, co the
-	# la anh chup cua lan chuyen truoc. Dong sao ke moi noi duoc tien da di.
-	#
-	# Duong thoat CO VET cho ke toan truong: chuyen lien ngan hang ngoai gio
-	# thi sao ke ve cham vai tieng, ma tien da di that. Khong co duong nay
-	# thi den luc ket nguoi ta se vong qua ca he thong, va vong qua thi
-	# khong con vet nao het.
+	# Khi so phai chuyen bang 0 thi khong co lenh chuyen tien nao de dinh, nen
+	# khong doi UNC moi va khong doi giao dich SePay (Codex #225 R4 dong y).
+	# Nhanh nay hien khong toi duoc vi hang rao tam ung o tren, giu lai de
+	# dung ngay khi co duong bu tru.
 	from vagabond import duyet_chi
 
 	ly_do = (ly_do_som or "").strip()
-	da_chi = flt((_sepay_theo_ma_app([doc.name]).get(doc.name) or {}).get("chi"))
-	# SO VOI SO THAT SU CHUYEN DI, khong phai tong tien.
-	#
-	# Ho so co tru tam ung thi ngan hang chi chuyen `con_lai`, va ban in
-	# cung ghi ro "CON LAI PHAI CHUYEN". So voi `tong_tien` thi moi ho so co
-	# tru tam ung se VINH VIEN khong ghi so duoc du ngan hang da chuyen dung
-	# so, va ke toan buoc phai muon duong bo qua co ly do - tuc bien mot
-	# duong thoat ngoai le thanh duong di hang ngay. Cung mot cai bay da sua
-	# cho `kiem_sepay` o v413.
-	phai_chuyen = flt(doc.con_lai) or flt(doc.tong_tien)
-	if not duyet_chi.sepay_du(phai_chuyen, da_chi):
-		if not (ly_do and (duyet_chi.VAI_BO_QUA_SEPAY & set(frappe.get_roles()))):
-			frappe.throw(
-				duyet_chi.cau_thieu(["chua_ve_tien"], phai_chuyen, da_chi),
-				title="Chưa thấy tiền ra khỏi tài khoản",
-			)
-		doc.vgb_tt_ly_do_som = ly_do
+	da_chi = 0.0
+	if phai_chuyen > 0:
+		if not du_unc(dem_unc(doc.name)):
+			frappe.throw(loi_thieu_unc(doc.name), title="Chưa có uỷ nhiệm chi")
 
-	pe = None
-	if cint(tao_but_toan):
+		# GIAO DICH NGAN HANG PHAI VE. Anh Viet 03/09/2026: *"ke toan chi
+		# tien roi dinh kem UNC, khop giao dich SePay vao thi moi ghi so va
+		# chuyen trang thai da thanh toan"*.
+		#
+		# To uy nhiem chi la lenh chuyen tien, khong phai bang chung tien da
+		# ra khoi tai khoan. Dong sao ke moi noi duoc tien da di. Duong thoat
+		# CO VET cho ke toan truong: chuyen lien ngan hang ngoai gio thi sao
+		# ke ve cham vai tieng, ma tien da di that.
+		#
+		# So voi so THAT SU chuyen di (`con_lai`), khong phai tong tien. Cai
+		# bay `flt(con_lai) or flt(tong_tien)` cua v413 da bo o v445: so 0 la
+		# so hop le, khong phai "chua co so" (Codex #225 R4).
+		da_chi = flt((_sepay_theo_ma_app([doc.name]).get(doc.name) or {}).get("chi"))
+		if not duyet_chi.sepay_du(phai_chuyen, da_chi):
+			if not (ly_do and (duyet_chi.VAI_BO_QUA_SEPAY & set(frappe.get_roles()))):
+				frappe.throw(
+					duyet_chi.cau_thieu(["chua_ve_tien"], phai_chuyen, da_chi),
+					title="Chưa thấy tiền ra khỏi tài khoản",
+				)
+			doc.vgb_tt_ly_do_som = ly_do
+
+	# BUT TOAN DA CO CHUA (Codex #225 R1). Lan bam truoc co the da ghi so
+	# but toan roi hong o buoc luu ho so (truoc v445 hai buoc do o hai giao
+	# dich). Co roi thi doi chieu ke hoach: du thi dung lai bo do, thieu hay
+	# thua thi dung, khong tu sinh bu.
+	ke = _ke_hoach_duyet(doc, phuong_thuc)
+	bo = _but_toan_cua_ho_so(doc.name)
+	if bo:
+		kq = _kiem_bo_chung_tu(ke, bo, do)
+		if not kq["du"]:
+			frappe.throw(
+				"Hồ sơ %s đã có bút toán ghi sổ từ lượt trước (%s) nhưng chưa khớp "
+				"nội dung hồ sơ. %s. Máy không tự sinh bù; kế toán kiểm các bút toán "
+				"đó rồi xử tay." % (doc.name, ", ".join(kq["ten"]), _cau_bo_chung_tu(kq)),
+				title="Bút toán cũ chưa khớp hồ sơ",
+			)
+		pe = ", ".join(kq["ten"])
+	else:
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
+		# Doc lai chinh cai vua sinh va doi chieu ke hoach mot lan nua. Ca kiem
+		# nay re, va no bat duoc truong hop hook tang duoi sua but toan sau
+		# khi minh dung.
+		kq = _kiem_bo_chung_tu(ke, _but_toan_cua_ho_so(doc.name), do)
+		if not kq["du"]:
+			frappe.throw(
+				"Bút toán vừa sinh (%s) không khớp nội dung hồ sơ %s: %s. "
+				"Đã lùi cả lượt, hồ sơ giữ nguyên." % (pe, doc.name, _cau_bo_chung_tu(kq)),
+				title="Bút toán vừa sinh chưa khớp",
+			)
 
 	doc.trang_thai = TT_DA_TRA
 	doc.ngay_thanh_toan = ngay or nowdate()
@@ -2269,32 +2398,23 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	doc.phuong_thuc = (phuong_thuc or "").strip()
 	doc.da_tra = flt(doc.tong_tien)
 	doc.flags.ignore_permissions = True
+	# Co nay noi voi controller: bo chung tu DA duoc doi chieu trong cung
+	# giao dich nay. Controller chan moi duong doi sang "Da thanh toan" ma
+	# khong mang co (Desk, API, script), xem vagabond_ho_so_tt.py.
+	doc.flags.vgb_bo_chung_tu_da_kiem = True
 	doc.save(ignore_permissions=True)
+	# COMMIT DUY NHAT cua ca luot: but toan va trang thai cung mot giao dich.
 	frappe.db.commit()
 	_ghi_vet(doc.name, "Đã thanh toán %s đ%s%s" % (
 		_tien(doc.tong_tien),
 		(" - bút toán " + pe) if pe else "",
-		(" - ghi sổ sớm: " + ly_do) if (ly_do and not duyet_chi.sepay_du(phai_chuyen, da_chi)) else "",
+		(" - ghi sổ sớm: " + ly_do) if (ly_do and phai_chuyen > 0 and not duyet_chi.sepay_du(phai_chuyen, da_chi)) else "",
 	))
-	# TRU TAM UNG THI SO CAI CHUA CAN BANG, PHAI NOI RA.
-	#
-	# But toan xoa cong no nha cung cap theo `tong_tien`, dung ve phia nha
-	# cung cap. Nhung tien that ra khoi ngan hang chi la `con_lai`; phan
-	# `da_tam_ung` von da ung tu quy 1411 tu truoc. Buoc bu tru 1411 hien
-	# van do chi Dung lam TAY ben Next.
-	#
-	# Truoc 04/09/2026 khong co dong nao nhac, nen quen mot lan la quy tam
-	# ung phinh ra ma khong ai truy duoc tu ho so nao. Ghi hang vet va tra
-	# co ve man hinh de nguoi bam nhin thay ngay.
-	nhac = ""
-	if flt(doc.da_tam_ung) > 0:
-		nhac = ("Hồ sơ này trừ %s đ tạm ứng. Bút toán vừa sinh xoá công nợ theo "
-			"TỔNG %s đ, còn phần tạm ứng phải bù trừ tay với quỹ 1411 bên Next. "
-			"Chưa bù là quỹ tạm ứng phình ra." % (_tien(doc.da_tam_ung), _tien(doc.tong_tien)))
-		_ghi_vet(doc.name, nhac)
+	# Thu bao chi di SAU commit, va chi o luot ghi nhan that (luot bam lai
+	# thoat o tren, khong toi day).
 	thu = _tu_gui_thu_bao(doc, gui_thu)
 	return {"ok": 1, "trang_thai": doc.trang_thai, "but_toan": pe or "", "thu": thu,
-		"nhac_tam_ung": nhac}
+		"nhac_tam_ung": "", "bo_chung_tu": kq}
 
 
 def _tu_gui_thu_bao(doc, gui_thu=1):
@@ -2324,6 +2444,377 @@ def _tu_gui_thu_bao(doc, gui_thu=1):
 	except Exception as loi:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: tu gui thu bao thanh toan")
 		return {"gui": 0, "vi_sao": "Gửi thư báo chưa được: %s" % str(loi)[:200]}
+
+
+# ------------------------------------------ v445: một giao dịch, đủ bộ chứng từ
+#
+# Codex #225 R1, R2, R4, R6 (07/09/2026). Cac phep thuan o duoi khong cham
+# Frappe ngoai doc, de kiem thu duoc bang ban gia lap.
+
+# Chung tu ke toan ma ho so sinh ra. Ca hai deu mang o `vgb_ho_so_tt`
+# (Payment Entry tu truoc, Journal Entry tu v445, khai o nghiep_vu_tien.py).
+DT_BUT_TOAN = ("Payment Entry", "Journal Entry")
+
+
+def _do_chinh_xac(pe=None):
+	"""So le cua tien theo khung, khong tu dat dung sai (Codex #225 R4, R6).
+
+	Doc frappe version-16, frappe/model/meta.py get_field_precision(): o
+	Currency khong khai precision thi lay `currency_precision` cua he, khong
+	co nua thi lay theo dinh dang tien te. `doc.precision(fieldname)` chinh
+	la loi goi do. Không đọc được thì dừng, không tự dùng độ chính xác khác.
+	"""
+	try:
+		if pe is None:
+			pe = frappe.new_doc("Payment Entry")
+		p = pe.precision("paid_amount")
+		if p is None:
+			raise ValueError("khong doc duoc precision")
+		return max(0, cint(p))
+	except Exception:
+		frappe.throw("Chưa đọc được độ chính xác tiền tệ. Nhờ quản trị kiểm cấu hình trước khi ghi nhận.")
+
+
+def _kiem_hoa_don_luc_ghi_so(ten_hd, tien, hd, no_luc_duyet, cong_ty, do):
+	"""Hoa don co con du no cho phan bo da duyet khong. Nem loi thi DUNG.
+
+	Thuan: nhan du lieu da doc, khong tu doc DB. So TUNG hoa don, khong so
+	tong nhom, de du dong nay khong bu duoc thieu dong kia (Codex #225 R6).
+	"""
+	if cint(hd.get("docstatus")) != 1:
+		frappe.throw(
+			"Hoá đơn %s không còn ở trạng thái đã ghi sổ (docstatus %s), nên "
+			"không xoá công nợ vào nó được. Kế toán mở hồ sơ kiểm lại hoá đơn."
+			% (ten_hd, hd.get("docstatus"))
+		)
+	if cong_ty and hd.get("company") and hd.get("company") != cong_ty:
+		frappe.throw(
+			"Hoá đơn %s thuộc công ty %s, khác công ty %s của các hoá đơn cùng "
+			"nhà cung cấp trong hồ sơ. Không gộp vào một bút toán được."
+			% (ten_hd, hd.get("company"), cong_ty)
+		)
+	no = flt(hd.get("outstanding_amount"), do)
+	de_nghi = flt(tien, do)
+	if de_nghi > no:
+		them = ""
+		if no_luc_duyet is not None and flt(no_luc_duyet, do) != no:
+			them = (" Lúc duyệt hoá đơn này còn nợ %s đ, nay còn %s đ: đã có khoản "
+				"trả hoặc đối trừ khác chen vào sau khi duyệt."
+				% (_tien(no_luc_duyet), _tien(no)))
+		frappe.throw(
+			"Hoá đơn %s chỉ còn nợ %s đ mà hồ sơ đề nghị trả %s đ.%s Máy KHÔNG tự "
+			"cắt số phân bổ, vì phần dư sẽ nằm im ở tài khoản phải trả như một "
+			"khoản ứng trước không ai duyệt. Hồ sơ giữ nguyên; kế toán sửa số "
+			"tiền rồi cho duyệt lại." % (ten_hd, _tien(no), _tien(de_nghi), them),
+			title="Công nợ đã đổi sau khi duyệt",
+		)
+
+
+def _ke_hoach_phan_bo(doc):
+	"""Ke hoach da duyet: {hoa_don: so_tien} gop theo hoa don. Thuan."""
+	ke = {}
+	for d in (doc.get("dong") or []):
+		hd = (d.get("hoa_don") or "").strip()
+		if hd:
+			ke[hd] = ke.get(hd, 0.0) + flt(d.get("so_tien"))
+	return ke
+
+
+def _dung_ke_hoach_chi(doc, phuong_thuc=None):
+	"""Dữ liệu hiện tại của hồ sơ để đối chiếu cả bộ chứng từ. Chạm hệ.
+
+	Codex #226 B1: "dung tong" khong thay duoc "dung bo". Ke hoach vi vay
+	ghi ca cong ty, nguon chi, doi tuong tung hoa don, va voi ho so khong
+	hoa don thi ghi tung dong No/Co dung nhu `_tao_but_toan_tkct` se ghi.
+	Doc khong ra mot phan (nguon chi, hoa don) thi de None, va phep doi
+	chieu coi None la CHUA KIEM DUOC, khong phai khop.
+	"""
+	from vagabond.tra_tien_app import tk_tien_chi
+
+	phuong_thuc = phuong_thuc or doc.get("phuong_thuc") or "Chuyển khoản"
+	ke = {"hoa_don": {}, "tong": flt(doc.get("tong_tien")), "nha_cung_cap": doc.get("nha_cung_cap")}
+	phan_bo = _ke_hoach_phan_bo(doc)
+	if phan_bo:
+		ke["loai"] = "PE"
+		for ten_hd, tien in phan_bo.items():
+			hd = frappe.db.get_value("Purchase Invoice", ten_hd, ["supplier", "company", "currency", "conversion_rate"], as_dict=True) or {}
+			cty = hd.get("company")
+			tk, _ba = tk_tien_chi(cty, phuong_thuc, doc.get("tk_chi")) if cty else (None, None)
+			ke["hoa_don"][ten_hd] = {"tien": tien, "supplier": hd.get("supplier"),
+				"company": cty, "nguon_chi": tk or None,
+				"currency": hd.get("currency"), "conversion_rate": hd.get("conversion_rate"),
+				"company_currency": frappe.db.get_value("Company", cty, "default_currency") if cty else None,
+				"account_currency": frappe.db.get_value("Account", tk, "account_currency") if tk else None}
+		return ke
+	ke["loai"] = "JE"
+	cty = _cong_ty_chung_tu()
+	ke["company"] = cty
+	ke["company_currency"] = frappe.db.get_value("Company", cty, "default_currency") if cty else None
+	tk_nh = frappe.db.get_value("Bank Account", doc.get("tk_chi"), "account") if doc.get("tk_chi") else None
+	no, co, doi_tac = {}, {}, {}
+	for d in (doc.get("dong") or []):
+		if flt(d.get("so_tien")) <= 0:
+			continue
+		tk_no = d.get("tk_no")
+		tk_co = d.get("tk_co") or tk_nh
+		no[tk_no] = no.get(tk_no, 0.0) + flt(d.get("so_tien"))
+		co[tk_co] = co.get(tk_co, 0.0) + flt(d.get("so_tien"))
+	for tk in list(no) + list(co):
+		if tk and tk not in doi_tac:
+			loai_tk = frappe.db.get_value("Account", tk, "account_type")
+			if loai_tk in ("Payable", "Receivable"):
+				doi_tac[tk] = {"party_type": "Supplier" if loai_tk == "Payable" else "Customer", "party": doc.get("nha_cung_cap")}
+	ke.update({"no": no, "co": co, "doi_tac": doi_tac,
+		"tien_te_tk": {tk: frappe.db.get_value("Account", tk, "account_currency") if tk else None for tk in set(no) | set(co)}})
+	return ke
+
+
+def _loi_ke_hoach_chi(ke):
+	"""Phạm vi VND được kiểm rõ trước khi so các số cùng đơn vị.
+
+	ERPNext accounts/doctype/payment_entry/payment_entry.py set_exchange_rate:
+	cùng tiền công ty thì source_exchange_rate = 1, cùng tiền hai tài khoản
+	thì target_exchange_rate = source_exchange_rate. Journal Entry
+	set_amounts_in_company_currency nhân tiền tài khoản với exchange_rate.
+	Vì vậy chỉ so trực tiếp số khi đã xác minh VND và tỷ giá 1.
+	"""
+	if not isinstance(ke, dict) or ke.get("loai") not in ("PE", "JE"):
+		return "chưa xác định được loại hồ sơ"
+	if ke["loai"] == "PE":
+		if not ke.get("hoa_don"):
+			return "hồ sơ không có hoá đơn"
+		for hd, k in ke["hoa_don"].items():
+			if not all(k.get(t) for t in ("supplier", "company", "nguon_chi")):
+				return hd + ": thiếu công ty, nhà cung cấp hoặc nguồn chi"
+			if any(k.get(t) != "VND" for t in ("currency", "company_currency", "account_currency")) or flt(k.get("conversion_rate")) != 1:
+				return hd + ": chỉ hỗ trợ hoá đơn, tài khoản và sổ công ty bằng VND, tỷ giá 1"
+	else:
+		if not ke.get("company") or not ke.get("no") or not ke.get("co"):
+			return "thiếu công ty hoặc tài khoản Nợ/Có của hồ sơ"
+		if ke.get("company_currency") != "VND":
+			return "sổ công ty chưa xác minh là VND"
+		for tk in set(ke["no"]) | set(ke["co"]):
+			if not tk or (ke.get("tien_te_tk") or {}).get(tk) != "VND":
+				return "tài khoản %s chưa xác minh là VND" % tk
+		for dt in (ke.get("doi_tac") or {}).values():
+			if not isinstance(dt, dict) or not dt.get("party_type") or not dt.get("party"):
+				return "chưa xác định đủ loại và mã đối tượng"
+	return ""
+
+
+def _ke_hoach_duyet(doc, phuong_thuc=None):
+	"""Đọc dữ liệu hồ sơ để đối chiếu bút toán ngay lúc ghi nhận.
+
+	Anh Việt yêu cầu giữ quy trình đơn giản: không có bước chốt kế hoạch,
+	không buộc hồ sơ cũ quay lại duyệt chỉ vì thiếu bản chụp mới thêm.
+	Các kiểm tra số tiền, đối tượng, tài khoản và tiền tệ vẫn chạy như nhau
+	cho hồ sơ mới, hồ sơ đã duyệt cũ và lần tra lại chứng từ đã ghi.
+	"""
+	return _dung_ke_hoach_chi(doc, phuong_thuc)
+
+
+def _but_toan_cua_ho_so(name):
+	"""Chung tu DA GHI SO mang `vgb_ho_so_tt` = ho so nay, doc DU de doi chieu.
+
+	Khong doc duoc mot loai chung tu (vi du o tren Journal Entry chua duoc
+	dung vi chua migrate) thi NEM LOI chu khong coi la "chua co": chua kiem
+	duoc khong phai la sach (Codex #225 R1). Doc CA tham chieu (moi loai),
+	tien chua phan bo, nguon chi, doi tuong (Codex #226 B1).
+	"""
+	ra = []
+	for dt in DT_BUT_TOAN:
+		try:
+			if dt == "Payment Entry":
+				ds = frappe.get_all(dt, filters={"vgb_ho_so_tt": name, "docstatus": 1},
+					fields=["name", "company", "party_type", "party", "payment_type",
+						"paid_from", "paid_amount", "unallocated_amount", "paid_from_account_currency", "paid_to_account_currency", "source_exchange_rate", "target_exchange_rate"], limit_page_length=0)
+			else:
+				ds = frappe.get_all(dt, filters={"vgb_ho_so_tt": name, "docstatus": 1},
+					fields=["name", "company", "total_debit"], limit_page_length=0)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc but toan cua ho so")
+			frappe.throw(
+				"Chưa đọc được danh sách %s của hồ sơ %s nên chưa dám ghi nhận. "
+				"Có thể bản cấu trúc mới chưa được dựng trên site; báo người phụ "
+				"trách hệ thống." % (dt, name)
+			)
+		for r in ds:
+			o = dict(r)
+			o["doctype"] = dt
+			if dt == "Payment Entry":
+				o["tham_chieu"] = frappe.get_all(
+					"Payment Entry Reference", filters={"parent": r["name"]},
+					fields=["reference_doctype", "reference_name", "allocated_amount"],
+					limit_page_length=0,
+				)
+			else:
+				o["tong_no"] = flt(r.get("total_debit"))
+				o["dong"] = frappe.get_all(
+					"Journal Entry Account", filters={"parent": r["name"]},
+					fields=["account", "debit_in_account_currency", "credit_in_account_currency",
+						"party_type", "party", "account_currency", "exchange_rate", "debit", "credit"],
+					limit_page_length=0,
+				)
+			ra.append(o)
+	return ra
+
+
+def _kiem_bo_chung_tu(ke, bo, do=2):
+	"""Bo chung tu da co co DUNG BO theo ke hoach duyet khong. Thuan.
+
+	`ke` la ket qua `_ke_hoach_duyet`. Tra {"du", "thieu", "thua", "lech", "ten"}.
+	Mot ho so co the sinh NHIEU Payment Entry (moi nha cung cap mot to), nen
+	khong duoc chot "da co mot to" la du (Codex #225 R1). Doi chieu cong ty,
+	loai phieu, doi tuong, nguon chi, tien chua phan bo, MOI dong tham chieu;
+	ho so khong hoa don thi doi chieu tung dong No/Co va doi tuong cua Journal
+	Entry, khong chi tong (Codex #226 B1). Ke hoach doc khong ra (None) la
+	chua kiem duoc, tinh la lech.
+	"""
+	ten = [b["name"] for b in bo]
+	thieu, thua, lech = [], [], []
+	loi = _loi_ke_hoach_chi(ke)
+	if loi:
+		return {"du": 0, "thieu": [], "thua": [], "lech": [loi], "ten": ten}
+	if ke.get("loai") == "PE":
+		da = {}
+		for b in bo:
+			if b["doctype"] != "Payment Entry":
+				thua.append("%s (hồ sơ có hoá đơn không dùng Journal Entry)" % b["name"])
+				continue
+			if (b.get("payment_type") or "") != "Pay":
+				lech.append("%s là phiếu %s, không phải phiếu chi" % (b["name"], b.get("payment_type") or "?"))
+			if (b.get("party_type") or "") != "Supplier":
+				lech.append("%s không trỏ tới nhà cung cấp" % b["name"])
+			if flt(b.get("unallocated_amount"), do) != 0:
+				lech.append("%s còn %s đ chưa phân bổ" % (b["name"], _tien(b.get("unallocated_amount"))))
+			if any(b.get(t) != "VND" for t in ("paid_from_account_currency", "paid_to_account_currency")) or any(flt(b.get(t)) != 1 for t in ("source_exchange_rate", "target_exchange_rate")):
+				lech.append("%s chưa khớp tiền tệ VND và tỷ giá 1" % b["name"])
+			tong_pb = 0.0
+			for r in (b.get("tham_chieu") or []):
+				if r.get("reference_doctype") != "Purchase Invoice":
+					thua.append("%s trỏ tới %s %s (%s đ), không thuộc hồ sơ"
+						% (b["name"], r.get("reference_doctype"), r.get("reference_name"), _tien(r.get("allocated_amount"))))
+					continue
+				hd = r.get("reference_name")
+				tong_pb += flt(r.get("allocated_amount"))
+				da[hd] = da.get(hd, 0.0) + flt(r.get("allocated_amount"))
+				k = ke["hoa_don"].get(hd)
+				if not k:
+					continue
+				if k.get("supplier") is None or k.get("company") is None:
+					lech.append("%s: chưa đọc được nhà cung cấp hay công ty của hoá đơn" % hd)
+				else:
+					if b.get("party") != k["supplier"]:
+						lech.append("%s ghi nhà cung cấp %s, hoá đơn %s thuộc %s"
+							% (b["name"], b.get("party"), hd, k["supplier"]))
+					if b.get("company") != k["company"]:
+						lech.append("%s thuộc công ty %s, hoá đơn %s thuộc %s"
+							% (b["name"], b.get("company"), hd, k["company"]))
+				if k.get("nguon_chi") is None:
+					lech.append("%s: chưa xác định được tài khoản chi để đối chiếu với %s" % (hd, b["name"]))
+				elif b.get("paid_from") != k["nguon_chi"]:
+					lech.append("%s chi từ %s, hồ sơ chi từ %s" % (b["name"], b.get("paid_from"), k["nguon_chi"]))
+			if flt(b.get("paid_amount"), do) != flt(tong_pb, do):
+				lech.append("%s trả %s đ nhưng chỉ phân bổ %s đ" % (b["name"], _tien(b.get("paid_amount")), _tien(tong_pb)))
+		for hd, k in ke["hoa_don"].items():
+			if hd not in da:
+				thieu.append("%s: %s đ" % (hd, _tien(k["tien"])))
+			elif flt(da[hd], do) != flt(k["tien"], do):
+				lech.append("%s: đã phân bổ %s đ, hồ sơ %s đ" % (hd, _tien(da[hd]), _tien(k["tien"])))
+		for hd in da:
+			if hd not in ke["hoa_don"]:
+				thua.append("%s: %s đ (không có trong hồ sơ)" % (hd, _tien(da[hd])))
+	else:
+		tong = flt(ke.get("tong"), do)
+		je = [b for b in bo if b["doctype"] == "Journal Entry"]
+		pe = [b for b in bo if b["doctype"] == "Payment Entry"]
+		thua.extend("%s (không thuộc luồng không hoá đơn)" % b["name"] for b in pe)
+		if not je:
+			thieu.append("bút toán %s đ cho hồ sơ không hoá đơn" % _tien(tong))
+		elif len(je) > 1:
+			thua.extend("%s (bút toán thứ %d)" % (b["name"], i + 2) for i, b in enumerate(je[1:]))
+		if je:
+			j = je[0]
+			if j.get("company") != ke["company"]:
+				lech.append("%s thuộc công ty %s, hồ sơ thuộc %s" % (j["name"], j.get("company"), ke["company"]))
+			if flt(j.get("tong_no"), do) != tong:
+				lech.append("%s ghi %s đ, hồ sơ %s đ" % (j["name"], _tien(j.get("tong_no")), _tien(tong)))
+			no, co = {}, {}
+			for r in (j.get("dong") or []):
+				tk = r.get("account")
+				if flt(r.get("debit_in_account_currency")):
+					no[tk] = no.get(tk, 0.0) + flt(r.get("debit_in_account_currency"))
+				if flt(r.get("credit_in_account_currency")):
+					co[tk] = co.get(tk, 0.0) + flt(r.get("credit_in_account_currency"))
+				if r.get("account_currency") != "VND" or flt(r.get("exchange_rate")) != 1:
+					lech.append("%s dòng %s chưa khớp VND và tỷ giá 1" % (j["name"], tk))
+				for ben in ("debit", "credit"):
+					if r.get(ben) is None or flt(r.get(ben), do) != flt(r.get(ben + "_in_account_currency"), do):
+						lech.append("%s dòng %s không khớp số theo tiền sổ" % (j["name"], tk))
+				muon = (ke.get("doi_tac") or {}).get(tk) or {"party_type": "", "party": ""}
+				if any((r.get(t) or "") != muon[t] for t in ("party_type", "party")):
+					lech.append("%s dòng %s ghi đối tượng %s, hồ sơ là %s"
+						% (j["name"], tk, r.get("party") or "trống", muon))
+			for nhan, mong, co_gi in (("Nợ", ke.get("no") or {}, no), ("Có", ke.get("co") or {}, co)):
+				for tk, tien in mong.items():
+					if not tk:
+						lech.append("hồ sơ có dòng chưa chọn tài khoản %s" % nhan)
+					elif tk not in co_gi:
+						thieu.append("%s %s: %s đ" % (nhan, tk, _tien(tien)))
+					elif flt(co_gi[tk], do) != flt(tien, do):
+						lech.append("%s %s ghi %s đ, hồ sơ %s đ" % (nhan, tk, _tien(co_gi[tk]), _tien(tien)))
+				for tk, tien in co_gi.items():
+					if tk not in mong:
+						thua.append("%s %s: %s đ (không có trong hồ sơ)" % (nhan, tk, _tien(tien)))
+	return {"du": 1 if bo and not (thieu or thua or lech) else 0,
+		"thieu": thieu, "thua": thua, "lech": lech, "ten": ten}
+
+
+def _cau_bo_chung_tu(kq):
+	"""Mot cau tieng Viet mo ta bo chung tu thieu/thua/lech, de nem loi."""
+	p = []
+	if kq.get("thieu"):
+		p.append("thiếu: " + "; ".join(kq["thieu"]))
+	if kq.get("thua"):
+		p.append("thừa: " + "; ".join(kq["thua"]))
+	if kq.get("lech"):
+		p.append("lệch: " + "; ".join(kq["lech"]))
+	return ". ".join(p)
+
+
+def _so_phai_chuyen(doc, do=2):
+	"""Tinh lai tong, tam ung va so phai chuyen tu DONG cua ho so. Thuan.
+
+	Codex #225 R4: 0 la gia tri hop le, None/thieu khong duoc am tham thanh 0
+	hay thanh tong. So am phai la loi can kiem, khong max(0, ...), khong mien
+	tru 1 dong.
+	"""
+	ten = doc.get("name")
+	tong = flt(sum(flt(d.get("so_tien")) for d in (doc.get("dong") or [])), do)
+	if tong <= 0:
+		frappe.throw("Hồ sơ %s không có dòng nào có số tiền, chưa ghi nhận được." % ten)
+	tam = doc.get("da_tam_ung")
+	if tam is None:
+		frappe.throw(
+			"Hồ sơ %s chưa có số đã tạm ứng (ô trống, không phải 0). Mở hồ sơ lưu "
+			"lại để máy tính, rồi ghi nhận sau." % ten
+		)
+	tam = flt(tam, do)
+	if tam < 0:
+		frappe.throw("Hồ sơ %s có số tạm ứng âm %s đ, cần kiểm lại." % (ten, _tien(tam)))
+	con = flt(tong - tam, do)
+	if con < 0:
+		frappe.throw(
+			"Hồ sơ %s trừ tạm ứng %s đ nhiều hơn tổng %s đ (âm %s đ). Không ghi "
+			"nhận được, kế toán kiểm lại số tạm ứng." % (ten, _tien(tam), _tien(tong), _tien(-con))
+		)
+	da_luu = doc.get("con_lai")
+	if da_luu is not None and flt(da_luu, do) != con:
+		frappe.throw(
+			"Hồ sơ %s lưu số còn phải chuyển %s đ nhưng tính lại từ các dòng là %s đ. "
+			"Mở hồ sơ lưu lại cho khớp rồi ghi nhận." % (ten, _tien(da_luu), _tien(con))
+		)
+	return {"tong": tong, "tam_ung": tam, "con": con}
 
 
 def _tao_but_toan(doc, ngay, phuong_thuc):
@@ -2366,11 +2857,18 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 	# Nen gom theo NHA CUNG CAP THAT CUA TUNG HOA DON, khong doc dau ho so.
 	# Dau ho so cua luong hoan ung mang ten NGUOI DUOC HOAN UNG, dung no lam
 	# party la ghi no sai cua.
+	# CONG NO LUC DUYET, de doi chieu voi cong no LUC GHI SO (Codex #225 R6).
+	no_luc_duyet = {}
+	for d in con:
+		if d.hoa_don not in no_luc_duyet:
+			no_luc_duyet[d.hoa_don] = flt(d.con_no)
+
 	theo_ncc = {}
 	for ten_hd, tien in gom.items():
 		hd = frappe.db.get_value(
 			"Purchase Invoice", ten_hd,
-			["supplier", "company", "grand_total", "outstanding_amount", "due_date"],
+			["supplier", "company", "grand_total", "outstanding_amount", "due_date",
+				"docstatus", "currency"],
 			as_dict=True,
 		) or {}
 		if not hd.get("supplier"):
@@ -2410,13 +2908,32 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 				(" Ghi chú: %s" % doc.ghi_chu) if doc.get("ghi_chu") else ""))
 		if phuong_thuc and frappe.db.exists("Mode of Payment", phuong_thuc):
 			pe.mode_of_payment = phuong_thuc
+		# DOC LAI TUNG HOA DON NGAY CUA GHI SO, va DUNG khi khong du (Codex
+		# #225 R6). Truoc v445 cho nay ghi
+		#     allocated_amount = min(tien, outstanding)
+		# con paid_amount van la ca tong. Doc erpnext version-16,
+		# accounts/doctype/payment_entry/payment_entry.py:
+		#   * set_unallocated_amount(): Pay ma tong phan bo nho hon tien tra
+		#     thi phan du vao `unallocated_amount`, KHONG bao loi.
+		#   * add_party_gl_entries(): `if self.unallocated_amount:` ghi No
+		#     party_account (331) khong co against_voucher.
+		#   * validate_allocated_amount_with_latest_data(): chi nem loi khi
+		#     phan bo VUOT no, hoac khi outstanding tren dong tham chieu lech
+		#     voi outstanding moi nhat.
+		# Tuc la ho so duyet 100, no con 40, may se tra 100, gach no 40, va
+		# 60 con lai nam im o 331 nhu mot khoan ung truoc cho nha cung cap.
+		# Khong ai duyet khoan ung truoc do. Nen: du no thi phan bo DU so de
+		# nghi, thieu no thi nem loi, ho so giu nguyen (giao dich lui ve).
+		# Tra mot phan (no lon hon so de nghi) van hop le.
+		do = _do_chinh_xac(pe)
 		for ten_hd, tien, hd in o["hd"]:
+			_kiem_hoa_don_luc_ghi_so(ten_hd, tien, hd, no_luc_duyet.get(ten_hd), o["cong_ty"], do)
 			pe.append("references", {
 				"reference_doctype": "Purchase Invoice",
 				"reference_name": ten_hd,
 				"total_amount": flt(hd.get("grand_total")),
 				"outstanding_amount": flt(hd.get("outstanding_amount")),
-				"allocated_amount": min(flt(tien), flt(hd.get("outstanding_amount"))),
+				"allocated_amount": flt(tien),
 				"due_date": hd.get("due_date"),
 			})
 		# TIEN DI RA TU TAI KHOAN NAO - o bat buoc, va la cho da lam
@@ -2454,7 +2971,8 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 		chep_unc(doc.name, "Payment Entry", pe.name)
 		pe.submit()
 		ra.append(pe.name)
-	frappe.db.commit()
+	# KHONG commit o day: `danh_dau_da_tra` giu MOT giao dich cho ca bo but
+	# toan lan trang thai ho so (Codex #225 R1).
 	return ", ".join(ra)
 
 

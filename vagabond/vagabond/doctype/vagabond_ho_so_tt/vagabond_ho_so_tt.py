@@ -29,8 +29,13 @@ from frappe.utils import flt, getdate
 CON_HIEU_LUC = ("Nhap", "Cho ke toan", "Cho giam doc", "Da duyet")
 
 
+TT_DA_TRA = "Da thanh toan"
+LOAI_HOAN_UNG = ("Hoan ung", "Hoan ung HD")
+
+
 class VagabondHoSoTT(Document):
 	def validate(self):
+		self.chan_hoan_tat_khong_but_toan()
 		if not self.dong:
 			frappe.throw("Hồ sơ thanh toán phải có ít nhất một dòng.")
 		self.tong_tien = sum(flt(d.so_tien) for d in self.dong)
@@ -42,6 +47,19 @@ class VagabondHoSoTT(Document):
 		# day nghia la cong ty doi lai tien, do la nghiep vu khac han.
 		if flt(self.da_tam_ung) < 0:
 			frappe.throw("Số tiền đã tạm ứng không được âm.")
+		# Ho so hoan ung MOI khong tru tam ung (anh Viet va Codex #225,
+		# 07/09/2026). Chan o server de moi duong (app, Desk, API) cung mot
+		# luat; ho so cu dang mang gia tri thi giu nguyen, khong reset.
+		truoc_tu = None
+		if not self.is_new():
+			try:
+				truoc_tu = frappe.db.get_value(self.doctype, self.name, "da_tam_ung")
+			except Exception:
+				truoc_tu = None
+		if hoan_ung_them_tam_ung(self.loai, truoc_tu, self.da_tam_ung, self.is_new()):
+			from vagabond.ho_so_tt import loi_hoan_ung_tam_ung
+
+			frappe.throw(loi_hoan_ung_tam_ung(flt(self.da_tam_ung)), title="Hoàn ứng không trừ tạm ứng")
 		if flt(self.da_tam_ung) > flt(self.tong_tien) + 1:
 			frappe.throw(
 				"Đã tạm ứng %s đ mà tổng hồ sơ chỉ %s đ. Số trừ không được lớn hơn tổng."
@@ -131,3 +149,47 @@ class VagabondHoSoTT(Document):
 						"Hoá đơn %s đã nằm trong hồ sơ %s (%s)."
 						% (d.hoa_don, t["name"], t["trang_thai"])
 					)
+
+	def chan_hoan_tat_khong_but_toan(self):
+		"""Doi sang "Da thanh toan" chi duoc di qua `ho_so_tt.danh_dau_da_tra`.
+
+		Codex #225 R2: hoan tat ho so khong dong nghia da ghi so. Truoc v445
+		API co tham so bo qua but toan, va Desk hay script sua thang o trang
+		thai cung doi duoc. Nay MOI duong doi trang thai sang "Da thanh toan"
+		deu phai mang co `vgb_bo_chung_tu_da_kiem`, ma co do chi
+		`danh_dau_da_tra` dat sau khi da doi chieu bo but toan trong cung giao
+		dich. Khong mang co la chan, ke ca System Manager.
+
+		Phep thuan `doi_sang_da_tra_khong_co()` o duoi de kiem thu duoc.
+		"""
+		truoc = None
+		if not self.is_new():
+			try:
+				truoc = frappe.db.get_value(self.doctype, self.name, "trang_thai")
+			except Exception:
+				truoc = None
+		if doi_sang_da_tra_khong_co(truoc, self.trang_thai, self.flags.get("vgb_bo_chung_tu_da_kiem")):
+			frappe.throw(
+				"Không đổi thẳng hồ sơ %s sang Đã thanh toán được. Phải bấm Ghi nhận "
+				"đã thanh toán để máy sinh và đối chiếu bút toán xoá công nợ trong "
+				"cùng một lượt." % (self.name or ""),
+				title="Hoàn tất hồ sơ phải qua ghi nhận",
+			)
+
+
+def doi_sang_da_tra_khong_co(truoc, sau, co):
+	"""Thuan: co phai la mot lan doi sang Da thanh toan ma khong mang co khong."""
+	return bool(sau == TT_DA_TRA and truoc != TT_DA_TRA and not co)
+
+
+def hoan_ung_them_tam_ung(loai, truoc, sau, moi):
+	"""Thuan: ho so hoan ung co dang NHAP THEM khoan tru tam ung khong.
+
+	Tao moi ma co so, hoac dang 0 doi thanh co so: chan. Ho so cu da co so
+	tu truoc thi luu lai binh thuong, khong bat sua lich su.
+	"""
+	if (loai or "NCC") not in LOAI_HOAN_UNG:
+		return False
+	if flt(sau) <= 0:
+		return False
+	return bool(moi or flt(truoc) <= 0)
