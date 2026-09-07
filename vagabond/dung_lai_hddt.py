@@ -292,7 +292,8 @@ def _dung_dong_tai_cho(doc, g):
 	`tien_truoc_thue` và việc đó đã làm hỏng 5 tờ thật, đọc mục đó trước khi
 	định đổi lại.
 	"""
-	dong_goc = doc_chi_tiet(g.get("chi_tiet"))
+	from vagabond.minvoice_chung_tu import dong_hang_hoa
+	dong_goc = dong_hang_hoa(doc_chi_tiet(g.get("chi_tiet")))
 	if not dong_goc:
 		frappe.throw(
 			"Bản hoá đơn điện tử %s không còn dòng hàng nào để dựng lại."
@@ -351,6 +352,7 @@ def _dung_dong_tai_cho(doc, g):
 		doc.append("items", d)
 	doc.apply_discount_on = "Net Total"
 	doc.discount_amount = so_tien if viec == "giam" else 0
+	doc.additional_discount_percentage = 0
 	_dung_thue_tai_cho(doc, g)
 	mc.bo_mau_thue_mat_hang(doc)
 	return len(doc.get("items"))
@@ -385,7 +387,8 @@ def ghim_lai_theo_goc(doc, g):
 
 	Trả về số dòng đã kéo lại.
 	"""
-	dong_goc = doc_chi_tiet(g.get("chi_tiet"))
+	from vagabond.minvoice_chung_tu import dong_hang_hoa
+	dong_goc = dong_hang_hoa(doc_chi_tiet(g.get("chi_tiet")))
 	if not dong_goc:
 		return 0
 	from vagabond import minvoice_chung_tu as mc
@@ -404,13 +407,24 @@ def ghim_lai_theo_goc(doc, g):
 		if n > 1:
 			theo_khoa.pop(k, None)
 
+	# Một dòng HĐĐT có thể đã chia qua nhiều phiếu nhập. Không nhân lại
+	# toàn bộ lượng gốc lên TỪNG dòng con khi một giá vừa bị đổi.
+	nhom_to = {}
+	for d in doc.get("items") or []:
+		nhom_to.setdefault(khoa_ten(ten_ncc_cua_dong(d)), []).append(d)
+
 	da = 0
 	for d in doc.get("items") or []:
 		x = theo_khoa.get(khoa_ten(ten_ncc_cua_dong(d)))
 		if not x:
 			continue
+		nhom = nhom_to.get(khoa_ten(ten_ncc_cua_dong(d)), [])
+		chia_phieu = len(nhom) > 1
+		if chia_phieu and (not all(r.get("purchase_receipt") for r in nhom)
+			or abs(sum(flt(r.get("qty")) for r in nhom) - flt(x.get("sl"))) > 0.0001):
+			continue
 		sua = False
-		if flt(d.get("qty")) != flt(x.get("sl")):
+		if not chia_phieu and flt(d.get("qty")) != flt(x.get("sl")):
 			d.qty = x.get("sl")
 			sua = True
 		if flt(d.get("rate")) != flt(x.get("gia")):
@@ -462,7 +476,7 @@ def hoc_ma_hang(doc, g):
 	from vagabond import minvoice_chung_tu as mc
 
 	ten_goc = {}
-	for it in doc_chi_tiet(g.get("chi_tiet")):
+	for it in mc.dong_hang_hoa(doc_chi_tiet(g.get("chi_tiet"))):
 		t = str(mc.dong_tu_hoa_don(it).get("ten") or "").strip()
 		if t:
 			ten_goc.setdefault(khoa_ten(t), t[:140])
@@ -541,16 +555,18 @@ def _dung_thue_tai_cho(doc, g):
 	tien_thue = flt(g.get("tien_thue"))
 	tk = _tk_thue_vao(doc)
 	tt = doc.get("cost_center")
+	if not tk:
+		frappe.throw("Chưa có tài khoản VAT đầu vào của công ty. Kế toán kiểm tài khoản 1331 trước khi lưu hoá đơn điện tử.")
 	doc.set("taxes", [])
-	if tk and tien_thue:
+	if tk:
 		doc.append("taxes", {
 			"charge_type": "Actual", "account_head": tk,
 			"description": "Thuế GTGT được khấu trừ",
-			"tax_amount": tien_thue,
+			"tax_amount": tien_thue, "rate": 0, "included_in_print_rate": 0,
 			"category": "Total", "add_deduct_tax": "Add",
 			"cost_center": tt,
 		})
-	doc.taxes_and_charges = None
+	doc.taxes_and_charges = ""
 	return tien_thue
 
 
@@ -560,7 +576,8 @@ def du_kien_tong(doc, g):
 	Tính trước rồi mới quyết có dựng hay không. Nhờ vậy không bao giờ có
 	chuyện dựng dở rồi lưu ra một tờ tệ hơn lúc chưa dựng.
 	"""
-	dong_goc = doc_chi_tiet(g.get("chi_tiet"))
+	from vagabond.minvoice_chung_tu import dong_hang_hoa
+	dong_goc = dong_hang_hoa(doc_chi_tiet(g.get("chi_tiet")))
 	if not dong_goc:
 		return None
 	try:
@@ -651,14 +668,32 @@ def dong_bo_luc_luu(doc, method=None):
 	SAU before_validate, đổi dòng ở validate là tổng không được tính lại -
 	cùng lý do với hook gom dòng của hoá đơn dịch vụ ngay phía trên.
 
-	Mọi lỗi ở đây chỉ được ghi nhật ký, không bao giờ làm rớt việc lưu.
+	Lỗi khi lưu nháp được ghi nhật ký; lỗi chuẩn hoá lúc submit phải dừng ghi sổ.
 	"""
 	try:
-		if cint(doc.get("docstatus")) != 0:
+		# Frappe đặt docstatus=1 TRƯỚC validate của submit. Phiếu đã ghi sổ
+		# sửa metadata thì bỏ qua, nhưng lần submit phải chuẩn hoá như save.
+		if cint(doc.get("docstatus")) != 0 and getattr(doc, "_action", None) != "submit":
 			return
 		g = _goc(doc.get("custom_minvoice_id"))
 		if not g:
 			return
+		from vagabond import minvoice_chung_tu as mc
+		# Thuế phải được chuẩn hoá cả khi TIỀN HÀNG đã khớp. Ca Nam An:
+		# 15.229 Actual bị cộng thêm mẫu 8% khi gắn mã món trên Desk.
+		_dung_thue_tai_cho(doc, g)
+		mc.bo_mau_thue_mat_hang(doc)
+		doc.ignore_pricing_rule = 1
+		if (doc.get("vgb_loai_chung_tu") or mua_dich_vu.LOAI_HANG) == mua_dich_vu.LOAI_DICH_VU:
+			return
+		# Tờ cũ có chiết khấu giả làm hàng: tổng có thể vẫn khớp nhờ giảm
+		# hai lần, nên không lấy tổng khớp làm bằng chứng cấu trúc đúng.
+		ten_bo = {khoa_ten(d.get("ten")) for d in doc_chi_tiet(g.get("chi_tiet"))
+			if mc.tinh_chat_dong(d) in ("3", "4")}
+		if any(khoa_ten(ten_ncc_cua_dong(d)) in ten_bo for d in doc.get("items") or []):
+			phieu = _phieu_da_noi(doc)
+			_dung_dong_tai_cho(doc, g)
+			_noi_lai(doc, phieu)
 		# HỌC TRƯỚC, DỰNG SAU. Ghi nhớ mã hàng người vừa gõ vào bảng ánh xạ
 		# ngay đầu lượt lưu, để nếu bên dưới có phải dựng lại cả bảng dòng
 		# hàng thì phép tra ánh xạ đã thấy mã đó và tự gắn lại. Hai lớp giữ
@@ -725,6 +760,8 @@ def dong_bo_luc_luu(doc, method=None):
 		frappe.msgprint(cau, title="Giữ đúng số hoá đơn điện tử", indicator="orange")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "dung_lai_hddt: dong bo luc luu")
+		if getattr(doc, "_action", None) == "submit":
+			raise
 
 
 def tk_theo_mon(doc, method=None):

@@ -1,7 +1,7 @@
-# Issue #227: HĐĐT sai người nhận và hàng tặng
+# Issue #227: HĐĐT đầu ra, hàng tặng và hoá đơn mua
 
 Codex sửa, Claude review bổ sung và phụ trách merge/deploy theo phân công
-của anh Việt ngày 07/09/2026. Bản sửa gồm chặn gửi nhầm HĐĐT và kế toán hàng tặng ở giai đoạn chưa có kho sản xuất. Chưa đóng issue #227.
+của anh Việt ngày 07/09/2026. Bản sửa gồm chặn gửi nhầm HĐĐT, kế toán hàng tặng khi chưa có kho sản xuất, và các lỗi hoá đơn mua trong comment mới của anh Việt. Chưa đóng issue #227.
 
 ## Bản sửa hiện tại
 
@@ -138,3 +138,78 @@ quy trình phải đối chiếu cả phần sửa đổi tại Nghị định 7
 nguyên hướng dẫn cũ: https://vanban.chinhphu.vn/?docid=213179&lang=vi&pageid=27160.
 
 Issue chỉ hoàn tất khi kiểm kế toán trên bench đạt và chứng từ cũ đã được kế toán đối chiếu/xử lý. Kho sản xuất là giai đoạn riêng theo quyết định trên.
+
+
+## Bổ sung theo comment 5573317438 và 5573341341
+
+Ba ca được tái hiện từ ảnh và mã nguồn, chưa sửa chứng từ trên site:
+
+- Nam An, HDM-26-08-00158: ảnh HĐĐT ghi số **70173** (comment ghi
+  10173), tổng 319.800, VAT 15.229. PI cộng thêm một dòng 8% 24.365,76.
+- Thanh An, HDM-26-08-00186: 2.400 PCS / 5.520.000, ba phiếu nhập
+  PNK-2026-00147, 00131, 00173 tổng 5.460.000. Chênh giá 60.000 là
+  dữ liệu người dùng báo; bản sửa giữ giá HĐĐT, không ghi đè giá PR.
+- Gia Truyền Sài Gòn, HDM-26-08-00224, HĐ5561: hàng 578.700,
+  chiết khấu 28.935, sau giảm 549.765, VAT 43.981, tổng 593.746.
+  Trước sửa dòng giảm bị cộng thành hàng rồi đầu phiếu giảm 57.870.
+
+### Nguyên nhân và thay đổi
+
+1. Hook before_validate cũ bỏ qua docstatus=1, trong khi Frappe
+   `Document._save` đã đặt docstatus=1 trước validate khi submit. Nay
+   chuẩn hoá cả save và submit, bỏ qua cập nhật metadata phiếu đã ghi sổ.
+2. Thuế không còn phụ thuộc điều kiện tiền hàng lệch. Mỗi lần chuẩn hoá
+   xoá mẫu thuế hàng, giữ đúng một dòng Actual theo VAT HĐĐT, kể cả 0
+   (ngăn core nạp default taxes khi new doc có bảng taxes rỗng). Giữ
+   ignore_pricing_rule. Thiếu tài khoản đầu vào thì submit dừng rõ.
+3. Tính chất dòng dùng chung cho import, dựng lại, học ánh xạ, ghim số
+   và dịch vụ. tchat=3 là chiết khấu, 4 là ghi chú; mã nguồn rõ được ưu
+   tiên, chỉ dùng nhãn khi không có mã. Không dựng hai loại này thành
+   mặt hàng. Với tờ cũ cấu trúc sai, dựng lại hai dòng hàng và giảm một
+   lần 28.935. Dịch vụ đã dùng số sau giảm thì xoá giảm giá đầu phiếu cũ.
+4. Một dòng PI được chia qua nhiều pr_detail vì core chỉ cho một
+   pr_detail trên mỗi dòng. Giữ tổng lượng, đơn giá HĐĐT và mapping;
+   ghim lại không nhân lượng gốc lên từng dòng đã chia. Trừ lượng PI đã
+   ghi sổ và lượng đã nối trên chính tờ, bỏ PR được chọn trùng.
+5. Tên đơn vị giống nhau không che được hệ số khác nhau. Chênh giá vẫn
+   qua cửa quyền/cấu hình hiện có và Comment chênh giá, không tắt core.
+6. Thêm before_submit kiểm lượng theo pr_detail, kể cả Desk/API và hai
+   PI nháp cùng chọn PR. Core `PurchaseInvoice.validate_multiple_billing`
+   dùng **amount**, nên giá thấp không đủ bảo vệ số lượng. Khoá PR theo
+   thứ tự, current read trực tiếp PIItem.docstatus=1, loại chính PI.
+   Patch `mua_hddt_v446` tạo index `(pr_detail, docstatus)`; truy vấn ép
+   index này để tránh quét dòng nháp đang bị phiên khác khoá. Không
+   JOIN khoá parent PI khác. **Phải migrate trước khi sử dụng hook.**
+
+Đã đối chiếu mã nguồn Frappe f33ac3f và ERPNext de59166: thứ tự save/
+submit, child docstatus và row lock, nạp Item/tax defaults, tính thuế,
+PurchaseInvoice validate previous document và multiple billing. Đây
+không phải xác nhận đã chạy các thay đổi trên runtime thực tế.
+
+### Kiểm và điều kiện Claude cần hoàn tất
+
+- Tầng khung: 2.614 ca, gồm 9 ca mới tái hiện các lỗi trên; môi trường
+  không có requests cũng phải đạt. Cổng 10 công đoạn và ghép từng byte
+  phải đạt trên SHA cuối cùng. Kết quả CI xem ở PR, không suy từ SHA cũ.
+- Đã thêm **5 ca tích hợp** `khung/kiem_that/thu_mua_hddt_227.py` vào
+  runner hiện có: Nam An qua save/submit, chiết khấu, dịch vụ, ba PR,
+  hai PI nháp giá thấp cùng PR. Các ca insert/submit và đọc GL/SLE/PR
+  thật, rollback toàn bộ theo nen. Chưa chạy vì checkout không có bench.
+  Cùng với ba ca hàng tặng, cần chạy trên bench tương đương đã migrate;
+  `hong=0`, `chung_tu_con_sot=[]`, `so_luong_lech={}`. Ca giá thấp cần
+  cấu hình mua cho phép chênh giá như site; không bỏ qua nếu fixture đỏ.
+- Trên **site thử riêng**, kiểm EXPLAIN dùng index vgb_pr_docstatus_227;
+  chạy hai worker đồng thời submit hai PI có tổng lượng vượt PR nhưng
+  tổng amount chưa vượt PR. Chỉ một PI được ghi sổ, PI kia báo hết lượng,
+  không nhân GL/SLE. Lặp với submit/cancel: tổng lượng đã ghi sau cùng
+  không vượt nhận; deadlock nếu có phải rollback và thử lại an toàn.
+  Bộ savepoint một kết nối không chứng minh được ca đồng thời. Chưa
+  tuyên bố đã loại mọi deadlock; đặc biệt cancel/repost có thứ tự khoá
+  core khác. Claude cần ghi bằng chứng MariaDB trước khi bỏ Draft.
+- Đối chiếu ba PI thật đang nháp với HĐĐT gốc rồi dùng Save/luồng nối
+  hiện có sau deploy. Không migrate sửa hàng loạt chứng từ cũ, không
+  sửa raw MInvoice, không huỷ/gửi lại HĐĐT. Nếu đã ghi sổ, dừng để kế
+  toán xử lý theo quy trình; bản vá không sửa metadata thành bút toán.
+
+PR vẫn Draft để Claude review bổ sung và chạy các cổng trên. Codex chỉ
+code/test/push; không merge, deploy hoặc chỉnh dữ liệu thật trong lượt này.

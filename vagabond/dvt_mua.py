@@ -160,8 +160,6 @@ def lech_don_vi(dvt_hd, hs_hd, dvt_pnk, hs_pnk):
 	Ten khac nhau ma he so bang nhau thi khong sao: "Kg" va "Ky" cung la
 	1.000 gram, so luong ghi ra nhu nhau, khong viec gi phai chan.
 	"""
-	if cung_don_vi(dvt_hd, dvt_pnk):
-		return False
 	return abs(he_so(hs_hd) - he_so(hs_pnk)) > 1e-9
 
 
@@ -187,10 +185,12 @@ def xet_don_vi(dvt_hd, hs_hd, dvt_pnk, hs_pnk):
 	không coi là lệch, còn phép nối thì tự đổi tên cho khớp rồi đi tiếp,
 	vì ERPNext đòi ô đơn vị của hai bên bằng nhau từng chữ.
 	"""
-	if cung_don_vi(dvt_hd, dvt_pnk):
-		return DVT_KHOP
+	# Cùng tên vẫn có thể khác hệ số do danh mục đã đổi sau lần nhận.
+	# Không cho tên đơn vị che mất chênh lệch số lượng quy về kho.
 	if abs(he_so(hs_hd) - he_so(hs_pnk)) > 1e-9:
 		return DVT_LECH
+	if cung_don_vi(dvt_hd, dvt_pnk):
+		return DVT_KHOP
 	return DVT_KHAC_TEN
 
 

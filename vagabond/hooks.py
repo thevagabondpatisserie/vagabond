@@ -512,7 +512,10 @@ doc_events = {
 			# nhap, de khong dam len luat tai khoan cho 3311 cua hang kho.
 			"vagabond.dung_lai_hddt.tk_theo_mon",
 		],
-		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
+		"before_submit": [
+			"vagabond.doi_chieu_mua.chan_vuot_luong_da_nhan",
+			"vagabond.mua_dich_vu.chan_lech_tong",
+		],
 		# BANG GIA NHAP DUOI THEO GIA THAT (anh Viet duyet 31/08/2026).
 		#
 		# Truoc ban nay bang gia dong bang o gia lan mua dau: thiet lap kho

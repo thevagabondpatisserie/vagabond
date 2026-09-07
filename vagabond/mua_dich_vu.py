@@ -341,11 +341,12 @@ def gom_dong_theo_tinh_chat(chi_tiet):
 	"""
 	tong = 0.0
 	for d in chi_tiet or []:
-		tc = str(d.get("tchat"))
+		from vagabond.minvoice_chung_tu import tinh_chat_dong
+		tc = tinh_chat_dong(d)
 		if tc == TC_GHI_CHU:
 			continue
 		tien = flt(d.get("thtien"))
-		tong += -tien if tc == TC_CHIET_KHAU else tien
+		tong += -abs(tien) if tc == TC_CHIET_KHAU else tien
 	return tong
 
 
@@ -363,7 +364,8 @@ def ten_theo_tinh_chat(chi_tiet):
 		ten = (d.get("ten") or "").strip()
 		if not ten:
 			continue
-		tc = str(d.get("tchat"))
+		from vagabond.minvoice_chung_tu import tinh_chat_dong
+		tc = tinh_chat_dong(d)
 		if tc == TC_CHIET_KHAU:
 			ck.add(ten)
 		elif tc == TC_GHI_CHU:
@@ -528,6 +530,8 @@ def _tk_chi_phi_dang_dung(doc):
 
 def truoc_khi_luu(doc, method=None):
 	"""Gom hoa don dich vu thanh mot dong. Goi tu before_validate."""
+	if cint(doc.get("docstatus")) != 0 and getattr(doc, "_action", None) != "submit":
+		return
 	dau = _dau_hoa_don(doc.get("custom_minvoice_id"))
 	if not dau:
 		return
@@ -539,6 +543,10 @@ def truoc_khi_luu(doc, method=None):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "mua_dich_vu: can theo dau hoa don")
 		return
+	# Dịch vụ đã gom theo số sau chiết khấu của đầu hoá đơn: không giữ
+	# thêm discount_amount từ bảng hàng cũ (ca 5561 bị trừ hai lần).
+	doc.discount_amount = 0
+	doc.additional_discount_percentage = 0
 	truoc_thue, _thue, _tong = so_theo_dau_hoa_don(dau)
 	goc = goc_dong_hang(dau)
 	if not goc:
