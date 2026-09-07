@@ -313,13 +313,50 @@ def _():
 	la("có lưu đúng một lần", bang.so_lan_luu, 1)
 
 
-@ca("luu_o kẹp số huỷ âm về 0 thay vì để doctype ném lỗi")
+@ca("luu_o TỪ CHỐI số huỷ không hợp lệ, không lưu số đã cắt hay kẹp, câu lỗi có mã hàng")
 def _():
+	"""Vòng 4 trên PR #218 (Codex): ca cũ ở đây chốt "luu_o kẹp -4 về 0". Đó
+	chính là lỗ hổng: 1.9 thành 1, -0.5 thành 0 ngay ở cửa API, doctype không
+	bao giờ thấy giá trị gốc. Nay cửa API dùng CHUNG quy tắc với doctype."""
+	for xau in (-4, -0.5, 1.9, "1.9", "-1", "ba", "3.5", [3], float("inf"), float("nan")):
+		d = _tao_dong(ma_hang="BAWC00055", ton_d1=10, huy=2)
+		bang = BangGia(dong=[d])
+		with CuaGia(**{"KB-2026-08-15": bang}):
+			try:
+				kiem_banh.luu_o("2026-08-15", "BAWC00055", "huy", xau)
+			except Exception as e:
+				loi = str(e)
+			else:
+				loi = ""
+		dung("chặn %r" % (xau,), bool(loi))
+		dung("câu lỗi nêu mã hàng khi chặn %r" % (xau,), "BAWC00055" in loi)
+		la("số cũ còn nguyên sau khi chặn %r" % (xau,), d.huy, 2)
+		la("không lưu lần nào khi chặn %r" % (xau,), bang.so_lan_luu, 0)
+
+
+@ca("luu_o nhận rỗng là 0, số nguyên và chuỗi số nguyên thì ghi đúng")
+def _():
+	for xau, mong in ((None, 0), ("", 0), ("  ", 0), (0, 0), (3, 3), ("3", 3), (" 7 ", 7), (3.0, 3)):
+		d = _tao_dong(ma_hang="BAWC00055", ton_d1=10, huy=2)
+		bang = BangGia(dong=[d])
+		with CuaGia(**{"KB-2026-08-15": bang}):
+			kq = kiem_banh.luu_o("2026-08-15", "BAWC00055", "huy", xau)
+		la("ghi %r thành %r" % (xau, mong), d.huy, mong)
+		la("bán được tính lại theo %r" % (xau,), kq["co_the_ban"], 10 - mong)
+		la("lưu đúng một lần với %r" % (xau,), bang.so_lan_luu, 1)
+
+
+@ca("cột khác vẫn đọc theo cách cũ: sx âm kẹp về 0, không tự đổi chính sách")
+def _():
+	"""Codex dặn chỉ sửa trường huy. Ca này giữ để ai đổi cột khác thì phải
+	đổi có chủ ý, kèm ca kiểm mới, chứ không phải đổi lây."""
 	d = _tao_dong(ma_hang="BAWC00055", ton_d1=10)
 	with CuaGia(**{"KB-2026-08-15": BangGia(dong=[d])}):
-		kq = kiem_banh.luu_o("2026-08-15", "BAWC00055", "huy", -4)
-	la("kẹp về 0", d.huy, 0)
-	la("bán được nguyên tồn", kq["co_the_ban"], 10)
+		kiem_banh.luu_o("2026-08-15", "BAWC00055", "sx", -2)
+	la("sx âm vẫn kẹp về 0", d.sx, 0)
+	la("doc_so_o cột sx cắt 1.9 thành 1 như cũ", kiem_banh.doc_so_o("sx", 1.9), 1)
+	la("doc_so_o cột huy dùng chung quy tắc doctype", kiem_banh.doc_so_o("huy", "3"), 3)
+	nem("doc_so_o cột huy chặn 1.9", lambda: kiem_banh.doc_so_o("huy", 1.9, "BAWC00055"))
 
 
 @ca("luu_o không cho sửa cột máy đếm, và không cho sửa ngày đã chốt")

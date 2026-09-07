@@ -82,9 +82,12 @@ class KiemBanhNgay(Document):
 		Chặn ở đây chứ không chỉ đặt `min="0"` cho ô nhập: ô nhập là gợi ý cho
 		người gõ, không phải hàng rào cho máy.
 
-		LƯU Ý về `luu_o`: cửa đó vẫn KẸP số âm về 0 theo hành vi cũ, không ném
-		lỗi. Nên câu đúng là "lớp doctype từ chối số huỷ không hợp lệ", KHÔNG
-		phải "mọi cửa vào đều từ chối số âm".
+		Vòng bốn (Codex, 06/09/2026, sau khi #218 đã merge): cửa `luu_o` cũng
+		đọc ô huỷ bằng ĐÚNG hàm `_doc_so_huy` này (qua `kiem_banh.doc_so_o`),
+		không còn `max(0, int(...))` riêng nữa. Trước đó cửa API cắt 1.9 thành
+		1 và kẹp -0.5 thành 0 TRƯỚC khi lớp này kịp nhìn giá trị gốc. Nay một
+		quy tắc, một chỗ; các cột khác của `luu_o` vẫn đọc theo cách cũ vì
+		chưa ai duyệt đổi.
 
 		KHÔNG kẹp `co_the_ban` về 0. Số âm ở cột đó là số có thật và phải hiện
 		đỏ để người đối chiếu, khác hẳn số huỷ âm vốn là số vô nghĩa.

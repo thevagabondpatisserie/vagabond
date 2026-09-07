@@ -322,11 +322,41 @@
 		inp.addEventListener("blur", function () { hoan(); luuO(); });
 	}
 
+	/* Số huỷ hợp lệ: ô trống là 0, còn lại phải là SỐ NGUYÊN KHÔNG ÂM viết
+	   thẳng. Trả về số, hoặc null khi không hợp lệ. Cùng một chính sách với
+	   máy chủ (kiem_banh.doc_so_o và KiemBanhNgay._doc_so_huy), kiểm trên
+	   CHUỖI GỐC người gõ chứ không parseInt trước: parseInt("1.9") là 1,
+	   parseInt("-0.5") là -0, tức là màn hình tự bịa ra một con số rồi gửi
+	   đi mà người gõ không hề biết (Codex trên PR #218, vòng 4). */
+	function docSoHuy(inp) {
+		var chuoi = String(inp.value == null ? "" : inp.value);
+		/* Ô kiểu number: trình duyệt trả value rỗng khi chữ gõ vào không phải
+		   số, nhưng validity.badInput cho biết là có chữ rác chứ không phải
+		   ô trống. Không có validity (DOM giả) thì tin chuỗi. */
+		if (inp.validity && inp.validity.badInput) return null;
+		if (!chuoi.trim()) return 0;
+		if (!/^\s*\d+\s*$/.test(chuoi)) return null;
+		return parseInt(chuoi, 10);
+	}
+
 	function luuO() {
 		var inp = document.getElementById("kb-inp");
 		if (!inp || DANG_SUA === null) return;
 		var phan = DANG_SUA.split("|"), ma = phan[0], truong = phan[1];
-		var gt = parseInt(inp.value || "0", 10);
+		var gt;
+		if (truong === "huy") {
+			gt = docSoHuy(inp);
+			if (gt === null) {
+				/* KHÔNG gửi, KHÔNG đóng ô, KHÔNG đổi số trên bảng: giữ nguyên
+				   chuỗi người vừa gõ trong ô để họ sửa, và nói rõ mã nào sai.
+				   Cột khác vẫn đọc theo cách cũ, không tự đổi chính sách. */
+				bao("Số huỷ của mã " + ma + " phải là số nguyên không âm (0, 1, 2...). "
+					+ "Anh chị sửa lại số trong ô rồi bấm \u2713.", true);
+				return;
+			}
+		} else {
+			gt = parseInt(inp.value || "0", 10);
+		}
 		DANG_SUA = null;
 		if (truong === "so_btp" || truong === "so_decor") { luuBTP(ma, gt, truong); return; }
 		API("luu_o", { ngay: NGAY_CHON, ma_hang: ma, truong: truong, gia_tri: gt })
