@@ -1,10 +1,12 @@
 import frappe
 from frappe.model.document import Document
+from frappe.utils import now_datetime
 
 
 class KiemBanhNgay(Document):
 	def validate(self):
 		self._chan_huy_am()
+		self._giu_nguon_ton()
 		# "Co the ban" TINH o day, khong tin so tu ngoai gui vao.
 		# Ton dau mang dau CONG (chot voi anh Viet 01/08): banh hom qua van
 		# ban duoc, theo doi NSX de uu tien day hang cu di truoc.
@@ -94,6 +96,62 @@ class KiemBanhNgay(Document):
 		"""
 		for d in self.dong:
 			d.huy = self._doc_so_huy(d.huy, d.ma_hang)
+
+	def _ban_truoc(self):
+		"""Bản đang nằm trong CSDL trước lần lưu này, hoặc None nếu là bản mới.
+		Tách ra để bàn giả kiểm thử thay được."""
+		ham = getattr(self, "get_doc_before_save", None)
+		return ham() if ham else None
+
+	def _giu_nguon_ton(self):
+		"""Ai sửa ô tồn qua Desk hay API document thì cũng phải để lại nguồn.
+
+		Codex P1 vòng 4 trên PR #224: `luu_o` đánh dấu Đã kiểm đếm, nhưng
+		Sales User và Stock User có quyền write, sửa thẳng trên Desk hay qua
+		frappe.client.set_value thì ô 7/Tự chuyển thành 2/Tự chuyển, chốt hôm
+		trước ghi lại 7 và số người sửa mất. Hàng rào phải ở tầng dữ liệu:
+
+		  - dòng MỚI chưa khai nguồn thì khai Chua ghi cho ba ô;
+		  - dòng cũ có ô tồn ĐỔI GIÁ TRỊ so với bản đang lưu, mà không phải do
+		    luu_o hay chot_ngay (hai đường đó tự ghi nguồn và giơ cờ
+		    `vgb_ton_da_co_nguon`), thì coi là người đếm tay: ghi Đã kiểm đếm
+		    kèm ai và lúc nào. Sửa về 0 cũng là một số đếm.
+		"""
+		from vagabond import kiem_banh
+
+		truoc = self._ban_truoc()
+		cu = getattr(truoc, "dong", None) or []
+		theo_ten = {d.get("name"): d for d in cu if d.get("name")}
+		con_ten = {d.get("name") for d in self.dong}
+		# Frappe update_child_table xoá dòng vắng khỏi payload, không gọi
+		# xoa_dong của app. Giữ invariant trước khi Frappe đồng bộ bảng con.
+		for d in cu:
+			if d.get("name") not in con_ten and not kiem_banh.dong_duoc_xoa(d):
+				frappe.throw("Mã %s đã có số hoặc dấu kiểm đếm. Giữ dòng để đối chiếu, không xoá được." % d.get("ma_hang"))
+		co_may = bool(getattr(frappe, "flags", None) and frappe.flags.get("vgb_ton_da_co_nguon"))
+		for d in self.dong:
+			c = theo_ten.get(d.get("name"))
+			moi = not c and (truoc is not None or d.get("__islocal") or not d.get("name") or bool(getattr(self, "is_new", lambda: False)()))
+			if moi:
+				for o in kiem_banh.O_TON:
+					if not d.get("nguon_" + o):
+						d.set("nguon_" + o, kiem_banh.NGUON_TRONG)
+			if co_may:
+				continue
+			if c is not None:
+				# Metadata chỉ đọc trên Desk vẫn có thể đi trong payload API.
+				# Giữ vết cũ trước khi ghi thêm lần đếm, không tin bản gửi lên.
+				d.set("kiem_dem_ghi", c.get("kiem_dem_ghi"))
+				for o in kiem_banh.O_TON:
+					d.set("nguon_" + o, c.get("nguon_" + o))
+					d.set("may_chuyen_" + o, c.get("may_chuyen_" + o))
+			for o in kiem_banh.O_TON:
+				# Ô mới có số người nhập hoặc xác nhận tay 0 phải được bảo vệ.
+				# Số 0 mặc định chưa xác nhận vẫn là Chưa ghi; luu_o xác nhận 0.
+				doi = c is not None and int(d.get(o) or 0) != int(c.get(o) or 0)
+				nhap_moi = moi and (int(d.get(o) or 0) != 0 or d.get("nguon_" + o) == kiem_banh.NGUON_TAY)
+				if doi or nhap_moi:
+					kiem_banh.ghi_dem_tay(d, o, d.get(o), frappe.session.user, now_datetime())
 
 	@staticmethod
 	def _doc_so_huy(gia_tri, ma_hang=None):

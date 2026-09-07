@@ -82,17 +82,27 @@ def _chay_song_song(site, viec):
 	hang_rao = ctx.Barrier(len(viec))
 	kq = ctx.Queue()
 	ps = []
-	for v in viec:
-		p = ctx.Process(target=_con, args=(site, v[0], hang_rao, kq, v[1]) + tuple(v[2:]))
-		p.start()
-		ps.append(p)
 	ra = {}
-	for _ in viec:
-		r = kq.get(timeout=120)
-		ra[r["ten"]] = r
-	for p in ps:
-		p.join(timeout=10)
-	return ra
+	try:
+		for v in viec:
+			p = ctx.Process(target=_con, args=(site, v[0], hang_rao, kq, v[1]) + tuple(v[2:]))
+			p.start()
+			ps.append(p)
+		for _ in viec:
+			r = kq.get(timeout=120)
+			ra[r["ten"]] = r
+		return ra
+	finally:
+		# Không cleanup fixture khi con vẫn có thể ghi thêm vào fixture đó.
+		for p in ps:
+			p.join(timeout=10)
+			if p.is_alive():
+				p.terminate()
+				p.join(timeout=10)
+				if p.is_alive():
+					p.kill()
+					p.join()
+		kq.close()
 
 
 # ------------------------------------------------------ 1. lan_nhan cùng mã
@@ -188,6 +198,106 @@ def kiem_lan_nhan(site):
 	return ket["dat"]
 
 
+# ----------------------------------------------- 2. kiem_banh đếm và chốt
+
+
+def _goi_dem(frappe, ngay_mai, ma, so):
+	from vagabond import kiem_banh
+
+	return kiem_banh.luu_o(ngay_mai, ma, "ton_d1", so)
+
+
+def _goi_chot(frappe, hom_nay):
+	from vagabond import kiem_banh
+
+	kiem_banh.dong_bo = lambda ngay=None: None  # site thử không có khoá Pancake
+	return kiem_banh.chot_ngay(hom_nay)
+
+
+def _vong_dem_dat(ra, d, nay, nguon_tay):
+	"""Không có mất số chưa đủ: cả chốt, số đếm và audit phải được xác minh."""
+	try:
+		ghi = json.loads(d.get("kiem_dem_ghi") or "{}").get("ton_d1") or {}
+		loi_dem = ra.get("dem", {}).get("loi", "")
+		return bool(
+			ra.get("chot", {}).get("ok")
+			and (ra.get("dem", {}).get("ok") or loi_dem.startswith("TimestampMismatchError:"))
+			and nay.get("tinh_trang") == "Da chot" and nay.get("chot_luc")
+			and int(d.get("ton_d1") or 0) == 2
+			and d.get("nguon_ton_d1") == nguon_tay
+			and int(d.get("may_chuyen_ton_d1") or 0) == 9
+			and ghi.get("ai") == "Administrator" and ghi.get("luc")
+		)
+	except (ValueError, TypeError, AttributeError):
+		return False
+
+
+def kiem_kiem_banh(site, so_vong=10):
+	"""Dữ liệu có mã sở hữu riêng; gặp dữ liệu sẵn thì dừng, không xoá lấy chỗ."""
+	import secrets
+	import uuid
+	frappe = _mo(site)
+	from frappe.utils import add_days
+	from vagabond import kiem_banh
+
+	if not 1 <= so_vong <= 100:
+		raise ValueError("Số vòng phải từ 1 đến 100")
+	ma = "BAWC00055"
+	dau = "KTDT-" + uuid.uuid4().hex
+	dich = secrets.randbelow(20000)
+	tong = {"vong": 0, "dat": True, "chi_tiet": [], "don_dep_loi": []}
+	for v in range(so_vong):
+		hom_nay = str(add_days("2030-01-01", dich + v * 2))
+		ngay_mai = str(add_days(hom_nay, 1))
+		so_huu = []
+		try:
+			for n in (hom_nay, ngay_mai):
+				if frappe.db.exists("Kiem Banh Ngay", "KB-%s" % n):
+					raise RuntimeError("Ngày thử %s đã có dữ liệu; dừng và giữ nguyên dữ liệu đó" % n)
+			for n in (hom_nay, ngay_mai):
+				doc = frappe.new_doc("Kiem Banh Ngay")
+				doc.ngay = n
+				doc.ghi_chu = dau
+				doc.append("dong", kiem_banh.dong_moi(ma_hang=ma, ten_banh="Thử đồng thời", sx=9 if n == hom_nay else 0))
+				doc.insert(ignore_permissions=True)
+				so_huu.append(doc.name)
+			frappe.db.commit()
+			ra = _chay_song_song(site, [("dem", _goi_dem, ngay_mai, ma, 2), ("chot", _goi_chot, hom_nay)])
+			frappe.db.commit()
+			if not ra.get("dem", {}).get("ok") and ra.get("dem", {}).get("loi", "").startswith("TimestampMismatchError:"):
+				_goi_dem(frappe, ngay_mai, ma, 2)
+				frappe.db.commit()
+			d = frappe.get_doc("Kiem Banh Ngay", "KB-%s" % ngay_mai).dong[0]
+			nay = frappe.get_doc("Kiem Banh Ngay", "KB-%s" % hom_nay)
+			dat = _vong_dem_dat(ra, d, nay, kiem_banh.NGUON_TAY)
+			tong["vong"] += 1
+			tong["dat"] = tong["dat"] and dat
+			tong["chi_tiet"].append({"vong": v, "ra": ra, "dat": dat, "ngay": hom_nay})
+		except Exception:
+			frappe.db.rollback()
+			tong["dat"] = False
+			tong["chi_tiet"].append({"vong": v, "loi": traceback.format_exc()[-800:]})
+		finally:
+			# Chỉ xoá đúng bản do lần này insert thành công VÀ còn mã sở hữu.
+			for ten in reversed(so_huu):
+				try:
+					if not frappe.db.exists("Kiem Banh Ngay", ten):
+						continue
+					if frappe.db.get_value("Kiem Banh Ngay", ten, "ghi_chu") != dau:
+						raise RuntimeError("Mất dấu sở hữu: " + ten)
+					frappe.delete_doc("Kiem Banh Ngay", ten, force=1)
+					frappe.db.commit()
+				except Exception as e:
+					frappe.db.rollback()
+					tong["dat"] = False
+					tong["don_dep_loi"].append(str(e))
+		if not tong["dat"]:
+			break
+	tong["dat"] = bool(tong["dat"] and tong["vong"] == so_vong and not tong["don_dep_loi"])
+	print(json.dumps(tong, ensure_ascii=False, indent=1, default=str))
+	return tong["dat"]
+
+
 if __name__ == "__main__":
 	if len(sys.argv) < 3:
 		print(__doc__)
@@ -198,7 +308,9 @@ if __name__ == "__main__":
 		sys.exit(3)
 	if viec == "lan_nhan":
 		ok = kiem_lan_nhan(site)
+	elif viec == "kiem_banh":
+		ok = kiem_kiem_banh(site, int(sys.argv[3]) if len(sys.argv) > 3 else 10)
 	else:
-		print("viec phai la lan_nhan")
+		print("viec phai la lan_nhan hoac kiem_banh")
 		sys.exit(2)
 	sys.exit(0 if ok else 1)

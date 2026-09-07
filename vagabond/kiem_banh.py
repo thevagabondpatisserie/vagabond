@@ -341,6 +341,116 @@ def tru_theo_lo(lo, so_tieu):
 	return con
 
 
+# ------------------------------------------------- nguồn của từng ô tồn
+#
+# Issue #216, Codex chốt theo uỷ quyền của anh Việt (07/09/2026): ô tồn ngày
+# mai có HAI nguồn ghi, máy chuyển lúc chốt ngày hôm trước và người đếm tay,
+# mà bảng không phân biệt được, nên chốt ngày ĐÈ MẤT số đếm tay khi hôm nay
+# còn tồn, còn khi hôm nay về 0 thì lại bỏ mặc số cũ. Đo thật trong bàn giao
+# PR #223. Nay mỗi ô tồn mang một NGUỒN:
+#
+#   Tu chuyen    máy ghi lúc chốt ngày hôm trước; chốt lại được đè, kể cả về 0
+#   Da kiem dem  người gõ trên màn Kiểm bánh; chốt KHÔNG đụng, chỉ ghi số máy
+#                bên cạnh để đối chiếu. Đếm ra 0 cũng là một số đếm hợp lệ.
+#   (trống)      số có từ trước khi có ô nguồn. Khác 0 thì "Cần xác nhận": máy
+#                không đè, không cộng; bằng 0 thì coi như ô trống, máy ghi được.
+#
+# Chốt ngày ghi SỐ TUYỆT ĐỐI, không cộng dồn: chạy lại cho cùng kết quả.
+
+NGUON_MAY = "Tu chuyen"
+NGUON_TAY = "Da kiem dem"
+# Ô MỚI thật sự: dòng vừa được dựng (them_dong, dong_bo, chốt ngày đẻ dòng
+# ngày mai), chưa ai ghi số. Máy được ghi vào. Khác hẳn ô nguồn TRỐNG: đó là
+# dữ liệu có từ trước khi có cột nguồn, KHÔNG suy được là máy hay tay, kể cả
+# khi giá trị là 0 (0 có thể chính là số người đã đếm). Codex P1 vòng 4 trên
+# PR #224: không được đoán nguồn từ giá trị.
+NGUON_TRONG = "Chua ghi"
+O_TON = ("ton_cu", "ton_d2", "ton_d1")
+NSX_CUA = {"ton_cu": "nsx_cu", "ton_d2": "nsx_d2", "ton_d1": "nsx_d1"}
+NHAN_NGUON = {NGUON_MAY: "Tự chuyển", NGUON_TAY: "Đã kiểm đếm", NGUON_TRONG: ""}
+
+
+def trang_thai_o(nguon, gia_tri=None):
+	"""Nhãn người đọc của một ô tồn. THUẦN. KHÔNG nhìn giá trị.
+
+	Tự chuyển / Đã kiểm đếm theo nguồn; ô mới chưa ghi thì trống; nguồn
+	trống (dữ liệu cũ) thì Cần xác nhận, dù là 0 hay dương."""
+	if nguon in NHAN_NGUON:
+		return NHAN_NGUON[nguon]
+	return "Cần xác nhận"
+
+
+def may_duoc_ghi(nguon, gia_tri=None):
+	"""Chốt ngày có được ghi vào ô này không. THUẦN. KHÔNG nhìn giá trị.
+
+	Chỉ ô do máy chuyển và ô mới chưa ai ghi. Ô đã đếm tay và ô không rõ
+	nguồn (dữ liệu cũ, kể cả 0) thì máy đứng ngoài."""
+	return nguon in (NGUON_MAY, NGUON_TRONG)
+
+
+def dong_moi(**kw):
+	"""Khai một dòng MỚI cho bảng: ba ô tồn mang nguồn Chua ghi. THUẦN.
+
+	Mọi chỗ đẻ dòng (them_dong, dong_bo, chốt ngày) đều đi qua đây, để máy
+	phân biệt được dòng mới với dòng cũ không rõ nguồn mà không cần nhìn số."""
+	d = {"nguon_" + o: NGUON_TRONG for o in O_TON}
+	d.update(kw)
+	return d
+
+
+def co_dau_vet(d):
+	"""Dòng có dấu vết nghiệp vụ không xoá được: đã đếm tay ô nào, có ai đếm
+	lúc nào, hay máy đã chuyển số vào (kể cả 0). THUẦN. Codex P1 vòng 4:
+	đếm ra 0 rồi vẫn xoá được dòng là mất luôn ai đếm lúc nào."""
+	for o in O_TON:
+		if d.get("nguon_" + o) == NGUON_TAY:
+			return True
+		if int(d.get("may_chuyen_" + o) or 0):
+			return True
+	return bool((d.get("kiem_dem_ghi") or "").strip() not in ("", "{}"))
+
+
+def dong_duoc_xoa(d):
+	"""Cùng điều kiện cho bảng, API xoá và lưu Document từ Desk."""
+	return not co_dau_vet(d) and not any(int(d.get(t) or 0) for t in SO_PHAI_RONG)
+
+
+def ghi_o_chuyen(m, o, so, nsx):
+	"""Máy ghi một ô tồn của dòng ngày mai lúc chốt. THUẦN với dòng có get/set.
+
+	Luôn ghi `may_chuyen_<o>` để màn hình bày số máy bên cạnh số người, dù ô
+	có được đè hay không. Trả về True nếu đã ghi vào ô."""
+	m.set("may_chuyen_" + o, int(so or 0))
+	if not may_duoc_ghi(m.get("nguon_" + o)):
+		return False
+	m.set(o, int(so or 0))
+	m.set(NSX_CUA[o], nsx if so else None)
+	m.set("nguon_" + o, NGUON_MAY)
+	return True
+
+
+def ghi_dem_tay(d, o, so, ai, luc):
+	"""Người đếm một ô tồn: ghi số, đánh dấu nguồn tay, ghi ai và lúc nào. THUẦN."""
+	d.set(o, int(so or 0))
+	d.set("nguon_" + o, NGUON_TAY)
+	try:
+		ghi = json.loads(d.get("kiem_dem_ghi") or "{}")
+	except Exception:
+		ghi = {}
+	if not isinstance(ghi, dict):
+		ghi = {}
+	ghi[o] = {"ai": ai or "", "luc": str(luc or "")}
+	d.set("kiem_dem_ghi", json.dumps(ghi, ensure_ascii=False))
+
+
+def _doc_kiem_dem_ghi(d):
+	try:
+		ghi = json.loads(d.get("kiem_dem_ghi") or "{}")
+		return ghi if isinstance(ghi, dict) else {}
+	except Exception:
+		return {}
+
+
 def _co_that(c, k, ma):
 	"""Ma co that: co tren Pancake, hoac co trong danh muc Hang hoa ben Next."""
 	if frappe.db.exists("Item", ma):
@@ -468,14 +578,23 @@ def dong_bo(ngay=None):
 	# mot lan, chay ngam) dong do bien mat khong dau vet - vi bo loc cu chi
 	# giu BAWC/BAWS. Bep se tuong minh bam hut hoac may nuot mat so vua dem.
 	# Cho bep THEM ma khong cho bang GIU thi tinh nang do khong ton tai.
+	# Dòng gõ trên Desk có thể mang mã lạ. Chỉ dọn dòng trắng, không làm
+	# mất số hoặc audit rồi khiến validate chặn cả ngày kiểm bánh.
+	giu_la = [d for d in doc.dong
+		if not str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY)
+		and not dong_duoc_xoa(d)]
+	if giu_la:
+		frappe.log_error(title="Kiểm bánh: giữ dòng mã cần đối chiếu",
+			message="Ngày %s, mã: %s. Dòng có số hoặc dấu kiểm đếm nên được giữ lại."
+			% (ngay, ", ".join(str(d.ma_hang or "") for d in giu_la)))
 	doc.dong = [
 		d for d in doc.dong
-		if str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY)
+		if str(d.ma_hang or "").upper().startswith(TIEN_TO_THEM_TAY) or not dong_duoc_xoa(d)
 	]
 	co = {d.ma_hang: d for d in doc.dong}
 	for ma in set(list(dem_dd) + list(dem_ps) + list(dem_cho)):
 		if ma not in co:
-			d = doc.append("dong", {"ma_hang": ma, "ten_banh": ten1.get(ma, "")})
+			d = doc.append("dong", dong_moi(ma_hang=ma, ten_banh=ten1.get(ma, "")))
 			co[ma] = d
 		elif ten1.get(ma) and not co[ma].ten_banh:
 			co[ma].ten_banh = ten1[ma]
@@ -614,11 +733,11 @@ def _them_dong_thieu(doc, co, thieu):
 		anh = x.get("image") or ""
 		d = doc.append(
 			"dong",
-			{
-				"ma_hang": ma,
-				"ten_banh": x.get("item_name") or ma,
-				"hinh": anh if not str(anh).startswith("/private") else "",
-			},
+			dong_moi(
+				ma_hang=ma,
+				ten_banh=x.get("item_name") or ma,
+				hinh=anh if not str(anh).startswith("/private") else "",
+			),
 		)
 		co[ma] = d
 
@@ -818,6 +937,19 @@ def bang(ngay=None):
 				# nhin thay ngay minh vua tat cai gi, va den bao gio ban lai.
 				"tat_web": (tat.get(d.ma_hang) or {}).get("tat", 0),
 				"tat_web_den": (tat.get(d.ma_hang) or {}).get("den_ngay", ""),
+				# Nguồn từng ô tồn (#216): nhãn, số máy chuyển, ai đếm lúc nào.
+				"nguon": {
+					o: {
+						"trang_thai": trang_thai_o(d.get("nguon_" + o)),
+						"may_chuyen": int(d.get("may_chuyen_" + o) or 0),
+						"ai": (_doc_kiem_dem_ghi(d).get(o) or {}).get("ai", ""),
+						"luc": (_doc_kiem_dem_ghi(d).get(o) or {}).get("luc", ""),
+					}
+					for o in O_TON
+				},
+				# Máy chủ quyết dòng có xoá được không; màn hình chỉ bày nút theo
+				# khoá này, không tự suy từ số (Codex P1 vòng 4).
+				"xoa_duoc": int(dong_duoc_xoa(d)),
 			}
 			for d in doc.dong
 		],
@@ -844,8 +976,19 @@ def luu_o(ngay, ma_hang, truong, gia_tri):
 		frappe.throw("Ngay nay da chot so, khong sua nua")
 	for d in doc.dong:
 		if d.ma_hang == ma_hang:
-			d.set(truong, doc_so_o(truong, gia_tri, ma_hang))
-			doc.save()  # giu quyen that cua nguoi dang sua, de con vet ai sua gi
+			so = doc_so_o(truong, gia_tri, ma_hang)
+			if truong in O_TON:
+				# Ô tồn người đếm: đánh dấu nguồn tay để chốt ngày hôm trước
+				# (hay chốt lại) không đè mất. Đếm ra 0 cũng là số đếm. #216.
+				ghi_dem_tay(d, truong, so, frappe.session.user, now_datetime())
+			else:
+				d.set(truong, so)
+			# Cửa này đã tự ghi nguồn; báo cho lớp doctype khỏi đánh dấu lại.
+			frappe.flags.vgb_ton_da_co_nguon = True
+			try:
+				doc.save()  # giu quyen that cua nguoi dang sua, de con vet ai sua gi
+			finally:
+				frappe.flags.vgb_ton_da_co_nguon = False
 			frappe.db.commit()
 			return {"ok": 1, "co_the_ban": d.co_the_ban}
 	frappe.throw("Khong thay ma hang %s" % ma_hang)
@@ -898,7 +1041,7 @@ def them_dong(ngay, ma_hang):
 			"Anh chị kiểm tra lại mã, hoặc tạo mã đó trước rồi thêm sau." % ma_hang
 		)
 	ten, anh = _tra_anh_ten(c, k, ma_hang)
-	doc.append("dong", {"ma_hang": ma_hang, "ten_banh": ten, "hinh": anh})
+	doc.append("dong", dong_moi(ma_hang=ma_hang, ten_banh=ten, hinh=anh))
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"ok": 1, "ten_banh": ten}
@@ -906,7 +1049,7 @@ def them_dong(ngay, ma_hang):
 
 SO_PHAI_RONG = (
 	"ton_cu", "ton_d2", "ton_d1", "sx", "huy",
-	"da_dat", "phat_sinh", "cho_chot", "don_khac",
+	"da_dat", "phat_sinh", "cho_chot", "don_khac", "giu_cho",
 )
 
 
@@ -924,9 +1067,8 @@ def xoa_dong(ngay, ma_hang):
 	for d in doc.dong:
 		if d.ma_hang != ma_hang:
 			continue
-		co_so = [t for t in SO_PHAI_RONG if int(d.get(t) or 0)]
-		if co_so:
-			frappe.throw("Mã %s đang có số, không xoá được. Xoá số về 0 trước đã." % ma_hang)
+		if not dong_duoc_xoa(d):
+			frappe.throw("Mã %s đang có số hoặc dấu kiểm đếm. Giữ dòng để đối chiếu, không xoá được." % ma_hang)
 		doc.remove(d)
 		doc.save(ignore_permissions=True)
 		frappe.db.commit()
@@ -978,20 +1120,27 @@ def chot_ngay(ngay=None):
 		# lo[0]+lo[1] don thanh "cu hon" cua ngay mai, lay NSX cu nhat lam moc
 		cu = lo[0][0] + lo[1][0]
 		nsx_cu = lo[0][1] if lo[0][0] else (lo[1][1] if lo[1][0] else None)
-		if not (cu or lo[2][0] or lo[3][0]):
-			continue
 		m = co_mai.get(d.ma_hang)
 		if not m:
-			m = mai.append("dong", {"ma_hang": d.ma_hang, "ten_banh": d.ten_banh})
+			# Khong con gi va ngay mai chua co dong thi khong de dong trong.
+			if not (cu or lo[2][0] or lo[3][0]):
+				continue
+			m = mai.append("dong", dong_moi(ma_hang=d.ma_hang, ten_banh=d.ten_banh))
 			co_mai[d.ma_hang] = m
-		m.ton_cu = cu
-		m.nsx_cu = nsx_cu
-		m.ton_d2 = lo[2][0]
-		m.nsx_d2 = lo[2][1]
-		m.ton_d1 = lo[3][0]
-		m.nsx_d1 = ngay if lo[3][0] else None
+		# Tung o theo NGUON cua no (#216): o may chuyen thi ghi de, ke ca ve 0
+		# (truoc day con 0 la bo qua, so cu nam lai); o nguoi da dem thi giu,
+		# chi ghi so may ben canh; o chua ro nguon ma co so thi giu de xac nhan.
+		ghi_o_chuyen(m, "ton_cu", cu, nsx_cu)
+		ghi_o_chuyen(m, "ton_d2", lo[2][0], lo[2][1])
+		ghi_o_chuyen(m, "ton_d1", lo[3][0], ngay)
 
-	mai.save(ignore_permissions=True)
+	# Chốt là đường của MÁY: lớp doctype không được coi các ô vừa ghi là
+	# người sửa tay (xem KiemBanhNgay._giu_nguon_ton).
+	frappe.flags.vgb_ton_da_co_nguon = True
+	try:
+		mai.save(ignore_permissions=True)
+	finally:
+		frappe.flags.vgb_ton_da_co_nguon = False
 
 	# Tru kho BTP cap 2: moi banh giao xong hom nay von da an mot vo BTP
 	# luc bep lay ra trang tri toi hom truoc (quy trinh Han 01/08). Tru

@@ -24,7 +24,14 @@
   "ten_khach_khac",
   "cho_chot",
   "ten_khach_cho",
-  "co_the_ban"
+  "co_the_ban",
+  "nguon_ton_cu",
+  "may_chuyen_ton_cu",
+  "nguon_ton_d2",
+  "may_chuyen_ton_d2",
+  "nguon_ton_d1",
+  "may_chuyen_ton_d1",
+  "kiem_dem_ghi"
  ],
  "fields": [
   {
@@ -164,11 +171,63 @@
    "in_list_view": 1,
    "label": "Co the ban",
    "read_only": 1
+  },
+  {
+   "fieldname": "nguon_ton_cu",
+   "fieldtype": "Select",
+   "label": "Nguồn Tồn cũ hơn",
+   "options": "\nChua ghi\nTu chuyen\nDa kiem dem",
+   "read_only": 1,
+   "description": "Tu chuyen: may ghi luc chot ngay hom truoc. Da kiem dem: nguoi go tren man Kiem banh. Trong: so co tu truoc khi co o nay, chua ro nguon."
+  },
+  {
+   "fieldname": "may_chuyen_ton_cu",
+   "fieldtype": "Int",
+   "label": "Máy chuyển Tồn cũ hơn",
+   "read_only": 1,
+   "description": "So may tinh ra luc chot ngay hom truoc, de doi chieu voi so nguoi dem."
+  },
+  {
+   "fieldname": "nguon_ton_d2",
+   "fieldtype": "Select",
+   "label": "Nguồn Tồn D-2",
+   "options": "\nChua ghi\nTu chuyen\nDa kiem dem",
+   "read_only": 1,
+   "description": "Tu chuyen: may ghi luc chot ngay hom truoc. Da kiem dem: nguoi go tren man Kiem banh. Trong: so co tu truoc khi co o nay, chua ro nguon."
+  },
+  {
+   "fieldname": "may_chuyen_ton_d2",
+   "fieldtype": "Int",
+   "label": "Máy chuyển Tồn D-2",
+   "read_only": 1,
+   "description": "So may tinh ra luc chot ngay hom truoc, de doi chieu voi so nguoi dem."
+  },
+  {
+   "fieldname": "nguon_ton_d1",
+   "fieldtype": "Select",
+   "label": "Nguồn Tồn D-1",
+   "options": "\nChua ghi\nTu chuyen\nDa kiem dem",
+   "read_only": 1,
+   "description": "Tu chuyen: may ghi luc chot ngay hom truoc. Da kiem dem: nguoi go tren man Kiem banh. Trong: so co tu truoc khi co o nay, chua ro nguon."
+  },
+  {
+   "fieldname": "may_chuyen_ton_d1",
+   "fieldtype": "Int",
+   "label": "Máy chuyển Tồn D-1",
+   "read_only": 1,
+   "description": "So may tinh ra luc chot ngay hom truoc, de doi chieu voi so nguoi dem."
+  },
+  {
+   "fieldname": "kiem_dem_ghi",
+   "fieldtype": "Small Text",
+   "label": "Ai đếm, lúc nào",
+   "read_only": 1,
+   "description": "JSON {o: {ai, luc}} ghi nguoi va gio kiem dem tung o ton."
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-09-06 18:30:00.000000",
+ "modified": "2026-09-07 04:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Kiem Banh Dong",

@@ -48,11 +48,22 @@ def _doc(*ten):
 
 
 COT = ("ton_cu", "ton_d2", "ton_d1", "sx", "huy", "da_dat", "phat_sinh",
-	"don_khac", "cho_chot", "giu_cho", "co_the_ban")
+	"don_khac", "cho_chot", "giu_cho", "co_the_ban",
+	"may_chuyen_ton_cu", "may_chuyen_ton_d2", "may_chuyen_ton_d1")
 
 
 class DongGia(Doi):
-	"""Một dòng bảng, đủ hành vi `get`/`set` mà mã nghiệp vụ đang gọi."""
+	"""Một dòng bảng, đủ hành vi `get`/`set` mà mã nghiệp vụ đang gọi.
+
+	`__setattr__` đưa phép gán thuộc tính về khoá dict. Thiếu nó thì
+	`m.ton_d1 = 7` trong mã nghiệp vụ tạo một thuộc tính RIÊNG, `m.get("ton_d1")`
+	vẫn đọc khoá cũ, và ca kiểm đọc dòng ngày mai có sẵn không thấy chốt ngày
+	ghi gì (phát hiện trong bàn giao PR #223, 06/09/2026). Không có bàn giả
+	nào được che mất một phép ghi.
+	"""
+
+	def __setattr__(self, k, v):
+		self[k] = v
 
 	def get(self, k, mac_dinh=None):
 		return dict.get(self, k, mac_dinh)
@@ -95,12 +106,21 @@ class BangGia(KiemBanhNgay):
 
 
 def _tao_dong(**kw):
+	"""Một dòng ĐÃ NẰM TRONG CSDL (có name), ba ô tồn nguồn TRỐNG như dữ liệu
+	có từ trước khi có cột nguồn. Dòng mới thật sự thì dùng `_dong_moi`."""
 	d = DongGia({c: 0 for c in COT})
 	d.update({"ma_hang": "BAWC00001", "ten_banh": "Bánh thử", "hinh": "",
 		"nsx_cu": None, "nsx_d2": None, "nsx_d1": None,
+		"nguon_ton_cu": "", "nguon_ton_d2": "", "nguon_ton_d1": "", "kiem_dem_ghi": "",
 		"ten_khach_ps": "", "ten_khach_cho": "", "ten_khach_khac": ""})
 	d.update(kw)
+	d.setdefault("name", "dong-" + str(d["ma_hang"]))
 	return d
+
+
+def _dong_moi(**kw):
+	"""Dòng MỚI như them_dong / chốt ngày đẻ ra: ba ô tồn Chua ghi."""
+	return _tao_dong(**kiem_banh.dong_moi(**kw))
 
 
 class CuaGia(object):
@@ -444,21 +464,20 @@ def _():
 		+ mai.dong[0].ton_d2 + mai.dong[0].ton_d1, 12)
 
 
-@ca("GÓC ĐÃ BIẾT: hôm nay huỷ hết thì chốt ngày KHÔNG đụng dòng ngày mai")
+@ca("hôm nay huỷ hết, ngày mai có số CHƯA RÕ NGUỒN: chốt ngày giữ số đó để xác nhận")
 def _():
-	"""Nhánh CŨ, không phải PR này sinh ra. Codex yêu cầu ghi lại và khoá.
-
-	Khi hôm nay không còn lô nào thì `chot_ngay` `continue`, nên một dòng
-	cùng mã đã có sẵn bên ngày mai giữ nguyên số của nó. Chưa xác định được
-	số đó là tồn chuyển sang hay số kiểm kê độc lập của ngày mai, nên KHÔNG
-	tự xoá. Ca này chốt hành vi hiện tại để người sau đổi thì phải đổi có ý
-	thức, chứ không phải để tuyên bố hành vi này đúng.
+	"""Từng là "GÓC ĐÃ BIẾT" (nhánh `continue` cũ). Từ v444 (#216) hành vi
+	này có LÝ DO chứ không còn là tình cờ: ô có số mà không rõ nguồn là
+	"Cần xác nhận", máy không đè, không cộng. Ô do máy chuyển thì về 0, xem
+	thu_ton_ngay_mai.py.
 	"""
 	d = _tao_dong(ma_hang="BAWC00055", ton_d1=3, huy=3)
 	m = _tao_dong(ma_hang="BAWC00055", ton_d1=7)
 	_nay, mai, _b = _chot([d], mai=[m])
 	la("dòng ngày mai vẫn còn", len(mai.dong), 1)
-	la("số ngày mai KHÔNG bị đụng tới", mai.dong[0].ton_d1, 7)
+	la("số chưa rõ nguồn KHÔNG bị đụng tới", mai.dong[0].ton_d1, 7)
+	la("nhãn là Cần xác nhận", kiem_banh.trang_thai_o(mai.dong[0].get("nguon_ton_d1")), "Cần xác nhận")
+	la("số máy ghi bên cạnh là 0", mai.dong[0].get("may_chuyen_ton_d1"), 0)
 
 
 # --------------------------------------------------- 6. các cửa chặn khác
