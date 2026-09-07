@@ -376,26 +376,47 @@ def _cac_ma_thay_the(ma):
 		return []
 
 
-def phan_da_chon_tay(cac_dong):
+def phan_da_chon_tay(cac_dong, lo_trong_goi=None):
 	"""Số các dòng NGƯỜI đã chọn lô tay, gom theo (mã, kho) -> {lô: số gốc}. THUẦN.
 
 	Dòng chọn tay không đi qua túi (máy không cãi người), nhưng nó VẪN ăn
 	tồn của lô đó. Không trừ ra thì dòng máy chọn sau lại thấy đủ lô ấy và
 	phiếu ghi ra nhiều hơn kho thật có. Codex nêu trên #219.
 
-	Dòng chỉ có gói Serial and Batch Bundle mà không có `batch_no` thì
-	không đọc được lô, chưa trừ được: ghi ở phần VIỆC CHƯA LÀM.
+	Người chọn lô tay có HAI cách ghi, phải đọc cả hai:
+	  - ô `batch_no` trên dòng (cách cũ, và cách của app);
+	  - gói Serial and Batch Bundle (cách ERPNext v15+ dùng trên Desk khi
+	    người ta chọn nhiều lô cho một dòng). Gói nằm ở bảng con của một
+	    doctype khác nên phần thuần không tự đọc được; người gọi đưa vào
+	    `lo_trong_goi(tên gói) -> {lô: số gốc}`. Codex tái hiện trên #222
+	    (06/09/2026): bản trước bỏ qua gói, nên lô A tồn 60, một dòng gói
+	    lấy 40, dòng máy chọn xin 30 vẫn được cấp trọn 30 từ lô A, tức phiếu
+	    ghi 70 trên một lô chỉ có 60.
+	Dòng có cả hai thì tin `batch_no`, không đếm hai lần.
+
+	Số trong gói đã là SỐ GỐC (đơn vị kho) nên không nhân hệ số quy đổi; số
+	trên dòng thì phải nhân, vì dòng có thể khai bằng Túi, Hộp.
 	"""
 	ra = {}
 	for d in cac_dong or []:
-		lo = (d.get("batch_no") or "").strip()
 		kho = (d.get("s_warehouse") or "").strip()
-		if not lo or not kho:
+		if not kho:
 			continue
-		he_so = float(d.get("conversion_factor") or 0) or 1
 		k = (d.get("item_code"), kho)
-		ra.setdefault(k, {})
-		ra[k][lo] = round(ra[k].get(lo, 0) + float(d.get("qty") or 0) * he_so, 6)
+		lo = (d.get("batch_no") or "").strip()
+		goi = (d.get("serial_and_batch_bundle") or "").strip()
+		if lo:
+			he_so = float(d.get("conversion_factor") or 0) or 1
+			ra.setdefault(k, {})
+			ra[k][lo] = round(ra[k].get(lo, 0) + float(d.get("qty") or 0) * he_so, 6)
+		elif goi and lo_trong_goi:
+			for ten_lo, so in (lo_trong_goi(goi) or {}).items():
+				ten_lo = (ten_lo or "").strip()
+				so = abs(float(so or 0))
+				if not ten_lo or so <= LI_TI:
+					continue
+				ra.setdefault(k, {})
+				ra[k][ten_lo] = round(ra[k].get(ten_lo, 0) + so, 6)
 	return ra
 
 
@@ -414,6 +435,31 @@ def tru_da_dung(cac_lo, da_dung):
 		lai = round(float(so or 0) - float(da_dung.get(ten, 0) or 0), 6)
 		if lai > LI_TI:
 			ra[ten] = lai
+	return ra
+
+
+def _lo_trong_goi(ten_goi):
+	"""Các lô trong một gói Serial and Batch Bundle -> {lô: số gốc}.
+
+	Đọc bảng con `Serial and Batch Entry` (erpnext v16,
+	erpnext/stock/doctype/serial_and_batch_entry/serial_and_batch_entry.json:
+	có `batch_no`, `qty`, `warehouse`). Gói xuất kho ghi `qty` ÂM, nên lấy
+	trị tuyệt đối. Đọc hỏng thì trả rỗng và ghi nhật ký: thà máy chọn thừa
+	rồi ERPNext chặn ở validate_batch, còn hơn cả phiếu đổ vì một gói lạ.
+	"""
+	ra = {}
+	if not ten_goi:
+		return ra
+	try:
+		for r in frappe.get_all("Serial and Batch Entry",
+				filters={"parent": ten_goi, "parenttype": "Serial and Batch Bundle"},
+				fields=["batch_no", "qty"], limit_page_length=0):
+			lo = (r.get("batch_no") or "").strip()
+			if not lo:
+				continue
+			ra[lo] = round(ra.get(lo, 0) + abs(flt(r.get("qty"))), 6)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "lo_hang: doc goi lo %s" % ten_goi)
 	return ra
 
 
@@ -474,7 +520,7 @@ def gan_lo(doc, method=None):
 
 		thay_ma = duoc_thay_ma(getattr(doc, "purpose", None))
 		bo = {}
-		da_dung = phan_da_chon_tay(doc.items)
+		da_dung = phan_da_chon_tay(doc.items, lo_trong_goi=_lo_trong_goi)
 		moi = []
 		for d in doc.items:
 			if not _dong_can_lo(d):
