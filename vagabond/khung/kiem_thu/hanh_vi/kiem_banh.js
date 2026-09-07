@@ -408,7 +408,9 @@ ca('o ton bay NGUON: Tu chuyen, Da kiem dem kem so may va chenh lech, Can xac nh
   var d2 = dong({ ma_hang: 'BAWC00056', ton_d1: 3 });   /* ban ghi cu, khong co khoa nguon */
   var m = await moMan({ bang: function () { return bangCua([d, d2]); } });
   var a = nguonCua(m, 'BAWC00055|ton_d1');
-  bang('dem tay 4, may 7: bay chenh lech -3 va ten nguoi', a.chu, 'Đã kiểm đếm · máy 7 (-3) · loananh');
+  /* Gio dem bay THANG trong chu (Codex P2 vong 4): dien thoai khong co hover. */
+  bang('dem tay 4, may 7: bay chenh lech -3, ten nguoi va GIO dem', a.chu, 'Đã kiểm đếm · máy 7 (-3) · loananh 07/09 06:10');
+  dung('khong con giau gio trong title', !oTheo(m, 'BAWC00055|ton_d1').querySelector('.kb-nguon').getAttribute('title'));
   dung('to do khi lech', a.lop.indexOf('lech') >= 0);
   var b = nguonCua(m, 'BAWC00055|ton_d2');
   bang('may chuyen: chi nhan', b.chu, 'Tự chuyển');
@@ -434,6 +436,23 @@ ca('dem tay o ton khop so may thi khong bay chenh lech; bam o van mo duoc o nhap
   await choToi('luu_o bay di', function () { return m.goi.length > truoc; });
   bang('dung truong', m.goi[truoc].ts.truong, 'ton_d1');
   bang('dung so', m.goi[truoc].ts.gia_tri, 5);
+});
+
+ca('nut xoa dong theo xoa_duoc cua may chu: dem ra 0 (moi so deu 0) thi KHONG co nut xoa; dong moi thi co', async function () {
+  var d1 = dong({ ma_hang: 'BAWC00055' }); d1.xoa_duoc = 0;
+  d1.nguon = { ton_d2: { trang_thai: 'Đã kiểm đếm', may_chuyen: 0, ai: 'de@vagabond', luc: '2026-09-07 06:10:00' } };
+  var d2 = dong({ ma_hang: 'BAWC00056' }); d2.xoa_duoc = 1;
+  var m = await moMan({ bang: function () { return bangCua([d1, d2]); } });
+  var xoa = m.tai.querySelectorAll('[data-xoa]').map(function (e) { return e.getAttribute('data-xoa'); });
+  bang('chi dong moi co nut xoa', JSON.stringify(xoa), JSON.stringify(['BAWC00056']));
+  bang('dong dem 0 van bay nhan', nguonCua(m, 'BAWC00055|ton_d2').chu, 'Đã kiểm đếm · de 07/09 06:10');
+});
+
+ca('chu dong nguon toi thieu 13px trong CSS trang', async function () {
+  var css = fs.readFileSync(path.join(TRANG, 'kiem-banh.html'), 'utf8');
+  var mt = css.match(/\.kb-nguon\{[^}]*font-size:\s*([\d.]+)px/);
+  dung('co luat font-size cho .kb-nguon', !!mt);
+  dung('>= 13px, duoc ' + (mt && mt[1]), mt && parseFloat(mt[1]) >= 13);
 });
 
 /* ---------- chay ---------- */
