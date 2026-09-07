@@ -51,7 +51,8 @@
   "email_da_gui",
   "email_gui_luc",
   "email_gui_toi",
-  "ghi_chu"
+  "ghi_chu",
+  "ke_hoach_chi"
  ],
  "fields": [
   {
@@ -334,6 +335,14 @@
    "fieldtype": "Data",
    "label": "Loai chung tu dinh kem",
    "read_only": 1
+  },
+  {
+   "fieldname": "ke_hoach_chi",
+   "fieldtype": "Code",
+   "label": "Kế hoạch chi đã duyệt",
+   "options": "JSON",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "links": [],

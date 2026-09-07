@@ -25,6 +25,7 @@ Ba điều phải giữ:
 
 import base64
 import io
+import json
 import re
 
 import frappe
@@ -2075,6 +2076,13 @@ def duyet(name, buoc, ly_do=""):
 		if (doc.loai or LOAI_NCC) == LOAI_HU:
 			_sinh_hoa_don_hoan_ung(doc)
 			doc.reload()
+		doc.phuong_thuc = doc.get("phuong_thuc") or "Chuyển khoản"
+		ke = _dung_ke_hoach_chi(doc, doc.phuong_thuc)
+		loi_ke = _loi_ke_hoach_chi(ke)
+		if loi_ke:
+			frappe.throw("Chưa duyệt được kế hoạch chi: %s. Kế toán kiểm lại nguồn chi và tiền tệ." % loi_ke)
+		doc.ke_hoach_chi = json.dumps(ke, ensure_ascii=False, sort_keys=True)
+		doc.flags.vgb_chot_ke_hoach_chi = True
 		doc.trang_thai = TT_DA_DUYET
 		doc.gd_boi = toi
 		doc.gd_luc = now_datetime()
@@ -2373,6 +2381,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 			)
 		pe = ", ".join(kq["ten"])
 	else:
+		if _dung_ke_hoach_chi(doc, phuong_thuc) != ke:
+			frappe.throw("Nguồn chi hoặc nội dung kế hoạch đã đổi sau duyệt. Kế toán đối chiếu và duyệt lại trước khi ghi nhận.")
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
 		# Doc lai chinh cai vua sinh va doi chieu ke hoach mot lan nua. Ca kiem
 		# nay re, va no bat duoc truong hop hook tang duoi sua but toan sau
@@ -2462,7 +2472,7 @@ def _do_chinh_xac(pe=None):
 	Doc frappe version-16, frappe/model/meta.py get_field_precision(): o
 	Currency khong khai precision thi lay `currency_precision` cua he, khong
 	co nua thi lay theo dinh dang tien te. `doc.precision(fieldname)` chinh
-	la loi goi do. Khong doc duoc thi lay 2, la so mac dinh cua Frappe.
+	la loi goi do. Không đọc được thì dừng, không tự dùng độ chính xác khác.
 	"""
 	try:
 		if pe is None:
@@ -2472,7 +2482,7 @@ def _do_chinh_xac(pe=None):
 			raise ValueError("khong doc duoc precision")
 		return max(0, cint(p))
 	except Exception:
-		return 2
+		frappe.throw("Chưa đọc được độ chính xác tiền tệ. Nhờ quản trị kiểm cấu hình trước khi ghi nhận.")
 
 
 def _kiem_hoa_don_luc_ghi_so(ten_hd, tien, hd, no_luc_duyet, cong_ty, do):
@@ -2520,7 +2530,16 @@ def _ke_hoach_phan_bo(doc):
 	return ke
 
 
-def _ke_hoach_duyet(doc, phuong_thuc=None):
+def _noi_dung_ke_hoach(doc):
+	"""Phần tài chính của hồ sơ, độc lập cấu hình mặc định có thể đổi."""
+	dong = [{"hoa_don": d.get("hoa_don") or "", "so_tien": flt(d.get("so_tien")),
+		"tk_no": d.get("tk_no") or "", "tk_co": d.get("tk_co") or ""} for d in doc.get("dong") or []]
+	dong.sort(key=lambda d: json.dumps(d, sort_keys=True))
+	return {"loai": doc.get("loai") or "NCC", "nha_cung_cap": doc.get("nha_cung_cap") or "",
+		"tk_chi": doc.get("tk_chi") or "", "da_tam_ung": flt(doc.get("da_tam_ung")), "dong": dong}
+
+
+def _dung_ke_hoach_chi(doc, phuong_thuc=None):
 	"""KE HOACH DA DUYET cua ho so, du de doi chieu CA BO chung tu. Cham he.
 
 	Codex #226 B1: "dung tong" khong thay duoc "dung bo". Ke hoach vi vay
@@ -2531,20 +2550,26 @@ def _ke_hoach_duyet(doc, phuong_thuc=None):
 	"""
 	from vagabond.tra_tien_app import tk_tien_chi
 
-	ke = {"hoa_don": {}, "tong": flt(doc.get("tong_tien")), "nha_cung_cap": doc.get("nha_cung_cap")}
+	phuong_thuc = phuong_thuc or doc.get("phuong_thuc") or "Chuyển khoản"
+	ke = {"hoa_don": {}, "tong": flt(doc.get("tong_tien")), "nha_cung_cap": doc.get("nha_cung_cap"),
+		"noi_dung": _noi_dung_ke_hoach(doc)}
 	phan_bo = _ke_hoach_phan_bo(doc)
 	if phan_bo:
 		ke["loai"] = "PE"
 		for ten_hd, tien in phan_bo.items():
-			hd = frappe.db.get_value("Purchase Invoice", ten_hd, ["supplier", "company"], as_dict=True) or {}
+			hd = frappe.db.get_value("Purchase Invoice", ten_hd, ["supplier", "company", "currency", "conversion_rate"], as_dict=True) or {}
 			cty = hd.get("company")
 			tk, _ba = tk_tien_chi(cty, phuong_thuc, doc.get("tk_chi")) if cty else (None, None)
 			ke["hoa_don"][ten_hd] = {"tien": tien, "supplier": hd.get("supplier"),
-				"company": cty, "nguon_chi": tk or None}
+				"company": cty, "nguon_chi": tk or None,
+				"currency": hd.get("currency"), "conversion_rate": hd.get("conversion_rate"),
+				"company_currency": frappe.db.get_value("Company", cty, "default_currency") if cty else None,
+				"account_currency": frappe.db.get_value("Account", tk, "account_currency") if tk else None}
 		return ke
 	ke["loai"] = "JE"
 	cty = _cong_ty_chung_tu()
 	ke["company"] = cty
+	ke["company_currency"] = frappe.db.get_value("Company", cty, "default_currency") if cty else None
 	tk_nh = frappe.db.get_value("Bank Account", doc.get("tk_chi"), "account") if doc.get("tk_chi") else None
 	no, co, doi_tac = {}, {}, {}
 	for d in (doc.get("dong") or []):
@@ -2558,8 +2583,56 @@ def _ke_hoach_duyet(doc, phuong_thuc=None):
 		if tk and tk not in doi_tac:
 			loai_tk = frappe.db.get_value("Account", tk, "account_type")
 			if loai_tk in ("Payable", "Receivable"):
-				doi_tac[tk] = doc.get("nha_cung_cap")
-	ke.update({"no": no, "co": co, "doi_tac": doi_tac})
+				doi_tac[tk] = {"party_type": "Supplier" if loai_tk == "Payable" else "Customer", "party": doc.get("nha_cung_cap")}
+	ke.update({"no": no, "co": co, "doi_tac": doi_tac,
+		"tien_te_tk": {tk: frappe.db.get_value("Account", tk, "account_currency") if tk else None for tk in set(no) | set(co)}})
+	return ke
+
+
+def _loi_ke_hoach_chi(ke):
+	"""Phạm vi VND được kiểm rõ trước khi so các số cùng đơn vị.
+
+	ERPNext accounts/doctype/payment_entry/payment_entry.py set_exchange_rate:
+	cùng tiền công ty thì source_exchange_rate = 1, cùng tiền hai tài khoản
+	thì target_exchange_rate = source_exchange_rate. Journal Entry
+	set_amounts_in_company_currency nhân tiền tài khoản với exchange_rate.
+	Vì vậy chỉ so trực tiếp số khi đã xác minh VND và tỷ giá 1.
+	"""
+	if not isinstance(ke, dict) or ke.get("loai") not in ("PE", "JE"):
+		return "chưa xác định được loại kế hoạch chi"
+	if ke["loai"] == "PE":
+		if not ke.get("hoa_don"):
+			return "kế hoạch không có hoá đơn"
+		for hd, k in ke["hoa_don"].items():
+			if not all(k.get(t) for t in ("supplier", "company", "nguon_chi")):
+				return hd + ": thiếu công ty, nhà cung cấp hoặc nguồn chi"
+			if any(k.get(t) != "VND" for t in ("currency", "company_currency", "account_currency")) or flt(k.get("conversion_rate")) != 1:
+				return hd + ": chỉ hỗ trợ hoá đơn, tài khoản và sổ công ty bằng VND, tỷ giá 1"
+	else:
+		if not ke.get("company") or not ke.get("no") or not ke.get("co"):
+			return "thiếu công ty hoặc tài khoản Nợ/Có của kế hoạch"
+		if ke.get("company_currency") != "VND":
+			return "sổ công ty chưa xác minh là VND"
+		for tk in set(ke["no"]) | set(ke["co"]):
+			if not tk or (ke.get("tien_te_tk") or {}).get(tk) != "VND":
+				return "tài khoản %s chưa xác minh là VND" % tk
+		for dt in (ke.get("doi_tac") or {}).values():
+			if not isinstance(dt, dict) or not dt.get("party_type") or not dt.get("party"):
+				return "chưa xác định đủ loại và mã đối tượng"
+	return ""
+
+
+def _ke_hoach_duyet(doc, phuong_thuc=None):
+	"""Chỉ đọc bản chốt lúc duyệt, không dùng cấu hình hôm nay thay lịch sử."""
+	try:
+		ke = json.loads(doc.get("ke_hoach_chi") or "null")
+	except (ValueError, TypeError):
+		ke = None
+	loi = _loi_ke_hoach_chi(ke)
+	if not loi and ke.get("noi_dung") != _noi_dung_ke_hoach(doc):
+		loi = "nội dung tài chính khác bản đã duyệt"
+	if loi:
+		frappe.throw("Hồ sơ chưa có kế hoạch chi đã xác minh: %s. Kế toán đối chiếu và duyệt lại; máy không tự điền lịch sử." % loi)
 	return ke
 
 
@@ -2577,7 +2650,7 @@ def _but_toan_cua_ho_so(name):
 			if dt == "Payment Entry":
 				ds = frappe.get_all(dt, filters={"vgb_ho_so_tt": name, "docstatus": 1},
 					fields=["name", "company", "party_type", "party", "payment_type",
-						"paid_from", "paid_amount", "unallocated_amount"], limit_page_length=0)
+						"paid_from", "paid_amount", "unallocated_amount", "paid_from_account_currency", "paid_to_account_currency", "source_exchange_rate", "target_exchange_rate"], limit_page_length=0)
 			else:
 				ds = frappe.get_all(dt, filters={"vgb_ho_so_tt": name, "docstatus": 1},
 					fields=["name", "company", "total_debit"], limit_page_length=0)
@@ -2602,7 +2675,7 @@ def _but_toan_cua_ho_so(name):
 				o["dong"] = frappe.get_all(
 					"Journal Entry Account", filters={"parent": r["name"]},
 					fields=["account", "debit_in_account_currency", "credit_in_account_currency",
-						"party_type", "party"],
+						"party_type", "party", "account_currency", "exchange_rate", "debit", "credit"],
 					limit_page_length=0,
 				)
 			ra.append(o)
@@ -2622,6 +2695,9 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 	"""
 	ten = [b["name"] for b in bo]
 	thieu, thua, lech = [], [], []
+	loi = _loi_ke_hoach_chi(ke)
+	if loi:
+		return {"du": 0, "thieu": [], "thua": [], "lech": [loi], "ten": ten}
 	if ke.get("loai") == "PE":
 		da = {}
 		for b in bo:
@@ -2634,9 +2710,11 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 				lech.append("%s không trỏ tới nhà cung cấp" % b["name"])
 			if flt(b.get("unallocated_amount"), do) != 0:
 				lech.append("%s còn %s đ chưa phân bổ" % (b["name"], _tien(b.get("unallocated_amount"))))
+			if any(b.get(t) != "VND" for t in ("paid_from_account_currency", "paid_to_account_currency")) or any(flt(b.get(t)) != 1 for t in ("source_exchange_rate", "target_exchange_rate")):
+				lech.append("%s chưa khớp tiền tệ VND và tỷ giá 1" % b["name"])
 			tong_pb = 0.0
 			for r in (b.get("tham_chieu") or []):
-				if (r.get("reference_doctype") or "Purchase Invoice") != "Purchase Invoice":
+				if r.get("reference_doctype") != "Purchase Invoice":
 					thua.append("%s trỏ tới %s %s (%s đ), không thuộc hồ sơ"
 						% (b["name"], r.get("reference_doctype"), r.get("reference_name"), _tien(r.get("allocated_amount"))))
 					continue
@@ -2680,7 +2758,7 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 			thua.extend("%s (bút toán thứ %d)" % (b["name"], i + 2) for i, b in enumerate(je[1:]))
 		if je:
 			j = je[0]
-			if ke.get("company") and j.get("company") != ke["company"]:
+			if j.get("company") != ke["company"]:
 				lech.append("%s thuộc công ty %s, hồ sơ thuộc %s" % (j["name"], j.get("company"), ke["company"]))
 			if flt(j.get("tong_no"), do) != tong:
 				lech.append("%s ghi %s đ, hồ sơ %s đ" % (j["name"], _tien(j.get("tong_no")), _tien(tong)))
@@ -2691,8 +2769,13 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 					no[tk] = no.get(tk, 0.0) + flt(r.get("debit_in_account_currency"))
 				if flt(r.get("credit_in_account_currency")):
 					co[tk] = co.get(tk, 0.0) + flt(r.get("credit_in_account_currency"))
-				muon = (ke.get("doi_tac") or {}).get(tk)
-				if muon and (r.get("party") or "") != muon:
+				if r.get("account_currency") != "VND" or flt(r.get("exchange_rate")) != 1:
+					lech.append("%s dòng %s chưa khớp VND và tỷ giá 1" % (j["name"], tk))
+				for ben in ("debit", "credit"):
+					if r.get(ben) is None or flt(r.get(ben), do) != flt(r.get(ben + "_in_account_currency"), do):
+						lech.append("%s dòng %s không khớp số theo tiền sổ" % (j["name"], tk))
+				muon = (ke.get("doi_tac") or {}).get(tk) or {"party_type": "", "party": ""}
+				if any((r.get(t) or "") != muon[t] for t in ("party_type", "party")):
 					lech.append("%s dòng %s ghi đối tượng %s, hồ sơ là %s"
 						% (j["name"], tk, r.get("party") or "trống", muon))
 			for nhan, mong, co_gi in (("Nợ", ke.get("no") or {}, no), ("Có", ke.get("co") or {}, co)):

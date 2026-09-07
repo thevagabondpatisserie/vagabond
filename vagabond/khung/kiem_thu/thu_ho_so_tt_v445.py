@@ -152,6 +152,8 @@ class _San(object):
 		self.va = _Vet(
 			_tao_but_toan=_tao, _but_toan_cua_ho_so=_bo, _tu_gui_thu_bao=_thu,
 			_ke_hoach_duyet=lambda d, pt=None: _ke(d),
+			_dung_ke_hoach_chi=lambda d, pt=None: _ke(d),
+			_do_chinh_xac=lambda pe=None: 2,
 			_ghi_vet=lambda *a, **k: san.nhat_ky.append("vet"),
 			_sepay_theo_ma_app=lambda ds: {san.doc.name: {"chi": san.chi, "so_gd": 1}},
 			_kiem=lambda *a, **k: None,
@@ -178,6 +180,7 @@ def _pe(ten, phan_bo, party="NCC-A", **doi):
 	o = {"doctype": "Payment Entry", "name": ten, "company": "TV", "party_type": "Supplier",
 		"party": party, "payment_type": "Pay", "paid_from": NGUON,
 		"paid_amount": sum(t for _h, t in phan_bo), "unallocated_amount": 0.0,
+		"paid_from_account_currency": "VND", "paid_to_account_currency": "VND", "source_exchange_rate": 1, "target_exchange_rate": 1,
 		"tham_chieu": [{"reference_doctype": "Purchase Invoice", "reference_name": h, "allocated_amount": t}
 			for h, t in phan_bo]}
 	o.update(doi)
@@ -190,6 +193,8 @@ def _je(ten, tong, no=None, co=None, company="TV"):
 	co = co if co is not None else {NGUON: tong}
 	dong = [{"account": k, "debit_in_account_currency": v, "credit_in_account_currency": 0, "party": ""} for k, v in no.items()]
 	dong += [{"account": k, "debit_in_account_currency": 0, "credit_in_account_currency": v, "party": ""} for k, v in co.items()]
+	for r in dong:
+		r.update({"account_currency": "VND", "exchange_rate": 1, "debit": r["debit_in_account_currency"], "credit": r["credit_in_account_currency"]})
 	return {"doctype": "Journal Entry", "name": ten, "company": company, "tong_no": sum(no.values()), "dong": dong}
 
 
@@ -199,15 +204,16 @@ def _ke(doc, nguon=NGUON, supplier="NCC-A", company="TV"):
 
 	pb = hs._ke_hoach_phan_bo(doc)
 	if pb:
-		return {"loai": "PE", "tong": flt_(doc.get("tong_tien")), "nha_cung_cap": supplier,
-			"hoa_don": {h: {"tien": t, "supplier": supplier, "company": company, "nguon_chi": nguon} for h, t in pb.items()}}
+		return {"loai": "PE", "noi_dung": hs._noi_dung_ke_hoach(doc), "tong": flt_(doc.get("tong_tien")), "nha_cung_cap": supplier,
+			"hoa_don": {h: {"tien": t, "supplier": supplier, "company": company, "nguon_chi": nguon, "currency": "VND", "company_currency": "VND", "account_currency": "VND", "conversion_rate": 1} for h, t in pb.items()}}
 	no, co = {}, {}
 	for d in doc.get("dong") or []:
 		no[d.get("tk_no")] = no.get(d.get("tk_no"), 0.0) + flt_(d.get("so_tien"))
 		tk_co = d.get("tk_co") or nguon
 		co[tk_co] = co.get(tk_co, 0.0) + flt_(d.get("so_tien"))
-	return {"loai": "JE", "tong": flt_(doc.get("tong_tien")), "company": company,
-		"nha_cung_cap": supplier, "no": no, "co": co, "doi_tac": {}}
+	return {"loai": "JE", "noi_dung": hs._noi_dung_ke_hoach(doc), "tong": flt_(doc.get("tong_tien")), "company": company,
+		"nha_cung_cap": supplier, "no": no, "co": co, "doi_tac": {}, "company_currency": "VND",
+		"tien_te_tk": {tk: "VND" for tk in set(no) | set(co)}}
 
 
 def flt_(v):
@@ -797,7 +803,7 @@ def _bo_je_sai():
 	la("tách sai giữa hai tài khoản dù tổng đúng: không đủ", kq["du"], 0)
 	# Doi tuong tren dong phai tra: ke hoach noi 331 phai mang NCC-A.
 	ke2 = _ke(_ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70.0, "tk_no": "331 - Phải trả", "tk_co": ""}], tong_tien=70.0))
-	ke2["doi_tac"] = {"331 - Phải trả": "NCC-A"}
+	ke2["doi_tac"] = {"331 - Phải trả": {"party_type": "Supplier", "party": "NCC-A"}}
 	kq = hs._kiem_bo_chung_tu(ke2, [_je("JE-1", 70.0, no={"331 - Phải trả": 70.0})], 2)
 	la("thiếu đối tượng trên dòng phải trả: không đủ", kq["du"], 0)
 	dung("nêu đối tượng", any("đối tượng" in x for x in kq["lech"]))
@@ -857,16 +863,148 @@ def _ctrl_chay_that():
 	from vagabond.vagabond.doctype.vagabond_ho_so_tt import vagabond_ho_so_tt as c
 
 	cu = frappe.db.get_value
-	frappe.db.get_value = lambda *a, **k: "Da duyet"
+	frappe.db.get_value = lambda dt, name, field, *a, **k: "Da duyet" if field == "trang_thai" else None
 	try:
 		ho = c.VagabondHoSoTT.__new__(c.VagabondHoSoTT)
 		ho.doctype, ho.name, ho.trang_thai, ho.flags = "Vagabond Ho So TT", "APP.26.09.001", "Da thanh toan", _Co()
 		ho.is_new = lambda: False
 		ho.dong = []
+		ho.get = lambda k: None
 		cau = _loi(ho.validate)
 		dung("chặn đúng câu hoàn tất phải qua ghi nhận", "Ghi nhận đã thanh toán" in cau)
 		ho.flags.vgb_bo_chung_tu_da_kiem = True
 		cau = _loi(ho.validate)
 		dung("mang cờ thì qua hàng rào, rơi xuống kiểm dòng", "ít nhất một dòng" in cau)
+	finally:
+		frappe.db.get_value = cu
+
+
+@ca("v445 B1: doi tuong JE phai khop ca loai, ke hoach thieu company hoac loai khong duoc qua")
+def _():
+	from vagabond import ho_so_tt as hs
+	ke = _ke(_ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70, "tk_no": "331", "tk_co": NGUON}], tong_tien=70))
+	ke["doi_tac"] = {"331": {"party_type": "Supplier", "party": "PARTY-1"}}
+	je = _je("JE-1", 70, no={"331": 70})
+	je["dong"][0].update(party_type="Supplier", party="PARTY-1")
+	la("đúng loại và mã thì qua", hs._kiem_bo_chung_tu(ke, [je])["du"], 1)
+	je["dong"][0]["party_type"] = "Customer"
+	la("cùng mã sai loại phải chặn", hs._kiem_bo_chung_tu(ke, [je])["du"], 0)
+	je["dong"][0]["party_type"] = "Supplier"
+	la("cả hai company đều thiếu không phải khớp", hs._kiem_bo_chung_tu(dict(ke, company=None), [dict(je, company=None)])["du"], 0)
+	for k in ("company", "loai"):
+		la("thiếu " + k, hs._kiem_bo_chung_tu(dict(ke, **{k: None}), [je])["du"], 0)
+
+
+@ca("v445 B1: VND va ty gia 1 duoc so, sai hoac thieu tien te PE JE phai chan")
+def _():
+	from vagabond import ho_so_tt as hs
+	ke = _ke(_ho_so())
+	pe = _pe("PE-1", [("HDM-1", 100)])
+	la("VND hợp lệ", hs._kiem_bo_chung_tu(ke, [pe])["du"], 1)
+	for k in ("paid_from_account_currency", "paid_to_account_currency", "source_exchange_rate", "target_exchange_rate"):
+		for v in (None, "USD" if "currency" in k else 2):
+			la("sai/thiếu " + k, hs._kiem_bo_chung_tu(ke, [dict(pe, **{k: v})])["du"], 0)
+	ke = _ke(_ho_so(loai="TK cong ty", dong=[{"hoa_don": "", "so_tien": 70, "tk_no": "6427 - Chi khác", "tk_co": NGUON}], tong_tien=70))
+	for k, v in (("account_currency", "USD"), ("exchange_rate", 2), ("debit", 1)):
+		je = _je("JE-1", 70)
+		je["dong"][0][k] = v
+		la("JE lệch " + k, hs._kiem_bo_chung_tu(ke, [je])["du"], 0)
+
+
+@ca("v445 B1: reader that lay tien te va ty gia, ke hoach that doc tien te cua invoice va tai khoan")
+def _():
+	import frappe
+	from vagabond import ho_so_tt as hs, tra_tien_app
+	cu_gv, cu_all, cu_tk = frappe.db.get_value, frappe.get_all, tra_tien_app.tk_tien_chi
+	pe = _pe("PE-1", [("HDM-1", 100)])
+	def gv(dt, name, fields, *a, **kw):
+		ds = {"Purchase Invoice": {"supplier": "NCC-A", "company": "TV", "currency": "VND", "conversion_rate": 1},
+			"Company": {"default_currency": "VND"}, "Account": {"account_currency": "VND"}}
+		d = ds.get(dt, {})
+		return {f: d.get(f) for f in fields} if isinstance(fields, list) else d.get(fields)
+	def ga(dt, filters=None, fields=None, **kw):
+		ds = [pe] if dt == "Payment Entry" else pe["tham_chieu"] if dt == "Payment Entry Reference" else []
+		return [{f: d.get(f) for f in fields} for d in ds]
+	try:
+		frappe.db.get_value, frappe.get_all = gv, ga
+		tra_tien_app.tk_tien_chi = lambda c, pt, tk: (NGUON if pt == "Chuyển khoản" else "112-KHAC", None)
+		ke = hs._dung_ke_hoach_chi(_ho_so())
+		la("phương thức trống dùng cùng mặc định lúc ghi nhận", ke, hs._dung_ke_hoach_chi(_ho_so(), "Chuyển khoản"))
+		bo = hs._but_toan_cua_ho_so("APP-THU")
+		la("qua cả builder và reader thật", hs._kiem_bo_chung_tu(ke, bo)["du"], 1)
+		pe["paid_from_account_currency"] = "USD"
+		la("reader đọc ra USD và chặn", hs._kiem_bo_chung_tu(ke, hs._but_toan_cua_ho_so("APP-THU"))["du"], 0)
+	finally:
+		frappe.db.get_value, frappe.get_all, tra_tien_app.tk_tien_chi = cu_gv, cu_all, cu_tk
+
+
+@ca("v445: doc ke hoach da duyet khong dung lai mac dinh, ho so cu thieu snapshot dung ro")
+def _():
+	import json
+	from vagabond import ho_so_tt as hs
+	doc = _ho_so()
+	ke = _ke(doc)
+	doc.ke_hoach_chi = json.dumps(ke)
+	with _Vet(_dung_ke_hoach_chi=lambda *a: (_ for _ in ()).throw(Exception("không được dựng từ mặc định"))):
+		la("đọc đúng snapshot", hs._ke_hoach_duyet(doc), ke)
+	doc.ke_hoach_chi = None
+	dung("thiếu snapshot phải dừng", "không tự điền lịch sử" in _loi(lambda: hs._ke_hoach_duyet(doc)))
+
+
+@ca("v445: mac dinh doi sau duyet thi khong tao but toan va khong gui thu")
+def _():
+	from vagabond import ho_so_tt as hs
+	doc = _ho_so()
+	with _San(doc) as san:
+		with _Vet(_dung_ke_hoach_chi=lambda *a: _ke(doc, nguon="112-KHAC")):
+			cau = _loi(lambda: hs.danh_dau_da_tra(doc.name))
+		dung("báo kế hoạch đổi", "đổi sau duyệt" in cau)
+		la("không tạo", san.goi_tao, 0)
+		la("không thư", san.goi_thu, 0)
+
+
+@ca("v445: khong doc duoc precision phai dung thay vi mac dinh 2")
+def _():
+	from vagabond import ho_so_tt as hs
+	class PE:
+		def precision(self, f):
+			raise RuntimeError("mất cấu hình")
+	dung("báo rõ", "độ chính xác" in _loi(lambda: hs._do_chinh_xac(PE())))
+
+
+@ca("v445: phieu cu khop snapshot khong duoc hoan tat ho so da doi so tien hoac hoa don")
+def _():
+	import json
+	from vagabond import ho_so_tt as hs
+	for truong, gt in (("so_tien", 200), ("hoa_don", "HDM-KHAC")):
+		doc = _ho_so()
+		doc.ke_hoach_chi = json.dumps(_ke(doc))
+		doc.dong[0][truong] = gt
+		if truong == "so_tien":
+			doc.tong_tien = doc.con_lai = gt
+		reader = hs._ke_hoach_duyet
+		with _San(doc, bo_san=[_pe("PE-CU", [("HDM-1", 100)])], chi=doc.con_lai) as san:
+			with _Vet(_ke_hoach_duyet=reader):
+				cau = _loi(lambda: hs.danh_dau_da_tra(doc.name))
+			dung("nêu nội dung đã đổi", "nội dung tài chính khác" in cau)
+			la("không tạo", san.goi_tao, 0)
+			la("không thư", san.goi_thu, 0)
+			la("không hoàn tất", doc.trang_thai, "Da duyet")
+
+
+@ca("v445: Document API khong tu thay snapshot neu khong qua duyet")
+def _():
+	import frappe
+	from vagabond.vagabond.doctype.vagabond_ho_so_tt import vagabond_ho_so_tt as c
+	cu = frappe.db.get_value
+	try:
+		frappe.db.get_value = lambda *a, **k: '{"cu":1}'
+		ho = c.VagabondHoSoTT.__new__(c.VagabondHoSoTT)
+		ho.doctype, ho.name, ho.flags = "Vagabond Ho So TT", "APP-THU", _Co()
+		ho.is_new = lambda: False
+		ho.get = lambda k: '{"moi":1}'
+		dung("API đổi snapshot bị chặn", "chỉ được chốt" in _loi(ho.giu_ke_hoach_chi))
+		ho.flags.vgb_chot_ke_hoach_chi = True
+		la("đường duyệt được lưu", _loi(ho.giu_ke_hoach_chi), "")
 	finally:
 		frappe.db.get_value = cu
