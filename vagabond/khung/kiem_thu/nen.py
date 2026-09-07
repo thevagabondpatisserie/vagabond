@@ -150,6 +150,18 @@ def gia_lap():
 
 	fr.ValidationError = ValidationError
 
+	# frappe.flags that la _dict: gan thuoc tinh la gan khoa. Ma nghiep vu
+	# giuong co (frappe.flags.x = True) roi doc bang .get("x"); ban gia phai
+	# giu dung hai chieu do, khong thi co giuong len roi khong ai thay.
+	class CoGia(dict):
+		def __getattr__(self, k):
+			return self.get(k)
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+	fr.flags = CoGia()
+
 	def _throw(msg, *a, **k):
 		raise ValidationError(msg)
 

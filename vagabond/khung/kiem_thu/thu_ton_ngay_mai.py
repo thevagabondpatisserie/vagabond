@@ -27,12 +27,12 @@ import json
 import frappe
 
 from vagabond import kiem_banh
-from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la
+from vagabond.khung.kiem_thu.nen import Doi, ca, dung, la, nem
 from vagabond.khung.kiem_thu.thu_cot_huy_kiem_banh import (
-	BangGia, CuaGia, _doc, _tao_dong,
+	BangGia, CuaGia, _doc, _dong_moi, _tao_dong,
 )
 
-MAY, TAY = kiem_banh.NGUON_MAY, kiem_banh.NGUON_TAY
+MAY, TAY, TRONG = kiem_banh.NGUON_MAY, kiem_banh.NGUON_TAY, kiem_banh.NGUON_TRONG
 
 
 def _chot(hom_nay, mai=None, lan=1):
@@ -71,12 +71,15 @@ def _():
 	la("đếm tay ra 0 vẫn là Đã kiểm đếm", kiem_banh.trang_thai_o(TAY, 0), "Đã kiểm đếm")
 	la("không rõ nguồn mà có số", kiem_banh.trang_thai_o("", 7), "Cần xác nhận")
 	la("không rõ nguồn mà có số (None)", kiem_banh.trang_thai_o(None, 7), "Cần xác nhận")
-	la("không rõ nguồn và bằng 0 là ô trống", kiem_banh.trang_thai_o("", 0), "")
-	dung("máy ghi được ô Tự chuyển", kiem_banh.may_duoc_ghi(MAY, 9))
-	dung("máy ghi được ô trống", kiem_banh.may_duoc_ghi("", 0))
-	dung("máy KHÔNG ghi ô đã đếm", not kiem_banh.may_duoc_ghi(TAY, 9))
-	dung("máy KHÔNG ghi ô đã đếm ra 0", not kiem_banh.may_duoc_ghi(TAY, 0))
-	dung("máy KHÔNG ghi ô chưa rõ nguồn có số", not kiem_banh.may_duoc_ghi("", 7))
+	# Codex P1 vòng 4: KHÔNG suy nguồn từ giá trị. 0 cũ cũng phải xác nhận.
+	la("không rõ nguồn và bằng 0 CŨNG là Cần xác nhận", kiem_banh.trang_thai_o("", 0), "Cần xác nhận")
+	la("ô mới chưa ghi thì trống", kiem_banh.trang_thai_o(TRONG, 0), "")
+	dung("máy ghi được ô Tự chuyển", kiem_banh.may_duoc_ghi(MAY))
+	dung("máy ghi được ô MỚI chưa ghi", kiem_banh.may_duoc_ghi(TRONG))
+	dung("máy KHÔNG ghi ô đã đếm", not kiem_banh.may_duoc_ghi(TAY))
+	dung("máy KHÔNG ghi ô chưa rõ nguồn dù là 0", not kiem_banh.may_duoc_ghi(""))
+	dung("máy KHÔNG ghi ô chưa rõ nguồn (None)", not kiem_banh.may_duoc_ghi(None))
+	la("dong_moi khai ba ô Chua ghi", [kiem_banh.dong_moi(ma_hang="A")["nguon_" + o] for o in kiem_banh.O_TON], [TRONG] * 3)
 
 
 # --------------------------------------------- 2. chưa đếm: chuyển dương, về 0
@@ -85,7 +88,8 @@ def _():
 @ca("ton ngay mai: o may chuyen hom truoc, hom nay con hang thi doi sang so moi, nhan Tu chuyen")
 def _():
 	d = _tao_dong(ma_hang="BAWC00055", ton_d1=10, da_dat=3)
-	m = _tao_dong(ma_hang="BAWC00055", ton_d2=5, nguon_ton_d2=MAY, may_chuyen_ton_d2=5)
+	# Dòng do lần chốt trước đẻ ra: cả ba ô đều Tự chuyển.
+	m = _tao_dong(ma_hang="BAWC00055", ton_d2=5, nguon_ton_cu=MAY, nguon_ton_d2=MAY, nguon_ton_d1=MAY, may_chuyen_ton_d2=5)
 	_nay, mai = _chot([d], mai=[m])
 	r = mai.dong[0]
 	# 10 làm hôm kia (d1 của hôm nay) trừ 3 còn 7, sang ngày mai lùi thành d2.
@@ -135,11 +139,11 @@ def _():
 
 @ca("ton ngay mai: dem mot o thi chi o do thanh Da kiem dem; hai o kia chot van ghi")
 def _():
-	m = _tao_dong(ma_hang="BAWC00055")
+	m = _dong_moi(ma_hang="BAWC00055")
 	bang_mai = BangGia(ngay="2026-08-16", dong=[m])
 	_dem(bang_mai, "BAWC00055", "ton_d2", 4)
 	la("ô đếm mang nguồn tay", m.get("nguon_ton_d2"), TAY)
-	la("ô khác chưa có nguồn", (m.get("nguon_ton_cu"), m.get("nguon_ton_d1")), ("", ""))
+	la("ô khác vẫn Chua ghi", (m.get("nguon_ton_cu"), m.get("nguon_ton_d1")), (TRONG, TRONG))
 	# Hôm nay: cũ hơn 2 và hôm kia 6, không bán gì -> ngày mai cũ hơn 2 + 6 = 8, d2 = 0
 	# (hôm nay không làm gì: ton_d1 hôm nay là 0), d1 = 0. Đếm tay d2 = 4 giữ.
 	d = _tao_dong(ma_hang="BAWC00055", ton_cu=2, ton_d2=6)
@@ -159,7 +163,7 @@ def _():
 @ca("ton ngay mai: chot hai lan cho cung ket qua, khong cong don")
 def _():
 	d = _tao_dong(ma_hang="BAWC00055", ton_d1=10, sx=5, da_dat=3)
-	m = _tao_dong(ma_hang="BAWC00055", ton_d2=1, nguon_ton_d2=TAY)
+	m = _dong_moi(ma_hang="BAWC00055", ton_d2=1, nguon_ton_d2=TAY)
 	_nay, mai1 = _chot([d], mai=[_tao_dong(**m)], lan=1)
 	_nay, mai2 = _chot([d], mai=[_tao_dong(**m)], lan=2)
 	for o in kiem_banh.O_TON:
@@ -176,7 +180,7 @@ def _():
 @ca("ton ngay mai: dem TRUOC roi chot, va chot TRUOC roi dem: so dem khong mat o ca hai thu tu")
 def _():
 	# Thứ tự A: đếm rồi chốt.
-	m = _tao_dong(ma_hang="BAWC00055")
+	m = _dong_moi(ma_hang="BAWC00055")
 	bang_mai = BangGia(ngay="2026-08-16", dong=[m])
 	_dem(bang_mai, "BAWC00055", "ton_d1", 2)
 	d = _tao_dong(ma_hang="BAWC00055", sx=9)
@@ -187,7 +191,7 @@ def _():
 		kiem_banh.chot_ngay("2026-08-15")
 	la("A: đếm 2 giữ, máy 9 bên cạnh", _o(m, "ton_d1"), (2, TAY, 9))
 	# Thứ tự B: chốt rồi đếm.
-	m2 = _tao_dong(ma_hang="BAWC00055")
+	m2 = _dong_moi(ma_hang="BAWC00055")
 	bang_mai2 = BangGia(ngay="2026-08-16", dong=[m2])
 	nay2 = BangGia(ngay="2026-08-15", dong=[_tao_dong(ma_hang="BAWC00055", sx=9)])
 	cua2 = CuaGia(**{"KB-2026-08-15": nay2, "KB-2026-08-16": bang_mai2})
@@ -202,15 +206,18 @@ def _():
 # ------------------------------------------- 7. dữ liệu cũ chưa rõ nguồn
 
 
-@ca("ton ngay mai: du lieu cu khong ro nguon: co so thi giu va Can xac nhan, bang 0 thi may ghi duoc")
+@ca("ton ngay mai: du lieu cu khong ro nguon: co so HAY bang 0 deu giu, Can xac nhan, may chi ghi so ben canh")
 def _():
-	d = _tao_dong(ma_hang="BAWC00055", ton_d1=10, da_dat=3)
-	m = _tao_dong(ma_hang="BAWC00055", ton_d2=5, ton_cu=0)   # không có nguồn nào
+	d = _tao_dong(ma_hang="BAWC00055", ton_d1=10, sx=4, da_dat=3)
+	m = _tao_dong(ma_hang="BAWC00055", ton_d2=5, ton_cu=0, ton_d1=0)   # dữ liệu cũ, không có nguồn nào
 	_nay, mai = _chot([d], mai=[m])
 	r = mai.dong[0]
 	la("ô 5 không rõ nguồn: giữ nguyên, nguồn vẫn trống, máy 7 bên cạnh", _o(r, "ton_d2"), (5, "", 7))
-	la("nhãn Cần xác nhận", kiem_banh.trang_thai_o(r.get("nguon_ton_d2"), r.get("ton_d2")), "Cần xác nhận")
-	la("ô 0 không rõ nguồn: máy ghi được", _o(r, "ton_cu"), (0, MAY, 0))
+	la("nhãn Cần xác nhận", kiem_banh.trang_thai_o(r.get("nguon_ton_d2")), "Cần xác nhận")
+	# Codex P1 vòng 4: 0 cũ có thể chính là số người đã đếm. Không đè, chỉ ghi số máy.
+	la("ô 0 không rõ nguồn CŨNG giữ, máy 4 bên cạnh", _o(r, "ton_d1"), (0, "", 4))
+	la("nhãn 0 cũ cũng là Cần xác nhận", kiem_banh.trang_thai_o(r.get("nguon_ton_d1")), "Cần xác nhận")
+	la("ô cũ hơn 0 cũ giữ, máy 0", _o(r, "ton_cu"), (0, "", 0))
 	# Người đếm lại ô Cần xác nhận thì thành Đã kiểm đếm.
 	_dem(mai, "BAWC00055", "ton_d2", 5)
 	la("đếm lại 5 thì hết Cần xác nhận", _o(r, "ton_d2"), (5, TAY, 7))
@@ -221,7 +228,7 @@ def _():
 
 @ca("ton ngay mai: luu_o ghi ai dem luc nao cho dung o, va bang() bay nhan, so may, ai, luc")
 def _():
-	m = _tao_dong(ma_hang="BAWC00055", ton_cu=3, nguon_ton_cu=MAY, may_chuyen_ton_cu=3)
+	m = _dong_moi(ma_hang="BAWC00055", ton_cu=3, nguon_ton_cu=MAY, may_chuyen_ton_cu=3)
 	bang_mai = BangGia(ngay="2026-08-16", dong=[m])
 	_dem(bang_mai, "BAWC00055", "ton_d1", 2)
 	ghi = json.loads(m.get("kiem_dem_ghi"))
@@ -243,12 +250,12 @@ def _():
 
 @ca("ton ngay mai: luu_o cot sx/huy KHONG dinh vao nguon o ton")
 def _():
-	m = _tao_dong(ma_hang="BAWC00055")
+	m = _dong_moi(ma_hang="BAWC00055")
 	bang_mai = BangGia(ngay="2026-08-16", dong=[m])
 	_dem(bang_mai, "BAWC00055", "sx", 4)
 	_dem(bang_mai, "BAWC00055", "huy", 1)
 	la("sx ghi", m.get("sx"), 4)
-	la("không ô tồn nào đổi nguồn", [m.get("nguon_" + o) for o in kiem_banh.O_TON], ["", "", ""])
+	la("không ô tồn nào đổi nguồn", [m.get("nguon_" + o) for o in kiem_banh.O_TON], [TRONG] * 3)
 	la("không có vết đếm", m.get("kiem_dem_ghi"), "")
 
 
@@ -262,7 +269,13 @@ def _():
 	for o in kiem_banh.O_TON:
 		n = theo_ten.get("nguon_" + o)
 		dung("có nguon_%s" % o, n is not None)
-		la("Select với hai giá trị", n["options"], "\nTu chuyen\nDa kiem dem")
+		# Bench 07/09 bat: ma nguon ghi "Chua ghi" ma Select chua co gia tri do,
+		# moi insert bang Kiem banh deu no o _validate_selects. Chot: moi hang so
+		# nguon trong ma nguon deu phai nam trong options cua doctype.
+		cho_phep = n["options"].split("\n")
+		for gt in (kiem_banh.NGUON_TRONG, kiem_banh.NGUON_MAY, kiem_banh.NGUON_TAY):
+			dung("Select nguon_%s có giá trị %r" % (o, gt), gt in cho_phep)
+		dung("và cho phép trống (dữ liệu cũ)", "" in cho_phep)
 		la("chỉ đọc", n.get("read_only"), 1)
 		may = theo_ten.get("may_chuyen_" + o)
 		dung("có may_chuyen_%s" % o, may is not None and may["fieldtype"] == "Int")
@@ -282,3 +295,120 @@ def _():
 	la("ba lời gọi ghi_o_chuyen", than.count("ghi_o_chuyen(m,"), 3)
 	dung("không còn nhánh continue khi còn 0 mà ngày mai có dòng",
 		"if not (cu or lo[2][0] or lo[3][0]):\n\t\t\tcontinue" not in than)
+
+
+# ---------------------------------- 10. sửa qua Desk/API cũng phải để lại nguồn
+
+
+class BangTruoc(BangGia):
+	"""Bảng có bản trước khi lưu, như Document thật có get_doc_before_save."""
+
+	def __init__(self, truoc=None, **kw):
+		BangGia.__init__(self, **kw)
+		self._truoc = truoc
+
+	def get_doc_before_save(self):
+		return self._truoc
+
+
+def _sao(dong):
+	return BangGia(ngay="2026-08-16", dong=[_tao_dong(**dict(d)) for d in dong])
+
+
+@ca("ton ngay mai: sua o ton thang tren Desk/API (khong qua luu_o) thi lop doctype tu danh dau Da kiem dem kem ai va luc, ca sua duong lan sua ve 0")
+def _():
+	"""Codex P1 vòng 4: 7/Tự chuyển sửa thẳng thành 2, save vẫn 2/Tự chuyển,
+	chốt hôm trước ghi lại 7, số người sửa mất."""
+	m = _dong_moi(ma_hang="BAWC00055", ton_d1=7, nguon_ton_d1=MAY, may_chuyen_ton_d1=7,
+		ton_d2=3, nguon_ton_d2=MAY, may_chuyen_ton_d2=3)
+	b = BangTruoc(truoc=_sao([m]), ngay="2026-08-16", dong=[m])
+	# Người sửa thẳng trên Desk: gán giá trị rồi save (validate thật chạy).
+	m.ton_d1 = 2
+	m.ton_d2 = 0
+	frappe.flags.vgb_ton_da_co_nguon = False
+	b.save()
+	la("ô sửa dương thành Đã kiểm đếm, số máy cũ giữ để đối chiếu", _o(m, "ton_d1"), (2, TAY, 7))
+	la("ô sửa về 0 cũng thành Đã kiểm đếm", _o(m, "ton_d2"), (0, TAY, 3))
+	la("ô không sửa giữ nguồn cũ", m.get("nguon_ton_cu"), TRONG)
+	ghi = json.loads(m.get("kiem_dem_ghi"))
+	la("ghi ai cho đúng hai ô", sorted(ghi.keys()), ["ton_d1", "ton_d2"])
+	la("đúng người", ghi["ton_d1"]["ai"], frappe.session.user)
+	# Rồi chốt hôm trước: không được ghi lại 7.
+	d = _tao_dong(ma_hang="BAWC00055", sx=9)
+	nay = BangGia(ngay="2026-08-15", dong=[d])
+	cua = CuaGia(**{"KB-2026-08-15": nay, "KB-2026-08-16": b})
+	cua.btp = Doi({"dong": [], "cap_nhat_luc": None, "save": lambda *a, **k: None})
+	with cua:
+		kiem_banh.chot_ngay("2026-08-15")
+	la("chốt không đè số người sửa trên Desk", _o(m, "ton_d1"), (2, TAY, 9))
+
+
+@ca("ton ngay mai: chot_ngay va luu_o giuong co nen lop doctype KHONG danh dau nham o may vua ghi la tay")
+def _():
+	m = _dong_moi(ma_hang="BAWC00055", ton_d1=7, nguon_ton_d1=MAY, may_chuyen_ton_d1=7)
+	b = BangTruoc(truoc=_sao([m]), ngay="2026-08-16", dong=[m])
+	d = _tao_dong(ma_hang="BAWC00055", sx=9)
+	nay = BangGia(ngay="2026-08-15", dong=[d])
+	cua = CuaGia(**{"KB-2026-08-15": nay, "KB-2026-08-16": b})
+	cua.btp = Doi({"dong": [], "cap_nhat_luc": None, "save": lambda *a, **k: None})
+	with cua:
+		kiem_banh.chot_ngay("2026-08-15")
+	la("máy đổi 7 thành 9 và vẫn là Tự chuyển", _o(m, "ton_d1"), (9, MAY, 9))
+	la("cờ đã hạ sau khi chốt", bool(frappe.flags.get("vgb_ton_da_co_nguon")), False)
+	# luu_o qua cửa: một lần đánh dấu, ai/lúc một lần.
+	b2 = BangTruoc(truoc=_sao([m]), ngay="2026-08-16", dong=[m])
+	_dem(b2, "BAWC00055", "ton_d1", 4)
+	la("luu_o vẫn Đã kiểm đếm", _o(m, "ton_d1"), (4, TAY, 9))
+	la("cờ đã hạ sau luu_o", bool(frappe.flags.get("vgb_ton_da_co_nguon")), False)
+
+
+@ca("ton ngay mai: dong MOI chua khai nguon thi lop doctype khai Chua ghi; dong cu nguon trong thi de yen")
+def _():
+	moi = _tao_dong(ma_hang="BAWC00099")
+	del moi["name"]          # chưa có name: dòng vừa append
+	cu = _tao_dong(ma_hang="BAWC00055", ton_d2=4)   # dữ liệu cũ, nguồn trống
+	b = BangTruoc(truoc=_sao([cu]), ngay="2026-08-16", dong=[cu, moi])
+	b.save()
+	la("dòng mới được khai Chua ghi", [moi.get("nguon_" + o) for o in kiem_banh.O_TON], [TRONG] * 3)
+	la("dòng cũ vẫn nguồn trống (Cần xác nhận)", [cu.get("nguon_" + o) for o in kiem_banh.O_TON], ["", "", ""])
+
+
+# ---------------------------------------- 11. đếm 0 rồi không xoá được dòng
+
+
+@ca("ton ngay mai: dem ra 0 roi thi xoa_dong bi CHAN (API truc tiep) va bang() bao xoa_duoc = 0; dong moi chua ghi gi van xoa duoc")
+def _():
+	"""Codex P1 vòng 4: mọi số bằng 0 nhưng có Đã kiểm đếm và ai/lúc, xoa_dong
+	vẫn ok = 1 và mất luôn dấu vết."""
+	m = _dong_moi(ma_hang="BAWC00055")
+	b = BangGia(ngay="2026-08-16", dong=[m])
+	_dem(b, "BAWC00055", "ton_d2", 0)
+	dung("có dấu vết", kiem_banh.co_dau_vet(m))
+	cua = CuaGia(**{"KB-2026-08-16": b})
+	with cua:
+		nem("xoa_dong phải ném", lambda: kiem_banh.xoa_dong("2026-08-16", "BAWC00055"))
+		la("dòng vẫn còn", len(b.dong), 1)
+		kq = kiem_banh.bang("2026-08-16")
+	la("bang() báo không xoá được", kq["dong"][0]["xoa_duoc"], 0)
+	# Dòng mới chưa ghi gì thì vẫn gỡ được (gõ nhầm mã).
+	m2 = _dong_moi(ma_hang="BAWC00077")
+	b2 = BangGia(ngay="2026-08-16", dong=[m2])
+	dung("chưa có dấu vết", not kiem_banh.co_dau_vet(m2))
+	cua2 = CuaGia(**{"KB-2026-08-16": b2})
+	with cua2:
+		la("bang() báo xoá được", kiem_banh.bang("2026-08-16")["dong"][0]["xoa_duoc"], 1)
+		la("xoá được", kiem_banh.xoa_dong("2026-08-16", "BAWC00077"), {"ok": 1})
+	la("đã gỡ", len(b2.dong), 0)
+	# Máy đã chuyển số vào (kể cả 0) cũng là dấu vết đối chiếu.
+	m3 = _dong_moi(ma_hang="BAWC00088", nguon_ton_d1=MAY, may_chuyen_ton_d1=0)
+	dung("máy chuyển 0 chưa tính là dấu vết (chưa có số để đối chiếu)", not kiem_banh.co_dau_vet(m3))
+	m4 = _dong_moi(ma_hang="BAWC00089", nguon_ton_d1=MAY, may_chuyen_ton_d1=3)
+	dung("máy chuyển 3 là dấu vết", kiem_banh.co_dau_vet(m4))
+
+
+@ca("ton ngay mai: man kiem banh an nut xoa theo xoa_duoc cua may chu, khong tu suy tu so")
+def _():
+	js = _doc("trang", "kiem-banh.js")
+	dung("trongTron nhìn xoa_duoc", "d.xoa_duoc" in js)
+	dung("them_dong đi qua dong_moi", "dong_moi(ma_hang=ma_hang" in _doc("kiem_banh.py"))
+	dung("dong_bo thêm dòng đi qua dong_moi", _doc("kiem_banh.py").count("dong_moi(") >= 4)

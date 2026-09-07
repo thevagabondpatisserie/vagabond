@@ -106,13 +106,21 @@ class BangGia(KiemBanhNgay):
 
 
 def _tao_dong(**kw):
+	"""Một dòng ĐÃ NẰM TRONG CSDL (có name), ba ô tồn nguồn TRỐNG như dữ liệu
+	có từ trước khi có cột nguồn. Dòng mới thật sự thì dùng `_dong_moi`."""
 	d = DongGia({c: 0 for c in COT})
 	d.update({"ma_hang": "BAWC00001", "ten_banh": "Bánh thử", "hinh": "",
 		"nsx_cu": None, "nsx_d2": None, "nsx_d1": None,
 		"nguon_ton_cu": "", "nguon_ton_d2": "", "nguon_ton_d1": "", "kiem_dem_ghi": "",
 		"ten_khach_ps": "", "ten_khach_cho": "", "ten_khach_khac": ""})
 	d.update(kw)
+	d.setdefault("name", "dong-" + str(d["ma_hang"]))
 	return d
+
+
+def _dong_moi(**kw):
+	"""Dòng MỚI như them_dong / chốt ngày đẻ ra: ba ô tồn Chua ghi."""
+	return _tao_dong(**kiem_banh.dong_moi(**kw))
 
 
 class CuaGia(object):
@@ -468,7 +476,7 @@ def _():
 	_nay, mai, _b = _chot([d], mai=[m])
 	la("dòng ngày mai vẫn còn", len(mai.dong), 1)
 	la("số chưa rõ nguồn KHÔNG bị đụng tới", mai.dong[0].ton_d1, 7)
-	la("nhãn là Cần xác nhận", kiem_banh.trang_thai_o(mai.dong[0].get("nguon_ton_d1"), 7), "Cần xác nhận")
+	la("nhãn là Cần xác nhận", kiem_banh.trang_thai_o(mai.dong[0].get("nguon_ton_d1")), "Cần xác nhận")
 	la("số máy ghi bên cạnh là 0", mai.dong[0].get("may_chuyen_ton_d1"), 0)
 
 
