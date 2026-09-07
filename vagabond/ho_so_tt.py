@@ -25,7 +25,6 @@ Ba điều phải giữ:
 
 import base64
 import io
-import json
 import re
 
 import frappe
@@ -2076,13 +2075,6 @@ def duyet(name, buoc, ly_do=""):
 		if (doc.loai or LOAI_NCC) == LOAI_HU:
 			_sinh_hoa_don_hoan_ung(doc)
 			doc.reload()
-		doc.phuong_thuc = doc.get("phuong_thuc") or "Chuyển khoản"
-		ke = _dung_ke_hoach_chi(doc, doc.phuong_thuc)
-		loi_ke = _loi_ke_hoach_chi(ke)
-		if loi_ke:
-			frappe.throw("Chưa duyệt được kế hoạch chi: %s. Kế toán kiểm lại nguồn chi và tiền tệ." % loi_ke)
-		doc.ke_hoach_chi = json.dumps(ke, ensure_ascii=False, sort_keys=True)
-		doc.flags.vgb_chot_ke_hoach_chi = True
 		doc.trang_thai = TT_DA_DUYET
 		doc.gd_boi = toi
 		doc.gd_luc = now_datetime()
@@ -2288,7 +2280,7 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 			# bu, khong gui thu.
 			frappe.throw(
 				"Hồ sơ %s đang ghi Đã thanh toán nhưng bộ bút toán đọc lại không khớp "
-				"kế hoạch duyệt: %s. Chứng từ đang có: %s. Kế toán mở các bút toán "
+				"nội dung hồ sơ: %s. Chứng từ đang có: %s. Kế toán mở các bút toán "
 				"đó kiểm lại; máy không tự sinh bù."
 				% (doc.name, _cau_bo_chung_tu(kq) or "không còn bút toán nào",
 					", ".join(kq["ten"]) or "không có"),
@@ -2375,14 +2367,12 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 		if not kq["du"]:
 			frappe.throw(
 				"Hồ sơ %s đã có bút toán ghi sổ từ lượt trước (%s) nhưng chưa khớp "
-				"kế hoạch duyệt. %s. Máy không tự sinh bù; kế toán kiểm các bút toán "
+				"nội dung hồ sơ. %s. Máy không tự sinh bù; kế toán kiểm các bút toán "
 				"đó rồi xử tay." % (doc.name, ", ".join(kq["ten"]), _cau_bo_chung_tu(kq)),
 				title="Bút toán cũ chưa khớp hồ sơ",
 			)
 		pe = ", ".join(kq["ten"])
 	else:
-		if _dung_ke_hoach_chi(doc, phuong_thuc) != ke:
-			frappe.throw("Nguồn chi hoặc nội dung kế hoạch đã đổi sau duyệt. Kế toán đối chiếu và duyệt lại trước khi ghi nhận.")
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
 		# Doc lai chinh cai vua sinh va doi chieu ke hoach mot lan nua. Ca kiem
 		# nay re, va no bat duoc truong hop hook tang duoi sua but toan sau
@@ -2390,7 +2380,7 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 		kq = _kiem_bo_chung_tu(ke, _but_toan_cua_ho_so(doc.name), do)
 		if not kq["du"]:
 			frappe.throw(
-				"Bút toán vừa sinh (%s) không khớp kế hoạch duyệt của hồ sơ %s: %s. "
+				"Bút toán vừa sinh (%s) không khớp nội dung hồ sơ %s: %s. "
 				"Đã lùi cả lượt, hồ sơ giữ nguyên." % (pe, doc.name, _cau_bo_chung_tu(kq)),
 				title="Bút toán vừa sinh chưa khớp",
 			)
@@ -2530,17 +2520,8 @@ def _ke_hoach_phan_bo(doc):
 	return ke
 
 
-def _noi_dung_ke_hoach(doc):
-	"""Phần tài chính của hồ sơ, độc lập cấu hình mặc định có thể đổi."""
-	dong = [{"hoa_don": d.get("hoa_don") or "", "so_tien": flt(d.get("so_tien")),
-		"tk_no": d.get("tk_no") or "", "tk_co": d.get("tk_co") or ""} for d in doc.get("dong") or []]
-	dong.sort(key=lambda d: json.dumps(d, sort_keys=True))
-	return {"loai": doc.get("loai") or "NCC", "nha_cung_cap": doc.get("nha_cung_cap") or "",
-		"tk_chi": doc.get("tk_chi") or "", "da_tam_ung": flt(doc.get("da_tam_ung")), "dong": dong}
-
-
 def _dung_ke_hoach_chi(doc, phuong_thuc=None):
-	"""KE HOACH DA DUYET cua ho so, du de doi chieu CA BO chung tu. Cham he.
+	"""Dữ liệu hiện tại của hồ sơ để đối chiếu cả bộ chứng từ. Chạm hệ.
 
 	Codex #226 B1: "dung tong" khong thay duoc "dung bo". Ke hoach vi vay
 	ghi ca cong ty, nguon chi, doi tuong tung hoa don, va voi ho so khong
@@ -2551,8 +2532,7 @@ def _dung_ke_hoach_chi(doc, phuong_thuc=None):
 	from vagabond.tra_tien_app import tk_tien_chi
 
 	phuong_thuc = phuong_thuc or doc.get("phuong_thuc") or "Chuyển khoản"
-	ke = {"hoa_don": {}, "tong": flt(doc.get("tong_tien")), "nha_cung_cap": doc.get("nha_cung_cap"),
-		"noi_dung": _noi_dung_ke_hoach(doc)}
+	ke = {"hoa_don": {}, "tong": flt(doc.get("tong_tien")), "nha_cung_cap": doc.get("nha_cung_cap")}
 	phan_bo = _ke_hoach_phan_bo(doc)
 	if phan_bo:
 		ke["loai"] = "PE"
@@ -2599,10 +2579,10 @@ def _loi_ke_hoach_chi(ke):
 	Vì vậy chỉ so trực tiếp số khi đã xác minh VND và tỷ giá 1.
 	"""
 	if not isinstance(ke, dict) or ke.get("loai") not in ("PE", "JE"):
-		return "chưa xác định được loại kế hoạch chi"
+		return "chưa xác định được loại hồ sơ"
 	if ke["loai"] == "PE":
 		if not ke.get("hoa_don"):
-			return "kế hoạch không có hoá đơn"
+			return "hồ sơ không có hoá đơn"
 		for hd, k in ke["hoa_don"].items():
 			if not all(k.get(t) for t in ("supplier", "company", "nguon_chi")):
 				return hd + ": thiếu công ty, nhà cung cấp hoặc nguồn chi"
@@ -2610,7 +2590,7 @@ def _loi_ke_hoach_chi(ke):
 				return hd + ": chỉ hỗ trợ hoá đơn, tài khoản và sổ công ty bằng VND, tỷ giá 1"
 	else:
 		if not ke.get("company") or not ke.get("no") or not ke.get("co"):
-			return "thiếu công ty hoặc tài khoản Nợ/Có của kế hoạch"
+			return "thiếu công ty hoặc tài khoản Nợ/Có của hồ sơ"
 		if ke.get("company_currency") != "VND":
 			return "sổ công ty chưa xác minh là VND"
 		for tk in set(ke["no"]) | set(ke["co"]):
@@ -2623,17 +2603,14 @@ def _loi_ke_hoach_chi(ke):
 
 
 def _ke_hoach_duyet(doc, phuong_thuc=None):
-	"""Chỉ đọc bản chốt lúc duyệt, không dùng cấu hình hôm nay thay lịch sử."""
-	try:
-		ke = json.loads(doc.get("ke_hoach_chi") or "null")
-	except (ValueError, TypeError):
-		ke = None
-	loi = _loi_ke_hoach_chi(ke)
-	if not loi and ke.get("noi_dung") != _noi_dung_ke_hoach(doc):
-		loi = "nội dung tài chính khác bản đã duyệt"
-	if loi:
-		frappe.throw("Hồ sơ chưa có kế hoạch chi đã xác minh: %s. Kế toán đối chiếu và duyệt lại; máy không tự điền lịch sử." % loi)
-	return ke
+	"""Đọc dữ liệu hồ sơ để đối chiếu bút toán ngay lúc ghi nhận.
+
+	Anh Việt yêu cầu giữ quy trình đơn giản: không có bước chốt kế hoạch,
+	không buộc hồ sơ cũ quay lại duyệt chỉ vì thiếu bản chụp mới thêm.
+	Các kiểm tra số tiền, đối tượng, tài khoản và tiền tệ vẫn chạy như nhau
+	cho hồ sơ mới, hồ sơ đã duyệt cũ và lần tra lại chứng từ đã ghi.
+	"""
+	return _dung_ke_hoach_chi(doc, phuong_thuc)
 
 
 def _but_toan_cua_ho_so(name):
@@ -2743,7 +2720,7 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 			if hd not in da:
 				thieu.append("%s: %s đ" % (hd, _tien(k["tien"])))
 			elif flt(da[hd], do) != flt(k["tien"], do):
-				lech.append("%s: đã phân bổ %s đ, kế hoạch %s đ" % (hd, _tien(da[hd]), _tien(k["tien"])))
+				lech.append("%s: đã phân bổ %s đ, hồ sơ %s đ" % (hd, _tien(da[hd]), _tien(k["tien"])))
 		for hd in da:
 			if hd not in ke["hoa_don"]:
 				thua.append("%s: %s đ (không có trong hồ sơ)" % (hd, _tien(da[hd])))

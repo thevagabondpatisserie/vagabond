@@ -36,7 +36,6 @@ LOAI_HOAN_UNG = ("Hoan ung", "Hoan ung HD")
 class VagabondHoSoTT(Document):
 	def validate(self):
 		self.chan_hoan_tat_khong_but_toan()
-		self.giu_ke_hoach_chi()
 		if not self.dong:
 			frappe.throw("Hồ sơ thanh toán phải có ít nhất một dòng.")
 		self.tong_tien = sum(flt(d.so_tien) for d in self.dong)
@@ -150,13 +149,6 @@ class VagabondHoSoTT(Document):
 						"Hoá đơn %s đã nằm trong hồ sơ %s (%s)."
 						% (d.hoa_don, t["name"], t["trang_thai"])
 					)
-
-	def giu_ke_hoach_chi(self):
-		"""Desk/API không được tự sửa bản chốt nguồn chi của người duyệt."""
-		cu = None if self.is_new() else frappe.db.get_value(self.doctype, self.name, "ke_hoach_chi")
-		moi = self.get("ke_hoach_chi")
-		if (cu or "") != (moi or "") and not self.flags.get("vgb_chot_ke_hoach_chi"):
-			frappe.throw("Kế hoạch chi chỉ được chốt qua bước giám đốc duyệt. Kế toán kiểm lại hồ sơ và gửi duyệt lại.")
 
 	def chan_hoan_tat_khong_but_toan(self):
 		"""Doi sang "Da thanh toan" chi duoc di qua `ho_so_tt.danh_dau_da_tra`.

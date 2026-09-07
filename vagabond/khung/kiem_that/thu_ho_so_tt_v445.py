@@ -13,8 +13,6 @@ kiểm thử riêng. Ca R1 hai request đồng thời chưa có ở đây.
 Mọi chứng từ dựng ra đều biến mất khi ca kết thúc (điểm lưu của nen.py).
 """
 
-import json
-
 import frappe
 from frappe.utils import today
 
@@ -89,22 +87,7 @@ def _ho_so_ncc(hoa_dons):
 	h.flags.ignore_permissions = True
 	h.insert(ignore_permissions=True)
 	_DA_TAO.append((h.doctype, h.name))
-	_chot_ke_thu(h)
 	return h
-
-
-def _chot_ke_thu(h):
-	"""Fixture đã duyệt chốt kế hoạch trước khi sinh bút toán; không sửa hồ sơ cũ."""
-	ke = hs._dung_ke_hoach_chi(h, "Chuyển khoản")
-	loi = hs._loi_ke_hoach_chi(ke)
-	if loi:
-		frappe.throw("Fixture chưa đủ dữ liệu VND: " + loi)
-	h.ke_hoach_chi = json.dumps(ke, ensure_ascii=False, sort_keys=True)
-	h.flags.vgb_chot_ke_hoach_chi = True
-	try:
-		h.save(ignore_permissions=True)
-	finally:
-		h.flags.vgb_chot_ke_hoach_chi = False
 
 
 def _giao_dich_ngan_hang(ma_ho_so, tien, cty):
@@ -241,7 +224,6 @@ def _r1_je_link():
 	if not khong_nem("dựng hồ sơ Chi từ TK công ty", lambda: h.insert(ignore_permissions=True)):
 		return
 	_DA_TAO.append((h.doctype, h.name))
-	_chot_ke_thu(h)
 	khong_nem("UNC giả", lambda: _unc_gia(h))
 	ten = khong_nem("ERPNext nhận Journal Entry do _tao_but_toan_tkct dựng",
 		lambda: hs._tao_but_toan_tkct(h, today(), "Chuyển khoản"))

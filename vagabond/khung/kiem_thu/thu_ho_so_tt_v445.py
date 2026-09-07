@@ -204,14 +204,14 @@ def _ke(doc, nguon=NGUON, supplier="NCC-A", company="TV"):
 
 	pb = hs._ke_hoach_phan_bo(doc)
 	if pb:
-		return {"loai": "PE", "noi_dung": hs._noi_dung_ke_hoach(doc), "tong": flt_(doc.get("tong_tien")), "nha_cung_cap": supplier,
+		return {"loai": "PE", "tong": flt_(doc.get("tong_tien")), "nha_cung_cap": supplier,
 			"hoa_don": {h: {"tien": t, "supplier": supplier, "company": company, "nguon_chi": nguon, "currency": "VND", "company_currency": "VND", "account_currency": "VND", "conversion_rate": 1} for h, t in pb.items()}}
 	no, co = {}, {}
 	for d in doc.get("dong") or []:
 		no[d.get("tk_no")] = no.get(d.get("tk_no"), 0.0) + flt_(d.get("so_tien"))
 		tk_co = d.get("tk_co") or nguon
 		co[tk_co] = co.get(tk_co, 0.0) + flt_(d.get("so_tien"))
-	return {"loai": "JE", "noi_dung": hs._noi_dung_ke_hoach(doc), "tong": flt_(doc.get("tong_tien")), "company": company,
+	return {"loai": "JE", "tong": flt_(doc.get("tong_tien")), "company": company,
 		"nha_cung_cap": supplier, "no": no, "co": co, "doi_tac": {}, "company_currency": "VND",
 		"tien_te_tk": {tk: "VND" for tk in set(no) | set(co)}}
 
@@ -737,7 +737,6 @@ def _bo_rong():
 	la("rỗng thì không đủ", hs._kiem_bo_chung_tu(_ke(_ho_so()), [], 2)["du"], 0)
 
 
-
 @ca("v445 B1: PE đúng phân bổ nhưng CÒN tiền chưa phân bổ, hay trả nhiều hơn phân bổ: không đủ")
 def _bo_pe_du_tien():
 	from vagabond import ho_so_tt as hs
@@ -928,7 +927,7 @@ def _():
 	try:
 		frappe.db.get_value, frappe.get_all = gv, ga
 		tra_tien_app.tk_tien_chi = lambda c, pt, tk: (NGUON if pt == "Chuyển khoản" else "112-KHAC", None)
-		ke = hs._dung_ke_hoach_chi(_ho_so())
+		ke = hs._ke_hoach_duyet(_ho_so())
 		la("phương thức trống dùng cùng mặc định lúc ghi nhận", ke, hs._dung_ke_hoach_chi(_ho_so(), "Chuyển khoản"))
 		bo = hs._but_toan_cua_ho_so("APP-THU")
 		la("qua cả builder và reader thật", hs._kiem_bo_chung_tu(ke, bo)["du"], 1)
@@ -936,31 +935,6 @@ def _():
 		la("reader đọc ra USD và chặn", hs._kiem_bo_chung_tu(ke, hs._but_toan_cua_ho_so("APP-THU"))["du"], 0)
 	finally:
 		frappe.db.get_value, frappe.get_all, tra_tien_app.tk_tien_chi = cu_gv, cu_all, cu_tk
-
-
-@ca("v445: doc ke hoach da duyet khong dung lai mac dinh, ho so cu thieu snapshot dung ro")
-def _():
-	import json
-	from vagabond import ho_so_tt as hs
-	doc = _ho_so()
-	ke = _ke(doc)
-	doc.ke_hoach_chi = json.dumps(ke)
-	with _Vet(_dung_ke_hoach_chi=lambda *a: (_ for _ in ()).throw(Exception("không được dựng từ mặc định"))):
-		la("đọc đúng snapshot", hs._ke_hoach_duyet(doc), ke)
-	doc.ke_hoach_chi = None
-	dung("thiếu snapshot phải dừng", "không tự điền lịch sử" in _loi(lambda: hs._ke_hoach_duyet(doc)))
-
-
-@ca("v445: mac dinh doi sau duyet thi khong tao but toan va khong gui thu")
-def _():
-	from vagabond import ho_so_tt as hs
-	doc = _ho_so()
-	with _San(doc) as san:
-		with _Vet(_dung_ke_hoach_chi=lambda *a: _ke(doc, nguon="112-KHAC")):
-			cau = _loi(lambda: hs.danh_dau_da_tra(doc.name))
-		dung("báo kế hoạch đổi", "đổi sau duyệt" in cau)
-		la("không tạo", san.goi_tao, 0)
-		la("không thư", san.goi_thu, 0)
 
 
 @ca("v445: khong doc duoc precision phai dung thay vi mac dinh 2")
@@ -972,39 +946,32 @@ def _():
 	dung("báo rõ", "độ chính xác" in _loi(lambda: hs._do_chinh_xac(PE())))
 
 
-@ca("v445: phieu cu khop snapshot khong duoc hoan tat ho so da doi so tien hoac hoa don")
+@ca("v445: ho so NCC va hoan ung cu khong can ban chup hay duyet lai de ghi nhan")
 def _():
-	import json
+	from vagabond import ho_so_tt as hs
+	reader = hs._ke_hoach_duyet
+	for loai in ("NCC", "Hoan ung"):
+		for da_tra in (False, True):
+			doc = _ho_so(loai=loai, trang_thai="Da thanh toan" if da_tra else "Da duyet")
+			la("hồ sơ không có bản chụp", doc.get("ke_hoach_chi"), None)
+			with _San(doc, bo_san=[_pe("PE-CU", [("HDM-1", 100)])] if da_tra else []) as san:
+				with _Vet(_ke_hoach_duyet=reader):
+					kq = hs.danh_dau_da_tra(doc.name)
+				la("ghi nhận/tra lại bình thường", kq["ok"], 1)
+				la("không sinh thêm khi đã trả", san.goi_tao, 0 if da_tra else 1)
+				la("không gửi lại thư", san.goi_thu, 0 if da_tra else 1)
+
+
+@ca("v445: bo ban chup van chan phieu cu sai so tien hoac sai hoa don")
+def _():
 	from vagabond import ho_so_tt as hs
 	for truong, gt in (("so_tien", 200), ("hoa_don", "HDM-KHAC")):
 		doc = _ho_so()
-		doc.ke_hoach_chi = json.dumps(_ke(doc))
 		doc.dong[0][truong] = gt
 		if truong == "so_tien":
 			doc.tong_tien = doc.con_lai = gt
-		reader = hs._ke_hoach_duyet
 		with _San(doc, bo_san=[_pe("PE-CU", [("HDM-1", 100)])], chi=doc.con_lai) as san:
-			with _Vet(_ke_hoach_duyet=reader):
-				cau = _loi(lambda: hs.danh_dau_da_tra(doc.name))
-			dung("nêu nội dung đã đổi", "nội dung tài chính khác" in cau)
-			la("không tạo", san.goi_tao, 0)
-			la("không thư", san.goi_thu, 0)
+			cau = _loi(lambda: hs.danh_dau_da_tra(doc.name))
+			dung("bút toán cũ không khớp phải dừng", "chưa khớp" in cau)
+			la("không sinh bù", san.goi_tao, 0)
 			la("không hoàn tất", doc.trang_thai, "Da duyet")
-
-
-@ca("v445: Document API khong tu thay snapshot neu khong qua duyet")
-def _():
-	import frappe
-	from vagabond.vagabond.doctype.vagabond_ho_so_tt import vagabond_ho_so_tt as c
-	cu = frappe.db.get_value
-	try:
-		frappe.db.get_value = lambda *a, **k: '{"cu":1}'
-		ho = c.VagabondHoSoTT.__new__(c.VagabondHoSoTT)
-		ho.doctype, ho.name, ho.flags = "Vagabond Ho So TT", "APP-THU", _Co()
-		ho.is_new = lambda: False
-		ho.get = lambda k: '{"moi":1}'
-		dung("API đổi snapshot bị chặn", "chỉ được chốt" in _loi(ho.giu_ke_hoach_chi))
-		ho.flags.vgb_chot_ke_hoach_chi = True
-		la("đường duyệt được lưu", _loi(ho.giu_ke_hoach_chi), "")
-	finally:
-		frappe.db.get_value = cu
