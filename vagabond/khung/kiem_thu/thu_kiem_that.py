@@ -57,7 +57,10 @@ def _khong_commit():
 	# Dò bằng AST chứ không dò bằng chữ: chú thích trong chính các tệp đó
 	# có nhắc tên `frappe.db.commit` để dặn người sau, dò bằng chữ thì ca
 	# kiểm đỏ vì đúng lời dặn của mình.
-	for ten in ("nen.py", "cua.py", "thu_nhap_kho.py"):
+	# Quét MỌI tệp trong thư mục, không chỉ ba tệp đầu: bộ ca mới thêm sau
+	# (thu_ma_cap_so, thu_nhan_nvl...) cũng phải chịu cùng luật.
+	tat_ca = sorted(x for x in os.listdir(THU_MUC) if x.endswith(".py"))
+	for ten in tat_ca:
 		cay = ast.parse(_doc(ten))
 		goi = [n for n in ast.walk(cay)
 			if isinstance(n, ast.Call)
