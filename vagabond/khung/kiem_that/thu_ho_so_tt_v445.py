@@ -18,7 +18,7 @@ from frappe.utils import today
 
 from vagabond import ho_so_tt as hs
 from vagabond.khung.kiem_that.nen import (
-	_DA_TAO, _mot, ca, cong_ty, dung, khong_nem, la, mot_nha_cung_cap,
+	_DA_TAO, _mot, ca, cong_ty, dung, khong_nem, la, mot_nha_cung_cap, so_cai_cua,
 )
 
 
@@ -139,7 +139,19 @@ def _r6_phan_bo_du():
 	la("hoá đơn hết nợ", float(frappe.db.get_value("Purchase Invoice", hd.name, "outstanding_amount")), 0.0)
 	bo = hs._but_toan_cua_ho_so(ho.name)
 	la("phép tra ngược thấy đúng phiếu", [b["name"] for b in bo], [pe[0]["name"]])
-	la("bộ chứng từ được xem là đủ", hs._kiem_bo_chung_tu(ho, bo, hs._do_chinh_xac())["du"], 1)
+	ke = hs._ke_hoach_duyet(ho, "Chuyển khoản")
+	la("bộ chứng từ được xem là đủ", hs._kiem_bo_chung_tu(ke, bo, hs._do_chinh_xac())["du"], 1)
+	# SO CAI THAT (Codex review #226): dung tai khoan, dung doi tuong, dung
+	# chieu. Khong tin o tren phieu, doc GL Entry vua sinh.
+	pe_doc = frappe.get_doc("Payment Entry", pe[0]["name"])
+	gl = so_cai_cua(pe_doc)
+	dung("có dòng sổ cái", len(gl) >= 2)
+	co_nh = [g for g in gl if g["account"] == pe_doc.paid_from]
+	no_pt = [g for g in gl if g["account"] == pe_doc.paid_to]
+	la("Có tài khoản ngân hàng đúng 100.000", sum(float(g["credit"]) for g in co_nh), 100000.0)
+	la("Nợ tài khoản phải trả đúng 100.000", sum(float(g["debit"]) for g in no_pt), 100000.0)
+	la("dòng phải trả mang đúng nhà cung cấp", sorted({(g["party_type"], g["party"]) for g in no_pt}), [("Supplier", hd.supplier)])
+	la("không dòng nào ngoài hai tài khoản đó", sorted({g["account"] for g in gl}), sorted({pe_doc.paid_from, pe_doc.paid_to}))
 
 
 @ca("v445 R6: nợ giảm sau khi duyệt thì DỪNG, không phiếu, không khoản ứng trước")
@@ -222,7 +234,19 @@ def _r1_je_link():
 		frappe.db.get_value("Journal Entry", ten, "vgb_ho_so_tt"), h.name)
 	bo = hs._but_toan_cua_ho_so(h.name)
 	la("tra ngược ra đúng bút toán", [b["name"] for b in bo], [ten])
-	la("đủ bộ", hs._kiem_bo_chung_tu(h, bo, hs._do_chinh_xac())["du"], 1)
+	ke = hs._ke_hoach_duyet(h, "Chuyển khoản")
+	la("đủ bộ", hs._kiem_bo_chung_tu(ke, bo, hs._do_chinh_xac())["du"], 1)
+	# SO CAI THAT: No tai khoan chi phi, Co tai khoan ngan hang, dung so.
+	je = frappe.get_doc("Journal Entry", ten)
+	gl = so_cai_cua(je)
+	tk_nh = frappe.db.get_value("Bank Account", ba, "account")
+	la("Nợ tài khoản chi phí 12.345", sum(float(g["debit"]) for g in gl if g["account"] == tk_no), 12345.0)
+	la("Có tài khoản ngân hàng 12.345", sum(float(g["credit"]) for g in gl if g["account"] == tk_nh), 12345.0)
+	la("không dòng nào ngoài hai tài khoản đó", sorted({g["account"] for g in gl}), sorted({tk_no, tk_nh}))
+	# Doi chieu tung dong phai bat duoc JE dung tong ma sai tai khoan.
+	bo_sai = [dict(bo[0])]
+	bo_sai[0]["dong"] = [dict(r, account=(tk_nh if r["account"] == tk_no else r["account"])) for r in bo[0]["dong"]]
+	la("JE sai tài khoản Nợ bị coi là không đủ", hs._kiem_bo_chung_tu(ke, bo_sai, hs._do_chinh_xac())["du"], 0)
 
 
 @ca("v445 R2: đổi thẳng hồ sơ sang Đã thanh toán qua Desk bị controller chặn")
@@ -275,6 +299,25 @@ def _r1_tron_luot():
 	la("báo đã làm rồi", kq2.get("da_lam_roi"), 1)
 	la("trả lại đúng phiếu cũ", kq2.get("but_toan"), kq.get("but_toan"))
 	la("không sinh thêm phiếu", frappe.db.count("Payment Entry") - so_pe_truoc, 1)
+
+	# B2: huy phieu chi roi bam lai: khong duoc "ok", phai bao chua xac minh.
+	pe_ten = kq.get("but_toan")
+	pe_doc = frappe.get_doc("Payment Entry", pe_ten)
+	pe_doc.flags.ignore_permissions = True
+	da_huy = True
+	try:
+		pe_doc.cancel()
+	except Exception as e:
+		da_huy = False
+		dung("huỷ được phiếu chi để giả tình huống mất bộ chứng từ: " + str(e)[:200], False)
+	if da_huy:
+		cau = ""
+		try:
+			hs.danh_dau_da_tra(ho.name, gui_thu=0)
+		except Exception as e:
+			cau = str(e)
+		dung("bấm lại sau khi phiếu bị huỷ thì báo chưa xác minh", "Chưa xác minh" in cau or "không khớp" in cau)
+		la("không sinh phiếu mới thay thế", frappe.db.count("Payment Entry") - so_pe_truoc, 1)
 
 	# Duong bo qua but toan da dong, ke ca voi ho so da xong.
 	cau = ""
