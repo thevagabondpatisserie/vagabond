@@ -20,6 +20,7 @@ from vagabond.khung.kiem_that import thu_don_huy  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ma_cap_so  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mau_in  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhan_nvl  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_kiem_banh_document  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhap_kho  # noqa: F401,E402
 
 QUYEN = ("System Manager", "Giám đốc", "AP Giám đốc")
