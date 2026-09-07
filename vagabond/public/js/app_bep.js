@@ -3846,10 +3846,14 @@ function ghiLanCho(mr, lan) {
       throw new Error('Chưa xoá được lần chờ. Kiểm tra bộ nhớ trình duyệt rồi tra lại phiếu.');
   }
 }
-/* Chỉ lỗi kiểm tra của lần gửi đầu mới cho phép bỏ mã. Lỗi của retry
-   không chứng minh lần trước chưa ghi sổ. */
+/* Frappe app.py rollback request bị từ chối; response.py trả tên lớp con,
+   nên không so tên ValidationError. Chỉ áp dụng cho lần gửi đầu qua
+   daGui && !cho; lỗi retry không chứng minh lần trước chưa ghi sổ.
+   Phải có exc_type của Frappe; HTTP lỗi từ cổng mạng không xác nhận
+   được kết quả request, kể cả 500/520/524. */
 function loiDaChacHong(err) {
-  return !!err && err.status === 417 && err.exc_type === 'ValidationError';
+  var st = err && Number(err.status);
+  return st >= 400 && st <= 500 && typeof err.exc_type === 'string' && !!err.exc_type;
 }
 function gioNgan(iso) {
   var d = iso ? new Date(iso) : null;
