@@ -312,6 +312,74 @@ ca('ngay da chot thi bam o Huy khong mo duoc o nhap', async function () {
 });
 
 
+ca('go so huy KHONG hop le (-0.5, 1.9, am, chu, vo han): khong gui, khong dong o, bao ro ma hang, bang giu nguyen', async function () {
+  /* Codex vong 4 tren #218: luuO parseInt truoc khi may chu kip nhin gia
+     tri goc, nen 1.9 di thanh 1 va -0.5 thanh 0 ma nguoi go khong biet.
+     Nay kiem CHUOI GOC. Sai thi khong gui, o nhap van mo voi dung chuoi vua
+     go, bang khong doi. */
+  var cacXau = ['-0.5', '1.9', '-2', 'abc', 'Infinity', 'NaN', '1e3', '3.0'];
+  for (var i = 0; i < cacXau.length; i++) {
+    var xau = cacXau[i];
+    var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 10, huy: 2 })]); } });
+    oTheo(m, 'BAWC00055|huy').click();
+    var inp = m.tai.getElementById('kb-inp');
+    dung('o nhap mo (' + xau + ')', !!inp);
+    var truoc = m.goi.length;
+    inp.value = xau;
+    inp.dispatchEvent(dg.suKien('change', {}, inp));
+    for (var k = 0; k < 5; k++) await new Promise(function (r) { setTimeout(r, 0); });
+    bang('KHONG goi may chu (' + xau + ')', m.goi.length, truoc);
+    var el = m.tai.getElementById('kb-bao');
+    dung('bao do (' + xau + '): ' + el.textContent, el.className === 'loi' && el.textContent.indexOf('BAWC00055') >= 0);
+    dung('noi ro phai la so nguyen khong am (' + xau + ')', el.textContent.indexOf('số nguyên không âm') >= 0);
+    var inp2 = m.tai.getElementById('kb-inp');
+    dung('o nhap VAN MO de sua (' + xau + ')', !!inp2);
+    bang('o nhap giu nguyen chuoi vua go, khong bi doi thanh so gia (' + xau + ')', inp2.value, xau);
+    bang('BAN DUOC khong doi (' + xau + ')', soTheoNhan(m, 'BÁN ĐƯỢC'), '8');
+    /* Sua lai thanh so dung thi luu duoc, dung o vua mo, khong phai mo lai. */
+    inp2.value = '3';
+    inp2.dispatchEvent(dg.suKien('change', {}, inp2));
+    await choToi('luu_o bay di sau khi sua (' + xau + ')', function () { return m.goi.length > truoc; });
+    bang('gui dung so da sua (' + xau + ')', m.goi[truoc].ts.gia_tri, 3);
+  }
+});
+
+
+ca('go so huy hop le: rong la 0, 0 la 0, so nguyen gui dung so, va chu Enter cung nhu nut OK', async function () {
+  var cacXau = [['', 0], ['0', 0], ['7', 7], [' 4 ', 4]];
+  for (var i = 0; i < cacXau.length; i++) {
+    var xau = cacXau[i][0], mong = cacXau[i][1];
+    var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 10, huy: 2 })]); } });
+    oTheo(m, 'BAWC00055|huy').click();
+    var inp = m.tai.getElementById('kb-inp');
+    var truoc = m.goi.length;
+    inp.value = xau;
+    inp.dispatchEvent(dg.suKien('keydown', { key: 'Enter' }, inp));
+    await choToi('luu_o bay di (' + JSON.stringify(xau) + ')', function () { return m.goi.length > truoc; });
+    var g = m.goi[truoc];
+    bang('dung cua', g.ten, 'kiem_banh.luu_o');
+    bang('gui dung so (' + JSON.stringify(xau) + ')', g.ts.gia_tri, mong);
+    bang('so nguyen kieu number, khong phai chuoi', typeof g.ts.gia_tri, 'number');
+    bang('khong bao do', m.tai.getElementById('kb-bao').className === 'loi', false);
+  }
+});
+
+
+ca('cot khac (san xuat) van doc theo cach cu, khong bi doi chinh sach lay', async function () {
+  var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 10 })]); } });
+  var o = oTheo(m, 'BAWC00055|sx');
+  dung('co o san xuat sua duoc', !!o);
+  o.click();
+  var inp = m.tai.getElementById('kb-inp');
+  var truoc = m.goi.length;
+  inp.value = '1.9';
+  inp.dispatchEvent(dg.suKien('change', {}, inp));
+  await choToi('luu_o bay di cho cot sx', function () { return m.goi.length > truoc; });
+  bang('cot sx van parseInt nhu cu (1.9 -> 1)', m.goi[truoc].ts.gia_tri, 1);
+  bang('dung truong', m.goi[truoc].ts.truong, 'sx');
+});
+
+
 /* ---------- chay ---------- */
 
 async function chay() {
