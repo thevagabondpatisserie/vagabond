@@ -116,6 +116,11 @@ node vagabond/khung/kiem_thu/hanh_vi/chay.js
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.
 node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
+# Chay lai o hai mui gio doi nhau (UTC+14 va UTC-11): bat ca kiem nao lay ngay
+# theo UTC trong khi trang lay ngay dia phuong. Codex bat tren PR #223: bo ca
+# tung xanh o may UTC nhung hong 7/7 khi may o mui gio da sang ngay khac.
+TZ=Pacific/Kiritimati node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
+TZ=Pacific/Pago_Pago node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 # Man tao lenh san xuat (#206, PR #215).
 node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
 
