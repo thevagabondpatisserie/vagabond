@@ -3814,7 +3814,7 @@ function sinhMaLanNhan() {
 
    - NGAY TRUOC khi gui, ghi ca ma lan ma payload xuong localStorage theo
      phieu va nguoi dung. Phan hoi ve (thanh cong, hay may chu tu choi ro
-     rang) thi xoa. Mat mang, het gio, cong ket noi (502/503/504) thi GIU:
+     rang ở lần gửi đầu) thi xoa. Retry lỗi luôn GIỮ mã cũ:
      luc do khong biet may chu da ghi hay chua.
    - Con lan dang cho thi man KHOA o so luong. Nut duy nhat la "Tra lai va
      gui lai lan truoc": gui lai DUNG ma va DUNG payload da luu. May chu tra
@@ -3966,9 +3966,20 @@ async function traLanCho(mr) {
   try { kq = await api('vagabond.lan_nhan.tra_lan_nhan', { ma_lan_nhan: c.ma_lan }); } catch (e) { return; }
   if (kq && kq.co && rcv.cho && rcv.cho.ma_lan === c.ma_lan) {
     if (kq.docstatus !== 1) {
-      toast(kq.docstatus === 2
-        ? 'Phiếu ' + kq.name + ' đã huỷ. Nhờ quản lý đối chiếu lần nhận này trước khi nhận tiếp.'
-        : 'Phiếu ' + kq.name + ' còn nháp. Bấm tra lại và gửi lại để hoàn tất đúng phiếu này.', 6000);
+      if (kq.docstatus !== 2) {
+        toast('Phiếu ' + kq.name + ' còn nháp. Bấm tra lại và gửi lại để hoàn tất đúng phiếu này.', 6000);
+        return;
+      }
+      var daDoiChieu = await confirmSheet('Phiếu ' + kq.name + ' đã huỷ',
+        'Phiếu này không xác nhận nhận hàng thành công. Chỉ đóng lần chờ sau khi đã đối chiếu với quản lý; sau đó mở lại phiếu để nhận một lần mới.',
+        'Đã đối chiếu, đóng lần chờ');
+      if (!daDoiChieu || RCV_DANG_GUI || !rcv.cho || rcv.cho.ma_lan !== c.ma_lan) return;
+      try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); return; }
+      rcv.cho = null;
+      rcv.ma_lan = sinhMaLanNhan();
+      toast('Đã đóng lần chờ của phiếu đã huỷ ' + kq.name + '. Mở lại phiếu để kiểm số còn phải nhận.', 6000);
+      back();
+      setTimeout(function () { render(); }, 60);
       return;
     }
     try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); return; }
