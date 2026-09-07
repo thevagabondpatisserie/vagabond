@@ -844,11 +844,34 @@ def luu_o(ngay, ma_hang, truong, gia_tri):
 		frappe.throw("Ngay nay da chot so, khong sua nua")
 	for d in doc.dong:
 		if d.ma_hang == ma_hang:
-			d.set(truong, max(0, int(gia_tri or 0)))
+			d.set(truong, doc_so_o(truong, gia_tri, ma_hang))
 			doc.save()  # giu quyen that cua nguoi dang sua, de con vet ai sua gi
 			frappe.db.commit()
 			return {"ok": 1, "co_the_ban": d.co_the_ban}
 	frappe.throw("Khong thay ma hang %s" % ma_hang)
+
+
+def doc_so_o(truong, gia_tri, ma_hang=None):
+	"""Đọc số người gõ cho một ô, theo đúng chính sách của TỪNG cột. THUẦN.
+
+	Cột "huy" (Codex trên PR #218, vòng 4, 06/09/2026): kiểm GIÁ TRỊ GỐC
+	trước khi ép kiểu, dùng CHUNG một quy tắc với lớp doctype
+	(`KiemBanhNgay._doc_so_huy`): rỗng là 0, số nguyên không âm thì nhận,
+	còn lại NÉM LỖI có kèm mã hàng. Bản trước `luu_o` làm `max(0, int(...))`
+	nên 1.9 thành 1 và -0.5 thành 0 ngay ở cửa này, lớp doctype không bao
+	giờ thấy giá trị gốc, và người gõ không được báo gì. Một quy tắc ở hai
+	chỗ thì sớm muộn lệch nhau, nên cửa này gọi thẳng hàm của doctype chứ
+	không chép lại (điều 18).
+
+	Các cột khác (ton_cu, ton_d2, ton_d1, sx) GIỮ NGUYÊN cách đọc cũ
+	`max(0, int(...))`. Codex dặn rõ: chỉ sửa trường huy, không tự đổi
+	chính sách các cột khác khi chưa ai duyệt.
+	"""
+	if truong == "huy":
+		from vagabond.vagabond.doctype.kiem_banh_ngay.kiem_banh_ngay import KiemBanhNgay
+
+		return KiemBanhNgay._doc_so_huy(gia_tri, ma_hang)
+	return max(0, int(gia_tri or 0))
 
 
 @frappe.whitelist()
