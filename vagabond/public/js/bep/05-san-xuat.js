@@ -1051,12 +1051,17 @@ async function scrMfgNew() {
          để người ta thoát ra và mở lại màn khác. */
       if (!code || !conMan()) return;
       busy(1);
-      var ic = null;
-      try { ic = await itemByBarcode(code); } catch (e) { }
+      /* Không nuốt lỗi tra cứu (Codex trên #220). Mất mạng, hết quyền hay
+         máy chủ lỗi thì phải nói đúng chuyện đó và bảo quét lại; câu "Không
+         tìm thấy" chỉ dành cho lúc đã hỏi được máy chủ mà không có món. Nói
+         lẫn hai chuyện là nhân viên đi tìm một mã không hề thiếu. */
+      var kq = { ma: null, loi: null };
+      try { kq = await traHangTheoMaVach(code); } catch (e) { kq = { ma: null, loi: e }; }
       busy(0);
       if (!conMan()) return;
-      if (!ic) return toast('Không tìm thấy hàng hoá có mã vạch này');
-      return mfgThemNgoai(ic);
+      if (kq.loi) return toast('Chưa tra được mã vạch ' + code + ': ' + errMsg(kq.loi) + '. Kiểm tra mạng rồi quét lại.', 6000);
+      if (!kq.ma) return toast('Không tìm thấy hàng hoá có mã vạch này');
+      return mfgThemNgoai(kq.ma);
     };
     document.getElementById('mGo').onclick = async function () {
       /* Chặn bấm lặp. Bếp bấm hai lần vì lần đầu tưởng chưa ăn thì trước đây

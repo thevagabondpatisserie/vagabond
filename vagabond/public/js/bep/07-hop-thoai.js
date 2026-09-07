@@ -822,6 +822,18 @@ async function vgbTraBenTheoMa(khoa, ma) {
   return hoSo;
 }
 
+/* Chọn lại ĐÚNG mã đang cầm. Bình thường là không làm gì: giữ tick hoá
+   đơn, không vẽ lại (ca E5). Nhưng khi thẻ đang báo lỗi tra mã (mở lại bản
+   nháp lúc mạng rớt, xem `huBenLoi`, `hsUngLoi`) thì chọn lại chính nó là
+   cách người ta gỡ lỗi: phải giữ hồ sơ vừa chọn và vẽ lại. Một hàm cho mọi
+   màn chọn bên, khỏi mỗi màn tự viết một cửa kiểm (điều 18). Trả về true
+   khi màn cần vẽ lại. Codex P2 trên #221, 06/09/2026. */
+function vgbChonLaiGoLoi(khoa, ma, hoSo, dangLoi) {
+  if (!ma || !dangLoi) return false;
+  vgbGiuChon(khoa, ma, hoSo);
+  return true;
+}
+
 /* ================= LƯỢT HỎI MÁY CHỦ =================
    Hai lần hỏi về ngược thứ tự thì lượt cũ không được đè lượt mới. Mỗi chỗ
    hỏi máy chủ tạo một `vgbLuot()`, trước khi hỏi gọi `bat()` lấy số lượt,
