@@ -57,7 +57,11 @@ def _khoa_truoc_khi_doc():
 	dung("khoá trước khi đọc hồ sơ",
 		than.index("for_update=True") < than.index('frappe.get_doc("Vagabond Ho So TT", name)'))
 	dung("vẫn giữ chốt đã làm rồi", 'if doc.trang_thai == TT_DA_TRA:' in than)
-	dung("khoá hỏng thì vẫn chạy tiếp", "khong khoa duoc ho so khi ghi nhan" in than)
+	# v445 (Codex #225 R1): truoc day ca nay chot "khoa hong thi van chay
+	# tiep". Do la sai: chay tiep khong khoa la mo lai dung cai dua tranh ma
+	# khoa sinh ra de chan. Nay chot nguoc lai; hanh vi that (nem loi, khong
+	# doc ho so) kiem o thu_ho_so_tt_v445. DUNG sua ca nay ve nhu cu.
+	dung("khoá hỏng thì DỪNG, không chạy tiếp", "Chưa giữ được khoá hồ sơ" in than)
 
 
 # ================================== 3. hồ sơ đã sinh hoá đơn thì không giết suông
@@ -94,19 +98,26 @@ def _khong_tu_huy_hoa_don():
 def _cong_sepay_so_con_lai():
 	src = _py("ho_so_tt.py")
 	than = _doan(src, "def danh_dau_da_tra(", "\n@frappe.whitelist()")
-	dung("có số phải chuyển", "phai_chuyen = flt(doc.con_lai) or flt(doc.tong_tien)" in than)
+	# v445 (Codex #225 R4): bieu thuc `flt(doc.con_lai) or flt(doc.tong_tien)`
+	# da bo, so phai chuyen nay tinh lai tu dong bang `_so_phai_chuyen` va 0
+	# la so hop le. Hanh vi that kiem o thu_ho_so_tt_v445.
+	dung("hết biểu thức `or tổng tiền`", "or flt(doc.tong_tien)" not in than)
+	dung("số phải chuyển tính lại từ dòng", "_so_phai_chuyen(doc" in than)
 	dung("cổng dùng số đó", "duyet_chi.sepay_du(phai_chuyen, da_chi)" in than)
 	dung("hết so thẳng tổng tiền", "sepay_du(flt(doc.tong_tien), da_chi)" not in than)
 
 
-@ca("v416 trừ tạm ứng thì nhắc rõ phần bù trừ 1411 còn phải làm tay")
+@ca("v416 trừ tạm ứng: hết chỉ nhắc, nay chặn hoàn tất cho tới khi có chứng từ bù trừ (v445)")
 def _nhac_tam_ung():
+	# v445 (Codex #225 R4): loi nhac bu tru tay cua v416 khong bao dam gi, ho so
+	# van hoan tat trong khi quy tam ung phinh. Nay ho so co tam ung (mot phan
+	# hay du) DUNG o Da duyet cho toi khi chi Dung chot cach bu tru. Hanh vi
+	# that kiem o thu_ho_so_tt_v445; ca nay chi chot la loi nhac cu khong con.
 	src = _py("ho_so_tt.py")
 	than = _doan(src, "def danh_dau_da_tra(", "\n@frappe.whitelist()")
-	dung("chỉ nhắc khi có tạm ứng", "if flt(doc.da_tam_ung) > 0:" in than)
-	dung("có ghi vết", "_ghi_vet(doc.name, nhac)" in than)
-	dung("trả về cho màn hình", '"nhac_tam_ung": nhac' in than)
-	dung("nói rõ quỹ 1411", "quỹ 1411" in than)
+	dung("hết lời nhắc bù tay", "Chưa bù là quỹ tạm ứng phình ra" not in than)
+	dung("có hàng rào tạm ứng", 'title="Thiếu chứng từ bù trừ tạm ứng"' in than)
+	dung("màn hình vẫn nhận ô nhac_tam_ung (rỗng) để không vỡ", '"nhac_tam_ung": ""' in than)
 
 
 # ================== 5. nối phiếu nội bộ làm CHỨNG TỪ trên màn có hoá đơn
