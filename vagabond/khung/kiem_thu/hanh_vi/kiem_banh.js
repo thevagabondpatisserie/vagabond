@@ -180,9 +180,18 @@ function dong(kw) {
   return d;
 }
 
+/* Ngay theo GIO DIA PHUONG, dung cach trang ghep (ngayISO trong kiem-banh.js).
+   Truoc day dung toISOString() la gio UTC: trang gui ngay dia phuong, bo ca
+   tra ve ngay UTC, nhan() thay lech ngay thi bo qua, luoi khong ve, 7/7 ca
+   hong khi may chay o mui gio lech UTC qua nua dem (Codex neu tren PR #223).
+   Cong deploy chay tep nay them o hai mui gio doi nhau de bat lai loi nay. */
+function ngayDiaPhuong(d) {
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+
 function bangCua(ds, tinh_trang) {
   return {
-    ngay: new Date().toISOString().slice(0, 10),
+    ngay: ngayDiaPhuong(new Date()),
     co_so: 1, tinh_trang: tinh_trang || 'Dang ban',
     dong_bo_luc: '', chot_luc: '', dong: ds,
   };
