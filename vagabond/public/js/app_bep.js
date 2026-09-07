@@ -867,17 +867,37 @@ function scanBarcode(onHit) {
 }
 
 /* ---- tra ma vach ra ma hang hoa ---- */
-async function itemByBarcode(code) {
-  if (!code) return null;
+
+/* Tra một mã vạch ra mã hàng, và PHÂN BIỆT hai chuyện khác nhau:
+     - hỏi được máy chủ, không có món nào mang mã đó  -> { ma: null, loi: null }
+     - không hỏi được (mất mạng, hết quyền, máy chủ lỗi) -> { ma: null, loi: <lỗi> }
+   Codex nêu trên PR #220 (06/09/2026): hàm cũ nuốt mọi lỗi rồi trả null, nên
+   màn quét báo "Không tìm thấy hàng hoá" cả khi mạng rớt, và nhân viên đi
+   tìm một mã không hề thiếu. Gom về MỘT nguồn ở đây, các màn chỉ đọc kết
+   quả (điều 18). Tra hai bước: bảng mã vạch trước, rồi chính mã hàng. Bước
+   nào tìm ra là xong; không ra mà có bước nào hỏng thì câu trả lời là "chưa
+   tra được", không phải "không có". */
+async function traHangTheoMaVach(code) {
+  code = String(code == null ? '' : code).trim();
+  if (!code) return { ma: null, loi: null };
+  var loi = null;
   try {
     var bc = await getList('Item Barcode', { parent: 'Item', fields: ['parent', 'barcode'], filters: { barcode: code, parenttype: 'Item' }, limit_page_length: 5 });
-    if (bc && bc.length) return bc[0].parent;
-  } catch (e) { }
+    if (bc && bc.length) return { ma: bc[0].parent, loi: null };
+  } catch (e) { loi = e || new Error('Không hỏi được máy chủ'); }
   try {
     var it = await getList('Item', { fields: ['name'], filters: { name: code, disabled: 0 }, limit_page_length: 1 });
-    if (it && it.length) return it[0].name;
-  } catch (e) { }
-  return null;
+    if (it && it.length) return { ma: it[0].name, loi: null };
+  } catch (e2) { loi = loi || e2 || new Error('Không hỏi được máy chủ'); }
+  return { ma: null, loi: loi };
+}
+
+/* Cửa cũ, giữ nguyên hành vi cho các màn đang gọi: chỉ trả về mã hoặc null,
+   không phân biệt lỗi. Màn nào cần nói rõ với người quét thì gọi
+   `traHangTheoMaVach`. Không đổi các màn cũ trong lần này để giữ phạm vi. */
+async function itemByBarcode(code) {
+  if (!code) return null;
+  return (await traHangTheoMaVach(code)).ma;
 }
 
 /* bottom sheet picker */
@@ -6079,12 +6099,17 @@ async function scrMfgNew() {
          để người ta thoát ra và mở lại màn khác. */
       if (!code || !conMan()) return;
       busy(1);
-      var ic = null;
-      try { ic = await itemByBarcode(code); } catch (e) { }
+      /* Không nuốt lỗi tra cứu (Codex trên #220). Mất mạng, hết quyền hay
+         máy chủ lỗi thì phải nói đúng chuyện đó và bảo quét lại; câu "Không
+         tìm thấy" chỉ dành cho lúc đã hỏi được máy chủ mà không có món. Nói
+         lẫn hai chuyện là nhân viên đi tìm một mã không hề thiếu. */
+      var kq = { ma: null, loi: null };
+      try { kq = await traHangTheoMaVach(code); } catch (e) { kq = { ma: null, loi: e }; }
       busy(0);
       if (!conMan()) return;
-      if (!ic) return toast('Không tìm thấy hàng hoá có mã vạch này');
-      return mfgThemNgoai(ic);
+      if (kq.loi) return toast('Chưa tra được mã vạch ' + code + ': ' + errMsg(kq.loi) + '. Kiểm tra mạng rồi quét lại.', 6000);
+      if (!kq.ma) return toast('Không tìm thấy hàng hoá có mã vạch này');
+      return mfgThemNgoai(kq.ma);
     };
     document.getElementById('mGo').onclick = async function () {
       /* Chặn bấm lặp. Bếp bấm hai lần vì lần đầu tưởng chưa ăn thì trước đây
@@ -9998,6 +10023,18 @@ async function vgbTraBenTheoMa(khoa, ma) {
   var hoSo = { ncc: r.name, ten: r.supplier_name || r.name, hay_dung: 0, disabled: r.disabled ? 1 : 0 };
   vgbGiuChon(khoa, ma, hoSo);
   return hoSo;
+}
+
+/* Chọn lại ĐÚNG mã đang cầm. Bình thường là không làm gì: giữ tick hoá
+   đơn, không vẽ lại (ca E5). Nhưng khi thẻ đang báo lỗi tra mã (mở lại bản
+   nháp lúc mạng rớt, xem `huBenLoi`, `hsUngLoi`) thì chọn lại chính nó là
+   cách người ta gỡ lỗi: phải giữ hồ sơ vừa chọn và vẽ lại. Một hàm cho mọi
+   màn chọn bên, khỏi mỗi màn tự viết một cửa kiểm (điều 18). Trả về true
+   khi màn cần vẽ lại. Codex P2 trên #221, 06/09/2026. */
+function vgbChonLaiGoLoi(khoa, ma, hoSo, dangLoi) {
+  if (!ma || !dangLoi) return false;
+  vgbGiuChon(khoa, ma, hoSo);
+  return true;
 }
 
 /* ================= LƯỢT HỎI MÁY CHỦ =================
@@ -31566,7 +31603,15 @@ function hsBenNhanDong(x, dangChon) {
 
 function hsMoChonBenNhan(o) {
   o = o || {};
-  var ds = (o.ds || []).slice();
+  /* HAI danh sách, không gộp làm một (Codex P2 trên #221, 06/09/2026):
+     `dsGoc` là gợi ý tải sẵn lúc mở tấm, `dsMay` là kết quả máy chủ của
+     đúng từ khoá `qMay`. Bản trước ghi đè thẳng kết quả máy chủ lên danh
+     sách duy nhất, nên xoá từ khoá xong tấm chỉ còn vài dòng vừa tìm, hay
+     trống trơn sau một lần tìm không ra, phải đóng mở lại mới thấy gợi ý.
+     Kết quả máy chủ chỉ dùng khi từ khoá đang gõ vẫn NỐI TIẾP từ khoá đã
+     hỏi; gõ khác đi hay xoá trắng là về lại gợi ý ban đầu. */
+  var dsGoc = (o.ds || []).slice();
+  var dsMay = null, qMay = '';
   var q = '';
   var trangThai = '';        /* '' bày danh sách, 'tai' đang hỏi, 'loi' hỏng */
   var loi = '';
@@ -31589,8 +31634,17 @@ function hsMoChonBenNhan(o) {
       : '');
   var lst = box.querySelector('#hsbnDs');
 
+  /* Nguồn đang bày: kết quả máy chủ khi từ khoá còn nối tiếp từ khoá đã
+     hỏi, còn lại là gợi ý ban đầu. Một hàm cho cả vẽ lẫn chọn, để dòng
+     người bấm và hồ sơ trả về luôn là cùng một nguồn. */
+  function nguon() {
+    if (dsMay && qMay && mvKhongDau(q).trim().indexOf(mvKhongDau(qMay).trim()) === 0) return dsMay;
+    return dsGoc;
+  }
+
   function loc() {
     var k = mvKhongDau(q).trim();
+    var ds = nguon();
     if (!k) return ds;
     return ds.filter(function (x) {
       return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;
@@ -31661,8 +31715,13 @@ function hsMoChonBenNhan(o) {
       loi = ((er && er.message) || 'Không hỏi được máy chủ') +
         '. Kiểm tra mạng rồi bấm Enter tìm lại.';
       trangThai = 'loi';
+    } else if (!mvKhongDau(q0).trim()) {
+      /* Enter với ô trống là hỏi CẢ danh mục: kết quả đó chính là gợi ý
+         ban đầu bản đầy đủ, nên thay cho gợi ý cũ chứ không treo theo một
+         từ khoá rỗng. */
+      dsGoc = moi; dsMay = null; qMay = ''; trangThai = '';
     } else {
-      ds = moi; trangThai = '';
+      dsMay = moi; qMay = q0; trangThai = '';
     }
     ve();
   });
@@ -31675,6 +31734,7 @@ function hsMoChonBenNhan(o) {
        đúng tên người vừa chọn dù người đó nằm ngoài danh sách gợi ý đầu.
        Xem `vgbGiuChon` ở 07-hop-thoai.js. */
     var hoSo = null;
+    var ds = nguon();
     for (var i = 0; i < ds.length; i++) if (ds[i].ncc === ma) hoSo = ds[i];
     dong();
     o.chon(ma, hoSo);
@@ -32170,7 +32230,13 @@ async function scrHoSoTTTao() {
   var moUng = document.getElementById('hsMoUng');
   if (moUng) moUng.onclick = function () {
     hsMoChonNguoiNhan(hay, hsTaoNguoiUng, function (ma, hoSo) {
-      if (!ma || ma === hsTaoNguoiUng) return;
+      if (!ma) return;
+      if (ma === hsTaoNguoiUng) {
+        /* Cùng luật với màn Chi từ TK công ty: chọn lại đúng người đang
+           cầm chỉ có tác dụng khi thẻ đang báo lỗi tra mã. */
+        if (vgbChonLaiGoLoi('hs_ung', ma, hoSo, hsUngLoi)) go(scrHoSoTTTao, true);
+        return;
+      }
       hsTaoDsUng = null;
       hsTaoNguoiUng = ma;
       vgbGiuChon('hs_ung', ma, hoSo);
@@ -32883,7 +32949,15 @@ async function scrChiCongTyTao() {
   var moBen = document.getElementById('huMoBen');
   if (moBen) moBen.onclick = function () {
     var doi = function (ma, hoSo) {
-      if (!ma || ma === huNguoi) return;
+      if (!ma) return;
+      if (ma === huNguoi) {
+        /* Chọn lại đúng bên đang chọn: bình thường thì thôi, giữ nguyên
+           tick hoá đơn. Nhưng thẻ đang báo "chưa tra được tên" (mạng rớt
+           lúc mở lại bản nháp) thì đây chính là cách người ta gỡ lỗi, phải
+           nhận hồ sơ vừa chọn và vẽ lại. Codex P2 trên #221. */
+        if (vgbChonLaiGoLoi('hu_ben', ma, hoSo, huBenLoi)) go(scrChiCongTyTao, true);
+        return;
+      }
       huNguoi = ma;
       vgbGiuChon('hu_ben', ma, hoSo);
       huChonHd = {};
