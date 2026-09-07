@@ -101,10 +101,7 @@ class KiemBanhNgay(Document):
 		"""Bản đang nằm trong CSDL trước lần lưu này, hoặc None nếu là bản mới.
 		Tách ra để bàn giả kiểm thử thay được."""
 		ham = getattr(self, "get_doc_before_save", None)
-		try:
-			return ham() if ham else None
-		except Exception:
-			return None
+		return ham() if ham else None
 
 	def _giu_nguon_ton(self):
 		"""Ai sửa ô tồn qua Desk hay API document thì cũng phải để lại nguồn.
@@ -122,28 +119,31 @@ class KiemBanhNgay(Document):
 		"""
 		from vagabond import kiem_banh
 
+		truoc = self._ban_truoc()
+		cu = getattr(truoc, "dong", None) or []
+		theo_ten = {d.get("name"): d for d in cu if d.get("name")}
+		con_ten = {d.get("name") for d in self.dong}
+		# Frappe update_child_table xoá dòng vắng khỏi payload, không gọi
+		# xoa_dong của app. Giữ invariant trước khi Frappe đồng bộ bảng con.
+		for d in cu:
+			if d.get("name") not in con_ten and not kiem_banh.dong_duoc_xoa(d):
+				frappe.throw("Mã %s đã có số hoặc dấu kiểm đếm. Giữ dòng để đối chiếu, không xoá được." % d.get("ma_hang"))
+		co_may = bool(getattr(frappe, "flags", None) and frappe.flags.get("vgb_ton_da_co_nguon"))
 		for d in self.dong:
-			if d.get("__islocal") or not d.get("name"):
+			c = theo_ten.get(d.get("name"))
+			moi = not c and (truoc is not None or d.get("__islocal") or not d.get("name") or bool(getattr(self, "is_new", lambda: False)()))
+			if moi:
 				for o in kiem_banh.O_TON:
 					if not d.get("nguon_" + o):
 						d.set("nguon_" + o, kiem_banh.NGUON_TRONG)
-		if getattr(frappe, "flags", None) and frappe.flags.get("vgb_ton_da_co_nguon"):
-			return
-		truoc = self._ban_truoc()
-		if not truoc:
-			return
-		theo_ten = {}
-		theo_ma = {}
-		for c in (getattr(truoc, "dong", None) or []):
-			if c.get("name"):
-				theo_ten[c.get("name")] = c
-			theo_ma[c.get("ma_hang")] = c
-		for d in self.dong:
-			c = theo_ten.get(d.get("name")) or theo_ma.get(d.get("ma_hang"))
-			if not c:
+			if co_may:
 				continue
 			for o in kiem_banh.O_TON:
-				if int(d.get(o) or 0) != int(c.get(o) or 0):
+				# Ô mới có số người nhập hoặc xác nhận tay 0 phải được bảo vệ.
+				# Số 0 mặc định chưa xác nhận vẫn là Chưa ghi; luu_o xác nhận 0.
+				doi = c is not None and int(d.get(o) or 0) != int(c.get(o) or 0)
+				nhap_moi = moi and (int(d.get(o) or 0) != 0 or d.get("nguon_" + o) == kiem_banh.NGUON_TAY)
+				if doi or nhap_moi:
 					kiem_banh.ghi_dem_tay(d, o, d.get(o), frappe.session.user, now_datetime())
 
 	@staticmethod

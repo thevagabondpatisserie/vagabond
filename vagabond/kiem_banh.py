@@ -410,6 +410,11 @@ def co_dau_vet(d):
 	return bool((d.get("kiem_dem_ghi") or "").strip() not in ("", "{}"))
 
 
+def dong_duoc_xoa(d):
+	"""Cùng điều kiện cho bảng, API xoá và lưu Document từ Desk."""
+	return not co_dau_vet(d) and not any(int(d.get(t) or 0) for t in SO_PHAI_RONG)
+
+
 def ghi_o_chuyen(m, o, so, nsx):
 	"""Máy ghi một ô tồn của dòng ngày mai lúc chốt. THUẦN với dòng có get/set.
 
@@ -935,7 +940,7 @@ def bang(ngay=None):
 				},
 				# Máy chủ quyết dòng có xoá được không; màn hình chỉ bày nút theo
 				# khoá này, không tự suy từ số (Codex P1 vòng 4).
-				"xoa_duoc": 0 if co_dau_vet(d) else 1,
+				"xoa_duoc": int(dong_duoc_xoa(d)),
 			}
 			for d in doc.dong
 		],
@@ -1035,7 +1040,7 @@ def them_dong(ngay, ma_hang):
 
 SO_PHAI_RONG = (
 	"ton_cu", "ton_d2", "ton_d1", "sx", "huy",
-	"da_dat", "phat_sinh", "cho_chot", "don_khac",
+	"da_dat", "phat_sinh", "cho_chot", "don_khac", "giu_cho",
 )
 
 
@@ -1053,14 +1058,8 @@ def xoa_dong(ngay, ma_hang):
 	for d in doc.dong:
 		if d.ma_hang != ma_hang:
 			continue
-		co_so = [t for t in SO_PHAI_RONG if int(d.get(t) or 0)]
-		if co_so:
-			frappe.throw("Mã %s đang có số, không xoá được. Xoá số về 0 trước đã." % ma_hang)
-		if co_dau_vet(d):
-			frappe.throw(
-				"Mã %s đã có dấu kiểm đếm hoặc số máy chuyển (kể cả đếm ra 0), "
-				"không xoá dòng được vì sẽ mất luôn ai đếm lúc nào." % ma_hang
-			)
+		if not dong_duoc_xoa(d):
+			frappe.throw("Mã %s đang có số hoặc dấu kiểm đếm. Giữ dòng để đối chiếu, không xoá được." % ma_hang)
 		doc.remove(d)
 		doc.save(ignore_permissions=True)
 		frappe.db.commit()

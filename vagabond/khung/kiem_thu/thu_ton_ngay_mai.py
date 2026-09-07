@@ -412,3 +412,56 @@ def _():
 	dung("trongTron nhìn xoa_duoc", "d.xoa_duoc" in js)
 	dung("them_dong đi qua dong_moi", "dong_moi(ma_hang=ma_hang" in _doc("kiem_banh.py"))
 	dung("dong_bo thêm dòng đi qua dong_moi", _doc("kiem_banh.py").count("dong_moi(") >= 4)
+
+
+@ca("ton ngay mai: dong moi tren parent moi va parent cu giu so nhap Desk, ke ca xac nhan 0")
+def _():
+	for parent_moi in (True, False):
+		for so in (2, 0):
+			m = _tao_dong(ma_hang="BAWC00055", ton_d2=so, __islocal=1)
+			if so == 0:
+				m.nguon_ton_d2 = TAY
+			b = BangTruoc(truoc=None if parent_moi else _sao([]), dong=[m])
+			frappe.flags.vgb_ton_da_co_nguon = False
+			b.save()
+			la("nguồn tay", m.nguon_ton_d2, TAY)
+			dung("có audit", bool(json.loads(m.kiem_dem_ghi)["ton_d2"]["ai"]))
+			kiem_banh.ghi_o_chuyen(m, "ton_d2", 7, None)
+			la("máy không đè", m.ton_d2, so)
+
+
+@ca("ton ngay mai: Desk go child da dem 0 hoac co so bi chan, dong trang van go duoc")
+def _():
+	for kw in ({"nguon_ton_d1": TAY}, {"may_chuyen_ton_d1": 3}, {"sx": 5}, {"huy": 1}, {"giu_cho": 2}):
+		m = _tao_dong(ma_hang="BAWC00055", **kw)
+		b = BangTruoc(truoc=_sao([m]), dong=[])
+		nem("không được gỡ dòng có nghiệp vụ", b.save)
+	m = _dong_moi(ma_hang="BAWC00055")
+	b = BangTruoc(truoc=_sao([m]), dong=[])
+	b.save()
+	la("dòng trắng gỡ được", b.dong, [])
+
+
+@ca("ton ngay mai: bang va API dung cung dieu kien xoa cho cac cot nghiep vu")
+def _():
+	for cot in kiem_banh.SO_PHAI_RONG:
+		m = _dong_moi(ma_hang="BAWC00055", **{cot: 5})
+		b = BangGia(ngay="2026-08-16", dong=[m])
+		with CuaGia(**{"KB-2026-08-16": b}):
+			la("ẩn xoá khi có " + cot, kiem_banh.bang("2026-08-16")["dong"][0]["xoa_duoc"], 0)
+			nem("API chặn " + cot, lambda: kiem_banh.xoa_dong("2026-08-16", "BAWC00055"))
+
+
+@ca("ton ngay mai: cong dong thoi khong xanh khi ca hai loi, bo chot hoac thieu audit")
+def _():
+	from vagabond.khung.kiem_dong_thoi import _vong_dem_dat
+	ra = {"dem": {"ok": 1}, "chot": {"ok": 1}}
+	d = {"ton_d1": 2, "nguon_ton_d1": TAY, "may_chuyen_ton_d1": 9,
+		"kiem_dem_ghi": json.dumps({"ton_d1": {"ai": "Administrator", "luc": "2026-09-07"}})}
+	nay = {"tinh_trang": "Da chot", "chot_luc": "2026-09-07"}
+	dung("ca đúng đạt", _vong_dem_dat(ra, d, nay, TAY))
+	dung("cả hai lỗi phải đỏ", not _vong_dem_dat({"dem": {"ok": 0}, "chot": {"ok": 0}}, d, nay, TAY))
+	dung("bỏ chốt phải đỏ", not _vong_dem_dat(ra, d, {"tinh_trang": "Dang ban"}, TAY))
+	dung("thiếu audit phải đỏ", not _vong_dem_dat(ra, dict(d, kiem_dem_ghi="{}"), nay, TAY))
+	dung("lỗi lạ phải đỏ", not _vong_dem_dat(dict(ra, dem={"ok": 0, "loi": "ValueError: loi"}), d, nay, TAY))
+	dung("retry lỗi cạnh tranh được chấp nhận khi số cuối đúng", _vong_dem_dat(dict(ra, dem={"ok": 0, "loi": "TimestampMismatchError: thu lai"}), d, nay, TAY))
