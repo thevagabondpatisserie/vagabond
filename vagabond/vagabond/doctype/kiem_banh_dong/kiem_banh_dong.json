@@ -176,7 +176,7 @@
    "fieldname": "nguon_ton_cu",
    "fieldtype": "Select",
    "label": "Nguồn Tồn cũ hơn",
-   "options": "\nTu chuyen\nDa kiem dem",
+   "options": "\nChua ghi\nTu chuyen\nDa kiem dem",
    "read_only": 1,
    "description": "Tu chuyen: may ghi luc chot ngay hom truoc. Da kiem dem: nguoi go tren man Kiem banh. Trong: so co tu truoc khi co o nay, chua ro nguon."
   },
@@ -191,7 +191,7 @@
    "fieldname": "nguon_ton_d2",
    "fieldtype": "Select",
    "label": "Nguồn Tồn D-2",
-   "options": "\nTu chuyen\nDa kiem dem",
+   "options": "\nChua ghi\nTu chuyen\nDa kiem dem",
    "read_only": 1,
    "description": "Tu chuyen: may ghi luc chot ngay hom truoc. Da kiem dem: nguoi go tren man Kiem banh. Trong: so co tu truoc khi co o nay, chua ro nguon."
   },
@@ -206,7 +206,7 @@
    "fieldname": "nguon_ton_d1",
    "fieldtype": "Select",
    "label": "Nguồn Tồn D-1",
-   "options": "\nTu chuyen\nDa kiem dem",
+   "options": "\nChua ghi\nTu chuyen\nDa kiem dem",
    "read_only": 1,
    "description": "Tu chuyen: may ghi luc chot ngay hom truoc. Da kiem dem: nguoi go tren man Kiem banh. Trong: so co tu truoc khi co o nay, chua ro nguon."
   },
