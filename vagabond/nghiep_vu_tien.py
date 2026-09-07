@@ -111,6 +111,24 @@ TRUONG_MOI = {
 			),
 		},
 	],
+	# v445 (Codex #225 R1): ho so "Chi tu TK cong ty" khong co hoa don thi
+	# ghi Journal Entry, va truoc day Journal Entry KHONG mang dau vet nguoc
+	# ve ho so. Bam lai sau khi mat phan hoi la sinh them mot but toan nua ma
+	# khong cach nao phat hien. Cung ten o voi Payment Entry de mot phep tra
+	# `_but_toan_cua_ho_so` doc duoc ca hai. Chi dung tu day ve sau; Journal
+	# Entry cu khong duoc tu suy tu dien giai ma gan lai.
+	"Journal Entry": [
+		{
+			"fieldname": "vgb_ho_so_tt",
+			"label": "Hồ sơ thanh toán",
+			"fieldtype": "Link",
+			"options": "Vagabond Ho So TT",
+			"insert_after": "user_remark",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "Hồ sơ thanh toán đã dựng ra bút toán này (chi thẳng từ tài khoản công ty).",
+		},
+	],
 }
 
 
