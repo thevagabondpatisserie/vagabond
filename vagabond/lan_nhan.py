@@ -33,7 +33,7 @@ Tên tệp là `lan_nhan` vì `nhan_hang.py` (nhận từng phần đơn mua) v�
 khác. Đừng gộp: ba tệp là ba nghiệp vụ.
 
 Phần THUẦN (kiểm được không cần Frappe): `doc_ma_lan`, `doc_dong_nhan`.
-Phần chạm hệ: `nhan_theo_phieu`.
+Phần chạm hệ: `nhan_theo_phieu`, `tra_lan_nhan` (chỉ đọc).
 """
 
 import json
@@ -112,9 +112,10 @@ def doc_dong_nhan(dong):
 # ------------------------------------------------------------ chạm hệ
 
 
-def _da_co(ma_lan):
+def _da_co(ma_lan, khoa=False):
 	return frappe.db.get_value(
-		"Stock Entry", {"vgb_ma_lan_nhan": ma_lan}, ["name", "docstatus"], as_dict=True
+		"Stock Entry", {"vgb_ma_lan_nhan": ma_lan}, ["name", "docstatus"], as_dict=True,
+		for_update=khoa,
 	)
 
 
@@ -142,6 +143,21 @@ def _la_loi_trung_khoa(e):
 		) if x
 	)
 	return bool(loai) and isinstance(e, loai)
+
+
+@frappe.whitelist()
+def tra_lan_nhan(ma_lan_nhan=None):
+	"""Lần nhận này đã thành phiếu chưa. CHỈ ĐỌC.
+
+	Màn hình gọi khi mở lại một lần nhận đang chờ xác nhận (mất phản hồi sau
+	khi gửi): có phiếu thì báo và không gửi lại, chưa có thì gửi lại đúng mã.
+	Codex P1 vòng 4 trên PR #222.
+	"""
+	ma_lan = doc_ma_lan(ma_lan_nhan)
+	cu = _da_co(ma_lan)
+	if not cu:
+		return {"co": 0}
+	return {"co": 1, "name": cu.get("name"), "docstatus": int(cu.get("docstatus") or 0)}
 
 
 @frappe.whitelist()
@@ -200,7 +216,13 @@ def nhan_theo_phieu(ma_lan_nhan=None, phieu=None, kho_xuat=None, kho_nhan=None,
 		if not _la_loi_trung_khoa(e):
 			raise
 		frappe.db.rollback(save_point=diem)
-		cu = _da_co(ma_lan)
+		# Đọc KHOÁ (FOR UPDATE), không đọc thường: MariaDB REPEATABLE READ giữ
+		# ảnh chụp từ câu SELECT đầu tiên của transaction, lúc đó phiếu của bên
+		# kia chưa commit, đọc thường sẽ không thấy và lại ném lỗi trùng khoá
+		# ra màn hình. Đọc khoá luôn thấy bản đã commit mới nhất. Chỉ dùng ở
+		# nhánh này, không dùng ở lần dò đầu (dò FOR UPDATE khi chưa có dòng
+		# sẽ lấy gap lock, hai bên cùng chèn thành deadlock).
+		cu = _da_co(ma_lan, khoa=True)
 		if not cu:
 			raise
 		return _tra_phieu_cu(cu)
