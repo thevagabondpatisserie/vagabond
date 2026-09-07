@@ -140,7 +140,7 @@ function dungMan(canh) {
         var ma = ts.ma_lan_nhan;
         var hong = canh.hongKhiGui && (!canh.hongToiLan || lanGui <= canh.hongToiLan);
         if (hong && canh.loiRoRang) {
-          var e417 = new Error('Kho xuat khong du hang'); e417.status = 417; e417.exc_type = 'ValidationError';
+          var e417 = new Error('Kho xuat khong du hang'); e417.status = canh.maLoi || 417; e417.exc_type = canh.loaiLoi || 'ValidationError';
           return Promise.reject(e417);
         }
         if (hong && canh.loiTruocKhiLuu) return Promise.reject(new Error('gia lap mat mang'));
@@ -149,7 +149,11 @@ function dungMan(canh) {
           kho.dem++;
           kho.phieu[ma] = { name: 'MAT-STE-000' + kho.dem, dong: ts.dong, phieu: ts.phieu };
         }
-        if (hong) return Promise.reject(new Error('gia lap mat mang sau khi may chu da luu'));
+        if (hong) {
+          var eMang = new Error('gia lap mat mang sau khi may chu da luu');
+          if (canh.maLoiSauLuu) eMang.status = canh.maLoiSauLuu;
+          return Promise.reject(eMang);
+        }
         return new Promise(function (r) {
           setTimeout(function () { r({ ok: 1, name: kho.phieu[ma].name, da_co: daCo ? 1 : 0 }); }, 5);
         });
@@ -600,6 +604,38 @@ ca('phiếu huỷ chỉ đóng pending sau khi xác nhận đã đối chiếu, 
   bang('pending đã đóng', m.g.rcv.cho, null);
   bang('không nhận mới', cacLanGui(m).length, truoc);
   dung('báo huỷ không báo nhận thành công', m.toast.some(function (t) { return t.indexOf('phiếu đã huỷ HUY-1') >= 0; }));
+});
+
+[500, 502, 503, 504, 520, 524].forEach(function (st) {
+  ca('lần đầu ghi xong nhưng cổng trả HTTP ' + st + ' không mất mã chống trùng', async function () {
+    var m = await guiMatPhanHoi({ maLoiSauLuu: st });
+    var ma = maLan(m, 0);
+    bang('phiếu đã ghi', soPhieu(m), 1);
+    bang('giữ mã chờ', m.g.rcv.cho && m.g.rcv.cho.ma_lan, ma);
+    bang('giữ bản bền', Object.keys(m.luuTru).length, 1);
+    await bamXacNhan(m);
+    bang('retry đúng mã', maLan(m, 1), ma);
+    bang('vẫn một phiếu', soPhieu(m), 1);
+    bang('vẫn nhận 30', tongNhan(m), 30);
+  });
+});
+
+[[417, 'NegativeStockError'], [417, 'MandatoryError'], [403, 'PermissionError'], [404, 'DoesNotExistError'], [417, 'LinkValidationError']].forEach(function (loi) {
+  ca('lần gửi đầu bị từ chối ' + loi.join('/') + ' thì sửa số và nhận lại được', async function () {
+    var m = dungMan({ phieu: phieu100(), hongKhiGui: 1, hongToiLan: 1, loiRoRang: 1, maLoi: loi[0], loaiLoi: loi[1] });
+    await moTuManChiTiet(m, 'vRecv');
+    goSo(m, 0, 30);
+    await bamXacNhan(m);
+    bang('không có phiếu', soPhieu(m), 0);
+    bang('không có pending', m.g.rcv.cho, null);
+    bang('storage đã sạch', Object.keys(m.luuTru).length, 0);
+    await moTuManChiTiet(m, 'vRecv');
+    goSo(m, 0, 20);
+    bang('sửa số được', m.g.rcv.rows[0].qty, 20);
+    await bamXacNhan(m);
+    bang('chỉ một phiếu', soPhieu(m), 1);
+    bang('nhận số đã sửa', tongNhan(m), 20);
+  });
 });
 
 /* ---------- chay ---------- */
