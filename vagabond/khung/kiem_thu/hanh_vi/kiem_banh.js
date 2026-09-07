@@ -389,6 +389,53 @@ ca('cot khac (san xuat) van doc theo cach cu, khong bi doi chinh sach lay', asyn
 });
 
 
+/* ---------- nguon cua o ton (#216, v444) ---------- */
+
+function nguonCua(m, id) {
+  var o = oTheo(m, id);
+  if (!o) throw new Error('Khong thay o ' + id);
+  var n = o.querySelector('.kb-nguon');
+  return n ? { chu: n.textContent.trim(), lop: n.className } : null;
+}
+
+ca('o ton bay NGUON: Tu chuyen, Da kiem dem kem so may va chenh lech, Can xac nhan; khong nguon thi khong bay gi', async function () {
+  var d = dong({ ton_d1: 4, ton_d2: 7, ton_cu: 9 });
+  d.nguon = {
+    ton_d1: { trang_thai: 'Đã kiểm đếm', may_chuyen: 7, ai: 'loananh@vagabond', luc: '2026-09-07 06:10:00' },
+    ton_d2: { trang_thai: 'Tự chuyển', may_chuyen: 7, ai: '', luc: '' },
+    ton_cu: { trang_thai: 'Cần xác nhận', may_chuyen: 0, ai: '', luc: '' },
+  };
+  var d2 = dong({ ma_hang: 'BAWC00056', ton_d1: 3 });   /* ban ghi cu, khong co khoa nguon */
+  var m = await moMan({ bang: function () { return bangCua([d, d2]); } });
+  var a = nguonCua(m, 'BAWC00055|ton_d1');
+  bang('dem tay 4, may 7: bay chenh lech -3 va ten nguoi', a.chu, 'Đã kiểm đếm · máy 7 (-3) · loananh');
+  dung('to do khi lech', a.lop.indexOf('lech') >= 0);
+  var b = nguonCua(m, 'BAWC00055|ton_d2');
+  bang('may chuyen: chi nhan', b.chu, 'Tự chuyển');
+  dung('khong to', b.lop.indexOf('lech') < 0 && b.lop.indexOf('xn') < 0);
+  var c = nguonCua(m, 'BAWC00055|ton_cu');
+  bang('can xac nhan kem so may', c.chu, 'Cần xác nhận · máy 0');
+  dung('to cam', c.lop.indexOf('xn') >= 0);
+  bang('dong khong co khoa nguon thi khong bay gi', nguonCua(m, 'BAWC00056|ton_d1'), null);
+  bang('so tren o van la so nguoi dem', oTheo(m, 'BAWC00055|ton_d1').querySelector('b').textContent, '4');
+});
+
+ca('dem tay o ton khop so may thi khong bay chenh lech; bam o van mo duoc o nhap va luu_o gui dung truong', async function () {
+  var d = dong({ ton_d1: 7 });
+  d.nguon = { ton_d1: { trang_thai: 'Đã kiểm đếm', may_chuyen: 7, ai: '', luc: '' } };
+  var m = await moMan({ bang: function () { return bangCua([d]); } });
+  bang('khop thi chi nhan', nguonCua(m, 'BAWC00055|ton_d1').chu, 'Đã kiểm đếm');
+  oTheo(m, 'BAWC00055|ton_d1').click();
+  var inp = m.tai.getElementById('kb-inp');
+  dung('mo o nhap', !!inp);
+  inp.value = '5';
+  var truoc = m.goi.length;
+  m.tai.getElementById('kb-ok').click();
+  await choToi('luu_o bay di', function () { return m.goi.length > truoc; });
+  bang('dung truong', m.goi[truoc].ts.truong, 'ton_d1');
+  bang('dung so', m.goi[truoc].ts.gia_tri, 5);
+});
+
 /* ---------- chay ---------- */
 
 async function chay() {
