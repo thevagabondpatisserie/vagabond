@@ -75,6 +75,8 @@ def chuan_goi(si, goi):
 					dong["inv_itemName"] = ten + " (Hàng biếu tặng không thu tiền)"
 		# Giữ tổng giá tính thuế, nói rõ khách không phải trả ngay trên tờ VAT.
 		dd["inv_paymentMethodName"] = "Hàng tặng không thu tiền"
+		from vagabond.hang_tang_so_cai import kiem_thue_gui
+		kiem_thue_gui(si, dd)
 	return ra
 
 

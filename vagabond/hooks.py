@@ -658,6 +658,7 @@ doc_events = {
 			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
 			"vagabond.hang_tang.truoc_khi_ghi_so",
 			"vagabond.thanh_toan_nhieu.kiem_truoc_ghi_so",
+			"vagabond.hang_tang_so_cai.truoc_khi_ghi_so",
 		],
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
@@ -717,6 +718,7 @@ update_website_context = [
 # Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan
 # tri tren may tinh) bang thu chi huong dan mo app dien thoai.
 override_doctype_class = {
+	"Sales Invoice": "vagabond.hoa_don_hang_tang.HoaDonHangTang",
 	"User": "vagabond.nhan_su.NguoiDung",
 	# 21/08/2026: DA GO hai lop PhieuNhapKho va HoaDonMua o day. Chung dinh
 	# doi tac vao dong so cai cua tai khoan cho hoa don, ma ERPNext chi cho

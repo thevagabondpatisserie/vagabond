@@ -170,6 +170,8 @@ def dung():
 	from vagabond import minvoice_an_toan
 
 	_dung_nhom(minvoice_an_toan.TRUONG_MOI, "minvoice_an_toan")
+	from vagabond import hang_tang_so_cai
+	_dung_nhom(hang_tang_so_cai.TRUONG_MOI, "hang_tang_so_cai")
 	from vagabond import hang_tang
 
 	_dung_nhom(hang_tang.TRUONG_MOI, "hang_tang")

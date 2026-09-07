@@ -500,7 +500,7 @@ def truoc_khi_ghi_so(doc, method=None):
 	# Kiểm tài khoản NGAY BÂY GIỜ chứ không đợi tới lúc lập bút toán. Thiếu
 	# tài khoản mà để tờ ghi sổ xong mới báo thì hoá đơn đã vào sổ, công nợ
 	# treo trên đầu khách, và có khi đã bắn sang hoá đơn điện tử.
-	_tk_chi_phi()
+	# Tài khoản VAT được kiểm ở hook hang_tang_so_cai trước ghi sổ.
 
 
 def sau_khi_ghi_so(doc, method=None):
@@ -522,6 +522,8 @@ def sau_khi_ghi_so(doc, method=None):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "qua_tang_hoa_don: dong dau da tang")
 
+	if doc.get("vgb_tang_so_cai"):
+		return
 	try:
 		_gat_cong_no(doc)
 	except frappe.ValidationError:
@@ -656,7 +658,7 @@ def xuat_hoa_don(ma_phieu=None, ngay=None, ghi_so=0):
 	if not mon:
 		frappe.throw("Phiếu tặng quà %s chưa có món nào." % p["name"])
 
-	_tk_chi_phi()
+	# Tài khoản VAT được kiểm ở hook hang_tang_so_cai trước ghi sổ.
 
 	si = frappe.new_doc(SI)
 	si.customer = p["khach"]

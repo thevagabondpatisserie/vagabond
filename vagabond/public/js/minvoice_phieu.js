@@ -16,3 +16,12 @@ frappe.ui.form.on('Sales Invoice', {
 		});
 	}
 });
+
+// Kho sản xuất chưa sẵn sàng: không gọi giá bán là giá vốn đã ghi sổ.
+frappe.ui.form.on('Sales Invoice', {
+	refresh(frm) {
+		if (frm.doc.docstatus === 1 && frm.doc.vgb_tang_cho_gia_von && !frm.doc.vgb_hddt_cho_doi_chieu) {
+			frm.set_intro('Hàng tặng không thu tiền: đã ghi VAT, đang chờ giá vốn. Chưa xuất kho ERP; theo dõi số lượng tại màn Kiểm bánh.', 'orange');
+		}
+	}
+});

@@ -254,8 +254,8 @@ def _():
 	dung("có chặn khi trạng thái khác Đã duyệt", "if tt != TT_DUYET:" in than)
 	dung("có chặn riêng cho đơn đã bị từ chối", "if tt == TT_TU_CHOI:" in than)
 	dung("có kiểm dấu vân trước khi cho ghi sổ", "can_duyet_lai(" in than)
-	dung("có kiểm tài khoản chi phí biếu tặng trước khi vào sổ",
-		"_tk_chi_phi()" in than)
+	dung("có cửa kiểm tài khoản VAT trước khi vào sổ",
+		"vagabond.hang_tang_so_cai.truoc_khi_ghi_so" in _doc("vagabond", "hooks.py"))
 	dung("có nối ghi chú vào từng dòng hàng", "them_ghi_chu(" in than)
 	# Hook validate KHONG duoc chan: chan o do la khong bao gio chon duoc
 	# phuong thuc nay. Xem ghi chu dai trong ham.

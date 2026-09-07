@@ -1,7 +1,7 @@
 # Issue #227: HĐĐT sai người nhận và hàng tặng
 
 Codex sửa, Claude review bổ sung và phụ trách merge/deploy theo phân công
-của anh Việt ngày 07/09/2026. Đây là phần 1, chưa đóng issue #227.
+của anh Việt ngày 07/09/2026. Bản sửa gồm chặn gửi nhầm HĐĐT và kế toán hàng tặng ở giai đoạn chưa có kho sản xuất. Chưa đóng issue #227.
 
 ## Bản sửa hiện tại
 
@@ -18,7 +18,7 @@ của anh Việt ngày 07/09/2026. Đây là phần 1, chưa đóng issue #227.
   mã phải được xác nhận, không chọn bản đầu.
 - Từng dòng của đơn Hàng tặng đã duyệt và quà VIP có ghi chú
   `(Hàng biếu tặng không thu tiền)` trên chính `inv_itemName`. Giữ nguyên
-  giá tính thuế và VAT. Chưa sửa luồng GL, tổng khách phải trả hay giá vốn.
+  giá tính thuế và VAT. Đơn tặng ghi sổ mới dùng GL riêng như phần kế toán dưới đây.
 - Giữ chỗ trước HTTP bằng current read có khoá và cờ bền vững. Timeout,
   lỗi không rõ kết quả hoặc Save bị từ chối giữ cờ để tránh tự phát hành
   đúp. Lần thành công có ID xoá cờ. ID hoặc số HĐĐT cũng chặn gửi lại.
@@ -45,7 +45,7 @@ giá trị thông tin đăng nhập thật. Test dùng miền `.invalid` và d�
 
 ## Kiểm và giới hạn
 
-Cổng `kiem_truoc_deploy.sh` mã 0, 2600 ca tầng khung đạt; bundle khớp từng
+Cổng `kiem_truoc_deploy.sh` mã 0, 2605 ca tầng khung đạt; bundle khớp từng
 byte, bộ kiểm DOM hiện có xanh. Các ca mới chạy toàn bộ snapshot script,
 không chỉ dò chuỗi: bản cũ nạp email từ đơn 1227 vào đơn 227; bản mới
 không ghi. Kiểm đúng mã, mail ghi chú chung, giữ tên người mua đã xác nhận,
@@ -76,23 +76,58 @@ trong `frappe/model/document.py` và transaction trong `database.py`.
    thì đồng bộ ID/trạng thái bằng luồng M-Invoice hiện có; chỉ dùng nút mở
    lại sau xác nhận chưa có bản. Nút không tự gửi hoá đơn.
 
-## Phần 2 còn mở: kế toán hàng tặng
+## Kế toán hàng tặng và quyết định về kho ngày 07/09/2026
 
-Yêu cầu nghiệp vụ đã nhận: không có doanh thu 511/công nợ 131, giá vốn
-Nợ 64181/Có 155; VAT Nợ 64182/Có 33311. Hoá đơn VAT vẫn giữ giá tính thuế
-và nói rõ không thu tiền. Không thêm bước kế hoạch chi.
+Anh Việt đã chốt: về sau trừ kho khi ghi sổ hoá đơn. Hiện chưa hoàn thiện
+BOM/lệnh sản xuất, chưa có tồn kho ERP; nhập xuất tồn được theo dõi trên
+màn Kiểm bánh thay Excel. Không thêm bước kế hoạch chi.
 
-Phát hiện nền: cả đơn Pancake và đơn tại quầy trong `ban_hang.py` hiện
-đặt `update_stock=0`. Luồng hàng tặng đang tạo SI thường rồi JE gạt công
-nợ, nên 511 vẫn còn và chi phí bị tính theo tổng giá bán, không phải giá
-vốn sản xuất. Chỉ đổi JE gạt công nợ sẽ không đáp ứng yêu cầu.
+Bản v446 này xử lý giai đoạn hiện tại:
 
-Đã hỏi anh Việt điểm trừ kho hiện tại: ngay tại đơn tặng hay qua phiếu
-xuất kho/kiểm bánh cuối ngày. Chưa nhận câu trả lời trong lúc chuẩn bị
-bản này. Không tự bật update_stock vì có thể trừ kho hai lần. Sau khi
-chốt, sửa đường ghi sổ tại nguồn với tài khoản đúng công ty, không gắn
-party vào tài khoản chi phí; thêm test insert/submit đọc GL và SLE thật,
-kiểm huỷ/ghi lại và không đụng chứng từ cũ. Phần này chưa code, chưa kiểm.
+- Đơn Hàng tặng được duyệt hoặc quà VIP ghi sổ mới có dấu nội bộ
+  `vgb_tang_so_cai`. SI vẫn giữ giá thị trường để lập HĐĐT, nhưng GL chỉ
+  ghi Nợ 64182/Có 33311 phần VAT. Không tạo GL 511/131, Payment Ledger
+  hoặc JE gạt toàn bộ giá bán thành chi phí. Khách phải trả 0.
+- Phép chia VAT gross theo từng dòng khớp script phát hành hiện tại,
+  lấy `MInvoice Phat Hanh Settings.thue_suat` (fallback `or 8` như script).
+  Với 1.900.000 và 8%: giá trước thuế 1.759.259, VAT 140.741. Lưu số VAT,
+  thuế suất và tài khoản ngay lúc ghi sổ để repost không chạy theo cấu
+  hình mới. Cửa phát hành so khớp từng dòng và tổng, lệch thì không gửi.
+- Kế toán phải có đúng một tài khoản chi tiết 64182 (Expense) và 33311
+  (Liability), đúng công ty, còn dùng, VND; có cost center trên SI hoặc
+  mặc định công ty. Không tự tạo/sửa danh mục tài khoản khi migrate.
+- Giữ `update_stock=0`, không sửa Kiểm bánh, không sinh SLE hoặc bút toán
+  giá vốn giả. Field và thông báo Desk ghi rõ chờ giá vốn. **Chưa triển
+  khai tự xuất kho/64181-155**; nếu bật `update_stock=1` trên đơn tặng mới
+  thì dừng trước ghi sổ, không âm thầm ghi thiếu phần kho. Giai đoạn kho
+  sản xuất sau cần triển khai SLE chuẩn tại submit cùng giá vốn thực tế,
+  rồi mới mở cửa này. Không tự xuất bù các đơn đang chờ giá vốn.
+- Các loại chưa được hỗ trợ (return/POS/ứng trước/thu tiền/mở sổ/doanh
+  thu chờ phân bổ/phiếu giao hàng/tài sản) dừng rõ để kế toán tách đúng
+  chứng từ. Hàng tặng mới không tích điểm trên giá tính thuế.
+- Phiếu đã ghi sổ trước bản sửa không có dấu mới: giữ đường GL cũ khi
+  huỷ/repost. Migration không duyệt lại, không sửa GL và không đổi thuế
+  các phiếu cũ. Đơn nháp ghi sổ sau deploy dùng đường mới.
+
+Đã đọc ERPNext de59166: SalesInvoice `get_gl_entries`, `make_gl_entries`,
+`on_submit`; AccountsController `get_gl_dict`; general_ledger, GLEntry,
+party và Payment Ledger. Override chỉ thay bản đồ GL theo dấu mới; ghi
+và đảo bút toán vẫn dùng core. Không gắn Customer lên tài khoản chi phí.
+
+## Cổng bàn giao kế toán cho Claude
+
+Bắt buộc trước merge/deploy: trên bench tương đương chạy
+`bench --site <site-thu> execute vagabond.khung.kiem_that.cua.chay`.
+Ba ca mới ở `thu_hang_tang_227.py` insert/submit SI thật, đọc GL/PLE/SLE,
+kiểm repost và cancel, đơn thường, chặn xuất kho chưa triển khai. Giữ
+savepoint, khoá commit và cờ cấm gửi ra ngoài; hai khoá
+`chung_tu_con_sot`/`so_luong_lech` phải rỗng. Thiếu danh mục/core ném lỗi
+là ca đỏ. Codex chưa chạy tầng này vì máy làm code không có bench/DB.
+
+Ngoài test, Claude cần đối chiếu quyền, flow VIP và đơn Hàng tặng trên
+app; xác nhận hiển thị khách trả 0, không tích điểm; kiểm payload preview
+và thông báo chờ giá vốn. Không phát hành thật bằng dữ liệu thử. Giữ PR
+Draft đến khi bằng chứng tích hợp và review bổ sung đạt.
 
 ## Chứng từ cũ
 
@@ -102,4 +137,4 @@ gửi lại HĐĐT đã đến cơ quan thuế. Nội dung issue dẫn Nghị đ
 quy trình phải đối chiếu cả phần sửa đổi tại Nghị định 70/2025, không dùng
 nguyên hướng dẫn cũ: https://vanban.chinhphu.vn/?docid=213179&lang=vi&pageid=27160.
 
-Issue chỉ hoàn tất khi cả phần 2 và đối chiếu chứng từ cũ có kết quả.
+Issue chỉ hoàn tất khi kiểm kế toán trên bench đạt và chứng từ cũ đã được kế toán đối chiếu/xử lý. Kho sản xuất là giai đoạn riêng theo quyết định trên.
