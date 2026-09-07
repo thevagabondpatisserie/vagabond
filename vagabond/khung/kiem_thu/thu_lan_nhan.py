@@ -100,4 +100,4 @@ def _tra_lai():
 		src = f.read()
 	dung("ghi lần chờ TRƯỚC khi gửi", src.index("ghiLanCho(mr.name, lan);") < src.index("await api('vagabond.lan_nhan.nhan_theo_phieu'"))
 	dung("mở màn thì tra lại máy chủ", "if (rcv.cho) traLanCho(mr);" in src)
-	dung("chỉ 502/503/504 và mất mạng mới là chưa rõ", "st !== 502 && st !== 503 && st !== 504" in src)
+	dung("retry không xoá lần chờ vì mã HTTP", "daGui && !cho && loiDaChacHong(err)" in src)
