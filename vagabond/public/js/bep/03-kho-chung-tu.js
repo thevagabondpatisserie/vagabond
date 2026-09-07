@@ -1006,7 +1006,7 @@ function sinhMaLanNhan() {
 
    - NGAY TRUOC khi gui, ghi ca ma lan ma payload xuong localStorage theo
      phieu va nguoi dung. Phan hoi ve (thanh cong, hay may chu tu choi ro
-     rang) thi xoa. Mat mang, het gio, cong ket noi (502/503/504) thi GIU:
+     rang ở lần gửi đầu) thi xoa. Retry lỗi luôn GIỮ mã cũ:
      luc do khong biet may chu da ghi hay chua.
    - Con lan dang cho thi man KHOA o so luong. Nut duy nhat la "Tra lai va
      gui lai lan truoc": gui lai DUNG ma va DUNG payload da luu. May chu tra
@@ -1019,17 +1019,29 @@ function sinhMaLanNhan() {
      tai lai tu phieu, va lan nhan tiep theo moi duoc cap ma moi. */
 function khoaLanCho(mr) { return 'vgbLanNhanCho:' + ((S && S.user) || '') + ':' + mr; }
 function docLanCho(mr) {
-  try { var t = localStorage.getItem(khoaLanCho(mr)); return t ? JSON.parse(t) : null; } catch (e) { return null; }
+  var t = localStorage.getItem(khoaLanCho(mr));
+  if (t === null) return null;
+  var lan = JSON.parse(t);
+  if (!lan || !lan.ma_lan || lan.phieu !== mr || !Array.isArray(lan.dong) || !lan.dong.length)
+    throw new Error('Dữ liệu lần nhận chờ bị lỗi. Liên hệ quản lý để đối chiếu phiếu trước khi nhận tiếp.');
+  return lan;
 }
 function ghiLanCho(mr, lan) {
-  try { if (lan) localStorage.setItem(khoaLanCho(mr), JSON.stringify(lan)); else localStorage.removeItem(khoaLanCho(mr)); } catch (e) { }
+  if (lan) {
+    var t = JSON.stringify(lan);
+    localStorage.setItem(khoaLanCho(mr), t);
+    if (localStorage.getItem(khoaLanCho(mr)) !== t)
+      throw new Error('Chưa lưu được lần nhận. Kiểm tra bộ nhớ trình duyệt rồi thử lại.');
+  } else {
+    localStorage.removeItem(khoaLanCho(mr));
+    if (localStorage.getItem(khoaLanCho(mr)) !== null)
+      throw new Error('Chưa xoá được lần chờ. Kiểm tra bộ nhớ trình duyệt rồi tra lại phiếu.');
+  }
 }
-/* May chu DA tra loi va tu choi (417 du lieu, 403 quyen, 500 loi trong
-   request: Frappe rollback ca request) thi chac chan KHONG co phieu. Chi
-   cong ket noi 502/503/504, het gio va mat mang moi la "chua ro". */
+/* Chỉ lỗi kiểm tra của lần gửi đầu mới cho phép bỏ mã. Lỗi của retry
+   không chứng minh lần trước chưa ghi sổ. */
 function loiDaChacHong(err) {
-  var st = err && err.status;
-  return !!st && st !== 502 && st !== 503 && st !== 504;
+  return !!err && err.status === 417 && err.exc_type === 'ValidationError';
 }
 function gioNgan(iso) {
   var d = iso ? new Date(iso) : null;
@@ -1040,7 +1052,14 @@ function gioNgan(iso) {
 async function scrRecvTransfer(mr, opt) {
   opt = opt || {};
   rcv.mr = mr;
-  rcv.cho = docLanCho(mr.name);
+  try {
+    rcv.cho = docLanCho(mr.name);
+  } catch (e) {
+    rcv.loi_luu = true;
+    frame('Nhận hàng ' + mr.name, '<div class="card">Không đọc được lần nhận đang chờ. Kiểm tra bộ nhớ trình duyệt và nhờ quản lý đối chiếu phiếu trước khi nhận tiếp.</div>', {});
+    return;
+  }
+  rcv.loi_luu = false;
   rcv.ma_lan = rcv.cho ? rcv.cho.ma_lan : sinhMaLanNhan();
   rcv.rows = (mr.items || []).map(function (it) {
     var done = opt.doneMap ? ((opt.doneMap[it.name] || 0) / (it.conversion_factor || 1)) : (it.ordered_qty || 0);
@@ -1134,11 +1153,28 @@ async function scrRecvTransfer(mr, opt) {
    man chi tiet de tai lai so con phai nhan. Chua co thi giu nguyen khoa. */
 async function traLanCho(mr) {
   var c = rcv.cho;
-  if (!c) return;
+  if (!c || RCV_DANG_GUI) return;
   var kq = null;
   try { kq = await api('vagabond.lan_nhan.tra_lan_nhan', { ma_lan_nhan: c.ma_lan }); } catch (e) { return; }
   if (kq && kq.co && rcv.cho && rcv.cho.ma_lan === c.ma_lan) {
-    ghiLanCho(mr.name, null);
+    if (kq.docstatus !== 1) {
+      if (kq.docstatus !== 2) {
+        toast('Phiếu ' + kq.name + ' còn nháp. Bấm tra lại và gửi lại để hoàn tất đúng phiếu này.', 6000);
+        return;
+      }
+      var daDoiChieu = await confirmSheet('Phiếu ' + kq.name + ' đã huỷ',
+        'Phiếu này không xác nhận nhận hàng thành công. Chỉ đóng lần chờ sau khi đã đối chiếu với quản lý; sau đó mở lại phiếu để nhận một lần mới.',
+        'Đã đối chiếu, đóng lần chờ');
+      if (!daDoiChieu || RCV_DANG_GUI || !rcv.cho || rcv.cho.ma_lan !== c.ma_lan) return;
+      try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); return; }
+      rcv.cho = null;
+      rcv.ma_lan = sinhMaLanNhan();
+      toast('Đã đóng lần chờ của phiếu đã huỷ ' + kq.name + '. Mở lại phiếu để kiểm số còn phải nhận.', 6000);
+      back();
+      setTimeout(function () { render(); }, 60);
+      return;
+    }
+    try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); return; }
     rcv.cho = null;
     rcv.ma_lan = sinhMaLanNhan();
     toast('Lần nhận lúc ' + gioNgan(c.luc) + ' đã được ghi từ trước (' + kq.name + '), không ghi thêm.', 5000);
@@ -1151,6 +1187,7 @@ var RCV_DANG_GUI = 0;   /* 1 khi mot lan nhap kho dang tren duong gui */
 
 async function doReceive(mr, src, dst, opt) {
   opt = opt || {};
+  if (rcv.loi_luu) return toast('Chưa đọc được lần nhận chờ. Nhờ quản lý đối chiếu trước khi nhận tiếp.');
   var cho = rcv.cho;
   var use = cho ? cho.dong : rcv.rows.filter(function (r) { return r.qty > 0.0001; });
   if (!use.length) return toast('Chưa nhập số lượng nào');
@@ -1171,6 +1208,7 @@ async function doReceive(mr, src, dst, opt) {
   RCV_DANG_GUI = 1;
   busy(1);
   var lan = cho;
+  var daGui = false;
   try {
     if (!lan) {
       /* Dong phieu gui di KHONG kem batch_no. May chu chon lo o
@@ -1199,6 +1237,7 @@ async function doReceive(mr, src, dst, opt) {
     }
     /* MOT cua o may chu lam ca insert lan submit, keo theo ma lan nhan.
        Cung ma gui lai thi may chu tra ve dung phieu da tao. */
+    daGui = true;
     var kq = await api('vagabond.lan_nhan.nhan_theo_phieu', {
       ma_lan_nhan: lan.ma_lan, phieu: lan.phieu, kho_xuat: lan.kho_xuat, kho_nhan: lan.kho_nhan,
       dong: lan.dong, cong_ty: COMPANY, ghi_chu: lan.ghi_chu
@@ -1214,9 +1253,9 @@ async function doReceive(mr, src, dst, opt) {
     setTimeout(function () { render(); }, 60);
   } catch (err) {
     busy(0); RCV_DANG_GUI = 0;
-    if (loiDaChacHong(err)) {
+    if (daGui && !cho && loiDaChacHong(err)) {
       /* May chu da tra loi va tu choi: chac chan khong co phieu, tha khoa. */
-      ghiLanCho(mr.name, null);
+      try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); await scrRecvTransfer(mr, opt); return; }
       rcv.cho = null;
       rcv.ma_lan = sinhMaLanNhan();
       toast(errMsg(err), 6000);
@@ -1224,7 +1263,7 @@ async function doReceive(mr, src, dst, opt) {
       /* Chua ro: giu ma va payload, khoa o so, bay bang canh bao. */
       toast(errMsg(err) + ' Lần nhận này đang chờ xác nhận, máy sẽ tra lại.', 7000);
     }
-    scrRecvTransfer(mr, opt);
+    await scrRecvTransfer(mr, opt);
   }
 }
 
