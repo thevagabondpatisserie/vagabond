@@ -465,3 +465,15 @@ def _():
 	dung("thiếu audit phải đỏ", not _vong_dem_dat(ra, dict(d, kiem_dem_ghi="{}"), nay, TAY))
 	dung("lỗi lạ phải đỏ", not _vong_dem_dat(dict(ra, dem={"ok": 0, "loi": "ValueError: loi"}), d, nay, TAY))
 	dung("retry lỗi cạnh tranh được chấp nhận khi số cuối đúng", _vong_dem_dat(dict(ra, dem={"ok": 0, "loi": "TimestampMismatchError: thu lai"}), d, nay, TAY))
+
+
+@ca("ton ngay mai: API khong xoa nguon va audit cua o da dem khi so khong doi")
+def _():
+	m = _dong_moi(ma_hang="BAWC00055")
+	kiem_banh.ghi_dem_tay(m, "ton_d1", 0, "nguoi-dem", "2026-09-07")
+	b = BangTruoc(truoc=_sao([m]), dong=[m])
+	m.nguon_ton_d1 = TRONG
+	m.kiem_dem_ghi = ""
+	b.save()
+	la("giữ nguồn", m.nguon_ton_d1, TAY)
+	la("giữ người đếm", json.loads(m.kiem_dem_ghi)["ton_d1"]["ai"], "nguoi-dem")

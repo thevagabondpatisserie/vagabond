@@ -138,6 +138,13 @@ class KiemBanhNgay(Document):
 						d.set("nguon_" + o, kiem_banh.NGUON_TRONG)
 			if co_may:
 				continue
+			if c is not None:
+				# Metadata chỉ đọc trên Desk vẫn có thể đi trong payload API.
+				# Giữ vết cũ trước khi ghi thêm lần đếm, không tin bản gửi lên.
+				d.set("kiem_dem_ghi", c.get("kiem_dem_ghi"))
+				for o in kiem_banh.O_TON:
+					d.set("nguon_" + o, c.get("nguon_" + o))
+					d.set("may_chuyen_" + o, c.get("may_chuyen_" + o))
 			for o in kiem_banh.O_TON:
 				# Ô mới có số người nhập hoặc xác nhận tay 0 phải được bảo vệ.
 				# Số 0 mặc định chưa xác nhận vẫn là Chưa ghi; luu_o xác nhận 0.
