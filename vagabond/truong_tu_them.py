@@ -167,6 +167,9 @@ def dung():
 
 	_dung_nhom(ke_hoach_sx.TRUONG_MOI, "ke_hoach_sx")
 	# Hang tang khong thu tien va luong giam doc duyet (anh Viet 31/08/2026).
+	from vagabond import minvoice_an_toan
+
+	_dung_nhom(minvoice_an_toan.TRUONG_MOI, "minvoice_an_toan")
 	from vagabond import hang_tang
 
 	_dung_nhom(hang_tang.TRUONG_MOI, "hang_tang")

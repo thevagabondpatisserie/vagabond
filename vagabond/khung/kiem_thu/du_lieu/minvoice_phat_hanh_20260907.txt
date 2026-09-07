@@ -1,0 +1,191 @@
+# Xuat hoa don Cho ky len m-invoice cho don ban hang
+# che_do: kiemtra | kyhieu | thu | day (mac dinh). Tham so: ngay, so_luong, phieu
+# Quy tac: giam gia TRU THANG vao don gia (khong hien dong chiet khau)
+#          don tong tien = 0 thi KHONG xuat hoa don
+#          dong hang co thanh tien = 0 thi KHONG dua len hoa don
+#          co MST trong ghi chu 'De in' Pancake thi xuat cho cong ty
+stg = frappe.get_doc('MInvoice Phat Hanh Settings')
+che_do = frappe.form_dict.get('che_do') or 'day'
+out = {}
+a_base = (stg.api2_base or '').rstrip('/')
+a_user = stg.api2_username or stg.username or ''
+a_pwd = stg.get_password('api2_password', raise_exception=False) or stg.get_password('password', raise_exception=False) or ''
+a_tok = None
+a_loi = 'chua khai bao tai khoan cong API'
+if a_base and a_user and a_pwd:
+    try:
+        z = frappe.make_post_request(a_base + '/api/Account/Login', data=json.dumps({'username': a_user, 'password': a_pwd, 'ma_dvcs': stg.ma_dvcs or 'VP'}), headers={'Content-Type': 'application/json'})
+        if isinstance(z, dict) and ('token' in z) and z['token']:
+            a_tok = z['token']
+        else:
+            a_loi = str(z)[:150].replace(a_pwd, '***')
+    except Exception as e:
+        a_loi = str(e).replace(a_pwd, '***')[:150]
+a_hdr = {'Authorization': 'Bear ' + str(a_tok), 'Content-Type': 'application/json'}
+if che_do == 'kiemtra':
+    out = {'cong_API': 'DANG NHAP OK' if a_tok else ('CHUA DUOC: ' + a_loi)}
+elif che_do == 'kyhieu':
+    kq = {}
+    if a_tok:
+        try:
+            r1 = frappe.make_get_request(a_base + '/api/Invoice68/GetTypeInvoiceSeries?Type=1', headers=a_hdr)
+            kq['ky_hieu'] = [x['value'] for x in r1['data']] if isinstance(r1, dict) and ('data' in r1) else str(r1)[:150]
+        except Exception as e:
+            kq['ky_hieu'] = 'LOI ' + str(e)[:120]
+    out = kq
+elif not a_tok:
+    out = {'loi': 'Khong dang nhap duoc cong API', 'chi_tiet': a_loi}
+else:
+    ngay = frappe.form_dict.get('ngay') or frappe.utils.today()
+    so_luong = frappe.utils.cint(frappe.form_dict.get('so_luong') or 0)
+    ts = frappe.utils.flt(stg.thue_suat or 8)
+    he_so = 1 + ts / 100
+    gop = []
+    for d0 in str(stg.ma_hang_gop or '').split(chr(10)):
+        if d0.strip():
+            gop.append(d0.strip().upper())
+    ds_quay = []
+    mot_phieu = frappe.form_dict.get('phieu')
+    if mot_phieu:
+        sinvs = [{'name': mot_phieu}]
+    else:
+        ds_nguon = [x.strip() for x in str(stg.nguon or 'Pancake').replace(chr(10), ',').split(',') if x.strip()]
+        # vgb_tam_tinh: bill quay con tam tinh la khach CHUA thanh toan - chua phai doanh thu, khong xuat hoa don
+        dk = {'custom_nguon': ['in', ds_nguon], 'posting_date': ngay, 'docstatus': 1, 'grand_total': ['>', 0], 'custom_minvoice_id': ['is', 'not set'], 'vgb_tam_tinh': ['!=', 1]}
+        # Tu 12/08/2026 hai quay dung chung nguon 'Tai cho' va 'Mang ve' nen ten nguon
+        # khong con la khoa cua diem ban. Loc them theo ma quay: Vagabond Settings.
+        # vgb_hddt_quay ghi ma quay dang bat xuat hoa don, dau @ la diem nhan don online
+        # (don online khong mang ma quay nao). Chua khai thi khong loc - giu nguyen
+        # hanh vi cu, khong tu dung ngung xuat hoa don cua diem nao.
+        try:
+            ds_quay = [x.strip() for x in str(frappe.get_doc('Vagabond Settings').get('vgb_hddt_quay') or '').replace(chr(10), ',').split(',') if x.strip()]
+        except Exception:
+            ds_quay = []
+        if ds_quay:
+            loc_q = []
+            for q0 in ds_quay:
+                if q0 == '@':
+                    loc_q.append('')
+                    loc_q.append(None)
+                else:
+                    loc_q.append(q0.upper())
+            dk['vgb_quay'] = ['in', loc_q]
+        sinvs = frappe.get_all('Sales Invoice', filters=dk, fields=['name'], order_by='name asc', limit_page_length=0)
+    if so_luong:
+        sinvs = sinvs[:so_luong]
+    ok_n = 0
+    errs = []
+    bo_qua = []
+    mau = None
+    for row in sinvs:
+        si = frappe.get_doc('Sales Invoice', row['name'])
+        if si.docstatus == 2:
+            bo_qua.append(si.name + ': phieu da huy')
+            continue
+        if si.get('custom_minvoice_id'):
+            bo_qua.append(si.name + ': da co hoa don')
+            continue
+        if frappe.utils.flt(si.grand_total) <= 0:
+            bo_qua.append(si.name + ': tong tien 0 - khong xuat hoa don')
+            continue
+        try:
+            frappe.form_dict['phieu'] = si.name
+            frappe.form_dict['ghi_de'] = 0
+            frappe.form_dict['khong_commit'] = 1
+            frappe.get_doc('Server Script', 'VGB - Nap thong tin xuat hoa don tu Pancake').execute_method()
+            si.reload()
+        except Exception:
+            pass
+        cac_dong = []
+        tong_dong = 0
+        for it in si.items:
+            if frappe.utils.flt(it.amount) > 0:
+                cac_dong.append(it)
+                tong_dong = tong_dong + frappe.utils.flt(it.amount)
+        if not cac_dong:
+            bo_qua.append(si.name + ': khong co dong hang co tien')
+            continue
+        gt = frappe.utils.flt(si.grand_total)
+        ty_le = (gt / tong_dong) if tong_dong > 0 else 1
+        con_lai = frappe.utils.cint(gt)
+        n_dong = len(cac_dong)
+        dongA = []
+        stt = 0
+        t_truoc = 0
+        t_thue = 0
+        t_sau = 0
+        for idx in range(n_dong):
+            it = cac_dong[idx]
+            stt = stt + 1
+            goc = frappe.utils.flt(it.amount)
+            if idx == n_dong - 1:
+                sau = con_lai
+            else:
+                sau = frappe.utils.cint(round(goc * ty_le))
+                con_lai = con_lai - sau
+            truoc = round(sau / he_so)
+            thue = sau - truoc
+            sl = frappe.utils.flt(it.qty) or 1
+            if str(it.item_code or '').upper() in gop:
+                sl = 1
+            dgia = round(truoc / sl, 2) if sl else truoc
+            dongA.append({'tchat': 1, 'stt_rec0': stt, 'inv_itemCode': it.item_code, 'inv_itemName': it.item_name, 'inv_unitCode': it.uom or 'Cai', 'inv_quantity': sl, 'inv_unitPrice': dgia, 'inv_discountPercentage': 0, 'inv_discountAmount': 0, 'inv_TotalAmountWithoutVat': truoc, 'ma_thue': frappe.utils.cint(ts), 'inv_vatAmount': thue, 'inv_TotalAmount': sau})
+            t_truoc = t_truoc + truoc
+            t_thue = t_thue + thue
+            t_sau = t_sau + sau
+        so_dh = str(si.get('custom_pancake_display_id') or '') or si.name
+        mst_m = str(si.get('vgb_xhd_mst') or '').strip()
+        ten_m = str(si.get('vgb_xhd_ten') or '').strip()
+        dc_m = str(si.get('vgb_xhd_dia_chi') or '').strip()
+        hau_to = str(stg.get('hau_to_dia_chi') or '').strip()
+        if dc_m and hau_to:
+            l0 = dc_m.lower()
+            if ('việt nam' not in l0) and ('viet nam' not in l0) and ('vietnam' not in l0):
+                dc_m = dc_m.rstrip(' ,.') + hau_to
+        mail_m = str(si.get('vgb_xhd_email') or '').strip()
+        dd = {'inv_invoiceSeries': stg.ky_hieu, 'inv_invoiceIssuedDate': str(si.posting_date), 'inv_currencyCode': 'VND', 'inv_exchangeRate': 1, 'inv_paymentMethodName': 'TM/CK', 'inv_buyerDisplayName': stg.buyer_name, 'so_benh_an': so_dh, 'key_api': si.name, 'inv_discountAmount': 0, 'inv_TotalAmountWithoutVat': t_truoc, 'inv_vatAmount': t_thue, 'inv_TotalAmount': t_sau, 'details': [{'data': dongA}]}
+        if mst_m or ten_m:
+            dd['inv_buyerDisplayName'] = ten_m or stg.buyer_name
+            if ten_m:
+                dd['inv_buyerLegalName'] = ten_m
+            if mst_m:
+                dd['inv_buyerTaxCode'] = mst_m
+            if dc_m:
+                dd['inv_buyerAddressLine'] = dc_m
+        if mail_m:
+            dd['inv_buyerEmail'] = mail_m
+        goiA = {'editmode': 1, 'data': [dd]}
+        if che_do == 'thu':
+            mau = goiA
+            break
+        try:
+            r = frappe.make_post_request(a_base + '/api/InvoiceApi78/Save', data=json.dumps(goiA), headers=a_hdr)
+            if isinstance(r, dict) and ('code' in r) and r['code'] == '00' and r['data']:
+                si.db_set('custom_minvoice_id', r['data']['inv_invoiceAuth_id'], update_modified=False)
+                si.db_set('custom_minvoice_ngay_day', frappe.utils.now(), update_modified=False)
+                si.db_set('custom_hddt_trang_thai', 'Chờ ký', update_modified=False)
+                si.db_set('custom_hddt_ky_hieu', stg.ky_hieu, update_modified=False)
+                so_moi = r['data'].get('inv_invoiceNumber') if isinstance(r['data'], dict) else None
+                if not so_moi:
+                    try:
+                        rz = frappe.make_get_request(a_base + '/api/InvoiceApi78/GetInfoInvoice', headers=a_hdr, params={'keyApi': si.name})
+                        so_moi = (rz.get('data') or {}).get('inv_invoiceNumber')
+                    except Exception:
+                        so_moi = None
+                if so_moi:
+                    si.db_set('custom_hddt_so', str(so_moi), update_modified=False)
+                ok_n = ok_n + 1
+            else:
+                errs.append(row['name'] + ': ' + str(r)[:150])
+        except Exception as e:
+            errs.append(row['name'] + ': ' + str(e).replace(str(a_tok), '***')[-150:])
+    if che_do == 'thu':
+        out = {'so_don_tim_thay': len(sinvs), 'mau': mau, 'quay_loc': ds_quay}
+    else:
+        stg.db_set('last_run', frappe.utils.now() + ' | ngay ' + str(ngay) + ' | tao ' + str(ok_n) + '/' + str(len(sinvs)))
+        stg.db_set('tong_da_day', frappe.utils.cint(stg.tong_da_day) + ok_n)
+        stg.db_set('last_error', chr(10).join(errs)[:2000] if errs else 'OK')
+        if not frappe.utils.cint(frappe.form_dict.get('khong_commit') or 0):
+            frappe.db.commit()
+        out = {'ngay': str(ngay), 'tim_thay': len(sinvs), 'tao_ok': ok_n, 'bo_qua': bo_qua[:5], 'loi': errs[:3]}
+frappe.response['message'] = out

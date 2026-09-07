@@ -53,6 +53,7 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
 doctype_js = {
+	"Sales Invoice": "public/js/minvoice_phieu.js",
 	"Purchase Invoice": "public/js/purchase_invoice.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
