@@ -989,10 +989,21 @@ function canReceive(d) {
    Nay man hinh gui dong phieu KHONG kem batch_no, va lo_hang.gan_lo o
    before_validate cua Stock Entry chon lo. Mot nguon duy nhat. */
 
-var rcv = { mr: null, rows: [] };
+var rcv = { mr: null, rows: [], ma_lan: '' };
+
+/* MA LAN NHAN: sinh o man hinh, moi lan mo man mot ma. Giu nguyen khi gui
+   hong de bam lai la gui lai DUNG lan do; doi ma moi khi gui xong hoac khi
+   sua so luong (luc do la mot lan nhan khac). May chu ghi ma vao o duy nhat
+   cua Stock Entry, nen hai lan gui cung ma chi ra MOT phieu. Doc dau
+   vagabond/lan_nhan.py. Codex P1 tren PR #222 vong 3. */
+function sinhMaLanNhan() {
+  return 'LN-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
 async function scrRecvTransfer(mr, opt) {
   opt = opt || {};
   rcv.mr = mr;
+  rcv.ma_lan = sinhMaLanNhan();
   rcv.rows = (mr.items || []).map(function (it) {
     var done = opt.doneMap ? ((opt.doneMap[it.name] || 0) / (it.conversion_factor || 1)) : (it.ordered_qty || 0);
     var left = (it.qty || 0) - done;
@@ -1044,6 +1055,7 @@ async function scrRecvTransfer(mr, opt) {
       if (v < 0) v = 0;
       if (v > r.max) v = r.max;
       r.qty = Math.round(v * 1000000) / 1000000;
+      rcv.ma_lan = sinhMaLanNhan();
       var inp = b.querySelector('[data-q="' + i + '"]');
       if (inp) inp.value = r.qty;
     };
@@ -1053,6 +1065,7 @@ async function scrRecvTransfer(mr, opt) {
       var v = parseFloat(q.value); if (!(v >= 0)) v = 0;
       if (v > r.max) { v = r.max; q.value = v; toast('Không nhận quá số trên phiếu'); }
       r.qty = v;
+      rcv.ma_lan = sinhMaLanNhan();
     });
 
     var ok = document.getElementById('rcOk');
@@ -1073,10 +1086,9 @@ async function doReceive(mr, src, dst, opt) {
     'Máy sẽ trừ ' + use.length + ' món ở kho ' + shortWh(src) + ' và nhập vào kho ' + shortWh(dst) + '. Bút toán kho không sửa lại được.',
     'Xác nhận nhập kho');
   if (!ok) return;
-  /* Chan bam kep trong luc dang gui: mang chap chon thi nguoi ta bam lai,
-     ma moi lan bam la mot phieu kho. Day chi la chot o MAN HINH; chong
-     trung that su phai lam o may chu, dang khao sat rieng. Bo co o finally
-     nen gui hong van bam lai duoc. */
+  /* Chan bam kep trong luc dang gui. Day chi la chot o MAN HINH cho cung
+     mot lan gui; chong trung THAT nam o may chu: rcv.ma_lan di kem moi lan
+     gui, may chu tu choi tao phieu thu hai cho cung ma (xem lan_nhan.py). */
   if (RCV_DANG_GUI) return;
   RCV_DANG_GUI = 1;
   busy(1);
@@ -1096,18 +1108,20 @@ async function doReceive(mr, src, dst, opt) {
     }
     if (!items.length) { busy(0); RCV_DANG_GUI = 0; return toast('Không có dòng nào để nhập kho'); }
 
-    var doc = {
-      doctype: 'Stock Entry', company: COMPANY,
-      stock_entry_type: 'Material Transfer', purpose: 'Material Transfer',
-      set_posting_time: 1, posting_date: today(), posting_time: nowStamp().slice(11),
-      from_warehouse: src, to_warehouse: dst, items: items,
-      remarks: (opt.remarks || 'Nhận hàng điều chuyển nội bộ trên app - phiếu ') + mr.name + ' - ' + (S.me.full_name || S.user)
-    };
-    var ins = await api('frappe.client.insert', { doc: doc });
-    await api('frappe.client.submit', { doc: ins });
+    if (!rcv.ma_lan) rcv.ma_lan = sinhMaLanNhan();
+    /* MOT cua o may chu lam ca insert lan submit, keo theo ma lan nhan.
+       Gui hong (mat mang, het gio) thi GIU ma: bam lai la may chu tra ve
+       dung phieu da tao neu lan truoc thuc ra da toi noi. */
+    var kq = await api('vagabond.lan_nhan.nhan_theo_phieu', {
+      ma_lan_nhan: rcv.ma_lan, phieu: mr.name, kho_xuat: src, kho_nhan: dst,
+      dong: items, cong_ty: COMPANY,
+      ghi_chu: (opt.remarks || 'Nhận hàng điều chuyển nội bộ trên app - phiếu ') + mr.name + ' - ' + (S.me.full_name || S.user)
+    });
+    rcv.ma_lan = sinhMaLanNhan();
     busy(0);
     RCV_DANG_GUI = 0;
-    toast('Đã nhập kho ' + shortWh(dst) + ' theo phiếu ' + mr.name + ' (' + ins.name + ')', 4500);
+    toast((kq && kq.da_co ? 'Lần nhận này đã được ghi từ trước, không ghi thêm. ' : 'Đã nhập kho ' + shortWh(dst) + ' theo phiếu ' + mr.name) +
+      ' (' + ((kq && kq.name) || '') + ')', 4500);
     back();
     setTimeout(function () { render(); }, 60);
   } catch (err) { busy(0); RCV_DANG_GUI = 0; toast(errMsg(err), 6000); }
