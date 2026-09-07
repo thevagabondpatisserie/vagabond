@@ -85,17 +85,19 @@ def dong(ma, kho, qty, he_so=1, uom=None, lo=None, goi=None, **them):
 
 
 _CUA = ("_theo_lo", "_ton_tung_lo", "_ton_lo_qua_han", "_xep_het_han_truoc",
-	"_cac_ma_thay_the", "_kho_khac_con", "_ten_hang")
+	"_cac_ma_thay_the", "_kho_khac_con", "_ten_hang", "_lo_trong_goi")
 
 
-def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0):
+def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0, goi=None):
 	"""Chạy THẬT `lo_hang.gan_lo`, chỉ thay các cửa chạm hệ.
 
-	Trả về danh sách dòng của phiếu sau khi chạy. Ném lỗi thì để ném, ca
-	kiểm bắt lấy.
+	`goi`: {tên gói Serial and Batch Bundle: {lô: số gốc}} thay cho bảng con
+	thật của ERPNext. Trả về danh sách dòng của phiếu sau khi chạy. Ném lỗi
+	thì để ném, ca kiểm bắt lấy.
 	"""
 	qua_han = qua_han or {}
 	thay_the = thay_the or {}
+	goi = goi or {}
 	that = {t: getattr(lh, t) for t in _CUA}
 	chan_that = lh.lo_het_han.dang_chan
 	# Ban Frappe gia khong co get_cached_value. Dong thay the goi no de lay
@@ -117,6 +119,7 @@ def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0):
 		lh._cac_ma_thay_the = lambda ma: list(thay_the.get(ma, []))
 		lh._kho_khac_con = lambda ma, kho: []
 		lh._ten_hang = lambda d, ma: ma
+		lh._lo_trong_goi = lambda ten: dict(goi.get(ten, {}))
 		lh.lo_het_han.dang_chan = lambda: chan
 		p = Phieu(purpose, dong)
 		lh.gan_lo(p)
@@ -373,6 +376,48 @@ def _gom_chon_tay():
 	la("B tại K", ra[("B", "K")], {"L9": 1.0})
 	la("A tại K2 tách riêng", ra[("A", "K2")], {"L1": 3.0})
 	la("trừ về 0 thì bỏ hẳn lô", lh.tru_da_dung({"L1": 5, "L2": 3}, {"L1": 5}), {"L2": 3})
+
+
+@ca("gói Serial and Batch Bundle cũng bị trừ khỏi túi: lô A 60, gói lấy 40, máy xin 30 chỉ còn 20")
+def _tru_ca_goi_bundle():
+	"""Codex tái hiện trên #222 bằng giả lập. Bản trước chỉ đọc `batch_no`,
+	nên dòng chọn tay bằng gói làm dòng máy chọn thấy lô A còn nguyên 60."""
+	ds = [dong("NVL1", "Kho A", 40, goi="SABB-0001"), dong("NVL1", "Kho A", 30)]
+	da = lh.phan_da_chon_tay(ds, lo_trong_goi=lambda ten: {"SABB-0001": {"LO-A": -40}}.get(ten))
+	la("gói xuất ghi âm vẫn đọc ra 40 của LO-A", da[("NVL1", "Kho A")], {"LO-A": 40.0})
+	# Khong dua ham doc goi vao thi khong doc duoc, dung nhu phan thuan cu.
+	la("không có cửa đọc gói thì không đoán", lh.phan_da_chon_tay(ds), {})
+
+	ra = chay_gan_lo(
+		purpose="Material Transfer",
+		dong=ds,
+		ton={("NVL1", "Kho A"): {"LO-A": 60, "LO-B": 100}},
+		goi={"SABB-0001": {"LO-A": -40}},
+	)
+	la("dòng gói giữ nguyên, dòng máy chỉ lấy 20 từ LO-A rồi sang LO-B",
+		_gon(ra), [("NVL1", None, 40), ("NVL1", "LO-A", 20.0), ("NVL1", "LO-B", 10.0)])
+	tong_a = sum(float(d.get("qty") or 0) for d in ra if d.get("batch_no") == "LO-A") + 40
+	dung("tổng ghi trên LO-A không vượt 60", tong_a <= 60)
+
+	# Lo A chi co 60 va khong con lo khac: dong may xin 30 phai bi CHAN, khong
+	# duoc ghi 70 len mot lo 60.
+	try:
+		chay_gan_lo(
+			purpose="Material Transfer",
+			dong=[dong("NVL1", "Kho A", 40, goi="SABB-0001"), dong("NVL1", "Kho A", 30)],
+			ton={("NVL1", "Kho A"): {"LO-A": 60}},
+			goi={"SABB-0001": {"LO-A": -40}},
+		)
+	except Exception as e:
+		dung("chặn và nói còn thiếu 10", "10" in str(e))
+	else:
+		dung("phải chặn khi lô A chỉ còn 20", False)
+
+	# Dong co CA batch_no lan goi: tin batch_no, khong dem hai lan.
+	da2 = lh.phan_da_chon_tay(
+		[dong("NVL1", "Kho A", 5, lo="LO-A", goi="SABB-0001")],
+		lo_trong_goi=lambda ten: {"LO-A": -40})
+	la("có cả hai thì chỉ đếm batch_no", da2[("NVL1", "Kho A")], {"LO-A": 5.0})
 
 
 # ------------------------------------------------------------ giữ nguyên
