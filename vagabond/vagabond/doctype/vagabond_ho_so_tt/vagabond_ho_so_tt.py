@@ -29,8 +29,12 @@ from frappe.utils import flt, getdate
 CON_HIEU_LUC = ("Nhap", "Cho ke toan", "Cho giam doc", "Da duyet")
 
 
+TT_DA_TRA = "Da thanh toan"
+
+
 class VagabondHoSoTT(Document):
 	def validate(self):
+		self.chan_hoan_tat_khong_but_toan()
 		if not self.dong:
 			frappe.throw("Hồ sơ thanh toán phải có ít nhất một dòng.")
 		self.tong_tien = sum(flt(d.so_tien) for d in self.dong)
@@ -131,3 +135,34 @@ class VagabondHoSoTT(Document):
 						"Hoá đơn %s đã nằm trong hồ sơ %s (%s)."
 						% (d.hoa_don, t["name"], t["trang_thai"])
 					)
+
+	def chan_hoan_tat_khong_but_toan(self):
+		"""Doi sang "Da thanh toan" chi duoc di qua `ho_so_tt.danh_dau_da_tra`.
+
+		Codex #225 R2: hoan tat ho so khong dong nghia da ghi so. Truoc v445
+		API co tham so bo qua but toan, va Desk hay script sua thang o trang
+		thai cung doi duoc. Nay MOI duong doi trang thai sang "Da thanh toan"
+		deu phai mang co `vgb_bo_chung_tu_da_kiem`, ma co do chi
+		`danh_dau_da_tra` dat sau khi da doi chieu bo but toan trong cung giao
+		dich. Khong mang co la chan, ke ca System Manager.
+
+		Phep thuan `doi_sang_da_tra_khong_co()` o duoi de kiem thu duoc.
+		"""
+		truoc = None
+		if not self.is_new():
+			try:
+				truoc = frappe.db.get_value(self.doctype, self.name, "trang_thai")
+			except Exception:
+				truoc = None
+		if doi_sang_da_tra_khong_co(truoc, self.trang_thai, self.flags.get("vgb_bo_chung_tu_da_kiem")):
+			frappe.throw(
+				"Không đổi thẳng hồ sơ %s sang Đã thanh toán được. Phải bấm Ghi nhận "
+				"đã thanh toán để máy sinh và đối chiếu bút toán xoá công nợ trong "
+				"cùng một lượt." % (self.name or ""),
+				title="Hoàn tất hồ sơ phải qua ghi nhận",
+			)
+
+
+def doi_sang_da_tra_khong_co(truoc, sau, co):
+	"""Thuan: co phai la mot lan doi sang Da thanh toan ma khong mang co khong."""
+	return bool(sau == TT_DA_TRA and truoc != TT_DA_TRA and not co)
