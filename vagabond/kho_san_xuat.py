@@ -153,15 +153,45 @@ QUYEN = ("System Manager", "Manufacturing Manager", "Giám đốc", "AP Giám đ
 # "Cap 1 = kho so cap, Cap 2 = kho san sang".
 CHU_CAP = ((BTP_SO_CAP, "cấp 1"), (BTP_SAN_SANG, "cấp 2"))
 
+# Ba lựa chọn hiện trong ô "Chặng bán thành phẩm" trên hồ sơ món, theo đúng
+# lời Khải 06/09/2026 (#206): thành phần là lớp lẻ đổ vào từ khi import
+# (lớp bông lan, nhân bơ, kem dâu), ruột bánh là cấp 1, khuôn bánh là cấp 2.
+# Ghi bằng CHỮ, không ghi mã máy: trước 06/09 ô này hiện "btp_so_cap" và
+# "btp_san_sang" nên không ai dám chọn, 0 trên 260 mã bán thành phẩm được
+# khai. Ô cũ đã khai bằng mã thì `ma_chang_khai_tay` vẫn đọc được.
+NHAN_BTP_THANH_PHAN = "BTP thành phần"
+NHAN_KHAI_TAY = (NHAN_BTP_THANH_PHAN, TEN_CHANG[BTP_SO_CAP], TEN_CHANG[BTP_SAN_SANG])
+
+# Mã máy bản cũ trong ô -> chữ bản mới. Ô là Select: Frappe từ chối lưu hồ sơ
+# món nếu giá trị không nằm trong danh sách lựa chọn, nên mã cũ còn sót lại
+# sau khi đổi danh sách là hồ sơ đó không lưu được nữa. Đo trên site
+# 06/09/2026: 0 mã đang mang mã cũ, bảng này để chắc, không để sửa dữ liệu.
+MA_CU_SANG_CHU = {
+	BTP_SO_CAP: TEN_CHANG[BTP_SO_CAP],
+	BTP_SAN_SANG: TEN_CHANG[BTP_SAN_SANG],
+}
+
+# Danh sách lựa chọn của ô: ba chữ mới ĐỨNG TRƯỚC, hai mã máy cũ giữ ở cuối.
+# Giữ mã cũ vì hồ sơ món nào đang mang mã cũ vẫn phải lưu được mà không ai
+# phải sửa dữ liệu của nó (điều 11). Số khảo sát 0 không thay được yêu cầu
+# tương thích: một hồ sơ lưu lại từ bản sao cũ, hay import về, là lại có.
+# Frappe Select không tách nhãn và giá trị, nên đây là cách duy nhất không
+# đụng dữ liệu. Codex chốt trên #215 ngày 06/09/2026.
+LUA_CHON_O_CHANG = tuple(NHAN_KHAI_TAY) + tuple(MA_CU_SANG_CHU)
+
 TRUONG_MOI = {"Item": [
 	{
 		"fieldname": "custom_chang_btp", "label": "Chặng bán thành phẩm",
 		"fieldtype": "Select",
-		"options": "\nbtp_so_cap\nbtp_san_sang",
+		"options": "\n" + "\n".join(LUA_CHON_O_CHANG),
 		"insert_after": "item_group",
-		"description": "Món này nhập vào kho BTP sơ cấp hay kho BTP sẵn sàng. "
-			"Khai ở đây thì máy nghe theo, không suy từ công thức nữa. "
-			"Để trống thì máy vẫn suy như cũ.",
+		"description": "Bán thành phẩm này đứng ở chặng nào. "
+			"BTP thành phần: lớp lẻ như lớp bông lan, nhân bơ, kem dâu, thường "
+			"không theo tồn kho, làm xong ghép ngay. "
+			"BTP sơ cấp (cấp 1): ruột bánh, ghép các lớp thành phần lại. "
+			"BTP sẵn sàng (cấp 2): khuôn bánh đã bọc lớp mousse, chờ trang trí. "
+			"Khai ở đây thì máy nghe theo khi chọn kho cho lệnh sản xuất, "
+			"không suy từ công thức nữa. Để trống thì máy vẫn suy như cũ.",
 	},
 ], "Warehouse": [
 	{
@@ -229,6 +259,29 @@ def chang_theo_ten(ten):
 	return None
 
 
+def ma_chang_khai_tay(khai_tay):
+	"""Mã chặng từ ô "Chặng bán thành phẩm" trên hồ sơ món. THUẦN.
+
+	Nhận cả ba dạng: mã máy bản cũ ("btp_so_cap"), chữ hiện trên ô bản mới
+	("BTP sơ cấp"), và "BTP thành phần". Thành phần xếp về SƠ CẤP cho việc
+	chọn kho, đúng như Khải gom 28/08/2026 (xem đầu vagabond/ton_chang.py);
+	ô trên hồ sơ món vẫn giữ nguyên chữ "BTP thành phần" để sau này luật in
+	tem hay luật lô đọc được, không mất thông tin. Chữ lạ trả về None, không
+	đoán bừa: đoán sai là lệnh sản xuất trừ nhầm kho.
+	"""
+	t = " ".join((khai_tay or "").split()).strip().lower()
+	if not t:
+		return None
+	if t in (BTP_SO_CAP, BTP_SAN_SANG):
+		return t
+	if t == NHAN_BTP_THANH_PHAN.lower():
+		return BTP_SO_CAP
+	for ma in (BTP_SO_CAP, BTP_SAN_SANG):
+		if t == TEN_CHANG[ma].lower():
+			return ma
+	return None
+
+
 def chang_cua_mon(ma, co_btp_con, khai_tay=None, ten=None):
 	"""Chặng của một món. Bốn nấc, nấc trên thắng nấc dưới.
 
@@ -245,8 +298,8 @@ def chang_cua_mon(ma, co_btp_con, khai_tay=None, ten=None):
 	Đặt nấc 3 TRÊN nấc 4 là có chủ ý. Suy từ công thức đọc được cấu trúc
 	nhưng không đọc được ý người đặt tên, mà tên là thứ bếp nhìn vào.
 	"""
-	kt = (khai_tay or "").strip()
-	if kt in (BTP_SO_CAP, BTP_SAN_SANG):
+	kt = ma_chang_khai_tay(khai_tay)
+	if kt:
 		return kt
 	c = chang_theo_tien_to(ma)
 	if c:
@@ -589,7 +642,9 @@ def _gan_chang_theo_ten(chay_that=0, gioi_han=1000):
 		ra["se_khai"].append({"ma": it.name, "ten": it.item_name,
 			"chang": TEN_CHANG[c]})
 		if chay_that:
-			frappe.db.set_value("Item", it.name, "custom_chang_btp", c,
+			# Ghi CHỮ đúng như lựa chọn trong ô, không ghi mã máy: ô là Select,
+			# ghi mã vào thì hồ sơ món hiện một giá trị không có trong danh sách.
+			frappe.db.set_value("Item", it.name, "custom_chang_btp", TEN_CHANG[c],
 				update_modified=False)
 			frappe.clear_document_cache("Item", it.name)
 	if chay_that:
@@ -599,6 +654,43 @@ def _gan_chang_theo_ten(chay_that=0, gioi_han=1000):
 		"%d món không có chữ cấp nên để nguyên chờ bảng duyệt của Khải."
 		% ("Đã ghi" if chay_that else "Chạy thử, chưa ghi gì",
 			len(ra["se_khai"]), len(ra["da_khai"]), ra["khong_co_chu_cap"]))
+	return ra
+
+
+@frappe.whitelist()
+def soat_ma_chang_cu():
+	"""ĐẾM những hồ sơ món còn mang mã máy cũ trong ô "Chặng bán thành phẩm".
+
+	CHỈ ĐỌC. Không sửa hồ sơ nào.
+
+	Vòng trước có một hàm `doi_ma_cu_sang_chu()` chạy tự động sau migrate,
+	ghi thẳng vào ô này của mọi Item còn mang mã cũ. Đã gỡ. Lý do:
+
+	1. Anh Việt chốt 13/08/2026, và AGENTS.md điều 11 chép lại: không tự sửa
+	   dữ liệu cũ, phát hiện sai sót thì LIỆT KÊ cho anh Việt.
+	2. Đo được 0 hồ sơ tại một thời điểm không bảo đảm 0 hồ sơ lúc deploy.
+	   Người ta có thể khai tay thêm giữa hai mốc đó.
+	3. Không cần sửa dữ liệu thì phần app vẫn chạy đúng: `ma_chang_khai_tay`
+	   nhận CẢ mã máy cũ lẫn chữ mới và trả về cùng một chặng, nên lệnh sản
+	   xuất chọn kho không hề lệch vì mã cũ.
+
+	Còn lại đúng một rủi ro, và là rủi ro của người chứ không phải của máy:
+	ô này là Select, hồ sơ nào còn mang mã cũ mà có người mở ra sửa rồi lưu
+	bên Desk thì giá trị cũ có thể bị bỏ trắng. Hàm này để anh Việt biết
+	CÓ BAO NHIÊU hồ sơ như vậy rồi tự quyết, chứ máy không tự đổi.
+	"""
+	_chan()
+	ra = {"tong": 0, "theo_ma": {}}
+	for cu in MA_CU_SANG_CHU:
+		ds = frappe.get_all("Item", filters={"custom_chang_btp": cu}, pluck="name")
+		ra["theo_ma"][cu] = ds
+		ra["tong"] += len(ds)
+	ra["ghi_chu"] = (
+		"%d hồ sơ món còn mang mã máy cũ trong ô Chặng bán thành phẩm. "
+		"Máy KHÔNG tự đổi. App vẫn đọc đúng chặng của các mã cũ này; chỉ khi "
+		"có người mở hồ sơ ra sửa và lưu bên Desk thì giá trị cũ mới có thể "
+		"bị bỏ trắng. Muốn dọn thì báo anh Việt quyết, đừng để máy tự ghi."
+		% ra["tong"])
 	return ra
 
 

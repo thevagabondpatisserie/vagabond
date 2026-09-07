@@ -26,10 +26,39 @@ function ElementGia(ten) {
   this._chu = '';
 }
 
+/* `el.dataset.abc` đọc và ghi thuộc tính `data-abc`. Màn bếp dùng dataset
+   rất nhiều (data-them, data-bo, data-q...) nên DOM giả phải có, không thì
+   ca kiểm hỏng ở chỗ không liên quan gì đến việc đang kiểm.
+
+   Thêm 06/09/2026 cho bộ ca kiểm màn tạo lệnh sản xuất (#206). Thêm mới,
+   không đổi hành vi cũ của tệp này. */
+Object.defineProperty(ElementGia.prototype, 'dataset', {
+  get: function () {
+    var el = this;
+    if (el._dataset) return el._dataset;
+    el._dataset = new Proxy({}, {
+      get: function (_, k) {
+        if (typeof k !== 'string') return undefined;
+        var v = el.getAttribute('data-' + k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }));
+        return v === null ? undefined : v;
+      },
+      set: function (_, k, v) {
+        el.setAttribute('data-' + String(k).replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }), v);
+        return true;
+      },
+      has: function (_, k) {
+        return el.hasAttribute('data-' + String(k).replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }));
+      },
+    });
+    return el._dataset;
+  },
+});
+
 ElementGia.prototype.getAttribute = function (t) {
   return Object.prototype.hasOwnProperty.call(this.attrs, t) ? this.attrs[t] : null;
 };
 ElementGia.prototype.setAttribute = function (t, v) { this.attrs[t] = String(v); };
+ElementGia.prototype.removeAttribute = function (t) { delete this.attrs[t]; };
 ElementGia.prototype.hasAttribute = function (t) {
   return Object.prototype.hasOwnProperty.call(this.attrs, t);
 };
@@ -52,7 +81,13 @@ ElementGia.prototype.dispatchEvent = function (ev) {
   while (nut) {
     ev.currentTarget = nut;
     (nut._nghe[ev.type] || []).slice().forEach(function (f) { f.call(nut, ev); });
-    if (ev.type === 'click' && typeof nut.onclick === 'function') nut.onclick.call(nut, ev);
+    /* Gọi cả thuộc tính `on<loại>` chứ không riêng `onclick`. Màn thật gán
+       `inp.oninput` cho ô tìm của tấm chọn món; bản cũ chỉ gọi `onclick`
+       nên bắn sự kiện input vào ô đó KHÔNG chạy gì, và ca kiểm tưởng là
+       tấm chọn không tìm ra hàng. Bắt được ngày 06/09/2026 khi viết ca 26
+       của màn lệnh sản xuất. */
+    var ho = nut['on' + ev.type];
+    if (typeof ho === 'function') ho.call(nut, ev);
     if (ev._dungNoi) break;
     nut = nut.parentNode;
   }
@@ -122,6 +157,7 @@ Object.defineProperty(ElementGia.prototype, 'innerHTML', {
        ca kiểm đọc phải ô cũ trong khi HTML mới đã đúng. Bắt được ngày
        06/09/2026 khi dựng ca kiểm gõ ô Huỷ. */
     this.children = [];
+    this._chu = '';
     this.children = doc(this._html, this);
   },
 });
@@ -178,8 +214,22 @@ function chonThuocTinh(chon) {
    mà màn thật không cho. */
 function hopBoChon(el, chon) {
   var t = String(chon).trim();
+  /* Danh sách ngăn cách bằng dấu phẩy: khớp một phần là khớp. Màn bếp viết
+     closest('[data-m],[data-p],[data-dec]') rất nhiều chỗ.
+     Thêm 06/09/2026 cho bộ ca kiểm màn tạo lệnh sản xuất (#206). */
+  if (t.indexOf(',') >= 0) {
+    var phan = t.split(',');
+    for (var i = 0; i < phan.length; i++) {
+      if (phan[i].trim() && hopBoChon(el, phan[i])) return true;
+    }
+    return false;
+  }
   var m = /^\[([a-zA-Z0-9_-]+)\]$/.exec(t);
   if (m) return el.hasAttribute(m[1]);
+  /* [thuoc-tinh="gia-tri"]: màn tạo lệnh dùng để tìm ô số lượng theo chỉ
+     số dòng khi bấm cộng trừ. Thêm cho #206. */
+  var mg = /^\[([a-zA-Z0-9_-]+)=(?:"([^"]*)"|'([^']*)'|([^\]]*))\]$/.exec(t);
+  if (mg) return el.getAttribute(mg[1]) === (mg[2] != null ? mg[2] : mg[3] != null ? mg[3] : mg[4]);
   if (t.charAt(0) === '#') return el.getAttribute('id') === t.slice(1);
   if (/^(\.[A-Za-z0-9_-]+)+$/.test(t)) {
     var lop = String(el.getAttribute('class') || '').split(/\s+/);

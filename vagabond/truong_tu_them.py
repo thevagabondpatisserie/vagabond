@@ -59,9 +59,12 @@ def dung():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: nap danh muc CRM")
 
-	# Ma phieu ke hoach san xuat va lenh san xuat: KHSX-26-08-0001 va
-	# LSX-26-08-0001. Chi doi chuoi dat ten cho phieu SINH RA TU DAY VE
-	# SAU; phieu cu giu nguyen ma cu, xem dau tep ma_phieu_sx.py.
+	# Mã phiếu kế hoạch sản xuất theo tháng KHSX-26-09-0001. Lệnh sản xuất
+	# LSX-060926-000057 và lô LO-260906-000751: phần ngày là ngày tạo, đuôi
+	# sáu số tăng LIÊN TỤC qua ngày (anh Việt chốt 06/09/2026, #206). Bước
+	# này đặt chuỗi đặt tên làm ĐƯỜNG LÙI và dựng sẵn dòng đếm; tên thật do
+	# hai hook autoname đặt. Chỉ ảnh hưởng chứng từ SINH RA TỪ ĐÂY VỀ SAU;
+	# lệnh và lô cũ giữ nguyên mã cũ, xem đầu tệp ma_phieu_sx.py.
 	from vagabond import ma_phieu_sx
 
 	try:
@@ -125,6 +128,12 @@ def dung():
 	from vagabond import kho_san_xuat
 
 	_dung_nhom(kho_san_xuat.TRUONG_MOI, "kho_san_xuat")
+	# Ô "Chặng bán thành phẩm" đổi từ mã máy sang chữ (06/09/2026, #206).
+	# KHÔNG có bước tự đổi hồ sơ món cũ ở đây, và đừng thêm lại. Migrate chỉ
+	# dựng lại danh sách lựa chọn của ô, không ghi vào hồ sơ nào. Muốn biết
+	# còn bao nhiêu hồ sơ mang mã cũ thì gọi `kho_san_xuat.soat_ma_chang_cu`,
+	# hàm đó chỉ đếm. AGENTS.md điều 11: dữ liệu cũ thì liệt kê cho anh Việt,
+	# máy không tự sửa.
 	# Tuy bien ruot hop qua tren dong bao gia (them 21/08/2026).
 	from vagabond import hop_qua
 

@@ -116,6 +116,8 @@ node vagabond/khung/kiem_thu/hanh_vi/chay.js
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.
 node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
+# Man tao lenh san xuat (#206, PR #215).
+node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
 
 echo ""
 echo "=============================================="
