@@ -79,6 +79,25 @@ def _man_hinh():
 	dung("doReceive không gọi frappe.client.insert", "frappe.client.insert" not in than)
 	dung("doReceive không gọi frappe.client.submit", "frappe.client.submit" not in than)
 	dung("doReceive gọi lan_nhan.nhan_theo_phieu", "vagabond.lan_nhan.nhan_theo_phieu" in than)
-	dung("gửi kèm ma_lan_nhan", "ma_lan_nhan: rcv.ma_lan" in than)
+	dung("gửi kèm mã lần nhận của lần đang gửi", "ma_lan_nhan: lan.ma_lan" in than)
 	# Đây chỉ là dò chuỗi (điều 16): hành vi giữ mã khi hỏng, đổi mã khi
 	# xong hay khi sửa số nằm ở hanh_vi/chay_nhan_hang.js ca 10 tới 14.
+
+
+@ca("lan nhan: cua tra_lan_nhan CHI DOC, doc ma cung mot quy tac, va man Nhan hang co lan cho trong localStorage")
+def _tra_lai():
+	import io
+	import os
+
+	nem("tra với mã sai dạng cũng ném", lambda: lan_nhan.tra_lan_nhan("x"))
+	nem("tra với None ném", lambda: lan_nhan.tra_lan_nhan(None))
+	# Bàn giả frappe.db.get_value trả None: chưa có phiếu.
+	la("chưa có phiếu thì co = 0", lan_nhan.tra_lan_nhan("LN-abcdefgh"), {"co": 0})
+	# Dò chuỗi (điều 16), chỉ để chốt "có đường": hành vi giữ khoá, gửi lại
+	# đúng payload, tự tra khi mở lại nằm ở hanh_vi/chay_nhan_hang.js ca 10 tới 16.
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	with io.open(os.path.join(goc, "public", "js", "bep", "03-kho-chung-tu.js"), encoding="utf-8") as f:
+		src = f.read()
+	dung("ghi lần chờ TRƯỚC khi gửi", src.index("ghiLanCho(mr.name, lan);") < src.index("await api('vagabond.lan_nhan.nhan_theo_phieu'"))
+	dung("mở màn thì tra lại máy chủ", "if (rcv.cho) traLanCho(mr);" in src)
+	dung("chỉ 502/503/504 và mất mạng mới là chưa rõ", "st !== 502 && st !== 503 && st !== 504" in src)
