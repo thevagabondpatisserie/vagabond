@@ -201,6 +201,7 @@ function dungMan(canh) {
     layNeuCo(hop, 'vgbBenDaChon'),
     layNeuCo(hop, 'vgbTraBenTheoMa'),
     layNeuCo(hop, 'vgbLuot'),
+    layNeuCo(hop, 'vgbChonLaiGoLoi'),
     docTep('19-ho-so-tt.js'),
   ].join('\n;\n');
 
@@ -838,6 +839,160 @@ async function chayHet() {
       var the = m.tai.getElementById('huMoBen').textContent;
       dung('the hien ten nha vua tao: ' + the, the.indexOf('NHÀ VỪA TẠO') >= 0);
       bang('ma dung', m.g.huNguoi, 'NCC-MOI');
+    });
+
+  /* ---- Vong 2 tren #221 (Codex P2 x2 + hai ca Codex doi them) ---- */
+
+  await caAsync('E20. the dang bao loi tra ma: chon lai DUNG ma do phai go duoc loi va mo lai duong gui',
+    async function () {
+      /* Mo lai ban nhap luc mang rot: the bao "Chua tra duoc ten cua ma". Nguoi
+         ta mo tam, tim ra dung nguoi do, bam chon. Ban cu: `ma === huNguoi`
+         thoat som, loi con nguyen, nut gui van bi chan. */
+      var canh = canhChi({ supplierHong: true,
+        nguoiUngTim: function (q) {
+          return q === 'xa' ? [{ ncc: 'NCC-XA', ten: 'CÔNG TY XA LẮC', hay_dung: 0 }] : [];
+        } });
+      var m = await moManChi(canh, 'Chi phi khong hop le', 'NCC-XA');
+      var the = m.tai.getElementById('huMoBen').textContent;
+      dung('the dang bao chua tra duoc: ' + the, the.indexOf('Chưa tra được') >= 0);
+      dung('co cau loi dang cam', !!m.g.huBenLoi);
+      /* Mang da co lai: tim thay nguoi qua Enter, chon lai chinh ma dang cam. */
+      theThuGon(m)[0].click();
+      goVao(m, 'xa');
+      await bamEnter(m);
+      bang('tim ra dung nguoi', dongTrongTruot(m)[0].getAttribute('data-hsbn'), 'NCC-XA');
+      dongTrongTruot(m)[0].click();
+      dung('co cho man ve lai', (await choVeLai(m)) > 0);
+      bang('ma khong doi', m.g.huNguoi, 'NCC-XA');
+      var the2 = m.tai.getElementById('huMoBen').textContent;
+      dung('the hien ten that, het bao loi: ' + the2,
+        the2.indexOf('CÔNG TY XA LẮC') >= 0 && the2.indexOf('Chưa tra được') < 0);
+      bang('cau loi da duoc go', m.g.huBenLoi, '');
+      var baoTinGoi = [];
+      m.g.baoTin = function (t) { baoTinGoi.push(String(t)); };
+      var soGoi = m.goiApi.length;
+      m.tai.getElementById('huLuu').click();
+      for (var i = 0; i < 5; i++) await new Promise(function (r) { setTimeout(r, 0); });
+      bang('khong con bi chan vi ben chua ro', baoTinGoi.filter(function (t) { return t.indexOf('Chưa tra được') >= 0; }).length, 0);
+      dung('duong gui da chay tiep (co goi may chu hoac chan vi ly do khac)', m.goiApi.length > soGoi || baoTinGoi.length > 0);
+    });
+
+  await caAsync('E20b. khong co loi: chon lai dung ben dang chon van KHONG ve lai, khong xoa tick (giu E5)',
+    async function () {
+      var m = await moManChi(canhChi({
+        hoaDon: { rows: [{ hoa_don: 'HD-1', so_hd_ncc: 'A1', con_no: 500000 }], tong: 500000 },
+      }), 'Chi phi hop le', 'NCC-1');
+      m.g.huChonHd = { 'HD-1': { con_no: 500000 } };
+      await m.g.scrChiCongTyTao();
+      var truocHtml = m.khung.innerHTML;
+      theThuGon(m)[0].click();
+      dongTrongTruot(m).filter(function (e) { return e.getAttribute('data-hsbn') === 'NCC-1'; })[0].click();
+      bang('khong ve lai man', (await choVeLai(m)), 0);
+      bang('tick con nguyen', Object.keys(m.g.huChonHd).length, 1);
+      bang('man y nguyen', m.khung.innerHTML, truocHtml);
+    });
+
+  await caAsync('E20c. hoan ung: nguoi dang cam bao loi tra ma, chon lai chinh nguoi do cung go duoc loi',
+    async function () {
+      var m = dungMan(canhChi({ nccChon: NCC_NO, tkHoan: { tk: [], doan: 0 }, supplierHong: true,
+        nguoiUngTim: function (q) {
+          return q === 'xa' ? [{ ncc: 'NCC-XA', ten: 'NGƯỜI Ở XA', hay_dung: 0 }] : [];
+        } }));
+      m.g.hsTaoLoai = 'Hoan ung HD';
+      m.g.hsTaoNguoiUng = 'NCC-XA';
+      await m.g.scrHoSoTTTao();
+      dung('the dang bao chua tra duoc', m.tai.getElementById('hsMoUng').textContent.indexOf('Chưa tra được') >= 0);
+      theThuGon(m).filter(function (e) { return e.getAttribute('data-hsbn-mo') === 'hsMoUng'; })[0].click();
+      goVao(m, 'xa');
+      await bamEnter(m);
+      dongTrongTruot(m)[0].click();
+      dung('co cho ve lai', (await choVeLai(m)) > 0);
+      var the = m.tai.getElementById('hsMoUng').textContent;
+      dung('the hien ten, het loi: ' + the, the.indexOf('NGƯỜI Ở XA') >= 0 && the.indexOf('Chưa tra được') < 0);
+      bang('cau loi da go', m.g.hsUngLoi, '');
+    });
+
+  await caAsync('E21. tim may chu xong roi XOA tu khoa: goi y ban dau quay lai, ke ca sau lan tim khong ra',
+    async function () {
+      var m = await moManChi(canhChi({
+        nguoiUngTim: function (q) {
+          return q === 'bao hiem' ? [{ ncc: 'NCC-BH', ten: 'BẢO HIỂM XÃ HỘI', hay_dung: 0 }] : [];
+        },
+      }), 'Chi phi khong hop le');
+      theThuGon(m)[0].click();
+      bang('ban dau bay ba nguoi', dongTrongTruot(m).length, 3);
+      goVao(m, 'bao hiem');
+      await bamEnter(m);
+      bang('ket qua may chu bay ra', dongTrongTruot(m).length, 1);
+      /* Go tiep NOI TIEP tu khoa da hoi: van loc tren ket qua may chu. */
+      goVao(m, 'bao hiem xa');
+      bang('noi tiep tu khoa thi van dung ket qua may chu', dongTrongTruot(m).length, 1);
+      goVao(m, '');
+      bang('xoa trang thi goi y ban dau quay lai', dongTrongTruot(m).length, 3);
+      goVao(m, 'dien luc');
+      bang('tu khoa khac thi loc tren goi y ban dau', dongTrongTruot(m)[0].getAttribute('data-hsbn'), 'NCC-1');
+      /* Tim KHONG RA roi xoa: khong duoc trong tron. */
+      goVao(m, 'khong ai');
+      await bamEnter(m);
+      bang('may chu khong ra ai', dongTrongTruot(m).length, 0);
+      goVao(m, '');
+      bang('xoa trang sau lan tim khong ra: van du ba goi y', dongTrongTruot(m).length, 3);
+    });
+
+  await caAsync('E22. hai lan Enter CUNG tu khoa ve nguoc thu tu: lan cu khong de len lan moi',
+    async function () {
+      /* Dot bien M2a vong truoc song sot vi moi ca deu doi tu khoa giua hai
+         lan Enter, nen cua kiem tu khoa do het. Ca nay giu NGUYEN tu khoa,
+         chi cua kiem luot moi bat duoc. */
+      var lan = 0, g1 = giuPhanHoi(), g2 = giuPhanHoi();
+      var m = await moManChi(canhChi({
+        nguoiUngTim: function () { lan++; return lan === 1 ? g1.p : g2.p; },
+      }), 'Chi phi khong hop le');
+      theThuGon(m)[0].click();
+      var o = oTimTruot(m);
+      goVao(m, 'bao hiem');
+      o.dispatchEvent(dg.suKien('keydown', { key: 'Enter' }, o));
+      o.dispatchEvent(dg.suKien('keydown', { key: 'Enter' }, o));
+      bang('may chu bi hoi hai lan', lan, 2);
+      g2.tha([{ ncc: 'NCC-MOI', ten: 'BẢO HIỂM BẢN MỚI', hay_dung: 0 }]);
+      for (var i = 0; i < 5; i++) await new Promise(function (r) { setTimeout(r, 0); });
+      bang('bay ket qua lan moi', dongTrongTruot(m)[0].getAttribute('data-hsbn'), 'NCC-MOI');
+      g1.tha([{ ncc: 'NCC-CU', ten: 'BẢO HIỂM BẢN CŨ', hay_dung: 0 }]);
+      for (var j = 0; j < 5; j++) await new Promise(function (r) { setTimeout(r, 0); });
+      bang('lan cu ve sau bi bo', dongTrongTruot(m)[0].getAttribute('data-hsbn'), 'NCC-MOI');
+      bang('chi con mot dong', dongTrongTruot(m).length, 1);
+    });
+
+  await caAsync('E23. hai nguoi TRUNG TEN khac ma: chon nguoi thu hai thi ma va ho so la cua nguoi thu hai',
+    async function () {
+      var m = await moManChi(canhChi({
+        nguoiUngTim: function (q) {
+          return q === 'nguyen van a' ? [
+            { ncc: 'NCC-A1', ten: 'NGUYỄN VĂN A', hay_dung: 0, phu: 'Q.1' },
+            { ncc: 'NCC-A2', ten: 'NGUYỄN VĂN A', hay_dung: 0, phu: 'Tân Bình' },
+          ] : [];
+        },
+      }), 'Chi phi khong hop le');
+      theThuGon(m)[0].click();
+      goVao(m, 'nguyen van a');
+      await bamEnter(m);
+      bang('bay du hai nguoi trung ten', dongTrongTruot(m).length, 2);
+      dongTrongTruot(m).filter(function (e) { return e.getAttribute('data-hsbn') === 'NCC-A2'; })[0].click();
+      bang('ma la cua nguoi thu hai', m.g.huNguoi, 'NCC-A2');
+      var giu = m.g.VGB_CHON['hu_ben'];
+      /* Luong nguoi nhan ve lai dong phu theo hay_dung, nen chi doi chieu MA
+         cua ho so da giu, khong doi chieu dong phu. */
+      dung('ho so giu lai dung nguoi thu hai', !!(giu && giu.ho_so && giu.ho_so.ncc === 'NCC-A2'));
+      dung('co cho ve lai', (await choVeLai(m)) > 0);
+      var the = m.tai.getElementById('huMoBen').textContent;
+      dung('the hien ten (trung nhau la binh thuong)', the.indexOf('NGUYỄN VĂN A') >= 0);
+      /* Chon lai nguoi thu nhat: ma phai doi sang A1, khong dinh A2. */
+      theThuGon(m)[0].click();
+      goVao(m, 'nguyen van a');
+      await bamEnter(m);
+      dongTrongTruot(m).filter(function (e) { return e.getAttribute('data-hsbn') === 'NCC-A1'; })[0].click();
+      bang('doi sang nguoi thu nhat', m.g.huNguoi, 'NCC-A1');
+      bang('ho so giu lai la A1', m.g.VGB_CHON['hu_ben'].ho_so.ncc, 'NCC-A1');
     });
 }
 
