@@ -57,6 +57,7 @@ var ket = { dat: 0, hong: 0, loi: [] };
 
 /* Cua may chu duy nhat cua man Nhan hang tu vong 3 cua #222. */
 var GUI = 'vagabond.lan_nhan.nhan_theo_phieu';
+var TRA = 'vagabond.lan_nhan.tra_lan_nhan';
 
 function dung(mo, dk) {
   if (!dk) throw new Error(mo + ': duoc false, mong true');
@@ -93,6 +94,15 @@ function dungMan(canh) {
   var goiApi = [];
   var daToast = [];
   var daGo = [];
+  /* May chu gia va localStorage gia deu co the DUNG CHUNG giua hai lan
+     dungMan, de dien duoc canh thoat man roi mo lai, hay tai lai trang. */
+  var mayChu = canh.mayChu || { dem: 0, phieu: {} };
+  var luuTru = canh.luuTru || {};
+  var localStorage = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(luuTru, k) ? luuTru[k] : null; },
+    setItem: function (k, v) { luuTru[k] = String(v); },
+    removeItem: function (k) { delete luuTru[k]; },
+  };
 
   var that = {
     document: tai,
@@ -121,12 +131,34 @@ function dungMan(canh) {
          kiem 13 do. */
       if (duong === GUI) {
         var lanGui = goiApi.filter(function (x) { return x.duong === GUI; }).length;
-        if (canh.hongKhiGui && (!canh.hongToiLan || lanGui <= canh.hongToiLan)) {
-          return Promise.reject(new Error('gia lap mat mang'));
+        /* MAY CHU GIA co bo nho theo ma lan nhan, y nhu o duy nhat that:
+           cung ma thi tra ve phieu cu (da_co), ma moi thi tao phieu moi.
+           Loi gia lap xay ra SAU khi da luu (mat phan hoi) tru khi canh noi
+           la loi truoc khi luu (loiTruocKhiLuu) hay may chu tu choi ro
+           (loiRoRang: co status 417). */
+        var kho = mayChu;
+        var ma = ts.ma_lan_nhan;
+        var hong = canh.hongKhiGui && (!canh.hongToiLan || lanGui <= canh.hongToiLan);
+        if (hong && canh.loiRoRang) {
+          var e417 = new Error('Kho xuat khong du hang'); e417.status = 417; e417.exc_type = 'ValidationError';
+          return Promise.reject(e417);
         }
+        if (hong && canh.loiTruocKhiLuu) return Promise.reject(new Error('gia lap mat mang'));
+        var daCo = !!kho.phieu[ma];
+        if (!daCo) {
+          kho.dem++;
+          kho.phieu[ma] = { name: 'MAT-STE-000' + kho.dem, dong: ts.dong, phieu: ts.phieu };
+        }
+        if (hong) return Promise.reject(new Error('gia lap mat mang sau khi may chu da luu'));
         return new Promise(function (r) {
-          setTimeout(function () { r({ ok: 1, name: 'MAT-STE-0001', da_co: canh.daCo ? 1 : 0 }); }, 5);
+          setTimeout(function () { r({ ok: 1, name: kho.phieu[ma].name, da_co: daCo ? 1 : 0 }); }, 5);
         });
+      }
+      if (duong === TRA) {
+        /* traHong: may chu van chua voi toi duoc (mat mang keo dai). */
+        if (canh.traHong) return Promise.reject(new Error('gia lap mat mang khi tra'));
+        var co = mayChu.phieu[ts.ma_lan_nhan];
+        return Promise.resolve(co ? { co: 1, name: co.name, docstatus: 1 } : { co: 0 });
       }
       /* Bat chuoc DUNG hanh vi ERPNext: khong kem co for_stock_levels thi
          chi tra ve lo con han. Tra ve du 330.000 la ban cu cung xanh va ca
@@ -147,11 +179,16 @@ function dungMan(canh) {
     confirmSheet: function () { return Promise.resolve(canh.dongY !== 0); },
     busy: function () {},
     toast: function (t) { daToast.push(String(t)); },
-    back: function () {},
+    /* back() that roi khoi man Nhan hang: khung trong, nut Xac nhan bien
+       mat. Khong gia lap the nay thi ca kiem bam duoc nut cua mot man da
+       dong, la canh khong co that. */
+    back: function () { khung.innerHTML = ''; },
     render: function () {},
     whFind: function (k, loai) { return k === 'lab' ? 'Kho Lab TP - TV' : ''; },
     today: function () { return '2026-09-06'; },
     nowStamp: function () { return '2026-09-06 09:00:00'; },
+    localStorage: localStorage,
+    isNaN: isNaN,
   };
   that.globalThis = that;
 
@@ -181,6 +218,12 @@ function dungMan(canh) {
     /* Ba cai duoi day la thu ban 79d12b0 da xoa nham. Nap NEU CO. */
     kho.indexOf('var rcv = ') >= 0 ? layDong(kho, 'var rcv = ') : '',
     layNeuCo(kho, 'sinhMaLanNhan'),
+    layNeuCo(kho, 'khoaLanCho'),
+    layNeuCo(kho, 'docLanCho'),
+    layNeuCo(kho, 'ghiLanCho'),
+    layNeuCo(kho, 'loiDaChacHong'),
+    layNeuCo(kho, 'gioNgan'),
+    layNeuCo(kho, 'traLanCho'),
     layNeuCo(kho, 'scrRecvTransfer'),
     layNeuCo(kho, 'fefoPick'),
     kho.indexOf('var RCV_DANG_GUI') >= 0 ? layDong(kho, 'var RCV_DANG_GUI') : 'var RCV_DANG_GUI = 0;',
@@ -189,7 +232,7 @@ function dungMan(canh) {
   ].join('\n;\n');
 
   vm.runInNewContext(ma, bay, { filename: '03-kho-chung-tu.js' });
-  return { g: that, tai: tai, khung: khung, goiApi: goiApi, toast: daToast, daGo: daGo, nguon: kho };
+  return { g: that, tai: tai, khung: khung, goiApi: goiApi, toast: daToast, daGo: daGo, nguon: kho, mayChu: mayChu, luuTru: luuTru };
 }
 
 /* Mo man chi tiet phieu that roi bam nut co id `idNut`. Tra ve loi (neu co)
@@ -332,55 +375,157 @@ ca('9. duong GIAO hang tu phieu san xuat cung mo duoc man va gui dung kho xuat',
   dung('khong kem lo', !('batch_no' in g.ts.dong[0]));
 });
 
-/* ---------- ma lan nhan chong trung (Codex P1 tren #222, vong 3) ---------- */
+/* ---------- ma lan nhan chong trung (Codex P1 #222, vong 3 va vong 4) ---------- */
 
 function maLan(m, i) { return cacLanGui(m)[i].ts.ma_lan_nhan; }
+function soPhieu(m) { return Object.keys(m.mayChu.phieu).length; }
+function tongNhan(m) {
+  var t = 0;
+  Object.keys(m.mayChu.phieu).forEach(function (k) { (m.mayChu.phieu[k].dong || []).forEach(function (d) { t += d.qty; }); });
+  return t;
+}
+function coBangCho(m) { return m.khung.innerHTML.indexOf('chưa rõ kết quả') >= 0; }
 
-ca('10. gui hong (het gio) roi bam lai: hai lan gui mang CUNG ma lan nhan, may chu moi phan biet duoc', async function () {
-  var m = dungMan({ hongKhiGui: 1, hongToiLan: 1 });
+/* Canh goc cua Codex: MR 100, nhan 30, may chu DA LUU nhung phan hoi mat. */
+function phieu100() {
+  var p = phieuMau();
+  p.items[0].qty = 100;
+  return p;
+}
+async function guiMatPhanHoi(canh) {
+  /* Mac dinh mang VAN DUT sau do (traHong): lan cho khong tu giai quyet
+     duoc, nguoi dung con dung truoc man va bam tiep. */
+  var m = dungMan(Object.assign({ phieu: phieu100(), hongKhiGui: 1, hongToiLan: 1, traHong: 1 }, canh || {}));
   await moTuManChiTiet(m, 'vRecv');
+  goSo(m, 0, 30);
   await bamXacNhan(m);
   bang('lan mot da gui', cacLanGui(m).length, 1);
-  dung('lan mot bao loi', m.toast.length > 0);
+  bang('may chu gia da luu mot phieu', soPhieu(m), 1);
+  dung('man bao loi', m.toast.length > 0);
+  return m;
+}
+
+ca('10. mat phan hoi sau khi may chu da luu: GO LAI dung 30 roi bam thi khong tao phieu thu hai', async function () {
+  var m = await guiMatPhanHoi();
+  dung('bay bang lan nhan dang cho', coBangCho(m));
+  goSo(m, 0, 30);
   await bamXacNhan(m);
-  bang('lan hai da gui', cacLanGui(m).length, 2);
-  dung('co ma lan nhan', typeof maLan(m, 0) === 'string' && maLan(m, 0).length >= 8);
-  bang('bam lai GIU nguyen ma', maLan(m, 1), maLan(m, 0));
-  bang('van dung so luong', cacLanGui(m)[1].ts.dong[0].qty, 60000);
+  bang('lan hai gui CUNG ma', maLan(m, 1), maLan(m, 0));
+  bang('van chi MOT phieu', soPhieu(m), 1);
+  bang('tong nhan 30, khong phai 60', tongNhan(m), 30);
+  dung('may chu bao da co', m.toast.join(' ').indexOf('đã được ghi từ trước') >= 0);
+  bang('lan cho da xoa', m.g.rcv.cho, null);
 });
 
-ca('11. gui xong roi nhan tiep: lan sau mang ma MOI, khong dinh ma cu', async function () {
+ca('10b. mat phan hoi nhung mang co lai ngay: may tu tra, bao da co, roi khoi man, khong con nut de bam lai', async function () {
+  var m = await guiMatPhanHoi({ traHong: 0 });
+  for (var i = 0; i < 20; i++) await new Promise(function (r) { setTimeout(r, 2); });
+  var tra = m.goiApi.filter(function (x) { return x.duong === TRA; });
+  bang('da tu hoi may chu dung ma', tra.length && tra[0].ts.ma_lan_nhan, maLan(m, 0));
+  dung('bao da ghi tu truoc', m.toast.join(' ').indexOf('đã được ghi từ trước') >= 0);
+  bang('lan cho da xoa', m.g.rcv.cho, null);
+  bang('nut xac nhan khong con', m.tai.getElementById('rcOk'), null);
+  bang('mot phieu', soPhieu(m), 1);
+});
+
+ca('11. mat phan hoi roi DOI 30 sang 20: o bi khoa, gui lai van la lan cu voi so 30, mot phieu', async function () {
+  var m = await guiMatPhanHoi();
+  var o = m.tai.querySelector('[data-q="0"]');
+  dung('o so luong bi khoa', o.getAttribute('disabled') !== null || o.disabled === true);
+  goSo(m, 0, 20);
+  await bamXacNhan(m);
+  bang('cung ma', maLan(m, 1), maLan(m, 0));
+  bang('so gui lai la 30 cua lan cu', cacLanGui(m)[1].ts.dong[0].qty, 30);
+  bang('mot phieu', soPhieu(m), 1);
+  bang('tong 30', tongNhan(m), 30);
+});
+
+ca('12. mat phan hoi roi bam +/- ve lai 30: khong sinh ma moi, mot phieu', async function () {
+  var m = await guiMatPhanHoi();
+  var ma1 = maLan(m, 0);
+  var tru = m.tai.querySelector('[data-m="0"]'), cong = m.tai.querySelector('[data-p="0"]');
+  tru.click(); cong.click();
+  bang('ma khong doi khi dang cho', m.g.rcv.ma_lan, ma1);
+  await bamXacNhan(m);
+  bang('cung ma', maLan(m, 1), ma1);
+  bang('mot phieu', soPhieu(m), 1);
+});
+
+ca('13. thoat man roi MO LAI: lan cho doc lai tu localStorage, may tu tra va bao da co, khong gui them', async function () {
+  var m1 = await guiMatPhanHoi();
+  var ma1 = maLan(m1, 0);
+  /* Mo lai bang mot man moi, dung chung may chu gia va localStorage. */
+  var m2 = dungMan({ phieu: phieu100(), mayChu: m1.mayChu, luuTru: m1.luuTru });
+  await moTuManChiTiet(m2, 'vRecv');
+  for (var i = 0; i < 20; i++) await new Promise(function (r) { setTimeout(r, 2); });
+  var tra = m2.goiApi.filter(function (x) { return x.duong === TRA; });
+  bang('da hoi may chu dung ma cu', tra.length && tra[0].ts.ma_lan_nhan, ma1);
+  bang('khong gui them lan nao', cacLanGui(m2).length, 0);
+  dung('bao da ghi tu truoc', m2.toast.join(' ').indexOf('đã được ghi từ trước') >= 0);
+  bang('lan cho da xoa khoi localStorage', Object.keys(m2.luuTru).length, 0);
+  bang('van mot phieu', soPhieu(m2), 1);
+});
+
+ca('14. thoat man roi mo lai khi may chu CHUA co phieu (mat mang truoc khi luu): giu khoa, gui lai dung ma va payload cu', async function () {
+  var m1 = await (async function () {
+    var m = dungMan({ phieu: phieu100(), hongKhiGui: 1, hongToiLan: 1, loiTruocKhiLuu: 1 });
+    await moTuManChiTiet(m, 'vRecv');
+    goSo(m, 0, 30);
+    await bamXacNhan(m);
+    bang('may chu chua co phieu', soPhieu(m), 0);
+    return m;
+  })();
+  var ma1 = maLan(m1, 0);
+  var m2 = dungMan({ phieu: phieu100(), mayChu: m1.mayChu, luuTru: m1.luuTru });
+  await moTuManChiTiet(m2, 'vRecv');
+  for (var i = 0; i < 20; i++) await new Promise(function (r) { setTimeout(r, 2); });
+  dung('van bay bang lan nhan dang cho', coBangCho(m2));
+  bang('ma phuc hoi dung', m2.g.rcv.ma_lan, ma1);
+  await bamXacNhan(m2);
+  bang('gui lai cung ma', maLan(m2, 0), ma1);
+  bang('payload la 30 cua lan cu', cacLanGui(m2)[0].ts.dong[0].qty, 30);
+  bang('mot phieu', soPhieu(m2), 1);
+  bang('tong 30', tongNhan(m2), 30);
+});
+
+ca('15. sau khi lan cu xac nhan xong, nhan tiep 20 la lan MOI: ma moi, hai phieu, tong 50', async function () {
+  var m = await guiMatPhanHoi();
+  await bamXacNhan(m);              /* giai quyet lan cu: da co */
+  bang('mot phieu sau khi giai quyet', soPhieu(m), 1);
+  /* Mo lai man chi tiet: phieu tra ve da nhan 30, con 70. */
+  var p = phieu100(); p.items[0].ordered_qty = 30;
+  var m2 = dungMan({ phieu: p, mayChu: m.mayChu, luuTru: m.luuTru });
+  await moTuManChiTiet(m2, 'vRecv');
+  dung('khong con bang cho', !coBangCho(m2));
+  bang('so con phai nhan tai lai la 70', m2.g.rcv.rows[0].max, 70);
+  goSo(m2, 0, 20);
+  await bamXacNhan(m2);
+  dung('ma moi khac ma cu', maLan(m2, 0) !== maLan(m, 0));
+  bang('hai phieu', soPhieu(m2), 2);
+  bang('tong 50', tongNhan(m2), 50);
+});
+
+ca('16. may chu TU CHOI ro rang (417): khong co phieu, khong khoa, sua so roi gui lai la lan moi', async function () {
+  var m = dungMan({ phieu: phieu100(), hongKhiGui: 1, hongToiLan: 1, loiRoRang: 1 });
+  await moTuManChiTiet(m, 'vRecv');
+  goSo(m, 0, 30);
+  await bamXacNhan(m);
+  bang('khong co phieu', soPhieu(m), 0);
+  dung('khong khoa', !coBangCho(m));
+  bang('localStorage trong', Object.keys(m.luuTru).length, 0);
+  var ma1 = maLan(m, 0);
+  goSo(m, 0, 20);
+  await bamXacNhan(m);
+  dung('ma moi', maLan(m, 1) !== ma1);
+  bang('mot phieu 20', tongNhan(m), 20);
+});
+
+ca('17. gui xong binh thuong: localStorage sach, ma doi, khong con duong frappe.client.insert/submit', async function () {
   var m = dungMan();
   await moTuManChiTiet(m, 'vRecv');
   await bamXacNhan(m);
-  var ma1 = maLan(m, 0);
-  await moTuManChiTiet(m, 'vRecv');
-  await bamXacNhan(m);
-  bang('hai lan gui', cacLanGui(m).length, 2);
-  dung('ma lan hai khac ma lan mot', maLan(m, 1) !== ma1);
-});
-
-ca('12. sua so luong sau khi gui hong thi la lan nhan KHAC: ma doi', async function () {
-  var m = dungMan({ hongKhiGui: 1, hongToiLan: 1 });
-  await moTuManChiTiet(m, 'vRecv');
-  goSo(m, 0, 50000);
-  await bamXacNhan(m);
-  var ma1 = maLan(m, 0);
-  goSo(m, 0, 40000);
-  await bamXacNhan(m);
-  dung('sua so luong thi ma doi', maLan(m, 1) !== ma1);
-  bang('so moi di kem ma moi', cacLanGui(m)[1].ts.dong[0].qty, 40000);
-  /* Nut +/- cung la sua so luong. */
-  var tru = m.tai.querySelector('[data-m="0"]');
-  var maTruoc = m.g.rcv.ma_lan;
-  tru.click();
-  dung('bam tru cung doi ma', m.g.rcv.ma_lan !== maTruoc);
-});
-
-ca('13. khong con goi frappe.client.insert hay submit tu man Nhan hang; moi lan gui deu co phieu, kho xuat, kho nhan', async function () {
-  var m = dungMan();
-  await moTuManChiTiet(m, 'vRecv');
-  await bamXacNhan(m);
+  bang('localStorage trong', Object.keys(m.luuTru).length, 0);
+  dung('ma da doi sang lan moi', m.g.rcv.ma_lan !== maLan(m, 0));
   var cu = m.goiApi.filter(function (x) { return x.duong === 'frappe.client.insert' || x.duong === 'frappe.client.submit'; });
   bang('duong cu khong duoc goi', cu.length, 0);
   var g = cacLanGui(m)[0].ts;
@@ -390,13 +535,12 @@ ca('13. khong con goi frappe.client.insert hay submit tu man Nhan hang; moi lan 
   dung('dong khong kem batch_no', !('batch_no' in g.dong[0]));
 });
 
-ca('14. may chu bao "da co" (lan truoc thuc ra da toi noi): khong bao loi, khong gui them, ma doi', async function () {
-  var m = dungMan({ daCo: 1 });
+ca('18. chua gui lan nao thi sua so luong la lan nhan khac: ma doi (khong lien quan lan cho)', async function () {
+  var m = dungMan();
   await moTuManChiTiet(m, 'vRecv');
-  await bamXacNhan(m);
-  bang('mot lan gui', cacLanGui(m).length, 1);
-  dung('bao da ghi tu truoc', m.toast.join(' ').indexOf('đã được ghi từ trước') >= 0);
-  dung('ma da doi sang lan moi', m.g.rcv.ma_lan !== maLan(m, 0));
+  var ma1 = m.g.rcv.ma_lan;
+  goSo(m, 0, 50000);
+  dung('ma doi khi sua so truoc khi gui', m.g.rcv.ma_lan !== ma1);
 });
 
 /* ---------- chay ---------- */
