@@ -867,17 +867,37 @@ function scanBarcode(onHit) {
 }
 
 /* ---- tra ma vach ra ma hang hoa ---- */
-async function itemByBarcode(code) {
-  if (!code) return null;
+
+/* Tra một mã vạch ra mã hàng, và PHÂN BIỆT hai chuyện khác nhau:
+     - hỏi được máy chủ, không có món nào mang mã đó  -> { ma: null, loi: null }
+     - không hỏi được (mất mạng, hết quyền, máy chủ lỗi) -> { ma: null, loi: <lỗi> }
+   Codex nêu trên PR #220 (06/09/2026): hàm cũ nuốt mọi lỗi rồi trả null, nên
+   màn quét báo "Không tìm thấy hàng hoá" cả khi mạng rớt, và nhân viên đi
+   tìm một mã không hề thiếu. Gom về MỘT nguồn ở đây, các màn chỉ đọc kết
+   quả (điều 18). Tra hai bước: bảng mã vạch trước, rồi chính mã hàng. Bước
+   nào tìm ra là xong; không ra mà có bước nào hỏng thì câu trả lời là "chưa
+   tra được", không phải "không có". */
+async function traHangTheoMaVach(code) {
+  code = String(code == null ? '' : code).trim();
+  if (!code) return { ma: null, loi: null };
+  var loi = null;
   try {
     var bc = await getList('Item Barcode', { parent: 'Item', fields: ['parent', 'barcode'], filters: { barcode: code, parenttype: 'Item' }, limit_page_length: 5 });
-    if (bc && bc.length) return bc[0].parent;
-  } catch (e) { }
+    if (bc && bc.length) return { ma: bc[0].parent, loi: null };
+  } catch (e) { loi = e || new Error('Không hỏi được máy chủ'); }
   try {
     var it = await getList('Item', { fields: ['name'], filters: { name: code, disabled: 0 }, limit_page_length: 1 });
-    if (it && it.length) return it[0].name;
-  } catch (e) { }
-  return null;
+    if (it && it.length) return { ma: it[0].name, loi: null };
+  } catch (e2) { loi = loi || e2 || new Error('Không hỏi được máy chủ'); }
+  return { ma: null, loi: loi };
+}
+
+/* Cửa cũ, giữ nguyên hành vi cho các màn đang gọi: chỉ trả về mã hoặc null,
+   không phân biệt lỗi. Màn nào cần nói rõ với người quét thì gọi
+   `traHangTheoMaVach`. Không đổi các màn cũ trong lần này để giữ phạm vi. */
+async function itemByBarcode(code) {
+  if (!code) return null;
+  return (await traHangTheoMaVach(code)).ma;
 }
 
 /* bottom sheet picker */

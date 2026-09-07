@@ -486,7 +486,15 @@ function hsBenNhanDong(x, dangChon) {
 
 function hsMoChonBenNhan(o) {
   o = o || {};
-  var ds = (o.ds || []).slice();
+  /* HAI danh sách, không gộp làm một (Codex P2 trên #221, 06/09/2026):
+     `dsGoc` là gợi ý tải sẵn lúc mở tấm, `dsMay` là kết quả máy chủ của
+     đúng từ khoá `qMay`. Bản trước ghi đè thẳng kết quả máy chủ lên danh
+     sách duy nhất, nên xoá từ khoá xong tấm chỉ còn vài dòng vừa tìm, hay
+     trống trơn sau một lần tìm không ra, phải đóng mở lại mới thấy gợi ý.
+     Kết quả máy chủ chỉ dùng khi từ khoá đang gõ vẫn NỐI TIẾP từ khoá đã
+     hỏi; gõ khác đi hay xoá trắng là về lại gợi ý ban đầu. */
+  var dsGoc = (o.ds || []).slice();
+  var dsMay = null, qMay = '';
   var q = '';
   var trangThai = '';        /* '' bày danh sách, 'tai' đang hỏi, 'loi' hỏng */
   var loi = '';
@@ -509,8 +517,17 @@ function hsMoChonBenNhan(o) {
       : '');
   var lst = box.querySelector('#hsbnDs');
 
+  /* Nguồn đang bày: kết quả máy chủ khi từ khoá còn nối tiếp từ khoá đã
+     hỏi, còn lại là gợi ý ban đầu. Một hàm cho cả vẽ lẫn chọn, để dòng
+     người bấm và hồ sơ trả về luôn là cùng một nguồn. */
+  function nguon() {
+    if (dsMay && qMay && mvKhongDau(q).trim().indexOf(mvKhongDau(qMay).trim()) === 0) return dsMay;
+    return dsGoc;
+  }
+
   function loc() {
     var k = mvKhongDau(q).trim();
+    var ds = nguon();
     if (!k) return ds;
     return ds.filter(function (x) {
       return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;
@@ -581,8 +598,13 @@ function hsMoChonBenNhan(o) {
       loi = ((er && er.message) || 'Không hỏi được máy chủ') +
         '. Kiểm tra mạng rồi bấm Enter tìm lại.';
       trangThai = 'loi';
+    } else if (!mvKhongDau(q0).trim()) {
+      /* Enter với ô trống là hỏi CẢ danh mục: kết quả đó chính là gợi ý
+         ban đầu bản đầy đủ, nên thay cho gợi ý cũ chứ không treo theo một
+         từ khoá rỗng. */
+      dsGoc = moi; dsMay = null; qMay = ''; trangThai = '';
     } else {
-      ds = moi; trangThai = '';
+      dsMay = moi; qMay = q0; trangThai = '';
     }
     ve();
   });
@@ -595,6 +617,7 @@ function hsMoChonBenNhan(o) {
        đúng tên người vừa chọn dù người đó nằm ngoài danh sách gợi ý đầu.
        Xem `vgbGiuChon` ở 07-hop-thoai.js. */
     var hoSo = null;
+    var ds = nguon();
     for (var i = 0; i < ds.length; i++) if (ds[i].ncc === ma) hoSo = ds[i];
     dong();
     o.chon(ma, hoSo);
@@ -1090,7 +1113,13 @@ async function scrHoSoTTTao() {
   var moUng = document.getElementById('hsMoUng');
   if (moUng) moUng.onclick = function () {
     hsMoChonNguoiNhan(hay, hsTaoNguoiUng, function (ma, hoSo) {
-      if (!ma || ma === hsTaoNguoiUng) return;
+      if (!ma) return;
+      if (ma === hsTaoNguoiUng) {
+        /* Cùng luật với màn Chi từ TK công ty: chọn lại đúng người đang
+           cầm chỉ có tác dụng khi thẻ đang báo lỗi tra mã. */
+        if (vgbChonLaiGoLoi('hs_ung', ma, hoSo, hsUngLoi)) go(scrHoSoTTTao, true);
+        return;
+      }
       hsTaoDsUng = null;
       hsTaoNguoiUng = ma;
       vgbGiuChon('hs_ung', ma, hoSo);
@@ -1803,7 +1832,15 @@ async function scrChiCongTyTao() {
   var moBen = document.getElementById('huMoBen');
   if (moBen) moBen.onclick = function () {
     var doi = function (ma, hoSo) {
-      if (!ma || ma === huNguoi) return;
+      if (!ma) return;
+      if (ma === huNguoi) {
+        /* Chọn lại đúng bên đang chọn: bình thường thì thôi, giữ nguyên
+           tick hoá đơn. Nhưng thẻ đang báo "chưa tra được tên" (mạng rớt
+           lúc mở lại bản nháp) thì đây chính là cách người ta gỡ lỗi, phải
+           nhận hồ sơ vừa chọn và vẽ lại. Codex P2 trên #221. */
+        if (vgbChonLaiGoLoi('hu_ben', ma, hoSo, huBenLoi)) go(scrChiCongTyTao, true);
+        return;
+      }
       huNguoi = ma;
       vgbGiuChon('hu_ben', ma, hoSo);
       huChonHd = {};
