@@ -9980,6 +9980,74 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
   });
   chay();
 }
+
+/* ================= GIỮ BÊN ĐÃ CHỌN, MỘT NGUỒN CHO MÃ LẪN TÊN =================
+
+   Vì sao có (Codex P1 trên #217, 06/09/2026): tấm chọn bên nhận tiền chỉ trả
+   về MÃ, còn màn hình khi vẽ lại thì đi tra mã đó trong danh sách gợi ý vừa
+   tải (300 người đầu). Người tìm được bằng Enter nằm ngoài danh sách đó nên
+   thẻ báo "Chưa chọn ai" trong khi mã vẫn được mang đi lưu. Người bấm gửi
+   nhìn một đằng, sổ ghi một nẻo.
+
+   Sửa bằng cách gom về MỘT nguồn: lúc chọn thì giữ luôn hồ sơ đã chọn; lúc
+   vẽ thẻ thì hỏi `vgbBenDaChon`, nó tra danh sách trước, không có thì lấy
+   hồ sơ đã giữ, không có nữa (ví dụ mở lại bản nháp) thì màn hình phải tự
+   tra theo mã bằng `vgbTraBenTheoMa` và bày trạng thái rõ ràng, KHÔNG được
+   nói "chưa chọn" khi đang cầm một mã. Dùng cho mọi màn chọn bên: chi từ
+   TK công ty, hoàn ứng, sau này là NCC trên hoá đơn. Mỗi màn một khoá. */
+var VGB_CHON = {};
+
+function vgbGiuChon(khoa, ma, hoSo) {
+  if (!ma) { delete VGB_CHON[khoa]; return; }
+  VGB_CHON[khoa] = { ma: ma, ho_so: (hoSo && hoSo.ncc === ma) ? hoSo : null };
+}
+
+function vgbBenDaChon(khoa, ma, ds) {
+  if (!ma) return null;
+  for (var i = 0; i < (ds || []).length; i++) if (ds[i] && ds[i].ncc === ma) return ds[i];
+  var g = VGB_CHON[khoa];
+  if (g && g.ma === ma && g.ho_so) return g.ho_so;
+  return null;
+}
+
+/* Tra một bên theo đúng MÃ, không phụ thuộc danh sách gợi ý. Trả về null khi
+   không có hồ sơ; hồ sơ bị vô hiệu hoá thì mang cờ `disabled` để màn hình
+   bày trạng thái và chặn gửi. Kết quả được giữ lại để lần vẽ sau khỏi hỏi. */
+async function vgbTraBenTheoMa(khoa, ma) {
+  if (!ma) return null;
+  var r = await api('frappe.client.get_value', {
+    doctype: 'Supplier', filters: { name: ma },
+    fieldname: ['name', 'supplier_name', 'disabled']
+  });
+  if (!r || !r.name) return null;
+  var hoSo = { ncc: r.name, ten: r.supplier_name || r.name, hay_dung: 0, disabled: r.disabled ? 1 : 0 };
+  vgbGiuChon(khoa, ma, hoSo);
+  return hoSo;
+}
+
+/* Chọn lại ĐÚNG mã đang cầm. Bình thường là không làm gì: giữ tick hoá
+   đơn, không vẽ lại (ca E5). Nhưng khi thẻ đang báo lỗi tra mã (mở lại bản
+   nháp lúc mạng rớt, xem `huBenLoi`, `hsUngLoi`) thì chọn lại chính nó là
+   cách người ta gỡ lỗi: phải giữ hồ sơ vừa chọn và vẽ lại. Một hàm cho mọi
+   màn chọn bên, khỏi mỗi màn tự viết một cửa kiểm (điều 18). Trả về true
+   khi màn cần vẽ lại. Codex P2 trên #221, 06/09/2026. */
+function vgbChonLaiGoLoi(khoa, ma, hoSo, dangLoi) {
+  if (!ma || !dangLoi) return false;
+  vgbGiuChon(khoa, ma, hoSo);
+  return true;
+}
+
+/* ================= LƯỢT HỎI MÁY CHỦ =================
+   Hai lần hỏi về ngược thứ tự thì lượt cũ không được đè lượt mới. Mỗi chỗ
+   hỏi máy chủ tạo một `vgbLuot()`, trước khi hỏi gọi `bat()` lấy số lượt,
+   nhận phản hồi thì hỏi `con(so)`: không còn là lượt mới nhất thì bỏ. */
+function vgbLuot() {
+  var so = 0;
+  return {
+    bat: function () { return ++so; },
+    con: function (l) { return l === so; }
+  };
+}
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
 var dsLoc = 'tat_ca', dsLocNg = '', dsLocHd = '';
@@ -21354,7 +21422,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '440';
+var APPVER = '441';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -31364,6 +31432,7 @@ var hsHdTu = '';
 /* `hsUngTim` da bo o v333: o go tim khong con giu tu khoa trong bien va
    khong con lam ve lai man, no loc thang tren DOM. */
 var hsTaoNguoiUng = '', hsTaoDsUng = null;
+var hsUngLoi = '';   /* câu báo khi mã người được hoàn ứng không tra ra ai; có câu là chặn gửi */
 /* Tai khoan nhan tien cua man hoan ung CO hoa don. Anh Viet 28/08/2026:
    man nay truoc khong co o chon nen may lay dai tai khoan mac dinh cua
    nguoi ung; anh Viet co ca ACB lan OCB nen doan sai la chuyen nham
@@ -31478,27 +31547,273 @@ function hsChipNcc(o) {
   }).join(' · ');
 }
 
-function hsMoChonNcc(ncc, laHU, chon) {
-  var muc = [];
-  /* Luong hoan ung gom duoc nhieu nha mot luc nen phai co duong quay ve
-     "tat ca". Luong cong no NCC thi mot ho so chi mang mot nha, khong co
-     muc nay. */
-  if (laHU) muc.push({ value: '', label: 'Tất cả nhà cung cấp', icon: '📚',
-    phu: 'Gộp hoá đơn của mọi nhà vào một hồ sơ' });
-  (ncc || []).forEach(function (x) {
-    /* `sheet()` cua 00-nen.js chi ha chu thuong chu KHONG bo dau, trong khi
-       o tim cu (`vgbNoiOTim`) co `mvKhongDau` ca hai phia. Codex neu tren PR
-       #198: doi sang tam truot ma khong bu lai la go "dien luc" khong con ra
-       "ĐIỆN LỰC" nua. Nhet ban KHONG DAU vao truong `tim` de bu, con go co
-       dau thi da khop o `label`. */
-    muc.push({ value: x.ncc, label: x.ten, icon: '🏭', phu: hsChipNcc(x),
-      tim: mvKhongDau(x.ten) + ' ' + x.ncc });
+/* ==================== MỘT CỬA CHỌN BÊN NHẬN TIỀN ====================
+
+Anh Việt mở #196: *"danh sách NCC về mặt hiển thị đang hiển thị hết ra nên
+rất dài, em gom lại thành dropdown dùm anh, có ô tìm kiếm"*. Vòng #198 đã
+làm cho luồng công nợ nhà cung cấp, nhưng BA chỗ khác vẫn bày nguyên bảng
+chip ngay trên form: hai nhánh thuế của màn Chi từ TK công ty, và ô Người
+được hoàn ứng của màn hoàn ứng có hoá đơn. Ảnh anh Việt gửi 06/09/2026 chụp
+đúng một trong ba chỗ đó.
+
+Lần này KHÔNG đi vá từng màn nữa. Mọi chỗ chọn bên nhận tiền đều đi qua
+`hsMoChonBenNhan`, mọi chỗ hiện bên đã chọn đều đi qua `hsTheBenNhan`. Thêm
+màn mới mà quên gọi thì thấy ngay vì không có đường nào khác để bày danh
+sách, chứ không lặng lẽ mọc lại bảng chip như lần này. AGENTS.md điều 18.
+
+VÌ SAO KHÔNG DÙNG `sheet()` CỦA 00-nen.js Ở ĐÂY. Hàm đó lọc tại chỗ trên
+danh sách đã tải, không có đường hỏi máy chủ, không có trạng thái đang tải
+hay lỗi, và không nhét được nút "tạo nhà cung cấp mới": nhét vào danh sách
+thì chính ô tìm lọc mất nó, mà nút đó cần nhất đúng lúc gõ mãi không ra.
+Màn tìm khách của quầy (`sheetTimKhach`, `posSheetKhachNo` trong
+09-tinh-tien-quay.js) đã tự dựng tấm trượt vì y hệt lý do, nên đây là đi
+theo lối sẵn có của repo chứ không đẻ ra lối mới. AGENTS.md mục 2b cấm thẻ
+<select> nên dropdown của trình duyệt không phải là lựa chọn.
+
+HAI TẦNG TÌM, giống mọi ô tìm khác của app: gõ là lọc ngay trên danh sách
+đang có nên tay không phải chờ; bấm Enter là hỏi máy chủ để với tới phần
+nằm ngoài danh sách đã tải về. Bỏ dấu cả hai phía bằng `mvKhongDau`, vì gõ
+"dien luc" phải ra "ĐIỆN LỰC".
+
+DÙNG ĐÚNG TÊN LỚP CSS. Thẻ thu gọn ở đây dùng `hi/ht/h1/h2` - đó mới là các
+lớp có thật trong 00-nen.js. Nhiều màn cũ viết `hub-i/hub-t/t1/t2`, không
+lớp nào trong số đó có CSS, nên dòng phụ mất màu xám và cỡ chữ. Chỉ sửa cho
+các thẻ đụng tới trong lần này, không đi sửa hết các màn khác để giữ phạm
+vi đúng bằng yêu cầu. */
+
+var HS_BN_MO = 0;   /* 1 khi tấm trượt đang mở, để ca kiểm đọc được trạng thái */
+
+function hsTheBenNhan(id, icon, ten, phu, daChon) {
+  return '<div class="card"><div class="hub" id="' + h(id) + '" data-hsbn-mo="' + h(id) + '">' +
+    '<div class="hi">' + icon + '</div>' +
+    '<div class="ht"><div class="h1">' + h(ten) + '</div>' +
+    '<div class="h2">' + h(phu || '') + '</div></div>' +
+    '<b style="color:#2563eb;white-space:nowrap">' + (daChon ? 'Đổi' : 'Chọn') + '</b></div></div>';
+}
+
+/* Dòng phụ của một bên nhận tiền: MÃ đứng trước, rồi tới phần mô tả. Hai
+   người trùng tên (hai "NGUYỄN VĂN A" ở hai quận) trước đây nhìn y hệt nhau
+   trong tấm trượt lẫn trên thẻ đã chọn, chỉ khác ở data-hsbn mà mắt không
+   thấy; bấm nhầm người là tiền đi nhầm tài khoản. Codex P2 trên #221 vòng 3.
+   Mã là thứ ổn định duy nhất, nên mọi chỗ bày bên nhận đều đi qua hàm này:
+   dòng trong tấm trượt (`hsBenNhanDong`) và ba thẻ đã chọn của Chi từ TK
+   công ty, Hoàn ứng, Nhà cung cấp. Tên trùng mã (danh mục đặt tên theo tên)
+   thì không lặp lại mã cho khỏi rác. Trả về chữ THƯỜNG, nơi bày tự thoát. */
+function hsPhuMa(ma, ten, phu) {
+  var dm = ma && ma !== ten ? String(ma) : '';
+  var dp = phu || '';
+  return dm && dp ? dm + ' · ' + dp : (dm || dp);
+}
+
+function hsBenNhanDong(x, dangChon) {
+  var ten = x.ten || x.ncc;
+  var la = x.ncc === dangChon;
+  var phu = hsPhuMa(x.ncc, ten, x.phu);
+  return '<div class="shi' + (la ? ' on' : '') + '" data-hsbn="' + h(x.ncc) + '">' +
+    '<span>' + (x.hay_dung ? '⭐' : '🏭') + '</span>' +
+    '<span style="flex:1;min-width:0">' + h(ten) +
+    (phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(phu) + '</div>' : '') +
+    '</span>' + (la ? '<span>&#10003;</span>' : '') + '</div>';
+}
+
+function hsMoChonBenNhan(o) {
+  o = o || {};
+  /* HAI danh sách, không gộp làm một (Codex P2 trên #221, 06/09/2026):
+     `dsGoc` là gợi ý tải sẵn lúc mở tấm, `dsMay` là kết quả máy chủ của
+     đúng từ khoá `qMay`. Bản trước ghi đè thẳng kết quả máy chủ lên danh
+     sách duy nhất, nên xoá từ khoá xong tấm chỉ còn vài dòng vừa tìm, hay
+     trống trơn sau một lần tìm không ra, phải đóng mở lại mới thấy gợi ý.
+     Kết quả máy chủ chỉ dùng khi từ khoá đang gõ vẫn NỐI TIẾP từ khoá đã
+     hỏi; gõ khác đi hay xoá trắng là về lại gợi ý ban đầu. */
+  var dsGoc = (o.ds || []).slice();
+  var dsMay = null, qMay = '';
+  var q = '';
+  var trangThai = '';        /* '' bày danh sách, 'tai' đang hỏi, 'loi' hỏng */
+  var loi = '';
+
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML =
+    '<div class="shh"><b>' + h(o.tieu_de || 'Chọn bên nhận tiền') + '</b>' +
+    '<div class="x" data-hsbn-dong="1">&times;</div></div>' +
+    '<div style="flex:0 0 auto;padding:10px 14px 4px">' +
+    '<input class="nt" id="hsbnTim" type="search" autocomplete="off" placeholder="' +
+    h(o.goi_y || '🔎 Gõ tên để tìm') + '" style="height:46px;padding:0 12px;width:100%;box-sizing:border-box"></div>' +
+    '<div class="shl" id="hsbnDs"></div>' +
+    (o.tao_moi
+      ? '<div style="flex:0 0 auto;padding:11px 14px;border-top:1px solid #eef2f5">' +
+        '<button class="btn gh" id="hsbnTao" style="margin:0;min-height:46px">➕ Không thấy tên? Tạo nhà cung cấp mới</button>' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' +
+        h(o.mo_ta_tao || '') + (o.mo_ta_tao ? ' ' : '') +
+        'Máy điền sẵn cái tên đang gõ trong ô tìm sang màn tạo.</div></div>'
+      : '');
+  var lst = box.querySelector('#hsbnDs');
+
+  /* Nguồn đang bày: kết quả máy chủ khi từ khoá còn nối tiếp từ khoá đã
+     hỏi, còn lại là gợi ý ban đầu. Một hàm cho cả vẽ lẫn chọn, để dòng
+     người bấm và hồ sơ trả về luôn là cùng một nguồn. */
+  function nguon() {
+    if (dsMay && qMay && mvKhongDau(q).trim().indexOf(mvKhongDau(qMay).trim()) === 0) return dsMay;
+    return dsGoc;
+  }
+
+  function loc() {
+    var k = mvKhongDau(q).trim();
+    var ds = nguon();
+    if (!k) return ds;
+    return ds.filter(function (x) {
+      return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;
+    });
+  }
+
+  function ve() {
+    if (trangThai === 'tai') {
+      lst.innerHTML = '<div class="emp"><div class="e1">⏳</div><div>Đang hỏi máy chủ...</div></div>';
+      return;
+    }
+    if (trangThai === 'loi') {
+      lst.innerHTML = '<div class="emp"><div class="e1">⚠️</div><div>' + h(loi) + '</div></div>';
+      return;
+    }
+    /* Luồng hoàn ứng gom được nhiều nhà một lúc nên phải có đường quay về
+       "tất cả". Luồng công nợ NCC thì một hồ sơ chỉ mang một nhà. */
+    var dau = o.tat_ca
+      ? '<div class="shi' + (o.dang_chon ? '' : ' on') + '" data-hsbn="">' +
+        '<span>📚</span><span style="flex:1;min-width:0">' + h(o.tat_ca) +
+        (o.tat_ca_phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(o.tat_ca_phu) + '</div>' : '') +
+        '</span>' + (o.dang_chon ? '' : '<span>&#10003;</span>') + '</div>'
+      : '';
+    var f = loc();
+    lst.innerHTML = dau + (f.length
+      ? f.map(function (x) { return hsBenNhanDong(x, o.dang_chon); }).join('')
+      : '<div class="emp"><div class="e2">' +
+        h(q ? ('Không có tên nào khớp "' + q + '" trong danh sách đang bày.' +
+               (o.tim ? ' Bấm Enter để hỏi cả danh mục.' : ''))
+            : (o.trong || 'Danh mục đang trống.')) + '</div></div>');
+  }
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+
+  /* Lượt hỏi máy chủ của tấm này, xem `vgbLuot`. Không cần số phiên tấm:
+     mỗi lần mở là một bao đóng riêng với `ds`, `lst` riêng, nên phản hồi
+     của tấm cũ về muộn chỉ vẽ vào phần tử đã bị gỡ khỏi trang. Ca E14 giữ
+     điều đó; đột biến ngày 06/09 cho thấy thêm một chốt phiên ở đây là lớp
+     dư, không ca nào phân biệt được (điều 17c), nên không giữ. */
+  var luot = vgbLuot();
+
+  function dong() { HS_BN_MO = 0; ov.remove(); }
+  /* Bấm ra ngoài hoặc bấm dấu nhân là THÔI: đóng và không đụng gì tới bên
+     đang chọn, khoản chi, số tiền hay hoá đơn đang tick. */
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  var nutX = box.querySelector('[data-hsbn-dong]');
+  if (nutX) nutX.onclick = dong;
+
+  var inp = box.querySelector('#hsbnTim');
+  inp.addEventListener('input', function () { q = inp.value; trangThai = ''; ve(); });
+  inp.addEventListener('keydown', async function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); e.stopPropagation();
+    q = inp.value;
+    if (!o.tim) { ve(); return; }
+    var l = luot.bat();
+    var q0 = q;
+    trangThai = 'tai'; ve();
+    var moi = null, er = null;
+    try { moi = (await o.tim(q0)) || []; }
+    catch (e2) { er = e2; }
+    /* Hai cửa, thiếu một là phản hồi này không được đụng vào màn:
+       - vẫn là lượt mới nhất (hai lần Enter về ngược thứ tự),
+       - từ khoá trong ô vẫn là từ khoá đã hỏi (gõ tiếp trong lúc chờ). */
+    if (!luot.con(l) || inp.value !== q0) return;
+    if (er) {
+      loi = ((er && er.message) || 'Không hỏi được máy chủ') +
+        '. Kiểm tra mạng rồi bấm Enter tìm lại.';
+      trangThai = 'loi';
+    } else if (!mvKhongDau(q0).trim()) {
+      /* Enter với ô trống là hỏi CẢ danh mục: kết quả đó chính là gợi ý
+         ban đầu bản đầy đủ, nên thay cho gợi ý cũ chứ không treo theo một
+         từ khoá rỗng. */
+      dsGoc = moi; dsMay = null; qMay = ''; trangThai = '';
+    } else {
+      dsMay = moi; qMay = q0; trangThai = '';
+    }
+    ve();
   });
-  if (!muc.length) return baoTin('Máy chưa đọc được nhà cung cấp nào. ' +
-    'Thoát ra rồi mở lại màn này một lần; vẫn trống thì nhờ chị Dung kiểm ' +
-    'xem danh mục Nhà cung cấp bên Next có bị tắt hết không.',
-    'Không có gì để chọn');
-  sheet('Chọn nhà cung cấp', muc, hsTaoNcc || '', function (it) { chon(it.value); }, true);
+
+  lst.onclick = function (e) {
+    var r = e.target.closest('[data-hsbn]');
+    if (!r) return;
+    var ma = r.getAttribute('data-hsbn');
+    /* Trả về CẢ hồ sơ đã chọn, không chỉ mã: màn hình vẽ lại phải hiện
+       đúng tên người vừa chọn dù người đó nằm ngoài danh sách gợi ý đầu.
+       Xem `vgbGiuChon` ở 07-hop-thoai.js. */
+    var hoSo = null;
+    var ds = nguon();
+    for (var i = 0; i < ds.length; i++) if (ds[i].ncc === ma) hoSo = ds[i];
+    dong();
+    o.chon(ma, hoSo);
+  };
+
+  var nutTao = box.querySelector('#hsbnTao');
+  if (nutTao) nutTao.onclick = function () {
+    /* Lấy cái ĐANG gõ trong ô chứ không lấy biến đã lưu: người ta gõ xong
+       bấm thẳng nút Tạo mới, chưa hề rời ô nên biến vẫn còn rỗng. */
+    var t = inp.value.trim();
+    dong();
+    nccTaoNhanh(t, o.tao_xong || o.chon);
+  };
+
+  HS_BN_MO = 1;
+  ve();
+  setTimeout(function () { try { inp.focus(); } catch (e2) { } }, 120);
+  return dong;
+}
+
+/* Bên nhận là NHÀ CUNG CẤP TRÊN HOÁ ĐƠN. */
+function hsMoChonNcc(ncc, laHU, chon) {
+  return hsMoChonBenNhan({
+    tieu_de: 'Chọn nhà cung cấp',
+    goi_y: '🔎 Gõ tên nhà cung cấp',
+    dang_chon: hsTaoNcc,
+    ds: (ncc || []).map(function (x) {
+      return { ncc: x.ncc, ten: x.ten, hay_dung: 0, phu: hsChipNcc(x) };
+    }),
+    tat_ca: laHU ? 'Tất cả nhà cung cấp' : '',
+    tat_ca_phu: 'Gộp hoá đơn của mọi nhà vào một hồ sơ',
+    tao_moi: coQuyenMua(),
+    mo_ta_tao: 'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.',
+    trong: 'Máy chưa đọc được nhà cung cấp nào. Thoát ra rồi mở lại màn này một lần; vẫn trống thì nhờ chị Dung kiểm xem danh mục Nhà cung cấp bên Next có bị tắt hết không.',
+    chon: chon,
+    tao_xong: function (ma) { if (ma) chon(ma, null); }
+  });
+}
+
+/* Bên nhận là NGƯỜI NHẬN TIỀN: người bỏ tiền túi mua hộ rồi được hoàn lại,
+   hoặc bên được chi thẳng từ tài khoản công ty. KHÔNG phải nhà cung cấp
+   trên hoá đơn, dù danh mục gốc cùng là Supplier. Giữ hai khái niệm tách
+   nhau bằng nhãn, biểu tượng và câu nhắc riêng; dùng chung đúng cái cửa,
+   không gộp thành một ý nghĩa. */
+function hsMoChonNguoiNhan(ds, dangChon, chon) {
+  var ve = function (x) {
+    return { ncc: x.ncc, ten: x.ten, hay_dung: x.hay_dung ? 1 : 0,
+      phu: x.hay_dung ? 'Đã từng đứng tên hồ sơ hoàn ứng' : '' };
+  };
+  return hsMoChonBenNhan({
+    tieu_de: 'Chọn người nhận tiền',
+    goi_y: '🔎 Gõ tên rồi bấm Enter để tìm cả danh mục',
+    dang_chon: dangChon || '',
+    ds: (ds || []).map(ve),
+    tim: async function (q) {
+      var k = await api('vagabond.ho_so_tt.ds_nguoi_ung', { tu_khoa: q });
+      return ((k && k.ncc) || []).map(ve);
+    },
+    tao_moi: coQuyenMua(),
+    mo_ta_tao: 'Người mới ứng tiền lần đầu thì chưa có hồ sơ. Tạo ở đây rồi chọn luôn.',
+    trong: 'Máy chưa đọc được ai. Bấm Enter để hỏi lại máy chủ.',
+    chon: chon,
+    tao_xong: chon
+  });
 }
 
 /* ==================== XEM VÌ SAO THIẾU HOÁ ĐƠN ====================
@@ -31741,19 +32056,25 @@ async function scrHoSoTTTao() {
     /* Nguoi hay dung xep len truoc cho de cham, phan con lai giu nguyen thu tu. */
     var hay = dsu.filter(function (x) { return x.hay_dung; })
       .concat(dsu.filter(function (x) { return !x.hay_dung; }));
+    /* MỘT thẻ thu gọn, không bày danh mục thường trực. Danh sách và ô tìm
+       nằm trong tấm trượt, chạm mới mở. Xem khối "MỘT CỬA CHỌN BÊN NHẬN
+       TIỀN" ở đầu tệp. */
+    var nguoiUng = vgbBenDaChon('hs_ung', hsTaoNguoiUng, hay);
+    hsUngLoi = '';
+    if (hsTaoNguoiUng && !nguoiUng) {
+      try { nguoiUng = await vgbTraBenTheoMa('hs_ung', hsTaoNguoiUng); }
+      catch (e5) { nguoiUng = null; hsUngLoi = 'Chưa tra được tên của mã ' + hsTaoNguoiUng + '. Chạm để chọn lại.'; }
+      if (!nguoiUng && !hsUngLoi) hsUngLoi = 'Mã ' + hsTaoNguoiUng + ' không còn trong danh mục. Chạm để chọn lại.';
+    }
+    if (nguoiUng && nguoiUng.disabled) hsUngLoi = (nguoiUng.ten || hsTaoNguoiUng) + ' đang bị vô hiệu hoá. Chạm để chọn người khác.';
     html += hsoKhoi('Người được hoàn ứng · bắt buộc') +
-      '<div class="card" style="padding:10px 12px">' +
-      hsOTimNcc('hsUngTim', hay.length) +
-      kmHangChip(
-        hay.map(function (x) {
-          return posChipNut('data-hsu="' + h(x.ncc) + '"', h(x.ten), hsTaoNguoiUng === x.ncc);
-        }).join('')) +
+      hsTheBenNhan('hsMoUng', '🧑',
+        nguoiUng ? (nguoiUng.ten || nguoiUng.ncc) : (hsTaoNguoiUng ? 'Mã ' + hsTaoNguoiUng : 'Chạm để chọn người được hoàn ứng'),
+        hsUngLoi ? hsUngLoi : (nguoiUng ? hsPhuMa(nguoiUng.ncc, nguoiUng.ten, 'Người này sẽ nhận lại tiền') : 'Chưa chọn ai'), !!nguoiUng) +
       (hsTaoNguoiUng ? '' :
-        '<div style="font-size:12px;color:#b3261e;margin-top:8px;line-height:1.6">' +
+        '<div style="font-size:12px;color:#b3261e;margin:-4px 0 10px;line-height:1.6">' +
         'Chưa chọn ai. Đây là người đã bỏ tiền túi mua hộ và sẽ nhận lại tiền, ' +
-        'không phải nhà cung cấp trên hoá đơn.</div>') +
-      hsKhungTimNcc('hsUngTim', hay.length,
-        'Người mới ứng tiền lần đầu thì chưa có hồ sơ. Tạo ở đây rồi chọn luôn.') + '</div>';
+        'không phải nhà cung cấp trên hoá đơn.</div>');
 
     /* HOAN UNG VAO TAI KHOAN NAO
        ----------------------------------------------------------------
@@ -31795,11 +32116,12 @@ async function scrHoSoTTTao() {
   var nccDangChon = null;
   for (var iN = 0; iN < ncc.length; iN++) if (ncc[iN].ncc === hsTaoNcc) nccDangChon = ncc[iN];
   html += hsoKhoi('Nhà cung cấp' + (ncc.length ? ' · ' + ncc.length + ' nhà' : '')) +
-    '<div class="card"><div class="hub" id="hsMoNcc">' +
-    '<div class="hub-i">🏭</div><div class="hub-t">' +
-    '<div class="t1">' + h(nccDangChon ? nccDangChon.ten : (laHU && !hsTaoNcc ? 'Tất cả nhà cung cấp' : 'Chạm để chọn nhà cung cấp')) + '</div>' +
-    '<div class="t2">' + (nccDangChon ? hsChipNcc(nccDangChon) : (laHU ? 'Đang gộp hoá đơn của mọi nhà' : 'Chưa chọn nhà nào')) + '</div>' +
-    '</div><b style="color:#2563eb;white-space:nowrap">Đổi</b></div></div>' +
+    hsTheBenNhan('hsMoNcc', '🏭',
+      nccDangChon ? (nccDangChon.ten || nccDangChon.ncc)
+        : (laHU && !hsTaoNcc ? 'Tất cả nhà cung cấp' : 'Chạm để chọn nhà cung cấp'),
+      nccDangChon ? hsPhuMa(nccDangChon.ncc, nccDangChon.ten, hsChipNcc(nccDangChon))
+        : (laHU ? 'Đang gộp hoá đơn của mọi nhà' : 'Chưa chọn nhà nào'),
+      !!nccDangChon || (laHU && !hsTaoNcc)) +
     (laHU ? '<div style="font-size:11.5px;color:#98a2b3;margin:-4px 0 10px;line-height:1.6">' +
       'Ô này chỉ để <b>lọc cho dễ nhìn</b>. Đổi nhà không làm mất hoá đơn đã tick, ' +
       'nên anh chị tick bên nhà này rồi đổi sang nhà khác tick tiếp thoải mái.</div>' : '');
@@ -31916,13 +32238,29 @@ async function scrHoSoTTTao() {
   };
   var moNcc = document.getElementById('hsMoNcc');
   if (moNcc) moNcc.onclick = function () { hsMoChonNcc(ncc, laHU, doiNcc); };
-  Array.prototype.forEach.call(document.querySelectorAll('[data-hsu]'), function (el) {
-    el.onclick = function () { hsTaoNguoiUng = el.getAttribute('data-hsu'); go(scrHoSoTTTao, true); };
-  });
+  /* Người được hoàn ứng: cùng một cửa với nhà cung cấp nhưng là KHÁI NIỆM
+     KHÁC, nên gọi `hsMoChonNguoiNhan` chứ không dùng chung cấu hình. Tạo
+     người mới xong thì bỏ cache danh sách, không thì người vừa tạo không
+     có trong `hsTaoDsUng` và thẻ vẫn hiện tên cũ. */
+  var moUng = document.getElementById('hsMoUng');
+  if (moUng) moUng.onclick = function () {
+    hsMoChonNguoiNhan(hay, hsTaoNguoiUng, function (ma, hoSo) {
+      if (!ma) return;
+      if (ma === hsTaoNguoiUng) {
+        /* Cùng luật với màn Chi từ TK công ty: chọn lại đúng người đang
+           cầm chỉ có tác dụng khi thẻ đang báo lỗi tra mã. */
+        if (vgbChonLaiGoLoi('hs_ung', ma, hoSo, hsUngLoi)) go(scrHoSoTTTao, true);
+        return;
+      }
+      hsTaoDsUng = null;
+      hsTaoNguoiUng = ma;
+      vgbGiuChon('hs_ung', ma, hoSo);
+      go(scrHoSoTTTao, true);
+    });
+  };
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstk]'), function (el) {
     el.onclick = function () { hsTkHoan = el.getAttribute('data-hstk'); go(scrHoSoTTTao, true); };
   });
-  vgbNoiOTim(b, 'hsUngTim', '[data-hsu]');
   /* O tim hoa don: loc tren DOM nen tick da dat KHONG mat khi go. Khop ca
      so hoa don cua nha cung cap, ma hoa don trong he va ten nha.
      Dat lai gia tri TRUOC khi goi `vgbNoiOTim`, vi ham do chay `chay()` mot
@@ -31933,15 +32271,6 @@ async function scrHoSoTTTao() {
     oHd.addEventListener('input', function () { hsHdTu = oHd.value; });
   }
   vgbNoiOTim(b, 'hsHdTim', '[data-hsh]');
-  /* Cai dang go trong o tim la ten se dien san khi bam Tao nha cung cap moi. */
-  var oUt = document.getElementById('hsUngTim');
-  hsNoiNutTaoNcc(oUt ? oUt.value.trim() : '', function (ma) {
-    /* Tao xong thi nap lai danh sach, khong thi nguoi vua tao khong co
-       trong `hsTaoDsUng` da cache va chip moi khong hien ra. */
-    hsTaoDsUng = null;
-    if (ma) { hsTaoNguoiUng = ma; }
-    go(scrHoSoTTTao, true);
-  });
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
@@ -31984,6 +32313,7 @@ async function scrHoSoTTTao() {
     });
     if (!ds.length) return baoTin('Chưa chọn hoá đơn nào.');
     if (laHU && !hsTaoNguoiUng) return baoTin('Chưa chọn người được hoàn ứng. Đây là người sẽ nhận lại tiền.');
+    if (laHU && hsUngLoi) return baoTin(hsUngLoi, 'Người được hoàn ứng chưa rõ');
     /* Chan CA hai nut, ke ca luu nhap. Ho so nhap thieu tai khoan roi de
        do vai ngay thi den luc chuyen tien khong ai nho phai chuyen di dau,
        ma o "hoan thanh ho so" thi khong ai mo lai. */
@@ -32018,7 +32348,8 @@ async function scrHoSoTTTao() {
    Khac han man lap ho so NCC: o kia tick hoa don da co san trong he, o day
    CHUA co hoa don nao ca - Uyen go tay dung nhung gi trong xap chung tu.
    May sinh hoa don mua sau, luc giam doc duyet. */
-var huNguoi = '', huDong = [], huGhiChu = '', huTamUng = 0, huTim = '';
+var huNguoi = '', huDong = [], huGhiChu = '', huTamUng = 0;
+var huBenLoi = '';   /* câu báo khi mã đang cầm không tra ra bên hợp lệ; có câu là chặn gửi */
 /* Tai khoan nhan tien hoan ung (ACB hay OCB). Thay cho viec chon nha cung
    cap o man hoan ung khong hoa don - anh Viet 22/08/2026. */
 var huTkHoan = '';
@@ -32042,40 +32373,11 @@ function huManHienTai() { return huMode === 'tkct' ? scrChiCongTyTao : scrHoanUn
 
    Nen moi cho chon nha cung cap deu phai co ba thu: o go tim, cau noi ro
    la khong tim thay, va nut tao moi mang san chu vua go sang man tao. */
-/* O GO TIM, dat NGAY TREN bang chip nha cung cap.
-
-   v333 tach lam doi: o tim len tren vi no loc cai nam duoi, con nut tao moi
-   o lai duoi cung. Ban cu de ca hai o duoi bang chip, tuc la o loc nam duoi
-   cai no loc.
-
-   O nay khong con `value` va khong con lam ve lai man. Loc chay tren DOM
-   qua `vgbNoiOTim`, nen go den dau thay den do va ban phim dien thoai khong
-   tut xuong sau moi chu. */
-function hsOTimNcc(idO, soMuc) {
-  return vgbOTim(idO, soMuc, '🔎 Gõ tên để tìm nhà cung cấp');
-}
-
-/* DUONG TAO MOI, dat DUOI bang chip.
-
-   Diem quan trong nhat cua khung nay khong phai o tim, ma la NUT TAO MOI
-   mang san cai ten vua go sang man tao. Anh Viet 21/08/2026: chi Dung go
-   "BHXH CO SO TAN DINH" roi "bao hiem xa hoi", ca hai lan deu khong ra gi,
-   man hinh bao "Chua chon ben nhan tien" va het duong. Bat nguoi ta go lai
-   lan thu ba cai ten vua go hai lan khong ra la cach nhanh nhat de ho bo
-   cuoc va di nhan tin hoi. */
-function hsKhungTimNcc(idO, soThay, moTaTao) {
-  return '<div style="margin-top:9px;padding-top:9px;border-top:1px dashed #e5e7eb">' +
-    '<button class="btn gh" id="hsTaoNccMoi" style="margin:0">➕ Không thấy tên? Tạo nhà cung cấp mới</button>' +
-    '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' +
-    h(moTaTao || '') + (moTaTao ? ' ' : '') +
-    'Máy điền sẵn cái tên đang gõ trong ô tìm sang màn tạo.</div></div>';
-}
-
-function hsNoiNutTaoNcc(tuKhoa, chon) {
-  var n = document.getElementById('hsTaoNccMoi');
-  if (!n) return;
-  n.onclick = function () { nccTaoNhanh(tuKhoa, chon); };
-}
+/* Ba thứ đó nay nằm gọn TRONG tấm trượt của `hsMoChonBenNhan`: ô gõ tìm ở
+   trên cùng, câu nói rõ không tìm thấy ngay giữa danh sách, và nút tạo mới
+   ghim ở đáy nên ô tìm không lọc mất nó. Ba hàm cũ `hsOTimNcc`,
+   `hsKhungTimNcc`, `hsNoiNutTaoNcc` đã gỡ đi cùng bảng chip mà chúng phục
+   vụ; giữ lại thì lần sau có người vô tình gọi và bảng chip mọc lại. */
 
 /* ---------- Lap ho so moi: HOI THEO NHIP thay cho nam nut ----------
 
@@ -32511,7 +32813,11 @@ async function scrChiCongTyTao() {
   var hopLe = huCpThue === 'Chi phi hop le';
   var dsn, dstk, hd = { rows: [], tong: 0 };
   try {
-    dsn = await api(hopLe ? 'vagabond.ho_so_tt.ds_ncc_con_no' : 'vagabond.ho_so_tt.ds_nguoi_ung', (!hopLe && huTim) ? { tu_khoa: huTim } : {});
+    /* Không truyền `tu_khoa` nữa. Trước đây gõ vào ô tìm là vẽ lại cả màn
+       hình để lọc, nên trên điện thoại bàn phím tụt xuống sau mỗi lần gõ.
+       Nay việc tìm nằm gọn trong tấm trượt và tự hỏi máy chủ khi bấm
+       Enter, màn hình đứng yên. */
+    dsn = await api(hopLe ? 'vagabond.ho_so_tt.ds_ncc_con_no' : 'vagabond.ho_so_tt.ds_nguoi_ung', {});
     dstk = await api('vagabond.ho_so_tt.ds_tk_cong_ty', {});
     if (hopLe && huNguoi) {
       try { hd = await api('vagabond.ho_so_tt.hoa_don_cho_tra', { ncc: huNguoi, so_ngay: 365 }); } catch (e2) { }
@@ -32523,6 +32829,18 @@ async function scrChiCongTyTao() {
   var ncc = dsn.ncc || [];
   var tk = (dstk && dstk.tk) || [];
   if (!huTkChi && tk.length) huTkChi = tk[0].ma;
+  /* Bên đang chọn: tra danh sách, rồi hồ sơ đã giữ lúc chọn, rồi mới hỏi
+     máy chủ theo đúng mã (mở lại bản nháp, hay người vừa tạo mới). Không
+     ra thì bày trạng thái rõ và chặn gửi, chứ không nói "chưa chọn" trong
+     khi vẫn cầm mã. Codex P1 trên #217. */
+  huBenLoi = '';
+  var benDangChon = vgbBenDaChon('hu_ben', huNguoi, ncc);
+  if (huNguoi && !benDangChon) {
+    try { benDangChon = await vgbTraBenTheoMa('hu_ben', huNguoi); }
+    catch (e4) { benDangChon = null; huBenLoi = 'Chưa tra được tên của mã ' + huNguoi + ' (' + h((e4 && e4.message) || 'mất mạng') + '). Chạm để chọn lại.'; }
+    if (!benDangChon && !huBenLoi) huBenLoi = 'Mã ' + huNguoi + ' không còn trong danh mục. Chạm để chọn lại.';
+  }
+  if (benDangChon && benDangChon.disabled) huBenLoi = (benDangChon.ten || huNguoi) + ' đang bị vô hiệu hoá trong danh mục. Chạm để chọn bên khác.';
   var rows = hd.rows || [];
   var tongChon = rows.reduce(function (a, r) { return a + (huChonHd[r.hoa_don] ? Number(r.con_no || 0) : 0); }, 0);
 
@@ -32560,16 +32878,29 @@ async function scrChiCongTyTao() {
     return;
   }
 
+  /* MỘT thẻ thu gọn cho cả hai nhánh thuế. Trước 06/09/2026 chỗ này bày
+     nguyên `ncc.slice(0, 40)` thành bảng chip dài hết màn hình - đúng cái
+     ảnh anh Việt gửi kèm #196 - và nhà thứ 41 trở đi thì nhánh hợp lệ
+     không có đường nào chạm tới. Nay danh sách nằm trong tấm trượt, mở ra
+     mới thấy, và tìm được cả phần ngoài danh sách đã tải. */
   var nhanNguoi = hopLe ? 'Trả cho nhà cung cấp nào' : 'Trả cho ai';
-  html += hsoKhoi(nhanNguoi) + '<div class="card" style="padding:10px 12px">' +
-    (hopLe ? '' : hsOTimNcc('huTim', ncc.length)) +
-    kmHangChip(ncc.slice(0, 40).map(function (x) {
-      var ten = x.ten || x.ncc;
-      return posChipNut('data-hun="' + h(x.ncc) + '"', (x.hay_dung ? '⭐ ' : '') + h(ten) + (hopLe && x.con_no ? ' · ' + money(x.con_no) : ''), huNguoi === x.ncc);
-    }).join('')) +
-    (hopLe ? '' : hsKhungTimNcc('huTim', ncc.length,
-      'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.')) +
-    '</div>';
+  html += hsoKhoi(nhanNguoi) +
+    hsTheBenNhan('huMoBen', hopLe ? '🏭' : '🧑',
+      benDangChon ? (benDangChon.ten || benDangChon.ncc)
+        : (huNguoi ? ('Mã ' + huNguoi) : (hopLe ? 'Chạm để chọn nhà cung cấp' : 'Chạm để chọn người nhận tiền')),
+      huBenLoi ? huBenLoi
+        : benDangChon
+        ? hsPhuMa(benDangChon.ncc, benDangChon.ten, hopLe
+            ? (benDangChon.so_hd ? benDangChon.so_hd + ' hoá đơn còn nợ · ' + money(benDangChon.tien) + ' đ' : 'Không còn hoá đơn nào đang nợ')
+            : (benDangChon.hay_dung ? 'Đã từng đứng tên hồ sơ hoàn ứng' : 'Bên nhận tiền của khoản chi này'))
+        : (hopLe ? 'Chưa chọn nhà nào' : 'Chưa chọn ai'),
+      !!benDangChon) +
+    (huNguoi ? '' :
+      '<div style="font-size:12px;color:#b3261e;margin:-4px 0 10px;line-height:1.6">' +
+      (hopLe
+        ? 'Chưa chọn nhà cung cấp nên chưa bày được hoá đơn đang nợ.'
+        : 'Chưa chọn ai. Đây là bên sẽ nhận tiền, không phải người lập hồ sơ.') +
+      '</div>');
 
   html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800">ĐANG LẬP</div>' +
@@ -32625,27 +32956,53 @@ async function scrChiCongTyTao() {
     '<button class="btn gh" id="huNhap" style="flex:1">💾 Lưu nháp</button></div>';
   var b = frame('Chi từ TK công ty', html, { footer: foot });
 
-  Array.prototype.forEach.call(document.querySelectorAll('[data-hun]'), function (el) {
-    el.onclick = function () { huNguoi = el.getAttribute('data-hun'); huChonHd = {}; go(scrChiCongTyTao, true); };
-  });
+  /* Chạm thẻ mới mở tấm trượt. Bấm Thôi thì không gọi `chon` nên khoản
+     chi, số tiền, hoá đơn đang tick và ghi chú còn nguyên - màn hình không
+     hề vẽ lại. Chỉ khi ĐỔI sang bên khác mới xoá tick hoá đơn, vì hoá đơn
+     là của nhà cũ, để nguyên là ghép nhầm nợ sang bên mới. Chọn lại đúng
+     bên đang chọn thì không xoá gì cả. */
+  var moBen = document.getElementById('huMoBen');
+  if (moBen) moBen.onclick = function () {
+    var doi = function (ma, hoSo) {
+      if (!ma) return;
+      if (ma === huNguoi) {
+        /* Chọn lại đúng bên đang chọn: bình thường thì thôi, giữ nguyên
+           tick hoá đơn. Nhưng thẻ đang báo "chưa tra được tên" (mạng rớt
+           lúc mở lại bản nháp) thì đây chính là cách người ta gỡ lỗi, phải
+           nhận hồ sơ vừa chọn và vẽ lại. Codex P2 trên #221. */
+        if (vgbChonLaiGoLoi('hu_ben', ma, hoSo, huBenLoi)) go(scrChiCongTyTao, true);
+        return;
+      }
+      huNguoi = ma;
+      vgbGiuChon('hu_ben', ma, hoSo);
+      huChonHd = {};
+      go(scrChiCongTyTao, true);
+    };
+    if (hopLe) {
+      hsMoChonBenNhan({
+        tieu_de: 'Chọn nhà cung cấp',
+        goi_y: '🔎 Gõ tên nhà cung cấp',
+        dang_chon: huNguoi,
+        ds: ncc.map(function (x) {
+          return { ncc: x.ncc, ten: x.ten, hay_dung: 0,
+            phu: x.so_hd ? (x.so_hd + ' hoá đơn còn nợ · ' + money(x.tien) + ' đ' +
+              (x.qua_han ? ' · ⚠️ quá hạn ' + money(x.qua_han) + ' đ' : '')) : '' };
+        }),
+        tao_moi: coQuyenMua(),
+        mo_ta_tao: 'Bảo hiểm xã hội, điện, nước, bên cho thuê nhà đều phải có hồ sơ nhà cung cấp mới lập được phiếu chi.',
+        trong: 'Không nhà cung cấp nào đang còn nợ. Nhánh này chỉ bày nhà còn hoá đơn chưa trả.',
+        chon: doi,
+        tao_xong: doi
+      });
+    } else {
+      hsMoChonNguoiNhan(ncc, huNguoi, doi);
+    }
+  };
   Array.prototype.forEach.call(document.querySelectorAll('[data-hutk]'), function (el) {
     el.onclick = function () { huTkChi = el.getAttribute('data-hutk'); go(scrChiCongTyTao, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hucp]'), function (el) {
     el.onclick = function () { huCpThue = el.getAttribute('data-hucp'); go(scrChiCongTyTao, true); };
-  });
-  /* Hai tang tim tren cung mot o. Go den dau loc ngay 40 chip dang bay ra,
-     khong ve lai man nen ban phim khong tut. Bam Enter hoac roi o thi moi
-     hoi may chu, vi danh sach nguoi nhan tien dai hon 40 va phan con lai
-     nam ben may chu chu khong co san o day. */
-  vgbNoiOTim(b, 'huTim', '[data-hun]');
-  var ot = document.getElementById('huTim');
-  if (ot) ot.onchange = function () { huTim = ot.value.trim(); go(scrChiCongTyTao, true); };
-  /* Lay cai DANG go trong o chu khong lay bien da luu: nguoi ta go xong roi
-     bam thang nut Tao moi, chua he roi o nen bien van con rong. */
-  hsNoiNutTaoNcc(ot ? ot.value.trim() : huTim, function (ma) {
-    if (ma) { huNguoi = ma; huTim = ''; }
-    go(scrChiCongTyTao, true);
   });
   huNoiBang(b);
   b.addEventListener('click', function (e) {
@@ -32665,6 +33022,7 @@ async function scrChiCongTyTao() {
     if (!huTkChi) return baoTin('Chưa chọn tài khoản ngân hàng của công ty để chi.');
     if (!huCpThue) return baoTin('Chưa chọn loại chi phí thuế.');
     if (!huNguoi) return baoTin('Chưa chọn bên nhận tiền.');
+    if (huBenLoi) return baoTin(huBenLoi, 'Bên nhận tiền chưa rõ');
     busy(true);
     try {
       var kq;

@@ -777,3 +777,71 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
   });
   chay();
 }
+
+/* ================= GIỮ BÊN ĐÃ CHỌN, MỘT NGUỒN CHO MÃ LẪN TÊN =================
+
+   Vì sao có (Codex P1 trên #217, 06/09/2026): tấm chọn bên nhận tiền chỉ trả
+   về MÃ, còn màn hình khi vẽ lại thì đi tra mã đó trong danh sách gợi ý vừa
+   tải (300 người đầu). Người tìm được bằng Enter nằm ngoài danh sách đó nên
+   thẻ báo "Chưa chọn ai" trong khi mã vẫn được mang đi lưu. Người bấm gửi
+   nhìn một đằng, sổ ghi một nẻo.
+
+   Sửa bằng cách gom về MỘT nguồn: lúc chọn thì giữ luôn hồ sơ đã chọn; lúc
+   vẽ thẻ thì hỏi `vgbBenDaChon`, nó tra danh sách trước, không có thì lấy
+   hồ sơ đã giữ, không có nữa (ví dụ mở lại bản nháp) thì màn hình phải tự
+   tra theo mã bằng `vgbTraBenTheoMa` và bày trạng thái rõ ràng, KHÔNG được
+   nói "chưa chọn" khi đang cầm một mã. Dùng cho mọi màn chọn bên: chi từ
+   TK công ty, hoàn ứng, sau này là NCC trên hoá đơn. Mỗi màn một khoá. */
+var VGB_CHON = {};
+
+function vgbGiuChon(khoa, ma, hoSo) {
+  if (!ma) { delete VGB_CHON[khoa]; return; }
+  VGB_CHON[khoa] = { ma: ma, ho_so: (hoSo && hoSo.ncc === ma) ? hoSo : null };
+}
+
+function vgbBenDaChon(khoa, ma, ds) {
+  if (!ma) return null;
+  for (var i = 0; i < (ds || []).length; i++) if (ds[i] && ds[i].ncc === ma) return ds[i];
+  var g = VGB_CHON[khoa];
+  if (g && g.ma === ma && g.ho_so) return g.ho_so;
+  return null;
+}
+
+/* Tra một bên theo đúng MÃ, không phụ thuộc danh sách gợi ý. Trả về null khi
+   không có hồ sơ; hồ sơ bị vô hiệu hoá thì mang cờ `disabled` để màn hình
+   bày trạng thái và chặn gửi. Kết quả được giữ lại để lần vẽ sau khỏi hỏi. */
+async function vgbTraBenTheoMa(khoa, ma) {
+  if (!ma) return null;
+  var r = await api('frappe.client.get_value', {
+    doctype: 'Supplier', filters: { name: ma },
+    fieldname: ['name', 'supplier_name', 'disabled']
+  });
+  if (!r || !r.name) return null;
+  var hoSo = { ncc: r.name, ten: r.supplier_name || r.name, hay_dung: 0, disabled: r.disabled ? 1 : 0 };
+  vgbGiuChon(khoa, ma, hoSo);
+  return hoSo;
+}
+
+/* Chọn lại ĐÚNG mã đang cầm. Bình thường là không làm gì: giữ tick hoá
+   đơn, không vẽ lại (ca E5). Nhưng khi thẻ đang báo lỗi tra mã (mở lại bản
+   nháp lúc mạng rớt, xem `huBenLoi`, `hsUngLoi`) thì chọn lại chính nó là
+   cách người ta gỡ lỗi: phải giữ hồ sơ vừa chọn và vẽ lại. Một hàm cho mọi
+   màn chọn bên, khỏi mỗi màn tự viết một cửa kiểm (điều 18). Trả về true
+   khi màn cần vẽ lại. Codex P2 trên #221, 06/09/2026. */
+function vgbChonLaiGoLoi(khoa, ma, hoSo, dangLoi) {
+  if (!ma || !dangLoi) return false;
+  vgbGiuChon(khoa, ma, hoSo);
+  return true;
+}
+
+/* ================= LƯỢT HỎI MÁY CHỦ =================
+   Hai lần hỏi về ngược thứ tự thì lượt cũ không được đè lượt mới. Mỗi chỗ
+   hỏi máy chủ tạo một `vgbLuot()`, trước khi hỏi gọi `bat()` lấy số lượt,
+   nhận phản hồi thì hỏi `con(so)`: không còn là lượt mới nhất thì bỏ. */
+function vgbLuot() {
+  var so = 0;
+  return {
+    bat: function () { return ++so; },
+    con: function (l) { return l === so; }
+  };
+}
