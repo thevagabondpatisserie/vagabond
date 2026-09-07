@@ -156,9 +156,9 @@
 					+ (d.hinh ? '<img src="' + d.hinh + '" loading="lazy" alt="">' : '<i class="kb-noimg"></i>')
 					+ '<b>' + d.ma_hang + '</b><span>' + (d.ten_banh || "") + "</span>" + nutWeb(d) + nutXoa(d) + "</div>"
 					+ '<div class="kb-so">'
-					+ o(d, "ton_d1", "Tồn " + (fmtNSX(d.nsx_d1) || nsxLui(1)), d.ton_d1, true)
-					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true)
-					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true)
+					+ o(d, "ton_d1", "Tồn " + (fmtNSX(d.nsx_d1) || nsxLui(1)), d.ton_d1, true, "", nguonO(d, "ton_d1"))
+					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true, "", nguonO(d, "ton_d2"))
+					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true, "", nguonO(d, "ton_cu"))
 					+ o(d, "sx", "Bếp làm " + NGAY_CHON.slice(8, 10) + "/" + NGAY_CHON.slice(5, 7), d.sx, true)
 					/* Cột Huỷ, gõ tay (anh Việt 06/09/2026, hướng A của issue #216).
 					   Đặt ngay sau Bếp làm để bốn ô gõ tay nằm liền nhau, và trước
@@ -269,7 +269,7 @@
 		});
 	}
 
-	function o(d, truong, nhan, gt, sua, lop) {
+	function o(d, truong, nhan, gt, sua, lop, phu) {
 		var id = d.ma_hang + "|" + truong;
 		var them = lop ? " " + lop : "";
 		if (DANG_SUA === id) {
@@ -277,7 +277,25 @@
 				+ '<input id="kb-inp" type="number" min="0" inputmode="numeric" value="' + (gt || 0) + '">' + nutOK() + '</div>';
 		}
 		return '<div class="kb-o' + (sua ? " sua" : "") + them + (lop && gt ? " co" : "") + '" data-id="' + id + '">'
-			+ "<label>" + nhan + "</label><b>" + (gt || 0) + "</b></div>";
+			+ "<label>" + nhan + "</label><b>" + (gt || 0) + "</b>" + (phu || "") + "</div>";
+	}
+
+	/* Dòng phụ dưới ô tồn: NGUỒN của số đang bày (issue #216, v444).
+	   "Tự chuyển" là máy ghi lúc chốt hôm trước; "Đã kiểm đếm" là người gõ,
+	   kèm số máy và chênh lệch để đối chiếu; "Cần xác nhận" là số có từ
+	   trước khi có ô nguồn, máy không đè. Trống là chưa ai ghi gì. */
+	function nguonO(d, truong) {
+		var n = d.nguon && d.nguon[truong];
+		if (!n || !n.trang_thai) return "";
+		var so = d[truong] || 0, may = n.may_chuyen || 0;
+		var lop = "kb-nguon", chu = n.trang_thai;
+		if (n.trang_thai === "Cần xác nhận") { lop += " xn"; chu += " · máy " + may; }
+		else if (n.trang_thai === "Đã kiểm đếm" && may !== so) {
+			var lech = so - may;
+			lop += " lech"; chu += " · máy " + may + " (" + (lech > 0 ? "+" : "") + lech + ")";
+		}
+		if (n.ai) chu += " · " + chuSach(String(n.ai).split("@")[0]);
+		return '<div class="' + lop + '" title="' + chuSach(n.trang_thai + (n.luc ? " lúc " + n.luc : "")) + '">' + chuSach(chu) + "</div>";
 	}
 
 	function chuSach(t) {
