@@ -26,6 +26,27 @@ phẩm, khai nguyên liệu tay), chưa kể Desk. Vá ở màn hình là vá ba
 lần thứ tư sẽ quên. Vá ở đây là vá một lần cho tất cả (QT-19: máy chủ chốt
 số, màn hình chỉ hiển thị).
 
+Ba việc thêm ngày 06/09/2026 (#206, Codex duyệt hướng trên #215)
+----------------------------------------------------------------
+1. MÃ THAY THẾ chỉ dùng cho luồng SẢN XUẤT. Trước đây hàm này áp cho mọi
+   phiếu kho, mà từ 06/09 màn "Nhận hàng" điều chuyển nội bộ cũng đi qua
+   đây. Nhận nguyên liệu theo phiếu yêu cầu thì kho giao mã nào phải ghi
+   sổ mã đó: tự đổi sang mã B là người nhận cầm một thứ, sổ ghi một thứ
+   khác, và không ai biết cho tới lúc kiểm kê. Xem `duoc_thay_ma`.
+
+2. MỘT TÚI LÔ CHO CẢ PHIẾU, không phải mỗi dòng một túi. Một phiếu có thể
+   có hai dòng cùng mã cùng kho (hai dòng của hai phiếu yêu cầu khác
+   nhau). Tính tồn riêng cho từng dòng thì cả hai cùng nhìn thấy một phần
+   tồn, cùng lấy, và phiếu ghi ra nhiều hơn số kho thật có. Xem `_tui_lo`
+   và `rut_tu_kho`.
+
+3. ĐƯỜNG DỰ PHÒNG phải loại lô đang TẮT và lô quá hạn. Đường đó cộng
+   thẳng sổ kho, không qua bộ lọc của ERPNext, nên nó thấy cả hai loại.
+   Lấy phải lô TẮT thì `validate_batch` chặn cứng ngay sau đó và bếp đứng
+   im với một câu lỗi nói về cái lô không ai chọn; lấy phải lô quá hạn thì
+   nó chen lên trước cả lô còn hạn, phá vỡ đúng thứ tự FEFO mà tệp này
+   dựng ra. Xem `_bo_lo_khong_dung`.
+
 Khi thiếu hàng thì nói kho nào còn bao nhiêu
 --------------------------------------------
 Đúng hôm đó còn một chuyện nữa: men tươi có 13.000 gram ở kho Baker, nhưng
@@ -66,6 +87,51 @@ def chia_theo_lo(can, cac_lo):
 		ra.append((ten, lay))
 		con = round(con - lay, 6)
 	return ra, (0.0 if con <= LI_TI else round(con, 6))
+
+
+# Luong nao duoc phep tu doi sang MA THAY THE khi thieu hang.
+#
+# CHI luong san xuat. Nhan nguyen lieu theo phieu yeu cau thi KHONG: kho
+# giao ma A, may khong duoc tu ghi so thanh ma B roi coi la xong. Nguoi
+# nhan cam tren tay mot thu, so sach ghi mot thu khac, va khong ai bao
+# gio biet cho toi luc kiem ke. Codex chot 06/09/2026 tren #215.
+#
+# Chinh sach nam o MOT cho, khong sao chep them mot bo chon lo thu hai.
+LUONG_DUOC_THAY_MA = (
+	"Manufacture",
+	"Repack",
+	"Material Transfer for Manufacture",
+	"Send to Subcontractor",
+)
+
+
+def duoc_thay_ma(purpose):
+	"""Phiếu loại này có được tự lấy mã thay thế khi thiếu không. THUẦN."""
+	return (purpose or "").strip() in LUONG_DUOC_THAY_MA
+
+
+def rut_tu_kho(muc, can):
+	"""Rút `can` đơn vị ra khỏi một túi lô, TRỪ LUÔN phần đã rút. THUẦN.
+
+	`muc` là {"con": [(tên lô, còn lại)] đã xếp theo thứ tự ưu tiên}.
+
+	Vì sao phải trừ: một phiếu có thể có HAI dòng cùng một mã cùng một kho
+	(hai dòng của hai phiếu yêu cầu khác nhau). Tính tồn riêng cho từng
+	dòng thì cả hai dòng cùng nhìn thấy một phần tồn, cùng lấy, và phiếu
+	ghi ra nhiều hơn số kho thật có. Nên cả phiếu chung MỘT túi.
+	"""
+	phan, thieu = chia_theo_lo(can, muc.get("con") or [])
+	if phan:
+		da_lay = {}
+		for ten, so in phan:
+			da_lay[ten] = da_lay.get(ten, 0) + float(so or 0)
+		con = []
+		for ten, so in muc.get("con") or []:
+			lai = round(float(so or 0) - da_lay.get(ten, 0), 6)
+			if lai > LI_TI:
+				con.append((ten, lai))
+		muc["con"] = con
+	return phan, thieu
 
 
 def cau_thieu_lo(ten_hang, ma, kho, thieu, don_vi, kho_khac):
@@ -184,7 +250,44 @@ def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
 					ra[e["batch_no"]] = flt(ra.get(e["batch_no"], 0)) + flt(e.get("qty"))
 	except Exception:
 		pass
+	# Duong du phong cong THANG so kho, khong qua bo loc cua ERPNext, nen
+	# no thay ca lo da TAT lan lo qua han. Lay bua o day la hai chuyen:
+	# lo TAT thi `validate_batch` chan cung ngay sau do (bep dung im, cau
+	# loi lai noi ve mot lo khong ai chon), con lo qua han thi len truoc ca
+	# lo con han, pha vo dung thu tu FEFO. Loc lai o day.
+	ra = _bo_lo_khong_dung(ra, ke_ca_qua_han)
 	return {k: v for k, v in ra.items() if flt(v) > LI_TI}
+
+
+def _bo_lo_khong_dung(cac_lo, ke_ca_qua_han):
+	"""Bỏ lô đang TẮT, và bỏ luôn lô quá hạn ở vòng thường.
+
+	Lô không tra được hồ sơ thì cũng bỏ: thà báo thiếu còn hơn ghi sổ một
+	lô mà máy không biết nó còn hạn hay đã bị ai khoá.
+	"""
+	if not cac_lo:
+		return {}
+	ho = {}
+	try:
+		for b in frappe.get_all(
+			"Batch",
+			filters={"name": ["in", list(cac_lo)]},
+			fields=["name", "disabled", "expiry_date"],
+			limit_page_length=0,
+		):
+			ho[b["name"]] = b
+	except Exception:
+		return {}
+	hn = lo_het_han.hom_nay()
+	ra = {}
+	for ten, so in cac_lo.items():
+		b = ho.get(ten)
+		if not b or cint(b.get("disabled")):
+			continue
+		if not ke_ca_qua_han and lo_het_han.qua_han(b.get("expiry_date"), hn):
+			continue
+		ra[ten] = so
+	return ra
 
 
 def _ton_lo_qua_han(ma, kho, da_tinh=None):
@@ -273,11 +376,133 @@ def _cac_ma_thay_the(ma):
 		return []
 
 
+def phan_da_chon_tay(cac_dong, lo_trong_goi=None):
+	"""Số các dòng NGƯỜI đã chọn lô tay, gom theo (mã, kho) -> {lô: số gốc}. THUẦN.
+
+	Dòng chọn tay không đi qua túi (máy không cãi người), nhưng nó VẪN ăn
+	tồn của lô đó. Không trừ ra thì dòng máy chọn sau lại thấy đủ lô ấy và
+	phiếu ghi ra nhiều hơn kho thật có. Codex nêu trên #219.
+
+	Người chọn lô tay có HAI cách ghi, phải đọc cả hai:
+	  - ô `batch_no` trên dòng (cách cũ, và cách của app);
+	  - gói Serial and Batch Bundle (cách ERPNext v15+ dùng trên Desk khi
+	    người ta chọn nhiều lô cho một dòng). Gói nằm ở bảng con của một
+	    doctype khác nên phần thuần không tự đọc được; người gọi đưa vào
+	    `lo_trong_goi(tên gói) -> {lô: số gốc}`. Codex tái hiện trên #222
+	    (06/09/2026): bản trước bỏ qua gói, nên lô A tồn 60, một dòng gói
+	    lấy 40, dòng máy chọn xin 30 vẫn được cấp trọn 30 từ lô A, tức phiếu
+	    ghi 70 trên một lô chỉ có 60.
+	Dòng có cả hai thì tin `batch_no`, không đếm hai lần.
+
+	Số trong gói đã là SỐ GỐC (đơn vị kho) nên không nhân hệ số quy đổi; số
+	trên dòng thì phải nhân, vì dòng có thể khai bằng Túi, Hộp.
+	"""
+	ra = {}
+	for d in cac_dong or []:
+		kho = (d.get("s_warehouse") or "").strip()
+		if not kho:
+			continue
+		k = (d.get("item_code"), kho)
+		lo = (d.get("batch_no") or "").strip()
+		goi = (d.get("serial_and_batch_bundle") or "").strip()
+		if lo:
+			he_so = float(d.get("conversion_factor") or 0) or 1
+			ra.setdefault(k, {})
+			ra[k][lo] = round(ra[k].get(lo, 0) + float(d.get("qty") or 0) * he_so, 6)
+		elif goi and lo_trong_goi:
+			for ten_lo, so in (lo_trong_goi(goi) or {}).items():
+				ten_lo = (ten_lo or "").strip()
+				so = abs(float(so or 0))
+				if not ten_lo or so <= LI_TI:
+					continue
+				ra.setdefault(k, {})
+				ra[k][ten_lo] = round(ra[k].get(ten_lo, 0) + so, 6)
+	return ra
+
+
+def tru_da_dung(cac_lo, da_dung):
+	"""Trừ phần người đã chọn tay ra khỏi tồn từng lô. THUẦN.
+
+	`cac_lo` là {lô: tồn}, `da_dung` là {lô: số đã lấy tay}. Lô bị trừ về
+	không thì bỏ hẳn, không để lại một dòng 0.
+	"""
+	if not cac_lo:
+		return {}
+	if not da_dung:
+		return dict(cac_lo)
+	ra = {}
+	for ten, so in cac_lo.items():
+		lai = round(float(so or 0) - float(da_dung.get(ten, 0) or 0), 6)
+		if lai > LI_TI:
+			ra[ten] = lai
+	return ra
+
+
+def _lo_trong_goi(ten_goi):
+	"""Các lô trong một gói Serial and Batch Bundle -> {lô: số gốc}.
+
+	Đọc bảng con `Serial and Batch Entry` (erpnext v16,
+	erpnext/stock/doctype/serial_and_batch_entry/serial_and_batch_entry.json:
+	có `batch_no`, `qty`, `warehouse`). Gói xuất kho ghi `qty` ÂM, nên lấy
+	trị tuyệt đối. Đọc hỏng thì trả rỗng và ghi nhật ký: thà máy chọn thừa
+	rồi ERPNext chặn ở validate_batch, còn hơn cả phiếu đổ vì một gói lạ.
+	"""
+	ra = {}
+	if not ten_goi:
+		return ra
+	try:
+		for r in frappe.get_all("Serial and Batch Entry",
+				filters={"parent": ten_goi, "parenttype": "Serial and Batch Bundle"},
+				fields=["batch_no", "qty"], limit_page_length=0):
+			lo = (r.get("batch_no") or "").strip()
+			if not lo:
+				continue
+			ra[lo] = round(ra.get(lo, 0) + abs(flt(r.get("qty"))), 6)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "lo_hang: doc goi lo %s" % ten_goi)
+	return ra
+
+
+def _tui_lo(bo, ma, kho, ke_ca_qua_han=False, da_dung=None):
+	"""Túi lô dùng chung cho CẢ PHIẾU của một cặp (mã, kho).
+
+	Tính tồn đúng MỘT LẦN cho mỗi cặp rồi trừ dần, xem `rut_tu_kho`. Hai
+	dòng cùng mã cùng kho trong một phiếu vì thế không cùng ăn một phần
+	tồn nữa. Phần người đã chọn lô tay được trừ ngay lúc dựng túi, xem
+	`phan_da_chon_tay`.
+	"""
+	k = (ma, kho)
+	if k not in bo:
+		ton = _ton_tung_lo(ma, kho, ke_ca_qua_han=ke_ca_qua_han)
+		tay = (da_dung or {}).get(k) or {}
+		ton = tru_da_dung(ton, tay)
+		bo[k] = {"con": _xep_het_han_truoc(ton), "goc": dict(ton), "vet": 0,
+			"tay": dict(tay)}
+	return bo[k]
+
+
+def _vet_qua_han(muc, ma, kho):
+	"""Đổ thêm lô QUÁ HẠN vào túi, đúng một lần cho mỗi cặp (mã, kho).
+
+	Lô quá hạn mà người đã chọn tay cũng bị trừ phần đó, cùng luật với lô
+	còn hạn.
+	"""
+	if muc.get("vet"):
+		return
+	muc["vet"] = 1
+	hh = _ton_lo_qua_han(ma, kho, da_tinh=muc.get("goc") or {})
+	hh = tru_da_dung(hh, muc.get("tay") or {})
+	if hh:
+		muc["con"] = list(muc.get("con") or []) + _xep_het_han_truoc(hh)
+
+
 def gan_lo(doc, method=None):
 	"""Hook before_validate của Stock Entry: điền lô cho các dòng bị trừ.
 
 	Chỉ đụng vào dòng CHƯA có lô. Ai đã chọn lô bằng tay, hoặc dòng đã có
 	gói lô của ERPNext, thì để nguyên - máy không được cãi người.
+
+	Mã thay thế CHỈ áp cho luồng sản xuất, xem `duoc_thay_ma`.
 	"""
 	try:
 		if cint(getattr(doc, "docstatus", 0)) != 0:
@@ -293,6 +518,9 @@ def gan_lo(doc, method=None):
 		if not can_lam:
 			return
 
+		thay_ma = duoc_thay_ma(getattr(doc, "purpose", None))
+		bo = {}
+		da_dung = phan_da_chon_tay(doc.items, lo_trong_goi=_lo_trong_goi)
 		moi = []
 		for d in doc.items:
 			if not _dong_can_lo(d):
@@ -308,18 +536,21 @@ def gan_lo(doc, method=None):
 			# tính theo đơn vị gốc - chia theo d.qty trần là chia sai.
 			he_so = flt(d.get("conversion_factor")) or 1
 			can_goc = flt(d.qty) * he_so
-			ton = _ton_tung_lo(ma, kho)
-			phan, thieu = chia_theo_lo(can_goc, _xep_het_han_truoc(ton))
+			muc = _tui_lo(bo, ma, kho, da_dung=da_dung)
+			phan, thieu = rut_tu_kho(muc, can_goc)
 
 			# Thiếu thì thử MÃ THAY THẾ đã duyệt trước khi chặn: hết bơ
 			# Avonmore mà bơ Anchor còn đầy kệ thì bếp không việc gì phải
 			# đứng chờ. Máy lấy phần thiếu từ mã thay thế, ghi rõ trên
 			# từng dòng để kế toán giá thành lần lại được.
+			#
+			# CHỈ luồng sản xuất. Phiếu nhận nguyên liệu thì kho giao mã
+			# nào ghi sổ mã đó, xem `duoc_thay_ma`.
 			phan_thay = []
-			if thieu > LI_TI:
+			if thieu > LI_TI and thay_ma:
 				for ma_thay in _cac_ma_thay_the(ma):
-					ton_thay = _ton_tung_lo(ma_thay, kho)
-					p2, thieu = chia_theo_lo(thieu, _xep_het_han_truoc(ton_thay))
+					muc_thay = _tui_lo(bo, ma_thay, kho, da_dung=da_dung)
+					p2, thieu = rut_tu_kho(muc_thay, thieu)
 					for ten_lo, so in p2:
 						phan_thay.append((ma_thay, ten_lo, so))
 					if thieu <= LI_TI:
@@ -330,8 +561,8 @@ def gan_lo(doc, method=None):
 			# xuất được rồi ghi vết, còn hơn đứng im vì một dòng ngày hết
 			# hạn gõ sai lúc kiểm kho. Ô chặn nằm ở Vagabond Settings.
 			if thieu > LI_TI and not lo_het_han.dang_chan():
-				hh = _ton_lo_qua_han(ma, kho, da_tinh=ton)
-				p3, thieu = chia_theo_lo(thieu, _xep_het_han_truoc(hh))
+				_vet_qua_han(muc, ma, kho)
+				p3, thieu = rut_tu_kho(muc, thieu)
 				phan = list(phan) + list(p3)
 			if thieu > LI_TI:
 				frappe.throw(

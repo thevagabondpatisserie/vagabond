@@ -119,6 +119,10 @@ node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 # Man tao lenh san xuat (#206, PR #215).
 node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
 
+# Man "Nhan hang" dieu chuyen noi bo. Truoc 06/09/2026 man nay tu chon lo o
+# trinh duyet va giau mat lo qua han, bep bi bao thieu hang trong khi kho con.
+node vagabond/khung/kiem_thu/hanh_vi/chay_nhan_hang.js
+
 echo ""
 echo "=============================================="
 echo " DAT HET tang khung. Duoc phep deploy."

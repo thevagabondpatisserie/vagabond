@@ -975,43 +975,96 @@ function canReceive(d) {
   return left;
 }
 
-async function fefoPick(code, wh, need) {
-  var q = {};
-  try {
-    var bq = await api('erpnext.stock.doctype.batch.batch.get_batch_qty', { item_code: code, warehouse: wh }) || [];
-    bq.forEach(function (x) { if (x.batch_no) q[x.batch_no] = (q[x.batch_no] || 0) + (x.qty || 0); });
-  } catch (e) {
-    var sle = await getList('Stock Ledger Entry', {
-      fields: ['batch_no', 'actual_qty'],
-      filters: { item_code: code, warehouse: wh, is_cancelled: 0 }, limit_page_length: 0
-    });
-    sle.forEach(function (x) { if (x.batch_no) q[x.batch_no] = (q[x.batch_no] || 0) + (x.actual_qty || 0); });
-  }
-  var names = Object.keys(q).filter(function (b) { return q[b] > 0.0000001; });
-  if (!names.length) return { short: need, list: [] };
-  var ex = {};
-  try {
-    var bs = await getList('Batch', { fields: ['name', 'expiry_date'], filters: { name: ['in', names] }, limit_page_length: 0 });
-    bs.forEach(function (b) { ex[b.name] = b.expiry_date || '9999-12-31'; });
-  } catch (e2) { }
-  names.sort(function (a, b) {
-    var ea = ex[a] || '9999-12-31', eb = ex[b] || '9999-12-31';
-    if (ea !== eb) return ea < eb ? -1 : 1;
-    return a < b ? -1 : 1;
-  });
-  var out = [], rem = need;
-  for (var i = 0; i < names.length && rem > 0.0000001; i++) {
-    var take = q[names[i]] < rem ? q[names[i]] : rem;
-    out.push({ batch: names[i], qty: Math.round(take * 1000000) / 1000000 });
-    rem -= take;
-  }
-  return { short: rem > 0.0000001 ? rem : 0, list: out };
+/* Man "Nhan hang" KHONG con tu chon lo nua (06/09/2026, #206).
+   Truoc day o day co ham fefoPick tu goi get_batch_qty roi tu xep FEFO.
+   Ba cai sai cua no:
+     - goi get_batch_qty khong kem co for_stock_levels, ma khong co co do
+       thi ERPNext loc bo moi lo qua han. Do that ngay 06/09: NVLT00109 con
+       330.000 gram o Kho Lab, ham nay chi thay 50.000, con 280.000 nam o
+       ba lo qua han. Bep xin nhan qua 50.000 la man hinh bao "khong du lo
+       hang" trong khi kho van con hang.
+     - khong co vong vet lo qua han, khong co ma thay the, va cau bao thieu
+       khong noi duoc kho nao con bao nhieu.
+     - viet lai mot lan thu hai cai luat da nam o may chu (dieu 18).
+   Nay man hinh gui dong phieu KHONG kem batch_no, va lo_hang.gan_lo o
+   before_validate cua Stock Entry chon lo. Mot nguon duy nhat. */
+
+var rcv = { mr: null, rows: [], ma_lan: '', cho: null };
+
+/* MA LAN NHAN: sinh o man hinh, moi lan mo man mot ma. May chu ghi ma vao o
+   duy nhat cua Stock Entry, nen hai lan gui cung ma chi ra MOT phieu. Doc
+   dau vagabond/lan_nhan.py. Codex P1 tren PR #222 vong 3. */
+function sinhMaLanNhan() {
+  return 'LN-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
-var rcv = { mr: null, rows: [] };
+/* LAN NHAN DANG CHO XAC NHAN (Codex P1 vong 4 tren PR #222).
+
+   Vong 3 sinh ma moi moi khi sua so luong, ke ca sau khi lan gui truoc mat
+   phan hoi. Go lai dung 30 roi bam la mot ma khac, hai ma di lot qua o duy
+   nhat, kho tru hai lan. Nen tu vong 4:
+
+   - NGAY TRUOC khi gui, ghi ca ma lan ma payload xuong localStorage theo
+     phieu va nguoi dung. Phan hoi ve (thanh cong, hay may chu tu choi ro
+     rang ở lần gửi đầu) thi xoa. Retry lỗi luôn GIỮ mã cũ:
+     luc do khong biet may chu da ghi hay chua.
+   - Con lan dang cho thi man KHOA o so luong. Nut duy nhat la "Tra lai va
+     gui lai lan truoc": gui lai DUNG ma va DUNG payload da luu. May chu tra
+     ve phieu cu neu lan truoc da toi noi, tao moi neu chua. Sua so trong o
+     KHONG phai bang chung cua mot lan nhan vat ly moi.
+   - Mo lai man, tai lai trang, thoat ra vao lai: doc lai tu localStorage,
+     va tu hoi may chu (tra_lan_nhan) xem lan do da co phieu chua. Co roi
+     thi bao va xoa, chua thi giu khoa.
+   - Lan truoc xac nhan xong thi quay ve man chi tiet: so con phai nhan duoc
+     tai lai tu phieu, va lan nhan tiep theo moi duoc cap ma moi. */
+function khoaLanCho(mr) { return 'vgbLanNhanCho:' + ((S && S.user) || '') + ':' + mr; }
+function docLanCho(mr) {
+  var t = localStorage.getItem(khoaLanCho(mr));
+  if (t === null) return null;
+  var lan = JSON.parse(t);
+  if (!lan || !lan.ma_lan || lan.phieu !== mr || !Array.isArray(lan.dong) || !lan.dong.length)
+    throw new Error('Dữ liệu lần nhận chờ bị lỗi. Liên hệ quản lý để đối chiếu phiếu trước khi nhận tiếp.');
+  return lan;
+}
+function ghiLanCho(mr, lan) {
+  if (lan) {
+    var t = JSON.stringify(lan);
+    localStorage.setItem(khoaLanCho(mr), t);
+    if (localStorage.getItem(khoaLanCho(mr)) !== t)
+      throw new Error('Chưa lưu được lần nhận. Kiểm tra bộ nhớ trình duyệt rồi thử lại.');
+  } else {
+    localStorage.removeItem(khoaLanCho(mr));
+    if (localStorage.getItem(khoaLanCho(mr)) !== null)
+      throw new Error('Chưa xoá được lần chờ. Kiểm tra bộ nhớ trình duyệt rồi tra lại phiếu.');
+  }
+}
+/* Frappe app.py rollback request bị từ chối; response.py trả tên lớp con,
+   nên không so tên ValidationError. Chỉ áp dụng cho lần gửi đầu qua
+   daGui && !cho; lỗi retry không chứng minh lần trước chưa ghi sổ.
+   Phải có exc_type của Frappe; HTTP lỗi từ cổng mạng không xác nhận
+   được kết quả request, kể cả 500/520/524. */
+function loiDaChacHong(err) {
+  var st = err && Number(err.status);
+  return st >= 400 && st <= 500 && typeof err.exc_type === 'string' && !!err.exc_type;
+}
+function gioNgan(iso) {
+  var d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d.getTime())) return '';
+  return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
 async function scrRecvTransfer(mr, opt) {
   opt = opt || {};
   rcv.mr = mr;
+  try {
+    rcv.cho = docLanCho(mr.name);
+  } catch (e) {
+    rcv.loi_luu = true;
+    frame('Nhận hàng ' + mr.name, '<div class="card">Không đọc được lần nhận đang chờ. Kiểm tra bộ nhớ trình duyệt và nhờ quản lý đối chiếu phiếu trước khi nhận tiếp.</div>', {});
+    return;
+  }
+  rcv.loi_luu = false;
+  rcv.ma_lan = rcv.cho ? rcv.cho.ma_lan : sinhMaLanNhan();
   rcv.rows = (mr.items || []).map(function (it) {
     var done = opt.doneMap ? ((opt.doneMap[it.name] || 0) / (it.conversion_factor || 1)) : (it.ordered_qty || 0);
     var left = (it.qty || 0) - done;
@@ -1025,7 +1078,19 @@ async function scrRecvTransfer(mr, opt) {
   var src = opt.src || mr.set_from_warehouse || (mr.items && mr.items[0] && mr.items[0].from_warehouse) || '';
   var dst = mr.set_warehouse || (mr.items && mr.items[0] && mr.items[0].warehouse) || '';
 
+  function bangCho() {
+    var c = rcv.cho;
+    if (!c) return '';
+    var mon = (c.dong || []).map(function (x) { return h(x.item_code) + ' ' + num(x.qty) + ' ' + h(x.uom || ''); }).join(', ');
+    return '<div class="card" style="border:1px solid #f0b429;background:#fff8e6">' +
+      '<div style="font-weight:700;color:#8a5a00">⚠ Lần nhận lúc ' + gioNgan(c.luc) + ' chưa rõ kết quả</div>' +
+      '<div style="font-size:13px;line-height:1.5;margin-top:4px">Mất phản hồi sau khi gửi: ' + mon +
+      '. Chưa biết máy chủ đã ghi hay chưa nên ô số lượng đang khoá. Bấm nút bên dưới để máy tra lại đúng lần đó; ' +
+      'đã ghi thì máy báo số phiếu và không ghi thêm, chưa ghi thì gửi lại đúng số cũ. Xong mới nhận tiếp được.</div></div>';
+  }
+
   function draw() {
+    var khoa = !!rcv.cho;
     var cards = rcv.rows.map(function (r, i) {
       return '<div class="ic1">' +
         '<div class="ih"><div class="n">' + (i + 1) + '</div>' +
@@ -1034,108 +1099,176 @@ async function scrRecvTransfer(mr, opt) {
         (r.done > 0.0001 ? '<div><div class="s1">Đã nhận trước</div><div class="s2">' + num(r.done) + ' ' + h(r.uom) + '</div></div>' : '') +
         '</div>' +
         '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng thực nhận</div>' +
-        '<div class="qr"><div class="stp"><button data-m="' + i + '">&minus;</button>' +
-        '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '"><button data-p="' + i + '">+</button></div>' +
+        '<div class="qr"><div class="stp"><button data-m="' + i + '"' + (khoa ? ' disabled' : '') + '>&minus;</button>' +
+        '<input type="number" inputmode="decimal" data-q="' + i + '" value="' + r.qty + '"' + (khoa ? ' disabled' : '') + '><button data-p="' + i + '"' + (khoa ? ' disabled' : '') + '>+</button></div>' +
         '<div class="uom" style="display:flex;align-items:center;justify-content:center">' + h(r.uom) + '</div></div></div></div>' +
         '</div>';
     }).join('');
 
-    var head = '<div class="card">' +
+    var head = bangCho() + '<div class="card">' +
       '<div class="kv"><span>Phiếu</span><b>' + h(mr.name) + '</b></div>' +
       '<div class="kv"><span>Kho xuất</span><b>' + h(shortWh(src) || '-') + '</b></div>' +
       '<div class="kv"><span>Kho nhận</span><b>' + h(shortWh(dst) || '-') + '</b></div>' +
       '</div>' +
       '<div style="padding:2px 16px 0;font-size:12.5px;color:#8a8f9c;line-height:1.5">Sửa lại số lượng nếu nhận thiếu. Bấm xác nhận là máy trừ kho ' + h(shortWh(src)) + ' và nhập vào kho ' + h(shortWh(dst)) + '. Lô hàng máy tự chọn theo hạn dùng gần nhất trước.</div>';
 
-    var body = rcv.rows.length
+    var body = rcv.rows.length || khoa
       ? head + '<div class="sec">' + rcv.rows.length + ' hàng hoá</div>' + cards
       : head + '<div class="emp"><div class="e1">✅</div><div class="e2">' + h(opt.emptyMsg || 'Phiếu này đã nhận đủ hàng') + '</div></div>';
 
+    var nhanNut = khoa ? 'Tra lại và gửi lại lần trước' : (opt.okLabel || 'Xác nhận nhập kho');
     var b = frame((opt.title || 'Nhận hàng ') + mr.name, body,
-      rcv.rows.length ? { footer: '<button class="btn" id="rcOk">' + h(opt.okLabel || 'Xác nhận nhập kho') + '</button>' } : {});
+      (rcv.rows.length || khoa) ? { footer: '<button class="btn" id="rcOk">' + h(nhanNut) + '</button>' } : {});
 
     b.onclick = function (e) {
       var p = e.target.closest('[data-p]'), m = e.target.closest('[data-m]');
       var i = p ? +p.dataset.p : (m ? +m.dataset.m : -1);
       if (i < 0) return;
+      if (rcv.cho) { toast('Đang chờ xác nhận lần nhận trước, chưa sửa số được'); return; }
       var r = rcv.rows[i];
       var v = (r.qty || 0) + (p ? 1 : -1);
       if (v < 0) v = 0;
       if (v > r.max) v = r.max;
       r.qty = Math.round(v * 1000000) / 1000000;
+      /* Chua gui lan nao thi sua so la mot lan nhan khac: ma moi. */
+      rcv.ma_lan = sinhMaLanNhan();
       var inp = b.querySelector('[data-q="' + i + '"]');
       if (inp) inp.value = r.qty;
     };
     b.addEventListener('input', function (e) {
       var q = e.target.closest('[data-q]'); if (!q) return;
       var i = +q.dataset.q, r = rcv.rows[i];
+      if (rcv.cho) { q.value = r.qty; toast('Đang chờ xác nhận lần nhận trước, chưa sửa số được'); return; }
       var v = parseFloat(q.value); if (!(v >= 0)) v = 0;
       if (v > r.max) { v = r.max; q.value = v; toast('Không nhận quá số trên phiếu'); }
       r.qty = v;
+      rcv.ma_lan = sinhMaLanNhan();
     });
 
     var ok = document.getElementById('rcOk');
     if (ok) ok.onclick = function () { doReceive(mr, src, dst, opt); };
   }
   draw();
+  /* Co lan dang cho thi hoi may chu ngay: lan do da thanh phieu chua. */
+  if (rcv.cho) traLanCho(mr);
 }
+
+/* Hoi may chu ve lan nhan dang cho. Da co phieu thi bao, xoa lan cho, ve
+   man chi tiet de tai lai so con phai nhan. Chua co thi giu nguyen khoa. */
+async function traLanCho(mr) {
+  var c = rcv.cho;
+  if (!c || RCV_DANG_GUI) return;
+  var kq = null;
+  try { kq = await api('vagabond.lan_nhan.tra_lan_nhan', { ma_lan_nhan: c.ma_lan }); } catch (e) { return; }
+  if (kq && kq.co && rcv.cho && rcv.cho.ma_lan === c.ma_lan) {
+    if (kq.docstatus !== 1) {
+      if (kq.docstatus !== 2) {
+        toast('Phiếu ' + kq.name + ' còn nháp. Bấm tra lại và gửi lại để hoàn tất đúng phiếu này.', 6000);
+        return;
+      }
+      var daDoiChieu = await confirmSheet('Phiếu ' + kq.name + ' đã huỷ',
+        'Phiếu này không xác nhận nhận hàng thành công. Chỉ đóng lần chờ sau khi đã đối chiếu với quản lý; sau đó mở lại phiếu để nhận một lần mới.',
+        'Đã đối chiếu, đóng lần chờ');
+      if (!daDoiChieu || RCV_DANG_GUI || !rcv.cho || rcv.cho.ma_lan !== c.ma_lan) return;
+      try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); return; }
+      rcv.cho = null;
+      rcv.ma_lan = sinhMaLanNhan();
+      toast('Đã đóng lần chờ của phiếu đã huỷ ' + kq.name + '. Mở lại phiếu để kiểm số còn phải nhận.', 6000);
+      back();
+      setTimeout(function () { render(); }, 60);
+      return;
+    }
+    try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); return; }
+    rcv.cho = null;
+    rcv.ma_lan = sinhMaLanNhan();
+    toast('Lần nhận lúc ' + gioNgan(c.luc) + ' đã được ghi từ trước (' + kq.name + '), không ghi thêm.', 5000);
+    back();
+    setTimeout(function () { render(); }, 60);
+  }
+}
+
+var RCV_DANG_GUI = 0;   /* 1 khi mot lan nhap kho dang tren duong gui */
 
 async function doReceive(mr, src, dst, opt) {
   opt = opt || {};
-  var use = rcv.rows.filter(function (r) { return r.qty > 0.0001; });
+  if (rcv.loi_luu) return toast('Chưa đọc được lần nhận chờ. Nhờ quản lý đối chiếu trước khi nhận tiếp.');
+  var cho = rcv.cho;
+  var use = cho ? cho.dong : rcv.rows.filter(function (r) { return r.qty > 0.0001; });
   if (!use.length) return toast('Chưa nhập số lượng nào');
   if (!src) return toast('Phiếu chưa có kho xuất, không nhập kho được');
   if (!dst) return toast('Phiếu chưa có kho nhận, không nhập kho được');
-  var ok = await confirmSheet('Nhập hàng vào kho ' + shortWh(dst),
-    'Máy sẽ trừ ' + use.length + ' món ở kho ' + shortWh(src) + ' và nhập vào kho ' + shortWh(dst) + '. Bút toán kho không sửa lại được.',
-    'Xác nhận nhập kho');
+  var ok = cho
+    ? await confirmSheet('Tra lại lần nhận lúc ' + gioNgan(cho.luc),
+        'Máy gửi lại đúng lần nhận đó (' + use.length + ' món). Đã ghi rồi thì không ghi thêm, chưa ghi thì ghi đúng số cũ.',
+        'Tra lại và gửi lại')
+    : await confirmSheet('Nhập hàng vào kho ' + shortWh(dst),
+        'Máy sẽ trừ ' + use.length + ' món ở kho ' + shortWh(src) + ' và nhập vào kho ' + shortWh(dst) + '. Bút toán kho không sửa lại được.',
+        'Xác nhận nhập kho');
   if (!ok) return;
+  /* Chan bam kep trong luc dang gui. Day chi la chot o MAN HINH cho cung
+     mot lan gui; chong trung THAT nam o may chu: rcv.ma_lan di kem moi lan
+     gui, may chu tu choi tao phieu thu hai cho cung ma (xem lan_nhan.py). */
+  if (RCV_DANG_GUI) return;
+  RCV_DANG_GUI = 1;
   busy(1);
+  var lan = cho;
+  var daGui = false;
   try {
-    var codes = use.map(function (r) { return r.item_code; });
-    var metas = await getList('Item', { fields: ['name', 'has_batch_no'], filters: { name: ['in', codes] }, limit_page_length: 0 });
-    var hb = {};
-    metas.forEach(function (x) { hb[x.name] = x.has_batch_no ? 1 : 0; });
-
-    var items = [], thieu = [];
-    for (var i = 0; i < use.length; i++) {
-      var r = use[i];
-      if (hb[r.item_code]) {
-        var need = r.qty * (r.cf || 1);
-        var al = await fefoPick(r.item_code, src, need);
-        if (al.short > 0.0001) { thieu.push(r.item_name + ' (thiếu ' + num(al.short) + ' ' + r.stock_uom + ')'); continue; }
-        al.list.forEach(function (a) {
-          items.push({
-            item_code: r.item_code, qty: a.qty, uom: r.stock_uom, conversion_factor: 1,
-            s_warehouse: src, t_warehouse: dst, use_serial_batch_fields: 1, batch_no: a.batch,
-            material_request: mr.name, material_request_item: r.row
-          });
-        });
-      } else {
+    if (!lan) {
+      /* Dong phieu gui di KHONG kem batch_no. May chu chon lo o
+         lo_hang.gan_lo, hook before_validate cua Stock Entry: no co vong vet
+         lo qua han, co thu tu FEFO, va cau bao thieu noi duoc kho khac con
+         bao nhieu. Man hinh khong lam viec do nua. */
+      var items = [];
+      for (var i = 0; i < use.length; i++) {
+        var r = use[i];
         items.push({
           item_code: r.item_code, qty: r.qty, uom: r.uom, conversion_factor: r.cf || 1,
           s_warehouse: src, t_warehouse: dst,
           material_request: mr.name, material_request_item: r.row
         });
       }
+      if (!items.length) { busy(0); RCV_DANG_GUI = 0; return toast('Không có dòng nào để nhập kho'); }
+      if (!rcv.ma_lan) rcv.ma_lan = sinhMaLanNhan();
+      lan = {
+        ma_lan: rcv.ma_lan, phieu: mr.name, kho_xuat: src, kho_nhan: dst, dong: items,
+        ghi_chu: (opt.remarks || 'Nhận hàng điều chuyển nội bộ trên app - phiếu ') + mr.name + ' - ' + (S.me.full_name || S.user),
+        luc: new Date().toISOString()
+      };
+      /* Ghi TRUOC khi gui: mat phan hoi giua chung thi van con dau vet. */
+      ghiLanCho(mr.name, lan);
+      rcv.cho = lan;
     }
-    if (thieu.length) { busy(0); return toast('Kho ' + shortWh(src) + ' không đủ lô hàng: ' + thieu.join('; '), 7000); }
-    if (!items.length) { busy(0); return toast('Không có dòng nào để nhập kho'); }
-
-    var doc = {
-      doctype: 'Stock Entry', company: COMPANY,
-      stock_entry_type: 'Material Transfer', purpose: 'Material Transfer',
-      set_posting_time: 1, posting_date: today(), posting_time: nowStamp().slice(11),
-      from_warehouse: src, to_warehouse: dst, items: items,
-      remarks: (opt.remarks || 'Nhận hàng điều chuyển nội bộ trên app - phiếu ') + mr.name + ' - ' + (S.me.full_name || S.user)
-    };
-    var ins = await api('frappe.client.insert', { doc: doc });
-    await api('frappe.client.submit', { doc: ins });
+    /* MOT cua o may chu lam ca insert lan submit, keo theo ma lan nhan.
+       Cung ma gui lai thi may chu tra ve dung phieu da tao. */
+    daGui = true;
+    var kq = await api('vagabond.lan_nhan.nhan_theo_phieu', {
+      ma_lan_nhan: lan.ma_lan, phieu: lan.phieu, kho_xuat: lan.kho_xuat, kho_nhan: lan.kho_nhan,
+      dong: lan.dong, cong_ty: COMPANY, ghi_chu: lan.ghi_chu
+    });
+    ghiLanCho(mr.name, null);
+    rcv.cho = null;
+    rcv.ma_lan = sinhMaLanNhan();
     busy(0);
-    toast('Đã nhập kho ' + shortWh(dst) + ' theo phiếu ' + mr.name + ' (' + ins.name + ')', 4500);
+    RCV_DANG_GUI = 0;
+    toast((kq && kq.da_co ? 'Lần nhận này đã được ghi từ trước, không ghi thêm. ' : 'Đã nhập kho ' + shortWh(dst) + ' theo phiếu ' + mr.name) +
+      ' (' + ((kq && kq.name) || '') + ')', 4500);
     back();
     setTimeout(function () { render(); }, 60);
-  } catch (err) { busy(0); toast(errMsg(err), 6000); }
+  } catch (err) {
+    busy(0); RCV_DANG_GUI = 0;
+    if (daGui && !cho && loiDaChacHong(err)) {
+      /* May chu da tra loi va tu choi: chac chan khong co phieu, tha khoa. */
+      try { ghiLanCho(mr.name, null); } catch (e) { toast(errMsg(e), 6000); await scrRecvTransfer(mr, opt); return; }
+      rcv.cho = null;
+      rcv.ma_lan = sinhMaLanNhan();
+      toast(errMsg(err), 6000);
+    } else {
+      /* Chua ro: giu ma va payload, khoa o so, bay bang canh bao. */
+      toast(errMsg(err) + ' Lần nhận này đang chờ xác nhận, máy sẽ tra lại.', 7000);
+    }
+    await scrRecvTransfer(mr, opt);
+  }
 }
 
 function errMsg(e) {

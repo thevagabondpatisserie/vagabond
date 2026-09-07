@@ -539,6 +539,12 @@ CUA_NGO = {
 	"nhan_dieu_chuyen.py": [
 		"da_doi_chieu", "dong_de_nhan", "phieu_lech_cho_xu_ly", "xac_nhan",
 	],
+	# Nhan hang theo phieu yeu cau voi MA LAN NHAN chong trung (07/09/2026,
+	# Codex P1 tren PR #222). Dung MOT cua: no insert + submit Stock Entry
+	# that, khong mo them cua nao khac.
+	# `tra_lan_nhan` CHI DOC: man hinh hoi lan nhan dang cho da thanh phieu
+	# chua (vong 4). Khong mo them cua ghi nao khac.
+	"lan_nhan.py": ["nhan_theo_phieu", "tra_lan_nhan"],
 }
 
 
