@@ -190,6 +190,11 @@
 	   khong the lo tay lam mat so cua bep hay cua sales. Han bao 03/08/2026:
 	   so co hai dong rac la BAWC00025 va mot dong ten dung "BAWC". */
 	function trongTron(d) {
+		/* Máy chủ quyết dòng có xoá được không (kiem_banh.co_dau_vet): đã đếm
+		   tay ô nào, kể cả đếm ra 0, hay máy đã chuyển số vào thì không xoá.
+		   Màn hình không tự suy từ số nữa (Codex P1 vòng 4, PR #224). Bản ghi
+		   cũ chưa có khoá xoa_duoc thì vẫn xét số như trước. */
+		if (d.xoa_duoc !== undefined) return !!d.xoa_duoc;
 		return !(d.ton_cu || d.ton_d2 || d.ton_d1 || d.sx || d.huy || d.da_dat || d.phat_sinh || d.cho_chot || d.don_khac);
 	}
 
@@ -284,6 +289,13 @@
 	   "Tự chuyển" là máy ghi lúc chốt hôm trước; "Đã kiểm đếm" là người gõ,
 	   kèm số máy và chênh lệch để đối chiếu; "Cần xác nhận" là số có từ
 	   trước khi có ô nguồn, máy không đè. Trống là chưa ai ghi gì. */
+	function gioDem(luc) {
+		/* "2026-09-07 06:10:00.123" -> "07/09 06:10". Bày THẲNG trong chữ, không
+		   giấu trong title: điện thoại không có hover (Codex P2 vòng 4). */
+		var t = String(luc || "");
+		if (t.length < 16) return "";
+		return t.slice(8, 10) + "/" + t.slice(5, 7) + " " + t.slice(11, 16);
+	}
 	function nguonO(d, truong) {
 		var n = d.nguon && d.nguon[truong];
 		if (!n || !n.trang_thai) return "";
@@ -295,7 +307,9 @@
 			lop += " lech"; chu += " · máy " + may + " (" + (lech > 0 ? "+" : "") + lech + ")";
 		}
 		if (n.ai) chu += " · " + chuSach(String(n.ai).split("@")[0]);
-		return '<div class="' + lop + '" title="' + chuSach(n.trang_thai + (n.luc ? " lúc " + n.luc : "")) + '">' + chuSach(chu) + "</div>";
+		var gio = gioDem(n.luc);
+		if (gio) chu += " " + gio;
+		return '<div class="' + lop + '">' + chuSach(chu) + "</div>";
 	}
 
 	function chuSach(t) {
