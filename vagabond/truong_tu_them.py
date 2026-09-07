@@ -249,6 +249,12 @@ def dung():
 	from vagabond import nhan_dieu_chuyen
 
 	_dung_nhom(nhan_dieu_chuyen.TRUONG_MOI, "nhan_dieu_chuyen")
+	# O "Ma lan nhan tren app" tren Stock Entry, RANG BUOC DUY NHAT o co so
+	# du lieu: bam lai sau khi mang rot khong tao them phieu chuyen. Doc dau
+	# lan_nhan.py (Codex P1 tren PR #222, 07/09/2026).
+	from vagabond import lan_nhan
+
+	_dung_nhom(lan_nhan.TRUONG_MOI, "lan_nhan")
 	# O chua cau hinh tai khoan nhan chuyen khoan theo diem ban. Doc dau
 	# tai_khoan.TRUONG_MOI de biet vi sao o nay tung mat hai lan.
 	from vagabond import tai_khoan
