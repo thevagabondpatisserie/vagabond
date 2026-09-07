@@ -543,6 +543,54 @@ ca('18. chua gui lan nao thi sua so luong la lan nhan khac: ma doi (khong lien q
   dung('ma doi khi sua so truoc khi gui', m.g.rcv.ma_lan !== ma1);
 });
 
+/* Mất phản hồi rồi bị từ chối retry không được quên phiếu đã ghi. */
+[401, 403, 500, 417].forEach(function (st) {
+  ca('retry lỗi ' + st + ' giữ mã cũ tới khi xác minh', async function () {
+    var m = await guiMatPhanHoi();
+    var apiCu = m.g.api, ma = m.g.rcv.cho.ma_lan;
+    m.g.api = function (duong, ts) {
+      if (duong === GUI) { var e = new Error('Từ chối retry'); e.status = st; e.exc_type = 'ValidationError'; return Promise.reject(e); }
+      return apiCu(duong, ts);
+    };
+    await bamXacNhan(m);
+    bang('giữ mã', m.g.rcv.cho && m.g.rcv.cho.ma_lan, ma);
+    bang('giữ bản bền', Object.keys(m.luuTru).length, 1);
+    m.g.api = apiCu;
+    await bamXacNhan(m);
+    bang('chỉ một phiếu', soPhieu(m), 1);
+    bang('chỉ nhận 30', tongNhan(m), 30);
+  });
+});
+['setItem', 'getItem'].forEach(function (ham) {
+  ca('lỗi bộ nhớ ' + ham + ' không phát request nhận', async function () {
+    var m = dungMan({ phieu: phieu100() });
+    await moTuManChiTiet(m, 'vRecv');
+    m.g.localStorage[ham] = function () { throw new Error('Bộ nhớ không dùng được'); };
+    await bamXacNhan(m);
+    bang('không gửi', cacLanGui(m).length, 0);
+    bang('không tạo phiếu', soPhieu(m), 0);
+  });
+});
+[0, 1, 2].forEach(function (trangThai) {
+  ca('tra phiếu có docstatus ' + trangThai + ' chỉ xác nhận phiếu ghi sổ', async function () {
+    var m = await guiMatPhanHoi();
+    var apiCu = m.g.api;
+    m.g.api = function (duong, ts) {
+      return duong === TRA ? Promise.resolve({ co: 1, name: 'PHIEU-THU', docstatus: trangThai }) : apiCu(duong, ts);
+    };
+    await m.g.traLanCho(m.g.rcv.mr);
+    bang('pending theo trạng thái', !!m.g.rcv.cho, trangThai !== 1);
+    dung('chữ đúng trạng thái', m.toast.some(function (t) { return t.indexOf(trangThai === 0 ? 'còn nháp' : trangThai === 2 ? 'đã huỷ' : 'đã được ghi') >= 0; }));
+  });
+});
+ca('dữ liệu chờ hỏng không mở đường nhận mới', async function () {
+  var m = dungMan();
+  m.g.localStorage.getItem = function () { return '{hong'; };
+  await moTuManChiTiet(m, 'vRecv');
+  dung('không có nút nhận', !m.tai.getElementById('rcOk'));
+  bang('không gửi', cacLanGui(m).length, 0);
+});
+
 /* ---------- chay ---------- */
 
 (async function () {
