@@ -180,9 +180,18 @@ function dong(kw) {
   return d;
 }
 
+/* Ngay theo GIO DIA PHUONG, dung cach trang ghep (ngayISO trong kiem-banh.js).
+   Truoc day dung toISOString() la gio UTC: trang gui ngay dia phuong, bo ca
+   tra ve ngay UTC, nhan() thay lech ngay thi bo qua, luoi khong ve, 7/7 ca
+   hong khi may chay o mui gio lech UTC qua nua dem (Codex neu tren PR #223).
+   Cong deploy chay tep nay them o hai mui gio doi nhau de bat lai loi nay. */
+function ngayDiaPhuong(d) {
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+
 function bangCua(ds, tinh_trang) {
   return {
-    ngay: new Date().toISOString().slice(0, 10),
+    ngay: ngayDiaPhuong(new Date()),
     co_so: 1, tinh_trang: tinh_trang || 'Dang ban',
     dong_bo_luc: '', chot_luc: '', dong: ds,
   };
@@ -311,6 +320,140 @@ ca('ngay da chot thi bam o Huy khong mo duoc o nhap', async function () {
   dung('co noi ly do', m.tai.getElementById('kb-bao').textContent.indexOf('chốt sổ') >= 0);
 });
 
+
+ca('go so huy KHONG hop le (-0.5, 1.9, am, chu, vo han): khong gui, khong dong o, bao ro ma hang, bang giu nguyen', async function () {
+  /* Codex vong 4 tren #218: luuO parseInt truoc khi may chu kip nhin gia
+     tri goc, nen 1.9 di thanh 1 va -0.5 thanh 0 ma nguoi go khong biet.
+     Nay kiem CHUOI GOC. Sai thi khong gui, o nhap van mo voi dung chuoi vua
+     go, bang khong doi. */
+  var cacXau = ['-0.5', '1.9', '-2', 'abc', 'Infinity', 'NaN', '1e3', '3.0'];
+  for (var i = 0; i < cacXau.length; i++) {
+    var xau = cacXau[i];
+    var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 10, huy: 2 })]); } });
+    oTheo(m, 'BAWC00055|huy').click();
+    var inp = m.tai.getElementById('kb-inp');
+    dung('o nhap mo (' + xau + ')', !!inp);
+    var truoc = m.goi.length;
+    inp.value = xau;
+    inp.dispatchEvent(dg.suKien('change', {}, inp));
+    for (var k = 0; k < 5; k++) await new Promise(function (r) { setTimeout(r, 0); });
+    bang('KHONG goi may chu (' + xau + ')', m.goi.length, truoc);
+    var el = m.tai.getElementById('kb-bao');
+    dung('bao do (' + xau + '): ' + el.textContent, el.className === 'loi' && el.textContent.indexOf('BAWC00055') >= 0);
+    dung('noi ro phai la so nguyen khong am (' + xau + ')', el.textContent.indexOf('số nguyên không âm') >= 0);
+    var inp2 = m.tai.getElementById('kb-inp');
+    dung('o nhap VAN MO de sua (' + xau + ')', !!inp2);
+    bang('o nhap giu nguyen chuoi vua go, khong bi doi thanh so gia (' + xau + ')', inp2.value, xau);
+    bang('BAN DUOC khong doi (' + xau + ')', soTheoNhan(m, 'BÁN ĐƯỢC'), '8');
+    /* Sua lai thanh so dung thi luu duoc, dung o vua mo, khong phai mo lai. */
+    inp2.value = '3';
+    inp2.dispatchEvent(dg.suKien('change', {}, inp2));
+    await choToi('luu_o bay di sau khi sua (' + xau + ')', function () { return m.goi.length > truoc; });
+    bang('gui dung so da sua (' + xau + ')', m.goi[truoc].ts.gia_tri, 3);
+  }
+});
+
+
+ca('go so huy hop le: rong la 0, 0 la 0, so nguyen gui dung so, va chu Enter cung nhu nut OK', async function () {
+  var cacXau = [['', 0], ['0', 0], ['7', 7], [' 4 ', 4]];
+  for (var i = 0; i < cacXau.length; i++) {
+    var xau = cacXau[i][0], mong = cacXau[i][1];
+    var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 10, huy: 2 })]); } });
+    oTheo(m, 'BAWC00055|huy').click();
+    var inp = m.tai.getElementById('kb-inp');
+    var truoc = m.goi.length;
+    inp.value = xau;
+    inp.dispatchEvent(dg.suKien('keydown', { key: 'Enter' }, inp));
+    await choToi('luu_o bay di (' + JSON.stringify(xau) + ')', function () { return m.goi.length > truoc; });
+    var g = m.goi[truoc];
+    bang('dung cua', g.ten, 'kiem_banh.luu_o');
+    bang('gui dung so (' + JSON.stringify(xau) + ')', g.ts.gia_tri, mong);
+    bang('so nguyen kieu number, khong phai chuoi', typeof g.ts.gia_tri, 'number');
+    bang('khong bao do', m.tai.getElementById('kb-bao').className === 'loi', false);
+  }
+});
+
+
+ca('cot khac (san xuat) van doc theo cach cu, khong bi doi chinh sach lay', async function () {
+  var m = await moMan({ bang: function () { return bangCua([dong({ ton_d1: 10 })]); } });
+  var o = oTheo(m, 'BAWC00055|sx');
+  dung('co o san xuat sua duoc', !!o);
+  o.click();
+  var inp = m.tai.getElementById('kb-inp');
+  var truoc = m.goi.length;
+  inp.value = '1.9';
+  inp.dispatchEvent(dg.suKien('change', {}, inp));
+  await choToi('luu_o bay di cho cot sx', function () { return m.goi.length > truoc; });
+  bang('cot sx van parseInt nhu cu (1.9 -> 1)', m.goi[truoc].ts.gia_tri, 1);
+  bang('dung truong', m.goi[truoc].ts.truong, 'sx');
+});
+
+
+/* ---------- nguon cua o ton (#216, v444) ---------- */
+
+function nguonCua(m, id) {
+  var o = oTheo(m, id);
+  if (!o) throw new Error('Khong thay o ' + id);
+  var n = o.querySelector('.kb-nguon');
+  return n ? { chu: n.textContent.trim(), lop: n.className } : null;
+}
+
+ca('o ton bay NGUON: Tu chuyen, Da kiem dem kem so may va chenh lech, Can xac nhan; khong nguon thi khong bay gi', async function () {
+  var d = dong({ ton_d1: 4, ton_d2: 7, ton_cu: 9 });
+  d.nguon = {
+    ton_d1: { trang_thai: 'Đã kiểm đếm', may_chuyen: 7, ai: 'loananh@vagabond', luc: '2026-09-07 06:10:00' },
+    ton_d2: { trang_thai: 'Tự chuyển', may_chuyen: 7, ai: '', luc: '' },
+    ton_cu: { trang_thai: 'Cần xác nhận', may_chuyen: 0, ai: '', luc: '' },
+  };
+  var d2 = dong({ ma_hang: 'BAWC00056', ton_d1: 3 });   /* ban ghi cu, khong co khoa nguon */
+  var m = await moMan({ bang: function () { return bangCua([d, d2]); } });
+  var a = nguonCua(m, 'BAWC00055|ton_d1');
+  /* Gio dem bay THANG trong chu (Codex P2 vong 4): dien thoai khong co hover. */
+  bang('dem tay 4, may 7: bay chenh lech -3, ten nguoi va GIO dem', a.chu, 'Đã kiểm đếm · máy 7 (-3) · loananh 07/09 06:10');
+  dung('khong con giau gio trong title', !oTheo(m, 'BAWC00055|ton_d1').querySelector('.kb-nguon').getAttribute('title'));
+  dung('to do khi lech', a.lop.indexOf('lech') >= 0);
+  var b = nguonCua(m, 'BAWC00055|ton_d2');
+  bang('may chuyen: chi nhan', b.chu, 'Tự chuyển');
+  dung('khong to', b.lop.indexOf('lech') < 0 && b.lop.indexOf('xn') < 0);
+  var c = nguonCua(m, 'BAWC00055|ton_cu');
+  bang('can xac nhan kem so may', c.chu, 'Cần xác nhận · máy 0');
+  dung('to cam', c.lop.indexOf('xn') >= 0);
+  bang('dong khong co khoa nguon thi khong bay gi', nguonCua(m, 'BAWC00056|ton_d1'), null);
+  bang('so tren o van la so nguoi dem', oTheo(m, 'BAWC00055|ton_d1').querySelector('b').textContent, '4');
+});
+
+ca('dem tay o ton khop so may thi khong bay chenh lech; bam o van mo duoc o nhap va luu_o gui dung truong', async function () {
+  var d = dong({ ton_d1: 7 });
+  d.nguon = { ton_d1: { trang_thai: 'Đã kiểm đếm', may_chuyen: 7, ai: '', luc: '' } };
+  var m = await moMan({ bang: function () { return bangCua([d]); } });
+  bang('khop thi chi nhan', nguonCua(m, 'BAWC00055|ton_d1').chu, 'Đã kiểm đếm');
+  oTheo(m, 'BAWC00055|ton_d1').click();
+  var inp = m.tai.getElementById('kb-inp');
+  dung('mo o nhap', !!inp);
+  inp.value = '5';
+  var truoc = m.goi.length;
+  m.tai.getElementById('kb-ok').click();
+  await choToi('luu_o bay di', function () { return m.goi.length > truoc; });
+  bang('dung truong', m.goi[truoc].ts.truong, 'ton_d1');
+  bang('dung so', m.goi[truoc].ts.gia_tri, 5);
+});
+
+ca('nut xoa dong theo xoa_duoc cua may chu: dem ra 0 (moi so deu 0) thi KHONG co nut xoa; dong moi thi co', async function () {
+  var d1 = dong({ ma_hang: 'BAWC00055' }); d1.xoa_duoc = 0;
+  d1.nguon = { ton_d2: { trang_thai: 'Đã kiểm đếm', may_chuyen: 0, ai: 'de@vagabond', luc: '2026-09-07 06:10:00' } };
+  var d2 = dong({ ma_hang: 'BAWC00056' }); d2.xoa_duoc = 1;
+  var m = await moMan({ bang: function () { return bangCua([d1, d2]); } });
+  var xoa = m.tai.querySelectorAll('[data-xoa]').map(function (e) { return e.getAttribute('data-xoa'); });
+  bang('chi dong moi co nut xoa', JSON.stringify(xoa), JSON.stringify(['BAWC00056']));
+  bang('dong dem 0 van bay nhan', nguonCua(m, 'BAWC00055|ton_d2').chu, 'Đã kiểm đếm · de 07/09 06:10');
+});
+
+ca('chu dong nguon toi thieu 13px trong CSS trang', async function () {
+  var css = fs.readFileSync(path.join(TRANG, 'kiem-banh.html'), 'utf8');
+  var mt = css.match(/\.kb-nguon\{[^}]*font-size:\s*([\d.]+)px/);
+  dung('co luat font-size cho .kb-nguon', !!mt);
+  dung('>= 13px, duoc ' + (mt && mt[1]), mt && parseFloat(mt[1]) >= 13);
+});
 
 /* ---------- chay ---------- */
 

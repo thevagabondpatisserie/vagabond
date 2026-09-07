@@ -136,18 +136,24 @@ def _():
 	# len. O tim di theo vao trong tam truot. Y DINH cua ca kiem nay khong
 	# doi: chon mot nha cung cap KHONG duoc bat nguoi ta do bang mat. Chi
 	# doi cho kiem, tu bang chip sang tam truot.
+	#
+	# 06/09/2026: tam truot tu dung `sheet()` cua nen doi sang tam truot
+	# rieng `hsMoChonBenNhan`, vi `sheet()` khong co duong hoi may chu,
+	# khong co trang thai dang tai hay loi, va khong nhet duoc nut tao moi
+	# ma khong bi chinh o tim loc mat. Y DINH cua ca kiem van khong doi.
 	js = _js("19-ho-so-tt.js")
 	dung("không còn bày cả bảng chip nhà cung cấp",
 		"posChipNut('data-hsn=\"' + h(x.ncc)" not in js)
-	dung("có tấm trượt chọn nhà cung cấp", "sheet('Chọn nhà cung cấp'" in js)
-	# Tham so thu nam cua `sheet()` la `searchable`. Thieu no thi tam truot
-	# hien ra khong co o tim, va nguoi dung lai phai do bang mat.
-	i = js.index("sheet('Chọn nhà cung cấp'")
-	dung("tấm trượt có bật ô tìm", js[i:i + 200].split("\n")[0].rstrip().endswith("true);"))
+	dung("có tấm trượt chọn nhà cung cấp", "function hsMoChonBenNhan(" in js)
+	dung("màn hồ sơ mở đúng tấm trượt đó", "hsMoChonNcc(ncc, laHU, doiNcc)" in js)
+	# Thieu o tim thi tam truot hien ra van bat nguoi ta do bang mat.
+	than = js[js.index("function hsMoChonBenNhan("):js.index("function hsMoChonNcc(")]
+	dung("tấm trượt có ô tìm", "id=\"hsbnTim\"" in than)
+	dung("gõ tới đâu lọc tới đó", "inp.addEventListener('input'" in than)
 	# Duong quay ve xem tat ca nha cung cap van con, nam thanh mot muc
 	# trong tam truot thay vi mot chip rieng.
 	dung("vẫn còn đường xem tất cả nhà cung cấp",
-		"label: 'Tất cả nhà cung cấp'" in js)
+		"tat_ca: laHU ? 'Tất cả nhà cung cấp' : ''" in js)
 
 
 @ca("ô tìm: danh mục nhà cung cấp lọc được ngay không chờ máy chủ")

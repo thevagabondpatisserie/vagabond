@@ -156,9 +156,9 @@
 					+ (d.hinh ? '<img src="' + d.hinh + '" loading="lazy" alt="">' : '<i class="kb-noimg"></i>')
 					+ '<b>' + d.ma_hang + '</b><span>' + (d.ten_banh || "") + "</span>" + nutWeb(d) + nutXoa(d) + "</div>"
 					+ '<div class="kb-so">'
-					+ o(d, "ton_d1", "Tồn " + (fmtNSX(d.nsx_d1) || nsxLui(1)), d.ton_d1, true)
-					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true)
-					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true)
+					+ o(d, "ton_d1", "Tồn " + (fmtNSX(d.nsx_d1) || nsxLui(1)), d.ton_d1, true, "", nguonO(d, "ton_d1"))
+					+ o(d, "ton_d2", "Tồn " + (fmtNSX(d.nsx_d2) || nsxLui(2)), d.ton_d2, true, "", nguonO(d, "ton_d2"))
+					+ o(d, "ton_cu", d.nsx_cu ? "Tồn " + fmtNSX(d.nsx_cu) : "Tồn cũ hơn", d.ton_cu, true, "", nguonO(d, "ton_cu"))
 					+ o(d, "sx", "Bếp làm " + NGAY_CHON.slice(8, 10) + "/" + NGAY_CHON.slice(5, 7), d.sx, true)
 					/* Cột Huỷ, gõ tay (anh Việt 06/09/2026, hướng A của issue #216).
 					   Đặt ngay sau Bếp làm để bốn ô gõ tay nằm liền nhau, và trước
@@ -190,6 +190,11 @@
 	   khong the lo tay lam mat so cua bep hay cua sales. Han bao 03/08/2026:
 	   so co hai dong rac la BAWC00025 va mot dong ten dung "BAWC". */
 	function trongTron(d) {
+		/* Máy chủ quyết dòng có xoá được không (kiem_banh.co_dau_vet): đã đếm
+		   tay ô nào, kể cả đếm ra 0, hay máy đã chuyển số vào thì không xoá.
+		   Màn hình không tự suy từ số nữa (Codex P1 vòng 4, PR #224). Bản ghi
+		   cũ chưa có khoá xoa_duoc thì vẫn xét số như trước. */
+		if (d.xoa_duoc !== undefined) return !!d.xoa_duoc;
 		return !(d.ton_cu || d.ton_d2 || d.ton_d1 || d.sx || d.huy || d.da_dat || d.phat_sinh || d.cho_chot || d.don_khac);
 	}
 
@@ -269,7 +274,7 @@
 		});
 	}
 
-	function o(d, truong, nhan, gt, sua, lop) {
+	function o(d, truong, nhan, gt, sua, lop, phu) {
 		var id = d.ma_hang + "|" + truong;
 		var them = lop ? " " + lop : "";
 		if (DANG_SUA === id) {
@@ -277,7 +282,34 @@
 				+ '<input id="kb-inp" type="number" min="0" inputmode="numeric" value="' + (gt || 0) + '">' + nutOK() + '</div>';
 		}
 		return '<div class="kb-o' + (sua ? " sua" : "") + them + (lop && gt ? " co" : "") + '" data-id="' + id + '">'
-			+ "<label>" + nhan + "</label><b>" + (gt || 0) + "</b></div>";
+			+ "<label>" + nhan + "</label><b>" + (gt || 0) + "</b>" + (phu || "") + "</div>";
+	}
+
+	/* Dòng phụ dưới ô tồn: NGUỒN của số đang bày (issue #216, v444).
+	   "Tự chuyển" là máy ghi lúc chốt hôm trước; "Đã kiểm đếm" là người gõ,
+	   kèm số máy và chênh lệch để đối chiếu; "Cần xác nhận" là số có từ
+	   trước khi có ô nguồn, máy không đè. Trống là chưa ai ghi gì. */
+	function gioDem(luc) {
+		/* "2026-09-07 06:10:00.123" -> "07/09 06:10". Bày THẲNG trong chữ, không
+		   giấu trong title: điện thoại không có hover (Codex P2 vòng 4). */
+		var t = String(luc || "");
+		if (t.length < 16) return "";
+		return t.slice(8, 10) + "/" + t.slice(5, 7) + " " + t.slice(11, 16);
+	}
+	function nguonO(d, truong) {
+		var n = d.nguon && d.nguon[truong];
+		if (!n || !n.trang_thai) return "";
+		var so = d[truong] || 0, may = n.may_chuyen || 0;
+		var lop = "kb-nguon", chu = n.trang_thai;
+		if (n.trang_thai === "Cần xác nhận") { lop += " xn"; chu += " · máy " + may; }
+		else if (n.trang_thai === "Đã kiểm đếm" && may !== so) {
+			var lech = so - may;
+			lop += " lech"; chu += " · máy " + may + " (" + (lech > 0 ? "+" : "") + lech + ")";
+		}
+		if (n.ai) chu += " · " + chuSach(String(n.ai).split("@")[0]);
+		var gio = gioDem(n.luc);
+		if (gio) chu += " " + gio;
+		return '<div class="' + lop + '">' + chuSach(chu) + "</div>";
 	}
 
 	function chuSach(t) {
@@ -322,11 +354,41 @@
 		inp.addEventListener("blur", function () { hoan(); luuO(); });
 	}
 
+	/* Số huỷ hợp lệ: ô trống là 0, còn lại phải là SỐ NGUYÊN KHÔNG ÂM viết
+	   thẳng. Trả về số, hoặc null khi không hợp lệ. Cùng một chính sách với
+	   máy chủ (kiem_banh.doc_so_o và KiemBanhNgay._doc_so_huy), kiểm trên
+	   CHUỖI GỐC người gõ chứ không parseInt trước: parseInt("1.9") là 1,
+	   parseInt("-0.5") là -0, tức là màn hình tự bịa ra một con số rồi gửi
+	   đi mà người gõ không hề biết (Codex trên PR #218, vòng 4). */
+	function docSoHuy(inp) {
+		var chuoi = String(inp.value == null ? "" : inp.value);
+		/* Ô kiểu number: trình duyệt trả value rỗng khi chữ gõ vào không phải
+		   số, nhưng validity.badInput cho biết là có chữ rác chứ không phải
+		   ô trống. Không có validity (DOM giả) thì tin chuỗi. */
+		if (inp.validity && inp.validity.badInput) return null;
+		if (!chuoi.trim()) return 0;
+		if (!/^\s*\d+\s*$/.test(chuoi)) return null;
+		return parseInt(chuoi, 10);
+	}
+
 	function luuO() {
 		var inp = document.getElementById("kb-inp");
 		if (!inp || DANG_SUA === null) return;
 		var phan = DANG_SUA.split("|"), ma = phan[0], truong = phan[1];
-		var gt = parseInt(inp.value || "0", 10);
+		var gt;
+		if (truong === "huy") {
+			gt = docSoHuy(inp);
+			if (gt === null) {
+				/* KHÔNG gửi, KHÔNG đóng ô, KHÔNG đổi số trên bảng: giữ nguyên
+				   chuỗi người vừa gõ trong ô để họ sửa, và nói rõ mã nào sai.
+				   Cột khác vẫn đọc theo cách cũ, không tự đổi chính sách. */
+				bao("Số huỷ của mã " + ma + " phải là số nguyên không âm (0, 1, 2...). "
+					+ "Anh chị sửa lại số trong ô rồi bấm \u2713.", true);
+				return;
+			}
+		} else {
+			gt = parseInt(inp.value || "0", 10);
+		}
 		DANG_SUA = null;
 		if (truong === "so_btp" || truong === "so_decor") { luuBTP(ma, gt, truong); return; }
 		API("luu_o", { ngay: NGAY_CHON, ma_hang: ma, truong: truong, gia_tri: gt })

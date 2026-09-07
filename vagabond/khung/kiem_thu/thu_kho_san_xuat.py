@@ -201,13 +201,84 @@ def _giu_nep_cu():
 	la("khong truyen ten", ks.chang_cua_mon("BTPB00100", True), ks.BTP_SAN_SANG)
 
 
-@ca("kho san xuat: o khai tay duoc khai dung mot lan tren ho so mon")
+@ca("kho san xuat: o khai tay duoc khai dung mot lan tren ho so mon, bang CHU")
 def _o_khai_tay():
 	o = [x for x in ks.TRUONG_MOI.get("Item", [])
 		if x["fieldname"] == "custom_chang_btp"]
 	la("co dung mot o", len(o), 1)
 	la("la o chon", o[0]["fieldtype"], "Select")
-	# Hai gia tri phai TRUNG ten hai chang, lech mot dau la khai tay vo tac
-	# dung ma khong ai bao.
-	dung("o chon co du hai chang", ks.BTP_SO_CAP in o[0]["options"]
-		and ks.BTP_SAN_SANG in o[0]["options"])
+	lua = [d for d in o[0]["options"].split("\n") if d]
+	# #206, 06/09/2026: ô hiện CHỮ theo lời Khải ĐỨNG TRƯỚC. Trước đó ô chỉ
+	# hiện "btp_so_cap" nên 0 trên 260 mã bán thành phẩm được khai.
+	la("ba chu moi dung truoc", lua[:3], ["BTP thành phần", "BTP sơ cấp", "BTP sẵn sàng"])
+	# Codex chốt cùng ngày: hai mã máy cũ PHẢI còn trong danh sách, vì ô là
+	# Select và Frappe từ chối lưu hồ sơ món mang giá trị ngoài danh sách. Bỏ
+	# mã cũ đi là hồ sơ nào còn mang mã cũ không lưu được, mà sửa dữ liệu của
+	# nó thì trái điều 11. Số khảo sát 0 không thay được yêu cầu tương thích.
+	la("hai ma cu giu o cuoi", lua[3:], ["btp_so_cap", "btp_san_sang"])
+	# Fixture: mot ho so mon mang ma cu phai HOP LE voi danh sach, va gia tri
+	# cua no khong bi doi.
+	ho_so_cu = {"name": "BTPB00099", "custom_chang_btp": "btp_so_cap"}
+	dung("ho so cu luu duoc: gia tri nam trong danh sach", ho_so_cu["custom_chang_btp"] in lua)
+	la("gia tri cu khong bi doi", ho_so_cu["custom_chang_btp"], "btp_so_cap")
+	dung("khong con buoc nao tu doi ma cu", not hasattr(ks, "doi_ma_cu_sang_chu"))
+	# MỖI lựa chọn trong ô phải đọc ra được một mã chặng. Lệch một chữ là ô
+	# khai vô tác dụng mà không ai báo.
+	for d in lua:
+		dung("doc duoc lua chon %s" % d, ks.ma_chang_khai_tay(d) in (ks.BTP_SO_CAP, ks.BTP_SAN_SANG))
+	dung("mo ta noi bang loi Khai", "cấp 1" in o[0]["description"] and "cấp 2" in o[0]["description"])
+
+
+@ca("kho san xuat: doc o khai tay ca ban cu (ma may) va ban moi (chu)")
+def _doc_khai_tay():
+	la("ma cu so cap", ks.ma_chang_khai_tay("btp_so_cap"), ks.BTP_SO_CAP)
+	la("ma cu san sang", ks.ma_chang_khai_tay("btp_san_sang"), ks.BTP_SAN_SANG)
+	la("chu so cap", ks.ma_chang_khai_tay("BTP sơ cấp"), ks.BTP_SO_CAP)
+	la("chu san sang", ks.ma_chang_khai_tay("BTP sẵn sàng"), ks.BTP_SAN_SANG)
+	la("chu thanh phan ve so cap", ks.ma_chang_khai_tay("BTP thành phần"), ks.BTP_SO_CAP)
+	la("hoa thuong, thua cach", ks.ma_chang_khai_tay("  btp   SẴN sàng "), ks.BTP_SAN_SANG)
+	la("trong", ks.ma_chang_khai_tay(""), None)
+	la("None", ks.ma_chang_khai_tay(None), None)
+	la("chu la khong doan", ks.ma_chang_khai_tay("Cấp 3"), None)
+	# Đi qua chang_cua_mon: ô khai tay bằng CHỮ phải thắng cấu trúc công thức.
+	la("khai chu thang cong thuc", ks.chang_cua_mon("BTPB00100", True, "BTP sơ cấp"), ks.BTP_SO_CAP)
+	la("khai ma cu van thang", ks.chang_cua_mon("BTPB00100", False, "btp_san_sang"), ks.BTP_SAN_SANG)
+	la("khai chu la thi suy nhu cu", ks.chang_cua_mon("BTPB00100", True, "Cấp 3"), ks.BTP_SAN_SANG)
+
+
+@ca("kho san xuat: ma cu va chu moi doc ra cung mot chang, KHONG ai duoc tu doi du lieu cu")
+def _bang_doi():
+	# Ô là Select. Mã cũ còn sót thì hồ sơ món có thể mất giá trị khi có
+	# NGƯỜI mở ra sửa và lưu bên Desk. Đó là lý do vòng trước viết một hàm
+	# tự đổi sau migrate. Đã GỠ hàm đó: AGENTS.md điều 11 cấm máy tự sửa dữ
+	# liệu cũ, và không cần sửa thì app vẫn đọc đúng.
+	la("hai ma cu", sorted(ks.MA_CU_SANG_CHU.keys()), sorted([ks.BTP_SO_CAP, ks.BTP_SAN_SANG]))
+	o = [x for x in ks.TRUONG_MOI["Item"] if x["fieldname"] == "custom_chang_btp"][0]
+	lua = [d for d in o["options"].split("\n") if d]
+	for cu, moi in ks.MA_CU_SANG_CHU.items():
+		dung("chu dich %s nam trong o" % moi, moi in lua)
+		la("ma cu va chu moi cung mot chang cho %s" % cu,
+			ks.ma_chang_khai_tay(moi), ks.ma_chang_khai_tay(cu))
+	# CHỐT NGƯỢC LẠI, và đây mới là điều ca này giữ: không còn đường nào để
+	# migrate tự ghi vào hồ sơ món cũ.
+	dung("da go han ham tu doi", not hasattr(ks, "doi_ma_cu_sang_chu"))
+	import io as _io
+	import os as _os
+	tt = _io.open(_os.path.join(_os.path.dirname(_os.path.abspath(ks.__file__)),
+		"truong_tu_them.py"), encoding="utf-8").read()
+	dung("migrate khong goi ham tu doi nao", "doi_ma_cu_sang_chu()" not in tt)
+	# Còn lại một cửa CHỈ ĐỌC để đếm, để anh Việt tự quyết.
+	import inspect
+	src = inspect.getsource(ks.soat_ma_chang_cu)
+	dung("chi doc, khong set_value", "set_value" not in src)
+	dung("khong rename, khong delete", "rename" not in src and "delete" not in src)
+	dung("co dem theo tung ma cu", 'filters={"custom_chang_btp": cu}' in src)
+
+
+@ca("kho san xuat va ton chang doc o khai tay ra CUNG mot chang")
+def _hai_noi_mot_cau():
+	# Hai mô đun cùng đọc một ô. Chốt ở đây để không bao giờ có ngày màn tồn
+	# kho xếp một mã vào chặng này mà lệnh sản xuất lại lấy kho chặng kia.
+	from vagabond import ton_chang as tc
+	for d in ks.NHAN_KHAI_TAY + (ks.BTP_SO_CAP, ks.BTP_SAN_SANG):
+		la("cung cau cho %s" % d, tc.chang_cua_nhan(d), ks.ma_chang_khai_tay(d))

@@ -119,12 +119,29 @@ def _du_phong_doc_goi():
 
 @ca("v406 lô quá hạn là vòng vét CUỐI, sau lô còn hạn và sau mã thay thế")
 def _vet_cuoi():
+	# 06/09/2026: ca nay truoc day do vi tri ba doan CHUOI trong ma nguon.
+	# Doi chuoi mot cai la ca do, ma do khong chung minh duoc thu tu that
+	# (dieu 16). Nay chay that gan_lo va xem no lay lo nao truoc.
+	from vagabond.khung.kiem_thu import thu_nhan_nvl_chon_lo as t
+
+	ra = t.chay_gan_lo(
+		purpose="Manufacture",
+		dong=[t.dong("NVL1", "Kho A", 100)],
+		ton={("NVL1", "Kho A"): {"CON-HAN": 40}, ("NVL2", "Kho A"): {"THAY": 30}},
+		qua_han={("NVL1", "Kho A"): {"QUA-HAN": 100}},
+		thay_the={"NVL1": ["NVL2"]},
+	)
+	# Thu tu LAY moi la thu tu can canh, khong phai thu tu DONG in ra:
+	# ma chinh (ke ca phan vet) in truoc, ma thay the in sau. Neu vong vet
+	# chay TRUOC ma thay the thi QUA-HAN se lay 60 va THAY lay 0.
+	lay = {}
+	for d in ra:
+		lay[(d["item_code"], d["batch_no"])] = d["qty"]
+	la("lô còn hạn lấy trước", lay.get(("NVL1", "CON-HAN")), 40.0)
+	la("hết lô còn hạn thì tới mã thay thế", lay.get(("NVL2", "THAY")), 30.0)
+	la("lô quá hạn chỉ nhận phần còn lại", lay.get(("NVL1", "QUA-HAN")), 30.0)
+	la("đúng ba dòng", len(ra), 3)
 	src = _py("lo_hang.py")
-	i_thay = src.index("for ma_thay in _cac_ma_thay_the(ma)")
-	i_vet = src.index("_ton_lo_qua_han(ma, kho, da_tinh=ton)")
-	i_chan = src.index('title="Thiếu hàng trong kho"')
-	dung("vét sau mã thay thế", i_thay < i_vet)
-	dung("vét trước khi chặn", i_vet < i_chan)
 	dung("có ô tắt thì không vét", "not lo_het_han.dang_chan()" in src)
 
 

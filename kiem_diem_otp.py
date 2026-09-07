@@ -3923,8 +3923,12 @@ la("khong co lan xoa tick nao dung ngoai rao laHU",
 # trong tam truot. Dieu can canh khong doi: luong hoan ung phai luon con
 # duong gom hoa don cua moi nha, mat duong do la bat Uyen lap mot ho so
 # rieng cho tung nha cung cap.
+# 06/09/2026: tam truot doi tu `sheet()` cua nen sang `hsMoChonBenNhan`
+# rieng cua man nay, nen muc "tat ca" khai bang khoa `tat_ca` chu khong con
+# la mot muc `label/icon`. Dieu can canh van y nguyen.
 la("con duong xem tat ca nha cung cap",
-   "label: 'Tất cả nhà cung cấp'" in _js35 and "icon: '📚'" in _js35, True)
+   "tat_ca: laHU ? 'Tất cả nhà cung cấp' : ''" in _js35
+   and "<span>📚</span>" in _js35, True)
 la("dem so nha cung cap dang chon", "var soNha = Object.keys(nhaChon).length;" in _js35, True)
 la("man hinh chan luu khi chua chon nguoi duoc hoan ung",
    "if (laHU && !hsTaoNguoiUng) return baoTin" in _js35, True)

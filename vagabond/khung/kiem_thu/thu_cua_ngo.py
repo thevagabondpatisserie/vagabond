@@ -251,8 +251,11 @@ CUA_NGO = {
 	# cua Work Order nen KHONG whitelist.
 	# `hoan_tat_phieu` them 03/09/2026: ghi phieu kho hoan tat lenh trong MOT
 	# yeu cau, thay cho insert roi submit roi o app.
+	# `soat_ma_chang_cu` them 06/09/2026 (#206): CHI DEM ho so mon con mang
+	# ma may cu, khong sua gi. Thay cho ham tu doi da go.
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
-		"gan_nguoi_phu_trach", "hoan_tat_phieu", "soat_chang", "tat_kho_trung_gian"],
+		"gan_nguoi_phu_trach", "hoan_tat_phieu", "soat_chang",
+		"soat_ma_chang_cu", "tat_kho_trung_gian"],
 	# Gom nam nhan chang ve hai ten, va man Ton kho theo chang, 28/08/2026.
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
 	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
@@ -270,7 +273,7 @@ CUA_NGO = {
 		"ton_dong", "xem", "xin_chuyen_nvl"],
 	# Ma phieu san xuat, them 30/08/2026. `soat_ma_cu` chi DEM phieu con
 	# mang ma kieu cu, khong doi ten phieu nao.
-	"ma_phieu_sx.py": ["soat_ma_cu"],
+	"ma_phieu_sx.py": ["soat_ma_cu", "soat_bo_dem"],
 	# Tuy bien ruot hop qua, them 21/08/2026.
 	"hop_qua.py": ["mon_thay_the", "ruot_goc", "xem_tuy_bien"],
 	# Ham don o email: `don` va `ghi_vet` la hook, chi `kiem` mo ra ngoai.
@@ -536,6 +539,12 @@ CUA_NGO = {
 	"nhan_dieu_chuyen.py": [
 		"da_doi_chieu", "dong_de_nhan", "phieu_lech_cho_xu_ly", "xac_nhan",
 	],
+	# Nhan hang theo phieu yeu cau voi MA LAN NHAN chong trung (07/09/2026,
+	# Codex P1 tren PR #222). Dung MOT cua: no insert + submit Stock Entry
+	# that, khong mo them cua nao khac.
+	# `tra_lan_nhan` CHI DOC: man hinh hoi lan nhan dang cho da thanh phieu
+	# chua (vong 4). Khong mo them cua ghi nao khac.
+	"lan_nhan.py": ["nhan_theo_phieu", "tra_lan_nhan"],
 }
 
 

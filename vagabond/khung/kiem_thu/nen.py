@@ -141,8 +141,29 @@ def gia_lap():
 	fr = types.ModuleType("frappe")
 	fr.get_roles = lambda *a, **k: ["System Manager"]
 
+	# Frappe that nem ValidationError chu khong nem Exception tran, va co
+	# ma bat rieng loai do: `lo_hang.gan_lo` nem tiep ValidationError (de
+	# cau bao thieu hang len duoc mat bep) nhung NUOT moi loi khac. Ban gia
+	# thieu lop nay thi khong ca kiem nao chay duoc doan do.
+	class ValidationError(Exception):
+		pass
+
+	fr.ValidationError = ValidationError
+
+	# frappe.flags that la _dict: gan thuoc tinh la gan khoa. Ma nghiep vu
+	# giuong co (frappe.flags.x = True) roi doc bang .get("x"); ban gia phai
+	# giu dung hai chieu do, khong thi co giuong len roi khong ai thay.
+	class CoGia(dict):
+		def __getattr__(self, k):
+			return self.get(k)
+
+		def __setattr__(self, k, v):
+			self[k] = v
+
+	fr.flags = CoGia()
+
 	def _throw(msg, *a, **k):
-		raise Exception(msg)
+		raise ValidationError(msg)
 
 	fr.throw = _throw
 	fr.whitelist = lambda *a, **k: (lambda f: f)
