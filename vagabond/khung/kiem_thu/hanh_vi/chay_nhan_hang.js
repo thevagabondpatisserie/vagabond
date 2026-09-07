@@ -578,9 +578,10 @@ ca('18. chua gui lan nao thi sua so luong la lan nhan khac: ma doi (khong lien q
     m.g.api = function (duong, ts) {
       return duong === TRA ? Promise.resolve({ co: 1, name: 'PHIEU-THU', docstatus: trangThai }) : apiCu(duong, ts);
     };
+    m.g.confirmSheet = function () { return Promise.resolve(false); };
     await m.g.traLanCho(m.g.rcv.mr);
     bang('pending theo trạng thái', !!m.g.rcv.cho, trangThai !== 1);
-    dung('chữ đúng trạng thái', m.toast.some(function (t) { return t.indexOf(trangThai === 0 ? 'còn nháp' : trangThai === 2 ? 'đã huỷ' : 'đã được ghi') >= 0; }));
+    dung('chữ đúng trạng thái', trangThai === 2 || m.toast.some(function (t) { return t.indexOf(trangThai === 0 ? 'còn nháp' : 'đã được ghi') >= 0; }));
   });
 });
 ca('dữ liệu chờ hỏng không mở đường nhận mới', async function () {
@@ -589,6 +590,16 @@ ca('dữ liệu chờ hỏng không mở đường nhận mới', async function
   await moTuManChiTiet(m, 'vRecv');
   dung('không có nút nhận', !m.tai.getElementById('rcOk'));
   bang('không gửi', cacLanGui(m).length, 0);
+});
+
+ca('phiếu huỷ chỉ đóng pending sau khi xác nhận đã đối chiếu, không gửi nhận mới', async function () {
+  var m = await guiMatPhanHoi();
+  var truoc = cacLanGui(m).length, apiCu = m.g.api;
+  m.g.api = function (duong, ts) { return duong === TRA ? Promise.resolve({ co: 1, name: 'HUY-1', docstatus: 2 }) : apiCu(duong, ts); };
+  await m.g.traLanCho(m.g.rcv.mr);
+  bang('pending đã đóng', m.g.rcv.cho, null);
+  bang('không nhận mới', cacLanGui(m).length, truoc);
+  dung('báo huỷ không báo nhận thành công', m.toast.some(function (t) { return t.indexOf('phiếu đã huỷ HUY-1') >= 0; }));
 });
 
 /* ---------- chay ---------- */
