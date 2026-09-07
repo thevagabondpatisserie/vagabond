@@ -55,6 +55,9 @@ function layNeuCo(src, ten) {
 
 var ket = { dat: 0, hong: 0, loi: [] };
 
+/* Cua may chu duy nhat cua man Nhan hang tu vong 3 cua #222. */
+var GUI = 'vagabond.lan_nhan.nhan_theo_phieu';
+
 function dung(mo, dk) {
   if (!dk) throw new Error(mo + ': duoc false, mong true');
 }
@@ -113,12 +116,16 @@ function dungMan(canh) {
     api: function (duong, ts) {
       goiApi.push({ duong: duong, ts: ts });
       if (duong === 'frappe.client.get') return Promise.resolve(canh.phieu || phieuMau());
-      if (canh.hongKhiGui && duong === 'frappe.client.insert') {
-        return Promise.reject(new Error('gia lap mat mang'));
-      }
-      if (duong === 'frappe.client.insert') {
+      /* Tu vong 3 (#222) man hinh gui qua MOT cua may chu kem ma lan nhan.
+         Duong cu frappe.client.insert/submit KHONG con duoc goi; goi la ca
+         kiem 13 do. */
+      if (duong === GUI) {
+        var lanGui = goiApi.filter(function (x) { return x.duong === GUI; }).length;
+        if (canh.hongKhiGui && (!canh.hongToiLan || lanGui <= canh.hongToiLan)) {
+          return Promise.reject(new Error('gia lap mat mang'));
+        }
         return new Promise(function (r) {
-          setTimeout(function () { r({ name: 'MAT-STE-0001' }); }, 5);
+          setTimeout(function () { r({ ok: 1, name: 'MAT-STE-0001', da_co: canh.daCo ? 1 : 0 }); }, 5);
         });
       }
       /* Bat chuoc DUNG hanh vi ERPNext: khong kem co for_stock_levels thi
@@ -173,6 +180,7 @@ function dungMan(canh) {
     layHam(kho, 'scrMRView'),
     /* Ba cai duoi day la thu ban 79d12b0 da xoa nham. Nap NEU CO. */
     kho.indexOf('var rcv = ') >= 0 ? layDong(kho, 'var rcv = ') : '',
+    layNeuCo(kho, 'sinhMaLanNhan'),
     layNeuCo(kho, 'scrRecvTransfer'),
     layNeuCo(kho, 'fefoPick'),
     kho.indexOf('var RCV_DANG_GUI') >= 0 ? layDong(kho, 'var RCV_DANG_GUI') : 'var RCV_DANG_GUI = 0;',
@@ -214,9 +222,13 @@ async function bamXacNhan(m) {
   for (var i = 0; i < 40; i++) await new Promise(function (r) { setTimeout(r, 2); });
 }
 
+function cacLanGui(m) {
+  return m.goiApi.filter(function (x) { return x.duong === GUI; });
+}
+
 function dongGui(m) {
-  var g = m.goiApi.filter(function (x) { return x.duong === 'frappe.client.insert'; });
-  return g.length ? (g[0].ts.doc.items || []) : [];
+  var g = cacLanGui(m);
+  return g.length ? (g[0].ts.dong || []) : [];
 }
 
 /* ---------- cac ca ---------- */
@@ -285,8 +297,7 @@ ca('6. bam Xac nhan hai lan trong luc dang gui chi tao MOT phieu kho', async fun
   ok.onclick(dg.suKien('click', {}, ok));
   ok.onclick(dg.suKien('click', {}, ok));
   for (var i = 0; i < 40; i++) await new Promise(function (r) { setTimeout(r, 2); });
-  var so = m.goiApi.filter(function (x) { return x.duong === 'frappe.client.insert'; });
-  bang('dung mot lan insert', so.length, 1);
+  bang('dung mot lan gui', cacLanGui(m).length, 1);
 });
 
 ca('7. gui hong thi bo co, bam lai duoc ngay', async function () {
@@ -315,10 +326,77 @@ ca('9. duong GIAO hang tu phieu san xuat cung mo duoc man va gui dung kho xuat',
   dung('nut khong nem loi' + (loi ? ': ' + loi.message : ''), !loi);
   dung('co nut Xac nhan giao', !!m.tai.getElementById('rcOk'));
   await bamXacNhan(m);
-  var g = m.goiApi.filter(function (x) { return x.duong === 'frappe.client.insert'; })[0];
-  bang('kho xuat la kho thanh pham cua bep', g.ts.doc.from_warehouse, 'Kho Lab TP - TV');
-  dung('ghi chu giao hang', g.ts.doc.remarks.indexOf('Bếp giao hàng') === 0);
-  dung('khong kem lo', !('batch_no' in g.ts.doc.items[0]));
+  var g = cacLanGui(m)[0];
+  bang('kho xuat la kho thanh pham cua bep', g.ts.kho_xuat, 'Kho Lab TP - TV');
+  dung('ghi chu giao hang', g.ts.ghi_chu.indexOf('Bếp giao hàng') === 0);
+  dung('khong kem lo', !('batch_no' in g.ts.dong[0]));
+});
+
+/* ---------- ma lan nhan chong trung (Codex P1 tren #222, vong 3) ---------- */
+
+function maLan(m, i) { return cacLanGui(m)[i].ts.ma_lan_nhan; }
+
+ca('10. gui hong (het gio) roi bam lai: hai lan gui mang CUNG ma lan nhan, may chu moi phan biet duoc', async function () {
+  var m = dungMan({ hongKhiGui: 1, hongToiLan: 1 });
+  await moTuManChiTiet(m, 'vRecv');
+  await bamXacNhan(m);
+  bang('lan mot da gui', cacLanGui(m).length, 1);
+  dung('lan mot bao loi', m.toast.length > 0);
+  await bamXacNhan(m);
+  bang('lan hai da gui', cacLanGui(m).length, 2);
+  dung('co ma lan nhan', typeof maLan(m, 0) === 'string' && maLan(m, 0).length >= 8);
+  bang('bam lai GIU nguyen ma', maLan(m, 1), maLan(m, 0));
+  bang('van dung so luong', cacLanGui(m)[1].ts.dong[0].qty, 60000);
+});
+
+ca('11. gui xong roi nhan tiep: lan sau mang ma MOI, khong dinh ma cu', async function () {
+  var m = dungMan();
+  await moTuManChiTiet(m, 'vRecv');
+  await bamXacNhan(m);
+  var ma1 = maLan(m, 0);
+  await moTuManChiTiet(m, 'vRecv');
+  await bamXacNhan(m);
+  bang('hai lan gui', cacLanGui(m).length, 2);
+  dung('ma lan hai khac ma lan mot', maLan(m, 1) !== ma1);
+});
+
+ca('12. sua so luong sau khi gui hong thi la lan nhan KHAC: ma doi', async function () {
+  var m = dungMan({ hongKhiGui: 1, hongToiLan: 1 });
+  await moTuManChiTiet(m, 'vRecv');
+  goSo(m, 0, 50000);
+  await bamXacNhan(m);
+  var ma1 = maLan(m, 0);
+  goSo(m, 0, 40000);
+  await bamXacNhan(m);
+  dung('sua so luong thi ma doi', maLan(m, 1) !== ma1);
+  bang('so moi di kem ma moi', cacLanGui(m)[1].ts.dong[0].qty, 40000);
+  /* Nut +/- cung la sua so luong. */
+  var tru = m.tai.querySelector('[data-m="0"]');
+  var maTruoc = m.g.rcv.ma_lan;
+  tru.click();
+  dung('bam tru cung doi ma', m.g.rcv.ma_lan !== maTruoc);
+});
+
+ca('13. khong con goi frappe.client.insert hay submit tu man Nhan hang; moi lan gui deu co phieu, kho xuat, kho nhan', async function () {
+  var m = dungMan();
+  await moTuManChiTiet(m, 'vRecv');
+  await bamXacNhan(m);
+  var cu = m.goiApi.filter(function (x) { return x.duong === 'frappe.client.insert' || x.duong === 'frappe.client.submit'; });
+  bang('duong cu khong duoc goi', cu.length, 0);
+  var g = cacLanGui(m)[0].ts;
+  bang('phieu', g.phieu, 'MAT-MR-0001');
+  bang('kho xuat', g.kho_xuat, 'Kho Lab - TV');
+  bang('kho nhan', g.kho_nhan, 'Kho Bep - TV');
+  dung('dong khong kem batch_no', !('batch_no' in g.dong[0]));
+});
+
+ca('14. may chu bao "da co" (lan truoc thuc ra da toi noi): khong bao loi, khong gui them, ma doi', async function () {
+  var m = dungMan({ daCo: 1 });
+  await moTuManChiTiet(m, 'vRecv');
+  await bamXacNhan(m);
+  bang('mot lan gui', cacLanGui(m).length, 1);
+  dung('bao da ghi tu truoc', m.toast.join(' ').indexOf('đã được ghi từ trước') >= 0);
+  dung('ma da doi sang lan moi', m.g.rcv.ma_lan !== maLan(m, 0));
 });
 
 /* ---------- chay ---------- */
