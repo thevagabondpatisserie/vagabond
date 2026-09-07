@@ -31591,13 +31591,28 @@ function hsTheBenNhan(id, icon, ten, phu, daChon) {
     '<b style="color:#2563eb;white-space:nowrap">' + (daChon ? 'Đổi' : 'Chọn') + '</b></div></div>';
 }
 
+/* Dòng phụ của một bên nhận tiền: MÃ đứng trước, rồi tới phần mô tả. Hai
+   người trùng tên (hai "NGUYỄN VĂN A" ở hai quận) trước đây nhìn y hệt nhau
+   trong tấm trượt lẫn trên thẻ đã chọn, chỉ khác ở data-hsbn mà mắt không
+   thấy; bấm nhầm người là tiền đi nhầm tài khoản. Codex P2 trên #221 vòng 3.
+   Mã là thứ ổn định duy nhất, nên mọi chỗ bày bên nhận đều đi qua hàm này:
+   dòng trong tấm trượt (`hsBenNhanDong`) và ba thẻ đã chọn của Chi từ TK
+   công ty, Hoàn ứng, Nhà cung cấp. Tên trùng mã (danh mục đặt tên theo tên)
+   thì không lặp lại mã cho khỏi rác. Trả về chữ THƯỜNG, nơi bày tự thoát. */
+function hsPhuMa(ma, ten, phu) {
+  var dm = ma && ma !== ten ? String(ma) : '';
+  var dp = phu || '';
+  return dm && dp ? dm + ' · ' + dp : (dm || dp);
+}
+
 function hsBenNhanDong(x, dangChon) {
   var ten = x.ten || x.ncc;
   var la = x.ncc === dangChon;
+  var phu = hsPhuMa(x.ncc, ten, x.phu);
   return '<div class="shi' + (la ? ' on' : '') + '" data-hsbn="' + h(x.ncc) + '">' +
     '<span>' + (x.hay_dung ? '⭐' : '🏭') + '</span>' +
     '<span style="flex:1;min-width:0">' + h(ten) +
-    (x.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(x.phu) + '</div>' : '') +
+    (phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(phu) + '</div>' : '') +
     '</span>' + (la ? '<span>&#10003;</span>' : '') + '</div>';
 }
 
@@ -32055,7 +32070,7 @@ async function scrHoSoTTTao() {
     html += hsoKhoi('Người được hoàn ứng · bắt buộc') +
       hsTheBenNhan('hsMoUng', '🧑',
         nguoiUng ? (nguoiUng.ten || nguoiUng.ncc) : (hsTaoNguoiUng ? 'Mã ' + hsTaoNguoiUng : 'Chạm để chọn người được hoàn ứng'),
-        hsUngLoi ? hsUngLoi : (nguoiUng ? 'Người này sẽ nhận lại tiền' : 'Chưa chọn ai'), !!nguoiUng) +
+        hsUngLoi ? hsUngLoi : (nguoiUng ? hsPhuMa(nguoiUng.ncc, nguoiUng.ten, 'Người này sẽ nhận lại tiền') : 'Chưa chọn ai'), !!nguoiUng) +
       (hsTaoNguoiUng ? '' :
         '<div style="font-size:12px;color:#b3261e;margin:-4px 0 10px;line-height:1.6">' +
         'Chưa chọn ai. Đây là người đã bỏ tiền túi mua hộ và sẽ nhận lại tiền, ' +
@@ -32104,7 +32119,7 @@ async function scrHoSoTTTao() {
     hsTheBenNhan('hsMoNcc', '🏭',
       nccDangChon ? (nccDangChon.ten || nccDangChon.ncc)
         : (laHU && !hsTaoNcc ? 'Tất cả nhà cung cấp' : 'Chạm để chọn nhà cung cấp'),
-      nccDangChon ? hsChipNcc(nccDangChon)
+      nccDangChon ? hsPhuMa(nccDangChon.ncc, nccDangChon.ten, hsChipNcc(nccDangChon))
         : (laHU ? 'Đang gộp hoá đơn của mọi nhà' : 'Chưa chọn nhà nào'),
       !!nccDangChon || (laHU && !hsTaoNcc)) +
     (laHU ? '<div style="font-size:11.5px;color:#98a2b3;margin:-4px 0 10px;line-height:1.6">' +
@@ -32875,7 +32890,7 @@ async function scrChiCongTyTao() {
         : (huNguoi ? ('Mã ' + huNguoi) : (hopLe ? 'Chạm để chọn nhà cung cấp' : 'Chạm để chọn người nhận tiền')),
       huBenLoi ? huBenLoi
         : benDangChon
-        ? (hopLe
+        ? hsPhuMa(benDangChon.ncc, benDangChon.ten, hopLe
             ? (benDangChon.so_hd ? benDangChon.so_hd + ' hoá đơn còn nợ · ' + money(benDangChon.tien) + ' đ' : 'Không còn hoá đơn nào đang nợ')
             : (benDangChon.hay_dung ? 'Đã từng đứng tên hồ sơ hoàn ứng' : 'Bên nhận tiền của khoản chi này'))
         : (hopLe ? 'Chưa chọn nhà nào' : 'Chưa chọn ai'),
