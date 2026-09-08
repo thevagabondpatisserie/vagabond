@@ -22,3 +22,16 @@ const code=src.slice(src.indexOf("    if (k === 'giao') {"),src.indexOf("    if 
   }
   console.log('PASS #237: newest-first, preserve route, optional photo reaches completion API');
 })().catch(e=>{console.error(e);process.exit(1)});
+
+vm.runInContext(src.slice(src.indexOf('function vdTomTatDongBo'),src.indexOf('async function scrVanDon')),c);
+const thongBao=c.vdTomTatDongBo({them:0,lam_moi:1,loi:[],doi_chieu:{
+  ngay:{can_kiem:11,doc_duoc:11,chua_kiem:0,loi_doc:0},
+  qua_han:{can_kiem:1325,doc_duoc:9,chua_kiem:1316,loi_doc:0}}});
+assert(thongBao.includes('Ngày đang xem: đọc được 11/11'));
+assert(thongBao.includes('Đơn quá hạn: đọc được 9/1325'));
+assert(!thongBao.includes('Lỗi cần kiểm'),'backlog không bị gọi là lỗi');
+const loiDoc=c.vdTomTatDongBo({loi:[{ma_don:'93405',loi:'Chưa đọc được'}],doi_chieu:{ngay:{can_kiem:11,doc_duoc:3,chua_kiem:7,loi_doc:1}}});
+assert(loiDoc.includes('Bấm Cập nhật đơn để kiểm tiếp'));
+assert(loiDoc.includes('93405: Chưa đọc được'),'lỗi thực vẫn hiện');
+assert(src.includes('baoTin(vdTomTatDongBo(kq))'),'nút đồng bộ dùng thông báo mới');
+console.log('PASS #237: tách ngày đang xem, backlog và lỗi thật');
