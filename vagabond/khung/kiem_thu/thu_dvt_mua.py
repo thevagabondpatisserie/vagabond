@@ -143,7 +143,7 @@ def _hai_cho_cung_phep():
 	from vagabond import doi_chieu_mua as C
 
 	so_sanh = inspect.getsource(C.so_sanh)
-	noi = inspect.getsource(C._noi)
+	noi = inspect.getsource(C._noi_tung_dong)
 	dung("man hinh goi xet_don_vi", "xet_don_vi(" in so_sanh)
 	dung("phep noi goi xet_don_vi", "xet_don_vi(" in noi)
 	dung("man hinh khong con tu goi lech_don_vi", "lech_don_vi(" not in so_sanh)
@@ -163,7 +163,7 @@ def _tu_doi_ten():
 	dung("co kiem he so bang nhau moi doi", "he_so" in ma)
 	dung("doi ca o don vi lan he so", "dong.uom = dvt" in ma and "dong.conversion_factor" in ma)
 
-	noi = inspect.getsource(C._noi)
+	noi = inspect.getsource(C._noi_tung_dong)
 	dung("phep noi co goi ham do", "_doi_ten_don_vi(d, chon)" in noi)
 	dung("khac ten ma khong doi duoc thi bao ro", "chưa khai" in noi)
 
@@ -266,7 +266,7 @@ def _khong_co_phieu_nhap():
 
     from vagabond import doi_chieu_mua as C
 
-    noi = inspect.getsource(C._noi)
+    noi = inspect.getsource(C._noi_tung_dong)
     doan = noi.split("if not ds:")[1].split("elif")[0]
     # SUA 31/08/2026. Cau cu quyet "hang chua duoc nhap kho tren he thong".
     # Cau do SAI trong ca thuong gap nhat: hoa don 6921 cua An Phu co ba dong

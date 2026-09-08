@@ -528,7 +528,7 @@ def truoc_khi_ghi_so(doc, method=None):
 
 	# Thiếu tài khoản mà để tờ vào sổ xong mới báo thì công nợ treo trên đầu
 	# khách và có khi đã bắn sang hoá đơn điện tử.
-	qua_tang_hoa_don._tk_chi_phi()
+	# Tài khoản VAT được kiểm ở hook hang_tang_so_cai cuối before_submit.
 
 	for d in (doc.get("items") or []):
 		try:
@@ -548,7 +548,7 @@ def sau_khi_ghi_so(doc, method=None):
 		return
 	# Tờ có gắn phiếu quà VIP thì đường kia đã gạt rồi, gạt lần nữa là ghi
 	# đúp chi phí. Một tờ chỉ đi một đường.
-	if chuoi(doc.get("vgb_phieu_qua")):
+	if chuoi(doc.get("vgb_phieu_qua")) or doc.get("vgb_tang_so_cai"):
 		return
 	try:
 		_gat_cong_no(doc)

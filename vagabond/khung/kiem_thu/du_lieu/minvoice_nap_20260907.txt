@@ -1,0 +1,141 @@
+# Nap thong tin don tu Pancake ve phieu ban hang:
+#   1) Thong tin xuat hoa don (ten cong ty / MST / dia chi / mail) tu ghi chu 'De in'
+#   2) Phuong thuc thanh toan suy ra tu so tien da thanh toan tren Pancake
+# Nguyen tac dia chi: uu tien NGUYEN VAN khach ghi neu do la cung mot dia chi voi ban
+# cua co quan thue (chi khac cach viet); khac han thi giu ban co quan thue.
+# Tham so: phieu hoac ngay (mac dinh hom nay). ghi_de=1 de ghi de du lieu da co.
+st = frappe.get_doc('Vagabond Settings')
+stgm = frappe.get_doc('MInvoice Phat Hanh Settings')
+hau_to = str(stgm.get('hau_to_dia_chi') or '').strip()
+key = st.get_password('pancake_api_key', raise_exception=False) or ''
+url = 'https://pos.pages.fm/api/v1/shops/' + str(st.pancake_shop_id) + '/orders'
+ghi_de = frappe.utils.cint(frappe.form_dict.get('ghi_de') or 0)
+phieu = frappe.form_dict.get('phieu')
+if phieu:
+    ds = [{'name': phieu}]
+else:
+    ngay = frappe.form_dict.get('ngay') or frappe.utils.today()
+    ds = frappe.get_all('Sales Invoice', filters={'custom_nguon': ['is','set'], 'posting_date': ngay, 'docstatus': ['<', 2]}, fields=['name'], limit_page_length=0)
+nap = []
+nap_pt = []
+nap_dc = []
+loi = []
+KH_TEN = ['tên công ty', 'ten cong ty', 'công ty', 'cong ty', 'tên đơn vị', 'ten don vi', 'đơn vị', 'don vi', 'tên khách', 'ten khach', 'tên người mua', 'ten nguoi mua']
+KH_DC = ['địa chỉ', 'dia chi']
+KH_MST = ['mã số thuế', 'ma so thue', 'mst', 'masothue']
+DAU_DC = ['đường', 'duong', 'phường', 'phuong', 'quận', 'quan', 'thành phố', 'thanh pho', 'tp ', 'tp.', 'tỉnh', 'tinh', 'xã ', 'huyện', 'huyen', 'số ', 'lô ', 'kcn', 'ấp ', 'khu ', 'ngõ', 'hẻm']
+BANG = [('àáảãạăằắẳẵặâầấẩẫậ', 'a'), ('èéẻẽẹêềếểễệ', 'e'), ('ìíỉĩị', 'i'), ('òóỏõọôồốổỗộơờớởỡợ', 'o'), ('ùúủũụưừứửữự', 'u'), ('ỳýỷỹỵ', 'y'), ('đ', 'd')]
+BO_CUM = ['thanh pho', 'viet nam', 'tinh ', 'quan ', 'phuong ', 'duong ', 'huyen ', 'tp ', 'tp.', 'q.', 'p.', 'xa ']
+for row in ds:
+    si = frappe.get_doc('Sales Invoice', row['name'])
+    can_xhd = ghi_de or not si.get('vgb_xhd_mst')
+    can_pt = ghi_de or not si.get('vgb_pt_thanh_toan')
+    if not (can_xhd or can_pt):
+        continue
+    so_dh = str(si.get('custom_pancake_display_id') or '')
+    if not so_dh:
+        continue
+    try:
+        r = frappe.make_get_request(url, params={'api_key': key, 'page_size': 1, 'search': so_dh})
+        dd = (r.get('data') or [None])[0]
+        if not dd:
+            continue
+        if can_pt:
+            tien_ck = frappe.utils.flt(dd.get('transfer_money')) + frappe.utils.flt(dd.get('charged_by_qrpay'))
+            tien_tm = frappe.utils.flt(dd.get('cash'))
+            pt = ''
+            if tien_ck > 0 and tien_ck >= tien_tm:
+                pt = 'Chuyển khoản'
+            elif tien_tm > 0:
+                pt = 'Tiền mặt'
+            if pt and frappe.db.exists('Mode of Payment', pt):
+                si.db_set('vgb_pt_thanh_toan', pt, update_modified=False)
+                nap_pt.append(si.name + ' | ' + pt)
+        txt = str(dd.get('note_print') or '').replace(chr(13), chr(10))
+        ten = ''
+        mst = ''
+        dchi = ''
+        dchi_phu = ''
+        mail = ''
+        for d0 in txt.split(chr(10)):
+            s = d0.strip()
+            if not s:
+                continue
+            low = s.lower()
+            v = s.split(':', 1)[1].strip() if ':' in s else s
+            if '@' in s and not mail:
+                for tk in s.replace(',', ' ').replace(';', ' ').split():
+                    if '@' in tk:
+                        mail = tk.strip('.<>()')
+            hit = ''
+            for k in KH_TEN:
+                if low.startswith(k) and not hit:
+                    hit = 'ten'
+            for k in KH_DC:
+                if low.startswith(k) and not hit:
+                    hit = 'dc'
+            for k in KH_MST:
+                if low.startswith(k) and not hit:
+                    hit = 'mst'
+            if hit == 'ten' and not ten:
+                ten = v
+            if hit == 'dc' and not dchi:
+                dchi = v
+            if hit == 'mst' and not mst:
+                so = ''
+                for c in v:
+                    if c.isdigit() or c == '-':
+                        so = so + c
+                mst = so
+            if (not hit) and (not dchi_phu) and (',' in s) and ('@' not in s):
+                dh = False
+                if s[0].isdigit():
+                    dh = True
+                for tk in DAU_DC:
+                    if tk in low:
+                        dh = True
+                if dh:
+                    dchi_phu = s
+        if not dchi:
+            dchi = dchi_phu
+        if can_xhd and (ten or mst or mail):
+            if ten:
+                si.db_set('vgb_xhd_ten', ten[:140], update_modified=False)
+            if mst:
+                si.db_set('vgb_xhd_mst', mst[:20], update_modified=False)
+            if mail:
+                si.db_set('vgb_xhd_email', mail[:140], update_modified=False)
+            nap.append(si.name + ' | ' + (mst or '-') + ' | ' + (ten or '-')[:30])
+        cur_dc = str(si.get('vgb_xhd_dia_chi') or '')
+        dc_cuoi = cur_dc
+        if dchi and can_xhd:
+            if not cur_dc:
+                dc_cuoi = dchi
+            else:
+                gon = []
+                for s0 in [dchi, cur_dc]:
+                    s1 = s0.lower()
+                    for cum, ch in BANG:
+                        for c in cum:
+                            s1 = s1.replace(c, ch)
+                    for cum2 in BO_CUM:
+                        s1 = s1.replace(cum2, ' ')
+                    kq = ''
+                    for c in s1:
+                        if c.isalnum():
+                            kq = kq + c
+                    gon.append(kq)
+                if gon[1] and gon[1] in gon[0]:
+                    dc_cuoi = dchi
+        if dc_cuoi and hau_to:
+            l0 = dc_cuoi.lower()
+            if ('việt nam' not in l0) and ('viet nam' not in l0) and ('vietnam' not in l0):
+                dc_cuoi = dc_cuoi.rstrip(' ,.') + hau_to
+        if dc_cuoi and dc_cuoi != cur_dc:
+            si.db_set('vgb_xhd_dia_chi', dc_cuoi[:400], update_modified=False)
+            nap_dc.append(si.name + ' | ' + dc_cuoi[:60])
+    except Exception as e:
+        loi.append(so_dh + ': ' + str(e)[:120])
+if not frappe.utils.cint(frappe.form_dict.get('khong_commit') or 0):
+    frappe.db.commit()
+frappe.response['message'] = {'quet': len(ds), 'nap_xhd': nap[:10], 'nap_dia_chi': nap_dc[:10], 'nap_pttt': nap_pt[:6], 'so_nap_pttt': len(nap_pt), 'loi': loi[:5]}

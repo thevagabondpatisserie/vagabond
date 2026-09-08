@@ -53,6 +53,7 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
 doctype_js = {
+	"Sales Invoice": "public/js/minvoice_phieu.js",
 	"Purchase Invoice": "public/js/purchase_invoice.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
@@ -511,7 +512,10 @@ doc_events = {
 			# nhap, de khong dam len luat tai khoan cho 3311 cua hang kho.
 			"vagabond.dung_lai_hddt.tk_theo_mon",
 		],
-		"before_submit": "vagabond.mua_dich_vu.chan_lech_tong",
+		"before_submit": [
+			"vagabond.doi_chieu_mua.chan_vuot_luong_da_nhan",
+			"vagabond.mua_dich_vu.chan_lech_tong",
+		],
 		# BANG GIA NHAP DUOI THEO GIA THAT (anh Viet duyet 31/08/2026).
 		#
 		# Truoc ban nay bang gia dong bang o gia lan mua dau: thiet lap kho
@@ -657,6 +661,7 @@ doc_events = {
 			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
 			"vagabond.hang_tang.truoc_khi_ghi_so",
 			"vagabond.thanh_toan_nhieu.kiem_truoc_ghi_so",
+			"vagabond.hang_tang_so_cai.truoc_khi_ghi_so",
 		],
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o
 		# before_submit: chi cong diem khi hoa don da that su vao so.
@@ -716,6 +721,7 @@ update_website_context = [
 # Thu moi nhan vien: thay thu chao mung mac dinh cua Frappe (dan vao ban quan
 # tri tren may tinh) bang thu chi huong dan mo app dien thoai.
 override_doctype_class = {
+	"Sales Invoice": "vagabond.hoa_don_hang_tang.HoaDonHangTang",
 	"User": "vagabond.nhan_su.NguoiDung",
 	# 21/08/2026: DA GO hai lop PhieuNhapKho va HoaDonMua o day. Chung dinh
 	# doi tac vao dong so cai cua tai khoan cho hoa don, ma ERPNext chi cho

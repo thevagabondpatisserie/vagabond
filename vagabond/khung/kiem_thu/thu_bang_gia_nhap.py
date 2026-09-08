@@ -201,7 +201,7 @@ def _phi_ship_khong_chan():
 @ca("dong khong qua kho: phi va dich vu khong doi phieu nhap")
 def _xet_khong_qua_kho():
 	i = MA_DCM.find("def _khong_qua_kho(")
-	than = MA_DCM[i:MA_DCM.find("\ndef _noi(", i)]
+	than = MA_DCM[i:MA_DCM.find("\ndef chia_luong_vao_phieu(", i)]
 	# Chua gan ma hang thi chua biet la gi, khong doan la hang.
 	dung("chua co ma thi cho di tiep", "if not ma:" in than and "return True" in than)
 	# Co ma thi hoi danh muc Mon xem co quan kho khong.

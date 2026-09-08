@@ -1328,6 +1328,18 @@ def _tach_email(txt):
 	return ""
 
 
+def _yeu_cau_xhd_dung_don(ma_don):
+	"""#227: mã rỗng/trùng không được lấy người mua của một bản bất kỳ."""
+	ma_don = str(ma_don or "").strip()
+	if not ma_don:
+		return None
+	ds = frappe.get_all("Vagabond Hoa Don", filters={"ma_don": ma_don},
+		fields=["name", "ma_so_thue", "ten_cong_ty", "dia_chi", "email"], limit_page_length=2)
+	if len(ds) > 1:
+		frappe.throw("Đơn %s có nhiều yêu cầu xuất hoá đơn. Kế toán xác nhận đúng bản trước khi xuất." % ma_don)
+	return ds[0] if ds else None
+
+
 def _thong_tin_xhd(o, did):
 	"""Bon truong nguoi mua cho mot don.
 
@@ -1340,12 +1352,7 @@ def _thong_tin_xhd(o, did):
 	txt = _text_don(o)
 	mail = _tach_email(txt)
 
-	hd = frappe.db.get_value(
-		"Vagabond Hoa Don",
-		{"ma_don": did},
-		["ma_so_thue", "ten_cong_ty", "dia_chi", "email"],
-		as_dict=True,
-	)
+	hd = _yeu_cau_xhd_dung_don(did)
 	if hd and (hd.ten_cong_ty or hd.ma_so_thue):
 		return {
 			"vgb_xhd_ten": hd.ten_cong_ty or "",
@@ -2561,8 +2568,9 @@ def _chan_doi_xhd_da_phat_hanh(si, moi):
 	Người thật sự gõ một nội dung mới vào thì NÉM LỖI để họ biết; máy tự bỏ
 	trống thì lặng lẽ bỏ qua, không thì chặn luôn cả việc sửa ghi chú.
 	"""
-	so_hd = si.get("custom_hddt_so")
-	if not so_hd:
+	from vagabond.minvoice_an_toan import da_gui
+	so_hd = si.get("custom_hddt_so") or "(đang gửi/chờ đối chiếu)"
+	if not da_gui(si):
 		return True
 	cu = dict((o, si.get(o)) for o in hoa_don_vat.O_XHD)
 	_, ghi_de = hoa_don_vat.doi_o_xhd(cu, moi, XHD_MAC_DINH)
@@ -2606,14 +2614,13 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	don do chu khong the gop sang don khac.
 	"""
 	_kiem_quyen()
-	si = frappe.db.get_value(
-		"Sales Invoice", si_name, ["name", "custom_hddt_so"], as_dict=True
-	)
+	from vagabond.minvoice_an_toan import da_gui
+	si = frappe.get_doc("Sales Invoice", si_name, for_update=True)
 	if not si:
 		frappe.throw("Không có hoá đơn %s." % si_name)
-	if si.custom_hddt_so:
+	if da_gui(si):
 		frappe.throw(
-			"Đơn này đã xuất hoá đơn điện tử số %s nên không sửa được nữa." % si.custom_hddt_so
+			"Đơn này đã xuất hoá đơn điện tử số %s nên không sửa được nữa." % (si.custom_hddt_so or "(đang gửi/chờ đối chiếu)")
 		)
 	so_mst = _chuan_mst(mst)
 	if (mst or "").strip() and not so_mst:
@@ -3079,7 +3086,9 @@ def _khoa_hddt(cho=5):
 		pila.close()
 		return None
 	except Exception:
+		pila.close()
 		frappe.log_error(frappe.get_traceback(), "ban_hang: khong lay duoc khoa phat hanh HDDT")
+		return None
 	return pila
 
 
@@ -3874,7 +3883,7 @@ def bu_email_xhd(ngay=None):
 			"docstatus": ["<", 2],
 			"vgb_xhd_email": ["in", ["", None]],
 		},
-		fields=["name", "custom_pancake_id", "custom_hddt_so"],
+		fields=["name", "custom_pancake_id", "custom_hddt_so", "custom_minvoice_id", "custom_hddt_id", "vgb_hddt_cho_doi_chieu", "vgb_xhd_ten"],
 	)
 	if not ds:
 		return {"xet": 0, "bu": 0, "ngay": str(ngay)}
@@ -3888,14 +3897,18 @@ def bu_email_xhd(ngay=None):
 
 	bu = 0
 	danh_sach = []
+	from vagabond.minvoice_an_toan import ten_mac_dinh, da_gui
 	for si in ds:
-		if si.custom_hddt_so:
-			continue  # da xuat hoa don dien tu roi thi khong dong vao nua
+		if da_gui(si) or ten_mac_dinh(si.get("vgb_xhd_ten")):
+			continue  # Đã gửi hoặc chưa xác nhận người mua thì không bù email.
 		o = theo_id.get(str(si.custom_pancake_id or ""))
 		if not o:
 			continue
 		mail = _tach_email(_text_don(o))
 		if not mail:
+			continue
+		cuoi = frappe.get_doc("Sales Invoice", si.name, for_update=True)
+		if da_gui(cuoi) or ten_mac_dinh(cuoi.get("vgb_xhd_ten")) or cuoi.get("vgb_xhd_email"):
 			continue
 		frappe.db.set_value("Sales Invoice", si.name, "vgb_xhd_email", mail)
 		bu += 1
@@ -4447,8 +4460,9 @@ def xuat_hoa_don_dien_tu(si_name):
 	si = frappe.get_doc("Sales Invoice", si_name)
 	if si.docstatus != 1:
 		frappe.throw("Hoá đơn %s chưa chốt, chốt doanh số trước rồi mới xuất HĐĐT." % si_name)
-	if si.custom_hddt_so:
-		frappe.throw("Hoá đơn %s đã xuất HĐĐT số %s rồi." % (si_name, si.custom_hddt_so))
+	from vagabond import minvoice_an_toan
+	if minvoice_an_toan.da_gui(si):
+		frappe.throw("Hoá đơn %s đã gửi sang M-Invoice. Kiểm tra bản đã gửi trước khi làm tiếp." % si_name)
 	# Don noi bo hang OWNER: tuyet doi khong xuat hoa don dien tu.
 	#
 	# Chan o BACKEND chu khong chi an nut tren giao dien: nut an chan duoc
@@ -4456,24 +4470,13 @@ def xuat_hoa_don_dien_tu(si_name):
 	# tu Desk thi khong. Hoa don da gui sang co quan thue rat kho go lai.
 	noi_bo.chan_hoa_don_dien_tu(si)
 
-	hd = frappe.db.get_value(
-		"Vagabond Hoa Don",
-		{"ma_don": si.custom_pancake_display_id},
-		["ma_so_thue", "ten_cong_ty", "dia_chi", "email"],
-		as_dict=True,
-	)
+	hd = _yeu_cau_xhd_dung_don(si.get("custom_pancake_display_id"))
 	# Nguoi mua lay tu chinh hoa don nay. Mot don = mot hoa don VAT, khong gop.
 	ten_mua = (si.vgb_xhd_ten or "").strip()
 	# m-invoice nhan MST chi nhanh CO gach ngang, khong co thi tra loi 296.
 	mst_mua = _chuan_mst(si.vgb_xhd_mst)
 	dc_mua = (si.vgb_xhd_dia_chi or "").strip()
 	em_mua = (si.vgb_xhd_email or "").strip()
-	if not ten_mua and hd:
-		# Hoa don cu tao truoc khi co bon truong nay
-		ten_mua = (hd.ten_cong_ty or "").strip()
-		mst_mua = _chuan_mst(hd.ma_so_thue)
-		dc_mua = (hd.dia_chi or "").strip()
-		em_mua = (hd.email or "").strip()
 	if not ten_mua:
 		frappe.throw(
 			"Đơn %s chưa có tên khách xuất hoá đơn. Mở đơn ở màn Doanh số, "
@@ -4572,16 +4575,38 @@ def xuat_hoa_don_dien_tu(si_name):
 			}
 		],
 	}
-	r = requests.post(
-		host + "/api/InvoiceApi78/Save",
-		json=than,
-		headers={"Authorization": "Bear " + token},
-		timeout=30,
-	)
-	r.raise_for_status()
-	j = r.json() or {}
-	if not j.get("ok"):
-		frappe.throw("m-invoice báo lỗi: %s" % json.dumps(j.get("message"), ensure_ascii=False))
+	try:
+		than = minvoice_an_toan.kiem_goi(si.name, than, giu_cho=1)
+	except ValueError as loi:
+		frappe.throw(str(loi))
+	# #227: cờ chờ đối chiếu đã được commit ở kiem_goi TRƯỚC khi gọi HTTP.
+	# Kết quả sau HTTP phân loại bằng đúng một quy tắc dùng chung với Server
+	# Script (minvoice_an_toan.phan_loai_phan_hoi_thuan):
+	#   tao      -> ghi ID, gỡ cờ
+	#   tu_choi  -> gỡ cờ và COMMIT rồi mới throw, để kế toán sửa gửi lại
+	#   khong_ro -> giữ cờ (timeout, mã lạ, trùng, thiếu dữ liệu), throw
+	loi_http = None
+	j = None
+	try:
+		r = requests.post(
+			host + "/api/InvoiceApi78/Save",
+			json=than,
+			headers={"Authorization": "Bear " + token},
+			timeout=30,
+		)
+		r.raise_for_status()
+		j = r.json() or {}
+	except Exception as e:
+		loi_http = e
+	kq = minvoice_an_toan.phan_loai_phan_hoi_thuan(j, loi_http)
+	if kq["loai"] == "tu_choi":
+		minvoice_an_toan.go_co_sau_tu_choi(si.name, kq["cau"])
+		frappe.throw("m-invoice từ chối đơn %s, đã mở lại để sửa và gửi lại: %s" % (si.name, kq["cau"]))
+	if kq["loai"] != "tao":
+		frappe.throw(
+			"Đơn %s: %s. Phiếu giữ cờ chờ đối chiếu, kế toán kiểm M-Invoice theo mã phiếu trước khi gửi lại."
+			% (si.name, kq["cau"])
+		)
 	d = j.get("data") or {}
 	frappe.db.set_value(
 		"Sales Invoice",
@@ -4591,11 +4616,12 @@ def xuat_hoa_don_dien_tu(si_name):
 			"custom_hddt_so": str(d.get("inv_invoiceNumber") or ""),
 			"custom_hddt_id": d.get("inv_invoiceAuth_id") or "",
 			"custom_hddt_sobaomat": d.get("sobaomat") or "",
+			"vgb_hddt_cho_doi_chieu": 0,
 		},
 	)
 	if hd:
 		frappe.db.set_value(
-			"Vagabond Hoa Don", {"ma_don": si.custom_pancake_display_id}, "tinh_trang", "Đã xuất"
+			"Vagabond Hoa Don", hd.name, "tinh_trang", "Đã xuất"
 		)
 	frappe.db.commit()
 	return d
@@ -6147,13 +6173,12 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 	name = (d or "").strip()
 	if not name or (t or "").strip() != _xhd_token(name):
 		frappe.throw("Đường dẫn không hợp lệ.")
-	si = frappe.db.get_value(
-		"Sales Invoice", name, ["name", "custom_hddt_so", "creation"], as_dict=True
-	)
+	from vagabond.minvoice_an_toan import da_gui
+	si = frappe.get_doc("Sales Invoice", name, for_update=True)
 	if not si:
 		frappe.throw("Không tìm thấy bill này.")
 	_xhd_kiem_han(si.creation)
-	if si.custom_hddt_so:
+	if da_gui(si):
 		frappe.throw("Bill này đã xuất hoá đơn điện tử rồi, không sửa được nữa. Cần điều chỉnh thì liên hệ tiệm.")
 	so_mst = _chuan_mst(mst)
 	if not so_mst:

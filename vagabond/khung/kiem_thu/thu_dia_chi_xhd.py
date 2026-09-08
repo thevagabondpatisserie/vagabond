@@ -375,4 +375,4 @@ def _ba_cua_kia_da_khoa():
 		j = s.find(moc, i)
 		than = s[i:j if j > 0 else i + 4000]
 		dung("%s khoá tờ đã phát hành" % ham[4:-1],
-			"custom_hddt_so" in than and "frappe.throw(" in than)
+			"da_gui(si)" in than and "frappe.throw(" in than)

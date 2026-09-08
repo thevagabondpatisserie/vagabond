@@ -658,7 +658,92 @@ def _khong_qua_kho(item_code):
 		return False
 
 
+def chia_luong_vao_phieu(can, ds):
+	"""#227: một dòng 2.400 PCS có thể thuộc ba lần nhận 800 PCS.
+
+	Lập đủ kế hoạch trước khi trừ lượng, thiếu thì không chia dở dòng.
+	"""
+	if can <= 0 or sum(max(0, r["con"]) for r in ds) < can - 0.0001:
+		return []
+	ra = []
+	for r in ds:
+		lay = min(can, max(0, r["con"]))
+		if lay > 0:
+			ra.append((r, lay))
+			can -= lay
+		if can <= 0.0001:
+			break
+	return ra
+
+
+def _kho_con_lai(doc, phieu):
+	"""Trừ số lượng đã ghi hoá đơn, không suy số lượng từ billed_amt/giá.
+
+	ERPNext PurchaseInvoice.validate_with_previous_doc so item/uom với
+	pr_detail. Mỗi dòng PI chỉ có một pr_detail; phải chia dòng khi ghép
+	nhiều lần nhận. Giá hoá đơn vẫn giữ, chênh giá đi cửa kiểm hiện có.
+	"""
+	kho = {}
+	for p in dict.fromkeys(phieu):
+		for r in _dong_pnk(p):
+			r["phieu"] = p
+			r["hs"] = dvt_mua.he_so(r.get("conversion_factor"))
+			r["con"] = dvt_mua.ton(r.get("qty"), r["hs"])
+			kho[r["name"]] = r
+	if kho:
+		for d in frappe.get_all("Purchase Invoice Item", filters={"pr_detail": ["in", list(kho)],
+			"docstatus": 1, "parent": ["!=", doc.name]}, fields=["pr_detail", "qty", "conversion_factor"], limit_page_length=0):
+			kho[d.pr_detail]["con"] -= dvt_mua.ton(d.qty, dvt_mua.he_so(d.conversion_factor))
+	for d in doc.items:
+		if d.get("purchase_receipt") and d.get("pr_detail") in kho:
+			kho[d.pr_detail]["con"] -= dvt_mua.ton(d.qty, dvt_mua.he_so(d.conversion_factor))
+	ra = {}
+	for r in kho.values():
+		r["con"] = max(0, r["con"])
+		ra.setdefault(r["item_code"], []).append(r)
+	return ra
+
+
 def _noi(doc, phieu, chi_tiet=False):
+	"""Chia dòng qua các phiếu đủ lượng rồi dùng cùng cửa kiểm đơn vị/giá."""
+	kho = _kho_con_lai(doc, phieu)
+	# Bản kế hoạch riêng: lần nối thật bên dưới chỉ tiêu lượng đúng một lần.
+	du_kien = {ma: [dict(r) for r in ds] for ma, ds in kho.items()}
+	dong = []
+	for d in list(doc.items):
+		if d.get("purchase_receipt"):
+			dong.append(d)
+			continue
+		hs = dvt_mua.he_so(d.get("conversion_factor"))
+		ds = [r for r in du_kien.get(d.get("item_code"), [])
+			if dvt_mua.xet_don_vi(d.get("uom"), hs, r.get("uom"), r["hs"]) != dvt_mua.DVT_LECH]
+		chia = chia_luong_vao_phieu(dvt_mua.ton(d.get("qty"), hs), ds)
+		if len(chia) < 2:
+			dong.append(d)
+			for r, sl in chia:
+				r["con"] -= sl
+			continue
+		goc = d.as_dict()
+		con = flt(d.qty)
+		for i, (r, sl) in enumerate(chia):
+			luong = con if i == len(chia) - 1 else sl / hs
+			con -= luong
+			if i == 0:
+				moi = d
+			else:
+				ban = dict(goc)
+				for o in ("name", "idx", "parent", "parenttype", "parentfield"):
+					ban.pop(o, None)
+				moi = doc.append("items", ban)
+			moi.qty = luong
+			moi.amount = luong * flt(moi.rate)
+			dong.append(moi)
+			r["con"] -= sl
+	doc.set("items", dong)
+	return _noi_tung_dong(doc, phieu, chi_tiet, kho)
+
+
+def _noi_tung_dong(doc, phieu, chi_tiet=False, kho=None):
 	"""Gan tung dong hoa don vao dung dong phieu nhap. Tra danh sach loi.
 
 	Noi bua la hong ca gia von lan ton kho, nen o day thua nhan la khong
@@ -670,13 +755,8 @@ def _noi(doc, phieu, chi_tiet=False):
 	dong phieu nhap 4 TUI van duoc coi la khop - lech mot nghin lan ma
 	man hinh bao la chi lech gia. Doc `vagabond/dvt_mua.py`.
 	"""
-	kho = {}
-	for p in phieu:
-		for r in _dong_pnk(p):
-			r["phieu"] = p
-			r["hs"] = dvt_mua.he_so(r.get("conversion_factor"))
-			r["con"] = dvt_mua.ton(r.get("qty"), r["hs"])
-			kho.setdefault(r["item_code"], []).append(r)
+	if kho is None:
+		kho = _kho_con_lai(doc, phieu)
 
 	try:
 		giu_gia = cint(frappe.db.get_single_value("Buying Settings", "maintain_same_rate"))
@@ -737,7 +817,7 @@ def _noi(doc, phieu, chi_tiet=False):
 		dvt_kho = d.get("stock_uom") or (ds[0].get("stock_uom") if ds else "") or ""
 		chon = None
 		for r in ds:
-			if r["con"] >= can - 0.0001:
+			if r["con"] >= can - 0.0001 and dvt_mua.xet_don_vi(d.get("uom"), hs_hd, r.get("uom"), r["hs"]) != dvt_mua.DVT_LECH:
 				chon = r
 				break
 		if not chon:
@@ -1485,3 +1565,43 @@ def ghi_so_thang(name):
 		"loi_nhan": "Đã ghi sổ tờ %s. Tờ này không có dòng hàng qua kho nên "
 		"không cần nối phiếu nhập." % doc.name,
 	}
+
+
+def chan_vuot_luong_da_nhan(doc, method=None):
+	"""Giữ lượng ngay submit, kể cả PI nối từ Desk/API hay hai nháp song song.
+
+	ERPNext PurchaseInvoice.validate_multiple_billing dùng field 'amount'
+	cho Purchase Receipt/pr_detail. Giá PI thấp hơn PR có thể qua cửa tiền
+	dù đã quá lượng, nên phải kiểm thêm qty * conversion_factor. Frappe
+	Document._save chạy before_submit trước db_update/on_submit trong cùng
+	giao dịch. Khoá các dòng PR theo tên và current read PI đã ghi sổ để
+	hai giao dịch không cùng dùng lại lượng từ ảnh chụp REPEATABLE READ.
+	"""
+	can = {}
+	for d in doc.get("items") or []:
+		if d.get("pr_detail"):
+			can[d.pr_detail] = can.get(d.pr_detail, 0) + dvt_mua.ton(d.qty, d.conversion_factor)
+	if not can:
+		return
+	ten = sorted(can)
+	phieu = frappe.db.sql("""select name, parent, qty, conversion_factor
+		from `tabPurchase Receipt Item` where name in %(ten)s
+		order by name for update""", {"ten": ten}, as_dict=True)
+	da = {t: 0 for t in ten}
+	# Child docstatus được core cập nhật cùng giao dịch. Không JOIN khoá
+	# parent PI khác: mỗi submit đã giữ khoá parent riêng trước hook này.
+	# Index (pr_detail,docstatus) của patch mua_hddt_v446 chỉ quét trạng
+	# thái 1, tránh chờ dòng nháp 0 của submit đang đợi khoá PR.
+	for d in frappe.db.sql("""select d.pr_detail, d.qty, d.conversion_factor
+		from `tabPurchase Invoice Item` d FORCE INDEX (vgb_pr_docstatus_227)
+		where d.pr_detail in %(ten)s and d.docstatus = 1 and d.parent != %(hd)s
+		order by d.pr_detail, d.name for update""", {"ten": ten, "hd": doc.name}, as_dict=True):
+		da[d.pr_detail] += dvt_mua.ton(d.qty, d.conversion_factor)
+	for r in phieu:
+		nhan = dvt_mua.ton(r.qty, r.conversion_factor)
+		# Trả hàng giảm lượng đã ghi; core kiểm quan hệ return và chứng từ gốc.
+		if can[r.name] > 0 and da[r.name] + can[r.name] > nhan + 0.0001:
+			frappe.throw("Phiếu nhập %s chỉ còn %g đơn vị kho chưa ghi hoá đơn, "
+				"nhưng tờ này đang dùng %g. Có hoá đơn khác đã dùng lượng này; "
+				"kế toán kiểm lại các hoá đơn đã nối rồi chọn đúng phiếu nhập còn lượng."
+				% (r.parent, max(0, nhan - da[r.name]), can[r.name]))

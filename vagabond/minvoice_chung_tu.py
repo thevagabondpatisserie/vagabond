@@ -90,6 +90,7 @@ BA HÀNG RÀO NỮA, ĐỂ KHÔNG BAO GIỜ LẶP LẠI
 """
 
 import json
+import unicodedata
 
 # ------------------------------------------------------------ phần thuần
 #
@@ -115,6 +116,27 @@ EMAIL_KE_TOAN = "account@thevagabondpatisserie.com"
 # Một đồng là ngưỡng của cổng chặn ghi sổ và đúng là phải thế. Ở đây nắn
 # tổng nên để 1 đồng: dưới mức đó là làm tròn của chính máy phát hành.
 NGUONG_KHOP = 1.0
+
+
+def tinh_chat_dong(d):
+	"""#227: tchat=3 là khoản giảm, 4 là ghi chú, không phải mặt hàng.
+
+	Một số nguồn chỉ giữ nhãn tiếng Việt thay mã số. Chỉ nhận nhãn rõ
+	ràng, không dò chữ 'giảm' trong tên món để đoán chiết khấu.
+	"""
+	tc = str(d.get("tchat") or "").strip()
+	if tc:
+		return tc[:-2] if tc.endswith(".0") else tc
+	ten = " ".join(str(d.get("ten") or "").lower().split())
+	ten = "".join(c for c in unicodedata.normalize("NFD", ten) if unicodedata.category(c) != "Mn")
+	if ten == "chiet khau" or ten.startswith("chiet khau thuong mai"):
+		return "3"
+	return tc
+
+
+def dong_hang_hoa(ds):
+	"""Dùng chung cho lần kéo đầu, dựng lại, ghim số và học ánh xạ."""
+	return [d for d in ds if tinh_chat_dong(d) not in ("3", "4")]
 
 
 def nan_dau_dong(sl, gia, thtien=None):
@@ -880,7 +902,7 @@ def dung_hoa_don_mua(r):
 	# ghi số âm, Nghị định 70/2025 cho phép. Xem `nan_dau_dong`.
 	dau = dau_cua_to(r.get("tong_tien"))
 	dong_goc = [dong_tu_hoa_don(it, dau)
-		for it in json.loads(r.get("chi_tiet") or "[]")]
+		for it in dong_hang_hoa(json.loads(r.get("chi_tiet") or "[]"))]
 
 	dong = []
 	for x in dong_goc:
