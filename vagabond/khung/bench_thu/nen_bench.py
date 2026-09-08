@@ -75,7 +75,10 @@ def dung():
 		nam = today()[:4]
 		frappe.get_doc({"doctype": "Fiscal Year", "year": nam, "year_start_date": nam + "-01-01",
 			"year_end_date": nam + "-12-31"}).insert(ignore_permissions=True)
-	# 2. Bốn tài khoản kế toán hàng tặng và VAT (mỗi số đúng một tài khoản VND).
+	# 2. Tài khoản cho cả SI/PKT lịch sử và đường VAT mới, chỉ trên bench thử.
+	_tai_khoan("131", "Phải thu khách hàng", "Current Assets", "Receivable", "Asset")
+	_tai_khoan("5111", "Doanh thu bán hàng", "Income", "Income Account", "Income")
+	_tai_khoan("6428", "Chi phí bằng tiền khác", "Expenses", None, "Expense")
 	_tai_khoan("1331", "Thuế GTGT được khấu trừ", "Current Assets", "Tax", "Asset")
 	_tai_khoan("33311", "Thuế GTGT phải nộp", "Current Liabilities", "Tax", "Liability")
 	_tai_khoan("64181", "Chi phí hàng tặng", "Expenses", None, "Expense")
