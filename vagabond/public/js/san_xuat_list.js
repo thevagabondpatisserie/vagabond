@@ -13,6 +13,7 @@
 				['Đang làm', [['docstatus', '=', 1], ['status', '=', 'In Process']]],
 				['Đã xong', [['docstatus', '=', 1], ['status', '=', 'Completed']]],
 				['Đã dừng', [['status', '=', 'Stopped']]],
+				['Đã đóng', [['status', '=', 'Closed']]],
 				['Đã huỷ', [['docstatus', '=', 2]]]
 			]
 		},

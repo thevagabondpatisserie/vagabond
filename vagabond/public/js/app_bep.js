@@ -5442,6 +5442,7 @@ function mfgInitWh() {
   try {
     if (!mfg.src) mfg.src = localStorage.getItem('vgb_mfg_src') || '';
     if (!mfg.fg) mfg.fg = localStorage.getItem('vgb_mfg_fg') || '';
+    if (mfg.nguon_tay == null) mfg.nguon_tay = localStorage.getItem('vgb_mfg_nguon_tay') === '1' ? 1 : 0;
   } catch (e) { }
   if (S.wh.indexOf(mfg.src) < 0) mfg.src = '';
   if (S.wh.indexOf(mfg.fg) < 0) mfg.fg = '';
@@ -5451,10 +5452,11 @@ function mfgInitWh() {
     if (hopLe.length && hopLe.indexOf(mfg.src) < 0) mfg.src = '';
     if (hopLe.length && hopLe.indexOf(mfg.fg) < 0) mfg.fg = '';
   }
+  if (!mfg.src) mfg.nguon_tay = 0;
   if (!mfg.src) mfg.src = (k && whFind(k, 'nguyên liệu')) || whFind('pastry', 'nguyên liệu') || whFind('nguyên liệu') || S.wh[0] || '';
   if (!mfg.fg) mfg.fg = (k && whFind(k, 'thành phẩm')) || whFind('pastry', 'thành phẩm') || whFind('thành phẩm') || S.wh[0] || '';
 }
-function mfgSaveWh() { try { localStorage.setItem('vgb_mfg_src', mfg.src); localStorage.setItem('vgb_mfg_fg', mfg.fg); } catch (e) { } }
+function mfgSaveWh() { try { localStorage.setItem('vgb_mfg_src', mfg.src); localStorage.setItem('vgb_mfg_fg', mfg.fg); localStorage.setItem('vgb_mfg_nguon_tay', mfg.nguon_tay ? '1' : '0'); } catch (e) { } }
 function mfgShift() { var hh = (new Date()).getHours(); return hh < 12 ? 'Sáng' : (hh < 18 ? 'Chiều' : 'Đêm'); }
 function mfgArea() { var k = mfgKey(); return k === 'baker' ? 'Bếp Baker' : (k === 'pastry' ? 'Bếp Pastry' : (k === 'lab' ? 'Sonneto Lab' : '')); }
 
@@ -5571,7 +5573,7 @@ function mfgNguonCua(row) {
 function mfgWhCard(theoMon) {
   return '<div class="card">' +
     '<div class="fld" data-mw="src"><div class="fi">🧂</div><div class="ft"><div class="fl">Lấy nguyên liệu từ kho</div>' +
-    '<div class="fv">' + h(theoMon && !mfg.nguon_tay ? 'Theo từng Món; chưa khai thì dùng ' + shortWh(mfg.src) : shortWh(mfg.src) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>' +
+    '<div class="fv">' + h(theoMon && !mfg.nguon_tay ? 'Theo từng Món; chưa khai thì dùng ' + shortWh(mfg.src) : (theoMon && mfg.nguon_tay ? 'Kho chung do bạn chọn: ' : '') + (shortWh(mfg.src) || 'Chưa chọn')) + '</div></div><div class="fc">&#8250;</div></div>' +
     (theoMon && mfg.nguon_tay ? '<button class="btn gh" data-kho-theo-mon>Dùng lại kho đã khai trên Món</button>' : '') +
     '<div class="fld" data-mw="fg"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
     '<div class="fv">' + h(shortWh(mfg.fg) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div></div>';
@@ -6171,7 +6173,7 @@ async function scrMfgNew() {
       }
     });
     b.onclick = function (e) {
-      if (e.target.closest('[data-kho-theo-mon]')) { mfg.nguon_tay = 0; return draw(); }
+      if (e.target.closest('[data-kho-theo-mon]')) { mfg.nguon_tay = 0; mfgSaveWh(); return draw(); }
       if (mfgWhTap(e, draw)) return;
       var hz = e.target.closest('[data-hz]');
       if (hz) { mfgN.horizon = +hz.dataset.hz; mfgN.rows = null; return scrMfgNew(); }

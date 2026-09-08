@@ -123,6 +123,7 @@ node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 TZ=Pacific/Kiritimati node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 TZ=Pacific/Pago_Pago node vagabond/khung/kiem_thu/hanh_vi/kiem_banh.js
 # Man tao lenh san xuat (#206, PR #215).
+node vagabond/khung/kiem_thu/hanh_vi/kiem_san_xuat_206.js
 node vagabond/khung/kiem_thu/hanh_vi/chay_san_xuat.js
 
 # Man "Nhan hang" dieu chuyen noi bo. Truoc 06/09/2026 man nay tu chon lo o

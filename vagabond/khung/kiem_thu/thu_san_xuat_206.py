@@ -1,8 +1,6 @@
 """#206: chạy hàm thật với kho giả; không thay cho kiểm Frappe/SLE."""
 from unittest.mock import patch
 from types import SimpleNamespace
-from pathlib import Path
-import subprocess
 
 from vagabond import san_xuat_desktop as sx, kho_san_xuat as ks
 from vagabond.khung.kiem_thu.nen import ca, dung, la, nem
@@ -31,7 +29,6 @@ def _():
 		doc = Doc(production_item='Banh', company='TV', skip_transfer=1)
 		sx.dien_kho_mon(doc)
 		la('nguồn', doc.source_warehouse, 'Pastry')
-		la('bỏ chuyển lấy WIP cùng kho', doc.wip_warehouse, 'Pastry')
 		kiem.assert_called_once_with('Pastry', 'TV')
 		for gia in [Doc(moi=False), Doc(source_warehouse='Chon tay')]:
 			cu = dict(gia)
@@ -68,13 +65,6 @@ def _():
 		nem('không lộ chi tiết', lambda: sx.chi_tiet('WO-CAM'), PermissionError)
 
 
-@ca("206 hành vi chip desktop và chọn kho app chạy JavaScript thật")
-def _():
-	goc = Path(__file__).resolve().parents[3]
-	r = subprocess.run(['node', str(goc / 'kiem_san_xuat_206.js')], cwd=str(goc), capture_output=True, text=True)
-	dung(r.stdout + r.stderr, r.returncode == 0)
-
-
 @ca("206 thay nguyên liệu giữ original_item để ERPNext cộng consumed_qty")
 def _():
 	from contextlib import ExitStack
@@ -105,3 +95,12 @@ def _():
 	la('liên kết mã gốc', doc.items[0].get('original_item'), 'Rum goc')
 	la('không đổi kho', doc.items[0].get('s_warehouse'), 'Pastry')
 	la('lô thực dùng', doc.items[0].get('batch_no'), 'LO-ISC')
+
+
+@ca('206 thiếu Bacardi nhưng ISC ở kho khác thì chỉ đúng đường, không nói hết toàn hệ')
+def _():
+	from vagabond.lo_hang import cau_thieu_lo
+	c = cau_thieu_lo('Bacardi', 'BACARDI', 'Baker', 20, 'ML', [], [('ISC', 'Pastry', 200)])
+	for chu in ['ISC', 'Pastry', '200', 'chuyển nguyên liệu', 'chưa xác nhận lô']:
+		dung(chu, chu in c)
+	dung('không khẳng định hết hệ', 'Cả hệ không còn' not in c)

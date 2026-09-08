@@ -80,8 +80,6 @@ def dien_kho_mon(doc):
 	if kho:
 		kiem_kho(kho, doc.get("company"))
 		doc.source_warehouse = kho
-		if not doc.get("wip_warehouse") and cint(doc.get("skip_transfer")):
-			doc.wip_warehouse = kho
 
 
 @frappe.whitelist()
