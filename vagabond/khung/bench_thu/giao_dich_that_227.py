@@ -105,6 +105,11 @@ def _tra(kich_ban):
 		return _PhanHoi({"code": "99", "ok": False, "message": "Loi khac"})
 	if kich_ban == "trung":
 		return _PhanHoi({"code": "296", "ok": False, "message": "Hoa don da ton tai"})
+	if kich_ban == "296_co_so":
+		# Mẫu giả Codex nêu 08/09 để kiểm độ bền, không phải phản hồi thật.
+		return _PhanHoi({"code": "296", "ok": False, "message": "Create invoice fail", "data": {"inv_invoiceNumber": "123"}})
+	if kich_ban == "296_data_list":
+		return _PhanHoi({"code": "296", "data": [{"inv_invoiceAuth_id": "DA-TAO"}]})
 	raise ValueError(kich_ban)
 
 
@@ -193,7 +198,7 @@ def _duong_python():
 		_ghi("PY3 thử lại: KHÔNG gọi Save", gia.so_save, 2)
 		_ghi("PY3 thử lại: cờ vẫn 1", _trang_thai(si)["co"], 1)
 		# 4. Mã lạ và trùng cũng giữ cờ (qua mo_lai trước để gửi được).
-		for kb_ in ("ma_la", "trung"):
+		for kb_ in ("ma_la", "trung", "296_co_so", "296_data_list"):
 			_request(at.mo_lai, si, "Kế toán đã kiểm theo mã phiếu, chưa có hoá đơn bên M-Invoice", 1)
 			_ghi("PY4 mở lại trước " + kb_, _trang_thai(si)["co"], 0)
 			gia.kich_ban = kb_
@@ -267,11 +272,18 @@ def _duong_script():
 			return _tra(kich_ban["save"]).than
 		raise RuntimeError("URL lạ " + url)
 
+	trang_day = [{"id": "ID-%d" % i, "display_id": 1000 + i, "note_print": ""} for i in range(50)]
+	che_do_pancake = {"day": False}
+
 	def get_gia(url, headers=None, params=None, **kw):
 		dem["pancake"].append((url.rsplit("/", 1)[1], dict(params or {})))
 		if url.endswith("/orders/ID-227"):
 			return {"data": don_dung}
 		if url.endswith("/orders"):
+			if che_do_pancake["day"]:
+				# Mọi trang đều đầy 50; trang 1 có 227 (ID-A). Chưa chứng minh hết kết quả.
+				so = int((params or {}).get("page_number") or 1)
+				return {"data": ([dict(don_dung, id="ID-A")] + trang_day[:49]) if so == 1 else trang_day}
 			return {"data": [don_khac, don_dung]}
 		return {}
 
@@ -279,6 +291,7 @@ def _duong_script():
 	iu.make_post_request, iu.make_get_request = post_gia, get_gia
 	si = _si("227", "ID-227", ten="", mst="")
 	si2 = _si("227", "", ten="", mst="")
+	si3 = _si("227", "", ten="", mst="")
 
 	def chay_script(phieu):
 		frappe.local.form_dict = frappe._dict({"phieu": phieu, "che_do": "day"})
@@ -331,9 +344,20 @@ def _duong_script():
 		_ghi("SS5 không ID: 1227 đứng trước vẫn chọn 227", r2[0], "0311234567")
 		_ghi("SS5 không ID: email đúng đơn", r2[1], "dung@example.com")
 		_ghi("SS5 không ID: phát hành được", ra.get("tao_ok"), 1)
+		# 5. Codex 08/09: trang 1 có 227 nhưng 5 trang đều đầy: không kết luận, không ghi, không Save.
+		dem["pancake"] = []
+		che_do_pancake["day"] = True
+		so = dem["save"]
+		ra, loi = _request(chay_script, si3)
+		r3 = _doc_rieng("select vgb_xhd_ten, vgb_xhd_mst, vgb_xhd_email, vgb_hddt_cho_doi_chieu from `tabSales Invoice` where name=%s", (si3,))[0]
+		_ghi("SS6 trang 5 vẫn đầy: đã duyệt đúng 5 trang", len(dem["pancake"]), 5)
+		_ghi("SS6 trang 5 vẫn đầy: không ghi người mua", (r3[0] or "", r3[1] or "", r3[2] or ""), ("", "", ""))
+		_ghi("SS6 trang 5 vẫn đầy: báo chưa hết kết quả", any("chưa hết kết quả" in x for x in ra.get("loi", [])), True)
+		_ghi("SS6 trang 5 vẫn đầy: không gọi Save", dem["save"], so)
+		_ghi("SS6 trang 5 vẫn đầy: không giữ cờ (chưa tới bước gửi)", int(r3[3] or 0), 0)
 	finally:
 		iu.make_post_request, iu.make_get_request = goc_post, goc_get
-		_don_dep([si, si2])
+		_don_dep([si, si2, si3])
 
 
 # ---------------------------------------------------------------- migrate
