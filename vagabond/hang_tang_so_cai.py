@@ -31,6 +31,14 @@ def kiem_thue_gui(si, goi):
 	"""Không để đổi cấu hình thuế sau ghi sổ làm VAT trên tờ khác sổ cái."""
 	if not si.get("vgb_tang_so_cai"):
 		return
+	if si.get("vgb_thue_vnd"):
+		from vagabond.thue_vnd import chuan_tien
+		import copy
+		chuan = copy.deepcopy(goi)
+		chuan_tien(si, chuan)
+		if chuan != goi or float(goi.get("inv_vatAmount") or 0) != float(si.get("vgb_tang_tien_thue")):
+			raise ValueError("VAT hàng tặng khác số đã ghi sổ. Kế toán đối chiếu trước khi phát hành.")
+		return
 	chia = chia_thue(si.get("grand_total"), si.get("items"), si.get("vgb_tang_thue_suat"))
 	dong = [d for nhom in goi.get("details") or [] for d in nhom.get("data") or []]
 	if (len(dong) != len(chia) or any(
@@ -97,7 +105,13 @@ def truoc_khi_ghi_so(doc, method=None):
 	ts = frappe.get_single("MInvoice Phat Hanh Settings").get("thue_suat")
 	ts = flt(ts or 8)
 	try:
-		chia = chia_thue(doc.grand_total, doc.items, ts)
+		if doc.get("vgb_thue_vnd"):
+			from vagabond.thue_vnd import doc_dong
+			dong = doc_dong(doc)
+			chia = [(d["net"], d["vat"], d["gross"]) for d in dong]
+			ts = dong[0]["rate"] if len({d["rate"] for d in dong}) == 1 else None
+		else:
+			chia = chia_thue(doc.grand_total, doc.items, ts)
 	except ValueError as loi:
 		frappe.throw(str(loi))
 	doc.cost_center = doc.cost_center or frappe.get_cached_value("Company", doc.company, "cost_center")

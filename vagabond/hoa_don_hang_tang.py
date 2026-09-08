@@ -10,6 +10,14 @@ from frappe.utils import flt
 
 
 class HoaDonHangTang(SalesInvoice):
+	def calculate_taxes_and_totals(self):
+		from vagabond.hoa_don_thue_vnd import ap_dung, tinh
+		if ap_dung(self):
+			return tinh(self)
+		if self.get("docstatus") == 0 or getattr(self, "_action", None) == "submit":
+			self.vgb_thue_vnd = 0
+		return super().calculate_taxes_and_totals()
+
 	def get_gl_entries(self, inventory_account_map=None):
 		if not self.get("vgb_tang_so_cai"):
 			return super().get_gl_entries(inventory_account_map)

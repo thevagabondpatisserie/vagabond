@@ -57,12 +57,14 @@ def nguoi_mua(si):
 
 
 def chuan_goi(si, goi):
-	"""Giữ phép tính giá/thuế của đường gọi, chốt người mua và ghi chú cuối."""
+	"""Phiếu VND mới đọc tiền đã lưu; phiếu cũ giữ nguyên cách xuất."""
 	ra = copy.deepcopy(goi)
 	if len(ra.get("data") or []) != 1:
 		raise ValueError("Mỗi lần xuất phải chỉ có một hoá đơn để kiểm đúng người mua.")
 	dd = ra["data"][0]
 	dd.update(nguoi_mua(si))
+	from vagabond.thue_vnd import chuan_tien
+	chuan_tien(si, dd)
 	# Hai cửa dùng chung mã SI, tránh đơn quầy trống mã hoặc mã Pancake trùng.
 	dd["key_api"] = si.get("name")
 	if la_hang_tang(si):
