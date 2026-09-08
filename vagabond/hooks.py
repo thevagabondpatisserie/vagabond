@@ -56,7 +56,7 @@ doctype_js = {
 	"Item": "public/js/san_xuat_mon.js",
 	"Work Order": "public/js/san_xuat_lenh.js",
 	"Purchase Order": "public/js/purchase_order.js",
-	"Sales Invoice": "public/js/minvoice_phieu.js",
+	"Sales Invoice": ["public/js/minvoice_phieu.js", "public/js/sua_pkt_tang.js"],
 	"Purchase Invoice": "public/js/purchase_invoice.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong

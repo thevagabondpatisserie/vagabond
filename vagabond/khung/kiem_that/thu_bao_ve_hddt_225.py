@@ -50,6 +50,7 @@ def _cap_cu():
 	from unittest.mock import patch
 	from vagabond.khung.kiem_that import nen
 	hd = _hoa_don(False)
+	hd.cost_center = hd.cost_center or frappe.get_cached_value("Company", hd.company, "cost_center")
 	hd.items[0].rate = 10420000
 	hd.save()
 	tk = {}
@@ -66,7 +67,7 @@ def _cap_cu():
 			d = {"account": tk[ma], "debit": no, "credit": co,
 				"debit_in_account_currency": no, "credit_in_account_currency": co,
 				"debit_in_transaction_currency": no, "credit_in_transaction_currency": co,
-				"cost_center": self.cost_center}
+				"cost_center": self.cost_center or frappe.get_cached_value("Company", self.company, "cost_center")}
 			if ma == "131":
 				d.update(party_type="Customer", party=self.customer,
 					against_voucher_type="Sales Invoice", against_voucher=self.name)

@@ -39,6 +39,7 @@ CUA_NGO = {
 	# Them 23/08/2026 cung lan dua Web Page va Mau in ra git. `soi_lech` chi
 	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
 	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
+	"cong_cu_tang_cu.py": ["xem", "thay"],
 	"mau_in/__init__.py": ["soi_lech"],
 	# Them 26/08/2026 cung lan dua phan he Cau hinh mau in an ra man Cai dat.
 	# Ba ham deu la cua man hinh. `het`, `theo_diem` va nhom ham thuan
