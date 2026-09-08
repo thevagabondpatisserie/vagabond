@@ -147,3 +147,5 @@ echo " Cong muoi cong doan o day chi chay PHEP THUAN. Ngay 21/08/2026 no"
 echo " tra ve 0 trong khi ca tiem khong nhap kho duoc, vi ERPNext tu choi"
 echo " cai ma minh dinh vao dong so cai. Chi bo kiem tich hop hoi duoc cau"
 echo " do. Doc AGENTS.md muc 6."
+
+node vagabond/khung/kiem_thu/hanh_vi/van_don_237.js
