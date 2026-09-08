@@ -30,3 +30,17 @@ Migration sinh script từ snapshot, nhận thêm đúng hash v449 hiện đã d
 Làm tròn SI VND, thuế suất từng dòng và thống nhất ba builder chưa được sửa trong PR này. Giá vốn cả năm tờ tặng chờ kế toán chốt, không tự ghi Nợ64181/Có155 khi chưa có căn cứ kho.
 
 Đối với thuế: core ERPNext de59166 giữ item_wise_tax_details theo item_row/tax_row (không theo item_code). Chỉ đặt precision0 vẫn có thể sinh grand_total_diff ở thuế bao gồm giá; không được coi đổi precision là đủ. Cần kiểm tổng gross, net, VAT, chiết khấu và GL đồng thời, giữ chứng từ cũ và precision của Journal Entry.
+
+## Sửa finding deploy vòng1
+
+Claude đã tái hiện migrate có dong_bo_cau_truc #v454 nhưng script vẫn v449.
+Đã bổ sung patch minvoice_v454.py và đăng ký vào patches.txt. Patch gọi trực tiếp
+minvoice_kich_ban.dong_bo, không nuốt lỗi script lạ. Ca thuần mô phỏng Patch Log
+đã chạy hết các bản cũ, kiểm patch mới thực sự gọi đồng bộ đúng một lần.
+Gate sau sửa: 2.650 ca đạt. Đây chưa thay thế bằng chứng migrate thật.
+
+Claude chạy lại từ script v449 và Patch Log cũ, migrate bình thường, không gọi
+dong_bo bằng tay để làm xanh ca kiểm. Đối chiếu hash cả hai script với ban_moi,
+doi_chieu phải trả moi; migrate lần hai không đổi hash. Thử script lạ phải dừng
+patch và không ghi Patch Log thành công cho minvoice_v454. Sau đó chạy lại ca
+safe_exec nguồn như vòng1. Chỉ có mốc dong_bo_cau_truc #v454 là chưa đủ.

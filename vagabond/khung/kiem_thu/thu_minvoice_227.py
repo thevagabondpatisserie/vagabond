@@ -535,3 +535,31 @@ def _xuat_nguon_khac():
 		la("Save giả lập đúng một lần", len(gui), 1)
 		la("giữ người mua", gui[0]["data"][0]["inv_buyerEmail"], "dung@example.com")
 		la("không lỗi nạp", f.response["message"]["loi"], [])
+
+
+@ca("#236: Patch Log đã có các bản cũ vẫn chạy đồng bộ script v454 đúng một lần")
+def _migrate_v454():
+	import importlib
+	from unittest.mock import patch
+	cac_patch = [s.strip() for s in (Path(__file__).resolve().parents[2] / 'patches.txt').read_text().splitlines()
+		if s.strip().startswith('vagabond.patches.minvoice_')]
+	moi = 'vagabond.patches.minvoice_v454'
+	la('patch mới được đăng ký đúng một lần', cac_patch.count(moi), 1)
+	# Mô phỏng site đã ghi Patch Log tất cả các bản cũ. Nếu chỉ đổi APPVER
+	# hoặc dong_bo_cau_truc, hàm cập nhật script không được gọi và ca này đỏ.
+	da_chay = set(cac_patch) - {moi}
+	goi = []
+	with patch.object(kb, 'dong_bo', lambda: goi.append('dong_bo')):
+		for _ in range(2):
+			for ten in cac_patch:
+				if ten not in da_chay:
+					importlib.import_module(ten).execute()
+					da_chay.add(ten)
+	la('migrate gọi đồng bộ đúng một lần', goi, ['dong_bo'])
+	with patch.object(kb, 'dong_bo', side_effect=ValueError('script lạ')):
+		try:
+			importlib.import_module(moi).execute()
+		except ValueError:
+			pass
+		else:
+			dung('patch không được nuốt lỗi rồi coi migrate đạt', False)
