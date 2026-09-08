@@ -333,3 +333,30 @@ bản 39a47f8 được nhận diện qua `BAM_BAN_CU` (sha256 bản nạp cũ 98
 rồi vá lên bản mới; site chưa migrate thì v447 và v448 cùng ra một bản.
 Kịch bản D trên bench: đặt script nạp về bản v447 cũ, xoá Patch Log v448,
 migrate rc 0, script lên bản mới (sha 81fb0f8b), không dừng.
+
+## v449, 08/09/2026: lỗi phát hiện trên site ngay sau deploy v448
+
+Đo bằng System Console trên site (chỉ đọc Pancake): `GET /orders/93310`
+trả `data.id = 93310`, `display_id = null`; tìm kiếm `search=93310` trả
+10 kết quả đều `display_id = null`, kèm `total_pages`, `total_entries`.
+Tức Pancake của tiệm không trả display_id, mã đơn chính là id (đúng như
+lúc đồng bộ đơn về: `did = display_id or id`). Cả v446 lẫn v448 đối chiếu
+`display_id` nên trên site nạp báo "Không tìm được duy nhất đơn Pancake"
+với mọi đơn (đã tái hiện trên HDB-26-09-01281, không ghi gì). Hệ quả nếu
+để nguyên: lượt 23h30 bỏ qua toàn bộ đơn còn sót, không phát hành nhầm,
+không sửa dữ liệu. Đường xuất ngay khi ghi sổ không qua nạp nên không ảnh
+hưởng.
+
+Sửa (v449, patch `minvoice_v449`): mã đơn đối chiếu là `display_id or id`
+ở cả đường tra theo ID (vẫn bắt `id == custom_pancake_id`) lẫn đường tìm
+kiếm; dấu hết kết quả là `total_pages` Pancake trả về (đã đo có), không có
+thì trang ngắn hơn 50. `BAM_BAN_CU` nhận cả hai bản v448 đang chạy trên
+site. Ca kiểm mới: có ID thật không display_id (nạp được), lệch id (không
+nạp), không ID với dữ liệu thật (1227 trước 227), total_pages 5 (hết, nạp)
+và total_pages 6 (chưa hết, không ghi). Đột biến: về lại display_id -> 1 ca
+đỏ; bỏ total_pages -> 1 ca đỏ. Bench: script đặt về bản v448 thật rồi
+migrate v449: rc 0, hai script lên bản mới (nạp ba7e29e2, phát hành
+44d7dfaf); giao_dich_that với dữ liệu Pancake đúng thực tế 54/54.
+
+Bài học: fixture bench và ca kiểm dựng theo tài liệu Pancake chung, không
+theo phản hồi thật của shop; phải đo phản hồi thật trước khi viết bộ lọc.
