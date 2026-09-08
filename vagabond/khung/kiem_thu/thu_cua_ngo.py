@@ -455,7 +455,7 @@ CUA_NGO = {
 	# van_don.py la mo dun to nhat trong ba: 32 cua, gom ca duong shipper
 	# bam va duong webhook cua Aha goi vao.
 	"van_don.py": [
-		"aha_bao_gia", "aha_dich_vu", "aha_webhook",
+		"aha_bao_gia", "aha_dich_vu", "aha_webhook", "luu_phi_book",
 		"bo_loc", "book_xe", "canh_bao_thanh_toan",
 		"chi_phi_danh_sach", "chi_phi_xuat_excel",
 		"chuyen_cua_toi", "chuyen_dang_chay",
