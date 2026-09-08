@@ -22,6 +22,14 @@ TEN_NAP = "VGB - Nap thong tin xuat hoa don tu Pancake"
 MOC_V446 = "# VGB-227: kiểm đúng đơn và người nhận"
 MOC = "# VGB-227 v447: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
 
+# sha256 các bản vá cũ đã từng chạy trên bench (không còn hàm sinh, giữ mã băm
+# để migrate nhận ra và vá lên bản mới thay vì dừng). Bản v447 lần đầu (đầu
+# nhánh 39a47f8): nạp chưa có kiểm hết kết quả phân trang; phát hành giống hiện tại.
+BAM_BAN_CU = {
+	"nap": {"986a3b5d4471e6140dea1cdeb66d2f9ca099f1f1fb2d58dafb69abc61babbed6": "v447_39a47f8"},
+	"phat_hanh": {},
+}
+
 # Snapshot đọc từ Desk ngày 07/09/2026, đối chiếu FNV-1a với clipboard gốc
 # (nạp 6470 ký tự / 471469736, phát hành 9865 ký tự / 511990956).
 FNV_GOC = {"nap": (6470, 471469736), "phat_hanh": (9865, 511990956)}
@@ -117,9 +125,12 @@ TRANG_TOI_DA = 5
 CO_TRANG = 50
 
 DOAN_TIM_PANCAKE = """        # #227 v447: không lấy kết quả tìm đầu tiên. Có ID Pancake thì tra đúng
-        # đơn theo ID rồi đối chiếu mã đơn; không có ID thì duyệt hết các trang
-        # tìm kiếm (tối đa %d trang x %d) và chỉ nhận khi đúng MỘT đơn khớp mã.
+        # đơn theo ID rồi đối chiếu mã đơn; không có ID thì duyệt các trang tìm
+        # kiếm (tối đa %d trang x %d). Chỉ kết luận "đúng MỘT đơn" khi đã đọc
+        # HẾT kết quả (gặp trang ngắn hơn %d). Chạm trần mà trang cuối vẫn đầy
+        # thì chưa chứng minh được hết, không nạp, báo kế toán kiểm liên kết.
         khop = []
+        het_ket_qua = False
         pid = str(si.get('custom_pancake_id') or '').strip()
         so_dh_c = so_dh.strip()
         if pid:
@@ -127,6 +138,7 @@ DOAN_TIM_PANCAKE = """        # #227 v447: không lấy kết quả tìm đầu 
             d1 = (r or {}).get('data') or {}
             if isinstance(d1, dict) and str(d1.get('display_id') or '').strip() == so_dh_c and str(d1.get('id') or '') == pid:
                 khop.append(d1)
+            het_ket_qua = True
         else:
             trang = 1
             while trang <= %d:
@@ -136,9 +148,13 @@ DOAN_TIM_PANCAKE = """        # #227 v447: không lấy kết quả tìm đầu 
                     if str(d1.get('display_id') or '').strip() == so_dh_c:
                         khop.append(d1)
                 if len(ds_r) < %d:
+                    het_ket_qua = True
                     break
                 trang = trang + 1
-        dd = khop[0] if len(khop) == 1 else None""" % (TRANG_TOI_DA, CO_TRANG, TRANG_TOI_DA, CO_TRANG, CO_TRANG)
+        dd = khop[0] if (het_ket_qua and len(khop) == 1) else None
+        if not dd and not het_ket_qua:
+            loi.append(si.name + ': Tìm kiếm Pancake vượt %d trang mà chưa hết kết quả, không xác định được đơn duy nhất. Gắn ID Pancake cho phiếu hoặc kiểm liên kết đơn trước khi xuất.')
+            continue""" % (TRANG_TOI_DA, CO_TRANG, CO_TRANG, TRANG_TOI_DA, CO_TRANG, CO_TRANG, TRANG_TOI_DA)
 
 
 def sua_nap(ma):
@@ -271,11 +287,12 @@ def ban_moi(loai):
 
 
 def doi_chieu(loai, hien_tai):
-	"""Trả ("goc" | "v446" | "moi" | None) theo sha256 của bản đang nằm trên site."""
+	"""Trả ("goc" | "v446" | tên bản cũ | "moi" | None) theo sha256 của bản trên site."""
 	goc = ban_goc(loai)
 	for _ten, l, cu, sua in BO:
 		if l == loai:
-			bang = {bam(goc): "goc", bam(cu(goc)): "v446", bam(sua(goc)): "moi"}
+			bang = dict(BAM_BAN_CU.get(loai, {}))
+			bang.update({bam(goc): "goc", bam(cu(goc)): "v446", bam(sua(goc)): "moi"})
 			return bang.get(bam(hien_tai or ""))
 	return None
 
@@ -294,7 +311,7 @@ def dong_bo():
 		except ValueError as loi:
 			frappe.throw(str(loi))
 		if nhan is None:
-			frappe.throw("Kịch bản %s trên site (sha256 %s, %s ký tự) khác cả bản gốc snapshot 07/09, bản vá v446 và bản vá hiện tại. Dừng migrate, không ghi đè; Claude đối chiếu khác biệt trước." % (ten, bam(doc.script)[:16], len(doc.script or "")))
+			frappe.throw("Kịch bản %s trên site (sha256 %s, %s ký tự) khác cả bản gốc snapshot 07/09, các bản vá cũ đã biết và bản vá hiện tại. Dừng migrate, không ghi đè; Claude đối chiếu khác biệt trước." % (ten, bam(doc.script)[:16], len(doc.script or "")))
 		moi.append((doc, ma))
 	for doc, ma in moi:
 		if doc.script != ma:

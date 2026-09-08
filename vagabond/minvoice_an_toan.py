@@ -93,16 +93,65 @@ def chuan_goi(si, goi):
 MA_TAO = "00"
 MA_TU_CHOI_RO = {"296"}
 DAU_HIEU_TRUNG = ("tồn tại", "ton tai", "trùng", "trung", "exist", "duplicate", "đã có", "da co")
+# Khoá chỉ được phép có trong một phản hồi từ chối đã xác minh. Thêm khoá lạ,
+# hay data mang bất kỳ nội dung nào, là ngoài mẫu và phải giữ đối chiếu.
+KHOA_TU_CHOI = {"code", "message", "ok", "data"}
+# Dấu vết chứng từ: xuất hiện ở bất kỳ tầng nào của phản hồi thì không mở khoá.
+DAU_VET_CHUNG_TU = ("inv_invoiceauth_id", "inv_invoicenumber", "sobaomat", "key_api", "inv_invoiceseries", "tthai", "trang_thai")
+
+
+def _co_dau_vet(o, sau=0):
+	"""Tìm khoá chứng từ trong dict/list lồng nhau (tối đa 6 tầng)."""
+	if sau > 6:
+		return True
+	if isinstance(o, dict):
+		for k, v in o.items():
+			if str(k).strip().lower() in DAU_VET_CHUNG_TU and v not in (None, "", 0):
+				return True
+			if _co_dau_vet(v, sau + 1):
+				return True
+	elif isinstance(o, (list, tuple)):
+		for v in o:
+			if _co_dau_vet(v, sau + 1):
+				return True
+	return False
+
+
+def _dung_mau_tu_choi(phan_hoi):
+	"""Toàn bộ cấu trúc phải khớp mẫu từ chối đã thấy thật (12/08/2026, mã 296):
+	chỉ các khoá code/message/ok/data; ok là False hoặc vắng; data vắng hoặc
+	null; không có dấu vết chứng từ ở bất kỳ đâu; message là chuỗi và không
+	nói trùng/đã tồn tại. Không thêm mã vào MA_TU_CHOI_RO khi chưa có phản
+	hồi thật kèm bằng chứng bên M-Invoice không sinh tờ."""
+	if set(phan_hoi) - KHOA_TU_CHOI:
+		return False
+	if chuoi(phan_hoi.get("code")) not in MA_TU_CHOI_RO:
+		return False
+	if phan_hoi.get("ok") not in (None, False):
+		return False
+	# Mẫu thật 12/08/2026 chỉ có code và message; data phải vắng hoặc null.
+	# Rỗng kiểu [] hay {} cũng là "có data", tức khác mẫu, giữ đối chiếu.
+	if phan_hoi.get("data") is not None:
+		return False
+	thong_diep = phan_hoi.get("message")
+	if thong_diep is not None and not isinstance(thong_diep, str):
+		return False
+	if any(d in chuoi(thong_diep).lower() for d in DAU_HIEU_TRUNG):
+		return False
+	if _co_dau_vet(phan_hoi):
+		return False
+	return True
 
 
 def phan_loai_phan_hoi_thuan(phan_hoi, loi=None):
 	"""Một nguồn duy nhất cho Python và Server Script.
 
 	Trả {"loai": "tao" | "tu_choi" | "khong_ro", "cau": ..., "id": ...}.
-	  tao      : có mã 00 và có inv_invoiceAuth_id, ghi ID và gỡ cờ.
-	  tu_choi  : M-Invoice từ chối bằng mã đã biết, không kèm ID và không nói
-	             trùng. Gỡ cờ để kế toán sửa rồi gửi lại.
-	  khong_ro : mọi trường hợp còn lại. Giữ cờ, kế toán đối chiếu theo mã phiếu.
+	  tao      : mã 00 và data là dict có inv_invoiceAuth_id, ghi ID và gỡ cờ.
+	  tu_choi  : toàn bộ phản hồi khớp mẫu từ chối đã xác minh (_dung_mau_tu_choi).
+	             Gỡ cờ để kế toán sửa rồi gửi lại.
+	  khong_ro : mọi trường hợp còn lại, kể cả data sai cấu trúc hay có dấu vết
+	             số/ID hoá đơn ở bất kỳ tầng nào. Giữ cờ, kế toán đối chiếu.
 	"""
 	if loi is not None:
 		return {"loai": "khong_ro", "cau": "Không rõ kết quả gửi (" + chuoi(loi)[:150] + ")", "id": ""}
@@ -111,18 +160,20 @@ def phan_loai_phan_hoi_thuan(phan_hoi, loi=None):
 	ma = chuoi(phan_hoi.get("code"))
 	du_lieu = phan_hoi.get("data")
 	ma_hd = chuoi(du_lieu.get("inv_invoiceAuth_id")) if isinstance(du_lieu, dict) else ""
-	thong_diep = chuoi(phan_hoi.get("message"))
+	thong_diep = chuoi(phan_hoi.get("message")) if isinstance(phan_hoi.get("message"), str) else chuoi(phan_hoi.get("message"))[:150]
+	tom = (ma + " " + thong_diep).strip()[:150]
 	if ma == MA_TAO and ma_hd:
 		return {"loai": "tao", "cau": "Đã tạo hoá đơn " + ma_hd, "id": ma_hd}
-	if ma_hd:
-		return {"loai": "khong_ro", "cau": "Mã " + ma + " nhưng có ID " + ma_hd + ", giữ đối chiếu", "id": ma_hd}
+	if _co_dau_vet(phan_hoi):
+		return {"loai": "khong_ro", "cau": "Mã " + (ma or "?") + " nhưng phản hồi mang dấu vết chứng từ" + (" " + ma_hd if ma_hd else "") + ", giữ đối chiếu", "id": ma_hd}
 	if ma == MA_TAO:
 		return {"loai": "khong_ro", "cau": "Mã 00 nhưng thiếu dữ liệu hoá đơn, giữ đối chiếu", "id": ""}
-	tom = (ma + " " + thong_diep).strip()[:150]
 	if any(d in thong_diep.lower() for d in DAU_HIEU_TRUNG):
 		return {"loai": "khong_ro", "cau": "M-Invoice báo trùng/đã tồn tại: " + tom, "id": ""}
-	if ma in MA_TU_CHOI_RO and phan_hoi.get("ok") is not True:
+	if _dung_mau_tu_choi(phan_hoi):
 		return {"loai": "tu_choi", "cau": "M-Invoice từ chối: " + tom, "id": ""}
+	if ma in MA_TU_CHOI_RO:
+		return {"loai": "khong_ro", "cau": "Mã " + ma + " nhưng phản hồi khác mẫu từ chối đã xác minh, giữ đối chiếu", "id": ""}
 	if not ma:
 		return {"loai": "khong_ro", "cau": "Phản hồi không có mã: " + chuoi(phan_hoi)[:150], "id": ""}
 	return {"loai": "khong_ro", "cau": "Mã chưa rõ " + tom + ", giữ đối chiếu", "id": ""}
