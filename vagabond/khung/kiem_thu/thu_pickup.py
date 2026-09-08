@@ -297,7 +297,7 @@ def _nut_hoan_tat():
 	dung("trang thai moi co mau", "'Chờ khách lấy': '#7c3aed'" in JS)
 	dung("trang thai moi co icon", "'Chờ khách lấy': '🏬'" in JS)
 	dung("nut hoan tat mo cho don pickup", "d.trang_thai === VD_TT_PICKUP" in JS)
-	dung("chu tren nut noi dung viec", "Khách đã lấy, chụp ảnh" in JS)
+	dung("chu tren nut noi dung viec", "Khách đã lấy" in JS)
 	# Nut book xe PHAI con, va noi ro cho ra dau.
 	dung("khong giau nut book xe", "!d.booking_id && !laPickup" not in JS)
 	dung("nut book noi ro cho ra dau", "Book xe chở ra" in JS)
