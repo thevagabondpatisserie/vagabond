@@ -277,6 +277,20 @@ def _phan_loai():
 		([{"code": "00"}], None, "khong_ro", ""),
 		({"code": "00", "ok": True, "data": {"inv_invoiceAuth_id": "A3"}}, TimeoutError("timeout"), "khong_ro", ""),
 		(None, "Read timed out", "khong_ro", ""),
+		# Codex tái hiện 08/09 (mẫu giả để kiểm độ bền, KHÔNG phải phản hồi thật):
+		# data sai cấu trúc hoặc mang dấu vết chứng từ thì không được mở khoá.
+		({"code": "296", "data": [{"inv_invoiceAuth_id": "DA-TAO"}]}, None, "khong_ro", ""),
+		({"code": "296", "data": {"inv_invoiceNumber": "123"}}, None, "khong_ro", ""),
+		({"code": "296", "data": {"sobaomat": "AB12"}}, None, "khong_ro", ""),
+		({"code": "296", "data": [[{"key_api": "SI-1"}]]}, None, "khong_ro", ""),
+		({"code": "296", "data": {}}, None, "khong_ro", ""),
+		({"code": "296", "data": []}, None, "khong_ro", ""),
+		({"code": "296", "data": "x"}, None, "khong_ro", ""),
+		({"code": "296", "ok": False, "message": "Create invoice fail", "them": 1}, None, "khong_ro", ""),
+		({"code": "296", "ok": True, "message": "Create invoice fail"}, None, "khong_ro", ""),
+		({"code": "296", "message": {"inv_invoiceNumber": 5}}, None, "khong_ro", ""),
+		({"code": "296", "message": ["Create invoice fail"]}, None, "khong_ro", ""),
+		({"code": "296", "ok": False, "message": "Create invoice fail", "data": None}, None, "tu_choi", ""),
 	)
 	for ph, loi, mong, ma_hd in bang:
 		kq = at.phan_loai_phan_hoi_thuan(ph, loi)
@@ -286,6 +300,7 @@ def _phan_loai():
 	la("cửa whitelist nhận chuỗi JSON", at.phan_loai_phan_hoi('{"code": "296"}')["loai"], "tu_choi")
 	la("cửa whitelist nhận dict", at.phan_loai_phan_hoi({"code": "00", "data": {"inv_invoiceAuth_id": "A"}})["loai"], "tao")
 	la("cửa whitelist nhận chuỗi hỏng", at.phan_loai_phan_hoi("khong phai json")["loai"], "khong_ro")
+	la("bảng mã từ chối vẫn chỉ có 296 (không thêm khi chưa có phản hồi thật)", at.MA_TU_CHOI_RO, {"296"})
 
 
 @ca("#227 v447: kịch bản nạp không giới hạn một kết quả, đối chiếu mã đơn và ID, có phân trang")
@@ -300,6 +315,11 @@ def _nap_khong_gioi_han():
 		("khong_id_khong_thay", [[don(1227), don(2227)]], None, None, True),
 		("khong_id_trung_ma", [[don(227, "ID-A"), don(227, "ID-B")]], None, None, True),
 		("khong_id_qua_5_trang", [trang_day] * 6, None, None, True),
+		# Codex tái hiện 08/09: trang 1 có A/227, trang 6 có B/227, các trang đều đầy.
+		# Chưa đọc hết thì không được kết luận duy nhất, không ghi người mua.
+		("khong_id_khop_trang_1_nhung_trang_5_day", [[don(227, "ID-A")] + trang_day[:49]] + [trang_day] * 4 + [[don(227, "ID-B", "Tên công ty: Công ty B %s\nMST: 0399999999\nEmail: b%s@example.com")]], None, None, True),
+		("khong_id_khop_trang_1_trang_5_ngan", [[don(227, "ID-A")] + trang_day[:49]] + [trang_day] * 3 + [trang_day[:10]], None, "227@example.com", False),
+		("khong_id_khop_trang_5_ngan", [trang_day] * 4 + [[don(227)]], None, "227@example.com", False),
 		("co_id", [[don(1227)]], don(227), "227@example.com", False),
 		("co_id_lech_ma", [[don(227)]], don(1227, "ID-227"), None, True),
 		("co_id_khong_co", [[don(227)]], {}, None, True),
@@ -323,6 +343,9 @@ def _nap_khong_gioi_han():
 		else:
 			dung("không ID thì tìm theo trang 50 " + ten, all(g[1].get("page_size") == 50 and g[1].get("search") == "227" for g in goi))
 			la("số trang đã duyệt " + ten, len(goi), min(len(cac_trang), 5) if ten != "khong_id" else 1)
+			if "trang_5_day" in ten or "qua_5_trang" in ten:
+				dung("chạm trần phân trang thì nói rõ chưa hết kết quả " + ten, any("chưa hết kết quả" in x for x in f.response["message"]["loi"]))
+				la("không ghi tên/MST người mua " + ten, (si.get("vgb_xhd_ten"), si.get("vgb_xhd_mst")), (None, None))
 
 
 @ca("#227 v447: snapshot đối chiếu bằng độ dài và FNV, vá luôn từ bản gốc, sha256 nhận đúng ba bản")
@@ -337,6 +360,8 @@ def _snapshot_va_doi_chieu():
 		la("nhận bản vá hiện tại", kb.doi_chieu(loai, moi), "moi")
 		la("bản khác dù cùng độ dài thì không nhận", kb.doi_chieu(loai, goc[:-1] + ("x" if goc[-1] != "x" else "y")), None)
 		la("bản có mốc cũ nhưng sửa thêm thì không nhận", kb.doi_chieu(loai, cu + "\n# sua tay"), None)
+		for ma_bam, nhan in kb.BAM_BAN_CU.get(loai, {}).items():
+			dung("mã băm bản cũ đúng dạng sha256 " + nhan, len(ma_bam) == 64 and ma_bam != kb.bam(moi))
 		dung("bản mới khác bản v446", moi != cu)
 		dung("bản mới mang mốc v447", moi.startswith(kb.MOC))
 		dung("bản v446 không chứa sửa mới", "phan_loai_phan_hoi" not in cu if loai == "phat_hanh" else "page_number" not in cu)
