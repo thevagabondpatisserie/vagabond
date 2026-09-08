@@ -53,6 +53,7 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
 doctype_js = {
+	"Stock Entry": "public/js/san_xuat_phieu.js",
 	"Item": "public/js/san_xuat_mon.js",
 	"Work Order": "public/js/san_xuat_lenh.js",
 	"Purchase Order": "public/js/purchase_order.js",
@@ -359,17 +360,25 @@ doc_events = {
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 	"Stock Entry": {
 		"before_validate": [
+			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
 			"vagabond.lo_hang.gan_lo",
 		],
 		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
 		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.
-		"before_submit": "vagabond.kiem_ke.chan_khi_dang_kiem",
+		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.kiem_ke.chan_khi_dang_kiem"],
 		# Huy phieu dieu chuyen thi van don di kem phai tat theo. Ngay
 		# 04/09/2026 co hai to van don nam "Cho giao" trong khi phieu goc da
 		# huy tu lau, khong ai bat duoc vi van don khong biet gi ve phieu goc.
 		"on_cancel": "vagabond.van_don.dong_van_don_khi_huy_phieu",
 	},
+	# Cùng bảng chi phí với Phiếu kho: bảo vệ cả nhập gia công và phân bổ.
+	"Subcontracting Order": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
+		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
+	"Subcontracting Receipt": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
+		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
+	"Landed Cost Voucher": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
+		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
