@@ -22,6 +22,9 @@ def _luu(d):
 
 def _nen():
     ct,tk,mau=_nen_thue()
+    for truong, gia_tri in (('enable_serial_and_batch_no_for_item',1), ('use_serial_batch_fields',1), ('allow_negative_stock',0)):
+        frappe.db.set_single_value('Stock Settings',truong,gia_tri)
+    frappe.clear_document_cache('Stock Settings')
     tai=frappe.db.get_value('Account',{'company':ct,'account_number':'1551','account_type':'Stock','is_group':0,'disabled':0},'name')
     if not tai:
         tai=_luu(frappe.get_doc(dict(doctype='Account',account_name='Thành phẩm kiểm #243',account_number='1551',
@@ -106,6 +109,8 @@ def _loi_giua_chung():
 @ca('#243 kho thật: thiếu tồn dù cho phép âm vẫn chặn sạch')
 def _thieu_ton():
     hd,kho,lo=_nen()
+    frappe.db.set_single_value('Stock Settings','allow_negative_stock',1)
+    frappe.clear_document_cache('Stock Settings')
     hd.items[0].qty=6;hd.save(ignore_permissions=True)
     hang_tang.duyet(hd.name,'Kiểm thiếu tồn, không giao thật');hd.reload();hd.flags.ignore_permissions=True
     try: hd.submit()

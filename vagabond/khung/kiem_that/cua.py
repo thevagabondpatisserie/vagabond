@@ -56,6 +56,9 @@ def chay(im=1):
 	_chan()
 	kq = nen.chay_het(im=int(im or 0))
 	if not kq["sach"]:
-		frappe.log_error(frappe.as_json(kq),
-			"vagabond: kiem thu tich hop de lai vet trong co so du lieu")
+		# Frappe app.sync_database tự commit khi POST kết thúc bình thường.
+		# Báo lỗi ra ngoài để request rollback, không trả sach=0 rồi commit
+		# phần chứng từ thử còn sống khi điểm lưu đã hỏng.
+		frappe.throw("Khung kiểm không hoàn nguyên được dữ liệu; dừng lượt kiểm. "
+			+ frappe.as_json(kq))
 	return kq

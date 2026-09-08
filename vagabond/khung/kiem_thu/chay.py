@@ -16,6 +16,7 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 if GOC not in sys.path:
 	sys.path.insert(0, GOC)
 
+from vagabond.khung.kiem_thu import thu_cach_ly_243
 from vagabond.khung.kiem_thu import nen  # noqa: E402
 
 # Cai ban Frappe gia TRUOC khi nap bat ky mo dun nghiep vu nao. Neu doi thu

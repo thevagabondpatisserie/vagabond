@@ -55,6 +55,9 @@ Anh Việt chốt 13/08/2026: dữ liệu quá khứ là vùng cấm.
 """
 
 import traceback
+import re
+from contextlib import contextmanager
+from unittest.mock import patch
 
 import frappe
 
@@ -201,35 +204,109 @@ def _dem(cac_doctype):
 	return {dt: frappe.db.count(dt) for dt in cac_doctype}
 
 
+# Frappe f33ac3f Database.rollback(save_point) chỉ dọn value_cache, không
+# chạy/reset CallbackManager; ERPNext de59166 stock.get_warehouse_account_map
+# giữ bản đồ ở flags suốt request. Ca sau phải thấy kho mới của chính nó.
+@contextmanager
+def _cach_ly():
+	co_cu = frappe.flags.get("vagabond_kiem_that")
+	co_co = "vagabond_kiem_that" in frappe.flags
+	khoa_cu = frappe.db._disable_transaction_control
+	ban_do_co = "warehouse_account_map" in frappe.flags
+	ban_do_cu = frappe.flags.get("warehouse_account_map")
+	chuong_co = hasattr(frappe.local, "_realtime_log")
+	chuong_cu = list(getattr(frappe.local, "_realtime_log", []))
+	doi_cu = [(getattr(frappe.db, k), getattr(frappe.db, k)._functions.copy())
+		for k in ("before_commit", "after_commit", "before_rollback", "after_rollback")]
+	cham = set()
+	dau_tao = len(_DA_TAO)
+	xoa_goc = frappe.clear_document_cache
+	sql_goc = frappe.db.sql
+
+	def xoa(dt, name=None):
+		cham.add((dt, name))
+		return xoa_goc(dt, name)
+
+	def chan_ddl(*a, **kw):
+		# sql_ddl của Frappe tự bỏ khoá rồi commit trước DDL. Báo đỏ TRƯỚC
+		# khi nó được chạy, không cố dựng lại savepoint sau một commit thật.
+		raise RuntimeError("Ca kiểm gọi DDL làm mất điểm lưu; dựng schema trong nen_bench trước khi chạy ca.")
+
+	def sql(query, *a, **kw):
+		cau = query.decode() if isinstance(query, bytes) else str(query)
+		cau = re.sub(r"/\*.*?\*/|--[^\n]*", " ", cau, flags=re.S).strip().lower()
+		if (re.match(r"^(commit|begin|start\s+transaction|truncate|alter|drop|create|rename)\b", cau)
+				or (re.match(r"^rollback\b", cau) and not re.match(r"^rollback\s+to\s+(savepoint\s+)?\w+\s*;?$", cau))):
+			raise RuntimeError("Ca kiểm gọi SQL phá điểm lưu: " + cau[:120])
+		return sql_goc(query, *a, **kw)
+
+	frappe.flags.pop("warehouse_account_map", None)
+	frappe.local.request_cache.clear()
+	frappe.db.value_cache.clear()
+	frappe.db._disable_transaction_control = khoa_cu + 1
+	frappe.flags.vagabond_kiem_that = True
+	try:
+		with patch.object(frappe, "clear_document_cache", xoa), patch.object(frappe.db, "sql_ddl", chan_ddl), patch.object(frappe.db, "sql", sql):
+			yield
+	finally:
+		try:
+			# Dọn cache của cả dữ liệu nền đã sửa lẫn tài liệu thử vừa tạo.
+			# Không xoá chứng từ. Dữ liệu chỉ được lùi bằng savepoint.
+			for dt, name in cham | set(_DA_TAO[dau_tao:]):
+				xoa_goc(dt, name)
+		finally:
+			for bo, cu in doi_cu:
+				bo._functions = cu
+			frappe.flags.pop("warehouse_account_map", None)
+			if ban_do_co:
+				frappe.flags.warehouse_account_map = ban_do_cu
+			if chuong_co:
+				frappe.local._realtime_log = chuong_cu
+			elif hasattr(frappe.local, "_realtime_log"):
+				del frappe.local._realtime_log
+			frappe.local.request_cache.clear()
+			frappe.db.value_cache.clear()
+			frappe.db._disable_transaction_control = khoa_cu
+			frappe.flags.vagabond_kiem_that = False
+			if co_co:
+				frappe.flags.vagabond_kiem_that = co_cu
+			else:
+				frappe.flags.pop("vagabond_kiem_that", None)
+
+
 DEM_CANH = ("Purchase Receipt", "Purchase Invoice", "Stock Ledger Entry",
-	"GL Entry")
+	"GL Entry", "Sales Invoice", "Stock Entry", "Work Order", "BOM",
+	"Warehouse", "Account", "Batch", "Serial and Batch Bundle")
 
 
 def chay_het(im=1):
-	"""Chạy mọi ca đã ghi danh, mỗi ca trong một điểm lưu riêng."""
+	"""Chạy mọi ca trong điểm lưu riêng; mất điểm lưu thì dừng cả lượt."""
 	global _LOI, _DA_TAO
 	_DA_TAO = []
 	truoc = _dem(DEM_CANH)
 	ket = []
-	dat = hong = 0
+	dat = hong = da_chay = 0
+	mat_diem_luu = False
 
 	for ten, ham in CA:
 		_LOI = []
-		frappe.db.savepoint(DIEM_LUU)
-		frappe.db._disable_transaction_control += 1
-		frappe.flags.vagabond_kiem_that = True
+		da_chay += 1
 		try:
-			ham()
+			with _cach_ly():
+				frappe.db.savepoint(DIEM_LUU)
+				try:
+					ham()
+				except Exception:
+					_LOI.append("nổ giữa chừng:\n" + traceback.format_exc())
+				finally:
+					try:
+						frappe.db.rollback(save_point=DIEM_LUU)
+					except Exception:
+						mat_diem_luu = True
+						_LOI.append("KHÔNG lùi được về điểm lưu, DỪNG lượt kiểm: " + traceback.format_exc())
 		except Exception:
-			_LOI.append("nổ giữa chừng:\n" + traceback.format_exc())
-		finally:
-			frappe.flags.vagabond_kiem_that = False
-			frappe.db._disable_transaction_control -= 1
-			try:
-				frappe.db.rollback(save_point=DIEM_LUU)
-			except Exception:
-				_LOI.append("KHÔNG lùi được về điểm lưu: "
-					+ traceback.format_exc())
+			mat_diem_luu = True
+			_LOI.append("Lỗi bảo vệ khung kiểm, DỪNG lượt kiểm: " + traceback.format_exc())
 		if _LOI:
 			hong += 1
 			ket.append({"ca": ten, "dat": 0, "loi": list(_LOI)})
@@ -237,20 +314,17 @@ def chay_het(im=1):
 			dat += 1
 			if not im:
 				ket.append({"ca": ten, "dat": 1, "loi": []})
+		if mat_diem_luu:
+			break
 
 	sau = _dem(DEM_CANH)
 	rac = [{"doctype": dt, "ten": ten} for dt, ten in _DA_TAO
 		if frappe.db.exists(dt, ten)]
 	lech = {dt: [truoc[dt], sau[dt]] for dt in DEM_CANH if truoc[dt] != sau[dt]}
-
 	return {
-		"so_ca": len(CA),
-		"dat": dat,
-		"hong": hong,
-		"ket_qua": ket,
-		# Hàng rào: hai khoá dưới đây PHẢI rỗng. Còn dữ liệu nghĩa là điểm
-		# lưu không lùi hết, phải đi dọn tay ngay chứ không được bỏ qua.
-		"chung_tu_con_sot": rac,
-		"so_luong_lech": lech,
-		"sach": 1 if (not rac and not lech) else 0,
+		"so_ca": len(CA), "da_chay": da_chay, "chua_chay": len(CA) - da_chay,
+		"dat": dat, "hong": hong, "ket_qua": ket,
+		"mat_diem_luu": mat_diem_luu,
+		"chung_tu_con_sot": rac, "so_luong_lech": lech,
+		"sach": 1 if (not mat_diem_luu and not rac and not lech) else 0,
 	}

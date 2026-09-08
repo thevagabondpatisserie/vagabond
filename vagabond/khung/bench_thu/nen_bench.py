@@ -69,7 +69,9 @@ def dung():
 	frappe.db.set_single_value("Buying Settings", "po_required", "No")
 	frappe.db.set_single_value("Buying Settings", "pr_required", "No")
 	frappe.db.set_single_value("Selling Settings", "cust_master_name", "Customer Name")
-	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
+	frappe.db.set_single_value("Stock Settings", "enable_serial_and_batch_no_for_item", 1)
+	frappe.db.set_single_value("Stock Settings", "use_serial_batch_fields", 1)
 	# Năm tài chính.
 	if not frappe.db.exists("Fiscal Year", {"year_start_date": ["<=", today()], "year_end_date": [">=", today()]}):
 		nam = today()[:4]
