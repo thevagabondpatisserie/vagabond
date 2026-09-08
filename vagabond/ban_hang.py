@@ -4579,16 +4579,34 @@ def xuat_hoa_don_dien_tu(si_name):
 		than = minvoice_an_toan.kiem_goi(si.name, than, giu_cho=1)
 	except ValueError as loi:
 		frappe.throw(str(loi))
-	r = requests.post(
-		host + "/api/InvoiceApi78/Save",
-		json=than,
-		headers={"Authorization": "Bear " + token},
-		timeout=30,
-	)
-	r.raise_for_status()
-	j = r.json() or {}
-	if not j.get("ok"):
-		frappe.throw("m-invoice báo lỗi: %s" % json.dumps(j.get("message"), ensure_ascii=False))
+	# #227: cờ chờ đối chiếu đã được commit ở kiem_goi TRƯỚC khi gọi HTTP.
+	# Kết quả sau HTTP phân loại bằng đúng một quy tắc dùng chung với Server
+	# Script (minvoice_an_toan.phan_loai_phan_hoi_thuan):
+	#   tao      -> ghi ID, gỡ cờ
+	#   tu_choi  -> gỡ cờ và COMMIT rồi mới throw, để kế toán sửa gửi lại
+	#   khong_ro -> giữ cờ (timeout, mã lạ, trùng, thiếu dữ liệu), throw
+	loi_http = None
+	j = None
+	try:
+		r = requests.post(
+			host + "/api/InvoiceApi78/Save",
+			json=than,
+			headers={"Authorization": "Bear " + token},
+			timeout=30,
+		)
+		r.raise_for_status()
+		j = r.json() or {}
+	except Exception as e:
+		loi_http = e
+	kq = minvoice_an_toan.phan_loai_phan_hoi_thuan(j, loi_http)
+	if kq["loai"] == "tu_choi":
+		minvoice_an_toan.go_co_sau_tu_choi(si.name, kq["cau"])
+		frappe.throw("m-invoice từ chối đơn %s, đã mở lại để sửa và gửi lại: %s" % (si.name, kq["cau"]))
+	if kq["loai"] != "tao":
+		frappe.throw(
+			"Đơn %s: %s. Phiếu giữ cờ chờ đối chiếu, kế toán kiểm M-Invoice theo mã phiếu trước khi gửi lại."
+			% (si.name, kq["cau"])
+		)
 	d = j.get("data") or {}
 	frappe.db.set_value(
 		"Sales Invoice",
@@ -4598,7 +4616,7 @@ def xuat_hoa_don_dien_tu(si_name):
 			"custom_hddt_so": str(d.get("inv_invoiceNumber") or ""),
 			"custom_hddt_id": d.get("inv_invoiceAuth_id") or "",
 			"custom_hddt_sobaomat": d.get("sobaomat") or "",
-			"vgb_hddt_cho_doi_chieu": 0 if d.get("inv_invoiceAuth_id") else 1,
+			"vgb_hddt_cho_doi_chieu": 0,
 		},
 	)
 	if hd:

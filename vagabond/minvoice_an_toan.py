@@ -80,7 +80,86 @@ def chuan_goi(si, goi):
 	return ra
 
 
+# ---------------------------------------------------------------- phân loại phản hồi Save
+#
+# Bằng chứng thật đã ghi trong project doc (m-invoice-xuat-hoa-don-tu-dong,
+# ma-so-thue-chi-nhanh-va-tu-ghi-so-23h30):
+#   - tạo được:  {"code": "00", "ok": true, "data": {"inv_invoiceAuth_id": ...}}
+#   - từ chối:   code "296" "Create invoice fail" (12/08/2026, MST thiếu gạch ngang);
+#                gọi lại cùng dữ liệu vẫn 296, không có tờ nào sinh ra bên M-Invoice.
+# Chưa có bảng mã lỗi đầy đủ của M-Invoice trong tay, nên chỉ mã đã thấy thật
+# mới được coi là "chắc chắn chưa tạo". Mọi mã khác, phản hồi thiếu dữ liệu,
+# phản hồi nói trùng/đã tồn tại, hay timeout đều GIỮ cờ đối chiếu.
+MA_TAO = "00"
+MA_TU_CHOI_RO = {"296"}
+DAU_HIEU_TRUNG = ("tồn tại", "ton tai", "trùng", "trung", "exist", "duplicate", "đã có", "da co")
+
+
+def phan_loai_phan_hoi_thuan(phan_hoi, loi=None):
+	"""Một nguồn duy nhất cho Python và Server Script.
+
+	Trả {"loai": "tao" | "tu_choi" | "khong_ro", "cau": ..., "id": ...}.
+	  tao      : có mã 00 và có inv_invoiceAuth_id, ghi ID và gỡ cờ.
+	  tu_choi  : M-Invoice từ chối bằng mã đã biết, không kèm ID và không nói
+	             trùng. Gỡ cờ để kế toán sửa rồi gửi lại.
+	  khong_ro : mọi trường hợp còn lại. Giữ cờ, kế toán đối chiếu theo mã phiếu.
+	"""
+	if loi is not None:
+		return {"loai": "khong_ro", "cau": "Không rõ kết quả gửi (" + chuoi(loi)[:150] + ")", "id": ""}
+	if not isinstance(phan_hoi, dict):
+		return {"loai": "khong_ro", "cau": "Phản hồi không đọc được: " + chuoi(phan_hoi)[:150], "id": ""}
+	ma = chuoi(phan_hoi.get("code"))
+	du_lieu = phan_hoi.get("data")
+	ma_hd = chuoi(du_lieu.get("inv_invoiceAuth_id")) if isinstance(du_lieu, dict) else ""
+	thong_diep = chuoi(phan_hoi.get("message"))
+	if ma == MA_TAO and ma_hd:
+		return {"loai": "tao", "cau": "Đã tạo hoá đơn " + ma_hd, "id": ma_hd}
+	if ma_hd:
+		return {"loai": "khong_ro", "cau": "Mã " + ma + " nhưng có ID " + ma_hd + ", giữ đối chiếu", "id": ma_hd}
+	if ma == MA_TAO:
+		return {"loai": "khong_ro", "cau": "Mã 00 nhưng thiếu dữ liệu hoá đơn, giữ đối chiếu", "id": ""}
+	tom = (ma + " " + thong_diep).strip()[:150]
+	if any(d in thong_diep.lower() for d in DAU_HIEU_TRUNG):
+		return {"loai": "khong_ro", "cau": "M-Invoice báo trùng/đã tồn tại: " + tom, "id": ""}
+	if ma in MA_TU_CHOI_RO and phan_hoi.get("ok") is not True:
+		return {"loai": "tu_choi", "cau": "M-Invoice từ chối: " + tom, "id": ""}
+	if not ma:
+		return {"loai": "khong_ro", "cau": "Phản hồi không có mã: " + chuoi(phan_hoi)[:150], "id": ""}
+	return {"loai": "khong_ro", "cau": "Mã chưa rõ " + tom + ", giữ đối chiếu", "id": ""}
+
+
 import frappe
+
+
+@frappe.whitelist()
+def phan_loai_phan_hoi(phan_hoi=None, loi=None):
+	"""Cửa cho Server Script gọi cùng quy tắc; thuần, không ghi gì."""
+	if isinstance(phan_hoi, str):
+		import json
+		try:
+			phan_hoi = json.loads(phan_hoi)
+		except Exception:
+			pass
+	return phan_loai_phan_hoi_thuan(phan_hoi, loi)
+
+
+def go_co_sau_tu_choi(phieu, cau):
+	"""Từ chối rõ: gỡ cờ và ghi vết, rồi COMMIT ngay.
+
+	Bên gọi sẽ frappe.throw để báo kế toán; throw làm Frappe rollback cả
+	request, nên nếu không commit ở đây thì việc gỡ cờ bị cuốn theo và
+	phiếu kẹt lại như chưa sửa gì. Cờ đã được commit lúc giữ chỗ (kiem_goi),
+	nên gỡ cũng phải commit thì DB đọc lại sau request mới đúng.
+	"""
+	if frappe.flags.vagabond_kiem_that:
+		frappe.throw("Bộ kiểm tích hợp không được gỡ cờ HĐĐT thật.")
+	si = frappe.get_doc("Sales Invoice", phieu, for_update=True)
+	if any(chuoi(si.get(o)) for o in ("custom_minvoice_id", "custom_hddt_id", "custom_hddt_so")):
+		frappe.db.commit()
+		return
+	si.add_comment("Comment", "M-Invoice từ chối lần gửi HĐĐT, mở lại để kế toán sửa và gửi lại: " + chuoi(cau)[:300])
+	frappe.db.set_value("Sales Invoice", phieu, "vgb_hddt_cho_doi_chieu", 0, update_modified=False)
+	frappe.db.commit()
 
 TRUONG_MOI = {"Sales Invoice": [{
 	"fieldname": "vgb_hddt_cho_doi_chieu", "label": "HĐĐT cần đối chiếu kết quả gửi",
