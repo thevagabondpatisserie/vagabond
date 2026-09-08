@@ -173,3 +173,85 @@ def _vong_dong_bo():
 	dung("co doc o hoa_don trong vong", '\t\t\t\t"hoa_don",\n' in VD)
 	dung("co goi ham noi lai", "_noi_lai_hoa_don(cu, pid," in VD)
 	dung("co dem so lan noi", '"noi_hoa_don": noi_hd' in VD)
+
+
+# ---------------------------------- Chay that ham, khong chi do chuoi (dieu 16)
+#
+# Ngay 08/09/2026, ngay sau khi deploy v456: lu?t d?ng b? 20:01 tren site
+# that bao loi o 11 don, "Chua luu duoc van don; da tra lai du lieu truoc
+# lan sua nay". Traceback:
+#     cu["hoa_don"] = si_name
+#     TypeError: 'VanDon' object does not support item assignment
+# Vong dong bo doi cu tu dict (as_dict=True) sang Document, ma ham nay van
+# gan theo khoa. Ca ban dau cua tep chi DO CHUOI nen khong bat duoc: mot loi
+# goi nam trong tep khong chung minh no chay duoc. Hai ca duoi day chay that
+# ham voi ca hai kieu du lieu; dung sua chung ve phep do chuoi.
+
+class _DocGia(object):
+	"""Giong Document: co .name, .get, .set, va TU CHOI phep gan theo khoa."""
+
+	def __init__(self, ten, **o):
+		self.name = ten
+		self._o = dict(o)
+
+	def get(self, k, mac_dinh=None):
+		return self._o.get(k, mac_dinh)
+
+	def set(self, k, v):
+		self._o[k] = v
+
+	def __setitem__(self, k, v):
+		raise TypeError("'VanDon' object does not support item assignment")
+
+
+class _FrappeGia(object):
+	def __init__(self, si):
+		self._si = si
+		self.da_ghi = []
+		self.db = self
+
+	def get_value(self, dt, filters=None, fieldname=None, **kw):
+		return self._si
+
+	def set_value(self, dt, ten, o, gt, **kw):
+		self.da_ghi.append((ten, o, gt))
+
+
+class _NhatKyGia(object):
+	def __init__(self):
+		self.lan = 0
+
+	def ghi_nhieu(self, *a, **kw):
+		self.lan += 1
+
+
+def _chay_noi_lai(cu):
+	from vagabond import van_don as vd
+	f, nk = _FrappeGia("ACC-SINV-THU"), _NhatKyGia()
+	f_cu, nk_cu = vd.frappe, vd.nhat_ky
+	vd.frappe, vd.nhat_ky = f, nk
+	try:
+		return vd._noi_lai_hoa_don(cu, "91010", "91010"), f, nk
+	finally:
+		vd.frappe, vd.nhat_ky = f_cu, nk_cu
+
+
+@ca("noi lai hoa don chay that voi Document, khong no vi phep gan theo khoa")
+def _chay_voi_document():
+	doc = _DocGia("VD-THU", hoa_don=None, trang_thai="Chờ giao")
+	ten, f, nk = _chay_noi_lai(doc)
+	la("tra ve ten hoa don", ten, "ACC-SINV-THU")
+	la("ban trong tay da cap nhat", doc.get("hoa_don"), "ACC-SINV-THU")
+	la("ghi dung mot o vao co so du lieu", f.da_ghi, [("VD-THU", "hoa_don", "ACC-SINV-THU")])
+	la("co ghi nhat ky", nk.lan, 1)
+
+
+@ca("noi lai hoa don van chay voi dict nhu duong cu")
+def _chay_voi_dict():
+	from vagabond.khung.kiem_thu.nen import ca as _  # giu import gon
+	class _DictCoName(dict):
+		name = "VD-THU2"
+	cu = _DictCoName(hoa_don=None, trang_thai="Chờ giao")
+	ten, f, nk = _chay_noi_lai(cu)
+	la("tra ve ten hoa don", ten, "ACC-SINV-THU")
+	la("ban trong tay da cap nhat", cu["hoa_don"], "ACC-SINV-THU")
