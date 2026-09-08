@@ -20,14 +20,22 @@ from pathlib import Path
 TEN_PHAT_HANH = "MInvoice - Phat hanh HD Sales (API)"
 TEN_NAP = "VGB - Nap thong tin xuat hoa don tu Pancake"
 MOC_V446 = "# VGB-227: kiểm đúng đơn và người nhận"
-MOC = "# VGB-227 v447: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
+MOC = "# VGB-227 v449: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
+MOC_V447 = "# VGB-227 v447: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
 
 # sha256 các bản vá cũ đã từng chạy trên bench (không còn hàm sinh, giữ mã băm
 # để migrate nhận ra và vá lên bản mới thay vì dừng). Bản v447 lần đầu (đầu
 # nhánh 39a47f8): nạp chưa có kiểm hết kết quả phân trang; phát hành giống hiện tại.
 BAM_BAN_CU = {
-	"nap": {"986a3b5d4471e6140dea1cdeb66d2f9ca099f1f1fb2d58dafb69abc61babbed6": "v447_39a47f8"},
-	"phat_hanh": {},
+	"nap": {
+		"986a3b5d4471e6140dea1cdeb66d2f9ca099f1f1fb2d58dafb69abc61babbed6": "v447_39a47f8",
+		# v448 (fa79821, đã deploy site 08/09 10:42): đối chiếu display_id mà Pancake không trả.
+		"81fb0f8bbb526c305d82d96beb96193b4092fe6f915b9c42fc49b75f7d959cfa": "v448_fa79821",
+	},
+	"phat_hanh": {
+		# v447/v448 phát hành: chỉ khác mốc đầu tệp so với bản v449.
+		"5e6464ba35de7c1fc5873b4e2f94a4d1da81781fc45bfaa71e769e9c2d52c3eb": "v448_fa79821",
+	},
 }
 
 # Snapshot đọc từ Desk ngày 07/09/2026, đối chiếu FNV-1a với clipboard gốc
@@ -63,7 +71,7 @@ def thay_mot(ma, cu, moi):
 
 
 def _chan_da_va(ma):
-	if ma.startswith(MOC_V446) or ma.startswith(MOC):
+	if ma.startswith(MOC_V446) or ma.startswith(MOC_V447) or ma.startswith(MOC):
 		raise ValueError("Kịch bản đã mang mốc vá; phải vá lại từ bản gốc snapshot, không vá chồng.")
 
 
@@ -124,11 +132,14 @@ def _sua_phat_hanh_v446(ma):
 TRANG_TOI_DA = 5
 CO_TRANG = 50
 
-DOAN_TIM_PANCAKE = """        # #227 v447: không lấy kết quả tìm đầu tiên. Có ID Pancake thì tra đúng
-        # đơn theo ID rồi đối chiếu mã đơn; không có ID thì duyệt các trang tìm
-        # kiếm (tối đa %d trang x %d). Chỉ kết luận "đúng MỘT đơn" khi đã đọc
-        # HẾT kết quả (gặp trang ngắn hơn %d). Chạm trần mà trang cuối vẫn đầy
-        # thì chưa chứng minh được hết, không nạp, báo kế toán kiểm liên kết.
+DOAN_TIM_PANCAKE = """        # #227 v449: không lấy kết quả tìm đầu tiên. Pancake của tiệm không trả
+        # display_id (đo trên site 08/09/2026: display_id null, mã đơn chính là id),
+        # nên mã đơn đối chiếu là display_id nếu có, không thì id, đúng như lúc
+        # đồng bộ đơn về (ban_hang: did = display_id or id). Có ID Pancake thì tra
+        # đúng đơn theo ID rồi đối chiếu mã; không có ID thì duyệt các trang tìm
+        # kiếm (tối đa %d trang x %d), dấu hết là total_pages Pancake trả về
+        # (đã đo có), không có thì trang ngắn hơn %d. Chạm trần mà chưa hết thì
+        # không nạp, báo kế toán kiểm liên kết.
         khop = []
         het_ket_qua = False
         pid = str(si.get('custom_pancake_id') or '').strip()
@@ -136,7 +147,7 @@ DOAN_TIM_PANCAKE = """        # #227 v447: không lấy kết quả tìm đầu 
         if pid:
             r = frappe.make_get_request(url + '/' + pid, params={'api_key': key})
             d1 = (r or {}).get('data') or {}
-            if isinstance(d1, dict) and str(d1.get('display_id') or '').strip() == so_dh_c and str(d1.get('id') or '') == pid:
+            if isinstance(d1, dict) and str(d1.get('id') or '') == pid and str(d1.get('display_id') or d1.get('id') or '').strip() == so_dh_c:
                 khop.append(d1)
             het_ket_qua = True
         else:
@@ -145,9 +156,10 @@ DOAN_TIM_PANCAKE = """        # #227 v447: không lấy kết quả tìm đầu 
                 r = frappe.make_get_request(url, params={'api_key': key, 'page_size': %d, 'page_number': trang, 'search': so_dh_c})
                 ds_r = (r or {}).get('data') or []
                 for d1 in ds_r:
-                    if str(d1.get('display_id') or '').strip() == so_dh_c:
+                    if str(d1.get('display_id') or d1.get('id') or '').strip() == so_dh_c:
                         khop.append(d1)
-                if len(ds_r) < %d:
+                tong_trang = frappe.utils.cint((r or {}).get('total_pages') or 0)
+                if (tong_trang and trang >= tong_trang) or (not tong_trang and len(ds_r) < %d):
                     het_ket_qua = True
                     break
                 trang = trang + 1
