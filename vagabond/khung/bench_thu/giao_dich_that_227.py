@@ -261,8 +261,9 @@ def _duong_script():
 	frappe.clear_cache()
 	kich_ban = {"save": "ok"}
 	dem = {"save": 0, "pancake": []}
-	don_khac = {"id": "ID-1227", "display_id": 1227, "note_print": "Tên công ty: Công ty người khác\nMST: 0399999999\nEmail: khac@example.com"}
-	don_dung = {"id": "ID-227", "display_id": 227, "note_print": "Tên công ty: Công ty TNHH Kiểm Thử 227\nMST: 0311234567\nEmail: dung@example.com"}
+	# Đúng như Pancake của tiệm trả về (đo 08/09/2026): display_id null, id là số.
+	don_khac = {"id": 91227, "display_id": None, "note_print": "Tên công ty: Công ty người khác\nMST: 0399999999\nEmail: khac@example.com"}
+	don_dung = {"id": 227, "display_id": None, "note_print": "Tên công ty: Công ty TNHH Kiểm Thử 227\nMST: 0311234567\nEmail: dung@example.com"}
 
 	def post_gia(url, data=None, headers=None, **kw):
 		if url.endswith("/api/Account/Login"):
@@ -272,24 +273,24 @@ def _duong_script():
 			return _tra(kich_ban["save"]).than
 		raise RuntimeError("URL lạ " + url)
 
-	trang_day = [{"id": "ID-%d" % i, "display_id": 1000 + i, "note_print": ""} for i in range(50)]
+	trang_day = [{"id": 1000 + i, "display_id": None, "note_print": ""} for i in range(50)]
 	che_do_pancake = {"day": False}
 
 	def get_gia(url, headers=None, params=None, **kw):
 		dem["pancake"].append((url.rsplit("/", 1)[1], dict(params or {})))
-		if url.endswith("/orders/ID-227"):
-			return {"data": don_dung}
+		if url.endswith("/orders/227"):
+			return {"data": don_dung, "success": True}
 		if url.endswith("/orders"):
 			if che_do_pancake["day"]:
-				# Mọi trang đều đầy 50; trang 1 có 227 (ID-A). Chưa chứng minh hết kết quả.
+				# Mọi trang đều đầy 50, total_pages 6; trang 1 có 227. Chưa đọc hết.
 				so = int((params or {}).get("page_number") or 1)
-				return {"data": ([dict(don_dung, id="ID-A")] + trang_day[:49]) if so == 1 else trang_day}
-			return {"data": [don_khac, don_dung]}
+				return {"data": (([don_dung] + trang_day[:49]) if so == 1 else trang_day), "total_pages": 6, "total_entries": 300, "page_number": so, "page_size": 50, "success": True}
+			return {"data": [don_khac, don_dung], "total_pages": 1, "total_entries": 2, "page_number": 1, "page_size": 50, "success": True}
 		return {}
 
 	goc_post, goc_get = iu.make_post_request, iu.make_get_request
 	iu.make_post_request, iu.make_get_request = post_gia, get_gia
-	si = _si("227", "ID-227", ten="", mst="")
+	si = _si("227", "227", ten="", mst="")
 	si2 = _si("227", "", ten="", mst="")
 	si3 = _si("227", "", ten="", mst="")
 
@@ -313,7 +314,7 @@ def _duong_script():
 		_ghi("SS1 từ chối: báo đã mở lại", any("mo lai" in x for x in ra.get("loi", [])), True)
 		_ghi("SS1 từ chối: cờ 0 đọc lại", tt["co"], 0)
 		_ghi("SS1 từ chối: có vết", tt["vet"], 1)
-		_ghi("SS1 nạp Pancake theo đúng ID, không tìm gần đúng", [g[0] for g in dem["pancake"]], ["ID-227"])
+		_ghi("SS1 nạp Pancake theo đúng ID, không tìm gần đúng", [g[0] for g in dem["pancake"]], ["227"])
 		mst = _doc_rieng("select vgb_xhd_mst, vgb_xhd_email from `tabSales Invoice` where name=%s", (si,))[0]
 		_ghi("SS1 nạp đúng MST của đơn 227", mst[0], "0311234567")
 		_ghi("SS1 nạp đúng email của đơn 227", mst[1], "dung@example.com")
