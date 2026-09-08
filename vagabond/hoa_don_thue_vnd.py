@@ -94,7 +94,11 @@ def tinh(doc):
         # Một script có thể đổi tiền tệ trên chính object rồi tính tiếp.
         # Không để cache VND lọt sang lần tính bằng chính sách core.
         for d, cache in cache_cu:
-            d._precision = cache
+            if cache is None:
+                if hasattr(d, '_precision'):
+                    delattr(d, '_precision')
+            else:
+                d._precision = cache
         for k, v in cu.items():
             frappe.flags[k] = v
     doc.vgb_thue_vnd = 1

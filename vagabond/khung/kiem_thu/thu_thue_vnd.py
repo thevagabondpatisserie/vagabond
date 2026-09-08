@@ -80,3 +80,22 @@ def _cua_chung():
     la('thuế không đọc snapshot một suất',[d['ma_thue'] for d in ra['details'][0]['data']],[8,10])
     la('VAT kế toán',ra['inv_vatAmount'],18000)
     la('không thu tiền',ra['inv_paymentMethodName'],'Hàng tặng không thu tiền')
+
+
+@ca('#225: trả cache không được tạo thuộc tính None làm core precision nổ')
+def _tra_cache():
+    import ast
+    from pathlib import Path
+    from types import SimpleNamespace
+    ma=ast.parse((Path(__file__).resolve().parents[2]/'hoa_don_thue_vnd.py').read_text())
+    ham=next(d for d in ma.body if isinstance(d,ast.FunctionDef) and d.name=='tinh')
+    pham_vi={'deepcopy':deepcopy,'frappe':SimpleNamespace(flags={}),
+        'do_chinh_xac':lambda d:setattr(d,'_precision',{'main':{'amount':0}}),
+        'ThueVnd':lambda d:None,'doc_dong':lambda d:None}
+    exec(compile(ast.Module(body=[ham],type_ignores=[]),'tinh-thuc','exec'),pham_vi)
+    for co_cache in (False,True):
+        doc=SimpleNamespace(items=[],taxes=[],calculate_commission=lambda:None,calculate_contribution=lambda:None)
+        if co_cache:doc._precision={'main':{'amount':2}}
+        pham_vi['tinh'](doc)
+        if co_cache:la('trả số lẻ cũ',doc._precision,{'main':{'amount':2}})
+        else:dung('cache chưa có phải tiếp tục chưa có',not hasattr(doc,'_precision'))
