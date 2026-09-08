@@ -89,10 +89,10 @@ def _bon_loai():
 # ---------------------------------------------------- canh cách vá và cách gọi
 
 
-@ca("v406 chỉ thay đúng hàm validate_batch, không thay cả lớp Stock Entry")
+@ca("206 thay hai phép kiểm lô riêng Stock Entry, không thay controller dùng chung")
 def _cach_va():
 	src = _py("lo_het_han.py")
-	dung("thay đúng một hàm", "StockEntry.validate_batch = _thay_the(goc)" in src)
+	dung("thay validate_batch", "StockEntry.validate_batch = _thay_the(goc)" in src)
 	dung("lặp lại được", "_DA_THAY" in src)
 	dung("lô bị tắt vẫn chặn", "đang bị TẮT" in src)
 	hooks = _py("hooks.py")
@@ -233,8 +233,69 @@ def _con_han_sach():
 
 @ca("v406 tích ô chặn thì trả nguyên phép kiểm của ERPNext, không chế thêm")
 def _bat_chot_lai():
-	ham = _voi_lo({"LO-CU": {"disabled": 0, "expiry_date": "2023-04-30"}}, chan=1)
+	ham = _voi_lo({"LO-CU": {"disabled": 0, "expiry_date": "2027-04-30"}}, chan=1)
 	p = _Phieu("Manufacture", "2026-09-03", [_Dong("NVLT00037", "LO-CU")])
 	ham(p)
 	_tra_lai()
 	dung("gọi đúng bản gốc của ERPNext", getattr(p, "da_goi_goc", False))
+
+
+@ca("206 lớp kiểm thứ hai: tắt chốt, nhiều lô/gói, giữ ghi chú, không lặp vết")
+def _lop_hai():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	p = _Phieu('Manufacture', '2026-09-08', [
+		_Dong('BOT', 'HET-1'), _Dong('BO', 'HET-2')])
+	p._dong[1].serial_and_batch_bundle = 'GOI-2'
+	p.remarks = 'Bếp ghi tay'
+	goc = Mock()
+	with patch.object(lhh, 'dang_chan', return_value=0), \
+		patch.object(lhh, '_ho_so_lo', return_value={'disabled': 0, 'expiry_date': '2026-09-01'}), \
+		patch.object(lhh.frappe, 'get_all', return_value=['HET-2'], create=True), \
+		patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
+		ham = lhh._thay_kiem_serial(goc)
+		ham(p); ham(p)
+	goc.assert_not_called()
+	la('giữ ghi tay', p.remarks.splitlines()[0], 'Bếp ghi tay')
+	la('một câu dấu vết', p.remarks.count(lhh.DAU_CAU), 1)
+	la('lô tay/gói không ghi trùng', p.remarks.count('HET-2'), 1)
+	dung('ghi đủ hai mã lô hạn', all(x in p.remarks for x in ['BOT', 'BO', 'HET-1', 'HET-2', '2026-09-01']))
+
+
+@ca("206 bật chốt chặn cả gói quá hạn; tắt chốt vẫn chặn gói bị tắt")
+def _chan_goi():
+	from unittest.mock import patch, Mock
+	p = _Phieu('Manufacture', '2026-09-08', [_Dong('BOT', None)])
+	p._dong[0].serial_and_batch_bundle = 'GOI'
+	for chan, ho in [(1, {'disabled':0, 'expiry_date':'2026-09-01'}), (0, {'disabled':1})]:
+		with patch.object(lhh.frappe, 'get_all', return_value=['LO-GOI'], create=True), \
+			patch.object(lhh, '_ho_so_lo', return_value=ho):
+			try:
+				lhh._kiem_lo_va_ghi_vet(p, chan=chan)
+				dung('phải chặn', False)
+			except Exception as e:
+				dung('đúng lô', 'LO-GOI' in str(e))
+
+
+@ca("206 không bỏ kiểm serial sai lô và không nới phiếu nhận/huỷ")
+def _serial_sai():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	p = _Phieu('Manufacture', '2026-09-08', [_Dong('BOT', 'LO-A')])
+	p._dong[0].serial_no = 'SERIAL-1'; p._dong[0].idx = 2
+	goc = Mock()
+	with patch.object(lhh, 'dang_chan', return_value=0), \
+		patch.object(lhh.frappe, '_', side_effect=lambda x: x, create=True), \
+		patch.object(lhh.frappe, 'get_all', return_value=[SimpleNamespace(name='SERIAL-1', batch_no='LO-B', warehouse='Pastry')], create=True), \
+		patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
+		ham = lhh._thay_kiem_serial(goc)
+		try:
+			ham(p)
+			dung('serial sai lô phải chặn', False)
+		except Exception as e:
+			dung('đúng serial và lô', 'SERIAL-1' in str(e) and 'LO-A' in str(e))
+		p.purpose = 'Material Receipt'; ham(p)
+		p.purpose = 'Manufacture'; p.docstatus = 2; ham(p)
+	la('nhận và huỷ đi nguyên lõi', goc.call_count, 2)

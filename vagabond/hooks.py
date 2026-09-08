@@ -53,6 +53,8 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
 doctype_js = {
+	"Item": "public/js/san_xuat_mon.js",
+	"Work Order": "public/js/san_xuat_lenh.js",
 	"Purchase Order": "public/js/purchase_order.js",
 	"Sales Invoice": "public/js/minvoice_phieu.js",
 	"Purchase Invoice": "public/js/purchase_invoice.js",
@@ -65,7 +67,10 @@ doctype_js = {
 # Nut "Dong bo M-Invoice" tren ba man danh sach (anh Viet xin 31/08/2026).
 # Cung MOT tep dung chung cho ca ba, xem dau tep minvoice_list.js.
 doctype_list_js = {
-	"BOM": "public/js/bom_list.js",
+	"Work Order": "public/js/san_xuat_list.js",
+	"Production Plan": "public/js/san_xuat_list.js",
+	"Item Alternative": "public/js/san_xuat_list.js",
+	"BOM": ["public/js/bom_list.js", "public/js/san_xuat_list.js"],
 	"Purchase Invoice": "public/js/minvoice_list.js",
 	"Sales Invoice": "public/js/minvoice_list.js",
 	"MInvoice Invoice": "public/js/minvoice_list.js",
@@ -368,7 +373,8 @@ doc_events = {
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
-	"Item": {"validate": "vagabond.phantom.chan_lam_tuoi_sai_chang"},
+	"Item": {"validate": ["vagabond.phantom.chan_lam_tuoi_sai_chang",
+		"vagabond.san_xuat_desktop.kiem_mon"]},
 	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
 	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
 	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},

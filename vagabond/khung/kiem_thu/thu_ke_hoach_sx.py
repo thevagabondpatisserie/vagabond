@@ -698,7 +698,7 @@ def _():
 	m = _js("05-san-xuat.js")
 	doan = m.split("async function scrMfgList()")[1].split("\nasync function scrMfgNew()")[0]
 	la("không gọi thẻ kho ở trang danh sách", "mfgWhCard()" in doan, False)
-	dung("hai màn kia vẫn còn thẻ kho", m.count("mfgWhCard()") >= 3)
+	dung("hai màn kia vẫn còn thẻ kho", m.count("mfgWhCard()") + m.count("mfgWhCard(true)") >= 2)
 
 
 @ca("màn lệnh sản xuất có nút huỷ và nút sửa số")

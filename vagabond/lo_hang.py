@@ -134,7 +134,7 @@ def rut_tu_kho(muc, can):
 	return phan, thieu
 
 
-def cau_thieu_lo(ten_hang, ma, kho, thieu, don_vi, kho_khac):
+def cau_thieu_lo(ten_hang, ma, kho, thieu, don_vi, kho_khac, thay_khac=None):
 	"""Câu báo thiếu hàng theo lô. Phải nói việc làm tiếp, không chỉ nói không.
 
 	`kho_khac`: [(tên kho, tồn)] các kho khác đang còn mã này.
@@ -148,8 +148,13 @@ def cau_thieu_lo(ten_hang, ma, kho, thieu, don_vi, kho_khac):
 			"%s %s tại %s" % (_so(t), don_vi or "", _ten_kho(k)) for k, t in con[:4]
 		)
 		cau += " Anh chị chuyển kho phần thiếu rồi bấm lại."
-	else:
-		cau += " Cả hệ không còn tồn mã này, phải nhập hàng hoặc kiểm kê lại trước."
+	elif not thay_khac:
+		cau += " Chưa tìm thấy tồn mã này ở kho khác; kiểm tra tồn, nhập hàng hoặc kiểm kê lại."
+	if thay_khac:
+		cau += " Mã thay thế đã khai đang còn: " + ", ".join(
+			"%s: %s %s tại %s" % (m, _so(t), don_vi or "", _ten_kho(k))
+			for m, k, t in thay_khac[:4]) + "."
+		cau += " Kiểm tra kho nguồn đã chọn hoặc chuyển nguyên liệu về đúng kho rồi bấm lại. Tồn này chưa xác nhận lô dùng được."
 	return cau
 
 
@@ -570,6 +575,7 @@ def gan_lo(doc, method=None):
 						_ten_hang(d, ma), ma, kho, thieu,
 						d.get("stock_uom") or d.get("uom") or "",
 						_kho_khac_con(ma, kho),
+						[(m, k, t) for m in _cac_ma_thay_the(ma) for k, t in _kho_khac_con(m, kho)] if thay_ma else [],
 					),
 					title="Thiếu hàng trong kho",
 				)
@@ -584,6 +590,9 @@ def gan_lo(doc, method=None):
 				# lô nào thì dòng thay thế đầu tiên thừa kế tên dòng gốc.
 				x = _boc(d, giu_ten=(not phan and j == 0))
 				x["item_code"] = ma_thay
+				# WorkOrder.get_consumed_qty (ERPNext 16.28.0) cộng theo
+				# item_code HOẶC original_item. Diễn giải không thay liên kết.
+				x["original_item"] = d.get("original_item") or ma
 				# Dòng thay thế đi bằng đơn vị GỐC cho khỏi kéo hệ số quy
 				# đổi của mã cũ sang mã mới.
 				x["qty"] = so
