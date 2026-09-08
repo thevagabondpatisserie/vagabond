@@ -227,3 +227,75 @@ cửa tổng khớp. Test mới chạy trên code trước sửa: 4 ca đỏ; co
 chạy bench tại máy Codex; không dùng kết quả pure để thay điều kiện này.
 Các điều kiện kiểm đồng thời PR/PI, snapshot Server Script, migrate và
 hàng tặng trong phần trên vẫn giữ nguyên. Không có deploy trong lượt này.
+
+## Vòng 2 sau review Codex trên PR #228, 08/09/2026 (Claude sửa, nền 92f5626)
+
+Codex đồng ý hai vấn đề P1/P2 và yêu cầu năm việc. Đã làm:
+
+1. **Phân loại phản hồi M-Invoice, một nguồn cho Python và Server Script**
+   (`minvoice_an_toan.phan_loai_phan_hoi_thuan`, cửa whitelist
+   `phan_loai_phan_hoi` cho script). Chỉ ba loại: `tao` (mã 00 kèm
+   `inv_invoiceAuth_id`), `tu_choi` (mã trong bảng đã thấy thật, hiện chỉ có
+   296 "Create invoice fail" ngày 12/08/2026, không kèm ID, không nói
+   trùng/đã tồn tại, `ok` không phải true), còn lại `khong_ro` (timeout,
+   mã lạ, mã 00 thiếu dữ liệu, có ID nhưng mã khác 00, phản hồi không phải
+   JSON, thông điệp trùng). Không coi "thiếu ok" hay "mã khác 00" là bằng
+   chứng chưa tạo. Chưa có bảng mã lỗi đầy đủ của M-Invoice trong tay; muốn
+   thêm mã vào `MA_TU_CHOI_RO` phải có phản hồi thật kèm xác nhận bên
+   M-Invoice không sinh tờ.
+2. **Từ chối rõ thì gỡ cờ, ghi Comment và COMMIT trước khi throw**
+   (`go_co_sau_tu_choi`; trong script là `db_set` + `add_comment` +
+   `frappe.db.commit()` theo cờ `kc_goc`). Phát hiện thêm: dòng 94 bản gốc
+   đặt `form_dict['khong_commit'] = 1` để gọi kịch bản nạp rồi không trả
+   lại, nên dòng commit cuối của chính script phát hành không bao giờ chạy
+   (chỉ nhờ Frappe commit cuối request). Bản vá nhớ ý caller từ đầu
+   (`kc_goc`) để commit đúng.
+3. **Kịch bản nạp Pancake**: có `custom_pancake_id` thì gọi thẳng
+   `/orders/<id>` và đối chiếu cả `display_id` lẫn `id`; không có ID thì
+   duyệt tối đa 5 trang x 50 kết quả tìm kiếm, chỉ nhận khi đúng MỘT đơn
+   khớp mã. Nhiều đơn khớp, không thấy, hay lệch ID đều báo lỗi để kế toán
+   kiểm liên kết, không nạp.
+4. **Snapshot và migration theo nội dung**: `minvoice_kich_ban.ban_goc`
+   kiểm độ dài và FNV-1a của snapshot; `doi_chieu` nhận bản trên site chỉ
+   khi sha256 trùng một trong ba bản (gốc, vá v446, vá hiện tại); bản mới
+   luôn tính từ snapshot, không dựa mốc "# VGB-227". Patch mới
+   `minvoice_v447`, APPVER 447, giữ `minvoice_v446` và `mua_hddt_v446`.
+5. **Bench**: máy làm việc bị lùi mất bench cũ, dựng lại đúng phiên bản
+   site: frappe f33ac3f (v16.27.1), erpnext de59166 (v16.28.0), MariaDB
+   10.11.14, Python 3.14.7. Fixture nay nằm trong repo:
+   `khung/bench_thu/nen_bench.py` (khoá `vagabond_bench_thu`).
+
+### Kịch bản mới trong repo (chỉ chạy trên bench thử)
+
+- `khung/bench_thu/giao_dich_that_227.py`: có commit và rollback thật, đọc
+  lại DB bằng kết nối pymysql riêng sau mỗi "request". 43 phép kiểm, 0
+  hỏng: Python và Server Script đều qua từ chối (cờ 0, có Comment, không
+  ID) -> sửa MST -> timeout (cờ giữ 1) -> thử lại (chặn trước HTTP, không
+  gọi Save) -> mã lạ/trùng (giữ cờ) -> Giám đốc mở lại -> thành công (có ID,
+  cờ 0) -> gửi lại bị chặn. Ca 1227 đứng trước 227 trong kết quả tìm vẫn
+  chọn đúng 227, cả đường có ID lẫn không ID.
+- `chuan_bi_migrate` / `kiem_sau_migrate` / `lam_lech_script`: ba kịch bản
+  `bench migrate`: (A) site còn bản gốc -> chạy v446 rồi v447, cả hai
+  script bằng bản mới từng byte; (B) bench đã chạy v446 -> v447 vẫn vá lên
+  bản mới; (C) script bị sửa tay -> migrate dừng, không ghi đè cả hai script.
+- `khung/bench_thu/dong_thoi_227.py`: hai tiến trình `bench execute` cùng
+  mốc giờ. submit/submit cách nhau 1 ms: một tờ ghi sổ, tờ kia bị chặn
+  đúng câu, GL một lần. cancel/submit ba vòng (0,1 tới 0,4 ms): không
+  deadlock, tổng lượng đã ghi sổ luôn 7/10, GL không nhân đôi. Cả ba vòng
+  cancel đều giữ khoá trước; thứ tự submit-trước đã có ở ca submit/submit.
+
+### Kết quả `cua.chay` trên bench (log đính PR)
+
+43 ca, 26 đạt, 17 hỏng, `chung_tu_con_sot=[]`, `so_luong_lech={}`. Cả 9 ca
+#227 đạt. 17 ca hỏng đều ngoài #227 và đều do bench trống thiếu fixture của
+site: tài khoản ngân hàng trong Vagabond Settings (2 ca đơn huỷ), mã hồ sơ
+`Vagabond Ho So TT.ma` sinh ngoài git (5 ca v445), bản ghi Print Format và
+đơn mua hàng đã duyệt (4 ca mẫu in), kho do ca kiểm tự tạo không gắn tài
+khoản dù công ty đã có tài khoản kho mặc định (6 ca nhận NVL/lần nhận/lô).
+Bench trước có 11 ca hỏng vì dựng tay nhiều hơn; nay fixture nằm trong repo
+để lần sau ai cũng dựng ra cùng nền và bổ sung dần.
+
+### Chưa làm
+
+Save thật sang M-Invoice (mọi HTTP đều giả). Ảnh site thật. Chứng từ cũ
+11552, HDB-26-09-00171 và ba PI mua chỉ liệt kê. Không merge, không deploy.
