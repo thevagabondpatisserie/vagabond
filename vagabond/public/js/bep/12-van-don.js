@@ -207,7 +207,8 @@ async function scrVanDon() {
       try {
         var kq = await api('vagabond.van_don.dong_bo_pancake', { ngay: vdNgay });
         busy(false);
-        toast(kq.them ? ('Đã kéo về ' + kq.them + ' vận đơn mới') : ('Không có đơn mới - ' + (kq.da_co || 0) + ' đơn đã kéo về trước đó'), 3200);
+        if (kq.loi && kq.loi.length) baoTin('Còn ' + kq.loi.length + ' đơn chưa đồng bộ: ' + kq.loi.map(function (x) { return x.ma_don + ': ' + x.loi; }).join('\n'));
+        else toast('Đã đồng bộ: ' + (kq.them || 0) + ' đơn mới, ' + (kq.lam_moi || 0) + ' đơn cập nhật.', 3200);
         go(scrVanDon, true);
       } catch (e) {
         busy(false);
@@ -388,6 +389,12 @@ function scrVdKy(name, d) {
     };
   }, 0);
 }
+function vdLaBookApp(d) {
+  return ['Ahamove', 'GreenSM', 'Grab', 'BE', 'Lalamove'].indexOf(d.kenh) >= 0;
+}
+function vdCanAnhGiao(d) {
+  return !d.diem_pickup && d.kenh !== 'Khách tự lấy' && !vdLaBookApp(d);
+}
 async function scrVdView(name) {
   frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -425,6 +432,9 @@ async function scrVdView(name) {
           '</span><b style="flex:none">&times;' + (m.so_luong || 0) + '</b></div>';
       }).join('') + '</div>' : '') +
     (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b>' + (d.da_doi_soat ? ' <span style="color:#15803d;font-size:13px">đã đối soát ✅</span>' : '') + '</div>' : '') +
+    (vdLaBookApp(d) ? '<div>Chi phí book app: <b>' + money(d.phi_giao || 0) + ' đ</b>' +
+      ((isSales() || vdLaKeToan()) && !d.da_doi_soat && d.trang_thai !== 'Huỷ'
+        ? ' <button class="btn gh" data-va="phi_book" style="width:auto">Nhập phí</button>' : '') + '</div>' : '') +
     (d.booking_id ? '<div style="font-size:13px">Mã app ngoài: ' + h(d.booking_id) + (d.tracking_url ? ' · <a href="' + h(d.tracking_url) + '" target="_blank">theo dõi</a>' : '') + '</div>' : '') +
     (d.hoa_don ? '<div style="color:#6b7280;font-size:13px">Hoá đơn: ' + h(d.hoa_don) + '</div>' : '') +
     /* Don pickup: dia chi giao o tren la dia chi khach, khong phai noi
@@ -468,7 +478,7 @@ async function scrVdView(name) {
       : (d.khong_ky ? '<div style="color:#b45309;font-size:13px;margin-top:8px">✍️ Khách không ký: ' + h(d.khong_ky) + '</div>' : '')) +
     (d.ly_do_loi ? '<div style="color:#b3261e;font-size:13px">Không giao được: ' + h(d.ly_do_loi) + '</div>' : '') +
     (d.ghi_chu ? '<div style="color:#6b7280;font-size:13px;white-space:pre-wrap">' + h(d.ghi_chu) + '</div>' : '') + vdKhoiNhan(d) + '</div>' + vdNutPhanCong(d);
-  /* Don pickup di y het duong cua shipper: chup anh, khach ky, bam hoan tat.
+  /* Pickup và book app hoàn thành không cần ảnh (anh Việt, issue237).
      Chi khac chu tren nut, vi nguoi truc quay khong "giao" ma "trao tan tay".
      Va khong co nut Book xe: khach dang tu ra lay. */
   var laPickup = !!d.diem_pickup;
@@ -480,7 +490,7 @@ async function scrVdView(name) {
     var choToiQuay = laPickup && vdLaShipper() && !isSales() && !vdLaKeToan();
     html += '<button class="btn" data-va="giao" style="margin-top:4px">'
       + (choToiQuay ? '📦 Đã bỏ hàng xuống ' + h(vdDiemNgan(d.diem_pickup))
-        : laPickup ? '📷 Khách đã lấy, chụp ảnh' : '📷 Đã giao, chụp ảnh') + '</button>';
+        : (laPickup || d.kenh === 'Khách tự lấy') ? '✓ Khách đã lấy' : vdCanAnhGiao(d) ? '📷 Đã giao, chụp ảnh' : '✓ Đã giao') + '</button>';
     var hang = [];
     if (vdLaShipper() && !d.shipper) hang.push('<button class="btn gh" data-va="nhan" style="flex:1">🙋 Nhận đơn</button>');
     /* Don pickup VAN book xe duoc, va do la truong hop thuong gap nhat:
@@ -561,18 +571,33 @@ async function scrVdView(name) {
       catch (er) { busy(false); baoTin((er && er.message) || 'Lỗi'); }
       return go(function () { scrVdView(name); }, true);
     }
+    if (k === 'phi_book') {
+      var phi = await hoiNhap('Chi phí book app thực tế (đồng)', String(d.phi_giao || 0));
+      if (phi === null || phi === undefined) return;
+      if (!String(phi).trim() || !Number.isFinite(Number(phi)) || Number(phi) < 0 || !Number.isInteger(Number(phi))) {
+        baoTin('Nhập số đồng không âm, không có dấu phân cách.'); return;
+      }
+      busy(true);
+      try { await api('vagabond.van_don.luu_phi_book', { name: name, phi: Number(phi) }); toast('Đã lưu phí book app'); }
+      catch (er) { baoTin((er && er.message) || 'Chưa lưu được phí'); }
+      finally { busy(false); }
+      return go(function () { scrVdView(name); }, true);
+    }
     if (k === 'giao') {
-      return vdChupAnh(async function (blob) {
+      var hoanTat = async function (blob) {
+        busy(true);
         try {
-          var fu = await vdUpload(blob, 'Van Don', name, 'anh_giao');
+          var fu = blob ? await vdUpload(blob, 'Van Don', name, 'anh_giao') : null;
           var kq = await api('vagabond.van_don.giao_xong', { name: name, file_url: fu });
-          busy(false);
           toast(kq.toi_quay
             ? 'Đã ghi nhận bỏ hàng xuống ' + vdDiemNgan(kq.diem_pickup) + '. Đơn về lại hàng chờ khách lấy, chưa báo Pancake.'
             : kq.da_bao_pancake ? 'Đã giao + báo Pancake ✅' : 'Đã giao (Pancake chưa nhận được, sales kiểm lại)', 4000);
-        } catch (er) { busy(false); baoTin((er && er.message) || 'Lỗi khi lưu ảnh giao'); }
+        } catch (er) { baoTin((er && er.message) || 'Chưa lưu được kết quả giao'); }
+        finally { busy(false); }
         go(function () { scrVdView(name); }, true);
-      });
+      };
+      if (vdCanAnhGiao(d)) return vdChupAnh(hoanTat);
+      return hoanTat(null);
     }
     if (k === 'loi') {
       var ld = await hoiNhap('Vì sao không giao được? (khách không nghe máy, sai địa chỉ...)', '');
@@ -885,7 +910,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '455';
+var APPVER = '456';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -1640,8 +1665,8 @@ var VD_SAP = [
   { k: 'phuong', nhan: '📍 Theo phường' }
 ];
 function vdSapNhan() {
-  for (var i = 0; i < VD_SAP.length; i++) if (VD_SAP[i].k === (vdSap || '')) return VD_SAP[i].nhan;
-  return VD_SAP[0].nhan;
+  for (var i = 0; i < VD_SAP.length; i++) if (VD_SAP[i].k === (vdSap || '')) return !vdSap && vdTab === 'cho_gan' ? '🆕 Mới nhất trước' : VD_SAP[i].nhan;
+  return vdTab === 'cho_gan' && !vdSap ? '🆕 Mới nhất trước' : VD_SAP[0].nhan;
 }
 function vdSapXep(ds) {
   var a = ds.slice();
@@ -1649,6 +1674,7 @@ function vdSapXep(ds) {
   if (vdSap === 'gio') a.sort(function (x, y) { return vi(x.tag_gio || 'zzz', y.tag_gio || 'zzz') || vi(x.gio_giao, y.gio_giao); });
   else if (vdSap === 'cod') a.sort(function (x, y) { return Number(y.tien_thu_ho || 0) - Number(x.tien_thu_ho || 0); });
   else if (vdSap === 'phuong') a.sort(function (x, y) { return vi(x.phuong || 'zzz', y.phuong || 'zzz') || vi(x.tag_gio, y.tag_gio); });
+  else if (vdTab === 'cho_gan') a.sort(function (x, y) { return vi(y.creation, x.creation) || vi(y.name, x.name); });
   return a;
 }
 
