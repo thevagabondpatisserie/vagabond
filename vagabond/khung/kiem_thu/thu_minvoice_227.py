@@ -305,8 +305,10 @@ def _phan_loai():
 
 @ca("#227 v447: kịch bản nạp không giới hạn một kết quả, đối chiếu mã đơn và ID, có phân trang")
 def _nap_khong_gioi_han():
-	def don(ma, pid=None, ghi_chu="Tên công ty: Công ty %s\nMST: 0311234567\nEmail: %s@example.com"):
-		return {"id": pid or ("ID-" + str(ma)), "display_id": ma, "note_print": ghi_chu % (ma, ma)}
+	def don(ma, pid=None, ghi_chu="Tên công ty: Công ty %s\nMST: 0311234567\nEmail: %s@example.com", khong_display=False):
+		# Pancake của tiệm (đo 08/09/2026): display_id null, id chính là mã đơn.
+		return {"id": (pid if pid is not None else (ma if khong_display else "ID-" + str(ma))),
+			"display_id": None if khong_display else ma, "note_print": ghi_chu % (ma, ma)}
 	# (SI có ID?, các trang tìm kiếm, bản tra theo ID, email mong đợi, có lỗi?)
 	trang_day = [don(1000 + i) for i in range(50)]
 	ca_kiem = (
@@ -320,29 +322,46 @@ def _nap_khong_gioi_han():
 		("khong_id_khop_trang_1_nhung_trang_5_day", [[don(227, "ID-A")] + trang_day[:49]] + [trang_day] * 4 + [[don(227, "ID-B", "Tên công ty: Công ty B %s\nMST: 0399999999\nEmail: b%s@example.com")]], None, None, True),
 		("khong_id_khop_trang_1_trang_5_ngan", [[don(227, "ID-A")] + trang_day[:49]] + [trang_day] * 3 + [trang_day[:10]], None, "227@example.com", False),
 		("khong_id_khop_trang_5_ngan", [trang_day] * 4 + [[don(227)]], None, "227@example.com", False),
+		# Đo trên site 08/09/2026: Pancake không trả display_id, id là số và là mã đơn.
+		("co_id_that_khong_display", [[don(93310, 93310, khong_display=True)]], {"id": 93310, "display_id": None, "note_print": "Tên công ty: Công ty 227\nMST: 0311234567\nEmail: 227@example.com"}, "227@example.com", False),
+		("co_id_that_lech_ma", [[]], {"id": 93311, "display_id": None, "note_print": "Email: x@example.com"}, None, True),
+		("khong_id_that_khong_display", [[don(1227, 1227, khong_display=True), don(227, 227, khong_display=True)]], None, "227@example.com", False),
+		# total_pages Pancake trả về là dấu hết: 5 trang đầy nhưng total_pages 5 -> đã hết, nạp được.
+		("khong_id_total_pages_5", [([don(227, "ID-A")] + trang_day[:49])] + [trang_day] * 4 + [[don(227, "ID-B")]], "TP5", "227@example.com", False),
+		# total_pages 6 mà chỉ đọc được 5 -> chưa hết, không ghi.
+		("khong_id_total_pages_6", [([don(227, "ID-A")] + trang_day[:49])] + [trang_day] * 4 + [[don(227, "ID-B")]], "TP6", None, True),
 		("co_id", [[don(1227)]], don(227), "227@example.com", False),
 		("co_id_lech_ma", [[don(227)]], don(1227, "ID-227"), None, True),
 		("co_id_khong_co", [[don(227)]], {}, None, True),
 	)
 	for ten, cac_trang, theo_id, mail_mong, co_loi in ca_kiem:
-		si = To(name="SI-227", custom_pancake_display_id="227", custom_pancake_id="ID-227" if ten.startswith("co_id") else "")
+		tong_trang = {"TP5": 5, "TP6": 6}.get(theo_id) if isinstance(theo_id, str) else None
+		if tong_trang:
+			theo_id = None
+		that = "_that" in ten
+		pid = ("93310" if that else "ID-227") if ten.startswith("co_id") else ""
+		si = To(name="SI-227", custom_pancake_display_id="93310" if (that and pid) else "227", custom_pancake_id=pid)
 		f = nen_script(si)
 		goi = []
 		def get(url, params=None, **kw):
-			goi.append((url.rsplit("/", 1)[1] if url.endswith("/ID-227") else "tim", dict(params or {})))
-			if url.endswith("/ID-227"):
+			goi.append((url.rsplit("/", 1)[1] if (pid and url.endswith("/" + pid)) else "tim", dict(params or {})))
+			if pid and url.endswith("/" + pid):
 				return {"data": theo_id}
 			so = int(params.get("page_number") or 1)
-			return {"data": cac_trang[so - 1] if so <= len(cac_trang) else []}
+			ra = {"data": cac_trang[so - 1] if so <= len(cac_trang) else []}
+			if tong_trang:
+				ra["total_pages"] = tong_trang
+				ra["total_entries"] = tong_trang * 50
+			return ra
 		f.make_get_request = get
 		exec(compile(kb.sua_nap(ban_goc("nap")), "nap-live", "exec"), {"frappe": f})
 		la("email " + ten, si.get("vgb_xhd_email"), mail_mong)
 		la("có lỗi báo kế toán " + ten, bool(f.response["message"]["loi"]), co_loi)
 		if ten.startswith("co_id"):
-			la("có ID thì tra đúng ID, không tìm gần đúng " + ten, [g[0] for g in goi], ["ID-227"])
+			la("có ID thì tra đúng ID, không tìm gần đúng " + ten, [g[0] for g in goi], [pid])
 		else:
-			dung("không ID thì tìm theo trang 50 " + ten, all(g[1].get("page_size") == 50 and g[1].get("search") == "227" for g in goi))
-			la("số trang đã duyệt " + ten, len(goi), min(len(cac_trang), 5) if ten != "khong_id" else 1)
+			dung("không ID thì tìm theo trang 50 " + ten, all(g[1].get("page_size") == 50 and g[1].get("search") == si.custom_pancake_display_id for g in goi))
+			la("số trang đã duyệt " + ten, len(goi), min(len(cac_trang), 5) if ten not in ("khong_id", "khong_id_that_khong_display") else 1)
 			if "trang_5_day" in ten or "qua_5_trang" in ten:
 				dung("chạm trần phân trang thì nói rõ chưa hết kết quả " + ten, any("chưa hết kết quả" in x for x in f.response["message"]["loi"]))
 				la("không ghi tên/MST người mua " + ten, (si.get("vgb_xhd_ten"), si.get("vgb_xhd_mst")), (None, None))
