@@ -1,6 +1,7 @@
 [pre_model_sync]
 
 [post_model_sync]
+vagabond.patches.san_xuat_206
 vagabond.khoa_ma_pancake
 vagabond.khoa_ma_pancake #chay lai 07/08/2026, lan dau vap ImplicitCommitError
 vagabond.patches.dong_bo_cau_truc #v228d de nghi chi noi bo

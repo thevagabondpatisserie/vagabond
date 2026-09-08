@@ -254,6 +254,7 @@ CUA_NGO = {
 	# yeu cau, thay cho insert roi submit roi o app.
 	# `soat_ma_chang_cu` them 06/09/2026 (#206): CHI DEM ho so mon con mang
 	# ma may cu, khong sua gi. Thay cho ham tu doi da go.
+	"san_xuat_desktop.py": ["chi_tiet"],
 	"kho_san_xuat.py": ["dung_cay_kho", "gan_chang_theo_ten",
 		"gan_nguoi_phu_trach", "hoan_tat_phieu", "soat_chang",
 		"soat_ma_chang_cu", "tat_kho_trung_gian"],

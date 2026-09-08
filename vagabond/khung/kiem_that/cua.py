@@ -20,6 +20,7 @@ from vagabond.khung.kiem_that import thu_don_huy  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mua_hddt_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hang_tang_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ho_so_tt_v445  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_san_xuat_206  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ma_cap_so  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mau_in  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhan_nvl  # noqa: F401,E402

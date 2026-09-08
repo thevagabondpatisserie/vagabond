@@ -802,15 +802,18 @@ def gan_kho_lenh(doc, method=None):
 	Khải hỏi 28/08/2026: ba ô kho cứ phải chọn lại mỗi lần lập lệnh, gán
 	chết theo mã món được không.
 
-	Gán ở đây chứ không gán vào hồ sơ món, vì kho đúng phụ thuộc hai thứ:
-	món thuộc chặng nào, và món của bếp nào. Ghi cứng một kho vào hồ sơ
-	món thì mã nào dùng chung hai bếp là sai ngay, mà đổi luật kho sau này
-	phải sửa lại từng mã một.
+	Từ #206, kho nguồn khai trên món là mặc định cho lệnh mới. Chưa khai
+	thì dùng quy tắc bếp/chặng hiện có. Kho được chọn riêng trên lệnh
+	vẫn có ưu tiên cao nhất.
 
 	CHỈ ĐIỀN Ô ĐANG TRỐNG. Người tạo lệnh đã chọn tay thì máy không đè -
 	cùng một luật với hook giá và hook mã tham chiếu: máy không đè lên chữ
 	người thật.
 	"""
+	from vagabond.san_xuat_desktop import dien_kho_mon
+
+	# Kiểm kho khai trên món ở ngoài try: cấu hình sai phải báo để sửa.
+	dien_kho_mon(doc)
 	try:
 		if not doc.get("production_item"):
 			return
@@ -833,36 +836,16 @@ def gan_kho_lenh(doc, method=None):
 
 
 def gan_kho_nguon(doc, method=None):
-	"""Hook validate Work Order: mỗi dòng nguyên liệu lấy đúng kho của chặng.
+	"""Giữ kho dòng theo lựa chọn LSX, không suy lại bếp từ món (#206).
 
-	Bọc try/except: lấy đúng kho là tốt, nhưng hỏng chuyện này thì tuyệt đối
-	không được chặn bếp tạo lệnh. Hỏng thì giữ nguyên kho mà người tạo lệnh
-	đã chọn, y như trước khi có luật này.
+	ERPNext 16.28.0 WorkOrder.set_required_items ưu tiên source_warehouse
+	của lệnh; set_warehouses chỉ điền dòng trống. Hook cũ chạy SAU lõi và
+	đè Pastry thành Baker. Giữ cùng luật với lõi để cả Desk và API đúng.
+	Dòng khác kho có chủ ý và lệnh cũ giữ nguyên, màn chi tiết cảnh báo.
 	"""
-	try:
-		if not doc.get("required_items"):
-			return
-		bep = _bep_cua_mon(doc.production_item)
-		if not bep:
-			# Chưa khai bếp phụ trách thì đoán theo kho thành phẩm đang chọn.
-			bep = bep_cua_kho(doc.get("fg_warehouse") or "")
-		if not bep:
-			return
-		kt_ra, ten_ra = _ho_so_mon(doc.production_item)
-		chang_ra = chang_cua_mon(doc.production_item,
-			_co_btp_con(doc.production_item), kt_ra, ten_ra)
-		if not chang_ra:
-			return
-		for d in doc.required_items:
-			kt_nl, ten_nl = _ho_so_mon(d.item_code)
-			chang_nl = chang_cua_mon(d.item_code, _co_btp_con(d.item_code),
-				kt_nl, ten_nl)
-			kho = chon_kho_nguon(chang_ra, chang_nl, bep)
-			if kho and frappe.db.exists("Warehouse", kho):
-				d.source_warehouse = kho
-	except Exception:
-		frappe.log_error(frappe.get_traceback(),
-			"vagabond: gan kho nguon theo chang")
+	for d in doc.get("required_items") or []:
+		if not d.get("source_warehouse"):
+			d.source_warehouse = doc.get("source_warehouse")
 
 
 # ---------------------------------------------------- hoàn tất lệnh, một cửa

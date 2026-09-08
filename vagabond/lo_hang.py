@@ -584,6 +584,9 @@ def gan_lo(doc, method=None):
 				# lô nào thì dòng thay thế đầu tiên thừa kế tên dòng gốc.
 				x = _boc(d, giu_ten=(not phan and j == 0))
 				x["item_code"] = ma_thay
+				# WorkOrder.get_consumed_qty (ERPNext 16.28.0) cộng theo
+				# item_code HOẶC original_item. Diễn giải không thay liên kết.
+				x["original_item"] = d.get("original_item") or ma
 				# Dòng thay thế đi bằng đơn vị GỐC cho khỏi kéo hệ số quy
 				# đổi của mã cũ sang mã mới.
 				x["qty"] = so

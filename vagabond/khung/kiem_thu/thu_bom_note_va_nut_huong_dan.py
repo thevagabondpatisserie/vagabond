@@ -183,7 +183,7 @@ def _():
 	#
 	# Chot lai theo DUNG dieu can canh: BOM co mat, va khong ai bat tat
 	# bang dau sao. So luong man trong bang la chuyen tu do.
-	dung("có khai hook", '"BOM": "public/js/bom_list.js"' in MA_HOOK)
+	dung("có khai hook", '"BOM": ["public/js/bom_list.js", "public/js/san_xuat_list.js"]' in MA_HOOK)
 	dung("có bảng doctype_list_js", "doctype_list_js = {" in MA_HOOK)
 	dung("không bắt tất bằng sao", 'doctype_list_js = {"*"' not in MA_HOOK)
 	dung("không có mục sao nào trong bảng",

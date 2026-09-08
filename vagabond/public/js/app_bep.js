@@ -5551,7 +5551,7 @@ async function openWoQty(codes) {
   return m;
 }
 async function mfgLoadItem(code) {
-  var m = await getList('Item', { fields: ['name', 'item_name', 'stock_uom', 'image', 'shelf_life_in_days', 'has_batch_no', 'custom_dieu_kien_bao_quan', 'custom_lam_tuoi', 'custom_han_dung_gio'], filters: { name: code }, limit_page_length: 1 });
+  var m = await getList('Item', { fields: ['name', 'item_name', 'stock_uom', 'image', 'shelf_life_in_days', 'has_batch_no', 'custom_dieu_kien_bao_quan', 'custom_lam_tuoi', 'custom_han_dung_gio', 'custom_kho_nguyen_lieu_sx'], filters: { name: code }, limit_page_length: 1 });
   if (!m.length) throw new Error('Không tìm thấy hàng hoá ' + code);
   var it = m[0];
   var us = [];
@@ -5565,10 +5565,14 @@ async function mfgLoadItem(code) {
 }
 
 /* --- o chon kho nguyen lieu / kho thanh pham dung chung cho ca phan he --- */
-function mfgWhCard() {
+function mfgNguonCua(row) {
+  return row.src || (!mfg.nguon_tay && row.kho_mac_dinh) || mfg.src;
+}
+function mfgWhCard(theoMon) {
   return '<div class="card">' +
     '<div class="fld" data-mw="src"><div class="fi">🧂</div><div class="ft"><div class="fl">Lấy nguyên liệu từ kho</div>' +
-    '<div class="fv">' + h(shortWh(mfg.src) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>' +
+    '<div class="fv">' + h(theoMon && !mfg.nguon_tay ? 'Theo từng Món; chưa khai thì dùng ' + shortWh(mfg.src) : shortWh(mfg.src) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>' +
+    (theoMon && mfg.nguon_tay ? '<button class="btn gh" data-kho-theo-mon>Dùng lại kho đã khai trên Món</button>' : '') +
     '<div class="fld" data-mw="fg"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
     '<div class="fv">' + h(shortWh(mfg.fg) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div></div>';
 }
@@ -5595,6 +5599,7 @@ function mfgWhTap(e, redraw) {
   if (!t) return false;
   var k = t.dataset.mw;
   sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts(), mfg[k], function (o) {
+    if (k === 'src') mfg.nguon_tay = 1;
     mfg[k] = o.value; mfgSaveWh(); redraw();
   }, true);
   return true;
@@ -6060,6 +6065,7 @@ async function scrMfgNew() {
       '<div><div class="s1">Phòng ban cần</div><div class="s2">' + num(r.need) + ' ' + h(r.uom) + '</div></div>' +
       '<div><div class="s1">Đã có lệnh</div><div class="s2">' + num(r.wo) + '</div></div>' +
       '<div><div class="s1">Tồn thành phẩm</div><div class="s2">' + num(r.ton) + '</div></div></div>' +
+      '<div class="ig" style="padding:8px 12px">Kho nguyên liệu: ' + h(shortWh(mfgNguonCua(r)) || 'Chưa chọn') + '</div>' +
       (laGoiY ? '' :
         (r.bom ?
           '<div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số lượng sẽ làm</div>' +
@@ -6125,7 +6131,7 @@ async function scrMfgNew() {
         (chonHet ? '✕ Bỏ chọn hết' : '✓ Chọn tất cả ' + coBom.length + ' món đang cần') + '</div>'
       : '';
 
-    var body = mfgWhCard() + '<div class="chips">' + chips + chipChon + '</div>' +
+    var body = mfgWhCard(true) + '<div class="chips">' + chips + chipChon + '</div>' +
       '<div style="padding:2px 0 8px;display:flex;gap:8px;align-items:center">' +
       '<input class="nt" id="mfgQ" placeholder="Tìm tên hoặc mã món" ' +
       'style="height:46px;padding:0 12px;flex:1;min-width:0" value="' + h(mfgN.q || '') + '">' +
@@ -6165,6 +6171,7 @@ async function scrMfgNew() {
       }
     });
     b.onclick = function (e) {
+      if (e.target.closest('[data-kho-theo-mon]')) { mfg.nguon_tay = 0; return draw(); }
       if (mfgWhTap(e, draw)) return;
       var hz = e.target.closest('[data-hz]');
       if (hz) { mfgN.horizon = +hz.dataset.hz; mfgN.rows = null; return scrMfgNew(); }
@@ -6301,7 +6308,7 @@ async function scrMfgNew() {
         else rows.push({
           code: code, name: it.item_name || code, uom: it.stock_uom, image: it.image || '',
           need: 0, wo: 0, ton: tn[code] || 0, bom: bm[code] ? bm[code].name : '',
-          qty: 1, on: 1, ngoai: 1
+          qty: 1, on: 1, ngoai: 1, kho_mac_dinh: it.custom_kho_nguyen_lieu_sx || ''
         });
         draw();
       } catch (err) { toast(errMsg(err)); } finally { busy(0); delete mfgN.dangThem[code]; }
@@ -6396,7 +6403,7 @@ async function mfgDemand(horizon) {
   var bm = await bomOf(order);
   var meta = {};
   var mrows = await inChunks(order, 80, function (lot) {
-    return getList('Item', { fields: ['name', 'item_name', 'image', 'stock_uom'], filters: { name: ['in', lot] }, limit_page_length: 0 });
+    return getList('Item', { fields: ['name', 'item_name', 'image', 'stock_uom', 'custom_kho_nguyen_lieu_sx'], filters: { name: ['in', lot] }, limit_page_length: 0 });
   });
   mrows.forEach(function (m) { meta[m.name] = m; });
   return order.map(function (c) {
@@ -6404,6 +6411,7 @@ async function mfgDemand(horizon) {
     a.wo = wq[c] || 0;
     a.ton = tn[c] || 0;
     a.image = m.image || '';
+    a.kho_mac_dinh = m.custom_kho_nguyen_lieu_sx || '';
     a.name = m.item_name || a.name;
     a.uom = m.stock_uom || a.uom;
     a.bom = bm[c] ? bm[c].name : '';
@@ -6442,7 +6450,7 @@ async function mfgCreateWO(row) {
     doctype: 'Work Order', company: COMPANY,
     production_item: row.code, item_name: row.name, bom_no: row.bom,
     qty: row.qty, stock_uom: row.uom,
-    fg_warehouse: row.fg || mfg.fg, source_warehouse: row.src || mfg.src,
+    fg_warehouse: row.fg || mfg.fg, source_warehouse: mfgNguonCua(row),
     skip_transfer: 1, use_multi_level_bom: await mfgNoNhieuCap(),
     planned_start_date: today() + ' 05:00:00'
   };
@@ -6764,10 +6772,17 @@ async function scrMfgView(name) {
   try { d = await api('frappe.client.get', { doctype: 'Work Order', name: name }); }
   catch (e) { toast(errMsg(e), 5000); return; }
   var mats = d.required_items || [];
-  var src = d.source_warehouse || mfg.src;
-  var tn = {};
-  try { tn = await stockOf(mats.map(function (m) { return m.item_code; }), src); } catch (e) { }
-  var left = r3((d.qty || 0) - (d.produced_qty || 0));
+  var src = d.source_warehouse || '';
+  var quaWip = !d.skip_transfer || d.from_wip_warehouse;
+  function khoDong(m) { return quaWip ? d.wip_warehouse : (m.source_warehouse || src); }
+  var tn = {}, nhomKho = {}, loiKho = {};
+  mats.forEach(function (m) { var k = khoDong(m) || ''; (nhomKho[k] || (nhomKho[k] = [])).push(m.item_code); });
+  await Promise.all(Object.keys(nhomKho).map(async function (k) {
+    if (!k) { loiKho[k] = true; return; }
+    try { tn[k] = await stockOf(nhomKho[k], k); }
+    catch (e) { loiKho[k] = true; }
+  }));
+  var left = Math.max(0, r3((d.qty || 0) - (d.produced_qty || 0) - (d.process_loss_qty || 0)));
   var canDo = d.docstatus === 1 && WODONE.indexOf(d.status) < 0 && left > 0;
 
   var anh = '';
@@ -6781,24 +6796,29 @@ async function scrMfgView(name) {
     '<div><div class="s1">Đã làm</div><div class="s2">' + kl(d.produced_qty || 0, d.stock_uom) + '</div></div>' +
     '<div><div class="s1">Còn lại</div><div class="s2">' + kl(left, d.stock_uom) + '</div></div></div>' +
     '<div class="fld"><div class="fi">🧂</div><div class="ft"><div class="fl">Trừ nguyên liệu tại kho</div>' +
-    '<div class="fv">' + h(shortWh(src) || 'Chưa có') + '</div></div></div>' +
+    '<div class="fv">' + h(shortWh(quaWip ? d.wip_warehouse : src) || 'Chưa có') + (quaWip ? ' (kho dở dang)' : ' (xem từng dòng bên dưới)') + '</div></div></div>' +
     '<div class="fld"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
     '<div class="fv">' + h(shortWh(d.fg_warehouse) || 'Chưa có') + '</div></div></div></div>';
 
   var short = 0;
   var list = mats.length ? '<div class="sec">Nguyên liệu sẽ trừ</div><div class="lst">' + mats.map(function (m) {
-    var have = tn[m.item_code] || 0;
+    var kho = khoDong(m) || '';
+    var khongRo = !!loiKho[kho];
+    var have = (tn[kho] || {})[m.item_code] || 0;
     var per = (d.qty || 1);
     var needNow = r3((m.required_qty || 0) / per * left);
-    var bad = have < needNow - 0.0001;
+    var bad = !khongRo && have < needNow - 0.0001;
     if (bad) short++;
     return '<div class="li"><div class="lt"><div class="l1">' + h(m.item_name || m.item_code) + '</div>' +
-      '<div class="l2">Tồn ' + kl(have, m.stock_uom) + '</div></div>' +
+      '<div class="l2">Kho: ' + h(shortWh(kho) || 'Chưa chọn') + '</div>' +
+      '<div class="l2">' + (khongRo ? 'Chưa đọc được tồn kho' : 'Tồn ' + kl(have, m.stock_uom)) + '</div></div>' +
       '<div style="text-align:right"><div class="amt"' + (bad ? ' style="color:#c93a3a"' : '') + '>' + kl(needNow, m.stock_uom) + '</div>' +
       '<div class="l2">' + h(m.stock_uom || '') + '</div></div></div>';
   }).join('') + '</div>' : '';
 
-  var warn = short ? '<div class="kwn">⚠️ Có ' + short + ' nguyên liệu tồn kho không đủ. Nếu vẫn bấm hoàn tất thì máy sẽ báo lỗi thiếu hàng.</div>' : '';
+  var warn = '<div class="kwn">Tồn hiển thị theo kho thực tế trên dòng. Máy kiểm lại lô, hạn dùng và nguyên liệu thay thế khi ghi phiếu.</div>';
+  if (Object.keys(loiKho).length) warn += '<div class="kwn">Chưa kiểm được tồn của một số kho. Tải lại để kiểm tra trước khi hoàn tất.</div>';
+  if (short) warn += '<div class="kwn">Có ' + short + ' nguyên liệu gốc có tồn thấp hơn nhu cầu còn lại. Kiểm tra nguyên liệu thay thế hoặc bổ sung hàng.</div>';
 
   /* Nut huy va sua so (anh Viet 29/08/2026). Sua so chi hien khi lenh con
      nhap: lenh da ghi so ma doi so thi bang nguyen lieu can dung khong doi
@@ -7391,7 +7411,6 @@ function mfgPrint(batch, n) {
         inKho('tem').rong, w);
     });
 }
-
 /* ---------- 13. Nhap kho tu Don mua hang ---------- */
 function isKho() { return hasRole('Stock Manager') || hasRole('Stock User') || hasRole('System Manager'); }
 function r3(v) { return Math.round((v || 0) * 1000) / 1000; }
