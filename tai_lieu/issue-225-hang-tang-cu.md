@@ -80,3 +80,9 @@ có sort ổn định. kiem_nam_to chỉ đọcGL từng tờ, không nhân bút
 
 Bản này chưa chốt số release; Claude phối hợp vớiPR231 khi phát hành, số
 phải lớn hơn450, giữ toàn bộpatch đã có. Không lấyAPPVER450 làm deploy mới.
+
+Cập nhật trước push: main đã lên83d6aba (mergePR231/v451). Đã merge nền
+mới vào nhánh này, giữ đầy đủ sản xuất/patch451; gate chạy lại RC0,2644ca
+đạt. Bản release củaPR225 phải lớn hơn451 nếu không có bản khác chen vào.
+Review chéo cuối không còn blocker đọc code để mởDraft; bench và duyệt
+ba dòng lẻ vẫn là điều kiện trước xử lý chứng từ thật.
