@@ -55,6 +55,7 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 doctype_js = {
 	"Item": "public/js/san_xuat_mon.js",
 	"Work Order": "public/js/san_xuat_lenh.js",
+	"Purchase Order": "public/js/purchase_order.js",
 	"Sales Invoice": "public/js/minvoice_phieu.js",
 	"Purchase Invoice": "public/js/purchase_invoice.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
@@ -329,7 +330,8 @@ doc_events = {
 	# duoi lo cho khong duong nao lot qua. Doc dau ham
 	# `dong_bo_don_mua_theo_duyet` de biet ca that ngay 27/08/2026.
 	"Purchase Order": {
-		"before_validate": "vagabond.duyet_ycmh.dong_bo_don_mua_theo_duyet",
+		"before_validate": ["vagabond.duyet_ycmh.dong_bo_don_mua_theo_duyet",
+			"vagabond.thue_don_mua.theo_mau_dau_phieu"],
 		"validate": [
 			"vagabond.duyet_ycmh.chan_don_mua_trai_duyet",
 			# HANG RAO DON VI, them 27/08/2026 sau khi ra 43 mau lenh Desk.

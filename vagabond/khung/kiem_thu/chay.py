@@ -23,7 +23,7 @@ from vagabond.khung.kiem_thu import nen  # noqa: E402
 nen.gia_lap()
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
-	thu_bang_gia_nhap, thu_minvoice_227,
+	thu_bang_gia_nhap, thu_minvoice_227, thu_link_thue_227,
 	thu_hang_tang_so_cai, thu_mua_hddt_227,
 	thu_bao_cao_don_nhap,
 	thu_bo_doctype, thu_bom_note_va_nut_huong_dan,

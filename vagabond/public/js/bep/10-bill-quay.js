@@ -788,6 +788,11 @@ async function scrPosBill(name) {
       'hoặc nhân viên bấm <b>Sửa hoá đơn</b> để điền hộ.</div>';
   }
 
+  if (!daKy && !d.vgb_huy && Number(d.docstatus) !== 2) {
+    html += '<div class="card"><button class="btn gh" id="pbLinkXhd" style="width:100%;min-height:44px">Tạo link điền thông tin xuất hoá đơn</button>' +
+      '<div id="pbLinkXhdKetQua" style="font-size:13px;word-break:break-word"></div></div>';
+  }
+
   /* ----- thanh toan ----- */
   /* KHI NAO CHO CHON PHUONG THUC THANH TOAN
      ---------------------------------------
@@ -925,6 +930,28 @@ async function scrPosBill(name) {
   if (d.name && !nhap) html += await hdAiLamGi(d.name);
 
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+  var nutLinkXhd = document.getElementById('pbLinkXhd');
+  if (nutLinkXhd) nutLinkXhd.onclick = async function () {
+    nutLinkXhd.disabled = true;
+    var ketQuaLink = document.getElementById('pbLinkXhdKetQua');
+    ketQuaLink.textContent = 'Đang tạo link cho bill này...';
+    try {
+      var lk = await api('vagabond.ban_hang.pos_link_xhd', { name: d.name, tao_moi: 1 });
+      ketQuaLink.innerHTML = '<div style="margin:10px 0">Gửi riêng link này cho khách của bill ' + h(maBill || d.name) +
+        '. Hạn điền: ' + h(lk.han) + '.</div><input class="tin" readonly id="pbLinkXhdUrl" value="' + h(lk.url) +
+        '"><button class="btn gh" id="pbChepLinkXhd" style="min-height:44px">Sao chép link</button>';
+      document.getElementById('pbChepLinkXhd').onclick = async function () {
+        try { await navigator.clipboard.writeText(lk.url); toast('Đã sao chép link để gửi cho khách.'); }
+        catch (loiChep) {
+          var oLink = document.getElementById('pbLinkXhdUrl'); oLink.focus(); oLink.select();
+          toast('Chạm giữ ô link hoặc nhấn Ctrl+C để sao chép.', 5000);
+        }
+      };
+    } catch (loiLink) {
+      ketQuaLink.textContent = (loiLink && loiLink.message) || 'Chưa tạo được link. Anh chị thử lại.';
+    } finally { nutLinkXhd.disabled = false; }
+  }
+
   hdGanBind();
   var nCt = document.getElementById('pbChiTiet');
   if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };

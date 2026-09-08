@@ -19,6 +19,8 @@ Chong trung: SI mang custom_pancake_id (id noi bo cua Pancake). Dong bo
 chay lai bao nhieu lan cung chi co mot hoa don cho mot don.
 """
 
+from datetime import timedelta
+
 import base64
 import hmac
 import json
@@ -6127,39 +6129,81 @@ def _xhd_token(name):
 	return hashlib.sha1(("vgbxhd|%s|%s" % (name, muoi)).encode()).hexdigest()[:12]
 
 
-@frappe.whitelist()
-def pos_link_xhd(name):
-	"""Duong dan cho ma QR xuat hoa don in cuoi bill.
+def _kiem_link_xhd(name, t, e=None):
+	from vagabond.link_xhd import link_hop_le
 
-	TUYET DOI, tren mien khach (them 03/09/2026). Ban cu tra duong tuong doi
-	"/xhd?..." roi man in ghep voi location.origin cua trinh duyet thu ngan,
-	tuc la app.thevagabondpatisserie.com - mien noi bo, khach quet la bi
-	luat ten mien da ve /bep. Xem chu thich DUONG_CHUNG trong ten_mien.py.
+	if not name:
+		frappe.throw("Đường dẫn không hợp lệ.")
+	if e:
+		bi_mat = frappe.local.conf.get("encryption_key")
+		if not bi_mat or not link_hop_le(name, e, t, bi_mat, now_datetime().timestamp()):
+			frappe.throw("Link không hợp lệ hoặc đã hết hạn. Anh chị liên hệ tiệm để lấy link mới.")
+	elif not str(t or "").isascii() or not hmac.compare_digest(str(t or ""), _xhd_token(name)):
+		frappe.throw("Đường dẫn không hợp lệ.")
+
+
+def _chan_phieu_xhd(si):
+	if cint(si.get("docstatus")) == 2 or cint(si.get("vgb_huy")) or cint(si.get("is_return")):
+		frappe.throw("Bill này đã huỷ hoặc là phiếu trả hàng. Anh chị liên hệ tiệm để kiểm lại bill.")
+
+
+@frappe.whitelist()
+def pos_link_xhd(name, tao_moi=0):
+	"""QR cũ không đổi; link gửi khách ký cả tên phiếu và hạn riêng.
+
+	Không ghi chứng từ khi tạo link. Quyền đọc phiếu được kiểm ngoài quyền
+	vai trò, tránh tạo đường vào bill mà nhân viên không được phép xem.
 	"""
 	from vagabond.ten_mien import link_khach
+	from vagabond.link_xhd import ky_link
+	from vagabond.minvoice_an_toan import da_gui
+	from urllib.parse import urlencode
 
 	_kiem_quyen()
-	duong = "/xhd?d=%s&t=%s" % (name, _xhd_token(name))
-	return {"url": link_khach(duong), "duong": duong}
+	si = frappe.get_doc("Sales Invoice", name)
+	si.check_permission("read")
+	_chan_phieu_xhd(si)
+	if not cint(tao_moi):
+		duong = "/xhd?" + urlencode({"d": name, "t": _xhd_token(name)})
+		return {"url": link_khach(duong), "duong": duong}
+	if da_gui(si):
+		frappe.throw("Hoá đơn đã gửi hoặc đang chờ đối chiếu M-Invoice. Kế toán kiểm kết quả trước khi sửa thông tin.")
+	bay_gio = now_datetime()
+	# Link không sống qua lịch xuất cuối ngày; lần bấm mới không đổi hạn QR cũ.
+	gio_chot = bay_gio.replace(hour=23, minute=30, second=0, microsecond=0)
+	if getdate(si.posting_date) != getdate(bay_gio) or bay_gio >= gio_chot:
+		frappe.throw("Đã qua thời gian khách tự điền cho bill này. Anh chị nhờ kế toán kiểm và điền giúp.")
+	bi_mat = frappe.local.conf.get("encryption_key")
+	if not bi_mat:
+		frappe.throw("Chưa tạo được link bảo mật. Anh chị báo quản trị kiểm cấu hình site.")
+	han = int(min(bay_gio.timestamp() + 7200, gio_chot.timestamp()))
+	duong = "/xhd?" + urlencode({"d": name, "t": ky_link(name, han, bi_mat), "e": han})
+	return {"url": link_khach(duong), "duong": duong,
+		"han": (bay_gio + timedelta(seconds=han - int(bay_gio.timestamp()))).strftime("%H:%M ngày %d/%m/%Y")}
 
 
 @frappe.whitelist(allow_guest=True)
-def xhd_khach_xem(d=None, t=None):
+def xhd_khach_xem(d=None, t=None, e=None):
 	"""Khach quet QR: xem bill cua minh truoc khi dien thong tin."""
 	name = (d or "").strip()
-	if not name or (t or "").strip() != _xhd_token(name):
-		frappe.throw("Đường dẫn không hợp lệ.")
+	_kiem_link_xhd(name, t, e)
 	si = frappe.db.get_value(
 		"Sales Invoice", name,
 		["name", "posting_date", "grand_total", "custom_hddt_so", "creation",
-		 "vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email"],
+		 "vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email",
+		 "docstatus", "vgb_huy", "is_return", "custom_minvoice_id", "custom_hddt_id", "custom_hddt_trang_thai", "vgb_hddt_cho_doi_chieu"],
 		as_dict=True,
 	)
 	if not si:
 		frappe.throw("Không tìm thấy bill này.")
-	_xhd_kiem_han(si.creation)
+	_chan_phieu_xhd(si)
+	if not e:
+		_xhd_kiem_han(si.creation)
 	si.pop("creation", None)
-	si["da_xuat"] = 1 if si.custom_hddt_so else 0
+	from vagabond.minvoice_an_toan import da_gui
+	si["da_xuat"] = 1 if da_gui(si) else 0
+	for o in ("custom_minvoice_id", "custom_hddt_id", "custom_hddt_trang_thai", "vgb_hddt_cho_doi_chieu"):
+		si.pop(o, None)
 	si["custom_hddt_so"] = ""  # so hoa don khong phai viec cua trang khach
 	if si.vgb_xhd_ten == XHD_MAC_DINH:
 		si["vgb_xhd_ten"] = ""
@@ -6167,17 +6211,20 @@ def xhd_khach_xem(d=None, t=None):
 
 
 @frappe.whitelist(allow_guest=True)
-def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
+def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None, e=None):
 	"""Khach dien MST - ten - dia chi - email; ERP tu map vao don ban hang.
 	Cuoi ngay lich 23h30 tu tao hoa don cho ky ben m-invoice nhu moi don."""
 	name = (d or "").strip()
-	if not name or (t or "").strip() != _xhd_token(name):
-		frappe.throw("Đường dẫn không hợp lệ.")
+	_kiem_link_xhd(name, t, e)
 	from vagabond.minvoice_an_toan import da_gui
 	si = frappe.get_doc("Sales Invoice", name, for_update=True)
 	if not si:
 		frappe.throw("Không tìm thấy bill này.")
-	_xhd_kiem_han(si.creation)
+	# Có thể đã đợi khoá qua thời hạn trong lúc lượt xuất cuối ngày chạy.
+	_kiem_link_xhd(name, t, e)
+	_chan_phieu_xhd(si)
+	if not e:
+		_xhd_kiem_han(si.creation)
 	if da_gui(si):
 		frappe.throw("Bill này đã xuất hoá đơn điện tử rồi, không sửa được nữa. Cần điều chỉnh thì liên hệ tiệm.")
 	so_mst = _chuan_mst(mst)
@@ -6207,6 +6254,7 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None):
 			"vgb_xhd_email": (email or "").strip(),
 		},
 	)
+	si.add_comment("Comment", "Khách tự điền thông tin xuất hoá đơn qua link/QR của bill này.")
 	frappe.db.commit()
 	# Gui mail bao da tiep nhan - khach dien xong co ngay mot dong hoi am,
 	# khoi thap thom khong biet may co nhan duoc khong (anh Viet 09/08/2026).

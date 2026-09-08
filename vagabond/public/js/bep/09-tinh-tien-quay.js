@@ -705,7 +705,7 @@ async function scrPosQuay() {
   var xin2 = 'width:100%;box-sizing:border-box;padding:10px 11px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit';
   html += '<div class="card" style="padding:12px 14px;margin-top:10px">' +
     '<div id="posXhMo" style="display:flex;align-items:center;gap:8px;cursor:pointer"><span style="font-size:17px">🧾</span>' +
-    '<div style="flex:1"><b style="font-size:14px">Khách cần hoá đơn công ty?</b><div style="font-size:12px;color:#98a2b3">Không điền cũng được - khách quét QR cuối hoá đơn tự điền sau</div></div>' +
+    '<div style="flex:1"><b style="font-size:14px">Khách cần hoá đơn công ty?</b><div style="font-size:12px;color:#98a2b3">Sau khi lưu bill, mở Thông tin xuất hoá đơn để tạo link gửi khách hoặc dùng QR cuối bill</div></div>' +
     '<span style="color:#c3c8d4;font-size:18px">' + (posDon.xhd_mo ? '▾' : '▸') + '</span></div>' +
     (posDon.xhd_mo
       ? '<div style="display:grid;gap:8px;margin-top:10px">' +

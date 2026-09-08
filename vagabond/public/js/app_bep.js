@@ -12800,7 +12800,7 @@ async function scrPosQuay() {
   var xin2 = 'width:100%;box-sizing:border-box;padding:10px 11px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:14px;font-family:inherit';
   html += '<div class="card" style="padding:12px 14px;margin-top:10px">' +
     '<div id="posXhMo" style="display:flex;align-items:center;gap:8px;cursor:pointer"><span style="font-size:17px">🧾</span>' +
-    '<div style="flex:1"><b style="font-size:14px">Khách cần hoá đơn công ty?</b><div style="font-size:12px;color:#98a2b3">Không điền cũng được - khách quét QR cuối hoá đơn tự điền sau</div></div>' +
+    '<div style="flex:1"><b style="font-size:14px">Khách cần hoá đơn công ty?</b><div style="font-size:12px;color:#98a2b3">Sau khi lưu bill, mở Thông tin xuất hoá đơn để tạo link gửi khách hoặc dùng QR cuối bill</div></div>' +
     '<span style="color:#c3c8d4;font-size:18px">' + (posDon.xhd_mo ? '▾' : '▸') + '</span></div>' +
     (posDon.xhd_mo
       ? '<div style="display:grid;gap:8px;margin-top:10px">' +
@@ -14794,6 +14794,11 @@ async function scrPosBill(name) {
       'hoặc nhân viên bấm <b>Sửa hoá đơn</b> để điền hộ.</div>';
   }
 
+  if (!daKy && !d.vgb_huy && Number(d.docstatus) !== 2) {
+    html += '<div class="card"><button class="btn gh" id="pbLinkXhd" style="width:100%;min-height:44px">Tạo link điền thông tin xuất hoá đơn</button>' +
+      '<div id="pbLinkXhdKetQua" style="font-size:13px;word-break:break-word"></div></div>';
+  }
+
   /* ----- thanh toan ----- */
   /* KHI NAO CHO CHON PHUONG THUC THANH TOAN
      ---------------------------------------
@@ -14931,6 +14936,28 @@ async function scrPosBill(name) {
   if (d.name && !nhap) html += await hdAiLamGi(d.name);
 
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+  var nutLinkXhd = document.getElementById('pbLinkXhd');
+  if (nutLinkXhd) nutLinkXhd.onclick = async function () {
+    nutLinkXhd.disabled = true;
+    var ketQuaLink = document.getElementById('pbLinkXhdKetQua');
+    ketQuaLink.textContent = 'Đang tạo link cho bill này...';
+    try {
+      var lk = await api('vagabond.ban_hang.pos_link_xhd', { name: d.name, tao_moi: 1 });
+      ketQuaLink.innerHTML = '<div style="margin:10px 0">Gửi riêng link này cho khách của bill ' + h(maBill || d.name) +
+        '. Hạn điền: ' + h(lk.han) + '.</div><input class="tin" readonly id="pbLinkXhdUrl" value="' + h(lk.url) +
+        '"><button class="btn gh" id="pbChepLinkXhd" style="min-height:44px">Sao chép link</button>';
+      document.getElementById('pbChepLinkXhd').onclick = async function () {
+        try { await navigator.clipboard.writeText(lk.url); toast('Đã sao chép link để gửi cho khách.'); }
+        catch (loiChep) {
+          var oLink = document.getElementById('pbLinkXhdUrl'); oLink.focus(); oLink.select();
+          toast('Chạm giữ ô link hoặc nhấn Ctrl+C để sao chép.', 5000);
+        }
+      };
+    } catch (loiLink) {
+      ketQuaLink.textContent = (loiLink && loiLink.message) || 'Chưa tạo được link. Anh chị thử lại.';
+    } finally { nutLinkXhd.disabled = false; }
+  }
+
   hdGanBind();
   var nCt = document.getElementById('pbChiTiet');
   if (nCt) nCt.onclick = function () { go(function () { scrDsView(d.name, 1); }); };
@@ -21574,7 +21601,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '449';
+var APPVER = '450';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
