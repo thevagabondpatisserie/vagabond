@@ -162,7 +162,11 @@ def _keo_don(c, k, update_status, dau, cuoi):
 					continue
 				raise LoiPancake(0, "Không nối được Pancake: %s" % _giau_khoa(e))
 			if r.status_code == 200:
-				ds = (r.json() or {}).get("data") or []
+				body = r.json()
+				if (not isinstance(body, dict) or body.get("success") is False
+					or not isinstance(body.get("data"), list)):
+					raise LoiPancake(0, "Pancake trả phản hồi không đầy đủ; chưa thể kết luận danh sách đơn.")
+				ds = body["data"]
 				break
 			# 403 va 429 la "goi qua day" hoac "khoa sai"; 5xx la ben ho tro
 			# tro. Ca ba deu dang thu lai. 4xx con lai thi thu lai vo ich.
