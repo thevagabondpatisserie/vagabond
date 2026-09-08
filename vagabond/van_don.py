@@ -735,9 +735,12 @@ def _kiem_don_dong_bo(o, pid=None):
 			raise ValueError("Pancake trả thiếu bảng món; chưa cập nhật vận đơn.")
 		for d in o["items"]:
 			vi = d.get("variation_info")
+			try:
+				so_luong = float(d.get("quantity"))
+			except (TypeError, ValueError):
+				raise ValueError("Pancake trả số lượng không hợp lệ; chưa cập nhật vận đơn.")
 			if (not isinstance(vi, dict) or not str(vi.get("name") or vi.get("display_id") or "").strip()
-				or not isinstance(d.get("quantity"), (int, float)) or isinstance(d.get("quantity"), bool)
-				or not math.isfinite(d["quantity"]) or d["quantity"] < 0):
+				or isinstance(d.get("quantity"), bool) or not math.isfinite(so_luong) or so_luong < 0):
 				raise ValueError("Pancake trả dòng món không đầy đủ; chưa cập nhật vận đơn.")
 		if not _ngay_tu_iso(o.get("estimate_delivery_date")):
 			raise ValueError("Pancake trả thiếu ngày giao; chưa cập nhật vận đơn.")

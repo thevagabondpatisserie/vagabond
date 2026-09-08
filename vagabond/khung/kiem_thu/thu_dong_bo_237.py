@@ -123,3 +123,15 @@ def _danh_sach_loi():
             else: dung('phải báo lỗi',False)
     with patch.object(kb,'_mang',lambda:NS(get=lambda *a,**kw:NS(status_code=200,json=lambda:{'data':[]}))):
         la('rỗng hợp lệ',kb._keo_don(NS(pancake_shop_id='THU'),'KEY','estimate_delivery_date',1,2),[])
+
+
+@ca('#237: giữ tương thích số lượng dạng số hoặc chuỗi số, chặn NaN')
+def _so_luong():
+    for sl in (2,2.5,'2','2.5','0'):
+        o=don();o['items']=[{'quantity':sl,'variation_info':{'display_id':'THU','name':'Bánh'}}]
+        la('đọc đúng số',vd._kiem_don_dong_bo(o),o)
+    for sl in (None,'','NaN',float('inf'),-1,True):
+        o=don();o['items']=[{'quantity':sl,'variation_info':{'name':'Bánh'}}]
+        try: vd._kiem_don_dong_bo(o)
+        except ValueError: pass
+        else: dung('số lỗi phải chặn',False)

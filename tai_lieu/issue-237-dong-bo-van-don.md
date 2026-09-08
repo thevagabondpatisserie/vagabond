@@ -21,7 +21,7 @@ Chưa chạy bench thật hoặc HTTP/site thật tại Codex, chưa sửa vận
 
 ## Bằng chứng local
 
-Gate rc0, 2.655 ca thuần đạt. Ca Node thực thi handler giao: pickup/book không camera/upload, giao thường vẫn camera/upload, mỗi thao tác gọi API hoàn thành một lần. Review chéo đã xử lý các finding: bỏ sót đơn quá hạn, đọc bổ sung không giới hạn, xoá trường vắng, cắt500 đơn trước sort, khoá phường sai chính tả.
+Gate rc0, 2.656 ca thuần đạt. Ca Node thực thi handler giao: pickup/book không camera/upload, giao thường vẫn camera/upload, mỗi thao tác gọi API hoàn thành một lần. Review chéo đã xử lý các finding: bỏ sót đơn quá hạn, đọc bổ sung không giới hạn, xoá trường vắng, cắt500 đơn trước sort, khoá phường sai chính tả.
 
 ## Claude review/bench/deploy
 
