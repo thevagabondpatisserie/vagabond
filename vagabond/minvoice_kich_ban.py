@@ -20,7 +20,8 @@ from pathlib import Path
 TEN_PHAT_HANH = "MInvoice - Phat hanh HD Sales (API)"
 TEN_NAP = "VGB - Nap thong tin xuat hoa don tu Pancake"
 MOC_V446 = "# VGB-227: kiểm đúng đơn và người nhận"
-MOC = "# VGB-227 v449: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
+MOC_V449 = "# VGB-227 v449: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
+MOC = "# VGB-225 v454: nạp đúng nguồn Pancake"
 MOC_V447 = "# VGB-227 v447: kiểm đúng đơn và người nhận, phân loại phản hồi M-Invoice"
 
 # sha256 các bản vá cũ đã từng chạy trên bench (không còn hàm sinh, giữ mã băm
@@ -28,11 +29,13 @@ MOC_V447 = "# VGB-227 v447: kiểm đúng đơn và người nhận, phân loạ
 # nhánh 39a47f8): nạp chưa có kiểm hết kết quả phân trang; phát hành giống hiện tại.
 BAM_BAN_CU = {
 	"nap": {
+		"ba7e29e233595f72d87dbabb8f1ace0bbf1cef52e86e6e5be82e67b49d6bc290": "v449",
 		"986a3b5d4471e6140dea1cdeb66d2f9ca099f1f1fb2d58dafb69abc61babbed6": "v447_39a47f8",
 		# v448 (fa79821, đã deploy site 08/09 10:42): đối chiếu display_id mà Pancake không trả.
 		"81fb0f8bbb526c305d82d96beb96193b4092fe6f915b9c42fc49b75f7d959cfa": "v448_fa79821",
 	},
 	"phat_hanh": {
+		"44d7dfaf295e7cffb1cb0491edf5d730ba6853547f2df355b258e97dca89876e": "v449",
 		# v447/v448 phát hành: chỉ khác mốc đầu tệp so với bản v449.
 		"5e6464ba35de7c1fc5873b4e2f94a4d1da81781fc45bfaa71e769e9c2d52c3eb": "v448_fa79821",
 	},
@@ -71,7 +74,7 @@ def thay_mot(ma, cu, moi):
 
 
 def _chan_da_va(ma):
-	if ma.startswith(MOC_V446) or ma.startswith(MOC_V447) or ma.startswith(MOC):
+	if ma.startswith(MOC_V446) or ma.startswith(MOC_V447) or ma.startswith(MOC_V449) or ma.startswith(MOC):
 		raise ValueError("Kịch bản đã mang mốc vá; phải vá lại từ bản gốc snapshot, không vá chồng.")
 
 
@@ -171,6 +174,12 @@ DOAN_TIM_PANCAKE = """        # #227 v449: không lấy kết quả tìm đầu 
 
 def sua_nap(ma):
 	_chan_da_va(ma)
+	# Cửa chung cho nạp tay và xuất rải. Mã TAICHO/GRABFOOD cũng nằm
+	# trong custom_pancake_display_id, không phải bằng chứng nguồn Pancake.
+	# Phiếu cũ thiếu nguồn vẫn đi qua kiểm ID nghiêm ngặt như trước.
+	ma = thay_mot(ma, "    can_xhd = ghi_de or not si.get('vgb_xhd_mst')", """    if str(si.get('custom_nguon') or '').strip() not in ('', 'Pancake'):
+        continue
+    can_xhd = ghi_de or not si.get('vgb_xhd_mst')""")
 	ma = thay_mot(ma, "    si = frappe.get_doc('Sales Invoice', row['name'])", "    si = frappe.get_doc('Sales Invoice', row['name'], for_update=True)")
 	ma = thay_mot(ma, """        r = frappe.make_get_request(url, params={'api_key': key, 'page_size': 1, 'search': so_dh})
         dd = (r.get('data') or [None])[0]""", DOAN_TIM_PANCAKE)
