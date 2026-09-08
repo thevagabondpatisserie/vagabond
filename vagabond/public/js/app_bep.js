@@ -20788,6 +20788,23 @@ async function vdGoAnh(d, truong) {
 function vdLaShipper() { return hasRole('Shipper'); }
 function vdLaKeToan() { return hasRole('Accounts User') || hasRole('Purchase User') || hasRole('System Manager'); }
 
+/* Số chưa tới lượt không phải lỗi; tách ngày đang xem khỏi tồn quá hạn. */
+function vdTomTatDongBo(kq) {
+  var dong = ['Đã đồng bộ: ' + (kq.them || 0) + ' đơn mới, ' + (kq.lam_moi || 0) + ' đơn cập nhật.'];
+  var doi = kq.doi_chieu || {};
+  ['ngay', 'qua_han'].forEach(function (nhom) {
+    var d = doi[nhom];
+    if (!d || !d.can_kiem) return;
+    dong.push((nhom === 'ngay' ? 'Ngày đang xem' : 'Đơn quá hạn') + ': đọc được ' + (d.doc_duoc || 0) + '/' + d.can_kiem + ' đơn trong lượt này.' +
+      (d.chua_kiem ? ' Còn ' + d.chua_kiem + ' đơn chưa tới lượt.' : '') +
+      (d.loi_doc ? ' ' + d.loi_doc + ' đơn lỗi đọc.' : ''));
+  });
+  if (doi.ngay && doi.ngay.chua_kiem) dong.push('Bấm Cập nhật đơn để kiểm tiếp ngày đang xem; chưa coi các đơn còn lại đã khớp.');
+  if (doi.qua_han && doi.qua_han.chua_kiem) dong.push('Đơn quá hạn sẽ được kiểm tiếp ở các lượt tự động, không chặn ngày đang xem.');
+  if (kq.loi && kq.loi.length) dong.push('Lỗi cần kiểm: ' + kq.loi.map(function (x) { return x.ma_don + ': ' + x.loi; }).join('\n'));
+  return dong.join('\n');
+}
+
 async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
@@ -20925,8 +20942,9 @@ async function scrVanDon() {
       try {
         var kq = await api('vagabond.van_don.dong_bo_pancake', { ngay: vdNgay });
         busy(false);
-        if (kq.loi && kq.loi.length) baoTin('Còn ' + kq.loi.length + ' đơn chưa đồng bộ: ' + kq.loi.map(function (x) { return x.ma_don + ': ' + x.loi; }).join('\n'));
-        else toast('Đã đồng bộ: ' + (kq.them || 0) + ' đơn mới, ' + (kq.lam_moi || 0) + ' đơn cập nhật.', 3200);
+        var dc = kq.doi_chieu || {};
+        if ((kq.loi && kq.loi.length) || (dc.ngay && dc.ngay.chua_kiem) || (dc.qua_han && dc.qua_han.chua_kiem)) baoTin(vdTomTatDongBo(kq));
+        else toast(vdTomTatDongBo(kq), 4500);
         go(scrVanDon, true);
       } catch (e) {
         busy(false);
@@ -21628,7 +21646,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '458';
+var APPVER = '460';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

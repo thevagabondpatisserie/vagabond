@@ -20,13 +20,15 @@ def tao():
     return d
 
 
-def dong_bo(d,o,ds=None,loi_luu=False):
+def dong_bo(d,o,ds=None,loi_luu=False, cu_ids=None):
     class R:
         status_code=200
         def json(self): return {'data':o}
     class Mang:
         def get(self,url,**kw):
-            if url.rsplit('/',1)[-1] != d.pancake_id: raise AssertionError('Cấm đọc đơn thật')
+            pid=url.rsplit('/',1)[-1]
+            if pid in (cu_ids or []): return type('LoiThu',(),{'status_code':404})()
+            if pid != d.pancake_id: raise AssertionError('Cấm đọc đơn thật')
             return R()
     with ExitStack() as st:
         st.enter_context(patch.object(vd,'cfg',lambda:frappe._dict(pancake_shop_id='THU')))
@@ -88,3 +90,40 @@ def _phi():
         except frappe.ValidationError: pass
         else: raise AssertionError('Đã sửa phí sau đối soát')
     d.reload();la('phí vẫn cũ',d.phi_giao,45000)
+
+
+@ca('#237/93405: backlog thật hơn20 đơn không chặn lưu ngày mới và bộ lọc ngày')
+def _hang_doi_ngay_that():
+    d=tao()
+    d.pancake_id='93405-THU237-'+frappe.generate_hash(length=8)
+    d.save(ignore_permissions=True)
+    ngay_cu=str(d.ngay_giao)
+    cu=[]
+    for i in range(25):
+        x=tao()
+        x.pancake_id=str(91000+i)+'-THU237-'+frappe.generate_hash(length=8)
+        x.ngay_giao=add_days(ngay_cu,-1)
+        x.save(ignore_permissions=True)
+        cu.append(x)
+    ten=[x.name for x in cu]+[d.name]
+    get_all=frappe.get_all
+    def rieng_fixture(dt,*a,**kw):
+        if dt=='Van Don':
+            # Vẫn truy vấn DB thật, chỉ giới hạn fixture để không đọc đơn site.
+            kw['filters']={**kw.get('filters',{}),'name':['in',ten]}
+        return get_all(dt,*a,**kw)
+    o=don(d)
+    # Hình dạng thật 93405: UTC không ghi múi, 17h là 0h ngày sau ở VN.
+    o['estimate_delivery_date']=str(add_days(ngay_cu,1))+'T17:00:00'
+    with patch.object(vd,'nowdate',lambda:ngay_cu), patch.object(frappe,'get_all',rieng_fixture):
+        ra=dong_bo(d,o,cu_ids=[x.pancake_id for x in cu])
+        d.reload()
+        la('ngày mới thực lưu',str(d.ngay_giao),str(add_days(ngay_cu,2)))
+        la('ngày chọn đã đọc đủ',ra['doi_chieu']['ngay']['chua_kiem'],0)
+        la('hàng quá hạn vẫn được thử',ra['doi_chieu']['qua_han']['da_thu'],19)
+        # Dùng đúng API danh sách của màn; không chỉ nhìn field trên object.
+        with patch.object(vd,'_kiem_quyen_xem',lambda:None), patch.object(vd,'_la_shipper',lambda:False):
+            la('biến mất khỏi ngày cũ',[x.name for x in vd.danh_sach(ngay_cu) if x.name==d.name],[])
+            la('hiện ở ngày mới',[x.name for x in vd.danh_sach(str(add_days(ngay_cu,2))) if x.name==d.name],[d.name])
+    la('một vận đơn duy nhất',frappe.db.count('Van Don',{'pancake_id':d.pancake_id}),1)
+    la('không tự dọn đơn quá hạn',frappe.db.count('Van Don',{'name':['in',[x.name for x in cu]],'trang_thai':'Chờ giao'}),25)
