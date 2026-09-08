@@ -752,11 +752,56 @@ def _kiem_don_dong_bo(o, pid=None):
 	return o
 
 
-def _bo_sung_don_da_co(ds, ngay, c, k, loi):
-	"""Đối chiếu ID còn mở bị rơi khỏi truy vấn ngày; lỗi không có nghĩa huỷ.
+def _vong_id(ids, moc):
+	"""Đi tiếp sau ID đã thử, rồi quay vòng; lỗi một ID không giữ cả hàng."""
+	ids = sorted(set(ids))
+	return [pid for pid in ids if pid > moc] + [pid for pid in ids if pid <= moc]
 
-	Hôm nay kiểm thêm vận đơn quá hạn để cron sửa cả các đơn dời ngày lúc
-	cron ngừng chạy. Mỗi lỗi trả mã đơn cho điều phối, không chặn đơn khác.
+
+def _doc_hang_doi(ids, khoa, ttl, gioi_han, han, c, k, bang, loi):
+	"""Giới hạn lượt HTTP, trả số đã đọc riêng với số chưa tới lượt.
+
+	Đây là số của MỘT lượt, không phải số đơn đã hoàn tất trong cả vòng.
+	Đơn cũ vẫn mở sau khi đọc là hợp lệ; không tự đóng để làm đẹp hàng đợi.
+	"""
+	moc = str(cache_get(khoa) or "")
+	ids = _vong_id(ids, moc)
+	kq = {"can_kiem": len(ids), "da_thu": 0, "doc_duoc": 0, "loi_doc": 0, "chua_kiem": len(ids), "moc_cu": moc, "moc_moi": moc}
+	for pid in ids:
+		con_giay = han - time.monotonic()
+		if kq["da_thu"] >= gioi_han or con_giay <= 0:
+			break
+		kq["da_thu"] += 1
+		# Khoá file ở caller dùng chung cho cron và nút tay. Tiến sau mỗi
+		# lần thử, kể cả lỗi; không để một HTTP lỗi chiếm mọi lượt sau.
+		cache_set(khoa, pid, ttl)
+		kq["moc_moi"] = pid
+		try:
+			r = _mang().get("%s/shops/%s/orders/%s" % (PANCAKE, c.pancake_shop_id, pid),
+				params={"api_key": k}, timeout=min(TIMEOUT, 5, con_giay))
+			if r.status_code != 200:
+				raise ValueError("Pancake chưa trả đơn thành công.")
+			body = r.json()
+			if isinstance(body, dict) and body.get("success") is False:
+				raise ValueError("Pancake chưa trả đơn thành công.")
+			bang[pid] = _kiem_don_dong_bo(body.get("data") if isinstance(body, dict) else None, pid)
+			kq["doc_duoc"] += 1
+		except Exception:
+			kq["loi_doc"] += 1
+			# Không đưa exception mạng ra ngoài vì URL có thể chứa API key.
+			loi.append({"ma_don": pid, "loi": "Chưa đọc được đầy đủ đúng đơn Pancake; giữ dữ liệu cũ, thử lại."})
+	kq["chua_kiem"] = len(ids) - kq["da_thu"]
+	return kq
+
+
+def _bo_sung_don_da_co(ds, ngay, c, k, loi, doi_chieu=None):
+	"""#237/93405: 1.325 đơn quá hạn không được đứng trước ngày Sales xem.
+
+	Hai hàng có cursor riêng. Ngày đang xem được ưu tiên 16 lượt/12 giây;
+	quá hạn được dành sức chứa 4 lượt và 3 giây nếu cả hai hàng còn việc.
+	Phần ngày không dùng hết được nhường lại cho quá hạn, tổng tối đa20 lượt.
+	Hạn thời gian là hạn bắt đầu request; timeout mạng cũng bị giới hạn theo
+	phần còn lại. Không coi đây là hạn cứng cho toàn bộ giao dịch/mạng.
 	"""
 	if not isinstance(ds, list):
 		raise ValueError("Pancake trả sai danh sách đơn.")
@@ -773,34 +818,28 @@ def _bo_sung_don_da_co(ds, ngay, c, k, loi):
 			bang.pop(pid, None)
 			loi_id.add(pid)
 			loi.append({"ma_don": pid, "loi": str(e)})
-	cu = frappe.get_all("Van Don", filters={"ngay_giao": ["<=", ngay] if str(ngay) == nowdate() else ngay,
-		"trang_thai": ["in", ["Chờ giao", "Đang giao", "Chờ khách lấy"]],
-		"pancake_id": ["is", "set"]}, fields=["pancake_id"], limit_page_length=0)
-	ids = sorted({str(d.pancake_id).strip() for d in cu if d.pancake_id} - set(bang) - loi_id)
-	khoa = "van_don_237_cursor:" + str(ngay)
-	moc = str(cache_get(khoa) or "")
-	ids = [pid for pid in ids if pid > moc] + [pid for pid in ids if pid <= moc]
-	bat_dau, da_doc = time.monotonic(), 0
-	for pid in ids:
-		if da_doc >= 20 or time.monotonic() - bat_dau >= 15:
-			break
-		da_doc += 1
-		cache_set(khoa, pid, 86400)
-		try:
-			r = _mang().get("%s/shops/%s/orders/%s" % (PANCAKE, c.pancake_shop_id, pid),
-				params={"api_key": k}, timeout=min(TIMEOUT, 5))
-			if r.status_code != 200:
-				raise ValueError("Pancake HTTP %s; giữ dữ liệu cũ, thử lại." % r.status_code)
-			body = r.json()
-			if isinstance(body, dict) and body.get("success") is False:
-				raise ValueError("Pancake chưa trả đơn thành công.")
-			bang[pid] = _kiem_don_dong_bo(body.get("data") if isinstance(body, dict) else None, pid)
-		except Exception:
-			loi_id.add(pid)
-			# Không đưa exception mạng ra ngoài vì URL có thể chứa API key.
-			loi.append({"ma_don": pid, "loi": "Chưa đọc được đầy đủ đúng đơn Pancake; giữ dữ liệu cũ, thử lại."})
-	if da_doc < len(ids):
-		loi.append({"ma_don": "Đối chiếu bổ sung", "loi": "Còn %s đơn chưa kiểm; lần đồng bộ tiếp theo sẽ tiếp tục, chưa kết luận các đơn này đã khớp." % (len(ids) - da_doc)})
+	ngay = str(ngay)
+	hom_nay = nowdate()
+	loc = {"trang_thai": ["in", ["Chờ giao", "Đang giao", "Chờ khách lấy"]],
+		"pancake_id": ["is", "set"]}
+	def lay_ids(dieu_kien):
+		cu = frappe.get_all("Van Don", filters={**loc, "ngay_giao": dieu_kien},
+			fields=["pancake_id"], limit_page_length=0)
+		return {str(d.pancake_id).strip() for d in cu if d.pancake_id} - set(bang) - loi_id
+	trong_ngay = lay_ids(ngay)
+	# Xem một ngày khác không chen vào tiến độ hàng quá hạn của cron hôm nay.
+	qua_han = (lay_ids(["<", hom_nay]) - trong_ngay) if ngay == hom_nay else set()
+	bat_dau = time.monotonic()
+	khoa = "van_don_237_v2:" + str(c.pancake_shop_id) + ":"
+	kq_ngay = _doc_hang_doi(trong_ngay, khoa + "ngay:" + ngay, 30 * 86400,
+		16 if qua_han else 20, bat_dau + (12 if qua_han else 15), c, k, bang, loi)
+	# Không gắn ngày/TTL cho cursor quá hạn. Frappe Redis set_value nhận
+	# expires_in_sec=None: qua nửa đêm vẫn tiếp tục đúng vòng đang đọc.
+	kq_cu = _doc_hang_doi(qua_han, khoa + "qua_han", None,
+		20 - kq_ngay["da_thu"], max(bat_dau + 15, time.monotonic() + 3) if qua_han else bat_dau,
+		c, k, bang, loi)
+	if doi_chieu is not None:
+		doi_chieu.update(ngay=kq_ngay, qua_han=kq_cu)
 	return list(bang.values())
 
 
@@ -821,16 +860,16 @@ def _dong_bo_pancake(ngay=None):
 
 def _dong_bo_pancake_ruot(ngay=None):
 	"""Ruot cua dong_bo_pancake, khong kiem quyen - de scheduler goi duoc."""
-	ngay = ngay or nowdate()
+	ngay = str(ngay or nowdate())
 	c = cfg()
 	k = key(c, "pancake_api_key")
 	if not (k and c.pancake_shop_id):
 		frappe.throw("Chưa điền khoá Pancake trong Vagabond Settings.")
 
 	dau, cuoi = _khoang_unix(ngay)
-	loi = []
+	loi, doi_chieu = [], {}
 	try:
-		ds = _bo_sung_don_da_co(_keo_don(c, k, "estimate_delivery_date", dau, cuoi), ngay, c, k, loi)
+		ds = _bo_sung_don_da_co(_keo_don(c, k, "estimate_delivery_date", dau, cuoi), ngay, c, k, loi, doi_chieu)
 	except Exception:
 		frappe.log_error(frappe.get_traceback().replace(k, "***"), "van_don: dong bo Pancake")
 		frappe.throw("Pancake chưa trả dữ liệu, anh chị vui lòng thử lại sau ít phút.")
@@ -976,8 +1015,14 @@ def _dong_bo_pancake_ruot(ngay=None):
 			ma = str(o.get("display_id") or o.get("id") or "")
 			loi.append({"ma_don": ma, "loi": "Chưa lưu được vận đơn; đã trả lại dữ liệu trước lần sửa này."})
 			frappe.log_error(frappe.get_traceback().replace(k, "***"), "van_don: lưu đơn " + ma)
+	for nhom, thong_ke in doi_chieu.items():
+		if thong_ke["can_kiem"]:
+			nhat_ky.ghi("van_don", "Đối chiếu " + ngay, "Van Don", "",
+				"đối chiếu " + ("ngày đang xem" if nhom == "ngay" else "quá hạn"),
+				moi=json.dumps(thong_ke, ensure_ascii=False, separators=(",", ":")),
+				ghi_chu="Số của lượt này, không phải tiến độ hoàn tất cả hàng đợi. Đơn còn mở sẽ được đọc lại ở vòng sau.")
 	return {"them": them, "da_co": da_co, "lam_moi": lam_moi, "bo_qua": bo_qua,
-		"noi_hoa_don": noi_hd, "tong": len(ds), "ngay": str(ngay), "loi": loi}
+		"noi_hoa_don": noi_hd, "tong": len(ds), "ngay": str(ngay), "loi": loi, "doi_chieu": doi_chieu}
 
 
 def dong_bo_tu_dong():
