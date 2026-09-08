@@ -573,7 +573,12 @@ def _noi_lai_hoa_don(cu, pid, ma_don):
 		return None
 	frappe.db.set_value("Van Don", cu.name, "hoa_don", si_name, update_modified=False)
 	# Cap nhat luon ban trong tay de doan ma phia duoi khong doc phai gia tri cu.
-	cu["hoa_don"] = si_name
+	# cu co the la Document (duong dong bo) hoac dict (duong cu): Document
+	# khong nhan phep gan theo khoa, nen phai tach hai loi ra.
+	if hasattr(cu, "set"):
+		cu.set("hoa_don", si_name)
+	else:
+		cu["hoa_don"] = si_name
 	nhat_ky.ghi_nhieu(
 		"van_don", ma_don, "Van Don", cu.name, "Noi lai hoa don",
 		{"hoa_don": (None, si_name)},
