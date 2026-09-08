@@ -1,9 +1,37 @@
 """#206: chạy hàm thật với kho giả; không thay cho kiểm Frappe/SLE."""
 from unittest.mock import patch
 from types import SimpleNamespace
+import ast
+import json
+from pathlib import Path
 
 from vagabond import san_xuat_desktop as sx, kho_san_xuat as ks
 from vagabond.khung.kiem_thu.nen import ca, dung, la, nem
+
+
+@ca('206 mặc định Desk: patch giữ trường riêng, tên cạnh mã, skip mới và chạy lại không đổi')
+def _mac_dinh_desk():
+	duong = Path(__file__).resolve().parents[2] / 'patches' / 'mac_dinh_san_xuat_206.py'
+	cay = ast.parse(duong.read_text())
+	cay.body = [d for d in cay.body if isinstance(d, ast.FunctionDef)]
+	truong = ['item', 'production_item', 'custom_rieng', 'qty', 'item_name', 'skip_transfer']
+	ghi = {}
+	def dat(dt, f, p, v, t, **kw):
+		if p == 'field_order': dung('field_order thuộc DocType', kw.get('for_doctype'))
+		ghi[(dt, f, p)] = v
+		if p == 'field_order': truong[:] = json.loads(v)
+	def meta(dt, **kw):
+		return SimpleNamespace(fields=[SimpleNamespace(fieldname=x) for x in truong],
+			get_field=lambda f: SimpleNamespace(options=ghi.get(('Stock Entry','naming_series','options'), 'CU-.YYYY.-')))
+	pham_vi = {'json': json, 'frappe': SimpleNamespace(get_meta=meta, clear_cache=lambda **kw: None), 'make_property_setter': dat}
+	exec(compile(cay, str(duong), 'exec'), pham_vi)
+	pham_vi['execute']()
+	la('tên cạnh mã', truong[truong.index('production_item')+1], 'item_name')
+	dung('giữ trường riêng', 'custom_rieng' in truong)
+	la('mặc định bỏ qua', ghi[('Work Order','skip_transfer','default')], '1')
+	la('không cho nhập tên riêng', ghi[('Work Order','item_name','read_only')], 1)
+	dung('giữ mẫu cũ', 'CU-.YYYY.-' in ghi[('Stock Entry','naming_series','options')])
+	cu = dict(ghi); pham_vi['execute'](); la('lặp không đổi', ghi, cu)
 
 
 class Doc(dict):
