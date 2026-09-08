@@ -128,6 +128,8 @@ def dung():
 	from vagabond import kho_san_xuat
 
 	_dung_nhom(kho_san_xuat.TRUONG_MOI, "kho_san_xuat")
+	from vagabond import san_xuat_desktop
+	_dung_nhom(san_xuat_desktop.TRUONG_MOI, "san_xuat_desktop")
 	# Ô "Chặng bán thành phẩm" đổi từ mã máy sang chữ (06/09/2026, #206).
 	# KHÔNG có bước tự đổi hồ sơ món cũ ở đây, và đừng thêm lại. Migrate chỉ
 	# dựng lại danh sách lựa chọn của ô, không ghi vào hồ sơ nào. Muốn biết

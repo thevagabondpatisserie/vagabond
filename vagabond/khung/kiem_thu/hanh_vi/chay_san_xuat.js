@@ -159,6 +159,8 @@ function dungMan(canh) {
     layHam(sx, 'mfgLocGoiY'),
     layHam(sx, 'mfgViTriMon'),
     layHam(sx, 'mfgDemSeGui'),
+    layHam(sx, 'mfgNguonCua'),
+    layHam(docTep('00-nen.js'), 'shortWh'),
     layHam(sx, 'mfgPickItem'),
     /* Lấy đúng dòng khai báo trạng thái trong nguồn, không chép tay một bản
        khác: bản chép tay đã lệch một lần khi nguồn thêm khoá dangThem. */

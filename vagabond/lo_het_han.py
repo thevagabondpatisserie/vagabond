@@ -43,10 +43,15 @@ Vá bằng cách thay hàm, KHÔNG bằng override_doctype_class
 --------------------------------------------------------
 Đọc `hooks.py` để thấy vì sao: ngày 21/08/2026 hai lớp thay Purchase
 Receipt và Purchase Invoice đã làm CẢ TIỆM không nhập kho được. Ở đây chỉ
-thay đúng MỘT hàm `validate_batch`, thay lúc hook before_validate của Stock
+thay hai hàm kiểm lô trên riêng StockEntry, lúc hook before_validate của Stock
 Entry chạy, tức là ngay trước khi ERPNext gọi hàm đó trong cùng một lần
 lưu. Thay lại lần hai không đổi gì (có cờ đánh dấu). Hỏng ở bước thay thì
 ghi nhật ký rồi để ERPNext chạy y như cũ, chứ không kéo đổ phiếu.
+
+#206 ngày 08/09: còn StockController.validate_serialized_batch kiểm hạn
+thêm lần nữa sau khi tạo gói. Chỉ thay phương thức kế thừa trên StockEntry,
+không thay StockController dùng chung với phiếu mua/bán. Giữ kiểm serial
+thuộc đúng lô; giữ các kiểm tồn, kho, mã, gói và sổ cái của ERPNext.
 """
 
 # ------------------------------------------------------------ phần thuần
@@ -122,12 +127,13 @@ def chi_lo_qua_han(cac_lo, han_cua, ngay, bo_qua=None):
 def cau_ghi_chu(cac_lo):
 	"""Câu ghi vào ô Ghi chú của phiếu. THUẦN.
 
-	`cac_lo` là [(mã hàng, tên lô, hạn dùng)].
+	`cac_lo` là [(mã hàng, tên lô, hạn dùng, số dòng tuỳ chọn)].
 	"""
 	if not cac_lo:
 		return ""
 	phan = "; ".join(
-		"%s lô %s hạn %s" % (ma, lo, ngay_goc(han)) for ma, lo, han in cac_lo
+		("Dòng %s: " % x[3] if len(x) > 3 and x[3] else "")
+		+ "%s lô %s hạn %s" % (x[0], x[1], ngay_goc(x[2])) for x in cac_lo
 	)
 	return "%s %s. Ô chặn hạn dùng trong Vagabond Settings đang tắt." % (DAU_CAU, phan)
 
@@ -169,45 +175,84 @@ def dang_chan():
 
 
 def _ho_so_lo(ten):
-	try:
-		return frappe.db.get_value(
-			"Batch", ten, ["disabled", "expiry_date"], as_dict=True
-		) or {}
-	except Exception:
-		return {}
+	ho = frappe.db.get_value("Batch", ten, ["disabled", "expiry_date"], as_dict=True)
+	if not ho:
+		frappe.throw("Không đọc được lô %s. Kiểm tra lại lô đã chọn." % ten)
+	return ho
 
 
 def _ghi_vet(doc, cac_lo):
-	try:
-		cau = cau_ghi_chu(cac_lo)
-		doc.remarks = them_ghi_chu(getattr(doc, "remarks", ""), cau)
-	except Exception:
-		pass
+	cau = cau_ghi_chu(cac_lo)
+	doc.remarks = them_ghi_chu(getattr(doc, "remarks", ""), cau)
+
+
+def _kiem_lo_va_ghi_vet(doc, chan=False):
+	"""Soi cả ô lô tay và gói v16, kể cả gói vừa sinh sau validate_batch.
+
+	Không đổi Batch.expiry_date, không đổi purpose, không bắt rồi nuốt lỗi
+	của lõi. Hỏng việc đọc gói thì phải dừng, không xuất mất dấu vết.
+	"""
+	cac_lo = []
+	for dong in doc.get("items") or []:
+		lo = {getattr(dong, "batch_no", None)}
+		goi = getattr(dong, "serial_and_batch_bundle", None)
+		if goi:
+			lo.update(frappe.get_all("Serial and Batch Entry",
+				filters={"parent": goi, "parenttype": "Serial and Batch Bundle"},
+				pluck="batch_no"))
+		for ten in sorted(x for x in lo if x):
+			ho = _ho_so_lo(ten)
+			if cint(ho.get("disabled")):
+				frappe.throw("Lô %s của mã %s đang bị TẮT nên không xuất được. "
+					"Kiểm tra lại lô đã chọn." % (ten, dong.item_code))
+			han = ho.get("expiry_date")
+			if han and doc.posting_date and getdate(doc.posting_date) > getdate(han):
+				if chan:
+					frappe.throw("Lô %s của mã %s đã hết hạn ngày %s. "
+						"Chọn lô khác hoặc kiểm tra ô Chặn xuất lô quá hạn trong Vagabond Settings."
+						% (ten, dong.item_code, ngay_goc(han)))
+				cac_lo.append((dong.item_code, ten, han, getattr(dong, "idx", None)))
+	if cac_lo:
+		_ghi_vet(doc, cac_lo)
+
+
+def _thay_kiem_serial(goc):
+	"""ERPNext v16.28.0 controllers/stock_controller.py:321-357.
+
+	Bản gốc kiểm serial.batch_no rồi kiểm expiry_date < posting_date với
+	qty > 0 và docstatus < 2. Chỉ bỏ điều kiện hạn cho bốn mục đích đã chốt,
+	giữ nguyên toàn bộ phép kiểm serial, không miễn cho Material Receipt.
+	"""
+	def validate_serialized_batch(self):
+		if (getattr(self, "purpose", None) not in PHIEU_BI_CHAN
+				or cint(getattr(self, "docstatus", 0)) == 2):
+			return goc(self)
+		if dang_chan():
+			_kiem_lo_va_ghi_vet(self, chan=True)
+			return goc(self)
+		from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
+		for dong in self.get("items") or []:
+			if getattr(dong, "serial_no", None) and getattr(dong, "batch_no", None):
+				for so in frappe.get_all("Serial No", fields=["batch_no", "name", "warehouse"],
+						filters={"name": ("in", get_serial_nos(dong.serial_no))}):
+					if so.warehouse and so.batch_no != dong.batch_no:
+						frappe.throw(frappe._("Row #{0}: Serial No {1} does not belong to Batch {2}")
+							.format(dong.idx, so.name, dong.batch_no))
+		_kiem_lo_va_ghi_vet(self)
+	validate_serialized_batch._vagabond = True
+	return validate_serialized_batch
 
 
 def _thay_the(goc):
 	"""Hàm validate_batch mới. Giữ chặn lô TẮT, chỉ bỏ chặn lô quá hạn."""
 
 	def validate_batch(self):
-		if dang_chan():
-			return goc(self)
 		if getattr(self, "purpose", None) not in PHIEU_BI_CHAN:
-			return None
-		cac_lo = []
-		for dong in self.get("items") or []:
-			if not dong.batch_no:
-				continue
-			ho = _ho_so_lo(dong.batch_no)
-			if cint(ho.get("disabled")):
-				frappe.throw(
-					"Lô %s của mã %s đang bị TẮT nên không xuất được. "
-					"Ai tắt lô thì người đó mở lại." % (dong.batch_no, dong.item_code)
-				)
-			han = ho.get("expiry_date")
-			if han and getdate(self.posting_date) > getdate(han):
-				cac_lo.append((dong.item_code, dong.batch_no, han))
-		if cac_lo:
-			_ghi_vet(self, cac_lo)
+			return goc(self)
+		chan = dang_chan()
+		_kiem_lo_va_ghi_vet(self, chan=chan)
+		if chan:
+			return goc(self)
 		return None
 
 	validate_batch._vagabond = True
@@ -215,7 +260,7 @@ def _thay_the(goc):
 
 
 def mo_chot(doc=None, method=None):
-	"""Thay hàm validate_batch của ERPNext. Gọi ở before_validate Stock Entry.
+	"""Thay hai phép kiểm lô của StockEntry ở before_validate.
 
 	Lặp lại được: lần thứ hai thấy cờ là đi ra ngay.
 	"""
@@ -225,14 +270,12 @@ def mo_chot(doc=None, method=None):
 	try:
 		from erpnext.stock.doctype.stock_entry.stock_entry import StockEntry
 
-		goc = getattr(StockEntry, "validate_batch", None)
-		if goc is None:
-			_DA_THAY = True
-			return
-		if getattr(goc, "_vagabond", False):
-			_DA_THAY = True
-			return
-		StockEntry.validate_batch = _thay_the(goc)
+		goc = StockEntry.validate_batch
+		serial = StockEntry.validate_serialized_batch
+		if not getattr(goc, "_vagabond", False):
+			StockEntry.validate_batch = _thay_the(goc)
+		if not getattr(serial, "_vagabond", False):
+			StockEntry.validate_serialized_batch = _thay_kiem_serial(serial)
 		_DA_THAY = True
 	except Exception:
 		# Thay không được thì để ERPNext chạy như cũ, đừng chặn ai lưu phiếu.
