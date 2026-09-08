@@ -235,3 +235,4 @@ vagabond.patches.dong_bo_cau_truc #v457
 
 vagabond.patches.dong_bo_cau_truc #v458
 vagabond.patches.thue_vnd_v458
+vagabond.patches.hang_tang_kho_v458

@@ -11,6 +11,54 @@ from erpnext.controllers.taxes_and_totals import calculate_taxes_and_totals
 from vagabond.thue_vnd import tinh_dong, doc_dong
 
 
+def nap_mau_thue(doc):
+    """AccountsController.set_taxes_and_charges bỏ qua bảng không rỗng.
+
+    Core de59166 chỉ nạp mẫu khi bật Accounts Settings; dòng tự sinh từ
+    Item Tax Template lại mặc định chưa gồm giá. Nạp mẫu trước cửa đó,
+    không đoán thuế suất từ Settings M-Invoice hoặc sửa bảng thuế nhập tay.
+    """
+    if (doc.docstatus != 0 and getattr(doc, '_action', None) != 'submit'):
+        return
+    if not doc.is_new() and frappe.db.get_value('Sales Invoice', doc.name, 'docstatus') != 0:
+        return
+    if doc.currency != 'VND' or any(doc.get(k) for k in (
+            'is_return', 'is_debit_note', 'is_pos', 'is_internal_customer')):
+        return
+    bang = doc.get('taxes') or []
+    tu_sinh = bool(bang) and all(d.get('set_by_item_tax_template') for d in bang)
+    if bang and not tu_sinh:
+        return
+    ten = doc.get('taxes_and_charges')
+    if not ten:
+        ds = frappe.get_all('Sales Taxes and Charges Template',
+            filters={'company': doc.company, 'is_default': 1, 'disabled': 0}, pluck='name', limit=2)
+        if len(ds) != 1:
+            frappe.throw('Kế toán khai đúng một mẫu thuế bán hàng mặc định còn dùng cho %s, '
+                'với thuế đã gồm trong giá, hoặc chọn mẫu riêng trên hoá đơn. '
+                'Món không chịu thuế phải có mẫu đúng chính sách, không để trống bảng thuế.' % doc.company)
+        ten = ds[0]
+    mau = frappe.get_cached_doc('Sales Taxes and Charges Template', ten)
+    if mau.company != doc.company or mau.disabled:
+        frappe.throw('Mẫu thuế %s không thuộc công ty hoặc đã ngừng dùng. Kế toán chọn lại mẫu thuế.' % ten)
+    from erpnext.controllers.accounts_controller import get_taxes_and_charges
+    dong = get_taxes_and_charges('Sales Taxes and Charges Template', ten)
+    if not dong or any(d.get('charge_type') == 'On Net Total' and not d.get('included_in_print_rate') for d in dong):
+        frappe.throw('Mẫu thuế %s chưa khai thuế đã gồm trong giá bán. Kế toán kiểm mẫu trước khi lưu; '
+            'không cộng thêm VAT vào bill của khách.' % ten)
+    # Mẫu món chỉ quyết thuế suất; tài khoản vẫn phải hiện trong bảng thuế.
+    tk = {d.get('account_head') for d in dong}
+    for d in doc.items:
+        if d.item_tax_template:
+            ct = frappe.get_cached_doc('Item Tax Template', d.item_tax_template)
+            if any(t.tax_type not in tk for t in ct.taxes):
+                frappe.throw('Dòng %s, món %s: tài khoản thuế trong mẫu món chưa có trong mẫu %s. '
+                    'Kế toán thống nhất hai mẫu trước khi lưu.' % (d.idx, d.item_code, ten))
+    doc.taxes_and_charges = ten
+    doc.set('taxes', [])
+    doc.extend('taxes', dong)
+
+
 def ap_dung(doc):
     if not doc.meta.has_field('vgb_thue_vnd') or not doc.get('items'):
         return False

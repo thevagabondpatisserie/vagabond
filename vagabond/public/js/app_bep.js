@@ -27330,13 +27330,14 @@ Truoc day ba diem ban duoc khai o BA CHO trong ma nguon, con dat ten khac
 nhau cho cung mot diem. Mo chi nhanh thu tu la sua code roi deploy. Nay
 khai o day, ca he doc chung mot noi. */
 
-var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [];
+var dbDs = null, dbSuaDuoc = 0, dbMo = null, dbMoi = 0, dbNguonCoSan = [], dbKhoTang = [];
 
 async function scrDiemBan() {
   frame('Điểm bán', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
   try {
     var kq = await api('vagabond.diem_ban.danh_sach', {});
     dbDs = kq.diem || []; dbSuaDuoc = kq.sua_duoc ? 1 : 0; dbNguonCoSan = kq.nguon_co_san || dbNguonCoSan;
+    dbKhoTang = kq.kho_tang || [];
   } catch (e) {
     frame('Điểm bán', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
     return;
@@ -27411,6 +27412,11 @@ function scrDiemBanSua() {
   /* Khong cho nhap ma quay rieng: ca he quy hoa don ve diem ban bang cach
      doc vgb_quay roi tra theo MA DIEM. De hai thu lech nhau la bao cao ra
      dong 0 dong con doanh thu that gom vao mot khoa khong ten. */
+  html += '<div class="card"><div class="fld" data-dbkhotang><div class="fi">📦</div>' +
+    '<div class="ft"><div class="fl">Kho xuất hàng tặng</div><div class="fv">' +
+    h(d.kho_tang || 'Chưa chọn') + '</div></div><div class="fc">›</div></div>' +
+    '<div style="padding:0 14px 12px;font-size:13px;color:#667085">Hoá đơn tặng mới tự xuất tại kho này khi ghi sổ. ' +
+    'Chọn kho thành phẩm thực giao; không lập thêm phiếu xuất tay cho cùng bánh.</div></div>';
   html += '<div class="sec">Loại điểm bán</div><div class="card" style="padding:11px 12px">' +
     kmHangChip(
       posChipNut('data-dbloai="1"', '🏬 Bán tại quầy', !!d.co_quay) +
@@ -27439,6 +27445,13 @@ function scrDiemBanSua() {
   });
 
   b.onclick = async function (e) {
+    if (e.target.closest('[data-dbkhotang]')) {
+      dbDoc();
+      sheet('Kho xuất hàng tặng', [{value: '', label: 'Chưa chọn'}].concat(dbKhoTang.map(function (k) {
+        return {value: k.name, label: k.name, sub: k.company, icon: '📦'};
+      })), d.kho_tang || '', function (k) { d.kho_tang = k.value; go(scrDiemBanSua, true); }, true);
+      return;
+    }
     if (e.target.closest('[data-dbbat]')) { dbDoc(); d.bat = d.bat ? 0 : 1; return go(scrDiemBanSua, true); }
     var t = e.target.closest('[data-dbloai]');
     if (t) { dbDoc(); d.co_quay = t.getAttribute('data-dbloai') === '1' ? 1 : 0; return go(scrDiemBanSua, true); }

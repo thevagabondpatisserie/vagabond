@@ -1,75 +1,111 @@
-# Bàn giao #225: tính tiền VND và VAT từng dòng
+# PR #243: thuế máy chủ và giá vốn hàng tặng
 
-## Trạng thái
+## Phân công và trạng thái
 
-- Owner code: Codex. Owner review/bench/merge/deploy: Claude.
-- Branch: codex/225-thue-tung-dong, nền main 4e95e2a (v457).
-- PR phải giữ Draft cho tới khi có bằng chứng bench và chốt đường tạo đơn thật.
-- Không đóng #225 hoặc #237 bằng PR này.
+Codex code/test/push. Claude review cuối, chạy bench còn thiếu và phát hành.
+PR giữ Draft cho tới khi có bằng chứng tích hợp trên SHA cuối. Không đóng
+#225 hoặc #237, không xử lý lại năm hoá đơn tặng cũ.
 
-## Đã làm
+Nền main `4e95e2a`, v457. Nhánh `codex/225-thue-tung-dong`, đề xuất v458.
+Fetch lại trước đẩy; số phiên bản phải kiểm lại ngay trước phát hành.
 
-SI VND nháp có một dòng tài khoản VAT `On Net Total`, tiền tệ công ty VND,
-tỷ giá 1: tính tiền từng dòng nguyên đồng, theo Item Tax Template của từng
-món. Giá và số lượng giữ số lẻ. VAT đã gồm giá là phần còn lại sau net;
-VAT ngoài giá làm tròn theo từng dòng. Chiết khấu đầu phiếu phân bổ phần
-dư theo phần lẻ lớn nhất, hoà thì theo thứ tự dòng.
+## Vấn đề và hành vi sau sửa
 
-Dùng engine con của ERPNext de59166; giữ validation mẫu thuế, tính tổng,
-công nợ, commission/contribution và ghi sổ chuẩn. Cache precision chỉ nằm
-trong lần tính, trả lại sau đó. Không sửa precision Currency hoặc metadata.
+1. `AccountsController.set_taxes_and_charges` của ERPNext de59166 phụ thuộc
+   Accounts Settings. Khi máy chủ tạo SI, có tên mẫu chưa đủ để nạp bảng
+   con. Controller SI nay nạp mẫu chỉ định hoặc mẫu mặc định duy nhất còn
+   dùng của công ty trước cửa này. Không lấy 8% từ M-Invoice để đoán thuế.
+2. Dòng thuế tự sinh từ Item Tax Template mặc định chưa gồm giá, gây bill
+   220.000 thành 239.000. Dòng tự sinh được thay bằng bảng của mẫu gồm giá.
+   Mẫu món quyết thuế suất, tài khoản phải khớp bảng thuế. Bảng thuế có sẵn
+   do người dùng khai được giữ nguyên, không âm thầm sửa chính sách ngoài giá.
+3. SI VND đủ điều kiện tính số tiền nguyên đồng từng dòng. Cache precision
+   chỉ sống trong lần tính, không đổi giá/qty hoặc precision toàn hệ thống.
+   Payload hai cửa M-Invoice và VAT hàng tặng đọc số đã lưu theo item_row,
+   không nối theo item_code hoặc lấy một thuế suất chung từ Settings.
+4. SI mới sau patch có dấu chính sách kho. Khi là hàng tặng có món quản
+   kho, máy dùng Kho xuất hàng tặng của điểm bán, đặt expense_account 64181
+   từng dòng và bật update_stock. Kho phải là kho lá, cùng công ty, gắn
+   tài khoản tồn kho VND thuộc 155 (bao gồm 1551). Không tự đổi tài khoản
+   kho thật hoặc lấy Item Default đang trỏ về kho nguyên liệu 152.
+5. Trước ghi sổ, khoá Bin và kiểm tổng lượng theo mã/kho, không cho xuất âm.
+   Lô người dùng chọn được core kiểm; lô tự chọn lấy lô còn dùng theo hạn
+   dùng và chia chung cho cả hoá đơn, tránh hai dòng trùng mã lấy trùng tồn.
+   Bundle dùng SerialBatchCreation của core, không tự ghi SLE.
+6. GL giá vốn lấy trực tiếp StockController.get_gl_entries từ SLE thực tế:
+   Nợ 64181 / Có tài khoản kho thực tế. Ghép VAT 64182/33311, không ghi
+   doanh thu/công nợ của giá thị trường. Huỷ/repost dùng cơ chế core.
+7. Điểm lưu bao lần chuyển SI nháp sang ghi sổ để caller bắt lỗi rồi commit
+   không giữ lại parent/SLE/GL dở. Dọn callback commit của lần thất bại.
+   Tạo thẳng SI docstatus 1 bị chặn trước write; phải lưu nháp rồi submit.
+   Đổi tặng sang bán thường gỡ cờ tự xuất và 64181. Đổi phương thức muộn
+   trong bảng nhiều phương thức bị chặn ghi sổ, yêu cầu lưu lại nháp.
 
-Cửa chung trước M-Invoice đọc net và Item Wise Tax Detail đã lưu, nối theo
-item_row/tax_row, không theo item_code. Hai dòng trùng mã vẫn có thể mang
-8% và 10%. So tổng SI, tổng VAT, từng dòng và payload trước khi cho gửi.
-Hàng tặng có dấu mới dùng VAT này cho 64182/33311, không đọc lại một suất
-Settings để ghi sổ. Giá vốn tiếp tục chờ quyết định và chứng từ kho.
+## Cấu hình cần làm trước khi dùng hàng tặng mới
 
-Patch `thue_vnd_v458` tạo trường dấu riêng cho SI. Không backfill, không
-sửa chứng từ cũ. Hai Server Script đã có cửa gọi chung từ v449/v454;
-PR này đổi Python ở cửa chung, không đổi nội dung script trên site.
+- App: Cài đặt > Điểm bán > chọn điểm > Kho xuất hàng tặng > Lưu.
+  Ô chọn có tìm kiếm từ danh mục Warehouse. Không tự gán kho khi migrate.
+- Chọn kho theo nơi thực giao; tài khoản Có do kho đó quyết định. Site đã
+  ghi nhận có kho thành phẩm gắn 1551, không yêu cầu đổi về tài khoản 155.
+- Tài khoản 64181/64182/33311 phải là tài khoản chi tiết còn dùng, đúng
+  công ty, tiền tệ VND. Perpetual inventory phải bật khi xuất kho tặng.
+- Thiếu cấu hình sẽ chặn có chỉ dẫn. Công ty Demo không tự được cấu hình.
 
-## Còn mở, chặn phát hành
+## Chống xuất hai lần và giới hạn phải nói rõ
 
-1. **Đường tạo đơn app chưa có bằng chứng bảng VAT.** `ban_hang.py` tạo
-   SI không truyền bảng thuế trực tiếp. Cần chạy đúng hàm tạo đơn trên bench
-   với cấu hình sao từ site, đọc SI sau insert. Nếu không có đúng một dòng
-   VAT thì chính sách mới chưa áp dụng. Không lấy ca thử tự thêm bảng thuế
-   làm bằng chứng cho đường này. Trả kết quả cho Codex để bổ sung cách lấy
-   bảng thuế đúng cấu hình; không tự đoán mọi đơn trống bảng đều chịu 8%.
-2. Ngoài phạm vi hiện tại: SI đã ghi sổ, phiếu không có bảng thuế hoặc có
-   nhiều dòng thuế/phí, Actual, thuế trừ/valuation, trả hàng, tiền tệ khác,
-   cash/non-trade discount, shipping rule, khách nội bộ. Các phiếu này đi
-   core và cách xuất cũ. Cần thống kê chỉ đọc những dạng đang thực sự dùng,
-   đặc biệt SI cũ chưa xuất HĐĐT; không coi chúng đã được sửa.
-3. Chưa chạy core trên bench tại workspace Codex. Bắt buộc chạy bộ tích
-   hợp mới và các ca #225/#227 cũ trên bench trước merge. Không gửi ra
-   M-Invoice hoặc dùng hoá đơn đã phát hành làm fixture.
+SI mới tự xuất kho khi ghi sổ. Không đưa cùng bánh tặng vào phiếu xuất tay
+cuối ngày. Stock Entry có liên kết `Hoá đơn hàng tặng liên quan` trỏ SI mới
+sẽ bị chặn cả ở validate và before_submit. Dòng xuất dùng 64181 bắt khai
+liên kết này. SI legacy liên kết phiếu riêng chỉ được có một phiếu còn hiệu
+lực/nháp; khoá invoice để tránh hai người tạo trùng.
 
-## Kiểm bắt buộc cho Claude
+Giới hạn: hệ thống không thể suy ra một phiếu xuất tay không khai nguồn,
+ghi sang tài khoản khác, là cùng bánh đã tặng. Không tuyên bố tự chặn mọi
+phiếu tay dựa trên tên món/ngày. Khi chốt ca, kế toán đối chiếu các phiếu
+SI tự xuất trước khi lập phiếu tổng. Hàng bán thường giữ luồng update_stock=0;
+không chuyển toàn bộ bán hàng sang xuất kho trong PR này.
 
-- Cài nhánh trên bench riêng, chạy migrate thật; Patch Log có
-  `thue_vnd_v458` và SI có trường `vgb_thue_vnd`, không chỉ APPVER tăng.
-- Chạy `vagabond.khung.kiem_that.cua.chay`; các ca mới ở
-  `thu_thue_vnd_225.py` dựng SI, save/submit/reload và đọc GL thật.
-  Hai khoá chứng từ còn sót và số lượng lệch phải rỗng.
-- Ca mới: tổng 10.420.000 ra net 9.648.148, VAT 771.852; trùng mã 8/10
-  qua sửa giá và thêm dòng 0%; năm dòng net 6, VAT 8%; giảm net/gross;
-  chiết khấu mỗi đơn vị 0,25 với qty 3; tặng hỗn hợp; cache cùng object.
-- Bổ sung đường xuất tay và safe_exec script xuất rải, chặn HTTP bằng stub,
-  đối chiếu payload từng dòng với SI/GL đã reload. Thử giảm theo phần trăm,
-  phân số qty, trường hợp 99.999 và các ca 0,15/0,33/0,55 đã tái hiện.
-- Kiểm JE 0,01/0,15, PO/PI nhiều VAT và SI cũ giữ nguyên. Không cập nhật
-  chứng từ quá khứ để đưa số về chuẩn mới.
-- Chỉ sau khi đóng các điểm chặn trên mới đổi Ready, merge/deploy theo
-  phân công của anh Việt. Fetch main trước đẩy, chốt lại số phiên bản nếu
-  phiên khác đã dùng 458. Sau deploy xác minh migrate và màn thật riêng.
+Kiểm bánh/In-store vẫn là bảng kiểm đếm, không nhập hoặc xuất kho kế toán.
+SI cũ không nhận dấu kho mới khi migrate. Không tự xuất kho bù, sửa hoặc
+huỷ chứng từ cũ. Bộ sản phẩm Product Bundle bị chặn trong luồng tặng mới:
+tách thành các món tồn kho thực giao rồi duyệt để không bỏ sót giá vốn.
 
-## Lệnh kiểm local
+## Kiểm đã làm ở máy Codex
 
-```sh
-python3 dung_app_bep.py --kiem
-sh kiem_truoc_deploy.sh
-```
+- Đọc core ERPNext de59166 và Frappe f33ac3f, đặc biệt trình tự validate,
+  set_missing_values, set_taxes_and_charges, insert/_save/on_submit,
+  StockController.get_gl_entries và SerialBatchCreation.
+- Review chéo bắt hai lỗi và đã sửa: chuyển tặng sang thường giữ 64181;
+  insert docstatus1 bỏ qua điểm lưu. Có ca giữ lại hai tình huống.
+- Tầng khung: 2.692 ca đạt ở vòng hiện tại. Phải ghi SHA cuối và kết quả
+  cổng đầy đủ vào comment PR sau commit; không coi số này là bằng chứng core.
+- Thêm 11 ca bench ở thu_cua_thue_243.py và thu_hang_tang_kho_243.py.
+  Codex chưa thực thi vì máy hiện tại không có bench/Docker/MariaDB;
+  đã hỏi đường truy cập bench thử. Không chạy code chưa phát hành trên site thật.
 
-Đây là tầng thuần. Kết quả xanh không thay bằng chứng bench hoặc site.
+## Chặn phát hành và bằng chứng cần trả
+
+1. Bench đúng core: migrate và đọc Patch Log của `thue_vnd_v458` cùng
+   `hang_tang_kho_v458`, kiểm ba field mới. Patch kho tách riêng vì bench
+   Claude đã chạy patch thuế tại SHA trước. Chạy migrate lần hai không đổi dữ liệu.
+2. Chạy 7 ca #225 cũ + 11 ca #243 mới trên bench, bao gồm đúng tao_don_tay,
+   bill hỗn hợp 220.000, insert có tên mẫu thiếu bảng, phần trăm giảm/qty lẻ;
+   BOM -> WO -> Manufacture có batch -> SI -> SLE/GL; rollback sau GL rồi
+   thử lại, thiếu tồn, sai batch, huỷ, chuyển loại, insert trực tiếp, xuất tay trùng.
+   Hai khoá chung_tu_con_sot và so_luong_lech phải rỗng.
+3. Chạy trọn hai Server Script bằng safe_exec và HTTP stub, không chỉ cửa
+   chuan_goi. Đối chiếu payload sau SI reload từng dòng, VAT, tổng với GL.
+   Các ca legacy #225/#227 cũng phải chạy; lỗi fixture phải chỉ rõ và dựng
+   đủ fixture, không chấp nhận ném lỗi core nhưng vẫn báo ca đạt.
+4. Chạy thêm hai người cùng xuất một kho và hai dòng trùng mã qua nhiều lô;
+   mất phản hồi sau commit -> mở lại SI -> thử lại không thêm SLE/GL.
+5. Thống kê chỉ đọc SI cũ chưa phát hành và các dạng ngoài chính sách tiền:
+   nhiều dòng thuế/phí, Actual, trả hàng, tiền tệ khác, shipping rule,
+   cash/non-trade discount, nội bộ. Chúng giữ core/cách xuất cũ. SI VND mới/nháp trống bảng và không có mẫu mặc định duy nhất bị chặn
+   với chỉ dẫn chọn mẫu, kể cả khi không có nguồn app. Không coi bảng thuế
+   trống là chính sách 0%; thuế 0% phải khai tường minh.
+6. Cấu hình kho từng điểm bán có người phụ trách đối chiếu kho thực giao;
+   hướng dẫn kế toán loại phần SI tự xuất khỏi phiếu xuất tổng cuối ngày.
+   Sau merge/deploy, xác minh phiên bản, Patch Log và màn thật riêng.
+
+Không phát hành M-Invoice thử. Không sửa hoá đơn đã gửi cơ quan thuế.

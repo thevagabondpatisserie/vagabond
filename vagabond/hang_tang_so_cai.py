@@ -1,7 +1,7 @@
 """#227: hàng tặng không phải doanh thu rồi cấn công nợ theo giá bán.
 
 Anh Việt chốt 07/09/2026: xuất kho tại hoá đơn khi kho sản xuất sẵn sàng.
-Hiện app dùng update_stock=0 và Kiểm bánh riêng; ghi VAT, để chờ giá vốn.
+SI mới dùng kho điểm bán và giá vốn core; SI cũ giữ dấu chờ giá vốn.
 Dấu trên phiếu phân biệt cách ghi mới với hoá đơn cũ khi huỷ hoặc repost.
 """
 
@@ -88,6 +88,9 @@ def truoc_khi_ghi_so(doc, method=None):
 	for o in TRUONG_MOI["Sales Invoice"]:
 		doc.set(o["fieldname"], None if o["fieldtype"] == "Link" else 0)
 	if not la_hang_tang(doc):
+		if doc.get('vgb_tang_kho_moi') and doc.get('vgb_tang_kho'):
+			frappe.throw('Phương thức thanh toán vừa đổi từ Hàng tặng sang bán thường. Lưu lại đơn nháp '
+				'để trả về luồng kho và tài khoản của đơn bán trước khi ghi sổ.')
 		return
 	if (doc.currency != "VND" or frappe.get_cached_value("Company", doc.company, "default_currency") != "VND"
 		or flt(doc.conversion_rate) != 1):
@@ -122,13 +125,14 @@ def truoc_khi_ghi_so(doc, method=None):
 	doc.vgb_tang_thue_suat = ts
 	doc.vgb_tang_tien_thue = sum(d[1] for d in chia)
 	doc.vgb_tang_so_cai = 1
-	doc.vgb_tang_cho_gia_von = 1
-	# Chưa triển khai kho sản xuất: không tự bật xuất kho hoặc đoán giá vốn.
-	# Cửa này dừng cả ghi sổ, nên không có phiếu ghi nửa VAT, nửa kho.
-	if cint(doc.update_stock):
+	doc.vgb_tang_cho_gia_von = 0 if doc.get('vgb_tang_kho_moi') else 1
+	# Chỉ chính sách mới đi kho. Phiếu cũ giữ luồng đã ghi, không backfill.
+	if doc.get('vgb_tang_kho_moi'):
+		from vagabond.hang_tang_kho import truoc_ghi_so
+		truoc_ghi_so(doc)
+	elif cint(doc.update_stock):
 		frappe.throw("Kho sản xuất cho hàng tặng chưa được triển khai. Giữ đơn nháp để kế toán kiểm kho; luồng app hiện ghi VAT và chờ giá vốn, không cập nhật kho.")
 	doc.outstanding_amount = 0
 	# validate đã đặt Unpaid trước before_submit; tính lại bằng core sau khi gỡ nợ.
 	doc.set_status()
 	doc.dont_create_loyalty_points = 1
-
