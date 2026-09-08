@@ -155,13 +155,11 @@
 		if (dt === 'Work Order') {
 			moi.formatters = Object.assign({}, cu.formatters || {}, {
 				production_item: function (value, df, doc) {
-					var e = function (v) { return frappe.utils.escape_html(String(v == null ? '' : v)); };
-					var con = Math.max(0, (+doc.qty || 0) - (+doc.produced_qty || 0) - (+doc.process_loss_qty || 0));
-					var mo = (doc.item_name || value || '') + ' | ' + (value || '') + ' | Kho đầu lệnh: ' +
-						(doc.source_warehouse || 'Chưa chọn') + ' | Đã nhập ' + (+doc.produced_qty || 0) +
-						' | Hao hụt ' + (+doc.process_loss_qty || 0) + ' | Còn ' + con + ' ' + (doc.stock_uom || '');
-					return '<span title="' + e(mo) + '">' + e(doc.item_name || value) +
-						' <span class="text-muted">(' + e(value) + ')</span></span>';
+					// Frappe 16.27.1 list_view.js: get_subject_text giữ Link,
+					// get_link_element gán textContent/title. HTML ở đây hiện thành mã.
+					var ma = String(doc.production_item || value || '');
+					var ten = String(doc.item_name || ma);
+					return ten && ma && ten !== ma ? ten + ' (' + ma + ')' : ten || ma;
 				}
 			});
 		}
