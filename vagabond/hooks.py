@@ -611,7 +611,7 @@ doc_events = {
 			# vagabond/nguoi_ban.py.
 			"vagabond.nguoi_ban.truoc_khi_luu",
 		],
-		"before_save": "vagabond.ban_hang.chan_trung_ma_pancake",
+		"before_save": ["vagabond.ban_hang.chan_trung_ma_pancake", "vagabond.bao_ve_hddt.chan_huy_mem"],
 		# Chan sai NGAY LUC LUU: thieu nguon don, thieu phuong thuc thanh
 		# toan, hay phuong thuc khong dung duoc cho nguon do (anh Viet
 		# 13/08/2026). Nhip dong bo Pancake duoc mien - xem ghi chu trong
@@ -635,6 +635,8 @@ doc_events = {
 		#      dat truoc thi luat cu doc o phuong thuc luc no con la gia tri
 		#      nguoi go, roi bang con doi no ngay sau, thanh ra to di vao so
 		#      mang mot phuong thuc chua qua phep kiem nao.
+		"before_cancel": "vagabond.bao_ve_hddt.chan_huy",
+		"before_update_after_submit": "vagabond.bao_ve_hddt.chan_huy_mem",
 		"validate": [
 			"vagabond.ban_hang.kiem_truoc_khi_luu",
 			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
