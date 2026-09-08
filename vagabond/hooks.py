@@ -53,6 +53,7 @@ app_include_js = "/assets/vagabond/js/vgb_khoa_xoa.js"
 #
 # Dat HEP tren dung mot doctype, khong phai hook rong tren "*" (quy tac 6).
 doctype_js = {
+	"Stock Entry": "public/js/san_xuat_phieu.js",
 	"Item": "public/js/san_xuat_mon.js",
 	"Work Order": "public/js/san_xuat_lenh.js",
 	"Purchase Order": "public/js/purchase_order.js",

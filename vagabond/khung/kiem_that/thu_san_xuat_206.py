@@ -39,6 +39,25 @@ def _lenh(cty, kho, tp, bom, nguon=None):
 	return wo
 
 
+@ca('206 Desk thật: migrate lặp, tên cạnh mã, mặc định mới và giữ bỏ tick chủ động')
+def _mac_dinh_desk():
+	from vagabond.patches.mac_dinh_san_xuat_206 import execute
+	try:
+		execute(); execute()
+		meta = frappe.get_meta('Work Order', cached=False)
+		thu_tu = [d.fieldname for d in meta.fields]
+		la('tên cạnh mã', thu_tu[thu_tu.index('production_item')+1], 'item_name')
+		la('mặc định lệnh mới', frappe.new_doc('Work Order').skip_transfer, 1)
+		cty, kho, nvl, tp, bom = _nen()
+		wo = _lenh(cty, kho, tp, bom, kho[0])
+		wo.skip_transfer = 0; wo.save(); wo.reload()
+		la('giữ bỏ tick chủ động', wo.skip_transfer, 0)
+		la('tên lấy đúng món', wo.item_name, frappe.db.get_value('Item', tp, 'item_name'))
+	finally:
+		# nen.py sẽ rollback Property Setter; không để metadata thử trong cache.
+		for dt in ['Work Order', 'Stock Entry']: frappe.clear_cache(doctype=dt)
+
+
 @ca('206 thật: mặc định món, kho chọn tay, kho dòng, lệnh cũ không bị thay')
 def _kho():
 	cty, kho, nvl, tp, bom = _nen()
