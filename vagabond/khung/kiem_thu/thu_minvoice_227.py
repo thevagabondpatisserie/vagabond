@@ -471,3 +471,67 @@ def _duong_python():
 	vi_tri_nem = than.index("frappe.throw", vi_tri_go)
 	dung("gỡ cờ trước rồi mới ném lỗi", vi_tri_go < vi_tri_nem)
 	# Đây là dò chuỗi (quy tắc 16): chứng minh thật nằm ở khung/bench_thu/giao_dich_that_227 trên bench.
+
+
+@ca("#225: nạp tay và lô bỏ qua nguồn ngoài Pancake trước HTTP, không đổi dữ liệu")
+def _nguon_khong_pancake():
+	for nguon in ("Tại chỗ", "GrabFood", "ShopeeFood", "Khách sỉ"):
+		for theo_lo in (False, True):
+			si = To(name="SI-NGUON", custom_nguon=nguon,
+				custom_pancake_display_id="TAICHO-123", custom_pancake_id="ID-123",
+				vgb_xhd_ten="Tên đã xác nhận", vgb_xhd_email="dung@example.com")
+			truoc = dict(vars(si))
+			f = nen_script(si)
+			f.form_dict["ghi_de"] = 1
+			if theo_lo:
+				f.form_dict.pop("phieu")
+				f.get_all = lambda *a, **kw: [{"name": si.name}]
+			goi_http = []
+			f.make_get_request = lambda *a, **kw: goi_http.append(a) or {"data": []}
+			exec(compile(kb.ban_moi("nap"), "nap-nguon", "exec"), {"frappe": f})
+			la("không tra Pancake " + nguon, goi_http, [])
+			la("không ghi dữ liệu " + nguon, vars(si), truoc)
+			la("không báo lỗi tìm đơn " + nguon, f.response["message"]["loi"], [])
+
+
+@ca("#225: nguồn Pancake và phiếu cũ thiếu nguồn vẫn kiểm đúng ID, không bỏ qua lỗi")
+def _nguon_pancake_van_kiem():
+	for nguon in ("Pancake", "", None):
+		si = To(name="SI-PK", custom_nguon=nguon,
+			custom_pancake_display_id="123", custom_pancake_id="ID-123")
+		f = nen_script(si)
+		goi_http = []
+		f.make_get_request = lambda *a, **kw: goi_http.append(a) or {"data": {"id": "SAI"}}
+		exec(compile(kb.ban_moi("nap"), "nap-nguon", "exec"), {"frappe": f})
+		la("vẫn tra đúng ID", len(goi_http), 1)
+		dung("vẫn báo không khớp", bool(f.response["message"]["loi"]))
+
+
+@ca("#225: xuất rải chạy cả hai script, nguồn tại quầy tới Save giả lập không tra Pancake")
+def _xuat_nguon_khac():
+	for nguon in ("Tại chỗ", "GrabFood"):
+		si = To(name="SI-QUAY", docstatus=1, custom_nguon=nguon,
+			custom_pancake_display_id="TAICHO-123", grand_total=108000,
+			posting_date="2026-09-08", vgb_xhd_ten="Người mua đã xác nhận",
+			vgb_xhd_email="dung@example.com",
+			items=[To(amount=108000, qty=1, item_code="BANH", item_name="Bánh", uom="Hộp")])
+		f = nen_script(si)
+		goc = f.get_doc
+		def nap():
+			exec(compile(kb.ban_moi("nap"), "nap-quay", "exec"), {"frappe": f})
+		f.get_doc = lambda dt, *a, **kw: To(execute_method=nap) if dt == "Server Script" else goc(dt, *a, **kw)
+		tra = []
+		f.make_get_request = lambda *a, **kw: tra.append(a) or {"data": []}
+		gui = []
+		def post(url, data, **kw):
+			if url.endswith("Login"):
+				return {"token": "thu"}
+			gui.append(json.loads(data))
+			return {"code": "00", "ok": True, "data": {"inv_invoiceAuth_id": "ID-THU", "inv_invoiceNumber": "THU"}}
+		f.make_post_request = post
+		f.call = lambda ten, **kw: at.chuan_goi(si, kw["goi"]) if ten.endswith("kiem_goi") else at.phan_loai_phan_hoi_thuan(kw.get("phan_hoi"), kw.get("loi"))
+		exec(compile(kb.ban_moi("phat_hanh"), "phat-quay", "exec"), {"frappe": f, "json": json})
+		la("không tra Pancake", tra, [])
+		la("Save giả lập đúng một lần", len(gui), 1)
+		la("giữ người mua", gui[0]["data"][0]["inv_buyerEmail"], "dung@example.com")
+		la("không lỗi nạp", f.response["message"]["loi"], [])
