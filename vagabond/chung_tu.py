@@ -151,6 +151,8 @@ def danh_dau_huy(doc, ly_do=None, ghi_vet=True):
 	kho, thieu tai khoan, gia am) - dung save thi chinh cai phieu can bo di
 	lai la cai khong luu duoc, nguoi dung ket cung khong loi ra.
 	"""
+	from vagabond.bao_ve_hddt import chan_huy
+	chan_huy(doc)
 	dt, ten = doc.doctype, doc.name
 	if cint(doc.docstatus) != 0:
 		frappe.throw(
@@ -544,12 +546,13 @@ def _khong_duoc_huy(trang_thai):
 
 def _mo_ta_huy(ds):
 	"""Tom tat mot tap hoa don de nguoi bam nhin truoc khi quyet."""
+	from vagabond.bao_ve_hddt import co_dau_hddt
 	ra = {"so_don": len(ds), "tong_tien": 0.0, "co_hddt": 0, "da_ky": 0, "vi_du": []}
 	for r in ds:
 		ra["tong_tien"] += flt(r.get("grand_total"))
 		if (r.get("custom_hddt_so") or "").strip():
 			ra["co_hddt"] += 1
-		if _khong_duoc_huy(r.get("custom_hddt_trang_thai")):
+		if co_dau_hddt(r):
 			ra["da_ky"] += 1
 		if len(ra["vi_du"]) < 15:
 			ra["vi_du"].append({
@@ -588,6 +591,7 @@ def _tap_huy(ds=None, ngay=None, tao_truoc=None):
 			"name", "posting_date", "creation", "grand_total", "customer",
 			"custom_pancake_id", "custom_pancake_display_id",
 			"custom_hddt_so", "custom_hddt_trang_thai", "vgb_quay",
+			"custom_hddt_id", "custom_minvoice_id", "vgb_hddt_cho_doi_chieu",
 		],
 		order_by="name asc",
 		limit_page_length=0,
@@ -624,9 +628,10 @@ def huy_ghi_so_hang_loat(ds=None, ngay=None, tao_truoc=None, ly_do=None, xoa_so_
 	if not tap:
 		return {"ok": 1, "khong_co_to_nao": 1, "huy": 0}
 
+	from vagabond.bao_ve_hddt import co_dau_hddt
 	kq = {"chon": len(tap), "huy": 0, "bo_qua_da_ky": 0, "loi": [], "tong_tien": 0.0}
 	for r in tap:
-		if _khong_duoc_huy(r.get("custom_hddt_trang_thai")):
+		if co_dau_hddt(r):
 			kq["bo_qua_da_ky"] += 1
 			kq["loi"].append(
 				"Đơn %s đang ở trạng thái hoá đơn điện tử %s nên không huỷ ở đây, "
