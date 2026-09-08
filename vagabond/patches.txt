@@ -211,3 +211,5 @@ vagabond.patches.dong_bo_cau_truc #v445
 vagabond.patches.dong_bo_cau_truc #v446
 vagabond.patches.minvoice_v446
 vagabond.patches.mua_hddt_v446
+vagabond.patches.dong_bo_cau_truc #v447
+vagabond.patches.minvoice_v447
