@@ -223,4 +223,8 @@ vagabond.patches.san_xuat_206
 vagabond.patches.dong_bo_cau_truc #v451
 vagabond.patches.dong_bo_cau_truc #v452
 vagabond.patches.dong_bo_cau_truc #v453
+
+vagabond.patches.dong_bo_cau_truc #v454
+vagabond.patches.minvoice_v454
 vagabond.patches.mac_dinh_san_xuat_206
+vagabond.patches.dong_bo_cau_truc #v455
