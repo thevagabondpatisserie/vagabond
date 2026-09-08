@@ -5,7 +5,7 @@ phiếu5%. Thiếu tài khoản/danh mục là đỏ, không coi mock là bench 
 """
 
 import frappe
-from frappe.utils import today
+from frappe.utils import getdate, today
 from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that.nen import ca, la, dung
 
@@ -35,14 +35,17 @@ def _don_mua():
 		"taxes": [{"item_tax_template": mau8.name}]}))
 	po = frappe.new_doc("Purchase Order")
 	po.company, po.supplier = cty, nen.mot_nha_cung_cap()
-	po.transaction_date = po.schedule_date = today()
+	# Core buying_controller.validate_schedule_date lấy min() trên mọi dòng.
+	# Sau reload ngày là date, nên dòng thêm mới cũng phải cùng kiểu.
+	ngay = getdate(today())
+	po.transaction_date = po.schedule_date = ngay
 	po.currency, po.conversion_rate = "VND", 1
 	po.ignore_pricing_rule = 1
 	po.taxes_and_charges = mau5.name
 	po.set("taxes", [{"charge_type": "On Net Total", "account_head": tk, "rate": 5,
 		"description": "VAT thử", "category": "Total", "add_deduct_tax": "Add"}])
 	po.append("items", {"item_code": mon.name, "qty": 1, "rate": 742857,
-		"schedule_date": today(), "item_tax_template": mau8.name})
+		"schedule_date": ngay, "item_tax_template": mau8.name})
 	_luu(po)
 	po.reload()
 	la("tái hiện lỗi gốc8%", po.total_taxes_and_charges, 59428.56)
@@ -56,7 +59,7 @@ def _don_mua():
 	# Giả đường API chỉ đổi tên mẫu nhưng còn mang bảng thuế8 cũ.
 	po.taxes[0].rate = 8
 	po.append("items", {"item_code": mon.name, "qty": 1, "rate": 100000,
-		"schedule_date": today(), "item_tax_template": mau8.name})
+		"schedule_date": ngay, "item_tax_template": mau8.name})
 	po.save(ignore_permissions=True)
 	po.reload()
 	la("giữ5% sau sửa giá/thêm món/bảng thuế cũ", po.total_taxes_and_charges, 10000)

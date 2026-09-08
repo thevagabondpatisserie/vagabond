@@ -61,12 +61,23 @@ minvoice_kich_ban.py của PR #229/v449 đang do Claude xử lý.
 3. Kiểm trình duyệt Frappe thật: role thu ngân/sales từng điểm có quyền
    tạo link; link khách trên miền order; QR cũ; sao chép bị từ chối;
    bill chờ đối chiếu không cho sửa. Kiểm sửa giá với mạng chậm trên PO.
-4. PR #229/v449 là việc khác còn cần review riêng. Nếu merge229 trước,
-   đồng bộ nhánh này trên main mới, giữ đủ449/450 và chạy lại gate/CI.
-   Không lấy bản450 này làm bằng chứng rằng hotfix229 đã review/deploy.
-5. Giữ Draft đến khi review+bench+CI đủ. Không tự merge/deploy từ handoff
-   này. Sau khi được chốt mới migrate, kiểm Patch Log thue_don_mua_v450,
-   trường PO, Web Page xhd,APPVER450, và màn trên site.
+4. Đã đồng bộ main 2abda54 sau merge #229, giữ đủ patch449/450 và APPVER450.
+   Bundle được dựng lại từ nguồn. Không suy ra deploy449 thành công từ merge.
+5. Claude review, chạy lại gate/bench trên SHA mới rồi merge và deploy450
+   có migrate khi đủ điều kiện, theo phân công của anh Việt. Sau deploy kiểm
+   Patch Log thue_don_mua_v450, trường PO, Web Page xhd, APPVER450 và màn thật.
+
+## Sửa sau review vòng 1
+
+Claude tái hiện fixture PO lỗi so str với datetime.date sau reload rồi thêm
+món. Chuẩn hoá ngày đầu phiếu và cả hai dòng bằng getdate(today()) ngay khi
+khởi tạo fixture. Không thay code nghiệp vụ để né lỗi ca kiểm.
+
+Theo comment 5579537651, Claude đã chạy bản chép sửa ngày: cả hai ca mới
+đạt; mode0 nhiều mức8/10 giữ đúng sau sửa giá và submit; chứng từ còn sót
+và số lượng lệch đều rỗng. Runner vẫn có17 ca cũ hỏng do thiếu fixture theo
+báo cáo Claude, không gọi toàn bộ bench là xanh. Claude cần chạy lại trên
+SHA mới đã đồng bộ449; Codex chưa chạy bench độc lập tại máy này.
 
 Không đổi danh mục thuế, không sửa đơn DMH thật, không phát hành HĐĐT,
 không sửa chứng từ cũ, không đóng issue227.
