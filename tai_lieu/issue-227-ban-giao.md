@@ -299,3 +299,37 @@ Bench trước có 11 ca hỏng vì dựng tay nhiều hơn; nay fixture nằm t
 
 Save thật sang M-Invoice (mọi HTTP đều giả). Ảnh site thật. Chứng từ cũ
 11552, HDB-26-09-00171 và ba PI mua chỉ liệt kê. Không merge, không deploy.
+
+## Vòng 3, 08/09/2026: hai nhánh Codex tái hiện trên 39a47f8
+
+1. **Mẫu từ chối nghiêm ngặt** (`minvoice_an_toan._dung_mau_tu_choi`): chỉ mở
+   khoá khi TOÀN BỘ phản hồi khớp mẫu từ chối đã thấy thật (12/08/2026,
+   mã 296): chỉ các khoá code/message/ok/data; ok False hoặc vắng; data vắng
+   hoặc null (rỗng `{}`/`[]` cũng là khác mẫu); message là chuỗi, không nói
+   trùng; không có dấu vết chứng từ (inv_invoiceAuth_id, inv_invoiceNumber,
+   sobaomat, key_api, inv_invoiceSeries, tthai, trang_thai) ở bất kỳ tầng
+   nào, kể cả trong list. Hai mẫu Codex nêu
+   (`{code:296,data:[{inv_invoiceAuth_id}]}`, `{code:296,data:{inv_invoiceNumber}}`)
+   nay là `khong_ro`. `MA_TU_CHOI_RO` vẫn chỉ có 296; có ca kiểm chốt bảng mã
+   không được mở rộng khi chưa có phản hồi thật.
+2. **Phân trang Pancake phải chứng minh hết kết quả**: chỉ kết luận "đúng một
+   đơn" khi gặp trang ngắn hơn 50 (đã đọc hết). Chạm trần 5 trang mà trang
+   cuối vẫn đầy thì không nạp, không ghi người mua, báo "vượt 5 trang mà chưa
+   hết kết quả" để kế toán gắn ID Pancake hoặc kiểm liên kết. Chưa có
+   metadata tổng số trang nào của Pancake được xác minh, nên dùng trang ngắn
+   làm dấu hết như các đường kéo đơn khác trong repo.
+
+Regression tầng khung: 12 mẫu phản hồi mới trong `_phan_loai`; ba ca phân
+trang mới trong `_nap_khong_gioi_han` (khớp trang 1 nhưng trang 5 vẫn đầy ->
+không ghi; khớp trang 1 và trang 5 ngắn -> nạp; khớp ở trang 5 ngắn -> nạp).
+5 đột biến đều bị bắt (bỏ dò dấu vết cả hai lớp; cho data rỗng; cho khoá lạ;
+chạm trần vẫn kết luận; dừng sớm khi thấy một khớp). Bench: giao_dich_that
+54/54 (thêm PY4 296_co_so, 296_data_list giữ cờ; SS6 trang 5 đầy: duyệt đúng
+5 trang, không ghi người mua, không Save); migrate A/B lên bản mới (nạp sha
+81fb0f8b, phát hành 5e6464ba); cua.chay 9/9 ca #227, 17 ca ngoài #227 vẫn
+đỏ vì fixture như vòng 2.
+Đặt **v448** kèm patch `minvoice_v448`: bench nào đã chạy patch v447 với
+bản 39a47f8 được nhận diện qua `BAM_BAN_CU` (sha256 bản nạp cũ 986a3b5d...)
+rồi vá lên bản mới; site chưa migrate thì v447 và v448 cùng ra một bản.
+Kịch bản D trên bench: đặt script nạp về bản v447 cũ, xoá Patch Log v448,
+migrate rc 0, script lên bản mới (sha 81fb0f8b), không dừng.
