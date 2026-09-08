@@ -220,3 +220,4 @@ vagabond.patches.minvoice_v449
 vagabond.patches.dong_bo_cau_truc #v450
 vagabond.patches.thue_don_mua_v450
 vagabond.patches.san_xuat_206
+vagabond.patches.dong_bo_cau_truc #v451
