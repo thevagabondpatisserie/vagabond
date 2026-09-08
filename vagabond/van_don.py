@@ -15,6 +15,8 @@ Chot voi anh Viet 02/08/2026:
 """
 
 import json
+import math
+import time
 import re
 
 import frappe
@@ -268,7 +270,7 @@ def luat_doi_ngay(trang_thai, co_chuyen, qua_han=0):
 	Nen truong hop do van de, nhung PHAI bao cho nguoi biet.
 	"""
 	tt = (trang_thai or "").strip()
-	if tt == "Chờ giao":
+	if tt in ("Chờ giao", "Chờ khách lấy"):
 		return DOI_NGAY_CANH_BAO if co_chuyen else DOI_NGAY_DUOC
 	if tt == "Đang giao":
 		if cint(qua_han):
@@ -413,27 +415,25 @@ def _mon_khac(doc_name, dong):
 	cu = frappe.get_all(
 		"Van Don Mon",
 		filters={"parent": doc_name},
-		fields=["ma_hang", "ten", "so_luong", "ghi_chu"],
+		fields=["ma_hang", "ten", "so_luong", "ghi_chu", "gia", "tang"],
 		order_by="idx asc",
 		limit_page_length=200,
 	)
 	def gon(ds):
-		return sorted([
+		return [
 			(
 				str(d.get("ma_hang") or "").strip().upper(),
 				str(d.get("ten") or "").strip(),
-				flt(d.get("so_luong")),
+				flt(d.get("so_luong")), flt(d.get("gia")), cint(d.get("tang")),
 				str(d.get("ghi_chu") or "").strip(),
 			)
 			for d in ds
-		])
+		]
 	return gon(cu) != gon(dong or [])
 
 
 def _ghi_mon(doc_name, dong):
-	"""Ghi de bang mon cua mot van don. Khong co dong nao thi de nguyen bang cu."""
-	if not dong:
-		return 0
+	"""Thay toàn bộ bảng món, kể cả danh sách rỗng đã xác minh từ nguồn."""
 	doc = frappe.get_doc("Van Don", doc_name)
 	doc.set("mon", [])
 	for d in dong:
@@ -588,7 +588,7 @@ def dong_bo_pancake(ngay=None):
 	Loc theo ngay giao du kien (updateStatus=estimate_delivery_date, moc thoi
 	gian phai la UNIX GIAY - truyen ISO thi Pancake tra 0 don ma khong bao
 	loi). Bo don da huy (6) va da xoa (7). Chong trung theo pancake_id: don
-	da keo ve roi thi khong dung toi, tranh de len tay sales da sua.
+	đã có thì cập nhật dữ liệu nguồn, giữ phần phân công và đối soát.
 	"""
 	if not (_la_sales() or _la_ke_toan()):
 		frappe.throw("Chỉ sales và kế toán đồng bộ được vận đơn.")
@@ -596,7 +596,7 @@ def dong_bo_pancake(ngay=None):
 
 
 def _theo_ngay_giao(o, cu, pid):
-	"""Ap luat doi ngay giao cho MOT van don da co. Khong nem loi ra ngoai.
+	"""Áp luật đổi ngày giao; lỗi phải tới savepoint của từng vận đơn.
 
 	Tach rieng khoi vong so sanh chung vi ba le. Mot, quyet dinh phu thuoc
 	trang thai van don chu khong chi phu thuoc gia tri lech. Hai, doi ngay
@@ -649,9 +649,11 @@ def _theo_ngay_giao(o, cu, pid):
 			"van_don", ma, "Van Don", cu.name, "doi ngay giao theo Pancake",
 			"ngay_giao", ngay_cu, ngay_moi, can_nguoi_xem=can_xem, ghi_chu=ghi_chu,
 		)
+		return True
 	except Exception:
-		# Ngay giao hong thi phan con lai cua nhip van phai chay.
+		# Hoàn nguyên cả vận đơn nếu lưu ngày lỗi; lượt đồng bộ tiếp tục đơn khác.
 		frappe.log_error(frappe.get_traceback(), "van_don: theo ngay giao")
+		raise
 
 
 def _theo_don_huy(o):
@@ -668,9 +670,10 @@ def _theo_don_huy(o):
 		)
 		if not cu:
 			return
+		cu = frappe.get_doc("Van Don", cu.name, for_update=True)
 		ma = str(o.get("display_id") or pid)
 		tt = (cu.get("trang_thai") or "").strip()
-		if tt == "Chờ giao":
+		if tt in ("Chờ giao", "Chờ khách lấy"):
 			frappe.db.set_value(
 				"Van Don", cu.name,
 				{"trang_thai": "Huỷ", "chuyen": "", "thu_tu": 0,
@@ -694,9 +697,124 @@ def _theo_don_huy(o):
 		# Da giao, khong giao duoc, hoac da huy san: khong dung toi.
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "van_don: theo don huy")
+		raise
+
+
+def _giu_truong_thieu(o, moi, co_si):
+	"""Thiếu khoá trong phản hồi khác với giá trị rỗng do khách xoá."""
+	sa = o.get("shipping_address") or {}
+	nguon = {"khach": "bill_full_name", "sdt": "bill_phone_number",
+		"ghi_chu": "note", "ghi_chu_in": "note_print", "gio_giao": "estimate_delivery_date"}
+	for dich, goc in nguon.items():
+		if goc not in o:
+			moi.pop(dich, None)
+	for dich, khoa in {"nguoi_nhan": ("full_name",), "sdt_nhan": ("phone_number",),
+		"dia_chi": ("full_address", "address"), "phuong": ("commune_name", "commnue_name")}.items():
+		if not any(k in sa for k in khoa):
+			moi.pop(dich, None)
+	if "tags" not in o:
+		for k in ("tag_gio", "buoi", "the_don", "goi_truoc", "chup_truoc"):
+			moi.pop(k, None)
+	if not co_si and not (any(k in o for k in ("total_price_after_sub_discount", "total_price"))
+		and any(k in o for k in ("prepaid", "cash", "transfer_money", "charged_by_onepay",
+			"charged_by_card", "charged_by_momo", "charged_by_vnpay", "charged_by_qrpay"))):
+		moi.pop("tien_thu_ho", None)
+	return moi
+
+
+def _kiem_don_dong_bo(o, pid=None):
+	"""Không coi phản hồi lỗi/thiếu items là khách xoá hết món."""
+	if not isinstance(o, dict) or not str(o.get("id") or "").strip():
+		raise ValueError("Pancake trả đơn thiếu ID; chưa cập nhật vận đơn.")
+	if pid is not None and str(o["id"]) != str(pid):
+		raise ValueError("Pancake trả sai ID đơn; chưa cập nhật vận đơn.")
+	if not str(o.get("status", "")).isdigit():
+		raise ValueError("Pancake trả thiếu trạng thái đơn; chưa cập nhật vận đơn.")
+	if int(o["status"]) not in BO_QUA_TT:
+		if not isinstance(o.get("items"), list) or any(not isinstance(d, dict) for d in o["items"]):
+			raise ValueError("Pancake trả thiếu bảng món; chưa cập nhật vận đơn.")
+		for d in o["items"]:
+			vi = d.get("variation_info")
+			try:
+				so_luong = float(d.get("quantity"))
+			except (TypeError, ValueError):
+				raise ValueError("Pancake trả số lượng không hợp lệ; chưa cập nhật vận đơn.")
+			if (not isinstance(vi, dict) or not str(vi.get("name") or vi.get("display_id") or "").strip()
+				or isinstance(d.get("quantity"), bool) or not math.isfinite(so_luong) or so_luong < 0):
+				raise ValueError("Pancake trả dòng món không đầy đủ; chưa cập nhật vận đơn.")
+		if not _ngay_tu_iso(o.get("estimate_delivery_date")):
+			raise ValueError("Pancake trả thiếu ngày giao; chưa cập nhật vận đơn.")
+	return o
+
+
+def _bo_sung_don_da_co(ds, ngay, c, k, loi):
+	"""Đối chiếu ID còn mở bị rơi khỏi truy vấn ngày; lỗi không có nghĩa huỷ.
+
+	Hôm nay kiểm thêm vận đơn quá hạn để cron sửa cả các đơn dời ngày lúc
+	cron ngừng chạy. Mỗi lỗi trả mã đơn cho điều phối, không chặn đơn khác.
+	"""
+	if not isinstance(ds, list):
+		raise ValueError("Pancake trả sai danh sách đơn.")
+	bang, loi_id = {}, set()
+	for o in ds:
+		pid = str(o.get("id") or "") if isinstance(o, dict) else ""
+		try:
+			_kiem_don_dong_bo(o)
+			if pid in bang and bang[pid] != o:
+				raise ValueError("Hai bản khác nhau của cùng đơn; cần đồng bộ lại.")
+			if pid not in loi_id:
+				bang[pid] = o
+		except ValueError as e:
+			bang.pop(pid, None)
+			loi_id.add(pid)
+			loi.append({"ma_don": pid, "loi": str(e)})
+	cu = frappe.get_all("Van Don", filters={"ngay_giao": ["<=", ngay] if str(ngay) == nowdate() else ngay,
+		"trang_thai": ["in", ["Chờ giao", "Đang giao", "Chờ khách lấy"]],
+		"pancake_id": ["is", "set"]}, fields=["pancake_id"], limit_page_length=0)
+	ids = sorted({str(d.pancake_id).strip() for d in cu if d.pancake_id} - set(bang) - loi_id)
+	khoa = "van_don_237_cursor:" + str(ngay)
+	moc = str(cache_get(khoa) or "")
+	ids = [pid for pid in ids if pid > moc] + [pid for pid in ids if pid <= moc]
+	bat_dau, da_doc = time.monotonic(), 0
+	for pid in ids:
+		if da_doc >= 20 or time.monotonic() - bat_dau >= 15:
+			break
+		da_doc += 1
+		cache_set(khoa, pid, 86400)
+		try:
+			r = _mang().get("%s/shops/%s/orders/%s" % (PANCAKE, c.pancake_shop_id, pid),
+				params={"api_key": k}, timeout=min(TIMEOUT, 5))
+			if r.status_code != 200:
+				raise ValueError("Pancake HTTP %s; giữ dữ liệu cũ, thử lại." % r.status_code)
+			body = r.json()
+			if isinstance(body, dict) and body.get("success") is False:
+				raise ValueError("Pancake chưa trả đơn thành công.")
+			bang[pid] = _kiem_don_dong_bo(body.get("data") if isinstance(body, dict) else None, pid)
+		except Exception:
+			loi_id.add(pid)
+			# Không đưa exception mạng ra ngoài vì URL có thể chứa API key.
+			loi.append({"ma_don": pid, "loi": "Chưa đọc được đầy đủ đúng đơn Pancake; giữ dữ liệu cũ, thử lại."})
+	if da_doc < len(ids):
+		loi.append({"ma_don": "Đối chiếu bổ sung", "loi": "Còn %s đơn chưa kiểm; lần đồng bộ tiếp theo sẽ tiếp tục, chưa kết luận các đơn này đã khớp." % (len(ids) - da_doc)})
+	return list(bang.values())
 
 
 def _dong_bo_pancake(ngay=None):
+	# Cùng khoá giữa cron và nút tay; savepoint bảo vệ cả ngày lẫn bảng món.
+	# Frappe filelock dùng site_path/locks, đã được dùng ở đồng bộ Sales.
+	from frappe.utils.synchronization import filelock
+	with filelock("vagabond_van_don_pancake", timeout=1):
+		frappe.db.savepoint("dong_bo_van_don")
+		try:
+			ra = _dong_bo_pancake_ruot(ngay)
+			frappe.db.commit()
+			return ra
+		except Exception:
+			frappe.db.rollback(save_point="dong_bo_van_don")
+			raise
+
+
+def _dong_bo_pancake_ruot(ngay=None):
 	"""Ruot cua dong_bo_pancake, khong kiem quyen - de scheduler goi duoc."""
 	ngay = ngay or nowdate()
 	c = cfg()
@@ -705,142 +823,156 @@ def _dong_bo_pancake(ngay=None):
 		frappe.throw("Chưa điền khoá Pancake trong Vagabond Settings.")
 
 	dau, cuoi = _khoang_unix(ngay)
+	loi = []
 	try:
-		ds = _keo_don(c, k, "estimate_delivery_date", dau, cuoi)
+		ds = _bo_sung_don_da_co(_keo_don(c, k, "estimate_delivery_date", dau, cuoi), ngay, c, k, loi)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "van_don: dong bo Pancake")
+		frappe.log_error(frappe.get_traceback().replace(k, "***"), "van_don: dong bo Pancake")
 		frappe.throw("Pancake chưa trả dữ liệu, anh chị vui lòng thử lại sau ít phút.")
 
 	them, da_co, bo_qua, lam_moi, noi_hd = 0, 0, 0, 0, 0
 	for o in ds:
-		if (o.get("status") or 0) in BO_QUA_TT:
-			bo_qua += 1
-			# Truoc 19/08/2026 cho nay bo qua HOAN TOAN, ke ca khi ben minh
-			# da co van don. Hau qua: khach huy don tren Pancake ma shipper
-			# van thay don cho giao, van xep tuyen, van chay di giao mot don
-			# khong con ton tai.
-			_theo_don_huy(o)
-			continue
-		pid = str(o.get("id") or "")
-		if not pid:
-			bo_qua += 1
-			continue
-		cu = frappe.db.get_value(
-			"Van Don", {"pancake_id": pid},
-			# Phai doc DU moi truong se so sanh ben duoi. Thieu mot truong la
-			# lan nao chay cung thay "khac" roi ghi lai ca don, 5 phut mot lan
-			# (bat duoc 10/08/2026: thieu buoi, goi_truoc, chup_truoc nen
-			# 12/15 don bi ghi lai moi vong du khong ai sua gi).
-			[
-				"name", "trang_thai", "tag_gio", "phuong", "ghi_chu_in", "the_don",
-				"khach", "sdt", "nguoi_nhan", "sdt_nhan",
-				"buoi", "goi_truoc", "chup_truoc",
-				"dia_chi", "gio_giao", "ghi_chu", "tien_thu_ho",
-				# hoa_don KHONG nam trong vong so sanh chung (moi khong bao
-				# gio sinh ra o nay), doc ve chi de biet o dang trong hay da
-				# co ma quyet dinh co noi lai khong. Xem nen_noi_hoa_don.
-				"hoa_don",
-				# Ba o duoi day KHONG nam trong vong so sanh chung ma danh
-				# rieng cho luat doi ngay giao, xem luat_doi_ngay().
-				"ngay_giao", "chuyen", "shipper",
-			],
-			as_dict=True,
-		)
-		if cu:
-			da_co += 1
-			# Van don da ton tai ma o hoa don con trong thi noi lai o day.
-			# Doc dau ham _noi_lai_hoa_don de biet vi sao phai co buoc nay.
-			if _noi_lai_hoa_don(cu, pid, str(o.get("display_id") or pid)):
-				noi_hd += 1
-			# Don da keo ve van phai bam theo Pancake: khach doi dia chi, doi
-			# gio, them bot banh, chuyen khoan truoc... deu phai sang day
-			# (Loan Anh 10/08/2026). KHONG dung toi nhung gi sales va shipper
-			# da dat: shipper, chuyen, trang thai, anh giao, doi soat.
-			if cu.trang_thai in ("Chờ giao", "Đang giao"):
-				si_cu = frappe.db.get_value(
-					"Sales Invoice",
-					{"custom_pancake_id": pid, "docstatus": ["<", 2]},
-					["name", "grand_total", "outstanding_amount", "vgb_pt_thanh_toan"],
-					as_dict=True,
-				)
-				sa2 = o.get("shipping_address") or {}
-				moi = _tu_pancake(o)
-				moi["dia_chi"] = (sa2.get("full_address") or sa2.get("address") or "").strip()
-				moi["gio_giao"] = _gio_tu_iso(o.get("estimate_delivery_date"))
-				moi["ghi_chu"] = (o.get("note") or "").strip()
-				moi["tien_thu_ho"] = _cod_tu_don(o, si_cu)
-				# NGAY GIAO di duong rieng, khong tha vao vong so sanh chung.
-				# Vong chung chi biet "khac thi ghi de", ma ngay giao thi tuy
-				# trang thai van don moi biet duoc phep de hay khong.
-				_theo_ngay_giao(o, cu, pid)
-				doi = {}
-				for k2, v2 in moi.items():
-					if k2 not in cu:
-						continue
-					if k2 == "tien_thu_ho":
-						if abs(flt(cu.get(k2)) - flt(v2)) >= 1:
-							doi[k2] = v2
-						continue
-					if k2 in ("goi_truoc", "chup_truoc"):
-						if cint(cu.get(k2)) != cint(v2):
-							doi[k2] = v2
-						continue
-					if str(cu.get(k2) or "").strip() != str(v2 or "").strip():
-						doi[k2] = v2
-				if doi:
-					frappe.db.set_value("Van Don", cu.name, doi, update_modified=False)
-					lam_moi += 1
-					nhat_ky.ghi_nhieu(
-						"van_don", str(o.get("display_id") or pid), "Van Don",
-						cu.name, "Pancake sua don",
-						{k3: (cu.get(k3), v3) for k3, v3 in doi.items()},
-					)
-				# Bang mon: khach them banh hay doi loi chuc thi ghi lai.
-				mon_moi = _mon_tu_pancake(o)
-				if mon_moi and _mon_khac(cu.name, mon_moi):
-					_ghi_mon(cu.name, mon_moi)
-					if not doi:
-						lam_moi += 1
-			# Don keo ve truoc luc co bang mon thi nap bu ngay o day.
-			elif not frappe.db.exists("Van Don Mon", {"parent": cu.name}):
-				_ghi_mon(cu.name, _mon_tu_pancake(o))
-			continue
-		sa = o.get("shipping_address") or {}
-		if str(o.get("received_at_shop") or "").lower() in ("true", "1"):
-			kenh = "Khách tự lấy"
-		else:
-			kenh = "Shipper nội bộ"
-		si = frappe.db.get_value(
-			"Sales Invoice",
-			{"custom_pancake_id": pid, "docstatus": ["<", 2]},
-			["name", "grand_total", "outstanding_amount", "vgb_pt_thanh_toan"],
-			as_dict=True,
-		)
-		moi_vd = frappe.get_doc(
-			dict(
-				{
-					"doctype": "Van Don",
-					"hoa_don": si.name if si else None,
-					"ma_don": str(o.get("display_id") or pid),
-					"dia_chi": (sa.get("full_address") or sa.get("address") or "").strip(),
-					"ngay_giao": ngay,
-					"gio_giao": _gio_tu_iso(o.get("estimate_delivery_date")),
-					"kenh": kenh,
-					"tien_thu_ho": _cod_tu_don(o, si),
-					"ghi_chu": (o.get("note") or "").strip(),
-					"pancake_id": pid,
-				},
-				**_tu_pancake(o)
+		frappe.db.savepoint("van_don_mot_don")
+		dem_cu = (them, da_co, bo_qua, lam_moi, noi_hd)
+		try:
+			if cint(o.get("status")) in BO_QUA_TT:
+				bo_qua += 1
+				# Truoc 19/08/2026 cho nay bo qua HOAN TOAN, ke ca khi ben minh
+				# da co van don. Hau qua: khach huy don tren Pancake ma shipper
+				# van thay don cho giao, van xep tuyen, van chay di giao mot don
+				# khong con ton tai.
+				_theo_don_huy(o)
+				continue
+			pid = str(o.get("id") or "")
+			if not pid:
+				bo_qua += 1
+				continue
+			cu = frappe.db.get_value(
+				"Van Don", {"pancake_id": pid},
+				# Phai doc DU moi truong se so sanh ben duoi. Thieu mot truong la
+				# lan nao chay cung thay "khac" roi ghi lai ca don, 5 phut mot lan
+				# (bat duoc 10/08/2026: thieu buoi, goi_truoc, chup_truoc nen
+				# 12/15 don bi ghi lai moi vong du khong ai sua gi).
+				[
+					"name", "trang_thai", "tag_gio", "phuong", "ghi_chu_in", "the_don",
+					"khach", "sdt", "nguoi_nhan", "sdt_nhan",
+					"buoi", "goi_truoc", "chup_truoc",
+					"dia_chi", "gio_giao", "ghi_chu", "tien_thu_ho",
+					# hoa_don KHONG nam trong vong so sanh chung (moi khong bao
+					# gio sinh ra o nay), doc ve chi de biet o dang trong hay da
+					# co ma quyet dinh co noi lai khong. Xem nen_noi_hoa_don.
+					"hoa_don",
+					# Ba o duoi day KHONG nam trong vong so sanh chung ma danh
+					# rieng cho luat doi ngay giao, xem luat_doi_ngay().
+					"ngay_giao", "chuyen", "shipper",
+				],
+				as_dict=True,
 			)
-		)
-		moi_vd.insert(ignore_permissions=True)
-		mon = _mon_tu_pancake(o) or _mon_tu_hoa_don(si.name if si else None)
-		if mon:
-			_ghi_mon(moi_vd.name, mon)
-		them += 1
-	frappe.db.commit()
+			if cu:
+				cu = frappe.get_doc("Van Don", cu.name, for_update=True)
+				da_co += 1
+				# Van don da ton tai ma o hoa don con trong thi noi lai o day.
+				# Doc dau ham _noi_lai_hoa_don de biet vi sao phai co buoc nay.
+				if _noi_lai_hoa_don(cu, pid, str(o.get("display_id") or pid)):
+					noi_hd += 1
+				# Don da keo ve van phai bam theo Pancake: khach doi dia chi, doi
+				# gio, them bot banh, chuyen khoan truoc... deu phai sang day
+				# (Loan Anh 10/08/2026). KHONG dung toi nhung gi sales va shipper
+				# da dat: shipper, chuyen, trang thai, anh giao, doi soat.
+				if cu.trang_thai in ("Chờ giao", "Đang giao", "Chờ khách lấy"):
+					si_cu = frappe.db.get_value(
+						"Sales Invoice",
+						{"custom_pancake_id": pid, "docstatus": ["<", 2]},
+						["name", "grand_total", "outstanding_amount", "vgb_pt_thanh_toan"],
+						as_dict=True,
+					)
+					sa2 = o.get("shipping_address") or {}
+					moi = _tu_pancake(o)
+					moi["dia_chi"] = (sa2.get("full_address") or sa2.get("address") or "").strip()
+					moi["gio_giao"] = _gio_tu_iso(o.get("estimate_delivery_date"))
+					moi["ghi_chu"] = (o.get("note") or "").strip()
+					moi["tien_thu_ho"] = _cod_tu_don(o, si_cu)
+					_giu_truong_thieu(o, moi, bool(si_cu))
+					# NGAY GIAO di duong rieng, khong tha vao vong so sanh chung.
+					# Vong chung chi biet "khac thi ghi de", ma ngay giao thi tuy
+					# trang thai van don moi biet duoc phep de hay khong.
+					doi_ngay = _theo_ngay_giao(o, cu, pid)
+					if doi_ngay:
+						lam_moi += 1
+					doi = {}
+					for k2, v2 in moi.items():
+						if not cu.meta.has_field(k2):
+							continue
+						if k2 == "tien_thu_ho":
+							if abs(flt(cu.get(k2)) - flt(v2)) >= 1:
+								doi[k2] = v2
+							continue
+						if k2 in ("goi_truoc", "chup_truoc"):
+							if cint(cu.get(k2)) != cint(v2):
+								doi[k2] = v2
+							continue
+						if str(cu.get(k2) or "").strip() != str(v2 or "").strip():
+							doi[k2] = v2
+					if doi:
+						frappe.db.set_value("Van Don", cu.name, doi, update_modified=False)
+						if not doi_ngay:
+							lam_moi += 1
+						nhat_ky.ghi_nhieu(
+							"van_don", str(o.get("display_id") or pid), "Van Don",
+							cu.name, "Pancake sua don",
+							{k3: (cu.get(k3), v3) for k3, v3 in doi.items()},
+						)
+					# Bang mon: khach them banh hay doi loi chuc thi ghi lai.
+					mon_moi = _mon_tu_pancake(o)
+					if _mon_khac(cu.name, mon_moi):
+						_ghi_mon(cu.name, mon_moi)
+						if not doi and not doi_ngay:
+							lam_moi += 1
+				# Don keo ve truoc luc co bang mon thi nap bu ngay o day.
+				elif not frappe.db.exists("Van Don Mon", {"parent": cu.name}):
+					_ghi_mon(cu.name, _mon_tu_pancake(o))
+				continue
+			sa = o.get("shipping_address") or {}
+			if str(o.get("received_at_shop") or "").lower() in ("true", "1"):
+				kenh = "Khách tự lấy"
+			else:
+				kenh = "Shipper nội bộ"
+			si = frappe.db.get_value(
+				"Sales Invoice",
+				{"custom_pancake_id": pid, "docstatus": ["<", 2]},
+				["name", "grand_total", "outstanding_amount", "vgb_pt_thanh_toan"],
+				as_dict=True,
+			)
+			moi_vd = frappe.get_doc(
+				dict(
+					{
+						"doctype": "Van Don",
+						"hoa_don": si.name if si else None,
+						"ma_don": str(o.get("display_id") or pid),
+						"dia_chi": (sa.get("full_address") or sa.get("address") or "").strip(),
+						"ngay_giao": _ngay_tu_iso(o.get("estimate_delivery_date")),
+						"gio_giao": _gio_tu_iso(o.get("estimate_delivery_date")),
+						"kenh": kenh,
+						"tien_thu_ho": _cod_tu_don(o, si),
+						"ghi_chu": (o.get("note") or "").strip(),
+						"pancake_id": pid,
+					},
+					**_tu_pancake(o)
+				)
+			)
+			moi_vd.insert(ignore_permissions=True)
+			mon = _mon_tu_pancake(o)
+			if mon:
+				_ghi_mon(moi_vd.name, mon)
+			them += 1
+		except Exception:
+			frappe.db.rollback(save_point="van_don_mot_don")
+			them, da_co, bo_qua, lam_moi, noi_hd = dem_cu
+			ma = str(o.get("display_id") or o.get("id") or "")
+			loi.append({"ma_don": ma, "loi": "Chưa lưu được vận đơn; đã trả lại dữ liệu trước lần sửa này."})
+			frappe.log_error(frappe.get_traceback().replace(k, "***"), "van_don: lưu đơn " + ma)
 	return {"them": them, "da_co": da_co, "lam_moi": lam_moi, "bo_qua": bo_qua,
-		"noi_hoa_don": noi_hd, "tong": len(ds), "ngay": str(ngay)}
+		"noi_hoa_don": noi_hd, "tong": len(ds), "ngay": str(ngay), "loi": loi}
 
 
 def dong_bo_tu_dong():
@@ -852,13 +984,15 @@ def dong_bo_tu_dong():
 	"""
 	for ngay in (nowdate(), add_days(nowdate(), 1)):
 		try:
-			_dong_bo_pancake(ngay)
+			ra = _dong_bo_pancake(ngay)
+			if ra.get("loi"):
+				frappe.log_error(frappe.as_json(ra["loi"]), "van_don: đơn cần đồng bộ lại")
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "van_don: dong bo tu dong %s" % ngay)
 
 
 TRUONG_DS = [
-	"name", "ma_don", "khach", "sdt", "dia_chi", "gio_giao", "trang_thai",
+	"name", "creation", "ma_don", "khach", "sdt", "dia_chi", "gio_giao", "trang_thai",
 	"kenh", "shipper", "diem_pickup", "nguoi_trao", "tien_thu_ho", "phi_giao", "anh_giao", "booking_id", "tracking_url",
 	"ly_do_loi", "chuyen", "da_doi_soat", "nguoi_nhan", "sdt_nhan",
 	"tag_gio", "buoi", "phuong", "the_don", "goi_truoc", "chup_truoc", "ghi_chu_in",
@@ -890,7 +1024,7 @@ def danh_sach(ngay=None, trang_thai=None, phuong=None, tag_gio=None, buoi=None,
 		filters=loc,
 		fields=TRUONG_DS,
 		order_by="thu_tu asc, tag_gio asc, gio_giao asc, creation asc",
-		limit_page_length=500,
+		limit_page_length=0,
 	)
 	if _la_shipper() and not _la_sales():
 		# Anh Viet 03/08/2026: man hinh shipper chi hien dung don duoc phan cong,
@@ -1311,6 +1445,28 @@ KENH_NGOAI = {
 	"BE": {"api": 0},
 	"Lalamove": {"api": 0},
 }
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_phi_book(name, phi):
+	"""Chi phí thực tế book app; không phải tiền COD hay phí thu của khách."""
+	if not (_la_sales() or _la_ke_toan()):
+		frappe.throw("Chỉ sales và kế toán cập nhật phí book app.")
+	try:
+		so = float(phi)
+	except (TypeError, ValueError):
+		frappe.throw("Nhập chi phí book app bằng số đồng không âm.")
+	if not math.isfinite(so) or so < 0 or so != int(so):
+		frappe.throw("Nhập chi phí book app bằng số đồng không âm.")
+	doc = frappe.get_doc("Van Don", name, for_update=True)
+	if doc.kenh not in KENH_NGOAI or doc.get("da_doi_soat") or doc.trang_thai == "Huỷ":
+		frappe.throw("Chỉ sửa phí đơn book app chưa đối soát và chưa huỷ.")
+	cu = flt(doc.phi_giao)
+	doc.phi_giao = so
+	doc.save(ignore_permissions=True)
+	if cu != so:
+		doc.add_comment("Comment", "Chi phí book app: %s -> %s VND." % (cu, so))
+	return {"name": doc.name, "phi_giao": doc.phi_giao}
 
 
 @frappe.whitelist()
