@@ -104,15 +104,16 @@ def _thay_that():
 	from vagabond.khung.kiem_that import nen
 	hd, je, ur = _cap_cu()
 	anh = sua._ban_xem(hd, je)
-	kq = sua._thay(hd, je, "THU225", anh["ma_xac_nhan"], True)
+	kq = sua._thay(hd, je, "THU225", anh["ma_xac_nhan"])
 	nen._DA_TAO.append(("Journal Entry", kq["pkt_moi"]))
 	la("Unreconcile vẫn giữ lịch sử", frappe.db.get_value("Unreconcile Payment", ur, "docstatus"), 1)
 	la("PKT cũ huỷ", frappe.db.get_value("Journal Entry", je, "docstatus"), 2)
 	la("HDB nối mới", frappe.db.get_value("Sales Invoice", hd, "vgb_but_toan_tang"), kq["pkt_moi"])
+	la("đúng một PKT năm dòng", len(frappe.get_doc("Journal Entry", kq["pkt_moi"]).accounts), 5)
 	la("amended_from", frappe.db.get_value("Journal Entry", kq["pkt_moi"], "amended_from"), je)
 	la("hết nợ", kq["con_no"], 0)
 	try:
-		sua._thay(hd, je, "THU225", anh["ma_xac_nhan"], True)
+		sua._thay(hd, je, "THU225", anh["ma_xac_nhan"])
 	except frappe.ValidationError as loi:
 		if "không còn ghi sổ" not in str(loi):
 			raise
@@ -131,7 +132,7 @@ def _rollback():
 		raise RuntimeError("THU225 lỗi sau cancel")
 	with patch.object(JournalEntry, "insert", hong):
 		try:
-			sua._thay(hd, je, "THU225", anh["ma_xac_nhan"], True)
+			sua._thay(hd, je, "THU225", anh["ma_xac_nhan"])
 		except RuntimeError as loi:
 			if "THU225" not in str(loi):
 				raise

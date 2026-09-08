@@ -86,11 +86,23 @@ def _xoa_dau():
 		chan_huy_mem(Phieu(custom_hddt_so="12165"))
 
 
-@ca("#225: sáu dòng gồm chênh lệch được duyệt đưa doanh thu và6428 về0, VAT khớp771852")
+@ca("#225: một PKT năm dòng đã được duyệt đưa doanh thu và6428 về0, VAT khớp771852")
 def _sau_le():
-	from vagabond.doi_chieu_tang_cu import dong_pkt_sua
+	from vagabond.doi_chieu_tang_cu import dong_pkt_sua, so
 	gl = [{"account_number": tk, "debit": no, "credit": co} for tk, no, co in [
 		("131", "10420000", 0), ("5111", 0, "9648148.14"),
 		("33311", 0, "771851.85"), ("6428", 0, "0.01")]]
 	moi = [{"account_number": tk, "debit": no, "credit": co} for tk, no, co in dong_pkt_sua()]
+	la("năm dòng đúng thứ tự chị Dung", dong_pkt_sua(), [
+		("5111", "9648148.14", "0"), ("64182", "771852", "0"),
+		("6428", "0.01", "0"), ("131", "0", "10420000"), ("33311", "0", "0.15")])
+	la("tổng Nợ", sum(so(d["debit"]) for d in moi), so("10420000.15"))
+	la("tổng Có", sum(so(d["credit"]) for d in moi), so("10420000.15"))
 	la("chỉ cònVAT", sau_thay_pkt(gl, moi), {"33311": "-771852.00", "64182": "771852"})
+
+
+@ca("#225: đường hàng tặng mới chia10420000 thành9648148 và771852 nguyên đồng")
+def _tang_moi_nguyen_dong():
+	from vagabond.hang_tang_so_cai import chia_thue
+	la("khớp số M-Invoice chị Dung chốt", chia_thue(10420000, [{"amount": 10420000}], 8),
+		[(9648148, 771852, 10420000)])

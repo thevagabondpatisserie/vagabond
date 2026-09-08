@@ -1,8 +1,8 @@
 """#225: đối chiếu trước khi sửa PKT hàng tặng cũ, không huỷ HĐĐT.
 
-Số tròn chị Dung chốt khác GL thực 0,14/0,15/0,01. Không tự làm tròn
-sổ cũ hoặc huỷ kèm SI để tháo liên kết. Bản xem chỉ đọc, trả các số dư
-sẽ còn nếu thay PKT, để kế toán duyệt một phương án đầy đủ trước khi ghi.
+Chị Dung đã chốt một PKT năm dòng gồm số lẻ0,14/0,15/0,01. Không làm
+tròn sổ cũ hoặc huỷ kèm SI để tháo liên kết. Bản xem chỉ đọc; hàm thay
+đòi mã xác nhận ảnh hiện tại và kiểm lại GL/PLE, không hỏi duyệt lại số lẻ.
 """
 from decimal import Decimal
 
@@ -58,13 +58,13 @@ def _xem(hoa_don, pkt):
 		frappe.throw("Thiếu sổ cái đang hiệu lực; không suy chứng từ đã được sửa.")
 	for d in gl_hd + gl_pkt:
 		d["account_number"] = frappe.db.get_value("Account", d["account"], "account_number")
-	moi = [
-		{"account_number": "5111", "debit": 9648148, "credit": 0},
-		{"account_number": "64182", "debit": 771852, "credit": 0},
-		{"account_number": "131", "debit": 0, "credit": 10420000,
-		 "party_type": "Customer", "party": hd.customer,
-		 "reference_type": "Sales Invoice", "reference_name": hd.name},
-	]
+	moi = [{"account_number": tk, "debit": no, "credit": co}
+		for tk, no, co in dong_pkt_sua()]
+	for d in moi:
+		if d["account_number"] == "131":
+			d.update(party_type="Customer", party=hd.customer,
+				reference_type="Sales Invoice", reference_name=hd.name)
+
 	# Đây là chốt cho đúng cặp 00710/00012, tuyệt đối không nhân số này cho 4 tờ khác.
 	if so(hd.grand_total) != so(10420000):
 		frappe.throw("Phương án số tiền chỉ được chốt cho HDB-26-09-00710 / PKT-2026-00012.")
@@ -86,7 +86,7 @@ def _xem(hoa_don, pkt):
 			"voucher_no": hd.name, "is_cancelled": 0}),
 		"chua_duoc_tu_ghi": [
 			"Chưa đảo PKT cũ; không ghi thêm PKT mới khi chưa xử lý đủ phiếu cũ và Payment Ledger.",
-			"Đối chiếu số lẻ với chị Dung; không tự sửa doanh thu, VAT hoặc6428 trên SI đã phát hành.",
+			"Năm dòng gồm số lẻ đã được chị Dung chốt; giữ nguyên SI đã phát hành, chỉ thay PKT.",
 			"Kiểm liên kết SI và Unreconcile Payment trước huỷ; không huỷ kèm SI hoặc bỏ kiểm liên kết.",
 			"Không đổi ngày/hạn, tạo giá vốn hoặc tự sửa bốn hoá đơn còn lại.",
 		],
@@ -94,14 +94,14 @@ def _xem(hoa_don, pkt):
 
 
 def dong_pkt_sua():
-	"""Ba dòng đã chốt, cộng riêng ba dòng chênh lệch CHỜ kế toán duyệt.
+	"""Chị Dung chốt một PKT năm dòng, gộp số lẻ vào cùng dòng5111.
 
-	Không sửa SI/CQT. Sau sáu dòng, 5111 và6428 về0; 33311 Có771852.
-	Không tự chạy: thay() bắt mã băm bản xem trước và xác nhận số lẻ riêng.
+	Tổng Nợ/Có10420000,15. Gộp với SI: chỉ còn Nợ64182/Có33311 771852.
+	Không đổi precision toàn hệ để tránh nuốt các khoản0,01/0,15 này.
 	"""
 	return [
-		("5111", "9648148", "0"), ("64182", "771852", "0"), ("131", "0", "10420000"),
-		("5111", "0.14", "0"), ("6428", "0.01", "0"), ("33311", "0", "0.15"),
+		("5111", "9648148.14", "0"), ("64182", "771852", "0"),
+		("6428", "0.01", "0"), ("131", "0", "10420000"), ("33311", "0", "0.15"),
 	]
 
 
@@ -110,14 +110,14 @@ def _ban_xem(hoa_don, pkt):
 	import hashlib
 	import json
 	ra = _xem(hoa_don, pkt)
-	ra["dong_bo_sung_cho_duyet"] = dong_pkt_sua()[3:]
+	ra["phuong_an_da_chot"] = "Chị Dung: một PKT năm dòng, gộp số lẻ; tổng10420000,15"
 	ra["ma_xac_nhan"] = hashlib.sha256(json.dumps(ra, sort_keys=True, default=str,
 		ensure_ascii=False).encode()).hexdigest()
 	return ra
 
 
-def _thay(hoa_don, pkt, so_hddt, ma_xac_nhan, da_duyet_ba_dong_le=False):
-	"""Chỉ cho Claude chạy sau review/bench và duyệt số lẻ; không có whitelist.
+def _thay(hoa_don, pkt, so_hddt, ma_xac_nhan):
+	"""Chỉ cho Claude chạy sau review/bench; năm dòng đã được chị Dung chốt; không có whitelist.
 
 	Không commit. Caller quản lý giao dịch; mọi lỗi rollback về savepoint.
 	Core de59166 JournalEntry.on_cancel giữ Unreconcile Payment trong danh
@@ -127,8 +127,7 @@ def _thay(hoa_don, pkt, so_hddt, ma_xac_nhan, da_duyet_ba_dong_le=False):
 	"""
 	import frappe
 	from frappe.utils import nowdate
-	if da_duyet_ba_dong_le is not True:
-		frappe.throw("Cần chị Dung duyệt riêng ba dòng lẻ: Nợ5111 0,14; Nợ6428 0,01; Có33311 0,15. Chưa sửa phiếu.")
+
 	if not isinstance(ma_xac_nhan, str) or len(ma_xac_nhan) != 64:
 		frappe.throw("Chạy ban_xem rồi dùng đúng mã xác nhận của bản kế toán đã duyệt.")
 	if not ({"System Manager", "Accounts Manager"} & set(frappe.get_roles())):
@@ -178,7 +177,7 @@ def _thay(hoa_don, pkt, so_hddt, ma_xac_nhan, da_duyet_ba_dong_le=False):
 		moi.posting_date = nowdate()
 		moi.voucher_type = "Journal Entry"
 		moi.amended_from = cu.name
-		moi.user_remark = "#225 thay %s cho %s, giữ HĐĐT12165. VAT64182; ba dòng lẻ đã được duyệt riêng." % (cu.name, hd.name)
+		moi.user_remark = "#225 thay %s cho %s, giữ HĐĐT12165. VAT64182; một PKT năm dòng đã được chị Dung duyệt." % (cu.name, hd.name)
 		for tk, no, co in dong_pkt_sua():
 			ds = frappe.get_all("Account", filters={"company": hd.company, "account_number": tk,
 				"is_group": 0, "disabled": 0}, fields=["name", "account_currency"], limit=2)
@@ -218,7 +217,7 @@ def _thay(hoa_don, pkt, so_hddt, ma_xac_nhan, da_duyet_ba_dong_le=False):
 		gl_hd = so_cai("Sales Invoice", hd.name)
 		if bang(gl_hd) != {k: so(v) for k, v in ky_vong.items()} or bang(gl_hd + gl_moi) != {"64182": so(771852), "33311": so(-771852)}:
 			frappe.throw("Sổ cái sau sửa chưa khớp VAT đã duyệt, quay lại toàn bộ.")
-		hd.add_comment("Comment", "#225: thay %s bằng %s; Có131 trỏ đúng HDB. Giữ HĐĐT12165. Ba dòng lẻ đã được duyệt riêng." % (cu.name, moi.name))
+		hd.add_comment("Comment", "#225: thay %s bằng %s; Có131 trỏ đúng HDB. Giữ HĐĐT12165. Một PKT năm dòng đã được chị Dung duyệt." % (cu.name, moi.name))
 		return {"hoa_don": hd.name, "pkt_cu": cu.name, "pkt_moi": moi.name,
 			"con_no": hd.outstanding_amount, "chua_commit": True}
 	except Exception:
@@ -234,8 +233,8 @@ def ban_xem():
 	return _ban_xem("HDB-26-09-00710", "PKT-2026-00012")
 
 
-def thay(ma_xac_nhan, da_duyet_ba_dong_le=False):
-	return _thay("HDB-26-09-00710", "PKT-2026-00012", "12165", ma_xac_nhan, da_duyet_ba_dong_le)
+def thay(ma_xac_nhan):
+	return _thay("HDB-26-09-00710", "PKT-2026-00012", "12165", ma_xac_nhan)
 
 
 def kiem_nam_to():
