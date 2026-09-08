@@ -222,3 +222,4 @@ vagabond.patches.thue_don_mua_v450
 vagabond.patches.san_xuat_206
 vagabond.patches.dong_bo_cau_truc #v451
 vagabond.patches.dong_bo_cau_truc #v452
+vagabond.patches.dong_bo_cau_truc #v453

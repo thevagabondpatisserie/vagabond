@@ -14,6 +14,7 @@ class El {
 const counts=[], alerts=[];
 let prior=0;
 const frappe={listview_settings:{BOM:{add_fields:['is_default'],get_indicator:()=>['v002'],refresh:()=>prior++}},
+  utils:{escape_html:s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")},
   db:{count:(dt,args)=>{counts.push([dt,args.filters]);return Promise.resolve(42);}},
   datetime:{get_today:()=> '2026-09-08',add_days:(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10)},
   msgprint:m=>alerts.push(m)};
@@ -28,6 +29,18 @@ function makeList(dt,filters=[]) {
 function buttons(el) { return [el,...el.children.flatMap(buttons)].filter(e=>e.handlers.click); }
 const settle=()=>new Promise(r=>setImmediate(r));
 (async()=>{
+  const mon = frappe.listview_settings['Work Order'].formatters.production_item;
+  const df = {fieldname:'production_item', fieldtype:'Link', options:'Item'};
+  const doc = {production_item:'BAWC00132', item_name:'Bánh Ổ Meraki, size 18cm'};
+  // Frappe 16.27.1 list_view.js get_subject_text giữ nguyên formatter Link;
+  // get_link_element gán vào textContent và title, không diễn giải HTML.
+  const text = mon(doc.production_item, df, doc);
+  assert.strictEqual(text, 'Bánh Ổ Meraki, size 18cm (BAWC00132)');
+  assert(!text.includes('<'), 'subject không được sinh thẻ HTML');
+  assert.strictEqual(mon('Tên được truyền làm title', df, doc), text, 'mã lấy từ document');
+  assert.strictEqual(mon('NVL001', df, {}), 'NVL001', 'thiếu tên thì hiện mã một lần');
+  assert.strictEqual(mon('NVL001', df, {item_name:'NVL001'}), 'NVL001');
+  assert.strictEqual(mon('NVL001', df, {item_name:'Bánh "A" & B'}), 'Bánh "A" & B (NVL001)', 'textContent không cần HTML entities');
   const wo=makeList('Work Order', [['Work Order','company','=','TV'],['Work Order','status','!=','Stopped']]);
   await wo.refresh(); await settle();
   assert(counts.every(c=>c[1].some(f=>f[1]==='company')),'count phải giữ company');
