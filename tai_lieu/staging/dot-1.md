@@ -264,3 +264,18 @@ không phải riêng thời gian nghiệp vụ. ContextVar tránh trộn request
 Kiểm đồng thời2/7truy vấn, lỗi SQL và ngắt/đọc hết iterable trên API/ngoài API.
 Review bắt double-close khi dùng yield from, đã thay vòng for và thêm ca ngắt.
 Chưa có baseline tải đại diện hoặc so sánh trước/sau tối ưu.
+
+
+## Tải thử Vận đơn và nguồn apt CI56
+
+Hai mức100/500VD,3dòng món mỗi đơn, ngày riêng, khôngpancake_id, chỉ dựng
+sau tất cả ca chức năng/quyền đạt. Browser390/1280, mỗi khổ5lượt, xác nhận
+đủ ID cả API vàDOM rồi tìm mã cuối. Thời gian gồm lệnh driver/đọc JSON/
+đối chiếu/polling, không phải render thuần. lenh_driver không phải số chạm
+của người dùng. Chưa có runtime20lượt hoặc phân bố tải site đã xác minh.
+
+CI56 hai attempt dừng tại apt GoogleChrome Packages.gz Hash Sum mismatch,
+trước bench. Runner dùng Chromium của Playwright, không cần nguồn Chrome.
+Chỉ comment dòng deb/deb-src URL GoogleChrome trong *.list trên runner tạm;
+không tắt hash/chữ ký và không bỏ qua apt failure. Nếu runner dùng .sources
+thì vẫn fail để xử lý theo nguồn mới. Bản này chưa được kiểm runtime CI.
