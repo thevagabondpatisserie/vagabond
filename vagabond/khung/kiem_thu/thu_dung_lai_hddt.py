@@ -330,7 +330,7 @@ def _hai_duong_cung_can():
 		dung("%s can theo con so may ghi" % ham.__name__,
 			"tien_dong_may_ghi(" in ma)
 		dung("%s co hoi do chinh xac cua may" % ham.__name__,
-			"_do_chinh_xac()" in ma)
+			"_do_chinh_xac(doc, g)" in ma)
 
 
 # --------- v327: don vi cua nha cung cap chua khai thi khong duoc im lang
