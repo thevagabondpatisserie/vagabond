@@ -66,6 +66,8 @@ class VagabondHoSoTT(Document):
 				% (flt(self.da_tam_ung), flt(self.tong_tien))
 			)
 		self.con_lai = flt(self.tong_tien) - flt(self.da_tam_ung)
+		from vagabond.doi_chieu_app import kiem_luu
+		kiem_luu(self)
 
 		han = [getdate(d.han_tra) for d in self.dong if d.han_tra]
 		self.han_tra_som_nhat = min(han) if han else None
