@@ -42,6 +42,9 @@ def chay():
             from vagabond.khung.staging.nguon_pancake import gan
             thu = tao()
             gan(thu['don'], Path(os.environ['VGB_ARTIFACTS']) / 'pancake-http.jsonl')
+        if os.environ.get('VGB_STAGING_NHAN') == '1':
+            from vagabond.khung.staging.nhan_hang_ci import tao as tao_nhan
+            tao_nhan()
     finally:
         frappe.destroy()
     from frappe.app import application

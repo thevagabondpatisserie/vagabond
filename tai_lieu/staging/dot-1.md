@@ -83,3 +83,11 @@ merge và xác minh, không suy rộng quy ước của 14 mã ra toàn bộ dan
 công ty thử tương thích hoặc cấu hình công ty app đúng thiết kế trước ca
 xuyên luồng. Không sửa payload ở driver để che lỗi, không dùng company thật
 với chứng từ thật làm nền. Chưa sửa app hoặc thay cấu hình production.
+
+Đã viết `nhan_hang_ci.py` tạo công ty tổng hợp có tên tương thích hằng app,
+hai kho và một món thử, nhập30 rồi yêu cầu50. `kiem_nhan_hang.cjs` thao tác
+qua phân hệ Đặt hàng, nhận50 phải bị NegativeStockError, ô số mở lại để sửa20.
+Sau thành công mở trang mới, số còn phải nhận30 và không còn khoá chờ.
+CLI cuối kiểm MR, số phiếu kể cả nháp rỗng, dòng không mất liên kết, SLE và Bin.
+Review đã sửa race bấm lại chi tiết cũ ngay sau POST. Chưa runtime, chưa kiểm
+role nhân viên; chưa thay thế toàn bộ kịch bản mất phản hồi/gửi trùng.
