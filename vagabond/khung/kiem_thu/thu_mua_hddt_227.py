@@ -171,7 +171,9 @@ def _hai_nhap():
 	def nem(cau):
 		raise ValueError(cau)
 	t = To(name="PI2", items=[_dong(800, 1, pr_detail="R0", purchase_receipt="P0")])
-	with patch.object(dc, "frappe", SimpleNamespace(db=SimpleNamespace(sql=sql), throw=nem)):
+	# Ca này giữ cửa khoá lượng gốc; căn cứ quy cách #252 có ca bench riêng.
+	with patch.object(dc, "frappe", SimpleNamespace(db=SimpleNamespace(sql=sql), throw=nem)), \
+		patch.object(dc, "dong_hieu_luc", lambda rows, **kw: rows):
 		try:
 			dc.chan_vuot_luong_da_nhan(t)
 		except ValueError as loi:
