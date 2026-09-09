@@ -124,11 +124,17 @@ def _thieu_ton():
 def _sai_lo():
     hd,kho,lo=_nen()
     sai=_lo_thu(_mon_thu('KT243-KHAC-'+frappe.generate_hash(length=8),theo_lo=1))
-    hd.items[0].batch_no=sai.name;hd.items[0].use_serial_batch_fields=1
-    try: hd.submit()
-    except frappe.ValidationError: pass
-    else: dung('phải chặn lô sai món',False)
-    la('không SLE',len(_sle(hd)),0);la('không GL',len(_gl(hd)),0)
+    for pt in ('Hàng tặng', 'Tiền mặt'):
+        for thao_tac in ('save', 'submit'):
+            hd.reload();hd.flags.ignore_permissions=True
+            hd.vgb_pt_thanh_toan=pt
+            hd.items[0].batch_no=sai.name;hd.items[0].use_serial_batch_fields=1
+            try: getattr(hd,thao_tac)()
+            except frappe.ValidationError as e:
+                dung('báo đúng lô và món cần sửa',sai.name in str(e) and 'Chọn lại đúng lô' in str(e))
+            else: dung('phải chặn lô sai món '+pt+' '+thao_tac,False)
+            la('không SLE',len(_sle(hd)),0);la('không GL',len(_gl(hd)),0)
+            la('vẫn nháp',frappe.db.get_value('Sales Invoice',hd.name,'docstatus'),0)
 
 
 @ca('#243 kho thật: đổi tặng sang bán thường không giữ cờ xuất/64181')

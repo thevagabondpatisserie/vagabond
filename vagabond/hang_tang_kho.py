@@ -38,6 +38,25 @@ def kiem_kho(kho, cong_ty):
     return d
 
 
+def kiem_lo_da_chon(doc):
+    """get_item_details.get_basic_details xoá ctx.batch_no khi sai món.
+
+    Phải kiểm trước super().set_missing_values: sau đó lựa chọn tay đã
+    mất, phần tự chia lô không còn biết người dùng chọn nhầm. Áp dụng
+    cho cả SI bán thường và tặng, giữ nguyên chứng từ đã ghi sổ/huỷ.
+    """
+    if doc.docstatus == 2 or getattr(doc, '_action', None) == 'update_after_submit':
+        return
+    for d in doc.get('items') or []:
+        if not d.get('batch_no') or not d.get('item_code'):
+            continue
+        ma_lo = frappe.get_cached_value('Batch', d.batch_no, 'item')
+        if ma_lo != d.item_code:
+            frappe.throw('Dòng %s, món %s: lô %s thuộc món %s. Chọn lại đúng lô của món này '
+                'trước khi lưu hoặc ghi sổ; máy không tự đổi lô đã chọn.'
+                % (d.idx, d.item_code, d.batch_no, ma_lo or 'không còn tồn tại'))
+
+
 def chuan_bi(doc):
     """Gọi sau set_missing_values, trước core kiểm kho và tính giá.
 

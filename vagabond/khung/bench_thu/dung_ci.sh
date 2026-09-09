@@ -21,7 +21,9 @@ cd "$VGB_BENCH"
 bench set-config -g redis_cache redis://127.0.0.1:6379/0
 bench set-config -g redis_queue redis://127.0.0.1:6379/1
 bench set-config -g redis_socketio redis://127.0.0.1:6379/2
-bench get-app --skip-assets --soft-link "$nguon/erpnext"
+# Banking build đọc ../../../sites theo vị trí vật lý. Clone vào apps,
+# không soft-link ra ngoài bench khiến Vite tìm nhầm common_site_config.
+bench get-app --skip-assets --branch vgb-pinned "$nguon/erpnext"
 bench get-app --skip-assets --soft-link "$GITHUB_WORKSPACE"
 bench new-site bench-ci.localhost --db-host 127.0.0.1 --db-port 3306 --mariadb-user-host-login-scope '%' --db-root-password bench-only-password --admin-password bench-only-admin
 bench --site bench-ci.localhost set-config vagabond_bench_thu 1

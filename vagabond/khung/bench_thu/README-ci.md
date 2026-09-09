@@ -16,4 +16,8 @@ Job đỏ nếu thiếu 11 ca #243, có ca chưa chạy, bất kỳ ca hỏng, m
 
 Artifact `bench-<SHA>` gồm SHA của ba repo, log dựng bench, hai log migrate, JSON từng lượt, log tích hợp và traceback nếu lỗi. Không tải site_config, database, email hay thông tin đăng nhập. Workflow không deploy. Chỉ triển khai đúng SHA đã có bằng chứng tích hợp, review và cổng phát hành đạt.
 
-Đây là môi trường tái hiện dùng fixture. Kết quả đạt không thay thế kiểm cấu hình thực tế trước deploy và kiểm live sau migrate. Cửa phát hành M-Invoice và kịch bản đồng thời cần bằng chứng riêng khi thay đổi chạm tới chúng.
+Fresh install đánh dấu patch đã chạy mà không chạy thân patch. `nang_cap_ci` gieo hai Server Script từ snapshot cũ, bỏ đúng bảy dấu patch trên bench dùng một lần rồi chạy migrate thật. Sau hai lượt phải có đủ cột, metadata, Patch Log và Server Script khớp mã nguồn. Asset được build thật để kiểm đường in của Frappe.
+
+Sau hai lượt đầy đủ đạt, runner chạy hai cửa M-Invoice với hai SI độc lập qua Python và Server Script; chỉ HTTP cuối được giả lập. Sau khi đóng kết nối của bộ savepoint, tiến trình riêng kiểm hai người xuất đồng thời, nhiều dòng qua nhiều lô và thử lại sau commit mất phản hồi. Các ca này có commit thật, chỉ chạy trên bench dùng một lần. Artifact bổ sung `minvoice-243.json`, `kho-tang-243.json` và kết quả từng tiến trình.
+
+Đây là môi trường tái hiện dùng fixture. Kết quả đạt không thay thế kiểm cấu hình thực tế trước deploy và kiểm live sau migrate.

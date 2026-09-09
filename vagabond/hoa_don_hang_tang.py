@@ -46,6 +46,8 @@ class HoaDonHangTang(SalesInvoice):
 			frappe.db._disable_transaction_control -= 1
 
 	def set_missing_values(self, for_validate=False):
+		from vagabond.hang_tang_kho import kiem_lo_da_chon
+		kiem_lo_da_chon(self)
 		ket_qua = super().set_missing_values(for_validate=for_validate)
 		from vagabond.hang_tang_kho import chuan_bi
 		chuan_bi(self)

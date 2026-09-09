@@ -5,6 +5,7 @@ phiếu5%. Thiếu tài khoản/danh mục là đỏ, không coi mock là bench 
 """
 
 import frappe
+from unittest.mock import patch
 from frappe.utils import getdate, today
 from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that.nen import ca, la, dung
@@ -71,7 +72,10 @@ def _don_mua():
 
 
 @ca("#227 link/thuế: khách lưu đúng SI và payload, trạng thái chờ đối chiếu cấm ghi lại")
+@patch("vagabond.ban_hang.now_datetime", lambda: frappe.utils.get_datetime(frappe.utils.today() + " 12:00:00"))
 def _khach_dien():
+	# Ca này kiểm lưu thông tin, không kiểm giờ đóng cửa. Giữ đồng hồ của
+	# cả ký và xác minh link ở buổi trưa cùng ngày SI, kể cả CI chạy đêm.
 	from unittest.mock import patch
 	from urllib.parse import parse_qs, urlparse
 	from vagabond import ban_hang, minvoice_an_toan
