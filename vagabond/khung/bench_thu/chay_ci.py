@@ -41,8 +41,8 @@ def chay():
 			return ket_noi(sock, dia_chi)
 
 		co_243 = [ten for ten, _ in nen.CA if ten.startswith("#243 ")]
-		if len(co_243) != 11:
-			raise RuntimeError("Phải đăng ký đủ 11 ca #243, nhận %s" % len(co_243))
+		if len(co_243) != 12:
+			raise RuntimeError("Phải đăng ký đủ 12 ca #243, nhận %s" % len(co_243))
 		with patch.object(socket.socket, "connect", chi_noi_bo):
 			for luot in (1, 2):
 				kq = chay_cua(im=0)

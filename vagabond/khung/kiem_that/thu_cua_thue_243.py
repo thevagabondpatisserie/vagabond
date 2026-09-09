@@ -106,12 +106,16 @@ def _kiem_mau_8(hd, ct, tk):
     mau = frappe.get_doc('Sales Taxes and Charges Template', hd.taxes_and_charges)
     la('mẫu thuộc đúng công ty', mau.company, ct)
     la('mẫu còn dùng', mau.disabled, 0)
-    la('một dòng VAT', len(hd.taxes), 1)
-    dong = hd.taxes[0]
-    la('VAT theo tiền hàng', dong.charge_type, 'On Net Total')
-    la('đúng tài khoản VAT', dong.account_head, tk)
-    la('thuế suất8', dong.rate, 8)
-    la('VAT đã gồm giá', dong.included_in_print_rate, 1)
+    for nhan, bang in (('mẫu tham chiếu', mau.taxes), ('hoá đơn', hd.taxes)):
+        la(nhan + ': một dòng VAT', len(bang), 1)
+        if len(bang) != 1:
+            continue
+        dong = bang[0]
+        la(nhan + ': VAT theo tiền hàng', dong.charge_type, 'On Net Total')
+        la(nhan + ': đúng tài khoản VAT', dong.account_head, tk)
+        la(nhan + ': thuế suất8', dong.rate, 8)
+        la(nhan + ': VAT đã gồm giá', dong.included_in_print_rate, 1)
+
 
 
 @ca('#243 app thật: chính sách Server Script chọn mẫu riêng vẫn giữ tiền và VAT')
