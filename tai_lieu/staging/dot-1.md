@@ -33,11 +33,18 @@ Quy đổi đóng gói cần bằng chứng từng món; không suy số quả/t
 
 ## Đo trước và sau
 
-Chốt ba màn theo tần suất thực; ứng viên là vận đơn, nhận hàng/kiểm bánh,
-hồ sơ thanh toán. Cùng dữ liệu, role, máy/mạng và số lượt; tách tải lần đầu
+Anh Việt xác nhận nhóm màn dùng thường xuyên ngày09/09: vận đơn,
+nhận hàng/kiểm bánh và hồ sơ thanh toán. Chọn ba màn đo là Vận đơn,
+Kiểm bánh, Hồ sơ thanh toán; Nhận hàng vẫn thuộc kiểm nghiệp vụ bắt buộc.
+Cùng dữ liệu, role, máy/mạng và số lượt; tách tải lần đầu
 và cache. Báo số thao tác, p50/p95 thời gian tới dữ liệu dùng được, số API,
 SQL và dung lượng. Chưa có số đo mới nên chưa tuyên bố tăng tốc.
 Chỉ tối ưu sau baseline; phép kiểm hồi quy phải bắt lại lỗi cũ.
+
+Màn Kiểm bánh có JS riêng `trang/kiem-banh.js`, không nằm trong bundle
+app_bep. `chonNgay` gọi `kiem_banh.dong_bo` ngay khi mở, lỗi mới đọc `bang`;
+không coi mở màn này là phép chỉ đọc. Đo trên staging với fixture và cửa
+Pancake giả lập đủ hợp đồng, không lặp mở site thật để lấy baseline.
 
 Gateway `khung/staging/phuc_vu_ci.py` mới chỉ là nền phục vụ HTTP local;
 chưa có kết quả chạy trên CI, chưa phải staging đã nghiệm thu. Kiểm cờ site,
