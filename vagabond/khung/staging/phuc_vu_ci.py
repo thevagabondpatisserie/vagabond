@@ -10,6 +10,36 @@ import hashlib
 from pathlib import Path
 
 
+
+def tao_cau_truc_cu():
+    """Trường Desk cũ chưa thuộc truong_tu_them; chỉ dựng trên CI trắng.
+
+    Đọc metadata trên Desk ngày09/09/2026, không sửa schema production.
+    Item và Item Group: Select, optional, ba bếp, lựa chọn đầu rỗng.
+    """
+    import frappe
+    from vagabond.khung.staging.van_don_ci import khoa
+    khoa()
+    frappe.set_user('Administrator')
+    options = '\nBếp Pastry\nBếp Baker\nBếp Lab'
+    for dt in ('Item', 'Item Group'):
+        ten = dt + '-custom_bep_phu_trach'
+        if not frappe.db.exists('Custom Field', ten):
+            frappe.get_doc({'doctype': 'Custom Field', 'dt': dt,
+                'fieldname': 'custom_bep_phu_trach', 'label': 'Bếp phụ trách',
+                'fieldtype': 'Select', 'options': options, 'reqd': 0}).insert()
+        f = frappe.get_doc('Custom Field', ten)
+        if f.fieldtype != 'Select' or f.options != options or f.reqd:
+            raise RuntimeError('Schema bếp fixture khác metadata đã xác minh: ' + dt)
+    frappe.db.commit()
+    frappe.clear_cache()
+    # Gọi đúng cửa boot thay vì đợi10 màn timeout cùng một lỗi thiếu nền.
+    from vagabond.nhan_su import khoi_dong
+    kq = khoi_dong()
+    if not isinstance(kq.get('nhom'), list) or not isinstance(kq.get('kho'), list):
+        raise RuntimeError('API khởi động không trả danh mục hợp lệ.')
+
+
 def tao_trang():
     """Migrate chỉ cập nhật Web Page có sẵn; CI trắng phải dựng nền từ repo."""
     import frappe
@@ -67,6 +97,7 @@ def chay():
         from frappe.utils.password import update_password
         update_password('Administrator', 'bench-only-admin')
         frappe.db.commit()
+        tao_cau_truc_cu()
         tao_trang()
         if os.environ.get('VGB_STAGING_VAN_DON') == '1':
             from vagabond.khung.staging.van_don_ci import tao

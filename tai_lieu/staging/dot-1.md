@@ -173,3 +173,8 @@ Chưa kiểm tạo đơn/hủy/thuế hỗn hợp qua UI hoặc M-Invoice, chưa
 ### Chuẩn bị kiểm màn Kiểm bánh
 
 Nguồn thử nhận hai trường ngày độc lập estimate_delivery_date và inserted_at; ca thuần chứng minh đơn giao10/09 tạo08/09 không được trả vào nhóm tạo10/09. Trường lạ hoặc thiếu ngày trong fixture vẫn lỗi. Driver kiem_kiem_banh.cjs mở trang thật ở390/1280px, đợi API đồng bộ thành công và màn ngày trống, bắt lỗi JS/API/cảnh báo nguồn, giữ screenshot và trace. Chạy sau verifier vận đơn để không nhiễu ba bước HTTP của ca dời ngày. Đây chỉ là smoke trên dữ liệu tối thiểu, chưa baseline/nhập tồn/chốt ngày hoặc quyền nhân viên.
+
+
+### Nền Desk cũ và lỗi boot CI47
+
+Log trực tiếp job102518466756 cho thấy nhan_su.khoi_dong500, fallback Item Group get_list417, rồi đợi header mỗi màn60giây. Nhóm hàm cùng đọc custom_bep_phu_trach; repo chỉ tham chiếu mà không khai tạo trường cũ. Đọc Desk thật (chỉ đọc) ngày09/09 xác minh Custom Field Item/Item Group-custom_bep_phu_trach: Select, không bắt buộc, options dòng đầu rỗng rồi Bếp Pastry/Bếp Baker/Bếp Lab. Nền CI dựng hai trường nếu thiếu, kiểm cấu trúc nếu đã có và gọi khoi_dong trước khi chạy browser. Không đổi schema hoặc dữ liệu site thật. Đây là hai trường cần thiết đã xác minh, chưa phải snapshot đầy đủ cấu trúc production.
