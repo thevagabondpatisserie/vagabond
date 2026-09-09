@@ -32,6 +32,15 @@ def doc(get_all, bat_dau):
             mon.append({k: d.get(k) for k in ('item_code', 'stock_uom', 'purchase_uom', 'sales_uom')})
             mon[-1]['uoms'] = bang[d['name']]
         moc = ten[-1]
+    # Core có thể ghi đè hệ số Item từ cả cạnh chung hoặc đường trung gian.
+    # Giữ toàn bộ bảng để người rà không bỏ sót cạnh ngoài đơn vị đang mua.
+    chung = get_all('UOM Conversion Factor', fields=['name', 'from_uom', 'to_uom', 'value'],
+        filters={}, order_by='name asc', limit_page_length=0)
+    if len({d['name'] for d in chung}) != len(chung):
+        raise RuntimeError('Bản xuất lặp dòng quy đổi chung.')
+    if get_all('UOM Conversion Factor', filters={'modified': ['>=', bat_dau]},
+            fields=['name'], limit_page_length=1):
+        raise RuntimeError('Quy đổi chung thay đổi trong lúc xuất; lấy lại snapshot.')
     # Từ chối thay đổi nhìn thấy được trong transaction hiện tại. Cơ chế
     # snapshot còn phụ thuộc isolation của DB; không khẳng định bắt mọi
     # giao dịch đồng thời hoặc raw SQL bỏ modified.
@@ -39,7 +48,7 @@ def doc(get_all, bat_dau):
         fields=['name'], limit_page_length=1)
     if doi:
         raise RuntimeError('Có Item thay đổi trong lúc xuất; lấy lại snapshot khi danh mục ổn định.')
-    return {'items': mon, 'quy_uoc_da_duyet': {}, 'chi_doc': True,
+    return {'uom_conversion_factors': chung, 'items': mon, 'quy_uoc_da_duyet': {}, 'chi_doc': True,
             'bat_dau': str(bat_dau), 'so_mon': len(mon)}
 
 

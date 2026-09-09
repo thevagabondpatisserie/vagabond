@@ -348,3 +348,13 @@ khôngđổipayload, lỗi kiểuconkhôngbịnuốt thêm và đúng1lầnparse
 Danh sách dùng bộ nhớ riêng cho từng request để mỗi mã người chỉ qua `_ten_nguoi` một lần. Giữ nguyên resolver hiện hành, gồm fallback Employee và Redis cache sẵn có; không cam kết lần tải sau đọc lại DB. Ca kiểm 900 lượt gọi với 3 mã còn 3 lần vào resolver, request mới không dùng bộ nhớ của request trước. Đây là giảm công việc lặp, chưa là bằng chứng giảm thời gian site thật.
 
 CI60 tại SHA 5aefb3e22e748556eaca3f756bb496282cb4d108 đạt. So CI59, trung vị mở Vận đơn mobile 100/500 dòng từ 286.6/520.2 xuống 223.6/455.9 ms; desktop từ 273.9/550.2 xuống 242.7/420.8 ms. Mỗi nhóm 5 lượt. Hai màn chưa sửa cũng nhanh hơn trong CI60 nên chưa quy chênh lệch này hoàn toàn cho code, cần đối chứng cùng runner. Artifact 10122046864 có SHA256 a7a0aaad75cb40d92b34c4ad8e7fde93740b712a7fb44dadbb445a35d2cd9e40 đã đối chiếu.
+
+
+### Đối chứng Vận đơn cùng runner
+
+Chế độ `VGB_DOI_CHUNG_VD=1` đo 6 cặp AB/BA cho mỗi khổ 390/1280, mỗi cặp có 100 và 500 đơn (48 bản ghi). Biến thể cũ chỉ thay đoạn tải tuần tự từ SHA273d8f2 trên nền checkout hiện tại, không phải chạy toàn bộ phiên bản cũ. Bộ kiểm so asset site với checkout, ghi hash checkout và hash nội dung thực sự đưa vào browser. Không ghi bundle/site. Đo đổi ngày sau khi mở màn, lúc danh mục shipper/điểm đã có cache; chưa đo lần mở màn đầu tiên hay mạng điện thoại thật. Output riêng `doi-chung-van-don.json`, chưa có kết quả runtime.
+
+
+### Shared UOM evidence export
+
+`xuat_uom.doc` now also exports all `UOM Conversion Factor` rows (name/from_uom/to_uom/value), without the default row limit. It rejects duplicate row names and changes visible through modified >= start. Existing transaction isolation limitations remain. This export does not yet calculate effective direct/inverse/intermediate factors or authorize changes. Core reference: ERPNext de591661, item.py validate_uom_conversion_factor at line1013; check_stock_uom_with_bin at line1370 blocks direct stock_uom changes when SLE uses another unit. Runtime site graph audit remains pending.

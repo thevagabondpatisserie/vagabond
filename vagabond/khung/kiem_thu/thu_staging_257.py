@@ -53,6 +53,7 @@ def _():
     from vagabond.khung.staging.xuat_uom import doc
     da_doc = []
     def lay(dt, **kw):
+        if dt == 'UOM Conversion Factor': return []
         da_doc.append((dt, kw))
         if dt == 'UOM Conversion Detail':
             return [{'parent': 'A', 'uom': 'Thùng', 'conversion_factor': 30}] if 'A' in kw['filters']['parent'][1] else []
@@ -84,6 +85,7 @@ def _():
 def _():
     from vagabond.khung.staging.xuat_uom import doc
     def lay(dt, **kw):
+        if dt == 'UOM Conversion Factor': return []
         if dt == 'UOM Conversion Detail':
             ds = [{'parent': 'A', 'uom': 'Quy cách %s' % i, 'conversion_factor': i + 1} for i in range(501)]
             han = kw.get('limit_page_length', 20)
@@ -109,3 +111,20 @@ def _():
         try: tra(goc, dict(p, updateStatus=truong), du_lieu)
         except ValueError: pass
         else: raise AssertionError('Nguồn thử nhận hợp đồng hoặc fixture thiếu ngày')
+
+
+@ca('#257 xuất quy đổi chung: giữ đủ cạnh và từ chối thay đổi giữa chừng')
+def _():
+    from vagabond.khung.staging.xuat_uom import doc
+    edges = [{'name': str(i), 'from_uom': 'Gram', 'to_uom': 'UOM%s' % i, 'value': i + 1} for i in range(501)]
+    def lay(dt, **kw):
+        if dt != 'UOM Conversion Factor' or 'modified' in kw['filters']: return []
+        limit = kw.get('limit_page_length', 20)
+        return edges[:limit] if limit else edges
+    la('giữ đủ cạnh quy đổi chung', doc(lay, '2036-09-10')['uom_conversion_factors'], edges)
+    def doi(dt, **kw):
+        if dt == 'UOM Conversion Factor' and 'modified' in kw['filters']: return [{'name': 'changed'}]
+        return lay(dt, **kw)
+    try: doc(doi, '2036-09-10')
+    except RuntimeError: pass
+    else: raise AssertionError('Quy đổi chung đổi giữa chừng vẫn được nhận')
