@@ -42,6 +42,7 @@ def _kiem_uom(item_code, uom):
 
 
 def kiem(doc, method=None):
+    doc.supplier_mst = (doc.get('supplier_mst') or '').strip().split('-')[0]
     uom = (doc.get(TRUONG) or '').strip()
     if not uom:
         return
@@ -60,11 +61,14 @@ def lay(item_code, mst, ten_ncc):
         return None
     if not frappe.db.exists('DocType', LOAI) or not frappe.get_meta(LOAI).has_field(TRUONG):
         return None
-    ds = frappe.get_all(LOAI, filters={'supplier_mst': mst, 'ten_ncc': ten},
+    # Đọc cả ánh xạ chi nhánh đã lưu trước guard; không âm thầm bỏ lựa
+    # chọn cũ hoặc ghi đè khi có nhiều ánh xạ cùng MST gốc.
+    ds = frappe.get_all(LOAI, filters={'ten_ncc': ten},
+        or_filters=[['supplier_mst', '=', mst], ['supplier_mst', 'like', mst+'-%']],
         fields=['name', 'supplier_mst', 'ten_ncc', 'item_code', TRUONG], limit_page_length=0)
     # Collation MariaDB có thể coi khác dấu/hoa thường là giống nhau.
     # Quy cách chỉ áp dụng đúng tên NCC đã đối chiếu, không gần giống.
-    ds = [d for d in ds if (d.supplier_mst or '').strip() == mst and (d.ten_ncc or '').strip() == ten]
+    ds = [d for d in ds if (d.supplier_mst or '').strip().split('-')[0] == mst and (d.ten_ncc or '').strip() == ten]
     da_chon = [d for d in ds if (d.get(TRUONG) or '').strip()]
     if not da_chon:
         return None

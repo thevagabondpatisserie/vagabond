@@ -194,6 +194,16 @@ def _quy_cach_ncc():
         ten_ncc=ten, item_code=mon.name, vgb_uom=lon)))
     la('đúng NCC và tên lấy quy cách', qc.lay(mon.name, mst, ten), lon)
     la('MST chi nhánh cùng quy cách gốc', qc.lay(mon.name, mst+'-005', ten), lon)
+    ban.supplier_mst = mst+'-005'
+    ban.save(ignore_permissions=True); ban.reload()
+    la('lưu ánh xạ chuẩn hoá MST chi nhánh', ban.supplier_mst, mst)
+    frappe.db.set_value(qc.LOAI, ban.name, 'supplier_mst', mst+'-005')
+    la('ánh xạ chi nhánh cũ không bị bỏ qua', qc.lay(mon.name, mst, ten), lon)
+    trung = _luu(frappe.get_doc(dict(doctype=qc.LOAI, supplier_mst=mst,
+        ten_ncc=ten, item_code=mon.name, vgb_uom=lon)))
+    _bi_chan(lambda: qc.lay(mon.name, mst, ten), 'hai ánh xạ gốc/chi nhánh phải đối chiếu')
+    frappe.delete_doc(qc.LOAI, trung.name, ignore_permissions=True)
+    ban.reload(); ban.save(ignore_permissions=True)
     la('khác NCC không mượn quy cách', qc.lay(mon.name, mst+'x', ten), None)
     la('khác tên không mượn quy cách', qc.lay(mon.name, mst, ten+'x'), None)
     khac, _ = _nen()
@@ -210,3 +220,80 @@ def _quy_cach_ncc():
     _bi_chan(lambda: kiem(hd), 'không đổi sang UOM khác dù hợp lệ trong master')
     hd.items[0].uom = lon; hd.items[0].conversion_factor = 550
     kiem(hd)
+
+
+@ca('#252 sửa PI lịch sử thật: huỷ và amended_from giữ tiền/PR, sửa1 thành1000 không nhập kho lại')
+def _sua_pi_da_ghi():
+    _sua_pi_theo_cau_hinh(0)
+
+
+@ca('#252 sửa PI lịch sử thật: bật điều chỉnh giá nhập, repost cả ba bước giữ giá trị PR')
+def _sua_pi_da_ghi_co_repost():
+    _sua_pi_theo_cau_hinh(1)
+
+
+def _sua_pi_theo_cau_hinh(chinh_gia):
+    from unittest.mock import patch
+    from vagabond.khung.kiem_that.quy_cach_252 import _chay_repost
+    frappe.db.set_single_value('Buying Settings', 'set_landed_cost_based_on_purchase_invoice_rate', chinh_gia)
+    mon, kg = _nen()
+    don_vi = frappe.get_doc('UOM', kg)
+    don_vi.must_be_whole_number = 0; don_vi.save(ignore_permissions=True)
+    gram = 'Gram252-' + frappe.generate_hash(length=8)
+    _luu(frappe.get_doc(dict(doctype='UOM', uom_name=gram, must_be_whole_number=0)))
+    mon.stock_uom = gram
+    mon.set('uoms', [dict(uom=gram, conversion_factor=1), dict(uom=kg, conversion_factor=1000)])
+    mon.save(ignore_permissions=True)
+    ct, kho = nen.cong_ty(), nen.mot_kho(nen.cong_ty())
+    pr = _luu(frappe.get_doc(dict(doctype='Purchase Receipt', company=ct,
+        supplier=nen.mot_nha_cung_cap(), posting_date=frappe.utils.today(),
+        currency='VND', conversion_rate=1, items=[dict(item_code=mon.name,
+            qty=6.13, uom=kg, conversion_factor=1000, rate=139500, warehouse=kho)])))
+    pr.submit(); pr.reload()
+    la('PR thật đủ6130', pr.items[0].stock_qty, 6130)
+    def so_kho():
+        return frappe.get_all('Stock Ledger Entry', filters={'item_code': mon.name},
+            fields=['name', 'voucher_type', 'voucher_no', 'actual_qty', 'stock_value_difference',
+                    'qty_after_transaction', 'stock_value', 'is_cancelled'], order_by='name')
+    def so_cai(d):
+        return frappe.get_all('GL Entry', filters={'voucher_type': d.doctype, 'voucher_no': d.name},
+            fields=['account', 'debit', 'credit', 'is_cancelled'], order_by='name')
+    sle_truoc, gl_pr = so_kho(), so_cai(pr)
+    cu = _pi(mon, kg, hs=1)
+    cu.items[0].qty = 6.13; cu.items[0].rate = 139500
+    cu.items[0].purchase_receipt = pr.name; cu.items[0].pr_detail = pr.items[0].name
+    # Đây là PI đã lọt trước khi có guard. Không vá SQL hoặc bỏ các kiểm
+    # toán/ghi sổ core; guard được bật lại trước thao tác huỷ và sửa.
+    with patch('vagabond.he_so_chung_tu.kiem', lambda *a, **kw: None):
+        _luu(cu); cu.submit()
+    _chay_repost(pr)
+    cu.reload()
+    la('PI cũ thực sự ghi sai1', cu.items[0].conversion_factor, 1)
+    la('PI cũ giữ đúng tiền', cu.grand_total, 855135)
+    la('PI cũ không tạo phiếu kho riêng', frappe.db.count('Stock Ledger Entry', {
+        'voucher_type': 'Purchase Invoice', 'voucher_no': cu.name}), 0)
+    la('PI cũ không nhân lượng đã nhận', sum(d.actual_qty for d in so_kho() if not d.is_cancelled), 6130)
+    cu.cancel(); _chay_repost(pr); cu.reload()
+    la('huỷ và repost giữ cơ sở PR đúng ban đầu', so_kho(), sle_truoc)
+    moi = frappe.copy_doc(cu)
+    moi.docstatus = 0; moi.amended_from = cu.name
+    moi.items[0].conversion_factor = 1000
+    _luu(moi); moi.submit(); _chay_repost(pr); moi.reload()
+    la('phiếu cũ đã huỷ', cu.docstatus, 2)
+    la('phiếu mới ghi sổ', moi.docstatus, 1)
+    la('giữ đường sửa đổi', moi.amended_from, cu.name)
+    la('đúng hệ số1000', moi.items[0].conversion_factor, 1000)
+    la('giữ6.13đơn vị mua', moi.items[0].qty, 6.13)
+    la('giữ tiền855135', moi.grand_total, 855135)
+    la('giữ đúng PR', moi.items[0].purchase_receipt, pr.name)
+    la('giữ đúng dòng PR', moi.items[0].pr_detail, pr.items[0].name)
+    la('toàn bộ SLE không đổi', so_kho(), sle_truoc)
+    la('GL của PR không đổi', so_cai(pr), gl_pr)
+    gl_cu, gl_moi = so_cai(cu), so_cai(moi)
+    for tk in {d.account for d in gl_cu}:
+        la('huỷ đảo đủ tài khoản '+tk, sum(d.debit-d.credit for d in gl_cu if d.account == tk), 0)
+    la('PI mới ghi nợ855135', sum(d.debit for d in gl_moi if not d.is_cancelled), 855135)
+    la('PI mới ghi có855135', sum(d.credit for d in gl_moi if not d.is_cancelled), 855135)
+    pr.reload()
+    la('PR vẫn giữ1000', pr.items[0].conversion_factor, 1000)
+    la('PR chỉ tính tiền một hoá đơn', pr.items[0].billed_amt, 855135)
