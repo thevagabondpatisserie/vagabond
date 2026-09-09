@@ -20,6 +20,8 @@ const {chromium} = require('playwright');
         if (!dn.ok()) throw new Error('Đăng nhập thất bại');
         p = await c.newPage();
         const loi = [];
+        let listCalls = 0;
+        p.on('request', r => { if (r.url().includes('/api/method/vagabond.ho_so_tt.danh_sach')) listCalls++; });
         p.on('pageerror', e => loi.push(e.message));
         p.on('response', r => {if (r.url().includes('/api/') && r.status() >= 400) loi.push('API ' + r.status());});
         await p.goto(goc + '/ho-so-thanh-toan');
@@ -49,6 +51,17 @@ const {chromium} = require('playwright');
           if (JSON.stringify(ds) !== JSON.stringify([...ids].sort()) || loi.length) throw new Error('DOM sai tập hoặc có lỗi');
           ket.push({rong, lan, so_ho_so: ids.length, ms: performance.now() - dau, dat: true,
             lenh_driver: {fill: 1, enter: 1}, nguon: '300 hoàn ứng nháp tổng hợp, gồm driver/đối chiếu'});
+          // Chip dùng tập hiện tại: kiểm DOM thật và không tải lại API.
+          for (const status of ['Nhap', '']) {
+            const before = listCalls;
+            const oldInput = await p.locator('#hsTimO').elementHandle();
+            await p.locator('[data-hstt="' + status + '"]').click();
+            await p.waitForFunction(o => !o.isConnected, oldInput);
+            await oldInput.dispose();
+            const shown = await p.locator('[data-hs]').evaluateAll(rows => rows.map(r => r.getAttribute('data-hs')).sort());
+            if (JSON.stringify(shown) !== JSON.stringify([...ids].sort()) || listCalls !== before)
+              throw new Error('Chip trạng thái sai tập hồ sơ hoặc còn gọi API');
+          }
         }
       } catch (e) {
         if (p) {
