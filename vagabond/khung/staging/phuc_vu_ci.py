@@ -71,6 +71,36 @@ def tao_cau_truc_cu():
         raise RuntimeError('API khởi động không trả danh mục hợp lệ.')
 
 
+def tao_sepay_cu():
+    """Dựng API Desk đã đọc nguyên bản, chỉ trên CI trắng có khoá.
+
+    Đây là ảnh chụp legacy để kiểm đúng UI hiện hành, không phải patch
+    phát hành. Quyền nghiệp vụ của script cần được rà riêng.
+    """
+    import frappe
+    from vagabond.khung.staging.van_don_ci import khoa
+    khoa()
+    frappe.set_user('Administrator')
+    noi_dung = Path(__file__).with_name('sepay_cu.txt').read_bytes()
+    bam = hashlib.sha256(noi_dung).hexdigest()
+    if bam != '3a32773cc71f9ac06ff281d132d6b166baaeb42ae50fa0999e52e31c4c03c9ce':
+        raise RuntimeError('Script SePay khác bản đã đọc từ Desk.')
+    ten = 'VGB - Giao dich SePay cua don'
+    if frappe.db.exists('Server Script', ten) or frappe.db.exists(
+            'Server Script', {'api_method': 'vgb_gd_sepay'}):
+        raise RuntimeError('API SePay đã tồn tại, cần kiểm nền CI.')
+    doc = frappe.get_doc({'doctype': 'Server Script', 'name': ten,
+        'script_type': 'API', 'api_method': 'vgb_gd_sepay',
+        'allow_guest': 0, 'disabled': 0, 'script': noi_dung.decode('utf-8')}).insert()
+    doc.reload()
+    if doc.script.encode('utf-8') != noi_dung or doc.allow_guest or doc.disabled:
+        raise RuntimeError('Script SePay sau lưu khác bản gốc.')
+    frappe.db.commit()
+    frappe.clear_cache()
+    (Path(os.environ['VGB_ARTIFACTS']) / 'sepay-script.json').write_text(
+        json.dumps({'name': doc.name, 'sha256': bam, 'allow_guest': doc.allow_guest}))
+
+
 def tao_trang():
     """Migrate chỉ cập nhật Web Page có sẵn; CI trắng phải dựng nền từ repo."""
     import frappe
@@ -129,6 +159,7 @@ def chay():
         update_password('Administrator', 'bench-only-admin')
         frappe.db.commit()
         tao_cau_truc_cu()
+        tao_sepay_cu()
         tao_trang()
         from vagabond.khung.staging.vai_ci import tao as tao_vai
         tao_vai()

@@ -230,3 +230,25 @@ giờ browser để che lỗi: driver giữUTC, fixture kiểm siteAsia/Ho_Chi_M
 verifier kiểm thời điểm xuất không trước phiếu nhập và giữ toàn bộ SLE/GL.
 Chưa có runtime bản sửa. Chưa thay các cửa nhập trực tiếp/Desk hoặc chuẩn
 hoá mọi chỗ dùng nowStamp trong app.
+
+
+## CI54: năm luồng qua browser và kiểm DB
+
+Run34380254862, SHA328471e634a705ebad0b0b7e6cc1201b3836aa72.
+Artifact10115914394 SHA256
+`738ae53794586d7abb21f98342c64bddcbdff53331ff37fe04bbc25c350ef97f`.
+Tích hợp141/141 hai lượt. Sản xuất2 bánh qua API200; verifier kiểm thời
+điểm nhập/xuất, SLE/GL/bundle đạt. Đơn tặng tiếp theo giá vốn2000/VAT160/nợ0.
+Nhận hàng20, vận đơn đổi ngày và thanh toán ghi/hủy/bỏ đối chiếu/ghi lại đều
+qua browser và DB. Đây là dữ liệu CI ít dòng, chưa là baseline hiệu năng.
+
+Bổ sung tiếp: API Desk `vgb_gd_sepay` trước đây thiếu ở CI khiến ô tra giao
+dịch báo lỗi nhưng luồng ghi sổ vẫn qua. Snapshot `sepay_cu.txt` đọc bằng
+SELECT, hash đối chiếu trước insert và sau reload, chỉ dựng qua khoá CI.
+Driver nay kiểm cả response API và câu hiển thị chưa có giao dịch của đúng
+đơn thử. Không giả response. Chưa runtime phần bổ sung này.
+
+Giới hạn: ca SePay này chỉ kiểm đơn không có giao dịch. Script legacy có
+allow_guest=0 nhưng từ code chưa thấy kiểm vai hoặc quyền đọc hoá đơn trước
+get_all Bank Transaction. Đây là nghi vấn quyền cần tái hiện riêng, không
+nhận script an toàn và không dùng snapshot làm patch triển khai production.

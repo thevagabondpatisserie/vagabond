@@ -27,7 +27,19 @@ const {chromium} = require('playwright');
     await p.locator('[data-hqok]').click();
     if (!(await duyet).ok()) throw new Error('Duyệt hàng tặng thất bại');
     await p.goto(goc + '/hoa-don-ban');
+    const sepay = p.waitForResponse(r => r.url().includes('/api/method/vgb_gd_sepay'))
+      .then(r => ({r}), e => ({e}));
     await p.locator('[data-hdb="' + f.hoa_don + '"]').click();
+    const tra = await sepay;
+    if (tra.e) throw tra.e;
+    const gd = tra.r;
+    const duLieu = await gd.json();
+    ket.sepay = {status: gd.status(), body: duLieu};
+    if (!gd.ok() || duLieu.message?.don !== 'THU257-TANG' ||
+        duLieu.message?.so_giao_dich !== 0 || duLieu.message?.tong_da_nhan !== 0 ||
+        !Array.isArray(duLieu.message?.giao_dich) || duLieu.message.giao_dich.length)
+      throw new Error('API SePay không trả đúng đơn thử chưa chuyển khoản');
+    await p.locator('#dsvSepay').getByText('Chưa nhận được chuyển khoản nào mang mã đơn này.', {exact: true}).waitFor();
     await p.locator('#dsvChot').click();
     const ghi = p.waitForResponse(r => r.url().includes('/api/method/vagabond.ban_hang.chot_mot_don'), {timeout: 60000});
     await p.locator('[data-hkok]').click();

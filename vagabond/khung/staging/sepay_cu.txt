@@ -1,0 +1,19 @@
+# Tra ve danh sach giao dich SePay (Bank Transaction) cua mot don, de app hien thi doi soat
+# Tham so: phieu (ma phieu ban hang) hoac don (so don Pancake)
+st = frappe.get_doc('Vagabond Settings')
+phieu = frappe.form_dict.get('phieu')
+so_don = frappe.form_dict.get('don')
+tien_phieu = 0
+if phieu and not so_don:
+    tt = frappe.db.get_value('Sales Invoice', phieu, ['custom_pancake_display_id', 'grand_total'], as_dict=True) or {}
+    so_don = tt.get('custom_pancake_display_id')
+    tien_phieu = frappe.utils.flt(tt.get('grand_total'))
+ds = []
+tong = 0
+if so_don:
+    mau = '%S' + str(st.pancake_shop_id or '') + 'O' + str(so_don) + 'T%'
+    for g in frappe.get_all('Bank Transaction', filters={'description': ['like', mau], 'docstatus': ['<', 2]}, fields=['name', 'date', 'deposit', 'withdrawal', 'reference_number', 'status'], order_by='date asc', limit_page_length=20):
+        tien = frappe.utils.flt(g.get('deposit')) - frappe.utils.flt(g.get('withdrawal'))
+        tong = tong + tien
+        ds.append({'ma_gd': g['name'], 'ngay': str(g.get('date')), 'so_tien': tien, 'ma_tham_chieu': g.get('reference_number'), 'trang_thai': g.get('status')})
+frappe.response['message'] = {'don': so_don, 'so_giao_dich': len(ds), 'tong_da_nhan': tong, 'tien_phieu': tien_phieu, 'du_tien': (tong >= tien_phieu - 1) if tien_phieu else None, 'giao_dich': ds}
