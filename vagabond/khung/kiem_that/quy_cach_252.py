@@ -27,7 +27,7 @@ def _nen():
     mon = frappe.get_doc('Item', ma)
     hop = 'KT252-Hop-' + frappe.generate_hash(length=8)
     _luu(frappe.get_doc(dict(doctype='UOM', uom_name=hop, must_be_whole_number=1)))
-    mon.append('uoms', dict(uom=hop, conversion_factor=1000))
+    mon.append('uoms', dict(uom=hop, conversion_factor=500))
     mon.save(ignore_permissions=True)
     lo = _lo_thu(ma).name
     pr = frappe.get_doc(dict(doctype='Purchase Receipt', company=ct,
@@ -35,10 +35,16 @@ def _nen():
         posting_date=add_days(today(), -3), posting_time='10:00:00', set_posting_time=1,
         items=[dict(item_code=ma, qty=18, uom=hop, conversion_factor=500,
             rate=300000, warehouse=kho, batch_no=lo, use_serial_batch_fields=1)]))
-    # Tái hiện đúng lỗi trước khi hàng rào ngày 27/08 được triển khai.
-    with patch('vagabond.gac_don_vi.chan_don_vi_la', lambda *a, **kw: None), \
-         patch('vagabond.he_so_chung_tu.kiem', lambda *a, **kw: None):
-        _luu(pr); pr.submit()
+    # Dựng lịch sử bằng Document thật: lúc nhập danh mục còn hệ số500.
+    # Sau đó sửa danh mục thành1000; không tắt hook hay Server Script live.
+    _luu(pr); pr.submit()
+    mon.reload()
+    for dong in mon.uoms:
+        if dong.uom == hop:
+            dong.conversion_factor = 1000
+    mon.save(ignore_permissions=True)
+    mon.reload()
+    la('danh mục hiện tại1000', next(d.conversion_factor for d in mon.uoms if d.uom == hop), 1000)
     pr.reload()
     la('PR gốc giữ 500', pr.items[0].conversion_factor, 500)
     la('PR đã nhập 9000', pr.items[0].stock_qty, 9000)

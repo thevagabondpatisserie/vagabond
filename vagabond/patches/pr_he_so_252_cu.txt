@@ -1,0 +1,20 @@
+# Chan he so quy doi don vi lech so voi danh muc mat hang.
+# Sinh ra sau ca 24/08: don DMH-2026-00145 ghi 1 Hop = 500 Gram trong khi danh muc ghi 1000,
+# lam phieu nhap PNK-2026-00158 chi vao kho 9.000 g thay vi 18.000 g.
+loi = []
+try:
+    for d in (doc.items or []):
+        ma = d.get("item_code")
+        dv = d.get("uom")
+        if not ma or not dv:
+            continue
+        chuan = frappe.db.get_value("UOM Conversion Detail", {"parent": ma, "uom": dv}, "conversion_factor")
+        if not chuan:
+            continue
+        hien = d.get("conversion_factor") or 0
+        if abs(hien - chuan) > 0.0001:
+            loi.append("Dòng #" + str(d.idx) + ": 1 " + str(dv) + " của mã " + str(ma) + " đang ghi " + str(hien) + " " + str(d.get("stock_uom") or "") + ", danh mục ghi " + str(chuan) + ".")
+except Exception:
+    loi = []
+if loi:
+    frappe.throw("Hệ số quy đổi đơn vị không khớp danh mục mặt hàng:<br>" + "<br>".join(loi) + "<br><br>Nếu nhà cung cấp đổi quy cách đóng gói thì báo thu mua cập nhật danh mục mặt hàng, đừng sửa hệ số ngay trên phiếu.")

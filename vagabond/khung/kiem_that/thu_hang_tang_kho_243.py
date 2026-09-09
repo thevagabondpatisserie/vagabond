@@ -27,7 +27,8 @@ def _nen(so_tai_khoan='1551'):
     frappe.clear_document_cache('Stock Settings')
     tai=frappe.db.get_value('Account',{'company':ct,'account_number':so_tai_khoan,'account_type':'Stock','is_group':0,'disabled':0},'name')
     if not tai:
-        tai=_luu(frappe.get_doc(dict(doctype='Account',account_name='Tồn kho kiểm #243 '+so_tai_khoan,account_number=so_tai_khoan,
+        tai=_luu(frappe.get_doc(dict(doctype='Account',account_name='Tồn kho kiểm #243 '+so_tai_khoan+' '+frappe.generate_hash(length=8),
+            account_number=so_tai_khoan+'243'+str(int(frappe.generate_hash(length=8), 36)),
             company=ct,parent_account=frappe.db.get_value('Account',{'company':ct,'root_type':'Asset','is_group':1},'name'),
             account_type='Stock',account_currency='VND',is_group=0))).name
     kho=_luu(frappe.get_doc(dict(doctype='Warehouse',warehouse_name='KT243-'+frappe.generate_hash(length=9),company=ct,account=tai))).name

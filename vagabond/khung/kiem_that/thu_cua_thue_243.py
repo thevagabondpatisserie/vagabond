@@ -39,8 +39,12 @@ def _app(ct,rows):
     kh=frappe.db.get_value('Customer',{'disabled':0,'is_internal_customer':0},'name')
     # Đi đúng tao_don_tay; tam_tinh chỉ bỏ yêu cầu đã thu tiền tại quầy.
     # Ba hàng rào nen.py vẫn khoá commit và gửi ngoài của toàn bộ hàm app.
+    from vagabond import diem_ban
+    cac_diem = diem_ban.diem_cua_nguon('GrabFood')
+    dung('GrabFood có điểm bán để chọn', bool(cac_diem))
+    quay = next((ma for ma in cac_diem if not diem_ban.theo_ma(ma)['quay']), cac_diem[0])
     with patch.object(ban_hang,'_cong_ty',return_value=ct), patch.object(ban_hang,'_khach_le',return_value=kh):
-        ra=ban_hang.tao_don_tay(nguon='GrabFood',ma_don='KT243-'+frappe.generate_hash(length=10),items=rows,tam_tinh=1)
+        ra=ban_hang.tao_don_tay(nguon='GrabFood',quay=quay,ma_don='KT243-'+frappe.generate_hash(length=10),items=rows,tam_tinh=1)
     nen._DA_TAO.append(('Sales Invoice',ra['name']))
     hd=frappe.get_doc('Sales Invoice',ra['name'])
     return hd
