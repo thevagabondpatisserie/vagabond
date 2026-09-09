@@ -364,3 +364,20 @@ Khi có nhiều agent, đọc `vgb-control-tower/README.md` trước khi nhận 
 GitHub Issue đang `In progress`, có owner, branch và phạm vi tệp là nguồn
 khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy preflight trước
 khi sửa, bàn giao bằng mẫu handoff, và review chéo trước khi tạo PR.
+
+
+## 10. Phân công cập nhật 09/09/2026 - ưu tiên so với phân công cũ
+
+Anh Việt giao Codex code chính, tích hợp bench trên SHA, sửa qua review,
+merge và deploy trong phạm vi đã giao sau đủ cổng. Claude review logic và
+bổ sung là chính. Đọc `tai_lieu/INSTRUCTION_VAGABOND.md` đầu phiên; bản này
+thay hướng dẫn cũ phân vai Claude implementer/Codex reviewer.
+
+Quyền deploy không bỏ cổng kiểm hoặc cho phép sửa chứng từ cũ/HĐĐT thật.
+Xung đột phiên bản/patch đơn thuần: giữ đủ hai bên, tăng số và dựng bundle;
+xung đột logic chưa rõ thì mô tả phương án, không âm thầm bỏ code.
+
+Trước phản hồi cuối mỗi phiên thực chất, cập nhật Markdown tại workspace
+`/Users/jin/Documents/ChatGPT/ERP/nhat-ky-du-an/`, gồm mục lục, nhật ký phiên
+và bài học. Đọc mẫu trong instruction. Không thêm database cho nhật ký.
+Bàn giao file cho anh Việt bằng link mobile khi có thể, giữ bản local.

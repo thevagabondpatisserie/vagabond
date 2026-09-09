@@ -57,3 +57,11 @@ vì lock trong Issue mới được agent ở checkout khác nhìn thấy.
 
 Đọc `prompts/claude.md` và `prompts/codex.md` khi khởi tạo agent. Có thể chép
 nội dung tương ứng vào cấu hình Claude và `AGENTS.md` của Codex.
+
+
+## Phân công hiện hành từ 09/09/2026
+
+Theo anh Việt: Codex code chính, tích hợp bench, merge/deploy sau đủ cổng;
+Claude review và bổ sung là chính. Đọc tai_lieu/INSTRUCTION_VAGABOND.md.
+Quy định cũ yêu cầu giao riêng deploy cho Claude không còn áp dụng.
+Nhật ký mỗi phiên lưu Markdown local theo instruction, không thêm database.
