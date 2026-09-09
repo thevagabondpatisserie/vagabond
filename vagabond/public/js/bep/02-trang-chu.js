@@ -183,13 +183,10 @@ async function scrHome() {
       + card('⚠️', 'Cảnh báo thanh toán', 'Hoá đơn thiếu hoặc sai phương thức, vận đơn treo COD nhầm', 0, 'CBTT')
       + '</div>';
   }
-  if (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager')) {
-    /* Phan he Bao cao (anh Viet 12/08/2026): so lieu thoi gian thuc, gop
-       ca ba diem ban, xem theo ngay - tuan - thang - quy - nam va xuat
-       Excel cho ke toan. Mot cua vao, 12 bao cao ben trong.
-
-       Bao cao van mo cho Sales - do la so lieu ban hang cua chinh ho. Chi
-       khoi KE TOAN ben duoi moi dong lai. */
+  // Quyền báo cáo theo máy chủ; giữ điều kiện cũ nếu backend chưa có metadata.
+  var xemBaoCao = S.quyenNen && typeof S.quyenNen.bao_cao === 'boolean'
+    ? S.quyenNen.bao_cao : (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager'));
+  if (xemBaoCao) {
     html += '<div class="sec">Báo cáo</div><div class="card">' +
       card('📈', 'Báo cáo tổng hợp', 'Đang cộng sổ doanh thu hôm nay...', 0, 'BCHUB') +
       card('🛵', 'Doanh thu theo nguồn đơn', 'Tại chỗ, Sales Online, GrabFood, ShopeeFood...', 0, 'BC:BC03') +

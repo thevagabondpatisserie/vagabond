@@ -18,5 +18,11 @@ const code = source.slice(source.indexOf('function nenCoQuyen('));
   await ctx.nenDemDanhSach('Item', {q:2}); assert.deepEqual(calls[1], {dt:'Item',args:{q:2}});
   ctx.getList = () => Promise.reject(new Error('network'));
   await assert.rejects(ctx.nenDemDanhSach('Item', {}), /network/);
+  const home = fs.readFileSync(path.join(__dirname, '../../public/js/bep/02-trang-chu.js'), 'utf8');
+  const expression = home.match(/var xemBaoCao = ([\s\S]*?);/)[1];
+  for (const [cap, legacy, expected] of [[true,false,true],[false,true,false],[null,true,true],[null,false,false]]) {
+    const c = {S:{quyenNen:cap === null ? null : {bao_cao:cap}},isSales:()=>legacy,hasRole:()=>false};
+    assert.equal(vm.runInNewContext(expression,c),expected);
+  }
   console.log('PASS quyen nen: explicit false, legacy fallback, permitted read, error propagation');
 })().catch(e => {console.error(e);process.exitCode=1;});

@@ -56,6 +56,16 @@ const {chromium} = require('playwright');
         const batDau = Date.now();
         let dat = false;
         try {
+          // Ba vai fixture không có quyền báo cáo riêng. Kiểm cả trang chủ
+          // để không giữ thẻ bấm vào rồi mới bị từ chối ở màn tiếp theo.
+          const boot = trang.waitForResponse(r => new URL(r.url()).pathname === '/api/method/vagabond.nhan_su.khoi_dong')
+            .then(r => r.json()).then(body => ({body}), e => ({e}));
+          await trang.goto(goc + '/bep', {waitUntil: 'load', timeout: 60000});
+          const quyen = await boot;
+          if (quyen.e) throw quyen.e;
+          if (quyen.body.message?.quyen_nen?.bao_cao !== false) throw new Error('Fixture có quyền báo cáo ngoài dự kiến');
+          await trang.locator('[data-nhom="DH"]').waitFor({state: 'attached', timeout: 60000});
+          if (await trang.locator('[data-nhom="BC"]').count()) throw new Error('Còn thẻ báo cáo dù không có quyền');
           const html = await trang.goto(goc + '/' + duong, {waitUntil: 'load', timeout: 60000});
           if (!html || !html.ok()) throw new Error('Trang trả HTTP ' + (html ? html.status() : 'không có phản hồi'));
           await trang.locator('#vgb .vh b').filter({hasText: nhan}).waitFor({timeout: 60000});
