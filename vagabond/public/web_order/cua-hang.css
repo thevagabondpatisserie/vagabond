@@ -1,0 +1,9 @@
+/* #245: lớp trình bày theo Figma, giữ ID và luồng đặt hàng hiện hành. */
+html{scroll-behavior:smooth}#noi-dung-marketing{background:#000}#danh-muc-banh{scroll-margin-top:145px}
+body .hd{height:100px}body .logo{height:60px}body .hd-phone{font-size:14px}
+body .tabs{top:100px}body .tab{font-size:13px;min-height:48px;letter-spacing:.08em}
+body .h1{font-size:clamp(64px,9vw,140px);text-transform:none}
+body .c-name{font-size:clamp(26px,3vw,40px)}body .c-go{border:1px solid #29bdb3;border-radius:40px;padding:12px 20px;min-height:44px}
+body .hero{padding-top:70px;padding-bottom:40px}body .grid{gap:42px 26px}
+@media(max-width:640px){body .hd{height:80px}body .logo{height:46px}body .tabs{top:80px}body .hero{padding-top:36px}body .grid{gap:28px 14px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

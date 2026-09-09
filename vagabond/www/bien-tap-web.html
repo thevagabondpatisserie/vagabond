@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!-- #245: nội dung marketing có nháp và lịch sử, không sửa HTML của trang đặt bánh. -->
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="csrf-token" content="{{ csrf_token }}">
+<title>Biên tập website | Vagabond</title>
+<link rel="stylesheet" href="/assets/vagabond/web_order/bien-tap.css">
+</head><body>
+<header><a href="/bien-tap-web" class="thuong-hieu">VAGABOND <small>MARKETING STUDIO</small></a><a href="https://order.thevagabondpatisserie.com" target="_blank" rel="noopener">Mở website ↗</a></header>
+<main>
+<div class="dau"><div><p class="nhan">NỘI DUNG WEBSITE</p><h1>Mỗi khối, một câu chuyện.</h1><p>Chỉnh nội dung, xem trước rồi xuất bản cho khách.</p></div><div class="hanh-dong"><button id="tai-lai">Tải lại</button><button id="luu-nhap">Lưu nháp</button><button id="xuat-ban" class="chinh">Xuất bản</button></div></div>
+<p id="trang-thai" role="status" aria-live="polite">Đang tải nội dung...</p>
+<section class="thong-ke" aria-label="Tổng quan nội dung"><article><span>Tổng số khối</span><b id="so-khoi">-</b></article><article><span>Đang hiển thị trong nháp</span><b id="so-hien">-</b></article><article><span>Phiên bản đã lưu</span><b id="phien-ban">-</b></article><article><span>Trạng thái nội dung</span><b id="tinh-trang">Đang tải</b></article></section>
+<section class="studio"><aside><h2>Các khối nội dung</h2><p class="goi-y">Kéo để sắp xếp hoặc dùng nút lên / xuống.</p><div id="danh-sach"></div><h3>Thêm khối</h3><div id="them-khoi" class="them-khoi"></div><details><summary>Lịch sử xuất bản</summary><p>Khôi phục vào bản nháp để xem lại trước khi xuất bản.</p><div id="lich-su"></div></details></aside>
+<section class="chinh-sua"><h2>Chỉnh sửa khối</h2><div id="thuoc-tinh"><p>Chọn một khối bên trái để bắt đầu.</p></div></section>
+<section class="xem-truoc"><div class="thanh-preview"><h2>Xem trước nội dung</h2><div><button id="desktop" aria-pressed="true">Desktop</button><button id="mobile" aria-pressed="false">Mobile</button></div></div><iframe id="preview" title="Xem trước nội dung website" sandbox="allow-same-origin"></iframe><p class="goi-y">Khu vực đặt bánh và thanh toán tiếp tục dùng dữ liệu của cửa hàng.</p></section></section>
+</main><script src="/assets/vagabond/web_order/khoi.js"></script><script src="/assets/vagabond/web_order/bien-tap.js"></script></body></html>

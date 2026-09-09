@@ -1,0 +1,22 @@
+/* #245: lấy màu, font và nhịp ảnh từ Figma Vagabond (Copy), frame 886:2229. */
+@font-face{font-family:VgbWeb;src:url('/assets/vagabond/mau_in/VagabondSans-Regular.otf') format('opentype');font-display:swap}
+@font-face{font-family:Qualy;src:url('/assets/vagabond/mau_in/Qualy.otf') format('opentype');font-display:swap}
+.web-khoi{position:relative;isolation:isolate;background:#000;color:#fff;overflow:hidden;font-family:Qualy,Arial,sans-serif}
+.web-anh{display:block;width:100%;height:100%;object-fit:cover}
+.web-chu{position:relative;z-index:1;max-width:1200px;margin:auto;padding:90px 6vw}
+.web-nhan{font-size:13px;letter-spacing:.17em;line-height:1.6;margin:0 0 28px}
+.web-tieu-de{font-family:VgbWeb,Georgia,serif;font-weight:400;font-size:clamp(48px,8vw,130px);line-height:1.06;white-space:pre-line;color:inherit;margin:0 0 28px}
+.web-doan{font-size:16px;line-height:1.85;white-space:pre-line;max-width:680px;margin:0 0 30px}
+.web-nut{display:inline-flex;min-height:48px;align-items:center;justify-content:center;border:1px solid #29bdb3;border-radius:100px;padding:12px 30px;color:#29bdb3;font:16px Qualy,Arial,sans-serif;text-decoration:none}
+.web-nut:hover{background:#29bdb3;color:#000}.web-nut:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.web-anh_bia{min-height:680px;height:calc(100svh - 100px);max-height:1100px;display:grid;align-items:center;text-align:center}
+.web-anh_bia>.web-anh{position:absolute;inset:0;object-position:50% 35%}
+.web-anh_bia:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.23) 45%,#000)}
+.web-anh_bia .web-tieu-de{font-size:clamp(52px,6vw,100px);max-width:850px}
+.web-anh_bia .web-doan{margin-left:auto;margin-right:auto}
+.web-cau_chuyen .web-tieu-de{color:#29bdb3;max-width:900px}
+.web-anh_chu{display:grid;grid-template-columns:1fr 1fr;align-items:center;max-width:1400px;margin:auto}
+.web-anh_chu>.web-anh{aspect-ratio:4/5;max-height:800px}.web-anh_chu .web-chu{padding:60px}
+.web-anh_chu .web-tieu-de{font-size:clamp(48px,6vw,90px)}
+.web-thong_bao{border-block:1px solid #29413e;text-align:center}.web-thong_bao .web-chu{padding-block:40px}.web-thong_bao .web-tieu-de{font-size:48px}.web-thong_bao .web-doan{margin-inline:auto}
+@media(max-width:640px){.web-anh_bia{height:78svh;min-height:520px}.web-chu{padding:60px 24px}.web-anh_chu{grid-template-columns:1fr}.web-anh_chu .web-chu{padding:36px 24px}.web-nhan{font-size:13px;letter-spacing:.1em}.web-doan{font-size:15px}}
