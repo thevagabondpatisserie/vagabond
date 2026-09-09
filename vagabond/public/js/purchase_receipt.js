@@ -62,6 +62,7 @@ function vgbAnCotGia(frm) {
 
 frappe.ui.form.on('Purchase Receipt', {
 	refresh: function (frm) {
+		vgbHienCanCuQuyCach(frm);
 		/* Dong chu nay hien cho MOI NGUOI, ke ca ke toan. No tra loi dung cai
 		   cau anh Viet hoi, va cau do chac chan khong chi mot minh anh hoi. */
 		if (frm.doc.docstatus === 0) {
@@ -83,3 +84,25 @@ frappe.ui.form.on('Purchase Receipt', {
 		setTimeout(function () { vgbAnCotGia(frm); }, 400);
 	},
 });
+
+
+function vgbHienCanCuQuyCach(frm) {
+	if (frm.doc.docstatus !== 1) return;
+	var ten = frm.doc.name;
+	frappe.call({
+		method: 'vagabond.quy_cach_doi_chieu.thong_tin_phieu',
+		args: {phieu_nhap: ten},
+		callback: function (r) {
+			if (frm.doc.name !== ten || !(r.message || []).length) return;
+			var e = frappe.utils.escape_html;
+			var dong = r.message.map(function (x) {
+				return '<b>' + e(x.item_code) + '</b>: phiếu gốc ghi 1 ' + e(x.uom) +
+					' = ' + e(String(x.he_so_goc)) + ' ' + e(x.stock_uom) +
+					'; đã điều chỉnh kho, dùng <b>1 ' + e(x.uom) + ' = ' +
+					e(String(x.he_so_hieu_luc)) + ' ' + e(x.stock_uom) +
+					'</b> khi đối chiếu hoá đơn. Căn cứ: ' + e(x.can_cu) + '.';
+			}).join('<br>');
+			frm.dashboard.add_comment(dong + '<br>Hệ số trong dòng phiếu gốc được giữ để tra lịch sử. Không nhập bù kho lần nữa.', 'blue', true);
+		}
+	});
+}

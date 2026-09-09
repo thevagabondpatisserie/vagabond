@@ -151,3 +151,16 @@ def luong_da_ghi(dong_hd, dong_nhap):
 			frappe.throw("Hoá đơn dùng căn cứ quy cách phải cùng đơn vị mua với phiếu nhập.")
 		return flt(dong_hd.get("qty")) * flt(dong_nhap.get("conversion_factor"))
 	return flt(dong_hd.get("qty")) * (flt(dong_hd.get("conversion_factor")) or 1)
+
+
+@frappe.whitelist()
+def thong_tin_phieu(phieu_nhap):
+	"""Hiện căn cứ đã kiểm trên phiếu gốc, không thay số liệu lịch sử."""
+	pr = frappe.get_doc("Purchase Receipt", phieu_nhap)
+	pr.check_permission("read")
+	if pr.docstatus != 1:
+		return []
+	return [{"item_code": r.item_code, "uom": r.uom, "stock_uom": r.stock_uom,
+		"he_so_goc": r.he_so_goc, "he_so_hieu_luc": r.conversion_factor,
+		"can_cu": r.can_cu_quy_cach}
+		for r in dong_hieu_luc([d.as_dict() for d in pr.items]) if r.get("can_cu_quy_cach")]

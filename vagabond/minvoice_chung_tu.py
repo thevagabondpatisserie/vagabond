@@ -788,30 +788,22 @@ def _tim_ncc(mst, ten):
 
 def _tra_ma_hang(x, goc_mst, ncc):
 	"""Mã hàng của hệ ứng với dòng này. Không tra ra thì trả (None, dvt)."""
-	uom = x.get("dvt")
-	if not (uom and frappe.db.exists("UOM", uom)):
-		uom = None
+	uom = x.get("dvt")  # Giữ tên NCC để tra alias trước khi xét UOM tồn tại.
 	mapped = None
 	if goc_mst:
-		if x["ma"]:
-			mapped = frappe.db.get_value("MInvoice NCC Map", {
-				"supplier_mst": goc_mst, "ma_ncc": x["ma"],
-				"item_code": ["is", "set"]}, "item_code")
-		if not mapped and x["ten"]:
-			mapped = frappe.db.get_value("MInvoice NCC Map", {
-				"supplier_mst": goc_mst, "ten_ncc": x["ten"][:140],
-				"item_code": ["is", "set"]}, "item_code")
+		from vagabond.quy_cach_ncc import tim_mon
+		mapped = tim_mon(goc_mst, x.get("ma"), x.get("ten"))
 	if not mapped and x["ten"]:
 		mapped = frappe.db.get_value("Anh Xa Mat Hang NCC", {
 			"nha_cung_cap": ncc, "ten_hang_ncc": x["ten"]}, "ma_hang")
 	if not mapped:
-		return None, uom, 1
+		return None, uom if uom and frappe.db.exists("UOM", uom) else None, 1
 
-	dung_uom, he_so = don_vi_theo_ma(mapped, uom)
+	dung_uom, he_so = don_vi_theo_ma(mapped, uom, goc_mst, x.get("ten"))
 	return mapped, dung_uom, he_so
 
 
-def don_vi_theo_ma(mapped, uom):
+def don_vi_theo_ma(mapped, uom, mst=None, ten_ncc=None):
 	"""(don vi dung, he so quy doi) cua mon `mapped` ung voi don vi NCC ghi.
 
 	Tach ra khoi `_tra_ma_hang` ngay 04/09/2026 de duong DUNG LAI dung
@@ -820,58 +812,36 @@ def don_vi_theo_ma(mapped, uom):
 	cho mot ma hang NGUOI VUA GAN deu phai chep lai - ma chep lai thi som
 	muon cung lech nhau (QT-19).
 	"""
+	# ERPNext v16.28.0: erpnext/controllers/buying_controller.py,
+	# BuyingController.set_qty_as_per_stock_uom:
+	# if not d.conversion_factor and d.item_code: frappe.throw(...)
+	# d.stock_qty = flt(d.qty) * flt(d.conversion_factor)
+	# Core chỉ kiểm có hệ số, không kiểm nó khớp quy cách danh mục.
+	# Không nhận diện được quy cách thì không được đổi UOM về kho và giữ qty:
+	# đó là biến một hộp thành một gram. Bản MInvoice gốc vẫn được giữ để xử lý.
 	if not mapped:
 		return uom, 1
-	if uom and not frappe.db.exists("UOM", uom):
-		uom = None
+	from vagabond import dvt_mua as dv
+	import math
 	dvt_kho = frappe.db.get_value("Item", mapped, "stock_uom")
-	dung_uom, he_so = dvt_kho, 1
-	if uom and uom != dvt_kho:
-		cf = frappe.db.get_value("UOM Conversion Detail",
-			{"parent": mapped, "uom": uom}, "conversion_factor")
-		if not cf:
-			# DICH TEN TRUOC KHI CHIU THUA. Nha cung cap ghi "BAG", mon khai
-			# "Tui" - hai chu do la mot thu, chi khac tieng. Truoc day may
-			# khong tra ra "BAG" nen ha thang ve don vi kho he so 1, thanh
-			# ra 4 BAG bien thanh 4 Gram. Bang goi y trong dvt_mua von da co
-			# san tu 26/08 nhung chi dung de HIEN cho nguoi doc, khong ai
-			# noi no vao duong dung chung tu. Nay noi vao.
-			#
-			# Chi dich khi mon DA KHAI don vi tieng Viet do. Khong khai thi
-			# van chiu thua nhu cu, vi he so la con so cua nguoi dat ra,
-			# may khong duoc bia.
-			from vagabond import dvt_mua as _dv
-
-			dich = _dv.goi_y_don_vi(uom)
-			if dich and dich != dvt_kho:
-				cf2 = frappe.db.get_value("UOM Conversion Detail",
-					{"parent": mapped, "uom": dich}, "conversion_factor")
-				if cf2:
-					uom, cf = dich, cf2
-		if cf:
-			dung_uom, he_so = uom, cf
-		else:
-			# TRA KHONG RA HE SO. Van dung don vi kho voi he so 1 de to hoa
-			# don con dung so tien, nhung KHONG IM LANG nua.
-			#
-			# Ca that 27/08/2026, HDM-26-08-00115: nha cung cap ghi "Gói",
-			# Mon chua khai Gói nen may lang le ha ve Gram he so 1. Hoa don
-			# thanh 4,5 Gram trong khi phieu nhap la 4,5 Kg tuc 4.500 Gram.
-			# Tien van dung 1.575.000 nen nhin qua khong thay gi, nhung so
-			# luong lech mot nghin lan. Noi vao la hong gia von va ton kho.
-			#
-			# Dau vet nam o ngay o phan mo ta dong (`_dong_pi` ghi ten kem
-			# "(don vi cua nha cung cap)"), va `don_vi_chua_khai` doc lai
-			# duoc tu do de man ra hoa don loi ra.
-			frappe.log_error(
-				"Món %s: nhà cung cấp ghi đơn vị %r, danh mục Món chưa khai "
-				"đơn vị đó nên tạm dùng %s hệ số 1. Số tiền đúng nhưng số "
-				"lượng có thể lệch. Khai đơn vị vào bảng quy đổi của món rồi "
-				"dựng lại tờ hoá đơn."
-				% (mapped, uom, dvt_kho),
-				"minvoice: don vi chua khai",
-			)
-	return dung_uom, he_so
+	from vagabond.quy_cach_ncc import lay
+	don_vi_da_duyet = lay(mapped, mst, ten_ncc) if mst and ten_ncc else None
+	nguon = str(don_vi_da_duyet or uom or "").strip()
+	ds = frappe.get_all("UOM Conversion Detail", filters={"parent": mapped, "parenttype": "Item"},
+		fields=["uom", "conversion_factor"])
+	ung_vien = [nguon, dv.goi_y_don_vi(nguon)]
+	for ten in ung_vien:
+		if not ten:
+			continue
+		if dv.cung_don_vi(ten, dvt_kho):
+			return dvt_kho, 1
+		khop = [r for r in ds if dv.cung_don_vi(r.uom, ten)]
+		if len(khop) == 1 and math.isfinite(flt(khop[0].conversion_factor)) and flt(khop[0].conversion_factor) > 0:
+			return khop[0].uom, khop[0].conversion_factor
+	frappe.throw("Món %s: chưa xác định được quy đổi đơn vị nhà cung cấp '%s' sang %s. "
+		"Mở Món, khai đúng đơn vị và hệ số trong bảng quy đổi rồi tạo lại hoá đơn từ bản gốc. "
+		"Hệ thống không tự lấy hệ số 1 hoặc đổi số lượng để khớp tiền."
+		% (mapped, nguon or "(trống)", dvt_kho), title="Cần khai quy cách mua")
 
 
 def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
