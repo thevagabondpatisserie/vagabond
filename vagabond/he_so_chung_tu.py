@@ -113,17 +113,24 @@ def _he_so_nguon(doc, dong, khoa):
 
 def kiem(doc, method=None):
     if doc.doctype not in ('Purchase Order', 'Purchase Receipt', 'Purchase Invoice',
-                          'Sales Order', 'Delivery Note', 'Sales Invoice', 'Stock Entry'):
+                          'Sales Order', 'Delivery Note', 'Sales Invoice', 'POS Invoice', 'Stock Entry',
+                          'BOM', 'Material Request', 'Subcontracting Order',
+                          'Subcontracting Receipt', 'Subcontracting Inward Order'):
         return
     hanh_dong = getattr(doc, '_action', None)
     if doc.docstatus == 2 or hanh_dong == 'update_after_submit':
         return
     # Không bỏ qua lần submit đầu: Frappe đã đặt docstatus=1 lúc này.
-    if doc.docstatus == 1 and hanh_dong != 'submit' and not doc.is_new():
+    if doc.docstatus == 1 and hanh_dong != 'submit' and not doc.is_new() and method != 'kiem_nguon_san_xuat':
         if frappe.db.get_value(doc.doctype, doc.name, 'docstatus') == 1:
             return
     khoa = doc.docstatus == 1 or method == 'before_submit'
-    for dong in doc.get('items') or []:
+    if doc.doctype == 'Stock Entry':
+        kiem_bom_lenh(doc)
+    cac_dong = list(doc.get('items') or [])
+    if doc.doctype == 'BOM':
+        cac_dong += list(doc.get('secondary_items') or [])
+    for dong in cac_dong:
         if not dong.get('item_code'):
             continue
         rows = frappe.db.sql('select stock_uom from `tabItem` where name=%s'
@@ -136,6 +143,12 @@ def kiem(doc, method=None):
         hs = _so(dong.get('conversion_factor'))
         if hs is None:
             _loi(doc, dong, 'hệ số phải là số hữu hạn lớn hơn 0')
+        # Các dòng gia công v16 không có ô UOM mua: qty đã là đơn vị
+        # kho. Core vẫn nhân conversion_factor khi sinh SLE nên phải là1.
+        if doc.doctype in ('Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order'):
+            if abs(hs - 1) > 0.000001:
+                _loi(doc, dong, 'số lượng gia công đã theo đơn vị kho %s, hệ số phải bằng 1' % kho)
+            continue
         if not dong.get('uom'):
             _loi(doc, dong, 'chưa chọn đơn vị tính')
         if (doc.doctype == 'Purchase Invoice' and doc.get('custom_minvoice_id')
@@ -170,3 +183,22 @@ def kiem(doc, method=None):
             goc = dvt_tren_hoa_don(dong.get('description'))
             if don_vi_chua_khai(goc, dong.uom, hs):
                 _loi(doc, dong, 'đơn vị NCC %s chưa được đối chiếu, không ghi sổ dòng tạm quy về đơn vị kho' % goc)
+
+
+def kiem_bom_lenh(doc, method=None):
+    """BOM cũ sai không được biến thành lượng stock-UOM hợp lệ trên phiếu kho."""
+    if doc.docstatus == 2 or getattr(doc, '_action', None) == 'update_after_submit':
+        return
+    ten = doc.get('bom_no')
+    if not ten and doc.get('work_order'):
+        ten = frappe.db.get_value('Work Order', doc.work_order, 'bom_no')
+    cho, da_xem = [ten] if ten else [], set()
+    while cho:
+        ma = cho.pop()
+        if ma in da_xem:
+            continue
+        da_xem.add(ma)
+        bom = frappe.get_doc('BOM', ma)
+        kiem(bom, 'kiem_nguon_san_xuat')
+        if doc.get('use_multi_level_bom'):
+            cho.extend(d.bom_no for d in bom.items if d.get('bom_no'))

@@ -377,9 +377,15 @@ doc_events = {
 	},
 	# Cùng bảng chi phí với Phiếu kho: bảo vệ cả nhập gia công và phân bổ.
 	"Subcontracting Order": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
-		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.he_so_chung_tu.kiem"]},
 	"Subcontracting Receipt": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
-		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.he_so_chung_tu.kiem"]},
+	"Subcontracting Inward Order": {"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
+	"BOM": {"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Landed Cost Voucher": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
 		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
@@ -401,6 +407,8 @@ doc_events = {
 	# (Pending -> Ordered) SAU khi da ghi so, va do la luc phai go viec ra
 	# khoi hop cua thu mua.
 	"Material Request": {
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem",
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_submit": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_update_after_submit": "vagabond.giao_viec.khi_xong",
@@ -478,7 +486,8 @@ doc_events = {
 		# before_validate vi ERPNext dung ba o do de dung bang nguyen lieu
 		# NGAY TRONG validate; dien muon hon la bang do da dung xong.
 		"before_validate": "vagabond.kho_san_xuat.gan_kho_lenh",
-		"validate": "vagabond.kho_san_xuat.gan_kho_nguon",
+		"validate": ["vagabond.kho_san_xuat.gan_kho_nguon", "vagabond.he_so_chung_tu.kiem_bom_lenh"],
+		"before_submit": "vagabond.he_so_chung_tu.kiem_bom_lenh",
 	},
 	# Ma lo LO-yymmdd-nnnnnn, cung mot bo dem lien tuc, dung chung cho thanh
 	# pham va ban thanh pham.
@@ -609,6 +618,8 @@ doc_events = {
 	# Bat DU CA SAU cua vi phieu dat co the doi so hoac doi ngay nhan o bat
 	# ky cua nao. Ham tu do lai ca ngay cu lan ngay moi, va tu nuot loi de
 	# khong chan sales luu phieu cua khach.
+	"POS Invoice": {"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Delivery Note": {"validate": "vagabond.he_so_chung_tu.kiem",
 		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Sales Order": {

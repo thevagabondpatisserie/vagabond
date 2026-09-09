@@ -306,3 +306,57 @@ def _sua_pi_theo_cau_hinh(chinh_gia):
     pr.reload()
     la('PR vẫn giữ1000', pr.items[0].conversion_factor, 1000)
     la('PR chỉ tính tiền một hoá đơn', pr.items[0].billed_amt, 855135)
+
+
+@ca('#252 POS thật: Lon1 bị chặn, Lon550 ghi sổ và giữ chỗ550 trước consolidation')
+def _pos():
+    from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
+    from erpnext.accounts.doctype.pos_invoice.pos_invoice import get_pos_reserved_qty
+    mon, lon = _nen()
+    ct, kho = nen.cong_ty(), nen.mot_kho(nen.cong_ty())
+    company = frappe.get_doc('Company', ct)
+    frappe.db.set_single_value('POS Settings', 'invoice_type', 'POS Invoice')
+    nhap = make_stock_entry(item_code=mon.name, qty=1100, company=ct,
+        to_warehouse=kho, rate=10, do_not_save=True)
+    _luu(nhap); nhap.submit()
+    cash = frappe.db.get_value('Account', {'company': ct, 'account_type': 'Cash', 'is_group': 0}, 'name')
+    if not cash:
+        raise AssertionError('Bench cần tài khoản Cash để kiểm POS thật')
+    pt = _luu(frappe.get_doc(dict(doctype='Mode of Payment',
+        mode_of_payment='KT-POS252-'+frappe.generate_hash(length=8), type='Cash',
+        accounts=[dict(company=ct, default_account=cash)])))
+    profile = _luu(frappe.get_doc(dict(doctype='POS Profile',
+        name='KT-POS252-'+frappe.generate_hash(length=8), company=ct, currency='VND',
+        warehouse=kho, cost_center=company.cost_center,
+        income_account=company.default_income_account, expense_account=company.default_expense_account,
+        write_off_account=company.default_expense_account, write_off_cost_center=company.cost_center,
+        write_off_limit=1,
+        selling_price_list=frappe.db.get_value('Price List', {'selling': 1, 'enabled': 1}, 'name'),
+        payments=[dict(mode_of_payment=pt.name, default=1)])))
+    opening = _luu(frappe.get_doc(dict(doctype='POS Opening Entry', pos_profile=profile.name,
+        company=ct, user=frappe.session.user, period_start_date=frappe.utils.now_datetime(),
+        balance_details=[dict(mode_of_payment=pt.name, opening_amount=0)])))
+    opening.submit()
+    def phieu(hs):
+        return frappe.get_doc(dict(doctype='POS Invoice', is_pos=1, update_stock=1,
+            pos_profile=profile.name, company=ct, currency='VND', conversion_rate=1,
+            customer=frappe.db.get_value('Customer', {'disabled': 0, 'is_internal_customer': 0}, 'name'),
+            account_for_change_amount=cash, posting_date=frappe.utils.today(),
+            items=[dict(item_code=mon.name, qty=1, uom=lon, conversion_factor=hs,
+                rate=55000, warehouse=kho)],
+            payments=[dict(mode_of_payment=pt.name, account=cash, amount=55000)]))
+    truoc = frappe.db.count('POS Invoice')
+    _bi_chan(lambda: _luu(phieu(1)), 'POS insert sai quy cách')
+    la('không tạo POS sai', frappe.db.count('POS Invoice'), truoc)
+    hd = _luu(phieu(550)); hd.submit(); hd.reload()
+    la('POS đã ghi sổ', hd.docstatus, 1)
+    la('POS giữ hệ số550', hd.items[0].conversion_factor, 550)
+    la('POS lượng kho550', hd.items[0].stock_qty, 550)
+    la('POS giữ tiền55000', hd.grand_total, 55000)
+    # POSInvoice.on_submit không ghi SLE/GL như SalesInvoice. Core giữ
+    # chỗ đến khi consolidation, nên không tuyên bố đã trừ sổ kho ở đây.
+    la('core giữ chỗ550', get_pos_reserved_qty(mon.name, kho), 550)
+    la('trước consolidation không SLE POS', frappe.db.count('Stock Ledger Entry',
+        {'voucher_type': 'POS Invoice', 'voucher_no': hd.name}), 0)
+    la('kho vật lý vẫn1100', frappe.db.get_value('Bin',
+        {'item_code': mon.name, 'warehouse': kho}, 'actual_qty'), 1100)
