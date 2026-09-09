@@ -63,6 +63,7 @@ def doi_chieu():
         if ma != minvoice_kich_ban.ban_moi(loai):
             raise AssertionError('Server Script chưa đúng mã nguồn: ' + ten)
         bam[loai] = minvoice_kich_ban.bam(ma)
-    if not frappe.conf.get('server_script_enabled'):
-        raise AssertionError('Chưa bật server_script_enabled trên bench')
+    from frappe.utils.safe_exec import is_safe_exec_enabled
+    if not is_safe_exec_enabled():
+        raise AssertionError('Chưa bật Server Script trong common_site_config của bench')
     return {'truong': ds, 'patches': list(PATCHES), 'server_script_sha256': bam}

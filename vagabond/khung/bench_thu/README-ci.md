@@ -18,6 +18,8 @@ Artifact `bench-<SHA>` gồm SHA của ba repo, log dựng bench, hai log migrat
 
 Fresh install đánh dấu patch đã chạy mà không chạy thân patch. `nang_cap_ci` gieo hai Server Script từ snapshot cũ, bỏ đúng bảy dấu patch trên bench dùng một lần rồi chạy migrate thật. Sau hai lượt phải có đủ cột, metadata, Patch Log và Server Script khớp mã nguồn. Asset được build thật để kiểm đường in của Frappe.
 
-Sau hai lượt đầy đủ đạt, runner chạy hai cửa M-Invoice với hai SI độc lập qua Python và Server Script; chỉ HTTP cuối được giả lập. Sau khi đóng kết nối của bộ savepoint, tiến trình riêng kiểm hai người xuất đồng thời, nhiều dòng qua nhiều lô và thử lại sau commit mất phản hồi. Các ca này có commit thật, chỉ chạy trên bench dùng một lần. Artifact bổ sung `minvoice-243.json`, `kho-tang-243.json` và kết quả từng tiến trình.
+Sau hai lượt đầy đủ và hoàn nguyên sạch, runner chạy hai cửa M-Invoice với hai SI độc lập qua Python và Server Script; chỉ HTTP cuối được giả lập. Ca nghiệp vụ đỏ vẫn cho chạy các phần độc lập để thu đủ chẩn đoán, nhưng kết quả cuối bắt buộc đỏ nếu bất kỳ phần nào hỏng. Mất an toàn hoàn nguyên thì dừng ngay. Sau khi đóng kết nối của bộ savepoint, tiến trình riêng kiểm hai người xuất đồng thời, nhiều dòng qua nhiều lô và thử lại sau commit mất phản hồi. Các ca này có commit thật, chỉ chạy trên bench dùng một lần. Artifact bổ sung `minvoice-243.json`, `kho-tang-243.json` và kết quả từng tiến trình.
+
+Server Script được bật trong `common_site_config.json` của bench dùng một lần. Đối chiếu bằng chính `is_safe_exec_enabled()` của Frappe trước khi chạy, vì cờ cùng tên trong cấu hình site không bật được đường này trên Frappe 16.
 
 Đây là môi trường tái hiện dùng fixture. Kết quả đạt không thay thế kiểm cấu hình thực tế trước deploy và kiểm live sau migrate.

@@ -29,7 +29,8 @@ bench new-site bench-ci.localhost --db-host 127.0.0.1 --db-port 3306 --mariadb-u
 bench --site bench-ci.localhost set-config vagabond_bench_thu 1
 bench --site bench-ci.localhost set-config mute_emails 1
 bench --site bench-ci.localhost set-config disable_scheduler 1
-bench --site bench-ci.localhost set-config server_script_enabled 1
+# Frappe 16 chỉ đọc cờ này từ common_site_config, không từ site_config.
+bench set-config -g server_script_enabled 1
 bench --site bench-ci.localhost install-app erpnext
 bench --site bench-ci.localhost install-app vagabond
 bench --site bench-ci.localhost execute vagabond.khung.bench_thu.nen_bench.dung
