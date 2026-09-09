@@ -131,7 +131,14 @@ def xac_thuc(sdt=None, ma=None):
 	)
 	if not ds:
 		return {"ok": 0, "ly_do": "ma_het_han"}
-	o = ds[0]
+	# Khóa rồi đọc lại: hai lượt xác thực đồng thời không dùng cùng OTP,
+	# và các lần sai không ghi đè bộ đếm của nhau.
+	da_khoa = frappe.db.sql(
+		"select name, ma_bam, so_lan_sai, da_dung, het_han from `tabVagabond OTP` where name=%s for update",
+		(ds[0]["name"],), as_dict=True)
+	if not da_khoa or da_khoa[0].da_dung or da_khoa[0].het_han <= now_datetime():
+		return {"ok": 0, "ly_do": "ma_het_han"}
+	o = da_khoa[0]
 	if (o.get("so_lan_sai") or 0) >= OTP_SAI_TOI_DA:
 		return {"ok": 0, "ly_do": "sai_qua_nhieu"}
 	if o["ma_bam"] != _bam(ma):

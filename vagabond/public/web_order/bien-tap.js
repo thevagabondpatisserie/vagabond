@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const tim = id => document.getElementById(id);
-  const tenLoai = {anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo'};
+  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
   function coPreview() {
     const khung = document.querySelector('.khung-preview'), f = tim('preview');
@@ -38,10 +38,7 @@
     tim('tinh-trang').textContent = doi ? 'Chưa lưu' : JSON.stringify(nhap) === JSON.stringify(bang.cong_khai) ? 'Đã xuất bản' : 'Bản nháp';
   }
   function xem() {
-    const d = tim('preview').contentDocument;
-    if (!nhap || !d || !d.getElementById('khoi')) return;
-    window.VgbKhoi.ve(d.getElementById('khoi'), nhap);
-    d.querySelectorAll('a').forEach(a => a.addEventListener('click', e => e.preventDefault()));
+    if (nhap) tim('preview').contentWindow.postMessage({loai:'vgb-noi-dung',noi_dung:nhap,chon:chon}, location.origin);
   }
   function daDoi() { doi = true; thongKe(); xem(); }
   function doiCho(id, buoc) {
@@ -57,7 +54,7 @@
     nhap.khoi.forEach((k, i) => {
       const dong = tao('div', '', 'dong-khoi' + (chon === k.id ? ' on' : '')); dong.draggable = true;
       const nut = tao('button', (i + 1) + '. ' + (k.tieu_de || tenLoai[k.loai]) + (k.hien ? '' : ' · Ẩn'), 'chon-khoi');
-      nut.onclick = () => { chon = k.id; danhSach(); thuocTinh(); }; dong.append(nut);
+      nut.onclick = () => { chon = k.id; danhSach(); thuocTinh(); xem(); }; dong.append(nut);
       const ds = tao('div', '', 'sap-xep');
       [['↑', -1, 'Đưa khối lên'], ['↓', 1, 'Đưa khối xuống']].forEach(([chu, buoc, nhan]) => {
         const b = tao('button', chu); b.setAttribute('aria-label', nhan); b.disabled = i + buoc < 0 || i + buoc >= nhap.khoi.length;
@@ -73,10 +70,22 @@
   function thuocTinh() {
     const g = tim('thuoc-tinh'); g.replaceChildren(); const k = nhap.khoi.find(x => x.id === chon);
     if (!k) { g.append(tao('p', 'Chọn một khối để chỉnh nội dung.')); return; }
+    if (k.loai === 'tieu_de_muc') {
+      g.append(tao('p', 'Tiêu đề trên mục ' + ({today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store'}[k.vi_tri]) + '. Ngày, giá và tồn tiếp tục lấy từ hệ thống.', 'goi-y'));
+      const nhan = tao('label','','truong'); nhan.append(tao('span','Tiêu đề mục'));
+      const o = tao('textarea'); o.maxLength=120; o.value=k.tieu_de; o.oninput=()=>{k.tieu_de=o.value;daDoi();}; o.onchange=danhSach;
+      nhan.append(o);g.append(nhan);return;
+    }
     g.append(tao('p', 'Loại khối · có thể đổi để tái sử dụng khối cũ', 'goi-y'));
     const cacLoai = tao('div', '', 'them-khoi');
-    Object.entries(tenLoai).forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
+    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
     g.append(cacLoai);
+    g.append(tao('p', 'Vị trí trên trang order', 'goi-y'));
+    const viTri = tao('div', '', 'them-khoi');
+    Object.entries({dau_trang:'Dưới logo',today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store',season:'In season',cuoi_trang:'Cuối trang'}).forEach(([ma,ten]) => {
+      const b = tao('button', ten); b.setAttribute('aria-pressed', String((k.vi_tri || 'cuoi_trang') === ma));
+      b.onclick = () => { k.vi_tri = ma; daDoi(); thuocTinh(); }; viTri.append(b);
+    }); g.append(viTri);
     [['nhan','Dòng giới thiệu'],['tieu_de','Tiêu đề'],['noi_dung','Nội dung'],['anh','Đường dẫn ảnh công khai'],['mo_ta_anh','Mô tả ảnh'],['nut','Chữ trên nút'],['lien_ket','Liên kết của nút']].forEach(([ma, ten]) => {
       const nhan = tao('label', '', 'truong'); nhan.append(tao('span', ten));
       const o = tao(ma === 'noi_dung' || ma === 'tieu_de' ? 'textarea' : 'input');
@@ -126,16 +135,21 @@
       nhanBang(d); bao(hanhDong === 'xuat_ban' ? 'Đã xuất bản. Khách tải lại website sẽ thấy nội dung mới.' : 'Đã lưu nháp. Website đang giữ bản đã xuất bản.');
     } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
-  Object.entries(tenLoai).forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
+  Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
     if (!nhap || ban) return; if (nhap.khoi.length >= 30) { bao('Đã có 30 khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
-    const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: true, nhan: '', tieu_de: ten, noi_dung: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: ''};
+    const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: true, vi_tri: 'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });
   tim('tai-lai').onclick = tai; tim('luu-nhap').onclick = () => luu('nhap'); tim('xuat-ban').onclick = () => luu('xuat_ban');
   ['desktop', 'mobile'].forEach(id => tim(id).onclick = () => { mobile = id === 'mobile'; coPreview(); ['desktop','mobile'].forEach(x => tim(x).setAttribute('aria-pressed', String(x === id))); });
   new ResizeObserver(coPreview).observe(document.querySelector('.khung-preview'));
   tim('preview').onload = xem;
-  tim('preview').srcdoc = '<!doctype html><html lang="vi"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/vagabond/web_order/khoi.css"><style>body{margin:0;background:#000}</style></head><body><div id="khoi"></div></body></html>';
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || e.source !== tim('preview').contentWindow) return;
+    if (e.data?.loai === 'vgb-san-sang') xem();
+    if (e.data?.loai === 'vgb-chon-khoi' && nhap?.khoi.some(k => k.id === e.data.id)) { chon = e.data.id; danhSach(); thuocTinh(); xem(); }
+  });
+  tim('preview').src = '/banh?bien_tap=1';
   window.addEventListener('beforeunload', e => { if (doi) { e.preventDefault(); e.returnValue = ''; } });
   tai();
 }());

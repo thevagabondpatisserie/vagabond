@@ -10,15 +10,19 @@ import json
 import re
 from urllib.parse import urlsplit
 
-LOAI = {"anh_bia", "cau_chuyen", "anh_chu", "thong_bao"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao"}
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri"}
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang"}
 MAC_DINH = {"khoi": [
-    {"id": "bia", "loai": "anh_bia", "hien": True, "nhan": "THE VAGABOND PÂTISSERIE · SINCE 2015",
-     "tieu_de": "Creating sweet memories\nin Saigon since 2015", "noi_dung": "",
-     "anh": "/assets/vagabond/web_order/anh-bia.png", "mo_ta_anh": "Croissant The Vagabond",
-     "nut": "Chọn bánh", "lien_ket": "#danh-muc-banh"},
-    {"id": "cau-chuyen", "loai": "cau_chuyen", "hien": True, "nhan": "THE VAGABOND PÂTISSERIE",
-     "tieu_de": "Những khoảnh khắc ngọt ngào", "noi_dung": "Một chiếc bánh, một dịp gặp nhau. Chọn bánh có sẵn hôm nay hoặc đặt trước cho những ngày đặc biệt.",
+    {"id":"tieu-de-hom-nay", "loai":"tieu_de_muc", "hien":True, "vi_tri":"today", "tieu_de":"Bánh\nhôm nay"},
+    {"id":"tieu-de-dat-truoc", "loai":"tieu_de_muc", "hien":True, "vi_tri":"order", "tieu_de":"Đặt\nbánh trước"},
+    {"id":"tieu-de-tai-quay", "loai":"tieu_de_muc", "hien":True, "vi_tri":"store", "tieu_de":"Bánh trên tủ\ntại quầy"},
+    {"id": "loi-chao", "loai": "thong_bao", "hien": True, "vi_tri": "dau_trang",
+     "nhan": "THE VAGABOND PÂTISSERIE · SINCE 2015", "tieu_de": "Một chiếc bánh, một khoảnh khắc đáng nhớ.",
+     "noi_dung": "", "anh": "", "mo_ta_anh": "", "nut": "", "lien_ket": ""},
+    {"id": "cau-chuyen", "loai": "cau_chuyen", "hien": True, "vi_tri": "cuoi_trang",
+     "nhan": "TỪ TIỆM BÁNH", "tieu_de": "Những khoảnh khắc ngọt ngào",
+     "noi_dung": "Một chiếc bánh, một dịp gặp nhau. Chọn bánh có sẵn hôm nay hoặc đặt trước cho những ngày đặc biệt.",
      "anh": "", "mo_ta_anh": "", "nut": "Đặt bánh trước", "lien_ket": "#/dat-truoc"}
 ]}
 
@@ -35,6 +39,7 @@ def chuan_hoa(du_lieu):
     if not isinstance(ds, list) or len(ds) > 30:
         raise ValueError("Mỗi trang có tối đa 30 khối.")
     da_co = set()
+    tieu_de_da_co = set()
     for k in ds:
         if not isinstance(k, dict) or set(k) - TRUONG:
             raise ValueError("Khối có trường không được hỗ trợ.")
@@ -43,6 +48,15 @@ def chuan_hoa(du_lieu):
         if k["id"] in da_co:
             raise ValueError("Mã khối bị trùng. Tải lại rồi thêm khối mới.")
         da_co.add(k["id"])
+        if k.get("vi_tri", "cuoi_trang") not in VI_TRI:
+            raise ValueError("Chọn vị trí khối trên trang đặt bánh.")
+        if k['loai'] == 'tieu_de_muc':
+            vi_tri = k.get('vi_tri')
+            if vi_tri not in ('today', 'order', 'store') or vi_tri in tieu_de_da_co:
+                raise ValueError('Mỗi mục bán hàng chỉ có một khối tiêu đề.')
+            if not k.get('tieu_de', '').strip() or len(k['tieu_de']) > 120:
+                raise ValueError('Tiêu đề mục cần có chữ và tối đa 120 ký tự.')
+            tieu_de_da_co.add(vi_tri)
         if type(k.get("hien")) is not bool:
             raise ValueError("Chọn hiện hoặc ẩn cho từng khối.")
         for ten in TRUONG - {"hien"}:
