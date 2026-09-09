@@ -1530,7 +1530,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		o = dict(r)
 		o["canh_bao_doi_chieu"] = canh_bao.get(r.name, "")
 		o["so_hd"] = so_dong.get(r.name, 0)
-		o["nhan"] = NHAN.get(r.trang_thai, r.trang_thai)
+		o["nhan"] = "Đã duyệt, cần kiểm tra lại" if o["canh_bao_doi_chieu"] else NHAN.get(r.trang_thai, r.trang_thai)
 		o["loai"] = r.loai or "NCC"
 		o["nhan_cp_thue"] = NHAN_CP_THUE.get(r.loai_cp_thue, "")
 		# Ho so nao con thieu uy nhiem chi. De chi Dung nhin mot cai la biet
@@ -1788,9 +1788,10 @@ def chi_tiet(name):
 			o["po"], o["pnk"], o["scan"] = ct["po"], ct["pnk"], ct["scan"]
 		dong.append(o)
 
+	canh_bao = canh_bao_mo_lai([doc]).get(doc.name, "")
 	return {
 		"ho_so": {
-			"canh_bao_doi_chieu": canh_bao_mo_lai([doc]).get(doc.name, ""),
+			"canh_bao_doi_chieu": canh_bao,
 			"ma": doc.name, "loai": doc.loai or "NCC", "ngay": str(doc.ngay or ""),
 			"loai_cp_thue": doc.loai_cp_thue or "",
 			"nhan_cp_thue": NHAN_CP_THUE.get(doc.loai_cp_thue, ""),
@@ -1813,7 +1814,8 @@ def chi_tiet(name):
 			"so_ncc": len({((d.get("ben_ban") or d.get("ncc_hd") or "").strip()) for d in dong
 			               if (d.get("ben_ban") or d.get("ncc_hd") or "").strip()}),
 			"email_ncc": doc.email_ncc or "",
-			"trang_thai": doc.trang_thai, "nhan": NHAN.get(doc.trang_thai, doc.trang_thai),
+			"trang_thai": doc.trang_thai,
+			"nhan": "Đã duyệt, cần kiểm tra lại" if canh_bao else NHAN.get(doc.trang_thai, doc.trang_thai),
 			"tong_tien": flt(doc.tong_tien), "da_tra": flt(doc.da_tra),
 			"da_tam_ung": flt(doc.da_tam_ung), "con_lai": flt(doc.con_lai) or flt(doc.tong_tien),
 			"han_tra_som_nhat": str(doc.han_tra_som_nhat or ""),

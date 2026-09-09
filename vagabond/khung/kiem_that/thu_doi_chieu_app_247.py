@@ -269,8 +269,9 @@ def _kiem_mo_lai(h):
 	la("không giữ mã sao kê", h.ma_giao_dich or "", "")
 	ds = hs.danh_sach(tu_khoa=h.name)
 	la("chip Đã thanh toán không đếm hồ sơ", ds["dem"].get("Da thanh toan", 0), 0)
-	dung("danh sách hiển thị Đã duyệt", any(r["name"] == h.name and r["nhan"] == "Đã duyệt" for r in ds["rows"]))
+	dung("danh sách không giục chuyển tiền lần nữa", any(r["name"] == h.name and r["nhan"] == "Đã duyệt, cần kiểm tra lại" for r in ds["rows"]))
 	ct = hs.chi_tiet(h.name)["ho_so"]
+	la("chi tiết không giục chuyển tiền lần nữa", ct["nhan"], "Đã duyệt, cần kiểm tra lại")
 	la("chi tiết cùng trạng thái", ct["trang_thai"], "Da duyet")
 	la("chi tiết không còn tiền đã trả", ct["da_tra"], 0)
 	canh_bao = next(r for r in ds["rows"] if r["name"] == h.name)["canh_bao_doi_chieu"]

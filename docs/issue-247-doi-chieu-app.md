@@ -101,3 +101,7 @@ reviewer nêu riêng. Cổng CI của repo được kiểm độc lập theo SHA
 Danh sách và chi tiết có cảnh báo cố định lấy theo lô từ bút toán huỷ,
 nhắc kiểm sao kê và không tự chuyển tiền thêm. Khi ghi nhận lại xong,
 cảnh báo tự hết; không cần thêm trường hoặc quy trình duyệt.
+
+### Nhãn hồ sơ mở lại
+
+Bench vòng 3 phát hiện nhãn chung của Đã duyệt là "Đã duyệt, chờ chuyển tiền". Hồ sơ vừa huỷ bút toán phải dùng nhãn riêng "Đã duyệt, cần kiểm tra lại" trên danh sách và chi tiết, cùng cảnh báo kiểm sao kê, không tự chuyển thêm tiền. Ca bench kiểm cả hai nhãn này; hồ sơ được duyệt bình thường giữ nhãn cũ.
