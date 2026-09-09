@@ -56,7 +56,7 @@ def _():
 	t = _thu_mau()
 	dung("khung co gian", "width:100%;max-width:600px;table-layout:fixed" in t)
 	dung("chi Outlook Word can khung co dinh", "<!--[if mso]>" in t)
-	dung("khong ep chieu rong mobile", "width:600px" not in t)
+	dung("khong ep chieu rong mobile", not re.search(r'(?:style="|;)width:600px', t))
 	dung("co dai dau thu tu repo", "/assets/vagabond/images/thu/dau.png" in t)
 	dung("tieu de duoc thoat", "Tiêu đề &lt;thử&gt;" in t)
 	dung("than thu giu HTML", "Thân thư <b>đậm</b>" in t)

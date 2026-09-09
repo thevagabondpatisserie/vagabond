@@ -36,7 +36,8 @@ phát hành, không phải cron hay lời hứa rằng một skill tự chạy k
   không gửi lặp. Mất phản hồi không có nghĩa là chưa gửi; đọc lại trước retry.
 - Dùng đường gửi ERP hiện có, đọc `vagabond/gui_thu.py` và cấu hình sender đang
   chạy trước khi gọi. Không tự tạo SMTP, sửa Email Account hoặc gửi trong patch.
-  Chỉ báo "đã gửi" theo bằng chứng hàng đợi; không nhận là người nhận đã đọc.
+  Chỉ báo "đã gửi" khi Email Queue có trạng thái `Sent`; chưa `Sent` thì
+  báo "đã xếp hàng" hoặc lỗi đúng thực tế. Không nhận là người nhận đã đọc.
 
 ## Viết sao cho người nhận hiểu ngay
 
@@ -54,8 +55,10 @@ thật vào thông báo chung nếu người nhận không cần biết.
 - Dùng `vagabond.thu_khung.khung_thuan` hoặc `khung`, chân `nhan_vien`, cùng
   logo `images/thu/dau.png`, bảng màu và các helper có sẵn. Không vẽ branding
   mới. Ảnh email thật phải có URL tuyệt đối của site đã xác minh.
-- Script `scripts/soan_thu.py` nhận JSON nội dung và xuất HTML + TXT, chỉ lưu
-  tệp, không gửi. Chạy từ checkout repo; xem `--help` để biết dữ liệu đầu vào.
+- Script nhận JSON nội dung và xuất HTML + TXT, chỉ lưu tệp, không gửi.
+  Chạy từ checkout repo:
+  `python3 .agents/skills/vagabond-email-phat-hanh/scripts/soan_thu.py noi_dung.json thu.html`.
+  Dùng `--help` để biết dữ liệu đầu vào.
 - Khung rộng 100%, tối đa 600px; ảnh co theo khung; bảng/URL/mã dài xuống dòng.
   Không dùng overflow:hidden để che nội dung, không thu nhỏ cả lá thư thành ảnh.
 - Kiểm ít nhất 320/375/390px và desktop 600/1024px, cả mã dài, URL và bảng tiền.
