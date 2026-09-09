@@ -58,5 +58,7 @@ if [[ "$hong" == 0 ]]; then
   cd "$GITHUB_WORKSPACE"
   VGB_DOI_CHUNG_VD=1 node vagabond/khung/staging/do_van_don.cjs || hong=1
   python3 -m vagabond.khung.staging.tong_hop_do "$VGB_ARTIFACTS" || hong=1
+  cd "$VGB_BENCH/sites"
+  ../env/bin/python -m vagabond.khung.staging.doi_chung_ho_so || hong=1
 fi
 exit "$hong"
