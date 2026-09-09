@@ -9,11 +9,11 @@
  "field_order": ["phieu_nhap", "dong_nhap", "phieu_kiem_ke", "dong_kiem_ke", "he_so_cu", "he_so_moi", "ly_do"],
  "fields": [
   {"fieldname":"phieu_nhap","fieldtype":"Link","options":"Purchase Receipt","label":"Phiếu nhập","reqd":1,"in_list_view":1},
-  {"fieldname":"dong_nhap","fieldtype":"Data","label":"Dòng phiếu nhập","reqd":1,"unique":1},
+  {"fieldname":"dong_nhap","fieldtype":"Data","label":"Dòng phiếu nhập","reqd":1,"unique":1,"read_only":1},
   {"fieldname":"phieu_kiem_ke","fieldtype":"Link","options":"Stock Reconciliation","label":"Phiếu kiểm kê bù lượng","reqd":1,"in_list_view":1},
-  {"fieldname":"dong_kiem_ke","fieldtype":"Data","label":"Dòng kiểm kê","reqd":1,"unique":1},
-  {"fieldname":"he_so_cu","fieldtype":"Float","label":"Hệ số đã ghi trên phiếu nhập","reqd":1},
-  {"fieldname":"he_so_moi","fieldtype":"Float","label":"Hệ số đúng để đối chiếu","reqd":1},
+  {"fieldname":"dong_kiem_ke","fieldtype":"Data","label":"Dòng kiểm kê","reqd":1,"unique":1,"read_only":1},
+  {"fieldname":"he_so_cu","fieldtype":"Float","label":"Hệ số đã ghi trên phiếu nhập","reqd":1,"read_only":1},
+  {"fieldname":"he_so_moi","fieldtype":"Float","label":"Hệ số đúng để đối chiếu","reqd":1,"read_only":1},
   {"fieldname":"ly_do","fieldtype":"Small Text","label":"Lý do và căn cứ phê duyệt","reqd":1}
  ],
  "permissions": [

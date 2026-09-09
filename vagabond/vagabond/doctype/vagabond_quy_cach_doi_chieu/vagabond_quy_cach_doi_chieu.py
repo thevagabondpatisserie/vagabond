@@ -1,10 +1,13 @@
 """Xác nhận quy cách đối chiếu có căn cứ kiểm kê, không sửa sổ kho cũ."""
 import frappe
 from frappe.model.document import Document
-from vagabond.quy_cach_doi_chieu import kiem_ban_xac_nhan
+from vagabond.quy_cach_doi_chieu import kiem_ban_xac_nhan, dien_dong
 
 
 class VagabondQuyCachDoiChieu(Document):
+	def before_validate(self):
+		dien_dong(self)
+
 	def validate(self):
 		kiem_ban_xac_nhan(self)
 

@@ -57,10 +57,18 @@ def _nen():
 
 def _xac_nhan(pr, sr, ghi_so=True, **doi):
     vals = dict(doctype='Vagabond Quy Cach Doi Chieu', phieu_nhap=pr.name,
-        dong_nhap=pr.items[0].name, phieu_kiem_ke=sr.name, dong_kiem_ke=sr.items[0].name,
-        he_so_cu=500, he_so_moi=1000, ly_do='Ca kiểm 252: kiểm kê đã sửa 9000 thành 18000, không đổi giá trị')
+        phieu_kiem_ke=sr.name,
+        ly_do='Ca kiểm 252: kiểm kê đã sửa 9000 thành 18000, không đổi giá trị')
     vals.update(doi)
+    from vagabond.quy_cach_doi_chieu import goi_y_dong
+    goi_y = goi_y_dong(pr.name, sr.name)
+    la('bộ chọn trả đúng dòng nhập', goi_y['dong_nhap'], pr.items[0].name)
+    la('bộ chọn trả đúng dòng kiểm kê', goi_y['dong_kiem_ke'], sr.items[0].name)
     doc = _luu(frappe.get_doc(vals))
+    la('không cần gõ mã dòng nhập', doc.dong_nhap, pr.items[0].name)
+    la('không cần gõ mã dòng kiểm kê', doc.dong_kiem_ke, sr.items[0].name)
+    la('máy lấy hệ số cũ', doc.he_so_cu, 500)
+    la('máy tính hệ số đã điều chỉnh', doc.he_so_moi, 1000)
     if ghi_so:
         doc.submit()
     return doc

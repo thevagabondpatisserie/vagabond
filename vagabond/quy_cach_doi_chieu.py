@@ -17,6 +17,43 @@ from frappe.utils import flt, get_datetime
 LOAI = "Vagabond Quy Cach Doi Chieu"
 
 
+@frappe.whitelist()
+def goi_y_dong(phieu_nhap, phieu_kiem_ke):
+	"""Chọn hai phiếu bằng Link; máy xác định dòng, không nhập mã con tay."""
+	frappe.only_for("System Manager")
+	pr = frappe.get_doc("Purchase Receipt", phieu_nhap)
+	sr = frappe.get_doc("Stock Reconciliation", phieu_kiem_ke)
+	pr.check_permission("read")
+	sr.check_permission("read")
+	return _dong_tu_hai_phieu(pr, sr)
+
+
+def _dong_tu_hai_phieu(pr, sr):
+	if len(sr.items) != 1:
+		frappe.throw("Chọn phiếu kiểm kê riêng một dòng cho lần điều chỉnh quy cách này.")
+	s = sr.items[0]
+	ds = [r for r in pr.items if r.item_code == s.item_code and r.warehouse == s.warehouse
+		and r.batch_no and r.batch_no == s.batch_no]
+	if len(ds) != 1 or flt(ds[0].qty) <= 0:
+		frappe.throw("Hai phiếu chưa xác định được duy nhất một dòng cùng món, kho và lô. Kiểm lại phiếu được chọn.")
+	r = ds[0]
+	return {"dong_nhap": r.name, "dong_kiem_ke": s.name,
+		"he_so_cu": flt(r.conversion_factor),
+		"he_so_moi": flt(r.conversion_factor) + (flt(s.qty) - flt(s.current_qty)) / flt(r.qty)}
+
+
+def dien_dong(doc):
+	if not doc.phieu_nhap or not doc.phieu_kiem_ke:
+		return
+	goi_y = _dong_tu_hai_phieu(frappe.get_doc("Purchase Receipt", doc.phieu_nhap),
+		frappe.get_doc("Stock Reconciliation", doc.phieu_kiem_ke))
+	# API thiếu mã dòng cũng dùng đúng lựa chọn như Desk. Không âm thầm
+	# ghi đè tham chiếu/hệ số sai mà client gửi: validate vẫn phải bắt lỗi.
+	for ten, gia_tri in goi_y.items():
+		if not doc.get(ten):
+			doc.set(ten, gia_tri)
+
+
 def _gan_dieu_kien(ban, khoa=False):
 	"""Kiểm chứng từ gốc mỗi lần dùng, kể cả khi dữ liệu bị sửa ngoài form."""
 	trang_thai = []
