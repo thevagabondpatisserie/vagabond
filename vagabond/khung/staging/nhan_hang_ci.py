@@ -46,7 +46,7 @@ def tao():
     mr.submit()
     frappe.db.commit()
     kq = {'phieu': mr.name, 'ma': ma, 'kho_xuat': kho[0], 'kho_nhan': kho[1], 'nhap_dau': se.name,
-          'cong_ty': cty, 'so_phieu_truoc': frappe.db.count('Stock Entry', {'company': cty})}
+          'cong_ty': cty, 'so_phieu_truoc': frappe.db.count('Stock Entry', {'company': cty, 'purpose': 'Material Transfer'})}
     (Path(os.environ['VGB_ARTIFACTS']) / 'nhan-hang-fixture.json').write_text(json.dumps(kq))
 
 
@@ -57,7 +57,7 @@ def kiem():
     f = json.loads((goc / 'nhan-hang-fixture.json').read_text())
     mr = frappe.get_doc('Material Request', f['phieu'])
     assert float(mr.items[0].ordered_qty) == 20, 'Yêu cầu phải mới nhận20'
-    assert frappe.db.count('Stock Entry', {'company': f['cong_ty']}) == f['so_phieu_truoc'] + 1, 'Phải chỉ thêm một phiếu, kể cả nháp không có dòng'
+    assert frappe.db.count('Stock Entry', {'company': f['cong_ty'], 'purpose': 'Material Transfer'}) == f['so_phieu_truoc'] + 1, 'Phải chỉ thêm một phiếu chuyển, kể cả nháp không có dòng'
     dong = frappe.get_all('Stock Entry Detail', filters={'item_code': f['ma'],
         'parent': ['!=', f['nhap_dau']]}, fields=['parent', 'qty', 'docstatus', 'material_request'], limit_page_length=0)
     assert len(dong) == 1 and dong[0].docstatus == 1 and float(dong[0].qty) == 20, 'Lần lỗi không được để phiếu nháp/dòng sót'

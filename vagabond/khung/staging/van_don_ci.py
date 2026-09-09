@@ -22,6 +22,10 @@ def tao():
     c = frappe.get_doc('Vagabond Settings')
     c.pancake_shop_id = 'THU257'
     c.pancake_api_key = 'THU257'
+    # Settings.validate yêu cầu toạ độ dù ca chỉ đồng bộ đơn. Toạ độ giả,
+    # không dùng địa điểm hoặc khoá dịch vụ của tiệm, vẫn đi qua save thật.
+    c.kitchen_lat = 1
+    c.kitchen_lng = 1
     c.save(ignore_permissions=True)
     cu = str(add_days(nowdate(), 3650))
     moi = str(add_days(cu, 2))

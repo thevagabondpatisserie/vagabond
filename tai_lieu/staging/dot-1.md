@@ -91,3 +91,18 @@ Sau thành công mở trang mới, số còn phải nhận30 và không còn kho
 CLI cuối kiểm MR, số phiếu kể cả nháp rỗng, dòng không mất liên kết, SLE và Bin.
 Review đã sửa race bấm lại chi tiết cũ ngay sau POST. Chưa runtime, chưa kiểm
 role nhân viên; chưa thay thế toàn bộ kịch bản mất phản hồi/gửi trùng.
+
+## Hoàn tất sản xuất
+
+`san_xuat_ci.py` dựng BOM/lệnh thử2 bánh và10 nguyên liệu. Driver bấm Hoàn
+tất trên app, nhập2, chờ màn tem, mở lại lệnh đã xong và kiểm không còn nút
+hoàn tất. CLI kiểm một phiếu ghi sổ, SLE trừ2/nhập2, GL cân, giá trị kho
+không tự tăng/giảm, gói lô đủ2 và Bin. Chưa kiểm tạo lệnh/chọn BOM trên UI,
+chưa kiểm role bếp hoặc hoàn tất từng phần; không nhận toàn luồng đã đủ.
+
+## Runtime đầu tiên
+
+CI run34359614912 trên5304ec4: dựng/migrate và tích hợp hai lượt đạt, browser
+chưa mở vì Settings.validate chặn fixture thiếu kitchen_lat/kitchen_lng.
+Đã bổ sung toạ độ giả1/1 trước save thật; không tắt validation. Cần chạy lại
+trên SHA mới, chưa coi sửa code là bằng chứng runtime đã đạt.
