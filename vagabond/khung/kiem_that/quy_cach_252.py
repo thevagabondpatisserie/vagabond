@@ -36,7 +36,8 @@ def _nen():
         items=[dict(item_code=ma, qty=18, uom=hop, conversion_factor=500,
             rate=300000, warehouse=kho, batch_no=lo, use_serial_batch_fields=1)]))
     # Tái hiện đúng lỗi trước khi hàng rào ngày 27/08 được triển khai.
-    with patch('vagabond.gac_don_vi.chan_don_vi_la', lambda *a, **kw: None):
+    with patch('vagabond.gac_don_vi.chan_don_vi_la', lambda *a, **kw: None), \
+         patch('vagabond.he_so_chung_tu.kiem', lambda *a, **kw: None):
         _luu(pr); pr.submit()
     pr.reload()
     la('PR gốc giữ 500', pr.items[0].conversion_factor, 500)
@@ -199,9 +200,12 @@ def _co_chinh_gia():
 def _hoa_don_cu():
     frappe.db.set_single_value('Buying Settings', 'set_landed_cost_based_on_purchase_invoice_rate', 0)
     pr, sr = _nen()
-    cu = _pi(pr, hs=500)
-    moi = _pi(pr, hs=500, qty=1)
-    cu.submit()
+    # Chứng từ 500 là lịch sử trước hàng rào mới, không phải đường được
+    # phép tạo PI hôm nay. Chỉ bỏ guard hệ số lúc dựng nền cũ này.
+    with patch('vagabond.he_so_chung_tu.kiem', lambda *a, **kw: None):
+        cu = _pi(pr, hs=500)
+        moi = _pi(pr, hs=500, qty=1)
+        cu.submit()
     truoc = _sle(pr.items[0].item_code)
     gl_cu = _gl(cu)
     try: _xac_nhan(pr, sr)
@@ -239,7 +243,8 @@ def _pi_chen_giua():
     frappe.db.set_single_value('Buying Settings', 'set_landed_cost_based_on_purchase_invoice_rate', 0)
     pr, sr = _nen()
     xac_nhan = _xac_nhan(pr, sr, ghi_so=False)
-    cu = _pi(pr, hs=500); cu.submit()
+    with patch('vagabond.he_so_chung_tu.kiem', lambda *a, **kw: None):
+        cu = _pi(pr, hs=500); cu.submit()
     try: xac_nhan.submit()
     except frappe.ValidationError as e:
         dung('chặn đúng PI chen giữa', 'hoá đơn' in str(e) and 'ghi sổ' in str(e))

@@ -184,7 +184,7 @@ def nen_nan_don_vi(uom_hien, hs_hien, uom_dung, hs_dung):
 	"""
 	if not uom_dung:
 		return False
-	if str(uom_hien or "").strip() == str(uom_dung or "").strip():
+	if str(uom_hien or "").strip() == str(uom_dung or "").strip() and abs(flt(hs_hien) - flt(hs_dung)) < 1e-9:
 		return False
 	return abs(flt(hs_hien) - 1.0) < 1e-9 and abs(flt(hs_dung) - 1.0) > 1e-9
 
@@ -331,7 +331,7 @@ def _dung_dong_tai_cho(doc, g):
 		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
 		if not ma and giu.get(vi_tri):
 			ma = giu[vi_tri]
-			uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"))
+			uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"), (g.get("mst_doi_tac") or "").split("-")[0], x.get("ten"))
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
 	dp_gia, dp_tien, dp_sl = _do_chinh_xac()
 	tong_dong = sum(
@@ -442,9 +442,9 @@ def ghim_lai_theo_goc(doc, g):
 			d.margin_rate_or_amount = 0
 			da += 1
 		ma = str(d.get("item_code") or "").strip()
-		if not ma:
+		if not ma or doc.get("is_return") or d.get("pr_detail") or d.get("po_detail") or not x.get("dvt"):
 			continue
-		uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"))
+		uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"), (g.get("mst_doi_tac") or "").split("-")[0], x.get("ten"))
 		if nen_nan_don_vi(d.get("uom"), d.get("conversion_factor"), uom, he_so):
 			d.uom = uom
 			d.conversion_factor = he_so
@@ -657,6 +657,29 @@ def _tong_dong_hien_tai(doc):
 	return tong - flt(doc.get("discount_amount"))
 
 
+def nan_quy_cach_tu_goc(doc, g):
+	"""Tiền đúng không chứng minh hệ số đúng; chỉ nắn dòng chưa nối nguồn.
+
+	Frappe v16.27.1 frappe/model/document.py run_before_save_methods chạy
+	before_validate trước validate; ERPNext controllers/buying_controller.py sau đó
+	tính stock_qty từ qty * conversion_factor. Không sửa qty/rate ở bước này.
+	"""
+	if doc.get("is_return"):
+		return
+	from vagabond import minvoice_chung_tu as mc
+	nguon = [mc.dong_tu_hoa_don(x) for x in mc.dong_hang_hoa(doc_chi_tiet(g.get("chi_tiet")))]
+	for d in doc.get("items") or []:
+		if not d.get("item_code") or d.get("pr_detail") or d.get("po_detail"):
+			continue
+		ten = khoa_ten(ten_ncc_cua_dong(d))
+		khop = [x for x in nguon if khoa_ten(x.get("ten")) == ten]
+		if len(khop) != 1 or not str(khop[0].get("dvt") or "").strip():
+			continue
+		uom, hs = mc.don_vi_theo_ma(d.item_code, khop[0].get("dvt"), (g.get("mst_doi_tac") or "").split("-")[0], khop[0].get("ten"))
+		if nen_nan_don_vi(d.get("uom"), d.get("conversion_factor"), uom, hs):
+			d.uom, d.conversion_factor = uom, hs
+
+
 def dong_bo_luc_luu(doc, method=None):
 	"""Hook chạy MỌI lần lưu hoá đơn mua, bất kể lưu từ nút nào, màn nào.
 
@@ -720,6 +743,7 @@ def dong_bo_luc_luu(doc, method=None):
 				phieu = _phieu_da_noi(doc)
 				_dung_dong_tai_cho(doc, g)
 				_noi_lai(doc, phieu)
+		nan_quy_cach_tu_goc(doc, g)
 		muc_tieu = muc_tieu_truoc_thue(g)
 		if not muc_tieu:
 			return

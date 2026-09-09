@@ -534,6 +534,7 @@ def _():
 @ca("nan don vi: chi nan khi may dang ha tam, khong de len khai bao cua nguoi")
 def _():
 	# Dong dang mang he so 1 (may ha tam), tra ra duoc he so that 1000.
+	dung("cung Hop nhung he so tam 1 van nan", D.nen_nan_don_vi("Hộp", 1, "Hộp", 550))
 	dung("ha tam thi nan", D.nen_nan_don_vi("Gram", 1, "Kg", 1000))
 	# Nguoi da tu khai he so khac 1 thi de yen, do la khai bao cua ho.
 	dung("nguoi khai roi thi de yen", not D.nen_nan_don_vi("Tui", 4000, "Kg", 1000))
@@ -582,7 +583,7 @@ def _():
 	dung("co goi phep xep ma", "_ma_dang_gan(doc, dong_goc)" in MA_DUNG_LAI)
 	dung("chi lay khi bang anh xa chiu", "if not ma and giu.get(vi_tri):" in MA_DUNG_LAI)
 	dung("nan lai don vi cho ma vua lay",
-	     "mc.don_vi_theo_ma(ma, x.get(\"dvt\"))" in MA_DUNG_LAI)
+	     "mc.don_vi_theo_ma(ma, x.get(\"dvt\")," in MA_DUNG_LAI)
 	dung("ghi lai ca that vao cho sua", "HDM-26-08-00149" in MA_DUNG_LAI)
 
 
@@ -650,7 +651,7 @@ def _():
 @ca("nan don vi cua mot ma hang chi co MOT cho tinh")
 def _():
 	dung("co ham dung chung", "def don_vi_theo_ma(" in MA_MC)
-	dung("duong tra ma hang goi ham do", "don_vi_theo_ma(mapped, uom)" in MA_MC)
+	dung("duong tra ma hang goi ham do", "don_vi_theo_ma(mapped, uom, goc_mst" in MA_MC)
 	dung("duong dung lai cung goi ham do", "mc.don_vi_theo_ma(" in MA_DUNG_LAI)
 
 
