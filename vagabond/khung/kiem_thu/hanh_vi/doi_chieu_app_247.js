@@ -5,11 +5,12 @@ const src=fs.readFileSync('vagabond/public/js/bep/21-ke-toan-khac.js','utf8');
 const ma=src.slice(src.indexOf("var tgdTim ="),src.indexOf('/* ================= CANH BAO PHUONG THUC'));
 const tai=dg.taiLieuGia(); let khung, goi=[], thongBao=[], troLai=[];
 let rows=[{ma:'BT-1',ten_ban_ghi:'BT-1',tham_chieu:'REF-1',ngay:'2026-09-09',noi_dung:'Internet',tien:100,chi:100,thu:0,tai_khoan:'MB',ly_do:''}];
-const that={document:tai,console,frame:(t,html)=>{khung=new dg.ElementGia('div');khung.innerHTML=html;tai.body.children=[khung];return khung;},h:x=>String(x||''),money:x=>String(x),hsNgayVn:x=>x,kmHangChip:x=>x,posChipNut:(a,t)=>'<button '+a+'>'+t+'</button>',busy:()=>{},toast:x=>thongBao.push(x),baoTin:x=>thongBao.push(x),hoiCo:async()=>true,go:async f=>f(),scrHoSoTTView:x=>troLai.push(x),api:async(m,a)=>{goi.push({m,a});return m.endsWith('.gan')?{loi_nhan:'Đã chọn'}:{rows,tong:rows.length};}};
+const that={document:tai,console,frame:(t,html)=>{khung=new dg.ElementGia('div');khung.innerHTML=html;tai.body.children=[khung];return khung;},h:x=>String(x||''),money:x=>String(x),hsNgayVn:x=>x,kmHangChip:x=>x,posChipNut:(a,t)=>'<button '+a+'>'+t+'</button>',busy:()=>{},toast:x=>thongBao.push(x),baoTin:x=>thongBao.push(x),hoiCo:async()=>true,go:async f=>f(),scrHoSoTTView:x=>troLai.push(x),api:async(m,a)=>{goi.push({m,a});return m.endsWith('.gan')?{loi_nhan:'Đã chọn'}:{rows,tong:rows.length,so_tien_chuyen:12345};}};
 vm.createContext(that);vm.runInContext(ma,that);
 (async()=>{
 await that.scrTimGiaoDich('APP.26.09.015',100);
 assert.equal(goi[0].m,'vagabond.doi_chieu_app.danh_sach');assert.equal(goi[0].a.name,'APP.26.09.015');
+assert(khung.innerHTML.includes('12345 đ'));assert(!tai.getElementById('tgdT'));assert.equal(that.tgdSoTien,12345);
 assert(khung.innerHTML.includes('MB'));assert(khung.innerHTML.includes('REF-1'));
 const dong=tai.querySelector('[data-tgd]'); await khung._nghe.click[0]({target:dong});
 assert.equal(goi[1].m,'vagabond.doi_chieu_app.gan');assert.equal(goi[1].a.ma_giao_dich,'BT-1');assert.equal(troLai[0],'APP.26.09.015');

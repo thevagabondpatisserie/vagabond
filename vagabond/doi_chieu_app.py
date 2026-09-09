@@ -172,10 +172,8 @@ def danh_sach(name, tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0):
 	nguon = _nguon(doc)
 	cty, tk, tien = nguon
 	bas = frappe.get_all("Bank Account", filters={"company": cty, "account": tk}, pluck="name")
-	loc = {"bank_account": ["in", bas], "docstatus": 1, "withdrawal": [">", 0], "deposit": 0,
+	loc = {"bank_account": ["in", bas], "docstatus": 1, "withdrawal": tien, "deposit": 0,
 		"date": [">=", add_days(nowdate(), -min(max(cint(so_ngay), 1), 3650))]}
-	if flt(so_tien) > 0:
-		loc["withdrawal"] = tien
 	k = str(tu_khoa or "").strip().lower()
 	rows = []
 	for r in frappe.get_all(BT, filters=loc, fields=["name", "description", "reference_number"], order_by="date desc, name desc", limit_page_length=0) if bas else []:
@@ -188,7 +186,7 @@ def danh_sach(name, tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0):
 		rows.append({"ma": g.name, "ten_ban_ghi": g.name, "ngay": str(g.date), "noi_dung": g.description,
 			"chi": g.withdrawal, "thu": 0, "tien": g.withdrawal, "tai_khoan": g.bank_account,
 			"da_gom": 1 if loi else 0, "ly_do": loi, "tham_chieu": g.reference_number})
-	return {"rows": rows[:300], "tong": len(rows), "con_nua": max(0, len(rows)-300), "sua_duoc": 1}
+	return {"rows": rows[:300], "tong": len(rows), "con_nua": max(0, len(rows)-300), "sua_duoc": 1, "so_tien_chuyen": tien}
 
 
 def _bao_tranh_chap(ham):

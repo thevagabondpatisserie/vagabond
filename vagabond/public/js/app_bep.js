@@ -35737,6 +35737,7 @@ async function scrTimGiaoDich(maHoSo, soTien) {
     });
   } catch (e) { frame('Tìm giao dịch', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
   var rows = d.rows || [];
+  if (tgdHoSo) tgdSoTien = Number(d.so_tien_chuyen) || 0;
 
   var html = '';
   if (tgdHoSo) {
@@ -35748,8 +35749,9 @@ async function scrTimGiaoDich(maHoSo, soTien) {
 
   html += '<div class="card" style="padding:12px 14px">' +
     '<input class="tin" id="tgdQ" placeholder="Tìm theo nội dung chuyển khoản hoặc mã giao dịch" value="' + h(tgdTim) + '" style="margin:0">' +
-    '<div class="vxl">Lọc đúng số tiền (để 0 là bỏ lọc)</div>' +
-    '<input class="tin" id="tgdT" type="tel" inputmode="numeric" style="margin:0;text-align:right" value="' + (tgdSoTien ? money(tgdSoTien) : '') + '" placeholder="0"></div>';
+    (tgdHoSo ? '<div class="vxl">Khoản phải chuyển của hồ sơ</div><b>' + money(tgdSoTien) + ' đ</b>' :
+      '<div class="vxl">Lọc đúng số tiền (để 0 là bỏ lọc)</div>' +
+      '<input class="tin" id="tgdT" type="tel" inputmode="numeric" style="margin:0;text-align:right" value="' + (tgdSoTien ? money(tgdSoTien) : '') + '" placeholder="0">') + '</div>';
 
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     [[30, '30 ngày'], [120, '4 tháng'], [365, '1 năm'], [1200, 'Tất cả']].map(function (x) {
@@ -35758,7 +35760,7 @@ async function scrTimGiaoDich(maHoSo, soTien) {
   ) + '</div>';
 
   html += '<div class="sec">' + d.tong + ' giao dịch khớp bộ lọc</div><div class="card">';
-  if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🏦</div><div>Không có giao dịch nào khớp. Nới bộ lọc ngày hoặc bỏ lọc số tiền.</div></div>';
+  if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🏦</div><div>Không có giao dịch nào khớp. ' + (tgdHoSo ? 'Nới bộ lọc ngày; nếu chuyển tách lần hoặc có phí, kế toán dùng Đối chiếu ngân hàng.' : 'Nới bộ lọc ngày hoặc bỏ lọc số tiền.') + '</div></div>';
   rows.forEach(function (r) {
     html += '<div class="hub" data-tgd="' + h(r.ten_ban_ghi || r.ma) + '" data-tgdt="' + Math.round(r.tien) + '">' +
       '<div class="hub-i" style="background:' + (r.thu > 0 ? '#f0fdf4' : '#fef2f2') + '">' + (r.thu > 0 ? '⬇️' : '⬆️') + '</div>' +

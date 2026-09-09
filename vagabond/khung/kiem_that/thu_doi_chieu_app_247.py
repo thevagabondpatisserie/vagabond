@@ -202,8 +202,11 @@ def _go_loi():
 @ca("#247 lọc đúng khoản phải chuyển ở máy chủ dù client gửi số cũ")
 def _loc_tien():
 	h, g = _nen()
-	r = dc.danh_sach(h.name, so_tien=1)
-	dung("vẫn thấy dòng đúng", any(x["ma"] == g.name for x in r["rows"]))
+	for tien_cu in (1, 0, -1, None):
+		r = dc.danh_sach(h.name, so_tien=tien_cu)
+		dung("vẫn thấy dòng đúng", any(x["ma"] == g.name for x in r["rows"]))
+		la("UI nhận khoản phải chuyển từ máy chủ", r["so_tien_chuyen"], 12345)
+		dung("mọi dòng đều đúng khoản phải chuyển", all(float(x["tien"]) == 12345 for x in r["rows"]))
 
 
 @ca("#247 tranh chấp trả câu tiếng Việt và vẫn ném lỗi để POST rollback")
