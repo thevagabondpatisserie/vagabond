@@ -2,6 +2,33 @@
   "source": "Desk Custom Field/DocType/DocField/DocPerm, SELECT only, 2026-09-09; subset required by CI48/CI51, not a complete site schema or workflow export. No production writes.",
   "fields": [
     {
+      "dt": "Batch",
+      "fieldname": "custom_lenh_san_xuat",
+      "label": "Lệnh sản xuất",
+      "fieldtype": "Link",
+      "options": "Work Order",
+      "reqd": 0,
+      "read_only": 0
+    },
+    {
+      "dt": "Sales Invoice",
+      "fieldname": "vgb_lan_sua",
+      "label": "Số lần sửa",
+      "fieldtype": "Int",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1
+    },
+    {
+      "dt": "User",
+      "fieldname": "custom_kho_phu_trach",
+      "label": "Kho phụ trách (được xuất hàng)",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 0
+    },
+    {
       "dt": "Item",
       "fieldname": "custom_bep_phu_trach",
       "label": "Bếp phụ trách",

@@ -27,7 +27,9 @@ const {chromium} = require('playwright');
     const doi = p.waitForResponse(r => r.url().includes('/api/method/vagabond.kho_san_xuat.hoan_tat_phieu'), {timeout: 60000});
     await p.locator('.sh [data-y]').click();
     const r = await doi;
-    if (!r.ok() || !(await r.json()).message) throw new Error('Hoàn tất sản xuất thất bại');
+    const body = await r.json();
+    ket.phan_hoi_hoan_tat = {status: r.status(), body};
+    if (!r.ok() || !body.message) throw new Error('Hoàn tất sản xuất thất bại: ' + (body.exception || JSON.stringify(body)));
     // Có thành phẩm theo lô thì app mở màn in tem; không bấm in thật.
     await p.locator('#mlGo').waitFor({timeout: 60000});
     await p.screenshot({path: path.join(dich, 'san-xuat-tem.png'), fullPage: true});

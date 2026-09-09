@@ -202,3 +202,16 @@ không sao chép tài khoản/email công ty và không gửi welcome email.
 kiểm Kế toán thấy hồ sơ fixture và ba vai còn lại bị chặn đúng lý do.
 Đây mới là kiểm quyền đọc danh sách tài chính, chưa thay UAT ghi chứng từ
 theo từng vai hoặc kiểm các tổ hợp quyền nhân viên thật. Cần runtime CI.
+## CI52: thanh toán UI và dữ liệu đạt
+
+Run34376822980 trên9d66981:141/141 x2 sạch. Nhận hàng, Vận đơn và Thanh toán
+đạt browser+DB. Thanh toán đi qua hủy PE trên Desk, bỏ đối chiếu, về Đã duyệt,
+ghi nhận lại bằng PE mới; đúng BT/reference/GL12345 và công nợ0.
+Artifact10114681564 có SHA256
+`bb28597c755c40b5c2d5d32c55866ad3afdb9f59999648f445e699246f1d1c14`.
+
+Còn lỗi schema User.custom_kho_phu_trach, Batch.custom_lenh_san_xuat,
+SI.vgb_lan_sua. Đã đọc SELECT metadata site và thêm đúng cấu trúc vào snapshot.
+Sản xuất còn trả417 tại hoan_tat_phieu, chưa biết nguyên nhân vì driver cũ
+short-circuit trước r.json(), đóng trang khi body chưa vào trace. Driver mới
+đọc/lưu body trước kiểm status. Không nhận thêm schema là đã sửa lỗi sản xuất.
