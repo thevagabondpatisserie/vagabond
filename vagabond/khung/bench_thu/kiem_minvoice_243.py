@@ -54,6 +54,17 @@ def _cau_hinh():
                       ('Vagabond Settings','pancake_api_key'),
                       ('MInvoice Phat Hanh Settings','api2_password')):
         set_encrypted_password(dt,dt,'mat-khau-gia',field)
+    # Lưu Single theo cửa Document như cấu hình ở Desk, rồi đọc lại cả
+    # trường thường và mật khẩu. Không đợi script nuốt mất lỗi nền.
+    st = frappe.get_doc('MInvoice Phat Hanh Settings')
+    st.api2_base = 'https://minvoice.invalid'
+    st.api2_username = 'kiem'
+    st.api2_password = 'mat-khau-gia'
+    st.save(ignore_permissions=True)
+    st = frappe.get_doc('MInvoice Phat Hanh Settings')
+    _bang('base phát hành đọc lại', st.api2_base, 'https://minvoice.invalid')
+    _bang('user phát hành đọc lại', st.api2_username, 'kiem')
+    _bang('mật khẩu giả đọc lại', bool(st.get_password('api2_password', raise_exception=False)), True)
     for ten, loai, _cu, _sua in kich_ban.BO:
         ma = frappe.db.get_value('Server Script',ten,'script')
         _bang('script đã migrate '+loai, ma, kich_ban.ban_moi(loai))
