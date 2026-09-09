@@ -112,3 +112,28 @@ nhánh kia. CI5304ec4 trước đó chạy107/107 hai lượt, sạch rollback; 
 bằng chứng SHA cũ, không thay kiểm trên nền main mới. Runner browser nay
 thu kết quả từng cửa riêng ngay cả khi một cửa lỗi, và vẫn trả exit1 nếu
 bất kỳ cửa nào lỗi. Không dùng việc chạy tiếp làm miễn trừ cổng.
+
+## Đường UI cho hai ca tiếp theo
+
+Đã đọc trên main5bd5d4e và nhánh35f2c85:
+
+- Hàng tặng: `/duyet-don-hang-tang`, mở `[data-dtgm]`, bấm
+  `[data-dtgok]`, nhập `#hqIn`, xác nhận `[data-hqok]` gọi
+  `hang_tang.duyet`. Cửa này chỉ duyệt, chưa ghi sổ.
+- `/hoa-don-ban` mở `[data-hdb]` tới `scrDsView` trong
+  `08-doanh-so-sales.js`. `#dsvChot` lưu thông tin người mua rồi gọi
+  `ban_hang.chot_mot_don`. Cửa này cần custom_pancake_id kể cả khi nguồn
+  Sales không phải Pancake; fixture phải dựng đúng dữ liệu, không sửa request.
+- `chot_mot_don` submit/commit rồi gọi `_tu_xuat_hddt`. Không thay helper
+  này bằng mock thành công. Ca kiểm phát hành phải có HTTP stub M-Invoice
+  và kiểm payload; ca chỉ ghi sổ phải ghi rõ chưa kiểm phát hành, dùng cấu
+  hình site thử tắt tự xuất. Mọi đường vẫn giữ khoá kết nối ngoài.
+- Ca tặng dùng bánh từ ca hoàn tất sản xuất, kiểm SLE và 64181 theo giá
+  1.000 mỗi bánh, tách VAT vào64182/33311; không lấy giá bán làm giá vốn.
+  Kiểm sản xuất phải chạy trước khi tặng thay đổi tồn của cùng món.
+- PR250 tại047c024 vẫn Draft/chưa merge, còn xung đột với main tại lúc
+  kiểm. Ca hủy/bỏ đối chiếu cần tích hợp nhánh đó trước khi nghiệm thu trạng
+  thái mới. Không nhận main đã có nhãn Đã duyệt, cần kiểm tra lại và không
+  viết một bản sửa trạng thái song song trong PR258.
+
+Các mục trên mới là đường mã đã xác minh, chưa phải ca browser đã viết/chạy.
