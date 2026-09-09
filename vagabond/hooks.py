@@ -526,6 +526,7 @@ doc_events = {
 			# thong. Dat o before_validate vi ERPNext tinh lai tong tien SAU
 			# buoc nay - cung ly do voi hook ngay tren.
 			"vagabond.dung_lai_hddt.dong_bo_luc_luu",
+			"vagabond.do_chinh_xac_mua.truoc_khi_tinh",
 			# Cau bao tieng Viet khi ngay don mua muon hon ngay hoa don. Xem
 			# ghi chu cung ten o khoi Purchase Receipt phia tren.
 			"vagabond.ngay_don_mua.bao_ngay_don_mua",

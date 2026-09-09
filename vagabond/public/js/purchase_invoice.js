@@ -105,17 +105,37 @@ function vgbGoNutLayMatHang(frm) {
 }
 
 async function vgbTaiKhoanDichVu(frm) {
+	var lan = frm._vgb_lan_tai_khoan_dich_vu = (frm._vgb_lan_tai_khoan_dich_vu || 0) + 1;
 	if (frm.doc.docstatus !== 0 || frm.doc.vgb_loai_chung_tu !== 'Mua dịch vụ' || !frm.doc.vgb_tk_chi_phi) return;
-	var tk = frm.doc.vgb_tk_chi_phi;
+	var phieu = frm.doc, tk = phieu.vgb_tk_chi_phi;
 	var ds = (frm.doc.items || []).map(function (d) { return {name:d.name, item_code:d.item_code}; });
+	function conDung() {
+		return frm.doc === phieu && frm._vgb_lan_tai_khoan_dich_vu === lan &&
+			phieu.docstatus === 0 && phieu.vgb_tk_chi_phi === tk && phieu.vgb_loai_chung_tu === 'Mua dịch vụ';
+	}
+	var cacMa = Array.from(new Set(ds.map(function (d) { return d.item_code; }).filter(Boolean)));
+	var loaiMon = new Map();
+	/* frappe/client.py:get_list có kiểm quyền và mặc định chỉ20 bản ghi.
+	   Tra mỗi mã một lần, chia100 mã/POST để929 dòng không thành929 request
+	   hoặc URL quá dài. Thiếu quyền/metadata thì giữ dòng cho máy chủ kiểm. */
+	for (var i = 0; i < cacMa.length; i += 100) {
+		var lo = cacMa.slice(i, i + 100);
+		var kq = await frappe.call({method:'frappe.client.get_list', type:'POST', args:{
+			doctype:'Item', fields:['name', 'is_stock_item'], filters:{name:['in', lo]},
+			limit_page_length:lo.length
+		}});
+		if (!conDung() || !kq || !Array.isArray(kq.message)) return;
+		kq.message.forEach(function (m) {
+			if (lo.indexOf(m.name) !== -1 && (m.is_stock_item === 0 || m.is_stock_item === '0')) loaiMon.set(m.name, 0);
+		});
+	}
 	for (var d of ds) {
-		var kho = d.item_code ? await frappe.db.get_value('Item', d.item_code, 'is_stock_item') : null;
-		if (frm.doc.docstatus !== 0 || frm.doc.vgb_tk_chi_phi !== tk || frm.doc.vgb_loai_chung_tu !== 'Mua dịch vụ') return;
+		if (!conDung()) return;
 		var dong = (frm.doc.items || []).find(function (r) { return r.name === d.name && r.item_code === d.item_code; });
-		if (!dong || dong.purchase_receipt || (kho && kho.message && kho.message.is_stock_item)) continue;
+		if (!dong || dong.purchase_receipt || (d.item_code && !loaiMon.has(d.item_code))) continue;
 		await frappe.model.set_value(dong.doctype, dong.name, 'expense_account', tk);
 	}
-	frm.refresh_field('items');
+	if (conDung()) frm.refresh_field('items');
 }
 
 frappe.ui.form.on('Purchase Invoice', {
