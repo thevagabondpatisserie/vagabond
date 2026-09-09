@@ -297,3 +297,22 @@ không đọc nguồn; header chốt khi trả JSON, không áp dụng suy luậ
 Mức tải là tổng hợp, Hồ sơ chỉ nháp, chưa đại diện trạng thái hỗn hợp/site.
 Các benchmark độc lập tiếp tục khi một màn đo hỏng, nhưng CI cuối vẫn đỏ.
 Chưa runtime bản gộp; chưa kết luận tăng tốc hoặc giảm số chạm thực tế.
+
+
+## CI58: đủ60lượt, hoàn thiện hợp đồng nguồn trước tối ưu
+
+Artifact10119611564 SHA256
+`1b99e47c746ad60b5243650999886eccc944b281b3da43378d148912f34c366a`,
+SHA c1de8099726674aefa3a10e7fd8f3fba33a343ec. Cả60lượt đo đạt.
+Mobile medianVD100/500=308.1/599.4ms, HS300/1=430.2/295.7ms.
+Bao driver/đối chiếu, chưa là số production hay chứng minh đã tăng tốc.
+
+KB50/200 lượt đầu có52/152lần gọi nguồn, lần sau0: loopbùảnh tra từng mã,
+cache6giờ giữ50mã dùng chung giữa hai tải. Stubcũ chưa hỗ trợ variations,
+helpercatchrồi fallbackDB nên chưa phải mô phỏng source hoàn chỉnh.
+Bổ sung danh mục tổng hợp có tên/khôngảnh cho đúng200mã thử. Mọi lời gọi
+ngoài hợp đồng (kể cả khôngGET) ghi vết trước raise để helpercatchkhôngche.
+Tổng hợp cuối CI yêu cầu60lượt đủ, SHAđịnhdạng hợp lệ và lognguồn khôngngoài
+hợp đồng. Provenance vẫn cần đối chiếu hashartifactnguyênbộ, công cụ không
+phát hiện trộn file thủ công. Báo cáo nhóm theo tải/khổ/số lần nguồn,
+min/trungvị/max, không p95 với5mẫu. Chưa runtimebảnbổsung.

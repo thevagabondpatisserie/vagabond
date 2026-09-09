@@ -51,4 +51,8 @@ if [[ "$hong" == 0 ]]; then
     fi
   done
 fi
+if [[ "$hong" == 0 ]]; then
+  cd "$GITHUB_WORKSPACE"
+  python3 -m vagabond.khung.staging.tong_hop_do "$VGB_ARTIFACTS" || hong=1
+fi
 exit "$hong"

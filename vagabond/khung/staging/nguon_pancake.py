@@ -1,5 +1,6 @@
 """Nguồn HTTP giả lập #257, không thay hàm đồng bộ, ngày, cache hoặc DB."""
 import json
+import re
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -11,6 +12,14 @@ def tra(url, params, don):
         raise ValueError('Không phải URL nguồn thử đã khai.')
     if params.get('api_key') != 'THU257':
         raise ValueError('Không phải khoá thử.')
+    if p.path == '/api/v1/shops/THU257/products/variations':
+        ma = params.get('search', '')
+        if not re.fullmatch(r'BAWSDO257(?:0[0-9]{2}|1[0-9]{2})', ma) or int(params.get('page_size', 0)) != 5:
+            raise ValueError('Tra danh mục ngoài các mã tải thử đã khai.')
+        # Danh mục tổng hợp có tên nhưng chưa có ảnh. Không dùng exception
+        # bị helper nuốt làm mô phỏng "không có ảnh" như CI58 trước đó.
+        return {'success': True, 'data': [{'display_id': ma,
+            'name': 'Bánh thử kiểm đếm ' + ma[-3:], 'images': [], 'product': {}}]}
     if p.path == goc + '/' + don['id']:
         return {'success': True, 'data': don}
     truong_ngay = params.get('updateStatus')
@@ -29,11 +38,18 @@ def gan(don, tep_log):
     """Chỉ gateway CI đã kiểm khoá gọi hàm này, không cài hook production."""
     import requests
     def gui(session, method, url, **kw):
-        if method.upper() != 'GET':
-            raise RuntimeError('Nguồn thử không cho ghi ra ngoài.')
         from vagabond.khung.staging.do_truy_van import ghi_goi_nguon
         ghi_goi_nguon()
-        body = tra(url, kw.get('params') or {}, don)
+        try:
+            if method.upper() != 'GET':
+                raise RuntimeError('Nguồn thử không cho ghi ra ngoài.')
+            body = tra(url, kw.get('params') or {}, don)
+        except Exception:
+            # Helper nghiệp vụ có thể catch lỗi; artifact vẫn phải giữ vết
+            # để gate không nhận nguồn chưa mô phỏng là kiểm đầy đủ.
+            with tep_log.open('a') as f:
+                f.write(json.dumps({'duong': urlparse(url).path, 'method': method.upper(), 'ngoai_hop_dong': True}) + '\n')
+            raise
         with tep_log.open('a') as f:
             f.write(json.dumps({'duong': urlparse(url).path,
                                 'so_don': len(body['data']) if isinstance(body['data'], list) else 1}) + '\n')
