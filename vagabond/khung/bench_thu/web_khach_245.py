@@ -48,7 +48,10 @@ def chay():
             chan('Không âm thầm đổi yêu cầu đã xác nhận',phieu.save)
             phieu.reload();phieu.trang_thai='Chờ xác nhận'
             chan('Không chuyển ngược trạng thái',phieu.save)
-        kh = frappe.get_doc({'doctype':'Customer','customer_name':'Khách bench thành viên 245','customer_type':'Individual','customer_group':'All Customer Groups','territory':'All Territories','mobile_no':'0912345678','vgb_diem':999999}).insert()
+        nhom = frappe.db.get_value('Customer Group', {'is_group': 0}, 'name')
+        if not nhom:
+            nhom = frappe.get_doc({'doctype':'Customer Group','customer_group_name':'Khách bench web 245','parent_customer_group':'All Customer Groups','is_group':0}).insert().name
+        kh = frappe.get_doc({'doctype':'Customer','customer_name':'Khách bench thành viên 245','customer_type':'Individual','customer_group':nhom,'territory':'All Territories','mobile_no':'0912345678','vgb_diem':999999}).insert()
         frappe.get_doc({'doctype':'Vagabond So Diem','khach':kh.name,'ngay':frappe.utils.now_datetime(),'loai':'So du dau ky','diem':25000}).insert()
         token='bench-only-web245-token'
         frappe.get_doc({'doctype':'Vagabond Phien Khach','sdt':'84912345678','token_bam':dang_nhap._bam(token),'het_han':frappe.utils.add_days(frappe.utils.now_datetime(),1)}).insert()
