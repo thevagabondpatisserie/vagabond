@@ -2130,40 +2130,28 @@ def _sepay_theo_ma_app(ds_ma):
 	trừ deposit. Kế toán chuyển khoản với nội dung chứa mã APPxxxxxx thì
 	SePay đẩy về Bank Transaction, máy tự khớp.
 	"""
-	# So tren ban DA BO dau cham: ngan hang hay cat bot dau khi day noi dung
-	# di, "APP.26.08.027" ve toi SePay co the thanh "APP2608027" hay
-	# "APP 26 08 027". Truy van SQL vi vay chi loc tho theo "APP" roi doi
-	# chieu chinh xac bang Python.
-	tran = {}
-	for m in ds_ma or []:
-		g = RE_MA_APP.fullmatch(str(m or "").strip().upper()) or RE_MA_TRAN.fullmatch(_tran(m))
-		if g:
-			tran["APP" + "".join(g.groups())] = str(m).strip()
-	if not tran:
+	from vagabond.khop_sao_ke import co_ma
+
+	ds = list(dict.fromkeys(str(m).strip() for m in ds_ma or [] if m))
+	if not ds:
 		return {}
-	try:
-		gds = frappe.db.sql(
-			"""select description, deposit, withdrawal, reference_number, date
-			from `tabBank Transaction`
-			where docstatus < 2 and description like %s""",
-			("%APP%",), as_dict=True,
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc SePay theo ma ho so")
-		return {}
+	gds = frappe.db.sql(
+		"""select name, description, deposit, withdrawal, reference_number, date
+		from `tabBank Transaction`
+		where docstatus = 1 and withdrawal > 0 and ifnull(deposit, 0) = 0
+		and (description like %s or reference_number like %s)""",
+		("%APP%", "%APP%"), as_dict=True,
+	)
 	ra = {}
 	for g in gds:
-		for k in RE_MA_TRAN.findall(_tran(g.get("description"))):
-			khoa = "APP" + "".join(k)
-			ten = tran.get(khoa)
-			if not ten:
+		for ten in ds:
+			if not (co_ma(g.get("description"), ten) or co_ma(g.get("reference_number"), ten)):
 				continue
 			o = ra.setdefault(ten, {"chi": 0.0, "so_gd": 0, "ma_gd": "", "ngay": None})
-			o["chi"] += flt(g.get("withdrawal")) - flt(g.get("deposit"))
+			o["chi"] += flt(g.get("withdrawal"))
 			o["so_gd"] += 1
 			if not o["ma_gd"]:
-				o["ma_gd"] = (g.get("reference_number") or "").strip()
-			if not o["ngay"]:
+				o["ma_gd"] = g.get("name") or ""
 				o["ngay"] = str(g.get("date") or "")
 	return ra
 
@@ -2182,7 +2170,12 @@ def kiem_sepay(name=None):
 			limit_page_length=0,
 		)
 	ds = [d for d in ds if d]
-	g = _sepay_theo_ma_app([d["name"] for d in ds])
+	from vagabond import doi_chieu_app
+	g = {}
+	for d in ds:
+		gd = doi_chieu_app.chon(frappe.get_doc("Vagabond Ho So TT", d["name"]))
+		if gd:
+			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": 1, "ma_gd": gd.name, "ngay": str(gd.date)}
 	ra = []
 	for d in ds:
 		o = g.get(d["name"]) or {}
@@ -2331,6 +2324,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 
 	ly_do = (ly_do_som or "").strip()
 	da_chi = 0.0
+	gd_doi_chieu = None
+	from vagabond import doi_chieu_app
 	if phai_chuyen > 0:
 		if not du_unc(dem_unc(doc.name)):
 			frappe.throw(loi_thieu_unc(doc.name), title="Chưa có uỷ nhiệm chi")
@@ -2347,7 +2342,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 		# So voi so THAT SU chuyen di (`con_lai`), khong phai tong tien. Cai
 		# bay `flt(con_lai) or flt(tong_tien)` cua v413 da bo o v445: so 0 la
 		# so hop le, khong phai "chua co so" (Codex #225 R4).
-		da_chi = flt((_sepay_theo_ma_app([doc.name]).get(doc.name) or {}).get("chi"))
+		gd_doi_chieu = doi_chieu_app.chon(doc, ma_giao_dich, khoa=True)
+		da_chi = flt(gd_doi_chieu.withdrawal) if gd_doi_chieu else 0.0
 		if not duyet_chi.sepay_du(phai_chuyen, da_chi):
 			if not (ly_do and (duyet_chi.VAI_BO_QUA_SEPAY & set(frappe.get_roles()))):
 				frappe.throw(
@@ -2385,6 +2381,9 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 				title="Bút toán vừa sinh chưa khớp",
 			)
 
+	if gd_doi_chieu:
+		doi_chieu_app.noi_but_toan(doc, gd_doi_chieu)
+		ma_giao_dich = gd_doi_chieu.name
 	doc.trang_thai = TT_DA_TRA
 	doc.ngay_thanh_toan = ngay or nowdate()
 	# CHI GHI DE KHI NGUOI TA THUC SU GO MA.
@@ -3902,6 +3901,9 @@ def gan_giao_dich(name, ma_giao_dich, dong=None):
 	dong: idx của dòng cần gán. Bỏ trống thì gán vào ô mã giao dịch của cả
 	hồ sơ (dùng cho hồ sơ đã thanh toán mà mã cũ không dò ra).
 	"""
+	if not dong:
+		from vagabond.doi_chieu_app import gan
+		return gan(name, ma_giao_dich)
 	_kiem(VAI_FIN, "gán mã giao dịch")
 	ma_gd = (ma_giao_dich or "").strip()
 	if not ma_gd:

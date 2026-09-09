@@ -554,12 +554,12 @@ async function scrButToanXem(ma) {
 var tgdTim = '', tgdSoTien = 0, tgdNgay = 120, tgdChuaGom = 0, tgdHoSo = '';
 
 async function scrTimGiaoDich(maHoSo, soTien) {
-  if (maHoSo !== undefined) { tgdHoSo = maHoSo || ''; tgdSoTien = Math.round(soTien || 0); }
+  if (maHoSo !== undefined) { tgdHoSo = maHoSo || ''; tgdSoTien = Math.round(soTien || 0); tgdTim = ''; tgdNgay = 120; tgdChuaGom = 0; }
   frame('Tìm giao dịch', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sao kê...</div></div>');
   var d;
   try {
-    d = await api('vagabond.ho_so_tt.tim_giao_dich', {
-      tu_khoa: tgdTim, so_ngay: tgdNgay, so_tien: tgdSoTien || '', chi_chua_gom: tgdChuaGom ? 1 : 0
+    d = await api(tgdHoSo ? 'vagabond.doi_chieu_app.danh_sach' : 'vagabond.ho_so_tt.tim_giao_dich', {
+      ...(tgdHoSo ? { name: tgdHoSo } : {}), tu_khoa: tgdTim, so_ngay: tgdNgay, so_tien: tgdSoTien || '', chi_chua_gom: tgdChuaGom ? 1 : 0
     });
   } catch (e) { frame('Tìm giao dịch', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
   var rows = d.rows || [];
@@ -586,11 +586,11 @@ async function scrTimGiaoDich(maHoSo, soTien) {
   html += '<div class="sec">' + d.tong + ' giao dịch khớp bộ lọc</div><div class="card">';
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🏦</div><div>Không có giao dịch nào khớp. Nới bộ lọc ngày hoặc bỏ lọc số tiền.</div></div>';
   rows.forEach(function (r) {
-    html += '<div class="hub" data-tgd="' + h(r.ma) + '" data-tgdt="' + Math.round(r.tien) + '">' +
+    html += '<div class="hub" data-tgd="' + h(r.ten_ban_ghi || r.ma) + '" data-tgdt="' + Math.round(r.tien) + '">' +
       '<div class="hub-i" style="background:' + (r.thu > 0 ? '#f0fdf4' : '#fef2f2') + '">' + (r.thu > 0 ? '⬇️' : '⬆️') + '</div>' +
       '<div class="hub-t"><div class="t1" style="font-size:14px">' + h(r.noi_dung || '(không có nội dung)') + '</div>' +
-      '<div class="t2">' + hsNgayVn(String(r.ngay).slice(0, 10)) + ' · ' + h(r.ma) + '</div>' +
-      (r.da_gom ? '<div class="t2"><span class="vxtag c">đã nằm trong một hồ sơ</span></div>' : '') +
+      '<div class="t2">' + hsNgayVn(String(r.ngay).slice(0, 10)) + ' · ' + h(r.ma) + '</div><div class="t2">' + h(r.tai_khoan || '') + (r.tham_chieu ? ' · ' + h(r.tham_chieu) : '') + '</div>' +
+      (r.da_gom ? '<div class="t2"><span class="vxtag c">' + h(r.ly_do || 'đã nằm trong một hồ sơ') + '</span></div>' : '') +
       '</div><b style="white-space:nowrap;color:' + (r.thu > 0 ? '#15803d' : '#b3261e') + '">' + money(r.tien) + ' đ</b></div>';
   });
   if (d.con_nua) html += '<div style="padding:10px 14px;font-size:12.5px;color:#6b7280">Còn ' + d.con_nua + ' giao dịch nữa, lọc bớt để thấy hết.</div>';
@@ -611,12 +611,14 @@ async function scrTimGiaoDich(maHoSo, soTien) {
     var r = e.target.closest('[data-tgd]'); if (!r) return;
     if (!tgdHoSo) return baoTin('Vào hồ sơ cần khớp rồi bấm nút Khớp tay giao dịch, màn này sẽ biết gán vào đâu.');
     var ma = r.getAttribute('data-tgd');
+    var dong = rows.find(function (x) { return (x.ten_ban_ghi || x.ma) === ma; });
+    if (dong && dong.ly_do) return baoTin(dong.ly_do);
     var tien = +r.getAttribute('data-tgdt') || 0;
     if (!await hoiCo('Khớp tay giao dịch',
       'Gán giao dịch ' + ma + ' (' + money(tien) + ' đ) vào hồ sơ ' + tgdHoSo + '?\n\n' +
-      'Chỉ ghi mã giao dịch lên hồ sơ để sau này còn tra. Không sinh bút toán, không đụng vào sổ.', 'Gán')) return;
+      'Hồ sơ chờ thanh toán: lưu giao dịch đã chọn, sau đó đính UNC và ghi nhận. Hồ sơ đã thanh toán: đối chiếu với bộ bút toán hiện có.', 'Gán')) return;
     busy(true);
-    try { var kq = await api('vagabond.ho_so_tt.gan_giao_dich', { name: tgdHoSo, ma_giao_dich: ma }); busy(false); toast(kq.loi_nhan, 5000); }
+    try { var kq = await api('vagabond.doi_chieu_app.gan', { name: tgdHoSo, ma_giao_dich: ma }); busy(false); toast(kq.loi_nhan, 5000); }
     catch (er) { busy(false); return baoTin((er && er.message) || 'Gán lỗi'); }
     var hs = tgdHoSo; tgdHoSo = '';
     go(function () { scrHoSoTTView(hs); }, true);

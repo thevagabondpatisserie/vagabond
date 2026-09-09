@@ -2200,7 +2200,7 @@ async function scrHoSoTTView(name) {
     nut.push('<button class="btn gh" data-hsv="sepay" style="flex:1">🏦 Dò SePay</button>');
     nut.push('<button class="btn" data-hsv="datra" style="flex:2">💸 Ghi nhận đã thanh toán</button>');
   }
-  if (Q.fin && hs.trang_thai === 'Da thanh toan' && !hs.ma_giao_dich) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Khớp tay giao dịch</button>');
+  if (Q.fin && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Đối chiếu tay</button>');
   if ((Q.fin || Q.gd) && ['Cho ke toan', 'Cho giam doc', 'Da duyet'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="tu_choi" style="flex:1">⛔ Từ chối</button>');
   if (Q.lap && ['Nhap', 'Tu choi'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="huy" style="flex:1">🗑 Huỷ</button>');
   var foot = nut.length ? '<div style="display:flex;gap:8px">' + nut.join('') + '</div>' : '';
@@ -2285,7 +2285,7 @@ async function hsGoBanTheHien(hs, hoaDon, tep, ten) {
    dinh len day - mot thao tac chac chan, hon la mot nhip tu dong khong bao
    gio chay. */
 async function hsHanh(k, hs) {
-  if (k === 'khoptay') return go(function () { scrTimGiaoDich(hs.ma, hs.tong_tien); });
+  if (k === 'khoptay') return go(function () { scrTimGiaoDich(hs.ma, hs.con_lai == null ? hs.tong_tien : hs.con_lai); });
   if (k === 'noidungck') {
     busy(true);
     var ck;
@@ -2366,7 +2366,7 @@ async function hsHanh(k, hs) {
       'Hồ sơ này có trừ tạm ứng ' + money(hs.da_tam_ung) + ' đ.\n\n' +
       'Máy chỉ sinh bút toán chi ' + money(hs.tong_tien) + ' đ để xoá công nợ, KHÔNG tự bù trừ phần tạm ứng ' +
       '(máy không biết bút toán tạm ứng nào là của khoản này).\n\nChị Dung phải bù trừ tay phần đó bên Next. Tiếp tục?')) return;
-    var mgd = await hoiNhap('Mã giao dịch ngân hàng (bỏ trống cũng được):', hs.ma_giao_dich || '') || '';
+    var mgd = hs.ma_giao_dich || ''; /* Mã lấy từ danh mục sao kê, không gõ tự do. */
     busy(true);
     try {
       var kq2 = await api('vagabond.ho_so_tt.danh_dau_da_tra', { name: hs.ma, ma_giao_dich: mgd });

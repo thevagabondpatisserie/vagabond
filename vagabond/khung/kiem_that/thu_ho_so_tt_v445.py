@@ -106,6 +106,7 @@ def _giao_dich_ngan_hang(ma_ho_so, tien, cty):
 	g.flags.ignore_permissions = True
 	g.insert(ignore_permissions=True)
 	_DA_TAO.append((g.doctype, g.name))
+	g.submit()
 	return g
 
 
@@ -285,7 +286,7 @@ def _r1_tron_luot():
 	so_pe_truoc = frappe.db.count("Payment Entry")
 
 	kq = khong_nem("ghi nhận đã thanh toán lượt 1",
-		lambda: hs.danh_dau_da_tra(ho.name, ma_giao_dich="FT-KIEMTHAT", gui_thu=0))
+		lambda: hs.danh_dau_da_tra(ho.name, gui_thu=0))
 	if not kq:
 		return
 	for t in (kq.get("but_toan") or "").split(", "):
