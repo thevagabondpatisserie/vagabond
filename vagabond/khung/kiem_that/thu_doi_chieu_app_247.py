@@ -273,6 +273,9 @@ def _kiem_mo_lai(h):
 	ct = hs.chi_tiet(h.name)["ho_so"]
 	la("chi tiết cùng trạng thái", ct["trang_thai"], "Da duyet")
 	la("chi tiết không còn tiền đã trả", ct["da_tra"], 0)
+	canh_bao = next(r for r in ds["rows"] if r["name"] == h.name)["canh_bao_doi_chieu"]
+	dung("cảnh báo cố định không chuyển thêm tiền", "không tự chuyển tiền thêm" in canh_bao)
+	la("danh sách và chi tiết cùng nguồn cảnh báo", ct["canh_bao_doi_chieu"], canh_bao)
 
 
 @ca("#247 mở lại sau huỷ, ghi nhận lại cùng hồ sơ và retry không ghi đôi hay gửi thư lần nữa")
@@ -301,6 +304,7 @@ def _ghi_lai():
 		la("không gọi gửi thư", gui.call_count, 0)
 	bo = hs._but_toan_cua_ho_so(h.name)
 	la("đúng một PE hiệu lực", len(bo), 1)
+	la("ghi nhận lại xong thì hết cảnh báo", hs.chi_tiet(h.name)["ho_so"]["canh_bao_doi_chieu"], "")
 	dung("PE mới khác PE huỷ", bo[0]["name"] != cu["name"])
 	la("PE huỷ vẫn còn", frappe.db.get_value(cu["doctype"], cu["name"], "docstatus"), 2)
 	_bi_chan(lambda: dc.bo(h.name), "Sao kê còn liên kết")

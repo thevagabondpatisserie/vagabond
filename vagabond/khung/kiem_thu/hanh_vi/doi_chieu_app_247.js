@@ -19,6 +19,9 @@ await that.scrTimGiaoDich('APP.26.09.016',100); await khung._nghe.click[0]({targ
 assert.equal(goi.length,1);assert.equal(thongBao.at(-1),'Đã dùng ở APP khác');
 that.tgdTim='loc-cu';await that.scrTimGiaoDich('APP.26.09.017',200);assert.equal(goi.at(-1).a.tu_khoa,'');assert.equal(goi.at(-1).a.so_tien,200);
 const hsSrc=fs.readFileSync('vagabond/public/js/bep/19-ho-so-tt.js','utf8');
+vm.runInContext(hsSrc.slice(hsSrc.indexOf('function hsCanhBaoDoiChieu('),hsSrc.indexOf('async function hsHanh(')),that);
+assert(that.hsCanhBaoDoiChieu({canh_bao_doi_chieu:'Đã huỷ bút toán - không chuyển tiền thêm'}).includes('không chuyển tiền thêm'));
+assert.equal(that.hsCanhBaoDoiChieu({}), '');
 const batDau=hsSrc.indexOf('async function hsHanh(');
 const tiep=hsSrc.slice(batDau+1).search(/\n(?:async )?function /);
 vm.runInContext(hsSrc.slice(batDau,batDau+1+tiep),that);

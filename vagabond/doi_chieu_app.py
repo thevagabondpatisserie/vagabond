@@ -288,3 +288,16 @@ def kiem_luu(doc):
 		chon(doc, ma, khoa=True)
 	elif ma_cu:
 		doc.add_comment("Comment", "Bỏ đối chiếu giao dịch %s sau khi kiểm không còn liên kết và bút toán đã ghi sổ." % ma_cu)
+
+
+
+def canh_bao_mo_lai(ds):
+	"""Một nguồn cảnh báo cho danh sách/chi tiết, đọc theo lô từ voucher thật."""
+	ten = [r.get("name") or r.get("ma") for r in ds if r.get("trang_thai") == "Da duyet"]
+	if not ten:
+		return {}
+	huy = set()
+	for dt in ("Payment Entry", "Journal Entry"):
+		huy.update(frappe.get_all(dt, filters={"vgb_ho_so_tt": ["in", ten], "docstatus": 2},
+			pluck="vgb_ho_so_tt", limit_page_length=0))
+	return {ma: "Đã huỷ bút toán. Kiểm tra sao kê trước khi ghi nhận lại; không tự chuyển tiền thêm." for ma in huy}

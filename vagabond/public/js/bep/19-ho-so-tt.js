@@ -197,7 +197,7 @@ async function scrHoSoTT() {
       '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
-      h(r.nhan) + '</span>' +
+      h(r.nhan) + '</span>' + hsCanhBaoDoiChieu(r) +
       (r.loai === 'Hoan ung' || r.loai === 'Hoan ung HD' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' + (r.loai === 'Hoan ung HD' ? '🧾 hoàn ứng có HĐ' : '🧮 hoàn ứng không HĐ') + '</span>' : '') +
       (r.la_phieu_chi ? '<span style="margin-left:6px;display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">⏩ trả trước</span>' : '') +
       /* Phieu tra truoc khong co han tra - no la tien di TRUOC - nen cai
@@ -1983,7 +1983,7 @@ async function scrHoSoTTView(name) {
 
   var html = '<div class="card" style="padding:14px;background:' + m[0] + ';border:1.5px solid ' + m[1] + '">' +
     '<div style="font-size:22px">' + m[3] + '</div>' +
-    '<div style="font-size:17px;font-weight:800;color:' + m[2] + ';margin-top:4px">' + h(hs.nhan) + '</div>' +
+    '<div style="font-size:17px;font-weight:800;color:' + m[2] + ';margin-top:4px">' + h(hs.nhan) + '</div>' + hsCanhBaoDoiChieu(hs) +
     '<div style="font-size:13.5px;color:#374151;margin-top:6px">' +
     nhanLoai + h(hs.ten_ncc || hs.ncc) +
     /* Ho so hoan ung gom nhieu nha cung cap thi dau ho so mang ten NGUOI
@@ -2285,6 +2285,10 @@ async function hsGoBanTheHien(hs, hoaDon, tep, ten) {
    ho khong noi dinh dang dung. Nguoi lap ho so mo M-Invoice bam tai ve roi
    dinh len day - mot thao tac chac chan, hon la mot nhip tu dong khong bao
    gio chay. */
+function hsCanhBaoDoiChieu(hs) {
+  return hs.canh_bao_doi_chieu ? '<div style="margin-top:6px;padding:8px;background:#fffbeb;color:#92400e;font-size:13px;line-height:1.5;border-radius:8px">' + h(hs.canh_bao_doi_chieu) + '</div>' : '';
+}
+
 async function hsHanh(k, hs) {
   if (k === 'bodoichieu') {
     if (!(await hoiCo('Bỏ đối chiếu?', 'Chỉ bỏ được khi sao kê hết liên kết và hồ sơ không còn bút toán đã ghi sổ. Hồ sơ đã huỷ bút toán sẽ về Đã duyệt, Đã trả về 0 và bỏ ngày thanh toán. Lịch sử duyệt, UNC và thư đã gửi vẫn giữ. Kiểm tra sao kê trước khi ghi nhận lại; không chuyển tiền thêm chỉ vì bút toán đã huỷ.', 'Bỏ đối chiếu'))) return;

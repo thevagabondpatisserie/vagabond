@@ -1521,11 +1521,14 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		):
 			so_dong[d.parent] = so_dong.get(d.parent, 0) + 1
 
+	from vagabond.doi_chieu_app import canh_bao_mo_lai
+	canh_bao = canh_bao_mo_lai(ds)
 	hom_nay = getdate(nowdate())
 	q = (tu_khoa or "").strip().lower()
 	ra = []
 	for r in ds:
 		o = dict(r)
+		o["canh_bao_doi_chieu"] = canh_bao.get(r.name, "")
 		o["so_hd"] = so_dong.get(r.name, 0)
 		o["nhan"] = NHAN.get(r.trang_thai, r.trang_thai)
 		o["loai"] = r.loai or "NCC"
@@ -1734,6 +1737,7 @@ def _dinh_kem(cap):
 
 @frappe.whitelist()
 def chi_tiet(name):
+	from vagabond.doi_chieu_app import canh_bao_mo_lai
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "xem hồ sơ thanh toán")
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	truong_hddt = _truong_hddt_pi()
@@ -1786,6 +1790,7 @@ def chi_tiet(name):
 
 	return {
 		"ho_so": {
+			"canh_bao_doi_chieu": canh_bao_mo_lai([doc]).get(doc.name, ""),
 			"ma": doc.name, "loai": doc.loai or "NCC", "ngay": str(doc.ngay or ""),
 			"loai_cp_thue": doc.loai_cp_thue or "",
 			"nhan_cp_thue": NHAN_CP_THUE.get(doc.loai_cp_thue, ""),

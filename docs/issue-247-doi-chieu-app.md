@@ -97,3 +97,7 @@ lại dùng các kiểm tra nguồn chi/công nợ/liên kết hiện có; retry
 production. F6 chuyển về theo dõi theo đo đạc review vòng 2 (17 query);
 không coi kết quả bench reviewer 97/103 là 103/103, sáu lỗi môi trường được
 reviewer nêu riêng. Cổng CI của repo được kiểm độc lập theo SHA.
+
+Danh sách và chi tiết có cảnh báo cố định lấy theo lô từ bút toán huỷ,
+nhắc kiểm sao kê và không tự chuyển tiền thêm. Khi ghi nhận lại xong,
+cảnh báo tự hết; không cần thêm trường hoặc quy trình duyệt.
