@@ -146,7 +146,8 @@ def chay():
                             ban_hang.xuat_hoa_don_dien_tu(hd.name)
                         else:
                             ra=script(kich_ban.TEN_PHAT_HANH,hd.name)
-                            _bang('script không lỗi',ra.get('loi') or [],[])
+                            if ra.get('loi'):
+                                raise AssertionError('Server Script phát hành: ' + json.dumps(ra, ensure_ascii=False, default=str))
                             _bang('script tạo 1',ra.get('tao_ok'),1)
                     finally:
                         frappe.flags.vagabond_kiem_that=True
