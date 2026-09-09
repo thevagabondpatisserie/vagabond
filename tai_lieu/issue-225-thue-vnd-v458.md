@@ -45,8 +45,10 @@ Fetch lại trước đẩy; số phiên bản phải kiểm lại ngay trước
 
 - App: Cài đặt > Điểm bán > chọn điểm > Kho xuất hàng tặng > Lưu.
   Ô chọn có tìm kiếm từ danh mục Warehouse. Không tự gán kho khi migrate.
-- Chọn kho theo nơi thực giao; tài khoản Có do kho đó quyết định. Site đã
-  ghi nhận có kho thành phẩm gắn 1551, không yêu cầu đổi về tài khoản 155.
+- Anh Việt chốt 09/09: dùng chính kho điểm bán cho cả bán và tặng:
+  SALES -> Kho Sales Online, TCV/District 1 -> Kho D1, NVHTN -> Kho NVHTN.
+  Tài khoản Có do kho quyết định (152/1551/156 đều được nếu là tài khoản
+  tồn kho hợp lệ). Không tạo kho riêng hoặc đổi tài khoản kho chỉ để tặng.
 - Tài khoản 64181/64182/33311 phải là tài khoản chi tiết còn dùng, đúng
   công ty, tiền tệ VND. Perpetual inventory phải bật khi xuất kho tặng.
 - Thiếu cấu hình sẽ chặn có chỉ dẫn. Công ty Demo không tự được cấu hình.
