@@ -24,6 +24,7 @@ curl --silent --fail http://127.0.0.1:8000/api/method/ping
 hong=0
 cd "$GITHUB_WORKSPACE"
 python3 -m unittest vagabond.khung.staging.thu_do_truy_van || hong=1
+node vagabond/khung/staging/thu_tai_van_don.cjs || hong=1
 node vagabond/khung/staging/kiem_man.cjs || hong=1
 # Cac fixture dung ma rieng. Thu bang chung tung cua ke ca cua truoc do,
 # nhung van tra ma loi cuoi; khong bo qua failure de lam CI xanh.

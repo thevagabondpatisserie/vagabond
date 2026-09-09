@@ -316,3 +316,19 @@ Tổng hợp cuối CI yêu cầu60lượt đủ, SHAđịnhdạng hợp lệ v�
 hợp đồng. Provenance vẫn cần đối chiếu hashartifactnguyênbộ, công cụ không
 phát hiện trộn file thủ công. Báo cáo nhóm theo tải/khổ/số lần nguồn,
 min/trungvị/max, không p95 với5mẫu. Chưa runtimebảnbổsung.
+
+
+## Thử tối ưu tải Vận đơn
+
+BaselineCI59 artifact10121299214 SHA256
+`46b14536ebe6f4164c0d05e1a9da1fe99d23181293c87a3b2c78375e4c65dfe9`,
+SHA273d8f23776cc9fc2c2d2311f0d314852b12c801. Bộnguồnhoànchỉnh/gateđạt.
+MedianmởVDmobile100/500=286.6/520.2ms; desktop273.9/550.2ms,
+5lượt mỗi nhóm. Đây là mốc so cùngdriver/core, vẫn có nhiễu máyCI.
+
+vdNapDanhSach tải đồng thời danh sách/bộlọc/shipper/điểmpickup vì cácAPIđọc
+độclập. Giữ quyền/errorởmáychủ, fallbackdanhmục nhưcũ; primaryfailvẫnchặnmàn.
+Helpertestkiểm4requestbắtđầutrướcreply, cache/optionalerror/primaryerror.
+Reviewer khôngblocker; chưa chứngminh nhanhhơn cho tới CIcùngfixture.
+Raceđiềuhướngnhanhgiữahai ngày là giớihạn cósẵn cần kiểmtiếp, không nhận
+helpertest là UAT điều hướng. Cần phiênbản mới trước phát hành sau đủgates.
