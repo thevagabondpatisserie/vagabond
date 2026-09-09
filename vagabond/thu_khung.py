@@ -32,7 +32,8 @@ Vagabond Sans bằng phông thường.
 
 Ba luật kỹ thuật của thư điện tử, rút từ các bản trước
 -------------------------------------------------------
-1. Bố cục bằng bảng 600px, CSS viết inline hết. Hộp thư không đọc thẻ style.
+1. Bảng co theo màn hình, tối đa 600px; CSS inline để vẫn đọc được khi
+   hộp thư bỏ thẻ style. Chỉ Outlook dùng Word mới cần bảng 600px dự phòng.
 2. Nút dựng bằng bảng chứ không phải thẻ a có padding: nhiều hộp thư bỏ
    padding của thẻ a.
 3. Mảng màu thương hiệu LÓT ẢNH nền kèm bgcolor dự phòng: Gmail chế độ tối
@@ -98,7 +99,8 @@ def h(s):
 
 def _chu(co=14, mau=MUC, dam=False, giong=1.65, them=""):
 	return (
-		"font-family:%s;font-size:%spx;line-height:%s;color:%s;%s%s"
+		"font-family:%s;font-size:%spx;line-height:%s;color:%s;"
+		"overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;%s%s"
 		% (PHONG, co, giong, mau, "font-weight:bold;" if dam else "", them)
 	)
 
@@ -120,7 +122,7 @@ def o_kem(noi_dung, goc_anh=""):
 	"""Ô kem có vạch robin egg bên trái, dùng cho khối thông tin cần nhìn ra ngay."""
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%" '
-		'style="margin:6px 0 14px"><tr>'
+		'style="width:100%%;table-layout:fixed;margin:6px 0 14px"><tr>'
 		'<td width="4" background="%s" bgcolor="%s" style="width:4px;font-size:0;line-height:0">&nbsp;</td>'
 		'<td background="%s" bgcolor="%s" style="padding:13px 16px;%s">%s</td>'
 		"</tr></table>"
@@ -134,7 +136,7 @@ def o_canh_bao(noi_dung):
 	"""Ô vàng nhạt cho lời dặn quan trọng (tiền, hạn chót)."""
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%" '
-		'style="margin:6px 0 14px"><tr>'
+		'style="width:100%%;table-layout:fixed;margin:6px 0 14px"><tr>'
 		'<td bgcolor="%s" style="padding:12px 16px;border:1px solid #F3D9A4;%s">%s</td>'
 		"</tr></table>"
 	) % (CANH_BAO_NEN, _chu(13.5, CANH_BAO_CHU, False, 1.65), noi_dung)
@@ -143,14 +145,14 @@ def o_canh_bao(noi_dung):
 def cap(cac_cap):
 	"""Danh sách nhãn - giá trị xếp hai cột. cac_cap: [(nhan, gia_tri_html)]."""
 	dong = "".join(
-		'<tr><td valign="top" style="padding:5px 14px 5px 0;white-space:nowrap;%s">%s</td>'
+		'<tr><td valign="top" style="width:38%%;padding:5px 14px 5px 0;%s">%s</td>'
 		'<td valign="top" style="padding:5px 0;%s">%s</td></tr>'
 		% (_chu(13, XAM, False, 1.6), h(n), _chu(13.5, MUC, False, 1.6), g)
 		for n, g in cac_cap
 	)
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-		'style="border-collapse:collapse;margin:0 0 14px">%s</table>' % dong
+		'width="100%%" style="width:100%%;table-layout:fixed;border-collapse:collapse;margin:0 0 14px">%s</table>' % dong
 	)
 
 
@@ -173,13 +175,13 @@ def bang(cot, dong, tong=None, goc_anh=""):
 	if tong:
 		chan = (
 			'<tr><td colspan="%d" style="padding:11px 10px 4px;text-align:right;%s">%s</td>'
-			'<td style="padding:11px 10px 4px;text-align:right;white-space:nowrap;%s">%s</td></tr>'
+			'<td style="padding:11px 10px 4px;text-align:right;%s">%s</td></tr>'
 			% (max(1, len(cot) - 1), _chu(12, XAM, True, 1.4, "letter-spacing:1.5px;text-transform:uppercase;"),
 			   h(tong[0]), _chu(16, MUC, True, 1.4), tong[1])
 		)
 	return (
 		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%" '
-		'style="border-collapse:collapse;margin:6px 0 14px"><tr>%s</tr>%s%s</table>'
+		'style="width:100%%;table-layout:fixed;border-collapse:collapse;margin:6px 0 14px"><tr>%s</tr>%s%s</table>'
 		% (dau, than, chan)
 	)
 
@@ -193,9 +195,9 @@ def nut(dia_chi, chu, phu=False, goc_anh=""):
 		o = 'background="%s" bgcolor="%s" style="border-radius:6px"' % (_anh(goc_anh, ANH_LOT_XANH), XANH)
 		mau = XANH_DAM
 	return (
-		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">'
+		'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%%" style="width:100%%;table-layout:fixed;margin:0 auto">'
 		'<tr><td align="center" %s>'
-		'<a href="%s" target="_blank" style="display:inline-block;padding:13px 34px;'
+		'<a href="%s" target="_blank" style="display:block;padding:13px 16px;'
 		'%s;text-decoration:none">%s</a>'
 		"</td></tr></table>"
 	) % (o, h(dia_chi), _chu(15, mau, True, 1.3, "letter-spacing:.3px;"), h(chu))
@@ -238,8 +240,8 @@ def _chan(loai, goc_anh, cac_quay):
 		dong.append("<b>%s</b> &middot; thư tự động từ hệ thống vận hành" % TEN_TIEM)
 		dong.append("Việc xử lý làm trong app. Không cần trả lời thư này.")
 	return (
-		'<tr><td background="%s" bgcolor="%s" style="padding:4px 30px;font-size:0;line-height:0;height:4px">&nbsp;</td></tr>'
-		'<tr><td bgcolor="%s" style="padding:16px 30px 18px;text-align:center;%s">%s</td></tr>'
+		'<tr><td background="%s" bgcolor="%s" style="padding:4px 20px;font-size:0;line-height:0;height:4px">&nbsp;</td></tr>'
+		'<tr><td bgcolor="%s" style="padding:16px 20px 18px;text-align:center;%s">%s</td></tr>'
 	) % (
 		_anh(goc_anh, ANH_LOT_XANH), XANH, KEM,
 		_chu(12, XAM, False, 1.75), "<br>".join(dong),
@@ -259,18 +261,19 @@ def khung_thuan(tieu_de, than, nut_html="", chan="khach", nhan="", goc_anh="", c
 		'<div style="margin:0;padding:0;background:%(kem)s">'
 		'<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" '
 		'bgcolor="%(kem)s"><tr><td align="center" style="padding:20px 8px">'
-		'<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" '
-		'style="width:600px;max-width:600px;background:#FFFFFF;border:1px solid %(ke)s">'
+		'<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->'
+		'<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" '
+		'style="width:100%%;max-width:600px;table-layout:fixed;background:#FFFFFF;border:1px solid %(ke)s">'
 		'<tr><td background="%(lot)s" bgcolor="%(xanh)s"><img src="%(dau)s" width="600" height="200" '
-		'alt="%(tiem)s" style="display:block;width:100%%;height:auto;border:0"></td></tr>'
-		'<tr><td style="padding:26px 30px 0">%(nhan)s'
+		'alt="%(tiem)s" style="display:block;width:100%%;max-width:600px;height:auto;border:0"></td></tr>'
+		'<tr><td style="padding:26px 20px 0">%(nhan)s'
 		'<div style="%(tieu_de_css)s">%(tieu_de)s</div>'
 		'<div style="width:36px;height:3px;background:%(xanh)s;margin:12px 0 18px;font-size:0;line-height:0">&nbsp;</div>'
 		"</td></tr>"
-		'<tr><td style="padding:0 30px 6px;%(than_css)s">%(than)s</td></tr>'
+		'<tr><td style="padding:0 20px 6px;%(than_css)s">%(than)s</td></tr>'
 		"%(nut)s"
 		"%(chan)s"
-		"</table></td></tr></table></div>"
+		"</table><!--[if mso]></td></tr></table><![endif]--></td></tr></table></div>"
 	) % {
 		"kem": KEM, "ke": KE, "xanh": XANH, "tiem": TEN_TIEM,
 		"lot": _anh(goc_anh, ANH_LOT_XANH), "dau": _anh(goc_anh, ANH_DAU),
@@ -279,8 +282,8 @@ def khung_thuan(tieu_de, than, nut_html="", chan="khach", nhan="", goc_anh="", c
 		"tieu_de": h(tieu_de),
 		"than_css": _chu(14, MUC),
 		"than": than,
-		"nut": ('<tr><td style="padding:14px 30px 26px">%s</td></tr>' % nut_html) if nut_html
-			else '<tr><td style="padding:0 30px 20px"></td></tr>',
+		"nut": ('<tr><td style="padding:14px 20px 26px">%s</td></tr>' % nut_html) if nut_html
+			else '<tr><td style="padding:0 20px 20px"></td></tr>',
 		"chan": _chan(chan, goc_anh, cac_quay),
 	}
 

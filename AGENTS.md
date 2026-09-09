@@ -381,3 +381,12 @@ Trước phản hồi cuối mỗi phiên thực chất, cập nhật Markdown t
 `/Users/jin/Documents/ChatGPT/ERP/nhat-ky-du-an/`, gồm mục lục, nhật ký phiên
 và bài học. Đọc mẫu trong instruction. Không thêm database cho nhật ký.
 Bàn giao file cho anh Việt bằng link mobile khi có thể, giữ bản local.
+
+## 11. Email sau phát hành (anh Việt yêu cầu 09/09/2026)
+
+Sau mỗi deploy thành công và kiểm site thật, tự áp dụng skill
+[Email phát hành](.agents/skills/vagabond-email-phat-hanh/SKILL.md): soạn email
+ngắn, xưng hệ thống, dùng branding chung, chọn đúng nhân sự liên quan.
+Mặc định nháp; gửi theo quyền anh Việt đã cấp, không suy ra quyền gửi từ quyền
+deploy. Lưu bằng chứng gửi để không lặp. Khi sửa template phải kiểm mobile
+không tràn ngang và desktop; không nhận browser preview là kiểm Outlook thật.
