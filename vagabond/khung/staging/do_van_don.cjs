@@ -55,6 +55,28 @@ const crypto = require('crypto');
           if (loiRoute.length) throw new Error(loiRoute.join('; '));
           if (ab && soAsset !== 1) throw new Error('Không xác minh được asset đối chứng');
           for (const f of mau) {
+            // Đồng hồ cùng realm: không gồm thời gian driver gửi fill/đọc kết quả.
+            // Mốc cuối là DOM đúng tại MutationObserver, chưa chứng minh đã paint.
+            await p.evaluate(f => {
+              const input = document.querySelector('#vdDate');
+              if (!input || input.value === f.ngay) throw new Error('Cần đổi sang ngày khác');
+              const expected = JSON.stringify([...f.ten].sort());
+              const mark = window.__vgbDoNgay = {start: null, dom: null};
+              const observer = new MutationObserver(() => {
+                if (mark.start === null || input.isConnected) return;
+                const current = document.querySelector('#vdDate');
+                if (!current || current.value !== f.ngay) return;
+                const rows = document.querySelectorAll('[data-vd]');
+                if (rows.length !== f.so_don) return;
+                if (JSON.stringify([...rows].map(r => r.getAttribute('data-vd')).sort()) !== expected) return;
+                mark.dom = performance.now();
+                observer.disconnect();
+              });
+              input.addEventListener('change', () => {
+                mark.start = performance.now();
+              }, {capture: true, once: true});
+              observer.observe(document.body, {childList: true, subtree: true});
+            }, f);
             const cu = await p.locator('#vdDate').elementHandle();
             const doi = p.waitForResponse(r => r.url().includes('/api/method/vagabond.van_don.danh_sach'))
               .then(r => ({r}), e => ({e}));
@@ -79,13 +101,20 @@ const crypto = require('crypto');
             // Phần chờ còn lại có thể gồm API phụ, không phải riêng CPU render.
             const dom_ms = performance.now() - doiDom;
             const mo_ms = performance.now() - dau;
+            const browser_dom_ms = await p.evaluate(() => {
+              const m = window.__vgbDoNgay;
+              delete window.__vgbDoNgay;
+              if (!m || m.start === null || m.dom === null || m.dom < m.start)
+                throw new Error('Thiếu mốc sự kiện/DOM trong trình duyệt');
+              return m.dom - m.start;
+            });
             const tim = performance.now();
             await p.locator('#vdQ').fill(f.tim_ma);
             await p.waitForFunction(() => document.querySelectorAll('[data-vd]').length === 1);
             if (!(await p.locator('[data-vd]').innerText()).includes(f.tim_ma)) throw new Error('Tìm ra sai đơn');
             const tim_ms = performance.now() - tim;
             if (loi.length) throw new Error(loi.join('; '));
-            ket.push({rong, lan, bien_the: bienThe, asset_sha256: assetHash, noi_dung_sha256: ab ? noiDungHash : null, baseline_sha: ab ? doiChung.baseline_sha : null, so_don: f.so_don, mo_ms, tim_ms, api_ms, doi_chieu_api_ms, dom_ms, dat: true,
+            ket.push({rong, lan, bien_the: bienThe, asset_sha256: assetHash, noi_dung_sha256: ab ? noiDungHash : null, baseline_sha: ab ? doiChung.baseline_sha : null, so_don: f.so_don, mo_ms, browser_dom_ms, tim_ms, api_ms, doi_chieu_api_ms, dom_ms, dat: true,
               lenh_driver: {fill_ngay: 1, fill_tim: 1}, nguon: 'tải tổng hợp'});
             // Xoá bộ lọc qua ô thật, đợi đủ thẻ trước phép đo ngày tiếp theo.
             await p.locator('#vdQ').fill('');
