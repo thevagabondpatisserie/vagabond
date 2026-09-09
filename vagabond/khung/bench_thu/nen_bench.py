@@ -159,6 +159,7 @@ def dung():
 		{"fieldname": "custom_minvoice_ngay_day", "fieldtype": "Data", "label": "MInvoice ngay day", "insert_after": "customer"},
 	])
 	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"}])
+	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
 	])
@@ -183,6 +184,7 @@ def dung():
 			"territory": "All Territories", "vgb_hang": "MEMBER"}).insert(ignore_permissions=True)
 	if not frappe.db.exists("Supplier", "NCC kiểm thử"):
 		frappe.get_doc({"doctype": "Supplier", "supplier_name": "NCC kiểm thử", "supplier_group": frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")}).insert(ignore_permissions=True)
+	frappe.db.set_value("Supplier", "NCC kiểm thử", "custom_ma_ncc", "NCC-KIEM")
 	for pt in ("Hàng tặng", "Tiền mặt", "Chuyển khoản"):
 		if not frappe.db.exists("Mode of Payment", pt):
 			frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": pt}).insert(ignore_permissions=True)

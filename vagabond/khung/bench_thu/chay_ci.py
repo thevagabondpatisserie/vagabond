@@ -56,16 +56,19 @@ def chay():
 					raise RuntimeError("Bộ kiểm chưa chạy đủ ca.")
 		# Không bỏ qua lỗi cũ. Hai lượt được ghi đủ để phân biệt lỗi nền và
 		# lỗi trạng thái còn sót; bất kỳ ca đỏ nào vẫn làm job đỏ.
-		if any(kq.get("hong") for kq in ket):
-			raise RuntimeError("Có ca tích hợp đỏ; đọc luot-1.json và luot-2.json.")
-		print("PASS: hai lượt đầy đủ, không còn chứng từ thử.")
+		dat_bo = not any(kq.get("hong") for kq in ket)
+		print("%s: hai lượt đầy đủ, không còn chứng từ thử." % ("PASS" if dat_bo else "FAIL"))
 		# Hai cửa phát hành dùng SI riêng; chỉ HTTP cuối được giả lập.
 		from vagabond.khung.bench_thu.kiem_minvoice_243 import chay as chay_minvoice
-		with patch.object(socket.socket, "connect", chi_noi_bo):
-			kq = chay_minvoice()
+		try:
+			with patch.object(socket.socket, "connect", chi_noi_bo):
+				kq = chay_minvoice()
+		except Exception:
+			kq = {"dat": False, "loi": traceback.format_exc()}
 		(tep / "minvoice-243.json").write_text(
 			json.dumps(kq, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-		print("PASS: hai đường phát hành độc lập.")
+		print("M-Invoice: " + json.dumps(kq, ensure_ascii=False, default=str), flush=True)
+		return dat_bo and bool(kq.get("dat"))
 	except Exception:
 		(tep / "loi.txt").write_text(traceback.format_exc(), encoding="utf-8")
 		raise
@@ -75,7 +78,9 @@ def chay():
 
 
 if __name__ == "__main__":
-	chay()
+	dat = chay()
 	# Kịch bản này cố ý commit và mở nhiều kết nối. Chỉ chạy sau khi bộ
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
-	subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=True)
+	kho = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=False)
+	if not dat or kho.returncode:
+		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")
