@@ -242,3 +242,5 @@ vagabond.patches.dong_bo_cau_truc #v461
 vagabond.patches.dong_bo_cau_truc #v462
 vagabond.patches.dong_bo_cau_truc #v463
 vagabond.patches.dong_bo_cau_truc #v465
+vagabond.patches.pr_he_so_252
+vagabond.patches.dong_bo_cau_truc #v466

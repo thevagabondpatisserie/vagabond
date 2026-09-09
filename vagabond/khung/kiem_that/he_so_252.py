@@ -360,3 +360,54 @@ def _pos():
         {'voucher_type': 'POS Invoice', 'voucher_no': hd.name}), 0)
     la('kho vật lý vẫn1100', frappe.db.get_value('Bin',
         {'item_code': mon.name, 'warehouse': kho}, 'actual_qty'), 1100)
+
+
+@ca('#252 PR trả lịch sử: script cũ chặn, hook mới trả550 sau master1000 và giữ SLE')
+def _pr_tra_lich_su():
+    from vagabond.patches.pr_he_so_252 import TEN, nhan_dang, execute, ban_cu
+    if not frappe.db.exists('Server Script', TEN):
+        _luu(frappe.get_doc(dict(doctype='Server Script', name=TEN,
+            script_type='DocType Event', reference_doctype='Purchase Receipt',
+            doctype_event='Before Validate', disabled=1, script=ban_cu())))
+    cu = frappe.get_doc('Server Script', TEN)
+    dung('đúng script cũ đã lưu trữ', nhan_dang(cu) and cu.disabled)
+    execute()  # Migrate lặp lại không xoá hoặc đổi script đã lưu trữ.
+    la('nội dung lưu trữ nguyên trạng', frappe.get_doc('Server Script', TEN).script, cu.script)
+    mon, lon = _nen()
+    ct = nen.cong_ty()
+    kho = nen.mot_kho(ct)
+    def phieu(hs=550):
+        return frappe.get_doc(dict(doctype='Purchase Receipt', company=ct,
+            supplier=nen.mot_nha_cung_cap(), currency='VND', conversion_rate=1,
+            posting_date=frappe.utils.today(), items=[dict(item_code=mon.name,
+                uom=lon, stock_uom=mon.stock_uom, qty=1, conversion_factor=hs,
+                rate=55000, warehouse=kho)]))
+    pr = _luu(phieu()); pr.submit(); pr.reload()
+    la('nhập thực550', pr.items[0].stock_qty, 550)
+    mon.reload()
+    next(d for d in mon.uoms if d.uom == lon).conversion_factor = 1000
+    mon.save(ignore_permissions=True)
+    tra = phieu()
+    tra.is_return = 1
+    tra.return_against = pr.name
+    tra.items[0].qty = -1
+    tra.items[0].purchase_receipt_item = pr.items[0].name
+    # execute_doc gọi safe_exec trực tiếp, không xét disabled. Không bật lại
+    # Server Script chung hoặc sửa map cache của site để tái hiện lỗi cũ.
+    try:
+        cu.execute_doc(tra)
+    except frappe.ValidationError as e:
+        dung('script cũ chặn đúng quy đổi', 'quy đổi' in str(e) and '1000' in str(e))
+    else:
+        dung('script cũ phải chặn trả lịch sử', False)
+    _luu(tra); tra.submit(); tra.reload()
+    la('trả PR ghi sổ', tra.docstatus, 1)
+    la('giữ hệ số nguồn550', tra.items[0].conversion_factor, 550)
+    la('trả đủ lượng nguồn', tra.items[0].stock_qty, -550)
+    sle = frappe.get_all('Stock Ledger Entry', filters={'item_code': mon.name, 'is_cancelled': 0},
+        fields=['voucher_no', 'actual_qty', 'stock_value_difference'])
+    la('SLE nhập550', sum(d.actual_qty for d in sle if d.voucher_no == pr.name), 550)
+    la('SLE trả âm550', sum(d.actual_qty for d in sle if d.voucher_no == tra.name), -550)
+    la('giá trị nhập trả triệt tiêu', round(sum(d.stock_value_difference for d in sle), 2), 0)
+    _bi_chan(lambda: _luu(phieu()), 'PR mới vẫn phải theo master1000')
+    la('PR nguồn vẫn550', frappe.db.get_value('Purchase Receipt Item', pr.items[0].name, 'conversion_factor'), 550)
