@@ -106,3 +106,9 @@ CI run34359614912 trên5304ec4: dựng/migrate và tích hợp hai lượt đạ
 chưa mở vì Settings.validate chặn fixture thiếu kitchen_lat/kitchen_lng.
 Đã bổ sung toạ độ giả1/1 trước save thật; không tắt validation. Cần chạy lại
 trên SHA mới, chưa coi sửa code là bằng chứng runtime đã đạt.
+
+Mốc đồng bộ: đã gộp main5bd5d4e (PR259) vào nhánh, giữ phần14mã/BOM của
+nhánh kia. CI5304ec4 trước đó chạy107/107 hai lượt, sạch rollback; đây là
+bằng chứng SHA cũ, không thay kiểm trên nền main mới. Runner browser nay
+thu kết quả từng cửa riêng ngay cả khi một cửa lỗi, và vẫn trả exit1 nếu
+bất kỳ cửa nào lỗi. Không dùng việc chạy tiếp làm miễn trừ cổng.

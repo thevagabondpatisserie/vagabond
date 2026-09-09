@@ -19,16 +19,15 @@ for lan in $(seq 1 60); do
   sleep 1
 done
 curl --silent --fail http://127.0.0.1:8000/api/method/ping
+hong=0
 cd "$GITHUB_WORKSPACE"
-node vagabond/khung/staging/kiem_man.cjs
-node vagabond/khung/staging/kiem_van_don.cjs
-cd "$VGB_BENCH/sites"
-../env/bin/python -m vagabond.khung.staging.van_don_ci
-cd "$GITHUB_WORKSPACE"
-node vagabond/khung/staging/kiem_nhan_hang.cjs
-cd "$VGB_BENCH/sites"
-../env/bin/python -m vagabond.khung.staging.nhan_hang_ci
-cd "$GITHUB_WORKSPACE"
-node vagabond/khung/staging/kiem_san_xuat.cjs
-cd "$VGB_BENCH/sites"
-../env/bin/python -m vagabond.khung.staging.san_xuat_ci
+node vagabond/khung/staging/kiem_man.cjs || hong=1
+# Cac fixture dung ma rieng. Thu bang chung tung cua ke ca cua truoc do,
+# nhung van tra ma loi cuoi; khong bo qua failure de lam CI xanh.
+for cua in van_don nhan_hang san_xuat; do
+  cd "$GITHUB_WORKSPACE"
+  node "vagabond/khung/staging/kiem_${cua}.cjs" || hong=1
+  cd "$VGB_BENCH/sites"
+  ../env/bin/python -m "vagabond.khung.staging.${cua}_ci" 2>&1 | tee "$VGB_ARTIFACTS/${cua}-kiem-db.log" || hong=1
+done
+exit "$hong"
