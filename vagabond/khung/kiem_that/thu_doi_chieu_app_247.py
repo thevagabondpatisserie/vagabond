@@ -281,6 +281,9 @@ def _ghi_lai():
 	_ghi(h, g)
 	h.reload()
 	h.email_da_gui, h.email_gui_toi = 1, "kiem@example.invalid"
+	h.email_ncc = "kiem@example.invalid"
+	h.fin_boi = h.gd_boi = "Administrator"
+	h.fin_luc = h.gd_luc = frappe.utils.now_datetime()
 	h.save(ignore_permissions=True)
 	duyet = (h.fin_boi, h.fin_luc, h.gd_boi, h.gd_luc, h.unc_tep)
 	cu = hs._but_toan_cua_ho_so(h.name)[0]
@@ -355,3 +358,27 @@ def _huy_mot_phan():
 	frappe.get_doc(bo[1]["doctype"], bo[1]["name"]).cancel()
 	dc.bo(h.name)
 	_kiem_mo_lai(h)
+
+
+@ca("#247 lỗi sau cập nhật hồ sơ mở lại phải rollback trạng thái, mã và lịch sử cùng nhau")
+def _mo_lai_loi():
+	from vagabond.vagabond.doctype.vagabond_ho_so_tt.vagabond_ho_so_tt import VagabondHoSoTT
+	h, g = _nen()
+	_ghi(h, g)
+	cu = hs._but_toan_cua_ho_so(h.name)[0]
+	frappe.get_doc(cu["doctype"], cu["name"]).cancel()
+	loc = {"reference_doctype": h.doctype, "reference_name": h.name}
+	vet = frappe.db.count("Comment", loc)
+	frappe.db.savepoint("app247_mo_lai_loi")
+	try:
+		with patch.object(VagabondHoSoTT, "on_update", side_effect=frappe.ValidationError("Lỗi sau lưu thử"), create=True):
+			dc.bo(h.name)
+	except frappe.ValidationError:
+		frappe.db.rollback(save_point="app247_mo_lai_loi")
+	else:
+		dung("phải ném lỗi", False)
+	h.reload()
+	la("giữ trạng thái trước POST", h.trang_thai, "Da thanh toan")
+	la("giữ mã trước POST", h.ma_giao_dich, g.name)
+	la("giữ tiền trước POST", float(h.da_tra), 12345.0)
+	la("không lưu lịch sử thành công dở", frappe.db.count("Comment", loc), vet)
