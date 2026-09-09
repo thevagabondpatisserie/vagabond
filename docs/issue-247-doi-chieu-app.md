@@ -1,9 +1,16 @@
 # Issue #247: đối chiếu thanh toán APP
 
-Ảnh lỗi là Hồ sơ thanh toán APP.26.09.015. Chưa truy vấn sao kê production
-nên chưa kết luận dòng cụ thể bị thiếu đồng bộ hay không khớp nội dung.
-Nguồn đã xác nhận: bộ dò bỏ `reference_number`, không chặn đuôi mã dài,
-cộng lặp một dòng khi nội dung lặp mã; nút khớp tay chỉ có sau thanh toán.
+Đã kiểm read-only trên Bank Transaction production 09/09/2026:
+`ACC-BTN-2026-04562` là MB chi 7.000.599 VND, nội dung có APP 26 09 015;
+`ACC-BTN-2026-04565` là ACB nhận 7.000.599 VND, cùng mã APP2609015.
+Cả hai đã submit, chưa đối chiếu. Hàm cũ `_sepay_theo_ma_app` cộng
+withdrawal - deposit trên mọi tài khoản, nên 7.000.599 - 7.000.599 = 0.
+Đây là nguyên nhân phù hợp trực tiếp thông báo 0 trên 7.000.599 trong ảnh.
+Không chỉnh sửa, lưu, đồng bộ hoặc đối chiếu chứng từ production.
+
+Ngoài lỗi triệt tiêu hai chiều, nguồn còn bỏ `reference_number`, không chặn
+đuôi mã dài, cộng lặp một dòng khi nội dung lặp mã; nút khớp tay chỉ có sau
+thanh toán. Các lỗi này cũng được xử lý và có ca kiểm riêng.
 
 ## Hướng xử lý
 
@@ -41,7 +48,6 @@ không nối PE/JE nháp. Frappe `f33ac3f00ab818e21b25ddbec93efb653fd9aa1b`:
   Dò tự động nghĩa là tự tìm giao dịch khi người dùng dò/ghi nhận; chưa có
   tự động hoàn tất không cần người bấm.
 - Chưa thay đổi luồng phiếu chi lẻ Payment Entry hoặc TTNB.
-- Draft chờ bench theo SHA, review độc lập, kiểm UI trên app và đọc-only
-  sao kê của hồ sơ được báo. Cần kiểm cạnh tranh hai kết nối, quyền FIN
+- Draft chờ bench theo SHA, review độc lập, kiểm UI trên app. Sao kê của hồ sơ được báo đã đọc-only xác minh. Cần kiểm cạnh tranh hai kết nối, quyền FIN
   thật và hủy/đảo liên kết trước khi phát hành. Đặt phiên bản tăng từ main
   mới nhất khi chuẩn bị phát hành; không merge/deploy trong phiên này.

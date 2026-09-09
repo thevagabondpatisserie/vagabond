@@ -118,3 +118,21 @@ def _loi():
 	la("giữ Đã duyệt", frappe.db.get_value(h.doctype, h.name, "trang_thai"), "Da duyet")
 	g.reload()
 	la("không liên kết dở", len(g.payment_entries), 0)
+
+
+@ca("#247 chuyển giữa hai tài khoản: tiền vào không triệt tiêu tiền ra cùng mã APP")
+def _hai_chieu():
+	h, g = _nen(7000599)
+	vao = frappe.new_doc("Bank Transaction")
+	vao.date, vao.bank_account = today(), g.bank_account
+	vao.deposit, vao.withdrawal = 7000599, 0
+	vao.description = g.description
+	vao.reference_number = "THU-247-" + frappe.generate_hash(length=6)
+	vao.insert(ignore_permissions=True)
+	_DA_TAO.append((vao.doctype, vao.name))
+	vao.submit()
+	la("bộ dò không bù trừ chiều vào", hs._sepay_theo_ma_app([h.name])[h.name]["chi"], 7000599.0)
+	la("cửa APP nhận đủ tiền ra", hs.kiem_sepay(h.name)["rows"][0]["da_chi"], 7000599.0)
+	_ghi(h, g)
+	vao.reload()
+	la("dòng tiền vào không bị chiếm", len(vao.payment_entries), 0)
