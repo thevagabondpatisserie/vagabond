@@ -136,3 +136,18 @@ def _hai_chieu():
 	_ghi(h, g)
 	vao.reload()
 	la("dòng tiền vào không bị chiếm", len(vao.payment_entries), 0)
+
+
+@ca("#247 một APP nhiều nhà cung cấp đối chiếu đủ các PE vào cùng sao kê")
+def _nhieu_pe():
+	hd = _hoa_don_mua(10000)
+	ncc = frappe.copy_doc(frappe.get_doc("Supplier", hd.supplier))
+	ncc.supplier_name = "NCC kiểm #247 " + frappe.generate_hash(length=8)
+	ncc.insert(ignore_permissions=True)
+	_DA_TAO.append((ncc.doctype, ncc.name))
+	hd2 = _hoa_don_mua(2345, ncc.name)
+	h = _ho_so_ncc([hd, hd2])
+	_unc_gia(h)
+	g = _giao_dich_ngan_hang(h.name, 12345, cong_ty())
+	_ghi(h, g)
+	la("hai nhà cung cấp tạo hai PE", len(g.payment_entries), 2)

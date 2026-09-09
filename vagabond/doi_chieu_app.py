@@ -154,7 +154,7 @@ def noi_but_toan(doc, g):
 	if moi:
 		# Quyền nghiệp vụ được kiểm tại cửa APP. Core vẫn chạy nguyên validate,
 		# allocate và update-after-submit; chỉ quyền ghi BT được ủy quyền ở đây.
-		g = frappe.get_doc(BT, g.name)
+		g = frappe.get_doc(BT, g.name, for_update=True)
 		g.flags.ignore_permissions = True
 		g.add_payment_entries(moi)
 		g.save(ignore_permissions=True)

@@ -1,0 +1,21 @@
+// Chạy hàm màn thật với DOM giả, không gọi site production.
+const fs=require('fs'), vm=require('vm'), assert=require('assert');
+const dg=require('./dom_gia.js');
+const src=fs.readFileSync('vagabond/public/js/bep/21-ke-toan-khac.js','utf8');
+const ma=src.slice(src.indexOf("var tgdTim ="),src.indexOf('/* ================= CANH BAO PHUONG THUC'));
+const tai=dg.taiLieuGia(); let khung, goi=[], thongBao=[], troLai=[];
+let rows=[{ma:'BT-1',ten_ban_ghi:'BT-1',tham_chieu:'REF-1',ngay:'2026-09-09',noi_dung:'Internet',tien:100,chi:100,thu:0,tai_khoan:'MB',ly_do:''}];
+const that={document:tai,console,frame:(t,html)=>{khung=new dg.ElementGia('div');khung.innerHTML=html;tai.body.children=[khung];return khung;},h:x=>String(x||''),money:x=>String(x),hsNgayVn:x=>x,kmHangChip:x=>x,posChipNut:(a,t)=>'<button '+a+'>'+t+'</button>',busy:()=>{},toast:x=>thongBao.push(x),baoTin:x=>thongBao.push(x),hoiCo:async()=>true,go:async f=>f(),scrHoSoTTView:x=>troLai.push(x),api:async(m,a)=>{goi.push({m,a});return m.endsWith('.gan')?{loi_nhan:'Đã chọn'}:{rows,tong:rows.length};}};
+vm.createContext(that);vm.runInContext(ma,that);
+(async()=>{
+await that.scrTimGiaoDich('APP.26.09.015',100);
+assert.equal(goi[0].m,'vagabond.doi_chieu_app.danh_sach');assert.equal(goi[0].a.name,'APP.26.09.015');
+assert(khung.innerHTML.includes('MB'));assert(khung.innerHTML.includes('REF-1'));
+const dong=tai.querySelector('[data-tgd]'); await khung._nghe.click[0]({target:dong});
+assert.equal(goi[1].m,'vagabond.doi_chieu_app.gan');assert.equal(goi[1].a.ma_giao_dich,'BT-1');assert.equal(troLai[0],'APP.26.09.015');
+rows[0].ly_do='Đã dùng ở APP khác';rows[0].da_gom=1;goi=[];
+await that.scrTimGiaoDich('APP.26.09.016',100); await khung._nghe.click[0]({target:tai.querySelector('[data-tgd]')});
+assert.equal(goi.length,1);assert.equal(thongBao.at(-1),'Đã dùng ở APP khác');
+that.tgdTim='loc-cu';await that.scrTimGiaoDich('APP.26.09.017',200);assert.equal(goi.at(-1).a.tu_khoa,'');assert.equal(goi.at(-1).a.so_tien,200);
+console.log('PASS UI #247: API theo hồ sơ, khóa bản ghi, tài khoản/tham chiếu, chặn dòng đã dùng, reset bộ lọc');
+})().catch(e=>{console.error(e);process.exitCode=1});

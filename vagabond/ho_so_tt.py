@@ -2259,7 +2259,7 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 			"thái trước khi bấm lại." % name,
 			title="Chưa giữ được khoá hồ sơ",
 		)
-	doc = frappe.get_doc("Vagabond Ho So TT", name)
+	doc = frappe.get_doc("Vagabond Ho So TT", name, for_update=True)
 	if doc.trang_thai == TT_DA_TRA:
 		# Bam lai ho so da xong: tra lai CUNG bo chung tu da co, de nguoi bam
 		# thay dung nhung gi da ghi so, khong chi mot chu "da lam roi". Khong

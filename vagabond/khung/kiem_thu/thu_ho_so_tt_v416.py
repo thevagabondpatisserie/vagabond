@@ -55,7 +55,7 @@ def _khoa_truoc_khi_doc():
 	dung("có khoá", "for_update=True" in than)
 	# Khoa PHAI dat truoc get_doc: khoa sau thi da doc so cu roi.
 	dung("khoá trước khi đọc hồ sơ",
-		than.index("for_update=True") < than.index('frappe.get_doc("Vagabond Ho So TT", name)'))
+		than.index("for_update=True") < than.index('frappe.get_doc("Vagabond Ho So TT", name'))
 	dung("vẫn giữ chốt đã làm rồi", 'if doc.trang_thai == TT_DA_TRA:' in than)
 	# v445 (Codex #225 R1): truoc day ca nay chot "khoa hong thi van chay
 	# tiep". Do la sai: chay tiep khong khoa la mo lai dung cai dua tranh ma
