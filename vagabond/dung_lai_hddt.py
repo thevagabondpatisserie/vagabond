@@ -345,7 +345,7 @@ def _dung_dong_tai_cho(doc, g):
 				uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"), goc_mst, x.get("ten"))
 
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
-	dp_gia, dp_tien, dp_sl = _do_chinh_xac()
+	dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 	tong_dong = sum(
 		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
 		for d in moi
@@ -527,8 +527,13 @@ def _tong_thue_tren_phieu(doc):
 	return sum(flt(t.get("tax_amount")) for t in doc.get("taxes") or [])
 
 
-def _do_chinh_xac():
+def _do_chinh_xac(doc=None, g=None):
 	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng."""
+	if doc is not None:
+		from vagabond.do_chinh_xac_mua import quy_uoc
+		qc = quy_uoc(doc, g)
+		if qc:
+			return qc['gia'], qc['tien'], qc['sl']
 	try:
 		gia = cint(frappe.get_precision(PI + " Item", "rate"))
 		tien = cint(frappe.get_precision(PI + " Item", "amount"))
@@ -599,7 +604,7 @@ def du_kien_tong(doc, g):
 		from vagabond import minvoice_chung_tu as mc
 
 		goc_mst = (g.get("mst_doi_tac") or "").split("-")[0]
-		dp_gia, dp_tien, dp_sl = _do_chinh_xac()
+		dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 		tong_dong = 0.0
 		for it in dong_goc:
 			x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
