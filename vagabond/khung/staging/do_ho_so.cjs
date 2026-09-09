@@ -38,6 +38,10 @@ const {chromium} = require('playwright');
               JSON.stringify(m.rows.map(r => r.name).sort()) !== JSON.stringify([...ids].sort()))
             throw new Error('API sai tập hồ sơ');
           if (m.rows.some(r => r.tong_tien !== 6000 || r.trang_thai !== 'Nhap')) throw new Error('API sai tiền/trạng thái');
+          if (m.rows.some(r => !f.nguoi_tao[r.name] ||
+              r.nguoi_tao !== f.nguoi_tao[r.name].user ||
+              r.nguoi_tao_ten !== f.nguoi_tao[r.name].name))
+            throw new Error('API sai người tạo hoặc tên hiển thị');
           await p.waitForFunction(o => !o.isConnected, cu);
           await cu.dispose();
           await p.waitForFunction(n => document.querySelectorAll('[data-hs]').length === n, ids.length);
