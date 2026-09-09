@@ -46,9 +46,8 @@ chặn socket connect/connect_ex ra ngoài, không có worker và chỉ bind127.
 qua HTTP thật, mở năm màn ở 390px/1280px và kiểm ô sẵn sàng, lỗi API/JS;
 lưu ảnh, trace và thời gian vào artifacts. Đây chỉ là kiểm mở màn với
 Administrator, chưa chứng minh quyền nhân viên hoặc năm luồng nghiệp vụ.
-Dự kiến nối bước này sau bench. Chưa nối workflow: kết nối Git thiếu quyền
-workflow; cấu hình review nằm ở `ket-noi-ci.patch`, chưa áp vào workflow. Còn cần fixture thao tác và năm
-kịch bản đầy đủ.
+Đã nối bước browser sau bench qua kết nối GitHub của app có quyền workflow.
+Còn cần kết quả runtime và đủ fixture/thao tác cho năm kịch bản.
 
 ## Ca vận đơn đã viết, chưa chạy browser
 
@@ -61,3 +60,26 @@ Chỉ thay `requests.Session.request`; không thay hàm đồng bộ hoặc ghi 
 
 Bốn ca thuần mới đã đăng ký trong `kiem_thu/chay.py`: tổng 2713 đạt local.
 Con số 2709 trước đó là bộ cũ, chưa gồm tệp UOM mới vì thiếu đăng ký.
+
+## Xuất danh mục để đối chiếu
+
+`vagabond.khung.staging.xuat_uom.xuat(tep)` chạy qua CLI trên site được phép
+đọc, bằng Administrator/System Manager. Chỉ đọc Item/UOM Conversion Detail,
+phân trang theo tên trong DB, xuất mã/đơn vị/hệ số; không có endpoint mới,
+không đổi danh mục và không ghi đè tệp bằng chứng. Dùng tệp này làm đầu vào
+`ra_uom`, tự bổ sung quy ước từng mã đã được duyệt vào bản làm việc riêng.
+Kiểm modified chỉ phát hiện thay đổi nhìn thấy trong transaction, không
+chứng minh chặn mọi giao dịch đồng thời/raw SQL; phải đối chiếu lại trước
+một đợt sửa danh mục. Công cụ chưa chạy trên site thật.
+
+Theo comment mới của #252, nhánh `codex/227-252-dong-bo-va-gram` đang giữ
+phần 14 mã nguyên liệu/BOM; không sửa chồng từ #257. Chỉ nhận quy đổi đã
+merge và xác minh, không suy rộng quy ước của 14 mã ra toàn bộ danh mục.
+
+## Phụ thuộc vừa phát hiện cho ca Nhận hàng
+
+`bep/00-nen.js` giữ COMPANY cố định, còn bench_thu dùng công ty Vagabond Kiem.
+`doReceive` trong `03-kho-chung-tu.js` gửi COMPANY vào cửa lan_nhan. Cần dựng
+công ty thử tương thích hoặc cấu hình công ty app đúng thiết kế trước ca
+xuyên luồng. Không sửa payload ở driver để che lỗi, không dùng company thật
+với chứng từ thật làm nền. Chưa sửa app hoặc thay cấu hình production.

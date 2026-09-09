@@ -46,3 +46,48 @@ def _():
         try: tra(url, p, don)
         except ValueError: pass
         else: raise AssertionError('Nguồn thử nhận URL không thuộc fixture')
+
+
+@ca('#257 xuất UOM: đi hết trang và ghép đúng quy đổi, không tự duyệt đơn vị')
+def _():
+    from vagabond.khung.staging.xuat_uom import doc
+    da_doc = []
+    def lay(dt, **kw):
+        da_doc.append((dt, kw))
+        if dt == 'UOM Conversion Detail':
+            return [{'parent': 'A', 'uom': 'Thùng', 'conversion_factor': 30}] if 'A' in kw['filters']['parent'][1] else []
+        if 'modified' in kw['filters']: return []
+        moc = kw['filters']['name'][1]
+        return {'': [{'name': 'A', 'item_code': 'A', 'stock_uom': 'Quả'}],
+                'A': [{'name': 'B', 'item_code': 'B', 'stock_uom': 'Gram'}], 'B': []}[moc]
+    kq = doc(lay, '2036-09-10 00:00:00')
+    la('du hai trang', [d['item_code'] for d in kq['items']], ['A', 'B'])
+    la('quy doi dung mon', kq['items'][0]['uoms'], [{'uom': 'Thùng', 'conversion_factor': 30}])
+    la('khong ghep nham', kq['items'][1]['uoms'], [])
+    la('khong tu duyet', kq['quy_uoc_da_duyet'], {})
+
+
+@ca('#257 xuất UOM: từ chối snapshot đổi giữa chừng hoặc trang không tiến')
+def _():
+    from vagabond.khung.staging.xuat_uom import doc
+    def doi(dt, **kw):
+        return [{'name': 'A'}] if 'modified' in kw['filters'] else []
+    def lap(dt, **kw):
+        return [] if dt == 'UOM Conversion Detail' else [{'name': 'A', 'item_code': 'A'}]
+    for lay in (doi, lap):
+        try: doc(lay, '2036-09-10 00:00:00')
+        except RuntimeError: pass
+        else: raise AssertionError('Snapshot không ổn định vẫn được nhận')
+
+
+@ca('#257 xuất UOM: hơn 500 quy đổi trong một trang không bị cắt')
+def _():
+    from vagabond.khung.staging.xuat_uom import doc
+    def lay(dt, **kw):
+        if dt == 'UOM Conversion Detail':
+            ds = [{'parent': 'A', 'uom': 'Quy cách %s' % i, 'conversion_factor': i + 1} for i in range(501)]
+            han = kw.get('limit_page_length', 20)
+            return ds[:han] if han else ds
+        if 'modified' in kw['filters'] or kw['filters']['name'][1]: return []
+        return [{'name': 'A', 'item_code': 'A', 'stock_uom': 'Quả'}]
+    la('giữ đủ quy đổi', len(doc(lay, '2036-09-10')['items'][0]['uoms']), 501)
