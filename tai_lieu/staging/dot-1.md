@@ -186,3 +186,10 @@ CI48 terminal failure: thiếu nhiều trường Desk cũ và hai DocType làm A
 ### CI50 và ca thanh toán qua app
 
 CI50 đã qua migrate/tích hợp rồi dừng ở schema: nen_bench tạo Sales Invoice.vgb_huy read_only0, trái Desk read_only1. Sửa nguồn fixture thành1, giữ guard. Thêm fixture/driver/verifier thanh toán: chọn BT và ghi PE qua app, bỏ đối chiếu lúc còn PE phải lỗi, huỷ riêng PE qua Desk (không Cancel All), bỏ đối chiếu, đọc lại Đã duyệt/đã trả0/ngày rỗng/BT chưa phân bổ rồi cùng BT ghi nhận lại. Verifier kiểm đúng PI/Supplier/tài khoản ngân hàng/công nợ, GL12345 và phiếu cũ không còn tác động. Đã nối runner; chưa có runtime. Chưa kiểm role nhân viên, nhãn cảnh báo hiển thị hoặc thư trùng, chưa coi đủ nghiệm thu5luồng.
+
+## CI51: xác nhận ngân hàng và cấu trúc cũ
+
+- SHA 19f7173f95dc29b7561e539330a37be31d5a1d27, run 34373843267: tích hợp 141/141 x2, sạch. UI Nhận hàng và Vận đơn đạt cả browser/DB; Kiểm bánh mở ngày trống đạt hai khổ. Không phải baseline hiệu năng.
+- Browser vẫn đỏ: thiếu User.custom_bo_phan, Item.custom_han_dung_gio, SI.vgb_ma_tham_chieu và nhóm vgb_huy_ly_do/boi/luc. Đọc SELECT metadata site, commit tắt; bổ sung đúng 36 trường vào snapshot thử, không sửa production.
+- Payment driver đã ghi nhận và kiểm chặn bỏ đối chiếu, nhưng dừng ở xác nhận thứ hai của ERPNext before_cancel. Đối chiếu payment_entry.js tại pin de591661b9ba0bd3f62ac25b99b5c85c723515f6: xác nhận hủy trước, rồi hỏi tự gỡ BT. Driver mới kiểm đúng BT fixture trước xác nhận lần hai; không bỏ qua cửa core. Review độc lập không thấy blocker, còn phải chạy runtime.
+- Artifact 10113668021 SHA256 02bfb10b48649f69e01dccf4cb1510b94c1df37e6173ea569c803c9ff878f931. Chưa đủ năm luồng UI, chưa merge/deploy.

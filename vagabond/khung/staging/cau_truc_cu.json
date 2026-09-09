@@ -1,5 +1,5 @@
 {
-  "source": "Desk Custom Field/DocType/DocField/DocPerm, SELECT only, 2026-09-09; subset required by CI48, not a complete site schema or workflow export. No production writes.",
+  "source": "Desk Custom Field/DocType/DocField/DocPerm, SELECT only, 2026-09-09; subset required by CI48/CI51, not a complete site schema or workflow export. No production writes.",
   "fields": [
     {
       "dt": "Item",
@@ -189,6 +189,366 @@
       "options": null,
       "reqd": 0,
       "read_only": 1
+    },
+    {
+      "dt": "Delivery Note",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Delivery Note",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Delivery Note",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Journal Entry",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Journal Entry",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Journal Entry",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Payment Entry",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Payment Entry",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Payment Entry",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "POS Invoice",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "POS Invoice",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "POS Invoice",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Invoice",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Invoice",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Invoice",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Order",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Order",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Order",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Receipt",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Receipt",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Purchase Receipt",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Sales Invoice",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Sales Invoice",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Sales Invoice",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Sales Order",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Sales Order",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Sales Order",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Stock Entry",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Stock Entry",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Stock Entry",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Stock Reconciliation",
+      "fieldname": "vgb_huy_boi",
+      "label": "Người huỷ",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Stock Reconciliation",
+      "fieldname": "vgb_huy_luc",
+      "label": "Huỷ lúc",
+      "fieldtype": "Datetime",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Stock Reconciliation",
+      "fieldname": "vgb_huy_ly_do",
+      "label": "Lý do huỷ",
+      "fieldtype": "Small Text",
+      "options": null,
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
+    },
+    {
+      "dt": "Item",
+      "fieldname": "custom_han_dung_gio",
+      "label": "Hạn dùng theo giờ",
+      "fieldtype": "Int",
+      "options": null,
+      "reqd": 0,
+      "read_only": 0,
+      "default": null
+    },
+    {
+      "dt": "Sales Invoice",
+      "fieldname": "vgb_ma_tham_chieu",
+      "label": "Mã tham chiếu đối soát",
+      "fieldtype": "Data",
+      "options": null,
+      "reqd": 0,
+      "read_only": 0,
+      "default": null
+    },
+    {
+      "dt": "User",
+      "fieldname": "custom_bo_phan",
+      "label": "Bộ phận (dữ liệu cũ)",
+      "fieldtype": "Data",
+      "options": "\nBếp Baker\nBếp Pastry\nBếp Lab - R&D\nCửa hàng D1\nCửa hàng 307\nSales Online\nKho tổng 307\nMua hàng\nKế toán\nMarketing\nBan giám đốc\nSonneto",
+      "reqd": 0,
+      "read_only": 1,
+      "default": null
     }
   ],
   "doctypes": [

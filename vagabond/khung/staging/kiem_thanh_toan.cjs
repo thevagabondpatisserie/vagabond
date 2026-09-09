@@ -74,9 +74,22 @@ const {chromium} = require('playwright');
     if (!lk.r.ok() || !lkBody.message || (lkBody.message.docs || []).length) {
       throw new Error('Không huỷ chuỗi chứng từ trong ca thử: ' + JSON.stringify(lkBody));
     }
-    const huy = p.waitForResponse(r => new URL(r.url()).pathname === '/api/method/frappe.desk.form.save.cancel')
+    // ERPNext before_cancel hỏi riêng việc gỡ đối chiếu ngân hàng.
+    const nganHang = p.waitForResponse(r => new URL(r.url()).pathname === '/api/method/erpnext.accounts.doctype.payment_entry.payment_entry.get_linked_bank_transactions')
       .then(r => ({r}), e => ({e}));
     await p.locator('.modal.show .modal-footer .btn-primary').click();
+    const nh = await nganHang;
+    if (nh.e) throw nh.e;
+    const nhBody = await nh.r.json();
+    if (!nh.r.ok() || JSON.stringify(nhBody.message) !== JSON.stringify([f.giao_dich])) {
+      throw new Error('Desk phải xác nhận đúng một sao kê thử: ' + JSON.stringify(nhBody));
+    }
+    const hoiNganHang = p.locator('.modal.show').filter({hasText: 'Cancelling will automatically unreconcile it.'});
+    await hoiNganHang.waitFor();
+    if (!(await hoiNganHang.innerText()).includes(f.giao_dich)) throw new Error('Hộp xác nhận thiếu sao kê thử');
+    const huy = p.waitForResponse(r => new URL(r.url()).pathname === '/api/method/frappe.desk.form.save.cancel')
+      .then(r => ({r}), e => ({e}));
+    await hoiNganHang.locator('.modal-footer .btn-primary').click();
     const hu = await huy;
     if (hu.e) throw hu.e;
     const huBody = await hu.r.json();
