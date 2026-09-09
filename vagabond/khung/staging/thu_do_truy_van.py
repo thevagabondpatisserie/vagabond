@@ -5,7 +5,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Barrier
-from .do_truy_van import boc_sql, boc_web, _hien_tai
+from .do_truy_van import boc_sql, boc_web, ghi_goi_nguon, _hien_tai
 
 
 class ThuDo(unittest.TestCase):
@@ -43,9 +43,11 @@ class ThuDo(unittest.TestCase):
         @boc_sql
         def sql(): return 1
         def app(e, tra):
-            tra('200 OK', [])
             bar.wait(timeout=5)
-            for _ in range(e['n']): sql()
+            for _ in range(e['n']):
+                sql()
+                ghi_goi_nguon()
+            tra('200 OK', [])
             return [b'ok']
         with tempfile.TemporaryDirectory() as d:
             tep = Path(d) / 'do.jsonl'
@@ -55,6 +57,7 @@ class ThuDo(unittest.TestCase):
                 self.assertEqual(list(pool.map(chay, [2, 7])), [b'ok', b'ok'])
             rows = [json.loads(s) for s in tep.read_text().splitlines()]
             self.assertEqual(sorted(r['so_truy_van'] for r in rows), [2, 7])
+            self.assertEqual(sorted(r['so_goi_nguon'] for r in rows), [2, 7])
             self.assertTrue(all(r['ms'] >= r['sql_ms'] >= 0 for r in rows))
             sql()
             self.assertEqual(len(tep.read_text().splitlines()), 2)

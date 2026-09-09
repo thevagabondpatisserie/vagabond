@@ -31,6 +31,8 @@ def gan(don, tep_log):
     def gui(session, method, url, **kw):
         if method.upper() != 'GET':
             raise RuntimeError('Nguồn thử không cho ghi ra ngoài.')
+        from vagabond.khung.staging.do_truy_van import ghi_goi_nguon
+        ghi_goi_nguon()
         body = tra(url, kw.get('params') or {}, don)
         with tep_log.open('a') as f:
             f.write(json.dumps({'duong': urlparse(url).path,

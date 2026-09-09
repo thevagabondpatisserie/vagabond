@@ -28,6 +28,13 @@ def boc_sql(ham):
     return goi
 
 
+def ghi_goi_nguon():
+    """Gateway HTTP giả ghi số lần nguồn trong đúng request, không lưu payload."""
+    do = _hien_tai.get()
+    if do is not None:
+        do['so_goi_nguon'] += 1
+
+
 def gan():
     from vagabond.khung.staging.van_don_ci import khoa
     khoa()
@@ -50,13 +57,13 @@ def boc_web(ung_dung, tep):
                 if hasattr(ket_ngoai, 'close'):
                     ket_ngoai.close()
             return
-        do = {'duong': duong, 'status': None, 'so_truy_van': 0, 'sql_ms': 0.0}
+        do = {'duong': duong, 'status': None, 'so_truy_van': 0, 'sql_ms': 0.0, 'so_goi_nguon': 0}
         moc = _hien_tai.set(do)
         dau = perf_counter()
         ket = None
         def tra(status, headers, exc_info=None):
             do['status'] = int(status.split()[0])
-            return start_response(status, headers, exc_info)
+            return start_response(status, list(headers) + [('X-VGB-CI-Source-Calls', str(do['so_goi_nguon']))], exc_info)
         try:
             ket = ung_dung(environ, tra)
             for chunk in ket:

@@ -279,3 +279,21 @@ trước bench. Runner dùng Chromium của Playwright, không cần nguồn Chr
 Chỉ comment dòng deb/deb-src URL GoogleChrome trong *.list trên runner tạm;
 không tắt hash/chữ ký và không bỏ qua apt failure. Nếu runner dùng .sources
 thì vẫn fail để xử lý theo nguồn mới. Bản này chưa được kiểm runtime CI.
+
+
+## CI57 và bộ đo đủ ba màn
+
+CI57 run34386953007 vượt apt, migrate và tích hợp. Benchmark dừng tìm mã:
+artifact10118614892 SHA256
+`62bf3e7514f4fb6cac38e4963485ee39af1450315a4df66f959f40a48abd5903`.
+Query DO257-100-0099 khớp cả VD-2026-00099 (display0097) và display0099,
+vì tìm từng token trên nhiều trường. Đổi fixture sang token Z0099 để không
+trùng mã nội bộ; không đổi thuật toán tìm app. Driver giữ trace/HTML khi lỗi.
+
+Nối Kiểm bánh50/200 dòng và Hồ sơ300 hoàn ứng nháp sau hồi quy chức năng.
+Mỗi màn5lượt x2khổ, so API/DOM IDset và số tiền/số bán. Hồ sơ dùng fillEnter
+đúng UI. Kiểm bánh ghi số lần HTTPstub theo request để phân loại đọc nguồn/
+không đọc nguồn; header chốt khi trả JSON, không áp dụng suy luận streaming.
+Mức tải là tổng hợp, Hồ sơ chỉ nháp, chưa đại diện trạng thái hỗn hợp/site.
+Các benchmark độc lập tiếp tục khi một màn đo hỏng, nhưng CI cuối vẫn đỏ.
+Chưa runtime bản gộp; chưa kết luận tăng tốc hoặc giảm số chạm thực tế.

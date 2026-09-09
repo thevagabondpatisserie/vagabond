@@ -41,11 +41,14 @@ node vagabond/khung/staging/kiem_vai.cjs || hong=1
 # Tải benchmark chỉ dựng sau toàn bộ ca chức năng/quyền, không đổi fixture
 # trước khi chúng được nghiệm thu. Không đo trên nền đang lỗi.
 if [[ "$hong" == 0 ]]; then
-  cd "$VGB_BENCH/sites"
-  ../env/bin/python -m vagabond.khung.staging.tai_van_don_ci 2>&1 | tee "$VGB_ARTIFACTS/tai-van-don.log" || hong=1
-  if [[ "$hong" == 0 ]]; then
-    cd "$GITHUB_WORKSPACE"
-    node vagabond/khung/staging/do_van_don.cjs || hong=1
-  fi
+  for man in van_don kiem_banh ho_so; do
+    cd "$VGB_BENCH/sites"
+    if ../env/bin/python -m "vagabond.khung.staging.tai_${man}_ci" 2>&1 | tee "$VGB_ARTIFACTS/tai-${man}.log"; then
+      cd "$GITHUB_WORKSPACE"
+      node "vagabond/khung/staging/do_${man}.cjs" || hong=1
+    else
+      hong=1
+    fi
+  done
 fi
 exit "$hong"

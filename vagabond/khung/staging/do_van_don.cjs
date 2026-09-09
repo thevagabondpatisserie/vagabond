@@ -14,11 +14,13 @@ const {chromium} = require('playwright');
     for (const rong of [390, 1280]) {
       for (let lan = 0; lan < 5; lan++) {
         const c = await browser.newContext({viewport: {width: rong, height: 900}, serviceWorkers: 'block'});
+        let p;
+        await c.tracing.start({screenshots: true, snapshots: true});
         try {
           await c.route('**/*', r => new URL(r.request().url()).origin === goc ? r.continue() : r.abort());
           const dn = await c.request.post(goc + '/api/method/login', {form: {usr: 'Administrator', pwd: 'bench-only-admin'}});
           if (!dn.ok()) throw new Error('Đăng nhập thất bại');
-          const p = await c.newPage();
+          p = await c.newPage();
           const loi = [];
           p.on('pageerror', e => loi.push(e.message));
           p.on('response', r => {if (r.url().includes('/api/') && r.status() >= 400) loi.push('API ' + r.status());});
@@ -54,7 +56,18 @@ const {chromium} = require('playwright');
             await p.locator('#vdQ').fill('');
             await p.waitForFunction(n => document.querySelectorAll('[data-vd]').length === n, f.so_don);
           }
-        } finally {await c.close();}
+        } catch (e) {
+          const tep = 'do-van-don-' + rong + '-' + lan;
+          if (p) {
+            await p.screenshot({path: path.join(dich, tep + '.png'), fullPage: true}).catch(() => {});
+            fs.writeFileSync(path.join(dich, tep + '.html'), await p.content().catch(() => ''));
+          }
+          ket.push({rong, lan, dat: false, loi: String(e.stack)});
+          throw e;
+        } finally {
+          await c.tracing.stop({path: path.join(dich, 'do-van-don-' + rong + '-' + lan + '.zip')});
+          await c.close();
+        }
       }
     }
   } finally {

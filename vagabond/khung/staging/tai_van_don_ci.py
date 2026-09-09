@@ -24,7 +24,8 @@ def tao():
             raise RuntimeError('Ngày đo đã có dữ liệu; cần bench mới.')
         ds = []
         for i in range(so):
-            ma = 'DO257-%s-%04d' % (so, i)
+            # Chữ Z phân biệt token tìm với số name VD-2026-00099.
+            ma = 'DO257-%s-Z%04d' % (so, i)
             d = frappe.get_doc({'doctype': 'Van Don', 'ngay_giao': ngay,
                 'ma_don': ma, 'trang_thai': 'Chờ giao', 'kenh': 'Shipper nội bộ',
                 'khach': 'Khách thử ' + ma, 'dia_chi': 'Địa chỉ tổng hợp ' + str(i),
@@ -41,7 +42,7 @@ def tao():
         if frappe.db.count('Van Don Mon', {'parent': ['in', ds]}) != so * 3:
             raise RuntimeError('Số dòng món không đủ.')
         bang.append({'ngay': ngay, 'so_don': so, 'so_mon': so * 3,
-            'ten': ds, 'tim_ma': 'DO257-%s-%04d' % (so, so - 1)})
+            'ten': ds, 'tim_ma': 'DO257-%s-Z%04d' % (so, so - 1)})
     (goc / 'tai-van-don.json').write_text(json.dumps(bang))
 
 
