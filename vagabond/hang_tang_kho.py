@@ -24,7 +24,14 @@ def kiem_kho(kho, cong_ty):
     d = frappe.get_cached_doc('Warehouse', kho)
     if d.company != cong_ty or d.is_group or d.disabled:
         frappe.throw('Kho %s phải là kho chi tiết còn dùng của %s. Kiểm Cài đặt > Điểm bán.' % (kho, cong_ty))
-    # StockController.get_inventory_account_map lấy tài khoản theo kho.
+    # ERPNext de59166, erpnext/controllers/stock_controller.py:
+    # get_inventory_account_map: if self.use_item_inventory_account:
+    #     return self.get_item_wise_inventory_account_map()
+    # return get_warehouse_account_map(self.company)
+    # erpnext/stock/__init__.py, get_warehouse_account_map:
+    # if not d.account: d.account = get_warehouse_account(d, warehouse_account)
+    # if d.account: warehouse_account.setdefault(d.name, d)
+    # Core dùng tài khoản cấu hình của kho, không kiểm tiền tố 155.
     # Anh Việt chốt 09/09: bán/tặng dùng cùng kho điểm bán. Không ép mã
     # tài khoản 155: kho đang dùng 152/156 vẫn hạch toán theo cấu hình đó.
     if not d.account:
