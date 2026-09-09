@@ -120,6 +120,15 @@ bằng chứng SHA cũ, không thay kiểm trên nền main mới. Runner browse
 thu kết quả từng cửa riêng ngay cả khi một cửa lỗi, và vẫn trả exit1 nếu
 bất kỳ cửa nào lỗi. Không dùng việc chạy tiếp làm miễn trừ cổng.
 
+Run34361298751 trên35f2c85:116/116 tích hợp hai lượt sạch, browser10/10
+không mở được. Web.log và ảnh xác nhận HTTP404, không có API nghiệp vụ.
+Gốc là `trang.dong_bo()` cố ý không tạo Web Page mới, nên CI trắng chưa có
+trang `bep` cho hook route trỏ tới. Fixture gateway nay dựng `bep` và
+`kiem-banh` bằng `trang.doc_mot`/Document.insert rồi reload kiểm byte nội
+dung, sau khoá CI. Không thay chính sách migrate production. Smoke kiểm
+HTTP trước selector, ghi lỗi từng ca và lưu HTML để không chờ10phút chỉ
+vì404. Review mã và gate local đạt, cần runtime SHA kế tiếp.
+
 ## Đường UI cho hai ca tiếp theo
 
 Đã đọc trên main5bd5d4e và nhánh35f2c85:

@@ -5,7 +5,37 @@ ngoài ở tầng socket để tác vụ web không vô tình gọi dịch vụ 
 """
 import os
 import socket
+import json
+import hashlib
 from pathlib import Path
+
+
+def tao_trang():
+    """Migrate chỉ cập nhật Web Page có sẵn; CI trắng phải dựng nền từ repo."""
+    import frappe
+    from vagabond import trang
+    from vagabond.khung.staging.van_don_ci import khoa
+    khoa()
+    frappe.set_user('Administrator')
+    bang = []
+    for route in ('bep', 'kiem-banh'):
+        if frappe.db.exists('Web Page', {'route': route}):
+            raise RuntimeError('Trang fixture đã có, cần kiểm nền CI thay vì ghi đè.')
+        noi_dung = trang.doc_mot(route)
+        if not noi_dung.get('main_section_html') or not noi_dung.get('javascript'):
+            raise RuntimeError('Thiếu nội dung trang trong repo: ' + route)
+        d = frappe.get_doc(dict(noi_dung, doctype='Web Page', route=route))
+        d.insert(ignore_permissions=True)
+        d.reload()
+        # Chốt byte nội dung dùng thật, không chèn script thay thế vào browser.
+        for o, _ in trang.O_NOI_DUNG:
+            if (d.get(o) or '') != (noi_dung.get(o) or ''):
+                raise RuntimeError('Nội dung Web Page khác repo: ' + route + '/' + o)
+        bang.append({'route': route, 'name': d.name, 'published': d.published,
+            'javascript_sha256': hashlib.sha256(d.javascript.encode()).hexdigest()})
+    frappe.db.commit()
+    frappe.clear_cache()
+    (Path(os.environ['VGB_ARTIFACTS']) / 'web-pages.json').write_text(json.dumps(bang))
 
 
 def chan_mang():
@@ -37,6 +67,7 @@ def chay():
         from frappe.utils.password import update_password
         update_password('Administrator', 'bench-only-admin')
         frappe.db.commit()
+        tao_trang()
         if os.environ.get('VGB_STAGING_VAN_DON') == '1':
             from vagabond.khung.staging.van_don_ci import tao
             from vagabond.khung.staging.nguon_pancake import gan

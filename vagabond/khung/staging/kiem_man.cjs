@@ -27,13 +27,17 @@ const {chromium} = require('playwright');
         ['hoa-don-ban', 'Hoá đơn', '#ktBanTim']
       ]) {
         const trang = await canh.newPage();
-        const loi = [], api = [];
+        const loi = [], api = [], taiHong = [];
         trang.on('pageerror', e => loi.push(e.message));
+        trang.on('requestfailed', r => taiHong.push({
+          duong: new URL(r.url()).pathname, loi: r.failure()?.errorText || 'requestfailed'
+        }));
         trang.on('response', r => {if (r.url().includes('/api/')) api.push({duong: new URL(r.url()).pathname, status: r.status()});});
         const batDau = Date.now();
         let dat = false;
         try {
-          await trang.goto(goc + '/' + duong, {waitUntil: 'load', timeout: 60000});
+          const html = await trang.goto(goc + '/' + duong, {waitUntil: 'load', timeout: 60000});
+          if (!html || !html.ok()) throw new Error('Trang trả HTTP ' + (html ? html.status() : 'không có phản hồi'));
           await trang.locator('#vgb .vh b').filter({hasText: nhan}).waitFor({timeout: 60000});
           // Chỉ nhận màn có control cuối cùng, không coi chữ "Đang tải" là sẵn sàng.
           await trang.locator(sanSang).waitFor({state: 'visible', timeout: 60000});
@@ -42,7 +46,11 @@ const {chromium} = require('playwright');
           if (loi.length || api.some(r => r.status >= 400)) throw new Error('Có lỗi JS/API.');
           dat = true;
         } catch (e) {loi.push(e.message);}
-        ket.push({duong, rong, dat, ms: Date.now() - batDau, api, loi});
+        const kq = {duong, rong, dat, ms: Date.now() - batDau, api, loi, taiHong};
+        ket.push(kq);
+        // Xuất từng ca để log chỉ rõ màn nào hỏng, không đợi cả10 ca.
+        console.log(JSON.stringify(kq));
+        if (!dat) fs.writeFileSync(path.join(dich, duong + '-' + rong + '-loi.html'), await trang.content());
         await trang.screenshot({path: path.join(dich, duong + '-' + rong + '.png'), fullPage: true});
         await trang.close();
       }
