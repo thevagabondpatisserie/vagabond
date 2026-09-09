@@ -66,14 +66,15 @@ def _xac_nhan(pr, sr, ghi_so=True, **doi):
     return doc
 
 
-def _pi(pr, hs=1000, qty=18):
+def _pi(pr, hs=1000, qty=18, noi=True):
     row = pr.items[0]
     return _luu(frappe.get_doc(dict(doctype='Purchase Invoice', company=pr.company,
         supplier=pr.supplier, currency='VND', conversion_rate=1, update_stock=0,
         bill_no='KT252-' + frappe.generate_hash(length=10), bill_date=add_days(today(), -1),
         posting_date=add_days(today(), -1), posting_time='10:00:00', set_posting_time=1,
         items=[dict(item_code=row.item_code, uom=row.uom, qty=qty, conversion_factor=hs,
-            rate=300000, warehouse=row.warehouse, purchase_receipt=pr.name, pr_detail=row.name)])))
+            rate=300000, warehouse=row.warehouse, purchase_receipt=pr.name if noi else None,
+            pr_detail=row.name if noi else None)])))
 
 
 def _sle(ma):
@@ -105,13 +106,44 @@ def _chay_repost(pr):
 
 
 def _ghi_va_huy(chinh_gia):
+    from vagabond.doi_chieu_mua import so_sanh, _noi
     frappe.db.set_single_value('Buying Settings', 'set_landed_cost_based_on_purchase_invoice_rate', chinh_gia)
     pr, sr = _nen()
+    hd = _pi(pr, noi=False)
+    cu = so_sanh(hd.name, [pr.name])
+    la('màn đối chiếu nhận ra lệch trước xác nhận', cu['khop'], 0)
+    la('màn đối chiếu chỉ đúng hệ số cũ', cu['dong'][0]['hs_pnk'], 500)
     xac_nhan = _xac_nhan(pr, sr)
     ma = pr.items[0].item_code
+    moi = so_sanh(hd.name, [pr.name])
+    la('màn đối chiếu khớp sau xác nhận', moi['khop'], 1)
+    la('màn đối chiếu dùng hệ số mới', moi['dong'][0]['hs_pnk'], 1000)
+    noi = _noi(hd, [pr.name], chi_tiet=True)
+    la('nút nối không còn lỗi', noi['loi'], [])
+    la('nút nối không còn chặn ghi sổ', noi['chan_ghi_so'], [])
+    la('nối đúng một dòng', noi['da_noi'], 1)
+    hd.save(ignore_permissions=True); hd.reload()
+    la('lưu đúng dòng PNK', hd.items[0].pr_detail, pr.items[0].name)
+    la('nối không đổi hệ số PI', hd.items[0].conversion_factor, 1000)
+    # Có tiêu hao thật sau kiểm kê: repost phải giữ cả lượng và giá vốn
+    # của nghiệp vụ sau đó, không chỉ giữ một kho chưa từng xuất.
+    xuat = _luu(frappe.get_doc(dict(doctype='Stock Entry', company=pr.company,
+        purpose='Material Issue', stock_entry_type='Material Issue',
+        set_posting_time=1, posting_date=sr.posting_date, posting_time='11:00:00',
+        items=[dict(item_code=ma, qty=1000, uom=pr.items[0].stock_uom, conversion_factor=1,
+            s_warehouse=pr.items[0].warehouse, batch_no=pr.items[0].batch_no,
+            use_serial_batch_fields=1, expense_account=sr.expense_account,
+            cost_center=sr.cost_center)])))
+    xuat.submit()
+    sle_xuat = [d for d in _sle(ma) if d.voucher_no == xuat.name]
+    la('xuất thật 1000 đơn vị kho', sum(d.actual_qty for d in sle_xuat), -1000)
+    la('giá vốn xuất sau kiểm kê là 300000', -sum(d.stock_value_difference for d in sle_xuat), 300000)
+    la('còn đúng 17000 trong kho', frappe.db.get_value('Bin', {
+        'item_code': ma, 'warehouse': pr.items[0].warehouse}, 'actual_qty'), 17000)
     truoc = _sle(ma)
     gl_pr, gl_sr = _gl(pr), _gl(sr)
-    hd = _pi(pr)
+    gl_xuat = _gl(xuat)
+    dung('xuất tiêu hao ghi GL thật', bool(gl_xuat))
     trung = _pi(pr, qty=1)
     hd.submit(); hd.reload()
     _chay_repost(pr)
@@ -122,6 +154,7 @@ def _ghi_va_huy(chinh_gia):
     la('SLE giữ nguyên cả tên và giá trị', _sle(ma), truoc)
     la('GL PR không đổi', _gl(pr), gl_pr)
     la('GL kiểm kê không đổi', _gl(sr), gl_sr)
+    la('GL tiêu hao sau kiểm kê không đổi', _gl(xuat), gl_xuat)
     la('GL PI cân', sum(d.debit-d.credit for d in _gl(hd)), 0)
     dung('PI thực sự ghi GL', bool(_gl(hd)))
     pr.reload(); la('không sửa hệ số PR gốc', pr.items[0].conversion_factor, 500)
@@ -133,6 +166,7 @@ def _ghi_va_huy(chinh_gia):
     else: dung('không còn lượng cho PI thứ hai', False)
     hd.cancel(); _chay_repost(pr)
     la('huỷ PI không đổi tồn đã kiểm kê', _sle(ma), truoc)
+    la('huỷ PI không đổi GL tiêu hao', _gl(xuat), gl_xuat)
     la('huỷ đảo GL PI', sum(d.debit-d.credit for d in _gl(hd)), 0)
     # Hạn mức được trả lại khi PI đã huỷ.
     chan_vuot_luong_da_nhan(trung)
