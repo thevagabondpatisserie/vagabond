@@ -7,6 +7,8 @@ Runner này ghi bằng chứng rồi thoát đỏ ngay khi khung mất an toàn.
 import json
 import os
 import socket
+import subprocess
+import sys
 import traceback
 from pathlib import Path
 from unittest.mock import patch
@@ -57,6 +59,13 @@ def chay():
 		if any(kq.get("hong") for kq in ket):
 			raise RuntimeError("Có ca tích hợp đỏ; đọc luot-1.json và luot-2.json.")
 		print("PASS: hai lượt đầy đủ, không còn chứng từ thử.")
+		# Hai cửa phát hành dùng SI riêng; chỉ HTTP cuối được giả lập.
+		from vagabond.khung.bench_thu.kiem_minvoice_243 import chay as chay_minvoice
+		with patch.object(socket.socket, "connect", chi_noi_bo):
+			kq = chay_minvoice()
+		(tep / "minvoice-243.json").write_text(
+			json.dumps(kq, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+		print("PASS: hai đường phát hành độc lập.")
 	except Exception:
 		(tep / "loi.txt").write_text(traceback.format_exc(), encoding="utf-8")
 		raise
@@ -67,3 +76,6 @@ def chay():
 
 if __name__ == "__main__":
 	chay()
+	# Kịch bản này cố ý commit và mở nhiều kết nối. Chỉ chạy sau khi bộ
+	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
+	subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=True)

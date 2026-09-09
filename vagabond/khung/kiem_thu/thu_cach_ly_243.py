@@ -122,6 +122,21 @@ def _loi_ca():
     dung('giữ nguyên lỗi', 'Lỗi thật không được nuốt' in str(k['ket_qua']))
 
 
+@ca('#243 khung: ca import danh sách chứng từ vẫn dọn cache qua hai lượt')
+def _giu_danh_sach():
+    f,n=_nap()
+    da_tao=n['_DA_TAO']
+    def tao():
+        da_tao.append(('File','unc-thu'))
+        f.bo_nho['File','unc-thu']='cache thử'
+    n['CA'].append(('tạo từ tham chiếu import',tao))
+    for _ in range(2):
+        k=n['chay_het']()
+        la('lượt sạch',k['sach'],1)
+        la('cache được dọn qua tham chiếu cũ',f.bo_nho,{})
+        la('không nhân danh sách lượt trước',len(da_tao),1)
+
+
 @ca('#243 khung: mất điểm lưu dừng lượt, không báo sạch dù đếm chưa lệch')
 def _mat_moc():
     f,n=_nap();chay=[]

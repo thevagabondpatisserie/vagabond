@@ -75,6 +75,7 @@ def _unc_gia(ho_so):
 def _ho_so_ncc(hoa_dons):
 	"""Hồ sơ NCC Đã duyệt, mỗi hoá đơn một dòng trả ĐỦ nợ."""
 	h = frappe.new_doc("Vagabond Ho So TT")
+	h.ma = hs._sinh_ma()
 	h.loai = "NCC"
 	h.ngay = today()
 	h.nha_cung_cap = hoa_dons[0].supplier
@@ -215,6 +216,7 @@ def _r1_je_link():
 		dung("site có tài khoản ngân hàng và một tài khoản chi phí", False)
 		return
 	h = frappe.new_doc("Vagabond Ho So TT")
+	h.ma = hs._sinh_ma()
 	h.loai, h.ngay, h.trang_thai, h.da_tam_ung = "TK cong ty", today(), "Da duyet", 0
 	h.nha_cung_cap = mot_nha_cung_cap()
 	h.tk_chi = ba

@@ -202,5 +202,29 @@ def dung():
 		frappe.db.set_value("Company", CTY, "enable_perpetual_inventory", 1)
 	if not frappe.db.has_index("tabPurchase Invoice Item", "vgb_pr_docstatus_227"):
 		frappe.db.add_index("Purchase Invoice Item", ["pr_detail", "docstatus"], index_name="vgb_pr_docstatus_227")
+	# Account loại Bank chưa đủ: đường hoàn tiền và đối chiếu sao kê đọc
+	# Bank Account có liên kết về công ty và tài khoản kế toán.
+	if not frappe.db.exists("Bank Account", {"company": CTY, "is_company_account": 1}):
+		from vagabond.ngan_hang import chuan_hoa_hoac_bao
+		ngan_hang = chuan_hoa_hoac_bao("MB")
+		frappe.get_doc({"doctype": "Bank Account", "account_name": "Tài khoản kiểm thử",
+			"bank": ngan_hang, "company": CTY, "is_company_account": 1,
+			"account": frappe.db.get_value("Account", {"company": CTY, "account_type": "Bank", "is_group": 0}, "name"),
+			"bank_account_no": "000000000243"}).insert(ignore_permissions=True)
+	# Mẫu này có sẵn trên site trước khi app quản lý HTML; dựng bản ghi
+	# nền rồi dùng đúng hàm đồng bộ để ca in đi qua get_print của Frappe.
+	from vagabond import mau_in
+	for ten, (_tep, dt) in mau_in.MAU_IN.items():
+		if not frappe.db.exists("Print Format", ten):
+			frappe.get_doc({"doctype": "Print Format", "name": ten, "doc_type": dt,
+				"standard": "No", "custom_format": 1, "print_format_type": "Jinja",
+				"html": "<p>Mẫu nền kiểm thử</p>"}).insert(ignore_permissions=True)
+	mau_in.dong_bo()
+	if not frappe.db.exists("Purchase Order", {"docstatus": 1}):
+		po = frappe.get_doc({"doctype": "Purchase Order", "company": CTY,
+			"supplier": "NCC kiểm thử", "schedule_date": today(),
+			"items": [{"item_code": "DV-KIEM", "qty": 1, "rate": 100000,
+				"schedule_date": today()}]}).insert(ignore_permissions=True)
+		po.submit()
 	frappe.db.commit()
 	return {"cong_ty": CTY, "kho": kho}

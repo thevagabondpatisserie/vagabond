@@ -27,12 +27,16 @@ bench new-site bench-ci.localhost --db-host 127.0.0.1 --db-port 3306 --mariadb-u
 bench --site bench-ci.localhost set-config vagabond_bench_thu 1
 bench --site bench-ci.localhost set-config mute_emails 1
 bench --site bench-ci.localhost set-config disable_scheduler 1
+bench --site bench-ci.localhost set-config server_script_enabled 1
 bench --site bench-ci.localhost install-app erpnext
 bench --site bench-ci.localhost install-app vagabond
 bench --site bench-ci.localhost execute vagabond.khung.bench_thu.nen_bench.dung
+bench --site bench-ci.localhost execute vagabond.khung.bench_thu.nang_cap_ci.chuan_bi
 for luot in 1 2; do
   bench --site bench-ci.localhost migrate 2>&1 | tee "$VGB_ARTIFACTS/migrate-$luot.log"
 done
+bench --site bench-ci.localhost execute vagabond.khung.bench_thu.nang_cap_ci.doi_chieu 2>&1 | tee "$VGB_ARTIFACTS/doi-chieu-migrate.log"
+bench build --apps frappe,erpnext,vagabond --force 2>&1 | tee "$VGB_ARTIFACTS/build-assets.log"
 python - <<'PY'
 import json, os, subprocess
 from pathlib import Path

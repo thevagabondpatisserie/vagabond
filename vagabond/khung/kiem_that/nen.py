@@ -281,8 +281,10 @@ DEM_CANH = ("Purchase Receipt", "Purchase Invoice", "Stock Ledger Entry",
 
 def chay_het(im=1):
 	"""Chạy mọi ca trong điểm lưu riêng; mất điểm lưu thì dừng cả lượt."""
-	global _LOI, _DA_TAO
-	_DA_TAO = []
+	global _LOI
+	# Các ca cũ import danh sách này trực tiếp. Giữ cùng object qua hai
+	# lượt để không mất dấu chứng từ và cache cần dọn của những ca đó.
+	_DA_TAO.clear()
 	truoc = _dem(DEM_CANH)
 	ket = []
 	dat = hong = da_chay = 0
