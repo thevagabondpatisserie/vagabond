@@ -215,3 +215,18 @@ SI.vgb_lan_sua. Đã đọc SELECT metadata site và thêm đúng cấu trúc v�
 Sản xuất còn trả417 tại hoan_tat_phieu, chưa biết nguyên nhân vì driver cũ
 short-circuit trước r.json(), đóng trang khi body chưa vào trace. Driver mới
 đọc/lưu body trước kiểm status. Không nhận thêm schema là đã sửa lỗi sản xuất.
+## CI53: lỗi giờ máy khách khi hoàn tất sản xuất
+
+Artifact10115311432 SHA256
+`2869c9230936861dad98dc6277b83bf2a4f684bbdaaa0b512ab9f66788247492`.
+Bốn ca quyền HTTP đạt. Sản xuất gửi posting_time16:54:22 trong khi lệnh
+fixture tạo23:53:58 theo site Việt Nam; API trả NegativeStockError. Browser
+UTC đã đặt phiếu xuất trước nhập. Hàng tặng sau đó bị chặn đúng vì chưa có bánh.
+
+Hoàn tất app chỉ ghi nhận ngay, không có ô chọn ngày lùi. Cửa máy chủ nay
+tắt set_posting_time để ERPNext TransactionBase.validate_posting_time lấy giờ
+site (pin de591661, erpnext/utilities/transaction_base.py). Không chỉnh múi
+giờ browser để che lỗi: driver giữUTC, fixture kiểm siteAsia/Ho_Chi_Minh,
+verifier kiểm thời điểm xuất không trước phiếu nhập và giữ toàn bộ SLE/GL.
+Chưa có runtime bản sửa. Chưa thay các cửa nhập trực tiếp/Desk hoặc chuẩn
+hoá mọi chỗ dùng nowStamp trong app.

@@ -9,6 +9,8 @@ def tao():
     import frappe
     khoa()
     frappe.set_user('Administrator')
+    if frappe.db.get_single_value('System Settings', 'time_zone') != 'Asia/Ho_Chi_Minh':
+        raise RuntimeError('Ca lech gio can site Asia/Ho_Chi_Minh va browser UTC.')
     goc = Path(os.environ['VGB_ARTIFACTS'])
     nhan = json.loads((goc / 'nhan-hang-fixture.json').read_text())
     cty = nhan['cong_ty']
@@ -39,7 +41,7 @@ def tao():
     wo.insert(ignore_permissions=True)
     wo.submit()
     frappe.db.commit()
-    f = {'lenh': wo.name, 'bom': bom.name, 'nvl': nvl, 'banh': tp,
+    f = {'lenh': wo.name, 'bom': bom.name, 'nvl': nvl, 'banh': tp, 'nhap_nvl': se.name,
         'kho_xuat': nhan['kho_xuat'], 'kho_nhan': nhan['kho_nhan']}
     (goc / 'san-xuat-fixture.json').write_text(json.dumps(f))
 
@@ -53,6 +55,12 @@ def kiem():
     assert float(wo.produced_qty) == 2 and wo.status == 'Completed', 'Lệnh chưa hoàn thành2'
     ds = frappe.get_all('Stock Entry', filters={'work_order': wo.name}, fields=['name', 'docstatus'], limit_page_length=0)
     assert len(ds) == 1 and ds[0].docstatus == 1, 'Phải một phiếu sản xuất ghi sổ, không nháp sót'
+    from frappe.utils import get_datetime
+    nhap = frappe.get_doc('Stock Entry', f['nhap_nvl'])
+    xuat = frappe.get_doc('Stock Entry', ds[0].name)
+    def thoi_diem(doc):
+        return get_datetime(str(doc.posting_date) + ' ' + str(doc.posting_time))
+    assert thoi_diem(xuat) >= thoi_diem(nhap), 'Giờ máy khách đã đặt xuất trước nhập'
     sle = frappe.get_all('Stock Ledger Entry', filters={'voucher_type': 'Stock Entry',
         'voucher_no': ds[0].name, 'is_cancelled': 0},
         fields=['item_code', 'warehouse', 'actual_qty', 'stock_value_difference', 'serial_and_batch_bundle'], limit_page_length=0)

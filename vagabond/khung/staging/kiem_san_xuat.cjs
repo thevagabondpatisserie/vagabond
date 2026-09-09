@@ -9,7 +9,8 @@ const {chromium} = require('playwright');
   const f = JSON.parse(fs.readFileSync(path.join(dich, 'san-xuat-fixture.json')));
   const goc = 'http://127.0.0.1:8000';
   const trinh = await chromium.launch({headless: true});
-  const c = await trinh.newContext({viewport: {width: 390, height: 900}, serviceWorkers: 'block'});
+  // Giữ browser UTC, site Asia/Ho_Chi_Minh để bắt lỗi tin giờ máy khách.
+  const c = await trinh.newContext({viewport: {width: 390, height: 900}, timezoneId: 'UTC', serviceWorkers: 'block'});
   const ket = {dat: false};
   try {
     await c.route('**/*', r => new URL(r.request().url()).origin === goc ? r.continue() : r.abort());
