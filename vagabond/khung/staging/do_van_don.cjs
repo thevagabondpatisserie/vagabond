@@ -62,15 +62,22 @@ const crypto = require('crypto');
             await p.locator('#vdDate').fill(f.ngay);
             const tra = await doi;
             if (tra.e) throw tra.e;
+            // Headers của API danh sách, gồm fill/driver; body có thể chưa đủ.
+            const api_ms = performance.now() - dau;
+            const docApi = performance.now();
             const body = await tra.r.json();
             if (!tra.r.ok() || body.message?.length !== f.so_don) throw new Error('API thiếu vận đơn tải thử');
             if (JSON.stringify(body.message.map(d => d.name).sort()) !== JSON.stringify([...f.ten].sort()))
               throw new Error('API trả sai tập vận đơn');
+            const doi_chieu_api_ms = performance.now() - docApi;
+            const doiDom = performance.now();
             await p.waitForFunction(o => !o.isConnected, cu);
             await cu.dispose();
             await p.waitForFunction(n => document.querySelectorAll('[data-vd]').length === n, f.so_don);
             const the = await p.locator('[data-vd]').evaluateAll(ds => ds.map(d => d.getAttribute('data-vd')).sort());
             if (JSON.stringify(the) !== JSON.stringify([...f.ten].sort())) throw new Error('DOM sai tập vận đơn');
+            // Phần chờ còn lại có thể gồm API phụ, không phải riêng CPU render.
+            const dom_ms = performance.now() - doiDom;
             const mo_ms = performance.now() - dau;
             const tim = performance.now();
             await p.locator('#vdQ').fill(f.tim_ma);
@@ -78,7 +85,7 @@ const crypto = require('crypto');
             if (!(await p.locator('[data-vd]').innerText()).includes(f.tim_ma)) throw new Error('Tìm ra sai đơn');
             const tim_ms = performance.now() - tim;
             if (loi.length) throw new Error(loi.join('; '));
-            ket.push({rong, lan, bien_the: bienThe, asset_sha256: assetHash, noi_dung_sha256: ab ? noiDungHash : null, baseline_sha: ab ? doiChung.baseline_sha : null, so_don: f.so_don, mo_ms, tim_ms, dat: true,
+            ket.push({rong, lan, bien_the: bienThe, asset_sha256: assetHash, noi_dung_sha256: ab ? noiDungHash : null, baseline_sha: ab ? doiChung.baseline_sha : null, so_don: f.so_don, mo_ms, tim_ms, api_ms, doi_chieu_api_ms, dom_ms, dat: true,
               lenh_driver: {fill_ngay: 1, fill_tim: 1}, nguon: 'tải tổng hợp'});
             // Xoá bộ lọc qua ô thật, đợi đủ thẻ trước phép đo ngày tiếp theo.
             await p.locator('#vdQ').fill('');
