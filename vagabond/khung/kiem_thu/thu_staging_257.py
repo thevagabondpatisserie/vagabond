@@ -27,3 +27,22 @@ def _():
     la('du ba phat hien', kq['so_phat_hien'], 3)
     kq = ra([dict(item_code='THU', stock_uom='Quả', purchase_uom='Thùng', uoms=[dict(uom='Thùng', conversion_factor=30)])], {})
     la('he so ro rang dat', kq['so_phat_hien'], 0)
+
+
+@ca('#257 nguồn thử: danh sách ngày cũ rỗng nhưng GET theo ID vẫn trả ngày mới')
+def _():
+    from datetime import datetime
+    from vagabond.khung.staging.nguon_pancake import tra
+    don = {'id': 'THU257-93405', 'estimate_delivery_date': '2036-09-10T08:00:00+07:00'}
+    goc = 'https://pos.pages.fm/api/v1/shops/THU257/orders'
+    def moc(s): return int(datetime.fromisoformat(s + 'T00:00:00+07:00').timestamp())
+    p = dict(api_key='THU257', updateStatus='estimate_delivery_date', page_number=1,
+             startDateTime=moc('2036-09-08'), endDateTime=moc('2036-09-09') - 1)
+    la('ngay cu rong', tra(goc, p, don)['data'], [])
+    la('ID con o nguon', tra(goc + '/' + don['id'], {'api_key': 'THU257'}, don)['data'], don)
+    p.update(startDateTime=moc('2036-09-10'), endDateTime=moc('2036-09-11') - 1)
+    la('ngay moi co don', tra(goc, p, don)['data'], [don])
+    for url in [goc.replace('THU257', 'SHOP-THAT'), goc + '/ID-KHAC', goc.replace('pos.pages.fm', 'example.com')]:
+        try: tra(url, p, don)
+        except ValueError: pass
+        else: raise AssertionError('Nguồn thử nhận URL không thuộc fixture')

@@ -8,21 +8,7 @@ import socket
 from pathlib import Path
 
 
-def chay():
-    if os.environ.get('GITHUB_ACTIONS') != 'true':
-        raise RuntimeError('Chỉ dùng runner CI riêng.')
-    import frappe
-    frappe.init(site='bench-ci.localhost', sites_path=str(Path.cwd()))
-    frappe.connect()
-    try:
-        if not all(frappe.conf.get(k) for k in ('vagabond_bench_thu', 'mute_emails', 'disable_scheduler')):
-            raise RuntimeError('Thiếu khoá site thử hoặc khoá gửi ra ngoài.')
-        # Setup wizard có thể đã đổi mật khẩu; chỉ đặt lại sau khoá site thử.
-        from frappe.utils.password import update_password
-        update_password('Administrator', 'bench-only-admin')
-        frappe.db.commit()
-    finally:
-        frappe.destroy()
+def chan_mang():
     ket_noi = socket.socket.connect
     def noi_bo(sock, dia_chi):
         if isinstance(dia_chi, tuple) and dia_chi[0] not in ('127.0.0.1', '::1', 'localhost'):
@@ -35,6 +21,29 @@ def chay():
             raise RuntimeError('Staging CI chặn kết nối ngoài.')
         return ket_noi_ex(sock, dia_chi)
     socket.socket.connect_ex = noi_bo_ex
+
+
+def chay():
+    if os.environ.get('GITHUB_ACTIONS') != 'true':
+        raise RuntimeError('Chỉ dùng runner CI riêng.')
+    chan_mang()
+    import frappe
+    frappe.init(site='bench-ci.localhost', sites_path=str(Path.cwd()))
+    frappe.connect()
+    try:
+        if not all(frappe.conf.get(k) for k in ('vagabond_bench_thu', 'mute_emails', 'disable_scheduler')):
+            raise RuntimeError('Thiếu khoá site thử hoặc khoá gửi ra ngoài.')
+        # Setup wizard có thể đã đổi mật khẩu; chỉ đặt lại sau khoá site thử.
+        from frappe.utils.password import update_password
+        update_password('Administrator', 'bench-only-admin')
+        frappe.db.commit()
+        if os.environ.get('VGB_STAGING_VAN_DON') == '1':
+            from vagabond.khung.staging.van_don_ci import tao
+            from vagabond.khung.staging.nguon_pancake import gan
+            thu = tao()
+            gan(thu['don'], Path(os.environ['VGB_ARTIFACTS']) / 'pancake-http.jsonl')
+    finally:
+        frappe.destroy()
     from frappe.app import application
     from werkzeug.serving import run_simple
     # Header site cố định tại gateway, không nhận chọn site từ client.

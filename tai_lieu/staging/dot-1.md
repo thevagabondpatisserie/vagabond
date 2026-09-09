@@ -47,5 +47,17 @@ qua HTTP thật, mở năm màn ở 390px/1280px và kiểm ô sẵn sàng, lỗ
 lưu ảnh, trace và thời gian vào artifacts. Đây chỉ là kiểm mở màn với
 Administrator, chưa chứng minh quyền nhân viên hoặc năm luồng nghiệp vụ.
 Dự kiến nối bước này sau bench. Chưa nối workflow: kết nối Git thiếu quyền
-workflow; cấu hình riêng đang giữ local. Còn cần fixture thao tác và năm
+workflow; cấu hình review nằm ở `ket-noi-ci.patch`, chưa áp vào workflow. Còn cần fixture thao tác và năm
 kịch bản đầy đủ.
+
+## Ca vận đơn đã viết, chưa chạy browser
+
+`van_don_ci.py` dựng một vận đơn trong tương lai trên bench CI dùng một lần.
+`kiem_van_don.cjs` bấm nút đồng bộ, đợi API và khung màn thay mới, kiểm ngày
+cũ hết đơn, ngày mới có đơn; bấm lại không nhân đôi. CLI cuối đọc DB và log
+HTTP để kiểm đúng đường danh sách rỗng -> GET ID -> danh sách ngày mới.
+Chỉ thay `requests.Session.request`; không thay hàm đồng bộ hoặc ghi DB.
+Đây chưa phải ca hàng đợi 1.325 đơn và chưa kiểm quyền nhân viên.
+
+Bốn ca thuần mới đã đăng ký trong `kiem_thu/chay.py`: tổng 2713 đạt local.
+Con số 2709 trước đó là bộ cũ, chưa gồm tệp UOM mới vì thiếu đăng ký.

@@ -1,0 +1,20 @@
+diff --git a/.github/workflows/bench-tich-hop.yml b/.github/workflows/bench-tich-hop.yml
+index 243831f..ca1c847 100644
+--- a/.github/workflows/bench-tich-hop.yml
++++ b/.github/workflows/bench-tich-hop.yml
+@@ -56,6 +56,15 @@ jobs:
+           set -o pipefail
+           cd "$VGB_BENCH/sites"
+           ../env/bin/python "$GITHUB_WORKSPACE/vagabond/khung/bench_thu/chay_ci.py" 2>&1 | tee "$VGB_ARTIFACTS/tich-hop.log"
++      - name: Cai trinh duyet kiem staging
++        run: |
++          npm install --no-save --package-lock=false playwright@1.62.1
++          npx playwright install --with-deps chromium
++      - name: Mo nam man tren app that
++        env:
++          VGB_BENCH: ${{ runner.temp }}/vgb-bench
++          VGB_ARTIFACTS: ${{ runner.temp }}/vgb-bench-artifacts
++        run: bash vagabond/khung/staging/chay_web_ci.sh
+       - name: Luu bang chung ke ca khi hong
+         if: always()
+         uses: actions/upload-artifact@v4
