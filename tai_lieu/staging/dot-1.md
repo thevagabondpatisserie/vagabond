@@ -252,3 +252,15 @@ Giới hạn: ca SePay này chỉ kiểm đơn không có giao dịch. Script le
 allow_guest=0 nhưng từ code chưa thấy kiểm vai hoặc quyền đọc hoá đơn trước
 get_all Bank Transaction. Đây là nghi vấn quyền cần tái hiện riêng, không
 nhận script an toàn và không dùng snapshot làm patch triển khai production.
+
+
+## Đo API và truy vấn trên CI
+
+`do_truy_van.py` chỉ cài sau khoá site CI, không phải hook production.
+Mỗi request `/api/method/` ghi path, status, số lần Database.sql, sql_ms
+và ms; không lưu SQL/parameters/body/cookie. sql_ms là thời gian toàn hàm
+Database.sql (gồm xử lý Python), ms kéo dài tới đọc/đóng iterable WSGI,
+không phải riêng thời gian nghiệp vụ. ContextVar tránh trộn request threaded.
+Kiểm đồng thời2/7truy vấn, lỗi SQL và ngắt/đọc hết iterable trên API/ngoài API.
+Review bắt double-close khi dùng yield from, đã thay vòng for và thêm ca ngắt.
+Chưa có baseline tải đại diện hoặc so sánh trước/sau tối ưu.

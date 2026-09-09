@@ -158,6 +158,8 @@ def chay():
         from frappe.utils.password import update_password
         update_password('Administrator', 'bench-only-admin')
         frappe.db.commit()
+        from vagabond.khung.staging.do_truy_van import gan as gan_do
+        gan_do()
         tao_cau_truc_cu()
         tao_sepay_cu()
         tao_trang()
@@ -188,7 +190,9 @@ def chay():
     def ung_dung(environ, start_response):
         environ['HTTP_X_FRAPPE_SITE_NAME'] = 'bench-ci.localhost'
         return application(environ, start_response)
-    run_simple('127.0.0.1', 8000, ung_dung, use_reloader=False, threaded=True,
+    from vagabond.khung.staging.do_truy_van import boc_web
+    do_api = boc_web(ung_dung, Path(os.environ['VGB_ARTIFACTS']) / 'api-truy-van.jsonl')
+    run_simple('127.0.0.1', 8000, do_api, use_reloader=False, threaded=True,
                static_files={'/assets': str(Path.cwd() / 'assets')})
 
 
