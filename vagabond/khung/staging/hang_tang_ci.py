@@ -34,9 +34,17 @@ def tao():
     # Ca này không được báo là đã kiểm đường phát hành M-Invoice.
     c.tu_xuat_hddt = 0
     c.save(ignore_permissions=True)
+    # Core Customer.validate_customer_group cấm chọn nút nhóm cha.
+    # Dựng nhóm chi tiết riêng thay vì tắt validation hoặc phụ thuộc nhóm của máy khác.
+    nhom = frappe.get_doc({'doctype': 'Customer Group', 'customer_group_name': 'THU257 Tang',
+        'parent_customer_group': 'All Customer Groups', 'is_group': 0})
+    nhom.insert(ignore_permissions=True)
+    vung = frappe.get_doc({'doctype': 'Territory', 'territory_name': 'THU257 Tang',
+        'parent_territory': 'All Territories', 'is_group': 0})
+    vung.insert(ignore_permissions=True)
     kh = frappe.get_doc({'doctype': 'Customer', 'customer_name': 'THU257 Hang tang',
-        'customer_type': 'Individual', 'customer_group': 'All Customer Groups',
-        'territory': 'All Territories'})
+        'customer_type': 'Individual', 'customer_group': nhom.name,
+        'territory': vung.name})
     kh.insert(ignore_permissions=True)
     mau = frappe.get_doc({'doctype': 'Sales Taxes and Charges Template',
         'title': 'THU257 VAT8', 'company': ct, 'taxes': [{
