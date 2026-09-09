@@ -332,3 +332,19 @@ Helpertestkiểm4requestbắtđầutrướcreply, cache/optionalerror/primaryerr
 Reviewer khôngblocker; chưa chứngminh nhanhhơn cho tới CIcùngfixture.
 Raceđiềuhướngnhanhgiữahai ngày là giớihạn cósẵn cần kiểmtiếp, không nhận
 helpertest là UAT điều hướng. Cần phiênbản mới trước phát hành sau đủgates.
+
+
+## Giảm giải mã dấu kiểm đếm
+
+`bang()` gọi `_nguon_ton_cho_man`: cùng JSON nguồn được đọc1lần/dòng,
+trướcđây6lần. Khôngđổi dữliệu/audit/nhãn/mặcđịnh. Ca thu_doc_nguon lấy
+cáchàmthuần thật từAST, kiểmnguồncũ/rỗng/hỏng, nhãnbaô, người/lúc,
+khôngđổipayload, lỗi kiểuconkhôngbịnuốt thêm và đúng1lầnparse.
+Đã so biểu thức cũ trên6đầuvào, chưa kết luận cải thiệnms cho tới bench.
+
+
+### Đọc tên trong danh sách hồ sơ
+
+Danh sách dùng bộ nhớ riêng cho từng request để mỗi mã người chỉ qua `_ten_nguoi` một lần. Giữ nguyên resolver hiện hành, gồm fallback Employee và Redis cache sẵn có; không cam kết lần tải sau đọc lại DB. Ca kiểm 900 lượt gọi với 3 mã còn 3 lần vào resolver, request mới không dùng bộ nhớ của request trước. Đây là giảm công việc lặp, chưa là bằng chứng giảm thời gian site thật.
+
+CI60 tại SHA 5aefb3e22e748556eaca3f756bb496282cb4d108 đạt. So CI59, trung vị mở Vận đơn mobile 100/500 dòng từ 286.6/520.2 xuống 223.6/455.9 ms; desktop từ 273.9/550.2 xuống 242.7/420.8 ms. Mỗi nhóm 5 lượt. Hai màn chưa sửa cũng nhanh hơn trong CI60 nên chưa quy chênh lệch này hoàn toàn cho code, cần đối chứng cùng runner. Artifact 10122046864 có SHA256 a7a0aaad75cb40d92b34c4ad8e7fde93740b712a7fb44dadbb445a35d2cd9e40 đã đối chiếu.
