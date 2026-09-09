@@ -1771,7 +1771,7 @@ async function scrHome() {
          chuyen tien roi may do SePay xoa cong no, xong gui thu bao nha cung
          cap. Anh Viet 13/08/2026: lam tren app cho do roi so voi desktop. */
       card('📁', 'Tạo APP - Hồ sơ thanh toán', 'Lập đề nghị trả tiền, duyệt hai cấp, khớp SePay và báo nhà cung cấp', 0, 'APPTT') +
-      card('🏛️', 'Đối soát hoá đơn điện tử', 'Chờ ký, đã ký, CQT chấp nhận, chưa xuất', 0, 'BC:BC05') +
+      (xemBaoCao ? card('🏛️', 'Đối soát hoá đơn điện tử', 'Chờ ký, đã ký, CQT chấp nhận, chưa xuất', 0, 'BC:BC05') : '') +
       /* Hai man cho chi Dung, anh Viet dat 14/08/2026. Truoc do so co 174
          tai khoan tieng Viet ma chi hai but toan go tay, va khong mot tai
          san nao duoc khai. */
