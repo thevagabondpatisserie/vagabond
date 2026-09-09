@@ -16,6 +16,7 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 if GOC not in sys.path:
 	sys.path.insert(0, GOC)
 
+from vagabond.khung.kiem_thu import thu_cach_ly_243
 from vagabond.khung.kiem_thu import nen  # noqa: E402
 
 # Cai ban Frappe gia TRUOC khi nap bat ky mo dun nghiep vu nao. Neu doi thu
@@ -24,7 +25,7 @@ nen.gia_lap()
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_bang_gia_nhap, thu_minvoice_227, thu_link_thue_227, thu_bao_ve_hddt_225, thu_cong_cu_tang_cloud,
-	thu_hang_tang_so_cai, thu_mua_hddt_227,
+	thu_hang_tang_so_cai, thu_mua_hddt_227, thu_thue_vnd, thu_cua_thue_243, thu_kho_tang_243,
 	thu_bao_cao_don_nhap,
 	thu_bo_doctype, thu_bom_note_va_nut_huong_dan,
 	thu_ca_moi_diem, thu_cai_dat_web_va_in_store, thu_card_khong_la_flex, thu_chan_man, thu_chi_loi_qz,

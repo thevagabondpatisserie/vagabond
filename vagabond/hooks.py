@@ -359,6 +359,7 @@ doc_events = {
 	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 	"Stock Entry": {
+		"validate": "vagabond.hang_tang_kho.chan_xuat_tay",
 		"before_validate": [
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
@@ -366,7 +367,7 @@ doc_events = {
 		],
 		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
 		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.
-		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.kiem_ke.chan_khi_dang_kiem"],
+		"before_submit": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.tai_khoan_chi_phi.kiem", "vagabond.kiem_ke.chan_khi_dang_kiem"],
 		# Huy phieu dieu chuyen thi van don di kem phai tat theo. Ngay
 		# 04/09/2026 co hai to van don nam "Cho giao" trong khi phieu goc da
 		# huy tu lau, khong ai bat duoc vi van don khong biet gi ve phieu goc.

@@ -69,7 +69,9 @@ def dung():
 	frappe.db.set_single_value("Buying Settings", "po_required", "No")
 	frappe.db.set_single_value("Buying Settings", "pr_required", "No")
 	frappe.db.set_single_value("Selling Settings", "cust_master_name", "Customer Name")
-	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
+	frappe.db.set_single_value("Stock Settings", "enable_serial_and_batch_no_for_item", 1)
+	frappe.db.set_single_value("Stock Settings", "use_serial_batch_fields", 1)
 	# Năm tài chính.
 	if not frappe.db.exists("Fiscal Year", {"year_start_date": ["<=", today()], "year_end_date": [">=", today()]}):
 		nam = today()[:4]
@@ -157,6 +159,7 @@ def dung():
 		{"fieldname": "custom_minvoice_ngay_day", "fieldtype": "Data", "label": "MInvoice ngay day", "insert_after": "customer"},
 	])
 	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"}])
+	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
 	])
@@ -181,6 +184,7 @@ def dung():
 			"territory": "All Territories", "vgb_hang": "MEMBER"}).insert(ignore_permissions=True)
 	if not frappe.db.exists("Supplier", "NCC kiểm thử"):
 		frappe.get_doc({"doctype": "Supplier", "supplier_name": "NCC kiểm thử", "supplier_group": frappe.db.get_value("Supplier Group", {"is_group": 0}, "name")}).insert(ignore_permissions=True)
+	frappe.db.set_value("Supplier", "NCC kiểm thử", "custom_ma_ncc", "NCC-KIEM")
 	for pt in ("Hàng tặng", "Tiền mặt", "Chuyển khoản"):
 		if not frappe.db.exists("Mode of Payment", pt):
 			frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": pt}).insert(ignore_permissions=True)
@@ -200,5 +204,29 @@ def dung():
 		frappe.db.set_value("Company", CTY, "enable_perpetual_inventory", 1)
 	if not frappe.db.has_index("tabPurchase Invoice Item", "vgb_pr_docstatus_227"):
 		frappe.db.add_index("Purchase Invoice Item", ["pr_detail", "docstatus"], index_name="vgb_pr_docstatus_227")
+	# Account loại Bank chưa đủ: đường hoàn tiền và đối chiếu sao kê đọc
+	# Bank Account có liên kết về công ty và tài khoản kế toán.
+	if not frappe.db.exists("Bank Account", {"company": CTY, "is_company_account": 1}):
+		from vagabond.ngan_hang import chuan_hoa_hoac_bao
+		ngan_hang = chuan_hoa_hoac_bao("MB")
+		frappe.get_doc({"doctype": "Bank Account", "account_name": "Tài khoản kiểm thử",
+			"bank": ngan_hang, "company": CTY, "is_company_account": 1,
+			"account": frappe.db.get_value("Account", {"company": CTY, "account_type": "Bank", "is_group": 0}, "name"),
+			"bank_account_no": "000000000243"}).insert(ignore_permissions=True)
+	# Mẫu này có sẵn trên site trước khi app quản lý HTML; dựng bản ghi
+	# nền rồi dùng đúng hàm đồng bộ để ca in đi qua get_print của Frappe.
+	from vagabond import mau_in
+	for ten, (_tep, dt) in mau_in.MAU_IN.items():
+		if not frappe.db.exists("Print Format", ten):
+			frappe.get_doc({"doctype": "Print Format", "name": ten, "doc_type": dt,
+				"standard": "No", "custom_format": 1, "print_format_type": "Jinja",
+				"html": "<p>Mẫu nền kiểm thử</p>"}).insert(ignore_permissions=True)
+	mau_in.dong_bo()
+	if not frappe.db.exists("Purchase Order", {"docstatus": 1}):
+		po = frappe.get_doc({"doctype": "Purchase Order", "company": CTY,
+			"supplier": "NCC kiểm thử", "schedule_date": today(),
+			"items": [{"item_code": "DV-KIEM", "qty": 1, "rate": 100000,
+				"schedule_date": today()}]}).insert(ignore_permissions=True)
+		po.submit()
 	frappe.db.commit()
 	return {"cong_ty": CTY, "kho": kho}

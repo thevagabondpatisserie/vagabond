@@ -15,7 +15,7 @@ from vagabond.khung.kiem_that.nen import _mot, ca, cong_ty, dung, la, mot_kho
 
 def _hoa_don(tang=True):
 	cty = cong_ty()
-	mon = _mot("Item", {"is_sales_item": 1, "disabled": 0, "is_fixed_asset": 0})
+	mon = _mot("Item", {"is_sales_item": 1, "is_stock_item": 0, "disabled": 0, "is_fixed_asset": 0})
 	khach = _mot("Customer", {"disabled": 0, "is_internal_customer": 0, "vgb_hang": ["!=", "OWNER"]})
 	if not mon or not khach:
 		frappe.throw("Cần món bán và khách hàng để dựng đơn thử #227.")
@@ -30,6 +30,11 @@ def _hoa_don(tang=True):
 	hd.ignore_pricing_rule = 1
 	hd.set("taxes", [])
 	hd.taxes_and_charges = None
+	# Fixture legacy khai VAT tường minh; không phụ thuộc cấu hình thuế
+	# mặc định của site khi ca chỉ kiểm cơ chế VAT/GL cũ.
+	from vagabond.hang_tang_so_cai import tai_khoan
+	hd.append('taxes', {'charge_type': 'On Net Total', 'account_head': tai_khoan(cty, '33311', 'Liability'),
+		'rate': 8, 'description': 'VAT ca kiểm legacy', 'included_in_print_rate': 1})
 	hd.append("items", {"item_code": mon, "qty": 1, "rate": 1900000, "warehouse": mot_kho(cty)})
 	if tang:
 		hd.vgb_pt_thanh_toan = "Hàng tặng"
@@ -38,6 +43,10 @@ def _hoa_don(tang=True):
 	hd.flags.ignore_permissions = True
 	hd.insert(ignore_permissions=True)
 	nen._DA_TAO.append((hd.doctype, hd.name))
+	# Mô phỏng SI nháp đã có trước patch kho #243; chỉ chạm phiếu thử vừa tạo.
+	if hd.meta.has_field("vgb_tang_kho_moi"):
+		frappe.db.set_value("Sales Invoice", hd.name, "vgb_tang_kho_moi", 0)
+		hd.reload()
 	if tang:
 		hang_tang.duyet(hd.name, "Ca kiểm trong điểm lưu, không giao quà thật")
 		hd.reload()

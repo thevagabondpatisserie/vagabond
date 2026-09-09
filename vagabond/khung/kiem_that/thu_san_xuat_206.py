@@ -107,12 +107,24 @@ def _ghi_so():
 # Không sửa bất kỳ Batch/Work Order lịch sử nào của bếp.
 def _nen_qua_han():
 	from frappe.utils import nowdate, add_days
-	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _nhap, _bat_serial_batch_neu_chua
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _bat_serial_batch_neu_chua
 	_bat_serial_batch_neu_chua()
 	frappe.db.set_single_value('Vagabond Settings', 'chan_lo_het_han', 0)
 	cty, kho, nvl, tp, bom = _nen(theo_lo=1)
 	lo = _lo(nvl, 'KT206-' + uuid.uuid4().hex[:10], add_days(nowdate(), 30))
-	_nhap(nvl, kho[0], [(lo, 10)], cty)
+	# Ca sản xuất cần NVL có giá vốn thật. Helper nhận lô _nhap bật
+	# allow_zero_valuation_rate, khiến core v16 ép basic_rate về 0 và
+	# thành phẩm mới không thể tính giá vốn khi lưu Manufacture lần hai.
+	nhap = nhap_kho(item_code=nvl, qty=10, company=cty,
+		to_warehouse=kho[0], rate=1000, do_not_save=True)
+	nhap.items[0].batch_no = lo
+	nhap.items[0].use_serial_batch_fields = 1
+	nhap.items[0].allow_zero_valuation_rate = 0
+	nhap.insert(); nen._DA_TAO.append(('Stock Entry', nhap.name)); nhap.submit()
+	gia_nhap = frappe.get_all('Stock Ledger Entry', filters={
+		'voucher_type': 'Stock Entry', 'voucher_no': nhap.name, 'is_cancelled': 0},
+		fields=['stock_value_difference'])
+	la('nền nhập NVL có giá vốn thật', sum(float(d.stock_value_difference) for d in gia_nhap), 10000)
 	frappe.db.set_value('Batch', lo, 'expiry_date', add_days(nowdate(), -5))
 	frappe.clear_document_cache('Batch', lo)
 	wo = _lenh(cty, kho, tp, bom, kho[0]); wo.submit()
