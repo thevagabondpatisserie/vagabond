@@ -10,6 +10,7 @@ cd sites
 export VGB_STAGING_VAN_DON=1
 export VGB_STAGING_NHAN=1
 export VGB_STAGING_SAN_XUAT=1
+export VGB_STAGING_HANG_TANG=1
 ../env/bin/python -m vagabond.khung.staging.phuc_vu_ci > "$VGB_ARTIFACTS/web.log" 2>&1 &
 web_pid=$!
 trap 'kill "$web_pid" 2>/dev/null || true; wait "$web_pid" 2>/dev/null || true' EXIT
@@ -24,7 +25,7 @@ cd "$GITHUB_WORKSPACE"
 node vagabond/khung/staging/kiem_man.cjs || hong=1
 # Cac fixture dung ma rieng. Thu bang chung tung cua ke ca cua truoc do,
 # nhung van tra ma loi cuoi; khong bo qua failure de lam CI xanh.
-for cua in van_don nhan_hang san_xuat; do
+for cua in van_don nhan_hang san_xuat hang_tang; do
   cd "$GITHUB_WORKSPACE"
   node "vagabond/khung/staging/kiem_${cua}.cjs" || hong=1
   cd "$VGB_BENCH/sites"

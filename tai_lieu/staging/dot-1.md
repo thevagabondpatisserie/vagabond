@@ -137,3 +137,10 @@ bất kỳ cửa nào lỗi. Không dùng việc chạy tiếp làm miễn trừ
   viết một bản sửa trạng thái song song trong PR258.
 
 Các mục trên mới là đường mã đã xác minh, chưa phải ca browser đã viết/chạy.
+
+Đã viết `hang_tang_ci.py` và `kiem_hang_tang.cjs`: dựng đơn tặng nháp dùng
+hai bánh từ ca sản xuất, duyệt và ghi sổ qua app, tải lại chứng từ để kiểm
+Đã chốt. CLI đối chiếu toàn bộ tài khoản/giá trị GL, SLE đúng kho/-2/-2.000,
+VAT160 và tồn cuối0. Chạy sau kiểm sản xuất. Cấu hình thử tắt tự xuất HĐĐT;
+không mock helper nghiệp vụ. Review mã và cổng local2724 đạt, chưa runtime.
+Chưa kiểm tạo đơn/hủy/thuế hỗn hợp qua UI hoặc M-Invoice, chưa dùng role Sales.

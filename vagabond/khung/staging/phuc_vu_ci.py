@@ -48,6 +48,9 @@ def chay():
         if os.environ.get('VGB_STAGING_SAN_XUAT') == '1':
             from vagabond.khung.staging.san_xuat_ci import tao as tao_sx
             tao_sx()
+        if os.environ.get('VGB_STAGING_HANG_TANG') == '1':
+            from vagabond.khung.staging.hang_tang_ci import tao as tao_tang
+            tao_tang()
     finally:
         frappe.destroy()
     from frappe.app import application
