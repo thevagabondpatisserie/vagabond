@@ -30,14 +30,17 @@ def _mon_dich_vu():
 		"is_fixed_asset": 0})
 
 
-def _tk_ngan_hang(cty):
-	ba = _mot("Bank Account", {"is_company_account": 1, "company": cty, "disabled": 0})
+def _tk_ngan_hang(cty, tai_khoan=None):
+	loc = {"is_company_account": 1, "company": cty, "disabled": 0}
+	if tai_khoan:
+		loc["account"] = tai_khoan
+	ba = _mot("Bank Account", loc)
 	if ba:
 		return ba
 	# Bench sạch có GL Bank nhưng chưa có Bank Account. Fixture nằm trong
 	# điểm lưu của ca kiểm, không bắt kế toán tạo danh mục thật để chạy thử.
 	from vagabond.ngan_hang import chuan_hoa_hoac_bao
-	tk = _mot("Account", {"company": cty, "account_type": "Bank", "is_group": 0, "disabled": 0})
+	tk = tai_khoan or _mot("Account", {"company": cty, "account_type": "Bank", "is_group": 0, "disabled": 0})
 	if not tk:
 		frappe.throw("Công ty thử chưa có tài khoản sổ cái loại Bank. Dựng nền bench trước khi kiểm.")
 	b = frappe.get_doc({"doctype": "Bank Account", "account_name": "Kiểm APP " + frappe.generate_hash(length=8),

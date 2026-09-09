@@ -218,7 +218,8 @@ def _kiem_bo(doc, ma):
 	if g.payment_entries or flt(g.allocated_amount):
 		frappe.throw("Sao kê còn liên kết bút toán. Kế toán kiểm và huỷ bút toán sai trong ERPNext trước khi bỏ đối chiếu.")
 	for dt in ("Payment Entry", "Journal Entry"):
-		if frappe.get_all(dt, filters={"vgb_ho_so_tt": doc.name, "docstatus": 1}, pluck="name", limit_page_length=1):
+		# Current read: không dùng snapshot trước khi chờ khoá sao kê.
+		if frappe.db.sql("select name from `tab%s` where vgb_ho_so_tt=%%s and docstatus=1 limit 1 for update" % dt, (doc.name,)):
 			frappe.throw("Hồ sơ còn bút toán đã ghi sổ. Đối chiếu lại với bút toán đó, hoặc huỷ bút toán sai trong ERPNext rồi bỏ đối chiếu.")
 
 

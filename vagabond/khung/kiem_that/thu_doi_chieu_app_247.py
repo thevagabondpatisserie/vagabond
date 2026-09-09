@@ -237,9 +237,18 @@ def _quyen():
 @ca("#247 thiếu Bank Account thì fixture dựng bản ghi thật trong điểm lưu")
 def _thieu_ngan_hang():
 	from vagabond.khung.kiem_that import thu_ho_so_tt_v445 as thu
-	goc = thu._mot
-	with patch.object(thu, "_mot", side_effect=lambda dt, loc: None if dt == "Bank Account" else goc(dt, loc)):
-		ba = thu._tk_ngan_hang(cong_ty())
+	cty = cong_ty()
+	mau = frappe.get_doc("Account", _mot("Account", {"company": cty, "account_type": "Bank", "is_group": 0, "disabled": 0}))
+	# bank_account.py validate_account cấm hai BA dùng cùng GL. Dựng GL
+	# chưa liên kết thật, không giả lập mất BA đang tồn tại để vượt core.
+	tk = frappe.get_doc({"doctype": "Account", "account_name": "Kiểm bank APP " + frappe.generate_hash(length=8),
+		"company": cty, "parent_account": mau.parent_account, "account_type": "Bank",
+		"account_currency": "VND", "is_group": 0})
+	tk.insert(ignore_permissions=True)
+	_DA_TAO.append((tk.doctype, tk.name))
+	la("chưa có BA cho GL mới", frappe.get_all("Bank Account", filters={"account": tk.name}, pluck="name"), [])
+	ba = thu._tk_ngan_hang(cty, tai_khoan=tk.name)
+	la("gọi lại dùng cùng BA", thu._tk_ngan_hang(cty, tai_khoan=tk.name), ba)
 	doc = frappe.get_doc("Bank Account", ba)
 	la("đúng công ty", doc.company, cong_ty())
 	dung("có tài khoản GL", bool(doc.account))
