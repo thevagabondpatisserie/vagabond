@@ -91,3 +91,21 @@ def _():
         if 'modified' in kw['filters'] or kw['filters']['name'][1]: return []
         return [{'name': 'A', 'item_code': 'A', 'stock_uom': 'Quả'}]
     la('giữ đủ quy đổi', len(doc(lay, '2036-09-10')['items'][0]['uoms']), 501)
+
+
+@ca('#257 nguồn Kiểm bánh: ngày tạo khác ngày giao, không gom nhầm phát sinh')
+def _():
+    from datetime import datetime
+    from vagabond.khung.staging.nguon_pancake import tra
+    goc = 'https://pos.pages.fm/api/v1/shops/THU257/orders'
+    don = {'id': 'THU257-93405', 'inserted_at': '2036-09-08T08:00:00+07:00',
+           'estimate_delivery_date': '2036-09-10T08:00:00+07:00'}
+    def moc(s): return int(datetime.fromisoformat(s + 'T00:00:00+07:00').timestamp())
+    p = dict(api_key='THU257', page_number=1, startDateTime=moc('2036-09-10'),
+             endDateTime=moc('2036-09-11') - 1)
+    la('giao trong ngay', tra(goc, dict(p, updateStatus='estimate_delivery_date'), don)['data'], [don])
+    la('khong tao trong ngay', tra(goc, dict(p, updateStatus='inserted_at'), don)['data'], [])
+    for truong, du_lieu in [('updated_at', don), ('inserted_at', {'id': don['id']})]:
+        try: tra(goc, dict(p, updateStatus=truong), du_lieu)
+        except ValueError: pass
+        else: raise AssertionError('Nguồn thử nhận hợp đồng hoặc fixture thiếu ngày')

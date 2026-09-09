@@ -40,6 +40,7 @@ def tao():
     ra = {'ten': d.name, 'ngay_cu': cu, 'ngay_moi': moi, 'don': {
         'id': d.pancake_id, 'display_id': d.ma_don, 'status': 1,
         'estimate_delivery_date': moi + 'T08:00:00+07:00',
+        'inserted_at': cu + 'T08:00:00+07:00',
         'items': [{'variation_info': {'display_id': 'THU-A', 'name': 'Bánh thử A',
                                      'retail_price': 100}, 'quantity': 1}]}}
     (Path(os.environ['VGB_ARTIFACTS']) / 'van-don-fixture.json').write_text(json.dumps(ra))

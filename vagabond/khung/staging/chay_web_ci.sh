@@ -31,4 +31,8 @@ for cua in van_don nhan_hang san_xuat hang_tang; do
   cd "$VGB_BENCH/sites"
   ../env/bin/python -m "vagabond.khung.staging.${cua}_ci" 2>&1 | tee "$VGB_ARTIFACTS/${cua}-kiem-db.log" || hong=1
 done
+# Kiểm bánh tự đồng bộ nguồn: chạy sau verifier vận đơn để log đối chiếu
+# ba bước của vận đơn vẫn độc lập. Mọi lỗi vẫn làm gate đỏ.
+cd "$GITHUB_WORKSPACE"
+node vagabond/khung/staging/kiem_kiem_banh.cjs || hong=1
 exit "$hong"

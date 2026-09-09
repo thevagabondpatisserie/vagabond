@@ -13,11 +13,14 @@ def tra(url, params, don):
         raise ValueError('Không phải khoá thử.')
     if p.path == goc + '/' + don['id']:
         return {'success': True, 'data': don}
-    if p.path != goc or params.get('updateStatus') != 'estimate_delivery_date':
+    truong_ngay = params.get('updateStatus')
+    if p.path != goc or truong_ngay not in ('estimate_delivery_date', 'inserted_at'):
         raise ValueError('Đường gọi ngoài hợp đồng thử.')
     if int(params.get('page_number', 0)) != 1:
         raise ValueError('Nguồn thử chỉ có một trang.')
-    moc = datetime.fromisoformat(don['estimate_delivery_date']).timestamp()
+    if not don.get(truong_ngay):
+        raise ValueError('Fixture thiếu trường ngày đang được truy vấn.')
+    moc = datetime.fromisoformat(don[truong_ngay]).timestamp()
     co = int(params['startDateTime']) <= moc <= int(params['endDateTime'])
     return {'success': True, 'data': [don] if co else []}
 
