@@ -51,3 +51,26 @@ không nối PE/JE nháp. Frappe `f33ac3f00ab818e21b25ddbec93efb653fd9aa1b`:
 - Draft chờ bench theo SHA, review độc lập, kiểm UI trên app. Sao kê của hồ sơ được báo đã đọc-only xác minh. Cần kiểm cạnh tranh hai kết nối, quyền FIN
   thật và hủy/đảo liên kết trước khi phát hành. Đặt phiên bản tăng từ main
   mới nhất khi chuẩn bị phát hành; không merge/deploy trong phiên này.
+
+
+## Sửa sau review PR250 ngày 09/09
+
+- Đồng bộ main v462, chuẩn bị v463 và patch đồng bộ cấu trúc mới. Đây là
+  số dự kiến trên nhánh, phải so lại main lúc được phép phát hành.
+- Bỏ đối chiếu ngay trên APP: FIN, khoá hồ sơ/BT, chỉ gỡ mã giữ chỗ khi lõi
+  hết liên kết/phân bổ và không còn PE/JE submit. Desk/API xoá hoặc đổi mã
+  cũng qua hàng rào này. Lịch sử ghi mã cũ; không tự hạ trạng thái hoặc huỷ GL.
+- Unreconcile lõi mà PE/JE còn sống: nút bỏ bị chặn, chỉ dẫn đối chiếu lại
+  với bộ chứng từ cũ hoặc huỷ chứng từ sai trước. Không được chiếm sao kê
+  bằng cách xoá mã khi khoản chi vẫn tồn tại.
+- Deadlock được đổi thành ValidationError tiếng Việt có chỉ dẫn tải lại.
+  Vẫn ném lỗi để POST rollback, không trả thành công sau lỗi database.
+- Fixture đặt description trước submit; khi thiếu Bank Account tự dựng
+  trong điểm lưu và gắn rõ nguồn chi của hồ sơ thử. Bộ lọc đúng tiền dùng
+  khoản phải chuyển phía máy chủ, không dùng số tiền client làm chuẩn.
+- Bổ sung ca huỷ PE/JE rồi tái sử dụng, chặn xoá Desk khi còn liên kết,
+  unreconcile rồi nối lại, quyền FIN và số client cũ. Script riêng chạy
+  hai tiến trình thật và đọc DB sau tranh chấp, chỉ trên bench CI dùng một lần.
+- F6 hiệu năng danh_sach vẫn còn: chưa chuyển toàn bộ truy vấn sang đọc lô.
+  Đây là giới hạn đã biết, không nhận là đã sửa trong lượt này.
+- Không merge hoặc deploy theo chỉ đạo của anh Việt.

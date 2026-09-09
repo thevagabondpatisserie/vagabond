@@ -31,7 +31,21 @@ def _mon_dich_vu():
 
 
 def _tk_ngan_hang(cty):
-	return _mot("Bank Account", {"is_company_account": 1, "company": cty})
+	ba = _mot("Bank Account", {"is_company_account": 1, "company": cty, "disabled": 0})
+	if ba:
+		return ba
+	# Bench sạch có GL Bank nhưng chưa có Bank Account. Fixture nằm trong
+	# điểm lưu của ca kiểm, không bắt kế toán tạo danh mục thật để chạy thử.
+	from vagabond.ngan_hang import chuan_hoa_hoac_bao
+	tk = _mot("Account", {"company": cty, "account_type": "Bank", "is_group": 0, "disabled": 0})
+	if not tk:
+		frappe.throw("Công ty thử chưa có tài khoản sổ cái loại Bank. Dựng nền bench trước khi kiểm.")
+	b = frappe.get_doc({"doctype": "Bank Account", "account_name": "Kiểm APP " + frappe.generate_hash(length=8),
+		"bank": chuan_hoa_hoac_bao("MB"), "company": cty, "is_company_account": 1,
+		"account": tk, "bank_account_no": "247" + frappe.generate_hash(length=10)})
+	b.insert(ignore_permissions=True)
+	_DA_TAO.append((b.doctype, b.name))
+	return b.name
 
 
 def _hoa_don_mua(tien, ncc=None):
@@ -78,6 +92,7 @@ def _ho_so_ncc(hoa_dons):
 	h.ma = hs._sinh_ma()
 	h.loai = "NCC"
 	h.ngay = today()
+	h.tk_chi = _tk_ngan_hang(hoa_dons[0].company)
 	h.nha_cung_cap = hoa_dons[0].supplier
 	h.ten_ncc = hoa_dons[0].supplier_name
 	h.trang_thai = "Da duyet"
@@ -91,7 +106,7 @@ def _ho_so_ncc(hoa_dons):
 	return h
 
 
-def _giao_dich_ngan_hang(ma_ho_so, tien, cty):
+def _giao_dich_ngan_hang(ma_ho_so, tien, cty, noi_dung=None):
 	"""Dòng sao kê SePay giả: chi `tien`, nội dung mang mã hồ sơ."""
 	ba = _tk_ngan_hang(cty)
 	if not ba:
@@ -101,7 +116,7 @@ def _giao_dich_ngan_hang(ma_ho_so, tien, cty):
 	g.bank_account = ba
 	g.withdrawal = tien
 	g.deposit = 0
-	g.description = "CK %s KIEM THAT" % ma_ho_so.replace(".", "")
+	g.description = noi_dung if noi_dung is not None else "CK %s KIEM THAT" % ma_ho_so.replace(".", "")
 	g.reference_number = "FT-KIEMTHAT-%s" % frappe.generate_hash(length=5)
 	g.flags.ignore_permissions = True
 	g.insert(ignore_permissions=True)

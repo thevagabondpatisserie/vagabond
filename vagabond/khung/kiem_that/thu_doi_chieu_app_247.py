@@ -14,10 +14,8 @@ def _nen(tien=12345, tay=False):
 	hd = _hoa_don_mua(tien)
 	h = _ho_so_ncc([hd])
 	_unc_gia(h)
-	g = _giao_dich_ngan_hang(h.name, tien, cong_ty())
-	if tay:
-		g.description = "Thanh toan internet khong ghi duoc ma APP"
-		g.save(ignore_permissions=True)
+	g = _giao_dich_ngan_hang(h.name, tien, cong_ty(),
+		noi_dung="Thanh toan internet khong ghi duoc ma APP" if tay else None)
 	return h, g
 
 
@@ -39,8 +37,8 @@ def _ghi(h, g):
 
 @ca("#247 tự dò mã trong tham chiếu, ghi PE và retry không thêm liên kết")
 def _tu_dong():
-	h, g = _nen()
-	g.description, g.reference_number = "CK", h.name.replace(".", "")
+	h, g = _nen(tay=True)
+	g.reference_number = h.name.replace(".", "")
 	g.save(ignore_permissions=True)
 	_ghi(h, g)
 	kq = hs.danh_dau_da_tra(h.name, gui_thu=0)
@@ -80,6 +78,7 @@ def _je():
 	dc.gan(h.name, g.name)
 	_ghi(h, g)
 	la("nối JE", g.payment_entries[0].payment_document, "Journal Entry")
+	return h, g
 
 
 @ca("#247 giao dịch đã chọn không cho APP khác hoặc Desk chiếm lại")
@@ -151,3 +150,97 @@ def _nhieu_pe():
 	g = _giao_dich_ngan_hang(h.name, 12345, cong_ty())
 	_ghi(h, g)
 	la("hai nhà cung cấp tạo hai PE", len(g.payment_entries), 2)
+
+
+def _bi_chan(lam, chu):
+	try:
+		lam()
+	except frappe.ValidationError as e:
+		dung("câu lỗi chỉ rõ cách xử lý", chu in str(e))
+	else:
+		dung("phải chặn thao tác", False)
+
+
+@ca("#247 huỷ PE giải phóng sao kê qua nút app, giữ vết và cho hồ sơ khác dùng")
+def _huy_bo():
+	h, g = _nen(22222)
+	_ghi(h, g)
+	_bi_chan(lambda: dc.bo(h.name), "Sao kê còn liên kết")
+	h.reload()
+	_bi_chan(lambda: _luu_tay(h, ""), "Sao kê còn liên kết")
+	bo = hs._but_toan_cua_ho_so(h.name)
+	frappe.get_doc(bo[0]["doctype"], bo[0]["name"]).cancel()
+	g.reload()
+	la("lõi tự gỡ", len(g.payment_entries), 0)
+	la("lõi hoàn tiền chưa phân bổ", float(g.unallocated_amount), 22222.0)
+	dc.bo(h.name)
+	dc.bo(h.name)
+	la("bỏ giữ mã", frappe.db.get_value(h.doctype, h.name, "ma_giao_dich") or "", "")
+	dung("giữ dấu vết mã cũ", bool(frappe.get_all("Comment", filters={"reference_doctype": h.doctype,
+		"reference_name": h.name, "content": ["like", "%" + g.name + "%"]}, pluck="name")))
+	h2 = _ho_so_ncc([_hoa_don_mua(22222)])
+	dc.gan(h2.name, g.name)
+	la("APP khác lấy lại được", frappe.db.get_value(h2.doctype, h2.name, "ma_giao_dich"), g.name)
+
+
+@ca("#247 unreconcile lõi còn PE sống thì không bỏ giữ mã, đối chiếu lại không ghi đôi")
+def _go_loi():
+	from erpnext.accounts.doctype.bank_transaction.bank_transaction import unreconcile_transaction
+	h, g = _nen()
+	_ghi(h, g)
+	bo = hs._but_toan_cua_ho_so(h.name)
+	unreconcile_transaction(g.name)
+	g.reload()
+	la("lõi gỡ đối chiếu", len(g.payment_entries), 0)
+	_bi_chan(lambda: dc.bo(h.name), "Hồ sơ còn bút toán")
+	dc.gan(h.name, g.name)
+	g.reload()
+	la("nối lại đủ", len(g.payment_entries), len(bo))
+	la("không sinh bút toán mới", hs._but_toan_cua_ho_so(h.name), bo)
+
+
+@ca("#247 lọc đúng khoản phải chuyển ở máy chủ dù client gửi số cũ")
+def _loc_tien():
+	h, g = _nen()
+	r = dc.danh_sach(h.name, so_tien=1)
+	dung("vẫn thấy dòng đúng", any(x["ma"] == g.name for x in r["rows"]))
+
+
+@ca("#247 tranh chấp trả câu tiếng Việt và vẫn ném lỗi để POST rollback")
+def _loi_khoa():
+	with patch.object(dc, "_ho_so", side_effect=frappe.QueryDeadlockError("Deadlock found")):
+		_bi_chan(lambda: dc.gan("APP-THU", "BT-THU"), "Tải lại hồ sơ")
+		_bi_chan(lambda: dc.bo("APP-THU"), "Tải lại hồ sơ")
+
+
+@ca("#247 huỷ JE giải phóng sao kê và cho hồ sơ khác chọn lại")
+def _huy_je():
+	h, g = _je()
+	frappe.get_doc("Journal Entry", g.payment_entries[0].payment_entry).cancel()
+	dc.bo(h.name)
+	h2 = _ho_so_ncc([_hoa_don_mua(12345)])
+	dc.gan(h2.name, g.name)
+	la("sao kê JE dùng lại được", frappe.db.get_value(h2.doctype, h2.name, "ma_giao_dich"), g.name)
+
+
+@ca("#247 người không có FIN bị chặn ở đọc, gán và bỏ đối chiếu")
+def _quyen():
+	cu = frappe.session.user
+	try:
+		frappe.set_user("Guest")
+		for ham in (lambda: dc.danh_sach("APP-THU"), lambda: dc.gan("APP-THU", "BT-THU"), lambda: dc.bo("APP-THU")):
+			_bi_chan(ham, "không có quyền")
+	finally:
+		frappe.set_user(cu)
+
+
+@ca("#247 thiếu Bank Account thì fixture dựng bản ghi thật trong điểm lưu")
+def _thieu_ngan_hang():
+	from vagabond.khung.kiem_that import thu_ho_so_tt_v445 as thu
+	goc = thu._mot
+	with patch.object(thu, "_mot", side_effect=lambda dt, loc: None if dt == "Bank Account" else goc(dt, loc)):
+		ba = thu._tk_ngan_hang(cong_ty())
+	doc = frappe.get_doc("Bank Account", ba)
+	la("đúng công ty", doc.company, cong_ty())
+	dung("có tài khoản GL", bool(doc.account))
+	dung("được theo dõi để hoàn nguyên", (doc.doctype, doc.name) in _DA_TAO)

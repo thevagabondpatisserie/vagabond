@@ -2201,6 +2201,7 @@ async function scrHoSoTTView(name) {
     nut.push('<button class="btn" data-hsv="datra" style="flex:2">💸 Ghi nhận đã thanh toán</button>');
   }
   if (Q.fin && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Đối chiếu tay</button>');
+  if (Q.fin && hs.ma_giao_dich && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="bodoichieu" style="flex:2">Bỏ đối chiếu</button>');
   if ((Q.fin || Q.gd) && ['Cho ke toan', 'Cho giam doc', 'Da duyet'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="tu_choi" style="flex:1">⛔ Từ chối</button>');
   if (Q.lap && ['Nhap', 'Tu choi'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="huy" style="flex:1">🗑 Huỷ</button>');
   var foot = nut.length ? '<div style="display:flex;gap:8px">' + nut.join('') + '</div>' : '';
@@ -2285,6 +2286,16 @@ async function hsGoBanTheHien(hs, hoaDon, tep, ten) {
    dinh len day - mot thao tac chac chan, hon la mot nhip tu dong khong bao
    gio chay. */
 async function hsHanh(k, hs) {
+  if (k === 'bodoichieu') {
+    if (!(await hoiCo('Bỏ đối chiếu?', 'Chỉ bỏ được khi sao kê hết liên kết và hồ sơ không còn bút toán đã ghi sổ. Mã giao dịch cũ được giữ trong lịch sử hồ sơ.', 'Bỏ đối chiếu'))) return;
+    busy(true);
+    try {
+      var bo = await api('vagabond.doi_chieu_app.bo', {name: hs.ma});
+      toast(bo.loi_nhan, 5000);
+    } catch (e) { return baoTin((e && e.message) || 'Chưa bỏ được đối chiếu. Tải lại hồ sơ và thử lại.'); }
+    finally { busy(false); }
+    return go(function () { scrHoSoTTView(hs.ma); }, true);
+  }
   if (k === 'khoptay') return go(function () { scrTimGiaoDich(hs.ma, hs.con_lai == null ? hs.tong_tien : hs.con_lai); });
   if (k === 'noidungck') {
     busy(true);

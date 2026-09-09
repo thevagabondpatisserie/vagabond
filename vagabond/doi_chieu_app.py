@@ -4,6 +4,7 @@ Không tạo DocType. Ô ma_giao_dich giữ Bank Transaction.name đã chọn;
 Bank Transaction Payments mới là bằng chứng đối chiếu sau khi ghi sổ.
 """
 
+from functools import wraps
 from vagabond.khop_sao_ke import co_ma
 
 
@@ -169,12 +170,12 @@ def noi_but_toan(doc, g):
 def danh_sach(name, tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0):
 	doc = _ho_so(name)
 	nguon = _nguon(doc)
-	cty, tk, _ = nguon
+	cty, tk, tien = nguon
 	bas = frappe.get_all("Bank Account", filters={"company": cty, "account": tk}, pluck="name")
 	loc = {"bank_account": ["in", bas], "docstatus": 1, "withdrawal": [">", 0], "deposit": 0,
 		"date": [">=", add_days(nowdate(), -min(max(cint(so_ngay), 1), 3650))]}
 	if flt(so_tien) > 0:
-		loc["withdrawal"] = flt(so_tien)
+		loc["withdrawal"] = tien
 	k = str(tu_khoa or "").strip().lower()
 	rows = []
 	for r in frappe.get_all(BT, filters=loc, fields=["name", "description", "reference_number"], order_by="date desc, name desc", limit_page_length=0) if bas else []:
@@ -190,7 +191,51 @@ def danh_sach(name, tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0):
 	return {"rows": rows[:300], "tong": len(rows), "con_nua": max(0, len(rows)-300), "sua_duoc": 1}
 
 
+def _bao_tranh_chap(ham):
+	"""POST vẫn ném lỗi để Frappe rollback toàn lượt, không trả thành công dở."""
+	@wraps(ham)
+	def goi(*args, **kwargs):
+		try:
+			return ham(*args, **kwargs)
+		except frappe.QueryDeadlockError:
+			frappe.throw("Có người đang xử lý cùng giao dịch ngân hàng. Tải lại hồ sơ và chọn lại dòng sao kê; nếu đã có hồ sơ khác giữ giao dịch, chọn dòng khác.")
+	return goi
+
+
+def _kiem_bo(doc, ma):
+	"""Core bank_transaction.py remove_payment_entries gỡ liên kết khi huỷ.
+
+	Chỉ giải phóng chỗ giữ APP sau khi lõi đã gỡ và không còn PE/JE ghi sổ.
+	Không tự huỷ hoặc sửa GL, không coi sao kê hết liên kết là đã huỷ tiền chi.
+	"""
+	ten = ma if frappe.db.exists(BT, ma) else None
+	if not ten:
+		ds = frappe.get_all(BT, filters={"reference_number": ma}, pluck="name", limit_page_length=2)
+		if len(ds) != 1:
+			frappe.throw("Mã cũ không xác định được một dòng sao kê. Nhờ quản trị kiểm tham chiếu trước khi bỏ đối chiếu.")
+		ten = ds[0]
+	g = frappe.get_doc(BT, ten, for_update=True)
+	if g.payment_entries or flt(g.allocated_amount):
+		frappe.throw("Sao kê còn liên kết bút toán. Kế toán kiểm và huỷ bút toán sai trong ERPNext trước khi bỏ đối chiếu.")
+	for dt in ("Payment Entry", "Journal Entry"):
+		if frappe.get_all(dt, filters={"vgb_ho_so_tt": doc.name, "docstatus": 1}, pluck="name", limit_page_length=1):
+			frappe.throw("Hồ sơ còn bút toán đã ghi sổ. Đối chiếu lại với bút toán đó, hoặc huỷ bút toán sai trong ERPNext rồi bỏ đối chiếu.")
+
+
 @frappe.whitelist(methods=["POST"])
+@_bao_tranh_chap
+def bo(name):
+	doc = _ho_so(name, khoa=True)
+	ma = str(doc.get("ma_giao_dich") or "").strip()
+	if ma:
+		_kiem_bo(doc, ma)
+		doc.ma_giao_dich = ""
+		doc.save(ignore_permissions=True)
+	return {"ok": 1, "loi_nhan": "Đã bỏ đối chiếu. Dòng sao kê có thể chọn cho hồ sơ khác; trạng thái hồ sơ cũ được giữ để tra lại."}
+
+
+@frappe.whitelist(methods=["POST"])
+@_bao_tranh_chap
 def gan(name, ma_giao_dich):
 	doc = _ho_so(name, khoa=True)
 	g = chon(doc, ma_giao_dich, khoa=True)
@@ -208,10 +253,16 @@ def kiem_luu(doc):
 	"""Desk/API đổi giao dịch cũng phải qua cùng hàng rào với nút app."""
 	cu = doc.get_doc_before_save()
 	ma = str(doc.get("ma_giao_dich") or "").strip()
-	if not ma or (cu and ma == str(cu.get("ma_giao_dich") or "").strip()):
+	ma_cu = str(cu.get("ma_giao_dich") or "").strip() if cu else ""
+	if ma == ma_cu:
 		return
 	from vagabond import ho_so_tt as hs
 	hs._kiem(hs.VAI_FIN, "gán giao dịch ngân hàng")
 	if doc.trang_thai not in (hs.TT_DA_DUYET, hs.TT_DA_TRA):
 		frappe.throw("Duyệt xong hồ sơ rồi mới chọn giao dịch ngân hàng.")
-	chon(doc, ma, khoa=True)
+	if ma_cu:
+		_kiem_bo(doc, ma_cu)
+	if ma:
+		chon(doc, ma, khoa=True)
+	elif ma_cu:
+		doc.add_comment("Comment", "Bỏ đối chiếu giao dịch %s sau khi kiểm không còn liên kết và bút toán đã ghi sổ." % ma_cu)
