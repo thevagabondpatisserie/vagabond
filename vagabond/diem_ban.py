@@ -112,6 +112,7 @@ def _chuan(d, i=0):
 		"dia_chi": str(d.get("dia_chi") or "").strip(),
 		"mst": str(d.get("mst") or "").strip(),
 		"ky_hieu": str(d.get("ky_hieu") or "").strip(),
+		"kho_tang": str(d.get("kho_tang") or "").strip(),
 		"nguon": nguon_ds,
 		"bat": 1 if cint(d.get("bat") if d.get("bat") is not None else 1) else 0,
 		"thu_tu": cint(d.get("thu_tu") or (i + 1)),
@@ -178,11 +179,13 @@ def quay_dang_bat():
 @frappe.whitelist()
 def danh_sach():
 	"""Man Cai dat doc danh sach diem ban."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen, _cong_ty
 
 	_kiem_quyen()
 	return {
 		"diem": ds(),
+		"kho_tang": frappe.get_all('Warehouse', filters={'company': _cong_ty(), 'is_group': 0, 'disabled': 0},
+			fields=['name', 'company'], order_by='name'),
 		"sua_duoc": 1 if QUYEN_SUA & set(frappe.get_roles()) else 0,
 		"nguon_co_san": nguon_co_san(),
 	}
@@ -288,6 +291,10 @@ def _kiem(ra):
 		frappe.throw("Phải có ít nhất một điểm bán.")
 	ma_da_co, quay_da_co = {}, {}
 	for d in ra:
+		if d.get('kho_tang'):
+			from vagabond.ban_hang import _cong_ty
+			from vagabond.hang_tang_kho import kiem_kho
+			kiem_kho(d['kho_tang'], _cong_ty())
 		if not d["ma"]:
 			frappe.throw("Có điểm bán chưa đặt mã.")
 		if not d["ma"].replace("_", "").isalnum() or not d["ma"].isascii():

@@ -16,6 +16,9 @@ from vagabond.khung.kiem_that import nen
 
 # Nạp các mô đun ca kiểm. Thêm bộ ca mới thì thêm tên vào đây, giống cách
 # `khung/kiem_thu/chay.py` làm.
+from vagabond.khung.kiem_that import thu_hang_tang_kho_243  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_cua_thue_243  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_thue_vnd_225  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_dong_bo_237  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_don_huy  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_bao_ve_hddt_225  # noqa: F401,E402
@@ -53,6 +56,9 @@ def chay(im=1):
 	_chan()
 	kq = nen.chay_het(im=int(im or 0))
 	if not kq["sach"]:
-		frappe.log_error(frappe.as_json(kq),
-			"vagabond: kiem thu tich hop de lai vet trong co so du lieu")
+		# Frappe app.sync_database tự commit khi POST kết thúc bình thường.
+		# Báo lỗi ra ngoài để request rollback, không trả sach=0 rồi commit
+		# phần chứng từ thử còn sống khi điểm lưu đã hỏng.
+		frappe.throw("Khung kiểm không hoàn nguyên được dữ liệu; dừng lượt kiểm. "
+			+ frappe.as_json(kq))
 	return kq

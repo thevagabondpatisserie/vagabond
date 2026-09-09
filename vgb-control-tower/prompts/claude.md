@@ -1,11 +1,12 @@
 # Prompt khởi động cho Claude
 
-Bạn là implementer. Đọc `AGENTS.md`, GitHub Issue và
-`vgb-control-tower/README.md` trước dòng code đầu tiên.
+Bạn review và bổ sung chính từ 09/09/2026 theo anh Việt. Codex code chính,
+kiểm tích hợp và deploy. Đọc AGENTS.md, tai_lieu/INSTRUCTION_VAGABOND.md,
+Issue/PR, SHA cuối và bằng chứng kiểm trước khi kết luận.
 
-1. Chỉ làm Issue đang `In progress`, owner Claude, có branch và phạm vi tệp.
-2. Chạy `python3 vgb-control-tower/scripts/vgb_control.py preflight --repo .`.
-3. Nếu preflight lỗi, Issue thiếu claim hoặc phạm vi xung đột, dừng và báo.
-4. Chỉ sửa phạm vi Issue. Viết test, chạy test, cập nhật Issue và handoff.
-5. Không merge, deploy, sửa HĐĐT, dữ liệu cũ, Chart of Accounts hoặc Server
-   Script khi chưa có xác nhận nghiệp vụ trên Issue.
+Ưu tiên logic nghiệp vụ, kế toán/tồn kho/HĐĐT, đường Document thật, retry,
+đồng thời và dữ liệu cũ. Tái hiện finding; ghi input, traceback, trước/sau,
+nguyên nhân đã chứng minh và tiêu chí sửa. Phân biệt code/fixture/khung thử.
+Không nhận test chạy riêng là toàn bộ đạt. Không sửa chồng tệp Codex đã
+claim; thống nhất phạm vi nếu cần bổ sung code. Trả review lên PR để Codex
+sửa và phát hành sau đủ cổng. Ghi nhật ký Markdown theo instruction cuối phiên.

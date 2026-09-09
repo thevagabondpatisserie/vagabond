@@ -5,6 +5,7 @@ phiếu5%. Thiếu tài khoản/danh mục là đỏ, không coi mock là bench 
 """
 
 import frappe
+from unittest.mock import patch
 from frappe.utils import getdate, today
 from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that.nen import ca, la, dung
@@ -71,7 +72,10 @@ def _don_mua():
 
 
 @ca("#227 link/thuế: khách lưu đúng SI và payload, trạng thái chờ đối chiếu cấm ghi lại")
+@patch("vagabond.ban_hang.now_datetime", lambda: frappe.utils.get_datetime(frappe.utils.today() + " 12:00:00"))
 def _khach_dien():
+	# Ca này kiểm lưu thông tin, không kiểm giờ đóng cửa. Giữ đồng hồ của
+	# cả ký và xác minh link ở buổi trưa cùng ngày SI, kể cả CI chạy đêm.
 	from unittest.mock import patch
 	from urllib.parse import parse_qs, urlparse
 	from vagabond import ban_hang, minvoice_an_toan
@@ -88,7 +92,10 @@ def _khach_dien():
 				dia_chi="Địa chỉ: 227 Đường Kiểm Thử", email="kiem227@example.com")
 		si.reload()
 		la("đúng email trên SI", si.vgb_xhd_email, "kiem227@example.com")
-		goi = minvoice_an_toan.chuan_goi(si, {"data": [{"details": [{"data": []}]}]})
+		# Chính sách tiền mới kiểm đúng mã/qty từng dòng trước khi gửi.
+		# Ca khách điền phải dựng payload thật của SI, không dùng bảng rỗng.
+		dong_gui = [{"inv_itemCode": d.item_code, "inv_quantity": d.qty} for d in si.items]
+		goi = minvoice_an_toan.chuan_goi(si, {"data": [{"details": [{"data": dong_gui}]}]})
 		la("đúng email trong payload cuối", goi["data"][0]["inv_buyerEmail"], "kiem227@example.com")
 		la("địa chỉ đã làm sạch", si.vgb_xhd_dia_chi, "227 Đường Kiểm Thử")
 		frappe.db.set_value("Sales Invoice", si.name, "vgb_hddt_cho_doi_chieu", 1)
