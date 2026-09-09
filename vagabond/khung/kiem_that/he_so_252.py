@@ -193,6 +193,7 @@ def _quy_cach_ncc():
     ban = _luu(frappe.get_doc(dict(doctype=qc.LOAI, supplier_mst=mst,
         ten_ncc=ten, item_code=mon.name, vgb_uom=lon)))
     la('đúng NCC và tên lấy quy cách', qc.lay(mon.name, mst, ten), lon)
+    la('MST chi nhánh cùng quy cách gốc', qc.lay(mon.name, mst+'-005', ten), lon)
     la('khác NCC không mượn quy cách', qc.lay(mon.name, mst+'x', ten), None)
     la('khác tên không mượn quy cách', qc.lay(mon.name, mst, ten+'x'), None)
     khac, _ = _nen()
@@ -202,7 +203,7 @@ def _quy_cach_ncc():
     ban.reload(); la('ánh xạ đúng vẫn nguyên', ban.vgb_uom, lon)
     from vagabond.khung.kiem_that.thu_mua_hddt_227 import _nguon
     goc = _nguon([{'ten': ten, 'dvtinh': lon, 'sluong': 1, 'dgia': 55000, 'thtien': 55000}], 0, 55000)
-    frappe.db.set_value(goc.doctype, goc.name, 'mst_doi_tac', mst)
+    frappe.db.set_value(goc.doctype, goc.name, 'mst_doi_tac', mst+'-005')
     hd = _pi(mon, mon.stock_uom, 1)
     hd.custom_minvoice_id = goc.name
     hd.items[0].ten_hang_ncc = ten

@@ -328,10 +328,22 @@ def _dung_dong_tai_cho(doc, g):
 	moi = []
 	for vi_tri, it in enumerate(dong_goc):
 		x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
-		ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
-		if not ma and giu.get(vi_tri):
+		# Nguồn không ghi UOM không phải là một UOM lạ. Khi dựng lại một
+		# dòng đã được người dùng chọn rõ, giữ duy nhất quy cách cùng tên/mã;
+		# guard Document vẫn kiểm quy cách này trước khi lưu hoặc ghi sổ.
+		cu = {(d.get("uom"), flt(d.get("conversion_factor")))
+			for d in doc.get("items") or []
+			if d.get("item_code") == giu.get(vi_tri) and d.get("uom")
+			and khoa_ten(ten_ncc_cua_dong(d)) == khoa_ten(x.get("ten"))}
+		if not x.get("dvt") and giu.get(vi_tri) and len(cu) == 1:
 			ma = giu[vi_tri]
-			uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"), (g.get("mst_doi_tac") or "").split("-")[0], x.get("ten"))
+			uom, he_so = cu.pop()
+		else:
+			ma, uom, he_so = mc._tra_ma_hang(x, goc_mst, doc.supplier)
+			if not ma and giu.get(vi_tri):
+				ma = giu[vi_tri]
+				uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"), goc_mst, x.get("ten"))
+
 		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
 	dp_gia, dp_tien, dp_sl = _do_chinh_xac()
 	tong_dong = sum(

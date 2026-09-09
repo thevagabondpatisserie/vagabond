@@ -54,7 +54,8 @@ def kiem(doc, method=None):
 
 def lay(item_code, mst, ten_ncc):
     """Chỉ dùng đúng bộ MST + tên NCC; không suy từ tên gần giống."""
-    mst, ten = (mst or '').strip(), (ten_ncc or '').strip()[:140]
+    # Cùng khoá MST gốc mà hoc_ma_hang và _mst_cua_to lưu cho chi nhánh.
+    mst, ten = (mst or '').strip().split('-')[0], (ten_ncc or '').strip()[:140]
     if not item_code or not mst or not ten:
         return None
     if not frappe.db.exists('DocType', LOAI) or not frappe.get_meta(LOAI).has_field(TRUONG):
