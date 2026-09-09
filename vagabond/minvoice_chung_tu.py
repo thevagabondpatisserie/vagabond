@@ -791,14 +791,8 @@ def _tra_ma_hang(x, goc_mst, ncc):
 	uom = x.get("dvt")  # Giữ tên NCC để tra alias trước khi xét UOM tồn tại.
 	mapped = None
 	if goc_mst:
-		if x["ma"]:
-			mapped = frappe.db.get_value("MInvoice NCC Map", {
-				"supplier_mst": goc_mst, "ma_ncc": x["ma"],
-				"item_code": ["is", "set"]}, "item_code")
-		if not mapped and x["ten"]:
-			mapped = frappe.db.get_value("MInvoice NCC Map", {
-				"supplier_mst": goc_mst, "ten_ncc": x["ten"][:140],
-				"item_code": ["is", "set"]}, "item_code")
+		from vagabond.quy_cach_ncc import tim_mon
+		mapped = tim_mon(goc_mst, x.get("ma"), x.get("ten"))
 	if not mapped and x["ten"]:
 		mapped = frappe.db.get_value("Anh Xa Mat Hang NCC", {
 			"nha_cung_cap": ncc, "ten_hang_ncc": x["ten"]}, "ma_hang")

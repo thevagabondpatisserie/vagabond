@@ -53,6 +53,34 @@ def kiem(doc, method=None):
     _kiem_uom(doc.item_code, uom)
 
 
+def _anh_xa(mst, truong, gia_tri):
+    mst = (mst or '').strip().split('-')[0]
+    gia_tri = (gia_tri or '').strip()
+    if not mst or not gia_tri:
+        return []
+    fields = ['name', 'supplier_mst', truong, 'item_code']
+    if frappe.get_meta(LOAI).has_field(TRUONG):
+        fields.append(TRUONG)
+    ds = frappe.get_all(LOAI, filters={truong: gia_tri},
+        or_filters=[['supplier_mst', '=', mst], ['supplier_mst', 'like', mst+'-%']],
+        fields=fields, limit_page_length=0)
+    return [d for d in ds if (d.supplier_mst or '').strip().split('-')[0] == mst
+            and (d.get(truong) or '').strip() == gia_tri]
+
+
+def tim_mon(mst, ma_ncc, ten_ncc):
+    """Tra mã và quy cách cùng đọc được ánh xạ chi nhánh lịch sử."""
+    for truong, gia_tri in [('ma_ncc', ma_ncc), ('ten_ncc', (ten_ncc or '')[:140])]:
+        ds = _anh_xa(mst, truong, gia_tri)
+        cac = {d.item_code for d in ds if d.item_code}
+        if len(cac) > 1:
+            frappe.throw('Ánh xạ NCC %s, hàng %s đang chọn nhiều Món. Đối chiếu lại ánh xạ trước khi tạo hoá đơn.'
+                         % (mst, gia_tri))
+        if cac:
+            return cac.pop()
+    return None
+
+
 def lay(item_code, mst, ten_ncc):
     """Chỉ dùng đúng bộ MST + tên NCC; không suy từ tên gần giống."""
     # Cùng khoá MST gốc mà hoc_ma_hang và _mst_cua_to lưu cho chi nhánh.
@@ -63,12 +91,9 @@ def lay(item_code, mst, ten_ncc):
         return None
     # Đọc cả ánh xạ chi nhánh đã lưu trước guard; không âm thầm bỏ lựa
     # chọn cũ hoặc ghi đè khi có nhiều ánh xạ cùng MST gốc.
-    ds = frappe.get_all(LOAI, filters={'ten_ncc': ten},
-        or_filters=[['supplier_mst', '=', mst], ['supplier_mst', 'like', mst+'-%']],
-        fields=['name', 'supplier_mst', 'ten_ncc', 'item_code', TRUONG], limit_page_length=0)
+    ds = _anh_xa(mst, 'ten_ncc', ten)
     # Collation MariaDB có thể coi khác dấu/hoa thường là giống nhau.
     # Quy cách chỉ áp dụng đúng tên NCC đã đối chiếu, không gần giống.
-    ds = [d for d in ds if (d.supplier_mst or '').strip().split('-')[0] == mst and (d.ten_ncc or '').strip() == ten]
     da_chon = [d for d in ds if (d.get(TRUONG) or '').strip()]
     if not da_chon:
         return None

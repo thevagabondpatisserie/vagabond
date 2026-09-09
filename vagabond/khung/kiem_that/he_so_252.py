@@ -199,6 +199,10 @@ def _quy_cach_ncc():
     la('lưu ánh xạ chuẩn hoá MST chi nhánh', ban.supplier_mst, mst)
     frappe.db.set_value(qc.LOAI, ban.name, 'supplier_mst', mst+'-005')
     la('ánh xạ chi nhánh cũ không bị bỏ qua', qc.lay(mon.name, mst, ten), lon)
+    from vagabond.minvoice_chung_tu import _tra_ma_hang
+    la('đường dựng tra cả món từ ánh xạ chi nhánh cũ',
+       _tra_ma_hang({'ma':'','ten':ten,'dvt':mon.stock_uom}, mst, nen.mot_nha_cung_cap()),
+       (mon.name, lon, 550))
     trung = _luu(frappe.get_doc(dict(doctype=qc.LOAI, supplier_mst=mst,
         ten_ncc=ten, item_code=mon.name, vgb_uom=lon)))
     _bi_chan(lambda: qc.lay(mon.name, mst, ten), 'hai ánh xạ gốc/chi nhánh phải đối chiếu')
@@ -242,8 +246,13 @@ def _sua_pi_theo_cau_hinh(chinh_gia):
     gram = 'Gram252-' + frappe.generate_hash(length=8)
     _luu(frappe.get_doc(dict(doctype='UOM', uom_name=gram, must_be_whole_number=0)))
     mon.stock_uom = gram
+    # Core Item.add_default_uom_in_conversion_factor_table xoá bảng quy đổi khi đổi stock_uom trên
+    # Item đã có. Lưu đơn vị kho trước rồi mới khai hệ số mua cho ca thử.
+    mon.save(ignore_permissions=True); mon.reload()
     mon.set('uoms', [dict(uom=gram, conversion_factor=1), dict(uom=kg, conversion_factor=1000)])
     mon.save(ignore_permissions=True)
+    la('nền thực sự có hệ số mua1000', frappe.db.get_value('UOM Conversion Detail',
+        {'parent': mon.name, 'parenttype': 'Item', 'uom': kg}, 'conversion_factor'), 1000)
     ct, kho = nen.cong_ty(), nen.mot_kho(nen.cong_ty())
     pr = _luu(frappe.get_doc(dict(doctype='Purchase Receipt', company=ct,
         supplier=nen.mot_nha_cung_cap(), posting_date=frappe.utils.today(),
