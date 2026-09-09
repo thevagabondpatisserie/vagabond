@@ -19,9 +19,18 @@ def tao():
         frappe.get_doc({'doctype': 'Company', 'company_name': cty, 'abbr': 'VGT',
             'default_currency': 'VND', 'country': 'Vietnam',
             'chart_of_accounts': 'Standard'}).insert(ignore_permissions=True)
+    # hang_tang_kho.kiem_kho yêu cầu Warehouse.account trực tiếp. Core có thể
+    # fallback lên tài khoản công ty cho SE, nhưng không đủ cấu hình bán/tặng.
+    cha_ton = frappe.db.get_value('Account',
+        {'company': cty, 'root_type': 'Asset', 'is_group': 1}, 'name')
+    tk_ton = frappe.get_doc({'doctype': 'Account', 'account_name': 'THU257 Ton kho',
+        'company': cty, 'parent_account': cha_ton, 'account_type': 'Stock',
+        'account_currency': 'VND', 'is_group': 0})
+    tk_ton.insert(ignore_permissions=True)
     kho = []
     for ten in ('THU257 Xuat', 'THU257 Nhan'):
-        k = frappe.get_doc({'doctype': 'Warehouse', 'warehouse_name': ten, 'company': cty})
+        k = frappe.get_doc({'doctype': 'Warehouse', 'warehouse_name': ten, 'company': cty,
+            'account': tk_ton.name})
         k.insert(ignore_permissions=True)
         kho.append(k.name)
     ma = 'THU257-NHAN-NVL'

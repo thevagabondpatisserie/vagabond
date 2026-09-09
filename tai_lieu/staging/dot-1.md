@@ -160,3 +160,11 @@ hai bánh từ ca sản xuất, duyệt và ghi sổ qua app, tải lại chứn
 VAT160 và tồn cuối0. Chạy sau kiểm sản xuất. Cấu hình thử tắt tự xuất HĐĐT;
 không mock helper nghiệp vụ. Review mã và cổng local2724 đạt, chưa runtime.
 Chưa kiểm tạo đơn/hủy/thuế hỗn hợp qua UI hoặc M-Invoice, chưa dùng role Sales.
+
+
+### CI ea86fc7 và chuẩn bị số đo mạng
+
+- Run34365834517 kết thúc failure: fixture khách đã qua, nhưng kho thử chưa có Warehouse.account nên hang_tang_kho.kiem_kho chặn trước insert SI. Bộ tích hợp116/116 hai lượt đã qua, chưa tới browser.
+- Dựng tài khoản Stock/VND/Asset riêng và gắn ngay khi tạo hai kho fixture, trước mọi SE. Giữ validation của app và core.
+- Smoke bổ sung thời gian nhận đầy đủ phản hồi API, TTFB và số byte body/header từ Playwright requestfinished. Chỉ lưu path/metadata, không body/cookie/query. Lỗi đo ghi riêng; các số này là chẩn đoán một lượt, chưa phải baseline hay chứng minh tối ưu.
+- Ba màn cần benchmark vẫn là Vận đơn/Kiểm bánh/Hồ sơ thanh toán. Kiểm bánh tự gọi đồng bộ khi mở; phải dựng hợp đồng provider estimate_delivery_date và inserted_at trước khi đo, không dùng dữ liệu production.
