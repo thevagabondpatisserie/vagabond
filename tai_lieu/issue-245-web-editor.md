@@ -18,6 +18,7 @@ nháp/xuất bản và lịch sử. Không phải dashboard doanh thu hoặc qu�
    Ảnh tải lên là file công khai ngay cả khi trang vẫn là nháp.
 3. Thêm Ảnh bìa, Câu chuyện, Ảnh và chữ, Thông báo. Kéo hoặc dùng nút lên,
    xuống để đổi thứ tự; dùng Ẩn/Hiện để gỡ khối khỏi trang mà vẫn giữ nội dung.
+   Có thể đổi loại khối và tái sử dụng khối cũ khi đã đủ 30 khối.
 4. Xem trước Desktop/Mobile. Lưu nháp chưa đổi nội dung khách nhìn thấy.
 5. Xuất bản rồi tải lại website để đối chiếu. Có lịch sử 20 bản công khai
    trước; khôi phục vào nháp, xem lại rồi xuất bản.
@@ -44,6 +45,8 @@ thái đã lưu trước khi thử lại. Không có nút xoá vĩnh viễn.
 Đã kiểm syntax JS, bộ tầng khung, khớp bundle và cổng trước deploy tại local.
 Đã kiểm bằng trình duyệt localhost: tải editor, thêm khối, sửa tiêu đề,
 đổi thứ tự bằng nút, khung mobile, nút từ khối dẫn sang luồng đặt trước.
+Đã đo viewport iframe Desktop 1440 px, Mobile 375 px, kiểm layout editor
+ba cột ở 1440 px và dạng xếp dọc ở chiều rộng 580 px.
 Local preview dùng GET fixture, chưa chứng minh POST hoặc lưu DB thật.
 
 Ca bench có sẵn:

@@ -3,7 +3,14 @@
   'use strict';
   const tim = id => document.getElementById(id);
   const tenLoai = {anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo'};
-  let bang, nhap, chon = '', doi = false, ban = false, keo = '';
+  let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
+  function coPreview() {
+    const khung = document.querySelector('.khung-preview'), f = tim('preview');
+    const rong = mobile ? 375 : 1440, cao = mobile ? 812 : 900, tyLe = Math.min(1, khung.clientWidth / rong);
+    if (!tyLe) return;
+    f.style.width = rong + 'px'; f.style.height = cao + 'px'; khung.style.height = (cao * tyLe) + 'px';
+    f.style.marginLeft = (-rong / 2) + 'px'; f.style.transform = 'scale(' + tyLe + ')';
+  }
   function tao(the, chu, lop) { const e = document.createElement(the); if (chu) e.textContent = chu; if (lop) e.className = lop; return e; }
   function bao(chu, loi) { tim('trang-thai').textContent = chu; tim('trang-thai').classList.toggle('loi', !!loi); }
   async function api(ham, duLieu) {
@@ -66,6 +73,10 @@
   function thuocTinh() {
     const g = tim('thuoc-tinh'); g.replaceChildren(); const k = nhap.khoi.find(x => x.id === chon);
     if (!k) { g.append(tao('p', 'Chọn một khối để chỉnh nội dung.')); return; }
+    g.append(tao('p', 'Loại khối · có thể đổi để tái sử dụng khối cũ', 'goi-y'));
+    const cacLoai = tao('div', '', 'them-khoi');
+    Object.entries(tenLoai).forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
+    g.append(cacLoai);
     [['nhan','Dòng giới thiệu'],['tieu_de','Tiêu đề'],['noi_dung','Nội dung'],['anh','Đường dẫn ảnh công khai'],['mo_ta_anh','Mô tả ảnh'],['nut','Chữ trên nút'],['lien_ket','Liên kết của nút']].forEach(([ma, ten]) => {
       const nhan = tao('label', '', 'truong'); nhan.append(tao('span', ten));
       const o = tao(ma === 'noi_dung' || ma === 'tieu_de' ? 'textarea' : 'input');
@@ -116,12 +127,13 @@
     } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
   Object.entries(tenLoai).forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
-    if (!nhap || ban) return; if (nhap.khoi.length >= 30) { bao('Tối đa 30 khối mỗi trang.', true); return; }
+    if (!nhap || ban) return; if (nhap.khoi.length >= 30) { bao('Đã có 30 khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
     const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: true, nhan: '', tieu_de: ten, noi_dung: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });
   tim('tai-lai').onclick = tai; tim('luu-nhap').onclick = () => luu('nhap'); tim('xuat-ban').onclick = () => luu('xuat_ban');
-  ['desktop', 'mobile'].forEach(id => tim(id).onclick = () => { tim('preview').classList.toggle('mobile', id === 'mobile'); ['desktop','mobile'].forEach(x => tim(x).setAttribute('aria-pressed', String(x === id))); });
+  ['desktop', 'mobile'].forEach(id => tim(id).onclick = () => { mobile = id === 'mobile'; coPreview(); ['desktop','mobile'].forEach(x => tim(x).setAttribute('aria-pressed', String(x === id))); });
+  new ResizeObserver(coPreview).observe(document.querySelector('.khung-preview'));
   tim('preview').onload = xem;
   tim('preview').srcdoc = '<!doctype html><html lang="vi"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/vagabond/web_order/khoi.css"><style>body{margin:0;background:#000}</style></head><body><div id="khoi"></div></body></html>';
   window.addEventListener('beforeunload', e => { if (doi) { e.preventDefault(); e.returnValue = ''; } });
