@@ -209,6 +209,14 @@ def _dem(cac_doctype):
 # giữ bản đồ ở flags suốt request. Ca sau phải thấy kho mới của chính nó.
 @contextmanager
 def _cach_ly():
+	# Frappe __init__.set_user đổi cả sid/data/form_dict và cache quyền.
+	# Giữ object session gốc mà HTTP session_obj cũng đang tham chiếu.
+	phien = getattr(frappe.local, "session", None)
+	phien_cu = dict(phien) if phien is not None else None
+	truong_phien = ("form_dict", "cache", "jenv_restricted", "jenv_unrestricted",
+		"role_permissions", "new_doc_templates", "user_perms")
+	request_cu = {k: (hasattr(frappe.local, k), getattr(frappe.local, k, None))
+		for k in truong_phien}
 	co_cu = frappe.flags.get("vagabond_kiem_that")
 	co_co = "vagabond_kiem_that" in frappe.flags
 	khoa_cu = frappe.db._disable_transaction_control
@@ -255,6 +263,15 @@ def _cach_ly():
 			for dt, name in cham | set(_DA_TAO[dau_tao:]):
 				xoa_goc(dt, name)
 		finally:
+			if phien is not None:
+				phien.clear()
+				phien.update(phien_cu)
+				frappe.local.session = phien
+			for k, (co, cu) in request_cu.items():
+				if co:
+					setattr(frappe.local, k, cu)
+				elif hasattr(frappe.local, k):
+					delattr(frappe.local, k)
 			for bo, cu in doi_cu:
 				bo._functions = cu
 			frappe.flags.pop("warehouse_account_map", None)

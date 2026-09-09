@@ -68,19 +68,13 @@ def _gom_loi():
 
 @ca("gac don vi: da gan vao ca don mua lan phieu nhap")
 def _da_gan_hook():
-	import inspect
-
 	from vagabond import hooks
-
-	# CAT TU doc_events TRO XUONG chu khong cat o lan gap dau tien trong ca
-	# tep. Ban v362 them "Purchase Receipt" vao doctype_js - nam PHIA TREN
-	# doc_events - nen phep cat cu roi trung khoi khai tep JS va bao hong
-	# trong khi hang rao van con nguyen.
-	ma = inspect.getsource(hooks).split("doc_events", 1)[1]
-	doan_dm = ma.split('"Purchase Order"', 1)[1][:900]
-	dung("don mua co hang rao", "gac_don_vi.chan_don_vi_la" in doan_dm)
-	doan_pn = ma.split('"Purchase Receipt"', 1)[1][:900]
-	dung("phieu nhap co hang rao", "gac_don_vi.chan_don_vi_la" in doan_pn)
+	for loai in ("Purchase Order", "Purchase Receipt", "Purchase Invoice", "Sales Order", "Delivery Note", "Sales Invoice", "Stock Entry"):
+		for nhịp in ("validate", "before_submit"):
+			gia_tri = hooks.doc_events[loai].get(nhịp, [])
+			if isinstance(gia_tri, str):
+				gia_tri = [gia_tri]
+			dung(loai + " " + nhịp + " có hàng rào", "vagabond.he_so_chung_tu.kiem" in gia_tri)
 
 
 @ca("gac don vi: phan thuan khong cham Frappe")

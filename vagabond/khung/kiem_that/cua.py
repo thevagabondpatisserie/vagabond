@@ -25,6 +25,12 @@ from vagabond.khung.kiem_that import thu_don_huy  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_bao_ve_hddt_225  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_link_thue_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mua_hddt_227  # noqa: F401,E402
+from vagabond.khung.kiem_that import he_so_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import he_so_nguon_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import gram_bom_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import dong_bo_227  # noqa: F401,E402
+from vagabond.khung.kiem_that import tai_khoan_dich_vu_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import do_chinh_xac_mua_259  # noqa: F401,E402
 from vagabond.khung.kiem_that import quy_cach_252  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hang_tang_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ho_so_tt_v445  # noqa: F401,E402

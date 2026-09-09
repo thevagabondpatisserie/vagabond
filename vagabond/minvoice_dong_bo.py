@@ -106,6 +106,22 @@ def vo_ruot(so_hd_dang_luu, inv):
 	return (not so_hd_dang_luu) and bool(inv.get("shdon"))
 
 
+def doc_trang(resp):
+	"""Payload lỗi không được biến thành trang rỗng và kết quả thành công."""
+	if not isinstance(resp, dict) or not isinstance(resp.get("listInvoice"), list):
+		raise ValueError("M-Invoice chưa trả danh sách hóa đơn hợp lệ; cần kiểm kết nối và kéo lại trang chưa xong.")
+	so = resp.get("totalPage")
+	if so in (None, "", 0, "0"):
+		return resp["listInvoice"], 0
+	try:
+		tong = int(so)
+		if isinstance(so, bool) or str(tong) != str(so) or tong < 1:
+			raise ValueError()
+	except (TypeError, ValueError, OverflowError):
+		raise ValueError("M-Invoice trả số trang không hợp lệ; chưa xác nhận đã kéo đủ hóa đơn.") from None
+	return resp["listInvoice"], tong
+
+
 # ------------------------------------------------------- phan can Frappe
 
 import json
@@ -235,40 +251,54 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 		cac_loai = [("OUTPUT_ELECTRONIC_INVOICE", LOAI_RA)]
 
 	moi, lanh, quet, cap_nhat, loi_o_loai = 0, 0, 0, 0, []
+	loi_hoa_don, so_loi_hoa_don = [], 0
 	for itype, loai in cac_loai:
 		trang = 1
-		# Moi LOAI boc rieng: dau ra dut giua chung thi dau vao da keo
-		# xong van con nguyen, khong chet chum nhu kich ban cu.
+		dem_da_ghi = (moi, lanh, cap_nhat)
+		# Lỗi trang dừng riêng loại đó. Lỗi một hóa đơn chỉ rollback hóa
+		# đơn đó để các tờ phía sau không mắc lại cùng một tờ hỏng mãi.
 		try:
 			while trang <= TRANG_TOI_DA:
 				resp = _goi_minvoice(cd, {
 					"page": trang, "size": 100, "invoiceType": itype,
 					"invoiceReleaseDateFrom": d_tu, "invoiceReleaseDateTo": d_den,
 				})
-				lo = resp.get("listInvoice") or []
+				lo, tong_trang = doc_trang(resp)
+				if not lo and tong_trang and trang < tong_trang:
+					raise ValueError("M-Invoice trả trang rỗng trước trang cuối; chưa kéo đủ hóa đơn.")
 				for inv in lo:
 					quet += 1
-					hid = inv.get("id") or inv.get("_id")
-					if not hid:
-						continue
-					if frappe.db.exists(DT_HD, hid):
-						cu_so = frappe.db.get_value(DT_HD, hid, "so_hd")
-						if vo_ruot(cu_so, inv):
-							# Vo ruot: luc keo lan dau M-Invoice chua co du
-							# lieu. Nay ho da co thi do lai day du.
-							frappe.db.set_value(DT_HD, hid, _du_lieu(inv, loai))
-							lanh += 1
-						elif cint(do_lai_het):
-							frappe.db.set_value(DT_HD, hid, _extra(inv, loai))
-							cap_nhat += 1
-						continue
-					doc = frappe.get_doc({"doctype": DT_HD, "ma_hd_id": hid})
-					doc.update(_du_lieu(inv, loai))
-					doc.insert(ignore_permissions=True)
-					moi += 1
+					hid = (inv.get("id") or inv.get("_id")) if isinstance(inv, dict) else None
+					frappe.db.savepoint("minvoice_mot_to")
+					try:
+						if not hid:
+							raise ValueError("Hóa đơn thiếu mã nguồn M-Invoice; cần kéo lại dữ liệu nguồn.")
+						if frappe.db.exists(DT_HD, hid):
+							cu_so = frappe.db.get_value(DT_HD, hid, "so_hd")
+							if vo_ruot(cu_so, inv):
+								frappe.db.set_value(DT_HD, hid, _du_lieu(inv, loai))
+								lanh += 1
+							elif cint(do_lai_het):
+								frappe.db.set_value(DT_HD, hid, _extra(inv, loai))
+								cap_nhat += 1
+							continue
+						doc = frappe.get_doc({"doctype": DT_HD, "ma_hd_id": hid})
+						doc.update(_du_lieu(inv, loai))
+						doc.insert(ignore_permissions=True)
+						moi += 1
+					except Exception:
+						# Không nuốt rollback lỗi: không được commit phần dở.
+						frappe.db.rollback(save_point="minvoice_mot_to")
+						so_loi_hoa_don += 1
+						if loai not in loi_o_loai:
+							loi_o_loai.append(loai)
+						if len(loi_hoa_don) < 20:
+							loi_hoa_don.append({"loai": loai, "trang": trang, "ma": str(hid or "thiếu mã")})
+						frappe.log_error(frappe.get_traceback(), "MInvoice: hóa đơn lỗi %s, trang%s" % (hid, trang))
 				# Ghi xuong TUNG TRANG: trang sau co loi thi trang nay van con,
 				# va nho vay GET hay POST goi vao cung ghi that nhu nhau.
 				frappe.db.commit()
+				dem_da_ghi = (moi, lanh, cap_nhat)
 				# DUNG khi nao. Doc totalPage neu M-Invoice co tra, con khong
 				# thi soi so to vua nhan: day mot trang (100 to) nghia la con
 				# trang sau, day chinh la cho de nuot hoa don nhat.
@@ -276,21 +306,29 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 				# Ban truoc chi doc `resp.get("totalPage") or 1`, tuc la ho
 				# quen tra o do mot lan la minh dung sau trang dau va mat sach
 				# phan con lai, ma khong co gi keu len ca (them 26/08/2026).
-				tong_trang = cint(resp.get("totalPage"))
 				if tong_trang:
 					if trang >= tong_trang:
 						break
 				elif len(lo) < 100:
 					break
+				if trang == TRANG_TOI_DA:
+					raise ValueError("Đã chạm giới hạn trang M-Invoice; chưa xác nhận kéo đủ, cần chia khoảng ngày.")
 				trang += 1
 		except Exception:
-			loi_o_loai.append(loai)
+			# Nếu savepoint bị mất thì rollback cả trang trước khi sang loại
+			# khác. Không để bước dựng phía sau commit một hóa đơn ghi dở.
+			frappe.db.rollback()
+			moi, lanh, cap_nhat = dem_da_ghi
+			if loai not in loi_o_loai:
+				loi_o_loai.append(loai)
 			frappe.log_error(
 				frappe.get_traceback(), "MInvoice: dut giua chung o loai " + loai
 			)
 	return {
 		"moi": moi, "chua_lanh": lanh, "da_quet": quet, "cap_nhat": cap_nhat,
 		"loi_o_loai": loi_o_loai, "tu_ngay": d_tu, "den_ngay": d_den,
+		"hoan_tat": not loi_o_loai, "so_loi_hoa_don": so_loi_hoa_don,
+		"loi_hoa_don": loi_hoa_don,
 	}
 
 

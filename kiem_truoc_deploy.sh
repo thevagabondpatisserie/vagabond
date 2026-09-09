@@ -112,6 +112,7 @@ python3 dung_app_bep.py --kiem
 # minh duoc hanh vi. May CI co node vi cong doan 2 da dung `node --check`.
 echo "[10/10] Bo ca kiem HANH VI (DOM gia)..."
 node vagabond/khung/kiem_thu/hanh_vi/thue_don_mua_227.js
+node vagabond/khung/kiem_thu/hanh_vi/tai_khoan_dich_vu_252.js
 node vagabond/khung/kiem_thu/hanh_vi/sua_pkt_tang.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_chieu_app_247.js
 node vagabond/khung/kiem_thu/hanh_vi/chay.js

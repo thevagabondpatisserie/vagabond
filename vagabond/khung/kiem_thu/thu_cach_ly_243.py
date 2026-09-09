@@ -189,3 +189,84 @@ def _cua_khong_commit_rac():
     else: dung('phải ném lỗi ra request',False)
     kq['sach']=1
     la('ca đỏ nhưng rollback sạch vẫn trả chẩn đoán',ns['chay'](),kq)
+
+
+@ca('#243 khung: đổi quyền phục hồi session và request kể cả exception')
+def _phien_request():
+    # Dùng thân set_user đã đối chiếu core Frappe f33ac3f.
+    # Kiểm state Python; ca này không chứng minh cookie của HTTP response.
+    # Snapshot thân core f33ac3f để cổng không phụ thuộc checkout /tmp.
+    nguon = """def set_user(username):
+    local.session.user = username
+    local.session.sid = username
+    local.cache = {}
+    local.form_dict = _dict()
+    local.jenv_restricted = None
+    local.jenv_unrestricted = None
+    local.session.data = _dict()
+    local.role_permissions = {}
+    local.new_doc_templates = {}
+    local.user_perms = None
+"""
+    for hong in (False, True):
+        f, n = _nap()
+        phien = TuDien(user='quan_tri', sid='sid-http-goc', data=TuDien(user='quan_tri', csrf_token='csrf-goc'))
+        form = TuDien(cmd='System Console.execute_code', doc='noi dung goc')
+        f.local.session = phien
+        f.local.form_dict = form
+        f.local.role_permissions = {'quyen-goc': 1}
+        cu = dict(phien)
+        ns = {'local': f.local, '_dict': TuDien}
+        exec(nguon, ns)
+        try:
+            with n['_cach_ly']():
+                ns['set_user']('Guest')
+                ns['set_user']('quan_tri')
+                dung('core đã đổi SID thật trong ca', phien.sid == 'quan_tri')
+                if hong:
+                    raise RuntimeError('loi sau doi quyen')
+        except RuntimeError:
+            if not hong:
+                raise
+        dung('giữ object session gốc', f.local.session is phien)
+        la('phục hồi đủ session', dict(phien), cu)
+        dung('giữ data gốc', phien.data is cu['data'])
+        dung('giữ form_dict gốc', f.local.form_dict is form)
+        la('giữ quyền caller', f.local.role_permissions, {'quyen-goc': 1})
+
+
+
+@ca('#252 migration PR: nguồn hoặc metadata lạ không bị tắt hay lưu')
+def _script_pr_khong_ro():
+    # Chạy đúng migration, giả riêng CSDL để không sửa script live.
+    tep = Path(__file__).parents[2] / 'patches' / 'pr_he_so_252.py'
+    f = ModuleType('frappe')
+    class Loi(Exception):
+        pass
+    def nem(msg):
+        raise Loi(msg)
+    f.throw = nem
+    f.db = SimpleNamespace(exists=lambda *a: True)
+    f.get_hooks = lambda *a: {'Purchase Receipt': {
+        'validate': ['vagabond.he_so_chung_tu.kiem'],
+        'before_submit': ['vagabond.he_so_chung_tu.kiem']}}
+    ns = {'__file__': str(tep)}
+    with patch.dict(sys.modules, frappe=f):
+        exec(compile(tep.read_text(), str(tep), 'exec'), ns)
+    for thay in ({'script': 'nguon khac'}, {'reference_doctype': 'Purchase Invoice'},
+                 {'doctype_event': 'Before Submit'}, {'script_type': 'API'}):
+        doc = TuDien(script=ns['ban_cu'](), reference_doctype='Purchase Receipt',
+            doctype_event='Before Validate', script_type='DocType Event', disabled=0)
+        doc.update(thay)
+        luu = []
+        doc.save = lambda **kw: luu.append(dict(doc))
+        f.get_doc = lambda *a: doc
+        truoc = dict(doc)
+        try:
+            ns['execute']()
+        except Loi as e:
+            dung('báo rõ giữ nguyên script lạ', 'giữ nguyên' in str(e))
+        else:
+            dung('nguồn chưa nhận dạng phải chặn migrate', False)
+        la('không sửa script', dict(doc), truoc)
+        la('không gọi save', luu, [])

@@ -21646,7 +21646,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '464';
+var APPVER = '470';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -22689,7 +22689,6 @@ async function scrVdTuyen() {
     } catch (e1) {}
   }, 400);
 })();
-
 /* ---------- Khuyen mai tren man tinh tien (anh Viet 11/08/2026) ----------
 
 Cashier chon chuong trinh, bam combo, hoac go ma voucher. So tien giam
