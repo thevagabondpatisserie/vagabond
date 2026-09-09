@@ -27,12 +27,28 @@ const {chromium} = require('playwright');
         ['hoa-don-ban', 'Hoá đơn', '#ktBanTim']
       ]) {
         const trang = await canh.newPage();
-        const loi = [], api = [], taiHong = [];
+        const loi = [], api = [], taiHong = [], phepDo = [];
         trang.on('pageerror', e => loi.push(e.message));
         trang.on('requestfailed', r => taiHong.push({
           duong: new URL(r.url()).pathname, loi: r.failure()?.errorText || 'requestfailed'
         }));
         trang.on('response', r => {if (r.url().includes('/api/')) api.push({duong: new URL(r.url()).pathname, status: r.status()});});
+        // Chỉ đo metadata mạng, không lưu request/response body hoặc cookie.
+        // requestfinished đến sau khi đọc đủ body, khác thời gian chỉ nhận headers.
+        trang.on('requestfinished', r => {
+          if (!r.url().includes('/api/')) return;
+          phepDo.push((async () => {
+            const moc = r.timing();
+            const co = await r.sizes();
+            return {duong: new URL(r.url()).pathname,
+              ms: moc.responseEnd,
+              ttfb_ms: moc.responseStart >= 0 && moc.requestStart >= 0
+                ? moc.responseStart - moc.requestStart : null,
+              response_body_bytes: co.responseBodySize,
+              response_headers_bytes: co.responseHeadersSize};
+          })().then(value => ({status: 'fulfilled', value}),
+            reason => ({status: 'rejected', reason: String(reason)})));
+        });
         const batDau = Date.now();
         let dat = false;
         try {
@@ -46,7 +62,11 @@ const {chromium} = require('playwright');
           if (loi.length || api.some(r => r.status >= 400)) throw new Error('Có lỗi JS/API.');
           dat = true;
         } catch (e) {loi.push(e.message);}
-        const kq = {duong, rong, dat, ms: Date.now() - batDau, api, loi, taiHong};
+        const ms = Date.now() - batDau;
+        const doMang = await Promise.all(phepDo);
+        const kq = {duong, rong, dat, ms, api, loi, taiHong,
+          mang: doMang.filter(x => x.status === 'fulfilled').map(x => x.value),
+          loiDoMang: doMang.filter(x => x.status === 'rejected').map(x => String(x.reason))};
         ket.push(kq);
         // Xuất từng ca để log chỉ rõ màn nào hỏng, không đợi cả10 ca.
         console.log(JSON.stringify(kq));
