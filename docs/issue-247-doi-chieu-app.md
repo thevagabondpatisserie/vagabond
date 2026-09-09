@@ -55,7 +55,7 @@ không nối PE/JE nháp. Frappe `f33ac3f00ab818e21b25ddbec93efb653fd9aa1b`:
 
 ## Sửa sau review PR250 ngày 09/09
 
-- Đồng bộ main v462, chuẩn bị v463 và patch đồng bộ cấu trúc mới. Đây là
+- Đồng bộ main v463 (35de661, PR253), chuẩn bị v464 và patch đồng bộ cấu trúc mới. Đây là
   số dự kiến trên nhánh, phải so lại main lúc được phép phát hành.
 - Bỏ đối chiếu ngay trên APP: FIN, khoá hồ sơ/BT, chỉ gỡ mã giữ chỗ khi lõi
   hết liên kết/phân bổ và không còn PE/JE submit. Desk/API xoá hoặc đổi mã
@@ -74,3 +74,11 @@ không nối PE/JE nháp. Frappe `f33ac3f00ab818e21b25ddbec93efb653fd9aa1b`:
 - F6 hiệu năng danh_sach vẫn còn: chưa chuyển toàn bộ truy vấn sang đọc lô.
   Đây là giới hạn đã biết, không nhận là đã sửa trong lượt này.
 - Không merge hoặc deploy theo chỉ đạo của anh Việt.
+
+
+Bench review ede0943: 97/98 cả hai lượt, hoàn nguyên sạch; các ca huỷ PE/JE,
+unreconcile/nối lại, FIN và tranh chấp hai tiến trình đã đạt. Một ca dựng
+fixture thiếu BA đỏ vì chọn GL đã liên kết với BA khác. Sửa ca bằng GL
+Bank mới chưa có BA, kiểm tạo BA và gọi lại idempotent, không giả mất bản
+ghi thật. Bổ sung current read có khoá khi kiểm voucher trước bỏ mã.
+Kết quả này chưa thay kết quả bench của SHA cuối sau cập nhật main v463.
