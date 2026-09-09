@@ -528,10 +528,35 @@ def _tk_chi_phi_dang_dung(doc):
 	return None
 
 
+def gan_tai_khoan_chi_phi(doc, method=None):
+	"""#252: chọn tài khoản đầu phiếu phải áp dụng cả khi tổng đã khớp.
+
+	Core v16.28.0 PurchaseInvoice.validate_expense_account dùng
+	controllers/accounts_controller.validate_account_head. Dùng cùng kiểm
+	trước khi thay, chạy lại sau hook tài khoản mặc định Món. Không đụng
+	tài khoản hàng kho hoặc dòng đã nối PNK để giữ căn cứ kho/công nợ.
+	"""
+	if cint(doc.get('docstatus')) == 2 or getattr(doc, '_action', None) == 'update_after_submit':
+		return
+	if doc.get('vgb_loai_chung_tu') != LOAI_DICH_VU or not doc.get('vgb_tk_chi_phi'):
+		return
+	from erpnext.controllers.accounts_controller import validate_account_head
+	tk = doc.vgb_tk_chi_phi
+	for dong in doc.get('items') or []:
+		if dong.get('purchase_receipt') or (dong.get('item_code') and
+				frappe.db.get_value('Item', dong.item_code, 'is_stock_item')):
+			continue
+		validate_account_head(dong.idx, tk, doc.company, 'Expense')
+		dong.expense_account = tk
+	if method in ('validate', 'before_submit'):
+		doc.set_against_expense_account()
+
+
 def truoc_khi_luu(doc, method=None):
 	"""Gom hoa don dich vu thanh mot dong. Goi tu before_validate."""
 	if cint(doc.get("docstatus")) != 0 and getattr(doc, "_action", None) != "submit":
 		return
+	gan_tai_khoan_chi_phi(doc)
 	dau = _dau_hoa_don(doc.get("custom_minvoice_id"))
 	if not dau:
 		return
