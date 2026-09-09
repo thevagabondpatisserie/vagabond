@@ -46,4 +46,6 @@ chặn socket connect/connect_ex ra ngoài, không có worker và chỉ bind127.
 qua HTTP thật, mở năm màn ở 390px/1280px và kiểm ô sẵn sàng, lỗi API/JS;
 lưu ảnh, trace và thời gian vào artifacts. Đây chỉ là kiểm mở màn với
 Administrator, chưa chứng minh quyền nhân viên hoặc năm luồng nghiệp vụ.
-CI chạy bước này sau bench. Còn cần fixture thao tác và năm kịch bản đầy đủ.
+Dự kiến nối bước này sau bench. Chưa nối workflow: kết nối Git thiếu quyền
+workflow; cấu hình riêng đang giữ local. Còn cần fixture thao tác và năm
+kịch bản đầy đủ.
