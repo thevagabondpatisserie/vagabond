@@ -130,6 +130,8 @@ def chay():
         frappe.db.commit()
         tao_cau_truc_cu()
         tao_trang()
+        from vagabond.khung.staging.vai_ci import tao as tao_vai
+        tao_vai()
         if os.environ.get('VGB_STAGING_VAN_DON') == '1':
             from vagabond.khung.staging.van_don_ci import tao
             from vagabond.khung.staging.nguon_pancake import gan

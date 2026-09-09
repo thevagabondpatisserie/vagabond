@@ -193,3 +193,12 @@ CI50 đã qua migrate/tích hợp rồi dừng ở schema: nen_bench tạo Sales
 - Browser vẫn đỏ: thiếu User.custom_bo_phan, Item.custom_han_dung_gio, SI.vgb_ma_tham_chieu và nhóm vgb_huy_ly_do/boi/luc. Đọc SELECT metadata site, commit tắt; bổ sung đúng 36 trường vào snapshot thử, không sửa production.
 - Payment driver đã ghi nhận và kiểm chặn bỏ đối chiếu, nhưng dừng ở xác nhận thứ hai của ERPNext before_cancel. Đối chiếu payment_entry.js tại pin de591661b9ba0bd3f62ac25b99b5c85c723515f6: xác nhận hủy trước, rồi hỏi tự gỡ BT. Driver mới kiểm đúng BT fixture trước xác nhận lần hai; không bỏ qua cửa core. Review độc lập không thấy blocker, còn phải chạy runtime.
 - Artifact 10113668021 SHA256 02bfb10b48649f69e01dccf4cb1510b94c1df37e6173ea569c803c9ff878f931. Chưa đủ năm luồng UI, chưa merge/deploy.
+## Kiểm quyền bằng tài khoản tổng hợp
+
+`vai_ci.py` dựng bốn User thử trên CI: Sales User, Stock User,
+Manufacturing User, Accounts User. Mỗi tài khoản chỉ có một vai nghiệp vụ;
+không sao chép tài khoản/email công ty và không gửi welcome email.
+`kiem_vai.cjs` đăng nhập HTTP riêng từng người, kiểm đúng vai từ API boot,
+kiểm Kế toán thấy hồ sơ fixture và ba vai còn lại bị chặn đúng lý do.
+Đây mới là kiểm quyền đọc danh sách tài chính, chưa thay UAT ghi chứng từ
+theo từng vai hoặc kiểm các tổ hợp quyền nhân viên thật. Cần runtime CI.

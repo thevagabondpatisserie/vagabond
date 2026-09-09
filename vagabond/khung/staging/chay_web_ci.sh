@@ -36,4 +36,5 @@ done
 # ba bước của vận đơn vẫn độc lập. Mọi lỗi vẫn làm gate đỏ.
 cd "$GITHUB_WORKSPACE"
 node vagabond/khung/staging/kiem_kiem_banh.cjs || hong=1
+node vagabond/khung/staging/kiem_vai.cjs || hong=1
 exit "$hong"
