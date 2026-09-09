@@ -39,6 +39,7 @@ done
 cd "$GITHUB_WORKSPACE"
 node vagabond/khung/staging/kiem_kiem_banh.cjs || hong=1
 node vagabond/khung/staging/kiem_vai.cjs || hong=1
+node vagabond/khung/staging/kiem_man_theo_vai.cjs || hong=1
 # Tải benchmark chỉ dựng sau toàn bộ ca chức năng/quyền, không đổi fixture
 # trước khi chúng được nghiệm thu. Không đo trên nền đang lỗi.
 if [[ "$hong" == 0 ]]; then
