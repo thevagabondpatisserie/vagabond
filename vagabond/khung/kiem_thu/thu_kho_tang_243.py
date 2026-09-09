@@ -84,9 +84,9 @@ def _trung():
             else: dung('phải chặn '+str(ten),False)
 
 
-@ca('#243 kho: cấu hình kho nguyên liệu 152 bị chặn trước khi dùng')
+@ca('#243 kho: bán hay tặng dùng tài khoản tồn kho thực tế, không ép tiền tố 155')
 def _tk_kho():
-    for so,dat in [('152',False),('1551',True),('155',True)]:
+    for so,dat in [('152',True),('1551',True),('155',True),('156',True)]:
         f=_f()
         f.get_cached_doc=lambda dt,ten: (To(company='CT',is_group=0,disabled=0,account='TK') if dt=='Warehouse'
             else To(company='CT',is_group=0,disabled=0,root_type='Asset',account_type='Stock',account_currency='VND',account_number=so))

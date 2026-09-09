@@ -234,7 +234,7 @@ function scrDiemBanSua() {
     '<div class="ft"><div class="fl">Kho xuất hàng tặng</div><div class="fv">' +
     h(d.kho_tang || 'Chưa chọn') + '</div></div><div class="fc">›</div></div>' +
     '<div style="padding:0 14px 12px;font-size:13px;color:#667085">Hoá đơn tặng mới tự xuất tại kho này khi ghi sổ. ' +
-    'Chọn kho thành phẩm thực giao; không lập thêm phiếu xuất tay cho cùng bánh.</div></div>';
+    'Dùng chính kho đang xuất hàng của điểm bán; không lập thêm phiếu xuất tay cho cùng bánh.</div></div>';
   html += '<div class="sec">Loại điểm bán</div><div class="card" style="padding:11px 12px">' +
     kmHangChip(
       posChipNut('data-dbloai="1"', '🏬 Bán tại quầy', !!d.co_quay) +

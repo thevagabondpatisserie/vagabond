@@ -25,16 +25,14 @@ def kiem_kho(kho, cong_ty):
     if d.company != cong_ty or d.is_group or d.disabled:
         frappe.throw('Kho %s phải là kho chi tiết còn dùng của %s. Kiểm Cài đặt > Điểm bán.' % (kho, cong_ty))
     # StockController.get_inventory_account_map lấy tài khoản theo kho.
-    # Không đoán 155 hoặc lấy 152 từ Item Default cho bánh thành phẩm.
+    # Anh Việt chốt 09/09: bán/tặng dùng cùng kho điểm bán. Không ép mã
+    # tài khoản 155: kho đang dùng 152/156 vẫn hạch toán theo cấu hình đó.
     if not d.account:
-        frappe.throw('Kế toán gắn tài khoản tồn kho thành phẩm cho kho %s trước khi dùng xuất hàng tặng.' % kho)
+        frappe.throw('Kế toán gắn tài khoản tồn kho cho kho %s trước khi dùng xuất hàng tặng.' % kho)
     tk = frappe.get_cached_doc('Account', d.account)
     if (tk.company != cong_ty or tk.is_group or tk.disabled or tk.root_type != 'Asset'
             or tk.account_type != 'Stock' or tk.account_currency != 'VND'):
         frappe.throw('Tài khoản kho %s chưa hợp lệ. Kế toán kiểm tài khoản tồn kho VND của công ty.' % kho)
-    if not str(tk.account_number or '').startswith('155'):
-        frappe.throw('Kho %s chưa gắn tài khoản thành phẩm 155/1551. Chọn kho bánh thực giao; '
-            'không dùng kho nguyên liệu 152 cho hàng tặng.' % kho)
     return d
 
 
@@ -101,7 +99,7 @@ def chuan_bi(doc):
     kho = diem and diem.get('kho_tang')
     if not kho:
         frappe.throw('Điểm bán %s chưa có Kho xuất hàng tặng. Kế toán vào Cài đặt > Điểm bán, '
-            'chọn kho thành phẩm thực xuất rồi lưu lại hoá đơn.' % ma)
+            'chọn kho điểm bán đang xuất hàng rồi lưu lại hoá đơn.' % ma)
     kiem_kho(kho, doc.company)
     from vagabond.hang_tang_so_cai import tai_khoan
     tk = tai_khoan(doc.company, '64181', 'Expense')

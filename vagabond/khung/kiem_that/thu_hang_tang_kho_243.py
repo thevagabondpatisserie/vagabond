@@ -20,14 +20,14 @@ def _luu(d):
     return d
 
 
-def _nen():
+def _nen(so_tai_khoan='1551'):
     ct,tk,mau=_nen_thue()
     for truong, gia_tri in (('enable_serial_and_batch_no_for_item',1), ('use_serial_batch_fields',1), ('allow_negative_stock',0)):
         frappe.db.set_single_value('Stock Settings',truong,gia_tri)
     frappe.clear_document_cache('Stock Settings')
-    tai=frappe.db.get_value('Account',{'company':ct,'account_number':'1551','account_type':'Stock','is_group':0,'disabled':0},'name')
+    tai=frappe.db.get_value('Account',{'company':ct,'account_number':so_tai_khoan,'account_type':'Stock','is_group':0,'disabled':0},'name')
     if not tai:
-        tai=_luu(frappe.get_doc(dict(doctype='Account',account_name='Thành phẩm kiểm #243',account_number='1551',
+        tai=_luu(frappe.get_doc(dict(doctype='Account',account_name='Tồn kho kiểm #243 '+so_tai_khoan,account_number=so_tai_khoan,
             company=ct,parent_account=frappe.db.get_value('Account',{'company':ct,'root_type':'Asset','is_group':1},'name'),
             account_type='Stock',account_currency='VND',is_group=0))).name
     kho=_luu(frappe.get_doc(dict(doctype='Warehouse',warehouse_name='KT243-'+frappe.generate_hash(length=9),company=ct,account=tai))).name
@@ -66,7 +66,21 @@ def _sle(hd):
 
 @ca('#243 kho thật: sản xuất có lô rồi tặng, giá vốn khớp SLE và huỷ đảo đủ')
 def _xuyen_luong():
-    hd,kho,lo=_nen();hd.submit();hd.reload()
+    _xuyen_luong_tai_khoan('1551')
+
+
+@ca('#225 kho điểm bán 152: tặng lấy giá vốn SLE, Có đúng kho và huỷ đảo đủ')
+def _kho_diem_ban_152():
+    _xuyen_luong_tai_khoan('152')
+
+
+@ca('#225 kho điểm bán 156: tặng lấy giá vốn SLE, Có đúng kho và huỷ đảo đủ')
+def _kho_diem_ban_156():
+    _xuyen_luong_tai_khoan('156')
+
+
+def _xuyen_luong_tai_khoan(so):
+    hd,kho,lo=_nen(so);hd.submit();hd.reload()
     la('tự bật xuất',hd.update_stock,1);la('không chờ giá vốn',hd.vgb_tang_cho_gia_von,0)
     sle=_sle(hd);la('xuất đúng lượng',sum(d.actual_qty for d in sle),-2)
     dung('đúng kho',all(d.warehouse==kho for d in sle))
@@ -74,6 +88,8 @@ def _xuyen_luong():
     gia=-sum(d.stock_value_difference for d in sle)
     dung('giá vốn thực dương',gia>0)
     la('64181 từ sổ kho',round(sum(d.debit-d.credit for d in _gl(hd) if d.account==tk),2),round(gia,2))
+    tk_kho=frappe.db.get_value('Warehouse',kho,'account')
+    la('Có đúng tài khoản kho '+so,round(sum(d.credit-d.debit for d in _gl(hd) if d.account==tk_kho),2),round(gia,2))
     dung('không sinh Customer GL',all(not d.party_type for d in _gl(hd)))
     la('GL cân',round(sum(d.debit-d.credit for d in _gl(hd)),2),0)
     la('không nợ',hd.outstanding_amount,0)
@@ -83,6 +99,7 @@ def _xuyen_luong():
     la('gọi lại không xuất hai lần',sum(d.actual_qty for d in _sle(hd)),-2)
     hd.reload();hd.flags.ignore_permissions=True;hd.cancel()
     la('huỷ đảo đủ giá vốn',round(sum(d.debit-d.credit for d in _gl(hd) if d.account==tk),2),0)
+    la('huỷ đảo tài khoản kho '+so,round(sum(d.debit-d.credit for d in _gl(hd) if d.account==tk_kho),2),0)
 
 
 @ca('#243 kho thật: lỗi sau GL hoàn nguyên ngay cả khi caller bắt lỗi')
