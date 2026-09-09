@@ -384,7 +384,8 @@ doc_events = {
 		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.he_so_chung_tu.kiem"]},
 	"Subcontracting Inward Order": {"validate": "vagabond.he_so_chung_tu.kiem",
 		"before_submit": "vagabond.he_so_chung_tu.kiem"},
-	"BOM": {"validate": "vagabond.he_so_chung_tu.kiem",
+	"BOM": {"before_validate": "vagabond.gram_bom_252.truoc_khi_luu",
+		"validate": "vagabond.he_so_chung_tu.kiem",
 		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Landed Cost Voucher": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
 		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
@@ -392,7 +393,7 @@ doc_events = {
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
 	"Item": {"validate": ["vagabond.phantom.chan_lam_tuoi_sai_chang",
-		"vagabond.san_xuat_desktop.kiem_mon"]},
+		"vagabond.san_xuat_desktop.kiem_mon", "vagabond.gram_bom_252.kiem_mon"]},
 	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
 	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
 	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},
@@ -541,9 +542,11 @@ doc_events = {
 			# 26/08/2026). Chi cham dong khong quan kho va chua noi phieu
 			# nhap, de khong dam len luat tai khoan cho 3311 cua hang kho.
 			"vagabond.dung_lai_hddt.tk_theo_mon",
+			"vagabond.mua_dich_vu.gan_tai_khoan_chi_phi",
 		],
 		"before_submit": [
 			"vagabond.he_so_chung_tu.kiem",
+			"vagabond.mua_dich_vu.gan_tai_khoan_chi_phi",
 			"vagabond.doi_chieu_mua.chan_vuot_luong_da_nhan",
 			"vagabond.mua_dich_vu.chan_lech_tong",
 		],

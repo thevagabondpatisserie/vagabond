@@ -1073,6 +1073,29 @@ def _chay(tu_ngay=None, den_ngay=None, gioi_han=None):
 		pila.close()
 
 
+def _mo_lai_dau_sai(tu_ngay, den_ngay, gioi_han, cac_ma=None):
+	"""#227: ba tờ Ngon có lỗi thuế nhưng bị đóng dấu xong, không có PI.
+
+	Kéo60ngày không chữa được cờ này. Kiểm chứng từ thật trước khi mở lại;
+	giữ cả chứng từ đã hủy để không tự tạo lại nghiệp vụ kế toán đã hủy.
+	Chỉ sửa cờ hàng đợi, giữ lý do và số lần thử để không xóa dấu lỗi cũ.
+	Gọi trong khóa dựng chung và khóa từng dòng nguồn trước khi cập nhật.
+	"""
+	loc_ma = ' and h.name in %(ma)s' if cac_ma else ''
+	ds = frappe.db.sql('''select h.name from `tabMInvoice Invoice` h
+		where h.loai=%(loai)s and h.ngay_lap between %(tu)s and %(den)s
+		and h.da_tao_chung_tu=1
+		and trim(coalesce(h.trang_thai, '')) not in %(bo)s
+		and not exists (select 1 from `tabPurchase Invoice` p where p.custom_minvoice_id=h.name)
+		and not exists (select 1 from `tabSales Invoice` s where s.custom_minvoice_id=h.name)
+		''' + loc_ma + ''' order by h.ngay_lap, h.name limit %(so)s for update''',
+		{'loai': LOAI_VAO, 'tu': tu_ngay, 'den': den_ngay, 'bo': TT_KHOI_DUNG,
+		 'so': max(1, cint(gioi_han) or MOI_LUOT), 'ma': tuple(cac_ma or ())}, as_dict=True)
+	for dong in ds:
+		frappe.db.set_value(DT_HD, dong.name, 'da_tao_chung_tu', 0, update_modified=False)
+	return len(ds)
+
+
 def _chay_trong_khoa(tu_ngay=None, den_ngay=None, gioi_han=None):
 	"""Ruột của một lượt dựng. CHỈ gọi từ `_chay`, nơi đã cầm khoá."""
 	den_ngay = den_ngay or nowdate()
@@ -1080,6 +1103,7 @@ def _chay_trong_khoa(tu_ngay=None, den_ngay=None, gioi_han=None):
 	# thì vĩnh viễn không ai dựng và cũng không ai đếm. Hàng đợi đã xếp theo
 	# số lần thử nên tờ hỏng không chiếm chỗ, mở rộng ra là an toàn.
 	tu_ngay = tu_ngay or NGAY_BAT_DAU
+	mo_lai_dau_sai = _mo_lai_dau_sai(tu_ngay, den_ngay, gioi_han)
 	dau_ra = _dong_dau_ra()
 	ds = frappe.get_all(
 		DT_HD,
@@ -1109,6 +1133,7 @@ def _chay_trong_khoa(tu_ngay=None, den_ngay=None, gioi_han=None):
 			hong.append([r.get("loai"), r.get("so_hd"), ghi_chu])
 		frappe.db.commit()
 	return {"quet": len(ds), "da_dung": dung, "bo_qua_hop_le": bo,
+		"mo_lai_dau_sai": mo_lai_dau_sai,
 		"dau_ra_dong_dau": dau_ra,
 		"con_hong": len(hong), "vi_du_hong": hong[:8],
 		"tu_ngay": str(tu_ngay), "den_ngay": str(den_ngay)}
@@ -1160,8 +1185,9 @@ def dong_bo_ngay(so_ngay=None):
 
 	keo = minvoice_dong_bo._keo(so_ngay=cint(so_ngay) or 0)
 	dung_ct = _chay()
+	hoan_tat = not (keo.get("loi_o_loai") or dung_ct.get("con_hong") or dung_ct.get("dang_chay_do"))
 	return {
-		"ok": 1,
+		"ok": int(hoan_tat),
 		"keo": keo,
 		"dung": dung_ct,
 		"loi_nhan": (

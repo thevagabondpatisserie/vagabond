@@ -104,7 +104,23 @@ function vgbGoNutLayMatHang(frm) {
 	}
 }
 
+async function vgbTaiKhoanDichVu(frm) {
+	if (frm.doc.docstatus !== 0 || frm.doc.vgb_loai_chung_tu !== 'Mua dịch vụ' || !frm.doc.vgb_tk_chi_phi) return;
+	var tk = frm.doc.vgb_tk_chi_phi;
+	var ds = (frm.doc.items || []).map(function (d) { return {name:d.name, item_code:d.item_code}; });
+	for (var d of ds) {
+		var kho = d.item_code ? await frappe.db.get_value('Item', d.item_code, 'is_stock_item') : null;
+		if (frm.doc.docstatus !== 0 || frm.doc.vgb_tk_chi_phi !== tk || frm.doc.vgb_loai_chung_tu !== 'Mua dịch vụ') return;
+		var dong = (frm.doc.items || []).find(function (r) { return r.name === d.name && r.item_code === d.item_code; });
+		if (!dong || dong.purchase_receipt || (kho && kho.message && kho.message.is_stock_item)) continue;
+		await frappe.model.set_value(dong.doctype, dong.name, 'expense_account', tk);
+	}
+	frm.refresh_field('items');
+}
+
 frappe.ui.form.on('Purchase Invoice', {
+	vgb_tk_chi_phi: vgbTaiKhoanDichVu,
+	vgb_loai_chung_tu: vgbTaiKhoanDichVu,
 	refresh: function (frm) {
 		var tu_hddt = (frm.doc.custom_minvoice_id || '').trim();
 		if (!tu_hddt) return;

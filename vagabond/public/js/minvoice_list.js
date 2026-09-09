@@ -61,13 +61,18 @@
 		h += '<tr><td>Tờ mới kéo về</td><td style="text-align:right"><b>' + so(keo.moi) + '</b></td></tr>';
 		h += '<tr><td>Tờ vỏ ruột đã lành</td><td style="text-align:right">' + so(keo.chua_lanh) + '</td></tr>';
 		if (loi) {
-			h += '<tr><td colspan="2" style="color:#b71c1c">Đứt giữa chừng ở: ' + frappe.utils.escape_html(loi) + '</td></tr>';
+			h += '<tr><td colspan="2" style="color:#b71c1c">Chưa kéo đủ: ' + frappe.utils.escape_html(loi) + '. Các hóa đơn kéo được vẫn được giữ; cần xử lý lỗi và đồng bộ lại.</td></tr>';
 		}
+		(keo.loi_hoa_don || []).forEach(function (r) {
+			h += '<tr><td colspan="2">Hóa đơn nguồn ' + frappe.utils.escape_html(String(r.ma || '')) +
+				', trang ' + so(r.trang) + ': chưa lưu được. Nhờ quản lý kiểm nhật ký lỗi M-Invoice.</td></tr>';
+		});
 		h += '</table>';
 
 		h += '<table class="table table-bordered" style="margin-bottom:12px">';
 		h += '<tr><td colspan="2" style="background:#f4f5f6"><b>Bước 2 &mdash; Dựng chứng từ</b></td></tr>';
 		h += '<tr><td>Tờ đầu vào xét tới</td><td style="text-align:right">' + so(dung.quet) + '</td></tr>';
+		h += '<tr><td>Tờ mở lại do dấu xong sai</td><td style="text-align:right">' + so(dung.mo_lai_dau_sai) + '</td></tr>';
 		h += '<tr><td>Chứng từ dựng được</td><td style="text-align:right"><b>' + so(dung.da_dung) + '</b></td></tr>';
 		h += '<tr><td>Bỏ qua hợp lệ</td><td style="text-align:right">' + so(dung.bo_qua_hop_le) + '</td></tr>';
 		h += '<tr><td>Đầu ra đóng dấu (Fabi xuất)</td><td style="text-align:right">' + so(dung.dau_ra_dong_dau) + '</td></tr>';
@@ -125,8 +130,8 @@
 						frappe.dom.unfreeze();
 						if (!r || !r.message) return;
 						frappe.msgprint({
-							title: 'Đồng bộ xong',
-							indicator: (r.message.dung || {}).con_hong ? 'orange' : 'green',
+							title: r.message.ok ? 'Đồng bộ xong' : 'Đồng bộ chưa hoàn tất',
+							indicator: r.message.ok ? 'green' : 'orange',
 							message: bangKetQua(r.message),
 							wide: true,
 						});

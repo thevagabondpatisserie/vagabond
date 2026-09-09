@@ -5716,7 +5716,7 @@ la("tung loai co try/except rieng", _keo46.count("except Exception:") >= 1, True
 la("loi giua chung ghi ro loai nao vao Error Log", "dut giua chung o loai" in _keo46, True)
 # (3) Ghi xuong TUNG TRANG, khong doi het luot: GET hay POST deu ghi that.
 la("commit nam trong vong lap trang",
-   _keo46.split("while trang <=")[1].split("except Exception:")[0].count("frappe.db.commit()"), 1)
+   _keo46.split("while trang <=")[1].count("frappe.db.commit()"), 1)
 
 # "Vo ruot": ban ghi insert luc M-Invoice chua do du lieu (so_hd=0) phai
 # duoc do lai khi ho da co so that. Phep thuan nap bang python3 tran.
