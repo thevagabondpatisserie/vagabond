@@ -55,7 +55,7 @@ def _gia_cong():
     bom = _bom_thu(tp, mon.name, nen.cong_ty())
     for loai in ('Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order'):
         doc = frappe.get_doc(dict(doctype=loai, company=nen.cong_ty(),
-            items=[dict(item_code=mon.name, stock_uom=mon.stock_uom, conversion_factor=550)]))
+            items=[dict(item_code=tp, stock_uom=frappe.db.get_value("Item", tp, "stock_uom"), conversion_factor=550)]))
         _bi_chan(lambda: kiem(doc), loai+' không nhân thêm đơn vị kho')
         doc.items[0].conversion_factor = 1
         kiem(doc)
@@ -69,3 +69,39 @@ def _gia_cong():
             if isinstance(handlers, str):
                 handlers = [handlers]
             dung(loai+' '+event+' có hook', 'vagabond.he_so_chung_tu.kiem' in handlers)
+
+
+@ca('#252 BOM con: chỉ kiểm khi khai triển hoặc phantom, bỏ nguồn NCC gia công')
+def _bom_con():
+    from vagabond.he_so_chung_tu import kiem_bom_lenh
+    from vagabond.khung.kiem_that.thu_ma_cap_so import _bom_thu
+    mon, lon = _nen()
+    btp = _mon_thu('KT-BTP252-' + frappe.generate_hash(length=9))
+    tp = _mon_thu('KT-NEST252-' + frappe.generate_hash(length=9))
+    con = _bom_thu(btp, mon.name, nen.cong_ty())
+    cha = _bom_thu(tp, btp, nen.cong_ty())
+    frappe.db.set_value('BOM Item', cha.items[0].name, 'bom_no', con.name)
+    frappe.db.set_value('BOM Item', con.items[0].name, 'conversion_factor', 550)
+    for loai in ('Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order'):
+        doc = frappe.get_doc(dict(doctype=loai, items=[dict(item_code=tp,
+            bom=cha.name, include_exploded_items=0)]))
+        kiem_bom_lenh(doc)
+        doc.items[0].include_exploded_items = 1
+        _bi_chan(lambda: kiem_bom_lenh(doc), loai+' khai triển phải kiểm BOM con')
+        doc.items[0].include_exploded_items = 0
+        frappe.db.set_value('BOM Item', cha.items[0].name, 'is_phantom_item', 1)
+        _bi_chan(lambda: kiem_bom_lenh(doc), loai+' phantom vẫn kiểm BOM con')
+        frappe.db.set_value('BOM Item', cha.items[0].name, 'sourced_by_supplier', 1)
+        frappe.db.set_value('BOM Item', cha.items[0].name, 'conversion_factor', 550)
+        kiem_bom_lenh(doc)
+        frappe.db.set_value('BOM Item', cha.items[0].name,
+            dict(is_phantom_item=0, sourced_by_supplier=0, conversion_factor=1))
+    for loai in ('Work Order', 'Stock Entry'):
+        doc = frappe.get_doc(dict(doctype=loai, bom_no=cha.name, use_multi_level_bom=0))
+        kiem_bom_lenh(doc)
+        doc.use_multi_level_bom = 1
+        _bi_chan(lambda: kiem_bom_lenh(doc), loai+' đa tầng kiểm BOM con')
+        doc.use_multi_level_bom = 0
+        frappe.db.set_value('BOM Item', cha.items[0].name, 'is_phantom_item', 1)
+        _bi_chan(lambda: kiem_bom_lenh(doc), loai+' phantom không được lọt khi tắt đa tầng')
+        frappe.db.set_value('BOM Item', cha.items[0].name, 'is_phantom_item', 0)

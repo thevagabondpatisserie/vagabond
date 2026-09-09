@@ -121,7 +121,8 @@ def kiem(doc, method=None):
     if doc.docstatus == 2 or hanh_dong == 'update_after_submit':
         return
     # Không bỏ qua lần submit đầu: Frappe đã đặt docstatus=1 lúc này.
-    if doc.docstatus == 1 and hanh_dong != 'submit' and not doc.is_new() and method != 'kiem_nguon_san_xuat':
+    if (doc.docstatus == 1 and hanh_dong != 'submit' and not doc.is_new()
+            and method not in ('kiem_nguon_san_xuat', 'kiem_nguon_gia_cong')):
         if frappe.db.get_value(doc.doctype, doc.name, 'docstatus') == 1:
             return
     khoa = doc.docstatus == 1 or method == 'before_submit'
@@ -131,6 +132,8 @@ def kiem(doc, method=None):
     if doc.doctype == 'BOM':
         cac_dong += list(doc.get('secondary_items') or [])
     for dong in cac_dong:
+        if method == 'kiem_nguon_gia_cong' and dong.get('sourced_by_supplier'):
+            continue
         if not dong.get('item_code'):
             continue
         rows = frappe.db.sql('select stock_uom from `tabItem` where name=%s'
@@ -193,15 +196,26 @@ def kiem_bom_lenh(doc, method=None):
     if not ten and doc.get('work_order'):
         ten = frappe.db.get_value('Work Order', doc.work_order, 'bom_no')
     gia_cong = doc.doctype in ('Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order')
-    cho, da_xem = [ten] if ten else [], set()
+    nhieu = bool(doc.get('use_multi_level_bom'))
+    cho, da_xem = [(ten, nhieu)] if ten else [], set()
     if gia_cong:
-        cho.extend(d.bom for d in doc.get('items') or [] if d.get('bom'))
+        cho.extend((d.bom, bool(d.get('include_exploded_items')))
+                   for d in doc.get('items') or [] if d.get('bom'))
     while cho:
-        ma = cho.pop()
-        if ma in da_xem:
+        ma, nhieu = cho.pop()
+        if (ma, nhieu) in da_xem:
             continue
-        da_xem.add(ma)
+        da_xem.add((ma, nhieu))
         bom = frappe.get_doc('BOM', ma)
-        kiem(bom, 'kiem_nguon_san_xuat')
-        if gia_cong or doc.get('use_multi_level_bom'):
-            cho.extend(d.bom_no for d in bom.items if d.get('bom_no'))
+        kiem(bom, 'kiem_nguon_gia_cong' if gia_cong else 'kiem_nguon_san_xuat')
+        # ERPNext subcontracting_controller._get_materials_from_bom chọn
+        # BOM Item khi include_exploded_items=0, bỏ sourced_by_supplier,
+        # nhưng vẫn đệ quy phantom. manufacturing/doctype/bom/bom.py
+        # get_bom_items_as_dict cũng khai triển phantom khi fetch_exploded=0.
+        for dong in bom.items:
+            if not dong.get('bom_no'):
+                continue
+            if gia_cong and dong.get('sourced_by_supplier'):
+                continue
+            if nhieu or dong.get('is_phantom_item'):
+                cho.append((dong.bom_no, nhieu))
