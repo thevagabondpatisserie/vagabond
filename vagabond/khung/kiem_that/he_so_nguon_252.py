@@ -50,11 +50,19 @@ def _gia_cong():
     from vagabond.he_so_chung_tu import kiem
     from vagabond import hooks
     mon, lon = _nen()
+    from vagabond.khung.kiem_that.thu_ma_cap_so import _bom_thu
+    tp = _mon_thu('KT-GC252-' + frappe.generate_hash(length=9))
+    bom = _bom_thu(tp, mon.name, nen.cong_ty())
     for loai in ('Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order'):
         doc = frappe.get_doc(dict(doctype=loai, company=nen.cong_ty(),
             items=[dict(item_code=mon.name, stock_uom=mon.stock_uom, conversion_factor=550)]))
         _bi_chan(lambda: kiem(doc), loai+' không nhân thêm đơn vị kho')
         doc.items[0].conversion_factor = 1
+        kiem(doc)
+        doc.items[0].bom = bom.name
+        frappe.db.set_value('BOM Item', bom.items[0].name, 'conversion_factor', 550)
+        _bi_chan(lambda: kiem(doc), loai+' phải kiểm BOM nguồn cũ dù dòng thành phẩm hệ số1')
+        frappe.db.set_value('BOM Item', bom.items[0].name, 'conversion_factor', 1)
         kiem(doc)
         for event in ('validate', 'before_submit'):
             handlers = hooks.doc_events[loai][event]

@@ -125,7 +125,7 @@ def kiem(doc, method=None):
         if frappe.db.get_value(doc.doctype, doc.name, 'docstatus') == 1:
             return
     khoa = doc.docstatus == 1 or method == 'before_submit'
-    if doc.doctype == 'Stock Entry':
+    if doc.doctype in ('Stock Entry', 'Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order'):
         kiem_bom_lenh(doc)
     cac_dong = list(doc.get('items') or [])
     if doc.doctype == 'BOM':
@@ -192,7 +192,10 @@ def kiem_bom_lenh(doc, method=None):
     ten = doc.get('bom_no')
     if not ten and doc.get('work_order'):
         ten = frappe.db.get_value('Work Order', doc.work_order, 'bom_no')
+    gia_cong = doc.doctype in ('Subcontracting Order', 'Subcontracting Receipt', 'Subcontracting Inward Order')
     cho, da_xem = [ten] if ten else [], set()
+    if gia_cong:
+        cho.extend(d.bom for d in doc.get('items') or [] if d.get('bom'))
     while cho:
         ma = cho.pop()
         if ma in da_xem:
@@ -200,5 +203,5 @@ def kiem_bom_lenh(doc, method=None):
         da_xem.add(ma)
         bom = frappe.get_doc('BOM', ma)
         kiem(bom, 'kiem_nguon_san_xuat')
-        if doc.get('use_multi_level_bom'):
+        if gia_cong or doc.get('use_multi_level_bom'):
             cho.extend(d.bom_no for d in bom.items if d.get('bom_no'))
