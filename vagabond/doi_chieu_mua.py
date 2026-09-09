@@ -25,6 +25,7 @@ import frappe
 from frappe.utils import cint, flt, getdate, nowdate, add_days
 
 from vagabond import dvt_mua
+from vagabond.quy_cach_doi_chieu import dong_hieu_luc, luong_da_ghi
 
 QUYEN = {
 	"System Manager",
@@ -195,7 +196,7 @@ def _pnk_con_lai(ncc, ngay, so_ngay=60):
 
 
 def _dong_pnk(ten_pnk):
-	return frappe.get_all(
+	return dong_hieu_luc(frappe.get_all(
 		"Purchase Receipt Item",
 		filters={"parent": ten_pnk, "docstatus": 1},
 		fields=[
@@ -204,7 +205,7 @@ def _dong_pnk(ten_pnk):
 		],
 		order_by="idx asc",
 		limit_page_length=0,
-	)
+	))
 
 
 def _dong_hd(name):
@@ -692,11 +693,11 @@ def _kho_con_lai(doc, phieu):
 			kho[r["name"]] = r
 	if kho:
 		for d in frappe.get_all("Purchase Invoice Item", filters={"pr_detail": ["in", list(kho)],
-			"docstatus": 1, "parent": ["!=", doc.name]}, fields=["pr_detail", "qty", "conversion_factor"], limit_page_length=0):
-			kho[d.pr_detail]["con"] -= dvt_mua.ton(d.qty, dvt_mua.he_so(d.conversion_factor))
+			"docstatus": 1, "parent": ["!=", doc.name]}, fields=["pr_detail", "qty", "uom", "conversion_factor"], limit_page_length=0):
+			kho[d.pr_detail]["con"] -= luong_da_ghi(d, kho[d.pr_detail])
 	for d in doc.items:
 		if d.get("purchase_receipt") and d.get("pr_detail") in kho:
-			kho[d.pr_detail]["con"] -= dvt_mua.ton(d.qty, dvt_mua.he_so(d.conversion_factor))
+			kho[d.pr_detail]["con"] -= luong_da_ghi(d, kho[d.pr_detail])
 	ra = {}
 	for r in kho.values():
 		r["con"] = max(0, r["con"])
@@ -1584,19 +1585,28 @@ def chan_vuot_luong_da_nhan(doc, method=None):
 	if not can:
 		return
 	ten = sorted(can)
-	phieu = frappe.db.sql("""select name, parent, qty, conversion_factor
+	phieu = frappe.db.sql("""select name, parent, qty, uom, conversion_factor
 		from `tabPurchase Receipt Item` where name in %(ten)s
 		order by name for update""", {"ten": ten}, as_dict=True)
+	phieu = dong_hieu_luc(phieu, khoa=True)
+	theo_dong = {r.name: r for r in phieu}
+	can = {t: 0 for t in ten}
+	for d in doc.get("items") or []:
+		if d.get("pr_detail") in theo_dong:
+			r = theo_dong[d.pr_detail]
+			if r.get("can_cu_quy_cach") and abs(flt(d.conversion_factor) - flt(r.conversion_factor)) > 0.000001:
+				frappe.throw("Dòng hoá đơn nối phiếu %s phải dùng hệ số đã xác nhận %g. Tải lại đối chiếu trước khi ghi sổ." % (r.parent, r.conversion_factor))
+			can[d.pr_detail] += luong_da_ghi(d, r)
 	da = {t: 0 for t in ten}
 	# Child docstatus được core cập nhật cùng giao dịch. Không JOIN khoá
 	# parent PI khác: mỗi submit đã giữ khoá parent riêng trước hook này.
 	# Index (pr_detail,docstatus) của patch mua_hddt_v446 chỉ quét trạng
 	# thái 1, tránh chờ dòng nháp 0 của submit đang đợi khoá PR.
-	for d in frappe.db.sql("""select d.pr_detail, d.qty, d.conversion_factor
+	for d in frappe.db.sql("""select d.pr_detail, d.qty, d.uom, d.conversion_factor
 		from `tabPurchase Invoice Item` d FORCE INDEX (vgb_pr_docstatus_227)
 		where d.pr_detail in %(ten)s and d.docstatus = 1 and d.parent != %(hd)s
 		order by d.pr_detail, d.name for update""", {"ten": ten, "hd": doc.name}, as_dict=True):
-		da[d.pr_detail] += dvt_mua.ton(d.qty, d.conversion_factor)
+		da[d.pr_detail] += luong_da_ghi(d, theo_dong[d.pr_detail])
 	for r in phieu:
 		nhan = dvt_mua.ton(r.qty, r.conversion_factor)
 		# Trả hàng giảm lượng đã ghi; core kiểm quan hệ return và chứng từ gốc.
