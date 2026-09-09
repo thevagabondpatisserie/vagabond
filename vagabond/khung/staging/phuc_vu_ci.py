@@ -15,22 +15,53 @@ def tao_cau_truc_cu():
     """Trường Desk cũ chưa thuộc truong_tu_them; chỉ dựng trên CI trắng.
 
     Đọc metadata trên Desk ngày09/09/2026, không sửa schema production.
-    Item và Item Group: Select, optional, ba bếp, lựa chọn đầu rỗng.
+    Chỉ dùng metadata đã đọc; thiếu loại chứng từ cũ vẫn phải xử lý riêng.
     """
     import frappe
     from vagabond.khung.staging.van_don_ci import khoa
     khoa()
     frappe.set_user('Administrator')
-    options = '\nBếp Pastry\nBếp Baker\nBếp Lab'
-    for dt in ('Item', 'Item Group'):
-        ten = dt + '-custom_bep_phu_trach'
+    mau = json.loads(Path(__file__).with_name('cau_truc_cu.json').read_text())
+    # Bảng con trước bảng cha; không dựng bảng rỗng chỉ để hết lỗi get_list.
+    # Không ghi đè DocType đã tồn tại trên một nền không rõ nguồn.
+    for row in mau['doctypes']:
+        if frappe.db.exists('DocType', row['name']):
+            raise RuntimeError('DocType cũ đã tồn tại, cần kiểm nền CI: ' + row['name'])
+        for perm in row['permissions']:
+            if not frappe.db.exists('Role', perm['role']):
+                frappe.get_doc({'doctype': 'Role', 'role_name': perm['role']}).insert()
+        doc = frappe.get_doc(dict(row, doctype='DocType')).insert()
+        doc.reload()
+        for key in ('custom', 'istable', 'is_submittable', 'autoname', 'title_field'):
+            if (doc.get(key) or '') != (row[key] or ''):
+                raise RuntimeError('Thuộc tính DocType khác mẫu: ' + row['name'] + '/' + key)
+        if len(doc.permissions) != len(row['permissions']):
+            raise RuntimeError('Số dòng quyền khác mẫu: ' + row['name'])
+        for actual, expected in zip(doc.permissions, row['permissions']):
+            for key, value in expected.items():
+                if actual.get(key) != value:
+                    raise RuntimeError('Quyền DocType khác mẫu: ' + row['name'] + '/' + key)
+        for expected in row['fields']:
+            actual = next((f for f in doc.fields if f.fieldname == expected['fieldname']), None)
+            if actual is None:
+                raise RuntimeError('Thiếu trường sau dựng DocType: ' + row['name'])
+            for key in ('fieldtype', 'options', 'reqd', 'read_only', 'default'):
+                a, b = actual.get(key), expected[key]
+                if key in ('options', 'default'):
+                    a, b = a or '', b or ''
+                if a != b:
+                    raise RuntimeError('DocType khác mẫu đã xác minh: ' + row['name'] + '/' + expected['fieldname'] + '/' + key)
+    for row in mau['fields']:
+        ten = row['dt'] + '-' + row['fieldname']
         if not frappe.db.exists('Custom Field', ten):
-            frappe.get_doc({'doctype': 'Custom Field', 'dt': dt,
-                'fieldname': 'custom_bep_phu_trach', 'label': 'Bếp phụ trách',
-                'fieldtype': 'Select', 'options': options, 'reqd': 0}).insert()
+            frappe.get_doc(dict(row, doctype='Custom Field')).insert()
         f = frappe.get_doc('Custom Field', ten)
-        if f.fieldtype != 'Select' or f.options != options or f.reqd:
-            raise RuntimeError('Schema bếp fixture khác metadata đã xác minh: ' + dt)
+        for key in ('fieldtype', 'options', 'reqd', 'read_only'):
+            actual, expected = f.get(key), row[key]
+            if key == 'options':
+                actual, expected = actual or '', expected or ''
+            if actual != expected:
+                raise RuntimeError('Schema fixture khác metadata đã xác minh: ' + ten + '/' + key)
     frappe.db.commit()
     frappe.clear_cache()
     # Gọi đúng cửa boot thay vì đợi10 màn timeout cùng một lỗi thiếu nền.

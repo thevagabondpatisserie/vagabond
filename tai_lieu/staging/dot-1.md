@@ -178,3 +178,7 @@ Nguồn thử nhận hai trường ngày độc lập estimate_delivery_date và
 ### Nền Desk cũ và lỗi boot CI47
 
 Log trực tiếp job102518466756 cho thấy nhan_su.khoi_dong500, fallback Item Group get_list417, rồi đợi header mỗi màn60giây. Nhóm hàm cùng đọc custom_bep_phu_trach; repo chỉ tham chiếu mà không khai tạo trường cũ. Đọc Desk thật (chỉ đọc) ngày09/09 xác minh Custom Field Item/Item Group-custom_bep_phu_trach: Select, không bắt buộc, options dòng đầu rỗng rồi Bếp Pastry/Bếp Baker/Bếp Lab. Nền CI dựng hai trường nếu thiếu, kiểm cấu trúc nếu đã có và gọi khoi_dong trước khi chạy browser. Không đổi schema hoặc dữ liệu site thật. Đây là hai trường cần thiết đã xác minh, chưa phải snapshot đầy đủ cấu trúc production.
+
+### CI48 và snapshot cấu trúc cũ
+
+CI48 terminal failure: thiếu nhiều trường Desk cũ và hai DocType làm API danh sách417/500/404. Đã đọc metadata thật qua SELECT ngày09/09; cau_truc_cu.json giữ21trường và4DocType gồm2bảngcon, cùng DocPerm đã đọc. Gateway tạo bảngcon trước, kiểm cấu trúc/quyền sau reload, không ghi đè DocType sẵn có. Không phải full export: chưa có workflow, Server Script hay Custom DocPerm; cột workflow_state không thay workflow. Kiểm bánh ngày trống390/1280 đạt740/706ms, chưa baseline. Thay đổi nền CI chưa có runtime mới.
