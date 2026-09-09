@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# #257: lifecycle web CI riêng, dừng server kể cả khi kiểm hỏng.
+set -euo pipefail
+[[ "${GITHUB_ACTIONS:-}" == "true" ]] || { echo 'Chỉ dùng runner CI riêng.'; exit 1; }
+: "${VGB_BENCH:?}"
+: "${VGB_ARTIFACTS:?}"
+: "${GITHUB_WORKSPACE:?}"
+cd "$VGB_BENCH"
+cd sites
+../env/bin/python -m vagabond.khung.staging.phuc_vu_ci > "$VGB_ARTIFACTS/web.log" 2>&1 &
+web_pid=$!
+trap 'kill "$web_pid" 2>/dev/null || true; wait "$web_pid" 2>/dev/null || true' EXIT
+for lan in $(seq 1 60); do
+  kill -0 "$web_pid" || { cat "$VGB_ARTIFACTS/web.log"; exit 1; }
+  if curl --silent --fail http://127.0.0.1:8000/api/method/ping > /dev/null; then break; fi
+  sleep 1
+done
+curl --silent --fail http://127.0.0.1:8000/api/method/ping
+cd "$GITHUB_WORKSPACE"
+node vagabond/khung/staging/kiem_man.cjs
