@@ -51,10 +51,12 @@ def _thu_mau(chan="khach", nhan="Báo giá", nut=True):
 
 # --------------------------------------------------------------- phep thuan
 
-@ca("khuon thu: dung duoc khong can Frappe, ra mot la thu 600px co logo")
+@ca("khuon thu: dung duoc khong can Frappe, ra la thu co gian toi da 600px co logo")
 def _():
 	t = _thu_mau()
-	dung("bang 600", 'width="600"' in t)
+	dung("khung co gian", "width:100%;max-width:600px;table-layout:fixed" in t)
+	dung("chi Outlook Word can khung co dinh", "<!--[if mso]>" in t)
+	dung("khong ep chieu rong mobile", not re.search(r'(?:style="|;)width:600px', t))
 	dung("co dai dau thu tu repo", "/assets/vagabond/images/thu/dau.png" in t)
 	dung("tieu de duoc thoat", "Tiêu đề &lt;thử&gt;" in t)
 	dung("than thu giu HTML", "Thân thư <b>đậm</b>" in t)
@@ -236,3 +238,37 @@ def _():
 		than = m[i:m.find("\n\n\n", i)]
 		if "_kiem_quyen()" in than:
 			dung("%s co import kiem quyen" % ham, "import _kiem_quyen" in than)
+
+
+@ca("khuon thu: bang tien va cap thong tin cho phep ma dai xuong dong")
+def _():
+	# Lỗi #249 không chỉ ở khung: nowrap/min-content vẫn có thể đẩy bảng ra ngoài.
+	for html in [tk.cap([("Tài khoản", "a" * 150)]), tk.bang(
+		[("Hoá đơn", "left"), ("Tiền", "right")], [["a" * 150, "123.456.789.012"]],
+		tong=("Tổng", "123.456.789.012")), tk.o_kem("a" * 150),
+		tk.o_canh_bao("a" * 150), tk.nut("https://example.com", "a" * 150)]:
+		dung("bang co gian", 'width="100%"' in html and "table-layout:fixed" in html)
+		dung("khong khoa xuong dong", "white-space:nowrap" not in html)
+		dung("cho phep ngat chuoi dai", "overflow-wrap:anywhere" in html)
+		dung("khong cat noi dung", "overflow:hidden" not in html and "text-overflow:ellipsis" not in html)
+
+
+@ca("thu phat hanh: chi soan, thoat HTML va bat buoc URL anh tuyet doi")
+def _():
+	import importlib.util
+	duong = os.path.join(GOC, ".agents", "skills", "vagabond-email-phat-hanh", "scripts", "soan_thu.py")
+	spec = importlib.util.spec_from_file_location("soan_thu_kiem", duong)
+	m = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(m)
+	du_lieu = dict(site="https://app.example.com", tieu_de="Cập nhật <thử>", mo_dau="Hệ thống đã cập nhật.", cac_y=["Món <b>mới</b>"])
+	html, chu = m.soan(du_lieu)
+	dung("thoat noi dung", "Món &lt;b&gt;mới&lt;/b&gt;" in html)
+	dung("anh tuyet doi", 'src="https://app.example.com/assets/' in html)
+	dung("co ban chu", "Món <b>mới</b>" in chu)
+	for site in ["/bep", "http://example.com", "https://example.com/bep", "https://user:secret@example.com"]:
+		try:
+			m.soan(dict(du_lieu, site=site))
+		except ValueError:
+			pass
+		else:
+			dung("khong nhan URL sai", False)
