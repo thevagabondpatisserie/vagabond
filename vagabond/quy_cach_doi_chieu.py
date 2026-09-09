@@ -104,6 +104,27 @@ def kiem_ban_xac_nhan(doc):
 
 def dong_hieu_luc(cac_dong, khoa=False):
 	"""Trả bản sao dùng cho đối chiếu; tuyệt đối không ghi vào dòng PR."""
+	# Đã đọc ERPNext v16.28.0, SHA de591661b9ba0bd3f62ac25b99b5c85c723515f6.
+	# erpnext/accounts/doctype/purchase_invoice/purchase_invoice.py,
+	# PurchaseInvoice.validate_with_previous_doc, cấu hình Purchase Receipt Item:
+	# "ref_dn_field": "pr_detail",
+	# "compare_fields": [["project", "="], ["item_code", "="], ["uom", "="]],
+	# "is_child_table": True
+	# Core không so conversion_factor ở đây. Chỉ bản sao có căn cứ được đổi
+	# hệ số; PI vẫn phải giữ item/uom và qua toàn bộ validate chuẩn của core.
+	# Cũng trong tệp trên, update_billing_status_in_pr lấy:
+	# adjust_incoming_rate = frappe.db.get_single_value(
+	#     "Buying Settings", "set_landed_cost_based_on_purchase_invoice_rate")
+	# rồi truyền vào update_billing_percentage, không kiểm self.update_stock.
+	# erpnext/stock/doctype/purchase_receipt/purchase_receipt.py,
+	# update_billing_percentage có đúng nhánh:
+	# if adjust_incoming_rate:
+	#     adjust_incoming_rate_for_pr(pr_doc)
+	# adjust_incoming_rate_for_pr gọi doc.update_valuation_rate(
+	# reset_outgoing_rate=False), item.db_update(), và
+	# doc.repost_future_sle_and_gle(force=True).
+	# Vì vậy PI không cập nhật kho vẫn có thể repost PR: ca tích hợp phải
+	# kiểm cả cờ 0/1, cả tiêu hao sau kiểm kê và huỷ PI, giữ nguyên SLE/GL.
 	ra = [frappe._dict(dict(x)) for x in cac_dong]
 	if not ra:
 		return ra
