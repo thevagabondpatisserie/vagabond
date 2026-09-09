@@ -78,6 +78,10 @@ def chay():
 
 
 if __name__ == "__main__":
+	# Kiểm web trong cùng bench riêng trước các bộ nghiệp vụ hiện hành.
+	web = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.chay_web_245"], check=False)
+	if web.returncode:
+		raise RuntimeError("Cửa editor/đặt bàn/thành viên chưa đạt.")
 	dat = chay()
 	# Kịch bản này cố ý commit và mở nhiều kết nối. Chỉ chạy sau khi bộ
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
