@@ -206,15 +206,16 @@ def _kiem_bo(doc, ma):
 	Chỉ giải phóng chỗ giữ APP sau khi lõi đã gỡ và không còn PE/JE ghi sổ.
 	Không tự huỷ hoặc sửa GL, không coi sao kê hết liên kết là đã huỷ tiền chi.
 	"""
-	ten = ma if frappe.db.exists(BT, ma) else None
-	if not ten:
-		ds = frappe.get_all(BT, filters={"reference_number": ma}, pluck="name", limit_page_length=2)
-		if len(ds) != 1:
-			frappe.throw("Mã cũ không xác định được một dòng sao kê. Nhờ quản trị kiểm tham chiếu trước khi bỏ đối chiếu.")
-		ten = ds[0]
-	g = frappe.get_doc(BT, ten, for_update=True)
-	if g.payment_entries or flt(g.allocated_amount):
-		frappe.throw("Sao kê còn liên kết bút toán. Kế toán kiểm và huỷ bút toán sai trong ERPNext trước khi bỏ đối chiếu.")
+	if ma:
+		ten = ma if frappe.db.exists(BT, ma) else None
+		if not ten:
+			ds = frappe.get_all(BT, filters={"reference_number": ma}, pluck="name", limit_page_length=2)
+			if len(ds) != 1:
+				frappe.throw("Mã cũ không xác định được một dòng sao kê. Nhờ quản trị kiểm tham chiếu trước khi bỏ đối chiếu.")
+			ten = ds[0]
+		g = frappe.get_doc(BT, ten, for_update=True)
+		if g.payment_entries or flt(g.allocated_amount):
+			frappe.throw("Sao kê còn liên kết bút toán. Kế toán kiểm và huỷ bút toán sai trong ERPNext trước khi bỏ đối chiếu.")
 	for dt in ("Payment Entry", "Journal Entry"):
 		# Current read: không dùng snapshot trước khi chờ khoá sao kê.
 		if frappe.db.sql("select name from `tab%s` where vgb_ho_so_tt=%%s and docstatus=1 limit 1 for update" % dt, (doc.name,)):
@@ -226,11 +227,14 @@ def _kiem_bo(doc, ma):
 def bo(name):
 	doc = _ho_so(name, khoa=True)
 	ma = str(doc.get("ma_giao_dich") or "").strip()
-	if ma:
-		_kiem_bo(doc, ma)
+	if ma or doc.trang_thai == "Da thanh toan":
+		# Controller kiểm cùng một cửa cho app, Desk xoá mã hoặc mở lại.
 		doc.ma_giao_dich = ""
+		if doc.trang_thai == "Da thanh toan":
+			doc.trang_thai = "Da duyet"
 		doc.save(ignore_permissions=True)
-	return {"ok": 1, "loi_nhan": "Đã bỏ đối chiếu. Dòng sao kê có thể chọn cho hồ sơ khác; trạng thái hồ sơ cũ được giữ để tra lại."}
+	return {"ok": 1, "trang_thai": doc.trang_thai,
+		"loi_nhan": "Đã bỏ đối chiếu. Hồ sơ ở Đã duyệt, cần kiểm tra và ghi nhận lại. Không chuyển tiền thêm chỉ vì bút toán đã huỷ."}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -249,19 +253,38 @@ def gan(name, ma_giao_dich):
 
 
 def kiem_luu(doc):
-	"""Desk/API đổi giao dịch cũng phải qua cùng hàng rào với nút app."""
+	"""Bỏ mã và mở lại sau huỷ là một lần lưu, cả app lẫn Desk đều qua đây."""
 	cu = doc.get_doc_before_save()
 	ma = str(doc.get("ma_giao_dich") or "").strip()
 	ma_cu = str(cu.get("ma_giao_dich") or "").strip() if cu else ""
-	if ma == ma_cu:
+	da_tra = bool(cu and cu.trang_thai == "Da thanh toan")
+	mo_lai = da_tra and (doc.trang_thai != "Da thanh toan" or (ma_cu and not ma))
+	if ma == ma_cu and not mo_lai:
 		return
 	from vagabond import ho_so_tt as hs
-	hs._kiem(hs.VAI_FIN, "gán giao dịch ngân hàng")
+	hs._kiem(hs.VAI_FIN, "gán hoặc bỏ đối chiếu giao dịch ngân hàng")
 	if doc.trang_thai not in (hs.TT_DA_DUYET, hs.TT_DA_TRA):
-		frappe.throw("Duyệt xong hồ sơ rồi mới chọn giao dịch ngân hàng.")
-	if ma_cu:
+		frappe.throw("Dùng Bỏ đối chiếu để mở lại hồ sơ về Đã duyệt sau khi huỷ bút toán.")
+	if ma_cu or mo_lai:
 		_kiem_bo(doc, ma_cu)
-	if ma:
+	if mo_lai:
+		# Bản cũ có thể đã bỏ mã nhưng còn Đã thanh toán. Chỉ mở lại khi
+		# đọc được bút toán huỷ thật, không suy đoán lịch sử từ ô mã trống.
+		huy = []
+		for dt in ("Payment Entry", "Journal Entry"):
+			huy.extend(r[0] for r in frappe.db.sql(
+				"select name from `tab%s` where vgb_ho_so_tt=%%s and docstatus=2 for update" % dt, (doc.name,)))
+		if not huy:
+			frappe.throw("Chưa tìm thấy bút toán đã huỷ của hồ sơ. Nhờ kế toán kiểm lịch sử trước khi mở lại; máy không tự kết luận đã huỷ thanh toán.")
+		doc.trang_thai = hs.TT_DA_DUYET
+		doc.da_tra = 0
+		doc.ngay_thanh_toan = None
+		doc.ma_giao_dich = ""
+		doc.add_comment("Comment", "Bỏ đối chiếu %s và mở lại về Đã duyệt sau khi huỷ %s. "
+			"Trước đó đã trả %s, ngày %s. Giữ UNC, lịch sử duyệt và thư đã gửi. "
+			"Cần kiểm tra sao kê trước khi ghi nhận lại; không yêu cầu chuyển tiền thêm."
+			% (ma_cu or "(mã đã được bỏ trước đó)", ", ".join(huy), cu.da_tra, cu.ngay_thanh_toan or ""))
+	elif ma:
 		chon(doc, ma, khoa=True)
 	elif ma_cu:
 		doc.add_comment("Comment", "Bỏ đối chiếu giao dịch %s sau khi kiểm không còn liên kết và bút toán đã ghi sổ." % ma_cu)

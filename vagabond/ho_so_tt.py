@@ -2428,6 +2428,8 @@ def _tu_gui_thu_bao(doc, gui_thu=1):
 	"""
 	if not cint(gui_thu):
 		return {"gui": 0, "vi_sao": "Không gửi thư theo yêu cầu."}
+	if cint(getattr(doc, "email_da_gui", 0)):
+		return {"gui": 0, "vi_sao": "Hồ sơ đã gửi thư báo trước đó. Kiểm lịch sử thư; chỉ bấm Gửi lại nếu cần thông báo lại."}
 	if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD):
 		return {"gui": 0, "vi_sao": "Hồ sơ hoàn ứng không gửi thư báo cho nhà cung cấp."}
 	toi = (doc.email_ncc or "").strip()

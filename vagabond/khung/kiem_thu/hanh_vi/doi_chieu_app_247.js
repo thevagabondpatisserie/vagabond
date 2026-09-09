@@ -25,7 +25,7 @@ vm.runInContext(hsSrc.slice(batDau,batDau+1+tiep),that);
 goi=[];troLai=[];
 that.hoiCo=async()=>false;
 await that.hsHanh('bodoichieu',{ma:'APP-BO'});assert.equal(goi.length,0);
-that.hoiCo=async()=>true;
+that.hoiCo=async(t,noidung)=>{assert(noidung.includes('Đã duyệt'));assert(noidung.includes('không chuyển tiền thêm'));return true;};
 that.api=async(m,a)=>{goi.push({m,a});return {loi_nhan:'Đã bỏ'};};
 await that.hsHanh('bodoichieu',{ma:'APP-BO'});
 assert.equal(goi[0].m,'vagabond.doi_chieu_app.bo');assert.equal(goi[0].a.name,'APP-BO');assert.equal(troLai[0],'APP-BO');

@@ -82,3 +82,18 @@ fixture thiếu BA đỏ vì chọn GL đã liên kết với BA khác. Sửa ca
 Bank mới chưa có BA, kiểm tạo BA và gọi lại idempotent, không giả mất bản
 ghi thật. Bổ sung current read có khoá khi kiểm voucher trước bỏ mã.
 Kết quả này chưa thay kết quả bench của SHA cuối sau cập nhật main v463.
+
+
+## Quyết định sau review vòng 2
+
+Anh Việt giao Codex chọn hướng không gây nhầm. Bỏ đối chiếu sau huỷ hết
+bút toán đưa hồ sơ về Đã duyệt, Đã trả=0, ngày thanh toán trống; giữ duyệt,
+UNC, thư đã gửi và bút toán huỷ trong lịch sử. Cùng một cửa Document áp
+cho app, Desk xoá mã hoặc đổi trạng thái. Mã đã trống ở bản cũ vẫn mở lại
+được khi có bút toán huỷ thật. Không có bằng chứng huỷ thì dừng để kiểm.
+Hộp xác nhận nói rõ không chuyển tiền thêm chỉ vì huỷ bút toán. Ghi nhận
+lại dùng các kiểm tra nguồn chi/công nợ/liên kết hiện có; retry không ghi
+đôi, không tự gửi lại thư mà hồ sơ đã ghi dấu gửi. Không backfill dữ liệu
+production. F6 chuyển về theo dõi theo đo đạc review vòng 2 (17 query);
+không coi kết quả bench reviewer 97/103 là 103/103, sáu lỗi môi trường được
+reviewer nêu riêng. Cổng CI của repo được kiểm độc lập theo SHA.

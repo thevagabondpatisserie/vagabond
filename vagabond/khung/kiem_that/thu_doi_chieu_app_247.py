@@ -150,6 +150,7 @@ def _nhieu_pe():
 	g = _giao_dich_ngan_hang(h.name, 12345, cong_ty())
 	_ghi(h, g)
 	la("hai nhà cung cấp tạo hai PE", len(g.payment_entries), 2)
+	return h, g
 
 
 def _bi_chan(lam, chu):
@@ -175,6 +176,7 @@ def _huy_bo():
 	la("lõi hoàn tiền chưa phân bổ", float(g.unallocated_amount), 22222.0)
 	dc.bo(h.name)
 	dc.bo(h.name)
+	_kiem_mo_lai(h)
 	la("bỏ giữ mã", frappe.db.get_value(h.doctype, h.name, "ma_giao_dich") or "", "")
 	dung("giữ dấu vết mã cũ", bool(frappe.get_all("Comment", filters={"reference_doctype": h.doctype,
 		"reference_name": h.name, "content": ["like", "%" + g.name + "%"]}, pluck="name")))
@@ -256,3 +258,100 @@ def _thieu_ngan_hang():
 	la("đúng công ty", doc.company, cong_ty())
 	dung("có tài khoản GL", bool(doc.account))
 	dung("được theo dõi để hoàn nguyên", (doc.doctype, doc.name) in _DA_TAO)
+
+
+
+def _kiem_mo_lai(h):
+	h.reload()
+	la("hồ sơ về Đã duyệt", h.trang_thai, "Da duyet")
+	la("không còn báo đã trả tiền", float(h.da_tra), 0.0)
+	dung("không giữ ngày thanh toán hiện tại", not h.ngay_thanh_toan)
+	la("không giữ mã sao kê", h.ma_giao_dich or "", "")
+	ds = hs.danh_sach(tu_khoa=h.name)
+	la("chip Đã thanh toán không đếm hồ sơ", ds["dem"].get("Da thanh toan", 0), 0)
+	dung("danh sách hiển thị Đã duyệt", any(r["name"] == h.name and r["nhan"] == "Đã duyệt" for r in ds["rows"]))
+	ct = hs.chi_tiet(h.name)["ho_so"]
+	la("chi tiết cùng trạng thái", ct["trang_thai"], "Da duyet")
+	la("chi tiết không còn tiền đã trả", ct["da_tra"], 0)
+
+
+@ca("#247 mở lại sau huỷ, ghi nhận lại cùng hồ sơ và retry không ghi đôi hay gửi thư lần nữa")
+def _ghi_lai():
+	h, g = _nen()
+	_ghi(h, g)
+	h.reload()
+	h.email_da_gui, h.email_gui_toi = 1, "kiem@example.invalid"
+	h.save(ignore_permissions=True)
+	duyet = (h.fin_boi, h.fin_luc, h.gd_boi, h.gd_luc, h.unc_tep)
+	cu = hs._but_toan_cua_ho_so(h.name)[0]
+	frappe.get_doc(cu["doctype"], cu["name"]).cancel()
+	dc.bo(h.name)
+	_kiem_mo_lai(h)
+	la("giữ duyệt và UNC", (h.fin_boi, h.fin_luc, h.gd_boi, h.gd_luc, h.unc_tep), duyet)
+	la("giữ dấu gửi thư", h.email_da_gui, 1)
+	with patch.object(frappe, "sendmail") as gui:
+		_bi_chan(lambda: hs.gui_email_ncc(h.name, gui_that=1), "chưa ở trạng thái Đã thanh toán")
+		_ghi(h, g)
+		h.reload()
+		la("không tự gửi lại thư đã gửi", hs._tu_gui_thu_bao(h)["gui"], 0)
+		hs.danh_dau_da_tra(h.name, gui_thu=1)
+		la("không gọi gửi thư", gui.call_count, 0)
+	bo = hs._but_toan_cua_ho_so(h.name)
+	la("đúng một PE hiệu lực", len(bo), 1)
+	dung("PE mới khác PE huỷ", bo[0]["name"] != cu["name"])
+	la("PE huỷ vẫn còn", frappe.db.get_value(cu["doctype"], cu["name"], "docstatus"), 2)
+	_bi_chan(lambda: dc.bo(h.name), "Sao kê còn liên kết")
+
+
+@ca("#247 Desk xoá mã hoặc đổi về Đã duyệt sau huỷ đi cùng cửa, còn PE sống thì chặn")
+def _desk_mo_lai():
+	for doi_ma in (True, False):
+		h, g = _nen()
+		_ghi(h, g)
+		h.reload()
+		if doi_ma:
+			ham = lambda: _luu_tay(h, "")
+		else:
+			def ham():
+				h.trang_thai = "Da duyet"
+				h.save(ignore_permissions=True)
+		_bi_chan(ham, "Sao kê còn liên kết")
+		la("DB vẫn Đã thanh toán", frappe.db.get_value(h.doctype, h.name, "trang_thai"), "Da thanh toan")
+		cu = hs._but_toan_cua_ho_so(h.name)[0]
+		frappe.get_doc(cu["doctype"], cu["name"]).cancel()
+		h.reload()
+		ham()
+		_kiem_mo_lai(h)
+
+
+@ca("#247 hồ sơ bản cũ đã bỏ mã vẫn mở lại được khi có bút toán huỷ thật")
+def _cu_mat_ma():
+	h, g = _nen()
+	_ghi(h, g)
+	cu = hs._but_toan_cua_ho_so(h.name)[0]
+	frappe.get_doc(cu["doctype"], cu["name"]).cancel()
+	# Tái tạo chính dữ liệu bản trước, chỉ trong điểm lưu của ca thử.
+	frappe.db.set_value(h.doctype, h.name, "ma_giao_dich", "")
+	dc.bo(h.name)
+	_kiem_mo_lai(h)
+
+
+@ca("#247 thiếu bằng chứng huỷ không tự hạ hồ sơ lịch sử")
+def _khong_co_huy():
+	h, g = _nen()
+	# Hồ sơ cũ đánh dấu thủ công, không có voucher; không được đoán đã huỷ.
+	frappe.db.set_value(h.doctype, h.name, {"trang_thai": "Da thanh toan", "ma_giao_dich": "", "da_tra": 12345})
+	_bi_chan(lambda: dc.bo(h.name), "Chưa tìm thấy bút toán đã huỷ")
+	la("giữ nguyên để kiểm lịch sử", frappe.db.get_value(h.doctype, h.name, "trang_thai"), "Da thanh toan")
+
+
+@ca("#247 huỷ một trong nhiều PE chưa mở lại, huỷ hết mới về Đã duyệt")
+def _huy_mot_phan():
+	h, g = _nhieu_pe()
+	bo = hs._but_toan_cua_ho_so(h.name)
+	frappe.get_doc(bo[0]["doctype"], bo[0]["name"]).cancel()
+	_bi_chan(lambda: dc.bo(h.name), "Sao kê còn liên kết")
+	la("chưa hạ trạng thái", frappe.db.get_value(h.doctype, h.name, "trang_thai"), "Da thanh toan")
+	frappe.get_doc(bo[1]["doctype"], bo[1]["name"]).cancel()
+	dc.bo(h.name)
+	_kiem_mo_lai(h)
