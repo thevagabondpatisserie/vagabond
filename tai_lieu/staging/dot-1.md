@@ -182,3 +182,7 @@ Log trực tiếp job102518466756 cho thấy nhan_su.khoi_dong500, fallback Item
 ### CI48 và snapshot cấu trúc cũ
 
 CI48 terminal failure: thiếu nhiều trường Desk cũ và hai DocType làm API danh sách417/500/404. Đã đọc metadata thật qua SELECT ngày09/09; cau_truc_cu.json giữ21trường và4DocType gồm2bảngcon, cùng DocPerm đã đọc. Gateway tạo bảngcon trước, kiểm cấu trúc/quyền sau reload, không ghi đè DocType sẵn có. Không phải full export: chưa có workflow, Server Script hay Custom DocPerm; cột workflow_state không thay workflow. Kiểm bánh ngày trống390/1280 đạt740/706ms, chưa baseline. Thay đổi nền CI chưa có runtime mới.
+
+### CI50 và ca thanh toán qua app
+
+CI50 đã qua migrate/tích hợp rồi dừng ở schema: nen_bench tạo Sales Invoice.vgb_huy read_only0, trái Desk read_only1. Sửa nguồn fixture thành1, giữ guard. Thêm fixture/driver/verifier thanh toán: chọn BT và ghi PE qua app, bỏ đối chiếu lúc còn PE phải lỗi, huỷ riêng PE qua Desk (không Cancel All), bỏ đối chiếu, đọc lại Đã duyệt/đã trả0/ngày rỗng/BT chưa phân bổ rồi cùng BT ghi nhận lại. Verifier kiểm đúng PI/Supplier/tài khoản ngân hàng/công nợ, GL12345 và phiếu cũ không còn tác động. Đã nối runner; chưa có runtime. Chưa kiểm role nhân viên, nhãn cảnh báo hiển thị hoặc thư trùng, chưa coi đủ nghiệm thu5luồng.
