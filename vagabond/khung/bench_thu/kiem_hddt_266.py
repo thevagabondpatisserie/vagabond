@@ -257,13 +257,27 @@ def chay():
 				_bang('F2 dựng được nợ ngày cũ', str(hom_qua) in [
 					str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()], True)
 				moi = _hoa_don(hom_nay)
+				# xuat_hoa_don_dien_tu con nhieu cua DUNG TRUOC kiem_goi: thieu
+				# ten khach la no dung lai ngay, khong bao gio toi hang rao. Lan
+				# chay CI truoc do dung vi the ("F2 to hom nay bi chan: False !=
+				# True"), va cau bao loi luc do lai la "chua co ten khach". Nay
+				# dien du de to di duoc toi CUA CHUNG roi moi kiem hang rao.
+				frappe.db.set_value('Sales Invoice', moi.name, {
+					'vgb_xhd_ten': 'Khach kiem thu 266',
+					'vgb_xhd_dia_chi': 'So 1 duong Thu',
+				}, update_modified=False)
+				moi.reload()
 				truoc = len(gui)
-				chan_duoc = False
+				chan_duoc, cau_loi = False, ''
 				try:
 					ban_hang.xuat_hoa_don_dien_tu(moi.name)
 				except Exception as e:
-					chan_duoc = 'ngày cũ' in str(e) or 'ngày lập' in str(e)
-				_bang('F2 tờ hôm nay bị chặn', chan_duoc, True)
+					cau_loi = str(e)
+					chan_duoc = 'ngày cũ' in cau_loi or 'ngày lập' in cau_loi
+				if chan_duoc is not True:
+					raise AssertionError('F2 to hom nay khong bi hang rao chan. '
+						'Cau loi that: %r; ngay cu dang cho = %r'
+						% (cau_loi[:400], [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()]))
 				_bang('F2 không tờ nào của hôm nay được gửi', len(gui), truoc)
 				kq['phan'].append({'ten': 'F2 hàng rào ở cửa chung', 'dat': True})
 
