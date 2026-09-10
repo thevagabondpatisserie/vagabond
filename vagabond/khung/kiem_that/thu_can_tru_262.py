@@ -1,5 +1,6 @@
 """#262: PI/SI và JE thật, đọc GL/Payment Ledger rồi hủy và thử lại."""
 import frappe
+from unittest.mock import patch
 from frappe.utils import today
 from vagabond import can_tru_san as ct
 from vagabond.khung.kiem_that.nen import ca,la,dung,_DA_TAO
@@ -63,6 +64,40 @@ def _cho():
     la('chưa đủ căn cứ',so.trang_thai,'Chờ đối soát')
     dung('không tạo JE',not so.but_toan)
     frappe.db.set_value('Sales Invoice',si.name,'custom_hddt_so','KIEM-262')
+    cu = len(frappe.db.after_commit._functions)
     ct.khi_ghi_so(si); so.reload()
+    dung('hook chỉ xếp sau commit', len(frappe.db.after_commit._functions) > cu)
+    dung('hook không ghi JE trong bill', not so.but_toan)
+    ct.xu_ly_nen(so.name); so.reload()
     dung('có JE sau đủ căn cứ',bool(so.but_toan))
     _DA_TAO.append(('Journal Entry',so.but_toan))
+
+
+@ca('#262 lỗi sau submit JE: rollback GL và nợ, ghi cần kiểm tra, thử lại được')
+def _loi_giua():
+    so, pi, si = _phieu()
+    frappe.db.set_value('Sales Invoice',si.name,'custom_hddt_so','')
+    so.submit()
+    frappe.db.set_value('Sales Invoice',si.name,'custom_hddt_so','KIEM-262')
+    goc = ct._doi_trang_thai
+    def loi(d, trang_thai, *args, **kwargs):
+        if trang_thai == 'Đã cấn trừ':
+            raise ValueError('Lỗi thử sau JE submit trước gắn phiếu')
+        return goc(d, trang_thai, *args, **kwargs)
+    with patch.object(ct, '_doi_trang_thai', loi):
+        ct.xu_ly_nen(so.name)
+    so.reload(); pi.reload(); si.reload()
+    la('kế toán thấy lỗi',so.trang_thai,'Cần kiểm tra')
+    la('không còn JE dở',frappe.db.count('Journal Entry',{'vgb_can_tru_san':so.name}),0)
+    la('331 chưa bị cấn',pi.outstanding_amount,200000)
+    la('131 chưa bị cấn',si.outstanding_amount,1000000)
+    ct.xu_ly_nen(so.name); so.reload()
+    dung('thử lại sinh đúng JE',bool(so.but_toan))
+    _DA_TAO.append(('Journal Entry',so.but_toan))
+    la('một JE',frappe.db.count('Journal Entry',{'vgb_can_tru_san':so.name}),1)
+
+
+@ca('#262 Redis lỗi sau commit không báo bill thất bại, scheduler còn đường thử lại')
+def _loi_hang():
+    with patch.object(frappe, 'enqueue', side_effect=RuntimeError('Redis thử bị ngắt')):
+        ct._xep_sau_commit('KIEM262-HANG')

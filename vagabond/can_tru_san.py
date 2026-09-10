@@ -187,10 +187,58 @@ def thu_bu(ten):
     return je.name
 
 
+def _xep_sau_commit(ten):
+    """Không để Redis lỗi sau commit báo ngược thành bill thất bại.
+
+    Frappe background_jobs.enqueue_after_commit thêm callback rồi gọi
+    enqueue khi commit. Bọc chính callback, không chỉ lời đăng ký nó.
+    Scheduler sẽ tìm lại phiếu chưa có bút toán nếu hàng đợi đang lỗi.
+    """
+    try:
+        frappe.enqueue('vagabond.can_tru_san.xu_ly_nen', ten=ten, queue='short')
+    except Exception:
+        frappe.logger('can_tru_san', allow_site=True).exception('Không xếp được phiếu %s; scheduler sẽ thử lại', ten)
+
+
 def khi_ghi_so(doc, method=None):
-    bang = 'Vagabond Can Tru Phi' if doc.doctype == 'Purchase Invoice' else 'Vagabond Can Tru Ban'
-    for ten in sorted(set(frappe.get_all(bang,filters={'hoa_don':doc.name,'parenttype':DT},pluck='parent'))):
-        thu_bu(ten)
+    from functools import partial
+    try:
+        bang = 'Vagabond Can Tru Phi' if doc.doctype == 'Purchase Invoice' else 'Vagabond Can Tru Ban'
+        for ten in sorted(set(frappe.get_all(bang,filters={'hoa_don':doc.name,'parenttype':DT},pluck='parent'))):
+            frappe.db.after_commit.add(partial(_xep_sau_commit, ten))
+    except Exception:
+        frappe.logger('can_tru_san', allow_site=True).exception('Chưa xếp đối soát cho %s; scheduler sẽ thử lại', doc.name)
+
+
+def xu_ly_nen(ten):
+    """Một phiếu lỗi không chặn bill và không để lại nửa bút toán.
+
+    Khóa phiếu trước savepoint, rollback toàn phần ghi sổ trước khi ghi
+    Cần kiểm tra. Giữ hàng đợi callback cũ, bỏ callback của phần đã lùi.
+    Lỗi DB phải đi ra worker để Frappe rollback/retry cả giao dịch.
+    """
+    frappe.db.sql('select name from `tabVagabond Can Tru San` where name=%s for update', (ten,))
+    diem = 'can_tru_' + frappe.generate_hash(length=12)
+    frappe.db.savepoint(diem)
+    hang = {k: list(getattr(frappe.db, k)._functions) for k in
+            ('before_commit', 'after_commit', 'before_rollback', 'after_rollback')}
+    frappe.db._disable_transaction_control += 1
+    try:
+        return thu_bu(ten)
+    except frappe.db.InternalError:
+        raise
+    except Exception:
+        loi = frappe.get_traceback()
+        frappe.db.rollback(save_point=diem)
+        for k, cu in hang.items():
+            getattr(frappe.db, k)._functions.clear()
+            getattr(frappe.db, k)._functions.extend(cu)
+        d = frappe.get_doc(DT, ten)
+        if d.docstatus == 1 and not d.but_toan:
+            _doi_trang_thai(d, 'Cần kiểm tra', 'Tự cấn trừ gặp lỗi. Kế toán xem Error Log theo mã phiếu, sửa căn cứ rồi bấm Thử lại.')
+        frappe.log_error(title='Cấn trừ sàn ' + ten, message=loi)
+    finally:
+        frappe.db._disable_transaction_control -= 1
 
 
 def chan_huy_nguon(doc, method=None):
@@ -301,4 +349,5 @@ def xep_hang_cho():
     """
     for ten in frappe.get_all(DT,filters={'docstatus':1,'but_toan':['is','not set']},
                              pluck='name',limit_page_length=0):
-        frappe.enqueue('vagabond.can_tru_san.thu_bu',ten=ten,queue='short',enqueue_after_commit=True)
+        from functools import partial
+        frappe.db.after_commit.add(partial(_xep_sau_commit, ten))

@@ -46,3 +46,15 @@ Kiểm trước merge: GL/Payment Ledger/outstanding/hủy và retry trên bench
 SHA; quyền kế toán/thu ngân; chạy đồng thời; lỗi giữa insert và submit; kỳ
 chuyển tháng và ngân hàng chưa phân bổ; mapping từng sàn và pháp nhân thật.
 Không dùng tài liệu này làm bằng chứng đã deploy hoặc đã sửa công nợ cũ.
+
+## Sửa theo review PR265
+
+Hook ghi sổ hóa đơn chỉ đăng ký việc sau commit. Redis lỗi ở callback
+được ghi log và scheduler thử lại, không báo bill đã lưu thành thất bại.
+Worker khóa từng phiếu, dùng savepoint và bỏ callback thuộc phần đã lùi;
+lỗi sau JE submit phải lùi cả JE/GL/công nợ rồi ghi Cần kiểm tra. Lỗi DB
+đi ra worker để core rollback/retry. Kế toán vẫn có nút Thử lại.
+
+Thứ tự tích hợp là PR264 rồi PR265. Nhánh PR265 nhận bản sửa combo của
+PR264, giữ đủ patch471/472 và dựng lại bundle từ nguồn. Không merge main,
+không deploy trong phiên này.
