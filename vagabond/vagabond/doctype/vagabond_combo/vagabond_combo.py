@@ -5,7 +5,7 @@ phan roi dat mot dong giam gia ben duoi (anh Viet 11/08/2026). Lam vay vi:
 - bep va tem dan mon phai thay ten mon that, khong ai lam duoc "combo"
 - doanh thu tung mon van dung, bao cao mon ban chay khong bi lech
 - kiem banh tru so dung tung ma banh
-Bill in ra KHONG in ma combo.
+Bill in mã và tên combo dưới từng món (#261).
 """
 
 import frappe
@@ -40,6 +40,11 @@ class VagabondCombo(Document):
 		self.name = self.ma_combo
 
 	def validate(self):
+		self.ma_hang = self.get("ma_hang") or None
+		if self.get("ma_hang") and not self.ma_hang.upper().startswith("KMCB"):
+			frappe.throw("Chọn mã hàng KMCB để nối cấu hình combo.")
+		if any(str(d.item_code or '').upper().startswith('KMCB') for d in self.dong):
+			frappe.throw("Khai trực tiếp món thành phần, không lồng combo trong combo.")
 		if not self.nguoi_tao:
 			self.nguoi_tao = frappe.session.user
 		if not self.dong:

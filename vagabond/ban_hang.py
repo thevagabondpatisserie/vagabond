@@ -444,7 +444,7 @@ DAU_GC_MON = "\u203b"
 # Dau nhan dien dong TEN COMBO tren dong hoa don (anh Viet 11/08/2026). Mon
 # ra tu combo nao thi mang ten combo do, de bep va nguoi di lay mon biet gom
 # du bo, va de cuoi ngay dem duoc ban bao nhieu bo combo. In len bill va len
-# tem dan mon, nhung KHONG in ma combo.
+# tem dán món kèm mã combo (#261).
 DAU_COMBO = "\u25c8"
 
 
@@ -4007,6 +4007,11 @@ def tao_don_tay(
 		# dan mon de shipper doc ma nhan dung tui.
 		gcm = (r.get("ghi_chu") or "").strip()
 		cbo = (r.get("combo") or "").strip()
+		if r.get("combo_ma"):
+			cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+			if ma not in [x.item_code for x in cb.dong]:
+				frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+			cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
 		if tc or gcm or cbo:
 			ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
 			d["description"] = ten_mon
@@ -5759,6 +5764,11 @@ def pos_sua_don(
 			tc = (r.get("tuy_chon") or "").strip()
 			gcm = (r.get("ghi_chu") or "").strip()
 			cbo = (r.get("combo") or "").strip()
+			if r.get("combo_ma"):
+				cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+				if ma not in [x.item_code for x in cb.dong]:
+					frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+				cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
 			if tc or gcm or cbo:
 				ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
 				d["description"] = ten_mon
