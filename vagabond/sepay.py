@@ -115,8 +115,18 @@ TRUONG_MOI = {
 			),
 		},
 		{
+			"fieldname": "sepay_hmac_3",
+			"label": "Khoá HMAC webhook thứ ba (MB Nguyễn Hoàng Việt)",
+			"fieldtype": "Password", "insert_after": "sepay_khoa_2",
+			"description": (
+				"Secret Key của webhook tài khoản MB Nguyễn Hoàng Việt. Khe riêng "
+				"giữ nguyên khoá OCB và ACB trong thời gian chuyển đổi. Ba webhook "
+				"cùng trỏ về một đường dẫn, máy tự thử khoá mà không bày khoá ra."
+			),
+		},
+		{
 			"fieldname": "sepay_chua_map", "label": "Số tài khoản SePay chưa khai",
-			"fieldtype": "Small Text", "insert_after": "sepay_khoa", "read_only": 1,
+			"fieldtype": "Small Text", "insert_after": "sepay_hmac_3", "read_only": 1,
 			"description": (
 				"Máy tự ghi vào đây khi nhận giao dịch của một số tài khoản chưa "
 				"có trong account_map. Chưa khai thì giao dịch bị bỏ qua lặng lẽ, "
@@ -127,11 +137,76 @@ TRUONG_MOI = {
 }
 
 
+def _so_tk_chuan(v):
+	"""Giữ đúng dãy số để so Bank Account với số SePay gửi sang."""
+	return "".join(ch for ch in str(v or "") if ch.isdigit())
+
+
+def _ds_tai_khoan_map(ds):
+	"""Dữ liệu an toàn để màn map phân biệt tài khoản công ty và cá nhân.
+
+	Lỗi ngày 10/09/2026: màn cũ chỉ lấy `is_company_account=1`, nên tài khoản
+	MB cá nhân của người hoàn ứng không thể xuất hiện trong ô chọn. Lọc ở đây
+	chỉ bỏ tài khoản ngưng dùng; backend sẽ kiểm chủ và số tài khoản khi lưu.
+	"""
+	ra = []
+	for b in ds or []:
+		if cint(b.get("disabled")):
+			continue
+		ra.append({
+			"ma": b.get("name") or "",
+			"ten": b.get("account_name") or b.get("name") or "",
+			"ngan_hang": b.get("bank") or "",
+			"so_tk": b.get("bank_account_no") or "",
+			"tk_so_cai": b.get("account") or "",
+			"chu": b.get("party") if b.get("party_type") == "Supplier" else "",
+			"la_cong_ty": 1 if cint(b.get("is_company_account")) else 0,
+		})
+	ra.sort(key=lambda x: ((x["ngan_hang"] or "").lower(), (x["ten"] or "").lower(), x["ma"]))
+	return ra
+
+
+def _loi_map_tai_khoan(so_tk, b):
+	"""Trả câu lỗi nếu một Bank Account không được phép hứng số SePay này.
+
+	Số tài khoản là khoá định tuyến tiền. Chỉ so tên Bank Account thì có thể
+	map số MB cá nhân vào MB công ty. Tài khoản cá nhân còn phải gắn Supplier
+	để hồ sơ hoàn ứng biết đúng người nhận.
+	"""
+	if cint(b.get("disabled")):
+		return "Bank Account này đang ngưng dùng. Mở lại đúng tài khoản rồi khai SePay."
+	so_erp = _so_tk_chuan(b.get("bank_account_no"))
+	if not so_erp:
+		return "Bank Account chưa có số tài khoản. Mở Bank Account và điền số đúng như SePay trước."
+	if so_erp != _so_tk_chuan(so_tk):
+		return (
+			"Số tài khoản SePay không trùng với số trên Bank Account đã chọn. "
+			"Không map sang tài khoản khác chỉ vì cùng ngân hàng."
+		)
+	if not cint(b.get("is_company_account")) and (
+		(b.get("party_type") or "") != "Supplier" or not (b.get("party") or "").strip()
+	):
+		return (
+			"Bank Account cá nhân chưa gắn đúng người. Mở Bank Account, chọn "
+			"Party Type là Supplier và Party là người được hoàn ứng rồi khai lại."
+		)
+	if not cint(b.get("is_company_account")) and not str(b.get("account") or "").strip().startswith("141"):
+		return (
+			"Bank Account cá nhân chưa gắn tài khoản sổ cái nhóm 141. Mở Bank "
+			"Account, chọn đúng tài khoản tạm ứng 141 của người này rồi khai lại."
+		)
+	return ""
+
+
 def _ban_do():
 	"""Ban do so tai khoan -> Bank Account, doc chung voi kich ban keo."""
 	try:
 		stg = frappe.get_doc(STG_SEPAY)
-		return json.loads(stg.get("account_map") or "{}") or {}
+		tho = json.loads(stg.get("account_map") or "{}") or {}
+		# Cùng một số có thể được người khai chép có khoảng trắng hoặc dấu
+		# gạch, còn webhook thường gửi dãy số trần. Chuẩn hoá hai phía để bản
+		# đồ không phụ thuộc cách trình bày.
+		return {_so_tk_chuan(so): tk for so, tk in tho.items() if _so_tk_chuan(so)}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "sepay: doc ban do tai khoan")
 		return {}
@@ -145,15 +220,15 @@ def _khoa_that():
 
 
 def _cac_khoa(ten_goc):
-	"""Ca hai khe khoa cua mot loai (sepay_khoa / sepay_hmac).
+	"""Ca ba khe khoa cua mot loai (sepay_khoa / sepay_hmac).
 
-	Tu 20/08/2026 chay song song hai webhook - OCB va ACB - va SePay sinh
+	Tu 10/09/2026 chay song song ba webhook - OCB, ACB va MB - va SePay sinh
 	cho moi webhook mot Secret Key rieng, nguoi dung khong tu chon duoc.
 	Nen diem nhan phai thu lan luot tung khoa; khop mot cai la du.
 	"""
 	ra = []
 	c = cfg()
-	for ten in (ten_goc, ten_goc + "_2"):
+	for ten in (ten_goc, ten_goc + "_2", ten_goc + "_3"):
 		try:
 			k = key(c, ten)
 		except Exception:
@@ -409,7 +484,7 @@ def _webhook():
 		# hop deu la binh thuong, khong phai loi.
 		return {"success": True, "message": "Giao dich %s da co trong so." % ma}
 
-	so_tk = str(goi.get("accountNumber") or "").strip()
+	so_tk = _so_tk_chuan(goi.get("accountNumber"))
 	tk = _ban_do().get(so_tk)
 	if not tk:
 		# Tra ve success: day KHONG phai loi cua SePay, gui lai bao nhieu lan
@@ -525,7 +600,7 @@ def nap_bu(so_tk="", tu_ngay="", den_ngay="", so_trang=40, that=0):
 			"SePay Settings chưa khai account_map nên không biết giao dịch thuộc "
 			"tài khoản ngân hàng nào trong ERPNext."
 		)
-	so_tk = str(so_tk or "").strip()
+	so_tk = _so_tk_chuan(so_tk)
 	if so_tk and so_tk not in ban_do:
 		frappe.throw(
 			"Số tài khoản %s chưa có trong account_map. Các số đang khai: %s."
@@ -551,9 +626,10 @@ def nap_bu(so_tk="", tu_ngay="", den_ngay="", so_trang=40, that=0):
 			tid = cint(t.get("id"))
 			if tid > moc:
 				moc = tid
-			tk = ban_do.get(str(t.get("account_number") or "").strip())
+			so_gd = _so_tk_chuan(t.get("account_number"))
+			tk = ban_do.get(so_gd)
 			if not tk:
-				chua_map[str(t.get("account_number") or "")] = chua_map.get(str(t.get("account_number") or ""), 0) + 1
+				chua_map[so_gd] = chua_map.get(so_gd, 0) + 1
 				bo_qua += 1
 				continue
 			if frappe.db.exists(BT, {"transaction_id": TIEN_TO + str(tid)}):
@@ -621,6 +697,7 @@ def tinh_trang():
 		"co_khoa": 1 if _khoa_that() else 0,
 		"co_hmac": 1 if (key(c, "sepay_hmac") if c else "") else 0,
 		"co_hmac_2": 1 if (key(c, "sepay_hmac_2") if c else "") else 0,
+		"co_hmac_3": 1 if (key(c, "sepay_hmac_3") if c else "") else 0,
 		"co_khoa_2": 1 if (key(c, "sepay_khoa_2") if c else "") else 0,
 		"duong_dan_path": DUONG_DAN,
 		"duong_dan": goc + DUONG_DAN,
@@ -630,12 +707,15 @@ def tinh_trang():
 		"tai_khoan": [],
 		"keo": {},
 	}
-	# Danh sach tai khoan ngan hang de o "Them vao ban do" co cai ma chon.
+	# Lấy cả tài khoản công ty lẫn cá nhân. Trước v476 chỉ lấy tài khoản công
+	# ty nên MB của người hoàn ứng dù đã khai đúng vẫn biến mất khỏi ô chọn.
 	try:
-		ra["ds_tai_khoan"] = frappe.get_all(
-			"Bank Account", filters={"is_company_account": 1},
-			pluck="name", limit_page_length=50,
-		) or frappe.get_all("Bank Account", pluck="name", limit_page_length=50)
+		ra["ds_tai_khoan"] = _ds_tai_khoan_map(frappe.get_all(
+			"Bank Account", filters={"disabled": 0},
+			fields=["name", "account_name", "bank", "bank_account_no", "account",
+			        "party_type", "party", "is_company_account", "disabled"],
+			limit_page_length=0,
+		))
 	except Exception:
 		ra["ds_tai_khoan"] = []
 	try:
@@ -674,7 +754,7 @@ def dau_khoa(k):
 
 @frappe.whitelist()
 def soi_khoa():
-	"""Bon o khoa dang giu gi, de doi chieu voi ben SePay ma khong lo khoa.
+	"""Các ô khoá đang giữ gì, để đối chiếu với SePay mà không lộ khoá.
 
 	Sinh ra toi 20/08/2026: webhook "ERP Next" tra 401 lien tuc, anh Viet
 	bao da dan lai Secret Key roi. Doc log thi biet chu ky khong khop nhung
@@ -691,12 +771,14 @@ def soi_khoa():
 		frappe.throw("Chỉ quản lý hoặc kế toán mới soi được khoá bảo mật.")
 	c = cfg()
 	ra = {}
-	for o in ("sepay_khoa", "sepay_khoa_2", "sepay_hmac", "sepay_hmac_2"):
+	for o in ("sepay_khoa", "sepay_khoa_2", "sepay_hmac", "sepay_hmac_2", "sepay_hmac_3"):
 		try:
 			ra[o] = dau_khoa(key(c, o))
 		except Exception:
 			ra[o] = {"co": 0, "dai": 0, "duoi": ""}
-	ra["duong_dang_chay"] = "HMAC" if (ra["sepay_hmac"]["co"] or ra["sepay_hmac_2"]["co"]) else "X-Api-Key"
+	ra["duong_dang_chay"] = "HMAC" if any(
+		ra[o]["co"] for o in ("sepay_hmac", "sepay_hmac_2", "sepay_hmac_3")
+	) else "X-Api-Key"
 	ra["ghi_chu"] = (
 		"Secret Key bên SePay phải nằm ở ô HMAC. Đối chiếu bốn ký tự cuối "
 		"với chuỗi bên SePay; lệch là dán nhầm ô."
@@ -716,15 +798,18 @@ def dat_hmac(khoa=None, khe=1):
 	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới đặt được khoá bảo mật.")
-	# khe 2 la webhook thu hai (ACB): moi webhook ben SePay co mot Secret
-	# Key rieng do ho sinh, nen phai co hai o chua.
-	o = "sepay_hmac" if cint(khe) != 2 else "sepay_hmac_2"
+	# Mỗi webhook có một Secret Key riêng. Khe 3 dành cho MB để không ghi đè
+	# OCB hoặc ACB trong thời gian chuyển đổi tài khoản hoàn ứng.
+	khe = cint(khe) or 1
+	if khe not in (1, 2, 3):
+		frappe.throw("Khe khoá SePay không hợp lệ. Chỉ dùng khe 1, 2 hoặc 3.")
+	o = {1: "sepay_hmac", 2: "sepay_hmac_2", 3: "sepay_hmac_3"}[khe]
 	k = str(khoa or "").strip()
 	if not k:
 		frappe.db.set_single_value("Vagabond Settings", o, "")
 		frappe.db.commit()
 		frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
-		return {"ok": 1, "co_hmac": 0, "khe": cint(khe) or 1}
+		return {"ok": 1, "co_hmac": 0, "khe": khe}
 	if len(k) < 12:
 		frappe.throw(
 			"Chuỗi này ngắn quá, không giống Secret Key của SePay. Khoá thật bắt đầu bằng whsec_ và dài vài chục ký tự. Anh chị vui lòng copy lại từ tab Bảo mật bên SePay."
@@ -733,7 +818,7 @@ def dat_hmac(khoa=None, khe=1):
 	frappe.db.set_single_value("Vagabond Settings", "sepay_bat", 1)
 	frappe.db.commit()
 	frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
-	return {"ok": 1, "co_hmac": 1, "khe": cint(khe) or 1}
+	return {"ok": 1, "co_hmac": 1, "khe": khe}
 
 
 @frappe.whitelist()
@@ -753,7 +838,7 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới khai được bản đồ tài khoản.")
-	so_tk = "".join(ch for ch in str(so_tk or "") if ch.isdigit())
+	so_tk = _so_tk_chuan(so_tk)
 	if not so_tk or len(so_tk) < 6:
 		frappe.throw(
 			"Số tài khoản trông chưa đúng (%s). Vui lòng gõ đúng dãy số tài khoản như bên SePay hiển thị." % (so_tk or "trống")
@@ -762,15 +847,32 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 	if not tk or not frappe.db.exists("Bank Account", tk):
 		frappe.throw(
 			"Chưa chọn tài khoản ngân hàng trong ERPNext để hứng giao dịch. "
-			"Nếu ACB chưa có trong danh sách thì tạo Bank Account trên Desk "
+			"Nếu tài khoản chưa có trong danh sách thì tạo Bank Account trên Desk "
 			"trước rồi quay lại đây."
 		)
+	b = frappe.db.get_value(
+		"Bank Account", tk,
+		["bank_account_no", "disabled", "is_company_account", "party_type", "party", "account"],
+		as_dict=True,
+	) or {}
+	loi = _loi_map_tai_khoan(so_tk, b)
+	if loi:
+		frappe.throw(loi)
 	stg = frappe.get_doc(STG_SEPAY)
 	ban_do = {}
 	try:
-		ban_do = json.loads(stg.get("account_map") or "{}") or {}
+		ban_do = {_so_tk_chuan(so): ma for so, ma in
+			(json.loads(stg.get("account_map") or "{}") or {}).items()
+			if _so_tk_chuan(so)}
 	except Exception:
 		ban_do = {}
+	cu = ban_do.get(so_tk)
+	if cu and cu != tk:
+		frappe.throw(
+			"Số tài khoản này đang nối với %s. Máy không tự ghi đè vì có thể "
+			"chuyển toàn bộ sao kê sang sai túi tiền. Mở SePay Settings đối chiếu "
+			"bản đồ cũ trước khi đổi." % cu
+		)
 	ban_do[so_tk] = tk
 	stg.account_map = json.dumps(ban_do, ensure_ascii=False, indent=1)
 	stg.flags.ignore_permissions = True
