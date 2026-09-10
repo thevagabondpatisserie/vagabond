@@ -25,6 +25,8 @@ def dung():
 	from vagabond import vai_cua_hang
 
 	vai_cua_hang.dung()
+	from vagabond import combo_mon
+	_dung_nhom(combo_mon.TRUONG_MOI, "combo_mon")
 	from vagabond import can_tru_san
 	_dung_nhom(can_tru_san.TRUONG_MOI, "can_tru_san")
 

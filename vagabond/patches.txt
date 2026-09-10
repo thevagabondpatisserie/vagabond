@@ -250,4 +250,5 @@ vagabond.patches.gram_bom_252
 vagabond.patches.dong_bo_cau_truc #v468
 vagabond.patches.dong_bo_cau_truc #v469
 vagabond.patches.dong_bo_cau_truc #v470
+vagabond.patches.dong_bo_cau_truc #v471
 vagabond.patches.dong_bo_cau_truc #v472

@@ -262,7 +262,7 @@ async function posInTamTinh() {
     r = await api('vagabond.ban_hang.tao_don_tay', {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',

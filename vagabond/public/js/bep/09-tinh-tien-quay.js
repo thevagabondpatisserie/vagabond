@@ -913,6 +913,12 @@ async function posThemMon() {
     return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
   })), function (o) {
     if (o.combo) { return posBamCombo(o.combo); }
+    if (/^KMCB/i.test(o.value || '')) {
+      var cbHang = dsCombo.find(function (c) { return c.ma_hang === o.value; });
+      if (cbHang) return posBamCombo(cbHang);
+      toast('Combo chưa có cấu hình đang bật cho điểm bán này. Nhờ quản lý khai món trong Khuyến mãi - combo.');
+      return 0;
+    }
     var i = -1;
     posDon.mon.forEach(function (m, k) { if (m.item_code === o.value && !m.combo) i = k; });
     if (i >= 0) { posDon.mon[i].qty += 1; return posDon.mon[i].qty; }
@@ -978,13 +984,13 @@ function posThemCombo(c, chon) {
   dong.forEach(function (d) {
     var i = -1;
     posDon.mon.forEach(function (m, k) {
-      if (m.item_code === d.item_code && m.combo === c.ten) i = k;
+      if (m.item_code === d.item_code && m.combo_ma === c.name) i = k;
     });
     if (i >= 0) posDon.mon[i].qty += flt0(d.so_luong);
     else posDon.mon.push({
       item_code: d.item_code, ten: d.ten_mon || d.item_code,
       qty: flt0(d.so_luong), rate: flt0(d.gia_goc),
-      anh: '', nhom: '', tc: [], gc: '', combo: c.ten, combo_ma: c.name
+      anh: '', nhom: '', tc: [], gc: '', combo: (c.ma_hang || c.name) + ' - ' + c.ten, combo_ma: c.name
     });
   });
   posDon.combo = posDon.combo || [];
@@ -1824,7 +1830,7 @@ async function posLuuDon() {
          gui sai cung khong vao duoc. Nhung nguon di duoc hai phuong thuc
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
       giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',

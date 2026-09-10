@@ -644,6 +644,7 @@ doc_events = {
 		# luu duoc), roi moi ap giam gia noi bo.
 		"before_validate": [
 			"vagabond.email_sach.don",
+			"vagabond.combo_mon.truoc_khi_luu",
 			"vagabond.noi_bo.truoc_khi_luu",
 			# Nguoi ban: dien tai khoan dang dang nhap luc TAO to hoa don.
 			# May dong bo ve thi de trong chu khong dien bua, xem dau tep

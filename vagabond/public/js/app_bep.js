@@ -13010,6 +13010,12 @@ async function posThemMon() {
     return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || ''), con: (Object.prototype.hasOwnProperty.call(posConLai, x.name) ? posConLai[x.name] : null) };
   })), function (o) {
     if (o.combo) { return posBamCombo(o.combo); }
+    if (/^KMCB/i.test(o.value || '')) {
+      var cbHang = dsCombo.find(function (c) { return c.ma_hang === o.value; });
+      if (cbHang) return posBamCombo(cbHang);
+      toast('Combo chưa có cấu hình đang bật cho điểm bán này. Nhờ quản lý khai món trong Khuyến mãi - combo.');
+      return 0;
+    }
     var i = -1;
     posDon.mon.forEach(function (m, k) { if (m.item_code === o.value && !m.combo) i = k; });
     if (i >= 0) { posDon.mon[i].qty += 1; return posDon.mon[i].qty; }
@@ -13075,13 +13081,13 @@ function posThemCombo(c, chon) {
   dong.forEach(function (d) {
     var i = -1;
     posDon.mon.forEach(function (m, k) {
-      if (m.item_code === d.item_code && m.combo === c.ten) i = k;
+      if (m.item_code === d.item_code && m.combo_ma === c.name) i = k;
     });
     if (i >= 0) posDon.mon[i].qty += flt0(d.so_luong);
     else posDon.mon.push({
       item_code: d.item_code, ten: d.ten_mon || d.item_code,
       qty: flt0(d.so_luong), rate: flt0(d.gia_goc),
-      anh: '', nhom: '', tc: [], gc: '', combo: c.ten, combo_ma: c.name
+      anh: '', nhom: '', tc: [], gc: '', combo: (c.ma_hang || c.name) + ' - ' + c.ten, combo_ma: c.name
     });
   });
   posDon.combo = posDon.combo || [];
@@ -13921,7 +13927,7 @@ async function posLuuDon() {
          gui sai cung khong vao duoc. Nhung nguon di duoc hai phuong thuc
          thi phai gui, khong thi lua chon cua thu ngan roi mat. */
       pt: posDon.pt || '', ma_tham_chieu: laApp ? (posDon.ma || '') : (posDon.mtc || ''),
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
       giam_gia: giamTay, phi_ship: ship, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -14270,7 +14276,7 @@ async function posInTamTinh() {
     r = await api('vagabond.ban_hang.tao_don_tay', {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -23811,8 +23817,9 @@ async function kmSheetCombo(ma) {
     var html = '<div class="shh"><b>' + (ma ? 'Sửa combo' : 'Combo mới') + '</b><div class="x">&times;</div></div>' +
       '<div id="cbCuon" style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 90px);max-height:78vh;overflow:auto">' +
       '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#0b7c93;line-height:1.6">' +
-      'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in ra chỉ thấy tên món thật, không in mã combo.</div>' +
-      kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì');
+      'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in từng món thật, kèm mã và tên combo.</div>' +
+      kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì') +
+      '<button class="btn out" id="cbMaHang" style="width:100%;margin:8px 0">Mã hàng combo: ' + h(s.ma_hang || 'Chọn mã KMCB') + '</button>';
 
     /* ----- Mon co san: luon vao bill ----- */
     var monBB = [];
@@ -23916,6 +23923,15 @@ async function kmSheetCombo(ma) {
     var oCuonMoi = box.querySelector('#cbCuon');
     if (oCuonMoi && cuonCu) oCuonMoi.scrollTop = cuonCu;
     noi();
+    box.querySelector('#cbMaHang').onclick = async function () {
+      thu();
+      try {
+        var maHang = await getList('Item', {filters: {name: ['like', 'KMCB%'], disabled: 0}, fields: ['name', 'item_name'], limit_page_length: 0});
+        sheet('Mã hàng combo', [{value: '', label: 'Không nối mã hàng'}].concat(maHang.map(function (x) {
+          return {value: x.name, label: x.name + ' - ' + x.item_name};
+        })), s.ma_hang || '', function (v) { s.ma_hang = v; ve(); }, true);
+      } catch (e) { toast(e.message || 'Chưa tải được mã hàng combo.'); }
+    };
   }
 
   function thu() {
