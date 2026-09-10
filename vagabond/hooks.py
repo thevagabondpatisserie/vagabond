@@ -781,3 +781,17 @@ override_doctype_class = {
 # Dung lai cac truong tu them do ma nguon khai, sau moi lan deploy. Thao tac
 # lap lai duoc: khai lai lan hai khong doi gi.
 after_migrate = ["vagabond.truong_tu_them.dung", "vagabond.quy_cach_ncc.dung"]
+
+# #262: nối vào chuỗi hiện có, không thay hook bảo vệ chứng từ trước đó.
+for _dt_ct, _su_kien_ct, _ham_ct in (
+    ("Journal Entry", "validate", "vagabond.can_tru_san.kiem_but_toan"),
+    ("Purchase Invoice", "on_submit", "vagabond.can_tru_san.khi_ghi_so"),
+    ("Sales Invoice", "on_submit", "vagabond.can_tru_san.khi_ghi_so"),
+    ("Sales Invoice", "on_update_after_submit", "vagabond.can_tru_san.khi_ghi_so"),
+    ("Purchase Invoice", "before_cancel", "vagabond.can_tru_san.chan_huy_nguon"),
+    ("Sales Invoice", "before_cancel", "vagabond.can_tru_san.chan_huy_nguon"),
+    ("Journal Entry", "before_cancel", "vagabond.can_tru_san.chan_huy_but_toan"),
+):
+    _cu_ct = doc_events.setdefault(_dt_ct, {}).get(_su_kien_ct, [])
+    doc_events[_dt_ct][_su_kien_ct] = ([ _cu_ct ] if isinstance(_cu_ct, str) else list(_cu_ct)) + [_ham_ct]
+scheduler_events.setdefault('hourly', []).append('vagabond.can_tru_san.xep_hang_cho')
