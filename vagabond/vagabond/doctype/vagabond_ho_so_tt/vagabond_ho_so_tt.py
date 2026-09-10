@@ -140,19 +140,9 @@ class VagabondHoSoTT(Document):
 					"Hoá đơn %s chỉ còn nợ %s đ mà đề nghị trả %s đ."
 					% (d.hoa_don, flt(d.con_no), flt(d.so_tien))
 				)
-			trung = frappe.db.sql(
-				"""select p.name, p.trang_thai from `tabVagabond Ho So TT Dong` d
-				inner join `tabVagabond Ho So TT` p on p.name = d.parent
-				where d.hoa_don = %s and p.name != %s""",
-				(d.hoa_don, self.name or ""),
-				as_dict=True,
-			)
-			for t in trung:
-				if t["trang_thai"] in CON_HIEU_LUC:
-					frappe.throw(
-						"Hoá đơn %s đã nằm trong hồ sơ %s (%s)."
-						% (d.hoa_don, t["name"], t["trang_thai"])
-					)
+
+		from vagabond.phan_bo_app import kiem_luu as kiem_phan_bo
+		kiem_phan_bo(self)
 
 	def chan_hoan_tat_khong_but_toan(self):
 		"""Doi sang "Da thanh toan" chi duoc di qua `ho_so_tt.danh_dau_da_tra`.

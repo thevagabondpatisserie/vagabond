@@ -13,7 +13,7 @@ có lịch sử để biết.
 
 Nay đưa cả hai việc vào mã nguồn:
   1. `dung()` khai lại Property Setter mỗi lần Migrate, lặp lại được.
-  2. `dien_khi_trong` là hook validate: trống thì tự điền, để đối chiếu
+  2. `dien_khi_trong` là hook before_validate: trống thì tự điền, để đối chiếu
      ngân hàng không bị trống dữ liệu. Có sẵn mã FT thật của ngân hàng
      (phiếu thu SePay tự lập) thì giữ nguyên, không đè.
 
@@ -42,13 +42,18 @@ def so_tham_chieu_mac_dinh(ngay):
 	return "CK-%s" % d.strftime("%Y%m%d") if d else "CK"
 
 
-def can_dien(paid_from, paid_to, reference_no, reference_date):
+def can_dien(paid_from, paid_to, reference_no, reference_date,
+		paid_from_account_type=None, paid_to_account_type=None):
 	"""Phiếu này có cần máy điền tham chiếu không, và điền ô nào. THUẦN.
 
 	Chỉ điền khi có vế ngân hàng (đúng lúc ERPNext đòi), và chỉ ô nào
 	đang trống. Phiếu tiền mặt không đụng.
 	"""
-	if not cham_ngan_hang(paid_from, paid_to):
+	# Core danh dau bat buoc theo account_type, trong khi nghiep vu Vagabond
+	# nhan tai khoan ngan hang theo so 112. Xet ca hai de mot tai khoan khai
+	# nham type Bank (tung co o 1411) cung khong bi core chan truoc hook.
+	if not (cham_ngan_hang(paid_from, paid_to)
+			or paid_from_account_type == "Bank" or paid_to_account_type == "Bank"):
 		return []
 	ra = []
 	if not str(reference_no or "").strip():
@@ -62,16 +67,14 @@ def can_dien(paid_from, paid_to, reference_no, reference_date):
 
 
 def dien_khi_trong(doc, method=None):
-	"""Hook validate của Payment Entry: trống thì điền, có rồi thì giữ."""
-	try:
-		o = can_dien(doc.get("paid_from"), doc.get("paid_to"),
-			doc.get("reference_no"), doc.get("reference_date"))
-		if "reference_date" in o:
-			doc.reference_date = doc.get("posting_date") or getdate()
-		if "reference_no" in o:
-			doc.reference_no = so_tham_chieu_mac_dinh(doc.get("posting_date"))
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "tham_chieu_tien: dien tham chieu loi")
+	"""Hook before_validate của Payment Entry: trống thì điền, có thì giữ."""
+	o = can_dien(doc.get("paid_from"), doc.get("paid_to"),
+		doc.get("reference_no"), doc.get("reference_date"),
+		doc.get("paid_from_account_type"), doc.get("paid_to_account_type"))
+	if "reference_date" in o:
+		doc.reference_date = doc.get("posting_date") or getdate()
+	if "reference_no" in o:
+		doc.reference_no = so_tham_chieu_mac_dinh(doc.get("posting_date"))
 
 
 # ---------------------------------------------------------------- migrate

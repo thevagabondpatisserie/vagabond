@@ -44,7 +44,8 @@ def vi_sao_thieu(hd, moc_ngay, ho_so_giu=None):
 	`posting_date` (chuỗi ngày ISO).
 	`moc_ngay` là chuỗi ngày ISO, tờ có `posting_date` nhỏ hơn mốc này thì
 	nằm ngoài khoảng đang lọc.
-	`ho_so_giu` là dict tên hoá đơn tới mã hồ sơ đang giữ nó.
+	`ho_so_giu` là dict tên hoá đơn tới `{ma, so_tien}` còn bị APP giữ.
+	Dữ liệu chuỗi cũ vẫn được hiểu là giữ toàn bộ để tương thích.
 
 	Trả về mã lý do, hoặc None nếu tờ đó ĐANG chọn được. Trả None mới là
 	câu trả lời quan trọng nhất: nó nói rằng tờ này lẽ ra phải thấy, thiếu
@@ -57,8 +58,10 @@ def vi_sao_thieu(hd, moc_ngay, ho_so_giu=None):
 		return LD_HUY
 	if float(hd.get("outstanding") or 0) <= 0:
 		return LD_DA_TRA
-	if (ho_so_giu or {}).get(hd.get("name")):
-		return LD_HO_SO_KHAC
+	giu = (ho_so_giu or {}).get(hd.get("name"))
+	if giu:
+		if not isinstance(giu, dict) or float(giu.get("so_tien") or 0) >= float(hd.get("outstanding") or 0) - 0.5:
+			return LD_HO_SO_KHAC
 	ng = str(hd.get("posting_date") or "")
 	if moc_ngay and ng and ng < str(moc_ngay):
 		return LD_NGOAI_KY

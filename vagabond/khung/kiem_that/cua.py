@@ -71,3 +71,5 @@ def chay(im=1):
 		frappe.throw("Khung kiểm không hoàn nguyên được dữ liệu; dừng lượt kiểm. "
 			+ frappe.as_json(kq))
 	return kq
+
+from vagabond.khung.kiem_that import thu_phan_bo_app  # noqa: F401,E402

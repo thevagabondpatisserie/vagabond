@@ -59,6 +59,10 @@ doctype_js = {
 	"Purchase Order": "public/js/purchase_order.js",
 	"Sales Invoice": ["public/js/minvoice_phieu.js", "public/js/sua_pkt_tang.js"],
 	"Purchase Invoice": "public/js/purchase_invoice.js",
+	# Core kiem hai o so/ngay tham chieu ngay tren trinh duyet, truoc khi
+	# hook Python co co hoi chay. Dien khi validate de man Desk cua Dung va
+	# Uyen khong con bi chan; hook may chu van giu duong API. Issue #252.
+	"Payment Entry": "public/js/payment_entry.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
 	# chi quan so luong, HSD?"). Xem dau tep purchase_receipt.js.
@@ -580,6 +584,12 @@ doc_events = {
 	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
 	# de giai trinh, nhac tren man thi bo qua duoc.
 	"Payment Entry": {
+		# Phai dien TRUOC controller validate cua ERPNext. Neu dat trong
+		# validate thi core chay truoc doc_event va nem loi hai o tham chieu,
+		# hook cua minh khong bao gio toi luot. Issue #252, bench run #95.
+		"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong",
+		"before_save": "vagabond.coc_app.chan_sua_lich_su",
+		"before_update_after_submit": "vagabond.coc_app.chan_sua_lich_su",
 		# Ten goi dung theo tai khoan tien: 111 la Phieu thu/Phieu chi, 112
 		# la Giay bao Co / Uy nhiem chi (chi Dung chot 16/08/2026).
 		"validate": [
@@ -590,10 +600,6 @@ doc_events = {
 			# nao noi ra (anh Viet 05/09/2026). Doc dau tep
 			# vagabond/nghiep_vu_tien.py.
 			"vagabond.nghiep_vu_tien.dat_nghiep_vu",
-			# O so/ngay tham chieu trong thi tu dien, de ERPNext khong chan
-			# "So sec/tham chieu is required" (chi Dung, 10/09/2026). Cai
-			# bo bat buoc nam o tham_chieu_tien.dung(), chay moi lan Migrate.
-			"vagabond.tham_chieu_tien.dien_khi_trong",
 		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung

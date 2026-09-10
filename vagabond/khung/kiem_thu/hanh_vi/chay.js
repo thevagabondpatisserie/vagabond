@@ -1058,6 +1058,70 @@ async function chayHet() {
       dung('the hien ten', the.indexOf('TRẦN THỊ B') >= 0);
       dung('the hien ma B2, khong phai B1: ' + the, the.indexOf('NCC-B2') >= 0 && the.indexOf('NCC-B1') < 0);
     });
+  await caAsync('APP247: chon hoa don, nhap 3.000.000, Luu nhap gui dung 3 trieu', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      supplier: { 'NCC-1': { supplier_name: 'NCC thử', disabled: 0 } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        so_hd_ncc: '123', con_no: 10000000, co_the_chi: 7000000, dang_giu: 3000000 }] } }));
+    m.g.scrHoSoTTView = function () {}; // màn đích sau tạo không thuộc ca nhập tiền
+    m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
+    await m.g.scrHoSoTTTao();
+    m.tai.querySelector('[data-hsh]').click(); await choVeLai(m);
+    var o = m.tai.querySelector('[data-hstien]');
+    dung('co o chi dot nay', !!o);
+    o.value = '3.000.000'; o.dispatchEvent(dg.suKien('change', {}, o)); await choVeLai(m);
+    bang('khong bien thanh 3 dong', m.g.hsTaoChon['HD-1'].so_tien, 3000000);
+    m.tai.getElementById('hsLuuNhap').click();
+    for (var i = 0; i < 5; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    var tao = m.goiApi.filter(function (r) { return r.duong === 'vagabond.ho_so_tt.tao'; });
+    bang('mot lan tao', tao.length, 1);
+    bang('payload3 trieu', JSON.parse(tao[0].ts.hoa_don)[0].so_tien, 3000000);
+  });
+
+  await caAsync('APP247: chi cong ty gui so tien tung dot thay vi ca hoa don', async function () {
+    var m = dungMan(canhChi({ supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        con_no: 10000000, co_the_chi: 7000000, dang_giu: 3000000 }] } }));
+    m.g.scrHoSoTTView = function () {};
+    m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
+    await m.g.scrChiCongTyTao();
+    m.tai.querySelector('[data-huhd]').click(); await choVeLai(m);
+    var o = m.tai.querySelector('[data-hucttien]'); dung('co o tien', !!o);
+    o.value = '2.000.000'; o.dispatchEvent(dg.suKien('change', {}, o)); await choVeLai(m);
+    bang('dang chon2 trieu', m.g.huChonHd['HD-1'], 2000000);
+    m.tai.getElementById('huNhap').click();
+    for (var i = 0; i < 5; i++) await new Promise(function (r) { setTimeout(r, 0); });
+    var tao = m.goiApi.filter(function (r) { return r.duong === 'vagabond.ho_so_tt.tao'; });
+    bang('mot lan tao', tao.length, 1);
+    bang('payload2 trieu', JSON.parse(tao[0].ts.hoa_don)[0].so_tien, 2000000);
+  });
+
+  await caAsync('APP247: nguoi lap khong co vai FIN khong thay nut can coc o ca hai man', async function () {
+    var m = dungMan(canhChi({ vai: ['Purchase Manager', 'AP Officer'],
+      nccChon: NCC_NO, supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        con_no: 1000000, co_the_chi: 1000000 }] } }));
+    m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
+    await m.g.scrHoSoTTTao();
+    bang('man APP khong bay nut khong bam duoc', m.tai.getElementById('hsCanCoc'), null);
+    m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
+    await m.g.scrChiCongTyTao();
+    bang('man chi cong ty khong bay nut khong bam duoc', m.tai.getElementById('huCanCoc'), null);
+  });
+
+  await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
+    var m = dungMan(canhChi({ vai: ['Accounts User'], nccChon: NCC_NO,
+      supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        con_no: 1000000, co_the_chi: 1000000 }] } }));
+    m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
+    await m.g.scrHoSoTTTao();
+    dung('man APP co nut', !!m.tai.getElementById('hsCanCoc'));
+    m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
+    await m.g.scrChiCongTyTao();
+    dung('man chi cong ty co nut', !!m.tai.getElementById('huCanCoc'));
+  });
+
 }
 
 /* Moi ca co han gio. Khong co han thi mot ca treo (vi du hop chon hien ra ma

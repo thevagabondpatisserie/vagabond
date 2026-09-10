@@ -263,6 +263,9 @@ def _tham_chieu():
 	la("ngân hàng, trống cả hai", tc.can_dien("11211 - MB", "331 - NCC", "", None), ["reference_no", "reference_date"])
 	la("ngân hàng, có số FT thì giữ", tc.can_dien("131", "11211 - MB", "FT26233503", "2026-09-10"), [])
 	la("tiền mặt không đụng", tc.can_dien("1111 - Quỹ", "331", "", None), [])
+	la("type Bank khai nhầm vẫn không bị core chặn", tc.can_dien(
+		"1411 - Tạm ứng", "331", "", None, "Bank", "Payable"),
+		["reference_no", "reference_date"])
 	t = To(paid_from="11211 - MB", paid_to="331 - NCC", posting_date="2026-09-10", reference_no="", reference_date=None)
 	tc.dien_khi_trong(t)
 	la("điền số", t.reference_no, "CK-20260910")
@@ -292,8 +295,12 @@ def _property_setter():
 		and ("Payment Entry", "reference_date", "mandatory_depends_on", "") in goi)
 	dung("gọi từ patch migrate", "tham_chieu_tien.dung()" in _doc("vagabond/patches/dong_bo_cau_truc.py"))
 	h = _doc("vagabond/hooks.py")
-	dung("hook validate đã gắn", '"vagabond.tham_chieu_tien.dien_khi_trong"' in h)
+	dung("hook before_validate đã gắn", '"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong"' in h)
+	khoi = h[h.index('"Payment Entry": {'):h.index('"Sales Invoice": {')]
+	dung("không đặt muộn trong danh sách validate", khoi.count('"vagabond.tham_chieu_tien.dien_khi_trong"') == 1)
 	dung("gắn đúng doctype", h.index('"Payment Entry": {') < h.index('"vagabond.tham_chieu_tien.dien_khi_trong"'))
+	dung("Desk có hook riêng chạy trước kiểm bắt buộc của trình duyệt",
+		'"Payment Entry": "public/js/payment_entry.js"' in h)
 
 
 # ---------------------------------------------------------- chay that man hinh
