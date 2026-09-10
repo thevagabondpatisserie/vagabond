@@ -162,6 +162,78 @@ def _contract_loc_dong():
 		"đừng đổi một bên" in than)
 
 
+@ca("#266 vòng 5d: lời gọi trong bench phải khớp CHỮ KÝ hàm thật")
+def _bench_khop_chu_ky():
+	"""Bench chỉ chạy được trên site dùng một lần của CI, mỗi vòng 9 phút.
+	Một lời gọi sai số tham số là mất trọn một vòng mà chẳng học được gì:
+	`cua_con_mo() takes from 1 to 2 positional arguments but 3 were given`
+	đã ăn đúng một vòng như vậy.
+
+	Soi TĨNH mọi lời gọi `hddt_cho_xuat.<ham>(...)` và `ban_hang.<ham>(...)`
+	trong bench rồi đối chiếu với chữ ký thật. Chữ ký cũng đọc bằng ast từ mã
+	nguồn chứ KHÔNG import: ban_hang kéo requests ở đầu tệp, import nó vào
+	tầng khung là đúng cái bẫy điều 5 làm CI đỏ ba lần ngày 20/08.
+
+	Không thay được việc chạy bench, chỉ bắt sớm loại lỗi rẻ tiền này.
+	"""
+	import ast as _ast
+
+	def chu_ky(nguon):
+		ra = {}
+		for n in _ast.walk(_ast.parse(nguon)):
+			if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+				a = n.args
+				ra[n.name] = {
+					"vi_tri": [x.arg for x in (a.posonlyargs + a.args)],
+					"mac_dinh": len(a.defaults),
+					"sao": a.vararg is not None,
+					"sao_sao": a.kwarg is not None,
+					"chi_khoa": [x.arg for x in a.kwonlyargs],
+				}
+		return ra
+
+	ky = {
+		"hddt_cho_xuat": chu_ky(_doc("vagabond", "hddt_cho_xuat.py")),
+		"ban_hang": chu_ky(_doc("vagabond", "ban_hang.py")),
+	}
+	cay = _ast.parse(_doc("vagabond", "khung", "bench_thu", "kiem_hddt_266.py"))
+	da_soi, loi = 0, []
+	for nut in _ast.walk(cay):
+		if not isinstance(nut, _ast.Call) or not isinstance(nut.func, _ast.Attribute):
+			continue
+		goc = nut.func.value
+		if not isinstance(goc, _ast.Name) or goc.id not in ky:
+			continue
+		k = ky[goc.id].get(nut.func.attr)
+		if k is None:
+			continue
+		if any(isinstance(a, _ast.Starred) for a in nut.args) or any(
+				kw.arg is None for kw in nut.keywords):
+			continue
+		da_soi += 1
+		ten_kw = [kw.arg for kw in nut.keywords]
+		toi_da = len(k["vi_tri"])
+		toi_thieu = toi_da - k["mac_dinh"]
+		if not k["sao"] and len(nut.args) > toi_da:
+			loi.append("%s.%s dòng %d: đưa %d tham số vị trí, hàm nhận tối đa %d"
+				% (goc.id, nut.func.attr, nut.lineno, len(nut.args), toi_da))
+			continue
+		nhan = set(k["vi_tri"][:len(nut.args)])
+		for t in ten_kw:
+			if t in nhan:
+				loi.append("%s.%s dòng %d: tham số %r vừa đưa vị trí vừa đưa tên"
+					% (goc.id, nut.func.attr, nut.lineno, t))
+			elif not k["sao_sao"] and t not in k["vi_tri"] and t not in k["chi_khoa"]:
+				loi.append("%s.%s dòng %d: không có tham số tên %r"
+					% (goc.id, nut.func.attr, nut.lineno, t))
+		du = len(nut.args) + len([t for t in ten_kw if t in k["vi_tri"]])
+		if du < toi_thieu:
+			loi.append("%s.%s dòng %d: thiếu tham số, cần ít nhất %d"
+				% (goc.id, nut.func.attr, nut.lineno, toi_thieu))
+	dung("có soi được lời gọi nào đó", da_soi >= 10)
+	dung("mọi lời gọi trong bench khớp chữ ký: " + "; ".join(loi), not loi)
+
+
 @ca("#266 vòng 5b (Codex): tờ chờ xuất phải lọc LẠI theo điểm ngay trước khi gửi")
 def _cho_xuat_loc_lai_diem():
 	"""Dấu chờ xuất đặt lúc kế toán bấm, còn lượt phát hành chạy sau hàng
