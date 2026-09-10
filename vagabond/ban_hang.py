@@ -5753,7 +5753,12 @@ def pos_sua_don(
 		)
 	if items is not None:
 		rows = []
+		da_dung_dong = set()
 		for r in items or []:
+			if r.get("dong_goc"):
+				if r["dong_goc"] in da_dung_dong:
+					frappe.throw("Một dòng bill bị gửi hai lần. Tải lại bill rồi sửa tiếp.")
+				da_dung_dong.add(r["dong_goc"])
 			ma = (r.get("item_code") or "").strip()
 			if not ma or not frappe.db.exists("Item", ma):
 				frappe.throw("Không có mã hàng %s trong hệ thống." % (ma or "(trống)"))
@@ -5778,7 +5783,8 @@ def pos_sua_don(
 					d["description"] += "\n[%s]" % tc[:200]
 				if gcm:
 					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
-			rows.append(d)
+			from vagabond.combo_mon import giu_dong_sua
+			rows.append(giu_dong_sua(si, r, d))
 		if not rows:
 			frappe.throw("Hoá đơn phải còn ít nhất một món.")
 		si.set("items", [])

@@ -47,8 +47,8 @@ import frappe
 from frappe.utils import cint
 
 TRUONG_MOI = {'Sales Invoice Item': [
-    dict(fieldname='vgb_combo_tien', label='Thành tiền combo', fieldtype='Currency', precision='0', read_only=1, no_copy=1),
-    dict(fieldname='vgb_combo_luong', label='Lượng combo đã chia', fieldtype='Float', read_only=1, no_copy=1),
+    dict(fieldname='vgb_combo_tien', label='Thành tiền combo', fieldtype='Currency', precision='0', read_only=1, no_copy=0),
+    dict(fieldname='vgb_combo_luong', label='Lượng combo đã chia', fieldtype='Float', read_only=1, no_copy=0),
     dict(fieldname='vgb_combo_ma', label='Mã combo', fieldtype='Data', read_only=1, no_copy=0),
     dict(fieldname='vgb_combo_ten', label='Tên combo', fieldtype='Data', read_only=1, no_copy=0),
 ]}
@@ -143,3 +143,20 @@ def dat_thanh_tien(doc):
             if Decimal(str(d.qty)) != Decimal(str(d.vgb_combo_luong)):
                 frappe.throw('Lượng món combo đã thay đổi. Chọn lại combo để chia tiền đúng.')
             d.amount = d.base_amount = d.net_amount = d.base_net_amount = float(d.vgb_combo_tien)
+
+
+
+def giu_dong_sua(si, gui, dong):
+    """Màn sửa bill gửi tên dòng; tiền combo lấy từ chứng từ gốc trên máy chủ."""
+    cu = next((x for x in si.items if x.name == gui.get('dong_goc')), None)
+    if not cu or not cu.get('vgb_combo_luong'):
+        return dong
+    if cu.item_code != dong['item_code'] or any(
+            Decimal(str(cu.get(k))) != Decimal(str(dong[k])) for k in ('qty', 'rate')):
+        frappe.throw('Dòng combo đã chia tiền không sửa riêng lượng/giá. Xóa bộ này rồi chọn lại combo.')
+    ra = cu.as_dict()
+    ra.update(dong)
+    # Nhãn combo cũng là nguồn máy chủ, không mất khi màn cũ bỏ trường combo.
+    if not gui.get('combo'):
+        ra['description'] = cu.description
+    return ra

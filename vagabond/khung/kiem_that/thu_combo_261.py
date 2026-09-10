@@ -37,6 +37,11 @@ def _combo():
         la('bán đúng điểm',kiem_kho.da_ban(khoa_diem,today()).get(mon,0),cu+6)
         hd.save(ignore_permissions=True); hd.reload()
         la('lưu lại không rã đôi',hd.items[0].qty,6)
+        with patch.object(ban_hang, '_otp_la_sep', return_value=True), patch.object(ban_hang, '_otp_kiem', return_value='quản lý kiểm'):
+            ban_hang.pos_sua_don(hd.name,items=[dict(item_code=d.item_code,qty=d.qty,rate=d.rate,dong_goc=d.name) for d in hd.items],ghi_chu='Đổi ghi chú')
+        hd.reload()
+        la('sửa qua app giữ tổng',hd.grand_total,280000)
+        dung('sửa qua app giữ nhãn',cha.name+' - '+cb.ten in hd.items[0].description)
         hd.vgb_huy=1; hd.save(ignore_permissions=True)
         la('hủy mềm nhả số',kiem_kho.da_ban(khoa_diem,today()).get(mon,0),cu)
         la('không tạo SLE riêng',frappe.db.count('Stock Ledger Entry',{'voucher_no':hd.name}),0)
