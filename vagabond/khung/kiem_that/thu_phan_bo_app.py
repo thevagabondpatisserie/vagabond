@@ -28,6 +28,28 @@ def _chan(lam):
     dung("phải chặn", False)
 
 
+@ca("Payment Entry Desk/API: meta không còn bắt buộc và máy chủ tự điền tham chiếu")
+def _tham_chieu_tien_that():
+    from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
+    hd = _hoa_don_mua(10000000)
+    ba = _tk_ngan_hang(hd.company)
+    tk = frappe.db.get_value("Bank Account", ba, "account")
+    meta = frappe.get_meta("Payment Entry")
+    for o in ("reference_no", "reference_date"):
+        df = meta.get_field(o)
+        la(o + " không reqd", int(df.reqd or 0), 0)
+        dung(o + " không mandatory_depends_on", not df.mandatory_depends_on)
+    pe = get_payment_entry("Purchase Invoice", hd.name,
+        party_amount=1000000, bank_account=tk)
+    pe.bank_account = ba
+    pe.reference_no, pe.reference_date = "", None
+    pe.insert(ignore_permissions=True)
+    _DA_TAO.append((pe.doctype, pe.name))
+    pe.reload()
+    la("máy chủ điền số", pe.reference_no, "CK-" + today().replace("-", ""))
+    la("máy chủ điền ngày", str(pe.reference_date), today())
+
+
 @ca("APP từng đợt: 10 triệu trả 3 rồi 7, lõi GL/BT và retry")
 def _():
     hd = _hoa_don_mua(10000000)

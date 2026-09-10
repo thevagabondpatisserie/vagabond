@@ -59,6 +59,10 @@ doctype_js = {
 	"Purchase Order": "public/js/purchase_order.js",
 	"Sales Invoice": ["public/js/minvoice_phieu.js", "public/js/sua_pkt_tang.js"],
 	"Purchase Invoice": "public/js/purchase_invoice.js",
+	# Core kiem hai o so/ngay tham chieu ngay tren trinh duyet, truoc khi
+	# hook Python co co hoi chay. Dien khi validate de man Desk cua Dung va
+	# Uyen khong con bi chan; hook may chu van giu duong API. Issue #252.
+	"Payment Entry": "public/js/payment_entry.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
 	# chi quan so luong, HSD?"). Xem dau tep purchase_receipt.js.
