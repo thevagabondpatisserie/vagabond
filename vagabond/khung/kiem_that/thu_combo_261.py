@@ -26,7 +26,7 @@ def _combo():
         khoa_diem = '' if diem == 'SALES' else diem
         cu = kiem_kho.da_ban(khoa_diem,today()).get(mon,0)
         with patch.object(ban_hang,'_cong_ty',return_value=ct), patch.object(ban_hang,'_khach_le',return_value=kh), patch.object(diem_ban,'diem_cua_nguon',return_value=['SALES','TCV','NVHTN']):
-            ra = ban_hang.tao_don_tay(nguon='GrabFood',quay=diem,ma_don='GF-'+str(int(frappe.generate_hash(length=8),36)),
+            ra = ban_hang.tao_don_tay(nguon='GrabFood',quay=diem,ma_don='GF-'+str(2611 + ('SALES','TCV','NVHTN').index(diem)),
                 items=[dict(item_code=cha.name,qty=2,rate=140000)],tam_tinh=0)
         nen._DA_TAO.append(('Sales Invoice',ra['name']))
         hd = frappe.get_doc('Sales Invoice',ra['name'])
