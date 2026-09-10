@@ -60,7 +60,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_giao_dien_xuat_huy_va_tro_ly,
 	thu_goi_y_ycsx,
 	thu_gui_thu,
-	thu_hang_tang, thu_hddt_bu,
+	thu_hang_tang, thu_hddt_bu, thu_hddt_cho_xuat,
 	thu_nguyen_tac_man_hinh,
 	thu_kho_sap,
 	thu_o_cai_dat,
