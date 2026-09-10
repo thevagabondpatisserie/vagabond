@@ -102,7 +102,23 @@ def dong_len_hoa_don(items, ra):
     Total, gross thành 1 và 0; kịch bản gửi 2 dòng, hàm cũ trả 1 dòng.
     Đổi phép lọc ở đây thì PHẢI đổi cả bên kia, đừng đổi một bên.
     """
-    return [(it, x) for it, x in zip(items, ra) if so(it.get('amount')) > 0]
+    return [(it, x) for it, x in zip(items, ra) if dong_duoc_gui(it)]
+
+
+def dong_duoc_gui(it):
+    """MOT NGUON DUY NHAT cho cau hoi "dong nay co len to hoa don khong".
+
+    #266 vong 5, Codex bat dung lan thu hai: vong 4 moi sua phep loc cho
+    kich ban Server Script, con duong XUAT TAY (ban_hang.xuat_hoa_don_dien_tu)
+    van dung mot dong payload cho MOI dong SI. Don co mot mon 0 dong di
+    duong xuat tay thi len(sent) != len(cap) va cua cuoi nem loi truoc khi
+    goi HTTP, dung cau loi da lam chet dem 09/09.
+
+    Nay ca ba noi goi chung ham nay. Doi phep loc o day la doi ca ba, va con
+    phai doi CA kich ban tren site (minvoice_phat_hanh_20260907.txt dong 102,
+    `flt(it.amount) > 0`) cung luc, xem ca kiem chot hai ben cung mot truong.
+    """
+    return so((it or {}).get('amount') if isinstance(it, dict) else getattr(it, 'amount', 0)) > 0
 
 
 def chuan_tien(si, dd, ma_gop=None):

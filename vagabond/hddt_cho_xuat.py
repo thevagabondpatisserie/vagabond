@@ -505,7 +505,26 @@ def chay_nen(ngay, che_do, nguoi=""):
 	Gỡ cờ đối chiếu CHỈ khi m-invoice trả lời không có tờ nào mang mã phiếu
 	đó. Không hỏi được thì giữ cờ, thà chậm còn hơn phát hành đúp (13/08).
 	"""
+	# #266 vong 5, claude bat dung: ham nay nang quyen len Administrator de
+	# lam viec cua no. Khi xu_ly_ngay_cu khong day duoc sang hang doi va goi
+	# THANG ham nay trong chinh request cua nguoi dung, quyen nang len do o
+	# lai suot phan con lai cua request. xu_ly_ngay_cu mo cho ca ke toan
+	# (QUYEN_KEO), nen mot lan Redis truc trac la ke toan chay tiep request
+	# voi quyen Administrator. Nay nang quyen trong try/finally va tra lai
+	# dung nguoi goi.
+	nguoi_goc = frappe.session.user
 	frappe.set_user("Administrator")
+	try:
+		return _chay_nen_da_nang_quyen(ngay, che_do, nguoi)
+	finally:
+		try:
+			frappe.set_user(nguoi_goc)
+		except Exception:
+			pass
+
+
+def _chay_nen_da_nang_quyen(ngay, che_do, nguoi=""):
+	"""Than that cua chay_nen. Chi goi tu chay_nen, sau khi da nang quyen."""
 	from vagabond.ban_hang import (
 		_goi_server_script, _khoa_hddt, _mo_khoa_dong_bo, _cong_tac_minvoice,
 		_phat_hanh_theo_lo, _ky_theo_lo,
@@ -633,6 +652,36 @@ class KhongDocDuocNo(Exception):
 	"""Không đọc được trạng thái nợ ngày cũ. KHÔNG được hiểu là hết nợ."""
 
 
+def _loc_diem_dang_xuat(rows):
+	"""Ngày còn nợ, CHỈ tính tờ thuộc điểm bán đang bật xuất hoá đơn.
+
+	#266 vòng 5, Codex bắt đúng và đây là lỗi CHẾT MÁY chứ không phải lỗi
+	nhỏ: hai tập nợ trước đây đếm mọi tờ cũ chưa có hoá đơn, kể cả tờ của
+	nguồn hay quầy KHÔNG bật xuất hoá đơn, và cả phiếu tạo tay trên Desk có
+	custom_nguon rỗng. Kịch bản phát hành lọc theo đúng nguồn và quầy trong
+	cài đặt, nên nó KHÔNG BAO GIỜ xuất được những tờ ấy. Hệ quả:
+	xuat_ngay_cu_truoc không rút cạn nổi ngày đó, còn chan_neu_con_ngay_cu
+	thì chặn MỌI tờ mới, vĩnh viễn. Tức là cả tiệm ngừng xuất hoá đơn vì một
+	phiếu Desk cũ không liên quan.
+
+	Dùng CHÍNH thuoc_diem_dang_xuat của đường phát hành, không viết lại phép
+	lọc thứ hai (điều 18). Đọc cài đặt hỏng thì NÉM, không âm thầm bỏ lọc.
+	"""
+	try:
+		_stg, ds_nguon, ds_quay = _cai_dat_minvoice()
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc cai dat m-invoice")
+		raise KhongDocDuocNo("không đọc được cài đặt m-invoice: %s" % str(e)[:150])
+	ra = []
+	for r in rows or []:
+		if not thuoc_diem_dang_xuat(r, ds_nguon, ds_quay):
+			continue
+		d = r.get("posting_date")
+		if d is not None and d not in ra:
+			ra.append(d)
+	return ra
+
+
 def ngay_cu_dang_cho():
 	"""Ngày CŨ có tờ ĐỦ ĐIỀU KIỆN TỰ ĐỘNG phát hành mang đúng ngày bán.
 
@@ -641,15 +690,18 @@ def ngay_cu_dang_cho():
 	Đọc lỗi thì NÉM, không trả rỗng: rỗng bị caller hiểu là hết nợ (#266 vòng 5).
 	"""
 	try:
-		r = frappe.db.sql("""select distinct posting_date from `tabSales Invoice`
+		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
+			from `tabSales Invoice`
 			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
 			  and grand_total > 0 and ifnull(vgb_hddt_cho_doi_chieu, 0) != 1
 			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
 			  and ifnull(custom_hddt_id, '') = ''
 			  and {truong} is not null and {truong} = posting_date
 			  and posting_date < %(hom_nay)s""".format(truong=TRUONG_NGAY_XUAT),
-			{"hom_nay": nowdate()})
-		return [x[0] for x in r]
+			{"hom_nay": nowdate()}, as_dict=True)
+		return _loc_diem_dang_xuat(rows)
+	except KhongDocDuocNo:
+		raise
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc ngay cu dang cho")
 		raise KhongDocDuocNo(str(e)[:200])
@@ -669,14 +721,17 @@ def ngay_cu_can_bao_ve():
 	Đọc lỗi thì NÉM, không trả rỗng.
 	"""
 	try:
-		r = frappe.db.sql("""select distinct posting_date from `tabSales Invoice`
+		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
+			from `tabSales Invoice`
 			where docstatus in (0, 1) and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
 			  and grand_total > 0
 			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
 			  and ifnull(custom_hddt_id, '') = ''
 			  and posting_date < %(hom_nay)s""",
-			{"hom_nay": nowdate()})
-		return [x[0] for x in r]
+			{"hom_nay": nowdate()}, as_dict=True)
+		return _loc_diem_dang_xuat(rows)
+	except KhongDocDuocNo:
+		raise
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc ngay cu can bao ve")
 		raise KhongDocDuocNo(str(e)[:200])

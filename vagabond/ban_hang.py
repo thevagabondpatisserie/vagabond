@@ -3238,23 +3238,36 @@ def _ngay_so_hddt_moi_nhat():
 	(vgb_hddt_ngay_xuat), nen doc posting_date tran la doc sai. To keo ngay
 	lap 10/09 nhung so 09/09 se lam ham nay bao 09/09 trong khi m-invoice da
 	sang 10/09, va man hinh lai de nghi giu_ngay cho mot cua da dong.
-	Cot moi chi co sau migrate nen co duong lui ve posting_date."""
-	for cau in (
-		"""select coalesce(vgb_hddt_ngay_xuat, posting_date) from `tabSales Invoice`
+	Cot moi chi co sau migrate nen co duong lui ve posting_date.
+
+	#266 vong 5, Codex va claude bat dung: ban truoc bat loi roi goi
+	frappe.db.rollback() de thu cau du phong. Ham nay duoc goi tu
+	minvoice_an_toan.kiem_goi, ma kiem_goi dang GIU khoa dong
+	(get_doc for_update=True) va phai giu toi khi luu xong dau cho.
+	rollback o day NHA MAT KHOA ay va vut ca phan viec chua commit cua
+	chinh lan ghi so dang chay. Nang hon: trong khoang tu luc deploy toi
+	luc migrate xong, cot vgb_hddt_ngay_xuat chua ton tai nen cau dau
+	HONG MOI LAN GOI, tuc rollback no moi lan xuat hoa don.
+	Nay hoi truoc bang has_column, khong bat loi de rollback nua."""
+	co_cot = False
+	try:
+		co_cot = bool(frappe.db.has_column("Sales Invoice", "vgb_hddt_ngay_xuat"))
+	except Exception:
+		co_cot = False
+	cau = ("""select coalesce(vgb_hddt_ngay_xuat, posting_date) from `tabSales Invoice`
 			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
-			order by cast(custom_hddt_so as unsigned) desc limit 1""",
+			order by cast(custom_hddt_so as unsigned) desc limit 1""" if co_cot else
 		"""select posting_date from `tabSales Invoice`
 			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
-			order by cast(custom_hddt_so as unsigned) desc limit 1""",
-	):
-		try:
-			r = frappe.db.sql(cau)
-			return r[0][0] if r else None
-		except Exception:
-			frappe.db.rollback()
-			continue
-	frappe.log_error(frappe.get_traceback(), "ban_hang: doc so HDDT moi nhat")
-	return None
+			order by cast(custom_hddt_so as unsigned) desc limit 1""")
+	try:
+		r = frappe.db.sql(cau)
+		return r[0][0] if r else None
+	except Exception:
+		# KHONG rollback: xem chu thich tren. Doc khong duoc thi tra None,
+		# nguoi goi tu quyet dinh, va khoa dong van con nguyen.
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc so HDDT moi nhat")
+		return None
 
 
 def _dem_hddt_sot(ngay):
@@ -4577,8 +4590,17 @@ def xuat_hoa_don_dien_tu(si_name):
 			si.get("custom_hddt_so"), _kh_cu, si.posting_date, _mau_cu
 		)
 
+	# #266 vong 5, Codex bat dung: duong xuat TAY nay phai loc dong y het
+	# duong kich ban, khong thi thue_vnd.chuan_tien nem "Payload khong cung
+	# so dong co tien cua SI" ngay truoc khi goi HTTP. Dung chung ham
+	# thue_vnd.dong_duoc_gui de khong co phep loc thu hai (dieu 18).
+	from vagabond import thue_vnd as _tv
 	dong, t_chua, t_thue = [], 0, 0
-	for i, r in enumerate(si.items, 1):
+	i = 0
+	for r in si.items:
+		if not _tv.dong_duoc_gui(r):
+			continue
+		i += 1
 		gross = flt(r.amount)
 		chua, thue = _tach_thue(gross, ts)
 		t_chua += chua
