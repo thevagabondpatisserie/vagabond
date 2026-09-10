@@ -115,3 +115,24 @@ def _():
             return
     dung("đọc được ba con số", "10.000.000 đ" in cau and
         "7.000.000 đ" in cau and "3.000.000 đ" in cau)
+
+
+@ca("APP cửa kiểm: truyền đúng tập hóa đơn xuống phạm vi khóa SQL")
+def _():
+    goi = []
+    hd = SimpleNamespace(docstatus=1, outstanding_amount=10000000,
+        supplier="NCC", company="CT", currency="VND")
+    def sql(cau, tham_so, as_dict=False):
+        goi.append((cau, tham_so))
+        return []
+    with patch.object(frappe.db, "get_value", return_value=hd), \
+            patch.object(frappe.db, "sql", side_effect=sql):
+        pb._kiem([{"hoa_don": "HD-2", "so_tien": 1000},
+            {"hoa_don": "HD-1", "so_tien": 2000},
+            {"hoa_don": "HD-2", "so_tien": 3000}], khoa=True)
+    dung("đã đọc phần giữ tiền", bool(goi))
+    if goi:
+        cau, tham_so = goi[0]
+        dung("SQL khóa có bộ lọc hóa đơn", "d.hoa_don in %s" in cau)
+        dung("SQL thật sự yêu cầu khóa", "for update" in cau)
+        la("tập hóa đơn không trùng và không mở rộng", tham_so[2:] , (("HD-1", "HD-2"),))

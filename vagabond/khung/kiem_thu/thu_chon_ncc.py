@@ -312,7 +312,7 @@ def _to_da_huy_vao_duoc():
 def _ly_do_giu_tien_cung_nguon():
 	s = _py("ho_so_tt.py")
 	i = s.index("def _hd_ho_so_giu(")
-	than = s[i:s.index("\ndef _hd_da_gom(", i)]
+	than = s[i:s.index("\n@frappe.whitelist()", i)]
 	dung("dùng phép giữ tiền theo số còn lại", "dang_giu_chi_tiet" in than)
 	dung("không còn truy vấn riêng tính cả trạng thái Nhap", "'Nhap'" not in than)
 	hd = {"name": "HD-1", "docstatus": 1, "outstanding": 10000000,
