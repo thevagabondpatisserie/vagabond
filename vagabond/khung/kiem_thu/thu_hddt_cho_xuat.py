@@ -18,6 +18,7 @@ m-invoice không có dấu vết tờ, và chip cùng câu chữ với app.
 
 import datetime
 import io
+import unittest.mock
 import json
 import os
 
@@ -225,7 +226,8 @@ def _hom_nay():
 
 @ca("#266: gỡ cờ đối chiếu chỉ khi m-invoice trả lời không có dấu vết tờ")
 def _go_co():
-	kc = dict(da_kiem_chung=True)
+	# CHUNG là mẫu đối chứng lượt này dựng ra: mã "không có tờ" đo được là "01".
+	kc = dict(chung={"ma": "01", "duong": "SI-X", "khoa_am": "VGB-KHONG-TON-TAI-AB12"})
 	dung("không có tờ", hddt_cho_xuat.minvoice_khong_co_to({"code": "01", "message": "not found", "data": None}, **kc))
 	dung("có số hoá đơn thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceNumber": "12950"}}, **kc))
 	dung("có ID thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceAuth_id": "x"}}, **kc))
@@ -237,31 +239,139 @@ def _go_co():
 def _go_co_loi():
 	# Tái hiện finding: trước sửa, cả bốn phản hồi dưới đây đều cho gỡ cờ,
 	# nên tờ đã có hoá đơn bị gửi lại và sinh hoá đơn đúp.
+	kc = dict(chung={"ma": "01", "duong": "SI-X", "khoa_am": "VGB-KHONG-TON-TAI-AB12"})
 	for ph in ({"code": "500", "message": "internal error"},
 			{"code": "401", "message": "Unauthorized"},
 			{"code": "503", "message": ""},
 			{"message": "System error, please try again"},
 			{"code": "00", "message": "Token expired"}):
-		dung("phải giữ cờ với %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, da_kiem_chung=True))
+		dung("phải giữ cờ với %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, **kc))
 	# Phản hồi không có hình dạng của API cũng không kết luận được.
 	for ph in ({}, {"linh": "tinh"}):
-		dung("phản hồi lạ phải giữ cờ %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, da_kiem_chung=True))
+		dung("phản hồi lạ phải giữ cờ %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, **kc))
+
+
+@ca("#266 vòng 3 (F1): mã LẠ chưa từng thấy cũng phải giữ cờ")
+def _go_co_ma_la():
+	"""Vòng 2 lọc theo danh sách CẤM nên mã 9999 và 296 vẫn gỡ được cờ:
+	9999 là đúng mã m-invoice đã từ chối 116 tờ TCV đêm 09/09, 296 là mã từ
+	chối vì ngày lập đã lùi. Cả hai đều KHÔNG phải câu "không có tờ".
+	Vòng 3 chỉ nhận đúng mã đo được từ mẫu âm tính."""
+	kc = dict(chung={"ma": "01", "duong": "SI-X", "khoa_am": "VGB-KHONG-TON-TAI-AB12"})
+	for ph in ({"code": "9999", "message": "Mã chưa rõ"},
+			{"code": "296", "message": "date is not valid"},
+			{"code": "", "message": ""},
+			{"code": None, "data": None},
+			{"message": "not found", "data": None},
+			{"code": "02", "message": "not found", "data": None}):
+		dung("mã lạ %s phải giữ cờ" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, **kc))
+	# Còn đúng mã của mẫu âm tính thì gỡ, dù mẫu ấy là mã nào đi nữa.
+	for ma in ("01", "02", "", None):
+		c = {"ma": hddt_cho_xuat._ma_phan_hoi({"code": ma}), "duong": "SI-X", "khoa_am": "K"}
+		dung("trùng mẫu âm tính %r thì gỡ" % ma,
+			hddt_cho_xuat.minvoice_khong_co_to({"code": ma, "data": None}, chung=c))
+
+
+@ca("#266 vòng 3 (F1): mẫu đối chứng ÂM TÍNH phải tự dựng được và tự hỏng được")
+def _mau_am_tinh():
+	"""kiem_chung_api chạm Frappe nên bộ khung không với tới; ở đây giả lập
+	hai lời gọi ra ngoài để chốt: hỏi đúng một mã phiếu bịa ra, và mọi cách
+	hỏng của mẫu ấy đều làm cả lượt KHÔNG kết luận gì (trả None)."""
+	db = unittest.mock.MagicMock()
+	db.get_value.return_value = "SI-DA-CO-HDDT"
+
+	def chay(dap):
+		hoi = []
+
+		def gia(base, hdr, khoa):
+			hoi.append(khoa)
+			ra = dap(khoa)
+			if isinstance(ra, Exception):
+				raise ra
+			return ra
+
+		with unittest.mock.patch.object(hddt_cho_xuat, "frappe", unittest.mock.MagicMock(db=db)), \
+				unittest.mock.patch.object(hddt_cho_xuat, "_hoi_minvoice", gia):
+			return hddt_cho_xuat.kiem_chung_api("http://x", {}), hoi
+
+	co_dau = {"code": "00", "data": {"inv_invoiceNumber": "12943"}}
+	sach = {"code": "01", "message": "not found", "data": None}
+
+	# Đủ hai mẫu: dựng được, và mã "không có tờ" đúng bằng mã của mẫu âm tính.
+	(chung, cau), hoi = chay(lambda k: co_dau if k == "SI-DA-CO-HDDT" else sach)
+	dung("dựng được mẫu đối chứng", bool(chung))
+	la("mã không có tờ đo được", chung.get("ma"), "01")
+	dung("có hỏi một mã phiếu bịa ra", any(
+		str(k).startswith(hddt_cho_xuat.KHOA_AM_TINH) for k in hoi))
+	dung("mã bịa ra không trùng mã phiếu thật", "SI-DA-CO-HDDT" != chung.get("khoa_am"))
+	dung("hai lần hỏi khác mã nhau", len(set(hoi)) == 2)
+
+	# Mẫu âm tính LẠI có dấu vết: m-invoice nhận vơ cả mã không tồn tại.
+	(chung, cau), _ = chay(lambda k: co_dau)
+	dung("mẫu âm tính có dấu vết thì không kết luận", chung is None)
+	dung("và nói rõ vì sao", "chưa từng tồn tại" in cau)
+
+	# Mẫu âm tính là lỗi hệ thống, hay không ra hình dạng API, hay ném lỗi.
+	for dap, mo_ta in (
+			(lambda k: co_dau if k == "SI-DA-CO-HDDT" else {"code": "500", "message": "internal error"}, "lỗi hệ thống"),
+			(lambda k: co_dau if k == "SI-DA-CO-HDDT" else "<html>", "không ra hình dạng API"),
+			(lambda k: co_dau if k == "SI-DA-CO-HDDT" else RuntimeError("404"), "ném lỗi")):
+		(chung, cau), _ = chay(dap)
+		dung("mẫu âm tính %s thì không kết luận" % mo_ta, chung is None)
+
+	# Mẫu DƯƠNG TÍNH hỏng thì dừng trước, không cần hỏi mẫu âm tính.
+	(chung, cau), hoi = chay(lambda k: sach)
+	dung("mẫu dương tính không có dấu vết thì dừng", chung is None)
+	la("dừng ngay, chỉ hỏi một lần", len(hoi), 1)
+
+	# Chưa có tờ nào đã xuất thì cũng không kết luận.
+	db.get_value.return_value = None
+	(chung, cau), hoi = chay(lambda k: sach)
+	dung("không có tờ mẫu thì không kết luận", chung is None)
+	la("và không hỏi m-invoice lần nào", len(hoi), 0)
+	db.get_value.return_value = "SI-DA-CO-HDDT"
+
+
+@ca("#266 vòng 3 (F1): mỗi lớp chặn đứng một mình cũng phải chặn được")
+def _go_co_tung_lop():
+	"""Đột biến vòng 3 cho thấy hai lớp cũ (chặn lỗi hệ thống, đòi hình dạng
+	API) không làm đổ ca nào, vì lớp đối chiếu mã che mất chúng. Hai ca dưới
+	đây dựng đúng tình huống lớp kia KHÔNG đỡ được, để mỗi lớp tự đứng.
+	ĐỪNG sửa hai ca này thành mã khác mẫu âm tính, làm vậy là che lỗi lại."""
+	# Cổng m-invoice trả code "00" cho cả "không có tờ" lẫn lỗi token hết hạn:
+	# mã trùng mẫu âm tính, chỉ còn _la_loi_he_thong đỡ.
+	c00 = {"ma": "00", "duong": "SI-X", "khoa_am": "K"}
+	dung("mã trùng mẫu nhưng message báo lỗi thì vẫn giữ cờ",
+		not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "message": "Token expired"}, chung=c00))
+	dung("còn câu sạch cùng mã ấy thì gỡ",
+		hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": None}, chung=c00))
+	# Cổng trả về không có khoá code: mẫu âm tính cũng None, chỉ còn lớp
+	# "phải có hình dạng phản hồi của API" đỡ.
+	cnone = {"ma": None, "duong": "SI-X", "khoa_am": "K"}
+	for ph in ({}, {"linh": "tinh"}, {"1": 2}):
+		dung("phản hồi không ra hình dạng API thì giữ cờ %s" % ph,
+			not hddt_cho_xuat.minvoice_khong_co_to(ph, chung=cnone))
+	dung("có khoá của API và cùng mẫu thì gỡ",
+		hddt_cho_xuat.minvoice_khong_co_to({"data": None, "message": ""}, chung=cnone))
 
 
 @ca("#266 vòng 2 (F1): chưa đối chứng được API thì không gỡ cờ tờ nào")
 def _go_co_chua_kiem_chung():
 	sach = {"code": "01", "message": "not found", "data": None}
 	dung("chưa kiểm chứng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(sach))
-	dung("kiểm chứng rồi mới gỡ", hddt_cho_xuat.minvoice_khong_co_to(sach, da_kiem_chung=True))
+	dung("chung rỗng cũng giữ", not hddt_cho_xuat.minvoice_khong_co_to(sach, chung={}))
+	dung("kiểm chứng rồi mới gỡ", hddt_cho_xuat.minvoice_khong_co_to(
+		sach, chung={"ma": "01", "duong": "SI-X", "khoa_am": "K"}))
 	h = _doc("vagabond", "hddt_cho_xuat.py")
 	i = h.find("def chay_nen(")
 	than = h[i:h.find("\ndef ", i + 10)]
 	dung("chay_nen đối chứng API trước khi hỏi từng tờ", "kiem_chung_api(base, hdr)" in than)
 	dung("và truyền kết quả đối chứng vào từng lượt hỏi",
-		"_tra_minvoice(base, hdr, r.name, da_kiem_chung)" in than)
+		"_tra_minvoice(base, hdr, r.name, chung)" in than)
 	kc = h[h.find("def kiem_chung_api("):]
 	dung("mẫu đối chứng là tờ CHẮC CHẮN đã có hoá đơn",
 		'"custom_hddt_so": ["!=", ""]' in kc and '"custom_minvoice_id": ["!=", ""]' in kc)
+	dung("và có mẫu ÂM TÍNH bằng mã phiếu bịa ra", "KHOA_AM_TINH" in kc and "uuid4()" in kc)
 
 
 @ca("#266: chip cùng câu chữ giữa máy chủ và app")
