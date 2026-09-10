@@ -2906,7 +2906,15 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 	# Script After Submit xuat hoa don ngay, ma m-invoice danh so theo ngay
 	# lap: to dau tien cua hom nay dong sap cua moi ngay cu con dang cho.
 	# Nen phat hanh het ngay cu TRUOC khi cham vao to nao cua hom nay.
-	hddt_cho_xuat.xuat_ngay_cu_truoc()
+	#
+	# Vong 2 (#266): doc TRANG THAI chu khong goi roi di tiep. Con no ngay cu
+	# thi bo luot nay, nhip 5 phut sau lam tiep; cua chung kiem_goi van chan
+	# them mot lop nua.
+	if not hddt_cho_xuat.xuat_ngay_cu_truoc():
+		frappe.log_error(
+			"Chuoi cuoi ngay bo luot: con hoa don ngay cu cho xuat, nhuong cho chung di truoc.",
+			"ban_hang cuoi ngay: nhuong ngay cu")
+		return
 
 	if not da_du_chuoi or chay_tay:
 		try:
@@ -3222,19 +3230,31 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 
 
 def _ngay_so_hddt_moi_nhat():
-	"""Ngay lap cua to hoa don dien tu mang SO lon nhat. m-invoice danh so
+	"""NGAY LAP cua to hoa don dien tu mang SO lon nhat. m-invoice danh so
 	tang theo ngay lap: ngay nao nho hon ngay nay thi khong phat hanh them
-	duoc nua (ma loi 296, bat duoc sang 03/09/2026)."""
-	try:
-		r = frappe.db.sql(
-			"""select posting_date from `tabSales Invoice`
+	duoc nua (ma loi 296, bat duoc sang 03/09/2026).
+
+	#266 vong 2, Codex bat dung: to duoc keo di voi ngay lap khac ngay so
+	(vgb_hddt_ngay_xuat), nen doc posting_date tran la doc sai. To keo ngay
+	lap 10/09 nhung so 09/09 se lam ham nay bao 09/09 trong khi m-invoice da
+	sang 10/09, va man hinh lai de nghi giu_ngay cho mot cua da dong.
+	Cot moi chi co sau migrate nen co duong lui ve posting_date."""
+	for cau in (
+		"""select coalesce(vgb_hddt_ngay_xuat, posting_date) from `tabSales Invoice`
 			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
-			order by cast(custom_hddt_so as unsigned) desc limit 1"""
-		)
-		return r[0][0] if r else None
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ban_hang: doc so HDDT moi nhat")
-		return None
+			order by cast(custom_hddt_so as unsigned) desc limit 1""",
+		"""select posting_date from `tabSales Invoice`
+			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
+			order by cast(custom_hddt_so as unsigned) desc limit 1""",
+	):
+		try:
+			r = frappe.db.sql(cau)
+			return r[0][0] if r else None
+		except Exception:
+			frappe.db.rollback()
+			continue
+	frappe.log_error(frappe.get_traceback(), "ban_hang: doc so HDDT moi nhat")
+	return None
 
 
 def _dem_hddt_sot(ngay):
@@ -3337,8 +3357,9 @@ def xuat_rai_trong_ngay():
 			return
 		# Cung hang rao thu tu voi chuoi cuoi ngay (#266): nhip nay ghi so bill
 		# quay du 4 gio, moi to ghi so la xuat hoa don ngay, nen no cung dong
-		# duoc cua cua ngay cu.
-		hddt_cho_xuat.xuat_ngay_cu_truoc()
+		# duoc cua cua ngay cu. Con no thi bo luot, khong ghi so to nao.
+		if not hddt_cho_xuat.xuat_ngay_cu_truoc():
+			return
 		ngay = nowdate()
 		gio = _gio_hop_le(c.get("tu_ghi_so_gio"))
 		if not hddt_bu.duoc_rai(

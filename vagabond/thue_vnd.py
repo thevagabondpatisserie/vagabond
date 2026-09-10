@@ -95,8 +95,15 @@ def dong_len_hoa_don(items, ra):
     return [(it, x) for it, x in zip(items, ra) if x['gross'] > 0]
 
 
-def chuan_tien(si, dd):
+def chuan_tien(si, dd, ma_gop=None):
+    """ma_gop: tập mã hàng khai trong MInvoice Phat Hanh Settings.ma_hang_gop,
+    là những mã kịch bản CỐ Ý gửi số lượng 1 dù dòng SI ghi nhiều hơn.
+
+    #266 vòng 2 (Codex): bản trước nhận qty=1 cho MỌI mã, nên payload hỏng của
+    một món thường ba cái vẫn qua cửa cuối và ra tờ hoá đơn ghi một cái với
+    đơn giá bằng cả dòng. Không khai ma_gop thì KHÔNG có ngoại lệ nào."""
     if not si.get('vgb_thue_vnd'): return
+    gop={str(m).strip().upper() for m in (ma_gop or []) if str(m).strip()}
     ra=doc_dong(si); items=si.get('items') or []
     sent=[d for nhom in dd.get('details') or [] for d in nhom.get('data') or []]
     cap=dong_len_hoa_don(items, ra)
@@ -104,11 +111,8 @@ def chuan_tien(si, dd):
     for d,(it,x) in zip(sent,cap):
         if d.get('inv_itemCode')!=it.get('item_code'):
             raise ValueError('Payload không đúng thứ tự dòng SI.')
-        # Mã hàng gộp (ma_hang_gop bên cài đặt m-invoice, ví dụ phí dịch vụ)
-        # kịch bản gửi số lượng 1 dù dòng SI ghi nhiều hơn; ngoài ca đó số
-        # lượng phải khớp từng dòng.
         sl=so(d.get('inv_quantity'))
-        if sl!=so(it.get('qty')) and sl!=1:
+        if sl!=so(it.get('qty')) and not (sl==1 and str(it.get('item_code') or '').strip().upper() in gop):
             raise ValueError('Payload không đúng số lượng dòng SI.')
         # ma_thue phải là SỐ NGUYÊN: m-invoice từ chối "Mã thuế suất= [8.0]"
         # (mã 9999, 116 tờ TCV đêm 09/09/2026 giữ đối chiếu vì đúng lỗi này).

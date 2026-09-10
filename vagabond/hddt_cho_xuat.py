@@ -114,13 +114,49 @@ def loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay):
 	return ra
 
 
-def minvoice_khong_co_to(phan_hoi):
-	"""GetInfoInvoice theo keyApi trả về mà KHÔNG mang dấu vết chứng từ nào
-	(số, ID, ký hiệu...) ở bất kỳ tầng nào thì mới coi là m-invoice chưa có
-	tờ. Lỗi mạng, phản hồi không đọc được, hay có dấu vết đều là "chưa chắc",
-	giữ cờ. Dùng chung phép dò dấu vết với phân loại phản hồi Save."""
+# Dấu hiệu phản hồi là LỖI chứ không phải câu trả lời "không có tờ".
+DAU_HIEU_LOI = ("error", "exception", "fail", "timeout", "unauthorized", "forbidden",
+	"internal", "server", "denied", "expired", "hết hạn", "loi ", "lỗi")
+KHOA_PHAN_HOI = {"code", "data", "message", "ok"}
+
+
+def _la_loi_he_thong(phan_hoi):
+	"""Mã 3 chữ số bắt đầu 4 hoặc 5, hay message nói lỗi, thì đây là lỗi của
+	m-invoice chứ không phải câu trả lời về tờ hoá đơn. Mã 296 (từ chối thật)
+	bắt đầu bằng 2 nên không rơi vào đây."""
+	ma = str(phan_hoi.get("code") or "").strip()
+	if len(ma) == 3 and ma.isdigit() and ma[0] in "45":
+		return True
+	tin = str(phan_hoi.get("message") or "").lower()
+	return any(d in tin for d in DAU_HIEU_LOI)
+
+
+def minvoice_khong_co_to(phan_hoi, da_kiem_chung=False):
+	"""m-invoice có CHẮC CHẮN chưa có tờ nào mang mã phiếu này không.
+
+	#266 vòng 2, Codex bắt đúng: bản trước coi MỌI phản hồi dạng dict không
+	mang dấu vết là "không có tờ", nên {"code":"500","message":"internal
+	error"} cũng gỡ được cờ và tờ đó bị gửi lại, sinh hoá đơn đúp. Mẫu
+	not-found thật của m-invoice thì CHƯA AI THẤY, nên không thể khai một
+	danh sách mã "đã xác minh".
+
+	Cách chốt: đòi ba điều cùng lúc.
+	1. da_kiem_chung: trong CHÍNH lượt này, hỏi một tờ CHẮC CHẮN đã có hoá
+	   đơn và m-invoice đã trả về dấu vết chứng từ. Đó là bằng chứng API
+	   đang sống và đang phân biệt được hai trạng thái. Không có mẫu dương
+	   tính thì không kết luận gì, giữ cờ.
+	2. Phản hồi có hình dạng của API (có ít nhất một khoá code/data/message/ok)
+	   và không mang dấu vết chứng từ nào ở bất kỳ tầng nào.
+	3. Không phải lỗi hệ thống (xem _la_loi_he_thong).
+	"""
 	from vagabond.minvoice_an_toan import _co_dau_vet
+	if not da_kiem_chung:
+		return False
 	if not isinstance(phan_hoi, dict):
+		return False
+	if not (set(phan_hoi) & KHOA_PHAN_HOI):
+		return False
+	if _la_loi_he_thong(phan_hoi):
 		return False
 	return not _co_dau_vet(phan_hoi)
 
@@ -185,6 +221,46 @@ def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None):
 	return sorted(ra)
 
 
+CHO_SAU_LOI_PHUT = 15
+
+
+def phai_nhuong_ngay_cu(ngay_lap_to, hom_nay, ds_ngay_cho, ngay_so_moi_nhat=None,
+		moc_loi=None, bay_gio=None):
+	"""Tờ sắp gửi m-invoice có phải nhường cho ngày cũ đi trước không.
+
+	#266 vòng 2, Codex bắt đúng: hàng rào cũ chỉ nằm ở hai nhịp lịch, trong
+	khi chốt đơn tay và chốt cả loạt cũng phát hành ngay sau khi ghi sổ. Nay
+	phép này được gọi ở CỬA CHUNG minvoice_an_toan.kiem_goi, nơi cả Python
+	lẫn Server Script đều đi qua, nên không còn lối vào nào lách được.
+
+	Trả (phải nhường, danh sách ngày cũ còn mở, lý do).
+
+	Van an toàn: nếu hàng rào vừa thử mà m-invoice không nhận tờ ngày cũ nào
+	(moc_loi trong vòng CHO_SAU_LOI_PHUT phút) thì thôi chặn. Không có van
+	này thì một ngày cũ hỏng dữ liệu sẽ chặn cả tiệm không xuất được gì.
+	"""
+	ngay_lap_to, hom_nay = _ngay(ngay_lap_to), _ngay(hom_nay)
+	ds = ngay_cu_con_mo(ds_ngay_cho, hom_nay, ngay_so_moi_nhat)
+	if not ds:
+		return False, [], "không còn ngày cũ nào đang chờ"
+	# Chính tờ này là tờ của ngày cũ: nó phải được đi, không thì bế tắc.
+	if ngay_lap_to is not None and ngay_lap_to < hom_nay:
+		return False, ds, "tờ này mang ngày cũ, được đi trước"
+	moc_loi, bay_gio = _gio(moc_loi), _gio(bay_gio)
+	if moc_loi is not None and bay_gio is not None:
+		if (bay_gio - moc_loi).total_seconds() < CHO_SAU_LOI_PHUT * 60:
+			return False, ds, "hàng rào vừa thử không xuất được tờ ngày cũ nào, tạm mở để tiệm chạy tiếp"
+	return True, ds, "còn hoá đơn ngày %s chờ xuất" % ", ".join(ngay_vn(d) for d in ds)
+
+
+def _gio(v):
+	if v is None or v == "":
+		return None
+	if isinstance(v, datetime.datetime):
+		return v
+	return datetime.datetime.fromisoformat(str(v)[:19])
+
+
 # ------------------------------------------------------------ chạm Frappe
 
 import frappe
@@ -226,16 +302,47 @@ def _dang_nhap_minvoice(stg):
 	return base, {"Authorization": "Bear " + str(tok), "Content-Type": "application/json"}, ""
 
 
-def _tra_minvoice(base, hdr, ten_phieu):
-	"""Hỏi m-invoice có tờ mang keyApi = mã phiếu không. Trả (chắc chắn không có, câu)."""
+def _hoi_minvoice(base, hdr, ten_phieu):
 	from frappe.integrations.utils import make_get_request
+	return make_get_request(base + "/api/InvoiceApi78/GetInfoInvoice", headers=hdr, params={"keyApi": ten_phieu})
+
+
+def kiem_chung_api(base, hdr):
+	"""Hỏi một tờ CHẮC CHẮN đã có hoá đơn, phải thấy dấu vết chứng từ.
+
+	Đây là mẫu dương tính bắt buộc trước khi tin bất kỳ câu "không có tờ"
+	nào (#266 vòng 2). m-invoice sập, trả rỗng, hay đổi cách trả lời thì
+	mẫu này cũng không có dấu vết, và cả lượt sẽ không gỡ cờ tờ nào.
+	Trả (đã kiểm chứng, câu giải thích).
+	"""
+	from vagabond.minvoice_an_toan import _co_dau_vet
+	ten = frappe.db.get_value(
+		"Sales Invoice",
+		{"docstatus": 1, "custom_hddt_so": ["!=", ""], "custom_minvoice_id": ["!=", ""]},
+		"name", order_by="modified desc")
+	if not ten:
+		return False, "chưa có tờ nào đã xuất để làm mẫu đối chứng"
 	try:
-		r = make_get_request(base + "/api/InvoiceApi78/GetInfoInvoice", headers=hdr, params={"keyApi": ten_phieu})
+		r = _hoi_minvoice(base, hdr, ten)
+	except Exception as e:
+		return False, "không hỏi được m-invoice bằng tờ đối chứng %s: %s" % (ten, str(e)[:120])
+	if not _co_dau_vet(r):
+		return False, ("m-invoice không trả dấu vết cho tờ %s dù tờ này chắc chắn đã có hoá đơn, "
+			"nên mọi câu trả lời khác trong lượt này đều không đáng tin" % ten)
+	return True, "đã đối chứng bằng tờ %s" % ten
+
+
+def _tra_minvoice(base, hdr, ten_phieu, da_kiem_chung=False):
+	"""Hỏi m-invoice có tờ mang keyApi = mã phiếu không. Trả (chắc chắn không có, câu)."""
+	try:
+		r = _hoi_minvoice(base, hdr, ten_phieu)
 	except Exception as e:
 		return False, "không hỏi được m-invoice: " + str(e)[:150]
-	if minvoice_khong_co_to(r):
+	if minvoice_khong_co_to(r, da_kiem_chung):
 		return True, "m-invoice trả lời không có tờ nào mang mã phiếu này"
-	return False, "m-invoice có dấu vết tờ mang mã phiếu này, kế toán đối chiếu tay"
+	if not da_kiem_chung:
+		return False, "chưa đối chứng được API m-invoice nên không dám kết luận, giữ cờ"
+	return False, "m-invoice không xác nhận là chưa có tờ, kế toán đối chiếu tay"
 
 
 def _dem_theo_ngay(ngay_cu, hom_nay):
@@ -336,12 +443,17 @@ def chay_nen(ngay, che_do, nguoi=""):
 		"keo": 0, "go_co": 0, "giu_co": 0, "loi": []}
 	nhan = nhan_chip(ngay_dat)
 	base, hdr, loi_dn = (None, None, "")
+	da_kiem_chung, cau_kc = False, ""
 	if any(cint(r.vgb_hddt_cho_doi_chieu) for r in chon):
 		base, hdr, loi_dn = _dang_nhap_minvoice(stg)
+		if base:
+			da_kiem_chung, cau_kc = kiem_chung_api(base, hdr)
+			if not da_kiem_chung:
+				kq["loi"].append("Không gỡ cờ đối chiếu tờ nào: " + cau_kc)
 	for r in chon:
 		try:
 			if cint(r.vgb_hddt_cho_doi_chieu):
-				khong_co, cau = _tra_minvoice(base, hdr, r.name) if base else (False, loi_dn)
+				khong_co, cau = _tra_minvoice(base, hdr, r.name, da_kiem_chung) if base else (False, loi_dn)
 				if not khong_co:
 					kq["giu_co"] += 1
 					if len(kq["loi"]) < 50:
@@ -369,9 +481,10 @@ def chay_nen(ngay, che_do, nguoi=""):
 	if che_do == "giu_ngay" and kq["keo"]:
 		# Lượt này có thể là của chính hôm nay (gỡ cờ cho bill quầy). Tờ hôm
 		# nay mà ra trước là đóng cửa mọi ngày cũ đang chờ, nên nhường trước.
-		if ngay_cu >= hom_nay:
-			xuat_ngay_cu_truoc()
 		bat_ph, bat_ky = _cong_tac_minvoice()
+		if ngay_cu >= hom_nay and not xuat_ngay_cu_truoc():
+			kq["loi"].append("Còn hoá đơn ngày cũ chờ xuất, chưa phát hành tờ của hôm nay.")
+			bat_ph = 0
 		if not bat_ph:
 			kq["loi"].append("Cấu hình m-invoice đang tắt phát hành, chưa xuất được tờ nào.")
 		else:
@@ -424,45 +537,120 @@ def ngay_cu_dang_cho():
 		return []
 
 
+KHOA_MOC_LOI = "vgb_hddt_moc_loi_ngay_cu"
+
+
+def _doc_moc_loi():
+	try:
+		return frappe.cache().get_value(KHOA_MOC_LOI)
+	except Exception:
+		return None
+
+
+def _ghi_moc_loi(co_loi):
+	try:
+		if co_loi:
+			frappe.cache().set_value(KHOA_MOC_LOI, str(now_datetime())[:19], expires_in_sec=3600)
+		else:
+			frappe.cache().delete_value(KHOA_MOC_LOI)
+	except Exception:
+		pass
+
+
 def xuat_ngay_cu_truoc():
-	"""HÀNG RÀO THỨ TỰ, gọi trước MỌI lượt ghi sổ hay phát hành của hôm nay.
+	"""HÀNG RÀO THỨ TỰ. Trả True khi đường đã thông cho tờ của HÔM NAY.
 
 	m-invoice đánh số theo ngày lập, nên tờ đầu tiên của hôm nay đóng sập cửa
 	của mọi ngày cũ. Đêm 09/09 đã mất cả ngày vì không lớp nào giữ thứ tự này.
-	Không có ngày cũ nào đang chờ thì thoát ngay, không tốn gì.
+
+	#266 vòng 2, Codex bắt đúng hai chỗ: hàng rào cũ trả về im lặng khi không
+	lấy được khoá, và nơi gọi cứ thế đi tiếp. Nay:
+	  - không lấy được khoá là CÒN NỢ ngày cũ, trả False (fail closed);
+	  - chạy xong mà m-invoice không nhận tờ nào thì ghi mốc lỗi, van an toàn
+	    trong phai_nhuong_ngay_cu sẽ mở sau CHO_SAU_LOI_PHUT phút.
+	Không có ngày cũ nào đang chờ thì trả True ngay, không tốn gì.
 	"""
 	try:
 		ds = ngay_cu_dang_cho()
 		if not ds:
-			return
+			return True
 		from vagabond.ban_hang import (
 			_ngay_so_hddt_moi_nhat, _khoa_hddt, _mo_khoa_dong_bo, _cong_tac_minvoice,
 			_phat_hanh_theo_lo, _ky_theo_lo,
 		)
 		bat_ph, bat_ky = _cong_tac_minvoice()
 		if not bat_ph:
-			return
+			# Không phát hành được gì thì tờ hôm nay cũng không ra, cửa ngày
+			# cũ không bị đóng. Cho đi tiếp.
+			return True
 		ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat())
 		if not ngay:
-			return
+			return True
 		khoa = _khoa_hddt(cho=30)
 		if khoa is None:
-			return
+			# Lượt khác đang xuất ngày cũ. Chưa xong thì chưa được đụng tờ
+			# hôm nay: đây chính là ca đồng thời Codex chỉ ra.
+			return False
+		con_no = False
 		try:
 			for d in ngay:
 				ph = _phat_hanh_theo_lo(str(d))
 				ky_kq = _ky_theo_lo(str(d)) if bat_ky else {"can_ky": 0, "da_ky": 0, "loi": []}
+				if cint(ph.get("tim_thay")) and not cint(ph.get("tao_ok")):
+					con_no = True
 				frappe.log_error(
 					title="Vagabond: xuất ngày cũ trước %s" % d,
 					message="Phát hành %d/%d tờ. Ký %d/%d tờ.\n%s" % (
-						ph.get("tao_ok") or 0, ph.get("tim_thay") or 0,
-						ky_kq.get("da_ky") or 0, ky_kq.get("can_ky") or 0,
+						cint(ph.get("tao_ok")), cint(ph.get("tim_thay")),
+						cint(ky_kq.get("da_ky")), cint(ky_kq.get("can_ky")),
 						"\n".join(str(x) for x in ((ph.get("loi") or []) + (ky_kq.get("loi") or [])))[:3000]),
 				)
 		finally:
 			_mo_khoa_dong_bo(khoa)
+		_ghi_moc_loi(con_no)
+		# Còn tờ nào chưa ra thì vẫn là còn nợ; đọc lại cho chắc chứ không
+		# tin con số vừa gộp.
+		return not ngay_cu_con_mo(ngay_cu_dang_cho(), getdate(nowdate()), _ngay_so_hddt_moi_nhat())
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: xuat ngay cu truoc")
+		# Hỏng giữa chừng thì coi như còn nợ, không cho tờ hôm nay đi.
+		return False
+
+
+def chan_neu_con_ngay_cu(si):
+	"""CỬA CHUNG: gọi từ minvoice_an_toan.kiem_goi, ngay trước khi dựng payload.
+
+	Mọi đường phát hành (chuỗi cuối ngày, xuất rải, chốt đơn tay, chốt cả
+	loạt, nhịp bù, Server Script After Submit) đều đi qua kiem_goi, nên đặt
+	ở đây là gom về một nguồn thay vì thêm chỗ nhớ gọi (điều 18).
+	"""
+	try:
+		ds = ngay_cu_dang_cho()
+		if not ds:
+			return
+		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
+		phai, ngay, ly_do = phai_nhuong_ngay_cu(
+			ngay_lap(si), getdate(nowdate()), ds, _ngay_so_hddt_moi_nhat(),
+			_doc_moc_loi(), now_datetime())
+	except ValueError:
+		raise
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: chan neu con ngay cu")
+		return
+	if not phai:
+		return
+	try:
+		frappe.enqueue(
+			"vagabond.hddt_cho_xuat.xuat_ngay_cu_truoc",
+			queue="long", timeout=3600,
+			job_id="vgb-xuat-ngay-cu-truoc", deduplicate=True,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: khong day duoc hang rao sang hang doi")
+	raise ValueError(
+		"Chưa xuất tờ này được: %s. m-invoice đánh số theo ngày lập nên một tờ hôm nay ra trước "
+		"là đóng cửa của ngày cũ vĩnh viễn. Máy đang xuất bù ngày cũ ở lượt chạy nền, "
+		"vài phút nữa tờ này tự đi tiếp." % ly_do)
 
 
 
