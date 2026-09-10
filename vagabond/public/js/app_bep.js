@@ -10222,6 +10222,13 @@ function dsChips(r) {
     var mau = DS_MAU_HD[tt] || ['#e5e7eb', '#374151'];
     var nhan = (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') + (tt ? ' · ' + h(tt) : '');
     out += dsChip(nhan, mau[0], mau[1]);
+  } else if (r.docstatus === 1 && r.vgb_hddt_ngay_xuat) {
+    /* #266: to ngay cu da ghi so, ke toan keo ngay lap HDDT sang ngay khac.
+       Chu tren chip la mot nguon voi may chu (hddt_cho_xuat.nhan_chip) de
+       thu ngan, ke toan khong nham la to bi bo quen hay da xuat roi. */
+    out += dsChip(hddtChoXuatChu(r.vgb_hddt_ngay_xuat), '#fef3c7', '#92400e');
+  } else if (r.docstatus === 1 && r.vgb_hddt_cho_doi_chieu) {
+    out += dsChip('🔎 HĐĐT cần đối chiếu', '#fee2e2', '#991b1b');
   } else if (r.docstatus === 1) {
     out += dsChip('Chưa có HĐĐT', '#fee2e2', '#991b1b');
   }
@@ -10689,6 +10696,7 @@ async function scrDsView(name, can) {
     '<div>' + (khachMotDong(d) || 'Khách lẻ') + '</div>' +
     '<div style="color:#6b7280;font-size:13px">Mã phiếu: <b>' + h(d.name) + '</b> · Ngày ' + (vn.length === 3 ? vn[2] + '/' + vn[1] + '/' + vn[0] : h(d.posting_date)) + '</div>' +
     (d.custom_hddt_so ? '<div style="color:#0a8a4a;font-size:13px">HĐĐT số ' + h(d.custom_hddt_so) + (d.custom_hddt_trang_thai ? ' (' + h(d.custom_hddt_trang_thai) + ')' : '') + '</div>' : '') +
+    (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_ngay_xuat ? '<div style="color:#92400e;font-size:13px">⏳ ' + hddtChoXuatChu(d.vgb_hddt_ngay_xuat) + ' · sổ vẫn giữ ngày bán</div>' : '') +
     '</div>';
   /* Don cua ngay cu ma con nhap: luat ke toan bat xuat hoa don dien tu ngay
      trong ngay ban, nen don hom qua co truc trac thi phai keo sang hom nay
@@ -12104,6 +12112,12 @@ function dsvTTGui(siName, file) {
 var posDon = null, posHomNayTxt = null, posQuay = null;
 var posDsNgay = null; /* ngay dang xem o danh sach hoá đơn; null = hom nay */
 var posLocTt = 'tat_ca', posLocNg = '', posLocHd = ''; /* chip loc: tinh trang x nguon-pt x trang thai HDDT */
+/* #266: chu tren chip "Hoa don cho xuat cho ngay ...". Cung cau voi may chu
+   (hddt_cho_xuat.nhan_chip) va dung chung cho man Sales lan man quay. */
+function hddtChoXuatChu(iso) {
+  var p = String(iso || '').slice(0, 10).split('-');
+  return 'Hoá đơn chờ xuất cho ngày ' + (p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : h(iso));
+}
 function posNgayVn(iso) {
   var d = new Date(iso + 'T00:00:00');
   var thu = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'][d.getDay()];
@@ -13136,6 +13150,8 @@ function locHddt() {
   return [
     { k: '', nhan: 'Mọi trạng thái HĐ', loc: function () { return true; } },
     { k: 'chua', nhan: '📌 Chưa xuất HĐĐT', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !(r.custom_hddt_trang_thai || '').trim(); } },
+    { k: 'cho_xuat', nhan: '⏳ Chờ xuất cho ngày khác', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !!r.vgb_hddt_ngay_xuat; } },
+    { k: 'doi_chieu', nhan: '🔎 Cần đối chiếu', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !!r.vgb_hddt_cho_doi_chieu; } },
     { k: 'cho_ky', nhan: '✍️ Chờ ký', loc: function (r) { return hdThuoc(r, 'cho_ky'); } },
     { k: 'da_ky', nhan: '✅ Đã ký', loc: function (r) { return hdThuoc(r, 'da_ky'); } },
     { k: 'thay_the', nhan: '🔁 Thay thế', loc: function (r) { return hdThuoc(r, 'thay_the'); } },
@@ -14324,6 +14340,8 @@ function posChipBill(r) {
       (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') +
       (r.custom_hddt_trang_thai ? ' · ' + h(r.custom_hddt_trang_thai) : '')));
   }
+  else if (r.docstatus === 1 && r.vgb_hddt_ngay_xuat) c.push(the('#fef3c7', '#92400e', '⏳ ' + hddtChoXuatChu(r.vgb_hddt_ngay_xuat)));
+  else if (r.docstatus === 1 && r.vgb_hddt_cho_doi_chieu) c.push(the('#fee2e2', '#991b1b', '🔎 HĐĐT cần đối chiếu'));
   else if (r.vgb_xhd_mst) c.push(the('#fef9c3', '#854d0e', '🧾 Chờ xuất HĐ công ty'));
   if (r.discount_amount) c.push(the('#ffedd5', '#9a3412', '🎟 Giảm ' + money(r.discount_amount) + ' đ'));
   if (r.trung_ma) c.push(the('#fee2e2', '#991b1b', '⚠ Trùng mã trong ngày'));
@@ -21646,7 +21664,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '471';
+var APPVER = '473';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27280,6 +27298,17 @@ function cdVe() {
       h(cdData.nhat_ky) + '</div>';
   }
 
+  /* #266 (09/09/2026): to da ghi so ma khong len duoc m-invoice trong ngay
+     thi khong doi duoc ngay so nua. Cua nay keo NGAY LAP hoa don dien tu
+     cua ca ngay do sang hom nay, toi nay chuoi cuoi ngay xuat cung mot
+     luot. Xem truoc, hoi lai, roi moi chay. Khong dong vao to da co hoa
+     don, khong tu go co doi chieu khi chua hoi m-invoice. */
+  html += '<div class="sec">Hoá đơn ngày cũ chưa xuất được</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;color:#374151;line-height:1.6">Tờ đã ghi sổ mà đêm đó không lên được m-invoice thì kéo ngày lập hoá đơn điện tử sang <b>hôm nay</b>, tối nay máy xuất và ký cùng lượt. Sổ vẫn giữ ngày bán. Tờ được kéo mang chip <b>Hoá đơn chờ xuất cho ngày ...</b> trên màn Doanh thu và Hoá đơn hôm nay. Chọn hôm nay thì chỉ gỡ cờ đối chiếu cho tờ m-invoice xác nhận chưa có.</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px"><span style="font-size:12.5px;color:#6b7280">Ngày bán:</span>' +
+    '<input class="tin" id="cdKeoNgay" type="date" value="' + h(cdHomQua()) + '" max="' + h(today()) + '" style="flex:1;max-width:190px"></div>' +
+    '<button class="btn gh" id="cdKeo" style="margin-top:10px">⏳ Kéo hoá đơn chưa xuất sang hôm nay</button></div>';
+
   var b = frame('Cuối ngày', html, {
     footer: '<div style="display:flex;gap:8px">' +
       '<button class="btn gh" id="cdChay" style="margin:0;flex:1">▶️ Chạy ngay</button>' +
@@ -27301,6 +27330,51 @@ function cdVe() {
 
   document.getElementById('cdLuu').onclick = cdLuu;
   document.getElementById('cdChay').onclick = cdChay;
+  document.getElementById('cdKeo').onclick = cdKeo;
+}
+
+function cdHomQua() {
+  var d = new Date(today() + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function cdNgayVn(iso) {
+  var p = String(iso || '').slice(0, 10).split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
+}
+
+/* Keo ngay lap HDDT cua to da ghi so ngay cu sang hom nay (#266). Xem truoc
+   TRUOC, hoi lai, roi moi chay that. Ket qua noi ro may to keo, may to go
+   duoc co doi chieu, may to van giu co vi m-invoice chua tra loi chac. */
+async function cdKeo() {
+  var o = document.getElementById('cdKeoNgay');
+  var ngay = (o && o.value) || '';
+  if (!ngay || ngay > today()) return baoTin('Chọn một ngày bán đã qua, hoặc hôm nay để chỉ gỡ cờ đối chiếu.');
+  var laHomNay = ngay === today();
+  var xem;
+  busy(true);
+  try { xem = await api('vagabond.hddt_cho_xuat.keo_sang_hom_nay', { ngay: ngay, chay_thu: 1 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không xem trước được'); }
+  busy(false);
+  if (!xem || !xem.chon) return toast(laHomNay ? 'Hôm nay không có tờ nào đang giữ cờ đối chiếu.' : 'Ngày ' + cdNgayVn(ngay) + ' không còn tờ nào đã ghi sổ mà chưa có hoá đơn điện tử.', 4000);
+  var mo = (xem.vi_du || []).slice(0, 8).map(function (x) {
+    return '#' + x.ma + ' · ' + money(x.tien) + ' đ' + (x.doi_chieu ? ' · đang giữ đối chiếu' : '');
+  }).join('\n');
+  if (!await xacNhan((laHomNay ? 'Gỡ cờ đối chiếu cho ' + xem.chon + ' tờ hôm nay?' : 'Kéo ' + xem.chon + ' tờ ngày ' + cdNgayVn(ngay) + ' sang xuất hoá đơn điện tử ngày ' + cdNgayVn(xem.hom_nay) + '?') + '\n' +
+    'Tổng ' + money(xem.tien) + ' đ.' + (xem.dang_doi_chieu ? '\nCó ' + xem.dang_doi_chieu + ' tờ đang giữ cờ đối chiếu: máy sẽ hỏi m-invoice theo mã phiếu, không có tờ mới gỡ cờ.' : '') +
+    '\n\n' + mo + (xem.chon > 8 ? '\n... và ' + (xem.chon - 8) + ' tờ nữa' : '') +
+    '\n\nSổ vẫn giữ ngày bán. Tối nay chuỗi cuối ngày sẽ xuất và ký các tờ này.')) return;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hddt_cho_xuat.keo_sang_hom_nay', { ngay: ngay, chay_thu: 0 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chạy lỗi'); }
+  busy(false);
+  baoTin('Xong: ' + (laHomNay ? 'xử ' : 'kéo ') + kq.keo + '/' + kq.chon + ' tờ' + (laHomNay ? '.' : ' sang ngày ' + cdNgayVn(kq.hom_nay) + '.') +
+    (kq.go_co ? '\nĐã gỡ cờ đối chiếu ' + kq.go_co + ' tờ (m-invoice xác nhận chưa có).' : '') +
+    (kq.giu_co ? '\nCòn ' + kq.giu_co + ' tờ vẫn giữ cờ đối chiếu, kế toán kiểm tay bên m-invoice.' : '') +
+    ((kq.loi || []).length ? '\n\n' + kq.loi.slice(0, 10).join('\n') : ''));
+  go(scrCaiDatCuoiNgay, true);
 }
 
 function cdDong(thuoc, d, on, mo) {
