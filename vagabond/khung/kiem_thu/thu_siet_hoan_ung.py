@@ -132,20 +132,16 @@ def _stt_dem_tu_mot():
 # ------------------------------------------------ Khối 2: dàn trang PDF 2x2
 
 
-@ca("ban in: bon anh mot trang A4, xep hai cot hai dong")
-def _bon_anh_mot_trang():
+@ca("ban in: hai anh mot trang A4 ngang, chin anh nam trang")
+def _hai_anh_mot_trang():
 	from vagabond import ho_so_tt as hs
 
 	la("hai anh moi trang", hs.ANH_MOI_TRANG, 2)
 	anh = [{"b64": "X", "kieu": "jpeg", "nhan": "Khoản %d" % i} for i in range(1, 10)]
 	ra = hs.luoi_anh(anh)
-	# 9 anh thi 4+4+1 = ba trang. Dem bang SO BANG chu khong dem so dau ngat
-	# trang: tu 23/08/2026 trang DAU khong con dau ngat rieng nua, no nam
-	# chung trang voi dong tieu de "CHUNG TU DINH KEM" de khoi ton mot mat
-	# giay chi de in mot dong chu (anh Viet: "qua nhieu khoang trong gay phi
-	# giay"). Nen dung ngat trang la hai, ma trang van la ba.
-	la("chin anh ra ba trang", ra.count("<table"), 5)
-	la("hai dau ngat giua ba trang", ra.count("page-break-before:always"), 4)
+	# Chín ảnh chia 2+2+2+2+1, năm bảng và bốn dấu ngắt trang.
+	la("chín ảnh ra năm trang", ra.count("<table"), 5)
+	la("bốn dấu ngắt giữa năm trang", ra.count("page-break-before:always"), 4)
 	la("chin o anh", ra.count("<img"), 9)
 	# Trang cuoi le mot anh: cho no chiem CA HANG (colspan) thay vi de mot o
 	# trong ben canh. Ban cu chen mot <td> rong, tuc mot nua mat giay khong in
@@ -415,7 +411,7 @@ def _():
 	dung("canh giữa dọc bằng line-height", "line-height:90mm" in o)
 
 
-@ca("ban in: hai hang anh cong tieu de phai LOT vao vung in A4, con du rong rai")
+@ca("ban in: mot hang anh va nhan lot A4 ngang, du it nhat 25mm")
 def _():
 	# Day la phep tinh da SAI o v281 va lam ca bo ho so tran giay.
 	# Ban v281: o anh 104mm, nhan tu do, dem 6mm => mot hang 120mm, hai hang
@@ -424,24 +420,24 @@ def _():
 	# Bai hoc: bo cuc in KHONG duoc vua khit. Moi ban wkhtmltopdf tinh le
 	# mot kieu, phai chua du rong rai thi moi may deu ra dung.
 	from vagabond import ho_so_tt as t
-	from vagabond.mau_in.le_in import CAO_TRONG_MM
+	from vagabond.mau_in.le_in import RONG_TRONG_MM
 
 	def mm(chuoi):
 		return float(str(chuoi).replace("mm", ""))
 
 	DEM_MM = 6.0        # padding 3mm tren va 3mm duoi cua moi o
-	TIEU_DE_MM = 14.0   # khoi "CHUNG TU DINH KEM" o trang dau
-	DU_TOI_THIEU = 8.0
+	DU_TOI_THIEU = 25.0
 
-	mot_hang = mm(t.CAO_O_ANH) + DEM_MM + mm(t.CAO_NHAN)
+	mot_hang = mm(t.CAO_O_1_HANG) + DEM_MM + mm(t.CAO_NHAN)
 	can = mot_hang + 2
-	du = 180 - can
-	dung("hai hàng cộng tiêu đề lọt vùng in 267mm: cần %.0fmm" % can, du > 0)
+	du = RONG_TRONG_MM - can
+	dung("một hàng ảnh và nhãn lọt vùng in A4 ngang: cần %.0fmm" % can, du > 0)
 	dung("còn dư ít nhất %.0fmm cho chắc, đang dư %.0fmm" % (DU_TOI_THIEU, du),
 		du >= DU_TOI_THIEU)
 
-	mot = mm(t.CAO_O_1_HANG) + DEM_MM + mm(t.CAO_NHAN)
-	dung("trang một hàng cũng phải lọt vùng in", mot <= CAO_TRONG_MM)
+	# Kiểm HTML thật dùng chiều cao vừa đo, không chỉ tính hằng số chết.
+	ra = t.luoi_anh([{"b64": "X", "nhan": "Chứng từ"}])
+	dung("HTML dùng chiều cao đã kiểm", "height:%s" % t.CAO_O_1_HANG in ra)
 
 
 @ca("le in: chi ap 15mm cho ban in kho A4/A5, tuyet doi chua mau Tem ra")

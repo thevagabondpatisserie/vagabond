@@ -1511,6 +1511,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		limit_page_length=0,
 	)
 	so_dong = {}
+	cho_hoa_don, da_noi_hoa_don = {}, {}
 	if ds:
 		# Dem bang get_all chu khong viet SQL "in %s": danh sach mot phan tu
 		# thi tuple Python ra ('X',) va cu phap SQL do khong chac chan giua
@@ -1518,10 +1519,13 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		for d in frappe.get_all(
 			"Vagabond Ho So TT Dong",
 			filters={"parent": ["in", [r.name for r in ds]]},
-			fields=["parent"],
+			fields=["parent", "cho_hoa_don", "hoa_don_bo_sung"],
 			limit_page_length=0,
 		):
 			so_dong[d.parent] = so_dong.get(d.parent, 0) + 1
+			if d.get("cho_hoa_don"):
+				bang = da_noi_hoa_don if d.get("hoa_don_bo_sung") else cho_hoa_don
+				bang[d.parent] = bang.get(d.parent, 0) + 1
 
 	from vagabond.doi_chieu_app import canh_bao_mo_lai
 	canh_bao = canh_bao_mo_lai(ds)
@@ -1532,6 +1536,8 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		o = dict(r)
 		o["canh_bao_doi_chieu"] = canh_bao.get(r.name, "")
 		o["so_hd"] = so_dong.get(r.name, 0)
+		o["so_cho_hoa_don"] = cho_hoa_don.get(r.name, 0)
+		o["so_da_noi_hoa_don"] = da_noi_hoa_don.get(r.name, 0)
 		o["nhan"] = "Đã duyệt, cần kiểm tra lại" if o["canh_bao_doi_chieu"] else NHAN.get(r.trang_thai, r.trang_thai)
 		o["loai"] = r.loai or "NCC"
 		o["nhan_cp_thue"] = NHAN_CP_THUE.get(r.loai_cp_thue, "")
@@ -1580,6 +1586,9 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghep phieu tra truoc loi")
 		ra.sort(key=lambda o: str(o.get("ngay") or ""), reverse=True)
 
+	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP
+	for o in ra:
+		o["chip_nghiep_vu"] = chip_cua_dong(o)
 	dem, tien = {}, {}
 	for o in ra:
 		dem[o["trang_thai"]] = dem.get(o["trang_thai"], 0) + 1
@@ -1606,6 +1615,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		"trang_thai_co": THU_TU,
 		"tk_chi_co": tk_co,
 		"nhan": NHAN,
+		"nhan_chip": NHAN_CHIP,
 		"quyen": {
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
@@ -4440,15 +4450,14 @@ def go_tep_dong(name=None, dong=None, tep=None):
 	return {"ok": 1, "dong": i, "tep": _ho_tep(con)}
 
 
-# ------------------------------------------------------- Dàn trang ảnh 2x2
+# ------------------------------------------------------- Hai ảnh trên A4 ngang
 
 
 # Anh Việt 10/09/2026: hai chứng từ trên A4 ngang để đọc được khi in.
 # Vùng in cao 180mm, trừ đệm 6mm, nhãn 14mm và cách nhãn 2mm:
-# ảnh cao 150mm, còn 8mm dự phòng cho WebKit và đường viền.
+# ảnh cao 130mm, còn 28mm dự phòng cho WebKit và đường viền.
 ANH_MOI_TRANG = 2
-CAO_O_ANH = "150mm"
-CAO_O_1_HANG = "150mm"
+CAO_O_1_HANG = "130mm"
 CAO_NHAN = "14mm"
 DUOI_ANH = ("jpg", "jpeg", "png", "gif", "bmp", "webp")
 
@@ -4655,11 +4664,9 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	trang = []
 	for i in range(0, len(anh), moi_trang):
 		lo = anh[i:i + moi_trang]
-		# Chieu cao o tinh theo SO HANG THAT cua trang nay, khong dong cung.
-		# Trang chi co mot hang thi cho hang do cao gan het trang - anh to ra,
-		# giay khong phi met nao.
-		so_hang = (len(lo) + 1) // 2
-		cao_o = CAO_O_1_HANG if so_hang == 1 else CAO_O_ANH
+		# Mỗi trang chỉ có một hàng; không giữ hằng số cho hàng thứ hai
+		# vì phép kiểm cũ đã đo nhầm hằng số không điều khiển bản in.
+		cao_o = CAO_O_1_HANG
 		le = len(lo) % 2
 		hang = ""
 		for j in range(0, len(lo) - le, 2):

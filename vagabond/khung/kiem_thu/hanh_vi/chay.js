@@ -253,6 +253,31 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('PR263. chip viec can lam dem dung, loc giao va bo loc duoc khi rong', async function () {
+    var canh = { danhSach: { rows: [
+      {name:'APP-A', trang_thai:'Da thanh toan', tong_tien:100, chip_nghiep_vu:['da_chi','cho_hoa_don']},
+      {name:'APP-B', trang_thai:'Da duyet', tong_tien:200, chip_nghiep_vu:['thieu_unc','cho_hoa_don']},
+      {name:'APP-C', trang_thai:'Da duyet', tong_tien:300, chip_nghiep_vu:['thieu_unc']}
+    ], nhan:{}, quyen:{}, trang_thai_co:['Da thanh toan','Da duyet'],
+    nhan_chip:{cho_hoa_don:'Chờ hóa đơn đến sau',thieu_unc:'Chưa có UNC',da_chi:'Đã chi theo hồ sơ'} } };
+    var m = dungMan(canh);
+    await m.g.scrHoSoTT();
+    dung('đếm 2 hồ sơ chờ', chipTheo(m,'data-hsviec','cho_hoa_don').textContent.includes('(2)'));
+    chipTheo(m,'data-hsviec','cho_hoa_don').click();
+    await m.g.scrHoSoTT();
+    bang('hai dòng đúng nhóm', m.tai.querySelectorAll('[data-hs]').length, 2);
+    m.g.hsTT='Da thanh toan';
+    await m.g.scrHoSoTT();
+    bang('giao hai bộ lọc', m.tai.querySelectorAll('[data-hs]').length, 1);
+    m.g.hsViec='thieu_unc';
+    await m.g.scrHoSoTT();
+    bang('không lấy sai hồ sơ', m.tai.querySelectorAll('[data-hs]').length, 0);
+    dung('chip chọn 0 vẫn hiện', !!chipTheo(m,'data-hsviec','thieu_unc'));
+    chipTheo(m,'data-hsviec','').click();
+    await m.g.scrHoSoTT();
+    bang('bỏ lọc lấy lại dòng', m.tai.querySelectorAll('[data-hs]').length, 1);
+    dung('nhắc không đánh đồng cấn nợ', m.khung.innerHTML.includes('chưa xác nhận đã cấn nợ'));
+  });
   await caAsync('A. dang loc tai khoan khong con trong ky: con chip bo loc va co loi giai thich', async function () {
     var m = dungMan({ danhSach: { rows: [], nhan: {}, quyen: {}, tk_chi_co: ['1111 - VGB'] } });
     m.g.hsTkChi = '6277 - VGB';

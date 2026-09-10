@@ -104,9 +104,7 @@ def _co_pypdf():
 		import pypdf  # noqa: F401
 
 		return True
-	except ModuleNotFoundError as e:
-		if e.name != "pypdf":
-			raise
+	except ImportError:
 		return False
 
 

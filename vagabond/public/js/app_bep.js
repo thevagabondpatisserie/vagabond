@@ -31377,6 +31377,17 @@ var hsTT = '', hsNcc = '', hsTu = null, hsDen = null, hsKhoang = 90, hsTim = '',
    lam hai thi go toi dau con nguyen toi do, ma van chi hoi may chu khi bam
    Enter. */
 var hsTkChi = '', hsTimGo = '';
+var hsViec = '';
+function hsCoChip(r, ma) {
+  return (r.chip_nghiep_vu || []).indexOf(ma) >= 0;
+}
+function hsChipNghiepVu(r, nhan) {
+  return (r.chip_nghiep_vu || []).map(function (ma) {
+    var xanh = ma === 'da_chi', doCan = ma === 'kiem_lai' || ma === 'qua_han';
+    var mau = xanh ? '#0f766e' : (doCan ? '#b3261e' : '#92400e');
+    return '<span style="display:inline-block;margin:4px 6px 0 0;padding:3px 9px;border:1px solid currentColor;border-radius:999px;font-size:13px;color:' + mau + '">' + h(nhan[ma] || ma) + '</span>';
+  }).join('');
+}
 var hsMau = {
   'Nhap': ['#f8fafc', '#e2e8f0', '#475569', '📝'],
   'Cho ke toan': ['#fff7ed', '#fed7aa', '#9a3412', '⏳'],
@@ -31520,12 +31531,23 @@ async function scrHoSoTT() {
   var f = locTim(TT, hsTT);
   html += '<div class="card" style="padding:10px 12px">' + locHang(TT, hsTT, 'data-hstt', rows) + '</div>';
 
-  var loc = rows.filter(f.loc);
+  var theoTT = rows.filter(f.loc), nhanChip = kq.nhan_chip || {};
+  var viec = [{ k: '', nhan: 'Mọi tình trạng hồ sơ', loc: function () { return true; } }];
+  Object.keys(nhanChip).forEach(function (ma) {
+    viec.push({ k: ma, nhan: nhanChip[ma], loc: function (r) { return hsCoChip(r, ma); } });
+  });
+  if (!viec.some(function (x) { return x.k === hsViec; })) hsViec = '';
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(viec.map(function (x) {
+    var n = theoTT.filter(x.loc).length;
+    return !n && x.k && x.k !== hsViec ? '' : posChipNut('data-hsviec="' + h(x.k) + '"', h(x.nhan) + ' (' + n + ')', x.k === hsViec);
+  }).join('')) +
+    '<div style="font-size:13px;color:#6b7280;margin-top:8px">Một hồ sơ có thể thuộc nhiều nhóm. Đã chi không có nghĩa là đã đủ chứng từ; nối hóa đơn bổ sung chưa xác nhận đã cấn nợ.</div></div>';
+  var loc = theoTT.filter(function (r) { return !hsViec || hsCoChip(r, hsViec); });
   var tong = loc.reduce(function (a, r) { return a + Number(r.tong_tien || 0); }, 0);
   var treN = loc.filter(function (r) { return r.tre_ngay > 0; });
   html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800;letter-spacing:.3px">TỔNG THEO BỘ LỌC' +
-    (hsTT ? ' · ' + h(f.nhan) : '') + '</div>' +
+    (hsTT ? ' · ' + h(f.nhan) : '') + (hsViec ? ' · ' + h(nhanChip[hsViec]) : '') + '</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
     '<span style="font-size:13.5px;color:#374151">' + loc.length + ' hồ sơ</span>' +
     '<b style="font-size:20px;color:#0f766e">' + money(tong) + ' đ</b></div>' +
@@ -31542,7 +31564,7 @@ async function scrHoSoTT() {
 
   html += '<div class="sec">Danh sách hồ sơ · bấm để xem và duyệt</div><div class="card">';
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">📁</div><div>Chưa có hồ sơ nào trong khoảng này. Bấm dấu ➕ để lập hồ sơ đầu tiên.</div></div>';
-  else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">✅</div><div>Không có hồ sơ nào thuộc nhóm <b>' + h(f.nhan) + '</b>.</div></div>';
+  else if (!loc.length) html += '<div class="emp" style="padding:24px"><div class="e1">📁</div><div>Không có hồ sơ theo bộ lọc này. Bấm Mọi tình trạng hồ sơ hoặc Tất cả để xem lại.</div></div>';
   loc.forEach(function (r) {
     var m = hsMau[r.trang_thai] || ['#f3f4f6', '#e5e7eb', '#374151', '•'];
     html += '<div class="hub" data-hs="' + h(r.name) + '"' + (r.la_phieu_chi ? ' data-hspc="1"' : '') + '>' +
@@ -31551,7 +31573,7 @@ async function scrHoSoTT() {
       '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
-      h(r.nhan) + '</span>' + hsCanhBaoDoiChieu(r) +
+      h(r.nhan) + '</span>' + hsCanhBaoDoiChieu(r) + hsChipNghiepVu(r, nhanChip) +
       (r.loai === 'Hoan ung' || r.loai === 'Hoan ung HD' ? '<span style="margin-left:6px;display:inline-block;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' + (r.loai === 'Hoan ung HD' ? '🧾 hoàn ứng có HĐ' : '🧮 hoàn ứng không HĐ') + '</span>' : '') +
       (r.la_phieu_chi ? '<span style="margin-left:6px;display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">⏩ trả trước</span>' : '') +
       /* Phieu tra truoc khong co han tra - no la tien di TRUOC - nen cai
@@ -31571,8 +31593,6 @@ async function scrHoSoTT() {
       /* Ho so da duyet ma chua co uy nhiem chi thi khong ghi nhan thanh toan
          duoc. Bay ngay tren danh sach de chi Dung tai UNC ve mot lot, khoi
          mo tung to ra moi biet to nao con thieu. */
-      (r.trang_thai === 'Da duyet' && !r.co_unc
-        ? '<span style="margin-left:7px;font-size:11.5px;color:#b45309;font-weight:700">📎 chưa có UNC</span>' : '') +
       '</div></div>' +
       '<b style="white-space:nowrap">' + money(r.tong_tien) + ' đ</b></div>';
   });
@@ -31584,6 +31604,9 @@ async function scrHoSoTT() {
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstt]'), function (el) {
     el.onclick = function () { hsTT = el.getAttribute('data-hstt'); go(scrHoSoTT, true); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hsviec]'), function (el) {
+    el.onclick = function () { hsViec = el.getAttribute('data-hsviec'); go(scrHoSoTT, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsloai]'), function (el) {
     el.onclick = function () { hsLoai = el.getAttribute('data-hsloai'); go(scrHoSoTT, true); };
