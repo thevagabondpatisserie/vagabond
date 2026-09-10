@@ -381,18 +381,27 @@ def chay():
 						_luot_b((kw.get('params') or {}).get('keyApi'))
 					return get_that(url, **kw)
 
+				# Chot dung mot duong di: doi chung API coi nhu DAT san, de doan
+				# nay kiem DUNG cai can kiem la khe giua luc hoi va luc ghi.
+				# Vong CI truoc do o day vi khong chot: san pham lam dung (khong
+				# ghi de, khong gui dup) nhung di vao nhanh khac nen cau bao ly
+				# do khac han, ma ca kiem lai chot theo cau chu.
+				chung_gia = ({'duong': 'bench', 'so_hd': '1', 'khoa_am': 'K'}, 'bench dat san')
 				truoc = len(gui)
 				with patch.object(tich_hop, 'make_get_request', get_chen), \
+						patch.object(hddt_cho_xuat, 'kiem_chung_api', lambda *a, **k: chung_gia), \
 						patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', mau_thu):
 					ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				kq['loi_f5dt'] = [str(x)[:200] for x in (ra.get('loi') or [])][:6]
 				_bang('F5đt lượt B có chen vào thật', chen['so_lan'], 1)
 				_bang('F5đt lượt A KHÔNG xoá dấu giữ chỗ của B', frappe.db.get_value(
 					'Sales Invoice', dt.name, 'custom_minvoice_id'), 'KT266-luot-B')
 				_bang('F5đt cờ đối chiếu không bị ghi đè về 0', frappe.db.get_value(
 					'Sales Invoice', dt.name, 'vgb_hddt_cho_doi_chieu'), 1)
 				_bang('F5đt không tờ nào bị gửi đúp', len(gui), truoc)
-				_bang('F5đt và nói rõ vì lượt khác vừa xuất xong', any(
-					'lượt khác vừa xuất xong' in str(x) for x in (ra.get('loi') or [])), True)
+				if not any('lượt khác vừa xuất xong' in str(x) for x in (ra.get('loi') or [])):
+					raise AssertionError('F5dt khong noi ro ly do bo qua. Cac cau bao that: %s'
+						% json.dumps(kq['loi_f5dt'], ensure_ascii=False))
 
 				# Lượt khác đang GIỮ KHOÁ thì lượt này không đụng tờ nào.
 				frappe.db.set_value('Sales Invoice', dt.name, {
