@@ -152,7 +152,21 @@ def chay():
 			hoi.append(khoa)
 			if str(khoa or '').startswith(hddt_cho_xuat.KHOA_AM_TINH):
 				return tra_loi['am_tinh']
-			return tra_loi.get(khoa, tra_loi['mac_dinh'])
+			if khoa in tra_loi:
+				return tra_loi[khoa]
+			# TRA DUNG SO HOA DON CUA CHINH TO DUOC HOI.
+			#
+			# Vong CI cho SHA c7a6038 do o day: kiem_chung_api (vong 5) doi
+			# dau vet tra ve phai mang dung custom_hddt_so cua TO DOI CHUNG,
+			# ma to doi chung la to moi sua gan nhat, khong phai to nao co
+			# dinh. Stub tra cung mot so 12944 cho moi to nen cong bi coi la
+			# "tra nham to", ca luot khong go co, va ca kiem "khai mau roi
+			# thi go duoc" do 1 != 0. Do la fixture sai chu khong phai san
+			# pham sai: lop kiem nham to da lam dung viec cua no.
+			so_that = frappe.db.get_value('Sales Invoice', khoa, 'custom_hddt_so')
+			if so_that:
+				return dict(code='00', data=dict(inv_invoiceNumber=str(so_that)))
+			return tra_loi['mac_dinh']
 		return chan()
 
 	def script(ten, phieu=None, **them):
@@ -262,8 +276,10 @@ def chay():
 				# m-invoice trả lỗi hệ thống cho chính tờ này, và tờ đối chứng
 				# (đã có hoá đơn) thì trả dấu vết đàng hoàng.
 				tra_loi[kep.name] = dict(code='500', message='internal error')
-				tra_loi[cu.name] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
-				tra_loi['mac_dinh'] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
+				# Khong ep so hoa don co dinh nua: stub tu tra dung
+				# custom_hddt_so cua chinh to duoc hoi, dung nhu cong that.
+				tra_loi.pop(cu.name, None)
+				tra_loi['mac_dinh'] = dict(code='00', data=None)
 				truoc = len(gui)
 				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
 				_bang('F1 không gửi lại tờ đang giữ cờ', len(gui), truoc)
@@ -288,8 +304,10 @@ def chay():
 				# một mã bịa ra là SAI VỀ LOGIC. Nay mô đun để MAU_KHONG_CO_TO
 				# RỖNG, nghĩa là KHÔNG tờ nào được máy gỡ cờ, kể cả khi cổng
 				# trả về câu sạch nhất. Đây là ca chốt điều đó chạy thật.
-				tra_loi[cu.name] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
-				tra_loi['mac_dinh'] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
+				# Khong ep so hoa don co dinh nua: stub tu tra dung
+				# custom_hddt_so cua chinh to duoc hoi, dung nhu cong that.
+				tra_loi.pop(cu.name, None)
+				tra_loi['mac_dinh'] = dict(code='00', data=None)
 				tra_loi['am_tinh'] = dict(code='01', message='not found', data=None)
 				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
 				truoc, truoc_hoi = len(gui), len(hoi)
