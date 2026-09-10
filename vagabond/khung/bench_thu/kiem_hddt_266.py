@@ -91,7 +91,7 @@ def chay():
 		raise RuntimeError('Chỉ chạy kiem_hddt_266 trên bench riêng vagabond_bench_thu=1.')
 	form_cu = getattr(frappe.local, 'form_dict', None)
 	dap_cu = getattr(frappe.local, 'response', None)
-	gui, hoi = [], []
+	gui, hoi, nap = [], [], []
 	# Cách m-invoice trả lời GetInfoInvoice, đổi được giữa các đoạn kiểm.
 	# 'am_tinh' la cau tra loi cho MA PHIEU BIA RA ma kiem_chung_api hoi de
 	# do hinh dang "khong co to" cua m-invoice (#266 vong 3).
@@ -125,6 +125,15 @@ def chay():
 		return PhanHoi(post(url, **kw))
 
 	def get(url, **kw):
+		# Kich ban phat hanh goi kich ban NAP truoc, va nap doc don tu Pancake.
+		# Bench 243 co san cua nay; bench nay thieu nen lan chay CI truoc bao
+		# "HTTP ngoai stub bi chan" va phat hanh 0/1 to (#266 vong 4).
+		dau = 'https://pos.pages.fm/api/v1/shops/kiem266/orders/'
+		if url.startswith(dau):
+			ma = url[len(dau):]
+			nap.append(ma)
+			return dict(success=True, data=dict(id=ma, display_id=ma,
+				note_print='Ten khach: Khach kiem thu 266'))
 		if url == 'https://minvoice.invalid/api/InvoiceApi78/GetInfoInvoice':
 			khoa = (kw.get('params') or {}).get('keyApi')
 			hoi.append(khoa)
