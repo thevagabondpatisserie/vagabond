@@ -34748,55 +34748,55 @@ function hsMaLanCanCoc() {
      khong co ham nay va se dung truoc ca khoi try/catch gui yeu cau. */
   return sinhMaLanNhan().replace(/^LN-/, 'CC-');
 }
-function hsGanTimDanhSach(khung, id, thuocTinh) {
-  var o = khung.querySelector('#' + id);
-  if (!o) return;
-  o.oninput = function () {
-    var q = String(o.value || '').trim().toLowerCase();
-    Array.prototype.forEach.call(khung.querySelectorAll('[' + thuocTinh + ']'), function (nut) {
-      nut.style.display = !q || String(nut.textContent || '').toLowerCase().indexOf(q) >= 0 ? '' : 'none';
-    });
-  };
-}
 async function hsMoCanCoc(ncc, dong, xong) {
   if (!dong.length) return baoTin('Chọn hóa đơn cần cấn cọc trước.');
   var ds;
   try { ds = await api('vagabond.coc_app.danh_sach', { ncc: ncc }); }
   catch (e) { return baoTin(e.message || 'Chưa đọc được cọc.'); }
+  if ((ds.rows || []).length > 8) {
+    return sheet('Chọn khoản cọc', ds.rows.map(function (r) {
+      return { value: r.name, label: r.name + ' · còn ' + money(r.con_coc) + ' đ',
+        phu: r.ngay + (r.can_noi_sao_ke ? ' · cần nối sao kê' : ' · đã nối sao kê'),
+        tim: r.name + ' ' + r.ngay };
+    }), '', function (it) { hsChonCanCoc(ncc, dong, xong, ds, it.value); }, true);
+  }
   var html = '<div class="card">Chọn khoản cọc đã ghi sổ và đối chiếu sao kê. Cấn xong, danh sách sẽ cập nhật số còn nợ để lập đợt chi mới.</div>';
-  if ((ds.rows || []).length > 8) html += '<input class="tin" id="hsCocTim" placeholder="Tìm theo mã phiếu hoặc ngày">';
   (ds.rows || []).forEach(function (r) {
     html += '<button class="btn gh" data-hscoc="' + h(r.name) + '">' + h(r.name) + ' · ' + h(r.ngay) + ' · còn ' + money(r.con_coc) + ' đ' + (r.can_noi_sao_ke ? ' · cần nối sao kê' : ' · đã nối sao kê') + '</button>';
   });
   if (!(ds.rows || []).length) html += '<div class="card">Chưa có cọc đủ điều kiện. Kế toán ghi nhận khoản cọc bằng Phiếu thanh toán và đối chiếu sao kê trước.</div>';
   var b = frame('Cấn cọc nhà cung cấp', html);
-  hsGanTimDanhSach(b, 'hsCocTim', 'data-hscoc');
   b.addEventListener('click', async function (e) {
     var nut = e.target.closest('[data-hscoc]'); if (!nut) return;
-    var pe = nut.getAttribute('data-hscoc');
-    var tong = dong.reduce(function (a, d) { return a + Number(d.so_tien); }, 0);
-    var co = ds.rows.filter(function (r) { return r.name === pe; })[0];
-    if (co.can_noi_sao_ke) return hsNoiSaoKeCoc(ncc, pe, function () { hsMoCanCoc(ncc, dong, xong); });
-    var dongCan = hsChiaCoc(dong, Number(co.con_coc));
-    tong = dongCan.reduce(function (a, d) { return a + d.so_tien; }, 0);
-    if (!(tong > 0)) return baoTin('Chưa có số tiền cấn hợp lệ.');
-    var chiTiet = dongCan.map(function (d) { return d.hoa_don + ': ' + money(d.so_tien) + ' đ'; }).join('; ');
-    var payload = JSON.stringify({ ncc: ncc, payment_entry: pe, hoa_don: JSON.stringify(dongCan) });
-    if (hsCocLan && hsCocLan.payload !== payload) return baoTin('Lần cấn trước chưa nhận đủ phản hồi. Chọn lại đúng khoản cọc và số tiền cũ để kiểm kết quả trước khi cấn khoản khác.');
-    if (!(await xacNhan('Cấn ' + money(tong) + ' đ từ ' + pe + ' vào: ' + chiTiet + '? Công nợ sẽ giảm ngay; thao tác này không chuyển thêm tiền.', 'Cấn cọc đã chi', 'Cấn cọc'))) return;
-    if (!hsCocLan) hsCocLan = { payload: payload, ma: hsMaLanCanCoc() };
-    nut.disabled = true;
-    try {
-      sessionStorage.setItem('vgb_coc_app_pending', JSON.stringify(hsCocLan));
-      var args = JSON.parse(hsCocLan.payload); args.ma_lan = hsCocLan.ma;
-      var kq = await api('vagabond.coc_app.can_coc', args);
-      hsCocLan = null;
-      sessionStorage.removeItem('vgb_coc_app_pending');
-      if (!kq.ok) { baoTin(kq.loi || 'Chưa cấn được.'); xong(); return; }
-      toast('Đã cấn ' + money(kq.da_can) + ' đ. Kiểm số còn nợ trước khi lập APP.', 5000);
-      xong();
-    } catch (err) { nut.disabled = false; baoTin((err && err.message) || 'Chưa nhận được kết quả. Bấm lại giữ đúng mã lần cấn để kiểm.'); }
+    hsChonCanCoc(ncc, dong, xong, ds, nut.getAttribute('data-hscoc'), nut);
   });
+}
+
+async function hsChonCanCoc(ncc, dong, xong, ds, pe, nut) {
+  nut = nut || { disabled: false };
+  var tong = dong.reduce(function (a, d) { return a + Number(d.so_tien); }, 0);
+  var co = ds.rows.filter(function (r) { return r.name === pe; })[0];
+  if (!co) return baoTin('Khoản cọc vừa thay đổi. Mở lại danh sách để chọn.');
+  if (co.can_noi_sao_ke) return hsNoiSaoKeCoc(ncc, pe, function () { hsMoCanCoc(ncc, dong, xong); });
+  var dongCan = hsChiaCoc(dong, Number(co.con_coc));
+  tong = dongCan.reduce(function (a, d) { return a + d.so_tien; }, 0);
+  if (!(tong > 0)) return baoTin('Chưa có số tiền cấn hợp lệ.');
+  var chiTiet = dongCan.map(function (d) { return d.hoa_don + ': ' + money(d.so_tien) + ' đ'; }).join('; ');
+  var payload = JSON.stringify({ ncc: ncc, payment_entry: pe, hoa_don: JSON.stringify(dongCan) });
+  if (hsCocLan && hsCocLan.payload !== payload) return baoTin('Lần cấn trước chưa nhận đủ phản hồi. Chọn lại đúng khoản cọc và số tiền cũ để kiểm kết quả trước khi cấn khoản khác.');
+  if (!(await xacNhan('Cấn ' + money(tong) + ' đ từ ' + pe + ' vào: ' + chiTiet + '? Công nợ sẽ giảm ngay; thao tác này không chuyển thêm tiền.', 'Cấn cọc đã chi', 'Cấn cọc'))) return;
+  if (!hsCocLan) hsCocLan = { payload: payload, ma: hsMaLanCanCoc() };
+  nut.disabled = true;
+  try {
+    sessionStorage.setItem('vgb_coc_app_pending', JSON.stringify(hsCocLan));
+    var args = JSON.parse(hsCocLan.payload); args.ma_lan = hsCocLan.ma;
+    var kq = await api('vagabond.coc_app.can_coc', args);
+    hsCocLan = null;
+    sessionStorage.removeItem('vgb_coc_app_pending');
+    if (!kq.ok) { baoTin(kq.loi || 'Chưa cấn được.'); xong(); return; }
+    toast('Đã cấn ' + money(kq.da_can) + ' đ. Kiểm số còn nợ trước khi lập APP.', 5000);
+    xong();
+  } catch (err) { nut.disabled = false; baoTin((err && err.message) || 'Chưa nhận được kết quả. Bấm lại giữ đúng mã lần cấn để kiểm.'); }
 }
 
 async function hsThuLaiCanCoc(xong) {
@@ -34816,22 +34816,30 @@ async function hsNoiSaoKeCoc(ncc, pe, xong) {
   var ds;
   try { ds = await api('vagabond.coc_app.sao_ke_coc', { ncc: ncc, payment_entry: pe }); }
   catch (e) { return baoTin(e.message || 'Chưa đọc được sao kê.'); }
+  if ((ds.rows || []).length > 8) {
+    return sheet('Chọn giao dịch sao kê', ds.rows.map(function (r) {
+      return { value: r.name, label: r.date + ' · ' + money(r.withdrawal) + ' đ',
+        phu: r.description + ' · ' + r.name, tim: r.name + ' ' + r.date + ' ' + r.description };
+    }), '', function (it) { hsChonSaoKeCoc(ncc, pe, xong, it.value); }, true);
+  }
   var html = '<div class="card">Chọn giao dịch đã chi cho khoản cọc ' + h(pe) + '. Chỉ bày đúng tài khoản và số tiền; kiểm thêm nội dung và ngày trước khi nối.</div>';
-  if ((ds.rows || []).length > 8) html += '<input class="tin" id="hsCocGdTim" placeholder="Tìm theo ngày, nội dung hoặc mã giao dịch">';
   (ds.rows || []).forEach(function (r) {
     html += '<button class="btn gh" data-cocgd="' + h(r.name) + '">' + h(r.date) + ' · ' + money(r.withdrawal) + ' đ<br>' + h(r.description) + '<br>' + h(r.name) + '</button>';
   });
   if (!(ds.rows || []).length) html += '<div class="card">Chưa có giao dịch khớp còn trống. Kế toán kiểm đồng bộ hoặc Đối chiếu ngân hàng.</div>';
   var b = frame('Nối sao kê cọc đã chi', html);
-  hsGanTimDanhSach(b, 'hsCocGdTim', 'data-cocgd');
   b.addEventListener('click', async function (e) {
     var n = e.target.closest('[data-cocgd]'); if (!n) return;
-    var ma = n.getAttribute('data-cocgd');
-    if (!(await xacNhan('Nối giao dịch ' + ma + ' với cọc ' + pe + '?', 'Đối chiếu cọc', 'Nối sao kê'))) return;
-    n.disabled = true;
-    try { await api('vagabond.coc_app.noi_sao_ke_coc', { ncc: ncc, payment_entry: pe, giao_dich: ma }); xong(); }
-    catch (err) { n.disabled = false; baoTin(err.message || 'Chưa xác nhận kết quả. Bấm lại kiểm đúng giao dịch đã chọn.'); }
+    hsChonSaoKeCoc(ncc, pe, xong, n.getAttribute('data-cocgd'), n);
   });
+}
+
+async function hsChonSaoKeCoc(ncc, pe, xong, ma, nut) {
+  nut = nut || { disabled: false };
+  if (!(await xacNhan('Nối giao dịch ' + ma + ' với cọc ' + pe + '?', 'Đối chiếu cọc', 'Nối sao kê'))) return;
+  nut.disabled = true;
+  try { await api('vagabond.coc_app.noi_sao_ke_coc', { ncc: ncc, payment_entry: pe, giao_dich: ma }); xong(); }
+  catch (err) { nut.disabled = false; baoTin(err.message || 'Chưa xác nhận kết quả. Bấm lại kiểm đúng giao dịch đã chọn.'); }
 }
 
 function hsDocTienDot(value) {

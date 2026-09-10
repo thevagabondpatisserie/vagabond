@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const dg=require('./dom_gia.js');
 const source=fs.readFileSync('vagabond/public/js/bep/19-ho-so-tt.js','utf8');
 const code=source.slice(source.indexOf('var hsCocLan = null;'));
-const stored=new Map(); let calls=[],messages=[],khung,done=0,fail=true;
+const stored=new Map(); let calls=[],messages=[],khung,done=0,fail=true,sheetCalls=[];
 let danhRows=[{name:'PE-1',ngay:'2026-09-10',con_coc:3000000}],saoRows=[];
 function env(){
  const tai=dg.taiLieuGia();
@@ -11,6 +11,7 @@ function env(){
   sessionStorage:{getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v),removeItem:k=>stored.delete(k)},
   h:x=>String(x||''),money:x=>String(x),busy:()=>{},toast:x=>messages.push(x),baoTin:x=>messages.push(x),xacNhan:async()=>true,
   frame:(t,html)=>{khung=new dg.ElementGia('div');khung.innerHTML=html;tai.body.children=[khung];return khung;},
+  sheet:(title,items,cur,onPick,searchable)=>{sheetCalls.push({title,items,cur,onPick,searchable});},
   api:async(m,a)=>{calls.push({m,a:JSON.parse(JSON.stringify(a))});
    if(m.endsWith('.danh_sach'))return {rows:danhRows};
    if(m.endsWith('.sao_ke_coc'))return {rows:saoRows};
@@ -29,13 +30,11 @@ function env(){
  assert.deepStrictEqual(calls.at(-1).a,sent);assert.equal(done,1);assert.equal(stored.size,0);
  danhRows=Array.from({length:9},(_,i)=>({name:'PE-'+(i+1),ngay:'2026-09-'+String(i+1).padStart(2,'0'),con_coc:1000}));
  ({c,tai}=env());await c.hsMoCanCoc('NCC-1',[{hoa_don:'HD-1',so_tien:1000}],()=>{});
- let tim=tai.getElementById('hsCocTim');assert(tim);
- tim.value='PE-9';tim.dispatchEvent(dg.suKien('input',{},tim));
- assert.equal(tai.querySelectorAll('[data-hscoc]').filter(x=>x.style.display!=='none').length,1);
+ let chon=sheetCalls.at(-1);assert.equal(chon.searchable,true);assert.equal(chon.items.length,9);
+ assert(chon.items[8].tim.includes('PE-9'));
  saoRows=Array.from({length:9},(_,i)=>({name:'BT-'+(i+1),date:'2026-09-'+String(i+1).padStart(2,'0'),withdrawal:1000,description:'Giao dich '+(i+1)}));
  await c.hsNoiSaoKeCoc('NCC-1','PE-1',()=>{});
- tim=tai.getElementById('hsCocGdTim');assert(tim);
- tim.value='BT-8';tim.dispatchEvent(dg.suKien('input',{},tim));
- assert.equal(tai.querySelectorAll('[data-cocgd]').filter(x=>x.style.display!=='none').length,1);
+ chon=sheetCalls.at(-1);assert.equal(chon.searchable,true);assert.equal(chon.items.length,9);
+ assert(chon.items[7].tim.includes('BT-8'));
  console.log('PASS APP cọc: mất phản hồi, tải lại trang, retry giữ nguyên mã và payload');
 })().catch(e=>{console.error(e);process.exitCode=1;});

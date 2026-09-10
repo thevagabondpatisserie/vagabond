@@ -457,7 +457,8 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
 		if not to:
 			continue
 		for x in to:
-			x["ho_so_giu"] = ho_so_giu.get(x["name"], "")
+			giu = ho_so_giu.get(x["name"], "")
+			x["ho_so_giu"] = giu.get("ma", "") if isinstance(giu, dict) else giu
 		# Truoc day cat con 40 to. Codex neu tren PR #198: muc dich cua nut
 		# nay la tra ra DUNG to dang thieu de khoi nhap trung, cat di thi to
 		# thu 41 khong tra duoc, tuc la nut hong dung cai viec no sinh ra de
@@ -485,8 +486,11 @@ def _hd_ho_so_giu():
 	ra = {}
 	for (_, ma, hoa_don), tien in dang_giu_chi_tiet().items():
 		if tien > 0:
-			ra.setdefault(hoa_don, []).append(ma)
-	return {hd: ", ".join(sorted(set(ds))) for hd, ds in ra.items()}
+			o = ra.setdefault(hoa_don, {"ma": [], "so_tien": 0})
+			o["ma"].append(ma)
+			o["so_tien"] += float(tien)
+	return {hd: {"ma": ", ".join(sorted(set(o["ma"]))), "so_tien": o["so_tien"]}
+		for hd, o in ra.items()}
 
 
 def _hd_da_gom():
