@@ -7,6 +7,12 @@
 var posDon = null, posHomNayTxt = null, posQuay = null;
 var posDsNgay = null; /* ngay dang xem o danh sach hoá đơn; null = hom nay */
 var posLocTt = 'tat_ca', posLocNg = '', posLocHd = ''; /* chip loc: tinh trang x nguon-pt x trang thai HDDT */
+/* #266: chu tren chip "Hoa don cho xuat cho ngay ...". Cung cau voi may chu
+   (hddt_cho_xuat.nhan_chip) va dung chung cho man Sales lan man quay. */
+function hddtChoXuatChu(iso) {
+  var p = String(iso || '').slice(0, 10).split('-');
+  return 'Hoá đơn chờ xuất cho ngày ' + (p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : h(iso));
+}
 function posNgayVn(iso) {
   var d = new Date(iso + 'T00:00:00');
   var thu = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'][d.getDay()];
@@ -1039,6 +1045,8 @@ function locHddt() {
   return [
     { k: '', nhan: 'Mọi trạng thái HĐ', loc: function () { return true; } },
     { k: 'chua', nhan: '📌 Chưa xuất HĐĐT', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !(r.custom_hddt_trang_thai || '').trim(); } },
+    { k: 'cho_xuat', nhan: '⏳ Chờ xuất cho ngày khác', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !!r.vgb_hddt_ngay_xuat; } },
+    { k: 'doi_chieu', nhan: '🔎 Cần đối chiếu', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so && !!r.vgb_hddt_cho_doi_chieu; } },
     { k: 'cho_ky', nhan: '✍️ Chờ ký', loc: function (r) { return hdThuoc(r, 'cho_ky'); } },
     { k: 'da_ky', nhan: '✅ Đã ký', loc: function (r) { return hdThuoc(r, 'da_ky'); } },
     { k: 'thay_the', nhan: '🔁 Thay thế', loc: function (r) { return hdThuoc(r, 'thay_the'); } },

@@ -316,6 +316,8 @@ function posChipBill(r) {
       (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') +
       (r.custom_hddt_trang_thai ? ' · ' + h(r.custom_hddt_trang_thai) : '')));
   }
+  else if (r.docstatus === 1 && r.vgb_hddt_ngay_xuat) c.push(the('#fef3c7', '#92400e', '⏳ ' + hddtChoXuatChu(r.vgb_hddt_ngay_xuat)));
+  else if (r.docstatus === 1 && r.vgb_hddt_cho_doi_chieu) c.push(the('#fee2e2', '#991b1b', '🔎 HĐĐT cần đối chiếu'));
   else if (r.vgb_xhd_mst) c.push(the('#fef9c3', '#854d0e', '🧾 Chờ xuất HĐ công ty'));
   if (r.discount_amount) c.push(the('#ffedd5', '#9a3412', '🎟 Giảm ' + money(r.discount_amount) + ' đ'));
   if (r.trung_ma) c.push(the('#fee2e2', '#991b1b', '⚠ Trùng mã trong ngày'));

@@ -18,6 +18,13 @@ function dsChips(r) {
     var mau = DS_MAU_HD[tt] || ['#e5e7eb', '#374151'];
     var nhan = (r.custom_hddt_so ? 'HĐ ' + h(r.custom_hddt_so) : 'HĐĐT') + (tt ? ' · ' + h(tt) : '');
     out += dsChip(nhan, mau[0], mau[1]);
+  } else if (r.docstatus === 1 && r.vgb_hddt_ngay_xuat) {
+    /* #266: to ngay cu da ghi so, ke toan keo ngay lap HDDT sang ngay khac.
+       Chu tren chip la mot nguon voi may chu (hddt_cho_xuat.nhan_chip) de
+       thu ngan, ke toan khong nham la to bi bo quen hay da xuat roi. */
+    out += dsChip(hddtChoXuatChu(r.vgb_hddt_ngay_xuat), '#fef3c7', '#92400e');
+  } else if (r.docstatus === 1 && r.vgb_hddt_cho_doi_chieu) {
+    out += dsChip('🔎 HĐĐT cần đối chiếu', '#fee2e2', '#991b1b');
   } else if (r.docstatus === 1) {
     out += dsChip('Chưa có HĐĐT', '#fee2e2', '#991b1b');
   }
@@ -485,6 +492,7 @@ async function scrDsView(name, can) {
     '<div>' + (khachMotDong(d) || 'Khách lẻ') + '</div>' +
     '<div style="color:#6b7280;font-size:13px">Mã phiếu: <b>' + h(d.name) + '</b> · Ngày ' + (vn.length === 3 ? vn[2] + '/' + vn[1] + '/' + vn[0] : h(d.posting_date)) + '</div>' +
     (d.custom_hddt_so ? '<div style="color:#0a8a4a;font-size:13px">HĐĐT số ' + h(d.custom_hddt_so) + (d.custom_hddt_trang_thai ? ' (' + h(d.custom_hddt_trang_thai) + ')' : '') + '</div>' : '') +
+    (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_ngay_xuat ? '<div style="color:#92400e;font-size:13px">⏳ ' + hddtChoXuatChu(d.vgb_hddt_ngay_xuat) + ' · sổ vẫn giữ ngày bán</div>' : '') +
     '</div>';
   /* Don cua ngay cu ma con nhap: luat ke toan bat xuat hoa don dien tu ngay
      trong ngay ban, nen don hom qua co truc trac thi phai keo sang hom nay
