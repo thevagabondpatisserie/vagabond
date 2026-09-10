@@ -43,8 +43,8 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Optional: Add claude_args to customize behavior and configuration
+          # Ghim model va muc suy nghi. Anh Viet chot 10/09/2026: Opus, effort high.
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # Co dung la --effort (low, medium, high, xhigh, max). Ban v1 khong con o model rieng.
+          claude_args: '--model opus --effort high'
 
