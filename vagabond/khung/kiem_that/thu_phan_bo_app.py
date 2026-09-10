@@ -167,16 +167,29 @@ def _():
 
 @ca("APP cọc: bộ đối chiếu lõi không cắt mất hóa đơn thứ 51")
 def _():
-    dau = _hoa_don_mua(1000)
+    dau, pe, g = _coc()
     hoa_don = [dau]
     for _i in range(50):
         hoa_don.append(_hoa_don_mua(1000, dau.supplier))
-    pe = frappe._dict(company=dau.company, party=dau.supplier,
-        paid_to=dau.credit_to, name="PE-KIEM-GIOI-HAN-50")
     rec, _payments = coc_app._doi_chieu(pe)
     thay = {r.invoice_number for r in rec.invoices
         if r.invoice_type == "Purchase Invoice"}
     dung("thấy đủ cả 51 hóa đơn vừa dựng", all(h.name in thay for h in hoa_don))
+    # Đối chứng ngay bằng lõi có trần cũ, không đoán thứ tự theo tên/ngày.
+    rec.invoice_limit = 50
+    rec.get_unreconciled_entries()
+    bi_cat = {r.invoice_number for r in rec.invoices}
+    ngoai_tran = [h for h in hoa_don if h.name not in bi_cat]
+    dung("trần cũ thực sự bỏ ít nhất một hóa đơn", bool(ngoai_tran))
+    dich = ngoai_tran[0]
+    no_truoc = float(dich.outstanding_amount)
+    kq = coc_app.can_coc(dau.supplier, pe.name,
+        [{"hoa_don": dich.name, "so_tien": 1000}], "coc-ngoai-50-247-0001")
+    la("cấn thật ngoài trần", kq["ok"], 1)
+    dich.reload()
+    pe.reload()
+    la("nợ giảm đúng", float(dich.outstanding_amount), no_truoc - 1000)
+    la("cọc giảm đúng", float(pe.unallocated_amount), 2999000.0)
 
 
 @ca("APP cọc: từ chối số đã bị APP khác giữ, retry cùng kết quả")
