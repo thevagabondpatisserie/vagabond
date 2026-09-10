@@ -162,6 +162,76 @@ def _contract_loc_dong():
 		"đừng đổi một bên" in than)
 
 
+@ca("#266 vòng 5b (Codex): tờ chờ xuất phải lọc LẠI theo điểm ngay trước khi gửi")
+def _cho_xuat_loc_lai_diem():
+	"""Dấu chờ xuất đặt lúc kế toán bấm, còn lượt phát hành chạy sau hàng
+	giờ. Trong quãng ấy Giám đốc có thể TẮT một nguồn hay một quầy. Bản trước
+	không đọc custom_nguon và vgb_quay, mà phat_hanh gọi kịch bản kèm phieu=
+	là vào nhánh MỘT TỜ, nhánh này bỏ qua bộ lọc nguồn/quầy, nên tờ vẫn được
+	gửi trong khi màn Cài đặt đang hiện điểm ấy đã tắt."""
+	rows = [
+		{"name": "A", "custom_nguon": "Pancake", "vgb_quay": "", "custom_hddt_so": ""},
+		{"name": "B", "custom_nguon": "Khac", "vgb_quay": "", "custom_hddt_so": ""},
+		{"name": "C", "custom_nguon": "", "vgb_quay": "", "custom_hddt_so": ""},
+		{"name": "D", "custom_nguon": "Pancake", "vgb_quay": "TCV", "custom_hddt_so": ""},
+		{"name": "E", "custom_nguon": "Pancake", "vgb_quay": "", "custom_hddt_so": "12943"},
+	]
+	gia = unittest.mock.MagicMock()
+	gia.db.get_all.return_value = rows
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
+			unittest.mock.patch.object(hddt_cho_xuat, "getdate", lambda x: x), \
+			unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice",
+				lambda: ({}, ["Pancake"], ["@", "TCV"])):
+		ra = hddt_cho_xuat.ds_cho_xuat("2026-09-09")
+	la("chỉ gửi tờ của điểm đang bật và chưa có hoá đơn",
+		[r["name"] for r in ra], ["A", "D"])
+	# Phải ĐỌC hai trường đó ra thì mới lọc được, đây là chỗ bản trước thiếu.
+	truong = gia.db.get_all.call_args[1]["fields"]
+	for c in ("custom_nguon", "vgb_quay"):
+		dung("có đọc trường " + c, c in truong)
+
+
+@ca("#266 vòng 5b (Codex): gỡ cờ phải GIỮ KHOÁ DÒNG và ghi có điều kiện")
+def _go_co_duoi_khoa():
+	"""Giữa lúc chay_nen đang hỏi m-invoice, quản lý có thể bấm gửi tay hoặc
+	mở lại tờ, đặt một dấu giữ chỗ MỚI. Đọc bằng get_value trần rồi ghi ở câu
+	sau là vẫn còn khe, và lượt này xoá mất dấu của họ."""
+	def chay(doc_truoc, doc_sau):
+		gia = unittest.mock.MagicMock()
+		gia.get_doc.return_value = doc_truoc
+		gia.db.get_value.return_value = doc_sau
+		with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia):
+			return hddt_cho_xuat._go_co_neu_con_nguyen("SI-1"), gia
+	sach = {"vgb_hddt_cho_doi_chieu": 1, "custom_minvoice_id": "", "custom_hddt_id": "",
+		"custom_hddt_so": ""}
+	da_go = dict(sach, vgb_hddt_cho_doi_chieu=0)
+	ok, gia = chay(dict(sach), da_go)
+	dung("còn nguyên thì gỡ được", ok)
+	dung("và có GIỮ KHOÁ DÒNG khi đọc", gia.get_doc.call_args[1].get("for_update") is True)
+	# Luot khac vua dat dau giu cho: khong duoc go.
+	ok, _ = chay(dict(sach, custom_minvoice_id="MI-9"), da_go)
+	dung("lượt khác vừa đặt dấu thì không gỡ", not ok)
+	ok, _ = chay(dict(sach, vgb_hddt_cho_doi_chieu=0), da_go)
+	dung("cờ đã bị ai gỡ rồi thì không nhận là mình gỡ", not ok)
+	# Ghi xong doc lai van thay dau vet thi coi nhu KHONG go duoc.
+	ok, _ = chay(dict(sach), dict(da_go, custom_hddt_so="12950"))
+	dung("ghi xong mà vẫn có dấu vết thì không nhận", not ok)
+	ok, _ = chay(dict(sach), dict(sach))
+	dung("ghi xong mà cờ vẫn còn thì không nhận", not ok)
+	# Cau ghi phai KEM DIEU KIEN, khong phai set_value tran.
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	t = h[h.find("def _go_co_neu_con_nguyen("):]
+	t = t[:t.find("\ndef ", 10)]
+	for dk in ("ifnull(vgb_hddt_cho_doi_chieu, 0) = 1", "ifnull(custom_minvoice_id, '') = ''"):
+		dung("câu ghi kèm điều kiện " + dk, dk in t)
+	# Va chay_nen phai di qua ham nay chu khong set_value thang.
+	i = h.find("def _chay_nen_da_nang_quyen(")
+	than = h[i:h.find("\ndef ", i + 10)]
+	dung("chay_nen gỡ cờ qua cửa có khoá", "_go_co_neu_con_nguyen(r.name)" in than)
+	dung("và không còn ghi thẳng cờ về 0",
+		'set_value("Sales Invoice", r.name, "vgb_hddt_cho_doi_chieu", 0' not in than)
+
+
 @ca("#266 vòng 5b (Codex): nợ chỉ tính tờ thuộc điểm ĐANG BẬT xuất hoá đơn")
 def _no_theo_diem_dang_bat():
 	"""Codex bắt đúng, và đây là lỗi CHẾT MÁY: hai tập nợ đếm cả tờ của
