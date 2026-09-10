@@ -38,3 +38,11 @@ def _ra():
         r=cb.ra_dong('KMCB00002',2,'NVHTN','GrabFood')
     la('số lượng dùng đếm kho',r[0]['qty'],6)
     dung('có mã và tên', 'KMCB00002 - Ba bánh' in r[0]['description'])
+
+
+@ca('#261 thành tiền là số chốt, rate làm tròn không còn làm mất đồng')
+def _thanh_tien():
+    r = cb.chia_gia([dict(item_code='M1',so_luong=3,gia_goc=45000),
+        dict(item_code='M2',so_luong=1,gia_goc=60000)],1,155000)
+    la('phân đồng dư',[d['vgb_combo_tien'] for d in r],[107308,47692])
+    la('đủ tiền',sum(d['vgb_combo_tien'] for d in r),155000)

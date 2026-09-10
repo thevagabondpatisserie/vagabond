@@ -30,3 +30,15 @@ báo chuyển sang màn chọn để giữ các luật khuyến mãi hiện có.
 - Trước merge: cần bench đúng SHA, review độc lập, xác nhận cấu hình thật và
   kiểm UI/in tại ba điểm. Ca mất phản hồi tạo bill, nhóm chọn sửa lại và kho
   stock-item thực tế cần bổ sung bằng chứng; không coi test helper là UAT.
+
+## Sửa theo review PR264
+
+Thành tiền phân bổ được lưu riêng trên dòng rã và chốt sau
+`calculate_item_values` của core, trước VAT/chiết khấu. Đơn giá đã làm tròn
+không được dùng để tính ngược làm mất đồng. Chỉ áp dụng mẫu VAT VND được
+hỗ trợ; sửa lượng riêng trên dòng rã yêu cầu chọn lại combo. Giữ nguyên
+object/tên các dòng không phải combo khi rã thêm mã cha. Bench bổ sung
+combo 155.000 với lượng 3 và 1, precision đơn giá 0/2, lưu lại, GL/payload.
+
+Thứ tự tích hợp: PR264 trước, PR265 kế tiếp; PR265 nhận đầy đủ PR264 và
+giữ phiên bản472. Chưa merge main, chưa deploy.

@@ -38,7 +38,8 @@ def chia_gia(dong, so_bo, gia_bo):
     ra = []
     for i, d in enumerate(dong):
         sl = so_duong(d.get('so_luong'), 'Số món') * bo
-        ra.append(dict(item_code=d['item_code'], qty=float(sl), rate=float(phan[i] / sl)))
+        ra.append(dict(item_code=d['item_code'], qty=float(sl), rate=float(phan[i] / sl),
+            vgb_combo_tien=float(phan[i]), vgb_combo_luong=float(sl)))
     return ra
 
 
@@ -46,6 +47,8 @@ import frappe
 from frappe.utils import cint
 
 TRUONG_MOI = {'Sales Invoice Item': [
+    dict(fieldname='vgb_combo_tien', label='Thành tiền combo', fieldtype='Currency', precision='0', read_only=1, no_copy=1),
+    dict(fieldname='vgb_combo_luong', label='Lượng combo đã chia', fieldtype='Float', read_only=1, no_copy=1),
     dict(fieldname='vgb_combo_ma', label='Mã combo', fieldtype='Data', read_only=1, no_copy=0),
     dict(fieldname='vgb_combo_ten', label='Tên combo', fieldtype='Data', read_only=1, no_copy=0),
 ]}
@@ -90,6 +93,7 @@ def ra_dong(ma, so_bo, quay='', nguon=''):
 def truoc_khi_luu(doc, method=None):
     if doc.docstatus == 2:
         return
+    _kiem_tien_da_chia(doc)
     if not any(str(d.item_code or '').upper().startswith('KMCB') for d in doc.items):
         return
     if doc.get('custom_hddt_so') or doc.docstatus == 1:
@@ -97,7 +101,7 @@ def truoc_khi_luu(doc, method=None):
     dong = []
     for d in doc.items:
         if not str(d.item_code or '').upper().startswith('KMCB'):
-            dong.append(d.as_dict())
+            dong.append(d)
             continue
         if doc.get('is_return'):
             frappe.throw('Trả combo: lấy từng món từ hoá đơn gốc, không nhập lại mã combo.')
@@ -109,3 +113,33 @@ def truoc_khi_luu(doc, method=None):
     doc.set('items', [])
     for d in dong:
         doc.append('items', d)
+
+
+def _kiem_tien_da_chia(doc):
+    """Chỉ dùng thành tiền máy chủ đã chia và lưu; không nhận số tự gửi lên.
+
+    Dòng rã cố định giữ nguyên lượng. Đổi số bộ bằng cách chọn lại combo,
+    tránh một món bị đổi lượng riêng nhưng còn giữ tiền của cả cấu hình cũ.
+    """
+    for d in doc.items:
+        if not d.get('vgb_combo_luong'):
+            continue
+        cu = frappe.db.get_value('Sales Invoice Item', d.name,
+            ['parent', 'item_code', 'qty', 'vgb_combo_tien', 'vgb_combo_luong'], as_dict=True) if d.name else None
+        if not cu or cu.parent != doc.name or cu.item_code != d.item_code or any(
+                Decimal(str(d.get(k) or 0)) != Decimal(str(cu.get(k) or 0))
+                for k in ('qty', 'vgb_combo_tien', 'vgb_combo_luong')):
+            frappe.throw('Dòng combo đã chia tiền không được sửa riêng lượng/thành tiền. Xóa bộ này rồi chọn lại combo với số bộ cần bán.')
+
+
+def dat_thanh_tien(doc):
+    """Core tính lại amount từ rate đã làm tròn; phục hồi tiền dòng sau cửa đó.
+
+    ERPNext de591661, taxes_and_totals.calculate_item_values. ThueVnd gọi
+    sau super(), trước phân VAT/chiết khấu/GL; rate chỉ phục vụ hiển thị.
+    """
+    for d in doc.items:
+        if d.get('vgb_combo_luong'):
+            if Decimal(str(d.qty)) != Decimal(str(d.vgb_combo_luong)):
+                frappe.throw('Lượng món combo đã thay đổi. Chọn lại combo để chia tiền đúng.')
+            d.amount = d.base_amount = d.net_amount = d.base_net_amount = float(d.vgb_combo_tien)
