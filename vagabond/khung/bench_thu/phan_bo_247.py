@@ -150,7 +150,7 @@ def chay():
             try:
                 doc.save(ignore_permissions=True)
             except frappe.ValidationError as e:
-                _dung('3000000' in str(e), 'Thử lại phải báo chỉ còn được giữ 3 triệu')
+                _dung('3.000.000' in str(e), 'Thử lại phải báo chỉ còn được giữ 3 triệu')
             else:
                 raise AssertionError('Bên thua không được giữ thêm 7 triệu khi thử lại')
             _dung(float(frappe.db.get_value('Purchase Invoice', hd.name, 'outstanding_amount')) == 10000000, 'Gửi duyệt chưa giảm công nợ')
