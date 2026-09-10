@@ -119,6 +119,9 @@ DAU_HIEU_LOI = ("error", "exception", "fail", "timeout", "unauthorized", "forbid
 	"internal", "server", "denied", "expired", "hết hạn", "loi ", "lỗi")
 KHOA_PHAN_HOI = {"code", "data", "message", "ok"}
 
+# Mã phiếu bịa ra để đo hình dạng phản hồi "không có tờ" của m-invoice.
+KHOA_AM_TINH = "VGB-KHONG-TON-TAI"
+
 
 def _la_loi_he_thong(phan_hoi):
 	"""Mã 3 chữ số bắt đầu 4 hoặc 5, hay message nói lỗi, thì đây là lỗi của
@@ -131,32 +134,42 @@ def _la_loi_he_thong(phan_hoi):
 	return any(d in tin for d in DAU_HIEU_LOI)
 
 
-def minvoice_khong_co_to(phan_hoi, da_kiem_chung=False):
+def _ma_phan_hoi(phan_hoi):
+	"""Mã trả về đã chuẩn hoá. None khi phản hồi không mang khoá code."""
+	if not isinstance(phan_hoi, dict) or "code" not in phan_hoi:
+		return None
+	return str(phan_hoi.get("code") or "").strip()
+
+
+def minvoice_khong_co_to(phan_hoi, chung=None):
 	"""m-invoice có CHẮC CHẮN chưa có tờ nào mang mã phiếu này không.
 
 	#266 vòng 2, Codex bắt đúng: bản trước coi MỌI phản hồi dạng dict không
 	mang dấu vết là "không có tờ", nên {"code":"500","message":"internal
-	error"} cũng gỡ được cờ và tờ đó bị gửi lại, sinh hoá đơn đúp. Mẫu
-	not-found thật của m-invoice thì CHƯA AI THẤY, nên không thể khai một
-	danh sách mã "đã xác minh".
+	error"} cũng gỡ được cờ và tờ đó bị gửi lại, sinh hoá đơn đúp.
 
-	Cách chốt: đòi ba điều cùng lúc.
-	1. da_kiem_chung: trong CHÍNH lượt này, hỏi một tờ CHẮC CHẮN đã có hoá
-	   đơn và m-invoice đã trả về dấu vết chứng từ. Đó là bằng chứng API
-	   đang sống và đang phân biệt được hai trạng thái. Không có mẫu dương
-	   tính thì không kết luận gì, giữ cờ.
-	2. Phản hồi có hình dạng của API (có ít nhất một khoá code/data/message/ok)
-	   và không mang dấu vết chứng từ nào ở bất kỳ tầng nào.
-	3. Không phải lỗi hệ thống (xem _la_loi_he_thong).
+	Vòng 3: lọc theo danh sách CẤM (mã 4xx/5xx, chữ "error"...) vẫn sai, vì
+	mã lạ như 9999 hay 296 không nằm trong danh sách nào mà vẫn gỡ được cờ.
+	Mẫu not-found thật của m-invoice thì chưa ai thấy nên không khai sẵn
+	được. Nên lượt chạy tự DỰNG LẤY mẫu đó: hỏi một mã phiếu bịa ra, chắc
+	chắn không tồn tại (mẫu âm tính, xem kiem_chung_api). Phản hồi của một
+	tờ thật chỉ được coi là "không có tờ" khi nó TRÙNG MÃ với mẫu âm tính
+	ấy. Mọi mã khác, kể cả mã chưa từng thấy, đều giữ cờ.
+
+	chung: (kiem_chung_api trả ra) mẫu đối chứng của chính lượt này, gồm cả
+	mẫu dương tính (một tờ chắc chắn ĐÃ có hoá đơn phải trả về dấu vết) và
+	mẫu âm tính. Không có chung thì không kết luận gì, giữ cờ.
 	"""
 	from vagabond.minvoice_an_toan import _co_dau_vet
-	if not da_kiem_chung:
+	if not chung:
 		return False
 	if not isinstance(phan_hoi, dict):
 		return False
 	if not (set(phan_hoi) & KHOA_PHAN_HOI):
 		return False
 	if _la_loi_he_thong(phan_hoi):
+		return False
+	if _ma_phan_hoi(phan_hoi) != chung.get("ma"):
 		return False
 	return not _co_dau_vet(phan_hoi)
 
@@ -264,6 +277,7 @@ def _gio(v):
 # ------------------------------------------------------------ chạm Frappe
 
 import frappe
+from uuid import uuid4
 from frappe.utils import cint, flt, getdate, now_datetime, nowdate
 
 TRUONG_MOI = {"Sales Invoice": [{
@@ -308,12 +322,20 @@ def _hoi_minvoice(base, hdr, ten_phieu):
 
 
 def kiem_chung_api(base, hdr):
-	"""Hỏi một tờ CHẮC CHẮN đã có hoá đơn, phải thấy dấu vết chứng từ.
+	"""Dựng mẫu đối chứng của lượt này. Trả (chung, câu giải thích).
 
-	Đây là mẫu dương tính bắt buộc trước khi tin bất kỳ câu "không có tờ"
-	nào (#266 vòng 2). m-invoice sập, trả rỗng, hay đổi cách trả lời thì
-	mẫu này cũng không có dấu vết, và cả lượt sẽ không gỡ cờ tờ nào.
-	Trả (đã kiểm chứng, câu giải thích).
+	Hai mẫu, thiếu một là không gỡ cờ tờ nào (#266 vòng 2 và vòng 3):
+
+	- DƯƠNG TÍNH: hỏi một tờ CHẮC CHẮN đã có hoá đơn, phải thấy dấu vết
+	  chứng từ. m-invoice sập, trả rỗng hay đổi cách trả lời thì mẫu này
+	  không có dấu vết và cả lượt dừng.
+	- ÂM TÍNH: hỏi một mã phiếu bịa ra, chắc chắn chưa từng tồn tại. Phản
+	  hồi thu được CHÍNH LÀ hình dạng "không có tờ" của m-invoice hôm nay,
+	  đo được chứ không phải đoán. Từ đây tờ thật chỉ được gỡ cờ khi trùng
+	  mã với mẫu này.
+
+	chung = {"ma": mã của mẫu âm tính, "duong": tên tờ đối chứng dương,
+	"khoa_am": mã phiếu bịa ra}. Trả None là không kết luận gì được.
 	"""
 	from vagabond.minvoice_an_toan import _co_dau_vet
 	ten = frappe.db.get_value(
@@ -321,28 +343,46 @@ def kiem_chung_api(base, hdr):
 		{"docstatus": 1, "custom_hddt_so": ["!=", ""], "custom_minvoice_id": ["!=", ""]},
 		"name", order_by="modified desc")
 	if not ten:
-		return False, "chưa có tờ nào đã xuất để làm mẫu đối chứng"
+		return None, "chưa có tờ nào đã xuất để làm mẫu đối chứng dương tính"
 	try:
 		r = _hoi_minvoice(base, hdr, ten)
 	except Exception as e:
-		return False, "không hỏi được m-invoice bằng tờ đối chứng %s: %s" % (ten, str(e)[:120])
+		return None, "không hỏi được m-invoice bằng tờ đối chứng %s: %s" % (ten, str(e)[:120])
 	if not _co_dau_vet(r):
-		return False, ("m-invoice không trả dấu vết cho tờ %s dù tờ này chắc chắn đã có hoá đơn, "
+		return None, ("m-invoice không trả dấu vết cho tờ %s dù tờ này chắc chắn đã có hoá đơn, "
 			"nên mọi câu trả lời khác trong lượt này đều không đáng tin" % ten)
-	return True, "đã đối chứng bằng tờ %s" % ten
+
+	khoa_am = "%s-%s" % (KHOA_AM_TINH, uuid4().hex[:12].upper())
+	try:
+		am = _hoi_minvoice(base, hdr, khoa_am)
+	except Exception as e:
+		return None, ("không dựng được mẫu \"không có tờ\": m-invoice báo lỗi khi hỏi mã "
+			"không tồn tại %s (%s)" % (khoa_am, str(e)[:120]))
+	if _co_dau_vet(am):
+		return None, ("m-invoice trả dấu vết chứng từ cho mã %s vốn chưa từng tồn tại, "
+			"không tin được câu trả lời nào của lượt này" % khoa_am)
+	if not isinstance(am, dict) or not (set(am) & KHOA_PHAN_HOI):
+		return None, "mẫu \"không có tờ\" không có hình dạng phản hồi của API: %s" % str(am)[:120]
+	if _la_loi_he_thong(am):
+		return None, ("m-invoice trả lỗi hệ thống cho mã không tồn tại %s nên không phân biệt "
+			"được \"không có tờ\" với \"hỏi không được\": %s" % (khoa_am, str(am)[:120]))
+	return ({"ma": _ma_phan_hoi(am), "duong": ten, "khoa_am": khoa_am},
+		"đã đối chứng bằng tờ %s và mã không tồn tại %s (mã \"không có tờ\" = %r)" % (
+			ten, khoa_am, _ma_phan_hoi(am)))
 
 
-def _tra_minvoice(base, hdr, ten_phieu, da_kiem_chung=False):
+def _tra_minvoice(base, hdr, ten_phieu, chung=None):
 	"""Hỏi m-invoice có tờ mang keyApi = mã phiếu không. Trả (chắc chắn không có, câu)."""
 	try:
 		r = _hoi_minvoice(base, hdr, ten_phieu)
 	except Exception as e:
 		return False, "không hỏi được m-invoice: " + str(e)[:150]
-	if minvoice_khong_co_to(r, da_kiem_chung):
+	if minvoice_khong_co_to(r, chung):
 		return True, "m-invoice trả lời không có tờ nào mang mã phiếu này"
-	if not da_kiem_chung:
+	if not chung:
 		return False, "chưa đối chứng được API m-invoice nên không dám kết luận, giữ cờ"
-	return False, "m-invoice không xác nhận là chưa có tờ, kế toán đối chiếu tay"
+	return False, ("m-invoice không xác nhận là chưa có tờ (mã trả về %r, mã \"không có tờ\" "
+		"của lượt này là %r), kế toán đối chiếu tay" % (_ma_phan_hoi(r), chung.get("ma")))
 
 
 def _dem_theo_ngay(ngay_cu, hom_nay):
@@ -443,17 +483,17 @@ def chay_nen(ngay, che_do, nguoi=""):
 		"keo": 0, "go_co": 0, "giu_co": 0, "loi": []}
 	nhan = nhan_chip(ngay_dat)
 	base, hdr, loi_dn = (None, None, "")
-	da_kiem_chung, cau_kc = False, ""
+	chung, cau_kc = None, ""
 	if any(cint(r.vgb_hddt_cho_doi_chieu) for r in chon):
 		base, hdr, loi_dn = _dang_nhap_minvoice(stg)
 		if base:
-			da_kiem_chung, cau_kc = kiem_chung_api(base, hdr)
-			if not da_kiem_chung:
+			chung, cau_kc = kiem_chung_api(base, hdr)
+			if not chung:
 				kq["loi"].append("Không gỡ cờ đối chiếu tờ nào: " + cau_kc)
 	for r in chon:
 		try:
 			if cint(r.vgb_hddt_cho_doi_chieu):
-				khong_co, cau = _tra_minvoice(base, hdr, r.name, da_kiem_chung) if base else (False, loi_dn)
+				khong_co, cau = _tra_minvoice(base, hdr, r.name, chung) if base else (False, loi_dn)
 				if not khong_co:
 					kq["giu_co"] += 1
 					if len(kq["loi"]) < 50:
