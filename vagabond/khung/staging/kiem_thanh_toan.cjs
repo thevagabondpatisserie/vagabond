@@ -46,10 +46,33 @@ const {chromium} = require('playwright');
     await xacNhan('vagabond.doi_chieu_app.gan');
     // Tải lại để đọc trạng thái đã lưu, tránh bấm vào DOM cũ trong lúc go().
     await mo();
+    const oldPayButton = await p.locator('[data-hsv="datra"]').elementHandle();
     await p.locator('[data-hsv="datra"]').click();
     const ghi = await xacNhan('vagabond.ho_so_tt.danh_dau_da_tra');
     ket.phan_hoi = {but_toan: ghi.but_toan || null, da_lam_roi: ghi.da_lam_roi || 0};
-    await mo();
+    await p.waitForFunction(el => !el.isConnected, oldPayButton);
+    await oldPayButton.dispose();
+    // Quay lại bằng nút app sau ghi thật: stack không được giữ danh sách
+    // Đã duyệt từ trước khi trả tiền, dù chip giờ lọc bằng dữ liệu local.
+    await p.locator('[data-hsv="bodoichieu"]').waitFor();
+    if (await p.locator('[data-hsv="datra"]').count()) throw new Error('Chi tiết mới vẫn còn nút trả tiền');
+    // Bench khoá email; đóng thông báo gửi thư nếu app có hiển thị.
+    if (await p.locator('[data-hbok]').isVisible()) await p.locator('[data-hbok]').click();
+    const backList = p.waitForResponse(r => new URL(r.url()).pathname === '/api/method/vagabond.ho_so_tt.danh_sach')
+      .then(r => ({r}), e => ({e}));
+    await p.locator('#vgbBack').click();
+    const backResponse = await backList;
+    if (backResponse.e) throw backResponse.e;
+    const backBody = (await backResponse.r.json()).message;
+    const paidRow = backBody?.rows?.find(r => r.name === f.ho_so);
+    if (!backResponse.r.ok() || !paidRow || paidRow.trang_thai !== 'Da thanh toan')
+      throw new Error('Quay lại chưa đọc trạng thái đã thanh toán từ máy chủ');
+    const paidCard = p.locator('[data-hs="' + f.ho_so + '"]');
+    await paidCard.waitFor();
+    if (!(await paidCard.innerText()).includes('Đã thanh toán'))
+      throw new Error('Danh sách quay lại vẫn hiện trạng thái cũ');
+    ket.quay_lai_doc_moi = true;
+    await paidCard.click();
     await p.locator('[data-hsv="bodoichieu"]').waitFor();
     if (await p.locator('[data-hsv="datra"]').count()) throw new Error('Hồ sơ đã trả vẫn có nút ghi nhận');
     // Không được tháo sao kê khi bút toán vẫn đang ghi sổ.
