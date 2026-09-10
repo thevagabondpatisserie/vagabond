@@ -493,17 +493,6 @@ def _hd_ho_so_giu():
 		for hd, o in ra.items()}
 
 
-def _hd_da_gom():
-	"""Hoá đơn đang nằm trong một hồ sơ còn hiệu lực."""
-	rows = frappe.db.sql(
-		"""select d.hoa_don from `tabVagabond Ho So TT Dong` d
-		inner join `tabVagabond Ho So TT` p on p.name = d.parent
-		where p.trang_thai in ('Nhap', 'Cho ke toan', 'Cho giam doc', 'Da duyet')""",
-		as_dict=True,
-	)
-	return set(r["hoa_don"] for r in rows)
-
-
 @frappe.whitelist()
 def ds_ncc_con_no():
 	"""Nhà cung cấp nào còn nợ, để app bày chip chọn."""

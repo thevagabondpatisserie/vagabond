@@ -1103,10 +1103,10 @@ async function chayHet() {
         con_no: 1000000, co_the_chi: 1000000 }] } }));
     m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
     await m.g.scrHoSoTTTao();
-    bang('man APP khong bay nut khong bam duoc', m.tai.getElementById('hsCanCoc'), null);
+    dung('man APP khong bay nut khong bam duoc', !m.tai.getElementById('hsCanCoc'));
     m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
     await m.g.scrChiCongTyTao();
-    bang('man chi cong ty khong bay nut khong bam duoc', m.tai.getElementById('huCanCoc'), null);
+    dung('man chi cong ty khong bay nut khong bam duoc', !m.tai.getElementById('huCanCoc'));
   });
 
   await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
