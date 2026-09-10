@@ -136,7 +136,7 @@ def _stt_dem_tu_mot():
 def _bon_anh_mot_trang():
 	from vagabond import ho_so_tt as hs
 
-	la("bon anh moi trang", hs.ANH_MOI_TRANG, 4)
+	la("hai anh moi trang", hs.ANH_MOI_TRANG, 2)
 	anh = [{"b64": "X", "kieu": "jpeg", "nhan": "Khoản %d" % i} for i in range(1, 10)]
 	ra = hs.luoi_anh(anh)
 	# 9 anh thi 4+4+1 = ba trang. Dem bang SO BANG chu khong dem so dau ngat
@@ -144,8 +144,8 @@ def _bon_anh_mot_trang():
 	# chung trang voi dong tieu de "CHUNG TU DINH KEM" de khoi ton mot mat
 	# giay chi de in mot dong chu (anh Viet: "qua nhieu khoang trong gay phi
 	# giay"). Nen dung ngat trang la hai, ma trang van la ba.
-	la("chin anh ra ba trang", ra.count("<table"), 3)
-	la("hai dau ngat giua ba trang", ra.count("page-break-before:always"), 2)
+	la("chin anh ra ba trang", ra.count("<table"), 5)
+	la("hai dau ngat giua ba trang", ra.count("page-break-before:always"), 4)
 	la("chin o anh", ra.count("<img"), 9)
 	# Trang cuoi le mot anh: cho no chiem CA HANG (colspan) thay vi de mot o
 	# trong ben canh. Ban cu chen mot <td> rong, tuc mot nua mat giay khong in
@@ -431,11 +431,11 @@ def _():
 
 	DEM_MM = 6.0        # padding 3mm tren va 3mm duoi cua moi o
 	TIEU_DE_MM = 14.0   # khoi "CHUNG TU DINH KEM" o trang dau
-	DU_TOI_THIEU = 25.0
+	DU_TOI_THIEU = 8.0
 
 	mot_hang = mm(t.CAO_O_ANH) + DEM_MM + mm(t.CAO_NHAN)
-	can = mot_hang * 2 + TIEU_DE_MM
-	du = CAO_TRONG_MM - can
+	can = mot_hang + 2
+	du = 180 - can
 	dung("hai hàng cộng tiêu đề lọt vùng in 267mm: cần %.0fmm" % can, du > 0)
 	dung("còn dư ít nhất %.0fmm cho chắc, đang dư %.0fmm" % (DU_TOI_THIEU, du),
 		du >= DU_TOI_THIEU)

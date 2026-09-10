@@ -33040,6 +33040,7 @@ async function huUpTep(f) {
   var j = {};
   try { j = await r.json(); } catch (e) { }
   if (!r.ok || !j.message || !j.message.file_url) throw new Error('máy chủ không nhận tệp (mã ' + r.status + ')');
+  if (/\.pdf$/i.test(f.name)) return await api('vagabond.ho_so_bo_sung.nen_tep', { tep: j.message.name });
   return { ma: j.message.name, ten: j.message.file_name || f.name, url: j.message.file_url };
 }
 
@@ -33165,7 +33166,7 @@ async function scrChiCongTyTao() {
       html += '<tr data-huhd="' + h(r.hoa_don) + '" style="border-top:1px solid #eef2f5;cursor:pointer;background:' + (on ? '#ecfeff' : '#fff') + '">'
         + '<td style="padding:9px 10px">' + (on ? '☑️' : '⬜') + '</td>'
         + '<td style="padding:9px 10px">' + h(r.so_hd_ncc || r.hoa_don)
-        + '<br><span style="color:#6b7280;font-size:11.5px">' + h(r.hoa_don) + '</span></td>'
+        + '<br><span style="color:#6b7280;font-size:11.5px">' + h(r.hoa_don) + '</span>' + hsONutBanTheHien(r.hoa_don) + '</td>'
         + '<td style="padding:9px 10px;white-space:nowrap;color:' + (r.tre_ngay > 0 ? '#b91c1c' : '#6b7280') + '">'
         + (hsNgayVn(r.han_tra) || '-') + (r.tre_ngay > 0 ? '<br>trễ ' + r.tre_ngay + ' ngày' : '') + '</td>'
         + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) + '</td></tr>';
@@ -33243,6 +33244,8 @@ async function scrChiCongTyTao() {
   });
   huNoiBang(b);
   b.addEventListener('click', function (e) {
+    var tepHd = e.target.closest('[data-hsbth]');
+    if (tepHd) { e.stopPropagation(); return hsTaiBanTheHien(tepHd.getAttribute('data-hsbth')); }
     var r2 = e.target.closest('[data-huhd]');
     if (r2) {
       var ma = r2.getAttribute('data-huhd');
@@ -33452,6 +33455,14 @@ async function scrHoSoTTView(name) {
     }
   });
   html += '</div>';
+  html += '<div class="sec">Hóa đơn đến sau thanh toán</div><div class="card" style="padding:12px">';
+  d.dong.forEach(function (x, i) {
+    html += '<div style="padding:8px 0">Khoản ' + (i + 1) + ': ' + h(x.hoa_don_bo_sung || 'Chưa nối hóa đơn bổ sung');
+    if (x.hoa_don_bo_sung) html += '<button class="btn gh" data-hsv="bthbo|' + h(x.hoa_don_bo_sung) + '">Tải bản thể hiện hóa đơn</button>';
+    if (!x.hoa_don_bo_sung && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="bohd' + (i + 1) + '">Nối hóa đơn đến sau</button>';
+    html += '</div>';
+  });
+  html += '<div style="font-size:13px;color:#667085">Nối chứng từ bổ sung không tự cấn trừ công nợ. Kế toán kiểm tra bút toán trước khi hoàn tất.</div></div>';
 
   /* Khối "Tệp đính kèm thẳng vào hồ sơ" ĐÃ BỎ ô tải lên (anh Việt 23/08/2026:
      *"do đã có nút đính kèm Bản thể hiện hoá đơn ở từng hoá đơn rồi nên bỏ ô
@@ -33644,6 +33655,20 @@ function hsCanhBaoDoiChieu(hs) {
 }
 
 async function hsHanh(k, hs) {
+  if (k.indexOf('bthbo|') === 0) {
+    await hsTaiBanTheHien(k.slice(6));
+    return go(function() { scrHoSoTTView(hs.ma); }, true);
+  }
+  if (k.indexOf('bohd') === 0) {
+    try {
+    var dsBo = await api('vagabond.ho_so_bo_sung.danh_sach_hoa_don', {name: hs.ma});
+    if (!dsBo.length) return baoTin('Chưa có hóa đơn của nhà cung cấp này. Đồng bộ hóa đơn rồi mở lại hồ sơ.');
+    var maBo = await hoiChon('Nối hóa đơn đến sau', 'Chọn hóa đơn đúng khoản chi; liên kết này không tạo thanh toán mới.', dsBo.map(function(x) { return {k:x.name, nhan:(x.bill_no || x.name), mo_ta:x.name + ' · ' + money(x.grand_total)}; }));
+    if (!maBo) return;
+    await api('vagabond.ho_so_bo_sung.noi_hoa_don', {name:hs.ma, dong:Number(k.slice(4)), hoa_don:maBo});
+    return go(function() { scrHoSoTTView(hs.ma); }, true);
+    } catch (e) { return baoTin((e && e.message) || 'Chưa nối được hóa đơn. Tải lại hồ sơ rồi kiểm tra.'); }
+  }
   if (k === 'bodoichieu') {
     if (!(await hoiCo('Bỏ đối chiếu?', 'Chỉ bỏ được khi sao kê hết liên kết và hồ sơ không còn bút toán đã ghi sổ. Hồ sơ đã huỷ bút toán sẽ về Đã duyệt, Đã trả về 0 và bỏ ngày thanh toán. Lịch sử duyệt, UNC và thư đã gửi vẫn giữ. Kiểm tra sao kê trước khi ghi nhận lại; không chuyển tiền thêm chỉ vì bút toán đã huỷ.', 'Bỏ đối chiếu'))) return;
     busy(true);
@@ -33964,7 +33989,7 @@ function huOTep(x, i) {
   } else {
     o += '<div data-hutep="' + i + '" style="cursor:pointer;border:1.5px dashed #fca5a5;background:#fef2f2;' +
       'border-radius:8px;padding:6px 8px;font-size:11.5px;color:#b91c1c;font-weight:700;text-align:center">' +
-      '📎 Tải chứng từ</div>';
+      '📎 Tải bản thể hiện / chứng từ</div>';
   }
   return o + '</td>';
 }
@@ -34221,6 +34246,7 @@ function huODong(x, i) {
       + '<div style="flex:1">' + huONhap(i, 'so_hd_ncc', x.so_hd_ncc, { ph: 'Số hoá đơn' }) + '</div>'
       + '<div style="flex:1">' + huONhap(i, 'ben_ban', x.ben_ban, { ph: 'Bên bán' }) + '</div></div>'
       + '<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">'
+      + (huLaTkct() ? huChipNho('data-huchohd="' + i + '"', 'Hóa đơn đến sau thanh toán', !!x.cho_hoa_don) : '')
       + huChipNho('data-huvat="' + i + '"', x.co_vat ? '🧾 có hoá đơn VAT' : '📄 không hoá đơn', !!x.co_vat)
       + huChipNho('data-hulc="' + i + '"', x.loai_chi ? '📦 ' + x.loai_chi : '📦 Loại chi', !!x.loai_chi)
       + huChipNho('data-hugy="' + i + '"', '💡 Khoản hay gặp', false)
@@ -34321,7 +34347,7 @@ function huNoiBang(b) {
        dòng đang gõ lại. */
     if (e.target.closest('[data-hug]')) return;
 
-    var n = e.target.closest('[data-hulct],[data-hutep],[data-huphieu],[data-hugotep],' +
+    var n = e.target.closest('[data-huchohd],[data-hulct],[data-hutep],[data-huphieu],[data-hugotep],' +
       '[data-huxoa],[data-huxong],[data-huvat],[data-hulc],[data-hugy],[data-hutkno],[data-huxemtep]');
     if (n) {
       e.stopPropagation();
@@ -34332,6 +34358,11 @@ function huNoiBang(b) {
       }
       if (n.hasAttribute('data-huxoa')) return huXoaDong(+n.getAttribute('data-huxoa'));
       if (n.hasAttribute('data-huxong')) { huSuaO = -1; return go(huManHienTai(), true); }
+      if (n.hasAttribute('data-huchohd')) {
+        var ihd = +n.getAttribute('data-huchohd');
+        huDong[ihd].cho_hoa_don = huDong[ihd].cho_hoa_don ? 0 : 1;
+        return go(huManHienTai(), true);
+      }
       if (n.hasAttribute('data-huvat')) {
         var iv = +n.getAttribute('data-huvat');
         if (huDong[iv]) huDong[iv].co_vat = huDong[iv].co_vat ? 0 : 1;
