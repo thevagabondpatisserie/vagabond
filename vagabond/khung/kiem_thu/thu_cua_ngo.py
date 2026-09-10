@@ -126,6 +126,19 @@ CUA_NGO = {
 	# `tk_tien_chi`, `dem_unc`, `ds_unc_tho`) la ham noi bo, ho_so_tt goi
 	# thang chu khong di qua mang.
 	"tra_tien_app.py": ["dinh_unc", "ds_unc", "go_unc", "soat_tk_chi"],
+	# Them 10/09/2026 cung lan tra APP tung dot va can coc NCC (#247). Bon cua
+	# ngo deu la cua man tao APP: xem danh sach coc con tien, can coc vao hoa
+	# don, tim dong sao ke cua khoan coc, va noi sao ke vao phieu coc.
+	#
+	# `_phieu`, `_doi_chieu` va `_kiem_snapshot_pe` CO Y khong nam trong danh
+	# sach: do la phep noi bo doc va khoa chung tu. `chan_sua_lich_su` la HOOK
+	# tren duong luu cua MOI Payment Entry, mo ra ngoai la cho trinh duyet goi
+	# thang vao duong chan.
+	"coc_app.py": ["can_coc", "danh_sach", "noi_sao_ke_coc", "sao_ke_coc"],
+	# `phan_bo_app.py` KHONG co ham nao mo ra ngoai: toan bo la phep thuan va
+	# phep kiem, ho_so_tt va doctype goi thang. Chot danh sach rong de mot
+	# decorator bam nham vao day se bi ca kiem bat ngay.
+	"phan_bo_app.py": [],
 	# Them 28/08/2026: thu tien va xuat hoa don cho hop dong da ky, va
 	# bang doi ruot hop mua vu. Ba nhom cua ngo:
 	#   thu_hop_dong  - lap phieu, xem, xuat PDF, gui khach
