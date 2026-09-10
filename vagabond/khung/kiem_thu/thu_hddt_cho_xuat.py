@@ -23,7 +23,7 @@ import json
 import os
 
 from vagabond import hddt_cho_xuat, minvoice_an_toan
-from vagabond.thue_vnd import chuan_tien, dong_len_hoa_don, tinh_dong
+from vagabond.thue_vnd import chuan_tien, dong_duoc_gui, dong_len_hoa_don, tinh_dong
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 D = datetime.date
@@ -151,10 +151,145 @@ def _contract_loc_dong():
 	than = than[:than.find("\ndef ", 10)]
 	dong_loc = [d for d in than.splitlines() if d.strip().startswith("return [")]
 	la("thue_vnd lọc trong đúng một dòng", len(dong_loc), 1)
-	dung("và lọc theo cùng trường amount", "so(it.get('amount')) > 0" in dong_loc[0])
+	dung("và gọi đúng một nguồn phép lọc", "dong_duoc_gui(it)" in dong_loc[0])
 	dung("không lọc theo gross", "gross" not in dong_loc[0])
+	# Nguon duy nhat ay phai la phep lọc theo amount, y het kich ban.
+	nguon = tv[tv.find("def dong_duoc_gui("):]
+	nguon = nguon[:nguon.find("\ndef ", 10)]
+	dung("nguồn duy nhất lọc theo amount", "'amount'" in nguon and "> 0" in nguon)
+	dung("và không lọc theo gross", "gross" not in nguon.split('"""')[-1])
 	dung("chú thích cảnh báo đổi một bên phải đổi cả hai",
 		"đừng đổi một bên" in than)
+
+
+@ca("#266 vòng 5b (Codex): nợ chỉ tính tờ thuộc điểm ĐANG BẬT xuất hoá đơn")
+def _no_theo_diem_dang_bat():
+	"""Codex bắt đúng, và đây là lỗi CHẾT MÁY: hai tập nợ đếm cả tờ của
+	nguồn/quầy KHÔNG bật xuất, kể cả phiếu Desk có custom_nguon rỗng. Kịch
+	bản phát hành không bao giờ xuất được những tờ ấy, nên xuat_ngay_cu_truoc
+	không rút cạn nổi, còn chan_neu_con_ngay_cu chặn MỌI tờ mới vĩnh viễn.
+	Một phiếu Desk cũ không liên quan là cả tiệm ngừng xuất hoá đơn."""
+	rows = [
+		{"posting_date": D(2026, 9, 9), "custom_nguon": "Pancake", "vgb_quay": ""},
+		{"posting_date": D(2026, 9, 8), "custom_nguon": "", "vgb_quay": ""},
+		{"posting_date": D(2026, 9, 7), "custom_nguon": "Khac", "vgb_quay": ""},
+		{"posting_date": D(2026, 9, 6), "custom_nguon": "Pancake", "vgb_quay": "TCV"},
+		{"posting_date": D(2026, 9, 5), "custom_nguon": "Pancake", "vgb_quay": "KHONG-BAT"},
+	]
+	with unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice",
+			lambda: ({}, ["Pancake"], ["@", "TCV"])):
+		ra = hddt_cho_xuat._loc_diem_dang_xuat(rows)
+	la("chỉ giữ ngày của điểm đang bật", sorted(str(d) for d in ra),
+		["2026-09-06", "2026-09-09"])
+	# Phiếu Desk nguồn rỗng là ca Codex nêu đích danh: KHÔNG được tính là nợ.
+	with unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice",
+			lambda: ({}, ["Pancake"], [])):
+		ra = hddt_cho_xuat._loc_diem_dang_xuat(
+			[{"posting_date": D(2026, 9, 8), "custom_nguon": "", "vgb_quay": ""}])
+	la("phiếu Desk nguồn rỗng không phải nợ", ra, [])
+	# Đọc cài đặt hỏng thì NÉM, tuyệt đối không âm thầm bỏ phép lọc.
+	def no_ra():
+		raise RuntimeError("mất kết nối")
+	with unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice", no_ra), \
+			unittest.mock.patch.object(hddt_cho_xuat, "frappe", unittest.mock.MagicMock()):
+		try:
+			hddt_cho_xuat._loc_diem_dang_xuat(rows)
+			dung("đọc cài đặt hỏng phải ném", False)
+		except hddt_cho_xuat.KhongDocDuocNo:
+			dung("ném đúng loại", True)
+	# Và cả hai tập nợ đều đi qua phép lọc này, không tập nào bỏ sót.
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	for ham in ("ngay_cu_dang_cho", "ngay_cu_can_bao_ve"):
+		t = h[h.find("def %s(" % ham):]
+		t = t[:t.find("\ndef ", 10)]
+		dung(ham + " lọc theo điểm đang bật", "_loc_diem_dang_xuat(rows)" in t)
+	dung("phép lọc dùng lại thuoc_diem_dang_xuat, không viết bản thứ hai",
+		h.count("def thuoc_diem_dang_xuat(") == 1
+		and "thuoc_diem_dang_xuat(r, ds_nguon, ds_quay)" in h[h.find("def _loc_diem_dang_xuat("):])
+
+
+@ca("#266 vòng 5b (claude): đọc ngày số mới nhất KHÔNG được rollback")
+def _khong_rollback_trong_khoa():
+	"""claude bắt đúng: _ngay_so_hddt_moi_nhat được gọi từ kiem_goi, mà
+	kiem_goi đang GIỮ khoá dòng (for_update=True) tới khi lưu xong dấu chờ.
+	Gọi frappe.db.rollback() ở đó là nhả mất khoá ấy VÀ vứt phần việc chưa
+	commit của chính lần ghi sổ. Nặng hơn: từ lúc deploy tới lúc migrate
+	xong, cột vgb_hddt_ngay_xuat chưa có nên câu đầu HỎNG MỖI LẦN GỌI."""
+	b = _doc("vagabond", "ban_hang.py")
+	i = b.find("def _ngay_so_hddt_moi_nhat(")
+	than = b[i:b.find("\ndef ", i + 10)]
+	# Kiem THAN MA, bo docstring va chu thich: ca hai deu co nhac ten rollback
+	# de giai thich vi sao khong duoc dung no.
+	ma = than.split('"""')[-1]
+	ma = "\n".join(d for d in ma.splitlines() if not d.strip().startswith("#"))
+	dung("không còn lời gọi rollback trong thân hàm", "rollback(" not in ma)
+	dung("hỏi cột bằng has_column thay vì bắt lỗi",
+		"has_column(\"Sales Invoice\", \"vgb_hddt_ngay_xuat\")" in than)
+	# Và cửa chung đúng là có gọi hàm này trong lúc giữ khoá.
+	m = _doc("vagabond", "minvoice_an_toan.py")
+	j = m.find("def kiem_goi(")
+	than_m = m[j:m.find("\ndef ", j + 10)]
+	dung("kiem_goi giữ khoá dòng", "for_update=True" in than_m)
+	dung("và gọi hàng rào trong lúc giữ khoá", "chan_neu_con_ngay_cu(si)" in than_m)
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	k = h.find("def chan_neu_con_ngay_cu(")
+	dung("hàng rào có đọc ngày số mới nhất",
+		"_ngay_so_hddt_moi_nhat()" in h[k:h.find("\ndef ", k + 10)])
+
+
+@ca("#266 vòng 5b (claude): chay_nen nâng quyền thì phải TRẢ LẠI người gọi")
+def _tra_lai_quyen():
+	"""xu_ly_ngay_cu mở cho cả kế toán, và khi đẩy hàng đợi hỏng thì nó gọi
+	THẲNG chay_nen trong request của người dùng. chay_nen set_user
+	Administrator, bản trước không trả lại, nên một lần Redis trục trặc là
+	kế toán chạy nốt request với quyền Administrator."""
+	ai = {"user": "ketoan@vagabond.vn"}
+	gia = unittest.mock.MagicMock()
+	gia.session.user = ai["user"]
+
+	def dat(u):
+		ai["user"] = u
+		gia.session.user = u
+
+	gia.set_user = dat
+
+	def no_ra(*a, **k):
+		raise RuntimeError("hỏng giữa chừng")
+
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
+			unittest.mock.patch.object(hddt_cho_xuat, "_chay_nen_da_nang_quyen", no_ra):
+		try:
+			hddt_cho_xuat.chay_nen("2026-09-09", "giu_ngay", "x")
+		except RuntimeError:
+			pass
+	la("hỏng giữa chừng vẫn trả lại đúng người gọi", ai["user"], "ketoan@vagabond.vn")
+
+	ghi = []
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
+			unittest.mock.patch.object(hddt_cho_xuat, "_chay_nen_da_nang_quyen",
+				lambda *a, **k: ghi.append(ai["user"]) or {"ok": 1}):
+		hddt_cho_xuat.chay_nen("2026-09-09", "giu_ngay", "x")
+	la("thân hàm vẫn chạy với quyền Administrator", ghi, ["Administrator"])
+	la("xong thì trả lại người gọi", ai["user"], "ketoan@vagabond.vn")
+
+
+@ca("#266 vòng 5b (Codex): đường xuất TAY lọc dòng y hệt đường kịch bản")
+def _xuat_tay_cung_phep_loc():
+	"""Vòng 4 mới sửa phép lọc cho kịch bản Server Script. Codex bắt đúng
+	lần thứ hai: ban_hang.xuat_hoa_don_dien_tu vẫn dựng một dòng payload cho
+	MỌI dòng SI, nên đơn có một món 0 đồng đi đường xuất tay bị chặn ngay ở
+	cửa cuối, đúng câu lỗi đã làm chết đêm 09/09."""
+	for gia, mong in ((150000, True), (0, False), (-1, False), (None, False)):
+		la("amount=%r" % gia, dong_duoc_gui({"amount": gia}), mong)
+	b = _doc("vagabond", "ban_hang.py")
+	i = b.find("def xuat_hoa_don_dien_tu(")
+	than = b[i:b.find("\ndef ", i + 10)]
+	dung("đường xuất tay dùng chung phép lọc", "dong_duoc_gui(r)" in than)
+	dung("và không đánh số dòng bằng enumerate nữa",
+		"for i, r in enumerate(si.items, 1):" not in than)
+	t = _doc("vagabond", "thue_vnd.py")
+	dung("dong_len_hoa_don cũng gọi chung ham đó", "if dong_duoc_gui(it)" in t)
+	dung("chỉ có MỘT chỗ định nghĩa phép lọc", t.count("def dong_duoc_gui(") == 1)
 
 
 @ca("#266 vòng 4 (Codex): phép lọc dòng phải Y HỆT kịch bản, lọc theo amount")
@@ -432,7 +567,9 @@ def _doi_chung_dung_to():
 @ca("#266 vòng 5 (F1): đường đi trong chay_nen vẫn gọi đủ hai bước")
 def _go_co_chua_kiem_chung():
 	h = _doc("vagabond", "hddt_cho_xuat.py")
-	i = h.find("def chay_nen(")
+	# #266 vong 5b: than that cua chay_nen tach sang _chay_nen_da_nang_quyen
+	# de tra lai quyen cho nguoi goi (xem ca "tra lai quyen").
+	i = h.find("def _chay_nen_da_nang_quyen(")
 	than = h[i:h.find("\ndef ", i + 10)]
 	dung("chay_nen đối chứng API trước khi hỏi từng tờ", "kiem_chung_api(base, hdr)" in than)
 	dung("và truyền kết quả đối chứng vào từng lượt hỏi",
@@ -545,7 +682,9 @@ def _hang_rao():
 	dung("hàng rào lấy khoá phát hành", "_khoa_hddt(" in than)
 	# Lượt xử của chính HÔM NAY cũng phải nhường ngày cũ đi trước, không thì
 	# chính nó là tờ đóng sập cửa của ngày cũ đang chờ.
-	i = h.find("def chay_nen(")
+	# #266 vong 5b: than that cua chay_nen tach sang _chay_nen_da_nang_quyen
+	# de tra lai quyen cho nguoi goi (xem ca "tra lai quyen").
+	i = h.find("def _chay_nen_da_nang_quyen(")
 	than_nen = h[i:h.find("\ndef ", i + 10)]
 	vi_rao = than_nen.find("xuat_ngay_cu_truoc()")
 	dung("lượt hôm nay nhường ngày cũ trước",
