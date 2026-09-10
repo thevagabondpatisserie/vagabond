@@ -71,7 +71,8 @@ def nen_tep(tep):
 		frappe.throw("Chỉ nén tệp riêng vừa tải lên của anh chị. Vui lòng chọn lại tệp.")
 	if not (f.file_name or "").lower().endswith(".pdf"):
 		frappe.throw("Bản thể hiện phải là tệp PDF.")
-	noi = f.get_content()
+	# PDF phải giữ nguyên byte; Frappe mặc định thử giải mã thành chữ.
+	noi = f.get_content(encodings=[])
 	try:
 		gon = nen_pdf(noi)
 	except Exception as e:

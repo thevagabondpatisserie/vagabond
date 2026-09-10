@@ -3769,7 +3769,7 @@ def _to_app_html(name):
 
 @frappe.whitelist()
 def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None,
-		loai_cp_thue=None, tk_chi=None):
+		loai_cp_thue=None, tk_chi=None, chip=None):
 	"""Bộ hồ sơ ra Excel cho kế toán theo dõi: một dòng một hoá đơn.
 
 	NHẬN ĐỦ MỌI Ô LỌC CỦA MÀN HÌNH. Tệp tải về phải đúng bằng cái đang bày
@@ -3783,6 +3783,12 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 		tk_chi=tk_chi,
 	)
 	rows = kq["rows"]
+	if chip:
+		from vagabond.chip_ho_so_tt import NHAN as NHAN_CHIP
+		if chip not in NHAN_CHIP:
+			frappe.throw("Bộ lọc nghiệp vụ không còn hợp lệ. Tải lại danh sách rồi xuất Excel.")
+		rows = [r for r in rows if chip in r.get("chip_nghiep_vu", [])]
+		kq["tong_tien"] = sum(flt(r["tong_tien"]) for r in rows)
 	chi_tiet_dong = {}
 	if rows:
 		for d in frappe.get_all(

@@ -339,12 +339,14 @@ async function chayHet() {
     o.value = 'beta';
     o.dispatchEvent(dg.suKien('input', {}, o));
     m.goiApi.length = 0;
+    m.g.hsViec = 'cho_hoa_don';
     await m.tai.getElementById('hsXuat').onclick();
     var goi = m.goiApi.filter(function (x) { return x.duong === 'vagabond.ho_so_tt.xuat_excel' })[0];
     dung('co goi xuat Excel', !!goi);
     bang('gui tu khoa da ap', goi.ts.tu_khoa, 'alpha');
     bang('gui ca o loc tai khoan', goi.ts.tk_chi, '6277 - VGB');
     bang('gui ca o loc chi phi thue', goi.ts.loai_cp_thue, 'Hop le');
+    bang('gui chip nghiep vu', goi.ts.chip, 'cho_hoa_don');
   });
 
   await caAsync('C. go va xoa thi dong nhac doi NGAY, khong goi may chu, khong ve lai man', async function () {

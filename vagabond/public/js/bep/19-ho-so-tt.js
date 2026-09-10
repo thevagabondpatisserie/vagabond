@@ -306,6 +306,7 @@ async function scrHoSoTT() {
       if (hsTim) t2.tu_khoa = hsTim;
       if (hsCpThue) t2.loai_cp_thue = hsCpThue;
       if (hsTkChi) t2.tk_chi = hsTkChi;
+      if (hsViec) t2.chip = hsViec;
       var fl = await api('vagabond.ho_so_tt.xuat_excel', t2);
       busy(false); bcTaiVe(fl.ten_file, fl.b64); toast('Đã tải ' + fl.ten_file);
     } catch (er) { busy(false); baoTin((er && er.message) || 'Xuất Excel lỗi'); }
