@@ -31,6 +31,10 @@ from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen, _mon
 
 
+def so_(v):
+	return float(v or 0)
+
+
 def _bang(nhan, duoc, mong):
 	if duoc != mong:
 		raise AssertionError('%s: %r != %r' % (nhan, duoc, mong))
@@ -67,15 +71,21 @@ def _cau_hinh(ma_gop=''):
 	_bang('cong tac phat hanh bat', int(st.get('enabled') or 0), 1)
 
 
-def _hoa_don(ngay, gia=(150000, 70000), ghi_so=True):
-	"""SI Pancake thật của một ngày, có thể kèm dòng 0 đồng."""
+def _hoa_don(ngay, gia=(150000, 70000), ghi_so=True, chiet_khau=0, sl=None):
+	"""SI Pancake thật của một ngày, có thể kèm dòng 0 đồng.
+
+	chiet_khau: chiết khấu trên Grand Total, dùng để dựng ca THÀNH TIỀN DÒNG
+	còn tiền mà gross sau chia lại về 0 (contract amount > 0 của #266 vòng 5).
+	"""
 	ct, tk, mau = _nen()
 	ma = 'KT266-' + frappe.generate_hash(length=12)
-	dong = [dict(item_code=_mon(tk, 8), qty=1, rate=g) for g in gia]
+	sl = sl or [1] * len(gia)
+	dong = [dict(item_code=_mon(tk, 8), qty=q, rate=g) for g, q in zip(gia, sl)]
 	hd = frappe.get_doc(dict(doctype='Sales Invoice', company=ct, currency='VND', conversion_rate=1,
 		customer=frappe.db.get_value('Customer', {'disabled': 0, 'is_internal_customer': 0}, 'name'),
 		custom_nguon='Pancake', custom_pancake_display_id=ma, custom_pancake_id=ma,
 		vgb_pt_thanh_toan='Chuyển khoản', taxes_and_charges=mau.name,
+		apply_discount_on='Grand Total', discount_amount=chiet_khau,
 		set_posting_time=1, posting_date=ngay, items=dong))
 	hd.flags.ignore_permissions = True
 	hd.insert(ignore_permissions=True)
@@ -164,6 +174,56 @@ def chay():
 				hom_nay = nowdate()
 				hom_qua = add_days(hom_nay, -1)
 
+				# ------------------------------ F3 vòng 5: chuỗi ngày, chỉ ngày SỚM NHẤT đi
+				# Codex bắt đúng: bản trước miễn cho MỌI tờ mang ngày trước hôm
+				# nay, nên sang ngày kia thì tờ hôm qua vượt được nợ ba ngày
+				# trước và đóng cửa của nó vĩnh viễn. Dựng đúng chuỗi ba ngày
+				# và cho chạy qua CỬA CHUNG thật.
+				_cau_hinh(ma_gop='')
+				cu_nhat_ngay = add_days(hom_nay, -3)
+				cu_nhat = _hoa_don(cu_nhat_ngay)
+				frappe.db.set_value('Sales Invoice', cu_nhat.name,
+					hddt_cho_xuat.TRUONG_NGAY_XUAT, cu_nhat_ngay, update_modified=False)
+				giua = _hoa_don(hom_qua)
+				frappe.db.set_value('Sales Invoice', giua.name,
+					hddt_cho_xuat.TRUONG_NGAY_XUAT, hom_qua, update_modified=False)
+				# CỬA CHUNG là hàm chan_neu_con_ngay_cu, gọi từ minvoice_an_toan.
+				# kiem_goi. Ở đây gọi thẳng cửa đó vì kiem_goi còn đòi payload
+				# đã dựng; đoạn F2 bên dưới mới là đường đi đủ từ nút bấm.
+				truoc = len(gui)
+				chan_duoc, cau_loi = False, ''
+				try:
+					hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', giua.name))
+				except Exception as e:
+					cau_loi, chan_duoc = str(e), True
+				if not chan_duoc:
+					raise AssertionError('F3v5 to %s (ngay %s) khong bi chan du con no ngay %s'
+						% (giua.name, hom_qua, cu_nhat_ngay))
+				_bang('F3v5 không gửi tờ nào khi còn ngày sớm hơn', len(gui), truoc)
+				# Chính tờ của ngày nợ sớm nhất thì phải đi được, không thì bế tắc.
+				hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', cu_nhat.name))
+				# Xuất xong ngày sớm nhất thì tới lượt ngày kế tiếp.
+				truoc = len(gui)
+				ra = hddt_cho_xuat.chay_nen(str(cu_nhat_ngay), 'giu_ngay', 'bench')
+				if len(gui) - truoc != 1:
+					raise AssertionError('F3v5 chua xuat duoc ngay som nhat: %d != 1; %s'
+						% (len(gui) - truoc, json.dumps(ra, ensure_ascii=False, default=str)))
+				_bang('F3v5 ngày lập đúng ngày sớm nhất',
+					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(cu_nhat_ngay))
+				con_lai = [str(x) for x in hddt_cho_xuat.ngay_cu_can_bao_ve()]
+				_bang('F3v5 hết nợ ngày sớm nhất', cu_nhat_ngay in con_lai, False)
+				# Giờ tờ hôm qua mới được đi, và đi được thật.
+				hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', giua.name))
+				truoc = len(gui)
+				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				if len(gui) - truoc != 1:
+					raise AssertionError('F3v5 den luot hom qua van chua di duoc: %d != 1; %s'
+						% (len(gui) - truoc, json.dumps(ra, ensure_ascii=False, default=str)))
+				_bang('F3v5 ngày lập đúng ngày hôm qua',
+					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_qua))
+				kq['phan'].append({'ten': 'F3 vòng 5 chuỗi ngày, sớm nhất đi trước', 'dat': True,
+					'chan_dung_cau': cau_loi[:120]})
+
 				# ---------------------------------------------- F5 phạm vi phát hành
 				# Dựng ĐÚNG chuỗi thao tác của khách (điều 15): kế toán mở
 				# Cài đặt > Cuối ngày, chọn ngày cũ, chọn "giữ ngày bán", máy
@@ -171,9 +231,13 @@ def chay():
 				# đầu tiên làm vậy và chọn được 0 tờ, vì ds_cho_xuat lọc theo
 				# vgb_hddt_ngay_xuat, mà trường đó chỉ do chay_nen đặt. Gọi tắt
 				# là kiểm một đường mà sản phẩm không hề đi.
-				_cau_hinh(ma_gop='')
+				#
+				# TỜ NGÀY KHÁC ĐỂ Ở NGÀY HÔM NAY, không phải một ngày cũ hơn.
+				# Từ vòng 5, một ngày cũ hơn đang nợ sẽ CHẶN cả lượt hôm qua,
+				# đúng như chuỗi vừa kiểm ngay trên. Để tờ đối chứng ở ngày cũ
+				# hơn là ca kiểm tự dựng bế tắc cho chính nó.
 				cu = _hoa_don(hom_qua, gia=(150000, 0))
-				khac_ngay = _hoa_don(add_days(hom_nay, -3))
+				khac_ngay = _hoa_don(hom_nay)
 				truoc = len(gui)
 				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
 				if len(gui) - truoc != 1:
@@ -219,32 +283,157 @@ def chay():
 					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 1)
 				kq['phan'].append({'ten': 'F1 không đối chứng được thì không gỡ', 'dat': True})
 
-				# ------------------------------------------ F1 vòng 3: mã LẠ giữ cờ
-				# Mẫu dương tính và âm tính đều tốt, nhưng tờ này trả mã 9999, đúng
-				# mã m-invoice đã từ chối 116 tờ TCV đêm 09/09. Mã đó KHÔNG phải
-				# câu "không có tờ" nên phải giữ cờ.
+				# ------------------------------------- F1 vòng 5: chưa khai mẫu, không gỡ
+				# Codex bắt đúng ở vòng 5: suy mẫu "không có tờ" bằng cách hỏi
+				# một mã bịa ra là SAI VỀ LOGIC. Nay mô đun để MAU_KHONG_CO_TO
+				# RỖNG, nghĩa là KHÔNG tờ nào được máy gỡ cờ, kể cả khi cổng
+				# trả về câu sạch nhất. Đây là ca chốt điều đó chạy thật.
 				tra_loi[cu.name] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
 				tra_loi['mac_dinh'] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
 				tra_loi['am_tinh'] = dict(code='01', message='not found', data=None)
-				tra_loi[kep.name] = dict(code='9999', message='Mã chưa rõ')
-				truoc = len(gui)
+				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
+				truoc, truoc_hoi = len(gui), len(hoi)
 				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
-				_bang('F1v3 mã lạ 9999 vẫn giữ cờ', frappe.db.get_value(
+				_bang('F1v5 chưa khai mẫu thì câu sạch cũng giữ cờ', frappe.db.get_value(
 					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 1)
-				_bang('F1v3 không gửi lại tờ nào', len(gui), truoc)
-				_bang('F1v3 không gỡ cờ tờ nào', ra.get('go_co'), 0)
-				kq['phan'].append({'ten': 'F1 vòng 3 mã lạ giữ cờ', 'dat': True})
+				_bang('F1v5 không gỡ cờ tờ nào', ra.get('go_co'), 0)
+				_bang('F1v5 không gửi lại tờ nào', len(gui), truoc)
+				_bang('F1v5 và nói rõ lý do cho kế toán', any(
+					'chưa khai mẫu' in str(x) for x in (ra.get('loi') or [])), True)
+				kq['phan'].append({'ten': 'F1 vòng 5 chưa khai mẫu thì không gỡ', 'dat': True,
+					'giu_co': ra.get('giu_co')})
 
-				# Đúng mã của mẫu âm tính thì mới gỡ, và tờ được gửi lại.
+				# Ba PHẢN VÍ DỤ của Codex, chạy thật qua chay_nen: kể cả ngày
+				# khai được mẫu thật, ba câu này vẫn phải giữ cờ.
+				mau_thu = ({'code': '01', 'message': 'not found', 'data': None},)
+				for ten_pv, pv in (('A', dict(message='Không đủ quyền')),
+						('B', dict(code='9999', message='Mã chưa rõ')),
+						('C', dict(code='01', data=dict(reason='Không đủ quyền')))):
+					tra_loi[kep.name] = pv
+					truoc = len(gui)
+					with patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', mau_thu):
+						ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+					if frappe.db.get_value('Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu') != 1:
+						raise AssertionError('F1v5 phan vi du %s da go co nham: %s'
+							% (ten_pv, json.dumps(ra, ensure_ascii=False, default=str)))
+					_bang('F1v5 phản ví dụ %s không gửi lại' % ten_pv, len(gui), truoc)
+				kq['phan'].append({'ten': 'F1 vòng 5 ba phản ví dụ vẫn giữ cờ', 'dat': True})
+
+				# Khai đúng mẫu VÀ trả đúng mẫu thì mới gỡ, và tờ được gửi đi.
 				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
 				truoc = len(gui)
-				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
-				_bang('F1v3 trùng mẫu âm tính thì gỡ cờ', frappe.db.get_value(
+				with patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', mau_thu):
+					ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				_bang('F1v5 khai mẫu rồi thì gỡ được', frappe.db.get_value(
 					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 0)
-				_bang('F1v3 gỡ đúng một tờ', ra.get('go_co'), 1)
-				_bang('F1v3 gỡ xong thì gửi tờ đó đi', len(gui), truoc + 1)
-				kq['phan'].append({'ten': 'F1 vòng 3 trùng mẫu âm tính thì gỡ', 'dat': True,
+				_bang('F1v5 gỡ đúng một tờ', ra.get('go_co'), 1)
+				_bang('F1v5 gỡ xong thì gửi tờ đó đi', len(gui), truoc + 1)
+				kq['phan'].append({'ten': 'F1 vòng 5 khai mẫu rồi mới gỡ', 'dat': True,
 					'da_gui': len(gui) - truoc})
+
+				# ------------------------------- F5đt vòng 5: hai lượt chạy đồng thời
+				# Codex đòi kiểm đồng thời thật. Bản trước gỡ cờ và commit TỪNG
+				# TỜ rồi mãi cuối hàm mới lấy khoá, nên suốt đoạn gỡ cờ một lượt
+				# khác vẫn chen vào được: lượt này cầm ảnh chụp cũ, ghi cờ về 0
+				# và xoá mất dấu giữ chỗ lượt kia vừa đặt.
+				#
+				# Dựng xen kẽ ĐÚNG điểm nguy hiểm chứ không chạy hai luồng thật:
+				# ngay trong lúc lượt A đang hỏi m-invoice về tờ X, lượt B ghi
+				# xong hoá đơn cho X. Lượt A phải bỏ qua X, không ghi đè.
+				dt = _hoa_don(hom_qua)
+				frappe.db.set_value('Sales Invoice', dt.name, {
+					'vgb_hddt_cho_doi_chieu': 1,
+					hddt_cho_xuat.TRUONG_NGAY_XUAT: hom_qua}, update_modified=False)
+				tra_loi[dt.name] = dict(code='01', message='not found', data=None)
+				chen = {'so_lan': 0}
+
+				def _luot_b(khoa):
+					# Lượt B vừa xuất xong tờ này ngay trong lúc A còn đang hỏi.
+					if khoa == dt.name and not chen['so_lan']:
+						chen['so_lan'] = 1
+						frappe.db.set_value('Sales Invoice', dt.name, {
+							'custom_minvoice_id': 'KT266-luot-B',
+							'custom_hddt_so': '13001'}, update_modified=False)
+						frappe.db.commit()
+
+				get_that = get
+
+				def get_chen(url, **kw):
+					if url == 'https://minvoice.invalid/api/InvoiceApi78/GetInfoInvoice':
+						_luot_b((kw.get('params') or {}).get('keyApi'))
+					return get_that(url, **kw)
+
+				truoc = len(gui)
+				with patch.object(tich_hop, 'make_get_request', get_chen), \
+						patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', mau_thu):
+					ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				_bang('F5đt lượt B có chen vào thật', chen['so_lan'], 1)
+				_bang('F5đt lượt A KHÔNG xoá dấu giữ chỗ của B', frappe.db.get_value(
+					'Sales Invoice', dt.name, 'custom_minvoice_id'), 'KT266-luot-B')
+				_bang('F5đt cờ đối chiếu không bị ghi đè về 0', frappe.db.get_value(
+					'Sales Invoice', dt.name, 'vgb_hddt_cho_doi_chieu'), 1)
+				_bang('F5đt không tờ nào bị gửi đúp', len(gui), truoc)
+				_bang('F5đt và nói rõ vì lượt khác vừa xuất xong', any(
+					'lượt khác vừa xuất xong' in str(x) for x in (ra.get('loi') or [])), True)
+
+				# Lượt khác đang GIỮ KHOÁ thì lượt này không đụng tờ nào.
+				frappe.db.set_value('Sales Invoice', dt.name, {
+					'custom_minvoice_id': '', 'custom_hddt_so': ''}, update_modified=False)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_khoa_hddt', lambda cho=5: None), \
+						patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', mau_thu):
+					ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				_bang('F5đt khoá bận thì không gỡ cờ tờ nào', ra.get('go_co'), 0)
+				_bang('F5đt khoá bận thì không kéo tờ nào', ra.get('keo'), 0)
+				_bang('F5đt khoá bận thì không gửi tờ nào', len(gui), truoc)
+				_bang('F5đt cờ vẫn còn nguyên', frappe.db.get_value(
+					'Sales Invoice', dt.name, 'vgb_hddt_cho_doi_chieu'), 1)
+				kq['phan'].append({'ten': 'F5đt đồng thời không ghi đè', 'dat': True,
+					'lan_chen': chen['so_lan']})
+				# Dọn tờ này khỏi đường đi của các đoạn sau.
+				frappe.db.set_value('Sales Invoice', dt.name, {
+					'vgb_hddt_cho_doi_chieu': 0, 'custom_minvoice_id': 'KT266-don',
+					'custom_hddt_so': '13002',
+					hddt_cho_xuat.TRUONG_NGAY_XUAT: None}, update_modified=False)
+
+				# ------------------- contract vòng 5: phép lọc dòng phải Y HỆT kịch bản
+				# Codex đòi chốt contract amount > 0 giữa hai bên. Kịch bản phát
+				# hành bỏ dòng có THÀNH TIỀN DÒNG = 0; thue_vnd.dong_len_hoa_don
+				# phải lọc y hệt. Ba ca dưới đây đi qua ĐÚNG kịch bản trên site:
+				# đổi phép lọc ở một bên là một trong ba ca đỏ ngay.
+				ct_ca = []
+				# a. Dòng amount = 0: kịch bản bỏ, hàm cũng phải bỏ.
+				a0 = _hoa_don(hom_qua, gia=(150000, 0))
+				# b. amount > 0 nhưng gross về 0 sau chiết khấu đầu phiếu:
+				#    kịch bản VẪN gửi, nên hàm cũng phải giữ. Đây đúng chỗ bản
+				#    lọc theo gross làm lệch số dòng và chặn ngay lúc ghi sổ.
+				b0 = _hoa_don(hom_qua, gia=(1000000, 1000), chiet_khau=1000999)
+				# c. dòng thường nhiều đơn vị: số lượng phải đi đúng, không gộp.
+				c0 = _hoa_don(hom_qua, gia=(50000, 30000), sl=[3, 2])
+				co_gross_0 = False
+				for nhan_ca, hd_ca, so_dong_mong in (('a amount=0', a0, 1),
+						('b gross=0 sau chiết khấu', b0, 2), ('c nhiều đơn vị', c0, 2)):
+					frappe.db.set_value('Sales Invoice', hd_ca.name,
+						hddt_cho_xuat.TRUONG_NGAY_XUAT, hom_qua, update_modified=False)
+					truoc = len(gui)
+					ph = ban_hang._phat_hanh_theo_lo(str(hom_qua))
+					if len(gui) - truoc < 1:
+						raise AssertionError('contract %s: khong gui duoc to nao. %s'
+							% (nhan_ca, json.dumps(ph, ensure_ascii=False, default=str)))
+					dong_ca = [d for nhom in gui[-1]['data'][0]['details'] for d in nhom['data']]
+					_bang('contract %s đúng số dòng' % nhan_ca, len(dong_ca), so_dong_mong)
+					gross = [so_(d.get('inv_TotalAmount')) for d in dong_ca]
+					if 0 in gross:
+						co_gross_0 = True
+					ct_ca.append({'ca': nhan_ca, 'so_dong': len(dong_ca), 'gross': gross})
+				_bang('contract c giữ đúng số lượng',
+					sorted(so_(d['inv_quantity']) for d in dong_ca), [2.0, 3.0])
+				# GHI THẬT: ca b chỉ CHẠM tới điểm phân kỳ khi chiết khấu thật
+				# sự đẩy một dòng về gross 0. Không chạm tới thì ca vẫn đạt
+				# nhưng chứng minh ít hơn, và phải nói ra chứ không gộp vào
+				# "CI xanh" (điều 17).
+				kq['phan'].append({'ten': 'contract amount > 0 giữa hai bên', 'dat': True,
+					'ca': ct_ca, 'cham_diem_phan_ky': co_gross_0})
 
 				# ---------------------------------------------- F2 hàng rào ở cửa chung
 				# Dựng LẠI tình huống còn tờ ngày cũ đang chờ. Đoạn F1 vòng 3
