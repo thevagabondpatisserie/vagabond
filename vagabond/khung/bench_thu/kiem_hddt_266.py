@@ -50,6 +50,21 @@ def _cau_hinh(ma_gop=''):
 			('Vagabond Settings', 'pancake_api_key'),
 			('MInvoice Phat Hanh Settings', 'api2_password')):
 		set_encrypted_password(dt, dt, 'mat-khau-gia', field)
+	# Luu Single qua cua Document nhu cau hinh o Desk roi DOC LAI. Bench 243 da
+	# ghi ro rang chi set_single_value la khong du, va lan chay CI dau tien cua
+	# bench nay chon duoc 0 to chinh vi bo buoc nay.
+	st = frappe.get_doc('MInvoice Phat Hanh Settings')
+	st.api2_base = 'https://minvoice.invalid'
+	st.api2_username = 'kiem'
+	st.api2_password = 'mat-khau-gia'
+	st.nguon = 'Pancake'
+	st.enabled = 1
+	st.ma_hang_gop = ma_gop
+	st.save(ignore_permissions=True)
+	st = frappe.get_doc('MInvoice Phat Hanh Settings')
+	_bang('base phat hanh doc lai', st.api2_base, 'https://minvoice.invalid')
+	_bang('nguon doc lai', st.nguon, 'Pancake')
+	_bang('cong tac phat hanh bat', int(st.enabled or 0), 1)
 
 
 def _hoa_don(ngay, gia=(150000, 70000), ghi_so=True):
@@ -138,12 +153,20 @@ def chay():
 				hom_qua = add_days(hom_nay, -1)
 
 				# ---------------------------------------------- F5 phạm vi phát hành
+				# Dựng ĐÚNG chuỗi thao tác của khách (điều 15): kế toán mở
+				# Cài đặt > Cuối ngày, chọn ngày cũ, chọn "giữ ngày bán", máy
+				# chạy nền. KHÔNG gọi thẳng kịch bản phát hành: lần chạy CI
+				# đầu tiên làm vậy và chọn được 0 tờ, vì ds_cho_xuat lọc theo
+				# vgb_hddt_ngay_xuat, mà trường đó chỉ do chay_nen đặt. Gọi tắt
+				# là kiểm một đường mà sản phẩm không hề đi.
 				_cau_hinh(ma_gop='')
 				cu = _hoa_don(hom_qua, gia=(150000, 0))
 				khac_ngay = _hoa_don(add_days(hom_nay, -3))
 				truoc = len(gui)
-				ra = script(kich_ban.TEN_PHAT_HANH, None, ngay=hom_qua)
-				_bang('F5 chỉ phát hành tờ đúng ngày', len(gui) - truoc, 1)
+				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				if len(gui) - truoc != 1:
+					raise AssertionError('F5 chi phat hanh to dung ngay: %d != 1; ket qua chay_nen = %s'
+						% (len(gui) - truoc, json.dumps(ra, ensure_ascii=False, default=str)))
 				_bang('F5 payload một tờ', len(gui[-1]['data']), 1)
 				dong_gui = [d for nhom in gui[-1]['data'][0]['details'] for d in nhom['data']]
 				_bang('F5 bỏ dòng 0 đồng', len(dong_gui), 1)
