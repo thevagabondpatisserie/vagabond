@@ -40,5 +40,30 @@ function env(){
  await c.hsNoiSaoKeCoc('NCC-1','PE-1',()=>{});
  chon=sheetCalls.at(-1);assert.equal(chon.searchable,true);assert.equal(chon.items.length,9);
  assert(chon.items[7].tim.includes('BT-8'));
+
+ /* P2-1, Codex neu ra 10/09/2026: khoan can noi sao ke co hon 8 giao dich
+    thi hsNoiSaoKeCoc mo TAM TRUOT (sheet) phu len chinh man can coc. Truoc
+    day nhanh do tra ve true, nen hsChonCanCoc KHONG mo khoa nut ngoai; dong
+    tam bang X hay cham ra ngoai (khong bam chon giao dich nao trong sheet -
+    dung mock sheet() o tren, chi ghi lai loi goi chu khong tu bam) thi
+    khong con duong nao goi lai hsKhoaDongCoc(nut,false) nua, nut khoa vinh
+    vien. Chuoi duoi day lam DUNG thao tac khach: mo man can coc, bam DUNG
+    mot khoan can noi sao ke, roi bam lai LAN HAI - khong goi them ham nao
+    khac ngoai chuoi do (dieu 15). */
+ danhRows=[{name:'PE-1',ngay:'2026-09-10',con_coc:3000000,can_noi_sao_ke:true}];
+ ({c,tai}=env());
+ await c.hsMoCanCoc('NCC-1',[{hoa_don:'HD-1',so_tien:2000000}],()=>{});
+ const nutCanNoi=tai.querySelector('[data-hscoc]');
+ const bamCanNoi=khung._nghe.click[0];
+ const soSheetTruoc=sheetCalls.length;
+ await bamCanNoi({target:nutCanNoi});
+ assert.equal(sheetCalls.length,soSheetTruoc+1);
+ assert.equal(nutCanNoi.getAttribute('data-hsdang'),null,'nut phai duoc mo khoa ngay sau khi tam truot da mo, vi tam truot che het man nen khong ai bam trung nut cu duoc');
+ assert.equal(nutCanNoi.style.pointerEvents,'');
+ assert.equal(nutCanNoi.disabled,false);
+ await bamCanNoi({target:nutCanNoi});
+ assert.equal(sheetCalls.length,soSheetTruoc+2,'bam lai lan hai phai mo duoc tam truot lan nua, khong bi khoa vinh vien');
+ console.log('PASS APP cọc P2-1: đóng tấm trượt sao kê (>8 giao dịch) không khoá vĩnh viễn nút cấn cọc');
+
  console.log('PASS APP cọc: mất phản hồi, tải lại trang, retry giữ nguyên mã và payload');
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1146,11 +1146,19 @@ async function scrHoSoTTTao() {
     tienGo(n);
     var tien = soTien(n.value);
     if (!tien) {
+      /* O RONG CHUA CO NGHIA LA BO CHON. Chi bo tick luc RỜI Ô (ketThuc),
+         khong phai moi phim go: nguoi dung cham o, bam Xoa, chua kip go lai
+         thi o rong o giua chung mot khoanh, va truoc ban nay man ve lai
+         ngay tai do lam mat con tro lan phieu noi bo da noi. QT-09. */
+      if (!ketThuc) return;
       delete hsTaoChon[ma]; delete hsPhieuCua[ma];
       var gc0 = document.getElementById('hsGc'); if (gc0) hsTaoGhiChu = gc0.value;
       return go(scrHoSoTTTao, true);
     }
-    if (!Number.isFinite(tien) || tien > d.con_no) {
+    /* soTien() giu lai dau tru (o so luong con dung no), nen phai tu chan
+       so <= 0 o day - may chu co chan nhung the la mat lop chan tai man
+       hinh, bao loi muon sau khi da bam Lap. */
+    if (!Number.isFinite(tien) || tien <= 0 || tien > d.con_no) {
       hsBayLech(n, tien, d.con_no);
       if (!ketThuc) return;
       n.value = money(d.so_tien); hsBayLech(n, d.so_tien, d.con_no);
@@ -3419,7 +3427,11 @@ async function hsMoCanCoc(ncc, dong, xong) {
         '<div class="hi" style="background:' + (san ? '#E4F9FD' : '#fff7ed') + ';color:' + (san ? '#0B7C93' : '#b45309') + '">' + (san ? '💰' : '🔗') + '</div>' +
         '<div class="lt"><div class="l1">' + money(r.con_coc) + ' đ</div>' +
         '<div class="l2">' + h(r.name) + ' · ' + h(r.ngay) + '</div>' +
-        '<div style="margin-top:5px"><span class="chip" style="pointer-events:none;padding:4px 10px;font-size:11.5px;background:' + (san ? '#eafaf1' : '#fff7ed') + ';border-color:' + (san ? '#a7e8c4' : '#fcd9a5') + ';color:' + (san ? '#12a150' : '#b45309') + '">' +
+        /* .st.g / .st.w, KHONG phai .chip: .chip la nut BAM DUOC cao 38px
+           trong hang .chips cuon ngang (00-nen.js dong 128-131), day chi la
+           mot nhan trang thai khong bam duoc. .st la lop dung nghia va cua
+           san co cho viec do (00-nen.js dong 215-217). */
+        '<div style="margin-top:5px"><span class="st ' + (san ? 'g' : 'w') + '">' +
         (san ? '✓ Đã nối sao kê' : '⚠ Cần nối sao kê') + '</span></div></div><div class="fc">›</div></div>';
     });
     html += '</div>';
@@ -3438,13 +3450,16 @@ function hsKhoaDongCoc(nut, khoa) {
     nut._hsDangCoc = true;
     if (nut.setAttribute) nut.setAttribute('data-hsdang', '1');
     nut.disabled = true;
-    nut.style = nut.style || {}; nut.style.pointerEvents = 'none'; nut.style.opacity = '.5';
+    /* KHONG gan nut.style = ...: element.style la CSSStyleDeclaration, gan
+       mot object vao no la gan cssText thanh "[object CSSStyleDeclaration]",
+       chuoi khong hop le, trinh duyet xoa sach style noi tuyen dang co. */
+    if (nut.style) { nut.style.pointerEvents = 'none'; nut.style.opacity = '.5'; }
     return true;
   }
   nut._hsDangCoc = false;
   if (nut.removeAttribute) nut.removeAttribute('data-hsdang');
   nut.disabled = false;
-  nut.style = nut.style || {}; nut.style.pointerEvents = ''; nut.style.opacity = '';
+  if (nut.style) { nut.style.pointerEvents = ''; nut.style.opacity = ''; }
   return true;
 }
 
@@ -3501,7 +3516,11 @@ async function hsNoiSaoKeCoc(ncc, pe, xong) {
       return { value: r.name, label: r.date + ' · ' + money(r.withdrawal) + ' đ',
         phu: r.description + ' · ' + r.name, tim: r.name + ' ' + r.date + ' ' + r.description };
     }), '', function (it) { hsChonSaoKeCoc(ncc, pe, xong, it.value); }, true);
-    return true;
+    /* Tam truot nay PHU LEN man cấn cọc, khong thay the no. Tra ve false
+       de nut ngoai duoc mo khoa ngay: tam truot da che het man nen bam
+       trung nut cu khong the xay ra, con dong bang X hay cham ra ngoai thi
+       nguoi dung tro ve dung man voi nut da san sang bam lai. */
+    return false;
   }
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;color:#8a8f9c;line-height:1.45">Chọn giao dịch đã chi cho khoản cọc <b style="color:#16181d">' + h(pe) + '</b>. Chỉ bày đúng tài khoản và số tiền; kiểm thêm nội dung và ngày trước khi nối.</div>';
   if (!(ds.rows || []).length) {
