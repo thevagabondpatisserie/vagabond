@@ -105,7 +105,10 @@ def _coc(theo_po=False):
         pe.workflow_state = duyet_chi.TT_DA_DUYET_CHI
         pe.vgb_chi_unc = frappe.as_json([f.file_url])
         pe.save(ignore_permissions=True)
-        duyet_chi.xac_nhan_da_chuyen(pe.name, ma_giao_dich=g.name)
+        # Nền ca đã duyệt, giống _app; không kiểm chữ ký của workflow ở đây.
+        frappe.db.set_value("Payment Entry", pe.name, "workflow_state", duyet_chi.TT_DA_DUYET_CHI)
+        duyet_chi.xac_nhan_da_chuyen(pe.name, ma_giao_dich=g.name,
+            ly_do_som="Bench: giao dịch ngân hàng thử đã tạo, kiểm cấn cọc neo PO")
         pe.reload()
     else:
         pe.submit()

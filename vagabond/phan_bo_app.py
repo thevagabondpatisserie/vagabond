@@ -102,9 +102,10 @@ def kiem_luu(doc):
         return
     invoices = kiem(doc.get("dong"), doc.name or "") or {}
     if (doc.get("loai") or "NCC") in ("NCC", "TK cong ty"):
-        for ten, hd in invoices.items():
-            if hd.supplier != doc.nha_cung_cap:
-                frappe.throw("Hóa đơn %s không thuộc nhà cung cấp của hồ sơ." % ten)
+        # APP gom nhiều NCC là luồng hiện có; mỗi PE vẫn lấy NCC từ hóa đơn.
+        # Tên NCC đầu hồ sơ phải thuộc tập hóa đơn, không được đổi sang người khác.
+        if invoices and doc.nha_cung_cap not in {hd.supplier for hd in invoices.values()}:
+            frappe.throw("Hóa đơn không thuộc nhà cung cấp của hồ sơ.")
         if len({hd.company for hd in invoices.values()}) > 1:
             frappe.throw("Một APP chỉ dùng hóa đơn trong cùng công ty.")
 

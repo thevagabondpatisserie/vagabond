@@ -102,7 +102,7 @@ def _thu_coc(root):
             pages = PdfReader(io.BytesIO(pdf)).pages
             _dung(len(pages) == 1, "Tờ một hóa đơn và lịch sử cọc phải nằm gọn1 trang")
             text = " ".join(p.extract_text() or "" for p in pages)
-            _dung(pe_ma in text, "PDF thật có tham chiếu phiếu cọc")
+            _dung(pe_ma in "".join(text.split()), "PDF thật có tham chiếu phiếu cọc, kể cả xuống dòng")
         finally:
             _dong()
         return ket

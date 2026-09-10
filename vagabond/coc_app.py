@@ -53,7 +53,7 @@ def danh_sach(ncc):
     return {"rows": ra}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def can_coc(ncc, payment_entry, hoa_don, ma_lan):
     hs._kiem(hs.VAI_FIN, "cấn cọc nhà cung cấp")
     dong = frappe.parse_json(hoa_don)
@@ -152,7 +152,7 @@ def sao_ke_coc(ncc, payment_entry):
     return {"rows": rows}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def noi_sao_ke_coc(ncc, payment_entry, giao_dich):
     hs._kiem(hs.VAI_FIN, "nối sao kê cọc")
     pe, links = _phieu(payment_entry, ncc, khoa=True, can_sao_ke=False)
@@ -167,6 +167,10 @@ def noi_sao_ke_coc(ncc, payment_entry, giao_dich):
     chu = _chu_khac(g, frappe._dict(name=pe.name))
     if chu and chu != pe.name:
         frappe.throw("Sao kê đã được %s sử dụng." % chu)
+    if links:
+        if len(links) == 1 and links[0].name == g.name and flt(links[0].allocated_amount) == flt(pe.paid_amount):
+            return {"ok": 1, "giao_dich": g.name, "payment_entry": pe.name, "da_lam_roi": 1}
+        frappe.throw("Liên kết sao kê cọc chưa khớp đủ tiền. Kế toán kiểm trong Đối chiếu ngân hàng.")
     for r in g.payment_entries:
         if r.payment_document != "Payment Entry" or r.payment_entry != pe.name:
             frappe.throw("Sao kê đã nối chứng từ khác, không dùng lại cho cọc.")
