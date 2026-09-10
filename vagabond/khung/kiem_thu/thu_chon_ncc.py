@@ -308,6 +308,15 @@ def _to_da_huy_vao_duoc():
 			"posting_date": "2026-06-01"}, MOC) == cn.LD_HUY)
 
 
+@ca("#247 Vì sao thiếu dùng cùng số APP còn giữ, không tính nháp hay phần đã chi")
+def _ly_do_giu_tien_cung_nguon():
+	s = _py("ho_so_tt.py")
+	i = s.index("def _hd_ho_so_giu(")
+	than = s[i:s.index("\ndef _hd_da_gom(", i)]
+	dung("dùng phép giữ tiền theo số còn lại", "dang_giu_chi_tiet" in than)
+	dung("không còn truy vấn riêng tính cả trạng thái Nhap", "'Nhap'" not in than)
+
+
 @ca("#198 câu báo lỗi phải nói việc làm tiếp, đúng QT-24")
 def _bao_loi_noi_viec_lam_tiep():
 	j = _js("19-ho-so-tt.js")

@@ -295,7 +295,9 @@ def _property_setter():
 		and ("Payment Entry", "reference_date", "mandatory_depends_on", "") in goi)
 	dung("gọi từ patch migrate", "tham_chieu_tien.dung()" in _doc("vagabond/patches/dong_bo_cau_truc.py"))
 	h = _doc("vagabond/hooks.py")
-	dung("hook validate đã gắn", '"vagabond.tham_chieu_tien.dien_khi_trong"' in h)
+	dung("hook before_validate đã gắn", '"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong"' in h)
+	khoi = h[h.index('"Payment Entry": {'):h.index('"Sales Invoice": {')]
+	dung("không đặt muộn trong danh sách validate", khoi.count('"vagabond.tham_chieu_tien.dien_khi_trong"') == 1)
 	dung("gắn đúng doctype", h.index('"Payment Entry": {') < h.index('"vagabond.tham_chieu_tien.dien_khi_trong"'))
 	dung("Desk có hook riêng chạy trước kiểm bắt buộc của trình duyệt",
 		'"Payment Entry": "public/js/payment_entry.js"' in h)

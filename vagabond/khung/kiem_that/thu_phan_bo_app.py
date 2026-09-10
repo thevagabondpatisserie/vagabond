@@ -165,6 +165,20 @@ def _():
     la("hết nợ", float(hd.outstanding_amount), 0.0)
 
 
+@ca("APP cọc: bộ đối chiếu lõi không cắt mất hóa đơn thứ 51")
+def _():
+    dau = _hoa_don_mua(1000)
+    hoa_don = [dau]
+    for _i in range(50):
+        hoa_don.append(_hoa_don_mua(1000, dau.supplier))
+    pe = frappe._dict(company=dau.company, party=dau.supplier,
+        paid_to=dau.credit_to, name="PE-KIEM-GIOI-HAN-50")
+    rec, _payments = coc_app._doi_chieu(pe)
+    thay = {r.invoice_number for r in rec.invoices
+        if r.invoice_type == "Purchase Invoice"}
+    dung("thấy đủ cả 51 hóa đơn vừa dựng", all(h.name in thay for h in hoa_don))
+
+
 @ca("APP cọc: từ chối số đã bị APP khác giữ, retry cùng kết quả")
 def _():
     hd, pe, g = _coc()

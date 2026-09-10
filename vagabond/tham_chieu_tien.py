@@ -13,7 +13,7 @@ có lịch sử để biết.
 
 Nay đưa cả hai việc vào mã nguồn:
   1. `dung()` khai lại Property Setter mỗi lần Migrate, lặp lại được.
-  2. `dien_khi_trong` là hook validate: trống thì tự điền, để đối chiếu
+  2. `dien_khi_trong` là hook before_validate: trống thì tự điền, để đối chiếu
      ngân hàng không bị trống dữ liệu. Có sẵn mã FT thật của ngân hàng
      (phiếu thu SePay tự lập) thì giữ nguyên, không đè.
 
@@ -67,7 +67,7 @@ def can_dien(paid_from, paid_to, reference_no, reference_date,
 
 
 def dien_khi_trong(doc, method=None):
-	"""Hook validate của Payment Entry: trống thì điền, có rồi thì giữ."""
+	"""Hook before_validate của Payment Entry: trống thì điền, có thì giữ."""
 	o = can_dien(doc.get("paid_from"), doc.get("paid_to"),
 		doc.get("reference_no"), doc.get("reference_date"),
 		doc.get("paid_from_account_type"), doc.get("paid_to_account_type"))

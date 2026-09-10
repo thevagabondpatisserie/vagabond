@@ -1096,6 +1096,32 @@ async function chayHet() {
     bang('payload2 trieu', JSON.parse(tao[0].ts.hoa_don)[0].so_tien, 2000000);
   });
 
+  await caAsync('APP247: nguoi lap khong co vai FIN khong thay nut can coc o ca hai man', async function () {
+    var m = dungMan(canhChi({ vai: ['Purchase Manager', 'AP Officer'],
+      nccChon: NCC_NO, supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        con_no: 1000000, co_the_chi: 1000000 }] } }));
+    m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
+    await m.g.scrHoSoTTTao();
+    bang('man APP khong bay nut khong bam duoc', m.tai.getElementById('hsCanCoc'), null);
+    m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
+    await m.g.scrChiCongTyTao();
+    bang('man chi cong ty khong bay nut khong bam duoc', m.tai.getElementById('huCanCoc'), null);
+  });
+
+  await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
+    var m = dungMan(canhChi({ vai: ['Accounts User'], nccChon: NCC_NO,
+      supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        con_no: 1000000, co_the_chi: 1000000 }] } }));
+    m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
+    await m.g.scrHoSoTTTao();
+    dung('man APP co nut', !!m.tai.getElementById('hsCanCoc'));
+    m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
+    await m.g.scrChiCongTyTao();
+    dung('man chi cong ty co nut', !!m.tai.getElementById('huCanCoc'));
+  });
+
 }
 
 /* Moi ca co han gio. Khong co han thi mot ca treo (vi du hop chon hien ra ma

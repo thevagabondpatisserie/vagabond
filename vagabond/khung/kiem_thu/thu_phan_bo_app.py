@@ -1,5 +1,9 @@
 """Số tiền phân bổ không được bị ép ngầm thành toàn bộ dư nợ."""
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import patch
+import frappe
+from vagabond import phan_bo_app as pb
 from vagabond.phan_bo_app import gom, tien_hop_le
 from vagabond.khung.kiem_thu.nen import ca, la, dung
 
@@ -19,3 +23,38 @@ def _():
         except ValueError:
             continue
         dung("phải chặn %r" % x, False)
+
+
+@ca("APP giữ tiền: chỉ khóa hóa đơn đang kiểm và trừ phần đã ghi sổ")
+def _():
+    goi = []
+    def sql(cau, tham_so, as_dict=False):
+        goi.append((cau, tham_so))
+        if "Vagabond Ho So TT Dong" in cau:
+            return [SimpleNamespace(name="APP-A", ma="APP.26.09.001",
+                hoa_don="HD-1", so_tien=7000000)]
+        return [SimpleNamespace(vgb_ho_so_tt="APP-A", reference_name="HD-1",
+            allocated_amount=2000000)]
+    with patch.object(frappe.db, "sql", side_effect=sql):
+        la("còn giữ 5 triệu", pb.dang_giu(khoa=True, hoa_don={"HD-1"}),
+            {"HD-1": Decimal(5000000)})
+    dung("lọc đúng hóa đơn trong SQL", "d.hoa_don in %s" in goi[0][0])
+    la("tham số lọc chỉ có HD-1", goi[0][1][2], ("HD-1",))
+    dung("cả hai lượt đọc đều khóa", all("for update" in x[0] for x in goi))
+
+
+@ca("APP báo tiền: có phân cách hàng nghìn và không lộ Decimal thô")
+def _():
+    hd = SimpleNamespace(docstatus=1, outstanding_amount=10000000,
+        supplier="NCC", company="CT", currency="VND")
+    with patch.object(frappe.db, "get_value", return_value=hd), \
+            patch.object(pb, "dang_giu", return_value={"HD-1": Decimal(7000000)}):
+        try:
+            pb._kiem([{"hoa_don": "HD-1", "so_tien": 4000000}])
+        except frappe.ValidationError as exc:
+            cau = str(exc)
+        else:
+            dung("phải chặn vượt phần còn đề nghị", False)
+            return
+    dung("đọc được ba con số", "10.000.000 đ" in cau and
+        "7.000.000 đ" in cau and "3.000.000 đ" in cau)

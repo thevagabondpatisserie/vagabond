@@ -26,17 +26,33 @@ def gom(dong):
     return ra
 
 
-def dang_giu(tru_ho_so="", khoa=False):
+def _dinh_dang_tien(value):
+    """Dinh dang VND ngay tai bien loi, khong phu thuoc mo dun giao dien."""
+    tien = Decimal(str(value or 0))
+    chu = format(tien, "f")
+    nguyen, cham, le = chu.partition(".")
+    nguyen = format(int(nguyen or "0"), ",").replace(",", ".")
+    le = le.rstrip("0")
+    return nguyen + (("," + le) if le else "")
+
+
+def dang_giu_chi_tiet(tru_ho_so="", khoa=False, hoa_don=None):
     import frappe
+    co_loc_hoa_don = hoa_don is not None
+    hoa_don = tuple(sorted(set(hoa_don or ())))
+    if co_loc_hoa_don and not hoa_don:
+        return {}
     # Đọc từng dòng để không dựa vào aggregate snapshot sau lúc chờ khóa.
-    rows = frappe.db.sql("""select d.hoa_don, d.so_tien, p.name
+    dieu_kien_hd = " and d.hoa_don in %s" if co_loc_hoa_don else ""
+    tham_so = (GIU, tru_ho_so, hoa_don) if co_loc_hoa_don else (GIU, tru_ho_so)
+    rows = frappe.db.sql("""select d.hoa_don, d.so_tien, p.name, p.ma
         from `tabVagabond Ho So TT Dong` d
         join `tabVagabond Ho So TT` p on p.name=d.parent
         where p.trang_thai in %s and p.name != %s and ifnull(d.hoa_don,'') != ''
-        """ + (" for update" if khoa else ""), (GIU, tru_ho_so), as_dict=True)
+        """ + dieu_kien_hd + (" for update" if khoa else ""), tham_so, as_dict=True)
     theo_app = {}
     for r in rows:
-        key = (r.name, r.hoa_don)
+        key = (r.name, r.ma, r.hoa_don)
         theo_app[key] = theo_app.get(key, Decimal(0)) + tien_hop_le(r.so_tien)
     if theo_app:
         da_chi = frappe.db.sql("""select pe.vgb_ho_so_tt, r.reference_name, r.allocated_amount
@@ -44,13 +60,19 @@ def dang_giu(tru_ho_so="", khoa=False):
             where pe.docstatus=1 and pe.vgb_ho_so_tt in %s
             and r.reference_doctype='Purchase Invoice'""" + (" for update" if khoa else ""),
             (tuple(sorted({k[0] for k in theo_app})),), as_dict=True)
+        chi_muc = {(key[0], key[2]): key for key in theo_app}
         for r in da_chi:
-            key = (r.vgb_ho_so_tt, r.reference_name)
-            if key in theo_app:
+            key = chi_muc.get((r.vgb_ho_so_tt, r.reference_name))
+            if key:
                 theo_app[key] -= Decimal(str(r.allocated_amount or 0))
+    return {key: tien for key, tien in theo_app.items() if tien > 0}
+
+
+def dang_giu(tru_ho_so="", khoa=False, hoa_don=None):
+    theo_app = dang_giu_chi_tiet(tru_ho_so, khoa, hoa_don)
     ra = {}
-    for (_, hd), tien in theo_app.items():
-        ra[hd] = ra.get(hd, Decimal(0)) + max(Decimal(0), tien)
+    for (_, _, hd), tien in theo_app.items():
+        ra[hd] = ra.get(hd, Decimal(0)) + tien
     return ra
 
 
@@ -77,7 +99,9 @@ def _kiem(dong, tru_ho_so="", khoa=True):
     for ten in sorted(ke):
         hd[ten] = frappe.db.get_value("Purchase Invoice", ten,
             ["docstatus", "outstanding_amount", "supplier", "company", "currency"], as_dict=True, for_update=khoa)
-    giu = dang_giu(tru_ho_so, khoa=khoa)
+    # Chi khoa cac APP co chung hoa don voi yeu cau nay. Khoa toan bo APP
+    # dang hoat dong lam hai nha cung cap doc lap phai cho nhau vo ich.
+    giu = dang_giu(tru_ho_so, khoa=khoa, hoa_don=ke)
     for ten, tien in ke.items():
         r = hd[ten]
         if not r or r.docstatus != 1:
@@ -86,7 +110,8 @@ def _kiem(dong, tru_ho_so="", khoa=True):
         dang = giu.get(ten, Decimal(0))
         if tien + dang > no:
             frappe.throw("Hóa đơn %s còn nợ %s đ, APP khác đang giữ %s đ; đợt này chỉ được đề nghị tối đa %s đ. Mở lại danh sách để cập nhật." %
-                (ten, no, dang, max(Decimal(0), no-dang)))
+                (ten, _dinh_dang_tien(no), _dinh_dang_tien(dang),
+                 _dinh_dang_tien(max(Decimal(0), no-dang))))
 
     return hd
 

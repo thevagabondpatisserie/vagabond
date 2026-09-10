@@ -3,7 +3,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 import frappe
-from vagabond import ho_so_tt as hs, doi_chieu_app as dc
+from vagabond import ho_so_tt as hs, doi_chieu_app as dc, coc_app
 from vagabond.khung.kiem_thu.nen import ca, la, dung
 
 
@@ -36,3 +36,24 @@ def _chan():
 		dung("khác nguồn chi", bool(dc._kiem(g, d, ("CT", "112-KHAC", 100))))
 	with patch.object(frappe.db, "get_value", return_value=ba), patch.object(dc, "_chu_khac", return_value="APP-KHAC"):
 		dung("đã có chủ", "APP-KHAC" in dc._kiem(g, d, ("CT", "112", 100)))
+
+
+@ca("#247 đối chiếu cọc bỏ giới hạn 50 và dùng lại một lần đọc mỗi NCC")
+def _doi_chieu_coc_khong_cat_50():
+	class Rec:
+		def __init__(self):
+			self.payments = [SimpleNamespace(reference_type="Payment Entry",
+				reference_name="PE-1", amount=3000000,
+				as_dict=lambda: {"reference_type": "Payment Entry", "reference_name": "PE-1", "amount": 3000000})]
+			self.invoices = []
+		def get_unreconciled_entries(self):
+			la("bỏ giới hạn hóa đơn trước khi đọc", self.invoice_limit, 0)
+			la("bỏ giới hạn phiếu tiền trước khi đọc", self.payment_limit, 0)
+	rec = Rec()
+	pe = SimpleNamespace(company="CT", party="NCC", paid_to="331", name="PE-1")
+	bo_nho = {}
+	with patch.object(frappe, "new_doc", return_value=rec, create=True) as tao:
+		_, tien = coc_app._doi_chieu(pe, bo_nho)
+		coc_app._doi_chieu(pe, bo_nho)
+	la("chỉ dựng bộ đối chiếu một lần", tao.call_count, 1)
+	la("đọc đúng tiền cọc", tien[0]["amount"], 3000000)

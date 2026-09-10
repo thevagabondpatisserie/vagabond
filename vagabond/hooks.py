@@ -584,6 +584,10 @@ doc_events = {
 	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
 	# de giai trinh, nhac tren man thi bo qua duoc.
 	"Payment Entry": {
+		# Phai dien TRUOC controller validate cua ERPNext. Neu dat trong
+		# validate thi core chay truoc doc_event va nem loi hai o tham chieu,
+		# hook cua minh khong bao gio toi luot. Issue #252, bench run #95.
+		"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong",
 		"before_save": "vagabond.coc_app.chan_sua_lich_su",
 		"before_update_after_submit": "vagabond.coc_app.chan_sua_lich_su",
 		# Ten goi dung theo tai khoan tien: 111 la Phieu thu/Phieu chi, 112
@@ -596,10 +600,6 @@ doc_events = {
 			# nao noi ra (anh Viet 05/09/2026). Doc dau tep
 			# vagabond/nghiep_vu_tien.py.
 			"vagabond.nghiep_vu_tien.dat_nghiep_vu",
-			# O so/ngay tham chieu trong thi tu dien, de ERPNext khong chan
-			# "So sec/tham chieu is required" (chi Dung, 10/09/2026). Cai
-			# bo bat buoc nam o tham_chieu_tien.dung(), chay moi lan Migrate.
-			"vagabond.tham_chieu_tien.dien_khi_trong",
 		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung

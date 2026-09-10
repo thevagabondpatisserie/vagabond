@@ -36,12 +36,13 @@ def _phieu(name, ncc, khoa=False, can_sao_ke=True):
 def danh_sach(ncc):
     hs._kiem(hs.VAI_FIN, "xem cọc nhà cung cấp")
     ra = []
+    doi_chieu = {}
     for r in frappe.get_list("Payment Entry", filters={"docstatus": 1,
             "payment_type": "Pay", "party_type": "Supplier", "party": ncc}, fields=["name", "posting_date"],
             order_by="posting_date, name", limit_page_length=0):
         try:
             pe, links = _phieu(r.name, ncc, can_sao_ke=False)
-            rec, payments = _doi_chieu(pe)
+            rec, payments = _doi_chieu(pe, doi_chieu)
             con = sum(flt(p.get("amount")) for p in payments)
             if con <= 0:
                 continue
@@ -129,13 +130,22 @@ def chan_sua_lich_su(doc, method=None):
         frappe.throw("Lịch sử lần cấn cọc do máy chủ ghi. Không sửa hoặc xóa trực tiếp.")
 
 
-def _doi_chieu(pe):
+def _doi_chieu(pe, bo_nho=None):
     # ERPNext de591661: khoản ứng có thể còn ở reference Purchase Order,
     # dù PE.unallocated_amount=0. Đọc khả dụng từ PLE qua bộ đối chiếu lõi.
-    rec = frappe.new_doc("Payment Reconciliation")
-    rec.company, rec.party_type, rec.party = pe.company, "Supplier", pe.party
-    rec.receivable_payable_account = pe.paid_to
-    rec.get_unreconciled_entries()
+    khoa = (pe.company, pe.party, pe.paid_to)
+    rec = bo_nho.get(khoa) if bo_nho is not None else None
+    if rec is None:
+        rec = frappe.new_doc("Payment Reconciliation")
+        rec.company, rec.party_type, rec.party = pe.company, "Supplier", pe.party
+        rec.receivable_payable_account = pe.paid_to
+        # Hai gia tri mac dinh cua ERPNext deu la 50. Neu khong bo gioi han,
+        # coc hoac hoa don thu 51 van con tren so nhung APP bao khong tim thay.
+        rec.invoice_limit = 0
+        rec.payment_limit = 0
+        rec.get_unreconciled_entries()
+        if bo_nho is not None:
+            bo_nho[khoa] = rec
     payments = [p.as_dict() for p in rec.payments
                 if p.reference_type == "Payment Entry" and p.reference_name == pe.name and flt(p.amount) > 0]
     return rec, payments

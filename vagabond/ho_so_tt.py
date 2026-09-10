@@ -475,15 +475,18 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
 
 
 def _hd_ho_so_giu():
-	"""Hoa don nao dang nam trong ho so nao. Giong `_hd_da_gom` nhung tra ve
-	CA MA ho so, de man "Vi sao thieu" chi duoc dung cho ma tim."""
-	rows = frappe.db.sql(
-		"""select d.hoa_don, p.ma from `tabVagabond Ho So TT Dong` d
-		inner join `tabVagabond Ho So TT` p on p.name = d.parent
-		where p.trang_thai in ('Nhap', 'Cho ke toan', 'Cho giam doc', 'Da duyet')""",
-		as_dict=True,
-	)
-	return dict((r["hoa_don"], r["ma"]) for r in rows if r["hoa_don"])
+	"""Hoa don con duoc mot APP hieu luc giu, kem ma APP de nguoi dung mo.
+
+	Nhat ky Nhap khong giu tien. APP da ghi so het phan duoc de nghi cung
+	khong con giu. Dung cung mot phep voi cua tao APP de man "Vi sao thieu"
+	khong noi nguoc voi so tien con de nghi.
+	"""
+	from vagabond.phan_bo_app import dang_giu_chi_tiet
+	ra = {}
+	for (_, ma, hoa_don), tien in dang_giu_chi_tiet().items():
+		if tien > 0:
+			ra.setdefault(hoa_don, []).append(ma)
+	return {hd: ", ".join(sorted(set(ds))) for hd, ds in ra.items()}
 
 
 def _hd_da_gom():
