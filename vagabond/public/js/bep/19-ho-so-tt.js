@@ -214,9 +214,9 @@ async function scrHoSoTT() {
   loc.forEach(function (r) {
     var m = hsMau[r.trang_thai] || ['#f3f4f6', '#e5e7eb', '#374151', '•'];
     html += '<div class="hub" data-hs="' + h(r.name) + '"' + (r.la_phieu_chi ? ' data-hspc="1"' : '') + '>' +
-      '<div class="hub-i" style="background:' + m[0] + '">' + m[3] + '</div>' +
-      '<div class="hub-t"><div class="t1">' + h(r.ten_ncc || r.nha_cung_cap) + '</div>' +
-      '<div class="t2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
+      '<div class="hi" style="background:' + m[0] + '">' + m[3] + '</div>' +
+      '<div class="ht"><div class="h1">' + h(r.ten_ncc || r.nha_cung_cap) + '</div>' +
+      '<div class="h2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
       h(r.nhan) + '</span>' + hsCanhBaoDoiChieu(r) + hsChipNghiepVu(r, nhanChip) +
@@ -875,10 +875,10 @@ async function scrViSaoThieu() {
     hsOTimLuon('hsVsTim', '🔎 Gõ số hoá đơn rồi bấm Enter để tìm cả kho');
   dong.forEach(function (d) {
     html += '<div class="hub" data-vshd="' + h(d.x.name) + '">' +
-      '<div class="hub-i">📄</div><div class="hub-t">' +
-      '<div class="t1">' + h(d.x.so_hd_ncc || d.x.name) + '</div>' +
-      '<div class="t2">' + h(d.x.name) + (d.x.posting_date ? ' · ' + hsNgayVn(d.x.posting_date) : '') + '</div>' +
-      '<div class="t2" style="color:#b45309;font-weight:700">' +
+      '<div class="hi">📄</div><div class="ht">' +
+      '<div class="h1">' + h(d.x.so_hd_ncc || d.x.name) + '</div>' +
+      '<div class="h2">' + h(d.x.name) + (d.x.posting_date ? ' · ' + hsNgayVn(d.x.posting_date) : '') + '</div>' +
+      '<div class="h2" style="color:#b45309;font-weight:700">' +
       h(HS_NHAN_LY_DO[d.g.ly_do] || d.g.ly_do) +
       (d.x.ho_so_giu ? ' · hồ sơ ' + h(d.x.ho_so_giu) : '') + '</div>' +
       '</div><b style="white-space:nowrap">' + money(d.x.tong) + ' đ</b></div>';
@@ -1046,9 +1046,9 @@ async function scrHoSoTTTao() {
   html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800">ĐANG CHỌN</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
-    '<span style="font-size:13.5px;color:#374151">' + maChon.length + ' hoá đơn' +
+    '<span id="hsDemChon" style="font-size:13.5px;color:#374151">' + maChon.length + ' hoá đơn' +
     (laHU && soNha ? ' · ' + soNha + ' nhà cung cấp' : '') + '</span>' +
-    '<b style="font-size:20px;color:#0f766e">' + money(tongChon) + ' đ</b></div>' +
+    '<b id="hsTongChon" style="font-size:20px;color:#0f766e">' + money(tongChon) + ' đ</b></div>' +
     (laHU && soNha > 1
       ? '<div style="font-size:11.5px;color:#0f766e;margin-top:6px;line-height:1.6">' +
         h(Object.keys(nhaChon).sort().join(' · ')) + '</div>' : '') + '</div>';
@@ -1066,21 +1066,30 @@ async function scrHoSoTTTao() {
   if (!rows.length) html += '<div class="emp" style="padding:24px"><div class="e1">🎉</div><div>Không còn hoá đơn nào chờ trả ở đây.</div></div>';
   rows.forEach(function (r) {
     var da = !!hsTaoChon[r.hoa_don];
-    html += '<div class="hub" data-hsh="' + h(r.hoa_don) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>' +
-      '<div class="hub-i">' + (da ? '☑️' : '⬜') + '</div>' +
-      '<div class="hub-t"><div class="t1">' + h(r.so_hd_ncc || r.hoa_don) + '</div>' +
+    var soChi = da ? Number(hsTaoChon[r.hoa_don].so_tien) : 0;
+    var gioiHan = Number(r.co_the_chi == null ? r.con_no : r.co_the_chi);
+    var lech = da && soChi !== gioiHan;
+    html += '<div class="hub' + (da ? ' chon' : '') + '" data-hsh="' + h(r.hoa_don) + '">' +
+      '<input type="checkbox" class="tik" data-hstick="' + h(r.hoa_don) + '"' + (da ? ' checked' : '') + '>' +
+      '<div class="ht"><div class="h1">' + h(r.so_hd_ncc || r.hoa_don) + '</div>' +
       /* Hien ten nha cung cap ngay tren dong khi dang gom nhieu nha, neu
          khong thi ba muoi dong hoa don trong nhu nhau. */
-      (laHU ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(r.ten_ncc || r.ncc || '') + '</div>' : '') +
-      '<div class="t2">' + h(r.hoa_don) + ' · HĐ ' + hsNgayVn(r.ngay_hd) + (r.han_tra ? ' · hạn ' + hsNgayVn(r.han_tra) : '') + '</div>' +
-      (r.tre_ngay > 0 ? '<div class="t2" style="color:#b3261e;font-weight:700">Quá hạn ' + r.tre_ngay + ' ngày</div>' : '') +
+      (laHU ? '<div class="h2" style="color:#0f766e;font-weight:700">' + h(r.ten_ncc || r.ncc || '') + '</div>' : '') +
+      '<div class="h2">' + h(r.hoa_don) + ' · HĐ ' + hsNgayVn(r.ngay_hd) + (r.han_tra ? ' · hạn ' + hsNgayVn(r.han_tra) : '') + '</div>' +
+      (r.tre_ngay > 0 ? '<div class="h2" style="color:#b3261e;font-weight:700">⚠️ Quá hạn ' + r.tre_ngay + ' ngày</div>' : '') +
+      '<div class="h2" style="margin-top:4px">Còn nợ <b style="color:#16181d">' + money(r.con_no) + ' đ</b></div>' +
+      (r.dang_giu ? '<div class="h2" style="color:#b3261e">APP khác giữ ' + money(r.dang_giu) + ' đ</div>' : '') +
       /* Chi hien o luong HOAN UNG va chi khi dong da duoc tick. Luong cong
          no NCC thi tien di thang toi nha cung cap, khong co ai ung tien nen
          khong co phieu noi bo nao de noi. */
       (laHU && da ? hsODongPhieu(r.hoa_don) : '') +
-      '</div><div style="text-align:right">Còn nợ ' + money(r.con_no) + ' đ' +
-      (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + ' đ</div>' : '') +
-      (da ? '<label>Chi đợt này<input class="tin" type="text" inputmode="numeric" data-hstien="' + h(r.hoa_don) + '" value="' + money(hsTaoChon[r.hoa_don].so_tien) + '"></label>' : '') + '</div>' +
+      (da ? '<div class="otd' + (lech ? ' lech' : '') + '">' +
+        '<label class="lb" for="hstien-' + h(r.hoa_don) + '">Chi đợt này</label>' +
+        '<div class="ow"><input class="tien" id="hstien-' + h(r.hoa_don) + '" type="text" inputmode="numeric" data-hstien="' + h(r.hoa_don) + '" value="' + money(soChi) + '"><span class="dv">đ</span></div>' +
+        '<div class="gy"><span data-hshet="' + h(r.hoa_don) + '">Chi hết ' + money(gioiHan) + ' đ</span>' +
+        '<span data-hslech="' + h(r.hoa_don) + '" style="border:0;color:#b45309;padding-left:2px' + (lech ? '' : ';display:none') + '">' +
+        (lech ? 'Lệch ' + money(Math.abs(gioiHan - soChi)) + ' đ' : '') + '</span></div></div>' : '') +
+      '</div>' +
       hsONutBanTheHien(r.hoa_don) + '</div>';
   });
   html += '</div>';
@@ -1114,17 +1123,51 @@ async function scrHoSoTTTao() {
     hsNoiPhieuVaoHd(n.getAttribute('data-hsphieu'));
   }, true);
 
-  b.addEventListener('change', function (e) {
-    var n = e.target.closest('[data-hstien]'); if (!n) return;
-    var d = hsTaoChon[n.getAttribute('data-hstien')], tien = hsDocTienDot(n.value);
+  var hsCapNhatTongChon = function () {
+    var tong = Object.keys(hsTaoChon).reduce(function (a, ma) {
+      return a + Number((hsTaoChon[ma] && hsTaoChon[ma].so_tien) || 0);
+    }, 0);
+    var el = document.getElementById('hsTongChon');
+    if (el) el.textContent = money(tong) + ' đ';
+  };
+  var hsBayLech = function (n, tien, gioiHan) {
+    var o = n.closest('.otd'), lech = tien !== gioiHan;
+    if (o) o.className = 'otd' + (lech ? ' lech' : '');
+    var r = n.closest('[data-hsh]');
+    var canh = r && r.querySelector('[data-hslech]');
+    if (canh) {
+      canh.textContent = lech ? 'Lệch ' + money(Math.abs(gioiHan - tien)) + ' đ' : '';
+      canh.style.display = lech ? 'flex' : 'none';
+    }
+  };
+  var hsSuaTienDot = function (n, ketThuc) {
+    var ma = n.getAttribute('data-hstien'), d = hsTaoChon[ma];
     if (!d) return;
-    if (!Number.isFinite(tien) || tien <= 0 || tien > d.con_no) {
-      n.value = d.so_tien;
+    tienGo(n);
+    var tien = soTien(n.value);
+    if (!tien) {
+      delete hsTaoChon[ma]; delete hsPhieuCua[ma];
+      var gc0 = document.getElementById('hsGc'); if (gc0) hsTaoGhiChu = gc0.value;
+      return go(scrHoSoTTTao, true);
+    }
+    if (!Number.isFinite(tien) || tien > d.con_no) {
+      hsBayLech(n, tien, d.con_no);
+      if (!ketThuc) return;
+      n.value = money(d.so_tien); hsBayLech(n, d.so_tien, d.con_no);
       return baoTin('Nhập số tiền lớn hơn 0 và không vượt phần còn được đề nghị.');
     }
     d.so_tien = tien;
-    var gc = document.getElementById('hsGc'); if (gc) hsTaoGhiChu = gc.value;
-    go(scrHoSoTTTao, true);
+    hsBayLech(n, tien, d.con_no);
+    hsCapNhatTongChon();
+  };
+  b.oninput = function (e) {
+    var n = e.target.closest('[data-hstien]'); if (n) hsSuaTienDot(n, false);
+  };
+  b.addEventListener('change', function (e) {
+    var n = e.target.closest('[data-hstien]'); if (n) hsSuaTienDot(n, true);
+  });
+  Array.prototype.forEach.call(b.querySelectorAll('[data-hstien]'), function (el) {
+    el.onfocus = function () { el.select(); };
   });
 
   var coc = document.getElementById('hsCanCoc');
@@ -1135,6 +1178,32 @@ async function scrHoSoTTTao() {
     }), function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); });
   };
   var ghiChon = function (r) { hsTaoChon[r.hoa_don] = { con_no: Number(r.co_the_chi == null ? r.con_no : r.co_the_chi), so_tien: Number(r.co_the_chi == null ? r.con_no : r.co_the_chi), ten_ncc: r.ten_ncc || r.ncc || '' }; };
+
+  b.addEventListener('click', function (e) {
+    var n = e.target.closest('[data-hstick]');
+    if (!n) return;
+    e.stopPropagation(); e.preventDefault();
+    var ma = n.getAttribute('data-hstick');
+    if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
+    else {
+      var d = rows.filter(function (x) { return x.hoa_don === ma; })[0];
+      if (d) ghiChon(d);
+    }
+    var gc = document.getElementById('hsGc'); if (gc) hsTaoGhiChu = gc.value;
+    go(scrHoSoTTTao, true);
+  }, true);
+
+  b.addEventListener('click', function (e) {
+    var n = e.target.closest('[data-hshet]');
+    if (!n) return;
+    e.stopPropagation(); e.preventDefault();
+    var ma = n.getAttribute('data-hshet'), d = hsTaoChon[ma];
+    if (!d) return;
+    d.so_tien = d.con_no;
+    var hang = n.closest('[data-hsh]'), o = hang && hang.querySelector('[data-hstien]');
+    if (o) { o.value = money(d.so_tien); hsBayLech(o, d.so_tien, d.con_no); }
+    hsCapNhatTongChon();
+  }, true);
 
   /* Nut tai ban the hien nam NGAY canh tung hoa don. Bam vao khong duoc lam
      tick chon hoa don do nhay theo, nen phai chan noi len. */
@@ -1202,7 +1271,8 @@ async function scrHoSoTTTao() {
   }
   vgbNoiOTim(b, 'hsHdTim', '[data-hsh]');
   b.addEventListener('click', function (e) {
-    if (e.target.closest('[data-hstien]')) return;
+    if (e.target.closest('[data-hstick]') || e.target.closest('[data-hshet]') ||
+        e.target.closest('[data-hsbth]') || e.target.closest('[data-hstien]')) return;
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
     if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
@@ -1598,9 +1668,9 @@ async function scrHuSepay(kq) {
   rows.forEach(function (r) {
     var da = !!huGdChon[r.ma_giao_dich];
     html += '<div class="hub" data-hugd="' + h(r.ma_giao_dich) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>'
-      + '<div class="hub-i">' + (da ? '☑️' : '⬜') + '</div>'
-      + '<div class="hub-t"><div class="t1">' + h(r.noi_dung || '(không có nội dung)') + '</div>'
-      + '<div class="t2">' + hsNgayVn(r.ngay) + ' · ' + h(r.ma_giao_dich) + '</div></div>'
+      + '<div class="hi">' + (da ? '☑️' : '⬜') + '</div>'
+      + '<div class="ht"><div class="h1">' + h(r.noi_dung || '(không có nội dung)') + '</div>'
+      + '<div class="h2">' + hsNgayVn(r.ngay) + ' · ' + h(r.ma_giao_dich) + '</div></div>'
       + '<b style="white-space:nowrap">' + money(r.so_tien) + ' đ</b></div>';
   });
   html += '</div>';
@@ -1864,7 +1934,7 @@ async function scrChiCongTyTao() {
         + '<td style="padding:9px 10px;white-space:nowrap;color:' + (r.tre_ngay > 0 ? '#b91c1c' : '#6b7280') + '">'
         + (hsNgayVn(r.han_tra) || '-') + (r.tre_ngay > 0 ? '<br>trễ ' + r.tre_ngay + ' ngày' : '') + '</td>'
         + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) + (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + '</div>' : '') +
-        (on ? '<label>Chi đợt này<input class="tin" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(huChonHd[r.hoa_don]) + '"></label>' : '') + '</td></tr>';
+        (on ? '<div class="otd"><span class="lb">Chi đợt này</span><div class="ow"><input class="tien" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(huChonHd[r.hoa_don]) + '"><span class="dv">đ</span></div></div>' : '') + '</td></tr>';
     });
     html += '</table></div>';
   } else {
@@ -2096,9 +2166,9 @@ async function scrHoSoTTView(name) {
   html += '<div class="sec">Chuỗi duyệt</div><div class="card">';
   buoc.forEach(function (x) {
     html += '<div class="hub" style="cursor:default">' +
-      '<div class="hub-i" style="background:' + (x[3] ? '#f0fdf4' : '#f8fafc') + '">' + (x[3] ? '✅' : '⬜') + '</div>' +
-      '<div class="hub-t"><div class="t1">' + x[0] + '</div>' +
-      '<div class="t2">' + (x[3] ? (h(String(x[1] || '-')) + (x[2] ? ' · ' + hsNgayVn(String(x[2]).split(' ')[0]) : '')) : 'chưa') + '</div></div></div>';
+      '<div class="hi" style="background:' + (x[3] ? '#f0fdf4' : '#f8fafc') + '">' + (x[3] ? '✅' : '⬜') + '</div>' +
+      '<div class="ht"><div class="h1">' + x[0] + '</div>' +
+      '<div class="h2">' + (x[3] ? (h(String(x[1] || '-')) + (x[2] ? ' · ' + hsNgayVn(String(x[2]).split(' ')[0]) : '')) : 'chưa') + '</div></div></div>';
   });
   html += '</div>';
 
@@ -2119,22 +2189,22 @@ async function scrHoSoTTView(name) {
     var xong = x.hoa_don && Number(x.con_no_hien_tai || 0) <= 0;
     var mo = !!hsMoDong[i];
     var soCT = (x.po.length + x.pnk.length + x.scan.length);
-    html += '<div class="hub" data-hsd="' + i + '"><div class="hub-i">' + (xong ? '✅' : (x.hoa_don ? '🧾' : '📄')) + '</div>' +
-      '<div class="hub-t"><div class="t1">' + h(x.noi_dung || x.so_hd_ncc || x.hoa_don || '(chưa đặt tên)') + '</div>' +
+    html += '<div class="hub" data-hsd="' + i + '"><div class="hi">' + (xong ? '✅' : (x.hoa_don ? '🧾' : '📄')) + '</div>' +
+      '<div class="ht"><div class="h1">' + h(x.noi_dung || x.so_hd_ncc || x.hoa_don || '(chưa đặt tên)') + '</div>' +
       /* Ten nha cung cap cua RIENG dong nay, tren mot hang rieng khi ho so
          gom nhieu nha. Nhet chung vao hang so hoa don thi ke toan phai doc
          het ca hang moi biet dong nay cua ai. */
       (Number(hs.so_ncc) > 1
-        ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(x.ben_ban || x.ncc_hd || '') + '</div>' : '') +
-      '<div class="t2">' +
+        ? '<div class="h2" style="color:#0f766e;font-weight:700">' + h(x.ben_ban || x.ncc_hd || '') + '</div>' : '') +
+      '<div class="h2">' +
       (x.so_hd_ncc ? 'HĐ số <b>' + h(x.so_hd_ncc) + '</b>' : 'chưa có số hoá đơn') +
       (x.ngay_hd ? ' · ' + hsNgayVn(x.ngay_hd) : '') +
       (Number(hs.so_ncc) > 1 ? '' : ((x.ben_ban || x.ncc_hd) ? ' · ' + h(x.ben_ban || x.ncc_hd) : '')) + '</div>' +
       (x.hoa_don
-        ? '<div class="t2">' + h(x.hoa_don) + (x.trang_thai_hd ? ' · ' + h(x.trang_thai_hd) : '') +
+        ? '<div class="h2">' + h(x.hoa_don) + (x.trang_thai_hd ? ' · ' + h(x.trang_thai_hd) : '') +
           ' · còn nợ ' + money(x.con_no_hien_tai) + ' đ</div>'
-        : '<div class="t2" style="color:#92400e">Chưa sinh hoá đơn mua · máy lập khi giám đốc duyệt</div>') +
-      (soCT ? '<div class="t2" style="color:#0e7490">' + (mo ? '▾' : '▸') + ' ' + soCT + ' chứng từ kèm theo</div>' : '') +
+        : '<div class="h2" style="color:#92400e">Chưa sinh hoá đơn mua · máy lập khi giám đốc duyệt</div>') +
+      (soCT ? '<div class="h2" style="color:#0e7490">' + (mo ? '▾' : '▸') + ' ' + soCT + ' chứng từ kèm theo</div>' : '') +
       '</div><b style="white-space:nowrap">' + money(x.so_tien) + ' đ</b></div>';
 
     if (mo) {
@@ -3331,33 +3401,72 @@ async function hsMoCanCoc(ncc, dong, xong) {
         tim: r.name + ' ' + r.ngay };
     }), '', function (it) { hsChonCanCoc(ncc, dong, xong, ds, it.value); }, true);
   }
-  var html = '<div class="card">Chọn khoản cọc đã ghi sổ và đối chiếu sao kê. Cấn xong, danh sách sẽ cập nhật số còn nợ để lập đợt chi mới.</div>';
-  (ds.rows || []).forEach(function (r) {
-    html += '<button class="btn gh" data-hscoc="' + h(r.name) + '">' + h(r.name) + ' · ' + h(r.ngay) + ' · còn ' + money(r.con_coc) + ' đ' + (r.can_noi_sao_ke ? ' · cần nối sao kê' : ' · đã nối sao kê') + '</button>';
-  });
-  if (!(ds.rows || []).length) html += '<div class="card">Chưa có cọc đủ điều kiện. Kế toán ghi nhận khoản cọc bằng Phiếu thanh toán và đối chiếu sao kê trước.</div>';
+  var tongChon = dong.reduce(function (a, d) { return a + Number(d.so_tien); }, 0);
+  var tongCoc = (ds.rows || []).reduce(function (a, r) { return a + Number(r.con_coc || 0); }, 0);
+  var html = '<div class="card"><div class="stk">' +
+    '<div><div class="s1">Hoá đơn đã chọn</div><div class="s2">' + dong.length + ' tờ</div></div>' +
+    '<div><div class="s1">Cần cấn</div><div class="s2">' + money(tongChon) + ' đ</div></div>' +
+    '<div><div class="s1">Cọc còn</div><div class="s2" style="color:' + (tongCoc >= tongChon ? '#12a150' : '#b3261e') + '">' + money(tongCoc) + ' đ</div></div>' +
+    '</div><div style="padding:11px 14px;font-size:13px;color:#8a8f9c;line-height:1.45">' +
+    'Chọn khoản cọc đã ghi sổ và đã đối chiếu sao kê. Cấn xong, công nợ giảm ngay và danh sách cập nhật số còn nợ để lập đợt chi mới. Thao tác này không chuyển thêm tiền.</div></div>';
+  if (!(ds.rows || []).length) {
+    html += '<div class="emp"><div class="e1">🏦</div><div class="e2">Chưa có khoản cọc nào đủ điều kiện cấn.<br>Kế toán ghi nhận khoản cọc bằng Phiếu thanh toán và đối chiếu sao kê trước.</div></div>';
+  } else {
+    html += '<div class="sec">Khoản cọc có thể cấn · ' + ds.rows.length + '</div><div class="lst">';
+    (ds.rows || []).forEach(function (r) {
+      var san = !r.can_noi_sao_ke;
+      html += '<div class="li" data-hscoc="' + h(r.name) + '">' +
+        '<div class="hi" style="background:' + (san ? '#E4F9FD' : '#fff7ed') + ';color:' + (san ? '#0B7C93' : '#b45309') + '">' + (san ? '💰' : '🔗') + '</div>' +
+        '<div class="lt"><div class="l1">' + money(r.con_coc) + ' đ</div>' +
+        '<div class="l2">' + h(r.name) + ' · ' + h(r.ngay) + '</div>' +
+        '<div style="margin-top:5px"><span class="chip" style="pointer-events:none;padding:4px 10px;font-size:11.5px;background:' + (san ? '#eafaf1' : '#fff7ed') + ';border-color:' + (san ? '#a7e8c4' : '#fcd9a5') + ';color:' + (san ? '#12a150' : '#b45309') + '">' +
+        (san ? '✓ Đã nối sao kê' : '⚠ Cần nối sao kê') + '</span></div></div><div class="fc">›</div></div>';
+    });
+    html += '</div>';
+  }
   var b = frame('Cấn cọc nhà cung cấp', html);
   b.addEventListener('click', async function (e) {
     var nut = e.target.closest('[data-hscoc]'); if (!nut) return;
-    hsChonCanCoc(ncc, dong, xong, ds, nut.getAttribute('data-hscoc'), nut);
+    return hsChonCanCoc(ncc, dong, xong, ds, nut.getAttribute('data-hscoc'), nut);
   });
 }
 
+function hsKhoaDongCoc(nut, khoa) {
+  if (!nut) return false;
+  if (khoa) {
+    if (nut._hsDangCoc || (nut.getAttribute && nut.getAttribute('data-hsdang') === '1')) return false;
+    nut._hsDangCoc = true;
+    if (nut.setAttribute) nut.setAttribute('data-hsdang', '1');
+    nut.disabled = true;
+    nut.style = nut.style || {}; nut.style.pointerEvents = 'none'; nut.style.opacity = '.5';
+    return true;
+  }
+  nut._hsDangCoc = false;
+  if (nut.removeAttribute) nut.removeAttribute('data-hsdang');
+  nut.disabled = false;
+  nut.style = nut.style || {}; nut.style.pointerEvents = ''; nut.style.opacity = '';
+  return true;
+}
+
 async function hsChonCanCoc(ncc, dong, xong, ds, pe, nut) {
-  nut = nut || { disabled: false };
+  nut = nut || { disabled: false, style: {} };
+  if (!hsKhoaDongCoc(nut, true)) return;
   var tong = dong.reduce(function (a, d) { return a + Number(d.so_tien); }, 0);
   var co = ds.rows.filter(function (r) { return r.name === pe; })[0];
-  if (!co) return baoTin('Khoản cọc vừa thay đổi. Mở lại danh sách để chọn.');
-  if (co.can_noi_sao_ke) return hsNoiSaoKeCoc(ncc, pe, function () { hsMoCanCoc(ncc, dong, xong); });
+  if (!co) { hsKhoaDongCoc(nut, false); return baoTin('Khoản cọc vừa thay đổi. Mở lại danh sách để chọn.'); }
+  if (co.can_noi_sao_ke) {
+    var mo = await hsNoiSaoKeCoc(ncc, pe, function () { hsMoCanCoc(ncc, dong, xong); });
+    if (!mo) hsKhoaDongCoc(nut, false);
+    return;
+  }
   var dongCan = hsChiaCoc(dong, Number(co.con_coc));
   tong = dongCan.reduce(function (a, d) { return a + d.so_tien; }, 0);
-  if (!(tong > 0)) return baoTin('Chưa có số tiền cấn hợp lệ.');
+  if (!(tong > 0)) { hsKhoaDongCoc(nut, false); return baoTin('Chưa có số tiền cấn hợp lệ.'); }
   var chiTiet = dongCan.map(function (d) { return d.hoa_don + ': ' + money(d.so_tien) + ' đ'; }).join('; ');
   var payload = JSON.stringify({ ncc: ncc, payment_entry: pe, hoa_don: JSON.stringify(dongCan) });
-  if (hsCocLan && hsCocLan.payload !== payload) return baoTin('Lần cấn trước chưa nhận đủ phản hồi. Chọn lại đúng khoản cọc và số tiền cũ để kiểm kết quả trước khi cấn khoản khác.');
-  if (!(await xacNhan('Cấn ' + money(tong) + ' đ từ ' + pe + ' vào: ' + chiTiet + '? Công nợ sẽ giảm ngay; thao tác này không chuyển thêm tiền.', 'Cấn cọc đã chi', 'Cấn cọc'))) return;
+  if (hsCocLan && hsCocLan.payload !== payload) { hsKhoaDongCoc(nut, false); return baoTin('Lần cấn trước chưa nhận đủ phản hồi. Chọn lại đúng khoản cọc và số tiền cũ để kiểm kết quả trước khi cấn khoản khác.'); }
+  if (!(await xacNhan('Cấn ' + money(tong) + ' đ từ ' + pe + ' vào: ' + chiTiet + '? Công nợ sẽ giảm ngay; thao tác này không chuyển thêm tiền.', 'Cấn cọc đã chi', 'Cấn cọc'))) { hsKhoaDongCoc(nut, false); return; }
   if (!hsCocLan) hsCocLan = { payload: payload, ma: hsMaLanCanCoc() };
-  nut.disabled = true;
   try {
     sessionStorage.setItem('vgb_coc_app_pending', JSON.stringify(hsCocLan));
     var args = JSON.parse(hsCocLan.payload); args.ma_lan = hsCocLan.ma;
@@ -3367,7 +3476,7 @@ async function hsChonCanCoc(ncc, dong, xong, ds, pe, nut) {
     if (!kq.ok) { baoTin(kq.loi || 'Chưa cấn được.'); xong(); return; }
     toast('Đã cấn ' + money(kq.da_can) + ' đ. Kiểm số còn nợ trước khi lập APP.', 5000);
     xong();
-  } catch (err) { nut.disabled = false; baoTin((err && err.message) || 'Chưa nhận được kết quả. Bấm lại giữ đúng mã lần cấn để kiểm.'); }
+  } catch (err) { hsKhoaDongCoc(nut, false); baoTin((err && err.message) || 'Chưa nhận được kết quả. Bấm lại giữ đúng mã lần cấn để kiểm.'); }
 }
 
 async function hsThuLaiCanCoc(xong) {
@@ -3386,31 +3495,40 @@ async function hsThuLaiCanCoc(xong) {
 async function hsNoiSaoKeCoc(ncc, pe, xong) {
   var ds;
   try { ds = await api('vagabond.coc_app.sao_ke_coc', { ncc: ncc, payment_entry: pe }); }
-  catch (e) { return baoTin(e.message || 'Chưa đọc được sao kê.'); }
+  catch (e) { baoTin(e.message || 'Chưa đọc được sao kê.'); return false; }
   if ((ds.rows || []).length > 8) {
-    return sheet('Chọn giao dịch sao kê', ds.rows.map(function (r) {
+    sheet('Chọn giao dịch sao kê', ds.rows.map(function (r) {
       return { value: r.name, label: r.date + ' · ' + money(r.withdrawal) + ' đ',
         phu: r.description + ' · ' + r.name, tim: r.name + ' ' + r.date + ' ' + r.description };
     }), '', function (it) { hsChonSaoKeCoc(ncc, pe, xong, it.value); }, true);
+    return true;
   }
-  var html = '<div class="card">Chọn giao dịch đã chi cho khoản cọc ' + h(pe) + '. Chỉ bày đúng tài khoản và số tiền; kiểm thêm nội dung và ngày trước khi nối.</div>';
-  (ds.rows || []).forEach(function (r) {
-    html += '<button class="btn gh" data-cocgd="' + h(r.name) + '">' + h(r.date) + ' · ' + money(r.withdrawal) + ' đ<br>' + h(r.description) + '<br>' + h(r.name) + '</button>';
-  });
-  if (!(ds.rows || []).length) html += '<div class="card">Chưa có giao dịch khớp còn trống. Kế toán kiểm đồng bộ hoặc Đối chiếu ngân hàng.</div>';
+  var html = '<div class="card" style="padding:12px 14px;font-size:13px;color:#8a8f9c;line-height:1.45">Chọn giao dịch đã chi cho khoản cọc <b style="color:#16181d">' + h(pe) + '</b>. Chỉ bày đúng tài khoản và số tiền; kiểm thêm nội dung và ngày trước khi nối.</div>';
+  if (!(ds.rows || []).length) {
+    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Chưa có giao dịch khớp còn trống.<br>Kế toán kiểm đồng bộ hoặc Đối chiếu ngân hàng.</div></div>';
+  } else {
+    html += '<div class="sec">Giao dịch sao kê có thể nối · ' + ds.rows.length + '</div><div class="lst">';
+    (ds.rows || []).forEach(function (r) {
+      html += '<div class="li" data-cocgd="' + h(r.name) + '"><div class="hi" style="background:#E4F9FD;color:#0B7C93">🏦</div>' +
+        '<div class="lt"><div class="l1">' + money(r.withdrawal) + ' đ</div><div class="l2">' + h(r.date) + ' · ' + h(r.name) + '</div>' +
+        '<div style="font-size:12.5px;color:#4a5061;margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4">' + h(r.description || '') + '</div></div><div class="fc">›</div></div>';
+    });
+    html += '</div>';
+  }
   var b = frame('Nối sao kê cọc đã chi', html);
   b.addEventListener('click', async function (e) {
     var n = e.target.closest('[data-cocgd]'); if (!n) return;
-    hsChonSaoKeCoc(ncc, pe, xong, n.getAttribute('data-cocgd'), n);
+    return hsChonSaoKeCoc(ncc, pe, xong, n.getAttribute('data-cocgd'), n);
   });
+  return true;
 }
 
 async function hsChonSaoKeCoc(ncc, pe, xong, ma, nut) {
-  nut = nut || { disabled: false };
-  if (!(await xacNhan('Nối giao dịch ' + ma + ' với cọc ' + pe + '?', 'Đối chiếu cọc', 'Nối sao kê'))) return;
-  nut.disabled = true;
+  nut = nut || { disabled: false, style: {} };
+  if (!hsKhoaDongCoc(nut, true)) return;
+  if (!(await xacNhan('Nối giao dịch ' + ma + ' với cọc ' + pe + '?', 'Đối chiếu cọc', 'Nối sao kê'))) { hsKhoaDongCoc(nut, false); return; }
   try { await api('vagabond.coc_app.noi_sao_ke_coc', { ncc: ncc, payment_entry: pe, giao_dich: ma }); xong(); }
-  catch (err) { nut.disabled = false; baoTin(err.message || 'Chưa xác nhận kết quả. Bấm lại kiểm đúng giao dịch đã chọn.'); }
+  catch (err) { hsKhoaDongCoc(nut, false); baoTin(err.message || 'Chưa xác nhận kết quả. Bấm lại kiểm đúng giao dịch đã chọn.'); }
 }
 
 function hsDocTienDot(value) {

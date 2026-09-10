@@ -23,8 +23,12 @@ function env(){
  assert.equal(JSON.stringify(c.hsChiaCoc([{hoa_don:'A',so_tien:2000000},{hoa_don:'B',so_tien:8000000}],3000000)),JSON.stringify([{hoa_don:'A',so_tien:2000000},{hoa_don:'B',so_tien:1000000}]));
  assert.equal(c.hsDocTienDot('3.000.000'),3000000);assert(Number.isNaN(c.hsDocTienDot('3abc')));assert(Number.isNaN(c.hsDocTienDot('-3')));
  await c.hsMoCanCoc('NCC-1',[{hoa_don:'HD-1',so_tien:2000000}],()=>done++);
- await khung._nghe.click[0]({target:tai.querySelector('[data-hscoc]')});
+ const nutCoc=tai.querySelector('[data-hscoc]');assert.equal(nutCoc.tagName,'DIV');assert(nutCoc.className.split(/\s+/).includes('li'));
+ const bamCoc=khung._nghe.click[0];
+ await Promise.all([bamCoc({target:nutCoc}),bamCoc({target:nutCoc})]);
  assert.equal(done,0);assert(stored.has('vgb_coc_app_pending'));
+ assert.equal(calls.filter(x=>x.m.endsWith('.can_coc')).length,1);
+ assert.equal(nutCoc.getAttribute('data-hsdang'),null);assert.equal(nutCoc.style.pointerEvents,'');
  const sent=calls.at(-1).a;assert.equal(sent.ma_lan,'CC-request-coc-247-unique');
  ({c,tai}=env());fail=false;await c.hsThuLaiCanCoc(()=>done++);
  assert.deepStrictEqual(calls.at(-1).a,sent);assert.equal(done,1);assert.equal(stored.size,0);

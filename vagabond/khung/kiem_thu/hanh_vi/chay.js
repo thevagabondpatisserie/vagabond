@@ -179,6 +179,9 @@ function dungMan(canh) {
   var ma = [
     layHam(nen, 'h'),
     layHam(nen, 'money'),
+    layHam(nen, 'soTien'),
+    layHam(nen, 'tienChuoi'),
+    layHam(nen, 'tienGo'),
     layHam(docTep('09-tinh-tien-quay.js'), 'posChipNut'),
     layHam(docTep('09-tinh-tien-quay.js'), 'locTim'),
     layHam(docTep('09-tinh-tien-quay.js'), 'locHang'),
@@ -1058,19 +1061,34 @@ async function chayHet() {
       dung('the hien ten', the.indexOf('TRẦN THỊ B') >= 0);
       dung('the hien ma B2, khong phai B1: ' + the, the.indexOf('NCC-B2') >= 0 && the.indexOf('NCC-B1') < 0);
     });
-  await caAsync('APP247: chon hoa don, nhap 3.000.000, Luu nhap gui dung 3 trieu', async function () {
+  await caAsync('APP247 UX: tick, sua tien tai cho, Chi het va Luu nhap dung so da chon', async function () {
     var m = dungMan(canhChi({ nccChon: NCC_NO,
       supplier: { 'NCC-1': { supplier_name: 'NCC thử', disabled: 0 } },
       hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
-        so_hd_ncc: '123', con_no: 10000000, co_the_chi: 7000000, dang_giu: 3000000 }] } }));
+        so_hd_ncc: '123', con_no: 7000000, co_the_chi: 7000000 }] } }));
     m.g.scrHoSoTTView = function () {}; // màn đích sau tạo không thuộc ca nhập tiền
     m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
     await m.g.scrHoSoTTTao();
-    m.tai.querySelector('[data-hsh]').click(); await choVeLai(m);
+    dung('chua tick thi chua co o chi dot nay', !m.tai.querySelector('[data-hstien]'));
+    m.tai.querySelector('[data-hstick]').click(); await choVeLai(m);
     var o = m.tai.querySelector('[data-hstien]');
     dung('co o chi dot nay', !!o);
-    o.value = '3.000.000'; o.dispatchEvent(dg.suKien('change', {}, o)); await choVeLai(m);
+    bang('tick xong dien so con no', o.value, '7.000.000');
+    o.dispatchEvent(dg.suKien('focus', {}, o));
+    dung('cham o tien thi chon het chu', o._daChon === true);
+    o.value = '3000000'; o.dispatchEvent(dg.suKien('input', {}, o));
+    bang('go toi dau cham nghin toi do', o.value, '3.000.000');
     bang('khong bien thanh 3 dong', m.g.hsTaoChon['HD-1'].so_tien, 3000000);
+    dung('so lech bay vien cam', o.closest('.otd').className.indexOf('lech') >= 0);
+    bang('tong dang chon doi tai cho', m.tai.getElementById('hsTongChon').textContent, '3.000.000 đ');
+    var oCu = o;
+    m.tai.querySelector('[data-hshet]').click();
+    bang('Chi het tra ve so con no', o.value, '7.000.000');
+    bang('Chi het cap nhat trang thai', m.g.hsTaoChon['HD-1'].so_tien, 7000000);
+    dung('Chi het bo vien lech', o.closest('.otd').className.indexOf('lech') < 0);
+    bang('Chi het cap nhat tong dang chon', m.tai.getElementById('hsTongChon').textContent, '7.000.000 đ');
+    dung('sua tien va Chi het khong ve lai man', m.tai.querySelector('[data-hstien]') === oCu);
+    o.value = '3.000.000'; o.dispatchEvent(dg.suKien('input', {}, o));
     m.tai.getElementById('hsLuuNhap').click();
     for (var i = 0; i < 5; i++) await new Promise(function (r) { setTimeout(r, 0); });
     var tao = m.goiApi.filter(function (r) { return r.duong === 'vagabond.ho_so_tt.tao'; });
