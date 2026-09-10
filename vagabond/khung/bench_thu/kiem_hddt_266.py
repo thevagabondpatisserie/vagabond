@@ -78,7 +78,10 @@ def chay():
 	dap_cu = getattr(frappe.local, 'response', None)
 	gui, hoi = [], []
 	# Cách m-invoice trả lời GetInfoInvoice, đổi được giữa các đoạn kiểm.
-	tra_loi = {'mac_dinh': dict(code='00', data=None)}
+	# 'am_tinh' la cau tra loi cho MA PHIEU BIA RA ma kiem_chung_api hoi de
+	# do hinh dang "khong co to" cua m-invoice (#266 vong 3).
+	tra_loi = {'mac_dinh': dict(code='00', data=None),
+		'am_tinh': dict(code='01', message='not found', data=None)}
 
 	def chan(*a, **kw):
 		raise AssertionError('HTTP ngoài stub bị chặn trong bench #266')
@@ -110,6 +113,8 @@ def chay():
 		if url == 'https://minvoice.invalid/api/InvoiceApi78/GetInfoInvoice':
 			khoa = (kw.get('params') or {}).get('keyApi')
 			hoi.append(khoa)
+			if str(khoa or '').startswith(hddt_cho_xuat.KHOA_AM_TINH):
+				return tra_loi['am_tinh']
 			return tra_loi.get(khoa, tra_loi['mac_dinh'])
 		return chan()
 
@@ -169,14 +174,42 @@ def chay():
 				_bang('F1 không gỡ cờ tờ nào', ra.get('go_co'), 0)
 				kq['phan'].append({'ten': 'F1 JSON lỗi không gỡ cờ', 'dat': True, 'giu_co': ra.get('giu_co')})
 
-				# API không đối chứng được thì cũng không gỡ tờ nào.
-				tra_loi[kep.name] = dict(code='00', data=None)
+				# Mẫu DƯƠNG TÍNH hỏng (tờ chắc chắn đã có hoá đơn mà m-invoice không
+				# trả dấu vết) thì cả lượt không gỡ tờ nào, dù tờ kia trả lời sạch.
+				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
 				tra_loi[cu.name] = dict(code='00', data=None)
 				tra_loi['mac_dinh'] = dict(code='00', data=None)
 				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
 				_bang('F1 chưa đối chứng thì giữ cờ', frappe.db.get_value(
 					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 1)
 				kq['phan'].append({'ten': 'F1 không đối chứng được thì không gỡ', 'dat': True})
+
+				# ------------------------------------------ F1 vòng 3: mã LẠ giữ cờ
+				# Mẫu dương tính và âm tính đều tốt, nhưng tờ này trả mã 9999, đúng
+				# mã m-invoice đã từ chối 116 tờ TCV đêm 09/09. Mã đó KHÔNG phải
+				# câu "không có tờ" nên phải giữ cờ.
+				tra_loi[cu.name] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
+				tra_loi['mac_dinh'] = dict(code='00', data=dict(inv_invoiceNumber='12944'))
+				tra_loi['am_tinh'] = dict(code='01', message='not found', data=None)
+				tra_loi[kep.name] = dict(code='9999', message='Mã chưa rõ')
+				truoc = len(gui)
+				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				_bang('F1v3 mã lạ 9999 vẫn giữ cờ', frappe.db.get_value(
+					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 1)
+				_bang('F1v3 không gửi lại tờ nào', len(gui), truoc)
+				_bang('F1v3 không gỡ cờ tờ nào', ra.get('go_co'), 0)
+				kq['phan'].append({'ten': 'F1 vòng 3 mã lạ giữ cờ', 'dat': True})
+
+				# Đúng mã của mẫu âm tính thì mới gỡ, và tờ được gửi lại.
+				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
+				truoc = len(gui)
+				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				_bang('F1v3 trùng mẫu âm tính thì gỡ cờ', frappe.db.get_value(
+					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 0)
+				_bang('F1v3 gỡ đúng một tờ', ra.get('go_co'), 1)
+				_bang('F1v3 gỡ xong thì gửi tờ đó đi', len(gui), truoc + 1)
+				kq['phan'].append({'ten': 'F1 vòng 3 trùng mẫu âm tính thì gỡ', 'dat': True,
+					'da_gui': len(gui) - truoc})
 
 				# ---------------------------------------------- F2 hàng rào ở cửa chung
 				# Còn tờ ngày cũ đang chờ (tờ kep), tờ của HÔM NAY phải bị chặn
