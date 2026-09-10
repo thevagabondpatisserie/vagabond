@@ -26,7 +26,7 @@ def _phieu(name, ncc, khoa=False, can_sao_ke=True):
     links = frappe.db.sql("""select b.name, d.allocated_amount from `tabBank Transaction Payments` d
         join `tabBank Transaction` b on b.name=d.parent
         where d.payment_document='Payment Entry' and d.payment_entry=%s
-        and b.docstatus=1 and b.bank_account=%s""", (pe.name, pe.bank_account), as_dict=True)
+        and b.docstatus=1 and b.bank_account=%s""" + (" for update" if khoa else ""), (pe.name, pe.bank_account), as_dict=True)
     if can_sao_ke and sum(flt(r.allocated_amount) for r in links) < flt(pe.paid_amount):
         frappe.throw("Khoản cọc %s chưa đối chiếu đủ tiền trên sao kê. Kế toán đối chiếu trước khi cấn." % pe.name)
     return pe, links
@@ -78,26 +78,40 @@ def can_coc(ncc, payment_entry, hoa_don, ma_lan):
         if cu["payload"] != payload or pe_cu.docstatus != 1:
             frappe.throw("Mã lần cấn đã dùng với nội dung khác hoặc chứng từ đã hủy. Kiểm lại chứng từ trước khi thao tác tiếp.")
         return dict(cu["ket_qua"], da_lam_roi=1)
-    # Cùng thứ tự khóa với các APP: hóa đơn trước, tiền cọc sau.
-    kiem(dong)
-    pe, links = _phieu(payment_entry, ncc, khoa=True)
-    tong = sum(ke.values())
-    rec, payments = _doi_chieu(pe)
-    con_coc = sum(flt(p.get("amount")) for p in payments)
-    if not ke or float(tong) > con_coc:
-        frappe.throw("Khoản cọc không còn đủ tiền. Tải lại trước khi cấn; không bấm lặp để thử.")
-    invoices = []
-    for ten, tien in sorted(ke.items()):
-        hd = frappe.get_doc("Purchase Invoice", ten)
-        hd.check_permission("read")
-        if hd.supplier != ncc or hd.company != pe.company or hd.credit_to != pe.paid_to or hd.currency != "VND":
-            frappe.throw("Hóa đơn %s không khớp nhà cung cấp, công ty, tài khoản công nợ hoặc tiền tệ của cọc." % ten)
-        match = [i.as_dict() for i in rec.invoices if i.invoice_type == "Purchase Invoice" and i.invoice_number == ten]
-        if len(match) != 1:
-            frappe.throw("Không tìm được dư nợ lõi của hóa đơn %s." % ten)
-        match[0]["outstanding_amount"] = float(tien)
-        invoices.extend(match)
-    rec.allocate_entries({"payments": payments, "invoices": invoices})
+    try:
+        # Cùng thứ tự khóa với các APP: hóa đơn trước, tiền cọc sau.
+        hien_tai = kiem(dong)
+        pe, links = _phieu(payment_entry, ncc, khoa=True)
+        tong = sum(ke.values())
+        _kiem_snapshot_pe(pe)
+        rec, payments = _doi_chieu(pe)
+        con_coc = sum(flt(p.get("amount")) for p in payments)
+        if not ke or float(tong) > con_coc:
+            frappe.throw("Khoản cọc không còn đủ tiền. Tải lại trước khi cấn; không bấm lặp để thử.")
+        invoices = []
+        for ten, tien in sorted(ke.items()):
+            hd = frappe.get_doc("Purchase Invoice", ten)
+            hd.check_permission("read")
+            if flt(hd.outstanding_amount) != flt(hien_tai[ten].outstanding_amount):
+                frappe.throw("Công nợ vừa thay đổi. Tải lại hóa đơn trước khi cấn cọc.")
+            if hd.supplier != ncc or hd.company != pe.company or hd.credit_to != pe.paid_to or hd.currency != "VND":
+                frappe.throw("Hóa đơn %s không khớp nhà cung cấp, công ty, tài khoản công nợ hoặc tiền tệ của cọc." % ten)
+            match = [i.as_dict() for i in rec.invoices if i.invoice_type == "Purchase Invoice" and i.invoice_number == ten]
+            if len(match) != 1:
+                frappe.throw("Không tìm được dư nợ lõi của hóa đơn %s." % ten)
+            match[0]["outstanding_amount"] = float(tien)
+            invoices.extend(match)
+        rec.allocate_entries({"payments": payments, "invoices": invoices})
+    except frappe.QueryDeadlockError:
+        raise
+    except frappe.ValidationError as exc:
+        # Chỉ phần tiền kiểm đọc dữ liệu/allocate trong bộ nhớ ở trên.
+        # Chưa gọi reconcile và chưa ghi chứng từ: lưu kết quả từ chối để
+        # retry sau mất phản hồi nhận cùng kết quả, rồi sửa một lần mới.
+        ket_qua = {"ok": 0, "loi": str(exc), "payment_entry": payment_entry}
+        lich_su[ma_lan] = {"payload": payload, "ket_qua": ket_qua}
+        frappe.db.set_value("Payment Entry", payment_entry, "vgb_lan_can_coc", json.dumps(lich_su), update_modified=False)
+        return ket_qua
     rec.reconcile()
     pe.reload()
     pe.add_comment("Comment", "Cấn cọc từ APP bởi %s: %s. Sao kê: %s." %
@@ -141,9 +155,11 @@ def sao_ke_coc(ncc, payment_entry):
 @frappe.whitelist()
 def noi_sao_ke_coc(ncc, payment_entry, giao_dich):
     hs._kiem(hs.VAI_FIN, "nối sao kê cọc")
-    pe, _ = _phieu(payment_entry, ncc, khoa=True, can_sao_ke=False)
+    pe, links = _phieu(payment_entry, ncc, khoa=True, can_sao_ke=False)
     g = frappe.get_doc("Bank Transaction", giao_dich, for_update=True)
     g.check_permission("read")
+    if any(r.name != g.name and flt(r.allocated_amount) > 0 for r in links):
+        frappe.throw("Phiếu cọc đã nối sao kê khác. Không nối cùng khoản chi hai lần.")
     if (g.docstatus != 1 or g.bank_account != pe.bank_account or g.currency != "VND"
             or flt(g.deposit) != 0 or flt(g.withdrawal) != flt(pe.paid_amount)):
         frappe.throw("Sao kê phải đúng tài khoản, tiền ra và tiền tệ của phiếu cọc.")
@@ -161,3 +177,21 @@ def noi_sao_ke_coc(ncc, payment_entry, giao_dich):
         g.save(ignore_permissions=True)
     _phieu(pe.name, ncc)
     return {"ok": 1, "giao_dich": g.name, "payment_entry": pe.name}
+
+
+def _kiem_snapshot_pe(pe):
+    # Current read sau khóa không tự làm mới snapshot của các truy vấn lõi
+    # trên MariaDB REPEATABLE READ. Nếu snapshot đã cũ thì dừng trước ghi.
+    snap = frappe.get_doc("Payment Entry", pe.name)
+    for k in ("docstatus", "party", "party_type", "company", "paid_from", "paid_to", "bank_account"):
+        if snap.get(k) != pe.get(k):
+            frappe.throw("Phiếu cọc vừa thay đổi. Tải lại trước khi cấn.")
+    for k in ("paid_amount", "received_amount", "unallocated_amount"):
+        if flt(snap.get(k)) != flt(pe.get(k)):
+            frappe.throw("Số tiền cọc vừa thay đổi. Tải lại trước khi cấn.")
+    rows = frappe.db.sql("""select name, reference_doctype, reference_name, allocated_amount
+        from `tabPayment Entry Reference` where parent=%s for update""", (pe.name,), as_dict=True)
+    def refs(ds):
+        return sorted((r.name, r.reference_doctype or "", r.reference_name or "", flt(r.allocated_amount)) for r in ds)
+    if refs(rows) != refs(snap.references):
+        frappe.throw("Phân bổ cọc vừa thay đổi. Tải lại trước khi cấn.")

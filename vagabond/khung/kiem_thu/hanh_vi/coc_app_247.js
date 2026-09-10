@@ -11,11 +11,14 @@ function env(){
   frame:(t,html)=>{khung=new dg.ElementGia('div');khung.innerHTML=html;tai.body.children=[khung];return khung;},
   api:async(m,a)=>{calls.push({m,a:JSON.parse(JSON.stringify(a))});
    if(m.endsWith('.danh_sach'))return {rows:[{name:'PE-1',ngay:'2026-09-10',con_coc:3000000}]};
-   if(fail)throw Error('Mất phản hồi');return {da_can:2000000,da_lam_roi:1};}
+   if(fail)throw Error('Mất phản hồi');return {ok:1,da_can:2000000,da_lam_roi:1};}
  };vm.createContext(c);vm.runInContext(code,c);return {c,tai};
 }
 (async()=>{
- let {c,tai}=env();await c.hsMoCanCoc('NCC-1',[{hoa_don:'HD-1',so_tien:2000000}],()=>done++);
+ let {c,tai}=env();
+ assert.equal(JSON.stringify(c.hsChiaCoc([{hoa_don:'A',so_tien:2000000},{hoa_don:'B',so_tien:8000000}],3000000)),JSON.stringify([{hoa_don:'A',so_tien:2000000},{hoa_don:'B',so_tien:1000000}]));
+ assert.equal(c.hsDocTienDot('3.000.000'),3000000);assert(Number.isNaN(c.hsDocTienDot('3abc')));assert(Number.isNaN(c.hsDocTienDot('-3')));
+ await c.hsMoCanCoc('NCC-1',[{hoa_don:'HD-1',so_tien:2000000}],()=>done++);
  await khung._nghe.click[0]({target:tai.querySelector('[data-hscoc]')});
  assert.equal(done,0);assert(stored.has('vgb_coc_app_pending'));
  const sent=calls.at(-1).a;assert.equal(sent.ma_lan,'request-coc-247-unique');

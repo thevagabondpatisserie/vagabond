@@ -57,6 +57,16 @@ def dang_giu(tru_ho_so="", khoa=False):
 def kiem(dong, tru_ho_so="", khoa=True):
     import frappe
     try:
+        return _kiem(dong, tru_ho_so, khoa)
+    except frappe.QueryDeadlockError:
+        # Giữ loại lỗi giao dịch để caller không coi là từ chối tiền kiểm
+        # rồi commit một kết quả trên transaction đã bị MariaDB hủy.
+        frappe.throw("Có người đang xử lý cùng công nợ. Tải lại danh sách và kiểm số tiền còn được đề nghị trước khi gửi lại.", frappe.QueryDeadlockError)
+
+
+def _kiem(dong, tru_ho_so="", khoa=True):
+    import frappe
+    try:
         ke = gom(dong)
     except ValueError as exc:
         frappe.throw(str(exc))
@@ -66,7 +76,7 @@ def kiem(dong, tru_ho_so="", khoa=True):
     hd = {}
     for ten in sorted(ke):
         hd[ten] = frappe.db.get_value("Purchase Invoice", ten,
-            ["docstatus", "outstanding_amount"], as_dict=True, for_update=khoa)
+            ["docstatus", "outstanding_amount", "supplier", "company", "currency"], as_dict=True, for_update=khoa)
     giu = dang_giu(tru_ho_so, khoa=khoa)
     for ten, tien in ke.items():
         r = hd[ten]
@@ -78,6 +88,8 @@ def kiem(dong, tru_ho_so="", khoa=True):
             frappe.throw("Hóa đơn %s còn nợ %s đ, APP khác đang giữ %s đ; đợt này chỉ được đề nghị tối đa %s đ. Mở lại danh sách để cập nhật." %
                 (ten, no, dang, max(Decimal(0), no-dang)))
 
+    return hd
+
 
 def kiem_luu(doc):
     import frappe
@@ -88,7 +100,13 @@ def kiem_luu(doc):
         return
     if not doc.is_new() and frappe.db.exists("Payment Entry", {"vgb_ho_so_tt": doc.name, "docstatus": 1}):
         return
-    kiem(doc.get("dong"), doc.name or "")
+    invoices = kiem(doc.get("dong"), doc.name or "") or {}
+    if (doc.get("loai") or "NCC") in ("NCC", "TK cong ty"):
+        for ten, hd in invoices.items():
+            if hd.supplier != doc.nha_cung_cap:
+                frappe.throw("Hóa đơn %s không thuộc nhà cung cấp của hồ sơ." % ten)
+        if len({hd.company for hd in invoices.values()}) > 1:
+            frappe.throw("Một APP chỉ dùng hóa đơn trong cùng công ty.")
 
 
 def dau_van_tay(doc):
