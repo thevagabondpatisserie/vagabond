@@ -1793,6 +1793,11 @@ def chi_tiet(name):
 				as_dict=True,
 			) or {}
 			o["con_no_hien_tai"] = flt(hd.get("outstanding_amount"))
+			o["lich_su_chi"] = frappe.db.sql("""select pe.name, pe.posting_date, pe.vgb_ho_so_tt,
+				r.allocated_amount from `tabPayment Entry Reference` r
+				join `tabPayment Entry` pe on pe.name=r.parent
+				where pe.docstatus=1 and r.reference_doctype='Purchase Invoice'
+				and r.reference_name=%s order by pe.posting_date, pe.name""", (d.hoa_don,), as_dict=True)
 			o["ncc_hd"] = hd.get("supplier_name") or ""
 			o["trang_thai_hd"] = hd.get("status") or ""
 			if hd.get("bill_no") and not o["so_hd_ncc"]:
@@ -3657,6 +3662,16 @@ def _to_app_html(name):
 	                 if (x["ben_ban"] or x["ncc_hd"] or "").strip()}) > 1
 	hang = []
 	for i, x in enumerate(dong, 1):
+		phan_bo = ""
+		if x.get("hoa_don"):
+			phan_bo = "<div style='font-size:9px;line-height:1.4'>" + h(
+				"Gốc: %s đ; đã giảm nợ trước khi lập: %s đ; chi đợt này: %s đ; còn nợ lúc in: %s đ." % (
+					_tien(x.get("tong_hd")), _tien(max(0, flt(x.get("tong_hd")) - flt(x.get("con_no_luc_lap")))),
+					_tien(x.get("so_tien")), _tien(x.get("con_no_hien_tai")))) + "</div>"
+			for lan in x.get("lich_su_chi") or []:
+				phan_bo += "<div style='font-size:9px'>" + h("%s - %s: %s đ%s" % (
+					_ngay_vn(lan.posting_date), lan.name, _tien(lan.allocated_amount),
+					(" - " + lan.vgb_ho_so_tt) if lan.vgb_ho_so_tt else "")) + "</div>"
 		hang.append(
 			"<tr>"
 			+ _td(str(i), "center")
@@ -3666,7 +3681,7 @@ def _to_app_html(name):
 			# Ho so gom nhieu nha thi ten nha cung cap phai nam TRONG bang,
 			# khong the chi ghi mot lan o dau to nhu truoc.
 			+ _td(h((("%s - " % (x["ben_ban"] or x["ncc_hd"])) if (nhieu_nha and (x["ben_ban"] or x["ncc_hd"])) else "")
-			        + (x["noi_dung"] or ("" if nhieu_nha else (x["ncc_hd"] or "")))))
+			        + (x["noi_dung"] or ("" if nhieu_nha else (x["ncc_hd"] or "")))) + phan_bo)
 			+ _td(_tien(x["so_tien"]), "right", dam=True, khong_ngat=True)
 			+ _td(h(x["ghi_chu"] or x["ben_ban"] or ""))
 			+ "</tr>"

@@ -67,10 +67,17 @@ def _():
     pe.reference_no, pe.reference_date = "COC-APP-THU", today()
     pe.insert(ignore_permissions=True)
     _DA_TAO.append((pe.doctype, pe.name))
+    f = frappe.get_doc({"doctype": "File", "file_name": "UNC-coc-thu.txt",
+        "content": "UNC thu tren bench", "is_private": 1,
+        "attached_to_doctype": "Payment Entry", "attached_to_name": pe.name})
+    f.insert(ignore_permissions=True)
+    _DA_TAO.append((f.doctype, f.name))
     pe.submit()
     g = _giao_dich_ngan_hang("COC-APP-THU", 3000000, hd.company)
-    g.add_payment_entries([{"payment_doctype": "Payment Entry", "payment_name": pe.name}])
-    g.save(ignore_permissions=True)
+    coc_app.noi_sao_ke_coc(hd.supplier, pe.name, g.name)
+    coc_app.noi_sao_ke_coc(hd.supplier, pe.name, g.name)
+    g.reload()
+    la("sao kê chỉ một liên kết", len(g.payment_entries), 1)
     truoc = frappe.db.count("GL Entry", {"voucher_type": "Payment Entry", "voucher_no": pe.name})
     args = dict(ncc=hd.supplier, payment_entry=pe.name,
         hoa_don=[{"hoa_don": hd.name, "so_tien": 2000000}], ma_lan="thu-coc-app-247-0001")
