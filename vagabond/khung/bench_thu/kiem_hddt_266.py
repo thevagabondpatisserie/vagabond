@@ -575,17 +575,44 @@ def chay():
 				# huong tu doan truoc chu khong phai vao TINH CHAT can kiem.
 				# Tinh chat that su la: rut can phai gui HET so to dang cho, va
 				# xong thi backlog rong.
-				cho_truoc = [r['name'] for r in hddt_cho_xuat.ds_cho_xuat(hom_qua)]
+				def _con_sot(ngay):
+					"""To da ghi so cua NGAY do ma chua co hoa don dien tu.
+
+					Duong rut can di qua _phat_hanh_theo_lo, tuc kich ban chon
+					theo NGAY SO, khong phai theo ds_cho_xuat (tap hep hon, con
+					doi dau vgb_hddt_ngay_xuat). Vong CI truoc do vi lay so
+					mong doi tu ds_cho_xuat roi so voi so that: "2 to, dang cho
+					1". Dem bang dung tap ma duong rut can that su dung.
+					"""
+					r = frappe.db.sql("""select name from `tabSales Invoice`
+						where posting_date = %(n)s and docstatus = 1
+						  and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
+						  and grand_total > 0
+						  and ifnull(custom_hddt_so, '') = ''
+						  and ifnull(custom_minvoice_id, '') = ''
+						  and ifnull(custom_hddt_id, '') = ''""", {'n': str(ngay)})
+					return [x[0] for x in r]
+
+				# CHOT THEO TINH CHAT, khong chot con so cung:
+				# rut can phai lam CAN ngay cu, va moi to gui di deu mang dung
+				# ngay ban. Con so bao nhieu to la trang thai thua huong tu cac
+				# doan tren, chot vao no la chot nham thu.
+				cho_truoc = _con_sot(hom_qua)
 				if not cho_truoc:
-					raise AssertionError('rut can: khong con to nao cho, ca kiem tu dung bang khong')
+					raise AssertionError('rut can: khong con to nao sot, ca kiem tu dung bang khong')
 				truoc = len(gui)
 				het_no = hddt_cho_xuat.xuat_ngay_cu_truoc()
-				if len(gui) - truoc != len(cho_truoc):
-					raise AssertionError('rut can: phat hanh %d to, dang cho %d to (%r); '
+				da_gui = len(gui) - truoc
+				if da_gui < 1:
+					raise AssertionError('rut can: khong gui to nao du con %d to sot (%r); '
 						'ngay cu con lai = %r; ngay so moi nhat = %s'
-						% (len(gui) - truoc, len(cho_truoc), cho_truoc,
+						% (len(cho_truoc), cho_truoc,
 							[str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()],
 							ban_hang._ngay_so_hddt_moi_nhat()))
+				con_sau = _con_sot(hom_qua)
+				if con_sau:
+					raise AssertionError('rut can: van con %d to sot cua ngay cu sau khi rut: %r'
+						% (len(con_sau), con_sau))
 				_bang('rút cạn xong thì báo hết nợ', het_no, True)
 				_bang('rút cạn: mọi tờ ngày cũ mang đúng ngày bán',
 					sorted({g['data'][0]['inv_invoiceIssuedDate'] for g in gui[truoc:]}),
@@ -602,7 +629,7 @@ def chay():
 				_bang('hết nợ thì tờ hôm nay đi được', len(gui) - truoc, 1)
 				_bang('ngày lập của tờ hôm nay', gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_nay))
 				kq['phan'].append({'ten': 'backlog rút cạn rồi mới thông', 'dat': True,
-					'da_gui_ngay_cu': len(cho_truoc)})
+					'da_gui_ngay_cu': da_gui, 'sot_truoc': len(cho_truoc)})
 
 				kq['dat'] = True
 			finally:
