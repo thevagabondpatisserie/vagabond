@@ -81,6 +81,17 @@ function cdVe() {
       h(cdData.nhat_ky) + '</div>';
   }
 
+  /* #266 (09/09/2026): to da ghi so ma khong len duoc m-invoice trong ngay
+     thi khong doi duoc ngay so nua. Cua nay keo NGAY LAP hoa don dien tu
+     cua ca ngay do sang hom nay, toi nay chuoi cuoi ngay xuat cung mot
+     luot. Xem truoc, hoi lai, roi moi chay. Khong dong vao to da co hoa
+     don, khong tu go co doi chieu khi chua hoi m-invoice. */
+  html += '<div class="sec">Hoá đơn ngày cũ chưa xuất được</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;color:#374151;line-height:1.6">Tờ đã ghi sổ mà đêm đó không lên được m-invoice thì kéo ngày lập hoá đơn điện tử sang <b>hôm nay</b>, tối nay máy xuất và ký cùng lượt. Sổ vẫn giữ ngày bán. Tờ được kéo mang chip <b>Hoá đơn chờ xuất cho ngày ...</b> trên màn Doanh thu và Hoá đơn hôm nay. Chọn hôm nay thì chỉ gỡ cờ đối chiếu cho tờ m-invoice xác nhận chưa có.</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px"><span style="font-size:12.5px;color:#6b7280">Ngày bán:</span>' +
+    '<input class="tin" id="cdKeoNgay" type="date" value="' + h(cdHomQua()) + '" max="' + h(today()) + '" style="flex:1;max-width:190px"></div>' +
+    '<button class="btn gh" id="cdKeo" style="margin-top:10px">⏳ Kéo hoá đơn chưa xuất sang hôm nay</button></div>';
+
   var b = frame('Cuối ngày', html, {
     footer: '<div style="display:flex;gap:8px">' +
       '<button class="btn gh" id="cdChay" style="margin:0;flex:1">▶️ Chạy ngay</button>' +
@@ -102,6 +113,51 @@ function cdVe() {
 
   document.getElementById('cdLuu').onclick = cdLuu;
   document.getElementById('cdChay').onclick = cdChay;
+  document.getElementById('cdKeo').onclick = cdKeo;
+}
+
+function cdHomQua() {
+  var d = new Date(today() + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function cdNgayVn(iso) {
+  var p = String(iso || '').slice(0, 10).split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
+}
+
+/* Keo ngay lap HDDT cua to da ghi so ngay cu sang hom nay (#266). Xem truoc
+   TRUOC, hoi lai, roi moi chay that. Ket qua noi ro may to keo, may to go
+   duoc co doi chieu, may to van giu co vi m-invoice chua tra loi chac. */
+async function cdKeo() {
+  var o = document.getElementById('cdKeoNgay');
+  var ngay = (o && o.value) || '';
+  if (!ngay || ngay > today()) return baoTin('Chọn một ngày bán đã qua, hoặc hôm nay để chỉ gỡ cờ đối chiếu.');
+  var laHomNay = ngay === today();
+  var xem;
+  busy(true);
+  try { xem = await api('vagabond.hddt_cho_xuat.keo_sang_hom_nay', { ngay: ngay, chay_thu: 1 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không xem trước được'); }
+  busy(false);
+  if (!xem || !xem.chon) return toast(laHomNay ? 'Hôm nay không có tờ nào đang giữ cờ đối chiếu.' : 'Ngày ' + cdNgayVn(ngay) + ' không còn tờ nào đã ghi sổ mà chưa có hoá đơn điện tử.', 4000);
+  var mo = (xem.vi_du || []).slice(0, 8).map(function (x) {
+    return '#' + x.ma + ' · ' + money(x.tien) + ' đ' + (x.doi_chieu ? ' · đang giữ đối chiếu' : '');
+  }).join('\n');
+  if (!await xacNhan((laHomNay ? 'Gỡ cờ đối chiếu cho ' + xem.chon + ' tờ hôm nay?' : 'Kéo ' + xem.chon + ' tờ ngày ' + cdNgayVn(ngay) + ' sang xuất hoá đơn điện tử ngày ' + cdNgayVn(xem.hom_nay) + '?') + '\n' +
+    'Tổng ' + money(xem.tien) + ' đ.' + (xem.dang_doi_chieu ? '\nCó ' + xem.dang_doi_chieu + ' tờ đang giữ cờ đối chiếu: máy sẽ hỏi m-invoice theo mã phiếu, không có tờ mới gỡ cờ.' : '') +
+    '\n\n' + mo + (xem.chon > 8 ? '\n... và ' + (xem.chon - 8) + ' tờ nữa' : '') +
+    '\n\nSổ vẫn giữ ngày bán. Tối nay chuỗi cuối ngày sẽ xuất và ký các tờ này.')) return;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hddt_cho_xuat.keo_sang_hom_nay', { ngay: ngay, chay_thu: 0 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chạy lỗi'); }
+  busy(false);
+  baoTin('Xong: ' + (laHomNay ? 'xử ' : 'kéo ') + kq.keo + '/' + kq.chon + ' tờ' + (laHomNay ? '.' : ' sang ngày ' + cdNgayVn(kq.hom_nay) + '.') +
+    (kq.go_co ? '\nĐã gỡ cờ đối chiếu ' + kq.go_co + ' tờ (m-invoice xác nhận chưa có).' : '') +
+    (kq.giu_co ? '\nCòn ' + kq.giu_co + ' tờ vẫn giữ cờ đối chiếu, kế toán kiểm tay bên m-invoice.' : '') +
+    ((kq.loi || []).length ? '\n\n' + kq.loi.slice(0, 10).join('\n') : ''));
+  go(scrCaiDatCuoiNgay, true);
 }
 
 function cdDong(thuoc, d, on, mo) {
