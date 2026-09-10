@@ -142,6 +142,32 @@ def _so_tk_chuan(v):
 	return "".join(ch for ch in str(v or "") if ch.isdigit())
 
 
+def _chuan_hoa_ban_do(tho):
+	"""Chuẩn hoá bản đồ và loại hẳn số đang trỏ vào nhiều túi tiền.
+
+	Trước v476, người dùng sửa JSON bằng tay nên cùng một số có thể tồn tại
+	dưới nhiều cách viết. Chọn dòng cuối sẽ âm thầm đổi Bank Account. Vì vậy
+	một số chỉ được trả ra khi mọi cách viết của nó cùng trỏ về một nơi.
+	"""
+	ra, nguon, xung_dot = {}, {}, {}
+	for so_tho, tai_khoan in (tho or {}).items():
+		so = _so_tk_chuan(so_tho)
+		if not so:
+			continue
+		dong = {"so_tho": str(so_tho), "tai_khoan": str(tai_khoan or "")}
+		if so in xung_dot:
+			xung_dot[so].append(dong)
+			continue
+		if so in ra and ra[so] != dong["tai_khoan"]:
+			xung_dot[so] = [nguon[so], dong]
+			ra.pop(so, None)
+			nguon.pop(so, None)
+			continue
+		ra[so] = dong["tai_khoan"]
+		nguon.setdefault(so, dong)
+	return ra, xung_dot
+
+
 def _ds_tai_khoan_map(ds):
 	"""Dữ liệu an toàn để màn map phân biệt tài khoản công ty và cá nhân.
 
@@ -190,7 +216,8 @@ def _loi_map_tai_khoan(so_tk, b):
 			"Bank Account cá nhân chưa gắn đúng người. Mở Bank Account, chọn "
 			"Party Type là Supplier và Party là người được hoàn ứng rồi khai lại."
 		)
-	if not cint(b.get("is_company_account")) and not str(b.get("account") or "").strip().startswith("141"):
+	so_so_cai = str(b.get("account_number") or b.get("account") or "").strip()
+	if not cint(b.get("is_company_account")) and not so_so_cai.startswith("141"):
 		return (
 			"Bank Account cá nhân chưa gắn tài khoản sổ cái nhóm 141. Mở Bank "
 			"Account, chọn đúng tài khoản tạm ứng 141 của người này rồi khai lại."
@@ -206,9 +233,25 @@ def _ban_do():
 		# Cùng một số có thể được người khai chép có khoảng trắng hoặc dấu
 		# gạch, còn webhook thường gửi dãy số trần. Chuẩn hoá hai phía để bản
 		# đồ không phụ thuộc cách trình bày.
-		return {_so_tk_chuan(so): tk for so, tk in tho.items() if _so_tk_chuan(so)}
+		ban_do, xung_dot = _chuan_hoa_ban_do(tho)
+		if xung_dot:
+			frappe.log_error(
+				json.dumps(xung_dot, ensure_ascii=False, indent=1),
+				"sepay: xung dot ban do tai khoan",
+			)
+		return ban_do
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "sepay: doc ban do tai khoan")
+		return {}
+
+
+def _xung_dot_ban_do():
+	"""Danh sách xung đột để màn Cài đặt nói rõ trước khi có giao dịch."""
+	try:
+		stg = frappe.get_doc(STG_SEPAY)
+		tho = json.loads(stg.get("account_map") or "{}") or {}
+		return _chuan_hoa_ban_do(tho)[1]
+	except Exception:
 		return {}
 
 
@@ -702,6 +745,7 @@ def tinh_trang():
 		"duong_dan_path": DUONG_DAN,
 		"duong_dan": goc + DUONG_DAN,
 		"ban_do": _ban_do(),
+		"xung_dot_ban_do": _xung_dot_ban_do(),
 		"chua_map": [x for x in str(c.get("sepay_chua_map") or "").split(",") if x.strip()],
 		"sua_duoc": 1 if quan_ly else 0,
 		"tai_khoan": [],
@@ -855,17 +899,28 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 		["bank_account_no", "disabled", "is_company_account", "party_type", "party", "account"],
 		as_dict=True,
 	) or {}
+	if b.get("account"):
+		b["account_number"] = frappe.db.get_value("Account", b.get("account"), "account_number") or ""
 	loi = _loi_map_tai_khoan(so_tk, b)
 	if loi:
 		frappe.throw(loi)
 	stg = frappe.get_doc(STG_SEPAY)
-	ban_do = {}
+	ban_do, xung_dot = {}, {}
 	try:
-		ban_do = {_so_tk_chuan(so): ma for so, ma in
-			(json.loads(stg.get("account_map") or "{}") or {}).items()
-			if _so_tk_chuan(so)}
+		ban_do, xung_dot = _chuan_hoa_ban_do(
+			json.loads(stg.get("account_map") or "{}") or {}
+		)
 	except Exception:
-		ban_do = {}
+		frappe.throw(
+			"Bản đồ SePay đang là JSON không hợp lệ. Máy không lưu đè dữ liệu cũ. "
+			"Mở SePay Settings sửa JSON rồi thử lại."
+		)
+	if xung_dot:
+		frappe.throw(
+			"Bản đồ SePay đang có cùng một số tài khoản trỏ vào nhiều Bank Account. "
+			"Máy đã ngừng định tuyến các số xung đột và không lưu đè bảng cũ. "
+			"Mở SePay Settings đối chiếu các dòng được cảnh báo rồi thử lại."
+		)
 	cu = ban_do.get(so_tk)
 	if cu and cu != tk:
 		frappe.throw(

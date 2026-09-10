@@ -98,14 +98,29 @@ def _chan_map_nham():
 @ca("SePay MB: mọi cửa tra bản đồ đều chuẩn hoá số và không ghi đè âm thầm")
 def _ban_do_mot_khoa():
 	s = _doc("sepay.py")
-	b = _than(s, "def _ban_do():", "\ndef _khoa_that(")
-	dung("chuẩn hoá khoá bản đồ cũ", "_so_tk_chuan(so)" in b)
+	ban_do, xung_dot = sepay._chuan_hoa_ban_do({
+		"0123 4567": "BANK-A",
+		"01234567": "BANK-B",
+		"9999-0000": "BANK-C",
+		"99990000": "BANK-C",
+	})
+	dung("số trỏ hai túi bị bỏ khỏi định tuyến", "01234567" not in ban_do)
+	la("giữ đủ hai nguồn xung đột", len(xung_dot["01234567"]), 2)
+	la("cùng một túi thì gộp an toàn", ban_do["99990000"], "BANK-C")
 	w = _than(s, "def _webhook():", "\ndef _ghi_chua_map(")
 	dung("webhook chuẩn hoá số", "_so_tk_chuan(goi.get(" in w)
 	n = _than(s, "def nap_bu(", "\n# --------------------------------------------------------------- tinh trang")
 	dung("nạp bù chuẩn hoá số giao dịch", "so_gd = _so_tk_chuan(" in n)
-	t = _than(s, "def them_tai_khoan(", "\n@frappe.whitelist()")
-	dung("không ghi đè map khác", "Máy không tự ghi đè" in t and "cu != tk" in t)
+
+
+@ca("SePay MB: DocType cấu hình nằm trong git và có lịch sử thay đổi")
+def _doctype_trong_git():
+	p = os.path.join(GOI, "vagabond", "doctype", "sepay_settings", "sepay_settings.json")
+	dung("có schema SePay Settings", os.path.isfile(p))
+	s = _doc("vagabond/doctype/sepay_settings/sepay_settings.json")
+	dung("schema là singleton", '"issingle": 1' in s)
+	dung("có lưu vết thay đổi", '"track_changes": 1' in s)
+	dung("có bảng định tuyến", '"fieldname": "account_map"' in s)
 
 
 @ca("SePay MB: màn map dùng ô chọn có tìm, không dùng select bị cắt danh sách")

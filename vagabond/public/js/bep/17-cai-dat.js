@@ -1931,6 +1931,8 @@ function seDauKhoa(d) {
 
 function seVe() {
   var d = seData || {};
+	var xungDot = d.xung_dot_ban_do || {};
+	var dsXungDot = Object.keys(xungDot);
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">HAI ĐƯỜNG VÀO SỔ</div>' +
     '<div style="font-size:13.5px;color:#374151;line-height:1.65;margin-top:4px">' +
@@ -2001,6 +2003,13 @@ function seVe() {
     Object.keys(d.ban_do || {}).map(function (so) {
       return htCtDong(so, (d.ban_do || {})[so]);
     }).join('') +
+	(dsXungDot.length
+	  ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+	    'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6"><b>Đã ngừng định tuyến ' +
+	    dsXungDot.length + ' số tài khoản bị khai trùng.</b> Cùng một số đang trỏ vào nhiều Bank Account. ' +
+	    'Mở SePay Settings, đối chiếu và chỉ giữ một dòng đúng trước khi nạp bù: ' +
+	    h(dsXungDot.join(', ')) + '.</div>'
+	  : '') +
     ((d.chua_map || []).length
       ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
         'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6">Đang có giao dịch của ' +

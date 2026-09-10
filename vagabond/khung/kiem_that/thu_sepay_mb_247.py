@@ -10,7 +10,7 @@ from unittest.mock import patch
 import frappe
 from frappe.utils import now_datetime, today
 
-from vagabond import ho_so_tt, sepay
+from vagabond import de_nghi_chi, ho_so_tt, sepay
 from vagabond.khung.kiem_that.nen import (
 	_DA_TAO, _mot, ca, cong_ty, dung, la, mot_nha_cung_cap,
 )
@@ -39,9 +39,18 @@ def _tai_khoan_ca_nhan(so_tk, ncc):
 		"name": ["like", "141%"],
 	})
 	if not tk_141:
-		frappe.throw(
-			"Công ty thử chưa có tài khoản con nhóm 141 để kiểm luồng hoàn ứng MB."
-		)
+		cha = _mot("Account", {"company": cty, "root_type": "Asset", "is_group": 1}, "lft asc")
+		if not cha:
+			frappe.throw("Công ty thử chưa có nhóm tài sản để dựng tài khoản 141 trong điểm lưu.")
+		ma = "141247" + frappe.generate_hash(length=5).upper()
+		tk = frappe.get_doc({
+			"doctype": "Account", "account_name": "Tạm ứng kiểm MB #247",
+			"account_number": ma, "company": cty, "parent_account": cha,
+			"root_type": "Asset", "is_group": 0, "account_currency": "VND",
+		})
+		tk.insert(ignore_permissions=True)
+		_DA_TAO.append((tk.doctype, tk.name))
+		tk_141 = tk.name
 	b = frappe.get_doc({
 		"doctype": "Bank Account",
 		"account_name": "Kiểm MB cá nhân " + frappe.generate_hash(length=8),
@@ -55,6 +64,42 @@ def _tai_khoan_ca_nhan(so_tk, ncc):
 	b.insert(ignore_permissions=True)
 	_DA_TAO.append((b.doctype, b.name))
 	return b
+
+
+def _giao_dich(ba, tien, noi_dung):
+	g = frappe.get_doc({
+		"doctype": "Bank Transaction", "date": today(), "bank_account": ba,
+		"deposit": 0, "withdrawal": tien, "currency": "VND",
+		"description": noi_dung,
+		"reference_number": "KIEM-247-" + frappe.generate_hash(length=7),
+		"transaction_id": "KIEM-247-" + frappe.generate_hash(length=12),
+	})
+	g.insert(ignore_permissions=True)
+	_DA_TAO.append((g.doctype, g.name))
+	g.submit()
+	return g
+
+
+def _phieu_cho_chi(tien):
+	d = frappe.get_doc({
+		"doctype": de_nghi_chi.DT,
+		"ten_khoan_chi": "Kiểm nguồn chi SePay #247",
+		"loai_nghiep_vu": de_nghi_chi.NV_CHI_PHI,
+		"ngay_can_tt": today(), "trang_thai": de_nghi_chi.TT_HOAN_TAT,
+		"nguoi_tao": "Administrator", "company": cong_ty(),
+		"hinh_thuc": de_nghi_chi.HT_NHAN_VIEN,
+		"phuong_thuc": "Tiền mặt",
+		"chung_tu_thue": de_nghi_chi.CT_KHONG_VAT,
+		"cac_khoan": [{
+			"noi_dung": "Kiểm nguồn chi SePay", "so_tien": tien,
+			"phan_loai": "Chi phí quản lý doanh nghiệp",
+		}],
+	})
+	d.insert(ignore_permissions=True)
+	_DA_TAO.append((d.doctype, d.name))
+	frappe.db.set_value(d.doctype, d.name, "noi_dung_ck", de_nghi_chi.noi_dung_ck(d.name))
+	d.reload()
+	return d
 
 
 @ca("#247 MB cá nhân: map, nạp bù và retry đi trọn ERPNext không sinh đôi")
@@ -118,5 +163,67 @@ def _mb_ca_nhan():
 		la("chỉ một transaction_id", frappe.db.count(
 			"Bank Transaction", {"transaction_id": ma}
 		), 1)
+
+		# Hàng rào phải chạy bằng chính cửa lưu, không chỉ dò chữ trong mã.
+		b2 = _tai_khoan_ca_nhan(so_tk, ncc)
+		try:
+			sepay.them_tai_khoan(so_tk, b2.name)
+		except frappe.ValidationError as e:
+			dung("lần hai nói rõ không ghi đè", "không tự ghi đè" in str(e))
+		else:
+			dung("không được ghi đè map bằng Bank Account khác", False)
+
+		# Desk cũng không được đi vòng qua cửa app để lưu JSON xung đột.
+		stg = frappe.get_doc(sepay.STG_SEPAY)
+		stg.account_map = frappe.as_json({so_tk: b.name, " ".join((so_tk[:6], so_tk[6:])): b2.name})
+		try:
+			stg.save(ignore_permissions=True)
+		except frappe.ValidationError as e:
+			dung("Desk chặn cùng số trỏ hai túi", "nhiều Bank Account" in str(e))
+		else:
+			dung("Desk không được lưu bản đồ xung đột", False)
+		stg.reload()
+		la("DB giữ bản đồ trước lỗi", sepay._ban_do().get(so_tk), b.name)
+	finally:
+		frappe.set_user(cu)
+
+
+@ca("#247 MB cá nhân: không tất toán phiếu chi công ty ở tự động hoặc chọn tay")
+def _mb_khong_tat_toan_phieu_cong_ty():
+	cu = frappe.session.user
+	frappe.set_user("Administrator")
+	try:
+		ncc = mot_nha_cung_cap()
+		so_tk = _so_thu()
+		ca_nhan = _tai_khoan_ca_nhan(so_tk, ncc)
+		cong_ty_ba = _mot("Bank Account", {
+			"company": cong_ty(), "is_company_account": 1, "disabled": 0,
+		})
+		if not cong_ty_ba:
+			frappe.throw("Bench chưa có Bank Account công ty để đối chứng nguồn chi.")
+		tien = 247321
+		p = _phieu_cho_chi(tien)
+		gd_ca_nhan = _giao_dich(ca_nhan.name, tien, de_nghi_chi.noi_dung_ck(p.name))
+
+		de_nghi_chi.khi_co_giao_dich(gd_ca_nhan.name)
+		la("webhook cá nhân giữ phiếu chờ", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_HOAN_TAT)
+		la("webhook cá nhân không gắn mã", frappe.db.get_value(p.doctype, p.name, "ma_gd") or "", "")
+		de_nghi_chi.doi_soat()
+		la("quét giờ giữ đúng phiếu đang thử", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_HOAN_TAT)
+		la("quét giờ không gắn tiền cá nhân", frappe.db.get_value(p.doctype, p.name, "ma_gd") or "", "")
+		try:
+			de_nghi_chi.khop_tay(p.name, gd_ca_nhan.name)
+		except frappe.ValidationError as e:
+			dung("chọn tay nói rõ tài khoản cá nhân", "tài khoản cá nhân" in str(e))
+		else:
+			dung("chọn tay phải chặn tiền cá nhân", False)
+
+		ung_vien = de_nghi_chi.tim_gd_ra(p.name, so_ngay=1)["rows"]
+		dung("màn chọn không bày tiền cá nhân", all(x["name"] != gd_ca_nhan.name for x in ung_vien))
+
+		gd_cong_ty = _giao_dich(cong_ty_ba, tien, de_nghi_chi.noi_dung_ck(p.name))
+		de_nghi_chi.khi_co_giao_dich(gd_cong_ty.name)
+		la("đối chứng tiền công ty tất toán", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_DA_CHI)
+		la("đối chứng gắn đúng dòng công ty", frappe.db.get_value(p.doctype, p.name, "ma_gd"), gd_cong_ty.name)
 	finally:
 		frappe.set_user(cu)
