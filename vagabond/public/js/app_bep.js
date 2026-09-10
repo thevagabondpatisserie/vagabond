@@ -21664,7 +21664,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '473';
+var APPVER = '475';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -32554,7 +32554,7 @@ async function scrHoSoTTTao() {
      rows thi doi chip mot cai la o "dang chon" tut ve 0 trong khi hoa don
      van dang duoc chon - dung cai lam nguoi dung tuong minh mat du lieu. */
   var maChon = Object.keys(hsTaoChon);
-  var tongChon = maChon.reduce(function (a, m) { return a + Number((hsTaoChon[m] && hsTaoChon[m].con_no) || 0); }, 0);
+  var tongChon = maChon.reduce(function (a, m) { return a + Number((hsTaoChon[m] && hsTaoChon[m].so_tien) || 0); }, 0);
   var nhaChon = {};
   maChon.forEach(function (m) { var t = hsTaoChon[m] && hsTaoChon[m].ten_ncc; if (t) nhaChon[t] = 1; });
   var soNha = Object.keys(nhaChon).length;
@@ -32594,7 +32594,9 @@ async function scrHoSoTTTao() {
          no NCC thi tien di thang toi nha cung cap, khong co ai ung tien nen
          khong co phieu noi bo nao de noi. */
       (laHU && da ? hsODongPhieu(r.hoa_don) : '') +
-      '</div><b style="white-space:nowrap">' + money(r.con_no) + ' đ</b>' +
+      '</div><div style="text-align:right">Còn nợ ' + money(r.con_no) + ' đ' +
+      (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + ' đ</div>' : '') +
+      (da ? '<label>Chi đợt này<input class="tin" type="text" inputmode="numeric" data-hstien="' + h(r.hoa_don) + '" value="' + money(hsTaoChon[r.hoa_don].so_tien) + '"></label>' : '') + '</div>' +
       hsONutBanTheHien(r.hoa_don) + '</div>';
   });
   html += '</div>';
@@ -32612,6 +32614,7 @@ async function scrHoSoTTTao() {
       '🔍 Thiếu hoá đơn? Xem vì sao</button>';
   }
 
+  if (!laHU && hsTaoNcc && hsCoQuyenCanCoc()) html += '<button class="btn gh" id="hsCanCoc">' + (hsCocLan ? 'Kiểm kết quả lần cấn trước' : 'Cấn cọc đã chi vào hóa đơn đã chọn') + '</button>';
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="hsGc" placeholder="Ghi chú cho hồ sơ (không bắt buộc)" value="' + h(hsTaoGhiChu) + '"></div>';
 
   var foot = '<div style="display:flex;gap:8px">' +
@@ -32627,7 +32630,27 @@ async function scrHoSoTTTao() {
     hsNoiPhieuVaoHd(n.getAttribute('data-hsphieu'));
   }, true);
 
-  var ghiChon = function (r) { hsTaoChon[r.hoa_don] = { con_no: Number(r.con_no || 0), ten_ncc: r.ten_ncc || r.ncc || '' }; };
+  b.addEventListener('change', function (e) {
+    var n = e.target.closest('[data-hstien]'); if (!n) return;
+    var d = hsTaoChon[n.getAttribute('data-hstien')], tien = hsDocTienDot(n.value);
+    if (!d) return;
+    if (!Number.isFinite(tien) || tien <= 0 || tien > d.con_no) {
+      n.value = d.so_tien;
+      return baoTin('Nhập số tiền lớn hơn 0 và không vượt phần còn được đề nghị.');
+    }
+    d.so_tien = tien;
+    var gc = document.getElementById('hsGc'); if (gc) hsTaoGhiChu = gc.value;
+    go(scrHoSoTTTao, true);
+  });
+
+  var coc = document.getElementById('hsCanCoc');
+  if (coc) coc.onclick = function () {
+    if (hsCocLan) return hsThuLaiCanCoc(function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); });
+    hsMoCanCoc(hsTaoNcc, Object.keys(hsTaoChon).map(function (m) {
+      return { hoa_don: m, so_tien: hsTaoChon[m].so_tien };
+    }), function () { hsTaoChon = {}; hsPhieuCua = {}; go(scrHoSoTTTao, true); });
+  };
+  var ghiChon = function (r) { hsTaoChon[r.hoa_don] = { con_no: Number(r.co_the_chi == null ? r.con_no : r.co_the_chi), so_tien: Number(r.co_the_chi == null ? r.con_no : r.co_the_chi), ten_ncc: r.ten_ncc || r.ncc || '' }; };
 
   /* Nut tai ban the hien nam NGAY canh tung hoa don. Bam vao khong duoc lam
      tick chon hoa don do nhay theo, nen phai chan noi len. */
@@ -32695,6 +32718,7 @@ async function scrHoSoTTTao() {
   }
   vgbNoiOTim(b, 'hsHdTim', '[data-hsh]');
   b.addEventListener('click', function (e) {
+    if (e.target.closest('[data-hstien]')) return;
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
     if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
@@ -32730,7 +32754,7 @@ async function scrHoSoTTTao() {
     /* Gui len dang doi tuong de mang theo `de_nghi_chi`. May chu van nhan
        ca chuoi tran lan doi tuong, nen luong cong no NCC khong doi gi. */
     var ds = Object.keys(hsTaoChon).map(function (m) {
-      var o = { hoa_don: m };
+      var o = { hoa_don: m, so_tien: hsTaoChon[m].so_tien };
       if ((hsPhieuCua[m] || '').trim()) o.de_nghi_chi = hsPhieuCua[m].trim();
       return o;
     });
@@ -33266,7 +33290,7 @@ async function scrChiCongTyTao() {
   }
   if (benDangChon && benDangChon.disabled) huBenLoi = (benDangChon.ten || huNguoi) + ' đang bị vô hiệu hoá trong danh mục. Chạm để chọn bên khác.';
   var rows = hd.rows || [];
-  var tongChon = rows.reduce(function (a, r) { return a + (huChonHd[r.hoa_don] ? Number(r.con_no || 0) : 0); }, 0);
+  var tongChon = rows.reduce(function (a, r) { return a + (huChonHd[r.hoa_don] ? Number(huChonHd[r.hoa_don]) : 0); }, 0);
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
     'Chi trả trực tiếp từ tài khoản công ty cho chi phí phát sinh, <b>không qua Purchasing</b>.<br>' +
@@ -33355,7 +33379,8 @@ async function scrChiCongTyTao() {
         + '<br><span style="color:#6b7280;font-size:11.5px">' + h(r.hoa_don) + '</span>' + hsONutBanTheHien(r.hoa_don) + '</td>'
         + '<td style="padding:9px 10px;white-space:nowrap;color:' + (r.tre_ngay > 0 ? '#b91c1c' : '#6b7280') + '">'
         + (hsNgayVn(r.han_tra) || '-') + (r.tre_ngay > 0 ? '<br>trễ ' + r.tre_ngay + ' ngày' : '') + '</td>'
-        + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) + '</td></tr>';
+        + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) + (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + '</div>' : '') +
+        (on ? '<label>Chi đợt này<input class="tin" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(huChonHd[r.hoa_don]) + '"></label>' : '') + '</td></tr>';
     });
     html += '</table></div>';
   } else {
@@ -33373,6 +33398,7 @@ async function scrChiCongTyTao() {
       'Bấm ô <b>Loại chứng từ</b> rồi ô <b>Chứng từ</b> ngay trên dòng để đính kèm.</div>';
   }
 
+  if (hopLe && huNguoi && hsCoQuyenCanCoc()) html += '<button class="btn gh" id="huCanCoc">' + (hsCocLan ? 'Kiểm kết quả lần cấn trước' : 'Cấn cọc đã chi vào hóa đơn đã chọn') + '</button>';
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="huGc" placeholder="Ghi chú cho hồ sơ (không bắt buộc)" value="' + h(huGhiChu) + '"></div>';
 
   var foot = '<div style="display:flex;gap:8px">' +
@@ -33428,6 +33454,26 @@ async function scrChiCongTyTao() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-hucp]'), function (el) {
     el.onclick = function () { huCpThue = el.getAttribute('data-hucp'); go(scrChiCongTyTao, true); };
   });
+  var coc = document.getElementById('huCanCoc');
+  if (coc) coc.onclick = function () {
+    var xong = function () { huChonHd = {}; go(scrChiCongTyTao, true); };
+    if (hsCocLan) return hsThuLaiCanCoc(xong);
+    hsMoCanCoc(huNguoi, Object.keys(huChonHd).map(function (ma) {
+      return { hoa_don: ma, so_tien: huChonHd[ma] };
+    }), xong);
+  };
+  b.addEventListener('change', function (e) {
+    var n = e.target.closest('[data-hucttien]'); if (!n) return;
+    var ma = n.getAttribute('data-hucttien');
+    var hd = rows.filter(function (r) { return r.hoa_don === ma; })[0];
+    var tien = hsDocTienDot(n.value), max = Number(hd.co_the_chi == null ? hd.con_no : hd.co_the_chi);
+    if (!Number.isFinite(tien) || tien <= 0 || tien > max) {
+      n.value = huChonHd[ma]; return baoTin('Số tiền phải lớn hơn 0 và không vượt phần còn được đề nghị.');
+    }
+    huChonHd[ma] = tien;
+    var gc = document.getElementById('huGc'); if (gc) huGhiChu = gc.value;
+    go(scrChiCongTyTao, true);
+  });
   huNoiBang(b);
   b.addEventListener('click', function (e) {
     var tepHd = e.target.closest('[data-hsbth]');
@@ -33435,7 +33481,11 @@ async function scrChiCongTyTao() {
     var r2 = e.target.closest('[data-huhd]');
     if (r2) {
       var ma = r2.getAttribute('data-huhd');
-      if (huChonHd[ma]) delete huChonHd[ma]; else huChonHd[ma] = 1;
+      if (e.target.closest('[data-hucttien]')) return;
+      if (huChonHd[ma]) delete huChonHd[ma]; else {
+        var hdChon = rows.filter(function (x) { return x.hoa_don === ma; })[0];
+        huChonHd[ma] = Number(hdChon.co_the_chi == null ? hdChon.con_no : hdChon.co_the_chi);
+      }
       return go(scrChiCongTyTao, true);
     }
   });
@@ -33453,7 +33503,7 @@ async function scrChiCongTyTao() {
     try {
       var kq;
       if (hopLe) {
-        var ds = Object.keys(huChonHd);
+        var ds = Object.keys(huChonHd).map(function (ma) { return { hoa_don: ma, so_tien: huChonHd[ma] }; });
         if (!ds.length) { busy(false); return baoTin('Chưa tick hoá đơn nào.'); }
         kq = await api('vagabond.ho_so_tt.tao', {
           ncc: huNguoi, hoa_don: JSON.stringify(ds), ghi_chu: huGhiChu,
@@ -34770,6 +34820,129 @@ async function hsTaiBanTheHien(maHd) {
     busy(false);
     baoTin(errMsg(e2) || 'Không đính được bản thể hiện.', 'Chưa đính được');
   }
+}
+
+/* Cấn khoản đã chi trước khi lập APP cho phần còn phải chuyển. */
+var hsCocLan = null;
+try { hsCocLan = JSON.parse(sessionStorage.getItem('vgb_coc_app_pending') || 'null'); } catch (e) { }
+function hsCoQuyenCanCoc() {
+  return hasRole('Accounts User') || hasRole('Accounts Manager') ||
+    hasRole('AP Kiểm soát (FIN)') || hasRole('System Manager');
+}
+function hsMaLanCanCoc() {
+  /* Dung cung bo sinh ma da chiu duoc WebView cu cua luong nhan hang.
+     Khong dua vao crypto.randomUUID vi mot so may Android cua nhan vien
+     khong co ham nay va se dung truoc ca khoi try/catch gui yeu cau. */
+  return sinhMaLanNhan().replace(/^LN-/, 'CC-');
+}
+async function hsMoCanCoc(ncc, dong, xong) {
+  if (!dong.length) return baoTin('Chọn hóa đơn cần cấn cọc trước.');
+  var ds;
+  try { ds = await api('vagabond.coc_app.danh_sach', { ncc: ncc }); }
+  catch (e) { return baoTin(e.message || 'Chưa đọc được cọc.'); }
+  if ((ds.rows || []).length > 8) {
+    return sheet('Chọn khoản cọc', ds.rows.map(function (r) {
+      return { value: r.name, label: r.name + ' · còn ' + money(r.con_coc) + ' đ',
+        phu: r.ngay + (r.can_noi_sao_ke ? ' · cần nối sao kê' : ' · đã nối sao kê'),
+        tim: r.name + ' ' + r.ngay };
+    }), '', function (it) { hsChonCanCoc(ncc, dong, xong, ds, it.value); }, true);
+  }
+  var html = '<div class="card">Chọn khoản cọc đã ghi sổ và đối chiếu sao kê. Cấn xong, danh sách sẽ cập nhật số còn nợ để lập đợt chi mới.</div>';
+  (ds.rows || []).forEach(function (r) {
+    html += '<button class="btn gh" data-hscoc="' + h(r.name) + '">' + h(r.name) + ' · ' + h(r.ngay) + ' · còn ' + money(r.con_coc) + ' đ' + (r.can_noi_sao_ke ? ' · cần nối sao kê' : ' · đã nối sao kê') + '</button>';
+  });
+  if (!(ds.rows || []).length) html += '<div class="card">Chưa có cọc đủ điều kiện. Kế toán ghi nhận khoản cọc bằng Phiếu thanh toán và đối chiếu sao kê trước.</div>';
+  var b = frame('Cấn cọc nhà cung cấp', html);
+  b.addEventListener('click', async function (e) {
+    var nut = e.target.closest('[data-hscoc]'); if (!nut) return;
+    hsChonCanCoc(ncc, dong, xong, ds, nut.getAttribute('data-hscoc'), nut);
+  });
+}
+
+async function hsChonCanCoc(ncc, dong, xong, ds, pe, nut) {
+  nut = nut || { disabled: false };
+  var tong = dong.reduce(function (a, d) { return a + Number(d.so_tien); }, 0);
+  var co = ds.rows.filter(function (r) { return r.name === pe; })[0];
+  if (!co) return baoTin('Khoản cọc vừa thay đổi. Mở lại danh sách để chọn.');
+  if (co.can_noi_sao_ke) return hsNoiSaoKeCoc(ncc, pe, function () { hsMoCanCoc(ncc, dong, xong); });
+  var dongCan = hsChiaCoc(dong, Number(co.con_coc));
+  tong = dongCan.reduce(function (a, d) { return a + d.so_tien; }, 0);
+  if (!(tong > 0)) return baoTin('Chưa có số tiền cấn hợp lệ.');
+  var chiTiet = dongCan.map(function (d) { return d.hoa_don + ': ' + money(d.so_tien) + ' đ'; }).join('; ');
+  var payload = JSON.stringify({ ncc: ncc, payment_entry: pe, hoa_don: JSON.stringify(dongCan) });
+  if (hsCocLan && hsCocLan.payload !== payload) return baoTin('Lần cấn trước chưa nhận đủ phản hồi. Chọn lại đúng khoản cọc và số tiền cũ để kiểm kết quả trước khi cấn khoản khác.');
+  if (!(await xacNhan('Cấn ' + money(tong) + ' đ từ ' + pe + ' vào: ' + chiTiet + '? Công nợ sẽ giảm ngay; thao tác này không chuyển thêm tiền.', 'Cấn cọc đã chi', 'Cấn cọc'))) return;
+  if (!hsCocLan) hsCocLan = { payload: payload, ma: hsMaLanCanCoc() };
+  nut.disabled = true;
+  try {
+    sessionStorage.setItem('vgb_coc_app_pending', JSON.stringify(hsCocLan));
+    var args = JSON.parse(hsCocLan.payload); args.ma_lan = hsCocLan.ma;
+    var kq = await api('vagabond.coc_app.can_coc', args);
+    hsCocLan = null;
+    sessionStorage.removeItem('vgb_coc_app_pending');
+    if (!kq.ok) { baoTin(kq.loi || 'Chưa cấn được.'); xong(); return; }
+    toast('Đã cấn ' + money(kq.da_can) + ' đ. Kiểm số còn nợ trước khi lập APP.', 5000);
+    xong();
+  } catch (err) { nut.disabled = false; baoTin((err && err.message) || 'Chưa nhận được kết quả. Bấm lại giữ đúng mã lần cấn để kiểm.'); }
+}
+
+async function hsThuLaiCanCoc(xong) {
+  if (!hsCocLan) return;
+  busy(true);
+  try {
+    var args = JSON.parse(hsCocLan.payload); args.ma_lan = hsCocLan.ma;
+    var kq = await api('vagabond.coc_app.can_coc', args);
+    sessionStorage.removeItem('vgb_coc_app_pending'); hsCocLan = null;
+    busy(false);
+    if (!kq.ok) { baoTin(kq.loi || 'Lần cấn đã bị từ chối. Chọn lại số tiền phù hợp.'); xong(); return; }
+    toast('Đã xác nhận lần cấn ' + money(kq.da_can) + ' đ.'); xong();
+  } catch (e) { busy(false); baoTin(e.message || 'Chưa kiểm được kết quả, giữ nguyên lần cấn để kiểm lại.'); }
+}
+
+async function hsNoiSaoKeCoc(ncc, pe, xong) {
+  var ds;
+  try { ds = await api('vagabond.coc_app.sao_ke_coc', { ncc: ncc, payment_entry: pe }); }
+  catch (e) { return baoTin(e.message || 'Chưa đọc được sao kê.'); }
+  if ((ds.rows || []).length > 8) {
+    return sheet('Chọn giao dịch sao kê', ds.rows.map(function (r) {
+      return { value: r.name, label: r.date + ' · ' + money(r.withdrawal) + ' đ',
+        phu: r.description + ' · ' + r.name, tim: r.name + ' ' + r.date + ' ' + r.description };
+    }), '', function (it) { hsChonSaoKeCoc(ncc, pe, xong, it.value); }, true);
+  }
+  var html = '<div class="card">Chọn giao dịch đã chi cho khoản cọc ' + h(pe) + '. Chỉ bày đúng tài khoản và số tiền; kiểm thêm nội dung và ngày trước khi nối.</div>';
+  (ds.rows || []).forEach(function (r) {
+    html += '<button class="btn gh" data-cocgd="' + h(r.name) + '">' + h(r.date) + ' · ' + money(r.withdrawal) + ' đ<br>' + h(r.description) + '<br>' + h(r.name) + '</button>';
+  });
+  if (!(ds.rows || []).length) html += '<div class="card">Chưa có giao dịch khớp còn trống. Kế toán kiểm đồng bộ hoặc Đối chiếu ngân hàng.</div>';
+  var b = frame('Nối sao kê cọc đã chi', html);
+  b.addEventListener('click', async function (e) {
+    var n = e.target.closest('[data-cocgd]'); if (!n) return;
+    hsChonSaoKeCoc(ncc, pe, xong, n.getAttribute('data-cocgd'), n);
+  });
+}
+
+async function hsChonSaoKeCoc(ncc, pe, xong, ma, nut) {
+  nut = nut || { disabled: false };
+  if (!(await xacNhan('Nối giao dịch ' + ma + ' với cọc ' + pe + '?', 'Đối chiếu cọc', 'Nối sao kê'))) return;
+  nut.disabled = true;
+  try { await api('vagabond.coc_app.noi_sao_ke_coc', { ncc: ncc, payment_entry: pe, giao_dich: ma }); xong(); }
+  catch (err) { nut.disabled = false; baoTin(err.message || 'Chưa xác nhận kết quả. Bấm lại kiểm đúng giao dịch đã chọn.'); }
+}
+
+function hsDocTienDot(value) {
+  var s = String(value || '').trim();
+  if (!/^(?:[0-9]+|[0-9]{1,3}(?:\.[0-9]{3})+)$/.test(s)) return NaN;
+  return Number(s.replace(/\./g, ''));
+}
+
+function hsChiaCoc(dong, con) {
+  var ra = [];
+  for (var i = 0; i < dong.length && con > 0; i++) {
+    var tien = Math.min(Number(dong[i].so_tien), con);
+    if (!Number.isFinite(tien) || tien <= 0) return [];
+    ra.push({ hoa_don: dong[i].hoa_don, so_tien: tien }); con -= tien;
+  }
+  return ra;
 }
 /* ================= DANH MUC NHA CUNG CAP =================
    Uyen hoi 14/08/2026: "co may mat hang chua gan NCC, em gan NCC o muc nao?"
