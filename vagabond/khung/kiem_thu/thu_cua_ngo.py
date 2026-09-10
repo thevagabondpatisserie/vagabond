@@ -176,6 +176,9 @@ CUA_NGO = {
 	# nham thanh "hang chua duoc nhap kho". `_mst_cua_to` va `_phieu_ung_vien`
 	# la ham noi bo, KHONG mo ra ngoai.
 	"doi_chieu_mua.py": [
+		# `bo_noi` them 10/09/2026 (issue #252): go dau noi phieu nhap tren
+		# to con nhap, khi luong cua phieu da bi hoa don khac ghi so lay mat.
+		"bo_noi",
 		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_thang", "goi_y_mon",
 		"khai_don_vi", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],

@@ -29844,6 +29844,7 @@ function dcmChip(d) {
   };
   if (d.nhom === 'xong') return the('#dcfce7', '#166534', '✅ Đã ghi sổ');
   if (d.nhom === 'huy') return the('#fee2e2', '#991b1b', '🚫 Đã huỷ');
+  if (d.noi_cu) return the('#fee2e2', '#991b1b', '⚠️ Phiếu nhập đã bị hoá đơn khác lấy, nối lại');
   if (d.nhom === 'cho_ghi_so') return the('#dbeafe', '#1e40af', '📒 Đã nối phiếu, chờ ghi sổ');
   if (d.nhom === 'khong_thay') return the('#f3f4f6', '#4b5563', '❓ Không thấy phiếu nhập nào');
   if (d.nhom === 'lech') {
@@ -29879,7 +29880,7 @@ async function scrDcmXem(name) {
     var s = dcmSs;
     var html = '<div class="card" style="padding:13px 14px;background:' + (s.khop ? '#f0fdf4' : '#fffbeb') + ';border:1.5px solid ' + (s.khop ? '#86efac' : '#fcd34d') + '">' +
       '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:#374151">Tiền hàng trên hoá đơn</span><b>' + money(s.tien_hd) + ' đ</b></div>' +
-      '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">Tiền hàng trên phiếu nhập</span><b>' + money(s.tien_pnk) + ' đ</b></div>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">Tiền hàng phiếu nhập còn lại' + ((s.hd_da_dung || []).length ? ' (sau ' + h(s.hd_da_dung.join(', ')) + ')' : '') + '</span><b>' + money(s.tien_pnk) + ' đ</b></div>' +
       '<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.08)">' +
       '<b style="font-size:13.5px;color:' + (s.khop ? '#15803d' : '#92400e') + '">' + (s.khop ? '✅ Khớp' : '⚠️ Lệch') + '</b>' +
       '<b style="color:' + (s.khop ? '#15803d' : '#92400e') + '">' + (s.lech_tien ? money(s.lech_tien) + ' đ' : '0 đ') + '</b></div>' +
@@ -29897,49 +29898,86 @@ async function scrDcmXem(name) {
          tu doi ten dong hoa don theo phieu nhap. Van noi cho nguoi ta biet,
          vi nhin hai cot thay "Goi" canh "Kg" la de tuong minh go nham. */
       var khacTen = !!r.khac_ten_dvt;
-      var lech = lechDvt || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
+      var noiCu = !!r.noi_cu;
+      var lech = lechDvt || noiCu || Math.abs(r.lech_sl) > 0.0001 || Math.abs(r.lech_gia) > 0.005 || !r.co_phieu;
+      /* Phieu nhap hien LUONG CON LAI cho to nay, kem so da nhan va ten hoa
+         don da lay, chu khong hien nguyen so da nhan. HĐ 3019 ngay 10/09/2026:
+         man in "Phieu nhap 6 Hop" trong khi 3 hop da bi to khac ghi so, ke
+         toan bam ghi so moi biet. */
+      var ctPnk = '';
+      if (r.co_phieu) {
+        ctPnk = 'Phiếu nhập còn ' + num(r.sl_pnk) + ' ' + h(r.dvt_pnk || '') + ' × ' + money(r.gia_pnk);
+        if (Math.abs((r.sl_pnk_nhan || 0) - (r.sl_pnk || 0)) > 0.0001) {
+          ctPnk += '<div style="font-size:11px;color:#92400e">đã nhận ' + num(r.sl_pnk_nhan) +
+            ((r.da_dung_hd || []).length ? ', hoá đơn ' + h((r.da_dung_hd || []).join(', ')) + ' đã lấy phần kia' : '') + '</div>';
+        }
+      } else {
+        ctPnk = '<b style="color:#b3261e">không có trong phiếu</b>';
+      }
       html += '<div style="padding:10px 14px;border-bottom:1px solid #f2f4f7;background:' + (lech ? '#fef2f2' : '#fff') + '">' +
         '<div style="font-size:13.5px;font-weight:600">' + h(r.item_name || r.item_code) + '</div>' +
         '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b7280;margin-top:3px">' +
         '<span>Hoá đơn ' + num(r.sl_hd) + ' ' + h(r.dvt_hd || '') + ' × ' + money(r.gia_hd) + '</span>' +
-        '<span>' + (r.co_phieu ? 'Phiếu nhập ' + num(r.sl_pnk) + ' ' + h(r.dvt_pnk || '') + ' × ' + money(r.gia_pnk) : '<b style="color:#b3261e">không có trong phiếu</b>') + '</span></div>' +
-        (lechDvt
-          ? '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55"><b>Hai bên khác đơn vị.</b> Quy về ' + h(r.dvt_kho || '') +
-            ' thì hoá đơn là ' + num(r.ton_hd) + ' còn phiếu nhập là ' + num(r.ton_pnk) + '.' +
-            (r.dvt_ncc ? ' Nhà cung cấp ghi đơn vị "' + h(r.dvt_ncc) + '" trên hoá đơn điện tử, hệ chưa biết đó là đơn vị nào của mình.' : '') +
-            '</div>' +
-            (kq.lam_duoc && r.dvt_pnk && !r.da_noi
-              ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
-                '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
-              : '') +
-            /* KHAI HAN DON VI CUA NHA CUNG CAP VAO MON. Nut tren chi chua
-               DONG NAY; thang sau nha cung cap gui to khac la lech y nguyen.
-               Nut duoi day chua CAI GOC: khai mot lan cho mon, tu do ve sau
-               may doc dung don vi do. Anh Viet 31/08/2026: "anh chang hieu
-               anh phai lam gi de no khong lech". Day la cai phai lam. */
-            /* CHUA GAN MA HANG. Day la ca chiem gan het so dong dang hong
-               (9.985 tren 11.351 dong, ngay 31/08/2026). Truoc ban nay man
-               hinh bao "hang chua duoc nhap kho" - sai, va sai theo huong
-               day nguoi ta di lap them phieu nhap cho lo hang da nhap roi. */
-            (!r.item_code
-              ? '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55">' +
-                '<b>Dòng này chưa gắn mã hàng.</b> Máy chưa biết "' + h(r.item_name || '') +
-                '" là món nào bên mình nên không đối chiếu với kho được.</div>' +
-                (kq.lam_duoc && !r.da_noi
-                  ? '<button class="btn gh" data-dcmgan="' + h(String(r.idx)) +
-                    '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Gắn mã hàng cho dòng này</button>'
-                  : '')
-              : '') +
-            (kq.lam_duoc && r.dvt_ncc && r.item_code && !r.da_noi
-              ? '<button class="btn gh" data-dcmkhai="' + h(r.item_code) + '" data-dvt="' + h(r.dvt_ncc) +
-                '" data-slhd="' + h(String(r.sl_hd)) + '" data-slpnk="' + h(String(r.co_phieu ? r.sl_pnk : 0)) +
-                '" data-hspnk="' + h(String(r.hs_pnk || 0)) + '" data-kho="' + h(r.dvt_kho || '') +
-                '" style="margin:7px 0 2px 8px;padding:7px 12px;font-size:12.5px">Khai đơn vị "' + h(r.dvt_ncc) + '" cho món này</button>'
-              : '')
-          : (khacTen ? '<div style="font-size:12px;color:#166534;margin-top:3px;line-height:1.55">Hoá đơn ghi <b>' + h(r.dvt_hd || '') + '</b>, phiếu nhập ghi <b>' + h(r.dvt_pnk || '') + '</b>, hai bên cùng ' + num(r.ton_hd) + ' ' + h(r.dvt_kho || '') + ' nên không sao. Lúc nối máy tự đổi tên đơn vị dòng hoá đơn cho khớp phiếu nhập.</div>' : '') +
-            (Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + '</div>' : '') +
-            (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '')) +
-        '</div>';
+        '<span style="text-align:right">' + ctPnk + '</span></div>';
+
+      /* CHUA GAN MA HANG. Khoi nay tung nam TRONG nhanh "lech don vi", nen
+         dong khong co ma ma khong lech don vi thi khong hien nut nao: Uyen
+         doc chu "khong co trong phieu" roi khong biet lam gi tiep (LARAFARM
+         PNK-2026-00027, 10/09/2026). Nay hien doc lap, cu khong co ma la co
+         nut. Day la ca chiem gan het so dong dang hong (9.985 tren 11.351
+         dong, ngay 31/08/2026). */
+      if (!r.item_code) {
+        html += '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55">' +
+          '<b>Dòng này chưa gắn mã hàng.</b> Máy chưa biết "' + h(r.item_name || '') +
+          '" là món nào bên mình nên không đối chiếu với kho được.</div>';
+      }
+      /* Goi y tu chinh phieu nhap dang chon: mon khong ai nhac toi ma cung
+         so luong, cung don gia voi dong nay thi gan nhu chac la mot mon goi
+         hai ten. Mot nut, gan xong la khop. */
+      if (!r.co_phieu && kq.lam_duoc && !r.da_noi && (r.goi_y_phieu || []).length) {
+        html += '<div style="font-size:12px;color:#166534;margin-top:4px;line-height:1.55">Trên phiếu nhập có món cùng số lượng, cùng đơn giá:</div>' +
+          (r.goi_y_phieu || []).map(function (g) {
+            return '<button class="btn gh" data-dcmgoiy="' + h(String(r.idx)) + '" data-ma="' + h(g.item_code) +
+              '" data-doi="' + (r.item_code ? 1 : 0) + '" style="margin:6px 6px 2px 0;padding:7px 12px;font-size:12.5px">' +
+              (r.item_code ? 'Đổi sang ' : 'Chọn ') + h(g.item_name || g.item_code) + '</button>';
+          }).join('');
+      }
+      if (!r.item_code && kq.lam_duoc && !r.da_noi) {
+        html += '<button class="btn gh" data-dcmgan="' + h(String(r.idx)) +
+          '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Gắn mã hàng cho dòng này</button>';
+      }
+      if (noiCu) {
+        html += '<div style="font-size:12px;color:#b3261e;margin-top:4px;line-height:1.55"><b>Dấu nối cũ không còn dùng được.</b> ' +
+          'Dòng này nối vào ' + h(r.da_noi || '') + ' từ trước, nhưng hoá đơn ' + h((r.da_dung_hd || []).join(', ')) +
+          ' đã ghi sổ lấy mất lượng đó. Bấm nối lại để máy gỡ dấu cũ và chia theo lượng còn thật.</div>';
+      }
+
+      if (lechDvt) {
+        html += '<div style="font-size:12px;color:#b3261e;margin-top:3px;line-height:1.55"><b>Hai bên khác đơn vị.</b> Quy về ' + h(r.dvt_kho || '') +
+          ' thì hoá đơn là ' + num(r.ton_hd) + ' còn phiếu nhập là ' + num(r.ton_pnk) + '.' +
+          (r.dvt_ncc ? ' Nhà cung cấp ghi đơn vị "' + h(r.dvt_ncc) + '" trên hoá đơn điện tử, hệ chưa biết đó là đơn vị nào của mình.' : '') +
+          '</div>' +
+          (kq.lam_duoc && r.dvt_pnk && !r.da_noi
+            ? '<button class="btn gh" data-dcmdvt="' + h(String(r.idx)) + '" data-dvt="' + h(r.dvt_pnk) +
+              '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Đổi đơn vị dòng này thành ' + h(r.dvt_pnk) + '</button>'
+            : '') +
+          /* KHAI HAN DON VI CUA NHA CUNG CAP VAO MON. Nut tren chi chua
+             DONG NAY; thang sau nha cung cap gui to khac la lech y nguyen.
+             Nut duoi day chua CAI GOC: khai mot lan cho mon, tu do ve sau
+             may doc dung don vi do. Anh Viet 31/08/2026: "anh chang hieu
+             anh phai lam gi de no khong lech". Day la cai phai lam. */
+          (kq.lam_duoc && r.dvt_ncc && r.item_code && !r.da_noi
+            ? '<button class="btn gh" data-dcmkhai="' + h(r.item_code) + '" data-dvt="' + h(r.dvt_ncc) +
+              '" data-slhd="' + h(String(r.sl_hd)) + '" data-slpnk="' + h(String(r.co_phieu ? r.sl_pnk : 0)) +
+              '" data-hspnk="' + h(String(r.hs_pnk || 0)) + '" data-kho="' + h(r.dvt_kho || '') +
+              '" style="margin:7px 0 2px 8px;padding:7px 12px;font-size:12.5px">Khai đơn vị "' + h(r.dvt_ncc) + '" cho món này</button>'
+            : '');
+      } else {
+        html += (khacTen ? '<div style="font-size:12px;color:#166534;margin-top:3px;line-height:1.55">Hoá đơn ghi <b>' + h(r.dvt_hd || '') + '</b>, phiếu nhập ghi <b>' + h(r.dvt_pnk || '') + '</b>, hai bên cùng ' + num(r.ton_hd) + ' ' + h(r.dvt_kho || '') + ' nên không sao. Lúc nối máy tự đổi tên đơn vị dòng hoá đơn cho khớp phiếu nhập.</div>' : '') +
+          (r.co_phieu && Math.abs(r.lech_sl) > 0.0001 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch số lượng ' + num(r.lech_sl) + ' ' + h(r.dvt_kho || '') + ' (tính gộp các dòng cùng món trên hoá đơn so với phần phiếu còn lại)</div>' : '') +
+          (r.co_phieu && Math.abs(r.lech_gia) > 0.005 ? '<div style="font-size:12px;color:#b3261e;margin-top:2px">Lệch đơn giá ' + money(r.lech_gia) + ' đ mỗi ' + h(r.dvt_kho || '') + '</div>' : '');
+      }
+      html += '</div>';
     });
     html += '</div>';
 
@@ -29956,6 +29994,19 @@ async function scrDcmXem(name) {
         '</div></div>';
     }
 
+    if (s.so_noi_cu) {
+      html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
+        '<b style="font-size:13.5px;color:#b3261e">Phiếu nhập đã bị hoá đơn khác lấy mất lượng</b>' +
+        '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.65;margin-top:3px">' +
+        'Tờ này nối phiếu từ trước, sau đó hoá đơn ' + h((s.hd_da_dung || []).join(', ')) +
+        ' đã ghi sổ và lấy mất một phần lượng của phiếu. Ghi sổ bây giờ là bị chặn. ' +
+        'Bấm <b>Nối phiếu</b> lại để máy gỡ dấu nối cũ và chia theo lượng còn thật; ' +
+        'nếu phiếu còn thiếu thì chọn thêm phiếu nhập khác của nhà cung cấp này.' +
+        '</div>' +
+        (kq.lam_duoc ? '<button class="btn gh" id="dcmBoNoi" style="margin:9px 0 0;width:100%">Bỏ nối, chọn lại phiếu từ đầu</button>' : '') +
+        '</div>';
+    }
+
     if (s.so_lech_dvt) {
       html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1.5px solid #fecaca">' +
         '<b style="font-size:13.5px;color:#b3261e">Chưa nối được vì lệch đơn vị</b>' +
@@ -29970,7 +30021,7 @@ async function scrDcmXem(name) {
       html += '<div class="sec">Có trong phiếu nhập mà hoá đơn không nhắc tới</div>' +
         '<div class="card" style="padding:12px 14px;font-size:13px;color:#92400e;line-height:1.7">' +
         'Hàng đã về kho mà tờ hoá đơn này không tính tiền. Có thể nhà cung cấp xuất hoá đơn làm nhiều lần, cũng có thể chọn nhầm phiếu.<br>' +
-        (s.thua || []).map(function (x) { return '· ' + h(x.item_name || x.item_code) + ' · ' + num(x.sl_pnk) + ' · ' + money(x.tien_pnk) + ' đ'; }).join('<br>') +
+        (s.thua || []).map(function (x) { return '· ' + h(x.item_name || x.item_code) + ' · còn ' + num(x.sl_pnk) + ' ' + h(x.dvt_pnk || '') + ' · ' + money(x.tien_pnk) + ' đ'; }).join('<br>') +
         '</div>';
     }
     o.innerHTML = html;
@@ -29982,7 +30033,7 @@ async function scrDcmXem(name) {
     '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">' + h(d.name) + ' · ' + ngayNgan(d.posting_date) +
     (d.bill_no ? ' · số ' + h(d.bill_no) : '') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:#374151">Tổng hoá đơn</span><b style="font-size:16px">' + money(d.grand_total) + ' đ</b></div>' +
-    '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, so_phieu_goi_y: gy.length }) + '</div></div>';
+    '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, noi_cu: kq.noi_cu, so_phieu_goi_y: gy.length }) + '</div></div>';
 
   /* To sinh tu hoa don dien tu ma tong tien lech ban goc: noi ngay o day,
      truoc khi nguoi ta ngoi doi chieu tung mon. Anh Viet 26/08/2026. */
@@ -30087,6 +30138,8 @@ async function scrDcmXem(name) {
     if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
     var g = e.target.closest('[data-dcmgan]');
     if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'));
+    var gy = e.target.closest('[data-dcmgoiy]');
+    if (gy) return dcmGanXong(name, gy.getAttribute('data-dcmgoiy'), gy.getAttribute('data-ma'), gy.getAttribute('data-doi') === '1');
     var k = e.target.closest('[data-dcmkhai]');
     if (k) return dcmKhaiDonVi(name, k.getAttribute('data-dcmkhai'), k.getAttribute('data-dvt'),
       k.getAttribute('data-slhd'), k.getAttribute('data-slpnk'), k.getAttribute('data-hspnk'),
@@ -30100,6 +30153,23 @@ async function scrDcmXem(name) {
   };
   dcmGanDungLai(name);
   veSoSanh();
+  /* Nut Bo noi ve trong veSoSanh, sau khi co ket qua so sanh, nen gan qua
+     uy quyen tren khung chu khong tim phan tu luc nay. */
+  b.addEventListener('click', async function (e) {
+    if (!e.target.closest('#dcmBoNoi')) return;
+    var ok = await confirmSheet('Bỏ nối phiếu nhập',
+      'Gỡ dấu nối phiếu nhập trên mọi dòng của tờ ' + name + '.\n\nSố lượng, đơn giá và tiền giữ nguyên. Sau đó chọn lại phiếu còn lượng rồi bấm nối.',
+      'Bỏ nối', true);
+    if (!ok) return;
+    busy(true);
+    try {
+      var r = await api('vagabond.doi_chieu_mua.bo_noi', { name: name });
+      busy(false);
+      toast((r && r.loi_nhan) || 'Đã bỏ nối.', 4500);
+      dcmPhieu = []; dcmSs = null;
+      go(function () { scrDcmXem(name); }, true);
+    } catch (e2) { busy(false); baoTin((e2 && e2.message) || 'Không bỏ nối được'); }
+  });
 
   async function chay(ghiSo) {
     if (!dcmPhieu.length) return toast('Chọn phiếu nhập trước đã.');
@@ -30119,6 +30189,9 @@ async function scrDcmXem(name) {
        khong qua kho nen khong can phieu, con may dong hang chua co phieu.
        Nen hien dung cau do thay vi mot cau chung chung. */
     var cau = r.loi_nhan || '';
+    if ((r.da_go_noi_cu || []).length && !r.da_ghi_so && !(r.con_lai || []).length) {
+      baoTin(cau + '\n\n' + r.da_go_noi_cu.join('\n'));
+    }
     if (r.da_ghi_so) {
       toast('Đã nối phiếu và ghi sổ ' + name + (cau ? '. ' + cau : ''), 5000);
     } else if ((r.con_lai || []).length) {
@@ -31318,12 +31391,14 @@ async function dcmGanMaHang(name, idx) {
   }, true);
 }
 
-async function dcmGanXong(name, idx, itemCode) {
+async function dcmGanXong(name, idx, itemCode, doi) {
   if (!itemCode) return;
   busy(true);
   try {
+    /* `doi` = dong da co ma nhung sai, doi sang ma tren phieu nhap. May chu
+       tu choi neu dong da noi phieu, va ghi ro trong to la ai doi ma nao. */
     var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang',
-      { name: name, dong: idx, item_code: itemCode, nho: 1 });
+      { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 });
     busy(false);
     baoTin((kq && kq.loi_nhan) || 'Đã gắn mã hàng.');
     go(function () { scrDcmXem(name); }, true);

@@ -177,7 +177,8 @@ def _hai_nhap():
 		try:
 			dc.chan_vuot_luong_da_nhan(t)
 		except ValueError as loi:
-			dung("báo hoá đơn khác dùng rồi", "Có hoá đơn khác" in str(loi))
+			dung("báo hoá đơn khác dùng rồi", "đã ghi sổ lấy" in str(loi))
+			dung("chỉ đường ra", "Nối phiếu" in str(loi))
 		else:
 			dung("phải chặn", False)
 	la("khoá và đọc trong cùng giao dịch", len(goi), 2)
