@@ -580,6 +580,8 @@ doc_events = {
 	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
 	# de giai trinh, nhac tren man thi bo qua duoc.
 	"Payment Entry": {
+		"before_save": "vagabond.coc_app.chan_sua_lich_su",
+		"before_update_after_submit": "vagabond.coc_app.chan_sua_lich_su",
 		# Ten goi dung theo tai khoan tien: 111 la Phieu thu/Phieu chi, 112
 		# la Giay bao Co / Uy nhiem chi (chi Dung chot 16/08/2026).
 		"validate": [
