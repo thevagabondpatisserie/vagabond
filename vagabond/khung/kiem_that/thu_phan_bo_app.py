@@ -101,14 +101,19 @@ def _coc(theo_po=False):
     _DA_TAO.append((f.doctype, f.name))
     g = _giao_dich_ngan_hang(pe.name, 3000000, hd.company)
     if theo_po:
-        from vagabond import duyet_chi
-        pe.workflow_state = duyet_chi.TT_DA_DUYET_CHI
+        # Phiếu neo Purchase Order đi qua hàng rào duyệt chi (duyet_chi), mà
+        # hàng rào đó đọc ô `workflow_state`. Ô này do Workflow của Frappe
+        # sinh ra trên site thật; bench không dựng Workflow nên Payment Entry
+        # KHÔNG có cột đó, và bản trước ngã ở đây với lỗi MariaDB 1054.
+        #
+        # KHÔNG dựng cột trong lúc chạy: thêm cột là DDL, MariaDB tự commit,
+        # điểm lưu hoàn nguyên của bộ kiểm sẽ vỡ. Ca này kiểm CẤN CỌC neo PO,
+        # không kiểm chữ ký duyệt chi (chữ ký đã có ca riêng của duyet_chi),
+        # nên nền được dựng bằng đúng cờ mà chính hàng rào công nhận.
         pe.vgb_chi_unc = frappe.as_json([f.file_url])
         pe.save(ignore_permissions=True)
-        # Nền ca đã duyệt, giống _app; không kiểm chữ ký của workflow ở đây.
-        frappe.db.set_value("Payment Entry", pe.name, "workflow_state", duyet_chi.TT_DA_DUYET_CHI)
-        duyet_chi.xac_nhan_da_chuyen(pe.name, ma_giao_dich=g.name,
-            ly_do_som="Bench: giao dịch ngân hàng thử đã tạo, kiểm cấn cọc neo PO")
+        pe.flags.vgb_da_soat_duyet_chi = 1
+        pe.submit()
         pe.reload()
     else:
         pe.submit()
@@ -197,3 +202,34 @@ def _():
     dung("đợt này4 triệu", "chi đợt này: " + hs._tien(4000000) in html)
     dung("còn nợ lúc in7 triệu", "còn nợ lúc in: " + hs._tien(7000000) in html)
     dung("dẫn đúng PE cọc", pe.name in html)
+
+
+@ca("APP cọc: lỗi sau reconcile phải thoát ra, HTTP rollback và retry không cấn đôi")
+def _():
+    from unittest.mock import patch
+    from erpnext.accounts.doctype.payment_reconciliation.payment_reconciliation import PaymentReconciliation
+    hd, pe, g = _coc()
+    args = dict(ncc=hd.supplier, payment_entry=pe.name,
+        hoa_don=[{"hoa_don": hd.name, "so_tien": 2000000}], ma_lan="coc-rollback-247-0001")
+    goc = PaymentReconciliation.reconcile
+    def hong_sau_ghi(rec):
+        goc(rec)
+        raise RuntimeError("Lỗi thử sau reconcile")
+    frappe.db.savepoint("coc_http_rollback")
+    try:
+        with patch.object(PaymentReconciliation, "reconcile", hong_sau_ghi):
+            coc_app.can_coc(**args)
+    except RuntimeError as exc:
+        la("lỗi tới biên request", str(exc), "Lỗi thử sau reconcile")
+        # Giống biên POST của Frappe: lỗi không bị endpoint nuốt thành ok0.
+        frappe.db.rollback(save_point="coc_http_rollback")
+    else:
+        dung("endpoint không được nuốt lỗi sau ghi", False)
+    pe.reload(); hd.reload()
+    la("nợ nguyên sau rollback", float(hd.outstanding_amount), 10000000.0)
+    la("cọc nguyên sau rollback", float(pe.unallocated_amount), 3000000.0)
+    dung("chưa ghi lần thành công", "coc-rollback-247-0001" not in (pe.get("vgb_lan_can_coc") or ""))
+    la("retry thành công", coc_app.can_coc(**args)["ok"], 1)
+    la("lặp chỉ trả kết quả cũ", coc_app.can_coc(**args)["da_lam_roi"], 1)
+    hd.reload()
+    la("chỉ giảm một lần", float(hd.outstanding_amount), 8000000.0)
