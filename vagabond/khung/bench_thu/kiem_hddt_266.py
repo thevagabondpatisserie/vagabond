@@ -310,14 +310,25 @@ def chay():
 				kq['phan'].append({'ten': 'F4 ngày lập hiệu lực', 'dat': True})
 
 				# ---------------------------------------------- backlog
-				# Gỡ hết nợ thì tờ hôm nay đi được, không còn bị chặn.
+				# Rút cạn nợ ngày cũ ĐÚNG CÁCH máy làm thật: hàng rào đẩy
+				# xuat_ngay_cu_truoc sang hàng đợi, lượt đó phát hành hết tờ
+				# ngày cũ rồi tờ hôm nay mới đi được. Đoạn này chạy thẳng hàm
+				# ấy, vừa dọn nợ vừa chốt luôn là đường rút cạn có chạy.
+				truoc = len(gui)
+				het_no = hddt_cho_xuat.xuat_ngay_cu_truoc()
+				_bang('rút cạn: tờ ngày cũ đã được phát hành', len(gui) - truoc, 1)
+				_bang('rút cạn xong thì báo hết nợ', het_no, True)
+				# Hai tờ của các đoạn trên không nằm trong nợ nữa (đã có hoá đơn
+				# hoặc đã kéo sang hôm nay), dọn nốt dấu vết để phép đếm sạch.
 				frappe.db.set_value('Sales Invoice', kep.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
 					None, update_modified=False)
 				frappe.db.set_value('Sales Invoice', keo.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
 					None, update_modified=False)
 				frappe.db.set_value('Sales Invoice', keo.name, 'custom_hddt_so', '', update_modified=False)
 				frappe.db.set_value('Sales Invoice', keo.name, 'custom_minvoice_id', '', update_modified=False)
-				_bang('backlog rỗng', hddt_cho_xuat.ngay_cu_dang_cho(), [])
+				con = [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()]
+				if con:
+					raise AssertionError('backlog chua rong sau khi rut can: %r' % con)
 				truoc = len(gui)
 				ban_hang.xuat_hoa_don_dien_tu(moi.name)
 				_bang('hết nợ thì tờ hôm nay đi được', len(gui) - truoc, 1)
