@@ -91,8 +91,18 @@ def dong_len_hoa_don(items, ra):
     dòng SI. Đơn nào kèm một món 0 đồng (túi, nến, hàng tặng kèm) là bị
     chặn "Payload không cùng số dòng SI" ngay lúc ghi sổ: 59 đơn Sales
     ngày 09/09 nằm nháp cả đêm. Nay đối chiếu đúng tập dòng kịch bản gửi.
+
+    PHÉP LỌC PHẢI Y HỆT BÊN GỬI, đây là chỗ Codex bắt ở vòng 4. Kịch bản lọc
+    `flt(it.amount) > 0`, tức THÀNH TIỀN DÒNG trước khi chia chiết khấu đầu
+    phiếu (minvoice_phat_hanh_20260907.txt dòng 101-104). Bản trước lọc theo
+    `gross`, là tiền SAU khi chia. Chiết khấu lớn có thể đẩy một dòng còn
+    tiền về gross 0: kịch bản vẫn gửi dòng đó, hàm này lại bỏ, hai bên lệch
+    số dòng và cửa cuối chặn đúng bằng câu lỗi đã làm chết đêm 09/09.
+    Đo được: hai dòng 1.000.000 và 1.000, chiết khấu 1.000.999 trên Grand
+    Total, gross thành 1 và 0; kịch bản gửi 2 dòng, hàm cũ trả 1 dòng.
+    Đổi phép lọc ở đây thì PHẢI đổi cả bên kia, đừng đổi một bên.
     """
-    return [(it, x) for it, x in zip(items, ra) if x['gross'] > 0]
+    return [(it, x) for it, x in zip(items, ra) if so(it.get('amount')) > 0]
 
 
 def chuan_tien(si, dd, ma_gop=None):
