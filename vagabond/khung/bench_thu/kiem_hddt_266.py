@@ -133,7 +133,10 @@ def chay():
 			ma = url[len(dau):]
 			nap.append(ma)
 			return dict(success=True, data=dict(id=ma, display_id=ma,
-				note_print='Ten khach: Khach kiem thu 266'))
+				# PHAI co dau: kich ban nap doc chuoi "Ten khach:" co dau tieng
+				# Viet. Viet khong dau thi khong tach duoc ten, to khong co ten
+				# khach va duong phat hanh bo qua no. Bench 243 dung dang co dau.
+				note_print='Tên khách: Khách kiểm thử 266'))
 		if url == 'https://minvoice.invalid/api/InvoiceApi78/GetInfoInvoice':
 			khoa = (kw.get('params') or {}).get('keyApi')
 			hoi.append(khoa)
