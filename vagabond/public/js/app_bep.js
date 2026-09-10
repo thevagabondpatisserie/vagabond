@@ -32489,7 +32489,7 @@ async function scrHoSoTTTao() {
   html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800">ĐANG CHỌN</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
-    '<span id="hsDemChon" style="font-size:13.5px;color:#374151">' + maChon.length + ' hoá đơn' +
+    '<span style="font-size:13.5px;color:#374151">' + maChon.length + ' hoá đơn' +
     (laHU && soNha ? ' · ' + soNha + ' nhà cung cấp' : '') + '</span>' +
     '<b id="hsTongChon" style="font-size:20px;color:#0f766e">' + money(tongChon) + ' đ</b></div>' +
     (laHU && soNha > 1
@@ -32521,6 +32521,7 @@ async function scrHoSoTTTao() {
       '<div class="h2">' + h(r.hoa_don) + ' · HĐ ' + hsNgayVn(r.ngay_hd) + (r.han_tra ? ' · hạn ' + hsNgayVn(r.han_tra) : '') + '</div>' +
       (r.tre_ngay > 0 ? '<div class="h2" style="color:#b3261e;font-weight:700">⚠️ Quá hạn ' + r.tre_ngay + ' ngày</div>' : '') +
       '<div class="h2" style="margin-top:4px">Còn nợ <b style="color:#16181d">' + money(r.con_no) + ' đ</b></div>' +
+      (gioiHan !== Number(r.con_no) ? '<div class="h2" style="color:#0B7C93;font-weight:700">Có thể chi đợt này ' + money(gioiHan) + ' đ</div>' : '') +
       (r.dang_giu ? '<div class="h2" style="color:#b3261e">APP khác giữ ' + money(r.dang_giu) + ' đ</div>' : '') +
       /* Chi hien o luong HOAN UNG va chi khi dong da duoc tick. Luong cong
          no NCC thi tien di thang toi nha cung cap, khong co ai ung tien nen
@@ -32589,11 +32590,19 @@ async function scrHoSoTTTao() {
     tienGo(n);
     var tien = soTien(n.value);
     if (!tien) {
+      /* O RONG CHUA CO NGHIA LA BO CHON. Chi bo tick luc RỜI Ô (ketThuc),
+         khong phai moi phim go: nguoi dung cham o, bam Xoa, chua kip go lai
+         thi o rong o giua chung mot khoanh, va truoc ban nay man ve lai
+         ngay tai do lam mat con tro lan phieu noi bo da noi. QT-09. */
+      if (!ketThuc) return;
       delete hsTaoChon[ma]; delete hsPhieuCua[ma];
       var gc0 = document.getElementById('hsGc'); if (gc0) hsTaoGhiChu = gc0.value;
       return go(scrHoSoTTTao, true);
     }
-    if (!Number.isFinite(tien) || tien > d.con_no) {
+    /* soTien() giu lai dau tru (o so luong con dung no), nen phai tu chan
+       so <= 0 o day - may chu co chan nhung the la mat lop chan tai man
+       hinh, bao loi muon sau khi da bam Lap. */
+    if (!Number.isFinite(tien) || tien <= 0 || tien > d.con_no) {
       hsBayLech(n, tien, d.con_no);
       if (!ketThuc) return;
       n.value = money(d.so_tien); hsBayLech(n, d.so_tien, d.con_no);
@@ -32603,9 +32612,9 @@ async function scrHoSoTTTao() {
     hsBayLech(n, tien, d.con_no);
     hsCapNhatTongChon();
   };
-  b.oninput = function (e) {
+  b.addEventListener('input', function (e) {
     var n = e.target.closest('[data-hstien]'); if (n) hsSuaTienDot(n, false);
-  };
+  });
   b.addEventListener('change', function (e) {
     var n = e.target.closest('[data-hstien]'); if (n) hsSuaTienDot(n, true);
   });
@@ -33110,8 +33119,8 @@ async function scrHuSepay(kq) {
   html += '<div class="sec">Giao dịch chi ra từ quỹ tạm ứng · bấm để chọn</div><div class="card">';
   rows.forEach(function (r) {
     var da = !!huGdChon[r.ma_giao_dich];
-    html += '<div class="hub" data-hugd="' + h(r.ma_giao_dich) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>'
-      + '<div class="hi">' + (da ? '☑️' : '⬜') + '</div>'
+    html += '<div class="hub' + (da ? ' chon' : '') + '" data-hugd="' + h(r.ma_giao_dich) + '">'
+      + '<input type="checkbox" class="tik" data-hugdtick="' + h(r.ma_giao_dich) + '"' + (da ? ' checked' : '') + '>'
       + '<div class="ht"><div class="h1">' + h(r.noi_dung || '(không có nội dung)') + '</div>'
       + '<div class="h2">' + hsNgayVn(r.ngay) + ' · ' + h(r.ma_giao_dich) + '</div></div>'
       + '<b style="white-space:nowrap">' + money(r.so_tien) + ' đ</b></div>';
@@ -33125,6 +33134,7 @@ async function scrHuSepay(kq) {
 
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hugd]'); if (!r) return;
+    if (e.target.closest('[data-hugdtick]')) e.preventDefault();
     var ma = r.getAttribute('data-hugd');
     if (huGdChon[ma]) delete huGdChon[ma]; else huGdChon[ma] = 1;
     go(function () { scrHuSepay(kq); }, true);
@@ -33351,7 +33361,7 @@ async function scrChiCongTyTao() {
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800">ĐANG LẬP</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
     '<span style="font-size:13.5px;color:#374151">' + (hopLe ? (Object.keys(huChonHd).length + ' hoá đơn') : (huDong.length + ' khoản')) + '</span>' +
-    '<b style="font-size:20px;color:#0f766e">' + money(hopLe ? tongChon : huTong()) + ' đ</b></div></div>';
+    '<b id="huTongChon" style="font-size:20px;color:#0f766e">' + money(hopLe ? tongChon : huTong()) + ' đ</b></div></div>';
 
   if (hopLe) {
     /* Tick hoa don GTGT dang no - dung API va cach bay giong het luong cong
@@ -33370,14 +33380,22 @@ async function scrChiCongTyTao() {
     }
     rows.forEach(function (r) {
       var on = !!huChonHd[r.hoa_don];
-      html += '<tr data-huhd="' + h(r.hoa_don) + '" style="border-top:1px solid #eef2f5;cursor:pointer;background:' + (on ? '#ecfeff' : '#fff') + '">'
-        + '<td style="padding:9px 10px">' + (on ? '☑️' : '⬜') + '</td>'
+      var max = Number(r.co_the_chi == null ? r.con_no : r.co_the_chi);
+      var soChi = on ? Number(huChonHd[r.hoa_don]) : 0;
+      var lech = on && soChi !== max;
+      html += '<tr data-huhd="' + h(r.hoa_don) + '" style="border-top:1px solid #eef2f5;cursor:pointer;background:' + (on ? '#E4F9FD' : '#fff') + '">'
+        + '<td style="padding:9px 10px"><input type="checkbox" class="tik" data-huhdtick="' + h(r.hoa_don) + '"' + (on ? ' checked' : '') + '></td>'
         + '<td style="padding:9px 10px">' + h(r.so_hd_ncc || r.hoa_don)
         + '<br><span style="color:#6b7280;font-size:11.5px">' + h(r.hoa_don) + '</span>' + hsONutBanTheHien(r.hoa_don) + '</td>'
         + '<td style="padding:9px 10px;white-space:nowrap;color:' + (r.tre_ngay > 0 ? '#b91c1c' : '#6b7280') + '">'
         + (hsNgayVn(r.han_tra) || '-') + (r.tre_ngay > 0 ? '<br>trễ ' + r.tre_ngay + ' ngày' : '') + '</td>'
-        + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) + (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + '</div>' : '') +
-        (on ? '<div class="otd"><span class="lb">Chi đợt này</span><div class="ow"><input class="tien" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(huChonHd[r.hoa_don]) + '"><span class="dv">đ</span></div></div>' : '') + '</td></tr>';
+        + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) +
+        (max !== Number(r.con_no) ? '<div style="color:#0B7C93">Có thể chi ' + money(max) + '</div>' : '') +
+        (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + '</div>' : '') +
+        (on ? '<div class="otd' + (lech ? ' lech' : '') + '"><span class="lb">Chi đợt này</span><div class="ow"><input class="tien" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(soChi) + '"><span class="dv">đ</span></div>' +
+          '<div class="gy"><span data-huhet="' + h(r.hoa_don) + '">Chi hết ' + money(max) + ' đ</span>' +
+          '<span data-hulech="' + h(r.hoa_don) + '" style="border:0;color:#b45309;padding-left:2px' + (lech ? '' : ';display:none') + '">' +
+          (lech ? 'Lệch ' + money(Math.abs(max - soChi)) + ' đ' : '') + '</span></div></div>' : '') + '</td></tr>';
     });
     html += '</table></div>';
   } else {
@@ -33459,26 +33477,70 @@ async function scrChiCongTyTao() {
       return { hoa_don: ma, so_tien: huChonHd[ma] };
     }), xong);
   };
-  b.addEventListener('change', function (e) {
-    var n = e.target.closest('[data-hucttien]'); if (!n) return;
+  var huCapNhatTongChon = function () {
+    var tong = Object.keys(huChonHd).reduce(function (a, ma) { return a + Number(huChonHd[ma] || 0); }, 0);
+    var el = document.getElementById('huTongChon'); if (el) el.textContent = money(tong) + ' đ';
+  };
+  var huBayLech = function (n, tien, max) {
+    var o = n.closest('.otd'), lech = tien !== max;
+    if (o) o.className = 'otd' + (lech ? ' lech' : '');
+    var r = n.closest('[data-huhd]'), canh = r && r.querySelector('[data-hulech]');
+    if (canh) {
+      canh.textContent = lech ? 'Lệch ' + money(Math.abs(max - tien)) + ' đ' : '';
+      canh.style.display = lech ? 'flex' : 'none';
+    }
+  };
+  var huSuaTienDot = function (n, ketThuc) {
     var ma = n.getAttribute('data-hucttien');
-    var hd = rows.filter(function (r) { return r.hoa_don === ma; })[0];
-    var tien = hsDocTienDot(n.value), max = Number(hd.co_the_chi == null ? hd.con_no : hd.co_the_chi);
+    var hd = rows.filter(function (r) { return r.hoa_don === ma; })[0]; if (!hd || !huChonHd[ma]) return;
+    var cu = Number(huChonHd[ma]), max = Number(hd.co_the_chi == null ? hd.con_no : hd.co_the_chi);
+    tienGo(n);
+    var tien = soTien(n.value);
+    if (!tien) {
+      if (!ketThuc) return;
+      delete huChonHd[ma];
+      var gc0 = document.getElementById('huGc'); if (gc0) huGhiChu = gc0.value;
+      return go(scrChiCongTyTao, true);
+    }
     if (!Number.isFinite(tien) || tien <= 0 || tien > max) {
-      n.value = huChonHd[ma]; return baoTin('Số tiền phải lớn hơn 0 và không vượt phần còn được đề nghị.');
+      huBayLech(n, tien, max);
+      if (!ketThuc) return;
+      n.value = money(cu); huBayLech(n, cu, max);
+      return baoTin('Số tiền phải lớn hơn 0 và không vượt phần còn được đề nghị.');
     }
     huChonHd[ma] = tien;
-    var gc = document.getElementById('huGc'); if (gc) huGhiChu = gc.value;
-    go(scrChiCongTyTao, true);
+    huBayLech(n, tien, max); huCapNhatTongChon();
+  };
+  b.addEventListener('input', function (e) {
+    var n = e.target.closest('[data-hucttien]'); if (n) huSuaTienDot(n, false);
+  });
+  b.addEventListener('change', function (e) {
+    var n = e.target.closest('[data-hucttien]'); if (n) huSuaTienDot(n, true);
+  });
+  Array.prototype.forEach.call(b.querySelectorAll('[data-hucttien]'), function (el) {
+    el.onfocus = function () { el.select(); };
   });
   huNoiBang(b);
   b.addEventListener('click', function (e) {
     var tepHd = e.target.closest('[data-hsbth]');
     if (tepHd) { e.stopPropagation(); return hsTaiBanTheHien(tepHd.getAttribute('data-hsbth')); }
+    var het = e.target.closest('[data-huhet]');
+    if (het) {
+      e.stopPropagation(); e.preventDefault();
+      var maHet = het.getAttribute('data-huhet');
+      var hdHet = rows.filter(function (x) { return x.hoa_don === maHet; })[0];
+      if (!hdHet || !huChonHd[maHet]) return;
+      var maxHet = Number(hdHet.co_the_chi == null ? hdHet.con_no : hdHet.co_the_chi);
+      huChonHd[maHet] = maxHet;
+      var hangHet = het.closest('[data-huhd]'), oHet = hangHet && hangHet.querySelector('[data-hucttien]');
+      if (oHet) { oHet.value = money(maxHet); huBayLech(oHet, maxHet, maxHet); }
+      return huCapNhatTongChon();
+    }
     var r2 = e.target.closest('[data-huhd]');
     if (r2) {
       var ma = r2.getAttribute('data-huhd');
       if (e.target.closest('[data-hucttien]')) return;
+      if (e.target.closest('[data-huhdtick]')) e.preventDefault();
       if (huChonHd[ma]) delete huChonHd[ma]; else {
         var hdChon = rows.filter(function (x) { return x.hoa_don === ma; })[0];
         huChonHd[ma] = Number(hdChon.co_the_chi == null ? hdChon.con_no : hdChon.co_the_chi);
@@ -34862,7 +34924,11 @@ async function hsMoCanCoc(ncc, dong, xong) {
         '<div class="hi" style="background:' + (san ? '#E4F9FD' : '#fff7ed') + ';color:' + (san ? '#0B7C93' : '#b45309') + '">' + (san ? '💰' : '🔗') + '</div>' +
         '<div class="lt"><div class="l1">' + money(r.con_coc) + ' đ</div>' +
         '<div class="l2">' + h(r.name) + ' · ' + h(r.ngay) + '</div>' +
-        '<div style="margin-top:5px"><span class="chip" style="pointer-events:none;padding:4px 10px;font-size:11.5px;background:' + (san ? '#eafaf1' : '#fff7ed') + ';border-color:' + (san ? '#a7e8c4' : '#fcd9a5') + ';color:' + (san ? '#12a150' : '#b45309') + '">' +
+        /* .st.g / .st.w, KHONG phai .chip: .chip la nut BAM DUOC cao 38px
+           trong hang .chips cuon ngang (00-nen.js dong 128-131), day chi la
+           mot nhan trang thai khong bam duoc. .st la lop dung nghia va cua
+           san co cho viec do (00-nen.js dong 215-217). */
+        '<div style="margin-top:5px"><span class="st ' + (san ? 'g' : 'w') + '">' +
         (san ? '✓ Đã nối sao kê' : '⚠ Cần nối sao kê') + '</span></div></div><div class="fc">›</div></div>';
     });
     html += '</div>';
@@ -34881,13 +34947,16 @@ function hsKhoaDongCoc(nut, khoa) {
     nut._hsDangCoc = true;
     if (nut.setAttribute) nut.setAttribute('data-hsdang', '1');
     nut.disabled = true;
-    nut.style = nut.style || {}; nut.style.pointerEvents = 'none'; nut.style.opacity = '.5';
+    /* KHONG gan nut.style = ...: element.style la CSSStyleDeclaration, gan
+       mot object vao no la gan cssText thanh "[object CSSStyleDeclaration]",
+       chuoi khong hop le, trinh duyet xoa sach style noi tuyen dang co. */
+    if (nut.style) { nut.style.pointerEvents = 'none'; nut.style.opacity = '.5'; }
     return true;
   }
   nut._hsDangCoc = false;
   if (nut.removeAttribute) nut.removeAttribute('data-hsdang');
   nut.disabled = false;
-  nut.style = nut.style || {}; nut.style.pointerEvents = ''; nut.style.opacity = '';
+  if (nut.style) { nut.style.pointerEvents = ''; nut.style.opacity = ''; }
   return true;
 }
 
@@ -34944,7 +35013,11 @@ async function hsNoiSaoKeCoc(ncc, pe, xong) {
       return { value: r.name, label: r.date + ' · ' + money(r.withdrawal) + ' đ',
         phu: r.description + ' · ' + r.name, tim: r.name + ' ' + r.date + ' ' + r.description };
     }), '', function (it) { hsChonSaoKeCoc(ncc, pe, xong, it.value); }, true);
-    return true;
+    /* Tam truot nay PHU LEN man cấn cọc, khong thay the no. Tra ve false
+       de nut ngoai duoc mo khoa ngay: tam truot da che het man nen bam
+       trung nut cu khong the xay ra, con dong bang X hay cham ra ngoai thi
+       nguoi dung tro ve dung man voi nut da san sang bam lai. */
+    return false;
   }
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;color:#8a8f9c;line-height:1.45">Chọn giao dịch đã chi cho khoản cọc <b style="color:#16181d">' + h(pe) + '</b>. Chỉ bày đúng tài khoản và số tiền; kiểm thêm nội dung và ngày trước khi nối.</div>';
   if (!(ds.rows || []).length) {

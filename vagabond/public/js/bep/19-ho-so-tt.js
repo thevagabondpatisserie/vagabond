@@ -1046,7 +1046,7 @@ async function scrHoSoTTTao() {
   html += '<div class="card" style="padding:12px 14px;background:#f0fdfa;border:1.5px solid #99f6e4">' +
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800">ĐANG CHỌN</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
-    '<span id="hsDemChon" style="font-size:13.5px;color:#374151">' + maChon.length + ' hoá đơn' +
+    '<span style="font-size:13.5px;color:#374151">' + maChon.length + ' hoá đơn' +
     (laHU && soNha ? ' · ' + soNha + ' nhà cung cấp' : '') + '</span>' +
     '<b id="hsTongChon" style="font-size:20px;color:#0f766e">' + money(tongChon) + ' đ</b></div>' +
     (laHU && soNha > 1
@@ -1078,6 +1078,7 @@ async function scrHoSoTTTao() {
       '<div class="h2">' + h(r.hoa_don) + ' · HĐ ' + hsNgayVn(r.ngay_hd) + (r.han_tra ? ' · hạn ' + hsNgayVn(r.han_tra) : '') + '</div>' +
       (r.tre_ngay > 0 ? '<div class="h2" style="color:#b3261e;font-weight:700">⚠️ Quá hạn ' + r.tre_ngay + ' ngày</div>' : '') +
       '<div class="h2" style="margin-top:4px">Còn nợ <b style="color:#16181d">' + money(r.con_no) + ' đ</b></div>' +
+      (gioiHan !== Number(r.con_no) ? '<div class="h2" style="color:#0B7C93;font-weight:700">Có thể chi đợt này ' + money(gioiHan) + ' đ</div>' : '') +
       (r.dang_giu ? '<div class="h2" style="color:#b3261e">APP khác giữ ' + money(r.dang_giu) + ' đ</div>' : '') +
       /* Chi hien o luong HOAN UNG va chi khi dong da duoc tick. Luong cong
          no NCC thi tien di thang toi nha cung cap, khong co ai ung tien nen
@@ -1168,9 +1169,9 @@ async function scrHoSoTTTao() {
     hsBayLech(n, tien, d.con_no);
     hsCapNhatTongChon();
   };
-  b.oninput = function (e) {
+  b.addEventListener('input', function (e) {
     var n = e.target.closest('[data-hstien]'); if (n) hsSuaTienDot(n, false);
-  };
+  });
   b.addEventListener('change', function (e) {
     var n = e.target.closest('[data-hstien]'); if (n) hsSuaTienDot(n, true);
   });
@@ -1675,8 +1676,8 @@ async function scrHuSepay(kq) {
   html += '<div class="sec">Giao dịch chi ra từ quỹ tạm ứng · bấm để chọn</div><div class="card">';
   rows.forEach(function (r) {
     var da = !!huGdChon[r.ma_giao_dich];
-    html += '<div class="hub" data-hugd="' + h(r.ma_giao_dich) + '"' + (da ? ' style="background:#dbeafe"' : '') + '>'
-      + '<div class="hi">' + (da ? '☑️' : '⬜') + '</div>'
+    html += '<div class="hub' + (da ? ' chon' : '') + '" data-hugd="' + h(r.ma_giao_dich) + '">'
+      + '<input type="checkbox" class="tik" data-hugdtick="' + h(r.ma_giao_dich) + '"' + (da ? ' checked' : '') + '>'
       + '<div class="ht"><div class="h1">' + h(r.noi_dung || '(không có nội dung)') + '</div>'
       + '<div class="h2">' + hsNgayVn(r.ngay) + ' · ' + h(r.ma_giao_dich) + '</div></div>'
       + '<b style="white-space:nowrap">' + money(r.so_tien) + ' đ</b></div>';
@@ -1690,6 +1691,7 @@ async function scrHuSepay(kq) {
 
   b.addEventListener('click', function (e) {
     var r = e.target.closest('[data-hugd]'); if (!r) return;
+    if (e.target.closest('[data-hugdtick]')) e.preventDefault();
     var ma = r.getAttribute('data-hugd');
     if (huGdChon[ma]) delete huGdChon[ma]; else huGdChon[ma] = 1;
     go(function () { scrHuSepay(kq); }, true);
@@ -1916,7 +1918,7 @@ async function scrChiCongTyTao() {
     '<div style="font-size:11.5px;color:#0f766e;font-weight:800">ĐANG LẬP</div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:5px">' +
     '<span style="font-size:13.5px;color:#374151">' + (hopLe ? (Object.keys(huChonHd).length + ' hoá đơn') : (huDong.length + ' khoản')) + '</span>' +
-    '<b style="font-size:20px;color:#0f766e">' + money(hopLe ? tongChon : huTong()) + ' đ</b></div></div>';
+    '<b id="huTongChon" style="font-size:20px;color:#0f766e">' + money(hopLe ? tongChon : huTong()) + ' đ</b></div></div>';
 
   if (hopLe) {
     /* Tick hoa don GTGT dang no - dung API va cach bay giong het luong cong
@@ -1935,14 +1937,22 @@ async function scrChiCongTyTao() {
     }
     rows.forEach(function (r) {
       var on = !!huChonHd[r.hoa_don];
-      html += '<tr data-huhd="' + h(r.hoa_don) + '" style="border-top:1px solid #eef2f5;cursor:pointer;background:' + (on ? '#ecfeff' : '#fff') + '">'
-        + '<td style="padding:9px 10px">' + (on ? '☑️' : '⬜') + '</td>'
+      var max = Number(r.co_the_chi == null ? r.con_no : r.co_the_chi);
+      var soChi = on ? Number(huChonHd[r.hoa_don]) : 0;
+      var lech = on && soChi !== max;
+      html += '<tr data-huhd="' + h(r.hoa_don) + '" style="border-top:1px solid #eef2f5;cursor:pointer;background:' + (on ? '#E4F9FD' : '#fff') + '">'
+        + '<td style="padding:9px 10px"><input type="checkbox" class="tik" data-huhdtick="' + h(r.hoa_don) + '"' + (on ? ' checked' : '') + '></td>'
         + '<td style="padding:9px 10px">' + h(r.so_hd_ncc || r.hoa_don)
         + '<br><span style="color:#6b7280;font-size:11.5px">' + h(r.hoa_don) + '</span>' + hsONutBanTheHien(r.hoa_don) + '</td>'
         + '<td style="padding:9px 10px;white-space:nowrap;color:' + (r.tre_ngay > 0 ? '#b91c1c' : '#6b7280') + '">'
         + (hsNgayVn(r.han_tra) || '-') + (r.tre_ngay > 0 ? '<br>trễ ' + r.tre_ngay + ' ngày' : '') + '</td>'
-        + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) + (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + '</div>' : '') +
-        (on ? '<div class="otd"><span class="lb">Chi đợt này</span><div class="ow"><input class="tien" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(huChonHd[r.hoa_don]) + '"><span class="dv">đ</span></div></div>' : '') + '</td></tr>';
+        + '<td style="padding:9px 10px;text-align:right;white-space:nowrap;font-weight:700">' + money(r.con_no) +
+        (max !== Number(r.con_no) ? '<div style="color:#0B7C93">Có thể chi ' + money(max) + '</div>' : '') +
+        (r.dang_giu ? '<div>APP khác giữ ' + money(r.dang_giu) + '</div>' : '') +
+        (on ? '<div class="otd' + (lech ? ' lech' : '') + '"><span class="lb">Chi đợt này</span><div class="ow"><input class="tien" type="text" inputmode="numeric" data-hucttien="' + h(r.hoa_don) + '" value="' + money(soChi) + '"><span class="dv">đ</span></div>' +
+          '<div class="gy"><span data-huhet="' + h(r.hoa_don) + '">Chi hết ' + money(max) + ' đ</span>' +
+          '<span data-hulech="' + h(r.hoa_don) + '" style="border:0;color:#b45309;padding-left:2px' + (lech ? '' : ';display:none') + '">' +
+          (lech ? 'Lệch ' + money(Math.abs(max - soChi)) + ' đ' : '') + '</span></div></div>' : '') + '</td></tr>';
     });
     html += '</table></div>';
   } else {
@@ -2024,26 +2034,70 @@ async function scrChiCongTyTao() {
       return { hoa_don: ma, so_tien: huChonHd[ma] };
     }), xong);
   };
-  b.addEventListener('change', function (e) {
-    var n = e.target.closest('[data-hucttien]'); if (!n) return;
+  var huCapNhatTongChon = function () {
+    var tong = Object.keys(huChonHd).reduce(function (a, ma) { return a + Number(huChonHd[ma] || 0); }, 0);
+    var el = document.getElementById('huTongChon'); if (el) el.textContent = money(tong) + ' đ';
+  };
+  var huBayLech = function (n, tien, max) {
+    var o = n.closest('.otd'), lech = tien !== max;
+    if (o) o.className = 'otd' + (lech ? ' lech' : '');
+    var r = n.closest('[data-huhd]'), canh = r && r.querySelector('[data-hulech]');
+    if (canh) {
+      canh.textContent = lech ? 'Lệch ' + money(Math.abs(max - tien)) + ' đ' : '';
+      canh.style.display = lech ? 'flex' : 'none';
+    }
+  };
+  var huSuaTienDot = function (n, ketThuc) {
     var ma = n.getAttribute('data-hucttien');
-    var hd = rows.filter(function (r) { return r.hoa_don === ma; })[0];
-    var tien = hsDocTienDot(n.value), max = Number(hd.co_the_chi == null ? hd.con_no : hd.co_the_chi);
+    var hd = rows.filter(function (r) { return r.hoa_don === ma; })[0]; if (!hd || !huChonHd[ma]) return;
+    var cu = Number(huChonHd[ma]), max = Number(hd.co_the_chi == null ? hd.con_no : hd.co_the_chi);
+    tienGo(n);
+    var tien = soTien(n.value);
+    if (!tien) {
+      if (!ketThuc) return;
+      delete huChonHd[ma];
+      var gc0 = document.getElementById('huGc'); if (gc0) huGhiChu = gc0.value;
+      return go(scrChiCongTyTao, true);
+    }
     if (!Number.isFinite(tien) || tien <= 0 || tien > max) {
-      n.value = huChonHd[ma]; return baoTin('Số tiền phải lớn hơn 0 và không vượt phần còn được đề nghị.');
+      huBayLech(n, tien, max);
+      if (!ketThuc) return;
+      n.value = money(cu); huBayLech(n, cu, max);
+      return baoTin('Số tiền phải lớn hơn 0 và không vượt phần còn được đề nghị.');
     }
     huChonHd[ma] = tien;
-    var gc = document.getElementById('huGc'); if (gc) huGhiChu = gc.value;
-    go(scrChiCongTyTao, true);
+    huBayLech(n, tien, max); huCapNhatTongChon();
+  };
+  b.addEventListener('input', function (e) {
+    var n = e.target.closest('[data-hucttien]'); if (n) huSuaTienDot(n, false);
+  });
+  b.addEventListener('change', function (e) {
+    var n = e.target.closest('[data-hucttien]'); if (n) huSuaTienDot(n, true);
+  });
+  Array.prototype.forEach.call(b.querySelectorAll('[data-hucttien]'), function (el) {
+    el.onfocus = function () { el.select(); };
   });
   huNoiBang(b);
   b.addEventListener('click', function (e) {
     var tepHd = e.target.closest('[data-hsbth]');
     if (tepHd) { e.stopPropagation(); return hsTaiBanTheHien(tepHd.getAttribute('data-hsbth')); }
+    var het = e.target.closest('[data-huhet]');
+    if (het) {
+      e.stopPropagation(); e.preventDefault();
+      var maHet = het.getAttribute('data-huhet');
+      var hdHet = rows.filter(function (x) { return x.hoa_don === maHet; })[0];
+      if (!hdHet || !huChonHd[maHet]) return;
+      var maxHet = Number(hdHet.co_the_chi == null ? hdHet.con_no : hdHet.co_the_chi);
+      huChonHd[maHet] = maxHet;
+      var hangHet = het.closest('[data-huhd]'), oHet = hangHet && hangHet.querySelector('[data-hucttien]');
+      if (oHet) { oHet.value = money(maxHet); huBayLech(oHet, maxHet, maxHet); }
+      return huCapNhatTongChon();
+    }
     var r2 = e.target.closest('[data-huhd]');
     if (r2) {
       var ma = r2.getAttribute('data-huhd');
       if (e.target.closest('[data-hucttien]')) return;
+      if (e.target.closest('[data-huhdtick]')) e.preventDefault();
       if (huChonHd[ma]) delete huChonHd[ma]; else {
         var hdChon = rows.filter(function (x) { return x.hoa_don === ma; })[0];
         huChonHd[ma] = Number(hdChon.co_the_chi == null ? hdChon.con_no : hdChon.co_the_chi);

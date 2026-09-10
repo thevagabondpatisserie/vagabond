@@ -157,7 +157,11 @@ def _():
 	# Ve lai la o mat tieu diem, ban phim dien thoai tut xuong, con tro nhay
 	# ve dau o. Uyen gap dung canh do o man duyet mua hang ngay 21/08/2026.
 	js = _doc("19-ho-so-tt.js")
-	khuc = js.split("b.addEventListener('input'")[1].split("b.addEventListener('click'")[0]
+	# Chỉ soi listener của huNoiBang. Tệp có nhiều màn cùng nghe input; lấy
+	# listener đầu tiên của cả tệp làm ca này đỏ oan khi màn phía trước đổi
+	# từ oninput sang addEventListener.
+	than = js.split("function huNoiBang(b) {", 1)[1].split("\n}\n\n/* Danh sách khoản", 1)[0]
+	khuc = than.split("b.addEventListener('input'", 1)[1].split("b.addEventListener('click'", 1)[0]
 	dung("nhánh gõ chữ không gọi go()", "go(" not in khuc)
 	dung("nhưng có cập nhật tổng tiền", "huCapNhatTong()" in khuc)
 

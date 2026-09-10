@@ -31,6 +31,19 @@ def _lop_dung_cho():
 		dung("co lop chung %s" % moi, moi in nen)
 	dung("dung checkbox that", 'type="checkbox" class="tik" data-hstick=' in man)
 	dung("co duong nhap nhanh Chi het", 'data-hshet=' in man)
+	dung("man Chi cong ty cung co Chi het", 'data-huhet=' in man)
+	la("khong con id dem chon khong su dung", 'id="hsDemChon"' in man, False)
+	dung("o Chi dot nay nghe input bang addEventListener",
+		"b.addEventListener('input', function (e)" in man)
+
+
+@ca("#247 UX sao ke hoan ung dung checkbox va mau chon chung")
+def _sao_ke_hoan_ung_dong_bo():
+	man = _js("19-ho-so-tt.js")
+	doan = _doan(man, "async function scrHuSepay(", "\n/* Sua mot khoan chi.")
+	dung("co checkbox that cho giao dich sao ke", 'type="checkbox" class="tik" data-hugdtick=' in doan)
+	la("khong con mau xanh ngoai bang mau trong man sao ke", "#dbeafe" in doan.lower(), False)
+	la("khong con ky tu checkbox gia", "☑️" in doan or "⬜" in doan, False)
 
 
 @ca("#247 UX cot chu va o tien giu hai luat co gian can phai")
@@ -71,6 +84,10 @@ def _danh_sach_can_coc():
 		'<div class="emp"><div class="e1">🔍</div>',
 		'-webkit-line-clamp:2'):
 		dung("co mau giao dien %s" % chu, chu in src)
+	dung("chip cọc dùng lớp trạng thái xanh và vàng",
+		"'<div style=\"margin-top:5px\"><span class=\"st ' + (san ? 'g' : 'w') + '\">'" in src)
+	la("không gán object ngược vào element.style",
+		"nut.style = nut.style || {}" in src, False)
 
 
 @ca("#247 UX khoa dong Can coc truoc await de chan bam hai lan")
@@ -83,4 +100,3 @@ def _khoa_truoc_await():
 		dung("khoa truoc xac nhan cua %s" % dau,
 			than.index("hsKhoaDongCoc(nut, true)") < than.index("await xacNhan("))
 		dung("mo khoa khi loi", "hsKhoaDongCoc(nut, false)" in than)
-

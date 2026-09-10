@@ -1176,13 +1176,34 @@ async function chayHet() {
     await m.g.scrChiCongTyTao();
     m.tai.querySelector('[data-huhd]').click(); await choVeLai(m);
     var o = m.tai.querySelector('[data-hucttien]'); dung('co o tien', !!o);
-    o.value = '2.000.000'; o.dispatchEvent(dg.suKien('change', {}, o)); await choVeLai(m);
+    var oCu = o, soLanGo = m.daGo.length;
+    o.value = '2000000'; o.dispatchEvent(dg.suKien('input', {}, o));
+    bang('chi cong ty cham nghin khi go', o.value, '2.000.000');
     bang('dang chon2 trieu', m.g.huChonHd['HD-1'], 2000000);
+    bang('chi cong ty cap nhat tong tai cho', m.tai.getElementById('huTongChon').textContent, '2.000.000 đ');
+    dung('chi cong ty bay canh bao lech', o.closest('.otd').className.indexOf('lech') >= 0);
+    dung('chi cong ty khong ve lai man moi phim', m.daGo.length === soLanGo && m.tai.querySelector('[data-hucttien]') === oCu);
+    m.tai.querySelector('[data-huhet]').click();
+    bang('Chi het dung phan co the chi', m.g.huChonHd['HD-1'], 7000000);
+    dung('Chi het bo canh bao lech', o.closest('.otd').className.indexOf('lech') < 0);
+    o.value = '2.000.000'; o.dispatchEvent(dg.suKien('input', {}, o));
     m.tai.getElementById('huNhap').click();
     for (var i = 0; i < 5; i++) await new Promise(function (r) { setTimeout(r, 0); });
     var tao = m.goiApi.filter(function (r) { return r.duong === 'vagabond.ho_so_tt.tao'; });
     bang('mot lan tao', tao.length, 1);
     bang('payload2 trieu', JSON.parse(tao[0].ts.hoa_don)[0].so_tien, 2000000);
+  });
+
+  await caAsync('APP247 UX: man chon sao ke hoan ung dung checkbox that va mau chon chung', async function () {
+    var m = dungMan(canhChi({}));
+    await m.g.scrHuSepay({ ngan_hang: 'OCB', so_tk: '123', rows: [
+      { ma_giao_dich: 'GD-1', ngay: '2026-09-10', noi_dung: 'Chi vat tu', so_tien: 120000 }
+    ] });
+    var tick = m.tai.querySelector('[data-hugdtick]');
+    dung('sao ke hoan ung co checkbox that', !!tick && tick.tagName === 'INPUT');
+    tick.click(); await choVeLai(m);
+    dung('tick sao ke dung nen chon chung', m.tai.querySelector('[data-hugd]').className.indexOf('chon') >= 0);
+    dung('tick sao ke khong dung ky tu gia', m.tai.querySelector('[data-hugd]').textContent.indexOf('☑') < 0);
   });
 
   await caAsync('APP247: nguoi lap khong co vai FIN khong thay nut can coc o ca hai man', async function () {
