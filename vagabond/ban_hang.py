@@ -53,7 +53,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, tai_khoan
-from vagabond import ghi_so_dieu_kien, hddt_bu, khop_tien, luat_thanh_toan, ma_bill
+from vagabond import ghi_so_dieu_kien, hddt_bu, hddt_cho_xuat, khop_tien, luat_thanh_toan, ma_bill
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, cfg_o, giau_khoa, key
@@ -1936,6 +1936,9 @@ def bang_doanh_so(ngay=None):
 			"custom_pancake_display_id",
 			"custom_hddt_trang_thai",
 			"custom_hddt_so",
+			# #266: chip "Hoá đơn chờ xuất cho ngày ..." và "cần đối chiếu".
+			"vgb_hddt_ngay_xuat",
+			"vgb_hddt_cho_doi_chieu",
 			"custom_nguon",
 			"vgb_pt_thanh_toan",
 			# Hai co do may dat: mot de biet phuong thuc la may doan hay
@@ -2899,6 +2902,12 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 	#
 	# Nhip VET khong keo lai don: nhip dong bo rieng 30 phut mot lan da lo
 	# viec do, keo them moi 5 phut chi lam nang Pancake khong duoc gi.
+	# HANG RAO THU TU (#266, 10/09/2026). Ghi so mot to cua HOM NAY la Server
+	# Script After Submit xuat hoa don ngay, ma m-invoice danh so theo ngay
+	# lap: to dau tien cua hom nay dong sap cua moi ngay cu con dang cho.
+	# Nen phat hanh het ngay cu TRUOC khi cham vao to nao cua hom nay.
+	hddt_cho_xuat.xuat_ngay_cu_truoc()
+
 	if not da_du_chuoi or chay_tay:
 		try:
 			_dong_bo_doanh_so(ngay)
@@ -3150,6 +3159,17 @@ def _ky_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT):
 	return hddt_bu.gom_ky(ds)
 
 
+def _gop_cho_xuat(ph, them):
+	"""Cộng kết quả phát hành tờ chờ xuất (#266) vào kết quả lô của ngày.
+	Lỗi của phần chờ xuất để riêng ở loi_cho_xuat để nơi gọi cộng một lần."""
+	ra = dict(ph or {})
+	ra["tim_thay"] = int(ra.get("tim_thay") or 0) + int(them.get("tim_thay") or 0)
+	ra["tao_ok"] = int(ra.get("tao_ok") or 0) + int(them.get("tao_ok") or 0)
+	ra["loi"] = list(ra.get("loi") or []) + list(them.get("loi") or [])
+	ra["loi_cho_xuat"] = list(them.get("loi") or [])
+	return ra
+
+
 def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 	"""Buoc hai va ba cua chuoi cuoi ngay, chay tren hang doi dai.
 
@@ -3171,11 +3191,19 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 		if bat_ph:
 			ph = _phat_hanh_theo_lo(ngay)
 			loi += ph.get("loi") or []
+			# #266: tờ ngày cũ đã ghi sổ được kéo ngày lập sang hôm nay
+			# (hddt_cho_xuat) đi cùng lượt, cùng kịch bản, cùng khoá.
+			ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(ngay, _goi_server_script))
+			loi += ph.get("loi_cho_xuat") or []
 		else:
 			ph = "bỏ qua (tắt ở m-invoice)"
 		if bat_ky:
 			ky = _ky_theo_lo(ngay)
 			loi += ky.get("loi") or []
+			ky_them = hddt_cho_xuat.ky(ngay, _goi_server_script)
+			ky = {"can_ky": ky.get("can_ky", 0) + ky_them["can_ky"], "da_ky": ky.get("da_ky", 0) + ky_them["da_ky"],
+				"loi": (ky.get("loi") or []) + ky_them["loi"]}
+			loi += ky_them["loi"]
 		else:
 			ky = "bỏ qua (tắt ở m-invoice)"
 	finally:
@@ -3307,6 +3335,10 @@ def xuat_rai_trong_ngay():
 		c = cfg()
 		if not cint(c.get("tu_ghi_so_bat") if c.get("tu_ghi_so_bat") is not None else 1):
 			return
+		# Cung hang rao thu tu voi chuoi cuoi ngay (#266): nhip nay ghi so bill
+		# quay du 4 gio, moi to ghi so la xuat hoa don ngay, nen no cung dong
+		# duoc cua cua ngay cu.
+		hddt_cho_xuat.xuat_ngay_cu_truoc()
 		ngay = nowdate()
 		gio = _gio_hop_le(c.get("tu_ghi_so_gio"))
 		if not hddt_bu.duoc_rai(
@@ -4726,6 +4758,13 @@ def xuat_hddt_con_thieu_tu_dong():
 			for d in ds_ngay:
 				ph = _phat_hanh_theo_lo(str(d))
 				ky = _ky_theo_lo(str(d)) if bat_ky else {"can_ky": 0, "da_ky": 0, "loi": []}
+				# #266: tờ chờ xuất cho hôm nay đi cùng lưới đỡ, cùng khoá.
+				if d == hom_nay:
+					ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(str(d), _goi_server_script))
+					if bat_ky:
+						k2 = hddt_cho_xuat.ky(str(d), _goi_server_script)
+						ky = {"can_ky": ky.get("can_ky", 0) + k2["can_ky"], "da_ky": ky.get("da_ky", 0) + k2["da_ky"],
+							"loi": (ky.get("loi") or []) + k2["loi"]}
 				loi = (ph.get("loi") or []) + (ky.get("loi") or [])
 				if ph.get("tao_ok") or ky.get("da_ky") or loi:
 					frappe.log_error(
@@ -5402,6 +5441,8 @@ def pos_ds_bill(quay=None, ngay=None):
 			"vgb_xhd_ten", "vgb_xhd_mst", "vgb_so_ban",
 			"vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi", "vgb_lan_sua",
 			"custom_hddt_so", "custom_hddt_trang_thai",
+			# #266: chip "Hoá đơn chờ xuất cho ngày ..." và "cần đối chiếu".
+			"vgb_hddt_ngay_xuat", "vgb_hddt_cho_doi_chieu",
 			# Ba o duoi day chi phuc vu phep "ghi so duoc chua" ben duoi.
 			"customer", "custom_pancake_id", "vgb_quay",
 			# Thong tin khach cho man xem lai bill (anh Viet 01/09/2026).

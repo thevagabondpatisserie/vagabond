@@ -172,6 +172,10 @@ def dung():
 	from vagabond import minvoice_an_toan
 
 	_dung_nhom(minvoice_an_toan.TRUONG_MOI, "minvoice_an_toan")
+	# #266: ngay lap HDDT keo sang hom nay cho to da ghi so ngay cu.
+	from vagabond import hddt_cho_xuat
+
+	_dung_nhom(hddt_cho_xuat.TRUONG_MOI, "hddt_cho_xuat")
 	from vagabond import hang_tang_so_cai
 	_dung_nhom(hang_tang_so_cai.TRUONG_MOI, "hang_tang_so_cai")
 	from vagabond import hang_tang
