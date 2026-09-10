@@ -2105,7 +2105,7 @@ async function scrHoSoTTView(name) {
   d.dong.forEach(function (x, i) {
     html += '<div style="padding:8px 0">Khoản ' + (i + 1) + ': ' + h(x.hoa_don_bo_sung || 'Chưa nối hóa đơn bổ sung');
     if (x.hoa_don_bo_sung) html += '<button class="btn gh" data-hsv="bthbo|' + h(x.hoa_don_bo_sung) + '">Tải bản thể hiện hóa đơn</button>';
-    if (!x.hoa_don_bo_sung && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="bohd' + (i + 1) + '">Nối hóa đơn đến sau</button>';
+    if (x.cho_hoa_don && !x.hoa_don_bo_sung && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="bohd' + (i + 1) + '">Nối hóa đơn đến sau</button>';
     html += '</div>';
   });
   html += '<div style="font-size:13px;color:#667085">Nối chứng từ bổ sung không tự cấn trừ công nợ. Kế toán kiểm tra bút toán trước khi hoàn tất.</div></div>';

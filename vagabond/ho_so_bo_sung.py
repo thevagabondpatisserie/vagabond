@@ -29,6 +29,34 @@ def nen_pdf(noi):
 	return bo.getvalue() if bo.tell() < len(noi) else noi
 
 
+# --------------------------------------------------------------- phep thuan
+# Tach ra de kiem thu duoc trong cong ma khong can Frappe, khong can site, va
+# khong phai gia lap sys.modules. Ham nay CHI doc du lieu dong, tra ve cau loi
+# hoac chuoi rong; moi viec nem loi va tra cuu chung tu de phan cham he lo.
+
+
+def loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, hoa_don_goc_doi):
+	"""Luat giu lien ket bo sung. cu_dong/moi_dong: {ten_dong: dict}.
+
+	Tra ve (idx, cau_loi) cho loi dau tien, hoac (0, "") neu khong co loi.
+	Ba luat: khong xoa dong da noi, khong ghi de lien ket, va dong da noi thi
+	khong duoc doi NCC, doi hoa don goc hay bo co cho hoa don.
+	"""
+	for ten, d in cu_dong.items():
+		cu_ma = (d.get("hoa_don_bo_sung") or "").strip()
+		if not cu_ma:
+			continue
+		if ten not in moi_dong:
+			return d.get("idx") or 0, "đã nối hóa đơn bổ sung, không xóa dòng"
+		ma = (moi_dong[ten].get("hoa_don_bo_sung") or "").strip()
+		if ma != cu_ma:
+			return d.get("idx") or 0, "đã nối hóa đơn bổ sung, không ghi đè liên kết"
+		if doi_ncc or hoa_don_goc_doi.get(ten) or not moi_dong[ten].get("cho_hoa_don"):
+			return d.get("idx") or 0, "đã nối hóa đơn bổ sung, không đổi NCC, hóa đơn gốc hay bỏ cờ chờ hóa đơn"
+	return 0, ""
+
+
+
 import frappe
 from frappe.utils import cint
 
@@ -56,24 +84,29 @@ def nen_tep(tep):
 
 
 def kiem_bo_sung(doc):
-	"""Document chung giữ liên kết cùng NCC/công ty và không cho ghi đè."""
+	"""Document chung giu lien ket cung NCC/cong ty va khong cho ghi de.
+
+	Phan luat nam o `loi_giu_lien_ket` (thuan, co ca kiem trong cong). O day chi
+	dich cau loi va tra cuu chung tu that.
+	"""
 	cu = doc.get_doc_before_save()
-	cu_dong = {d.name: d for d in (cu.dong if cu else [])}
-	moi_dong = {d.name: d for d in (doc.dong or [])}
-	for ten, d in cu_dong.items():
-		if d.get("hoa_don_bo_sung") and (ten not in moi_dong or
-			moi_dong[ten].get("hoa_don_bo_sung") != d.get("hoa_don_bo_sung")):
-			frappe.throw("Khoản %s đã nối hóa đơn bổ sung. Không xóa dòng hoặc ghi đè liên kết." % d.idx)
+	cu_dong = {d.name: {"idx": d.idx, "hoa_don_bo_sung": d.get("hoa_don_bo_sung"),
+		"cho_hoa_don": cint(d.get("cho_hoa_don")), "hoa_don": d.get("hoa_don")}
+		for d in (cu.dong if cu else [])}
+	moi_dong = {d.name: {"idx": d.idx, "hoa_don_bo_sung": d.get("hoa_don_bo_sung"),
+		"cho_hoa_don": cint(d.get("cho_hoa_don")), "hoa_don": d.get("hoa_don")}
+		for d in (doc.dong or [])}
+	doi_ncc = bool(cu and doc.nha_cung_cap != cu.nha_cung_cap)
+	goc_doi = {t: (moi_dong[t].get("hoa_don") or "") != (cu_dong[t].get("hoa_don") or "")
+		for t in cu_dong if t in moi_dong}
+	idx, loi = loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, goc_doi)
+	if loi:
+		frappe.throw("Khoản %s %s. Nhờ kế toán kiểm tra." % (idx, loi))
+
 	for d in (doc.dong or []):
-		ma = d.get("hoa_don_bo_sung")
+		ma = (d.get("hoa_don_bo_sung") or "").strip()
 		truoc = cu_dong.get(d.name)
-		if truoc and truoc.get("hoa_don_bo_sung") and ma != truoc.get("hoa_don_bo_sung"):
-			frappe.throw("Khoản %s đã nối hóa đơn bổ sung. Nhờ kế toán kiểm tra, không ghi đè liên kết." % d.idx)
-		if not ma:
-			continue
-		if truoc and ma == truoc.get("hoa_don_bo_sung"):
-			if doc.nha_cung_cap != cu.nha_cung_cap or (d.hoa_don or "") != (truoc.hoa_don or "") or not cint(d.get("cho_hoa_don")):
-				frappe.throw("Khoản %s đã nối hóa đơn bổ sung. Không đổi NCC, hóa đơn gốc hoặc bỏ cờ chờ hóa đơn." % d.idx)
+		if not ma or (truoc and ma == (truoc.get("hoa_don_bo_sung") or "").strip()):
 			continue
 		from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD
 		_kiem(VAI_FIN | VAI_GD, "nối hóa đơn đến sau")
@@ -110,9 +143,15 @@ def noi_hoa_don(name, dong, hoa_don):
 	if cint(dong) < 1 or cint(dong) > len(d.dong):
 		frappe.throw("Không tìm thấy khoản chi. Tải lại hồ sơ rồi chọn lại.")
 	r = d.dong[cint(dong) - 1]
-	r.cho_hoa_don = 1
+	# KHONG tu bat co cho_hoa_don o day. Bat ho la vo hieu hoa chinh hang rao
+	# "chua danh dau hoa don den sau" trong kiem_bo_sung: bat cu khoan nao cung
+	# noi duoc hoa don bo sung. Co phai do nguoi lap ho so danh dau tu dau.
+	if not cint(r.get("cho_hoa_don")):
+		frappe.throw("Khoản %s chưa đánh dấu Hóa đơn đến sau. Mở hồ sơ đánh dấu khoản đó rồi nối hóa đơn." % dong)
 	r.hoa_don_bo_sung = hoa_don
-	kiem_bo_sung(d)
+	# Khong goi kiem_bo_sung o day: luc nay get_doc_before_save() con None nen
+	# hang rao giu lien ket khong thay ban cu, chay cho co. Controller goi no
+	# trong validate voi ban cu that, do moi la cua duy nhat.
 	d.save(ignore_permissions=True)
 	d.add_comment("Comment", "Nối hóa đơn bổ sung %s vào khoản %s. Không phát sinh bút toán thanh toán." % (hoa_don, dong))
 	return {"ok": 1}
