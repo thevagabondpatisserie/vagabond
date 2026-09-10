@@ -567,16 +567,29 @@ def chay():
 				# Gio moi kiem duoc DUONG RUT CAN that: hang rao day ham nay
 				# sang hang doi, luot do phai phat hanh het to ngay cu roi to
 				# hom nay mai di duoc. Day la duong se chay de cuu 117 to 09/09.
+				# DEM TRUOC BAO NHIEU TO DANG CHO, roi doi hoi RUT CAN HET.
+				#
+				# Vong CI truoc do o day ("rut can: 2 != 1"): sau cac doan
+				# tren, ngay hom qua con hon mot to cho, ma ca kiem lai chot
+				# cung so 1. Chot cung mot con so la chot vao trang thai thua
+				# huong tu doan truoc chu khong phai vao TINH CHAT can kiem.
+				# Tinh chat that su la: rut can phai gui HET so to dang cho, va
+				# xong thi backlog rong.
+				cho_truoc = [r['name'] for r in hddt_cho_xuat.ds_cho_xuat(hom_qua)]
+				if not cho_truoc:
+					raise AssertionError('rut can: khong con to nao cho, ca kiem tu dung bang khong')
 				truoc = len(gui)
 				het_no = hddt_cho_xuat.xuat_ngay_cu_truoc()
-				if len(gui) - truoc != 1:
-					raise AssertionError('rut can: to ngay cu da duoc phat hanh: %d != 1; '
+				if len(gui) - truoc != len(cho_truoc):
+					raise AssertionError('rut can: phat hanh %d to, dang cho %d to (%r); '
 						'ngay cu con lai = %r; ngay so moi nhat = %s'
-						% (len(gui) - truoc, [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()],
+						% (len(gui) - truoc, len(cho_truoc), cho_truoc,
+							[str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()],
 							ban_hang._ngay_so_hddt_moi_nhat()))
 				_bang('rút cạn xong thì báo hết nợ', het_no, True)
-				_bang('rút cạn: tờ ngày cũ mang đúng ngày bán',
-					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_qua))
+				_bang('rút cạn: mọi tờ ngày cũ mang đúng ngày bán',
+					sorted({g['data'][0]['inv_invoiceIssuedDate'] for g in gui[truoc:]}),
+					[str(hom_qua)])
 
 				# Don not dau vet cua to kep (da co hoa don tu doan F1 vong 3).
 				frappe.db.set_value('Sales Invoice', kep.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
@@ -589,7 +602,7 @@ def chay():
 				_bang('hết nợ thì tờ hôm nay đi được', len(gui) - truoc, 1)
 				_bang('ngày lập của tờ hôm nay', gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_nay))
 				kq['phan'].append({'ten': 'backlog rút cạn rồi mới thông', 'dat': True,
-					'da_gui_ngay_cu': 1})
+					'da_gui_ngay_cu': len(cho_truoc)})
 
 				kq['dat'] = True
 			finally:
