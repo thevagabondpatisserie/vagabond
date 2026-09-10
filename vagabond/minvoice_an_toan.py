@@ -65,6 +65,13 @@ def chuan_goi(si, goi):
 	dd.update(nguoi_mua(si))
 	from vagabond.thue_vnd import chuan_tien
 	chuan_tien(si, dd)
+	# #266: tờ đã ghi sổ ngày cũ được kéo ngày lập HĐĐT sang hôm nay thì
+	# ngày lập gửi đi là ngày kéo; sổ vẫn giữ ngày bán. Một nguồn duy nhất
+	# cho ngày lập, không để kịch bản tự ghép từ posting_date nữa.
+	from vagabond.hddt_cho_xuat import ngay_lap
+	ngay = ngay_lap(si)
+	if ngay is not None:
+		dd["inv_invoiceIssuedDate"] = str(ngay)
 	# Hai cửa dùng chung mã SI, tránh đơn quầy trống mã hoặc mã Pancake trùng.
 	dd["key_api"] = si.get("name")
 	if la_hang_tang(si):

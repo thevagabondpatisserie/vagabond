@@ -82,16 +82,38 @@ def doc_dong(si):
     return ra
 
 
+def dong_len_hoa_don(items, ra):
+    """Cặp (dòng SI, tiền đã lưu) của những dòng ĐƯỢC đưa lên tờ hoá đơn.
+
+    #266 (09/09/2026): kịch bản phát hành trên site bỏ dòng có thành tiền 0
+    (quy tắc ghi ngay đầu kịch bản: "dòng hàng có thành tiền = 0 thì KHÔNG
+    đưa lên hoá đơn"), còn bản v460 của hàm này lại đòi payload có ĐỦ số
+    dòng SI. Đơn nào kèm một món 0 đồng (túi, nến, hàng tặng kèm) là bị
+    chặn "Payload không cùng số dòng SI" ngay lúc ghi sổ: 59 đơn Sales
+    ngày 09/09 nằm nháp cả đêm. Nay đối chiếu đúng tập dòng kịch bản gửi.
+    """
+    return [(it, x) for it, x in zip(items, ra) if x['gross'] > 0]
+
+
 def chuan_tien(si, dd):
     if not si.get('vgb_thue_vnd'): return
     ra=doc_dong(si); items=si.get('items') or []
     sent=[d for nhom in dd.get('details') or [] for d in nhom.get('data') or []]
-    if len(sent)!=len(items): raise ValueError('Payload không cùng số dòng SI.')
-    for d,it,x in zip(sent,items,ra):
-        if d.get('inv_itemCode')!=it.get('item_code') or so(d.get('inv_quantity'))!=so(it.get('qty')):
+    cap=dong_len_hoa_don(items, ra)
+    if len(sent)!=len(cap): raise ValueError('Payload không cùng số dòng có tiền của SI.')
+    for d,(it,x) in zip(sent,cap):
+        if d.get('inv_itemCode')!=it.get('item_code'):
             raise ValueError('Payload không đúng thứ tự dòng SI.')
-        d.update(inv_TotalAmountWithoutVat=x['net'],inv_vatAmount=x['vat'],inv_TotalAmount=x['gross'],ma_thue=x['rate'],
-            inv_unitPrice=float(so(x['net'])/so(it.get('qty'))) if so(it.get('qty')) else 0,
+        # Mã hàng gộp (ma_hang_gop bên cài đặt m-invoice, ví dụ phí dịch vụ)
+        # kịch bản gửi số lượng 1 dù dòng SI ghi nhiều hơn; ngoài ca đó số
+        # lượng phải khớp từng dòng.
+        sl=so(d.get('inv_quantity'))
+        if sl!=so(it.get('qty')) and sl!=1:
+            raise ValueError('Payload không đúng số lượng dòng SI.')
+        # ma_thue phải là SỐ NGUYÊN: m-invoice từ chối "Mã thuế suất= [8.0]"
+        # (mã 9999, 116 tờ TCV đêm 09/09/2026 giữ đối chiếu vì đúng lỗi này).
+        d.update(inv_TotalAmountWithoutVat=x['net'],inv_vatAmount=x['vat'],inv_TotalAmount=x['gross'],ma_thue=int(x['rate']),
+            inv_unitPrice=float(so(x['net'])/sl) if sl else 0,
             inv_discountPercentage=0,inv_discountAmount=0)
     dd.update(inv_TotalAmountWithoutVat=sum(x['net'] for x in ra),inv_vatAmount=sum(x['vat'] for x in ra),
         inv_TotalAmount=sum(x['gross'] for x in ra),inv_discountAmount=0)
