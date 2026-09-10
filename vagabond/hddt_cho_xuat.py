@@ -499,6 +499,35 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do=""):
 	return dict(kq, che_do=che_do, tren_hang_doi=1, nhat_ky=cau)
 
 
+def _go_co_neu_con_nguyen(ten):
+	"""Gỡ cờ đối chiếu bằng MỘT câu ghi có điều kiện. Trả True nếu ghi được.
+
+	Điều kiện gắn đúng vào trạng thái vừa kiểm: còn giữ cờ, và chưa có dấu
+	vết hoá đơn nào. Lượt khác chen vào giữa thì không dòng nào khớp, câu ghi
+	không đổi gì, và người gọi biết là phải bỏ qua tờ này (#266 vòng 5b).
+	"""
+	# GIỮ KHOÁ DÒNG trước khi đọc, đúng cách minvoice_an_toan.kiem_goi vẫn
+	# làm. Khoá giữ tới lúc commit ở cuối vòng lặp, nên lượt khác không chen
+	# vào giữa lúc đọc và lúc ghi được nữa.
+	si = frappe.get_doc("Sales Invoice", ten, for_update=True)
+	if da_co_hddt(si) or not cint(si.get("vgb_hddt_cho_doi_chieu")):
+		return False
+	# Ghi kèm luôn điều kiện, cho chắc cả khi bản Frappe nào đó không giữ
+	# khoá như mong đợi: đổi rồi thì câu này không chạm được dòng nào.
+	frappe.db.sql("""update `tabSales Invoice`
+		set vgb_hddt_cho_doi_chieu = 0
+		where name = %(ten)s
+		  and ifnull(vgb_hddt_cho_doi_chieu, 0) = 1
+		  and ifnull(custom_minvoice_id, '') = ''
+		  and ifnull(custom_hddt_id, '') = ''
+		  and ifnull(custom_hddt_so, '') = ''""", {"ten": ten})
+	# Đọc lại DƯỚI CÙNG KHOÁ để chốt là mình gỡ được thật.
+	lai = frappe.db.get_value("Sales Invoice", ten,
+		["vgb_hddt_cho_doi_chieu", "custom_minvoice_id", "custom_hddt_id", "custom_hddt_so"],
+		as_dict=True) or {}
+	return not cint(lai.get("vgb_hddt_cho_doi_chieu")) and not da_co_hddt(lai)
+
+
 def chay_nen(ngay, che_do, nguoi=""):
 	"""Lượt chạy nền: gỡ cờ, đánh dấu ngày lập, phát hành rồi ký.
 
@@ -576,15 +605,21 @@ def _chay_nen_da_nang_quyen(ngay, che_do, nguoi=""):
 						if len(kq["loi"]) < 50:
 							kq["loi"].append("%s: giữ cờ đối chiếu, %s" % (r.custom_pancake_display_id or r.name, cau))
 						continue
-					# Đọc lại lần nữa NGAY TRƯỚC KHI GHI: đoạn hỏi m-invoice ở
-					# trên có thể lâu, trạng thái có thể đã đổi trong lúc đó.
-					lai = frappe.db.get_value("Sales Invoice", r.name,
-						["custom_minvoice_id", "custom_hddt_id", "custom_hddt_so"], as_dict=True) or {}
-					if da_co_hddt(lai):
-						kq["loi"].append("%s: lượt khác vừa xuất xong trong lúc hỏi m-invoice, bỏ qua."
+					# GHI CÓ ĐIỀU KIỆN, KHÔNG đọc rồi ghi.
+					#
+					# #266 vòng 5b, Codex bắt đúng: đoạn hỏi m-invoice ở trên
+					# có thể lâu, và trong lúc đó quản lý có thể bấm gửi tay
+					# hoặc mở lại tờ này, đặt một dấu giữ chỗ MỚI. Đọc bằng
+					# get_value trần rồi ghi ở câu sau là vẫn còn khe: dấu mới
+					# có thể xuất hiện đúng giữa hai câu, và lượt này xoá mất
+					# nó. Nay gỡ cờ bằng MỘT câu UPDATE có điều kiện, buộc
+					# trạng thái phải đúng y như lúc vừa kiểm; đổi rồi thì
+					# không dòng nào bị ghi và lượt này bỏ qua tờ đó.
+					if not _go_co_neu_con_nguyen(r.name):
+						kq["loi"].append("%s: lượt khác vừa xuất xong hoặc vừa đặt lại dấu chờ "
+							"trong lúc hỏi m-invoice, bỏ qua."
 							% (r.custom_pancake_display_id or r.name))
 						continue
-					frappe.db.set_value("Sales Invoice", r.name, "vgb_hddt_cho_doi_chieu", 0, update_modified=False)
 					frappe.get_doc("Sales Invoice", r.name).add_comment("Comment", "Gỡ cờ đối chiếu HĐĐT (#266): " + cau + ".")
 					kq["go_co"] += 1
 				if _ngay(moi_nhat.get(TRUONG_NGAY_XUAT)) != ngay_dat:
@@ -867,15 +902,30 @@ def chan_neu_con_ngay_cu(si):
 
 
 def ds_cho_xuat(ngay):
-	"""Tờ chờ xuất cho ngày `ngay`, chưa có hoá đơn điện tử, không giữ cờ."""
+	"""Tờ chờ xuất cho ngày `ngay`, chưa có hoá đơn điện tử, không giữ cờ.
+
+	#266 vòng 5b, Codex bắt đúng: dấu chờ xuất được đặt lúc kế toán bấm xử
+	ngày cũ, còn lượt phát hành chạy sau đó hàng giờ. Trong quãng ấy Giám đốc
+	có thể TẮT xuất hoá đơn cho một nguồn hay một quầy. Bản trước không đọc
+	custom_nguon và vgb_quay nên vẫn trả tờ đó ra, mà phat_hanh gọi kịch bản
+	kèm `phieu=` là đi vào nhánh MỘT TỜ, nhánh này bỏ qua bộ lọc nguồn/quầy
+	(minvoice_phat_hanh_20260907.txt dòng 48-54). Kết quả: tờ vẫn được gửi
+	lên m-invoice trong khi màn Cài đặt đang hiện là điểm ấy đã tắt.
+
+	Nay đọc lại cài đặt NGAY TRƯỚC KHI GỬI và lọc bằng chính
+	thuoc_diem_dang_xuat, cùng một phép lọc với mọi nơi khác (điều 18).
+	"""
 	rows = frappe.db.get_all(
 		"Sales Invoice",
 		filters={TRUONG_NGAY_XUAT: getdate(ngay), "docstatus": 1, "vgb_huy": 0, "vgb_tam_tinh": 0,
 			"grand_total": [">", 0], "vgb_hddt_cho_doi_chieu": ["!=", 1]},
-		fields=["name", "custom_minvoice_id", "custom_hddt_id", "custom_hddt_so", "custom_hddt_trang_thai"],
+		fields=["name", "custom_minvoice_id", "custom_hddt_id", "custom_hddt_so",
+			"custom_hddt_trang_thai", "custom_nguon", "vgb_quay"],
 		order_by="name asc", limit_page_length=0,
 	)
-	return [r for r in rows if not da_co_hddt(r)]
+	_stg, ds_nguon, ds_quay = _cai_dat_minvoice()
+	return [r for r in rows
+		if not da_co_hddt(r) and thuoc_diem_dang_xuat(r, ds_nguon, ds_quay)]
 
 
 def phat_hanh(ngay, goi_kich_ban):
