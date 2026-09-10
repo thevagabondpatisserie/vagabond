@@ -23,7 +23,7 @@ import json
 import os
 
 from vagabond import hddt_cho_xuat, minvoice_an_toan
-from vagabond.thue_vnd import chuan_tien, tinh_dong
+from vagabond.thue_vnd import chuan_tien, dong_len_hoa_don, tinh_dong
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 D = datetime.date
@@ -46,7 +46,9 @@ def _phieu_01648():
 		"net_total": sum(d["net"] for d in ds), "total_taxes_and_charges": sum(d["vat"] for d in ds),
 		"grand_total": 720000, "item_wise_tax_details": []}
 	for i, (d, ma) in enumerate(zip(ds, ["BAWC00139", "BATP00031", "DVBH00001"]), 1):
-		si["items"].append({"idx": i, "name": str(i), "item_code": ma, "qty": 1, "net_amount": d["net"]})
+		# amount la THANH TIEN DONG (rate x qty), la phep loc that cua kich ban.
+		si["items"].append({"idx": i, "name": str(i), "item_code": ma, "qty": 1,
+			"amount": gia[i - 1], "net_amount": d["net"]})
 		si["item_wise_tax_details"].append({"item_row": str(i), "tax_row": "T", "rate": d["rate"], "amount": d["vat"]})
 	return si
 
@@ -55,7 +57,9 @@ def _goi_kich_ban(si):
 	"""Payload y như kịch bản trên site: bỏ dòng thành tiền 0, ma_thue cint."""
 	dong = []
 	for it, x in zip(si["items"], tinh_dong([650000, 0, 70000], [8, 8, 8], True)):
-		if x["gross"] > 0:
+		# Loc theo it.amount, y het kich ban (minvoice_phat_hanh_20260907.txt
+		# dong 101-104). Doi phep loc nay la ca kiem het mo phong ban that.
+		if float(it["amount"]) > 0:
 			dong.append({"tchat": 1, "inv_itemCode": it["item_code"], "inv_quantity": it["qty"], "ma_thue": 8,
 				"inv_TotalAmountWithoutVat": 0, "inv_vatAmount": 0, "inv_TotalAmount": 0})
 	return {"inv_invoiceIssuedDate": str(si["posting_date"]), "details": [{"data": dong}]}
@@ -109,7 +113,8 @@ def _gop_chua_khai():
 	# thay vì 92.593.
 	ds = tinh_dong([300000], [8], True)
 	si = {"name": "X", "posting_date": "2026-09-09", "vgb_thue_vnd": 1,
-		"items": [{"idx": 1, "name": "1", "item_code": "BANH-THUONG", "qty": 3, "net_amount": ds[0]["net"]}],
+		"items": [{"idx": 1, "name": "1", "item_code": "BANH-THUONG", "qty": 3,
+			"amount": 300000, "net_amount": ds[0]["net"]}],
 		"taxes": [{"name": "T", "idx": 1, "tax_amount_after_discount_amount": ds[0]["vat"]}],
 		"net_total": ds[0]["net"], "total_taxes_and_charges": ds[0]["vat"], "grand_total": 300000,
 		"item_wise_tax_details": [{"item_row": "1", "tax_row": "T", "rate": 8, "amount": ds[0]["vat"]}]}
@@ -125,6 +130,53 @@ def _gop_chua_khai():
 	goi = {"details": [{"data": [{"inv_itemCode": "BANH-THUONG", "inv_quantity": 1, "ma_thue": 8}]}]}
 	chuan_tien(si, goi, ["banh-thuong"])
 	la("khai rồi thì qua", goi["details"][0]["data"][0]["inv_quantity"], 1)
+
+
+@ca("#266 vòng 4 (Codex): phép lọc dòng phải Y HỆT kịch bản, lọc theo amount")
+def _loc_giong_kich_ban():
+	"""Kịch bản lọc `flt(it.amount) > 0`, tức thành tiền dòng TRƯỚC khi chia
+	chiết khấu đầu phiếu. Bản trước lọc theo gross, là tiền SAU khi chia.
+
+	Tái hiện: hai dòng 1.000.000 và 1.000, chiết khấu 1.000.999 trên Grand
+	Total. Sau phân bổ, gross là 1 và 0. Kịch bản vẫn gửi ĐỦ HAI dòng vì cả
+	hai đều amount > 0; hàm cũ chỉ nhận một dòng, nên cửa cuối chặn đúng bằng
+	câu lỗi đã làm chết đêm 09/09.
+
+	ĐỪNG đổi ca này về lọc gross. Muốn đổi phép lọc thì phải đổi CẢ kịch bản
+	trên site cùng lúc, xem chú thích trong dong_len_hoa_don."""
+	gia = [1000000, 1000]
+	ds = tinh_dong(gia, [0, 0], True, 1000999, "Grand Total")
+	la("chiết khấu đẩy dòng nhỏ về 0", [d["gross"] for d in ds], [1, 0])
+	items = [{"idx": i, "name": str(i), "item_code": ma, "qty": 1, "amount": g, "net_amount": d["net"]}
+		for i, (ma, g, d) in enumerate(zip(["MON-LON", "MON-BE"], gia, ds), 1)]
+	la("lọc đúng như kịch bản, giữ cả dòng gross 0",
+		[it["item_code"] for it, _ in dong_len_hoa_don(items, ds)], ["MON-LON", "MON-BE"])
+	# Và cửa cuối cho payload hai dòng của kịch bản đi qua.
+	si = {"name": "Y", "posting_date": "2026-09-09", "vgb_thue_vnd": 1, "items": items,
+		"taxes": [{"name": "T", "idx": 1, "tax_amount_after_discount_amount": 0}],
+		"net_total": 1, "total_taxes_and_charges": 0, "grand_total": 1,
+		"item_wise_tax_details": [{"item_row": str(i), "tax_row": "T", "rate": 0, "amount": 0}
+			for i in (1, 2)]}
+	goi = {"details": [{"data": [{"inv_itemCode": ma, "inv_quantity": 1} for ma in ("MON-LON", "MON-BE")]}]}
+	chuan_tien(si, goi)
+	la("hai dòng lên tờ", [d["inv_itemCode"] for d in goi["details"][0]["data"]], ["MON-LON", "MON-BE"])
+
+
+@ca("#266 vòng 4 (Codex): chip CẦN ĐỐI CHIẾU phải đứng TRƯỚC chip chờ xuất")
+def _thu_tu_chip():
+	"""Gửi tờ đi mà phản hồi không rõ thì giữ cờ đối chiếu VÀ giữ nguyên
+	vgb_hddt_ngay_xuat. Xét ngày xuất trước là chỉ hiện chip vàng, giấu mất
+	việc kế toán phải vào m-invoice dò tay. Chốt thứ tự ở CẢ HAI màn."""
+	for tep, ham in (("08-doanh-so-sales.js", "function dsChips("),
+			("10-bill-quay.js", "posChipBill")):
+		ma = _doc("vagabond", "public", "js", "bep", tep)
+		i = ma.find(ham)
+		dung("tìm thấy %s trong %s" % (ham, tep), i > 0)
+		than = ma[i:i + 3000]
+		vi_doi = than.find("vgb_hddt_cho_doi_chieu")
+		vi_ngay = than.find("vgb_hddt_ngay_xuat")
+		dung("%s: cả hai nhánh còn đó" % tep, vi_doi > 0 and vi_ngay > 0)
+		dung("%s: đối chiếu đứng trước chờ xuất" % tep, vi_doi < vi_ngay)
 
 
 @ca("#266: payload thiếu hay thừa dòng có tiền, hay sai mã, vẫn bị chặn")
