@@ -307,8 +307,10 @@ def _bay_thieu_unc():
 	dung("tinh co_unc", 'o["co_unc"]' in khuc)
 
 	j = _js("19-ho-so-tt.js")
-	dung("man hinh doc co_unc", "r.co_unc" in j)
-	dung("chi bay khi da duyet", "r.trang_thai === 'Da duyet' && !r.co_unc" in j)
+	dung("màn hình đọc chip từ máy chủ", "hsChipNghiepVu(r, nhanChip)" in j)
+	from vagabond.chip_ho_so_tt import chip_cua_dong
+	dung("chỉ nhắc khi đã duyệt", "thieu_unc" in chip_cua_dong({"trang_thai": "Da duyet"}))
+	dung("đã trả không nhắc chuyển thêm", "thieu_unc" not in chip_cua_dong({"trang_thai": "Da thanh toan"}))
 
 
 @ca("man ho so: nut gui thu dung duoc o moi trang thai cua ho so NCC")

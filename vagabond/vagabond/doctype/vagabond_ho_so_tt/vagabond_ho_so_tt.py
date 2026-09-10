@@ -38,6 +38,8 @@ class VagabondHoSoTT(Document):
 		self.chan_hoan_tat_khong_but_toan()
 		if not self.dong:
 			frappe.throw("Hồ sơ thanh toán phải có ít nhất một dòng.")
+		from vagabond.ho_so_bo_sung import kiem_bo_sung
+		kiem_bo_sung(self)
 		self.tong_tien = sum(flt(d.so_tien) for d in self.dong)
 		if self.tong_tien <= 0:
 			frappe.throw("Tổng đề nghị trả phải lớn hơn 0.")

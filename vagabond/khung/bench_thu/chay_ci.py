@@ -83,5 +83,7 @@ if __name__ == "__main__":
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
 	kho = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=False)
 	app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.doi_chieu_247"], check=False)
-	if not dat or kho.returncode or app.returncode:
+	# Render và HTTP upload chạy sau bộ hoàn nguyên, trên site dùng một lần.
+	in_app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.in_app_263"], check=False)
+	if not dat or kho.returncode or app.returncode or in_app.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")

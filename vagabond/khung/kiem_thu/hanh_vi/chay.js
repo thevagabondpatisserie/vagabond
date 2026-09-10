@@ -253,6 +253,31 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('PR263. chip viec can lam dem dung, loc giao va bo loc duoc khi rong', async function () {
+    var canh = { danhSach: { rows: [
+      {name:'APP-A', trang_thai:'Da thanh toan', tong_tien:100, chip_nghiep_vu:['da_chi','cho_hoa_don']},
+      {name:'APP-B', trang_thai:'Da duyet', tong_tien:200, chip_nghiep_vu:['thieu_unc','cho_hoa_don']},
+      {name:'APP-C', trang_thai:'Da duyet', tong_tien:300, chip_nghiep_vu:['thieu_unc']}
+    ], nhan:{}, quyen:{}, trang_thai_co:['Da thanh toan','Da duyet'],
+    nhan_chip:{cho_hoa_don:'Chờ hóa đơn đến sau',thieu_unc:'Chưa có UNC',da_chi:'Đã chi theo hồ sơ'} } };
+    var m = dungMan(canh);
+    await m.g.scrHoSoTT();
+    dung('đếm 2 hồ sơ chờ', chipTheo(m,'data-hsviec','cho_hoa_don').textContent.includes('(2)'));
+    chipTheo(m,'data-hsviec','cho_hoa_don').click();
+    await m.g.scrHoSoTT();
+    bang('hai dòng đúng nhóm', m.tai.querySelectorAll('[data-hs]').length, 2);
+    m.g.hsTT='Da thanh toan';
+    await m.g.scrHoSoTT();
+    bang('giao hai bộ lọc', m.tai.querySelectorAll('[data-hs]').length, 1);
+    m.g.hsViec='thieu_unc';
+    await m.g.scrHoSoTT();
+    bang('không lấy sai hồ sơ', m.tai.querySelectorAll('[data-hs]').length, 0);
+    dung('chip chọn 0 vẫn hiện', !!chipTheo(m,'data-hsviec','thieu_unc'));
+    chipTheo(m,'data-hsviec','').click();
+    await m.g.scrHoSoTT();
+    bang('bỏ lọc lấy lại dòng', m.tai.querySelectorAll('[data-hs]').length, 1);
+    dung('nhắc không đánh đồng cấn nợ', m.khung.innerHTML.includes('chưa xác nhận đã cấn nợ'));
+  });
   await caAsync('A. dang loc tai khoan khong con trong ky: con chip bo loc va co loi giai thich', async function () {
     var m = dungMan({ danhSach: { rows: [], nhan: {}, quyen: {}, tk_chi_co: ['1111 - VGB'] } });
     m.g.hsTkChi = '6277 - VGB';
@@ -314,12 +339,14 @@ async function chayHet() {
     o.value = 'beta';
     o.dispatchEvent(dg.suKien('input', {}, o));
     m.goiApi.length = 0;
+    m.g.hsViec = 'cho_hoa_don';
     await m.tai.getElementById('hsXuat').onclick();
     var goi = m.goiApi.filter(function (x) { return x.duong === 'vagabond.ho_so_tt.xuat_excel' })[0];
     dung('co goi xuat Excel', !!goi);
     bang('gui tu khoa da ap', goi.ts.tu_khoa, 'alpha');
     bang('gui ca o loc tai khoan', goi.ts.tk_chi, '6277 - VGB');
     bang('gui ca o loc chi phi thue', goi.ts.loai_cp_thue, 'Hop le');
+    bang('gui chip nghiep vu', goi.ts.chip, 'cho_hoa_don');
   });
 
   await caAsync('C. go va xoa thi dong nhac doi NGAY, khong goi may chu, khong ve lai man', async function () {

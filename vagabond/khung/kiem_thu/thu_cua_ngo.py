@@ -50,6 +50,12 @@ CUA_NGO = {
 	# banh goi qua cua rieng cua chung.
 	"tat_ban_web.py": ["dat"],
 	"nvl_thay_the.py": ["tinh_lai"],
+	# Them 10/09/2026 cung lan bo sung hoa don den sau cho ho so APP (#247).
+	# Ba cua deu la cua man hinh: nen ban the hien vua tai len, tim hoa don
+	# cung NCC de noi, va noi hoa don vao mot khoan chi.
+	# `nen_pdf`, `loi_giu_lien_ket` va `kiem_bo_sung` CO Y khong nam trong danh
+	# sach: do la phep noi bo, Document goi qua validate chu khong mo ra ngoai.
+	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don"],
 	# Them 01/09/2026 cung lan mo phan he Nhan su, man Duyet KPI va hoa hong.
 	# Muoi hai cua ngo deu la cua man hinh: dung phieu, cham diem, duyet, tra
 	# lai, gop y, day sang de nghi chi, xem danh sach, xem chi tiet, xem phieu
