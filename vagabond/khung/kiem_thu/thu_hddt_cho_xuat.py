@@ -132,6 +132,31 @@ def _gop_chua_khai():
 	la("khai rồi thì qua", goi["details"][0]["data"][0]["inv_quantity"], 1)
 
 
+@ca("#266 vòng 5: phép lọc của kịch bản trên site và của thue_vnd phải cùng một trường")
+def _contract_loc_dong():
+	"""Codex vòng 5 đòi chốt contract amount > 0 giữa HAI BÊN, không chỉ một
+	bên. Kịch bản phát hành nằm trong cơ sở dữ liệu site, git không quản; bản
+	ảnh chụp trong du_lieu/ là nguồn đối chiếu duy nhất có trong repo.
+
+	Đây là phép DÒ CHUỖI, và theo điều 16 nó KHÔNG phải kiểm thử: nó chỉ chốt
+	hai bên còn nêu cùng một trường. Phần chứng minh hai bên cùng chọn đúng
+	một tập dòng nằm ở bench kiem_hddt_266 (mục contract), chạy qua kịch bản
+	thật trên site."""
+	import re
+	kb = _doc("vagabond", "khung", "kiem_thu", "du_lieu", "minvoice_phat_hanh_20260907.txt")
+	dieu_kien = re.findall(r"if frappe\.utils\.flt\(it\.(\w+)\) > 0:", kb)
+	la("kịch bản lọc theo đúng một trường", sorted(set(dieu_kien)), ["amount"])
+	tv = _doc("vagabond", "thue_vnd.py")
+	than = tv[tv.find("def dong_len_hoa_don("):]
+	than = than[:than.find("\ndef ", 10)]
+	dong_loc = [d for d in than.splitlines() if d.strip().startswith("return [")]
+	la("thue_vnd lọc trong đúng một dòng", len(dong_loc), 1)
+	dung("và lọc theo cùng trường amount", "so(it.get('amount')) > 0" in dong_loc[0])
+	dung("không lọc theo gross", "gross" not in dong_loc[0])
+	dung("chú thích cảnh báo đổi một bên phải đổi cả hai",
+		"đừng đổi một bên" in than)
+
+
 @ca("#266 vòng 4 (Codex): phép lọc dòng phải Y HỆT kịch bản, lọc theo amount")
 def _loc_giong_kich_ban():
 	"""Kịch bản lọc `flt(it.amount) > 0`, tức thành tiền dòng TRƯỚC khi chia
@@ -276,61 +301,77 @@ def _hom_nay():
 	dung("ngày lập ghi theo chế độ, một nguồn", "ngay_dat = ngay_lap_theo_che_do(che_do, ngay_cu, hom_nay)" in s)
 
 
-@ca("#266: gỡ cờ đối chiếu chỉ khi m-invoice trả lời không có dấu vết tờ")
-def _go_co():
-	# CHUNG là mẫu đối chứng lượt này dựng ra: mã "không có tờ" đo được là "01".
-	kc = dict(chung={"ma": "01", "duong": "SI-X", "khoa_am": "VGB-KHONG-TON-TAI-AB12"})
-	dung("không có tờ", hddt_cho_xuat.minvoice_khong_co_to({"code": "01", "message": "not found", "data": None}, **kc))
-	dung("có số hoá đơn thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceNumber": "12950"}}, **kc))
-	dung("có ID thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceAuth_id": "x"}}, **kc))
-	dung("lỗi mạng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(None, **kc))
-	dung("chuỗi lạ thì giữ", not hddt_cho_xuat.minvoice_khong_co_to("<html>", **kc))
+# Mẫu not-found GIẢ ĐỊNH, chỉ dùng trong kiểm thử để chạy thử đường khớp mẫu.
+# KHÔNG khai vào MAU_KHONG_CO_TO của mô đun thật cho tới khi đo được phản hồi
+# thật của m-invoice cho một mã phiếu không tồn tại.
+MAU_THU = ({"code": "01", "message": "not found", "data": None},)
+CHUNG_THU = {"duong": "SI-X", "so_hd": "12943", "khoa_am": "VGB-KHONG-TON-TAI-AB12"}
 
 
-@ca("#266 vòng 2 (F1): phản hồi LỖI dạng dict không được coi là không có tờ")
-def _go_co_loi():
-	# Tái hiện finding: trước sửa, cả bốn phản hồi dưới đây đều cho gỡ cờ,
-	# nên tờ đã có hoá đơn bị gửi lại và sinh hoá đơn đúp.
-	kc = dict(chung={"ma": "01", "duong": "SI-X", "khoa_am": "VGB-KHONG-TON-TAI-AB12"})
-	for ph in ({"code": "500", "message": "internal error"},
-			{"code": "401", "message": "Unauthorized"},
-			{"code": "503", "message": ""},
-			{"message": "System error, please try again"},
-			{"code": "00", "message": "Token expired"}):
-		dung("phải giữ cờ với %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, **kc))
-	# Phản hồi không có hình dạng của API cũng không kết luận được.
-	for ph in ({}, {"linh": "tinh"}):
-		dung("phản hồi lạ phải giữ cờ %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, **kc))
+@ca("#266 vòng 5 (F1): chưa khai mẫu đã xác minh thì KHÔNG gỡ cờ tờ nào")
+def _chua_khai_mau():
+	"""Tái hiện được ba phản ví dụ của Codex. Cách cũ suy mẫu not-found bằng
+	cách hỏi một mã bịa ra rồi lấy mã trả về làm chuẩn: chỉ chứng minh "cổng
+	trả mã ấy cho mã đó", không chứng minh mọi phản hồi mang mã ấy nghĩa là
+	không có tờ. Đo trước sửa: cả ba ca dưới đây đều cho GỠ CỜ."""
+	la("mô đun thật để mẫu RỖNG là cố ý", hddt_cho_xuat.MAU_KHONG_CO_TO, ())
+	# A. mẫu âm không có khoá code, tờ thật bị từ chối quyền: cùng mã None.
+	a = {"message": "Không đủ quyền"}
+	# B. mẫu âm 9999, tờ thật cũng 9999 - đúng mã đã từ chối 116 tờ TCV đêm 09/09.
+	b = {"code": "9999", "message": "Mã chưa rõ"}
+	# C. cùng mã 01 nhưng nội dung là từ chối quyền.
+	c = {"code": "01", "data": {"reason": "Không đủ quyền"}}
+	for ten, ph in (("A", a), ("B", b), ("C", c)):
+		dung("phản ví dụ %s phải GIỮ cờ" % ten,
+			not hddt_cho_xuat.minvoice_khong_co_to(ph, chung=CHUNG_THU))
+	# Chưa khai mẫu thì cả câu sạch cũng không gỡ.
+	dung("chưa khai mẫu thì câu sạch cũng giữ", not hddt_cho_xuat.minvoice_khong_co_to(
+		{"code": "01", "message": "not found", "data": None}, chung=CHUNG_THU))
+	# Và cửa hỏi từng tờ dừng ngay từ đầu, nói rõ lý do cho kế toán.
+	co, cau = hddt_cho_xuat._tra_minvoice("http://x", {}, "SI-1", CHUNG_THU)
+	dung("không kết luận", not co)
+	dung("và nói rõ vì chưa khai mẫu", "chưa khai mẫu" in cau)
 
 
-@ca("#266 vòng 3 (F1): mã LẠ chưa từng thấy cũng phải giữ cờ")
-def _go_co_ma_la():
-	"""Vòng 2 lọc theo danh sách CẤM nên mã 9999 và 296 vẫn gỡ được cờ:
-	9999 là đúng mã m-invoice đã từ chối 116 tờ TCV đêm 09/09, 296 là mã từ
-	chối vì ngày lập đã lùi. Cả hai đều KHÔNG phải câu "không có tờ".
-	Vòng 3 chỉ nhận đúng mã đo được từ mẫu âm tính."""
-	kc = dict(chung={"ma": "01", "duong": "SI-X", "khoa_am": "VGB-KHONG-TON-TAI-AB12"})
-	for ph in ({"code": "9999", "message": "Mã chưa rõ"},
-			{"code": "296", "message": "date is not valid"},
-			{"code": "", "message": ""},
-			{"code": None, "data": None},
-			{"message": "not found", "data": None},
-			{"code": "02", "message": "not found", "data": None}):
-		dung("mã lạ %s phải giữ cờ" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, **kc))
-	# Còn đúng mã của mẫu âm tính thì gỡ, dù mẫu ấy là mã nào đi nữa.
-	for ma in ("01", "02", "", None):
-		c = {"ma": hddt_cho_xuat._ma_phan_hoi({"code": ma}), "duong": "SI-X", "khoa_am": "K"}
-		dung("trùng mẫu âm tính %r thì gỡ" % ma,
-			hddt_cho_xuat.minvoice_khong_co_to({"code": ma, "data": None}, chung=c))
+@ca("#266 vòng 5 (F1): khai mẫu rồi thì khớp ĐÚNG mẫu mới gỡ")
+def _khai_mau_roi():
+	"""Đường khớp mẫu vẫn phải chạy đúng cho ngày khai được mẫu thật, và ba
+	phản ví dụ A/B/C vẫn phải giữ cờ kể cả khi đã khai mẫu."""
+	m = dict(chung=CHUNG_THU, mau=MAU_THU)
+	dung("khớp đủ mẫu thì gỡ", hddt_cho_xuat.minvoice_khong_co_to(
+		{"code": "01", "message": "not found", "data": None}, **m))
+	for ten, ph in (("A", {"message": "Không đủ quyền"}),
+			("B", {"code": "9999", "message": "Mã chưa rõ"}),
+			("C", {"code": "01", "data": {"reason": "Không đủ quyền"}})):
+		dung("phản ví dụ %s vẫn giữ cờ dù đã khai mẫu" % ten,
+			not hddt_cho_xuat.minvoice_khong_co_to(ph, **m))
+	# Thiếu một khoá của mẫu là không khớp: mẫu là điều kiện ĐỦ, không phải gần đúng.
+	for ph in ({"code": "01", "data": None},
+			{"code": "01", "message": "not found"},
+			{"code": "01", "message": "Not Found", "data": None}):
+		dung("thiếu hoặc lệch khoá thì giữ %s" % ph,
+			not hddt_cho_xuat.minvoice_khong_co_to(ph, **m))
+	# Khớp mẫu nhưng lại có dấu vết chứng từ thì vẫn giữ: hai lớp, không phải một.
+	ph = {"code": "01", "message": "not found", "data": None, "inv_invoiceNumber": "12950"}
+	dung("khớp mẫu mà có dấu vết thì vẫn giữ",
+		not hddt_cho_xuat.minvoice_khong_co_to(ph, **m))
+	# Chưa đối chứng được API thì không gỡ, dù khớp mẫu.
+	dung("chưa đối chứng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(
+		{"code": "01", "message": "not found", "data": None}, chung=None, mau=MAU_THU))
+	dung("chung rỗng cũng giữ", not hddt_cho_xuat.minvoice_khong_co_to(
+		{"code": "01", "message": "not found", "data": None}, chung={}, mau=MAU_THU))
+	# Phản hồi không phải dict thì không kết luận.
+	for ph in (None, "<html>", 0, []):
+		dung("phản hồi không phải dict thì giữ %r" % (ph,),
+			not hddt_cho_xuat.minvoice_khong_co_to(ph, **m))
 
 
-@ca("#266 vòng 3 (F1): mẫu đối chứng ÂM TÍNH phải tự dựng được và tự hỏng được")
-def _mau_am_tinh():
-	"""kiem_chung_api chạm Frappe nên bộ khung không với tới; ở đây giả lập
-	hai lời gọi ra ngoài để chốt: hỏi đúng một mã phiếu bịa ra, và mọi cách
-	hỏng của mẫu ấy đều làm cả lượt KHÔNG kết luận gì (trả None)."""
+@ca("#266 vòng 5 (F1): đối chứng DƯƠNG TÍNH phải đúng TỜ ĐÓ, không phải tờ bất kỳ")
+def _doi_chung_dung_to():
+	"""kiem_chung_api không còn suy mẫu not-found nữa; nó chỉ còn là phép thử
+	độ tin cậy của cổng trong lượt. Hai phép, thiếu một là không gỡ cờ tờ nào."""
 	db = unittest.mock.MagicMock()
-	db.get_value.return_value = "SI-DA-CO-HDDT"
+	db.get_value.return_value = {"name": "SI-DA-CO-HDDT", "custom_hddt_so": "12943"}
 
 	def chay(dap):
 		hoi = []
@@ -346,74 +387,50 @@ def _mau_am_tinh():
 				unittest.mock.patch.object(hddt_cho_xuat, "_hoi_minvoice", gia):
 			return hddt_cho_xuat.kiem_chung_api("http://x", {}), hoi
 
-	co_dau = {"code": "00", "data": {"inv_invoiceNumber": "12943"}}
+	dung_to = {"code": "00", "data": {"inv_invoiceNumber": "12943"}}
+	to_khac = {"code": "00", "data": {"inv_invoiceNumber": "99999"}}
 	sach = {"code": "01", "message": "not found", "data": None}
 
-	# Đủ hai mẫu: dựng được, và mã "không có tờ" đúng bằng mã của mẫu âm tính.
-	(chung, cau), hoi = chay(lambda k: co_dau if k == "SI-DA-CO-HDDT" else sach)
-	dung("dựng được mẫu đối chứng", bool(chung))
-	la("mã không có tờ đo được", chung.get("ma"), "01")
+	(chung, cau), hoi = chay(lambda k: dung_to if k == "SI-DA-CO-HDDT" else sach)
+	dung("đối chứng được", bool(chung))
+	la("và nhớ số hoá đơn của tờ đối chứng", chung.get("so_hd"), "12943")
 	dung("có hỏi một mã phiếu bịa ra", any(
 		str(k).startswith(hddt_cho_xuat.KHOA_AM_TINH) for k in hoi))
-	dung("mã bịa ra không trùng mã phiếu thật", "SI-DA-CO-HDDT" != chung.get("khoa_am"))
-	dung("hai lần hỏi khác mã nhau", len(set(hoi)) == 2)
+	la("hai lần hỏi khác mã nhau", len(set(hoi)), 2)
+	dung("KHÔNG còn suy mã not-found từ mẫu âm", "ma" not in chung)
 
-	# Mẫu âm tính LẠI có dấu vết: m-invoice nhận vơ cả mã không tồn tại.
-	(chung, cau), _ = chay(lambda k: co_dau)
-	dung("mẫu âm tính có dấu vết thì không kết luận", chung is None)
-	dung("và nói rõ vì sao", "chưa từng tồn tại" in cau)
+	# Cổng trả dấu vết của TỜ KHÁC: tra nhầm tờ, còn nguy hơn không trả gì.
+	(chung, cau), _ = chay(lambda k: to_khac if k == "SI-DA-CO-HDDT" else sach)
+	dung("trả nhầm tờ thì không kết luận", chung is None)
+	dung("và nói rõ là tra nhầm", "tra nhầm" in cau)
 
-	# Mẫu âm tính là lỗi hệ thống, hay không ra hình dạng API, hay ném lỗi.
-	for dap, mo_ta in (
-			(lambda k: co_dau if k == "SI-DA-CO-HDDT" else {"code": "500", "message": "internal error"}, "lỗi hệ thống"),
-			(lambda k: co_dau if k == "SI-DA-CO-HDDT" else "<html>", "không ra hình dạng API"),
-			(lambda k: co_dau if k == "SI-DA-CO-HDDT" else RuntimeError("404"), "ném lỗi")):
-		(chung, cau), _ = chay(dap)
-		dung("mẫu âm tính %s thì không kết luận" % mo_ta, chung is None)
+	# Mẫu âm tính lại có dấu vết: cổng nhận vơ.
+	(chung, cau), _ = chay(lambda k: dung_to)
+	dung("mẫu âm có dấu vết thì không kết luận", chung is None)
+	dung("và nói rõ là nhận vơ", "nhận vơ" in cau)
 
-	# Mẫu DƯƠNG TÍNH hỏng thì dừng trước, không cần hỏi mẫu âm tính.
+	# Mẫu dương tính không có dấu vết thì dừng trước, không hỏi mẫu âm.
 	(chung, cau), hoi = chay(lambda k: sach)
-	dung("mẫu dương tính không có dấu vết thì dừng", chung is None)
+	dung("mẫu dương không dấu vết thì dừng", chung is None)
 	la("dừng ngay, chỉ hỏi một lần", len(hoi), 1)
 
-	# Chưa có tờ nào đã xuất thì cũng không kết luận.
+	# Ném lỗi ở bất kỳ phép nào cũng là không kết luận.
+	for dap, mo_ta in (
+			(lambda k: RuntimeError("timeout"), "mẫu dương ném lỗi"),
+			(lambda k: dung_to if k == "SI-DA-CO-HDDT" else RuntimeError("404"), "mẫu âm ném lỗi")):
+		(chung, _), _ = chay(dap)
+		dung(mo_ta + " thì không kết luận", chung is None)
+
+	# Chưa có tờ nào đã xuất thì không đối chứng được.
 	db.get_value.return_value = None
 	(chung, cau), hoi = chay(lambda k: sach)
 	dung("không có tờ mẫu thì không kết luận", chung is None)
 	la("và không hỏi m-invoice lần nào", len(hoi), 0)
-	db.get_value.return_value = "SI-DA-CO-HDDT"
+	db.get_value.return_value = {"name": "SI-DA-CO-HDDT", "custom_hddt_so": "12943"}
 
 
-@ca("#266 vòng 3 (F1): mỗi lớp chặn đứng một mình cũng phải chặn được")
-def _go_co_tung_lop():
-	"""Đột biến vòng 3 cho thấy hai lớp cũ (chặn lỗi hệ thống, đòi hình dạng
-	API) không làm đổ ca nào, vì lớp đối chiếu mã che mất chúng. Hai ca dưới
-	đây dựng đúng tình huống lớp kia KHÔNG đỡ được, để mỗi lớp tự đứng.
-	ĐỪNG sửa hai ca này thành mã khác mẫu âm tính, làm vậy là che lỗi lại."""
-	# Cổng m-invoice trả code "00" cho cả "không có tờ" lẫn lỗi token hết hạn:
-	# mã trùng mẫu âm tính, chỉ còn _la_loi_he_thong đỡ.
-	c00 = {"ma": "00", "duong": "SI-X", "khoa_am": "K"}
-	dung("mã trùng mẫu nhưng message báo lỗi thì vẫn giữ cờ",
-		not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "message": "Token expired"}, chung=c00))
-	dung("còn câu sạch cùng mã ấy thì gỡ",
-		hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": None}, chung=c00))
-	# Cổng trả về không có khoá code: mẫu âm tính cũng None, chỉ còn lớp
-	# "phải có hình dạng phản hồi của API" đỡ.
-	cnone = {"ma": None, "duong": "SI-X", "khoa_am": "K"}
-	for ph in ({}, {"linh": "tinh"}, {"1": 2}):
-		dung("phản hồi không ra hình dạng API thì giữ cờ %s" % ph,
-			not hddt_cho_xuat.minvoice_khong_co_to(ph, chung=cnone))
-	dung("có khoá của API và cùng mẫu thì gỡ",
-		hddt_cho_xuat.minvoice_khong_co_to({"data": None, "message": ""}, chung=cnone))
-
-
-@ca("#266 vòng 2 (F1): chưa đối chứng được API thì không gỡ cờ tờ nào")
+@ca("#266 vòng 5 (F1): đường đi trong chay_nen vẫn gọi đủ hai bước")
 def _go_co_chua_kiem_chung():
-	sach = {"code": "01", "message": "not found", "data": None}
-	dung("chưa kiểm chứng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(sach))
-	dung("chung rỗng cũng giữ", not hddt_cho_xuat.minvoice_khong_co_to(sach, chung={}))
-	dung("kiểm chứng rồi mới gỡ", hddt_cho_xuat.minvoice_khong_co_to(
-		sach, chung={"ma": "01", "duong": "SI-X", "khoa_am": "K"}))
 	h = _doc("vagabond", "hddt_cho_xuat.py")
 	i = h.find("def chay_nen(")
 	than = h[i:h.find("\ndef ", i + 10)]
@@ -421,9 +438,12 @@ def _go_co_chua_kiem_chung():
 	dung("và truyền kết quả đối chứng vào từng lượt hỏi",
 		"_tra_minvoice(base, hdr, r.name, chung)" in than)
 	kc = h[h.find("def kiem_chung_api("):]
+	kc = kc[:kc.find("\ndef ", 10)]
 	dung("mẫu đối chứng là tờ CHẮC CHẮN đã có hoá đơn",
 		'"custom_hddt_so": ["!=", ""]' in kc and '"custom_minvoice_id": ["!=", ""]' in kc)
 	dung("và có mẫu ÂM TÍNH bằng mã phiếu bịa ra", "KHOA_AM_TINH" in kc and "uuid4()" in kc)
+	dung("dấu vết phải mang số hoá đơn của chính tờ đối chứng", "so_hd not in json.dumps" in kc)
+	dung("không còn suy mã not-found từ mẫu âm", '"ma":' not in kc)
 
 
 @ca("#266: chip cùng câu chữ giữa máy chủ và app")
@@ -559,30 +579,89 @@ def _cua_chung_hang_rao():
 	dung("Server Script gọi kiem_goi", "vagabond.minvoice_an_toan.kiem_goi" in k)
 
 
-@ca("#266 vòng 2 (F2): phép nhường, kèm van an toàn khi ngày cũ không xuất được")
+@ca("#266 vòng 5 (F2): không còn van thời gian, còn nợ là chặn")
 def _phep_nhuong():
+	"""Tái hiện được finding vòng 5 của Codex: van 15 phút đo lại thì dấu so
+	sánh ngược, mốc lỗi 0s/60s/899s đều CHO ĐI, chỉ 900s mới chặn. Van mở
+	NGAY sau lỗi. Mà sửa dấu vẫn không đủ, vì một tờ ngày mới đi lọt là đóng
+	cửa ngày cũ VĨNH VIỄN. Nay gỡ hẳn van.
+	ĐỪNG thêm lại tham số thời gian nào vào hàm này."""
+	import inspect
 	ds = ["2026-09-09"]
 	hn = D(2026, 9, 10)
-	# Tờ của hôm nay: phải nhường.
 	phai, ngay, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 8))
 	dung("tờ hôm nay phải nhường", phai and ngay == [D(2026, 9, 9)])
-	# Chính tờ ngày cũ thì được đi, không thì bế tắc.
 	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 9), hn, ds, D(2026, 9, 8))
 	dung("tờ ngày cũ được đi", not phai)
-	# Cửa ngày cũ đã đóng thì không nhường nữa, nhường cũng vô ích.
 	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 10))
 	dung("cửa đã đóng thì thôi", not phai)
-	# Không còn ngày cũ nào chờ.
 	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, [], None)
 	dung("không nợ thì đi", not phai)
-	# Van an toàn: vừa thử mà không xuất được tờ nào thì tạm mở.
-	bay_gio = datetime.datetime(2026, 9, 10, 23, 10)
-	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 8),
-		moc_loi=datetime.datetime(2026, 9, 10, 23, 5), bay_gio=bay_gio)
-	dung("van mở trong 15 phút sau lần thử hỏng", not phai)
-	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 8),
-		moc_loi=datetime.datetime(2026, 9, 10, 22, 50), bay_gio=bay_gio)
-	dung("quá 15 phút thì chặn lại", phai)
+	# Van đã gỡ: hàm không còn nhận mốc lỗi hay đồng hồ nữa.
+	ts = list(inspect.signature(hddt_cho_xuat.phai_nhuong_ngay_cu).parameters)
+	la("chữ ký không còn tham số thời gian", ts,
+		["ngay_lap_to", "hom_nay", "ds_ngay_cho", "ngay_so_moi_nhat"])
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	than = h[h.find("def phai_nhuong_ngay_cu("):]
+	than = than[:than.find("\ndef ", 10)]
+	for tu in ("moc_loi", "CHO_SAU_LOI_PHUT", "_doc_moc_loi"):
+		dung("thân hàm không còn %s" % tu, tu not in than)
+	dung("và hằng số van đã bỏ khỏi mô đun", "CHO_SAU_LOI_PHUT" not in h)
+
+
+@ca("#266 vòng 5 (F3): chỉ ngày nợ SỚM NHẤT được đi, không phải mọi ngày cũ")
+def _chi_ngay_som_nhat():
+	"""Tái hiện được: bản trước miễn cho MỌI tờ mang ngày trước hôm nay, nên
+	sang 11/09 thì tờ 10/09 vượt được nợ 09/09 và đóng cửa 09/09 vĩnh viễn.
+	Đo trước sửa: ngay_lap=10/09, nợ=[09/09] cho phai_nhuong=False."""
+	hn = D(2026, 9, 11)
+	no = ["2026-09-09", "2026-09-10"]
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 10), hn, no, D(2026, 9, 8))
+	dung("tờ 10/09 phải nhường nợ 09/09", phai)
+	phai, _, ly = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 9), hn, no, D(2026, 9, 8))
+	dung("chính tờ 09/09 được đi", not phai)
+	dung("và nói rõ vì là ngày nợ sớm nhất", "sớm nhất" in ly)
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 11), hn, no, D(2026, 9, 8))
+	dung("tờ hôm nay vẫn phải nhường", phai)
+	# Xong ngày 09 thì tới lượt 10 được đi.
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 10), hn, ["2026-09-10"], D(2026, 9, 8))
+	dung("hết nợ 09 thì tờ 10/09 được đi", not phai)
+
+
+@ca("#266 vòng 5 (F4): đọc nợ hỏng thì NÉM, và hàng rào phải chặn")
+def _doc_no_hong():
+	"""Tái hiện được: trước sửa ngay_cu_dang_cho() nuốt lỗi DB và trả [],
+	caller hiểu là HẾT NỢ nên chan_neu_con_ngay_cu() cho tờ ngày mới đi
+	thẳng. Đo trước sửa: DB lỗi -> ds = [], chan_neu_con_ngay_cu KHÔNG chặn."""
+	db = unittest.mock.MagicMock()
+	db.sql.side_effect = RuntimeError("mất kết nối DB")
+	gia = unittest.mock.MagicMock(db=db)
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
+			unittest.mock.patch.object(hddt_cho_xuat, "nowdate", lambda: "2026-09-10"):
+		for ham in ("ngay_cu_dang_cho", "ngay_cu_can_bao_ve"):
+			try:
+				getattr(hddt_cho_xuat, ham)()
+				dung(ham + " phải ném khi đọc hỏng", False)
+			except hddt_cho_xuat.KhongDocDuocNo:
+				dung(ham + " ném đúng loại", True)
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	i = h.find("def chan_neu_con_ngay_cu(")
+	than = h[i:h.find("\ndef ", i + 10)]
+	dung("hàng rào bắt KhongDocDuocNo và chặn",
+		"KhongDocDuocNo" in than and "frappe.throw" in than)
+	dung("hàng rào dùng tập RỘNG", "ngay_cu_can_bao_ve()" in than)
+	# Tập rộng phải rộng thật: nháp, giữ cờ, chưa đánh dấu đều nằm trong.
+	def _sql(ten):
+		t = h[h.find("def %s(" % ten):]
+		t = t[:t.find("\ndef ", 10)]
+		return t[t.find("frappe.db.sql("):]
+	r = _sql("ngay_cu_can_bao_ve")
+	dung("nhận cả đơn nháp", "docstatus in (0, 1)" in r)
+	dung("không loại tờ đang giữ cờ đối chiếu", "vgb_hddt_cho_doi_chieu" not in r)
+	dung("không đòi phải có dấu ngày xuất", hddt_cho_xuat.TRUONG_NGAY_XUAT not in r)
+	n = _sql("ngay_cu_dang_cho")
+	dung("tập hẹp vẫn hẹp, chỉ tờ tự gửi được", "vgb_hddt_cho_doi_chieu" in n)
+	dung("và tập hẹp chỉ nhận tờ đã ghi sổ", "docstatus = 1" in n)
 
 
 @ca("#266 vòng 2 (F3): không lấy được khoá là CÒN NỢ, không cho tờ hôm nay đi")
@@ -596,7 +675,7 @@ def _fail_closed():
 	dung("không lấy được khoá thì trả False", "if khoa is None:" in sau and "return False" in sau)
 	dung("hỏng giữa chừng cũng trả False", than.rstrip().endswith("return False"))
 	dung("đọc lại danh sách sau khi chạy, không tin con số vừa gộp",
-		"return not ngay_cu_con_mo(ngay_cu_dang_cho()" in than)
+		"return not ngay_cu_con_mo(ngay_cu_can_bao_ve()" in than)
 	b = _doc("vagabond", "ban_hang.py")
 	for ham in ("tu_ghi_so_cuoi_ngay", "xuat_rai_trong_ngay"):
 		i = b.find("def %s(" % ham)
