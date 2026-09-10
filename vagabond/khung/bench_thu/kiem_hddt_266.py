@@ -429,24 +429,34 @@ def chay():
 				# phải lọc y hệt. Ba ca dưới đây đi qua ĐÚNG kịch bản trên site:
 				# đổi phép lọc ở một bên là một trong ba ca đỏ ngay.
 				ct_ca = []
-				# a. Dòng amount = 0: kịch bản bỏ, hàm cũng phải bỏ.
-				a0 = _hoa_don(hom_qua, gia=(150000, 0))
-				# b. amount > 0 nhưng gross về 0 sau chiết khấu đầu phiếu:
-				#    kịch bản VẪN gửi, nên hàm cũng phải giữ. Đây đúng chỗ bản
-				#    lọc theo gross làm lệch số dòng và chặn ngay lúc ghi sổ.
-				b0 = _hoa_don(hom_qua, gia=(1000000, 1000), chiet_khau=1000999)
-				# c. dòng thường nhiều đơn vị: số lượng phải đi đúng, không gộp.
-				c0 = _hoa_don(hom_qua, gia=(50000, 30000), sl=[3, 2])
 				co_gross_0 = False
-				for nhan_ca, hd_ca, so_dong_mong in (('a amount=0', a0, 1),
-						('b gross=0 sau chiết khấu', b0, 2), ('c nhiều đơn vị', c0, 2)):
+				# MOI CA MOT TO, VA DON SACH TRUOC KHI TAO.
+				#
+				# Vong CI truoc do o day ("contract a amount=0: 2 != 1"):
+				# _phat_hanh_theo_lo phat hanh MOI to chua co hoa don cua ngay
+				# do, nen gui[-1] khong chac la to cua ca dang kiem. Nay phat
+				# hanh het phan ton truoc, roi moi tao to cua ca, roi phat hanh
+				# lan nua: dung mot payload moi, khong con doan.
+				for nhan_ca, tao_hd, so_dong_mong in (
+						# a. Dong amount = 0: kich ban bo, ham cung phai bo.
+						('a amount=0', lambda: _hoa_don(hom_qua, gia=(150000, 0)), 1),
+						# b. amount > 0 nhung gross ve 0 sau chiet khau dau phieu:
+						#    kich ban VAN gui, nen ham cung phai giu. Day dung cho
+						#    ban loc theo gross lam lech so dong.
+						('b gross=0 sau chiết khấu',
+							lambda: _hoa_don(hom_qua, gia=(1000000, 1000), chiet_khau=1000999), 2),
+						# c. dong thuong nhieu don vi: so luong phai di dung.
+						('c nhiều đơn vị', lambda: _hoa_don(hom_qua, gia=(50000, 30000), sl=[3, 2]), 2)):
+					ban_hang._phat_hanh_theo_lo(str(hom_qua))
+					hd_ca = tao_hd()
 					frappe.db.set_value('Sales Invoice', hd_ca.name,
 						hddt_cho_xuat.TRUONG_NGAY_XUAT, hom_qua, update_modified=False)
 					truoc = len(gui)
 					ph = ban_hang._phat_hanh_theo_lo(str(hom_qua))
-					if len(gui) - truoc < 1:
-						raise AssertionError('contract %s: khong gui duoc to nao. %s'
-							% (nhan_ca, json.dumps(ph, ensure_ascii=False, default=str)))
+					if len(gui) - truoc != 1:
+						raise AssertionError('contract %s: phai gui dung MOT to, gui %d. %s'
+							% (nhan_ca, len(gui) - truoc,
+								json.dumps(ph, ensure_ascii=False, default=str)))
 					dong_ca = [d for nhom in gui[-1]['data'][0]['details'] for d in nhom['data']]
 					_bang('contract %s đúng số dòng' % nhan_ca, len(dong_ca), so_dong_mong)
 					gross = [so_(d.get('inv_TotalAmount')) for d in dong_ca]
