@@ -24,8 +24,33 @@ const {chromium} = require('playwright');
         p.on('request', r => { if (r.url().includes('/api/method/vagabond.ho_so_tt.danh_sach')) listCalls++; });
         p.on('pageerror', e => loi.push(e.message));
         p.on('response', r => {if (r.url().includes('/api/') && r.status() >= 400) loi.push('API ' + r.status());});
+        const opening = p.waitForResponse(r => r.url().includes('/api/method/vagabond.ho_so_tt.danh_sach'))
+          .then(r => ({r}), e => ({e}));
         await p.goto(goc + '/ho-so-thanh-toan');
         await p.locator('#hsTimO').waitFor();
+        const loaded = await opening;
+        if (loaded.e) throw loaded.e;
+        const initial = (await loaded.r.json()).message;
+        if (!loaded.r.ok() || !Array.isArray(initial?.rows)) throw new Error('Thiếu dữ liệu mở màn');
+        const states = [...new Set(initial.rows.map(r => r.trang_thai))];
+        if (states.length < 2) throw new Error('Fixture chưa có nhiều trạng thái để kiểm chip');
+        for (const status of [...states, '']) {
+          const expected = initial.rows.filter(r => !status || r.trang_thai === status);
+          const before = listCalls;
+          const oldInput = await p.locator('#hsTimO').elementHandle();
+          await p.locator('[data-hstt="' + status + '"]').click();
+          await p.waitForFunction(o => !o.isConnected, oldInput);
+          await oldInput.dispose();
+          const shown = await p.locator('[data-hs]').evaluateAll(rows => rows.map(r => r.getAttribute('data-hs')).sort());
+          if (JSON.stringify(shown) !== JSON.stringify(expected.map(r => r.name).sort()) || listCalls !== before)
+            throw new Error('Chip nhiều trạng thái sai tập hoặc gọi lại API');
+          const summary = p.locator('.card').filter({hasText: 'TỔNG THEO BỘ LỌC'});
+          const count = await summary.locator('span').first().innerText();
+          const total = await summary.locator('b').first().innerText();
+          const amount = Math.round(expected.reduce((n, r) => n + Number(r.tong_tien || 0), 0));
+          if (count !== expected.length + ' hồ sơ' || total !== amount.toLocaleString('vi-VN') + ' đ')
+            throw new Error('Chip nhiều trạng thái sai số hồ sơ/tổng tiền');
+        }
         for (const [tu, ids] of [[f.tu_khoa, f.ten], [f.tim_ma, [f.tim_ma]]]) {
           const cu = await p.locator('#hsTimO').elementHandle();
           const doi = p.waitForResponse(r => r.url().includes('/api/method/vagabond.ho_so_tt.danh_sach'))
