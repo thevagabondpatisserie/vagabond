@@ -244,8 +244,18 @@ def chay():
 					'da_gui': len(gui) - truoc})
 
 				# ---------------------------------------------- F2 hàng rào ở cửa chung
-				# Còn tờ ngày cũ đang chờ (tờ kep), tờ của HÔM NAY phải bị chặn
-				# ngay tại kiem_goi, tức là mọi đường phát hành đều bị chặn.
+				# Dựng LẠI tình huống còn tờ ngày cũ đang chờ. Đoạn F1 vòng 3
+				# ngay trên vừa gỡ cờ VÀ phát hành tờ kep, nên tới đây không
+				# còn ngày cũ nào nợ nữa; lần chạy CI trước đã đỏ đúng vì thế
+				# ("F2 tờ hôm nay bị chặn: False != True"), và hàng rào KHÔNG
+				# chặn là hoàn toàn đúng khi không còn gì để nhường. Ca kiểm
+				# phải tự dựng đủ điều kiện của mình, đừng thừa hưởng trạng
+				# thái của đoạn trước.
+				no = _hoa_don(hom_qua)
+				frappe.db.set_value('Sales Invoice', no.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
+					hom_qua, update_modified=False)
+				_bang('F2 dựng được nợ ngày cũ', str(hom_qua) in [
+					str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()], True)
 				moi = _hoa_don(hom_nay)
 				truoc = len(gui)
 				chan_duoc = False
