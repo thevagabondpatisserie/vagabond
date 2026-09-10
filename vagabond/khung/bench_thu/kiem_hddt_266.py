@@ -313,31 +313,53 @@ def chay():
 				kq['phan'].append({'ten': 'F4 ngày lập hiệu lực', 'dat': True})
 
 				# ---------------------------------------------- backlog
-				# Dọn hết nợ ngày cũ thì tờ hôm nay đi được, không còn bị chặn.
-				# Dọn bằng cách xoá trường, ĐÚNG như Codex đề nghị.
+				# CO LAP FIXTURE F4 TRUOC, day la cho hai vong CI da do ma khong
+				# hieu vi sao (SHA d849381 va 8fc53c1: "rut can 0 != 1").
 				#
-				# VIỆC CHƯA LÀM, ghi thẳng đây để người sau không tưởng là đã có:
-				# đoạn này KHÔNG chứng minh đường rút cạn (xuat_ngay_cu_truoc)
-				# có thật sự phát hành được tờ ngày cũ hay không. Đã thử cho ca
-				# kiểm gọi thẳng hàm ấy (SHA d849381 và 8fc53c1), cả hai vòng CI
-				# đều trả về 0 tờ được gửi mà chưa tìm ra vì sao; hai giả thiết
-				# đã loại: thiếu công tắc phát hành, và tên khách không dấu.
-				# Đường rút cạn chính là đường phải chạy để cứu 117 tờ 09/09,
-				# nên nó cần một ca kiểm riêng, đừng để trôi.
-				for ten in (kep.name, keo.name, no.name):
-					frappe.db.set_value('Sales Invoice', ten, hddt_cho_xuat.TRUONG_NGAY_XUAT,
-						None, update_modified=False)
-				frappe.db.set_value('Sales Invoice', keo.name, 'custom_hddt_so', '', update_modified=False)
-				frappe.db.set_value('Sales Invoice', keo.name, 'custom_minvoice_id', '', update_modified=False)
+				# F4 vua dat to keo mang custom_hddt_so 99999 va ngay lap HOM
+				# NAY. To do la to mang so lon nhat, nen _ngay_so_hddt_moi_nhat
+				# tra ve hom nay, va cua cua HOM QUA coi nhu da dong. Luc do
+				# xuat_ngay_cu_truoc KHONG lam gi la HOAN TOAN DUNG: cua dong
+				# roi thi khong con gi de nhuong. Ca kiem do vi fixture cua doan
+				# truoc, khong phai vi duong rut can hong.
+				# Dung fixture cua doan truoc lam nen cho doan sau la dung cai
+				# bay dieu 15. Nay tra to keo ve trang thai chua co hoa don de
+				# cua hom qua mo lai, roi moi kiem duong rut can.
+				for truong in ('custom_hddt_so', 'custom_minvoice_id'):
+					frappe.db.set_value('Sales Invoice', keo.name, truong, '', update_modified=False)
+				frappe.db.set_value('Sales Invoice', keo.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
+					None, update_modified=False)
+				_bang('backlog: cua hom qua mo lai sau khi co lap F4',
+					hddt_cho_xuat.cua_con_mo(hom_qua, hom_nay, ban_hang._ngay_so_hddt_moi_nhat()), True)
+				_bang('backlog: van con no ngay cu de rut can',
+					str(hom_qua) in [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()], True)
+
+				# Gio moi kiem duoc DUONG RUT CAN that: hang rao day ham nay
+				# sang hang doi, luot do phai phat hanh het to ngay cu roi to
+				# hom nay mai di duoc. Day la duong se chay de cuu 117 to 09/09.
+				truoc = len(gui)
+				het_no = hddt_cho_xuat.xuat_ngay_cu_truoc()
+				if len(gui) - truoc != 1:
+					raise AssertionError('rut can: to ngay cu da duoc phat hanh: %d != 1; '
+						'ngay cu con lai = %r; ngay so moi nhat = %s'
+						% (len(gui) - truoc, [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()],
+							ban_hang._ngay_so_hddt_moi_nhat()))
+				_bang('rút cạn xong thì báo hết nợ', het_no, True)
+				_bang('rút cạn: tờ ngày cũ mang đúng ngày bán',
+					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_qua))
+
+				# Don not dau vet cua to kep (da co hoa don tu doan F1 vong 3).
+				frappe.db.set_value('Sales Invoice', kep.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
+					None, update_modified=False)
 				con = [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()]
 				if con:
-					raise AssertionError('backlog chua rong sau khi don: %r' % con)
+					raise AssertionError('backlog chua rong sau khi rut can: %r' % con)
 				truoc = len(gui)
 				ban_hang.xuat_hoa_don_dien_tu(moi.name)
 				_bang('hết nợ thì tờ hôm nay đi được', len(gui) - truoc, 1)
 				_bang('ngày lập của tờ hôm nay', gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_nay))
-				kq['phan'].append({'ten': 'backlog rỗng thì thông', 'dat': True,
-					'chua_kiem': 'duong rut can xuat_ngay_cu_truoc chua co ca kiem'})
+				kq['phan'].append({'ten': 'backlog rút cạn rồi mới thông', 'dat': True,
+					'da_gui_ngay_cu': 1})
 
 				kq['dat'] = True
 			finally:
