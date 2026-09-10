@@ -84,21 +84,46 @@ def _ma_thue():
 	dung("kiểu int", all(type(x["ma_thue"]) is int for x in goi["details"][0]["data"]))
 
 
-@ca("#266: mã hàng gộp gửi số lượng 1 được nhận, số lượng khác thì dừng")
+@ca("#266: mã hàng gộp ĐÃ KHAI gửi số lượng 1 được nhận, số lượng khác thì dừng")
 def _gop():
 	si = _phieu_01648()
 	si["items"][2]["qty"] = 3
 	goi = _goi_kich_ban(si)
 	goi["details"][0]["data"][1]["inv_quantity"] = 1
-	chuan_tien(si, goi)
+	chuan_tien(si, goi, ["DVBH00001"])
 	la("đơn giá tính trên số lượng gửi", goi["details"][0]["data"][1]["inv_unitPrice"], float(goi["details"][0]["data"][1]["inv_TotalAmountWithoutVat"]))
 	goi["details"][0]["data"][1]["inv_quantity"] = 2
 	try:
-		chuan_tien(si, goi)
+		chuan_tien(si, goi, ["DVBH00001"])
 	except ValueError:
 		pass
 	else:
 		dung("số lượng 2 khác 3 phải từ chối", False)
+
+
+@ca("#266 vòng 2 (F5): món KHÔNG khai gộp mà gửi số lượng 1 thì phải chặn")
+def _gop_chua_khai():
+	# Tái hiện đúng finding của Codex: trước sửa, payload hỏng của một món
+	# thường ba cái vẫn qua cửa cuối và ra tờ ghi một cái, đơn giá 277.778
+	# thay vì 92.593.
+	ds = tinh_dong([300000], [8], True)
+	si = {"name": "X", "posting_date": "2026-09-09", "vgb_thue_vnd": 1,
+		"items": [{"idx": 1, "name": "1", "item_code": "BANH-THUONG", "qty": 3, "net_amount": ds[0]["net"]}],
+		"taxes": [{"name": "T", "idx": 1, "tax_amount_after_discount_amount": ds[0]["vat"]}],
+		"net_total": ds[0]["net"], "total_taxes_and_charges": ds[0]["vat"], "grand_total": 300000,
+		"item_wise_tax_details": [{"item_row": "1", "tax_row": "T", "rate": 8, "amount": ds[0]["vat"]}]}
+	for ma_gop in (None, [], ["DVBH00001"], [""]):
+		goi = {"details": [{"data": [{"inv_itemCode": "BANH-THUONG", "inv_quantity": 1, "ma_thue": 8}]}]}
+		try:
+			chuan_tien(si, goi, ma_gop)
+		except ValueError:
+			pass
+		else:
+			dung("ma_gop=%r phải chặn" % (ma_gop,), False)
+	# Khai đúng mã đó thì mới được, và khai chữ thường vẫn nhận.
+	goi = {"details": [{"data": [{"inv_itemCode": "BANH-THUONG", "inv_quantity": 1, "ma_thue": 8}]}]}
+	chuan_tien(si, goi, ["banh-thuong"])
+	la("khai rồi thì qua", goi["details"][0]["data"][0]["inv_quantity"], 1)
 
 
 @ca("#266: payload thiếu hay thừa dòng có tiền, hay sai mã, vẫn bị chặn")
@@ -200,11 +225,43 @@ def _hom_nay():
 
 @ca("#266: gỡ cờ đối chiếu chỉ khi m-invoice trả lời không có dấu vết tờ")
 def _go_co():
-	dung("không có tờ", hddt_cho_xuat.minvoice_khong_co_to({"code": "01", "message": "not found", "data": None}))
-	dung("có số hoá đơn thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceNumber": "12950"}}))
-	dung("có ID thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceAuth_id": "x"}}))
-	dung("lỗi mạng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(None))
-	dung("chuỗi lạ thì giữ", not hddt_cho_xuat.minvoice_khong_co_to("<html>"))
+	kc = dict(da_kiem_chung=True)
+	dung("không có tờ", hddt_cho_xuat.minvoice_khong_co_to({"code": "01", "message": "not found", "data": None}, **kc))
+	dung("có số hoá đơn thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceNumber": "12950"}}, **kc))
+	dung("có ID thì giữ", not hddt_cho_xuat.minvoice_khong_co_to({"code": "00", "data": {"inv_invoiceAuth_id": "x"}}, **kc))
+	dung("lỗi mạng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(None, **kc))
+	dung("chuỗi lạ thì giữ", not hddt_cho_xuat.minvoice_khong_co_to("<html>", **kc))
+
+
+@ca("#266 vòng 2 (F1): phản hồi LỖI dạng dict không được coi là không có tờ")
+def _go_co_loi():
+	# Tái hiện finding: trước sửa, cả bốn phản hồi dưới đây đều cho gỡ cờ,
+	# nên tờ đã có hoá đơn bị gửi lại và sinh hoá đơn đúp.
+	for ph in ({"code": "500", "message": "internal error"},
+			{"code": "401", "message": "Unauthorized"},
+			{"code": "503", "message": ""},
+			{"message": "System error, please try again"},
+			{"code": "00", "message": "Token expired"}):
+		dung("phải giữ cờ với %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, da_kiem_chung=True))
+	# Phản hồi không có hình dạng của API cũng không kết luận được.
+	for ph in ({}, {"linh": "tinh"}):
+		dung("phản hồi lạ phải giữ cờ %s" % ph, not hddt_cho_xuat.minvoice_khong_co_to(ph, da_kiem_chung=True))
+
+
+@ca("#266 vòng 2 (F1): chưa đối chứng được API thì không gỡ cờ tờ nào")
+def _go_co_chua_kiem_chung():
+	sach = {"code": "01", "message": "not found", "data": None}
+	dung("chưa kiểm chứng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(sach))
+	dung("kiểm chứng rồi mới gỡ", hddt_cho_xuat.minvoice_khong_co_to(sach, da_kiem_chung=True))
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	i = h.find("def chay_nen(")
+	than = h[i:h.find("\ndef ", i + 10)]
+	dung("chay_nen đối chứng API trước khi hỏi từng tờ", "kiem_chung_api(base, hdr)" in than)
+	dung("và truyền kết quả đối chứng vào từng lượt hỏi",
+		"_tra_minvoice(base, hdr, r.name, da_kiem_chung)" in than)
+	kc = h[h.find("def kiem_chung_api("):]
+	dung("mẫu đối chứng là tờ CHẮC CHẮN đã có hoá đơn",
+		'"custom_hddt_so": ["!=", ""]' in kc and '"custom_minvoice_id": ["!=", ""]' in kc)
 
 
 @ca("#266: chip cùng câu chữ giữa máy chủ và app")
@@ -309,8 +366,108 @@ def _hang_rao():
 	i = h.find("def chay_nen(")
 	than_nen = h[i:h.find("\ndef ", i + 10)]
 	vi_rao = than_nen.find("xuat_ngay_cu_truoc()")
-	dung("lượt hôm nay nhường ngày cũ trước", vi_rao >= 0 and "if ngay_cu >= hom_nay:" in than_nen)
+	dung("lượt hôm nay nhường ngày cũ trước",
+		vi_rao >= 0 and "if ngay_cu >= hom_nay and not xuat_ngay_cu_truoc():" in than_nen)
 	dung("nhường trước khi phát hành", vi_rao < than_nen.find("_phat_hanh_theo_lo("))
+
+
+@ca("#266 vòng 2 (F2): hàng rào nằm ở CỬA CHUNG, mọi đường phát hành đều qua")
+def _cua_chung_hang_rao():
+	# Codex bắt đúng: chốt đơn tay và chốt cả loạt cũng phát hành ngay sau
+	# khi ghi sổ, không đi qua hai nhịp lịch. Cửa chung là kiem_goi.
+	m = _doc("vagabond", "minvoice_an_toan.py")
+	i = m.find("def kiem_goi(")
+	than = m[i:]
+	vi_rao = than.find("hddt_cho_xuat.chan_neu_con_ngay_cu(si)")
+	dung("kiem_goi gọi hàng rào", vi_rao >= 0)
+	dung("gọi TRƯỚC khi dựng payload", vi_rao < than.find("chuan_goi(si,"))
+	# Hai cửa tay đi tới kiem_goi qua _tu_xuat_hddt -> xuat_hoa_don_dien_tu.
+	b = _doc("vagabond", "ban_hang.py")
+	for ham in ("chot_mot_don", "chot_doanh_so"):
+		i = b.find("def %s(" % ham)
+		dung(ham + " phát hành qua _tu_xuat_hddt", "_tu_xuat_hddt(" in b[i:b.find("\ndef ", i + 10)])
+	i = b.find("def _tu_xuat_hddt(")
+	dung("_tu_xuat_hddt đi qua xuat_hoa_don_dien_tu",
+		"xuat_hoa_don_dien_tu(" in b[i:b.find("\ndef ", i + 10)])
+	i = b.find("def xuat_hoa_don_dien_tu(")
+	dung("xuat_hoa_don_dien_tu đi qua kiem_goi",
+		"minvoice_an_toan.kiem_goi(" in b[i:b.find("\ndef ", i + 10)])
+	# Server Script phát hành cũng gọi đúng cửa đó.
+	k = _doc("vagabond", "minvoice_kich_ban.py")
+	dung("Server Script gọi kiem_goi", "vagabond.minvoice_an_toan.kiem_goi" in k)
+
+
+@ca("#266 vòng 2 (F2): phép nhường, kèm van an toàn khi ngày cũ không xuất được")
+def _phep_nhuong():
+	ds = ["2026-09-09"]
+	hn = D(2026, 9, 10)
+	# Tờ của hôm nay: phải nhường.
+	phai, ngay, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 8))
+	dung("tờ hôm nay phải nhường", phai and ngay == [D(2026, 9, 9)])
+	# Chính tờ ngày cũ thì được đi, không thì bế tắc.
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 9), hn, ds, D(2026, 9, 8))
+	dung("tờ ngày cũ được đi", not phai)
+	# Cửa ngày cũ đã đóng thì không nhường nữa, nhường cũng vô ích.
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 10))
+	dung("cửa đã đóng thì thôi", not phai)
+	# Không còn ngày cũ nào chờ.
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, [], None)
+	dung("không nợ thì đi", not phai)
+	# Van an toàn: vừa thử mà không xuất được tờ nào thì tạm mở.
+	bay_gio = datetime.datetime(2026, 9, 10, 23, 10)
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 8),
+		moc_loi=datetime.datetime(2026, 9, 10, 23, 5), bay_gio=bay_gio)
+	dung("van mở trong 15 phút sau lần thử hỏng", not phai)
+	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(hn, hn, ds, D(2026, 9, 8),
+		moc_loi=datetime.datetime(2026, 9, 10, 22, 50), bay_gio=bay_gio)
+	dung("quá 15 phút thì chặn lại", phai)
+
+
+@ca("#266 vòng 2 (F3): không lấy được khoá là CÒN NỢ, không cho tờ hôm nay đi")
+def _fail_closed():
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	i = h.find("def xuat_ngay_cu_truoc(")
+	than = h[i:h.find("\ndef ", i + 10)]
+	j = than.find("khoa = _khoa_hddt(")
+	dung("có lấy khoá", j >= 0)
+	sau = than[j:j + 400]
+	dung("không lấy được khoá thì trả False", "if khoa is None:" in sau and "return False" in sau)
+	dung("hỏng giữa chừng cũng trả False", than.rstrip().endswith("return False"))
+	dung("đọc lại danh sách sau khi chạy, không tin con số vừa gộp",
+		"return not ngay_cu_con_mo(ngay_cu_dang_cho()" in than)
+	b = _doc("vagabond", "ban_hang.py")
+	for ham in ("tu_ghi_so_cuoi_ngay", "xuat_rai_trong_ngay"):
+		i = b.find("def %s(" % ham)
+		than_b = b[i:b.find("\ndef ", i + 10)]
+		dung(ham + " đọc trạng thái hàng rào chứ không gọi rồi đi tiếp",
+			"if not hddt_cho_xuat.xuat_ngay_cu_truoc():" in than_b)
+
+
+@ca("#266 vòng 2 (F4): cửa mở hay đóng đọc theo NGÀY LẬP, không phải ngày sổ")
+def _ngay_lap_hieu_luc():
+	b = _doc("vagabond", "ban_hang.py")
+	i = b.find("def _ngay_so_hddt_moi_nhat(")
+	than = b[i:b.find("\ndef ", i + 10)]
+	dung("SQL lấy ngày lập hiệu lực",
+		"coalesce(vgb_hddt_ngay_xuat, posting_date)" in than)
+	dung("vẫn có đường lui khi cột chưa dựng", than.count("select posting_date from") == 1)
+	# Ca thật của Codex: tờ mang số lớn nhất có ngày sổ 09/09 nhưng ngày lập
+	# 10/09. Đọc đúng ngày lập thì cửa 09/09 phải là ĐÃ ĐÓNG.
+	dung("đọc ngày lập 10/09 thì cửa 09/09 đóng",
+		not hddt_cho_xuat.cua_con_mo(D(2026, 9, 9), D(2026, 9, 10)))
+	la("và chế độ đề xuất chuyển sang kéo",
+		hddt_cho_xuat.che_do_de_xuat(D(2026, 9, 9), D(2026, 9, 10), D(2026, 9, 10)), "keo")
+
+
+@ca("#266 vòng 2: bench qua Server Script với HTTP giả đã đăng ký vào runner CI")
+def _bench_dang_ky():
+	b = _doc("vagabond", "khung", "bench_thu", "kiem_hddt_266.py")
+	for moc in ("execute_method", "make_get_request", "make_post_request",
+			"_khoa_hddt", "ngay_cu_dang_cho", "vagabond_bench_thu"):
+		dung("bench có " + moc, moc in b)
+	ci = _doc("vagabond", "khung", "bench_thu", "chay_ci.py")
+	dung("runner gọi bench #266", "kiem_hddt_266 import chay as chay_hddt266" in ci)
+	dung("và kết quả bench #266 quyết định job", 'bool(kq266.get("dat"))' in ci)
 
 
 @ca("#266: cửa chỉ mở ra ngoài đúng một hàm, phần chạy nền là nội bộ")
