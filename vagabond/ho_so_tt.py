@@ -271,12 +271,13 @@ def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0, tu_khoa=""):
 		order_by="due_date asc, posting_date asc",
 		limit_page_length=0,
 	)
-	da_gom = _hd_da_gom()
+	from vagabond.phan_bo_app import dang_giu
+	da_gom = dang_giu()
 	hom_nay = getdate(nowdate())
 	q = (tu_khoa or "").strip().lower()
 	ra = []
 	for r in ds:
-		if r.name in da_gom:
+		if flt(r.outstanding_amount) <= float(da_gom.get(r.name, 0)):
 			continue
 		tre = (hom_nay - getdate(r.due_date)).days if r.due_date else 0
 		if cint(chi_qua_han) and tre <= 0:
@@ -300,6 +301,8 @@ def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0, tu_khoa=""):
 			"tre_ngay": tre if tre > 0 else 0,
 			"tong_hd": flt(r.grand_total),
 			"con_no": flt(r.outstanding_amount),
+			"dang_giu": float(da_gom.get(r.name, 0)),
+			"co_the_chi": max(0, flt(r.outstanding_amount) - float(da_gom.get(r.name, 0))),
 		})
 	return {
 		"rows": ra,
@@ -333,7 +336,8 @@ def ds_ncc_chon(so_ngay=365):
 	_kiem(VAI_LAP, "xem công nợ phải trả")
 	moc = add_days(nowdate(), -int(cint(so_ngay) or 365))
 	hom_nay = getdate(nowdate())
-	da_gom = _hd_da_gom()
+	from vagabond.phan_bo_app import dang_giu
+	da_gom = dang_giu()
 	gom = {}
 
 	def o_cua(ma, ten):
@@ -354,14 +358,15 @@ def ds_ncc_chon(so_ngay=365):
 		o = o_cua(r.supplier, r.supplier_name)
 		o["no_ghi_so"] += flt(r.outstanding_amount)
 		o["so_hd_no"] += 1
-		if r.name in da_gom:
+		co_the_chi = max(0, flt(r.outstanding_amount) - float(da_gom.get(r.name, 0)))
+		if not co_the_chi:
 			continue
 		if r.posting_date and str(r.posting_date) < str(moc):
 			continue
-		o["lap_duoc_tien"] += flt(r.outstanding_amount)
+		o["lap_duoc_tien"] += co_the_chi
 		o["lap_duoc_so"] += 1
 		if r.due_date and getdate(r.due_date) < hom_nay:
-			o["qua_han_tien"] += flt(r.outstanding_amount)
+			o["qua_han_tien"] += co_the_chi
 
 	for r in frappe.get_all(
 		"Purchase Invoice",
@@ -576,7 +581,11 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		if flt(hd.outstanding_amount) <= 0:
 			frappe.throw("Hoá đơn %s đã trả xong rồi." % ma)
 		ncc_thay.add(hd.supplier)
-		so_tien = flt(x.get("so_tien")) if isinstance(x, dict) and x.get("so_tien") else flt(hd.outstanding_amount)
+		from vagabond.phan_bo_app import tien_hop_le
+		try:
+			so_tien = float(tien_hop_le(x["so_tien"] if isinstance(x, dict) and "so_tien" in x else hd.outstanding_amount))
+		except ValueError as exc:
+			frappe.throw("Hoá đơn %s: %s" % (ma, exc))
 		# PHIEU THANH TOAN NOI BO NOI VAO DAY CHI LA CHUNG TU, KHONG PHAI TIEN.
 		#
 		# Anh Viet chot 04/09/2026. Man hoan ung CO hoa don lay so tien theo
@@ -2395,6 +2404,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 			)
 		pe = ", ".join(kq["ten"])
 	else:
+		from vagabond.phan_bo_app import kiem as kiem_phan_bo
+		kiem_phan_bo(doc.dong, doc.name)
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
 		# Doc lai chinh cai vua sinh va doi chieu ke hoach mot lan nua. Ca kiem
 		# nay re, va no bat duoc truong hop hook tang duoi sua but toan sau
@@ -4998,36 +5009,9 @@ def ho_so_dang_giu(ds_hoa_don, tru_ho_so=""):
 
 
 def _chan_hoa_don_trung(dong, tru_ho_so=""):
-	"""Ném lỗi nếu một hoá đơn đã nằm trong hồ sơ khác còn sống.
-
-	VÌ SAO CHẶN CỨNG CHỨ KHÔNG CHỈ CẢNH BÁO
-	----------------------------------------
-	Hai hồ sơ cùng chứa một hoá đơn thì cùng đi qua hai cấp duyệt và cùng
-	được chuyển tiền, vì mỗi hồ sơ nhìn riêng ra đều hợp lệ. Không ai đối
-	chiếu chéo giữa các hồ sơ bằng mắt. Sai này chỉ lộ khi nhà cung cấp báo
-	thừa tiền, hoặc không lộ.
-
-	Giao dịch SePay đã có chốt cùng kiểu từ trước (`Giao dịch %s đã nằm
-	trong hồ sơ %s`), hoá đơn thì chưa - đây là chỗ trống, không phải quyết
-	định có chủ đích.
-
-	Hồ sơ Từ chối và Huỷ KHÔNG chặn: hoá đơn trong đó phải dùng lại được,
-	nếu không thì một lần lập nhầm là hoá đơn kẹt vĩnh viễn.
-	"""
-	ds = [str((x or {}).get("hoa_don") or "").strip() for x in (dong or [])]
-	giu = ho_so_dang_giu([x for x in ds if x], tru_ho_so)
-	if not giu:
-		return
-	dong_loi = "\n".join(
-		"  · Hoá đơn %s đã nằm trong hồ sơ %s (%s)"
-		% (hd, o[0][0], NHAN.get(o[0][1], o[0][1]))
-		for hd, o in sorted(giu.items())
-	)
-	frappe.throw(
-		"Không lập được hồ sơ: có hoá đơn đang nằm ở hồ sơ khác.\n\n%s\n\n"
-		"Trả tiền hai lần cho một hoá đơn thì rất khó đòi lại. Gỡ hoá đơn đó "
-		"ra khỏi hồ sơ này, hoặc huỷ hồ sơ kia trước." % dong_loi
-	)
+	"""Giữ tên cửa cũ cho mọi đường lập hồ sơ, kiểm theo số tiền."""
+	from vagabond.phan_bo_app import kiem
+	kiem(dong, tru_ho_so)
 
 
 def _chan_thieu_chung_tu(dong):

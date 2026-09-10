@@ -262,6 +262,8 @@ def dung():
 	from vagabond import lan_nhan
 
 	_dung_nhom(lan_nhan.TRUONG_MOI, "lan_nhan")
+	from vagabond import coc_app
+	_dung_nhom(coc_app.TRUONG_MOI, "coc_app")
 	# O chua cau hinh tai khoan nhan chuyen khoan theo diem ban. Doc dau
 	# tai_khoan.TRUONG_MOI de biet vi sao o nay tung mat hai lan.
 	from vagabond import tai_khoan
