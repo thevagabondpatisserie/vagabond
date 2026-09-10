@@ -64,7 +64,7 @@ def _cau_hinh(ma_gop=''):
 	st = frappe.get_doc('MInvoice Phat Hanh Settings')
 	_bang('base phat hanh doc lai', st.api2_base, 'https://minvoice.invalid')
 	_bang('nguon doc lai', st.nguon, 'Pancake')
-	_bang('cong tac phat hanh bat', int(st.enabled or 0), 1)
+	_bang('cong tac phat hanh bat', int(st.get('enabled') or 0), 1)
 
 
 def _hoa_don(ngay, gia=(150000, 70000), ghi_so=True):
