@@ -1167,6 +1167,30 @@ async function chayHet() {
     dung('khong gui so am len may chu', JSON.parse(tao[0].ts.hoa_don)[0].so_tien > 0);
   });
 
+  await caAsync('APP247 P1 vong 2: cham nhan, don vi va chip lech khong bo tick hay mat phieu', async function () {
+    var m = dungMan(canhChi({ nccChon: NCC_NO,
+      supplier: { 'NCC-1': { supplier_name: 'NCC thử', disabled: 0 } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        so_hd_ncc: '123', con_no: 7000000, co_the_chi: 7000000 }] } }));
+    m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
+    await m.g.scrHoSoTTTao();
+    m.tai.querySelector('[data-hstick]').click(); await choVeLai(m);
+    var o = m.tai.querySelector('[data-hstien]');
+    o.value = '3000000'; o.dispatchEvent(dg.suKien('input', {}, o));
+    m.g.hsPhieuCua['HD-1'] = 'PHIEU-1';
+    var soLanGo = m.daGo.length;
+    var vung = [o.closest('.otd').querySelector('.lb'), o.closest('.otd').querySelector('.dv'),
+      m.tai.querySelector('[data-hslech]')];
+    vung.forEach(function (n) {
+      n.click();
+      bang('cham trong khoi tien van giu 3 trieu', m.g.hsTaoChon['HD-1'].so_tien, 3000000);
+      bang('cham trong khoi tien van giu phieu noi bo', m.g.hsPhieuCua['HD-1'], 'PHIEU-1');
+      bang('cham trong khoi tien khong ve lai man', m.daGo.length, soLanGo);
+    });
+    m.tai.getElementById('hsChonHet').click(); await choVeLai(m);
+    bang('Chon het khong ghi de so da go tay', m.g.hsTaoChon['HD-1'].so_tien, 3000000);
+  });
+
   await caAsync('APP247: chi cong ty gui so tien tung dot thay vi ca hoa don', async function () {
     var m = dungMan(canhChi({ supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
       hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
@@ -1192,6 +1216,25 @@ async function chayHet() {
     var tao = m.goiApi.filter(function (r) { return r.duong === 'vagabond.ho_so_tt.tao'; });
     bang('mot lan tao', tao.length, 1);
     bang('payload2 trieu', JSON.parse(tao[0].ts.hoa_don)[0].so_tien, 2000000);
+  });
+
+  await caAsync('APP247 P1 vong 2: Chi cong ty cham moi vung o tien khong bo tick', async function () {
+    var m = dungMan(canhChi({ supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
+      hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
+        con_no: 10000000, co_the_chi: 7000000, dang_giu: 3000000 }] } }));
+    m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
+    await m.g.scrChiCongTyTao();
+    m.tai.querySelector('[data-huhd]').click(); await choVeLai(m);
+    var o = m.tai.querySelector('[data-hucttien]');
+    o.value = '2000000'; o.dispatchEvent(dg.suKien('input', {}, o));
+    var soLanGo = m.daGo.length;
+    var vung = [o.closest('.otd').querySelector('.lb'), o.closest('.otd').querySelector('.dv'),
+      m.tai.querySelector('[data-hulech]')];
+    vung.forEach(function (n) {
+      n.click();
+      bang('Chi cong ty van giu 2 trieu', m.g.huChonHd['HD-1'], 2000000);
+      bang('Chi cong ty khong ve lai man khi cham o tien', m.daGo.length, soLanGo);
+    });
   });
 
   await caAsync('APP247 UX: man chon sao ke hoan ung dung checkbox that va mau chon chung', async function () {

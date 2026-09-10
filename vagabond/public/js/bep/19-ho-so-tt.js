@@ -1281,7 +1281,7 @@ async function scrHoSoTTTao() {
   vgbNoiOTim(b, 'hsHdTim', '[data-hsh]');
   b.addEventListener('click', function (e) {
     if (e.target.closest('[data-hstick]') || e.target.closest('[data-hshet]') ||
-        e.target.closest('[data-hsbth]') || e.target.closest('[data-hstien]')) return;
+        e.target.closest('[data-hsbth]') || e.target.closest('.otd')) return;
     var r = e.target.closest('[data-hsh]'); if (!r) return;
     var ma = r.getAttribute('data-hsh');
     if (hsTaoChon[ma]) { delete hsTaoChon[ma]; delete hsPhieuCua[ma]; }
@@ -1303,7 +1303,12 @@ async function scrHoSoTTTao() {
     return rows.filter(function (r) { return ma[r.hoa_don]; });
   };
   var g1 = document.getElementById('hsChonHet');
-  if (g1) g1.onclick = function () { dangHien().forEach(ghiChon); go(scrHoSoTTTao, true); };
+  if (g1) g1.onclick = function () {
+    /* Chọn hết chỉ thêm dòng CHƯA chọn. Dòng đã chọn có thể vừa được sửa
+       số tiền đợt này; ghiChon lại sẽ âm thầm đưa nó về mức tối đa. */
+    dangHien().forEach(function (r) { if (!hsTaoChon[r.hoa_don]) ghiChon(r); });
+    go(scrHoSoTTTao, true);
+  };
   var g2 = document.getElementById('hsChonQH');
   if (g2) g2.onclick = function () { hsTaoChon = {}; hsPhieuCua = {}; dangHien().forEach(function (r) { if (r.tre_ngay > 0) ghiChon(r); }); go(scrHoSoTTTao, true); };
   var gV = document.getElementById('hsViSao');
@@ -2096,7 +2101,9 @@ async function scrChiCongTyTao() {
     var r2 = e.target.closest('[data-huhd]');
     if (r2) {
       var ma = r2.getAttribute('data-huhd');
-      if (e.target.closest('[data-hucttien]')) return;
+      /* .otd bọc nhãn, viền ô, đơn vị và cảnh báo lệch. Chạm bất kỳ vùng
+         nào trong khối nhập tiền đều không phải ý định bỏ chọn hoá đơn. */
+      if (e.target.closest('.otd')) return;
       if (e.target.closest('[data-huhdtick]')) e.preventDefault();
       if (huChonHd[ma]) delete huChonHd[ma]; else {
         var hdChon = rows.filter(function (x) { return x.hoa_don === ma; })[0];
@@ -3457,11 +3464,15 @@ async function hsMoCanCoc(ncc, dong, xong) {
   try { ds = await api('vagabond.coc_app.danh_sach', { ncc: ncc }); }
   catch (e) { return baoTin(e.message || 'Chưa đọc được cọc.'); }
   if ((ds.rows || []).length > 8) {
+    /* Callback của sheet có thể bị gọi hai lần trước khi tấm trượt kịp
+       đóng. Dùng chung một khoá cho cả vòng đời sheet, thay vì để mỗi lần
+       gọi hsChonCanCoc tự tạo một object khoá mới. */
+    var khoaChon = { disabled: false, style: {} };
     return sheet('Chọn khoản cọc', ds.rows.map(function (r) {
       return { value: r.name, label: r.name + ' · còn ' + money(r.con_coc) + ' đ',
         phu: r.ngay + (r.can_noi_sao_ke ? ' · cần nối sao kê' : ' · đã nối sao kê'),
         tim: r.name + ' ' + r.ngay };
-    }), '', function (it) { hsChonCanCoc(ncc, dong, xong, ds, it.value); }, true);
+    }), '', function (it) { return hsChonCanCoc(ncc, dong, xong, ds, it.value, khoaChon); }, true);
   }
   var tongChon = dong.reduce(function (a, d) { return a + Number(d.so_tien); }, 0);
   var tongCoc = (ds.rows || []).reduce(function (a, r) { return a + Number(r.con_coc || 0); }, 0);
@@ -3602,12 +3613,6 @@ async function hsChonSaoKeCoc(ncc, pe, xong, ma, nut) {
   if (!(await xacNhan('Nối giao dịch ' + ma + ' với cọc ' + pe + '?', 'Đối chiếu cọc', 'Nối sao kê'))) { hsKhoaDongCoc(nut, false); return; }
   try { await api('vagabond.coc_app.noi_sao_ke_coc', { ncc: ncc, payment_entry: pe, giao_dich: ma }); xong(); }
   catch (err) { hsKhoaDongCoc(nut, false); baoTin(err.message || 'Chưa xác nhận kết quả. Bấm lại kiểm đúng giao dịch đã chọn.'); }
-}
-
-function hsDocTienDot(value) {
-  var s = String(value || '').trim();
-  if (!/^(?:[0-9]+|[0-9]{1,3}(?:\.[0-9]{3})+)$/.test(s)) return NaN;
-  return Number(s.replace(/\./g, ''));
 }
 
 function hsChiaCoc(dong, con) {

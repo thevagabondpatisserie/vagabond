@@ -95,7 +95,7 @@ def _khoa_truoc_await():
 	src = _js("19-ho-so-tt.js")
 	for dau, cuoi in (
 		("async function hsChonCanCoc(", "\nasync function hsThuLaiCanCoc("),
-		("async function hsChonSaoKeCoc(", "\nfunction hsDocTienDot(")):
+		("async function hsChonSaoKeCoc(", "\nfunction hsChiaCoc(")):
 		than = _doan(src, dau, cuoi)
 		dung("khoa truoc xac nhan cua %s" % dau,
 			than.index("hsKhoaDongCoc(nut, true)") < than.index("await xacNhan("))
