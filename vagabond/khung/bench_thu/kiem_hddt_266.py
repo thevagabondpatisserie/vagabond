@@ -189,6 +189,11 @@ def chay():
 				hom_qua = add_days(hom_nay, -1)
 
 				# ------------------------------ F3 vòng 6: hết hạn không khoá ngày sau
+				# Ca này cố ý phát hành một tờ mang ngày hôm nay. Cách ly nó bằng
+				# savepoint riêng để mốc số giả không làm đóng cửa kỹ thuật của
+				# ca F2 độc lập ở cuối file.
+				diem_v6 = 'hddt266_v6_' + frappe.generate_hash(length=6)
+				frappe.db.savepoint(diem_v6)
 				# Tờ ba ngày trước đã hết hạn ký/gửi. Nó phải bị cửa chung chặn
 				# nếu ai cố gửi lùi ngày, nhưng không được khoá tờ hôm qua vẫn
 				# còn hạn. Sau đó chính tờ cũ chỉ đi bằng chế độ kéo sang hôm nay.
@@ -231,6 +236,7 @@ def chay():
 					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_nay))
 				kq['phan'].append({'ten': 'F3 vòng 6 quá hạn không khoá ngày sau', 'dat': True,
 					'chan_dung_cau': cau_loi[:120]})
+				frappe.db.rollback(save_point=diem_v6)
 
 				# ---------------------------------------------- F5 phạm vi phát hành
 				# Dựng ĐÚNG chuỗi thao tác của khách (điều 15): kế toán mở
@@ -479,6 +485,9 @@ def chay():
 					hom_qua, update_modified=False)
 				_bang('F2 dựng được nợ ngày cũ', str(hom_qua) in [
 					str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()], True)
+				_bang('F2 cửa kỹ thuật của ngày cũ còn mở',
+					hddt_cho_xuat.cua_minvoice_con_mo(
+						hom_qua, ban_hang._ngay_so_hddt_moi_nhat()), True)
 				moi = _hoa_don(hom_nay)
 				# xuat_hoa_don_dien_tu con nhieu cua DUNG TRUOC kiem_goi: thieu
 				# ten khach la no dung lai ngay, khong bao gio toi hang rao. Lan
