@@ -15311,6 +15311,8 @@ async function scrPosBill(name) {
         var xacNhan = await confirmSheet('Xóa toàn bộ combo ' + (monXoa.combo_ma_goc || '') + '?',
           'Tất cả món cùng mã combo trên bill sẽ được xóa. Chọn lại combo nếu muốn đổi số bộ.');
         if (!xacNhan || posSua !== suaLucBam) return;
+        viTri = posSua.mon.indexOf(monXoa);
+        if (viTri < 0) return;
       }
       posSua.mon = posBoMonSua(posSua.mon, viTri);
       return go(function () { scrPosBill(name); }, true);
@@ -15331,7 +15333,7 @@ async function scrPosBill(name) {
     }), function (o) {
       if (!o.gia) { toast('Món ' + o.label + ' chưa có giá bán trong danh mục.', 4000); return 0; }
       var vt = -1;
-      posSua.mon.forEach(function (m, k) { if (m.item_code === o.value) vt = k; });
+      posSua.mon.forEach(function (m, k) { if (m.item_code === o.value && m.combo_tien == null) vt = k; });
       if (vt >= 0) { posSua.mon[vt].qty += 1; return posSua.mon[vt].qty; }
       posSua.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia, nhom: o.nhom, tc: [], gc: '' });
       return 1;
