@@ -1049,6 +1049,33 @@ def _doc_no_hong():
 	dung("và tập hẹp chỉ nhận tờ đã ghi sổ", "docstatus = 1" in n)
 
 
+@ca("#266 vòng 6: cửa chung chặn trực tiếp tờ quá hạn, mọi đường gửi đều chịu luật")
+def _cua_chung_chan_qua_han():
+	gia = unittest.mock.MagicMock()
+	def nem(cau):
+		raise ValueError(cau)
+	gia.throw.side_effect = nem
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
+			unittest.mock.patch.object(hddt_cho_xuat, "nowdate", lambda: "2026-09-11"), \
+			unittest.mock.patch.object(hddt_cho_xuat, "getdate", lambda x: D.fromisoformat(str(x))), \
+			unittest.mock.patch.object(hddt_cho_xuat, "ngay_cu_can_bao_ve", lambda: []):
+		try:
+			hddt_cho_xuat.chan_neu_con_ngay_cu({"posting_date": "2026-09-09"})
+		except ValueError as e:
+			dung("tờ 09/09 bị chặn ở cửa chung ngày 11/09", "Cửa pháp lý" in str(e))
+		else:
+			dung("tờ quá hạn phải bị chặn", False)
+		# Cùng tờ đó sau khi đã được người dùng xác nhận kéo sang 11/09 thì
+		# qua chốt pháp lý; không có nợ ngày cũ khác nên hàm trả bình thường.
+		hddt_cho_xuat.chan_neu_con_ngay_cu({"posting_date": "2026-09-09",
+			hddt_cho_xuat.TRUONG_NGAY_XUAT: "2026-09-11"})
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	i = h.find("def chan_neu_con_ngay_cu(")
+	than = h[i:h.find("\ndef ", i + 10)]
+	dung("chốt pháp lý đứng trước lúc đọc và xử nợ ngày khác",
+		than.find("con_trong_han_ky_gui(ngay_to, hom_nay)") < than.find("ngay_cu_can_bao_ve()"))
+
+
 @ca("#266 vòng 2 (F3): không lấy được khoá là CÒN NỢ, không cho tờ hôm nay đi")
 def _fail_closed():
 	h = _doc("vagabond", "hddt_cho_xuat.py")

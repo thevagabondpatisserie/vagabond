@@ -188,11 +188,10 @@ def chay():
 				hom_nay = nowdate()
 				hom_qua = add_days(hom_nay, -1)
 
-				# ------------------------------ F3 vòng 5: chuỗi ngày, chỉ ngày SỚM NHẤT đi
-				# Codex bắt đúng: bản trước miễn cho MỌI tờ mang ngày trước hôm
-				# nay, nên sang ngày kia thì tờ hôm qua vượt được nợ ba ngày
-				# trước và đóng cửa của nó vĩnh viễn. Dựng đúng chuỗi ba ngày
-				# và cho chạy qua CỬA CHUNG thật.
+				# ------------------------------ F3 vòng 6: hết hạn không khoá ngày sau
+				# Tờ ba ngày trước đã hết hạn ký/gửi. Nó phải bị cửa chung chặn
+				# nếu ai cố gửi lùi ngày, nhưng không được khoá tờ hôm qua vẫn
+				# còn hạn. Sau đó chính tờ cũ chỉ đi bằng chế độ kéo sang hôm nay.
 				_cau_hinh(ma_gop='')
 				cu_nhat_ngay = add_days(hom_nay, -3)
 				cu_nhat = _hoa_don(cu_nhat_ngay)
@@ -205,37 +204,32 @@ def chay():
 				# kiem_goi. Ở đây gọi thẳng cửa đó vì kiem_goi còn đòi payload
 				# đã dựng; đoạn F2 bên dưới mới là đường đi đủ từ nút bấm.
 				truoc = len(gui)
-				chan_duoc, cau_loi = False, ''
+				chan_qua_han, cau_loi = False, ''
 				try:
-					hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', giua.name))
+					hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', cu_nhat.name))
 				except Exception as e:
-					cau_loi, chan_duoc = str(e), True
-				if not chan_duoc:
-					raise AssertionError('F3v5 to %s (ngay %s) khong bi chan du con no ngay %s'
-						% (giua.name, hom_qua, cu_nhat_ngay))
-				_bang('F3v5 không gửi tờ nào khi còn ngày sớm hơn', len(gui), truoc)
-				# Chính tờ của ngày nợ sớm nhất thì phải đi được, không thì bế tắc.
-				hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', cu_nhat.name))
-				# Xuất xong ngày sớm nhất thì tới lượt ngày kế tiếp.
-				truoc = len(gui)
-				ra = hddt_cho_xuat.chay_nen(str(cu_nhat_ngay), 'giu_ngay', 'bench')
-				if len(gui) - truoc != 1:
-					raise AssertionError('F3v5 chua xuat duoc ngay som nhat: %d != 1; %s'
-						% (len(gui) - truoc, json.dumps(ra, ensure_ascii=False, default=str)))
-				_bang('F3v5 ngày lập đúng ngày sớm nhất',
-					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(cu_nhat_ngay))
-				con_lai = [str(x) for x in hddt_cho_xuat.ngay_cu_can_bao_ve()]
-				_bang('F3v5 hết nợ ngày sớm nhất', cu_nhat_ngay in con_lai, False)
-				# Giờ tờ hôm qua mới được đi, và đi được thật.
+					cau_loi, chan_qua_han = str(e), 'Cửa pháp lý' in str(e)
+				_bang('F3v6 tờ quá hạn bị chặn ở cửa chung', chan_qua_han, True)
+				_bang('F3v6 chặn trước khi gửi', len(gui), truoc)
+				# Tờ hôm qua không nhường cho nợ đã quá hạn.
 				hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', giua.name))
 				truoc = len(gui)
 				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
 				if len(gui) - truoc != 1:
-					raise AssertionError('F3v5 den luot hom qua van chua di duoc: %d != 1; %s'
+					raise AssertionError('F3v6 hom qua con han ma khong di duoc: %d != 1; %s'
 						% (len(gui) - truoc, json.dumps(ra, ensure_ascii=False, default=str)))
-				_bang('F3v5 ngày lập đúng ngày hôm qua',
+				_bang('F3v6 tờ còn hạn giữ đúng ngày hôm qua',
 					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_qua))
-				kq['phan'].append({'ten': 'F3 vòng 5 chuỗi ngày, sớm nhất đi trước', 'dat': True,
+				# Tờ quá hạn chỉ được kéo ngày lập sang hôm nay.
+				truoc = len(gui)
+				ra = hddt_cho_xuat.chay_nen(str(cu_nhat_ngay), 'keo', 'bench',
+					str(hom_nay), str(hom_nay))
+				if len(gui) - truoc != 1:
+					raise AssertionError('F3v6 to qua han keo sang hom nay khong di duoc: %d != 1; %s'
+						% (len(gui) - truoc, json.dumps(ra, ensure_ascii=False, default=str)))
+				_bang('F3v6 tờ quá hạn mang ngày lập hôm nay',
+					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_nay))
+				kq['phan'].append({'ten': 'F3 vòng 6 quá hạn không khoá ngày sau', 'dat': True,
 					'chan_dung_cau': cau_loi[:120]})
 
 				# ---------------------------------------------- F5 phạm vi phát hành

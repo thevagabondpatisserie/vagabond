@@ -951,13 +951,24 @@ def chan_neu_con_ngay_cu(si):
 
 	Mọi đường phát hành (chuỗi cuối ngày, xuất rải, chốt đơn tay, chốt cả
 	loạt, nhịp bù, Server Script After Submit) đều đi qua kiem_goi, nên đặt
-	ở đây là gom về một nguồn thay vì thêm chỗ nhớ gọi (điều 18).
+	ở đây là gom về một nguồn thay vì thêm chỗ nhớ gọi (điều 18). Cửa này
+	cũng chặn chính tờ đang mang ngày lập đã quá hạn ký/gửi; không chỉ tính
+	thứ tự với các tờ khác.
 
 	#266 vòng 5: đọc tập RỘNG (ngay_cu_can_bao_ve), và KHÔNG đọc được trạng
 	thái nợ thì CHẶN, không đi tiếp. Trước đây mọi lỗi ngoài ValueError đều
 	rơi vào nhánh log rồi return, nên một lần lỗi đọc DB là tờ ngày mới đi
 	lọt và đóng cửa ngày cũ vĩnh viễn.
 	"""
+	hom_nay = getdate(nowdate())
+	ngay_to = ngay_lap(si)
+	if not con_trong_han_ky_gui(ngay_to, hom_nay):
+		frappe.throw(
+			"Cửa pháp lý để phát hành tờ mang ngày %s đã đóng. Theo Nghị định 70/2025/NĐ-CP, "
+			"ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo; hệ thống dùng hạn bảo thủ %s. "
+			"Mở Cài đặt, xem trước và kéo ngày lập sang hôm nay trước khi gửi." % (
+				ngay_vn(ngay_to), ngay_vn(han_ky_gui(ngay_to)))
+		)
 	try:
 		ds = ngay_cu_can_bao_ve()
 	except (KhongDocDuocNo, Exception) as e:
@@ -970,7 +981,7 @@ def chan_neu_con_ngay_cu(si):
 	try:
 		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
 		phai, ngay, ly_do = phai_nhuong_ngay_cu(
-			ngay_lap(si), getdate(nowdate()), ds, _ngay_so_hddt_moi_nhat())
+			ngay_to, hom_nay, ds, _ngay_so_hddt_moi_nhat())
 	except ValueError:
 		raise
 	except Exception as e:
