@@ -263,6 +263,10 @@ def _desk_map_sai():
 	stg.enabled = 1
 	stg.save(ignore_permissions=True); stg.reload()
 	la('map cũ ngưng dùng không chặn lưu công tắc',stg.enabled,1)
+	moi = _tai_khoan_ca_nhan(_so_thu(), mot_nha_cung_cap())
+	stg.account_map = frappe.as_json({b.bank_account_no:b.name,moi.bank_account_no:moi.name})
+	stg.save(ignore_permissions=True); stg.reload()
+	la('thêm tuyến hợp lệ dù tuyến cũ ngưng dùng',frappe.parse_json(stg.account_map)[moi.bank_account_no],moi.name)
 	stg.account_map = frappe.as_json({b.bank_account_no:b.name,'000000273':'KHONG-CO-273'})
 	try:
 		stg.save(ignore_permissions=True)
