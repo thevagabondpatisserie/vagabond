@@ -1495,6 +1495,10 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
 	tong = flt(si.grand_total)
 	tien = flt(so_tien) or tong
 	ty_le = (tien / tong) if tong > 0 else 1.0
+	if any(d.get('vgb_combo_luong') for d in si.items):
+		# Bồi hoàn tiền, khách giữ hàng: không được suy tiền từ lượng trả.
+		# Cửa combo chia đúng tổng này từ tiền nguồn, kể cả bill có chiết khấu.
+		tra.vgb_combo_hoan_tien = tien
 	if ty_le < 0.9999:
 		for d in tra.items:
 			d.rate = flt(d.rate) * ty_le

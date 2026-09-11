@@ -7,7 +7,7 @@ from vagabond.khung.kiem_that.nen import ca, dung, la
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen, _mon
 
 
-def _bill_hoan():
+def _bill_hoan(giam=0):
     ct,tk,_ = _nen()
     a,b = _mon(tk),_mon(tk)
     cha=frappe.copy_doc(frappe.get_doc('Item',a))
@@ -19,21 +19,36 @@ def _bill_hoan():
     cb.insert(ignore_permissions=True); nen._DA_TAO.append((cb.doctype,cb.name))
     hd=frappe.get_doc(dict(doctype='Sales Invoice',company=ct,currency='VND',conversion_rate=1,
         customer=frappe.db.get_value('Customer',{'disabled':0,'is_internal_customer':0},'name'),
+        apply_discount_on='Grand Total',discount_amount=giam,
         items=[dict(item_code=a,qty=1,rate=10000),dict(item_code=cha.name,qty=1,rate=155000)]))
     hd.insert(ignore_permissions=True); nen._DA_TAO.append((hd.doctype,hd.name))
     hd.flags.ignore_permissions=True; hd.submit(); hd.reload()
-    la('bill nguồn đúng tiền',hd.grand_total,165000)
+    la('bill nguồn đúng tiền',hd.grand_total,165000-giam)
     return hd
 
 
 @ca('#265 C2 F1 hoàn tiền 50 phần trăm qua đúng cửa app không hoàn đủ combo')
 def _hoan_nua():
     from vagabond.hoan_tien import _lap_hoa_don_tra
-    hd=_bill_hoan()
-    kho=frappe.db.get_value('Warehouse',{'company':hd.company,'is_group':0},'name')
-    tra=_lap_hoa_don_tra(hd,kho,'Kiểm hoàn nửa bill','KIEM265',so_tien=82500)
-    nen._DA_TAO.append((tra.doctype,tra.name)); tra.reload()
-    la('hoàn đúng82500 sau reload',tra.grand_total,-82500)
+    from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
+    for giam in (0,5000):
+        hd=_bill_hoan(giam)
+        tien=hd.grand_total/2
+        nhap=make_sales_return(hd.name)
+        nhap.vgb_combo_hoan_tien=tien
+        nhap.insert(ignore_permissions=True); nen._DA_TAO.append((nhap.doctype,nhap.name))
+        nhap.vgb_combo_hoan_tien=0
+        try:
+            nhap.save(ignore_permissions=True)
+        except frappe.ValidationError as e:
+            dung('không xóa dấu để tăng tiền hoàn','số tiền hoàn đã lưu' in str(e))
+        else:
+            dung('phải chặn bỏ dấu bồi hoàn tiền',False)
+        kho=frappe.db.get_value('Warehouse',{'company':hd.company,'is_group':0},'name')
+        tra=_lap_hoa_don_tra(hd,kho,'Kiểm hoàn nửa bill','KIEM265',so_tien=tien)
+        nen._DA_TAO.append((tra.doctype,tra.name)); tra.reload()
+        la('hoàn đúng50% sau reload',tra.grand_total,-tien)
+        la('giữ số tiền yêu cầu để tính lại',tra.vgb_combo_hoan_tien,tien)
 
 
 @ca('#265 C2 F2 credit note tay phải nối đúng dòng combo gốc')
@@ -107,6 +122,8 @@ def _tien():
         kieu='Gia tron goi',gia_combo=155000,dong=[dict(item_code=a,so_luong=3,gia_goc=45000),
         dict(item_code=b,so_luong=1,gia_goc=60000)]))
     cb.insert(ignore_permissions=True); nen._DA_TAO.append((cb.doctype, cb.name))
+    # Giữ khách thường cố định: vòng OWNER tạo khách mới trong cùng điểm lưu.
+    kh = frappe.db.get_value('Customer', {'disabled':0,'is_internal_customer':0}, 'name')
     goc = BaseDocument.precision
     for le, loai in ((0,''),(2,''),(0,'giam'),(2,'giam'),(0,'OWNER'),(2,'OWNER')):
         def do_chinh_xac(d, fieldname, *args, **kwargs):
@@ -116,7 +133,7 @@ def _tien():
         # Chỉ thay metadata precision; core thật vẫn tính tiền, thuế, sổ cái.
         with patch.object(BaseDocument, 'precision', do_chinh_xac):
             hd = frappe.get_doc(dict(doctype='Sales Invoice',company=ct,currency='VND',conversion_rate=1,
-                customer=frappe.db.get_value('Customer',{'disabled':0,'is_internal_customer':0},'name'),
+                customer=kh,
                 items=[dict(item_code=a,qty=1,rate=10000)]))
             hd.insert(ignore_permissions=True); nen._DA_TAO.append((hd.doctype, hd.name))
             ten_dong = hd.items[0].name
@@ -141,6 +158,7 @@ def _tien():
                 chu.vgb_hang = 'OWNER'
                 chu.insert(ignore_permissions=True); nen._DA_TAO.append((chu.doctype,chu.name))
                 hd.customer = chu.name
+                hd.contact_person = hd.customer_address = hd.shipping_address_name = None
                 hd.save(ignore_permissions=True); hd.reload()
                 la('hook OWNER áp 100%',hd.additional_discount_percentage,100)
                 la('OWNER tổng 0',hd.grand_total,0)
@@ -150,8 +168,7 @@ def _tien():
                 continue
             _doi_chieu(hd,tk)
             la('ghi sổ giữ tiền',hd.grand_total,160000 if loai else 165000)
-            if not loai:
-                _sao_tra_sua(hd)
+            _sao_tra_sua(hd)
 
 
 def _chan_sua_rieng(hd):
@@ -218,31 +235,36 @@ def _sao_tra_sua(hd):
         d.vgb_ma_tham_chieu = 'KT261-'+frappe.generate_hash(length=8)
         d.docstatus = 0
         return d
+    tong = hd.grand_total
     sao = ma_moi(frappe.copy_doc(hd))
+    # Đặt combo trước món lẻ để lộ lỗi giữ idx cũ khi rã lại.
+    sao.set('items',[sao.items[1],sao.items[2],sao.items[0]])
+    thu_tu = [(d.item_code,d.qty) for d in sao.items]
     sao.insert(ignore_permissions=True); nen._DA_TAO.append((sao.doctype,sao.name))
     sao.reload()
-    la('Duplicate tính đủ tiền',sao.grand_total,165000)
-    la('Duplicate giữ đủ thành phần',sorted((d.item_code,d.qty) for d in sao.items),
-        sorted((d.item_code,d.qty) for d in hd.items))
+    la('Duplicate tính đủ tiền',sao.grand_total,tong)
+    la('Duplicate giữ thứ tự đã chọn',[(d.item_code,d.qty) for d in sao.items],thu_tu)
+    la('idx liên tục',[d.idx for d in sao.items],[1,2,3])
     tra = ma_moi(make_sales_return(hd.name))
     tra.update_outstanding_for_self = 0
     tra.insert(ignore_permissions=True); nen._DA_TAO.append((tra.doctype,tra.name))
     tra.submit(); tra.reload(); hd.reload()
-    la('trả hết không mất đồng',tra.grand_total,-165000)
+    la('trả hết không mất đồng',tra.grand_total,-tong)
     la('trả hết xóa đủ nợ',hd.outstanding_amount,0)
     la('trả hết giữ phân bổ dòng',[d.amount for d in tra.items],[-10000,-107308,-47692])
     tra.cancel(); hd.reload()
-    la('hủy trả hồi đủ nợ',hd.outstanding_amount,165000)
+    la('hủy trả hồi đủ nợ',hd.outstanding_amount,tong)
     # Ba lần trả từng bánh phải cộng đúng 107308, không thành 107307.
     cac = []
-    for _ in range(3):
+    for _ in range(0 if hd.discount_amount else 3):
         d = ma_moi(make_sales_return(hd.name))
         mon = next(x for x in d.items if x.sales_invoice_item == hd.items[1].name)
         mon.qty = -1
         d.set('items',[mon]); d.update_outstanding_for_self = 0
         d.insert(ignore_permissions=True); nen._DA_TAO.append((d.doctype,d.name))
         d.submit(); d.reload(); cac.append(d)
-    la('trả từng bánh đủ tiền thành phần',sum(d.items[0].amount for d in cac),-107308)
+    if cac:
+        la('trả từng bánh đủ tiền thành phần',sum(d.items[0].amount for d in cac),-107308)
     for d in reversed(cac):
         d.cancel()
     hd.reload(); hd.cancel()
@@ -250,4 +272,4 @@ def _sao_tra_sua(hd):
     sua.amended_from = hd.name
     sua.insert(ignore_permissions=True); nen._DA_TAO.append((sua.doctype,sua.name))
     sua.submit(); sua.reload()
-    la('amend giữ đúng tiền',sua.grand_total,165000)
+    la('amend giữ đúng tiền',sua.grand_total,tong)
