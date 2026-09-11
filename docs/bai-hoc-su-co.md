@@ -12,6 +12,8 @@ Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ng�
 
 ## Mất code vì làm trên nền cũ
 
+Ca hoàn tất sản xuất từ app phải gửi cố ý ngày/giờ máy khách sai rồi gọi đúng API, đọc lại SE/SLE và ngày GL. set_posting_time=0 để core lấy giờ site. Tổng GL0=0 không chứng minh gì khi danh sách rỗng: phải kiểm biến động giá trị kho ròng0 hoặc có GL thật, và in mốc trước/sau cùng thời điểm đã lưu khi ca đỏ. Nguồn: PR258, ca _gio_hoan_tat_app, review5637545293.
+
 Đã mất code thật BA lần.
 
 1. Commit của một phiên xoá mất commit của phiên khác đang làm dở.

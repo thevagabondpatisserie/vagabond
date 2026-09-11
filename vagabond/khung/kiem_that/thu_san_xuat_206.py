@@ -230,7 +230,8 @@ def _gio_hoan_tat_app():
 	nen._DA_TAO.append(('Stock Entry', kq['name']))
 	doc = frappe.get_doc('Stock Entry', kq['name'])
 	luc = get_datetime(str(doc.posting_date)+' '+str(doc.posting_time))
-	dung('giờ site trong khoảng gọi', truoc <= luc <= now_datetime())
+	sau = now_datetime()
+	dung('giờ site %s <= %s <= %s' % (truoc,luc,sau), truoc <= luc <= sau)
 	la('phiếu ghi sổ', doc.docstatus, 1)
 	sle = frappe.get_all('Stock Ledger Entry', filters={'voucher_type':'Stock Entry','voucher_no':doc.name,'is_cancelled':0},
 		fields=['item_code','warehouse','actual_qty','stock_value_difference','posting_date','posting_time'])
@@ -239,7 +240,12 @@ def _gio_hoan_tat_app():
 	for d in sle:
 		la('giờ SLE khớp phiếu', get_datetime(str(d.posting_date)+' '+str(d.posting_time)), luc)
 		la('giá trị từng dòng kho', round(float(d.stock_value_difference),2), -2000 if d.item_code==nvl else 2000)
-	gl = so_cai_cua(doc)
+	gl = frappe.get_all('GL Entry',filters={'voucher_type':'Stock Entry','voucher_no':doc.name,'is_cancelled':0},
+		fields=['debit','credit','posting_date'])
+	for d in gl:
+		la('ngày GL khớp thời điểm server',str(d.posting_date),str(luc.date()))
+	if not gl:
+		la('GL rỗng chỉ hợp lệ khi giá trị kho ròng0',round(sum(float(d.stock_value_difference) for d in sle),2),0)
 	la('GL cân', sum(float(d.debit) for d in gl), sum(float(d.credit) for d in gl))
 	la('giá trị kho ròng không đổi', round(sum(float(d.stock_value_difference) for d in sle),2), 0)
 	lenh.reload(); la('lệnh sản xuất đủ', float(lenh.produced_qty), 2)
