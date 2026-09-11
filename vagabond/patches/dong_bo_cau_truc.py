@@ -373,3 +373,21 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: nap lai nghiep vu tien")
+
+	# Bo bat buoc "So sec/tham chieu" va "Ngay sec/tham chieu" tren phieu
+	# thu chi (chi Dung, 10/09/2026, issue #252). Ngay 07/08 da bo mot lan
+	# bang Property Setter dat tay tren Desk, va no mat; nay ma nguon giu,
+	# moi lan Migrate khai lai. Doc dau tep vagabond/tham_chieu_tien.py.
+	#
+	# Chay lai duoc: make_property_setter ghi de dung mot ban ghi.
+	try:
+		from vagabond import tham_chieu_tien
+
+		kq = tham_chieu_tien.dung()
+		if kq.get("da_dat"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: bo bat buoc tham chieu phieu thu chi: %s"
+				% ", ".join(kq["da_dat"])
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: bo bat buoc tham chieu")

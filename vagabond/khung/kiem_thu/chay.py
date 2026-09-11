@@ -25,6 +25,7 @@ nen.gia_lap()
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
     thu_noi_dung_web, thu_dat_ban_web,
+	thu_doi_chieu_app_247, thu_doi_chieu_252, thu_dong_bo_227, thu_gram_bom_252, thu_tk_dich_vu_252, thu_do_chinh_xac_mua_259,
 	thu_bang_gia_nhap, thu_minvoice_227, thu_link_thue_227, thu_bao_ve_hddt_225, thu_cong_cu_tang_cloud,
 	thu_hang_tang_so_cai, thu_mua_hddt_227, thu_thue_vnd, thu_cua_thue_243, thu_kho_tang_243,
 	thu_bao_cao_don_nhap,
@@ -60,7 +61,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_giao_dien_xuat_huy_va_tro_ly,
 	thu_goi_y_ycsx,
 	thu_gui_thu,
-	thu_hang_tang, thu_hddt_bu,
+	thu_hang_tang, thu_hddt_bu, thu_hddt_cho_xuat,
 	thu_nguyen_tac_man_hinh,
 	thu_kho_sap,
 	thu_o_cai_dat,
@@ -93,6 +94,8 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_san_xuat_v409, thu_viec_can_lam_v410, thu_ho_so_tt_v413, thu_ho_so_tt_v416, thu_ho_so_tt_v445,
 	thu_san_xuat_v403,
 	thu_sdt_boc,
+	thu_ho_so_bo_sung,
+	thu_chip_ho_so_tt, thu_phan_bo_app,
 	thu_siet_hoan_ung,
 	thu_tang_qua,
 	thu_ten_mon,
@@ -108,6 +111,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_trang_web,
 	thu_tro_ly,
 	thu_unc_va_tk_chi,
+	thu_ux_chi_dot_can_coc,
 	thu_vai_cua_hang,
 	thu_dat_banh,
 	thu_quan_ly_nguoi_dung,

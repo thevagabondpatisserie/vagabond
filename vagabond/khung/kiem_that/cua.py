@@ -16,6 +16,8 @@ from vagabond.khung.kiem_that import nen
 
 # Nạp các mô đun ca kiểm. Thêm bộ ca mới thì thêm tên vào đây, giống cách
 # `khung/kiem_thu/chay.py` làm.
+from vagabond.khung.kiem_that import thu_doi_chieu_app_247  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_chip_app_263  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hang_tang_kho_243  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_cua_thue_243  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_thue_vnd_225  # noqa: F401,E402
@@ -24,6 +26,13 @@ from vagabond.khung.kiem_that import thu_don_huy  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_bao_ve_hddt_225  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_link_thue_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mua_hddt_227  # noqa: F401,E402
+from vagabond.khung.kiem_that import he_so_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import he_so_nguon_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import gram_bom_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import dong_bo_227  # noqa: F401,E402
+from vagabond.khung.kiem_that import tai_khoan_dich_vu_252  # noqa: F401,E402
+from vagabond.khung.kiem_that import do_chinh_xac_mua_259  # noqa: F401,E402
+from vagabond.khung.kiem_that import quy_cach_252  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hang_tang_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ho_so_tt_v445  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_san_xuat_206  # noqa: F401,E402
@@ -62,3 +71,5 @@ def chay(im=1):
 		frappe.throw("Khung kiểm không hoàn nguyên được dữ liệu; dừng lượt kiểm. "
 			+ frappe.as_json(kq))
 	return kq
+
+from vagabond.khung.kiem_that import thu_phan_bo_app  # noqa: F401,E402

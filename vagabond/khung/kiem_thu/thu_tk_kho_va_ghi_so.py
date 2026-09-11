@@ -111,7 +111,7 @@ def _dat_dung_cho():
 	j = t.find("gac_tk_kho.chan_nhap_vao_thanh_pham")
 	dung("nam trong khoi before_submit", 0 <= i < j)
 	# Khong duoc lam mat hai hook cu cua phien khac o day.
-	dung("giu hang rao don vi", "gac_don_vi.chan_don_vi_la" in t)
+	dung("giu hang rao don vi", "he_so_chung_tu.kiem" in t)
 	dung("giu cau bao ngay don mua", "ngay_don_mua.bao_ngay_don_mua" in t)
 	dung("giu ghi vet gia khi nhan", "gia_khi_nhan.ghi_vet" in t)
 

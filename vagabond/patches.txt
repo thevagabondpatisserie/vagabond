@@ -240,3 +240,19 @@ vagabond.patches.dong_bo_cau_truc #v459
 vagabond.patches.dong_bo_cau_truc #v460
 vagabond.patches.dong_bo_cau_truc #v461
 vagabond.patches.dong_bo_cau_truc #v462
+vagabond.patches.dong_bo_cau_truc #v463
+vagabond.patches.dong_bo_cau_truc #v464
+vagabond.patches.dong_bo_cau_truc #v465
+vagabond.patches.pr_he_so_252
+vagabond.patches.dong_bo_cau_truc #v466
+vagabond.patches.dong_bo_cau_truc #v467
+vagabond.patches.gram_bom_252
+vagabond.patches.dong_bo_cau_truc #v468
+vagabond.patches.dong_bo_cau_truc #v469
+vagabond.patches.dong_bo_cau_truc #v470
+vagabond.patches.dong_bo_cau_truc #v471
+vagabond.patches.dong_bo_cau_truc #v472
+vagabond.patches.dong_bo_cau_truc #v474
+vagabond.patches.dong_bo_cau_truc #v475
+vagabond.patches.dong_bo_cau_truc #v476
+vagabond.patches.dong_bo_cau_truc #v480

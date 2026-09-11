@@ -44,6 +44,10 @@ def chay():
             frappe.set_user('Administrator')
             phieu.trang_thai='Đã xác nhận';phieu.save();phieu.reload()
             dat('Nhân viên lưu xác nhận',phieu.trang_thai=='Đã xác nhận')
+            phieu.ghi_chu='Ghi đè yêu cầu khách'
+            chan('Không ghi đè ghi chú gốc',phieu.save)
+            phieu.reload()
+            dat('Ghi chú gốc không đổi trong DB',phieu.ghi_chu==nd['ghi_chu'])
             phieu.so_khach=7
             chan('Không âm thầm đổi yêu cầu đã xác nhận',phieu.save)
             phieu.reload();phieu.trang_thai='Chờ xác nhận'
@@ -67,6 +71,16 @@ def chay():
             dat('Không cache hồ sơ',frappe.local.response_headers['Cache-Control']=='private, no-store')
             frappe.local.request.cookies[thanh_vien.COOKIE]='sai-token'
             dat('Token sai không lộ tên/điểm/đơn',thanh_vien.toi()=={'ok':0,'ly_do':'chua_dang_nhap'})
+        frappe.local.request.cookies[thanh_vien.COOKIE]=token
+        with patch.object(thanh_vien,'cfg',return_value=frappe._dict(pancake_shop_id='245')), patch.object(thanh_vien,'key',return_value='gia-kiem'):
+            for nhan, tra in [('timeout', TimeoutError('nguồn không trả')), ('HTTP lỗi', SimpleNamespace(raise_for_status=lambda: (_ for _ in ()).throw(RuntimeError('HTTP500')))), ('JSON sai kiểu', SimpleNamespace(raise_for_status=lambda:None,json=lambda:[]))]:
+                with patch.object(dang_nhap.requests,'get',side_effect=tra if isinstance(tra,Exception) else None,return_value=tra):
+                    r=thanh_vien.toi()
+                    dat('Lỗi '+nhan+' không giả làm không có đơn',r['ok']==1 and r['don_loi'] and r['don']==[])
+                    dat('Lỗi đơn vẫn giữ điểm',r['diem']==25000)
+            with patch.object(dang_nhap.requests,'get',return_value=SimpleNamespace(raise_for_status=lambda:None,json=lambda:{'data':[]})):
+                r=thanh_vien.toi()
+                dat('Đối chứng lịch sử rỗng hợp lệ',r['don']==[] and not r['don_loi'])
         return {'dat':len(ket),'ket_qua':ket}
     finally:
         frappe.set_user(nguoi)

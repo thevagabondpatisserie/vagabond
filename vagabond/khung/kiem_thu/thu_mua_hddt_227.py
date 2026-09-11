@@ -119,7 +119,7 @@ def _thue(tien):
 @ca("#227: dựng lại 5561 bỏ dòng giảm giả, sửa giảm 57.870 về 28.935")
 def _dung_chiet_khau():
 	t = To(name="PI", supplier="NCC", company="CTY", cost_center="CC", items=[], taxes=[_thue(43981)])
-	with patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+	with patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda *a: (2, 2, 3)):
 		dl._dung_dong_tai_cho(t, _goc())
 		la("chỉ hai dòng hàng", len(t.items), 2)
 		la("giảm một lần", t.discount_amount, 28935)
@@ -171,11 +171,14 @@ def _hai_nhap():
 	def nem(cau):
 		raise ValueError(cau)
 	t = To(name="PI2", items=[_dong(800, 1, pr_detail="R0", purchase_receipt="P0")])
-	with patch.object(dc, "frappe", SimpleNamespace(db=SimpleNamespace(sql=sql), throw=nem)):
+	# Ca này giữ cửa khoá lượng gốc; căn cứ quy cách #252 có ca bench riêng.
+	with patch.object(dc, "frappe", SimpleNamespace(db=SimpleNamespace(sql=sql), throw=nem)), \
+		patch.object(dc, "dong_hieu_luc", lambda rows, **kw: rows):
 		try:
 			dc.chan_vuot_luong_da_nhan(t)
 		except ValueError as loi:
-			dung("báo hoá đơn khác dùng rồi", "Có hoá đơn khác" in str(loi))
+			dung("báo hoá đơn khác dùng rồi", "đã ghi sổ lấy" in str(loi))
+			dung("chỉ đường ra", "Nối phiếu" in str(loi))
 		else:
 			dung("phải chặn", False)
 	la("khoá và đọc trong cùng giao dịch", len(goi), 2)
@@ -202,7 +205,7 @@ def _dung_to_am():
 		g = dict(tong_tien=muc_tieu, tien_thue=0, tien_truoc_thue=muc_tieu,
 			chi_tiet=[dict(ten="Món trả", sluong=-2, dgia=-100, thtien=-200)])
 		t = To(name="PI", supplier="NCC", items=[], taxes=[_thue(0)])
-		with patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+		with patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda *a: (2, 2, 3)):
 			la("dự kiến theo đúng dấu", dl.du_kien_tong(t, g), muc_tieu)
 			for _ in range(2):
 				dl._dung_dong_tai_cho(t, g)
@@ -234,7 +237,7 @@ def _tong_khop_dau_sai():
 	for sl, gia, giam in ((2, -100, 0), (-2, -100, 400)):
 		t = To(name="PI", supplier="NCC", docstatus=0, custom_minvoice_id="M", discount_amount=giam,
 			items=[_dong(sl, gia, item_code=None, item_name="Món trả", ten_hang_ncc="Món trả")], taxes=[_thue(0)])
-		with patch.object(dl, "_goc", lambda *a: g), patch.object(dl, "hoc_ma_hang", lambda *a: 0), patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+		with patch.object(dl, "_goc", lambda *a: g), patch.object(dl, "hoc_ma_hang", lambda *a: 0), patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda *a: (2, 2, 3)):
 			dl.dong_bo_luc_luu(t)
 		la("lượng âm", t.items[0].qty, -2)
 		la("giá dương", t.items[0].rate, 100)
@@ -248,7 +251,7 @@ def _am_trung_ten():
 		chi_tiet=[dict(ten="Món trả", sluong=-1, dgia=100, thtien=-100) for _ in range(2)])
 	t = To(name="PI", supplier="NCC", docstatus=0, custom_minvoice_id="M", discount_amount=0,
 		items=[_dong(1, -100, item_code=None, item_name="Món trả", ten_hang_ncc="Món trả") for _ in range(2)], taxes=[_thue(0)])
-	with patch.object(dl, "_goc", lambda *a: g), patch.object(dl, "hoc_ma_hang", lambda *a: 0), patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda: (2, 2, 3)):
+	with patch.object(dl, "_goc", lambda *a: g), patch.object(dl, "hoc_ma_hang", lambda *a: 0), patch.object(mc, "_tra_ma_hang", lambda *a: (None, "Nos", 1)), patch.object(dl, "_do_chinh_xac", lambda *a: (2, 2, 3)):
 		for _ in range(2):
 			dl.dong_bo_luc_luu(t)
 			la("hai dòng đúng dấu", [(d.qty, d.rate) for d in t.items], [(-1, 100), (-1, 100)])

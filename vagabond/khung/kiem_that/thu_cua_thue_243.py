@@ -35,12 +35,16 @@ def _mon(tk,ts=None):
     return d.name
 
 
-def _app(ct,rows):
+def _app(ct,rows,ma_don=None):
     kh=frappe.db.get_value('Customer',{'disabled':0,'is_internal_customer':0},'name')
     # Đi đúng tao_don_tay; tam_tinh chỉ bỏ yêu cầu đã thu tiền tại quầy.
     # Ba hàng rào nen.py vẫn khoá commit và gửi ngoài của toàn bộ hàm app.
+    from vagabond import diem_ban
+    cac_diem = diem_ban.diem_cua_nguon('GrabFood')
+    dung('GrabFood có điểm bán để chọn', bool(cac_diem))
+    quay = next((ma for ma in cac_diem if not diem_ban.theo_ma(ma)['quay']), cac_diem[0])
     with patch.object(ban_hang,'_cong_ty',return_value=ct), patch.object(ban_hang,'_khach_le',return_value=kh):
-        ra=ban_hang.tao_don_tay(nguon='GrabFood',ma_don='KT243-'+frappe.generate_hash(length=10),items=rows,tam_tinh=1)
+        ra=ban_hang.tao_don_tay(nguon='GrabFood',quay=quay,ma_don=ma_don or 'KT243-'+frappe.generate_hash(length=10),items=rows,tam_tinh=1)
     nen._DA_TAO.append(('Sales Invoice',ra['name']))
     hd=frappe.get_doc('Sales Invoice',ra['name'])
     return hd
@@ -50,7 +54,7 @@ def _app(ct,rows):
 def _app_khong_mau_mon():
     ct,tk,mau=_nen(); ma=_mon(tk)
     hd=_app(ct,[dict(item_code=ma,qty=1,rate=10420000)])
-    la('mẫu từ cấu hình',hd.taxes_and_charges,mau.name)
+    _kiem_mau_8(hd, ct, tk)
     la('thuế được áp',hd.vgb_thue_vnd,1)
     la('net',hd.net_total,9648148); la('VAT',hd.total_taxes_and_charges,771852)
     la('gross giữ nguyên',hd.grand_total,10420000)
@@ -94,3 +98,70 @@ def _le():
         hd.items[0].item_code=it.name;hd.items[0].uom=u.name;hd.items[0].stock_uom=u.name
         hd.items[0].qty=1.25;hd.additional_discount_percentage=7.5
         hd.save(ignore_permissions=True);hd.reload();_doi_chieu(hd,tk)
+
+
+
+def _kiem_mau_8(hd, ct, tk):
+    dung('máy chủ đã chọn mẫu thuế', bool(hd.taxes_and_charges))
+    mau = frappe.get_doc('Sales Taxes and Charges Template', hd.taxes_and_charges)
+    la('mẫu thuộc đúng công ty', mau.company, ct)
+    la('mẫu còn dùng', mau.disabled, 0)
+    for nhan, bang in (('mẫu tham chiếu', mau.taxes), ('hoá đơn', hd.taxes)):
+        la(nhan + ': một dòng VAT', len(bang), 1)
+        if len(bang) != 1:
+            continue
+        dong = bang[0]
+        la(nhan + ': VAT theo tiền hàng', dong.charge_type, 'On Net Total')
+        la(nhan + ': đúng tài khoản VAT', dong.account_head, tk)
+        la(nhan + ': thuế suất8', dong.rate, 8)
+        la(nhan + ': VAT đã gồm giá', dong.included_in_print_rate, 1)
+
+
+
+@ca('#243 app thật: chính sách Server Script chọn mẫu riêng vẫn giữ tiền và VAT')
+def _app_chinh_sach_script():
+    import json
+    ct, tk, mac_dinh = _nen()
+    ma = _mon(tk)
+    rieng = frappe.copy_doc(mac_dinh)
+    rieng.title = 'KT243-policy-' + frappe.generate_hash(length=9)
+    rieng.is_default = 0
+    rieng.insert(ignore_permissions=True)
+    nen._DA_TAO.append((rieng.doctype, rieng.name))
+    don = 'KT243-policy-' + frappe.generate_hash(length=12)
+    # Policy thử chỉ tác động đúng mã đơn của ca. Chọn mẫu riêng rõ ràng
+    # kể cả site có policy8% chạy trước; không phụ thuộc thứ tự Server Script.
+    code = """if doc.get('custom_pancake_display_id') == %s and doc.docstatus == 0:
+    doc.taxes_and_charges = %s
+    doc.set('taxes', [])
+    doc.append('taxes', {'charge_type': 'On Net Total', 'account_head': %s,
+        'rate': 8, 'included_in_print_rate': 1, 'description': 'VAT policy kiểm243'})
+""" % (json.dumps(don), json.dumps(rieng.name), json.dumps(tk))
+    script = frappe.get_doc(dict(doctype='Server Script',
+        name='KT243-policy-' + frappe.generate_hash(length=12), script_type='DocType Event',
+        reference_doctype='Sales Invoice', doctype_event='Before Validate', disabled=0, script=code))
+    # Không đưa map chứa script chưa commit vào cache chung của các request.
+    # Core vẫn query registry DB và execute_doc/safe_exec thật.
+    cache = frappe.client_cache
+    get_goc, set_goc = cache.get_value, cache.set_value
+    def lay(key, *a, **kw):
+        return None if key == 'server_script_map' else get_goc(key, *a, **kw)
+    def dat(key, *a, **kw):
+        if key != 'server_script_map':
+            return set_goc(key, *a, **kw)
+    try:
+        with patch.object(cache, 'get_value', lay), patch.object(cache, 'set_value', dat):
+            script.insert(ignore_permissions=True)
+            nen._DA_TAO.append((script.doctype, script.name))
+            hd = _app(ct, [dict(item_code=ma, qty=1, rate=10420000)], ma_don=don)
+            la('policy chọn mẫu riêng khác mặc định', hd.taxes_and_charges, rieng.name)
+            dung('mẫu riêng thực sự khác default', rieng.name != mac_dinh.name)
+            _kiem_mau_8(hd, ct, tk)
+            la('policy vẫn áp làm tròn VND', hd.vgb_thue_vnd, 1)
+            la('net policy', hd.net_total, 9648148)
+            la('VAT policy', hd.total_taxes_and_charges, 771852)
+            la('gross policy', hd.grand_total, 10420000)
+    finally:
+        if script.name and frappe.db.exists('Server Script', script.name):
+            frappe.db.set_value('Server Script', script.name, 'disabled', 1)
+        cache.delete_value('server_script_map')

@@ -8,6 +8,7 @@ import frappe
 from vagabond import minvoice_kich_ban
 
 PATCHES = (
+    'vagabond.patches.pr_he_so_252',
     'vagabond.patches.minvoice_v454',
     'vagabond.patches.thue_don_mua_v450',
     'vagabond.patches.san_xuat_206',
@@ -35,6 +36,12 @@ def chuan_bi():
         frappe.get_doc(dict(doctype='Server Script', name=ten, script_type='API',
             api_method='kiem_ci_' + loai, allow_guest=0, disabled=0,
             script=minvoice_kich_ban.ban_goc(loai))).insert(ignore_permissions=True)
+    from vagabond.patches.pr_he_so_252 import TEN, ban_cu
+    if frappe.db.exists('Server Script', TEN):
+        raise RuntimeError('Bench mới đã có kịch bản PR: ' + TEN)
+    frappe.get_doc(dict(doctype='Server Script', name=TEN, script_type='DocType Event',
+        reference_doctype='Purchase Receipt', doctype_event='Before Validate',
+        disabled=0, script=ban_cu())).insert(ignore_permissions=True)
     for patch in PATCHES:
         frappe.db.delete('Patch Log', {'patch': patch})
     frappe.db.commit()
@@ -63,6 +70,10 @@ def doi_chieu():
         if ma != minvoice_kich_ban.ban_moi(loai):
             raise AssertionError('Server Script chưa đúng mã nguồn: ' + ten)
         bam[loai] = minvoice_kich_ban.bam(ma)
+    from vagabond.patches.pr_he_so_252 import TEN, nhan_dang
+    pr_guard = frappe.get_doc('Server Script', TEN)
+    if not pr_guard.disabled or not nhan_dang(pr_guard):
+        raise AssertionError('Migrate phải lưu trữ đúng kịch bản PR cũ đã nhận dạng')
     from frappe.utils.safe_exec import is_safe_exec_enabled
     if not is_safe_exec_enabled():
         raise AssertionError('Chưa bật Server Script trong common_site_config của bench')

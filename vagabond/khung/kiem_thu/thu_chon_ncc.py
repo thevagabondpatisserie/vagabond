@@ -180,7 +180,8 @@ def _man_hinh_noi_dung_cua():
 	dung("ô tìm hoá đơn lọc trên DOM nên không mất tick",
 		"vgbNoiOTim(b, 'hsHdTim', '[data-hsh]')" in j)
 	dung("chọn hết nói rõ phạm vi", "Chọn hết đang hiện" in j)
-	dung("chọn hết chỉ lấy tập đang hiện", "dangHien().forEach(ghiChon)" in j)
+	dung("chọn hết chỉ thêm dòng chưa chọn trong tập đang hiện",
+		"dangHien().forEach(function (r) { if (!hsTaoChon[r.hoa_don]) ghiChon(r); })" in j)
 
 
 @ca("#196 màn Vì sao thiếu phải dặn KHÔNG gõ lại tờ còn nháp")
@@ -306,6 +307,21 @@ def _to_da_huy_vao_duoc():
 	dung("phép thuần trả về đúng lý do huỷ",
 		cn.vi_sao_thieu({"name": "X", "docstatus": 2, "outstanding": 100,
 			"posting_date": "2026-06-01"}, MOC) == cn.LD_HUY)
+
+
+@ca("#247 Vì sao thiếu dùng cùng số APP còn giữ, không tính nháp hay phần đã chi")
+def _ly_do_giu_tien_cung_nguon():
+	s = _py("ho_so_tt.py")
+	i = s.index("def _hd_ho_so_giu(")
+	than = s[i:s.index("\n@frappe.whitelist()", i)]
+	dung("dùng phép giữ tiền theo số còn lại", "dang_giu_chi_tiet" in than)
+	dung("không còn truy vấn riêng tính cả trạng thái Nhap", "'Nhap'" not in than)
+	hd = {"name": "HD-1", "docstatus": 1, "outstanding": 10000000,
+		"posting_date": "2026-08-01"}
+	la("giữ một phần vẫn chọn được", cn.vi_sao_thieu(hd, MOC,
+		{"HD-1": {"ma": "APP.1", "so_tien": 3000000}}), None)
+	la("giữ đủ mới xếp vào APP khác", cn.vi_sao_thieu(hd, MOC,
+		{"HD-1": {"ma": "APP.1", "so_tien": 10000000}}), cn.LD_HO_SO_KHAC)
 
 
 @ca("#198 câu báo lỗi phải nói việc làm tiếp, đúng QT-24")

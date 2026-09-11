@@ -167,7 +167,9 @@ def _hai_nhap():
 	try:
 		ds[1].submit()
 	except frappe.ValidationError as loi:
-		dung("đúng cửa số lượng, không phải chỉ cửa tiền", "Có hoá đơn khác đã dùng lượng này" in str(loi))
+		# v472 (#252): câu chặn nêu tên hoá đơn đã lấy và chỉ đường ra.
+		dung("đúng cửa số lượng, không phải chỉ cửa tiền", "đã ghi sổ lấy" in str(loi))
+		dung("nêu đúng tên hoá đơn đã lấy", ds[0].name in str(loi))
 	else:
 		dung("phải chặn PI thứ hai", False)
 	la("PI thứ hai vẫn nháp trong DB", frappe.db.get_value("Purchase Invoice", ds[1].name, "docstatus"), 0)

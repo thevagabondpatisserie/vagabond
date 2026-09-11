@@ -56,15 +56,26 @@ def nguoi_mua(si):
 		"inv_buyerEmail": mail}
 
 
-def chuan_goi(si, goi):
-	"""Phiếu VND mới đọc tiền đã lưu; phiếu cũ giữ nguyên cách xuất."""
+def chuan_goi(si, goi, ma_gop=None):
+	"""Phiếu VND mới đọc tiền đã lưu; phiếu cũ giữ nguyên cách xuất.
+
+	ma_gop là danh sách mã hàng khai trong MInvoice Phat Hanh Settings.ma_hang_gop,
+	nơi kịch bản cố ý gửi số lượng 1. Không truyền thì không có ngoại lệ nào (#266).
+	"""
 	ra = copy.deepcopy(goi)
 	if len(ra.get("data") or []) != 1:
 		raise ValueError("Mỗi lần xuất phải chỉ có một hoá đơn để kiểm đúng người mua.")
 	dd = ra["data"][0]
 	dd.update(nguoi_mua(si))
 	from vagabond.thue_vnd import chuan_tien
-	chuan_tien(si, dd)
+	chuan_tien(si, dd, ma_gop)
+	# #266: tờ đã ghi sổ ngày cũ được kéo ngày lập HĐĐT sang hôm nay thì
+	# ngày lập gửi đi là ngày kéo; sổ vẫn giữ ngày bán. Một nguồn duy nhất
+	# cho ngày lập, không để kịch bản tự ghép từ posting_date nữa.
+	from vagabond.hddt_cho_xuat import ngay_lap
+	ngay = ngay_lap(si)
+	if ngay is not None:
+		dd["inv_invoiceIssuedDate"] = str(ngay)
 	# Hai cửa dùng chung mã SI, tránh đơn quầy trống mã hoặc mã Pancake trùng.
 	dd["key_api"] = si.get("name")
 	if la_hang_tang(si):
@@ -78,7 +89,7 @@ def chuan_goi(si, goi):
 		# Giữ tổng giá tính thuế, nói rõ khách không phải trả ngay trên tờ VAT.
 		dd["inv_paymentMethodName"] = "Hàng tặng không thu tiền"
 		from vagabond.hang_tang_so_cai import kiem_thue_gui
-		kiem_thue_gui(si, dd)
+		kiem_thue_gui(si, dd, ma_gop)
 	return ra
 
 
@@ -243,8 +254,22 @@ def kiem_goi(phieu, goi, giu_cho=0):
 	noi_bo.chan_hoa_don_dien_tu(si)
 	if da_gui(si):
 		frappe.throw("Đơn đã gửi hoặc đang chờ đối chiếu kết quả gửi. Kế toán kiểm M-Invoice theo mã phiếu trước khi làm tiếp.")
+	# HÀNG RÀO THỨ TỰ (#266 vòng 2). Đây là cửa chung của MỌI đường phát
+	# hành, kể cả chốt đơn tay và chốt cả loạt, nên đặt ở đây thay vì đi
+	# thêm lời gọi vào từng nơi nhớ ra (điều 18).
+	from vagabond import hddt_cho_xuat
 	try:
-		ra = chuan_goi(si, frappe.parse_json(goi) if isinstance(goi, str) else goi)
+		hddt_cho_xuat.chan_neu_con_ngay_cu(si)
+	except ValueError as loi:
+		frappe.throw(str(loi))
+	try:
+		ma_gop = [x.strip() for x in str(
+			frappe.db.get_single_value("MInvoice Phat Hanh Settings", "ma_hang_gop") or ""
+		).replace(",", "\n").splitlines() if x.strip()]
+	except Exception:
+		ma_gop = []
+	try:
+		ra = chuan_goi(si, frappe.parse_json(goi) if isinstance(goi, str) else goi, ma_gop)
 	except ValueError as loi:
 		frappe.throw(str(loi))
 	if giu_cho:

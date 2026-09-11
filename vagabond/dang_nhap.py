@@ -177,7 +177,7 @@ def thoat(token=None):
 # ---------------------------------------------------------------- Cong khach
 
 
-def _don_pancake(c, k, sdt_noi_dia, gioi_han=30):
+def _don_pancake(c, k, sdt_noi_dia, gioi_han=30, bao_loi=False):
 	"""Lich su don cua mot so dien thoai, doc thang tu Pancake."""
 	try:
 		r = requests.get(
@@ -185,9 +185,16 @@ def _don_pancake(c, k, sdt_noi_dia, gioi_han=30):
 			params={"api_key": k, "search": sdt_noi_dia, "page_size": gioi_han, "page_number": 1},
 			timeout=TIMEOUT,
 		)
-		ds = (r.json() or {}).get("data") or []
+		if bao_loi:
+			r.raise_for_status()
+		goi = r.json()
+		if bao_loi and (not isinstance(goi, dict) or not isinstance(goi.get("data"), list) or goi.get("success") is False):
+			raise ValueError("Pancake trả dữ liệu lịch sử không hợp lệ")
+		ds = (goi or {}).get("data") or []
 	except Exception:
 		frappe.log_error(title="Vagabond: khong doc duoc don cua khach", message=frappe.get_traceback())
+		if bao_loi:
+			raise
 		return []
 
 	ra = []

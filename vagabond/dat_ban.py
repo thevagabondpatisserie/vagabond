@@ -111,7 +111,7 @@ def kiem_phieu(doc):
             frappe.throw(str(e))
     cu = doc.get_doc_before_save()
     if cu:
-        for ten in ('ten', 'sdt', 'ngay', 'gio', 'so_khach', 'co_so', 'bam_noi_dung'):
+        for ten in ('ten', 'sdt', 'ngay', 'gio', 'so_khach', 'co_so', 'ghi_chu', 'bam_noi_dung'):
             if str(cu.get(ten)) != str(doc.get(ten)):
                 frappe.throw('Giữ nguyên yêu cầu khách đã gửi. Ghi thay đổi vào ghi chú xử lý.')
         chuyen = {'Chờ xác nhận':{'Đã xác nhận','Đã hủy'}, 'Đã xác nhận':{'Đã đến','Đã hủy'}, 'Đã đến':set(), 'Đã hủy':set()}

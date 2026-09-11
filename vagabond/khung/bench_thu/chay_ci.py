@@ -41,8 +41,8 @@ def chay():
 			return ket_noi(sock, dia_chi)
 
 		co_243 = [ten for ten, _ in nen.CA if ten.startswith("#243 ")]
-		if len(co_243) != 11:
-			raise RuntimeError("Phải đăng ký đủ 11 ca #243, nhận %s" % len(co_243))
+		if len(co_243) != 12:
+			raise RuntimeError("Phải đăng ký đủ 12 ca #243, nhận %s" % len(co_243))
 		with patch.object(socket.socket, "connect", chi_noi_bo):
 			for luot in (1, 2):
 				kq = chay_cua(im=0)
@@ -68,7 +68,18 @@ def chay():
 		(tep / "minvoice-243.json").write_text(
 			json.dumps(kq, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 		print("M-Invoice: " + json.dumps(kq, ensure_ascii=False, default=str), flush=True)
-		return dat_bo and bool(kq.get("dat"))
+		# #266 vòng 2: năm finding của Codex chạy thật qua Server Script với
+		# HTTP giả, gồm thứ tự ngày cũ, đồng thời, backlog và phạm vi phát hành.
+		from vagabond.khung.bench_thu.kiem_hddt_266 import chay as chay_hddt266
+		try:
+			with patch.object(socket.socket, "connect", chi_noi_bo):
+				kq266 = chay_hddt266()
+		except Exception:
+			kq266 = {"dat": False, "loi": traceback.format_exc()}
+		(tep / "hddt-266.json").write_text(
+			json.dumps(kq266, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+		print("HĐĐT #266: " + json.dumps(kq266, ensure_ascii=False, default=str), flush=True)
+		return dat_bo and bool(kq.get("dat")) and bool(kq266.get("dat"))
 	except Exception:
 		(tep / "loi.txt").write_text(traceback.format_exc(), encoding="utf-8")
 		raise
@@ -86,5 +97,9 @@ if __name__ == "__main__":
 	# Kịch bản này cố ý commit và mở nhiều kết nối. Chỉ chạy sau khi bộ
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
 	kho = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=False)
-	if not dat or kho.returncode:
+	app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.doi_chieu_247"], check=False)
+	# Render và HTTP upload chạy sau bộ hoàn nguyên, trên site dùng một lần.
+	in_app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.in_app_263"], check=False)
+	phan_bo = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.phan_bo_247"], check=False)
+	if not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")

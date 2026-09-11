@@ -12,7 +12,7 @@ Nền dùng một lần trên Ubuntu 24.04:
 
 `dung_ci.sh` cài ứng dụng, dựng fixture `nen_bench.dung`, migrate hai lần. Không bật worker, lịch chạy hay email. `chay_ci.py` mở một kết nối Frappe và gọi toàn bộ `cua.chay(im=0)` hai lần trong cùng tiến trình Python. Hai lượt không dựng lại fixture nên bắt được lỗi cache và hàng đợi còn sót. Chặn kết nối socket ra ngoài trong lúc chạy ca kiểm; MariaDB và Redis cục bộ vẫn là thật.
 
-Job đỏ nếu thiếu 11 ca #243, có ca chưa chạy, bất kỳ ca hỏng, mất điểm lưu, còn chứng từ hoặc số lượng lệch. Lỗi cũ cũng không được tự bỏ qua. Khi hoàn nguyên mất an toàn, dừng ngay. Khi chỉ có ca nghiệp vụ đỏ nhưng khung sạch, vẫn chạy lượt hai để có bằng chứng trạng thái lặp lại.
+Job đỏ nếu thiếu 12 ca #243 (gồm ca chính sách Server Script), có ca chưa chạy, bất kỳ ca hỏng, mất điểm lưu, còn chứng từ hoặc số lượng lệch. Lỗi cũ cũng không được tự bỏ qua. Khi hoàn nguyên mất an toàn, dừng ngay. Khi chỉ có ca nghiệp vụ đỏ nhưng khung sạch, vẫn chạy lượt hai để có bằng chứng trạng thái lặp lại.
 
 Artifact `bench-<SHA>` gồm SHA của ba repo, log dựng bench, hai log migrate, JSON từng lượt, log tích hợp và traceback nếu lỗi. Không tải site_config, database, email hay thông tin đăng nhập. Workflow không deploy. Chỉ triển khai đúng SHA đã có bằng chứng tích hợp, review và cổng phát hành đạt.
 

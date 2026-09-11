@@ -161,7 +161,9 @@ def _gan_ma_hang():
 	dung("con duong cho hang khong qua kho", '"MInvoice NCC Map"' in MA_DCM)
 	# Phan chua goc: ghi nho de lan sau may tu nhan.
 	dung("co ghi nho", '"doctype": "MInvoice NCC Map"' in MA_DCM)
-	dung("khong ghi de anh xa da co", "elif not (frappe.db.get_value" in MA_DCM)
+	# Chi ghi de khi nguoi bam "doi ma" co chu y (issue #252, 10/09/2026).
+	dung("khong ghi de anh xa da co", 'not (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip()' in MA_DCM)
+	dung("doi ma la doi luon ghi nho", "(ma_cu and cint(doi))" in MA_DCM)
 	# Nan lai don vi, dung chung phep dich voi duong dung chung tu (QT-19).
 	dung("nan lai don vi khi gan", "goi_y_don_vi(dvt_ncc)" in MA_DCM)
 	dung("bao lai khi don vi chua khai", "chua_khai_don_vi" in MA_DCM)

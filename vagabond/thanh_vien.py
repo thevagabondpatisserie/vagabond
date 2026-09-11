@@ -69,6 +69,13 @@ def toi():
     from vagabond.diem_otp import _so_du
     diem = _so_du(kh['name']) if kh else 0
     c = cfg(); k = key(c, 'pancake_api_key')
-    don = dang_nhap._don_pancake(c, k, noi_dia) if k and c.pancake_shop_id else []
+    don, don_loi = [], True
+    if k and c.pancake_shop_id:
+        try:
+            don = dang_nhap._don_pancake(c, k, noi_dia, bao_loi=True)
+            don_loi = False
+        except Exception:
+            # Điểm/hạng vẫn đọc được; lỗi nguồn đơn không được giả làm lịch sử rỗng.
+            don_loi = True
     return {'ok':1, 'ten':kh.get('customer_name',''), 'sdt':noi_dia, 'hang':hang,
-            'diem':diem, 'don':don, 'co_ho_so':bool(kh)}
+            'diem':diem, 'don':don, 'don_loi':don_loi, 'co_ho_so':bool(kh)}

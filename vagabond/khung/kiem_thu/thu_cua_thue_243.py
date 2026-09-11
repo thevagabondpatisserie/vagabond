@@ -82,3 +82,33 @@ def _khong_nguon():
     try: _goi(mau=None,ds=[],nguon=None)
     except ValueError as e: dung('hướng dẫn chọn mẫu','chọn mẫu' in str(e))
     else: dung('không coi thiếu cấu hình là VAT 0',False)
+
+
+
+def _kiem_helper_mau(doi=None, rong=False, nguon=None):
+    p = Path(__file__).resolve().parents[1] / 'kiem_that' / 'thu_cua_thue_243.py'
+    cay = ast.parse(nguon or p.read_text())
+    ham = next(n for n in cay.body if isinstance(n, ast.FunctionDef) and n.name == '_kiem_mau_8')
+    vat = dict(charge_type='On Net Total', account_head='33311', rate=8, included_in_print_rate=1)
+    hd = To(taxes_and_charges='Mau', taxes=[To(vat)])
+    dong_mau = To(vat)
+    dong_mau.update(doi or {})
+    mau = To(company='CT', disabled=0, taxes=[] if rong else [dong_mau])
+    loi = []
+    def so(nhan, duoc, mong):
+        if duoc != mong:
+            loi.append(nhan)
+    ns = {'frappe': SimpleNamespace(get_doc=lambda *a: mau), 'la': so,
+        'dung': lambda nhan, dieu: so(nhan, bool(dieu), True)}
+    exec(compile(ast.Module(body=[ham], type_ignores=[]), str(p), 'exec'), ns)
+    ns['_kiem_mau_8'](hd, 'CT', '33311')
+    return loi
+
+
+@ca('#243 kiểm mẫu: hoá đơn đúng không che mẫu tham chiếu sai')
+def _helper_mau_khong_che_loi():
+    la('mẫu và hoá đơn đúng qua', _kiem_helper_mau(), [])
+    for doi in ({'rate': 10}, {'account_head': '33312'},
+                {'included_in_print_rate': 0}, {'charge_type': 'Actual'}):
+        dung('mẫu sai bị bắt ' + str(doi), bool(_kiem_helper_mau(doi)))
+    dung('mẫu rỗng bị bắt', bool(_kiem_helper_mau(rong=True)))

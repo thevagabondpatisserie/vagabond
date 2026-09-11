@@ -111,6 +111,8 @@ class _San(object):
 		san = self
 
 		def _get_value(dt, name=None, fieldname=None, *a, **k):
+			if dt == "Purchase Invoice":
+				return types.SimpleNamespace(docstatus=1, outstanding_amount=100.0)
 			if k.get("for_update"):
 				san.nhat_ky.append("khoa")
 				if san.khoa_hong:
@@ -159,12 +161,21 @@ class _San(object):
 			_kiem=lambda *a, **k: None,
 		)
 		self.va.__enter__()
+		from unittest.mock import patch
+		from vagabond import doi_chieu_app
+		# Các ca này kiểm giao dịch ghi nhận, bộ kiểm #247 kiểm đối chiếu thật.
+		self.doi_chieu = patch.object(doi_chieu_app, "chon", return_value=types.SimpleNamespace(name="BT-GIA", withdrawal=san.chi))
+		self.noi = patch.object(doi_chieu_app, "noi_but_toan", return_value=None)
+		self.doi_chieu.start()
+		self.noi.start()
 		return self
 
 	def __exit__(self, *a):
 		import frappe
 		from vagabond import tra_tien_app
 
+		self.doi_chieu.stop()
+		self.noi.stop()
 		self.va.__exit__(*a)
 		frappe.db.get_value = self.fr_cu["get_value"]
 		frappe.db.commit = self.fr_cu["commit"]
@@ -675,8 +686,8 @@ def _r4_kiem_sepay():
 		frappe.db.get_value = lambda *a, **k: {"name": "APP.26.09.001", "tong_tien": 100.0,
 			"con_lai": con_lai, "trang_thai": "Da duyet"}
 		try:
-			with _Vet(_kiem=lambda *a, **k: None,
-					_sepay_theo_ma_app=lambda ds: {"APP.26.09.001": {"chi": chi, "so_gd": 1}}):
+			from unittest.mock import patch
+			with patch("vagabond.doi_chieu_app.chon", return_value=types.SimpleNamespace(name="BT-GIA", withdrawal=chi, date="2026-09-09") if chi else None), _Vet(_kiem=lambda *a, **k: None):
 				return hs.kiem_sepay("APP.26.09.001")["rows"][0]
 		finally:
 			frappe.db.get_value = cu

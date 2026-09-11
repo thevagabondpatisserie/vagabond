@@ -25,6 +25,7 @@ import frappe
 from frappe.utils import cint, flt, getdate, nowdate, add_days
 
 from vagabond import dvt_mua
+from vagabond.quy_cach_doi_chieu import dong_hieu_luc, luong_da_ghi
 
 QUYEN = {
 	"System Manager",
@@ -195,7 +196,7 @@ def _pnk_con_lai(ncc, ngay, so_ngay=60):
 
 
 def _dong_pnk(ten_pnk):
-	return frappe.get_all(
+	return dong_hieu_luc(frappe.get_all(
 		"Purchase Receipt Item",
 		filters={"parent": ten_pnk, "docstatus": 1},
 		fields=[
@@ -204,7 +205,7 @@ def _dong_pnk(ten_pnk):
 		],
 		order_by="idx asc",
 		limit_page_length=0,
-	)
+	))
 
 
 def _dong_hd(name):
@@ -274,6 +275,46 @@ def _nhom_cua(hd, dong, co_goi_y):
 	return "cho_doi_chieu"
 
 
+def hd_noi_cu(dong_theo_hd):
+	"""Những tờ nháp có dòng nối vào dòng phiếu nhập không còn đủ lượng.
+
+	Đọc hai câu: lượng đã nhận của các dòng phiếu được trỏ tới, và lượng
+	các hoá đơn ĐÃ GHI SỔ đã lấy. Tờ nháp không cần loại trừ nhau: nháp
+	chưa chiếm gì trong sổ. Trả về tập tên hoá đơn.
+	"""
+	ten_dong = sorted({
+		(d.get("pr_detail") or "") for ds in dong_theo_hd.values() for d in ds
+	} - {""})
+	if not ten_dong:
+		return set()
+	kho = {}
+	for r in dong_hieu_luc(frappe.get_all(
+		"Purchase Receipt Item",
+		filters={"name": ["in", ten_dong], "docstatus": 1},
+		fields=["name", "item_code", "qty", "uom", "conversion_factor", "stock_uom"],
+		limit_page_length=0,
+	)):
+		r["hs"] = dvt_mua.he_so(r.get("conversion_factor"))
+		kho[r["name"]] = r
+	_da_dung_o_hoa_don_khac(kho, None)
+	ra = set()
+	for hd, ds in dong_theo_hd.items():
+		dung = {}
+		for d in ds:
+			r = kho.get(d.get("pr_detail") or "")
+			if not r:
+				continue
+			try:
+				dung[r["name"]] = dung.get(r["name"], 0.0) + luong_da_ghi(d, r)
+			except Exception:
+				# Khac don vi voi can cu quy cach: cung la mot dau noi hong.
+				ra.add(hd)
+		for ten, luong in dung.items():
+			if flt(kho[ten]["con_ngoai"]) - luong < -0.0001:
+				ra.add(hd)
+	return ra
+
+
 # ------------------------------------------------------------------ man app
 
 
@@ -315,10 +356,15 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 		for r in frappe.get_all(
 			"Purchase Invoice Item",
 			filters={"parent": ["in", nhap]},
-			fields=["parent", "item_code", "purchase_receipt"],
+			fields=["parent", "item_code", "purchase_receipt", "pr_detail", "qty", "uom",
+				"conversion_factor"],
 			limit_page_length=0,
 		):
 			dong_theo_hd.setdefault(r["parent"], []).append(r)
+	# To nao dang giu dau noi da mat hieu luc (phieu bi to khac ghi so lay
+	# mat luong). Tinh mot lan cho ca danh sach, de nhom "Cho ghi so" khong
+	# hua mot viec ma ke toan bam vao la bi chan (issue #252, 10/09/2026).
+	noi_cu_theo_hd = hd_noi_cu(dong_theo_hd)
 
 	# Phieu nhap con chua duoc hoa don nao lay het, cua dung may nha cung
 	# cap dang co hoa don nhap. Noi rong khoang ngay hai dau, vi hang ve
@@ -369,6 +415,11 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 		o["da_noi"] = _da_noi(dong)
 		o["so_phieu_goi_y"] = len(gy)
 		o["nhom"] = _nhom_cua(r, dong, bool(gy))
+		o["noi_cu"] = 1 if r["name"] in noi_cu_theo_hd else 0
+		if o["noi_cu"]:
+			# Khong de o "Cho ghi so": ghi so la bi chan. Tra ve cho doi chieu
+			# de nguoi ta bam noi lai, may tu go dau cu.
+			o["nhom"] = "cho_doi_chieu"
 		if o["nhom"] in ("cho_doi_chieu", "cho_ghi_so") and gy:
 			# Lech tien tinh tren PHUONG AN MAY DE XUAT, tuc phieu diem cao
 			# nhat. Chi de bay chip canh bao tu xa, con so that thi man chi
@@ -461,6 +512,12 @@ def xem(name):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: soi hoa don dien tu")
 
+	nhom = _nhom_cua(hd, dong, bool(gy))
+	noi_cu = 0
+	if hd.get("docstatus") == 0 and da_noi_ds:
+		noi_cu = 1 if name in hd_noi_cu({name: dong}) else 0
+		if noi_cu:
+			nhom = "cho_doi_chieu"
 	return {
 		"hd": hd,
 		"hddt": hddt,
@@ -468,7 +525,8 @@ def xem(name):
 		"da_noi": _da_noi(dong),
 		"phieu_da_noi": da_noi_ds,
 		"goi_y": gy,
-		"nhom": _nhom_cua(hd, dong, bool(gy)),
+		"nhom": nhom,
+		"noi_cu": noi_cu,
 		"lam_duoc": 1 if _lam_duoc() else 0,
 		# Man hinh phai biet de an nut "Khop va ghi so" di, khong thi Uyen
 		# bam roi moi biet minh khong duoc phep - mot vong lam viec vut di.
@@ -491,18 +549,37 @@ def so_sanh(name, phieu=None):
 		frappe.throw("Không có hoá đơn %s." % name)
 	dong = _dong_hd(name)
 
-	kho_pnk = {}
-	tien_pnk = 0.0
 	for p in phieu:
 		if frappe.db.get_value("Purchase Receipt", p, "supplier") != hd["supplier"]:
 			frappe.throw("Phiếu nhập %s không phải của nhà cung cấp này." % p)
-		for r in _dong_pnk(p):
-			r["phieu"] = p
-			kho_pnk.setdefault(r["item_code"], []).append(r)
-		tien_pnk += flt(frappe.db.get_value("Purchase Receipt", p, "total"))
+
+	# SO VOI LUONG CON LAI, KHONG SO VOI LUONG DA NHAN (issue #252, 10/09/2026).
+	#
+	# HĐ 3019 của LARAFARM: phiếu PNK-2026-00043 nhận 5 hộp dâu, một hoá
+	# đơn khác đã ghi sổ lấy 3 hộp. Màn này cộng nguyên 5 hộp và 995.000 đ
+	# của phiếu nên báo "Khớp 0 đ", trong khi bước ghi sổ (đúng) chỉ còn
+	# thấy 2 hộp và chặn. Cùng một nguồn lượng với bước nối và bước ghi sổ:
+	# `_kho_con_lai_tu_dong`.
+	kho_pnk = _kho_con_lai_tu_dong(name, dong, phieu)
+	tien_pnk = 0.0
+	hd_da_dung = set()
+	for ds in kho_pnk.values():
+		for x in ds:
+			# Tien con lai cua dong phieu = gia moi don vi kho x luong con
+			# lai ngoai to nay. Phieu chua ai lay thi bang dung amount.
+			tien_pnk += dvt_mua.gia_moi_don_vi_kho(x.get("rate"), x["hs"]) * max(0, flt(x["con_ngoai"]))
+			hd_da_dung.update(_ten_hd_da_dung(x))
+	# Tong tien lam tron ve dong, khop voi cach ERPNext ghi `total`.
+	tien_pnk = flt(tien_pnk, 0)
 
 	ra = []
 	con = {k: list(v) for k, v in kho_pnk.items()}
+	theo_ten = {x["name"]: x for ds in kho_pnk.values() for x in ds}
+	ton_hd_mon = {}
+	for r in dong:
+		if r.get("item_code"):
+			ton_hd_mon[r["item_code"]] = ton_hd_mon.get(r["item_code"], 0.0) + dvt_mua.ton(
+				r.get("qty"), dvt_mua.he_so(r.get("conversion_factor")))
 	for r in dong:
 		ds = con.get(r["item_code"]) or []
 		hs_hd = dvt_mua.he_so(r.get("conversion_factor"))
@@ -512,7 +589,20 @@ def so_sanh(name, phieu=None):
 		# v315 cho nay tru thang "4" voi "4" ma khong nhin don vi, nen mot
 		# dong 4 Gram doi dien 4 Tui van hien ra la khop so luong.
 		ton_hd = dvt_mua.ton(r.get("qty"), hs_hd)
-		ton_pnk = sum(dvt_mua.ton(x.get("qty"), x.get("conversion_factor")) for x in ds)
+		# Luong phieu nhap CON LAI cho to nay: con lai ngoai to nay, cong
+		# lai phan cac dong khac cua chinh to nay chua tinh (moi dong hoa
+		# don nhin phan con cua phieu sau khi tru hoa don khac).
+		ton_nhan = sum(flt(x.get("nhan")) for x in ds)
+		ton_pnk = sum(max(0, flt(x["con_ngoai"])) for x in ds)
+		da_dung_dong = sorted({t for x in ds for t in _ten_hd_da_dung(x)})
+		# Dong da noi ma dong phieu no tro toi da bi to khac ghi so chiem:
+		# dau noi cu mat hieu luc. Bao ra, va nut noi lai se tu go.
+		noi_cu = 0
+		if (r.get("pr_detail") or "") in theo_ten:
+			x = theo_ten[r["pr_detail"]]
+			if flt(x.get("con_tho", 0)) < -0.0001:
+				noi_cu = 1
+				da_dung_dong = sorted(set(da_dung_dong) | set(_ten_hd_da_dung(x)))
 		gia_kho_hd = dvt_mua.gia_moi_don_vi_kho(r.get("rate"), hs_hd)
 		gia_kho_pnk = dvt_mua.gia_moi_don_vi_kho(ds[0].get("rate"), hs_pnk) if ds else 0.0
 		# MOT phep xet dung chung voi phep noi. Truoc 27/08/2026 hai cho xet
@@ -532,7 +622,12 @@ def so_sanh(name, phieu=None):
 				"sl_hd": flt(r["qty"]),
 				"gia_hd": flt(r["rate"]),
 				"tien_hd": flt(r["amount"]),
-				"sl_pnk": sum(flt(x["qty"]) for x in ds),
+				# Con lai cho to nay, tinh theo don vi mua cua phieu. So da
+				# nhan de rieng, de man hinh noi "da nhan 5, con 2".
+				"sl_pnk": (ton_pnk / hs_pnk) if (ds and hs_pnk) else 0.0,
+				"sl_pnk_nhan": sum(flt(x["qty"]) for x in ds),
+				"da_dung_hd": da_dung_dong,
+				"noi_cu": noi_cu,
 				"gia_pnk": flt(ds[0]["rate"]) if ds else 0.0,
 				"dvt_hd": r.get("uom") or "",
 				"dvt_pnk": (ds[0].get("uom") or "") if ds else "",
@@ -552,7 +647,10 @@ def so_sanh(name, phieu=None):
 				# so luong thi don vi cua ho bang don vi cua minh. Chi de
 				# xuat, nguoi van phai go. Xem `khai_don_vi` cuoi tep nay.
 				"hs_pnk": flt(hs_pnk) if ds else 0.0,
-				"lech_sl": ton_hd - ton_pnk,
+				# Lech tinh theo MON, khong theo dong: hoa don ghi hai dong
+				# dau (1 hop + 5 hop) doi dien mot phieu 6 hop la khop, khong
+				# phai "lech -2.500" roi "lech -500" (HD 3019, 10/09/2026).
+				"lech_sl": ton_hd_mon.get(r["item_code"], ton_hd) - ton_pnk,
 				"lech_gia": (gia_kho_hd - gia_kho_pnk) if ds else 0.0,
 				"da_noi": (r.get("purchase_receipt") or ""),
 			}
@@ -565,17 +663,44 @@ def so_sanh(name, phieu=None):
 	for ma, ds in kho_pnk.items():
 		if ma in ma_hd:
 			continue
+		# Dong phieu da bi hoa don khac lay het thi khong con la "thua":
+		# no khong con gi de to nay tinh tien nua.
+		con_lai = sum(max(0, flt(x["con_ngoai"])) for x in ds)
+		if con_lai <= 0.0001:
+			continue
 		thua.append(
 			{
 				"item_code": ma,
 				"item_name": ds[0]["item_name"],
-				"sl_pnk": sum(flt(x["qty"]) for x in ds),
-				"tien_pnk": sum(flt(x["amount"]) for x in ds),
+				"sl_pnk": sum((max(0, flt(x["con_ngoai"])) / x["hs"]) if x["hs"] else 0 for x in ds),
+				"tien_pnk": flt(sum(
+					dvt_mua.gia_moi_don_vi_kho(x.get("rate"), x["hs"]) * max(0, flt(x["con_ngoai"]))
+					for x in ds), 0),
+				"dvt_pnk": ds[0].get("uom") or "",
+				"gia_pnk": flt(ds[0].get("rate")),
 			}
 		)
 
+	# DONG HOA DON KHONG CO TRONG PHIEU, MA PHIEU LAI CO MON KHONG AI NHAC:
+	# hai ben rat co the la MOT mon goi hai ten (LARAFARM 10/09/2026: hoa
+	# don ghi "Dau Nhat size 49 hop 500g", phieu ghi "Trai dau tuoi Da Lat",
+	# cung 5 Hop x 135.000). Chi ra cai goi y do, nguoi bam mot nut la xong,
+	# thay vi doc chu "khong co trong phieu" roi bo do.
+	for r in ra:
+		if r.get("co_phieu"):
+			continue
+		gy = [
+			t for t in thua
+			if abs(flt(t["sl_pnk"]) - flt(r["sl_hd"])) < 0.0001
+			and abs(flt(t["gia_pnk"]) - flt(r["gia_hd"])) < 0.5
+		]
+		r["goi_y_phieu"] = [
+			{"item_code": t["item_code"], "item_name": t["item_name"]} for t in gy
+		]
+
 	so_lech_dvt = len([r for r in ra if r.get("lech_dvt")])
 	so_khac_ten_dvt = len([r for r in ra if r.get("khac_ten_dvt")])
+	so_noi_cu = len([r for r in ra if r.get("noi_cu")])
 	return {
 		"dong": ra,
 		"thua": thua,
@@ -585,11 +710,15 @@ def so_sanh(name, phieu=None):
 		# Lech don vi thi khong bao gio duoc coi la khop, du tien co bang nhau
 		# tuyet doi: tien bang nhau ma so luong lech mot nghin lan la ca that
 		# ngay 26/08/2026, doc `vagabond/dvt_mua.py`.
+		# Dau noi cu mat hieu luc cung khong khop: ghi so la bi chan ngay.
 		"khop": 1
 		if abs(flt(hd["total"]) - tien_pnk) <= NGUONG_LECH and not thua and not so_lech_dvt
+		and not so_noi_cu
 		else 0,
 		"so_lech_dvt": so_lech_dvt,
 		"so_khac_ten_dvt": so_khac_ten_dvt,
+		"so_noi_cu": so_noi_cu,
+		"hd_da_dung": sorted(hd_da_dung),
 		"vuot_lech_gia_duoc": 1 if _vuot_lech_gia_duoc() else 0,
 		"nguong_lech": NGUONG_LECH,
 	}
@@ -676,6 +805,78 @@ def chia_luong_vao_phieu(can, ds):
 	return ra
 
 
+def _da_dung_o_hoa_don_khac(kho, ten_hd):
+	"""Hoá đơn ĐÃ GHI SỔ nào đang chiếm lượng của từng dòng phiếu nhập.
+
+	Đây là nguồn duy nhất cho câu hỏi "dòng phiếu nhập này còn bao nhiêu"
+	(issue #252, HĐ 3019 và 2900 của LARAFARM, 10/09/2026). Trước đó màn
+	so sánh cộng nguyên số đã nhận của phiếu, còn bước ghi sổ lại trừ phần
+	hoá đơn khác đã lấy: màn báo "Khớp 0 đ", kế toán bấm ghi sổ thì bị
+	chặn "chỉ còn 1000 đơn vị kho". Hai chỗ đọc hai con số khác nhau là
+	cái sinh ra lỗi, nên gom về đây, mọi chỗ cùng gọi.
+
+	Ghi vào từng dòng của `kho`:
+	  con_ngoai  lượng còn lại sau các hoá đơn khác đã ghi sổ (đơn vị kho)
+	  da_dung    danh sách (tên hoá đơn, lượng) đã lấy
+	"""
+	for r in kho.values():
+		r["con_ngoai"] = dvt_mua.ton(r.get("qty"), r["hs"])
+		r["da_dung"] = []
+	if not kho:
+		return kho
+	loc = {"pr_detail": ["in", list(kho)], "docstatus": 1}
+	if ten_hd:
+		loc["parent"] = ["!=", ten_hd]
+	for d in frappe.get_all("Purchase Invoice Item", filters=loc,
+		fields=["parent", "pr_detail", "qty", "uom", "conversion_factor"], limit_page_length=0):
+		r = kho.get(d.pr_detail)
+		if not r:
+			continue
+		luong = luong_da_ghi(d, r)
+		r["con_ngoai"] -= luong
+		r["da_dung"].append((d.get("parent") or "", luong))
+	return kho
+
+
+def _dong_kho(phieu):
+	"""Các dòng của những phiếu nhập được chọn, khoá theo tên dòng."""
+	kho = {}
+	for p in dict.fromkeys(phieu):
+		for r in _dong_pnk(p):
+			r["phieu"] = p
+			r["hs"] = dvt_mua.he_so(r.get("conversion_factor"))
+			r["nhan"] = dvt_mua.ton(r.get("qty"), r["hs"])
+			kho[r["name"]] = r
+	return kho
+
+
+def _kho_con_lai_tu_dong(ten_hd, cac_dong, phieu):
+	"""Lượng còn lại của từng dòng phiếu nhập, sau hoá đơn khác VÀ sau
+	những dòng của chính tờ này đã nối.
+
+	`con_tho` giữ số âm khi tờ này đang nối quá lượng còn lại: đó là dấu
+	hiệu dòng nối cũ đã bị hoá đơn khác ghi sổ chiếm mất (hai tờ nháp cùng
+	trỏ một phiếu, tờ kia ghi sổ trước). `con` thì không âm, để phép chia
+	lượng dùng.
+	"""
+	kho = _da_dung_o_hoa_don_khac(_dong_kho(phieu), ten_hd)
+	for r in kho.values():
+		r["con"] = r["con_ngoai"]
+		r["cua_to_nay"] = 0.0
+	for d in cac_dong:
+		if d.get("purchase_receipt") and d.get("pr_detail") in kho:
+			r = kho[d.get("pr_detail")]
+			luong = luong_da_ghi(d, r)
+			r["con"] -= luong
+			r["cua_to_nay"] += luong
+	ra = {}
+	for r in kho.values():
+		r["con_tho"] = r["con"]
+		r["con"] = max(0, r["con"])
+		ra.setdefault(r["item_code"], []).append(r)
+	return ra
+
+
 def _kho_con_lai(doc, phieu):
 	"""Trừ số lượng đã ghi hoá đơn, không suy số lượng từ billed_amt/giá.
 
@@ -683,30 +884,53 @@ def _kho_con_lai(doc, phieu):
 	pr_detail. Mỗi dòng PI chỉ có một pr_detail; phải chia dòng khi ghép
 	nhiều lần nhận. Giá hoá đơn vẫn giữ, chênh giá đi cửa kiểm hiện có.
 	"""
-	kho = {}
-	for p in dict.fromkeys(phieu):
-		for r in _dong_pnk(p):
-			r["phieu"] = p
-			r["hs"] = dvt_mua.he_so(r.get("conversion_factor"))
-			r["con"] = dvt_mua.ton(r.get("qty"), r["hs"])
-			kho[r["name"]] = r
-	if kho:
-		for d in frappe.get_all("Purchase Invoice Item", filters={"pr_detail": ["in", list(kho)],
-			"docstatus": 1, "parent": ["!=", doc.name]}, fields=["pr_detail", "qty", "conversion_factor"], limit_page_length=0):
-			kho[d.pr_detail]["con"] -= dvt_mua.ton(d.qty, dvt_mua.he_so(d.conversion_factor))
-	for d in doc.items:
-		if d.get("purchase_receipt") and d.get("pr_detail") in kho:
-			kho[d.pr_detail]["con"] -= dvt_mua.ton(d.qty, dvt_mua.he_so(d.conversion_factor))
-	ra = {}
-	for r in kho.values():
-		r["con"] = max(0, r["con"])
-		ra.setdefault(r["item_code"], []).append(r)
-	return ra
+	return _kho_con_lai_tu_dong(doc.name, doc.items, phieu)
+
+
+def _ten_hd_da_dung(r):
+	"""Tên các hoá đơn đã ghi sổ đang chiếm dòng phiếu nhập này, không lặp."""
+	return sorted({t for t, _ in (r.get("da_dung") or []) if t})
+
+
+def _go_noi_cu(doc, kho):
+	"""Gỡ những dòng nối vào phiếu nhập mà lượng đó đã bị hoá đơn khác ghi sổ.
+
+	Ca thật 10/09/2026: HĐ 3019 nối PNK-2026-00043 từ hôm trước, sau đó
+	một tờ khác ghi sổ lấy 3 trong 5 hộp dâu của phiếu đó. Tờ 3019 vẫn
+	giữ dấu nối cũ, màn báo khớp, kế toán bấm ghi sổ thì bị chặn mà không
+	có đường ra. Nay hễ bấm nối lại là máy tự gỡ dấu nối đã mất hiệu lực
+	rồi chia lại lượng theo những gì còn thật; dòng nào không còn phiếu
+	thì báo rõ tên hoá đơn đã lấy.
+
+	Chỉ gỡ dòng của CHÍNH tờ này, chỉ khi còn nháp, không đụng phiếu nhập
+	hay hoá đơn đã ghi sổ. Trả về danh sách câu báo.
+	"""
+	bao = []
+	for ds in kho.values():
+		for r in ds:
+			if r.get("con_tho", 0) >= -0.0001 or not r.get("cua_to_nay"):
+				continue
+			ten_hd = ", ".join(_ten_hd_da_dung(r)) or "hoá đơn khác"
+			for d in doc.items:
+				if d.get("pr_detail") != r["name"]:
+					continue
+				d.purchase_receipt = None
+				d.pr_detail = None
+				bao.append(
+					"Dòng %d: món %s từng nối vào %s, nhưng %s đã ghi sổ lấy mất "
+					"lượng đó (phiếu còn %g %s). Đã gỡ dấu nối cũ để chia lại."
+					% (d.idx, d.item_name or d.item_code, r["phieu"], ten_hd,
+						max(0, r["con_ngoai"]), r.get("stock_uom") or ""))
+			r["con"] = max(0, r["con_ngoai"])
+			r["con_tho"] = r["con"]
+			r["cua_to_nay"] = 0.0
+	return bao
 
 
 def _noi(doc, phieu, chi_tiet=False):
 	"""Chia dòng qua các phiếu đủ lượng rồi dùng cùng cửa kiểm đơn vị/giá."""
 	kho = _kho_con_lai(doc, phieu)
+	da_go = _go_noi_cu(doc, kho)
 	# Bản kế hoạch riêng: lần nối thật bên dưới chỉ tiêu lượng đúng một lần.
 	du_kien = {ma: [dict(r) for r in ds] for ma, ds in kho.items()}
 	dong = []
@@ -740,7 +964,10 @@ def _noi(doc, phieu, chi_tiet=False):
 			dong.append(moi)
 			r["con"] -= sl
 	doc.set("items", dong)
-	return _noi_tung_dong(doc, phieu, chi_tiet, kho)
+	kq = _noi_tung_dong(doc, phieu, chi_tiet, kho)
+	if chi_tiet:
+		kq["da_go_noi_cu"] = da_go
+	return kq
 
 
 def _noi_tung_dong(doc, phieu, chi_tiet=False, kho=None):
@@ -862,9 +1089,15 @@ def _noi_tung_dong(doc, phieu, chi_tiet=False, kho=None):
 						dvt_mua.dvt_tren_hoa_don(d.get("description")),
 					))
 			else:
+				# Noi ro AI da lay, khong thi nguoi doc di tim mai trong phieu
+				# nhap ma khong thay so lech nam o dau (10/09/2026).
+				ten_hd = sorted({t for r in ds for t in _ten_hd_da_dung(r)})
+				nhan = sum(flt(r.get("nhan")) for r in ds)
 				_ghi(d.idx, d.item_code,
-					"Dòng %d: món %s trên hoá đơn %g %s mà phiếu nhập chỉ còn %g %s."
-					% (d.idx, d.item_name or d.item_code, can, dvt_kho, co, dvt_kho))
+					"Dòng %d: món %s trên hoá đơn %g %s mà phiếu nhập chỉ còn %g %s"
+					% (d.idx, d.item_name or d.item_code, can, dvt_kho, co, dvt_kho)
+					+ (" (đã nhận %g, hoá đơn %s đã ghi sổ lấy phần kia)."
+						% (nhan, ", ".join(ten_hd)) if ten_hd else "."))
 			continue
 		# ERPNext doi o "uom" cua hai ben bang nhau TUNG CHU, da do ma nguon
 		# v16: compare_fields cua Purchase Receipt Item la
@@ -1023,6 +1256,7 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 			"da_noi": 1, "da_ghi_so": 0, "name": doc.name,
 			"so_dong_da_noi": kq["da_noi"],
 			"con_lai": con_lai, "khong_qua_kho": bo_qua,
+			"da_go_noi_cu": kq.get("da_go_noi_cu") or [],
 			"loi_nhan": _loi_nhan_noi(kq),
 		}
 
@@ -1047,6 +1281,11 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 def _loi_nhan_noi(kq):
 	"""Mot cau cho man hinh, noi ro da lam gi va con gi."""
 	p = ["Đã nối %d dòng vào phiếu nhập." % kq["da_noi"]]
+	if kq.get("da_go_noi_cu"):
+		p.append(
+			"Đã gỡ %d dấu nối cũ vì lượng đó đã bị hoá đơn khác ghi sổ lấy mất, "
+			"rồi chia lại theo lượng còn thật." % len(kq["da_go_noi_cu"])
+		)
 	if kq["khong_qua_kho"]:
 		p.append(
 			"%d dòng không qua kho (phí ship, dịch vụ, chi phí) nên không cần "
@@ -1137,6 +1376,47 @@ def sua_don_vi(name, dong=None, dvt=None):
 			),
 		}
 	return {"da_sua": sua, "name": doc.name}
+
+
+@frappe.whitelist()
+def bo_noi(name, dong=None):
+	"""Gỡ dấu nối phiếu nhập trên một tờ hoá đơn mua CÒN NHÁP.
+
+	Vì sao có nút này (issue #252, 10/09/2026): dấu nối được đặt hôm trước
+	có thể mất hiệu lực hôm sau, khi một tờ khác ghi sổ lấy mất lượng của
+	phiếu. Trước đó không có đường nào gỡ ngoài mở Desk xoá tay từng ô.
+
+	Chỉ xoá hai ô purchase_receipt và pr_detail của dòng, KHÔNG đụng số
+	lượng, đơn giá, tiền. Không đụng tờ đã ghi sổ, không đụng phiếu nhập.
+	Để trống `dong` là gỡ mọi dòng của tờ.
+	"""
+	_kiem_quyen()
+	if not _lam_duoc():
+		frappe.throw("Chỉ kế toán hoặc thu mua mới gỡ nối phiếu được.")
+	doc = frappe.get_doc("Purchase Invoice", name)
+	if doc.docstatus != 0:
+		frappe.throw("Hoá đơn %s đã ghi sổ rồi, không gỡ nối được." % name)
+	chon = [str(x).strip() for x in frappe.parse_json(dong or "[]")] if isinstance(dong, str) else [
+		str(x).strip() for x in (dong or [])
+	]
+	go = 0
+	for d in doc.items:
+		if chon and d.name not in chon and str(d.idx) not in chon:
+			continue
+		if not (d.get("purchase_receipt") or "").strip():
+			continue
+		d.purchase_receipt = None
+		d.pr_detail = None
+		go += 1
+	if not go:
+		frappe.throw("Tờ này không có dòng nào đang nối phiếu nhập.")
+	doc.flags.ignore_permissions = True
+	doc.save()
+	frappe.db.commit()
+	return {
+		"name": doc.name, "da_go": go,
+		"loi_nhan": "Đã gỡ nối %d dòng. Chọn lại phiếu nhập còn lượng rồi bấm nối." % go,
+	}
 
 
 @frappe.whitelist()
@@ -1349,7 +1629,7 @@ def _phieu_ung_vien(doc):
 
 
 @frappe.whitelist()
-def gan_ma_hang(name, dong, item_code, nho=1):
+def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
 	"""Gan mot Mon vao dong hoa don chua co ma hang, va NHO cho lan sau.
 
 	ANH VIET 31/08/2026
@@ -1395,8 +1675,15 @@ def gan_ma_hang(name, dong, item_code, nho=1):
 			break
 	if not d:
 		frappe.throw("Không tìm thấy dòng %s trên hoá đơn %s." % (dong, name))
-	if (d.get("item_code") or "").strip():
+	ma_cu = (d.get("item_code") or "").strip()
+	if ma_cu and not cint(doi):
 		frappe.throw("Dòng %d đã có mã hàng %s rồi." % (d.idx, d.item_code))
+	if ma_cu and (d.get("purchase_receipt") or "").strip():
+		frappe.throw(
+			"Dòng %d đã nối vào phiếu nhập rồi. Bỏ nối trước khi đổi mã hàng." % d.idx
+		)
+	if ma_cu == item_code:
+		frappe.throw("Dòng %d đang mang đúng mã %s rồi." % (d.idx, item_code))
 
 	# TEN NHA CUNG CAP GHI, khong phai ten Mon cua minh. O `ten_hang_ncc`
 	# la o duoc ghi luc dung to va khong bi ERPNext thay, nen doc no truoc.
@@ -1450,9 +1737,20 @@ def gan_ma_hang(name, dong, item_code, nho=1):
 			m.flags.ignore_permissions = True
 			m.insert(ignore_permissions=True)
 			da_nho = 1
-		elif not (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip():
+		elif (
+			not (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip()
+			or (ma_cu and cint(doi))
+		):
+			# Doi ma tren dong la doi luon cai ghi nho, khong thi thang sau
+			# nha cung cap gui lai ten do la may lai gan ma cu (10/09/2026).
 			frappe.db.set_value("MInvoice NCC Map", cu, "item_code", item_code)
 			da_nho = 1
+	if ma_cu:
+		doc.add_comment(
+			"Comment",
+			"Đổi mã hàng dòng %d từ %s sang %s (%s, %s). Số lượng và đơn giá giữ nguyên."
+			% (d.idx, ma_cu, item_code, frappe.session.user, nowdate()),
+		)
 
 	frappe.db.commit()
 
@@ -1584,24 +1882,46 @@ def chan_vuot_luong_da_nhan(doc, method=None):
 	if not can:
 		return
 	ten = sorted(can)
-	phieu = frappe.db.sql("""select name, parent, qty, conversion_factor
+	phieu = frappe.db.sql("""select name, parent, qty, uom, conversion_factor
 		from `tabPurchase Receipt Item` where name in %(ten)s
 		order by name for update""", {"ten": ten}, as_dict=True)
+	phieu = dong_hieu_luc(phieu, khoa=True)
+	theo_dong = {r.name: r for r in phieu}
+	can = {t: 0 for t in ten}
+	for d in doc.get("items") or []:
+		if d.get("pr_detail") in theo_dong:
+			r = theo_dong[d.pr_detail]
+			if r.get("can_cu_quy_cach") and abs(flt(d.conversion_factor) - flt(r.conversion_factor)) > 0.000001:
+				frappe.throw("Dòng hoá đơn nối phiếu %s phải dùng hệ số đã xác nhận %g. Tải lại đối chiếu trước khi ghi sổ." % (r.parent, r.conversion_factor))
+			can[d.pr_detail] += luong_da_ghi(d, r)
 	da = {t: 0 for t in ten}
+	ai = {t: [] for t in ten}
 	# Child docstatus được core cập nhật cùng giao dịch. Không JOIN khoá
 	# parent PI khác: mỗi submit đã giữ khoá parent riêng trước hook này.
 	# Index (pr_detail,docstatus) của patch mua_hddt_v446 chỉ quét trạng
 	# thái 1, tránh chờ dòng nháp 0 của submit đang đợi khoá PR.
-	for d in frappe.db.sql("""select d.pr_detail, d.qty, d.conversion_factor
+	for d in frappe.db.sql("""select d.parent, d.pr_detail, d.qty, d.uom, d.conversion_factor
 		from `tabPurchase Invoice Item` d FORCE INDEX (vgb_pr_docstatus_227)
 		where d.pr_detail in %(ten)s and d.docstatus = 1 and d.parent != %(hd)s
 		order by d.pr_detail, d.name for update""", {"ten": ten, "hd": doc.name}, as_dict=True):
-		da[d.pr_detail] += dvt_mua.ton(d.qty, d.conversion_factor)
+		da[d.pr_detail] += luong_da_ghi(d, theo_dong[d.pr_detail])
+		if d.parent and d.parent not in ai[d.pr_detail]:
+			ai[d.pr_detail].append(d.parent)
 	for r in phieu:
 		nhan = dvt_mua.ton(r.qty, r.conversion_factor)
 		# Trả hàng giảm lượng đã ghi; core kiểm quan hệ return và chứng từ gốc.
 		if can[r.name] > 0 and da[r.name] + can[r.name] > nhan + 0.0001:
-			frappe.throw("Phiếu nhập %s chỉ còn %g đơn vị kho chưa ghi hoá đơn, "
-				"nhưng tờ này đang dùng %g. Có hoá đơn khác đã dùng lượng này; "
-				"kế toán kiểm lại các hoá đơn đã nối rồi chọn đúng phiếu nhập còn lượng."
-				% (r.parent, max(0, nhan - da[r.name]), can[r.name]))
+			# Noi ten hoa don da lay va noi duong ra, thay vi mot cau chan
+			# khong biet di dau (chi Dung, HĐ 3019 ngay 10/09/2026).
+			frappe.throw(cau_chan_vuot_luong(r.parent, nhan, da[r.name], can[r.name], ai[r.name]))
+
+
+def cau_chan_vuot_luong(phieu, nhan, da, can, hoa_don):
+	"""Câu báo khi tờ hoá đơn đòi nhiều hơn phần phiếu nhập còn lại. THUẦN."""
+	return (
+		"Phiếu nhập %s đã nhận %g đơn vị kho, hoá đơn %s đã ghi sổ lấy %g, "
+		"chỉ còn %g, nhưng tờ này đang dùng %g. Mở màn Đối chiếu hoá đơn mua, "
+		"bấm \"Nối phiếu\" lại để máy gỡ dấu nối cũ và chia theo lượng còn thật, "
+		"hoặc chọn thêm phiếu nhập khác còn lượng."
+		% (phieu, nhan, ", ".join(hoa_don) or "khác", da, max(0, nhan - da), can)
+	)

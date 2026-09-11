@@ -240,9 +240,9 @@ def _():
 		dung("hook %s được khai" % ten, "vagabond.hang_tang.%s" % ten in s)
 	# Cua chan THAT phai o before_submit. Chi khai o validate thi don van ghi
 	# so duoc bang duong khac (chuoi cuoi ngay, Desk, mot ham noi bo nao do).
-	i = s.find('"before_submit": [\n\t\t\t"vagabond.mua_vu.chan_ban_lo"')
+	from vagabond import hooks
 	dung("cửa chặn nằm đúng ở before_submit",
-		i > 0 and "vagabond.hang_tang.truoc_khi_ghi_so" in s[i:i + 400])
+		"vagabond.hang_tang.truoc_khi_ghi_so" in hooks.doc_events["Sales Invoice"]["before_submit"])
 
 
 @ca("hàng tặng: cửa chặn ghi sổ đọc đúng trạng thái đã duyệt")

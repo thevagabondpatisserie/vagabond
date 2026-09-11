@@ -59,6 +59,10 @@ doctype_js = {
 	"Purchase Order": "public/js/purchase_order.js",
 	"Sales Invoice": ["public/js/minvoice_phieu.js", "public/js/sua_pkt_tang.js"],
 	"Purchase Invoice": "public/js/purchase_invoice.js",
+	# Core kiem hai o so/ngay tham chieu ngay tren trinh duyet, truoc khi
+	# hook Python co co hoi chay. Dien khi validate de man Desk cua Dung va
+	# Uyen khong con bi chan; hook may chu van giu duong API. Issue #252.
+	"Payment Entry": "public/js/payment_entry.js",
 	# An o don gia khoi man phieu nhap voi nguoi thuan lam kho, va noi ro gia
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
 	# chi quan so luong, HSD?"). Xem dau tep purchase_receipt.js.
@@ -257,6 +261,7 @@ scheduler_events = {
 # Mot don Pancake chi duoc mot hoa don ban hang. Kiem o day de bat duoc moi
 # duong tao hoa don, khong rieng man Doanh thu Sales.
 doc_events = {
+	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
 	# Khoa xoa vinh vien chung tu, dat o "*" chu khong liet ke tung doctype:
 	# liet ke thi hom nao them mot loai chung tu moi la lai quen, ma quen o
 	# day thi khong ai biet cho den luc mat chung tu. Ham tu kiem doctype va
@@ -345,8 +350,9 @@ doc_events = {
 			# co so du lieu, git khong quan, khong ca kiem nao soi. Chan o
 			# day thi ca nut ben app lan nut ben Desk deu chiu chung mot luat,
 			# va nhung duong minh chua biet cung bi chan luon.
-			"vagabond.gac_don_vi.chan_don_vi_la",
+			"vagabond.he_so_chung_tu.kiem",
 		],
+		"before_submit": "vagabond.he_so_chung_tu.kiem",
 	},
 	# Tu chon lo cho nguyen lieu bi tru. Xem dau tep lo_hang.py: bep khong
 	# the go so lo tren dien thoai, va ba luong khac nhau cua app cung sinh
@@ -359,7 +365,7 @@ doc_events = {
 	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 	"Stock Entry": {
-		"validate": "vagabond.hang_tang_kho.chan_xuat_tay",
+		"validate": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.he_so_chung_tu.kiem"],
 		"before_validate": [
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
@@ -367,7 +373,7 @@ doc_events = {
 		],
 		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
 		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.
-		"before_submit": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.tai_khoan_chi_phi.kiem", "vagabond.kiem_ke.chan_khi_dang_kiem"],
+		"before_submit": ["vagabond.he_so_chung_tu.kiem", "vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.tai_khoan_chi_phi.kiem", "vagabond.kiem_ke.chan_khi_dang_kiem"],
 		# Huy phieu dieu chuyen thi van don di kem phai tat theo. Ngay
 		# 04/09/2026 co hai to van don nam "Cho giao" trong khi phieu goc da
 		# huy tu lau, khong ai bat duoc vi van don khong biet gi ve phieu goc.
@@ -375,16 +381,23 @@ doc_events = {
 	},
 	# Cùng bảng chi phí với Phiếu kho: bảo vệ cả nhập gia công và phân bổ.
 	"Subcontracting Order": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
-		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.he_so_chung_tu.kiem"]},
 	"Subcontracting Receipt": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
-		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": ["vagabond.tai_khoan_chi_phi.kiem", "vagabond.he_so_chung_tu.kiem"]},
+	"Subcontracting Inward Order": {"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
+	"BOM": {"before_validate": "vagabond.gram_bom_252.truoc_khi_luu",
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Landed Cost Voucher": {"before_validate": "vagabond.tai_khoan_chi_phi.kiem",
 		"before_submit": "vagabond.tai_khoan_chi_phi.kiem"},
 	# Co "Lam tuoi" chi danh cho chang BTP thanh phan. Ngay 28/08/2026 do
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
 	"Item": {"validate": ["vagabond.phantom.chan_lam_tuoi_sai_chang",
-		"vagabond.san_xuat_desktop.kiem_mon"]},
+		"vagabond.san_xuat_desktop.kiem_mon", "vagabond.gram_bom_252.kiem_mon"]},
 	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
 	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
 	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},
@@ -399,6 +412,8 @@ doc_events = {
 	# (Pending -> Ordered) SAU khi da ghi so, va do la luc phai go viec ra
 	# khoi hop cua thu mua.
 	"Material Request": {
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem",
 		"after_insert": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_submit": "vagabond.giao_viec.khi_sinh_phieu",
 		"on_update_after_submit": "vagabond.giao_viec.khi_xong",
@@ -411,7 +426,6 @@ doc_events = {
 		"before_validate": [
 			# Cung hang rao don vi nhu ben don mua. Phieu nhap la cho hang THAT
 			# vao kho, sai don vi o day la sai ton kho va sai gia von ngay lap tuc.
-			"vagabond.gac_don_vi.chan_don_vi_la",
 			# Cau bao tieng Viet khi ngay don mua muon hon ngay phieu nhap. Dat o
 			# before_validate vi `validate_posting_date_with_po` cua ERPNext nam
 			# ngay dong dau `validate()`, nen minh phai noi truoc no. KHONG noi
@@ -421,13 +435,14 @@ doc_events = {
 		# Ghi lai gia va so luong da doi so voi don mua hang. CHI GHI CHU,
 		# khong chan ai - doc `vagabond/gia_khi_nhan.py` de biet vi sao noi
 		# hai cai chan cua ERPNext ra ma van con kiem soat.
-		"validate": "vagabond.gia_khi_nhan.ghi_vet",
+		"validate": ["vagabond.gia_khi_nhan.ghi_vet", "vagabond.he_so_chung_tu.kiem"],
 		# Chan ghi so khi kho nhan hang tro vao tai khoan thanh pham 155x.
 		# Chi Dung 28/08/2026: "phieu nhap kho phai vao 152 chu khong phai
 		# vao 155, 155 la thanh pham khi minh xuat ban thoi". Dat o
 		# before_submit chu khong phai validate: luu nhap thi cu cho luu,
 		# chi chan dung luc con so sap cham so cai. Doc dau tep gac_tk_kho.py.
 		"before_submit": [
+			"vagabond.he_so_chung_tu.kiem",
 			"vagabond.gac_tk_kho.chan_nhap_vao_thanh_pham",
 			"vagabond.kiem_ke.chan_khi_dang_kiem",
 		],
@@ -476,7 +491,8 @@ doc_events = {
 		# before_validate vi ERPNext dung ba o do de dung bang nguyen lieu
 		# NGAY TRONG validate; dien muon hon la bang do da dung xong.
 		"before_validate": "vagabond.kho_san_xuat.gan_kho_lenh",
-		"validate": "vagabond.kho_san_xuat.gan_kho_nguon",
+		"validate": ["vagabond.kho_san_xuat.gan_kho_nguon", "vagabond.he_so_chung_tu.kiem_bom_lenh"],
+		"before_submit": "vagabond.he_so_chung_tu.kiem_bom_lenh",
 	},
 	# Ma lo LO-yymmdd-nnnnnn, cung mot bo dem lien tuc, dung chung cho thanh
 	# pham va ban thanh pham.
@@ -514,11 +530,13 @@ doc_events = {
 			# thong. Dat o before_validate vi ERPNext tinh lai tong tien SAU
 			# buoc nay - cung ly do voi hook ngay tren.
 			"vagabond.dung_lai_hddt.dong_bo_luc_luu",
+			"vagabond.do_chinh_xac_mua.truoc_khi_tinh",
 			# Cau bao tieng Viet khi ngay don mua muon hon ngay hoa don. Xem
 			# ghi chu cung ten o khoi Purchase Receipt phia tren.
 			"vagabond.ngay_don_mua.bao_ngay_don_mua",
 		],
 		"validate": [
+			"vagabond.he_so_chung_tu.kiem",
 			"vagabond.ke_toan_mua.giu_tk_theo_phieu_nhap",
 			# Ghi lai to nay dang cho ai lam gi, de man danh sach noi duoc
 			# ra thay vi 3.170 to cung mot chu "Nhap". Doc dau tep
@@ -529,8 +547,11 @@ doc_events = {
 			# 26/08/2026). Chi cham dong khong quan kho va chua noi phieu
 			# nhap, de khong dam len luat tai khoan cho 3311 cua hang kho.
 			"vagabond.dung_lai_hddt.tk_theo_mon",
+			"vagabond.mua_dich_vu.gan_tai_khoan_chi_phi",
 		],
 		"before_submit": [
+			"vagabond.he_so_chung_tu.kiem",
+			"vagabond.mua_dich_vu.gan_tai_khoan_chi_phi",
 			"vagabond.doi_chieu_mua.chan_vuot_luong_da_nhan",
 			"vagabond.mua_dich_vu.chan_lech_tong",
 		],
@@ -563,6 +584,12 @@ doc_events = {
 	# duoc. Chan o backend chu khong chi nhac tren man - day la chung tu goc
 	# de giai trinh, nhac tren man thi bo qua duoc.
 	"Payment Entry": {
+		# Phai dien TRUOC controller validate cua ERPNext. Neu dat trong
+		# validate thi core chay truoc doc_event va nem loi hai o tham chieu,
+		# hook cua minh khong bao gio toi luot. Issue #252, bench run #95.
+		"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong",
+		"before_save": "vagabond.coc_app.chan_sua_lich_su",
+		"before_update_after_submit": "vagabond.coc_app.chan_sua_lich_su",
 		# Ten goi dung theo tai khoan tien: 111 la Phieu thu/Phieu chi, 112
 		# la Giay bao Co / Uy nhiem chi (chi Dung chot 16/08/2026).
 		"validate": [
@@ -605,7 +632,13 @@ doc_events = {
 	# Bat DU CA SAU cua vi phieu dat co the doi so hoac doi ngay nhan o bat
 	# ky cua nao. Ham tu do lai ca ngay cu lan ngay moi, va tu nuot loi de
 	# khong chan sales luu phieu cua khach.
+	"POS Invoice": {"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
+	"Delivery Note": {"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Sales Order": {
+		"validate": "vagabond.he_so_chung_tu.kiem",
+		"before_submit": "vagabond.he_so_chung_tu.kiem",
 		"on_update": "vagabond.kiem_banh.khi_doi_phieu_dat",
 		"on_submit": "vagabond.kiem_banh.khi_doi_phieu_dat",
 		"on_update_after_submit": "vagabond.kiem_banh.khi_doi_phieu_dat",
@@ -654,6 +687,7 @@ doc_events = {
 		"before_cancel": "vagabond.bao_ve_hddt.chan_huy",
 		"before_update_after_submit": "vagabond.bao_ve_hddt.chan_huy_mem",
 		"validate": [
+			"vagabond.he_so_chung_tu.kiem",
 			"vagabond.ban_hang.kiem_truoc_khi_luu",
 			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
 			"vagabond.hang_tang.truoc_khi_luu",
@@ -677,6 +711,7 @@ doc_events = {
 		#      lech thi dung cai sai cu quay lai, ma lan nay con kho thay
 		#      hon vi nhin vao tuong da tach roi.
 		"before_submit": [
+			"vagabond.he_so_chung_tu.kiem",
 			"vagabond.mua_vu.chan_ban_lo",
 			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
 			"vagabond.hang_tang.truoc_khi_ghi_so",
@@ -755,4 +790,4 @@ override_doctype_class = {
 
 # Dung lai cac truong tu them do ma nguon khai, sau moi lan deploy. Thao tac
 # lap lai duoc: khai lai lan hai khong doi gi.
-after_migrate = ["vagabond.truong_tu_them.dung"]
+after_migrate = ["vagabond.truong_tu_them.dung", "vagabond.quy_cach_ncc.dung"]
