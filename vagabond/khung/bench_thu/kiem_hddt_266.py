@@ -535,11 +535,16 @@ def chay():
 				frappe.db.set_value('Sales Invoice', keo.name, 'custom_hddt_so', '99999', update_modified=False)
 				frappe.db.set_value('Sales Invoice', keo.name, 'custom_minvoice_id', 'KT266-keo', update_modified=False)
 				_bang('F4 đọc đúng ngày lập', str(ban_hang._ngay_so_hddt_moi_nhat()), str(hom_nay))
-				# cua_con_mo(ngay, ngay_so_moi_nhat): tham so thu hai la NGAY LAP
-				# cua to mang so lon nhat, khong phai hom nay. Truyen hom_nay
-				# vao day tinh co ra dung ket qua nhung sai y nghia.
+				# cua_con_mo(ngay, hom_nay, ngay_so_moi_nhat): tham so thu ba la
+				# NGAY LAP cua to mang so/ID moi nhat, khong phai ngay so.
 				_bang('F4 cửa hôm qua đã đóng',
-					hddt_cho_xuat.cua_con_mo(hom_qua, ban_hang._ngay_so_hddt_moi_nhat()), False)
+					hddt_cho_xuat.cua_con_mo(
+						hom_qua, hom_nay, ban_hang._ngay_so_hddt_moi_nhat()), False)
+				# Thành công có ID nhưng GetInfoInvoice chưa trả số vẫn là một tờ
+				# đã tồn tại. Biên phải giữ ngày lập của nó, không chỉ tờ có số.
+				frappe.db.set_value('Sales Invoice', keo.name, 'custom_hddt_so', '', update_modified=False)
+				_bang('F4 ID chưa có số vẫn giữ biên ngày lập',
+					str(ban_hang._ngay_so_hddt_moi_nhat()), str(hom_nay))
 				kq['phan'].append({'ten': 'F4 ngày lập hiệu lực', 'dat': True})
 
 				# ---------------------------------------------- backlog
@@ -560,7 +565,8 @@ def chay():
 				frappe.db.set_value('Sales Invoice', keo.name, hddt_cho_xuat.TRUONG_NGAY_XUAT,
 					None, update_modified=False)
 				_bang('backlog: cua hom qua mo lai sau khi co lap F4',
-					hddt_cho_xuat.cua_con_mo(hom_qua, ban_hang._ngay_so_hddt_moi_nhat()), True)
+					hddt_cho_xuat.cua_con_mo(
+						hom_qua, hom_nay, ban_hang._ngay_so_hddt_moi_nhat()), True)
 				_bang('backlog: van con no ngay cu de rut can',
 					str(hom_qua) in [str(x) for x in hddt_cho_xuat.ngay_cu_dang_cho()], True)
 

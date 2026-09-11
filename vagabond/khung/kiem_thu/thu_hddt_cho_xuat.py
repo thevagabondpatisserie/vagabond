@@ -304,6 +304,80 @@ def _go_co_duoi_khoa():
 		'set_value("Sales Invoice", r.name, "vgb_hddt_cho_doi_chieu", 0' not in than)
 
 
+@ca("#266 vòng 6: tờ chưa giữ cờ phải được khoá và đối chiếu lại trước khi đặt ngày")
+def _dat_ngay_duoi_khoa():
+	anh = {"custom_minvoice_id": "", "custom_hddt_id": "", "custom_hddt_so": "",
+		"vgb_hddt_cho_doi_chieu": 0, hddt_cho_xuat.TRUONG_NGAY_XUAT: None}
+
+	def chay(doc):
+		gia = unittest.mock.MagicMock()
+		gia.get_doc.return_value = doc
+		with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia):
+			ok = hddt_cho_xuat._dat_ngay_neu_con_nguyen(
+				"SI-1", anh, D(2026, 9, 11))
+		return ok, gia
+
+	ok, gia = chay(dict(anh))
+	dung("ảnh còn nguyên thì đặt ngày", ok)
+	dung("đọc tờ với khoá dòng", gia.get_doc.call_args[1].get("for_update") is True)
+	la("ghi đúng trường và ngày đã xác nhận", gia.db.set_value.call_args[0][1:],
+		("SI-1", hddt_cho_xuat.TRUONG_NGAY_XUAT, D(2026, 9, 11)))
+	for truong, gt in (("custom_minvoice_id", "MI-1"), ("custom_hddt_id", "HD-1"),
+			("custom_hddt_so", "12950"), ("vgb_hddt_cho_doi_chieu", 1),
+			(hddt_cho_xuat.TRUONG_NGAY_XUAT, D(2026, 9, 10))):
+		doc = dict(anh, **{truong: gt})
+		ok, gia = chay(doc)
+		dung("đổi %s thì bỏ qua" % truong, not ok)
+		dung("đổi %s thì không ghi" % truong, not gia.db.set_value.called)
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	i = h.find("def _chay_nen_da_nang_quyen(")
+	than = h[i:h.find("\ndef ", i + 10)]
+	dung("worker thật đi qua chốt khoá và đối chiếu lại",
+		"_dat_ngay_neu_con_nguyen(r.name, moi_nhat, ngay_dat)" in than)
+
+
+@ca("#266 vòng 6: ngày hẹn lỗi được thử lại trong hạn, quá hạn phải tách riêng")
+def _thu_lai_ngay_hen():
+	rows = [
+		{"name": "A", hddt_cho_xuat.TRUONG_NGAY_XUAT: D(2026, 9, 10),
+			"custom_nguon": "Pancake", "vgb_quay": "", "custom_minvoice_id": "",
+			"custom_hddt_id": "", "custom_hddt_so": ""},
+		{"name": "B", hddt_cho_xuat.TRUONG_NGAY_XUAT: D(2026, 9, 9),
+			"custom_nguon": "Pancake", "vgb_quay": "", "custom_minvoice_id": "",
+			"custom_hddt_id": "", "custom_hddt_so": ""},
+		{"name": "C", hddt_cho_xuat.TRUONG_NGAY_XUAT: D(2026, 9, 10),
+			"custom_nguon": "Pancake", "vgb_quay": "", "custom_minvoice_id": "MI-C",
+			"custom_hddt_id": "", "custom_hddt_so": ""},
+	]
+	gia = unittest.mock.MagicMock()
+	gia.db.get_all.return_value = rows
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
+			unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice",
+				lambda: ({}, ["Pancake"], ["@"])):
+		ra = hddt_cho_xuat.ngay_cho_xuat_can_thu_lai(D(2026, 9, 11))
+	la("hẹn 10/09 còn được thử ngày 11/09", ra["con_han"], [D(2026, 9, 10)])
+	la("hẹn 09/09 đã quá hạn và không được gửi lùi", ra["qua_han"], [D(2026, 9, 9)])
+
+
+@ca("#266 vòng 6: API đóng băng ngày đã duyệt, worker không tự đổi sau nửa đêm")
+def _dong_bang_ngay_xu_ly():
+	h = _doc("vagabond", "hddt_cho_xuat.py")
+	i = h.find("def xu_ly_ngay_cu(")
+	api = h[i:h.find("\ndef ", i + 10)]
+	for moc in ("cua_phap_ly_con_mo", "han_ky_gui", "ngay_tham_chieu=str(hom_nay)",
+			"ngay_dich=str(ngay_dat)"):
+		dung("API có chốt " + moc, moc in api)
+	i = h.find("def _chay_nen_da_nang_quyen(")
+	worker = h[i:h.find("\ndef ", i + 10)]
+	dung("worker đọc ngày tham chiếu và ngày đích đã đóng băng",
+		"_ngay(ngay_tham_chieu)" in worker and "_ngay(ngay_dich)" in worker)
+	dung("worker từ chối lệnh đã quá hạn thay vì tự thay ngày",
+		"not con_trong_han_ky_gui(ngay_dat, ngay_chay_that)" in worker
+		and "máy không tự đổi ngày sau nửa đêm" in worker)
+	dung("cả chế độ kéo cũng phát hành ngay",
+		'if kq["keo"]:' in worker and "phat_hanh(str(ngay_dat), _goi_server_script)" in worker)
+
+
 @ca("#266 vòng 5b (Codex): nợ chỉ tính tờ thuộc điểm ĐANG BẬT xuất hoá đơn")
 def _no_theo_diem_dang_bat():
 	"""Codex bắt đúng, và đây là lỗi CHẾT MÁY: hai tập nợ đếm cả tờ của
@@ -479,6 +553,15 @@ def _thu_tu_chip():
 		vi_ngay = than.find("vgb_hddt_ngay_xuat")
 		dung("%s: cả hai nhánh còn đó" % tep, vi_doi > 0 and vi_ngay > 0)
 		dung("%s: đối chiếu đứng trước chờ xuất" % tep, vi_doi < vi_ngay)
+	# Thẻ chi tiết dùng một biểu thức ưu tiên riêng, không được hiện đồng thời
+	# chip vàng làm chìm cảnh báo đỏ khi cả cờ và ngày hẹn cùng tồn tại.
+	ma = _doc("vagabond", "public", "js", "bep", "08-doanh-so-sales.js")
+	i = ma.find("async function scrDsView(")
+	than = ma[i:i + 3500]
+	dung("chi tiết ưu tiên cảnh báo đối chiếu trước ngày hẹn",
+		"!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_cho_doi_chieu" in than
+		and than.find("vgb_hddt_cho_doi_chieu") < than.find("vgb_hddt_ngay_xuat")
+		and "HĐĐT cần đối chiếu trên m-invoice trước khi gửi lại" in than)
 
 
 @ca("#266: payload thiếu hay thừa dòng có tiền, hay sai mã, vẫn bị chặn")
@@ -735,7 +818,12 @@ def _chip():
 		dung("chip trên " + tep, "hddtChoXuatChu(r.vgb_hddt_ngay_xuat)" in _doc("vagabond", "public", "js", "bep", tep))
 	cd = _doc("vagabond", "public", "js", "bep", "17-cai-dat.js")
 	dung("nút xử ngày cũ trong Cài đặt", "vagabond.hddt_cho_xuat.xu_ly_ngay_cu" in cd and "chay_thu: 1" in cd and "chay_thu: 0" in cd)
-	dung("app nói rõ cửa m-invoice còn mở hay đã đóng", "che_do_de_xuat === 'giu_ngay'" in cd and "ngay_so_moi_nhat" in cd)
+	dung("app nói rõ cả cửa pháp lý và cửa m-invoice",
+		"che_do_de_xuat === 'giu_ngay'" in cd and "cua_phap_ly_con_mo" in cd
+		and "Nghị định 70/2025/NĐ-CP" in cd and "ngay_so_moi_nhat" in cd)
+	dung("cả hai cách đều phát hành ngay, không còn hẹn tối",
+		"Máy phát hành và ký ngay ở lượt chạy nền." in cd
+		and "Tối nay chuỗi cuối ngày" not in cd)
 
 
 @ca("#266: gộp kết quả phát hành từng tờ")
@@ -753,7 +841,10 @@ def _noi_vao_chuoi():
 	dung("chuỗi cuối ngày ký tờ chờ xuất", "hddt_cho_xuat.ky(ngay, _goi_server_script)" in than)
 	i = s.find("def xuat_hddt_con_thieu_tu_dong(")
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("nhịp bù phát hành tờ chờ xuất hôm nay", "hddt_cho_xuat.phat_hanh(str(d), _goi_server_script)" in than and "if d == hom_nay" in than)
+	dung("nhịp bù đọc cả ngày hẹn lỗi qua nửa đêm",
+		"ngay_cho_xuat_can_thu_lai(hom_nay)" in than and 'ngay_hen["con_han"]' in than)
+	dung("nhịp bù không gửi lùi ngày đã quá hạn",
+		'ngay_hen["qua_han"]' in than and "Máy không gửi lùi ngày" in than)
 	for ham in ("bang_doanh_so", "pos_ds_bill"):
 		i = s.find("def %s(" % ham)
 		than = s[i:s.find("\ndef ", i + 10)]
@@ -765,18 +856,29 @@ def _noi_vao_chuoi():
 # ------------------------------------------- cửa m-invoice và thứ tự xuất
 
 
-@ca("#266: cửa m-invoice của một ngày còn mở khi ngày đó không nhỏ hơn ngày tờ số lớn nhất")
+@ca("#266: cửa giữ ngày đòi cả hạn pháp lý và biên số m-invoice")
 def _cua():
-	dung("chưa có tờ nào thì mở", hddt_cho_xuat.cua_con_mo("2026-09-09", None))
-	dung("tờ mới nhất 08/09 thì 09/09 còn mở", hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-08"))
-	dung("cùng ngày vẫn mở", hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-09"))
-	dung("tờ mới nhất 10/09 thì 09/09 đã đóng", not hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-10"))
+	la("hạn bảo thủ của 09/09", hddt_cho_xuat.han_ky_gui("2026-09-09"), D(2026, 9, 10))
+	dung("10/09 còn hạn và chưa có tờ nào thì mở",
+		hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-10", None))
+	dung("10/09, tờ mới nhất 08/09 thì 09/09 còn mở",
+		hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-10", "2026-09-08"))
+	dung("11/09 đóng vì quá hạn dù biên số vẫn ở 08/09",
+		not hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-11", "2026-09-08"))
+	dung("10/09 đóng vì đã có tờ mang ngày mới hơn",
+		not hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-10", "2026-09-10"))
+	dung("cửa kỹ thuật được đo riêng",
+		hddt_cho_xuat.cua_minvoice_con_mo("2026-09-09", "2026-09-08"))
+	la("mốc bảo thủ giữ cả tờ có ID chưa có số",
+		hddt_cho_xuat.ngay_hddt_moi_nhat("2026-09-08", "2026-09-10"), D(2026, 9, 10))
 
 
 @ca("#266: cửa còn mở thì giữ đúng ngày bán, đóng rồi mới kéo (anh Việt chốt 10/09)")
 def _che_do():
 	la("đêm 09/09, tờ mới nhất 08/09", hddt_cho_xuat.che_do_de_xuat(D(2026, 9, 9), D(2026, 9, 10), D(2026, 9, 8)), "giu_ngay")
 	la("cửa đã đóng", hddt_cho_xuat.che_do_de_xuat(D(2026, 9, 9), D(2026, 9, 10), D(2026, 9, 10)), "keo")
+	la("11/09 không được giữ ngày 09/09 dù m-invoice chưa có tờ mới",
+		hddt_cho_xuat.che_do_de_xuat(D(2026, 9, 9), D(2026, 9, 11), D(2026, 9, 8)), "keo")
 	la("giữ ngày thì ngày lập là ngày bán",
 		hddt_cho_xuat.ngay_lap_theo_che_do("giu_ngay", D(2026, 9, 9), D(2026, 9, 10)), D(2026, 9, 9))
 	la("kéo thì ngày lập là hôm nay",
@@ -797,10 +899,14 @@ def _ngay_cu_con_mo():
 	ds = ["2026-09-09", "2026-09-08", "2026-09-10", "2026-09-09"]
 	la("chỉ ngày cũ còn mở, không trùng",
 		hddt_cho_xuat.ngay_cu_con_mo(ds, D(2026, 9, 10), D(2026, 9, 9)), [D(2026, 9, 9)])
-	la("chưa có tờ nào thì cả hai ngày cũ",
-		hddt_cho_xuat.ngay_cu_con_mo(ds, D(2026, 9, 10), None), [D(2026, 9, 8), D(2026, 9, 9)])
+	la("chưa có tờ nào cũng chỉ giữ ngày còn trong hạn",
+		hddt_cho_xuat.ngay_cu_con_mo(ds, D(2026, 9, 10), None), [D(2026, 9, 9)])
 	la("hôm nay không nằm trong danh sách ngày cũ",
 		hddt_cho_xuat.ngay_cu_con_mo(["2026-09-10"], D(2026, 9, 10), None), [])
+	la("ngày 09/09 hết hạn không giữ hàng rào ngày 11/09",
+		hddt_cho_xuat.ngay_cu_con_mo(["2026-09-09"], D(2026, 9, 11), D(2026, 9, 8)), [])
+	la("ngày 10/09 vẫn được bảo vệ trong 11/09 nếu biên số cho phép",
+		hddt_cho_xuat.ngay_cu_con_mo(["2026-09-10"], D(2026, 9, 11), D(2026, 9, 9)), [D(2026, 9, 10)])
 
 
 @ca("#266: hàng rào thứ tự chạy TRƯỚC mọi lượt ghi sổ của hôm nay")
@@ -890,23 +996,21 @@ def _phep_nhuong():
 	dung("và hằng số van đã bỏ khỏi mô đun", "CHO_SAU_LOI_PHUT" not in h)
 
 
-@ca("#266 vòng 5 (F3): chỉ ngày nợ SỚM NHẤT được đi, không phải mọi ngày cũ")
+@ca("#266 vòng 6: chỉ ngày nợ còn hạn SỚM NHẤT được đi, nợ quá hạn không khoá ngày sau")
 def _chi_ngay_som_nhat():
-	"""Tái hiện được: bản trước miễn cho MỌI tờ mang ngày trước hôm nay, nên
-	sang 11/09 thì tờ 10/09 vượt được nợ 09/09 và đóng cửa 09/09 vĩnh viễn.
-	Đo trước sửa: ngay_lap=10/09, nợ=[09/09] cho phai_nhuong=False."""
+	"""Ngày 09/09 đã quá hạn pháp lý vào 11/09 nên không được giữ hàng rào
+	để khoá ngày 10/09. Trong các ngày còn hạn, ngày sớm nhất vẫn đi trước."""
 	hn = D(2026, 9, 11)
 	no = ["2026-09-09", "2026-09-10"]
 	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 10), hn, no, D(2026, 9, 8))
-	dung("tờ 10/09 phải nhường nợ 09/09", phai)
+	dung("tờ 10/09 không nhường nợ 09/09 đã quá hạn", not phai)
 	phai, _, ly = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 9), hn, no, D(2026, 9, 8))
-	dung("chính tờ 09/09 được đi", not phai)
-	dung("và nói rõ vì là ngày nợ sớm nhất", "sớm nhất" in ly)
+	dung("tờ 09/09 cũng không được hàng rào coi là ngày còn mở", not phai)
 	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 11), hn, no, D(2026, 9, 8))
 	dung("tờ hôm nay vẫn phải nhường", phai)
-	# Xong ngày 09 thì tới lượt 10 được đi.
+	# Chỉ còn 10/09 là ngày nợ còn hạn nên chính tờ 10/09 được đi.
 	phai, _, _ = hddt_cho_xuat.phai_nhuong_ngay_cu(D(2026, 9, 10), hn, ["2026-09-10"], D(2026, 9, 8))
-	dung("hết nợ 09 thì tờ 10/09 được đi", not phai)
+	dung("chính tờ 10/09 được đi", not phai)
 
 
 @ca("#266 vòng 5 (F4): đọc nợ hỏng thì NÉM, và hàng rào phải chặn")
@@ -973,10 +1077,13 @@ def _ngay_lap_hieu_luc():
 	dung("SQL lấy ngày lập hiệu lực",
 		"coalesce(vgb_hddt_ngay_xuat, posting_date)" in than)
 	dung("vẫn có đường lui khi cột chưa dựng", than.count("select posting_date from") == 1)
+	dung("tờ có ID chưa có số cũng tham gia biên bảo thủ",
+		"custom_minvoice_id" in than
+		and "return hddt_cho_xuat.ngay_hddt_moi_nhat(ngay_so, ngay_id)" in than)
 	# Ca thật của Codex: tờ mang số lớn nhất có ngày sổ 09/09 nhưng ngày lập
 	# 10/09. Đọc đúng ngày lập thì cửa 09/09 phải là ĐÃ ĐÓNG.
 	dung("đọc ngày lập 10/09 thì cửa 09/09 đóng",
-		not hddt_cho_xuat.cua_con_mo(D(2026, 9, 9), D(2026, 9, 10)))
+		not hddt_cho_xuat.cua_con_mo(D(2026, 9, 9), D(2026, 9, 10), D(2026, 9, 10)))
 	la("và chế độ đề xuất chuyển sang kéo",
 		hddt_cho_xuat.che_do_de_xuat(D(2026, 9, 9), D(2026, 9, 10), D(2026, 9, 10)), "keo")
 

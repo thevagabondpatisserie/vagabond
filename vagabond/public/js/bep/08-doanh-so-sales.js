@@ -498,7 +498,10 @@ async function scrDsView(name, can) {
     '<div>' + (khachMotDong(d) || 'Khách lẻ') + '</div>' +
     '<div style="color:#6b7280;font-size:13px">Mã phiếu: <b>' + h(d.name) + '</b> · Ngày ' + (vn.length === 3 ? vn[2] + '/' + vn[1] + '/' + vn[0] : h(d.posting_date)) + '</div>' +
     (d.custom_hddt_so ? '<div style="color:#0a8a4a;font-size:13px">HĐĐT số ' + h(d.custom_hddt_so) + (d.custom_hddt_trang_thai ? ' (' + h(d.custom_hddt_trang_thai) + ')' : '') + '</div>' : '') +
-    (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_ngay_xuat ? '<div style="color:#92400e;font-size:13px">⏳ ' + hddtChoXuatChu(d.vgb_hddt_ngay_xuat) + ' · sổ vẫn giữ ngày bán</div>' : '') +
+    (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_cho_doi_chieu
+      ? '<div style="color:#b91c1c;font-size:13px">⚠️ HĐĐT cần đối chiếu trên m-invoice trước khi gửi lại</div>'
+      : (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_ngay_xuat
+        ? '<div style="color:#92400e;font-size:13px">⏳ ' + hddtChoXuatChu(d.vgb_hddt_ngay_xuat) + ' · sổ vẫn giữ ngày bán</div>' : '')) +
     '</div>';
   /* Don cua ngay cu ma con nhap: luat ke toan bat xuat hoa don dien tu ngay
      trong ngay ban, nen don hom qua co truc trac thi phai keo sang hom nay

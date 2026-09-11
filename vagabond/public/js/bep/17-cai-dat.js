@@ -82,18 +82,18 @@ function cdVe() {
   }
 
   /* #266 (09/09/2026): to da ghi so ma khong len duoc m-invoice trong ngay
-     thi khong doi duoc ngay so nua, chi con cach xuat hoa don cho ngay do.
+     thi khong doi duoc ngay so nua. Nghi dinh 70/2025/ND-CP yeu cau ky so
+     va gui cap ma cham nhat ngay lam viec tiep theo. Backend dung moc bao
+     thu la ngay ke tiep theo lich khi chua co lich nghi phap ly rieng.
 
-     Anh Viet chot 10/09/2026: XUAT MANG DUNG NGAY BAN khi con xuat duoc,
-     vi so va to cung ngay thi khong phai giai thich voi ai. m-invoice danh
-     so tang theo ngay lap nen cua nay dong lai ngay khi mot to cua ngay moi
-     ra doi; may tu do va noi thang con mo hay da dong, chi khi da dong moi
-     de nghi keo ngay lap sang hom nay.
+     Chi giu dung ngay ban khi CA cua phap ly va cua ky thuat m-invoice con
+     mo. Qua han thi keo ngay lap sang hom nay, so van giu ngay ban; ngay cu
+     da qua han khong duoc giu hang rao de khoa cac ngay sau.
 
      Xem truoc, hoi lai, roi moi chay. Khong dong vao to da co hoa don,
      khong tu go co doi chieu khi chua hoi m-invoice. */
   html += '<div class="sec">Hoá đơn ngày cũ chưa xuất được</div><div class="card" style="padding:12px 14px">' +
-    '<div style="font-size:13px;color:#374151;line-height:1.6">Tờ đã ghi sổ mà đêm đó không lên được m-invoice. Chọn ngày bán rồi bấm xem, máy nói còn xuất được cho <b>đúng ngày bán</b> hay phải kéo ngày lập sang hôm nay. Sổ luôn giữ ngày bán. Tờ đang chờ mang chip <b>Hoá đơn chờ xuất cho ngày ...</b> trên màn Doanh thu và Hoá đơn hôm nay.</div>' +
+    '<div style="font-size:13px;color:#374151;line-height:1.6">Tờ đã ghi sổ mà đêm đó không lên được m-invoice. Chọn ngày bán rồi bấm xem. Máy chỉ giữ đúng ngày bán khi còn trong hạn ký, gửi và cửa m-invoice còn mở; nếu quá hạn thì kéo ngày lập sang hôm nay, sổ vẫn giữ ngày bán. Tờ đang chờ mang chip <b>Hoá đơn chờ xuất cho ngày ...</b> trên màn Doanh thu và Hoá đơn hôm nay.</div>' +
     '<div style="display:flex;gap:8px;align-items:center;margin-top:9px"><span style="font-size:12.5px;color:#6b7280">Ngày bán:</span>' +
     '<input class="tin" id="cdKeoNgay" type="date" value="' + h(cdHomQua()) + '" max="' + h(today()) + '" style="flex:1;max-width:190px"></div>' +
     '<button class="btn gh" id="cdKeo" style="margin-top:10px">🧾 Xem và xuất hoá đơn cho ngày này</button></div>';
@@ -135,9 +135,9 @@ function cdNgayVn(iso) {
 
 /* Xu to da ghi so cua mot ngay ma chua co hoa don dien tu (#266).
 
-   Hai duong, may de xuat theo cua m-invoice con mo hay khong:
+   Hai duong, may de xuat theo cua phap ly va cua m-invoice:
      giu_ngay : xuat mang dung ngay ban, phat hanh va ky NGAY.
-     keo      : ngay lap la hom nay, toi nay chuoi cuoi ngay xuat.
+     keo      : ngay lap la hom nay, phat hanh va ky NGAY.
    Xem truoc TRUOC, hoi lai, roi moi chay that. */
 async function cdKeo() {
   var o = document.getElementById('cdKeoNgay');
@@ -153,9 +153,11 @@ async function cdKeo() {
 
   var giuNgay = xem.che_do_de_xuat === 'giu_ngay';
   var cua = giuNgay
-    ? 'Còn xuất được hoá đơn mang đúng ngày ' + cdNgayVn(ngay) + '.'
-    : 'Không xuất được cho ngày ' + cdNgayVn(ngay) + ' nữa: m-invoice đã có tờ mang ngày ' +
-      cdNgayVn(xem.ngay_so_moi_nhat) + ', số hoá đơn chỉ tăng theo ngày lập. Ngày lập sẽ là hôm nay, sổ giữ ngày bán.';
+    ? 'Còn trong hạn ký, gửi và cửa m-invoice còn mở. Hoá đơn được mang ngày ' + cdNgayVn(ngay) + '.'
+    : (!xem.cua_phap_ly_con_mo
+      ? 'Cửa pháp lý để giữ ngày ' + cdNgayVn(ngay) + ' đã đóng. Nghị định 70/2025/NĐ-CP yêu cầu ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo; hạn bảo thủ của hệ thống là ' + cdNgayVn(xem.han_ky_gui) + '. Chỉ còn đường kéo ngày hoá đơn sang hôm nay; sổ vẫn giữ ngày bán.'
+      : 'Cửa m-invoice của ngày ' + cdNgayVn(ngay) + ' đã đóng vì đã có tờ mang ngày ' +
+        cdNgayVn(xem.ngay_so_moi_nhat) + '. Ngày lập sẽ là hôm nay, sổ giữ ngày bán.');
   var mo = (xem.vi_du || []).slice(0, 8).map(function (x) {
     return '#' + x.ma + ' · ' + money(x.tien) + ' đ' + (x.doi_chieu ? ' · đang giữ đối chiếu' : '');
   }).join('\n');
@@ -163,7 +165,7 @@ async function cdKeo() {
     'Tổng ' + money(xem.tien) + ' đ.\n\n' + cua +
     (xem.dang_doi_chieu ? '\n\nCó ' + xem.dang_doi_chieu + ' tờ đang giữ cờ đối chiếu: máy hỏi m-invoice theo mã phiếu, không có tờ mới gỡ cờ.' : '') +
     '\n\n' + mo + (xem.chon > 8 ? '\n... và ' + (xem.chon - 8) + ' tờ nữa' : '') +
-    (giuNgay ? '\n\nMáy phát hành và ký ngay ở lượt chạy nền.' : '\n\nTối nay chuỗi cuối ngày sẽ xuất và ký các tờ này.'))) return;
+    '\n\nMáy phát hành và ký ngay ở lượt chạy nền.')) return;
   busy(true);
   var kq;
   try { kq = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 0, che_do: xem.che_do_de_xuat }); }
