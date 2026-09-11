@@ -35,6 +35,7 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 
 # Danh sach cua ngo tung mo dun. Chot ngay 19/08/2026.
 CUA_NGO = {
+	"can_tru_san.py": ["diem_ban", "doi_chieu", "thu_lai"],
 	"minvoice_an_toan.py": ["kiem_goi", "mo_lai", "phan_loai_phan_hoi"],
 	# Them 10/09/2026 (#266): xu to da ghi so cua mot ngay chua co HDDT, giu
 	# dung ngay ban khi cua m-invoice con mo, khong thi keo sang hom nay.

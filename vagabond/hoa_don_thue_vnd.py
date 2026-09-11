@@ -103,6 +103,12 @@ def do_chinh_xac(doc):
 
 
 class ThueVnd(calculate_taxes_and_totals):
+    def calculate_item_values(self):
+        super().calculate_item_values()
+        if not self.discount_amount_applied:
+            from vagabond.combo_mon import dat_thanh_tien
+            dat_thanh_tien(self.doc)
+
     def determine_exclusive_rate(self):
         thue = self.doc.taxes[0]
         ts = [self._load_item_tax_rate(d.item_tax_rate).get(thue.account_head, thue.rate)

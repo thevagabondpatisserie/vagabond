@@ -1120,8 +1120,9 @@ async function kmSheetCombo(ma) {
     var html = '<div class="shh"><b>' + (ma ? 'Sửa combo' : 'Combo mới') + '</b><div class="x">&times;</div></div>' +
       '<div id="cbCuon" style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 90px);max-height:78vh;overflow:auto">' +
       '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#0b7c93;line-height:1.6">' +
-      'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in ra chỉ thấy tên món thật, không in mã combo.</div>' +
-      kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì');
+      'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in từng món thật, kèm mã và tên combo.</div>' +
+      kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì') +
+      '<button class="btn out" id="cbMaHang" style="width:100%;margin:8px 0">Mã hàng combo: ' + h(s.ma_hang || 'Chọn mã KMCB') + '</button>';
 
     /* ----- Mon co san: luon vao bill ----- */
     var monBB = [];
@@ -1225,6 +1226,15 @@ async function kmSheetCombo(ma) {
     var oCuonMoi = box.querySelector('#cbCuon');
     if (oCuonMoi && cuonCu) oCuonMoi.scrollTop = cuonCu;
     noi();
+    box.querySelector('#cbMaHang').onclick = async function () {
+      thu();
+      try {
+        var maHang = await getList('Item', {filters: {name: ['like', 'KMCB%'], disabled: 0}, fields: ['name', 'item_name'], limit_page_length: 0});
+        sheet('Mã hàng combo', [{value: '', label: 'Không nối mã hàng'}].concat(maHang.map(function (x) {
+          return {value: x.name, label: x.name + ' - ' + x.item_name};
+        })), s.ma_hang || '', function (v) { s.ma_hang = v; ve(); }, true);
+      } catch (e) { toast(e.message || 'Chưa tải được mã hàng combo.'); }
+    };
   }
 
   function thu() {

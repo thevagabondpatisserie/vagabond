@@ -1,0 +1,30 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Can Tru Ban",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "field_order": [
+  "hoa_don",
+  "so_tien"
+ ],
+ "fields": [
+  {
+   "fieldname": "hoa_don",
+   "label": "Hoá đơn MTT",
+   "fieldtype": "Link",
+   "options": "Sales Invoice",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "so_tien",
+   "label": "Công nợ được bù",
+   "fieldtype": "Currency",
+   "reqd": 1,
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [],
+ "track_changes": 1,
+ "istable": 1
+}
