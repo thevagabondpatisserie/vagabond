@@ -272,6 +272,16 @@ def _sao_tra_sua(hd):
     la('trả hết xóa đủ nợ',hd.outstanding_amount,0)
     la('trả hết giữ phân bổ dòng',[d.amount for d in tra.items],[-10000,-107308,-47692])
     tra.cancel(); hd.reload()
+    doi_kieu=ma_moi(frappe.copy_doc(tra))
+    doi_kieu.amended_from=tra.name; doi_kieu.vgb_combo_hoan_tien=tong/2
+    try:
+        doi_kieu.insert(ignore_permissions=True)
+    except frappe.ValidationError as e:
+        dung('amend không tự đổi loại hoàn','trả theo lượng' in str(e))
+    else:
+        nen._DA_TAO.append((doi_kieu.doctype,doi_kieu.name))
+        dung('phải chặn đổi loại hoàn khi amend',False)
+
     la('hủy trả hồi đủ nợ',hd.outstanding_amount,tong)
     # Ba lần trả từng bánh phải cộng đúng 107308, không thành 107307.
     cac = []
