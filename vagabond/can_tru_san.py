@@ -132,7 +132,7 @@ def _doi_trang_thai(d, trang_thai, ly_do='', but_toan=None):
     cap = dict(trang_thai=trang_thai,ly_do=ly_do)
     if but_toan is not None:
         cap['but_toan'] = but_toan
-    frappe.db.set_value(DT,d.name,cap)
+    d.db_set(cap)
 
 
 def thu_bu(ten):
@@ -217,7 +217,10 @@ def xu_ly_nen(ten):
     Cần kiểm tra. Giữ hàng đợi callback cũ, bỏ callback của phần đã lùi.
     Lỗi DB phải đi ra worker để Frappe rollback/retry cả giao dịch.
     """
-    frappe.db.sql('select name from `tabVagabond Can Tru San` where name=%s for update', (ten,))
+    try:
+        frappe.db.sql('select name from `tabVagabond Can Tru San` where name=%s for update', (ten,))
+    except (frappe.QueryDeadlockError, frappe.QueryTimeoutError) as e:
+        raise frappe.RetryBackgroundJobError(str(e)) from e
     diem = 'can_tru_' + frappe.generate_hash(length=12)
     frappe.db.savepoint(diem)
     hang = {k: list(getattr(frappe.db, k)._functions) for k in
@@ -225,7 +228,11 @@ def xu_ly_nen(ten):
     frappe.db._disable_transaction_control += 1
     try:
         return thu_bu(ten)
-    except frappe.db.InternalError:
+    except (frappe.QueryDeadlockError, frappe.QueryTimeoutError) as e:
+        # Core f33ac3f execute_job chỉ tự thử lại RetryBackgroundJobError/InternalError.
+        # Không rollback savepoint đã mất sau deadlock, để worker rollback toàn giao dịch.
+        raise frappe.RetryBackgroundJobError(str(e)) from e
+    except (frappe.db.InternalError, frappe.db.OperationalError):
         raise
     except Exception:
         loi = frappe.get_traceback()
@@ -254,6 +261,8 @@ def chan_huy_but_toan(doc, method=None):
 
 
 def huy(d):
+    # Đọc liên kết đã ghi, không tin payload form cũ khi đảo công nợ.
+    d.but_toan = frappe.db.get_value(DT, d.name, 'but_toan')
     if d.but_toan:
         je = frappe.get_doc('Journal Entry',d.but_toan)
         if je.docstatus == 1:
@@ -285,7 +294,7 @@ def doi_chieu(ten):
     d = frappe.get_doc(DT,ten)
     d.check_permission('read')
     dong = frappe.db.sql('''select gl.posting_date, gl.voucher_type, gl.voucher_no,
-        gl.debit, gl.credit, je.vgb_can_tru_san as phieu_bu
+        gl.debit, gl.credit, si.vgb_quay, je.vgb_can_tru_san as phieu_bu
         from `tabGL Entry` gl
         join `tabSales Invoice` si on si.name = case
             when gl.voucher_type = 'Sales Invoice' then gl.voucher_no
@@ -293,9 +302,11 @@ def doi_chieu(ten):
         left join `tabJournal Entry` je on gl.voucher_type='Journal Entry' and je.name=gl.voucher_no
         where gl.company=%s and gl.party_type='Customer' and gl.party=%s
           and gl.account=si.debit_to and gl.is_cancelled=0
-          and si.custom_nguon=%s and coalesce(nullif(si.vgb_quay,''),'SALES')=%s
+          and si.custom_nguon=%s
           and gl.posting_date <= %s''',
-        (d.company,d.khach_hang,d.san,d.diem_ban,d.den_ngay),as_dict=True)
+        (d.company,d.khach_hang,d.san,d.den_ngay),as_dict=True)
+    from vagabond.diem_ban import ma_theo_quay
+    dong = [x for x in dong if ma_theo_quay(x.vgb_quay) == d.diem_ban]
     dau = gross = nhan = phi = khac = Decimal(0)
     for x in dong:
         no = tien(x.debit)-tien(x.credit)
@@ -347,7 +358,8 @@ def xep_hang_cho():
     Mỗi phiếu là một job/giao dịch riêng: lỗi một phiếu không commit phần
     dở hoặc giữ cả danh sách đứng lại. Khóa DB trong thu_bu chống job trùng.
     """
-    for ten in frappe.get_all(DT,filters={'docstatus':1,'but_toan':['is','not set']},
+    for ten in frappe.get_all(DT,filters={'docstatus':1,'but_toan':['is','not set'],
+                                     'trang_thai':['in',['Chờ duyệt đối soát','Chờ đối soát']]},
                              pluck='name',limit_page_length=0):
         from functools import partial
         frappe.db.after_commit.add(partial(_xep_sau_commit, ten))

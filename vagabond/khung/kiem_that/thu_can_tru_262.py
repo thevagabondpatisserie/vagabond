@@ -3,6 +3,7 @@ import frappe
 from unittest.mock import patch
 from frappe.utils import today
 from vagabond import can_tru_san as ct
+from vagabond import diem_ban as dban
 from vagabond.khung.kiem_that.nen import ca,la,dung,_DA_TAO
 from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _hoa_don_mua
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen,_mon,_app
@@ -22,7 +23,7 @@ def _phieu():
     si.submit(); si.reload()
     # Chỉ dấu số MTT trong fixture, không gọi dịch vụ phát hành bên ngoài.
     frappe.db.set_value('Sales Invoice',si.name,'custom_hddt_so','KIEM-262')
-    so=frappe.get_doc(dict(doctype=ct.DT,company=cong_ty,san='GrabFood',diem_ban=si.vgb_quay or 'SALES',
+    so=frappe.get_doc(dict(doctype=ct.DT,company=cong_ty,san='GrabFood',diem_ban=dban.ma_theo_quay(si.vgb_quay),
         khach_hang=si.customer,nha_cung_cap=ncc.name,tu_ngay=today(),den_ngay=today(),ngay_bu=today(),
         tham_chieu='KIEM262-'+frappe.generate_hash(length=8),can_cu='/private/files/doi-soat-kiem-262.pdf',xac_nhan=1,
         phi=[dict(hoa_don=pi.name,so_tien=200000)],ban=[dict(hoa_don=si.name,so_tien=200000)]))
@@ -33,7 +34,8 @@ def _phieu():
 @ca('#262 bu tu dong: GL dung tung ben, outstanding, retry va huy dao')
 def _bu():
     so,pi,si=_phieu()
-    so.submit(); so.reload()
+    so.submit()
+    la('form sau duyệt đồng bộ trạng thái', so.trang_thai, 'Đã cấn trừ')
     dung('tự tạo JE',bool(so.but_toan))
     _DA_TAO.append(('Journal Entry',so.but_toan))
     je=frappe.get_doc('Journal Entry',so.but_toan)
@@ -51,6 +53,7 @@ def _bu():
     except frappe.ValidationError as e: dung('chỉ rõ phiếu',so.name in str(e))
     else: dung('phải chặn hủy nguồn',False)
     so.cancel(); pi.reload(); si.reload(); je.reload()
+    la('form sau hủy đồng bộ trạng thái',so.trang_thai,'Đã hủy')
     la('JE đảo',je.docstatus,2)
     la('331 hồi lại',pi.outstanding_amount,200000)
     la('131 hồi lại',si.outstanding_amount,1000000)
@@ -101,3 +104,39 @@ def _loi_giua():
 def _loi_hang():
     with patch.object(frappe, 'enqueue', side_effect=RuntimeError('Redis thử bị ngắt')):
         ct._xep_sau_commit('KIEM262-HANG')
+
+
+@ca('#262 báo cáo dùng mã điểm bán khác mã quầy, đọc GL thật')
+def _bao_cao_diem():
+    so, pi, si = _phieu()
+    so.submit()
+    _DA_TAO.append(('Journal Entry',so.but_toan))
+    ma = 'DIEM-KIEM-262'
+    frappe.db.set_value(ct.DT,so.name,'diem_ban',ma)
+    # Chỉ giả lập danh mục điểm bán; SI/JE/GL và cửa báo cáo chạy thật.
+    with patch.object(dban,'ds',return_value=[dict(ma=ma,quay=str(si.vgb_quay or '').strip().upper())]):
+        kq = ct.doi_chieu(so.name)
+    la('doanh thu điểm đã ánh xạ',kq['doanh_thu'],1000000)
+    la('phí đã bù đúng điểm',kq['phi_da_bu'],200000)
+    la('dư cuối đúng GL',kq['du_cuoi'],800000)
+    dung('có dòng GL',bool(kq['dong']))
+
+
+@ca('#262 lỗi khóa đi ra worker bằng RetryBackgroundJobError, không đóng dấu nghiệp vụ')
+def _loi_khoa_worker():
+    so, pi, si = _phieu()
+    frappe.db.set_value('Sales Invoice',si.name,'custom_hddt_so','')
+    so.submit()
+    cu = so.trang_thai
+    for loai in (frappe.QueryDeadlockError,frappe.QueryTimeoutError):
+        with patch.object(ct,'thu_bu',side_effect=loai('khóa thử')):
+            try:
+                ct.xu_ly_nen(so.name)
+            except frappe.RetryBackgroundJobError as e:
+                dung('giữ nguyên nguyên nhân',isinstance(e.__cause__,loai))
+            else:
+                dung('worker phải nhận lỗi retry',False)
+        so.reload()
+        la('không đổi thành lỗi nghiệp vụ',so.trang_thai,cu)
+        la('không tạo JE',frappe.db.count('Journal Entry',{'vgb_can_tru_san':so.name}),0)
+    # Đây chỉ kiểm ánh xạ exception, không thay hai kết nối DB thật.

@@ -14,6 +14,8 @@ class VagabondCanTruSan(Document):
 
     def on_submit(self):
         ct.thu_bu(self.name)
+        # thu_bu khóa rồi đọc một Document khác; trả trạng thái DB thật về Desk.
+        self.reload()
 
     def on_cancel(self):
         ct.huy(self)

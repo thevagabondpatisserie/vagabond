@@ -69,3 +69,18 @@ Giữ trọn lịch sử patch main và thêm477; các đăng ký ca combo/cấn
 APP/tham chiếu tiền đều được giữ. Bundle dựng từ nguồn.
 Cổng trên SHA cũ không thay kiểm bản tích hợp. Concurrency/quyền/mapping
 thật và UAT vẫn cần kết luận riêng trước phát hành; chưa deploy.
+
+## Review F1-F5 trên a6d9c7a
+
+Báo cáo ánh xạ mã quầy qua cùng danh mục điểm bán như cửa cấn trừ.
+Trạng thái ghi bằng Document.db_set; on_submit đọc lại Document để phản hồi
+Desk mang đúng bút toán/trạng thái, hủy đọc liên kết bút toán từ DB.
+Scheduler chỉ tự chạy phiếu đang chờ; Cần kiểm tra dành cho xử lý thủ công.
+Ba whitelist được đăng ký vào bộ canh cửa ngõ.
+
+Core Frappe f33ac3f: database.py đổi deadlock/timeout thành QueryDeadlockError
+và QueryTimeoutError, nhưng background_jobs.execute_job chỉ retry tự động
+InternalError hoặc RetryBackgroundJobError. Worker chuyển hai lỗi khóa
+sang RetryBackgroundJobError, giữ cause và không rollback savepoint đã mất.
+Ca exception giả lập chưa chứng minh cạnh tranh hai kết nối DB.
+Job chạy dưới người enqueue, owner JE không tự đồng nghĩa người duyệt.

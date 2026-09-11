@@ -170,3 +170,12 @@ Một phía thêm combo/cấn trừ, phía kia thêm đối chiếu/cọc/tham c
 Chọn nguyên một phía sẽ làm mất bộ ca của phía còn lại dù mã sản phẩm vẫn còn.
 Đối chiếu ba chiều từ base, giữ hợp các đăng ký không trùng và chạy cổng
 trên bản kết hợp. Bundle phải dựng lại, không giải quyết bằng chọn một bản ghép.
+
+## Ngoại lệ khóa của SQL chưa chắc được worker tự thử lại
+
+Review PR265 phát hiện nhánh worker bắt lỗi nghiệp vụ nuốt lỗi khóa. Đọc đúng
+core Frappe f33ac3f cho thấy database.sql bọc lỗi khóa thành QueryDeadlockError
+và QueryTimeoutError, nhưng execute_job chỉ vào nhánh retry với InternalError
+hoặc RetryBackgroundJobError. Chỉ đổi sang raise vẫn chưa đủ tự thử lại.
+Phải kiểm cả nơi đổi loại lỗi và nơi xử lý cuối; ca giả ném lỗi chỉ chứng minh
+nhánh xử lý, không thay phép hai kết nối DB thật.

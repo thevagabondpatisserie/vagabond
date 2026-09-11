@@ -16,3 +16,13 @@ def _phi():
         try: ct.tong_dong(ds)
         except ValueError: continue
         dung('phải từ chối số/chứng từ không hợp lệ',False)
+
+@ca('#262 scheduler không tự chạy lại phiếu cần kế toán kiểm')
+def _lich_cho():
+    from unittest.mock import patch
+    def doc(dt, filters, **kwargs):
+        la('chỉ phiếu đã duyệt',filters['docstatus'],1)
+        la('chỉ trạng thái tự chờ',filters['trang_thai'],['in',['Chờ duyệt đối soát','Chờ đối soát']])
+        return []
+    with patch.object(ct.frappe,'get_all',side_effect=doc):
+        ct.xep_hang_cho()
