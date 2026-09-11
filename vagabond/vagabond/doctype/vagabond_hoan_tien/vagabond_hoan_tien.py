@@ -7,7 +7,7 @@ from frappe.model.document import Document
 class VagabondHoanTien(Document):
 	def validate(self):
 		# Chặn trước khi gửi yêu cầu/chuyển tiền, không tự làm tròn sau khi tiền đã ra.
-		if self.get('hoa_don') and frappe.db.exists('Sales Invoice Item',
+		if (self.is_new() or self.has_value_changed('so_tien') or self.has_value_changed('hoa_don')) and self.get('hoa_don') and frappe.db.exists('Sales Invoice Item',
 			{'parent':self.hoa_don,'vgb_combo_luong':['>',0]}):
 			from decimal import Decimal
 			tien = Decimal(str(self.get('so_tien') or 0))
