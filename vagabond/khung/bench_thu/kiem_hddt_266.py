@@ -19,6 +19,7 @@ không chạm dữ liệu sản xuất.
 """
 import json
 from unittest.mock import patch
+from types import SimpleNamespace
 
 import frappe
 import requests
@@ -251,6 +252,15 @@ def chay():
 				to_sau = _hoa_don(hom_qua)
 				truoc = len(gui)
 				xem_muon = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=1)
+				# Chạm nhánh deduplicate thật của Frappe, không vá frappe.enqueue.
+				job_cu = SimpleNamespace(id='bench-dang-chay', get_status=lambda refresh=False: 'started')
+				with patch('frappe.utils.background_jobs.get_job', return_value=job_cu):
+					cho = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=0,
+						che_do='giu_ngay', xac_nhan_qua_han=1,
+						ly_do='Kiểm bench: chọn một tờ trước', pham_vi=xem_muon['pham_vi'], phieu_chon=[to_muon.name])
+				_bang('deduplicate thật không báo đã xếp hàng', cho.get('tren_hang_doi'), 0)
+				_bang('deduplicate thật không phát hành đồng bộ', len(gui), truoc)
+
 				with patch('rq.Queue.enqueue_call', side_effect=RuntimeError('bench RQ enqueue_call')):
 					ra = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=0,
 						che_do='giu_ngay', xac_nhan_qua_han=1,

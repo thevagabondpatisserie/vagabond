@@ -1289,3 +1289,36 @@ def _chon_mot_phan_snapshot():
 			nem("tập không hợp lệ phải dừng", lambda: hddt_cho_xuat.xu_ly_ngay_cu("2026-09-09", chay_thu=0,
 				che_do="giu_ngay", xac_nhan_qua_han=1, pham_vi=["SI-NHAP"], phieu_chon=tap), ValueError)
 			la("không ghi quyền", ghi.call_count, 0)
+
+
+@ca("#266 API lô nhỏ: thống kê đúng tập và không báo đã xếp hàng khi enqueue bỏ qua")
+def _api_lo_nho_va_hang_doi():
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	import sys
+	ban = unittest.mock.MagicMock()
+	rows = [SimpleNamespace(name=n, docstatus=1, grand_total=t,
+		custom_pancake_display_id=n, vgb_hddt_cho_doi_chieu=1) for n, t in (("SI-A", 100), ("SI-B", 200))]
+	for viec in (None, object()):
+		gia = unittest.mock.MagicMock()
+		gia.get_roles.return_value = ["System Manager"]
+		gia.enqueue.return_value = viec
+		with ExitStack() as stack:
+			stack.enter_context(unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": ban}))
+			for obj, ten, kw in ((hddt_cho_xuat, "frappe", {"new": gia}),
+				(hddt_cho_xuat, "nowdate", {"return_value": "2026-09-11"}),
+				(hddt_cho_xuat, "_ngay_xac_nhan_qua_han", {"return_value": ()}),
+				(hddt_cho_xuat, "_dem_theo_ngay", {"side_effect": [(rows,), (rows,)]}),
+				(hddt_cho_xuat, "_ghi_xac_nhan_qua_han", {"return_value": None}),
+				(ban, "_kiem_quyen", {"return_value": None}),
+				(ban, "_ngay_so_hddt_moi_nhat", {"return_value": D(2026, 9, 8)})):
+				stack.enter_context(unittest.mock.patch.object(obj, ten, **kw))
+			fallback = stack.enter_context(unittest.mock.patch.object(hddt_cho_xuat, "chay_nen"))
+			ra = hddt_cho_xuat.xu_ly_ngay_cu("2026-09-09", chay_thu=0, che_do="giu_ngay", xac_nhan_qua_han=1,
+				pham_vi=["SI-A", "SI-B"], phieu_chon=["SI-A"], ly_do="Chọn một tờ trước")
+			la("chỉ một tờ cần đối chiếu", ra["dang_doi_chieu"], 1)
+			la("ví dụ chỉ tờ được chọn", [r["don"] for r in ra["vi_du"]], ["SI-A"])
+			la("chỉ báo xếp hàng khi có job", ra.get("tren_hang_doi"), int(viec is not None))
+			la("bỏ qua không tự chạy thêm fallback", fallback.call_count, 0)
+			if viec is None:
+				dung("nói rõ chưa tạo lượt mới", "chưa tạo lượt mới" in ra["nhat_ky"])

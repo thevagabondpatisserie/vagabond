@@ -589,7 +589,10 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pha
 			frappe.throw("Danh sách chọn phải là một phần không rỗng của phạm vi vừa xem.")
 		chon = [r for r in chon if r.name in phieu_chon]
 		kq.update(pham_vi=phieu_chon, chon=len(chon), tien=sum(flt(r.grand_total) for r in chon),
-			so_nhap=sum(1 for r in pham_vi_hien_tai if r.name in phieu_chon and cint(r.docstatus) == 0))
+			so_nhap=sum(1 for r in pham_vi_hien_tai if r.name in phieu_chon and cint(r.docstatus) == 0),
+			dang_doi_chieu=sum(1 for r in chon if cint(r.vgb_hddt_cho_doi_chieu)),
+			vi_du=[{"don": r.name, "ma": r.custom_pancake_display_id or r.name, "tien": flt(r.grand_total),
+				"doi_chieu": cint(r.vgb_hddt_cho_doi_chieu)} for r in chon[:20]])
 		_ghi_xac_nhan_qua_han(ngay_cu, hom_nay, ly_do, phieu_chon)
 		xac_nhan = (ngay_cu,)
 	if che_do == "giu_ngay" and not cua_con_mo(ngay_cu, hom_nay, moi_nhat, xac_nhan):
@@ -617,13 +620,16 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pha
 	# Commit TRƯỚC khi enqueue: lỗi Redis vẫn nằm trong try và có fallback.
 	frappe.db.commit()
 	try:
-		frappe.enqueue(
+		viec = frappe.enqueue(
 			"vagabond.hddt_cho_xuat.chay_nen",
 			queue="long", timeout=3600,
 			job_id="vgb-xu-ly-ngay-cu-%s" % ngay_cu, deduplicate=True,
 			ngay=str(ngay_cu), che_do=che_do, nguoi=frappe.session.user,
 			ngay_tham_chieu=str(hom_nay), ngay_dich=str(ngay_dat),
 		)
+		if viec is None:
+			return dict(kq, che_do=che_do, tren_hang_doi=0,
+				nhat_ky="Đã lưu xác nhận, nhưng chưa tạo lượt mới vì lô trước còn trong hàng đợi hoặc đang chạy. Kiểm kết quả lô trước rồi thử lại.")
 		cau = "%s: đang xử %d tờ ngày %s ở lượt chạy nền (%s), mở lại màn này sau vài phút." % (
 			hom_nay, len(chon), ngay_vn(ngay_cu),
 			"giữ đúng ngày bán" if che_do == "giu_ngay" else "kéo sang hôm nay")
