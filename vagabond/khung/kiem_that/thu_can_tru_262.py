@@ -143,7 +143,7 @@ def _loi_khoa_worker():
 
 
 @ca('#265 báo cáo nhận tiền PE phân bổ hai SI và hủy trả lại dư')
-def _thu_tien_phan_bo():
+def _thu_tien_phan_bo(phan_bo_sau=False):
     from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
     from vagabond.khung.kiem_that.nen import _mot
     so, pi, si = _phieu()
@@ -155,6 +155,8 @@ def _thu_tien_phan_bo():
     pe.references[0].allocated_amount = 300000
     pe.append('references', dict(reference_doctype='Sales Invoice', reference_name=si2.name,
         total_amount=si2.grand_total, outstanding_amount=si2.outstanding_amount, allocated_amount=300000))
+    if phan_bo_sau:
+        pe.set('references', [])
     pe.paid_amount = pe.received_amount = 600000
     pe.reference_no = 'KT265-THU'
     pe.reference_date = today()
@@ -164,6 +166,30 @@ def _thu_tien_phan_bo():
         attached_to_doctype=pe.doctype, attached_to_name=pe.name))
     tep.insert(ignore_permissions=True); _DA_TAO.append((tep.doctype,tep.name))
     pe.submit(); pe.reload(); si.reload(); si2.reload()
+    if phan_bo_sau:
+        la('thu trước còn nguyên khả dụng', pe.unallocated_amount, 600000)
+        rec = frappe.new_doc('Payment Reconciliation')
+        rec.company, rec.party_type, rec.party = so.company, 'Customer', si.customer
+        rec.receivable_payable_account = si.debit_to
+        rec.invoice_limit = rec.payment_limit = 0
+        rec.get_unreconciled_entries()
+        hoa_don = [x.as_dict() for x in rec.invoices if x.invoice_number in (si.name, si2.name)]
+        khoan_thu = [x.as_dict() for x in rec.payments if x.reference_name == pe.name]
+        la('lấy đủ hai SI đích', len(hoa_don), 2)
+        la('lấy đúng một PE', len(khoan_thu), 1)
+        for x in hoa_don:
+            x['outstanding_amount'] = 300000
+        rec.allocate_entries(dict(invoices=hoa_don, payments=khoan_thu))
+        rec.reconcile()
+        pe.reload(); si.reload(); si2.reload()
+        la('phân bổ hết khoản thu', pe.unallocated_amount, 0)
+        # Core utils.reconcile_against_document cập nhật PLE, giữ GL đã ghi.
+        # Join GL cũ vì vậy bỏ rơi khoản này dù SI đã giảm nợ thật.
+        gl_cu = frappe.db.sql('''select coalesce(sum(credit-debit),0)
+            from `tabGL Entry` where voucher_type='Payment Entry' and voucher_no=%s
+            and against_voucher_type='Sales Invoice' and against_voucher in %s
+            and is_cancelled=0''', (pe.name, (si.name, si2.name)))[0][0]
+        la('tái hiện GL cũ không thấy phân bổ sau', gl_cu, 0)
     la('SI thứ nhất giảm nợ', si.outstanding_amount, 700000)
     la('SI thứ hai giảm nợ', si2.outstanding_amount, 700000)
     kq = ct.doi_chieu(so.name)
@@ -173,6 +199,11 @@ def _thu_tien_phan_bo():
     kq = ct.doi_chieu(so.name)
     la('hủy PE không còn tiền nhận', kq['da_nhan'], 0)
     la('hủy PE khôi phục dư', kq['du_cuoi'], 2000000)
+
+
+@ca('#265 thu trước rồi đối chiếu hai SI: GL cũ bỏ sót, PLE đúng')
+def _thu_truoc_doi_chieu_sau():
+    _thu_tien_phan_bo(phan_bo_sau=True)
 
 
 @ca('#265 hook nguồn trả nguyên lỗi DB cho caller rollback')
