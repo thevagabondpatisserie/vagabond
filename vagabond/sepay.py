@@ -727,6 +727,9 @@ def tinh_trang():
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
+	# API chứa số tài khoản và chủ tài khoản; ẩn màn hình không giữ được dữ liệu.
+	if not {"System Manager", "Accounts Manager", "Accounts User"} & set(frappe.get_roles()):
+		frappe.throw("Chỉ kế toán được xem cấu hình và tài khoản SePay.", frappe.PermissionError)
 	quan_ly = bool({"System Manager", "Accounts Manager"} & set(frappe.get_roles()))
 	c = cfg()
 	# frappe.utils.get_url() tra ve ten mien NOI BO cua Frappe Cloud
@@ -865,23 +868,8 @@ def dat_hmac(khoa=None, khe=1):
 	return {"ok": 1, "co_hmac": 1, "khe": khe}
 
 
-@frappe.whitelist()
-def them_tai_khoan(so_tk=None, tai_khoan=None):
-	"""Khai them mot so tai khoan (vd ACB) vao ban do ngay tren man Cai dat.
-
-	Truoc day ban do chi sua duoc bang tay trong SePay Settings tren Desk,
-	va OCB da tung mat ca thang giao dich chi vi chua ai khai. Gio man Cai
-	dat khai duoc luon, va khai xong thi so tai khoan do bien khoi danh
-	sach "chua khai".
-
-	CHI THEM VA DOI, khong xoa: go mot dong khoi ban do la giao dich cua
-	tai khoan do bat dau roi lang le, viec do phai lam co y thuc tren Desk.
-	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
-	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
-		frappe.throw("Chỉ quản lý hoặc kế toán mới khai được bản đồ tài khoản.")
+def kiem_map_tai_khoan(so_tk, tai_khoan):
+	"""Cùng hàng rào cho app và Document.save trên Desk."""
 	so_tk = _so_tk_chuan(so_tk)
 	if not so_tk or len(so_tk) < 6:
 		frappe.throw(
@@ -904,6 +892,27 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 	loi = _loi_map_tai_khoan(so_tk, b)
 	if loi:
 		frappe.throw(loi)
+	return so_tk, tk
+
+
+@frappe.whitelist()
+def them_tai_khoan(so_tk=None, tai_khoan=None):
+	"""Khai them mot so tai khoan (vd ACB) vao ban do ngay tren man Cai dat.
+
+	Truoc day ban do chi sua duoc bang tay trong SePay Settings tren Desk,
+	va OCB da tung mat ca thang giao dich chi vi chua ai khai. Gio man Cai
+	dat khai duoc luon, va khai xong thi so tai khoan do bien khoi danh
+	sach "chua khai".
+
+	CHI THEM VA DOI, khong xoa: go mot dong khoi ban do la giao dich cua
+	tai khoan do bat dau roi lang le, viec do phai lam co y thuc tren Desk.
+	"""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
+		frappe.throw("Chỉ quản lý hoặc kế toán mới khai được bản đồ tài khoản.")
+	so_tk, tk = kiem_map_tai_khoan(so_tk, tai_khoan)
 	stg = frappe.get_doc(STG_SEPAY)
 	ban_do, xung_dot = {}, {}
 	try:

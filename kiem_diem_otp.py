@@ -5829,8 +5829,10 @@ la("dat_hmac nhan khe 3 MB", '3: "sepay_hmac_3"' in _dh46, True)
 _tk46 = _sp46.split("def them_tai_khoan(")[1].split("\n@frappe.whitelist()")[0]
 la("them tai khoan chi cho quan ly va ke toan",
    '{"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _tk46, True)
-la("so tai khoan chi giu chu so", "_so_tk_chuan(so_tk)" in _tk46, True)
-la("tai khoan ERPNext phai co that", 'frappe.db.exists("Bank Account", tk)' in _tk46, True)
+_km46 = _sp46.split("def kiem_map_tai_khoan(")[1].split("\n@frappe.whitelist()")[0]
+la("app goi hang rao chung", "kiem_map_tai_khoan(so_tk, tai_khoan)" in _tk46, True)
+la("so tai khoan chi giu chu so", "_so_tk_chuan(so_tk)" in _km46, True)
+la("tai khoan ERPNext phai co that", 'frappe.db.exists("Bank Account", tk)' in _km46, True)
 la("khai xong thi ra khoi danh sach chua khai", "cu_ds.remove(so_tk)" in _tk46, True)
 la("duong them khong co lenh xoa dong ban do", "ban_do.pop" in _tk46 or "del ban_do" in _tk46, False)
 # Man Cai dat: o khoa ACB va o khai ban do.

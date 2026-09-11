@@ -227,3 +227,59 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		la("đối chứng gắn đúng dòng công ty", frappe.db.get_value(p.doctype, p.name, "ma_gd"), gd_cong_ty.name)
 	finally:
 		frappe.set_user(cu)
+
+
+@ca('#273 Desk: map sai số, ngưng dùng, thiếu chủ và ngoài141 đều không lưu')
+def _desk_map_sai():
+	b = _tai_khoan_ca_nhan(_so_thu(), mot_nha_cung_cap())
+	stg = frappe.get_doc(sepay.STG_SEPAY)
+	cu = stg.account_map
+	for nhan, so, tk, doi in [
+		('không tồn tại', b.bank_account_no, 'KHONG-CO-273', {}),
+		('sai số', '000000273', b.name, {}),
+		('ngưng dùng', b.bank_account_no, b.name, {'disabled': 1}),
+		('thiếu chủ', b.bank_account_no, b.name, {'party': ''}),
+		('ngoài141', b.bank_account_no, b.name, {'account': frappe.db.get_value('Company', cong_ty(), 'default_receivable_account')}),
+	]:
+		goc = {k: b.get(k) for k in doi}
+		if doi:
+			frappe.db.set_value(b.doctype, b.name, doi)
+		stg.account_map = frappe.as_json({so: tk})
+		try:
+			stg.save(ignore_permissions=True)
+		except frappe.ValidationError:
+			pass
+		else:
+			dung('Desk phải chặn '+nhan, False)
+		la('DB không đổi khi '+nhan, frappe.db.get_single_value(sepay.STG_SEPAY, 'account_map'), cu)
+		if doi:
+			frappe.db.set_value(b.doctype, b.name, goc)
+		stg.reload()
+	stg.account_map = frappe.as_json({b.bank_account_no: b.name})
+	stg.save(ignore_permissions=True)
+	stg.reload()
+	la('đối chứng map hợp lệ lưu được', frappe.parse_json(stg.account_map)[b.bank_account_no], b.name)
+
+
+@ca('#273 quyền thật: Sales không đọc được tài khoản SePay, kế toán đọc được')
+def _quyen_doc_sepay():
+	cu = frappe.session.user
+	u = frappe.get_doc({'doctype': 'User', 'email': 'kt273-'+frappe.generate_hash(length=10)+'@example.invalid',
+		'first_name': 'Kiểm quyền SePay', 'enabled': 1, 'send_welcome_email': 0,
+		'roles': [{'role': 'Sales User'}]})
+	u.insert(ignore_permissions=True)
+	_DA_TAO.append((u.doctype, u.name))
+	try:
+		frappe.set_user(u.name)
+		try:
+			sepay.tinh_trang()
+		except frappe.PermissionError:
+			pass
+		else:
+			dung('Sales không được nhận dữ liệu ngân hàng', False)
+		frappe.set_user('Administrator')
+		u.add_roles('Accounts User')
+		frappe.set_user(u.name)
+		dung('kế toán đọc được danh sách', 'ds_tai_khoan' in sepay.tinh_trang())
+	finally:
+		frappe.set_user(cu)

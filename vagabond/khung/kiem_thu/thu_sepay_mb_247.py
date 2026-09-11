@@ -140,3 +140,26 @@ def _truy_van_du():
 	dung("không lọc is_company_account", 'filters={"is_company_account": 1}' not in t)
 	dung("không cắt 50", "limit_page_length=0" in t)
 	dung("trả đủ dữ liệu để phân biệt túi tiền", '"party_type", "party", "is_company_account"' in t)
+
+
+@ca('SePay: Sales bị chặn trước khi đọc cấu hình hoặc danh sách ngân hàng')
+def _sales_khong_doc_cau_hinh():
+	from unittest.mock import patch, Mock
+	with patch.dict('sys.modules', {'vagabond.ban_hang': Mock()}), patch.object(sepay.frappe, 'get_roles', return_value=['Sales User']), patch.object(sepay, 'cfg') as doc:
+		try:
+			sepay.tinh_trang()
+		except Exception:
+			pass
+		else:
+			dung('Sales phải bị từ chối', False)
+		la('chặn trước đọc cấu hình', doc.call_count, 0)
+
+
+@ca('SePay: Document kiểm từng map cả khi không có xung đột số')
+def _desk_kiem_tung_map():
+	from unittest.mock import patch
+	from vagabond.vagabond.doctype.sepay_settings.sepay_settings import SePaySettings
+	d = Doi(account_map='{"123456":"BANK-A","654321":"BANK-B"}')
+	with patch.object(sepay, 'kiem_map_tai_khoan') as kiem:
+		SePaySettings.validate(d)
+		la('kiểm cả hai tài khoản', kiem.call_args_list, [(("123456", "BANK-A"),), (("654321", "BANK-B"),)])
