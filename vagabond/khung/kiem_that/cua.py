@@ -19,6 +19,7 @@ from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that import thu_combo_261  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_can_tru_262  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_doi_chieu_app_247  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_sepay_mb_247  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_chip_app_263  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hang_tang_kho_243  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_cua_thue_243  # noqa: F401,E402

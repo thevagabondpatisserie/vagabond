@@ -5807,12 +5807,13 @@ la("moi nhip co han muc, khong keo vo han", "MOI_NHIP" in _mtep46, True)
 la("truong cau hinh PDF co dang ky trong truong_tu_them",
    'minvoice_tep.TRUONG_MOI' in open("vagabond/truong_tu_them.py", encoding="utf-8").read(), True)
 
-# ---------- 46.3 SePay: webhook thu hai cho ACB ----------
+# ---------- 46.3 SePay: nhieu webhook OCB, ACB va MB ----------
 #
 # SePay sinh cho MOI webhook mot Secret Key rieng, nguoi dung khong chon
 # duoc, nen chay hai tai khoan (OCB + ACB) la phai giu duoc hai khoa.
-la("co ham doc ca hai khe khoa", "def _cac_khoa(" in _sp46, True)
+la("co ham doc cac khe khoa", "def _cac_khoa(" in _sp46, True)
 la("khe thu hai la ten khoa cong _2", 'ten_goc + "_2"' in _sp46, True)
+la("khe thu ba MB la ten khoa cong _3", 'ten_goc + "_3"' in _sp46, True)
 la("kiem HMAC thu ca hai khoa", '_cac_khoa("sepay_hmac")' in _sp46, True)
 la("duong X-Api-Key cung thu ca hai khoa", '_cac_khoa("sepay_khoa")' in _sp46, True)
 _hmac46 = _sp46.split("def _kiem_hmac(")[1].split("\ndef ")[0]
@@ -5821,14 +5822,17 @@ la("chu ky van so bang compare_digest, khong so bang ==",
 la("truong khoa ACB co trong khai bao truong", '"fieldname": "sepay_hmac_2"' in _sp46, True)
 la("khoa du phong ACB cung co", '"fieldname": "sepay_khoa_2"' in _sp46, True)
 _dh46 = _sp46.split("def dat_hmac(")[1].split("\n@frappe.whitelist()")[0]
-la("dat_hmac nhan khe 2", 'cint(khe) != 2 else "sepay_hmac_2"' in _dh46, True)
+la("dat_hmac nhan khe 2", '2: "sepay_hmac_2"' in _dh46, True)
+la("dat_hmac nhan khe 3 MB", '3: "sepay_hmac_3"' in _dh46, True)
 
 # Khai ban do tai khoan ngay tren app: CHI THEM VA DOI, khong xoa.
 _tk46 = _sp46.split("def them_tai_khoan(")[1].split("\n@frappe.whitelist()")[0]
 la("them tai khoan chi cho quan ly va ke toan",
    '{"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _tk46, True)
-la("so tai khoan chi giu chu so", "ch.isdigit()" in _tk46, True)
-la("tai khoan ERPNext phai co that", 'frappe.db.exists("Bank Account", tk)' in _tk46, True)
+_km46 = _sp46.split("def kiem_map_tai_khoan(")[1].split("\n@frappe.whitelist()")[0]
+la("app goi hang rao chung", "kiem_map_tai_khoan(so_tk, tai_khoan)" in _tk46, True)
+la("so tai khoan chi giu chu so", "_so_tk_chuan(so_tk)" in _km46, True)
+la("tai khoan ERPNext phai co that", 'frappe.db.exists("Bank Account", tk)' in _km46, True)
 la("khai xong thi ra khoi danh sach chua khai", "cu_ds.remove(so_tk)" in _tk46, True)
 la("duong them khong co lenh xoa dong ban do", "ban_do.pop" in _tk46 or "del ban_do" in _tk46, False)
 # Man Cai dat: o khoa ACB va o khai ban do.
@@ -6231,7 +6235,7 @@ la("chi tra bon ky tu cuoi", "k[-4:]" in _soi49, True)
 la("khoa ngan thi khong he lo gi", '"..."' in _soi49, True)
 la("co duong soi khoa", "def soi_khoa(" in _sp49, True)
 _sk49 = _sp49.split("def soi_khoa(")[1].split("@frappe.whitelist()")[0]
-la("soi khoa chan nguoi ngoai", "_kiem_quyen()" in _sk49, True)
+la("soi khoa chi cho quan ly tai chinh", 'if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _sk49, True)
 la("soi ca bon o khoa", "sepay_hmac_2" in _sk49, True)
 # Khong duoc lo ca khoa ra ngoai.
 for _cam49 in ('return key(c,', 'ra[o] = key(c'):

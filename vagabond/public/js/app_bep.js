@@ -21717,7 +21717,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '477';
+var APPVER = '478';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -29231,6 +29231,7 @@ Màn này bày ra ba thứ mà trước đó không ai nhìn thấy được: đ
 đang bị bỏ qua vì chưa khai. */
 
 var seData = null;
+var seMapTaiKhoan = '';
 
 async function scrSePay() {
   frame('SePay', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
@@ -29278,6 +29279,7 @@ function seDauKhoa(d) {
     '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:3px">KHOÁ ĐANG LƯU · ĐỐI CHIẾU VỚI SEPAY</div>' +
     dong('Secret Key HMAC (webhook 1)', 'sepay_hmac', 1) +
     dong('Secret Key HMAC 2 (ACB)', 'sepay_hmac_2', 1) +
+    dong('Secret Key HMAC 3 (MB Nguyễn Hoàng Việt)', 'sepay_hmac_3', 1) +
     dong('Khoá X-Api-Key (dự phòng)', 'sepay_khoa') +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:6px;line-height:1.5">' +
     'Secret Key bên SePay phải nằm ở ô <b>HMAC</b>. Mở SePay, xem bốn ký tự cuối của ' +
@@ -29286,6 +29288,8 @@ function seDauKhoa(d) {
 
 function seVe() {
   var d = seData || {};
+	var xungDot = d.xung_dot_ban_do || {};
+	var dsXungDot = Object.keys(xungDot);
   var html = '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">HAI ĐƯỜNG VÀO SỔ</div>' +
     '<div style="font-size:13.5px;color:#374151;line-height:1.65;margin-top:4px">' +
@@ -29305,6 +29309,7 @@ function seVe() {
     posChipNut('data-sehm="1"', d.co_hmac ? '🛡 Đã có khoá HMAC' : '⚠️ Chưa có khoá HMAC', !!d.co_hmac) +
     posChipNut('data-sekhoa="1"', d.co_khoa ? '🔑 Có khoá dự phòng' : '○ Không khoá dự phòng', !!d.co_khoa) +
     posChipNut('data-sehm2="1"', d.co_hmac_2 ? '🛡 Có khoá HMAC 2 (ACB)' : '○ Chưa có khoá ACB', !!d.co_hmac_2) +
+    posChipNut('data-sehm3="1"', d.co_hmac_3 ? '🛡 Có khoá HMAC 3 (MB)' : '○ Chưa có khoá MB', !!d.co_hmac_3) +
     '</div>' +
     /* HMAC la duong chinh, khong phai lua chon thu hai.
        Mot, no ky ca goi tin nen doi mot dong trong do la chu ky hong.
@@ -29327,6 +29332,14 @@ function seVe() {
         'cùng đường dẫn trên, chọn HMAC-SHA256 rồi dán Secret Key của webhook đó vào đây.</div>' +
         '<input class="tin" id="seHm2" type="password" placeholder="Dán Secret Key whsec_... của webhook ACB" style="margin-bottom:8px">' +
         '<button class="btn" id="seLuuHm2" style="margin:0;width:100%">🛡 Lưu khoá HMAC thứ hai (ACB)</button>' +
+        /* MB cua anh Viet la tai khoan ca nhan dung de chi mua le va nhan
+           hoan ung. Giu mot khe rieng de giai doan chuyen ACB sang MB khong
+           ai phai ghi de khoa ACB khi ca hai tai khoan con giao dich. */
+        '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:12px 0 6px">Chạy thêm ' +
+        'tài khoản <b>MB Nguyễn Hoàng Việt</b>: tạo webhook riêng bên SePay, trỏ về cùng ' +
+        'đường dẫn trên, chọn HMAC-SHA256 rồi dán Secret Key vào khe riêng này.</div>' +
+        '<input class="tin" id="seHm3" type="password" placeholder="Dán Secret Key whsec_... của webhook MB" style="margin-bottom:8px">' +
+        '<button class="btn" id="seLuuHm3" style="margin:0;width:100%">🛡 Lưu khoá HMAC thứ ba (MB)</button>' +
         '<button class="btn gh" id="seSinh" style="margin:8px 0 0;width:100%">🔑 Sinh khoá dự phòng (header X-Api-Key)</button>'
       : '') +
     '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6">' +
@@ -29347,6 +29360,13 @@ function seVe() {
     Object.keys(d.ban_do || {}).map(function (so) {
       return htCtDong(so, (d.ban_do || {})[so]);
     }).join('') +
+	(dsXungDot.length
+	  ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
+	    'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6"><b>Đã ngừng định tuyến ' +
+	    dsXungDot.length + ' số tài khoản bị khai trùng.</b> Cùng một số đang trỏ vào nhiều Bank Account. ' +
+	    'Mở SePay Settings, đối chiếu và chỉ giữ một dòng đúng trước khi nạp bù: ' +
+	    h(dsXungDot.join(', ')) + '.</div>'
+	  : '') +
     ((d.chua_map || []).length
       ? '<div style="font-size:12.5px;color:#b3261e;background:#fef2f2;border:1px solid #fecaca;' +
         'border-radius:9px;padding:10px 12px;margin-top:9px;line-height:1.6">Đang có giao dịch của ' +
@@ -29354,16 +29374,16 @@ function seVe() {
         'Khai ngay ở ô dưới rồi nạp bù, nếu không thì tiền đã về mà sổ không có.</div>'
       : '') +
     (d.sua_duoc
-      ? '<div style="font-size:12px;color:#6b7280;margin-top:10px">Khai thêm tài khoản (ví dụ ACB)</div>' +
+      ? '<div style="font-size:12px;color:#6b7280;margin-top:10px">Khai thêm số tài khoản từ SePay</div>' +
         '<input class="tin" id="seMapSo" inputmode="numeric" placeholder="Số tài khoản như SePay hiển thị"' +
         ' value="' + h((d.chua_map || [])[0] || '') + '" style="margin:6px 0 8px">' +
-        '<select class="tin" id="seMapTk" style="margin-bottom:8px">' +
-        '<option value="">- Chọn tài khoản ngân hàng trong ERPNext -</option>' +
-        (d.ds_tai_khoan || []).map(function (t) { return '<option value="' + h(t) + '">' + h(t) + '</option>'; }).join('') +
-        '</select>' +
+        '<div class="fieldcard" data-semaptk="1" style="margin-bottom:8px;min-height:52px">' +
+        '<div class="fi" style="font-size:20px">🏦</div><div class="fb"><div class="fl">Bank Account nhận sao kê</div>' +
+        '<div class="fv">' + h(seMapNhan(d)) + '</div></div><div class="fc">›</div></div>' +
         '<button class="btn" id="seMapThem" style="margin:0;width:100%">➕ Thêm vào bản đồ</button>' +
-        '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">Nếu ACB chưa có ' +
-        'trong danh sách chọn thì tạo Bank Account trên Desk trước. Khai xong nhớ chạy <b>nạp bù</b> ' +
+        '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">Nếu MB cá nhân chưa có ' +
+        'trong ô chọn thì tạo Bank Account trên Desk, gắn đúng người được hoàn ứng và tài khoản 141. Máy chặn ' +
+        'nếu số tài khoản không khớp hoặc chọn nhầm MB công ty. Khai xong nhớ chạy <b>nạp bù</b> ' +
         'bên dưới để lấy lại các giao dịch đã bị bỏ qua.</div>'
       : '') + '</div>';
 
@@ -29393,6 +29413,10 @@ function seVe() {
   if (nHm) nHm.onclick = function () { seLuuHmac(1); };
   var nHm2 = document.getElementById('seLuuHm2');
   if (nHm2) nHm2.onclick = function () { seLuuHmac(2); };
+  var nHm3 = document.getElementById('seLuuHm3');
+  if (nHm3) nHm3.onclick = function () { seLuuHmac(3); };
+  var nTk = b.querySelector('[data-semaptk]');
+  if (nTk) nTk.onclick = seChonTaiKhoan;
   var nMap = document.getElementById('seMapThem');
   if (nMap) nMap.onclick = seThemTaiKhoan;
   var nThu = document.getElementById('seThu');
@@ -29403,23 +29427,50 @@ function seVe() {
 }
 
 async function seLuuHmac(khe) {
-  var o = document.getElementById(khe === 2 ? 'seHm2' : 'seHm');
+  var o = document.getElementById(khe === 3 ? 'seHm3' : (khe === 2 ? 'seHm2' : 'seHm'));
   var k = (o && o.value || '').trim();
   if (!k) return toast('Chưa dán Secret Key.', 4000);
-  try { await api('vagabond.sepay.dat_hmac', { khoa: k, khe: khe === 2 ? 2 : 1 }); }
+  try { await api('vagabond.sepay.dat_hmac', { khoa: k, khe: khe }); }
   catch (e) { return toast((e && e.message) || 'Không lưu được khoá', 5000); }
   if (o) o.value = '';
-  toast(khe === 2 ? 'Đã lưu khoá HMAC thứ hai (ACB).' : 'Đã lưu khoá HMAC và bật nhận webhook.', 4000);
+  toast(khe === 3 ? 'Đã lưu khoá HMAC thứ ba (MB).' :
+    (khe === 2 ? 'Đã lưu khoá HMAC thứ hai (ACB).' : 'Đã lưu khoá HMAC và bật nhận webhook.'), 4000);
   scrSePay();
+}
+
+function seMapNhan(d) {
+  var t = (d.ds_tai_khoan || []).filter(function (x) { return x.ma === seMapTaiKhoan; })[0];
+  if (!t) return 'Chạm để chọn và tìm Bank Account';
+  return (t.ngan_hang || t.ten || t.ma) + (t.so_tk ? ' · ' + t.so_tk : '') +
+    (t.chu ? ' · ' + t.chu : (t.la_cong_ty ? ' · tài khoản công ty' : ' · chưa gắn người'));
+}
+
+function seChonTaiKhoan() {
+  var d = seData || {};
+  var ds = d.ds_tai_khoan || [];
+  if (!ds.length) return baoTin('Chưa có Bank Account đang dùng. Mở Bank Account trên Next để khai tài khoản MB trước.');
+  sheet('Chọn Bank Account để nhận sao kê', ds.map(function (t) {
+    return {
+      value: t.ma,
+      label: t.ngan_hang || t.ten || t.ma,
+      sub: (t.ten || t.ma) + (t.so_tk ? ' · ' + t.so_tk : '') +
+        (t.chu ? ' · ' + t.chu : (t.la_cong_ty ? ' · tài khoản công ty' : ' · chưa gắn người')),
+      icon: '🏦'
+    };
+  }), seMapTaiKhoan, function (t) {
+    seMapTaiKhoan = t.value;
+    seVe();
+  }, true);
 }
 
 async function seThemTaiKhoan() {
   var so = (document.getElementById('seMapSo') || {}).value || '';
-  var tk = (document.getElementById('seMapTk') || {}).value || '';
+  var tk = seMapTaiKhoan || '';
   if (!so.trim()) return toast('Chưa gõ số tài khoản.', 4000);
   if (!tk) return toast('Chưa chọn tài khoản ngân hàng trong ERPNext.', 4000);
   try { await api('vagabond.sepay.them_tai_khoan', { so_tk: so.trim(), tai_khoan: tk }); }
   catch (e) { return toast((e && e.message) || 'Không thêm được', 6000); }
+  seMapTaiKhoan = '';
   toast('Đã khai ' + so.trim() + ' vào bản đồ. Nhớ chạy nạp bù để lấy giao dịch cũ.', 5000);
   scrSePay();
 }
