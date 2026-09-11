@@ -121,15 +121,34 @@ def _kiem_tien_da_chia(doc):
     Dòng rã cố định giữ nguyên lượng. Đổi số bộ bằng cách chọn lại combo,
     tránh một món bị đổi lượng riêng nhưng còn giữ tiền của cả cấu hình cũ.
     """
+    if doc.name:
+        cu = frappe.get_all('Sales Invoice Item', filters={'parent': doc.name,
+            'vgb_combo_luong': ['!=', 0]}, fields=['name', 'vgb_combo_ma'])
+        kiem_nhom(cu, doc.items)
     for d in doc.items:
         if not d.get('vgb_combo_luong'):
             continue
         cu = frappe.db.get_value('Sales Invoice Item', d.name,
-            ['parent', 'item_code', 'qty', 'vgb_combo_tien', 'vgb_combo_luong'], as_dict=True) if d.name else None
+            ['parent', 'item_code', 'qty', 'rate', 'vgb_combo_ma', 'vgb_combo_ten', 'vgb_combo_tien', 'vgb_combo_luong'], as_dict=True) if d.name else None
         if not cu or cu.parent != doc.name or cu.item_code != d.item_code or any(
+                (d.get(k) or '') != (cu.get(k) or '') for k in ('vgb_combo_ma','vgb_combo_ten')) or any(
                 Decimal(str(d.get(k) or 0)) != Decimal(str(cu.get(k) or 0))
-                for k in ('qty', 'vgb_combo_tien', 'vgb_combo_luong')):
+                for k in ('qty', 'rate', 'vgb_combo_tien', 'vgb_combo_luong')):
             frappe.throw('Dòng combo đã chia tiền không được sửa riêng lượng/thành tiền. Xóa bộ này rồi chọn lại combo với số bộ cần bán.')
+
+
+def kiem_nhom(cu, moi):
+    """Một mã combo trên bill phải được giữ đủ hoặc xóa hết thành phần."""
+    theo_ten = {d.get('name'): d for d in moi if d.get('name')}
+    nhom = {}
+    for d in cu:
+        nhom.setdefault(d.get('vgb_combo_ma'), []).append(d.get('name'))
+        if d.get('name') in theo_ten and not theo_ten[d.get('name')].get('vgb_combo_luong'):
+            frappe.throw('Không được bỏ dấu combo khỏi món đã chia tiền. Xóa toàn bộ combo rồi chọn lại.')
+    for ten in nhom.values():
+        con = sum(x in theo_ten for x in ten)
+        if con and con != len(ten):
+            frappe.throw('Không được xóa riêng món trong combo. Xóa toàn bộ món cùng mã combo rồi chọn lại.')
 
 
 def dat_thanh_tien(doc):
@@ -149,6 +168,10 @@ def dat_thanh_tien(doc):
 def giu_dong_sua(si, gui, dong):
     """Màn sửa bill gửi tên dòng; tiền combo lấy từ chứng từ gốc trên máy chủ."""
     cu = next((x for x in si.items if x.name == gui.get('dong_goc')), None)
+    if gui.get('dong_goc') and not cu:
+        frappe.throw('Dòng bill gốc không còn tồn tại. Tải lại bill rồi sửa tiếp.')
+    if not cu and any(x.item_code == dong['item_code'] and x.get('vgb_combo_luong') for x in si.items):
+        frappe.throw('Món thuộc combo thiếu dòng gốc. Lưu việc xóa toàn bộ combo trước khi thêm lại món lẻ.')
     if not cu or not cu.get('vgb_combo_luong'):
         return dong
     if cu.item_code != dong['item_code'] or any(

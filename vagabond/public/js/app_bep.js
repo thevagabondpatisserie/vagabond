@@ -14753,7 +14753,7 @@ async function scrPosBill(name) {
       var cb = '';
       var mc = /\u25c8\s*(.+)/.exec(String(m.description || ''));
       if (mc) cb = String(mc[1]).trim();
-      return { item_code: m.item_code, ten: m.item_name || m.item_code, qty: m.qty, rate: m.rate, tc: tc, gc: gc, combo: cb, dong_goc: m.name, combo_tien: m.vgb_combo_luong ? m.vgb_combo_tien : null };
+      return { item_code: m.item_code, ten: m.item_name || m.item_code, qty: m.qty, rate: m.rate, tc: tc, gc: gc, combo: cb, combo_ma_goc: m.vgb_combo_ma, dong_goc: m.name, combo_tien: m.vgb_combo_luong ? m.vgb_combo_tien : null };
     });
   }
   var mon = suaMo ? posSua.mon : monTuDoc();
@@ -15291,7 +15291,7 @@ async function scrPosBill(name) {
   if (nhs) nhs.onclick = function () { posSua = null; go(function () { scrPosBill(name); }, true); };
 
   /* ----- sua so luong / xoa mon / them mon ----- */
-  b.onclick = function (e) {
+  b.onclick = async function (e) {
     if (!posSua) return;
     var t = e.target.closest('[data-scong]');
     if (t) { hutSua(); if (posSua.mon[+t.getAttribute('data-scong')].combo_tien != null) return toast('Xóa bộ này rồi chọn lại combo để đổi số lượng.'); posSua.mon[+t.getAttribute('data-scong')].qty++; return go(function () { scrPosBill(name); }, true); }
@@ -15304,7 +15304,17 @@ async function scrPosBill(name) {
       return go(function () { scrPosBill(name); }, true);
     }
     t = e.target.closest('[data-sxoa]');
-    if (t) { hutSua(); posSua.mon.splice(+t.getAttribute('data-sxoa'), 1); return go(function () { scrPosBill(name); }, true); }
+    if (t) {
+      hutSua();
+      var suaLucBam = posSua, viTri = +t.getAttribute('data-sxoa'), monXoa = posSua.mon[viTri];
+      if (monXoa.combo_tien != null) {
+        var xacNhan = await confirmSheet('Xóa toàn bộ combo ' + (monXoa.combo_ma_goc || '') + '?',
+          'Tất cả món cùng mã combo trên bill sẽ được xóa. Chọn lại combo nếu muốn đổi số bộ.');
+        if (!xacNhan || posSua !== suaLucBam) return;
+      }
+      posSua.mon = posBoMonSua(posSua.mon, viTri);
+      return go(function () { scrPosBill(name); }, true);
+    }
   };
   var ntm = document.getElementById('pbThemMon');
   if (ntm) ntm.onclick = async function () {
@@ -15569,6 +15579,15 @@ function inMau(vaiTro) {
    binh thuong la HAI dong khac nhau - gop lai thi quay bar lam sai.
 
    Ham THUAN: vao la mang, ra la mang moi, khong cham DOM. */
+function posBoMonSua(mon, viTri) {
+  var xoa = mon[viTri];
+  return mon.filter(function (m, i) {
+    return xoa.combo_tien != null
+      ? !(m.combo_tien != null && m.combo_ma_goc === xoa.combo_ma_goc)
+      : i !== viTri;
+  });
+}
+
 function posGopDongMon(mon) {
   var ra = [], bang = {};
   (mon || []).forEach(function (m) {
@@ -15773,8 +15792,6 @@ async function posInTemThu() {
   await inTo('tem', 'In thử căn tem', temKhung('In thử căn tem', mot + mot, 1),
     inKho('tem').rong, 900, inW);
 }
-
-
 /* ---------- Cong no phai thu (anh Viet 11/08/2026) ----------
 
 Khach si nhu Ravie va khach VIP gom nhieu hoa don tra mot lan. Man nay lam

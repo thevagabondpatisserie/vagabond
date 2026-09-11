@@ -1,8 +1,9 @@
 """#261: rã mã hàng thật, bảo toàn giá và không đoán thành phần."""
 from decimal import Decimal, ROUND_HALF_UP
 from unittest.mock import patch
+from types import SimpleNamespace
 from vagabond import combo_mon as cb
-from vagabond.khung.kiem_thu.nen import ca, la, dung
+from vagabond.khung.kiem_thu.nen import ca, la, dung, nem, Doi
 
 
 @ca('#261 chia combo 3 bánh không mất đồng, nhiều bộ và món trùng')
@@ -46,3 +47,31 @@ def _thanh_tien():
         dict(item_code='M2',so_luong=1,gia_goc=60000)],1,155000)
     la('phân đồng dư',[d['vgb_combo_tien'] for d in r],[107308,47692])
     la('đủ tiền',sum(d['vgb_combo_tien'] for d in r),155000)
+
+
+@ca('#261 xóa thành phần, bỏ dấu combo và bỏ dòng gốc đều bị chặn')
+def _nhom():
+    cu = [Doi(name='A', item_code='M1', vgb_combo_ma='CB1', vgb_combo_luong=3),
+        Doi(name='B', item_code='M2', vgb_combo_ma='CB1', vgb_combo_luong=1)]
+    nem('xóa một món', lambda: cb.kiem_nhom(cu, cu[:1]))
+    nem('bỏ dấu combo', lambda: cb.kiem_nhom(cu, [dict(cu[0],vgb_combo_luong=0),cu[1]]))
+    cb.kiem_nhom(cu, cu)
+    cb.kiem_nhom(cu, [])
+    si = SimpleNamespace(items=cu)
+    nem('bỏ dòng gốc giữ giá', lambda: cb.giu_dong_sua(si, {}, dict(item_code='M1',qty=3,rate=35769)))
+    nem('giả dòng gốc', lambda: cb.giu_dong_sua(si, {'dong_goc':'X'}, dict(item_code='M1',qty=3,rate=35769)))
+    la('món lẻ mới vẫn thêm', cb.giu_dong_sua(si, {}, dict(item_code='M3',qty=1,rate=10000))['rate'],10000)
+
+
+@ca('#261 cửa cấu hình chặn combo tắt, lồng, chọn nhóm và ưu đãi giới hạn')
+def _cau_hinh_cam():
+    from vagabond import khuyen_mai as km
+    goc = dict(bat=1,dong=[dict(item_code='M1',so_luong=3,gia_goc=50000)])
+    for doi in ({'bat':0},{'dong':[{'item_code':'KMCB1'}]},
+            {'dong':[{'item_code':'M1','nhom':'Chọn bánh'}]},
+            {'can_otp':1},{'gioi_han_bill':1},{'lan_moi_ngay':1}):
+        with patch.object(cb.frappe.db,'get_value',return_value='CB1'), \
+                patch.object(km,'_doc_combo',return_value=dict(goc,**doi)), \
+                patch.object(km,'_hop_thoi_gian',return_value=(True,'')), \
+                patch.object(km,'_hop_kenh',return_value=(True,'')):
+            nem('chặn '+str(doi),lambda:cb.doc_cau_hinh('KMCB1'),cb.frappe.ValidationError)
