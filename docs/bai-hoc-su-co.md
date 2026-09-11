@@ -161,3 +161,12 @@ Migrate. Trước khi sửa Server Script phải báo chủ repo.
 
 Đây là luật cứng của GitHub, không phải thiếu quyền, cấp thêm quyền cũng không
 qua được. Mọi thay đổi trong thư mục đó phải người thật sửa tay.
+
+## Issue280: lời gọi issue cần biên nhận thật
+
+Lệnh review trong body issue thường không đi qua đường comment PR mà tích
+hợp Codex hỗ trợ. Workflow Claude skipped không có nghĩa Codex đã tiếp nhận.
+Bộ nhận riêng phải lưu mã nguồn yêu cầu, xác nhận queued khác working/done,
+đọc lại khi mất phản hồi và không coi marker do người dùng dán là biên nhận.
+Nguồn và quy trình kích hoạt: docs/codex-issue-inbox.md. Không bật hàng đợi
+khi chưa có worker; không tự gọi model chỉ để xác nhận đã nhận.
