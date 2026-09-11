@@ -724,9 +724,6 @@ def nap_bu(so_tk="", tu_ngay="", den_ngay="", so_trang=40, that=0):
 @frappe.whitelist()
 def tinh_trang():
 	"""Man Cai dat: duong dan webhook, khoa, va so lieu tung tai khoan."""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
 	# API chứa số tài khoản và chủ tài khoản; ẩn màn hình không giữ được dữ liệu.
 	if not {"System Manager", "Accounts Manager", "Accounts User"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ kế toán được xem cấu hình và tài khoản SePay.", frappe.PermissionError)

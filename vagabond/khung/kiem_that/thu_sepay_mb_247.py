@@ -278,7 +278,9 @@ def _quyen_doc_sepay():
 		else:
 			dung('Sales không được nhận dữ liệu ngân hàng', False)
 		frappe.set_user('Administrator')
-		u.add_roles('Accounts User')
+		u.set('roles', [{'role': 'Accounts User'}])
+		u.save(ignore_permissions=True)
+		frappe.clear_cache(user=u.name)
 		frappe.set_user(u.name)
 		dung('kế toán đọc được danh sách', 'ds_tai_khoan' in sepay.tinh_trang())
 	finally:
