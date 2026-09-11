@@ -9,7 +9,7 @@ from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _hoa_don_mua
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen,_mon,_app
 
 
-def _phieu():
+def _phieu(tien_pos=0):
     cong_ty,tk,mau=_nen()
     ncc=frappe.get_doc(dict(doctype='Supplier',supplier_name='NCC kiểm 262 '+frappe.generate_hash(length=8),
         supplier_group=frappe.db.get_value('Supplier Group',{'is_group':0},'name'),supplier_type='Company',tax_id='KIEM262'))
@@ -19,6 +19,14 @@ def _phieu():
     si.vgb_tam_tinh=0
     si.vgb_pt_thanh_toan='GrabFood'
     si.vgb_ma_tham_chieu='KT262-'+frappe.generate_hash(length=8)
+    if tien_pos:
+        from vagabond.khung.kiem_that.nen import _mot
+        tk_tien = _mot('Account', {'company':cong_ty,'account_type':'Cash','is_group':0})
+        mop = frappe.get_doc(dict(doctype='Mode of Payment',mode_of_payment='KT265-'+frappe.generate_hash(length=8),
+            type='Cash',accounts=[dict(company=cong_ty,default_account=tk_tien)]))
+        mop.insert(ignore_permissions=True); _DA_TAO.append((mop.doctype,mop.name))
+        si.is_pos = 1
+        si.set('payments',[dict(mode_of_payment=mop.name,account=tk_tien,amount=tien_pos)])
     si.save(ignore_permissions=True)
     si.submit(); si.reload()
     # Chỉ dấu số MTT trong fixture, không gọi dịch vụ phát hành bên ngoài.
@@ -164,8 +172,21 @@ def _thu_tien_phan_bo(phan_bo_sau=False):
     tep = frappe.get_doc(dict(doctype='File', file_name='KT265-bao-co.txt',
         content='Giay bao Co thu tren bench', is_private=1,
         attached_to_doctype=pe.doctype, attached_to_name=pe.name))
-    tep.insert(ignore_permissions=True); _DA_TAO.append((tep.doctype,tep.name))
-    pe.submit(); pe.reload(); si.reload(); si2.reload()
+    # Savepoint không chạy after_rollback watchers của File (Frappe f33ac3f).
+    # Tệp thử có nội dung riêng, dọn qua File ngay cả khi submit ném lỗi.
+    tep.content += frappe.generate_hash(length=16)
+    try:
+        tep.insert(ignore_permissions=True); _DA_TAO.append((tep.doctype,tep.name))
+        pe.submit()
+    finally:
+        if tep.name and frappe.db.exists('File',tep.name):
+            from pathlib import Path
+            duong = Path(tep.get_full_path())
+            tep.delete(ignore_permissions=True)
+            dung('tệp báo Có thử đã dọn trên đĩa',not duong.exists())
+        elif tep.flags.new_file:
+            tep.on_rollback()
+    pe.reload(); si.reload(); si2.reload()
     if phan_bo_sau:
         la('thu trước còn nguyên khả dụng', pe.unallocated_amount, 600000)
         rec = frappe.new_doc('Payment Reconciliation')
@@ -204,6 +225,45 @@ def _thu_tien_phan_bo(phan_bo_sau=False):
 @ca('#265 thu trước rồi đối chiếu hai SI: GL cũ bỏ sót, PLE đúng')
 def _thu_truoc_doi_chieu_sau():
     _thu_tien_phan_bo(phan_bo_sau=True)
+
+
+@ca('#265 trả hàng nằm ở điều chỉnh, không làm mất gross hóa đơn gốc')
+def _bao_cao_tra_hang():
+    from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
+    so, pi, si = _phieu()
+    tra = make_sales_return(si.name)
+    tra.update_outstanding_for_self = 0
+    tra.items[0].qty = -0.2
+    tra.vgb_ma_tham_chieu = 'KT265-TRA-'+frappe.generate_hash(length=8)
+    tra.insert(ignore_permissions=True); _DA_TAO.append((tra.doctype,tra.name))
+    tra.submit(); tra.reload(); si.reload()
+    la('phiếu trả ghi thật 200000',tra.grand_total,-200000)
+    la('SI còn nợ 800000',si.outstanding_amount,800000)
+    kq = ct.doi_chieu(so.name)
+    la('giữ gross gốc',kq['doanh_thu'],1000000)
+    la('tách trả hàng khỏi gross',kq['dieu_chinh'],-200000)
+    la('dư khớp core',kq['du_cuoi'],si.outstanding_amount)
+    tra.cancel(); si.reload()
+    kq = ct.doi_chieu(so.name)
+    la('hủy trả hàng giữ gross',kq['doanh_thu'],1000000)
+    la('hủy trả hàng hết điều chỉnh',kq['dieu_chinh'],0)
+    la('hủy trả hàng hồi đủ dư',kq['du_cuoi'],1000000)
+
+
+@ca('#265 thu trên SI tách khỏi gross và chỉ rõ dư hóa đơn hủy mềm')
+def _bao_cao_thu_pos():
+    so, pi, si = _phieu(tien_pos=300000)
+    la('POS thật còn nợ',si.outstanding_amount,700000)
+    kq = ct.doi_chieu(so.name)
+    la('gross không trừ POS',kq['doanh_thu'],1000000)
+    la('thu ngay trên SI ở điều chỉnh',kq['dieu_chinh'],-300000)
+    la('dư POS khớp core',kq['du_cuoi'],700000)
+    # Dựng dấu hủy mềm lịch sử trong fixture; không loại khoản còn ở sổ 131.
+    frappe.db.set_value('Sales Invoice',si.name,'vgb_huy',1)
+    kq = ct.doi_chieu(so.name)
+    la('dư hủy mềm được chỉ riêng',kq['du_huy_mem'],700000)
+    la('không làm mất công nợ thật',kq['du_cuoi'],700000)
+    la('không khẳng định sàn sẽ trả',kq['trang_thai'],'Cần kiểm tra điều chỉnh')
 
 
 @ca('#265 hook nguồn trả nguyên lỗi DB cho caller rollback')
