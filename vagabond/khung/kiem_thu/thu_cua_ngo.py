@@ -36,6 +36,11 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 # Danh sach cua ngo tung mo dun. Chot ngay 19/08/2026.
 CUA_NGO = {
 	"minvoice_an_toan.py": ["kiem_goi", "mo_lai", "phan_loai_phan_hoi"],
+	# Them 10/09/2026 (#266): xu to da ghi so cua mot ngay chua co HDDT, giu
+	# dung ngay ban khi cua m-invoice con mo, khong thi keo sang hom nay.
+	# `chay_nen`, `xuat_ngay_cu_truoc`, `phat_hanh`, `ky` la ham noi bo cua
+	# hang doi va chuoi cuoi ngay, khong mo ra ngoai.
+	"hddt_cho_xuat.py": ["xu_ly_ngay_cu"],
 	# Them 23/08/2026 cung lan dua Web Page va Mau in ra git. `soi_lech` chi
 	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
 	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
@@ -50,6 +55,12 @@ CUA_NGO = {
 	# banh goi qua cua rieng cua chung.
 	"tat_ban_web.py": ["dat"],
 	"nvl_thay_the.py": ["tinh_lai"],
+	# Them 10/09/2026 cung lan bo sung hoa don den sau cho ho so APP (#247).
+	# Ba cua deu la cua man hinh: nen ban the hien vua tai len, tim hoa don
+	# cung NCC de noi, va noi hoa don vao mot khoan chi.
+	# `nen_pdf`, `loi_giu_lien_ket` va `kiem_bo_sung` CO Y khong nam trong danh
+	# sach: do la phep noi bo, Document goi qua validate chu khong mo ra ngoai.
+	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don"],
 	# Them 01/09/2026 cung lan mo phan he Nhan su, man Duyet KPI va hoa hong.
 	# Muoi hai cua ngo deu la cua man hinh: dung phieu, cham diem, duyet, tra
 	# lai, gop y, day sang de nghi chi, xem danh sach, xem chi tiet, xem phieu
@@ -120,6 +131,19 @@ CUA_NGO = {
 	# `tk_tien_chi`, `dem_unc`, `ds_unc_tho`) la ham noi bo, ho_so_tt goi
 	# thang chu khong di qua mang.
 	"tra_tien_app.py": ["dinh_unc", "ds_unc", "go_unc", "soat_tk_chi"],
+	# Them 10/09/2026 cung lan tra APP tung dot va can coc NCC (#247). Bon cua
+	# ngo deu la cua man tao APP: xem danh sach coc con tien, can coc vao hoa
+	# don, tim dong sao ke cua khoan coc, va noi sao ke vao phieu coc.
+	#
+	# `_phieu`, `_doi_chieu` va `_kiem_snapshot_pe` CO Y khong nam trong danh
+	# sach: do la phep noi bo doc va khoa chung tu. `chan_sua_lich_su` la HOOK
+	# tren duong luu cua MOI Payment Entry, mo ra ngoai la cho trinh duyet goi
+	# thang vao duong chan.
+	"coc_app.py": ["can_coc", "danh_sach", "noi_sao_ke_coc", "sao_ke_coc"],
+	# `phan_bo_app.py` KHONG co ham nao mo ra ngoai: toan bo la phep thuan va
+	# phep kiem, ho_so_tt va doctype goi thang. Chot danh sach rong de mot
+	# decorator bam nham vao day se bi ca kiem bat ngay.
+	"phan_bo_app.py": [],
 	# Them 28/08/2026: thu tien va xuat hoa don cho hop dong da ky, va
 	# bang doi ruot hop mua vu. Ba nhom cua ngo:
 	#   thu_hop_dong  - lap phieu, xem, xuat PDF, gui khach
@@ -157,6 +181,9 @@ CUA_NGO = {
 	# nham thanh "hang chua duoc nhap kho". `_mst_cua_to` va `_phieu_ung_vien`
 	# la ham noi bo, KHONG mo ra ngoai.
 	"doi_chieu_mua.py": [
+		# `bo_noi` them 10/09/2026 (issue #252): go dau noi phieu nhap tren
+		# to con nhap, khi luong cua phieu da bi hoa don khac ghi so lay mat.
+		"bo_noi",
 		"danh_sach", "don_vi_cua_mon", "gan_ma_hang", "ghi_so_thang", "goi_y_mon",
 		"khai_don_vi", "noi_phieu", "so_sanh", "sua_don_vi", "xem",
 	],

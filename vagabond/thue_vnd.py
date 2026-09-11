@@ -82,16 +82,68 @@ def doc_dong(si):
     return ra
 
 
-def chuan_tien(si, dd):
+def dong_len_hoa_don(items, ra):
+    """Cặp (dòng SI, tiền đã lưu) của những dòng ĐƯỢC đưa lên tờ hoá đơn.
+
+    #266 (09/09/2026): kịch bản phát hành trên site bỏ dòng có thành tiền 0
+    (quy tắc ghi ngay đầu kịch bản: "dòng hàng có thành tiền = 0 thì KHÔNG
+    đưa lên hoá đơn"), còn bản v460 của hàm này lại đòi payload có ĐỦ số
+    dòng SI. Đơn nào kèm một món 0 đồng (túi, nến, hàng tặng kèm) là bị
+    chặn "Payload không cùng số dòng SI" ngay lúc ghi sổ: 59 đơn Sales
+    ngày 09/09 nằm nháp cả đêm. Nay đối chiếu đúng tập dòng kịch bản gửi.
+
+    PHÉP LỌC PHẢI Y HỆT BÊN GỬI, đây là chỗ Codex bắt ở vòng 4. Kịch bản lọc
+    `flt(it.amount) > 0`, tức THÀNH TIỀN DÒNG trước khi chia chiết khấu đầu
+    phiếu (minvoice_phat_hanh_20260907.txt dòng 101-104). Bản trước lọc theo
+    `gross`, là tiền SAU khi chia. Chiết khấu lớn có thể đẩy một dòng còn
+    tiền về gross 0: kịch bản vẫn gửi dòng đó, hàm này lại bỏ, hai bên lệch
+    số dòng và cửa cuối chặn đúng bằng câu lỗi đã làm chết đêm 09/09.
+    Đo được: hai dòng 1.000.000 và 1.000, chiết khấu 1.000.999 trên Grand
+    Total, gross thành 1 và 0; kịch bản gửi 2 dòng, hàm cũ trả 1 dòng.
+    Đổi phép lọc ở đây thì PHẢI đổi cả bên kia, đừng đổi một bên.
+    """
+    return [(it, x) for it, x in zip(items, ra) if dong_duoc_gui(it)]
+
+
+def dong_duoc_gui(it):
+    """MOT NGUON DUY NHAT cho cau hoi "dong nay co len to hoa don khong".
+
+    #266 vong 5, Codex bat dung lan thu hai: vong 4 moi sua phep loc cho
+    kich ban Server Script, con duong XUAT TAY (ban_hang.xuat_hoa_don_dien_tu)
+    van dung mot dong payload cho MOI dong SI. Don co mot mon 0 dong di
+    duong xuat tay thi len(sent) != len(cap) va cua cuoi nem loi truoc khi
+    goi HTTP, dung cau loi da lam chet dem 09/09.
+
+    Nay ca ba noi goi chung ham nay. Doi phep loc o day la doi ca ba, va con
+    phai doi CA kich ban tren site (minvoice_phat_hanh_20260907.txt dong 102,
+    `flt(it.amount) > 0`) cung luc, xem ca kiem chot hai ben cung mot truong.
+    """
+    return so((it or {}).get('amount') if isinstance(it, dict) else getattr(it, 'amount', 0)) > 0
+
+
+def chuan_tien(si, dd, ma_gop=None):
+    """ma_gop: tập mã hàng khai trong MInvoice Phat Hanh Settings.ma_hang_gop,
+    là những mã kịch bản CỐ Ý gửi số lượng 1 dù dòng SI ghi nhiều hơn.
+
+    #266 vòng 2 (Codex): bản trước nhận qty=1 cho MỌI mã, nên payload hỏng của
+    một món thường ba cái vẫn qua cửa cuối và ra tờ hoá đơn ghi một cái với
+    đơn giá bằng cả dòng. Không khai ma_gop thì KHÔNG có ngoại lệ nào."""
     if not si.get('vgb_thue_vnd'): return
+    gop={str(m).strip().upper() for m in (ma_gop or []) if str(m).strip()}
     ra=doc_dong(si); items=si.get('items') or []
     sent=[d for nhom in dd.get('details') or [] for d in nhom.get('data') or []]
-    if len(sent)!=len(items): raise ValueError('Payload không cùng số dòng SI.')
-    for d,it,x in zip(sent,items,ra):
-        if d.get('inv_itemCode')!=it.get('item_code') or so(d.get('inv_quantity'))!=so(it.get('qty')):
+    cap=dong_len_hoa_don(items, ra)
+    if len(sent)!=len(cap): raise ValueError('Payload không cùng số dòng có tiền của SI.')
+    for d,(it,x) in zip(sent,cap):
+        if d.get('inv_itemCode')!=it.get('item_code'):
             raise ValueError('Payload không đúng thứ tự dòng SI.')
-        d.update(inv_TotalAmountWithoutVat=x['net'],inv_vatAmount=x['vat'],inv_TotalAmount=x['gross'],ma_thue=x['rate'],
-            inv_unitPrice=float(so(x['net'])/so(it.get('qty'))) if so(it.get('qty')) else 0,
+        sl=so(d.get('inv_quantity'))
+        if sl!=so(it.get('qty')) and not (sl==1 and str(it.get('item_code') or '').strip().upper() in gop):
+            raise ValueError('Payload không đúng số lượng dòng SI.')
+        # ma_thue phải là SỐ NGUYÊN: m-invoice từ chối "Mã thuế suất= [8.0]"
+        # (mã 9999, 116 tờ TCV đêm 09/09/2026 giữ đối chiếu vì đúng lỗi này).
+        d.update(inv_TotalAmountWithoutVat=x['net'],inv_vatAmount=x['vat'],inv_TotalAmount=x['gross'],ma_thue=int(x['rate']),
+            inv_unitPrice=float(so(x['net'])/sl) if sl else 0,
             inv_discountPercentage=0,inv_discountAmount=0)
     dd.update(inv_TotalAmountWithoutVat=sum(x['net'] for x in ra),inv_vatAmount=sum(x['vat'] for x in ra),
         inv_TotalAmount=sum(x['gross'] for x in ra),inv_discountAmount=0)

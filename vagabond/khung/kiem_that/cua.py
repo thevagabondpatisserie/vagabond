@@ -19,6 +19,7 @@ from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that import thu_combo_261  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_can_tru_262  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_doi_chieu_app_247  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_chip_app_263  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hang_tang_kho_243  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_cua_thue_243  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_thue_vnd_225  # noqa: F401,E402
@@ -72,3 +73,5 @@ def chay(im=1):
 		frappe.throw("Khung kiểm không hoàn nguyên được dữ liệu; dừng lượt kiểm. "
 			+ frappe.as_json(kq))
 	return kq
+
+from vagabond.khung.kiem_that import thu_phan_bo_app  # noqa: F401,E402

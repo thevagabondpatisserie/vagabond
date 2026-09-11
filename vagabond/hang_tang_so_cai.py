@@ -27,7 +27,7 @@ def chia_thue(tong, dong, thue_suat):
 	return ra
 
 
-def kiem_thue_gui(si, goi):
+def kiem_thue_gui(si, goi, ma_gop=None):
 	"""Không để đổi cấu hình thuế sau ghi sổ làm VAT trên tờ khác sổ cái."""
 	if not si.get("vgb_tang_so_cai"):
 		return
@@ -35,7 +35,9 @@ def kiem_thue_gui(si, goi):
 		from vagabond.thue_vnd import chuan_tien
 		import copy
 		chuan = copy.deepcopy(goi)
-		chuan_tien(si, chuan)
+		# Cùng ma_gop với lượt dựng payload, nếu không bản chuẩn và bản gửi
+		# lệch nhau chỉ vì một bên không biết mã gộp.
+		chuan_tien(si, chuan, ma_gop)
 		if chuan != goi or float(goi.get("inv_vatAmount") or 0) != float(si.get("vgb_tang_tien_thue")):
 			raise ValueError("VAT hàng tặng khác số đã ghi sổ. Kế toán đối chiếu trước khi phát hành.")
 		return

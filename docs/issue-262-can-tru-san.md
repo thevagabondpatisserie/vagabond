@@ -58,3 +58,14 @@ lỗi sau JE submit phải lùi cả JE/GL/công nợ rồi ghi Cần kiểm tra
 Thứ tự tích hợp là PR264 rồi PR265. Nhánh PR265 nhận bản sửa combo của
 PR264, giữ đủ patch471/472 và dựng lại bundle từ nguồn. Không merge main,
 không deploy trong phiên này.
+
+## Tích hợp theo issue280 ngày 11/09/2026
+
+Anh Việt giao Codex tích hợp tuần tự và giữ deploy chung. PR265 đã chứa
+toàn bộ HEAD PR264 (71cf0d95d16f25a5e1b083af1e37447820f6dc30), nên chỉ
+merge265 rồi đóng264 theo thay thế, không merge264 riêng. Đồng bộ main
+ad397a7f9bcd31437ea3bd35a6bb1b1cdd5010ac sau274/279, chuẩn bịv477.
+Giữ trọn lịch sử patch main và thêm477; các đăng ký ca combo/cấn trừ và
+APP/tham chiếu tiền đều được giữ. Bundle dựng từ nguồn.
+Cổng trên SHA cũ không thay kiểm bản tích hợp. Concurrency/quyền/mapping
+thật và UAT vẫn cần kết luận riêng trước phát hành; chưa deploy.

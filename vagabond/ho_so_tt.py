@@ -271,12 +271,13 @@ def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0, tu_khoa=""):
 		order_by="due_date asc, posting_date asc",
 		limit_page_length=0,
 	)
-	da_gom = _hd_da_gom()
+	from vagabond.phan_bo_app import dang_giu
+	da_gom = dang_giu()
 	hom_nay = getdate(nowdate())
 	q = (tu_khoa or "").strip().lower()
 	ra = []
 	for r in ds:
-		if r.name in da_gom:
+		if flt(r.outstanding_amount) <= float(da_gom.get(r.name, 0)):
 			continue
 		tre = (hom_nay - getdate(r.due_date)).days if r.due_date else 0
 		if cint(chi_qua_han) and tre <= 0:
@@ -300,6 +301,8 @@ def hoa_don_cho_tra(ncc=None, so_ngay=180, chi_qua_han=0, tu_khoa=""):
 			"tre_ngay": tre if tre > 0 else 0,
 			"tong_hd": flt(r.grand_total),
 			"con_no": flt(r.outstanding_amount),
+			"dang_giu": float(da_gom.get(r.name, 0)),
+			"co_the_chi": max(0, flt(r.outstanding_amount) - float(da_gom.get(r.name, 0))),
 		})
 	return {
 		"rows": ra,
@@ -333,7 +336,8 @@ def ds_ncc_chon(so_ngay=365):
 	_kiem(VAI_LAP, "xem công nợ phải trả")
 	moc = add_days(nowdate(), -int(cint(so_ngay) or 365))
 	hom_nay = getdate(nowdate())
-	da_gom = _hd_da_gom()
+	from vagabond.phan_bo_app import dang_giu
+	da_gom = dang_giu()
 	gom = {}
 
 	def o_cua(ma, ten):
@@ -354,14 +358,15 @@ def ds_ncc_chon(so_ngay=365):
 		o = o_cua(r.supplier, r.supplier_name)
 		o["no_ghi_so"] += flt(r.outstanding_amount)
 		o["so_hd_no"] += 1
-		if r.name in da_gom:
+		co_the_chi = max(0, flt(r.outstanding_amount) - float(da_gom.get(r.name, 0)))
+		if not co_the_chi:
 			continue
 		if r.posting_date and str(r.posting_date) < str(moc):
 			continue
-		o["lap_duoc_tien"] += flt(r.outstanding_amount)
+		o["lap_duoc_tien"] += co_the_chi
 		o["lap_duoc_so"] += 1
 		if r.due_date and getdate(r.due_date) < hom_nay:
-			o["qua_han_tien"] += flt(r.outstanding_amount)
+			o["qua_han_tien"] += co_the_chi
 
 	for r in frappe.get_all(
 		"Purchase Invoice",
@@ -452,7 +457,8 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
 		if not to:
 			continue
 		for x in to:
-			x["ho_so_giu"] = ho_so_giu.get(x["name"], "")
+			giu = ho_so_giu.get(x["name"], "")
+			x["ho_so_giu"] = giu.get("ma", "") if isinstance(giu, dict) else giu
 		# Truoc day cat con 40 to. Codex neu tren PR #198: muc dich cua nut
 		# nay la tra ra DUNG to dang thieu de khoi nhap trung, cat di thi to
 		# thu 41 khong tra duoc, tuc la nut hong dung cai viec no sinh ra de
@@ -470,26 +476,21 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
 
 
 def _hd_ho_so_giu():
-	"""Hoa don nao dang nam trong ho so nao. Giong `_hd_da_gom` nhung tra ve
-	CA MA ho so, de man "Vi sao thieu" chi duoc dung cho ma tim."""
-	rows = frappe.db.sql(
-		"""select d.hoa_don, p.ma from `tabVagabond Ho So TT Dong` d
-		inner join `tabVagabond Ho So TT` p on p.name = d.parent
-		where p.trang_thai in ('Nhap', 'Cho ke toan', 'Cho giam doc', 'Da duyet')""",
-		as_dict=True,
-	)
-	return dict((r["hoa_don"], r["ma"]) for r in rows if r["hoa_don"])
+	"""Hoa don con duoc mot APP hieu luc giu, kem ma APP de nguoi dung mo.
 
-
-def _hd_da_gom():
-	"""Hoá đơn đang nằm trong một hồ sơ còn hiệu lực."""
-	rows = frappe.db.sql(
-		"""select d.hoa_don from `tabVagabond Ho So TT Dong` d
-		inner join `tabVagabond Ho So TT` p on p.name = d.parent
-		where p.trang_thai in ('Nhap', 'Cho ke toan', 'Cho giam doc', 'Da duyet')""",
-		as_dict=True,
-	)
-	return set(r["hoa_don"] for r in rows)
+	Nhat ky Nhap khong giu tien. APP da ghi so het phan duoc de nghi cung
+	khong con giu. Dung cung mot phep voi cua tao APP de man "Vi sao thieu"
+	khong noi nguoc voi so tien con de nghi.
+	"""
+	from vagabond.phan_bo_app import dang_giu_chi_tiet
+	ra = {}
+	for (_, ma, hoa_don), tien in dang_giu_chi_tiet().items():
+		if tien > 0:
+			o = ra.setdefault(hoa_don, {"ma": [], "so_tien": 0})
+			o["ma"].append(ma)
+			o["so_tien"] += float(tien)
+	return {hd: {"ma": ", ".join(sorted(set(o["ma"]))), "so_tien": o["so_tien"]}
+		for hd, o in ra.items()}
 
 
 @frappe.whitelist()
@@ -576,7 +577,11 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		if flt(hd.outstanding_amount) <= 0:
 			frappe.throw("Hoá đơn %s đã trả xong rồi." % ma)
 		ncc_thay.add(hd.supplier)
-		so_tien = flt(x.get("so_tien")) if isinstance(x, dict) and x.get("so_tien") else flt(hd.outstanding_amount)
+		from vagabond.phan_bo_app import tien_hop_le
+		try:
+			so_tien = float(tien_hop_le(x["so_tien"] if isinstance(x, dict) and "so_tien" in x else hd.outstanding_amount))
+		except ValueError as exc:
+			frappe.throw("Hoá đơn %s: %s" % (ma, exc))
 		# PHIEU THANH TOAN NOI BO NOI VAO DAY CHI LA CHUNG TU, KHONG PHAI TIEN.
 		#
 		# Anh Viet chot 04/09/2026. Man hoan ung CO hoa don lay so tien theo
@@ -815,6 +820,7 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 			"ben_ban": (x.get("ben_ban") or "").strip(),
 			"loai_chi": (x.get("loai_chi") or "").strip(),
 			"co_vat": 1 if cint(x.get("co_vat")) else 0,
+			"cho_hoa_don": 1 if cint(x.get("cho_hoa_don")) else 0,
 			"so_tien": tien,
 			"ma_giao_dich": (x.get("ma_giao_dich") or "").strip(),
 			"ghi_chu": (x.get("ghi_chu") or "").strip(),
@@ -955,6 +961,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 			"ben_ban": (x.get("ben_ban") or "").strip(),
 			"loai_chi": (x.get("loai_chi") or "").strip(),
 			"co_vat": 1 if cint(x.get("co_vat")) else 0,
+			"cho_hoa_don": 1 if cint(x.get("cho_hoa_don")) else 0,
 			"tk_no": tk_no,
 			"tk_co": tk_co,
 			"so_tien": tien,
@@ -1509,6 +1516,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		limit_page_length=0,
 	)
 	so_dong = {}
+	cho_hoa_don, da_noi_hoa_don = {}, {}
 	if ds:
 		# Dem bang get_all chu khong viet SQL "in %s": danh sach mot phan tu
 		# thi tuple Python ra ('X',) va cu phap SQL do khong chac chan giua
@@ -1516,10 +1524,13 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		for d in frappe.get_all(
 			"Vagabond Ho So TT Dong",
 			filters={"parent": ["in", [r.name for r in ds]]},
-			fields=["parent"],
+			fields=["parent", "cho_hoa_don", "hoa_don_bo_sung"],
 			limit_page_length=0,
 		):
 			so_dong[d.parent] = so_dong.get(d.parent, 0) + 1
+			if d.get("cho_hoa_don"):
+				bang = da_noi_hoa_don if d.get("hoa_don_bo_sung") else cho_hoa_don
+				bang[d.parent] = bang.get(d.parent, 0) + 1
 
 	from vagabond.doi_chieu_app import canh_bao_mo_lai
 	canh_bao = canh_bao_mo_lai(ds)
@@ -1530,6 +1541,8 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		o = dict(r)
 		o["canh_bao_doi_chieu"] = canh_bao.get(r.name, "")
 		o["so_hd"] = so_dong.get(r.name, 0)
+		o["so_cho_hoa_don"] = cho_hoa_don.get(r.name, 0)
+		o["so_da_noi_hoa_don"] = da_noi_hoa_don.get(r.name, 0)
 		o["nhan"] = "Đã duyệt, cần kiểm tra lại" if o["canh_bao_doi_chieu"] else NHAN.get(r.trang_thai, r.trang_thai)
 		o["loai"] = r.loai or "NCC"
 		o["nhan_cp_thue"] = NHAN_CP_THUE.get(r.loai_cp_thue, "")
@@ -1578,6 +1591,9 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghep phieu tra truoc loi")
 		ra.sort(key=lambda o: str(o.get("ngay") or ""), reverse=True)
 
+	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP
+	for o in ra:
+		o["chip_nghiep_vu"] = chip_cua_dong(o)
 	dem, tien = {}, {}
 	for o in ra:
 		dem[o["trang_thai"]] = dem.get(o["trang_thai"], 0) + 1
@@ -1604,6 +1620,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		"trang_thai_co": THU_TU,
 		"tk_chi_co": tk_co,
 		"nhan": NHAN,
+		"nhan_chip": NHAN_CHIP,
 		"quyen": {
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
@@ -1744,6 +1761,8 @@ def chi_tiet(name):
 	dong = []
 	for d in doc.dong:
 		o = {
+			"cho_hoa_don": cint(d.get("cho_hoa_don")),
+			"hoa_don_bo_sung": d.get("hoa_don_bo_sung") or "",
 			"hoa_don": d.hoa_don or "", "so_hd_ncc": d.so_hd_ncc or "",
 			"ngay_hd": str(d.ngay_hd or ""), "han_tra": str(d.han_tra or ""),
 			"tong_hd": flt(d.tong_hd), "con_no_luc_lap": flt(d.con_no),
@@ -1770,6 +1789,11 @@ def chi_tiet(name):
 				as_dict=True,
 			) or {}
 			o["con_no_hien_tai"] = flt(hd.get("outstanding_amount"))
+			o["lich_su_chi"] = frappe.db.sql("""select pe.name, pe.posting_date, pe.vgb_ho_so_tt,
+				r.allocated_amount from `tabPayment Entry Reference` r
+				join `tabPayment Entry` pe on pe.name=r.parent
+				where pe.docstatus=1 and r.reference_doctype='Purchase Invoice'
+				and r.reference_name=%s order by pe.posting_date, pe.name""", (d.hoa_don,), as_dict=True)
 			o["ncc_hd"] = hd.get("supplier_name") or ""
 			o["trang_thai_hd"] = hd.get("status") or ""
 			if hd.get("bill_no") and not o["so_hd_ncc"]:
@@ -1786,6 +1810,11 @@ def chi_tiet(name):
 						o["hddt"].append({"nhan": nhan_truong, "gia_tri": str(v)})
 			ct = _ho_so_chung_tu(d.hoa_don)
 			o["po"], o["pnk"], o["scan"] = ct["po"], ct["pnk"], ct["scan"]
+		if d.get("hoa_don_bo_sung"):
+			ct_bo_sung = _ho_so_chung_tu(d.hoa_don_bo_sung)
+			o["scan"] += ct_bo_sung["scan"]
+			o["po"] = list(dict.fromkeys(o["po"] + ct_bo_sung["po"]))
+			o["pnk"] = list(dict.fromkeys(o["pnk"] + ct_bo_sung["pnk"]))
 		dong.append(o)
 
 	canh_bao = canh_bao_mo_lai([doc]).get(doc.name, "")
@@ -2376,6 +2405,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 			)
 		pe = ", ".join(kq["ten"])
 	else:
+		from vagabond.phan_bo_app import kiem as kiem_phan_bo
+		kiem_phan_bo(doc.dong, doc.name)
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
 		# Doc lai chinh cai vua sinh va doi chieu ke hoach mot lan nua. Ca kiem
 		# nay re, va no bat duoc truong hop hook tang duoi sua but toan sau
@@ -3460,6 +3491,10 @@ def xuat_ho_so(name):
 	for x in d["dong"]:
 		if x["hoa_don"] and x["hoa_don"] not in co_ban_the_hien:
 			_in_html("Purchase Invoice", x["hoa_don"], "Hoá đơn mua")
+		if x.get("hoa_don_bo_sung") and not any(
+			f.get("tu") == "Purchase Invoice " + x["hoa_don_bo_sung"]
+			and str(f.get("ten") or "").lower().endswith(".pdf") for f in x.get("scan", [])):
+			_in_html("Purchase Invoice", x["hoa_don_bo_sung"], "Hóa đơn bổ sung")
 		for po in x["po"]:
 			if po not in da_po:
 				da_po.add(po)
@@ -3469,27 +3504,12 @@ def xuat_ho_so(name):
 				da_pnk.add(pnk)
 				_in_html("Purchase Receipt", pnk, "Phiếu nhập kho")
 
-	# Anh chung tu: 4 anh mot trang A4, moi anh co dong nhan ghi ro thuoc
-	# khoan nao (anh Viet 22/08/2026). Truoc day moi anh mot trang, ba chuc
-	# khoan la ba chuc to giay.
+	# Mỗi cặp chứng từ có trang A4 ngang riêng; tờ APP giữ khổ dọc.
+	# wkhtmltopdf không đổi hướng từng trang ổn định nên render hai phần
+	# riêng rồi ghép PDF, không ép cả hồ sơ theo hướng của ảnh.
 	anh, bo_qua = _gom_anh_ho_so(d)
 	if anh:
-		# Tieu de nam CHUNG trang voi luoi anh dau tien, khong chiem mot to
-		# rieng. Anh Viet 23/08/2026: *"qua nhieu khoang trong gay phi giay"* -
-		# mot dong tieu de ma an tron mot mat giay A4 la dung cai lang phi do.
-		phan.append(
-			NGAT
-			+ '<div style="font-family:' + mc.PHONG + ';margin-bottom:4mm">'
-			+ '<div style="font-size:14px;font-weight:bold">'
-			+ 'CHỨNG TỪ ĐÍNH KÈM'
-			+ '<span style="font-style:italic;font-weight:normal;'
-			+ 'font-size:11px;color:#666"> · Supporting documents</span></div>'
-			+ '<div style="font-size:10.5px;color:#666">'
-			+ '%d ảnh, xếp 4 ảnh một trang. Dòng chữ dưới mỗi ảnh ghi rõ ảnh '
-			'thuộc khoản chi nào.</div></div>' % len(anh)
-			+ luoi_anh(anh)
-		)
-		muc_luc.append("Chứng từ đính kèm: %d ảnh" % len(anh))
+		muc_luc.append("Chứng từ đính kèm: %d ảnh, 2 ảnh trên A4 ngang" % len(anh))
 	for f in bo_qua:
 		if (f.get("duoi") or "") == "pdf":
 			pdf_rieng.append({"file": f.get("file"), "ten": f.get("ten")})
@@ -3537,6 +3557,23 @@ def xuat_ho_so(name):
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: bao dam phong")
 
 	noi_dung = get_pdf(khung, options={"page-size": "A4", "orientation": "Portrait"})
+
+	if anh:
+		from pypdf import PdfReader, PdfWriter
+		css_anh = css_trang(phong=mc.PHONG).replace("A4 portrait", "A4 landscape")
+		noi_anh = get_pdf(
+			"<html><head>" + css_anh + '</head><body><div class="vgb-in">'
+			+ luoi_anh(anh) + "</div></body></html>",
+			options={"page-size": "A4", "orientation": "Landscape",
+				"margin-top": "15mm", "margin-bottom": "15mm",
+				"margin-left": "15mm", "margin-right": "15mm"})
+		w = PdfWriter()
+		for noi in (noi_dung, noi_anh):
+			for tr in PdfReader(io.BytesIO(noi)).pages:
+				w.add_page(tr)
+		bo = io.BytesIO()
+		w.write(bo)
+		noi_dung = bo.getvalue()
 
 	# Noi them cac tep PDF dinh kem, neu moi truong co thu vien ghep.
 	if pdf_rieng:
@@ -3621,6 +3658,16 @@ def _to_app_html(name):
 	                 if (x["ben_ban"] or x["ncc_hd"] or "").strip()}) > 1
 	hang = []
 	for i, x in enumerate(dong, 1):
+		phan_bo = ""
+		if x.get("hoa_don"):
+			phan_bo = "<div style='font-size:9px;line-height:1.4'>" + h(
+				"Gốc: %s đ; đã giảm nợ trước khi lập: %s đ; chi đợt này: %s đ; còn nợ lúc in: %s đ." % (
+					_tien(x.get("tong_hd")), _tien(max(0, flt(x.get("tong_hd")) - flt(x.get("con_no_luc_lap")))),
+					_tien(x.get("so_tien")), _tien(x.get("con_no_hien_tai")))) + "</div>"
+			for lan in x.get("lich_su_chi") or []:
+				phan_bo += "<div style='font-size:9px'>" + h("%s - %s: %s đ%s" % (
+					_ngay_vn(lan.posting_date), lan.name, _tien(lan.allocated_amount),
+					(" - " + lan.vgb_ho_so_tt) if lan.vgb_ho_so_tt else "")) + "</div>"
 		hang.append(
 			"<tr>"
 			+ _td(str(i), "center")
@@ -3630,7 +3677,7 @@ def _to_app_html(name):
 			# Ho so gom nhieu nha thi ten nha cung cap phai nam TRONG bang,
 			# khong the chi ghi mot lan o dau to nhu truoc.
 			+ _td(h((("%s - " % (x["ben_ban"] or x["ncc_hd"])) if (nhieu_nha and (x["ben_ban"] or x["ncc_hd"])) else "")
-			        + (x["noi_dung"] or ("" if nhieu_nha else (x["ncc_hd"] or "")))))
+			        + (x["noi_dung"] or ("" if nhieu_nha else (x["ncc_hd"] or "")))) + phan_bo)
 			+ _td(_tien(x["so_tien"]), "right", dam=True, khong_ngat=True)
 			+ _td(h(x["ghi_chu"] or x["ben_ban"] or ""))
 			+ "</tr>"
@@ -3744,7 +3791,7 @@ def _to_app_html(name):
 
 @frappe.whitelist()
 def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None,
-		loai_cp_thue=None, tk_chi=None):
+		loai_cp_thue=None, tk_chi=None, chip=None):
 	"""Bộ hồ sơ ra Excel cho kế toán theo dõi: một dòng một hoá đơn.
 
 	NHẬN ĐỦ MỌI Ô LỌC CỦA MÀN HÌNH. Tệp tải về phải đúng bằng cái đang bày
@@ -3758,6 +3805,12 @@ def xuat_excel(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay
 		tk_chi=tk_chi,
 	)
 	rows = kq["rows"]
+	if chip:
+		from vagabond.chip_ho_so_tt import NHAN as NHAN_CHIP
+		if chip not in NHAN_CHIP:
+			frappe.throw("Bộ lọc nghiệp vụ không còn hợp lệ. Tải lại danh sách rồi xuất Excel.")
+		rows = [r for r in rows if chip in r.get("chip_nghiep_vu", [])]
+		kq["tong_tien"] = sum(flt(r["tong_tien"]) for r in rows)
 	chi_tiet_dong = {}
 	if rows:
 		for d in frappe.get_all(
@@ -4425,52 +4478,14 @@ def go_tep_dong(name=None, dong=None, tep=None):
 	return {"ok": 1, "dong": i, "tep": _ho_tep(con)}
 
 
-# ------------------------------------------------------- Dàn trang ảnh 2x2
+# ------------------------------------------------------- Hai ảnh trên A4 ngang
 
 
-# Bốn ảnh một trang A4, xếp 2 cột 2 dòng.
-#
-# Anh Việt 22/08/2026: *"yêu cầu bắt buộc là phải tiết kiệm giấy và chuẩn
-# form mẫu... ép các ảnh này hiển thị 4 ảnh / 1 trang A4"*.
-#
-# Trước đây mỗi ảnh chiếm trọn một trang. Một hồ sơ hoàn ứng ba chục khoản
-# là ba chục tờ giấy cho phần ảnh, kế toán in ra kẹp không nổi.
-#
-# Vì sao dùng BẢNG chứ không CSS Grid hay Flexbox, dù đề bài nói Grid:
-# bản in đi qua wkhtmltopdf, engine WebKit đời cũ. Grid gần như không được
-# hỗ trợ và Flexbox thì vỡ chỗ ngắt trang - ô cuối bị cắt đôi giữa hai
-# trang. Bảng hai cột hai dòng cho ra đúng bố cục ấy và ngắt trang chuẩn.
-# Đây là chỗ phải chọn cái CHẠY ĐƯỢC trên máy in thật thay vì cái đúng sách.
-#
-# Khung mỗi ô cao cố định, ảnh đặt `max-width`/`max-height` 100% nên ảnh
-# đứng hay ảnh ngang đều co vừa khung mà KHÔNG méo, không tràn viền.
-
-ANH_MOI_TRANG = 4
-
-# PHEP TINH CHIEU CAO, doc truoc khi chinh mot con so nao o day.
-#
-# Vung in A4 doc sau le 15mm hai dau la 267mm. Mot trang luoi day du gom:
-#     tieu de "CHUNG TU DINH KEM"        ~14mm  (chi co o trang dau)
-#     2 hang x (khung anh + dem 6mm + nhan)
-# Nay: 90 + 6 + 14 = 110mm moi hang, 2 hang 220mm, cong tieu de la 234mm
-# tren 267mm. Du 33mm.
-#
-# Ban v281 lay 104mm nen mot hang thanh 120mm, hai hang 240mm, cong tieu de
-# la 254mm - CHI CON 13mm du. Sat qua. May cua anh Viet no tran, wkhtmltopdf
-# day hang thu hai sang trang moi, thanh 2 anh mot trang va nua duoi to giay
-# bo trang. Do la loi anh Viet bao ngay 23/08/2026: *"cac anh van xep doc,
-# de lai nhung khoang trang khong lo gay lang phi giay"*.
-#
-# BAI HOC: bo cuc in KHONG duoc vua khit. Moi ban wkhtmltopdf tinh le mot
-# kieu, phai chua du rong rai thi moi may deu ra dung.
-CAO_O_ANH = "90mm"
-
-# Trang chi co MOT hang thi cho hang do cao gan het trang, dung de nua duoi
-# trang tron. Van chua cho cho nhan nen khong lay tron 267mm.
-CAO_O_1_HANG = "205mm"
-
-# Chieu cao danh cho dong nhan duoi anh. Dat CO DINH de chieu cao mot hang
-# doan truoc duoc, khong phu thuoc ten tep dai hay ngan.
+# Anh Việt 10/09/2026: hai chứng từ trên A4 ngang để đọc được khi in.
+# Vùng in cao 180mm, trừ đệm 6mm, nhãn 14mm và cách nhãn 2mm:
+# ảnh cao 130mm, còn 28mm dự phòng cho WebKit và đường viền.
+ANH_MOI_TRANG = 2
+CAO_O_1_HANG = "130mm"
 CAO_NHAN = "14mm"
 DUOI_ANH = ("jpg", "jpeg", "png", "gif", "bmp", "webp")
 
@@ -4658,7 +4673,7 @@ def _o_anh(x, cao_o, ca_hang=False):
 
 
 def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
-	"""Xếp danh sách ảnh thành các trang lưới 2x2.
+	"""Xếp hai chứng từ trên một trang A4 ngang.
 
 	anh: [{"b64":..., "kieu":"jpeg", "nhan": "Khoản 3 · bill điện"}]
 
@@ -4672,14 +4687,14 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	"""
 	if not anh:
 		return ""
+	if moi_trang != 2:
+		raise ValueError("Bộ hồ sơ chỉ in 2 chứng từ trên mỗi trang A4 ngang.")
 	trang = []
 	for i in range(0, len(anh), moi_trang):
 		lo = anh[i:i + moi_trang]
-		# Chieu cao o tinh theo SO HANG THAT cua trang nay, khong dong cung.
-		# Trang chi co mot hang thi cho hang do cao gan het trang - anh to ra,
-		# giay khong phi met nao.
-		so_hang = (len(lo) + 1) // 2
-		cao_o = CAO_O_1_HANG if so_hang == 1 else CAO_O_ANH
+		# Mỗi trang chỉ có một hàng; không giữ hằng số cho hàng thứ hai
+		# vì phép kiểm cũ đã đo nhầm hằng số không điều khiển bản in.
+		cao_o = CAO_O_1_HANG
 		le = len(lo) % 2
 		hang = ""
 		for j in range(0, len(lo) - le, 2):
@@ -5005,36 +5020,9 @@ def ho_so_dang_giu(ds_hoa_don, tru_ho_so=""):
 
 
 def _chan_hoa_don_trung(dong, tru_ho_so=""):
-	"""Ném lỗi nếu một hoá đơn đã nằm trong hồ sơ khác còn sống.
-
-	VÌ SAO CHẶN CỨNG CHỨ KHÔNG CHỈ CẢNH BÁO
-	----------------------------------------
-	Hai hồ sơ cùng chứa một hoá đơn thì cùng đi qua hai cấp duyệt và cùng
-	được chuyển tiền, vì mỗi hồ sơ nhìn riêng ra đều hợp lệ. Không ai đối
-	chiếu chéo giữa các hồ sơ bằng mắt. Sai này chỉ lộ khi nhà cung cấp báo
-	thừa tiền, hoặc không lộ.
-
-	Giao dịch SePay đã có chốt cùng kiểu từ trước (`Giao dịch %s đã nằm
-	trong hồ sơ %s`), hoá đơn thì chưa - đây là chỗ trống, không phải quyết
-	định có chủ đích.
-
-	Hồ sơ Từ chối và Huỷ KHÔNG chặn: hoá đơn trong đó phải dùng lại được,
-	nếu không thì một lần lập nhầm là hoá đơn kẹt vĩnh viễn.
-	"""
-	ds = [str((x or {}).get("hoa_don") or "").strip() for x in (dong or [])]
-	giu = ho_so_dang_giu([x for x in ds if x], tru_ho_so)
-	if not giu:
-		return
-	dong_loi = "\n".join(
-		"  · Hoá đơn %s đã nằm trong hồ sơ %s (%s)"
-		% (hd, o[0][0], NHAN.get(o[0][1], o[0][1]))
-		for hd, o in sorted(giu.items())
-	)
-	frappe.throw(
-		"Không lập được hồ sơ: có hoá đơn đang nằm ở hồ sơ khác.\n\n%s\n\n"
-		"Trả tiền hai lần cho một hoá đơn thì rất khó đòi lại. Gỡ hoá đơn đó "
-		"ra khỏi hồ sơ này, hoặc huỷ hồ sơ kia trước." % dong_loi
-	)
+	"""Giữ tên cửa cũ cho mọi đường lập hồ sơ, kiểm theo số tiền."""
+	from vagabond.phan_bo_app import kiem
+	kiem(dong, tru_ho_so)
 
 
 def _chan_thieu_chung_tu(dong):

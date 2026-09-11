@@ -68,7 +68,18 @@ def chay():
 		(tep / "minvoice-243.json").write_text(
 			json.dumps(kq, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 		print("M-Invoice: " + json.dumps(kq, ensure_ascii=False, default=str), flush=True)
-		return dat_bo and bool(kq.get("dat"))
+		# #266 vòng 2: năm finding của Codex chạy thật qua Server Script với
+		# HTTP giả, gồm thứ tự ngày cũ, đồng thời, backlog và phạm vi phát hành.
+		from vagabond.khung.bench_thu.kiem_hddt_266 import chay as chay_hddt266
+		try:
+			with patch.object(socket.socket, "connect", chi_noi_bo):
+				kq266 = chay_hddt266()
+		except Exception:
+			kq266 = {"dat": False, "loi": traceback.format_exc()}
+		(tep / "hddt-266.json").write_text(
+			json.dumps(kq266, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+		print("HĐĐT #266: " + json.dumps(kq266, ensure_ascii=False, default=str), flush=True)
+		return dat_bo and bool(kq.get("dat")) and bool(kq266.get("dat"))
 	except Exception:
 		(tep / "loi.txt").write_text(traceback.format_exc(), encoding="utf-8")
 		raise
@@ -83,5 +94,8 @@ if __name__ == "__main__":
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
 	kho = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=False)
 	app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.doi_chieu_247"], check=False)
-	if not dat or kho.returncode or app.returncode:
+	# Render và HTTP upload chạy sau bộ hoàn nguyên, trên site dùng một lần.
+	in_app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.in_app_263"], check=False)
+	phan_bo = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.phan_bo_247"], check=False)
+	if not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")
