@@ -153,6 +153,15 @@ def _sales_khong_doc_cau_hinh():
 		else:
 			dung('Sales phải bị từ chối', False)
 		la('chặn trước đọc cấu hình', doc.call_count, 0)
+	with patch.object(sepay.frappe,'get_roles',return_value=['Sales User']), patch.object(sepay,'cfg') as doc:
+		for ham in (sepay.soi_khoa,sepay.dat_khoa,sepay.dat_hmac,sepay.them_tai_khoan,sepay.nap_bu):
+			try:
+				ham()
+			except sepay.frappe.ValidationError as e:
+				dung('đúng câu quyền '+ham.__name__,'Chỉ quản lý hoặc kế toán' in str(e))
+			else:
+				dung('Sales không được sửa '+ham.__name__,False)
+		la('không đọc cấu hình ở các cửa bị chặn',doc.call_count,0)
 
 
 @ca('SePay: Document kiểm từng map cả khi không có xung đột số')
