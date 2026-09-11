@@ -42,3 +42,5 @@ combo 155.000 với lượng 3 và 1, precision đơn giá 0/2, lưu lại, GL/p
 
 Thứ tự tích hợp: PR264 trước, PR265 kế tiếp; PR265 nhận đầy đủ PR264 và
 giữ phiên bản472. Chưa merge main, chưa deploy.
+
+Hoàn theo tiền trên bill combo giữ số nguyên đồng đã duyệt, không tự làm tròn sau khi chuyển tiền. Nếu bill đã có phiếu trả ghi sổ, kế toán phải đối chiếu và xử lý phiếu cũ trước khi lập yêu cầu hoàn khác; không hoàn toàn bộ chồng lên phần đã trả. Sửa đổi phiếu hoàn đã hủy giữ lại số tiền đã duyệt.
