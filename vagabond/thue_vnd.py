@@ -50,6 +50,14 @@ def tinh_dong(gia, thue_suat, gom_thue, giam=0, giam_tren='Grand Total'):
     return [{'net':n,'vat':v,'gross':g,'rate':float(r)} for n,v,g,r in zip(net,vat,gross,rates)]
 
 
+def tinh_dong_tra(gia, thue_suat, gom_thue, giam=0, giam_tren='Grand Total'):
+    """Phiếu trả combo đảo phép chia VND; không mở dòng âm trên phiếu bán."""
+    if any(so(x)>0 for x in gia) or so(giam)>0:
+        raise ValueError('Phiếu trả combo cần lượng/tiền và chiết khấu mang dấu âm.')
+    ra = tinh_dong([-so(x) for x in gia],thue_suat,gom_thue,-so(giam),giam_tren)
+    return [dict(d,net=-d['net'],vat=-d['vat'],gross=-d['gross']) for d in ra]
+
+
 def doc_dong(si):
     """Đọc thuế theo item_row/tax_row, không gộp các dòng trùng mã món."""
     items=si.get('items') or []; taxes=si.get('taxes') or []

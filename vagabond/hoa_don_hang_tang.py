@@ -60,6 +60,9 @@ class HoaDonHangTang(SalesInvoice):
 
 	def calculate_taxes_and_totals(self):
 		from vagabond.hoa_don_thue_vnd import ap_dung, tinh
+		if self.get('is_return'):
+			from vagabond.combo_mon import chuan_bi_tra
+			chuan_bi_tra(self)
 		if ((self.docstatus == 0 or getattr(self, "_action", None) == "submit")
 				and any(d.get("vgb_combo_luong") for d in self.items) and not ap_dung(self)):
 			frappe.throw("Combo đã chia tiền cần hoá đơn VND với mẫu VAT bán hàng chuẩn. Nhờ kế toán kiểm mẫu thuế trước khi lưu.")
