@@ -161,3 +161,34 @@ Migrate. Trước khi sửa Server Script phải báo chủ repo.
 
 Đây là luật cứng của GitHub, không phải thiếu quyền, cấp thêm quyền cũng không
 qua được. Mọi thay đổi trong thư mục đó phải người thật sửa tay.
+
+
+## Hai nhánh thêm ca kiểm vào cùng dòng đăng ký
+
+Tích hợp PR265 sau274 trên issue280 gặp xung đột ở hai tệp chạy kiểm.
+Một phía thêm combo/cấn trừ, phía kia thêm đối chiếu/cọc/tham chiếu tiền.
+Chọn nguyên một phía sẽ làm mất bộ ca của phía còn lại dù mã sản phẩm vẫn còn.
+Đối chiếu ba chiều từ base, giữ hợp các đăng ký không trùng và chạy cổng
+trên bản kết hợp. Bundle phải dựng lại, không giải quyết bằng chọn một bản ghép.
+
+## Ngoại lệ khóa của SQL chưa chắc được worker tự thử lại
+
+Review PR265 phát hiện nhánh worker bắt lỗi nghiệp vụ nuốt lỗi khóa. Đọc đúng
+core Frappe f33ac3f cho thấy database.sql bọc lỗi khóa thành QueryDeadlockError
+và QueryTimeoutError, nhưng execute_job chỉ vào nhánh retry với InternalError
+hoặc RetryBackgroundJobError. Chỉ đổi sang raise vẫn chưa đủ tự thử lại.
+Phải kiểm cả nơi đổi loại lỗi và nơi xử lý cuối; ca giả ném lỗi chỉ chứng minh
+nhánh xử lý, không thay phép hai kết nối DB thật.
+
+
+### 11/09/2026 - File trong ca kiểm và phân loại PLE (#265)
+
+Savepoint chỉ lùi DB; Frappe f33ac3f database.rollback(save_point) không chạy after_rollback của File. Ca tạo tệp có content phải dùng nội dung riêng và tự dọn qua File.delete trong finally, kiểm đường dẫn đã mất kể cả khi submit lỗi. Không coi đếm chứng từ sạch là đĩa sạch.
+
+ERPNext de591661 reconcile_against_document sửa phân bổ PLE nhưng giữ GL gốc. Ca thu trước rồi phân bổ sau tái hiện được GL join thiếu tiền; PE đã phân bổ ngay khi submit không đủ làm đối chứng. PLE của credit note/POS/write-off cũng mang voucher_type Sales Invoice. Chỉ dòng Nợ tự thân của SI bán là gross; các dòng còn lại vào điều chỉnh có giải thích, không âm thầm trừ gross.
+
+### 11/09/2026 - Combo phải kiểm cả dòng đã bị xóa (#265)
+
+Review C1 chỉ ra: lặp qua payload chỉ thấy món còn lại nên không bắt được món combo đã bị xóa. Cửa lưu phải so nhóm trong DB với nhóm được gửi, giữ đủ hoặc xóa hết. Cửa sửa bill không được coi món thiếu dong_goc là món lẻ nếu nó đang thuộc combo. Cần ca gọi cửa lưu/API, không chỉ gọi helper kiểm nhóm.
+
+Sao chép, sửa đổi và trả hàng có ý nghĩa khác nhau: bản sao là lần bán mới, tính lại cấu hình combo hiện tại; sửa đổi giữ phân bổ đã lưu của hóa đơn đã hủy; trả hàng lấy dòng gốc qua sales_invoice_item của mapper ERPNext. Không chỉ bỏ metadata rồi nhân lại rate đã làm tròn: combo155000 có phần107308/3 sẽ mất một đồng. Ca tích hợp phải đo cả trả toàn phần, trả từng bánh, hủy trả và amend trước khi phát hành.

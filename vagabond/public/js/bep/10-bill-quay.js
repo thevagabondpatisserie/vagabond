@@ -109,7 +109,7 @@ async function posInBill(d) {
          Viet 11/08/2026). Ma combo KHONG in, chi in ten. */
       (m.combo ? '<tr><td style="font-size:10px">&nbsp;&nbsp;&#9733; ' + h(m.combo) + '</td></tr>' : '') +
       ((M.hien_tuy_chon && (m.tc || []).length) ? '<tr><td style="font-size:10px">&nbsp;&nbsp;[' + h(m.tc.join(', ')) + ']</td></tr>' : '') +
-      '<tr><td class="s">' + money(m.qty) + ' x ' + money(m.rate) + '<span class="r">' + money(m.qty * m.rate) + '</span></td></tr>';
+      '<tr><td class="s">' + money(m.qty) + ' x ' + money(m.rate) + '<span class="r">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</span></td></tr>';
   }).join('');
   var qrKhoi = '';
   /* Don Pancake KHONG in QR thanh toan len phieu: no da co tai khoan ao
@@ -249,7 +249,7 @@ async function posInTamTinh() {
       'khi bấm Thu tiền, phiếu tạm tính chưa trừ. Bấm Bỏ ở khối điểm nếu muốn in tạm tính trước.', 6000);
   }
   var giamTay = posSoTien(posDon.giam);
-  var tong = posDon.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
+  var tong = posDon.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0);
   await posTinhKm();
   var giam = giamTay + ((posDon.kmKq && posDon.kmKq.tong_giam) || 0);
   var thu = Math.max(0, tong - giam);
@@ -262,7 +262,7 @@ async function posInTamTinh() {
     r = await api('vagabond.ban_hang.tao_don_tay', {
       ngay: today(), nguon: posNguonThuc(), ma_don: posDon.bill,
       ten_khach: posDon.ten || '', dien_thoai: posDon.sdt || '',
-      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '' }; })),
+      items: JSON.stringify(posDon.mon.map(function (m) { return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: posGcGui(m, posMaAppHienTai()), combo: m.combo || '', combo_ma: m.combo_ma || '' }; })),
       giam_gia: giamTay, phi_ship: 0, quay: posQuay.ma || '', so_ban: posDon.so_ban || '',
       khach_no: (posDon.khach_no && posDon.khach_no.ma) || '',
       khach_ma: posDon.khach_ma || '',
@@ -700,12 +700,12 @@ async function scrPosBill(name) {
       var cb = '';
       var mc = /\u25c8\s*(.+)/.exec(String(m.description || ''));
       if (mc) cb = String(mc[1]).trim();
-      return { item_code: m.item_code, ten: m.item_name || m.item_code, qty: m.qty, rate: m.rate, tc: tc, gc: gc, combo: cb };
+      return { item_code: m.item_code, ten: m.item_name || m.item_code, qty: m.qty, rate: m.rate, tc: tc, gc: gc, combo: cb, combo_ma_goc: m.vgb_combo_ma, dong_goc: m.name, combo_tien: m.vgb_combo_luong ? m.vgb_combo_tien : null };
     });
   }
   var mon = suaMo ? posSua.mon : monTuDoc();
   var giam = suaMo ? posSoTien(posSua.giam) : (d.discount_amount || 0);
-  var tongMon = mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0);
+  var tongMon = mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0);
   var phaiThu = suaMo ? Math.max(0, tongMon - giam) : d.grand_total;
   var soBan = suaMo ? posSua.so_ban : (d.vgb_so_ban || '');
 
@@ -757,9 +757,9 @@ async function scrPosBill(name) {
         ? '<button data-sbot="' + i + '" style="' + NUT + '">&minus;</button>' +
           '<b style="min-width:20px;text-align:center">' + money(m.qty) + '</b>' +
           '<button data-scong="' + i + '" style="' + NUT + '">+</button>' +
-          '<b style="min-width:66px;text-align:right">' + money(m.qty * m.rate) + '</b>' +
+          '<b style="min-width:66px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>' +
           '<button data-sxoa="' + i + '" style="' + NUT + ';color:#b3261e">✕</button>'
-        : '<b style="white-space:nowrap">x' + money(m.qty) + '</b><b style="min-width:76px;text-align:right">' + money(m.qty * m.rate) + '</b>') +
+        : '<b style="white-space:nowrap">x' + money(m.qty) + '</b><b style="min-width:76px;text-align:right">' + money((m.combo_tien != null ? m.combo_tien : m.qty * m.rate)) + '</b>') +
       '</div>';
   });
   if (suaMon) html += '<div style="padding:9px 0"><button class="btn gh" id="pbThemMon" style="width:100%;margin:0">➕ Thêm món</button></div>';
@@ -1238,19 +1238,32 @@ async function scrPosBill(name) {
   if (nhs) nhs.onclick = function () { posSua = null; go(function () { scrPosBill(name); }, true); };
 
   /* ----- sua so luong / xoa mon / them mon ----- */
-  b.onclick = function (e) {
+  b.onclick = async function (e) {
     if (!posSua) return;
     var t = e.target.closest('[data-scong]');
-    if (t) { hutSua(); posSua.mon[+t.getAttribute('data-scong')].qty++; return go(function () { scrPosBill(name); }, true); }
+    if (t) { hutSua(); if (posSua.mon[+t.getAttribute('data-scong')].combo_tien != null) return toast('Xóa bộ này rồi chọn lại combo để đổi số lượng.'); posSua.mon[+t.getAttribute('data-scong')].qty++; return go(function () { scrPosBill(name); }, true); }
     t = e.target.closest('[data-sbot]');
     if (t) {
       hutSua();
       var i = +t.getAttribute('data-sbot');
+      if (posSua.mon[i].combo_tien != null) return toast('Xóa bộ này rồi chọn lại combo để đổi số lượng.');
       if (posSua.mon[i].qty > 1) posSua.mon[i].qty--;
       return go(function () { scrPosBill(name); }, true);
     }
     t = e.target.closest('[data-sxoa]');
-    if (t) { hutSua(); posSua.mon.splice(+t.getAttribute('data-sxoa'), 1); return go(function () { scrPosBill(name); }, true); }
+    if (t) {
+      hutSua();
+      var suaLucBam = posSua, viTri = +t.getAttribute('data-sxoa'), monXoa = posSua.mon[viTri];
+      if (monXoa.combo_tien != null) {
+        var xacNhan = await confirmSheet('Xóa toàn bộ combo ' + (monXoa.combo_ma_goc || '') + '?',
+          'Tất cả món cùng mã combo trên bill sẽ được xóa. Chọn lại combo nếu muốn đổi số bộ.');
+        if (!xacNhan || posSua !== suaLucBam) return;
+        viTri = posSua.mon.indexOf(monXoa);
+        if (viTri < 0) return;
+      }
+      posSua.mon = posBoMonSua(posSua.mon, viTri);
+      return go(function () { scrPosBill(name); }, true);
+    }
   };
   var ntm = document.getElementById('pbThemMon');
   if (ntm) ntm.onclick = async function () {
@@ -1267,7 +1280,7 @@ async function scrPosBill(name) {
     }), function (o) {
       if (!o.gia) { toast('Món ' + o.label + ' chưa có giá bán trong danh mục.', 4000); return 0; }
       var vt = -1;
-      posSua.mon.forEach(function (m, k) { if (m.item_code === o.value) vt = k; });
+      posSua.mon.forEach(function (m, k) { if (m.item_code === o.value && m.combo_tien == null) vt = k; });
       if (vt >= 0) { posSua.mon[vt].qty += 1; return posSua.mon[vt].qty; }
       posSua.mon.push({ item_code: o.value, ten: o.label, qty: 1, rate: o.gia, nhom: o.nhom, tc: [], gc: '' });
       return 1;
@@ -1317,13 +1330,13 @@ async function scrPosBill(name) {
     };
     if (nhap) {
       goi.items = JSON.stringify(posSua.mon.map(function (m) {
-        return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: m.gc || '' };
+        return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: m.gc || '', combo: m.combo || '', dong_goc: m.dong_goc || '' };
       }));
       goi.giam_gia = posSoTien(posSua.giam);
       if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
-      (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + m.qty * m.rate; }, 0) - posSoTien(posSua.giam))) + ' đ.\n' : '') +
+      (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0) - posSoTien(posSua.giam))) + ' đ.\n' : '') +
       'Máy ghi lại tên người sửa vào lịch sử hoá đơn.', 'Lưu thay đổi');
     if (!ok) return;
     busy(true);
@@ -1515,11 +1528,20 @@ function inMau(vaiTro) {
    binh thuong la HAI dong khac nhau - gop lai thi quay bar lam sai.
 
    Ham THUAN: vao la mang, ra la mang moi, khong cham DOM. */
+function posBoMonSua(mon, viTri) {
+  var xoa = mon[viTri];
+  return mon.filter(function (m, i) {
+    return xoa.combo_tien != null
+      ? !(m.combo_tien != null && m.combo_ma_goc === xoa.combo_ma_goc)
+      : i !== viTri;
+  });
+}
+
 function posGopDongMon(mon) {
   var ra = [], bang = {};
   (mon || []).forEach(function (m) {
     var khoa = [
-      String(m.ten || ''), String(m.rate || 0), String(m.combo || ''),
+      String(m.ten || ''), String(m.rate || 0), String(m.combo || ''), String(m.combo_tien != null),
       ((m.tc || []).join('|')), String(m.gc || '')
     ].join('\u0001');
     if (bang[khoa] === undefined) {
@@ -1529,6 +1551,7 @@ function posGopDongMon(mon) {
       ra.push(c);
       return;
     }
+    if (m.combo_tien != null) ra[bang[khoa]].combo_tien += m.combo_tien;
     ra[bang[khoa]].qty = (Number(ra[bang[khoa]].qty) || 0) + (Number(m.qty) || 0);
   });
   return ra;
@@ -1718,5 +1741,3 @@ async function posInTemThu() {
   await inTo('tem', 'In thử căn tem', temKhung('In thử căn tem', mot + mot, 1),
     inKho('tem').rong, 900, inW);
 }
-
-

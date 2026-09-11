@@ -25,6 +25,10 @@ def dung():
 	from vagabond import vai_cua_hang
 
 	vai_cua_hang.dung()
+	from vagabond import combo_mon
+	_dung_nhom(combo_mon.TRUONG_MOI, "combo_mon")
+	from vagabond import can_tru_san
+	_dung_nhom(can_tru_san.TRUONG_MOI, "can_tru_san")
 
 	# Hien HO TEN thay cho dia chi thu o moi o Link tro toi User, trong toan
 	# bo ERPNext ban may tinh. Anh Viet chot 02/09/2026. Mot dong, va moi o
