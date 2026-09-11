@@ -444,7 +444,7 @@ DAU_GC_MON = "\u203b"
 # Dau nhan dien dong TEN COMBO tren dong hoa don (anh Viet 11/08/2026). Mon
 # ra tu combo nao thi mang ten combo do, de bep va nguoi di lay mon biet gom
 # du bo, va de cuoi ngay dem duoc ban bao nhieu bo combo. In len bill va len
-# tem dan mon, nhung KHONG in ma combo.
+# tem dán món kèm mã combo (#261).
 DAU_COMBO = "\u25c8"
 
 
@@ -4082,6 +4082,11 @@ def tao_don_tay(
 		# dan mon de shipper doc ma nhan dung tui.
 		gcm = (r.get("ghi_chu") or "").strip()
 		cbo = (r.get("combo") or "").strip()
+		if r.get("combo_ma"):
+			cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+			if ma not in [x.item_code for x in cb.dong]:
+				frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+			cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
 		if tc or gcm or cbo:
 			ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
 			d["description"] = ten_mon
@@ -5869,7 +5874,12 @@ def pos_sua_don(
 		)
 	if items is not None:
 		rows = []
+		da_dung_dong = set()
 		for r in items or []:
+			if r.get("dong_goc"):
+				if r["dong_goc"] in da_dung_dong:
+					frappe.throw("Một dòng bill bị gửi hai lần. Tải lại bill rồi sửa tiếp.")
+				da_dung_dong.add(r["dong_goc"])
 			ma = (r.get("item_code") or "").strip()
 			if not ma or not frappe.db.exists("Item", ma):
 				frappe.throw("Không có mã hàng %s trong hệ thống." % (ma or "(trống)"))
@@ -5880,6 +5890,11 @@ def pos_sua_don(
 			tc = (r.get("tuy_chon") or "").strip()
 			gcm = (r.get("ghi_chu") or "").strip()
 			cbo = (r.get("combo") or "").strip()
+			if r.get("combo_ma"):
+				cb = frappe.get_doc("Vagabond Combo", r["combo_ma"])
+				if ma not in [x.item_code for x in cb.dong]:
+					frappe.throw("Món %s không thuộc combo %s." % (ma, cb.name))
+				cbo = "%s - %s" % (cb.get("ma_hang") or cb.name, cb.ten)
 			if tc or gcm or cbo:
 				ten_mon = frappe.db.get_value("Item", ma, "item_name") or ma
 				d["description"] = ten_mon
@@ -5889,7 +5904,8 @@ def pos_sua_don(
 					d["description"] += "\n[%s]" % tc[:200]
 				if gcm:
 					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
-			rows.append(d)
+			from vagabond.combo_mon import giu_dong_sua
+			rows.append(giu_dong_sua(si, r, d))
 		if not rows:
 			frappe.throw("Hoá đơn phải còn ít nhất một món.")
 		si.set("items", [])
