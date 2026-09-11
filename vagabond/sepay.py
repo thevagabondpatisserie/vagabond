@@ -631,9 +631,6 @@ def nap_bu(so_tk="", tu_ngay="", den_ngay="", so_trang=40, that=0):
 	that=0 la chay thu, chi dem xem se them bao nhieu dong chu khong ghi gi.
 	Bat that=1 moi ghi that.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới nạp bù sao kê được.")
 
@@ -808,9 +805,6 @@ def soi_khoa():
 
 	Man hinh bay bon van tay nay ra thi ba giay la biet dan dung o chua.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới soi được khoá bảo mật.")
 	c = cfg()
@@ -837,9 +831,6 @@ def dat_hmac(khoa=None, khe=1):
 	Khoa nay do SePay sinh, nguoi dung tu dan vao - may khong tu lay duoc,
 	va cung khong nen: no la khoa cua ben thu ba.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới đặt được khoá bảo mật.")
 	# Mỗi webhook có một Secret Key riêng. Khe 3 dành cho MB để không ghi đè
@@ -904,9 +895,6 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 	CHI THEM VA DOI, khong xoa: go mot dong khoi ban do la giao dich cua
 	tai khoan do bat dau roi lang le, viec do phai lam co y thuc tren Desk.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới khai được bản đồ tài khoản.")
 	so_tk, tk = kiem_map_tai_khoan(so_tk, tai_khoan)
@@ -951,9 +939,6 @@ def them_tai_khoan(so_tk=None, tai_khoan=None):
 @frappe.whitelist()
 def dat_khoa():
 	"""Sinh mot khoa moi cho webhook. Tra ve nguyen van DUNG MOT LAN de dan."""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
 	if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới đặt được khoá bảo mật.")
 	import secrets

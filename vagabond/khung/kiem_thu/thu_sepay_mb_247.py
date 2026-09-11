@@ -159,7 +159,16 @@ def _sales_khong_doc_cau_hinh():
 def _desk_kiem_tung_map():
 	from unittest.mock import patch
 	from vagabond.vagabond.doctype.sepay_settings.sepay_settings import SePaySettings
-	d = Doi(account_map='{"123456":"BANK-A","654321":"BANK-B"}')
+	d = Doi(account_map='{"123456":"BANK-A","654321":"BANK-B"}',get_doc_before_save=lambda:None)
 	with patch.object(sepay, 'kiem_map_tai_khoan') as kiem:
 		SePaySettings.validate(d)
 		la('kiểm cả hai tài khoản', kiem.call_args_list, [(("123456", "BANK-A"),), (("654321", "BANK-B"),)])
+	cu = Doi(account_map='{"123456":"BANK-A"}')
+	d.get_doc_before_save = lambda:cu
+	with patch.object(sepay,'kiem_map_tai_khoan') as kiem:
+		SePaySettings.validate(d)
+		la('chỉ kiểm tuyến mới',kiem.call_args_list,[(("654321","BANK-B"),)])
+	d.account_map = cu.account_map
+	with patch.object(sepay,'kiem_map_tai_khoan') as kiem:
+		SePaySettings.validate(d)
+		la('map không đổi không chặn lưu cấu hình khác',kiem.call_count,0)

@@ -1,5 +1,9 @@
 # Bài học từ sự cố thật
 
+## 11/09/2026 - Kiểm map mới không được khóa bảo trì SePay (#273)
+
+Review phát hiện validate toàn bộ account_map mỗi lần save sẽ chặn cả enabled/token/mốc đồng bộ khi một Bank Account cũ bị ngưng dùng. Chỉ kiểm tuyến mới hoặc thay đổi; JSON/xung đột mới vẫn chặn. Cửa cấu hình tài chính phải dùng quyền tài chính trực tiếp, không đòi thêm vai bán hàng. Ca bench giữ map cũ rồi vô hiệu hóa Bank Account, lưu công tắc, từ chối tuyến mới sai và cho Accounts Manager độc lập khai map.
+
 Mỗi mục dưới đây là một lần repo này hỏng thật, trên hệ thống đang chạy cho cửa
 hàng. Ghi lại triệu chứng, nguyên nhân gốc, và cách tránh. Đọc tệp này trước khi
 sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có lớp nào tự bắt được.

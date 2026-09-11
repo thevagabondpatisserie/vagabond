@@ -259,6 +259,17 @@ def _desk_map_sai():
 	stg.save(ignore_permissions=True)
 	stg.reload()
 	la('đối chứng map hợp lệ lưu được', frappe.parse_json(stg.account_map)[b.bank_account_no], b.name)
+	frappe.db.set_value(b.doctype,b.name,'disabled',1)
+	stg.enabled = 1
+	stg.save(ignore_permissions=True); stg.reload()
+	la('map cũ ngưng dùng không chặn lưu công tắc',stg.enabled,1)
+	stg.account_map = frappe.as_json({b.bank_account_no:b.name,'000000273':'KHONG-CO-273'})
+	try:
+		stg.save(ignore_permissions=True)
+	except frappe.ValidationError:
+		pass
+	else:
+		dung('thêm map sai vẫn chặn dù có map cũ',False)
 
 
 @ca('#273 quyền thật: Sales không đọc được tài khoản SePay, kế toán đọc được')
@@ -283,5 +294,11 @@ def _quyen_doc_sepay():
 		frappe.clear_cache(user=u.name)
 		frappe.set_user(u.name)
 		dung('kế toán đọc được danh sách', 'ds_tai_khoan' in sepay.tinh_trang())
+		frappe.set_user('Administrator')
+		u.set('roles',[{'role':'Accounts Manager'}]); u.save(ignore_permissions=True)
+		b = _tai_khoan_ca_nhan(_so_thu(),mot_nha_cung_cap())
+		frappe.clear_cache(user=u.name); frappe.set_user(u.name)
+		la('Accounts Manager độc lập khai map',sepay.them_tai_khoan(b.bank_account_no,b.name)['ok'],1)
+		dung('Accounts Manager độc lập soi khóa',bool(sepay.soi_khoa()))
 	finally:
 		frappe.set_user(cu)
