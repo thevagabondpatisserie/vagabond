@@ -1,0 +1,4 @@
+# Anh Việt chọn Astra mức Light (giá trị cấu hình: low), 11/09/2026.
+# Đây là mặc định dự án; lựa chọn tường minh lúc khởi chạy có thể ghi đè.
+model = "gpt-6-astra"
+model_reasoning_effort = "low"

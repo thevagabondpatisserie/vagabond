@@ -53,7 +53,7 @@ except Exception:  # pragma: no cover
 		yield
 
 from vagabond import chung_tu, diem_ban, mau_in_quay, may_in, noi_bo, pancake_nhip, pt_thanh_toan, quyen_quay, tai_khoan
-from vagabond import ghi_so_dieu_kien, hddt_bu, khop_tien, luat_thanh_toan, ma_bill
+from vagabond import ghi_so_dieu_kien, hddt_bu, hddt_cho_xuat, khop_tien, luat_thanh_toan, ma_bill
 from vagabond.kiem_banh import _keo_don, _khoang_unix
 from vagabond.vagabond.doctype.anh_xa_ma_si.anh_xa_ma_si import doi_ma as doi_ma_si
 from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, cfg_o, giau_khoa, key
@@ -1936,6 +1936,9 @@ def bang_doanh_so(ngay=None):
 			"custom_pancake_display_id",
 			"custom_hddt_trang_thai",
 			"custom_hddt_so",
+			# #266: chip "Hoá đơn chờ xuất cho ngày ..." và "cần đối chiếu".
+			"vgb_hddt_ngay_xuat",
+			"vgb_hddt_cho_doi_chieu",
 			"custom_nguon",
 			"vgb_pt_thanh_toan",
 			# Hai co do may dat: mot de biet phuong thuc la may doan hay
@@ -2899,6 +2902,20 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 	#
 	# Nhip VET khong keo lai don: nhip dong bo rieng 30 phut mot lan da lo
 	# viec do, keo them moi 5 phut chi lam nang Pancake khong duoc gi.
+	# HANG RAO THU TU (#266, 10/09/2026). Ghi so mot to cua HOM NAY la Server
+	# Script After Submit xuat hoa don ngay, ma m-invoice danh so theo ngay
+	# lap: to dau tien cua hom nay dong sap cua moi ngay cu con dang cho.
+	# Nen phat hanh het ngay cu TRUOC khi cham vao to nao cua hom nay.
+	#
+	# Vong 2 (#266): doc TRANG THAI chu khong goi roi di tiep. Con no ngay cu
+	# thi bo luot nay, nhip 5 phut sau lam tiep; cua chung kiem_goi van chan
+	# them mot lop nua.
+	if not hddt_cho_xuat.xuat_ngay_cu_truoc():
+		frappe.log_error(
+			"Chuoi cuoi ngay bo luot: con hoa don ngay cu cho xuat, nhuong cho chung di truoc.",
+			"ban_hang cuoi ngay: nhuong ngay cu")
+		return
+
 	if not da_du_chuoi or chay_tay:
 		try:
 			_dong_bo_doanh_so(ngay)
@@ -3150,6 +3167,17 @@ def _ky_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT):
 	return hddt_bu.gom_ky(ds)
 
 
+def _gop_cho_xuat(ph, them):
+	"""Cộng kết quả phát hành tờ chờ xuất (#266) vào kết quả lô của ngày.
+	Lỗi của phần chờ xuất để riêng ở loi_cho_xuat để nơi gọi cộng một lần."""
+	ra = dict(ph or {})
+	ra["tim_thay"] = int(ra.get("tim_thay") or 0) + int(them.get("tim_thay") or 0)
+	ra["tao_ok"] = int(ra.get("tao_ok") or 0) + int(them.get("tao_ok") or 0)
+	ra["loi"] = list(ra.get("loi") or []) + list(them.get("loi") or [])
+	ra["loi_cho_xuat"] = list(them.get("loi") or [])
+	return ra
+
+
 def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 	"""Buoc hai va ba cua chuoi cuoi ngay, chay tren hang doi dai.
 
@@ -3171,11 +3199,19 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 		if bat_ph:
 			ph = _phat_hanh_theo_lo(ngay)
 			loi += ph.get("loi") or []
+			# #266: tờ ngày cũ đã ghi sổ được kéo ngày lập sang hôm nay
+			# (hddt_cho_xuat) đi cùng lượt, cùng kịch bản, cùng khoá.
+			ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(ngay, _goi_server_script))
+			loi += ph.get("loi_cho_xuat") or []
 		else:
 			ph = "bỏ qua (tắt ở m-invoice)"
 		if bat_ky:
 			ky = _ky_theo_lo(ngay)
 			loi += ky.get("loi") or []
+			ky_them = hddt_cho_xuat.ky(ngay, _goi_server_script)
+			ky = {"can_ky": ky.get("can_ky", 0) + ky_them["can_ky"], "da_ky": ky.get("da_ky", 0) + ky_them["da_ky"],
+				"loi": (ky.get("loi") or []) + ky_them["loi"]}
+			loi += ky_them["loi"]
 		else:
 			ky = "bỏ qua (tắt ở m-invoice)"
 	finally:
@@ -3194,19 +3230,53 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 
 
 def _ngay_so_hddt_moi_nhat():
-	"""Ngay lap cua to hoa don dien tu mang SO lon nhat. m-invoice danh so
+	"""NGAY LAP cua to hoa don dien tu mang SO lon nhat. m-invoice danh so
 	tang theo ngay lap: ngay nao nho hon ngay nay thi khong phat hanh them
-	duoc nua (ma loi 296, bat duoc sang 03/09/2026)."""
-	try:
-		r = frappe.db.sql(
-			"""select posting_date from `tabSales Invoice`
+	duoc nua (ma loi 296, bat duoc sang 03/09/2026).
+
+	#266 vong 2, Codex bat dung: to duoc keo di voi ngay lap khac ngay so
+	(vgb_hddt_ngay_xuat), nen doc posting_date tran la doc sai. To keo ngay
+	lap 10/09 nhung so 09/09 se lam ham nay bao 09/09 trong khi m-invoice da
+	sang 10/09, va man hinh lai de nghi giu_ngay cho mot cua da dong.
+	Cot moi chi co sau migrate nen co duong lui ve posting_date.
+
+	#266 vong 5, Codex va claude bat dung: ban truoc bat loi roi goi
+	frappe.db.rollback() de thu cau du phong. Ham nay duoc goi tu
+	minvoice_an_toan.kiem_goi, ma kiem_goi dang GIU khoa dong
+	(get_doc for_update=True) va phai giu toi khi luu xong dau cho.
+	rollback o day NHA MAT KHOA ay va vut ca phan viec chua commit cua
+	chinh lan ghi so dang chay. Nang hon: trong khoang tu luc deploy toi
+	luc migrate xong, cot vgb_hddt_ngay_xuat chua ton tai nen cau dau
+	HONG MOI LAN GOI, tuc rollback no moi lan xuat hoa don.
+	Nay hoi truoc bang has_column, khong bat loi de rollback nua."""
+	# Chỉ thiếu cột thật mới dùng posting_date. Lỗi metadata phải thoát ra,
+	# nếu không có thể bỏ qua ngày lập đã kéo và mở nhầm cửa kỹ thuật.
+	co_cot = bool(frappe.db.has_column("Sales Invoice", "vgb_hddt_ngay_xuat"))
+	cau_so = ("""select coalesce(vgb_hddt_ngay_xuat, posting_date) from `tabSales Invoice`
 			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
-			order by cast(custom_hddt_so as unsigned) desc limit 1"""
-		)
-		return r[0][0] if r else None
+			order by cast(custom_hddt_so as unsigned) desc limit 1""" if co_cot else
+		"""select posting_date from `tabSales Invoice`
+			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
+			order by cast(custom_hddt_so as unsigned) desc limit 1""")
+	# M-Invoice có thể trả ID thành công nhưng chưa trả số. Khi GetInfoInvoice
+	# sau đó lỗi, tờ đã tồn tại thật nhưng custom_hddt_so còn rỗng. Bỏ nó khỏi
+	# mốc sẽ cho phép gửi lùi ngày và bị mã 296. Lấy thêm ngày lớn nhất của mọi
+	# tờ có custom_minvoice_id, rồi chọn mốc muộn hơn làm biên bảo thủ.
+	cau_id = ("""select max(coalesce(vgb_hddt_ngay_xuat, posting_date)) from `tabSales Invoice`
+			where docstatus = 1 and ifnull(custom_minvoice_id, '') != ''""" if co_cot else
+		"""select max(posting_date) from `tabSales Invoice`
+			where docstatus = 1 and ifnull(custom_minvoice_id, '') != ''""")
+	try:
+		r_so = frappe.db.sql(cau_so)
+		r_id = frappe.db.sql(cau_id)
+		ngay_so = r_so[0][0] if r_so and r_so[0] else None
+		ngay_id = r_id[0][0] if r_id and r_id[0] else None
+		return hddt_cho_xuat.ngay_hddt_moi_nhat(ngay_so, ngay_id)
 	except Exception:
+		# Giữ khóa và báo lỗi cho caller dừng. None chỉ có nghĩa truy vấn
+		# thành công nhưng chưa có hóa đơn, không được dùng cho lỗi đọc.
 		frappe.log_error(frappe.get_traceback(), "ban_hang: doc so HDDT moi nhat")
-		return None
+		raise
 
 
 def _dem_hddt_sot(ngay):
@@ -3306,6 +3376,11 @@ def xuat_rai_trong_ngay():
 		frappe.set_user("Administrator")
 		c = cfg()
 		if not cint(c.get("tu_ghi_so_bat") if c.get("tu_ghi_so_bat") is not None else 1):
+			return
+		# Cung hang rao thu tu voi chuoi cuoi ngay (#266): nhip nay ghi so bill
+		# quay du 4 gio, moi to ghi so la xuat hoa don ngay, nen no cung dong
+		# duoc cua cua ngay cu. Con no thi bo luot, khong ghi so to nao.
+		if not hddt_cho_xuat.xuat_ngay_cu_truoc():
 			return
 		ngay = nowdate()
 		gio = _gio_hop_le(c.get("tu_ghi_so_gio"))
@@ -4524,8 +4599,17 @@ def xuat_hoa_don_dien_tu(si_name):
 			si.get("custom_hddt_so"), _kh_cu, si.posting_date, _mau_cu
 		)
 
+	# #266 vong 5, Codex bat dung: duong xuat TAY nay phai loc dong y het
+	# duong kich ban, khong thi thue_vnd.chuan_tien nem "Payload khong cung
+	# so dong co tien cua SI" ngay truoc khi goi HTTP. Dung chung ham
+	# thue_vnd.dong_duoc_gui de khong co phep loc thu hai (dieu 18).
+	from vagabond import thue_vnd as _tv
 	dong, t_chua, t_thue = [], 0, 0
-	for i, r in enumerate(si.items, 1):
+	i = 0
+	for r in si.items:
+		if not _tv.dong_duoc_gui(r):
+			continue
+		i += 1
 		gross = flt(r.amount)
 		chua, thue = _tach_thue(gross, ts)
 		t_chua += chua
@@ -4703,10 +4787,10 @@ def xuat_hddt_con_thieu_tu_dong():
 	hom 10/08.
 
 	Nay di CUNG duong voi chuoi cuoi ngay: cung kich ban m-invoice, cung
-	cong tac, cung khoa. Chi thu nhung ngay con mo cua (xem hddt_bu):
-	- hom qua: luon duoc, mien chua co to nao mang ngay moi hon;
-	- hom nay: chi sau khi chuoi cuoi ngay da chay, vi bill quay theo thiet
-	  ke nam nhap ca ngay cho khach quet QR dien cong ty.
+	cong tac, cung khoa. Ngay cu chi duoc thu lai khi con trong han ky/gui
+	bao thu cua hddt_cho_xuat; ngay qua han duoc bao ro va khong gui lui ngay.
+	Hom nay chi chay sau khi chuoi cuoi ngay da chay, vi bill quay theo thiet
+	ke nam nhap ca ngay cho khach quet QR dien cong ty.
 	"""
 	try:
 		frappe.set_user("Administrator")
@@ -4716,16 +4800,26 @@ def xuat_hddt_con_thieu_tu_dong():
 		hom_nay = getdate(nowdate())
 		da_chay = str(cfg().get("tu_ghi_so_lan_cuoi") or "") == str(hom_nay)
 		ds_ngay = hddt_bu.ngay_duoc_bu(hom_nay, _ngay_so_hddt_moi_nhat(), da_chay)
-		if not ds_ngay:
+		ngay_hen = hddt_cho_xuat.ngay_cho_xuat_can_thu_lai(hom_nay)
+		if not ds_ngay and not ngay_hen["con_han"] and not ngay_hen["qua_han"]:
 			return
 		khoa = _khoa_hddt(cho=5)
 		if khoa is None:
 			# Luot phat hanh cuoi ngay dang chay, gio sau quay lai.
 			return
+		da_thu_hen = set()
 		try:
 			for d in ds_ngay:
 				ph = _phat_hanh_theo_lo(str(d))
 				ky = _ky_theo_lo(str(d)) if bat_ky else {"can_ky": 0, "da_ky": 0, "loi": []}
+				# #266: tờ chờ xuất cho hôm nay đi cùng lưới đỡ, cùng khoá.
+				if d == hom_nay:
+					ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(str(d), _goi_server_script))
+					da_thu_hen.add(d)
+					if bat_ky:
+						k2 = hddt_cho_xuat.ky(str(d), _goi_server_script)
+						ky = {"can_ky": ky.get("can_ky", 0) + k2["can_ky"], "da_ky": ky.get("da_ky", 0) + k2["da_ky"],
+							"loi": (ky.get("loi") or []) + k2["loi"]}
 				loi = (ph.get("loi") or []) + (ky.get("loi") or [])
 				if ph.get("tao_ok") or ky.get("da_ky") or loi:
 					frappe.log_error(
@@ -4736,6 +4830,31 @@ def xuat_hddt_con_thieu_tu_dong():
 							"\n".join(str(x) for x in loi)[:4000],
 						),
 					)
+			# Tờ đã hẹn ngày hôm qua mà lỗi trước nửa đêm phải còn đường thử
+			# lại hôm nay. Không giới hạn nhịp này bằng `d == hom_nay` nữa.
+			for d in ngay_hen["con_han"]:
+				if d in da_thu_hen:
+					continue
+				ph = hddt_cho_xuat.phat_hanh(str(d), _goi_server_script)
+				ky = hddt_cho_xuat.ky(str(d), _goi_server_script) if bat_ky else {
+					"can_ky": 0, "da_ky": 0, "loi": []}
+				loi = (ph.get("loi") or []) + (ky.get("loi") or [])
+				if ph.get("tao_ok") or ky.get("da_ky") or loi:
+					frappe.log_error(
+						title="Vagabond: thử lại HĐĐT hẹn ngày %s" % d,
+						message="Tìm %d, phát hành %d, ký %d/%d.\n%s" % (
+							ph.get("tim_thay") or 0, ph.get("tao_ok") or 0,
+							ky.get("da_ky") or 0, ky.get("can_ky") or 0,
+							"\n".join(str(x) for x in loi)[:4000],
+						),
+					)
+			if ngay_hen["qua_han"]:
+				frappe.log_error(
+					title="Vagabond: HĐĐT hẹn ngày đã quá hạn ký/gửi",
+					message=("Các ngày %s đã quá hạn bảo thủ theo Nghị định 70/2025/NĐ-CP. "
+						"Máy không gửi lùi ngày; vào Cài đặt, xem trước và xác nhận kéo sang hôm nay."
+						% ", ".join(str(d) for d in ngay_hen["qua_han"])),
+				)
 		finally:
 			_mo_khoa_dong_bo(khoa)
 	except Exception:
@@ -5402,6 +5521,8 @@ def pos_ds_bill(quay=None, ngay=None):
 			"vgb_xhd_ten", "vgb_xhd_mst", "vgb_so_ban",
 			"vgb_huy", "vgb_huy_ly_do", "vgb_huy_boi", "vgb_lan_sua",
 			"custom_hddt_so", "custom_hddt_trang_thai",
+			# #266: chip "Hoá đơn chờ xuất cho ngày ..." và "cần đối chiếu".
+			"vgb_hddt_ngay_xuat", "vgb_hddt_cho_doi_chieu",
 			# Ba o duoi day chi phuc vu phep "ghi so duoc chua" ben duoi.
 			"customer", "custom_pancake_id", "vgb_quay",
 			# Thong tin khach cho man xem lai bill (anh Viet 01/09/2026).

@@ -19,7 +19,9 @@
   "tk_co",
   "so_tien",
   "ma_giao_dich",
-  "ghi_chu"
+  "ghi_chu",
+  "cho_hoa_don",
+  "hoa_don_bo_sung"
  ],
  "fields": [
   {
@@ -134,6 +136,19 @@
    "fieldtype": "Link",
    "label": "Phiếu thanh toán nội bộ",
    "options": "Vagabond De Nghi Chi"
+  },
+  {
+   "fieldname": "cho_hoa_don",
+   "fieldtype": "Check",
+   "label": "Hóa đơn đến sau thanh toán"
+  },
+  {
+   "fieldname": "hoa_don_bo_sung",
+   "fieldtype": "Link",
+   "options": "Purchase Invoice",
+   "label": "Hóa đơn bổ sung",
+   "read_only": 1,
+   "description": "Chứng từ bổ sung sau chi tiền, không thay liên kết sinh bút toán."
   }
  ],
  "istable": 1,

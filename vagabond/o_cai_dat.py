@@ -25,6 +25,13 @@ so, nen ai sua phai doi chieu lai voi site truoc.
 TRUONG_MOI = {
 	"Vagabond Settings": [
 		{
+			"fieldname": "vgb_hddt_xac_nhan_qua_han",
+			"label": "Xác nhận xử lý HĐĐT quá hạn",
+			"fieldtype": "Long Text",
+			"read_only": 1,
+			"hidden": 1,
+		},
+		{
 			"fieldname": "khoa_so_ngay",
 			"label": "Khoá sổ trước bao nhiêu ngày",
 			"fieldtype": "Int",

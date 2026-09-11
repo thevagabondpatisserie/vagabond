@@ -102,13 +102,27 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .fld .fl{font-size:12px;color:#8a8f9c;margin-bottom:3px}
 .fld .fv{font-size:16px;font-weight:600;color:#16181d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fld .fv.ph{color:#b3b8c4;font-weight:400}
-.fld .fc{color:#c3c8d4;font-size:20px;flex:0 0 auto}
+.fld .fc,.li .fc{color:#c3c8d4;font-size:20px;flex:0 0 auto}
 .hub{display:flex;align-items:center;gap:13px;padding:16px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer;background:#fff;text-decoration:none;color:inherit}
 .hub:last-child{border-bottom:0}.hub:active{background:#f6f8fc}
-.hub .hi{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#E4F9FD}
+.hub .hi,.li .hi{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#E4F9FD}
 .hub .ht{flex:1;min-width:0}
 .hub .h1{font-size:16px;font-weight:600;margin-bottom:2px}
 .hub .h2{font-size:12.5px;color:#8a8f9c;line-height:1.35}
+.hub.chon{background:#E4F9FD}
+.hub.chon:active{background:#DBF6FB}
+/* O nhap tien nam trong mot dong danh sach. .tin la o toan man cao 52px,
+   rong 100% va can giua, nen khong phu hop cho hang .hub tren dien thoai. */
+.otd{margin-top:8px;text-align:left}
+.otd .lb{font-size:11.5px;color:#8a8f9c;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px;display:block}
+.otd .ow{display:flex;align-items:center;border:1.5px solid #dfe3ec;border-radius:12px;background:#fff;height:44px;overflow:hidden;transition:border-color .12s}
+.otd .ow:focus-within{border-color:#0FB5CE;background:#F7FDFF}
+.otd .ow input{flex:1 1 auto;min-width:0;width:100%;border:0;outline:0;background:transparent;height:100%;padding:0 8px 0 11px;font-family:inherit;font-size:17px;font-weight:700;color:#16181d;text-align:right;-webkit-appearance:none;appearance:none}
+.otd .ow .dv{flex:0 0 auto;padding:0 11px 0 0;font-size:14px;font-weight:600;color:#8a8f9c}
+.otd.lech .ow{border-color:#f59e0b;background:#fffbeb}
+.otd .gy{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.otd .gy span{border:1px solid #dfe3ec;border-radius:8px;padding:5px 10px;font-size:12.5px;font-weight:600;color:#0B7C93;background:#fff;cursor:pointer;line-height:1;min-height:28px;display:flex;align-items:center}
+.otd .gy span:active{background:#E4F9FD;border-color:#7FE5F6}
 .bdg{background:#e04b4b;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;border-radius:11px;padding:0 7px;display:flex;align-items:center;justify-content:center}
 .bdg.g{background:#12a150}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}

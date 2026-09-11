@@ -111,6 +111,8 @@ class _San(object):
 		san = self
 
 		def _get_value(dt, name=None, fieldname=None, *a, **k):
+			if dt == "Purchase Invoice":
+				return types.SimpleNamespace(docstatus=1, outstanding_amount=100.0)
 			if k.get("for_update"):
 				san.nhat_ky.append("khoa")
 				if san.khoa_hong:

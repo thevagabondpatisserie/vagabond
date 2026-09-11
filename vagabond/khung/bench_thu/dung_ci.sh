@@ -24,6 +24,10 @@ for p in Path('/etc/apt/sources.list.d').glob('*.list'):
 PY_APT
 sudo apt-get update -qq
 sudo apt-get install -y --no-install-recommends libmariadb-dev pkg-config libldap2-dev libsasl2-dev libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 redis-tools
+# PR263 cần đo bản in bằng cùng engine WebKit, không chỉ đếm HTML.
+curl -fsSL https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb -o /tmp/wkhtml.deb
+echo '4f723b2691ad8638a9df960e0421d346d7315083e3583a334f33362280ddba15  /tmp/wkhtml.deb' | sha256sum -c -
+sudo apt-get install -y /tmp/wkhtml.deb
 python -m pip install 'frappe-bench @ git+https://github.com/frappe/bench.git@c9d12503d9d7fbfd94086c3de3cd4ac23dd44823'
 npm install --global yarn@1.22.22
 nguon="$RUNNER_TEMP/vgb-core"

@@ -5,11 +5,14 @@ from vagabond.khung.kiem_thu.nen import ca, la, dung
 
 
 def _phieu():
-    ds=tinh_dong([108000,110000], [8,10], True)
+    gia=[108000,110000]
+    ds=tinh_dong(gia, [8,10], True)
     si={'vgb_thue_vnd':1, 'items':[], 'taxes':[{'name':'T','idx':1,'tax_amount_after_discount_amount':18000}],
         'net_total':200000,'total_taxes_and_charges':18000,'grand_total':218000,'item_wise_tax_details':[]}
     for i,d in enumerate(ds,1):
-        si['items'].append({'idx':i,'name':str(i),'item_code':'BANH','qty':1,'net_amount':d['net']})
+        # amount la thanh tien dong: phep loc that cua kich ban phat hanh.
+        si['items'].append({'idx':i,'name':str(i),'item_code':'BANH','qty':1,
+            'amount':gia[i-1],'net_amount':d['net']})
         si['item_wise_tax_details'].append({'item_row':str(i),'tax_row':'T','rate':d['rate'],'amount':d['vat']})
     goi={'details':[{'data':[{'inv_itemCode':'BANH','inv_quantity':1} for _ in ds]}]}
     return si,goi
