@@ -68,6 +68,7 @@ def chay():
             r=thanh_vien.toi()
             dat('Phiên đúng chỉ đọc khách đã xác thực',r['ok']==1 and r['ten']==kh.customer_name)
             dat('Đọc 25000 từ sổ, bỏ ô tổng hợp 999999',r['diem']==25000)
+            dat('Chưa kết nối lịch sử không giả lỗi hoặc rỗng hợp lệ',r['don_chua_mo'] and not r['don_loi'])
             dat('Không cache hồ sơ',frappe.local.response_headers['Cache-Control']=='private, no-store')
             frappe.local.request.cookies[thanh_vien.COOKIE]='sai-token'
             dat('Token sai không lộ tên/điểm/đơn',thanh_vien.toi()=={'ok':0,'ly_do':'chua_dang_nhap'})

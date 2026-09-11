@@ -22,5 +22,9 @@ function phanTu(the = 'div') {
   assert.match(tim('don').children[0].textContent,/Chưa có đơn/);
   assert.ok(!tim('don').children.some(x=>x.the==='button'));
   assert.match(tim('diem').textContent,/25/);
+  duLieu = {...duLieu,don_chua_mo:true};
+  await nut.onclick();
+  assert.match(tim('don').children[0].textContent,/chưa khả dụng/);
+  assert.ok(!tim('don').children.some(x=>x.the==='button'||x.textContent.includes('Chưa có đơn')));
   console.log('PASS #245: lỗi nguồn, thử lại, rỗng hợp lệ, giữ điểm');
 })().catch(e=>{console.error(e);process.exitCode=1;});

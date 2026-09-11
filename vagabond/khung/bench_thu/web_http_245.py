@@ -40,7 +40,7 @@ def _phuc_vu(cong):
         if ra.get('ten') == 'Khach HTTP245':
             with khoa:
                 so_lan[0] += 1
-                doi = so_lan[0] <= 4
+                doi = so_lan[0] <= 4  # 2 request x 2 cửa: gui và kiem_phieu.
             if doi:
                 # Hai request đều qua phép đọc khóa trước khi insert.
                 # Đồng bộ thời điểm thôi, không thay DB/validation/kết quả.
@@ -144,6 +144,7 @@ def chay():
         frappe.destroy()
         cac = hai_luot('vagabond.dat_ban.gui',dict(du_lieu=nd,ma_lan_gui=ma))
         dat('Hai request đặt bàn cùng khóa đều nhận kết quả',all(r.status_code==200 and r.json()['message']['ok']==1 for _,r in cac))
+        dat('Retry thành công không kèm hộp lỗi trùng tên',all(not r.json().get('_server_messages') for _,r in cac))
         dat('Hai request nhận cùng mã',len({r.json()['message']['ma'] for _,r in cac})==1)
         _noi()
         dat('DB chỉ có một yêu cầu đặt bàn',frappe.db.count(dat_ban.DOCTYPE,{'name':ten_phieu})==1)

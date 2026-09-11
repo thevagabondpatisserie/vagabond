@@ -259,6 +259,8 @@ def toi(token=None):
 
 	c = cfg()
 	k = key(c, "pancake_api_key")
+	# API tương thích cũ; trang thành viên hiện dùng thanh_vien.toi để phân
+	# biệt lỗi nguồn và lịch sử rỗng. Không nối trang mới vào cửa cũ này.
 	don = _don_pancake(c, k, noi_dia) if (k and c.pancake_shop_id) else []
 	return {
 		"ok": 1,

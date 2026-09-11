@@ -99,6 +99,7 @@ def gui(du_lieu, ma_lan_gui):
     d.flags.dat_ban_web = True
     moc = 'dat_ban_' + frappe.generate_hash(length=12)
     frappe.db.savepoint(moc)
+    so_thong_bao = len(frappe.local.message_log or [])
     try:
         d.insert(ignore_permissions=True)
     except frappe.DuplicateEntryError:
@@ -110,6 +111,9 @@ def gui(du_lieu, ma_lan_gui):
             raise
         if cu.bam_noi_dung != dau:
             frappe.throw('Yêu cầu trước đã được nhận. Tải lại trang để đặt lịch khác.')
+        # db_insert đã thêm thông báo Duplicate Name trước khi ném lỗi.
+        # Đây là retry thành công; giữ thông báo cũ, bỏ phần của insert vừa lùi.
+        del frappe.local.message_log[so_thong_bao:]
         return {'ok':1, 'ma':cu.name[:12].upper(), 'trang_thai':'Đã tiếp nhận'}
     return {'ok':1, 'ma':d.name[:12].upper(), 'trang_thai':'Chờ xác nhận'}
 
