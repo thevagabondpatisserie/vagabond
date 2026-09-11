@@ -152,12 +152,18 @@ async function cdKeo() {
   if (!xem || !xem.chon) return toast(laHomNay ? 'Hôm nay không có tờ nào đang giữ cờ đối chiếu.' : 'Ngày ' + cdNgayVn(ngay) + ' không còn tờ nào đã ghi sổ mà chưa có hoá đơn điện tử.', 4000);
 
   var giuNgay = xem.che_do_de_xuat === 'giu_ngay';
-  var cua = giuNgay
-    ? 'Còn trong hạn ký, gửi và cửa m-invoice còn mở. Hoá đơn được mang ngày ' + cdNgayVn(ngay) + '.'
-    : (!xem.cua_phap_ly_con_mo
-      ? 'Cửa pháp lý để giữ ngày ' + cdNgayVn(ngay) + ' đã đóng. Nghị định 70/2025/NĐ-CP yêu cầu ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo; hạn bảo thủ của hệ thống là ' + cdNgayVn(xem.han_ky_gui) + '. Chỉ còn đường kéo ngày hoá đơn sang hôm nay; sổ vẫn giữ ngày bán.'
-      : 'Cửa m-invoice của ngày ' + cdNgayVn(ngay) + ' đã đóng vì đã có tờ mang ngày ' +
-        cdNgayVn(xem.ngay_so_moi_nhat) + '. Ngày lập sẽ là hôm nay, sổ giữ ngày bán.');
+  var xacNhanQuaHan = false;
+  var lyDo = '';
+  if (!xem.cua_phap_ly_con_mo && xem.cua_minvoice_con_mo && !xem.da_xac_nhan_qua_han) {
+    if (!xem.duoc_xac_nhan_qua_han) return baoTin('Đã quá hạn ký, gửi theo mốc bảo thủ ' + cdNgayVn(xem.han_ky_gui) + '. Cần quản lý xác nhận cách xử lý; máy không tự đổi ngày lập.');
+    if (!await xacNhan('Xác nhận xử lý hoá đơn quá hạn?\n\nNghị định 70/2025/NĐ-CP yêu cầu ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo. Hạn bảo thủ: ' + cdNgayVn(xem.han_ky_gui) + '.\n\nGiữ ngày lập ' + cdNgayVn(ngay) + ', ký ngày thực tế. Xác nhận này không làm hoá đơn trở thành đúng hạn, chỉ có hiệu lực hôm nay và được lưu người xác nhận. Không tự đổi ngày lập.')) return;
+    giuNgay = true;
+    xacNhanQuaHan = true;
+    lyDo = 'Quản lý xác nhận giữ ngày lập ' + ngay + ', ký ngày thực tế; đã đọc cảnh báo quá hạn; xử lý trong ngày ' + xem.hom_nay;
+  }
+  var cua = !xem.cua_phap_ly_con_mo
+    ? 'Đã quá hạn ký, gửi theo mốc bảo thủ ' + cdNgayVn(xem.han_ky_gui) + '. ' + (giuNgay ? 'Giữ ngày lập ' + cdNgayVn(ngay) + ' theo xác nhận quản lý, ký ngày thực tế. Cảnh báo quá hạn vẫn giữ.' : 'Cửa m-invoice cũng đã đóng. Ngày lập đề xuất là hôm nay; đổi ngày lập không tự khắc phục việc lập hoá đơn chậm.')
+    : (giuNgay ? 'Còn trong hạn ký, gửi và cửa m-invoice còn mở. Hoá đơn mang ngày ' + cdNgayVn(ngay) + '.' : 'Cửa m-invoice đã đóng vì có tờ ngày ' + cdNgayVn(xem.ngay_so_moi_nhat) + '. Ngày lập đề xuất là hôm nay, sổ giữ ngày bán.');
   var mo = (xem.vi_du || []).slice(0, 8).map(function (x) {
     return '#' + x.ma + ' · ' + money(x.tien) + ' đ' + (x.doi_chieu ? ' · đang giữ đối chiếu' : '');
   }).join('\n');
@@ -168,7 +174,7 @@ async function cdKeo() {
     '\n\nMáy phát hành và ký ngay ở lượt chạy nền.')) return;
   busy(true);
   var kq;
-  try { kq = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 0, che_do: xem.che_do_de_xuat }); }
+  try { kq = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 0, che_do: giuNgay ? 'giu_ngay' : 'keo', xac_nhan_qua_han: xacNhanQuaHan ? 1 : 0, ly_do: lyDo }); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chạy lỗi'); }
   busy(false);
   baoTin(kq.nhat_ky || 'Đã nhận lệnh.');

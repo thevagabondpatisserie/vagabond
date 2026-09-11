@@ -250,6 +250,7 @@ def _cho_xuat_loc_lai_diem():
 	]
 	gia = unittest.mock.MagicMock()
 	gia.db.get_all.return_value = rows
+	gia.db.sql.return_value = []
 	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
 			unittest.mock.patch.object(hddt_cho_xuat, "getdate", lambda x: x), \
 			unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice",
@@ -351,6 +352,7 @@ def _thu_lai_ngay_hen():
 	]
 	gia = unittest.mock.MagicMock()
 	gia.db.get_all.return_value = rows
+	gia.db.sql.return_value = []
 	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), \
 			unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice",
 				lambda: ({}, ["Pancake"], ["@"])):
@@ -925,7 +927,7 @@ def _hang_rao():
 	h = _doc("vagabond", "hddt_cho_xuat.py")
 	i = h.find("def xuat_ngay_cu_truoc(")
 	than = h[i:]
-	dung("hàng rào chỉ làm ngày còn mở", "ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat())" in than)
+	dung("hàng rào chỉ làm ngày còn mở", "ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())" in than)
 	dung("hàng rào tôn trọng công tắc m-invoice", "_cong_tac_minvoice()" in than)
 	dung("hàng rào lấy khoá phát hành", "_khoa_hddt(" in than)
 	# Lượt xử của chính HÔM NAY cũng phải nhường ngày cũ đi trước, không thì
@@ -987,7 +989,7 @@ def _phep_nhuong():
 	# Van đã gỡ: hàm không còn nhận mốc lỗi hay đồng hồ nữa.
 	ts = list(inspect.signature(hddt_cho_xuat.phai_nhuong_ngay_cu).parameters)
 	la("chữ ký không còn tham số thời gian", ts,
-		["ngay_lap_to", "hom_nay", "ds_ngay_cho", "ngay_so_moi_nhat"])
+		["ngay_lap_to", "hom_nay", "ds_ngay_cho", "ngay_so_moi_nhat", "ngay_xac_nhan"])
 	h = _doc("vagabond", "hddt_cho_xuat.py")
 	than = h[h.find("def phai_nhuong_ngay_cu("):]
 	than = than[:than.find("\ndef ", 10)]
@@ -1052,6 +1054,7 @@ def _doc_no_hong():
 @ca("#266 vòng 6: cửa chung chặn trực tiếp tờ quá hạn, mọi đường gửi đều chịu luật")
 def _cua_chung_chan_qua_han():
 	gia = unittest.mock.MagicMock()
+	gia.db.sql.return_value = []
 	def nem(cau):
 		raise ValueError(cau)
 	gia.throw.side_effect = nem
@@ -1130,3 +1133,63 @@ def _bench_dang_ky():
 def _cua_ngo():
 	from vagabond.khung.kiem_thu.thu_cua_ngo import CUA_NGO
 	la("đúng danh sách", CUA_NGO["hddt_cho_xuat.py"], ["xu_ly_ngay_cu"])
+
+
+@ca("#266: lỗi đọc mốc không được giả thành chưa có hóa đơn")
+def _loi_doc_moc_khong_mo_cua():
+	import ast
+	from types import SimpleNamespace
+	from vagabond.khung.kiem_thu.nen import nem
+	cay = ast.parse(_doc("vagabond", "ban_hang.py"))
+	ham = next(n for n in cay.body if isinstance(n, ast.FunctionDef)
+		and n.name == "_ngay_so_hddt_moi_nhat")
+	for cho_loi in ("cot", "so", "id", None):
+		db = unittest.mock.Mock()
+		db.has_column.return_value = True
+		db.sql.side_effect = [[], []]
+		if cho_loi == "cot":
+			db.has_column.side_effect = RuntimeError("metadata unavailable")
+		elif cho_loi == "so":
+			db.sql.side_effect = RuntimeError("query unavailable")
+		elif cho_loi == "id":
+			db.sql.side_effect = [[], RuntimeError("ID query unavailable")]
+		gia = SimpleNamespace(db=db, log_error=lambda *a: None, get_traceback=lambda: "test")
+		ns = {"frappe": gia, "hddt_cho_xuat": hddt_cho_xuat}
+		exec(compile(ast.Module(body=[ham], type_ignores=[]), "moc_hddt", "exec"), ns)
+		goi = ns["_ngay_so_hddt_moi_nhat"]
+		if cho_loi:
+			nem("lỗi %s phải thoát ra cho caller dừng" % cho_loi, goi, RuntimeError)
+		else:
+			la("truy vấn thành công và rỗng mới được None", goi(), None)
+		la("không nhả khóa bằng rollback", db.rollback.call_count, 0)
+
+
+@ca("#266 xác nhận quá hạn: đúng ngày lập, hết hiệu lực qua nửa đêm, không nới hạn luật")
+def _xac_nhan_qua_han_co_pham_vi():
+	gia = unittest.mock.MagicMock()
+	x = dict(ngay_lap="2026-09-09", ngay_thuc_hien="2026-09-11", nguoi="quanly", ly_do="Giữ ngày lập, ký ngày thực tế")
+	gia.db.sql.return_value = [(json.dumps(x),)]
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia):
+		ds = hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-11")
+		la("chỉ đúng ngày lập được duyệt", ds, (D(2026, 9, 9),))
+		la("sang ngày sau tự hết hiệu lực", hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-12"), ())
+	dung("hạn pháp lý vẫn là quá hạn", not hddt_cho_xuat.con_trong_han_ky_gui("2026-09-09", "2026-09-11"))
+	dung("xác nhận cho xử đúng ngày", hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-11", "2026-09-08", ds))
+	dung("không mở ngày khác", not hddt_cho_xuat.cua_con_mo("2026-09-08", "2026-09-11", "2026-09-08", ds))
+	dung("không vượt cửa kỹ thuật", not hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-11", "2026-09-10", ds))
+	dung("ngày sau phải nhường ngày đã xác nhận", hddt_cho_xuat.phai_nhuong_ngay_cu("2026-09-10", "2026-09-11", ["2026-09-09"], "2026-09-08", ds)[0])
+
+
+@ca("#266 xác nhận quá hạn: kế toán không tự mở, dữ liệu lỗi không đi tiếp")
+def _xac_nhan_qua_han_quyen_va_loi():
+	from vagabond.khung.kiem_thu.nen import nem
+	gia = unittest.mock.MagicMock()
+	gia.get_roles.return_value = ["Accounts Manager"]
+	gia.throw.side_effect = ValueError("không đủ quyền")
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia):
+		nem("kế toán bị chặn", lambda: hddt_cho_xuat._ghi_xac_nhan_qua_han("2026-09-09", "2026-09-11", "giữ ngày lập cũ"), ValueError)
+		la("không ghi xác nhận", gia.db.set_single_value.call_count, 0)
+		gia.db.sql.return_value = [("khong phai json",)]
+		nem("JSON lỗi phải dừng", hddt_cho_xuat._ngay_xac_nhan_qua_han, ValueError)
+		gia.db.sql.side_effect = RuntimeError("DB lỗi")
+		nem("DB lỗi phải dừng", hddt_cho_xuat._ngay_xac_nhan_qua_han, RuntimeError)

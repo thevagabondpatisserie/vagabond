@@ -3249,11 +3249,9 @@ def _ngay_so_hddt_moi_nhat():
 	luc migrate xong, cot vgb_hddt_ngay_xuat chua ton tai nen cau dau
 	HONG MOI LAN GOI, tuc rollback no moi lan xuat hoa don.
 	Nay hoi truoc bang has_column, khong bat loi de rollback nua."""
-	co_cot = False
-	try:
-		co_cot = bool(frappe.db.has_column("Sales Invoice", "vgb_hddt_ngay_xuat"))
-	except Exception:
-		co_cot = False
+	# Chỉ thiếu cột thật mới dùng posting_date. Lỗi metadata phải thoát ra,
+	# nếu không có thể bỏ qua ngày lập đã kéo và mở nhầm cửa kỹ thuật.
+	co_cot = bool(frappe.db.has_column("Sales Invoice", "vgb_hddt_ngay_xuat"))
 	cau_so = ("""select coalesce(vgb_hddt_ngay_xuat, posting_date) from `tabSales Invoice`
 			where docstatus = 1 and ifnull(custom_hddt_so, '') != ''
 			order by cast(custom_hddt_so as unsigned) desc limit 1""" if co_cot else
@@ -3275,10 +3273,10 @@ def _ngay_so_hddt_moi_nhat():
 		ngay_id = r_id[0][0] if r_id and r_id[0] else None
 		return hddt_cho_xuat.ngay_hddt_moi_nhat(ngay_so, ngay_id)
 	except Exception:
-		# KHONG rollback: xem chu thich tren. Doc khong duoc thi tra None,
-		# nguoi goi tu quyet dinh, va khoa dong van con nguyen.
+		# Giữ khóa và báo lỗi cho caller dừng. None chỉ có nghĩa truy vấn
+		# thành công nhưng chưa có hóa đơn, không được dùng cho lỗi đọc.
 		frappe.log_error(frappe.get_traceback(), "ban_hang: doc so HDDT moi nhat")
-		return None
+		raise
 
 
 def _dem_hddt_sot(ngay):

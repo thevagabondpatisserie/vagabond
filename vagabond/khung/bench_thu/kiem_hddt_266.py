@@ -241,6 +241,32 @@ def chay():
 				# Dựng lại công tắc trước khi sang các ca tích hợp độc lập.
 				_cau_hinh(ma_gop='')
 
+
+				# Xác nhận muộn qua API thật + worker, HTTP giả. Cách ly số mới.
+				diem_xn = 'hddt266_xn_' + frappe.generate_hash(length=6)
+				frappe.db.savepoint(diem_xn)
+				ngay_muon = add_days(hom_nay, -2)
+				to_muon = _hoa_don(ngay_muon)
+				to_sau = _hoa_don(hom_qua)
+				truoc = len(gui)
+				with patch.object(frappe, 'enqueue', side_effect=RuntimeError('bench fallback')):
+					ra = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=0,
+						che_do='giu_ngay', xac_nhan_qua_han=1,
+						ly_do='Kiểm bench: giữ ngày lập, ký ngày thực tế')
+				_bang('xác nhận muộn API + worker gửi đúng một tờ', len(gui) - truoc, 1)
+				_bang('xác nhận giữ nguyên ngày lập trong payload',
+					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(ngay_muon))
+				_bang('xác nhận không đổi ngày sổ', str(frappe.db.get_value('Sales Invoice', to_muon.name, 'posting_date')), str(ngay_muon))
+				_bang('không gửi tờ ngày sau cùng lượt', bool(frappe.db.get_value('Sales Invoice', to_sau.name, 'custom_minvoice_id')), False)
+				_bang('xác nhận đọc lại từ DB', tuple(map(str, hddt_cho_xuat._ngay_xac_nhan_qua_han(hom_nay))), (str(ngay_muon),))
+				_bang('xác nhận tự hết ngày', hddt_cho_xuat._ngay_xac_nhan_qua_han(add_days(hom_nay, 1)), ())
+				truoc = len(gui)
+				hddt_cho_xuat.chay_nen(str(ngay_muon), 'giu_ngay', 'bench')
+				_bang('chạy lại không gửi thêm', len(gui), truoc)
+				kq['phan'].append({'ten': 'Xác nhận quá hạn giữ ngày lập qua API và worker', 'dat': True})
+				frappe.db.rollback(save_point=diem_xn)
+				_cau_hinh(ma_gop='')
+
 				# ---------------------------------------------- F5 phạm vi phát hành
 				# Dựng ĐÚNG chuỗi thao tác của khách (điều 15): kế toán mở
 				# Cài đặt > Cuối ngày, chọn ngày cũ, chọn "giữ ngày bán", máy

@@ -11,15 +11,15 @@ mang ngày cũ thì không đổi được ngày sổ nữa, nên phải:
    gửi cơ quan thuế cấp mã chậm nhất là ngày làm việc tiếp theo kể từ lúc
    lập. Nguồn đối chiếu: https://vbpl.vn/TW/Pages/vbpq-thuoctinh.aspx?ItemID=177581
 
-   Vagabond hoạt động cả cuối tuần. Khi chưa có lịch ngày nghỉ riêng trong
-   hệ thống, backend dùng mốc bảo thủ là ngày kế tiếp theo lịch. Quá mốc đó
-   tuyệt đối không giữ ngày bán cũ; chỉ được kéo ngày lập sang ngày chạy
-   hiện tại (trường vgb_hddt_ngay_xuat), sổ vẫn giữ ngày bán. Anh Việt chốt
-   11/09/2026: tập ngày 09/09 xử ngày 11/09 theo đường kéo sang 11/09.
+   Backend nhắc hạn bảo thủ là ngày kế tiếp theo lịch khi chưa khai lịch
+   nghỉ. Quá hạn mặc định dừng; quản lý có thể xác nhận riêng một ngày lập,
+   hiệu lực đến cuối ngày thực hiện, có người và lý do trong lịch sử.
+   Xác nhận không biến hóa đơn quá hạn thành đúng hạn, không giả ngày ký.
+   Anh Việt chốt 11/09: giữ ngày lập 09/09, ký ngày thực tế.
 
    Cửa kỹ thuật của m-invoice vẫn phải xét thêm: m-invoice đánh số tăng theo
    ngày lập, nên hễ một tờ ngày mới ra trước thì tờ ngày cũ bị từ chối mã
-   296. Chỉ được giữ ngày cũ khi CẢ cửa pháp lý và cửa kỹ thuật còn mở.
+   296. Chỉ gửi khi cửa kỹ thuật còn mở và còn hạn hoặc có xác nhận quá hạn.
 
    Vì cửa đóng bởi chính tờ ngày mới của mình, mọi đường phát hành đều phải
    XUẤT NGÀY CŨ TRƯỚC (xuat_ngay_cu_truoc), không đợi ai bấm nút kịp.
@@ -42,6 +42,7 @@ import json
 
 TRUONG_NGAY_XUAT = "vgb_hddt_ngay_xuat"
 SO_NGAY_KY_GUI_TOI_DA = 1
+TRUONG_XAC_NHAN = "vgb_hddt_xac_nhan_qua_han"
 
 
 def _ngay(v):
@@ -258,7 +259,7 @@ def ngay_hddt_moi_nhat(*cac_ngay):
 	return max(ds) if ds else None
 
 
-def cua_con_mo(ngay, hom_nay, ngay_so_moi_nhat=None):
+def cua_con_mo(ngay, hom_nay, ngay_so_moi_nhat=None, ngay_xac_nhan=()):
 	"""Ngày này còn được giữ làm ngày lập HĐĐT khi cả hai cửa còn mở.
 
 	m-invoice đánh số tăng theo NGÀY LẬP: tờ mang ngày nhỏ hơn ngày của tờ
@@ -266,7 +267,7 @@ def cua_con_mo(ngay, hom_nay, ngay_so_moi_nhat=None):
 	before"). Cửa kỹ thuật còn mở không được dùng để nới quá hạn ký/gửi của
 	Nghị định 70/2025/NĐ-CP.
 	"""
-	return (con_trong_han_ky_gui(ngay, hom_nay)
+	return ((con_trong_han_ky_gui(ngay, hom_nay) or _ngay(ngay) in ngay_xac_nhan)
 		and cua_minvoice_con_mo(ngay, ngay_so_moi_nhat))
 
 
@@ -289,7 +290,7 @@ def ngay_lap_theo_che_do(che_do, ngay_cu, hom_nay):
 	return ngay_cu if che_do == "giu_ngay" else hom_nay
 
 
-def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None):
+def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None, ngay_xac_nhan=()):
 	"""Những ngày CŨ đang có tờ chờ xuất mà cửa m-invoice còn mở, cũ trước
 	mới sau. Đây là danh sách phải phát hành TRƯỚC tờ của hôm nay."""
 	hom_nay = _ngay(hom_nay)
@@ -298,7 +299,7 @@ def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None):
 		d = _ngay(d)
 		if d is None or hom_nay is None or d >= hom_nay:
 			continue
-		if not cua_con_mo(d, hom_nay, ngay_so_moi_nhat):
+		if not cua_con_mo(d, hom_nay, ngay_so_moi_nhat, ngay_xac_nhan):
 			continue
 		if d not in ra:
 			ra.append(d)
@@ -309,7 +310,7 @@ def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None):
 # chỉ còn để người trực đọc, KHÔNG được dùng lại để mở đường cho tờ ngày mới.
 
 
-def phai_nhuong_ngay_cu(ngay_lap_to, hom_nay, ds_ngay_cho, ngay_so_moi_nhat=None):
+def phai_nhuong_ngay_cu(ngay_lap_to, hom_nay, ds_ngay_cho, ngay_so_moi_nhat=None, ngay_xac_nhan=()):
 	"""Tờ sắp gửi m-invoice có phải nhường cho ngày cũ đi trước không.
 
 	Trả (phải nhường, danh sách ngày cũ còn mở, lý do).
@@ -331,7 +332,7 @@ def phai_nhuong_ngay_cu(ngay_lap_to, hom_nay, ds_ngay_cho, ngay_so_moi_nhat=None
 	ngày đó thì được đi (nếu chặn cả nó thì tự khoá chính mình), còn lại chặn.
 	"""
 	ngay_lap_to, hom_nay = _ngay(ngay_lap_to), _ngay(hom_nay)
-	ds = ngay_cu_con_mo(ds_ngay_cho, hom_nay, ngay_so_moi_nhat)
+	ds = ngay_cu_con_mo(ds_ngay_cho, hom_nay, ngay_so_moi_nhat, ngay_xac_nhan)
 	if not ds:
 		return False, [], "không còn ngày cũ nào đang chờ"
 	som_nhat = min(ds)
@@ -365,6 +366,44 @@ TRUONG_MOI = {"Sales Invoice": [{
 }]}
 
 QUYEN_KEO = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manager"}
+
+
+
+def _ngay_xac_nhan_qua_han(hom_nay=None):
+	"""Đọc mới mỗi lần; lỗi DB/JSON phải dừng, không coi như hết nợ ngày cũ.
+
+	Xác nhận chỉ cho đúng ngày lập, hết hiệu lực cuối ngày thực hiện.
+	Không thay đổi hạn pháp lý, ngày ký hoặc bỏ kiểm trùng của m-invoice.
+	"""
+	hom_nay = _ngay(hom_nay or nowdate())
+	rows = frappe.db.sql("select value from `tabSingles` where doctype=%s and field=%s",
+		("Vagabond Settings", TRUONG_XAC_NHAN))
+	if not rows or not rows[0][0]:
+		return ()
+	x = json.loads(rows[0][0])
+	if not isinstance(x, dict):
+		raise ValueError("Dữ liệu xác nhận HĐĐT quá hạn không hợp lệ")
+	if _ngay(x.get("ngay_thuc_hien")) != hom_nay:
+		return ()
+	if not x.get("nguoi") or not str(x.get("ly_do") or "").strip():
+		raise ValueError("Xác nhận HĐĐT quá hạn thiếu người hoặc lý do")
+	d = _ngay(x.get("ngay_lap"))
+	return (d,) if d and d <= hom_nay else ()
+
+
+def _ghi_xac_nhan_qua_han(ngay_lap, hom_nay, ly_do):
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw("Chỉ quản lý hệ thống được xác nhận xử lý hóa đơn đã quá hạn.")
+	ly_do = str(ly_do or "").strip()
+	if len(ly_do) < 10:
+		frappe.throw("Ghi rõ quyết định giữ ngày lập và ký ngày thực tế (ít nhất 10 ký tự).")
+	x = dict(ngay_lap=str(ngay_lap), ngay_thuc_hien=str(hom_nay),
+		nguoi=frappe.session.user, luc=str(now_datetime()), ly_do=ly_do[:1000])
+	# Comment lưu lịch sử riêng, không bị ghi đè khi xác nhận một ngày khác.
+	frappe.get_doc("Vagabond Settings").add_comment("Comment",
+		"Xác nhận xử lý HĐĐT quá hạn: " + json.dumps(x, ensure_ascii=False))
+	frappe.db.set_single_value("Vagabond Settings", TRUONG_XAC_NHAN,
+		json.dumps(x, ensure_ascii=False))
 
 
 def _cai_dat_minvoice():
@@ -478,7 +517,7 @@ def _dem_theo_ngay(ngay_cu, hom_nay):
 
 
 @frappe.whitelist()
-def xu_ly_ngay_cu(ngay, chay_thu=1, che_do=""):
+def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do=""):
 	"""Xử tờ đã ghi sổ của một ngày mà chưa có hoá đơn điện tử.
 
 	Hai cách, người chọn, máy đề xuất theo cửa m-invoice còn mở hay không:
@@ -505,10 +544,15 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do=""):
 		de_xuat = "giu_ngay"
 	cua_phap_ly = con_trong_han_ky_gui(ngay_cu, hom_nay)
 	cua_ky_thuat = cua_minvoice_con_mo(ngay_cu, moi_nhat)
+	xac_nhan = _ngay_xac_nhan_qua_han(hom_nay)
+	if ngay_cu in xac_nhan and cua_ky_thuat:
+		de_xuat = "giu_ngay"
 	chon = _dem_theo_ngay(ngay_cu, hom_nay)[0]
 	kq = {
 		"chay_thu": chay_thu, "ngay_cu": str(ngay_cu), "hom_nay": str(hom_nay),
-		"cua_con_mo": 1 if cua_con_mo(ngay_cu, hom_nay, moi_nhat) else 0,
+		"cua_con_mo": 1 if cua_con_mo(ngay_cu, hom_nay, moi_nhat, xac_nhan) else 0,
+		"da_xac_nhan_qua_han": int(ngay_cu in xac_nhan),
+		"duoc_xac_nhan_qua_han": int("System Manager" in frappe.get_roles()),
 		"cua_phap_ly_con_mo": 1 if cua_phap_ly else 0,
 		"cua_minvoice_con_mo": 1 if cua_ky_thuat else 0,
 		"han_ky_gui": str(han_ky_gui(ngay_cu)),
@@ -522,12 +566,17 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do=""):
 	if chay_thu:
 		return kq
 	che_do = str(che_do or "").strip() or de_xuat
-	if che_do == "giu_ngay" and not cua_con_mo(ngay_cu, hom_nay, moi_nhat):
+	if che_do not in ("giu_ngay", "keo"):
+		frappe.throw("Chế độ xử lý hóa đơn không hợp lệ.")
+	if che_do == "giu_ngay" and not cua_phap_ly and cua_ky_thuat and cint(xac_nhan_qua_han):
+		_ghi_xac_nhan_qua_han(ngay_cu, hom_nay, ly_do)
+		xac_nhan = (ngay_cu,)
+	if che_do == "giu_ngay" and not cua_con_mo(ngay_cu, hom_nay, moi_nhat, xac_nhan):
 		if not cua_phap_ly:
 			frappe.throw(
 				"Cửa pháp lý để giữ ngày %s đã đóng. Theo Nghị định 70/2025/NĐ-CP, ký số và gửi "
 				"cấp mã chậm nhất ngày làm việc tiếp theo; hệ thống đang dùng hạn bảo thủ %s. "
-				"Chỉ được kéo ngày lập sang hôm nay %s." % (
+				"Cần quản lý xác nhận riêng nếu giữ ngày lập cũ; không tự đổi sang %s." % (
 					ngay_vn(ngay_cu), ngay_vn(han_ky_gui(ngay_cu)), ngay_vn(hom_nay))
 			)
 		frappe.throw(
@@ -543,7 +592,7 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do=""):
 		frappe.enqueue(
 			"vagabond.hddt_cho_xuat.chay_nen",
 			queue="long", timeout=3600,
-			job_id="vgb-xu-ly-ngay-cu-%s" % ngay_cu, deduplicate=True,
+			job_id="vgb-xu-ly-ngay-cu-%s" % ngay_cu, deduplicate=True, enqueue_after_commit=True,
 			ngay=str(ngay_cu), che_do=che_do, nguoi=frappe.session.user,
 			ngay_tham_chieu=str(hom_nay), ngay_dich=str(ngay_dat),
 		)
@@ -638,7 +687,7 @@ def _chay_nen_da_nang_quyen(
 	hom_nay = _ngay(ngay_tham_chieu) or ngay_chay_that
 	ngay_cu = _ngay(ngay)
 	ngay_dat = _ngay(ngay_dich) or ngay_lap_theo_che_do(che_do, ngay_cu, hom_nay)
-	if not con_trong_han_ky_gui(ngay_dat, ngay_chay_that):
+	if not con_trong_han_ky_gui(ngay_dat, ngay_chay_that) and ngay_dat not in _ngay_xac_nhan_qua_han(ngay_chay_that):
 		raise ValueError(
 			"Lệnh xử HĐĐT đã quá hạn ký/gửi của ngày %s (hạn bảo thủ %s). "
 			"Mở lại Cài đặt, xem trước và xác nhận ngày mới; máy không tự đổi ngày sau nửa đêm."
@@ -910,7 +959,7 @@ def xuat_ngay_cu_truoc():
 			# Không phát hành được gì thì tờ hôm nay cũng không ra, cửa ngày
 			# cũ không bị đóng. Cho đi tiếp.
 			return True
-		ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat())
+		ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
 		if not ngay:
 			return True
 		khoa = _khoa_hddt(cho=30)
@@ -939,7 +988,7 @@ def xuat_ngay_cu_truoc():
 		_ghi_moc_loi(con_no)
 		# Còn tờ nào chưa ra thì vẫn là còn nợ; đọc lại cho chắc chứ không
 		# tin con số vừa gộp.
-		return not ngay_cu_con_mo(ngay_cu_can_bao_ve(), getdate(nowdate()), _ngay_so_hddt_moi_nhat())
+		return not ngay_cu_con_mo(ngay_cu_can_bao_ve(), getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: xuat ngay cu truoc")
 		# Hỏng giữa chừng thì coi như còn nợ, không cho tờ hôm nay đi.
@@ -962,11 +1011,12 @@ def chan_neu_con_ngay_cu(si):
 	"""
 	hom_nay = getdate(nowdate())
 	ngay_to = ngay_lap(si)
-	if not con_trong_han_ky_gui(ngay_to, hom_nay):
+	xac_nhan = _ngay_xac_nhan_qua_han(hom_nay)
+	if not con_trong_han_ky_gui(ngay_to, hom_nay) and ngay_to not in xac_nhan:
 		frappe.throw(
 			"Cửa pháp lý để phát hành tờ mang ngày %s đã đóng. Theo Nghị định 70/2025/NĐ-CP, "
 			"ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo; hệ thống dùng hạn bảo thủ %s. "
-			"Mở Cài đặt, xem trước và kéo ngày lập sang hôm nay trước khi gửi." % (
+			"Mở Cài đặt để quản lý xác nhận cách xử lý; máy không tự đổi ngày lập." % (
 				ngay_vn(ngay_to), ngay_vn(han_ky_gui(ngay_to)))
 		)
 	try:
@@ -976,12 +1026,16 @@ def chan_neu_con_ngay_cu(si):
 		frappe.throw("Chưa xuất tờ này được: không đọc được trạng thái hoá đơn ngày cũ (%s). "
 			"Máy dừng lại cho chắc, vì một tờ hôm nay ra trước là đóng cửa ngày cũ vĩnh viễn."
 			% str(e)[:120])
+	if ngay_to in xac_nhan:
+		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
+		if not cua_minvoice_con_mo(ngay_to, _ngay_so_hddt_moi_nhat()):
+			frappe.throw("Cửa m-invoice đã đóng cho ngày lập này; xác nhận quá hạn không được vượt thứ tự hóa đơn.")
 	if not ds:
 		return
 	try:
 		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
 		phai, ngay, ly_do = phai_nhuong_ngay_cu(
-			ngay_to, hom_nay, ds, _ngay_so_hddt_moi_nhat())
+			ngay_to, hom_nay, ds, _ngay_so_hddt_moi_nhat(), xac_nhan)
 	except ValueError:
 		raise
 	except Exception as e:
@@ -1049,11 +1103,12 @@ def ngay_cho_xuat_can_thu_lai(hom_nay):
 	)
 	_stg, ds_nguon, ds_quay = _cai_dat_minvoice()
 	con_han, qua_han = [], []
+	xac_nhan = _ngay_xac_nhan_qua_han(hom_nay)
 	for r in rows:
 		if da_co_hddt(r) or not thuoc_diem_dang_xuat(r, ds_nguon, ds_quay):
 			continue
 		d = _ngay(r.get(TRUONG_NGAY_XUAT))
-		dich = con_han if con_trong_han_ky_gui(d, hom_nay) else qua_han
+		dich = con_han if con_trong_han_ky_gui(d, hom_nay) or d in xac_nhan else qua_han
 		if d and d not in dich:
 			dich.append(d)
 	return {"con_han": con_han, "qua_han": qua_han}
