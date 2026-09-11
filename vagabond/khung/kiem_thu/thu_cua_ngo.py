@@ -36,6 +36,11 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 # Danh sach cua ngo tung mo dun. Chot ngay 19/08/2026.
 CUA_NGO = {
 	"minvoice_an_toan.py": ["kiem_goi", "mo_lai", "phan_loai_phan_hoi"],
+	# Them 10/09/2026 (#266): xu to da ghi so cua mot ngay chua co HDDT, giu
+	# dung ngay ban khi cua m-invoice con mo, khong thi keo sang hom nay.
+	# `chay_nen`, `xuat_ngay_cu_truoc`, `phat_hanh`, `ky` la ham noi bo cua
+	# hang doi va chuoi cuoi ngay, khong mo ra ngoai.
+	"hddt_cho_xuat.py": ["xu_ly_ngay_cu"],
 	# Them 23/08/2026 cung lan dua Web Page va Mau in ra git. `soi_lech` chi
 	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
 	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
