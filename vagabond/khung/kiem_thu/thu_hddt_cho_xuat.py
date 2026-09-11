@@ -1167,11 +1167,13 @@ def _loi_doc_moc_khong_mo_cua():
 @ca("#266 xác nhận quá hạn: đúng ngày lập, hết hiệu lực qua nửa đêm, không nới hạn luật")
 def _xac_nhan_qua_han_co_pham_vi():
 	gia = unittest.mock.MagicMock()
-	x = dict(ngay_lap="2026-09-09", ngay_thuc_hien="2026-09-11", nguoi="quanly", ly_do="Giữ ngày lập, ký ngày thực tế")
+	x = dict(ngay_lap="2026-09-09", ngay_thuc_hien="2026-09-11", nguoi="quanly", ly_do="Giữ ngày lập, ký ngày thực tế", phieu=["SI-09"])
 	gia.db.sql.return_value = [(json.dumps(x),)]
 	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia):
 		ds = hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-11")
 		la("chỉ đúng ngày lập được duyệt", ds, (D(2026, 9, 9),))
+		la("đúng tờ trong phạm vi", hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-11", "SI-09"), ds)
+		la("tờ tạo sau không được mở", hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-11", "SI-MOI"), ())
 		la("sang ngày sau tự hết hiệu lực", hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-12"), ())
 	dung("hạn pháp lý vẫn là quá hạn", not hddt_cho_xuat.con_trong_han_ky_gui("2026-09-09", "2026-09-11"))
 	dung("xác nhận cho xử đúng ngày", hddt_cho_xuat.cua_con_mo("2026-09-09", "2026-09-11", "2026-09-08", ds))
@@ -1193,3 +1195,12 @@ def _xac_nhan_qua_han_quyen_va_loi():
 		nem("JSON lỗi phải dừng", hddt_cho_xuat._ngay_xac_nhan_qua_han, ValueError)
 		gia.db.sql.side_effect = RuntimeError("DB lỗi")
 		nem("DB lỗi phải dừng", hddt_cho_xuat._ngay_xac_nhan_qua_han, RuntimeError)
+
+
+@ca("#266 giao diện xác nhận quá hạn: giữ ngày, hủy, quyền và API lỗi")
+def _ui_xac_nhan_qua_han():
+	import subprocess
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+	r = subprocess.run(["node", "vagabond/khung/kiem_thu/hanh_vi/hddt_qua_han.cjs"],
+		cwd=goc, capture_output=True, text=True, timeout=20)
+	la("hành vi UI: " + r.stdout + r.stderr, r.returncode, 0)

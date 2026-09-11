@@ -249,10 +249,11 @@ def chay():
 				to_muon = _hoa_don(ngay_muon)
 				to_sau = _hoa_don(hom_qua)
 				truoc = len(gui)
-				with patch.object(frappe, 'enqueue', side_effect=RuntimeError('bench fallback')):
+				xem_muon = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=1)
+				with patch('rq.Queue.enqueue_call', side_effect=RuntimeError('bench RQ enqueue_call')):
 					ra = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=0,
 						che_do='giu_ngay', xac_nhan_qua_han=1,
-						ly_do='Kiểm bench: giữ ngày lập, ký ngày thực tế')
+						ly_do='Kiểm bench: giữ ngày lập, ký ngày thực tế', pham_vi=xem_muon['pham_vi'])
 				_bang('xác nhận muộn API + worker gửi đúng một tờ', len(gui) - truoc, 1)
 				_bang('xác nhận giữ nguyên ngày lập trong payload',
 					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(ngay_muon))
@@ -260,6 +261,14 @@ def chay():
 				_bang('không gửi tờ ngày sau cùng lượt', bool(frappe.db.get_value('Sales Invoice', to_sau.name, 'custom_minvoice_id')), False)
 				_bang('xác nhận đọc lại từ DB', tuple(map(str, hddt_cho_xuat._ngay_xac_nhan_qua_han(hom_nay))), (str(ngay_muon),))
 				_bang('xác nhận tự hết ngày', hddt_cho_xuat._ngay_xac_nhan_qua_han(add_days(hom_nay, 1)), ())
+				# Tờ tạo sau xác nhận cùng ngày không được hưởng quyền của lô cũ.
+				to_moi = _hoa_don(ngay_muon)
+				chan_moi = False
+				try:
+					hddt_cho_xuat.chan_neu_con_ngay_cu(frappe.get_doc('Sales Invoice', to_moi.name))
+				except Exception as e:
+					chan_moi = 'Cửa pháp lý' in str(e)
+				_bang('tờ tạo sau xác nhận bị chặn', chan_moi, True)
 				truoc = len(gui)
 				hddt_cho_xuat.chay_nen(str(ngay_muon), 'giu_ngay', 'bench')
 				_bang('chạy lại không gửi thêm', len(gui), truoc)

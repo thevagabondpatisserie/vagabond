@@ -27378,7 +27378,7 @@ async function cdKeo() {
   try { xem = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 1 }); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Không xem trước được'); }
   busy(false);
-  if (!xem || !xem.chon) return toast(laHomNay ? 'Hôm nay không có tờ nào đang giữ cờ đối chiếu.' : 'Ngày ' + cdNgayVn(ngay) + ' không còn tờ nào đã ghi sổ mà chưa có hoá đơn điện tử.', 4000);
+  if (!xem || (!xem.chon && !xem.so_nhap)) return toast(laHomNay ? 'Hôm nay không có tờ nào đang giữ cờ đối chiếu.' : 'Ngày ' + cdNgayVn(ngay) + ' không còn tờ nào đã ghi sổ mà chưa có hoá đơn điện tử.', 4000);
 
   var giuNgay = xem.che_do_de_xuat === 'giu_ngay';
   var xacNhanQuaHan = false;
@@ -27397,13 +27397,13 @@ async function cdKeo() {
     return '#' + x.ma + ' · ' + money(x.tien) + ' đ' + (x.doi_chieu ? ' · đang giữ đối chiếu' : '');
   }).join('\n');
   if (!await xacNhan('Xuất hoá đơn cho ' + xem.chon + ' tờ ngày ' + cdNgayVn(ngay) + '?\n' +
-    'Tổng ' + money(xem.tien) + ' đ.\n\n' + cua +
+    'Tổng ' + money(xem.tien) + ' đ.' + (xem.so_nhap ? '\nPhạm vi xác nhận gồm thêm ' + xem.so_nhap + ' đơn nháp cùng ngày; cần ghi sổ riêng, máy không tự ghi sổ ở bước này.' : '') + '\n\n' + cua +
     (xem.dang_doi_chieu ? '\n\nCó ' + xem.dang_doi_chieu + ' tờ đang giữ cờ đối chiếu: máy hỏi m-invoice theo mã phiếu, không có tờ mới gỡ cờ.' : '') +
     '\n\n' + mo + (xem.chon > 8 ? '\n... và ' + (xem.chon - 8) + ' tờ nữa' : '') +
     '\n\nMáy phát hành và ký ngay ở lượt chạy nền.')) return;
   busy(true);
   var kq;
-  try { kq = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 0, che_do: giuNgay ? 'giu_ngay' : 'keo', xac_nhan_qua_han: xacNhanQuaHan ? 1 : 0, ly_do: lyDo }); }
+  try { kq = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 0, che_do: giuNgay ? 'giu_ngay' : 'keo', xac_nhan_qua_han: xacNhanQuaHan ? 1 : 0, ly_do: lyDo, pham_vi: JSON.stringify(xem.pham_vi || []) }); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chạy lỗi'); }
   busy(false);
   baoTin(kq.nhat_ky || 'Đã nhận lệnh.');

@@ -97,7 +97,7 @@ def thuoc_diem_dang_xuat(r, ds_nguon, ds_quay):
 	return q in {x.upper() for x in ds_quay if x != "@"}
 
 
-def loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay):
+def loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay, gom_nhap=False):
 	"""Tờ đủ điều kiện kéo: đã ghi sổ, có tiền, không huỷ/tạm tính, mang
 	ngày sổ ngay_cu (không lớn hơn hôm nay), chưa có hoá đơn điện tử, thuộc
 	điểm đang bật xuất. Tờ đang giữ cờ đối chiếu VẪN được liệt kê, kèm dấu
@@ -113,7 +113,7 @@ def loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay):
 	for r in rows:
 		if ngay_cu == hom_nay and not int(r.get("vgb_hddt_cho_doi_chieu") or 0):
 			continue
-		if int(r.get("docstatus") or 0) != 1 or float(r.get("grand_total") or 0) <= 0:
+		if int(r.get("docstatus") or 0) not in ((0, 1) if gom_nhap else (1,)) or float(r.get("grand_total") or 0) <= 0:
 			continue
 		if int(r.get("vgb_huy") or 0) or int(r.get("vgb_tam_tinh") or 0):
 			continue
@@ -369,7 +369,7 @@ QUYEN_KEO = {"System Manager", "Accounts Manager", "Accounts User", "Sales Manag
 
 
 
-def _ngay_xac_nhan_qua_han(hom_nay=None):
+def _ngay_xac_nhan_qua_han(hom_nay=None, phieu=None):
 	"""Đọc mới mỗi lần; lỗi DB/JSON phải dừng, không coi như hết nợ ngày cũ.
 
 	Xác nhận chỉ cho đúng ngày lập, hết hiệu lực cuối ngày thực hiện.
@@ -387,23 +387,40 @@ def _ngay_xac_nhan_qua_han(hom_nay=None):
 		return ()
 	if not x.get("nguoi") or not str(x.get("ly_do") or "").strip():
 		raise ValueError("Xác nhận HĐĐT quá hạn thiếu người hoặc lý do")
+	if not isinstance(x.get("phieu"), list) or not x["phieu"]:
+		raise ValueError("Xác nhận HĐĐT quá hạn thiếu danh sách chứng từ")
+	if phieu is not None and phieu not in x["phieu"]:
+		return ()
 	d = _ngay(x.get("ngay_lap"))
 	return (d,) if d and d <= hom_nay else ()
 
 
-def _ghi_xac_nhan_qua_han(ngay_lap, hom_nay, ly_do):
+def _ghi_xac_nhan_qua_han(ngay_lap, hom_nay, ly_do, phieu=()):
 	if "System Manager" not in frappe.get_roles():
 		frappe.throw("Chỉ quản lý hệ thống được xác nhận xử lý hóa đơn đã quá hạn.")
 	ly_do = str(ly_do or "").strip()
 	if len(ly_do) < 10:
 		frappe.throw("Ghi rõ quyết định giữ ngày lập và ký ngày thực tế (ít nhất 10 ký tự).")
-	x = dict(ngay_lap=str(ngay_lap), ngay_thuc_hien=str(hom_nay),
-		nguoi=frappe.session.user, luc=str(now_datetime()), ly_do=ly_do[:1000])
-	# Comment lưu lịch sử riêng, không bị ghi đè khi xác nhận một ngày khác.
-	frappe.get_doc("Vagabond Settings").add_comment("Comment",
-		"Xác nhận xử lý HĐĐT quá hạn: " + json.dumps(x, ensure_ascii=False))
-	frappe.db.set_single_value("Vagabond Settings", TRUONG_XAC_NHAN,
-		json.dumps(x, ensure_ascii=False))
+	if not phieu:
+		frappe.throw("Không có chứng từ nào trong phạm vi xác nhận.")
+	from vagabond.ban_hang import _khoa_hddt, _mo_khoa_dong_bo
+	khoa = _khoa_hddt(cho=5)
+	if khoa is None:
+		frappe.throw("Đang xử một lô hóa đơn khác. Chờ lô đó xong rồi xác nhận lại.")
+	try:
+		cu = _ngay_xac_nhan_qua_han(hom_nay)
+		if cu and _ngay(ngay_lap) not in cu:
+			frappe.throw("Đang có xác nhận cho ngày %s. Xử xong ngày đó trước, không ghi đè xác nhận đang hiệu lực." % ngay_vn(cu[0]))
+		x = dict(ngay_lap=str(ngay_lap), ngay_thuc_hien=str(hom_nay), phieu=sorted(set(phieu)),
+			nguoi=frappe.session.user, luc=str(now_datetime()), ly_do=ly_do[:1000])
+		frappe.get_doc("Vagabond Settings").add_comment("Comment",
+			"Xác nhận xử lý HĐĐT quá hạn: " + json.dumps(x, ensure_ascii=False))
+		frappe.db.set_single_value("Vagabond Settings", TRUONG_XAC_NHAN,
+			json.dumps(x, ensure_ascii=False))
+		# Công bố xác nhận trước khi nhả khóa; worker đọc được đúng tập đã lưu.
+		frappe.db.commit()
+	finally:
+		_mo_khoa_dong_bo(khoa)
 
 
 def _cai_dat_minvoice():
@@ -502,22 +519,22 @@ def _tra_minvoice(base, hdr, ten_phieu, chung=None):
 		"kế toán đối chiếu tay" % (_ma_phan_hoi(r),))
 
 
-def _dem_theo_ngay(ngay_cu, hom_nay):
+def _dem_theo_ngay(ngay_cu, hom_nay, gom_nhap=False):
 	"""(danh sách tờ đủ điều kiện, cài đặt) cho một ngày. Không gọi mạng."""
 	stg, ds_nguon, ds_quay = _cai_dat_minvoice()
 	rows = frappe.db.get_all(
 		"Sales Invoice",
-		filters={"posting_date": ngay_cu, "docstatus": 1},
+		filters={"posting_date": ngay_cu, "docstatus": ["in", [0, 1]] if gom_nhap else 1},
 		fields=["name", "posting_date", "docstatus", "grand_total", "vgb_huy", "vgb_tam_tinh",
 			"custom_nguon", "vgb_quay", "custom_minvoice_id", "custom_hddt_id", "custom_hddt_so",
 			"vgb_hddt_cho_doi_chieu", TRUONG_NGAY_XUAT, "custom_pancake_display_id"],
 		limit_page_length=0,
 	)
-	return loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay), stg
+	return loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay, gom_nhap), stg
 
 
 @frappe.whitelist()
-def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do=""):
+def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pham_vi=None):
 	"""Xử tờ đã ghi sổ của một ngày mà chưa có hoá đơn điện tử.
 
 	Hai cách, người chọn, máy đề xuất theo cửa m-invoice còn mở hay không:
@@ -548,8 +565,11 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do=""):
 	if ngay_cu in xac_nhan and cua_ky_thuat:
 		de_xuat = "giu_ngay"
 	chon = _dem_theo_ngay(ngay_cu, hom_nay)[0]
+	pham_vi_hien_tai = _dem_theo_ngay(ngay_cu, hom_nay, gom_nhap=True)[0]
 	kq = {
 		"chay_thu": chay_thu, "ngay_cu": str(ngay_cu), "hom_nay": str(hom_nay),
+		"pham_vi": [r.name for r in pham_vi_hien_tai],
+		"so_nhap": sum(1 for r in pham_vi_hien_tai if cint(r.docstatus) == 0),
 		"cua_con_mo": 1 if cua_con_mo(ngay_cu, hom_nay, moi_nhat, xac_nhan) else 0,
 		"da_xac_nhan_qua_han": int(ngay_cu in xac_nhan),
 		"duoc_xac_nhan_qua_han": int("System Manager" in frappe.get_roles()),
@@ -569,7 +589,10 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do=""):
 	if che_do not in ("giu_ngay", "keo"):
 		frappe.throw("Chế độ xử lý hóa đơn không hợp lệ.")
 	if che_do == "giu_ngay" and not cua_phap_ly and cua_ky_thuat and cint(xac_nhan_qua_han):
-		_ghi_xac_nhan_qua_han(ngay_cu, hom_nay, ly_do)
+		pham_vi = json.loads(pham_vi) if isinstance(pham_vi, str) else pham_vi
+		if not isinstance(pham_vi, list) or not pham_vi or set(pham_vi) != set(kq["pham_vi"]):
+			frappe.throw("Phạm vi chứng từ đã thay đổi hoặc chưa được xem trước. Mở lại màn hình để xác nhận đúng danh sách.")
+		_ghi_xac_nhan_qua_han(ngay_cu, hom_nay, ly_do, pham_vi)
 		xac_nhan = (ngay_cu,)
 	if che_do == "giu_ngay" and not cua_con_mo(ngay_cu, hom_nay, moi_nhat, xac_nhan):
 		if not cua_phap_ly:
@@ -584,15 +607,17 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do=""):
 			"tờ ngày cũ nữa. Chọn kéo ngày lập sang hôm nay." % (ngay_vn(ngay_cu), ngay_vn(moi_nhat))
 		)
 	if not chon:
-		return dict(kq, keo=0, go_co=0, giu_co=0, loi=[], nhat_ky="Không còn tờ nào để xử.")
+		return dict(kq, keo=0, go_co=0, giu_co=0, loi=[], nhat_ky=("Đã xác nhận phạm vi gồm %d đơn nháp; cần ghi sổ các đơn này rồi phát hành." % kq["so_nhap"] if kq["so_nhap"] else "Không còn tờ nào để xử."))
 	# Đóng băng ngày người dùng vừa xem và xác nhận. Worker qua nửa đêm dùng
 	# đúng phạm vi/ngày này hoặc từ chối nếu đã quá hạn, không tự đổi ngầm.
 	ngay_dat = ngay_lap_theo_che_do(che_do, ngay_cu, hom_nay)
+	# Commit TRƯỚC khi enqueue: lỗi Redis vẫn nằm trong try và có fallback.
+	frappe.db.commit()
 	try:
 		frappe.enqueue(
 			"vagabond.hddt_cho_xuat.chay_nen",
 			queue="long", timeout=3600,
-			job_id="vgb-xu-ly-ngay-cu-%s" % ngay_cu, deduplicate=True, enqueue_after_commit=True,
+			job_id="vgb-xu-ly-ngay-cu-%s" % ngay_cu, deduplicate=True,
 			ngay=str(ngay_cu), che_do=che_do, nguoi=frappe.session.user,
 			ngay_tham_chieu=str(hom_nay), ngay_dich=str(ngay_dat),
 		)
@@ -693,6 +718,8 @@ def _chay_nen_da_nang_quyen(
 			"Mở lại Cài đặt, xem trước và xác nhận ngày mới; máy không tự đổi ngày sau nửa đêm."
 			% (ngay_vn(ngay_dat), ngay_vn(han_ky_gui(ngay_dat))))
 	chon, stg = _dem_theo_ngay(ngay_cu, hom_nay)
+	if not con_trong_han_ky_gui(ngay_dat, ngay_chay_that):
+		chon = [r for r in chon if ngay_dat in _ngay_xac_nhan_qua_han(ngay_chay_that, r.name)]
 	kq = {"ngay_cu": str(ngay_cu), "che_do": che_do, "chon": len(chon),
 		"keo": 0, "go_co": 0, "giu_co": 0, "loi": []}
 	nhan = nhan_chip(ngay_dat)
@@ -1011,8 +1038,13 @@ def chan_neu_con_ngay_cu(si):
 	"""
 	hom_nay = getdate(nowdate())
 	ngay_to = ngay_lap(si)
-	xac_nhan = _ngay_xac_nhan_qua_han(hom_nay)
-	if not con_trong_han_ky_gui(ngay_to, hom_nay) and ngay_to not in xac_nhan:
+	try:
+		xac_nhan = _ngay_xac_nhan_qua_han(hom_nay)
+		xac_nhan_to = _ngay_xac_nhan_qua_han(hom_nay, si.get("name") or "")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc xac nhan")
+		frappe.throw("Chưa xuất được hóa đơn: không đọc được xác nhận xử lý ngày cũ. Nhờ quản lý kiểm tra; máy giữ nguyên chứng từ.")
+	if not con_trong_han_ky_gui(ngay_to, hom_nay) and ngay_to not in xac_nhan_to:
 		frappe.throw(
 			"Cửa pháp lý để phát hành tờ mang ngày %s đã đóng. Theo Nghị định 70/2025/NĐ-CP, "
 			"ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo; hệ thống dùng hạn bảo thủ %s. "
