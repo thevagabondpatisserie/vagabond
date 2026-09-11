@@ -37,31 +37,59 @@ The Vagabond Pâtisserie, tiệm bánh ở TP HCM. Repo này là app ERPNext v16
 thật cho cửa hàng. Chủ repo là anh Việt. Hai agent cùng làm trên repo: Claude và
 Codex (`@codex`). Ngôn ngữ làm việc là tiếng Việt.
 
-## Bàn giao cho Codex sau khi làm xong
+## Bàn giao cho Codex: CHỌN ĐÚNG LỆNH, không phải lúc nào cũng review
 
-Đây là luật quan trọng nhất của tệp này. Mỗi khi Claude làm xong một việc trên
-Pull Request hoặc Issue, câu CUỐI CÙNG của comment phải mời Codex vào rà soát:
+Đây là luật quan trọng nhất của tệp này. Codex hiểu ba lệnh khác nhau, và chọn sai
+lệnh là việc bị treo mà không ai biết.
 
-    @codex review
+| Tình huống | Lệnh phải viết |
+|------------|----------------|
+| Claude vừa làm xong việc của mình, muốn Codex soi lại | `@codex review` |
+| Claude tìm ra lỗi và muốn Codex SỬA | `@codex fix <mô tả lỗi thật ngắn và cụ thể>` |
+| Claude muốn Codex làm một việc cụ thể (rebase, đặt lại số phiên bản, chạy bench) | `@codex <việc cụ thể>` |
 
-Mời như vậy để Codex biết mà vào làm tiếp, không phải chờ anh Việt gõ tay. Áp
-dụng cho: sửa xong một finding, đẩy xong commit mới, trả lời xong một câu hỏi kỹ
-thuật, mở xong một PR.
+`@codex review` CHỈ là yêu cầu rà soát. Nó không bảo Codex sửa gì cả. Nêu một
+finding rồi kết bằng `@codex review` là Codex chỉ rà soát thêm rồi trả lời, việc
+sửa không ai nhận. Đã xảy ra thật ngày 11/09/2026 trên PR #281.
 
-KHÔNG mời Codex khi: chỉ trả lời một câu hỏi thuần thông tin của anh Việt, hoặc
-việc đang chờ anh Việt quyết chứ không chờ kỹ thuật.
+Muốn Codex tự đẩy bản sửa lên nhánh thì phải dùng `@codex fix`, và mô tả phải đủ
+cụ thể để làm được ngay, ví dụ:
+
+    @codex fix dat lai APPVER thanh 478 va them dong patch #v478 vao cuoi patches.txt
+
+chứ không phải `@codex fix cái lỗi ở trên`.
+
+### BA LỆNH TRÊN CHỈ CHẠY TRONG PULL REQUEST
+
+Codex không nhận lệnh từ comment trong Issue. Vì vậy:
+
+- Finding nào cần sửa code thì phải viết vào comment của ĐÚNG PR chứa code đó,
+  kèm `@codex fix`. Viết trong issue là việc nằm im.
+- Trong issue chỉ dùng để bàn hướng đi và chờ anh Việt quyết. Nếu trong issue có
+  finding, ghi rõ nó thuộc PR số mấy rồi sang PR đó mà giao việc.
+
+### Khi nào KHÔNG gọi Codex
+
+Chỉ trả lời một câu hỏi thuần thông tin của anh Việt, hoặc việc đang chờ anh Việt
+quyết chứ không chờ kỹ thuật. Im lặng cũng là một lựa chọn đúng.
+
+### Một nhắc nhỏ hay quên
+
+PR còn ở trạng thái Draft thì không bấm merge được, dù mọi cổng đã xanh. Bàn giao
+xong nhớ nói rõ PR còn Draft hay đã Ready for review.
 
 ## Luật dừng, tránh hai bên gọi nhau vô tận
 
-Trước khi viết `@codex review`, ĐẾM số comment trên PR đó có chứa đúng chuỗi
-`@codex review` do Claude viết, tính trong 24 giờ qua.
+Trước khi viết bất kỳ lệnh `@codex` nào, ĐẾM số comment trên PR đó có chứa chuỗi
+`@codex` do Claude viết, tính trong 24 giờ qua. Đếm CẢ `review`, `fix` và lệnh
+tự do, không chỉ đếm `review`.
 
-- Đã có 3 lần: KHÔNG mời nữa. Thay vào đó viết một đoạn ngắn nói rõ hai bên đang
+- Đã có 3 lần: KHÔNG gọi nữa. Thay vào đó viết một đoạn ngắn nói rõ hai bên đang
   bất đồng chỗ nào và mời anh Việt phân xử. Ghi rõ mỗi bên đang lập luận gì.
-- Chưa tới 3: mời bình thường, và ghi rõ đây là vòng thứ mấy.
+- Chưa tới 3: gọi bình thường, và ghi rõ đây là vòng thứ mấy.
 
 Cũng KHÔNG trả lời nếu comment mới nhất của Codex không mang finding mới nào, chỉ
-là xác nhận hay cảm ơn. Im lặng cũng là một lựa chọn đúng.
+là xác nhận hay cảm ơn.
 
 ## Ba việc tuyệt đối không làm
 
