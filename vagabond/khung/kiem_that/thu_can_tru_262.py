@@ -140,3 +140,46 @@ def _loi_khoa_worker():
         la('không đổi thành lỗi nghiệp vụ',so.trang_thai,cu)
         la('không tạo JE',frappe.db.count('Journal Entry',{'vgb_can_tru_san':so.name}),0)
     # Đây chỉ kiểm ánh xạ exception, không thay hai kết nối DB thật.
+
+
+@ca('#265 báo cáo nhận tiền PE phân bổ hai SI và hủy trả lại dư')
+def _thu_tien_phan_bo():
+    from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
+    from vagabond.khung.kiem_that.nen import _mot
+    so, pi, si = _phieu()
+    so2, pi2, si2 = _phieu()
+    la('hai SI cùng khách', si2.customer, si.customer)
+    tk = _mot('Account', {'company': so.company, 'account_type': 'Bank', 'is_group': 0})
+    dung('có tài khoản ngân hàng thử', bool(tk))
+    pe = get_payment_entry('Sales Invoice', si.name, party_amount=600000, bank_account=tk)
+    pe.references[0].allocated_amount = 300000
+    pe.append('references', dict(reference_doctype='Sales Invoice', reference_name=si2.name,
+        total_amount=si2.grand_total, outstanding_amount=si2.outstanding_amount, allocated_amount=300000))
+    pe.paid_amount = pe.received_amount = 600000
+    pe.reference_no = 'KT265-THU'
+    pe.reference_date = today()
+    pe.insert(ignore_permissions=True); _DA_TAO.append((pe.doctype,pe.name))
+    pe.submit(); pe.reload(); si.reload(); si2.reload()
+    la('SI thứ nhất giảm nợ', si.outstanding_amount, 700000)
+    la('SI thứ hai giảm nợ', si2.outstanding_amount, 700000)
+    kq = ct.doi_chieu(so.name)
+    la('nhận đủ phân bổ hai SI', kq['da_nhan'], 600000)
+    la('dư còn đúng hai SI', kq['du_cuoi'], 1400000)
+    pe.cancel(); si.reload(); si2.reload()
+    kq = ct.doi_chieu(so.name)
+    la('hủy PE không còn tiền nhận', kq['da_nhan'], 0)
+    la('hủy PE khôi phục dư', kq['du_cuoi'], 2000000)
+
+
+@ca('#265 hook nguồn trả nguyên lỗi DB cho caller rollback')
+def _hook_db():
+    so, pi, si = _phieu()
+    for loai in (frappe.QueryDeadlockError, frappe.QueryTimeoutError):
+        loi = loai('KT265 truy vấn nguồn lỗi')
+        with patch.object(ct.frappe, 'get_all', side_effect=loi):
+            try:
+                ct.khi_ghi_so(si)
+            except loai as e:
+                dung('không đổi hoặc nuốt lỗi DB', e is loi)
+            else:
+                dung('hook phải ném lỗi DB', False)

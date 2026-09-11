@@ -202,12 +202,11 @@ def _xep_sau_commit(ten):
 
 def khi_ghi_so(doc, method=None):
     from functools import partial
-    try:
-        bang = 'Vagabond Can Tru Phi' if doc.doctype == 'Purchase Invoice' else 'Vagabond Can Tru Ban'
-        for ten in sorted(set(frappe.get_all(bang,filters={'hoa_don':doc.name,'parenttype':DT},pluck='parent'))):
-            frappe.db.after_commit.add(partial(_xep_sau_commit, ten))
-    except Exception:
-        frappe.logger('can_tru_san', allow_site=True).exception('Chưa xếp đối soát cho %s; scheduler sẽ thử lại', doc.name)
+    # Truy vấn nằm trong giao dịch ghi sổ nguồn. Deadlock có thể đã rollback
+    # cả giao dịch; không được nuốt rồi báo hóa đơn đã ghi sổ thành công.
+    bang = 'Vagabond Can Tru Phi' if doc.doctype == 'Purchase Invoice' else 'Vagabond Can Tru Ban'
+    for ten in sorted(set(frappe.get_all(bang,filters={'hoa_don':doc.name,'parenttype':DT},pluck='parent'))):
+        frappe.db.after_commit.add(partial(_xep_sau_commit, ten))
 
 
 def xu_ly_nen(ten):
@@ -290,20 +289,22 @@ def diem_ban():
 
 @frappe.whitelist()
 def doi_chieu(ten):
-    """Đọc GL gắn SI: tách tiền nhận, bù phí và điều chỉnh, không đoán theo dấu dư."""
+    """Đọc phân bổ PLE theo SI, không suy phân bổ từ GL tổng hợp của PE."""
     d = frappe.get_doc(DT,ten)
     d.check_permission('read')
-    dong = frappe.db.sql('''select gl.posting_date, gl.voucher_type, gl.voucher_no,
-        gl.debit, gl.credit, si.vgb_quay, je.vgb_can_tru_san as phieu_bu
-        from `tabGL Entry` gl
-        join `tabSales Invoice` si on si.name = case
-            when gl.voucher_type = 'Sales Invoice' then gl.voucher_no
-            when gl.against_voucher_type = 'Sales Invoice' then gl.against_voucher end
-        left join `tabJournal Entry` je on gl.voucher_type='Journal Entry' and je.name=gl.voucher_no
-        where gl.company=%s and gl.party_type='Customer' and gl.party=%s
-          and gl.account=si.debit_to and gl.is_cancelled=0
+    # ERPNext de591661 accounts/utils.py QueryPaymentLedger gom amount theo
+    # against_voucher_no; GL của PE có thể gộp nhiều SI và mất liên kết từng tờ.
+    dong = frappe.db.sql('''select ple.posting_date, ple.voucher_type, ple.voucher_no,
+        greatest(ple.amount,0) as debit, greatest(-ple.amount,0) as credit,
+        si.vgb_quay, je.vgb_can_tru_san as phieu_bu
+        from `tabPayment Ledger Entry` ple
+        join `tabSales Invoice` si on ple.against_voucher_type='Sales Invoice'
+            and si.name=ple.against_voucher_no
+        left join `tabJournal Entry` je on ple.voucher_type='Journal Entry' and je.name=ple.voucher_no
+        where ple.company=%s and ple.party_type='Customer' and ple.party=%s
+          and ple.account=si.debit_to and ple.delinked=0
           and si.custom_nguon=%s
-          and gl.posting_date <= %s''',
+          and ple.posting_date <= %s''',
         (d.company,d.khach_hang,d.san,d.den_ngay),as_dict=True)
     from vagabond.diem_ban import ma_theo_quay
     dong = [x for x in dong if ma_theo_quay(x.vgb_quay) == d.diem_ban]

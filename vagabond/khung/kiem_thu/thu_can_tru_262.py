@@ -26,3 +26,16 @@ def _lich_cho():
         return []
     with patch.object(ct.frappe,'get_all',side_effect=doc):
         ct.xep_hang_cho()
+
+@ca('#262 hook ghi sổ không nuốt lỗi truy vấn nguồn')
+def _hook_loi_db():
+    from unittest.mock import patch
+    from types import SimpleNamespace
+    loi = RuntimeError('DB đã hủy giao dịch')
+    with patch.object(ct.frappe, 'get_all', side_effect=loi):
+        try:
+            ct.khi_ghi_so(SimpleNamespace(doctype='Sales Invoice', name='SI-THU'))
+        except RuntimeError as e:
+            dung('giữ nguyên lỗi nguồn', e is loi)
+        else:
+            dung('caller phải nhận lỗi để rollback', False)
