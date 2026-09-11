@@ -236,6 +236,10 @@ def _bao_cao_tra_hang():
     # cùng mã đơn Pancake (mapper lõi sao chép cả custom field của fixture).
     tra.custom_pancake_id = None
     tra.custom_pancake_display_id = None
+    # MTT chỉ là dấu giả trên SI bán của fixture _phieu, không phải của
+    # credit note mới. Không sửa/xóa dấu trên bất kỳ chứng từ đã lưu nào.
+    for k in ('custom_hddt_so','custom_hddt_id','custom_minvoice_id','custom_hddt_trang_thai','vgb_hddt_cho_doi_chieu'):
+        tra.set(k,None)
     tra.update_outstanding_for_self = 0
     tra.items[0].qty = -0.2
     tra.vgb_ma_tham_chieu = 'KT265-TRA-'+frappe.generate_hash(length=8)
