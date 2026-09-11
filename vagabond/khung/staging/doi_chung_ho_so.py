@@ -17,45 +17,45 @@ def chay():
     from vagabond import ho_so_tt as hs
     khoa()
     frappe.set_user('Administrator')
-    root = Path(os.environ['VGB_ARTIFACTS'])
-    fixture = json.loads((root / 'tai-ho-so.json').read_text())
-    factory = hs._bo_doi_ten_trong_luot
-    resolver = hs._ten_nguoi
-    output = []
+    goc = Path(os.environ['VGB_ARTIFACTS'])
+    du_lieu = json.loads((goc / 'tai-ho-so.json').read_text())
+    tao_bo_doi = hs._bo_doi_ten_trong_luot
+    doi_ten = hs._ten_nguoi
+    dau_ra = []
     try:
         # Cache nóng như lần tải tiếp theo; không xoá cache của process gateway.
-        warm = hs.danh_sach(tu_khoa=fixture['tu_khoa'])
-        assert sorted(r['name'] for r in warm['rows']) == sorted(fixture['ten'])
-        for pair in range(12):
-            results = {}
-            for variant in (('cu', 'moi') if pair % 2 == 0 else ('moi', 'cu')):
+        da_nap = hs.danh_sach(tu_khoa=du_lieu['tu_khoa'])
+        assert sorted(dong['name'] for dong in da_nap['rows']) == sorted(du_lieu['ten'])
+        for cap in range(12):
+            cac_ket_qua = {}
+            for bien_the in (('cu', 'moi') if cap % 2 == 0 else ('moi', 'cu')):
                 # Trước tối ưu mỗi dòng gọi _ten_nguoi trực tiếp, không memo
                 # theo request. Cùng resolver giữ nguyên fallback User/Employee.
-                hs._bo_doi_ten_trong_luot = (lambda: hs._ten_nguoi) if variant == 'cu' else factory
-                start = perf_counter()
-                result = hs.danh_sach(tu_khoa=fixture['tu_khoa'])
-                ms = (perf_counter() - start) * 1000
-                encoded = json.dumps(result, sort_keys=True, default=str, ensure_ascii=False)
-                results[variant] = encoded
-                rows = result['rows']
-                assert sorted(r['name'] for r in rows) == sorted(fixture['ten'])
-                for r in rows:
-                    expected = fixture['nguoi_tao'][r['name']]
-                    assert r['nguoi_tao'] == expected['user'] and r['nguoi_tao_ten'] == expected['name']
-                    assert r['tong_tien'] == 6000 and r['trang_thai'] == 'Nhap'
-                output.append({'pair': pair, 'variant': variant, 'ms': ms,
-                    'rows': len(rows),
-                    'result_sha256': hashlib.sha256(encoded.encode()).hexdigest()})
-            assert results['cu'] == results['moi'], 'Đối chứng trả dữ liệu khác nhau'
+                hs._bo_doi_ten_trong_luot = (lambda: hs._ten_nguoi) if bien_the == 'cu' else tao_bo_doi
+                bat_dau = perf_counter()
+                ket_qua = hs.danh_sach(tu_khoa=du_lieu['tu_khoa'])
+                mili_giay = (perf_counter() - bat_dau) * 1000
+                ma_hoa = json.dumps(ket_qua, sort_keys=True, default=str, ensure_ascii=False)
+                cac_ket_qua[bien_the] = ma_hoa
+                cac_dong = ket_qua['rows']
+                assert sorted(dong['name'] for dong in cac_dong) == sorted(du_lieu['ten'])
+                for dong in cac_dong:
+                    mong_doi = du_lieu['nguoi_tao'][dong['name']]
+                    assert dong['nguoi_tao'] == mong_doi['user'] and dong['nguoi_tao_ten'] == mong_doi['name']
+                    assert dong['tong_tien'] == 6000 and dong['trang_thai'] == 'Nhap'
+                dau_ra.append({'pair': cap, 'variant': bien_the, 'ms': mili_giay,
+                    'rows': len(cac_dong),
+                    'result_sha256': hashlib.sha256(ma_hoa.encode()).hexdigest()})
+            assert cac_ket_qua['cu'] == cac_ket_qua['moi'], 'Đối chứng trả dữ liệu khác nhau'
     finally:
-        hs._bo_doi_ten_trong_luot = factory
-        hs._ten_nguoi = resolver
-    (root / 'doi-chung-ho-so.json').write_text(json.dumps({
+        hs._bo_doi_ten_trong_luot = tao_bo_doi
+        hs._ten_nguoi = doi_ten
+    (goc / 'doi-chung-ho-so.json').write_text(json.dumps({
         'github_event_sha': os.environ.get('GITHUB_SHA'),
         'source_sha256': hashlib.sha256(Path(hs.__file__).read_bytes()).hexdigest(),
         'baseline_reference': '5aefb3e22e748556eaca3f756bb496282cb4d108',
         'metric': 'server danh_sach with warm name cache; not HTTP/UI latency',
-        'results': output}, ensure_ascii=False, indent=2))
+        'results': dau_ra}, ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':
