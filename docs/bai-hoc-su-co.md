@@ -198,3 +198,7 @@ ERPNext de591661 reconcile_against_document sửa phân bổ PLE nhưng giữ GL
 Review C1 chỉ ra: lặp qua payload chỉ thấy món còn lại nên không bắt được món combo đã bị xóa. Cửa lưu phải so nhóm trong DB với nhóm được gửi, giữ đủ hoặc xóa hết. Cửa sửa bill không được coi món thiếu dong_goc là món lẻ nếu nó đang thuộc combo. Cần ca gọi cửa lưu/API, không chỉ gọi helper kiểm nhóm.
 
 Sao chép, sửa đổi và trả hàng có ý nghĩa khác nhau: bản sao là lần bán mới, tính lại cấu hình combo hiện tại; sửa đổi giữ phân bổ đã lưu của hóa đơn đã hủy; trả hàng lấy dòng gốc qua sales_invoice_item của mapper ERPNext. Không chỉ bỏ metadata rồi nhân lại rate đã làm tròn: combo155000 có phần107308/3 sẽ mất một đồng. Ca tích hợp phải đo cả trả toàn phần, trả từng bánh, hủy trả và amend trước khi phát hành.
+
+### 11/09/2026 - Khóa duy nhất chưa đủ cho retry HTTP (#246)
+
+Ca HTTPS trên SHA3c30b41 cho hai request đặt bàn cùng đọc chưa tồn tại trước khi insert: chỉ có một phiếu nhưng phản hồi là200/409. Cần bắt riêng DuplicateEntryError, lùi savepoint, đọc current for_update và so hash rồi trả mã cũ. Snapshot REPEATABLE READ từ lần đọc đầu không đủ. SHA6fb7473 đạt17/17 cửa HTTPS, gồm OTP dùng một lần, cookie, logout và booking đồng thời. db_insert của Frappe còn đẩy Duplicate Name vào message_log; khi retry đã đối chứng thành công phải bỏ thông báo của insert vừa lùi, giữ thông báo trước đó.

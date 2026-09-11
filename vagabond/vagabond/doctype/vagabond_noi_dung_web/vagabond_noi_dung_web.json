@@ -1,0 +1,15 @@
+{
+ "doctype": "DocType", "name": "Vagabond Noi Dung Web", "module": "Vagabond",
+ "autoname": "prompt", "engine": "InnoDB", "track_changes": 1,
+ "field_order": ["ban_nhap", "ban_cong_khai", "phien_ban", "lich_su"],
+ "fields": [
+  {"fieldname":"ban_nhap","label":"Bản nháp","fieldtype":"Code","options":"JSON","read_only":1},
+  {"fieldname":"ban_cong_khai","label":"Bản công khai","fieldtype":"Code","options":"JSON","read_only":1},
+  {"fieldname":"phien_ban","label":"Phiên bản","fieldtype":"Int","read_only":1},
+  {"fieldname":"lich_su","label":"Lịch sử xuất bản","fieldtype":"Code","options":"JSON","read_only":1}
+ ],
+ "permissions": [
+  {"role":"System Manager","read":1,"write":1,"create":1},
+  {"role":"Marketing","read":1,"write":1,"create":1}
+ ]
+}
