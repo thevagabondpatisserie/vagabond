@@ -1405,6 +1405,7 @@ async function loadMasters() {
   syncUser();
   var _kd = null;
   try { _kd = await api('vagabond.nhan_su.khoi_dong', {}); } catch (e) { _kd = null; }
+  S.quyenNen = _kd && _kd.quyen_nen || null;
   var r = (_kd && _kd.kho) ? [
     _kd.kho.map(function (n) { return { name: n }; }),
     _kd.nhom || [],
@@ -1439,7 +1440,7 @@ async function loadMasters() {
   if (!S.me.full_name) { try { S.me.full_name = frappe.session.user_fullname || ''; } catch (e) { } }
   if (!S.me.bo_phan) { try { S.me.bo_phan = localStorage.getItem('vgb_bp_' + S.user) || ''; } catch (e) { } }
   try {
-    var dp = await getList('Department', { fields: ['name'], filters: { is_group: 0, disabled: 0 }, limit_page_length: 0 });
+    var dp = await nenDemDanhSach('Department', { fields: ['name'], filters: { is_group: 0, disabled: 0 }, limit_page_length: 0 });
     if (dp && dp.length) DEPTS = dp.map(function (x) { return x.name; }).sort(function (a, b2) { return (deptRank(a) - deptRank(b2)) || (a < b2 ? -1 : 1); });
   } catch (e) { }
   /* Nut noi cua tro ly: gan SAU khi da biet vai cua nguoi dang dung, vi
@@ -1541,15 +1542,24 @@ function bepSeesRow(v) {
 }
 function whOpts() { return S.wh.map(function (w) { return { value: w, label: shortWh(w) }; }); }
 
+
+// Chỉ bỏ yêu cầu phụ khi máy chủ xác nhận không được đọc; không nuốt lỗi khác.
+function nenCoQuyen(k) {
+  return !(S.quyenNen && S.quyenNen[k] === false);
+}
+function nenDemDanhSach(dt, args) {
+  if (S.quyenNen && S.quyenNen.doc && S.quyenNen.doc[dt] === false) return Promise.resolve([]);
+  return getList(dt, args);
+}
 /* ---------- 5. Home ---------- */
 async function scrHome() {
   frame(APPNAME, '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
   var apRoles = hasRole('AP Kiểm soát (FIN)') || hasRole('AP Giám đốc') || hasRole('AP Officer');
   var q = [
-    getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Purchase', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
-    getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Material Transfer', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
-    getList('Material Request', { fields: ['name'], filters: { material_request_type: 'Manufacture', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 })
+    nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Purchase', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
+    nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Material Transfer', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 }),
+    nenDemDanhSach('Material Request', { fields: ['name'], filters: { material_request_type: 'Manufacture', docstatus: ['<', 2], status: ['in', ['Draft', 'Pending', 'Partially Ordered']] }, limit_page_length: 0 })
   ];
   /* Con so tren the phai dem DUNG cai man hinh se bay ra.
      Workflow "Duyet phieu chi APP" dat tren CA doctype Payment Entry, nen
@@ -1557,7 +1567,7 @@ async function scrHome() {
      khach do may tu tao luc doi soat sao ke, va phieu hoan tien cho khach.
      Man Duyet phieu chi da loc ca hai loai do ra tu lau; the o trang chu thi
      chua, nen the bao 12 ma vao thay 7. */
-  if (apRoles) q.push(getList('Payment Entry', { fields: ['name', 'party_type'], filters: { payment_type: 'Pay', workflow_state: ['in', myPayStates()] }, limit_page_length: 0 })
+  if (apRoles) q.push(nenDemDanhSach('Payment Entry', { fields: ['name', 'party_type'], filters: { payment_type: 'Pay', workflow_state: ['in', myPayStates()] }, limit_page_length: 0 })
     .then(function (ds) { return ds.filter(function (d) { return (d.party_type || '') !== 'Customer'; }); }));
   var c = await Promise.all(q.map(function (p) { return (p && p.catch) ? p.catch(function () { return []; }) : p; }));
   var n = c.map(function (x) { return x.length; });
@@ -1600,12 +1610,12 @@ async function scrHome() {
   if (isBep()) {
     var kcn = 0;
     try {
-      var kdd = await getList('Material Request', { fields: ['name', 'trang_thai_bep'], filters: { material_request_type: 'Manufacture', docstatus: 1, schedule_date: ['<=', today()] }, limit_page_length: 0 });
+      var kdd = await nenDemDanhSach('Material Request', { fields: ['name', 'trang_thai_bep'], filters: { material_request_type: 'Manufacture', docstatus: 1, schedule_date: ['<=', today()] }, limit_page_length: 0 });
       kcn = kdd.filter(function (x) { return x.trang_thai_bep !== 'Đã xong'; }).length;
     } catch (e) { }
     var wcn = 0;
     try {
-      var wdd = await getList('Work Order', { fields: ['name', 'status'], filters: { docstatus: 1 }, limit_page_length: 0 });
+      var wdd = await nenDemDanhSach('Work Order', { fields: ['name', 'status'], filters: { docstatus: 1 }, limit_page_length: 0 });
       wcn = wdd.filter(function (x) { return WODONE.indexOf(x.status) < 0; }).length;
     } catch (e) { }
     html += '<div class="sec">Bếp</div><div class="card">' +
@@ -1633,7 +1643,7 @@ async function scrHome() {
   html += '<div id="mvCanhBao"></div>';
   if (isKho()) {
     var rcn = 0;
-    try { rcn = (await getList('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 })).length; } catch (e) { }
+    try { rcn = (await nenDemDanhSach('Purchase Receipt', { fields: ['name'], filters: { docstatus: 0 }, limit_page_length: 0 })).length; } catch (e) { }
     html += '<div class="sec">Kho</div><div class="card">' +
       card('\ud83d\udce5', 'Nhập kho', 'Quét mã phiếu, đếm hàng rồi nhập máy', rcn, 'RCV') + '</div>';
   }
@@ -1644,12 +1654,12 @@ async function scrHome() {
     card('🥐', 'Nhận bánh đầu ngày', 'Bếp giao bao nhiêu, quầy còn bao nhiêu. Thay bảng Excel gửi Zalo', 0, 'NBANH') + '</div>';
   if (isRnd()) {
     var rdn = 0;
-    try { rdn = (await getList('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 })).length; } catch (e) { }
+    try { rdn = (await nenDemDanhSach('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 })).length; } catch (e) { }
     html += '<div class="sec">Mua hàng test (R&amp;D)</div><div class="card">' +
       card('🧪', 'Yêu cầu mua hàng test', 'Hàng test không tạo mã, không nhập kho', rdn, 'RND') + '</div>';
   }
   var kkn = 0;
-  try { kkn = (await getList('Phieu Kiem Ke', { fields: ['name'], filters: { trang_thai: 'Đang kiểm' }, limit_page_length: 0 })).length; } catch (e) { }
+  try { kkn = (await nenDemDanhSach('Phieu Kiem Ke', { fields: ['name'], filters: { trang_thai: 'Đang kiểm' }, limit_page_length: 0 })).length; } catch (e) { }
   html += '<div class="sec">Kiểm kê</div><div class="card">' +
     card('\ud83d\udccb', 'Kiểm kê kho', 'Quét mã, đếm hàng thực tế trong kho', kkn, 'KK') + '</div>';
   if (isSales()) {
@@ -1660,7 +1670,7 @@ async function scrHome() {
       var pc = await api('vagabond.don_huy.dem_phieu_cho', {});
       phCho = pc.cho_chi || 0; phTreo = pc.treo || 0;
     } catch (e) { }
-    try { dsn = (await getList('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
+    try { dsn = (await nenDemDanhSach('Sales Invoice', { fields: ['name'], filters: { posting_date: today(), docstatus: 0, custom_pancake_id: ['!=', ''] }, limit_page_length: 0 })).length; } catch (e) { }
     try {
       /* Ba cho lech voi man Don con treo, sua cho khop het:
          1. Man hinh mac dinh nhin 14 ngay gan day, the thi khong co moc duoi
@@ -1673,7 +1683,7 @@ async function scrHome() {
          Loi ghi chu ngay tren day tu truoc van noi "lay theo 14 ngay gan day",
          tuc y dinh ban dau la vay, chi la code khong lam. */
       var mocTreo = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
-      dtn = (await getList('Sales Invoice', {
+      dtn = (await nenDemDanhSach('Sales Invoice', {
         fields: ['name'],
         filters: { posting_date: ['>=', mocTreo], docstatus: 0, custom_pancake_id: ['!=', ''], vgb_quay: ['in', ['', null]], vgb_huy: 0, vgb_tam_tinh: 0 },
         limit_page_length: 0
@@ -1726,13 +1736,10 @@ async function scrHome() {
       + card('⚠️', 'Cảnh báo thanh toán', 'Hoá đơn thiếu hoặc sai phương thức, vận đơn treo COD nhầm', 0, 'CBTT')
       + '</div>';
   }
-  if (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager')) {
-    /* Phan he Bao cao (anh Viet 12/08/2026): so lieu thoi gian thuc, gop
-       ca ba diem ban, xem theo ngay - tuan - thang - quy - nam va xuat
-       Excel cho ke toan. Mot cua vao, 12 bao cao ben trong.
-
-       Bao cao van mo cho Sales - do la so lieu ban hang cua chinh ho. Chi
-       khoi KE TOAN ben duoi moi dong lai. */
+  // Quyền báo cáo theo máy chủ; giữ điều kiện cũ nếu backend chưa có metadata.
+  var xemBaoCao = S.quyenNen && typeof S.quyenNen.bao_cao === 'boolean'
+    ? S.quyenNen.bao_cao : (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager'));
+  if (xemBaoCao) {
     html += '<div class="sec">Báo cáo</div><div class="card">' +
       card('📈', 'Báo cáo tổng hợp', 'Đang cộng sổ doanh thu hôm nay...', 0, 'BCHUB') +
       card('🛵', 'Doanh thu theo nguồn đơn', 'Tại chỗ, Sales Online, GrabFood, ShopeeFood...', 0, 'BC:BC03') +
@@ -1752,12 +1759,12 @@ async function scrHome() {
        Hong thi bang 0 chu khong chan trang chu: mot phep dem hong khong
        duoc lam ca man hinh trang. Cung mot nep voi bcSoHomNay. */
     var htChoChi = 0;
-    try { htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
+    try { if (nenCoQuyen('ban_hang')) htChoChi = (await api('vagabond.hoan_tien.dem_cho_chi', {})).cho_chi || 0; } catch (e) { }
     /* Don hang tang cho giam doc duyet. So lay tu MAY CHU, cung nguyen tac
        voi badge phieu hoan: man hinh chi duoc HIEN so, khong tu dem. */
     var tgCho = 0, tgQuaHan = 0;
     try {
-      var tg = await api('vagabond.hang_tang.dem_cho_duyet', {});
+      var tg = nenCoQuyen('ban_hang') ? await api('vagabond.hang_tang.dem_cho_duyet', {}) : {};
       tgCho = tg.cho || 0; tgQuaHan = tg.qua_han || 0;
     } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
@@ -1778,7 +1785,7 @@ async function scrHome() {
          chuyen tien roi may do SePay xoa cong no, xong gui thu bao nha cung
          cap. Anh Viet 13/08/2026: lam tren app cho do roi so voi desktop. */
       card('📁', 'Tạo APP - Hồ sơ thanh toán', 'Lập đề nghị trả tiền, duyệt hai cấp, khớp SePay và báo nhà cung cấp', 0, 'APPTT') +
-      card('🏛️', 'Đối soát hoá đơn điện tử', 'Chờ ký, đã ký, CQT chấp nhận, chưa xuất', 0, 'BC:BC05') +
+      (xemBaoCao ? card('🏛️', 'Đối soát hoá đơn điện tử', 'Chờ ký, đã ký, CQT chấp nhận, chưa xuất', 0, 'BC:BC05') : '') +
       /* Hai man cho chi Dung, anh Viet dat 14/08/2026. Truoc do so co 174
          tai khoan tieng Viet ma chi hai but toan go tay, va khong mot tai
          san nao duoc khai. */
@@ -1950,6 +1957,7 @@ async function mvChipCanhBao() {
    mo app phat la thay so - anh Viet 12/08/2026. Chay SAU khi ve xong man,
    hong thi de nguyen dong chu cu chu khong lam vo trang chu. */
 async function bcSoHomNay() {
+  if (!nenCoQuyen('bao_cao')) return;
   var el = document.querySelector('[data-go="BCHUB"] .h2');
   var el2 = document.querySelector('[data-nhom="BC"] .gs');
   if (!el && !el2) return;
@@ -2288,6 +2296,7 @@ function vgbGomNhom() {
    Hong thi IM LANG. O khong deo so van dung nhu truoc, con hien mot loi do
    giua trang chu vi mot con so phu thi lam ca man xau di. */
 async function vgbDemVCL() {
+  if (!nenCoQuyen('ban_hang')) return;
   var o = document.getElementById('vgbSoVCL');
   if (!o) return;
   try {
@@ -20876,6 +20885,17 @@ function vdTomTatDongBo(kq) {
   return dong.join('\n');
 }
 
+// Bốn dữ liệu độc lập: tải cùng lúc để mở màn không chờ bốn lượt mạng.
+// Lỗi danh sách vẫn chặn màn; danh mục phụ giữ fallback như trước.
+async function vdNapDanhSach() {
+  return Promise.all([
+    api('vagabond.van_don.danh_sach', vdThamSo()),
+    api('vagabond.van_don.bo_loc', { ngay: vdNgay }).catch(function () { return null; }),
+    vtShipper ? Promise.resolve(vtShipper) : api('vagabond.van_don.ds_shipper').catch(function () { return []; }),
+    vdNapDiem()
+  ]);
+}
+
 async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
@@ -20886,9 +20906,10 @@ async function scrVanDon() {
     ds = vdDs;
   } else {
     vdVeSuong = 0;
-    try { ds = await api('vagabond.van_don.danh_sach', vdThamSo()); try { vdBoLoc = await api('vagabond.van_don.bo_loc', { ngay: vdNgay }); } catch (e9) { vdBoLoc = null; }
-    if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } }
-    await vdNapDiem(); }
+    try {
+      var nap = await vdNapDanhSach();
+      ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
+    }
     catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
     vdDs = ds; vdDsNgay = vdNgay;
   }
@@ -21717,7 +21738,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '478';
+var APPVER = '479';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -31721,6 +31742,12 @@ async function scrHoSoTT() {
   if (hsTkChi) ts.tk_chi = hsTkChi;
   try { kq = await api('vagabond.ho_so_tt.danh_sach', ts); }
   catch (e) { frame('Hồ sơ thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  return hsVeDanhSach(kq);
+}
+
+// Chỉ chip trạng thái dùng lại tập đang hiển thị. Stack vẫn giữ scrHoSoTT,
+// nên quay lại sau xử lý chứng từ luôn tải mới, không giữ closure dữ liệu cũ.
+function hsVeDanhSach(kq) {
   var rows = kq.rows || [], NH = kq.nhan || {}, Q = kq.quyen || {};
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
@@ -31887,7 +31914,7 @@ async function scrHoSoTT() {
     el.onclick = function () { hsKhoang = +el.getAttribute('data-hsng'); hsTu = null; hsDen = null; go(scrHoSoTT, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstt]'), function (el) {
-    el.onclick = function () { hsTT = el.getAttribute('data-hstt'); go(scrHoSoTT, true); };
+    el.onclick = function () { hsTT = el.getAttribute('data-hstt'); hsVeDanhSach(kq); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsviec]'), function (el) {
     el.onclick = function () { hsViec = el.getAttribute('data-hsviec'); go(scrHoSoTT, true); };

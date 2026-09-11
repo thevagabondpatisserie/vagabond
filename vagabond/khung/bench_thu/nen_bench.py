@@ -150,7 +150,7 @@ def dung():
 		{"fieldname": "custom_pancake_id", "fieldtype": "Data", "label": "Pancake ID", "insert_after": "customer"},
 		{"fieldname": "custom_pancake_display_id", "fieldtype": "Data", "label": "Pancake display", "insert_after": "customer"},
 		{"fieldname": "vgb_quay", "fieldtype": "Data", "label": "Quay", "insert_after": "customer"},
-		{"fieldname": "vgb_huy", "fieldtype": "Check", "label": "Huy", "insert_after": "customer"},
+		{"fieldname": "vgb_huy", "fieldtype": "Check", "label": "Đã huỷ", "read_only": 1, "insert_after": "customer"},
 		{"fieldname": "vgb_tam_tinh", "fieldtype": "Check", "label": "Tam tinh", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_ten", "fieldtype": "Data", "label": "XHD ten", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_mst", "fieldtype": "Data", "label": "XHD mst", "insert_after": "customer"},

@@ -455,6 +455,20 @@ def _doc_kiem_dem_ghi(d):
 		return {}
 
 
+def _nguon_ton_cho_man(d):
+	"""Mỗi dòng chỉ giải mã dấu kiểm một lần thay vì hai lần cho mỗi ô."""
+	ghi = _doc_kiem_dem_ghi(d)
+	return {
+		o: {
+			"trang_thai": trang_thai_o(d.get("nguon_" + o)),
+			"may_chuyen": int(d.get("may_chuyen_" + o) or 0),
+			"ai": (ghi.get(o) or {}).get("ai", ""),
+			"luc": (ghi.get(o) or {}).get("luc", ""),
+		}
+		for o in O_TON
+	}
+
+
 def _co_that(c, k, ma):
 	"""Ma co that: co tren Pancake, hoac co trong danh muc Hang hoa ben Next."""
 	if frappe.db.exists("Item", ma):
@@ -942,15 +956,7 @@ def bang(ngay=None):
 				"tat_web": (tat.get(d.ma_hang) or {}).get("tat", 0),
 				"tat_web_den": (tat.get(d.ma_hang) or {}).get("den_ngay", ""),
 				# Nguồn từng ô tồn (#216): nhãn, số máy chuyển, ai đếm lúc nào.
-				"nguon": {
-					o: {
-						"trang_thai": trang_thai_o(d.get("nguon_" + o)),
-						"may_chuyen": int(d.get("may_chuyen_" + o) or 0),
-						"ai": (_doc_kiem_dem_ghi(d).get(o) or {}).get("ai", ""),
-						"luc": (_doc_kiem_dem_ghi(d).get(o) or {}).get("luc", ""),
-					}
-					for o in O_TON
-				},
+				"nguon": _nguon_ton_cho_man(d),
 				# Máy chủ quyết dòng có xoá được không; màn hình chỉ bày nút theo
 				# khoá này, không tự suy từ số (Codex P1 vòng 4).
 				"xoa_duoc": int(dong_duoc_xoa(d)),

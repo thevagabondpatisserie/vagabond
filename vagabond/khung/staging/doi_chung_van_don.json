@@ -1,0 +1,7 @@
+{
+  "baseline_sha": "273d8f23776cc9fc2c2d2311f0d314852b12c801",
+  "baseline_path": "vagabond/public/js/bep/12-van-don.js",
+  "baseline_file_sha256": "aa82c893e912c4f5aadaa49d8500cdc85518a81f695047a9d17244f8c3b037ad",
+  "cu": "    try { ds = await api('vagabond.van_don.danh_sach', vdThamSo()); try { vdBoLoc = await api('vagabond.van_don.bo_loc', { ngay: vdNgay }); } catch (e9) { vdBoLoc = null; }\n    if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } }\n    await vdNapDiem(); }",
+  "moi": "    try {\n      var nap = await vdNapDanhSach();\n      ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];\n    }"
+}

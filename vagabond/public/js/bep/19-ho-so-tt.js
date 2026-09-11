@@ -83,6 +83,12 @@ async function scrHoSoTT() {
   if (hsTkChi) ts.tk_chi = hsTkChi;
   try { kq = await api('vagabond.ho_so_tt.danh_sach', ts); }
   catch (e) { frame('Hồ sơ thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
+  return hsVeDanhSach(kq);
+}
+
+// Chỉ chip trạng thái dùng lại tập đang hiển thị. Stack vẫn giữ scrHoSoTT,
+// nên quay lại sau xử lý chứng từ luôn tải mới, không giữ closure dữ liệu cũ.
+function hsVeDanhSach(kq) {
   var rows = kq.rows || [], NH = kq.nhan || {}, Q = kq.quyen || {};
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
@@ -249,7 +255,7 @@ async function scrHoSoTT() {
     el.onclick = function () { hsKhoang = +el.getAttribute('data-hsng'); hsTu = null; hsDen = null; go(scrHoSoTT, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hstt]'), function (el) {
-    el.onclick = function () { hsTT = el.getAttribute('data-hstt'); go(scrHoSoTT, true); };
+    el.onclick = function () { hsTT = el.getAttribute('data-hstt'); hsVeDanhSach(kq); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hsviec]'), function (el) {
     el.onclick = function () { hsViec = el.getAttribute('data-hsviec'); go(scrHoSoTT, true); };
