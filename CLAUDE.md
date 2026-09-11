@@ -1,7 +1,35 @@
 # CLAUDE.md
 
 Hướng dẫn cho Claude khi chạy trong repo này, kể cả khi chạy trên GitHub Actions.
-Chi tiết đầy đủ nằm trong `AGENTS.md`. Tệp này chỉ giữ những luật hay bị quên nhất.
+Tệp này chỉ giữ những luật hay bị quên nhất. Chi tiết nằm trong hai tệp bắt buộc
+đọc dưới đây.
+
+## ĐỌC BẮT BUỘC TRƯỚC DÒNG CODE ĐẦU TIÊN
+
+Chạy đúng ba lệnh này trước khi sửa bất cứ tệp nào, kể cả khi thấy việc nhỏ:
+
+```
+cat AGENTS.md
+cat docs/bai-hoc-su-co.md
+ls docs/
+```
+
+- `AGENTS.md` là quy ước kỹ thuật của repo: cấu trúc app `/bep`, nguyên tắc thiết
+  kế màn hình, quy ước viết code, các quy tắc nghiệp vụ đã chốt, bộ kiểm thử hai
+  tầng, trình tự deploy, cách phối hợp với Codex. Không đọc nó là chắc chắn làm
+  sai một quy ước nào đó.
+- `docs/bai-hoc-su-co.md` là các sự cố ĐÃ XẢY RA THẬT và cách phòng. Mỗi mục là
+  một lần mất code, mất email, hoặc một ca kiểm xanh mà lỗi vẫn lên production.
+  Đọc để không lặp lại, vì mọi lỗi trong đó đều từng lọt qua cổng kiểm.
+- `ls docs/` để thấy các tài liệu chuyên đề. Trước khi sửa một mảng nghiệp vụ,
+  `grep -rl <từ khoá>  docs/ AGENTS.md` để xem mảng đó đã có ghi chép chưa.
+
+Nhật ký làm việc đầy đủ theo từng phiên nằm ngoài repo, trong Claude Project
+"Vận hành - Operation", nên bản chạy trên GitHub không đọc được. Những bài học
+còn giá trị lâu dài đã được rút về `docs/bai-hoc-su-co.md`. Vì vậy: khi phát hiện
+một cái bẫy mới mà hai tệp trên chưa ghi, THÊM một mục ngắn vào
+`docs/bai-hoc-su-co.md` ngay trong PR đang làm. Đó là cách bản chạy trên GitHub
+tích luỹ kinh nghiệm.
 
 ## Bối cảnh
 
@@ -100,6 +128,9 @@ cả trang vào node bằng `vagabond/khung/kiem_thu/gia_lap_trang.js`.
 
 Chạy đột biến xong phải đọc trung thực. Nếu 5 đột biến chỉ bắt được 2 thì viết là
 2 kèm giải thích, không làm tròn thành 5 trên 5.
+
+Ba mục trên là bản rút gọn. Lý do đầy đủ và ca thật nằm trong
+`docs/bai-hoc-su-co.md`, đọc trước khi viết ca kiểm.
 
 ## Quy ước trình bày
 
