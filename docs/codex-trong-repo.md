@@ -66,6 +66,18 @@ lượt gần nhất trên PR và giới hạn đang được anh Việt duyệt
 không phải khoá cứng trong workflow; không nhận hai cơ chế là một.
 
 Nhật ký chi tiết của hai agent có thể ở hai môi trường khác nhau; chỉ
-`docs/bai-hoc-su-co.md` là nguồn bài học chung. Theo quy tắc trong `CLAUDE.md`,
-Claude đếm tối đa 3 comment mời Codex review trong 24 giờ trên mỗi PR rồi dừng.
-Đây là giới hạn lời dặn hiện hành; chưa chứng minh workflow có bộ đếm cứng.
+`docs/bai-hoc-su-co.md` là nguồn bài học chung. `CLAUDE.md` là nguồn quy tắc
+bàn giao và luật dừng: đếm theo cùng finding/điểm bất đồng trong 24 giờ, chỉ
+tính vòng lặp không mang bằng chứng mới; đủ 3 vòng như vậy thì dừng. Các việc
+độc lập không cộng chung để chặn việc mới. Giữ ID/link finding nhất quán.
+Đây là giới hạn mềm, không phải trần lượt hoặc token cứng cho toàn PR.
+
+Review không giao sửa. Muốn sửa, viết yêu cầu tác vụ rõ trên đúng PR, kèm SHA,
+finding, phạm vi và ca kiểm; xem mục Bàn giao trong `CLAUDE.md`. Ghi link yêu
+cầu, xác nhận/link tác vụ, commit và checks riêng. Khi cùng finding/phạm vi
+đang có người làm, không mở tác vụ thứ hai. Chưa có xác nhận thì báo chưa
+nhận/bị chặn, không tự gọi lặp; đọc lại nhánh sau phản hồi mơ hồ.
+
+Quy tắc này không tự cài worker, không đánh thức desktop và không chứng minh
+caller bot có quyền giao sửa/push. Cần kiểm trọn caller -> tác vụ -> commit
+đúng nhánh -> checks/review SHA cuối trước khi nhận bàn giao tự động hoạt động.

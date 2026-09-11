@@ -52,25 +52,48 @@ lệnh là việc bị treo mà không ai biết.
 finding rồi kết bằng `@codex review` là Codex chỉ rà soát thêm rồi trả lời, việc
 sửa không ai nhận. Đã xảy ra thật ngày 11/09/2026 trên PR #281.
 
-Muốn Codex tự đẩy bản sửa lên nhánh thì phải dùng `@codex fix`, và mô tả phải đủ
-cụ thể để làm được ngay, ví dụ:
+Muốn giao sửa, dùng yêu cầu rõ ràng như `@codex fix`; `fix` không phải từ
+khoá duy nhất để giao tác vụ. Kèm PR, SHA hiện tại, link/ID finding, phạm vi tệp,
+hành vi cần đạt và ca tái hiện/hồi quy. Ví dụ mẫu (điền các ô trước khi gửi):
 
-    @codex fix dat lai APPVER thanh 478 va them dong patch #v478 vao cuoi patches.txt
+    @codex fix finding <link> trên PR <số>, SHA <SHA>: sửa <hành vi> trong <tệp>, kiểm bằng <ca hồi quy>; đẩy vào nhánh PR hiện tại.
 
-chứ không phải `@codex fix cái lỗi ở trên`.
+Không ghim số phiên bản hoặc patch trong mẫu dùng lâu dài. Nếu công việc thực
+sự cần tăng phiên bản, fetch main và đọc phiên bản/patch hiện hành trước; giữ
+lịch sử patch và không hạ phiên bản. Sửa tài liệu không tự sinh patch ERP.
 
-### BA LỆNH TRÊN CHỈ CHẠY TRONG PULL REQUEST
+### Đường nhận lệnh của tích hợp GitHub đang dùng
 
-Codex không nhận lệnh từ comment trong Issue. Vì vậy:
+Tài liệu OpenAI hướng dẫn đặt lệnh trong **comment của đúng PR**:
+https://developers.openai.com/codex/integrations/github (đối chiếu 11/09/2026).
+Review chỉ rà soát; yêu cầu tác vụ ngoài review tạo cloud chat theo PR và chỉ
+có thể đẩy bản sửa khi được cấp quyền. Không coi chữ `fix` là bảo đảm push.
 
-- Finding nào cần sửa code thì phải viết vào comment của ĐÚNG PR chứa code đó,
-  kèm `@codex fix`. Đặt lệnh `@codex` trong issue là việc nằm im, không ai nhận.
-- Nếu trong issue có finding, ghi rõ nó thuộc PR số mấy rồi sang PR đó mà giao việc.
-- Chỗ này CHỈ cấm đặt lệnh `@codex` trong issue, KHÔNG thu hẹp các vai trò khác của
-  issue. Theo `AGENTS.md` mục 9, issue đang `In progress` kèm owner, branch và phạm
-  vi tệp vẫn là NGUỒN KHOÁ CHUNG giữa các agent. Vẫn phải claim trong issue trước
-  khi nhận việc, vẫn bàn giao bằng mẫu handoff khi chưa có PR, và không sửa vào
-  phạm vi agent khác đã claim. Bỏ bước claim là hai phiên cùng sửa một chỗ.
+- Với tích hợp này, không dựa vào mention trong issue để giao việc tự động.
+  Nếu finding nằm ở issue, dẫn link nó trong comment trên PR chứa code cần sửa.
+- Issue đang `In progress` kèm owner, branch và phạm vi tệp vẫn là NGUỒN KHOÁ
+  CHUNG theo `AGENTS.md` mục 9. Phải claim trong issue, bàn giao khi chưa có PR
+  và không sửa phạm vi agent khác đang nhận.
+- Bộ nhận issue riêng ở PR #281 là cơ chế khác. Chỉ dựa vào nó sau khi đã kiểm
+  trạng thái phát hành, bật cấu hình và có worker; biên nhận queued không phải
+  Codex đã bắt đầu làm. Không suy ra nó hoạt động từ việc PR đã được mở.
+
+### Xác nhận bàn giao, không chỉ gửi lệnh
+
+Sau khi gửi, ghi link comment yêu cầu và tìm xác nhận nhận việc/link tác vụ
+Codex. Phân biệt: chưa nhận, đang làm, bị chặn, đã có commit. Review hoàn tất
+không chứng minh tác vụ sửa đã chạy hoặc có quyền push. Không có xác nhận thì
+kiểm danh tính người gọi, môi trường/quyền và trạng thái cloud; báo chỗ thiếu,
+không gọi lại liên tục. Không tự kết luận là hết token hay lỗi đồng bộ.
+
+Nếu một tác vụ đang sửa cùng finding/phạm vi trên PR, bổ sung bằng chứng vào
+đầu mối hiện tại, không mở tác vụ sửa thứ hai. Mất phản hồi không chứng minh
+lượt trước chưa ghi commit; đọc lại nhánh trước khi giao lại.
+
+Để nhận luồng tự động đã hoạt động, cần một lần kiểm sửa nhỏ được phép từ đúng
+caller `claude[bot]`: có tác vụ Codex được nhận, có commit trên đúng nhánh PR,
+rồi checks/review đúng SHA cuối. Đổi Markdown hoặc sửa thủ công từ desktop
+không thay bằng chứng này; lời gọi GitHub cũng không tự đánh thức phiên desktop.
 
 ### Khi nào KHÔNG gọi Codex
 
@@ -90,13 +113,19 @@ lệnh `@codex`, đếm xem Claude đã gọi Codex bao nhiêu lần cho ĐÚNG 
 bằng chứng mới nào so với lần trước.
 
 - Đã có 3 vòng như vậy: KHÔNG gọi nữa. Thay vào đó viết một đoạn ngắn nói rõ hai
-  bên đang bất đồng chỗ nào và mời anh Việt phân xử. Ghi rõ mỗi bên đang lập luận gì.
+  bên đang bất đồng chỗ nào và mời anh Việt phân xử. Nếu chỉ bị lỗi khởi chạy,
+  báo lỗi khởi chạy và bằng chứng còn thiếu, không mô tả thành bất đồng kỹ thuật.
 - Chưa tới 3: gọi bình thường, và ghi rõ đây là vòng thứ mấy của việc đó.
 
 Một PR có ba bốn việc độc lập thì mỗi việc có bộ đếm riêng. Một lần review rồi hai
 lần `@codex fix` cho ba finding KHÁC NHAU không phải là ba vòng, và việc thứ tư
 vẫn được giao bình thường. Chặn nhầm ở đây là quay lại đúng cái lỗi mà luật này
 sinh ra để chữa: lỗi mới không ai nhận.
+
+Đây là giới hạn mềm do agent tự đếm, không phải khoá workflow hay trần tổng
+chi phí. Đổi finding/đính thêm bằng chứng không làm hệ thống có một trần chi
+phí cứng. Dùng ID/link finding nhất quán để đối chiếu; không đổi tên cùng một
+việc để né bộ đếm. Không có bằng chứng workflow thì không nhận đã chặn cứng.
 
 Cũng KHÔNG trả lời nếu comment mới nhất của Codex không mang finding mới nào, chỉ
 là xác nhận hay cảm ơn.

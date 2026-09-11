@@ -161,3 +161,18 @@ Migrate. Trước khi sửa Server Script phải báo chủ repo.
 
 Đây là luật cứng của GitHub, không phải thiếu quyền, cấp thêm quyền cũng không
 qua được. Mọi thay đổi trong thư mục đó phải người thật sửa tay.
+
+
+## PR281/282: review không tự giao sửa finding
+
+Ngày 11/09/2026, Claude đăng finding trên PR #281 rồi kết bằng lệnh review;
+không có bằng chứng tác vụ sửa đã được nhận. Review chỉ yêu cầu rà soát, còn
+việc sửa cần một yêu cầu tác vụ riêng. Sửa lời dặn không tự cài bộ thực thi.
+
+Cách phòng: theo mục Bàn giao trong `CLAUDE.md`, gửi đúng PR/SHA/finding và
+phạm vi; kiểm xác nhận/link tác vụ, commit đúng nhánh và checks/review SHA cuối.
+Không gọi sửa trùng khi người khác đang làm cùng phạm vi, không coi thiếu
+phản hồi là chưa có commit. Chưa có log thì không kết luận lỗi đồng bộ/quota.
+Luật dừng theo từng việc trong `CLAUDE.md` là nguồn chung; tài liệu Codex phải
+đồng bộ, không giữ cách đếm tổng comment cũ làm chặn các finding độc lập.
+Nguồn: PR #281, review và sửa tài liệu PR #282; chưa có nghiệm thu bot-to-bot.
