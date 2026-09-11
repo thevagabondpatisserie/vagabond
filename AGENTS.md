@@ -1,6 +1,13 @@
 # Đọc trước khi sửa một dòng nào
 
-## Đầu phiên Codex: đọc quy ước và bài học chung
+Tệp này dành cho MỌI trợ lý lập trình làm việc trên repo này: Roo Code,
+Claude Code, Cline, Gemini CLI, Cursor, hoặc người mới. Đọc hết rồi hãy gõ.
+
+Đây là hệ đang chạy thật của một tiệm bánh: có tiền, có kho, có hoá đơn
+điện tử gửi cơ quan thuế. Một lỗi ở đây không phải là một bug, nó là một
+ca bán hàng sai số hoặc một kho lệch không đối chiếu lại được.
+
+## Đầu phiên: đọc quy ước và bài học chung
 
 Trước khi sửa, đọc hết tệp này, `tai_lieu/INSTRUCTION_VAGABOND.md` và
 `docs/bai-hoc-su-co.md`; dùng `rg --files docs` rồi tìm từ khoá nghiệp vụ
@@ -14,18 +21,14 @@ Nhật ký chi tiết local vẫn theo mục 10. Nếu cloud không có thư m�
 trên máy anh Việt, ghi bàn giao trên PR và nói rõ chưa cập nhật nhật ký local;
 không tạo database hoặc giả nhận đã ghi trên máy.
 
-Mặc định Codex cho repo: **Astra, mức Light/low** theo yêu cầu anh Việt
+## Model mặc định dành cho Codex
+
+Cấu hình mặc định dự án: **Astra, mức Light/low** theo yêu cầu anh Việt
 11/09/2026. Giá trị cấu hình là `gpt-6-astra` và `model_reasoning_effort = "low"`
 trong `.codex/config.toml`. Không tự nâng effort hoặc bật Fast Mode. Đọc
 `docs/codex-trong-repo.md` để biết phạm vi áp dụng và cách xác minh model thật.
 Chỉ báo đã chạy đúng model khi có metadata của phiên; lời dặn không đổi model.
 
-Tệp này dành cho MỌI trợ lý lập trình làm việc trên repo này: Roo Code,
-Claude Code, Cline, Gemini CLI, Cursor, hoặc người mới. Đọc hết rồi hãy gõ.
-
-Đây là hệ đang chạy thật của một tiệm bánh: có tiền, có kho, có hoá đơn
-điện tử gửi cơ quan thuế. Một lỗi ở đây không phải là một bug, nó là một
-ca bán hàng sai số hoặc một kho lệch không đối chiếu lại được.
 
 ---
 

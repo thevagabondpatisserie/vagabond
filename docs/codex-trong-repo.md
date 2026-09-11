@@ -28,7 +28,25 @@ này dùng `.codex/config.toml` để chọn model; không báo nó đang dùng 
 vì tệp đã có trong git. Nếu sau này chạy Codex CLI qua workflow riêng, phải
 kiểm model/effort thực tế ở runtime trước khi công nhận cấu hình có hiệu lực.
 
-Nguồn cấu hình: https://learn.chatgpt.com/docs/config-file/config-reference
+### Cách dùng thật và nguồn đã đối chiếu ngày 11/09/2026
+
+Codex hiện hỗ trợ tự nạp `.codex/config.toml` trong repo đã tin cậy. Mở CLI
+ở checkout này rồi dùng `/status` để kiểm model/effort. Có thể chọn tường minh:
+
+```sh
+codex --model gpt-6-astra -c 'model_reasoning_effort="low"'
+```
+
+Không đổi `CODEX_HOME` sang repo: biến này đổi cả nơi lưu trạng thái của Codex,
+không cần thiết để nạp cấu hình dự án. Chưa chạy một phiên model mới để xác minh
+metadata trong PR này; kiểm TOML không thay bằng chứng model thực tế.
+
+Nguồn chính thức đã mở ngày 11/09/2026:
+- https://developers.openai.com/codex/config-basic chuyển hướng tới
+  https://learn.chatgpt.com/docs/config-file/config-basic, mục Configuration
+  precedence ghi project config đứng sau CLI overrides, chỉ nạp repo tin cậy.
+- https://developers.openai.com/codex/config-reference chuyển hướng tới
+  https://learn.chatgpt.com/docs/config-file/config-reference.
 
 ## Trước và sau mỗi phiên
 
@@ -46,3 +64,8 @@ cần rà; không tag vì cảm ơn, xác nhận hoặc vì bot vừa trả lờ
 hoặc chỉ còn bất đồng lặp lại để anh Việt quyết định. Trước khi mời, kiểm các
 lượt gần nhất trên PR và giới hạn đang được anh Việt duyệt. Đếm trong lời dặn
 không phải khoá cứng trong workflow; không nhận hai cơ chế là một.
+
+Nhật ký chi tiết của hai agent có thể ở hai môi trường khác nhau; chỉ
+`docs/bai-hoc-su-co.md` là nguồn bài học chung. Theo quy tắc trong `CLAUDE.md`,
+Claude đếm tối đa 3 comment mời Codex review trong 24 giờ trên mỗi PR rồi dừng.
+Đây là giới hạn lời dặn hiện hành; chưa chứng minh workflow có bộ đếm cứng.
