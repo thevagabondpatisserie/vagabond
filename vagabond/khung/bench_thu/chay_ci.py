@@ -89,6 +89,9 @@ def chay():
 
 
 if __name__ == "__main__":
+	web_http = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.web_http_245"], check=False)
+	if web_http.returncode:
+		raise RuntimeError("Cửa HTTPS/cookie/đồng thời web chưa đạt.")
 	# Kiểm web trong cùng bench riêng trước các bộ nghiệp vụ hiện hành.
 	web = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.chay_web_245"], check=False)
 	if web.returncode:
