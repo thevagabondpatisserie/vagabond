@@ -6235,7 +6235,7 @@ la("chi tra bon ky tu cuoi", "k[-4:]" in _soi49, True)
 la("khoa ngan thi khong he lo gi", '"..."' in _soi49, True)
 la("co duong soi khoa", "def soi_khoa(" in _sp49, True)
 _sk49 = _sp49.split("def soi_khoa(")[1].split("@frappe.whitelist()")[0]
-la("soi khoa chan nguoi ngoai", "_kiem_quyen()" in _sk49, True)
+la("soi khoa chi cho quan ly tai chinh", 'if not {"System Manager", "Accounts Manager"} & set(frappe.get_roles())' in _sk49, True)
 la("soi ca bon o khoa", "sepay_hmac_2" in _sk49, True)
 # Khong duoc lo ca khoa ra ngoai.
 for _cam49 in ('return key(c,', 'ra[o] = key(c'):
