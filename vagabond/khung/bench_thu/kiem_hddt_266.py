@@ -349,7 +349,8 @@ def chay():
 				tra_loi['am_tinh'] = dict(code='01', message='not found', data=None)
 				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
 				truoc, truoc_hoi = len(gui), len(hoi)
-				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				with patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', ()):
+					ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
 				_bang('F1v5 chưa khai mẫu thì câu sạch cũng giữ cờ', frappe.db.get_value(
 					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 1)
 				_bang('F1v5 không gỡ cờ tờ nào', ra.get('go_co'), 0)
@@ -375,11 +376,10 @@ def chay():
 					_bang('F1v5 phản ví dụ %s không gửi lại' % ten_pv, len(gui), truoc)
 				kq['phan'].append({'ten': 'F1 vòng 5 ba phản ví dụ vẫn giữ cờ', 'dat': True})
 
-				# Khai đúng mẫu VÀ trả đúng mẫu thì mới gỡ, và tờ được gửi đi.
-				tra_loi[kep.name] = dict(code='01', message='not found', data=None)
+				# Replay phản hồi live29404, không vá mẫu product.
+				tra_loi[kep.name] = dict(code='29404', message='Get Invoice fail because not found  invoice is not exist.', ok=False)
 				truoc = len(gui)
-				with patch.object(hddt_cho_xuat, 'MAU_KHONG_CO_TO', mau_thu):
-					ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
+				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
 				_bang('F1v5 khai mẫu rồi thì gỡ được', frappe.db.get_value(
 					'Sales Invoice', kep.name, 'vgb_hddt_cho_doi_chieu'), 0)
 				_bang('F1v5 gỡ đúng một tờ', ra.get('go_co'), 1)

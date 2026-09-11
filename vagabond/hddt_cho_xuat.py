@@ -154,15 +154,16 @@ def _ma_phan_hoi(phan_hoi):
 
 # MẪU PHẢN HỒI "KHÔNG CÓ TỜ" ĐÃ XÁC MINH CỦA GetInfoInvoice.
 #
-# Để RỖNG là cố ý. Chưa ai bắt được phản hồi thật của m-invoice khi hỏi một
-# mã phiếu không tồn tại, nên chưa có căn cứ nào để nói phản hồi X nghĩa là
-# "chưa có hoá đơn". Chừng nào còn rỗng thì máy KHÔNG tự gỡ cờ đối chiếu của
-# bất kỳ tờ nào, chỉ liệt kê ra cho kế toán đối chiếu tay.
-#
-# Khi nào bắt được mẫu thật thì khai vào đây, mỗi phần tử là một dict các
-# khoá BẮT BUỘC phải khớp đúng, kèm ghi chú ai xác minh và ngày nào. Đừng
-# khai theo suy đoán: gỡ cờ sai là gửi hoá đơn đúp lên cơ quan thuế.
-MAU_KHONG_CO_TO = ()
+# Codex đối chiếu trực tiếp 11/09/2026: tờ HDB-26-09-01429 trả đúng
+# số12925/1C26MPV; mã chưa tồn tại và HDB-26-09-01650 trả cùng mẫu dưới.
+# Tài liệu M-Invoice2.0 v1.0.9 trang31 định nghĩa29404 không tìm thấy hóa đơn.
+# Bằng chứng, nguồn và giới hạn: docs/bang-chung-minvoice-29404-20260911.md.
+# Chỉ nhận đúng toàn bộ cấu trúc; thêm/bớt khóa hoặc đổi kiểu đều giữ cờ.
+MAU_KHONG_CO_TO = ({
+	"code": "29404",
+	"message": "Get Invoice fail because not found  invoice is not exist.",
+	"ok": False,
+},)
 
 
 def khop_mau_khong_co_to(phan_hoi, mau=None):
@@ -173,7 +174,7 @@ def khop_mau_khong_co_to(phan_hoi, mau=None):
 	for m in mau:
 		if not isinstance(m, dict) or not m:
 			continue
-		if all(k in phan_hoi and phan_hoi.get(k) == v for k, v in m.items()):
+		if set(phan_hoi) == set(m) and all(type(phan_hoi[k]) is type(v) and phan_hoi[k] == v for k, v in m.items()):
 			return True
 	return False
 

@@ -671,12 +671,12 @@ CHUNG_THU = {"duong": "SI-X", "so_hd": "12943", "khoa_am": "VGB-KHONG-TON-TAI-AB
 
 
 @ca("#266 vòng 5 (F1): chưa khai mẫu đã xác minh thì KHÔNG gỡ cờ tờ nào")
+@unittest.mock.patch.object(hddt_cho_xuat, "MAU_KHONG_CO_TO", ())
 def _chua_khai_mau():
 	"""Tái hiện được ba phản ví dụ của Codex. Cách cũ suy mẫu not-found bằng
 	cách hỏi một mã bịa ra rồi lấy mã trả về làm chuẩn: chỉ chứng minh "cổng
 	trả mã ấy cho mã đó", không chứng minh mọi phản hồi mang mã ấy nghĩa là
 	không có tờ. Đo trước sửa: cả ba ca dưới đây đều cho GỠ CỜ."""
-	la("mô đun thật để mẫu RỖNG là cố ý", hddt_cho_xuat.MAU_KHONG_CO_TO, ())
 	# A. mẫu âm không có khoá code, tờ thật bị từ chối quyền: cùng mã None.
 	a = {"message": "Không đủ quyền"}
 	# B. mẫu âm 9999, tờ thật cũng 9999 - đúng mã đã từ chối 116 tờ TCV đêm 09/09.
@@ -1238,3 +1238,16 @@ def _chi_nhap_khong_bao_sai_xac_nhan():
 			la("không ghi xác nhận " + che_do, ghi.call_count, 0)
 			dung("không báo sai đã xác nhận " + che_do, "Đã xác nhận" not in ra["nhat_ky"])
 			dung("hướng dẫn ghi sổ nháp " + che_do, "ghi sổ" in ra["nhat_ky"])
+
+
+@ca("#266 mẫu live29404: chỉ đúng schema đã đo và có đối chứng mới gỡ")
+def _mau_live_29404():
+	ph = {"code": "29404", "message": "Get Invoice fail because not found  invoice is not exist.", "ok": False}
+	dung("mẫu live được nhận", hddt_cho_xuat.minvoice_khong_co_to(ph, CHUNG_THU))
+	dung("không đối chứng thì giữ", not hddt_cho_xuat.minvoice_khong_co_to(ph))
+	for sai in (dict(ph, code=29404), dict(ph, ok=0), dict(ph, ok=True),
+			dict(ph, message="Không đủ quyền"), dict(ph, data={"reason": "permission denied"}),
+			dict(ph, inv_invoiceNumber=12925), {"code": "29404"},
+			{"code": "00", "ok": True, "data": {"inv_invoiceNumber": 12925}},
+			{"code": "9999", "message": "Mã thuế suất không hợp lệ"}):
+		dung("không nhận phản hồi lệch " + str(sai), not hddt_cho_xuat.minvoice_khong_co_to(sai, CHUNG_THU))
