@@ -106,7 +106,7 @@ def chay():
 	# 'am_tinh' la cau tra loi cho MA PHIEU BIA RA ma kiem_chung_api hoi de
 	# do hinh dang "khong co to" cua m-invoice (#266 vong 3).
 	tra_loi = {'mac_dinh': dict(code='00', data=None),
-		'am_tinh': dict(code='01', message='not found', data=None)}
+		'am_tinh': dict(code='29404', message='Get Invoice fail because not found  invoice is not exist.', ok=False)}
 
 	def chan(*a, **kw):
 		raise AssertionError('HTTP ngoài stub bị chặn trong bench #266')
@@ -247,14 +247,17 @@ def chay():
 				frappe.db.savepoint(diem_xn)
 				ngay_muon = add_days(hom_nay, -2)
 				to_muon = _hoa_don(ngay_muon)
+				to_khong_chon = _hoa_don(ngay_muon)
 				to_sau = _hoa_don(hom_qua)
 				truoc = len(gui)
 				xem_muon = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=1)
 				with patch('rq.Queue.enqueue_call', side_effect=RuntimeError('bench RQ enqueue_call')):
 					ra = hddt_cho_xuat.xu_ly_ngay_cu(str(ngay_muon), chay_thu=0,
 						che_do='giu_ngay', xac_nhan_qua_han=1,
-						ly_do='Kiểm bench: giữ ngày lập, ký ngày thực tế', pham_vi=xem_muon['pham_vi'])
+						ly_do='Kiểm bench: giữ ngày lập, ký ngày thực tế', pham_vi=xem_muon['pham_vi'], phieu_chon=[to_muon.name])
 				_bang('xác nhận muộn API + worker gửi đúng một tờ', len(gui) - truoc, 1)
+				_bang('tờ có trong preview nhưng không chọn không được cấp quyền', hddt_cho_xuat._ngay_xac_nhan_qua_han(hom_nay, to_khong_chon.name), ())
+				_bang('không gửi tờ bỏ chọn', bool(frappe.db.get_value('Sales Invoice', to_khong_chon.name, 'custom_minvoice_id')), False)
 				_bang('xác nhận giữ nguyên ngày lập trong payload',
 					gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(ngay_muon))
 				_bang('xác nhận không đổi ngày sổ', str(frappe.db.get_value('Sales Invoice', to_muon.name, 'posting_date')), str(ngay_muon))
@@ -377,6 +380,7 @@ def chay():
 				kq['phan'].append({'ten': 'F1 vòng 5 ba phản ví dụ vẫn giữ cờ', 'dat': True})
 
 				# Replay phản hồi live29404, không vá mẫu product.
+				tra_loi['am_tinh'] = dict(code='29404', message='Get Invoice fail because not found  invoice is not exist.', ok=False)
 				tra_loi[kep.name] = dict(code='29404', message='Get Invoice fail because not found  invoice is not exist.', ok=False)
 				truoc = len(gui)
 				ra = hddt_cho_xuat.chay_nen(str(hom_qua), 'giu_ngay', 'bench')
@@ -386,6 +390,9 @@ def chay():
 				_bang('F1v5 gỡ xong thì gửi tờ đó đi', len(gui), truoc + 1)
 				kq['phan'].append({'ten': 'F1 vòng 5 khai mẫu rồi mới gỡ', 'dat': True,
 					'da_gui': len(gui) - truoc})
+
+				# Các ca xen kẽ tiếp theo dùng mẫu giả định01 như trước.
+				tra_loi["am_tinh"] = dict(code="01", message="not found", data=None)
 
 				# ------------------------------- F5đt vòng 5: hai lượt chạy đồng thời
 				# Codex đòi kiểm đồng thời thật. Bản trước gỡ cờ và commit TỪNG

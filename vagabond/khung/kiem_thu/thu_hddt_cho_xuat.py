@@ -751,7 +751,7 @@ def _doi_chung_dung_to():
 
 	dung_to = {"code": "00", "data": {"inv_invoiceNumber": "12943"}}
 	to_khac = {"code": "00", "data": {"inv_invoiceNumber": "99999"}}
-	sach = {"code": "01", "message": "not found", "data": None}
+	sach = dict(hddt_cho_xuat.MAU_KHONG_CO_TO[0])
 
 	(chung, cau), hoi = chay(lambda k: dung_to if k == "SI-DA-CO-HDDT" else sach)
 	dung("đối chứng được", bool(chung))
@@ -1251,3 +1251,41 @@ def _mau_live_29404():
 			{"code": "00", "ok": True, "data": {"inv_invoiceNumber": 12925}},
 			{"code": "9999", "message": "Mã thuế suất không hợp lệ"}):
 		dung("không nhận phản hồi lệch " + str(sai), not hddt_cho_xuat.minvoice_khong_co_to(sai, CHUNG_THU))
+
+
+@ca("#266 mẫu âm đổi cấu trúc thì không cấp đối chứng cho lượt gỡ cờ")
+def _mau_am_doi_cau_truc():
+	gia = unittest.mock.MagicMock()
+	gia.db.get_value.return_value = {"name": "SI-DUONG", "custom_hddt_so": "12925"}
+	def hoi(base, hdr, khoa):
+		return {"code": "00", "data": {"inv_invoiceNumber": 12925}} if khoa == "SI-DUONG" else {"code": "01", "message": "not found"}
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia), unittest.mock.patch.object(hddt_cho_xuat, "_hoi_minvoice", hoi):
+		chung, cau = hddt_cho_xuat.kiem_chung_api("http://x", {})
+		la("mẫu âm lệch không cấp đối chứng", chung, None)
+		dung("tờ thật trả29404 cũng không gỡ", not hddt_cho_xuat.minvoice_khong_co_to(dict(hddt_cho_xuat.MAU_KHONG_CO_TO[0]), chung))
+
+
+@ca("#266 chọn một phần preview: không nhận tập rỗng hoặc tờ ngoài snapshot")
+def _chon_mot_phan_snapshot():
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	import sys
+	from vagabond.khung.kiem_thu.nen import nem
+	ban = unittest.mock.MagicMock()
+	for tap in ([], ["SI-NGOAI"]):
+		gia = unittest.mock.MagicMock()
+		gia.get_roles.return_value = ["System Manager"]
+		gia.throw.side_effect = ValueError("ngoài phạm vi")
+		with ExitStack() as stack:
+			stack.enter_context(unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": ban}))
+			for obj, ten, kw in ((hddt_cho_xuat, "frappe", {"new": gia}),
+				(hddt_cho_xuat, "nowdate", {"return_value": "2026-09-11"}),
+				(hddt_cho_xuat, "_ngay_xac_nhan_qua_han", {"return_value": ()}),
+				(hddt_cho_xuat, "_dem_theo_ngay", {"side_effect": [([],), ([SimpleNamespace(name="SI-NHAP", docstatus=0)],)]}),
+				(ban, "_kiem_quyen", {"return_value": None}),
+				(ban, "_ngay_so_hddt_moi_nhat", {"return_value": D(2026, 9, 8)})):
+				stack.enter_context(unittest.mock.patch.object(obj, ten, **kw))
+			ghi = stack.enter_context(unittest.mock.patch.object(hddt_cho_xuat, "_ghi_xac_nhan_qua_han"))
+			nem("tập không hợp lệ phải dừng", lambda: hddt_cho_xuat.xu_ly_ngay_cu("2026-09-09", chay_thu=0,
+				che_do="giu_ngay", xac_nhan_qua_han=1, pham_vi=["SI-NHAP"], phieu_chon=tap), ValueError)
+			la("không ghi quyền", ghi.call_count, 0)

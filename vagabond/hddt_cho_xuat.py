@@ -125,24 +125,7 @@ def loc_to_keo(rows, ngay_cu, hom_nay, ds_nguon, ds_quay, gom_nhap=False):
 	return ra
 
 
-# Dấu hiệu phản hồi là LỖI chứ không phải câu trả lời "không có tờ".
-DAU_HIEU_LOI = ("error", "exception", "fail", "timeout", "unauthorized", "forbidden",
-	"internal", "server", "denied", "expired", "hết hạn", "loi ", "lỗi")
-KHOA_PHAN_HOI = {"code", "data", "message", "ok"}
-
-# Mã phiếu bịa ra để đo hình dạng phản hồi "không có tờ" của m-invoice.
 KHOA_AM_TINH = "VGB-KHONG-TON-TAI"
-
-
-def _la_loi_he_thong(phan_hoi):
-	"""Mã 3 chữ số bắt đầu 4 hoặc 5, hay message nói lỗi, thì đây là lỗi của
-	m-invoice chứ không phải câu trả lời về tờ hoá đơn. Mã 296 (từ chối thật)
-	bắt đầu bằng 2 nên không rơi vào đây."""
-	ma = str(phan_hoi.get("code") or "").strip()
-	if len(ma) == 3 and ma.isdigit() and ma[0] in "45":
-		return True
-	tin = str(phan_hoi.get("message") or "").lower()
-	return any(d in tin for d in DAU_HIEU_LOI)
 
 
 def _ma_phan_hoi(phan_hoi):
@@ -502,6 +485,8 @@ def kiem_chung_api(base, hdr):
 	if _co_dau_vet(am):
 		return None, ("m-invoice trả dấu vết chứng từ cho mã %s vốn chưa từng tồn tại, "
 			"cổng đang nhận vơ, không tin được lượt này" % khoa_am)
+	if MAU_KHONG_CO_TO and not khop_mau_khong_co_to(am):
+		return None, "Phản hồi mã đối chứng không tồn tại khác mẫu đã đo; dừng gỡ cờ cả lượt."
 	return ({"duong": ten, "so_hd": so_hd, "khoa_am": khoa_am},
 		"đã đối chứng bằng tờ %s (số %s) và mã không tồn tại %s" % (ten, so_hd, khoa_am))
 
@@ -538,7 +523,7 @@ def _dem_theo_ngay(ngay_cu, hom_nay, gom_nhap=False):
 
 
 @frappe.whitelist()
-def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pham_vi=None):
+def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pham_vi=None, phieu_chon=None):
 	"""Xử tờ đã ghi sổ của một ngày mà chưa có hoá đơn điện tử.
 
 	Hai cách, người chọn, máy đề xuất theo cửa m-invoice còn mở hay không:
@@ -596,7 +581,16 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pha
 		pham_vi = json.loads(pham_vi) if isinstance(pham_vi, str) else pham_vi
 		if not isinstance(pham_vi, list) or not pham_vi or set(pham_vi) != set(kq["pham_vi"]):
 			frappe.throw("Phạm vi chứng từ đã thay đổi hoặc chưa được xem trước. Mở lại màn hình để xác nhận đúng danh sách.")
-		_ghi_xac_nhan_qua_han(ngay_cu, hom_nay, ly_do, pham_vi)
+		# Có thể xử một phần đã xem (ví dụ một tờ đầu), không cấp quyền cả ngày.
+		phieu_chon = json.loads(phieu_chon) if isinstance(phieu_chon, str) else phieu_chon
+		if phieu_chon is None:
+			phieu_chon = pham_vi
+		if not isinstance(phieu_chon, list) or not phieu_chon or not set(phieu_chon).issubset(set(pham_vi)):
+			frappe.throw("Danh sách chọn phải là một phần không rỗng của phạm vi vừa xem.")
+		chon = [r for r in chon if r.name in phieu_chon]
+		kq.update(pham_vi=phieu_chon, chon=len(chon), tien=sum(flt(r.grand_total) for r in chon),
+			so_nhap=sum(1 for r in pham_vi_hien_tai if r.name in phieu_chon and cint(r.docstatus) == 0))
+		_ghi_xac_nhan_qua_han(ngay_cu, hom_nay, ly_do, phieu_chon)
 		xac_nhan = (ngay_cu,)
 	if che_do == "giu_ngay" and not cua_con_mo(ngay_cu, hom_nay, moi_nhat, xac_nhan):
 		if not cua_phap_ly:
