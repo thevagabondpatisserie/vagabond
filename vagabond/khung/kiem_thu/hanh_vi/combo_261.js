@@ -26,3 +26,20 @@ const dong={ten:'Món',qty:3,rate:35769,combo:'KMCB - Combo',combo_tien:107308};
 const gop=ctx.posGopDongMon([dong,{...dong}]);
 assert.equal(gop.length,1);assert.equal(gop[0].qty,6);assert.equal(gop[0].combo_tien,214616);
 console.log('PASS #261: gộp dòng in cộng thành tiền đã chốt, không nhân lại rate làm tròn');
+
+(async function () {
+  Object.assign(ctx,{b:{},posSua:{mon:bo.slice()},hutSua:()=>{},go:()=>{},scrPosBill:()=>{},name:'SI1'});
+  const batDau=bill.indexOf('  b.onclick = async function (e) {');
+  vm.runInContext(bill.slice(batDau,bill.indexOf('  var ntm =',batDau)),ctx);
+  const bam=i=>ctx.b.onclick({target:{closest:s=>s==='[data-sxoa]'?{getAttribute:()=>String(i)}:null}});
+  let hoi=0;
+  ctx.confirmSheet=async()=>{hoi++;return false;};
+  await bam(0);assert.equal(ctx.posSua.mon.length,4);assert.equal(hoi,1);
+  ctx.confirmSheet=async()=>{hoi++;return true;};
+  await bam(0);assert.deepEqual(Array.from(ctx.posSua.mon,x=>x.combo_ma_goc),[undefined,'CB2']);
+  await bam(0);assert.equal(ctx.posSua.mon.length,1);assert.equal(hoi,2);
+  ctx.posSua={mon:bo.slice()};
+  ctx.confirmSheet=async()=>{ctx.posSua.mon.splice(0,1);return true;};
+  await bam(0);assert.equal(ctx.posSua.mon.length,3);
+  console.log('PASS #261: handler xóa thật kiểm Hủy, xác nhận, món lẻ và dòng đổi lúc đang hỏi');
+})().catch(e=>{console.error(e);process.exitCode=1;});

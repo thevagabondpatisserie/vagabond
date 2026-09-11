@@ -266,7 +266,9 @@ def giu_dong_sua(si, gui, dong):
     if gui.get('dong_goc') and not cu:
         frappe.throw('Dòng bill gốc không còn tồn tại. Tải lại bill rồi sửa tiếp.')
     if not cu and any(x.item_code == dong['item_code'] and x.get('vgb_combo_luong') for x in si.items):
-        frappe.throw('Món thuộc combo thiếu dòng gốc. Lưu việc xóa toàn bộ combo trước khi thêm lại món lẻ.')
+        gia_le = frappe.db.get_value('Item',dong['item_code'],'standard_rate')
+        if not gia_le or Decimal(str(dong['rate'])) != Decimal(str(gia_le)):
+            frappe.throw('Món thuộc combo thiếu dòng gốc. Món lẻ thêm mới phải dùng giá bán trong danh mục.')
     if not cu or not cu.get('vgb_combo_luong'):
         return dong
     if cu.item_code != dong['item_code'] or any(

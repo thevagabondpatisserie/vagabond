@@ -122,9 +122,15 @@ def _chan_sua_rieng(hd):
     thu('xóa dấu tiền',lambda d:d.items[1].set('vgb_combo_luong',0),'bỏ dấu combo')
     thu('đổi lượng',lambda d:d.items[1].set('qty',2),'không được sửa riêng')
     thu('đổi tiền',lambda d:d.items[1].set('vgb_combo_tien',1),'không được sửa riêng')
+    ma_bo = hd.items[1].vgb_combo_ma
+    thu('phiếu có số phát hành không rã lại',
+        lambda d:(d.set('custom_hddt_so','KIEM261-DA-PHAT-HANH'),d.append('items',dict(item_code=ma_bo,qty=1,rate=155000))),
+        'không tự rã lại')
+    thu('ngoại tệ không nhận phân bổ VND',
+        lambda d:(d.set('currency','USD'),d.set('conversion_rate',25000)),
+        'cần hoá đơn VND')
     hd.reload()
-    hd.db_set({'vgb_quay':'TCV','custom_nguon':'GrabFood','vgb_pt_thanh_toan':'GrabFood',
-        'vgb_ma_tham_chieu':'KT261-'+frappe.generate_hash(length=8)})
+    hd.db_set({'vgb_quay':'TCV','custom_nguon':'GrabFood','vgb_pt_thanh_toan':'GrabFood'})
     gui = [dict(item_code=d.item_code,qty=d.qty,rate=d.rate,dong_goc=d.name) for d in hd.items]
     for ten, ds, cau in (('app xóa một món',gui[:-1],'xóa riêng món'),
             ('app bỏ dòng gốc',[dict(d,dong_goc=None) for d in gui],'thiếu dòng gốc'),
@@ -137,6 +143,15 @@ def _chan_sua_rieng(hd):
             else:
                 dung(ten + ': phải chặn',False)
     hd.reload()
+    # Món lẻ cùng mã vẫn thêm được với giá danh mục, không mượn giá combo.
+    frappe.db.set_value('Item',hd.items[1].item_code,'standard_rate',45000)
+    gui = [dict(item_code=d.item_code,qty=d.qty,rate=d.rate,dong_goc=d.name) for d in hd.items]
+    gui.append(dict(item_code=hd.items[1].item_code,qty=1,rate=45000))
+    with patch.object(ban_hang,'_otp_la_sep',return_value=True), patch.object(ban_hang,'_otp_kiem',return_value='quản lý kiểm'):
+        ban_hang.pos_sua_don(hd.name,items=gui)
+    hd.reload()
+    la('app thêm món lẻ cùng mã dùng giá danh mục',hd.grand_total,210000)
+    hd.remove(hd.items[-1]); hd.save(ignore_permissions=True); hd.reload()
     # Xóa trọn bộ phải lưu được và chỉ còn món lẻ; hoàn lại bằng mã cha.
     ma = hd.items[1].vgb_combo_ma
     hd.set('items',[hd.items[0]])

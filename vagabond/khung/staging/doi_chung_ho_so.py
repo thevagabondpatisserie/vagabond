@@ -49,7 +49,6 @@ def chay():
             assert cac_ket_qua['cu'] == cac_ket_qua['moi'], 'Đối chứng trả dữ liệu khác nhau'
     finally:
         hs._bo_doi_ten_trong_luot = tao_bo_doi
-        hs._ten_nguoi = doi_ten
     (goc / 'doi-chung-ho-so.json').write_text(json.dumps({
         'github_event_sha': os.environ.get('GITHUB_SHA'),
         'source_sha256': hashlib.sha256(Path(hs.__file__).read_bytes()).hexdigest(),

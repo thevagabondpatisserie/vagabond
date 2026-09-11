@@ -58,7 +58,9 @@ def _nhom():
     cb.kiem_nhom(cu, cu)
     cb.kiem_nhom(cu, [])
     si = SimpleNamespace(items=cu)
-    nem('bỏ dòng gốc giữ giá', lambda: cb.giu_dong_sua(si, {}, dict(item_code='M1',qty=3,rate=35769)))
+    with patch.object(cb.frappe.db,'get_value',return_value=45000):
+        nem('bỏ dòng gốc giữ giá', lambda: cb.giu_dong_sua(si, {}, dict(item_code='M1',qty=3,rate=35769)),cb.frappe.ValidationError)
+        la('món lẻ cùng mã dùng giá danh mục',cb.giu_dong_sua(si,{},dict(item_code='M1',qty=1,rate=45000))['rate'],45000)
     nem('giả dòng gốc', lambda: cb.giu_dong_sua(si, {'dong_goc':'X'}, dict(item_code='M1',qty=3,rate=35769)))
     la('món lẻ mới vẫn thêm', cb.giu_dong_sua(si, {}, dict(item_code='M3',qty=1,rate=10000))['rate'],10000)
 
