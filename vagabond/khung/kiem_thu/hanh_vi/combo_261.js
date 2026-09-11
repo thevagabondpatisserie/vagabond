@@ -14,6 +14,13 @@ assert.equal(ctx.posDon.mon[2].combo,'KMCB00003 - Ba bánh');
 assert.equal(ctx.posDon.combo[0].so_bo,2);
 console.log('PASS #261: món lẻ, hai bộ, hai combo cùng tên giữ đúng lượng và mã nguồn');
 const bill=fs.readFileSync('vagabond/public/js/bep/10-bill-quay.js','utf8');
+vm.runInContext(bill.slice(bill.indexOf('function posBoMonSua('),bill.indexOf('function posGopDongMon(')),ctx);
+const bo=[{item_code:'M1',combo_ma_goc:'CB1',combo_tien:107308},
+  {item_code:'M2',combo_ma_goc:'CB1',combo_tien:47692},
+  {item_code:'M1',combo_tien:null},{item_code:'M2',combo_ma_goc:'CB2',combo_tien:50000}];
+assert.deepEqual(Array.from(ctx.posBoMonSua(bo,0),x=>x.combo_ma_goc),[undefined,'CB2']);
+assert.equal(ctx.posBoMonSua(bo,2).length,3);
+console.log('PASS #261: xóa cả mã combo, giữ món lẻ và combo khác');
 vm.runInContext(bill.slice(bill.indexOf('function posGopDongMon('),bill.indexOf('function posLaNuoc(')),ctx);
 const dong={ten:'Món',qty:3,rate:35769,combo:'KMCB - Combo',combo_tien:107308};
 const gop=ctx.posGopDongMon([dong,{...dong}]);
