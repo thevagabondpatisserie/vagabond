@@ -64,9 +64,13 @@ chứ không phải `@codex fix cái lỗi ở trên`.
 Codex không nhận lệnh từ comment trong Issue. Vì vậy:
 
 - Finding nào cần sửa code thì phải viết vào comment của ĐÚNG PR chứa code đó,
-  kèm `@codex fix`. Viết trong issue là việc nằm im.
-- Trong issue chỉ dùng để bàn hướng đi và chờ anh Việt quyết. Nếu trong issue có
-  finding, ghi rõ nó thuộc PR số mấy rồi sang PR đó mà giao việc.
+  kèm `@codex fix`. Đặt lệnh `@codex` trong issue là việc nằm im, không ai nhận.
+- Nếu trong issue có finding, ghi rõ nó thuộc PR số mấy rồi sang PR đó mà giao việc.
+- Chỗ này CHỈ cấm đặt lệnh `@codex` trong issue, KHÔNG thu hẹp các vai trò khác của
+  issue. Theo `AGENTS.md` mục 9, issue đang `In progress` kèm owner, branch và phạm
+  vi tệp vẫn là NGUỒN KHOÁ CHUNG giữa các agent. Vẫn phải claim trong issue trước
+  khi nhận việc, vẫn bàn giao bằng mẫu handoff khi chưa có PR, và không sửa vào
+  phạm vi agent khác đã claim. Bỏ bước claim là hai phiên cùng sửa một chỗ.
 
 ### Khi nào KHÔNG gọi Codex
 
@@ -80,13 +84,19 @@ xong nhớ nói rõ PR còn Draft hay đã Ready for review.
 
 ## Luật dừng, tránh hai bên gọi nhau vô tận
 
-Trước khi viết bất kỳ lệnh `@codex` nào, ĐẾM số comment trên PR đó có chứa chuỗi
-`@codex` do Claude viết, tính trong 24 giờ qua. Đếm CẢ `review`, `fix` và lệnh
-tự do, không chỉ đếm `review`.
+Đếm theo VÒNG LẶP TRÊN CÙNG MỘT VIỆC, không đếm tổng số lệnh. Trước khi viết một
+lệnh `@codex`, đếm xem Claude đã gọi Codex bao nhiêu lần cho ĐÚNG finding hoặc
+đúng điểm bất đồng đó trong 24 giờ qua, mà lần sau không mang thêm số liệu hay
+bằng chứng mới nào so với lần trước.
 
-- Đã có 3 lần: KHÔNG gọi nữa. Thay vào đó viết một đoạn ngắn nói rõ hai bên đang
-  bất đồng chỗ nào và mời anh Việt phân xử. Ghi rõ mỗi bên đang lập luận gì.
-- Chưa tới 3: gọi bình thường, và ghi rõ đây là vòng thứ mấy.
+- Đã có 3 vòng như vậy: KHÔNG gọi nữa. Thay vào đó viết một đoạn ngắn nói rõ hai
+  bên đang bất đồng chỗ nào và mời anh Việt phân xử. Ghi rõ mỗi bên đang lập luận gì.
+- Chưa tới 3: gọi bình thường, và ghi rõ đây là vòng thứ mấy của việc đó.
+
+Một PR có ba bốn việc độc lập thì mỗi việc có bộ đếm riêng. Một lần review rồi hai
+lần `@codex fix` cho ba finding KHÁC NHAU không phải là ba vòng, và việc thứ tư
+vẫn được giao bình thường. Chặn nhầm ở đây là quay lại đúng cái lỗi mà luật này
+sinh ra để chữa: lỗi mới không ai nhận.
 
 Cũng KHÔNG trả lời nếu comment mới nhất của Codex không mang finding mới nào, chỉ
 là xác nhận hay cảm ơn.
