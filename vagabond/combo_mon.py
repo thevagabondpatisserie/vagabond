@@ -218,6 +218,8 @@ def chuan_bi_tra(doc):
         cu = frappe.db.get_value('Sales Invoice',doc.amended_from,
             ['docstatus','company','currency','return_against','vgb_combo_hoan_tien'],
             as_dict=True,for_update=True)
+        if cu and not cu.vgb_combo_hoan_tien and doc.get('vgb_combo_hoan_tien'):
+            frappe.throw('Phiếu gốc trả theo lượng, sửa đổi không được đổi sang bồi hoàn theo tiền.')
         if cu and cu.vgb_combo_hoan_tien:
             if (cu.docstatus != 2 or cu.company != doc.company or cu.currency != doc.currency
                     or cu.return_against != doc.get('return_against')):
