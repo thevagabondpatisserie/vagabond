@@ -103,6 +103,8 @@ def _tien():
                 continue
             _doi_chieu(hd,tk)
             la('ghi sổ giữ tiền',hd.grand_total,160000 if loai else 165000)
+            if not loai:
+                _sao_tra_sua(hd)
 
 
 def _chan_sua_rieng(hd):
@@ -143,3 +145,47 @@ def _chan_sua_rieng(hd):
     hd.append('items',dict(item_code=ma,qty=1,rate=155000))
     hd.save(ignore_permissions=True); hd.reload()
     la('chọn lại bộ đúng tiền',hd.grand_total,165000)
+
+
+def _sao_tra_sua(hd):
+    from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
+    def ma_moi(d):
+        d.custom_pancake_id = None
+        d.custom_pancake_display_id = None
+        d.custom_hddt_so = None
+        d.vgb_ma_tham_chieu = 'KT261-'+frappe.generate_hash(length=8)
+        d.docstatus = 0
+        return d
+    sao = ma_moi(frappe.copy_doc(hd))
+    sao.insert(ignore_permissions=True); nen._DA_TAO.append((sao.doctype,sao.name))
+    sao.reload()
+    la('Duplicate tính đủ tiền',sao.grand_total,165000)
+    la('Duplicate giữ đủ thành phần',sorted((d.item_code,d.qty) for d in sao.items),
+        sorted((d.item_code,d.qty) for d in hd.items))
+    tra = ma_moi(make_sales_return(hd.name))
+    tra.update_outstanding_for_self = 0
+    tra.insert(ignore_permissions=True); nen._DA_TAO.append((tra.doctype,tra.name))
+    tra.submit(); tra.reload(); hd.reload()
+    la('trả hết không mất đồng',tra.grand_total,-165000)
+    la('trả hết xóa đủ nợ',hd.outstanding_amount,0)
+    la('trả hết giữ phân bổ dòng',[d.amount for d in tra.items],[-10000,-107308,-47692])
+    tra.cancel(); hd.reload()
+    la('hủy trả hồi đủ nợ',hd.outstanding_amount,165000)
+    # Ba lần trả từng bánh phải cộng đúng 107308, không thành 107307.
+    cac = []
+    for _ in range(3):
+        d = ma_moi(make_sales_return(hd.name))
+        mon = next(x for x in d.items if x.sales_invoice_item == hd.items[1].name)
+        mon.qty = -1
+        d.set('items',[mon]); d.update_outstanding_for_self = 0
+        d.insert(ignore_permissions=True); nen._DA_TAO.append((d.doctype,d.name))
+        d.submit(); d.reload(); cac.append(d)
+    la('trả từng bánh đủ tiền thành phần',sum(d.items[0].amount for d in cac),-107308)
+    for d in reversed(cac):
+        d.cancel()
+    hd.reload(); hd.cancel()
+    sua = ma_moi(frappe.copy_doc(hd))
+    sua.amended_from = hd.name
+    sua.insert(ignore_permissions=True); nen._DA_TAO.append((sua.doctype,sua.name))
+    sua.submit(); sua.reload()
+    la('amend giữ đúng tiền',sua.grand_total,165000)

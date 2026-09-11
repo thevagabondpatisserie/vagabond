@@ -70,7 +70,9 @@ def ap_dung(doc):
         return False
     if frappe.get_cached_value('Company', doc.company, 'default_currency') != 'VND':
         return False
-    if any(doc.get(k) for k in ('is_return', 'is_debit_note', 'is_cash_or_non_trade_discount',
+    if doc.get('is_return') and not any(d.get('vgb_combo_luong') for d in doc.items):
+        return False
+    if any(doc.get(k) for k in ('is_debit_note', 'is_cash_or_non_trade_discount',
                                 'shipping_rule', 'is_internal_customer')):
         return False
     thue = doc.get('taxes') or []
@@ -113,8 +115,10 @@ class ThueVnd(calculate_taxes_and_totals):
         thue = self.doc.taxes[0]
         ts = [self._load_item_tax_rate(d.item_tax_rate).get(thue.account_head, thue.rate)
               for d in self._items]
-        truoc = tinh_dong([d.amount for d in self._items], ts, thue.included_in_print_rate)
-        self.chia = tinh_dong([d.amount for d in self._items], ts, thue.included_in_print_rate,
+        from vagabond.thue_vnd import tinh_dong_tra
+        tinh = tinh_dong_tra if self.doc.get('is_return') else tinh_dong
+        truoc = tinh([d.amount for d in self._items], ts, thue.included_in_print_rate)
+        self.chia = tinh([d.amount for d in self._items], ts, thue.included_in_print_rate,
             self.doc.discount_amount if self.discount_amount_applied else 0, self.doc.apply_discount_on)
         for d, x, cu in zip(self._items, self.chia, truoc):
             d.net_amount = d.base_net_amount = x['net']

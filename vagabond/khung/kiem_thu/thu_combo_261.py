@@ -63,6 +63,18 @@ def _nhom():
     la('món lẻ mới vẫn thêm', cb.giu_dong_sua(si, {}, dict(item_code='M3',qty=1,rate=10000))['rate'],10000)
 
 
+@ca('#261 cửa lưu gọi kiểm đủ nhóm từ các dòng đã lưu trong DB')
+def _cua_nhom():
+    ds=[Doi(name='A',parent='SI1',item_code='M1',qty=3,rate=35769,vgb_combo_ma='CB1',
+        vgb_combo_ten='Combo',vgb_combo_luong=3,vgb_combo_tien=107308),
+        Doi(name='B',parent='SI1',item_code='M2',qty=1,rate=47692,vgb_combo_ma='CB1',
+        vgb_combo_ten='Combo',vgb_combo_luong=1,vgb_combo_tien=47692)]
+    doc=SimpleNamespace(name='SI1',items=ds[:1],get=lambda k:None,is_new=lambda:False)
+    with patch.object(cb.frappe,'get_all',return_value=ds), \
+            patch.object(cb.frappe.db,'get_value',return_value=ds[0]):
+        nem('cửa lưu phải chặn mất dòng B',lambda:cb._kiem_tien_da_chia(doc),cb.frappe.ValidationError)
+
+
 @ca('#261 cửa cấu hình chặn combo tắt, lồng, chọn nhóm và ưu đãi giới hạn')
 def _cau_hinh_cam():
     from vagabond import khuyen_mai as km
@@ -75,3 +87,14 @@ def _cau_hinh_cam():
                 patch.object(km,'_hop_thoi_gian',return_value=(True,'')), \
                 patch.object(km,'_hop_kenh',return_value=(True,'')):
             nem('chặn '+str(doi),lambda:cb.doc_cau_hinh('KMCB1'),cb.frappe.ValidationError)
+
+
+@ca('#261 trả combo đảo số tiền VND và chiết khấu, không mở dòng âm trên phiếu bán')
+def _tra_tien():
+    from vagabond.thue_vnd import tinh_dong, tinh_dong_tra
+    for giam in (0,5000,165000):
+        ban=tinh_dong([10000,107308,47692],[8,8,8],True,giam)
+        tra=tinh_dong_tra([-10000,-107308,-47692],[8,8,8],True,-giam)
+        la('đảo đúng net/VAT/gross',tra,[dict(d,net=-d['net'],vat=-d['vat'],gross=-d['gross']) for d in ban])
+    nem('phiếu bán vẫn cấm âm',lambda:tinh_dong([-1],[8],True),ValueError)
+    nem('phiếu trả cấm dòng dương',lambda:tinh_dong_tra([1],[8],True),ValueError)

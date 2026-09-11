@@ -93,6 +93,10 @@ def ra_dong(ma, so_bo, quay='', nguon=''):
 def truoc_khi_luu(doc, method=None):
     if doc.docstatus == 2:
         return
+    if doc.get('is_return'):
+        chuan_bi_tra(doc)
+    elif doc.is_new() and not doc.get('amended_from'):
+        _sao_chep(doc)
     _kiem_tien_da_chia(doc)
     if not any(str(d.item_code or '').upper().startswith('KMCB') for d in doc.items):
         return
@@ -121,6 +125,11 @@ def _kiem_tien_da_chia(doc):
     Dòng rã cố định giữ nguyên lượng. Đổi số bộ bằng cách chọn lại combo,
     tránh một món bị đổi lượng riêng nhưng còn giữ tiền của cả cấu hình cũ.
     """
+    if doc.get('is_return'):
+        return  # chuan_bi_tra lấy tiền từ sales_invoice_item của phiếu gốc.
+    if doc.is_new() and doc.get('amended_from'):
+        _kiem_sua_doi(doc)
+        return
     if doc.name:
         cu = frappe.get_all('Sales Invoice Item', filters={'parent': doc.name,
             'vgb_combo_luong': ['!=', 0]}, fields=['name', 'vgb_combo_ma'])
@@ -135,6 +144,92 @@ def _kiem_tien_da_chia(doc):
                 Decimal(str(d.get(k) or 0)) != Decimal(str(cu.get(k) or 0))
                 for k in ('qty', 'rate', 'vgb_combo_tien', 'vgb_combo_luong')):
             frappe.throw('Dòng combo đã chia tiền không được sửa riêng lượng/thành tiền. Xóa bộ này rồi chọn lại combo với số bộ cần bán.')
+
+
+def _sao_chep(doc):
+    """Duplicate là lần bán mới: kiểm đủ bộ và tính lại bằng cấu hình hiện tại."""
+    nhom = {}
+    for d in doc.items:
+        if d.get('vgb_combo_luong') or d.get('vgb_combo_ma'):
+            nhom.setdefault(d.get('vgb_combo_ma'), []).append(d)
+    if not nhom:
+        return
+    dong = [d for d in doc.items if not (d.get('vgb_combo_luong') or d.get('vgb_combo_ma'))]
+    for ma, ds in nhom.items():
+        if not str(ma or '').upper().startswith('KMCB'):
+            frappe.throw('Bản sao thiếu mã combo gốc. Xóa nhóm món và chọn lại mã bộ.')
+        if len({d.get('warehouse') for d in ds}) > 1:
+            frappe.throw('Combo trong bản sao đang lấy nhiều kho. Chọn lại mã bộ và kho trước khi lưu.')
+        cau = doc_cau_hinh(ma,doc.get('vgb_quay'),doc.get('custom_nguon'))
+        goc, moi = {}, {}
+        for d in cau['dong']:
+            goc[d['item_code']] = goc.get(d['item_code'],Decimal(0)) + so_duong(d['so_luong'],'Lượng cấu hình')
+        for d in ds:
+            moi[d.item_code] = moi.get(d.item_code,Decimal(0)) + so_duong(d.qty,'Lượng món')
+        ti_le = {moi[k]/goc[k] for k in moi if k in goc}
+        if set(moi) != set(goc) or len(ti_le) != 1:
+            frappe.throw('Bản sao thiếu thành phần combo. Xóa toàn bộ combo và chọn lại mã bộ.')
+        bo = ti_le.pop()
+        if bo != bo.to_integral_value():
+            frappe.throw('Bản sao không đủ số bộ combo. Chọn lại mã bộ.')
+        dong.append(dict(item_code=ma,qty=float(bo),rate=0,warehouse=ds[0].get('warehouse')))
+    doc.set('items',[])
+    for d in dong:
+        doc.append('items',d)
+
+
+def _kiem_sua_doi(doc):
+    cu = frappe.get_doc('Sales Invoice',doc.amended_from)
+    if cu.docstatus != 2 or cu.company != doc.company or cu.currency != doc.currency:
+        frappe.throw('Chứng từ sửa đổi combo phải nối đúng hóa đơn gốc đã hủy.')
+    con = list(cu.items)
+    giu = []
+    truong = ('item_code','qty','rate','vgb_combo_ma','vgb_combo_ten','vgb_combo_tien','vgb_combo_luong')
+    for d in doc.items:
+        if not d.get('vgb_combo_luong'):
+            continue
+        goc = next((x for x in con if all(x.get(k)==d.get(k) for k in truong)),None)
+        if not goc:
+            frappe.throw('Dòng combo sửa đổi không khớp hóa đơn gốc. Xóa toàn bộ combo rồi chọn lại.')
+        con.remove(goc)
+        giu.append(goc)
+    kiem_nhom([x for x in cu.items if x.get('vgb_combo_luong')],giu)
+
+
+def chuan_bi_tra(doc):
+    """Tiền trả lấy từ dòng SI gốc; lần cuối nhận đồng dư của các lần trả trước."""
+    if not doc.get('return_against'):
+        if any(d.get('vgb_combo_luong') for d in doc.items):
+            frappe.throw('Trả combo phải chọn hóa đơn gốc.')
+        return
+    goc = frappe.db.get_value('Sales Invoice',doc.return_against,
+        ['name','company','currency','docstatus'],as_dict=True,for_update=True)
+    ds = frappe.get_all('Sales Invoice Item',filters={'parent':doc.return_against},
+        fields=['name','item_code','qty','vgb_combo_ma','vgb_combo_ten','vgb_combo_tien','vgb_combo_luong'])
+    theo_ten = {d.name:d for d in ds}
+    da_dung = set()
+    for d in doc.items:
+        cu = theo_ten.get(d.get('sales_invoice_item'))
+        if not cu or not cu.vgb_combo_luong:
+            if d.get('vgb_combo_luong'):
+                frappe.throw('Dòng trả combo không nối đúng món trên hóa đơn gốc.')
+            continue
+        if (not goc or goc.docstatus != 1 or goc.company != doc.company or goc.currency != doc.currency
+                or cu.item_code != d.item_code or cu.name in da_dung):
+            frappe.throw('Dòng trả combo không nối đúng hóa đơn gốc hoặc bị gửi trùng.')
+        da_dung.add(cu.name)
+        luong = -Decimal(str(d.qty))
+        truoc = frappe.db.sql('''select coalesce(sum(-d.qty),0), coalesce(sum(-d.vgb_combo_tien),0)
+            from `tabSales Invoice Item` d join `tabSales Invoice` h on h.name=d.parent
+            where h.docstatus=1 and h.is_return=1 and h.return_against=%s
+            and d.sales_invoice_item=%s and h.name!=%s''',(doc.return_against,cu.name,doc.name or ''))[0]
+        da_tra, tien_tra = (Decimal(str(x)) for x in truoc)
+        if luong <= 0 or da_tra+luong > Decimal(str(cu.qty)):
+            frappe.throw('Lượng trả combo phải dương và không vượt lượng còn được trả.')
+        tien = (Decimal(str(cu.vgb_combo_tien))*(da_tra+luong)/Decimal(str(cu.qty))).quantize(Decimal('1'),rounding=ROUND_HALF_UP)-tien_tra
+        d.vgb_combo_luong = float(-luong)
+        d.vgb_combo_tien = float(-tien)
+        d.vgb_combo_ma, d.vgb_combo_ten = cu.vgb_combo_ma, cu.vgb_combo_ten
 
 
 def kiem_nhom(cu, moi):
