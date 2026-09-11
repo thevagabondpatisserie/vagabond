@@ -214,6 +214,18 @@ def chuan_bi_tra(doc):
     vẫn cho bỏ trống link và dò item_code. Combo phải yêu cầu link nguồn rõ ràng.
     Tiền trả theo lượng giữ đồng dư; bồi hoàn tiền dùng số tiền đã duyệt riêng.
     """
+    if doc.get('amended_from'):
+        cu = frappe.db.get_value('Sales Invoice',doc.amended_from,
+            ['docstatus','company','currency','return_against','vgb_combo_hoan_tien'],
+            as_dict=True,for_update=True)
+        if cu and cu.vgb_combo_hoan_tien:
+            if (cu.docstatus != 2 or cu.company != doc.company or cu.currency != doc.currency
+                    or cu.return_against != doc.get('return_against')):
+                frappe.throw('Sửa đổi phiếu hoàn phải giữ đúng bill gốc của phiếu đã hủy.')
+            if doc.get('vgb_combo_hoan_tien') and Decimal(str(doc.vgb_combo_hoan_tien)) != Decimal(str(cu.vgb_combo_hoan_tien)):
+                frappe.throw('Sửa đổi phiếu hoàn phải giữ số tiền đã duyệt; đổi tiền cần lập yêu cầu mới.')
+            # Desk Amend giữ no_copy; API thiếu trường vẫn lấy tiền từ nguồn đã hủy.
+            doc.vgb_combo_hoan_tien = cu.vgb_combo_hoan_tien
     if not doc.get('return_against'):
         if any(d.get('vgb_combo_luong') for d in doc.items):
             frappe.throw('Trả combo phải chọn hóa đơn gốc.')
