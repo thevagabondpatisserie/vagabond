@@ -31,9 +31,9 @@ def _bill_hoan(giam=0):
 def _hoan_nua():
     from vagabond.hoan_tien import _lap_hoa_don_tra
     from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
-    for giam in (0,5000):
+    for giam in (0,5000,1):
         hd=_bill_hoan(giam)
-        tien=hd.grand_total/2
+        tien=int(hd.grand_total/2)
         nhap=make_sales_return(hd.name)
         nhap.vgb_combo_hoan_tien=tien
         nhap.insert(ignore_permissions=True); nen._DA_TAO.append((nhap.doctype,nhap.name))
@@ -49,6 +49,25 @@ def _hoan_nua():
         nen._DA_TAO.append((tra.doctype,tra.name)); tra.reload()
         la('hoàn đúng50% sau reload',tra.grand_total,-tien)
         la('giữ số tiền yêu cầu để tính lại',tra.vgb_combo_hoan_tien,tien)
+        tra.flags.ignore_permissions=True; tra.cancel()
+        sua=frappe.copy_doc(tra)
+        sua.docstatus=0; sua.amended_from=tra.name
+        # API cố bỏ số tiền: không được biến bồi hoàn thành trả toàn lượng.
+        sua.vgb_combo_hoan_tien=None
+        sua.insert(ignore_permissions=True); nen._DA_TAO.append((sua.doctype,sua.name))
+        sua.flags.ignore_permissions=True; sua.submit(); sua.reload()
+        la('hủy rồi sửa đổi vẫn giữ số tiền',sua.grand_total,-tien)
+        la('sửa đổi phục hồi dấu từ nguồn',sua.vgb_combo_hoan_tien,tien)
+        yeu_cau=frappe.get_doc(dict(doctype='Vagabond Hoan Tien',hoa_don=hd.name,
+            so_tien=tien+0.5,ly_do='Khac',dien_giai='Kiểm tiền lẻ'))
+        try:
+            yeu_cau.insert(ignore_permissions=True)
+        except frappe.ValidationError as e:
+            dung('chặn tiền lẻ trước khi gửi kế toán','số nguyên đồng' in str(e))
+        else:
+            nen._DA_TAO.append((yeu_cau.doctype,yeu_cau.name))
+            dung('không nhận yêu cầu combo có xu',False)
+
 
 
 @ca('#265 C2 F2 credit note tay phải nối đúng dòng combo gốc')
