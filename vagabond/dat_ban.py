@@ -97,7 +97,20 @@ def gui(du_lieu, ma_lan_gui):
         frappe.throw(str(e))
     d = frappe.get_doc(dict(nd, doctype=DOCTYPE, name=ten, bam_noi_dung=dau, trang_thai='Chờ xác nhận'))
     d.flags.dat_ban_web = True
-    d.insert(ignore_permissions=True)
+    moc = 'dat_ban_' + frappe.generate_hash(length=12)
+    frappe.db.savepoint(moc)
+    try:
+        d.insert(ignore_permissions=True)
+    except frappe.DuplicateEntryError:
+        frappe.db.rollback(save_point=moc)
+        # Hai request có thể cùng đọc "chưa có". Đọc khóa hiện tại sau
+        # unique constraint, không dùng lại snapshot REPEATABLE READ cũ.
+        cu = frappe.db.get_value(DOCTYPE, ten, ['name', 'bam_noi_dung'], as_dict=True, for_update=True)
+        if not cu:
+            raise
+        if cu.bam_noi_dung != dau:
+            frappe.throw('Yêu cầu trước đã được nhận. Tải lại trang để đặt lịch khác.')
+        return {'ok':1, 'ma':cu.name[:12].upper(), 'trang_thai':'Đã tiếp nhận'}
     return {'ok':1, 'ma':d.name[:12].upper(), 'trang_thai':'Chờ xác nhận'}
 
 
