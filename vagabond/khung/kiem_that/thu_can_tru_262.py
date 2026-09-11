@@ -159,6 +159,10 @@ def _thu_tien_phan_bo():
     pe.reference_no = 'KT265-THU'
     pe.reference_date = today()
     pe.insert(ignore_permissions=True); _DA_TAO.append((pe.doctype,pe.name))
+    tep = frappe.get_doc(dict(doctype='File', file_name='KT265-bao-co.txt',
+        content='Giay bao Co thu tren bench', is_private=1,
+        attached_to_doctype=pe.doctype, attached_to_name=pe.name))
+    tep.insert(ignore_permissions=True); _DA_TAO.append((tep.doctype,tep.name))
     pe.submit(); pe.reload(); si.reload(); si2.reload()
     la('SI thứ nhất giảm nợ', si.outstanding_amount, 700000)
     la('SI thứ hai giảm nợ', si2.outstanding_amount, 700000)
