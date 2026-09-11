@@ -232,6 +232,10 @@ def _bao_cao_tra_hang():
     from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
     so, pi, si = _phieu()
     tra = make_sales_return(si.name)
+    # Phiếu trả thử nối bằng return_against, không giả làm lần nhập lại
+    # cùng mã đơn Pancake (mapper lõi sao chép cả custom field của fixture).
+    tra.custom_pancake_order_id = None
+    tra.custom_pancake_display_id = None
     tra.update_outstanding_for_self = 0
     tra.items[0].qty = -0.2
     tra.vgb_ma_tham_chieu = 'KT265-TRA-'+frappe.generate_hash(length=8)
