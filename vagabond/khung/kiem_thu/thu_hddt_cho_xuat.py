@@ -1204,3 +1204,37 @@ def _ui_xac_nhan_qua_han():
 	r = subprocess.run(["node", "vagabond/khung/kiem_thu/hanh_vi/hddt_qua_han.cjs"],
 		cwd=goc, capture_output=True, text=True, timeout=20)
 	la("hành vi UI: " + r.stdout + r.stderr, r.returncode, 0)
+
+
+@ca("#266 xác nhận dạng cũ không cấp quyền và không khóa màn xử lý")
+def _xac_nhan_cu_khong_co_pham_vi():
+	gia = unittest.mock.MagicMock()
+	gia.db.sql.return_value = [(json.dumps(dict(ngay_lap="2026-09-09", ngay_thuc_hien="2026-09-11", nguoi="quanly", ly_do="Giữ ngày lập")),)]
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", gia):
+		la("dạng cũ không có quyền theo ngày", hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-11"), ())
+		la("dạng cũ không mở tờ bất kỳ", hddt_cho_xuat._ngay_xac_nhan_qua_han("2026-09-11", "SI-09"), ())
+
+
+@ca("#266 chỉ còn nháp không báo đã xác nhận nếu chưa ghi xác nhận")
+def _chi_nhap_khong_bao_sai_xac_nhan():
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	import sys
+	ban_hang = unittest.mock.MagicMock()
+	for ngay, che_do in (("2026-09-09", "keo"), ("2026-09-10", "giu_ngay")):
+		gia = unittest.mock.MagicMock()
+		gia.get_roles.return_value = ["System Manager"]
+		with ExitStack() as stack:
+			stack.enter_context(unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": ban_hang}))
+			for obj, ten, kw in ((hddt_cho_xuat, "frappe", {"new": gia}),
+				(hddt_cho_xuat, "nowdate", {"return_value": "2026-09-11"}),
+				(hddt_cho_xuat, "_ngay_xac_nhan_qua_han", {"return_value": ()}),
+				(hddt_cho_xuat, "_dem_theo_ngay", {"side_effect": [([],), ([SimpleNamespace(name="SI-NHAP", docstatus=0)],)]}),
+				(ban_hang, "_kiem_quyen", {"return_value": None}),
+				(ban_hang, "_ngay_so_hddt_moi_nhat", {"return_value": D(2026, 9, 8)})):
+				stack.enter_context(unittest.mock.patch.object(obj, ten, **kw))
+			ghi = stack.enter_context(unittest.mock.patch.object(hddt_cho_xuat, "_ghi_xac_nhan_qua_han"))
+			ra = hddt_cho_xuat.xu_ly_ngay_cu(ngay, chay_thu=0, che_do=che_do)
+			la("không ghi xác nhận " + che_do, ghi.call_count, 0)
+			dung("không báo sai đã xác nhận " + che_do, "Đã xác nhận" not in ra["nhat_ky"])
+			dung("hướng dẫn ghi sổ nháp " + che_do, "ghi sổ" in ra["nhat_ky"])

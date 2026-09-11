@@ -387,6 +387,9 @@ def _ngay_xac_nhan_qua_han(hom_nay=None, phieu=None):
 		return ()
 	if not x.get("nguoi") or not str(x.get("ly_do") or "").strip():
 		raise ValueError("Xác nhận HĐĐT quá hạn thiếu người hoặc lý do")
+	# Xác nhận dạng cũ chưa từng ràng buộc chứng từ: không cấp quyền.
+	if "phieu" not in x:
+		return ()
 	if not isinstance(x.get("phieu"), list) or not x["phieu"]:
 		raise ValueError("Xác nhận HĐĐT quá hạn thiếu danh sách chứng từ")
 	if phieu is not None and phieu not in x["phieu"]:
@@ -607,7 +610,12 @@ def xu_ly_ngay_cu(ngay, chay_thu=1, che_do="", xac_nhan_qua_han=0, ly_do="", pha
 			"tờ ngày cũ nữa. Chọn kéo ngày lập sang hôm nay." % (ngay_vn(ngay_cu), ngay_vn(moi_nhat))
 		)
 	if not chon:
-		return dict(kq, keo=0, go_co=0, giu_co=0, loi=[], nhat_ky=("Đã xác nhận phạm vi gồm %d đơn nháp; cần ghi sổ các đơn này rồi phát hành." % kq["so_nhap"] if kq["so_nhap"] else "Không còn tờ nào để xử."))
+		cau = "Không còn tờ nào để xử."
+		if kq["so_nhap"]:
+			cau = "Còn %d đơn nháp; cần ghi sổ các đơn này rồi phát hành." % kq["so_nhap"]
+			if che_do == "giu_ngay" and ngay_cu in xac_nhan:
+				cau = "Đã xác nhận phạm vi. " + cau
+		return dict(kq, keo=0, go_co=0, giu_co=0, loi=[], nhat_ky=cau)
 	# Đóng băng ngày người dùng vừa xem và xác nhận. Worker qua nửa đêm dùng
 	# đúng phạm vi/ngày này hoặc từ chối nếu đã quá hạn, không tự đổi ngầm.
 	ngay_dat = ngay_lap_theo_che_do(che_do, ngay_cu, hom_nay)
