@@ -237,6 +237,9 @@ def chay():
 				kq['phan'].append({'ten': 'F3 vòng 6 quá hạn không khoá ngày sau', 'dat': True,
 					'chan_dung_cau': cau_loi[:120]})
 				frappe.db.rollback(save_point=diem_v6)
+				# Savepoint trên cũng cố ý hoàn tác cấu hình giả của riêng ca F3.
+				# Dựng lại công tắc trước khi sang các ca tích hợp độc lập.
+				_cau_hinh(ma_gop='')
 
 				# ---------------------------------------------- F5 phạm vi phát hành
 				# Dựng ĐÚNG chuỗi thao tác của khách (điều 15): kế toán mở
