@@ -68,7 +68,18 @@ def chay():
 		(tep / "minvoice-243.json").write_text(
 			json.dumps(kq, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 		print("M-Invoice: " + json.dumps(kq, ensure_ascii=False, default=str), flush=True)
-		return dat_bo and bool(kq.get("dat"))
+		# #266 vòng 2: năm finding của Codex chạy thật qua Server Script với
+		# HTTP giả, gồm thứ tự ngày cũ, đồng thời, backlog và phạm vi phát hành.
+		from vagabond.khung.bench_thu.kiem_hddt_266 import chay as chay_hddt266
+		try:
+			with patch.object(socket.socket, "connect", chi_noi_bo):
+				kq266 = chay_hddt266()
+		except Exception:
+			kq266 = {"dat": False, "loi": traceback.format_exc()}
+		(tep / "hddt-266.json").write_text(
+			json.dumps(kq266, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+		print("HĐĐT #266: " + json.dumps(kq266, ensure_ascii=False, default=str), flush=True)
+		return dat_bo and bool(kq.get("dat")) and bool(kq266.get("dat"))
 	except Exception:
 		(tep / "loi.txt").write_text(traceback.format_exc(), encoding="utf-8")
 		raise

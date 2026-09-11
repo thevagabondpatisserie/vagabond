@@ -180,7 +180,8 @@ def _man_hinh_noi_dung_cua():
 	dung("ô tìm hoá đơn lọc trên DOM nên không mất tick",
 		"vgbNoiOTim(b, 'hsHdTim', '[data-hsh]')" in j)
 	dung("chọn hết nói rõ phạm vi", "Chọn hết đang hiện" in j)
-	dung("chọn hết chỉ lấy tập đang hiện", "dangHien().forEach(ghiChon)" in j)
+	dung("chọn hết chỉ thêm dòng chưa chọn trong tập đang hiện",
+		"dangHien().forEach(function (r) { if (!hsTaoChon[r.hoa_don]) ghiChon(r); })" in j)
 
 
 @ca("#196 màn Vì sao thiếu phải dặn KHÔNG gõ lại tờ còn nháp")

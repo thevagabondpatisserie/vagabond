@@ -81,6 +81,23 @@ function cdVe() {
       h(cdData.nhat_ky) + '</div>';
   }
 
+  /* #266 (09/09/2026): to da ghi so ma khong len duoc m-invoice trong ngay
+     thi khong doi duoc ngay so nua. Nghi dinh 70/2025/ND-CP yeu cau ky so
+     va gui cap ma cham nhat ngay lam viec tiep theo. Backend dung moc bao
+     thu la ngay ke tiep theo lich khi chua co lich nghi phap ly rieng.
+
+     Chi giu dung ngay ban khi CA cua phap ly va cua ky thuat m-invoice con
+     mo. Qua han thi keo ngay lap sang hom nay, so van giu ngay ban; ngay cu
+     da qua han khong duoc giu hang rao de khoa cac ngay sau.
+
+     Xem truoc, hoi lai, roi moi chay. Khong dong vao to da co hoa don,
+     khong tu go co doi chieu khi chua hoi m-invoice. */
+  html += '<div class="sec">Hoá đơn ngày cũ chưa xuất được</div><div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:13px;color:#374151;line-height:1.6">Tờ đã ghi sổ mà đêm đó không lên được m-invoice. Chọn ngày bán rồi bấm xem. Máy chỉ giữ đúng ngày bán khi còn trong hạn ký, gửi và cửa m-invoice còn mở; nếu quá hạn thì kéo ngày lập sang hôm nay, sổ vẫn giữ ngày bán. Tờ đang chờ mang chip <b>Hoá đơn chờ xuất cho ngày ...</b> trên màn Doanh thu và Hoá đơn hôm nay.</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:9px"><span style="font-size:12.5px;color:#6b7280">Ngày bán:</span>' +
+    '<input class="tin" id="cdKeoNgay" type="date" value="' + h(cdHomQua()) + '" max="' + h(today()) + '" style="flex:1;max-width:190px"></div>' +
+    '<button class="btn gh" id="cdKeo" style="margin-top:10px">🧾 Xem và xuất hoá đơn cho ngày này</button></div>';
+
   var b = frame('Cuối ngày', html, {
     footer: '<div style="display:flex;gap:8px">' +
       '<button class="btn gh" id="cdChay" style="margin:0;flex:1">▶️ Chạy ngay</button>' +
@@ -102,6 +119,66 @@ function cdVe() {
 
   document.getElementById('cdLuu').onclick = cdLuu;
   document.getElementById('cdChay').onclick = cdChay;
+  document.getElementById('cdKeo').onclick = cdKeo;
+}
+
+function cdHomQua() {
+  var d = new Date(today() + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function cdNgayVn(iso) {
+  var p = String(iso || '').slice(0, 10).split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
+}
+
+/* Xu to da ghi so cua mot ngay ma chua co hoa don dien tu (#266).
+
+   Hai duong, may de xuat theo cua phap ly va cua m-invoice:
+     giu_ngay : xuat mang dung ngay ban, phat hanh va ky NGAY.
+     keo      : ngay lap la hom nay, phat hanh va ky NGAY.
+   Xem truoc TRUOC, hoi lai, roi moi chay that. */
+async function cdKeo() {
+  var o = document.getElementById('cdKeoNgay');
+  var ngay = (o && o.value) || '';
+  if (!ngay || ngay > today()) return baoTin('Chọn một ngày bán đã qua, hoặc hôm nay.');
+  var laHomNay = ngay === today();
+  var xem;
+  busy(true);
+  try { xem = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 1 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không xem trước được'); }
+  busy(false);
+  if (!xem || (!xem.chon && !xem.so_nhap)) return toast(laHomNay ? 'Hôm nay không có tờ nào đang giữ cờ đối chiếu.' : 'Ngày ' + cdNgayVn(ngay) + ' không còn tờ nào đã ghi sổ mà chưa có hoá đơn điện tử.', 4000);
+
+  var giuNgay = xem.che_do_de_xuat === 'giu_ngay';
+  var xacNhanQuaHan = false;
+  var lyDo = '';
+  if (!xem.cua_phap_ly_con_mo && xem.cua_minvoice_con_mo && !xem.da_xac_nhan_qua_han) {
+    if (!xem.duoc_xac_nhan_qua_han) return baoTin('Đã quá hạn ký, gửi theo mốc bảo thủ ' + cdNgayVn(xem.han_ky_gui) + '. Cần quản lý xác nhận cách xử lý; máy không tự đổi ngày lập.');
+    if (!await xacNhan('Xác nhận xử lý hoá đơn quá hạn?\n\nNghị định 70/2025/NĐ-CP yêu cầu ký số và gửi cấp mã chậm nhất ngày làm việc tiếp theo. Hạn bảo thủ: ' + cdNgayVn(xem.han_ky_gui) + '.\n\nGiữ ngày lập ' + cdNgayVn(ngay) + ', ký ngày thực tế. Xác nhận này không làm hoá đơn trở thành đúng hạn, chỉ có hiệu lực hôm nay và được lưu người xác nhận. Không tự đổi ngày lập.')) return;
+    giuNgay = true;
+    xacNhanQuaHan = true;
+    lyDo = 'Quản lý xác nhận giữ ngày lập ' + ngay + ', ký ngày thực tế; đã đọc cảnh báo quá hạn; xử lý trong ngày ' + xem.hom_nay;
+  }
+  var cua = !xem.cua_phap_ly_con_mo
+    ? 'Đã quá hạn ký, gửi theo mốc bảo thủ ' + cdNgayVn(xem.han_ky_gui) + '. ' + (giuNgay ? 'Giữ ngày lập ' + cdNgayVn(ngay) + ' theo xác nhận quản lý, ký ngày thực tế. Cảnh báo quá hạn vẫn giữ.' : 'Cửa m-invoice cũng đã đóng. Ngày lập đề xuất là hôm nay; đổi ngày lập không tự khắc phục việc lập hoá đơn chậm.')
+    : (giuNgay ? 'Còn trong hạn ký, gửi và cửa m-invoice còn mở. Hoá đơn mang ngày ' + cdNgayVn(ngay) + '.' : 'Cửa m-invoice đã đóng vì có tờ ngày ' + cdNgayVn(xem.ngay_so_moi_nhat) + '. Ngày lập đề xuất là hôm nay, sổ giữ ngày bán.');
+  var mo = (xem.vi_du || []).slice(0, 8).map(function (x) {
+    return '#' + x.ma + ' · ' + money(x.tien) + ' đ' + (x.doi_chieu ? ' · đang giữ đối chiếu' : '');
+  }).join('\n');
+  if (!await xacNhan((xem.chon ? 'Xuất hoá đơn cho ' + xem.chon + ' tờ ngày ' : 'Xem phạm vi đơn nháp ngày ') + cdNgayVn(ngay) + '?\n' +
+    'Tổng ' + money(xem.tien) + ' đ.' + (xem.so_nhap ? '\nPhạm vi xác nhận gồm thêm ' + xem.so_nhap + ' đơn nháp cùng ngày; cần ghi sổ riêng, máy không tự ghi sổ ở bước này.' : '') + '\n\n' + cua +
+    (xem.dang_doi_chieu ? '\n\nCó ' + xem.dang_doi_chieu + ' tờ đang giữ cờ đối chiếu: máy hỏi m-invoice theo mã phiếu, không có tờ mới gỡ cờ.' : '') +
+    '\n\n' + mo + (xem.chon > 8 ? '\n... và ' + (xem.chon - 8) + ' tờ nữa' : '') +
+    (xem.chon ? '\n\nMáy phát hành và ký ngay ở lượt chạy nền.' : '\n\nChưa phát hành ở bước này vì các đơn chưa ghi sổ.'))) return;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hddt_cho_xuat.xu_ly_ngay_cu', { ngay: ngay, chay_thu: 0, che_do: giuNgay ? 'giu_ngay' : 'keo', xac_nhan_qua_han: xacNhanQuaHan ? 1 : 0, ly_do: lyDo, pham_vi: JSON.stringify(xem.pham_vi || []) }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chạy lỗi'); }
+  busy(false);
+  baoTin(kq.nhat_ky || 'Đã nhận lệnh.');
+  go(scrCaiDatCuoiNgay, true);
 }
 
 function cdDong(thuoc, d, on, mo) {
