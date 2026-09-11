@@ -179,3 +179,10 @@ và QueryTimeoutError, nhưng execute_job chỉ vào nhánh retry với Internal
 hoặc RetryBackgroundJobError. Chỉ đổi sang raise vẫn chưa đủ tự thử lại.
 Phải kiểm cả nơi đổi loại lỗi và nơi xử lý cuối; ca giả ném lỗi chỉ chứng minh
 nhánh xử lý, không thay phép hai kết nối DB thật.
+
+
+### 11/09/2026 - File trong ca kiểm và phân loại PLE (#265)
+
+Savepoint chỉ lùi DB; Frappe f33ac3f database.rollback(save_point) không chạy after_rollback của File. Ca tạo tệp có content phải dùng nội dung riêng và tự dọn qua File.delete trong finally, kiểm đường dẫn đã mất kể cả khi submit lỗi. Không coi đếm chứng từ sạch là đĩa sạch.
+
+ERPNext de591661 reconcile_against_document sửa phân bổ PLE nhưng giữ GL gốc. Ca thu trước rồi phân bổ sau tái hiện được GL join thiếu tiền; PE đã phân bổ ngay khi submit không đủ làm đối chứng. PLE của credit note/POS/write-off cũng mang voucher_type Sales Invoice. Chỉ dòng Nợ tự thân của SI bán là gross; các dòng còn lại vào điều chỉnh có giải thích, không âm thầm trừ gross.

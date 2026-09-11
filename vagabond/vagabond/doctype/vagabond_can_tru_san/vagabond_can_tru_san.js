@@ -17,7 +17,8 @@ frappe.ui.form.on('Vagabond Can Tru San', {
       const tien = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
       frappe.msgprint({title: r.trang_thai, message: '<table class="table">' + [
         ['Đầu kỳ', r.dau_ky], ['Doanh thu ghi công nợ', r.doanh_thu], ['Tiền đã nhận và phân bổ', r.da_nhan],
-        ['Phí đã cấn trừ', r.phi_da_bu], ['Điều chỉnh khác', r.dieu_chinh], ['Cuối kỳ', r.du_cuoi]
+        ['Phí đã cấn trừ', r.phi_da_bu], ['Điều chỉnh khác', r.dieu_chinh], ['Cuối kỳ', r.du_cuoi],
+        ['Trong dư cuối kỳ: hóa đơn đã hủy mềm', r.du_huy_mem]
       ].map(x => '<tr><td>' + esc(x[0]) + '</td><td>' + tien(x[1]) + '</td></tr>').join('') + '</table><p>' + esc(r.ghi_chu) + '</p>'});
     });
   }

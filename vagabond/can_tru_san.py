@@ -292,15 +292,18 @@ def doi_chieu(ten):
     """Đọc phân bổ PLE theo SI, không suy phân bổ từ GL tổng hợp của PE."""
     d = frappe.get_doc(DT,ten)
     d.check_permission('read')
-    # ERPNext de591661 accounts/utils.py QueryPaymentLedger gom amount theo
-    # against_voucher_no; GL của PE có thể gộp nhiều SI và mất liên kết từng tờ.
+    # ERPNext de591661 utils.reconcile_against_document cập nhật phân bổ PLE
+    # nhưng giữ GL gốc khi thu trước, phân bổ sau. get_payment_ledger_entries
+    # đặt delinked=cancel; delink_original_entry gỡ dòng gốc khi hủy thường.
     dong = frappe.db.sql('''select ple.posting_date, ple.voucher_type, ple.voucher_no,
         greatest(ple.amount,0) as debit, greatest(-ple.amount,0) as credit,
-        si.vgb_quay, je.vgb_can_tru_san as phieu_bu
+        si.vgb_quay, si.name as hoa_don, si.vgb_huy as huy_mem,
+        lap.is_return, je.vgb_can_tru_san as phieu_bu
         from `tabPayment Ledger Entry` ple
         join `tabSales Invoice` si on ple.against_voucher_type='Sales Invoice'
             and si.name=ple.against_voucher_no
         left join `tabJournal Entry` je on ple.voucher_type='Journal Entry' and je.name=ple.voucher_no
+        left join `tabSales Invoice` lap on ple.voucher_type='Sales Invoice' and lap.name=ple.voucher_no
         where ple.company=%s and ple.party_type='Customer' and ple.party=%s
           and ple.account=si.debit_to and ple.delinked=0
           and si.custom_nguon=%s
@@ -308,12 +311,17 @@ def doi_chieu(ten):
         (d.company,d.khach_hang,d.san,d.den_ngay),as_dict=True)
     from vagabond.diem_ban import ma_theo_quay
     dong = [x for x in dong if ma_theo_quay(x.vgb_quay) == d.diem_ban]
-    dau = gross = nhan = phi = khac = Decimal(0)
+    dau = gross = nhan = phi = khac = huy_mem = Decimal(0)
     for x in dong:
         no = tien(x.debit)-tien(x.credit)
+        if x.huy_mem:
+            huy_mem += no
         if getdate(x.posting_date) < getdate(d.tu_ngay):
             dau += no
-        elif x.voucher_type == 'Sales Invoice':
+        # Core SI.get_gl_entries thêm POS/write-off sau bước gộp, nên dòng
+        # Có cùng SI vẫn riêng. Chỉ dòng Nợ tự thân của SI bán là gross;
+        # trả hàng, thu tại quầy và write-off vào điều chỉnh để không giảm gross.
+        elif x.voucher_type == 'Sales Invoice' and x.voucher_no == x.hoa_don and not x.is_return and no > 0:
             gross += no
         elif x.voucher_type == 'Payment Entry':
             nhan -= no
@@ -323,9 +331,9 @@ def doi_chieu(ten):
             khac += no
     kq = ket_qua(dau,gross,nhan,phi)
     kq.update(dau_ky=float(dau),doanh_thu=float(gross),da_nhan=float(nhan),phi_da_bu=float(phi),
-        dieu_chinh=float(khac),du_cuoi=float(tien(kq['du'])+khac),dong=dong,
-        ghi_chu='Số đã phân bổ vào hoá đơn của sàn/điểm bán. Khoản thu chưa phân bổ cần đối chiếu riêng với Merchant và ngân hàng.')
-    if khac:
+        dieu_chinh=float(khac),du_cuoi=float(tien(kq['du'])+khac),du_huy_mem=float(huy_mem),dong=dong,
+        ghi_chu='Số đã phân bổ vào hoá đơn của sàn/điểm bán. Trả hàng, thu trực tiếp trên hóa đơn và xóa nợ nằm ở Điều chỉnh khác. Khoản thu chưa phân bổ cần đối chiếu riêng với Merchant và ngân hàng.')
+    if khac or huy_mem:
         kq['trang_thai']='Cần kiểm tra điều chỉnh'
     return kq
 
