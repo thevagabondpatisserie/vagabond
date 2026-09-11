@@ -715,7 +715,7 @@ def ds_combo(quay=None, nguon=None, tat_ca=0):
 		"Vagabond Combo",
 		filters=loc,
 		fields=[
-			"name", "ten", "kieu", "gia_combo", "gia_tri", "gia_goc", "tiet_kiem",
+			"name", "ma_hang", "ten", "kieu", "gia_combo", "gia_tri", "gia_goc", "tiet_kiem",
 			"bat", "uu_tien", "tu_ngay", "den_ngay", "kenh", "quay", "anh",
 			"mo_ta", "can_otp", "gioi_han_bill", "lan_moi_ngay", "da_dung",
 		],
@@ -1517,7 +1517,7 @@ def bat_tat_ctkm(ma, bat):
 
 
 TRUONG_COMBO = [
-	"ten", "bat", "uu_tien", "kieu", "gia_combo", "gia_tri", "tu_ngay",
+	"ten", "ma_hang", "bat", "uu_tien", "kieu", "gia_combo", "gia_tri", "tu_ngay",
 	"den_ngay", "kenh", "quay", "gioi_han_bill", "lan_moi_ngay", "can_otp",
 	"mo_ta", "anh",
 ]

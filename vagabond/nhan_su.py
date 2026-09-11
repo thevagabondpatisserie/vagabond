@@ -296,4 +296,14 @@ def khoi_dong():
 		order_by="name",
 		limit_page_length=0,
 	)
-	return {"vai": frappe.get_roles(), "kho": kho, "nhom": nhom}
+	# Dùng đúng bộ vai của cửa máy chủ, không tạo thêm quy tắc quyền trên JS.
+	from vagabond.ban_hang import QUYEN_BAN_HANG
+	from vagabond.bao_cao import QUYEN_XEM
+	vai = set(frappe.get_roles())
+	doc = {dt: bool(frappe.db.exists("DocType", dt) and frappe.has_permission(dt, "read")) for dt in (
+		"Department", "Material Request", "Payment Entry", "Work Order",
+		"Purchase Receipt", "RnD Purchase Request", "Phieu Kiem Ke", "Sales Invoice",
+	)}
+	return {"vai": sorted(vai), "kho": kho, "nhom": nhom,
+		"quyen_nen": {"doc": doc, "ban_hang": bool(vai & QUYEN_BAN_HANG),
+			"bao_cao": bool(vai & QUYEN_XEM)}}

@@ -211,3 +211,35 @@ def _het_han_chan():
 			frappe.db.rollback(save_point='kt206_chan')
 		la('không phiếu/sổ/gói phát sinh sau rollback', {dt: frappe.db.count(dt) for dt in bang}, truoc)
 		wo.reload(); la('không tăng sản lượng', float(wo.produced_qty), 0)
+
+
+@ca('#258 app hoàn tất bỏ giờ máy khách, reload SLE/GL đúng giờ và giá trị')
+def _gio_hoan_tat_app():
+	from frappe.utils import now_datetime, get_datetime, add_days, today
+	from vagabond.kho_san_xuat import hoan_tat_phieu
+	cty, kho, nvl, tp, bom = _nen()
+	nhap = nhap_kho(item_code=nvl, qty=10, company=cty, to_warehouse=kho[0], rate=1000, do_not_save=True)
+	nhap.insert(); nen._DA_TAO.append(('Stock Entry', nhap.name)); nhap.submit(); nhap.reload()
+	lenh = _lenh(cty, kho, tp, bom, kho[0]); lenh.submit()
+	phieu = make_stock_entry(lenh.name, 'Manufacture', qty=2)
+	# Giờ sai từ máy khách phải bị bỏ; nếu gỡ dòng set_posting_time=0,
+	# core sẽ xuất trước lần nhập thử hoặc lưu ngày cũ, ca này phải đỏ.
+	phieu.update(set_posting_time=1, posting_date=add_days(today(), -1), posting_time='00:00:00')
+	truoc = now_datetime().replace(microsecond=0)
+	kq = hoan_tat_phieu(phieu, q=2, can=2)
+	nen._DA_TAO.append(('Stock Entry', kq['name']))
+	doc = frappe.get_doc('Stock Entry', kq['name'])
+	luc = get_datetime(str(doc.posting_date)+' '+str(doc.posting_time))
+	dung('giờ site trong khoảng gọi', truoc <= luc <= now_datetime())
+	la('phiếu ghi sổ', doc.docstatus, 1)
+	sle = frappe.get_all('Stock Ledger Entry', filters={'voucher_type':'Stock Entry','voucher_no':doc.name,'is_cancelled':0},
+		fields=['item_code','warehouse','actual_qty','stock_value_difference','posting_date','posting_time'])
+	la('đúng hai dòng SLE', sorted((d.item_code,d.warehouse,float(d.actual_qty)) for d in sle),
+		sorted([(nvl,kho[0],-2.0),(tp,kho[1],2.0)]))
+	for d in sle:
+		la('giờ SLE khớp phiếu', get_datetime(str(d.posting_date)+' '+str(d.posting_time)), luc)
+		la('giá trị từng dòng kho', round(float(d.stock_value_difference),2), -2000 if d.item_code==nvl else 2000)
+	gl = so_cai_cua(doc)
+	la('GL cân', sum(float(d.debit) for d in gl), sum(float(d.credit) for d in gl))
+	la('giá trị kho ròng không đổi', round(sum(float(d.stock_value_difference) for d in sle),2), 0)
+	lenh.reload(); la('lệnh sản xuất đủ', float(lenh.produced_qty), 2)

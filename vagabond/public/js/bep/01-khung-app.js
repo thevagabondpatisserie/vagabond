@@ -297,6 +297,7 @@ async function loadMasters() {
   syncUser();
   var _kd = null;
   try { _kd = await api('vagabond.nhan_su.khoi_dong', {}); } catch (e) { _kd = null; }
+  S.quyenNen = _kd && _kd.quyen_nen || null;
   var r = (_kd && _kd.kho) ? [
     _kd.kho.map(function (n) { return { name: n }; }),
     _kd.nhom || [],
@@ -331,7 +332,7 @@ async function loadMasters() {
   if (!S.me.full_name) { try { S.me.full_name = frappe.session.user_fullname || ''; } catch (e) { } }
   if (!S.me.bo_phan) { try { S.me.bo_phan = localStorage.getItem('vgb_bp_' + S.user) || ''; } catch (e) { } }
   try {
-    var dp = await getList('Department', { fields: ['name'], filters: { is_group: 0, disabled: 0 }, limit_page_length: 0 });
+    var dp = await nenDemDanhSach('Department', { fields: ['name'], filters: { is_group: 0, disabled: 0 }, limit_page_length: 0 });
     if (dp && dp.length) DEPTS = dp.map(function (x) { return x.name; }).sort(function (a, b2) { return (deptRank(a) - deptRank(b2)) || (a < b2 ? -1 : 1); });
   } catch (e) { }
   /* Nut noi cua tro ly: gan SAU khi da biet vai cua nguoi dang dung, vi
@@ -433,3 +434,12 @@ function bepSeesRow(v) {
 }
 function whOpts() { return S.wh.map(function (w) { return { value: w, label: shortWh(w) }; }); }
 
+
+// Chỉ bỏ yêu cầu phụ khi máy chủ xác nhận không được đọc; không nuốt lỗi khác.
+function nenCoQuyen(k) {
+  return !(S.quyenNen && S.quyenNen[k] === false);
+}
+function nenDemDanhSach(dt, args) {
+  if (S.quyenNen && S.quyenNen.doc && S.quyenNen.doc[dt] === false) return Promise.resolve([]);
+  return getList(dt, args);
+}

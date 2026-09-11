@@ -1748,6 +1748,23 @@ def _khi_khop_ttnb(doc, ma_gd):
 	return None
 
 
+def _loi_nguon_chi_ttnb(g):
+	"""Phiếu chi công ty chỉ được tất toán bằng tiền từ tài khoản công ty.
+
+	Từ v476 SePay nhận cả sao kê tài khoản cá nhân dùng cho hoàn ứng. Nếu chỉ
+	dò mã và số tiền, khoản anh Việt ứng từ túi riêng sẽ làm phiếu công ty
+	nhảy sang Đã chi và mất dấu khoản 141 mà công ty còn phải hoàn lại.
+	"""
+	ba = str((g or {}).get("bank_account") or "").strip()
+	if not ba or not cint(frappe.get_cached_value("Bank Account", ba, "is_company_account")):
+		return (
+			"Giao dịch này thuộc tài khoản cá nhân. Phiếu thanh toán nội bộ của "
+			"công ty chỉ được đánh dấu Đã chi từ Bank Account công ty. Hãy giữ "
+			"dòng này ở luồng tạm ứng hoặc hoàn ứng của đúng người."
+		)
+	return ""
+
+
 def _khai_doi_soat():
 	"""Khai luồng thanh toán nội bộ vào sổ đối soát SePay dùng chung.
 
@@ -1773,6 +1790,7 @@ def _khai_doi_soat():
 		khi_khop=_khi_khop_ttnb,
 		ten_man="Thanh toán nội bộ",
 		loc_chiem={"trang_thai": ["!=", TT_TRA_LAI]},
+		loi_giao_dich=_loi_nguon_chi_ttnb,
 	)
 
 
@@ -1833,7 +1851,7 @@ def doi_soat(so_ngay=30):
 
 	try:
 		gds = frappe.db.sql(
-			"""select name, description, withdrawal, date, reference_number
+			"""select name, description, withdrawal, date, reference_number, bank_account
 			from `tabBank Transaction`
 			where docstatus < 2 and ifnull(withdrawal, 0) > 0
 			  and date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)""",
@@ -1843,6 +1861,7 @@ def doi_soat(so_ngay=30):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: doc sao ke loi")
 		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Chưa đọc được sao kê ngân hàng."}
+	gds = [g for g in gds if not _loi_nguon_chi_ttnb(g)]
 
 	da_chiem = _gd_da_chiem_ttnb()
 	da, xem = 0, []
@@ -1906,9 +1925,13 @@ def khi_co_giao_dich(ma_bt):
 	"""
 	try:
 		g = frappe.db.get_value(
-			BT, ma_bt, ["name", "withdrawal", "description", "reference_number"], as_dict=True
+			BT, ma_bt,
+			["name", "withdrawal", "description", "reference_number", "bank_account"],
+			as_dict=True,
 		)
 		if not g or flt(g.get("withdrawal")) <= 0:
+			return
+		if _loi_nguon_chi_ttnb(g):
 			return
 		mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
 		da_chiem = _gd_da_chiem_ttnb()

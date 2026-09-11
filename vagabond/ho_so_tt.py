@@ -212,6 +212,20 @@ def _ten_nguoi(email):
 	return ten_nguoi.ten(email)
 
 
+def _bo_doi_ten_trong_luot():
+	"""Mỗi người chỉ qua bộ đổi tên một lần trong request danh sách.
+
+	Không dùng cache toàn cục: lần tải sau vẫn đọc chính sách tên hiện hành,
+	gồm fallback Employee khi User chưa có tên, giống _ten_nguoi trước đây.
+	"""
+	nho = {}
+	def doi(email):
+		if email not in nho:
+			nho[email] = _ten_nguoi(email)
+		return nho[email]
+	return doi
+
+
 def _tk_nhan(ma_ncc):
 	"""So tai khoan nhan tien cua mot nha cung cap, doc tu Bank Account.
 
@@ -1534,6 +1548,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 
 	from vagabond.doi_chieu_app import canh_bao_mo_lai
 	canh_bao = canh_bao_mo_lai(ds)
+	doi_ten = _bo_doi_ten_trong_luot()
 	hom_nay = getdate(nowdate())
 	q = (tu_khoa or "").strip().lower()
 	ra = []
@@ -1549,9 +1564,9 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		# Ho so nao con thieu uy nhiem chi. De chi Dung nhin mot cai la biet
 		# to nao can tai UNC ve truoc, khoi mo tung ho so ra do.
 		o["co_unc"] = 1 if tach_ma_unc(r.get("unc_tep")) else 0
-		o["nguoi_tao_ten"] = _ten_nguoi(r.nguoi_tao)
-		o["fin_ten"] = _ten_nguoi(r.fin_boi)
-		o["gd_ten"] = _ten_nguoi(r.gd_boi)
+		o["nguoi_tao_ten"] = doi_ten(r.nguoi_tao)
+		o["fin_ten"] = doi_ten(r.fin_boi)
+		o["gd_ten"] = doi_ten(r.gd_boi)
 		o["tre_ngay"] = (
 			(hom_nay - getdate(r.han_tra_som_nhat)).days
 			if r.han_tra_som_nhat
@@ -1583,7 +1598,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 					continue
 				o["nhan"] = NHAN.get(o["trang_thai"], o["trang_thai"])
 				o["nhan_cp_thue"] = ""
-				o["nguoi_tao_ten"] = _ten_nguoi(o.get("nguoi_tao"))
+				o["nguoi_tao_ten"] = doi_ten(o.get("nguoi_tao"))
 				o["fin_ten"] = ""
 				o["gd_ten"] = ""
 				ra.append(o)

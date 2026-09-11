@@ -336,7 +336,9 @@ ca('go so huy KHONG hop le (-0.5, 1.9, am, chu, vo han): khong gui, khong dong o
     var truoc = m.goi.length;
     inp.value = xau;
     inp.dispatchEvent(dg.suKien('change', {}, inp));
-    for (var k = 0; k < 5; k++) await new Promise(function (r) { setTimeout(r, 0); });
+    // Nhánh từ chối của luuO chạy đồng bộ trong change. Kiểm ngay trước
+    // khi nhường event loop: toast tự xoá sau 4 giây, máy bị treo lịch có
+    // thể làm năm nhịp ngủ vượt hạn dù app đã báo đúng lỗi.
     bang('KHONG goi may chu (' + xau + ')', m.goi.length, truoc);
     var el = m.tai.getElementById('kb-bao');
     dung('bao do (' + xau + '): ' + el.textContent, el.className === 'loi' && el.textContent.indexOf('BAWC00055') >= 0);

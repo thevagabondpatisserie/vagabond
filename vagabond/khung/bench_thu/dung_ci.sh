@@ -1,11 +1,27 @@
 #!/usr/bin/env bash
 # Chi dung trong runner GitHub dung mot lan. Khong nhan site san xuat.
 set -euo pipefail
-: "${GITHUB_ACTIONS:?Chi chay tren GitHub Actions}"
+[[ "${GITHUB_ACTIONS:-}" == "true" ]] || { echo "Chi chay tren GitHub Actions"; exit 1; }
 : "${VGB_BENCH:?}"
 : "${VGB_ARTIFACTS:?}"
 mkdir -p "$VGB_ARTIFACTS"
 exec > >(tee "$VGB_ARTIFACTS/dung-bench.log") 2>&1
+# CI56: kho Chrome của runner có Packages.gz lệch hash, trong khi bench
+# dùng Chromium do Playwright tải riêng. Chỉ bỏ dòng kho Chrome khỏi các
+# .list trên runner dùng một lần; giữ kiểm chữ ký/hash và các kho còn lại.
+# Nếu runner đổi sang định dạng khác thì apt vẫn lỗi, không bỏ qua lỗi đó.
+sudo python3 - <<'PY_APT'
+from pathlib import Path
+import re
+for p in Path('/etc/apt/sources.list.d').glob('*.list'):
+    cu = p.read_text()
+    moi = ''.join('# vgb-ci: ' + s if re.match(
+        r'^\s*deb(?:-src)?\s+.*https?://dl\.google\.com/linux/chrome(?:-stable)?/deb(?:/|\s)', s)
+        else s for s in cu.splitlines(keepends=True))
+    if moi != cu:
+        p.write_text(moi)
+        print('CI bỏ kho Chrome không dùng:', p.name)
+PY_APT
 sudo apt-get update -qq
 sudo apt-get install -y --no-install-recommends libmariadb-dev pkg-config libldap2-dev libsasl2-dev libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 redis-tools
 # PR263 cần đo bản in bằng cùng engine WebKit, không chỉ đếm HTML.

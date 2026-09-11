@@ -115,6 +115,7 @@ node vagabond/khung/kiem_thu/hanh_vi/thue_don_mua_227.js
 node vagabond/khung/kiem_thu/hanh_vi/tai_khoan_dich_vu_252.js
 node vagabond/khung/kiem_thu/hanh_vi/sua_pkt_tang.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_chieu_app_247.js
+node vagabond/khung/kiem_thu/hanh_vi/combo_261.js
 node vagabond/khung/kiem_thu/hanh_vi/coc_app_247.js
 node vagabond/khung/kiem_thu/hanh_vi/tham_chieu_tien_267.js
 node vagabond/khung/kiem_thu/hanh_vi/chay.js
