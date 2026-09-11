@@ -7,6 +7,53 @@ from vagabond.khung.kiem_that.nen import ca, dung, la
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen, _mon
 
 
+def _bill_hoan():
+    ct,tk,_ = _nen()
+    a,b = _mon(tk),_mon(tk)
+    cha=frappe.copy_doc(frappe.get_doc('Item',a))
+    cha.item_code='KMCB-KIEM-'+frappe.generate_hash(length=8)
+    cha.insert(ignore_permissions=True); nen._DA_TAO.append((cha.doctype,cha.name))
+    cb=frappe.get_doc(dict(doctype='Vagabond Combo',ten='Combo kiểm hoàn tiền',ma_hang=cha.name,bat=1,
+        kieu='Gia tron goi',gia_combo=155000,dong=[dict(item_code=a,so_luong=3,gia_goc=45000),
+        dict(item_code=b,so_luong=1,gia_goc=60000)]))
+    cb.insert(ignore_permissions=True); nen._DA_TAO.append((cb.doctype,cb.name))
+    hd=frappe.get_doc(dict(doctype='Sales Invoice',company=ct,currency='VND',conversion_rate=1,
+        customer=frappe.db.get_value('Customer',{'disabled':0,'is_internal_customer':0},'name'),
+        items=[dict(item_code=a,qty=1,rate=10000),dict(item_code=cha.name,qty=1,rate=155000)]))
+    hd.insert(ignore_permissions=True); nen._DA_TAO.append((hd.doctype,hd.name))
+    hd.flags.ignore_permissions=True; hd.submit(); hd.reload()
+    la('bill nguồn đúng tiền',hd.grand_total,165000)
+    return hd
+
+
+@ca('#265 C2 F1 hoàn tiền 50 phần trăm qua đúng cửa app không hoàn đủ combo')
+def _hoan_nua():
+    from vagabond.hoan_tien import _lap_hoa_don_tra
+    hd=_bill_hoan()
+    kho=frappe.db.get_value('Warehouse',{'company':hd.company,'is_group':0},'name')
+    tra=_lap_hoa_don_tra(hd,kho,'Kiểm hoàn nửa bill','KIEM265',so_tien=82500)
+    nen._DA_TAO.append((tra.doctype,tra.name)); tra.reload()
+    la('hoàn đúng82500 sau reload',tra.grand_total,-82500)
+
+
+@ca('#265 C2 F2 credit note tay phải nối đúng dòng combo gốc')
+def _tra_thieu_dong_goc():
+    from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
+    hd=_bill_hoan()
+    tra=make_sales_return(hd.name)
+    for d in tra.items:
+        if d.get('vgb_combo_luong'):
+            for k in ('sales_invoice_item','vgb_combo_luong','vgb_combo_tien','vgb_combo_ma','vgb_combo_ten'):
+                d.set(k,None)
+    try:
+        tra.insert(ignore_permissions=True)
+    except frappe.ValidationError as e:
+        dung('chỉ đường chọn dòng gốc','hóa đơn gốc' in str(e))
+    else:
+        nen._DA_TAO.append((tra.doctype,tra.name))
+        dung('không được bỏ liên kết dòng combo',False)
+
+
 @ca('#261 KMCB API: ba diem ban, 2 bo, luu lai va huy mem khong dem trung')
 def _combo():
     ct, tk, mau = _nen()
