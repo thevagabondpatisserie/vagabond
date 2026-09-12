@@ -1254,14 +1254,21 @@ async function chayHet() {
       nccChon: NCC_NO, supplier: { 'NCC-1': { supplier_name: 'NCC thử' } },
       hoaDon: { rows: [{ hoa_don: 'HD-1', ncc: 'NCC-1', ten_ncc: 'NCC thử',
         con_no: 1000000, co_the_chi: 1000000 }] } }));
+    var trong = dungMan(canhChi({vai:['Purchase Manager','AP Officer'],nccChon:[]}));
+    trong.g.hsTaoNcc = ''; trong.g.hsTaoLoai = 'NCC';
+    await trong.g.scrHoSoTTTao();
+    dung('man APP chưa NCC không nhắc', !trong.tai.getElementById('hsCanCocNhac'));
+    trong.g.huNguoi = '';
+    await trong.g.scrChiCongTyTao();
+    dung('man chi cong ty chưa đối tượng không nhắc', !trong.tai.getElementById('huCanCocNhac'));
     m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
     await m.g.scrHoSoTTTao();
     dung('man APP khong bay nut khong bam duoc', !m.tai.getElementById('hsCanCoc'));
-    dung('hiện lời nhắc kế toán', !!m.tai.getElementById('hsCanCocNhac'));
+    dung('man APP hiện lời nhắc kế toán', !!m.tai.getElementById('hsCanCocNhac'));
     m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
     await m.g.scrChiCongTyTao();
     dung('man chi cong ty khong bay nut khong bam duoc', !m.tai.getElementById('huCanCoc'));
-    dung('hiện lời nhắc kế toán', !!m.tai.getElementById('huCanCocNhac'));
+    dung('man chi cong ty hiện lời nhắc kế toán', !!m.tai.getElementById('huCanCocNhac'));
   });
 
   await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
@@ -1272,11 +1279,11 @@ async function chayHet() {
     m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
     await m.g.scrHoSoTTTao();
     dung('man APP co nut', !!m.tai.getElementById('hsCanCoc'));
-    dung('kế toán không có lời nhắc thừa', !m.tai.getElementById('hsCanCocNhac'));
+    dung('man APP kế toán không có lời nhắc thừa', !m.tai.getElementById('hsCanCocNhac'));
     m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
     await m.g.scrChiCongTyTao();
     dung('man chi cong ty co nut', !!m.tai.getElementById('huCanCoc'));
-    dung('kế toán không có lời nhắc thừa', !m.tai.getElementById('huCanCocNhac'));
+    dung('man chi cong ty kế toán không có lời nhắc thừa', !m.tai.getElementById('huCanCocNhac'));
   });
 
 }
