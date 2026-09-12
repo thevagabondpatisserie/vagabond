@@ -74,12 +74,13 @@ def chuan_bi(doc):
         return
     cu = None if doc.is_new() else frappe.db.get_value('Sales Invoice', doc.name,
         ['docstatus', 'vgb_tang_kho_moi'], as_dict=True)
-    doc.vgb_tang_kho_moi = 1 if doc.is_new() else cint(cu and cu.vgb_tang_kho_moi)
     if cu and cu.docstatus != 0:
+        doc.vgb_tang_kho_moi = cint(cu.vgb_tang_kho_moi)
         return
     from vagabond.minvoice_an_toan import la_hang_tang
-    if not doc.vgb_tang_kho_moi:
-        return
+    # ERPNext v16.28.0 sales_invoice.py on_submit: if self.update_stock == 1
+    # thì ghi SLE; stock_controller.py get_gl_entries dùng expense_account.
+    # Dọn chuyển loại trước khi tắt chính sách, không để dấu 0 che kho/64181 cũ.
     if not la_hang_tang(doc):
         if doc.get('vgb_tang_kho'):
             # Đổi đơn nháp từ tặng sang bán thường phải trả lại luồng cũ.
@@ -89,6 +90,18 @@ def chuan_bi(doc):
                 if d.get('expense_account') and frappe.get_cached_value('Account', d.expense_account, 'account_number') == '64181':
                     d.expense_account = None
             doc.vgb_tang_kho = None
+    bat_kho = cint(frappe.db.get_single_value('Vagabond Settings', 'hang_tang_xuat_kho_that'))
+    doc.vgb_tang_kho_moi = (1 if doc.is_new() else cint(cu and cu.vgb_tang_kho_moi)) if bat_kho else 0
+    if not bat_kho and la_hang_tang(doc):
+        # #290: kho chưa được nhập đủ thì chỉ ghi VAT, chờ giá vốn như luồng cũ.
+        # Không sửa dấu của tờ đã ghi sổ/huỷ, để core vẫn đảo đúng SLE lịch sử.
+        doc.update_stock = 0
+        doc.vgb_tang_kho = None
+        for d in doc.items:
+            if d.get('expense_account') and frappe.get_cached_value('Account', d.expense_account, 'account_number') == '64181':
+                d.expense_account = None
+        return
+    if not doc.vgb_tang_kho_moi or not la_hang_tang(doc):
         return
     if doc.get('is_return') or doc.get('is_debit_note'):
         frappe.throw('Hàng tặng cần xử lý huỷ đúng hoá đơn gốc, không tạo phiếu trả hàng độc lập.')

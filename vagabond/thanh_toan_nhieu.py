@@ -305,6 +305,14 @@ def dat_pt_chinh(doc):
 	Không có dòng nào thì KHÔNG đụng vào ô cũ: đơn một phương thức vẫn đi
 	nguyên đường cũ, và người gõ tay vẫn giữ nguyên lựa chọn của họ.
 	"""
+	if (doc.get("vgb_pt_thanh_toan") or "").strip() == "Hàng tặng":
+		# Không để bảng máy suy đoán biến quà tặng thành đơn thu tiền.
+		dang_co = list(doc.get(BANG) or [])
+		if dang_co and all(d.get("do_may") for d in dang_co):
+			doc.set(BANG, [])
+		elif dang_co:
+			frappe.throw("Hàng tặng không dùng cùng dòng thanh toán nhập tay. Giữ phương thức thu tiền nếu khách đã trả; nếu là quà tặng, nhờ kế toán kiểm tra các dòng thanh toán trước khi đổi.")
+		return
 	try:
 		dong = gom_dong([
 			{"pt": d.get("pt"), "so_tien": d.get("so_tien"),

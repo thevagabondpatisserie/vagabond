@@ -342,3 +342,19 @@ Không suy từ lời gọi commit rằng bench đã commit thật. `nen._cach_l
 tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
 ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
 cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.
+
+## #290: tách đơn nháp kẹt khỏi nghĩa vụ HĐĐT đã ghi sổ
+
+Nháp kẹt kho/duyệt không được giữ cả ngày sau không phát hành. Chỉ tờ đã ghi sổ chưa có HĐĐT giữ hàng rào ngày cũ; các cờ đối chiếu và lỗi đọc vẫn giữ nguyên. Combo nháp cũ cần lưu trước submit vì core đặt docstatus=1 trước validate. Khi chuẩn bị có thể ghi DB, lỗi chuẩn bị cũng phải rollback trước khi chạy đơn kế. Thời điểm modified cùng lịch đồng bộ chưa chứng minh trường người nhập bị hàm đồng bộ xóa; cần ca gọi thật và Version diff.
+
+### 12/09/2026 - B1 issue 290: ca kiểm phải giữ đường máy ghi đè
+
+Ca giữ dữ liệu quà tặng đặt vgb_pt_do_may=0 và mock bảng thanh toán đã che sự cố. Lý do vẫn ở DB nhưng phương thức bị đổi khiến UI giấu nó. Phải đi qua thao tác người chọn, giữ nguồn máy trả dữ liệu có thật, chạy validate và reload; kiểm cả phương thức lẫn lý do. Không nhận modified cùng giờ là bằng chứng cột nào đã bị xóa.
+
+### 12/09/2026 - PR291 B1-3: cửa ghi tắt phải đi qua chốt nghiệp vụ
+
+Chốt validate không bảo vệ được API dùng db.set_value. Chuyển sang Hàng tặng phải qua Document.save để chặn dòng tiền tay trước DB, thay vì ghi trạng thái kẹt cho lần sau. Không dùng helper đọc nuốt lỗi làm hàng rào an toàn.
+
+### 12/09/2026 - Tắt chính sách không được che trạng thái cần dọn (#291)
+
+Nháp tặng đã mang kho/64181, khi tắt công tắc cùng lúc đổi thành thu tiền, hạ dấu trước làm nhánh return bỏ qua dọn kho. Dọn chuyển loại trước khi tính dấu mới; ca thuần bắt update_stock còn 1, ca bench lưu-ghi sổ-hủy và đọc GL/SLE/Bin. Nguồn finding 3996732355, cùng lỗi 3996733712 trên nhánh tích hợp #293.

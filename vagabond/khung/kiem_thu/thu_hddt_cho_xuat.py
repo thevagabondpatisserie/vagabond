@@ -1043,7 +1043,7 @@ def _doc_no_hong():
 		t = t[:t.find("\ndef ", 10)]
 		return t[t.find("frappe.db.sql("):]
 	r = _sql("ngay_cu_can_bao_ve")
-	dung("nhận cả đơn nháp", "docstatus in (0, 1)" in r)
+	dung("#290 chỉ bảo vệ tờ đã ghi sổ", "docstatus = 1" in r and "docstatus in (0, 1)" not in r)
 	dung("không loại tờ đang giữ cờ đối chiếu", "vgb_hddt_cho_doi_chieu" not in r)
 	dung("không đòi phải có dấu ngày xuất", hddt_cho_xuat.TRUONG_NGAY_XUAT not in r)
 	n = _sql("ngay_cu_dang_cho")
