@@ -31497,7 +31497,7 @@ async function scrDonTreo() {
   var LD = d.ly_do || {};
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
-    'Đơn nào <b>chưa ghi sổ được</b> thì nằm ở đây kèm lý do. Máy chạy chuỗi cuối ngày lúc 23h rồi vét lại 5 phút một lần cho tới nửa đêm; đơn nào tới lúc đó vẫn thiếu điều kiện thì mới treo lại. ' +
+    'Đơn trước hôm nay <b>chưa ghi sổ được</b> nằm ở đây kèm lý do. Đơn đang phục vụ hôm nay xem tại màn bán hàng của điểm bán. ' +
     'Đúng 23h55 máy gửi thư báo cho kế toán và quản lý.</div>';
 
   /* Bootstrap cua Frappe dat .card{display:flex;flex-direction:column} nen chip
