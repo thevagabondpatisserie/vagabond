@@ -177,11 +177,15 @@ def chay():
 		return dict(frappe.local.response.get('message') or {})
 
 	kq = {'phan': []}
+	cong_tac = [('Vagabond Settings', 'tu_xuat_hddt'),
+		('MInvoice Phat Hanh Settings', 'enabled'), ('MInvoice Phat Hanh Settings', 'tu_xuat_khi_ghi_so')]
 	try:
+		co_truoc = [frappe.db.get_single_value(dt, cot, cache=False) for dt, cot in cong_tac]
 		with patch.object(requests.sessions.Session, 'request', chan), \
 				patch.object(ban_hang.requests, 'post', post_python), \
 				patch.object(tich_hop, 'make_post_request', post), \
 				patch.object(tich_hop, 'make_get_request', get), nen._cach_ly():
+			_bang('lớp cách ly vô hiệu hóa commit thật', bool(frappe.db._disable_transaction_control), True)
 			diem = 'hddt266_' + frappe.generate_hash(length=8)
 			frappe.db.savepoint(diem)
 			try:
@@ -763,11 +767,13 @@ def chay():
 					raise AssertionError('Mất ID đã ghi bởi hook')
 				kq['phan'].append({'ten': 'hai cửa bật, hàm thật chặn lần gửi thứ hai', 'dat': True})
 
-
-
 				kq['dat'] = True
 			finally:
+				# nen._cach_ly khóa commit; Frappe vẫn thực thi rollback có save_point.
 				frappe.db.rollback(save_point=diem)
+		co_sau = [frappe.db.get_single_value(dt, cot, cache=False) for dt, cot in cong_tac]
+		_bang('cả ba công tắc về đúng trạng thái trước ca, đọc DB không cache', co_sau, co_truoc)
+		kq['phan'].append({'ten': 'công tắc được hoàn nguyên qua rollback thật', 'dat': True})
 	except Exception as e:
 		kq['dat'] = False
 		kq['loi'] = '%s: %s' % (type(e).__name__, e)

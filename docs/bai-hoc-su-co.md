@@ -278,3 +278,17 @@ API script và kiểm helper không thấy điều này. Phải snapshot/hash ho
 submit, trả trong finally; không tắt toàn bộ hook hoặc hàng rào thuế.
 Chế độ `thu` của một script phát hành không đồng nghĩa chỉ đọc: bản này vẫn
 login và nạp Pancake. Phép đếm nợ phải đọc ERP, chốt cùng phạm vi cho số và tiền.
+
+
+## 12/09/2026 - Hai cửa phát hành và lớp cách ly bench (#266)
+
+Hook After Submit có thể đã ghi ID trước bước `_tu_xuat_hddt`. Khi cả hai
+bật, cửa sau bị `da_gui` chặn, trả cảnh báo đã gửi và ghi Error Log, không
+phát hành lần hai. Production đọc ngày12/09 có `tu_xuat_hddt=0`; lưu ý
+`khoa_ma_pancake.bat_cai_dat` đặt1 nếu ô còn NULL. Ca `kiem_hddt_266.py`
+đo cả cấu hình0/1 với hàm thật và đúng1POST cho mỗi tờ.
+
+Không suy từ lời gọi commit rằng bench đã commit thật. `nen._cach_ly`
+tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
+ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
+cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.
