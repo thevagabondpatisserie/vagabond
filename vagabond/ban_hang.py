@@ -2727,7 +2727,13 @@ def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
 		return 0, 0, "Đơn %s: %s" % (nhan, str(e)[:220])
 	try:
 		si.flags.ignore_permissions = True
-		si.submit()
+		# After Submit chạy ngay trong submit, trước cửa _tu_xuat_hddt bên dưới.
+		co_cu = si.flags.get('vgb_hoan_phat_hanh')
+		si.flags.vgb_hoan_phat_hanh = not cho_xuat
+		try:
+			si.submit()
+		finally:
+			si.flags.vgb_hoan_phat_hanh = co_cu
 		frappe.db.commit()
 	except Exception:
 		frappe.db.rollback()
@@ -3333,17 +3339,23 @@ def _ngay_so_hddt_moi_nhat():
 
 
 def _dem_hddt_sot(ngay):
-	"""(so to, tong tien) da ghi so ma chua co hoa don dien tu trong ngay,
-	dem bang CHINH bo loc cua kich ban phat hanh (che do thu, khong ghi gi)
-	de hai noi khong bao hai con so khac nhau."""
+	"""Đếm nợ đã ghi sổ bằng dữ liệu ERP, không đăng nhập/nạp/gửi qua API.
+
+	Dùng cùng bộ lọc nguồn/quầy với màn xử lý ngày cũ. Tờ chưa rõ kết quả
+	vẫn là nợ cần đối soát, không phải một lệnh cho phép gửi lại.
+	"""
 	try:
-		r = _goi_server_script(
-			"MInvoice - Phat hanh HD Sales (API)",
-			{"che_do": "thu", "ngay": str(ngay), "so_luong": 0, "phieu": None},
+		_stg, nguon, quay = hddt_cho_xuat._cai_dat_minvoice()
+		ds = frappe.db.get_all(
+			"Sales Invoice",
+			filters={"posting_date": getdate(ngay), "docstatus": 1,
+				"grand_total": [">", 0], "vgb_huy": ["!=", 1], "vgb_tam_tinh": ["!=", 1]},
+			fields=["name", "custom_nguon", "vgb_quay", "custom_minvoice_id", "custom_hddt_id", "custom_hddt_so"],
+			limit_page_length=0,
 		)
-		if not isinstance(r, dict) or "so_don_tim_thay" not in r:
-			raise ValueError("Kết quả đếm hóa đơn không hợp lệ")
-		so = cint(r["so_don_tim_thay"])
+		ten = [d.name for d in ds if hddt_cho_xuat.thuoc_diem_dang_xuat(d, nguon, quay)
+			and not hddt_cho_xuat.da_co_hddt(d)]
+		so = len(ten)
 	except Exception:
 		frappe.log_error(giau_khoa(frappe.get_traceback()), "ban_hang: dem HDDT sot")
 		raise
@@ -3351,15 +3363,11 @@ def _dem_hddt_sot(ngay):
 		return 0, 0
 	tien = 0
 	try:
-		ds = frappe.db.get_all(
-			"Sales Invoice",
-			filters={"posting_date": getdate(ngay), "docstatus": 1, "grand_total": [">", 0]},
-			fields=["grand_total", "custom_hddt_so", "custom_minvoice_id"],
-		)
-		tien = sum(
-			flt(d.grand_total) for d in ds
-			if not (d.custom_hddt_so or "").strip() and not (d.custom_minvoice_id or "").strip()
-		)
+		ds = frappe.db.get_all("Sales Invoice", filters={"name": ["in", ten]},
+			fields=["grand_total"], limit_page_length=0)
+		if len(ds) != so:
+			raise ValueError("Số tờ đổi trong khi đọc tổng tiền")
+		tien = sum(flt(d.grand_total) for d in ds)
 	except Exception:
 		frappe.log_error(giau_khoa(frappe.get_traceback()), "ban_hang: dem tien HDDT sot")
 		tien = None
@@ -3401,6 +3409,10 @@ def canh_bao_hddt_sot():
 		buoc_tiep = (
 			"Anh chị mở Cài đặt và Nhật ký lỗi để xác minh phép đếm. Chưa thể kết luận đã xuất đủ."
 			if so is None else
+			"Anh chị mở Cài đặt > Hóa đơn ngày cũ để đối soát nợ ngày cũ trước, "
+			"vì hàng rào đang chặn phát hành. Xử lý xong mới mở Cài đặt > Cuối ngày > Chạy ngay. "
+			"Nhịp bù mỗi giờ không thay việc kiểm tra này."
+			if ("HOÃN PHÁT HÀNH %s (" % ngay) in cu else
 			"Anh chị xử lý ngay trong ca: mở Cài đặt > Cuối ngày > Chạy ngay. "
 			"Nếu còn nợ ngày cũ, mở mục Hóa đơn ngày cũ để đối soát trước. "
 			"Nhịp bù mỗi giờ không thay việc kiểm tra này."

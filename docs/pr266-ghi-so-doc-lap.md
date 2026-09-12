@@ -54,3 +54,28 @@ Giữ số tờ khi chỉ đọc tổng tiền lỗi: tổng tiền None đượ
 Mốc log/thư thêm SHA256 tập lỗi: lỗi mới có thông báo, cùng tập lỗi không lặp. Câu nhật ký rút gọn và vẫn nói rõ lượt này; không cộng dồn cache rồi coi là số nợ thật (E4 để phần tổng hợp từ DB riêng). Nhịp bù vẫn có thể ghi Error Log theo giờ khi hàng rào chưa thông; không coi sự xuất hiện job là bằng chứng đã phát hành.
 
 Bản tích hợp có đủ patches481/482 và APPVER482, bao gồm PR2101684bcf. Chưa deploy, chưa đọc C5/D1(b) trên production.
+
+
+### Kiểm production 12/09 và sửa C5, D1(b), F1/F2
+
+- Chỉ đọc qua System Console: đúng một hook Sales Invoice After Submit đang bật,
+  `SI - Xuat hoa don m-invoice khi ghi so`; cả enabled và tu_xuat_khi_ghi_so đều 1.
+- Snapshot 1957 ký tự, SHA256
+  `626ee03b384fd21e2a6f95a974adc53f3f15338eb8b8a611a9fdad411df78c39`.
+  Bản chép trong `khung/kiem_thu/du_lieu/minvoice_sau_ghi_so_20260912.txt` khớp tuyệt đối.
+- Script API production SHA256
+  `b89c49135a6c77179044551aab5e32618a4bcb8dc617eb78dcf6032b6c0bfafb`
+  khớp `minvoice_kich_ban.ban_moi('phat_hanh')`: chế độ thu vẫn đăng nhập,
+  nạp Pancake và đi qua kiem_goi. Không chạy script này để kiểm trên production.
+- Patch minvoice_v482 chỉ sửa hook có hash đã biết; script lệch hoặc sai sự kiện
+  thì dừng migrate. Không đổi trạng thái bật/tắt, không sửa chứng từ.
+- Cờ hoãn nội bộ được đặt trước submit và trả lại trong finally. Không gỡ hàng
+  rào phát hành. Bench dựng snapshot production rồi migrate, bật công tắc hook,
+  submit SI thật, kiểm GL và không thêm POST.
+- Phép đếm chỉ đọc ERP, dùng bộ lọc nguồn/quầy của màn ngày cũ; loại chứng từ
+  đã có dấu HĐĐT, giữ tờ chưa rõ kết quả trong cảnh báo cần đối soát. Tổng tiền
+  chỉ tính cùng tập tên đã đếm. Cách này chủ ý khác số ứng viên API vốn bỏ tờ
+  cần đối soát. Không biến cảnh báo thành quyền gửi lại.
+- F1 dẫn người trực tới Hóa đơn ngày cũ trước khi Chạy ngay nếu hôm nay có
+  cảnh báo hoãn. F2 dùng escape HTML thật, có ca ngày hiện tại/ngày cũ/không hoãn.
+- Chưa deploy hoặc phát hành hóa đơn thử. Chờ bench và review đúng SHA mới.

@@ -268,3 +268,13 @@ Gộp nhánh không được bỏ dấu vết lỗi. Lưu thời điểm bắt �
 ### Frappe Check trên Desk có checkbox hiển thị riêng
 
 Log bench PR210 cho hai input checkbox trong cùng wrapper: input thao tác có data-fieldname trên chính thẻ input, còn disabled-deselected không có. Chọn hậu duệ wrapper, kể cả lọc type=checkbox, vẫn khớp hai phần tử. Neo locator vào input[data-fieldname] và kiểm trên DOM thật, không dùng nth(0) để che sai lựa chọn.
+
+
+### #266: trả trước cửa xuất vẫn có thể quá muộn
+
+Hook After Submit production đã tự gọi MInvoice bên trong submit. Ca chỉ dựng
+API script và kiểm helper không thấy điều này. Phải snapshot/hash hook sống,
+đưa vào nền migrate CI và bật cả công tắc nhánh cần kiểm. Cờ hoãn đặt trước
+submit, trả trong finally; không tắt toàn bộ hook hoặc hàng rào thuế.
+Chế độ `thu` của một script phát hành không đồng nghĩa chỉ đọc: bản này vẫn
+login và nạp Pancake. Phép đếm nợ phải đọc ERP, chốt cùng phạm vi cho số và tiền.

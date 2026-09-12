@@ -1,5 +1,6 @@
 """#266: gọi hai nhịp thật, tách ghi sổ và phát hành khi còn nợ ngày cũ."""
 import ast
+from html import escape
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace as NS
@@ -8,11 +9,55 @@ SRC = Path(__file__).resolve().parents[2] / 'ban_hang.py'
 
 class D(dict):
 	__getattr__ = dict.get
+	__setattr__ = dict.__setitem__
+
+
+@ca('#266 hook production chịu cờ hoãn, trả cờ và vẫn xuất khi được phép')
+def hook_sau_ghi_so():
+	from vagabond import minvoice_sau_ghi_so as sau
+	from vagabond.minvoice_kich_ban import bam
+	la('snapshot khớp production', bam(sau.ban_goc()), sau.BAM_GOC)
+	for cho_xuat in (False, True):
+		gui = []
+		st = D(nguon='Pancake', enabled=1, tu_xuat_khi_ghi_so=1)
+		f = NS(form_dict={}, response={'message': {'tao_ok': 1}},
+			utils=NS(cint=lambda x: int(x or 0), flt=float, today=lambda: '2026-09-12', date_diff=lambda *a: 0),
+			db=NS(commit=lambda: None, get_value=lambda *a: 'ID-GIA'))
+		f.get_doc = lambda dt, ten=None: st if dt == 'MInvoice Phat Hanh Settings' else NS(execute_method=lambda: gui.append('hook'))
+		si = D(name='SI-THU', custom_nguon='Pancake', posting_date='2026-09-12', grand_total=80000, flags=D())
+		si.submit = lambda: exec(compile(sau.ban_moi(), 'hook-production', 'exec'), {'frappe': f, 'doc': si})
+		g = dict(frappe=f, _chuan_bi_ghi_so=lambda *a: None, _tu_xuat_hddt=lambda *a: (True, ''))
+		la('kết quả ghi sổ', nap('_ghi_so_mot_don', g)(si, cho_xuat=cho_xuat), (1, int(cho_xuat), ''))
+		la('hook chỉ gọi khi cho phép', gui, ['hook'] if cho_xuat else [])
+		la('trả lại cờ nội bộ', si.flags.get('vgb_hoan_phat_hanh'), None)
 
 def nap(name, g):
 	fn = next((n for n in ast.parse(SRC.read_text()).body if isinstance(n, ast.FunctionDef) and n.name == name))
 	exec(compile(ast.Module(body=[fn], type_ignores=[]), str(SRC), 'exec'), g)
 	return g[name]
+
+
+@ca('#266 đếm đúng nguồn quầy, giữ nợ chưa rõ và tổng tiền cùng tập')
+def dem_no_doc_lap():
+	from vagabond import hddt_cho_xuat as pure
+	rows = [D(name='DUNG', custom_nguon='Pancake', vgb_quay=''),
+		D(name='NVHTN', custom_nguon='Pancake', vgb_quay='NVHTN'),
+		D(name='NGUON-KHAC', custom_nguon='Khác', vgb_quay=''),
+		D(name='DA-CO', custom_nguon='Pancake', vgb_quay='', custom_hddt_id='ID'),
+		D(name='CHUA-RO', custom_nguon='Pancake', vgb_quay='', vgb_hddt_cho_doi_chieu=1)]
+	def doc(dt, **kw):
+		la('không trần mặc định', kw['limit_page_length'], 0)
+		if 'custom_nguon' in kw['fields']:
+			la('lọc ngày và trạng thái', kw['filters'], {'posting_date':'2026-09-12', 'docstatus':1,
+				'grand_total':['>',0], 'vgb_huy':['!=',1], 'vgb_tam_tinh':['!=',1]})
+			return rows
+		la('tiền đúng cùng tập tờ', kw['filters'], {'name':['in',['DUNG','CHUA-RO']]})
+		return [D(grand_total=80000), D(grand_total=20000)]
+	f = NS(db=NS(get_all=doc))
+	h = NS(_cai_dat_minvoice=lambda: (None, ['Pancake'], ['@']),
+		thuoc_diem_dang_xuat=pure.thuoc_diem_dang_xuat, da_co_hddt=pure.da_co_hddt)
+	g = dict(frappe=f, hddt_cho_xuat=h, getdate=lambda x:x, flt=float)
+	la('không bỏ tờ cần đối soát, không cộng quầy khác', nap('_dem_hddt_sot',g)('2026-09-12'), (2,100000))
 
 @ca('#266 hai nhịp còn nợ ngày cũ vẫn ghi sổ và báo hoãn riêng')
 def hai_nhip():
@@ -40,7 +85,7 @@ def hai_nhip():
 @ca('#266 hoãn phát hành vẫn submit và commit, không gọi cửa xuất')
 def ghi_so():
 	calls = []
-	si = D(name='SI-THU', flags=NS(), submit=lambda : calls.append('submit'))
+	si = D(name='SI-THU', flags=D(), submit=lambda : calls.append('submit'))
 	f = NS(db=NS(commit=lambda : calls.append('commit')))
 	g = dict(frappe=f, _chuan_bi_ghi_so=lambda *a: None, _tu_xuat_hddt=lambda *a: calls.append('HTTP'))
 	la('đã ghi sổ nhưng chưa xuất', nap('_ghi_so_mot_don', g)(si, cho_xuat=False), (1, 0, ''))
@@ -63,7 +108,7 @@ def canh_bao():
 	def cot_la(*a):
 		raise AssertionError('Email Queue không có subject')
 	cache = NS(get_value=lambda k: moc.get(k), set_value=lambda k, v, **kw: moc.update({k: v}))
-	f = NS(db=NS(set_single_value=ghi, commit=lambda : None, exists=cot_la), cache=lambda : cache, utils=NS(escape_html=lambda x: x), get_traceback=lambda : 'lỗi giả lập', log_error=lambda *a, **kw: logs.append((a, kw)), sendmail=lambda **kw: mail.append(kw), set_user=lambda *a: None)
+	f = NS(db=NS(set_single_value=ghi, commit=lambda : None, exists=cot_la), cache=lambda : cache, utils=NS(escape_html=escape), get_traceback=lambda : 'lỗi giả lập', log_error=lambda *a, **kw: logs.append((a, kw)), sendmail=lambda **kw: mail.append(kw), set_user=lambda *a: None)
 	ns = NS(_khung_thu=lambda *a, **kw: ' '.join(a), _nut_xanh=lambda *a: 'Nút mở app', link_app=lambda : 'https://example.invalid')
 	g = dict(giau_khoa=lambda x:x, frappe=f, cfg=lambda : state, _nguoi_nhan_don_treo=lambda : ['ci@example.invalid'])
 	with patch.dict(sys.modules, {'vagabond.nhan_su': ns}):
@@ -107,7 +152,7 @@ def canh_bao():
 		la('Redis lỗi vẫn xếp thư', len(mail), 5)
 		def dem_hong(*a):
 			raise RuntimeError('Không đọc được script')
-		g['_goi_server_script']=dem_hong
+		g['hddt_cho_xuat']=NS(_cai_dat_minvoice=dem_hong)
 		g['cint']=lambda x:int(x or 0)
 		g['_dem_hddt_sot']=nap('_dem_hddt_sot',g)
 		nap('canh_bao_hddt_sot',g)()
@@ -117,16 +162,24 @@ def canh_bao():
 		dung('đếm hỏng không hướng dẫn chạy ngay', 'Cuối ngày &gt;' not in mail[-1]['message'] and 'Cuối ngày >' not in mail[-1]['message'])
 		from vagabond import hddt_bu
 		g['hddt_bu']=hddt_bu
-		g['_goi_server_script']=lambda *a:{'so_don_tim_thay':140}
+		g['hddt_cho_xuat']=NS(_cai_dat_minvoice=lambda: (None, ['Pancake'], ['@']), thuoc_diem_dang_xuat=lambda *a: True, da_co_hddt=lambda *a: False)
 		g['getdate']=lambda x:x
-		f.db.get_all=lambda *a,**kw:(_ for _ in ()).throw(RuntimeError('Tổng tiền lỗi'))
+		f.db.get_all=lambda *a,**kw: [D(name='SI-%s' % i) for i in range(140)] if 'custom_nguon' in kw['fields'] else (_ for _ in ()).throw(RuntimeError('Tổng tiền lỗi'))
 		so_log=len(logs)
 		nap('canh_bao_hddt_sot',g)()
 		la('tổng tiền lỗi ghi một log',len(logs)-so_log,1)
 		dung('giữ số tờ đã đếm', '140' in mail[-1]['subject'] and 'chưa đếm được' not in mail[-1]['subject'])
 		dung('nói rõ tiền chưa biết', 'chưa đọc được tổng tiền' in state['tu_ghi_so_nhat_ky'])
-		dung('có đường thao tác khi đã đếm', 'Cài đặt > Cuối ngày > Chạy ngay' in mail[-1]['message'])
+		dung('có đường thao tác khi đã đếm', 'Cài đặt &gt; Cuối ngày &gt; Chạy ngay' in mail[-1]['message'])
 		dung('không dựng mốc0h chung', 'trước 0h' not in mail[-1]['message'])
+		for nhat_ky, hoan in [('HOÃN PHÁT HÀNH 2026-09-12 (cuoi-ngay): còn nợ', True), ('Chuỗi chính đã ghi sổ', False), ('HOÃN PHÁT HÀNH 2026-09-11 (cuoi-ngay): còn nợ', False)]:
+			state['tu_ghi_so_nhat_ky'] = nhat_ky
+			nap('canh_bao_hddt_sot', g)()
+			than = mail[-1]['message']
+			la('hướng dẫn theo trạng thái hoãn hôm nay', 'Anh chị mở Cài đặt &gt; Hóa đơn ngày cũ' in than, hoan)
+			la('không hoãn dẫn tới chạy ngay', 'Anh chị xử lý ngay trong ca: mở Cài đặt &gt; Cuối ngày' in than, not hoan)
+			if hoan:
+				dung('đối soát trước chạy ngay', than.index('Cài đặt &gt; Hóa đơn ngày cũ') < than.index('Cài đặt &gt; Cuối ngày'))
 
 
 

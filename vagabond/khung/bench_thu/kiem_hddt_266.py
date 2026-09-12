@@ -695,9 +695,16 @@ def chay():
 				kq['phan'].append({'ten': 'backlog rút cạn rồi mới thông', 'dat': True,
 					'da_gui_ngay_cu': da_gui, 'sot_truoc': len(cho_truoc)})
 
-				# #266 tái phát12/09: SI thật vẫn submit/GL khi hoãn phát hành.
-				# CI có API script nhưng chưa có snapshot After Submit production;
-				# ca này không được dùng thay xác minh script trên site.
+				# Hook production đã snapshot/hash khớp; bật đúng công tắc để ca
+				# thật sự đi tới hook thay vì xanh vì cấu hình chưa bật.
+				from vagabond import minvoice_sau_ghi_so as sau
+				hook = frappe.get_doc('Server Script', sau.TEN)
+				_bang('hook bật đúng mã đã migrate', (hook.disabled, hook.script), (0, sau.ban_moi()))
+				st = frappe.get_doc('MInvoice Phat Hanh Settings')
+				st.tu_xuat_khi_ghi_so = 1
+				st.save(ignore_permissions=True)
+				frappe.clear_document_cache(st.doctype, st.name)
+				_bang('bật phát hành trong After Submit', frappe.get_doc(st.doctype).tu_xuat_khi_ghi_so, 1)
 				cho_ghi = _hoa_don(hom_nay, gia=(80000,), ghi_so=False)
 				truoc = len(gui)
 				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None), \
@@ -708,6 +715,12 @@ def chay():
 				if not frappe.db.count('GL Entry', {'voucher_type': 'Sales Invoice', 'voucher_no': cho_ghi.name, 'is_cancelled': 0}):
 					raise AssertionError('SI chưa có GL thật')
 				_bang('không có POST mới', len(gui), truoc)
+				_bang('cờ hoãn không còn sau submit', bool(cho_ghi.flags.get('vgb_hoan_phat_hanh')), False)
+				with patch.object(ban_hang, '_goi_server_script', side_effect=AssertionError('Đếm không được chạy script')), \
+						patch.object(tich_hop, 'make_post_request', side_effect=AssertionError('Đếm không được HTTP')):
+					so_no, tien_no = ban_hang._dem_hddt_sot(hom_nay)
+					if so_no < 1 or tien_no < 80000:
+						raise AssertionError('Phép đếm không thấy tờ vừa hoãn')
 				kq['phan'].append({'ten': 'hoãn phát hành vẫn submit và GL', 'dat': True})
 				with patch.object(hddt_cho_xuat, 'nowdate', lambda: str(add_days(hom_nay, 1))):
 					if str(hom_nay) not in [str(n) for n in hddt_cho_xuat.ngay_cu_can_bao_ve()]:

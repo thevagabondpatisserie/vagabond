@@ -1,0 +1,27 @@
+# Ghi so don online => tao ngay hoa don Cho ky tren m-invoice
+# Neu tao khong duoc thi chan ghi so (de khong co doanh thu ma thieu hoa don)
+# Bill quay (vgb_quay) KHONG day ngay luc ghi so: khach con thoi gian
+# quet QR tren bill giay de tu dien thong tin xuat hoa don. Lich 23h30
+# se gom cac bill nay phat hanh cung mot luot voi don sales.
+if doc.get('custom_nguon') and not doc.get('custom_minvoice_id') and not (doc.get('vgb_quay') or '').strip():
+    stg = frappe.get_doc('MInvoice Phat Hanh Settings')
+    ds_nguon = [x.strip() for x in str(stg.nguon or 'Pancake').replace(chr(10), ',').split(',') if x.strip()]
+    if frappe.utils.cint(stg.enabled) and frappe.utils.cint(stg.tu_xuat_khi_ghi_so) and doc.custom_nguon in ds_nguon:
+        so_ngay = frappe.utils.date_diff(frappe.utils.today(), doc.posting_date)
+        if so_ngay > 2:
+            frappe.throw('Phiếu ngày ' + str(doc.posting_date) + ' đã quá cũ nên hệ thống không tự xuất hoá đơn cho phiếu này. Để tránh doanh thu trùng, vui lòng báo anh Việt trước khi ghi sổ.')
+        if frappe.utils.flt(doc.grand_total) <= 0:
+            pass
+        else:
+            frappe.form_dict['che_do'] = 'day'
+            frappe.form_dict['phieu'] = doc.name
+            frappe.form_dict['so_luong'] = 0
+            frappe.form_dict['khong_commit'] = 1
+            frappe.get_doc('Server Script', 'MInvoice - Phat hanh HD Sales (API)').execute_method()
+            kq = frappe.response.get('message') or {}
+            frappe.response['message'] = None
+            if not frappe.utils.cint(kq.get('tao_ok')):
+                ct = str(kq.get('loi') or kq.get('bo_qua') or kq)[:300]
+                frappe.throw('Chưa tạo được hoá đơn Chờ ký trên m-invoice nên chưa ghi sổ được đơn này. Vui lòng thử lại, nếu vẫn lỗi báo anh Việt. Chi tiết: ' + ct)
+            doc.custom_minvoice_id = frappe.db.get_value('Sales Invoice', doc.name, 'custom_minvoice_id')
+            doc.custom_hddt_trang_thai = 'Chờ ký'
