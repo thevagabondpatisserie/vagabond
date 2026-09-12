@@ -14,7 +14,7 @@ from thong_bao import HTTP, Loi, Telegram
 
 
 def tim_chat(updates, code, now):
-    if not re.fullmatch(r'VGB-LINK-[A-F0-9]{12,64}', code):
+    if not re.fullmatch(r'VGB-LINK-[A-F0-9]{10,64}', code):
         raise Loi('Mã ghép không đúng định dạng.')
     ds = set()
     for u in updates:

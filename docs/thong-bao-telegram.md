@@ -8,6 +8,8 @@ Actions vẫn sử dụng phút chạy theo gói GitHub của repository.
 
 - Mở bot, bấm Start. Gửi mã ghép một lần do Codex đưa trong tác vụ riêng.
 - Token BotFather lưu ở repository Actions secret `TELEGRAM_BOT_TOKEN`.
+  Phải chọn **Secrets and variables > Actions**, không phải **Agents**.
+  Secret ở Agents không cấp cho workflow Actions.
   Không gửi token qua comment, chat Codex hoặc ảnh chụp.
 - Sau khi ghép và bật thành công, tin có link tới đúng PR/comment/workflow.
   Bấm link để đọc nội dung đầy đủ hoặc duyệt đúng nơi.
@@ -16,21 +18,28 @@ Actions vẫn sử dụng phút chạy theo gói GitHub của repository.
 
 ## Phạm vi thông báo
 
-Đọc comment mới/sửa (cả bot), góp ý trên dòng code, review đã gửi, trạng thái
+Đọc comment mới/sửa (cả bot), góp ý trên dòng code, review mới gửi, trạng thái
 Issue/PR và CI lỗi/timeout/cần xử lý. Merge được ghi rõ chưa chứng minh deploy.
 Chỉ gửi metadata và link, không chép nội dung comment/log/chứng từ sang Telegram.
 
-Sự kiện GitHub gọi lượt đối soát ngay khi có thể. Lượt định kỳ mỗi15phút bù
+Sự kiện GitHub gọi lượt đối soát, cách nhau tối thiểu3phút để giảm request. Lượt định kỳ mỗi15phút bù
 comment dùng GITHUB_TOKEN không kích hoạt workflow khác. GitHub có thể trì hoãn
-schedule; đây không phải cam kết giao tức thì. Mỗi lượt tối đa30tin; phần còn
+schedule; đây không phải cam kết giao tức thì. Mỗi lượt tối đa30tin và không bắt đầu gửi mới sau5phút; phần còn
 lại giữ mốc để lượt sau gửi. Không phát lại toàn bộ lịch sử trước lúc bật.
 
-Giới hạn: theo dõi review của PR mở và PR vừa cập nhật; review cũ trước lúc
-bật không được báo lại. Quét lỗi workflow tạo trong7ngày hoặc từ mốc bị gián
+Comment bot chỉ đổi checkbox tiến độ thì im lặng; đổi nội dung thực hoặc
+nhãn vẫn báo, kể cả thêm finding dưới cùng tiêu đề. Trạng thái Issue/PR chỉ
+báo khi state, nhãn, draft, merged hoặc tiêu đề đổi; mở lại vẫn báo dù từng mở.
+
+Giới hạn: theo dõi review mới gửi của PR mở và PR vừa cập nhật; sửa/dismiss
+review có submitted_at cũ ngoài cửa đối soát không được báo lại. Quét lỗi workflow tạo trong7ngày hoặc từ mốc bị gián
 đoạn nếu lâu hơn; chạy lại workflow rất cũ có thể nằm ngoài cửa này. API quá
 1000bản ghi thì báo lỗi và giữ mốc, không âm thầm bỏ phần thừa. Lần gửi chưa rõ
 kết quả dừng cả hàng đợi để đối chiếu. Khi Telegram hỏng, phải xem Actions;
 không thể dùng chính kênh đang hỏng để đảm bảo báo lỗi cho anh.
+Người vận hành phải kiểm workflow Telegram mỗi ngày, hoặc anh bật email
+thông báo Actions thất bại trong GitHub Settings > Notifications > Actions.
+PR này không tự đổi cài đặt email cá nhân của anh.
 
 ## Codex và Claude báo cần duyệt, bị chặn, phát hành
 
@@ -67,6 +76,9 @@ ngắt trước khi đăng thì kênh này không tự nhìn thấy. Cần duy�
 4. Dispatch `telegram.yml` chế độ `khoi-tao`, chỉ một lần. Tạo nhánh riêng
    `codex/telegram-state`, lưu `.telegram/state.json` gồm mốc/key sự kiện;
    không có nội dung comment, token hoặc chat ID. Nhánh đã tồn tại thì dừng.
+   Dấu gửi được tỉa theo cửa nguồn: comment/item/review120giây, run7ngày;
+   snapshot item/bot-comment giữ30ngày. Sau30ngày im lặng có thể báo lại một
+   snapshot trạng thái ở lần chạm đầu. Nếu tệp vượt1MB, đọc blob cùng SHA.
    Khởi tạo dở: kiểm ref và tệp; không xoá mốc đang dùng để “sửa nhanh”.
 5. Đặt Actions variable `TELEGRAM_ENABLED=true`, dispatch `doi-soat`. Đăng
    comment thử được anh cho phép, kiểm run và tin nhận thật rồi mới báo đã bật.
@@ -82,7 +94,8 @@ Dấu `pending` được ghi bền trước sendMessage; `seen` chỉ ghi sau ph
 
 Người vận hành đọc code của `pending` trong nhánh trạng thái rồi hỏi anh tin
 có `Mã tin` đó đã tới chưa. Nếu có: thêm `seen[pending.key]=pending.at`, xoá
-pending bằng PUT có SHA hiện tại. Nếu chắc chưa tới và được yêu cầu gửi lại:
+pending bằng PUT có SHA hiện tại. Nếu pending có entity/signature thì cập
+nhật thêm entities[pending.entity] với signature và at đó trước khi xoá. Nếu chắc chưa tới và được yêu cầu gửi lại:
 chỉ xoá pending bằng PUT có SHA hiện tại rồi chạy đối soát. Nếu chưa rõ, giữ
 nguyên. Không reset cả mốc, không xoá toàn bộ seen. Mọi sửa chữa ghi trên Issue.
 
