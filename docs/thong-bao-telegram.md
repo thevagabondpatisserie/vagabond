@@ -81,7 +81,7 @@ ngắt trước khi đăng thì kênh này không tự nhìn thấy. Cần duy�
    `codex/telegram-state`, lưu `.telegram/state.json` gồm mốc/key sự kiện;
    không có nội dung comment, token hoặc chat ID. Nhánh đã tồn tại thì dừng.
    Dấu gửi được tỉa theo cửa nguồn: comment/item/review120giây, run7ngày;
-   snapshot item/bot-comment giữ30ngày. Sau30ngày im lặng có thể báo lại một
+   snapshot item/bot-comment/release giữ30ngày. Sau30ngày im lặng có thể báo lại một
    snapshot trạng thái ở lần chạm đầu. Nếu tệp vượt1MB, đọc blob cùng SHA.
    Khởi tạo dở: kiểm ref và tệp; không xoá mốc đang dùng để “sửa nhanh”.
 5. Đặt Actions variable `TELEGRAM_ENABLED=true`, dispatch `doi-soat`. Đăng
@@ -134,3 +134,13 @@ tính năng tạo tin đính chính; không sửa comment chỉ để phát lạ
 vẫn dùng pending trướcHTTP và không tự retry khi mất phản hồi. Nhánh trạng
 thái chỉ chứa SHA/hash/mốc, không lưu nội dung tính năng. Snapshot giữ30ngày;
 đăng lại một bản rất cũ sau thời hạn đó có thể báo lại.
+
+
+Đối chiếu API12/09: owner.type của repo là User; biên nhận deploy do Codex
+local đăng có user.login=thevagabondpatisserie và author_association=OWNER.
+Kết nối này đăng bản tin trực tiếp, không bắt anh Việt dán lại. Phiên bot
+không có danh nghĩa đó phải bàn giao khối cho phiên phát hành đang kết nối
+chủ repo. Nếu có khối sai/schema/người đăng không hợp lệ, tin metadata báo
+rõ chưa gửi tóm tắt, không in nội dung bị từ chối. Khoảng trắng đầu/cuối nhãn
+được bỏ qua như nhánh metadata. Bản tin chỉ lấy từ comment chung của Issue/PR,
+không lấy khối trong góp ý trên dòng code.

@@ -361,3 +361,21 @@ class PhatHanh(unittest.TestCase):
         self.comments = [a]
         self.assertEqual(chay(self.kho, self.bot, '1'), 1)
         self.assertEqual(len(self.bot.sent), 3)
+
+    def test_nhan_co_khoang_trang_van_gui(self):
+        c = self.comment(); c['body'] = c['body'].replace('[ĐÃ DEPLOY]', '  [ĐÃ DEPLOY]  ')
+        self.comments = [c]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.assertIn(self.data['features'][0], self.bot.sent[0])
+
+    def test_khoi_sai_bao_ro_nhung_khong_chep_noi_dung(self):
+        c = self.comment(); c['author_association'] = 'MEMBER'; self.comments = [c]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.assertIn('chưa gửi tóm tắt tính năng', self.bot.sent[0])
+        self.assertNotIn(self.data['features'][0], self.bot.sent[0])
+
+    def test_gop_y_dong_code_khong_gui_ban_tin(self):
+        c = self.comment()
+        self.kho.trang = lambda path, khoa=None: [c] if path.startswith('/pulls/comments?') else []
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.assertNotIn(self.data['features'][0], self.bot.sent[0])

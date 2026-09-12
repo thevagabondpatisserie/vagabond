@@ -151,7 +151,7 @@ def ban_phat_hanh(c):
     body = c.get('body') or ''
     if (c.get('user', {}).get('login') != REPO.split('/')[0]
             or c.get('author_association') != 'OWNER'
-            or body.splitlines()[:1] != ['[ĐÃ DEPLOY]']):
+            or not body.splitlines() or body.splitlines()[0].strip() != '[ĐÃ DEPLOY]'):
         return None
     blocks = re.findall(r'<!-- telegram-release\s*([\s\S]*?)-->', body)
     if len(blocks) != 1 or len(blocks[0]) > 3000:
@@ -209,6 +209,9 @@ def thu_thap(gh, state):
                    '[SẴN SÀNG DEPLOY]': 'Đề nghị phát hành', '[ĐÃ DEPLOY]': 'Báo cáo phát hành'}
             nhom = muc.get(dau[0].strip() if dau else '', loai)
             text = f"Vagabond | {nhom}{nhan}\nTừ: {rut(c['user']['login'], 60)}\n{link}"
+            if (dau and dau[0].strip() == '[ĐÃ DEPLOY]'
+                    and '<!-- telegram-release' in (c.get('body') or '')):
+                text += '\nKhối bản tin chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi tóm tắt tính năng.'
             entity = 'bot-comment:' + path + ':' + str(c['id'])
             la_bot = c['user'].get('type') == 'Bot' or c['user']['login'].endswith('[bot]')
             them('comment:' + path + ':' + str(c['id']) + ':' + c['updated_at'], c['updated_at'], text,
