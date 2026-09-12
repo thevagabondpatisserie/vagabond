@@ -1,0 +1,46 @@
+// #210: mở form Desk thật và hộp đối soát; không xác nhận mở lại hoặc POST nhà cung cấp.
+const fs=require('fs'),path=require('path'),crypto=require('crypto');
+const {chromium}=require('playwright');
+(async()=>{
+  if(process.env.GITHUB_ACTIONS!=='true'||!process.env.VGB_ARTIFACTS)throw Error('Chỉ CI riêng');
+  const base='http://127.0.0.1:8000',out=process.env.VGB_ARTIFACTS;
+  const name=crypto.createHash('sha256').update('THU210\0THU210-HAI-JOB').digest('hex');
+  const browser=await chromium.launch({headless:true});
+  try{
+    for(const width of [390,1280]){
+      const ctx=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});
+      await ctx.route('**/*',r=>new URL(r.request().url()).origin===base?r.continue():r.abort());
+      const login=await ctx.request.post(base+'/api/method/login',{form:{usr:'Administrator',pwd:'bench-only-admin'}});
+      if(!login.ok())throw Error('Đăng nhập CI lỗi');
+      const page=await ctx.newPage();
+      const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      if(process.env.VGB_KIEM_PAGEERROR==='1'){
+        await ctx.addInitScript(()=>setTimeout(()=>{throw Error('THU210_PAGEERROR');},0));
+      }
+      try {
+      const response=await page.goto(base+'/app/vagabond-day-pancake/'+name,{waitUntil:'load'});
+      if(!response.ok())throw Error('Desk HTTP '+response.status());
+      // Frappe16 page.add_inner_button đưa thao tác vào menu trên mobile.
+      if(width<768){
+        await page.locator('.menu-btn-group:visible button').click({timeout:60000});
+        await page.getByRole('link',{name:'Đối soát và mở lại',exact:true}).click();
+      }else{
+        await page.getByRole('button',{name:'Đối soát và mở lại',exact:true}).click({timeout:60000});
+      }
+      const dialog=page.locator('.modal:visible');
+      await dialog.locator('[data-fieldname="ly_do"] textarea').waitFor();
+      await dialog.locator('[data-fieldname="bang_chung"] textarea').waitFor();
+      if(await dialog.locator('input[data-fieldname="xac_nhan_chua_tao"][type="checkbox"]').isChecked())throw Error('Xác nhận không được tick sẵn');
+      if(errors.length)throw Error(errors.join('\n'));
+      await page.screenshot({path:path.join(out,'pancake-doi-soat-'+width+'.png'),fullPage:true});
+      await page.keyboard.press('Escape');
+      if(errors.length)throw Error(errors.join('\n'));
+      }catch(e){
+        await page.screenshot({path:path.join(out,'pancake-desk-loi-'+width+'.png'),fullPage:true});
+        fs.writeFileSync(path.join(out,'pancake-desk-loi-'+width+'.json'),JSON.stringify({errors,message:e.message,text:(await page.locator('body').innerText()).slice(0,4000)}));
+        throw e;
+      }finally{await ctx.close();}
+    }
+    fs.writeFileSync(path.join(out,'pancake-desk.json'),JSON.stringify({dat:true,widths:[390,1280],xac_nhan:false}));
+  }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});
