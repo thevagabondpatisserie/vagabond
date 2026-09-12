@@ -104,6 +104,7 @@ def _don_thuong():
 
 @ca("#227: chưa có kho sản xuất thì không được xuất kho tặng nửa vời")
 def _chan_kho():
+	frappe.db.set_single_value("Vagabond Settings", "hang_tang_xuat_kho_that", 1)
 	hd = _hoa_don()
 	hd.update_stock = 1
 	try:

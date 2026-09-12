@@ -1103,6 +1103,8 @@ def _dien_dong_thanh_toan(si, o):
 	"""
 	from vagabond import thanh_toan_nhieu as ttn
 
+	if (si.get("vgb_pt_thanh_toan") or "").strip() == "Hàng tặng":
+		return
 	moi = dong_thanh_toan_pancake(o)
 	if not moi:
 		return
@@ -1594,7 +1596,7 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	if pt_tt and frappe.db.exists("Mode of Payment", pt_tt):
 		cu = (si.get("vgb_pt_thanh_toan") or "").strip()
 		do_may = cint(si.get("vgb_pt_do_may") or 0)
-		if not cu or do_may:
+		if cu != "Hàng tặng" and (not cu or do_may):
 			si.vgb_pt_thanh_toan = pt_tt
 			si.vgb_pt_do_may = 1
 	elif not (si.get("vgb_pt_thanh_toan") or "").strip():
@@ -2042,16 +2044,15 @@ def chot_doanh_so(ngay=None):
 	"""Submit ca loat SI nhap cua ngay. Loan Anh bam sau khi ra soat."""
 	_kiem_quyen()
 	ngay = getdate(ngay or nowdate())
-	ds = frappe.db.get_all(
-		"Sales Invoice",
-		filters={
-			"posting_date": ngay,
-			"docstatus": 0,
-			"vgb_huy": 0,
-			"vgb_tam_tinh": 0,
-		},
-		pluck="name",
-	)
+	c = cfg()
+	quay_bat = [q.strip().upper() for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines() if q.strip()]
+	loc = {"posting_date": ngay, "docstatus": 0, "vgb_huy": 0, "vgb_tam_tinh": 0, "is_return": 0}
+	ds = frappe.db.get_all("Sales Invoice", filters=dict(loc,
+		custom_pancake_id=["!=", ""], vgb_quay=["in", ["", None]]), pluck="name")
+	if quay_bat:
+		ds += frappe.db.get_all("Sales Invoice", filters=dict(loc,
+			vgb_quay=["in", quay_bat]), pluck="name")
+	ds = list(dict.fromkeys(ds))
 	sepay = _sepay_theo_don(
 		cfg().pancake_shop_id,
 		frappe.db.get_all(
@@ -2063,6 +2064,8 @@ def chot_doanh_so(ngay=None):
 	xong, hddt, loi = 0, 0, []
 	for ten in ds:
 		si = frappe.get_doc("Sales Invoice", ten)
+		if ghi_so_dieu_kien.ly_do(si) in ("tang_cho_duyet", "tang_tu_choi"):
+			continue
 		nhan = si.custom_pancake_display_id or si.name
 		try:
 			_chuan_bi_ghi_so(si, sepay)
@@ -2429,7 +2432,7 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 	# Luu nhap thi chua bat buoc, den luc ghi so moi bat.
 	ma = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 	frappe.db.set_value(
-		"Sales Invoice", si_name, {"vgb_pt_thanh_toan": pt, "vgb_ma_tham_chieu": ma}
+		"Sales Invoice", si_name, {"vgb_pt_thanh_toan": pt, "vgb_ma_tham_chieu": ma, "vgb_pt_do_may": 0}
 	)
 	frappe.db.commit()
 	return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
@@ -5840,6 +5843,7 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		si.vgb_pt_thanh_toan = pt
+		si.vgb_pt_do_may = 0
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
@@ -6009,6 +6013,7 @@ def pos_sua_don(
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		si.vgb_pt_thanh_toan = pt
+		si.vgb_pt_do_may = 0
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)

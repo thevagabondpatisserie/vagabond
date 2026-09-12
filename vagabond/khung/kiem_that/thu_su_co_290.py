@@ -19,25 +19,39 @@ def kho_tat():
     la('đã ghi sổ',hd.docstatus,1);la('không xuất kho',hd.update_stock,0)
     la('không có SLE',_sle(hd),[]);la('chờ giá vốn',hd.vgb_tang_cho_gia_von,1)
     la('chỉ VAT, không doanh thu/công nợ',{r.account for r in _gl(hd)},{hd.vgb_tang_tk_vat,hd.vgb_tang_tk_thue})
+    frappe.db.set_single_value('Vagabond Settings','hang_tang_xuat_kho_that',1)
     hd.cancel();hd.reload();la('hủy được',hd.docstatus,2)
     la('hủy không sinh kho',frappe.db.count('Stock Ledger Entry',{'voucher_no':hd.name}),0)
 
 @ca('#290 B1 đồng bộ lại SI tặng thật giữ chữ người nhập và dấu duyệt')
 def dong_bo_tang():
-    hd=_hoa_don()
+    from vagabond import thanh_toan_nhieu as ttn
+    hd=_hoa_don(False)
     hd.custom_pancake_id='THU290-'+frappe.generate_hash(length=10)
     hd.custom_pancake_display_id='THU290'
-    hd.vgb_pt_do_may=0;hd.save(ignore_permissions=True);hd.reload()
-    truong=['vgb_tang_loai','vgb_tang_ly_do','vgb_tang_duyet','vgb_tang_nguoi_duyet']
+    hd.vgb_quay='TCV';hd.custom_nguon='Tại chỗ'
+    hd.vgb_pt_thanh_toan='Tiền mặt';hd.vgb_pt_do_may=1
+    hd.append(ttn.BANG,dict(pt='Tiền mặt',so_tien=hd.grand_total,do_may=1))
+    hd.save(ignore_permissions=True);hd.reload()
+    ban_hang.pos_chot(hd.name,pt='Hàng tặng')
+    hang_tang.luu_thong_tin(hd.name,loai='marketing',ly_do='Tặng sự kiện tiệm sau khi Sales chọn tay')
+    hang_tang.duyet(hd.name,'Duyệt quà fixture đồng bộ')
+    hd.reload()
+    la('lựa chọn tay hạ cờ máy',hd.vgb_pt_do_may,0)
+    la('bảng máy cũ đã gỡ',list(hd.get(ttn.BANG) or []),[])
+    truong=['vgb_tang_loai','vgb_tang_ly_do','vgb_tang_duyet','vgb_tang_nguoi_duyet','vgb_pt_thanh_toan']
     truoc=[hd.get(k) for k in truong]
     dong=[dict(item_code=d.item_code,qty=d.qty,rate=d.rate,warehouse=d.warehouse) for d in hd.items]
     with ExitStack() as st:
         st.enter_context(patch.object(ban_hang,'_dong_hang',return_value=(dong,[])))
         st.enter_context(patch.object(ban_hang,'_lech_pancake',return_value=0))
-        st.enter_context(patch.object(ban_hang,'_doan_thanh_toan',return_value=('','')))
-        st.enter_context(patch.object(ban_hang,'_dien_dong_thanh_toan',return_value=None))
+        st.enter_context(patch.object(ban_hang,'_doan_thanh_toan',return_value=('Tiền mặt','COD thật từ nguồn mô phỏng')))
+        # Giữ nguyên _dien_dong_thanh_toan và hook validate; nguồn ngoài trả hai kênh đủ tổng.
+        st.enter_context(patch.object(ban_hang,'dong_thanh_toan_pancake',return_value=[
+            dict(pt='Tiền mặt',so_tien=hd.grand_total/2),dict(pt='Chuyển khoản',so_tien=hd.grand_total/2)]))
         ban_hang._upsert_hoa_don({'id':hd.custom_pancake_id,'display_id':'THU290'},hd.posting_date,hd.company,hd.customer)
     hd.reload();la('giữ dữ liệu sau DB reload',[hd.get(k) for k in truong],truoc)
+    la('không nạp bảng máy cho quà tặng',list(hd.get(ttn.BANG) or []),[])
 
 @ca('#290 A3 bill nháp cũ còn KMCB đi đúng cửa ghi sổ, rã rồi có GL thật')
 def combo_cu():

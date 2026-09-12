@@ -29,10 +29,12 @@ def quay_cu():
     def doc(dt,**kw):
         loc.append(kw['filters']); return []
     f=NS(db=NS(get_all=doc,commit=lambda:None))
-    g=dict(frappe=f,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:NS(pancake_shop_id='SHOP'),_sepay_theo_don=lambda *a:{})
+    g=dict(frappe=f,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay='TCV'),_sepay_theo_don=lambda *a:{})
     nap('ban_hang.py','chot_doanh_so',g)('2026-09-11')
     la('giữ ngày chọn',loc[0]['posting_date'],'2026-09-11')
-    dung('không bó hẹp Pancake','custom_pancake_id' not in loc[0] and 'vgb_quay' not in loc[0])
+    la('Sales có nguồn Pancake',loc[0]['custom_pancake_id'],['!=',''])
+    la('TCV theo cấu hình',loc[1]['vgb_quay'],['in',['TCV']])
+    la('không lấy trả hàng',loc[0]['is_return'],0)
     la('loại tạm tính',loc[0].get('vgb_tam_tinh'),0)
 
 @ca('#290 A3 cửa ghi sổ lưu rã combo trước submit và không lưu lại món thường')
@@ -69,7 +71,7 @@ def treo():
 
 @ca('#290 B1 đồng bộ lại giữ lý do, loại, dấu duyệt người đã nhập')
 def dong_bo_giu_tang():
-    d=D(name='SI',docstatus=0,customer='KH',vgb_pt_thanh_toan='Hàng tặng',vgb_pt_do_may=0,vgb_xhd_ten='Tên đã nhập',vgb_xhd_mst='MST',vgb_xhd_email='a@b.invalid',vgb_tang_loai='marketing',vgb_tang_ly_do='Tặng sự kiện tiệm',vgb_tang_duyet='Đã duyệt',vgb_tang_nguoi_duyet='GD',flags=D())
+    d=D(name='SI',docstatus=0,customer='KH',vgb_pt_thanh_toan='Hàng tặng',vgb_pt_do_may=1,vgb_xhd_ten='Tên đã nhập',vgb_xhd_mst='MST',vgb_xhd_email='a@b.invalid',vgb_tang_loai='marketing',vgb_tang_ly_do='Tặng sự kiện tiệm',vgb_tang_duyet='Đã duyệt',vgb_tang_nguoi_duyet='GD',flags=D())
     d.save=lambda:None;d.set=lambda k,v:d.__setitem__(k,v);d.append=lambda *a:None
     def doc(dt,loc,*a,**kw):return None if loc.get('docstatus')==2 else D(name='SI',docstatus=0)
     f=NS(db=NS(get_value=doc,exists=lambda *a:True),get_doc=lambda *a:d)
@@ -93,3 +95,34 @@ def tat_kho():
         with patch.object(kho,'frappe',f):kho.chuan_bi(d)
         la('dấu lịch sử hoặc tắt kho',d.vgb_tang_kho_moi,trang)
         la('không sửa update_stock của tờ đã chốt',d.update_stock,trang)
+
+@ca('#290 B1 hook không lấy bảng máy đè Hàng tặng, bảng tay phải được kiểm lại')
+def bang_may():
+    from vagabond import thanh_toan_nhieu as ttn
+    for may in (1,0):
+        d=D(vgb_pt_thanh_toan='Hàng tặng')
+        d[ttn.BANG]=[D(pt='Tiền mặt',so_tien=100,do_may=may)]
+        d.set=lambda k,v:d.__setitem__(k,v)
+        if may:
+            ttn.dat_pt_chinh(d)
+            la('gỡ bảng máy',d[ttn.BANG],[])
+            la('giữ quà',d.vgb_pt_thanh_toan,'Hàng tặng')
+        else:
+            try: ttn.dat_pt_chinh(d)
+            except Exception as e: dung('nhắc kiểm dòng tay','dòng thanh toán' in str(e))
+            else: dung('phải chặn để không xóa tiền nhập tay',False)
+
+@ca('#290 A2 chốt ngày bỏ quà chờ/từ chối, chỉ submit tờ đã duyệt')
+def bo_qua_qua():
+    from vagabond import ghi_so_dieu_kien
+    ds={}
+    da_ghi=[]
+    for trang in ('Chờ duyệt','Từ chối','Đã duyệt'):
+        d=D(name=trang,docstatus=0,custom_pancake_display_id=trang,vgb_pt_thanh_toan='Hàng tặng',vgb_tang_duyet=trang,flags=D())
+        d.submit=lambda t=trang:da_ghi.append(t)
+        ds[trang]=d
+    def doc(dt,**kw): return list(ds) if kw['pluck']=='name' else []
+    f=NS(db=NS(get_all=doc,commit=lambda:None),get_doc=lambda dt,n:ds[n])
+    g=dict(frappe=f,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay=''),_sepay_theo_don=lambda *a:{},ghi_so_dieu_kien=ghi_so_dieu_kien,_chuan_bi_ghi_so=lambda *a:None,_tu_xuat_hddt=lambda *a:(False,''))
+    r=nap('ban_hang.py','chot_doanh_so',g)('2026-09-11')
+    la('chỉ tờ duyệt',da_ghi,['Đã duyệt']);la('không báo lỗi giả',r['loi'],[])

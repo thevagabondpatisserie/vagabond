@@ -346,3 +346,7 @@ cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn 
 ## #290: tách đơn nháp kẹt khỏi nghĩa vụ HĐĐT đã ghi sổ
 
 Nháp kẹt kho/duyệt không được giữ cả ngày sau không phát hành. Chỉ tờ đã ghi sổ chưa có HĐĐT giữ hàng rào ngày cũ; các cờ đối chiếu và lỗi đọc vẫn giữ nguyên. Combo nháp cũ cần lưu trước submit vì core đặt docstatus=1 trước validate. Khi chuẩn bị có thể ghi DB, lỗi chuẩn bị cũng phải rollback trước khi chạy đơn kế. Thời điểm modified cùng lịch đồng bộ chưa chứng minh trường người nhập bị hàm đồng bộ xóa; cần ca gọi thật và Version diff.
+
+### 12/09/2026 - B1 issue 290: ca kiểm phải giữ đường máy ghi đè
+
+Ca giữ dữ liệu quà tặng đặt vgb_pt_do_may=0 và mock bảng thanh toán đã che sự cố. Lý do vẫn ở DB nhưng phương thức bị đổi khiến UI giấu nó. Phải đi qua thao tác người chọn, giữ nguồn máy trả dữ liệu có thật, chạy validate và reload; kiểm cả phương thức lẫn lý do. Không nhận modified cùng giờ là bằng chứng cột nào đã bị xóa.
