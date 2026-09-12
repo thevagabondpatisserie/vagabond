@@ -41,7 +41,8 @@ BA THỨ PHẢI NHỚ KHI ĐỌC CON SỐ SAU KHI DỌN
 
 # Ba bảng dọn được, và số ngày giữ lại.
 #
-# Mốc 180/30/180 theo bàn giao PR286; chờ xác nhận trực tiếp trước bật lịch.
+# Mốc 180/30/180 đã được anh Việt duyệt trực tiếp ngày 12/09/2026;
+# biên nhận trên PR286 comment 5644924025, không lấy ca kiểm làm bằng chứng.
 # Version/Deleted Document của KHONG_DUOC_DON được giữ, không áp mốc này.
 # Notification Log 30 ngày: chuông trong app, quá 30 ngày không ai mở lại.
 # Deleted Document 180 ngày: giữ cùng mốc với Version, vì hai bảng này hay

@@ -47,9 +47,9 @@ class DbGia:
 		self.lenh.append(c)
 		thap = c.lower()
 		if thap.startswith("delete"):
-			# Không có LIMIT thì câu lệnh chỉ có một tham số, và ở đây ta
-			# dựng lại đúng hậu quả thật: xoá sạch một phát.
-			xin = int(tham[-1]) if tham and len(tham) > 1 else self.con_lai
+			# LIMIT dùng tham số cuối; các bộ lọc đứng trước nó. Bỏ LIMIT
+			# phải mô phỏng xóa hết, không đỏ nhờ int(tuple) ngoài ý muốn.
+			xin = int(tham[-1]) if ' limit ' in thap else self.con_lai
 			self._vua_xoa = min(xin, self.con_lai)
 			self.con_lai -= self._vua_xoa
 			return []
@@ -77,7 +77,7 @@ def _chay(con_lai, **k):
 	return so, db
 
 
-@ca("#284 số ngày giữ đúng như anh Việt chốt 12/09/2026")
+@ca("#284 mốc lưu cấu hình là 180/30/180, không dùng ca kiểm làm bằng chứng phê duyệt")
 def _so_ngay():
 	la("Version", dd.BANG_DON["Version"], 180)
 	la("Notification Log", dd.BANG_DON["Notification Log"], 30)
@@ -256,4 +256,5 @@ def _giu_dau_vet():
 			dd.don_mot_bang(dt)
 		cau, tham = lenh[0]
 		dung('lọc đúng cột ' + dt, ('`%s` not in %%s' % cot) in cau)
+		dung('giữ loại chưa xác định', ("`%s` != ''" % cot) in cau)
 		la('tập bảo vệ đúng', set(tham[1]), dd.KHONG_DUOC_DON)
