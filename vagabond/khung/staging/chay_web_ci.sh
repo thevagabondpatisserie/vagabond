@@ -30,6 +30,7 @@ node vagabond/khung/staging/thu_tai_van_don.cjs || hong=1
 node vagabond/khung/staging/thu_quyen_nen.cjs || hong=1
 node vagabond/khung/staging/kiem_man.cjs || hong=1
 node vagabond/khung/staging/kiem_pancake.cjs || hong=1
+node vagabond/khung/staging/thu_loi_pancake.cjs || hong=1
 # Cac fixture dung ma rieng. Thu bang chung tung cua ke ca cua truoc do,
 # nhung van tra ma loi cuoi; khong bo qua failure de lam CI xanh.
 for cua in van_don nhan_hang san_xuat hang_tang thanh_toan; do
