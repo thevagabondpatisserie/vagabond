@@ -102,12 +102,15 @@ def dung():
 		{"fieldname": "last_run", "fieldtype": "Data", "label": "Last run"},
 		{"fieldname": "tong_da_day", "fieldtype": "Int", "label": "Tong"},
 		{"fieldname": "last_error", "fieldtype": "Small Text", "label": "Last error"},
-		# Hai cong tac nay la thu ban_hang._cong_tac_minvoice doc de quyet dinh
+		# Hai công tắc phát hành/ký và công tắc After Submit bên dưới quyết định
 		# co phat hanh / co ky hay khong. Bench thieu chung nen ham do luon tra
 		# (0, 0) va MOI duong di qua chay_nen deu khong xuat noi to nao, ma
 		# khong ai thay vi khong bo bench nao di duong do (#266 vong 4).
 		{"fieldname": "enabled", "fieldtype": "Check", "label": "Bat phat hanh"},
 		{"fieldname": "tu_ky_hang_loat", "fieldtype": "Check", "label": "Tu ky hang loat"},
+		# Production có công tắc này; thiếu metadata thì save bỏ giá trị và
+		# ca After Submit không bao giờ đi tới nhánh cần kiểm.
+		{"fieldname": "tu_xuat_khi_ghi_so", "fieldtype": "Check", "label": "Tự xuất khi ghi sổ"},
 	], issingle=1)
 	frappe.db.set_single_value("MInvoice Phat Hanh Settings", "thue_suat", 8)
 	frappe.db.set_single_value("MInvoice Phat Hanh Settings", "ky_hieu", "1C26KIEM")

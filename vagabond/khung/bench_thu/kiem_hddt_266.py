@@ -9,7 +9,7 @@ site (execute_method), chỉ thay lời gọi HTTP cuối cùng, và chốt:
   F2  hàng rào nằm ở cửa chung: tờ của HÔM NAY bị chặn khi còn hoá đơn ngày
       cũ đang chờ, kể cả khi đi bằng đường chốt đơn tay.
   F3  đồng thời: lượt khác đang giữ khoá phát hành thì hàng rào trả về CÒN NỢ
-      và nhịp gọi nó phải dừng, không được ghi sổ tờ nào của hôm nay.
+      và nhịp gọi chỉ hoãn phát hành; ghi sổ hôm nay vẫn đi tiếp.
   F4  cửa mở hay đóng đọc theo ngày lập hiệu lực, không phải ngày sổ.
   F5  phạm vi: chỉ tờ đúng ngày và đúng điểm bán mới được gửi; số lượng 1 chỉ
       được chấp nhận cho mã khai trong ma_hang_gop.
@@ -177,11 +177,15 @@ def chay():
 		return dict(frappe.local.response.get('message') or {})
 
 	kq = {'phan': []}
+	cong_tac = [('Vagabond Settings', 'tu_xuat_hddt'),
+		('MInvoice Phat Hanh Settings', 'enabled'), ('MInvoice Phat Hanh Settings', 'tu_xuat_khi_ghi_so')]
 	try:
+		co_truoc = [frappe.db.get_single_value(dt, cot, cache=False) for dt, cot in cong_tac]
 		with patch.object(requests.sessions.Session, 'request', chan), \
 				patch.object(ban_hang.requests, 'post', post_python), \
 				patch.object(tich_hop, 'make_post_request', post), \
 				patch.object(tich_hop, 'make_get_request', get), nen._cach_ly():
+			_bang('lớp cách ly vô hiệu hóa commit thật', bool(frappe.db._disable_transaction_control), True)
 			diem = 'hddt266_' + frappe.generate_hash(length=8)
 			frappe.db.savepoint(diem)
 			try:
@@ -695,12 +699,85 @@ def chay():
 				kq['phan'].append({'ten': 'backlog rút cạn rồi mới thông', 'dat': True,
 					'da_gui_ngay_cu': da_gui, 'sot_truoc': len(cho_truoc)})
 
+				# Hook production đã snapshot/hash khớp; bật đúng công tắc để ca
+				# thật sự đi tới hook thay vì xanh vì cấu hình chưa bật.
+				from vagabond import minvoice_sau_ghi_so as sau
+				hook = frappe.get_doc('Server Script', sau.TEN)
+				_bang('hook bật đúng mã đã migrate', (hook.disabled, hook.script), (0, sau.ban_moi()))
+				st = frappe.get_doc('MInvoice Phat Hanh Settings')
+				st.tu_xuat_khi_ghi_so = 1
+				st.save(ignore_permissions=True)
+				frappe.clear_document_cache(st.doctype, st.name)
+				_bang('bật phát hành trong After Submit', frappe.get_doc(st.doctype).tu_xuat_khi_ghi_so, 1)
+				cho_ghi = _hoa_don(hom_nay, gia=(80000,), ghi_so=False)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None), \
+						patch.object(ban_hang, '_tu_xuat_hddt', side_effect=AssertionError('Không được phát hành')):
+					ket_ghi = ban_hang._ghi_so_mot_don(cho_ghi, cho_xuat=False)
+				_bang('hoãn xuất vẫn ghi sổ', ket_ghi, (1, 0, ''))
+				_bang('SI thật đã submit', frappe.db.get_value('Sales Invoice', cho_ghi.name, 'docstatus'), 1)
+				if not frappe.db.count('GL Entry', {'voucher_type': 'Sales Invoice', 'voucher_no': cho_ghi.name, 'is_cancelled': 0}):
+					raise AssertionError('SI chưa có GL thật')
+				_bang('không có POST mới', len(gui), truoc)
+				_bang('cờ hoãn không còn sau submit', bool(cho_ghi.flags.get('vgb_hoan_phat_hanh')), False)
+				with patch.object(ban_hang, '_goi_server_script', side_effect=AssertionError('Đếm không được chạy script')), \
+						patch.object(tich_hop, 'make_post_request', side_effect=AssertionError('Đếm không được HTTP')):
+					so_no, tien_no = ban_hang._dem_hddt_sot(hom_nay)
+					if so_no < 1 or tien_no < 80000:
+						raise AssertionError('Phép đếm không thấy tờ vừa hoãn')
+				kq['phan'].append({'ten': 'hoãn phát hành vẫn submit và GL', 'dat': True})
+				with patch.object(hddt_cho_xuat, 'nowdate', lambda: str(add_days(hom_nay, 1))):
+					if str(hom_nay) not in [str(n) for n in hddt_cho_xuat.ngay_cu_can_bao_ve()]:
+						raise AssertionError('Tờ hoãn bị mất khỏi nợ ngày sau')
+					man = hddt_cho_xuat.xu_ly_ngay_cu(str(hom_nay), chay_thu=1)
+					if cho_ghi.name not in man['pham_vi']:
+						raise AssertionError('Màn xử lý ngày cũ không thấy tờ hoãn')
+					if str(hom_nay) in [str(n) for n in hddt_cho_xuat.ngay_cu_dang_cho()]:
+						raise AssertionError('Ngày hoãn tự vào tập rút cạn khi chưa chọn cách xử lý')
+					if cho_ghi.name in [r.name for r in hddt_cho_xuat.ds_cho_xuat(hom_nay)]:
+						raise AssertionError('Tự mở rộng tập gửi khi chưa có quyết định xử lý')
+				_bang('xem ngày sau không POST', len(gui), truoc)
+				kq['phan'].append({'ten': 'tờ hoãn hiện trên màn ngày cũ hôm sau, chưa tự gửi', 'dat': True})
+				# Chiều ngược phải đi qua safe_exec thật: không được bịt hook vĩnh viễn.
+				duoc_ghi = _hoa_don(hom_nay, gia=(90000,), ghi_so=False)
+				duoc_ghi.flags.vgb_hoan_phat_hanh = True
+				_bang('cấu hình như production: bước sau hook tắt', int(ban_hang.cfg().tu_xuat_hddt), 0)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None):
+					ket_ghi = ban_hang._ghi_so_mot_don(duoc_ghi, cho_xuat=True)
+				_bang('hook phát hành, bước sau hook đang tắt', ket_ghi, (1, 0, ''))
+				_bang('hook gửi đúng một POST', len(gui) - truoc, 1)
+				if not frappe.db.get_value('Sales Invoice', duoc_ghi.name, 'custom_minvoice_id'):
+					raise AssertionError('Hook không ghi lại ID hóa đơn')
+				_bang('khôi phục đúng cờ True có sẵn', duoc_ghi.flags.get('vgb_hoan_phat_hanh'), True)
+				kq['phan'].append({'ten': 'cho phép vẫn phát hành qua hook thật đúng một lần', 'dat': True})
+				# Đo cả cấu hình bật: hàm sau hook thật phải chặn gửi trùng.
+				frappe.db.set_single_value('Vagabond Settings', 'tu_xuat_hddt', 1)
+				frappe.clear_document_cache('Vagabond Settings', 'Vagabond Settings')
+				_bang('bật bước sau hook đọc lại', int(ban_hang.cfg().tu_xuat_hddt), 1)
+				hai_cua = _hoa_don(hom_nay, gia=(91000,), ghi_so=False)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None):
+					ket_ghi = ban_hang._ghi_so_mot_don(hai_cua, cho_xuat=True)
+				_bang('bước sau hook không nhận là phát hành lần hai', ket_ghi[:2], (1, 0))
+				if 'đã gửi sang M-Invoice' not in ket_ghi[2]:
+					raise AssertionError('Thiếu cảnh báo thật từ cửa chống gửi trùng: %r' % (ket_ghi,))
+				_bang('hai cửa cùng bật vẫn chỉ một POST', len(gui) - truoc, 1)
+				if not frappe.db.get_value('Sales Invoice', hai_cua.name, 'custom_minvoice_id'):
+					raise AssertionError('Mất ID đã ghi bởi hook')
+				kq['phan'].append({'ten': 'hai cửa bật, hàm thật chặn lần gửi thứ hai', 'dat': True})
+
 				kq['dat'] = True
 			finally:
+				# nen._cach_ly khóa commit; Frappe vẫn thực thi rollback có save_point.
 				frappe.db.rollback(save_point=diem)
+		co_sau = [frappe.db.get_single_value(dt, cot, cache=False) for dt, cot in cong_tac]
+		_bang('cả ba công tắc về đúng trạng thái trước ca, đọc DB không cache', co_sau, co_truoc)
+		kq['phan'].append({'ten': 'công tắc được hoàn nguyên qua rollback thật', 'dat': True})
 	except Exception as e:
 		kq['dat'] = False
 		kq['loi'] = '%s: %s' % (type(e).__name__, e)
+		kq['traceback'] = ban_hang.giau_khoa(frappe.get_traceback())
 	finally:
 		frappe.local.form_dict = form_cu
 		frappe.local.response = dap_cu

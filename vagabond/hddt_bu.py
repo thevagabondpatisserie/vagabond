@@ -159,6 +159,8 @@ def vet_co_gi_de_ghi(xong, hddt, so_loi):
 def cau_canh_bao_sot(ngay, so_to, tong_tien):
 	"""Câu cảnh báo tờ đã ghi sổ mà chưa có hoá đơn điện tử, dùng chung cho
 	nhật ký, thư kế toán và màn Cài đặt."""
+	if tong_tien is None:
+		return "CẢNH BÁO: ngày %s còn %d hoá đơn đã ghi sổ mà chưa có hoá đơn điện tử; chưa đọc được tổng tiền." % (ngay, int(so_to))
 	return "CẢNH BÁO: ngày %s còn %d hoá đơn đã ghi sổ mà chưa có hoá đơn điện tử, tổng %s đ." % (
 		ngay, int(so_to), "{:,.0f}".format(float(tong_tien or 0)).replace(",", "."),
 	)
