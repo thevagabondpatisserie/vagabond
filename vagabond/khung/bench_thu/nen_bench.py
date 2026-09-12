@@ -108,6 +108,9 @@ def dung():
 		# khong ai thay vi khong bo bench nao di duong do (#266 vong 4).
 		{"fieldname": "enabled", "fieldtype": "Check", "label": "Bat phat hanh"},
 		{"fieldname": "tu_ky_hang_loat", "fieldtype": "Check", "label": "Tu ky hang loat"},
+		# Production có công tắc này; thiếu metadata thì save bỏ giá trị và
+		# ca After Submit không bao giờ đi tới nhánh cần kiểm.
+		{"fieldname": "tu_xuat_khi_ghi_so", "fieldtype": "Check", "label": "Tự xuất khi ghi sổ"},
 	], issingle=1)
 	frappe.db.set_single_value("MInvoice Phat Hanh Settings", "thue_suat", 8)
 	frappe.db.set_single_value("MInvoice Phat Hanh Settings", "ky_hieu", "1C26KIEM")
