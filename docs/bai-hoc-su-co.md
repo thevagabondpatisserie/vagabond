@@ -216,3 +216,39 @@ phản hồi là chưa có commit. Chưa có log thì không kết luận lỗi 
 Luật dừng theo từng việc trong `CLAUDE.md` là nguồn chung; tài liệu Codex phải
 đồng bộ, không giữ cách đếm tổng comment cũ làm chặn các finding độc lập.
 Nguồn: PR #281, review và sửa tài liệu PR #282; chưa có nghiệm thu bot-to-bot.
+
+## 12/09/2026 - Hàng rào thứ tự HĐĐT không được chặn luôn bước ghi sổ (#266)
+
+Review chéo bản #266 TRƯỚC khi deploy, đọc mã nguồn chứ chưa chạy được cổng
+kiểm (môi trường GitHub của phiên này không cho chạy Python).
+
+Triệu chứng dự đoán: cả tiệm ngừng ghi sổ và ngừng xuất hoá đơn điện tử, im
+lặng, không email nào kêu, và tình trạng đó tự nuôi nhau qua từng ngày.
+
+Chuỗi suy luận: `ban_hang.tu_ghi_so_cuoi_ngay` và `ban_hang.xuat_rai_trong_ngay`
+đều mở đầu bằng `if not hddt_cho_xuat.xuat_ngay_cu_truoc(): return`, tức là nợ
+hoá đơn ngày cũ chặn luôn bước GHI SỔ chứ không chỉ chặn bước phát hành. Tập
+chặn `ngay_cu_can_bao_ve()` cố ý rộng, gồm cả đơn còn NHÁP và tờ đang giữ cờ
+đối chiếu, mà hàng rào chỉ tự rút cạn được tập hẹp `ngay_cu_dang_cho()` (đòi
+`docstatus = 1` và `vgb_hddt_ngay_xuat = posting_date`, dấu này chỉ do người
+đặt). Một đơn treo bình thường của hôm qua là đủ để chặn cả hôm nay; hôm nay
+không ghi sổ thì toàn bộ đơn hôm nay thành đơn nháp ngày cũ và chặn tiếp ngày
+mai. Hạn một ngày của `con_trong_han_ky_gui` không cắt được vòng này vì mỗi
+ngày lại sinh nợ mới.
+
+Hai chuông 23h55 không bắt được ca đó: `canh_bao_don_treo` bỏ đúng nhóm
+`san_sang` của hôm nay và bỏ hẳn bill quầy, `canh_bao_hddt_sot` chỉ đếm tờ đã
+`docstatus = 1`. Đơn bị chặn còn nháp nên rơi ra khỏi cả hai. Dấu vết duy nhất
+là một dòng Error Log, đúng cái bẫy đã làm 149 đơn nằm nháp nửa tháng hồi
+13/08/2026. Trong ca bế tắc `xuat_ngay_cu_truoc` còn gọi `_ghi_moc_loi(False)`
+vì không lô nào được gửi, tức là xoá nốt mốc lỗi.
+
+Cách phòng: một hàng rào thứ tự chỉ được chặn đúng việc nó bảo vệ. Thứ tự số
+hoá đơn là chuyện của bước phát hành, không phải của bước ghi sổ. Trước khi đặt
+một lệnh `return` sớm trong nhịp tự động, tự hỏi hai câu: việc bị bỏ có phải
+việc mà hàng rào bảo vệ không, và trạng thái chặn này có đường tự thoát không
+hay phải đợi người bấm nút. Chặn mà không có đường tự thoát thì bắt buộc phải
+có chuông riêng cho chính trạng thái chặn, không dựa vào các chuông sẵn có vì
+chúng đếm theo tiêu chí khác.
+
+Nguồn: Issue #266, review chéo ngày 12/09/2026; chưa tái hiện trên site.
