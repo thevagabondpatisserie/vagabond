@@ -264,6 +264,31 @@ Worker giữ khóa xuyên HTTP để cửa đối soát không chen vào, nhưng
 
 Gộp nhánh không được bỏ dấu vết lỗi. Lưu thời điểm bắt đầu bền trước HTTP, mã HTTP/loại lỗi/hash và độ dài phản hồi trên dấu cùng Error Log. Không lưu nguyên URL/ngoại lệ/thân phản hồi có thể chứa khóa; người đối soát cần dấu vết nhưng không cần bí mật trong log.
 
+## 12/09/2026 - Dọn nhật ký cần đọc đúng cơ chế của khung (#284)
+
+Cloud đọc trực tiếp ngày12/09: database1,25GB trên hạn1GB. Không suy từ
+việc thiếu cấu hình mặc định rằng một bảng không được khung hỗ trợ dọn.
+Trong Frappe16.27.1, LogType là runtime_checkable Protocol, kiểm cấu trúc
+method chứ không đòi kế thừa danh nghĩa. DeletedDocument và NotificationLog
+có clear_old_logs nên được Log Settings hỗ trợ; Version không có.
+Tiền đề ban đầu của PR rằng cả ba không thể dùng Log Settings là sai.
+
+Nhịp riêng có mục đích chia lô, giới hạn mỗi lượt và giữ lịch sử/payload
+chứng từ thuộc KHONG_DUOC_DON (kể cả loại chưa xác định). Dọn phẳng theo
+tuổi sẽ làm mất dấu vết dù không DELETE trực tiếp bảng chứng từ. Phải có
+phê duyệt mốc lưu trước bật lịch; không lấy bình luận do tác giả viết làm
+bằng chứng anh Việt đã duyệt. Ước tính dung lượng trước khi loại chứng từ
+bảo vệ không được dùng làm số sẽ thu hồi.
+
+ROW_COUNT phải đọc ngay sau DELETE và trước commit. Khi đọc lỗi hoặc âm,
+rollback lô đang mở và báo chưa xác định; lô đã commit trước đó không tự
+lùi. API dọn chỉ POST. Ca bench dùng MariaDB thật kiểm rollback/số đếm,
+giữ dòng mới, lịch sử và payload bảo vệ; không chạy trên production.
+
+OPTIMIZE có thể trả result rows error/status Operation failed mà không
+ném exception. Chỉ nhận thành công khi status OK và không có error; lỗi
+phải ghi log, không đổi số dòng đã DELETE. Ca riêng kiểm cả phản hồi lỗi
+và thành công. Không suy từ DELETE rằng tệp đã co hoặc quota đã giảm.
 ## Issue287 - thông báo của bot cần đối soát nguồn và dấu gửi bền
 
 Sự kiện do GITHUB_TOKEN tạo không luôn kích hoạt workflow tiếp; chỉ nghe

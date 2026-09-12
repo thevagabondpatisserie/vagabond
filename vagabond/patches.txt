@@ -260,5 +260,7 @@ vagabond.patches.dong_bo_cau_truc #v478
 vagabond.patches.dong_bo_cau_truc #v479
 vagabond.patches.dong_bo_cau_truc #v480
 vagabond.patches.dong_bo_cau_truc #v481
+vagabond.patches.dong_bo_cau_truc #v481b-don-dep-db-284
 vagabond.patches.minvoice_v482
 vagabond.patches.dong_bo_cau_truc #v482
+vagabond.patches.dong_bo_cau_truc #v483

@@ -255,6 +255,12 @@ scheduler_events = {
 			# 20/08/2026).
 			"vagabond.minvoice_tep.don_dep_pdf",
 		],
+		# 03:20: dọn theo lô/trần và giữ lịch sử, payload chứng từ bảo vệ.
+		# LogType là Protocol; Notification Log và Deleted Document dùng được
+		# Log Settings, nhưng clear_old_logs dọn phẳng theo tuổi. Không đăng ký
+		# thêm hai bảng này vào Log Settings để tránh bỏ qua phạm vi dọn riêng.
+		# Lệch 20 phút giảm khả năng chồng nhịp 03:00, không bảo đảm không trùng.
+		"20 3 * * *": ["vagabond.don_dep_db.don_dep_hang_ngay"],
 	},
 }
 

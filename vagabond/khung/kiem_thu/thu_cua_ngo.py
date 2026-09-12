@@ -42,6 +42,10 @@ CUA_NGO = {
 	# `chay_nen`, `xuat_ngay_cu_truoc`, `phat_hanh`, `ky` la ham noi bo cua
 	# hang doi va chuoi cuoi ngay, khong mo ra ngoai.
 	"hddt_cho_xuat.py": ["xu_ly_ngay_cu"],
+	# Them 12/09/2026 (#284): don ba bang nhat ky. `don_dep_hang_ngay` KHONG
+	# mo ra ngoai, no la nhip dem cua scheduler. Hai cua duoi day deu tu kiem
+	# System Manager o dong dau.
+	"don_dep_db.py": ["do_dung_luong", "don_dep_ngay_bay_gio"],
 	# Them 23/08/2026 cung lan dua Web Page va Mau in ra git. `soi_lech` chi
 	# DOC va so sanh, khong ghi gi, nen mo ra ngoai duoc. `dong_bo` thi KHONG:
 	# no ghi de mau in tren site, chi duoc chay trong after_migrate.
