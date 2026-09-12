@@ -345,3 +345,19 @@ class PhatHanh(unittest.TestCase):
         self.comments = [self.comment()]
         self.assertEqual(chay(self.kho, self.bot, '1'), 1)
         self.assertIn('đính chính', self.bot.sent[-1])
+
+    def test_dinh_chinh_roi_doi_lai_van_bao_va_nhieu_pr_lech_gio_khong_trung(self):
+        a = self.comment(1); b = self.comment(2)
+        b['updated_at'] = '2026-09-12T00:01:01Z'
+        self.comments = [a, b]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        old = list(self.data['features'])
+        self.data['features'] = ['Đính chính nội dung.']
+        b = self.comment(3); b['updated_at'] = '2026-09-12T00:01:02Z'
+        self.comments = [b]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.data['features'] = old
+        a = self.comment(4); a['updated_at'] = '2026-09-12T00:01:03Z'
+        self.comments = [a]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.assertEqual(len(self.bot.sent), 3)

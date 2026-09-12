@@ -201,7 +201,7 @@ def thu_thap(gh, state):
                         + '\nĐã deploy và kiểm site thật (theo xác nhận phát hành).\n'
                         + '\n'.join('- ' + f.strip() for f in release['features'])
                         + '\nChi tiết: ' + link)
-                them(entity + ':' + signature, c['updated_at'], text, entity, signature)
+                them(entity + ':' + c['updated_at'] + ':' + signature, c['updated_at'], text, entity, signature)
                 continue
             nhan = ' (đã sửa)' if c['updated_at'] != c['created_at'] else ''
             dau = (c.get('body') or '').splitlines()[:1]
@@ -276,7 +276,12 @@ def chay(gh, tg, chat, gom=False):
         if khoa in state['seen']:
             continue
         # Giới hạn lượt, chưa đẩy cursor nên phần còn lại được đọc ở lượt sau.
-        if e.get('silent'):
+        silent = e.get('silent')
+        if e.get('entity', '').startswith('release:'):
+            # Cùng lượt có thể nhận nhiều PR hoặc đính chính A -> B -> A.
+            # So trạng thái sau tin vừa gửi, không dùng snapshot đầu lượt.
+            silent = state['entities'].get(e['entity'], {}).get('signature') == e['signature']
+        if silent:
             state['entities'][e['entity']] = {'signature': e['signature'], 'at': e['at']}
             continue
         if dem == 30:
