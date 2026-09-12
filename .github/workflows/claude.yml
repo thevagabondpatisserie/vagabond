@@ -48,5 +48,5 @@ jobs:
           # Ghim model va muc suy nghi. Anh Viet chot 10/09/2026: Opus, effort high.
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # Co dung la --effort (low, medium, high, xhigh, max). Ban v1 khong con o model rieng.
-          claude_args: '--model opus --effort high --max-turns 20'
+          claude_args: '--model opus --effort high --max-turns 80'
 
