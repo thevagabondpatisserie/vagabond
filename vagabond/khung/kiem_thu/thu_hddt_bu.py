@@ -219,7 +219,7 @@ def _rai_bo_qua():
 def _rai_ma_nguon():
 	s = _py("ban_hang.py")
 	than = _than(s, "xuat_rai_trong_ngay")
-	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None)" in than)
+	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None, cho_xuat=cho_xuat)" in than)
 	dung("cùng kịch bản m-invoice, từng phiếu", '"phieu": ten' in than)
 	dung("hai khoá", "_khoa_dong_bo(" in than and "_khoa_hddt(" in than)
 	dung("lọc theo lần sửa cuối", '"modified": ["<=", moc]' in than)
@@ -259,7 +259,7 @@ def _nhip_bu():
 	dung("so số theo giá trị số, không theo chuỗi", "cast(custom_hddt_so as unsigned)" in moi)
 
 
-@ca("chuông 23h55: đếm bằng chính bộ lọc kịch bản, đã khai vào bộ lập lịch")
+@ca("chuông 23h55: đếm ERP không chạy kịch bản, đã khai vào bộ lập lịch")
 def _chuong():
 	s = _py("ban_hang.py")
 	than = _than(s, "canh_bao_hddt_sot")
@@ -267,7 +267,7 @@ def _chuong():
 	dung("ghi cảnh báo vào nhật ký", "tu_ghi_so_nhat_ky" in than)
 	dung("gửi thư kế toán", "frappe.sendmail(" in than)
 	dem = _than(s, "_dem_hddt_sot")
-	dung("đếm bằng chế độ thử của kịch bản", '"che_do": "thu"' in dem)
+	dung("đếm không chạy kịch bản phát hành", '_goi_server_script' not in dem)
 	h = _py("hooks.py")
 	i = h.find('"55 23 * * *"')
 	dung("có nhịp 23h55", i >= 0)

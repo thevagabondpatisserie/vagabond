@@ -1090,13 +1090,13 @@ def _fail_closed():
 	dung("không lấy được khoá thì trả False", "if khoa is None:" in sau and "return False" in sau)
 	dung("hỏng giữa chừng cũng trả False", than.rstrip().endswith("return False"))
 	dung("đọc lại danh sách sau khi chạy, không tin con số vừa gộp",
-		"return not ngay_cu_con_mo(ngay_cu_can_bao_ve()" in than)
+		"con_con_no = bool(ngay_cu_con_mo(ngay_cu_can_bao_ve()" in than)
 	b = _doc("vagabond", "ban_hang.py")
 	for ham in ("tu_ghi_so_cuoi_ngay", "xuat_rai_trong_ngay"):
 		i = b.find("def %s(" % ham)
 		than_b = b[i:b.find("\ndef ", i + 10)]
 		dung(ham + " đọc trạng thái hàng rào chứ không gọi rồi đi tiếp",
-			"if not hddt_cho_xuat.xuat_ngay_cu_truoc():" in than_b)
+			"cho_xuat = hddt_cho_xuat.xuat_ngay_cu_truoc()" in than_b)
 
 
 @ca("#266 vòng 2 (F4): cửa mở hay đóng đọc theo NGÀY LẬP, không phải ngày sổ")
@@ -1322,3 +1322,25 @@ def _api_lo_nho_va_hang_doi():
 			la("bỏ qua không tự chạy thêm fallback", fallback.call_count, 0)
 			if viec is None:
 				dung("nói rõ chưa tạo lượt mới", "chưa tạo lượt mới" in ra["nhat_ky"])
+
+
+@ca('#266 F3: còn nợ nhưng không có tờ tự gửi vẫn giữ mốc lỗi')
+def _no_khong_gui_duoc():
+	import ast
+	import sys
+	from types import SimpleNamespace
+	src = _doc('vagabond', 'hddt_cho_xuat.py')
+	fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == 'xuat_ngay_cu_truoc')
+	moc = []; gui = []
+	bh = SimpleNamespace(_ngay_so_hddt_moi_nhat=lambda: None, _khoa_hddt=lambda **kw: object(),
+		_mo_khoa_dong_bo=lambda *a: None, _cong_tac_minvoice=lambda: (1, 1),
+		_phat_hanh_theo_lo=lambda *a: gui.append(1), _ky_theo_lo=lambda *a: gui.append(1))
+	g = dict(frappe=unittest.mock.MagicMock(), ngay_cu_can_bao_ve=lambda: [D(2026,9,11)],
+		ngay_cu_dang_cho=lambda: [], ngay_cu_con_mo=lambda ds,*a: ds,
+		getdate=lambda x:x, nowdate=lambda: D(2026,9,12), _ngay_xac_nhan_qua_han=lambda: [],
+		cint=lambda x:int(x or 0), _ghi_moc_loi=lambda x:moc.append(x))
+	exec(compile(ast.Module(body=[fn], type_ignores=[]), '<hang-rao-thuc>', 'exec'), g)
+	with unittest.mock.patch.dict(sys.modules, {'vagabond.ban_hang': bh}):
+		la('còn chặn phát hành', g['xuat_ngay_cu_truoc'](), False)
+	la('không tự mở rộng tập gửi', gui, [])
+	la('có mốc lỗi chứ không xóa', moc, [True])

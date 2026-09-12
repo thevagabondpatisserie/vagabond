@@ -8,6 +8,7 @@ import frappe
 from vagabond import minvoice_kich_ban
 
 PATCHES = (
+    'vagabond.patches.minvoice_v482',
     'vagabond.patches.pr_he_so_252',
     'vagabond.patches.minvoice_v454',
     'vagabond.patches.thue_don_mua_v450',
@@ -30,6 +31,10 @@ def chuan_bi():
     _khoa()
     from frappe.utils.password import get_encryption_key
     get_encryption_key()  # Ghi khoá vào site_config, không in hoặc đưa vào artifact.
+    from vagabond import minvoice_sau_ghi_so as sau
+    frappe.get_doc(dict(doctype='Server Script', name=sau.TEN, script_type='DocType Event',
+        reference_doctype='Sales Invoice', doctype_event='After Submit',
+        disabled=0, script=sau.ban_goc())).insert(ignore_permissions=True)
     for ten, loai, _cu, _moi in minvoice_kich_ban.BO:
         if frappe.db.exists('Server Script', ten):
             raise RuntimeError('Bench mới không được có sẵn kịch bản: ' + ten)
@@ -65,6 +70,9 @@ def doi_chieu():
         if not frappe.db.exists('Patch Log', {'patch': patch}):
             raise AssertionError('Thiếu Patch Log: ' + patch)
     bam = {}
+    from vagabond import minvoice_sau_ghi_so as sau
+    if frappe.db.get_value('Server Script', sau.TEN, 'script') != sau.ban_moi():
+        raise AssertionError('Hook After Submit chưa đúng bản vá v482')
     for ten, loai, _cu, _moi in minvoice_kich_ban.BO:
         ma = frappe.db.get_value('Server Script', ten, 'script')
         if ma != minvoice_kich_ban.ban_moi(loai):
