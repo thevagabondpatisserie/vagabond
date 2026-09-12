@@ -249,3 +249,7 @@ Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_d
 Tập chặn có đơn nháp nhưng tập tự gửi chỉ có tờ đã submit và được chọn ngày. Return trước ghi sổ làm cả ngày mới thành backlog. Tách quyết định phát hành khỏi ghi sổ, giữ cửa chung HTTP; đọc script After Submit hiện hành trước khi chốt vì core vẫn gọi script trong submit. Còn nợ nhưng vòng gửi rỗng vẫn phải giữ mốc lỗi và báo riêng, không trông chờ bộ đếm chỉ gồm tờ đã submit.
 
 Công cụ đặt phiên bản phải giữ nguyên lịch sử patches.txt. Không tin docstring: dat_phien_ban.py cũ ghi "giữ nguyên" nhưng lọc xóa mọi dòng cũ. Ca tạm file phải kiểm nội dung từng byte và gọi lần hai không nhân dòng.
+
+### #266 ngày12/09: mock DB quá dễ tính che cột không tồn tại
+
+Email Queue không có subject (email_queue.json Frappe16.27.1); lọc theo cột đó ném Unknown column trước khi xếp thư. Fake exists nhận mọi filter đã làm ca kiểm xanh giả. Phải đối chiếu schema thật và cho fake từ chối filter lạ. Lỗi đếm hóa đơn không được biến thành0; cache giảm thư lặp bị hỏng không được làm mất cảnh báo.

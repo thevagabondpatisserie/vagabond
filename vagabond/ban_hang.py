@@ -2741,27 +2741,45 @@ def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
 	return 1, 0, ("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử: %s" % (nhan, bao)) if bao else ""
 
 
-def _bao_hoan_phat_hanh(ngay, da_ghi, loi_ghi):
+def _bao_hoan_phat_hanh(ngay, da_ghi, loi, noi_goi):
 	"""Báo nợ phát hành riêng; không xóa kết quả ghi sổ của lượt trước."""
-	nhan_ngay = "HOÃN PHÁT HÀNH %s:" % ngay
+	nhan_ngay = "HOÃN PHÁT HÀNH %s (%s):" % (ngay, noi_goi)
+	loi_ghi = len(loi)
 	cau = ("%s lượt này ghi sổ %d đơn, %d lỗi. Còn nợ ngày cũ hoặc chưa xác minh được hàng rào. "
 		"Mở Cài đặt > Hóa đơn ngày cũ để xử lý; không tự đổi ngày/gửi lại tờ chưa rõ.") % (nhan_ngay, da_ghi, loi_ghi)
 	cu = str(cfg().get("tu_ghi_so_nhat_ky") or "")
 	if nhan_ngay not in cu or da_ghi or loi_ghi:
 		# Giữ cảnh báo mới đủ chữ và phần nhật ký cũ còn chỗ; lượt 0/0 không ghi đè.
-		moi = cau + ("\n" + cu if cu else "")
+		con_lai = "\n".join(d for d in cu.splitlines() if not d.startswith(nhan_ngay))
+		moi = cau + ("\n" + con_lai if con_lai else "")
 		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", moi[:500])
 		frappe.db.commit()
-	try:
-		# Mốc giảm thư lặp, không phải hàng rào phát hành hay bằng chứng đã gửi SMTP.
-		cache = frappe.cache()
-		moc = "vgb-hoan-phat-hanh-" + str(ngay)
-		if not cache.get_value(moc + "-log"):
-			frappe.log_error(title="Vagabond: hoãn phát hành " + str(ngay), message=cau)
+
+	def doc_moc(ten):
+		try:
+			return frappe.cache().get_value(ten)
+		except Exception:
+			return None
+
+	def ghi_moc(ten):
+		try:
+			frappe.cache().set_value(ten, 1, expires_in_sec=172800)
+		except Exception:
+			pass  # Redis mất thì lần sau có thể báo lặp, không bỏ thư.
+
+	moc = "vgb-hoan-phat-hanh-%s-%s" % (ngay, noi_goi)
+	# Lỗi ghi sổ cần giữ nội dung riêng, kể cả đã báo hoãn trước đó.
+	if not doc_moc(moc + "-log") or loi:
+		try:
+			frappe.log_error(title="Vagabond: hoãn phát hành " + str(ngay),
+				message=cau + ("\n" + giau_khoa("\n".join(loi)) if loi else ""))
 			frappe.db.commit()
-			cache.set_value(moc + "-log", 1, expires_in_sec=172800)
-		if cache.get_value(moc + "-mail"):
-			return
+			ghi_moc(moc + "-log")
+		except Exception:
+			pass  # Hỏng bước log không được chặn cảnh báo qua thư.
+	if doc_moc(moc + "-mail"):
+		return
+	try:
 		nhan = _nguoi_nhan_don_treo()
 		if nhan:
 			from vagabond.nhan_su import _khung_thu, _nut_xanh, link_app
@@ -2772,7 +2790,7 @@ def _bao_hoan_phat_hanh(ngay, da_ghi, loi_ghi):
 					_nut_xanh(link_app(), "Mở app để xử lý"), chan="noi_bo", nhan="Cuối ngày"),
 				delayed=True)
 			frappe.db.commit()
-			cache.set_value(moc + "-mail", 1, expires_in_sec=172800)
+			ghi_moc(moc + "-mail")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Vagabond: gửi cảnh báo hoãn phát hành lỗi")
 
@@ -3026,11 +3044,12 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 			frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_lan_cuoi", ngay)
 			frappe.db.commit()
 
-		if not cho_xuat:
-			_bao_hoan_phat_hanh(ngay, xong, len(loi))
-			return
 	finally:
 		_mo_khoa_dong_bo(khoa)
+
+	if not cho_xuat:
+		_bao_hoan_phat_hanh(ngay, xong, loi, "cuoi-ngay")
+		return
 
 	# Ghi so xong moi phat hanh, phat hanh xong moi ky. Ba buoc lien nhau
 	# trong mot lan chay nen khong con canh buoc sau chay truoc buoc truoc.
@@ -3320,10 +3339,12 @@ def _dem_hddt_sot(ngay):
 			"MInvoice - Phat hanh HD Sales (API)",
 			{"che_do": "thu", "ngay": str(ngay), "so_luong": 0, "phieu": None},
 		)
-		so = cint((r or {}).get("so_don_tim_thay"))
+		if not isinstance(r, dict) or "so_don_tim_thay" not in r:
+			raise ValueError("Kết quả đếm hóa đơn không hợp lệ")
+		so = cint(r["so_don_tim_thay"])
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ban_hang: dem HDDT sot")
-		return 0, 0
+		frappe.log_error(giau_khoa(frappe.get_traceback()), "ban_hang: dem HDDT sot")
+		raise
 	if not so:
 		return 0, 0
 	tien = 0
@@ -3338,7 +3359,7 @@ def _dem_hddt_sot(ngay):
 			if not (d.custom_hddt_so or "").strip() and not (d.custom_minvoice_id or "").strip()
 		)
 	except Exception:
-		pass
+		raise
 	return so, tien
 
 
@@ -3353,10 +3374,16 @@ def canh_bao_hddt_sot():
 	try:
 		frappe.set_user("Administrator")
 		ngay = nowdate()
-		so, tien = _dem_hddt_sot(ngay)
-		if not so:
-			return
-		cau = hddt_bu.cau_canh_bao_sot(ngay, so, tien)
+		try:
+			so, tien = _dem_hddt_sot(ngay)
+		except Exception as e:
+			so = None
+			cau = ("CẢNH BÁO %s: không đếm được số hóa đơn còn sót (%s). "
+				"Chưa thể kết luận đã xuất đủ; cần kiểm tra Nhật ký lỗi.") % (ngay, type(e).__name__)
+		else:
+			if not so:
+				return
+			cau = hddt_bu.cau_canh_bao_sot(ngay, so, tien)
 		cu = str(cfg().get("tu_ghi_so_nhat_ky") or "")
 		if cau not in cu:
 			frappe.db.set_single_value(
@@ -3370,14 +3397,13 @@ def canh_bao_hddt_sot():
 
 		than = (
 			"<p style='margin:0 0 14px'>%s</p>"
-			"<p style='margin:0 0 14px'>Nhịp bù mỗi giờ sẽ thử lại tới sáng mai, nhưng "
-			"sang ngày mới mà đã có tờ mang ngày mới thì m-invoice không nhận thêm tờ "
-			"ngày cũ nữa. Anh chị mở app vào Cài đặt, mục Cuối ngày, bấm Chạy ngay, "
-			"hoặc xử tay bên m-invoice trước 0h.</p>"
+			"<p>Anh chị mở app kiểm tra Cài đặt và Nhật ký lỗi, đối soát trước khi xử lý. "
+			"Không tự đổi ngày hoặc gửi lại tờ chưa rõ kết quả.</p>"
 		) % frappe.utils.escape_html(cau)
 		frappe.sendmail(
 			recipients=nhan,
-			subject="Vagabond: còn %d hoá đơn chưa xuất hoá đơn điện tử ngày %s" % (so, ngay),
+			subject=("Vagabond: chưa đếm được hóa đơn còn sót ngày %s" % ngay if so is None else
+				"Vagabond: còn %d hoá đơn chưa xuất hoá đơn điện tử ngày %s" % (so, ngay)),
 			message=_khung_thu("Hoá đơn điện tử còn sót", than, _nut_xanh(link_app(), "Mở app"),
 				chan="noi_bo", nhan="Cuối ngày"),
 			delayed=False,
@@ -3469,7 +3495,7 @@ def xuat_rai_trong_ngay():
 			_mo_khoa_dong_bo(khoa)
 
 		if not cho_xuat:
-			_bao_hoan_phat_hanh(ngay, len(xong), len(loi))
+			_bao_hoan_phat_hanh(ngay, len(xong), loi, "xuat-rai")
 			return
 
 		if not xong:

@@ -38,3 +38,11 @@ C3 cờ tu_ghi_so_lan_cuoi vốn đặt sau ghi sổ, trước phát hành. Nay 
 C4 tờ hoãn có thể tăng nợ mỗi ngày nếu không có người xử lý. Không tự mở rộng tập phát hành hoặc đổi ngày. Ca bench mới gọi màn xử lý ngày cũ ở ngày kế tiếp, kiểm tờ nằm trong phạm vi màn và tập nợ rộng nhưng chưa vào tập tự gửi.
 
 C5 còn chặn merge/deploy: Mac khóa, chưa đọc được After Submit production. Không dùng bench không có script đó làm bằng chứng đã sửa hết.
+
+## Review D1-D6
+
+- Phép đếm lỗi hoặc thiếu cấu trúc trả về nay ném; chuông23h55 gửi cảnh báo chưa đếm được, không coi là0. Chưa đọc script production để xác định nhánh thử có chạm hàng rào, gộp với C5 trước phát hành.
+- Mốc cảnh báo phân biệt nhịp rải và cuối ngày. Danh sách lỗi ghi sổ được giữ trong Error Log (qua giau_khoa), không chỉ giữ số lỗi.
+- Redis lỗi vẫn đi tới log/thư; mất mốc có thể báo lặp, không giữ im. Mốc chỉ đặt sau queue/commit, không nhận SMTP đã gửi.
+- Nhả khóa đồng bộ trước khi báo hoãn ở cả hai caller. Câu hoãn cùng ngày/caller thay dòng cũ, không xếp chồng.
+- Bench chốt thêm tập ngày thực sự dùng để rút cạn. Chưa chạy lượt này.

@@ -33,7 +33,7 @@ def hai_nhip():
 		else:
 			fn()
 		la(name + ' ghi một tờ, hoãn xuất', ghi, [False])
-		la(name + ' báo cả khi tờ cũ chỉ nháp', bao, [('2026-09-12', 1, 0)])
+		la(name + ' báo cả khi tờ cũ chỉ nháp', bao, [('2026-09-12', 1, [], 'cuoi-ngay' if name == 'tu_ghi_so_cuoi_ngay' else 'xuat-rai')])
 		if name == 'tu_ghi_so_cuoi_ngay':
 			la('ghi sổ xong đánh dấu trước khi hoãn', moc, [('Vagabond Settings', 'tu_ghi_so_lan_cuoi', '2026-09-12')])
 
@@ -65,16 +65,16 @@ def canh_bao():
 	cache = NS(get_value=lambda k: moc.get(k), set_value=lambda k, v, **kw: moc.update({k: v}))
 	f = NS(db=NS(set_single_value=ghi, commit=lambda : None, exists=cot_la), cache=lambda : cache, utils=NS(escape_html=lambda x: x), get_traceback=lambda : 'lỗi giả lập', log_error=lambda *a, **kw: logs.append((a, kw)), sendmail=lambda **kw: mail.append(kw), set_user=lambda *a: None)
 	ns = NS(_khung_thu=lambda *a, **kw: ' '.join(a), _nut_xanh=lambda *a: 'Nút mở app', link_app=lambda : 'https://example.invalid')
-	g = dict(frappe=f, cfg=lambda : state, _nguoi_nhan_don_treo=lambda : ['ci@example.invalid'])
+	g = dict(giau_khoa=lambda x:x, frappe=f, cfg=lambda : state, _nguoi_nhan_don_treo=lambda : ['ci@example.invalid'])
 	with patch.dict(sys.modules, {'vagabond.nhan_su': ns}):
 		fn = nap('_bao_hoan_phat_hanh', g)
-		fn('2026-09-12', 1, 0)
+		fn('2026-09-12', 1, [], 'xuat-rai')
 		la('xếp thư dù exists từ chối cột giả', len(mail), 1)
 		dung('giữ kết quả chuỗi chính', '140 đơn' in state['tu_ghi_so_nhat_ky'])
-		dung('thư có nút', 'Nút mở app' in mail[0]['message'])
+		dung('thư có nút', bool(mail) and 'Nút mở app' in mail[0]['message'])
 		truoc = state['tu_ghi_so_nhat_ky']
-		fn('2026-09-12', 0, 0)
-		fn('2026-09-12', 0, 0)
+		fn('2026-09-12', 0, [], 'xuat-rai')
+		fn('2026-09-12', 0, [], 'xuat-rai')
 		la('không đè bằng lượt rỗng', state['tu_ghi_so_nhat_ky'], truoc)
 		la('không xếp lại thư', len(mail), 1)
 		la('không log lặp', len(logs), 1)
@@ -82,16 +82,34 @@ def canh_bao():
 		nap('canh_bao_hddt_sot', g)()
 		dung('chuông sót vẫn ghi', 'CẢNH BÁO còn 140' in state['tu_ghi_so_nhat_ky'])
 		la('chuông sót vẫn gửi thư riêng', len(mail), 2)
-		moc.pop('vgb-hoan-phat-hanh-2026-09-12-mail')
+		moc.pop('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-mail')
 
 		def hong(**kw):
 			raise RuntimeError('Hàng đợi không ghi được')
 		f.sendmail = hong
-		fn('2026-09-12', 0, 0)
-		la('xếp thư lỗi không ghi mốc thành công', moc.get('vgb-hoan-phat-hanh-2026-09-12-mail'), None)
+		fn('2026-09-12', 0, [], 'xuat-rai')
+		la('xếp thư lỗi không ghi mốc thành công', moc.get('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-mail'), None)
 		f.sendmail = lambda **kw: mail.append(kw)
-		fn('2026-09-12', 0, 0)
+		fn('2026-09-12', 0, [], 'xuat-rai')
 		la('nhịp sau vẫn xếp lại được', len(mail), 3)
+		fn('2026-09-12', 140, ['Đơn thử thiếu phương thức'], 'cuoi-ngay')
+		la('cuối ngày có thư riêng', len(mail), 4)
+		dung('log giữ nội dung lỗi', any('Đơn thử thiếu phương thức' in str(x) for x in logs))
+		def hong_cache():
+			raise RuntimeError('Redis ngắt')
+		f.cache=hong_cache
+		fn('2026-09-12', 0, [], 'xuat-rai')
+		la('Redis lỗi vẫn xếp thư', len(mail), 5)
+		def dem_hong(*a):
+			raise RuntimeError('Không đọc được script')
+		g['_goi_server_script']=dem_hong
+		g['cint']=lambda x:int(x or 0)
+		g['_dem_hddt_sot']=nap('_dem_hddt_sot',g)
+		nap('canh_bao_hddt_sot',g)()
+		la('đếm lỗi vẫn có thư', len(mail), 6)
+		dung('nhật ký không coi lỗi là0', 'không đếm được' in state['tu_ghi_so_nhat_ky'])
+		dung('thư nói chưa biết số', 'chưa đếm được' in mail[-1]['subject'])
+
 
 @ca('#266 công cụ đặt phiên bản giữ nguyên lịch sử patch và không nhân dòng')
 def lich_su_patch():

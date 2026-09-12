@@ -715,6 +715,8 @@ def chay():
 					man = hddt_cho_xuat.xu_ly_ngay_cu(str(hom_nay), chay_thu=1)
 					if cho_ghi.name not in man['pham_vi']:
 						raise AssertionError('Màn xử lý ngày cũ không thấy tờ hoãn')
+					if str(hom_nay) in [str(n) for n in hddt_cho_xuat.ngay_cu_dang_cho()]:
+						raise AssertionError('Ngày hoãn tự vào tập rút cạn khi chưa chọn cách xử lý')
 					if cho_ghi.name in [r.name for r in hddt_cho_xuat.ds_cho_xuat(hom_nay)]:
 						raise AssertionError('Tự mở rộng tập gửi khi chưa có quyết định xử lý')
 				_bang('xem ngày sau không POST', len(gui), truoc)
