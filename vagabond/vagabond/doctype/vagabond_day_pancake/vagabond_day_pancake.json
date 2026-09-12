@@ -11,7 +11,9 @@
   "nguoi_yeu_cau",
   "du_lieu",
   "trang_thai",
-  "thong_bao"
+  "thong_bao",
+  "ma_lan",
+  "lich_su_doi_soat"
  ],
  "fields": [
   {
@@ -58,11 +60,31 @@
    "label": "Thông báo",
    "fieldtype": "Small Text",
    "read_only": 1
+  },
+  {
+   "fieldname": "ma_lan",
+   "label": "Mã lần gửi",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lich_su_doi_soat",
+   "label": "Lịch sử đối soát",
+   "fieldtype": "Long Text",
+   "read_only": 1
   }
  ],
  "permissions": [
   {
    "role": "System Manager",
+   "read": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1
+  },
+  {
+   "role": "AP Giám đốc",
    "read": 1
   }
  ],

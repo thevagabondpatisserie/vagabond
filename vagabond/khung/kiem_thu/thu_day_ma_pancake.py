@@ -20,12 +20,9 @@ NĂM ĐIỀU MỖI CA DƯỚI ĐÂY CANH
 4. Giá 0 không được âm thầm đẩy đi.
 5. Mã ngừng dùng hoặc không phải hàng bán không được xuất bản.
 
-Mọi ca chạy trên phép THUẦN và trên văn bản tệp: không cần Frappe, không
+Mọi ca ở tệp này chạy trên phép THUẦN: không cần Frappe, không
 cần site, không cần mạng, không cần thư viện requests.
 """
-
-import io
-import os
 
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 from vagabond.pancake_ket_qua import (
@@ -33,19 +30,6 @@ from vagabond.pancake_ket_qua import (
 	KQ_XUNG_DOT, duoc_tao, duoc_thu_lai, duoc_xuat_ban, gia_dung_de_day,
 	khop_chinh_xac, thong_bao, xep_ket_qua_tim,
 )
-
-GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-def _doc(*ten):
-	with io.open(os.path.join(GOI, *ten), encoding="utf-8") as f:
-		return f.read()
-
-
-SP = _doc("pancake_sp.py")
-DM = _doc("danh_muc.py")
-JS = _doc("public", "js", "bep", "17-cai-dat.js")
-
 
 # --------------------------------------------- 1. Khop khit, khong khop chua
 
@@ -106,12 +90,6 @@ def _chua_ro():
 	la("xung dot khong duoc thu lai", duoc_thu_lai(KQ_XUNG_DOT), False)
 
 
-@ca("quet do khong duoc doc thanh ma chua ton tai")
-def _quet_do():
-	dung("ham tim tra ve ca co quet du chua", "return [], False" in SP)
-	dung("quet du thi tra ve True", "return kq.khop_chinh_xac(ds, ma), True" in SP)
-	dung("cham tran trang thi bao chua du", "return kq.khop_chinh_xac(ds, ma), False" in SP)
-	dung("ben goi co chan khi quet do", "if not du:" in SP)
 
 
 # --------------------------------------------------- 4. Gia
@@ -132,11 +110,6 @@ def _gia_khong():
 	la("gia hong cung bi chan", duoc5, False)
 
 
-@ca("gia lay tu bang gia ban truoc, khong lay thang standard_rate")
-def _gia_bang():
-	dung("co doc bang gia ban", "selling_price_list" in SP)
-	dung("co doc Item Price", '"Item Price"' in SP)
-	dung("standard_rate chi la duong lui", "it.standard_rate" in SP)
 
 
 # ------------------------------------ 5. Ma ngung dung, ma khong ban
@@ -150,10 +123,6 @@ def _ngung_dung():
 	la("vua ngung vua khong ban", duoc_xuat_ban(1, 0), False)
 
 
-@ca("may chu chot co day_duoc, khong de man hinh tu doan")
-def _co_day_duoc():
-	dung("gan_day tra ve co day_duoc", '"day_duoc"' in DM or "day_duoc" in DM)
-	dung("pancake_sp chan lan nua luc day that", "duoc_xuat_ban" in SP)
 
 
 # ------------------------------------------- Khoa chong hai nguoi cung bam
@@ -162,38 +131,12 @@ def _co_day_duoc():
 # ------------------------------------------- Man hinh: bo cau bao mac dinh
 
 
-@ca("man hinh khong con roi ve cau bao thanh cong mac dinh")
-def _bo_xong():
-	la("khong con chu Xong. mac dinh", "|| 'Xong.'" in JS, False)
-	dung("thay bang cau chua xac minh", "Chưa xác minh" in JS)
 
 
-@ca("man hinh co duong tim lai ma cu de day")
-def _tim_ma_cu():
-	dung("co o tim", "dmTimMa" in JS)
-	dung("co goi gan_day", "vagabond.danh_muc.gan_day" in JS)
-	dung("co nut kiem lai", "kiem_ma_tren_pancake" in JS)
-	dung("co phan trang", "dmTimTrang" in JS)
-	# Chua ro khong duoc to xanh, vi to xanh la bao thanh cong.
-	dung("chua ro to mau canh bao", "chua_ro" in JS)
 
 
-@ca("khong co cho nao tu bam day lai sau khi chua ro")
-def _khong_tu_day_lai():
-	# Soi ham day mot ma: sau khi nhan ket qua, khong duoc tu goi lai chinh no.
-	i = JS.find("async function dmDayMot(")
-	dung("tim thay ham day mot ma", i > 0)
-	than = JS[i:JS.find("async function dmKiemMot(")]
-	la("khong tu goi lai chinh no", than.count("dmDayMot("), 1)
 
 
-@ca("nut Kiem lai chi doc, khong tao gi")
-def _kiem_chi_doc():
-	i = DM.find("def kiem_ma_tren_pancake")
-	dung("tim thay cua kiem lai", i > 0)
-	than = DM[i:i + 700]
-	dung("goi ham chi doc", "trang_thai_tren_pancake" in than)
-	la("khong goi ham tao", "tao_tren_pancake" in than, False)
 
 
 # ------------------------------------------------------- Cau chu cho nguoi

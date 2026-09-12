@@ -6,6 +6,7 @@ async function test(){
  let calls=[],answers=[],yes=false,msg='';
  const c={api:async(m,a)=>{calls.push([m,a]);let x=answers.shift();if(x instanceof Error)throw x;return x;},confirmSheet:async()=>yes,dmBaoMot:(ma,t)=>msg=t};
  vm.createContext(c);vm.runInContext(['dmMauTrangThai','dmNutSau','dmDayMot','dmKiemMot'].map(ham).join('\n'),c);
+ assert.equal(c.dmMauTrangThai('dang_cho'),'#b45309');
  let b={};answers=[{trang_thai:'chua_ro'}];await c.dmDayMot('M',b,0);assert.equal(b.textContent,'Kiểm lại');
  answers=[{trang_thai:'chua_ro'}];await b.onclick();assert(calls[1][0].endsWith('kiem_ma_tren_pancake'));assert.equal(calls.filter(x=>x[0].endsWith('day_sang_pancake')).length,1);
  calls=[];answers=[{trang_thai:'thieu_gia'}];yes=false;await c.dmDayMot('M',b,0);assert.equal(calls.length,1);

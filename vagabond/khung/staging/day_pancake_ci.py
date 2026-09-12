@@ -26,7 +26,7 @@ def _khoa():
 def _goi(pc, ma):
     with patch.object(pc,'cfg',lambda:frappe._dict(pancake_shop_id='THU210')),patch.object(pc,'key',lambda *a:'fake'),patch.object(frappe,'enqueue') as enq:
         kq=pc.tao_tren_pancake(ma)
-        assert kq['trang_thai']=='chua_ro'
+        assert kq['trang_thai'] in ('dang_cho','chua_ro')
         if enq.called: assert enq.call_args.kwargs['enqueue_after_commit'] is True
     frappe.db.commit()
     return pc._ten_luot('THU210',ma)
@@ -75,6 +75,10 @@ def chay():
     frappe.db.rollback()
     assert frappe.db.get_value(pc.DT_DAY,ids[1],'trang_thai')=='da_tao'
     assert tep.read_text().splitlines().count(ids[1])==1,'Hai worker tạo trùng'
+    pc.doi_soat_luot(ids[0], 'Ca CI: phía nhận stub đã dọn mã', 'Xác nhận giả lập HTTP stub: không còn yêu cầu cũ', 1)
+    frappe.db.commit()
+    assert frappe.db.get_value(pc.DT_DAY,ids[0],'trang_thai')=='loi'
+    assert len(json.loads(frappe.db.get_value(pc.DT_DAY,ids[0],'lich_su_doi_soat')))==1
     (goc/'pancake-durable.json').write_text(json.dumps({'dat':True,'crash_post':1,'concurrent_post':1,'fixture':names,'ngoai_he_thong':'HTTP stub, không gửi Pancake thật'}))
     print('PASS #210: commit bền qua crash, hai worker chỉ POST một lần; không gọi Pancake thật.')
 

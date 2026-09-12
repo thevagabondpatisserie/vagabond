@@ -1975,8 +1975,9 @@ async function dmTimChay(trang) {
 }
 
 function dmBaoMot(ma, chu, mau) {
-  var e = document.getElementById('dmBao_' + ma) || (dmVuaTao && dmVuaTao.ma === ma && document.getElementById('dmPanBao'));
-  if (e) { e.textContent = chu; e.style.color = mau || '#374151'; }
+  var ds = [document.getElementById('dmBao_' + ma)];
+  if (dmVuaTao && dmVuaTao.ma === ma) ds.push(document.getElementById('dmPanBao'));
+  ds.forEach(function (e) { if (e) { e.textContent = chu; e.style.color = mau || '#374151'; } });
 }
 
 /* Mau theo trang thai may chu tra ve. Do danh cho hai truong hop CAN NGUOI
@@ -1985,7 +1986,7 @@ function dmBaoMot(ma, chu, mau) {
 function dmMauTrangThai(tt) {
   if (tt === 'da_tao' || tt === 'da_co') return '#15803d';
   if (tt === 'xung_dot' || tt === 'chua_ro') return '#b3261e';
-  if (tt === 'thieu_gia') return '#b45309';
+  if (tt === 'thieu_gia' || tt === 'dang_cho') return '#b45309';
   return '#374151';
 }
 
