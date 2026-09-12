@@ -254,3 +254,38 @@ Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không ch�
 Worker giữ khóa xuyên HTTP để cửa đối soát không chen vào, nhưng request người dùng phải NOWAIT và trả câu chờ. Khóa Item chỉ tuần tự hóa việc tạo dấu đầu tiên, cũng NOWAIT; không được giữ nó để chờ worker. Ghi kết quả bằng điều kiện mã lần/trạng thái để worker cũ không ghi đè. Bench phải cho đối soát chen đúng lúc POST, không chỉ cho hai worker đua ở đầu.
 
 Gộp nhánh không được bỏ dấu vết lỗi. Lưu thời điểm bắt đầu bền trước HTTP, mã HTTP/loại lỗi/hash và độ dài phản hồi trên dấu cùng Error Log. Không lưu nguyên URL/ngoại lệ/thân phản hồi có thể chứa khóa; người đối soát cần dấu vết nhưng không cần bí mật trong log.
+
+## 12/09/2026 - Ba bảng nhật ký Frappe không bao giờ tự dọn (#284)
+
+Frappe Cloud báo database 1,25 GB trên trần 1 GB, dọa khóa site. Đo ra
+tabVersion một mình chiếm 113,80 MB, trong khi tabError Log có retention 14
+ngày chỉ nằm ở 35,15 MB. Khác biệt đó chính là dấu hiệu.
+
+Nguyên nhân gốc: Log Settings của Frappe chỉ dọn được doctype kế thừa lớp
+LogType. `LogSettings.remove_unsupported_doctypes()` GỠ BỎ mọi dòng không
+thoả `issubclass(controller, LogType)`, và gỡ IM LẶNG. Nên thêm tay Version
+vào màn Log Settings thì hôm sau nó biến mất mà không một lời báo, và người
+thêm sẽ tưởng đã xong. `version.py` không có `clear_old_logs`, và
+`default_log_clearing_doctypes` của frappe không có Version, Notification
+Log hay Deleted Document. Ba bảng này chưa từng được dọn kể từ ngày dựng
+site.
+
+Bài học dùng lại được: một màn cấu hình nhận giá trị rồi im lặng bỏ đi thì
+còn tệ hơn một màn báo lỗi. Khi thấy một bảng phình bất thường, đừng chỉ
+hỏi "ai ghi nhiều thế", hỏi luôn "cái dọn nó có thật sự chạm tới nó không",
+và đi đọc mã nguồn của khung chứ đừng tin màn hình.
+
+Hai cái bẫy khi tự viết nhịp dọn, đã chốt bằng ca kiểm trong
+`khung/kiem_thu/thu_don_dep_db_284.py`:
+
+- `ROW_COUNT()` đọc SAU `COMMIT` thì luôn là 0, vì COMMIT cũng là một câu
+  lệnh. Viết nhầm thứ tự thì vòng lặp dừng ở lô đầu và nhịp đêm chạy đều mỗi
+  đêm mà không dọn gì, không một lỗi nào được ghi.
+- Bản giả lập database dễ tính che mất đúng lỗi đó. Bản giả lập trong bộ
+  kiểm này CỐ Ý dựng lại hành vi thật: `commit()` xóa dấu vết của câu trước.
+  Ai sửa nó về kiểu "luôn trả số dòng vừa xoá" là làm ca kiểm xanh giả.
+
+Và một điều phải nói rõ khi báo cáo kết quả dọn: DELETE không trả chỗ trống
+cho hệ điều hành ngay, InnoDB giữ lại trong chính tệp bảng. Con số trên
+Frappe Cloud có thể chưa tụt sau lần dọn đầu. Chỉ OPTIMIZE TABLE mới làm tệp
+co lại, và bước đó có thể bị từ chối vì quyền.
