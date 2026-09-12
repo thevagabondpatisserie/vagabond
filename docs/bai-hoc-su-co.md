@@ -343,6 +343,9 @@ tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
 ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
 cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.
 
+### 12/09/2026 - Combo issue 283: giữ lý do từ máy chủ
+
+Lọc bỏ dung_duoc=0 phía quầy làm mất lý do hết giờ/sai quầy rồi báo nhầm thiếu cấu hình. Giữ kết quả và chặn ở đường bấm chung. Thẻ xám vẫn bấm để giải thích nhưng không thêm món; kiểm cả mã KMCB lẫn thẻ, thiếu cấu hình và combo hợp lệ.
 ## #290: tách đơn nháp kẹt khỏi nghĩa vụ HĐĐT đã ghi sổ
 
 Nháp kẹt kho/duyệt không được giữ cả ngày sau không phát hành. Chỉ tờ đã ghi sổ chưa có HĐĐT giữ hàng rào ngày cũ; các cờ đối chiếu và lỗi đọc vẫn giữ nguyên. Combo nháp cũ cần lưu trước submit vì core đặt docstatus=1 trước validate. Khi chuẩn bị có thể ghi DB, lỗi chuẩn bị cũng phải rollback trước khi chạy đơn kế. Thời điểm modified cùng lịch đồng bộ chưa chứng minh trường người nhập bị hàm đồng bộ xóa; cần ca gọi thật và Version diff.
