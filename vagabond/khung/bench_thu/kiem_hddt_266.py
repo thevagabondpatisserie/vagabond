@@ -709,6 +709,17 @@ def chay():
 					raise AssertionError('SI chưa có GL thật')
 				_bang('không có POST mới', len(gui), truoc)
 				kq['phan'].append({'ten': 'hoãn phát hành vẫn submit và GL', 'dat': True})
+				with patch.object(hddt_cho_xuat, 'nowdate', lambda: str(add_days(hom_nay, 1))):
+					if str(hom_nay) not in [str(n) for n in hddt_cho_xuat.ngay_cu_can_bao_ve()]:
+						raise AssertionError('Tờ hoãn bị mất khỏi nợ ngày sau')
+					man = hddt_cho_xuat.xu_ly_ngay_cu(str(hom_nay), chay_thu=1)
+					if cho_ghi.name not in man['pham_vi']:
+						raise AssertionError('Màn xử lý ngày cũ không thấy tờ hoãn')
+					if cho_ghi.name in [r.name for r in hddt_cho_xuat.ds_cho_xuat(hom_nay)]:
+						raise AssertionError('Tự mở rộng tập gửi khi chưa có quyết định xử lý')
+				_bang('xem ngày sau không POST', len(gui), truoc)
+				kq['phan'].append({'ten': 'tờ hoãn hiện trên màn ngày cũ hôm sau, chưa tự gửi', 'dat': True})
+
 
 				kq['dat'] = True
 			finally:

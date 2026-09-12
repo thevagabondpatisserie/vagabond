@@ -2718,7 +2718,7 @@ def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
 # ------------------------------------------------- tu ghi so cuoi ngay 23h30
 
 def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
-	"""Ghi so mot hoa don roi day hoa don dien tu. Tra (xong, hddt, loi)."""
+	"""Ghi sổ rồi phát hành nếu cho_xuat; khi hoãn vẫn commit sổ. Trả (xong, hddt, lỗi)."""
 	nhan = si.get("custom_pancake_display_id") or si.name
 	try:
 		_chuan_bi_ghi_so(si, sepay)
@@ -2742,23 +2742,37 @@ def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
 
 
 def _bao_hoan_phat_hanh(ngay, da_ghi, loi_ghi):
-	"""Báo riêng khi còn nợ ngày cũ, kể cả nợ chỉ gồm đơn nháp."""
-	cau = ("CẢNH BÁO %s: đã ghi sổ %d đơn, %d đơn ghi sổ lỗi. "
-		"Đang hoãn phát hành vì còn hóa đơn ngày cũ hoặc chưa xác minh được hàng rào. "
-		"Mở Cài đặt > Hóa đơn ngày cũ để đối soát và xử lý; không tự đổi ngày hay gửi lại tờ chưa rõ.") % (ngay, da_ghi, loi_ghi)
-	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", cau[:500])
-	frappe.db.commit()
-	frappe.log_error(title="Vagabond: hoãn phát hành " + str(ngay), message=cau)
-	# Một thư trong ngày; nhật ký màn Cài đặt vẫn cập nhật mỗi lượt.
-	chu_de = "Vagabond: cần xử lý hàng rào hóa đơn ngày " + str(ngay)
-	if frappe.db.exists("Email Queue", {"subject": chu_de, "creation": [">=", str(ngay)]}):
-		return
+	"""Báo nợ phát hành riêng; không xóa kết quả ghi sổ của lượt trước."""
+	nhan_ngay = "HOÃN PHÁT HÀNH %s:" % ngay
+	cau = ("%s lượt này ghi sổ %d đơn, %d lỗi. Còn nợ ngày cũ hoặc chưa xác minh được hàng rào. "
+		"Mở Cài đặt > Hóa đơn ngày cũ để xử lý; không tự đổi ngày/gửi lại tờ chưa rõ.") % (nhan_ngay, da_ghi, loi_ghi)
+	cu = str(cfg().get("tu_ghi_so_nhat_ky") or "")
+	if nhan_ngay not in cu or da_ghi or loi_ghi:
+		# Giữ cảnh báo mới đủ chữ và phần nhật ký cũ còn chỗ; lượt 0/0 không ghi đè.
+		moi = cau + ("\n" + cu if cu else "")
+		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", moi[:500])
+		frappe.db.commit()
 	try:
+		# Mốc giảm thư lặp, không phải hàng rào phát hành hay bằng chứng đã gửi SMTP.
+		cache = frappe.cache()
+		moc = "vgb-hoan-phat-hanh-" + str(ngay)
+		if not cache.get_value(moc + "-log"):
+			frappe.log_error(title="Vagabond: hoãn phát hành " + str(ngay), message=cau)
+			frappe.db.commit()
+			cache.set_value(moc + "-log", 1, expires_in_sec=172800)
+		if cache.get_value(moc + "-mail"):
+			return
 		nhan = _nguoi_nhan_don_treo()
 		if nhan:
-			frappe.sendmail(recipients=nhan, subject=chu_de,
-				message=frappe.utils.escape_html(cau), delayed=True)
+			from vagabond.nhan_su import _khung_thu, _nut_xanh, link_app
+			frappe.sendmail(recipients=nhan,
+				subject="Vagabond: cần xử lý hàng rào hóa đơn ngày " + str(ngay),
+				message=_khung_thu("Đang hoãn phát hành hóa đơn",
+					"<p>%s</p>" % frappe.utils.escape_html(cau),
+					_nut_xanh(link_app(), "Mở app để xử lý"), chan="noi_bo", nhan="Cuối ngày"),
+				delayed=True)
 			frappe.db.commit()
+			cache.set_value(moc + "-mail", 1, expires_in_sec=172800)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Vagabond: gửi cảnh báo hoãn phát hành lỗi")
 
@@ -3001,10 +3015,6 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 				loi.append(e)
 		frappe.db.commit()
 
-		if not cho_xuat:
-			_bao_hoan_phat_hanh(ngay, xong, len(loi))
-			return
-
 		# Ghi so xong roi moi danh dau va nha khoa. Hai buoc sau chi goi mang
 		# m-invoice, khong dung den si.save(), nen khong can giu khoa - giu thi
 		# chan mat nhip dong bo suot luc doi m-invoice tra loi.
@@ -3015,6 +3025,10 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 		if not (chay_tay and now_datetime().strftime("%H:%M") < gio):
 			frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_lan_cuoi", ngay)
 			frappe.db.commit()
+
+		if not cho_xuat:
+			_bao_hoan_phat_hanh(ngay, xong, len(loi))
+			return
 	finally:
 		_mo_khoa_dong_bo(khoa)
 
@@ -3344,9 +3358,9 @@ def canh_bao_hddt_sot():
 			return
 		cau = hddt_bu.cau_canh_bao_sot(ngay, so, tien)
 		cu = str(cfg().get("tu_ghi_so_nhat_ky") or "")
-		if "CẢNH BÁO" not in cu:
+		if cau not in cu:
 			frappe.db.set_single_value(
-				"Vagabond Settings", "tu_ghi_so_nhat_ky", (cu + " " + cau)[:500]
+				"Vagabond Settings", "tu_ghi_so_nhat_ky", (cau + "\n" + cu)[:500]
 			)
 			frappe.db.commit()
 		nhan = _nguoi_nhan_don_treo()

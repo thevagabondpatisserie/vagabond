@@ -26,3 +26,15 @@ F3: đọc tập nợ còn lại trước _ghi_moc_loi. Ca mới trên main tr�
 ## Phiên bản
 
 v482 dành sau PR210/v481, deploy chung. Giữ nguyên patch cũ. Phát hiện dat_phien_ban.py xóa lịch sử dù docstring nói giữ; đã sửa công cụ giữ đủ dòng, không nhân dòng và chặn hạ APPVER. Bộ kiểm bắt được bản cũ xóa patch; không push trạng thái mất lịch sử.
+
+## Review C1-C5
+
+C1 xác nhận bằng email_queue.json của Frappe16.27.1: không có subject. Bỏ truy vấn đó; dùng mốc Redis theo ngày sau khi xếp thư/commit để giảm lặp, không nhận là bảo đảm thư đã gửi hoặc chống trùng bền khi mất Redis. Thư dùng khung và nút mở app hiện có.
+
+C2 giữ kết quả cũ khi nhịp mới 0/0; log chỉ một mốc trong ngày. Cảnh báo sót so chính câu của nó, không chặn bằng từ CẢNH BÁO chung; đặt cảnh báo mới trước để không bị cắt mất khi nhật ký đã dài500ký tự. Nhật ký vẫn giới hạn500như trường cũ.
+
+C3 cờ tu_ghi_so_lan_cuoi vốn đặt sau ghi sổ, trước phát hành. Nay nhánh hoãn cũng đặt cờ ở đúng tầng đó, giữ ngoại lệ bấm tay trước giờ. Nợ phát hành không được xóa, cờ không phải bằng chứng đã xuất đủ. Tránh đồng bộ Pancake toàn bộ mỗi5phút.
+
+C4 tờ hoãn có thể tăng nợ mỗi ngày nếu không có người xử lý. Không tự mở rộng tập phát hành hoặc đổi ngày. Ca bench mới gọi màn xử lý ngày cũ ở ngày kế tiếp, kiểm tờ nằm trong phạm vi màn và tập nợ rộng nhưng chưa vào tập tự gửi.
+
+C5 còn chặn merge/deploy: Mac khóa, chưa đọc được After Submit production. Không dùng bench không có script đó làm bằng chứng đã sửa hết.
