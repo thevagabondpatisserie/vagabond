@@ -244,6 +244,15 @@ Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages
 
 Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_doan chung ở main, vẫn thất bại toàn lượt; thay lỗi cuối bằng thông báo sạch và from None để traceback không in lại thông điệp gốc. Ca kiểm dựng HTTPError ở từng lời gọi tiên quyết, header thật không phân biệt hoa thường, và kiểm cả traceback cuối. Bổ sung thời điểm reset trần; không suy thiếu quyền từ403.
 
+### #266 tái phát 12/09: hàng rào phát hành không được chặn ghi sổ
+
+Tập chặn có đơn nháp nhưng tập tự gửi chỉ có tờ đã submit và được chọn ngày. Return trước ghi sổ làm cả ngày mới thành backlog. Tách quyết định phát hành khỏi ghi sổ, giữ cửa chung HTTP; đọc script After Submit hiện hành trước khi chốt vì core vẫn gọi script trong submit. Còn nợ nhưng vòng gửi rỗng vẫn phải giữ mốc lỗi và báo riêng, không trông chờ bộ đếm chỉ gồm tờ đã submit.
+
+Công cụ đặt phiên bản phải giữ nguyên lịch sử patches.txt. Không tin docstring: dat_phien_ban.py cũ ghi "giữ nguyên" nhưng lọc xóa mọi dòng cũ. Ca tạm file phải kiểm nội dung từng byte và gọi lần hai không nhân dòng.
+
+### #266 ngày 12/09: mock DB quá dễ tính che cột không tồn tại
+
+Email Queue không có subject (email_queue.json Frappe 16.27.1); lọc theo cột đó ném Unknown column trước khi xếp thư. Fake exists nhận mọi filter đã làm ca kiểm xanh giả. Phải đối chiếu schema thật và cho fake từ chối filter lạ. Lỗi đếm hóa đơn không được biến thành 0; cache giảm thư lặp bị hỏng không được làm mất cảnh báo.
 ### PR210 - dấu chống tạo trùng phải bền trước HTTP
 
 Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không chặn được reload hoặc worker chết sau POST. Ghi ý định DB và enqueue sau commit; worker commit dang_gui trước HTTP, job trùng không nhận lại. Sau kết quả chưa rõ, tìm rỗng không chứng minh chưa tạo. Integration Request có dọn log30ngày nên không dùng làm hàng rào lâu dài. Kiểm bằng tiến trình chết và hai worker trên DB CI, không chỉ mock helper. Cả mã mới/mã cũ dùng cùng handler và xác nhận giá0.
@@ -280,3 +289,31 @@ OPTIMIZE có thể trả result rows error/status Operation failed mà không
 ném exception. Chỉ nhận thành công khi status OK và không có error; lỗi
 phải ghi log, không đổi số dòng đã DELETE. Ca riêng kiểm cả phản hồi lỗi
 và thành công. Không suy từ DELETE rằng tệp đã co hoặc quota đã giảm.
+
+### Frappe Check trên Desk có checkbox hiển thị riêng
+
+Log bench PR210 cho hai input checkbox trong cùng wrapper: input thao tác có data-fieldname trên chính thẻ input, còn disabled-deselected không có. Chọn hậu duệ wrapper, kể cả lọc type=checkbox, vẫn khớp hai phần tử. Neo locator vào input[data-fieldname] và kiểm trên DOM thật, không dùng nth(0) để che sai lựa chọn.
+
+
+### #266: trả trước cửa xuất vẫn có thể quá muộn
+
+Hook After Submit production đã tự gọi MInvoice bên trong submit. Ca chỉ dựng
+API script và kiểm helper không thấy điều này. Phải snapshot/hash hook sống,
+đưa vào nền migrate CI và bật cả công tắc nhánh cần kiểm. Cờ hoãn đặt trước
+submit, trả trong finally; không tắt toàn bộ hook hoặc hàng rào thuế.
+Chế độ `thu` của một script phát hành không đồng nghĩa chỉ đọc: bản này vẫn
+login và nạp Pancake. Phép đếm nợ phải đọc ERP, chốt cùng phạm vi cho số và tiền.
+
+
+## 12/09/2026 - Hai cửa phát hành và lớp cách ly bench (#266)
+
+Hook After Submit có thể đã ghi ID trước bước `_tu_xuat_hddt`. Khi cả hai
+bật, cửa sau bị `da_gui` chặn, trả cảnh báo đã gửi và ghi Error Log, không
+phát hành lần hai. Production đọc ngày12/09 có `tu_xuat_hddt=0`; lưu ý
+`khoa_ma_pancake.bat_cai_dat` đặt1 nếu ô còn NULL. Ca `kiem_hddt_266.py`
+đo cả cấu hình0/1 với hàm thật và đúng1POST cho mỗi tờ.
+
+Không suy từ lời gọi commit rằng bench đã commit thật. `nen._cach_ly`
+tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
+ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
+cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.

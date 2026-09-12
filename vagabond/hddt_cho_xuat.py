@@ -1021,10 +1021,11 @@ def xuat_ngay_cu_truoc():
 				)
 		finally:
 			_mo_khoa_dong_bo(khoa)
-		_ghi_moc_loi(con_no)
-		# Còn tờ nào chưa ra thì vẫn là còn nợ; đọc lại cho chắc chứ không
-		# tin con số vừa gộp.
-		return not ngay_cu_con_mo(ngay_cu_can_bao_ve(), getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
+		# Tập chặn rộng hơn tập tự gửi: có thể còn nháp nhưng không có lô
+		# nào để gửi. Phải đọc lại trước khi ghi mốc, không xóa lỗi vì vòng rỗng.
+		con_con_no = bool(ngay_cu_con_mo(ngay_cu_can_bao_ve(), getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han()))
+		_ghi_moc_loi(con_no or con_con_no)
+		return not con_con_no
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: xuat ngay cu truoc")
 		# Hỏng giữa chừng thì coi như còn nợ, không cho tờ hôm nay đi.
