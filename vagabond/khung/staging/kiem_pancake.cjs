@@ -14,6 +14,9 @@ const {chromium}=require('playwright');
       if(!login.ok())throw Error('Đăng nhập CI lỗi');
       const page=await ctx.newPage();
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      if(process.env.VGB_KIEM_PAGEERROR==='1'){
+        await ctx.addInitScript(()=>setTimeout(()=>{throw Error('THU210_PAGEERROR');},0));
+      }
       try {
       const response=await page.goto(base+'/app/vagabond-day-pancake/'+name,{waitUntil:'load'});
       if(!response.ok())throw Error('Desk HTTP '+response.status());
@@ -27,16 +30,11 @@ const {chromium}=require('playwright');
       const dialog=page.locator('.modal:visible');
       await dialog.locator('[data-fieldname="ly_do"] textarea').waitFor();
       await dialog.locator('[data-fieldname="bang_chung"] textarea').waitFor();
-      if(await dialog.locator('[data-fieldname="xac_nhan_chua_tao"] input[type="checkbox"]').isChecked())throw Error('Xác nhận không được tick sẵn');
-      if(process.env.VGB_KIEM_PAGEERROR==='1'){
-        await Promise.all([
-          page.waitForEvent('pageerror'),
-          page.evaluate(()=>setTimeout(()=>{throw Error('THU210_PAGEERROR');},0))
-        ]);
-      }
+      if(await dialog.locator('input[data-fieldname="xac_nhan_chua_tao"][type="checkbox"]').isChecked())throw Error('Xác nhận không được tick sẵn');
       if(errors.length)throw Error(errors.join('\n'));
       await page.screenshot({path:path.join(out,'pancake-doi-soat-'+width+'.png'),fullPage:true});
       await page.keyboard.press('Escape');
+      if(errors.length)throw Error(errors.join('\n'));
       }catch(e){
         await page.screenshot({path:path.join(out,'pancake-desk-loi-'+width+'.png'),fullPage:true});
         fs.writeFileSync(path.join(out,'pancake-desk-loi-'+width+'.json'),JSON.stringify({errors,message:e.message,text:(await page.locator('body').innerText()).slice(0,4000)}));
