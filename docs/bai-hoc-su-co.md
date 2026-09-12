@@ -342,3 +342,7 @@ Không suy từ lời gọi commit rằng bench đã commit thật. `nen._cach_l
 tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
 ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
 cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.
+
+### 12/09/2026 - Lời nhắc quyền cấn cọc issue 247
+
+Ẩn nút trái quyền là đúng nhưng người lập vẫn cần biết ai thực hiện bước tiếp. Thêm lời nhắc thụ động, không biến thành nút giả. Kiểm cả hai màn với hai vai: kế toán có nút, người lập có lời nhắc.

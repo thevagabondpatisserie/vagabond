@@ -1257,9 +1257,11 @@ async function chayHet() {
     m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
     await m.g.scrHoSoTTTao();
     dung('man APP khong bay nut khong bam duoc', !m.tai.getElementById('hsCanCoc'));
+    dung('hiện lời nhắc kế toán', !!m.tai.getElementById('hsCanCocNhac'));
     m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
     await m.g.scrChiCongTyTao();
     dung('man chi cong ty khong bay nut khong bam duoc', !m.tai.getElementById('huCanCoc'));
+    dung('hiện lời nhắc kế toán', !!m.tai.getElementById('huCanCocNhac'));
   });
 
   await caAsync('APP247: ke toan FIN van thay nut can coc o ca hai man', async function () {
@@ -1270,9 +1272,11 @@ async function chayHet() {
     m.g.hsTaoNcc = 'NCC-1'; m.g.hsTaoLoai = 'NCC';
     await m.g.scrHoSoTTTao();
     dung('man APP co nut', !!m.tai.getElementById('hsCanCoc'));
+    dung('kế toán không có lời nhắc thừa', !m.tai.getElementById('hsCanCocNhac'));
     m.g.huCpThue = 'Chi phi hop le'; m.g.huNguoi = 'NCC-1'; m.g.huTkChi = '11211 - VGB';
     await m.g.scrChiCongTyTao();
     dung('man chi cong ty co nut', !!m.tai.getElementById('huCanCoc'));
+    dung('kế toán không có lời nhắc thừa', !m.tai.getElementById('huCanCocNhac'));
   });
 
 }
