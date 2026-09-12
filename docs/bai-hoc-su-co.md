@@ -289,6 +289,31 @@ OPTIMIZE có thể trả result rows error/status Operation failed mà không
 ném exception. Chỉ nhận thành công khi status OK và không có error; lỗi
 phải ghi log, không đổi số dòng đã DELETE. Ca riêng kiểm cả phản hồi lỗi
 và thành công. Không suy từ DELETE rằng tệp đã co hoặc quota đã giảm.
+## Issue287 - thông báo của bot cần đối soát nguồn và dấu gửi bền
+
+Sự kiện do GITHUB_TOKEN tạo không luôn kích hoạt workflow tiếp; chỉ nghe
+comment event sẽ bỏ sót tin workflow. Đọc lại nguồn GitHub theo mốc với lịch
+bù, chỉ chạy code default branch. Lưu pending trước gửi Telegram, sau phản hồi
+đúng mới ghi seen. Unit test tái hiện mất phản hồi và lỗi lưu kết quả: lượt
+sau dừng đối chiếu, không gửi lặp. Secret token không hiện trong API đọc
+metadata; ghép chat dùng mã riêng và artifact ciphertext, không in URL lỗi
+Telegram vì URL có token. Nguồn: Issue #287; chưa coi unit test là kết nối thật.
+
+
+Issue287 bổ sung: UI thật cho thấy secret ở Agents nhưng Actions API không
+thấy. Hai namespace riêng, cần chọn đúng Actions, không đổ lỗi người dùng chưa
+lưu. Mã ghép cấp trước có10ký tự hex; ca kiểm phải dùng cả độ dài đó, không
+chỉ mẫu12ký tự tự đặt trong test. Tái hiện mẫu10đỏ trên bản cũ, sửa và kiểm
+entry point mã hoá/giải mã PyNaCl thật bằng fixture, không chép mã riêng vào git.
+
+
+PR288 review: băm updated_at vào trạng thái gây tin trùng, nhưng chỉ bỏ ngày
+cũng làm mất thông báo mở lại. So snapshot trạng thái lần cuối, sau gửi mới
+cập nhật snapshot; key sự kiện vẫn tách từng lần chuyển. Tỉa seen phải đi đôi
+với cửa đọc nguồn (review cũ có thể quay lại nếu vẫn quét toàn bộ). Đọc blob
+cùng SHA khi Contents API không trả nội dung lớn. Ca kiểm hai comment, đóng/
+mở lại, bot đổi checkbox so với finding mới, tỉa rồi chạy lại review đều đạt.
+
 
 ### Frappe Check trên Desk có checkbox hiển thị riêng
 

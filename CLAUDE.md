@@ -204,3 +204,15 @@ Ba mục trên là bản rút gọn. Lý do đầy đủ và ca thật nằm tro
 Không dùng dấu em dash hay en dash trong bất kỳ nội dung nào, chỉ dùng dấu gạch
 ngang thường. Áp dụng cho mọi comment, mọi tệp soạn ra, mọi nội dung ghi vào
 ERPNext.
+
+
+## Báo việc cần anh Việt xem qua Telegram
+
+Theo Issue #287 và [hướng dẫn Telegram](docs/thong-bao-telegram.md), khi cần
+anh duyệt, bị chặn, sẵn sàng phát hành hoặc đã kiểm deploy thật, đăng comment
+ngắn trên đúng Issue/PR với dòng đầu tương ứng `[CẦN DUYỆT]`, `[BỊ CHẶN]`,
+`[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
+nơi duyệt. Không tag agent chỉ để báo tin. Không coi Telegram là native
+approval; nếu không đăng được comment thì báo trực tiếp và ghi rõ giới hạn.
+Chỉ báo kênh đang hoạt động sau khi đã xác minh bật và gửi thật; lời dặn này
+không tự bật hệ thống hoặc chứng minh anh đã nhận tin.
