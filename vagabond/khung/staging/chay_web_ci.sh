@@ -7,6 +7,8 @@ set -euo pipefail
 : "${GITHUB_WORKSPACE:?}"
 cd "$VGB_BENCH"
 cd sites
+# Dấu gửi Pancake phải sống qua worker chết; chỉ chạy trên bench dùng một lần.
+../env/bin/python -m vagabond.khung.staging.day_pancake_ci 2>&1 | tee "$VGB_ARTIFACTS/pancake-durable.log"
 export VGB_STAGING_VAN_DON=1
 export VGB_STAGING_NHAN=1
 export VGB_STAGING_SAN_XUAT=1
@@ -27,6 +29,8 @@ python3 -m unittest vagabond.khung.staging.thu_do_truy_van vagabond.khung.stagin
 node vagabond/khung/staging/thu_tai_van_don.cjs || hong=1
 node vagabond/khung/staging/thu_quyen_nen.cjs || hong=1
 node vagabond/khung/staging/kiem_man.cjs || hong=1
+node vagabond/khung/staging/kiem_pancake.cjs || hong=1
+node vagabond/khung/staging/thu_loi_pancake.cjs || hong=1
 # Cac fixture dung ma rieng. Thu bang chung tung cua ke ca cua truoc do,
 # nhung van tra ma loi cuoi; khong bo qua failure de lam CI xanh.
 for cua in van_don nhan_hang san_xuat hang_tang thanh_toan; do

@@ -1,0 +1,99 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Day Pancake",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "autoname": "prompt",
+ "field_order": [
+  "shop",
+  "ma",
+  "mat_hang",
+  "nguoi_yeu_cau",
+  "du_lieu",
+  "trang_thai",
+  "thong_bao",
+  "ma_lan",
+  "lich_su_doi_soat",
+  "vet_gui"
+ ],
+ "fields": [
+  {
+   "fieldname": "shop",
+   "label": "Cửa hàng Pancake",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma",
+   "label": "Mã hàng",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mat_hang",
+   "label": "Mặt hàng",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Item"
+  },
+  {
+   "fieldname": "nguoi_yeu_cau",
+   "label": "Người yêu cầu",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "du_lieu",
+   "label": "Nội dung gửi",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "label": "Trạng thái",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "cho\ndang_gui\nchua_ro\nda_tao\nda_co\nxung_dot\nloi"
+  },
+  {
+   "fieldname": "thong_bao",
+   "label": "Thông báo",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_lan",
+   "label": "Mã lần gửi",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lich_su_doi_soat",
+   "label": "Lịch sử đối soát",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vet_gui",
+   "label": "Vết gửi để đối soát",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1
+  }
+ ],
+ "track_changes": 1
+}
