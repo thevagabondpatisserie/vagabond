@@ -48,6 +48,20 @@ class GiaoNhan(unittest.TestCase):
         p.start(); self.addCleanup(p.stop)
     def events(self, n=1):
         return {str(i): {'at': '2026-09-12T00:01:00Z', 'text': 'Tin'} for i in range(n)}
+    def test_het_han_khong_gui_duoc_tin_phai_do(self):
+        kho = Kho(); bot = Bot(kho); cursor = kho.state['cursor']
+        with patch('thong_bao.time.monotonic', side_effect=[0, 301]), patch('thong_bao.thu_thap', return_value=self.events()):
+            with self.assertRaises(Loi): chay(kho, bot, '1')
+        self.assertEqual(kho.state['cursor'], cursor)
+        self.assertEqual(kho.writes, [])
+        self.assertEqual(bot.sent, [])
+    def test_het_han_sau_mot_tin_giu_phan_con_lai(self):
+        kho = Kho(); bot = Bot(kho); cursor = kho.state['cursor']
+        with patch('thong_bao.time.monotonic', side_effect=[0, 1, 301]), patch('thong_bao.thu_thap', return_value=self.events(2)):
+            self.assertEqual(chay(kho, bot, '1'), 1)
+        self.assertEqual(kho.state['cursor'], cursor)
+        self.assertEqual(len(bot.sent), 1)
+        self.assertIsNone(kho.state['pending'])
     def test_chat_sai_khong_de_lai_pending(self):
         kho = Kho(); bot = Bot(kho)
         with self.assertRaises(Loi): chay(kho, bot, '')

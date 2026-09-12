@@ -10,6 +10,7 @@ Actions vẫn sử dụng phút chạy theo gói GitHub của repository.
 - Token BotFather lưu ở repository Actions secret `TELEGRAM_BOT_TOKEN`.
   Phải chọn **Secrets and variables > Actions**, không phải **Agents**.
   Secret ở Agents không cấp cho workflow Actions.
+  Mã ghép mới sinh12ký tự hex ngẫu nhiên;10ký tự chỉ để nhận mã cũ đã cấp.
   Không gửi token qua comment, chat Codex hoặc ảnh chụp.
 - Sau khi ghép và bật thành công, tin có link tới đúng PR/comment/workflow.
   Bấm link để đọc nội dung đầy đủ hoặc duyệt đúng nơi.
@@ -25,7 +26,9 @@ Chỉ gửi metadata và link, không chép nội dung comment/log/chứng từ 
 Sự kiện GitHub gọi lượt đối soát, cách nhau tối thiểu3phút để giảm request. Lượt định kỳ mỗi15phút bù
 comment dùng GITHUB_TOKEN không kích hoạt workflow khác. GitHub có thể trì hoãn
 schedule; đây không phải cam kết giao tức thì. Mỗi lượt tối đa30tin và không bắt đầu gửi mới sau5phút; phần còn
-lại giữ mốc để lượt sau gửi. Không phát lại toàn bộ lịch sử trước lúc bật.
+lại giữ mốc để lượt sau gửi. Nếu đọc nguồn quá5phút mà còn tin và chưa gửi
+được tin nào, workflow báo lỗi thay vì xanh giả. Chùm comment liên tiếp có
+thể chờ tới lượt bù15phút, và có thể chậm thêm nếu GitHub trì hoãn lịch. Không phát lại toàn bộ lịch sử trước lúc bật.
 
 Comment bot chỉ đổi checkbox tiến độ thì im lặng; đổi nội dung thực hoặc
 nhãn vẫn báo, kể cả thêm finding dưới cùng tiêu đề. Trạng thái Issue/PR chỉ

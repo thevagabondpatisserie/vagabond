@@ -233,11 +233,15 @@ def chay(gh, tg, chat, gom=False):
         if khoa in state['seen']:
             continue
         # Giới hạn lượt, chưa đẩy cursor nên phần còn lại được đọc ở lượt sau.
-        if dem == 30 or time.monotonic() >= han:
-            return dem
         if e.get('silent'):
             state['entities'][e['entity']] = {'signature': e['signature'], 'at': e['at']}
             continue
+        if dem == 30:
+            return dem
+        if time.monotonic() >= han:
+            if dem == 0:
+                raise Loi('Đọc nguồn quá5phút, còn tin chưa gửi; kiểm độ chậm API trước khi chạy lại.')
+            return dem
         state['pending'] = {'key': khoa, 'at': e['at'], 'code': ma(khoa)}
         if e.get('entity'):
             state['pending'].update(entity=e['entity'], signature=e['signature'])
