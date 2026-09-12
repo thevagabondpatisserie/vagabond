@@ -736,16 +736,33 @@ def chay():
 				kq['phan'].append({'ten': 'tờ hoãn hiện trên màn ngày cũ hôm sau, chưa tự gửi', 'dat': True})
 				# Chiều ngược phải đi qua safe_exec thật: không được bịt hook vĩnh viễn.
 				duoc_ghi = _hoa_don(hom_nay, gia=(90000,), ghi_so=False)
+				duoc_ghi.flags.vgb_hoan_phat_hanh = True
+				_bang('cấu hình như production: bước sau hook tắt', int(ban_hang.cfg().tu_xuat_hddt), 0)
 				truoc = len(gui)
-				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None), \
-						patch.object(ban_hang, '_tu_xuat_hddt', return_value=(True, '')):
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None):
 					ket_ghi = ban_hang._ghi_so_mot_don(duoc_ghi, cho_xuat=True)
-				_bang('cho phép vẫn ghi sổ và phát hành', ket_ghi, (1, 1, ''))
+				_bang('hook phát hành, bước sau hook đang tắt', ket_ghi, (1, 0, ''))
 				_bang('hook gửi đúng một POST', len(gui) - truoc, 1)
 				if not frappe.db.get_value('Sales Invoice', duoc_ghi.name, 'custom_minvoice_id'):
 					raise AssertionError('Hook không ghi lại ID hóa đơn')
-				_bang('cờ không rò sau chiều cho phép', bool(duoc_ghi.flags.get('vgb_hoan_phat_hanh')), False)
+				_bang('khôi phục đúng cờ True có sẵn', duoc_ghi.flags.get('vgb_hoan_phat_hanh'), True)
 				kq['phan'].append({'ten': 'cho phép vẫn phát hành qua hook thật đúng một lần', 'dat': True})
+				# Đo cả cấu hình bật: hàm sau hook thật phải chặn gửi trùng.
+				frappe.db.set_single_value('Vagabond Settings', 'tu_xuat_hddt', 1)
+				frappe.clear_document_cache('Vagabond Settings', 'Vagabond Settings')
+				_bang('bật bước sau hook đọc lại', int(ban_hang.cfg().tu_xuat_hddt), 1)
+				hai_cua = _hoa_don(hom_nay, gia=(91000,), ghi_so=False)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None):
+					ket_ghi = ban_hang._ghi_so_mot_don(hai_cua, cho_xuat=True)
+				_bang('bước sau hook không nhận là phát hành lần hai', ket_ghi[:2], (1, 0))
+				if 'đã gửi sang M-Invoice' not in ket_ghi[2]:
+					raise AssertionError('Thiếu cảnh báo thật từ cửa chống gửi trùng: %r' % (ket_ghi,))
+				_bang('hai cửa cùng bật vẫn chỉ một POST', len(gui) - truoc, 1)
+				if not frappe.db.get_value('Sales Invoice', hai_cua.name, 'custom_minvoice_id'):
+					raise AssertionError('Mất ID đã ghi bởi hook')
+				kq['phan'].append({'ten': 'hai cửa bật, hàm thật chặn lần gửi thứ hai', 'dat': True})
+
 
 
 				kq['dat'] = True
