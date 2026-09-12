@@ -141,8 +141,41 @@ class Telegram:
         return x['message_id']
 
 
+
+def ban_phat_hanh(c):
+    """Chỉ chuyển bản tin được chủ repo soạn riêng cho Telegram sau kiểm live.
+
+    Đây là biên nhận của người phát hành, không phải bot tự kiểm Cloud.
+    Không lấy các đoạn văn/log còn lại trong comment làm nội dung gửi.
+    """
+    body = c.get('body') or ''
+    if (c.get('user', {}).get('login') != REPO.split('/')[0]
+            or c.get('author_association') != 'OWNER'
+            or body.splitlines()[:1] != ['[ĐÃ DEPLOY]']):
+        return None
+    blocks = re.findall(r'<!-- telegram-release\s*([\s\S]*?)-->', body)
+    if len(blocks) != 1 or len(blocks[0]) > 3000:
+        return None
+    try:
+        x = json.loads(blocks[0])
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(x, dict) or set(x) != {'version', 'sha', 'features', 'live_verified'}:
+        return None
+    if (x['live_verified'] is not True or not isinstance(x['version'], str)
+            or not re.fullmatch(r'v[1-9][0-9]{0,7}', x['version'])
+            or not isinstance(x['sha'], str) or not re.fullmatch(r'[0-9a-f]{40}', x['sha'])):
+        return None
+    features = x['features']
+    if (not isinstance(features, list) or not 1 <= len(features) <= 5
+            or any(not isinstance(f, str) or not f.strip() or len(f) > 220
+                   or any(ord(ch) < 32 for ch in f) for f in features)):
+        return None
+    return x
+
+
 def thu_thap(gh, state):
-    """Chỉ đọc metadata; nội dung comment, log và artifact không được chuyển đi."""
+    """Metadata hoặc bản tin phát hành được soạn riêng; không chuyển log/artifact."""
     since = urllib.parse.quote(lui(state['cursor'], 120), safe='')
     ket = {}
 
@@ -160,6 +193,16 @@ def thu_thap(gh, state):
             # URL chỉ lấy từ API đúng repo, đồng thời chặn link lạc nơi nhận việc.
             if not link.startswith(WEB + '/'):
                 raise Loi('Link comment ngoài repo; dừng đối soát.')
+            release = ban_phat_hanh(c) if path == '/issues/comments' else None
+            if release:
+                signature = ma([release['version'], release['features']])
+                entity = 'release:' + release['sha']
+                text = ('Vagabond | Cập nhật ' + release['version']
+                        + '\nĐã deploy và kiểm site thật (theo xác nhận phát hành).\n'
+                        + '\n'.join('- ' + f.strip() for f in release['features'])
+                        + '\nChi tiết: ' + link)
+                them(entity + ':' + signature, c['updated_at'], text, entity, signature)
+                continue
             nhan = ' (đã sửa)' if c['updated_at'] != c['created_at'] else ''
             dau = (c.get('body') or '').splitlines()[:1]
             muc = {'[CẦN DUYỆT]': 'Cần anh duyệt', '[BỊ CHẶN]': 'Tác vụ bị chặn',

@@ -21,7 +21,8 @@ Actions vẫn sử dụng phút chạy theo gói GitHub của repository.
 
 Đọc comment mới/sửa (cả bot), góp ý trên dòng code, review mới gửi, trạng thái
 Issue/PR và CI lỗi/timeout/cần xử lý. Merge được ghi rõ chưa chứng minh deploy.
-Chỉ gửi metadata và link, không chép nội dung comment/log/chứng từ sang Telegram.
+Comment thường chỉ gửi metadata và link, không chép log/chứng từ. Riêng bản tin
+phát hành được chủ repo soạn cho Telegram dùng khối bên dưới.
 
 Sự kiện GitHub gọi lượt đối soát, cách nhau tối thiểu3phút để giảm request. Lượt định kỳ mỗi15phút bù
 comment dùng GITHUB_TOKEN không kích hoạt workflow khác. GitHub có thể trì hoãn
@@ -104,3 +105,32 @@ nguyên. Không reset cả mốc, không xoá toàn bộ seen. Mọi sửa chữ
 
 Nguồn: [Telegram Bot API](https://core.telegram.org/bots/api),
 [GitHub - sự kiện không kích hoạt tiếp khi dùng GITHUB_TOKEN](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
+
+
+## Tóm tắt tính năng sau mỗi đợt deploy
+
+Theo yêu cầu anh Việt12/09, phiên phụ trách phát hành tự thêm khối này vào
+MỘT comment `[ĐÃ DEPLOY]` sau khi đã kiểm Cloud, migrate và site thật. Viết
+1-5 ý ngắn bằng ngôn ngữ nhân viên, mỗi ý tối đa220ký tự. Chỉ kể tính năng
+trong bản vừa phát hành; không đưa log, dữ liệu khách, số chứng từ hoặc bí mật.
+
+```text
+[ĐÃ DEPLOY]
+Bằng chứng kiểm phát hành và link có thể viết ngoài khối.
+<!-- telegram-release
+{"version":"v483","sha":"1e07f3d5be4308f26ff0fb72426df273067fb7fc","live_verified":true,"features":["Tìm mã hàng cũ theo mã hoặc tên.","Ghi sổ vẫn tiếp tục khi phát hành hóa đơn tạm hoãn."]}
+-->
+```
+
+Bot chỉ nhận khối đúng cấu trúc trong comment của tài khoản chủ repo có
+`author_association=OWNER`. Comment bot/người ngoài, thiếu xác nhận live hoặc
+schema sai vẫn chỉ báo metadata, không chép nội dung. `live_verified` là
+xác nhận của người phát hành; bot không tự truy cập Cloud để chứng minh.
+Không phát tin tính năng chỉ vì CI xanh hoặc PR merge.
+
+Tin gửi tự động qua kênh đã ghép cho anh Việt, dùng lịch đối soát hiện tại,
+không gọi model. Cùng SHA và nội dung ở nhiều PR chỉ tạo một tin. Đổi nội dung
+tính năng tạo tin đính chính; không sửa comment chỉ để phát lại. Bản tin
+vẫn dùng pending trướcHTTP và không tự retry khi mất phản hồi. Nhánh trạng
+thái chỉ chứa SHA/hash/mốc, không lưu nội dung tính năng. Snapshot giữ30ngày;
+đăng lại một bản rất cũ sau thời hạn đó có thể báo lại.

@@ -472,3 +472,10 @@ nơi duyệt. Không tag agent chỉ để báo tin. Không coi Telegram là nat
 approval; nếu không đăng được comment thì báo trực tiếp và ghi rõ giới hạn.
 Chỉ báo kênh đang hoạt động sau khi đã xác minh bật và gửi thật; lời dặn này
 không tự bật hệ thống hoặc chứng minh anh đã nhận tin.
+
+
+Sau mỗi đợt deploy đã kiểm site thật, tự soạn 1-5 ý tính năng bằng tiếng Việt
+và thêm khối `telegram-release` theo docs/thong-bao-telegram.md vào biên nhận
+`[ĐÃ DEPLOY]`, dùng SHA thực tế đã lên site. Đây là nội dung dành riêng cho
+Telegram của anh Việt, không chép log/chứng từ; cùng đợt chỉ một bản tin,
+không gọi model trong sender. Quyền này không phải quyền gửi email nhân viên.

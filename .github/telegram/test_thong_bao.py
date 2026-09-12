@@ -273,3 +273,75 @@ class ThuThap(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+
+
+class PhatHanh(unittest.TestCase):
+    def setUp(self):
+        self.kho = Kho()
+        self.bot = Bot(self.kho)
+        self.data = {'version': 'v483', 'sha': 'a' * 40,
+                     'features': ['Tìm mã hàng cũ theo tên.', 'Giữ ghi sổ khi hoãn phát hành.'],
+                     'live_verified': True}
+        self.comments = []
+        self.kho.trang = lambda path, khoa=None: self.comments if path.startswith('/issues/comments?') else []
+        p = patch('thong_bao.gio', return_value='2026-09-12T00:02:00Z')
+        p.start(); self.addCleanup(p.stop)
+
+    def comment(self, number=1, data=None):
+        return {'id': number, 'html_url': 'https://github.com/thevagabondpatisserie/vagabond/pull/286#issuecomment-' + str(number),
+                'created_at': '2026-09-12T00:01:00Z', 'updated_at': '2026-09-12T00:01:00Z',
+                'user': {'login': 'thevagabondpatisserie', 'type': 'User'}, 'author_association': 'OWNER',
+                'body': '[ĐÃ DEPLOY]\nNội dung kỹ thuật KHONG_GUI.\n<!-- telegram-release\n'
+                        + json.dumps(self.data if data is None else data) + '\n-->'}
+
+    def test_nhieu_pr_cung_ban_chi_gui_mot_tin_va_khong_gui_lai(self):
+        self.comments = [self.comment(1), self.comment(2)]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.assertEqual(chay(self.kho, self.bot, '1'), 0)
+        text = self.bot.sent[0]
+        self.assertIn('Cập nhật v483', text)
+        self.assertIn(self.data['features'][0], text)
+        self.assertNotIn('KHONG_GUI', text)
+        self.assertNotIn('telegram-release', text)
+        self.assertIsNone(self.kho.state['pending'])
+        self.assertNotIn(self.data['features'][0], json.dumps(self.kho.state, ensure_ascii=False))
+
+    def test_mat_phan_hoi_giu_pending_khong_gui_lai(self):
+        self.comments = [self.comment()]
+        self.bot.loi = True
+        with self.assertRaises(Loi): chay(self.kho, self.bot, '1')
+        with self.assertRaises(Loi): chay(self.kho, self.bot, '1')
+        self.assertEqual(len(self.bot.sent), 1)
+        self.assertTrue(self.kho.state['pending']['key'].startswith('release:'))
+
+    def test_khong_tu_nhan_ci_merge_la_deploy(self):
+        for marker in ['[SẴN SÀNG DEPLOY]', 'Đã merge', '[ĐÃ DEPLOY] khác']:
+            with self.subTest(marker=marker):
+                c = self.comment(); c['body'] = c['body'].replace('[ĐÃ DEPLOY]', marker)
+                self.comments = [c]
+                self.assertNotIn(self.data['features'][0], next(iter(thu_thap(self.kho, self.kho.state).values()))['text'])
+
+    def test_nguoi_ngoai_va_bot_khong_duoc_chep_noi_dung(self):
+        for login, association in [('outsider', 'OWNER'), ('thevagabondpatisserie', 'CONTRIBUTOR'), ('claude[bot]', 'MEMBER')]:
+            with self.subTest(login=login, association=association):
+                c = self.comment(); c['user']['login'] = login; c['author_association'] = association
+                self.comments = [c]
+                self.assertNotIn(self.data['features'][0], next(iter(thu_thap(self.kho, self.kho.state).values()))['text'])
+
+    def test_sai_schema_chi_bao_metadata(self):
+        for key, value in [('live_verified', 1), ('sha', 'abc'), ('version', 'v483\nSECRET'),
+                           ('features', []), ('features', ['x'] * 6), ('features', ['x' * 221]),
+                           ('features', ['dòng\nkhác']), ('features', [None])]:
+            with self.subTest(key=key, value=value):
+                data = dict(self.data); data[key] = value; self.comments = [self.comment(data=data)]
+                self.assertTrue(next(iter(thu_thap(self.kho, self.kho.state))).startswith('comment:'))
+        c = self.comment(); c['body'] += '\n<!-- telegram-release {} -->'; self.comments = [c]
+        self.assertTrue(next(iter(thu_thap(self.kho, self.kho.state))).startswith('comment:'))
+
+    def test_sua_tinh_nang_co_ban_dinh_chinh(self):
+        self.comments = [self.comment()]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.data['features'] = ['Nội dung đã đính chính.']
+        self.comments = [self.comment()]
+        self.assertEqual(chay(self.kho, self.bot, '1'), 1)
+        self.assertIn('đính chính', self.bot.sent[-1])
