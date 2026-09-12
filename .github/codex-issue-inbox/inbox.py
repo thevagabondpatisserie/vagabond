@@ -4,6 +4,8 @@ import json
 import hashlib
 import os
 import re
+import sys
+import traceback
 import urllib.error
 import urllib.request
 
@@ -147,7 +149,15 @@ def sweep(api, issues, now, run_url, since):
     for issue in issues:
         try:
             count += reconcile(api, issue, now, run_url, since)
-        except (OSError, ValueError, KeyError, AttributeError, TypeError, RuntimeError) as exc:
+        except Exception as exc:
+            # Giữ vị trí lỗi, không in thông điệp tùy ý có thể chứa payload.
+            print(f"Issue #{issue.get('number', '?')}: {type(exc).__name__}", file=sys.stderr)
+            for frame in traceback.extract_tb(exc.__traceback__):
+                print(f"  {os.path.basename(frame.filename)}:{frame.lineno} trong {frame.name}", file=sys.stderr)
+            if isinstance(exc, urllib.error.HTTPError):
+                print(f"  HTTP status: {exc.code}", file=sys.stderr)
+            elif isinstance(exc, RuntimeError) and str(exc) == 'Pagination limit reached; no silent truncation':
+                print('  Đã chạm trần phân trang; không cắt bỏ dữ liệu.', file=sys.stderr)
             errors.append(f"#{issue.get('number', '?')}: {type(exc).__name__}")
     if errors:
         # Giữ job đỏ nhưng không đưa payload hoặc token vào thông báo.

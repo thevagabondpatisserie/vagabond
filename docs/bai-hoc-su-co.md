@@ -228,3 +228,8 @@ phản hồi là chưa có commit. Chưa có log thì không kết luận lỗi 
 Luật dừng theo từng việc trong `CLAUDE.md` là nguồn chung; tài liệu Codex phải
 đồng bộ, không giữ cách đếm tổng comment cũ làm chặn các finding độc lập.
 Nguồn: PR #281, review và sửa tài liệu PR #282; chưa có nghiệm thu bot-to-bot.
+
+
+### PR281 - lỗi HTTP không cùng họ OSError
+
+IncompleteRead kế thừa HTTPException nên tuple lỗi cũ không cô lập được issue hỏng. Bắt Exception tại ranh giới từng issue, giữ BaseException cho ngắt chủ động, báo lỗi cuối lượt. Log phải giữ file/dòng/hàm và mã HTTP nhưng không in payload hoặc thông điệp ngoại lệ tùy ý; ca kiểm chốt issue kế tiếp được nhận và log không rò payload.

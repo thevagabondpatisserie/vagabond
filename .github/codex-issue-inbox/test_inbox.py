@@ -1,4 +1,7 @@
 import copy
+import io
+import contextlib
+import http.client
 import datetime as dt
 import unittest
 from inbox import command, reconcile, receipt, sweep, PREFIX
@@ -104,5 +107,27 @@ class InboxTests(unittest.TestCase):
             sweep(api,[self.issue,second],NOW,'url',None)
         self.assertEqual(len(api.comments),1)
         self.assertEqual(receipt(api.comments[0])['source'],'issue:2')
+
+    def test_incomplete_read_keeps_next_issue_and_diagnostic_without_payload(self):
+        class Broken(API):
+            def pages(self,path):
+                if path == '/issues/1/comments':
+                    raise http.client.IncompleteRead(b'PRIVATE_PAYLOAD', 100)
+                return super().pages(path)
+        api=Broken(); log=io.StringIO()
+        with contextlib.redirect_stderr(log):
+            with self.assertRaisesRegex(RuntimeError, '#1: IncompleteRead'):
+                sweep(api,[self.issue,{**self.issue,'number':2,'id':2}],NOW,'url',None)
+        self.assertEqual(receipt(api.comments[0])['source'],'issue:2')
+        self.assertIn('Issue #1: IncompleteRead',log.getvalue())
+        self.assertIn('trong pages',log.getvalue())
+        self.assertIn('test_inbox.py:',log.getvalue())
+        self.assertNotIn('PRIVATE_PAYLOAD',log.getvalue())
+
+    def test_operator_interrupt_is_not_swallowed(self):
+        class Interrupted(API):
+            def pages(self,path): raise KeyboardInterrupt()
+        with self.assertRaises(KeyboardInterrupt):
+            sweep(Interrupted(),[self.issue],NOW,'url',None)
 
 if __name__ == '__main__':unittest.main()
