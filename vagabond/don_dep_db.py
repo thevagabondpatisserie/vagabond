@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Dọn ba bảng nhật ký mà Frappe không bao giờ tự dọn (#284).
+"""Dọn nhật ký theo lô và giữ lịch sử chứng từ nghiệp vụ (#284).
 
 Ngày 12/09/2026 bảng điều khiển Frappe Cloud báo thẳng *"Database or Disk
 usage limits exceeded. Upgrade plan or reduce usage to avoid suspension"*:
@@ -7,25 +7,17 @@ database 1,25 GB trên trần 1 GB. Ngày 19/08/2026 con số này mới là 0,8
 tức chưa đầy một tháng đã phình thêm gần 400 MB. Site bị khoá ghi nghĩa là
 cả tiệm không lập được chứng từ và không xuất được hoá đơn.
 
-VÌ SAO PHẢI VIẾT CODE, CHỨ KHÔNG CHỈNH ĐƯỢC TRÊN MÀN LOG SETTINGS
+VÌ SAO CÓ NHỊP DỌN RIÊNG
 
-Frappe có sẵn Log Settings và mỗi đêm tự dọn, nhưng nó chỉ dọn được các
-doctype kế thừa lớp LogType. Đọc mã nguồn frappe nhánh version-16:
+Frappe16.27.1 dùng LogType là runtime_checkable Protocol. Notification Log
+và Deleted Document có clear_old_logs nên dùng được Log Settings dù không
+kế thừa LogType trực tiếp; Version không có method này. Không có cấu hình
+mặc định không đồng nghĩa không được hỗ trợ.
 
-  - LogSettings.remove_unsupported_doctypes() GỠ BỎ mọi dòng có doctype
-    không thoả, qua _supports_log_clearing(), tức phép
-    issubclass(controller, LogType). Nghĩa là thêm tay trên màn hình cũng bị
-    gỡ im lặng, không một lời báo.
-  - frappe/core/doctype/version/version.py KHÔNG có method clear_old_logs.
-    Các method của nó: update_version_info, set_impersonator, set_diff,
-    for_insert, get_data, onload.
-  - default_log_clearing_doctypes trong hooks của frappe có 15 dòng, không
-    dòng nào là Version, Notification Log hay Deleted Document.
-
-Đối chiếu trên site: Log Settings đang có đúng 14 dòng, trùng khít danh sách
-mặc định của khung, chưa ai tuỳ chỉnh gì. Nên tabVersion CHƯA TỪNG được dọn
-kể từ ngày dựng site, và đó đúng là lý do nó phình tới 113,80 MB trong khi
-Error Log có retention 14 ngày chỉ nằm ở 35,15 MB.
+Nhịp riêng ở đây chia lô, giới hạn mỗi lượt và giữ lịch sử/payload chứng từ
+nghiệp vụ trong KHONG_DUOC_DON; hàm clear_old_logs của hai bảng trên dọn
+phẳng theo tuổi nên không cung cấp các giới hạn đó. Trước bật lịch cần xác
+nhận mốc lưu và không đăng ký thêm nhịp dọn phẳng cho hai bảng được bảo vệ.
 
 BA THỨ PHẢI NHỚ KHI ĐỌC CON SỐ SAU KHI DỌN
 
@@ -34,16 +26,14 @@ BA THỨ PHẢI NHỚ KHI ĐỌC CON SỐ SAU KHI DỌN
    có thể CHƯA tụt sau lần dọn đầu, nhưng bảng sẽ thôi phình thêm. Bước gọn
    tệp (OPTIMIZE TABLE) mới làm tệp co lại, và bước đó có thể bị từ chối vì
    quyền.
-2. Dọn hết ba bảng này cũng chưa chắc lọt xuống dưới trần. Tổng phần dọn
-   được tối đa khoảng 241 MB, từ 1,25 GB trừ đi còn khoảng 1,04 GB, vẫn trên
-   trần 1 GB. Vì vậy anh Việt chốt nâng gói trước, dọn sau. Tệp này là để
-   chuyện đó không tái diễn.
+2. Dọn hết ba bảng này cũng chưa chắc lọt xuống dưới trần. Ước tính 241 MB từ bàn giao ban đầu chưa loại trừ lịch sử
+   chứng từ bảo vệ, không được coi là dung lượng sẽ thu hồi. Cần đo lại
+   đúng bộ lọc và có phê duyệt trước khi dọn hoặc đổi gói.
 3. Xoá một phát vài trăm nghìn dòng là khoá bảng lâu. Giờ hành chính mà khoá
    bảng thì quầy không tính tiền được. Nên xoá theo lô, commit giữa các lô,
    và có trần cho mỗi lần chạy. Dọn không hết một đêm thì đêm sau dọn tiếp.
 """
 
-import frappe
 
 # --------------------------------------------------------------- phần thuần
 # Phần trên mốc "phần cần Frappe" KHÔNG chạm Frappe, để kiểm thử được mà
@@ -51,8 +41,8 @@ import frappe
 
 # Ba bảng dọn được, và số ngày giữ lại.
 #
-# Version 180 ngày: anh Việt chốt 12/09/2026. Đủ tra "ai sửa chứng từ này"
-#   cho nửa năm gần nhất, là khoảng thời gian thực tế người ta còn hỏi lại.
+# Mốc 180/30/180 theo bàn giao PR286; chờ xác nhận trực tiếp trước bật lịch.
+# Version/Deleted Document của KHONG_DUOC_DON được giữ, không áp mốc này.
 # Notification Log 30 ngày: chuông trong app, quá 30 ngày không ai mở lại.
 # Deleted Document 180 ngày: giữ cùng mốc với Version, vì hai bảng này hay
 #   phải đọc chung khi truy một chứng từ đã biến mất.
@@ -152,6 +142,8 @@ def can_gon(da_xoa):
 
 # ------------------------------------------------------- phần cần Frappe
 
+import frappe
+
 
 def _moc(so_ngay):
 	from frappe.utils import add_days, nowdate
@@ -179,13 +171,21 @@ def don_mot_bang(dt, so_ngay=None, lo=None, tran=None):
 	moc = _moc(BANG_DON[dt] if so_ngay is None else so_ngay)
 	lo = int(lo or LO)
 	tran = int(tran or TRAN_MOI_BANG)
+	dieu_kien = "creation < %s"
+	tham = [moc]
+	cot = {'Version': 'ref_doctype', 'Deleted Document': 'deleted_doctype'}.get(dt)
+	if cot:
+		# Giữ cả lịch sử sửa và bản khôi phục của chứng từ thuộc vùng bảo vệ.
+		# Không xác định được loại chứng từ thì cũng giữ lại để đối chiếu.
+		dieu_kien += " and `%s` != '' and `%s` not in %%s" % (cot, cot)
+		tham.append(tuple(sorted(KHONG_DUOC_DON)))
 	da_xoa = 0
 	while da_xoa < tran:
 		con = min(lo, tran - da_xoa)
 		try:
 			frappe.db.sql(
-				"delete from `%s` where creation < %%s limit %%s" % bang,
-				(moc, con),
+				"delete from `%s` where %s limit %%s" % (bang, dieu_kien),
+				tuple(tham + [con]),
 			)
 			xoa = _so_dong_vua_xoa()
 			frappe.db.commit()
@@ -211,7 +211,11 @@ def gon_tep(bang):
 	làm hỏng cả nhịp dọn đã chạy xong phần việc chính.
 	"""
 	try:
-		frappe.db.sql("optimize table `%s`" % bang)
+		ket = frappe.db.sql("optimize table `%s`" % bang)
+		# MariaDB có thể trả error/status rows mà không ném SQL exception.
+		if (not ket or any(len(r) < 4 or str(r[2]).lower() in ('error', 'warning') for r in ket)
+			or not any(str(r[2]).lower() == 'status' and str(r[3]).upper() == 'OK' for r in ket)):
+			raise RuntimeError('OPTIMIZE không xác nhận status OK; chưa chứng minh tệp đã co.')
 		frappe.db.commit()
 		return True
 	except Exception:
@@ -245,7 +249,11 @@ def _chan_neu_khong_phai_quan_tri():
 def don_dep_ngay_bay_gio():
 	"""Nút bấm tay, dùng khi Frappe Cloud đang cảnh báo mà chưa tới 03:20."""
 	_chan_neu_khong_phai_quan_tri()
-	return don_dep_hang_ngay()
+	ket = don_dep_hang_ngay()
+	loi = [dt for dt, so in ket.items() if so is None]
+	if loi:
+		frappe.msgprint('Chưa dọn xong: %s. Một số lô có thể đã xóa; mở Error Log mục don_dep_db để đối chiếu.' % ', '.join(loi))
+	return ket
 
 
 @frappe.whitelist()

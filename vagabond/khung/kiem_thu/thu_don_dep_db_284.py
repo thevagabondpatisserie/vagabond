@@ -49,10 +49,12 @@ class DbGia:
 		if thap.startswith("delete"):
 			# Không có LIMIT thì câu lệnh chỉ có một tham số, và ở đây ta
 			# dựng lại đúng hậu quả thật: xoá sạch một phát.
-			xin = int(tham[1]) if tham and len(tham) > 1 else self.con_lai
+			xin = int(tham[-1]) if tham and len(tham) > 1 else self.con_lai
 			self._vua_xoa = min(xin, self.con_lai)
 			self.con_lai -= self._vua_xoa
 			return []
+		if thap.startswith("optimize"):
+			return [("db.tabVersion", "optimize", "note", "recreate + analyze"), ("db.tabVersion", "optimize", "status", "OK")]
 		if thap.startswith("select row_count()"):
 			return [[self._vua_xoa]]
 		return []
@@ -203,3 +205,55 @@ def _doc_so_hong():
 	la('dòng của lô được trả lại', db.con_lai, 6000)
 	dung('không commit lô không biết số', 'commit' not in db.lenh)
 	dung('đã rollback', 'rollback' in db.lenh)
+
+
+@ca("#284 OPTIMIZE phải đọc status, không nhận error rows là thành công")
+def _gon_ket_qua():
+	for rows, mong in [
+		([('db.tabVersion', 'optimize', 'error', 'Operation failed')], False),
+		([('db.tabVersion', 'optimize', 'status', 'Operation failed')], False),
+		([], False),
+		([('thieu',)], False),
+		([('db.tabVersion', 'optimize', 'note', 'recreate'), ('db.tabVersion', 'optimize', 'status', 'OK')], True),
+	]:
+		db = DbGia()
+		db.sql = lambda *a, **k: rows
+		with patch.object(dd.frappe, 'db', db), patch.object(dd.frappe, 'log_error') as log:
+			la('đọc kết quả ' + repr(rows), dd.gon_tep('tabVersion'), mong)
+			la('lỗi phải được ghi', log.call_count, 0 if mong else 1)
+
+
+@ca("#284 ROW_COUNT âm phải rollback, không commit lô")
+def _so_am():
+	db = DbGia(6000)
+	goc = db.sql
+	db.sql = lambda cau, *a, **k: [[-1]] if str(cau).lower().startswith('select row_count') else goc(cau, *a, **k)
+	with patch.object(dd.frappe, 'db', db):
+		nem('số âm không rõ kết quả', lambda: dd.don_mot_bang('Version'), ValueError)
+	la('không mất dòng', db.con_lai, 6000)
+	dung('không commit', 'commit' not in db.lenh)
+	dung('đã rollback', 'rollback' in db.lenh)
+
+
+@ca("#284 đăng ký API dọn chỉ POST, API xem giữ mặc định")
+def _dang_ky_post():
+	la('cửa xóa', dd.don_dep_ngay_bay_gio.__vgb_methods__, ['POST'])
+	la('cửa xem', dd.do_dung_luong.__vgb_methods__, None)
+
+
+@ca("#284 DELETE loại lịch sử và payload chứng từ được bảo vệ")
+def _giu_dau_vet():
+	for dt, cot in [('Version', 'ref_doctype'), ('Deleted Document', 'deleted_doctype')]:
+		db = DbGia(0)
+		lenh = []
+		goc = db.sql
+		def sql(cau, tham=None, **k):
+			if str(cau).lower().startswith('delete'):
+				lenh.append((cau, tham))
+			return goc(cau, tham, **k)
+		db.sql = sql
+		with patch.object(dd.frappe, 'db', db):
+			dd.don_mot_bang(dt)
+		cau, tham = lenh[0]
+		dung('lọc đúng cột ' + dt, ('`%s` not in %%s' % cot) in cau)
+		la('tập bảo vệ đúng', set(tham[1]), dd.KHONG_DUOC_DON)

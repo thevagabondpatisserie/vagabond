@@ -166,7 +166,12 @@ def gia_lap():
 		raise ValidationError(msg)
 
 	fr.throw = _throw
-	fr.whitelist = lambda *a, **k: (lambda f: f)
+	def _whitelist(*a, **k):
+		def dang_ky(f):
+			f.__vgb_methods__ = k.get('methods')
+			return f
+		return dang_ky
+	fr.whitelist = _whitelist
 	fr._dict = Doi
 	fr.log_error = lambda *a, **k: None
 	fr.get_traceback = lambda *a, **k: ""
