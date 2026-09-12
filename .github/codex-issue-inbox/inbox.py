@@ -32,7 +32,8 @@ def command(body):
 
 def receipt(comment):
     # A user-pasted marker is not a receipt. Only the Actions identity owns it.
-    if comment.get('user', {}).get('login') != BOT or comment['user'].get('type') != 'Bot':
+    user = comment.get('user') or {}
+    if user.get('login') != BOT or user.get('type') != 'Bot':
         return None
     body = comment.get('body') or ''
     if not body.startswith(PREFIX):
@@ -114,7 +115,7 @@ def reconcile(api, issue, now, run_url, since=None):
             continue
         if source in seen or not command(item.get('body')):
             continue
-        user = item.get('user', {})
+        user = item.get('user') or {}
         login = user.get('login')
         if login not in permissions:
             permissions[login] = api.allowed(user)
@@ -130,13 +131,35 @@ def reconcile(api, issue, now, run_url, since=None):
         seen.add(source)
         accepted += data['status'] == 'queued'
     # Recover label if comment POST succeeded but a later API call failed.
-    if any(r['status'] in {'queued', 'working', 'blocked'} for r in known):
+    active = any(r['status'] in {'queued', 'working', 'blocked'} for r in known)
+    labelled = any((x.get('name') if isinstance(x, dict) else x) == LABEL
+                   for x in issue.get('labels', []))
+    if active and not labelled:
         api.request('POST', f'/issues/{number}/labels', {'labels': [LABEL]})
+    elif labelled and not active:
+        api.request('DELETE', f'/issues/{number}/labels/{LABEL}')
     return accepted
 
 
+def sweep(api, issues, now, run_url, since):
+    # Một issue lỗi không được làm mất lượt nhận của mọi issue đứng sau.
+    count, errors = 0, []
+    for issue in issues:
+        try:
+            count += reconcile(api, issue, now, run_url, since)
+        except (OSError, ValueError, KeyError, AttributeError, TypeError, RuntimeError) as exc:
+            errors.append(f"#{issue.get('number', '?')}: {type(exc).__name__}")
+    if errors:
+        # Giữ job đỏ nhưng không đưa payload hoặc token vào thông báo.
+        raise RuntimeError('Chưa nhận được các issue: ' + ', '.join(errors))
+    return count
+
+
 def main():
-    since = dt.datetime.fromisoformat(os.environ['CODEX_INBOX_SINCE'].replace('Z', '+00:00'))
+    start = os.environ.get('CODEX_INBOX_SINCE', '').strip()
+    if not start:
+        raise ValueError('Chưa đặt CODEX_INBOX_SINCE; không được nhận lại lịch sử cũ.')
+    since = dt.datetime.fromisoformat(start.replace('Z', '+00:00'))
     if since.tzinfo is None:
         raise ValueError('CODEX_INBOX_SINCE must include timezone')
     api = GitHub(os.environ['GITHUB_REPOSITORY'], os.environ['GH_TOKEN'])
@@ -145,7 +168,7 @@ def main():
     issues = api.pages('/issues?state=open&sort=created&direction=asc')
     now = dt.datetime.now(dt.timezone.utc)
     run_url = f'https://github.com/{api.repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
-    count = sum(reconcile(api, i, now, run_url, since) for i in issues)
+    count = sweep(api, issues, now, run_url, since)
     print(f'Inbox reconciled: {count} newly accepted request(s).')
 
 

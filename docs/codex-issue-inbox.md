@@ -74,3 +74,16 @@ Checkout receiver luôn lấy default branch, không chạy mã trên nhánh ng�
 
 Kiểm thuần: `python3 -m unittest discover -s .github/codex-issue-inbox -v`.
 Ca kiểm mô phỏng API, chưa thay bằng chứng workflow chạy thật sau merge.
+# Bổ sung vận hành sau review 12/09/2026
+
+- Cô lập lỗi từng issue, đọc tiếp hàng đợi rồi báo job đỏ với số issue lỗi.
+- Nhãn chỉ được thêm khi thiếu và được gỡ khi không còn biên nhận sống.
+- Worker desktop phải chuyển cập nhật trạng thái qua một workflow được xác thực
+  để biên nhận vẫn do github-actions[bot] sở hữu. Không tin marker do tài khoản
+  người dùng tự dán. Chưa có đường này thì không bật worker.
+- Bộ 16 ca ở .github/codex-issue-inbox/test_inbox.py được workflow riêng kiểm;
+  chay.py -im không bao phủ bộ nhận này. Không xóa comment biên nhận.
+- Giữ trần 3 yêu cầu/24 giờ, kể cả yêu cầu đã hủy, tới khi có quyết định đổi.
+- HTTP403 CONNECT trong agent cloud là lỗi môi trường/đường mạng, không phải
+  bằng chứng code sai hoặc tag không nhận. Kiểm Agent internet access của
+  đúng môi trường; không bỏ fetch/preflight để che lỗi.

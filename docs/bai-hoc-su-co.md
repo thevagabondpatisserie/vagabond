@@ -170,6 +170,10 @@ qua được. Mọi thay đổi trong thư mục đó phải người thật s�
 
 ## Issue280: lời gọi issue cần biên nhận thật
 
+Review PR281: một user:null hoặc API lỗi ở issue đầu từng làm dừng toàn lượt
+quét. Đã thêm ca giữ issue sau vẫn được nhận, nhưng job vẫn đỏ để người trực
+biết lỗi. Nhãn queued phải phản ánh biên nhận sống, không POST lại mỗi lượt.
+
 Lệnh review trong body issue thường không đi qua đường comment PR mà tích
 hợp Codex hỗ trợ. Workflow Claude skipped không có nghĩa Codex đã tiếp nhận.
 Bộ nhận riêng phải lưu mã nguồn yêu cầu, xác nhận queued khác working/done,

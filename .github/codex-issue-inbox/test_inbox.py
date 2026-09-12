@@ -1,7 +1,7 @@
 import copy
 import datetime as dt
 import unittest
-from inbox import command, reconcile, receipt, PREFIX
+from inbox import command, reconcile, receipt, sweep, PREFIX
 
 NOW = dt.datetime(2026, 9, 11, tzinfo=dt.timezone.utc)
 USER = {'login': 'owner', 'type': 'User'}
@@ -14,18 +14,20 @@ class API:
         self.comments = comments or []
         self.labels = []
         self.fail_after_post = False
+        self.label_calls = []
     def pages(self, path):
         return copy.deepcopy(self.comments)
     def allowed(self, user):
         return user == USER
-    def request(self, method, path, data):
+    def request(self, method, path, data=None):
         if path.endswith('/comments'):
             self.comments.append(item(1000+len(self.comments), data['body'], {'login':'github-actions[bot]', 'type':'Bot'}))
             if self.fail_after_post:
                 self.fail_after_post = False
                 raise TimeoutError('response lost after commit')
         else:
-            self.labels = data['labels']
+            self.label_calls.append((method, path))
+            self.labels = data['labels'] if method == 'POST' else []
 
 class InboxTests(unittest.TestCase):
     def setUp(self):
@@ -76,5 +78,31 @@ class InboxTests(unittest.TestCase):
     def test_event_sweep_recovers_multiple_comments(self):
         api=API([item(2,'@codex first'),item(3,'@codex second')])
         self.assertEqual(self.run_inbox(api),3)
+    def test_deleted_user_does_not_block_other_requests(self):
+        api=API([item(2,'@codex task',None),item(3,'@codex valid')])
+        self.assertEqual(self.run_inbox(api),2)
+        self.assertIsNone(receipt(item(9,'bad',None)))
+    def test_existing_queue_label_is_not_posted_again(self):
+        api=API();self.run_inbox(api)
+        self.issue['labels']=[{'name':'codex:queued'}]
+        self.run_inbox(api)
+        self.assertEqual(len(api.label_calls),1)
+    def test_completed_queue_removes_only_queue_label(self):
+        api=API();self.run_inbox(api)
+        api.comments[0]['body']=api.comments[0]['body'].replace('"queued"','"done"')
+        self.issue['labels']=[{'name':'codex:queued'},{'name':'other'}]
+        self.run_inbox(api)
+        self.assertEqual(api.label_calls[-1],('DELETE','/issues/1/labels/codex:queued'))
+    def test_failed_issue_does_not_starve_next_issue(self):
+        class Broken(API):
+            def pages(self,path):
+                if path == '/issues/1/comments':raise OSError('network')
+                return super().pages(path)
+        api=Broken()
+        second={**self.issue,'number':2,'id':2}
+        with self.assertRaisesRegex(RuntimeError,'#1: OSError'):
+            sweep(api,[self.issue,second],NOW,'url',None)
+        self.assertEqual(len(api.comments),1)
+        self.assertEqual(receipt(api.comments[0])['source'],'issue:2')
 
 if __name__ == '__main__':unittest.main()
