@@ -243,3 +243,7 @@ Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages
 ### PR281 - chẩn đoán phải phủ cả bước khởi chạy
 
 Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_doan chung ở main, vẫn thất bại toàn lượt; thay lỗi cuối bằng thông báo sạch và from None để traceback không in lại thông điệp gốc. Ca kiểm dựng HTTPError ở từng lời gọi tiên quyết, header thật không phân biệt hoa thường, và kiểm cả traceback cuối. Bổ sung thời điểm reset trần; không suy thiếu quyền từ403.
+
+### PR210 - dấu chống tạo trùng phải bền trước HTTP
+
+Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không chặn được reload hoặc worker chết sau POST. Ghi ý định DB và enqueue sau commit; worker commit dang_gui trước HTTP, job trùng không nhận lại. Sau kết quả chưa rõ, tìm rỗng không chứng minh chưa tạo. Integration Request có dọn log30ngày nên không dùng làm hàng rào lâu dài. Kiểm bằng tiến trình chết và hai worker trên DB CI, không chỉ mock helper. Cả mã mới/mã cũ dùng cùng handler và xác nhận giá0.

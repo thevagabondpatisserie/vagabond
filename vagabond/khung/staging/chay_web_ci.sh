@@ -7,6 +7,8 @@ set -euo pipefail
 : "${GITHUB_WORKSPACE:?}"
 cd "$VGB_BENCH"
 cd sites
+# Dấu gửi Pancake phải sống qua worker chết; chỉ chạy trên bench dùng một lần.
+../env/bin/python -m vagabond.khung.staging.day_pancake_ci 2>&1 | tee "$VGB_ARTIFACTS/pancake-durable.log"
 export VGB_STAGING_VAN_DON=1
 export VGB_STAGING_NHAN=1
 export VGB_STAGING_SAN_XUAT=1
