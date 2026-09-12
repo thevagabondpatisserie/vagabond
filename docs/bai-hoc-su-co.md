@@ -360,3 +360,7 @@ Ca giữ dữ liệu quà tặng đặt vgb_pt_do_may=0 và mock bảng thanh to
 ### 12/09/2026 - PR291 B1-3: cửa ghi tắt phải đi qua chốt nghiệp vụ
 
 Chốt validate không bảo vệ được API dùng db.set_value. Chuyển sang Hàng tặng phải qua Document.save để chặn dòng tiền tay trước DB, thay vì ghi trạng thái kẹt cho lần sau. Không dùng helper đọc nuốt lỗi làm hàng rào an toàn.
+
+### 12/09/2026 - Tắt chính sách không được che trạng thái cần dọn (#291)
+
+Nháp tặng đã mang kho/64181, khi tắt công tắc cùng lúc đổi thành thu tiền, hạ dấu trước làm nhánh return bỏ qua dọn kho. Dọn chuyển loại trước khi tính dấu mới; ca thuần bắt update_stock còn 1, ca bench lưu-ghi sổ-hủy và đọc GL/SLE/Bin. Nguồn finding 3996732355, cùng lỗi 3996733712 trên nhánh tích hợp #293.

@@ -73,7 +73,7 @@ def combo_cu():
     la('đã ghi sổ',hd.docstatus,1);dung('GL thật',bool(_gl(hd)))
 
 @ca('#290 B1-3 lưu Sales chặn quà có tiền tay trước DB, bảng máy gỡ qua Document')
-def sales_doi_qua():
+def luu_doi_qua():
     from vagabond import thanh_toan_nhieu as ttn
     for may in (0,1):
         hd=_hoa_don(False)
@@ -90,3 +90,28 @@ def sales_doi_qua():
         la('phương thức DB',hd.vgb_pt_thanh_toan,'Hàng tặng' if may else 'Tiền mặt')
         la('bảng tay giữ nguyên, máy gỡ',len(hd.get(ttn.BANG) or []),0 if may else 1)
         hd.save(ignore_permissions=True);hd.reload()  # Không để tờ kẹt ở lần lưu kế.
+
+@ca('#290 tắt kho rồi đổi quà sang bán: ghi sổ và hủy không SLE/64181')
+def tat_kho_doi_thu_tien():
+    hd,kho,lo=_nen()
+    la('fixture đã bật kho',hd.update_stock,1)
+    la('fixture đã có dấu',hd.vgb_tang_kho_moi,1)
+    tk=hd.items[0].expense_account
+    la('fixture dùng 64181',frappe.get_cached_value('Account',tk,'account_number'),'64181')
+    ton=frappe.db.get_value('Bin',{'item_code':hd.items[0].item_code,'warehouse':kho},'actual_qty')
+    frappe.db.set_single_value('Vagabond Settings','hang_tang_xuat_kho_that',0)
+    hd.vgb_pt_thanh_toan='Tiền mặt'
+    hd.save(ignore_permissions=True);hd.reload()
+    la('gỡ xuất kho',hd.update_stock,0);la('gỡ dấu',hd.vgb_tang_kho_moi,0)
+    la('gỡ kho tặng',hd.vgb_tang_kho,None)
+    dung('gỡ 64181',all(d.expense_account != tk for d in hd.items))
+    hd.flags.ignore_permissions=True;hd.submit();hd.reload()
+    la('ghi sổ thật',hd.docstatus,1)
+    so=_gl(hd);dung('có GL thật',bool(so))
+    dung('có công nợ bán thường',any(d.party_type=='Customer' and d.debit>0 for d in so))
+    la('GL cân',round(sum(d.debit-d.credit for d in so),2),0)
+    dung('không chi phí quà',all(d.account != tk for d in so))
+    la('không SLE',_sle(hd),[])
+    hd.cancel();hd.reload();la('hủy thật',hd.docstatus,2)
+    la('cả ghi sổ và hủy không SLE',frappe.db.count('Stock Ledger Entry',{'voucher_no':hd.name}),0)
+    la('tồn không đổi',frappe.db.get_value('Bin',{'item_code':hd.items[0].item_code,'warehouse':kho},'actual_qty'),ton)
