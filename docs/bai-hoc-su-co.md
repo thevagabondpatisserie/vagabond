@@ -168,6 +168,18 @@ Migrate. Trước khi sửa Server Script phải báo chủ repo.
 Đây là luật cứng của GitHub, không phải thiếu quyền, cấp thêm quyền cũng không
 qua được. Mọi thay đổi trong thư mục đó phải người thật sửa tay.
 
+## Issue280: lời gọi issue cần biên nhận thật
+
+Review PR281: một user:null hoặc API lỗi ở issue đầu từng làm dừng toàn lượt
+quét. Đã thêm ca giữ issue sau vẫn được nhận, nhưng job vẫn đỏ để người trực
+biết lỗi. Nhãn queued phải phản ánh biên nhận sống, không POST lại mỗi lượt.
+
+Lệnh review trong body issue thường không đi qua đường comment PR mà tích
+hợp Codex hỗ trợ. Workflow Claude skipped không có nghĩa Codex đã tiếp nhận.
+Bộ nhận riêng phải lưu mã nguồn yêu cầu, xác nhận queued khác working/done,
+đọc lại khi mất phản hồi và không coi marker do người dùng dán là biên nhận.
+Nguồn và quy trình kích hoạt: docs/codex-issue-inbox.md. Không bật hàng đợi
+khi chưa có worker; không tự gọi model chỉ để xác nhận đã nhận.
 
 ## Hai nhánh thêm ca kiểm vào cùng dòng đăng ký
 
@@ -216,3 +228,18 @@ phản hồi là chưa có commit. Chưa có log thì không kết luận lỗi 
 Luật dừng theo từng việc trong `CLAUDE.md` là nguồn chung; tài liệu Codex phải
 đồng bộ, không giữ cách đếm tổng comment cũ làm chặn các finding độc lập.
 Nguồn: PR #281, review và sửa tài liệu PR #282; chưa có nghiệm thu bot-to-bot.
+
+
+### PR281 - lỗi HTTP không cùng họ OSError
+
+IncompleteRead kế thừa HTTPException nên tuple lỗi cũ không cô lập được issue hỏng. Bắt Exception tại ranh giới từng issue, giữ BaseException cho ngắt chủ động, báo lỗi cuối lượt. Log phải giữ file/dòng/hàm và mã HTTP nhưng không in payload hoặc thông điệp ngoại lệ tùy ý; ca kiểm chốt issue kế tiếp được nhận và log không rò payload.
+
+
+### PR281 - hoàn tất chẩn đoán N1/N2/N3
+
+Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages thật tới đủ100 trang. Kiểm riêng thông điệp ngoại lệ có dữ liệu kín và frame reconcile. Với HTTP403 chỉ in metadata trong danh sách cho phép và đúng định dạng: số lượt còn lại, thời gian chờ, request ID. Thiếu metadata không được tự kết luận là thiếu quyền. Không in body hoặc header tùy ý.
+
+
+### PR281 - chẩn đoán phải phủ cả bước khởi chạy
+
+Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_doan chung ở main, vẫn thất bại toàn lượt; thay lỗi cuối bằng thông báo sạch và from None để traceback không in lại thông điệp gốc. Ca kiểm dựng HTTPError ở từng lời gọi tiên quyết, header thật không phân biệt hoa thường, và kiểm cả traceback cuối. Bổ sung thời điểm reset trần; không suy thiếu quyền từ403.
