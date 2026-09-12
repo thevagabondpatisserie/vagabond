@@ -167,11 +167,10 @@ def _so_dong_vua_xoa():
 	DELETE. Đọc sau commit là luôn thấy 0, vòng lặp dừng ngay ở lô đầu và
 	nhịp dọn im lặng không làm gì cả.
 	"""
-	try:
-		n = int(frappe.db.sql("select row_count()")[0][0])
-	except Exception:
-		return 0
-	return n if n > 0 else 0
+	n = int(frappe.db.sql("select row_count()")[0][0])
+	if n < 0:
+		raise ValueError('Không xác định được số dòng vừa xóa. Dừng lô để đối chiếu.')
+	return n
 
 
 def don_mot_bang(dt, so_ngay=None, lo=None, tran=None):
@@ -183,12 +182,17 @@ def don_mot_bang(dt, so_ngay=None, lo=None, tran=None):
 	da_xoa = 0
 	while da_xoa < tran:
 		con = min(lo, tran - da_xoa)
-		frappe.db.sql(
-			"delete from `%s` where creation < %%s limit %%s" % bang,
-			(moc, con),
-		)
-		xoa = _so_dong_vua_xoa()
-		frappe.db.commit()
+		try:
+			frappe.db.sql(
+				"delete from `%s` where creation < %%s limit %%s" % bang,
+				(moc, con),
+			)
+			xoa = _so_dong_vua_xoa()
+			frappe.db.commit()
+		except Exception:
+			# Chỉ lô hiện tại còn lùi được; không nhận lỗi đọc số là xóa 0.
+			frappe.db.rollback()
+			raise
 		da_xoa += xoa
 		# Lô cuối trả về ít hơn số xin nghĩa là hết dòng cũ, dừng luôn chứ
 		# đừng chạy thêm một câu DELETE rỗng.
@@ -227,7 +231,7 @@ def don_dep_hang_ngay():
 		try:
 			ket[dt] = don_mot_bang(dt)
 		except Exception:
-			ket[dt] = 0
+			ket[dt] = None  # Không biết kết quả đầy đủ, khác với thành công xóa 0.
 			frappe.log_error(frappe.get_traceback(), "don_dep_db: don %s" % dt)
 	return ket
 
@@ -237,7 +241,7 @@ def _chan_neu_khong_phai_quan_tri():
 		frappe.throw("Chỉ System Manager mới chạy và xem được phần dọn cơ sở dữ liệu.")
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=['POST'])
 def don_dep_ngay_bay_gio():
 	"""Nút bấm tay, dùng khi Frappe Cloud đang cảnh báo mà chưa tới 03:20."""
 	_chan_neu_khong_phai_quan_tri()

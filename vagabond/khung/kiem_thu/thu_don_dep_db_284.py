@@ -62,6 +62,11 @@ class DbGia:
 		# Đây là dòng quan trọng nhất của tệp này. Xem BẪY MỘT ở đầu tệp.
 		self._vua_xoa = 0
 
+	def rollback(self):
+		self.lenh.append('rollback')
+		self.con_lai += self._vua_xoa
+		self._vua_xoa = 0
+
 
 def _chay(con_lai, **k):
 	db = DbGia(con_lai)
@@ -163,7 +168,7 @@ def _mot_bang_hong():
 	db.sql = sql_ken
 	with patch.object(dd.frappe, "db", db):
 		ket = dd.don_dep_hang_ngay()
-	la("bảng hỏng báo 0", ket["Notification Log"], 0)
+	la("bảng hỏng báo chưa biết, không phải 0", ket["Notification Log"], None)
 	dung("hai bảng kia vẫn chạy", ket["Version"] > 0 or ket["Deleted Document"] > 0)
 	la("đủ ba bảng trong kết quả", sorted(ket), sorted(dd.BANG_DON))
 
@@ -182,3 +187,19 @@ def _chan_quyen():
 			except Exception:
 				pass
 	la("không một câu lệnh nào chạy", db.lenh, [])
+
+
+@ca('#284 đọc số dòng lỗi phải lùi lô chưa commit, không báo xóa 0')
+def _doc_so_hong():
+	db = DbGia(6000)
+	goc = db.sql
+	def hong(cau, *a, **kw):
+		if str(cau).lower().startswith('select row_count'):
+			raise RuntimeError('Không đọc được số dòng')
+		return goc(cau, *a, **kw)
+	db.sql = hong
+	with patch.object(dd.frappe, 'db', db):
+		nem('lỗi không biến thành 0', lambda: dd.don_mot_bang('Version'), RuntimeError)
+	la('dòng của lô được trả lại', db.con_lai, 6000)
+	dung('không commit lô không biết số', 'commit' not in db.lenh)
+	dung('đã rollback', 'rollback' in db.lenh)
