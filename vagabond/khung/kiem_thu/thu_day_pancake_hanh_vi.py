@@ -37,7 +37,7 @@ def _canh():
         return item if dt=='Item' else Doi(**rows[name])
     db=NS(get_value=get_value,set_value=set_value,sql=sql,commit=commit,
           get_single_value=lambda *a:None)
-    f=NS(db=db,get_doc=get_doc,session=NS(user='tester'),as_json=json.dumps,
+    f=NS(clear_document_cache=lambda *a:calls.append(("clear_cache",a)),db=db,get_doc=get_doc,session=NS(user='tester'),as_json=json.dumps,
          utils=NS(now_datetime=lambda:'2026-09-12 12:00:00'),QueryTimeoutError=TimeoutError,log_error=lambda **kw:calls.append(kw),
          has_permission=lambda *a:True,whitelist=lambda **kw:lambda f:f,
          enqueue=lambda *a,**kw:jobs.append(kw),throw=lambda msg:(_ for _ in ()).throw(ValueError(msg)))
@@ -229,9 +229,13 @@ def _khoa_ban():
     f.db.get_value=busy
     la('bận trả câu chờ',_nhan(g)['trang_thai'],'dang_cho')
     f.db.get_value=old
-    def scan(*a):rows[ten]['trang_thai']='loi';return [],True
+    def scan(*a):
+        rows[ten].update(trang_thai='loi',thong_bao='Chưa quét hết - lần cũ')
+        return [],True
     g['tim_het_tren_pancake']=scan
-    la('đọc mới sau GET',g['trang_thai_tren_pancake']('KT210')['trang_thai'],'loi')
+    ket=g['trang_thai_tren_pancake']('KT210')
+    la('đọc mới sau GET',ket['trang_thai'],'chua_co')
+    dung('bỏ câu lỗi quét cũ','Chưa quét hết' not in ket['thong_bao'])
 
 @ca('#210 worker cũ không ghi đè trạng thái đã đối soát')
 def _cas():
@@ -241,6 +245,7 @@ def _cas():
         return NS(status_code=201,json=lambda:{'success':True})
     http.post=post;g['chay_luot_day'](ten)
     la('giữ trạng thái mới',rows[ten]['trang_thai'],'loi')
+    dung('xóa cache cả khi lượt cũ bị chặn',('clear_cache',(g['DT_DAY'],ten)) in calls)
 
 
 @ca('#210 quyền bán hàng không đủ để ghi kết quả kiểm lại')

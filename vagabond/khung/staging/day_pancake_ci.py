@@ -23,10 +23,13 @@ def _khoa():
     frappe.set_user('Administrator')
 
 
-def _goi(pc, ma):
+def _goi(pc, ma, ban=False):
     with patch.object(pc,'cfg',lambda:frappe._dict(pancake_shop_id='THU210')),patch.object(pc,'key',lambda *a:'fake'),patch.object(frappe,'enqueue') as enq:
         kq=pc.tao_tren_pancake(ma)
         assert kq['trang_thai'] in ('dang_cho','chua_ro')
+        if ban:
+            assert kq['trang_thai']=='dang_cho'
+            assert 'Đang có lượt xử lý mã này' in kq['thong_bao'], kq
         if enq.called: assert enq.call_args.kwargs['enqueue_after_commit'] is True
     frappe.db.commit()
     return pc._ten_luot('THU210',ma)
@@ -88,7 +91,7 @@ def chay():
         while ten3 not in tep.read_text().splitlines():
             if time.monotonic()>han:raise RuntimeError('Worker chưa tới POST')
             time.sleep(0.05)
-        assert _goi(pc,names[2])==ten3
+        assert _goi(pc,names[2],ban=True)==ten3
         try:
             pc.doi_soat_luot(ten3,'Ca CI chen ngang worker','Bằng chứng giả lập chỉ dùng cho CI',1)
         except frappe.ValidationError as e:

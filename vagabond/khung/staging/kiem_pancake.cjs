@@ -27,7 +27,7 @@ const {chromium}=require('playwright');
       const dialog=page.locator('.modal:visible');
       await dialog.locator('[data-fieldname="ly_do"] textarea').waitFor();
       await dialog.locator('[data-fieldname="bang_chung"] textarea').waitFor();
-      if(await dialog.locator('[data-fieldname="xac_nhan_chua_tao"] input').isChecked())throw Error('Xác nhận không được tick sẵn');
+      if(await dialog.locator('[data-fieldname="xac_nhan_chua_tao"] input[type="checkbox"]').isChecked())throw Error('Xác nhận không được tick sẵn');
       await page.screenshot({path:path.join(out,'pancake-doi-soat-'+width+'.png'),fullPage:true});
       await page.keyboard.press('Escape');
       }catch(e){

@@ -153,7 +153,7 @@ def trang_thai_tren_pancake(item_code):
 		tt = kq.xep_ket_qua_tim(len(ds))
 		frappe.db.set_value(DT_DAY, luot.name, {"trang_thai": tt,
 			"thong_bao": kq.thong_bao(tt, ma, len(ds))})
-	if not ds and luot:
+	if not ds and luot and luot.trang_thai != "loi":
 		if luot.trang_thai in ("da_tao", "da_co", "xung_dot"):
 			return _ket_qua("chua_ro", ma, "Dấu nội bộ và Pancake đang lệch: chưa tìm thấy mã. Nhờ giám đốc đối soát; không gửi thêm.")
 		# Tìm rỗng không chứng minh POST trước chưa thành công.
@@ -240,6 +240,7 @@ def _ket_luot(luot, tt, bao, buoc, response=None, loi=None):
 		set trang_thai=%s, thong_bao=%s, vet_gui=%s
 		where name=%s and ma_lan=%s and trang_thai='dang_gui'""",
 		(tt, bao, vet, luot.name, luot.ma_lan))
+	frappe.clear_document_cache(DT_DAY, luot.name)
 
 
 def chay_luot_day(ten):

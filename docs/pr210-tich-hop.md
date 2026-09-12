@@ -40,3 +40,11 @@ Giữ khóa Item để tuần tự hóa hai request lúc chưa có dấu, nhưng
 Vết gửi lưu thời điểm bắt đầu trước commit, HTTP/loại lỗi/hash và độ dài phản hồi. Không lưu nguyên URL/ngoại lệ/body có thể chứa API key. Kiểm lại cần quyền đẩy và Item write; đọc mới sau GET. Bổ sung xử lý lỗi đọc giá, chặn giá lẻ đồng bị cắt thành0, deduplicate job theo mã lần, nhãn nút trên cùng.
 
 Bench3790bcb: migrate và tích hợp hai lượt đạt; durability/crash PASS. Bước Desk timeout chờ nút trên390. Đã đối chiếu Frappe16.27.1 page.add_inner_button: mobile dùng menu link, bổ sung đúng đường bấm và lưu ảnh/text khi hỏng. Chưa coi là kiểm Desk đạt.
+
+## Chốt góp ý trên 29cff23
+
+Kiểm lại sau GET đầy đủ và rỗng bỏ thông báo lỗi trước POST đã cũ, trả chua_co; các dấu chưa rõ vẫn giữ nguyên hàng rào. SQL kết lượt xóa document cache cả khi CAS không ghi vì mã lần đã đổi. CAS không trúng là trường hợp worker cũ hợp lệ; lỗi SQL/schema vẫn ném ngoại lệ, không bị nuốt.
+
+Bench giai đoạn worker giữ khóa nay bắt đúng dang_cho và câu "Đang có lượt xử lý mã này", không chấp nhận chua_ro do đọc dấu không khóa. Ca này chứng minh khóa dấu; không tự nhận riêng nó chứng minh khóa Item lúc dấu chưa tồn tại.
+
+Bench 29cff23: migrate/integration hai lượt và durability/phase2 PASS. Dialog Desk đã mở trên390 nhưng locator input khớp cả ô ẩn và checkbox nên strict mode lỗi. Sửa locator thành input[type="checkbox"]; chờ chạy lại, chưa nhận UAT đạt.
