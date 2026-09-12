@@ -1,0 +1,17 @@
+name: Telegram kiem thu
+on:
+  pull_request:
+    paths:
+      - '.github/telegram/**'
+      - '.github/workflows/telegram*.yml'
+permissions:
+  contents: read
+jobs:
+  kiem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s .github/telegram -v

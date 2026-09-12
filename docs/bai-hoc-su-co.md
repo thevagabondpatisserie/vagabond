@@ -254,3 +254,13 @@ Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không ch�
 Worker giữ khóa xuyên HTTP để cửa đối soát không chen vào, nhưng request người dùng phải NOWAIT và trả câu chờ. Khóa Item chỉ tuần tự hóa việc tạo dấu đầu tiên, cũng NOWAIT; không được giữ nó để chờ worker. Ghi kết quả bằng điều kiện mã lần/trạng thái để worker cũ không ghi đè. Bench phải cho đối soát chen đúng lúc POST, không chỉ cho hai worker đua ở đầu.
 
 Gộp nhánh không được bỏ dấu vết lỗi. Lưu thời điểm bắt đầu bền trước HTTP, mã HTTP/loại lỗi/hash và độ dài phản hồi trên dấu cùng Error Log. Không lưu nguyên URL/ngoại lệ/thân phản hồi có thể chứa khóa; người đối soát cần dấu vết nhưng không cần bí mật trong log.
+
+## Issue287 - thông báo của bot cần đối soát nguồn và dấu gửi bền
+
+Sự kiện do GITHUB_TOKEN tạo không luôn kích hoạt workflow tiếp; chỉ nghe
+comment event sẽ bỏ sót tin workflow. Đọc lại nguồn GitHub theo mốc với lịch
+bù, chỉ chạy code default branch. Lưu pending trước gửi Telegram, sau phản hồi
+đúng mới ghi seen. Unit test tái hiện mất phản hồi và lỗi lưu kết quả: lượt
+sau dừng đối chiếu, không gửi lặp. Secret token không hiện trong API đọc
+metadata; ghép chat dùng mã riêng và artifact ciphertext, không in URL lỗi
+Telegram vì URL có token. Nguồn: Issue #287; chưa coi unit test là kết nối thật.
