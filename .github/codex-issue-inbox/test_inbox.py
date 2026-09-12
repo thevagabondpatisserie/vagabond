@@ -2,9 +2,11 @@ import copy
 import io
 import contextlib
 import http.client
+import urllib.error
+from unittest.mock import patch
 import datetime as dt
 import unittest
-from inbox import command, reconcile, receipt, sweep, PREFIX
+from inbox import command, reconcile, receipt, sweep, PREFIX, GitHub, TranPhanTrang
 
 NOW = dt.datetime(2026, 9, 11, tzinfo=dt.timezone.utc)
 USER = {'login': 'owner', 'type': 'User'}
@@ -121,6 +123,8 @@ class InboxTests(unittest.TestCase):
         self.assertEqual(receipt(api.comments[0])['source'],'issue:2')
         self.assertIn('Issue #1: IncompleteRead',log.getvalue())
         self.assertIn('trong pages',log.getvalue())
+        self.assertIn('inbox.py:',log.getvalue())
+        self.assertIn('trong reconcile',log.getvalue())
         self.assertIn('test_inbox.py:',log.getvalue())
         self.assertNotIn('PRIVATE_PAYLOAD',log.getvalue())
 
@@ -129,5 +133,49 @@ class InboxTests(unittest.TestCase):
             def pages(self,path): raise KeyboardInterrupt()
         with self.assertRaises(KeyboardInterrupt):
             sweep(Interrupted(),[self.issue],NOW,'url',None)
+
+    def test_pagination_limit_uses_real_pages_and_logs_diagnostic(self):
+        class Full(API):
+            def pages(self,path):
+                if path == '/issues/1/comments':
+                    github=GitHub('o/r','fake')
+                    with patch.object(github,'request',return_value=[{}]*100) as request:
+                        try: return github.pages(path)
+                        finally: self.calls=request.call_count
+                return super().pages(path)
+        api=Full(); log=io.StringIO()
+        with contextlib.redirect_stderr(log):
+            with self.assertRaisesRegex(RuntimeError,'TranPhanTrang'):
+                sweep(api,[self.issue,{**self.issue,'number':2,'id':2}],NOW,'url',None)
+        self.assertEqual(api.calls,100)
+        self.assertIn('Đã chạm trần phân trang',log.getvalue())
+        self.assertEqual(receipt(api.comments[0])['source'],'issue:2')
+
+    def test_exception_message_is_not_logged(self):
+        # Khác IncompleteRead: bí mật nằm trong thông điệp, không chỉ dòng mã.
+        class Broken(API):
+            def pages(self,path): raise ValueError('PRIVATE_MESSAGE')
+        log=io.StringIO()
+        with contextlib.redirect_stderr(log):
+            with self.assertRaises(RuntimeError): sweep(Broken(),[self.issue],NOW,'url',None)
+        self.assertNotIn('PRIVATE_MESSAGE',log.getvalue())
+        self.assertIn('trong reconcile',log.getvalue())
+
+    def test_http_diagnostic_only_logs_valid_metadata(self):
+        for headers, expected in [
+            ({'x-ratelimit-remaining':'0','retry-after':'60','x-github-request-id':'ABCD:1234'},
+             ['x-ratelimit-remaining: 0','retry-after: 60','x-github-request-id: ABCD:1234']),
+            ({'retry-after':'PRIVATE_HEADER\nforged','x-github-request-id':'PRIVATE_HEADER'},[]),
+            (None,[])]:
+            class Broken(API):
+                def pages(self,path):
+                    raise urllib.error.HTTPError('https://example.invalid',403,'PRIVATE_BODY',headers,None)
+            log=io.StringIO()
+            with contextlib.redirect_stderr(log):
+                with self.assertRaises(RuntimeError): sweep(Broken(),[self.issue],NOW,'url',None)
+            self.assertIn('HTTP status: 403',log.getvalue())
+            for value in expected: self.assertIn(value,log.getvalue())
+            self.assertNotIn('PRIVATE_',log.getvalue())
+            self.assertNotIn('forged',log.getvalue())
 
 if __name__ == '__main__':unittest.main()

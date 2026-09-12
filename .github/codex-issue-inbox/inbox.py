@@ -65,6 +65,10 @@ def render(data, source_url, run_url):
             'Yêu cầu bị giới hạn không tự chạy lại; sau 24 giờ có thể gửi comment mới.')
 
 
+class TranPhanTrang(RuntimeError):
+    """Không trả dữ liệu thiếu khi hàng đợi vượt trần phân trang."""
+
+
 class GitHub:
     def __init__(self, repo, token):
         if not re.fullmatch(r'[\w.-]+/[\w.-]+', repo):
@@ -89,7 +93,7 @@ class GitHub:
             result.extend(rows)
             if len(rows) < 100:
                 return result
-        raise RuntimeError('Pagination limit reached; no silent truncation')
+        raise TranPhanTrang('Đã chạm trần phân trang; không cắt bỏ dữ liệu.')
 
     def allowed(self, user):
         # Reject bot-to-bot loops. Claude Desktop posts as the authorized human user.
@@ -156,7 +160,14 @@ def sweep(api, issues, now, run_url, since):
                 print(f"  {os.path.basename(frame.filename)}:{frame.lineno} trong {frame.name}", file=sys.stderr)
             if isinstance(exc, urllib.error.HTTPError):
                 print(f"  HTTP status: {exc.code}", file=sys.stderr)
-            elif isinstance(exc, RuntimeError) and str(exc) == 'Pagination limit reached; no silent truncation':
+                # Chỉ in metadata đã kiểm dạng, không in toàn header/body.
+                for key, pattern in [('x-ratelimit-remaining', r'[0-9]{1,20}'),
+                                     ('retry-after', r'[0-9]{1,20}'),
+                                     ('x-github-request-id', r'[0-9A-Fa-f:]{1,100}')]:
+                    value = (exc.headers or {}).get(key, '')
+                    if isinstance(value, str) and re.fullmatch(pattern, value):
+                        print(f"  {key}: {value}", file=sys.stderr)
+            elif isinstance(exc, TranPhanTrang):
                 print('  Đã chạm trần phân trang; không cắt bỏ dữ liệu.', file=sys.stderr)
             errors.append(f"#{issue.get('number', '?')}: {type(exc).__name__}")
     if errors:

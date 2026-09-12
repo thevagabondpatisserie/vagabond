@@ -233,3 +233,8 @@ Nguồn: PR #281, review và sửa tài liệu PR #282; chưa có nghiệm thu b
 ### PR281 - lỗi HTTP không cùng họ OSError
 
 IncompleteRead kế thừa HTTPException nên tuple lỗi cũ không cô lập được issue hỏng. Bắt Exception tại ranh giới từng issue, giữ BaseException cho ngắt chủ động, báo lỗi cuối lượt. Log phải giữ file/dòng/hàm và mã HTTP nhưng không in payload hoặc thông điệp ngoại lệ tùy ý; ca kiểm chốt issue kế tiếp được nhận và log không rò payload.
+
+
+### PR281 - hoàn tất chẩn đoán N1/N2/N3
+
+Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages thật tới đủ100 trang. Kiểm riêng thông điệp ngoại lệ có dữ liệu kín và frame reconcile. Với HTTP403 chỉ in metadata trong danh sách cho phép và đúng định dạng: số lượt còn lại, thời gian chờ, request ID. Thiếu metadata không được tự kết luận là thiếu quyền. Không in body hoặc header tùy ý.
