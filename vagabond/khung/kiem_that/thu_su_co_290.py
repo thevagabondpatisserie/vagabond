@@ -71,3 +71,22 @@ def combo_cu():
     la('cửa ghi sổ thành công',ket,(1,0,''));hd.reload()
     la('đã rã mã gốc',[d.item_code for d in hd.items],[ma_goc])
     la('đã ghi sổ',hd.docstatus,1);dung('GL thật',bool(_gl(hd)))
+
+@ca('#290 B1-3 lưu Sales chặn quà có tiền tay trước DB, bảng máy gỡ qua Document')
+def sales_doi_qua():
+    from vagabond import thanh_toan_nhieu as ttn
+    for may in (0,1):
+        hd=_hoa_don(False)
+        hd.custom_nguon='Tại chỗ';hd.vgb_quay='TCV'
+        hd.vgb_pt_thanh_toan='Tiền mặt';hd.vgb_pt_do_may=1
+        hd.append(ttn.BANG,dict(pt='Tiền mặt',so_tien=hd.grand_total,do_may=may))
+        hd.save(ignore_permissions=True);hd.reload()
+        try: ban_hang.luu_thanh_toan(hd.name,pt='Hàng tặng')
+        except frappe.ValidationError as e:
+            dung('chỉ chặn dòng tay',not may)
+            dung('hướng dẫn tiền tay','dòng thanh toán' in str(e))
+        else: dung('dòng tay không được qua',bool(may))
+        hd.reload()
+        la('phương thức DB',hd.vgb_pt_thanh_toan,'Hàng tặng' if may else 'Tiền mặt')
+        la('bảng tay giữ nguyên, máy gỡ',len(hd.get(ttn.BANG) or []),0 if may else 1)
+        hd.save(ignore_permissions=True);hd.reload()  # Không để tờ kẹt ở lần lưu kế.

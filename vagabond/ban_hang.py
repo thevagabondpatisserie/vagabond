@@ -2431,9 +2431,20 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 	# Luu nhap thi chua bat buoc, den luc ghi so moi bat.
 	ma = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
-	frappe.db.set_value(
-		"Sales Invoice", si_name, {"vgb_pt_thanh_toan": pt, "vgb_ma_tham_chieu": ma, "vgb_pt_do_may": 0}
-	)
+	if pt == "Hàng tặng":
+		# Document._save chạy validate trước khi cập nhật parent/child.
+		# Không set_value bỏ qua chốt dòng tiền tay rồi để nhịp sau bị kẹt.
+		doc = frappe.get_doc("Sales Invoice", si_name)
+		if doc.docstatus != 0:
+			frappe.throw("Hoá đơn đã ghi sổ, không chuyển sang Hàng tặng được.")
+		doc.vgb_pt_thanh_toan = pt
+		doc.vgb_ma_tham_chieu = ma
+		doc.vgb_pt_do_may = 0
+		doc.save(ignore_permissions=True)
+	else:
+		frappe.db.set_value(
+			"Sales Invoice", si_name, {"vgb_pt_thanh_toan": pt, "vgb_ma_tham_chieu": ma, "vgb_pt_do_may": 0}
+		)
 	frappe.db.commit()
 	return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
 

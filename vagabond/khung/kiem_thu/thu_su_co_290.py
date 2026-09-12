@@ -126,3 +126,18 @@ def bo_qua_qua():
     g=dict(frappe=f,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay=''),_sepay_theo_don=lambda *a:{},ghi_so_dieu_kien=ghi_so_dieu_kien,_chuan_bi_ghi_so=lambda *a:None,_tu_xuat_hddt=lambda *a:(False,''))
     r=nap('ban_hang.py','chot_doanh_so',g)('2026-09-11')
     la('chỉ tờ duyệt',da_ghi,['Đã duyệt']);la('không báo lỗi giả',r['loi'],[])
+
+@ca('#290 B1-3 đổi quà ở màn Sales phải kiểm trước khi ghi DB')
+def luu_qua_co_tien_tay():
+    from vagabond import thanh_toan_nhieu as ttn
+    ghi=[]
+    d=D(name='SI',custom_nguon='Tại chỗ',docstatus=0,vgb_pt_thanh_toan='Tiền mặt',vgb_ma_tham_chieu='',flags=D())
+    d[ttn.BANG]=[D(pt='Tiền mặt',so_tien=100,do_may=0)]
+    d.save=lambda **kw: (ttn.dat_pt_chinh(d),ghi.append('save'))
+    d.set=lambda k,v:d.__setitem__(k,v)
+    f=NS(db=NS(get_value=lambda *a,**k:d,set_value=lambda *a,**k:ghi.append('set'),commit=lambda:ghi.append('commit')),get_doc=lambda *a:d,throw=lambda s:(_ for _ in ()).throw(RuntimeError(s)))
+    g=dict(frappe=f,_kiem_quyen=lambda:None,_kiem_pt=lambda p,n:p,luat_thanh_toan=NS(ma_can_ghi=lambda *a:''),_chuan_ma_tham_chieu=lambda *a,**k:'')
+    try: nap('ban_hang.py','luu_thanh_toan',g)('SI',pt='Hàng tặng')
+    except Exception as e: dung('câu hướng dẫn dòng tay','dòng thanh toán' in str(e))
+    else: dung('không cho ghi trạng thái kẹt',False)
+    la('không ghi hoặc commit',ghi,[])

@@ -26,3 +26,9 @@ B1 đã tái hiện: với cờ máy còn 1, đồng bộ đổi Hàng tặng th
 A2 chỉ lấy Sales có nguồn Pancake và quầy trong tu_ghi_so_quay; không lấy trả hàng hoặc tạm tính; bỏ qua quà chờ duyệt/từ chối. B4 thêm ca bật kho lại rồi hủy tờ đã ghi sổ khi tắt. Nháp đã mang dấu kho 0 vẫn giữ đường cũ sau khi bật lại.
 
 Bench lượt đầu 173/176 mỗi lượt: fixture B1 thiếu nguồn đơn; fixture A3 phát hiện bench thiếu Custom Field vgb_ma_tham_chieu so với snapshot site; ca kho cũ chưa bật công tắc mới. Bổ sung đúng nguồn/cột/công tắc, giữ mọi kiểm GL/SLE. Không coi lượt đỏ là đạt. Trong ca tích hợp, transaction control bị vô hiệu hóa có chủ ý; rollback không savepoint không chứng minh rollback thật.
+
+## Review B1-3, 5646769550
+
+Cửa luu_thanh_toan dùng set_value đã bỏ qua validate, cho ghi Hàng tặng kèm dòng tiền tay rồi lần lưu sau kẹt. Ca gọi chính hàm đỏ trên b158db2 (đã set/commit). Khi chuyển sang quà nay dùng Document.save, kiểm trước khi ghi parent/child, cùng hook với POS; không dùng dong_cua vì hàm đọc đó nuốt lỗi DB và trả rỗng. Tờ đã ghi sổ không đổi sang quà. Bảng máy được gỡ qua Document, không xóa bảng tay bằng SQL. Câu lỗi nói cả hai chiều quà/dòng tiền. Ca bench kiểm lại DB sau bị từ chối, giữ nguyên phương thức/bảng tay, và lưu lần sau vẫn được; bảng máy chuyển được và gỡ đúng.
+
+Bench b158db2 đã đạt 176/176 hai lượt, sạch; đó là bằng chứng bản trước B1-3. SHA mới phải chạy lại bench trước phát hành.

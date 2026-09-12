@@ -311,7 +311,7 @@ def dat_pt_chinh(doc):
 		if dang_co and all(d.get("do_may") for d in dang_co):
 			doc.set(BANG, [])
 		elif dang_co:
-			frappe.throw("Đơn đang có dòng thanh toán nhập tay. Kiểm tra và sửa các dòng thanh toán trước khi chuyển sang Hàng tặng.")
+			frappe.throw("Hàng tặng không dùng cùng dòng thanh toán nhập tay. Giữ phương thức thu tiền nếu khách đã trả; nếu là quà tặng, nhờ kế toán kiểm tra các dòng thanh toán trước khi đổi.")
 		return
 	try:
 		dong = gom_dong([
