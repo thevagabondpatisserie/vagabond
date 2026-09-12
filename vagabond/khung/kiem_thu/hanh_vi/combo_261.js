@@ -49,7 +49,7 @@ console.log('PASS #261: gộp dòng in cộng thành tiền đã chốt, không 
   const dg=require('./dom_gia.js');
   for (const lyDo of ['Ngoài khung giờ 07:00 - 11:00','Không áp dụng cho quầy TCV']) {
     const tai=dg.taiLieuGia(), bao=[];
-    const m={document:tai,CFGBH:{},console,setTimeout:()=>0,h:s=>String(s||''),money:s=>String(s||0),flt0:Number,num:String,toast:s=>bao.push(s)};
+    const m={document:tai,CFGBH:{},console,setTimeout:()=>0,scanBarcode:async()=> 'KMCB1',h:s=>String(s||''),money:s=>String(s||0),flt0:Number,num:String,toast:s=>bao.push(s)};
     vm.createContext(m);vm.runInContext(src,m);
     Object.assign(m,{posDoc:()=>{},posQuay:{ma:'TCV'},posDon:{mon:[],combo:[]},posNguonThuc:()=> 'Tại chỗ',dsItemsCache:[{name:'KMCB1',item_name:'Combo thử',standard_rate:100}],api:async ten=>ten.includes('ds_combo')?{combo:[{name:'CB1',ma_hang:'KMCB1',ten:'Combo thử',dung_duoc:0,ly_do:lyDo,dong:[],gia_combo:100}]}:{}});
     await m.posThemMon();
@@ -59,10 +59,13 @@ console.log('PASS #261: gộp dòng in cộng thành tiền đã chốt, không 
     assert.equal(rows.length,2,'giữ cả thẻ combo không dùng được và mã hàng');
     for(const row of rows) lst.onclick({target:row});
     assert.deepEqual(bao,[lyDo,lyDo]);assert.equal(m.posDon.mon.length,0);
+    await tai.body.querySelector('#shQuet').onclick();
+    const quet=lst.querySelectorAll('.shi');assert.equal(quet.length,1,'quét chỉ hiện dòng mã hàng');
+    lst.onclick({target:quet[0]});assert.equal(bao[2],lyDo);assert.equal(m.posDon.mon.length,0);
   }
   for (const coCauHinh of [false,true]) {
     const tai=dg.taiLieuGia(), bao=[];
-    const m={document:tai,CFGBH:{},console,setTimeout:()=>0,h:s=>String(s||''),money:s=>String(s||0),flt0:Number,num:String,toast:s=>bao.push(s),comboKhoa:ma=>ma};
+    const m={document:tai,CFGBH:{},console,setTimeout:()=>0,scanBarcode:async()=> 'KMCB1',h:s=>String(s||''),money:s=>String(s||0),flt0:Number,num:String,toast:s=>bao.push(s),comboKhoa:ma=>ma};
     vm.createContext(m);vm.runInContext(src,m);
     Object.assign(m,{posDoc:()=>{},posQuay:{ma:'TCV'},posDon:{mon:[],combo:[]},posNguonThuc:()=> 'Tại chỗ',dsItemsCache:[{name:'KMCB1',item_name:'Combo thử',standard_rate:100}],api:async ten=>ten.includes('ds_combo')?{combo:coCauHinh?[{name:'CB1',ma_hang:'KMCB1',ten:'Combo thử',dung_duoc:1,dong:[{item_code:'BANH1',so_luong:1,gia_goc:100}],gia_combo:100}]:[]}:{}});
     await m.posThemMon();

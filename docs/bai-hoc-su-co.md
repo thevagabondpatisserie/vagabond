@@ -342,3 +342,7 @@ Không suy từ lời gọi commit rằng bench đã commit thật. `nen._cach_l
 tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
 ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
 cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.
+
+### 12/09/2026 - Combo issue 283: giữ lý do từ máy chủ
+
+Lọc bỏ dung_duoc=0 phía quầy làm mất lý do hết giờ/sai quầy rồi báo nhầm thiếu cấu hình. Giữ kết quả và chặn ở đường bấm chung. Thẻ xám vẫn bấm để giải thích nhưng không thêm món; kiểm cả mã KMCB lẫn thẻ, thiếu cấu hình và combo hợp lệ.
