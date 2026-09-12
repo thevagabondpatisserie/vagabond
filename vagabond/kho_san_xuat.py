@@ -942,6 +942,10 @@ def hoan_tat_phieu(phieu, q=None, can=None):
 		phieu["remarks"] = ("Làm theo lệnh %s, cân thực tế %s. Hao hụt %s."
 			% (_goc_so(fg), _goc_so(qty_tp), _goc_so(fg - qty_tp)))
 
+	# Hoàn tất trên app là ghi nhận ngay lúc làm, không phải cửa ghi lùi ngày.
+	# ERPNext TransactionBase.validate_posting_time dùng giờ site khi cờ này
+	# tắt. Không tin đồng hồ điện thoại: UTC từng đặt xuất trước nhập 7 giờ.
+	phieu["set_posting_time"] = 0
 	doc = frappe.get_doc(phieu)
 	doc.insert()
 	doc.submit()

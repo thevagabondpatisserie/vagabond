@@ -131,7 +131,14 @@ def xac_thuc(sdt=None, ma=None):
 	)
 	if not ds:
 		return {"ok": 0, "ly_do": "ma_het_han"}
-	o = ds[0]
+	# Khóa rồi đọc lại: hai lượt xác thực đồng thời không dùng cùng OTP,
+	# và các lần sai không ghi đè bộ đếm của nhau.
+	da_khoa = frappe.db.sql(
+		"select name, ma_bam, so_lan_sai, da_dung, het_han from `tabVagabond OTP` where name=%s for update",
+		(ds[0]["name"],), as_dict=True)
+	if not da_khoa or da_khoa[0].da_dung or da_khoa[0].het_han <= now_datetime():
+		return {"ok": 0, "ly_do": "ma_het_han"}
+	o = da_khoa[0]
 	if (o.get("so_lan_sai") or 0) >= OTP_SAI_TOI_DA:
 		return {"ok": 0, "ly_do": "sai_qua_nhieu"}
 	if o["ma_bam"] != _bam(ma):
@@ -170,7 +177,7 @@ def thoat(token=None):
 # ---------------------------------------------------------------- Cong khach
 
 
-def _don_pancake(c, k, sdt_noi_dia, gioi_han=30):
+def _don_pancake(c, k, sdt_noi_dia, gioi_han=30, bao_loi=False):
 	"""Lich su don cua mot so dien thoai, doc thang tu Pancake."""
 	try:
 		r = requests.get(
@@ -178,9 +185,16 @@ def _don_pancake(c, k, sdt_noi_dia, gioi_han=30):
 			params={"api_key": k, "search": sdt_noi_dia, "page_size": gioi_han, "page_number": 1},
 			timeout=TIMEOUT,
 		)
-		ds = (r.json() or {}).get("data") or []
+		if bao_loi:
+			r.raise_for_status()
+		goi = r.json()
+		if bao_loi and (not isinstance(goi, dict) or not isinstance(goi.get("data"), list) or goi.get("success") is False):
+			raise ValueError("Pancake trả dữ liệu lịch sử không hợp lệ")
+		ds = (goi or {}).get("data") or []
 	except Exception:
 		frappe.log_error(title="Vagabond: khong doc duoc don cua khach", message=frappe.get_traceback())
+		if bao_loi:
+			raise
 		return []
 
 	ra = []
@@ -245,6 +259,8 @@ def toi(token=None):
 
 	c = cfg()
 	k = key(c, "pancake_api_key")
+	# API tương thích cũ; trang thành viên hiện dùng thanh_vien.toi để phân
+	# biệt lỗi nguồn và lịch sử rỗng. Không nối trang mới vào cửa cũ này.
 	don = _don_pancake(c, k, noi_dia) if (k and c.pancake_shop_id) else []
 	return {
 		"ok": 1,

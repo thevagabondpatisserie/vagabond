@@ -1,0 +1,14 @@
+/* #245: giữ lưới chọn bánh hiện tại, dùng branding cho nhịp chữ và điểm nhấn. */
+body .hd{height:72px;gap:14px}body .logo{height:38px}body .hd-phone{font-size:13px;margin-left:auto}
+.dich-vu{display:flex;gap:8px}.dich-vu a{display:flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:30px;font-size:14px;white-space:nowrap}.dich-vu a:hover{border-color:var(--cyan);color:var(--cyan)}
+body .tabs{top:72px}body .tab{font-size:13px;min-height:48px}body .hero{padding-top:32px;padding-bottom:24px}
+body .h1{font-size:clamp(48px,7vw,90px)}body .c-name{font-size:clamp(22px,2.4vw,30px);line-height:1.18}body .c-price{font-size:14px}body .c-go{font-size:11px;min-height:44px;letter-spacing:.08em}body .sz{font-size:12px}body .grid{gap:28px 20px}
+body .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){border-radius:28px;min-height:44px;font-size:13px;letter-spacing:.07em}
+body .sky{opacity:.3}#danh-muc-banh{scroll-margin-top:130px}
+[data-vgb-vi-tri] .web-khoi{max-width:1240px;margin:auto}[data-vgb-vi-tri] .web-chu{padding:32px 40px}[data-vgb-vi-tri] .web-tieu-de{font-size:clamp(30px,4vw,52px);line-height:1.15}[data-vgb-vi-tri] .web-doan{font-size:15px}
+[data-vgb-vi-tri=dau_trang] .web-khoi{min-height:0;border-bottom:1px solid var(--line-2)}[data-vgb-vi-tri=dau_trang] .web-chu{padding:15px 40px}[data-vgb-vi-tri=dau_trang] .web-tieu-de{font-size:23px}[data-vgb-vi-tri=dau_trang] .web-nhan{font-size:10px;margin-bottom:4px}[data-vgb-vi-tri=dau_trang] .web-anh{max-height:180px;object-fit:cover}[data-vgb-vi-tri] .web-anh_bia{min-height:280px;height:auto;max-height:480px}
+.vgb-dang-chon{outline:3px solid #29bdb3;outline-offset:-3px}.vgb-xem-thu .web-khoi{cursor:pointer}.vgb-xem-thu::before{content:'XEM TRƯỚC · KHÔNG GỬI ĐƠN';display:block;background:#29bdb3;color:#00201d;text-align:center;font:12px/28px Arial,sans-serif}
+@media(max-width:640px){body .hd{height:68px;gap:8px}body .logo{height:32px}body .hd-phone{display:none}.dich-vu{margin-left:auto;gap:6px}.dich-vu a{font-size:13px;padding:8px 10px}body .tabs{top:68px}body .tab{padding:12px;letter-spacing:.02em}body .hero{padding-top:24px}body .grid{gap:24px 14px}[data-vgb-vi-tri] .web-chu{padding:24px 20px}[data-vgb-vi-tri=dau_trang] .web-chu{padding:14px 20px}[data-vgb-vi-tri=dau_trang] .web-tieu-de{font-size:20px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}body *,body *::before,body *::after{animation:none!important;transition:none!important}}
+
+[data-vgb-tieu-de]{white-space:pre-line}.vgb-xem-thu [data-vgb-tieu-de]{cursor:pointer}

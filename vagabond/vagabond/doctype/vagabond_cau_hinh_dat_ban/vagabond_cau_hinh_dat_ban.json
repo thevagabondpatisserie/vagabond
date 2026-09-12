@@ -1,0 +1,53 @@
+{
+  "doctype": "DocType",
+  "name": "Vagabond Cau Hinh Dat Ban",
+  "module": "Vagabond",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "bat",
+      "fieldtype": "Check",
+      "label": "Mở nhận yêu cầu đặt bàn",
+      "default": "0"
+    },
+    {
+      "fieldname": "co_so",
+      "fieldtype": "Select",
+      "label": "Cơ sở nhận đặt bàn",
+      "options": ""
+    },
+    {
+      "fieldname": "khung_gio",
+      "fieldtype": "Small Text",
+      "label": "Khung giờ (mỗi dòng HH:MM)"
+    },
+    {
+      "fieldname": "toi_da_khach",
+      "fieldtype": "Int",
+      "label": "Số khách tối đa một yêu cầu",
+      "default": "8"
+    },
+    {
+      "fieldname": "toi_da_ngay",
+      "fieldtype": "Int",
+      "label": "Nhận trước tối đa bao nhiêu ngày",
+      "default": "30"
+    }
+  ],
+  "field_order": [
+    "bat",
+    "co_so",
+    "khung_gio",
+    "toi_da_khach",
+    "toi_da_ngay"
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1
+    }
+  ],
+  "track_changes": 1,
+  "issingle": 1
+}

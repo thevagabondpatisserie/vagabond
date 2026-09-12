@@ -87,6 +87,17 @@ function vdTomTatDongBo(kq) {
   return dong.join('\n');
 }
 
+// Bốn dữ liệu độc lập: tải cùng lúc để mở màn không chờ bốn lượt mạng.
+// Lỗi danh sách vẫn chặn màn; danh mục phụ giữ fallback như trước.
+async function vdNapDanhSach() {
+  return Promise.all([
+    api('vagabond.van_don.danh_sach', vdThamSo()),
+    api('vagabond.van_don.bo_loc', { ngay: vdNgay }).catch(function () { return null; }),
+    vtShipper ? Promise.resolve(vtShipper) : api('vagabond.van_don.ds_shipper').catch(function () { return []; }),
+    vdNapDiem()
+  ]);
+}
+
 async function scrVanDon() {
   vdTuLamMoi();
   if (!vdNgay) vdNgay = today();
@@ -97,9 +108,10 @@ async function scrVanDon() {
     ds = vdDs;
   } else {
     vdVeSuong = 0;
-    try { ds = await api('vagabond.van_don.danh_sach', vdThamSo()); try { vdBoLoc = await api('vagabond.van_don.bo_loc', { ngay: vdNgay }); } catch (e9) { vdBoLoc = null; }
-    if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e10) { vtShipper = []; } }
-    await vdNapDiem(); }
+    try {
+      var nap = await vdNapDanhSach();
+      ds = nap[0]; vdBoLoc = nap[1]; vtShipper = nap[2];
+    }
     catch (e) { frame('Vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>'); return; }
     vdDs = ds; vdDsNgay = vdNgay;
   }
@@ -928,7 +940,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '476';
+var APPVER = '480';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

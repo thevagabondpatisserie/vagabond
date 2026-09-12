@@ -1,0 +1,30 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Can Tru Phi",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "field_order": [
+  "hoa_don",
+  "so_tien"
+ ],
+ "fields": [
+  {
+   "fieldname": "hoa_don",
+   "label": "Hoá đơn phí",
+   "fieldtype": "Link",
+   "options": "Purchase Invoice",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "so_tien",
+   "label": "Phí đã gồm VAT bị sàn giữ",
+   "fieldtype": "Currency",
+   "reqd": 1,
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [],
+ "track_changes": 1,
+ "istable": 1
+}

@@ -1,0 +1,203 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Can Tru San",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "san",
+  "diem_ban",
+  "khach_hang",
+  "nha_cung_cap",
+  "mst",
+  "tu_ngay",
+  "den_ngay",
+  "ngay_bu",
+  "tham_chieu",
+  "can_cu",
+  "xac_nhan",
+  "phi",
+  "ban",
+  "tong_bu",
+  "trang_thai",
+  "ly_do",
+  "but_toan",
+  "khoa",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "label": "Công ty",
+   "fieldtype": "Link",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "san",
+   "label": "Sàn",
+   "fieldtype": "Select",
+   "options": "GrabFood\nShopeeFood\nBeFood\nGreenSM Food",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "diem_ban",
+   "label": "Điểm bán",
+   "fieldtype": "Select",
+   "options": "\nSALES\nTCV\nNVHTN",
+   "reqd": 1
+  },
+  {
+   "fieldname": "khach_hang",
+   "label": "Khách hàng công nợ sàn",
+   "fieldtype": "Link",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "nha_cung_cap",
+   "label": "Nhà cung cấp xuất phí",
+   "fieldtype": "Link",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "mst",
+   "label": "Mã số thuế nhà cung cấp",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tu_ngay",
+   "label": "Từ ngày",
+   "fieldtype": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "den_ngay",
+   "label": "Đến ngày",
+   "fieldtype": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ngay_bu",
+   "label": "Ngày bù",
+   "fieldtype": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tham_chieu",
+   "label": "Mã bảng đối soát sàn",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "can_cu",
+   "label": "Bảng đối soát xác nhận phí đã giữ",
+   "fieldtype": "Attach",
+   "reqd": 1
+  },
+  {
+   "fieldname": "xac_nhan",
+   "label": "Đã kiểm đúng pháp nhân, điểm bán và phí đã bị khấu trừ",
+   "fieldtype": "Check",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phi",
+   "label": "Hoá đơn phí",
+   "fieldtype": "Table",
+   "options": "Vagabond Can Tru Phi",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ban",
+   "label": "Hoá đơn bán được bù",
+   "fieldtype": "Table",
+   "options": "Vagabond Can Tru Ban",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tong_bu",
+   "label": "Tổng bù",
+   "fieldtype": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "label": "Trạng thái",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ly_do",
+   "label": "Cần xử lý",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "but_toan",
+   "label": "Bút toán cấn trừ",
+   "fieldtype": "Link",
+   "options": "Journal Entry",
+   "read_only": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "khoa",
+   "label": "Khoá chống trùng",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "label": "Sửa từ",
+   "fieldtype": "Link",
+   "options": "Vagabond Can Tru San",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "report": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "track_changes": 1,
+ "autoname": "format:CTSAN-{#####}",
+ "is_submittable": 1
+}

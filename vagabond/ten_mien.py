@@ -30,12 +30,17 @@ BA ĐIỀU CẨN THẬN, ĐỌC TRƯỚC KHI SỬA TỆP NÀY
 MIEN_APP = "app.thevagabondpatisserie.com"
 MIEN_DESK = "erp.thevagabondpatisserie.com"
 MIEN_KHACH = "order.thevagabondpatisserie.com"
+# Sẵn sàng nhận apex/www; chỉ đổi link phát ra sau khi DNS và SSL được kiểm.
+MIEN_CHINH = "thevagabondpatisserie.com"
+CAC_MIEN_KHACH = (MIEN_KHACH, MIEN_CHINH, "www." + MIEN_CHINH)
 
 # Trang chu cua tung mien.
 NHA = {
 	MIEN_APP: "/bep",
 	MIEN_DESK: "/app",
 	MIEN_KHACH: "/banh",
+	MIEN_CHINH: "/banh",
+	"www." + MIEN_CHINH: "/banh",
 }
 
 # Duong dan KHONG BAO GIO bi dinh vao, du o mien nao. Xem dieu 3 o tren.
@@ -49,7 +54,7 @@ CHUA_RA = (
 # Mien app: app nghiep vu va cac man con cua no.
 DAU_APP = ("/bep", "/btp", "/kiem-banh", "/kho-moi", "/kho-v2", "/in-tem", "/cuon-ma")
 # Mien khach: trang dat banh va thanh toan don.
-DAU_KHACH = ("/banh", "/tt", "/xhd", "/ong-trang", "/suc-khoe", "/sop-san-xuat")
+DAU_KHACH = ("/dat-ban", "/thanh-vien", "/banh", "/tt", "/xhd", "/ong-trang", "/suc-khoe", "/sop-san-xuat")
 # Mien Desk: khong khai o day, xem `_la_desk`.
 
 # DUONG DI QUA MOI MIEN, khong bao gio bi da (them 03/09/2026).
@@ -118,7 +123,7 @@ def dich_chuyen_huong(host, duong, duong_app=()):
 		return "" if la_app else (NHA[m] if (la_desk or la_khach) else "")
 	if m == MIEN_DESK:
 		return "" if la_desk else (NHA[m] if (la_app or la_khach) else "")
-	if m == MIEN_KHACH:
+	if m in CAC_MIEN_KHACH:
 		return "" if la_khach else (NHA[m] if (la_app or la_desk) else "")
 	return ""
 

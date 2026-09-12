@@ -89,6 +89,13 @@ def chay():
 
 
 if __name__ == "__main__":
+	web_http = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.web_http_245"], check=False)
+	if web_http.returncode:
+		raise RuntimeError("Cửa HTTPS/cookie/đồng thời web chưa đạt.")
+	# Kiểm web trong cùng bench riêng trước các bộ nghiệp vụ hiện hành.
+	web = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.chay_web_245"], check=False)
+	if web.returncode:
+		raise RuntimeError("Cửa editor/đặt bàn/thành viên chưa đạt.")
 	dat = chay()
 	# Kịch bản này cố ý commit và mở nhiều kết nối. Chỉ chạy sau khi bộ
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
@@ -97,5 +104,6 @@ if __name__ == "__main__":
 	# Render và HTTP upload chạy sau bộ hoàn nguyên, trên site dùng một lần.
 	in_app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.in_app_263"], check=False)
 	phan_bo = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.phan_bo_247"], check=False)
-	if not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode:
+	can_tru = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.can_tru_262"], check=False)
+	if not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")
