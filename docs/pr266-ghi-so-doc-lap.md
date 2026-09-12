@@ -46,3 +46,11 @@ C5 còn chặn merge/deploy: Mac khóa, chưa đọc được After Submit produ
 - Redis lỗi vẫn đi tới log/thư; mất mốc có thể báo lặp, không giữ im. Mốc chỉ đặt sau queue/commit, không nhận SMTP đã gửi.
 - Nhả khóa đồng bộ trước khi báo hoãn ở cả hai caller. Câu hoãn cùng ngày/caller thay dòng cũ, không xếp chồng.
 - Bench chốt thêm tập ngày thực sự dùng để rút cạn. Chưa chạy lượt này.
+
+## Review E1-E6
+
+Giữ số tờ khi chỉ đọc tổng tiền lỗi: tổng tiền None được nói rõ, có Error Log thật. Thư đếm được có Cài đặt > Cuối ngày > Chạy ngay và hướng dẫn xử lý nợ ngày cũ; thư đếm lỗi yêu cầu xác minh. Không khôi phục mốc0h thành hạn chung. Nguồn Chính phủ về khoản9 Điều10 sửa bởi NĐ70/2025: https://xaydungchinhsach.chinhphu.vn/nghi-dinh-so-70-2025-nd-cp-sua-doi-bo-sung-quy-dinh-noi-dung-cua-hoa-don-119250402145733568.htm . Không thay quy tắc pháp lý backend trong delta này.
+
+Mốc log/thư thêm SHA256 tập lỗi: lỗi mới có thông báo, cùng tập lỗi không lặp. Câu nhật ký rút gọn và vẫn nói rõ lượt này; không cộng dồn cache rồi coi là số nợ thật (E4 để phần tổng hợp từ DB riêng). Nhịp bù vẫn có thể ghi Error Log theo giờ khi hàng rào chưa thông; không coi sự xuất hiện job là bằng chứng đã phát hành.
+
+Bản tích hợp có đủ patches481/482 và APPVER482, bao gồm PR2101684bcf. Chưa deploy, chưa đọc C5/D1(b) trên production.

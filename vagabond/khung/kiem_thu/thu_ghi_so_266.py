@@ -82,19 +82,24 @@ def canh_bao():
 		nap('canh_bao_hddt_sot', g)()
 		dung('chuông sót vẫn ghi', 'CẢNH BÁO còn 140' in state['tu_ghi_so_nhat_ky'])
 		la('chuông sót vẫn gửi thư riêng', len(mail), 2)
-		moc.pop('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-mail')
+		moc.pop('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-e3b0c44298fc1c14-mail')
 
 		def hong(**kw):
 			raise RuntimeError('Hàng đợi không ghi được')
 		f.sendmail = hong
 		fn('2026-09-12', 0, [], 'xuat-rai')
-		la('xếp thư lỗi không ghi mốc thành công', moc.get('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-mail'), None)
+		la('xếp thư lỗi không ghi mốc thành công', moc.get('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-e3b0c44298fc1c14-mail'), None)
 		f.sendmail = lambda **kw: mail.append(kw)
 		fn('2026-09-12', 0, [], 'xuat-rai')
 		la('nhịp sau vẫn xếp lại được', len(mail), 3)
 		fn('2026-09-12', 140, ['Đơn thử thiếu phương thức'], 'cuoi-ngay')
 		la('cuối ngày có thư riêng', len(mail), 4)
 		dung('log giữ nội dung lỗi', any('Đơn thử thiếu phương thức' in str(x) for x in logs))
+		so_log=len(logs)
+		fn('2026-09-12', 140, ['Đơn thử thiếu phương thức'], 'cuoi-ngay')
+		la('cùng lỗi không log lặp',len(logs),so_log)
+		la('cùng lỗi không thư lặp',len(mail),4)
+
 		def hong_cache():
 			raise RuntimeError('Redis ngắt')
 		f.cache=hong_cache
@@ -109,6 +114,20 @@ def canh_bao():
 		la('đếm lỗi vẫn có thư', len(mail), 6)
 		dung('nhật ký không coi lỗi là0', 'không đếm được' in state['tu_ghi_so_nhat_ky'])
 		dung('thư nói chưa biết số', 'chưa đếm được' in mail[-1]['subject'])
+		dung('đếm hỏng không hướng dẫn chạy ngay', 'Cuối ngày &gt;' not in mail[-1]['message'] and 'Cuối ngày >' not in mail[-1]['message'])
+		from vagabond import hddt_bu
+		g['hddt_bu']=hddt_bu
+		g['_goi_server_script']=lambda *a:{'so_don_tim_thay':140}
+		g['getdate']=lambda x:x
+		f.db.get_all=lambda *a,**kw:(_ for _ in ()).throw(RuntimeError('Tổng tiền lỗi'))
+		so_log=len(logs)
+		nap('canh_bao_hddt_sot',g)()
+		la('tổng tiền lỗi ghi một log',len(logs)-so_log,1)
+		dung('giữ số tờ đã đếm', '140' in mail[-1]['subject'] and 'chưa đếm được' not in mail[-1]['subject'])
+		dung('nói rõ tiền chưa biết', 'chưa đọc được tổng tiền' in state['tu_ghi_so_nhat_ky'])
+		dung('có đường thao tác khi đã đếm', 'Cài đặt > Cuối ngày > Chạy ngay' in mail[-1]['message'])
+		dung('không dựng mốc0h chung', 'trước 0h' not in mail[-1]['message'])
+
 
 
 @ca('#266 công cụ đặt phiên bản giữ nguyên lịch sử patch và không nhân dòng')

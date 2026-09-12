@@ -244,15 +244,15 @@ Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages
 
 Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_doan chung ở main, vẫn thất bại toàn lượt; thay lỗi cuối bằng thông báo sạch và from None để traceback không in lại thông điệp gốc. Ca kiểm dựng HTTPError ở từng lời gọi tiên quyết, header thật không phân biệt hoa thường, và kiểm cả traceback cuối. Bổ sung thời điểm reset trần; không suy thiếu quyền từ403.
 
-## #266 tái phát12/09: hàng rào phát hành không được chặn ghi sổ
+### #266 tái phát 12/09: hàng rào phát hành không được chặn ghi sổ
 
 Tập chặn có đơn nháp nhưng tập tự gửi chỉ có tờ đã submit và được chọn ngày. Return trước ghi sổ làm cả ngày mới thành backlog. Tách quyết định phát hành khỏi ghi sổ, giữ cửa chung HTTP; đọc script After Submit hiện hành trước khi chốt vì core vẫn gọi script trong submit. Còn nợ nhưng vòng gửi rỗng vẫn phải giữ mốc lỗi và báo riêng, không trông chờ bộ đếm chỉ gồm tờ đã submit.
 
 Công cụ đặt phiên bản phải giữ nguyên lịch sử patches.txt. Không tin docstring: dat_phien_ban.py cũ ghi "giữ nguyên" nhưng lọc xóa mọi dòng cũ. Ca tạm file phải kiểm nội dung từng byte và gọi lần hai không nhân dòng.
 
-### #266 ngày12/09: mock DB quá dễ tính che cột không tồn tại
+### #266 ngày 12/09: mock DB quá dễ tính che cột không tồn tại
 
-Email Queue không có subject (email_queue.json Frappe16.27.1); lọc theo cột đó ném Unknown column trước khi xếp thư. Fake exists nhận mọi filter đã làm ca kiểm xanh giả. Phải đối chiếu schema thật và cho fake từ chối filter lạ. Lỗi đếm hóa đơn không được biến thành0; cache giảm thư lặp bị hỏng không được làm mất cảnh báo.
+Email Queue không có subject (email_queue.json Frappe 16.27.1); lọc theo cột đó ném Unknown column trước khi xếp thư. Fake exists nhận mọi filter đã làm ca kiểm xanh giả. Phải đối chiếu schema thật và cho fake từ chối filter lạ. Lỗi đếm hóa đơn không được biến thành 0; cache giảm thư lặp bị hỏng không được làm mất cảnh báo.
 ### PR210 - dấu chống tạo trùng phải bền trước HTTP
 
 Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không chặn được reload hoặc worker chết sau POST. Ghi ý định DB và enqueue sau commit; worker commit dang_gui trước HTTP, job trùng không nhận lại. Sau kết quả chưa rõ, tìm rỗng không chứng minh chưa tạo. Integration Request có dọn log30ngày nên không dùng làm hàng rào lâu dài. Kiểm bằng tiến trình chết và hai worker trên DB CI, không chỉ mock helper. Cả mã mới/mã cũ dùng cùng handler và xác nhận giá0.
@@ -263,3 +263,8 @@ Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không ch�
 Worker giữ khóa xuyên HTTP để cửa đối soát không chen vào, nhưng request người dùng phải NOWAIT và trả câu chờ. Khóa Item chỉ tuần tự hóa việc tạo dấu đầu tiên, cũng NOWAIT; không được giữ nó để chờ worker. Ghi kết quả bằng điều kiện mã lần/trạng thái để worker cũ không ghi đè. Bench phải cho đối soát chen đúng lúc POST, không chỉ cho hai worker đua ở đầu.
 
 Gộp nhánh không được bỏ dấu vết lỗi. Lưu thời điểm bắt đầu bền trước HTTP, mã HTTP/loại lỗi/hash và độ dài phản hồi trên dấu cùng Error Log. Không lưu nguyên URL/ngoại lệ/thân phản hồi có thể chứa khóa; người đối soát cần dấu vết nhưng không cần bí mật trong log.
+
+
+### Frappe Check trên Desk có checkbox hiển thị riêng
+
+Log bench PR210 cho hai input checkbox trong cùng wrapper: input thao tác có data-fieldname trên chính thẻ input, còn disabled-deselected không có. Chọn hậu duệ wrapper, kể cả lọc type=checkbox, vẫn khớp hai phần tử. Neo locator vào input[data-fieldname] và kiểm trên DOM thật, không dùng nth(0) để che sai lựa chọn.

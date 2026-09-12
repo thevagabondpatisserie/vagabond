@@ -2745,8 +2745,9 @@ def _bao_hoan_phat_hanh(ngay, da_ghi, loi, noi_goi):
 	"""Báo nợ phát hành riêng; không xóa kết quả ghi sổ của lượt trước."""
 	nhan_ngay = "HOÃN PHÁT HÀNH %s (%s):" % (ngay, noi_goi)
 	loi_ghi = len(loi)
+	import hashlib
 	cau = ("%s lượt này ghi sổ %d đơn, %d lỗi. Còn nợ ngày cũ hoặc chưa xác minh được hàng rào. "
-		"Mở Cài đặt > Hóa đơn ngày cũ để xử lý; không tự đổi ngày/gửi lại tờ chưa rõ.") % (nhan_ngay, da_ghi, loi_ghi)
+		"Xem Cài đặt > Hóa đơn ngày cũ; không gửi lại tờ chưa rõ.") % (nhan_ngay, da_ghi, loi_ghi)
 	cu = str(cfg().get("tu_ghi_so_nhat_ky") or "")
 	if nhan_ngay not in cu or da_ghi or loi_ghi:
 		# Giữ cảnh báo mới đủ chữ và phần nhật ký cũ còn chỗ; lượt 0/0 không ghi đè.
@@ -2767,9 +2768,10 @@ def _bao_hoan_phat_hanh(ngay, da_ghi, loi, noi_goi):
 		except Exception:
 			pass  # Redis mất thì lần sau có thể báo lặp, không bỏ thư.
 
-	moc = "vgb-hoan-phat-hanh-%s-%s" % (ngay, noi_goi)
+	van_loi = hashlib.sha256("\n".join(sorted(set(loi))).encode()).hexdigest()[:16]
+	moc = "vgb-hoan-phat-hanh-%s-%s-%s" % (ngay, noi_goi, van_loi)
 	# Lỗi ghi sổ cần giữ nội dung riêng, kể cả đã báo hoãn trước đó.
-	if not doc_moc(moc + "-log") or loi:
+	if not doc_moc(moc + "-log"):
 		try:
 			frappe.log_error(title="Vagabond: hoãn phát hành " + str(ngay),
 				message=cau + ("\n" + giau_khoa("\n".join(loi)) if loi else ""))
@@ -3359,7 +3361,8 @@ def _dem_hddt_sot(ngay):
 			if not (d.custom_hddt_so or "").strip() and not (d.custom_minvoice_id or "").strip()
 		)
 	except Exception:
-		raise
+		frappe.log_error(giau_khoa(frappe.get_traceback()), "ban_hang: dem tien HDDT sot")
+		tien = None
 	return so, tien
 
 
@@ -3395,11 +3398,17 @@ def canh_bao_hddt_sot():
 			return
 		from vagabond.nhan_su import _khung_thu, _nut_xanh, link_app
 
+		buoc_tiep = (
+			"Anh chị mở Cài đặt và Nhật ký lỗi để xác minh phép đếm. Chưa thể kết luận đã xuất đủ."
+			if so is None else
+			"Anh chị xử lý ngay trong ca: mở Cài đặt > Cuối ngày > Chạy ngay. "
+			"Nếu còn nợ ngày cũ, mở mục Hóa đơn ngày cũ để đối soát trước. "
+			"Nhịp bù mỗi giờ không thay việc kiểm tra này."
+		)
 		than = (
 			"<p style='margin:0 0 14px'>%s</p>"
-			"<p>Anh chị mở app kiểm tra Cài đặt và Nhật ký lỗi, đối soát trước khi xử lý. "
-			"Không tự đổi ngày hoặc gửi lại tờ chưa rõ kết quả.</p>"
-		) % frappe.utils.escape_html(cau)
+			"<p style='margin:0 0 14px'>%s Không tự đổi ngày hoặc gửi lại tờ chưa rõ kết quả.</p>"
+		) % (frappe.utils.escape_html(cau), frappe.utils.escape_html(buoc_tiep))
 		frappe.sendmail(
 			recipients=nhan,
 			subject=("Vagabond: chưa đếm được hóa đơn còn sót ngày %s" % ngay if so is None else
