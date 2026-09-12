@@ -67,7 +67,7 @@ def _ket_qua(tt, ma, bao=None):
 
 
 def _doc_luot(ten, khoa=False):
-	return frappe.db.get_value(DT_DAY, ten, ["name", "trang_thai", "thong_bao"], as_dict=True, for_update=khoa)
+	return frappe.db.get_value(DT_DAY, ten, ["name", "trang_thai", "thong_bao", "ma_lan"], as_dict=True, for_update=khoa, wait=not khoa)
 
 
 def _tra_luot(luot, ma):
@@ -145,14 +145,15 @@ def trang_thai_tren_pancake(item_code):
 		return _ket_qua("chua_ro", ma, "Chưa đọc được Pancake. Bấm Kiểm lại sau; không gửi thêm.")
 	if not du:
 		return _ket_qua("chua_ro", ma, "Chưa quét hết Pancake. Không gửi thêm; bấm Kiểm lại sau.")
-	if ds and luot:
-		# Đọc có khóa SAU GET, tránh ghi đè một lượt đang chạy từ ảnh cũ.
-		cu = _doc_luot(luot.name, khoa=True)
-		if cu and cu.trang_thai != "cho":
-			tt = kq.xep_ket_qua_tim(len(ds))
-			frappe.db.set_value(DT_DAY, luot.name, {"trang_thai": tt,
-				"thong_bao": kq.thong_bao(tt, ma, len(ds))})
-	if not ds and luot and luot.trang_thai != "loi":
+	try:
+		luot = _doc_luot(_ten_luot(c.pancake_shop_id, ma), khoa=True)
+	except frappe.QueryTimeoutError:
+		return _ket_qua("dang_cho", ma, "Lượt gửi đang chạy. Chờ một chút rồi bấm Kiểm lại.")
+	if ds and luot and luot.trang_thai != "cho":
+		tt = kq.xep_ket_qua_tim(len(ds))
+		frappe.db.set_value(DT_DAY, luot.name, {"trang_thai": tt,
+			"thong_bao": kq.thong_bao(tt, ma, len(ds))})
+	if not ds and luot:
 		if luot.trang_thai in ("da_tao", "da_co", "xung_dot"):
 			return _ket_qua("chua_ro", ma, "Dấu nội bộ và Pancake đang lệch: chưa tìm thấy mã. Nhờ giám đốc đối soát; không gửi thêm.")
 		# Tìm rỗng không chứng minh POST trước chưa thành công.
@@ -175,18 +176,29 @@ def tao_tren_pancake(item_code, cho_phep_gia_0=0):
 	c = cfg(); k = key(c, "pancake_api_key")
 	if not k or not c.pancake_shop_id:
 		frappe.throw("Chưa điền khoá Pancake trong Vagabond Settings")
-	gia = _gia_niem_yet(it)
+	try:
+		gia = _gia_niem_yet(it)
+	except Exception as e:
+		frappe.log_error(title="Pancake: đọc giá " + ma, message=type(e).__name__)
+		return _ket_qua("loi", ma, "Chưa đọc được bảng giá bán. Kiểm tra cài đặt bảng giá rồi bấm Đẩy lại; chưa gửi Pancake.")
 	duoc, vi_sao = kq.gia_dung_de_day(gia, cint(cho_phep_gia_0))
 	if not duoc:
 		return _ket_qua(vi_sao, ma)
-	# Khoá Item cho tới cuối request, không có TTL/Redis và không gọi mạng.
-	frappe.db.sql("select name from `tabItem` where name=%s for update", (it.name,))
+	if not float(gia).is_integer():
+		return _ket_qua("loi", ma, "Giá bán có phần lẻ đồng. Sửa giá nguyên đồng rồi bấm Đẩy lại; chưa gửi Pancake.")
+	# Item chỉ tuần tự hóa lúc dấu CHƯA tồn tại. Cả hai khóa đều NOWAIT:
+	# không giữ Item để chờ worker đang gọi mạng trên dấu đã tồn tại.
 	ten = _ten_luot(c.pancake_shop_id, ma)
-	cu = _doc_luot(ten, khoa=True)
+	try:
+		frappe.db.sql("select name from `tabItem` where name=%s for update nowait", (it.name,))
+		cu = _doc_luot(ten, khoa=True)
+	except frappe.QueryTimeoutError:
+		return _ket_qua("dang_cho", ma, "Đang có lượt xử lý mã này. Chờ một chút rồi bấm Kiểm lại; không gửi thêm.")
 	if cu and cu.trang_thai != "loi":
 		if cu.trang_thai == "cho":
 			frappe.enqueue("vagabond.pancake_sp.chay_luot_day", ten=ten,
-				queue="long", timeout=1800, enqueue_after_commit=True)
+				queue="long", timeout=1800, enqueue_after_commit=True,
+				job_id="vgb-pancake-" + ten + "-" + cu.ma_lan, deduplicate=True)
 		return _tra_luot(cu, ma)
 	anh = [get_url(it.image)] if it.image and not it.image.startswith("/private") else []
 	body = {"product": {"name": it.item_name or ma, "is_published": True,
@@ -205,8 +217,29 @@ def tao_tren_pancake(item_code, cho_phep_gia_0=0):
 	# Frappe16.27.1 background_jobs.enqueue gắn callback vào db.after_commit.
 	# Worker không thể gọi Pancake trước khi dấu ý định được lưu bền.
 	frappe.enqueue("vagabond.pancake_sp.chay_luot_day", ten=ten,
-		queue="long", timeout=1800, enqueue_after_commit=True)
+		queue="long", timeout=1800, enqueue_after_commit=True,
+		job_id="vgb-pancake-" + ten + "-" + ma_lan, deduplicate=True)
 	return _ket_qua("dang_cho", ma, "Đã nhận yêu cầu. Chờ một chút rồi bấm Kiểm lại; không gửi thêm.")
+
+
+def _ket_luot(luot, tt, bao, buoc, response=None, loi=None):
+	import hashlib
+	import json
+	vet = {"buoc": buoc, "luc": str(frappe.utils.now_datetime()),
+		"ma_lan": luot.ma_lan, "loai_loi": type(loi).__name__ if loi else ""}
+	if response is not None:
+		vet["http"] = response.status_code
+		body = str(getattr(response, "text", "") or "").encode()
+		vet["phan_hoi_bytes"] = len(body)
+		vet["phan_hoi_sha256"] = hashlib.sha256(body).hexdigest()
+	vet = json.dumps(vet, ensure_ascii=False)
+	# Không ghi URL, chuỗi ngoại lệ hoặc thân phản hồi có thể chứa api_key.
+	if tt in ("loi", "chua_ro"):
+		frappe.log_error(title="Pancake: lượt đẩy " + luot.ma, message=vet)
+	frappe.db.sql("""update `tabVagabond Day Pancake`
+		set trang_thai=%s, thong_bao=%s, vet_gui=%s
+		where name=%s and ma_lan=%s and trang_thai='dang_gui'""",
+		(tt, bao, vet, luot.name, luot.ma_lan))
 
 
 def chay_luot_day(ten):
@@ -217,7 +250,7 @@ def chay_luot_day(ten):
 	if not rows or rows[0].trang_thai != "cho":
 		return
 	luot = rows[0]
-	frappe.db.set_value(DT_DAY, ten, "trang_thai", "dang_gui")
+	frappe.db.set_value(DT_DAY, ten, {"trang_thai": "dang_gui", "vet_gui": frappe.as_json({"buoc": "bat_dau", "luc": str(frappe.utils.now_datetime()), "ma_lan": luot.ma_lan})})
 	frappe.db.commit()
 	# Khóa lại và giữ tới hết HTTP. Cửa đối soát dùng cùng khóa nên không
 	# thể mở lại trong lúc worker còn gửi. Mã lần ngăn worker cũ sống lại.
@@ -228,36 +261,39 @@ def chay_luot_day(ten):
 	ma = luot.ma
 	c = cfg(); k = key(c, "pancake_api_key")
 	if not k or str(c.pancake_shop_id) != luot.shop:
-		frappe.db.set_value(DT_DAY, ten, {"trang_thai": "loi", "thong_bao": "Cấu hình Pancake đã đổi. Kiểm tra shop và bấm Đẩy lại."})
+		_ket_luot(luot, "loi", "Cấu hình Pancake đã đổi. Kiểm tra shop và bấm Đẩy lại.", "cau_hinh")
 		return
+	loi_tim = None
 	try:
 		ds, du = tim_het_tren_pancake(c, k, ma)
-	except Exception:
+	except Exception as e:
+		loi_tim = e
 		ds, du = [], False
 	if not du:
-		frappe.db.set_value(DT_DAY, ten, {"trang_thai": "loi", "thong_bao": "Chưa quét hết Pancake, chưa gửi lệnh tạo. Có thể bấm Đẩy để thử lại."})
+		_ket_luot(luot, "loi", "Chưa quét hết Pancake, chưa gửi lệnh tạo. Có thể bấm Đẩy để thử lại.", "GET", loi=loi_tim)
 		return
 	if ds:
 		tt = kq.xep_ket_qua_tim(len(ds))
-		frappe.db.set_value(DT_DAY, ten, {"trang_thai": tt, "thong_bao": kq.thong_bao(tt, ma, len(ds))})
+		_ket_luot(luot, tt, kq.thong_bao(tt, ma, len(ds)), "GET")
 		return
 	try:
 		body = json.loads(luot.du_lieu)
 		if not isinstance(body, dict) or not isinstance(body.get("product"), dict):
 			raise ValueError("payload")
-	except (ValueError, TypeError):
-		frappe.db.set_value(DT_DAY, ten, {"trang_thai": "loi", "thong_bao": "Nội dung yêu cầu bị hỏng, chưa gửi Pancake. Bấm Đẩy để lập lại yêu cầu."})
+	except (ValueError, TypeError) as e:
+		_ket_luot(luot, "loi", "Nội dung yêu cầu bị hỏng, chưa gửi Pancake. Bấm Đẩy để lập lại yêu cầu.", "payload", loi=e)
 		return
 	tt = "chua_ro"
+	r = None; loi_gui = None
 	try:
 		r = requests.post("%s/shops/%s/products" % (PANCAKE, luot.shop),
 			params={"api_key": k}, json=body, timeout=TIMEOUT)
 		goi = r.json()
 		if r.status_code in (200, 201) and isinstance(goi, dict) and goi.get("success") is True:
 			tt = "da_tao"
-	except Exception:
-		pass  # Đã gửi: mọi lỗi/mất JSON giữ chưa rõ, không cho POST lần hai.
-	frappe.db.set_value(DT_DAY, ten, {"trang_thai": tt, "thong_bao": kq.thong_bao(tt, ma)})
+	except Exception as e:
+		loi_gui = e
+	_ket_luot(luot, tt, kq.thong_bao(tt, ma), "POST", response=r, loi=loi_gui)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -269,12 +305,15 @@ def doi_soat_luot(ten, ly_do, bang_chung, xac_nhan_chua_tao=0):
 		frappe.throw("Chỉ giám đốc được mở lại lượt đẩy sau đối soát.")
 	if not cint(xac_nhan_chua_tao) or len(str(ly_do or "").strip()) < 10 or len(str(bang_chung or "").strip()) < 10:
 		frappe.throw("Cần lý do, bằng chứng Pancake xác nhận chưa tạo và xác nhận mở lại. Kết quả tìm rỗng chưa đủ.")
-	luot = frappe.db.get_value(DT_DAY, ten, ["trang_thai", "ma_lan", "lich_su_doi_soat", "ma", "du_lieu"], as_dict=True, for_update=True)
+	try:
+		luot = frappe.db.get_value(DT_DAY, ten, ["trang_thai", "ma_lan", "lich_su_doi_soat", "ma", "du_lieu", "vet_gui"], as_dict=True, for_update=True, wait=False)
+	except frappe.QueryTimeoutError:
+		frappe.throw("Lượt gửi đang chạy. Chờ lượt đó kết thúc rồi đối soát; chưa mở lại.")
 	if not luot or luot.trang_thai not in ("chua_ro", "dang_gui", "da_tao", "da_co", "xung_dot"):
 		frappe.throw("Lượt này không cần mở lại. Tải lại để xem trạng thái mới.")
 	lich_su = json.loads(luot.lich_su_doi_soat or "[]")
 	lich_su.append({"nguoi": frappe.session.user, "luc": str(frappe.utils.now_datetime()),
-		"trang_thai_cu": luot.trang_thai, "ma_lan": luot.ma_lan, "du_lieu": luot.du_lieu,
+		"trang_thai_cu": luot.trang_thai, "ma_lan": luot.ma_lan, "du_lieu": luot.du_lieu, "vet_gui": luot.vet_gui,
 		"ly_do": str(ly_do).strip(), "bang_chung": str(bang_chung).strip()})
 	frappe.db.set_value(DT_DAY, ten, {"trang_thai": "loi", "ma_lan": uuid.uuid4().hex,
 		"lich_su_doi_soat": frappe.as_json(lich_su),

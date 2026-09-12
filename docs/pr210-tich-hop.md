@@ -31,3 +31,12 @@ Chưa có UAT người dùng trên site thật. Không nhận local mock là ch�
 - Trạng thái mới nhận là dang_cho màu vàng. Thông báo cùng mã cập nhật cả ô vừa tạo và danh sách.
 - Bỏ bảy ca dò chuỗi cũ; bổ sung hành vi đọc trang/giá, payload hỏng, đối soát và worker cũ.
 - Giá là snapshot lúc người dùng bấm; worker không tự thay bằng giá khác. Không nhận đây là đồng bộ cập nhật giá liên tục.
+
+
+## Vòng tiếp: vết gửi, quyền và khóa không chờ
+
+Giữ khóa Item để tuần tự hóa hai request lúc chưa có dấu, nhưng cả Item/dấu trong request đều NOWAIT. Không có đường giữ Item chờ HTTP. Worker vẫn giữ dấu xuyên POST; đối soát đang chen vào phải trả câu chờ. Kết quả worker ghi bằng SQL có điều kiện ma_lan/dang_gui. Bench thêm stub POST chờ tín hiệu, gọi request/đối soát trong lúc đó để đo khóa thật.
+
+Vết gửi lưu thời điểm bắt đầu trước commit, HTTP/loại lỗi/hash và độ dài phản hồi. Không lưu nguyên URL/ngoại lệ/body có thể chứa API key. Kiểm lại cần quyền đẩy và Item write; đọc mới sau GET. Bổ sung xử lý lỗi đọc giá, chặn giá lẻ đồng bị cắt thành0, deduplicate job theo mã lần, nhãn nút trên cùng.
+
+Bench3790bcb: migrate và tích hợp hai lượt đạt; durability/crash PASS. Bước Desk timeout chờ nút trên390. Đã đối chiếu Frappe16.27.1 page.add_inner_button: mobile dùng menu link, bổ sung đúng đường bấm và lưu ảnh/text khi hỏng. Chưa coi là kiểm Desk đạt.

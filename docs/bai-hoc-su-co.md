@@ -247,3 +247,10 @@ Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_d
 ### PR210 - dấu chống tạo trùng phải bền trước HTTP
 
 Khoá Redis có TTL và trạng thái chỉ nằm trong phản hồi không chặn được reload hoặc worker chết sau POST. Ghi ý định DB và enqueue sau commit; worker commit dang_gui trước HTTP, job trùng không nhận lại. Sau kết quả chưa rõ, tìm rỗng không chứng minh chưa tạo. Integration Request có dọn log30ngày nên không dùng làm hàng rào lâu dài. Kiểm bằng tiến trình chết và hai worker trên DB CI, không chỉ mock helper. Cả mã mới/mã cũ dùng cùng handler và xác nhận giá0.
+
+
+## PR210: khóa khi gọi mạng và dấu vết lúc gộp nhánh
+
+Worker giữ khóa xuyên HTTP để cửa đối soát không chen vào, nhưng request người dùng phải NOWAIT và trả câu chờ. Khóa Item chỉ tuần tự hóa việc tạo dấu đầu tiên, cũng NOWAIT; không được giữ nó để chờ worker. Ghi kết quả bằng điều kiện mã lần/trạng thái để worker cũ không ghi đè. Bench phải cho đối soát chen đúng lúc POST, không chỉ cho hai worker đua ở đầu.
+
+Gộp nhánh không được bỏ dấu vết lỗi. Lưu thời điểm bắt đầu bền trước HTTP, mã HTTP/loại lỗi/hash và độ dài phản hồi trên dấu cùng Error Log. Không lưu nguyên URL/ngoại lệ/thân phản hồi có thể chứa khóa; người đối soát cần dấu vết nhưng không cần bí mật trong log.

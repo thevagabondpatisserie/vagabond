@@ -39,6 +39,11 @@ def worker(ten, che_do, tep):
         with open(tep,'a') as f:
             f.write(ten+'\n');f.flush();os.fsync(f.fileno())
         if che_do=='chet':os._exit(23)
+        if che_do=='doi_soat':
+            han=time.monotonic()+20
+            while not Path(str(tep)+'.tha').exists():
+                if time.monotonic()>han:raise RuntimeError('Không có đối chứng mở lại trong lúc POST')
+                time.sleep(0.05)
         time.sleep(0.2)
         return frappe._dict(status_code=201,json=lambda:{'success':True})
     with patch.object(pc,'cfg',lambda:frappe._dict(pancake_shop_id='THU210')),patch.object(pc,'key',lambda *a:'fake'),patch.object(pc,'tim_het_tren_pancake',lambda *a:([],True)),patch.object(pc.requests,'post',post):
@@ -75,6 +80,27 @@ def chay():
     frappe.db.rollback()
     assert frappe.db.get_value(pc.DT_DAY,ids[1],'trang_thai')=='da_tao'
     assert tep.read_text().splitlines().count(ids[1])==1,'Hai worker tạo trùng'
+    # Pha2: stub giữ kết nối mở, request/đối soát phải NOWAIT, không mở dấu.
+    ten3=pc._ten_luot('THU210',names[2])
+    p=subprocess.Popen(base+['worker',ten3,'doi_soat',str(tep)])
+    try:
+        han=time.monotonic()+20
+        while ten3 not in tep.read_text().splitlines():
+            if time.monotonic()>han:raise RuntimeError('Worker chưa tới POST')
+            time.sleep(0.05)
+        assert _goi(pc,names[2])==ten3
+        try:
+            pc.doi_soat_luot(ten3,'Ca CI chen ngang worker','Bằng chứng giả lập chỉ dùng cho CI',1)
+        except frappe.ValidationError as e:
+            assert 'Lượt gửi đang chạy' in str(e)
+        else:raise AssertionError('Đã mở lại trong lúc worker đang POST')
+        frappe.db.rollback()
+    finally:
+        Path(str(tep)+'.tha').touch()
+        assert p.wait(timeout=30)==0
+    frappe.db.rollback()
+    assert frappe.db.get_value(pc.DT_DAY,ten3,'trang_thai')=='da_tao'
+    assert tep.read_text().splitlines().count(ten3)==1
     pc.doi_soat_luot(ids[0], 'Ca CI: phía nhận stub đã dọn mã', 'Xác nhận giả lập HTTP stub: không còn yêu cầu cũ', 1)
     frappe.db.commit()
     assert frappe.db.get_value(pc.DT_DAY,ids[0],'trang_thai')=='loi'

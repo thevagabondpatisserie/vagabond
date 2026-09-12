@@ -20,19 +20,25 @@ def _canh():
         rows[name].update(key if isinstance(key,dict) else {key:value})
     def sql(query,args,**kw):
         calls.append('lock')
+        if query.startswith('update '):
+            tt,bao,vet,ten,ma_lan=args
+            if rows[ten]['ma_lan']==ma_lan and rows[ten]['trang_thai']=='dang_gui':
+                rows[ten].update(trang_thai=tt,thong_bao=bao,vet_gui=vet)
+            return []
         return [Doi(**rows[args[0]])] if args[0] in rows else []
     def commit():
         calls.append('commit'); saved.clear(); saved.update(copy.deepcopy(rows))
     def get_doc(dt,name=None):
         if isinstance(dt,dict):
             def insert(**kw):
-                rows[kw['set_name']]={**dt,'name':kw['set_name']}
+                rows[kw['set_name']]={'vet_gui':None,'thong_bao':None,'lich_su_doi_soat':None,**dt,'name':kw['set_name']}
                 return Doi(**rows[kw['set_name']])
             return NS(insert=insert)
         return item if dt=='Item' else Doi(**rows[name])
     db=NS(get_value=get_value,set_value=set_value,sql=sql,commit=commit,
           get_single_value=lambda *a:None)
     f=NS(db=db,get_doc=get_doc,session=NS(user='tester'),as_json=json.dumps,
+         utils=NS(now_datetime=lambda:'2026-09-12 12:00:00'),QueryTimeoutError=TimeoutError,log_error=lambda **kw:calls.append(kw),
          has_permission=lambda *a:True,whitelist=lambda **kw:lambda f:f,
          enqueue=lambda *a,**kw:jobs.append(kw),throw=lambda msg:(_ for _ in ()).throw(ValueError(msg)))
     http=NS(post=lambda *a,**kw:None)
@@ -200,3 +206,64 @@ def _gia_ban():
     la('lấy bảng bán',g['_gia_niem_yet'](f.get_doc('Item','KT210')),22000)
     f.db.get_value=lambda *a,**kw:None
     la('giá mặt hàng khi không có giá bán',g['_gia_niem_yet'](f.get_doc('Item','KT210')),15000)
+
+
+@ca('#210 vết lỗi có HTTP và loại lỗi, không lộ khóa trong phản hồi')
+def _vet_loi():
+    g,f,http,rows,saved,calls,jobs=_canh();_nhan(g)
+    http.post=lambda *a,**kw:NS(status_code=502,text='api_key=SECRET',json=lambda:{'success':False})
+    g['chay_luot_day'](next(iter(rows)))
+    vet=next(iter(rows.values()))['vet_gui']
+    la('HTTP được lưu',json.loads(vet)['http'],502)
+    dung('không giữ body/khóa','SECRET' not in str(calls)+vet)
+    dung('có nhật ký',any(isinstance(x,dict) and 'message' in x for x in calls))
+
+@ca('#210 không chờ khóa trong request và đọc lại sau GET')
+def _khoa_ban():
+    g,f,http,rows,saved,calls,jobs=_canh();_nhan(g);ten=next(iter(rows));rows[ten]['trang_thai']='dang_gui'
+    old=f.db.get_value
+    def busy(*a,**kw):
+        if kw.get('for_update'):
+            la('NOWAIT',kw.get('wait'),False);raise TimeoutError('lock')
+        return old(*a,**kw)
+    f.db.get_value=busy
+    la('bận trả câu chờ',_nhan(g)['trang_thai'],'dang_cho')
+    f.db.get_value=old
+    def scan(*a):rows[ten]['trang_thai']='loi';return [],True
+    g['tim_het_tren_pancake']=scan
+    la('đọc mới sau GET',g['trang_thai_tren_pancake']('KT210')['trang_thai'],'loi')
+
+@ca('#210 worker cũ không ghi đè trạng thái đã đối soát')
+def _cas():
+    g,f,http,rows,saved,calls,jobs=_canh();_nhan(g);ten=next(iter(rows))
+    def post(*a,**kw):
+        rows[ten].update(ma_lan='lan-moi',trang_thai='loi')
+        return NS(status_code=201,json=lambda:{'success':True})
+    http.post=post;g['chay_luot_day'](ten)
+    la('giữ trạng thái mới',rows[ten]['trang_thai'],'loi')
+
+
+@ca('#210 quyền bán hàng không đủ để ghi kết quả kiểm lại')
+def _quyen_kiem():
+    from unittest.mock import MagicMock
+    dm=SRC.with_name('danh_muc.py')
+    fn=next(n for n in ast.parse(dm.read_text()).body if isinstance(n,ast.FunctionDef) and n.name=='kiem_ma_tren_pancake')
+    fn.decorator_list=[]
+    f=MagicMock();f.throw.side_effect=ValueError('Không có quyền')
+    g=dict(frappe=f,_kiem_quyen=lambda:None,_duoc_tao=lambda:False)
+    exec(compile(ast.Module(body=[fn],type_ignores=[]),str(dm),'exec'),g)
+    try:g['kiem_ma_tren_pancake']('KT210')
+    except ValueError:pass
+    else:dung('phải bị chặn trước GET',False)
+
+
+@ca('#210 không đọc được giá hoặc giá lẻ đồng thì chưa nhận gửi')
+def _gia_khong_doc():
+    g,f,http,rows,saved,calls,jobs=_canh()
+    f.db.get_single_value=lambda *a:(_ for _ in ()).throw(ValueError('schema'))
+    la('lỗi có hành động',_nhan(g)['trang_thai'],'loi')
+    la('không enqueue',jobs,[])
+    f.db.get_single_value=lambda *a:None
+    f.get_doc('Item','KT210').standard_rate=0.5
+    la('không cắt thành giá0',_nhan(g)['trang_thai'],'loi')
+    la('không enqueue giá lẻ',jobs,[])

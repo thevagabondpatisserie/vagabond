@@ -13,7 +13,8 @@
   "trang_thai",
   "thong_bao",
   "ma_lan",
-  "lich_su_doi_soat"
+  "lich_su_doi_soat",
+  "vet_gui"
  ],
  "fields": [
   {
@@ -70,6 +71,12 @@
   {
    "fieldname": "lich_su_doi_soat",
    "label": "Lịch sử đối soát",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vet_gui",
+   "label": "Vết gửi để đối soát",
    "fieldtype": "Long Text",
    "read_only": 1
   }

@@ -29,6 +29,7 @@ KQ_CHUA_CO = "chua_co"        # tìm không thấy, được phép tạo
 KQ_DA_CO = "da_co"            # đã có đúng một bản, không tạo lại
 KQ_XUNG_DOT = "xung_dot"      # nhiều bản cùng mã, cần người xem
 KQ_DA_TAO = "da_tao"          # vừa tạo xong, Pancake xác nhận
+KQ_DANG_CHO = "dang_cho"      # trạng thái trả API, DB dùng cho/dang_gui
 KQ_CHUA_RO = "chua_ro"        # đã gửi lệnh nhưng không biết kết quả
 KQ_LOI = "loi"                # hỏng thật, thử lại được
 KQ_THIEU_GIA = "thieu_gia"    # chưa có giá bán, không đẩy giá 0 lên
@@ -131,6 +132,8 @@ def thong_bao(trang_thai, ma, so_ban=0):
 	mất niềm tin vào nút này.
 	"""
 	m = str(ma or "").strip()
+	if trang_thai == KQ_DANG_CHO:
+		return "Đã nhận yêu cầu. Chờ một chút rồi bấm Kiểm lại; không gửi thêm."
 	if trang_thai == KQ_DA_TAO:
 		return "Đã tạo %s trên Pancake." % m
 	if trang_thai == KQ_DA_CO:
@@ -143,7 +146,7 @@ def thong_bao(trang_thai, ma, so_ban=0):
 			"CHƯA XÁC MINH: bấm Kiểm lại, đừng bấm tạo lần nữa." % m)
 	if trang_thai == KQ_THIEU_GIA:
 		return ("Mã %s chưa có giá bán. Điền giá rồi hãy đẩy, "
-			"hoặc tích ô cho phép đẩy giá 0 nếu cố ý." % m)
+			"hoặc xác nhận cho phép đẩy giá 0 nếu cố ý." % m)
 	if trang_thai == KQ_CHUA_CO:
 		return "Mã %s chưa có trên Pancake." % m
 	if trang_thai == KQ_LOI:

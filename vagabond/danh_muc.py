@@ -481,6 +481,8 @@ def kiem_ma_tren_pancake(item_code):
 	không phải bấm tạo lần nữa.
 	"""
 	_kiem_quyen()
+	if not _duoc_tao() or not frappe.has_permission("Item", "write"):
+		frappe.throw("Chỉ người có quyền đẩy mã được kiểm và ghi kết quả đối soát Pancake.")
 	from vagabond import pancake_sp
 
 	return pancake_sp.trang_thai_tren_pancake(item_code)

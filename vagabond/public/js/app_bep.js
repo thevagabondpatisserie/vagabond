@@ -29295,7 +29295,7 @@ function dmNutSau(ma, nut, tt) {
   if (!nut) return;
   var day = tt === 'loi' || tt === 'chua_co' || tt === 'thieu_gia';
   nut.disabled = tt === 'da_tao' || tt === 'da_co';
-  nut.textContent = nut.disabled ? 'Đã có' : (day ? 'Đẩy' : 'Kiểm lại');
+  nut.textContent = nut.disabled ? 'Đã có' : (day ? (nut.id === 'dmPan' ? 'Đồng bộ mã này sang Pancake' : 'Đẩy') : 'Kiểm lại');
   nut.onclick = day ? function () { dmDayMot(ma, nut, 0); } : function () { dmKiemMot(ma, nut); };
 }
 
