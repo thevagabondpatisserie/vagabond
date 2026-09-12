@@ -386,7 +386,8 @@ Không im lặng nuốt lỗi. Nuốt lỗi là cách hệ này mất 26 đơn m
 Khi có nhiều agent, đọc `vgb-control-tower/README.md` trước khi nhận việc.
 GitHub Issue đang `In progress`, có owner, branch và phạm vi tệp là nguồn
 khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy preflight trước
-khi sửa, bàn giao bằng mẫu handoff, và review chéo trước khi tạo PR.
+khi sửa, bàn giao theo docs/van-hanh-agent/README.md (thay mẫu handoff
+cũ), và review chéo trước khi tạo PR.
 
 ### 9b. Luật tag đối ứng giữa hai agent
 
@@ -486,3 +487,12 @@ OWNER. Codex local dùng kết nối GitHub của chủ repo đã được xác 
 khối và chuyển cho phiên phát hành có kết nối phù hợp; không nhận là đã gửi.
 Sau đăng phải kiểm dấu release trong trạng thái sender hoặc phản hồi gửi,
 không coi comment được tạo là tin Telegram đã tới.
+
+## Bàn giao bền cho phiên cloud
+
+Đọc [mục lục công việc](docs/van-hanh-agent/README.md) trước khi làm; tìm
+đúng issue và chỉ đọc tài liệu liên quan. Sau lượt có thay đổi thực chất,
+cập nhật một bản bàn giao ngắn cho issue trong PR hiện tại, kèm SHA code,
+bằng chứng, finding còn lại và bước tiếp. Theo mẫu và quy tắc dung lượng
+trong mục lục; không đưa transcript/log/secret vào git. Repo là nguồn bàn
+giao chung với Claude, không thay trạng thái GitHub hoặc nhật ký local.
