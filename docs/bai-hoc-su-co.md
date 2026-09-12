@@ -243,3 +243,9 @@ Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages
 ### PR281 - chẩn đoán phải phủ cả bước khởi chạy
 
 Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_doan chung ở main, vẫn thất bại toàn lượt; thay lỗi cuối bằng thông báo sạch và from None để traceback không in lại thông điệp gốc. Ca kiểm dựng HTTPError ở từng lời gọi tiên quyết, header thật không phân biệt hoa thường, và kiểm cả traceback cuối. Bổ sung thời điểm reset trần; không suy thiếu quyền từ403.
+
+## #266 tái phát12/09: hàng rào phát hành không được chặn ghi sổ
+
+Tập chặn có đơn nháp nhưng tập tự gửi chỉ có tờ đã submit và được chọn ngày. Return trước ghi sổ làm cả ngày mới thành backlog. Tách quyết định phát hành khỏi ghi sổ, giữ cửa chung HTTP; đọc script After Submit hiện hành trước khi chốt vì core vẫn gọi script trong submit. Còn nợ nhưng vòng gửi rỗng vẫn phải giữ mốc lỗi và báo riêng, không trông chờ bộ đếm chỉ gồm tờ đã submit.
+
+Công cụ đặt phiên bản phải giữ nguyên lịch sử patches.txt. Không tin docstring: dat_phien_ban.py cũ ghi "giữ nguyên" nhưng lọc xóa mọi dòng cũ. Ca tạm file phải kiểm nội dung từng byte và gọi lần hai không nhân dòng.

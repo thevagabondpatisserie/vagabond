@@ -219,7 +219,7 @@ def _rai_bo_qua():
 def _rai_ma_nguon():
 	s = _py("ban_hang.py")
 	than = _than(s, "xuat_rai_trong_ngay")
-	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None)" in than)
+	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None, cho_xuat=cho_xuat)" in than)
 	dung("cùng kịch bản m-invoice, từng phiếu", '"phieu": ten' in than)
 	dung("hai khoá", "_khoa_dong_bo(" in than and "_khoa_hddt(" in than)
 	dung("lọc theo lần sửa cuối", '"modified": ["<=", moc]' in than)

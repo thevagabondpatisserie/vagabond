@@ -61,10 +61,8 @@ def dat_patch(moi):
 	if moi_dong in dong:
 		print("      dong patch cho v%s da co, khong them lai." % moi)
 		return False
-	# Bo cac dong dong_bo_cau_truc cua phien ban CU di, giu lai dung mot
-	# dong moi nhat: giu het thi moi lan migrate lai chay lai ca chuc lan
-	# cung mot viec, cham ma khong duoc gi.
-	giu = [d for d in dong if not d.startswith(DONG_PATCH + " #v")]
+	# Lịch sử patch là bất biến. Frappe tự biết dòng nào đã chạy.
+	giu = list(dong)
 	# Chen vao cuoi muc post_model_sync.
 	if "[post_model_sync]" not in giu:
 		giu.append("[post_model_sync]")
@@ -81,6 +79,9 @@ def main():
 		sys.exit(1)
 	moi = sys.argv[1]
 	cu = doc_ver_dang_co()
+	if cu and int(moi) < int(cu):
+		print("HONG: khong duoc ha phien ban app.")
+		sys.exit(1)
 	if cu == moi:
 		print("APPVER da la %s roi." % moi)
 	else:

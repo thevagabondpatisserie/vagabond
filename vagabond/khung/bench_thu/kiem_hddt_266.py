@@ -9,7 +9,7 @@ site (execute_method), chỉ thay lời gọi HTTP cuối cùng, và chốt:
   F2  hàng rào nằm ở cửa chung: tờ của HÔM NAY bị chặn khi còn hoá đơn ngày
       cũ đang chờ, kể cả khi đi bằng đường chốt đơn tay.
   F3  đồng thời: lượt khác đang giữ khoá phát hành thì hàng rào trả về CÒN NỢ
-      và nhịp gọi nó phải dừng, không được ghi sổ tờ nào của hôm nay.
+      và nhịp gọi chỉ hoãn phát hành; ghi sổ hôm nay vẫn đi tiếp.
   F4  cửa mở hay đóng đọc theo ngày lập hiệu lực, không phải ngày sổ.
   F5  phạm vi: chỉ tờ đúng ngày và đúng điểm bán mới được gửi; số lượng 1 chỉ
       được chấp nhận cho mã khai trong ma_hang_gop.
@@ -694,6 +694,21 @@ def chay():
 				_bang('ngày lập của tờ hôm nay', gui[-1]['data'][0]['inv_invoiceIssuedDate'], str(hom_nay))
 				kq['phan'].append({'ten': 'backlog rút cạn rồi mới thông', 'dat': True,
 					'da_gui_ngay_cu': da_gui, 'sot_truoc': len(cho_truoc)})
+
+				# #266 tái phát12/09: SI thật vẫn submit/GL khi hoãn phát hành.
+				# CI có API script nhưng chưa có snapshot After Submit production;
+				# ca này không được dùng thay xác minh script trên site.
+				cho_ghi = _hoa_don(hom_nay, gia=(80000,), ghi_so=False)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None), \
+						patch.object(ban_hang, '_tu_xuat_hddt', side_effect=AssertionError('Không được phát hành')):
+					ket_ghi = ban_hang._ghi_so_mot_don(cho_ghi, cho_xuat=False)
+				_bang('hoãn xuất vẫn ghi sổ', ket_ghi, (1, 0, ''))
+				_bang('SI thật đã submit', frappe.db.get_value('Sales Invoice', cho_ghi.name, 'docstatus'), 1)
+				if not frappe.db.count('GL Entry', {'voucher_type': 'Sales Invoice', 'voucher_no': cho_ghi.name, 'is_cancelled': 0}):
+					raise AssertionError('SI chưa có GL thật')
+				_bang('không có POST mới', len(gui), truoc)
+				kq['phan'].append({'ten': 'hoãn phát hành vẫn submit và GL', 'dat': True})
 
 				kq['dat'] = True
 			finally:
