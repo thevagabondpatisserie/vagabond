@@ -102,7 +102,7 @@ def dung():
 		{"fieldname": "last_run", "fieldtype": "Data", "label": "Last run"},
 		{"fieldname": "tong_da_day", "fieldtype": "Int", "label": "Tong"},
 		{"fieldname": "last_error", "fieldtype": "Small Text", "label": "Last error"},
-		# Hai cong tac nay la thu ban_hang._cong_tac_minvoice doc de quyet dinh
+		# Hai công tắc phát hành/ký và công tắc After Submit bên dưới quyết định
 		# co phat hanh / co ky hay khong. Bench thieu chung nen ham do luon tra
 		# (0, 0) va MOI duong di qua chay_nen deu khong xuat noi to nao, ma
 		# khong ai thay vi khong bo bench nao di duong do (#266 vong 4).

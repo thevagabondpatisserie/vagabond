@@ -734,6 +734,18 @@ def chay():
 						raise AssertionError('Tự mở rộng tập gửi khi chưa có quyết định xử lý')
 				_bang('xem ngày sau không POST', len(gui), truoc)
 				kq['phan'].append({'ten': 'tờ hoãn hiện trên màn ngày cũ hôm sau, chưa tự gửi', 'dat': True})
+				# Chiều ngược phải đi qua safe_exec thật: không được bịt hook vĩnh viễn.
+				duoc_ghi = _hoa_don(hom_nay, gia=(90000,), ghi_so=False)
+				truoc = len(gui)
+				with patch.object(ban_hang, '_chuan_bi_ghi_so', lambda *a: None), \
+						patch.object(ban_hang, '_tu_xuat_hddt', return_value=(True, '')):
+					ket_ghi = ban_hang._ghi_so_mot_don(duoc_ghi, cho_xuat=True)
+				_bang('cho phép vẫn ghi sổ và phát hành', ket_ghi, (1, 1, ''))
+				_bang('hook gửi đúng một POST', len(gui) - truoc, 1)
+				if not frappe.db.get_value('Sales Invoice', duoc_ghi.name, 'custom_minvoice_id'):
+					raise AssertionError('Hook không ghi lại ID hóa đơn')
+				_bang('cờ không rò sau chiều cho phép', bool(duoc_ghi.flags.get('vgb_hoan_phat_hanh')), False)
+				kq['phan'].append({'ten': 'cho phép vẫn phát hành qua hook thật đúng một lần', 'dat': True})
 
 
 				kq['dat'] = True
@@ -742,6 +754,7 @@ def chay():
 	except Exception as e:
 		kq['dat'] = False
 		kq['loi'] = '%s: %s' % (type(e).__name__, e)
+		kq['traceback'] = ban_hang.giau_khoa(frappe.get_traceback())
 	finally:
 		frappe.local.form_dict = form_cu
 		frappe.local.response = dap_cu

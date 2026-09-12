@@ -6,25 +6,31 @@ submit được xét, không nhận tham số bỏ hàng rào từ API hoặc fo
 Snapshot đọc production 12/09/2026, đối chiếu SHA256 trước khi đưa vào git.
 """
 from pathlib import Path
-from vagabond.minvoice_kich_ban import bam, thay_mot
+from vagabond.minvoice_kich_ban import bam
 
 TEN = 'SI - Xuat hoa don m-invoice khi ghi so'
 BAM_GOC = '626ee03b384fd21e2a6f95a974adc53f3f15338eb8b8a611a9fdad411df78c39'
 
 
 def ban_goc():
-	ma = (Path(__file__).parent / 'khung/kiem_thu/du_lieu/minvoice_sau_ghi_so_20260912.txt').read_text()
+	ma = (Path(__file__).parent / 'khung/kiem_thu/du_lieu/minvoice_sau_ghi_so_20260912.txt').read_text(encoding='utf-8')
 	if bam(ma) != BAM_GOC:
 		raise ValueError('Snapshot After Submit khác production đã đối chiếu.')
 	return ma
 
 
 def ban_moi():
-	return thay_mot(ban_goc(), "if doc.get('custom_nguon')", "if not doc.flags.get('vgb_hoan_phat_hanh') and doc.get('custom_nguon')")
+	ma = ban_goc()
+	cu = "if doc.get('custom_nguon')"
+	if ma.count(cu) != 1:
+		raise ValueError('Hook sau ghi sổ khác bản review #266. Đối chiếu snapshot trước khi migrate.')
+	return ma.replace(cu, "if not doc.flags.get('vgb_hoan_phat_hanh') and doc.get('custom_nguon')", 1)
 
 
 def dong_bo():
 	import frappe
+	if not frappe.db.exists('Server Script', TEN):
+		frappe.throw('Thiếu hook sau ghi sổ. Đối chiếu cấu hình MInvoice và snapshot #266 trước khi migrate.')
 	doc = frappe.get_doc('Server Script', TEN)
 	ma = ban_moi()
 	if bam(doc.script) not in (BAM_GOC, bam(ma)):

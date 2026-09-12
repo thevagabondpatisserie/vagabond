@@ -3406,6 +3406,7 @@ def canh_bao_hddt_sot():
 			return
 		from vagabond.nhan_su import _khung_thu, _nut_xanh, link_app
 
+		# Đường thành công ghi đè nhật ký, nên HOÃN của lượt trước đã được gỡ.
 		buoc_tiep = (
 			"Anh chị mở Cài đặt và Nhật ký lỗi để xác minh phép đếm. Chưa thể kết luận đã xuất đủ."
 			if so is None else
