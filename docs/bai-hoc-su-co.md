@@ -238,3 +238,8 @@ IncompleteRead kế thừa HTTPException nên tuple lỗi cũ không cô lập �
 ### PR281 - hoàn tất chẩn đoán N1/N2/N3
 
 Dùng TranPhanTrang thay so thông điệp ở hai nơi, kiểm qua GitHub.pages thật tới đủ100 trang. Kiểm riêng thông điệp ngoại lệ có dữ liệu kín và frame reconcile. Với HTTP403 chỉ in metadata trong danh sách cho phép và đúng định dạng: số lượt còn lại, thời gian chờ, request ID. Thiếu metadata không được tự kết luận là thiếu quyền. Không in body hoặc header tùy ý.
+
+
+### PR281 - chẩn đoán phải phủ cả bước khởi chạy
+
+Lỗi đọc nhãn hoặc danh sách issue xảy ra trước sweep. Dùng chan_doan chung ở main, vẫn thất bại toàn lượt; thay lỗi cuối bằng thông báo sạch và from None để traceback không in lại thông điệp gốc. Ca kiểm dựng HTTPError ở từng lời gọi tiên quyết, header thật không phân biệt hoa thường, và kiểm cả traceback cuối. Bổ sung thời điểm reset trần; không suy thiếu quyền từ403.

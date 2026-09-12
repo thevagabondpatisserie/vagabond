@@ -147,6 +147,25 @@ def reconcile(api, issue, now, run_url, since=None):
     return accepted
 
 
+def chan_doan(exc, pham_vi):
+    # Giữ vị trí lỗi, không in thông điệp tùy ý có thể chứa payload.
+    print(f"{pham_vi}: {type(exc).__name__}", file=sys.stderr)
+    for frame in traceback.extract_tb(exc.__traceback__):
+        print(f"  {os.path.basename(frame.filename)}:{frame.lineno} trong {frame.name}", file=sys.stderr)
+    if isinstance(exc, urllib.error.HTTPError):
+        print(f"  HTTP status: {exc.code}", file=sys.stderr)
+        # Chỉ in metadata đã kiểm dạng, không in toàn header/body.
+        for key, pattern in [('x-ratelimit-remaining', r'[0-9]{1,20}'),
+                             ('retry-after', r'[0-9]{1,20}'),
+                             ('x-ratelimit-reset', r'[0-9]{1,20}'),
+                             ('x-github-request-id', r'[0-9A-Fa-f:]{1,100}')]:
+            value = (exc.headers or {}).get(key, '')
+            if isinstance(value, str) and re.fullmatch(pattern, value):
+                print(f"  {key}: {value}", file=sys.stderr)
+    elif isinstance(exc, TranPhanTrang):
+        print('  Đã chạm trần phân trang; không cắt bỏ dữ liệu.', file=sys.stderr)
+
+
 def sweep(api, issues, now, run_url, since):
     # Một issue lỗi không được làm mất lượt nhận của mọi issue đứng sau.
     count, errors = 0, []
@@ -154,21 +173,7 @@ def sweep(api, issues, now, run_url, since):
         try:
             count += reconcile(api, issue, now, run_url, since)
         except Exception as exc:
-            # Giữ vị trí lỗi, không in thông điệp tùy ý có thể chứa payload.
-            print(f"Issue #{issue.get('number', '?')}: {type(exc).__name__}", file=sys.stderr)
-            for frame in traceback.extract_tb(exc.__traceback__):
-                print(f"  {os.path.basename(frame.filename)}:{frame.lineno} trong {frame.name}", file=sys.stderr)
-            if isinstance(exc, urllib.error.HTTPError):
-                print(f"  HTTP status: {exc.code}", file=sys.stderr)
-                # Chỉ in metadata đã kiểm dạng, không in toàn header/body.
-                for key, pattern in [('x-ratelimit-remaining', r'[0-9]{1,20}'),
-                                     ('retry-after', r'[0-9]{1,20}'),
-                                     ('x-github-request-id', r'[0-9A-Fa-f:]{1,100}')]:
-                    value = (exc.headers or {}).get(key, '')
-                    if isinstance(value, str) and re.fullmatch(pattern, value):
-                        print(f"  {key}: {value}", file=sys.stderr)
-            elif isinstance(exc, TranPhanTrang):
-                print('  Đã chạm trần phân trang; không cắt bỏ dữ liệu.', file=sys.stderr)
+            chan_doan(exc, f"Issue #{issue.get('number', '?')}")
             errors.append(f"#{issue.get('number', '?')}: {type(exc).__name__}")
     if errors:
         # Giữ job đỏ nhưng không đưa payload hoặc token vào thông báo.
@@ -176,7 +181,7 @@ def sweep(api, issues, now, run_url, since):
     return count
 
 
-def main():
+def chay():
     start = os.environ.get('CODEX_INBOX_SINCE', '').strip()
     if not start:
         raise ValueError('Chưa đặt CODEX_INBOX_SINCE; không được nhận lại lịch sử cũ.')
@@ -191,6 +196,15 @@ def main():
     run_url = f'https://github.com/{api.repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
     count = sweep(api, issues, now, run_url, since)
     print(f'Inbox reconciled: {count} newly accepted request(s).')
+
+
+def main():
+    # Cả lỗi trước lượt quét cũng dùng chẩn đoán sạch; không in lại lỗi gốc.
+    try:
+        chay()
+    except Exception as exc:
+        chan_doan(exc, 'Khởi chạy inbox')
+        raise RuntimeError('Inbox chưa hoàn tất; xem vị trí và metadata ở trên.') from None
 
 
 if __name__ == '__main__':

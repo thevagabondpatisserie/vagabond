@@ -4,9 +4,12 @@ import contextlib
 import http.client
 import urllib.error
 from unittest.mock import patch
+import os
+import traceback
+from email import message_from_string
 import datetime as dt
 import unittest
-from inbox import command, reconcile, receipt, sweep, PREFIX, GitHub, TranPhanTrang
+from inbox import command, reconcile, receipt, sweep, PREFIX, GitHub, TranPhanTrang, main
 
 NOW = dt.datetime(2026, 9, 11, tzinfo=dt.timezone.utc)
 USER = {'login': 'owner', 'type': 'User'}
@@ -157,7 +160,9 @@ class InboxTests(unittest.TestCase):
             def pages(self,path): raise ValueError('PRIVATE_MESSAGE')
         log=io.StringIO()
         with contextlib.redirect_stderr(log):
-            with self.assertRaises(RuntimeError): sweep(Broken(),[self.issue],NOW,'url',None)
+            with self.assertRaises(RuntimeError) as ctx: sweep(Broken(),[self.issue],NOW,'url',None)
+        self.assertNotIn('PRIVATE_MESSAGE',str(ctx.exception))
+        self.assertIsNone(ctx.exception.__context__)
         self.assertNotIn('PRIVATE_MESSAGE',log.getvalue())
         self.assertIn('trong reconcile',log.getvalue())
 
@@ -177,5 +182,28 @@ class InboxTests(unittest.TestCase):
             for value in expected: self.assertIn(value,log.getvalue())
             self.assertNotIn('PRIVATE_',log.getvalue())
             self.assertNotIn('forged',log.getvalue())
+
+    def test_startup_http_error_keeps_metadata_and_exits_without_raw_message(self):
+        headers=message_from_string('X-RateLimit-Remaining: 0\nX-RateLimit-Reset: 1900000000\nRetry-After: 60\nX-GitHub-Request-ID: AB12:1234\n')
+        env={'CODEX_INBOX_SINCE':NOW.isoformat(),'GITHUB_REPOSITORY':'o/r','GH_TOKEN':'fake'}
+        for fail_at in (1,2):
+            log=io.StringIO(); calls=[]
+            def request(method,path,data=None):
+                calls.append(path)
+                if len(calls)==fail_at:
+                    raise urllib.error.HTTPError('https://example.invalid',403,'PRIVATE_STARTUP',headers,None)
+                return {}
+            with patch.dict(os.environ,env), patch.object(GitHub,'request',side_effect=request), contextlib.redirect_stderr(log):
+                try: main()
+                except RuntimeError as exc:
+                    rendered=''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+                else: self.fail('Lỗi tiên quyết phải làm lượt thất bại')
+            self.assertEqual(len(calls),fail_at)
+            self.assertIn('Khởi chạy inbox: HTTPError',log.getvalue())
+            self.assertIn('x-ratelimit-reset: 1900000000',log.getvalue())
+            self.assertIn('x-ratelimit-remaining: 0',log.getvalue())
+            self.assertIn('x-github-request-id: AB12:1234',log.getvalue())
+            self.assertNotIn('PRIVATE_STARTUP',log.getvalue()+rendered)
+            self.assertNotIn('HTTPError: HTTP Error',rendered)
 
 if __name__ == '__main__':unittest.main()
