@@ -1258,6 +1258,7 @@ async function chayHet() {
     trong.g.hsTaoNcc = ''; trong.g.hsTaoLoai = 'NCC';
     await trong.g.scrHoSoTTTao();
     dung('man APP chưa NCC không nhắc', !trong.tai.getElementById('hsCanCocNhac'));
+    trong.g.huCpThue = 'Chi phi hop le';
     trong.g.huNguoi = '';
     await trong.g.scrChiCongTyTao();
     dung('man chi cong ty chưa đối tượng không nhắc', !trong.tai.getElementById('huCanCocNhac'));

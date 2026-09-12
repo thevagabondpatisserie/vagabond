@@ -13042,13 +13042,13 @@ async function posThemMon() {
   var dsCombo = [];
   try {
     var kqCb = await api('vagabond.khuyen_mai.ds_combo', { quay: (posQuay && posQuay.ma) || '', nguon: posNguonThuc() });
-    dsCombo = ((kqCb && kqCb.combo) || []).filter(function (x) { return x.dung_duoc; });
+    dsCombo = (kqCb && kqCb.combo) || [];
   } catch (e3) { dsCombo = []; }
   var oCombo = dsCombo.map(function (c) {
     return {
       value: '@CB@' + c.name, label: '🧺 ' + c.ten, icon: '🧺', img: c.anh || '',
-      gia: c.gia_combo, nhom: NHOM_COMBO, combo: c,
-      phu: comboMoTa(c) + ' · ' + money(c.gia_combo) + ' đ, tiết kiệm ' + (c.co_nhom ? 'từ ' : '') + money(c.tiet_kiem) + ' đ',
+      gia: c.gia_combo, nhom: NHOM_COMBO, combo: c, khong_dung: !c.dung_duoc,
+      phu: !c.dung_duoc ? (c.ly_do || 'Combo hiện chưa áp dụng') : comboMoTa(c) + ' · ' + money(c.gia_combo) + ' đ, tiết kiệm ' + (c.co_nhom ? 'từ ' : '') + money(c.tiet_kiem) + ' đ',
       tim: c.name + ' combo'
     };
   });
@@ -13151,6 +13151,7 @@ function posThemCombo(c, chon) {
 
 /* Bam combo o bang chon mon: co nhom thi hoi truoc, khong co thi do luon. */
 function posBamCombo(c) {
+  if (!c.dung_duoc) { toast(c.ly_do || 'Combo hiện chưa áp dụng'); return 0; }
   if (c.co_nhom) {
     posSheetChonCombo(c, function (chon) {
       posThemCombo(c, chon);
@@ -13355,7 +13356,7 @@ function posSheetMon(items, onPick, onDong, demSo) {
     });
     lst.innerHTML = f.length ? f.map(function (it) {
       var dc = demSo ? (demSo(it.value) || 0) : 0;
-      return '<div class="shi" data-i="' + items.indexOf(it) + '"' + (dc ? ' style="background:#f0fdfa"' : '') + '>' +
+      return '<div class="shi" data-i="' + items.indexOf(it) + '"' + (it.khong_dung ? ' style="background:#f3f4f6;color:#6b7280"' : (dc ? ' style="background:#f0fdfa"' : '')) + '>' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : '<span>' + (it.icon || '🎂') + '</span>') +
         '<span style="flex:1;min-width:0">' + h(it.label) + posChipCon(it.con) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
         (dc ? '<b style="flex:none;background:#0d9488;color:#fff;border-radius:999px;min-width:26px;height:26px;' +
@@ -23905,7 +23906,8 @@ async function kmSheetCombo(ma) {
       '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#0b7c93;line-height:1.6">' +
       'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in từng món thật, kèm mã và tên combo.</div>' +
       kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì') +
-      '<button class="btn out" id="cbMaHang" style="width:100%;margin:8px 0">Mã hàng combo: ' + h(s.ma_hang || 'Chọn mã KMCB') + '</button>';
+      '<button class="btn out" id="cbMaHang" style="width:100%;margin:8px 0">Mã hàng combo: ' + h(s.ma_hang || 'Chọn mã KMCB') + '</button>' +
+      (s.bat && !s.ma_hang ? '<div role="status" style="font-size:13px;color:#92400e;background:#fffbeb;padding:10px;border-radius:8px">Combo đang bật nhưng chưa gắn mã hàng KMCB. Chọn mã hàng để thu ngân tìm hoặc quét mã combo tại quầy.</div>' : '');
 
     /* ----- Mon co san: luon vao bill ----- */
     var monBB = [];
@@ -31495,7 +31497,7 @@ async function scrDonTreo() {
   var LD = d.ly_do || {};
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
-    'Đơn nào <b>chưa ghi sổ được</b> thì nằm ở đây kèm lý do. Máy chạy chuỗi cuối ngày lúc 23h rồi vét lại 5 phút một lần cho tới nửa đêm; đơn nào tới lúc đó vẫn thiếu điều kiện thì mới treo lại. ' +
+    'Đơn trước hôm nay <b>chưa ghi sổ được</b> nằm ở đây kèm lý do. Đơn đang phục vụ hôm nay xem tại màn bán hàng của điểm bán. ' +
     'Đúng 23h55 máy gửi thư báo cho kế toán và quản lý.</div>';
 
   /* Bootstrap cua Frappe dat .card{display:flex;flex-direction:column} nen chip
