@@ -1,17 +1,17 @@
-# Issue294: điều phối cloud và bàn giao chung
+# Issue 294: điều phối cloud và bàn giao chung
 
 Nguồn: https://github.com/thevagabondpatisserie/vagabond/issues/294
-Owner Codex, branch codex/cloud-memory-flow, nền main948952b.
+Owner Codex, branch codex/cloud-memory-flow, nền main 948952b.
 Anh Việt chọn cloud, yêu cầu ghi Markdown lên repo và kiểm dung lượng.
 
-## Đã xác minh ngày12/09/2026
+## Đã xác minh ngày 12/09/2026
 
-- Actions variables chỉ có TELEGRAM_ENABLED; inbox runs34702018147 và
+- Actions variables chỉ có TELEGRAM_ENABLED; inbox runs 34702018147 và
   34702012188 skipped. Workflow receiver không gọi model.
 - Lịch local theo-d-i-pr-274-v-i-claude PAUSED, scope PR cũ đã hoàn tất.
-- Claude có lượt success34701888855/34701888107; chưa đọc output để nhận
+- Claude có lượt success 34701888855/34701888107; chưa đọc output để nhận
   review đạt. Không có bằng chứng vòng Codex sửa finding tự động đã khép.
-- Main có47 tệp Markdown,356000byte. Không cần VPS chỉ cho ghi chú hiện tại.
+- Main có 47 tệp Markdown, 356000 byte. Không cần VPS chỉ cho ghi chú hiện tại.
 - Thêm quy trình đọc chọn lọc và bàn giao chung; chưa thay worker/runtime.
 
 ## Còn lại

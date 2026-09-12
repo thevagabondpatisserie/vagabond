@@ -386,7 +386,8 @@ Không im lặng nuốt lỗi. Nuốt lỗi là cách hệ này mất 26 đơn m
 Khi có nhiều agent, đọc `vgb-control-tower/README.md` trước khi nhận việc.
 GitHub Issue đang `In progress`, có owner, branch và phạm vi tệp là nguồn
 khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy preflight trước
-khi sửa, bàn giao bằng mẫu handoff, và review chéo trước khi tạo PR.
+khi sửa, bàn giao theo docs/van-hanh-agent/README.md (thay mẫu handoff
+cũ), và review chéo trước khi tạo PR.
 
 ### 9b. Luật tag đối ứng giữa hai agent
 

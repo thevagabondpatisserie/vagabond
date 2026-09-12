@@ -1,6 +1,6 @@
 # Luồng cloud của Vagabond
 
-Anh Việt chọn cloud ngày12/09/2026, Issue294. Không dùng lịch desktop để
+Anh Việt chọn cloud ngày 12/09/2026, Issue 294. Không dùng lịch desktop để
 thay thế và không tự thêm dịch vụ API tính phí riêng khi chưa thống nhất.
 
 ## Chuỗi cần có
@@ -26,15 +26,14 @@ hoặc bằng chứng mới; cùng finding ba vòng không có bằng chứng m�
 và báo anh. Quy tắc này còn là lời dặn, chưa phải bộ đếm cứng. Khi chọn
 worker phải có trần chạy/thời gian và chống trùng bằng event/finding + SHA.
 
-Codex dùng Astra low theo cấu hình dự án, không Fast Mode. Cloud integration
-có thể không nạp cấu hình model repo: phải kiểm metadata thực, không tự nhận
-model đúng vì file đã ghi. Claude giữ cấu hình đã được anh chọn riêng.
+Model và cách xác minh theo mục Model mặc định dành cho Codex trong
+[AGENTS.md](../../AGENTS.md); không sao chép cấu hình thành nguồn thứ hai.
 
-## Hiện trạng và cổng bật
+## Cổng bật
 
-PR281 có receiver nhưng chưa có worker; biến inbox vẫn chưa bật tại lúc rà.
-Internet cloud đã được lưu theo nhật ký, chưa thay bằng kiểm fetch/push mới.
-Lịch local cũ PAUSED và chứa các PR đã hoàn tất, không resume lịch đó.
+Trạng thái có mốc nằm ở [Issue 294](https://github.com/thevagabondpatisserie/vagabond/issues/294)
+và [bản bàn giao](cong-viec/issue-294.md). Luồng này chỉ quy định điều kiện,
+không thay bằng chứng vận hành hiện tại.
 
 Chỉ bật sau khi xác định cơ chế cloud được tài khoản hỗ trợ và thử một việc
 nhỏ độc lập: nhận đúng yêu cầu -> link task -> commit trên đúng nhánh -> CI
