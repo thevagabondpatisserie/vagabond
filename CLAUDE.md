@@ -223,6 +223,9 @@ và thêm khối `telegram-release` theo docs/thong-bao-telegram.md vào biên n
 `[ĐÃ DEPLOY]`, dùng SHA thực tế đã lên site. Đây là nội dung dành riêng cho
 Telegram của anh Việt, không chép log/chứng từ; cùng đợt chỉ một bản tin,
 không gọi model trong sender. Quyền này không phải quyền gửi email nhân viên.
+Biên nhận `[ĐÃ DEPLOY]` viết theo docs/mau-tin-phat-hanh.md: mỗi bộ phận một
+khối Trước đây / Từ nay / Bạn cần làm, phần Đã kiểm trên site thật ghi tên
+màn và con số, phần Còn tồn ghi thật; không tên hàm, tệp, trường, nhánh.
 
 Khối chỉ được gửi khi comment do tài khoản chủ repo đăng với association
 OWNER. Codex local dùng kết nối GitHub của chủ repo đã được xác minh, có thể
