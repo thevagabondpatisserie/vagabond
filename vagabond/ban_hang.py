@@ -2046,10 +2046,9 @@ def chot_doanh_so(ngay=None):
 		"Sales Invoice",
 		filters={
 			"posting_date": ngay,
-			"custom_pancake_id": ["!=", ""],
 			"docstatus": 0,
-			"vgb_quay": ["in", ["", None]],
 			"vgb_huy": 0,
+			"vgb_tam_tinh": 0,
 		},
 		pluck="name",
 	)
@@ -2067,7 +2066,8 @@ def chot_doanh_so(ngay=None):
 		nhan = si.custom_pancake_display_id or si.name
 		try:
 			_chuan_bi_ghi_so(si, sepay)
-		except frappe.ValidationError as e:
+		except Exception as e:
+			frappe.db.rollback()
 			# Thieu phuong thuc hay ma tham chieu: bao ro don nao, khong ghi so.
 			frappe.local.message_log = []
 			loi.append("Đơn %s: %s" % (nhan, str(e)))
@@ -2498,6 +2498,12 @@ def _chuan_bi_ghi_so(si, sepay=None):
 	if not (si.vgb_xhd_ten or "").strip():
 		si.vgb_xhd_ten = XHD_MAC_DINH
 
+	# Core Document._submit đặt docstatus=1 TRƯỚC before_validate.
+	# Combo còn mã gốc phải qua lưu nháp để rã, không bỏ hook bảo vệ tờ đã chốt.
+	if any(str(d.item_code or '').upper().startswith('KMCB') for d in si.items):
+		si.flags.ignore_permissions = True
+		si.save()
+
 
 @frappe.whitelist()
 def luu_khach_no(si_name, khach=None):
@@ -2723,6 +2729,7 @@ def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
 	try:
 		_chuan_bi_ghi_so(si, sepay)
 	except Exception as e:
+		frappe.db.rollback()
 		frappe.local.message_log = []
 		return 0, 0, "Đơn %s: %s" % (nhan, str(e)[:220])
 	try:
@@ -3619,7 +3626,7 @@ def _quet_don_treo(so_ngay=14):
 	ds = frappe.db.get_all(
 		"Sales Invoice",
 		filters={
-			"posting_date": [">=", tu],
+			"posting_date": ["between", [tu, add_days(nowdate(), -1)]],
 			"custom_pancake_id": ["!=", ""],
 			"docstatus": 0,
 			"vgb_quay": ["in", ["", None]],

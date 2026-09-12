@@ -32,6 +32,7 @@ def tao():
     c.tk_chi_phi_qua_tang = tk['64181']
     # Cấu hình thật của site thử, không mock _tu_xuat_hddt/submit.
     # Ca này không được báo là đã kiểm đường phát hành M-Invoice.
+    c.hang_tang_xuat_kho_that = 1
     c.tu_xuat_hddt = 0
     c.save(ignore_permissions=True)
     # Core Customer.validate_customer_group cấm chọn nút nhóm cha.
