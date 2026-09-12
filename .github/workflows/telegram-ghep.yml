@@ -1,0 +1,42 @@
+name: Telegram ghep chat
+on:
+  workflow_dispatch:
+    inputs:
+      ma_ghep:
+        description: Mã một lần anh Việt gửi trong private chat
+        required: true
+      public_key:
+        description: Public key repository secrets từ GitHub API (không phải token)
+        required: true
+      key_id:
+        description: ID public key repository secrets
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: telegram-ghep-chat
+  cancel-in-progress: false
+jobs:
+  ghep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: .github/telegram
+      - run: python3 -m pip install --disable-pip-version-check PyNaCl==1.5.0
+      - name: Ghép đúng chat và mã hoá ID
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          MA_GHEP: ${{ inputs.ma_ghep }}
+          PUBLIC_KEY: ${{ inputs.public_key }}
+          KEY_ID: ${{ inputs.key_id }}
+        run: python3 .github/telegram/ghep_chat.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telegram-chat-encrypted
+          path: chat-encrypted.json
+          retention-days: 1
+          if-no-files-found: error
