@@ -43,3 +43,33 @@ console.log('PASS #261: gộp dòng in cộng thành tiền đã chốt, không 
   await bam(0);assert.equal(ctx.posSua.mon.length,3);
   console.log('PASS #261: handler xóa thật kiểm Hủy, xác nhận, món lẻ và dòng đổi lúc đang hỏi');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
+// #283: nạp nguyên màn tính tiền, mở sheet thật, tìm và bấm như thu ngân.
+(async function () {
+  const dg=require('./dom_gia.js');
+  for (const lyDo of ['Ngoài khung giờ 07:00 - 11:00','Không áp dụng cho quầy TCV']) {
+    const tai=dg.taiLieuGia(), bao=[];
+    const m={document:tai,CFGBH:{},console,setTimeout:()=>0,h:s=>String(s||''),money:s=>String(s||0),flt0:Number,num:String,toast:s=>bao.push(s)};
+    vm.createContext(m);vm.runInContext(src,m);
+    Object.assign(m,{posDoc:()=>{},posQuay:{ma:'TCV'},posDon:{mon:[],combo:[]},posNguonThuc:()=> 'Tại chỗ',dsItemsCache:[{name:'KMCB1',item_name:'Combo thử',standard_rate:100}],api:async ten=>ten.includes('ds_combo')?{combo:[{name:'CB1',ma_hang:'KMCB1',ten:'Combo thử',dung_duoc:0,ly_do:lyDo,dong:[],gia_combo:100}]}:{}});
+    await m.posThemMon();
+    const lst=tai.body.querySelector('.shl');
+    assert(lst.innerHTML.includes(lyDo),'phải hiện lý do ngay trong sheet');
+    const rows=lst.querySelectorAll('.shi');
+    assert.equal(rows.length,2,'giữ cả thẻ combo không dùng được và mã hàng');
+    for(const row of rows) lst.onclick({target:row});
+    assert.deepEqual(bao,[lyDo,lyDo]);assert.equal(m.posDon.mon.length,0);
+  }
+  for (const coCauHinh of [false,true]) {
+    const tai=dg.taiLieuGia(), bao=[];
+    const m={document:tai,CFGBH:{},console,setTimeout:()=>0,h:s=>String(s||''),money:s=>String(s||0),flt0:Number,num:String,toast:s=>bao.push(s),comboKhoa:ma=>ma};
+    vm.createContext(m);vm.runInContext(src,m);
+    Object.assign(m,{posDoc:()=>{},posQuay:{ma:'TCV'},posDon:{mon:[],combo:[]},posNguonThuc:()=> 'Tại chỗ',dsItemsCache:[{name:'KMCB1',item_name:'Combo thử',standard_rate:100}],api:async ten=>ten.includes('ds_combo')?{combo:coCauHinh?[{name:'CB1',ma_hang:'KMCB1',ten:'Combo thử',dung_duoc:1,dong:[{item_code:'BANH1',so_luong:1,gia_goc:100}],gia_combo:100}]:[]}:{}});
+    await m.posThemMon();
+    const lst=tai.body.querySelector('.shl'),rows=lst.querySelectorAll('.shi');
+    lst.onclick({target:rows[rows.length-1]});
+    if(coCauHinh) {assert.equal(m.posDon.mon[0].item_code,'BANH1');assert.equal(m.posDon.combo.length,1);}
+    else {assert(bao[0].includes('chưa có cấu hình'));assert.equal(m.posDon.mon.length,0);}
+  }
+  console.log('PASS #283: sheet thật giữ lý do hết giờ/sai quầy, bấm cả thẻ và mã không thêm món');
+})().catch(e=>{console.error(e);process.exitCode=1;});
