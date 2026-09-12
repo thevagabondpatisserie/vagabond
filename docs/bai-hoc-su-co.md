@@ -202,3 +202,17 @@ Sao chép, sửa đổi và trả hàng có ý nghĩa khác nhau: bản sao là 
 ### 11/09/2026 - Khóa duy nhất chưa đủ cho retry HTTP (#246)
 
 Ca HTTPS trên SHA3c30b41 cho hai request đặt bàn cùng đọc chưa tồn tại trước khi insert: chỉ có một phiếu nhưng phản hồi là200/409. Cần bắt riêng DuplicateEntryError, lùi savepoint, đọc current for_update và so hash rồi trả mã cũ. Snapshot REPEATABLE READ từ lần đọc đầu không đủ. SHA6fb7473 đạt17/17 cửa HTTPS, gồm OTP dùng một lần, cookie, logout và booking đồng thời. db_insert của Frappe còn đẩy Duplicate Name vào message_log; khi retry đã đối chứng thành công phải bỏ thông báo của insert vừa lùi, giữ thông báo trước đó.
+
+## PR281/282: review không tự giao sửa finding
+
+Ngày 11/09/2026, Claude đăng finding trên PR #281 rồi kết bằng lệnh review;
+không có bằng chứng tác vụ sửa đã được nhận. Review chỉ yêu cầu rà soát, còn
+việc sửa cần một yêu cầu tác vụ riêng. Sửa lời dặn không tự cài bộ thực thi.
+
+Cách phòng: theo mục Bàn giao trong `CLAUDE.md`, gửi đúng PR/SHA/finding và
+phạm vi; kiểm xác nhận/link tác vụ, commit đúng nhánh và checks/review SHA cuối.
+Không gọi sửa trùng khi người khác đang làm cùng phạm vi, không coi thiếu
+phản hồi là chưa có commit. Chưa có log thì không kết luận lỗi đồng bộ/quota.
+Luật dừng theo từng việc trong `CLAUDE.md` là nguồn chung; tài liệu Codex phải
+đồng bộ, không giữ cách đếm tổng comment cũ làm chặn các finding độc lập.
+Nguồn: PR #281, review và sửa tài liệu PR #282; chưa có nghiệm thu bot-to-bot.
