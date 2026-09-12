@@ -141,3 +141,17 @@ def luu_qua_co_tien_tay():
     except Exception as e: dung('câu hướng dẫn dòng tay','dòng thanh toán' in str(e))
     else: dung('không cho ghi trạng thái kẹt',False)
     la('không ghi hoặc commit',ghi,[])
+
+@ca('#290 tắt kho cùng lúc đổi tặng sang thu tiền phải dọn trước khi hạ dấu')
+def tat_kho_doi_thu_tien():
+    from unittest.mock import patch
+    from vagabond import hang_tang_kho as kho
+    from vagabond.khung.kiem_thu.thu_kho_tang_243 import _hd,_f
+    d=_hd(moi=0,vgb_tang_kho_moi=1,update_stock=1,vgb_tang_kho='KHO',vgb_pt_thanh_toan='Tiền mặt')
+    d.items[0].expense_account='64181'
+    f=_f(1);f.db.get_single_value=lambda *a:0
+    with patch.object(kho,'frappe',f):kho.chuan_bi(d)
+    la('hạ dấu chính sách',d.vgb_tang_kho_moi,0)
+    la('không xuất kho quà',d.update_stock,0)
+    la('gỡ kho quà',d.vgb_tang_kho,None)
+    la('gỡ chi phí quà',d.items[0].expense_account,None)
