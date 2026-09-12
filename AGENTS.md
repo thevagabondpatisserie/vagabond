@@ -388,6 +388,53 @@ GitHub Issue đang `In progress`, có owner, branch và phạm vi tệp là ngu�
 khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy preflight trước
 khi sửa, bàn giao bằng mẫu handoff, và review chéo trước khi tạo PR.
 
+### 9b. Luật tag đối ứng giữa hai agent
+
+Đối xứng cho cả hai chiều: Claude gọi Codex bằng `@codex`, Codex gọi Claude
+bằng `@claude`. Cùng một bộ luật, không bên nào có ngoại lệ. Nguồn đầy đủ về
+bàn giao và luật dừng là `CLAUDE.md`; mục này nêu phần đối ứng để Codex đọc
+được mà không phải nạp `CLAUDE.md`. Bổ sung sau review PR #281, 12/09/2026.
+
+**Chọn đúng loại lời gọi.** Rà soát và giao sửa là hai việc khác nhau.
+`@codex review` hoặc `@claude review` CHỈ yêu cầu rà soát, không giao sửa gì.
+Muốn bên kia sửa thì viết yêu cầu tác vụ rõ ràng, kèm đủ năm ô: số PR, SHA
+hiện tại, link hoặc ID finding, phạm vi tệp, ca tái hiện hoặc hồi quy. Nêu
+finding rồi kết bằng `review` là việc sửa không ai nhận. Đã xảy ra thật ngày
+11/09/2026 trên PR #281.
+
+**Đặt lời gọi trong comment của đúng PR chứa code cần sửa.** Finding nằm ở
+issue thì dẫn link nó sang comment trên PR, không dựa vào mention trong issue
+để giao việc tự động. Bộ nhận issue ở `.github/codex-issue-inbox/` là cơ chế
+khác và mặc định đang tắt; biên nhận `queued` không phải là bên kia đã bắt
+đầu làm.
+
+**KHÔNG tag lại khi** comment mới nhất của bên kia chỉ là xác nhận, cảm ơn
+hoặc không mang finding mới; khi đó là câu hỏi thuần thông tin của anh Việt;
+hoặc khi việc đang chờ anh Việt quyết chứ không chờ kỹ thuật. Im lặng cũng là
+một lựa chọn đúng.
+
+**Xác nhận bàn giao, không chỉ gửi lệnh.** Gửi xong thì ghi link comment yêu
+cầu rồi đi tìm xác nhận nhận việc, phân biệt bốn trạng thái: chưa nhận, đang
+làm, bị chặn, đã có commit. Review hoàn tất không chứng minh tác vụ sửa đã
+chạy hay có quyền push. Mất phản hồi cũng không chứng minh lượt trước chưa ghi
+commit; đọc lại nhánh trước khi giao lại. Đang có người làm cùng finding hoặc
+cùng phạm vi thì bổ sung bằng chứng vào đầu mối hiện tại, không mở tác vụ sửa
+thứ hai.
+
+**Luật dừng đếm theo từng việc.** Đếm số vòng trên CÙNG một finding hoặc cùng
+một điểm bất đồng trong 24 giờ mà lượt sau không mang thêm số liệu hay bằng
+chứng mới. Đủ 3 vòng như vậy thì dừng gọi và mời anh Việt phân xử. Mỗi finding
+độc lập có bộ đếm riêng: ba finding khác nhau không cộng thành ba vòng, và
+việc thứ tư vẫn được giao bình thường. Giữ ID hoặc link finding nhất quán để
+đối chiếu, không đổi tên cùng một việc để né bộ đếm. Đây là giới hạn mềm do
+agent tự đếm, không phải khoá trong workflow và không phải trần token; không
+có bằng chứng workflow thì không nhận là đã chặn cứng.
+
+**Lỗi khởi chạy không phải bất đồng kỹ thuật.** Bị chặn mạng, thiếu quyền hoặc
+không dựng được môi trường thì báo đúng là lỗi khởi chạy, kèm bằng chứng còn
+thiếu. Không mô tả thành hai bên bất đồng, và không tự kết luận là hết token
+hay lỗi đồng bộ khi chưa đọc log.
+
 
 ## 10. Phân công cập nhật 09/09/2026 - ưu tiên so với phân công cũ
 
