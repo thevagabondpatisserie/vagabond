@@ -122,7 +122,7 @@ MO_DUN_KHAI = ("cong_no", "de_nghi_chi", "hoan_tien")
 
 def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		ten_man="", truong_gd="ma_gd", loc_chiem=None,
-		truong_nguoi="", truong_luc=""):
+		truong_nguoi="", truong_luc="", loi_giao_dich=None):
 	"""Khai một luồng đối soát vào sổ chung.
 
 	  loai       khoa ngan, man hinh goi cua ngo bang khoa nay
@@ -140,7 +140,14 @@ def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		"dang_cho": dang_cho, "khi_khop": khi_khop, "ten_man": ten_man or loai,
 		"truong_gd": truong_gd, "loc_chiem": loc_chiem or {},
 		"truong_nguoi": truong_nguoi, "truong_luc": truong_luc,
+		"loi_giao_dich": loi_giao_dich,
 	}
+
+
+def _loi_giao_dich(b, g):
+	"""Trả lý do một luồng không được dùng dòng sao kê này."""
+	ham = b.get("loi_giao_dich")
+	return str(ham(g) or "") if ham else ""
 
 
 def _ban(loai):
@@ -345,6 +352,8 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 			"ghi_chu": "Không có phiếu nào dò được trên sao kê."}
 
 	gds = dong_sao_ke(b["chieu"], so_ngay)
+	if b.get("loi_giao_dich"):
+		gds = [g for g in gds if not _loi_giao_dich(b, g)]
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 
 	da, xem = 0, []
@@ -405,6 +414,8 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa=""):
 	tk = str(tu_khoa or "").strip().lower()
 	tho = []
 	for g in dong_sao_ke(b["chieu"], so_ngay):
+		if _loi_giao_dich(b, g):
+			continue
 		if chiem.get(g["name"]):
 			continue
 		if tk and tk not in (g["mo_ta"] or "").lower():
@@ -448,7 +459,7 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	cot = "withdrawal" if b["chieu"] == RA else "deposit"
 	g = frappe.db.get_value(BT, gd,
 		["name", "date", "deposit", "withdrawal", "docstatus", "description",
-		 "reference_number"], as_dict=True)
+		 "reference_number", "bank_account"], as_dict=True)
 	if not g:
 		frappe.throw("Không có giao dịch ngân hàng %s. Vui lòng tìm lại." % gd)
 	if cint(g["docstatus"]) >= 2:
@@ -458,6 +469,9 @@ def khop_tay(loai, ma_phieu, ma_gd):
 			"Giao dịch %s không phải dòng tiền %s. Vui lòng chọn lại."
 			% (gd, "ra" if b["chieu"] == RA else "vào")
 		)
+	loi_nguon = _loi_giao_dich(b, g)
+	if loi_nguon:
+		frappe.throw(loi_nguon)
 	chu_cu = da_chiem(loai, tru_phieu=ma_phieu).get(gd)
 	if chu_cu:
 		frappe.throw(

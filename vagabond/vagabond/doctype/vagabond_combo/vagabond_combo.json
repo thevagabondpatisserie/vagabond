@@ -5,7 +5,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "ma_combo", "ten", "cb0", "bat", "uu_tien",
+  "ma_combo", "ten", "ma_hang", "cb0", "bat", "uu_tien",
   "sb_gia", "kieu", "gia_combo", "cbg", "gia_tri", "gia_goc", "tiet_kiem",
   "sb_dong", "ht_dong", "dong", "sb_nhom", "ht_nhom", "nhom",
   "sb_pv", "tu_ngay", "den_ngay", "cbp", "kenh", "quay",
@@ -13,6 +13,7 @@
   "sb_gc", "anh", "mo_ta", "nguoi_tao"
  ],
  "fields": [
+  {"fieldname": "ma_hang", "fieldtype": "Link", "options": "Item", "label": "Mã hàng combo", "unique": 1, "description": "Chọn mã KMCB trong danh mục, mỗi mã nối một cấu hình thành phần."},
   {"fieldname": "ma_combo", "fieldtype": "Data", "label": "Ma combo", "reqd": 1, "unique": 1, "read_only": 1, "in_list_view": 1},
   {"fieldname": "ten", "fieldtype": "Data", "label": "Ten combo", "reqd": 1, "in_list_view": 1},
   {"fieldname": "cb0", "fieldtype": "Column Break"},
@@ -28,7 +29,7 @@
   {"fieldname": "tiet_kiem", "fieldtype": "Currency", "label": "Khach tiet kiem", "read_only": 1, "in_list_view": 1},
 
   {"fieldname": "sb_dong", "fieldtype": "Section Break", "label": "Cac mon trong combo"},
-  {"fieldname": "ht_dong", "fieldtype": "HTML", "options": "<div class='text-muted small'>Khi tinh tien, may RA combo thanh tung mon o day roi dat mot dong giam gia ben duoi. Bill in ra chi thay ten mon that, khong in ma combo.</div>"},
+  {"fieldname": "ht_dong", "fieldtype": "HTML", "options": "<div class='text-muted small'>Khi tinh tien, may RA combo thanh tung mon o day roi dat mot dong giam gia ben duoi. Bill in ra chi thay ten mon that, kem ma va ten combo.</div>"},
   {"fieldname": "dong", "fieldtype": "Table", "options": "Vagabond Combo Dong", "label": "Mon", "reqd": 1},
 
   {"fieldname": "sb_nhom", "fieldtype": "Section Break", "label": "Nhom mon cho khach chon"},

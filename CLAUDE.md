@@ -37,31 +37,98 @@ The Vagabond Pâtisserie, tiệm bánh ở TP HCM. Repo này là app ERPNext v16
 thật cho cửa hàng. Chủ repo là anh Việt. Hai agent cùng làm trên repo: Claude và
 Codex (`@codex`). Ngôn ngữ làm việc là tiếng Việt.
 
-## Bàn giao cho Codex sau khi làm xong
+## Bàn giao cho Codex: CHỌN ĐÚNG LỆNH, không phải lúc nào cũng review
 
-Đây là luật quan trọng nhất của tệp này. Mỗi khi Claude làm xong một việc trên
-Pull Request hoặc Issue, câu CUỐI CÙNG của comment phải mời Codex vào rà soát:
+Đây là luật quan trọng nhất của tệp này. Codex hiểu ba lệnh khác nhau, và chọn sai
+lệnh là việc bị treo mà không ai biết.
 
-    @codex review
+| Tình huống | Lệnh phải viết |
+|------------|----------------|
+| Claude vừa làm xong việc của mình, muốn Codex soi lại | `@codex review` |
+| Claude tìm ra lỗi và muốn Codex SỬA | `@codex fix <mô tả lỗi thật ngắn và cụ thể>` |
+| Claude muốn Codex làm một việc cụ thể (rebase, đặt lại số phiên bản, chạy bench) | `@codex <việc cụ thể>` |
 
-Mời như vậy để Codex biết mà vào làm tiếp, không phải chờ anh Việt gõ tay. Áp
-dụng cho: sửa xong một finding, đẩy xong commit mới, trả lời xong một câu hỏi kỹ
-thuật, mở xong một PR.
+`@codex review` CHỈ là yêu cầu rà soát. Nó không bảo Codex sửa gì cả. Nêu một
+finding rồi kết bằng `@codex review` là Codex chỉ rà soát thêm rồi trả lời, việc
+sửa không ai nhận. Đã xảy ra thật ngày 11/09/2026 trên PR #281.
 
-KHÔNG mời Codex khi: chỉ trả lời một câu hỏi thuần thông tin của anh Việt, hoặc
-việc đang chờ anh Việt quyết chứ không chờ kỹ thuật.
+Muốn giao sửa, dùng yêu cầu rõ ràng như `@codex fix`; `fix` không phải từ
+khoá duy nhất để giao tác vụ. Kèm PR, SHA hiện tại, link/ID finding, phạm vi tệp,
+hành vi cần đạt và ca tái hiện/hồi quy. Ví dụ mẫu (điền các ô trước khi gửi):
+
+    @codex fix finding <link> trên PR <số>, SHA <SHA>: sửa <hành vi> trong <tệp>, kiểm bằng <ca hồi quy>; đẩy vào nhánh PR hiện tại.
+
+Không ghim số phiên bản hoặc patch trong mẫu dùng lâu dài. Nếu công việc thực
+sự cần tăng phiên bản, fetch main và đọc phiên bản/patch hiện hành trước; giữ
+lịch sử patch và không hạ phiên bản. Sửa tài liệu không tự sinh patch ERP.
+
+### Đường nhận lệnh của tích hợp GitHub đang dùng
+
+Tài liệu OpenAI hướng dẫn đặt lệnh trong **comment của đúng PR**:
+https://developers.openai.com/codex/integrations/github (đối chiếu 11/09/2026).
+Review chỉ rà soát; yêu cầu tác vụ ngoài review tạo cloud chat theo PR và chỉ
+có thể đẩy bản sửa khi được cấp quyền. Không coi chữ `fix` là bảo đảm push.
+
+- Với tích hợp này, không dựa vào mention trong issue để giao việc tự động.
+  Nếu finding nằm ở issue, dẫn link nó trong comment trên PR chứa code cần sửa.
+- Issue đang `In progress` kèm owner, branch và phạm vi tệp vẫn là NGUỒN KHOÁ
+  CHUNG theo `AGENTS.md` mục 9. Phải claim trong issue, bàn giao khi chưa có PR
+  và không sửa phạm vi agent khác đang nhận.
+- Bộ nhận issue riêng ở PR #281 là cơ chế khác. Chỉ dựa vào nó sau khi đã kiểm
+  trạng thái phát hành, bật cấu hình và có worker; biên nhận queued không phải
+  Codex đã bắt đầu làm. Không suy ra nó hoạt động từ việc PR đã được mở.
+
+### Xác nhận bàn giao, không chỉ gửi lệnh
+
+Sau khi gửi, ghi link comment yêu cầu và tìm xác nhận nhận việc/link tác vụ
+Codex. Phân biệt: chưa nhận, đang làm, bị chặn, đã có commit. Review hoàn tất
+không chứng minh tác vụ sửa đã chạy hoặc có quyền push. Không có xác nhận thì
+kiểm danh tính người gọi, môi trường/quyền và trạng thái cloud; báo chỗ thiếu,
+không gọi lại liên tục. Không tự kết luận là hết token hay lỗi đồng bộ.
+
+Nếu một tác vụ đang sửa cùng finding/phạm vi trên PR, bổ sung bằng chứng vào
+đầu mối hiện tại, không mở tác vụ sửa thứ hai. Mất phản hồi không chứng minh
+lượt trước chưa ghi commit; đọc lại nhánh trước khi giao lại.
+
+Để nhận luồng tự động đã hoạt động, cần một lần kiểm sửa nhỏ được phép từ đúng
+caller `claude[bot]`: có tác vụ Codex được nhận, có commit trên đúng nhánh PR,
+rồi checks/review đúng SHA cuối. Đổi Markdown hoặc sửa thủ công từ desktop
+không thay bằng chứng này; lời gọi GitHub cũng không tự đánh thức phiên desktop.
+
+### Khi nào KHÔNG gọi Codex
+
+Chỉ trả lời một câu hỏi thuần thông tin của anh Việt, hoặc việc đang chờ anh Việt
+quyết chứ không chờ kỹ thuật. Im lặng cũng là một lựa chọn đúng.
+
+### Một nhắc nhỏ hay quên
+
+PR còn ở trạng thái Draft thì không bấm merge được, dù mọi cổng đã xanh. Bàn giao
+xong nhớ nói rõ PR còn Draft hay đã Ready for review.
 
 ## Luật dừng, tránh hai bên gọi nhau vô tận
 
-Trước khi viết `@codex review`, ĐẾM số comment trên PR đó có chứa đúng chuỗi
-`@codex review` do Claude viết, tính trong 24 giờ qua.
+Đếm theo VÒNG LẶP TRÊN CÙNG MỘT VIỆC, không đếm tổng số lệnh. Trước khi viết một
+lệnh `@codex`, đếm xem Claude đã gọi Codex bao nhiêu lần cho ĐÚNG finding hoặc
+đúng điểm bất đồng đó trong 24 giờ qua, mà lần sau không mang thêm số liệu hay
+bằng chứng mới nào so với lần trước.
 
-- Đã có 3 lần: KHÔNG mời nữa. Thay vào đó viết một đoạn ngắn nói rõ hai bên đang
-  bất đồng chỗ nào và mời anh Việt phân xử. Ghi rõ mỗi bên đang lập luận gì.
-- Chưa tới 3: mời bình thường, và ghi rõ đây là vòng thứ mấy.
+- Đã có 3 vòng như vậy: KHÔNG gọi nữa. Thay vào đó viết một đoạn ngắn nói rõ hai
+  bên đang bất đồng chỗ nào và mời anh Việt phân xử. Nếu chỉ bị lỗi khởi chạy,
+  báo lỗi khởi chạy và bằng chứng còn thiếu, không mô tả thành bất đồng kỹ thuật.
+- Chưa tới 3: gọi bình thường, và ghi rõ đây là vòng thứ mấy của việc đó.
+
+Một PR có ba bốn việc độc lập thì mỗi việc có bộ đếm riêng. Một lần review rồi hai
+lần `@codex fix` cho ba finding KHÁC NHAU không phải là ba vòng, và việc thứ tư
+vẫn được giao bình thường. Chặn nhầm ở đây là quay lại đúng cái lỗi mà luật này
+sinh ra để chữa: lỗi mới không ai nhận.
+
+Đây là giới hạn mềm do agent tự đếm, không phải khoá workflow hay trần tổng
+chi phí. Đổi finding/đính thêm bằng chứng không làm hệ thống có một trần chi
+phí cứng. Dùng ID/link finding nhất quán để đối chiếu; không đổi tên cùng một
+việc để né bộ đếm. Không có bằng chứng workflow thì không nhận đã chặn cứng.
 
 Cũng KHÔNG trả lời nếu comment mới nhất của Codex không mang finding mới nào, chỉ
-là xác nhận hay cảm ơn. Im lặng cũng là một lựa chọn đúng.
+là xác nhận hay cảm ơn.
 
 ## Ba việc tuyệt đối không làm
 

@@ -1,0 +1,112 @@
+{
+  "doctype": "DocType",
+  "name": "Vagabond Dat Ban",
+  "module": "Vagabond",
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "ten",
+      "fieldtype": "Data",
+      "label": "Họ tên",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "sdt",
+      "fieldtype": "Data",
+      "label": "Điện thoại",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "co_so",
+      "fieldtype": "Data",
+      "label": "Cơ sở",
+      "reqd": 1
+    },
+    {
+      "fieldname": "ngay",
+      "fieldtype": "Date",
+      "label": "Ngày đến",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "gio",
+      "fieldtype": "Data",
+      "label": "Giờ đến",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "so_khach",
+      "fieldtype": "Int",
+      "label": "Số khách",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "ghi_chu",
+      "fieldtype": "Small Text",
+      "label": "Khách ghi chú"
+    },
+    {
+      "fieldname": "trang_thai",
+      "fieldtype": "Select",
+      "label": "Trạng thái",
+      "options": "Chờ xác nhận\nĐã xác nhận\nĐã đến\nĐã hủy",
+      "default": "Chờ xác nhận",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "xu_ly",
+      "fieldtype": "Small Text",
+      "label": "Ghi chú xử lý"
+    },
+    {
+      "fieldname": "bam_noi_dung",
+      "fieldtype": "Data",
+      "label": "Dấu vết yêu cầu",
+      "hidden": 1,
+      "read_only": 1
+    }
+  ],
+  "field_order": [
+    "ten",
+    "sdt",
+    "co_so",
+    "ngay",
+    "gio",
+    "so_khach",
+    "ghi_chu",
+    "trang_thai",
+    "xu_ly",
+    "bam_noi_dung"
+  ],
+  "permissions": [
+    {
+      "role": "Sales User",
+      "read": 1,
+      "write": 1,
+      "report": 1
+    },
+    {
+      "role": "Sales Manager",
+      "read": 1,
+      "write": 1,
+      "report": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "report": 1
+    }
+  ],
+  "track_changes": 1,
+  "autoname": "prompt",
+  "sort_field": "ngay",
+  "sort_order": "ASC",
+  "title_field": "ten"
+}

@@ -445,7 +445,7 @@ def _():
 	la("rỗng vào thì rỗng ra", t._da_ghi_so("Purchase Receipt", []), [])
 
 
-@ca("ten mien: chi ba mien duoc khai moi bi ap luat, con lai di duong cu")
+@ca("ten mien: chi mien duoc khai moi bi ap luat, con lai di duong cu")
 def _():
 	# DAY LA CHOT AN TOAN QUAN TRONG NHAT cua tep ten_mien.py. Dat luat rong
 	# roi chan nham la KHOA CUA CHINH MINH: khong vao duoc Desk de sua lai.
@@ -455,7 +455,7 @@ def _():
 	from vagabond.ten_mien import dich_chuyen_huong
 
 	for host in ("vagabond.s.frappe.cloud", "erpnext-qwy-acq.s.frappe.cloud",
-			"localhost", "127.0.0.1", "", None, "thevagabondpatisserie.com"):
+			"localhost", "127.0.0.1", "", None, "example.com"):
 		for d in ("/app", "/bep", "/banh", "/app/user", "/"):
 			la("miền lạ %r đường %s không bị đụng" % (host, d),
 				dich_chuyen_huong(host, d, tuple(DUONG)), "")
@@ -579,3 +579,13 @@ def _():
 		truoc = than[:vi]
 		dung("lần gọi thứ %d nằm sau một await reset(scrHome)" % (k + 1),
 			"await reset(scrHome)" in truoc)
+
+
+@ca("Web #245: apex và www nhận trang khách, không đưa vào app nhân viên")
+def thu_mien_chinh():
+    from vagabond.ten_mien import dich_chuyen_huong
+    for m in ('thevagabondpatisserie.com','www.thevagabondpatisserie.com','order.thevagabondpatisserie.com'):
+        for d in ('/', '/app', '/bep'):
+            la('Miền khách về đặt bánh',dich_chuyen_huong(m,d),'/banh')
+        for d in ('/dat-ban','/thanh-vien','/tt','/xhd','/api/method/x','/assets/a.js'):
+            la('Giữ đường khách và tài nguyên',dich_chuyen_huong(m,d),'')
