@@ -424,3 +424,7 @@ Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạ
 ### 13/09/2026 - Lô và HSD chỉ cảnh báo, tồn kho không bao giờ âm
 
 Đổi chính sách thì phải đổi ca đối chứng đúng đại lượng: 50 tốt + 280 quá hạn + 100 lô tắt nay là 430 khả dụng. Xin500 vẫn phải thiếu70; xin400 cần dùng70 từ lô tắt và lưu cảnh báo. Gói Desk cấp chưa đủ lượng dòng phải được bù, không biến kiểm tổng lượng gói thành một chốt mới chặn người dùng.
+
+### 13/09/2026 - HSD ở phiếu nhập nháp, #302 F16
+
+Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/xóa ngày trên app không tới Batch. Kiểm payload UI chưa đủ: phải đọc Batch.expiry_date sau submit. Cửa mới phải giữ quyền Document, retry cùng phiếu và rollback lô nếu submit lỗi; không sửa HSD lô có sổ kho. Đọc cả inline review mới sau khi chuyển Ready, không coi biên nhận cũ là chốt cuối.

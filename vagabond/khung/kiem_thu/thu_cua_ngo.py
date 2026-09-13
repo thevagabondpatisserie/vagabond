@@ -530,7 +530,7 @@ CUA_NGO = {
 	# chup lai sau khi phat hien chup thieu.
 	"nhan_hang.py": [
 		"chi_tiet", "danh_sach", "dong_con_lai", "go_anh_nhan",
-		"mo_lai", "tao_phieu",
+		"mo_lai", "tao_phieu", "ghi_phieu_nhap",
 	],
 	# Kiem ke xoay vong. Bon cua them 03/09/2026 cung dot nam nut hoc tu SAP.
 	# `chan_khi_dang_kiem`, `soat_truoc_khi_chot` va `chup_ton_so` la HOOK,

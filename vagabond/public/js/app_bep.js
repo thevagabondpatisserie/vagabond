@@ -7690,6 +7690,14 @@ async function scrRecvDoc(name) {
      rồi thì số đó lớn hơn số thực sự còn thiếu, và ô nhập điền sẵn theo nó
      là đường thẳng dẫn tới nhập trùng nguyên lô. Nên đọc lại từ đơn mua và
      lấy số nhỏ hơn trong hai số làm mặc định. */
+  var hanLo = {}, loDaChon = doc.items.map(function (r) { return r.batch_no; }).filter(Boolean);
+  if (loDaChon.length) {
+    try {
+      var cacLo = await getList('Batch', { fields: ['name', 'expiry_date'], filters: { name: ['in', loDaChon] }, limit_page_length: 0 });
+      cacLo.forEach(function (x) { hanLo[x.name] = x.expiry_date || ''; });
+      if (loDaChon.some(function (x) { return !Object.prototype.hasOwnProperty.call(hanLo, x); })) throw new Error('Chưa đọc được HSD lô đã chọn. Mở phiếu trên Desk để kiểm tra.');
+    } catch (eLo) { toast(errMsg(eLo)); return back(); }
+  }
   var poRow = {};
   var poKeys = [];
   doc.items.forEach(function (r) { if (r.purchase_order_item) poKeys.push(r.purchase_order_item); });
@@ -7721,7 +7729,7 @@ async function scrRecvDoc(name) {
         uom: r.uom || r.stock_uom || '', wh: r.warehouse, ord: tran,
         tren: tren, po: po,
         got: tran, sl: slf[r.item_code] || 0,
-        hsd: r.han_su_dung || '',
+        hsd: hanLo[r.batch_no] || '',
         dflt: 0, batch: bat[r.item_code] ? 1 : 0, ok: 0
       };
     })
@@ -7780,7 +7788,6 @@ async function scrRecvDoc(name) {
       d.items.forEach(function (r) {
         var x = byRow[r.name];
         r.qty = x.got; r.received_qty = x.got; r.rejected_qty = 0;
-        if (x.batch && x.hsd) r.han_su_dung = x.hsd;
       });
       /* Bo sung gia tam cho dong chua co gia tren don */
       var zeroRows = d.items.filter(function (r) { return !((r.rate || 0) > 0); });
@@ -7826,7 +7833,8 @@ async function scrRecvDoc(name) {
         if (chuaGia.length) setTimeout(function () { toast('Có ' + chuaGia.length + ' món nhập kho khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
       }
 
-      await api('frappe.client.submit', { doc: d });
+      var nhan = await api('vagabond.nhan_hang.ghi_phieu_nhap', { doc: d, dong: JSON.stringify(keep.map(function (x) { return { dong: x.row, sl: x.got, hsd: x.hsd || '' }; })) });
+      if (nhan.canh_bao_han && nhan.canh_bao_han.length) await confirmSheet('Đã nhận hàng - kiểm tra hạn dùng', nhan.canh_bao_han.join('\n'), 'Đã xem');
       busy(0);
       rcv.tab = 'xong';
       toast('✓ Đã nhập kho phiếu ' + rcvD.name + '. Phiếu nằm ở tab Đã nhập kho.');

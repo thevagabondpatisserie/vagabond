@@ -479,9 +479,63 @@ def _nhan_mua_han_that():
 		la('API trả cảnh báo',bool(ra['canh_bao_han']),can_canh_bao)
 		if can_canh_bao:
 			dung('cảnh báo lưu trên phiếu', ('Chưa có hạn sử dụng' if not han else 'Hạn dùng cần kiểm tra') in pr.remarks)
+		else:
+			dung('hạn tốt không ghi cảnh báo thừa', 'Chưa có hạn sử dụng' not in (pr.remarks or '') and 'Hạn dùng cần kiểm tra' not in (pr.remarks or ''))
 		la('tồn đã nhận',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),1)
 		pr.cancel()
 		la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)
+
+
+@ca('489 PR nháp: HSD nhãn/trống tới Batch, retry không thêm sổ, huỷ trả tồn')
+def _nhan_nhap_han_that():
+	from frappe.utils import today, add_days
+	from vagabond import nhan_hang
+	from vagabond.khung.kiem_that.he_so_252 import _luu
+	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
+	from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
+	cty = cong_ty(); kho, tk = _kho_rieng(cty, '489-NHAP')
+	ma = _mon_thu('KT489-NHAP-' + uuid.uuid4().hex[:10], theo_lo=1)
+	it = frappe.get_doc('Item', ma); it.has_expiry_date=1; it.shelf_life_in_days=90; it.save()
+	for han in ['', add_days(today(), -1), add_days(today(),3650)]:
+		po = _luu(frappe.get_doc(dict(doctype='Purchase Order',company=cty,
+			supplier=nen.mot_nha_cung_cap(),currency='VND',conversion_rate=1,
+			transaction_date=today(),schedule_date=today(),
+			items=[dict(item_code=ma,qty=1,rate=1000,warehouse=kho,schedule_date=today())])))
+		po.submit()
+		pr = _luu(make_purchase_receipt(po.name)); pr.reload()
+		payload = pr.as_dict(); dong=[dict(dong=pr.items[0].name,sl=1,hsd=han)]
+		if not han:
+			from unittest.mock import patch
+			so_lo = frappe.db.count('Batch',{'item':ma})
+			with patch.object(type(pr),'submit',side_effect=RuntimeError('loi sau tao Batch')):
+				try: nhan_hang.ghi_phieu_nhap(payload,dong)
+				except RuntimeError as e: la('đúng lỗi thử',str(e),'loi sau tao Batch')
+				else: raise AssertionError('Phải phát lại lỗi submit')
+			la('lỗi không để lô rác',frappe.db.count('Batch',{'item':ma}),so_lo)
+			la('lỗi giữ nháp',frappe.db.get_value('Purchase Receipt',pr.name,'docstatus'),0)
+			nguoi=frappe.session.user
+			try:
+				frappe.set_user('Guest')
+				try: nhan_hang.ghi_phieu_nhap(payload,dong)
+				except frappe.ValidationError: pass
+				else: raise AssertionError('Guest không được nhận hàng')
+			finally: frappe.set_user(nguoi)
+			ra = nhan_hang.ghi_phieu_nhap(payload,dong)
+		else:
+			ra = nhan_hang.ghi_phieu_nhap(payload,dong)
+		pr.reload(); la('PR ghi sổ',pr.docstatus,1)
+		r=pr.items[0]; lo=r.batch_no or frappe.db.get_value('Serial and Batch Entry',{'parent':r.serial_and_batch_bundle},'batch_no')
+		nen._DA_TAO.append(('Batch',lo))
+		la('HSD thực sự vào Batch',str(frappe.db.get_value('Batch',lo,'expiry_date') or ''),str(han))
+		canh=not han or str(han)<today()
+		la('cảnh báo trả app',bool(ra['canh_bao_han']),canh)
+		if canh: dung('cảnh báo lưu phiếu', ('Chưa có hạn sử dụng' if not han else 'Hạn dùng cần kiểm tra') in (pr.remarks or ''))
+		else: dung('hạn tốt không cảnh báo thừa','Chưa có hạn sử dụng' not in (pr.remarks or '') and 'Hạn dùng cần kiểm tra' not in (pr.remarks or ''))
+		sle=frappe.db.count('Stock Ledger Entry',{'voucher_type':'Purchase Receipt','voucher_no':pr.name})
+		la('retry đúng phiếu',nhan_hang.ghi_phieu_nhap(payload,dong)['phieu'],pr.name)
+		la('retry không thêm SLE',frappe.db.count('Stock Ledger Entry',{'voucher_type':'Purchase Receipt','voucher_no':pr.name}),sle)
+		la('tồn sau nhận',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),1)
+		pr.cancel();la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)
 
 
 def _mua_ban_lo_cu(dt):

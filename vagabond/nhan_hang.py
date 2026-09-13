@@ -385,6 +385,102 @@ def _doc_dong(dong):
 	return ra
 
 
+
+def _han_nhan_cua_dong(r, han):
+	"""Một nguồn cảnh báo cho cả nhận theo đơn và PR nháp, không chặn HSD."""
+	from vagabond import kho_cai_dat, kho_sap
+	nguong = kho_cai_dat.doc()
+	theo_lo = cint(frappe.db.get_value("Item", r.item_code, "has_batch_no"))
+	toi_thieu = kho_cai_dat.hsd_toi_thieu_cua(r.item_code, nguong["hsd_toi_thieu_chung"])
+	ten = r.item_name or r.item_code
+	if not han:
+		return "Chưa có hạn sử dụng: " + ten if kho_sap.bat_buoc_han_dung(theo_lo, toi_thieu) else None
+	kq = kho_sap.soat_han_dung(getdate(han), getdate(nowdate()), toi_thieu)
+	if not kq["dat"] or (kq.get("con") is not None and kq["con"] < 0):
+		return "Hạn dùng cần kiểm tra: " + kho_sap.cau_han_dung(ten, kq)
+
+
+def _lo_nhan_thuc_te(r, han):
+	# Batch.before_save của ERPNext gọi set_expiry_date. Cờ riêng giữ ngày
+	# nhãn/trống, không sửa chính sách shelf life của những cửa khác.
+	han = getdate(han) if han else None
+	if r.get("serial_and_batch_bundle"):
+		frappe.throw("Dòng %s đã chia gói lô. Mở phiếu trên Desk để kiểm từng lô trước khi nhận." % r.item_code)
+	if r.get("batch_no"):
+		b = frappe.get_doc("Batch", r.batch_no, for_update=True)
+		if b.item != r.item_code:
+			frappe.throw("Lô không thuộc đúng mã hàng, mở lại phiếu để kiểm tra.")
+		if str(b.expiry_date or "") != str(han or ""):
+			# Cả sổ kiểu batch_no cũ và sổ qua bundle mới, kể cả đã hủy:
+			# không viết lại HSD lịch sử chỉ vì một phiếu nhận mới.
+			da_dung = frappe.db.sql("""select s.name from `tabStock Ledger Entry` s
+				left join `tabSerial and Batch Entry` e on e.parent=s.serial_and_batch_bundle
+				where s.batch_no=%s or e.batch_no=%s limit 1""", (b.name,b.name))
+			if da_dung:
+				frappe.throw("Lô %s đã có sổ kho. Giữ HSD đã lưu hoặc chọn lô mới trên phiếu, không sửa hạn lịch sử." % b.name)
+	else:
+		b = frappe.get_doc({"doctype":"Batch", "item":r.item_code})
+		from vagabond.ma_phieu_sx import nho_nguoi_go_lo, dat_ten_lo
+		nho_nguoi_go_lo(b); dat_ten_lo(b)
+	b.expiry_date = han
+	b.flags.vgb_hsd_thuc_te = True
+	b.save(ignore_permissions=True)
+	r.batch_no = b.name
+	r.use_serial_batch_fields = 1
+
+
+@frappe.whitelist(methods=["POST"])
+def ghi_phieu_nhap(doc, dong=None):
+	"""Thay frappe.client.submit cho PR nháp, giữ quyền và validation lõi.
+
+	frappe/client.py submit dựng Document rồi submit. Ở đây kiểm quyền trên
+	bản DB trước khi tạo lô, khóa phiếu để retry không tạo lô/SLE lần hai.
+	Không commit; lỗi bất cứ bước nào rollback cả Batch lẫn phiếu.
+	"""
+	_kiem_quyen()
+	data = frappe.parse_json(doc) if isinstance(doc, str) else doc
+	if not isinstance(data, dict) or data.get("doctype") != "Purchase Receipt" or not data.get("name"):
+		frappe.throw("Cần một phiếu nhập kho nháp có sẵn.")
+	goc = frappe.get_doc("Purchase Receipt", data["name"], for_update=True)
+	goc.check_permission("write"); goc.check_permission("submit")
+	if goc.docstatus == 1:
+		return {"phieu":goc.name, "canh_bao_han":[goc.remarks] if any(t in (goc.remarks or "") for t in ("Chưa có hạn sử dụng", "Hạn dùng cần kiểm tra")) else [], "da_ghi":1}
+	if goc.docstatus != 0 or cint(goc.get("is_return")):
+		frappe.throw("Chỉ nhận hàng trên phiếu nháp nhập mua, không phải phiếu trả.")
+	if str(data.get("modified")) != str(goc.modified):
+		frappe.throw("Phiếu vừa được sửa. Mở lại phiếu để lấy số liệu mới rồi nhận hàng.")
+	pr = frappe.get_doc(data)
+	pr.flags = frappe._dict()
+	pr.docstatus = 0
+	nhap = _doc_dong(dong)
+	goc_dong = {r.name:r for r in goc.items}
+	if not pr.items or set(nhap) != {r.name for r in pr.items}:
+		frappe.throw("HSD và dòng nhận không khớp. Mở lại phiếu rồi thử lại.")
+	for r in pr.items:
+		x = goc_dong.get(r.name)
+		if not x or r.item_code != x.item_code or r.warehouse != x.warehouse or r.batch_no != x.batch_no or r.serial_and_batch_bundle != x.serial_and_batch_bundle:
+			frappe.throw("Mã hàng, kho hoặc lô đã đổi. Lưu phiếu rồi mở lại màn nhận hàng.")
+		if flt(r.qty) <= 0 or flt(r.qty) > flt(x.qty) + EPS:
+			frappe.throw("Số thực nhận phải lớn hơn 0 và không vượt phiếu nháp.")
+	canh = []
+	moc = "nhan_nhap_" + frappe.generate_hash(length=10)
+	frappe.db.savepoint(moc)
+	try:
+		for r in pr.items:
+			han = nhap[r.name]["hsd"]
+			if cint(frappe.db.get_value("Item", r.item_code, "has_batch_no")):
+				_lo_nhan_thuc_te(r, han)
+			cau = _han_nhan_cua_dong(r, han)
+			if cau: canh.append(cau)
+		if canh:
+			pr.remarks = ((pr.get("remarks") or "") + " | " + "; ".join(canh)).strip(" |")
+		pr.submit()
+	except Exception:
+		frappe.db.rollback(save_point=moc)
+		raise
+	return {"phieu":pr.name, "canh_bao_han":canh}
+
+
 @frappe.whitelist()
 def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 	"""Ghi mot phieu nhap kho cho dot giao nay, dung tu DON MUA.
