@@ -343,6 +343,13 @@ tăng `_disable_transaction_control`; Frappe16.27.1 Database.commit trả
 ngay khi cờ này bật, còn rollback có save_point vẫn chạy SQL. Ca kiểm đọc
 cả ba công tắc trước/sau bằng DB không cache để chốt đã hoàn nguyên.
 
+## PR #295: bàn giao dùng chung và tra cứu
+
+Chỉ owner sửa bản bàn giao issue trên nhánh đã claim, reviewer gửi delta
+trên PR. Mẫu mới thay mẫu cũ, không giữ hai nguồn song song. Hiện trạng có
+ngày/SHA nằm trong bản issue, không chép vào quy trình bền. Giữ dấu cách
+trước số (Issue 294, PR 281) để rg theo tên thông thường không bỏ sót.
+
 ### 12/09/2026 - Lời nhắc quyền cấn cọc issue 247
 
 Ẩn nút trái quyền là đúng nhưng người lập vẫn cần biết ai thực hiện bước tiếp. Thêm lời nhắc thụ động, không biến thành nút giả. Kiểm cả hai màn với hai vai: kế toán có nút, người lập có lời nhắc.
