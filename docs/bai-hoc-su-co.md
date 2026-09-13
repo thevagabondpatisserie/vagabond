@@ -401,3 +401,7 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 # Quyền kế toán sau ghi sổ
 
 - PR298: kiểm trọn cả bước phát hành lại khi lần tự động chưa gửi được. Cổng lưu và ghi sổ đúng vẫn chưa đủ nếu nút phát hành lại còn dùng tập Sales. Kiểm User Accounts độc lập tới cửa mạng bị chặn trong bench, không gửi hóa đơn thật.
+
+## 13/09/2026 - #303: kiểm lại phantom Gelatine trước khi đổi mã
+
+Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính thức phantom bằng is_phantom_bom/is_phantom_item và dựng lại bảng nổ. Không chỉ đổi is_stock_item hoặc tên Powder: phải đọc BOM con/cha, bảng nổ và tiêu hao thật. Công cụ chẩn đoán chỉ nhận mã cụ thể, thiếu mã dừng, không chạy truy vấn bảng con không lọc khi BOM rỗng.
