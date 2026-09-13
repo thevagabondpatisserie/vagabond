@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """Cho bếp xuất được lô đã quá hạn ghi trên hệ, và để lại vết.
 
+Bản thử #206 ngày 13/09: cùng chính sách cho Stock Entry nhập/xuất/chuyển.
+Câu cảnh báo trung tính cho cả nhập và xuất. Chưa nới Purchase Receipt hay
+cửa nhận mua, không tự đổi công tắc trên site; các đoạn dưới ghi lịch sử.
+
 Vì sao có tệp này
 -----------------
 Chiều 03/09/2026 Khải ghi phiếu làm Bánh Ổ Mille Crepe Avocado thì bị chặn
@@ -56,16 +60,20 @@ thuộc đúng lô; giữ các kiểm tồn, kho, mã, gói và sổ cái của 
 
 # ------------------------------------------------------------ phần thuần
 
-# Bốn loại phiếu mà ERPNext chặn lô quá hạn. Chép đúng từ
-# erpnext/stock/doctype/stock_entry/stock_entry.py:4183.
+# Bốn luồng sản xuất của core và ba phiếu kho liên quan (#206).
+# StockController.validate_serialized_batch còn chặn Material Receipt;
+# Material Issue/Transfer cần cùng dấu vết cảnh báo, giữ kiểm serial/lô tắt.
 PHIEU_BI_CHAN = (
 	"Material Transfer for Manufacture",
 	"Manufacture",
 	"Repack",
 	"Send to Subcontractor",
+	"Material Receipt",
+	"Material Issue",
+	"Material Transfer",
 )
 
-DAU_CAU = "Đã xuất lô quá hạn:"
+DAU_CAU = "Cảnh báo lô quá hạn:"
 
 # O tat chot chan, khai bang ma nguon nen site thu va site that giong nhau.
 # De TRONG la KHONG chan, dung chot 03/09/2026. Tich vao thi ERPNext chan
@@ -149,7 +157,7 @@ def them_ghi_chu(cu, moi):
 	if moi in cu:
 		return cu
 	# Lưu lần hai thì thay câu cũ của mình chứ không xếp chồng.
-	dong = [d for d in cu.splitlines() if not d.strip().startswith(DAU_CAU)]
+	dong = [d for d in cu.splitlines() if not d.strip().startswith((DAU_CAU, "Đã xuất lô quá hạn:"))]
 	dong.append(moi)
 	return "\n".join(d for d in dong if d.strip())
 
@@ -220,8 +228,8 @@ def _thay_kiem_serial(goc):
 	"""ERPNext v16.28.0 controllers/stock_controller.py:321-357.
 
 	Bản gốc kiểm serial.batch_no rồi kiểm expiry_date < posting_date với
-	qty > 0 và docstatus < 2. Chỉ bỏ điều kiện hạn cho bốn mục đích đã chốt,
-	giữ nguyên toàn bộ phép kiểm serial, không miễn cho Material Receipt.
+	qty > 0 và docstatus < 2. Chỉ bỏ điều kiện hạn cho các phiếu kho đã liệt kê,
+	giữ nguyên toàn bộ phép kiểm serial và lô tắt.
 	"""
 	def validate_serialized_batch(self):
 		if (getattr(self, "purpose", None) not in PHIEU_BI_CHAN

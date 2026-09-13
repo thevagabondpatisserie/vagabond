@@ -288,10 +288,10 @@ def _hai_lo_khai(so_cu, so_moi, gia_cu, gia_moi, can):
 def _xuat_khai(wo, nvl, kho):
 	phieu = frappe.get_doc(make_stock_entry(wo.name, 'Manufacture', qty=1))
 	phieu.insert(); nen._DA_TAO.append(('Stock Entry', phieu.name))
-	phieu.save(); phieu.submit(); phieu.reload()
+	phieu.submit(); phieu.reload()
 	sle = frappe.get_all('Stock Ledger Entry', filters={
 		'voucher_type': 'Stock Entry', 'voucher_no': phieu.name, 'is_cancelled': 0},
-		fields=['item_code', 'warehouse', 'actual_qty', 'stock_value_difference'])
+		fields=['item_code', 'warehouse', 'actual_qty', 'stock_value_difference', 'serial_and_batch_bundle'])
 	nl = [d for d in sle if d.item_code == nvl]
 	dung('sổ nguyên liệu phải có thật', bool(nl))
 	la('đúng kho nguyên liệu', {d.warehouse for d in nl}, {kho})
@@ -313,7 +313,7 @@ def _khai_chia_lo():
 	la('lô cũ dùng hết', round(_ton_lo(lo[0], kho[0]), 3), 0)
 	la('lô mới góp 102.862', round(_ton_lo(lo[1], kho[0]), 3), 1897.138)
 	la('WO cộng đúng tiêu hao', round(get_consumed_qty(wo.name, nvl), 3), 806.862)
-	hai.cancel(); hai.reload(); wo.reload()
+	hai.cancel(); wo.reload()
 	la('huỷ lượt hai về đúng sản lượng', float(wo.produced_qty), 1)
 	la('huỷ trả lô cũ', round(_ton_lo(lo[0], kho[0]), 3), 300.569)
 	la('huỷ trả lô mới', _ton_lo(lo[1], kho[0]), 2000)
@@ -336,6 +336,10 @@ def _khai_gia(binh_quan):
 		la('nền lô có định giá riêng', frappe.db.get_value('Batch', b, 'use_batchwise_valuation'), 1)
 	frappe.db.set_single_value('Stock Settings', 'do_not_use_batchwise_valuation', binh_quan)
 	phieu, nl = _xuat_khai(wo, nvl, kho[0])
+	la('số lượng xuất thật', sum(float(d.actual_qty) for d in nl), -4)
+	dung('mọi dòng xuất giữ gói lô', all(d.serial_and_batch_bundle for d in nl))
+	for b in lo:
+		la('không sửa cờ của lô cũ', frappe.db.get_value('Batch', b, 'use_batchwise_valuation'), 1)
 	la('giữ theo dõi Batch', frappe.db.get_value('Item', nvl, 'has_batch_no'), 1)
 	la('vẫn rút đúng lô cũ', _ton_lo(lo[0], kho[0]), 6)
 	la('không rút lô mới', _ton_lo(lo[1], kho[0]), 10)
@@ -351,3 +355,30 @@ def _khai_gia_lo():
 @ca('206 Khải giá vốn: giữ Batch cũ, bật bình quân, xuất giá 2000 từ SLE thật')
 def _khai_gia_binh_quan():
 	_khai_gia(1)
+
+
+@ca('206 phiếu nhập kho thật: lô quá hạn cảnh báo, ghi sổ và huỷ trả tồn')
+def _nhap_lo_qua_han():
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _ton_lo
+	cty, kho, nvl, lo, wo = _nen_qua_han()
+	doc = nhap_kho(item_code=nvl, qty=2, company=cty, to_warehouse=kho[0], rate=1000, do_not_save=True)
+	doc.items[0].batch_no = lo
+	doc.items[0].use_serial_batch_fields = 1
+	doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name)); doc.submit(); doc.reload()
+	la('nhập đủ vào lô cũ', _ton_lo(lo, kho[0]), 12)
+	dung('cảnh báo trên phiếu đã lưu', lo in (doc.remarks or ''))
+	doc.cancel()
+	la('huỷ trả đúng tồn trước nhận', _ton_lo(lo, kho[0]), 10)
+
+
+@ca('206 FEFO thật: nhập sau nhưng HSD gần hơn thì lấy trước')
+def _khai_fefo():
+	from frappe.utils import nowdate, add_days
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _ton_lo
+	kho, nvl, tp, lo, wo = _hai_lo_khai(10, 10, 1000, 1000, 4)
+	for b, ngay in [(lo[0], 180), (lo[1], 30)]:
+		frappe.db.set_value('Batch', b, 'expiry_date', add_days(nowdate(), ngay))
+		frappe.clear_document_cache('Batch', b)
+	_xuat_khai(wo, nvl, kho[0])
+	la('giữ lô nhập trước nhưng hạn xa', _ton_lo(lo[0], kho[0]), 10)
+	la('lấy lô nhập sau nhưng hạn gần', _ton_lo(lo[1], kho[0]), 6)

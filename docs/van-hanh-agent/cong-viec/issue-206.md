@@ -1,5 +1,7 @@
 # Issue 206: kiểm chứng lô và giá vốn theo ý Khải
 
+**Cập nhật theo trao đổi mới:** [bản đề xuất để anh Việt duyệt](issue-206-duyet.md) thay hướng bỏ Batch/FIFO bên dưới. Nhánh đã có code thử cảnh báo cho Stock Entry nhập/xuất/chuyển, version dự kiến489. Không đổi cấu hình site.
+
 - Nguồn: [file và câu hỏi mới](https://github.com/thevagabondpatisserie/vagabond/issues/206#issuecomment-5651545788), [claim và bằng chứng site](https://github.com/thevagabondpatisserie/vagabond/issues/206#issuecomment-5651811587).
 - Owner Codex, nhánh `codex/206-san-xuat-khai`, nền main `372b8d87b2631c4ded8a7cf7e8afd7185a6c3721` (v488), kiểm GitHub 13/09/2026.
 - Anh Việt yêu cầu đọc ý Khải và lên PR cho Claude review. Phần này thêm ca tích hợp, chưa đổi cấu hình kho/dữ liệu/mã hàng. Không đóng toàn bộ #206 bằng PR này.
@@ -31,3 +33,5 @@ Khải đề xuất HSD nội bộ tính từ ngày nhận + số ngày, HSD bao
 Còn chờ anh Việt chốt phạm vi bỏ Batch (NVLT trước hay toàn bộ), chặn cận hạn hay chỉ lưu tham khảo. Tem BTP/TP hiện phụ thuộc Batch. Chưa đủ căn cứ migration cờ has_batch_no khi có tồn/SLE; không ghi DB trực tiếp để vượt validation core. Thay Elle/Pauls theo bếp, đổi mã Gelatine Mass, cấu trúc prefix cần phạm vi riêng đã duyệt. Không đổi Gelatine Powder thành Mass chỉ dựa trên ảnh.
 
 Claude review ba ca mới và cách diễn giải bằng chứng, Codex sửa finding rồi đọc bench hai lượt. Ca bench không thay UAT sản xuất bằng tài khoản Khải, không xác nhận mọi phần tồn đọng #206 đã xong.
+
+Bench34744299841 trên15706c56 đã SUCCESS, ba ca Khải đạt cả hai lượt. F1 Claude dựa trí nhớ được đối chứng bằng source de591661 và bench. F2 thêm cờ từng Batch sau xuất, qty=-4 và SLE giữ bundle; F3 bỏ save/reload thừa. SHA mới cần bench lại.

@@ -405,3 +405,7 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 ## 13/09/2026 - Lô thiếu số lượng không chứng minh giá vốn sai (#206)
 
 Ảnh cũ PSX-2026-00061 báo thiếu 102.862 g ở một lô; đọc site mới thấy phiếu nháp đã chia đúng hai lô. Phải đọc lại chứng từ trước khi sửa theo ảnh. ERPNext v16.28.0 `serial_batch_bundle.py:prepare_batches` hỗ trợ giữ Batch và dùng Moving Average qua `do_not_use_batchwise_valuation`; không kết luận phải bỏ Batch từ lỗi số lượng. Kiểm riêng SLE theo lô và giá trị xuất với hai giá nhập khác nhau, có đối chứng cờ tắt/bật. Nguồn: Issue206 comment5651811587 và ba ca Khải trong `thu_san_xuat_206.py`. Chưa có quyền đổi cấu hình/danh mục từ lời khuyên của bot.
+
+## #206 - Cảnh báo hạn phải khớp loại chứng từ
+
+Mở chốt HSD riêng StockEntry không đồng nghĩa mở Purchase Receipt hoặc API nhận mua. Mỗi cửa cần ca insert/submit riêng. Dùng câu cảnh báo trung tính khi mở rộng từ xuất sang nhập, giữ tương thích tiền tố ghi chú cũ để không lặp câu qua save. Bản thử PR302 giữ công tắc và kiểm serial/lô tắt; không đổi HSD hoặc sổ lịch sử để né core.

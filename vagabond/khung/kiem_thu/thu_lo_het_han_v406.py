@@ -78,11 +78,11 @@ def _khong_chong():
 	dung("bỏ câu cũ của máy", "LO-1" not in ra)
 
 
-@ca("v406 giữ nguyên bốn loại phiếu mà ERPNext chặn lô quá hạn")
+@ca("206 cảnh báo hạn trên sản xuất và nhập xuất chuyển kho")
 def _bon_loai():
-	la("đủ bốn", sorted(lhh.PHIEU_BI_CHAN), sorted([
+	la("đủ bảy", sorted(lhh.PHIEU_BI_CHAN), sorted([
 		"Manufacture", "Material Transfer for Manufacture", "Repack",
-		"Send to Subcontractor",
+		"Send to Subcontractor", "Material Receipt", "Material Issue", "Material Transfer",
 	]))
 
 
@@ -278,7 +278,7 @@ def _chan_goi():
 				dung('đúng lô', 'LO-GOI' in str(e))
 
 
-@ca("206 không bỏ kiểm serial sai lô và không nới phiếu nhận/huỷ")
+@ca("206 không bỏ kiểm serial sai lô và không nới phiếu huỷ")
 def _serial_sai():
 	from unittest.mock import patch, Mock
 	from types import SimpleNamespace
@@ -296,6 +296,31 @@ def _serial_sai():
 			dung('serial sai lô phải chặn', False)
 		except Exception as e:
 			dung('đúng serial và lô', 'SERIAL-1' in str(e) and 'LO-A' in str(e))
-		p.purpose = 'Material Receipt'; ham(p)
 		p.purpose = 'Manufacture'; p.docstatus = 2; ham(p)
-	la('nhận và huỷ đi nguyên lõi', goc.call_count, 2)
+	la('huỷ đi nguyên lõi', goc.call_count, 1)
+
+
+@ca("206 nhập xuất chuyển kho: HSD quá hạn chỉ ghi vết khi chốt tắt")
+def _kho_canh_bao():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	for loai in ['Material Receipt', 'Material Issue', 'Material Transfer']:
+		p = _Phieu(loai, '2026-09-13', [_Dong('BOT', 'LO-CU')])
+		goc = Mock()
+		with patch.object(lhh, 'dang_chan', return_value=0), \
+			patch.object(lhh, '_ho_so_lo', return_value={'disabled': 0, 'expiry_date': '2026-09-01'}), \
+			patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
+			lhh._thay_kiem_serial(goc)(p)
+		goc.assert_not_called()
+		dung(loai + ' có vết đúng lô', 'LO-CU' in p.remarks)
+
+
+@ca('206 cảnh báo nhập/xuất thay câu cũ, giữ ghi tay và không lặp')
+def _doi_cau_canh_bao():
+	moi = lhh.cau_ghi_chu([('BOT', 'LO-1', '2026-09-01')])
+	cu = 'Bếp ghi tay\nĐã xuất lô quá hạn: BOT lô LO-1 hạn 2026-09-01.'
+	ra = lhh.them_ghi_chu(cu, moi)
+	dung('không ghi nhầm đã xuất khi nhận hàng', 'Đã xuất' not in ra)
+	dung('giữ ghi tay', ra.startswith('Bếp ghi tay\n'))
+	la('lưu lại không lặp', lhh.them_ghi_chu(ra, moi), ra)
