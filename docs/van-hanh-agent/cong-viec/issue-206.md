@@ -43,3 +43,13 @@ Giữ ngoại lệ core cho Material Issue/Transfer khi bật chặn HSD; Materi
 Local 2950/2950, kiem_truoc_deploy.sh rc0. Bench 34748648065 trên8827 startup_failure trước tạo job; chưa xác định nguyên nhân, chưa có bằng chứng tích hợp bản này. Giữ Draft, chưa merge/deploy.
 
 Theo chỉ dẫn mới anh Việt, AGENTS.md và CLAUDE.md yêu cầu mọi comment làm việc tag @claude và nhắc tag @codex khi trả lời. Tag không thay biên nhận worker và không cấp phép code trùng với Codex local. Phạm vi nhận mua/Purchase Receipt vẫn chưa được thay đổi trong PR này.
+
+## Bản thay chính sách theo spec 5653018176
+
+Phần này thay các kết luận lịch sử về công tắc/disabled/phạm vi ở trên.
+
+- Bỏ công tắc HSD bằng patch lặp được. Bảy purpose Stock Entry và bốn controller mua/bán có cập nhật kho chỉ ghi cảnh báo hạn/lô tắt, vẫn giữ kiểm serial thuộc lô. Không thay StockController chung.
+- Vòng vét đọc cả lô tắt/quá hạn và trừ giữ POS/SRE. Lô tốt vẫn ưu tiên. Chọn lô tay thiếu thì bù cùng mã/kho; gói nháp cập nhật tại chỗ, kiểm mã/kho/chứng từ/dòng, không sửa gói đã ghi sổ. Tồn thật thiếu vẫn chặn.
+- Cửa nhận mua tạo Batch mới với đúng HSD nhận được hoặc để trống. Batch không tự suy HSD từ shelf life và không ép nhập hạn. Không sửa ngày trên lô cũ. Câu nhắc giao diện không còn nói phải điền mới nhận được.
+- Thêm ca hành vi UOM/tay/gói/nhiều dòng/thiếu tồn/sai kho và bốn controller; ca bench tay/gói 100+50 cần130, thiếu200, hủy; API nhận mua thiếu HSD/quá hạn.
+- APPVER 489. Chưa deploy. Ca bench mới cần kết quả thực tế trước kết luận; cần tiếp tục nghiệm thu đủ bốn loại chứng từ mua/bán trên bench và thao tác thật. Stock Reconciliation chưa đổi.

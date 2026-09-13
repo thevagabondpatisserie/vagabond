@@ -494,7 +494,6 @@ def _canh_qua_han():
 	"""Mã có 50 còn hạn + 280 quá hạn + 100 ở lô TẮT, chốt chặn tắt, MR 100."""
 	_bat_serial_batch_neu_chua()
 	# Ô chặn nằm trong điểm lưu của ca nên tự lùi lại; đặt rõ 0 chứ không tin mặc định.
-	frappe.db.set_single_value("Vagabond Settings", "chan_lo_het_han", 0)
 	cty = cong_ty()
 	tu_kho = mot_kho(cty)
 	den_kho = _kho_nhan(cty)

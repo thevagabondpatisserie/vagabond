@@ -411,3 +411,7 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 Mở chốt HSD riêng StockEntry không đồng nghĩa mở Purchase Receipt hoặc API nhận mua. Mỗi cửa cần ca insert/submit riêng. Dùng câu cảnh báo trung tính khi mở rộng từ xuất sang nhập, giữ tương thích tiền tố ghi chú cũ để không lặp câu qua save. Bản thử PR302 giữ công tắc và kiểm serial/lô tắt; không đổi HSD hoặc sổ lịch sử để né core.
 
 F4 review5652321851: core miễn HSD cho cả Material Issue và Material Transfer. Mở rộng danh sách wrapper không được vô tình siết lại khi bật công tắc. Kiểm ma trận loại phiếu x công tắc x lô tắt ở cả hai wrapper, thêm SLE/huỷ thật cho hai luồng. Câu cảnh báo không nói công tắc tắt khi luồng được miễn hạn với công tắc bật.
+
+### #302: chặn hạn có thể nằm ở lúc tạo Batch
+
+Chuyển cảnh báo ở Stock Entry và API nhận mua chưa đủ: ERPNext de591661 Batch.set_expiry_date còn ép HSD khi Item.has_expiry_date bật, hoặc tự cộng shelf life. Phải kiểm tới Batch vừa tạo và SLE, không lấy thuộc tính han_su_dung gắn tạm lên Purchase Receipt Item làm bằng chứng HSD đã lưu. Khi đọc sổ kho thô để thấy lô disabled, phải trừ lại cả giữ POS và Stock Reservation Entry.

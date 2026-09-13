@@ -1,61 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Cho bếp xuất được lô đã quá hạn ghi trên hệ, và để lại vết.
+"""#206: lô và hạn dùng chỉ cảnh báo, không đổi dữ liệu Batch.
 
-Bản thử #206 ngày 13/09: cùng chính sách cho Stock Entry nhập/xuất/chuyển.
-Câu cảnh báo trung tính cho cả nhập và xuất. Chưa nới Purchase Receipt hay
-cửa nhận mua, không tự đổi công tắc trên site; các đoạn dưới ghi lịch sử.
-
-Vì sao có tệp này
------------------
-Chiều 03/09/2026 Khải ghi phiếu làm Bánh Ổ Mille Crepe Avocado thì bị chặn
-ở mấy dòng nguyên liệu "hết date". Đo trên site thấy ba lớp chặn chồng lên
-nhau, mà lớp nào cũng đủ để bếp đứng im:
-
-1. ERPNext KHÔNG cho bảng chọn lô nhìn thấy lô quá hạn. Hàm
-   `get_auto_batch_nos` lọc `expiry_date >= today` trừ khi gọi kèm cờ
-   `for_stock_levels`. Nên `lo_hang._ton_tung_lo` hỏi tồn từng lô là nhận
-   về rỗng, dù kho thật còn hàng.
-2. Đường dự phòng của `lo_hang` cộng sổ kho theo cột `batch_no` của Stock
-   Ledger Entry. ERPNext v16 để cột đó TRỐNG, số lô nằm trong gói Serial
-   and Batch Bundle. Đo ngày 03/09: NVLT00037 còn 3.000 gram ở Kho tổng
-   307, sổ kho có đúng một dòng và cột batch_no của nó là NULL. Nghĩa là
-   đường dự phòng chưa bao giờ đỡ được gì.
-3. Cả hai lớp trên qua được thì tới `StockEntry.validate_batch` của
-   ERPNext (stock_entry.py:4182): với phiếu Manufacture, Repack, Material
-   Transfer for Manufacture và Send to Subcontractor, hễ lô quá hạn là ném
-   "Batch {0} of Item {1} has expired." và không ai ghi được phiếu.
-
-Hệ quả cộng lại: 171 lô đang quá hạn, 106 lô trong đó còn ghi số dư. Hàng
-nằm trong kho mà máy vừa không thấy vừa không cho lấy, câu lỗi bếp nhận
-được lại là "thiếu hàng trong kho".
-
-Chốt của anh Việt 03/09/2026: tắt chốt chặn để bếp xuất được. Tắt chứ
-không phải xoá: ô "Chặn xuất lô quá hạn" nằm trong Vagabond Settings, tích
-vào là ERPNext chặn lại như cũ. Mặc định (ô trống) là KHÔNG chặn.
-
-Cái gì vẫn giữ nguyên
----------------------
-- Lô bị TẮT (disabled) vẫn chặn cứng. Tắt một lô là quyết định của người,
-  máy không được cãi.
-- Chỉ ưu tiên hạ xuống chứ không đảo: `lo_hang` vẫn lấy lô còn hạn trước,
-  hết lô còn hạn mới tới mã thay thế, hết mã thay thế mới tới lô quá hạn.
-  Máy không tự ý dồn hàng quá hạn vào bánh khi trong kho còn hàng tốt.
-- Mỗi phiếu có dùng lô quá hạn đều bị ghi một câu vào ô Ghi chú, nêu rõ mã
-  nào lô nào hạn ngày nào. Không có chuyện xuất lặng lẽ.
-
-Vá bằng cách thay hàm, KHÔNG bằng override_doctype_class
---------------------------------------------------------
-Đọc `hooks.py` để thấy vì sao: ngày 21/08/2026 hai lớp thay Purchase
-Receipt và Purchase Invoice đã làm CẢ TIỆM không nhập kho được. Ở đây chỉ
-thay hai hàm kiểm lô trên riêng StockEntry, lúc hook before_validate của Stock
-Entry chạy, tức là ngay trước khi ERPNext gọi hàm đó trong cùng một lần
-lưu. Thay lại lần hai không đổi gì (có cờ đánh dấu). Hỏng ở bước thay thì
-ghi nhật ký rồi để ERPNext chạy y như cũ, chứ không kéo đổ phiếu.
-
-#206 ngày 08/09: còn StockController.validate_serialized_batch kiểm hạn
-thêm lần nữa sau khi tạo gói. Chỉ thay phương thức kế thừa trên StockEntry,
-không thay StockController dùng chung với phiếu mua/bán. Giữ kiểm serial
-thuộc đúng lô; giữ các kiểm tồn, kho, mã, gói và sổ cái của ERPNext.
+Stock Entry và phiếu mua/bán có cập nhật kho dùng phương thức riêng của
+controller, không thay StockController chung. Giữ kiểm serial thuộc lô,
+kiểm tồn, kho, mã, gói và sổ cái của ERPNext de591661. Lô hết hạn hoặc
+disabled vẫn có dấu vết trên chứng từ. Không còn công tắc bật chặn HSD.
 """
 
 # ------------------------------------------------------------ phần thuần
@@ -74,30 +23,6 @@ PHIEU_BI_CHAN = (
 )
 
 DAU_CAU = "Cảnh báo lô quá hạn:"
-
-# O tat chot chan, khai bang ma nguon nen site thu va site that giong nhau.
-# De TRONG la KHONG chan, dung chot 03/09/2026. Tich vao thi ERPNext chan
-# lai y nhu cu.
-TRUONG_MOI = {
-	"Vagabond Settings": [
-		{
-			"fieldname": "sec_kho_lo", "label": "Kho theo lô",
-			"fieldtype": "Section Break", "insert_after": "tro_ly_luot_thang",
-		},
-		{
-			"fieldname": "chan_lo_het_han", "label": "Chặn xuất lô quá hạn",
-			"fieldtype": "Check", "insert_after": "sec_kho_lo", "default": "0",
-			"description": (
-				"Để trống: bếp xuất được lô đã quá hạn ghi trên hệ, và mỗi phiếu "
-				"như vậy bị ghi một câu vào ô Ghi chú nêu rõ mã nào lô nào hạn "
-				"ngày nào. Tích vào: ERPNext chặn lại như cũ, phiếu sản xuất có "
-				"lô quá hạn sẽ không lưu được. Lô bị TẮT thì luôn chặn, không "
-				"liên quan tới ô này."
-			),
-		},
-	]
-}
-
 
 def ngay_goc(x):
 	"""Đưa ngày về dạng so sánh được: chuỗi YYYY-MM-DD. THUẦN."""
@@ -170,27 +95,6 @@ from frappe.utils import cint, getdate, today
 _DA_THAY = False
 
 
-def dang_chan():
-	"""Có đang bật chốt chặn lô quá hạn không. MẶC ĐỊNH LÀ KHÔNG.
-
-	Ô trống (chưa ai đụng tới) nghĩa là không chặn, đúng chốt 03/09/2026.
-	Muốn chặn lại thì tích ô trong Vagabond Settings.
-	"""
-	try:
-		return cint(frappe.db.get_single_value("Vagabond Settings", "chan_lo_het_han"))
-	except Exception:
-		return 0
-
-
-def _chan_han_phieu(doc):
-	"""Core de591661 StockController.validate_serialized_batch miễn hạn cho
-	Material Issue/Transfer. Công tắc không được dựng thêm chặn hai luồng này.
-	Kiểm lô vô hiệu hoá vẫn áp riêng, không phụ thuộc công tắc HSD.
-	"""
-	return bool(dang_chan()) and getattr(doc, "purpose", None) not in (
-		"Material Issue", "Material Transfer")
-
-
 def _ho_so_lo(ten):
 	ho = frappe.db.get_value("Batch", ten, ["disabled", "expiry_date"], as_dict=True)
 	if not ho:
@@ -203,13 +107,14 @@ def _ghi_vet(doc, cac_lo):
 	doc.remarks = them_ghi_chu(getattr(doc, "remarks", ""), cau)
 
 
-def _kiem_lo_va_ghi_vet(doc, chan=False):
+def _kiem_lo_va_ghi_vet(doc):
 	"""Soi cả ô lô tay và gói v16, kể cả gói vừa sinh sau validate_batch.
 
 	Không đổi Batch.expiry_date, không đổi purpose, không bắt rồi nuốt lỗi
 	của lõi. Hỏng việc đọc gói thì phải dừng, không xuất mất dấu vết.
 	"""
 	cac_lo = []
+	lo_tat = []
 	for dong in doc.get("items") or []:
 		lo = {getattr(dong, "batch_no", None)}
 		goi = getattr(dong, "serial_and_batch_bundle", None)
@@ -220,17 +125,40 @@ def _kiem_lo_va_ghi_vet(doc, chan=False):
 		for ten in sorted(x for x in lo if x):
 			ho = _ho_so_lo(ten)
 			if cint(ho.get("disabled")):
-				frappe.throw("Lô %s của mã %s đang bị TẮT nên không dùng được. "
-					"Kiểm tra lại lô đã chọn." % (ten, dong.item_code))
+				lo_tat.append("%s lô %s" % (dong.item_code, ten))
 			han = ho.get("expiry_date")
 			if han and doc.posting_date and getdate(doc.posting_date) > getdate(han):
-				if chan:
-					frappe.throw("Lô %s của mã %s đã hết hạn ngày %s. "
-						"Chọn lô khác hoặc kiểm tra ô Chặn xuất lô quá hạn trong Vagabond Settings."
-						% (ten, dong.item_code, ngay_goc(han)))
 				cac_lo.append((dong.item_code, ten, han, getattr(dong, "idx", None)))
 	if cac_lo:
 		_ghi_vet(doc, cac_lo)
+	if lo_tat:
+		cu = getattr(doc, "remarks", "") or ""
+		cu = "\n".join(x for x in cu.splitlines() if not x.startswith("Cảnh báo lô tắt:"))
+		doc.remarks = (cu + "\nCảnh báo lô tắt: " + "; ".join(sorted(set(lo_tat)))
+			+ ". Kiểm tra chất lượng thực tế trước khi sử dụng.").strip()
+
+
+def _trong_pham_vi(doc):
+	loai = getattr(doc, "doctype", None)
+	if loai in ("Purchase Receipt", "Delivery Note"):
+		return True
+	if loai in ("Purchase Invoice", "Sales Invoice"):
+		return bool(cint(getattr(doc, "update_stock", 0)))
+	return getattr(doc, "purpose", None) in PHIEU_BI_CHAN
+
+
+def mo_chot_mua_ban(doc, method=None):
+	"""Chỉ thay phương thức controller thực tế của bốn DocType được duyệt.
+
+	Dùng type(doc) để giữ lớp Sales Invoice hiện hữu của ứng dụng; không
+	thay lớp StockController hoặc ghi đè override_doctype_class.
+	"""
+	if getattr(doc, "doctype", None) not in ("Purchase Receipt", "Purchase Invoice", "Delivery Note", "Sales Invoice"):
+		return
+	lop = type(doc)
+	goc = lop.validate_serialized_batch
+	if not getattr(goc, "_vagabond", False):
+		lop.validate_serialized_batch = _thay_kiem_serial(goc)
 
 
 def _thay_kiem_serial(goc):
@@ -241,11 +169,7 @@ def _thay_kiem_serial(goc):
 	giữ nguyên toàn bộ phép kiểm serial và lô tắt.
 	"""
 	def validate_serialized_batch(self):
-		if (getattr(self, "purpose", None) not in PHIEU_BI_CHAN
-				or cint(getattr(self, "docstatus", 0)) == 2):
-			return goc(self)
-		if _chan_han_phieu(self):
-			_kiem_lo_va_ghi_vet(self, chan=True)
+		if not _trong_pham_vi(self) or cint(getattr(self, "docstatus", 0)) == 2:
 			return goc(self)
 		from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
 		for dong in self.get("items") or []:
@@ -261,15 +185,12 @@ def _thay_kiem_serial(goc):
 
 
 def _thay_the(goc):
-	"""Hàm validate_batch mới. Giữ chặn lô TẮT, chỉ bỏ chặn lô quá hạn."""
+	"""Hàm validate_batch mới. Chỉ ghi cảnh báo lô tắt/quá hạn."""
 
 	def validate_batch(self):
 		if getattr(self, "purpose", None) not in PHIEU_BI_CHAN:
 			return goc(self)
-		chan = _chan_han_phieu(self)
-		_kiem_lo_va_ghi_vet(self, chan=chan)
-		if chan:
-			return goc(self)
+		_kiem_lo_va_ghi_vet(self)
 		return None
 
 	validate_batch._vagabond = True
@@ -325,3 +246,20 @@ def hom_nay():
 		return today()
 	except Exception:
 		return ""
+
+
+def mo_han_lo(doc, method=None):
+	"""HSD là dữ liệu ghi nhận, không bắt buộc/tự suy từ shelf life (#206).
+
+	Chỉ thay phép đặt hạn trên Batch. Không đổi hạn lô đã lưu hay các kiểm
+	item/serial/batch quantity khác của Batch.validate.
+	"""
+	lop = type(doc)
+	if getattr(lop.set_expiry_date, '_vagabond', False):
+		return
+	def giu_han_da_nhap(self):
+		if not self.expiry_date:
+			frappe.msgprint('Lô %s chưa có hạn sử dụng. Kiểm tra nhãn hàng khi sử dụng.' % (self.name or self.item),
+				title='Kiểm tra hạn dùng', indicator='orange')
+	giu_han_da_nhap._vagabond = True
+	lop.set_expiry_date = giu_han_da_nhap

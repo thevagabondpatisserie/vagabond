@@ -94,7 +94,7 @@ def _cach_va():
 	src = _py("lo_het_han.py")
 	dung("thay validate_batch", "StockEntry.validate_batch = _thay_the(goc)" in src)
 	dung("lặp lại được", "_DA_THAY" in src)
-	dung("lô bị tắt vẫn chặn", "đang bị TẮT" in src)
+	dung("lô tắt có dấu vết", "Cảnh báo lô tắt:" in src)
 	hooks = _py("hooks.py")
 	dung("không thêm lớp thay Stock Entry",
 		'"Stock Entry": "vagabond' not in hooks)
@@ -142,15 +142,14 @@ def _vet_cuoi():
 	la("lô quá hạn chỉ nhận phần còn lại", lay.get(("NVL1", "QUA-HAN")), 30.0)
 	la("đúng ba dòng", len(ra), 3)
 	src = _py("lo_hang.py")
-	dung("có ô tắt thì không vét", "not lo_het_han.dang_chan()" in src)
+	dung("không còn công tắc chặn vòng vét", "lo_het_han.dang_chan" not in src)
 
 
-@ca("v406 ô chặn được khai bằng mã nguồn và mặc định là KHÔNG chặn")
+@ca("489 bỏ công tắc HSD bằng patch, không dựng lại khi migrate")
 def _o_cai_dat():
-	src = _py("lo_het_han.py")
-	dung("khai trường", '"fieldname": "chan_lo_het_han"' in src)
-	dung("mặc định trống", '"default": "0"' in src)
-	dung("dựng lại sau deploy", "lo_het_han.TRUONG_MOI" in _py("truong_tu_them.py"))
+	dung("không khai lại trường", '"fieldname": "chan_lo_het_han"' not in _py("lo_het_han.py"))
+	dung("không dựng lại", "lo_het_han.TRUONG_MOI" not in _py("truong_tu_them.py"))
+	dung("patch đăng ký", "vagabond.patches.go_chan_han_v489" in _goc("vagabond/patches.txt"))
 
 
 @ca("v406 có dòng patch mới để Frappe Cloud chạy migrate chứ không chỉ pull")
@@ -179,17 +178,16 @@ class _Phieu(object):
 		return self._dong if ten == "items" else None
 
 
-_CUA_THAT = (lhh.dang_chan, lhh._ho_so_lo)
+_CUA_THAT = lhh._ho_so_lo
 
 
 def _tra_lai():
 	"""Trả hai cửa chạm hệ về như cũ, đừng để ca này ảnh hưởng ca khác."""
-	lhh.dang_chan, lhh._ho_so_lo = _CUA_THAT
+	lhh._ho_so_lo = _CUA_THAT
 
 
 def _voi_lo(ho_so, chan=0):
 	"""Thay tạm hai cửa chạm hệ, trả về hàm validate_batch đã vá."""
-	lhh.dang_chan = lambda: chan
 	lhh._ho_so_lo = lambda ten: ho_so.get(ten, {})
 
 	def goc(self):
@@ -209,17 +207,15 @@ def _cho_xuat():
 	dung("có ghi vết", "NVLT00037" in p.remarks and "2023-04-30" in p.remarks)
 
 
-@ca("v406 chốt tắt vẫn CHẶN CỨNG lô bị tắt, tắt lô là quyết định của người")
+@ca("489 lô tắt chỉ cảnh báo đúng mã, không chặn")
 def _lo_bi_tat():
 	ham = _voi_lo({"LO-TAT": {"disabled": 1, "expiry_date": None}})
 	p = _Phieu("Manufacture", "2026-09-03", [_Dong("NVLT00037", "LO-TAT")])
 	try:
 		ham(p)
+		dung("có cảnh báo", "LO-TAT" in p.remarks and "NVLT00037" in p.remarks)
+	finally:
 		_tra_lai()
-		dung("phải chặn lô bị tắt", False)
-	except Exception as e:
-		_tra_lai()
-		dung("nói rõ lô nào", "LO-TAT" in str(e))
 
 
 @ca("v406 lô còn hạn thì phiếu sạch, không ai bị ghi vết oan")
@@ -237,7 +233,7 @@ def _bat_chot_lai():
 	p = _Phieu("Manufacture", "2026-09-03", [_Dong("NVLT00037", "LO-CU")])
 	ham(p)
 	_tra_lai()
-	dung("gọi đúng bản gốc của ERPNext", getattr(p, "da_goi_goc", False))
+	dung("không dựng lại chặn HSD", not getattr(p, "da_goi_goc", False))
 
 
 @ca("206 lớp kiểm thứ hai: tắt chốt, nhiều lô/gói, giữ ghi chú, không lặp vết")
@@ -250,8 +246,7 @@ def _lop_hai():
 	p._dong[1].serial_and_batch_bundle = 'GOI-2'
 	p.remarks = 'Bếp ghi tay'
 	goc = Mock()
-	with patch.object(lhh, 'dang_chan', return_value=0), \
-		patch.object(lhh, '_ho_so_lo', return_value={'disabled': 0, 'expiry_date': '2026-09-01'}), \
+	with patch.object(lhh, '_ho_so_lo', return_value={'disabled': 0, 'expiry_date': '2026-09-01'}), \
 		patch.object(lhh.frappe, 'get_all', return_value=['HET-2'], create=True), \
 		patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
 		ham = lhh._thay_kiem_serial(goc)
@@ -272,10 +267,10 @@ def _chan_goi():
 		with patch.object(lhh.frappe, 'get_all', return_value=['LO-GOI'], create=True), \
 			patch.object(lhh, '_ho_so_lo', return_value=ho):
 			try:
-				lhh._kiem_lo_va_ghi_vet(p, chan=chan)
-				dung('phải chặn', False)
+				lhh._kiem_lo_va_ghi_vet(p)
+				dung('cảnh báo đúng lô', 'LO-GOI' in p.remarks)
 			except Exception as e:
-				dung('đúng lô', 'LO-GOI' in str(e))
+				raise AssertionError('Không được chặn HSD/disabled') from e
 
 
 @ca("206 không bỏ kiểm serial sai lô và không nới phiếu huỷ")
@@ -286,8 +281,7 @@ def _serial_sai():
 	p = _Phieu('Manufacture', '2026-09-08', [_Dong('BOT', 'LO-A')])
 	p._dong[0].serial_no = 'SERIAL-1'; p._dong[0].idx = 2
 	goc = Mock()
-	with patch.object(lhh, 'dang_chan', return_value=0), \
-		patch.object(lhh.frappe, '_', side_effect=lambda x: x, create=True), \
+	with patch.object(lhh.frappe, '_', side_effect=lambda x: x, create=True), \
 		patch.object(lhh.frappe, 'get_all', return_value=[SimpleNamespace(name='SERIAL-1', batch_no='LO-B', warehouse='Pastry')], create=True), \
 		patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
 		ham = lhh._thay_kiem_serial(goc)
@@ -308,8 +302,7 @@ def _kho_canh_bao():
 	for loai in ['Material Receipt', 'Material Issue', 'Material Transfer']:
 		p = _Phieu(loai, '2026-09-13', [_Dong('BOT', 'LO-CU')])
 		goc = Mock()
-		with patch.object(lhh, 'dang_chan', return_value=0), \
-			patch.object(lhh, '_ho_so_lo', return_value={'disabled': 0, 'expiry_date': '2026-09-01'}), \
+		with patch.object(lhh, '_ho_so_lo', return_value={'disabled': 0, 'expiry_date': '2026-09-01'}), \
 			patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
 			lhh._thay_kiem_serial(goc)(p)
 		goc.assert_not_called()
@@ -326,25 +319,54 @@ def _doi_cau_canh_bao():
 	la('lưu lại không lặp', lhh.them_ghi_chu(ra, moi), ra)
 
 
-@ca('206 F4: bật chốt giữ miễn hạn xuất/chuyển; lô tắt luôn chặn')
+@ca('489 bảy luồng kho: lô tắt và quá hạn chỉ cảnh báo ở cả hai lớp')
 def _ma_tran_chot_kho():
 	from unittest.mock import patch, Mock
 	from types import SimpleNamespace
 	import sys
-	for loai in ['Material Receipt', 'Material Issue', 'Material Transfer']:
-		for chan in [0, 1]:
-			for tat in [0, 1]:
-				for boc in [lhh._thay_the, lhh._thay_kiem_serial]:
-					p = _Phieu(loai, '2026-09-13', [_Dong('BOT', 'LO-CU')])
-					loi = None
-					with patch.object(lhh, 'dang_chan', return_value=chan), \
-						patch.object(lhh, '_ho_so_lo', return_value={'disabled': tat, 'expiry_date': '2026-09-01'}), \
-						patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
-						try: boc(Mock())(p)
-						except Exception as e: loi = str(e)
-					la('%s chốt%s tắt%s có chặn' % (loai, chan, tat), bool(loi), bool(tat or (chan and loai == 'Material Receipt')))
-					if tat:
-						dung('câu trung tính đúng lô', loi and 'không dùng được' in loi and 'LO-CU' in loi)
-					elif not loi:
-						dung('có cảnh báo', lhh.DAU_CAU in p.remarks)
-						dung('không báo sai công tắc đang tắt', 'đang tắt' not in p.remarks)
+	for loai in lhh.PHIEU_BI_CHAN:
+		for tat in [0, 1]:
+			for boc in [lhh._thay_the, lhh._thay_kiem_serial]:
+				p = _Phieu(loai, '2026-09-13', [_Dong('BOT', 'LO-CU')])
+				with patch.object(lhh, '_ho_so_lo', return_value={'disabled': tat, 'expiry_date': '2026-09-01'}), \
+					patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
+					goc = Mock()
+					boc(goc)(p)
+					goc.assert_not_called()
+				dung('cảnh báo quá hạn', lhh.DAU_CAU in p.remarks)
+				if tat: dung('cảnh báo tắt', 'Cảnh báo lô tắt:' in p.remarks)
+
+
+@ca('489 bốn controller mua bán chỉ cảnh báo HSD, giữ serial sai lô')
+def _mua_ban_han():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	for dt in ['Purchase Receipt', 'Purchase Invoice', 'Delivery Note', 'Sales Invoice']:
+		p = _Phieu(None, '2026-09-13', [_Dong('BOT','CU')]); p.doctype=dt; p.update_stock=1
+		goc=Mock()
+		with patch.object(lhh,'_ho_so_lo',return_value={'expiry_date':'2026-09-01','disabled':1}), \
+			patch.dict(sys.modules,{'erpnext.stock.doctype.serial_no.serial_no':SimpleNamespace(get_serial_nos=lambda x:[x])}):
+			ham=lhh._thay_kiem_serial(goc); ham(p)
+			dung(dt+' cảnh báo',lhh.DAU_CAU in p.remarks and 'Cảnh báo lô tắt:' in p.remarks)
+			goc.assert_not_called()
+			p._dong[0].serial_no='S'; p._dong[0].idx=1
+			with patch.object(lhh.frappe,'_',side_effect=lambda x:x,create=True), \
+				patch.object(lhh.frappe,'get_all',return_value=[SimpleNamespace(name='S',batch_no='KHAC',warehouse='K')],create=True):
+				try: ham(p); dung('serial sai phải chặn',False)
+				except lhh.frappe.ValidationError as e: dung('đúng lỗi serial', 'Serial No S' in str(e))
+
+
+@ca('489 Batch chưa biết hạn không bị ép/tự tính, hạn đã nhập giữ nguyên')
+def _batch_khong_han():
+	from unittest.mock import patch
+	class B:
+		name='LO'; item='BOT'; expiry_date=None
+		def set_expiry_date(self): raise AssertionError('Core bắt hạn')
+	b=B()
+	with patch.object(lhh.frappe,'msgprint',create=True) as bao:
+		lhh.mo_han_lo(b); b.set_expiry_date()
+		la('không tự bịa HSD',b.expiry_date,None)
+		la('có cảnh báo',bao.call_count,1)
+		b.expiry_date='2026-08-01'; b.set_expiry_date()
+		la('giữ ngày gõ',b.expiry_date,'2026-08-01')

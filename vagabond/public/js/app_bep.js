@@ -7963,13 +7963,13 @@ function nhpNhac(x) {
     }
   }
   if (x.batHsd && (x.got || 0) > 0.0001 && !x.hsd) {
-    ra.push('<span style="color:#b3261e">Mặt hàng theo lô: phải điền hạn sử dụng mới nhập được.</span>');
+    ra.push('<span style="color:#b45309">Chưa có hạn sử dụng. Vẫn nhận được; kiểm tra nhãn hàng và bổ sung khi biết.</span>');
   }
   if (x.hsdMin && x.hsd) {
     var con = Math.round((new Date(x.hsd) - new Date(today())) / 86400000);
     if (con < x.hsdMin) {
-      ra.push('<span style="color:#b3261e">Hạn dùng chỉ còn ' + con + ' ngày, mặt hàng này cần ít nhất ' +
-        x.hsdMin + ' ngày. Đổi lô khác hoặc báo thu mua.</span>');
+      ra.push('<span style="color:#b45309">Hạn dùng chỉ còn ' + con + ' ngày, mặt hàng này cần ít nhất ' +
+        x.hsdMin + ' ngày theo mức nhắc. Vẫn nhận được; kiểm tra chất lượng thực tế.</span>');
     }
   }
   if (!ra.length) return '';

@@ -109,7 +109,6 @@ def _nen_qua_han():
 	from frappe.utils import nowdate, add_days
 	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _bat_serial_batch_neu_chua
 	_bat_serial_batch_neu_chua()
-	frappe.db.set_single_value('Vagabond Settings', 'chan_lo_het_han', 0)
 	cty, kho, nvl, tp, bom = _nen(theo_lo=1)
 	lo = _lo(nvl, 'KT206-' + uuid.uuid4().hex[:10], add_days(nowdate(), 30))
 	# Ca sản xuất cần NVL có giá vốn thật. Helper nhận lô _nhap bật
@@ -188,29 +187,18 @@ def _het_han_goi():
 	_dat_qua_han('goi')
 
 
-@ca('206 thật: bật chốt chặn cả lô tay/gói; lô tắt vẫn chặn; không chứng từ rác')
+@ca('489 thật: lô tắt/quá hạn vẫn ghi sổ và cảnh báo, huỷ trả tồn')
 def _het_han_chan():
 	cty, kho, nvl, lo, wo = _nen_qua_han()
-	for cach, chan, tat in [('tay', 1, 0), ('goi', 1, 0), ('tay', 0, 1), ('goi', 0, 1)]:
-		frappe.db.set_single_value('Vagabond Settings', 'chan_lo_het_han', chan)
-		# Tạo gói lúc lô còn hoạt động, rồi tắt lô trước khi ghi phiếu.
-		frappe.db.set_value('Batch', lo, 'disabled', 0)
-		frappe.clear_document_cache('Batch', lo)
+	for cach in ['tay', 'goi']:
 		doc = _phieu_qua_han(wo, nvl, lo, cach, cty, kho)
-		frappe.db.set_value('Batch', lo, 'disabled', tat)
+		frappe.db.set_value('Batch', lo, 'disabled', 1)
 		frappe.clear_document_cache('Batch', lo)
-		bang = ['Stock Entry', 'Stock Ledger Entry', 'GL Entry', 'Serial and Batch Bundle']
-		truoc = {dt: frappe.db.count(dt) for dt in bang}
-		frappe.db.savepoint('kt206_chan')
-		try:
-			doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name)); doc.submit()
-			raise AssertionError('Không được ghi phiếu với chốt bật hoặc lô tắt')
-		except frappe.ValidationError as e:
-			dung('lỗi nêu đúng lô', lo in str(e))
-		finally:
-			frappe.db.rollback(save_point='kt206_chan')
-		la('không phiếu/sổ/gói phát sinh sau rollback', {dt: frappe.db.count(dt) for dt in bang}, truoc)
-		wo.reload(); la('không tăng sản lượng', float(wo.produced_qty), 0)
+		doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name)); doc.submit(); doc.reload()
+		la('ghi sổ lô tắt', doc.docstatus, 1)
+		dung('cảnh báo đúng lô', 'Cảnh báo lô tắt:' in doc.remarks and lo in doc.remarks)
+		doc.cancel(); wo.reload()
+		la('huỷ trả sản lượng', float(wo.produced_qty), 0)
 
 
 @ca('#258 app hoàn tất bỏ giờ máy khách, reload SLE/GL đúng giờ và giá trị')
@@ -401,7 +389,6 @@ def _xuat_chuyen_han(chuyen):
 	from vagabond.khung.kiem_that.thu_nhan_nvl import _ton_lo
 	cty, kho, ma, lo, wo = _nen_qua_han()
 	# Công tắc BẬT mới chạm hồi quy F4, core vẫn cho xuất/chuyển lô quá hạn.
-	frappe.db.set_single_value('Vagabond Settings', 'chan_lo_het_han', 1)
 	doc = nhap_kho(item_code=ma, qty=2, company=cty, from_warehouse=kho[0],
 		to_warehouse=kho[1] if chuyen else None, rate=1000, do_not_save=True)
 	doc.items[0].batch_no = lo; doc.items[0].use_serial_batch_fields = 1
@@ -424,3 +411,71 @@ def _xuat_han_bat():
 @ca('206 F4 thật: chuyển lô quá hạn khi công tắc bật, hai kho/huỷ đúng')
 def _chuyen_han_bat():
 	_xuat_chuyen_han(True)
+
+
+def _bu_lo_that(goi):
+	from frappe.utils import add_days, today
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _nhap, _goi_xuat, _ton_lo
+	cty, kho, ma, tp, bom = _nen(theo_lo=1)
+	tag = uuid.uuid4().hex[:10]
+	a = _lo(ma, 'KT489-A-' + tag, add_days(today(), 30))
+	b = _lo(ma, 'KT489-B-' + tag, add_days(today(), 60))
+	_nhap(ma, kho[0], [(a, 100), (b, 50)], cty)
+	d = nhap_kho(item_code=ma, qty=130, company=cty, from_warehouse=kho[0], do_not_save=True)
+	if goi:
+		d.items[0].serial_and_batch_bundle = _goi_xuat(ma, kho[0], {a: 130}, cty).name
+		d.items[0].use_serial_batch_fields = 0
+	else:
+		d.items[0].batch_no = a; d.items[0].use_serial_batch_fields = 1
+	d.insert(); nen._DA_TAO.append(('Stock Entry', d.name)); d.submit(); d.reload()
+	la('lô chọn cạn', _ton_lo(a, kho[0]), 0)
+	la('lô bổ sung còn 20', _ton_lo(b, kho[0]), 20)
+	dung('ghi cảnh báo bù', 'Đã bù phần thiếu' in d.remarks)
+	d.cancel()
+	la('huỷ trả lô chọn', _ton_lo(a, kho[0]), 100)
+	la('huỷ trả lô bổ sung', _ton_lo(b, kho[0]), 50)
+	thieu = nhap_kho(item_code=ma, qty=200, company=cty, from_warehouse=kho[0], do_not_save=True)
+	thieu.items[0].batch_no = a; thieu.items[0].use_serial_batch_fields = 1
+	try:
+		thieu.insert()
+		raise AssertionError('Không được cho âm tồn thật')
+	except frappe.ValidationError as e:
+		dung('thiếu hàng thật', 'không đủ' in str(e))
+
+
+@ca('489 thật: chọn tay lô100 cần130 tự bù30, thiếu200 chặn, huỷ đúng')
+def _bu_lo_tay_that():
+	_bu_lo_that(False)
+
+
+@ca('489 thật: gói nháp lô100 cần130 tự bù30, thiếu200 chặn, huỷ đúng')
+def _bu_goi_that():
+	_bu_lo_that(True)
+
+
+@ca('489 thật: API nhận mua thiếu HSD/cận hạn tạo đúng Batch, ghi cảnh báo, huỷ trả tồn')
+def _nhan_mua_han_that():
+	from frappe.utils import today, add_days
+	from vagabond import nhan_hang
+	from vagabond.khung.kiem_that.he_so_252 import _luu
+	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
+	cty = cong_ty(); kho, tk = _kho_rieng(cty, '489-NHAN')
+	ma = _mon_thu('KT489-NHAN-' + uuid.uuid4().hex[:10], theo_lo=1)
+	it = frappe.get_doc('Item', ma); it.has_expiry_date=1; it.shelf_life_in_days=90; it.save()
+	for han in [None, add_days(today(), -1)]:
+		po = _luu(frappe.get_doc(dict(doctype='Purchase Order', company=cty,
+			supplier=nen.mot_nha_cung_cap(), currency='VND', conversion_rate=1,
+			transaction_date=today(), schedule_date=today(),
+			items=[dict(item_code=ma, qty=1, rate=1000, warehouse=kho, schedule_date=today())])))
+		po.submit(); po.reload()
+		ra = nhan_hang.tao_phieu(po.name, dong=[{'dong':po.items[0].name, 'sl':1, 'hsd':han}])
+		pr = frappe.get_doc('Purchase Receipt', ra['phieu']); nen._DA_TAO.append((pr.doctype,pr.name))
+		la('API ghi sổ',pr.docstatus,1)
+		d = pr.items[0]
+		lo = d.batch_no or frappe.db.get_value('Serial and Batch Entry', {'parent':d.serial_and_batch_bundle},'batch_no')
+		nen._DA_TAO.append(('Batch',lo))
+		la('đúng hạn hoặc trống',str(frappe.db.get_value('Batch',lo,'expiry_date') or ''),str(han or ''))
+		dung('cảnh báo lưu trên phiếu', ('Chưa có hạn sử dụng' if not han else 'Hạn dùng cần kiểm tra') in pr.remarks)
+		la('tồn đã nhận',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),1)
+		pr.cancel()
+		la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)

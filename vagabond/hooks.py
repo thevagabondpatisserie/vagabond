@@ -430,6 +430,7 @@ doc_events = {
 		# HAI PHIEN CUNG THEM VAO DAY trong ngay 27/08/2026, giu CA HAI theo
 		# quy tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 		"before_validate": [
+			"vagabond.lo_het_han.mo_chot_mua_ban",
 			# Cung hang rao don vi nhu ben don mua. Phieu nhap la cho hang THAT
 			# vao kho, sai don vi o day la sai ton kho va sai gia von ngay lap tuc.
 			# Cau bao tieng Viet khi ngay don mua muon hon ngay phieu nhap. Dat o
@@ -508,6 +509,7 @@ doc_events = {
 	# chuoi cua ma hang roi, khong con phan biet duoc nua. Lo mang so nha
 	# cung cap (661 tren 750 lo dang co) phai duoc giu nguyen.
 	"Batch": {
+		"before_validate": "vagabond.lo_het_han.mo_han_lo",
 		"before_naming": "vagabond.ma_phieu_sx.nho_nguoi_go_lo",
 		"autoname": "vagabond.ma_phieu_sx.dat_ten_lo",
 	},
@@ -526,6 +528,7 @@ doc_events = {
 	# cung ten, nen "validate" la dung nhip. Dat truoc la bi ghi de lai ngay.
 	"Purchase Invoice": {
 		"before_validate": [
+			"vagabond.lo_het_han.mo_chot_mua_ban",
 			"vagabond.mua_dich_vu.truoc_khi_luu",
 			# DONG BO HAI MAN VE MOT BAN CHAT (anh Viet 26/08/2026): to sinh
 			# tu hoa don dien tu ma dong hang bi de lech di - du do nut "Noi
@@ -640,7 +643,8 @@ doc_events = {
 	# khong chan sales luu phieu cua khach.
 	"POS Invoice": {"validate": "vagabond.he_so_chung_tu.kiem",
 		"before_submit": "vagabond.he_so_chung_tu.kiem"},
-	"Delivery Note": {"validate": "vagabond.he_so_chung_tu.kiem",
+	"Delivery Note": {"before_validate": "vagabond.lo_het_han.mo_chot_mua_ban",
+		"validate": "vagabond.he_so_chung_tu.kiem",
 		"before_submit": "vagabond.he_so_chung_tu.kiem"},
 	"Sales Order": {
 		"validate": "vagabond.he_so_chung_tu.kiem",
@@ -659,6 +663,7 @@ doc_events = {
 		# Hai viec, chay theo thu tu: don o email sai truoc (de chung tu con
 		# luu duoc), roi moi ap giam gia noi bo.
 		"before_validate": [
+			"vagabond.lo_het_han.mo_chot_mua_ban",
 			"vagabond.email_sach.don",
 			"vagabond.combo_mon.truoc_khi_luu",
 			"vagabond.noi_bo.truoc_khi_luu",

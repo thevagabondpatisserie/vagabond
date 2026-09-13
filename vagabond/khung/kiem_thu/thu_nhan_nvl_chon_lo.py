@@ -85,7 +85,7 @@ def dong(ma, kho, qty, he_so=1, uom=None, lo=None, goi=None, **them):
 
 
 _CUA = ("_theo_lo", "_ton_tung_lo", "_ton_lo_qua_han", "_xep_het_han_truoc",
-	"_cac_ma_thay_the", "_kho_khac_con", "_ten_hang", "_lo_trong_goi")
+	"_cac_ma_thay_the", "_kho_khac_con", "_ten_hang", "_lo_trong_goi", "_bo_sung_lo_tay")
 
 
 def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0, goi=None):
@@ -99,13 +99,13 @@ def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0, goi=Non
 	thay_the = thay_the or {}
 	goi = goi or {}
 	that = {t: getattr(lh, t) for t in _CUA}
-	chan_that = lh.lo_het_han.dang_chan
 	# Ban Frappe gia khong co get_cached_value. Dong thay the goi no de lay
 	# don vi goc cua ma moi; thieu no thi gan_lo nem AttributeError roi tu
 	# NUOT, va ca kiem thay phieu y nguyen ma khong biet vi sao.
 	gcv_that = getattr(lh.frappe, "get_cached_value", None)
 	try:
 		lh.frappe.get_cached_value = lambda dt, ten, o=None, **k: "Gram"
+		lh._bo_sung_lo_tay = lambda doc: None  # ca bù lô chạy riêng bên dưới
 		lh._theo_lo = lambda ma: 1
 		lh._ton_tung_lo = lambda ma, kho, ke_ca_qua_han=False: dict(
 			ton.get((ma, kho), {}))
@@ -120,14 +120,12 @@ def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0, goi=Non
 		lh._kho_khac_con = lambda ma, kho: []
 		lh._ten_hang = lambda d, ma: ma
 		lh._lo_trong_goi = lambda ten: dict(goi.get(ten, {}))
-		lh.lo_het_han.dang_chan = lambda: chan
 		p = Phieu(purpose, dong)
 		lh.gan_lo(p)
 		return [d.as_dict() for d in p.items]
 	finally:
 		for t, h in that.items():
 			setattr(lh, t, h)
-		lh.lo_het_han.dang_chan = chan_that
 		if gcv_that is None:
 			try:
 				del lh.frappe.get_cached_value
@@ -258,19 +256,12 @@ def _con_han_truoc():
 	la("không đụng lô quá hạn", _gon(ra), [("NVL1", "CON-HAN", 30.0)])
 
 
-@ca("tích lại ô Chặn xuất lô quá hạn thì KHÔNG vét, chặn như trước")
+@ca("489 vòng vét không phụ thuộc công tắc cũ")
 def _bat_chot_lai():
-	try:
-		chay_gan_lo(
-			purpose="Material Transfer",
-			dong=[dong("NVL1", "Kho A", 60)],
-			ton={("NVL1", "Kho A"): {"CON-HAN": 50}},
-			qua_han={("NVL1", "Kho A"): {"QUA-HAN": 999}},
-			chan=1,
-		)
-		dung("bật ô chặn thì phải chặn", False)
-	except Exception as e:
-		dung("báo thiếu", "không đủ" in str(e))
+	ra = chay_gan_lo(purpose="Material Transfer", dong=[dong("NVL1", "Kho A", 60)],
+		ton={("NVL1", "Kho A"): {"CON-HAN": 50}},
+		qua_han={("NVL1", "Kho A"): {"QUA-HAN": 999}})
+	la("bù đủ phần thiếu", _gon(ra), [("NVL1", "CON-HAN", 50), ("NVL1", "QUA-HAN", 10)])
 
 
 @ca("vòng vét chỉ đổ thêm MỘT LẦN cho mỗi cặp mã và kho")
@@ -492,7 +483,7 @@ def _bo_lo_tat():
 		la("vòng thường chỉ còn lô còn hạn", ra, {"L-OK": 20})
 		ra2 = lh._bo_lo_khong_dung(
 			{"L-TAT": 10, "L-OK": 20, "L-CU": 30}, True)
-		la("vòng vét giữ lô quá hạn, vẫn bỏ lô TẮT", ra2, {"L-OK": 20, "L-CU": 30})
+		la("vòng vét giữ lô quá hạn, vẫn bỏ lô TẮT", ra2, {"L-TAT": 10, "L-OK": 20, "L-CU": 30})
 	finally:
 		lh.frappe.get_all = that
 
@@ -538,3 +529,42 @@ def _xep_that():
 		la("A trước B, C sau cùng", [t for t, _ in ra], ["A", "B", "C"])
 	finally:
 		lh.frappe.get_all = that
+
+
+@ca('489 bù lô chạy thật: tay/gói, nhiều dòng, UOM, thiếu thật và sai kho gói')
+def _bu_lo_hanh_vi():
+	from unittest.mock import patch
+	from contextlib import ExitStack
+	class D(dict):
+		items = property(lambda self: self.get("items"))
+		__getattr__ = dict.get
+		__setattr__ = dict.__setitem__
+		def as_dict(self): return dict(self)
+		def set(self, k, v): self[k] = [D(x) for x in v] if k in ('items', 'entries') else v
+		def save(self): self['saved'] = True
+	def chay(qty, goi=False, kho_goi='K', nhieu=False, he_so=1):
+		g = D(item_code='M', warehouse=kho_goi, type_of_transaction='Outward',
+			voucher_type='Stock Entry', docstatus=0, entries=[D(batch_no='A', qty=-qty*he_so)])
+		p = D(name='P', remarks='Ghi tay')
+		p.set('items', [dict(item_code='M', s_warehouse='K', qty=qty, conversion_factor=he_so,
+			name='D1', batch_no=None if goi else 'A', serial_and_batch_bundle='G' if goi else None)])
+		if nhieu: p['items'].append(D(item_code='M', s_warehouse='K', qty=30, name='D2', batch_no='B'))
+		with ExitStack() as st:
+			for obj, ten, ham in [(lh,'_theo_lo',lambda ma:1),
+				(lh,'_ton_tung_lo',lambda *a,**k:{'A':100,'B':50}),
+				(lh,'_bo_lo_khong_dung',lambda ton, *a:dict(ton)),
+				(lh,'_xep_het_han_truoc',lambda ton:list(ton.items())),
+				(lh,'_kho_khac_con',lambda *a:[]), (lh,'_ten_hang',lambda *a:'M'),
+				(lh.frappe,'get_cached_value',lambda *a:0),
+				(lh.frappe,'get_doc',lambda *a:g), (lh.frappe.db,'get_value',lambda *a,**k:'M')]:
+				st.enter_context(patch.object(obj,ten,side_effect=ham,create=True))
+			lh._bo_sung_lo_tay(p)
+		return p,g
+	for goi in (False,True):
+		p,g=chay(13,goi=goi,he_so=10)
+		phan = {d.batch_no:abs(d.qty) for d in g.entries} if goi else {d['batch_no']:d['qty']*10 for d in p['items']}
+		la('đúng lượng theo UOM',phan,{'A':100,'B':30})
+		dung('giữ ghi tay và cảnh báo',p.remarks.startswith('Ghi tay') and 'Đã bù phần thiếu' in p.remarks)
+	for kw in [dict(qty=200), dict(qty=130,nhieu=True), dict(qty=130,goi=True,kho_goi='SAI')]:
+		try: chay(**kw); dung('phải chặn tồn/kho sai',False)
+		except lh.frappe.ValidationError: pass

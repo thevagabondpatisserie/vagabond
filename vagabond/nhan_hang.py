@@ -484,18 +484,13 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		kq = kho_sap.soat_han_dung(getdate(hsd), hom_nay, toi_thieu)
 		if not kq["dat"]:
 			han_ngan.append(kho_sap.cau_han_dung(ten_mon[khoa], kq))
+	canh_bao_han = []
 	if thieu_han:
-		frappe.throw(
-			"Chưa điền hạn sử dụng cho:<br>%s<br><br>Mặt hàng quản lý theo lô "
-			"phải có hạn dùng thì hệ thống mới lấy hàng cũ ra trước được."
-			% "<br>".join(thieu_han)
-		)
+		canh_bao_han.append("Chưa có hạn sử dụng: " + ", ".join(thieu_han))
 	if han_ngan:
-		frappe.throw(
-			"Hạn dùng không đạt:<br>%s<br><br>Hàng cận hạn thì báo thu mua đổi "
-			"lô khác, đừng nhận vào kho. Muốn đổi mức tối thiểu thì sửa trong "
-			"danh mục Món." % "<br>".join(han_ngan)
-		)
+		canh_bao_han.append("Hạn dùng cần kiểm tra: " + "; ".join(han_ngan))
+	if canh_bao_han:
+		frappe.msgprint("<br>".join(canh_bao_han), title="Kiểm tra hạn dùng", indicator="orange")
 
 	from erpnext.buying.doctype.purchase_order.purchase_order import (
 		make_purchase_receipt,
@@ -525,8 +520,18 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		r.qty = flt(la[khoa].get("sl"))
 		r.received_qty = r.qty
 		r.rejected_qty = 0
-		if la[khoa].get("hsd"):
-			r.han_su_dung = la[khoa]["hsd"]
+		if cint(frappe.db.get_value("Item", r.item_code, "has_batch_no")):
+			# Tạo đúng lô mới của lần nhận này, giữ ngày trên nhãn hoặc để trống.
+			# Không đặt thuộc tính han_su_dung chưa có trên PR Item rồi hy vọng
+			# core tự chuyển nó sang Batch.expiry_date.
+			b = frappe.get_doc({"doctype": "Batch", "item": r.item_code,
+				"expiry_date": la[khoa].get("hsd") or None})
+			from vagabond.ma_phieu_sx import nho_nguoi_go_lo, dat_ten_lo
+			nho_nguoi_go_lo(b); dat_ten_lo(b)
+			b.insert(ignore_permissions=True)
+			r.batch_no = b.name
+			r.serial_and_batch_bundle = None
+			r.use_serial_batch_fields = 1
 		# Don chua kip khai gia thi van cho nhap kho, nhung phai noi ra chu
 		# khong de gia von am tham bang 0.
 		if flt(r.rate) <= 0:
@@ -558,6 +563,8 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		)
 	if du_trong_nguong:
 		ghi += " Nhận dư trong dung sai: %s" % " ".join(du_trong_nguong)
+	if canh_bao_han:
+		ghi += " " + "; ".join(canh_bao_han) + "."
 	pr.remarks = ((pr.get("remarks") or "") + " | " + ghi).strip(" |")
 
 	pr.flags.ignore_permissions = True

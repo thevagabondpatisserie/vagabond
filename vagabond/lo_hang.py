@@ -220,8 +220,9 @@ def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
 				ra[ten] = flt(ra.get(ten, 0)) + flt((d or {}).get("qty"))
 	except Exception:
 		ra = {}
-	if ra:
+	if ra and not ke_ca_qua_han:
 		return {k: v for k, v in ra.items() if flt(v) > LI_TI}
+	ra = {}
 	# Đường dự phòng khi ERPNext đổi cách gọi: cộng thẳng sổ kho.
 	#
 	# 03/09/2026: đường này TỪNG VÔ DỤNG. Nó cộng theo cột `batch_no` của
@@ -254,12 +255,21 @@ def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
 				if e.get("batch_no"):
 					ra[e["batch_no"]] = flt(ra.get(e["batch_no"], 0)) + flt(e.get("qty"))
 	except Exception:
-		pass
+		raise
 	# Duong du phong cong THANG so kho, khong qua bo loc cua ERPNext, nen
 	# no thay ca lo da TAT lan lo qua han. Lay bua o day la hai chuyen:
 	# lo TAT thi `validate_batch` chan cung ngay sau do (bep dung im, cau
 	# loi lai noi ve mot lo khong ai chon), con lo qua han thi len truoc ca
 	# lo con han, pha vo dung thu tu FEFO. Loc lai o day.
+	# Sổ kho thô chứa cả lô tắt/quá hạn nhưng chưa trừ giữ hàng. Dùng đúng
+	# hai bộ giữ POS/SRE của core; lỗi đọc phải dừng, không giả vờ còn hàng.
+	from erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle import (
+		get_reserved_batches_for_pos, get_reserved_batches_for_sre)
+	args = frappe._dict(item_code=ma, warehouse=kho)
+	for giu in (get_reserved_batches_for_pos(args), get_reserved_batches_for_sre(args)):
+		for (lo, k), d in giu.items():
+			if k == kho and lo in ra:
+				ra[lo] += flt(d.get("qty"))
 	ra = _bo_lo_khong_dung(ra, ke_ca_qua_han)
 	return {k: v for k, v in ra.items() if flt(v) > LI_TI}
 
@@ -287,9 +297,9 @@ def _bo_lo_khong_dung(cac_lo, ke_ca_qua_han):
 	ra = {}
 	for ten, so in cac_lo.items():
 		b = ho.get(ten)
-		if not b or cint(b.get("disabled")):
+		if not b:
 			continue
-		if not ke_ca_qua_han and lo_het_han.qua_han(b.get("expiry_date"), hn):
+		if not ke_ca_qua_han and (cint(b.get("disabled")) or lo_het_han.qua_han(b.get("expiry_date"), hn)):
 			continue
 		ra[ten] = so
 	return ra
@@ -300,10 +310,11 @@ def _ton_lo_qua_han(ma, kho, da_tinh=None):
 	tat = _ton_tung_lo(ma, kho, ke_ca_qua_han=True)
 	if not tat:
 		return {}
-	return lo_het_han.chi_lo_qua_han(
-		tat, lo_het_han.han_cua(list(tat)), lo_het_han.hom_nay(),
-		bo_qua=set(da_tinh or {}),
-	)
+	# Vòng cuối chỉ lô tắt/quá hạn, không vét lại hàng tốt đã bị giữ POS.
+	ho = frappe.get_all("Batch", filters={"name": ["in", list(tat)]},
+		fields=["name", "disabled", "expiry_date"], limit_page_length=0)
+	canh_bao = {x.name for x in ho if cint(x.disabled) or lo_het_han.qua_han(x.expiry_date, lo_het_han.hom_nay())}
+	return {k: v for k, v in tat.items() if k in canh_bao and k not in (da_tinh or {})}
 
 
 def _xep_het_han_truoc(cac_lo):
@@ -501,6 +512,81 @@ def _vet_qua_han(muc, ma, kho):
 		muc["con"] = list(muc.get("con") or []) + _xep_het_han_truoc(hh)
 
 
+def _bo_sung_lo_tay(doc):
+	"""Bù phần thiếu của lô đã chọn, cùng mã/kho, không cấp trùng giữa dòng.
+
+	Gói nháp được cập nhật tại chỗ sau khi kiểm liên kết; không xóa gói hay
+	sửa gói đã ghi sổ. Các mã quản serial giữ nguyên đường kiểm của core.
+	"""
+	tui, moi, doi, da_gap_goi = {}, [], False, set()
+	for d in doc.items:
+		lo, goi = d.get("batch_no"), d.get("serial_and_batch_bundle")
+		ma, kho = d.get("item_code"), d.get("s_warehouse")
+		if (not kho or not (lo or goi) or flt(d.qty) <= 0 or not _theo_lo(ma)
+				or cint(frappe.get_cached_value("Item", ma, "has_serial_no")) or d.get("serial_no")):
+			moi.append(d.as_dict()); continue
+		he_so = flt(d.get("conversion_factor")) or 1
+		can = flt(d.qty) * he_so
+		g = None
+		if goi:
+			if goi in da_gap_goi:
+				frappe.throw("Gói %s đang dùng ở hai dòng. Chọn gói riêng cho từng dòng." % goi)
+			da_gap_goi.add(goi)
+			g = frappe.get_doc("Serial and Batch Bundle", goi)
+			if (g.item_code != ma or g.warehouse != kho or g.type_of_transaction != "Outward"
+					or g.voucher_type != "Stock Entry" or cint(g.docstatus) != 0
+					or (g.voucher_no and g.voucher_no != doc.name)
+					or (g.voucher_detail_no and g.voucher_detail_no != d.name)):
+				frappe.throw("Gói lô %s không thuộc dòng/kho nháp này. Kiểm tra lại gói đã chọn." % goi)
+			chon = {}
+			for e in g.entries:
+				if not e.batch_no or e.serial_no:
+					frappe.throw("Gói %s không phải gói lô thuần hợp lệ." % goi)
+				chon[e.batch_no] = chon.get(e.batch_no, 0) + abs(flt(e.qty))
+			if abs(sum(chon.values()) - can) > LI_TI:
+				frappe.throw("Số lượng gói %s khác số lượng dòng. Kiểm tra lại trước khi bù lô." % goi)
+		else:
+			chon = {lo: can}
+		for ten in chon:
+			if frappe.db.get_value("Batch", ten, "item") != ma:
+				frappe.throw("Lô %s không thuộc mã %s." % (ten, ma))
+		k = (ma, kho)
+		if k not in tui:
+			tui[k] = _ton_tung_lo(ma, kho, ke_ca_qua_han=True)
+		ton = tui[k]
+		phan = {}
+		for ten, so in chon.items():
+			lay = min(so, max(0, ton.get(ten, 0)))
+			if lay > LI_TI:
+				phan[ten] = lay; ton[ten] -= lay
+		thieu = can - sum(phan.values())
+		if thieu <= LI_TI:
+			moi.append(d.as_dict()); continue
+		khoe = _bo_lo_khong_dung(ton, False)
+		thu_tu = _xep_het_han_truoc(khoe) + _xep_het_han_truoc({l: v for l, v in ton.items() if l not in khoe})
+		lay_them, con = chia_theo_lo(thieu, thu_tu)
+		if con > LI_TI:
+			frappe.throw(cau_thieu_lo(_ten_hang(d, ma), ma, kho, con,
+				d.get("stock_uom") or d.get("uom") or "", _kho_khac_con(ma, kho)), title="Thiếu hàng trong kho")
+		for ten, so in lay_them:
+			phan[ten] = phan.get(ten, 0) + so; ton[ten] -= so
+		if g:
+			g.set("entries", [{"batch_no": l, "qty": -so, "warehouse": kho} for l, so in phan.items()])
+			g.save()
+			moi.append(d.as_dict())
+		else:
+			for i, (ten, so) in enumerate(phan.items()):
+				x = _boc(d, giu_ten=i == 0)
+				x.update(qty=round(so / he_so, 6), batch_no=ten, use_serial_batch_fields=1)
+				moi.append(x)
+		doi = True
+	if doi:
+		doc.set("items", moi)
+		cau = "Đã bù phần thiếu của lô đã chọn bằng lô khác cùng mã trong đúng kho."
+		if cau not in (doc.get("remarks") or ""):
+			doc.remarks = ((doc.get("remarks") or "") + "\n" + cau).strip()
+
+
 def gan_lo(doc, method=None):
 	"""Hook before_validate của Stock Entry: điền lô cho các dòng bị trừ.
 
@@ -515,6 +601,7 @@ def gan_lo(doc, method=None):
 		if not getattr(doc, "items", None):
 			return
 
+		_bo_sung_lo_tay(doc)
 		can_lam = False
 		for d in doc.items:
 			if _dong_can_lo(d):
@@ -565,7 +652,7 @@ def gan_lo(doc, method=None):
 			# và còn mã thay thế. Chốt của anh Việt 03/09/2026: thà bếp
 			# xuất được rồi ghi vết, còn hơn đứng im vì một dòng ngày hết
 			# hạn gõ sai lúc kiểm kho. Ô chặn nằm ở Vagabond Settings.
-			if thieu > LI_TI and not lo_het_han.dang_chan():
+			if thieu > LI_TI:
 				_vet_qua_han(muc, ma, kho)
 				p3, thieu = rut_tu_kho(muc, thieu)
 				phan = list(phan) + list(p3)
@@ -613,6 +700,7 @@ def gan_lo(doc, method=None):
 	except Exception:
 		# Hỏng ở đây không được kéo đổ cả phiếu: để ERPNext xử như trước.
 		frappe.log_error(frappe.get_traceback(), "lo_hang: gan lo tu dong")
+		raise
 
 
 def _ten_hang(d, ma):
