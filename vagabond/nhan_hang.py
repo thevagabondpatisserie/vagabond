@@ -382,6 +382,7 @@ def _doc_dong(dong):
 		ra[khoa] = {
 			"sl": flt((x or {}).get("sl")),
 			"hsd": str((x or {}).get("hsd") or "").strip(),
+			"giu": cint((x or {}).get("giu") or 0),
 		}
 	return ra
 
@@ -401,7 +402,7 @@ def _han_nhan_cua_dong(r, han):
 		return "Hạn dùng cần kiểm tra: " + kho_sap.cau_han_dung(ten, kq)
 
 
-def _lo_nhan_thuc_te(r, han):
+def _lo_nhan_thuc_te(r, han, giu=False):
 	# Batch.before_save của ERPNext gọi set_expiry_date. Cờ riêng giữ ngày
 	# nhãn/trống, không sửa chính sách shelf life của những cửa khác.
 	han = getdate(han) if han else None
@@ -411,6 +412,8 @@ def _lo_nhan_thuc_te(r, han):
 		b = frappe.get_doc("Batch", r.batch_no, for_update=True)
 		if b.item != r.item_code:
 			frappe.throw("Lô không thuộc đúng mã hàng, mở lại phiếu để kiểm tra.")
+		if giu:
+			return b.expiry_date, "Chưa đọc được HSD lô %s trên app, giữ hạn đã lưu %s." % (b.name, str(b.expiry_date or "chưa có"))
 		if str(b.expiry_date or "") != str(han or ""):
 			# Cả sổ kiểu batch_no cũ và sổ qua bundle mới, kể cả đã hủy:
 			# không viết lại HSD lịch sử chỉ vì một phiếu nhận mới.
@@ -449,7 +452,7 @@ def ghi_phieu_nhap(doc, dong=None):
 	goc = frappe.get_doc("Purchase Receipt", data["name"], for_update=True)
 	goc.check_permission("write"); goc.check_permission("submit")
 	if goc.docstatus == 1:
-		return {"phieu":goc.name, "canh_bao_han":[t.strip()[len("Kiểm tra HSD: "):] for t in (goc.remarks or "").split(" | ") if t.strip().startswith("Kiểm tra HSD: ")], "da_ghi":1}
+		return {"phieu":goc.name, "canh_bao_han":[t.strip()[len("Kiểm tra HSD: "):] for dong_vet in (goc.remarks or "").splitlines() for t in dong_vet.split(" | ") if t.strip().startswith("Kiểm tra HSD: ")], "da_ghi":1}
 	if goc.docstatus != 0 or cint(goc.get("is_return")):
 		frappe.throw("Chỉ nhận hàng trên phiếu nháp nhập mua, không phải phiếu trả.")
 	if str(data.get("modified")) != str(goc.modified):
@@ -469,9 +472,14 @@ def ghi_phieu_nhap(doc, dong=None):
 		sl = nhap[r.name]["sl"]
 		if not math.isfinite(sl) or sl <= 0 or sl > flt(x.qty) + EPS:
 			frappe.throw("Số thực nhận phải lớn hơn 0 và không vượt phiếu nháp.")
+		if r.get("serial_and_batch_bundle") and abs(sl-flt(x.qty)) > EPS:
+			frappe.throw("Dòng đã chia gói lô, số nhận phải bằng số trên phiếu. Sửa gói trên Desk nếu nhận thiếu rồi mở lại phiếu.")
 		r.qty = r.received_qty = sl
 		r.rejected_qty = 0
 		if r.get("batch_no"):
+			if nhap[r.name]["giu"]:
+				b = frappe.get_doc("Batch", r.batch_no, for_update=True)
+				nhap[r.name]["hsd"] = str(b.expiry_date or "")
 			han = str(getdate(nhap[r.name]["hsd"])) if nhap[r.name]["hsd"] else ""
 			if r.batch_no in han_theo_lo and han_theo_lo[r.batch_no] != han:
 				frappe.throw("Hai dòng cùng lô %s nhưng HSD khác nhau. Một lô chỉ có một hạn, sửa các dòng cho khớp." % r.batch_no)
@@ -483,7 +491,7 @@ def ghi_phieu_nhap(doc, dong=None):
 		for r in pr.items:
 			han = nhap[r.name]["hsd"]
 			if cint(frappe.db.get_value("Item", r.item_code, "has_batch_no")):
-				han, luu_y = _lo_nhan_thuc_te(r, han)
+				han, luu_y = _lo_nhan_thuc_te(r, han, giu=nhap[r.name]["giu"])
 				if luu_y: canh.append(luu_y)
 			# Gói lô giữ ngày riêng của từng lô, không lấy ô ngày chung để
 			# mô tả sai dữ liệu vừa ghi. Hook chứng từ vẫn kiểm từng lô.

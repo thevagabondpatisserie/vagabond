@@ -532,7 +532,9 @@ def _nhan_nhap_han_that():
 		if canh: dung('cảnh báo lưu phiếu', ('Chưa có hạn sử dụng' if not han else 'Hạn dùng cần kiểm tra') in (pr.remarks or ''))
 		else: dung('hạn tốt không cảnh báo thừa','Chưa có hạn sử dụng' not in (pr.remarks or '') and 'Hạn dùng cần kiểm tra' not in (pr.remarks or ''))
 		sle=frappe.db.count('Stock Ledger Entry',{'voucher_type':'Purchase Receipt','voucher_no':pr.name})
-		la('retry đúng phiếu',nhan_hang.ghi_phieu_nhap(payload,dong)['phieu'],pr.name)
+		lap=nhan_hang.ghi_phieu_nhap(payload,dong)
+		la('retry đúng phiếu',lap['phieu'],pr.name)
+		la('retry đúng cảnh báo kể cả lô quá hạn',lap['canh_bao_han'],ra['canh_bao_han'])
 		la('retry không thêm SLE',frappe.db.count('Stock Ledger Entry',{'voucher_type':'Purchase Receipt','voucher_no':pr.name}),sle)
 		la('tồn sau nhận',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),1)
 		pr.cancel();la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)
@@ -565,6 +567,8 @@ def _nhap_lo_chon_san(kieu):
 		pr.save()
 	pr.reload(); payload=pr.as_dict()
 	dong=[dict(dong=r.name,sl=1,hsd=han_moi) for r in pr.items]
+	if kieu in ('giu','xoa'):
+		dong[0].update(hsd='',giu=1 if kieu=='giu' else 0)
 	if kieu=='hai_dong':
 		dong[1]['hsd']=''
 		try: nhan_hang.ghi_phieu_nhap(payload,dong)
@@ -579,10 +583,18 @@ def _nhap_lo_chon_san(kieu):
 		except frappe.ValidationError as e: dung('chặn vượt số DB','không vượt phiếu nháp' in str(e))
 		else: raise AssertionError('Phải chặn vượt nháp')
 		dong[0]['sl']=1
+	if kieu=='goi':
+		dong[0]['sl']=0.5
+		try: nhan_hang.ghi_phieu_nhap(payload,dong)
+		except frappe.ValidationError as e: dung('gói lệch có hướng dẫn','Sửa gói trên Desk' in str(e))
+		else: raise AssertionError('Lượng gói không khớp phải chặn')
+		dong[0]['sl']=1
 	ra=nhan_hang.ghi_phieu_nhap(payload,dong);pr.reload()
 	la('ghi sổ được',pr.docstatus,1)
 	la('số đếm thắng qty10 của payload',[float(r.qty) for r in pr.items],[1.0]*so_dong)
-	la('hạn đúng chính sách',str(frappe.db.get_value('Batch',lo,'expiry_date')),han_cu if kieu in ('co_so','goi') else han_moi)
+	la('hạn đúng chính sách',str(frappe.db.get_value('Batch',lo,'expiry_date') or ''),han_cu if kieu in ('co_so','goi','giu') else ('' if kieu=='xoa' else han_moi))
+	if kieu in ('giu','xoa'):
+		dung('cảnh báo đúng giữ hoặc xóa', any(('Chưa đọc được HSD' if kieu=='giu' else 'Chưa có hạn sử dụng') in c for c in ra['canh_bao_han']))
 	if kieu in ('co_so','goi'):
 		dung('có cảnh báo giữ hạn',any(('đã có sổ kho' if kieu=='co_so' else 'đã chia gói lô') in c for c in ra['canh_bao_han']))
 		la('retry giữ đúng cảnh báo',nhan_hang.ghi_phieu_nhap(payload,dong)['canh_bao_han'],ra['canh_bao_han'])
@@ -601,6 +613,12 @@ def _nhap_co_goi(): _nhap_lo_chon_san('goi')
 
 @ca('489 PR nháp: hai dòng một lô không ghi đè hai hạn, cùng hạn ghi đủ hai dòng')
 def _nhap_hai_han(): _nhap_lo_chon_san('hai_dong')
+
+
+@ca('489 PR nháp: đọc HSD lỗi giữ hạn lô chưa sổ, xóa chủ động vẫn xóa được')
+def _nhap_giu_han_loi():
+	_nhap_lo_chon_san('giu')
+	_nhap_lo_chon_san('xoa')
 
 
 def _mua_ban_lo_cu(dt):

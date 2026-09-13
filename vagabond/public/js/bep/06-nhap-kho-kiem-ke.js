@@ -227,6 +227,7 @@ async function rcvScanOpen() {
 var rcvD = null;
 
 function hsdNote(x) {
+  if (x.giu) return 'Chưa đọc được HSD lô. Máy chủ giữ hạn đã lưu nếu anh chị chưa sửa ô ngày.';
   if (!x.hsd) return 'Chưa nhập HSD trên bao bì. Có thể để trống khi chưa biết.';
   if (x.dflt) return 'Máy tự tính sẵn: ' + dmy(x.hsd) + '. Bao bì ghi hạn khác thì bấm vào sửa lại.';
   return 'Lấy theo bao bì: ' + dmy(x.hsd) + ', khác với hạn chuẩn.';
@@ -292,6 +293,7 @@ async function scrRecvDoc(name) {
         tren: tren, po: po,
         got: tran, sl: slf[r.item_code] || 0,
         hsd: hanLo[r.batch_no] || '',
+        giu: r.batch_no && !Object.prototype.hasOwnProperty.call(hanLo, r.batch_no) ? 1 : 0,
         dflt: 0, batch: bat[r.item_code] ? 1 : 0, ok: 0
       };
     })
@@ -395,7 +397,7 @@ async function scrRecvDoc(name) {
         if (chuaGia.length) setTimeout(function () { toast('Có ' + chuaGia.length + ' món nhập kho khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
       }
 
-      var nhan = await api('vagabond.nhan_hang.ghi_phieu_nhap', { doc: d, dong: JSON.stringify(keep.map(function (x) { return { dong: x.row, sl: x.got, hsd: x.hsd || '' }; })) });
+      var nhan = await api('vagabond.nhan_hang.ghi_phieu_nhap', { doc: d, dong: JSON.stringify(keep.map(function (x) { return { dong: x.row, sl: x.got, hsd: x.giu ? null : (x.hsd || ''), giu: x.giu || 0 }; })) });
       if (nhan.canh_bao_han && nhan.canh_bao_han.length) await confirmSheet('Đã nhận hàng - kiểm tra hạn dùng', nhan.canh_bao_han.join('\n'), 'Đã xem');
       busy(0);
       rcv.tab = 'xong';
@@ -466,6 +468,7 @@ async function scrRecvDoc(name) {
       el.onchange = function () {
         var i = parseInt(el.dataset.h, 10), x = L[i];
         x.hsd = el.value || '';
+        x.giu = 0;
         x.dflt = 0;
         el.classList.toggle('ed', !x.dflt);
         var nt = b.querySelector('[data-hn="' + i + '"]');

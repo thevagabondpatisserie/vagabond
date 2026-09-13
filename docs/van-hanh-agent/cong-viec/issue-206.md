@@ -68,3 +68,7 @@ Review inline3999893083/085 và Claude3999893690/714: màn nhận không tự đ
 ## F17-F20 và hai inline P1 (13/09)
 
 Bench37fc1f8 xác nhận lỗi thật Batch chưa tồn tại vì save sau khi đặt name. Sửa insert cho lô mới/save cho lô cũ. Lô có SLE và gói có sẵn nay giữ hạn và cảnh báo, vẫn submit; không còn hai throw HSD mới. Máy chủ lấy qty/received_qty từ sl đã kiểm hữu hạn, dương, không vượt nháp DB. Gom HSD cùng batch trước khi ghi, chặn dữ liệu hai hạn mâu thuẫn, không chọn tùy ý ngày nào. F20 lỗi đọc Batch trên UI chỉ nhắc; retry lọc câu HSD riêng. Thêm bốn ca bench lô chưa sổ/có sổ/gói/hai dòng, kèm qty10 nhưng đếm1 và vượt11. Local2960/2960, cổng rc0. Chờ bench/review SHA mới, chưa merge/deploy.
+
+## F24 và F21/F22 - 13/09
+
+Bench76d9832 xanh nhưng inline F24 phát hiện lookup Batch lỗi/thiếu biến thành xóa ngày. App nay gửi giu=1/hsd=null cho dòng chưa đọc được và chưa sửa ô; onchange đặt giu=0 nên xóa chủ động vẫn gửi trống. Máy chủ đọc và khóa Batch, thay ngày chưa biết bằng ngày DB trước kiểm mâu thuẫn, không save nhánh giữ; trả cảnh báo riêng. Node phủ lookup reject/thiếu, chưa chạm và chủ động xóa. Bench thêm lô chưa SLE có hạn: giữ khi lookup lỗi, xóa khi chủ động. F21 retry tách cả xuống dòng, kiểm cả lô quá hạn; F22 lượng gói khác số đếm trả hướng dẫn sửa gói trên Desk. Chờ bench/review SHA mới, không dùng kết quả76d9832 cho bản sửa.
