@@ -25,9 +25,12 @@ def _bom(ma, cty, so, dong, phantom=0):
 
 def _chay(nhieu_cap):
     cty = cong_ty()
-    kho = frappe.get_all('Warehouse', filters={'company': cty, 'is_group': 0,
-        'disabled': 0}, pluck='name', limit_page_length=2)
-    dung('fixture có hai kho', len(kho) == 2)
+    from erpnext import is_perpetual_inventory_enabled
+    from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng, _gl_phieu
+    dung('bench bật hạch toán kho', bool(is_perpetual_inventory_enabled(cty)))
+    nguon, tk_nvl = _kho_rieng(cty, '303-NVL')
+    dich, tk_tp = _kho_rieng(cty, '303-TP')
+    kho = [nguon, dich]
     tag = uuid.uuid4().hex[:10]
     bot, nuoc, mass, tp = [_mon_thu('KT303-' + loai + tag) for loai in ['BOT','NUOC','MASS','TP']]
     m = frappe.get_doc('Item', mass); m.is_stock_item = 0; m.save()
@@ -62,20 +65,25 @@ def _chay(nhieu_cap):
         la('giá trị TP nhận', sum(float(x.stock_value_difference) for x in sle if x.item_code == tp), 7000)
         gl = so_cai_cua(d)
         la('GL cân', sum(float(x.debit) for x in gl), sum(float(x.credit) for x in gl))
-        if not gl: la('không GL thì SLE ròng0', sum(float(x.stock_value_difference) for x in sle), 0)
+        dung('GL không rỗng', bool(gl))
+        la('Có kho NVL', sum(float(x.credit)-float(x.debit) for x in gl if x.account == tk_nvl), 7000)
+        la('Nợ kho TP', sum(float(x.debit)-float(x.credit) for x in gl if x.account == tk_tp), 7000)
     la('Mass không phát sinh SLE', frappe.db.count('Stock Ledger Entry', {'item_code': mass}), 0)
     la('Mass không phát sinh Bin', frappe.db.count('Bin', {'item_code': mass}), 0)
     for d in reversed(phieu):
         d.cancel()
+        for tk in [tk_nvl, tk_tp]:
+            la('huỷ đảo đủ từng tài khoản', sum(float(x.debit)-float(x.credit) for x in _gl_phieu(d) if x.account == tk), 0)
         la('huỷ không còn GL hiệu lực', frappe.db.count('GL Entry', {'voucher_type': 'Stock Entry', 'voucher_no': d.name, 'is_cancelled': 0}), 0)
     for ma in [bot, nuoc]:
         la('huỷ trả đủ NVL', float(frappe.db.get_value('Bin', {'item_code':ma,'warehouse':kho[0]}, 'actual_qty')), 10)
     for ma, gia in [(bot,10000),(nuoc,20000),(tp,0)]:
         k = kho[1] if ma == tp else kho[0]
-        bin = frappe.db.get_value('Bin', {'item_code':ma,'warehouse':k}, ['actual_qty','stock_value'], as_dict=True)
-        dung('Bin tồn tại sau huỷ', bool(bin))
-        la('huỷ trả giá trị kho', float(bin.stock_value), gia)
-        if ma == tp: la('huỷ trả hết TP', float(bin.actual_qty), 0)
+        ton = frappe.db.get_value('Bin', {'item_code':ma,'warehouse':k}, ['actual_qty','stock_value'], as_dict=True)
+        dung('Bin tồn tại sau huỷ', bool(ton))
+        if not ton: continue
+        la('huỷ trả giá trị kho', float(ton.stock_value), gia)
+        if ma == tp: la('huỷ trả hết TP', float(ton.actual_qty), 0)
     wo.reload(); la('huỷ trả sản lượng', float(wo.produced_qty), 0)
     dung('huỷ không còn Completed', wo.status != 'Completed')
 

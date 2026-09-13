@@ -19,3 +19,5 @@ Sửa306-1/2/3: chuyển ba ca riêng vào cổng khung; thêm ca thứ4 chốt 
 Thêm hai ca bench fixture riêng, tỷ lệ minh hoạ không phải công thức tiệm: Work Order nổ một/nhiều cấp, hoàn tất hai phần, trừ đúng NVL và giá trị, Mass không có Bin/SLE, GL cân, huỷ trả tồn/sản lượng. Chưa chạy bench SHA mới; không nhận hai ca viết ra là đã đạt. Retry qua API hoàn tất và nghiệm thu thao tác Khải vẫn chưa phủ. Không sửa runtime, cấu hình hoặc chứng từ live.
 
 Bổ sung306-5/306-6: chốt bảng nổ chỉ có hai NVL đúng lượng; sau huỷ chốt giá trị Bin NVL, Bin TP cả số/giá trị về0, không GL hiệu lực và WO không Completed. Bench34757934708 trênbb161d1d đã SUCCESS; bản bổ sung cần bench SHA mới, không lấy kết quả cũ thay thế.
+
+Sửa 306-7: fixture hai kho/tài khoản riêng, phải bật hạch toán kho; mỗi lượt Có NVL/Nợ TP đúng 7000, GL phải có dòng, sau huỷ từng tài khoản ròng 0. Không chấp nhận GL rỗng làm bằng chứng định giá.
