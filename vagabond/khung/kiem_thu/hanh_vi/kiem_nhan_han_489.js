@@ -3,14 +3,14 @@ const fs=require('fs'), vm=require('vm'), assert=require('assert');
 const {taiLieuGia,ElementGia}=require('./dom_gia.js');
 Object.defineProperty(ElementGia.prototype,'classList',{get(){const e=this;return {add(k){this.toggle(k,true)},remove(k){this.toggle(k,false)},toggle(k,on){const a=new Set((e.getAttribute('class')||'').split(' '));if(on)a.add(k);else a.delete(k);e.setAttribute('class',[...a].join(' '));}};}});
 async function canh(ngay,canhBao,cu=false,loiDoc=null,chuaSua=false){
- const document=taiLieuGia(),goi=[],suKien=[];
+ const document=taiLieuGia(),goi=[],suKien=[];let dangCho=0;
  const tim=document.querySelector.bind(document);document.querySelector=sel=>{const a=sel.split(' ');return a.length===2 ? tim(a[0])?.querySelector(a[1]) : tim(sel);};
  const c={document,console,Date,Math,JSON,Promise,setTimeout,
   today:()=> '2026-09-13',addDays:(d,n)=>new Date(Date.parse(d)+n*86400000).toISOString().slice(0,10),
-  h:x=>String(x||''),num:String,dmy:String,shortWh:String,vgbCss:()=>{},busy:()=>{},toast:m=>suKien.push(['toast',m]),
+  h:x=>String(x||''),num:String,dmy:String,shortWh:String,vgbCss:()=>{},busy:v=>{dangCho=v;},toast:m=>suKien.push(['toast',m]),
   errMsg:e=>{throw e;},back:()=>suKien.push(['back']),
   getList:async(dt)=>{if(dt==='Batch' && loiDoc==='loi')throw Error('mạng');return dt==='Item'?[{name:'M',has_batch_no:1,shelf_life_in_days:90}]:[];},
-  confirmSheet:async(t,m)=>{suKien.push(['dialog',t,m]);return true;},
+  confirmSheet:async(t,m)=>{assert.strictEqual(dangCho,0,'lớp chờ không được che sheet');suKien.push(['dialog',t,m]);return true;},
   frame:(t,html,o={})=>{document.body.innerHTML='';const b=new ElementGia('div'); b.setAttribute('id','vgbBody'); b.innerHTML=html+(o.footer||'');b.parentNode=document.body;document.body.children.push(b);return b;},
   api:async(url,args)=>{
    goi.push({url,args});

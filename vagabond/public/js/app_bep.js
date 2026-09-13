@@ -7784,8 +7784,8 @@ async function scrRecvDoc(name) {
       var d = { doctype: 'Purchase Receipt', name: rcvD.name, modified: rcvD.doc.modified,
         custom_hinh_nhan_hang_1: rcvD.anh1 || '', custom_hinh_nhan_hang_2: rcvD.anh2 || '', custom_scan_bien_ban: rcvD.scan || '' };
       var nhan = await api('vagabond.nhan_hang.ghi_phieu_nhap', { doc: d, dong: JSON.stringify(keep.map(function (x) { return { dong: x.row, sl: x.got, hsd: x.giu ? null : (x.hsd || ''), giu: x.giu || 0 }; })) });
-      if (nhan.canh_bao_han && nhan.canh_bao_han.length) await confirmSheet('Đã nhận hàng - kiểm tra hạn dùng', nhan.canh_bao_han.join('\n'), 'Đã xem');
       busy(0);
+      if (nhan.canh_bao_han && nhan.canh_bao_han.length) await confirmSheet('Đã nhận hàng - kiểm tra hạn dùng', nhan.canh_bao_han.join('\n'), 'Đã xem');
       if (nhan.thieu_gia && nhan.thieu_gia.length) toast('Có món chưa có giá: ' + nhan.thieu_gia.join(', ') + '. Báo kế toán bổ sung giá.', 7000);
       rcv.tab = 'xong';
       toast('✓ Đã nhập kho phiếu ' + rcvD.name + '. Phiếu nằm ở tab Đã nhập kho.');
