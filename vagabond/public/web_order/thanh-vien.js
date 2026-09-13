@@ -8,8 +8,8 @@
   async function hoSo(){const d=await api('toi');if(!d.ok){tim('ho-so').hidden=true;tim('dang-nhap').hidden=false;if(d.ly_do!=='chua_dang_nhap')bao(lyDo[d.ly_do]||'Không đọc được hồ sơ.',true);return false;}tim('dang-nhap').hidden=true;tim('ho-so').hidden=false;tim('ten').textContent=d.ten||'Chào bạn';tim('hang').textContent=d.hang?.ten_hang||'Thành viên Vagabond';tim('quyen-loi').textContent=d.hang?.mo_ta||'';tim('diem').textContent=Number(d.diem||0).toLocaleString('vi-VN')+' điểm';const anh=d.hang?.anh||'';tim('anh-the').hidden=!anh;if(anh && (/^\/files\//.test(anh)||/^\/assets\//.test(anh)||/^https:\/\//.test(anh)))tim('anh-the').src=anh;const g=tim('don');g.replaceChildren();if(d.don_chua_mo){g.append(tao('p','L\u1ecbch s\u1eed \u0111\u01a1n h\u00e0ng ch\u01b0a kh\u1ea3 d\u1ee5ng. Li\u00ean h\u1ec7 ti\u1ec7m n\u1ebfu b\u1ea1n c\u1ea7n tra c\u1ee9u.'));}else if(d.don_loi){g.append(tao('p','Chưa tải được lịch sử đơn. Bạn thử lại sau nhé.'));const nut=tao('button','Thử lại');nut.type='button';nut.onclick=()=>hoSo().catch(()=>bao('Chưa tải được lịch sử đơn. Bạn thử lại sau nhé.',true));g.append(nut);}else if(!d.don.length)g.append(tao('p','Chưa có đơn đặt online để hiển thị.'));d.don.forEach(o=>{
     const dong=tao('article','');dong.className='don';
     const dau=tao('div','');dau.className='hang-ngang';
-    const ngay=/^(\d{4})-(\d{2})-(\d{2})/.exec(o.luc_tao||'');
-    dau.append(tao('h3','Đơn '+o.ma_don+(ngay?' · '+ngay[3]+'/'+ngay[2]:'')));
+    const ngay=/^(\d{4})-(\d{2})-(\d{2})$/.exec(o.ngay_dat||'');
+    dau.append(tao('h3','Đơn '+o.ma_don+(ngay?' · '+ngay[3]+'/'+ngay[2]+'/'+ngay[1]:'')));
     const nhan=tao('span',o.trang_thai||'Tiệm đang cập nhật trạng thái');
     nhan.className='trang-thai-don '+(['xanh','vang','xam'].includes(o.mau_trang_thai)?o.mau_trang_thai:'xam');
     dau.append(nhan);dong.append(dau);
