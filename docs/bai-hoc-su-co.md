@@ -434,3 +434,15 @@ Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/x
 - #302 F24: đọc dữ liệu thất bại không phải giá trị rỗng. API cần trạng thái giữ riêng với xóa chủ động; kiểm cả lô chưa có SLE vì guard lịch sử không bảo vệ nó. Ca UI mock lỗi/thiếu phải theo tới payload, ca bench đọc lại ngày DB.
 
 - #302 F26: khóa bản DB rồi vẫn get_doc(payload) chưa bảo vệ giá/quy cách/ngày. Dùng bản DB, chỉ áp trường thao tác đã cho phép; giá tạm tính từ nguồn cùng công ty/tiền tệ trên máy chủ. Câu cảnh báo quá hạn ngưỡng0 phải đổi cả trạng thái dat trước khi gọi hàm dựng câu.
+
+
+## 14/09/2026 - Issue287: một pending làm đứng Telegram gần9giờ
+
+Dấu gửi lúc15:54 ngày13/09 không có receipt; mọi lượt sau dừng toàn kênh.
+Run34772786863 sau gỡ đúng pending theo duyệt đã gửi30tin, giữ cursor/seen.
+Bản sửa cho phép một lần gửi lại sau10phút bằng đồng hồ ghi_luc; at là giờ
+sự kiện nên dùng nó với backlog sẽ gửi trùng sớm. Telegram OK phải ghi mã
+biên nhận trước khi đóng pending; PUT lỗi chỉ retry cùngSHA hoặc nhận đúng
+nội dung đã ghi. Hai lần mất phản hồi giữ vết cần đối chiếu, không gửi vô hạn.
+Seen/entity/cursor/receipt nhóm tách riêng để nhóm lỗi không làm mất tin riêng
+và ngược lại. Đây chỉ là đánh đổi cho thông báo đã duyệt, không dùng choHĐĐT.

@@ -2,8 +2,13 @@ name: Telegram ghep chat
 on:
   workflow_dispatch:
     inputs:
+      loai_chat:
+        description: Ghép chat riêng hoặc nhóm bộ phận bằng mã anh Việt gửi
+        type: choice
+        options: [rieng, bo-phan]
+        default: rieng
       ma_ghep:
-        description: Mã một lần anh Việt gửi trong private chat
+        description: Mã một lần anh Việt gửi trong chat cần ghép
         required: true
       public_key:
         description: Public key repository secrets từ GitHub API (không phải token)
@@ -30,6 +35,8 @@ jobs:
       - name: Ghép đúng chat và mã hoá ID
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LOAI_CHAT: ${{ inputs.loai_chat }}
           MA_GHEP: ${{ inputs.ma_ghep }}
           PUBLIC_KEY: ${{ inputs.public_key }}
           KEY_ID: ${{ inputs.key_id }}

@@ -39,6 +39,8 @@ phải worker hay bằng chứng automation đã bật. Codex làm chính, Claud
 
 ## Mục lục
 
+- [Issue287: Telegram](cong-viec/issue-287.md)
+
 - [Issue 206: lô và giá vốn sản xuất](cong-viec/issue-206.md)
 
 - [Issue 294: cloud và lưu bàn giao](cong-viec/issue-294.md)

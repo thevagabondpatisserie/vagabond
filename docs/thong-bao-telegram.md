@@ -93,15 +93,27 @@ muốn ghép lại phải xác nhận đúng người qua mã mới và đọc l
 
 ## Đối chiếu tin chưa rõ kết quả
 
-Dấu `pending` được ghi bền trước sendMessage; `seen` chỉ ghi sau phản hồi
-đúng chat/message. PUT lỗi/mất mạng/worker chết không được tự gửi lại.
+Dấu `pending` được ghi bền trước sendMessage. Theo duyệt Issue287 ngày14/09,
+thông báo được phép gửi lại đúng một lần sau10phút với nhãn `(gửi lại)`;
+đây là tin thông báo, tuyệt đối không áp dụng cách này cho chứng từ/HĐĐT.
 
-Người vận hành đọc code của `pending` trong nhánh trạng thái rồi hỏi anh tin
-có `Mã tin` đó đã tới chưa. Nếu có: thêm `seen[pending.key]=pending.at`, xoá
-pending bằng PUT có SHA hiện tại. Nếu pending có entity/signature thì cập
-nhật thêm entities[pending.entity] với signature và at đó trước khi xoá. Nếu chắc chưa tới và được yêu cầu gửi lại:
-chỉ xoá pending bằng PUT có SHA hiện tại rồi chạy đối soát. Nếu chưa rõ, giữ
-nguyên. Không reset cả mốc, không xoá toàn bộ seen. Mọi sửa chữa ghi trên Issue.
+- Đồng hồ lấy `ghi_luc` (giờ ghi dấu), không lấy `at` (giờ sự kiện). Pending
+  cũ thiếu đồng hồ bắt đầu đếm từ lần nâng cấp đầu, không giả nhận đã đủ hạn.
+- Sau Telegram OK: log chỉ mã tin/message_id/kênh, lưu receipt vào pending,
+  rồi ghi seen. PUT mất phản hồi đọc lại: cùng nội dung coi thành công; cùng
+  SHA mới thử PUT lại một lần; SHA khác dừng, không ghi đè trạng thái khác.
+- Pending có receipt: chỉ đóng dấu, không gửi lại. Chưa có receipt và đủ
+  10phút: đọc lại nguồn để gửi có nhãn. Nguồn không còn dùng tin ngắn chỉ rõ
+  mất phản hồi; không lưu nội dung tin trong nhánh trạng thái.
+- Lần gửi lại cũng mất phản hồi: sau10phút chuyển vết sang `can_doi_chieu`,
+  không gửi lần ba, nhường kênh cho tin mới. Đây KHÔNG phải bằng chứng đã gửi;
+  người vận hành đối chiếu mã trong Actions và chat. Không tự xóa vết này.
+- Receipt giữ30ngày, không chứa token/chat ID/nội dung tin. Lỗi HTTP nêu nguồn
+  GitHub hoặc Telegram, không in URL hay response body.
+
+Việc mở kẹt legacy ngày14/09 đã được anh Việt giao theo comment5654964136:
+chỉ gỡ pending c4636da5a05da85d73c053d2, giữ cursor/seen. Run34772786863 gửi30tin.
+Không reset cả mốc để xử lý một tin mất phản hồi.
 
 Nguồn: [Telegram Bot API](https://core.telegram.org/bots/api),
 [GitHub - sự kiện không kích hoạt tiếp khi dùng GITHUB_TOKEN](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
@@ -144,3 +156,31 @@ chủ repo. Nếu có khối sai/schema/người đăng không hợp lệ, tin m
 rõ chưa gửi tóm tắt, không in nội dung bị từ chối. Khoảng trắng đầu/cuối nhãn
 được bỏ qua như nhánh metadata. Bản tin chỉ lấy từ comment chung của Issue/PR,
 không lấy khối trong góp ý trên dòng code.
+
+
+## Nhóm bộ phận chỉ nhận bản tin tính năng
+
+Secret tùy chọn `TELEGRAM_CHAT_ID_BO_PHAN`. Trống thì chỉ gửi riêng như cũ.
+Chỉ khối release hợp lệ của chủ repo gửi cả hai kênh. Nhóm chỉ nhận tiêu đề,
+ngày và features, không SHA/link GitHub/tin review/CI. Trạng thái nhóm nằm
+trong `bo_phan` của cùngstate, có cursor/seen/entities/pending/receipt riêng;
+không lưu chat ID trong git. Lỗi một kênh vẫn thử kênh còn lại. Khi ghép mới,
+nhóm bắt đầu từ mốc kích hoạt, không phát hàng loạt bản tin lịch sử.
+
+### Anh Việt làm trên Telegram
+
+1. Tạo nhóm “Vagabond cập nhật ERP”, thêm trưởng bộ phận và VagabondERPBot,
+   cho bot quyền gửi tin. Báo Codex khi nhóm đã sẵn sàng; không gửi token.
+2. Codex cấp mã một lần `VGB-LINK-` kèm chuỗi ngẫu nhiên. Chính tài khoản
+   Telegram đã ghép riêng của anh gửi nguyên mã trong nhóm, không forward.
+   Nếu bot bật privacy mode, trả lời một tin của bot bằng mã để bot đọc được.
+3. Codex chạy workflow `telegram-ghep.yml`, chọn `loai_chat=bo-phan`, mã mới,
+   public key và key ID repository. Không đổi quyền workflow hoặc webhook.
+   Script chỉ nhận group/supergroup âm, đúng mã trong24giờ, đúng người gửi
+   là chủ private chat đã ghép; hai nhóm khớp thì dừng.
+4. Artifact `chat-encrypted.json` chỉ ciphertext. Kiểm đúng run/SHA/loại ghép,
+   PUT ciphertext vào secret `TELEGRAM_CHAT_ID_BO_PHAN` bằng key ID tương ứng.
+   Không đưa chat ID/token ra log, không đặt đè secret private.
+5. Chạy đối soát để tạo mốc nhóm, rồi bản tin release được duyệt kế tiếp.
+   Kiểm receipt từng kênh trước khi nói nhóm đã nhận. Tin ghép thử không chứng
+   minh bản tin release thật đã chạy. Chưa có nhóm thì code sẵn, chưa bật nhóm.
